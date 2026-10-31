@@ -121,6 +121,7 @@
   .f input, .f select { height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--line2); background: var(--card-solid); outline: none; transition: border-color .2s, box-shadow .2s; }
   .f input:focus, .f select:focus { border-color: var(--acc); box-shadow: 0 0 0 4px var(--ring); }
   .f .btn { height: 44px; }
+  #shareT { padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line2); background: var(--card-solid); font: inherit; font-size: 15px; line-height: 1.6; resize: none; outline: none; }
   .msg { min-height: 1.2em; margin: 0; color: var(--bad); font-size: 13px; }
   dialog { width: min(400px, calc(100vw - 32px)); padding: 34px 28px 26px; border: 0; border-radius: 28px; background: var(--card-solid); color: var(--ink); box-shadow: 0 40px 100px -30px var(--shade); }
   dialog[open] { animation: pop .5s var(--hx-spring); }
@@ -128,6 +129,7 @@
   @keyframes pop { from { opacity: 0; transform: scale(.94); } }
   dialog img { display: block; width: 56px; height: 56px; margin: 0 auto 12px; border-radius: 14px; }
   dialog h2 { margin: 0 0 22px; font-size: 24px; text-align: center; font-weight: 700; }
+  #lseg { margin-bottom: 18px; } .f[hidden], .seg[hidden] { display: none; }
   .gh { background: #24292f !important; color: #fff !important; } .gh svg { width: 18px; height: 18px; fill: #fff; }
   .or { display: flex; align-items: center; gap: 10px; color: var(--faint); font-size: 12px; } .or::before, .or::after { content: ""; flex: 1; height: 1px; background: var(--edge); }
   .toast { position: fixed; left: 50%; bottom: calc(28px + env(safe-area-inset-bottom, 0px)); z-index: 40; transform: translate(-50%, 16px); padding: 12px 20px; border-radius: 99px; background: var(--ink); color: var(--bg); font-size: 15px; font-weight: 500; opacity: 0; pointer-events: none; transition: opacity .3s var(--hx-ease), transform .5s var(--hx-spring); max-width: calc(100vw - 32px); text-align: center; }
@@ -165,7 +167,8 @@
 <div class="toast" id="toast"></div>
 <dialog id="login">
   <img src="logo.jpg" alt="">
-  <h2>登录华夏工具</h2>
+  <h2 id="lt">登录华夏工具</h2>
+  <div class="seg" id="lseg"><button type="button" data-m="in">登录</button><button type="button" data-m="reg">注册</button></div>
   <form class="f" id="lf">
     <input id="lid" autocomplete="username" placeholder="账号名或邮箱" required>
     <input id="lpw" type="password" autocomplete="current-password" placeholder="密码" required>
@@ -175,6 +178,11 @@
     <button class="btn gh" type="button" id="lgh"><svg viewBox="0 0 16 16"><path d="M8 0a8 8 0 0 0-2.53 15.59c.4.07.55-.17.55-.38v-1.33c-2.23.48-2.7-1.07-2.7-1.07-.36-.92-.89-1.17-.89-1.17-.73-.5.05-.49.05-.49.8.06 1.23.83 1.23.83.72 1.22 1.88.87 2.34.66.07-.52.28-.87.5-1.07-1.78-.2-3.65-.89-3.65-3.95 0-.87.31-1.59.83-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.6 7.6 0 0 1 4 0c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.28.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48v2.2c0 .21.15.46.55.38A8 8 0 0 0 8 0z"/></svg>GitHub 登录</button>
     <button class="btn link" type="button" id="lx">取消</button>
   </form>
+  <form class="f" id="rf" hidden></form>
+</dialog>
+<dialog id="share">
+  <h2>发给对方</h2>
+  <div class="f"><textarea id="shareT" readonly rows="5"></textarea><button class="btn" type="button" id="shareC">复制</button><button class="btn link" type="button" id="shareX">关闭</button></div>
 </dialog>
 <script>
 var SITE = location.protocol === 'file:' ? 'https://zcq19991029.github.io' : ''; // 网站上（包括本机拼好的 成品/site）用同一站点里的工具；直接双击打开时嵌线上版
@@ -196,7 +204,8 @@ var HX = (function () {
   function load() { try { s = JSON.parse(localStorage.getItem(SKEY)); } catch (e) { s = null; } return s; }
   function keep(v) { s = v; try { if (v) localStorage.setItem(SKEY, JSON.stringify(v)); else localStorage.removeItem(SKEY); } catch (e) { } }
   var ZH = [[/Invalid login credentials/i, '账号或密码不对'], [/Email not confirmed/i, '邮箱还没确认'], [/rate limit|too many/i, '操作太频繁，请过一会儿再试'], [/JWT expired|invalid JWT/i, '登录过期了，请重新登录'],
-    [/permission denied/i, '没有权限'], [/different from the old password/i, '和现在的密码一样'], [/at least 6/i, '密码至少 6 位'], [/duplicate key|already exists/i, '这个账号名已经有人用了'], [/Identity is already linked/i, '这个 GitHub 已经绑定了别的账号']];
+    [/permission denied/i, '没有权限'], [/different from the old password/i, '和现在的密码一样'], [/at least 6/i, '密码至少 6 位'], [/duplicate key|already exists/i, '这个账号名已经有人用了'], [/Identity is already linked/i, '这个 GitHub 已经绑定了别的账号'],
+    [/already registered|user_already_exists/i, '这个账号名已经注册过了，请直接登录']];
   function zh(m) { m = String(m || ''); for (var i = 0; i < ZH.length; i++) if (ZH[i][0].test(m)) return ZH[i][1]; return m; }
   async function api(path, o) {
     o = o || {}; var auth = o.auth !== false;
@@ -215,6 +224,8 @@ var HX = (function () {
   function take(j) { keep({ access_token: j.access_token, refresh_token: j.refresh_token, expires_at: j.expires_at || now() + (j.expires_in || 3600), user: j.user || (s && s.user) || null }); }
   function rpc(f, body, auth) { return api('/rest/v1/rpc/' + f, { method: 'POST', body: body || {}, auth: auth }); }
   function back() { return location.origin + location.pathname; }
+  // 用账号名注册的账号没有邮箱：登录邮箱用 账号名@hx.invalid（.invalid 是保留域名，永远不会是谁的真邮箱；后台已关邮件确认，不发信）
+  function mailOf(name) { return String(name).trim().toLowerCase() + '@hx.invalid'; }
   return {
     in: function () { return !!(load() && s.access_token); },
     api: api, rpc: rpc,
@@ -233,16 +244,21 @@ var HX = (function () {
     linkGitHub: async function () { var j = await api('/auth/v1/user/identities/authorize?provider=github&skip_http_redirect=true&redirect_to=' + encodeURIComponent(back())); location.href = j.url; },
     signIn: async function (id, pw) {
       id = id.trim(); var email = id;
-      if (id.indexOf('@') < 0) { email = await rpc('paike_login_email', { p_name: id }, false); if (!email) throw new Error('没有这个账号名'); }
+      if (id.indexOf('@') < 0) email = await rpc('paike_login_email', { p_name: id }, false) || mailOf(id); // 账号名没登记上（如学号被占）也能用注册时的合成邮箱登录
       take(await api('/auth/v1/token?grant_type=password', { method: 'POST', body: { email: email, password: pw }, auth: false }));
     },
+    signUp: async function (name, pw, full) {
+      var email = mailOf(name), j = await api('/auth/v1/signup', { method: 'POST', body: { email: email, password: pw, data: { full_name: full } }, auth: false });
+      take(j && j.access_token ? j : await api('/auth/v1/token?grant_type=password', { method: 'POST', body: { email: email, password: pw }, auth: false }));
+    },
+    synthetic: function (email) { return /@hx\.invalid$/i.test(email || ''); },
     out: async function () { try { await api('/auth/v1/logout', { method: 'POST' }); } catch (e) { } keep(null); }
   };
 })();
 function $(id) { return document.getElementById(id); }
 function esc(t) { return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
 function svg(d, cls) { return '<svg class="i' + (cls ? ' ' + cls : '') + '" viewBox="0 0 24 24">' + d + '</svg>'; }
-var ST = { me: null, user: null, tab: null, code: null, uname: null, edit: null, classes: null, open: null, studs: {}, roster: null, newCode: null };
+var ST = { me: null, user: null, tab: null, lm: 'in', reg: null, actFor: null, uname: null, edit: null, classes: null, open: null, studs: {}, rosters: null, newCode: null };
 var frames = {};
 function isTeacher() { return !!(ST.me && (ST.me.teacher || ST.me.admin || ST.me.dev)); }
 function can(t) { return t.who === 'all' || isTeacher(); }
@@ -258,8 +274,48 @@ function info() { // 名字、头像、GitHub 用户名、邮箱
 }
 function avatar(i, cls) { return '<span class="av ' + (cls || '') + '"' + (i.avatar ? ' style="background-image:url(' + esc(i.avatar) + ')"' : '') + '>' + (i.avatar ? '' : esc(i.name.slice(0, 1))) + '</span>'; }
 function badge() { var m = ST.me; return m && m.dev ? '<span class="pill dev">开发者</span>' : m && m.admin ? '<span class="pill admin">管理员</span>' : ''; } // 身份象征：开发者金粉、管理员蓝
+// 按钮上二次确认：第一下变成“确认…？”，3 秒内再点才执行（不用 confirm()：应用内浏览器等环境会直接当成“取消”，看起来像点了没反应）
+function sure(b, text) {
+  if (b.dataset.sure) { clearTimeout(+b.dataset.sure); delete b.dataset.sure; b.innerHTML = b.dataset.was; return true; }
+  b.dataset.was = b.innerHTML; b.textContent = text;
+  b.dataset.sure = setTimeout(function () { if (b.dataset.sure) { delete b.dataset.sure; b.innerHTML = b.dataset.was; } }, 3000);
+  return false;
+}
 function toast(t) { var el = $('toast'); el.textContent = t; el.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(function () { el.classList.remove('show'); }, 2400); }
-function openLogin(msg) { closePops(); $('lmsg').textContent = msg || ''; if (!$('login').open) $('login').showModal(); setTimeout(function () { $('lid').focus(); }, 50); }
+// 登录窗口三种样子：in 登录、reg 注册（先填邀请码）、act 已登录但未开通（GitHub 登录的新账号等），填邀请码开通
+function openLogin(msg, mode) {
+  closePops(); ST.lm = mode || 'in'; ST.reg = null; renderLogin();
+  if (ST.lm === 'in') $('lmsg').textContent = msg || ''; else $('rmsg').textContent = msg || '';
+  if (!$('login').open) $('login').showModal();
+  focusLogin();
+}
+function focusLogin() { setTimeout(function () { var f = $(ST.lm === 'in' ? 'lf' : 'rf').querySelector('input:not([disabled]),select'); if (f) f.focus(); }, 50); }
+function renderLogin() {
+  var m = ST.lm, R = ST.reg, h = '';
+  $('lt').textContent = m === 'act' ? '填写邀请码开通' : m === 'reg' ? '注册华夏工具' : '登录华夏工具';
+  $('lseg').hidden = m === 'act';
+  $('lseg').querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.m === m); });
+  $('lf').hidden = m !== 'in'; $('rf').hidden = m === 'in';
+  if (m === 'in') return;
+  if (!R) h = '<input id="rcode" maxlength="16" placeholder="邀请码" autocomplete="off" autocapitalize="characters" spellcheck="false">';
+  else {
+    h = '<input value="' + esc(R.code) + '" disabled>';
+    if (R.role === 'teacher') h += '<input id="run" maxlength="32" placeholder="账号名，如工号 11445" autocomplete="username" autocapitalize="none" spellcheck="false">' + (m === 'reg' ? '<input id="rnm" maxlength="20" placeholder="名字">' : '');
+    else h += (R.classes.length ? '<select id="rcls">' + R.classes.map(function (k) { return '<option value="' + k.id + '"' + (k.preferred ? ' selected' : '') + '>' + esc(k.name) + '</option>'; }).join('') + '</select>' : '') +
+      '<input id="rno" inputmode="numeric" maxlength="20" placeholder="学号" autocomplete="username"><input id="rnm" maxlength="20" placeholder="姓名">';
+    if (m === 'reg') h += '<input id="rpw" type="password" autocomplete="new-password" placeholder="密码（至少 6 位）"><input id="rpw2" type="password" autocomplete="new-password" placeholder="再输一次密码">';
+  }
+  h += '<p class="msg" id="rmsg"></p><button class="btn" type="submit" id="rgo">' + (!R ? '下一步' : m === 'reg' ? '注册' : '开通') + '</button>' +
+    (R ? '<button class="btn link" type="button" id="rback">换一个邀请码</button>' : '') +
+    (m === 'reg' && !R ? '<div class="or">或</div>' + $('lgh').outerHTML.replace('id="lgh"', 'id="rgh"').replace('GitHub 登录', 'GitHub 注册') : '') + // GitHub 新账号登录后会自动弹出开通页
+    (m === 'act' ? '<button class="btn link" type="button" id="rlater">以后再说</button><button class="btn link bad" type="button" id="rout">退出登录</button>' : '<button class="btn link" type="button" id="rx">取消</button>');
+  $('rf').innerHTML = h;
+  if ($('rback')) $('rback').onclick = function () { ST.reg = null; renderLogin(); focusLogin(); };
+  if ($('rx')) $('rx').onclick = function () { $('login').close(); };
+  if ($('rgh')) $('rgh').onclick = function () { HX.github(); };
+  if ($('rlater')) $('rlater').onclick = function () { $('login').close(); };
+  if ($('rout')) $('rout').onclick = async function () { $('login').close(); await HX.out(); reloadTools(); refresh(); };
+}
 
 // 地址栏 #wiring 这样的直接打开对应工具；没有或没权限就是首页
 function show(id) {
@@ -302,8 +358,8 @@ function togglePop(k) {
   syncExp();
 }
 function renderPop() {
-  var i = info(), r = role() || '', m = ST.me || {}, c = ST.code, E = ST.edit, html, form = function (inner) { return '<div class="f">' + inner + '<p class="msg" id="pmsg"></p><button class="btn" id="psave">保存</button><button class="btn link" id="pcancel">取消</button></div>'; };
-  html = '<div class="who-top">' + avatar(i, 'lg') + '<b>' + esc(i.name) + '</b><small>' + esc(i.email) + '</small><span class="pill acc">' + r + (m.student ? ' · ' + esc(m.student.class) : '') + '</span></div>';
+  var i = info(), r = role() || '', m = ST.me || {}, E = ST.edit, html, form = function (inner) { return '<div class="f">' + inner + '<p class="msg" id="pmsg"></p><button class="btn" id="psave">保存</button><button class="btn link" id="pcancel">取消</button></div>'; };
+  html = '<div class="who-top">' + avatar(i, 'lg') + '<b>' + esc(i.name) + '</b><small>' + (HX.synthetic(i.email) ? '' : esc(i.email)) + '</small><span class="pill acc">' + r + (m.student ? ' · ' + esc(m.student.class) : '') + '</span></div>';
   if (E === 'name') html += form('<input id="pname1" maxlength="20" value="' + esc(i.full || i.name) + '" placeholder="名字">');
   else if (E === 'uname') html += form('<input id="puname" maxlength="32" value="' + esc(ST.uname || '') + '" placeholder="如 11445" autocapitalize="none">');
   else if (E === 'pw') html += form('<input id="ppw1" type="password" autocomplete="new-password" placeholder="新密码（至少 6 位）"><input id="ppw2" type="password" autocomplete="new-password" placeholder="再输一次">');
@@ -313,12 +369,7 @@ function renderPop() {
       '<button type="button" data-e="uname"><span>账号名</span><span>' + (ST.uname === null ? '…' : esc(ST.uname || '未设置')) + '</span></button>' +
       '<button type="button" data-e="pw"><span>密码</span><span>修改</span></button>' +
       (i.gh ? '<div><span>GitHub</span><span>' + esc(i.gh) + '</span></div>' : '<button type="button" id="plink"><span>GitHub</span><span>绑定</span></button>') + '</div>';
-    if (r === '未开通') { // 填邀请码开通：教师码直接开通；课堂码再选班级、填学号姓名
-      html += '<div class="f" style="margin-bottom:14px"><input id="pcode" maxlength="16" placeholder="教师码或课堂码" autocomplete="off"' + (c ? ' value="' + esc(c.code) + '" disabled' : '') + '>';
-      if (c) html += '<select id="pcls">' + c.classes.map(function (k) { return '<option value="' + k.id + '"' + (k.preferred ? ' selected' : '') + '>' + esc(k.name) + '</option>'; }).join('') + '</select>' +
-        '<input id="pno" inputmode="numeric" maxlength="20" placeholder="学号"><input id="pnm" maxlength="20" placeholder="姓名">';
-      html += '<p class="msg" id="pmsg"></p><button class="btn" id="pgo">' + (c ? '开通' : '下一步') + '</button></div>';
-    }
+    if (r === '未开通') html += '<div class="f" style="margin-bottom:14px"><button class="btn" id="pgo">填写邀请码开通</button></div>'; // 登录后会自动弹出；关掉了从这里再打开
     html += '<div class="f"><button class="btn sub" id="pswitch">切换账号</button><button class="btn link bad" id="pout">退出登录</button></div>';
   }
   $('pop').innerHTML = html;
@@ -345,25 +396,14 @@ function renderPop() {
   if ($('plink')) $('plink').onclick = function () { HX.linkGitHub().catch(function (e) { toast(e.message); }); };
   if ($('pswitch')) $('pswitch').onclick = async function () { await HX.out(); closePops(); reloadTools(); await refresh(); openLogin(); };
   if ($('pout')) $('pout').onclick = async function () { await HX.out(); closePops(); reloadTools(); refresh(); };
-  if ($('pgo')) $('pgo').onclick = async function () {
-    var go = $('pgo'), msg = $('pmsg'); go.disabled = true; msg.textContent = '';
-    try {
-      if (!ST.code) {
-        var code = $('pcode').value.trim().toUpperCase(); if (!code) throw new Error('请填写邀请码');
-        var cls = await HX.rpc('hx_invite_classes', { p_code: code });
-        if (cls && cls.length) { ST.code = { code: code, classes: cls }; return renderPop(); }
-        await HX.rpc('hx_redeem', { p_code: code });
-      } else await HX.rpc('hx_redeem', { p_code: ST.code.code, p_class: +$('pcls').value, p_no: $('pno').value.trim(), p_name: $('pnm').value.trim() });
-      ST.code = null; await refresh(); reloadTools(); renderPop(); $('pop').classList.add('show');
-    } catch (e) { msg.textContent = e.message; go.disabled = false; }
-  };
+  if ($('pgo')) $('pgo').onclick = function () { openLogin('', 'act'); };
 }
 // 外观：主题色、浅色 / 深色 / 自动、背景图、透明度（存 hx-theme，全部工具一起变）
 function renderLook() {
   var s = HXTheme.get(), A = HXTheme.acc, B = HXTheme.bg, m = HXTheme.mode();
   var html = '<h3>外观</h3><div class="seg">' + [['light', '浅色'], ['dark', '深色'], ['auto', '自动']].map(function (x) { return '<button type="button" data-mode="' + x[0] + '" aria-pressed="' + (s.mode === x[0]) + '">' + x[1] + '</button>'; }).join('') + '</div>' +
     '<h3>主题色</h3><div class="sw">' + Object.keys(A).map(function (k) { return '<button type="button" data-acc="' + k + '" title="' + A[k].name + '" aria-label="' + A[k].name + '" aria-pressed="' + (s.acc === k) + '" style="--c:' + (m === 'dark' ? A[k].d : A[k].l) + '"></button>'; }).join('') + '</div>' +
-    '<h3>背景</h3><div class="bgs">' + Object.keys(B).filter(function (k) { return k !== 'custom'; }).map(function (k) {
+    '<h3>背景</h3><div class="bgs">' + Object.keys(B).filter(function (k) { return k !== 'custom' && (!B[k].dev || HXTheme.isDev()); }).map(function (k) {
       var b = B[k], bg = b.img ? 'url(' + HXTheme.root + b.img + ')' : b.css || '';
       return '<button type="button" data-bg="' + k + '" aria-pressed="' + (s.bg === k) + '"' + (bg ? ' style="--b:' + esc(bg) + '"' : '') + '><span>' + b.name + '</span></button>';
     }).join('') + '<label aria-pressed="' + (s.bg === 'custom') + '"' + (s.bg === 'custom' ? ' style="--b:var(--hx-img)"' : '') + '><input type="file" id="bgFile" accept="image/*" hidden><span>' + (s.bg === 'custom' ? '换一张' : '＋ 上传') + '</span></label></div>' +
@@ -388,11 +428,12 @@ function renderTeach() {
   var box = $('teach');
   if (!isTeacher()) { box.innerHTML = ''; return; }
   if (ST.classes === null) { ST.classes = []; loadClasses(); }
-  var R = ST.roster, N = ST.newCode, html = '<div class="sec"><h2>班级</h2><label class="btn sm">导入考勤表<input type="file" id="rFile" accept=".xls,.xlsx,.csv" hidden></label></div>';
-  if (N) html += '<div class="code"><small>' + esc(N.cls) + '</small><b>' + esc(N.code) + '</b>' + (N.role === 'student' ? '<small>4 小时内有效，学生在首页账号里填它开通</small><button class="btn link bad sm" id="rRevoke">下课，撤销</button>' : '') + '</div>';
-  if (R) html += '<div class="panel f"><b>' + R.list.length + ' 名学生：' + R.list.slice(0, 6).map(function (x) { return esc(x.name); }).join('、') + (R.list.length > 6 ? '…' : '') + '</b>' +
-    '<input id="rCls" value="' + esc(R.cls) + '" placeholder="班级"><input id="rTerm" value="' + esc(R.term) + '" placeholder="学期"><p class="msg" id="rMsg"></p>' +
-    '<div style="display:flex;gap:8px"><button class="btn" id="rImp">导入</button><button class="btn sub" id="rNo">取消</button></div></div>';
+  var R = ST.rosters, N = ST.newCode, html = '<div class="sec"><h2>班级</h2><label class="btn sm">导入考勤表<input type="file" id="rFile" accept=".xls,.xlsx,.csv" multiple hidden></label></div>';
+  if (N) html += '<div class="code"><small>' + esc(N.cls) + '</small><b>' + esc(N.code) + '</b>' + (N.role === 'student' ? '<small>4 小时内有效，学生在首页“注册”里填它</small><div><button class="btn sm" id="rShare">分享给学生</button> <button class="btn link bad sm" id="rRevoke">下课，撤销</button></div>' : '') + '</div>';
+  if (R) html += '<div class="panel f">' + R.map(function (x, k) { // 一次选多个考勤表：每个文件一个班，班级、学期可改；读不出来或导入失败的写原因
+    return '<div class="f" style="padding-bottom:10px;border-bottom:1px solid var(--edge)"><b>' + esc(x.file) + (x.list ? ' · ' + x.list.length + ' 名学生：' + x.list.slice(0, 4).map(function (y) { return esc(y.name); }).join('、') + (x.list.length > 4 ? '…' : '') : '') + '</b>' +
+      (x.list ? '<input data-rc="' + k + '" value="' + esc(x.cls) + '" placeholder="班级"><input data-rt="' + k + '" value="' + esc(x.term) + '" placeholder="学期">' : '') + (x.err ? '<p class="msg">' + esc(x.err) + '</p>' : '') + '</div>';
+  }).join('') + '<div style="display:flex;gap:8px"><button class="btn" id="rImp"' + (R.some(function (x) { return x.list; }) ? '' : ' disabled') + '>导入' + (R.length > 1 ? '全部' : '') + '</button><button class="btn sub" id="rNo">取消</button></div></div>';
   html += '<div class="cls">' + (ST.classes.length ? ST.classes.map(function (c) {
     var on = ST.open === c.id, tools = c.tools || [];
     return '<div class="cl"><div><h3>' + esc(c.name) + '</h3><small>' + esc(c.term ? c.term + ' · ' : '') + c.total + ' 人 · 已开通 ' + c.bound + '</small></div>' +
@@ -402,20 +443,34 @@ function renderTeach() {
   }).join('') : '<p class="empty">还没有班级：导入教务系统导出的考勤表（学号、姓名两列）</p>') + '</div>';
   box.innerHTML = html;
   $('rFile').onchange = async function (e) {
-    var f = e.target.files[0]; e.target.value = ''; if (!f) return;
-    try { await loadXLSX(); var wb = XLSX.read(await f.arrayBuffer()); ST.roster = parseRoster(wb, f.name); if (!ST.roster.list.length) throw new Error('没找到学号和姓名'); }
-    catch (er) { ST.roster = null; toast('读取失败：' + er.message); }
-    renderTeach();
+    var fs = [].slice.call(e.target.files); e.target.value = ''; if (!fs.length) return;
+    var out = [];
+    for (var i = 0; i < fs.length; i++) {
+      var f = fs[i];
+      try { await loadXLSX(); var x = parseRoster(XLSX.read(await f.arrayBuffer()), f.name); if (!x.list.length) throw new Error('没找到学号和姓名'); x.file = f.name; out.push(x); }
+      catch (er) { out.push({ file: f.name, err: '读取失败：' + er.message }); }
+    }
+    ST.rosters = out; renderTeach();
   };
   if (R) {
-    $('rNo').onclick = function () { ST.roster = null; renderTeach(); };
+    $('rNo').onclick = function () { ST.rosters = null; renderTeach(); };
     $('rImp').onclick = async function () {
-      var name = $('rCls').value.trim(); if (!name) return ($('rMsg').textContent = '请填写班级');
+      R.forEach(function (x, k) { if (x.list) { x.cls = box.querySelector('[data-rc="' + k + '"]').value.trim(); x.term = box.querySelector('[data-rt="' + k + '"]').value.trim(); } });
       $('rImp').disabled = true;
-      try { var r = await HX.rpc('hx_import_class', { p_name: name, p_term: $('rTerm').value.trim(), p_rows: R.list }); ST.roster = null; delete ST.studs[r.class]; toast('已导入 ' + r.count + ' 人'); await loadClasses(); }
-      catch (er) { $('rMsg').textContent = er.message; $('rImp').disabled = false; }
+      var ok = 0, n = 0, left = [];
+      for (var k = 0; k < R.length; k++) {
+        var x = R[k]; if (!x.list) { left.push(x); continue; }
+        try {
+          if (!x.cls) throw new Error('请填写班级');
+          var r = await HX.rpc('hx_import_class', { p_name: x.cls, p_term: x.term, p_rows: x.list }); delete ST.studs[r.class]; ok++; n += r.count;
+        } catch (er) { x.err = '导入失败：' + er.message; left.push(x); }
+      }
+      ST.rosters = left.length ? left : null; // 失败的留在面板里，写着原因，改了可以再导
+      toast((ok ? '已导入 ' + ok + ' 个班、' + n + ' 人' : '没有导入成功') + (left.length ? '；' + left.length + ' 个文件失败，原因见下面' : ''));
+      await loadClasses();
     };
   }
+  if ($('rShare')) $('rShare').onclick = function () { shareCode(N.code, 'student'); };
   if ($('rRevoke')) $('rRevoke').onclick = async function () { try { await HX.rpc('hx_revoke_code', { p_code: N.code }); ST.newCode = null; toast('已撤销'); renderTeach(); } catch (e) { toast(e.message); } };
   box.querySelectorAll('[data-tool]').forEach(function (b) {
     b.onclick = async function () {
@@ -442,9 +497,10 @@ function renderTeach() {
 }
 // ---------- 管理（管理员、开发者，放在首页最后）：发教师码、学生码，看发过的码；开发者再任命管理员 ----------
 function shareCode(code, role) {
-  var t = (role === 'teacher' ? '华夏工具教师邀请码：' : '华夏工具课堂码：') + code + '\n打开 ' + location.origin + '/ ，登录后点右上角头像，填写邀请码开通。';
-  if (navigator.share) return navigator.share({ text: t }).catch(function () { });
-  (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function () { toast('已复制，发给对方就行'); }, function () { prompt('复制下面的内容发给对方', t); });
+  var t = (role === 'teacher' ? '华夏工具教师邀请码：' : '华夏工具课堂码：') + code + '\n打开 ' + location.origin + '/ ，点右上角“登录”→“注册”，填写邀请码' + (role === 'teacher' ? '，账号名填工号' : '，选班级、填学号和姓名') + '。已有账号（如 GitHub）的，登录后会自动弹出开通窗口。';
+  if (navigator.share && matchMedia('(pointer: coarse)').matches) return navigator.share({ text: t }).catch(function () { }); // 手机、平板用系统分享；电脑上那个面板不好用
+  $('shareT').value = t; if (!$('share').open) $('share').showModal(); $('shareT').select();
+  (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function () { toast('已复制，发给对方就行'); }, function () { try { if (document.execCommand('copy')) toast('已复制，发给对方就行'); } catch (e) { } });
 }
 function renderAdmin() {
   var box = $('admin'), m = ST.me;
@@ -477,7 +533,7 @@ function renderAdmin() {
   if ($('sGo')) $('sGo').onclick = async function () { var o = $('sCls').selectedOptions[0]; try { made(await HX.rpc('hx_new_code', { p_role: 'student', p_class: +o.value, p_note: '' }), 'student', o.textContent + ' · 课堂码 · 4 小时有效'); } catch (e) { toast(e.message); } };
   if ($('aShare')) $('aShare').onclick = function () { shareCode(A.code, A.role); };
   box.querySelectorAll('[data-share]').forEach(function (b) { b.onclick = function () { shareCode(b.dataset.share, b.dataset.role); }; });
-  box.querySelectorAll('[data-rev]').forEach(function (b) { b.onclick = async function () { if (!confirm('撤销 ' + b.dataset.rev + '？撤销后不能再用')) return; try { await HX.rpc('hx_revoke_code', { p_code: b.dataset.rev }); if (ST.aCode && ST.aCode.code === b.dataset.rev) ST.aCode = null; toast('已撤销'); loadCodes(); } catch (e) { toast(e.message); } }; });
+  box.querySelectorAll('[data-rev]').forEach(function (b) { b.onclick = async function () { if (!sure(b, '确认撤销？')) return; try { await HX.rpc('hx_revoke_code', { p_code: b.dataset.rev }); if (ST.aCode && ST.aCode.code === b.dataset.rev) ST.aCode = null; toast('已撤销'); loadCodes(); } catch (e) { toast(e.message); } }; });
   if ($('aGo')) $('aGo').onclick = async function () {
     var em = $('aMail').value.trim(); if (!em) return toast('先填邮箱');
     try { var r = await HX.rpc('hx_set_admin', { p_email: em, p_on: true }); toast(typeof r === 'string' && r ? r : '已设为管理员'); loadTeachers(); } catch (e) { toast(e.message); }
@@ -486,7 +542,7 @@ function renderAdmin() {
     b.onclick = async function () {
       var on = b.getAttribute('aria-pressed') !== 'true';
       if (!b.dataset.adm) return toast('这个账号没有邮箱，没法设置');
-      if (!confirm((on ? '把这位老师设为管理员？' : '取消这位老师的管理员？') + '\n' + b.dataset.adm)) return;
+      if (!sure(b, on ? '确认设为管理员？' : '确认取消？')) return;
       try { var r = await HX.rpc('hx_set_admin', { p_email: b.dataset.adm, p_on: on }); toast(typeof r === 'string' && r ? r : '已更新'); loadTeachers(); } catch (e) { toast(e.message); }
     };
   });
@@ -518,10 +574,11 @@ function reloadTools() { for (var k in frames) { if (k !== ST.tab) { frames[k].r
 async function refresh() {
   ST.me = null; ST.user = null; ST.uname = null; ST.classes = null; ST.studs = {}; ST.newCode = null; ST.edit = null; ST.codes = undefined; ST.teachers = undefined; ST.aCode = null;
   if (HX.in()) {
-    try { var res = await Promise.all([HX.rpc('hx_me'), HX.user()]); ST.me = res[0]; ST.user = res[1]; }
-    catch (e) { if (e.status === 401) await HX.out(); }
-  }
+    try { var res = await Promise.all([HX.rpc('hx_me'), HX.user()]); ST.me = res[0]; ST.user = res[1]; HXTheme.setDev(ST.me && ST.me.dev); }
+    catch (e) { if (e.status === 401) { await HX.out(); HXTheme.setDev(false); } }
+  } else HXTheme.setDev(false);
   show(ST.tab || location.hash.slice(1));
+  if (role() === '未开通' && ST.actFor !== HX.uid() && !$('login').open) { ST.actFor = HX.uid(); openLogin('', 'act'); } // 每个账号每次打开网页只自动弹一次
 }
 // 给嵌在框里的工具用：要登录时弹登录窗口、问身份、回首页
 window.HXPortal = {
@@ -537,7 +594,41 @@ $('lf').onsubmit = async function (e) {
   catch (err) { $('lmsg').textContent = err.message; }
 };
 $('lgh').onclick = function () { HX.github(); };
+$('shareC').onclick = function () { $('shareT').select(); (navigator.clipboard ? navigator.clipboard.writeText($('shareT').value) : Promise.reject()).then(function () { toast('已复制'); }, function () { try { document.execCommand('copy'); toast('已复制'); } catch (e) { } }); };
+$('shareX').onclick = function () { $('share').close(); };
 $('lx').onclick = function () { $('login').close(); };
+$('lseg').querySelectorAll('button').forEach(function (b) { b.onclick = function () { if (ST.lm !== b.dataset.m) { ST.lm = b.dataset.m; ST.reg = null; $('lmsg').textContent = ''; renderLogin(); focusLogin(); } }; });
+// 注册 / 开通：先查邀请码（没登录也能查）；教师码再填账号名（注册还要名字），课堂码再选班级、填学号姓名（账号名就是学号）；
+// 注册先让数据库把开通条件全检查一遍，通过了才建账号，然后马上开通
+$('rf').onsubmit = async function (e) {
+  e.preventDefault();
+  var go = $('rgo'), msg = $('rmsg'), R = ST.reg, v = function (id) { return $(id) ? $(id).value.trim() : ''; };
+  msg.textContent = ''; go.disabled = true;
+  try {
+    if (!R) {
+      var code = v('rcode').toUpperCase(); if (!code) throw new Error('请填写邀请码');
+      var ci = await HX.rpc('hx_code_info', { p_code: code });
+      if (!ci) throw new Error('邀请码无效、已撤销或已用完');
+      ST.reg = { code: code, role: ci.role, classes: ci.classes || [] }; renderLogin(); focusLogin(); return;
+    }
+    var t = R.role === 'teacher', un = v('run').toLowerCase(), nm = v('rnm'), no = v('rno');
+    if (t && !/^[a-z0-9_.-]{3,32}$/.test(un)) throw new Error(un ? '账号名用 3～32 位字母、数字' : '请填写账号名');
+    if (!t && !$('rcls')) throw new Error('发码的老师还没有导入班级');
+    if (!t && !/^\d{6,20}$/.test(no)) throw new Error('学号应为 6～20 位数字');
+    if ((!t || ST.lm === 'reg') && !nm) throw new Error(t ? '请填写名字' : '请填写姓名');
+    var args = { p_code: R.code, p_class: t ? null : +$('rcls').value, p_no: t ? null : no, p_name: t ? null : nm, p_username: t ? un : null };
+    if (ST.lm === 'reg') {
+      var pw = $('rpw').value; if (pw.length < 6) throw new Error('密码至少 6 位'); if (pw !== $('rpw2').value) throw new Error('两次输的密码不一样');
+      await HX.rpc('hx_redeem_check', args, false);
+      await HX.signUp(t ? un : no, pw, nm); was = true;
+    }
+    var r = await HX.rpc('hx_redeem', args);
+    $('login').close(); toast(r === 'teacher' ? '已开通教师账号' : '已开通，欢迎 ' + nm); reloadTools(); refresh();
+  } catch (err) {
+    msg.textContent = err.message; go.disabled = false;
+    if (ST.lm === 'reg' && HX.in()) { ST.lm = 'act'; ST.actFor = HX.uid(); renderLogin(); $('rmsg').textContent = '账号已建好，但开通没成功：' + err.message; refresh(); } // 账号建了但开通失败：改成开通窗口重试
+  }
+};
 // 嵌在下面的工具登录、退出时（同一网站共用 localStorage），这里跟着变
 var was = HX.in();
 addEventListener('storage', function (e) { if (e.key !== 'paike-session') return; var n = HX.in(); if (n !== was) { was = n; reloadTools(); refresh(); } });

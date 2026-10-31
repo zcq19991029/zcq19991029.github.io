@@ -202,6 +202,7 @@ html.hx-bg .glow, html.hx-bg .panel { -webkit-backdrop-filter: blur(24px) satura
 
 .toast { position: fixed; left: 50%; top: 66px; z-index: 60; transform: translate(-50%, -10px); padding: 10px 18px; border-radius: 99px; background: var(--card-solid); box-shadow: 0 0 0 1px var(--edge), 0 10px 30px var(--shade); opacity: 0; pointer-events: none; transition: .3s var(--hx-ease); font-size: 14px; }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
+.toast.show.act { pointer-events: auto; }
 
 /* 专注模式：只留题卡和操作条 */
 body.focus .top, body.focus .hero, body.focus #types, body.focus #v-practice > .row, body.focus .dock { display: none !important; }
@@ -234,3 +235,4 @@ body.focus .unfocus { display: block; }
 .ref { margin-top: 8px; white-space: pre-wrap; line-height: 1.75; font-size: 15px; }
 .fb.self { background: var(--accbg, var(--fill)); }
 .fb.self .row { display: flex; gap: 10px; margin-top: 12px; } .fb.self .row .btn { flex: 1; }
+.extok { margin: 0 0 12px; padding: 10px 12px; border-radius: 12px; background: var(--okbg); color: var(--ink); font-size: 14px; line-height: 1.6; }

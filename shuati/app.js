@@ -31,11 +31,15 @@ const norm = t => String(t || '').replace(/[\s（）()，,。.、:：；;“”"
 const variants = a => { const s = String(a), m = s.match(/^(.*?)[（(](.*)[)）]$/), v = [s]; if (m) { v.push(m[1]); m[2].replace(/^(或|约)\s*/, '').split(/[、，,]|或/).forEach(x => v.push(x)); } return v.map(norm).filter(Boolean); };
 const blankOk = (a, t) => variants(a).includes(norm(t));
 // 作答记录 picked：选择题是选的选项；填空、主观题是 ['ok'] 或 ['no']（填空填的字在 S.typed）
+let tapAt = 0; // 上次用指针点选项的时间，挡掉随后补发的 click
+// “夜夜题库AI伴侣”扩展装了会在页面根上挂 #icve-companion（扩展 content.js）；只看有没有，不碰扩展里的 Key
+const hasExt = () => !!document.getElementById('icve-companion');
 const isRight = (q, p) => !!p && (q.type === 'fill' || SELF.has(q.type) ? p[0] === 'ok' : sameSet(p, q.answer));
 function toast(msg, act, fn) { // act/fn：toast 里带一个按钮（如“撤销”）
   const t = $('toast'); t.innerHTML = esc(msg) + (act ? ` <button type="button" class="btn sm ghost" style="height:28px;margin-left:6px">${esc(act)}</button>` : '');
-  t.style.pointerEvents = act ? 'auto' : ''; if (act) t.querySelector('button').onclick = () => { t.classList.remove('show'); fn(); };
-  t.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), act ? 4000 : 2200);
+  if (act) t.querySelector('button').onclick = () => { t.classList.remove('show'); fn(); };
+  // 只有显示时能点（class act）：以前用 style 设 pointer-events，提示淡出后透明的“撤销”还挡在题卡上，点选项没反应
+  t.classList.toggle('act', !!act); t.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), act ? 4000 : 2200);
 }
 
 // 快捷键：每个动作两个键位，可在“设置”里改。答完题时 记住/再练 优先，没答时 上一题/下一题
@@ -111,7 +115,8 @@ const saveSess = () => store.setLocal(sessKey(), { ids: S.queue, i: S.i, picked:
 const cur = () => S.questions.find(q => q.id === S.queue[S.i]);
 function go(i) {
   S.i = Math.max(0, Math.min(i, S.queue.length)); S.sel = new Set(S.picked[S.queue[S.i]] || []);
-  saveSess(); renderCard(); renderBar(); scrollTo({ top: 0, behavior: 'smooth' });
+  saveSess(); renderCard(); renderBar();
+  if ($('card').getBoundingClientRect().top < 60) scrollTo({ top: 0, behavior: 'smooth' }); // 题卡顶看得见就不滚：滚动中点选项，手机上会被当成停住滚动
 }
 
 // ---------- 作答 ----------
@@ -235,7 +240,7 @@ function renderCard() {
     fb = `<div class="fb ${ok ? 'ok' : 'bad'}"><b>${self ? (ok ? '答对了' : '没答对') : ok ? '回答正确' : '答案是 ' + esc(ans)}</b>${self ? ref() : ''}${q.type === 'fill' && !ok && typed.length ? '<div class="ai"><button class="btn sm ghost" type="button" id="ovBtn">意思对，算我对</button></div>' : ''}</div>`;
   } else if (picked) {
     const ok = isRight(q, picked), ans = q.type === 'judgment' ? (q.answer[0] === 'T' ? '正确' : '错误') : q.answer.join('');
-    const aiPart = !ai ? (getSettings().apiKey ? '<button class="btn sm ghost" type="button" id="aiBtn">✦ AI 逐项解析</button>' : '')
+    const aiPart = !ai ? (getSettings().apiKey && !hasExt() ? '<button class="btn sm ghost" type="button" id="aiBtn">✦ AI 逐项解析</button>' : '')
       : ai.state === 'load' ? '<span>AI 正在解析…</span>'
       : ai.state === 'err' ? `<span style="color:var(--bad)">${esc(ai.msg)}</span><button class="btn sm ghost" type="button" id="aiBtn">重试</button>`
       : (ai.data._tip ? `<div class="tip">速记：${esc(ai.data._tip)}</div>` : '') + (ai.data._review && !/^一致/.test(ai.data._review) ? `<div class="tip">题库复核：${esc(ai.data._review)}</div>` : '');
@@ -251,7 +256,7 @@ function renderCard() {
   card.classList.toggle('drag', !!picked);
   // 给“夜夜题库AI伴侣”浏览器扩展（智慧职教AI伴学项目）读题：题型、题干、选项；答完才带答案
   card.dataset.hxq = JSON.stringify({ type: typeName(q.type), stem: q.stem + (q.code ? '\n' + q.code : ''), options: (q.options || []).map(o => ({ label: o.key, text: o.text })), answer: picked ? (q.type === 'judgment' ? (q.answer[0] === 'T' ? '正确' : '错误') : q.answer.join(q.type === 'fill' ? '；' : '')) : '' });
-  for (const b of card.querySelectorAll('.opt')) b.onclick = () => pick(b.dataset.k);
+  for (const b of card.querySelectorAll('.opt')) b.onclick = e => { if (!e.detail || Date.now() - tapAt > 800) pick(b.dataset.k); }; // 鼠标、手指在 pointerup 已选过（见下面手势），这里管键盘
   const blanks = [...card.querySelectorAll('.blank:not([disabled])')];
   blanks.forEach((b, n) => b.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); n < blanks.length - 1 ? blanks[n + 1].focus() : submit(); } });
   if ($('submitBtn')) $('submitBtn').onclick = submit;
@@ -421,7 +426,9 @@ async function publish() {
 function renderSettings() {
   const s = getSettings(), p = providers[s.provider];
   $('v-settings').innerHTML = `
-    <div class="panel"><h3>AI 解析</h3><p class="muted" style="margin-top:0">填自己的 AI Key 后，答题后能逐项解析，也能识别资料、根据资料出题。请求直接从浏览器发给服务商。</p>
+    <div class="panel"><h3>AI 解析</h3>${hasExt()
+      ? '<p class="extok">已装“夜夜题库AI伴侣”：讲题直接点题干下的“✦ 学会这题”，用的是扩展里的 Key，这里可以不填。只有问 AI、导入资料、AI 出题才用这里的 Key。</p>'
+      : '<p class="muted" style="margin-top:0">填自己的 AI Key 后，答题后能逐项解析，也能识别资料、根据资料出题。请求直接从浏览器发给服务商。</p>'}
       <div class="f">
         <label for="prov">服务商</label><select id="prov">${Object.entries(providers).map(([k, v]) => `<option value="${k}" ${k === s.provider ? 'selected' : ''}>${esc(v.label)}</option>`).join('')}</select>
         <label for="base">接口地址</label><input id="base" type="url" value="${esc(s.baseUrl)}" placeholder="https://api.example.com/v1">
@@ -507,6 +514,15 @@ function fly(dir) {
     card.classList.add('back'); card.style.transform = ''; stamp(0);
   };
   card.addEventListener('pointerup', end); card.addEventListener('pointercancel', end);
+  // 选项在松手时就选：按下时选项缩小、新题入场还在动，松手点落到按钮外面时浏览器不发 click，表现为“点了没反应”
+  let tap = null;
+  card.addEventListener('pointerdown', e => { const o = e.button > 0 ? null : e.target.closest('.opt:not(:disabled)'); tap = o && { k: o.dataset.k, x: e.clientX, y: e.clientY, id: e.pointerId }; });
+  card.addEventListener('pointerup', e => {
+    if (!tap || e.pointerId !== tap.id) return;
+    const t = tap; tap = null;
+    if (Math.hypot(e.clientX - t.x, e.clientY - t.y) < 14) { tapAt = Date.now(); pick(t.k); }
+  });
+  card.addEventListener('pointercancel', () => { tap = null; });
 })();
 
 // ---------- 专注模式、首次提示、问 AI、使用说明 ----------
@@ -581,7 +597,8 @@ const guide = () => `<h4>刷题</h4><ul>
   <li>安装：在电脑版 Chrome 或 Edge 里，从 <a href="https://github.com/zcq19991029/chorme-AIkuozhan/releases/latest" target="_blank" rel="noopener">发布页</a> 下载学生安装包（0.7.0 起支持本刷题页）并解压到固定文件夹；打开 <code>chrome://extensions</code>（Edge 是 <code>edge://extensions</code>），打开“开发者模式”，点“加载已解压的扩展程序”，选解压出来的 <code>extension</code> 文件夹。</li>
   <li>设置 AI：点浏览器右上角的扩展图标 →“设置”，填自己的硅基流动 API Key（在 cloud.siliconflow.cn 注册后创建），点“读取模型”选一个对话模型，保存，再点“测试”。</li>
   <li>调用：打开本刷题页，每道题题干后面出现“✦ 学会这题”，点它在右侧打开零基础讲解，可以继续追问。答完再点，讲解会对照标准答案。</li>
-  <li>扩展更新后，在扩展页点“重新加载”，再刷新本页。</li></ol>`;
+  <li>扩展更新后，在扩展页点“重新加载”，再刷新本页。</li></ol>
+<p>网页和扩展的 Key 各存各的，互不影响。装了扩展只想让 AI 讲题，网页这里不用填；装了扩展时题目下只留扩展的“✦ 学会这题”。</p>`;
 
 // ---------- 启动 ----------
 async function boot() {
@@ -600,5 +617,9 @@ if (store.getLocal('focus', false)) document.body.classList.add('focus');
 if (!store.getLocal('notice', 0)) setTimeout(openNotice, 600);
 let was = hx.signedIn();
 hx.onChange(() => { const n = hx.signedIn(); if (n !== was) { was = n; store.flush(); S.base = {}; boot(); } }); // 在总入口或别的工具登录、退出
+{ // 扩展在页面加载完后才挂上，挂上（或停用后刷新）时重画用到它的地方
+  let ext = hasExt();
+  new MutationObserver(() => { if (hasExt() === ext) return; ext = !ext; if (!S.subject) return; if (S.view === 'settings') renderSettings(); if (S.view === 'practice') renderCard(); }).observe(document.documentElement, { childList: true });
+}
 addEventListener('pagehide', () => { if (S.subject) store.write('progress:' + S.subject.id, S.records, { now: true }); });
 boot();

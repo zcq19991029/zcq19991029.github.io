@@ -13,17 +13,17 @@
     red: { name: '朱红', l: '#c23b3b', d: '#ff6961', l2: '#d66a6a', d2: '#ff9a94' },
     mono: { name: '黑白', l: '#1d1d1f', d: '#f5f5f7', l2: '#55555a', d2: '#c7c7cc' }
   };
-  // 推荐背景：旧站的猫耳学习图 + 几张渐变（不占流量）；op 是选它时的推荐透明度
+  // 推荐背景：旧站的猫耳学习图（dev：开发者专属，只有开发者账号看得到、用得上）+ 几张渐变（不占流量）；op 是选它时的推荐透明度
   var BG = {
     none: { name: '无' },
-    cat: { name: '猫耳学习', img: 'bg/cat-study.jpg', op: 70 },
+    cat: { name: '猫耳学习', img: 'bg/cat-study.jpg', op: 70, dev: true },
     mist: { name: '晨雾', op: 72, css: 'radial-gradient(60% 50% at 15% 10%, #ffd6e7 0, transparent 70%), radial-gradient(55% 55% at 90% 20%, #cfe3ff 0, transparent 70%), radial-gradient(60% 60% at 50% 100%, #d9f5e5 0, transparent 70%), #f5f5f7' },
     bay: { name: '海湾', op: 70, css: 'radial-gradient(70% 60% at 0% 0%, #a8e6ff 0, transparent 65%), radial-gradient(60% 70% at 100% 30%, #8fb8ff 0, transparent 70%), radial-gradient(70% 60% at 40% 110%, #b6f0d8 0, transparent 70%), #eef6fb' },
     dusk: { name: '暮光', op: 68, css: 'radial-gradient(60% 60% at 10% 90%, #ffb38a 0, transparent 70%), radial-gradient(60% 60% at 90% 80%, #ff8fb7 0, transparent 70%), radial-gradient(80% 60% at 50% -10%, #c7b8ff 0, transparent 70%), #fbf1ee' },
     aurora: { name: '极光', op: 62, css: 'radial-gradient(60% 50% at 20% 20%, #1f6f5c 0, transparent 70%), radial-gradient(55% 60% at 85% 30%, #3b2f8f 0, transparent 70%), radial-gradient(70% 60% at 50% 110%, #0f4f7a 0, transparent 70%), #05070d' },
     custom: { name: '自己的图', op: 70 }
   };
-  var KEY = 'hx-theme', IMG = 'hx-theme-img', DEF = { acc: 'green', mode: 'auto', bg: 'none', op: 90 };
+  var KEY = 'hx-theme', IMG = 'hx-theme-img', DEV = 'hx-dev', DEF = { acc: 'green', mode: 'auto', bg: 'none', op: 90 };
   var OLD = { day: { acc: 'blue', mode: 'light' }, sea: { acc: 'green', mode: 'light' }, sakura: { acc: 'pink', mode: 'light' }, night: { acc: 'purple', mode: 'dark' }, forest: { acc: 'green', mode: 'dark' }, mist: { acc: 'mono', mode: 'dark' } };
   var me = document.currentScript, root = me ? new URL('.', me.src).href : location.origin + '/';
   var tool = me && me.getAttribute('data-tool'), subs = [], dark = window.matchMedia ? matchMedia('(prefers-color-scheme: dark)') : null;
@@ -38,8 +38,11 @@
     v = v && typeof v === 'object' ? v : {};
     var s = { acc: ACC[v.acc] ? v.acc : DEF.acc, mode: /^(light|dark|auto)$/.test(v.mode) ? v.mode : DEF.mode, bg: BG[v.bg] ? v.bg : DEF.bg, op: Math.min(100, Math.max(15, +v.op || DEF.op)) };
     if (s.bg === 'custom' && !ls(IMG)) s.bg = 'none';
+    if (BG[s.bg].dev && !isDev()) s.bg = 'none'; // 开发者专属背景：别的账号（或没登录）回落到无背景
     return s;
   }
+  function isDev() { return ls(DEV) === '1'; } // 总入口查到 hx_me().dev 后记下（见 setDev），各工具打开时据此决定能不能用专属背景
+  function setDev(on) { if (isDev() === !!on) return; ls(DEV, on ? '1' : null); apply(); }
   function modeOf(s) { return s.mode === 'auto' ? (dark && dark.matches ? 'dark' : 'light') : s.mode; }
   function apply() {
     var s = get(), m = modeOf(s), a = ACC[s.acc], r = document.documentElement, b = BG[s.bg];
@@ -79,11 +82,11 @@
     });
   }
   function reset() { ls(KEY, null); ls(IMG, null); apply(); }
-  addEventListener('storage', function (e) { if (e.key === KEY || e.key === IMG || e.key === null) apply(); });
+  addEventListener('storage', function (e) { if (e.key === KEY || e.key === IMG || e.key === DEV || e.key === null) apply(); });
   if (dark) (dark.addEventListener ? dark.addEventListener('change', apply) : dark.addListener(apply));
   // 总入口（同源的上层页面）：子工具要登录时请它弹登录窗口；不在框里就跳回首页
   function portal() { try { return window.top !== window && window.top.HXPortal ? window.top.HXPortal : null; } catch (e) { return null; } }
-  window.HXTheme = { acc: ACC, bg: BG, root: root, get: get, mode: function () { return modeOf(get()); }, set: set, upload: upload, reset: reset, onChange: function (fn) { subs.push(fn); },
+  window.HXTheme = { acc: ACC, bg: BG, root: root, get: get, mode: function () { return modeOf(get()); }, set: set, upload: upload, reset: reset, isDev: isDev, setDev: setDev, onChange: function (fn) { subs.push(fn); },
     portal: portal, login: function () { var p = portal(); if (p) p.login(); else location.href = root + (tool ? '#' + tool : ''); } };
   apply();
 })();
