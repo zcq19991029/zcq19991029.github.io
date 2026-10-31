@@ -14,6 +14,8 @@ const BUILTIN = [
 const TYPES = [['single', '单选'], ['multiple', '多选'], ['judgment', '判断'], ['fill', '填空'], ['term', '名词解释'], ['short', '简答'], ['prog', '程序分析']];
 const SELF = new Set(['term', 'short', 'prog']); // 主观题：看参考答案自己判对错
 const SCOPES = [['todo', '待掌握'], ['wrong', '错题'], ['new', '未做'], ['done', '已做'], ['known', '已记住']];
+// 出题顺序：题库顺序、刷题顺序（按上次作答时间，没做过的排在后面）各有正序倒序，再加随机
+const ORDERS = [['seq', '题库正序', '按题库里的编号从前往后'], ['seqR', '题库倒序', '按题库里的编号从后往前'], ['time', '刷题正序', '先出很久以前做的，没做过的在最后'], ['timeR', '刷题倒序', '先出最近做的，没做过的在最后'], ['rand', '随机', '打乱顺序']];
 const VIEWS = [
   ['practice', '刷题', 'M4 4h16v12H5.17L4 17.17V4zm2 2v7h12V6H6zm2 2h8v2H8V8z'],
   ['overview', '概览', 'M5 19V9h3v10H5zm5.5 0V5h3v14h-3zM16 19v-7h3v7h-3z'],
@@ -30,6 +32,12 @@ const norm = t => String(t || '').replace(/[\s（）()，,。.、:：；;“”"
 // 填空的可接受写法：答案本身、括号前的部分、括号里“或”列出的写法，如“83（或 0x83、83H）”
 const variants = a => { const s = String(a), m = s.match(/^(.*?)[（(](.*)[)）]$/), v = [s]; if (m) { v.push(m[1]); m[2].replace(/^(或|约)\s*/, '').split(/[、，,]|或/).forEach(x => v.push(x)); } return v.map(norm).filter(Boolean); };
 const blankOk = (a, t) => variants(a).includes(norm(t));
+// 危险按钮点两下才执行：第一下变成“确认…？”，3 秒内再点才执行（应用内浏览器里 confirm() 不弹框、直接当取消）
+function sure(b, label, fn) {
+  if (b.dataset.sure) { clearTimeout(+b.dataset.sure); delete b.dataset.sure; b.textContent = b.dataset.txt; return fn(); }
+  b.dataset.txt = b.textContent; b.textContent = label;
+  b.dataset.sure = setTimeout(() => { delete b.dataset.sure; b.textContent = b.dataset.txt; }, 3000);
+}
 // 作答记录 picked：选择题是选的选项；填空、主观题是 ['ok'] 或 ['no']（填空填的字在 S.typed）
 let tapAt = 0; // 上次用指针点选项的时间，挡掉随后补发的 click
 // “夜夜题库AI伴侣”扩展装了会在页面根上挂 #icve-companion（扩展 content.js）；只看有没有，不碰扩展里的 Key
@@ -59,6 +67,7 @@ const S = {
   queue: [], i: 0, picked: {}, // picked：题 id → 本轮选的选项（作答过）
   sel: new Set(), ai: {}, draft: null, imode: 'pick', typed: {}, shown: {}, // typed：填空填的字；shown：主观题已看参考答案
   undo: {}, lastId: null, chat: [], // undo：题 id → 标记前的状态（误点“记住”能撤销）
+  hsel: new Set(), hf: 'all', // 概览“刷题记录”：勾选的题、筛选
 };
 const prefs = () => store.getLocal('prefs', {});
 const savePrefs = () => store.setLocal('prefs', { subject: S.subject?.id, type: S.type, scope: S.scope, mode: S.mode });
@@ -108,10 +117,22 @@ function buildQueue(resume) {
   const known = new Set(S.questions.map(q => q.id));
   if (saved && Array.isArray(saved.ids) && saved.ids.length && saved.ids.every(id => known.has(id))) {
     S.queue = saved.ids; S.i = Math.min(saved.i || 0, S.queue.length); S.picked = saved.picked || {};
-  } else { S.queue = S.mode === 'rand' ? shuffle(ids) : ids; S.i = 0; S.picked = {}; }
+  } else { S.queue = order(ids); S.i = 0; S.picked = {}; }
   S.sel = new Set(S.picked[S.queue[S.i]] || []);
 }
+function order(ids) {
+  if (S.mode === 'rand') return shuffle(ids);
+  if (S.mode === 'seqR') return [...ids].reverse();
+  if (S.mode === 'time' || S.mode === 'timeR') {
+    const at = id => rec(id).at || 0, done = ids.filter(at).sort((a, b) => at(a) - at(b));
+    return [...(S.mode === 'time' ? done : done.reverse()), ...ids.filter(id => !at(id))];
+  }
+  return ids;
+}
 const saveSess = () => store.setLocal(sessKey(), { ids: S.queue, i: S.i, picked: S.picked });
+const clearSess = () => { for (const [t] of TYPES) for (const [sc] of SCOPES) for (const [m] of ORDERS) store.setLocal(`sess:${S.subject.id}:${t}:${sc}:${m}`, null); };
+// 清空重刷：清掉本科目的已记住、错题、作答记录，从头开始
+function resetAll() { S.records = {}; S.hsel.clear(); store.write('progress:' + S.subject.id, {}, { now: true }); clearSess(); buildQueue(false); toast('已清空，从头开始刷'); show('practice'); }
 const cur = () => S.questions.find(q => q.id === S.queue[S.i]);
 function go(i) {
   S.i = Math.max(0, Math.min(i, S.queue.length)); S.sel = new Set(S.picked[S.queue[S.i]] || []);
@@ -200,8 +221,9 @@ function renderPractice() {
   const nt = $('types').children.length || 1; $('types').style.gridTemplateColumns = `repeat(${nt > 4 ? Math.ceil(nt / 2) : nt}, 1fr)`; // 题型多（单片机 6 种）分两行
   for (const b of $('types').children) b.onclick = () => { S.type = b.dataset.t; savePrefs(); buildQueue(true); renderPractice(); };
   renderScopes();
-  $('modeBtn').textContent = S.mode === 'rand' ? '⚄ 随机' : '☷ 顺序';
-  $('modeBtn').onclick = () => { S.mode = S.mode === 'rand' ? 'seq' : 'rand'; savePrefs(); buildQueue(false); renderPractice(); toast(S.mode === 'rand' ? '随机出题' : '按顺序出题'); };
+  const o = ORDERS.find(x => x[0] === S.mode) || ORDERS[0];
+  $('modeBtn').textContent = (S.mode === 'rand' ? '⚄ ' : /R$/.test(S.mode) ? '↑ ' : '↓ ') + o[1];
+  $('modeBtn').onclick = openOrderSheet;
   renderCard(); renderBar();
 }
 function renderCard() {
@@ -214,7 +236,8 @@ function renderCard() {
   if (!q) { // 一轮做完
     const ids = S.queue, done = ids.filter(id => S.picked[id]), right = done.filter(id => isRight(S.questions.find(x => x.id === id) || { answer: [] }, S.picked[id]));
     card.innerHTML = `<div class="empty"><h2>本轮完成</h2><p class="muted">共 ${ids.length} 题，作答 ${done.length} 题，答对 ${right.length} 题${done.length ? `，正确率 ${Math.round(right.length / done.length * 100)}%` : ''}。</p>
-      <div class="row" style="justify-content:center;margin-top:14px"><button class="btn" type="button" id="again">再来一轮</button>${S.scope !== 'wrong' && counts().wrong ? '<button class="btn ghost" type="button" id="toWrong">刷错题</button>' : ''}</div></div>`;
+      <div class="row" style="justify-content:center;margin-top:14px"><button class="btn" type="button" id="again">再来一轮</button>${S.scope !== 'wrong' && counts().wrong ? '<button class="btn ghost" type="button" id="toWrong">刷错题</button>' : ''}<button class="btn danger" type="button" id="wipe">清空重刷</button></div></div>`;
+    $('wipe').onclick = e => sure(e.currentTarget, '确认清空？', resetAll);
     $('again').onclick = () => { store.setLocal(sessKey(), null); buildQueue(false); renderPractice(); };
     if ($('toWrong')) $('toWrong').onclick = () => { S.scope = 'wrong'; savePrefs(); buildQueue(false); renderPractice(); };
     return;
@@ -306,6 +329,11 @@ function openCardSheet() {
     $('sheetBody').querySelector('.cur')?.scrollIntoView({ block: 'center' });
   });
 }
+function openOrderSheet() {
+  openSheet(`<h3>出题顺序</h3><div class="slist">${ORDERS.map(([m, n, d]) => `<button type="button" class="sitem" data-m="${m}" aria-current="${S.mode === m}"><b>${n}</b><small>${d}</small></button>`).join('')}</div>`, () => {
+    for (const b of $('sheetBody').querySelectorAll('[data-m]')) b.onclick = () => { closeSheet(); S.mode = b.dataset.m; savePrefs(); buildQueue(false); renderPractice(); toast(ORDERS.find(x => x[0] === S.mode)[1]); };
+  });
+}
 function openSubjectSheet() {
   const item = s => `<button type="button" class="sitem" data-id="${esc(s.id)}" aria-current="${S.subject && S.subject.id === s.id}"><b>${esc(s.name)}</b>${s.tag ? `<span class="tg">${esc(s.tag)}</span>` : ''}${s.total ? `<small>${s.total} 题</small>` : ''}</button>`;
   const g = k => S.subjects.filter(s => s.kind === k);
@@ -329,9 +357,36 @@ function renderOverview() {
     <div class="panel"><h3>各题型掌握</h3><div class="bars">${bars}</div></div>
     <div class="panel"><h3>错题${wrong.length ? ` <small class="muted">${wrong.length}</small>` : ''}</h3>${wrong.length ? `<div class="wl">${wrong.slice(0, 50).map(q => `<button type="button" data-id="${esc(q.id)}"><small>错 ${rec(q.id).wrong}</small>${esc(q.stem)}</button>`).join('')}</div>
       <div class="row" style="margin-top:12px"><button class="btn sm" type="button" id="drill">刷错题</button></div>` : '<p class="muted">还没有错题。</p>'}</div>
+    <div class="panel" id="hist">${histHtml()}</div>
     <p class="muted" style="text-align:center">${hx.signedIn() ? (store.cloud.ok === false ? '进度同步失败：' + esc(store.cloud.error) + '（已存在本机）' : '进度跟账号同步，换手机、换电脑都能接着刷') : '没登录：进度只存在这台设备'}</p>`;
   for (const b of $('v-overview').querySelectorAll('.wl button')) b.onclick = () => { const q = S.questions.find(x => x.id === b.dataset.id); S.type = q.type; S.scope = 'wrong'; savePrefs(); buildQueue(false); const n = S.queue.indexOf(q.id); show('practice'); if (n >= 0) go(n); };
   if ($('drill')) $('drill').onclick = () => { S.scope = 'wrong'; if (!wrong.some(q => q.type === S.type)) S.type = wrong[0].type; savePrefs(); buildQueue(false); show('practice'); };
+  bindHist();
+}
+// 刷题记录：做过的题（最近的在前），勾选后“放回重刷”= 清掉这几题的记录，回到“未做”“待掌握”里
+const HF = [['all', '全部'], ['known', '已记住'], ['wrong', '错过'], ['right', '没错过']];
+function histList() {
+  const f = S.hf, ok = r => f === 'all' || (f === 'known' ? r.status === 'known' : f === 'wrong' ? r.wrong > 0 : !r.wrong);
+  return S.questions.filter(q => { const r = rec(q.id); return (r.attempts || r.status === 'known') && ok(r); }).sort((a, b) => (rec(b.id).at || 0) - (rec(a.id).at || 0));
+}
+function histHtml() {
+  const list = histList(), shown = list.slice(0, 300), n = S.hsel.size, all = shown.length && shown.every(q => S.hsel.has(q.id));
+  return `<h3>刷题记录 <small class="muted">${list.length}</small></h3>
+    <div class="chips" style="margin-bottom:10px">${HF.map(([k, t]) => `<button type="button" class="chip" data-hf="${k}" aria-pressed="${S.hf === k}">${t}</button>`).join('')}</div>
+    ${shown.length ? `<div class="hl">${shown.map(q => { const r = rec(q.id); return `<label><input type="checkbox" data-h="${esc(q.id)}" ${S.hsel.has(q.id) ? 'checked' : ''}><span>${esc(q.stem)}</span><small>${typeName(q.type)}${r.status === 'known' ? ' · 已记住' : ''}${r.wrong ? ' · 错 ' + r.wrong : ''}</small></label>`; }).join('')}</div>` : '<p class="muted">这里还没有题。</p>'}
+    <div class="row" style="margin-top:12px;flex-wrap:wrap">${shown.length ? `<button class="btn sm ghost" type="button" id="hAll">${all ? '全不选' : '全选'}</button><button class="btn sm" type="button" id="hBack" ${n ? '' : 'disabled'}>放回重刷${n ? '（' + n + '）' : ''}</button>` : ''}<span class="sp" style="flex:1"></span><button class="btn sm danger" type="button" id="hWipe">清空全部重刷</button></div>`;
+}
+function bindHist() {
+  const box = $('hist'); if (!box) return;
+  const redraw = () => { box.innerHTML = histHtml(); bindHist(); };
+  for (const b of box.querySelectorAll('[data-hf]')) b.onclick = () => { S.hf = b.dataset.hf; redraw(); };
+  for (const c of box.querySelectorAll('[data-h]')) c.onchange = () => { c.checked ? S.hsel.add(c.dataset.h) : S.hsel.delete(c.dataset.h); redraw(); };
+  if ($('hAll')) $('hAll').onclick = () => { const shown = histList().slice(0, 300), all = shown.every(q => S.hsel.has(q.id)); for (const q of shown) all ? S.hsel.delete(q.id) : S.hsel.add(q.id); redraw(); };
+  if ($('hBack')) $('hBack').onclick = () => {
+    const ids = [...S.hsel]; for (const id of ids) delete S.records[id];
+    S.hsel.clear(); saveRecords(); clearSess(); buildQueue(false); renderOverview(); toast(`已放回 ${ids.length} 题，在“未做”里能刷到`);
+  };
+  $('hWipe').onclick = e => sure(e.currentTarget, '确认清空全部记录？', resetAll);
 }
 
 // ---------- 题库：新建科目、导入资料、AI 出题、导出、发布 ----------
@@ -356,13 +411,12 @@ function renderBank() {
     </div>`;
   const on = (id, fn) => { if ($(id)) $(id).onclick = fn; };
   on('expBtn', () => { const blob = new Blob([JSON.stringify(S.questions, null, 1)], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = sub.name + '.json'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); });
-  on('clrBtn', () => { if (confirm(`清空“${sub.name}”里你导入的 ${S.bank.length} 题？`)) setBank([]); });
+  on('clrBtn', e => sure(e.currentTarget, `确认清空 ${S.bank.length} 题？`, () => setBank([])));
   on('renBtn', async () => { const n = prompt('科目新名字', sub.name)?.trim(); if (!n) return; await saveMine(m => m.map(s => s.id === sub.id ? { ...s, name: n.slice(0, 30) } : s)); S.view = 'bank'; await openSubject(sub.id); });
-  on('delBtn', async () => {
-    if (!confirm(`删除科目“${sub.name}”和里面的题、刷题记录？`)) return;
+  on('delBtn', e => sure(e.currentTarget, '确认删除科目？', async () => {
     await saveMine(m => m.filter(s => s.id !== sub.id)); await store.remove('bank:' + sub.id); await store.remove('progress:' + sub.id);
     S.view = 'practice'; await openSubject(BUILTIN[0].id); toast('已删除');
-  });
+  }));
   on('newBtn', async () => {
     const n = $('newName').value.trim(); if (!n) return $('newName').focus();
     const id = 'c-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
@@ -373,11 +427,10 @@ function renderBank() {
   on('okImport', confirmImport);
   on('noImport', () => { S.draft = null; renderBank(); });
   for (const x of document.querySelectorAll('[data-del]')) x.onclick = () => { S.draft.splice(+x.dataset.del, 1); renderBank(); };
-  on('pubBtn', publish);
-  on('unpubBtn', async () => {
-    if (!confirm('取消发布后学生就看不到这个科目了。')) return;
+  on('pubBtn', e => sure(e.currentTarget, `确认发布 ${S.questions.length} 题？`, publish));
+  on('unpubBtn', e => sure(e.currentTarget, '确认取消发布？', async () => {
     try { await store.unpublish(sub.id); await saveMine(m => m.map(s => s.id === sub.id ? { ...s, published: false } : s)); S.subject.published = false; toast('已取消发布'); renderBank(); } catch (e) { toast(e.message); }
-  });
+  }));
 }
 async function saveMine(fn) {
   const mine = fn(S.subjects.filter(s => s.kind === 'mine').map(({ kind, ...s }) => s));
@@ -414,7 +467,6 @@ async function confirmImport() {
 }
 async function publish() {
   const sub = S.subject, id = sub.kind === 'public' ? sub.pid : sub.id;
-  if (!confirm(`把“${sub.name}”的 ${S.questions.length} 题发布给所有学生？`)) return;
   try {
     await store.publish(id, sub.name, S.questions, hx.name(S.user, S.me));
     if (sub.kind === 'mine') { await saveMine(m => m.map(s => s.id === sub.id ? { ...s, published: true } : s)); S.subject.published = true; }
@@ -453,12 +505,7 @@ function renderSettings() {
   $('saveAi').onclick = () => { saveSettings(collect()); $('aiMsg').textContent = '已保存'; };
   $('testAi').onclick = async () => { saveSettings(collect()); $('aiMsg').textContent = '正在测试…'; try { await chat([{ role: 'user', content: '只回复：连接成功' }]); $('aiMsg').textContent = '连接成功'; } catch (e) { $('aiMsg').textContent = e.message; } };
   $('lsModels').onclick = async () => { saveSettings(collect()); $('aiMsg').textContent = '正在读取…'; try { const ms = await listModels(); $('models').innerHTML = ms.map(m => `<option value="${esc(m)}">`).join(''); $('aiMsg').textContent = `${ms.length} 个模型，点模型框选择`; } catch (e) { $('aiMsg').textContent = e.message; } };
-  $('resetP').onclick = () => {
-    if (!confirm(`清掉“${S.subject.name}”的已记住、错题和作答记录？`)) return;
-    S.records = {}; store.write('progress:' + S.subject.id, {}, { now: true });
-    for (const [t] of TYPES) for (const [sc] of SCOPES) for (const m of ['seq', 'rand']) store.setLocal(`sess:${S.subject.id}:${t}:${sc}:${m}`, null);
-    buildQueue(false); toast('已重置'); show('practice');
-  };
+  $('resetP').onclick = e => sure(e.currentTarget, '确认清空？', resetAll);
 }
 
 // ---------- 键盘、手势 ----------
@@ -606,7 +653,7 @@ async function boot() {
   if (hx.signedIn()) { try { [S.user, S.me] = await Promise.all([hx.user(), hx.me()]); } catch { S.user = S.me = null; } }
   setAiProfile(hx.uid() || 'default');
   const p = prefs();
-  S.type = p.type || 'single'; S.scope = p.scope || 'todo'; S.mode = p.mode || 'seq';
+  S.type = p.type || 'single'; S.scope = p.scope || 'todo'; S.mode = ORDERS.some(o => o[0] === p.mode) ? p.mode : 'seq';
   renderNav(); renderWho();
   const pub = String(p.subject || '').startsWith('pub-');
   await loadSubjects(pub);
