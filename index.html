@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f5f5f7">
+<title>华夏工具</title>
+<link rel="icon" href="logo.jpg">
+<link rel="apple-touch-icon" href="logo.jpg">
+<!-- 华夏工具总入口 © 2026 zcq：首页是工具卡片（按身份：学生和没登录的人只看到学生工具），教师首页下面是共用的“班级名单”；点开一个工具全屏用，左上角回首页。
+     工具都在 zcq19991029.github.io 下，用 iframe 嵌进来。登录、切换账号、个人信息、外观只在这一页：子工具不再有自己的账号和主题界面，
+     要登录时调 window.HXPortal.login()；被单独打开时 hx-theme.js 会跳回这里（见 hx-theme.js 的 data-tool）。
+     账号：Supabase 华夏工具项目，localStorage paike-session 和各工具共用；身份由数据库 hx_me() 决定。
+     脚本里不用反引号模板字符串（本机测试时整页当字符串注入到线上同源页面里）。 -->
+<link rel="stylesheet" href="hx-theme.css">
+<script src="hx-theme.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { display: flex; flex-direction: column; overflow: hidden; background: var(--bg); color: var(--ink); font: 17px/1.47 var(--hx-font); letter-spacing: -.01em; -webkit-font-smoothing: antialiased; }
+  button, input, select { font: inherit; color: inherit; }
+  button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  svg.i { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+  /* 顶栏：苹果官网的毛玻璃导航 */
+  header { flex: none; position: relative; z-index: 10; height: 52px; display: flex; align-items: center; gap: 6px; padding: 0 max(12px, env(safe-area-inset-left)); background: var(--bar); backdrop-filter: var(--hx-blur); -webkit-backdrop-filter: var(--hx-blur); border-bottom: 1px solid var(--edge); }
+  .brand { display: flex; align-items: center; gap: 9px; height: 40px; padding: 0 10px 0 4px; border: 0; border-radius: 12px; background: none; font-weight: 600; font-size: 17px; white-space: nowrap; }
+  .brand img { width: 28px; height: 28px; border-radius: 8px; object-fit: cover; }
+  .back { display: none; align-items: center; gap: 2px; height: 36px; padding: 0 12px 0 4px; border: 0; border-radius: 99px; background: none; color: var(--acc); font-size: 17px; white-space: nowrap; }
+  .back svg { width: 22px; height: 22px; stroke-width: 2.2; }
+  .back:hover { background: var(--hov); }
+  .cur { display: none; position: absolute; left: 50%; transform: translateX(-50%); font-weight: 600; font-size: 17px; white-space: nowrap; pointer-events: none; }
+  body.tool .back, body.tool .cur { display: flex; } body.tool .brand { display: none; }
+  .sp { flex: 1; }
+  .ibtn { flex: none; width: 36px; height: 36px; display: grid; place-items: center; border: 0; border-radius: 50%; background: none; color: var(--ink); opacity: .8; transition: background .2s var(--hx-ease), opacity .2s; }
+  .ibtn:hover, .ibtn[aria-expanded="true"] { background: var(--fill); opacity: 1; }
+  .acct { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 4px; border: 0; border-radius: 99px; background: none; white-space: nowrap; }
+  .acct:hover, .acct[aria-expanded="true"] { background: var(--fill); }
+  .acct b { max-width: 9em; overflow: hidden; text-overflow: ellipsis; font-size: 15px; font-weight: 500; padding-right: 8px; }
+  .av { flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-weight: 600; font-size: 14px; color: var(--on-acc); background: var(--acc) center / cover; }
+  .av.lg { width: 72px; height: 72px; font-size: 30px; }
+  .pill { display: inline-flex; align-items: center; height: 22px; padding: 0 9px; border-radius: 99px; font-size: 12px; font-weight: 600; background: var(--fill); color: var(--dim); }
+  .pill.acc { background: var(--accbg); color: var(--acc); }
+  .lbtn { height: 32px; padding: 0 16px; border: 0; border-radius: 99px; background: var(--acc); color: var(--on-acc); font-size: 14px; font-weight: 500; }
+  main { flex: 1; position: relative; min-height: 0; }
+  main iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: var(--bg); visibility: hidden; opacity: 0; transition: opacity .35s var(--hx-ease); }
+  main iframe.on { visibility: visible; opacity: 1; }
+  html.hx-bg main iframe { background: transparent; }
+  /* 首页 */
+  #home { position: absolute; inset: 0; overflow-y: auto; padding: 0 16px calc(48px + env(safe-area-inset-bottom, 0px)); scroll-behavior: smooth; }
+  body.tool #home { visibility: hidden; }
+  .wrap { width: min(1024px, 100%); margin: 0 auto; }
+  .hero { text-align: center; padding: clamp(40px, 9vw, 96px) 0 clamp(28px, 5vw, 52px); }
+  .hero img { width: clamp(64px, 12vw, 88px); aspect-ratio: 1; border-radius: 22%; object-fit: cover; box-shadow: 0 12px 32px -14px var(--shade); }
+  .hero h1 { margin: 18px 0 0; font: 700 clamp(40px, 8vw, 64px)/1.06 var(--hx-font-d); letter-spacing: -.02em; }
+  .hero p { margin: 10px 0 0; font-size: clamp(19px, 3vw, 24px); color: var(--dim); font-weight: 500; min-height: 1.4em; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 228px), 1fr)); gap: 16px; }
+  .tile { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 18px; min-height: 172px; padding: 26px 24px 22px; border: 0; border-radius: 28px; background: var(--card); text-align: left; box-shadow: 0 0 0 1px var(--edge) inset;
+    transition: transform .45s var(--hx-spring), box-shadow .45s var(--hx-spring); animation: rise .7s var(--hx-spring) both; }
+  .tile:hover { transform: scale(1.02); box-shadow: 0 0 0 1px var(--edge) inset, 0 22px 50px -26px var(--shade); }
+  .tile:active { transform: scale(.98); transition-duration: .15s; }
+  .tile .ic { width: 58px; height: 58px; border-radius: 15px; display: grid; place-items: center; color: #fff; background: linear-gradient(160deg, var(--c1), var(--c2)); box-shadow: 0 8px 20px -10px var(--c2); }
+  .tile .ic svg { width: 30px; height: 30px; stroke-width: 1.9; }
+  .tile b { font-size: 21px; font-weight: 600; letter-spacing: -.01em; margin-top: auto; }
+  .tile .go { position: absolute; right: 22px; bottom: 24px; color: var(--acc); width: 22px; height: 22px; transition: transform .3s var(--hx-ease); }
+  .tile:hover .go { transform: translateX(3px); }
+  html.hx-bg .tile, html.hx-bg .panel, html.hx-bg .cl { backdrop-filter: var(--hx-blur); -webkit-backdrop-filter: var(--hx-blur); }
+  html.hx-bg .hero h1, html.hx-bg .hero p, html.hx-bg .sec h2 { text-shadow: 0 0 22px var(--bg), 0 0 6px var(--bg); }
+  @keyframes rise { from { opacity: 0; transform: translateY(24px); } }
+  /* 教师：班级名单 */
+  .sec { margin: clamp(48px, 8vw, 80px) 0 18px; display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+  .sec h2 { margin: 0; flex: 1; font: 700 clamp(28px, 5vw, 40px)/1.1 var(--hx-font-d); letter-spacing: -.015em; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 40px; padding: 0 20px; border: 0; border-radius: 99px; background: var(--acc); color: var(--on-acc); font-size: 15px; font-weight: 500; white-space: nowrap; cursor: pointer; transition: filter .2s, transform .15s; }
+  .btn:hover { filter: brightness(1.08); } .btn:active { transform: scale(.97); } .btn:disabled { opacity: .45; cursor: default; }
+  .btn.sub { background: var(--fill); color: var(--ink); } .btn.link { background: none; color: var(--acc); padding: 0 6px; height: 32px; }
+  .btn.sm { height: 32px; padding: 0 14px; font-size: 14px; } .btn.bad { color: var(--bad); }
+  .panel { padding: 22px 24px; border-radius: 24px; background: var(--card); box-shadow: 0 0 0 1px var(--edge) inset; margin-bottom: 14px; animation: rise .6s var(--hx-spring) both; }
+  .cls { display: grid; gap: 12px; }
+  .cl { display: grid; grid-template-columns: 1fr auto; gap: 12px 16px; align-items: center; padding: 18px 20px; border-radius: 22px; background: var(--card); box-shadow: 0 0 0 1px var(--edge) inset; }
+  .cl h3 { margin: 0; font-size: 19px; font-weight: 600; } .cl small { color: var(--dim); font-size: 14px; }
+  .cl .acts { display: flex; gap: 6px; }
+  .chips { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { height: 32px; padding: 0 14px; border: 0; border-radius: 99px; background: var(--fill); color: var(--dim); font-size: 14px; font-weight: 500; transition: background .2s, color .2s; }
+  .chip[aria-pressed="true"] { background: var(--acc); color: var(--on-acc); }
+  .stu { grid-column: 1 / -1; max-height: 340px; overflow: auto; border-top: 1px solid var(--edge); padding-top: 8px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; } td, th { padding: 7px 8px; text-align: left; border-bottom: 1px solid var(--edge); } th { color: var(--dim); font-weight: 500; }
+  .code { display: grid; justify-items: center; gap: 4px; padding: 18px; border-radius: 18px; background: var(--accbg); margin-bottom: 14px; text-align: center; }
+  .code b { font: 700 40px/1.1 ui-monospace, "SF Mono", Menlo, Consolas, monospace; letter-spacing: .12em; color: var(--acc); }
+  .code small { color: var(--dim); }
+  .empty { color: var(--dim); text-align: center; padding: 28px 0; }
+  /* 弹出：外观、账号（电脑在右上角，手机从底部出来） */
+  .scrim { position: fixed; inset: 0; z-index: 19; background: rgba(0, 0, 0, .25); opacity: 0; pointer-events: none; transition: opacity .3s var(--hx-ease); }
+  .pop { position: fixed; top: 60px; right: 12px; z-index: 20; width: 360px; max-height: calc(100vh - 76px); overflow: auto; padding: 22px; border-radius: 24px; background: var(--card-solid); box-shadow: 0 0 0 1px var(--edge), 0 30px 80px -20px var(--shade);
+    opacity: 0; visibility: hidden; transform: translateY(-8px) scale(.97); transform-origin: top right; transition: opacity .25s var(--hx-ease), transform .45s var(--hx-spring), visibility 0s .45s; }
+  .pop.show { opacity: 1; visibility: visible; transform: none; transition-delay: 0s; }
+  .pop h3 { margin: 0 0 10px; font-size: 13px; font-weight: 600; color: var(--dim); }
+  .pop h3 + * { margin-bottom: 20px; }
+  .seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; padding: 3px; border-radius: 11px; background: var(--fill); }
+  .seg button { height: 32px; border: 0; border-radius: 9px; background: none; font-size: 14px; font-weight: 500; color: var(--dim); transition: background .25s var(--hx-ease), color .25s; }
+  .seg button[aria-pressed="true"] { background: var(--card-solid); color: var(--ink); box-shadow: 0 1px 4px rgba(0, 0, 0, .12); }
+  .sw { display: flex; flex-wrap: wrap; gap: 12px; }
+  .sw button { width: 30px; height: 30px; border: 0; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 1px rgba(128, 128, 128, .3) inset; transition: transform .3s var(--hx-spring); }
+  .sw button[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--card-solid), 0 0 0 4px var(--c); }
+  .sw button:hover { transform: scale(1.12); }
+  .bgs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .bgs button, .bgs label { position: relative; aspect-ratio: 1; border: 0; border-radius: 14px; background: var(--b, var(--fill)) center / cover; box-shadow: 0 0 0 1px var(--edge) inset; font-size: 11px; color: var(--dim); display: grid; place-items: end center; padding-bottom: 4px; overflow: hidden; cursor: pointer; }
+  .bgs [aria-pressed="true"] { box-shadow: 0 0 0 2px var(--card-solid), 0 0 0 4px var(--acc); }
+  .bgs span { padding: 1px 6px; border-radius: 6px; background: var(--card-solid); }
+  .rng { display: flex; align-items: center; gap: 12px; } .rng input { flex: 1; accent-color: var(--acc); } .rng output { min-width: 3em; text-align: right; font-weight: 600; font-size: 14px; }
+  .who-top { display: grid; justify-items: center; gap: 6px; text-align: center; padding-bottom: 16px; margin-bottom: 8px; border-bottom: 1px solid var(--edge); }
+  .who-top b { font-size: 21px; } .who-top small { color: var(--dim); word-break: break-all; font-size: 14px; }
+  .rows { display: grid; margin-bottom: 14px; }
+  .rows > * { display: flex; align-items: center; gap: 10px; min-height: 46px; padding: 0 4px; border: 0; border-bottom: 1px solid var(--edge); background: none; text-align: left; font-size: 15px; }
+  .rows > * > span:first-child { color: var(--dim); min-width: 4.5em; } .rows > * > :nth-child(2) { flex: 1; text-align: right; word-break: break-all; }
+  .rows > button:hover { color: var(--acc); }
+  .f { display: grid; gap: 10px; }
+  .f input, .f select { height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--line2); background: var(--card-solid); outline: none; transition: border-color .2s, box-shadow .2s; }
+  .f input:focus, .f select:focus { border-color: var(--acc); box-shadow: 0 0 0 4px var(--ring); }
+  .f .btn { height: 44px; }
+  .msg { min-height: 1.2em; margin: 0; color: var(--bad); font-size: 13px; }
+  dialog { width: min(400px, calc(100vw - 32px)); padding: 34px 28px 26px; border: 0; border-radius: 28px; background: var(--card-solid); color: var(--ink); box-shadow: 0 40px 100px -30px var(--shade); }
+  dialog[open] { animation: pop .5s var(--hx-spring); }
+  dialog::backdrop { background: rgba(0, 0, 0, .3); backdrop-filter: blur(6px); }
+  @keyframes pop { from { opacity: 0; transform: scale(.94); } }
+  dialog img { display: block; width: 56px; height: 56px; margin: 0 auto 12px; border-radius: 14px; }
+  dialog h2 { margin: 0 0 22px; font-size: 24px; text-align: center; font-weight: 700; }
+  .gh { background: #24292f !important; color: #fff !important; } .gh svg { width: 18px; height: 18px; fill: #fff; }
+  .or { display: flex; align-items: center; gap: 10px; color: var(--faint); font-size: 12px; } .or::before, .or::after { content: ""; flex: 1; height: 1px; background: var(--edge); }
+  .toast { position: fixed; left: 50%; bottom: calc(28px + env(safe-area-inset-bottom, 0px)); z-index: 40; transform: translate(-50%, 16px); padding: 12px 20px; border-radius: 99px; background: var(--ink); color: var(--bg); font-size: 15px; font-weight: 500; opacity: 0; pointer-events: none; transition: opacity .3s var(--hx-ease), transform .5s var(--hx-spring); max-width: calc(100vw - 32px); text-align: center; }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+  @media (max-width: 640px) {
+    .acct b { display: none; } .cur { font-size: 16px; max-width: 46vw; overflow: hidden; text-overflow: ellipsis; }
+    .tiles { grid-template-columns: repeat(2, 1fr); gap: 12px; } .tile { min-height: 148px; padding: 20px 18px 18px; border-radius: 24px; gap: 14px; } .tile b { font-size: 18px; } .tile .ic { width: 50px; height: 50px; border-radius: 13px; } .tile .ic svg { width: 26px; height: 26px; } .tile .go { display: none; }
+    .pop { top: auto; bottom: 0; left: 0; right: 0; width: auto; max-height: 86vh; border-radius: 26px 26px 0 0; padding: 22px 20px calc(22px + env(safe-area-inset-bottom, 0px)); transform: translateY(100%); transform-origin: bottom; }
+    .pop.show { transform: none; } .scrim.show { opacity: 1; pointer-events: auto; }
+    .cl { grid-template-columns: 1fr; } .cl .acts { flex-wrap: wrap; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <button class="brand" id="brand" type="button"><img src="logo.jpg" alt=""><span>华夏工具</span></button>
+  <button class="back" id="back" type="button"><svg class="i" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>首页</button>
+  <div class="cur" id="cur"></div>
+  <div class="sp"></div>
+  <button class="ibtn" id="lookBtn" type="button" aria-label="外观" aria-expanded="false"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v17a8.5 8.5 0 0 0 0-17z" fill="currentColor" stroke="none"/></svg></button>
+  <div id="who"></div>
+</header>
+<div class="scrim" id="scrim"></div>
+<section class="pop" id="pop" aria-label="账号"></section>
+<section class="pop" id="look" aria-label="外观"></section>
+<main id="main">
+  <section id="home">
+    <div class="wrap">
+      <div class="hero"><img src="logo.jpg" alt=""><h1>华夏工具</h1><p id="hi"></p></div>
+      <div class="tiles" id="tiles"></div>
+      <div id="teach"></div>
+    </div>
+  </section>
+</main>
+<div class="toast" id="toast"></div>
+<dialog id="login">
+  <img src="logo.jpg" alt="">
+  <h2>登录华夏工具</h2>
+  <form class="f" id="lf">
+    <input id="lid" autocomplete="username" placeholder="账号名或邮箱" required>
+    <input id="lpw" type="password" autocomplete="current-password" placeholder="密码" required>
+    <p class="msg" id="lmsg"></p>
+    <button class="btn" type="submit">登录</button>
+    <div class="or">或</div>
+    <button class="btn gh" type="button" id="lgh"><svg viewBox="0 0 16 16"><path d="M8 0a8 8 0 0 0-2.53 15.59c.4.07.55-.17.55-.38v-1.33c-2.23.48-2.7-1.07-2.7-1.07-.36-.92-.89-1.17-.89-1.17-.73-.5.05-.49.05-.49.8.06 1.23.83 1.23.83.72 1.22 1.88.87 2.34.66.07-.52.28-.87.5-1.07-1.78-.2-3.65-.89-3.65-3.95 0-.87.31-1.59.83-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.6 7.6 0 0 1 4 0c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.28.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48v2.2c0 .21.15.46.55.38A8 8 0 0 0 8 0z"/></svg>GitHub 登录</button>
+    <button class="btn link" type="button" id="lx">取消</button>
+  </form>
+</dialog>
+<script>
+var SITE = location.protocol === 'file:' ? 'https://zcq19991029.github.io' : ''; // 网站上（包括本机拼好的 成品/site）用同一站点里的工具；直接双击打开时嵌线上版
+// 首页卡片：who all 所有人、teacher 只有教师看得到（学生和没登录的人不显示）；c 是图标的两种颜色（像手机桌面图标，每个工具固定）
+var TOOLS = [
+  { id: 'wiring', name: '接线仿真', url: SITE + '/wiring-lab/', who: 'all', c: ['#ffb340', '#ff7a00'], icon: '<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>' },
+  { id: 'quiz', name: '刷题', url: SITE + '/shuati/', who: 'all', c: ['#5ad16f', '#24a148'], icon: '<rect x="4.5" y="3" width="15" height="18" rx="3.5"/><path d="M8.5 12l2.5 2.5 4.5-5"/>' },
+  { id: 'mcu', name: '单片机上机', url: SITE + '/mcu/', who: 'all', c: ['#5ac8fa', '#0a84ff'], icon: '<rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/>' },
+  { id: 'exam', name: '考试', url: SITE + '/exam/', who: 'all', c: ['#7d7aff', '#5e5ce6'], icon: '<path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h4"/>' },
+  { id: 'paike', name: '排课', url: SITE + '/paike/', who: 'teacher', c: ['#ff6b6b', '#ff3b30'], icon: '<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4M8 14h3M13 14h3M8 17h3"/>' },
+  { id: 'jiafen', name: '小组加分', url: SITE + '/jiafenxitong/', who: 'teacher', c: ['#ff8fb7', '#ff2d55'], icon: '<path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/>' }
+];
+// 班级给哪些工具用（数据库 hx_classes.tools）；一个都不勾 = 都用
+var CLASS_TOOLS = [['wiring', '接线仿真'], ['mcu', '单片机'], ['exam', '考试'], ['jiafen', '小组加分']];
+var HX = (function () {
+  var BASE = 'https://eiqgyrjrwdaunhxjmdyr.supabase.co', KEY = 'sb_publishable_FcVnLx3TNrj6HnbgarYnRw_DW4-yFzd', SKEY = 'paike-session';
+  var s = null;
+  function now() { return Math.floor(Date.now() / 1000); }
+  function load() { try { s = JSON.parse(localStorage.getItem(SKEY)); } catch (e) { s = null; } return s; }
+  function keep(v) { s = v; try { if (v) localStorage.setItem(SKEY, JSON.stringify(v)); else localStorage.removeItem(SKEY); } catch (e) { } }
+  var ZH = [[/Invalid login credentials/i, '账号或密码不对'], [/Email not confirmed/i, '邮箱还没确认'], [/rate limit|too many/i, '操作太频繁，请过一会儿再试'], [/JWT expired|invalid JWT/i, '登录过期了，请重新登录'],
+    [/permission denied/i, '没有权限'], [/different from the old password/i, '和现在的密码一样'], [/at least 6/i, '密码至少 6 位'], [/duplicate key|already exists/i, '这个账号名已经有人用了'], [/Identity is already linked/i, '这个 GitHub 已经绑定了别的账号']];
+  function zh(m) { m = String(m || ''); for (var i = 0; i < ZH.length; i++) if (ZH[i][0].test(m)) return ZH[i][1]; return m; }
+  async function api(path, o) {
+    o = o || {}; var auth = o.auth !== false;
+    if (auth) await fresh();
+    var h = { apikey: KEY, 'Content-Type': 'application/json' }; if (auth && s) h.Authorization = 'Bearer ' + s.access_token;
+    var r; try { r = await fetch(BASE + path, { method: o.method || 'GET', headers: h, body: o.body === undefined ? undefined : JSON.stringify(o.body) }); } catch (e) { throw new Error('连不上服务器，请检查网络'); }
+    var t = await r.text(), j = null; try { j = t ? JSON.parse(t) : null; } catch (e) { j = t; }
+    if (!r.ok) { var err = new Error(zh(j && (j.msg || j.message || j.error_description || j.error) || 'HTTP ' + r.status)); err.status = r.status; throw err; }
+    return j;
+  }
+  async function fresh() { // 先重读：嵌在下面的工具可能刚续过期（续期后旧凭证作废）
+    load(); if (!s || now() < s.expires_at - 60) return;
+    try { take(await api('/auth/v1/token?grant_type=refresh_token', { method: 'POST', body: { refresh_token: s.refresh_token }, auth: false })); }
+    catch (e) { if (e.status) keep(null); throw e; }
+  }
+  function take(j) { keep({ access_token: j.access_token, refresh_token: j.refresh_token, expires_at: j.expires_at || now() + (j.expires_in || 3600), user: j.user || (s && s.user) || null }); }
+  function rpc(f, body, auth) { return api('/rest/v1/rpc/' + f, { method: 'POST', body: body || {}, auth: auth }); }
+  function back() { return location.origin + location.pathname; }
+  return {
+    in: function () { return !!(load() && s.access_token); },
+    api: api, rpc: rpc,
+    grab: function () { // GitHub 登录（或绑定）跳回来时，地址栏 # 后面带着登录凭证
+      var h = new URLSearchParams(location.hash.slice(1)), err = h.get('error_description');
+      if (!h.get('access_token') && !err) return null;
+      history.replaceState(null, '', location.pathname);
+      if (err) return zh(err.replace(/\+/g, ' '));
+      keep({ access_token: h.get('access_token'), refresh_token: h.get('refresh_token'), expires_at: +h.get('expires_at') || now() + (+h.get('expires_in') || 3600), user: null });
+      return null;
+    },
+    user: async function () { load(); if (!s.user) { var u = await api('/auth/v1/user'); load(); s.user = u; keep(s); } return s.user; }, // api 里会重读登录，先拿到再写回
+    setUser: async function (body) { var u = await api('/auth/v1/user', { method: 'PUT', body: body }); load(); s.user = u; keep(s); return u; },
+    uid: function () { load(); return s && s.user && s.user.id; },
+    github: function () { location.href = BASE + '/auth/v1/authorize?provider=github&redirect_to=' + encodeURIComponent(back()); },
+    linkGitHub: async function () { var j = await api('/auth/v1/user/identities/authorize?provider=github&skip_http_redirect=true&redirect_to=' + encodeURIComponent(back())); location.href = j.url; },
+    signIn: async function (id, pw) {
+      id = id.trim(); var email = id;
+      if (id.indexOf('@') < 0) { email = await rpc('paike_login_email', { p_name: id }, false); if (!email) throw new Error('没有这个账号名'); }
+      take(await api('/auth/v1/token?grant_type=password', { method: 'POST', body: { email: email, password: pw }, auth: false }));
+    },
+    out: async function () { try { await api('/auth/v1/logout', { method: 'POST' }); } catch (e) { } keep(null); }
+  };
+})();
+function $(id) { return document.getElementById(id); }
+function esc(t) { return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+function svg(d, cls) { return '<svg class="i' + (cls ? ' ' + cls : '') + '" viewBox="0 0 24 24">' + d + '</svg>'; }
+var ST = { me: null, user: null, tab: null, code: null, uname: null, edit: null, classes: null, open: null, studs: {}, roster: null, newCode: null };
+var frames = {};
+function isTeacher() { return !!(ST.me && (ST.me.teacher || ST.me.admin || ST.me.dev)); }
+function can(t) { return t.who === 'all' || isTeacher(); }
+function role() {
+  var m = ST.me; if (!m) return null;
+  return m.dev ? '开发者' : m.admin ? '管理员' : m.teacher ? '教师' : m.student ? '学生' : '未开通';
+}
+function info() { // 名字、头像、GitHub 用户名、邮箱
+  var u = ST.user || {}, d = u.user_metadata || {}, gh = (u.identities || []).filter(function (i) { return i.provider === 'github'; })[0];
+  var ghName = gh && gh.identity_data && (gh.identity_data.user_name || gh.identity_data.preferred_username) || '';
+  var name = (ST.me && ST.me.student && ST.me.student.name) || d.full_name || d.name || d.user_name || ghName || (u.email || '').split('@')[0] || '用户';
+  return { name: name, email: u.email || '', avatar: d.avatar_url || '', gh: ghName, full: d.full_name || '' };
+}
+function avatar(i, cls) { return '<span class="av ' + (cls || '') + '"' + (i.avatar ? ' style="background-image:url(' + esc(i.avatar) + ')"' : '') + '>' + (i.avatar ? '' : esc(i.name.slice(0, 1))) + '</span>'; }
+function toast(t) { var el = $('toast'); el.textContent = t; el.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(function () { el.classList.remove('show'); }, 2400); }
+function openLogin(msg) { closePops(); $('lmsg').textContent = msg || ''; if (!$('login').open) $('login').showModal(); setTimeout(function () { $('lid').focus(); }, 50); }
+
+// 地址栏 #wiring 这样的直接打开对应工具；没有或没权限就是首页
+function show(id) {
+  var t = TOOLS.filter(function (x) { return x.id === id; })[0];
+  if (t && !can(t)) t = null;
+  ST.tab = t ? t.id : null;
+  history.replaceState(null, '', t ? '#' + t.id : location.pathname + location.search);
+  if (t && !frames[t.id]) { var f = document.createElement('iframe'); f.src = t.url; f.title = t.name; f.allow = 'fullscreen; clipboard-write; clipboard-read'; $('main').appendChild(f); frames[t.id] = f; }
+  for (var k in frames) frames[k].classList.toggle('on', !!t && k === t.id);
+  document.body.classList.toggle('tool', !!t);
+  $('cur').textContent = t ? t.name : '';
+  document.title = t ? t.name + ' · 华夏工具' : '华夏工具';
+  render();
+}
+function render() {
+  $('tiles').innerHTML = TOOLS.filter(can).map(function (t, n) {
+    return '<button class="tile" type="button" data-id="' + t.id + '" style="--c1:' + t.c[0] + ';--c2:' + t.c[1] + ';animation-delay:' + (n * 50) + 'ms">' +
+      '<span class="ic">' + svg(t.icon) + '</span><b>' + t.name + '</b>' + svg('<path d="M9 6l6 6-6 6"/>', 'go') + '</button>';
+  }).join('');
+  $('tiles').querySelectorAll('.tile').forEach(function (b) { b.onclick = function () { show(b.dataset.id); }; });
+  var i = HX.in() && ST.user ? info() : null;
+  $('hi').textContent = i ? '你好，' + i.name : '';
+  if (i) {
+    $('who').innerHTML = '<button class="acct" id="acct" type="button" aria-expanded="' + $('pop').classList.contains('show') + '">' + avatar(i) + '<b>' + esc(i.name) + '</b></button>';
+    $('acct').onclick = function (e) { e.stopPropagation(); togglePop('pop'); };
+  } else {
+    $('who').innerHTML = '<button class="lbtn" id="in" type="button">登录</button>';
+    $('in').onclick = function () { openLogin(); };
+    $('pop').classList.remove('show');
+  }
+  renderTeach();
+}
+
+// ---------- 弹出：账号、外观 ----------
+function closePops() { ['pop', 'look'].forEach(function (k) { $(k).classList.remove('show'); }); $('scrim').classList.remove('show'); ST.edit = null; syncExp(); }
+function syncExp() { if ($('acct')) $('acct').setAttribute('aria-expanded', $('pop').classList.contains('show')); $('lookBtn').setAttribute('aria-expanded', $('look').classList.contains('show')); }
+function togglePop(k) {
+  var on = !$(k).classList.contains('show'); closePops();
+  if (on) { if (k === 'pop') renderPop(); else renderLook(); $(k).classList.add('show'); $('scrim').classList.add('show'); }
+  syncExp();
+}
+function renderPop() {
+  var i = info(), r = role() || '', m = ST.me || {}, c = ST.code, E = ST.edit, html, form = function (inner) { return '<div class="f">' + inner + '<p class="msg" id="pmsg"></p><button class="btn" id="psave">保存</button><button class="btn link" id="pcancel">取消</button></div>'; };
+  html = '<div class="who-top">' + avatar(i, 'lg') + '<b>' + esc(i.name) + '</b><small>' + esc(i.email) + '</small><span class="pill acc">' + r + (m.student ? ' · ' + esc(m.student.class) : '') + '</span></div>';
+  if (E === 'name') html += form('<input id="pname1" maxlength="20" value="' + esc(i.full || i.name) + '" placeholder="名字">');
+  else if (E === 'uname') html += form('<input id="puname" maxlength="32" value="' + esc(ST.uname || '') + '" placeholder="如 11445" autocapitalize="none">');
+  else if (E === 'pw') html += form('<input id="ppw1" type="password" autocomplete="new-password" placeholder="新密码（至少 6 位）"><input id="ppw2" type="password" autocomplete="new-password" placeholder="再输一次">');
+  else {
+    html += '<div class="rows">' +
+      '<button type="button" data-e="name"><span>名字</span><span>' + esc(i.full || i.name) + '</span></button>' +
+      '<button type="button" data-e="uname"><span>账号名</span><span>' + (ST.uname === null ? '…' : esc(ST.uname || '未设置')) + '</span></button>' +
+      '<button type="button" data-e="pw"><span>密码</span><span>修改</span></button>' +
+      (i.gh ? '<div><span>GitHub</span><span>' + esc(i.gh) + '</span></div>' : '<button type="button" id="plink"><span>GitHub</span><span>绑定</span></button>') + '</div>';
+    if (r === '未开通') { // 填邀请码开通：教师码直接开通；课堂码再选班级、填学号姓名
+      html += '<div class="f" style="margin-bottom:14px"><input id="pcode" maxlength="16" placeholder="教师码或课堂码" autocomplete="off"' + (c ? ' value="' + esc(c.code) + '" disabled' : '') + '>';
+      if (c) html += '<select id="pcls">' + c.classes.map(function (k) { return '<option value="' + k.id + '"' + (k.preferred ? ' selected' : '') + '>' + esc(k.name) + '</option>'; }).join('') + '</select>' +
+        '<input id="pno" inputmode="numeric" maxlength="20" placeholder="学号"><input id="pnm" maxlength="20" placeholder="姓名">';
+      html += '<p class="msg" id="pmsg"></p><button class="btn" id="pgo">' + (c ? '开通' : '下一步') + '</button></div>';
+    }
+    html += '<div class="f"><button class="btn sub" id="pswitch">切换账号</button><button class="btn link bad" id="pout">退出登录</button></div>';
+  }
+  $('pop').innerHTML = html;
+  if (ST.uname === null && !E) HX.api('/rest/v1/paike_usernames?select=username&user_id=eq.' + HX.uid()).then(function (x) { ST.uname = x && x[0] ? x[0].username : ''; if ($('pop').classList.contains('show') && !ST.edit) renderPop(); }).catch(function () { ST.uname = ''; });
+  $('pop').querySelectorAll('[data-e]').forEach(function (b) { b.onclick = function () { ST.edit = b.dataset.e; renderPop(); var f = $('pop').querySelector('input'); if (f) f.focus(); }; });
+  if ($('pcancel')) $('pcancel').onclick = function () { ST.edit = null; renderPop(); };
+  if ($('psave')) $('psave').onclick = async function () {
+    var b = $('psave'), msg = $('pmsg'); b.disabled = true; msg.textContent = '';
+    try {
+      if (E === 'name') { var n = $('pname1').value.trim(); if (!n) throw new Error('请填名字'); ST.user = await HX.setUser({ data: { full_name: n } }); }
+      if (E === 'uname') {
+        var un = $('puname').value.trim().toLowerCase(); if (un && !/^[a-z0-9_.-]{2,32}$/.test(un)) throw new Error('账号名用 2～32 位字母、数字');
+        await HX.api('/rest/v1/paike_usernames?user_id=eq.' + HX.uid(), { method: 'DELETE' });
+        if (un) await HX.api('/rest/v1/paike_usernames', { method: 'POST', body: { username: un, user_id: HX.uid() } });
+        ST.uname = un;
+      }
+      if (E === 'pw') {
+        var p1 = $('ppw1').value; if (p1.length < 6) throw new Error('密码至少 6 位'); if (p1 !== $('ppw2').value) throw new Error('两次输的不一样');
+        ST.user = await HX.setUser({ password: p1, data: { has_password: true } });
+      }
+      ST.edit = null; toast('已保存'); render(); renderPop();
+    } catch (e) { msg.textContent = e.message; b.disabled = false; }
+  };
+  if ($('plink')) $('plink').onclick = function () { HX.linkGitHub().catch(function (e) { toast(e.message); }); };
+  if ($('pswitch')) $('pswitch').onclick = async function () { await HX.out(); closePops(); reloadTools(); await refresh(); openLogin(); };
+  if ($('pout')) $('pout').onclick = async function () { await HX.out(); closePops(); reloadTools(); refresh(); };
+  if ($('pgo')) $('pgo').onclick = async function () {
+    var go = $('pgo'), msg = $('pmsg'); go.disabled = true; msg.textContent = '';
+    try {
+      if (!ST.code) {
+        var code = $('pcode').value.trim().toUpperCase(); if (!code) throw new Error('请填写邀请码');
+        var cls = await HX.rpc('hx_invite_classes', { p_code: code });
+        if (cls && cls.length) { ST.code = { code: code, classes: cls }; return renderPop(); }
+        await HX.rpc('hx_redeem', { p_code: code });
+      } else await HX.rpc('hx_redeem', { p_code: ST.code.code, p_class: +$('pcls').value, p_no: $('pno').value.trim(), p_name: $('pnm').value.trim() });
+      ST.code = null; await refresh(); reloadTools(); renderPop(); $('pop').classList.add('show');
+    } catch (e) { msg.textContent = e.message; go.disabled = false; }
+  };
+}
+// 外观：主题色、浅色 / 深色 / 自动、背景图、透明度（存 hx-theme，全部工具一起变）
+function renderLook() {
+  var s = HXTheme.get(), A = HXTheme.acc, B = HXTheme.bg, m = HXTheme.mode();
+  var html = '<h3>外观</h3><div class="seg">' + [['light', '浅色'], ['dark', '深色'], ['auto', '自动']].map(function (x) { return '<button type="button" data-mode="' + x[0] + '" aria-pressed="' + (s.mode === x[0]) + '">' + x[1] + '</button>'; }).join('') + '</div>' +
+    '<h3>主题色</h3><div class="sw">' + Object.keys(A).map(function (k) { return '<button type="button" data-acc="' + k + '" title="' + A[k].name + '" aria-label="' + A[k].name + '" aria-pressed="' + (s.acc === k) + '" style="--c:' + (m === 'dark' ? A[k].d : A[k].l) + '"></button>'; }).join('') + '</div>' +
+    '<h3>背景</h3><div class="bgs">' + Object.keys(B).filter(function (k) { return k !== 'custom'; }).map(function (k) {
+      var b = B[k], bg = b.img ? 'url(' + HXTheme.root + b.img + ')' : b.css || '';
+      return '<button type="button" data-bg="' + k + '" aria-pressed="' + (s.bg === k) + '"' + (bg ? ' style="--b:' + esc(bg) + '"' : '') + '><span>' + b.name + '</span></button>';
+    }).join('') + '<label aria-pressed="' + (s.bg === 'custom') + '"' + (s.bg === 'custom' ? ' style="--b:var(--hx-img)"' : '') + '><input type="file" id="bgFile" accept="image/*" hidden><span>' + (s.bg === 'custom' ? '换一张' : '＋ 上传') + '</span></label></div>' +
+    (s.bg !== 'none' ? '<h3>界面透明度</h3><div class="rng"><input type="range" id="op" min="15" max="100" value="' + s.op + '"><output id="opv">' + s.op + '%</output></div>' : '') +
+    '<button class="btn link" id="lookReset" type="button">恢复默认</button>';
+  $('look').innerHTML = html;
+  $('look').querySelectorAll('[data-mode]').forEach(function (b) { b.onclick = function () { HXTheme.set({ mode: b.dataset.mode }); }; });
+  $('look').querySelectorAll('[data-acc]').forEach(function (b) { b.onclick = function () { HXTheme.set({ acc: b.dataset.acc }); }; });
+  $('look').querySelectorAll('[data-bg]').forEach(function (b) { b.onclick = function () { HXTheme.set({ bg: b.dataset.bg }); }; });
+  $('bgFile').onchange = function (e) { var f = e.target.files[0]; if (f) HXTheme.upload(f).catch(function (er) { toast(er.message); }); };
+  if ($('op')) $('op').oninput = function () { $('opv').textContent = $('op').value + '%'; HXTheme.set({ op: +$('op').value }); };
+  $('lookReset').onclick = function () { HXTheme.reset(); };
+}
+HXTheme.onChange(function () { if ($('look').classList.contains('show') && document.activeElement !== $('op')) renderLook(); });
+$('lookBtn').onclick = function (e) { e.stopPropagation(); togglePop('look'); };
+$('scrim').onclick = closePops;
+document.addEventListener('click', function (e) { if (!e.target.closest('.pop') && !e.target.closest('#acct') && !e.target.closest('#lookBtn')) { if ($('pop').classList.contains('show') || $('look').classList.contains('show')) closePops(); } });
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closePops(); });
+
+// ---------- 教师首页：共用的班级名单（导入考勤表、勾选给哪些工具用、课堂码） ----------
+function renderTeach() {
+  var box = $('teach');
+  if (!isTeacher()) { box.innerHTML = ''; return; }
+  if (ST.classes === null) { ST.classes = []; loadClasses(); }
+  var R = ST.roster, N = ST.newCode, html = '<div class="sec"><h2>班级</h2><label class="btn sm">导入考勤表<input type="file" id="rFile" accept=".xls,.xlsx,.csv" hidden></label></div>';
+  if (N) html += '<div class="code"><small>' + esc(N.cls) + '</small><b>' + esc(N.code) + '</b>' + (N.role === 'student' ? '<small>4 小时内有效，学生在首页账号里填它开通</small><button class="btn link bad sm" id="rRevoke">下课，撤销</button>' : '') + '</div>';
+  if (R) html += '<div class="panel f"><b>' + R.list.length + ' 名学生：' + R.list.slice(0, 6).map(function (x) { return esc(x.name); }).join('、') + (R.list.length > 6 ? '…' : '') + '</b>' +
+    '<input id="rCls" value="' + esc(R.cls) + '" placeholder="班级"><input id="rTerm" value="' + esc(R.term) + '" placeholder="学期"><p class="msg" id="rMsg"></p>' +
+    '<div style="display:flex;gap:8px"><button class="btn" id="rImp">导入</button><button class="btn sub" id="rNo">取消</button></div></div>';
+  html += '<div class="cls">' + (ST.classes.length ? ST.classes.map(function (c) {
+    var on = ST.open === c.id, tools = c.tools || [];
+    return '<div class="cl"><div><h3>' + esc(c.name) + '</h3><small>' + esc(c.term ? c.term + ' · ' : '') + c.total + ' 人 · 已开通 ' + c.bound + '</small></div>' +
+      '<div class="acts"><button class="btn sub sm" data-code="' + c.id + '">课堂码</button><button class="btn sub sm" data-open="' + c.id + '">' + (on ? '收起' : '名单') + '</button></div>' +
+      '<div class="chips">' + CLASS_TOOLS.map(function (t) { return '<button type="button" class="chip" data-cls="' + c.id + '" data-tool="' + t[0] + '" aria-pressed="' + (tools.indexOf(t[0]) >= 0) + '">' + t[1] + '</button>'; }).join('') + '</div>' +
+      (on ? '<div class="stu" id="stu' + c.id + '">' + stuTable(ST.studs[c.id]) + '</div>' : '') + '</div>';
+  }).join('') : '<p class="empty">还没有班级：导入教务系统导出的考勤表（学号、姓名两列）</p>') + '</div>';
+  if (ST.me.admin) html += '<div class="sec"><h2>教师邀请码</h2></div><div class="panel f"><input id="tNote" maxlength="30" placeholder="给谁（备注）"><button class="btn" id="tGo">发一个教师码</button></div>';
+  box.innerHTML = html;
+  $('rFile').onchange = async function (e) {
+    var f = e.target.files[0]; e.target.value = ''; if (!f) return;
+    try { await loadXLSX(); var wb = XLSX.read(await f.arrayBuffer()); ST.roster = parseRoster(wb, f.name); if (!ST.roster.list.length) throw new Error('没找到学号和姓名'); }
+    catch (er) { ST.roster = null; toast('读取失败：' + er.message); }
+    renderTeach();
+  };
+  if (R) {
+    $('rNo').onclick = function () { ST.roster = null; renderTeach(); };
+    $('rImp').onclick = async function () {
+      var name = $('rCls').value.trim(); if (!name) return ($('rMsg').textContent = '请填写班级');
+      $('rImp').disabled = true;
+      try { var r = await HX.rpc('hx_import_class', { p_name: name, p_term: $('rTerm').value.trim(), p_rows: R.list }); ST.roster = null; delete ST.studs[r.class]; toast('已导入 ' + r.count + ' 人'); await loadClasses(); }
+      catch (er) { $('rMsg').textContent = er.message; $('rImp').disabled = false; }
+    };
+  }
+  if ($('rRevoke')) $('rRevoke').onclick = async function () { try { await HX.rpc('hx_revoke_code', { p_code: N.code }); ST.newCode = null; toast('已撤销'); renderTeach(); } catch (e) { toast(e.message); } };
+  box.querySelectorAll('[data-tool]').forEach(function (b) {
+    b.onclick = async function () {
+      var c = ST.classes.filter(function (x) { return x.id === +b.dataset.cls; })[0], t = b.dataset.tool, tools = (c.tools || []).slice(), i = tools.indexOf(t);
+      if (i >= 0) tools.splice(i, 1); else tools.push(t);
+      c.tools = tools; b.setAttribute('aria-pressed', i < 0);
+      try { await HX.rpc('hx_class_tools', { p_class: c.id, p_tools: tools }); } catch (e) { toast(e.message); loadClasses(); }
+    };
+  });
+  box.querySelectorAll('[data-open]').forEach(function (b) {
+    b.onclick = async function () {
+      var id = +b.dataset.open; ST.open = ST.open === id ? null : id; renderTeach();
+      if (ST.open && !ST.studs[id]) { try { ST.studs[id] = await HX.rpc('hx_class_students', { p_class: id }); } catch (e) { ST.studs[id] = []; toast(e.message); } if ($('stu' + id)) $('stu' + id).innerHTML = stuTable(ST.studs[id]); }
+    };
+  });
+  var top = function () { $('home').scrollTo({ top: $('teach').offsetTop - 20 }); };
+  box.querySelectorAll('[data-code]').forEach(function (b) {
+    b.onclick = async function () {
+      var c = ST.classes.filter(function (x) { return x.id === +b.dataset.code; })[0];
+      try { ST.newCode = { code: await HX.rpc('hx_new_code', { p_role: 'student', p_class: c.id, p_note: '' }), cls: c.name + ' · 课堂码', role: 'student' }; renderTeach(); top(); } catch (e) { toast(e.message); }
+    };
+  });
+  if ($('tGo')) $('tGo').onclick = async function () {
+    var note = $('tNote').value.trim();
+    try { ST.newCode = { code: await HX.rpc('hx_new_code', { p_role: 'teacher', p_class: null, p_note: note }), cls: '教师码 · ' + (note || '一码一用'), role: 'teacher' }; renderTeach(); top(); } catch (e) { toast(e.message); }
+  };
+}
+function stuTable(list) {
+  if (!list) return '<p class="empty">加载中…</p>';
+  return '<table><tr><th>序号</th><th>学号</th><th>姓名</th><th></th></tr>' + list.map(function (s) { return '<tr><td>' + (s.seq < 1000 ? s.seq : '') + '</td><td>' + esc(s.student_no) + '</td><td>' + esc(s.name) + '</td><td>' + (s.bound ? '<span class="pill acc">已开通</span>' : '') + (s.self_reg ? ' <span class="pill">自己注册</span>' : '') + '</td></tr>'; }).join('') + '</table>';
+}
+async function loadClasses() { try { ST.classes = await HX.rpc('hx_my_classes'); } catch (e) { ST.classes = []; toast('班级名单读取失败：' + e.message); } renderTeach(); }
+var xlsxP = null;
+function loadXLSX() { return xlsxP || (xlsxP = new Promise(function (ok, no) { var s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'; s.onload = ok; s.onerror = function () { xlsxP = null; no(new Error('表格组件加载失败')); }; document.head.appendChild(s); })); }
+// 考勤表：第 2 行“学期：… 班级：…”，下面每行 序号 | 学号 | 姓名；也认其他表：一行里第一个 6～20 位数字当学号，右边一格当姓名
+function parseRoster(wb, file) {
+  var rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: false, defval: '' }), head = [].concat.apply([], rows.slice(0, 4)).join(' ');
+  var cls = (head.match(/班级[：:]\s*(\S+)/) || [])[1] || String(file).replace(/[（(].*$|\.\w+$/g, ''), term = (head.match(/学期[：:]\s*(\S+)/) || [])[1] || '';
+  var list = [], seen = {};
+  rows.forEach(function (r) {
+    var i = r.findIndex(function (v) { return /^\d{6,20}$/.test(String(v).trim()); }), no = i >= 0 && String(r[i]).trim(), name = i >= 0 && String(r[i + 1] || '').trim();
+    if (no && name && !seen[no]) { seen[no] = 1; var q = +String(r[i - 1] || '').trim(); list.push({ no: no, name: name, seq: q > 0 && q < 1000 ? q : list.length + 1 }); }
+  });
+  return { cls: cls, term: term, list: list };
+}
+
+$('brand').onclick = $('back').onclick = function () { show(null); };
+addEventListener('hashchange', function () { var id = location.hash.slice(1); if (id !== (ST.tab || '')) show(id); });
+function reloadTools() { for (var k in frames) { if (k !== ST.tab) { frames[k].remove(); delete frames[k]; } else frames[k].src = frames[k].src; } } // 工具页把登录记在内存里，换人后重新打开
+async function refresh() {
+  ST.me = null; ST.user = null; ST.uname = null; ST.classes = null; ST.studs = {}; ST.newCode = null; ST.edit = null;
+  if (HX.in()) {
+    try { var res = await Promise.all([HX.rpc('hx_me'), HX.user()]); ST.me = res[0]; ST.user = res[1]; }
+    catch (e) { if (e.status === 401) await HX.out(); }
+  }
+  show(ST.tab || location.hash.slice(1));
+}
+// 给嵌在框里的工具用：要登录时弹登录窗口、问身份、回首页
+window.HXPortal = {
+  login: function () { openLogin(); },
+  me: function () { return ST.me; },
+  home: function () { show(null); },
+  toast: toast
+};
+
+$('lf').onsubmit = async function (e) {
+  e.preventDefault(); $('lmsg').textContent = '';
+  try { await HX.signIn($('lid').value, $('lpw').value); $('login').close(); $('lpw').value = ''; was = true; reloadTools(); refresh(); }
+  catch (err) { $('lmsg').textContent = err.message; }
+};
+$('lgh').onclick = function () { HX.github(); };
+$('lx').onclick = function () { $('login').close(); };
+// 嵌在下面的工具登录、退出时（同一网站共用 localStorage），这里跟着变
+var was = HX.in();
+addEventListener('storage', function (e) { if (e.key !== 'paike-session') return; var n = HX.in(); if (n !== was) { was = n; reloadTools(); refresh(); } });
+var gerr = HX.grab(); was = HX.in();
+refresh();
+if (gerr) openLogin(gerr);
+</script>
+</body>
+</html>

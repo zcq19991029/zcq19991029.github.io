@@ -1,0 +1,4873 @@
+[
+ {
+  "id": "wiring-single-1",
+  "number": 1,
+  "type": "single",
+  "stem": "低压电器是指工作电压在交流（ ）及以下、直流 1500V 及以下的电器。",
+  "options": [
+   {
+    "key": "A",
+    "text": "380V"
+   },
+   {
+    "key": "B",
+    "text": "660V"
+   },
+   {
+    "key": "C",
+    "text": "1000V"
+   },
+   {
+    "key": "D",
+    "text": "1200V"
+   }
+  ],
+  "answer": [
+   "D"
+  ],
+  "explanation": "低压电器：交流 1200V、直流 1500V 及以下。（教材 p20）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 20
+ },
+ {
+  "id": "wiring-single-2",
+  "number": 2,
+  "type": "single",
+  "stem": "开启式负荷开关俗称（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "组合开关"
+   },
+   {
+    "key": "B",
+    "text": "胶盖刀开关"
+   },
+   {
+    "key": "C",
+    "text": "自动空气开关"
+   },
+   {
+    "key": "D",
+    "text": "铁壳开关"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "开启式负荷开关俗称胶盖刀开关。（教材 p20）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 20
+ },
+ {
+  "id": "wiring-single-3",
+  "number": 3,
+  "type": "single",
+  "stem": "开启式负荷开关适用于照明电路和容量在（ ）以下动力电路的不频繁起动控制。",
+  "options": [
+   {
+    "key": "A",
+    "text": "3kW"
+   },
+   {
+    "key": "B",
+    "text": "5.5kW"
+   },
+   {
+    "key": "C",
+    "text": "7.5kW"
+   },
+   {
+    "key": "D",
+    "text": "11kW"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "用于照明电路和小容量（5.5kW 以下）动力电路不频繁起动。（教材 p20）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 20
+ },
+ {
+  "id": "wiring-single-4",
+  "number": 4,
+  "type": "single",
+  "stem": "安装开启式负荷开关时，正确的做法是（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "瓷底与地面平行安装"
+   },
+   {
+    "key": "B",
+    "text": "手柄向下为合闸"
+   },
+   {
+    "key": "C",
+    "text": "瓷底与地面垂直，手柄向上为合闸"
+   },
+   {
+    "key": "D",
+    "text": "可以倒装"
+   }
+  ],
+  "answer": [
+   "C"
+  ],
+  "explanation": "瓷底与地面垂直，手柄向上为合闸，不得倒装和平装，以防刀片自重或振动误合闸。（教材 p21）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 21
+ },
+ {
+  "id": "wiring-single-5",
+  "number": 5,
+  "type": "single",
+  "stem": "开启式负荷开关接线时，电源进线应接在（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "刀片上方的静触点接线柱"
+   },
+   {
+    "key": "B",
+    "text": "刀片下方的接线柱"
+   },
+   {
+    "key": "C",
+    "text": "熔丝下端"
+   },
+   {
+    "key": "D",
+    "text": "任意一端"
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "电源进线必须接刀片上方的静触点接线柱，负载接下方接线柱。（教材 p21）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 21
+ },
+ {
+  "id": "wiring-single-6",
+  "number": 6,
+  "type": "single",
+  "stem": "用开启式负荷开关控制电动机时，开关额定电流应取电动机额定电流的（ ）倍。",
+  "options": [
+   {
+    "key": "A",
+    "text": "1.15"
+   },
+   {
+    "key": "B",
+    "text": "1.5"
+   },
+   {
+    "key": "C",
+    "text": "2"
+   },
+   {
+    "key": "D",
+    "text": "3"
+   }
+  ],
+  "answer": [
+   "D"
+  ],
+  "explanation": "一般负载取工作电流的 1.15 倍；控制电动机等电感性负载取电动机额定电流的 3 倍。（教材 p21）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 21
+ },
+ {
+  "id": "wiring-single-7",
+  "number": 7,
+  "type": "single",
+  "stem": "控制三相负载的开启式负荷开关应选用（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "220V 两极"
+   },
+   {
+    "key": "B",
+    "text": "250V 两极"
+   },
+   {
+    "key": "C",
+    "text": "380V 三极"
+   },
+   {
+    "key": "D",
+    "text": "220V 三极"
+   }
+  ],
+  "answer": [
+   "C"
+  ],
+  "explanation": "单相负载选 220V 或 250V 两极开关，三相负载选 380V 三极开关。（教材 p21）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 21
+ },
+ {
+  "id": "wiring-single-8",
+  "number": 8,
+  "type": "single",
+  "stem": "组合开关又称（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "转换开关"
+   },
+   {
+    "key": "B",
+    "text": "行程开关"
+   },
+   {
+    "key": "C",
+    "text": "负荷开关"
+   },
+   {
+    "key": "D",
+    "text": "主令开关"
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "组合开关又称转换开关，属于手动电器。（教材 p21）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 21
+ },
+ {
+  "id": "wiring-single-9",
+  "number": 9,
+  "type": "single",
+  "stem": "组合开关内装速断弹簧的作用是（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "使手柄复位"
+   },
+   {
+    "key": "B",
+    "text": "加速开关的分断速度"
+   },
+   {
+    "key": "C",
+    "text": "增大触点压力"
+   },
+   {
+    "key": "D",
+    "text": "储能合闸"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "开关内装有速断弹簧，用以加速开关的分断速度。（教材 p22）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 22
+ },
+ {
+  "id": "wiring-single-10",
+  "number": 10,
+  "type": "single",
+  "stem": "用组合开关控制小型电动机不频繁全压起动时，其容量应大于电动机额定电流的（ ）倍。",
+  "options": [
+   {
+    "key": "A",
+    "text": "1.15"
+   },
+   {
+    "key": "B",
+    "text": "1.5"
+   },
+   {
+    "key": "C",
+    "text": "2.5"
+   },
+   {
+    "key": "D",
+    "text": "3"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "控制小型电动机不频繁全压起动时，容量应大于电动机额定电流的 1.5 倍。（教材 p22）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 22
+ },
+ {
+  "id": "wiring-single-11",
+  "number": 11,
+  "type": "single",
+  "stem": "组合开关控制电动机时，每小时切换次数不宜超过（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "5～10 次"
+   },
+   {
+    "key": "B",
+    "text": "15～20 次"
+   },
+   {
+    "key": "C",
+    "text": "30～50 次"
+   },
+   {
+    "key": "D",
+    "text": "100 次"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "每小时切换次数不宜超过 15～20 次。（教材 p22）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 22
+ },
+ {
+  "id": "wiring-single-12",
+  "number": 12,
+  "type": "single",
+  "stem": "低压断路器又称（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "刀开关"
+   },
+   {
+    "key": "B",
+    "text": "自动空气开关"
+   },
+   {
+    "key": "C",
+    "text": "接触器"
+   },
+   {
+    "key": "D",
+    "text": "组合开关"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "低压断路器又称自动空气开关。（教材 p22）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 22
+ },
+ {
+  "id": "wiring-single-13",
+  "number": 13,
+  "type": "single",
+  "stem": "低压断路器按结构形式可分为（ ）两大类。",
+  "options": [
+   {
+    "key": "A",
+    "text": "插入式和螺旋式"
+   },
+   {
+    "key": "B",
+    "text": "万能式和塑料外壳式"
+   },
+   {
+    "key": "C",
+    "text": "直动式和滚轮式"
+   },
+   {
+    "key": "D",
+    "text": "通电延时和断电延时"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "分为万能式（框架式）和塑料外壳式（模压外壳式）。（教材 p22）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 22
+ },
+ {
+  "id": "wiring-single-14",
+  "number": 14,
+  "type": "single",
+  "stem": "万能式断路器又称（ ）断路器。",
+  "options": [
+   {
+    "key": "A",
+    "text": "模压外壳式"
+   },
+   {
+    "key": "B",
+    "text": "框架式"
+   },
+   {
+    "key": "C",
+    "text": "漏电保护式"
+   },
+   {
+    "key": "D",
+    "text": "限流式"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "万能式又称框架式，所有部件装在钢制框架内。（教材 p22）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 22
+ },
+ {
+  "id": "wiring-single-15",
+  "number": 15,
+  "type": "single",
+  "stem": "DZ15、DZ20 系列属于（ ）断路器。",
+  "options": [
+   {
+    "key": "A",
+    "text": "万能式"
+   },
+   {
+    "key": "B",
+    "text": "塑料外壳式"
+   },
+   {
+    "key": "C",
+    "text": "框架式"
+   },
+   {
+    "key": "D",
+    "text": "快速"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "塑料外壳式常用型号有 DZ10、DZ15、DZ20 等系列。（教材 p23）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 23
+ },
+ {
+  "id": "wiring-single-16",
+  "number": 16,
+  "type": "single",
+  "stem": "在低压断路器中，用来接通和分断电路的执行元件是（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "脱扣器"
+   },
+   {
+    "key": "B",
+    "text": "触点系统"
+   },
+   {
+    "key": "C",
+    "text": "自由脱扣机构"
+   },
+   {
+    "key": "D",
+    "text": "操作机构"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "触点系统是断路器的执行元件；各种脱扣器是感受元件。（教材 p23）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 23
+ },
+ {
+  "id": "wiring-single-17",
+  "number": 17,
+  "type": "single",
+  "stem": "在低压断路器中，感受电路故障信号的是（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "主触点"
+   },
+   {
+    "key": "B",
+    "text": "各种脱扣器"
+   },
+   {
+    "key": "C",
+    "text": "灭弧装置"
+   },
+   {
+    "key": "D",
+    "text": "操作手柄"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "各种脱扣器是断路器的感受元件，感测到故障信号后经自由脱扣机构使主触点断开。（教材 p23）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 23
+ },
+ {
+  "id": "wiring-single-18",
+  "number": 18,
+  "type": "single",
+  "stem": "低压断路器的图形符号文字代号是（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "QS"
+   },
+   {
+    "key": "B",
+    "text": "QF"
+   },
+   {
+    "key": "C",
+    "text": "FU"
+   },
+   {
+    "key": "D",
+    "text": "KM"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "低压断路器文字符号 QF；QS 为刀开关/组合开关。（教材 p23）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 23
+ },
+ {
+  "id": "wiring-single-19",
+  "number": 19,
+  "type": "single",
+  "stem": "型号 DZ15-40/3 中，“40”表示（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "设计序号"
+   },
+   {
+    "key": "B",
+    "text": "极数"
+   },
+   {
+    "key": "C",
+    "text": "额定电流 40A"
+   },
+   {
+    "key": "D",
+    "text": "分断能力 40kA"
+   }
+  ],
+  "answer": [
+   "C"
+  ],
+  "explanation": "DZ 塑料外壳式断路器，15 设计序号，横线后为额定电流，斜线后为极数。（教材 p23）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 23
+ },
+ {
+  "id": "wiring-single-20",
+  "number": 20,
+  "type": "single",
+  "stem": "DZ20 系列断路器按分断能力分类，其中 Y 型表示（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "一般型"
+   },
+   {
+    "key": "B",
+    "text": "较高型"
+   },
+   {
+    "key": "C",
+    "text": "经济型"
+   },
+   {
+    "key": "D",
+    "text": "最高型"
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "Y 一般型、J 较高型、C 经济型、G 最高型、H 高级型。（教材 p23）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 23
+ },
+ {
+  "id": "wiring-single-21",
+  "number": 21,
+  "type": "single",
+  "stem": "低压断路器欠电压脱扣器的额定电压应（ ）线路额定电压。",
+  "options": [
+   {
+    "key": "A",
+    "text": "大于"
+   },
+   {
+    "key": "B",
+    "text": "小于"
+   },
+   {
+    "key": "C",
+    "text": "等于"
+   },
+   {
+    "key": "D",
+    "text": "无要求"
+   }
+  ],
+  "answer": [
+   "C"
+  ],
+  "explanation": "欠电压脱扣器额定电压应等于线路额定电压。（教材 p24）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 24
+ },
+ {
+  "id": "wiring-single-22",
+  "number": 22,
+  "type": "single",
+  "stem": "低压断路器热脱扣器的整定电流应与所控制负载的（ ）一致。",
+  "options": [
+   {
+    "key": "A",
+    "text": "起动电流"
+   },
+   {
+    "key": "B",
+    "text": "额定工作电流"
+   },
+   {
+    "key": "C",
+    "text": "短路电流"
+   },
+   {
+    "key": "D",
+    "text": "最大电流"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "热脱扣器的整定电流应与所控制负载的额定工作电流一致。（教材 p24）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 24
+ },
+ {
+  "id": "wiring-single-23",
+  "number": 23,
+  "type": "single",
+  "stem": "对单台电动机，DZ 系列过电流脱扣器的瞬时脱扣整定电流 Iz 应满足（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "Iz≥(1.5～1.7)Iq"
+   },
+   {
+    "key": "B",
+    "text": "Iz≥(1.1～1.15)IN"
+   },
+   {
+    "key": "C",
+    "text": "Iz=IN"
+   },
+   {
+    "key": "D",
+    "text": "Iz≥3IN"
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "单台电动机 Iz≥(1.5～1.7)Iq，Iq 为电动机起动电流。（教材 p24）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 24
+ },
+ {
+  "id": "wiring-single-24",
+  "number": 24,
+  "type": "single",
+  "stem": "熔断器在电路中主要起（ ）作用。",
+  "options": [
+   {
+    "key": "A",
+    "text": "过载保护"
+   },
+   {
+    "key": "B",
+    "text": "短路保护"
+   },
+   {
+    "key": "C",
+    "text": "失电压保护"
+   },
+   {
+    "key": "D",
+    "text": "欠电压保护"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "熔断器是低压电路和电动机控制电路中最简单最常用的短路保护电器。（教材 p24）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 24
+ },
+ {
+  "id": "wiring-single-25",
+  "number": 25,
+  "type": "single",
+  "stem": "熔断器的熔体应（ ）在被保护电路中。",
+  "options": [
+   {
+    "key": "A",
+    "text": "并联"
+   },
+   {
+    "key": "B",
+    "text": "串联"
+   },
+   {
+    "key": "C",
+    "text": "混联"
+   },
+   {
+    "key": "D",
+    "text": "跨接"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "熔体串联在被保护电器或电路的前端。（教材 p24）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 24
+ },
+ {
+  "id": "wiring-single-26",
+  "number": 26,
+  "type": "single",
+  "stem": "在大容量电路中，熔体多采用（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "铅锡合金"
+   },
+   {
+    "key": "B",
+    "text": "铅"
+   },
+   {
+    "key": "C",
+    "text": "铜、银等高熔点材料"
+   },
+   {
+    "key": "D",
+    "text": "铝"
+   }
+  ],
+  "answer": [
+   "C"
+  ],
+  "explanation": "小容量电路用铅锡合金、铅等低熔点材料；大容量电路用铜、银等高熔点材料。（教材 p24）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 24
+ },
+ {
+  "id": "wiring-single-27",
+  "number": 27,
+  "type": "single",
+  "stem": "熔断器的文字符号是（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "FR"
+   },
+   {
+    "key": "B",
+    "text": "FU"
+   },
+   {
+    "key": "C",
+    "text": "QF"
+   },
+   {
+    "key": "D",
+    "text": "SQ"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "熔断器文字符号 FU；FR 是热继电器。（教材 p25）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 25
+ },
+ {
+  "id": "wiring-single-28",
+  "number": 28,
+  "type": "single",
+  "stem": "RC1A 系列熔断器属于（ ）熔断器。",
+  "options": [
+   {
+    "key": "A",
+    "text": "螺旋式"
+   },
+   {
+    "key": "B",
+    "text": "插入式"
+   },
+   {
+    "key": "C",
+    "text": "有填料封闭管式"
+   },
+   {
+    "key": "D",
+    "text": "快速"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "RC1A 为插入式（瓷插式）熔断器。（教材 p25）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 25
+ },
+ {
+  "id": "wiring-single-29",
+  "number": 29,
+  "type": "single",
+  "stem": "RL6 系列熔断器属于（ ）熔断器。",
+  "options": [
+   {
+    "key": "A",
+    "text": "插入式"
+   },
+   {
+    "key": "B",
+    "text": "螺旋式"
+   },
+   {
+    "key": "C",
+    "text": "无填料封闭管式"
+   },
+   {
+    "key": "D",
+    "text": "有填料封闭管式"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "RL 为螺旋式熔断器。（教材 p25）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 25
+ },
+ {
+  "id": "wiring-single-30",
+  "number": 30,
+  "type": "single",
+  "stem": "螺旋式熔断器熔管内填满石英砂，其作用是（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "导电"
+   },
+   {
+    "key": "B",
+    "text": "散热和灭弧"
+   },
+   {
+    "key": "C",
+    "text": "指示熔断"
+   },
+   {
+    "key": "D",
+    "text": "固定熔体"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "熔管内除装有熔体外，还填满起灭弧作用的石英砂。（教材 p24）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 24
+ },
+ {
+  "id": "wiring-single-31",
+  "number": 31,
+  "type": "single",
+  "stem": "螺旋式熔断器熔断时，可以从瓷帽玻璃口看到（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "熔体断开"
+   },
+   {
+    "key": "B",
+    "text": "红色熔断指示器脱出"
+   },
+   {
+    "key": "C",
+    "text": "石英砂变黑"
+   },
+   {
+    "key": "D",
+    "text": "指示灯亮"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "熔管上盖中心装有红色熔断指示器，熔断时从熔管上盖中脱出，可从瓷帽玻璃口发现。（教材 p24）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 24
+ },
+ {
+  "id": "wiring-single-32",
+  "number": 32,
+  "type": "single",
+  "stem": "螺旋式熔断器接线时，电源进线应接在（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "与螺口相连的上接线桩"
+   },
+   {
+    "key": "B",
+    "text": "与底座中心触片相连的下接线桩"
+   },
+   {
+    "key": "C",
+    "text": "瓷帽上"
+   },
+   {
+    "key": "D",
+    "text": "任意接线桩"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "电源进线接与中心触片相连的下接线桩，负载接与螺口相连的上接线桩，旋出瓷帽时螺口不带电。（教材 p25）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 25
+ },
+ {
+  "id": "wiring-single-33",
+  "number": 33,
+  "type": "single",
+  "stem": "熔断器的极限分断能力是指在额定电压下能断开的（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "最大工作电流"
+   },
+   {
+    "key": "B",
+    "text": "最大短路电流"
+   },
+   {
+    "key": "C",
+    "text": "熔体额定电流"
+   },
+   {
+    "key": "D",
+    "text": "最小熔化电流"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "极限分断能力是额定电压下能断开的最大短路电流，代表灭弧能力，与熔体额定电流无关。（教材 p25）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 25
+ },
+ {
+  "id": "wiring-single-34",
+  "number": 34,
+  "type": "single",
+  "stem": "保护单台电动机的熔断器，熔体额定电流按电动机额定电流的（ ）倍选择。",
+  "options": [
+   {
+    "key": "A",
+    "text": "0.9～1"
+   },
+   {
+    "key": "B",
+    "text": "1～1.2"
+   },
+   {
+    "key": "C",
+    "text": "1.5～2.5"
+   },
+   {
+    "key": "D",
+    "text": "3～4"
+   }
+  ],
+  "answer": [
+   "C"
+  ],
+  "explanation": "单台电动机熔体额定电流按 1.5～2.5 倍电动机额定电流选择，轻载取小、重载取大。（教材 p25）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 25
+ },
+ {
+  "id": "wiring-single-35",
+  "number": 35,
+  "type": "single",
+  "stem": "熔体装在电能表出线端熔断器上时，熔体额定电流按电能表额定电流的（ ）倍选用。",
+  "options": [
+   {
+    "key": "A",
+    "text": "0.9～1"
+   },
+   {
+    "key": "B",
+    "text": "1.1～1.2"
+   },
+   {
+    "key": "C",
+    "text": "1.5～2.5"
+   },
+   {
+    "key": "D",
+    "text": "2～3"
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "电能表出线端熔断器熔体额定电流按 0.9～1 倍电能表额定电流选用。（教材 p25）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 25
+ },
+ {
+  "id": "wiring-single-36",
+  "number": 36,
+  "type": "single",
+  "stem": "保护配电变压器低压侧的熔断器，熔体额定电流按变压器低压侧输出额定电流的（ ）倍选择。",
+  "options": [
+   {
+    "key": "A",
+    "text": "0.9～1"
+   },
+   {
+    "key": "B",
+    "text": "1～1.2"
+   },
+   {
+    "key": "C",
+    "text": "1.5～2.5"
+   },
+   {
+    "key": "D",
+    "text": "3"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "变压器低压侧熔体额定电流按低压侧输出额定电流 1～1.2 倍选择。（教材 p26）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 26
+ },
+ {
+  "id": "wiring-single-37",
+  "number": 37,
+  "type": "single",
+  "stem": "熔断器型号 RT18-32/25 中，“25”表示（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "熔断器额定电流"
+   },
+   {
+    "key": "B",
+    "text": "熔体额定电流"
+   },
+   {
+    "key": "C",
+    "text": "设计序号"
+   },
+   {
+    "key": "D",
+    "text": "额定电压"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "R 熔断器，T 有填料封闭管式，18 设计序号，32 熔断器额定电流，25 熔体额定电流。（教材 p4）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 4
+ },
+ {
+  "id": "wiring-single-38",
+  "number": 38,
+  "type": "single",
+  "stem": "一台 14kW、380V、cosφ=0.85、η=0.9 的三相异步电动机，其额定电流约为（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "14A"
+   },
+   {
+    "key": "B",
+    "text": "21A"
+   },
+   {
+    "key": "C",
+    "text": "28A"
+   },
+   {
+    "key": "D",
+    "text": "42A"
+   }
+  ],
+  "answer": [
+   "C"
+  ],
+  "explanation": "I=P/(√3·U·cosφ·η)=14000/(1.732×380×0.85×0.9)≈27.8A。（教材 p6）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 6
+ },
+ {
+  "id": "wiring-single-39",
+  "number": 39,
+  "type": "single",
+  "stem": "接触器的文字符号是（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "KA"
+   },
+   {
+    "key": "B",
+    "text": "KM"
+   },
+   {
+    "key": "C",
+    "text": "KT"
+   },
+   {
+    "key": "D",
+    "text": "KS"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "接触器 KM；中间继电器 KA；时间继电器 KT；速度继电器 KS。（教材 p27）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 27
+ },
+ {
+  "id": "wiring-single-40",
+  "number": 40,
+  "type": "single",
+  "stem": "接触器电磁机构由（ ）组成。",
+  "options": [
+   {
+    "key": "A",
+    "text": "线圈、铁心和衔铁"
+   },
+   {
+    "key": "B",
+    "text": "触点和灭弧罩"
+   },
+   {
+    "key": "C",
+    "text": "弹簧和外壳"
+   },
+   {
+    "key": "D",
+    "text": "双金属片和热元件"
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "电磁机构主要由线圈、铁心和衔铁三部分组成。（教材 p27）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 27
+ },
+ {
+  "id": "wiring-single-41",
+  "number": 41,
+  "type": "single",
+  "stem": "交流接触器的主触点一般有（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "一对"
+   },
+   {
+    "key": "B",
+    "text": "两对"
+   },
+   {
+    "key": "C",
+    "text": "三对或四对动合触点"
+   },
+   {
+    "key": "D",
+    "text": "两对动断触点"
+   }
+  ],
+  "answer": [
+   "C"
+  ],
+  "explanation": "主触点用于通断主电路，有三对或四对动合（常开）触点。（教材 p27）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 27
+ },
+ {
+  "id": "wiring-single-42",
+  "number": 42,
+  "type": "single",
+  "stem": "容量在（ ）以上的接触器都有灭弧装置。",
+  "options": [
+   {
+    "key": "A",
+    "text": "5A"
+   },
+   {
+    "key": "B",
+    "text": "10A"
+   },
+   {
+    "key": "C",
+    "text": "20A"
+   },
+   {
+    "key": "D",
+    "text": "40A"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "容量在 10A 以上的接触器都有灭弧装置。（教材 p27）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 27
+ },
+ {
+  "id": "wiring-single-43",
+  "number": 43,
+  "type": "single",
+  "stem": "大容量接触器常采用的灭弧方式是（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "双断口桥式触点"
+   },
+   {
+    "key": "B",
+    "text": "纵缝灭弧罩及栅片灭弧"
+   },
+   {
+    "key": "C",
+    "text": "石英砂灭弧"
+   },
+   {
+    "key": "D",
+    "text": "不需要灭弧"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "小容量常用双断口桥式触点；大容量常用纵缝灭弧罩及栅片灭弧结构。（教材 p27）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 27
+ },
+ {
+  "id": "wiring-single-44",
+  "number": 44,
+  "type": "single",
+  "stem": "接触器线圈的接线端子标号是（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "L1、L2"
+   },
+   {
+    "key": "B",
+    "text": "A1、A2"
+   },
+   {
+    "key": "C",
+    "text": "95、96"
+   },
+   {
+    "key": "D",
+    "text": "13、14"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "线圈为 A1、A2；主触点 1、3、5 接电源侧，2、4、6 接负载侧。（教材 p27）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 27
+ },
+ {
+  "id": "wiring-single-45",
+  "number": 45,
+  "type": "single",
+  "stem": "接触器辅助触点标号 21-22 表示（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "动合（常开）触点"
+   },
+   {
+    "key": "B",
+    "text": "动断（常闭）触点"
+   },
+   {
+    "key": "C",
+    "text": "主触点"
+   },
+   {
+    "key": "D",
+    "text": "线圈"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "辅助触点两位数，后一位 3、4 表示动合，1、2 表示动断。（教材 p27）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 27
+ },
+ {
+  "id": "wiring-single-46",
+  "number": 46,
+  "type": "single",
+  "stem": "接触器主触点中接电源侧的端子是（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "1、3、5"
+   },
+   {
+    "key": "B",
+    "text": "2、4、6"
+   },
+   {
+    "key": "C",
+    "text": "13、14"
+   },
+   {
+    "key": "D",
+    "text": "A1、A2"
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "主触点 1、3、5 接电源侧，2、4、6 接负载侧。（教材 p27）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 27
+ },
+ {
+  "id": "wiring-single-47",
+  "number": 47,
+  "type": "single",
+  "stem": "接触器的额定电压是指（ ）的额定电压。",
+  "options": [
+   {
+    "key": "A",
+    "text": "线圈"
+   },
+   {
+    "key": "B",
+    "text": "主触点"
+   },
+   {
+    "key": "C",
+    "text": "辅助触点"
+   },
+   {
+    "key": "D",
+    "text": "控制电路"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "接触器的额定电压是指主触点的额定电压。（教材 p28）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 28
+ },
+ {
+  "id": "wiring-single-48",
+  "number": 48,
+  "type": "single",
+  "stem": "接触器的额定电流是指（ ）的额定工作电流。",
+  "options": [
+   {
+    "key": "A",
+    "text": "线圈"
+   },
+   {
+    "key": "B",
+    "text": "主触点"
+   },
+   {
+    "key": "C",
+    "text": "辅助触点"
+   },
+   {
+    "key": "D",
+    "text": "熔断器"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "额定电流是指主触点的额定工作电流。（教材 p28）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 28
+ },
+ {
+  "id": "wiring-single-49",
+  "number": 49,
+  "type": "single",
+  "stem": "规定接触器的吸合电压大于线圈额定电压的（ ）时应可靠吸合。",
+  "options": [
+   {
+    "key": "A",
+    "text": "50%"
+   },
+   {
+    "key": "B",
+    "text": "70%"
+   },
+   {
+    "key": "C",
+    "text": "85%"
+   },
+   {
+    "key": "D",
+    "text": "100%"
+   }
+  ],
+  "answer": [
+   "C"
+  ],
+  "explanation": "吸合电压大于线圈额定电压的 85% 时应可靠吸合，释放电压不高于 70%。（教材 p28）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 28
+ },
+ {
+  "id": "wiring-single-50",
+  "number": 50,
+  "type": "single",
+  "stem": "接触器型号 CJX2 中，“X”表示（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "小容量"
+   },
+   {
+    "key": "B",
+    "text": "交流"
+   },
+   {
+    "key": "C",
+    "text": "直流"
+   },
+   {
+    "key": "D",
+    "text": "设计代号"
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "C 接触器，J 交流，X 小容量。（教材 p28）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 28
+ },
+ {
+  "id": "wiring-single-51",
+  "number": 51,
+  "type": "single",
+  "stem": "型号 CZ 表示（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "交流接触器"
+   },
+   {
+    "key": "B",
+    "text": "直流接触器"
+   },
+   {
+    "key": "C",
+    "text": "中间继电器"
+   },
+   {
+    "key": "D",
+    "text": "组合开关"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "CZ 为直流接触器，如 CZ18、CZ21、CZ10 等。（教材 p28）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 28
+ },
+ {
+  "id": "wiring-single-52",
+  "number": 52,
+  "type": "single",
+  "stem": "接触器型号 CJ20-40 中，“40”表示（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "额定电压 40V"
+   },
+   {
+    "key": "B",
+    "text": "额定电流 40A"
+   },
+   {
+    "key": "C",
+    "text": "设计序号"
+   },
+   {
+    "key": "D",
+    "text": "触点数"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "CJ 交流接触器，20 设计序号，40 额定电流 40A。（教材 p8）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 8
+ },
+ {
+  "id": "wiring-single-53",
+  "number": 53,
+  "type": "single",
+  "stem": "选用接触器时，吸引线圈的额定电压和频率应与（ ）一致。",
+  "options": [
+   {
+    "key": "A",
+    "text": "主电路"
+   },
+   {
+    "key": "B",
+    "text": "所在控制电路"
+   },
+   {
+    "key": "C",
+    "text": "电动机铭牌"
+   },
+   {
+    "key": "D",
+    "text": "电源变压器一次侧"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "吸引线圈的额定电压与频率要与所在控制电路的选用电压和频率一致。（教材 p28）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 28
+ },
+ {
+  "id": "wiring-single-54",
+  "number": 54,
+  "type": "single",
+  "stem": "继电器一般不用来控制主电路，原因是（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "动作太慢"
+   },
+   {
+    "key": "B",
+    "text": "容量小"
+   },
+   {
+    "key": "C",
+    "text": "体积大"
+   },
+   {
+    "key": "D",
+    "text": "价格高"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "继电器容量小，一般不用来控制主电路，也不需要灭弧装置。（教材 p28）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 28
+ },
+ {
+  "id": "wiring-single-55",
+  "number": 55,
+  "type": "single",
+  "stem": "热继电器主要用于电动机的（ ）保护。",
+  "options": [
+   {
+    "key": "A",
+    "text": "短路"
+   },
+   {
+    "key": "B",
+    "text": "过载"
+   },
+   {
+    "key": "C",
+    "text": "失电压"
+   },
+   {
+    "key": "D",
+    "text": "欠电压"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "热继电器主要用于电动机的过载保护。（教材 p28）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 28
+ },
+ {
+  "id": "wiring-single-56",
+  "number": 56,
+  "type": "single",
+  "stem": "热继电器的文字符号是（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "FU"
+   },
+   {
+    "key": "B",
+    "text": "FR"
+   },
+   {
+    "key": "C",
+    "text": "KT"
+   },
+   {
+    "key": "D",
+    "text": "QF"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "热继电器文字符号 FR。（教材 p29）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 29
+ },
+ {
+  "id": "wiring-single-57",
+  "number": 57,
+  "type": "single",
+  "stem": "应用最广泛的热继电器是（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "电子式"
+   },
+   {
+    "key": "B",
+    "text": "双金属片式"
+   },
+   {
+    "key": "C",
+    "text": "易熔合金式"
+   },
+   {
+    "key": "D",
+    "text": "电磁式"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "双金属片式结构简单、体积较小、成本较低，应用最广泛。（教材 p29）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 29
+ },
+ {
+  "id": "wiring-single-58",
+  "number": 58,
+  "type": "single",
+  "stem": "热继电器不能作短路保护，是因为（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "触点容量太小"
+   },
+   {
+    "key": "B",
+    "text": "双金属片受热变形需要一个过程"
+   },
+   {
+    "key": "C",
+    "text": "热元件电阻太大"
+   },
+   {
+    "key": "D",
+    "text": "没有灭弧装置"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "双金属片从升温到变形断开动断触点有一个过程，不可能在短路瞬间迅速分断电路。（教材 p29）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 29
+ },
+ {
+  "id": "wiring-single-59",
+  "number": 59,
+  "type": "single",
+  "stem": "热继电器的整定电流是指（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "热继电器动作的最小电流"
+   },
+   {
+    "key": "B",
+    "text": "长期运行而不动作的最大电流"
+   },
+   {
+    "key": "C",
+    "text": "电动机的起动电流"
+   },
+   {
+    "key": "D",
+    "text": "短路电流"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "整定电流是热继电器长期运行而不动作的最大电流。（教材 p29）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 29
+ },
+ {
+  "id": "wiring-single-60",
+  "number": 60,
+  "type": "single",
+  "stem": "通常负载电流超过整定电流（ ）倍时，热继电器必须动作。",
+  "options": [
+   {
+    "key": "A",
+    "text": "1.05"
+   },
+   {
+    "key": "B",
+    "text": "1.2"
+   },
+   {
+    "key": "C",
+    "text": "1.5"
+   },
+   {
+    "key": "D",
+    "text": "2"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "负载电流超过整定电流 1.2 倍，热继电器就必须动作。（教材 p29）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 29
+ },
+ {
+  "id": "wiring-single-61",
+  "number": 61,
+  "type": "single",
+  "stem": "热继电器型号 JR16-20/3D 中，“D”表示（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "带断相保护"
+   },
+   {
+    "key": "B",
+    "text": "低压"
+   },
+   {
+    "key": "C",
+    "text": "电子式"
+   },
+   {
+    "key": "D",
+    "text": "单极"
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "JR 热继电器，设计代号、额定电流、相数，D 表示带断相保护。（教材 p29）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 29
+ },
+ {
+  "id": "wiring-single-62",
+  "number": 62,
+  "type": "single",
+  "stem": "三角形联结的电动机应选用（ ）热继电器。",
+  "options": [
+   {
+    "key": "A",
+    "text": "普通两相结构"
+   },
+   {
+    "key": "B",
+    "text": "普通三相结构"
+   },
+   {
+    "key": "C",
+    "text": "带断相保护装置的"
+   },
+   {
+    "key": "D",
+    "text": "任意"
+   }
+  ],
+  "answer": [
+   "C"
+  ],
+  "explanation": "三角形联结电动机，普通热继电器不能起断相保护作用，必须选用带断相保护装置的。（教材 p30）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 30
+ },
+ {
+  "id": "wiring-single-63",
+  "number": 63,
+  "type": "single",
+  "stem": "电动机频繁起动、正反转起动或带冲击性负载时，热元件整定电流应为电动机额定电流的（ ）倍。",
+  "options": [
+   {
+    "key": "A",
+    "text": "0.9～1"
+   },
+   {
+    "key": "B",
+    "text": "1.1～1.15"
+   },
+   {
+    "key": "C",
+    "text": "1.5～2.5"
+   },
+   {
+    "key": "D",
+    "text": "3"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "此时热元件的整定电流应是电动机额定电流的 1.1～1.15 倍。（教材 p30）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 30
+ },
+ {
+  "id": "wiring-single-64",
+  "number": 64,
+  "type": "single",
+  "stem": "JR36 系列热继电器中，95、96 端子是（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "常开触点"
+   },
+   {
+    "key": "B",
+    "text": "常闭触点"
+   },
+   {
+    "key": "C",
+    "text": "热元件进线"
+   },
+   {
+    "key": "D",
+    "text": "线圈"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "95、96 为一对常闭触点；97、98 为一对常开触点。（教材 p9）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 9
+ },
+ {
+  "id": "wiring-single-65",
+  "number": 65,
+  "type": "single",
+  "stem": "热继电器整定电流的调整是通过（ ）完成的。",
+  "options": [
+   {
+    "key": "A",
+    "text": "更换热元件"
+   },
+   {
+    "key": "B",
+    "text": "旋转外壳上方的旋钮"
+   },
+   {
+    "key": "C",
+    "text": "调节触点间距"
+   },
+   {
+    "key": "D",
+    "text": "更换弹簧"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "通过旋转外壳上方的旋钮完成，旋钮上刻有整定电流标尺。（教材 p10）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 10
+ },
+ {
+  "id": "wiring-single-66",
+  "number": 66,
+  "type": "single",
+  "stem": "中间继电器实质上是一种（ ）继电器。",
+  "options": [
+   {
+    "key": "A",
+    "text": "电流"
+   },
+   {
+    "key": "B",
+    "text": "电压"
+   },
+   {
+    "key": "C",
+    "text": "时间"
+   },
+   {
+    "key": "D",
+    "text": "速度"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "中间继电器实质上是一种电压继电器，根据输入电压的有无而动作。（教材 p30）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 30
+ },
+ {
+  "id": "wiring-single-67",
+  "number": 67,
+  "type": "single",
+  "stem": "中间继电器触点的额定电流一般为（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "1～2A"
+   },
+   {
+    "key": "B",
+    "text": "5～10A"
+   },
+   {
+    "key": "C",
+    "text": "20～40A"
+   },
+   {
+    "key": "D",
+    "text": "60A 以上"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "中间继电器触点对数多，触点额定电流为 5～10A。（教材 p30）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 30
+ },
+ {
+  "id": "wiring-single-68",
+  "number": 68,
+  "type": "single",
+  "stem": "中间继电器的文字符号是（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "KM"
+   },
+   {
+    "key": "B",
+    "text": "KA"
+   },
+   {
+    "key": "C",
+    "text": "KT"
+   },
+   {
+    "key": "D",
+    "text": "SB"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "中间继电器 KA。（教材 p30）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 30
+ },
+ {
+  "id": "wiring-single-69",
+  "number": 69,
+  "type": "single",
+  "stem": "空气阻尼式时间继电器又称（ ）时间继电器。",
+  "options": [
+   {
+    "key": "A",
+    "text": "电子式"
+   },
+   {
+    "key": "B",
+    "text": "气囊式"
+   },
+   {
+    "key": "C",
+    "text": "电动式"
+   },
+   {
+    "key": "D",
+    "text": "晶体管式"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "空气阻尼式时间继电器又称气囊式时间继电器。（教材 p31）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 31
+ },
+ {
+  "id": "wiring-single-70",
+  "number": 70,
+  "type": "single",
+  "stem": "空气阻尼式时间继电器延时长短是通过调节（ ）来改变的。",
+  "options": [
+   {
+    "key": "A",
+    "text": "线圈电压"
+   },
+   {
+    "key": "B",
+    "text": "气室进气速度"
+   },
+   {
+    "key": "C",
+    "text": "触点压力"
+   },
+   {
+    "key": "D",
+    "text": "衔铁行程"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "气室上面的调节螺钉可调节进气速度的大小来调节延时长短。（教材 p32）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 32
+ },
+ {
+  "id": "wiring-single-71",
+  "number": 71,
+  "type": "single",
+  "stem": "把通电延时型空气阻尼式时间继电器的（ ）反向安装，就可改为断电延时型。",
+  "options": [
+   {
+    "key": "A",
+    "text": "触点系统"
+   },
+   {
+    "key": "B",
+    "text": "电磁机构"
+   },
+   {
+    "key": "C",
+    "text": "气室"
+   },
+   {
+    "key": "D",
+    "text": "调节螺钉"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "将通电延时型的电磁机构反向安装，就可以改为断电延时型。（教材 p32）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 32
+ },
+ {
+  "id": "wiring-single-72",
+  "number": 72,
+  "type": "single",
+  "stem": "通电延时型时间继电器线圈断电时，其延时触点（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "延时复位"
+   },
+   {
+    "key": "B",
+    "text": "迅速复位，无延时"
+   },
+   {
+    "key": "C",
+    "text": "保持不变"
+   },
+   {
+    "key": "D",
+    "text": "先闭合后断开"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "通电延时型线圈断电时，瞬时触点和延时触点迅速复位，无延时。（教材 p32）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 32
+ },
+ {
+  "id": "wiring-single-73",
+  "number": 73,
+  "type": "single",
+  "stem": "断电延时型时间继电器线圈断电时，（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "瞬时触点和延时触点都延时复位"
+   },
+   {
+    "key": "B",
+    "text": "瞬时触点立即复位，延时触点延时复位"
+   },
+   {
+    "key": "C",
+    "text": "所有触点立即复位"
+   },
+   {
+    "key": "D",
+    "text": "延时触点立即复位"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "断电延时型：断电时瞬时触点立即复位，延时触点延时复位。（教材 p32）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 32
+ },
+ {
+  "id": "wiring-single-74",
+  "number": 74,
+  "type": "single",
+  "stem": "时间继电器的文字符号是（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "KT"
+   },
+   {
+    "key": "B",
+    "text": "KA"
+   },
+   {
+    "key": "C",
+    "text": "KS"
+   },
+   {
+    "key": "D",
+    "text": "FR"
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "时间继电器 KT。（教材 p31）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 31
+ },
+ {
+  "id": "wiring-single-75",
+  "number": 75,
+  "type": "single",
+  "stem": "JS7-2A 型空气阻尼式时间继电器属于（ ）型。",
+  "options": [
+   {
+    "key": "A",
+    "text": "通电延时"
+   },
+   {
+    "key": "B",
+    "text": "断电延时"
+   },
+   {
+    "key": "C",
+    "text": "电子式"
+   },
+   {
+    "key": "D",
+    "text": "电动式"
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "JS7-1A、JS7-2A 为通电延时；JS7-3A、JS7-4A 为断电延时。（教材 p12）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 12
+ },
+ {
+  "id": "wiring-single-76",
+  "number": 76,
+  "type": "single",
+  "stem": "JS7-2A 型空气阻尼式时间继电器的延时范围为（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "0.1～1s"
+   },
+   {
+    "key": "B",
+    "text": "0.4～60s"
+   },
+   {
+    "key": "C",
+    "text": "1～300s"
+   },
+   {
+    "key": "D",
+    "text": "1～3600s"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "延时范围为 0.4～60s，用螺钉旋具可在该范围内调节。（教材 p12）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 12
+ },
+ {
+  "id": "wiring-single-77",
+  "number": 77,
+  "type": "single",
+  "stem": "电子式时间继电器的特点是（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "定时准确度不高"
+   },
+   {
+    "key": "B",
+    "text": "定时准确度高，延时时间长"
+   },
+   {
+    "key": "C",
+    "text": "只能断电延时"
+   },
+   {
+    "key": "D",
+    "text": "必须用螺钉旋具调节"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "电子式定时准确度高、延时时间长，转动时间调节盘面使指针指向设定刻度即可。（教材 p14）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 14
+ },
+ {
+  "id": "wiring-single-78",
+  "number": 78,
+  "type": "single",
+  "stem": "速度继电器又叫（ ）继电器。",
+  "options": [
+   {
+    "key": "A",
+    "text": "反接制动"
+   },
+   {
+    "key": "B",
+    "text": "能耗制动"
+   },
+   {
+    "key": "C",
+    "text": "过电流"
+   },
+   {
+    "key": "D",
+    "text": "欠电压"
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "速度继电器又叫反接制动继电器，对电动机实行反接制动控制。（教材 p32）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 32
+ },
+ {
+  "id": "wiring-single-79",
+  "number": 79,
+  "type": "single",
+  "stem": "速度继电器的转子是由（ ）制成的。",
+  "options": [
+   {
+    "key": "A",
+    "text": "硅钢片"
+   },
+   {
+    "key": "B",
+    "text": "永久磁铁"
+   },
+   {
+    "key": "C",
+    "text": "铜导条"
+   },
+   {
+    "key": "D",
+    "text": "胶木"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "转子由永久磁铁制成，定子由硅钢片叠成并铸有笼形绕组。（教材 p32）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 32
+ },
+ {
+  "id": "wiring-single-80",
+  "number": 80,
+  "type": "single",
+  "stem": "通常速度继电器的动作转速为（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "50r/min"
+   },
+   {
+    "key": "B",
+    "text": "100r/min"
+   },
+   {
+    "key": "C",
+    "text": "120r/min"
+   },
+   {
+    "key": "D",
+    "text": "1000r/min"
+   }
+  ],
+  "answer": [
+   "C"
+  ],
+  "explanation": "动作转速为 120r/min，复位转速在 100r/min 以下。（教材 p33）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 33
+ },
+ {
+  "id": "wiring-single-81",
+  "number": 81,
+  "type": "single",
+  "stem": "JY1 型速度继电器可在（ ）范围内工作。",
+  "options": [
+   {
+    "key": "A",
+    "text": "300～1000r/min"
+   },
+   {
+    "key": "B",
+    "text": "700～3600r/min"
+   },
+   {
+    "key": "C",
+    "text": "1000～3000r/min"
+   },
+   {
+    "key": "D",
+    "text": "120～1500r/min"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "JY1 在 700～3600r/min 范围工作；JFZ0-1 适用于 300～1000r/min，JFZ0-2 适用于 1000～3000r/min。（教材 p33）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 33
+ },
+ {
+  "id": "wiring-single-82",
+  "number": 82,
+  "type": "single",
+  "stem": "速度继电器的文字符号是（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "KS"
+   },
+   {
+    "key": "B",
+    "text": "KT"
+   },
+   {
+    "key": "C",
+    "text": "SQ"
+   },
+   {
+    "key": "D",
+    "text": "KA"
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "速度继电器 KS。（教材 p32）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 32
+ },
+ {
+  "id": "wiring-single-83",
+  "number": 83,
+  "type": "single",
+  "stem": "按钮只能短时接通或分断（ ）以下的小电流电路。",
+  "options": [
+   {
+    "key": "A",
+    "text": "1A"
+   },
+   {
+    "key": "B",
+    "text": "5A"
+   },
+   {
+    "key": "C",
+    "text": "10A"
+   },
+   {
+    "key": "D",
+    "text": "20A"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "按钮只能短时接通或分断 5A 以下的小电流电路。（教材 p33）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 33
+ },
+ {
+  "id": "wiring-single-84",
+  "number": 84,
+  "type": "single",
+  "stem": "一般情况下，停止按钮的颜色为（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "绿色"
+   },
+   {
+    "key": "B",
+    "text": "黑色"
+   },
+   {
+    "key": "C",
+    "text": "红色"
+   },
+   {
+    "key": "D",
+    "text": "白色"
+   }
+  ],
+  "answer": [
+   "C"
+  ],
+  "explanation": "停止按钮用红色，起动按钮用绿色或黑色。（教材 p33）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 33
+ },
+ {
+  "id": "wiring-single-85",
+  "number": 85,
+  "type": "single",
+  "stem": "按钮的文字符号是（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "SB"
+   },
+   {
+    "key": "B",
+    "text": "SQ"
+   },
+   {
+    "key": "C",
+    "text": "SA"
+   },
+   {
+    "key": "D",
+    "text": "QS"
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "按钮 SB；位置开关 SQ。（教材 p33）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 33
+ },
+ {
+  "id": "wiring-single-86",
+  "number": 86,
+  "type": "single",
+  "stem": "LA39 系列按钮中，23-24 是（ ）接线端子。",
+  "options": [
+   {
+    "key": "A",
+    "text": "常闭触点"
+   },
+   {
+    "key": "B",
+    "text": "常开触点"
+   },
+   {
+    "key": "C",
+    "text": "指示灯"
+   },
+   {
+    "key": "D",
+    "text": "线圈"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "LA39 中 11-12 为常闭触点接线端子，23-24 为常开触点接线端子。（教材 p15）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 15
+ },
+ {
+  "id": "wiring-single-87",
+  "number": 87,
+  "type": "single",
+  "stem": "位置开关（行程开关）的触点动作是靠（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "手动按压"
+   },
+   {
+    "key": "B",
+    "text": "生产机械运动部件上的挡铁碰撞"
+   },
+   {
+    "key": "C",
+    "text": "电磁吸力"
+   },
+   {
+    "key": "D",
+    "text": "温度变化"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "利用生产机械某些运动部件上的挡铁碰撞其滚轮或操作杆，使触点动作。（教材 p33）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 33
+ },
+ {
+  "id": "wiring-single-88",
+  "number": 88,
+  "type": "single",
+  "stem": "位置开关的文字符号是（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "SB"
+   },
+   {
+    "key": "B",
+    "text": "SQ"
+   },
+   {
+    "key": "C",
+    "text": "KS"
+   },
+   {
+    "key": "D",
+    "text": "QF"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "位置开关 SQ。（教材 p34）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 34
+ },
+ {
+  "id": "wiring-single-89",
+  "number": 89,
+  "type": "single",
+  "stem": "直动式和滚轮式位置开关的主要区别在于（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "触点系统"
+   },
+   {
+    "key": "B",
+    "text": "传动系统"
+   },
+   {
+    "key": "C",
+    "text": "外壳"
+   },
+   {
+    "key": "D",
+    "text": "操作头材料"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "两者结构基本相同，主要区别在传动系统。（教材 p34）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 34
+ },
+ {
+  "id": "wiring-single-90",
+  "number": 90,
+  "type": "single",
+  "stem": "接近开关是一种（ ）的位置开关。",
+  "options": [
+   {
+    "key": "A",
+    "text": "需要机械碰撞"
+   },
+   {
+    "key": "B",
+    "text": "与运动部件无机械接触而能操作"
+   },
+   {
+    "key": "C",
+    "text": "只能检测金属"
+   },
+   {
+    "key": "D",
+    "text": "手动操作"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "接近开关是与运动部件无机械接触而能操作的位置开关，是一种非接触型检测装置。（教材 p18）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 18
+ },
+ {
+  "id": "wiring-single-91",
+  "number": 91,
+  "type": "single",
+  "stem": "OBM-D04NK 型接近开关三根引线中，作为信号线的是（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "棕色线"
+   },
+   {
+    "key": "B",
+    "text": "蓝色线"
+   },
+   {
+    "key": "C",
+    "text": "黑色线"
+   },
+   {
+    "key": "D",
+    "text": "黄绿线"
+   }
+  ],
+  "answer": [
+   "C"
+  ],
+  "explanation": "棕色接 +24V，蓝色接 0V，黑色为信号线。（教材 p18）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 18
+ },
+ {
+  "id": "wiring-single-92",
+  "number": 92,
+  "type": "single",
+  "stem": "检测 OBM-D04NK 接近开关输出时，万用表应调至（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "交流电压 750V 档"
+   },
+   {
+    "key": "B",
+    "text": "直流电压 200V 档"
+   },
+   {
+    "key": "C",
+    "text": "电阻档"
+   },
+   {
+    "key": "D",
+    "text": "电流档"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "将万用表调至直流电压 200V 档，测棕、黑两端：0 为无信号，约 24V 为有信号输出。（教材 p18）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 18
+ },
+ {
+  "id": "wiring-single-93",
+  "number": 93,
+  "type": "single",
+  "stem": "用万用表电阻档检测交流接触器，不动作时常开（动合）触点两端电阻应为（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "接近零"
+   },
+   {
+    "key": "B",
+    "text": "无穷大"
+   },
+   {
+    "key": "C",
+    "text": "几百欧"
+   },
+   {
+    "key": "D",
+    "text": "等于线圈电阻"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "不动作时动断（常闭）触点接通近零，动合（常开）触点断开为无穷大。（教材 p8）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 8
+ },
+ {
+  "id": "wiring-single-94",
+  "number": 94,
+  "type": "single",
+  "stem": "用万用表检测热继电器，按下过载测试钮后常闭触点 95-96 的电阻应为（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "约为 0"
+   },
+   {
+    "key": "B",
+    "text": "无穷大"
+   },
+   {
+    "key": "C",
+    "text": "与按下前相同"
+   },
+   {
+    "key": "D",
+    "text": "等于热元件电阻"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "热继电器动作时常闭触点断开，电阻约为无穷大；常开触点接通，电阻约为 0。（教材 p10）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 10
+ },
+ {
+  "id": "wiring-single-95",
+  "number": 95,
+  "type": "single",
+  "stem": "测量低压断路器相间绝缘电阻应使用（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "万用表电阻档"
+   },
+   {
+    "key": "B",
+    "text": "绝缘电阻表"
+   },
+   {
+    "key": "C",
+    "text": "钳形电流表"
+   },
+   {
+    "key": "D",
+    "text": "电压表"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "用绝缘电阻表测量每两相触点之间的绝缘电阻。（教材 p4）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 4
+ },
+ {
+  "id": "wiring-single-96",
+  "number": 96,
+  "type": "single",
+  "stem": "交流接触器铁心极面的短路环断裂，会造成（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "触点熔焊"
+   },
+   {
+    "key": "B",
+    "text": "电磁噪声大"
+   },
+   {
+    "key": "C",
+    "text": "吸不上"
+   },
+   {
+    "key": "D",
+    "text": "热继电器误动作"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "短路环断裂是接触器电磁噪声大的原因之一，处理方法是更换短路环。（教材 p35）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 35
+ },
+ {
+  "id": "wiring-single-97",
+  "number": 97,
+  "type": "single",
+  "stem": "接触器 E 形铁心寿命终了，因去磁气隙消失、剩磁增大，会出现（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "线圈烧毁"
+   },
+   {
+    "key": "B",
+    "text": "触点不释放"
+   },
+   {
+    "key": "C",
+    "text": "吸力不足"
+   },
+   {
+    "key": "D",
+    "text": "噪声大"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "E 形铁心寿命终了时剩磁增大使铁心不释放，应更换铁心。（教材 p34）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 34
+ },
+ {
+  "id": "wiring-single-98",
+  "number": 98,
+  "type": "single",
+  "stem": "热继电器整定值偏小，会造成（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "热继电器不动作"
+   },
+   {
+    "key": "B",
+    "text": "热继电器误动作"
+   },
+   {
+    "key": "C",
+    "text": "热元件烧断"
+   },
+   {
+    "key": "D",
+    "text": "触点熔焊"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "整定值偏小导致误动作；整定值偏大导致不动作。（教材 p35）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 35
+ },
+ {
+  "id": "wiring-single-99",
+  "number": 99,
+  "type": "single",
+  "stem": "起动电动机时低压断路器立即分断，可能的原因是（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "热脱扣器整定值太大"
+   },
+   {
+    "key": "B",
+    "text": "过电流脱扣器瞬时整定电流太小"
+   },
+   {
+    "key": "C",
+    "text": "欠电压脱扣器弹簧力太大"
+   },
+   {
+    "key": "D",
+    "text": "辅助触点不通"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "过电流脱扣器瞬时整定电流太小，或空气式脱扣器阀门失灵、橡胶膜破裂。（教材 p36）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 36
+ },
+ {
+  "id": "wiring-single-100",
+  "number": 100,
+  "type": "single",
+  "stem": "项目 1 实训成绩由平时考核、操作考核、实习报告组成，建议所占比例为（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "20%、60%、20%"
+   },
+   {
+    "key": "B",
+    "text": "30%、50%、20%"
+   },
+   {
+    "key": "C",
+    "text": "40%、40%、20%"
+   },
+   {
+    "key": "D",
+    "text": "30%、40%、30%"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "平时考核、操作考核、实习报告建议各占 30%、50% 和 20%。（教材 p20）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 20
+ },
+ {
+  "id": "wiring-multiple-1",
+  "number": 1,
+  "type": "multiple",
+  "stem": "低压断路器在电路发生（ ）时能自动跳闸。",
+  "options": [
+   {
+    "key": "A",
+    "text": "失电压"
+   },
+   {
+    "key": "B",
+    "text": "短路"
+   },
+   {
+    "key": "C",
+    "text": "过载"
+   },
+   {
+    "key": "D",
+    "text": "正常停机"
+   }
+  ],
+  "answer": [
+   "A",
+   "B",
+   "C"
+  ],
+  "explanation": "低压断路器能在失电压、短路和过载时自动跳闸。（教材 p22）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 22
+ },
+ {
+  "id": "wiring-multiple-2",
+  "number": 2,
+  "type": "multiple",
+  "stem": "熔断器的种类有（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "插入式"
+   },
+   {
+    "key": "B",
+    "text": "螺旋式"
+   },
+   {
+    "key": "C",
+    "text": "无填料封闭管式"
+   },
+   {
+    "key": "D",
+    "text": "有填料封闭管式"
+   }
+  ],
+  "answer": [
+   "A",
+   "B",
+   "C",
+   "D"
+  ],
+  "explanation": "常用熔断器有插入式、螺旋式、无填料封闭管式、有填料封闭管式等几种。（教材 p24）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 24
+ },
+ {
+  "id": "wiring-multiple-3",
+  "number": 3,
+  "type": "multiple",
+  "stem": "熔断器的主要技术参数有（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "额定电压"
+   },
+   {
+    "key": "B",
+    "text": "额定电流"
+   },
+   {
+    "key": "C",
+    "text": "极限分断能力"
+   },
+   {
+    "key": "D",
+    "text": "吸合电压"
+   }
+  ],
+  "answer": [
+   "A",
+   "B",
+   "C"
+  ],
+  "explanation": "熔断器的主要技术参数有额定电压、额定电流和极限分断能力。（教材 p25）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 25
+ },
+ {
+  "id": "wiring-multiple-4",
+  "number": 4,
+  "type": "multiple",
+  "stem": "交流接触器主要由（ ）等部分组成。",
+  "options": [
+   {
+    "key": "A",
+    "text": "电磁机构"
+   },
+   {
+    "key": "B",
+    "text": "触点系统"
+   },
+   {
+    "key": "C",
+    "text": "灭弧装置"
+   },
+   {
+    "key": "D",
+    "text": "辅助部件"
+   }
+  ],
+  "answer": [
+   "A",
+   "B",
+   "C",
+   "D"
+  ],
+  "explanation": "交流接触器主要由电磁机构、触点系统、灭弧装置及辅助部件等组成。（教材 p6）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 6
+ },
+ {
+  "id": "wiring-multiple-5",
+  "number": 5,
+  "type": "multiple",
+  "stem": "接触器的其他部件包括（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "反作用弹簧"
+   },
+   {
+    "key": "B",
+    "text": "缓冲弹簧"
+   },
+   {
+    "key": "C",
+    "text": "触点压力弹簧"
+   },
+   {
+    "key": "D",
+    "text": "传动机构及外壳"
+   }
+  ],
+  "answer": [
+   "A",
+   "B",
+   "C",
+   "D"
+  ],
+  "explanation": "其他部件包括反作用弹簧、缓冲弹簧、触点压力弹簧、传动机构及外壳等。（教材 p27）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 27
+ },
+ {
+  "id": "wiring-multiple-6",
+  "number": 6,
+  "type": "multiple",
+  "stem": "接触器可以用来控制（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "电动机"
+   },
+   {
+    "key": "B",
+    "text": "电热设备"
+   },
+   {
+    "key": "C",
+    "text": "电焊机"
+   },
+   {
+    "key": "D",
+    "text": "电容器组"
+   }
+  ],
+  "answer": [
+   "A",
+   "B",
+   "C",
+   "D"
+  ],
+  "explanation": "接触器主要用于控制电动机、电热设备、电焊机、电容器组等。（教材 p27）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 27
+ },
+ {
+  "id": "wiring-multiple-7",
+  "number": 7,
+  "type": "multiple",
+  "stem": "选用接触器时应考虑（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "根据负载性质选择类型"
+   },
+   {
+    "key": "B",
+    "text": "额定电压大于或等于主电路工作电压"
+   },
+   {
+    "key": "C",
+    "text": "额定电流大于或等于被控电路额定电流"
+   },
+   {
+    "key": "D",
+    "text": "吸引线圈电压和频率与控制电路一致"
+   }
+  ],
+  "answer": [
+   "A",
+   "B",
+   "C",
+   "D"
+  ],
+  "explanation": "这四点都是接触器的选用原则。（教材 p28）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 28
+ },
+ {
+  "id": "wiring-multiple-8",
+  "number": 8,
+  "type": "multiple",
+  "stem": "常用的继电器有（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "热继电器"
+   },
+   {
+    "key": "B",
+    "text": "中间继电器"
+   },
+   {
+    "key": "C",
+    "text": "时间继电器"
+   },
+   {
+    "key": "D",
+    "text": "速度继电器"
+   }
+  ],
+  "answer": [
+   "A",
+   "B",
+   "C",
+   "D"
+  ],
+  "explanation": "常用的有热继电器、中间继电器、时间继电器、速度继电器等。（教材 p28）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 28
+ },
+ {
+  "id": "wiring-multiple-9",
+  "number": 9,
+  "type": "multiple",
+  "stem": "下列属于交流接触器系列的有（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "CJ20"
+   },
+   {
+    "key": "B",
+    "text": "CJX2"
+   },
+   {
+    "key": "C",
+    "text": "3TB"
+   },
+   {
+    "key": "D",
+    "text": "CZ18"
+   }
+  ],
+  "answer": [
+   "A",
+   "B",
+   "C"
+  ],
+  "explanation": "CZ18 为直流接触器。（教材 p28）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 28
+ },
+ {
+  "id": "wiring-multiple-10",
+  "number": 10,
+  "type": "multiple",
+  "stem": "热继电器主要由（ ）组成。",
+  "options": [
+   {
+    "key": "A",
+    "text": "热元件"
+   },
+   {
+    "key": "B",
+    "text": "触点系统"
+   },
+   {
+    "key": "C",
+    "text": "灭弧罩"
+   },
+   {
+    "key": "D",
+    "text": "速断弹簧"
+   }
+  ],
+  "answer": [
+   "A",
+   "B"
+  ],
+  "explanation": "热继电器主要由热元件和触点系统两部分组成。（教材 p29）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 29
+ },
+ {
+  "id": "wiring-multiple-11",
+  "number": 11,
+  "type": "multiple",
+  "stem": "下列情况一般不宜用热继电器做过载保护的有（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "点动"
+   },
+   {
+    "key": "B",
+    "text": "重载起动"
+   },
+   {
+    "key": "C",
+    "text": "频繁正反转"
+   },
+   {
+    "key": "D",
+    "text": "带反接制动"
+   }
+  ],
+  "answer": [
+   "A",
+   "B",
+   "C",
+   "D"
+  ],
+  "explanation": "点动、重载起动、频繁正反转及带反接制动等运行的电动机，一般不宜用热继电器做过载保护。（教材 p30）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 30
+ },
+ {
+  "id": "wiring-multiple-12",
+  "number": 12,
+  "type": "multiple",
+  "stem": "正泰 NR4 系列热继电器具有（ ）功能。",
+  "options": [
+   {
+    "key": "A",
+    "text": "断相保护"
+   },
+   {
+    "key": "B",
+    "text": "温度补偿"
+   },
+   {
+    "key": "C",
+    "text": "动作指示"
+   },
+   {
+    "key": "D",
+    "text": "自动与手动复位"
+   }
+  ],
+  "answer": [
+   "A",
+   "B",
+   "C",
+   "D"
+  ],
+  "explanation": "NR3、NR4 具有断相保护、温度补偿、动作指示、自动与手动复位功能。（教材 p10）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 10
+ },
+ {
+  "id": "wiring-multiple-13",
+  "number": 13,
+  "type": "multiple",
+  "stem": "空气阻尼式时间继电器主要由（ ）组成。",
+  "options": [
+   {
+    "key": "A",
+    "text": "电磁机构"
+   },
+   {
+    "key": "B",
+    "text": "工作触点"
+   },
+   {
+    "key": "C",
+    "text": "气室"
+   },
+   {
+    "key": "D",
+    "text": "传动机构"
+   }
+  ],
+  "answer": [
+   "A",
+   "B",
+   "C",
+   "D"
+  ],
+  "explanation": "主要由电磁机构、工作触点、气室和传动机构四部分组成。（教材 p31）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 31
+ },
+ {
+  "id": "wiring-multiple-14",
+  "number": 14,
+  "type": "multiple",
+  "stem": "下列属于电子式时间继电器的有（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "JS14"
+   },
+   {
+    "key": "B",
+    "text": "JS20"
+   },
+   {
+    "key": "C",
+    "text": "JSZ3"
+   },
+   {
+    "key": "D",
+    "text": "JS7-2A"
+   }
+  ],
+  "answer": [
+   "A",
+   "B",
+   "C"
+  ],
+  "explanation": "JS7-2A 为空气阻尼式。电子式有 JS13、JS14、JS15、JSZ3、JS20 等。（教材 p13）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 13
+ },
+ {
+  "id": "wiring-multiple-15",
+  "number": 15,
+  "type": "multiple",
+  "stem": "选用中间继电器时，应综合考虑被控制电路的（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "电压等级"
+   },
+   {
+    "key": "B",
+    "text": "所需触点对数"
+   },
+   {
+    "key": "C",
+    "text": "触点种类"
+   },
+   {
+    "key": "D",
+    "text": "触点容量"
+   }
+  ],
+  "answer": [
+   "A",
+   "B",
+   "C",
+   "D"
+  ],
+  "explanation": "应综合考虑电压等级、所需触点对数、种类和容量等。（教材 p30）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 30
+ },
+ {
+  "id": "wiring-multiple-16",
+  "number": 16,
+  "type": "multiple",
+  "stem": "速度继电器主要由（ ）组成。",
+  "options": [
+   {
+    "key": "A",
+    "text": "永久磁铁制成的转子"
+   },
+   {
+    "key": "B",
+    "text": "硅钢片叠成铸有笼形绕组的定子"
+   },
+   {
+    "key": "C",
+    "text": "胶木摆杆"
+   },
+   {
+    "key": "D",
+    "text": "触点系统"
+   }
+  ],
+  "answer": [
+   "A",
+   "B",
+   "C",
+   "D"
+  ],
+  "explanation": "由转子、定子、支架、胶木摆杆和触点系统等组成。（教材 p32）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 32
+ },
+ {
+  "id": "wiring-multiple-17",
+  "number": 17,
+  "type": "multiple",
+  "stem": "按钮主要由（ ）组成。",
+  "options": [
+   {
+    "key": "A",
+    "text": "按钮帽"
+   },
+   {
+    "key": "B",
+    "text": "复位弹簧"
+   },
+   {
+    "key": "C",
+    "text": "触点"
+   },
+   {
+    "key": "D",
+    "text": "接线柱及外壳"
+   }
+  ],
+  "answer": [
+   "A",
+   "B",
+   "C",
+   "D"
+  ],
+  "explanation": "按钮主要由按钮帽、复位弹簧、触点、接线柱及外壳等组成。（教材 p33）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 33
+ },
+ {
+  "id": "wiring-multiple-18",
+  "number": 18,
+  "type": "multiple",
+  "stem": "按钮选用时应综合考虑（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "使用场合"
+   },
+   {
+    "key": "B",
+    "text": "被控电路所需触点数目"
+   },
+   {
+    "key": "C",
+    "text": "按钮帽颜色"
+   },
+   {
+    "key": "D",
+    "text": "电动机功率"
+   }
+  ],
+  "answer": [
+   "A",
+   "B",
+   "C"
+  ],
+  "explanation": "应根据使用场合、所需触点数目及按钮帽颜色等综合考虑。（教材 p33）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 33
+ },
+ {
+  "id": "wiring-multiple-19",
+  "number": 19,
+  "type": "multiple",
+  "stem": "行程开关按操作方式可分为（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "直动式"
+   },
+   {
+    "key": "B",
+    "text": "滚轮式"
+   },
+   {
+    "key": "C",
+    "text": "微动式"
+   },
+   {
+    "key": "D",
+    "text": "组合式"
+   }
+  ],
+  "answer": [
+   "A",
+   "B",
+   "C",
+   "D"
+  ],
+  "explanation": "按操作方式可分为直动式、滚轮式、微动式和组合式。（教材 p17）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 17
+ },
+ {
+  "id": "wiring-multiple-20",
+  "number": 20,
+  "type": "multiple",
+  "stem": "接近开关的类型有（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "电感式"
+   },
+   {
+    "key": "B",
+    "text": "电容式"
+   },
+   {
+    "key": "C",
+    "text": "霍尔式"
+   },
+   {
+    "key": "D",
+    "text": "红外线感测式"
+   }
+  ],
+  "answer": [
+   "A",
+   "B",
+   "C",
+   "D"
+  ],
+  "explanation": "主要有电感式、电容式、霍尔式、遥感式、红外线感测式、交直流探测式等。（教材 p18）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 18
+ },
+ {
+  "id": "wiring-multiple-21",
+  "number": 21,
+  "type": "multiple",
+  "stem": "交流接触器线圈过热或烧毁的原因可能有（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "电源电压过高或过低"
+   },
+   {
+    "key": "B",
+    "text": "交流操作频率过高"
+   },
+   {
+    "key": "C",
+    "text": "运动部分卡阻"
+   },
+   {
+    "key": "D",
+    "text": "铁心极面不平或中间气隙过大"
+   }
+  ],
+  "answer": [
+   "A",
+   "B",
+   "C",
+   "D"
+  ],
+  "explanation": "均为表 1-15 中线圈过热或烧毁的原因。（教材 p35）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 35
+ },
+ {
+  "id": "wiring-multiple-22",
+  "number": 22,
+  "type": "multiple",
+  "stem": "接触器触点熔焊的原因可能有（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "操作频率过高或过载使用"
+   },
+   {
+    "key": "B",
+    "text": "负载侧短路"
+   },
+   {
+    "key": "C",
+    "text": "触点弹簧压力过小"
+   },
+   {
+    "key": "D",
+    "text": "触点表面有金属颗粒突起"
+   }
+  ],
+  "answer": [
+   "A",
+   "B",
+   "C",
+   "D"
+  ],
+  "explanation": "均为表 1-15 中触点熔焊的原因。（教材 p35）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 35
+ },
+ {
+  "id": "wiring-multiple-23",
+  "number": 23,
+  "type": "multiple",
+  "stem": "热继电器不动作的原因可能有（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "整定值偏大"
+   },
+   {
+    "key": "B",
+    "text": "热元件烧断或脱焊"
+   },
+   {
+    "key": "C",
+    "text": "导板脱出"
+   },
+   {
+    "key": "D",
+    "text": "连接导线太细"
+   }
+  ],
+  "answer": [
+   "A",
+   "B",
+   "C"
+  ],
+  "explanation": "连接导线太细会导致误动作；太粗才可能导致不动作。（教材 p36）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 36
+ },
+ {
+  "id": "wiring-multiple-24",
+  "number": 24,
+  "type": "multiple",
+  "stem": "热继电器误动作的原因可能有（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "整定值偏小"
+   },
+   {
+    "key": "B",
+    "text": "电动机起动时间过长"
+   },
+   {
+    "key": "C",
+    "text": "强烈的冲击振动"
+   },
+   {
+    "key": "D",
+    "text": "连接导线太细"
+   }
+  ],
+  "answer": [
+   "A",
+   "B",
+   "C",
+   "D"
+  ],
+  "explanation": "均为表 1-16 中热继电器误动作的原因。（教材 p35）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 35
+ },
+ {
+  "id": "wiring-multiple-25",
+  "number": 25,
+  "type": "multiple",
+  "stem": "低压电器检测常用的仪表有（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "万用表"
+   },
+   {
+    "key": "B",
+    "text": "绝缘电阻表"
+   },
+   {
+    "key": "C",
+    "text": "示波器"
+   },
+   {
+    "key": "D",
+    "text": "频率计"
+   }
+  ],
+  "answer": [
+   "A",
+   "B"
+  ],
+  "explanation": "各实训任务的仪表都是万用表和绝缘电阻表。（教材 p2）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 2
+ },
+ {
+  "id": "wiring-judgment-1",
+  "number": 1,
+  "type": "judgment",
+  "stem": "低压电器分为低压配电电器和低压控制电器两大类。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "按控制对象不同分为低压配电电器和低压控制电器两大类。（教材 p20）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 20
+ },
+ {
+  "id": "wiring-judgment-2",
+  "number": 2,
+  "type": "judgment",
+  "stem": "开启式负荷开关可以平装或倒装。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "F"
+  ],
+  "explanation": "不得倒装和平装，否则分闸后刀片可能因自重或振动误合闸。（教材 p21）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 21
+ },
+ {
+  "id": "wiring-judgment-3",
+  "number": 3,
+  "type": "judgment",
+  "stem": "组合开关属于手动电器，可作为电源引入开关。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "组合开关同开启式负荷开关一样属于手动电器，可作为电源引入开关。（教材 p21）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 21
+ },
+ {
+  "id": "wiring-judgment-4",
+  "number": 4,
+  "type": "judgment",
+  "stem": "组合开关的三个动触点互相绝缘，套在共同的绝缘杆上。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "三个动触点互相绝缘，与各自的静触点对应，套在共同的绝缘杆上。（教材 p22）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 22
+ },
+ {
+  "id": "wiring-judgment-5",
+  "number": 5,
+  "type": "judgment",
+  "stem": "万能式断路器主要用作配电网络的保护开关。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "万能式断路器主要用作配电网络的保护开关。（教材 p22）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 22
+ },
+ {
+  "id": "wiring-judgment-6",
+  "number": 6,
+  "type": "judgment",
+  "stem": "塑料外壳式断路器只能用作配电网络的保护开关，不能用作电动机控制开关。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "F"
+  ],
+  "explanation": "塑料外壳式除用作配电网络保护开关外，还可用作电动机、照明电路的控制开关。（教材 p22）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 22
+ },
+ {
+  "id": "wiring-judgment-7",
+  "number": 7,
+  "type": "judgment",
+  "stem": "DZ47LE 系列断路器带有剩余电流保护装置。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "DZ47LE 带剩余电流保护装置，漏电时自动断开。（教材 p2）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 2
+ },
+ {
+  "id": "wiring-judgment-8",
+  "number": 8,
+  "type": "judgment",
+  "stem": "低压断路器的额定电压和额定电流应不小于电路的额定电压和最大工作电流。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "这是低压断路器的选用原则之一。（教材 p24）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 24
+ },
+ {
+  "id": "wiring-judgment-9",
+  "number": 9,
+  "type": "judgment",
+  "stem": "熔断器的额定电流就是熔体的额定电流。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "F"
+  ],
+  "explanation": "两者是不同的概念；熔体的额定电流不能大于熔断器的额定电流。（教材 p25）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 25
+ },
+ {
+  "id": "wiring-judgment-10",
+  "number": 10,
+  "type": "judgment",
+  "stem": "一个额定电流等级的熔断器可以配用若干个额定电流等级的熔体。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "通常一个额定电流等级的熔断器可以配用若干个等级的熔体，但熔体额定电流不能大于熔断器额定电流。（教材 p25）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 25
+ },
+ {
+  "id": "wiring-judgment-11",
+  "number": 11,
+  "type": "judgment",
+  "stem": "熔断器的极限分断能力与熔体的额定电流大小有关。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "F"
+  ],
+  "explanation": "极限分断能力代表灭弧能力，与熔体的额定电流大小无关。（教材 p25）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 25
+ },
+ {
+  "id": "wiring-judgment-12",
+  "number": 12,
+  "type": "judgment",
+  "stem": "若熔断器实际工作电压大于其额定电压，熔体熔断时可能发生电弧不能熄灭的危险。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "这是额定电压参数的含义。（教材 p25）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 25
+ },
+ {
+  "id": "wiring-judgment-13",
+  "number": 13,
+  "type": "judgment",
+  "stem": "螺旋式熔断器电源进线应接在与螺口相连的上接线桩上。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "F"
+  ],
+  "explanation": "电源进线接与中心触片相连的下接线桩，负载接螺口相连的上接线桩。（教材 p25）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 25
+ },
+ {
+  "id": "wiring-judgment-14",
+  "number": 14,
+  "type": "judgment",
+  "stem": "60A 以上的插入式熔断器空腔中垫有编织石棉层，用以加强灭弧功能。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "原文如此。（教材 p24）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 24
+ },
+ {
+  "id": "wiring-judgment-15",
+  "number": 15,
+  "type": "judgment",
+  "stem": "保护照明电路的熔断器，熔体额定电流应大于或等于电路工作电流。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "对照明等非电感设备，熔体额定电流应大于电路工作电流。（教材 p25）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 25
+ },
+ {
+  "id": "wiring-judgment-16",
+  "number": 16,
+  "type": "judgment",
+  "stem": "接触器能频繁地接通或断开交直流主电路，并实现远距离自动控制。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "接触器的作用原文。（教材 p27）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 27
+ },
+ {
+  "id": "wiring-judgment-17",
+  "number": 17,
+  "type": "judgment",
+  "stem": "接触器具有低电压释放保护功能。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "它具有低电压释放保护功能。（教材 p27）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 27
+ },
+ {
+  "id": "wiring-judgment-18",
+  "number": 18,
+  "type": "judgment",
+  "stem": "接触器的辅助触点用于主电路，主触点用于控制电路。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "F"
+  ],
+  "explanation": "主触点用于通断主电路；辅助触点用于控制电路，起电气联锁或控制作用。（教材 p27）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 27
+ },
+ {
+  "id": "wiring-judgment-19",
+  "number": 19,
+  "type": "judgment",
+  "stem": "接触器线圈失电或电压低于释放电压时，所有触点恢复到初始状态。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "弹簧反力大于电磁力，动合断开、动断闭合，恢复初始状态。（教材 p28）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 28
+ },
+ {
+  "id": "wiring-judgment-20",
+  "number": 20,
+  "type": "judgment",
+  "stem": "交流接触器线圈通电时，动合（常开）触点闭合，动断（常闭）触点断开。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "线圈通电，衔铁吸合，带动动触点使动合闭合、动断断开。（教材 p27）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 27
+ },
+ {
+  "id": "wiring-judgment-21",
+  "number": 21,
+  "type": "judgment",
+  "stem": "接触器的机械寿命和电气寿命是产品质量的重要指标之一。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "接触器是频繁操作电器，应有较高的机械和电气寿命。（教材 p28）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 28
+ },
+ {
+  "id": "wiring-judgment-22",
+  "number": 22,
+  "type": "judgment",
+  "stem": "CJ20-40A 以下的接触器，辅助触点作为独立组件安装在主触点两侧。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "F"
+  ],
+  "explanation": "CJ20-40A 以下辅助触点与主触点装在一起；40A 及以上才作为独立组件装在两侧。（教材 p6）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 6
+ },
+ {
+  "id": "wiring-judgment-23",
+  "number": 23,
+  "type": "judgment",
+  "stem": "CJX1-09 型交流接触器线圈额定电压为 220V，A1、A2 呈对角线连接状态。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "原文如此。（教材 p7）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 7
+ },
+ {
+  "id": "wiring-judgment-24",
+  "number": 24,
+  "type": "judgment",
+  "stem": "热继电器既能做过载保护，也能做短路保护。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "F"
+  ],
+  "explanation": "热继电器只能做过载保护，不能做短路保护。（教材 p29）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 29
+ },
+ {
+  "id": "wiring-judgment-25",
+  "number": 25,
+  "type": "judgment",
+  "stem": "电源三相电压均衡、电动机绝缘良好时，用两相结构的热继电器已能对电动机进行过载保护。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "此时三相线电流必相等，两相结构已能保护。（教材 p29）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 29
+ },
+ {
+  "id": "wiring-judgment-26",
+  "number": 26,
+  "type": "judgment",
+  "stem": "热元件的额定电流一般小于电动机的额定电流。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "F"
+  ],
+  "explanation": "热元件的额定电流等级一般大于电动机的额定电流，再按电动机额定电流调整整定电流。（教材 p10）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 10
+ },
+ {
+  "id": "wiring-judgment-27",
+  "number": 27,
+  "type": "judgment",
+  "stem": "热继电器整定电流应与电动机的额定电流基本相等。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "根据电动机额定电流调整整定电流，使之与电动机额定电流基本相等。（教材 p10）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 10
+ },
+ {
+  "id": "wiring-judgment-28",
+  "number": 28,
+  "type": "judgment",
+  "stem": "热继电器出现运动部分卡阻时，用户可以随意调整其动作机构。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "F"
+  ],
+  "explanation": "用户不得随意调整，以免造成动作特性变化。（教材 p36）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 36
+ },
+ {
+  "id": "wiring-judgment-29",
+  "number": 29,
+  "type": "judgment",
+  "stem": "中间继电器的结构和接触器基本相同。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "中间继电器的结构和接触器基本相同。（教材 p30）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 30
+ },
+ {
+  "id": "wiring-judgment-30",
+  "number": 30,
+  "type": "judgment",
+  "stem": "当电路负载电流在 5～10A 以下时，中间继电器也可代替接触器起控制负载的作用。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "原文如此。（教材 p30）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 30
+ },
+ {
+  "id": "wiring-judgment-31",
+  "number": 31,
+  "type": "judgment",
+  "stem": "空气阻尼式时间继电器的定时准确度高。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "F"
+  ],
+  "explanation": "空气阻尼式定时准确度不高；电子式准确度高。（教材 p14）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 14
+ },
+ {
+  "id": "wiring-judgment-32",
+  "number": 32,
+  "type": "judgment",
+  "stem": "时间继电器触点的延时符号可以画在左边也可以画在右边，圆弧方向也可以任意改变。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "F"
+  ],
+  "explanation": "延时符号可左可右，但圆弧的方向不能改变。（教材 p32）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 32
+ },
+ {
+  "id": "wiring-judgment-33",
+  "number": 33,
+  "type": "judgment",
+  "stem": "时间继电器线圈图形符号中的延时符号可以不画。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "线圈中的延时符号可以不画。（教材 p32）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 32
+ },
+ {
+  "id": "wiring-judgment-34",
+  "number": 34,
+  "type": "judgment",
+  "stem": "选用时间继电器时，应先根据控制要求选择延时方式，再根据延时范围和精度选择类型。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "原文如此。（教材 p32）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 32
+ },
+ {
+  "id": "wiring-judgment-35",
+  "number": 35,
+  "type": "judgment",
+  "stem": "空气阻尼式时间继电器的两副瞬时触点中，一副瞬时闭合，另一副瞬时分断。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "原文如此。（教材 p32）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 32
+ },
+ {
+  "id": "wiring-judgment-36",
+  "number": 36,
+  "type": "judgment",
+  "stem": "速度继电器的转子与被控制电动机的转轴相接。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "转子与被控制电动机的转轴相接。（教材 p32）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 32
+ },
+ {
+  "id": "wiring-judgment-37",
+  "number": 37,
+  "type": "judgment",
+  "stem": "一般速度继电器具有两对转换触点，一对用于正转时动作，另一对用于反转时动作。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "原文如此。（教材 p33）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 33
+ },
+ {
+  "id": "wiring-judgment-38",
+  "number": 38,
+  "type": "judgment",
+  "stem": "按钮载流量小，不能直接用它控制主电路的通断。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "原文如此。（教材 p33）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 33
+ },
+ {
+  "id": "wiring-judgment-39",
+  "number": 39,
+  "type": "judgment",
+  "stem": "按钮被按下时，常开触点先闭合，常闭触点后断开。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "F"
+  ],
+  "explanation": "按下时常闭触点先断开，常开触点后闭合。（教材 p15）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 15
+ },
+ {
+  "id": "wiring-judgment-40",
+  "number": 40,
+  "type": "judgment",
+  "stem": "在面板上安装按钮时，应把每一组反状态的按钮（如上、下）放在一起。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "原文如此。（教材 p33）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 33
+ },
+ {
+  "id": "wiring-judgment-41",
+  "number": 41,
+  "type": "judgment",
+  "stem": "位置开关的作用与按钮相同，只是其触点的动作不靠手动操作。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "原文如此。（教材 p33）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 33
+ },
+ {
+  "id": "wiring-judgment-42",
+  "number": 42,
+  "type": "judgment",
+  "stem": "接近开关是一种非接触型的检测装置。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "原文如此。（教材 p18）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 18
+ },
+ {
+  "id": "wiring-judgment-43",
+  "number": 43,
+  "type": "judgment",
+  "stem": "电感式接近开关可以检测磁性物体存在与否，属于非机械磁性开关。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "F"
+  ],
+  "explanation": "能检测磁性物体的是非机械磁性开关；电感式和电容式用于检测金属和（或）非金属物体。（教材 p18）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 18
+ },
+ {
+  "id": "wiring-judgment-44",
+  "number": 44,
+  "type": "judgment",
+  "stem": "用万用表电阻档检测时，按钮不动作时常闭触点应接通，常开触点应不通。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "原文如此。（教材 p16）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 16
+ },
+ {
+  "id": "wiring-judgment-45",
+  "number": 45,
+  "type": "judgment",
+  "stem": "用万用表电阻档测低压断路器，闭合时各触点电阻应接近零，断开时应为无穷大。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "原文如此。（教材 p2）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 2
+ },
+ {
+  "id": "wiring-judgment-46",
+  "number": 46,
+  "type": "judgment",
+  "stem": "交流接触器吸合电压低于线圈额定电压的 85% 时也必须可靠吸合。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "F"
+  ],
+  "explanation": "规定吸合电压大于线圈额定电压的 85% 时应可靠吸合。（教材 p28）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 28
+ },
+ {
+  "id": "wiring-judgment-47",
+  "number": 47,
+  "type": "judgment",
+  "stem": "可逆转换的接触器联锁不可靠，可能造成相间短路。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "误操作使两台接触器同时投入运行会造成相间短路。（教材 p35）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 35
+ },
+ {
+  "id": "wiring-judgment-48",
+  "number": 48,
+  "type": "judgment",
+  "stem": "实训所使用的元件是日常废、旧元件。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "项目 1 注意事项原文。（教材 p20）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 20
+ }
+]

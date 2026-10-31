@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f5f5f7">
+<title>刷题 · 华夏工具</title>
+<!-- 华夏工具 · 刷题 © 2026 zcq：选科目刷单选、多选、判断；内置课程题库，可新建科目、导入资料或让 AI 根据资料出题；登录后进度和题库跟账号走，老师可把题库发布给学生。 -->
+<link rel="icon" href="../logo.jpg">
+<link rel="stylesheet" href="../hx-theme.css">
+<script src="../hx-theme.js" data-tool="quiz"></script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <a class="brand" id="brand" href="../" target="_top"><img src="../logo.jpg" alt=""><span>刷题</span></a>
+  <button class="subj" id="subjBtn" type="button"><b id="subjName">加载中</b><svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg></button>
+  <nav class="tabs" id="tabs"></nav>
+  <div class="sp"></div>
+  <button class="tbtn" id="askBtn" type="button">问 AI</button>
+  <button class="tbtn" id="focusBtn" type="button">专注</button>
+</header>
+
+<main>
+  <section class="view" id="v-practice">
+    <div class="hero glow" id="hero"></div>
+    <div class="seg" id="types"></div>
+    <div class="row"><div class="chips" id="scopes"></div><button class="ibtn" id="modeBtn" type="button"></button></div>
+    <article class="card glow" id="card" aria-live="polite"></article>
+  </section>
+  <section class="view" id="v-overview" hidden></section>
+  <section class="view" id="v-bank" hidden></section>
+  <section class="view" id="v-settings" hidden></section>
+</main>
+
+<div class="bar" id="bar"></div>
+<nav class="dock" id="dock"></nav>
+<div class="sheet-bg" id="sheetBg"></div>
+<section class="sheet glow" id="sheet" aria-modal="true" role="dialog"><div class="grip"></div><div id="sheetBody" class="body"></div></section>
+<button class="unfocus" id="unfocus" type="button">退出专注</button>
+<div class="toast" id="toast"></div>
+<script type="module" src="app.js"></script>
+</body>
+</html>

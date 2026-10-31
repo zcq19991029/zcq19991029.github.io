@@ -1,0 +1,5031 @@
+[
+ {
+  "id": "mcu-single-1",
+  "number": 1,
+  "type": "single",
+  "stem": "单片机是把 CPU、存储器、I/O 接口等集成在一块芯片上的微型计算机，它又被称为（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "微处理器"
+   },
+   {
+    "key": "B",
+    "text": "微控制器"
+   },
+   {
+    "key": "C",
+    "text": "中央处理器"
+   },
+   {
+    "key": "D",
+    "text": "数字信号处理器"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "",
+  "source": "项目1 熟悉单片机操作环境"
+ },
+ {
+  "id": "mcu-single-2",
+  "number": 2,
+  "type": "single",
+  "stem": "8051 单片机是（  ）位的单片机。",
+  "options": [
+   {
+    "key": "A",
+    "text": "4"
+   },
+   {
+    "key": "B",
+    "text": "8"
+   },
+   {
+    "key": "C",
+    "text": "16"
+   },
+   {
+    "key": "D",
+    "text": "32"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "",
+  "source": "项目1 熟悉单片机操作环境"
+ },
+ {
+  "id": "mcu-single-3",
+  "number": 3,
+  "type": "single",
+  "stem": "十进制数 25 转换成二进制数是（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "11001B"
+   },
+   {
+    "key": "B",
+    "text": "10101B"
+   },
+   {
+    "key": "C",
+    "text": "11010B"
+   },
+   {
+    "key": "D",
+    "text": "10011B"
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "",
+  "source": "项目1 熟悉单片机操作环境"
+ },
+ {
+  "id": "mcu-single-4",
+  "number": 4,
+  "type": "single",
+  "stem": "二进制数 1111 1110B 用十六进制表示是（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "0xEF"
+   },
+   {
+    "key": "B",
+    "text": "0xFE"
+   },
+   {
+    "key": "C",
+    "text": "0x7F"
+   },
+   {
+    "key": "D",
+    "text": "0xFC"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "",
+  "source": "项目1 熟悉单片机操作环境"
+ },
+ {
+  "id": "mcu-single-5",
+  "number": 5,
+  "type": "single",
+  "stem": "十六进制数 0x3C 对应的十进制数是（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "36"
+   },
+   {
+    "key": "B",
+    "text": "48"
+   },
+   {
+    "key": "C",
+    "text": "60"
+   },
+   {
+    "key": "D",
+    "text": "63"
+   }
+  ],
+  "answer": [
+   "C"
+  ],
+  "explanation": "",
+  "source": "项目1 熟悉单片机操作环境"
+ },
+ {
+  "id": "mcu-single-6",
+  "number": 6,
+  "type": "single",
+  "stem": "在 Keil C51 中要生成可下载到单片机（或 Proteus 中仿真）的文件，应勾选生成（  ）文件。",
+  "options": [
+   {
+    "key": "A",
+    "text": "C 源程序（.c）"
+   },
+   {
+    "key": "B",
+    "text": "工程文件（.uvproj）"
+   },
+   {
+    "key": "C",
+    "text": "十六进制目标文件（.hex）"
+   },
+   {
+    "key": "D",
+    "text": "列表文件（.lst）"
+   }
+  ],
+  "answer": [
+   "C"
+  ],
+  "explanation": "",
+  "source": "项目1 熟悉单片机操作环境"
+ },
+ {
+  "id": "mcu-single-7",
+  "number": 7,
+  "type": "single",
+  "stem": "Proteus 软件在单片机课程中主要用来（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "编写和编译 C 程序"
+   },
+   {
+    "key": "B",
+    "text": "绘制电路原理图并进行仿真"
+   },
+   {
+    "key": "C",
+    "text": "烧写芯片"
+   },
+   {
+    "key": "D",
+    "text": "制作 PCB 外壳"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "",
+  "source": "项目1 熟悉单片机操作环境"
+ },
+ {
+  "id": "mcu-single-8",
+  "number": 8,
+  "type": "single",
+  "stem": "LED 发光二极管正常发光时，通过它的电流一般在（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "0.1～1mA"
+   },
+   {
+    "key": "B",
+    "text": "5～20mA"
+   },
+   {
+    "key": "C",
+    "text": "100～200mA"
+   },
+   {
+    "key": "D",
+    "text": "1A 以上"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "",
+  "source": "项目1 熟悉单片机操作环境"
+ },
+ {
+  "id": "mcu-single-9",
+  "number": 9,
+  "type": "single",
+  "stem": "LED 阳极经限流电阻接 +5V、阴极接单片机 P1.0，要让 LED 点亮，P1.0 应输出（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "高电平 1"
+   },
+   {
+    "key": "B",
+    "text": "低电平 0"
+   },
+   {
+    "key": "C",
+    "text": "高阻态"
+   },
+   {
+    "key": "D",
+    "text": "脉冲"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "",
+  "source": "项目1 熟悉单片机操作环境"
+ },
+ {
+  "id": "mcu-single-10",
+  "number": 10,
+  "type": "single",
+  "stem": "LED 电路中串联限流电阻的作用是（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "提高亮度"
+   },
+   {
+    "key": "B",
+    "text": "限制电流，保护 LED 和端口"
+   },
+   {
+    "key": "C",
+    "text": "改变颜色"
+   },
+   {
+    "key": "D",
+    "text": "产生延时"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "",
+  "source": "项目1 熟悉单片机操作环境"
+ },
+ {
+  "id": "mcu-single-11",
+  "number": 11,
+  "type": "single",
+  "stem": "一个字节（Byte）由（  ）个二进制位组成。",
+  "options": [
+   {
+    "key": "A",
+    "text": "4"
+   },
+   {
+    "key": "B",
+    "text": "8"
+   },
+   {
+    "key": "C",
+    "text": "16"
+   },
+   {
+    "key": "D",
+    "text": "32"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "",
+  "source": "项目1 熟悉单片机操作环境"
+ },
+ {
+  "id": "mcu-single-12",
+  "number": 12,
+  "type": "single",
+  "stem": "下列不属于单片机应用的是（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "智能洗衣机控制"
+   },
+   {
+    "key": "B",
+    "text": "汽车仪表"
+   },
+   {
+    "key": "C",
+    "text": "交通信号灯控制"
+   },
+   {
+    "key": "D",
+    "text": "大型数据库服务器"
+   }
+  ],
+  "answer": [
+   "D"
+  ],
+  "explanation": "",
+  "source": "项目1 熟悉单片机操作环境"
+ },
+ {
+  "id": "mcu-single-13",
+  "number": 13,
+  "type": "single",
+  "stem": "Keil C51 中，创建工程后应先（  ），然后才能把 .c 文件加入工程编译。",
+  "options": [
+   {
+    "key": "A",
+    "text": "选择单片机型号（如 AT89C51）"
+   },
+   {
+    "key": "B",
+    "text": "运行 Proteus"
+   },
+   {
+    "key": "C",
+    "text": "烧写芯片"
+   },
+   {
+    "key": "D",
+    "text": "画 PCB"
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "",
+  "source": "项目1 熟悉单片机操作环境"
+ },
+ {
+  "id": "mcu-fill-1",
+  "number": 1,
+  "type": "fill",
+  "stem": "单片机内部主要由 ____、____、I/O 接口、定时/计数器等部件组成。",
+  "options": [],
+  "answer": [
+   "CPU（中央处理器）",
+   "存储器（ROM 和 RAM）"
+  ],
+  "explanation": "",
+  "source": "项目1 熟悉单片机操作环境"
+ },
+ {
+  "id": "mcu-fill-2",
+  "number": 2,
+  "type": "fill",
+  "stem": "二进制数 1010 0101B = ____H = ____（十进制）。",
+  "options": [],
+  "answer": [
+   "A5",
+   "165"
+  ],
+  "explanation": "",
+  "source": "项目1 熟悉单片机操作环境"
+ },
+ {
+  "id": "mcu-fill-3",
+  "number": 3,
+  "type": "fill",
+  "stem": "十进制数 100 = ____H。",
+  "options": [],
+  "answer": [
+   "64"
+  ],
+  "explanation": "",
+  "source": "项目1 熟悉单片机操作环境"
+ },
+ {
+  "id": "mcu-fill-4",
+  "number": 4,
+  "type": "fill",
+  "stem": "Keil C51 编译成功后生成的可执行文件扩展名是 ____，在 Proteus 中双击单片机，在 Program File 一栏加载它。",
+  "options": [],
+  "answer": [
+   ".hex"
+  ],
+  "explanation": "",
+  "source": "项目1 熟悉单片机操作环境"
+ },
+ {
+  "id": "mcu-fill-5",
+  "number": 5,
+  "type": "fill",
+  "stem": "C 语言中，十六进制常数要加前缀 ____，例如 P1 = 0xFE。",
+  "options": [],
+  "answer": [
+   "0x（或 0X）"
+  ],
+  "explanation": "",
+  "source": "项目1 熟悉单片机操作环境"
+ },
+ {
+  "id": "mcu-fill-6",
+  "number": 6,
+  "type": "fill",
+  "stem": "LED 阴极接单片机引脚的接法叫做 ____ 电平点亮。",
+  "options": [],
+  "answer": [
+   "低"
+  ],
+  "explanation": "",
+  "source": "项目1 熟悉单片机操作环境"
+ },
+ {
+  "id": "mcu-fill-7",
+  "number": 7,
+  "type": "fill",
+  "stem": "1KB = ____ 字节。",
+  "options": [],
+  "answer": [
+   "1024"
+  ],
+  "explanation": "",
+  "source": "项目1 熟悉单片机操作环境"
+ },
+ {
+  "id": "mcu-fill-8",
+  "number": 8,
+  "type": "fill",
+  "stem": "8 位二进制无符号数能表示的最大十进制数是 ____。",
+  "options": [],
+  "answer": [
+   "255"
+  ],
+  "explanation": "",
+  "source": "项目1 熟悉单片机操作环境"
+ },
+ {
+  "id": "mcu-judgment-1",
+  "number": 1,
+  "type": "judgment",
+  "stem": "单片机就是一台完整的计算机，可以直接运行 Windows 系统。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "F"
+  ],
+  "explanation": "",
+  "source": "项目1 熟悉单片机操作环境"
+ },
+ {
+  "id": "mcu-judgment-2",
+  "number": 2,
+  "type": "judgment",
+  "stem": "二进制数 1000 0000B 等于十进制数 128。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "",
+  "source": "项目1 熟悉单片机操作环境"
+ },
+ {
+  "id": "mcu-judgment-3",
+  "number": 3,
+  "type": "judgment",
+  "stem": "十六进制数 0xFF 等于十进制数 256。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "F"
+  ],
+  "explanation": "",
+  "source": "项目1 熟悉单片机操作环境"
+ },
+ {
+  "id": "mcu-judgment-4",
+  "number": 4,
+  "type": "judgment",
+  "stem": "Keil C51 是常用的单片机 C 语言集成开发环境。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "",
+  "source": "项目1 熟悉单片机操作环境"
+ },
+ {
+  "id": "mcu-judgment-5",
+  "number": 5,
+  "type": "judgment",
+  "stem": "在 Proteus 中仿真单片机程序，需要给单片机加载编译生成的 .hex 文件。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "",
+  "source": "项目1 熟悉单片机操作环境"
+ },
+ {
+  "id": "mcu-judgment-6",
+  "number": 6,
+  "type": "judgment",
+  "stem": "LED 是发光二极管，具有单向导电性，接反了也能正常发光。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "F"
+  ],
+  "explanation": "",
+  "source": "项目1 熟悉单片机操作环境"
+ },
+ {
+  "id": "mcu-judgment-7",
+  "number": 7,
+  "type": "judgment",
+  "stem": "LED 电路中可以不接限流电阻，直接接到 5V 电源上。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "F"
+  ],
+  "explanation": "",
+  "source": "项目1 熟悉单片机操作环境"
+ },
+ {
+  "id": "mcu-judgment-8",
+  "number": 8,
+  "type": "judgment",
+  "stem": "C 语言程序中，一个程序有且只有一个 main 函数。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "",
+  "source": "项目1 熟悉单片机操作环境"
+ },
+ {
+  "id": "mcu-judgment-9",
+  "number": 9,
+  "type": "judgment",
+  "stem": "Keil 中程序有语法错误时，仍然可以生成正确的 .hex 文件。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "F"
+  ],
+  "explanation": "",
+  "source": "项目1 熟悉单片机操作环境"
+ },
+ {
+  "id": "mcu-judgment-10",
+  "number": 10,
+  "type": "judgment",
+  "stem": "用软件延时让 LED 闪烁，延时时间越长，闪烁越快。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "F"
+  ],
+  "explanation": "",
+  "source": "项目1 熟悉单片机操作环境"
+ },
+ {
+  "id": "mcu-term-1",
+  "number": 1,
+  "type": "term",
+  "stem": "单片机",
+  "options": [],
+  "answer": [
+   "把中央处理器（CPU）、存储器（ROM、RAM）、输入/输出接口、定时/计数器等集成在一块芯片上构成的微型计算机，也叫微控制器（MCU）。"
+  ],
+  "explanation": "",
+  "source": "项目1 熟悉单片机操作环境"
+ },
+ {
+  "id": "mcu-term-2",
+  "number": 2,
+  "type": "term",
+  "stem": "HEX 文件",
+  "options": [],
+  "answer": [
+   "由编译器（如 Keil）生成的 Intel 十六进制格式的目标代码文件，可下载到单片机或在 Proteus 中加载仿真。"
+  ],
+  "explanation": "",
+  "source": "项目1 熟悉单片机操作环境"
+ },
+ {
+  "id": "mcu-term-3",
+  "number": 3,
+  "type": "term",
+  "stem": "限流电阻",
+  "options": [],
+  "answer": [
+   "串联在 LED 回路中的电阻，用来把电流限制在 LED 正常工作的范围内（约 5～20mA），保护 LED 和单片机端口。"
+  ],
+  "explanation": "",
+  "source": "项目1 熟悉单片机操作环境"
+ },
+ {
+  "id": "mcu-short-1",
+  "number": 1,
+  "type": "short",
+  "stem": "简述用 Keil C51 编写程序并在 Proteus 中仿真的主要步骤。",
+  "options": [],
+  "answer": [
+   "①新建工程，选择单片机型号（如 AT89C51）；②新建 .c 文件，编写程序并加入工程；③在工程选项 Output 中勾选 Create HEX File；④编译，改正错误直到 0 错误；⑤在 Proteus 中画好电路，双击单片机加载 .hex 文件，设置晶振频率；⑥运行仿真，观察现象。"
+  ],
+  "explanation": "",
+  "source": "项目1 熟悉单片机操作环境"
+ },
+ {
+  "id": "mcu-short-2",
+  "number": 2,
+  "type": "short",
+  "stem": "单片机有哪些特点？请列举其主要应用领域（至少 4 个）。",
+  "options": [],
+  "answer": [
+   "特点：体积小、功耗低、价格低、控制功能强、可靠性高、易于开发和扩展。应用：家用电器、智能仪器仪表、工业控制、汽车电子、通信设备、医疗设备、智能玩具等（答出 4 个即可）。"
+  ],
+  "explanation": "",
+  "source": "项目1 熟悉单片机操作环境"
+ },
+ {
+  "id": "mcu-short-3",
+  "number": 3,
+  "type": "short",
+  "stem": "画出（或描述）一个 LED 由单片机 P1.0 控制的电路，并说明怎样让它闪烁。",
+  "options": [],
+  "answer": [
+   "LED 阳极经 220Ω～1kΩ 限流电阻接 +5V，阴极接 P1.0。P1.0 输出 0 时 LED 亮，输出 1 时灭。程序中循环执行：P1.0 = 0 → 延时 → P1.0 = 1 → 延时，即可闪烁，延时长短决定闪烁快慢。"
+  ],
+  "explanation": "",
+  "source": "项目1 熟悉单片机操作环境"
+ },
+ {
+  "id": "mcu-single-14",
+  "number": 14,
+  "type": "single",
+  "stem": "AT89C51 单片机采用 DIP 封装时共有（  ）个引脚。",
+  "options": [
+   {
+    "key": "A",
+    "text": "20"
+   },
+   {
+    "key": "B",
+    "text": "28"
+   },
+   {
+    "key": "C",
+    "text": "40"
+   },
+   {
+    "key": "D",
+    "text": "64"
+   }
+  ],
+  "answer": [
+   "C"
+  ],
+  "explanation": "",
+  "source": "项目2 单片机硬件系统"
+ },
+ {
+  "id": "mcu-single-15",
+  "number": 15,
+  "type": "single",
+  "stem": "8051 单片机的电源引脚 VCC 和 GND 分别是第（  ）脚。",
+  "options": [
+   {
+    "key": "A",
+    "text": "40 和 20"
+   },
+   {
+    "key": "B",
+    "text": "20 和 40"
+   },
+   {
+    "key": "C",
+    "text": "1 和 40"
+   },
+   {
+    "key": "D",
+    "text": "9 和 31"
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "",
+  "source": "项目2 单片机硬件系统"
+ },
+ {
+  "id": "mcu-single-16",
+  "number": 16,
+  "type": "single",
+  "stem": "8051 单片机的复位引脚是（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "EA"
+   },
+   {
+    "key": "B",
+    "text": "ALE"
+   },
+   {
+    "key": "C",
+    "text": "RST"
+   },
+   {
+    "key": "D",
+    "text": "PSEN"
+   }
+  ],
+  "answer": [
+   "C"
+  ],
+  "explanation": "",
+  "source": "项目2 单片机硬件系统"
+ },
+ {
+  "id": "mcu-single-17",
+  "number": 17,
+  "type": "single",
+  "stem": "要使 8051 单片机复位，RST 引脚上要保持（  ）以上的高电平。",
+  "options": [
+   {
+    "key": "A",
+    "text": "1 个时钟周期"
+   },
+   {
+    "key": "B",
+    "text": "2 个机器周期"
+   },
+   {
+    "key": "C",
+    "text": "1 毫秒"
+   },
+   {
+    "key": "D",
+    "text": "1 秒"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "",
+  "source": "项目2 单片机硬件系统"
+ },
+ {
+  "id": "mcu-single-18",
+  "number": 18,
+  "type": "single",
+  "stem": "8051 单片机复位后，程序计数器 PC 的值为（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "0000H"
+   },
+   {
+    "key": "B",
+    "text": "0003H"
+   },
+   {
+    "key": "C",
+    "text": "07H"
+   },
+   {
+    "key": "D",
+    "text": "FFFFH"
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "",
+  "source": "项目2 单片机硬件系统"
+ },
+ {
+  "id": "mcu-single-19",
+  "number": 19,
+  "type": "single",
+  "stem": "8051 单片机复位后，P0～P3 口锁存器的值都是（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "00H"
+   },
+   {
+    "key": "B",
+    "text": "0FH"
+   },
+   {
+    "key": "C",
+    "text": "F0H"
+   },
+   {
+    "key": "D",
+    "text": "FFH"
+   }
+  ],
+  "answer": [
+   "D"
+  ],
+  "explanation": "",
+  "source": "项目2 单片机硬件系统"
+ },
+ {
+  "id": "mcu-single-20",
+  "number": 20,
+  "type": "single",
+  "stem": "单片机使用 12MHz 晶振时，一个机器周期是（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "1μs"
+   },
+   {
+    "key": "B",
+    "text": "2μs"
+   },
+   {
+    "key": "C",
+    "text": "12μs"
+   },
+   {
+    "key": "D",
+    "text": "0.5μs"
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "",
+  "source": "项目2 单片机硬件系统"
+ },
+ {
+  "id": "mcu-single-21",
+  "number": 21,
+  "type": "single",
+  "stem": "8051 单片机一个机器周期包含（  ）个时钟（振荡）周期。",
+  "options": [
+   {
+    "key": "A",
+    "text": "1"
+   },
+   {
+    "key": "B",
+    "text": "6"
+   },
+   {
+    "key": "C",
+    "text": "12"
+   },
+   {
+    "key": "D",
+    "text": "24"
+   }
+  ],
+  "answer": [
+   "C"
+  ],
+  "explanation": "",
+  "source": "项目2 单片机硬件系统"
+ },
+ {
+  "id": "mcu-single-22",
+  "number": 22,
+  "type": "single",
+  "stem": "使用片内程序存储器时，EA 引脚应接（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "高电平"
+   },
+   {
+    "key": "B",
+    "text": "低电平"
+   },
+   {
+    "key": "C",
+    "text": "悬空"
+   },
+   {
+    "key": "D",
+    "text": "晶振"
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "",
+  "source": "项目2 单片机硬件系统"
+ },
+ {
+  "id": "mcu-single-23",
+  "number": 23,
+  "type": "single",
+  "stem": "8051 单片机的 4 个并行 I/O 口中，作为输出口使用时必须外接上拉电阻的是（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "P0"
+   },
+   {
+    "key": "B",
+    "text": "P1"
+   },
+   {
+    "key": "C",
+    "text": "P2"
+   },
+   {
+    "key": "D",
+    "text": "P3"
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "",
+  "source": "项目2 单片机硬件系统"
+ },
+ {
+  "id": "mcu-single-24",
+  "number": 24,
+  "type": "single",
+  "stem": "8051 单片机 P3.2 引脚的第二功能是（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "RXD"
+   },
+   {
+    "key": "B",
+    "text": "INT0（外部中断 0）"
+   },
+   {
+    "key": "C",
+    "text": "T0"
+   },
+   {
+    "key": "D",
+    "text": "WR"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "",
+  "source": "项目2 单片机硬件系统"
+ },
+ {
+  "id": "mcu-single-25",
+  "number": 25,
+  "type": "single",
+  "stem": "8051 单片机内部 RAM 中，工作寄存器区的地址范围是（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "00H～1FH"
+   },
+   {
+    "key": "B",
+    "text": "20H～2FH"
+   },
+   {
+    "key": "C",
+    "text": "30H～7FH"
+   },
+   {
+    "key": "D",
+    "text": "80H～FFH"
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "",
+  "source": "项目2 单片机硬件系统"
+ },
+ {
+  "id": "mcu-single-26",
+  "number": 26,
+  "type": "single",
+  "stem": "8051 单片机内部 RAM 中，可以按位寻址的区域是（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "00H～1FH"
+   },
+   {
+    "key": "B",
+    "text": "20H～2FH"
+   },
+   {
+    "key": "C",
+    "text": "30H～7FH"
+   },
+   {
+    "key": "D",
+    "text": "80H～FFH 全部"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "",
+  "source": "项目2 单片机硬件系统"
+ },
+ {
+  "id": "mcu-single-27",
+  "number": 27,
+  "type": "single",
+  "stem": "8051 单片机的程序存储器和数据存储器分开编址，这种结构称为（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "冯·诺依曼结构"
+   },
+   {
+    "key": "B",
+    "text": "哈佛结构"
+   },
+   {
+    "key": "C",
+    "text": "流水线结构"
+   },
+   {
+    "key": "D",
+    "text": "总线结构"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "",
+  "source": "项目2 单片机硬件系统"
+ },
+ {
+  "id": "mcu-single-28",
+  "number": 28,
+  "type": "single",
+  "stem": "单片机最小系统除了单片机芯片外，还必须包括（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "电源、时钟电路和复位电路"
+   },
+   {
+    "key": "B",
+    "text": "数码管和按键"
+   },
+   {
+    "key": "C",
+    "text": "LCD 和串口"
+   },
+   {
+    "key": "D",
+    "text": "蜂鸣器和继电器"
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "",
+  "source": "项目2 单片机硬件系统"
+ },
+ {
+  "id": "mcu-single-29",
+  "number": 29,
+  "type": "single",
+  "stem": "单片机时钟电路中，晶振两端一般各接一个约（  ）的电容到地。",
+  "options": [
+   {
+    "key": "A",
+    "text": "30pF"
+   },
+   {
+    "key": "B",
+    "text": "10μF"
+   },
+   {
+    "key": "C",
+    "text": "100μF"
+   },
+   {
+    "key": "D",
+    "text": "1F"
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "",
+  "source": "项目2 单片机硬件系统"
+ },
+ {
+  "id": "mcu-single-30",
+  "number": 30,
+  "type": "single",
+  "stem": "8051 单片机读引脚状态（例如读按键）前，应先向该引脚写入（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "0"
+   },
+   {
+    "key": "B",
+    "text": "1"
+   },
+   {
+    "key": "C",
+    "text": "0x0F"
+   },
+   {
+    "key": "D",
+    "text": "任意值"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "",
+  "source": "项目2 单片机硬件系统"
+ },
+ {
+  "id": "mcu-single-31",
+  "number": 31,
+  "type": "single",
+  "stem": "单片机端口驱动能力有限，驱动蜂鸣器通常要经过（  ）放大。",
+  "options": [
+   {
+    "key": "A",
+    "text": "电容"
+   },
+   {
+    "key": "B",
+    "text": "三极管"
+   },
+   {
+    "key": "C",
+    "text": "二极管"
+   },
+   {
+    "key": "D",
+    "text": "晶振"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "",
+  "source": "项目2 单片机硬件系统"
+ },
+ {
+  "id": "mcu-single-32",
+  "number": 32,
+  "type": "single",
+  "stem": "8051 单片机内部有（  ）字节的片内数据存储器（RAM）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "64"
+   },
+   {
+    "key": "B",
+    "text": "128"
+   },
+   {
+    "key": "C",
+    "text": "256"
+   },
+   {
+    "key": "D",
+    "text": "4K"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "",
+  "source": "项目2 单片机硬件系统"
+ },
+ {
+  "id": "mcu-fill-9",
+  "number": 9,
+  "type": "fill",
+  "stem": "8051 单片机有 ____ 个 8 位并行 I/O 口，分别是 P0、P1、P2、P3。",
+  "options": [],
+  "answer": [
+   "4"
+  ],
+  "explanation": "",
+  "source": "项目2 单片机硬件系统"
+ },
+ {
+  "id": "mcu-fill-10",
+  "number": 10,
+  "type": "fill",
+  "stem": "单片机最小系统由单片机、电源、____ 电路和 ____ 电路组成。",
+  "options": [],
+  "answer": [
+   "时钟（晶振）",
+   "复位"
+  ],
+  "explanation": "",
+  "source": "项目2 单片机硬件系统"
+ },
+ {
+  "id": "mcu-fill-11",
+  "number": 11,
+  "type": "fill",
+  "stem": "8051 单片机的晶振接在 XTAL1 和 ____ 引脚上，它们是第 19 和第 18 脚。",
+  "options": [],
+  "answer": [
+   "XTAL2"
+  ],
+  "explanation": "",
+  "source": "项目2 单片机硬件系统"
+ },
+ {
+  "id": "mcu-fill-12",
+  "number": 12,
+  "type": "fill",
+  "stem": "8051 单片机复位后 PC = ____H，堆栈指针 SP = ____H。",
+  "options": [],
+  "answer": [
+   "0000",
+   "07"
+  ],
+  "explanation": "",
+  "source": "项目2 单片机硬件系统"
+ },
+ {
+  "id": "mcu-fill-13",
+  "number": 13,
+  "type": "fill",
+  "stem": "晶振频率为 12MHz 时，时钟周期为 ____μs，机器周期为 ____μs。",
+  "options": [],
+  "answer": [
+   "1/12（约 0.083）",
+   "1"
+  ],
+  "explanation": "",
+  "source": "项目2 单片机硬件系统"
+ },
+ {
+  "id": "mcu-fill-14",
+  "number": 14,
+  "type": "fill",
+  "stem": "8051 单片机内部 RAM 低 128 字节分为工作寄存器区、____ 区和用户 RAM 区。",
+  "options": [],
+  "answer": [
+   "位寻址"
+  ],
+  "explanation": "",
+  "source": "项目2 单片机硬件系统"
+ },
+ {
+  "id": "mcu-fill-15",
+  "number": 15,
+  "type": "fill",
+  "stem": "8051 单片机的工作寄存器区共有 ____ 组，每组 8 个寄存器 R0～R7。",
+  "options": [],
+  "answer": [
+   "4"
+  ],
+  "explanation": "",
+  "source": "项目2 单片机硬件系统"
+ },
+ {
+  "id": "mcu-fill-16",
+  "number": 16,
+  "type": "fill",
+  "stem": "P3 口的第二功能中，P3.0 是 ____（串行输入），P3.1 是 ____（串行输出）。",
+  "options": [],
+  "answer": [
+   "RXD",
+   "TXD"
+  ],
+  "explanation": "",
+  "source": "项目2 单片机硬件系统"
+ },
+ {
+  "id": "mcu-fill-17",
+  "number": 17,
+  "type": "fill",
+  "stem": "8051 单片机的程序存储器可寻址空间为 ____KB。",
+  "options": [],
+  "answer": [
+   "64"
+  ],
+  "explanation": "",
+  "source": "项目2 单片机硬件系统"
+ },
+ {
+  "id": "mcu-fill-18",
+  "number": 18,
+  "type": "fill",
+  "stem": "P0 口作为通用 I/O 口输出时，必须外接 ____ 电阻。",
+  "options": [],
+  "answer": [
+   "上拉"
+  ],
+  "explanation": "",
+  "source": "项目2 单片机硬件系统"
+ },
+ {
+  "id": "mcu-judgment-11",
+  "number": 11,
+  "type": "judgment",
+  "stem": "8051 单片机的 P0 口是开漏结构，作输出口时需要外接上拉电阻。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "",
+  "source": "项目2 单片机硬件系统"
+ },
+ {
+  "id": "mcu-judgment-12",
+  "number": 12,
+  "type": "judgment",
+  "stem": "8051 单片机的 RST 引脚接低电平时单片机复位。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "F"
+  ],
+  "explanation": "",
+  "source": "项目2 单片机硬件系统"
+ },
+ {
+  "id": "mcu-judgment-13",
+  "number": 13,
+  "type": "judgment",
+  "stem": "晶振频率越高，单片机执行一条指令的时间越短。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "",
+  "source": "项目2 单片机硬件系统"
+ },
+ {
+  "id": "mcu-judgment-14",
+  "number": 14,
+  "type": "judgment",
+  "stem": "8051 单片机的程序存储器和数据存储器在同一个地址空间内统一编址。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "F"
+  ],
+  "explanation": "",
+  "source": "项目2 单片机硬件系统"
+ },
+ {
+  "id": "mcu-judgment-15",
+  "number": 15,
+  "type": "judgment",
+  "stem": "P3 口除了可以作普通 I/O 口外，每一位还有第二功能。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "",
+  "source": "项目2 单片机硬件系统"
+ },
+ {
+  "id": "mcu-judgment-16",
+  "number": 16,
+  "type": "judgment",
+  "stem": "单片机复位后，P1 口输出全为低电平。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "F"
+  ],
+  "explanation": "",
+  "source": "项目2 单片机硬件系统"
+ },
+ {
+  "id": "mcu-judgment-17",
+  "number": 17,
+  "type": "judgment",
+  "stem": "EA 引脚接高电平时，单片机先执行片内程序存储器中的程序。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "",
+  "source": "项目2 单片机硬件系统"
+ },
+ {
+  "id": "mcu-judgment-18",
+  "number": 18,
+  "type": "judgment",
+  "stem": "单片机端口可以直接驱动大功率的电动机。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "F"
+  ],
+  "explanation": "",
+  "source": "项目2 单片机硬件系统"
+ },
+ {
+  "id": "mcu-judgment-19",
+  "number": 19,
+  "type": "judgment",
+  "stem": "特殊功能寄存器（SFR）位于内部 RAM 的 80H～FFH 地址范围。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "",
+  "source": "项目2 单片机硬件系统"
+ },
+ {
+  "id": "mcu-judgment-20",
+  "number": 20,
+  "type": "judgment",
+  "stem": "无源蜂鸣器只要加上直流电压就会发出声音。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "F"
+  ],
+  "explanation": "",
+  "source": "项目2 单片机硬件系统"
+ },
+ {
+  "id": "mcu-term-4",
+  "number": 4,
+  "type": "term",
+  "stem": "单片机最小系统",
+  "options": [],
+  "answer": [
+   "能使单片机正常工作的最简电路，由单片机芯片、电源、时钟电路（晶振和电容）、复位电路组成，使用片内程序存储器时 EA 接高电平。"
+  ],
+  "explanation": "",
+  "source": "项目2 单片机硬件系统"
+ },
+ {
+  "id": "mcu-term-5",
+  "number": 5,
+  "type": "term",
+  "stem": "机器周期",
+  "options": [],
+  "answer": [
+   "单片机完成一个基本操作所需的时间，8051 的一个机器周期等于 12 个时钟（振荡）周期；12MHz 晶振时为 1μs。"
+  ],
+  "explanation": "",
+  "source": "项目2 单片机硬件系统"
+ },
+ {
+  "id": "mcu-term-6",
+  "number": 6,
+  "type": "term",
+  "stem": "复位",
+  "options": [],
+  "answer": [
+   "使单片机回到初始状态的操作：RST 引脚保持 2 个机器周期以上的高电平，复位后 PC = 0000H，程序从头开始执行，P0～P3 = FFH。"
+  ],
+  "explanation": "",
+  "source": "项目2 单片机硬件系统"
+ },
+ {
+  "id": "mcu-term-7",
+  "number": 7,
+  "type": "term",
+  "stem": "哈佛结构",
+  "options": [],
+  "answer": [
+   "程序存储器和数据存储器分开、各自独立编址的存储器结构，8051 单片机采用这种结构。"
+  ],
+  "explanation": "",
+  "source": "项目2 单片机硬件系统"
+ },
+ {
+  "id": "mcu-term-8",
+  "number": 8,
+  "type": "term",
+  "stem": "上拉电阻",
+  "options": [],
+  "answer": [
+   "一端接电源、一端接信号线的电阻，使信号线在无驱动时保持高电平；8051 的 P0 口作输出时必须外接上拉电阻。"
+  ],
+  "explanation": "",
+  "source": "项目2 单片机硬件系统"
+ },
+ {
+  "id": "mcu-short-4",
+  "number": 4,
+  "type": "short",
+  "stem": "什么是单片机最小系统？它由哪几部分组成？各部分的作用是什么？",
+  "options": [],
+  "answer": [
+   "能让单片机工作的最简电路。①电源：提供 +5V 工作电压（40 脚 VCC，20 脚 GND）；②时钟电路：晶振（如 12MHz）和两个约 30pF 电容接 XTAL1、XTAL2，提供工作时钟；③复位电路：上电复位或按键复位，使单片机从初始状态开始运行；④EA 接高电平，使用片内程序存储器。"
+  ],
+  "explanation": "",
+  "source": "项目2 单片机硬件系统"
+ },
+ {
+  "id": "mcu-short-5",
+  "number": 5,
+  "type": "short",
+  "stem": "8051 单片机的 P0～P3 口在结构和使用上有什么区别？",
+  "options": [],
+  "answer": [
+   "P0：开漏输出，作通用 I/O 时要外接上拉电阻，扩展时作低 8 位地址/数据总线；P1：准双向口，只作通用 I/O；P2：准双向口，扩展时作高 8 位地址；P3：准双向口，每一位还有第二功能（RXD、TXD、INT0、INT1、T0、T1、WR、RD）。四个口作输入时都要先写 1。"
+  ],
+  "explanation": "",
+  "source": "项目2 单片机硬件系统"
+ },
+ {
+  "id": "mcu-short-6",
+  "number": 6,
+  "type": "short",
+  "stem": "8051 单片机内部 RAM 的低 128 字节是怎样划分的？",
+  "options": [],
+  "answer": [
+   "00H～1FH：工作寄存器区，4 组 R0～R7；20H～2FH：位寻址区，共 128 位；30H～7FH：用户 RAM 区（一般数据和堆栈）。80H～FFH 为特殊功能寄存器区。"
+  ],
+  "explanation": "",
+  "source": "项目2 单片机硬件系统"
+ },
+ {
+  "id": "mcu-short-7",
+  "number": 7,
+  "type": "short",
+  "stem": "单片机复位电路有哪两种常见形式？复位后单片机处于什么状态？",
+  "options": [],
+  "answer": [
+   "上电复位（电容和电阻组成，上电瞬间 RST 为高电平）和按键复位（按键按下使 RST 为高电平）。复位后 PC = 0000H，程序从 0000H 开始执行；SP = 07H；P0～P3 = FFH。"
+  ],
+  "explanation": "",
+  "source": "项目2 单片机硬件系统"
+ },
+ {
+  "id": "mcu-single-33",
+  "number": 33,
+  "type": "single",
+  "stem": "在 C51 程序中，定义 8051 单片机特殊功能寄存器（如 P0、P1）的头文件通常是（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "stdio.h"
+   },
+   {
+    "key": "B",
+    "text": "reg51.h"
+   },
+   {
+    "key": "C",
+    "text": "math.h"
+   },
+   {
+    "key": "D",
+    "text": "intrins.h"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "",
+  "source": "项目3 并行 I/O 端口与 C51 语言"
+ },
+ {
+  "id": "mcu-single-34",
+  "number": 34,
+  "type": "single",
+  "stem": "循环左移函数 _crol_ 包含在头文件（  ）中。",
+  "options": [
+   {
+    "key": "A",
+    "text": "reg51.h"
+   },
+   {
+    "key": "B",
+    "text": "stdio.h"
+   },
+   {
+    "key": "C",
+    "text": "intrins.h"
+   },
+   {
+    "key": "D",
+    "text": "string.h"
+   }
+  ],
+  "answer": [
+   "C"
+  ],
+  "explanation": "",
+  "source": "项目3 并行 I/O 端口与 C51 语言"
+ },
+ {
+  "id": "mcu-single-35",
+  "number": 35,
+  "type": "single",
+  "stem": "C51 中，用来定义可位寻址的单个引脚（如 sbit LED = P1^0;）的关键字是（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "bit"
+   },
+   {
+    "key": "B",
+    "text": "sbit"
+   },
+   {
+    "key": "C",
+    "text": "sfr"
+   },
+   {
+    "key": "D",
+    "text": "char"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "",
+  "source": "项目3 并行 I/O 端口与 C51 语言"
+ },
+ {
+  "id": "mcu-single-36",
+  "number": 36,
+  "type": "single",
+  "stem": "unsigned char 型变量的取值范围是（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "-128～127"
+   },
+   {
+    "key": "B",
+    "text": "0～255"
+   },
+   {
+    "key": "C",
+    "text": "0～65535"
+   },
+   {
+    "key": "D",
+    "text": "-32768～32767"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "",
+  "source": "项目3 并行 I/O 端口与 C51 语言"
+ },
+ {
+  "id": "mcu-single-37",
+  "number": 37,
+  "type": "single",
+  "stem": "在 C51 中，unsigned int 型变量占（  ）个字节。",
+  "options": [
+   {
+    "key": "A",
+    "text": "1"
+   },
+   {
+    "key": "B",
+    "text": "2"
+   },
+   {
+    "key": "C",
+    "text": "4"
+   },
+   {
+    "key": "D",
+    "text": "8"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "",
+  "source": "项目3 并行 I/O 端口与 C51 语言"
+ },
+ {
+  "id": "mcu-single-38",
+  "number": 38,
+  "type": "single",
+  "stem": "设 a = 0xFE，执行 a = _crol_(a,1); 后，a 的值为（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "0xFC"
+   },
+   {
+    "key": "B",
+    "text": "0xFD"
+   },
+   {
+    "key": "C",
+    "text": "0x7F"
+   },
+   {
+    "key": "D",
+    "text": "0xFE"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "",
+  "source": "项目3 并行 I/O 端口与 C51 语言"
+ },
+ {
+  "id": "mcu-single-39",
+  "number": 39,
+  "type": "single",
+  "stem": "设 a = 0xFE，执行 a = a << 1; 后（a 为 unsigned char），a 的值为（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "0xFD"
+   },
+   {
+    "key": "B",
+    "text": "0xFC"
+   },
+   {
+    "key": "C",
+    "text": "0x7F"
+   },
+   {
+    "key": "D",
+    "text": "0xFF"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "",
+  "source": "项目3 并行 I/O 端口与 C51 语言"
+ },
+ {
+  "id": "mcu-single-40",
+  "number": 40,
+  "type": "single",
+  "stem": "表达式 0x0F & 0x3C 的值是（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "0x3F"
+   },
+   {
+    "key": "B",
+    "text": "0x0C"
+   },
+   {
+    "key": "C",
+    "text": "0x33"
+   },
+   {
+    "key": "D",
+    "text": "0x30"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "",
+  "source": "项目3 并行 I/O 端口与 C51 语言"
+ },
+ {
+  "id": "mcu-single-41",
+  "number": 41,
+  "type": "single",
+  "stem": "表达式 ~0xF0（结果取低 8 位）的值是（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "0x0F"
+   },
+   {
+    "key": "B",
+    "text": "0xF0"
+   },
+   {
+    "key": "C",
+    "text": "0xFF"
+   },
+   {
+    "key": "D",
+    "text": "0x00"
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "",
+  "source": "项目3 并行 I/O 端口与 C51 语言"
+ },
+ {
+  "id": "mcu-single-42",
+  "number": 42,
+  "type": "single",
+  "stem": "C 语言中，while(1) 表示（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "循环一次"
+   },
+   {
+    "key": "B",
+    "text": "不执行"
+   },
+   {
+    "key": "C",
+    "text": "无限循环"
+   },
+   {
+    "key": "D",
+    "text": "出错"
+   }
+  ],
+  "answer": [
+   "C"
+  ],
+  "explanation": "",
+  "source": "项目3 并行 I/O 端口与 C51 语言"
+ },
+ {
+  "id": "mcu-single-43",
+  "number": 43,
+  "type": "single",
+  "stem": "for(i = 0; i < 8; i++) 的循环体共执行（  ）次。",
+  "options": [
+   {
+    "key": "A",
+    "text": "7"
+   },
+   {
+    "key": "B",
+    "text": "8"
+   },
+   {
+    "key": "C",
+    "text": "9"
+   },
+   {
+    "key": "D",
+    "text": "无数"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "",
+  "source": "项目3 并行 I/O 端口与 C51 语言"
+ },
+ {
+  "id": "mcu-single-44",
+  "number": 44,
+  "type": "single",
+  "stem": "switch 语句中，每个 case 分支末尾一般要加（  ），否则会继续执行下一个分支。",
+  "options": [
+   {
+    "key": "A",
+    "text": "continue"
+   },
+   {
+    "key": "B",
+    "text": "break"
+   },
+   {
+    "key": "C",
+    "text": "return"
+   },
+   {
+    "key": "D",
+    "text": "goto"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "",
+  "source": "项目3 并行 I/O 端口与 C51 语言"
+ },
+ {
+  "id": "mcu-single-45",
+  "number": 45,
+  "type": "single",
+  "stem": "P1 口接 8 个 LED（低电平点亮），要让 D1（P1.0）和 D8（P1.7）亮、其余灭，应送（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "0x81"
+   },
+   {
+    "key": "B",
+    "text": "0x7E"
+   },
+   {
+    "key": "C",
+    "text": "0x18"
+   },
+   {
+    "key": "D",
+    "text": "0xE7"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "",
+  "source": "项目3 并行 I/O 端口与 C51 语言"
+ },
+ {
+  "id": "mcu-single-46",
+  "number": 46,
+  "type": "single",
+  "stem": "下列关于函数的说法正确的是（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "函数必须有返回值"
+   },
+   {
+    "key": "B",
+    "text": "被调用的函数如果写在 main 后面，要先声明"
+   },
+   {
+    "key": "C",
+    "text": "函数名可以和关键字相同"
+   },
+   {
+    "key": "D",
+    "text": "函数不能有参数"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "",
+  "source": "项目3 并行 I/O 端口与 C51 语言"
+ },
+ {
+  "id": "mcu-single-47",
+  "number": 47,
+  "type": "single",
+  "stem": "C 语言中，判断“等于”的运算符是（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "="
+   },
+   {
+    "key": "B",
+    "text": "=="
+   },
+   {
+    "key": "C",
+    "text": "!="
+   },
+   {
+    "key": "D",
+    "text": "=>"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "",
+  "source": "项目3 并行 I/O 端口与 C51 语言"
+ },
+ {
+  "id": "mcu-single-48",
+  "number": 48,
+  "type": "single",
+  "stem": "void delay(unsigned int x) 这个函数（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "有一个参数，没有返回值"
+   },
+   {
+    "key": "B",
+    "text": "没有参数，有返回值"
+   },
+   {
+    "key": "C",
+    "text": "有返回值 x"
+   },
+   {
+    "key": "D",
+    "text": "不能被调用"
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "",
+  "source": "项目3 并行 I/O 端口与 C51 语言"
+ },
+ {
+  "id": "mcu-fill-19",
+  "number": 19,
+  "type": "fill",
+  "stem": "C51 中，用 ____ 关键字定义特殊功能寄存器中的位，例如 ____ LED = P1^0;。",
+  "options": [],
+  "answer": [
+   "sbit",
+   "sbit"
+  ],
+  "explanation": "",
+  "source": "项目3 并行 I/O 端口与 C51 语言"
+ },
+ {
+  "id": "mcu-fill-20",
+  "number": 20,
+  "type": "fill",
+  "stem": "C 语言的三种基本程序结构是顺序结构、____ 结构和 ____ 结构。",
+  "options": [],
+  "answer": [
+   "选择（分支）",
+   "循环"
+  ],
+  "explanation": "",
+  "source": "项目3 并行 I/O 端口与 C51 语言"
+ },
+ {
+  "id": "mcu-fill-21",
+  "number": 21,
+  "type": "fill",
+  "stem": "_crol_(0x7F,1) 的结果是 ____，_cror_(0xFE,1) 的结果是 ____。",
+  "options": [],
+  "answer": [
+   "0xFE",
+   "0x7F"
+  ],
+  "explanation": "",
+  "source": "项目3 并行 I/O 端口与 C51 语言"
+ },
+ {
+  "id": "mcu-fill-22",
+  "number": 22,
+  "type": "fill",
+  "stem": "表达式 0x55 | 0xAA 的值是 ____，0x55 ^ 0xFF 的值是 ____。",
+  "options": [],
+  "answer": [
+   "0xFF",
+   "0xAA"
+  ],
+  "explanation": "",
+  "source": "项目3 并行 I/O 端口与 C51 语言"
+ },
+ {
+  "id": "mcu-fill-23",
+  "number": 23,
+  "type": "fill",
+  "stem": "C 语言中，逻辑与运算符是 ____，按位与运算符是 ____。",
+  "options": [],
+  "answer": [
+   "&&",
+   "&"
+  ],
+  "explanation": "",
+  "source": "项目3 并行 I/O 端口与 C51 语言"
+ },
+ {
+  "id": "mcu-fill-24",
+  "number": 24,
+  "type": "fill",
+  "stem": "函数的返回类型为 ____ 时，表示该函数没有返回值。",
+  "options": [],
+  "answer": [
+   "void"
+  ],
+  "explanation": "",
+  "source": "项目3 并行 I/O 端口与 C51 语言"
+ },
+ {
+  "id": "mcu-fill-25",
+  "number": 25,
+  "type": "fill",
+  "stem": "流水灯程序中，让亮灯从 D1 依次移到 D8，通常使用 ____ 函数循环左移。",
+  "options": [],
+  "answer": [
+   "_crol_"
+  ],
+  "explanation": "",
+  "source": "项目3 并行 I/O 端口与 C51 语言"
+ },
+ {
+  "id": "mcu-fill-26",
+  "number": 26,
+  "type": "fill",
+  "stem": "按键接 P3.4，按下为低电平。判断按键按下的条件语句是 if(K1 == ____)。",
+  "options": [],
+  "answer": [
+   "0"
+  ],
+  "explanation": "",
+  "source": "项目3 并行 I/O 端口与 C51 语言"
+ },
+ {
+  "id": "mcu-fill-27",
+  "number": 27,
+  "type": "fill",
+  "stem": "C 语言中，单行注释以 ____ 开头。",
+  "options": [],
+  "answer": [
+   "//"
+  ],
+  "explanation": "",
+  "source": "项目3 并行 I/O 端口与 C51 语言"
+ },
+ {
+  "id": "mcu-fill-28",
+  "number": 28,
+  "type": "fill",
+  "stem": "执行 for(i = 5; i > 0; i--) 后，循环体执行 ____ 次。",
+  "options": [],
+  "answer": [
+   "5"
+  ],
+  "explanation": "",
+  "source": "项目3 并行 I/O 端口与 C51 语言"
+ },
+ {
+  "id": "mcu-judgment-21",
+  "number": 21,
+  "type": "judgment",
+  "stem": "C 语言区分大小写，Delay 和 delay 是两个不同的名字。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "",
+  "source": "项目3 并行 I/O 端口与 C51 语言"
+ },
+ {
+  "id": "mcu-judgment-22",
+  "number": 22,
+  "type": "judgment",
+  "stem": "_crol_ 是循环左移，移出的最高位会补到最低位。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "",
+  "source": "项目3 并行 I/O 端口与 C51 语言"
+ },
+ {
+  "id": "mcu-judgment-23",
+  "number": 23,
+  "type": "judgment",
+  "stem": "a << 1 和 _crol_(a,1) 的结果总是相同的。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "F"
+  ],
+  "explanation": "",
+  "source": "项目3 并行 I/O 端口与 C51 语言"
+ },
+ {
+  "id": "mcu-judgment-24",
+  "number": 24,
+  "type": "judgment",
+  "stem": "在 C 语言中，“=” 是赋值运算符，“==” 是判断相等的关系运算符。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "",
+  "source": "项目3 并行 I/O 端口与 C51 语言"
+ },
+ {
+  "id": "mcu-judgment-25",
+  "number": 25,
+  "type": "judgment",
+  "stem": "switch 语句的 case 后面可以跟变量。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "F"
+  ],
+  "explanation": "",
+  "source": "项目3 并行 I/O 端口与 C51 语言"
+ },
+ {
+  "id": "mcu-judgment-26",
+  "number": 26,
+  "type": "judgment",
+  "stem": "do-while 循环的循环体至少执行一次。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "",
+  "source": "项目3 并行 I/O 端口与 C51 语言"
+ },
+ {
+  "id": "mcu-judgment-27",
+  "number": 27,
+  "type": "judgment",
+  "stem": "unsigned char 型变量可以存放 300 这个数。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "F"
+  ],
+  "explanation": "",
+  "source": "项目3 并行 I/O 端口与 C51 语言"
+ },
+ {
+  "id": "mcu-judgment-28",
+  "number": 28,
+  "type": "judgment",
+  "stem": "C51 程序中，每条语句以分号结束。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "",
+  "source": "项目3 并行 I/O 端口与 C51 语言"
+ },
+ {
+  "id": "mcu-judgment-29",
+  "number": 29,
+  "type": "judgment",
+  "stem": "按键在按下和松开时会产生抖动，所以程序中一般要加延时消抖。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "",
+  "source": "项目3 并行 I/O 端口与 C51 语言"
+ },
+ {
+  "id": "mcu-judgment-30",
+  "number": 30,
+  "type": "judgment",
+  "stem": "函数定义可以嵌套，即在一个函数内部定义另一个函数。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "F"
+  ],
+  "explanation": "",
+  "source": "项目3 并行 I/O 端口与 C51 语言"
+ },
+ {
+  "id": "mcu-term-9",
+  "number": 9,
+  "type": "term",
+  "stem": "sbit",
+  "options": [],
+  "answer": [
+   "C51 扩展的关键字，用来定义特殊功能寄存器中的某一位（如某个 I/O 引脚），例如 sbit LED = P1^0;，之后就可以用 LED 直接读写该引脚。"
+  ],
+  "explanation": "",
+  "source": "项目3 并行 I/O 端口与 C51 语言"
+ },
+ {
+  "id": "mcu-term-10",
+  "number": 10,
+  "type": "term",
+  "stem": "循环左移",
+  "options": [],
+  "answer": [
+   "把一个数的各位依次向左移动，最高位移出后补到最低位，例如 _crol_(0xFE,1) = 0xFD，常用来实现流水灯。"
+  ],
+  "explanation": "",
+  "source": "项目3 并行 I/O 端口与 C51 语言"
+ },
+ {
+  "id": "mcu-term-11",
+  "number": 11,
+  "type": "term",
+  "stem": "按键抖动",
+  "options": [],
+  "answer": [
+   "机械按键在按下或松开的瞬间，触点会产生 5～10ms 的不稳定通断；处理办法是检测到按下后延时约 10ms 再判断（软件消抖）。"
+  ],
+  "explanation": "",
+  "source": "项目3 并行 I/O 端口与 C51 语言"
+ },
+ {
+  "id": "mcu-short-8",
+  "number": 8,
+  "type": "short",
+  "stem": "比较 a << 1 和 _crol_(a,1) 的区别，并以 a = 0xFE 为例说明结果。",
+  "options": [],
+  "answer": [
+   "a << 1 是逻辑左移，最高位移出丢弃，最低位补 0：0xFE << 1 = 0xFC（取 8 位）。_crol_(a,1) 是循环左移，最高位移到最低位：_crol_(0xFE,1) = 0xFD。流水灯一般用 _crol_，亮的那一位能一圈圈循环。"
+  ],
+  "explanation": "",
+  "source": "项目3 并行 I/O 端口与 C51 语言"
+ },
+ {
+  "id": "mcu-short-9",
+  "number": 9,
+  "type": "short",
+  "stem": "什么是按键抖动？在程序中怎样消除？",
+  "options": [],
+  "answer": [
+   "机械按键触点在按下和释放时会弹跳，产生一串持续 5～10ms 的抖动信号，可能被误判为多次按键。软件消抖：检测到按键按下后，延时约 10ms 再检测一次，仍为按下才确认；等按键释放后再继续。"
+  ],
+  "explanation": "",
+  "source": "项目3 并行 I/O 端口与 C51 语言"
+ },
+ {
+  "id": "mcu-short-10",
+  "number": 10,
+  "type": "short",
+  "stem": "说明 C 语言中 while、do-while、for 三种循环语句的区别。",
+  "options": [],
+  "answer": [
+   "while：先判断条件，条件成立才执行循环体，可能一次都不执行；do-while：先执行一次循环体再判断，至少执行一次；for：把初值、条件、修改写在一起，适合循环次数已知的情况。三者都可用 break 跳出。"
+  ],
+  "explanation": "",
+  "source": "项目3 并行 I/O 端口与 C51 语言"
+ },
+ {
+  "id": "mcu-prog-1",
+  "number": 1,
+  "type": "prog",
+  "stem": "阅读下面的程序，P1 口接 8 个 LED（D1 接 P1.0，低电平点亮），回答问题。",
+  "options": [],
+  "answer": [
+   "（1）D1 先亮（0xFE 只有最低位为 0）。（2）亮灯从 D1 向 D8 方向逐个移动；移到 D8 后又回到 D1，循环不停（循环左移，移出的位补回最低位）。（3）改成循环右移后亮灯从 D1 跳到 D8，再向 D1 方向移动，方向相反。"
+  ],
+  "explanation": "",
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "code": "#include <reg51.h>\n#include <intrins.h>\nvoid delay(unsigned int x)\n{\n    while(x--);\n}\nvoid main()\n{\n    unsigned char a = 0xFE;\n    while(1)\n    {\n        P1 = a;\n        delay(30000);\n        a = _crol_(a, 1);\n    }\n}",
+  "sub": [
+   "上电后哪个灯先亮？",
+   "亮灯向哪个方向移动？移到 D8 之后会怎样？",
+   "若把 _crol_ 改成 _cror_，现象有什么变化？"
+  ]
+ },
+ {
+  "id": "mcu-prog-2",
+  "number": 2,
+  "type": "prog",
+  "stem": "阅读下面的程序（P1 接 8 个 LED，低电平点亮；按键 K1 接 P3.4，按下为低电平），回答问题。",
+  "options": [],
+  "answer": [
+   "（1）8 个 LED 全灭（P1 = 0xFF）。（2）0x0F = 0000 1111B，为 0 的是 P1.4～P1.7，低电平点亮，所以 D5～D8 亮。（3）把 P1 = 0x0F; 改为 P1 = 0xF0;。"
+  ],
+  "explanation": "",
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "code": "#include <reg51.h>\nsbit K1 = P3^4;\nvoid main()\n{\n    while(1)\n    {\n        if(K1 == 0)\n            P1 = 0x0F;\n        else\n            P1 = 0xFF;\n    }\n}",
+  "sub": [
+   "K1 没有按下时，LED 的状态是什么？",
+   "按住 K1 时，哪几个 LED 亮？",
+   "若要按下时改为 D1～D4 亮，程序应怎样修改？"
+  ]
+ },
+ {
+  "id": "mcu-prog-3",
+  "number": 3,
+  "type": "prog",
+  "stem": "阅读下面的程序（P1 接 8 个 LED，低电平点亮），回答问题。",
+  "options": [],
+  "answer": [
+   "（1）8 个 LED 全亮、全灭交替闪烁，共闪 3 次，之后保持全灭。（2）让程序停在原地（死循环），不再往下执行。（3）main 函数执行完后程序会“跑飞”或从头重新执行，现象不可控。"
+  ],
+  "explanation": "",
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "code": "#include <reg51.h>\nvoid delay(unsigned int x)\n{\n    while(x--);\n}\nvoid main()\n{\n    unsigned char i;\n    for(i = 0; i < 3; i++)\n    {\n        P1 = 0x00;\n        delay(30000);\n        P1 = 0xFF;\n        delay(30000);\n    }\n    while(1);\n}",
+  "sub": [
+   "程序运行后 LED 有什么现象？一共闪几次？",
+   "最后一句 while(1); 的作用是什么？",
+   "如果去掉 while(1);，在单片机上会出现什么问题？"
+  ]
+ },
+ {
+  "id": "mcu-prog-4",
+  "number": 4,
+  "type": "prog",
+  "stem": "下面的程序想让 P1 口的 8 个 LED 从 D1 到 D8 依次点亮（流水灯），但有错误，请找出并改正。",
+  "options": [],
+  "answer": [
+   "①函数定义为 Delay、调用为 delay，大小写不一致，应统一为 delay；②delay(30000) 后缺分号；③LED 低电平点亮，初值应为 0xFE（只有 D1 亮），0x01 会使 7 个灯亮；④从 D1 到 D8 应循环左移 _crol_，不是 _cror_。"
+  ],
+  "explanation": "",
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "code": "#include <reg51.h>\n#include <intrins.h>\nvoid Delay(unsigned int x)\n{\n    while(x--);\n}\nvoid main()\n{\n    unsigned char a = 0x01;\n    while(1)\n    {\n        P1 = a;\n        delay(30000)\n        a = _cror_(a, 1);\n    }\n}",
+  "sub": [
+   "找出程序中的错误（至少 3 处）并改正。"
+  ]
+ },
+ {
+  "id": "mcu-prog-5",
+  "number": 5,
+  "type": "prog",
+  "stem": "阅读下面的程序（P1 接 8 个 LED，低电平点亮），回答问题。",
+  "options": [],
+  "answer": [
+   "（1）0xAA = 1010 1010B，为 0 的位是 P1.0、P1.2、P1.4、P1.6，所以 D1、D3、D5、D7 亮。（2）D1、D3、D5、D7 和 D2、D4、D6、D8 两组交替闪烁。（3）增大 delay 的参数（或多调用几次 delay）。"
+  ],
+  "explanation": "",
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "code": "#include <reg51.h>\nvoid delay(unsigned int x)\n{\n    while(x--);\n}\nvoid main()\n{\n    while(1)\n    {\n        P1 = 0xAA;\n        delay(30000);\n        P1 = 0x55;\n        delay(30000);\n    }\n}",
+  "sub": [
+   "P1 = 0xAA 时哪些 LED 亮？",
+   "程序运行的整体现象是什么？",
+   "如何让交替的速度变慢？"
+  ]
+ },
+ {
+  "id": "mcu-single-49",
+  "number": 49,
+  "type": "single",
+  "stem": "共阳极数码管的公共端应接（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "地"
+   },
+   {
+    "key": "B",
+    "text": "高电平（+5V）"
+   },
+   {
+    "key": "C",
+    "text": "单片机 RST"
+   },
+   {
+    "key": "D",
+    "text": "悬空"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-single-50",
+  "number": 50,
+  "type": "single",
+  "stem": "共阳极数码管显示数字“0”的段码（dp gfedcba，dp 为最高位）是（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "0x3F"
+   },
+   {
+    "key": "B",
+    "text": "0xC0"
+   },
+   {
+    "key": "C",
+    "text": "0xF9"
+   },
+   {
+    "key": "D",
+    "text": "0x06"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-single-51",
+  "number": 51,
+  "type": "single",
+  "stem": "共阴极数码管显示数字“1”的段码是（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "0x06"
+   },
+   {
+    "key": "B",
+    "text": "0xF9"
+   },
+   {
+    "key": "C",
+    "text": "0x3F"
+   },
+   {
+    "key": "D",
+    "text": "0xC0"
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-single-52",
+  "number": 52,
+  "type": "single",
+  "stem": "一位 7 段数码管（带小数点）共有（  ）个发光段。",
+  "options": [
+   {
+    "key": "A",
+    "text": "7"
+   },
+   {
+    "key": "B",
+    "text": "8"
+   },
+   {
+    "key": "C",
+    "text": "9"
+   },
+   {
+    "key": "D",
+    "text": "10"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-single-53",
+  "number": 53,
+  "type": "single",
+  "stem": "多位数码管动态显示利用了人眼的（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "色差"
+   },
+   {
+    "key": "B",
+    "text": "视觉暂留"
+   },
+   {
+    "key": "C",
+    "text": "立体视觉"
+   },
+   {
+    "key": "D",
+    "text": "夜视"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-single-54",
+  "number": 54,
+  "type": "single",
+  "stem": "动态显示时，控制“哪一位数码管亮”的信号叫做（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "段选"
+   },
+   {
+    "key": "B",
+    "text": "位选"
+   },
+   {
+    "key": "C",
+    "text": "片选"
+   },
+   {
+    "key": "D",
+    "text": "复位"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-single-55",
+  "number": 55,
+  "type": "single",
+  "stem": "4×4 矩阵键盘共有（  ）个按键，占用（  ）根 I/O 线。",
+  "options": [
+   {
+    "key": "A",
+    "text": "16，8"
+   },
+   {
+    "key": "B",
+    "text": "16，16"
+   },
+   {
+    "key": "C",
+    "text": "8，8"
+   },
+   {
+    "key": "D",
+    "text": "8，16"
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-single-56",
+  "number": 56,
+  "type": "single",
+  "stem": "8 路抢答器中，8 个按键接在 P0 口，单片机读入 P0 = 0xFB，说明按下的是（  ）号键（按键从 0 号接 P0.0 起编号）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "1"
+   },
+   {
+    "key": "B",
+    "text": "2"
+   },
+   {
+    "key": "C",
+    "text": "3"
+   },
+   {
+    "key": "D",
+    "text": "5"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-single-57",
+  "number": 57,
+  "type": "single",
+  "stem": "C51 中把段码表存放在程序存储器里，数组定义时应加关键字（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "data"
+   },
+   {
+    "key": "B",
+    "text": "code"
+   },
+   {
+    "key": "C",
+    "text": "xdata"
+   },
+   {
+    "key": "D",
+    "text": "bit"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-single-58",
+  "number": 58,
+  "type": "single",
+  "stem": "8×8 LED 点阵共有（  ）个发光点。",
+  "options": [
+   {
+    "key": "A",
+    "text": "8"
+   },
+   {
+    "key": "B",
+    "text": "16"
+   },
+   {
+    "key": "C",
+    "text": "64"
+   },
+   {
+    "key": "D",
+    "text": "128"
+   }
+  ],
+  "answer": [
+   "C"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-single-59",
+  "number": 59,
+  "type": "single",
+  "stem": "矩阵键盘常用的识别方法是（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "逐行扫描法"
+   },
+   {
+    "key": "B",
+    "text": "中断法"
+   },
+   {
+    "key": "C",
+    "text": "定时法"
+   },
+   {
+    "key": "D",
+    "text": "串口法"
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-single-60",
+  "number": 60,
+  "type": "single",
+  "stem": "数组 unsigned char tab[10]; 中，数组元素下标的范围是（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "1～10"
+   },
+   {
+    "key": "B",
+    "text": "0～9"
+   },
+   {
+    "key": "C",
+    "text": "0～10"
+   },
+   {
+    "key": "D",
+    "text": "1～9"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-single-61",
+  "number": 61,
+  "type": "single",
+  "stem": "独立式按键的特点是（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "每个按键单独占用一根 I/O 线"
+   },
+   {
+    "key": "B",
+    "text": "多个按键共用一根 I/O 线"
+   },
+   {
+    "key": "C",
+    "text": "只能接 P0 口"
+   },
+   {
+    "key": "D",
+    "text": "不需要上拉"
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-fill-29",
+  "number": 29,
+  "type": "fill",
+  "stem": "LED 数码管按内部连接方式分为共 ____ 极和共 ____ 极两种。",
+  "options": [],
+  "answer": [
+   "阳",
+   "阴"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-fill-30",
+  "number": 30,
+  "type": "fill",
+  "stem": "共阳极数码管显示“8”的段码是 ____，熄灭（全灭）的段码是 ____。",
+  "options": [],
+  "answer": [
+   "0x80",
+   "0xFF"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-fill-31",
+  "number": 31,
+  "type": "fill",
+  "stem": "数码管的显示方式有 ____ 显示和 ____ 显示两种。",
+  "options": [],
+  "answer": [
+   "静态",
+   "动态"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-fill-32",
+  "number": 32,
+  "type": "fill",
+  "stem": "动态显示时，单片机依次送出各位的 ____ 码和 ____ 码。",
+  "options": [],
+  "answer": [
+   "段（字形）",
+   "位（选通）"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-fill-33",
+  "number": 33,
+  "type": "fill",
+  "stem": "4×4 矩阵键盘由 4 根 ____ 线和 4 根 ____ 线组成。",
+  "options": [],
+  "answer": [
+   "行",
+   "列"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-fill-34",
+  "number": 34,
+  "type": "fill",
+  "stem": "C51 中定义存放在程序存储器中的段码数组：unsigned char ____ tab[] = {0xC0, 0xF9, …};",
+  "options": [],
+  "answer": [
+   "code"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-fill-35",
+  "number": 35,
+  "type": "fill",
+  "stem": "数组 tab[] = {0xC0,0xF9,0xA4,0xB0} 中，tab[2] 的值是 ____。",
+  "options": [],
+  "answer": [
+   "0xA4"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-fill-36",
+  "number": 36,
+  "type": "fill",
+  "stem": "共阳极数码管某一段要点亮，对应的段码位应为 ____。",
+  "options": [],
+  "answer": [
+   "0"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-judgment-31",
+  "number": 31,
+  "type": "judgment",
+  "stem": "共阳极数码管的段码与共阴极数码管的段码互为按位取反。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-judgment-32",
+  "number": 32,
+  "type": "judgment",
+  "stem": "静态显示时，每位数码管都要占用一组独立的 I/O 口线。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-judgment-33",
+  "number": 33,
+  "type": "judgment",
+  "stem": "动态显示时，各位数码管是同时点亮的。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "F"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-judgment-34",
+  "number": 34,
+  "type": "judgment",
+  "stem": "动态显示中每位的显示时间越长越好，扫描越慢越不闪烁。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "F"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-judgment-35",
+  "number": 35,
+  "type": "judgment",
+  "stem": "数组的下标从 1 开始。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "F"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-judgment-36",
+  "number": 36,
+  "type": "judgment",
+  "stem": "4×4 矩阵键盘比 16 个独立按键节省 I/O 口线。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-judgment-37",
+  "number": 37,
+  "type": "judgment",
+  "stem": "用 code 定义的数组存放在程序存储器中，程序运行时不能修改。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-judgment-38",
+  "number": 38,
+  "type": "judgment",
+  "stem": "抢答器中，有选手抢答成功后，其他选手再按键应当无效。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-term-12",
+  "number": 12,
+  "type": "term",
+  "stem": "段码（字形码）",
+  "options": [],
+  "answer": [
+   "使数码管显示某个字符时，送到各段（a～g、dp）的二进制代码；例如共阳数码管显示“0”的段码为 0xC0。"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-term-13",
+  "number": 13,
+  "type": "term",
+  "stem": "动态显示",
+  "options": [],
+  "answer": [
+   "多位数码管的段线并联，单片机轮流选通每一位（位选）并送出该位段码，每位只亮很短时间，利用视觉暂留看起来同时显示。"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-term-14",
+  "number": 14,
+  "type": "term",
+  "stem": "矩阵键盘",
+  "options": [],
+  "answer": [
+   "把按键排列在行线和列线的交叉点上构成的键盘，如 4×4 矩阵键盘用 8 根 I/O 线连接 16 个按键，通过逐行扫描识别按键。"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-short-11",
+  "number": 11,
+  "type": "short",
+  "stem": "比较数码管静态显示和动态显示的优缺点。",
+  "options": [],
+  "answer": [
+   "静态显示：每位数码管单独占一组 I/O 口，显示稳定、亮度高、程序简单，但占用口线多。动态显示：各位段线并联，轮流点亮，占用口线少、成本低，但需要不停扫描，占用 CPU 时间，亮度略低，扫描太慢会闪烁。"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-short-12",
+  "number": 12,
+  "type": "short",
+  "stem": "简述 4×4 矩阵键盘逐行扫描法识别按键的过程。",
+  "options": [],
+  "answer": [
+   "①让所有行线输出 0，读列线，若有列线为 0 说明有键按下；②延时消抖后再确认；③逐行输出 0（其余行为 1），读列线，哪一列为 0 就确定按下键所在的行和列；④由行号和列号算出键值；⑤等按键释放。"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-short-13",
+  "number": 13,
+  "type": "short",
+  "stem": "说明 8 路抢答器的工作过程（按键接 P0，共阳数码管接 P1）。",
+  "options": [],
+  "answer": [
+   "上电时数码管显示初始值（如 0 或“-”）。程序不断读 P0，若某位为 0，说明对应选手按下，把选手号的段码送 P1 显示；显示后锁定，其他选手再按无效，直到主持人复位开始下一轮。"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-prog-6",
+  "number": 6,
+  "type": "prog",
+  "stem": "阅读下面的程序（共阳极数码管接 P1），回答问题。",
+  "options": [],
+  "answer": [
+   "（1）共阳数码管 0～9 的段码；code 表示存放在程序存储器（ROM）中，节省 RAM。（2）数码管循环显示 0、1、2……9，再从 0 开始。（3）改为 for(i = 10; i > 0; i--) { P1 = tab[i - 1]; delay(50000); }（i 是 unsigned char，不能写成 for(i = 9; i >= 0; i--)，否则 i 永远不小于 0，变成死循环）。"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口",
+  "code": "#include <reg51.h>\nunsigned char code tab[] = {0xC0,0xF9,0xA4,0xB0,0x99,\n                            0x92,0x82,0xF8,0x80,0x90};\nvoid delay(unsigned int x)\n{\n    while(x--);\n}\nvoid main()\n{\n    unsigned char i;\n    while(1)\n    {\n        for(i = 0; i < 10; i++)\n        {\n            P1 = tab[i];\n            delay(50000);\n        }\n    }\n}",
+  "sub": [
+   "数组 tab 中存放的是什么？关键字 code 的作用是什么？",
+   "程序运行的现象是什么？",
+   "若要倒着从 9 显示到 0，for 语句应怎样修改？"
+  ]
+ },
+ {
+  "id": "mcu-prog-7",
+  "number": 7,
+  "type": "prog",
+  "stem": "阅读下面的 8 路抢答器片段（按键 S0～S7 接 P0.0～P0.7，按下为 0；共阳数码管接 P1），回答问题。",
+  "options": [],
+  "answer": [
+   "（1）显示 0（tab[0] = 0xC0）。（2）S2 接 P0.2，按下时 P0 = 0xFB，数码管显示 3。（3）先向 P0 写 1，使引脚可以正确读入按键状态（准备读引脚）。"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口",
+  "code": "unsigned char code tab[] = {0xC0,0xF9,0xA4,0xB0,0x99,\n                            0x92,0x82,0xF8,0x80};\nvoid main()\n{\n    P0 = 0xFF;\n    P1 = tab[0];\n    while(1)\n    {\n        switch(P0)\n        {\n            case 0xFE: P1 = tab[1]; break;\n            case 0xFD: P1 = tab[2]; break;\n            case 0xFB: P1 = tab[3]; break;\n            /* ……其余选手类似…… */\n        }\n    }\n}",
+  "sub": [
+   "上电后数码管显示什么？",
+   "按下 S2 时 P0 的值是多少？数码管显示几？",
+   "程序开头 P0 = 0xFF; 的作用是什么？"
+  ]
+ },
+ {
+  "id": "mcu-prog-8",
+  "number": 8,
+  "type": "prog",
+  "stem": "下面是两位数码管动态显示的程序片段（段码送 P0，位选 W1、W2 低电平有效），回答问题。",
+  "options": [],
+  "answer": [
+   "（1）W1 显示十位 4（47/10），W2 显示个位 7（47%10）。（2）先关掉当前位，避免送下一位段码时出现“鬼影”（串位显示）。（3）扫描太慢，看到两位数码管轮流闪烁，而不是同时稳定显示。"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口",
+  "code": "sbit W1 = P2^0;\nsbit W2 = P2^1;\nvoid show(unsigned char n)\n{\n    P0 = tab[n / 10];\n    W1 = 0;  delay(500);  W1 = 1;\n    P0 = tab[n % 10];\n    W2 = 0;  delay(500);  W2 = 1;\n}",
+  "sub": [
+   "n = 47 时，W1 和 W2 分别显示什么数字？",
+   "为什么每位显示后要把位选恢复为 1？",
+   "如果 delay 的参数很大（如 50000），会看到什么现象？"
+  ]
+ },
+ {
+  "id": "mcu-prog-9",
+  "number": 9,
+  "type": "prog",
+  "stem": "阅读下面的程序（共阳数码管接 P1，按键 K 接 P3.4，按下为 0），回答问题。",
+  "options": [],
+  "answer": [
+   "（1）按键计数：每按一次 K，数码管显示的数加 1，9 之后回到 0。（2）延时消抖，避免按键抖动被误判。（3）等待按键松开；去掉后按住不放时 n 会不停增加，数字快速跳变。"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口",
+  "code": "#include <reg51.h>\nsbit K = P3^4;\nunsigned char code tab[] = {0xC0,0xF9,0xA4,0xB0,0x99,\n                            0x92,0x82,0xF8,0x80,0x90};\nvoid delay(unsigned int x){ while(x--); }\nvoid main()\n{\n    unsigned char n = 0;\n    P1 = tab[n];\n    while(1)\n    {\n        if(K == 0)\n        {\n            delay(1000);\n            if(K == 0)\n            {\n                n++;\n                if(n > 9) n = 0;\n                P1 = tab[n];\n                while(K == 0);\n            }\n        }\n    }\n}",
+  "sub": [
+   "程序实现了什么功能？",
+   "两次判断 K == 0 中间的 delay(1000) 起什么作用？",
+   "while(K == 0); 起什么作用？去掉会怎样？"
+  ]
+ },
+ {
+  "id": "mcu-single-62",
+  "number": 62,
+  "type": "single",
+  "stem": "8051 单片机共有（  ）个中断源。",
+  "options": [
+   {
+    "key": "A",
+    "text": "3"
+   },
+   {
+    "key": "B",
+    "text": "5"
+   },
+   {
+    "key": "C",
+    "text": "6"
+   },
+   {
+    "key": "D",
+    "text": "8"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "",
+  "source": "项目5 定时与中断系统"
+ },
+ {
+  "id": "mcu-single-63",
+  "number": 63,
+  "type": "single",
+  "stem": "8051 单片机外部中断 0 的中断入口地址是（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "0000H"
+   },
+   {
+    "key": "B",
+    "text": "0003H"
+   },
+   {
+    "key": "C",
+    "text": "000BH"
+   },
+   {
+    "key": "D",
+    "text": "0013H"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "",
+  "source": "项目5 定时与中断系统"
+ },
+ {
+  "id": "mcu-single-64",
+  "number": 64,
+  "type": "single",
+  "stem": "C51 中定时器 T0 中断函数的中断号是（  ），即 void t0(void) interrupt ?。",
+  "options": [
+   {
+    "key": "A",
+    "text": "0"
+   },
+   {
+    "key": "B",
+    "text": "1"
+   },
+   {
+    "key": "C",
+    "text": "2"
+   },
+   {
+    "key": "D",
+    "text": "3"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "",
+  "source": "项目5 定时与中断系统"
+ },
+ {
+  "id": "mcu-single-65",
+  "number": 65,
+  "type": "single",
+  "stem": "8051 单片机内部有（  ）个 16 位定时/计数器。",
+  "options": [
+   {
+    "key": "A",
+    "text": "1"
+   },
+   {
+    "key": "B",
+    "text": "2"
+   },
+   {
+    "key": "C",
+    "text": "3"
+   },
+   {
+    "key": "D",
+    "text": "4"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "",
+  "source": "项目5 定时与中断系统"
+ },
+ {
+  "id": "mcu-single-66",
+  "number": 66,
+  "type": "single",
+  "stem": "定时器工作在方式 1 时，是（  ）位定时/计数器。",
+  "options": [
+   {
+    "key": "A",
+    "text": "8"
+   },
+   {
+    "key": "B",
+    "text": "13"
+   },
+   {
+    "key": "C",
+    "text": "16"
+   },
+   {
+    "key": "D",
+    "text": "8 位自动重装"
+   }
+  ],
+  "answer": [
+   "C"
+  ],
+  "explanation": "",
+  "source": "项目5 定时与中断系统"
+ },
+ {
+  "id": "mcu-single-67",
+  "number": 67,
+  "type": "single",
+  "stem": "要开放定时器 T0 中断，除 ET0 = 1 外，还必须使（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "EA = 1"
+   },
+   {
+    "key": "B",
+    "text": "IT0 = 1"
+   },
+   {
+    "key": "C",
+    "text": "TF0 = 1"
+   },
+   {
+    "key": "D",
+    "text": "EX0 = 1"
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "",
+  "source": "项目5 定时与中断系统"
+ },
+ {
+  "id": "mcu-single-68",
+  "number": 68,
+  "type": "single",
+  "stem": "12MHz 晶振，T0 工作在方式 1 定时 50ms，计数初值应为（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "50000"
+   },
+   {
+    "key": "B",
+    "text": "15536"
+   },
+   {
+    "key": "C",
+    "text": "65536"
+   },
+   {
+    "key": "D",
+    "text": "5000"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "",
+  "source": "项目5 定时与中断系统"
+ },
+ {
+  "id": "mcu-single-69",
+  "number": 69,
+  "type": "single",
+  "stem": "启动定时器 T0 开始计数的语句是（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "TR0 = 1;"
+   },
+   {
+    "key": "B",
+    "text": "TF0 = 1;"
+   },
+   {
+    "key": "C",
+    "text": "ET0 = 1;"
+   },
+   {
+    "key": "D",
+    "text": "IT0 = 1;"
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "",
+  "source": "项目5 定时与中断系统"
+ },
+ {
+  "id": "mcu-fill-37",
+  "number": 37,
+  "type": "fill",
+  "stem": "8051 的 5 个中断源是外部中断 0、定时器 T0、外部中断 1、定时器 ____ 和 ____ 中断。",
+  "options": [],
+  "answer": [
+   "T1",
+   "串行口"
+  ],
+  "explanation": "",
+  "source": "项目5 定时与中断系统"
+ },
+ {
+  "id": "mcu-fill-38",
+  "number": 38,
+  "type": "fill",
+  "stem": "设置定时器工作方式的特殊功能寄存器是 ____，控制定时器启动的是 ____ 寄存器中的 TR0、TR1。",
+  "options": [],
+  "answer": [
+   "TMOD",
+   "TCON"
+  ],
+  "explanation": "",
+  "source": "项目5 定时与中断系统"
+ },
+ {
+  "id": "mcu-fill-39",
+  "number": 39,
+  "type": "fill",
+  "stem": "中断允许寄存器是 ____，其中总中断允许位是 ____。",
+  "options": [],
+  "answer": [
+   "IE",
+   "EA"
+  ],
+  "explanation": "",
+  "source": "项目5 定时与中断系统"
+ },
+ {
+  "id": "mcu-fill-40",
+  "number": 40,
+  "type": "fill",
+  "stem": "T0 方式 1 定时 50ms（12MHz），TH0 = ____，TL0 = ____。",
+  "options": [],
+  "answer": [
+   "0x3C",
+   "0xB0"
+  ],
+  "explanation": "",
+  "source": "项目5 定时与中断系统"
+ },
+ {
+  "id": "mcu-fill-41",
+  "number": 41,
+  "type": "fill",
+  "stem": "TMOD = 0x01 表示定时器 T0 工作在方式 ____ 定时状态。",
+  "options": [],
+  "answer": [
+   "1"
+  ],
+  "explanation": "",
+  "source": "项目5 定时与中断系统"
+ },
+ {
+  "id": "mcu-fill-42",
+  "number": 42,
+  "type": "fill",
+  "stem": "外部中断 0 的触发方式由 IT0 决定，IT0 = 1 时为 ____ 触发。",
+  "options": [],
+  "answer": [
+   "下降沿（边沿）"
+  ],
+  "explanation": "",
+  "source": "项目5 定时与中断系统"
+ },
+ {
+  "id": "mcu-judgment-39",
+  "number": 39,
+  "type": "judgment",
+  "stem": "8051 单片机的 5 个中断源都可以设置为高优先级或低优先级。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "",
+  "source": "项目5 定时与中断系统"
+ },
+ {
+  "id": "mcu-judgment-40",
+  "number": 40,
+  "type": "judgment",
+  "stem": "定时器方式 1 计满溢出后，计数初值会自动重新装入。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "F"
+  ],
+  "explanation": "",
+  "source": "项目5 定时与中断系统"
+ },
+ {
+  "id": "mcu-judgment-41",
+  "number": 41,
+  "type": "judgment",
+  "stem": "只设置 ET0 = 1、不设置 EA = 1，T0 中断也能响应。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "F"
+  ],
+  "explanation": "",
+  "source": "项目5 定时与中断系统"
+ },
+ {
+  "id": "mcu-judgment-42",
+  "number": 42,
+  "type": "judgment",
+  "stem": "定时/计数器作计数器使用时，对外部引脚 T0/T1 输入的脉冲计数。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "",
+  "source": "项目5 定时与中断系统"
+ },
+ {
+  "id": "mcu-judgment-43",
+  "number": 43,
+  "type": "judgment",
+  "stem": "同一优先级的中断同时请求时，按自然优先级顺序响应，外部中断 0 最高。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "",
+  "source": "项目5 定时与中断系统"
+ },
+ {
+  "id": "mcu-judgment-44",
+  "number": 44,
+  "type": "judgment",
+  "stem": "用定时器中断实现定时，比用软件延时更精确，而且 CPU 在等待时还能做别的事。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "",
+  "source": "项目5 定时与中断系统"
+ },
+ {
+  "id": "mcu-term-15",
+  "number": 15,
+  "type": "term",
+  "stem": "中断",
+  "options": [],
+  "answer": [
+   "CPU 正在执行程序时，出现了需要立即处理的事件，CPU 暂停当前程序，转去执行处理该事件的中断服务程序，处理完后再返回原来的地方继续执行。"
+  ],
+  "explanation": "",
+  "source": "项目5 定时与中断系统"
+ },
+ {
+  "id": "mcu-term-16",
+  "number": 16,
+  "type": "term",
+  "stem": "中断源",
+  "options": [],
+  "answer": [
+   "能向 CPU 发出中断请求的来源，8051 有 5 个：外部中断 0、定时器 T0、外部中断 1、定时器 T1、串行口。"
+  ],
+  "explanation": "",
+  "source": "项目5 定时与中断系统"
+ },
+ {
+  "id": "mcu-short-14",
+  "number": 14,
+  "type": "short",
+  "stem": "简述 8051 定时器方式 1 定时的初始化步骤（以 T0 为例）。",
+  "options": [],
+  "answer": [
+   "①设置 TMOD（如 TMOD = 0x01）；②计算并装入初值 TH0、TL0（如 50ms：TH0 = 0x3C，TL0 = 0xB0）；③开中断：ET0 = 1，EA = 1；④启动定时器：TR0 = 1；⑤在中断函数（interrupt 1）中重装初值，并完成定时要做的事。"
+  ],
+  "explanation": "",
+  "source": "项目5 定时与中断系统"
+ },
+ {
+  "id": "mcu-short-15",
+  "number": 15,
+  "type": "short",
+  "stem": "什么是中断？采用中断方式有什么好处？",
+  "options": [],
+  "answer": [
+   "中断是 CPU 暂停当前程序去处理紧急事件、处理完再返回的过程。好处：CPU 不必一直查询等待，提高效率；能对外部事件实时响应；便于实现定时、计数等功能。"
+  ],
+  "explanation": "",
+  "source": "项目5 定时与中断系统"
+ },
+ {
+  "id": "mcu-prog-10",
+  "number": 10,
+  "type": "prog",
+  "stem": "阅读下面的程序（12MHz 晶振，LED 接 P1.0，低电平点亮），回答问题。",
+  "options": [],
+  "answer": [
+   "（1）初值 0x3CB0 = 15536，计 65536 - 15536 = 50000 个机器周期，12MHz 时为 50ms。（2）中断 20 次翻转一次，20 × 50ms = 1s。（3）方式 1 不会自动重装，溢出后计数从 0 开始，不重装下一次就不是 50ms。"
+  ],
+  "explanation": "",
+  "source": "项目5 定时与中断系统",
+  "code": "#include <reg51.h>\nsbit LED = P1^0;\nunsigned char cnt = 0;\nvoid main()\n{\n    TMOD = 0x01;\n    TH0 = 0x3C;  TL0 = 0xB0;\n    ET0 = 1;  EA = 1;  TR0 = 1;\n    while(1);\n}\nvoid t0_isr(void) interrupt 1\n{\n    TH0 = 0x3C;  TL0 = 0xB0;\n    cnt++;\n    if(cnt == 20)\n    {\n        cnt = 0;\n        LED = ~LED;\n    }\n}",
+  "sub": [
+   "定时器每隔多长时间中断一次？",
+   "LED 每隔多长时间翻转一次？",
+   "中断函数里为什么要重新给 TH0、TL0 赋值？"
+  ]
+ },
+ {
+  "id": "mcu-prog-11",
+  "number": 11,
+  "type": "prog",
+  "stem": "下面的程序想用外部中断 0（按键接 P3.2）每按一次就让 P1 口的灯取反，请找出缺少或错误的地方。",
+  "options": [],
+  "answer": [
+   "①没有开总中断，要加 EA = 1;；②外部中断 0 的中断号是 0，应写 interrupt 0（interrupt 2 是外部中断 1）。IT0 = 1 设为下降沿触发是对的。"
+  ],
+  "explanation": "",
+  "source": "项目5 定时与中断系统",
+  "code": "#include <reg51.h>\nvoid main()\n{\n    P1 = 0xFF;\n    IT0 = 1;\n    EX0 = 1;\n    while(1);\n}\nvoid int0_isr(void) interrupt 2\n{\n    P1 = ~P1;\n}",
+  "sub": [
+   "指出程序中的问题并改正。"
+  ]
+ },
+ {
+  "id": "mcu-single-70",
+  "number": 70,
+  "type": "single",
+  "stem": "U1 为共阳极数码管，dp g f e d c b a 依次接 P0.7～P0.0。P0 = 1000 0110B 时，U1 显示（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "“U”"
+   },
+   {
+    "key": "B",
+    "text": "“1”"
+   },
+   {
+    "key": "C",
+    "text": "“Y”"
+   },
+   {
+    "key": "D",
+    "text": "“E”"
+   }
+  ],
+  "answer": [
+   "D"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-single-71",
+  "number": 71,
+  "type": "single",
+  "stem": "U1 为共阴极数码管，dp g f e d c b a 依次接 P0.7～P0.0。P0 = 0100 1111B 时，U1 显示（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "“3”"
+   },
+   {
+    "key": "B",
+    "text": "“.”"
+   },
+   {
+    "key": "C",
+    "text": "“5”"
+   },
+   {
+    "key": "D",
+    "text": "“4”"
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-single-72",
+  "number": 72,
+  "type": "single",
+  "stem": "U1 为共阳极数码管，dp g f e d c b a 依次接 P0.7～P0.0。P0 = 1100 1110B 时，U1 显示（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "“H”"
+   },
+   {
+    "key": "B",
+    "text": "“2”"
+   },
+   {
+    "key": "C",
+    "text": "“L”"
+   },
+   {
+    "key": "D",
+    "text": "“R”"
+   }
+  ],
+  "answer": [
+   "D"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-single-73",
+  "number": 73,
+  "type": "single",
+  "stem": "U1 为共阴极数码管，dp g f e d c b a 依次接 P0.7～P0.0。P0 = 0110 1101B 时，U1 显示（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "“4”"
+   },
+   {
+    "key": "B",
+    "text": "“H”"
+   },
+   {
+    "key": "C",
+    "text": "“5”"
+   },
+   {
+    "key": "D",
+    "text": "“7”"
+   }
+  ],
+  "answer": [
+   "C"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-single-74",
+  "number": 74,
+  "type": "single",
+  "stem": "U1 为共阳极数码管，dp g f e d c b a 依次接 P0.7～P0.0。P0 = 1010 0100B 时，U1 显示（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "“2”"
+   },
+   {
+    "key": "B",
+    "text": "“9”"
+   },
+   {
+    "key": "C",
+    "text": "“.”"
+   },
+   {
+    "key": "D",
+    "text": "“D”"
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-single-75",
+  "number": 75,
+  "type": "single",
+  "stem": "U1 为共阴极数码管，dp g f e d c b a 依次接 P0.7～P0.0。P0 = 0111 0110B 时，U1 显示（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "“H”"
+   },
+   {
+    "key": "B",
+    "text": "“7”"
+   },
+   {
+    "key": "C",
+    "text": "“2”"
+   },
+   {
+    "key": "D",
+    "text": "“A”"
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-single-76",
+  "number": 76,
+  "type": "single",
+  "stem": "U1 为共阳极数码管，dp g f e d c b a 依次接 P0.7～P0.0。P0 = 1100 0001B 时，U1 显示（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "“B”"
+   },
+   {
+    "key": "B",
+    "text": "“2”"
+   },
+   {
+    "key": "C",
+    "text": "“7”"
+   },
+   {
+    "key": "D",
+    "text": "“U”"
+   }
+  ],
+  "answer": [
+   "D"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-single-77",
+  "number": 77,
+  "type": "single",
+  "stem": "U1 为共阴极数码管，dp g f e d c b a 依次接 P0.7～P0.0。P0 = 0111 0001B 时，U1 显示（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "“F”"
+   },
+   {
+    "key": "B",
+    "text": "“C”"
+   },
+   {
+    "key": "C",
+    "text": "“E”"
+   },
+   {
+    "key": "D",
+    "text": "“6”"
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-single-78",
+  "number": 78,
+  "type": "single",
+  "stem": "共阳极数码管（dp g f e d c b a 依次接 P0.7～P0.0）要显示“9”，P0 应送（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "0x88"
+   },
+   {
+    "key": "B",
+    "text": "0x83"
+   },
+   {
+    "key": "C",
+    "text": "0x6F"
+   },
+   {
+    "key": "D",
+    "text": "0x90"
+   }
+  ],
+  "answer": [
+   "D"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-single-79",
+  "number": 79,
+  "type": "single",
+  "stem": "共阴极数码管（dp g f e d c b a 依次接 P0.7～P0.0）要显示“P”，P0 应送（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "0x73"
+   },
+   {
+    "key": "B",
+    "text": "0x8C"
+   },
+   {
+    "key": "C",
+    "text": "0x66"
+   },
+   {
+    "key": "D",
+    "text": "0x7C"
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-single-80",
+  "number": 80,
+  "type": "single",
+  "stem": "共阳极数码管（dp g f e d c b a 依次接 P0.7～P0.0）要显示“Y”，P0 应送（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "0xCE"
+   },
+   {
+    "key": "B",
+    "text": "0x91"
+   },
+   {
+    "key": "C",
+    "text": "0x6E"
+   },
+   {
+    "key": "D",
+    "text": "0xC0"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-single-81",
+  "number": 81,
+  "type": "single",
+  "stem": "共阴极数码管（dp g f e d c b a 依次接 P0.7～P0.0）要显示“6”，P0 应送（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "0x07"
+   },
+   {
+    "key": "B",
+    "text": "0x82"
+   },
+   {
+    "key": "C",
+    "text": "0x7D"
+   },
+   {
+    "key": "D",
+    "text": "0x4F"
+   }
+  ],
+  "answer": [
+   "C"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-single-82",
+  "number": 82,
+  "type": "single",
+  "stem": "共阳极数码管（dp g f e d c b a 依次接 P0.7～P0.0）要显示“H”，P0 应送（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "0x83"
+   },
+   {
+    "key": "B",
+    "text": "0xB0"
+   },
+   {
+    "key": "C",
+    "text": "0x76"
+   },
+   {
+    "key": "D",
+    "text": "0x89"
+   }
+  ],
+  "answer": [
+   "D"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-single-83",
+  "number": 83,
+  "type": "single",
+  "stem": "共阴极数码管（dp g f e d c b a 依次接 P0.7～P0.0）要显示“R”，P0 应送（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "0x31"
+   },
+   {
+    "key": "B",
+    "text": "0x76"
+   },
+   {
+    "key": "C",
+    "text": "0xCE"
+   },
+   {
+    "key": "D",
+    "text": "0x38"
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-single-84",
+  "number": 84,
+  "type": "single",
+  "stem": "共阳极数码管（dp g f e d c b a 依次接 P0.7～P0.0）要显示“.”，P0 应送（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "0xC7"
+   },
+   {
+    "key": "B",
+    "text": "0xBF"
+   },
+   {
+    "key": "C",
+    "text": "0x80"
+   },
+   {
+    "key": "D",
+    "text": "0x7F"
+   }
+  ],
+  "answer": [
+   "D"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-single-85",
+  "number": 85,
+  "type": "single",
+  "stem": "共阴极数码管（dp g f e d c b a 依次接 P0.7～P0.0）要显示“7”，P0 应送（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "0x07"
+   },
+   {
+    "key": "B",
+    "text": "0xF8"
+   },
+   {
+    "key": "C",
+    "text": "0x79"
+   },
+   {
+    "key": "D",
+    "text": "0x80"
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-single-86",
+  "number": 86,
+  "type": "single",
+  "stem": "U1 为共阳极数码管接 P0，U2 为共阴极数码管接 P2（dp g f e d c b a 依次接 Px.7～Px.0）。P0 = 1100 0111B，P2 = 0110 0110B，则（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "U1 显示“H”，U2 显示“4”"
+   },
+   {
+    "key": "B",
+    "text": "U1 显示“L”，U2 显示“8”"
+   },
+   {
+    "key": "C",
+    "text": "U1 显示“4”，U2 显示“L”"
+   },
+   {
+    "key": "D",
+    "text": "U1 显示“L”，U2 显示“4”"
+   }
+  ],
+  "answer": [
+   "D"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-single-87",
+  "number": 87,
+  "type": "single",
+  "stem": "U1 为共阴极数码管接 P0，U2 为共阳极数码管接 P2（dp g f e d c b a 依次接 Px.7～Px.0）。P0 = 0111 1101B，P2 = 1111 1001B，则（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "U1 显示“1”，U2 显示“6”"
+   },
+   {
+    "key": "B",
+    "text": "U1 显示“6”，U2 显示“1”"
+   },
+   {
+    "key": "C",
+    "text": "U1 显示“6”，U2 显示“R”"
+   },
+   {
+    "key": "D",
+    "text": "U1 显示“B”，U2 显示“1”"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-single-88",
+  "number": 88,
+  "type": "single",
+  "stem": "U1 为共阳极数码管接 P0，U2 为共阴极数码管接 P2（dp g f e d c b a 依次接 Px.7～Px.0）。P0 = 1000 1110B，P2 = 0101 1110B，则（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "U1 显示“E”，U2 显示“D”"
+   },
+   {
+    "key": "B",
+    "text": "U1 显示“F”，U2 显示“-”"
+   },
+   {
+    "key": "C",
+    "text": "U1 显示“D”，U2 显示“F”"
+   },
+   {
+    "key": "D",
+    "text": "U1 显示“F”，U2 显示“D”"
+   }
+  ],
+  "answer": [
+   "D"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-single-89",
+  "number": 89,
+  "type": "single",
+  "stem": "U1 为共阴极数码管接 P0，U2 为共阳极数码管接 P2（dp g f e d c b a 依次接 Px.7～Px.0）。P0 = 0111 0001B，P2 = 0111 1111B，则（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "U1 显示“-”，U2 显示“.”"
+   },
+   {
+    "key": "B",
+    "text": "U1 显示“.”，U2 显示“F”"
+   },
+   {
+    "key": "C",
+    "text": "U1 显示“F”，U2 显示“.”"
+   },
+   {
+    "key": "D",
+    "text": "U1 显示“F”，U2 显示“0”"
+   }
+  ],
+  "answer": [
+   "C"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-single-90",
+  "number": 90,
+  "type": "single",
+  "stem": "U1 为共阳极数码管接 P0，U2 为共阴极数码管接 P2（dp g f e d c b a 依次接 Px.7～Px.0）。P0 = 1000 1001B，P2 = 0011 1110B，则（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "U1 显示“H”，U2 显示“8”"
+   },
+   {
+    "key": "B",
+    "text": "U1 显示“8”，U2 显示“U”"
+   },
+   {
+    "key": "C",
+    "text": "U1 显示“U”，U2 显示“H”"
+   },
+   {
+    "key": "D",
+    "text": "U1 显示“H”，U2 显示“U”"
+   }
+  ],
+  "answer": [
+   "D"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-single-91",
+  "number": 91,
+  "type": "single",
+  "stem": "U1 为共阴极数码管接 P0，U2 为共阳极数码管接 P2（dp g f e d c b a 依次接 Px.7～Px.0）。P0 = 0110 1111B，P2 = 1000 0011B，则（  ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "U1 显示“0”，U2 显示“B”"
+   },
+   {
+    "key": "B",
+    "text": "U1 显示“9”，U2 显示“Y”"
+   },
+   {
+    "key": "C",
+    "text": "U1 显示“B”，U2 显示“9”"
+   },
+   {
+    "key": "D",
+    "text": "U1 显示“9”，U2 显示“B”"
+   }
+  ],
+  "answer": [
+   "D"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-fill-43",
+  "number": 43,
+  "type": "fill",
+  "stem": "U1 为共阳极数码管接 P0，U2 为共阳极数码管接 P2（dp g f e d c b a 依次接 Px.7～Px.0）。P0 = 1100 0000B，P2 = 1011 1111B，U1 显示 ____，U2 显示 ____。",
+  "options": [],
+  "answer": [
+   "0",
+   "-"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-fill-44",
+  "number": 44,
+  "type": "fill",
+  "stem": "U1 为共阴极数码管接 P0，U2 为共阴极数码管接 P2（dp g f e d c b a 依次接 Px.7～Px.0）。P0 = 0110 1110B，P2 = 0101 1011B，U1 显示 ____，U2 显示 ____。",
+  "options": [],
+  "answer": [
+   "Y",
+   "2"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-fill-45",
+  "number": 45,
+  "type": "fill",
+  "stem": "U1 为共阳极数码管接 P0，U2 为共阳极数码管接 P2（dp g f e d c b a 依次接 Px.7～Px.0）。P0 = 1000 1110B，P2 = 1000 1001B，U1 显示 ____，U2 显示 ____。",
+  "options": [],
+  "answer": [
+   "F",
+   "H"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-fill-46",
+  "number": 46,
+  "type": "fill",
+  "stem": "U1 为共阴极数码管接 P0，U2 为共阳极数码管接 P2（dp g f e d c b a 依次接 Px.7～Px.0）。P0 = 0100 0000B，P2 = 1111 1000B，U1 显示 ____，U2 显示 ____。",
+  "options": [],
+  "answer": [
+   "-",
+   "7"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-fill-47",
+  "number": 47,
+  "type": "fill",
+  "stem": "U1 为共阳极数码管接 P0，U2 为共阴极数码管接 P2（dp g f e d c b a 依次接 Px.7～Px.0）。P0 = 1011 1111B，P2 = 0111 0011B，U1 显示 ____，U2 显示 ____。",
+  "options": [],
+  "answer": [
+   "-",
+   "P"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-fill-48",
+  "number": 48,
+  "type": "fill",
+  "stem": "U1 为共阴极数码管接 P0，U2 为共阳极数码管接 P2（dp g f e d c b a 依次接 Px.7～Px.0）。P0 = 0111 1001B，P2 = 1111 1001B，U1 显示 ____，U2 显示 ____。",
+  "options": [],
+  "answer": [
+   "E",
+   "1"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-fill-49",
+  "number": 49,
+  "type": "fill",
+  "stem": "共阳极数码管显示“B”的字型码是 ____H。",
+  "options": [],
+  "answer": [
+   "83（或 0x83、83H）"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-fill-50",
+  "number": 50,
+  "type": "fill",
+  "stem": "共阴极数码管显示“Y”的字型码是 ____H。",
+  "options": [],
+  "answer": [
+   "6E（或 0x6E、6EH）"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-fill-51",
+  "number": 51,
+  "type": "fill",
+  "stem": "共阳极数码管显示“2”的字型码是 ____H。",
+  "options": [],
+  "answer": [
+   "A4（或 0xA4、A4H）"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-fill-52",
+  "number": 52,
+  "type": "fill",
+  "stem": "共阴极数码管显示“L”的字型码是 ____H。",
+  "options": [],
+  "answer": [
+   "38（或 0x38、38H）"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-fill-53",
+  "number": 53,
+  "type": "fill",
+  "stem": "共阳极数码管显示“P”的字型码是 ____H。",
+  "options": [],
+  "answer": [
+   "8C（或 0x8C、8CH）"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-fill-54",
+  "number": 54,
+  "type": "fill",
+  "stem": "共阴极数码管显示“A”的字型码是 ____H。",
+  "options": [],
+  "answer": [
+   "77（或 0x77、77H）"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-fill-55",
+  "number": 55,
+  "type": "fill",
+  "stem": "U1 为共阳极数码管接 P0，U2 为共阴极数码管接 P2（dp g f e d c b a 依次接 Px.7～Px.0）。要让 U1 显示“A”、U2 显示“Y”，应送 P0 = ____H，P2 = ____H。",
+  "options": [],
+  "answer": [
+   "88（或 0x88、88H）",
+   "6E（或 0x6E、6EH）"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-fill-56",
+  "number": 56,
+  "type": "fill",
+  "stem": "U1 为共阴极数码管接 P0，U2 为共阳极数码管接 P2（dp g f e d c b a 依次接 Px.7～Px.0）。要让 U1 显示“2”、U2 显示“5”，应送 P0 = ____H，P2 = ____H。",
+  "options": [],
+  "answer": [
+   "5B（或 0x5B、5BH）",
+   "92（或 0x92、92H）"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-fill-57",
+  "number": 57,
+  "type": "fill",
+  "stem": "U1 为共阳极数码管接 P0，U2 为共阴极数码管接 P2（dp g f e d c b a 依次接 Px.7～Px.0）。要让 U1 显示“7”、U2 显示“R”，应送 P0 = ____H，P2 = ____H。",
+  "options": [],
+  "answer": [
+   "F8（或 0xF8、F8H）",
+   "31（或 0x31、31H）"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-fill-58",
+  "number": 58,
+  "type": "fill",
+  "stem": "U1 为共阴极数码管接 P0，U2 为共阳极数码管接 P2（dp g f e d c b a 依次接 Px.7～Px.0）。要让 U1 显示“7”、U2 显示“-”，应送 P0 = ____H，P2 = ____H。",
+  "options": [],
+  "answer": [
+   "07（或 0x07、07H）",
+   "BF（或 0xBF、BFH）"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-fill-59",
+  "number": 59,
+  "type": "fill",
+  "stem": "共阳极数码管（dp g f e d c b a 依次接 P0.7～P0.0）显示“Y”，P0 的二进制是 ____B。",
+  "options": [],
+  "answer": [
+   "1001 0001（或 10010001）"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-fill-60",
+  "number": 60,
+  "type": "fill",
+  "stem": "共阴极数码管（dp g f e d c b a 依次接 P0.7～P0.0）显示“1”，P0 的二进制是 ____B。",
+  "options": [],
+  "answer": [
+   "0000 0110（或 00000110）"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-fill-61",
+  "number": 61,
+  "type": "fill",
+  "stem": "共阳极数码管（dp g f e d c b a 依次接 P0.7～P0.0）显示“4”，P0 的二进制是 ____B。",
+  "options": [],
+  "answer": [
+   "1001 1001（或 10011001）"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-fill-62",
+  "number": 62,
+  "type": "fill",
+  "stem": "共阴极数码管（dp g f e d c b a 依次接 P0.7～P0.0）显示“0”，P0 的二进制是 ____B。",
+  "options": [],
+  "answer": [
+   "0011 1111（或 00111111）"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-judgment-45",
+  "number": 45,
+  "type": "judgment",
+  "stem": "共阳极数码管（dp g f e d c b a 依次接 P0.7～P0.0），P0 = 1111 1001B 时显示“1”。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-judgment-46",
+  "number": 46,
+  "type": "judgment",
+  "stem": "共阴极数码管（dp g f e d c b a 依次接 P0.7～P0.0），P0 = 0110 1101B 时显示“5”。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-judgment-47",
+  "number": 47,
+  "type": "judgment",
+  "stem": "共阳极数码管（dp g f e d c b a 依次接 P0.7～P0.0），P0 = 1000 0000B 时显示“8”。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-judgment-48",
+  "number": 48,
+  "type": "judgment",
+  "stem": "共阴极数码管（dp g f e d c b a 依次接 P0.7～P0.0），P0 = 1000 1001B 时显示“H”。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "F"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-judgment-49",
+  "number": 49,
+  "type": "judgment",
+  "stem": "共阳极数码管（dp g f e d c b a 依次接 P0.7～P0.0），P0 = 0111 0011B 时显示“P”。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "F"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ },
+ {
+  "id": "mcu-judgment-50",
+  "number": 50,
+  "type": "judgment",
+  "stem": "共阴极数码管（dp g f e d c b a 依次接 P0.7～P0.0），P0 = 1000 0110B 时显示“E”。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "F"
+  ],
+  "explanation": "",
+  "source": "项目4 显示与键盘接口"
+ }
+]

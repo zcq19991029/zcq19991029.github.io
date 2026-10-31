@@ -1,0 +1,604 @@
+// 华夏工具 · 刷题：界面和刷题流程。题库解析、AI 解析沿用 imports.js / ai.js；存储见 store.js；账号见 hx.js。
+import * as hx from './hx.js';
+import * as store from './store.js';
+import { providers, getSettings, saveSettings, setAiProfile, chat, streamChat, listModels, explainQuestion } from './ai.js';
+import { readMaterial, normalizeQuestions, aiImport, aiGenerate } from './imports.js';
+
+// 内置课程题库（data/ 下的 JSON）；第一个是默认科目
+const BUILTIN = [
+  { id: 'wiring', name: '电气接线原理', file: 'data/wiring.json', tag: '期末理论' },
+  { id: 'mcu', name: '单片机应用技术', file: 'data/mcu.json', tag: '期末理论' },
+  { id: 'psychology', name: '教育心理学', file: 'data/questions.json', tag: '教资' },
+  { id: 'education', name: '教育学', file: 'data/education.json', tag: '教资' },
+];
+const TYPES = [['single', '单选'], ['multiple', '多选'], ['judgment', '判断'], ['fill', '填空'], ['term', '名词解释'], ['short', '简答'], ['prog', '程序分析']];
+const SELF = new Set(['term', 'short', 'prog']); // 主观题：看参考答案自己判对错
+const SCOPES = [['todo', '待掌握'], ['wrong', '错题'], ['new', '未做'], ['done', '已做'], ['known', '已记住']];
+const VIEWS = [
+  ['practice', '刷题', 'M4 4h16v12H5.17L4 17.17V4zm2 2v7h12V6H6zm2 2h8v2H8V8z'],
+  ['overview', '概览', 'M5 19V9h3v10H5zm5.5 0V5h3v14h-3zM16 19v-7h3v7h-3z'],
+  ['bank', '题库', 'M4 5h7v14H4V5zm9 0h7v14h-7V5zM6 7v3h3V7H6zm9 0v3h3V7h-3z'],
+  ['settings', '设置', 'M12 8a4 4 0 1 1 0 8 4 4 0 0 1 0-8zm8.6 5.3l-1.9-.4a7 7 0 0 1-.6 1.4l1.1 1.6-1.6 1.6-1.6-1.1c-.4.3-.9.5-1.4.6l-.4 1.9h-2.3l-.4-1.9a7 7 0 0 1-1.4-.6l-1.6 1.1-1.6-1.6 1.1-1.6c-.3-.4-.5-.9-.6-1.4l-1.9-.4v-2.3l1.9-.4c.1-.5.3-1 .6-1.4L5.6 6.6l1.6-1.6 1.6 1.1c.4-.3.9-.5 1.4-.6l.4-1.9h2.3l.4 1.9c.5.1 1 .3 1.4.6l1.6-1.1 1.6 1.6-1.1 1.6c.3.4.5.9.6 1.4l1.9.4v2.3z'],
+];
+
+const $ = id => document.getElementById(id);
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const typeName = t => (TYPES.find(x => x[0] === t) || [, t])[1];
+const shuffle = a => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const sameSet = (a, b) => a.length === b.length && a.every(x => b.includes(x));
+const norm = t => String(t || '').replace(/[\s（）()，,。.、:：；;“”"'？?！!]/g, '').toLowerCase();
+// 填空的可接受写法：答案本身、括号前的部分、括号里“或”列出的写法，如“83（或 0x83、83H）”
+const variants = a => { const s = String(a), m = s.match(/^(.*?)[（(](.*)[)）]$/), v = [s]; if (m) { v.push(m[1]); m[2].replace(/^(或|约)\s*/, '').split(/[、，,]|或/).forEach(x => v.push(x)); } return v.map(norm).filter(Boolean); };
+const blankOk = (a, t) => variants(a).includes(norm(t));
+// 作答记录 picked：选择题是选的选项；填空、主观题是 ['ok'] 或 ['no']（填空填的字在 S.typed）
+const isRight = (q, p) => !!p && (q.type === 'fill' || SELF.has(q.type) ? p[0] === 'ok' : sameSet(p, q.answer));
+function toast(msg, act, fn) { // act/fn：toast 里带一个按钮（如“撤销”）
+  const t = $('toast'); t.innerHTML = esc(msg) + (act ? ` <button type="button" class="btn sm ghost" style="height:28px;margin-left:6px">${esc(act)}</button>` : '');
+  t.style.pointerEvents = act ? 'auto' : ''; if (act) t.querySelector('button').onclick = () => { t.classList.remove('show'); fn(); };
+  t.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), act ? 4000 : 2200);
+}
+
+// 快捷键：每个动作两个键位，可在“设置”里改。答完题时 记住/再练 优先，没答时 上一题/下一题
+const KEY_ACTS = [['know', '记住并下一题'], ['again', '再练（不熟）'], ['prev', '上一题'], ['next', '下一题'], ['submit', '提交 / 看答案'], ['ask', '问 AI']];
+const KEY_DEF = { know: [' ', 'ArrowLeft'], again: ['ArrowRight', ''], prev: ['ArrowLeft', ''], next: ['ArrowRight', ''], submit: ['Enter', ''], ask: ['/', ''] };
+const keyMap = () => ({ ...KEY_DEF, ...store.getLocal('keys', {}) });
+const keyName = k => ({ ' ': '空格', ArrowLeft: '←', ArrowRight: '→', ArrowUp: '↑', ArrowDown: '↓', Enter: '回车', Escape: 'Esc', Backspace: '退格' }[k] || (k.length === 1 ? k.toUpperCase() : k));
+const keyOf = a => keyMap()[a].filter(Boolean).map(keyName).join(' / ') || '无';
+
+const S = {
+  view: 'practice', me: null, user: null,
+  subjects: [], subject: null, // 当前科目 {id, name, kind: builtin|public|mine, ...}
+  base: {}, // 科目 id → 课程题（内置或老师发布）
+  bank: [], // 当前科目里自己导入的题
+  questions: [], records: {},
+  type: 'single', scope: 'todo', mode: 'seq',
+  queue: [], i: 0, picked: {}, // picked：题 id → 本轮选的选项（作答过）
+  sel: new Set(), ai: {}, draft: null, imode: 'pick', typed: {}, shown: {}, // typed：填空填的字；shown：主观题已看参考答案
+  undo: {}, lastId: null, chat: [], // undo：题 id → 标记前的状态（误点“记住”能撤销）
+};
+const prefs = () => store.getLocal('prefs', {});
+const savePrefs = () => store.setLocal('prefs', { subject: S.subject?.id, type: S.type, scope: S.scope, mode: S.mode });
+const inPortal = () => { try { return window.top !== window && window.top.location.pathname === '/'; } catch { return false; } };
+const isTeacher = () => !!(S.me && (S.me.teacher || S.me.admin || S.me.dev));
+const rec = id => S.records[id] || { status: 'new', attempts: 0, wrong: 0 };
+const inScope = (r, s) => s === 'todo' ? r.status !== 'known' : s === 'wrong' ? r.wrong > 0 && r.status !== 'known' : s === 'new' ? !r.attempts : s === 'done' ? r.attempts > 0 : r.status === 'known';
+
+// ---------- 科目和题库 ----------
+async function loadSubjects(withPublic = true) { // withPublic=false：先不等老师发布的题库（联网慢），内置科目马上能刷
+  const [mine, pub] = await Promise.all([store.read('subjects', [], store.mergeSubjects), withPublic ? store.publicList() : S.subjects.filter(s => s.kind === 'public').map(s => ({ id: s.pid, name: s.name, owner_name: s.owner, total: s.total }))]);
+  const mineIds = new Set(mine.map(s => s.id));
+  S.subjects = [
+    ...BUILTIN.map(s => ({ ...s, kind: 'builtin' })),
+    ...(pub || []).filter(p => !(p.mine && mineIds.has(p.id))).map(p => ({ id: 'pub-' + p.id, pid: p.id, name: p.name, kind: 'public', owner: p.owner_name, tag: p.owner_name ? p.owner_name + ' 发布' : '老师发布', total: p.total })),
+    ...mine.map(s => ({ ...s, kind: 'mine' })),
+  ];
+}
+async function baseOf(sub) {
+  if (S.base[sub.id]) return S.base[sub.id];
+  let list = [];
+  if (sub.kind === 'builtin') { const r = await fetch(sub.file + '?v=20261031', { cache: 'no-cache' }); if (!r.ok) throw new Error('题库加载失败 HTTP ' + r.status); list = await r.json(); }
+  else if (sub.kind === 'public') { const r = await store.publicGet(sub.pid); list = (r && r.questions) || []; }
+  return (S.base[sub.id] = list);
+}
+async function openSubject(id) {
+  const sub = S.subjects.find(s => s.id === id) || S.subjects[0];
+  S.subject = sub; S.ai = {}; S.draft = null;
+  $('subjName').textContent = sub.name; document.title = sub.name + ' · 刷题';
+  $('card').innerHTML = '<div class="empty"><p class="muted">正在加载题库…</p></div>';
+  let base = [];
+  try { base = await baseOf(sub); } catch (e) { toast(e.message); }
+  S.bank = await store.read('bank:' + sub.id, [], (a, b) => (b && b.length ? b : a));
+  const seen = new Set(base.map(q => q.id));
+  S.questions = [...base, ...S.bank.filter(q => !seen.has(q.id))];
+  S.records = await store.read('progress:' + sub.id, {}, store.mergeProgress);
+  if (!S.questions.some(q => q.type === S.type)) S.type = (TYPES.find(t => S.questions.some(q => q.type === t[0])) || TYPES[0])[0];
+  savePrefs(); buildQueue(true); show(S.view);
+}
+const saveRecords = () => store.write('progress:' + S.subject.id, S.records);
+
+// ---------- 出题队列 ----------
+const sessKey = () => `sess:${S.subject.id}:${S.type}:${S.scope}:${S.mode}`;
+function buildQueue(resume) {
+  const ids = S.questions.filter(q => q.type === S.type && inScope(rec(q.id), S.scope)).map(q => q.id);
+  const saved = resume && store.getLocal(sessKey(), null);
+  const known = new Set(S.questions.map(q => q.id));
+  if (saved && Array.isArray(saved.ids) && saved.ids.length && saved.ids.every(id => known.has(id))) {
+    S.queue = saved.ids; S.i = Math.min(saved.i || 0, S.queue.length); S.picked = saved.picked || {};
+  } else { S.queue = S.mode === 'rand' ? shuffle(ids) : ids; S.i = 0; S.picked = {}; }
+  S.sel = new Set(S.picked[S.queue[S.i]] || []);
+}
+const saveSess = () => store.setLocal(sessKey(), { ids: S.queue, i: S.i, picked: S.picked });
+const cur = () => S.questions.find(q => q.id === S.queue[S.i]);
+function go(i) {
+  S.i = Math.max(0, Math.min(i, S.queue.length)); S.sel = new Set(S.picked[S.queue[S.i]] || []);
+  saveSess(); renderCard(); renderBar(); scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ---------- 作答 ----------
+function pick(k) {
+  const q = cur(); if (!q || S.picked[q.id]) return;
+  if (q.type === 'multiple') { S.sel.has(k) ? S.sel.delete(k) : S.sel.add(k); renderCard(); return; }
+  S.sel = new Set([k]); submit();
+}
+function submit() {
+  const q = cur(); if (!q || S.picked[q.id]) return;
+  if (q.type === 'fill') {
+    const v = [...$('card').querySelectorAll('.blank')].map(i => i.value.trim()); if (!v.some(Boolean)) return $('card').querySelector('.blank')?.focus();
+    S.typed[q.id] = v; const ok = q.answer.every((a, n) => blankOk(a, v[n])); return answer(q, [ok ? 'ok' : 'no'], ok);
+  }
+  if (!S.sel.size) return;
+  const sel = [...S.sel].sort(); answer(q, sel, sameSet(sel, q.answer));
+}
+function selfGrade(ok) { const q = cur(); if (q && !S.picked[q.id]) answer(q, [ok ? 'ok' : 'no'], ok); }
+function override() { // 填空判错、其实意思对：算对
+  const q = cur(), r = { ...rec(q.id) }; r.wrong = Math.max(0, (r.wrong || 0) - 1); r.ok = true; r.last = ['ok'];
+  S.records[q.id] = r; S.picked[q.id] = ['ok']; saveRecords(); saveSess(); renderHero(); renderScopes(); renderCard(); renderBar();
+}
+function answer(q, sel, ok) {
+  const r = { ...rec(q.id) };
+  r.attempts = (r.attempts || 0) + 1; if (!ok) { r.wrong = (r.wrong || 0) + 1; r.status = 'unknown'; }
+  r.last = sel; r.ok = ok; r.at = Date.now();
+  S.records[q.id] = r; S.picked[q.id] = sel;
+  saveRecords(); saveSess(); renderHero(); renderScopes(); renderCard(); renderBar();
+  if (navigator.vibrate) navigator.vibrate(ok ? 12 : [20, 40, 20]);
+}
+function mark(status) {
+  const q = cur(); if (!q) return;
+  const before = rec(q.id).status, at = S.i;
+  S.undo[q.id] = before;
+  S.records[q.id] = { ...rec(q.id), status, at: Date.now() };
+  saveRecords(); renderHero(); renderScopes(); go(S.i + 1);
+  if (status === 'known' && before !== 'known') toast('已记住', '撤销', () => { unmark(q.id); go(at); });
+}
+function unmark(id) { // 撤销误点的“记住”：回到标记前的状态
+  S.records[id] = { ...rec(id), status: S.undo[id] || 'new' }; delete S.undo[id];
+  saveRecords(); renderHero(); renderScopes(); renderCard(); renderBar();
+}
+
+// ---------- 渲染 ----------
+function renderNav() {
+  const btn = ([id, label, d]) => `<button type="button" data-v="${id}" aria-current="${S.view === id}">${d ? `<svg viewBox="0 0 24 24"><path d="${d}"/></svg>` : ''}${label}</button>`;
+  $('tabs').innerHTML = VIEWS.map(([a, b]) => btn([a, b])).join('');
+  $('dock').innerHTML = VIEWS.map(btn).join('');
+  for (const b of document.querySelectorAll('[data-v]')) b.onclick = () => show(b.dataset.v);
+}
+function renderWho() { if (inPortal()) $('brand').style.display = 'none'; } // 账号只在首页管理；总入口顶栏已有 logo
+function show(v) {
+  S.view = v;
+  for (const [id] of VIEWS) $('v-' + id).hidden = id !== v;
+  for (const b of document.querySelectorAll('[data-v]')) b.setAttribute('aria-current', b.dataset.v === v);
+  $('bar').hidden = v !== 'practice';
+  if (!S.subject) return;
+  if (v === 'practice') renderPractice();
+  if (v === 'overview') renderOverview();
+  if (v === 'bank') renderBank();
+  if (v === 'settings') renderSettings();
+}
+function counts(list = S.questions) {
+  let known = 0, wrong = 0, done = 0;
+  for (const q of list) { const r = rec(q.id); if (r.status === 'known') known++; if (r.wrong > 0 && r.status !== 'known') wrong++; if (r.attempts) done++; }
+  return { total: list.length, known, wrong, done };
+}
+function renderHero() {
+  const c = counts(), pct = c.total ? Math.round(c.known / c.total * 100) : 0;
+  $('hero').innerHTML = `<h1>${esc(S.subject.name)}</h1><div class="meter"><i style="width:${pct}%"></i></div>
+    <div class="stats"><span><b>${pct}%</b>已掌握</span><span><b>${c.done}</b>/ ${c.total} 已做</span><span><b>${c.wrong}</b>错题</span></div>`;
+}
+function renderScopes() {
+  const ofType = S.questions.filter(q => q.type === S.type);
+  $('scopes').innerHTML = SCOPES.map(([s, n]) => `<button type="button" class="chip" data-s="${s}" aria-pressed="${S.scope === s}">${n}<small>${ofType.filter(q => inScope(rec(q.id), s)).length}</small></button>`).join('');
+  for (const b of $('scopes').children) b.onclick = () => { S.scope = b.dataset.s; savePrefs(); buildQueue(true); renderPractice(); };
+}
+function renderPractice() {
+  renderHero();
+  $('types').innerHTML = TYPES.map(([t, n]) => { const k = S.questions.filter(q => q.type === t).length; return k ? `<button type="button" data-t="${t}" aria-pressed="${S.type === t}">${n}<small>${k}</small></button>` : ''; }).join('');
+  const nt = $('types').children.length || 1; $('types').style.gridTemplateColumns = `repeat(${nt > 4 ? Math.ceil(nt / 2) : nt}, 1fr)`; // 题型多（单片机 6 种）分两行
+  for (const b of $('types').children) b.onclick = () => { S.type = b.dataset.t; savePrefs(); buildQueue(true); renderPractice(); };
+  renderScopes();
+  $('modeBtn').textContent = S.mode === 'rand' ? '⚄ 随机' : '☷ 顺序';
+  $('modeBtn').onclick = () => { S.mode = S.mode === 'rand' ? 'seq' : 'rand'; savePrefs(); buildQueue(false); renderPractice(); toast(S.mode === 'rand' ? '随机出题' : '按顺序出题'); };
+  renderCard(); renderBar();
+}
+function renderCard() {
+  const card = $('card'), q = cur();
+  card.classList.remove('drag', 'dragging', 'back', 'fly'); card.style.transform = card.style.opacity = '';
+  if (q && q.id !== S.lastId) { card.classList.remove('enter'); void card.offsetWidth; card.classList.add('enter'); }
+  S.lastId = q && q.id; delete card.dataset.hxq;
+  if (!S.questions.length) { card.innerHTML = '<div class="empty"><h2>这个科目还没有题</h2><p class="muted">到“题库”里导入资料，或让 AI 根据资料出题。</p><button class="btn" type="button" id="toBank">去导入</button></div>'; $('toBank').onclick = () => show('bank'); return; }
+  if (!S.queue.length) { card.innerHTML = `<div class="empty"><h2>${S.scope === 'wrong' ? '没有错题' : '这里没有题'}</h2><p class="muted">换个题型或范围试试。</p></div>`; return; }
+  if (!q) { // 一轮做完
+    const ids = S.queue, done = ids.filter(id => S.picked[id]), right = done.filter(id => isRight(S.questions.find(x => x.id === id) || { answer: [] }, S.picked[id]));
+    card.innerHTML = `<div class="empty"><h2>本轮完成</h2><p class="muted">共 ${ids.length} 题，作答 ${done.length} 题，答对 ${right.length} 题${done.length ? `，正确率 ${Math.round(right.length / done.length * 100)}%` : ''}。</p>
+      <div class="row" style="justify-content:center;margin-top:14px"><button class="btn" type="button" id="again">再来一轮</button>${S.scope !== 'wrong' && counts().wrong ? '<button class="btn ghost" type="button" id="toWrong">刷错题</button>' : ''}</div></div>`;
+    $('again').onclick = () => { store.setLocal(sessKey(), null); buildQueue(false); renderPractice(); };
+    if ($('toWrong')) $('toWrong').onclick = () => { S.scope = 'wrong'; savePrefs(); buildQueue(false); renderPractice(); };
+    return;
+  }
+  const picked = S.picked[q.id], r = rec(q.id), ai = S.ai[q.id];
+  const opts = (q.options || []).map(o => {
+    let cls = '';
+    if (picked) { const inAns = q.answer.includes(o.key), chose = picked.includes(o.key); cls = inAns && chose ? 'right' : chose ? 'wrong' : inAns ? (q.type === 'multiple' ? 'right miss' : 'right') : ''; }
+    else if (S.sel.has(o.key)) cls = 'sel';
+    const why = ai && ai.data && ai.data[o.key] ? `<small class="why">${esc(ai.data[o.key])}</small>` : '';
+    return `<button type="button" class="opt ${cls}" data-k="${esc(o.key)}" ${picked ? 'disabled' : ''}><i>${q.type === 'judgment' ? (o.key === 'T' ? '✓' : '✗') : esc(o.key)}</i><span>${esc(o.text)}${why}</span></button>`;
+  }).join('');
+  const self = SELF.has(q.type), typed = S.typed[q.id] || [];
+  let stem = esc(q.stem);
+  if (q.type === 'fill') { let n = 0; stem = stem.replace(/____/g, () => { const k = n++, v = typed[k] || ''; return `<input class="blank${picked && typed.length ? (blankOk(q.answer[k], v) ? ' right' : ' wrong') : ''}" data-n="${k}" value="${esc(v)}" ${picked ? 'disabled' : ''} autocomplete="off" aria-label="第 ${k + 1} 空" style="width:${Math.min(12, Math.max(4, String(q.answer[k]).replace(/[（(].*$/, '').length + 2))}em">`; }); }
+  const extra = (q.code ? `<pre class="code">${esc(q.code)}</pre>` : '') + (q.sub ? `<ol class="subs">${q.sub.map(x => `<li>${esc(x)}</li>`).join('')}</ol>` : '');
+  const ref = () => `<div class="ref">${esc(q.answer[0])}</div>`;
+  let fb = '';
+  if (self && !picked) fb = S.shown[q.id] ? `<div class="fb self"><b>参考答案</b>${ref()}<div class="row"><button class="btn ghost" type="button" id="noBtn">没答对</button><button class="btn okb" type="button" id="okBtn">答对了</button></div></div>`
+    : '<button class="btn submit" type="button" id="showBtn">看参考答案</button>';
+  if (picked && (self || q.type === 'fill')) {
+    const ok = isRight(q, picked), ans = q.answer.map((a, n) => (q.answer.length > 1 ? `第 ${n + 1} 空 ` : '') + a).join('；');
+    fb = `<div class="fb ${ok ? 'ok' : 'bad'}"><b>${self ? (ok ? '答对了' : '没答对') : ok ? '回答正确' : '答案是 ' + esc(ans)}</b>${self ? ref() : ''}${q.type === 'fill' && !ok && typed.length ? '<div class="ai"><button class="btn sm ghost" type="button" id="ovBtn">意思对，算我对</button></div>' : ''}</div>`;
+  } else if (picked) {
+    const ok = isRight(q, picked), ans = q.type === 'judgment' ? (q.answer[0] === 'T' ? '正确' : '错误') : q.answer.join('');
+    const aiPart = !ai ? (getSettings().apiKey ? '<button class="btn sm ghost" type="button" id="aiBtn">✦ AI 逐项解析</button>' : '')
+      : ai.state === 'load' ? '<span>AI 正在解析…</span>'
+      : ai.state === 'err' ? `<span style="color:var(--bad)">${esc(ai.msg)}</span><button class="btn sm ghost" type="button" id="aiBtn">重试</button>`
+      : (ai.data._tip ? `<div class="tip">速记：${esc(ai.data._tip)}</div>` : '') + (ai.data._review && !/^一致/.test(ai.data._review) ? `<div class="tip">题库复核：${esc(ai.data._review)}</div>` : '');
+    fb = `<div class="fb ${ok ? 'ok' : 'bad'}"><b>${ok ? '回答正确' : '答案是 ' + esc(ans)}</b>${q.explanation ? `<p>${esc(q.explanation)}</p>` : ''}<div class="ai">${aiPart}</div></div>`;
+  }
+  const tag = (r.wrong ? `<span style="color:var(--bad)">错过 ${r.wrong} 次</span>` : r.status === 'known' ? '<span style="color:var(--ok)">已记住</span>' : '')
+    + (r.status === 'known' && q.id in S.undo ? '<button class="btn sm ghost" type="button" id="undoBtn" style="height:26px">撤销记住</button>' : '');
+  const hint = picked ? `<div class="hint">左滑或 <kbd>${esc(keyOf('know'))}</kbd> 记住 · 右滑或 <kbd>${esc(keyOf('again'))}</kbd> 再练</div>` : '';
+  card.innerHTML = `<div class="qhead"><span class="qtype">${typeName(q.type)}</span><span>${S.i + 1} / ${S.queue.length}</span><span class="sp"></span>${tag}</div>
+    <h2 class="stem">${stem}</h2>${extra}${opts ? `<div class="opts">${opts}</div>` : ''}
+    ${q.type === 'multiple' && !picked ? `<button class="btn submit" type="button" id="submitBtn" ${S.sel.size ? '' : 'disabled'}>提交答案${S.sel.size ? `（已选 ${[...S.sel].sort().join('')}）` : ''}</button>` : ''}${q.type === 'fill' && !picked ? '<button class="btn submit" type="button" id="submitBtn">提交答案</button>' : ''}${fb}${hint}
+    <span class="stamp k">记住</span><span class="stamp a">再练</span>`;
+  card.classList.toggle('drag', !!picked);
+  // 给“夜夜题库AI伴侣”浏览器扩展（智慧职教AI伴学项目）读题：题型、题干、选项；答完才带答案
+  card.dataset.hxq = JSON.stringify({ type: typeName(q.type), stem: q.stem + (q.code ? '\n' + q.code : ''), options: (q.options || []).map(o => ({ label: o.key, text: o.text })), answer: picked ? (q.type === 'judgment' ? (q.answer[0] === 'T' ? '正确' : '错误') : q.answer.join(q.type === 'fill' ? '；' : '')) : '' });
+  for (const b of card.querySelectorAll('.opt')) b.onclick = () => pick(b.dataset.k);
+  const blanks = [...card.querySelectorAll('.blank:not([disabled])')];
+  blanks.forEach((b, n) => b.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); n < blanks.length - 1 ? blanks[n + 1].focus() : submit(); } });
+  if ($('submitBtn')) $('submitBtn').onclick = submit;
+  if ($('showBtn')) $('showBtn').onclick = () => { S.shown[q.id] = true; renderCard(); };
+  if ($('okBtn')) $('okBtn').onclick = () => selfGrade(true);
+  if ($('noBtn')) $('noBtn').onclick = () => selfGrade(false);
+  if ($('ovBtn')) $('ovBtn').onclick = override;
+  if ($('aiBtn')) $('aiBtn').onclick = () => explain(q);
+  if ($('undoBtn')) $('undoBtn').onclick = () => unmark(q.id);
+}
+function renderBar() {
+  const q = cur(), picked = q && S.picked[q.id];
+  const mid = q && picked
+    ? '<button class="btn ghost" type="button" id="againBtn">再练</button><button class="btn okb" type="button" id="knowBtn">记住了 ✓</button>'
+    : `<button class="btn ghost" type="button" id="sheetBtn">答题卡${q && S.queue.length ? ' ' + (S.i + 1) + '/' + S.queue.length : ''}</button>`;
+  $('bar').innerHTML = `<button class="nav" type="button" id="prevBtn" aria-label="上一题" ${S.i > 0 ? '' : 'disabled'}>‹</button><div class="mid">${mid}</div><button class="nav" type="button" id="nextBtn" aria-label="下一题" ${q ? '' : 'disabled'}>›</button>`;
+  $('prevBtn').onclick = () => go(S.i - 1);
+  $('nextBtn').onclick = () => go(S.i + 1);
+  if ($('sheetBtn')) $('sheetBtn').onclick = openCardSheet;
+  if ($('againBtn')) $('againBtn').onclick = () => fly(1);
+  if ($('knowBtn')) $('knowBtn').onclick = () => fly(-1);
+}
+async function explain(q) {
+  S.ai[q.id] = { state: 'load' }; renderCard();
+  try { S.ai[q.id] = { state: 'done', data: await explainQuestion(q, S.picked[q.id] || [], null, S.subject.name) }; }
+  catch (e) { S.ai[q.id] = { state: 'err', msg: e.message }; }
+  if (cur() === q) renderCard();
+}
+
+// ---------- 底部抽屉：答题卡、科目 ----------
+function openSheet(html, bind) {
+  $('sheetBody').innerHTML = html; bind && bind();
+  $('sheet').classList.add('show'); $('sheetBg').classList.add('show');
+}
+function closeSheet() { $('sheet').classList.remove('show'); $('sheetBg').classList.remove('show'); }
+$('sheetBg').onclick = closeSheet;
+function openCardSheet() {
+  const cells = S.queue.map((id, n) => {
+    const p = S.picked[id], q = S.questions.find(x => x.id === id), r = rec(id);
+    const cls = p ? (isRight(q, p) ? 'right' : 'wrong') : r.status === 'known' ? 'known' : r.attempts ? 'done' : '';
+    return `<button type="button" class="cell ${cls} ${n === S.i ? 'cur' : ''}" data-n="${n}">${n + 1}</button>`;
+  }).join('');
+  openSheet(`<h3>答题卡 <small class="muted">${typeName(S.type)} · ${SCOPES.find(s => s[0] === S.scope)[1]} · ${S.queue.length} 题</small></h3>
+    <div class="legend"><span><i style="background:var(--ok)"></i>本轮答对</span><span><i style="background:var(--bad)"></i>本轮答错</span><span><i style="background:var(--acc3)"></i>以前做过</span><span><i style="background:linear-gradient(135deg,#22c55e,#38bdf8)"></i>已记住</span></div>
+    <div class="grid">${cells}</div>`, () => {
+    for (const c of $('sheetBody').querySelectorAll('.cell')) c.onclick = () => { closeSheet(); go(+c.dataset.n); };
+    $('sheetBody').querySelector('.cur')?.scrollIntoView({ block: 'center' });
+  });
+}
+function openSubjectSheet() {
+  const item = s => `<button type="button" class="sitem" data-id="${esc(s.id)}" aria-current="${S.subject && S.subject.id === s.id}"><b>${esc(s.name)}</b>${s.tag ? `<span class="tg">${esc(s.tag)}</span>` : ''}${s.total ? `<small>${s.total} 题</small>` : ''}</button>`;
+  const g = k => S.subjects.filter(s => s.kind === k);
+  openSheet(`<h3>选择科目</h3>
+    <div class="sgroup">课程题库</div><div class="slist">${[...g('builtin'), ...g('public')].map(item).join('')}</div>
+    <div class="sgroup">我的科目</div><div class="slist">${g('mine').map(item).join('')}
+    <button type="button" class="sitem" id="newSubj" style="justify-content:center;color:var(--acc3)"><b style="flex:none">＋ 新建科目</b></button></div>`, () => {
+    for (const b of $('sheetBody').querySelectorAll('.sitem[data-id]')) b.onclick = async () => { closeSheet(); S.view = 'practice'; await openSubject(b.dataset.id); };
+    $('newSubj').onclick = () => { closeSheet(); show('bank'); setTimeout(() => $('newName')?.focus(), 50); };
+  });
+}
+$('subjBtn').onclick = openSubjectSheet;
+
+// ---------- 概览 ----------
+function renderOverview() {
+  const c = counts(), wrong = S.questions.filter(q => inScope(rec(q.id), 'wrong')).sort((a, b) => rec(b.id).wrong - rec(a.id).wrong);
+  let att = 0, bad = 0; for (const r of Object.values(S.records)) { att += r.attempts || 0; bad += r.wrong || 0; }
+  const bars = TYPES.map(([t, n]) => { const l = S.questions.filter(q => q.type === t); if (!l.length) return ''; const k = counts(l); return `<div><span>${n}</span><div class="meter"><i style="width:${k.known / k.total * 100}%"></i></div><small class="muted">${k.known} / ${k.total}</small></div>`; }).join('');
+  $('v-overview').innerHTML = `<div class="hero glow"><h1>${esc(S.subject.name)}</h1><div class="meter"><i style="width:${c.total ? c.known / c.total * 100 : 0}%"></i></div>
+      <div class="stats"><span><b>${c.known}</b>已记住</span><span><b>${c.done}</b>/ ${c.total} 已做</span><span><b>${att ? Math.round((att - bad) / att * 100) : 0}%</b>正确率</span><span><b>${att}</b>次作答</span></div></div>
+    <div class="panel"><h3>各题型掌握</h3><div class="bars">${bars}</div></div>
+    <div class="panel"><h3>错题${wrong.length ? ` <small class="muted">${wrong.length}</small>` : ''}</h3>${wrong.length ? `<div class="wl">${wrong.slice(0, 50).map(q => `<button type="button" data-id="${esc(q.id)}"><small>错 ${rec(q.id).wrong}</small>${esc(q.stem)}</button>`).join('')}</div>
+      <div class="row" style="margin-top:12px"><button class="btn sm" type="button" id="drill">刷错题</button></div>` : '<p class="muted">还没有错题。</p>'}</div>
+    <p class="muted" style="text-align:center">${hx.signedIn() ? (store.cloud.ok === false ? '进度同步失败：' + esc(store.cloud.error) + '（已存在本机）' : '进度跟账号同步，换手机、换电脑都能接着刷') : '没登录：进度只存在这台设备'}</p>`;
+  for (const b of $('v-overview').querySelectorAll('.wl button')) b.onclick = () => { const q = S.questions.find(x => x.id === b.dataset.id); S.type = q.type; S.scope = 'wrong'; savePrefs(); buildQueue(false); const n = S.queue.indexOf(q.id); show('practice'); if (n >= 0) go(n); };
+  if ($('drill')) $('drill').onclick = () => { S.scope = 'wrong'; if (!wrong.some(q => q.type === S.type)) S.type = wrong[0].type; savePrefs(); buildQueue(false); show('practice'); };
+}
+
+// ---------- 题库：新建科目、导入资料、AI 出题、导出、发布 ----------
+function renderBank() {
+  const sub = S.subject, base = S.base[sub.id] || [], d = S.draft;
+  const pubBtns = isTeacher() ? `<button class="btn sm" type="button" id="pubBtn">${sub.published || sub.kind === 'public' ? '更新发布' : '发布给学生'}</button>${sub.published ? '<button class="btn sm danger" type="button" id="unpubBtn">取消发布</button>' : ''}` : '';
+  $('v-bank').innerHTML = `
+    <div class="panel"><h3>${esc(sub.name)}</h3>
+      <dl class="kv"><dt>来源</dt><dd>${sub.kind === 'builtin' ? '课程题库' : sub.kind === 'public' ? esc(sub.tag) : '我的科目'}</dd>${base.length ? `<dt>课程题</dt><dd>${base.length} 题</dd>` : ''}<dt>我导入的</dt><dd>${S.bank.length} 题</dd></dl>
+      <div class="f" style="margin-top:12px"><div class="line"><button class="btn sm ghost" type="button" id="expBtn">导出 JSON</button>${S.bank.length ? '<button class="btn sm ghost" type="button" id="clrBtn">清空我导入的</button>' : ''}${sub.kind === 'mine' ? '<button class="btn sm ghost" type="button" id="renBtn">改名</button><button class="btn sm danger" type="button" id="delBtn">删除科目</button>' : ''}${pubBtns}</div></div></div>
+    <div class="panel"><h3>新建科目</h3><div class="f"><div class="line"><input id="newName" maxlength="30" placeholder="科目名称" style="flex:1"><button class="btn sm" type="button" id="newBtn">新建</button></div></div></div>
+    <div class="panel"><h3>导入资料 · ${esc(sub.name)}</h3>
+      <div class="f">
+        <div class="radio"><label><input type="radio" name="im" value="pick" ${S.imode === 'pick' ? 'checked' : ''}>资料里有现成的题</label><label><input type="radio" name="im" value="gen" ${S.imode === 'gen' ? 'checked' : ''}>根据资料出题（AI）</label></div>
+        <input id="mFile" type="file" accept=".pdf,.docx,.txt,.md,.json">
+        <textarea id="mText" rows="6" placeholder="或者把资料文字粘贴在这里"></textarea>
+        <div class="line" id="genRow" ${S.imode === 'gen' ? '' : 'hidden'}><label for="perChunk">每段出题</label><select id="perChunk" style="width:auto">${[10, 15, 20, 30].map(n => `<option ${n === 15 ? 'selected' : ''}>${n}</option>`).join('')}</select><span class="muted">资料按约 6000 字一段</span></div>
+        <div class="line"><button class="btn" type="button" id="goImport">预览</button><span class="muted" id="imMsg">${getSettings().apiKey ? '' : 'JSON 题库直接导入；文字资料要先在“设置”里填 AI Key'}</span></div>
+      </div>
+      ${d ? `<div style="margin-top:14px"><div class="row"><b style="flex:1">预览 ${d.length} 题</b><button class="btn sm" type="button" id="okImport" ${d.length ? '' : 'disabled'}>确认导入</button><button class="btn sm ghost" type="button" id="noImport">放弃</button></div>
+        <div class="pv" style="margin-top:10px">${d.map((q, n) => `<div><p><small>${typeName(q.type)}</small> ${esc(q.stem)}<br><small>${(q.options || []).map(o => esc(o.key + '. ' + o.text)).join('　')} ｜ 答案 ${esc(q.answer.join(q.type === 'fill' ? '；' : ''))}</small></p><button type="button" data-del="${n}" aria-label="删除">✕</button></div>`).join('')}</div></div>` : ''}
+    </div>`;
+  const on = (id, fn) => { if ($(id)) $(id).onclick = fn; };
+  on('expBtn', () => { const blob = new Blob([JSON.stringify(S.questions, null, 1)], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = sub.name + '.json'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); });
+  on('clrBtn', () => { if (confirm(`清空“${sub.name}”里你导入的 ${S.bank.length} 题？`)) setBank([]); });
+  on('renBtn', async () => { const n = prompt('科目新名字', sub.name)?.trim(); if (!n) return; await saveMine(m => m.map(s => s.id === sub.id ? { ...s, name: n.slice(0, 30) } : s)); S.view = 'bank'; await openSubject(sub.id); });
+  on('delBtn', async () => {
+    if (!confirm(`删除科目“${sub.name}”和里面的题、刷题记录？`)) return;
+    await saveMine(m => m.filter(s => s.id !== sub.id)); await store.remove('bank:' + sub.id); await store.remove('progress:' + sub.id);
+    S.view = 'practice'; await openSubject(BUILTIN[0].id); toast('已删除');
+  });
+  on('newBtn', async () => {
+    const n = $('newName').value.trim(); if (!n) return $('newName').focus();
+    const id = 'c-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+    await saveMine(m => [...m, { id, name: n.slice(0, 30) }]); S.view = 'bank'; await openSubject(id); toast('已新建，接着导入资料');
+  });
+  for (const r of document.querySelectorAll('input[name=im]')) r.onchange = () => { S.imode = r.value; $('genRow').hidden = r.value !== 'gen'; };
+  on('goImport', startImport);
+  on('okImport', confirmImport);
+  on('noImport', () => { S.draft = null; renderBank(); });
+  for (const x of document.querySelectorAll('[data-del]')) x.onclick = () => { S.draft.splice(+x.dataset.del, 1); renderBank(); };
+  on('pubBtn', publish);
+  on('unpubBtn', async () => {
+    if (!confirm('取消发布后学生就看不到这个科目了。')) return;
+    try { await store.unpublish(sub.id); await saveMine(m => m.map(s => s.id === sub.id ? { ...s, published: false } : s)); S.subject.published = false; toast('已取消发布'); renderBank(); } catch (e) { toast(e.message); }
+  });
+}
+async function saveMine(fn) {
+  const mine = fn(S.subjects.filter(s => s.kind === 'mine').map(({ kind, ...s }) => s));
+  await store.write('subjects', mine, { now: true });
+  await loadSubjects();
+}
+async function setBank(list) {
+  S.bank = list; await store.write('bank:' + S.subject.id, list, { now: true });
+  if (store.cloud.ok === false) toast('题已存在本机，云端同步失败：' + store.cloud.error);
+  S.view = 'bank'; await openSubject(S.subject.id);
+}
+async function startImport() {
+  const msg = $('imMsg'), file = $('mFile').files[0], pasted = $('mText').value.trim(), sub = S.subject;
+  $('goImport').disabled = true; msg.textContent = '正在读取资料…';
+  try {
+    let m = file ? await readMaterial(file) : { text: pasted };
+    if (!file && /^[[{]/.test(pasted)) try { m = { json: JSON.parse(pasted) }; } catch { /* 不是 JSON，当文字资料 */ }
+    let qs;
+    if (m.json) { const r = normalizeQuestions(m.json, sub.id); qs = r.questions; if (r.rejected.length) toast(`有 ${r.rejected.length} 题格式不对，已跳过`); }
+    else if (S.imode === 'gen') qs = await aiGenerate(m.text || '', sub.id, sub.name, +$('perChunk').value, t => (msg.textContent = t));
+    else qs = await aiImport(m.text || '', sub.id, t => (msg.textContent = t));
+    const have = new Set(S.questions.map(q => norm(q.stem)));
+    const fresh = qs.filter(q => { const k = norm(q.stem); if (have.has(k)) return false; have.add(k); return true; });
+    S.draft = fresh; renderBank();
+    toast(`识别到 ${qs.length} 题${qs.length - fresh.length ? `，${qs.length - fresh.length} 题和已有的重复，已去掉` : ''}`);
+  } catch (e) {
+    if (e.partialQuestions?.length) { S.draft = e.partialQuestions; renderBank(); }
+    if ($('imMsg')) $('imMsg').textContent = e.message; else toast(e.message);
+  } finally { if ($('goImport')) $('goImport').disabled = false; }
+}
+async function confirmImport() {
+  const add = S.draft.map((q, n) => ({ ...q, number: S.bank.length + n + 1 }));
+  S.draft = null; await setBank([...S.bank, ...add]); toast(`已导入 ${add.length} 题`);
+}
+async function publish() {
+  const sub = S.subject, id = sub.kind === 'public' ? sub.pid : sub.id;
+  if (!confirm(`把“${sub.name}”的 ${S.questions.length} 题发布给所有学生？`)) return;
+  try {
+    await store.publish(id, sub.name, S.questions, hx.name(S.user, S.me));
+    if (sub.kind === 'mine') { await saveMine(m => m.map(s => s.id === sub.id ? { ...s, published: true } : s)); S.subject.published = true; }
+    toast('已发布'); renderBank();
+  } catch (e) { toast(e.message); }
+}
+
+// ---------- 设置 ----------
+function renderSettings() {
+  const s = getSettings(), p = providers[s.provider];
+  $('v-settings').innerHTML = `
+    <div class="panel"><h3>AI 解析</h3><p class="muted" style="margin-top:0">填自己的 AI Key 后，答题后能逐项解析，也能识别资料、根据资料出题。请求直接从浏览器发给服务商。</p>
+      <div class="f">
+        <label for="prov">服务商</label><select id="prov">${Object.entries(providers).map(([k, v]) => `<option value="${k}" ${k === s.provider ? 'selected' : ''}>${esc(v.label)}</option>`).join('')}</select>
+        <label for="base">接口地址</label><input id="base" type="url" value="${esc(s.baseUrl)}" placeholder="https://api.example.com/v1">
+        <label for="model">模型</label><div class="line"><input id="model" list="models" value="${esc(s.model)}" style="flex:1"><button class="btn sm ghost" type="button" id="lsModels">读取模型</button></div>
+        <datalist id="models">${p.models.map(m => `<option value="${esc(m)}">`).join('')}</datalist>
+        <label for="key">API Key</label><input id="key" type="password" autocomplete="off" value="${esc(s.apiKey)}" placeholder="sk-…">
+        <div class="radio"><label><input type="checkbox" id="remember" ${s.remember ? 'checked' : ''}>在这台设备长期保存 Key（公共电脑别勾）</label></div>
+        <div class="line"><button class="btn sm" type="button" id="saveAi">保存</button><button class="btn sm ghost" type="button" id="testAi">测试连接</button><span class="muted" id="aiMsg"></span></div>
+      </div></div>
+    <div class="panel"><h3>快捷键</h3><div class="keys">${KEY_ACTS.map(([a, n]) => `<div><span>${n}</span>${[0, 1].map(k => `<button type="button" data-ka="${a}" data-ki="${k}">${esc(keyName(keyMap()[a][k] || '') || '—')}</button>`).join('')}</div>`).join('')}</div>
+      <div style="display:flex;gap:8px;margin-top:12px;align-items:center"><button class="btn sm ghost" type="button" id="keyDef">恢复默认</button><span class="muted">点一个键位再按键盘；按退格清空</span></div></div>
+    <div class="panel guide" id="guide"><h3>使用说明</h3>${guide()}</div>
+    <div class="panel"><h3>本科目</h3><div class="row" style="flex-wrap:wrap"><button class="btn sm ghost" type="button" id="reload">重新加载题库</button><button class="btn sm danger" type="button" id="resetP">重置“${esc(S.subject.name)}”的刷题记录</button></div></div>`;
+  for (const b of $('v-settings').querySelectorAll('[data-ka]')) b.onclick = () => {
+    for (const x of $('v-settings').querySelectorAll('.rec')) x.classList.remove('rec');
+    b.classList.add('rec'); b.textContent = '按一个键…'; S.recKey = { a: b.dataset.ka, i: +b.dataset.ki };
+  };
+  $('keyDef').onclick = () => { store.setLocal('keys', {}); renderSettings(); toast('快捷键已恢复默认'); };
+  $('reload').onclick = async () => { S.base = {}; await loadSubjects(); await openSubject(S.subject.id); toast('题库已重新加载'); };
+  const collect = () => ({ provider: $('prov').value, baseUrl: $('base').value.trim(), model: $('model').value.trim(), apiKey: $('key').value.trim(), remember: $('remember').checked });
+  $('prov').onchange = () => { const v = providers[$('prov').value]; $('base').value = v.baseUrl; $('model').value = v.models[0] || ''; saveSettings(collect()); renderSettings(); };
+  $('saveAi').onclick = () => { saveSettings(collect()); $('aiMsg').textContent = '已保存'; };
+  $('testAi').onclick = async () => { saveSettings(collect()); $('aiMsg').textContent = '正在测试…'; try { await chat([{ role: 'user', content: '只回复：连接成功' }]); $('aiMsg').textContent = '连接成功'; } catch (e) { $('aiMsg').textContent = e.message; } };
+  $('lsModels').onclick = async () => { saveSettings(collect()); $('aiMsg').textContent = '正在读取…'; try { const ms = await listModels(); $('models').innerHTML = ms.map(m => `<option value="${esc(m)}">`).join(''); $('aiMsg').textContent = `${ms.length} 个模型，点模型框选择`; } catch (e) { $('aiMsg').textContent = e.message; } };
+  $('resetP').onclick = () => {
+    if (!confirm(`清掉“${S.subject.name}”的已记住、错题和作答记录？`)) return;
+    S.records = {}; store.write('progress:' + S.subject.id, {}, { now: true });
+    for (const [t] of TYPES) for (const [sc] of SCOPES) for (const m of ['seq', 'rand']) store.setLocal(`sess:${S.subject.id}:${t}:${sc}:${m}`, null);
+    buildQueue(false); toast('已重置'); show('practice');
+  };
+}
+
+// ---------- 键盘、手势 ----------
+addEventListener('keydown', e => {
+  if (S.recKey) { // 正在改快捷键
+    e.preventDefault(); const { a, i } = S.recKey; S.recKey = null;
+    if (e.key !== 'Escape') { const m = keyMap(), k = e.key === 'Backspace' || e.key === 'Delete' ? '' : e.key; m[a] = [...m[a]]; m[a][i] = k; store.setLocal('keys', m); }
+    return renderSettings();
+  }
+  if (e.ctrlKey || e.metaKey || e.altKey || e.target.closest('input,textarea,select,[contenteditable]')) return;
+  if ($('sheet').classList.contains('show')) { if (e.key === 'Escape') closeSheet(); return; }
+  const m = keyMap(), is = a => m[a].includes(e.key), hit = fn => { e.preventDefault(); fn(); };
+  if (is('ask')) return hit(openAsk);
+  if (S.view !== 'practice') return;
+  const q = cur();
+  if (!q) { if (is('prev')) hit(() => go(S.i - 1)); return; }
+  const picked = S.picked[q.id];
+  if (picked && is('know')) return hit(() => fly(-1));
+  if (picked && is('again')) return hit(() => fly(1));
+  if (!picked && /^[1-6a-fA-F]$/.test(e.key) && q.options && q.options.length) { const o = /\d/.test(e.key) ? q.options[+e.key - 1] : q.options.find(x => x.key === e.key.toUpperCase()); if (o) return hit(() => pick(o.key)); }
+  if (!picked && is('submit')) { if (q.type === 'multiple' || q.type === 'fill') return hit(submit); if (SELF.has(q.type) && !S.shown[q.id]) return hit(() => { S.shown[q.id] = true; renderCard(); }); }
+  if (is('prev')) return hit(() => go(S.i - 1));
+  if (is('next')) return hit(() => go(S.i + 1));
+});
+// 答完后拖题卡：左“记住”、右“再练”；手指、鼠标都行，拖过三分之一或甩一下就飞出去
+function fly(dir) {
+  const card = $('card'), q = cur(); if (!q || !S.picked[q.id] || card.classList.contains('fly')) return;
+  card.classList.remove('dragging', 'back'); card.classList.add('fly');
+  card.style.transform = `translateX(${dir * (card.offsetWidth + 80)}px) rotate(${dir * 8}deg)`;
+  const st = card.querySelector(dir < 0 ? '.stamp.k' : '.stamp.a'); if (st) st.style.opacity = 1;
+  setTimeout(() => mark(dir < 0 ? 'known' : 'unknown'), 220);
+}
+(() => {
+  const card = $('card'); let st = null;
+  const stamp = dx => { const k = card.querySelector('.stamp.k'), a = card.querySelector('.stamp.a'); if (k) k.style.opacity = Math.max(0, Math.min(1, -dx / 90)); if (a) a.style.opacity = Math.max(0, Math.min(1, dx / 90)); };
+  card.addEventListener('pointerdown', e => {
+    const q = cur();
+    if (!q || !S.picked[q.id] || e.button > 0 || e.target.closest('button:not(:disabled),a,input,textarea,select,.code,.ref,.tip')) return;
+    st = { x: e.clientX, y: e.clientY, t: Date.now(), id: e.pointerId, on: false };
+  });
+  card.addEventListener('pointermove', e => {
+    if (!st || e.pointerId !== st.id) return;
+    const dx = e.clientX - st.x, dy = e.clientY - st.y;
+    if (!st.on) { if (Math.abs(dx) < 8) return; if (Math.abs(dy) > Math.abs(dx)) { st = null; return; } st.on = true; card.setPointerCapture(e.pointerId); card.classList.add('dragging'); }
+    card.style.transform = `translateX(${dx}px) rotate(${dx / 24}deg)`; stamp(dx);
+  });
+  const end = e => {
+    if (!st || e.pointerId !== st.id) return;
+    const dx = e.clientX - st.x, v = Math.abs(dx) / Math.max(1, Date.now() - st.t), on = st.on; st = null;
+    if (!on) return;
+    card.classList.remove('dragging');
+    if (Math.abs(dx) > card.offsetWidth / 3 || (Math.abs(dx) > 50 && v > .6)) return fly(dx < 0 ? -1 : 1);
+    card.classList.add('back'); card.style.transform = ''; stamp(0);
+  };
+  card.addEventListener('pointerup', end); card.addEventListener('pointercancel', end);
+})();
+
+// ---------- 专注模式、首次提示、问 AI、使用说明 ----------
+const setFocus = on => { document.body.classList.toggle('focus', on); store.setLocal('focus', on); if (on) show('practice'); };
+$('focusBtn').onclick = () => setFocus(true);
+$('unfocus').onclick = () => setFocus(false);
+function openNotice() {
+  openSheet(`<h3>开始刷题</h3><div class="guide">
+    <p>选题型和范围，点选项作答；答完<b>左滑记住、右滑再练</b>，电脑上按 <kbd>${esc(keyOf('know'))}</kbd> / <kbd>${esc(keyOf('again'))}</kbd>。</p>
+    <p>“记住”的题不再出现在“待掌握”里；点错了可以撤销。</p>
+    <p>想看 AI 逐项讲解：在“设置”里填自己的 AI Key，或装“夜夜题库AI伴侣”浏览器扩展。</p></div>
+    <div class="row" style="margin-top:16px"><button class="btn ghost" type="button" id="nGuide" style="flex:1">使用说明</button><button class="btn" type="button" id="nOk" style="flex:1">开始</button></div>`, () => {
+    $('nOk').onclick = closeSheet;
+    $('nGuide').onclick = () => { closeSheet(); show('settings'); setTimeout(() => $('guide')?.scrollIntoView({ behavior: 'smooth' }), 80); };
+  });
+  store.setLocal('notice', 1);
+}
+function openAsk() {
+  const q = S.view === 'practice' ? cur() : null;
+  let withQ = !!q;
+  const draw = () => {
+    const box = $('chat'); if (!box) return;
+    box.innerHTML = S.chat.length ? S.chat.map(m => `<div class="msg ${m.role === 'user' ? 'u' : 'a'}">${esc(m.show || m.content)}</div>`).join('') : `<p class="muted">${getSettings().apiKey ? '问这道题、知识点，或让 AI 出几道类似的题。' : '先在“设置”里填自己的 AI Key。'}</p>`;
+    box.scrollTop = box.scrollHeight;
+  };
+  const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  openSheet(`<h3>问 AI${S.chat.length ? '<span style="flex:1"></span><button class="btn sm ghost" type="button" id="chatClr">清空</button>' : ''}</h3>
+    <div class="chat" id="chat"></div>
+    ${q ? `<div class="quote" id="quote"><span>引用：${esc(q.stem)}</span><button type="button" id="unquote" aria-label="不引用">✕</button></div>` : ''}
+    <div class="ask"><textarea id="askIn" rows="1" placeholder="输入问题，回车发送"></textarea>${Rec ? '<button class="btn ghost mic" type="button" id="mic" aria-label="语音输入">🎙</button>' : ''}<button class="btn" type="button" id="askGo">发送</button></div>`, () => {
+    draw();
+    const inp = $('askIn'); setTimeout(() => inp.focus(), 300);
+    if ($('unquote')) $('unquote').onclick = () => { withQ = false; $('quote').remove(); };
+    if ($('chatClr')) $('chatClr').onclick = () => { S.chat = []; openAsk(); };
+    inp.oninput = () => { inp.style.height = 'auto'; inp.style.height = inp.scrollHeight + 'px'; };
+    inp.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); } };
+    $('askGo').onclick = send;
+    if (Rec) $('mic').onclick = () => {
+      const r = new Rec(); r.lang = 'zh-CN'; r.interimResults = true; $('mic').classList.add('on');
+      r.onresult = ev => { inp.value = [...ev.results].map(x => x[0].transcript).join(''); inp.oninput(); };
+      r.onend = r.onerror = () => $('mic')?.classList.remove('on'); r.start();
+    };
+    async function send() {
+      const text = inp.value.trim(); if (!text) return;
+      if (!getSettings().apiKey) { closeSheet(); show('settings'); return toast('先填自己的 AI Key'); }
+      let content = text;
+      if (withQ && q) {
+        content = `题目（${typeName(q.type)}）：${q.stem}${q.code ? '\n' + q.code : ''}${(q.options || []).length ? '\n' + q.options.map(o => o.key + '. ' + o.text).join('\n') : ''}${S.picked[q.id] ? '\n题库答案：' + q.answer.join(q.type === 'fill' ? '；' : '') : ''}\n\n我的问题：${text}`;
+        withQ = false; $('quote')?.remove();
+      }
+      S.chat.push({ role: 'user', content, show: text }); inp.value = ''; inp.oninput();
+      const a = { role: 'assistant', content: '…' }; S.chat.push(a); draw(); $('askGo').disabled = true;
+      try {
+        const msgs = [{ role: 'system', content: `你是耐心的${S.subject ? '“' + S.subject.name + '”课程' : ''}辅导老师，用简洁的中文回答学生，不用 Markdown 标记；题库答案可能有误，有疑点要说明。` }, ...S.chat.slice(0, -1).slice(-12).map(({ role, content }) => ({ role, content }))];
+        a.content = await streamChat(msgs, t => { a.content = t; draw(); });
+      } catch (e) { a.content = '出错了：' + e.message; }
+      if ($('askGo')) $('askGo').disabled = false; draw();
+    }
+  });
+}
+$('askBtn').onclick = openAsk;
+const guide = () => `<h4>刷题</h4><ul>
+  <li>顶上选科目，下面选题型和范围（待掌握、错题、未做…）；“顺序 / 随机”切换出题方式。</li>
+  <li>答完：<b>左滑或按 ${esc(keyOf('know'))}</b> 记住并下一题，<b>右滑或按 ${esc(keyOf('again'))}</b> 再练；鼠标也能拖题卡。点错了用提示里的“撤销”，或回到那题点“撤销记住”。快捷键可以在上面改。</li>
+  <li>“专注”只留题卡；“问 AI”（${esc(keyOf('ask'))}）可以引用当前题目提问，浏览器支持时可以语音输入。</li>
+  <li>登录后进度跟账号走；没登录只存在这台设备。账号、外观在首页右上角设置。</li></ul>
+<h4>AI 解析（网页自带）</h4><ol>
+  <li>到硅基流动、DeepSeek 等服务商注册，创建 API Key。</li>
+  <li>在上面“AI 解析”里选服务商、填 Key，点“读取模型”选一个，保存，再点“测试连接”。</li>
+  <li>答完一道题点“✦ AI 逐项解析”。Key 只存在你的浏览器，请求直接发给服务商。</li></ol>
+<h4>浏览器扩展：夜夜题库AI伴侣</h4><ol>
+  <li>安装：在电脑版 Chrome 或 Edge 里，从 <a href="https://github.com/zcq19991029/chorme-AIkuozhan/releases/latest" target="_blank" rel="noopener">发布页</a> 下载学生安装包（0.7.0 起支持本刷题页）并解压到固定文件夹；打开 <code>chrome://extensions</code>（Edge 是 <code>edge://extensions</code>），打开“开发者模式”，点“加载已解压的扩展程序”，选解压出来的 <code>extension</code> 文件夹。</li>
+  <li>设置 AI：点浏览器右上角的扩展图标 →“设置”，填自己的硅基流动 API Key（在 cloud.siliconflow.cn 注册后创建），点“读取模型”选一个对话模型，保存，再点“测试”。</li>
+  <li>调用：打开本刷题页，每道题题干后面出现“✦ 学会这题”，点它在右侧打开零基础讲解，可以继续追问。答完再点，讲解会对照标准答案。</li>
+  <li>扩展更新后，在扩展页点“重新加载”，再刷新本页。</li></ol>`;
+
+// ---------- 启动 ----------
+async function boot() {
+  S.user = S.me = null;
+  if (hx.signedIn()) { try { [S.user, S.me] = await Promise.all([hx.user(), hx.me()]); } catch { S.user = S.me = null; } }
+  setAiProfile(hx.uid() || 'default');
+  const p = prefs();
+  S.type = p.type || 'single'; S.scope = p.scope || 'todo'; S.mode = p.mode || 'seq';
+  renderNav(); renderWho();
+  const pub = String(p.subject || '').startsWith('pub-');
+  await loadSubjects(pub);
+  await openSubject(p.subject && S.subjects.some(s => s.id === p.subject) ? p.subject : BUILTIN[0].id);
+  if (!pub) await loadSubjects(); // 老师发布的题库随后补进科目列表
+}
+if (store.getLocal('focus', false)) document.body.classList.add('focus');
+if (!store.getLocal('notice', 0)) setTimeout(openNotice, 600);
+let was = hx.signedIn();
+hx.onChange(() => { const n = hx.signedIn(); if (n !== was) { was = n; store.flush(); S.base = {}; boot(); } }); // 在总入口或别的工具登录、退出
+addEventListener('pagehide', () => { if (S.subject) store.write('progress:' + S.subject.id, S.records, { now: true }); });
+boot();
