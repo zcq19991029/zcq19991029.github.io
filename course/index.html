@@ -1,0 +1,1139 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>教师课表与教学进度</title>
+<link rel="icon" href="data:,">
+<!-- 华夏工具外观：主色、背景图、深浅色。在网站上被单独打开（不在总入口框里）时，脚本会跳回首页 /#course，登录和账号只在总入口 -->
+<script src="../hx-theme.js" data-tool="course"></script>
+<!-- 课程进度自己的功能开关：false = 关掉 AI 识别 / 调课建议 / 语音入口。
+     原因：原来这些请求由 Cloudflare Worker 带着服务端 KEY_ENCRYPTION_SECRET 去调硅基流动，静态站没有服务端，
+     硬搬会把老师的密钥暴露在网页或数据库里。代码保留，只把入口藏起来；要恢复得先做 Supabase Edge Function。 -->
+<script>window.COURSE_AI_ENABLED = false;</script>
+<!-- 华夏账号 + 云端课程数据：必须最先执行，它要在下面各脚本读 localStorage 之前把数据接管过去 -->
+<script src="assets/cloud-store.js"></script>
+<style>
+:root{
+  --bg:#f4f6fa; --panel:#fff; --line:#e4e9f0; --line-strong:#cbd5e1;
+  --text:#1e293b; --text-2:#475569; --text-3:#94a3b8;
+  --brand:#2563eb; --brand-soft:#eff6ff; --brand-line:#bfdbfe;
+  --done:#16a34a; --done-soft:#f0fdf4; --done-line:#bbf7d0;
+  --warn:#ea580c; --warn-soft:#fff7ed; --warn-line:#fed7aa;
+  --shift:#7c3aed; --shift-soft:#f5f3ff; --shift-line:#ddd6fe;
+  --holiday:#dc2626; --holiday-soft:#fef2f2; --holiday-line:#fecaca;
+  --cls2:#0891b2; --cls3:#7c3aed;
+  --radius:12px;
+  --shadow:0 1px 3px rgba(15,23,42,.05),0 10px 26px -14px rgba(15,23,42,.20);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Microsoft YaHei","PingFang SC","Hiragino Sans GB",system-ui,sans-serif;
+  background:var(--bg);color:var(--text);line-height:1.6;font-size:14px;padding:22px 18px 60px}
+.wrap{max-width:1360px;margin:0 auto}
+
+header.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;
+  gap:14px;padding-bottom:16px;margin-bottom:20px;border-bottom:2px solid var(--line-strong)}
+header.top h1{font-size:22px;font-weight:700}
+header.top .sub{font-size:13px;color:var(--text-2);margin-top:4px}
+header.top .meta{display:flex;gap:8px;flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:999px;
+  font-size:12px;font-weight:600;background:var(--brand-soft);color:var(--brand);border:1px solid var(--brand-line)}
+.pill.green{background:var(--done-soft);color:var(--done);border-color:var(--done-line)}
+.pill.orange{background:var(--warn-soft);color:var(--warn);border-color:var(--warn-line)}
+.pill.purple{background:var(--shift-soft);color:var(--shift);border-color:var(--shift-line)}
+
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+  box-shadow:var(--shadow);margin-bottom:20px;overflow:hidden}
+.card>.card-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;
+  gap:10px;padding:14px 18px;border-bottom:1px solid var(--line);background:#fbfcfe}
+.card>.card-head h2{font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px}
+.card>.card-head h2 .num{display:inline-flex;align-items:center;justify-content:center;
+  width:22px;height:22px;border-radius:6px;background:var(--brand);color:#fff;font-size:12px;font-weight:700;flex:none}
+.card>.card-head .hint{font-size:12px;color:var(--text-3)}
+.card-body{padding:18px}
+
+.datebar{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.datebar input[type=date]{font-family:inherit;font-size:14px;padding:8px 12px;border-radius:9px;
+  border:1px solid var(--line-strong);background:#fff;color:var(--text);outline:none}
+.datebar input[type=date]:focus{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft)}
+button{font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;padding:8px 15px;
+  border-radius:9px;border:1px solid var(--line-strong);background:#fff;color:var(--text-2);transition:.15s}
+button:hover{border-color:var(--brand);color:var(--brand);background:var(--brand-soft)}
+button.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+button.primary:hover{background:#1d4ed8;border-color:#1d4ed8;color:#fff}
+button.ghost{background:transparent}
+button.tiny{padding:4px 10px;font-size:12px;border-radius:7px}
+button.danger:hover{border-color:var(--holiday);color:var(--holiday);background:var(--holiday-soft)}
+
+.today-head{display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:16px 18px;
+  border-radius:var(--radius);background:linear-gradient(135deg,#eff6ff,#f8fafc);
+  border:1px solid var(--brand-line);margin-bottom:16px}
+.today-head .big{font-size:20px;font-weight:700;color:var(--brand)}
+.today-head .tag{font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;
+  background:#fff;border:1px solid var(--brand-line);color:var(--brand)}
+.today-head .tag.rest{background:var(--done-soft);border-color:var(--done-line);color:var(--done)}
+.today-head .tag.holiday{background:var(--holiday-soft);border-color:var(--holiday-line);color:var(--holiday)}
+.today-head .tag.makeup{background:var(--warn-soft);border-color:var(--warn-line);color:var(--warn)}
+
+.lesson{border:1px solid var(--line);border-left:5px solid var(--brand);border-radius:10px;
+  padding:14px 16px;margin-bottom:12px;background:#fff}
+.lesson.cls2{border-left-color:var(--cls2)}
+.lesson.cls3{border-left-color:var(--cls3)}
+.lesson.done{background:var(--done-soft);border-color:var(--done-line);border-left-color:var(--done)}
+.lesson.canceled{background:var(--holiday-soft);border-color:var(--holiday-line);border-left-color:var(--holiday)}
+.lesson .l-top{display:flex;flex-wrap:wrap;align-items:center;gap:9px;margin-bottom:8px}
+.lesson .cls-name{font-size:16px;font-weight:700}
+.lesson.cls2 .cls-name{color:var(--cls2)}
+.lesson.cls3 .cls-name{color:var(--cls3)}
+.lesson .badge{font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:999px;
+  background:#f1f5f9;color:var(--text-2);border:1px solid var(--line)}
+.lesson .badge.period{background:var(--brand-soft);color:var(--brand);border-color:var(--brand-line)}
+.lesson .badge.done{background:var(--done);color:#fff;border-color:var(--done)}
+.lesson .badge.canceled{background:var(--holiday);color:#fff;border-color:var(--holiday)}
+.lesson .badge.special{background:var(--warn);color:#fff;border-color:var(--warn)}
+.lesson .proj{font-size:12.5px;color:var(--text-3);font-weight:700;margin-bottom:3px}
+.lesson .content{font-size:14.5px;color:var(--text);font-weight:600;margin-bottom:6px}
+.lesson .lab{font-size:13px;color:var(--text-2)}
+.lesson .lab::before{content:"实训 ▸ ";color:var(--brand);font-weight:700}
+.lesson .range{font-size:12px;color:var(--text-3);margin-top:6px;font-weight:600}
+.lesson .acts{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.lesson .actual{margin-top:10px;padding:10px 12px;border-radius:8px;background:#fff;
+  border:1px dashed var(--done-line);font-size:13px}
+.lesson .actual .mk{font-weight:700;color:var(--done)}
+.lesson .actual .txt{color:var(--text);white-space:pre-wrap;margin-top:3px}
+
+.table-scroll{overflow:auto;max-height:74vh;border-radius:10px;border:1px solid var(--line)}
+table{border-collapse:separate;border-spacing:0;width:100%;font-size:13px;min-width:1060px}
+thead th{position:sticky;top:0;z-index:2;background:#f1f5f9;font-size:12px;font-weight:700;
+  color:var(--text-2);text-align:left;padding:10px;border-bottom:2px solid var(--line-strong);white-space:nowrap}
+tbody td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+tbody tr:hover{background:#f8fafc}
+tbody tr.wk-sep td{border-top:2px solid var(--line-strong)}
+.c-week{font-weight:700;white-space:nowrap}
+.c-week .parity{display:block;font-size:11px;color:var(--text-3);font-weight:600}
+.c-date{white-space:nowrap;font-variant-numeric:tabular-nums;font-size:12.5px}
+.c-cls{white-space:nowrap;font-weight:600}
+.c-cls.s2{color:var(--cls2)} .c-cls.s3{color:var(--cls3)}
+.status{display:inline-block;font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap}
+.status.done{background:var(--done-soft);color:var(--done);border:1px solid var(--done-line)}
+.status.plan{background:#f1f5f9;color:var(--text-2);border:1px solid var(--line)}
+.status.canceled{background:var(--holiday-soft);color:var(--holiday);border:1px solid var(--holiday-line)}
+.status.makeup{background:var(--warn-soft);color:var(--warn);border:1px solid var(--warn-line)}
+.status.shift{background:var(--shift-soft);color:var(--shift);border:1px solid var(--shift-line)}
+tr.is-done td{background:var(--done-soft)}
+tr.is-canceled td{background:var(--holiday-soft)}
+tr.is-makeup td{background:var(--warn-soft)}
+tr.is-shift td{background:var(--shift-soft)}
+.actual-tag{display:block;margin-top:5px;padding:5px 8px;border-radius:6px;
+  background:#fff;border:1px dashed var(--done-line);font-size:12px;color:var(--done);font-weight:600}
+
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--text-2);margin-bottom:12px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:14px;height:14px;border-radius:4px;display:inline-block;border:1px solid rgba(0,0,0,.08)}
+
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px}
+.stat{padding:13px 15px;border-radius:10px;border:1px solid var(--line);background:#fff}
+.stat .k{font-size:12px;color:var(--text-3);font-weight:600;margin-bottom:4px}
+.stat .v{font-size:19px;font-weight:700}
+.stat.blue{background:var(--brand-soft);border-color:var(--brand-line)} .stat.blue .v{color:var(--brand)}
+.stat.green{background:var(--done-soft);border-color:var(--done-line)} .stat.green .v{color:var(--done)}
+.stat.orange{background:var(--warn-soft);border-color:var(--warn-line)} .stat.orange .v{color:var(--warn)}
+.stat.red{background:var(--holiday-soft);border-color:var(--holiday-line)} .stat.red .v{color:var(--holiday)}
+.stat.purple{background:var(--shift-soft);border-color:var(--shift-line)} .stat.purple .v{color:var(--shift)}
+
+.notice{padding:12px 15px;border-radius:10px;font-size:13px;margin-bottom:14px;
+  border:1px solid var(--line);background:#fbfcfe;color:var(--text-2)}
+.notice b{color:var(--text)}
+.notice.blue{background:var(--brand-soft);border-color:var(--brand-line)}
+.notice.orange{background:var(--warn-soft);border-color:var(--warn-line)}
+.notice.purple{background:var(--shift-soft);border-color:var(--shift-line)}
+.notice.red{background:var(--holiday-soft);border-color:var(--holiday-line)}
+.notice ul{margin:6px 0 0 18px} .notice li{margin:3px 0}
+
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tab{padding:6px 14px;border-radius:999px;font-size:13px;font-weight:600;cursor:pointer;
+  border:1px solid var(--line-strong);background:#fff;color:var(--text-2);transition:.15s}
+.tab:hover{border-color:var(--brand);color:var(--brand)}
+.tab.on{background:var(--brand);border-color:var(--brand);color:#fff}
+.empty{padding:26px;text-align:center;color:var(--text-3);font-size:13.5px}
+
+.modal-mask{position:fixed;inset:0;background:rgba(15,23,42,.45);display:none;
+  align-items:center;justify-content:center;z-index:99;padding:20px}
+.modal-mask.show{display:flex}
+.modal{background:#fff;border-radius:14px;max-width:620px;width:100%;max-height:88vh;
+  overflow:auto;box-shadow:0 20px 60px rgba(15,23,42,.28)}
+.modal .m-head{padding:16px 20px;border-bottom:1px solid var(--line);display:flex;
+  align-items:center;justify-content:space-between;gap:10px}
+.modal .m-head h3{font-size:16px;font-weight:700}
+.modal .m-body{padding:20px}
+.modal .m-foot{padding:14px 20px;border-top:1px solid var(--line);display:flex;
+  justify-content:flex-end;gap:10px;background:#fbfcfe}
+.field{margin-bottom:16px}
+.field label{display:block;font-size:12.5px;font-weight:700;color:var(--text-2);margin-bottom:6px}
+.field .tip{font-size:12px;color:var(--text-3);font-weight:400;margin-left:6px}
+.field input[type=text],.field textarea{width:100%;font-family:inherit;font-size:13.5px;
+  padding:9px 12px;border-radius:9px;border:1px solid var(--line-strong);outline:none;color:var(--text);resize:vertical}
+.field input[type=text]:focus,.field textarea:focus{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft)}
+.field .plan-line{padding:9px 12px;border-radius:9px;background:#f8fafc;border:1px solid var(--line);
+  font-size:13px;color:var(--text-2)}
+.x-close{cursor:pointer;font-size:20px;color:var(--text-3);line-height:1;padding:2px 6px;border-radius:6px}
+.x-close:hover{background:#f1f5f9;color:var(--text)}
+footer.foot{text-align:center;font-size:12px;color:var(--text-3);padding:10px 0 0;margin-top:6px}
+@media(max-width:640px){body{padding:14px 10px 40px}header.top h1{font-size:17px}.card-body{padding:14px}}
+
+.upgrade-tools{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:16px}.upgrade-tools select{padding:8px;border:1px solid #cbd5e1;border-radius:8px}.compare-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin:18px 0}.compare-card{padding:18px;border:1px solid var(--brand-line);border-radius:12px;background:var(--brand-soft)}.compare-card h3{margin-bottom:10px}.compare-card p{margin:6px 0}.meter{height:9px;background:#e2e8f0;border-radius:8px;overflow:hidden;margin:8px 0}.meter span{display:block;height:100%;background:var(--done)}.project-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin:12px 0}.project-item{border:1px solid var(--line);padding:13px;border-radius:10px}.project-item small{display:block;color:var(--text-2)}.schedule-editor-table{min-width:760px;width:100%;border-collapse:collapse;font-size:12px}.schedule-editor-table th,.schedule-editor-table td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:left}.schedule-editor-table input,.schedule-editor-table select{padding:5px;border:1px solid var(--line-strong);border-radius:6px;font:inherit}.schedule-editor-table .override-row{background:#fffaf0}@media print{body{padding:0;background:white}.card{box-shadow:none;overflow:visible}header.top,.wrap>section:not(:has(#mainTable)),.foot,.upgrade-tools,.legend,.tabs,.modal-mask,#tbody button{display:none!important}.table-scroll{overflow:visible}#mainTable{min-width:0;width:100%;font-size:10px}tr{break-inside:avoid}thead{display:table-header-group}@page{size:A4 landscape;margin:10mm}}
+.check-results{display:grid;gap:6px;margin:8px 0}.check-item{padding:8px 10px;border-radius:8px;font-size:12px}.check-item.pass{background:#f0fdf4;color:#166534}.check-item.warn{background:#fff7ed;color:#9a3412}.check-item.error{background:#fef2f2;color:#991b1b}.check-item.fix{background:#eff6ff;color:#1d4ed8}
+.matrix-import{margin-top:16px;padding:13px;border:1px solid var(--brand-line);border-radius:12px;background:#f8fbff}.matrix-import table{width:100%;border-collapse:collapse;font-size:12px}.matrix-import th,.matrix-import td{padding:7px;border-bottom:1px solid var(--line);text-align:left}.matrix-import .matrix-warn{color:#9a3412;background:#fff7ed}.matrix-import .matrix-ok{color:#166534;background:#f0fdf4}
+.course-switch{margin:14px 0;padding:12px 16px;border:1px solid var(--brand-line);border-radius:12px;background:#f8fbff;display:flex;gap:12px;align-items:center;flex-wrap:wrap}.course-switch select{padding:8px 12px;border:1px solid var(--line-strong);border-radius:8px;font:inherit}.course-switch small{color:var(--text-2)}.multi-course-workspace{display:none}.multi-course-workspace .workspace-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}.multi-course-workspace .workspace-box{min-width:0;overflow:hidden;border:1px solid var(--line);border-radius:12px;padding:14px}.multi-course-workspace table{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed}.multi-course-workspace th,.multi-course-workspace td{padding:7px;border-bottom:1px solid var(--line);text-align:left;overflow:hidden}.multi-course-workspace th:nth-child(1){width:72px}.multi-course-workspace th:nth-child(2){width:145px}.multi-course-workspace th:nth-child(3){width:72px}.multi-course-workspace th:nth-child(4){width:140px}.multi-course-workspace th:nth-child(5){width:150px}.multi-course-workspace input,.multi-course-workspace textarea{width:100%;box-sizing:border-box;padding:6px;border:1px solid var(--line-strong);border-radius:6px;font:inherit}.multi-course-workspace .course-row{background:#f8fbff}.multi-course-workspace tr.quick-target{background:#fff7ed!important;outline:2px solid #fdba74;outline-offset:-2px}.import-groups{display:grid;gap:6px;margin:8px 0}.import-groups label{display:block;padding:8px;border:1px solid var(--line);border-radius:8px;background:#fff}.import-groups input{width:auto;margin-right:8px}@media(max-width:800px){.multi-course-workspace .workspace-grid{grid-template-columns:1fr}}
+.page-nav{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.page-nav button{padding:8px 13px;border:1px solid rgba(37,99,235,.28);border-radius:9px;background:rgba(255,255,255,.58);color:var(--text);font:inherit;cursor:pointer;backdrop-filter:blur(4px);transition:background .15s,border-color .15s,transform .15s}.page-nav button:nth-child(1){background:rgba(59,130,246,.12);border-color:rgba(59,130,246,.35)}.page-nav button:nth-child(2){background:rgba(14,165,233,.12);border-color:rgba(14,165,233,.35)}.page-nav button:nth-child(3){background:rgba(16,185,129,.12);border-color:rgba(16,185,129,.35)}.page-nav button:nth-child(4){background:rgba(139,92,246,.12);border-color:rgba(139,92,246,.35)}.page-nav button:nth-child(5){background:rgba(249,115,22,.12);border-color:rgba(249,115,22,.35)}.page-nav button:nth-child(6){background:rgba(99,102,241,.12);border-color:rgba(99,102,241,.35)}.page-nav button:hover{transform:translateY(-1px);filter:saturate(1.15)}.page-nav button.active{background:var(--brand);color:#fff;border-color:var(--brand)}.page-nav .backup-action{background:rgba(20,184,166,.13);border-color:rgba(13,148,136,.38);color:#0f766e;font-weight:600}.page-nav .backup-action:hover{background:rgba(20,184,166,.24);color:#115e59}.quick-actions{display:none}.page-hidden{display:none!important}.multi-section-hidden{display:none!important}.import-help{padding:11px 13px;margin:0 0 12px;border-radius:9px;background:#eef6ff;color:#31506f;font-size:13px;line-height:1.7}.legacy-import{padding:8px 0;border-top:1px dashed var(--line);margin-top:12px;color:var(--text-2)}.legacy-import summary{cursor:pointer;color:var(--text-2)}
+/* compact responsive workspace: use the available viewport instead of leaving wide gutters */
+html{min-width:320px}
+body{padding:12px clamp(8px,2vw,24px) 36px}
+.wrap{width:100%;max-width:1600px}
+header.top{padding-bottom:12px;margin-bottom:12px;gap:10px}
+header.top h1{font-size:clamp(18px,1.8vw,24px)}
+.course-switch{margin:10px 0;padding:9px 12px}
+.page-nav{margin:8px 0 12px;gap:6px;position:sticky;top:0;z-index:8;padding:6px 0;background:color-mix(in srgb,var(--bg) 92%,transparent)}
+.page-nav button{padding:7px 11px;font-size:13px;border-radius:8px}
+.card{margin-bottom:12px;border-radius:12px}
+.card>.card-head{padding:11px 14px}
+.card-body{padding:14px}
+.multi-course-workspace .workspace-box{padding:10px}
+.multi-course-workspace table{font-size:12px}
+.table-scroll{max-height:70vh}
+@media(max-width:900px){header.top{align-items:flex-start}.meta{width:100%}.page-nav{position:static}.card-body{padding:11px}.multi-course-workspace th:nth-child(5),.multi-course-workspace td:nth-child(5){display:none}}
+@media(max-width:560px){body{padding:8px 6px 28px}.page-nav button{flex:1 1 auto;padding:7px 8px}.course-switch label{width:100%}.course-switch select{max-width:100%}.card>.card-head{padding:10px 11px}.card-body{padding:9px}.datebar{gap:6px}.datebar button{padding:7px 9px}}
+.multi-course-workspace.is-multi{border-top:3px solid #8b5cf6}
+.multi-course-workspace.is-multi .card-head{background:linear-gradient(90deg,#f5f3ff,#fafafa)}
+.multi-course-workspace.is-multi .card-head .num{background:#7c3aed}
+.multi-course-workspace.is-multi .upgrade-tools{padding:8px 10px;border:1px solid #ddd6fe;border-radius:10px;background:#faf5ff}
+.multi-course-workspace.is-multi .workspace-box{background:#fff}
+.multi-course-workspace.is-multi .workspace-box h3{font-size:15px;margin-bottom:8px;color:#312e81}
+.multi-course-workspace.is-multi table{table-layout:auto;min-width:0}
+.multi-course-workspace.is-multi th,.multi-course-workspace.is-multi td{overflow:visible;white-space:normal;vertical-align:middle}
+.multi-course-workspace.is-multi th:nth-child(1){width:110px}.multi-course-workspace.is-multi th:nth-child(2){width:150px}.multi-course-workspace.is-multi th:nth-child(3){width:72px}.multi-course-workspace.is-multi th:nth-child(4){width:92px}.multi-course-workspace.is-multi th:nth-child(5){width:280px}.multi-course-workspace.is-multi th:nth-child(6){min-width:220px}
+.multi-course-workspace.is-multi input{min-width:0}
+
+/* 华夏工具门禁：没登录、或云端数据还没读到时盖住整页。老师看不到也点不到底下的空数据，避免误改。 */
+html[data-kc="wait"] .wrap{visibility:hidden!important}
+html[data-kc="wait"] body{overflow:hidden}
+.kc-gate{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;
+  padding:24px;background:var(--bg);font-family:inherit;overflow:auto}
+.kc-gate[hidden]{display:none!important}
+.kc-gate-card{max-width:430px;width:100%;background:var(--panel);border:1px solid var(--line);border-radius:16px;
+  box-shadow:var(--shadow);padding:26px 24px;text-align:center}
+.kc-gate-card h2{font-size:17px;font-weight:700;margin-bottom:10px}
+.kc-gate-card p{font-size:13px;color:var(--text-2);line-height:1.75;margin-bottom:16px}
+.kc-gate-card p:last-child{margin-bottom:0}
+.kc-gate-card .kc-gate-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+@media (max-width:480px){.kc-gate-card{padding:22px 18px}.kc-gate-card h2{font-size:16px}}
+</style>
+<link rel="stylesheet" href="assets/week-home.css?release=20261007-theme-swatches">
+<link rel="stylesheet" href="assets/teacher-home.css?release=20261007-theme-swatches">
+<link rel="stylesheet" href="assets/import-ui.css?release=20261007-theme-swatches">
+</head>
+<body>
+<!-- 由 assets/cloud-store.js 控制：没有华夏工具登录、账号不是老师、云端没读到时显示 -->
+<div class="kc-gate" id="kcGate" hidden>
+  <div class="kc-gate-card">
+    <h2 id="kcGateTitle">正在读取云端课程数据…</h2>
+    <p id="kcGateText">请稍等。</p>
+    <div class="kc-gate-actions" id="kcGateActions" hidden>
+      <button type="button" class="primary" id="kcGateGo">去华夏工具登录</button>
+      <button type="button" id="kcGateRetry">重试</button>
+    </div>
+  </div>
+</div>
+<div class="wrap">
+
+  <header class="top">
+    <div>
+      <h1>《单片机技术与应用》课程进度动态跟进工具</h1>
+      <div class="sub">2026-2027学年第一学期 · 广州华夏职业学院 · 主讲：赵成乾</div>
+    </div>
+    <div class="meta">
+      <span class="pill purple" id="clockPill">🕒 --</span>
+      <span class="pill green">每周一条内容 · 共 16 条</span>
+      <span class="pill orange">冲掉 1 周 · 第17周顺延收尾</span>
+      <span class="pill" id="autoPill" style="cursor:pointer">⟳ 自动跟随系统时间</span>
+    </div>
+  </header>
+
+  <div class="course-switch">
+    <label><b>当前课程</b> <select id="activeCourseSelect"><option value="mcu">单片机技术及应用</option></select></label>
+    <span id="activeCourseHint"><small>现有单片机课表和记录</small></span>
+  </div>
+  <nav class="page-nav" id="pageNav" aria-label="课程工具导航">
+    <button data-page="home">首页仪表盘</button><button data-page="class">按日期查课</button><button data-page="overview">进度总览</button><button data-page="records">进度记录</button><button data-page="schedule">调课管理</button><button data-page="settings">课程设置</button><button id="quickBackup" class="backup-action">备份全部数据</button>
+  </nav>
+
+  <section class="card multi-course-workspace" id="multiCourseWorkspace">
+    <div class="card-head"><h2><span class="num">1</span><span id="multiCourseTitle">课程工作区</span></h2><div class="hint">当前课程与班级独立保存</div></div>
+    <div class="card-body">
+      <div class="upgrade-tools"><label>班级 <select id="multiClassSelect"></select></label><button id="multiSelfCheck">运行当前课程自检</button><span id="multiStatus"></span></div><div id="multiSummary" class="stats multi-summary"></div>
+      <div class="workspace-grid">
+        <div class="workspace-box" id="multiOverviewPanel" data-multi-pages="home overview"><h3>进度总览</h3><div id="multiOverviewContent"></div></div>
+        <div class="workspace-box" id="multiScheduleBox" data-multi-pages="class records schedule"><h3>当前课程课次</h3><div id="multiScheduleTable"></div></div>
+        <div class="workspace-box" id="multiProgressBox" data-multi-pages="settings"><h3>课程进度（可编辑）</h3><p class="hint">课程进度由课程模板生成；电气接线原理按 24 次理论/实训内容生成，可逐条修改。</p><div id="multiProgressEditor"></div><button class="primary" id="saveMultiProgress">保存当前课程进度</button></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-head">
+      <h2><span class="num">1</span>按日期查课</h2>
+      <div class="hint">选日期 → 自动匹配当天该上的班、节次、应上进度，并显示实际记录</div>
+    </div>
+    <div class="card-body">
+      <div class="datebar">
+        <input type="date" id="dateInput" min="2026-08-31" max="2027-02-28">
+        <button class="primary" id="btnToday">跳到今天</button>
+        <button id="btnPrev">◀ 上一节</button>
+        <button id="btnNext">下一节 ▶</button>
+        <button class="ghost" id="btnStart">回到开学</button>
+      </div>
+      <div id="dayView" style="margin-top:16px"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-head">
+      <h2><span class="num">2</span>进度总览</h2>
+      <div class="hint">以「上方所选日期」为基准实时统计</div>
+    </div>
+    <div class="card-body">
+      <div class="stats" id="statsBox"></div><div id="dashboard"></div><div id="projectStats"></div>
+      <div class="upgrade-tools"><button id="runSelfCheck">运行数据自检</button><button id="repairSelfCheck" disabled>检查并修复</button><span id="selfCheckStatus"></span></div><div id="selfCheckResults"></div>
+      <div class="notice blue" id="calcNote"></div>
+      <div class="notice" id="nextNote"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-head">
+      <h2><span class="num">3</span>完整进度对照表（可记录实际内容）</h2>
+      <div class="tabs" id="tabs">
+        <span class="tab on" data-cls="all">全部</span>
+        <span class="tab" data-cls="25机电2班">25机电2班</span>
+        <span class="tab" data-cls="25机电3班">25机电3班</span>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="upgrade-tools"><label>记录筛选 <select id="recordFilter"><option value="all">全部课次</option><option value="missing">未填写实际记录</option><option value="recorded">已填写实际记录</option></select></label><button id="printProgress">打印当前进度表</button><button id="exportProgress">导出当前进度 CSV</button><button id="exportBackup">备份全部记录 JSON</button><label>恢复备份 <input id="importBackup" type="file" accept=".json"></label><span id="storageStatus" role="status"></span></div><div class="legend">
+        <span><i style="background:#f0fdf4;border-color:#bbf7d0"></i>已完成</span>
+        <span><i style="background:#ffffff;border-color:#e4e9f0"></i>待上课</span>
+        <span><i style="background:#fef2f2;border-color:#fecaca"></i>放假冲掉（不补）</span>
+        <span><i style="background:#fff7ed;border-color:#fed7aa"></i>调课</span>
+        <span><i style="background:#f5f3ff;border-color:#ddd6fe"></i>第17周补课</span>
+        <span><i style="background:#fff;border:1px dashed #bbf7d0"></i>已填实际内容</span>
+      </div>
+      <div class="table-scroll">
+        <table id="mainTable">
+          <thead>
+            <tr>
+              <th style="width:72px">周次</th>
+              <th style="width:112px">上课日期</th>
+              <th style="width:92px">班级</th>
+              <th style="width:78px">节次</th>
+              <th style="width:100px">状态</th>
+              <th style="width:118px">累计课时</th>
+              <th>应上进度（计划）</th>
+              <th style="width:200px">实际内容 / 操作</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-head">
+      <h2><span class="num">4</span>调课 / 放假 / 补课说明</h2>
+      <div class="hint">按实际发生的教学事件梳理</div>
+    </div>
+    <div class="card-body" id="eventsBox"></div>
+  </section>
+
+  <section class="card">
+    <div class="card-head"><h2><span class="num">5</span>学期与课表基础设置</h2><div class="hint">修改后重新生成本学期课次</div></div>
+    <div class="card-body">
+      <div class="upgrade-tools"><label>第1周周一 <input type="date" id="termMonday"></label><label>开学首课日 <input type="date" id="termFirstDate"></label><button class="primary" id="saveTermConfig">保存并重新计算课次</button><button id="resetTermConfig">恢复当前学期默认</button></div>
+      <label>课次覆盖（每行：原日期,班级,节次,新日期,状态）<textarea id="scheduleOverrides" rows="5" placeholder="2026-10-06,25机电3班,1-2节,2026-09-20,调课\n2026-09-29,25机电3班,1-2节,,冲课"></textarea></label><div class="upgrade-tools"><button class="primary" id="saveScheduleOverrides">保存课次覆盖</button><button id="resetScheduleOverrides">清除课次覆盖</button><span id="scheduleStatus"></span></div>
+      <div class="import-help"><b>导入新的完整课程表，请按这 3 步：</b><br>1. 点击“选择教师课表文件”，选择 XLS/XLSX 课表；<br>2. 在“课程”中选择要导入的课程，例如“电气接线原理”，再选择班级；<br>3. 先点“预览（不写入）”，确认无误后，在下方勾选课程班级并点“确认正式导入”。<br><span>正式导入前会自动备份；不会覆盖已有单片机记录。</span></div>
+      <div id="matrixImportPanel" class="matrix-import"><div class="upgrade-tools"><label><b>选择教师课表文件（XLS/XLSX）</b> <input id="matrixScheduleFile" type="file" accept=".xls,.xlsx"></label><span id="matrixImportStatus"></span></div><div class="upgrade-tools"><label>课程 <select id="matrixCourseSelect" disabled><option>请先选择课表文件</option></select></label><label>班级 <select id="matrixClassSelect" disabled><option>请先选择课程</option></select></label><button id="matrixGenerateBtn" class="primary" disabled>预览（不写入）</button></div><div id="matrixPreview"></div></div>
+      <details class="legacy-import"><summary>高级：旧版调课覆盖 CSV/TSV 导入（已有课次专用）</summary><div class="upgrade-tools"><label>导入调课覆盖 CSV/TSV <input id="scheduleImportFile" type="file" accept=".csv,.tsv,.txt"></label><button id="exportScheduleCsv">导出当前课次 CSV</button></div><small>这个入口用于已有课次的调课、冲课、假期状态，不用于导入新的完整课程表。</small></details>
+      <div id="scheduleVisualEditor" class="table-scroll"></div>
+      <div class="notice blue">状态可填写：调课、冲课、假期。调课需要填写新日期；冲课和假期的新日期留空。保存后会自动备份当前记录并刷新课次计算。</div>
+    </div>
+  </section>
+
+  <footer class="foot">数据来源：《广州华夏职业学院课程教学进度表》+《实训课程教学进度表》· 课程与上课记录存在华夏工具账号里，换电脑用同一账号登录就能接着用</footer>
+</div>
+
+<div class="modal-mask" id="modalMask">
+  <div class="modal">
+    <div class="m-head">
+      <h3 id="mTitle">记录实际上课内容</h3>
+      <span class="x-close" id="mClose">×</span>
+    </div>
+    <div class="m-body">
+      <div class="field">
+        <label>本次课信息</label>
+        <div class="plan-line" id="mInfo"></div>
+      </div>
+      <div class="field">
+        <label>应上进度（计划，可修改）<span class="tip">留空表示本次未上计划内容</span></label>
+        <input type="text" id="mPlan" placeholder="例：项目3 任务3-1：认识C语言，流水灯设计与验证">
+      </div>
+      <div class="field">
+        <label>实际讲授内容<span class="tip">你实际上到哪、讲了什么、布置了什么</span></label>
+        <textarea id="mActual" rows="5" placeholder="例：讲完C语言基础语法，流水灯做了仿真但未上板；下节课需补实物调试 + 讲按键控制"></textarea>
+      </div>
+      <div class="field">
+        <label>备注 / 遗留问题<span class="tip">选填</span></label>
+        <textarea id="mNote" rows="2" placeholder="例：学生开发板缺1块，下次带齐"></textarea>
+      </div>
+    </div>
+    <div class="m-foot">
+      <button class="danger" id="mClear">清空记录</button>
+      <button class="ghost" id="mCancel">取消</button>
+      <button class="primary" id="mSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<script src="xlsx.full.min.js"></script>
+<script>
+/* =========================================================
+   一、基础常量
+   ========================================================= */
+const DEFAULT_TERM_CONFIG = { monday: "2026-08-31", firstDate: "2026-09-01" };
+let TERM_CONFIG = DEFAULT_TERM_CONFIG;
+try { TERM_CONFIG = Object.assign({}, DEFAULT_TERM_CONFIG, JSON.parse(localStorage.getItem("mcu_course_term_config") || "{}")); } catch (_) {}
+const MON1 = new Date(TERM_CONFIG.monday + "T00:00:00");
+const FIRST_DATE = TERM_CONFIG.firstDate;
+const HOURS_PER_SESSION = 2;             // 每次课（一个节次）= 2 课时
+const HOURS_PER_PLAN_WEEK = 3;           // 计划表每周 = 理论1 + 实训2 = 3 课时
+const TOTAL_PLAN_HOURS = 48;             // 每班计划总课时
+const TOTAL_PLAN_WEEKS = 16;             // 计划总周数
+
+// 16 周计划内容
+const PLAN = {
+  1:  {proj:"项目1：熟悉单片机操作环境", task:"任务1-1", name:"认识单片机，Keil软件的使用，Proteus软件的使用", lab:"安装Keil软件、Proteus软件，掌握其使用方法"},
+  2:  {proj:"项目1：熟悉单片机操作环境", task:"任务1-2", name:"数制转换，一个LED发光二极管的闪烁控制", lab:"一个LED发光二极管的闪烁控制"},
+  3:  {proj:"项目2：学习单片机硬件系统", task:"任务2-1", name:"认识硬件系统，单片机控制蜂鸣器", lab:"单片机控制蜂鸣器发声"},
+  4:  {proj:"项目3：单片机并行I/O端口的应用", task:"任务3-1", name:"认识C语言，流水灯设计与验证", lab:"设计单片机控制流水灯电路并验证，实现其仿真"},
+  5:  {proj:"项目3：单片机并行I/O端口的应用", task:"任务3-2", name:"掌握C语言基本语句，按键控制花样霓虹灯设计与验证", lab:"设计按键控制花样霓虹灯电路并验证，实现其仿真"},
+  6:  {proj:"项目3：单片机并行I/O端口的应用", task:"任务3-3", name:"掌握C语言数据与运算、C语言的函数，声光报警器设计与验证", lab:"设计声光报警器电路并验证，实现其仿真"},
+  7:  {proj:"项目4：显示与键盘接口技术应用", task:"任务4-1（一）", name:"认识LED数码管，数码管静态显示电路基础", lab:"实现数码管静态显示并验证"},
+  8:  {proj:"项目4：显示与键盘接口技术应用", task:"任务4-1（二）", name:"实现8路抢答器设计", lab:"设计8路抢答器电路并验证，实现其仿真"},
+  9:  {proj:"项目4：显示与键盘接口技术应用", task:"任务4-2", name:"实现数码管动态显示设计与验证", lab:"设计数码管动态显示电路并验证，实现其仿真"},
+  10: {proj:"项目4：显示与键盘接口技术应用", task:"任务4-3", name:"实现LED点阵屏显示设计与验证", lab:"设计LED点阵屏显示电路并验证，实现其仿真"},
+  11: {proj:"项目4：显示与键盘接口技术应用", task:"任务4-4", name:"实现液晶屏显示设计与验证", lab:"设计液晶屏显示电路并验证，实现其仿真"},
+  12: {proj:"项目4：显示和键盘接口技术应用", task:"任务4-5", name:"实现矩阵按键设计与验证", lab:"设计矩阵按键电路并验证，实现其仿真"},
+  13: {proj:"项目5：定时与中断系统", task:"任务5-1", name:"定时、中断应用设计与验证", lab:"设计定时、中断电路并验证"},
+  14: {proj:"项目5：定时与中断系统", task:"任务5-2", name:"定时、中断应用控制与仿真", lab:"定时、中断应用控制与仿真"},
+  15: {proj:"总复习", task:"复习", name:"复习", lab:"复习（实训）"},
+  16: {proj:"复习、考试", task:"复习、考试", name:"复习、考试", lab:"复习、考试"}
+};
+const ELECTRICAL_PROGRESS = [
+  ["模块1：课程认知与安全", "理论1", "理论：课程认知与电气接线安全规范"],
+  ["模块1：课程认知与安全", "实训1", "实训：安全检查与低压电器识别"],
+  ["模块2：工具与接线工艺", "理论2", "理论：电工工具、导线与接线工艺"],
+  ["模块2：工具与接线工艺", "实训2", "实训：工具使用与控制线制作"],
+  ["模块3：单向起动线路", "理论3", "理论：三相电动机单向起动线路原理"],
+  ["模块3：单向起动线路", "实训3", "实训：单向起动线路安装"],
+  ["模块3：单向起动线路", "理论4", "理论：单向起动调试与故障诊断"],
+  ["模块3：单向起动线路", "实训4", "实训：单向起动调试与排故"],
+  ["模块4：正反转控制", "理论5", "理论：电气互锁正反转控制原理"],
+  ["模块4：正反转控制", "实训5", "实训：电气互锁正反转线路安装"],
+  ["模块4：正反转控制", "理论6", "理论：正反转调试与故障分析"],
+  ["模块4：正反转控制", "实训6", "实训：正反转调试与排故"],
+  ["模块4：正反转控制", "理论7", "理论：双重互锁正反转原理"],
+  ["模块4：正反转控制", "实训7", "实训：双重互锁线路安装与调试"],
+  ["模块5：星三角起动", "理论8", "理论：按钮切换星—三角起动原理"],
+  ["模块5：星三角起动", "实训8", "实训：按钮切换星—三角线路安装"],
+  ["模块5：星三角起动", "理论9", "理论：按钮切换星—三角调试与排故"],
+  ["模块5：星三角起动", "实训9", "实训：按钮切换星—三角调试"],
+  ["模块6：自动星三角", "理论10", "理论：时间继电器与自动星—三角原理"],
+  ["模块6：自动星三角", "实训10", "实训：自动星—三角线路安装"],
+  ["模块6：自动星三角", "理论11", "理论：自动星—三角调试与故障检修"],
+  ["模块6：自动星三角", "实训11", "实训：自动星—三角调试排故"],
+  ["模块7：综合考核", "理论12", "理论：综合线路识图与考核准备"],
+  ["模块7：综合考核", "实训12", "实训：综合项目考核与课程总结"]
+].map((x,i)=>({no:i+1,proj:x[0],task:x[1],name:x[2],lab:x[2],editable:true}));
+
+// 特殊日期事件
+const EVENTS = {
+  "2026-09-20": {type:"move", title:"调课 · 补课", desc:"原定 10月6日（第6周 周二1-2节 · 25机电3班）的课，改到今日（周日）上。"},
+  "2026-09-28": {type:"holiday", title:"放假", desc:"中秋后放假 —— 当天无课。"},
+  "2026-09-29": {type:"holiday", title:"放假 · 冲课（不补）", desc:"25机电3班 周二1-2节 的课被冲掉，损失 2 课时。"},
+  "2026-09-30": {type:"holiday", title:"放假 · 冲课（不补）", desc:"25机电2班 周三1-2节 的课被冲掉，损失 2 课时。"},
+  "2026-10-06": {type:"shift",  title:"已提前补上", desc:"该次课已于 9月20日（周日）提前上过。此处为原定时间。"},
+  "2026-10-07": {type:"shift",  title:"已调整", desc:"25机电2班 原定今日的课（1-2节、3-4节）已改到 10月10日（周六）上。"},
+  "2026-10-10": {type:"move",   title:"调课 · 补课", desc:"原定 10月7日（第6周 周三 · 25机电2班 1-2节 + 3-4节）的课，改到今日（周六）上。"}
+};
+
+// 国庆法定假期（这些日期被冲掉的课时不补，正常放假）
+const NATIONAL_HOLIDAY = ["2026-10-01","2026-10-02","2026-10-03","2026-10-04","2026-10-05","2026-10-06","2026-10-07"];
+
+/* =========================================================
+   二、日期工具
+   ========================================================= */
+function toDate(v){ return (v instanceof Date) ? new Date(v.getFullYear(),v.getMonth(),v.getDate()) : new Date(v+"T00:00:00"); }
+function addDays(d,n){ const x=toDate(d); x.setDate(x.getDate()+n); return x; }
+function iso(d){ const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),dd=String(d.getDate()).padStart(2,'0'); return y+"-"+m+"-"+dd; }
+function weekOf(v){ return Math.floor((toDate(v) - MON1) / 604800000) + 1; }
+const WD = ["星期日","星期一","星期二","星期三","星期四","星期五","星期六"];
+
+/* =========================================================
+   三、排课 + 课时累计引擎
+   ---------------------------------------------------------
+   排课规律（大小周）：
+     25机电3班：单周 周二1-2节；双周 周二1-2节 + 周四3-4节
+     25机电2班：单周 周三1-2节；双周 周三1-2节 + 周三3-4节
+
+   进度模型（按课时累计）：
+     每次课 = 2 课时；计划每周 = 3 课时。
+     每班 24 次课 × 2 课时 = 48 课时 = 16 周计划，完全吻合。
+     被冲掉的课不消耗课时 → 该班在后续按原节奏推进，
+     直到第 16 周结束时仍差 2 课时 → 第 17 周补上（第17周每班正好 1 次课 = 2 课时）。
+   ========================================================= */
+const TIMELINE = (function(){
+  const S = [];
+  for(let w=1; w<=17; w++){
+    const mon = addDays(MON1,(w-1)*7), odd = (w%2===1);
+    const tue = addDays(mon,1), wed = addDays(mon,2), thu = addDays(mon,3);
+    S.push({date:tue, week:w, parity:odd?"单周":"双周", cls:"25机电3班", period:"1-2节", weekday:"星期二"});
+    if(!odd) S.push({date:thu, week:w, parity:"双周", cls:"25机电3班", period:"3-4节", weekday:"星期四"});
+    S.push({date:wed, week:w, parity:odd?"单周":"双周", cls:"25机电2班", period:"1-2节", weekday:"星期三"});
+    if(!odd) S.push({date:wed, week:w, parity:"双周", cls:"25机电2班", period:"3-4节", weekday:"星期三"});
+  }
+  S.forEach(s=> s.dateISO = iso(s.date));
+
+  /* ---- 调课：整体改期（置换，不增加课次） ---- */
+  S.filter(s=> s.dateISO==="2026-10-06" && s.cls==="25机电3班").forEach(s=>{
+    s.date = new Date(2026,8,20); s.dateISO = "2026-09-20"; s.week = weekOf("2026-09-20");
+    s.weekday = "星期日"; s.movedFrom = "2026-10-06";
+  });
+  S.filter(s=> s.dateISO==="2026-10-07" && s.cls==="25机电2班").forEach(s=>{
+    s.date = new Date(2026,9,10); s.dateISO = "2026-10-10"; s.week = weekOf("2026-10-10");
+    s.weekday = "星期六"; s.movedFrom = "2026-10-07";
+  });
+
+  /* ---- 放假冲课（仅 9/29、9/30 需要补） ---- */
+  S.forEach(s=>{
+    if(s.dateISO==="2026-09-29" && s.cls==="25机电3班") s.canceled = true;
+    if(s.dateISO==="2026-09-30" && s.cls==="25机电2班") s.canceled = true;
+    // 国庆法定假期内本就无课（10/1-10/7 中的课已通过调课处理）
+    if(NATIONAL_HOLIDAY.indexOf(s.dateISO) > -1) s.nationalHoliday = true;
+  });
+
+  S.sort((a,b)=> toDate(a.dateISO)-toDate(b.dateISO) || a.cls.localeCompare(b.cls) || a.period.localeCompare(b.period));
+
+  /* ---- 计划内容映射（一周一条内容，冲课顺延） ----
+     规则：一周 = 一条计划内容。单周1节、双周2节都上"同一条"。
+     被冲掉的周不消耗内容 → 后续计划条目整体顺延（不加、不叠）。
+     用"有效周"累计：从第1周起，只要该周有未被冲的课就消耗一条计划。
+     16条计划 = 16个有效周；被冲1周 → 计划内容整体后移，落到第17周收尾。 */
+  const acc = {"25机电2班":0, "25机电3班":0};
+  const byCls = {"25机电2班":[], "25机电3班":[]};
+  S.forEach(s=> byCls[s.cls].push(s));
+
+  ["25机电2班","25机电3班"].forEach(c=>{
+    byCls[c].sort((a,b)=> toDate(a.dateISO)-toDate(b.dateISO) || a.period.localeCompare(b.period));
+    const weekPlan = {};   // week -> 该周对应的计划条目序号
+    let curPlanW = 0;
+    byCls[c].forEach(s=>{
+      if(s.canceled){ s.hourFrom = null; s.hourTo = null; s.planW = null; return; }
+      if(!(s.week in weekPlan)){
+        // 进入一个新的有效周 → 消耗一条计划内容
+        curPlanW += 1;
+        weekPlan[s.week] = curPlanW;
+      }
+      s.planW = weekPlan[s.week];
+      s.hourFrom = acc[c];
+      acc[c] += HOURS_PER_SESSION;
+      s.hourTo = acc[c];
+      s.planFrom = s.planW;
+      s.planTo   = s.planW;
+    });
+    // 每班最后一次课
+    const totalH = acc[c];
+    byCls[c].filter(s=>!s.canceled).forEach(s=>{
+      s.isLast   = (s.hourTo === totalH);
+      s.isMakeup = s.isLast && (s.week > TOTAL_PLAN_WEEKS); // 落在第17周（计划周之后）的收尾课 = 顺延补课
+    });
+    // 同一周内多节课 → 标注"本条内第几节"
+    const grp = {};
+    byCls[c].filter(s=>!s.canceled).forEach(s=>{ (grp[s.week] = grp[s.week] || []).push(s); });
+    Object.values(grp).forEach(list=>{
+      list.sort((a,b)=> a.period.localeCompare(b.period));
+      list.forEach((s,i)=>{ s.segIndex = i + 1; s.segTotal = list.length; });
+    });
+  });
+  return S;
+})();
+
+/* =========================================================
+   四、本地存储（实际内容）
+   ========================================================= */
+const STORE_KEY = "mcu_course_actual_v2";
+const SCHEDULE_OVERRIDE_KEY = "mcu_course_schedule_overrides_v1";
+let SCHEDULE_OVERRIDES = [];
+try { SCHEDULE_OVERRIDES = JSON.parse(localStorage.getItem(SCHEDULE_OVERRIDE_KEY) || "[]"); } catch (_) { SCHEDULE_OVERRIDES = []; }
+function applyScheduleOverrides(){
+  const valid = Array.isArray(SCHEDULE_OVERRIDES) ? SCHEDULE_OVERRIDES : [];
+  valid.forEach(o=>{
+    const s=TIMELINE.find(x=>x.originalDateISO===o.originalDate && x.cls===o.cls && x.period===o.period);
+    if(!s)return;
+    if(o.status==='冲课'||o.status==='假期'){s.canceled=true;s.movedFrom='';s.overrideStatus=o.status}
+    else if(o.status==='调课'&&/^\d{4}-\d{2}-\d{2}$/.test(o.newDate)){s.movedFrom=s.originalDateISO;s.dateISO=o.newDate;s.date=toDate(o.newDate);s.weekday=WD[s.date.getDay()];s.overrideStatus='调课'}
+  });
+  TIMELINE.sort((a,b)=>toDate(a.dateISO)-toDate(b.dateISO)||a.cls.localeCompare(b.cls)||a.period.localeCompare(b.period));
+}
+TIMELINE.forEach(s=>{s.originalDateISO=s.dateISO});
+applyScheduleOverrides();
+let STORE = {};
+try{ STORE = JSON.parse(localStorage.getItem(STORE_KEY) || "{}"); }catch(e){ STORE = {}; }
+function saveStore(){try{localStorage.setItem(STORE_KEY,JSON.stringify(STORE));$("storageStatus").textContent="已保存到当前浏览器";return true}catch(e){$("storageStatus").textContent="保存失败，请立即导出备份";alert("浏览器保存失败，记录暂留在页面内，请导出 JSON 备份。");return false}}
+function recKey(s){ return s.dateISO + "|" + s.cls + "|" + s.period; }
+function getRec(s){ return STORE[recKey(s)] || null; }
+
+/* =========================================================
+   五、状态判定
+   ========================================================= */
+function stateOf(s, refISO){
+  const o = Object.assign({}, s);
+  if(s.canceled){ o.stateKey="canceled"; o.stateLabel="放假冲掉"; return o; }
+  const d = toDate(s.dateISO), ref = toDate(refISO);
+  if(d < ref){ o.stateKey="done"; o.stateLabel="日期已过"; }
+  else if(+d === +ref){ o.stateKey="today"; o.stateLabel="今天"; }
+  else { o.stateKey="plan"; o.stateLabel="待上课"; }
+  if(s.movedFrom && o.stateKey==="done"){ o.stateKey="moved"; o.stateLabel="调课日期已过"; }
+  else if(s.movedFrom){ o.stateLabel="待上课（调课）"; }
+  if(s.isMakeup && o.stateKey!=="done" && o.stateKey!=="moved"){ o.stateKey="shift"; o.stateLabel="第17周补课"; }
+  return o;
+}
+
+/* 进度文本：一周（=一条计划内容）对应本班该周的所有课，不跨条、不叠加
+   —— 双周有两节时：第1节标"第1-2课时"、第2节标"第3-4课时"，都属同一条内容。 */
+function progressOf(s){
+  if(!s || s.canceled || s.planW === null || s.planW === undefined) return null;
+  const wk = s.planW;
+  const main = PLAN[wk];
+  if(!main) return null;
+  const segN = s.segTotal || 1, idx = s.segIndex || 1;
+  let span;
+  if(segN <= 1){
+    span = "本条内容全部课时（2 课时）";
+  } else {
+    const a = (idx - 1) * 2 + 1, b = idx * 2;
+    span = "本条内容第 " + a + "–" + b + " 课时（共 " + (segN * 2) + " 课时）";
+  }
+  return {
+    from: wk, to: wk, main,
+    label: "计划第 " + wk + " 周",
+    seg: segN > 1 ? (idx === 1 ? "本节 · 第1节" : "本节 · 第2节") : "本节",
+    span
+  };
+}
+
+/* =========================================================
+   六、渲染
+   ========================================================= */
+const $ = id => document.getElementById(id);
+let curFilter = "all";
+let editingKey = null;
+const escapeText=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const hasActual=s=>!!String(getRec(s)?.actual||'').trim();
+function selectedRows(){const mode=$("recordFilter").value;return TIMELINE.filter(s=>(curFilter==='all'||s.cls===curFilter)&&(mode==='all'||(!s.canceled&&(mode==='recorded'?hasActual(s):!hasActual(s)))))}
+
+
+function render(){
+  const refISO = $("dateInput").value || FIRST_DATE;
+  const ref = toDate(refISO);
+  const wk = weekOf(ref), parity = (wk%2===1)?"单周":"双周";
+  const ev = EVENTS[refISO];
+
+  /* ---------- 当日视图 ---------- */
+  const dayList = TIMELINE.filter(s=> s.dateISO === refISO);
+  let h = `<div class="today-head">
+    <span class="big">${ref.getFullYear()}年${ref.getMonth()+1}月${ref.getDate()}日</span>
+    <span class="tag">${WD[ref.getDay()]}</span>
+    <span class="tag">第 ${wk} 周 · ${parity}</span>`;
+  if(ev) h += `<span class="tag ${ev.type==="holiday"?"holiday":(ev.type==="move"?"makeup":"")}">${ev.title}</span>`;
+  if(!dayList.length && !ev) h += `<span class="tag rest">${(ref.getDay()===0||ref.getDay()===6)?"周末休息":"今天无课"}</span>`;
+  h += `</div>`;
+
+  if(ev){
+    const c = ev.type==="holiday" ? "red" : (ev.type==="move" ? "orange" : "purple");
+    h += `<div class="notice ${c}"><b>${ev.title}：</b>${ev.desc}</div>`;
+  }
+
+  if(dayList.length){
+    dayList.forEach(s=>{
+      const clsKey = s.cls==="25机电2班" ? "cls2" : "cls3";
+      const rawRec = getRec(s); const rec = rawRec ? Object.fromEntries(Object.entries(rawRec).map(([k,v])=>[k,escapeText(v)])) : null;
+      const past = toDate(s.dateISO) < ref;
+      let box = "lesson " + clsKey, badge = "";
+      if(s.canceled){ box += " canceled"; badge = `<span class="badge canceled">放假冲掉</span>`; }
+      else if(past){ box += " done"; badge = `<span class="badge done">已完成</span>`; }
+      if(s.movedFrom) badge += `<span class="badge special">调课而来</span>`;
+
+      const pg = progressOf(s);
+      let body = "";
+      if(s.canceled){
+        body = `<div class="content" style="color:#b91c1c">本周该班的课被冲掉（单周仅此一节）</div>
+                <div class="lab" style="color:#b91c1c">因放假取消，本周内容不消耗；后续内容依次顺延，期末第 17 周上完最后一条</div>`;
+      } else {
+        body = `<div class="proj">${pg?pg.main.proj:""} ${pg?"· "+pg.main.task:""}</div>
+                <div class="content">${pg?pg.main.name:"—"}</div>
+                ${pg?`<div class="lab">${pg.main.lab}</div>`:""}
+                <div class="range">${pg?pg.label:""} ｜ ${pg?pg.span:""}${pg&&pg.segTotal>1?"（本节为第"+pg.segIndex+"节）":""} ｜ 累计课时 ${s.hourFrom}–${s.hourTo}${s.isLast?"（本班最后一次课）":""}${s.movedFrom?" ｜ 由原定 "+s.movedFrom+" 调课而来":""}${s.isMakeup?" ｜ 顺延至第17周收尾":""}</div>`;
+      }
+      if(rec && (rec.actual||rec.plan)){
+        body += `<div class="actual"><div class="mk">✓ 实际记录</div>
+          ${rec.plan?`<div class="txt"><b>实上进度：</b>${rec.plan}</div>`:""}
+          ${rec.actual?`<div class="txt"><b>实际内容：</b>${rec.actual}</div>`:""}
+          ${rec.note?`<div class="txt"><b>备注：</b>${rec.note}</div>`:""}
+        </div>`;
+      }
+
+      h += `<div class="${box}">
+        <div class="l-top">
+          <span class="cls-name">${s.cls}</span>
+          <span class="badge period">${s.period}</span>
+          <span class="badge">${s.weekday}</span>
+          ${badge}
+        </div>${body}
+        ${s.canceled?"":`<div class="acts"><button class="tiny" data-edit="${recKey(s)}">✎ 记录 / 编辑实际内容</button></div>`}
+      </div>`;
+    });
+  } else if(!ev){
+    h += `<div class="empty">该日期没有排课安排</div>`;
+  }
+  $("dayView").innerHTML = h;
+
+  /* ---------- 统计 ---------- */
+  const st = TIMELINE.map(s=> stateOf(s, refISO));
+  function clsStat(c){
+    const all = st.filter(s=> s.cls===c && !s.canceled);
+    const done = all.filter(s=> s.stateKey==="done"||s.stateKey==="moved").length;
+    const hours = all.filter(s=> s.stateKey==="done"||s.stateKey==="moved").length * HOURS_PER_SESSION;
+    return {all, done, hours};
+  }
+  const a2 = clsStat("25机电2班"), a3 = clsStat("25机电3班");
+  const canceledSessions = st.filter(s=>s.canceled);
+  const cancelH = canceledSessions.length * HOURS_PER_SESSION;
+  // 补课状态：被冲课时是否已补回
+  const makeupSessions = st.filter(s=> s.isMakeup);
+  const makeupDone = makeupSessions.filter(s=> s.stateKey==="done"||s.stateKey==="moved").length;
+  const makeupPending = (makeupSessions.length - makeupDone) * HOURS_PER_SESSION;
+
+  const upcoming = st.filter(s=> !s.canceled && (s.stateKey==="plan"||s.stateKey==="today"||s.stateKey==="shift"))
+                     .sort((a,b)=> toDate(a.dateISO)-toDate(b.dateISO));
+  const nextByCls = {};
+  ["25机电2班","25机电3班"].forEach(c=>{ nextByCls[c] = upcoming.find(s=>s.cls===c); });
+
+  $("statsBox").innerHTML = `
+    <div class="stat blue"><div class="k">当前第几周</div><div class="v">第 ${wk} 周 <span style="font-size:13px">${parity}</span></div></div>
+    <div class="stat green"><div class="k">25机电2班 日期已过</div><div class="v">${a2.done} / ${a2.all.length} 次课</div></div>
+    <div class="stat green"><div class="k">25机电3班 日期已过</div><div class="v">${a3.done} / ${a3.all.length} 次课</div></div>
+    <div class="stat red"><div class="k">放假冲掉</div><div class="v">${cancelH} 课时</div></div>
+    <div class="stat orange"><div class="k">待补课</div><div class="v">${makeupPending} 课时</div></div>
+    <div class="stat purple"><div class="k">补课安排</div><div class="v">第 17 周${makeupPending===0&&cancelH>0?"（已补完）":""}</div></div>
+  `;
+
+  $("calcNote").innerHTML = `
+    <b>进度模型（一周一条内容，冲课顺延）：</b>
+    每周对应 Word 进度表里的<b>一条计划内容</b>；单周 1 节（2 课时）、双周 2 节（4 课时），
+    同一周的两节课上的是<b>同一条内容</b>（双周拆成两节上完）——
+    <b>不跨条、不叠加、不增加任何条目</b>。
+    本学期 <b>9/29（25机电3班 第5周）</b> 与 <b>9/30（25机电2班 第5周）</b> 各被冲掉整周，
+    该周不消耗内容 → 其余 16 周内容依次顺延，最后一条（复习、考试）落到 <b>第 17 周</b>上完。
+    国庆法定假期（10/1–10/7）内冲掉的课时不补。
+  `;
+
+  let nextHTML = `<b>下一节该上什么：</b><ul>`;
+  ["25机电2班","25机电3班"].forEach(c=>{
+    const n = nextByCls[c];
+    if(!n){ nextHTML += `<li><b>${c}</b>：全部计划内容已完成</li>`; return; }
+    const pg = progressOf(n);
+    nextHTML += `<li><b>${c}</b>：${n.dateISO}（${n.weekday} ${n.period}）→ ${pg?pg.label+" "+pg.main.proj+" "+pg.main.task:"—"}${pg&&pg.segTotal>1?"（第"+pg.segIndex+"节）":""}${n.isMakeup?"（顺延收尾）":""}</li>`;
+  });
+  nextHTML += `</ul>`;
+  nextHTML += `<div style="margin-top:8px;font-size:12px;color:#94a3b8">已填写实际记录 ${Object.keys(STORE).length} 条（保存在本机浏览器）</div>`;
+  $("nextNote").innerHTML = nextHTML;
+
+  /* ---------- 进度表 ---------- */
+  let rows = st.filter(s=>selectedRows().some(x=>recKey(x)===recKey(s)));
+  if(curFilter!=="all") rows = rows.filter(s=> s.cls===curFilter);
+  rows.sort((a,b)=> toDate(a.dateISO)-toDate(b.dateISO) || a.cls.localeCompare(b.cls) || a.period.localeCompare(b.period));
+
+  let prevW = null, tb = "";
+  rows.forEach(s=>{
+    const rec = getRec(s);
+    const pg = progressOf(s);
+    const clsKey = s.cls==="25机电2班" ? "s2" : "s3";
+    let tr = "";
+    if(s.canceled) tr = "is-canceled";
+    else if(s.isMakeup) tr = "is-shift";
+    else if(s.movedFrom && s.stateKey==="moved") tr = "is-makeup";
+    else if(s.stateKey==="done") tr = "is-done";
+    if(prevW!==null && s.week!==prevW) tr += " wk-sep";
+    prevW = s.week;
+
+    const stCls = s.canceled ? "canceled"
+      : (s.isMakeup ? "shift"
+      : (s.movedFrom && s.stateKey==="moved" ? "makeup"
+      : (s.stateKey==="done" ? "done" : "plan")));
+
+    let progCell, actCell, contentCell;
+    if(s.canceled){
+      progCell = `<span style="color:#b91c1c;font-weight:700">整周冲掉</span>`;
+      contentCell = `<span style="color:#b91c1c">本周该班的课因放假取消（单周仅此一节）—— 内容不消耗，后续整体顺延</span>`;
+      actCell = `<span style="color:#94a3b8">—</span>`;
+    } else {
+      progCell = `<b>${pg?pg.label:"—"}</b>${pg?`<div style="font-size:11.5px;color:#94a3b8;font-weight:600">${pg.segTotal>1?("本节 · 第"+pg.segIndex+"节"):"本节"}</div>`:""}`;
+      contentCell = `<b style="color:#334155">${pg?pg.main.proj+" "+pg.main.task:"—"}</b><br>
+        <span style="font-weight:600">${pg?pg.main.name:"—"}</span>
+        ${pg?`<br><span style="color:#64748b">实训：${pg.main.lab}</span>`:""}
+        ${pg?`<br><span style="color:#94a3b8;font-size:12px">${pg.span}</span>`:""}
+        ${s.movedFrom?`<br><span style="color:#ea580c;font-weight:600">（由原定 ${s.movedFrom} 调课而来）</span>`:""}`;
+      const filled = rec && (rec.actual||rec.plan);
+      actCell = `<button class="tiny" data-edit="${recKey(s)}">✎ ${filled?"编辑":"记录"}</button>
+        ${filled?`<span class="actual-tag">✓ 已记录<br>${(rec.plan||rec.actual||"").slice(0,36)}${(rec.plan||rec.actual||"").length>36?"…":""}</span>`:""}`;
+    }
+
+    tb += `<tr class="${tr}">
+      <td class="c-week">第 ${s.week} 周<span class="parity">${s.parity||""}</span></td>
+      <td class="c-date">${s.dateISO}<br><span style="color:#94a3b8">${s.weekday||WD[toDate(s.dateISO).getDay()]}</span></td>
+      <td class="c-cls ${clsKey}">${s.cls}</td>
+      <td class="c-date">${s.period}</td>
+      <td><span class="status ${stCls}">${s.stateLabel}</span></td>
+      <td class="c-date">${s.canceled?"<span style='color:#b91c1c'>2 课时（未上）</span>":"累计 "+s.hourFrom+"–"+s.hourTo}</td>
+      <td>${progCell}<div style="margin-top:4px;font-size:12.5px">${contentCell}</div></td>
+      <td>${actCell}</td>
+    </tr>`;
+  });
+  $("tbody").innerHTML = tb;
+
+  /* ---------- 事件说明 ---------- */
+  renderDashboard(refISO);
+  $("eventsBox").innerHTML = `
+    <div class="notice orange">
+      <b>① 调课一：10月6日 → 9月20日（25机电3班）</b>
+      <ul><li>原定 <b>10月6日</b>（周二1-2节）的课改到 <b>9月20日（周日）</b>上，属置换，不额外增加课次。</li></ul>
+    </div>
+    <div class="notice orange">
+      <b>② 调课二：10月7日 → 10月10日（25机电2班）</b>
+      <ul><li>原定 <b>10月7日</b>（周三，1-2节 + 3-4节）的课改到 <b>10月10日（周六）</b>上。</li></ul>
+    </div>
+    <div class="notice red">
+      <b>③ 放假冲课（仅这 2 次需要补）</b>
+      <ul>
+        <li><b>9/29（周二）</b>：25机电3班 被冲 1 次课 = <b>2 课时</b>。</li>
+        <li><b>9/30（周三）</b>：25机电2班 被冲 1 次课 = <b>2 课时</b>。</li>
+        <li>国庆法定假期（10/1–10/7）内冲掉的课时 <b>不补</b>，正常放假。</li>
+      </ul>
+    </div>
+    <div class="notice purple">
+      <b>④ 顺延安排：冲掉的整周内容依次后移</b>
+      <ul>
+        <li>9/29（3班）、9/30（2班）各被冲掉<b>整周</b>（单周只此一节）→ 该周内容不消耗，其余内容整体后移。</li>
+        <li>16 条计划内容用 16 个有效周上完；因被冲 1 周，最后落到 <b>第 17 周</b>收尾：
+            25机电3班 <b>12/22（周二）</b>、25机电2班 <b>12/23（周三）</b>，各 1 节（2 课时）上完第 16 条。</li>
+        <li><b>不增加任何内容、不与别周叠加</b>，纯顺延。</li>
+      </ul>
+    </div>
+    <div class="notice blue">
+      <b>⑤ 排课规律（大小周）</b>
+      <ul>
+        <li><b>25机电3班</b>：单周 <b>周二1-2节</b>；双周 <b>周二1-2节 + 周四3-4节</b>。</li>
+        <li><b>25机电2班</b>：单周 <b>周三1-2节</b>；双周 <b>周三1-2节 + 周三3-4节</b>。</li>
+        <li>即：单周每班 2 课时，双周每班 4 课时，16 周共 <b>48 课时</b>。</li>
+      </ul>
+    </div>
+  `;
+}
+
+/* =========================================================
+   七、编辑弹窗
+   ========================================================= */
+function findSession(key){ return TIMELINE.find(s=> recKey(s) === key); }
+function openEditor(key){
+  const s = findSession(key);
+  if(!s) return;
+  editingKey = key;
+  const rec = getRec(s) || {};
+  const pg = progressOf(s);
+  $("mInfo").innerHTML = `<b>${s.cls}</b> · ${s.dateISO}（${s.weekday}）· ${s.period}<br>
+    ${pg?pg.label+" ｜ ":""}累计课时 ${s.hourFrom}–${s.hourTo}${s.movedFrom?" ｜ 由原定 "+s.movedFrom+" 调课而来":""}`;
+  $("mPlan").value = (rec.plan !== undefined) ? rec.plan : (pg ? pg.main.proj+" "+pg.main.task+"："+pg.main.name : "");
+  $("mActual").value = rec.actual || "";
+  $("mNote").value = rec.note || "";
+  $("modalMask").classList.add("show");
+}
+function closeEditor(){ $("modalMask").classList.remove("show"); editingKey = null; }
+
+$("mSave").addEventListener("click", ()=>{
+  if(!editingKey) return;
+  const v = { plan: $("mPlan").value.trim(), actual: $("mActual").value.trim(),
+              note: $("mNote").value.trim(), savedAt: new Date().toISOString() };
+  if(!v.plan && !v.actual && !v.note) delete STORE[editingKey];
+  else STORE[editingKey] = v;
+  saveStore(); closeEditor(); render();
+});
+$("mClear").addEventListener("click", ()=>{
+  if(!editingKey) return;
+  if(confirm("确定清空这条记录吗？")){ delete STORE[editingKey]; saveStore(); closeEditor(); render(); }
+});
+$("mCancel").addEventListener("click", closeEditor);
+$("mClose").addEventListener("click", closeEditor);
+$("modalMask").addEventListener("click", e=>{ if(e.target === $("modalMask")) closeEditor(); });
+document.addEventListener("keydown", e=>{ if(e.key==="Escape") closeEditor(); });
+document.addEventListener("click", e=>{
+  const b = e.target.closest("[data-edit]");
+  if(b) openEditor(b.dataset.edit);
+});
+
+/* =========================================================
+   八、其它交互
+   ========================================================= */
+let autoFollow = true;          // 是否跟随系统时间（手动选日期后自动暂停）
+function setDate(v, byUser){ const input=$("dateInput")||$("genericDateInput");if(!input)return;input.value=v;if(byUser){autoFollow=false;updateAutoPill();}if(input.id==='genericDateInput')input.dispatchEvent(new Event('change'));else render(); }
+function isoToday(){ return iso(new Date()); }
+function pad2(n){ return String(n).padStart(2,"0"); }
+function updateAutoPill(){
+  $("autoPill").innerHTML = autoFollow ? "⟳ 自动跟随系统时间" : "⏸ 已暂停跟随（点此恢复）";
+}
+
+$("dateInput").addEventListener("change", ()=>{ autoFollow = false; updateAutoPill(); render(); });
+$("btnToday").addEventListener("click", ()=>{ autoFollow = true; updateAutoPill(); setDate(isoToday()); });
+$("btnStart").addEventListener("click", ()=>setDate(FIRST_DATE, true));
+$("btnPrev").addEventListener("click", ()=>{
+  const r = toDate($("dateInput").value || FIRST_DATE);
+  const p = TIMELINE.filter(s=> toDate(s.dateISO) < r ).slice(-1)[0];
+  if(p) setDate(p.dateISO, true);
+});
+$("btnNext").addEventListener("click", ()=>{
+  const r = toDate($("dateInput").value || FIRST_DATE);
+  const n = TIMELINE.filter(s=> toDate(s.dateISO) > r )[0];
+  if(n) setDate(n.dateISO, true);
+});
+document.querySelectorAll("#tabs .tab").forEach(t=>{
+  t.addEventListener("click", ()=>{
+    document.querySelectorAll("#tabs .tab").forEach(x=>x.classList.remove("on"));
+    t.classList.add("on"); curFilter = t.dataset.cls; render();
+  });
+});
+
+/* =========================================================
+   九、跟随系统时间：实时时钟 + 自动刷新
+   ---------------------------------------------------------
+   - 顶部时钟每 1 秒更新，显示当前系统时间
+   - 每 30 秒按系统日期重算一次状态：跨零点后「待上课」自动变「已完成」
+   - 仅当"所选查询日期 = 今天"时才自动跟随；若你在查历史/未来某天，不会打断你
+   ========================================================= */
+function tickClock(){
+  const n = new Date();
+  $("clockPill").textContent = "🕒 " + n.getFullYear() + "-" + pad2(n.getMonth()+1) + "-" + pad2(n.getDate())
+    + " " + pad2(n.getHours()) + ":" + pad2(n.getMinutes()) + ":" + pad2(n.getSeconds());
+}
+let lastAutoDate = isoToday();
+function autoTick(){
+  tickClock();
+  const today = isoToday();
+  if(today !== lastAutoDate){
+    // 跨零点：正在看"今天"则自动跟到新的一天，否则至少重算一次状态
+    lastAutoDate = today;
+    if(autoFollow) setDate(today);
+    else if($("dateInput")) render();
+  }
+}
+$("autoPill").addEventListener("click", ()=>{
+  autoFollow = !autoFollow;
+  updateAutoPill();
+  if(autoFollow) setDate(isoToday());
+});
+
+function renderDashboard(refISO){
+ const classes=['25机电2班','25机电3班'];
+ $('dashboard').innerHTML='<h3>班级进度对比</h3><p>日期已过只代表课表时间经过；填写实际内容才计入记录覆盖率。计划或备注单独填写不算完成。</p><div class="compare-grid">'+classes.map(cls=>{
+  const list=TIMELINE.filter(s=>s.cls===cls&&!s.canceled),past=list.filter(s=>s.dateISO<refISO),recorded=list.filter(hasActual),pending=past.filter(s=>!hasActual(s));
+  const next=list.find(s=>s.dateISO>=refISO),last=[...recorded].sort((a,b)=>b.dateISO.localeCompare(a.dateISO)||b.period.localeCompare(a.period))[0];
+  return '<article class="compare-card"><h3>'+cls+'</h3><p>计划 '+list.length+' 次 / '+list.length*2+' 课时 · 日期已过 '+past.length+' 次</p><p><b>实际记录 '+recorded.length+' 次 / '+recorded.length*2+' 课时</b> · 记录覆盖率 '+Math.round(recorded.length/list.length*100)+'%</p><div class="meter"><span style="width:'+recorded.length/list.length*100+'%"></span></div><p>已过日期但未记录：'+pending.length+' 次 / '+pending.length*2+' 课时（待核对）</p><p>下一节：'+(next?next.dateISO+' '+next.period+' · '+escapeText(progressOf(next)?.main.name||''): '课表已到末尾')+'</p><p>最近实际记录：'+(last?last.dateISO+' · '+escapeText(getRec(last).actual):'暂无')+'</p><button data-select-class="'+cls+'">查看本班进度</button></article>';
+ }).join('')+'</div>';
+ const projects=[...new Set(Object.values(PLAN).map(x=>x.proj.replace('显示和键盘','显示与键盘')))];
+ $('projectStats').innerHTML='<h3>项目记录完成度 · '+escapeText(curFilter==='all'?'两个班级':curFilter)+'</h3><div class="project-grid">'+projects.map(proj=>{
+  const list=TIMELINE.filter(s=>!s.canceled&&(curFilter==='all'||s.cls===curFilter)&&progressOf(s)?.main.proj.replace('显示和键盘','显示与键盘')===proj),count=list.filter(hasActual).length;
+  return '<div class="project-item"><b>'+escapeText(proj)+'</b><div class="meter"><span style="width:'+(list.length?count/list.length*100:0)+'%"></span></div><small>已记录 '+count*2+' / '+list.length*2+' 课时 · 尚未记录 '+(list.length-count)*2+' 课时</small></div>';
+ }).join('')+'</div>';
+}
+function downloadFile(name,data,type){const url=URL.createObjectURL(new Blob([data],{type})),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
+$('recordFilter').addEventListener('change',render);
+document.addEventListener('click',e=>{const b=e.target.closest('[data-select-class]');if(b){document.querySelector('#tabs [data-cls="'+b.dataset.selectClass+'"]').click();$('mainTable').scrollIntoView({behavior:'smooth'})}});
+$('printProgress').onclick=()=>window.print();
+$('exportProgress').onclick=()=>{const cell=v=>'"'+String(v??'').replace(/^[=+@-]/,"'$&").replace(/"/g,'""')+'"';const rows=[['日期','班级','节次','周次','计划内容','状态','实际内容','备注'],...selectedRows().map(s=>[s.dateISO,s.cls,s.period,s.week,progressOf(s)?.main.name||'',s.canceled?'冲课取消':hasActual(s)?'已填写实际内容':'未记录',getRec(s)?.actual||'',getRec(s)?.note||''])];downloadFile('课程进度-'+curFilter+'-'+$('dateInput').value+'.csv','\uFEFF'+rows.map(row=>row.map(cell).join(',')).join('\r\n'),'text/csv;charset=utf-8')};
+$('exportBackup').onclick=()=>downloadFile('单片机进度备份-'+isoToday()+'.json',JSON.stringify({version:1,storageKey:STORE_KEY,termConfig:TERM_CONFIG,scheduleOverrides:SCHEDULE_OVERRIDES,exportedAt:new Date().toISOString(),records:STORE},null,2),'application/json');
+$('importBackup').onchange=async e=>{try{const f=e.target.files[0];if(!f)return;const v=JSON.parse(await f.text());if(v.version!==1||v.storageKey!==STORE_KEY||!v.records||typeof v.records!=='object'||Array.isArray(v.records))throw Error('备份格式不匹配');const entries=Object.entries(v.records);for(const [key,r]of entries){if(!findSession(key)||!r||typeof r!=='object'||Array.isArray(r)||['plan','actual','note'].some(k=>r[k]!=null&&typeof r[k]!=='string'))throw Error('备份包含无效课次或记录')}const overlaps=entries.filter(([key])=>STORE[key]).length;if(!confirm('将合并 '+entries.length+' 条记录，其中覆盖 '+overlaps+' 条同课次记录。继续后会先下载当前记录备份。'))return;$('exportBackup').click();STORE={...STORE,...v.records};saveStore();render()}catch(err){alert('导入失败：'+err.message)}finally{e.target.value=''}};
+$('termMonday').value=TERM_CONFIG.monday;$('termFirstDate').value=TERM_CONFIG.firstDate;
+$('scheduleOverrides').value=SCHEDULE_OVERRIDES.map(o=>[o.originalDate,o.cls,o.period,o.newDate||'',o.status].join(',')).join('\n');
+function renderScheduleVisualEditor(){const byKey=new Map(SCHEDULE_OVERRIDES.map(o=>[o.originalDate+'|'+o.cls+'|'+o.period,o]));$('scheduleVisualEditor').innerHTML='<table class="schedule-editor-table"><thead><tr><th>原日期</th><th>班级</th><th>节次</th><th>当前日期</th><th>状态</th></tr></thead><tbody>'+TIMELINE.map(s=>{const key=s.originalDateISO+'|'+s.cls+'|'+s.period,o=byKey.get(key),status=o?.status||(s.canceled?'冲课':s.movedFrom?'调课':'正常'),date=o?.newDate||s.dateISO;return '<tr class="'+(status==='正常'?'':'override-row')+'"><td>'+s.originalDateISO+'</td><td>'+s.cls+'</td><td>'+s.period+'</td><td><input type="date" data-sched-date="'+key+'" value="'+date+'" '+(status==='正常'?'disabled':'')+'></td><td><select data-sched-status="'+key+'"><option '+(status==='正常'?'selected':'')+'>正常</option><option '+(status==='调课'?'selected':'')+'>调课</option><option '+(status==='冲课'?'selected':'')+'>冲课</option><option '+(status==='假期'?'selected':'')+'>假期</option></select></td></tr>'}).join('')+'</tbody></table>'}
+renderScheduleVisualEditor();
+$('saveScheduleOverrides').onclick=()=>{try{const rows=$('scheduleOverrides').value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean),next=[];for(const line of rows){const p=line.split(/[,，]/).map(x=>x.trim());if(p.length!==5||!/^\d{4}-\d{2}-\d{2}$/.test(p[0])||!['25机电2班','25机电3班'].includes(p[1])||!/^\d+-\d+节?$/.test(p[2])||!['调课','冲课','假期'].includes(p[4])||(p[4]==='调课'&&!/^\d{4}-\d{2}-\d{2}$/.test(p[3])))throw Error('格式错误：'+line);const period=p[2].endsWith('节')?p[2]:p[2]+'节';if(!TIMELINE.some(s=>s.originalDateISO===p[0]&&s.cls===p[1]&&s.period===period))throw Error('找不到原课次：'+line);next.push({originalDate:p[0],cls:p[1],period,newDate:p[3],status:p[4]})}$('exportBackup').click();localStorage.setItem(SCHEDULE_OVERRIDE_KEY,JSON.stringify(next));$('scheduleStatus').textContent='已保存 '+next.length+' 条覆盖，正在刷新';setTimeout(()=>location.reload(),250)}catch(err){$('scheduleStatus').textContent='保存失败';alert(err.message)}};
+ $('scheduleVisualEditor').addEventListener('change',e=>{const status=e.target.dataset.schedStatus;if(!status)return;const key=status, date=$('scheduleVisualEditor').querySelector('[data-sched-date="'+CSS.escape(key)+'"]');date.disabled=e.target.value==='正常';if(e.target.value==='正常')date.value=key.split('|')[0];$('scheduleVisualEditor').dispatchEvent(new Event('input'))});
+$('scheduleVisualEditor').addEventListener('input',()=>{const rows=[...$('scheduleVisualEditor').querySelectorAll('tbody tr')].map(tr=>{const d=tr.querySelector('[data-sched-date]'),s=tr.querySelector('[data-sched-status]');const p=d.dataset.schedDate.split('|');return s.value==='正常'?null:[p[0],p[1],p[2],d.value,s.value].join(',')}).filter(Boolean);$('scheduleOverrides').value=rows.join('\n')});
+$('scheduleImportFile').onchange=async e=>{try{const file=e.target.files[0];if(!file)return;const text=new TextDecoder('gb18030').decode(await file.arrayBuffer()).replace(/^\uFEFF/,'');const lines=text.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);if(!lines.length)throw Error('文件为空');const split=x=>x.split(/[,，\t]/).map(v=>v.trim());let head=split(lines[0]).map(v=>v.toLowerCase());const hasHead=head.some(v=>/日期|原日期|date/.test(v))&&head.some(v=>/班级|class/.test(v));let start=hasHead?1:0;let idx=hasHead?{old:head.findIndex(v=>/原日期|日期|date/.test(v)),cls:head.findIndex(v=>/班级|class/.test(v)),period:head.findIndex(v=>/节次|period/.test(v)),newDate:head.findIndex(v=>/新日期|调整后|new/.test(v)),status:head.findIndex(v=>/状态|status/.test(v))}:{old:0,cls:1,period:2,newDate:3,status:4};const out=[];for(let i=start;i<lines.length;i++){const p=split(lines[i]);const old=p[idx.old],cls=p[idx.cls],period=(p[idx.period]||'').endsWith('节')?p[idx.period]:p[idx.period]+'节',newDate=idx.newDate>=0?p[idx.newDate]||'':'',status=idx.status>=0?p[idx.status]||'正常':'正常';if(!/^\d{4}-\d{2}-\d{2}$/.test(old)||!['25机电2班','25机电3班'].includes(cls)||!/^\d+-\d+节$/.test(period)||!['正常','调课','冲课','假期'].includes(status)||(status==='调课'&&!/^\d{4}-\d{2}-\d{2}$/.test(newDate)))continue;if(!TIMELINE.some(s=>s.originalDateISO===old&&s.cls===cls&&s.period===period))continue;if(status!=='正常')out.push([old,cls,period,newDate,status].join(','))}if(!out.length)throw Error('没有识别到匹配的课次；请检查列名和班级名称');$('scheduleOverrides').value=out.join('\n');$('scheduleStatus').textContent='已导入 '+out.length+' 条覆盖，请核对后点击保存'}catch(err){$('scheduleStatus').textContent='导入失败';alert(err.message)}finally{e.target.value=''}};
+$('exportScheduleCsv').onclick=()=>{const rows=[['原日期','班级','节次','当前日期','状态'],...TIMELINE.map(s=>{const o=SCHEDULE_OVERRIDES.find(x=>x.originalDate===s.originalDateISO&&x.cls===s.cls&&x.period===s.period);return[s.originalDateISO,s.cls,s.period,o?.newDate||s.dateISO,o?.status||(s.canceled?'冲课':s.movedFrom?'调课':'正常')]})];downloadFile('当前课表-'+isoToday()+'.csv','\uFEFF'+rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\r\n'),'text/csv;charset=utf-8')};
+$('resetScheduleOverrides').onclick=()=>{if(!confirm('清除所有课次覆盖并恢复默认调课、冲课规则吗？'))return;$('exportBackup').click();localStorage.removeItem(SCHEDULE_OVERRIDE_KEY);location.reload()};
+$('saveTermConfig').onclick=()=>{const monday=$('termMonday').value,firstDate=$('termFirstDate').value;if(!monday||!firstDate){alert('请填写第1周周一和开学首课日');return}if(toDate(firstDate)<toDate(monday)){alert('开学首课日不能早于第1周周一');return}if(!confirm('保存后将按新起始日重新计算课次。当前记录会保留，但原有日期键可能无法匹配。建议先导出 JSON 备份。继续吗？'))return;$('exportBackup').click();localStorage.setItem('mcu_course_term_config',JSON.stringify({monday,firstDate}));location.reload()};
+$('resetTermConfig').onclick=()=>{if(!confirm('恢复当前学期默认日期并重新加载吗？'))return;localStorage.removeItem('mcu_course_term_config');location.reload()};
+function checkCourseData(){const out=[],seen=new Set(),classCounts={};TIMELINE.forEach(s=>{const k=s.originalDateISO+'|'+s.cls+'|'+s.period;if(seen.has(k))out.push({type:'error',text:'课次重复：'+k});seen.add(k);if(!s.canceled)classCounts[s.cls]=(classCounts[s.cls]||0)+1});['25机电2班','25机电3班'].forEach(c=>{const n=classCounts[c]||0;out.push({type:n===24?'pass':'error',text:c+'有效课次 '+n+'/24，课时 '+n*2+'/48'})});const dup=new Set(),overlap=[];SCHEDULE_OVERRIDES.forEach(o=>{const k=o.originalDate+'|'+o.cls+'|'+o.period;if(dup.has(k))overlap.push(k);dup.add(k);if(!TIMELINE.some(s=>s.originalDateISO===o.originalDate&&s.cls===o.cls&&s.period===o.period))out.push({type:'fix',text:'覆盖找不到原课次：'+k})});if(overlap.length)out.push({type:'fix',text:'重复覆盖 '+overlap.length+' 条，修复时保留最后一条'});Object.keys(STORE).forEach(k=>{if(!TIMELINE.some(s=>recKey(s)===k))out.push({type:'fix',text:'孤儿记录：'+k})});const raw=localStorage.getItem(STORE_KEY);try{const v=JSON.parse(raw||'{}');out.push({type:v&&typeof v==='object'&&!Array.isArray(v)?'pass':'error',text:'本地记录存储格式'+(v&&typeof v==='object'&&!Array.isArray(v)?'正常':'异常')})}catch(_){out.push({type:'error',text:'本地记录 JSON 无法解析'})}if(!out.length)out.push({type:'pass',text:'未发现问题'});return out}
+function renderSelfCheck(){const result=checkCourseData(),hasFix=result.some(x=>x.type==='fix');$('selfCheckResults').innerHTML='<div class="check-results">'+result.map(x=>'<div class="check-item '+x.type+'">'+({pass:'通过',warn:'警告',error:'错误',fix:'可修复'}[x.type]||'检查')+'：'+escapeText(x.text)+'</div>').join('')+'</div>';$('repairSelfCheck').disabled=!hasFix;$('selfCheckStatus').textContent='检查完成：'+result.length+' 项';return result}
+$('runSelfCheck').onclick=renderSelfCheck;
+$('repairSelfCheck').onclick=()=>{const result=renderSelfCheck();if(!result.some(x=>x.type==='fix'))return;if(!confirm('修复前先下载当前 JSON 备份。继续修复可确定的格式和孤儿记录吗？'))return;$('exportBackup').click();const clean={};Object.entries(STORE).forEach(([k,v])=>{if(TIMELINE.some(s=>recKey(s)===k)&&v&&typeof v==='object'&&!Array.isArray(v)){const n={};['plan','actual','note'].forEach(f=>{if(typeof v[f]==='string'&&v[f].trim())n[f]=v[f].trim()});if(Object.keys(n).length)clean[k]=n}});STORE=clean;const last=new Map();SCHEDULE_OVERRIDES.forEach(o=>last.set(o.originalDate+'|'+o.cls+'|'+o.period,o));SCHEDULE_OVERRIDES=[...last.values()].filter(o=>TIMELINE.some(s=>s.originalDateISO===o.originalDate&&s.cls===o.cls&&s.period===o.period));localStorage.setItem(STORE_KEY,JSON.stringify(STORE));localStorage.setItem(SCHEDULE_OVERRIDE_KEY,JSON.stringify(SCHEDULE_OVERRIDES));render();renderScheduleVisualEditor();renderSelfCheck();$('selfCheckStatus').textContent='已修复可确定问题'};
+// xlsx/CSV unified import: keep the existing preview-before-save contract.
+$('scheduleImportFile').onchange=async e=>{try{const file=e.target.files[0];if(!file)return;let rows;if(/\.xlsx?$/i.test(file.name)){if(!window.XLSX)throw Error('本地 Excel 解析库未加载');const wb=XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:false});rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:'',raw:false}).map(r=>r.map(v=>String(v).trim()))}else{const text=new TextDecoder('gb18030').decode(await file.arrayBuffer()).replace(/^\uFEFF/,'');rows=text.split(/\r?\n/).filter(Boolean).map(x=>x.split(/[,，\t]/).map(v=>v.trim()))}if(!rows.length)throw Error('文件为空');const head=rows[0].map(v=>v.toLowerCase()),hasHead=head.some(v=>/日期|原日期|date/.test(v))&&head.some(v=>/班级|class/.test(v)),idx=hasHead?{old:head.findIndex(v=>/原日期|日期|date/.test(v)),cls:head.findIndex(v=>/班级|class/.test(v)),period:head.findIndex(v=>/节次|period/.test(v)),newDate:head.findIndex(v=>/新日期|调整后|new/.test(v)),status:head.findIndex(v=>/状态|status/.test(v))}:{old:0,cls:1,period:2,newDate:3,status:4};const out=[],bad=[];for(let i=hasHead?1:0;i<rows.length;i++){const p=rows[i],old=p[idx.old],cls=p[idx.cls],period=(p[idx.period]||'').endsWith('节')?p[idx.period]:p[idx.period]+'节',newDate=idx.newDate>=0?p[idx.newDate]||'':'',status=idx.status>=0?p[idx.status]||'正常':'正常';if(!/^\d{4}-\d{2}-\d{2}$/.test(old)||!['25机电2班','25机电3班'].includes(cls)||!/^[0-9]+-[0-9]+节$/.test(period)||!['正常','调课','冲课','假期'].includes(status)||(status==='调课'&&!/^\d{4}-\d{2}-\d{2}$/.test(newDate))||!TIMELINE.some(s=>s.originalDateISO===old&&s.cls===cls&&s.period===period)){bad.push(i+1);continue}if(status!=='正常')out.push([old,cls,period,newDate,status].join(','))}if(!out.length)throw Error('没有识别到匹配的覆盖课次');$('scheduleOverrides').value=out.join('\n');$('scheduleStatus').textContent='已识别 '+out.length+' 条覆盖，忽略 '+bad.length+' 行；请核对后保存'}catch(err){$('scheduleStatus').textContent='导入失败';alert(err.message)}finally{e.target.value=''}};
+$('importBackup').onchange=async e=>{try{const file=e.target.files[0];if(!file)return;const v=JSON.parse(await file.text());if(v.version!==1||v.storageKey!==STORE_KEY||!v.records||typeof v.records!=='object'||Array.isArray(v.records))throw Error('备份格式不匹配');const valid=[],invalid=[],orphan=[];Object.entries(v.records).forEach(([k,r])=>{if(!TIMELINE.some(s=>recKey(s)===k)){orphan.push(k);return}if(!r||typeof r!=='object'||Array.isArray(r)||['plan','actual','note'].some(f=>r[f]!=null&&typeof r[f]!=='string'))invalid.push(k);else valid.push([k,r])});const overlaps=valid.filter(([k])=>STORE[k]).length;if(!confirm('备份记录 '+valid.length+' 条；新增 '+(valid.length-overlaps)+' 条；覆盖 '+overlaps+' 条；孤儿 '+orphan.length+' 条；无效 '+invalid.length+' 条。确认合并？'))return;$('exportBackup').click();valid.forEach(([k,r])=>STORE[k]=r);saveStore();if(Array.isArray(v.scheduleOverrides)){SCHEDULE_OVERRIDES=v.scheduleOverrides.filter(o=>o&&o.originalDate&&o.cls&&o.period);localStorage.setItem(SCHEDULE_OVERRIDE_KEY,JSON.stringify(SCHEDULE_OVERRIDES))}render();renderScheduleVisualEditor();renderSelfCheck();$('selfCheckStatus').textContent='备份已合并，孤儿/无效记录未导入'}catch(err){alert('导入失败：'+err.message)}finally{e.target.value=''}};
+
+let MATRIX_ROWS=[];
+const matrixWeekday={星期一:0,星期二:1,星期三:2,星期四:3,星期五:4,星期六:5,星期日:6};
+function parseMatrixWorkbook(buffer){if(!window.XLSX)throw Error('本地 Excel 解析库未加载');const wb=XLSX.read(buffer,{type:'array',cellDates:false}),rows=[];wb.SheetNames.forEach(name=>{const a=XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,defval:'',raw:false});if(a.length<4)return;const heads=a[2]||[];for(let r=3;r<a.length;r++){const period=String(a[r]?.[0]||'').trim().replace(/^第/,'').replace(/节$/,'节');if(!/^\d+-\d+节$/.test(period))continue;for(let c=1;c<heads.length;c++){const weekday=String(heads[c]||'').trim();if(matrixWeekday[weekday]!==undefined)for(const raw of String(a[r]?.[c]||'').split(/\r?\n+/).map(x=>x.trim()).filter(Boolean)){const parts=raw.split('◇'),m=(parts[0]||'').match(/^(.+?)\(([^)]*)\)\[/),cls=(parts[1]||'').match(/^(.+?)\((\d+)人\)/);if(!m||!cls){rows.push({sheet:name,raw,invalid:true});continue}const wm=m[2].match(/(\d+)\s*-\s*(\d+)/);if(!wm){rows.push({sheet:name,raw,invalid:true});continue}const start=Number(wm[1]),end=Number(wm[2]),parity=/双周/.test(m[2])?'双周':/单周/.test(m[2])?'单周':'每周',occurrences=[];for(let w=start;w<=end;w++){if(parity==='双周'&&w%2!==0)continue;if(parity==='单周'&&w%2!==1)continue;const originalDateISO=iso(addDays(MON1,(w-1)*7+matrixWeekday[weekday]));let dateISO=originalDateISO,status='正常',canceled=false;if(dateISO>='2026-10-01'&&dateISO<='2026-10-07'){if(dateISO==='2026-10-06'){dateISO='2026-10-10';status='调课补课（原10月6日）'}else{status='国庆放假（停课）';canceled=true}}occurrences.push({week:w,dateISO,originalDateISO,weekday:WD[toDate(dateISO).getDay()],originalWeekday:weekday,status,canceled})}rows.push({sheet:name,course:m[1].trim(),weeks:m[2].trim(),parity,weekday,period,className:cls[1].trim(),students:Number(cls[2]),room:(parts[2]||'').trim(),occurrences,raw})}}}});return rows}
+function renderMatrixPreview(){const valid=MATRIX_ROWS.filter(x=>!x.invalid),course=$('matrixCourseSelect').value,filtered=valid.filter(x=>x.course===course),classes=[...new Set(filtered.map(x=>x.className))];$('matrixClassSelect').innerHTML=classes.map(x=>'<option>'+escapeText(x)+'</option>').join('');$('matrixClassSelect').disabled=!classes.length;$('matrixGenerateBtn').disabled=!filtered.length;$('matrixPreview').innerHTML=valid.length?'<p>识别到 '+valid.length+' 条课程安排，课程 '+[...new Set(valid.map(x=>x.course))].length+' 门；无效行 '+MATRIX_ROWS.filter(x=>x.invalid).length+' 条。</p><table><thead><tr><th>课程</th><th>班级</th><th>星期</th><th>节次</th><th>周次</th><th>单双周</th><th>课次数</th><th>人数</th><th>教室</th></tr></thead><tbody>'+filtered.map(x=>'<tr class="'+(x.course==='单片机技术及应用'?'matrix-ok':'')+'"><td>'+escapeText(x.course)+'</td><td>'+escapeText(x.className)+'</td><td>'+x.weekday+'</td><td>'+x.period+'</td><td>'+escapeText(x.weeks)+'</td><td>'+x.parity+'</td><td>'+x.occurrences.length+'</td><td>'+x.students+'</td><td>'+escapeText(x.room)+'</td></tr>').join('')+'</tbody></table>':'<p>没有可预览的课程安排。</p>'}
+$('matrixScheduleFile').onchange=async e=>{try{const f=e.target.files[0];if(!f)return;MATRIX_ROWS=parseMatrixWorkbook(await f.arrayBuffer());const courses=[...new Set(MATRIX_ROWS.filter(x=>!x.invalid).map(x=>x.course))];$('matrixCourseSelect').innerHTML=courses.map(x=>'<option>'+escapeText(x)+'</option>').join('');$('matrixCourseSelect').disabled=!courses.length;$('matrixImportStatus').textContent='已读取 '+f.name+'，识别 '+MATRIX_ROWS.filter(x=>!x.invalid).length+' 条安排';renderMatrixPreview()}catch(err){MATRIX_ROWS=[];$('matrixImportStatus').textContent='读取失败';alert(err.message)}finally{e.target.value=''}};
+$('matrixCourseSelect').onchange=()=>{renderMatrixPreview();if(MATRIX_ROWS.length)renderMatrixGroupChecks()};$('matrixClassSelect').onchange=renderMatrixPreview;
+ $('matrixGenerateBtn').onclick=()=>{const course=$('matrixCourseSelect').value,cls=$('matrixClassSelect').value,items=MATRIX_ROWS.filter(x=>!x.invalid&&x.course===course&&x.className===cls),generated=items.flatMap(x=>x.occurrences.map(o=>({date:o.dateISO,originalDate:o.originalDateISO,week:o.week,weekday:o.weekday,period:x.period,course:x.course,className:x.className,students:x.students,room:x.room,parity:x.parity,status:o.status,canceled:o.canceled}))).sort((a,b)=>a.date.localeCompare(b.date)||a.period.localeCompare(b.period)||a.room.localeCompare(b.room));void(JSON.stringify({course,className:cls,importedAt:new Date().toISOString(),items:generated}));const rows=generated.map(x=>'<tr class="'+(x.canceled?'matrix-warn':'')+'"><td>'+x.date+'</td><td>第'+x.week+'周</td><td>'+x.weekday+'</td><td>'+x.period+'</td><td>'+x.parity+'</td><td>'+x.students+'</td><td>'+escapeText(x.room)+'</td><td>'+escapeText(x.status)+'</td></tr>').join('');$('matrixImportStatus').textContent='已生成 '+generated.length+' 条 '+course+' · '+cls+' 课次预览（已按日期和节次排序，不会自动覆盖现有进度）';$('matrixPreview').insertAdjacentHTML('afterbegin','<div class="notice blue"><b>课次预览结果：</b>已生成 '+generated.length+' 条，已按时间顺序混合排列；以下日期只用于核对，尚未写入正式课表。</div><div class="table-scroll"><table><thead><tr><th>日期</th><th>周次</th><th>星期</th><th>节次</th><th>单双周</th><th>人数</th><th>教室</th><th>状态</th></tr></thead><tbody>'+rows+'</tbody></table></div><p class="hint">下方“原始安排摘要”按课表单元格汇总；上方日期表才是实际课次顺序。</p>')};
+
+/* 可编辑课次预览：实际日期改变后按时间重排，并按有效实际课时重新分配默认进度。 */
+let MATRIX_PREVIEW_ITEMS=[];
+function matrixPeriodNo(v){const m=String(v||'').match(/^(\d+)/);return m?Number(m[1]):999}
+function matrixSort(a,b){return a.date.localeCompare(b.date)||matrixPeriodNo(a.period)-matrixPeriodNo(b.period)||a.room.localeCompare(b.room)||a.className.localeCompare(b.className)}
+function progressList(progress){return Array.isArray(progress)?progress:Object.keys(progress||{}).map(k=>progress[k])}
+function courseProgressTemplate(course){return /电气接线原理/.test(course||'')?ELECTRICAL_PROGRESS.map(x=>Object.assign({},x)):clonePlanTemplate()}
+function assignCourseProgress(items,progress){const list=progressList(progress);if(list.length===24){let n=0;return items.map(x=>{if(x.canceled)return Object.assign(x,{progressNo:'',progressText:'不消耗进度'});n=Math.min(list.length,n+1);return Object.assign(x,{progressNo:n,progressText:list[n-1].name||('第'+n+'条进度')})})}return matrixProgress(items)}
+function matrixProgress(items){let hours=0;return items.map(x=>{if(x.canceled)return Object.assign(x,{progressNo:'',progressText:'不消耗进度'});const no=Math.min(Object.keys(PLAN).length,Math.floor(hours/3)+1);hours+=2;return Object.assign(x,{progressNo:no,progressText:PLAN[no]?.name||('第'+no+'条进度')})})}
+function renderMatrixEditablePreview(){const items=MATRIX_PREVIEW_ITEMS.sort(matrixSort);assignCourseProgress(items,items[0]&&/电气接线原理/.test(items[0].course)?ELECTRICAL_PROGRESS:PLAN);const rows=items.map((x,i)=>'<tr class="'+(x.canceled?'matrix-warn':'')+'"><td>'+escapeText(x.originalDate)+'</td><td><input type="date" data-matrix-date="'+i+'" value="'+escapeText(x.date)+'"></td><td>第'+x.week+'周</td><td>'+escapeText(x.weekday)+'</td><td>'+escapeText(x.period)+'</td><td>'+escapeText(x.parity)+'</td><td>'+escapeText(x.status)+'</td><td>'+escapeText(x.progressNo?('第'+x.progressNo+'条：'+x.progressText):'不计入')+'</td><td>'+escapeText(x.room)+'</td></tr>').join('');$('matrixPreview').querySelector('.matrix-generated-preview')?.remove();$('matrixPreview').insertAdjacentHTML('afterbegin','<div class="matrix-generated-preview"><div class="notice blue"><b>实际课次预览：</b>共 '+items.length+' 条。可以直接修改“实际上课日期”；修改后会自动按日期、节次重新排序并重新分配进度。冲课不消耗进度。</div><div class="table-scroll"><table><thead><tr><th>原日期</th><th>实际上课日期（可改）</th><th>原周次</th><th>实际星期</th><th>节次</th><th>单双周</th><th>状态</th><th>默认进度</th><th>教室</th></tr></thead><tbody>'+rows+'</tbody></table></div><p class="hint">原日期用于追溯课表；实际上课日期用于排序、补课统计和进度分配。</p></div>')}
+const matrixRenderPreviewBase=renderMatrixEditablePreview;renderMatrixEditablePreview=function(){matrixRenderPreviewBase();document.querySelectorAll('#matrixPreview .matrix-generated-preview tr.matrix-warn input[data-matrix-date]').forEach(i=>{i.value='';i.disabled=true})};
+function disabledLegacyMatrixGenerateEditable(){const course=$('matrixCourseSelect').value,cls=$('matrixClassSelect').value;const selected=MATRIX_ROWS.map((x,ri)=>({x,ri})).filter(v=>!v.x.invalid&&v.x.course===course&&v.x.className===cls);MATRIX_PREVIEW_ITEMS=selected.flatMap(v=>v.x.occurrences.map((o,oi)=>({date:o.dateISO,originalDate:o.originalDateISO,week:o.week,weekday:o.weekday,period:v.x.period,course:v.x.course,className:v.x.className,students:v.x.students,room:v.x.room,parity:v.x.parity,status:o.status,canceled:!!o.canceled,_rowIndex:v.ri,_occIndex:oi})));localStorage.setItem('mcu_matrix_schedule_v1',JSON.stringify({course,className:cls,importedAt:new Date().toISOString(),items:MATRIX_PREVIEW_ITEMS.map(x=>{const y=Object.assign({},x);delete y._rowIndex;delete y._occIndex;return y})}));$('matrixImportStatus').textContent='已生成 '+MATRIX_PREVIEW_ITEMS.length+' 条 '+course+' · '+cls+' 可编辑课次预览（尚未正式导入）';renderMatrixEditablePreview()}
+$('matrixGenerateBtn').onclick=()=>window.openCourseImport?.();
+$('matrixPreview').addEventListener('change',e=>{const i=e.target.dataset.matrixDate;if(i===undefined)return;const item=MATRIX_PREVIEW_ITEMS[Number(i)],v=e.target.value;if(!item||!/^\d{4}-\d{2}-\d{2}$/.test(v))return;item.date=v;item.weekday=WD[toDate(v).getDay()];const source=MATRIX_ROWS[item._rowIndex]?.occurrences[item._occIndex];if(source){source.dateISO=v;source.weekday=item.weekday;source.status=item.status;source.canceled=item.canceled}renderMatrixEditablePreview()});
+
+/* 多课程兼容层：保留旧单片机数据，同时为新课程提供独立课次、记录和可编辑进度。 */
+const MULTI_COURSE_KEY='mcu_multi_courses_v1', ACTIVE_COURSE_KEY='mcu_active_course_v1';
+let MULTI_COURSES={};
+function clonePlanTemplate(){return Object.keys(PLAN).map(k=>({no:Number(k),proj:PLAN[k].proj,task:PLAN[k].task,name:PLAN[k].name,lab:PLAN[k].lab,editable:true}));}
+function normalizeElectricalCourseProgress(course){if(course?.progressSource==="unified-import")return;if(!course||!(/电气接线原理/.test(course.name||'')))return;const p=Array.isArray(course.progress)?course.progress:[];const wrong=p.length!==24||p.some(x=>String(x?.name||'').includes('单片机'));if(wrong||course.progressSource!=='electrical-md-v1'){course.progress=ELECTRICAL_PROGRESS.map(x=>Object.assign({},x));course.progressSource='electrical-md-v1';course.templateStatus='正式进度'}Object.values(course.classes||{}).forEach(d=>assignCourseProgress(d.schedule||[],course.progress))}
+function loadMultiCourses(){try{MULTI_COURSES=JSON.parse(localStorage.getItem(MULTI_COURSE_KEY)||'{}')}catch(_){MULTI_COURSES={}}
+ if(!MULTI_COURSES.mcu&&window.CourseCloud){MULTI_COURSES.mcu={id:'mcu',name:'单片机技术及应用',classes:{},progress:[],scheduleSource:'unified-import',progressSource:'unified-import'};}
+ if(!MULTI_COURSES.mcu){MULTI_COURSES.mcu={id:'mcu',name:'单片机技术及应用',classes:{'25机电2班':{schedule:[],records:{},overrides:[]},'25机电3班':{schedule:[],records:{},overrides:[]}},progress:clonePlanTemplate(),templateStatus:'正式进度'} }
+ ['25机电2班','25机电3班'].forEach(cls=>{const c=MULTI_COURSES.mcu.classes[cls];if(!c||MULTI_COURSES.mcu.scheduleSource==="unified-import")return;c.schedule=TIMELINE.filter(s=>s.cls===cls).map(s=>({date:s.dateISO,originalDate:s.originalDateISO||s.dateISO,week:s.week,weekday:s.weekday,period:s.period,parity:s.parity,canceled:!!s.canceled}));c.records=STORE;c.overrides=SCHEDULE_OVERRIDES});
+ Object.values(MULTI_COURSES).forEach(normalizeElectricalCourseProgress);
+ localStorage.setItem(MULTI_COURSE_KEY,JSON.stringify(MULTI_COURSES));}
+function saveMultiCourses(){localStorage.setItem(MULTI_COURSE_KEY,JSON.stringify(MULTI_COURSES))}
+function activeCourse(){return MULTI_COURSES[$('activeCourseSelect').value]||MULTI_COURSES.mcu}
+function courseGroups(){return Object.values(MULTI_COURSES).flatMap(c=>Object.keys(c.classes).map(cls=>({courseId:c.id,course:c.name,className:cls}))) }
+function renderCourseSelector(){const sel=$('activeCourseSelect'),stored=localStorage.getItem(ACTIVE_COURSE_KEY),old=stored&&MULTI_COURSES[stored]?stored:(sel.value&&MULTI_COURSES[sel.value]?sel.value:'mcu');sel.innerHTML=Object.values(MULTI_COURSES).filter(c=>!window.CourseCloud||Object.keys(c.classes||{}).length||Object.values(MULTI_COURSES).every(x=>!Object.keys(x.classes||{}).length)).map(c=>'<option value="'+escapeText(c.id)+'">'+escapeText(c.name)+'</option>').join('');sel.value=[...sel.options].some(o=>o.value===old)?old:(sel.options[0]?.value||'mcu');$('activeCourseHint').innerHTML='<small>'+(sel.value==='mcu'?'现有单片机课表和记录':'独立课程工作区，不覆盖单片机数据')+'</small>'}
+function renderMultiWorkspace(){const c=activeCourse(),classes=Object.keys(c.classes),sel=$('multiClassSelect'),cls=sel.value&&c.classes[sel.value]?sel.value:classes[0];$('multiCourseTitle').textContent=c.name;sel.innerHTML=classes.map(x=>'<option>'+escapeText(x)+'</option>').join('');sel.value=cls;const d=c.classes[cls],items=(d.schedule||[]).slice().sort(matrixSort);assignCourseProgress(items,c.progress);$('multiScheduleTable').innerHTML=items.length?'<table><thead><tr><th>原日期</th><th>实际上课日期（可改）</th><th>节次</th><th>状态</th><th>默认进度</th><th>实际记录</th></tr></thead><tbody>'+items.map((s,i)=>{const r=d.records[s.date+'|'+cls+'|'+s.period]||{};return '<tr><td>'+s.originalDate+'</td><td><input type="date" data-multi-date="'+i+'" value="'+(s.canceled?'':escapeText(s.date||''))+'"></td><td>'+s.period+'</td><td>'+escapeText(s.status||(s.canceled?'冲课':'正常'))+'</td><td>'+escapeText(s.progressNo?('第'+s.progressNo+'条：'+s.progressText):'不计入')+'</td><td><input data-multi-rec="'+i+'" value="'+escapeText(r.actual||'')+'" placeholder="填写实际内容"></td></tr>'}).join('')+'</tbody></table>':'<p>当前班级暂无正式导入课次。</p>';
+ const p=c.progress||[];$('multiProgressEditor').innerHTML='<table><thead><tr><th>序号</th><th>项目/任务</th><th>教学内容</th></tr></thead><tbody>'+p.map((x,i)=>'<tr><td>'+x.no+'</td><td><input data-multi-proj="'+i+'" value="'+escapeText(x.proj+' '+x.task)+'"></td><td><textarea data-multi-name="'+i+'" rows="2">'+escapeText(x.name||'')+'</textarea></td></tr>').join('')+'</tbody></table>';
+ $('multiStatus').textContent='已加载 '+items.length+' 条课次，进度 '+p.length+' 条';}
+function renderGenericLegacyOverview(){const c=activeCourse();if(!c)return;const classes=Object.keys(c.classes||{});const all=classes.flatMap(cls=>(c.classes[cls].schedule||[]).map(s=>Object.assign({cls},s)));const active=all.filter(s=>!s.canceled),done=active.filter(s=>(c.classes[s.cls].records?.[s.date+'|'+s.cls+'|'+s.period]||{}).actual);const next=active.slice().sort((a,b)=>toDate(a.date)-toDate(b.date)).find(s=>s.date>=isoToday());$('statsBox').innerHTML='<div class="stat blue"><div class="k">当前课程</div><div class="v">'+escapeText(c.name)+'</div></div><div class="stat green"><div class="k">计划课次</div><div class="v">'+active.length+' 次</div></div><div class="stat purple"><div class="k">已记录</div><div class="v">'+done.length+' / '+active.length+' 次</div></div><div class="stat orange"><div class="k">下一节课</div><div class="v">'+(next?escapeText(next.date):'已完成')+'</div></div><div class="stat red"><div class="k">冲课/假期</div><div class="v">'+(all.length-active.length)+' 次</div></div><div class="stat purple"><div class="k">班级数量</div><div class="v">'+classes.length+' 个</div></div>';$('dashboard').innerHTML='<h3>班级进度对比</h3><p class="hint">日期已过只代表课表时间经过，填写实际内容后才计入记录覆盖率。</p><div class="compare-grid">'+classes.map(cls=>{const d=c.classes[cls],its=(d.schedule||[]).filter(s=>!s.canceled),ds=its.filter(s=>(d.records?.[s.date+'|'+cls+'|'+s.period]||{}).actual),n=its.slice().sort((a,b)=>toDate(a.date)-toDate(b.date)).find(s=>s.date>=isoToday());return '<div class="compare-card"><h3>'+escapeText(cls)+'</h3><p>计划 '+its.length+' 次 / '+(its.length*2)+' 课时</p><p><b>实际记录 '+ds.length+' 次</b> · 记录覆盖率 '+(its.length?Math.round(ds.length/its.length*100):0)+'%</p><div class="meter"><span style="width:'+(its.length?Math.round(ds.length/its.length*100):0)+'%"></span></div><p>下一节：'+(n?escapeText(n.date):'已完成')+'</p></div>'}).join('')+'</div>';$('projectStats').innerHTML='<h3>项目记录完成度 · '+classes.length+' 个班级</h3><div class="project-grid">'+(c.progress||[]).map(p=>'<div class="project-item"><b>'+escapeText(p.proj||p.name||'课程内容')+'</b><div class="meter"><span style="width:0%"></span></div><small>已记录 0 课时 · 尚未记录 '+(Number(p.hours)||2)+' 课时</small></div>').join('')+'</div>';$('calcNote').innerHTML='<b>进度模型：</b>当前课程使用统一课程模板；课次、班级、实际记录和进度内容按课程独立保存。';$('nextNote').innerHTML='<b>下一节课：</b>'+(next?escapeText(next.cls)+' · '+escapeText(next.date)+' · '+escapeText(next.period):'当前课程暂无待上课次');}
+function renderGenericCourse(){const c=activeCourse();if(!c)return;const classes=Object.keys(c.classes||{}),all=classes.flatMap(cls=>(c.classes[cls].schedule||[]).map(s=>Object.assign({cls},s)));const s0=document.querySelectorAll('body > .wrap > section.card:not(#multiCourseWorkspace)')[0],s2=document.querySelectorAll('body > .wrap > section.card:not(#multiCourseWorkspace)')[2],s3=document.querySelectorAll('body > .wrap > section.card:not(#multiCourseWorkspace)')[3];if(s0){s0.querySelector('.card-body').innerHTML='<div class="datebar"><input type="date" id="genericDateInput" value="'+isoToday()+'"><button class="primary" id="genericToday">跳到今天</button><button id="genericPrev">◀ 上一节</button><button id="genericNext">下一节 ▶</button></div><div id="genericDayView" style="margin-top:16px"></div>';const paint=()=>{const date=$('genericDateInput').value,rows=all.filter(s=>s.date===date&&!s.canceled);$('genericDayView').innerHTML=rows.length?rows.map(s=>{const d=c.classes[s.cls],r=d.records?.[s.date+'|'+s.cls+'|'+s.period]||{},p=(c.classes[s.cls].progress||c.progress)?.[Math.max(0,(s.progressNo||1)-1)];return '<div class="lesson"><div class="l-top"><span class="cls-name">'+escapeText(s.cls)+'</span><span class="badge period">'+escapeText(s.period)+'</span><span class="badge">'+escapeText(s.weekday||'')+'</span></div><div class="proj">'+escapeText(p?.proj||'')+'</div><div class="content">'+escapeText(p?.name||p?.text||'待填写课程内容')+'</div><div class="acts"><input data-grec="'+escapeText(s.date+'|'+s.cls+'|'+s.period)+'" value="'+escapeText(r.actual||'')+'" placeholder="填写实际内容" style="flex:1;min-width:220px"><button class="tiny" data-gsave="1">保存记录</button></div></div>'}).join(''):'<div class="empty">该日期没有排课安排</div>';document.querySelectorAll('[data-gsave]').forEach(b=>b.onclick=()=>{const i=b.parentElement.querySelector('[data-grec]'),[date,cls,period]=i.dataset.grec.split('|'),d=c.classes[cls];d.records[date+'|'+cls+'|'+period]=Object.assign({},d.records[date+'|'+cls+'|'+period],{actual:i.value.trim()});saveMultiCourses();paint()})};$('genericDateInput').onchange=paint;$('genericToday').onclick=()=>{$('genericDateInput').value=isoToday();paint()};paint()}
+if(s2){s2.querySelector('.card-body').innerHTML='<div class="upgrade-tools"><label>班级 <select id="genericRecordClass"><option value="all">全部</option>'+classes.map(x=>'<option>'+escapeText(x)+'</option>').join('')+'</select></label><button id="genericExport">导出当前课程 CSV</button></div><div class="table-scroll"><table><thead><tr><th>原日期</th><th>实际上课日期</th><th>班级</th><th>节次</th><th>状态</th><th>默认进度</th><th>实际记录</th></tr></thead><tbody id="genericRecordsBody"></tbody></table></div>';const fill=()=>{const f=$('genericRecordClass').value;$('genericRecordsBody').innerHTML=all.filter(s=>f==='all'||s.cls===f).sort((a,b)=>a.date.localeCompare(b.date)).map(s=>{const r=c.classes[s.cls].records?.[s.date+'|'+s.cls+'|'+s.period]||{},p=(c.classes[s.cls].progress||c.progress)?.[Math.max(0,(s.progressNo||1)-1)];return '<tr><td>'+s.originalDate+'</td><td>'+s.date+'</td><td>'+escapeText(s.cls)+'</td><td>'+s.period+'</td><td>'+escapeText(s.status||'正常')+'</td><td>'+escapeText(p?.name||p?.text||'')+'</td><td><input data-gr="'+escapeText(s.date+'|'+s.cls+'|'+s.period)+'" value="'+escapeText(r.actual||'')+'"></td></tr>'}).join('');document.querySelectorAll('[data-gr]').forEach(i=>i.onchange=()=>{const [date,cls,period]=i.dataset.gr.split('|');c.classes[cls].records[date+'|'+cls+'|'+period]=Object.assign({},c.classes[cls].records[date+'|'+cls+'|'+period],{actual:i.value.trim()});saveMultiCourses()})};$('genericRecordClass').onchange=fill;fill()}
+if(s3){s3.querySelector('.card-body').innerHTML='<div class="notice blue">当前课程调课、冲课、假期和补课均按实际日期管理。保存前会自动备份。</div><div class="table-scroll"><table><thead><tr><th>原日期</th><th>班级</th><th>节次</th><th>实际上课日期</th><th>状态</th></tr></thead><tbody>'+all.sort((a,b)=>a.date.localeCompare(b.date)).map(s=>'<tr><td>'+s.originalDate+'</td><td>'+escapeText(s.cls)+'</td><td>'+s.period+'</td><td><input type="date" value="'+(s.canceled?'':s.date)+'" disabled></td><td>'+escapeText(s.status||'正常')+'</td></tr>').join('')+'</tbody></table></div>'}}
+function showCourseView(){const mcuExtra=Object.keys(MULTI_COURSES.mcu?.classes||{}).some(x=>!['25机电2班','25机电3班'].includes(x));const isMcu=$('activeCourseSelect').value==='mcu'&&!mcuExtra&&MULTI_COURSES.mcu.scheduleSource!=='unified-import';document.querySelectorAll('body > .wrap > section.card:not(#multiCourseWorkspace)').forEach(x=>x.style.display='');$('multiCourseWorkspace').style.display='none';if(isMcu){render();renderScheduleVisualEditor()}else{renderGenericCourse();renderGenericLegacyOverview()}}
+let MATRIX_IMPORT_GROUPS=[];
+function disabledLegacyImportSelectedMatrixGroups(){const groups=[...document.querySelectorAll('#matrixGroupChecks input:checked')].map(x=>MATRIX_IMPORT_GROUPS[Number(x.dataset.group)]).filter(Boolean);if(!groups.length){alert('请先勾选要正式导入的课程和班级');return}downloadFile('导入前备份-'+isoToday()+'.json',JSON.stringify({version:2,storageKey:STORE_KEY,records:STORE,termConfig:TERM_CONFIG,scheduleOverrides:SCHEDULE_OVERRIDES,courses:MULTI_COURSES,exportedAt:new Date().toISOString()},null,2),'application/json');let added=0,exists=0,conflict=0;groups.forEach(g=>{let id=Object.keys(MULTI_COURSES).find(k=>MULTI_COURSES[k].name===g.course);if(!id){id='course_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,6);MULTI_COURSES[id]={id,name:g.course,classes:{},progress:courseProgressTemplate(g.course),progressSource:/电气接线原理/.test(g.course)?'electrical-md-v1':'template-v1',templateStatus:/电气接线原理/.test(g.course)?'正式进度':'待编辑模板'};}
+ if(id==='mcu'&&MULTI_COURSES[id].classes[g.className]){exists+=g.rows.reduce((n,x)=>n+x.occurrences.length,0);return}if(!MULTI_COURSES[id].classes[g.className])MULTI_COURSES[id].classes[g.className]={schedule:[],records:{},overrides:[]};const d=MULTI_COURSES[id].classes[g.className],seen=new Set(d.schedule.map(s=>s.date+'|'+s.period));g.rows.forEach(x=>x.occurrences.forEach(o=>{const k=o.dateISO+'|'+x.period;if(seen.has(k)){exists++;return}if(d.schedule.some(s=>s.date===o.dateISO&&s.period===x.period&&s.className&&s.className!==g.className))conflict++;d.schedule.push({date:o.dateISO,originalDate:o.originalDateISO,week:o.week,weekday:o.weekday,period:x.period,parity:x.parity,course:g.course,className:g.className,students:x.students,room:x.room,status:o.status,canceled:!!o.canceled});seen.add(k);added++}) )});[...new Set(groups.map(g=>g.course+'|'+g.className))].forEach(key=>{const [course,className]=key.split('|'),id=Object.keys(MULTI_COURSES).find(k=>MULTI_COURSES[k].name===course),d=id&&MULTI_COURSES[id].classes[className];if(d)assignCourseProgress(d.schedule.slice().sort(matrixSort),MULTI_COURSES[id].progress)});saveMultiCourses();renderCourseSelector();$('matrixImportStatus').textContent='正式导入完成：新增 '+added+' 条，已存在 '+exists+' 条，冲突 '+conflict+' 条；原单片机数据未覆盖';}
+function renderMatrixGroupChecks(){const valid=MATRIX_ROWS.filter(x=>!x.invalid),map=new Map();valid.forEach(x=>{const key=x.course+'|'+x.className;if(!map.has(key))map.set(key,{course:x.course,className:x.className,rows:[]});map.get(key).rows.push(x)});MATRIX_IMPORT_GROUPS=[...map.values()];let box=$('matrixGroupChecks');if(!box){box=document.createElement('div');box.id='matrixGroupChecks';box.className='import-groups';$('matrixPreview').prepend(box)}box.innerHTML='<b>选择要正式导入的课程班级</b>'+MATRIX_IMPORT_GROUPS.map((g,i)=>'<label><input type="checkbox" data-group="'+i+'">'+escapeText(g.course)+' · '+escapeText(g.className)+'（'+g.rows.reduce((n,x)=>n+x.occurrences.length,0)+' 条课次）</label>').join('');let btn=$('matrixFormalImport');if(!btn){btn=document.createElement('button');btn.id='matrixFormalImport';btn.className='primary';btn.textContent='确认正式导入所选课程班级';$('matrixGenerateBtn').after(btn)}btn.onclick=()=>window.openCourseImport?.();}
+ const oldMatrixChange=$('matrixScheduleFile').onchange;$('matrixScheduleFile').onchange=async e=>{await oldMatrixChange.call(e.target,e);if(MATRIX_ROWS.length)renderMatrixGroupChecks()};
+ $('activeCourseSelect').onchange=()=>{localStorage.setItem(ACTIVE_COURSE_KEY,$('activeCourseSelect').value);showCourseView()};$('multiClassSelect').onchange=renderMultiWorkspace;
+ $('saveMultiProgress').onclick=()=>{const c=activeCourse();[...document.querySelectorAll('[data-multi-proj]')].forEach(i=>{const p=c.progress[Number(i.dataset.multiProj)];if(p)p.proj=i.value});[...document.querySelectorAll('[data-multi-name]')].forEach(i=>{const p=c.progress[Number(i.dataset.multiName)];if(p)p.name=i.value});const cls=$('multiClassSelect').value,d=c.classes[cls],items=(d.schedule||[]).slice().sort(matrixSort);[...document.querySelectorAll('[data-multi-date]')].forEach(i=>{const s=items[Number(i.dataset.multiDate)],v=i.value;if(s&&/^\d{4}-\d{2}-\d{2}$/.test(v)&&!s.canceled&&v!==s.date){const oldKey=s.date+'|'+cls+'|'+s.period,newKey=v+'|'+cls+'|'+s.period;if(d.records[oldKey]&&!d.records[newKey])d.records[newKey]=d.records[oldKey];delete d.records[oldKey];s.date=v;s.week=weekOf(v);s.weekday=WD[toDate(v).getDay()]}});[...document.querySelectorAll('[data-multi-rec]')].forEach(i=>{const s=items[Number(i.dataset.multiRec)],key=s.date+'|'+cls+'|'+s.period;d.records[key]=Object.assign({},d.records[key],{actual:i.value.trim()})});d.schedule=items;assignCourseProgress(d.schedule,c.progress);saveMultiCourses();$('multiStatus').textContent='已保存当前课程进度、实际记录和实际上课日期';renderMultiWorkspace()};
+ $('multiSelfCheck').onclick=()=>{const c=activeCourse(),out=[];Object.entries(c.classes).forEach(([cls,d])=>{const seen=new Set(),dups=[];(d.schedule||[]).forEach(s=>{const k=s.date+'|'+s.period;if(seen.has(k))dups.push(k);seen.add(k)});out.push(cls+'：课次 '+(d.schedule||[]).length+' 条，重复 '+dups.length+' 条，记录 '+Object.keys(d.records||{}).length+' 条')});$('multiStatus').textContent='自检完成：'+out.join('；')};
+ loadMultiCourses();renderCourseSelector();showCourseView();
+/* 分页导航：通过 hash 控制模块显示，刷新和前进后退均可恢复。 */
+const PAGE_SECTIONS={home:[0,1],class:[0],overview:[1],records:[2],schedule:[3],settings:[4]};
+function currentPage(){const p=(location.hash||'#home').slice(1);return PAGE_SECTIONS[p]?p:'home'}
+function applyPage(page){page=PAGE_SECTIONS[page]?page:'home';showCourseView();const isMcu=$('activeCourseSelect').value==='mcu'&&!Object.keys(MULTI_COURSES.mcu?.classes||{}).some(x=>!['25机电2班','25机电3班'].includes(x));const legacy=[...document.querySelectorAll('body > .wrap > section.card:not(#multiCourseWorkspace)')];legacy.forEach((el,i)=>{const visible=PAGE_SECTIONS[page].includes(i);el.classList.toggle('page-hidden',!visible);el.style.display=visible?'':'none'});$('multiCourseWorkspace').style.display='none';document.querySelectorAll('#pageNav [data-page]').forEach(b=>b.classList.toggle('active',b.dataset.page===page));document.title=(page==='home'?'首页 · ':'')+'《单片机技术与应用》课程进度动态跟进工具'}
+function focusMultiToday(record){const today=isoToday(),rows=[...document.querySelectorAll('#multiScheduleTable tbody tr')],hit=rows.find(row=>{const input=row.querySelector('input[data-multi-date]');return input&&input.value===today&&!input.disabled});rows.forEach(row=>row.classList.toggle('quick-target',row===hit));if(hit){const target=record?(hit.querySelector('input[data-multi-rec]')||hit):hit;target.scrollIntoView({behavior:'smooth',block:'center'});if(record&&target.focus)target.focus();$('multiStatus').textContent=record?'已定位今天的实际记录输入框':'已定位今天的课次'}else{$('multiStatus').textContent='当前班级今天没有排课安排';$('multiScheduleTable').scrollIntoView({behavior:'smooth',block:'center'})}}
+function focusQuickClass(record){location.hash='#class';setTimeout(()=>{if($('activeCourseSelect').value==='mcu'){setDate(isoToday());setTimeout(()=>{const day=$('dayView');day.scrollIntoView({behavior:'smooth',block:'center'});if(record){const edit=day.querySelector('[data-edit]');if(edit)edit.click()}},80)}else{focusMultiToday(record)}},120)}
+document.querySelectorAll('#pageNav [data-page]').forEach(b=>b.addEventListener('click',()=>{location.hash='#'+b.dataset.page}));document.querySelectorAll('#quickActions [data-page]').forEach(b=>b.addEventListener('click',()=>{if(b.dataset.focusImport){location.hash='#settings';setTimeout(()=>{$('matrixScheduleFile').scrollIntoView({behavior:'smooth',block:'center'});$('matrixScheduleFile').click()},120)}else if(b.dataset.focusRecord){focusQuickClass(true)}else if(b.dataset.page==='class'){focusQuickClass(false)}}));
+window.addEventListener('hashchange',()=>applyPage(currentPage()));
+const previousCourseChange=$('activeCourseSelect').onchange;$('activeCourseSelect').onchange=()=>{localStorage.setItem(ACTIVE_COURSE_KEY,$('activeCourseSelect').value);applyPage(currentPage())};
+$('quickBackup').onclick=()=>window.openCourseBackup?.();
+applyPage(currentPage());
+setInterval(tickClock, 1000);
+setInterval(autoTick, 30000);
+tickClock();
+updateAutoPill();
+
+(function init(){
+  const n = new Date(), lo = new Date(2026,7,31), hi = new Date(2027,1,28);
+  setDate((n<lo||n>hi) ? FIRST_DATE : isoToday());
+})();
+</script>
+<script>
+// 新课程与单片机共用仪表盘式摘要，避免切换课程后页面结构割裂。
+(function(){
+  function refreshMultiSummary(){
+    const box=document.getElementById('multiSummary'), sel=document.getElementById('multiClassSelect');
+    if(!box||!sel||typeof activeCourse!=='function'||document.getElementById('multiCourseWorkspace').style.display==='none') return;
+    const c=activeCourse(), cls=sel.value, d=c&&c.classes&&c.classes[cls]; if(!d) return;
+    const items=(d.schedule||[]).filter(x=>!x.canceled), total=items.length;
+    const done=items.filter(x=>(d.records&&d.records[x.date+'|'+cls+'|'+x.period]||{}).actual).length;
+    const next=items.find(x=>x.date>=isoToday());
+    box.innerHTML='<div class="stat blue"><div class="k">当前班级</div><div class="v">'+escapeText(cls)+'</div></div>'+
+      '<div class="stat green"><div class="k">计划课次</div><div class="v">'+total+' 次</div></div>'+
+      '<div class="stat purple"><div class="k">已记录</div><div class="v">'+done+' / '+total+' 次</div></div>'+
+      '<div class="stat orange"><div class="k">下一节课</div><div class="v">'+(next?escapeText(next.date):'已完成')+'</div></div>';
+    const groups={}; (c.progress||[]).forEach(p=>{const key=p.proj||'课程进度'; if(!groups[key])groups[key]={total:0,done:0}; groups[key].total+=(Number(p.hours)||2);});
+    const projectHtml=Object.keys(groups).map(k=>'<div class="project-item"><b>'+escapeText(k)+'</b><div class="meter"><span style="width:0%"></span></div><small>已记录 0 / '+groups[k].total+' 课时 · 尚未记录 '+groups[k].total+' 课时</small></div>').join('');
+    const overview=document.getElementById('multiOverviewContent'); if(overview) overview.innerHTML='<div class="notice blue">日期已过代表课表时间经过；填写实际内容后才计入记录覆盖率。课程、班级和课次均独立保存。</div><div class="compare-grid"><div class="compare-card"><h3>'+escapeText(cls)+'</h3><p>计划 '+total+' 次 / '+(total*2)+' 课时</p><p><b>实际记录 '+done+' 次</b> · 记录覆盖率 '+(total?Math.round(done/total*100):0)+'%</p><div class="meter"><span style="width:'+(total?Math.round(done/total*100):0)+'%"></span></div><p>下一节：'+(next?escapeText(next.date):'已完成')+'</p></div></div><h3>项目记录完成度</h3><div class="project-grid">'+projectHtml+'</div>';
+  }
+  setInterval(refreshMultiSummary,500); refreshMultiSummary();
+})();
+</script>
+<script src="assets/week-model.js?release=20261007-theme-swatches"></script>
+<script src="assets/week-home.js?release=20261007-theme-swatches"></script>
+<script src="assets/import-core.js?release=20261007-theme-swatches"></script>
+<script src="assets/backup-core.js?release=20261007-theme-swatches"></script>
+<script src="assets/ui-dialogs.js?release=20261007-theme-swatches"></script>
+<script src="assets/progress-model.js?release=20261007-theme-swatches"></script>
+<script src="assets/schedule-editor.js?release=20261007-theme-swatches"></script>
+<script src="assets/unified-details.js?release=20261007-theme-swatches"></script>
+<script src="assets/vendor/jszip.min.js?release=20261007-theme-swatches"></script>
+<script src="assets/file-reader.js?release=20261007-theme-swatches"></script>
+<!-- 原 invite-ui.js（教师注册邀请码弹窗）已废弃：新老师由华夏工具总入口的教师邀请码开通，本工具不再自己发码 -->
+<script src="assets/import-ui.js?release=20261007-theme-swatches"></script>
+<script src="assets/print.js?release=20261007-theme-swatches"></script>
+<script>
+/* Download is explicit, cancellable, and does not invoke a blocking browser dialog. */
+(()=>{
+ const button=document.getElementById('quickBackup');if(!button)return;
+ window.openCourseBackup=button.onclick=()=>{
+  const dialog=document.createElement('dialog');dialog.setAttribute('aria-label','备份全部课程数据');
+  dialog.style.cssText='border:1px solid #ddd6fe;border-radius:20px;padding:24px;max-width:440px;width:calc(100% - 48px);color:#253052;background:#fff;box-shadow:0 20px 80px #6455a433';
+  dialog.innerHTML='<h2 style="margin-top:0">备份全部课程数据</h2><p>将下载一个 JSON 文件，包含当前账号的全部课程、班级、课次、进度和实际记录。备份不包含密码或 AI 密钥。</p><div style="display:flex;gap:12px;justify-content:flex-end"><button type="button">取消</button><a download style="padding:10px 16px;border-radius:12px;background:#7c5ce7;color:white;text-decoration:none">确认下载备份</a></div>';
+  let url;const cleanup=()=>{if(url)URL.revokeObjectURL(url);dialog.remove();};
+  dialog.querySelector('button').onclick=()=>dialog.close();dialog.addEventListener('close',cleanup,{once:true});
+  const link=dialog.querySelector('a');link.download='课程进度完整备份-'+isoToday()+'.json';
+  const backup={version:3,storageKey:STORE_KEY,records:STORE,termConfig:TERM_CONFIG,scheduleOverrides:SCHEDULE_OVERRIDES,courses:MULTI_COURSES,exportedAt:new Date().toISOString()};
+  url=URL.createObjectURL(new Blob([JSON.stringify(backup,null,2)],{type:'application/json'}));link.href=url;
+  link.onclick=()=>{link.textContent='备份已下载';link.style.pointerEvents='none';setTimeout(()=>dialog.close(),1200);};
+  document.body.append(dialog);dialog.showModal();
+ };
+})();
+
+</script>
+<script src="assets/account-ui.js?release=20261101-hx"></script>
+<!-- 原 feedback-ui.js（站内反馈、管理员回复）已去掉：这一版不迁 feedback 表，反馈走华夏工具总入口 -->
+<script src="assets/theme-palette.js?release=20261007-theme-swatches"></script>
+<script src="assets/appearance.js?release=20261007-theme-swatches"></script>
+<script src="assets/example-cleanup.js?release=20261007-seed-fix"></script>
+</body>
+</html>
+
+
+

@@ -5,11 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#fcfcfb">
 <title>夜夜小组制加分助手 · 《电气接线原理》</title>
-<link rel="stylesheet" href="styles.css?v=5bc2a5d03dcbdaff26d9598fcf278697067c142b">
+<link rel="stylesheet" href="styles.css?v=3e86bfe2ab3c4f9b4175924f1bcc2a07aa30a144-dirty">
 <!-- 华夏工具外观（首页统一设置）：主色、背景图；单独打开会回到首页 /#jiafen。账号只在首页管理 -->
 <script src="../hx-theme.js" data-tool="jiafen"></script>
-<meta name="build-commit" content="5bc2a5d03dcbdaff26d9598fcf278697067c142b">
-<meta name="build-published-at" content="2026-11-01T14:48:53.131Z">
+<meta name="build-commit" content="3e86bfe2ab3c4f9b4175924f1bcc2a07aa30a144-dirty">
+<meta name="build-published-at" content="2026-11-01T18:15:54.699Z">
 </head>
 <body>
 
@@ -441,14 +441,14 @@
   </form>
 </dialog>
 
-<script src="data.js?v=5bc2a5d03dcbdaff26d9598fcf278697067c142b"></script>
-<script src="config.js?v=5bc2a5d03dcbdaff26d9598fcf278697067c142b"></script>
-<script src="vendor/jspdf.umd.min.js?v=5bc2a5d03dcbdaff26d9598fcf278697067c142b"></script>
-<script src="vendor/xlsx.full.min.js?v=5bc2a5d03dcbdaff26d9598fcf278697067c142b"></script>
-<script src="roster-import.js?v=5bc2a5d03dcbdaff26d9598fcf278697067c142b"></script>
-<script src="hx-roster.js?v=5bc2a5d03dcbdaff26d9598fcf278697067c142b"></script>
-<script src="cloud.js?v=5bc2a5d03dcbdaff26d9598fcf278697067c142b"></script>
-<script src="supabase-cloud.js?v=5bc2a5d03dcbdaff26d9598fcf278697067c142b"></script>
+<script src="data.js?v=3e86bfe2ab3c4f9b4175924f1bcc2a07aa30a144-dirty"></script>
+<script src="config.js?v=3e86bfe2ab3c4f9b4175924f1bcc2a07aa30a144-dirty"></script>
+<script src="vendor/jspdf.umd.min.js?v=3e86bfe2ab3c4f9b4175924f1bcc2a07aa30a144-dirty"></script>
+<script src="vendor/xlsx.full.min.js?v=3e86bfe2ab3c4f9b4175924f1bcc2a07aa30a144-dirty"></script>
+<script src="roster-import.js?v=3e86bfe2ab3c4f9b4175924f1bcc2a07aa30a144-dirty"></script>
+<script src="hx-roster.js?v=3e86bfe2ab3c4f9b4175924f1bcc2a07aa30a144-dirty"></script>
+<script src="cloud.js?v=3e86bfe2ab3c4f9b4175924f1bcc2a07aa30a144-dirty"></script>
+<script src="supabase-cloud.js?v=3e86bfe2ab3c4f9b4175924f1bcc2a07aa30a144-dirty"></script>
 <dialog id="dlgPassword">
   <form method="dialog" class="dlg" id="passwordForm">
     <div class="dlg-head"><h3>修改密码</h3><button type="button" class="dlg-x" id="btnPasswordClose" aria-label="关闭">✕</button></div>
@@ -462,12 +462,12 @@
     <div class="dlg-btns"><button type="submit" class="btn primary" id="btnPasswordSave">确认修改</button></div>
   </form>
 </dialog>
-<script src="leader-scoring.js?v=5bc2a5d03dcbdaff26d9598fcf278697067c142b"></script>
-<script src="assessment.js?v=5bc2a5d03dcbdaff26d9598fcf278697067c142b"></script>
-<script src="ui-feedback.js?v=5bc2a5d03dcbdaff26d9598fcf278697067c142b"></script>
+<script src="leader-scoring.js?v=3e86bfe2ab3c4f9b4175924f1bcc2a07aa30a144-dirty"></script>
+<script src="assessment.js?v=3e86bfe2ab3c4f9b4175924f1bcc2a07aa30a144-dirty"></script>
+<script src="ui-feedback.js?v=3e86bfe2ab3c4f9b4175924f1bcc2a07aa30a144-dirty"></script>
 <dialog id="dlgOperationLog"><div class="dlg"><div class="dlg-head"><div><h3>操作日志</h3><span class="note">选择任意一条撤销，其他记录继续保留</span></div><button type="button" id="closeOperationLog" class="dlg-x" aria-label="关闭操作日志">✕</button></div><div class="dlg-body"><div class="log-toolbar"><label>班级<select id="logClassFilter"><option value="">全部班级</option></select></label><label>课次<select id="logLessonFilter"><option value="">全部课次</option></select></label><label class="log-search">查找<input type="search" id="logSearch" placeholder="姓名、组号、课次或项目"></label><button id="btnRedo" class="btn" disabled title="恢复最近撤销的一项（Ctrl+Shift+Z）">↷ 恢复最近一项</button></div><button id="btnUndo" hidden disabled></button><p id="undoDetail" hidden></p><p id="redoDetail" hidden></p><div id="operationLogList"></div><details class="log-help"><summary>记录与撤销说明</summary><p>点击某条右侧“撤销”，仅抵消该次操作的实际效果；已撤销的记录可单独恢复。平板支持左划，松手前拉回即可取消。个人项目的核对流水请到原评分表修改。默认5分不记作加分操作；相邻等量反向调整合并抵消。旧记录未记载时间时显示“历史记录”。</p></details></div></div></dialog>
-<script src="print-excel.js?v=5bc2a5d03dcbdaff26d9598fcf278697067c142b"></script>
-<script src="app.js?v=5bc2a5d03dcbdaff26d9598fcf278697067c142b"></script>
-<script src="password-ui.js?v=5bc2a5d03dcbdaff26d9598fcf278697067c142b"></script>
+<script src="print-excel.js?v=3e86bfe2ab3c4f9b4175924f1bcc2a07aa30a144-dirty"></script>
+<script src="app.js?v=3e86bfe2ab3c4f9b4175924f1bcc2a07aa30a144-dirty"></script>
+<script src="password-ui.js?v=3e86bfe2ab3c4f9b4175924f1bcc2a07aa30a144-dirty"></script>
 </body>
 </html>
