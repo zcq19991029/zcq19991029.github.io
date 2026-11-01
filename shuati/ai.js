@@ -25,6 +25,7 @@ export function getSettings() {
     provider,
     baseUrl: saved.baseUrl || providers[provider].baseUrl,
     model: saved.model || providers[provider].models[0] || '',
+    models: Array.isArray(saved.models) ? saved.models.filter(m => typeof m === 'string') : [], // 读取模型读到的列表
     remember: !!saved.remember,
     apiKey: sessionStorage.getItem(keyFor(SESSION_KEY)) || localStorage.getItem(keyFor(LOCAL_KEY)) || ''
   };

@@ -3000,6 +3000,2785 @@
   "sourcePage": 20
  },
  {
+  "id": "wiring-single-101",
+  "number": 101,
+  "type": "single",
+  "stem": "低压断路器中，用来接通和断开电路、主触点上装有灭弧装置的部分是（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "各种脱扣器"
+   },
+   {
+    "key": "B",
+    "text": "触点系统"
+   },
+   {
+    "key": "C",
+    "text": "自由脱扣机构"
+   },
+   {
+    "key": "D",
+    "text": "操作机构"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "触点系统是执行元件，用来接通和断开电路，主触点上装有灭弧装置。（教材课后习题 实训任务1-1）",
+  "source": "电气控制技术实训 第3版 项目1课后习题"
+ },
+ {
+  "id": "wiring-single-102",
+  "number": 102,
+  "type": "single",
+  "stem": "本任务所用 DZ47-60 型低压断路器具有（ ）保护功能。",
+  "options": [
+   {
+    "key": "A",
+    "text": "短路和过载"
+   },
+   {
+    "key": "B",
+    "text": "只有短路"
+   },
+   {
+    "key": "C",
+    "text": "只有过载"
+   },
+   {
+    "key": "D",
+    "text": "漏电和断相"
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "DZ47-60 型低压断路器具有短路、过载保护功能。（教材课后习题 实训任务1-1）",
+  "source": "电气控制技术实训 第3版 项目1课后习题"
+ },
+ {
+  "id": "wiring-single-103",
+  "number": 103,
+  "type": "single",
+  "stem": "无填料封闭管式熔断器的常用系列是（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "RC1A"
+   },
+   {
+    "key": "B",
+    "text": "RL6"
+   },
+   {
+    "key": "C",
+    "text": "RM12"
+   },
+   {
+    "key": "D",
+    "text": "RT18"
+   }
+  ],
+  "answer": [
+   "C"
+  ],
+  "explanation": "RC1A 瓷插式、RL6 螺旋式、RM12 无填料封闭管式、RT18 有填料封闭管式。（教材课后习题 实训任务1-2）",
+  "source": "电气控制技术实训 第3版 项目1课后习题"
+ },
+ {
+  "id": "wiring-single-104",
+  "number": 104,
+  "type": "single",
+  "stem": "有填料封闭管式熔断器的常用系列是（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "RC1A"
+   },
+   {
+    "key": "B",
+    "text": "RL6"
+   },
+   {
+    "key": "C",
+    "text": "RM12"
+   },
+   {
+    "key": "D",
+    "text": "RT18"
+   }
+  ],
+  "answer": [
+   "D"
+  ],
+  "explanation": "RT18 为有填料封闭管式。（教材课后习题 实训任务1-2）",
+  "source": "电气控制技术实训 第3版 项目1课后习题"
+ },
+ {
+  "id": "wiring-single-105",
+  "number": 105,
+  "type": "single",
+  "stem": "螺旋式熔断器电源进线接中心触片下接线桩，是为了（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "接线方便"
+   },
+   {
+    "key": "B",
+    "text": "旋出瓷帽换熔体时金属螺口不带电"
+   },
+   {
+    "key": "C",
+    "text": "熔体熔断更快"
+   },
+   {
+    "key": "D",
+    "text": "便于观察熔断指示"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "这样在旋出瓷帽更换熔体时金属螺口不带电，有利于操作人员安全。（教材课后习题 实训任务1-2）",
+  "source": "电气控制技术实训 第3版 项目1课后习题"
+ },
+ {
+  "id": "wiring-single-106",
+  "number": 106,
+  "type": "single",
+  "stem": "熔断器的额定电流是由（ ）决定的。",
+  "options": [
+   {
+    "key": "A",
+    "text": "熔体的材料"
+   },
+   {
+    "key": "B",
+    "text": "熔断器各部分长期工作时的允许温升"
+   },
+   {
+    "key": "C",
+    "text": "被保护电路的短路电流"
+   },
+   {
+    "key": "D",
+    "text": "电源电压"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "熔断器额定电流是能保证熔断器长期正常工作的电流，由各部分长期工作时的允许温升决定。（教材课后习题 实训任务1-2）",
+  "source": "电气控制技术实训 第3版 项目1课后习题"
+ },
+ {
+  "id": "wiring-single-107",
+  "number": 107,
+  "type": "single",
+  "stem": "熔体的额定电流是指（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "熔体熔断的最小电流"
+   },
+   {
+    "key": "B",
+    "text": "规定条件下长时间通过而熔体不熔断的最大电流"
+   },
+   {
+    "key": "C",
+    "text": "熔断器能分断的最大短路电流"
+   },
+   {
+    "key": "D",
+    "text": "熔断器长期工作的电流"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "熔体额定电流是规定工作条件下长时间通过熔体而不熔断的最大电流值。（教材课后习题 实训任务1-2）",
+  "source": "电气控制技术实训 第3版 项目1课后习题"
+ },
+ {
+  "id": "wiring-single-108",
+  "number": 108,
+  "type": "single",
+  "stem": "熔断器型号 RT18-32/25 中，“32”表示（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "熔体额定电流 32A"
+   },
+   {
+    "key": "B",
+    "text": "熔断器额定电流 32A"
+   },
+   {
+    "key": "C",
+    "text": "设计序号"
+   },
+   {
+    "key": "D",
+    "text": "极限分断能力 32kA"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "RT 有填料封闭管式，18 设计序号，32 熔断器额定电流 32A，25 熔体额定电流 25A。（教材课后习题 实训任务1-2）",
+  "source": "电气控制技术实训 第3版 项目1课后习题"
+ },
+ {
+  "id": "wiring-single-109",
+  "number": 109,
+  "type": "single",
+  "stem": "熔断器型号 RT18-32/25 中，“RT”表示（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "螺旋式熔断器"
+   },
+   {
+    "key": "B",
+    "text": "瓷插式熔断器"
+   },
+   {
+    "key": "C",
+    "text": "有填料封闭管式熔断器"
+   },
+   {
+    "key": "D",
+    "text": "无填料封闭管式熔断器"
+   }
+  ],
+  "answer": [
+   "C"
+  ],
+  "explanation": "RT 表示有填料封闭管式熔断器。（教材课后习题 实训任务1-2）",
+  "source": "电气控制技术实训 第3版 项目1课后习题"
+ },
+ {
+  "id": "wiring-single-110",
+  "number": 110,
+  "type": "single",
+  "stem": "交流接触器动作时，触点的动作顺序是（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "动合触点先闭合，动断触点后断开"
+   },
+   {
+    "key": "B",
+    "text": "动断触点先断开，动合触点后闭合"
+   },
+   {
+    "key": "C",
+    "text": "动合、动断触点同时动作"
+   },
+   {
+    "key": "D",
+    "text": "只有主触点动作"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "交流接触器动作时，动断触点先断开，动合触点后闭合。（教材课后习题 实训任务1-3）",
+  "source": "电气控制技术实训 第3版 项目1课后习题"
+ },
+ {
+  "id": "wiring-single-111",
+  "number": 111,
+  "type": "single",
+  "stem": "交流接触器的铁心一般用（ ）制成。",
+  "options": [
+   {
+    "key": "A",
+    "text": "整块铸铁"
+   },
+   {
+    "key": "B",
+    "text": "整块铸钢"
+   },
+   {
+    "key": "C",
+    "text": "硅钢片叠压铆成"
+   },
+   {
+    "key": "D",
+    "text": "铜板"
+   }
+  ],
+  "answer": [
+   "C"
+  ],
+  "explanation": "交流接触器铁心用硅钢片叠压铆成，以减少铁心中的涡流损耗；直流接触器铁心一般用整块铸铁或铸钢。（教材课后习题 实训任务1-3）",
+  "source": "电气控制技术实训 第3版 项目1课后习题"
+ },
+ {
+  "id": "wiring-single-112",
+  "number": 112,
+  "type": "single",
+  "stem": "直流接触器的铁心一般用（ ）制成。",
+  "options": [
+   {
+    "key": "A",
+    "text": "硅钢片叠压"
+   },
+   {
+    "key": "B",
+    "text": "整块铸铁或铸钢"
+   },
+   {
+    "key": "C",
+    "text": "铝合金"
+   },
+   {
+    "key": "D",
+    "text": "塑料"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "直流接触器的铁心一般是整块的铸铁或铸钢。（教材课后习题 实训任务1-3）",
+  "source": "电气控制技术实训 第3版 项目1课后习题"
+ },
+ {
+  "id": "wiring-single-113",
+  "number": 113,
+  "type": "single",
+  "stem": "接触器型号 CJ20-40 中，“CJ”表示（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "直流接触器"
+   },
+   {
+    "key": "B",
+    "text": "交流接触器"
+   },
+   {
+    "key": "C",
+    "text": "中间继电器"
+   },
+   {
+    "key": "D",
+    "text": "时间继电器"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "CJ 交流接触器，20 设计序号，40 主触点额定电流 40A。（教材课后习题 实训任务1-3）",
+  "source": "电气控制技术实训 第3版 项目1课后习题"
+ },
+ {
+  "id": "wiring-single-114",
+  "number": 114,
+  "type": "single",
+  "stem": "热继电器设为手动复位时，过载动作后要使触点复位，必须（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "等双金属片冷却即可自动复位"
+   },
+   {
+    "key": "B",
+    "text": "按下手动复位按钮"
+   },
+   {
+    "key": "C",
+    "text": "重新接通电源"
+   },
+   {
+    "key": "D",
+    "text": "调大整定电流"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "手动复位时，过载后双金属片不能自动复原，需按下手动复位按钮才能使触点复位。（教材课后习题 实训任务1-4）",
+  "source": "电气控制技术实训 第3版 项目1课后习题"
+ },
+ {
+  "id": "wiring-single-115",
+  "number": 115,
+  "type": "single",
+  "stem": "JS7-2A 与 JS7-1A 相比，多了（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "两对通电延时触点"
+   },
+   {
+    "key": "B",
+    "text": "两对瞬时动作触点"
+   },
+   {
+    "key": "C",
+    "text": "一个线圈"
+   },
+   {
+    "key": "D",
+    "text": "断电延时功能"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "两者都是通电延时型；JS7-1A 只有两对延时触点，JS7-2A 另有两对瞬时动作触点。（教材课后习题 实训任务1-5）",
+  "source": "电气控制技术实训 第3版 项目1课后习题"
+ },
+ {
+  "id": "wiring-single-116",
+  "number": 116,
+  "type": "single",
+  "stem": "JS7-4A 型时间继电器属于（ ）型。",
+  "options": [
+   {
+    "key": "A",
+    "text": "通电延时"
+   },
+   {
+    "key": "B",
+    "text": "断电延时"
+   },
+   {
+    "key": "C",
+    "text": "电子式"
+   },
+   {
+    "key": "D",
+    "text": "电动式"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "JS7-2A 是通电延时型，JS7-4A 是断电延时型。（教材课后习题 实训任务1-5）",
+  "source": "电气控制技术实训 第3版 项目1课后习题"
+ },
+ {
+  "id": "wiring-single-117",
+  "number": 117,
+  "type": "single",
+  "stem": "JS7-2A 与 JS7-4A 结构相同，区别在于（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "气室大小不同"
+   },
+   {
+    "key": "B",
+    "text": "电磁机构安装方向相差 180°"
+   },
+   {
+    "key": "C",
+    "text": "触点数量不同"
+   },
+   {
+    "key": "D",
+    "text": "线圈电压不同"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "两者结构相同，但电磁机构安装方向相差 180°。（教材课后习题 实训任务1-5）",
+  "source": "电气控制技术实训 第3版 项目1课后习题"
+ },
+ {
+  "id": "wiring-single-118",
+  "number": 118,
+  "type": "single",
+  "stem": "JSZ3 系列电子式时间继电器的最长延时时间可达（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "60s"
+   },
+   {
+    "key": "B",
+    "text": "1 小时"
+   },
+   {
+    "key": "C",
+    "text": "12 小时"
+   },
+   {
+    "key": "D",
+    "text": "24 小时"
+   }
+  ],
+  "answer": [
+   "D"
+  ],
+  "explanation": "JSZ3 系列电子式时间继电器最长延时可达 24 小时。（教材课后习题 实训任务1-5）",
+  "source": "电气控制技术实训 第3版 项目1课后习题"
+ },
+ {
+  "id": "wiring-single-119",
+  "number": 119,
+  "type": "single",
+  "stem": "按钮按下时，触点的动作顺序是（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "常开触点先闭合，常闭触点后断开"
+   },
+   {
+    "key": "B",
+    "text": "常闭触点先断开，常开触点后闭合"
+   },
+   {
+    "key": "C",
+    "text": "常开、常闭同时动作"
+   },
+   {
+    "key": "D",
+    "text": "只有常开触点动作"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "按钮按下时，常闭触点先断开，常开触点后闭合。（教材课后习题 实训任务1-6）",
+  "source": "电气控制技术实训 第3版 项目1课后习题"
+ },
+ {
+  "id": "wiring-single-120",
+  "number": 120,
+  "type": "single",
+  "stem": "带灯按钮中，接灯的两个接线柱通过电源和（ ）串联，使按下起动按钮的同时指示灯点亮。",
+  "options": [
+   {
+    "key": "A",
+    "text": "停止按钮的常闭触点"
+   },
+   {
+    "key": "B",
+    "text": "起动时通电的接触器或继电器常开触点"
+   },
+   {
+    "key": "C",
+    "text": "热继电器常闭触点"
+   },
+   {
+    "key": "D",
+    "text": "熔断器"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "接灯的两个接线柱经电源、起动时通电的接触器或继电器常开触点串联起来，按下起动按钮同时灯亮。（教材课后习题 实训任务1-6）",
+  "source": "电气控制技术实训 第3版 项目1课后习题"
+ },
+ {
+  "id": "wiring-single-121",
+  "number": 121,
+  "type": "single",
+  "stem": "行程开关的滚轮被撞铁压下时，推动内部的（ ）快速动作。",
+  "options": [
+   {
+    "key": "A",
+    "text": "电磁铁"
+   },
+   {
+    "key": "B",
+    "text": "微动开关"
+   },
+   {
+    "key": "C",
+    "text": "双金属片"
+   },
+   {
+    "key": "D",
+    "text": "气囊"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "撞铁压到滚轮时推动微动开关快速动作，常闭触点分断，常开触点闭合。（教材课后习题 实训任务1-7）",
+  "source": "电气控制技术实训 第3版 项目1课后习题"
+ },
+ {
+  "id": "wiring-single-122",
+  "number": 122,
+  "type": "single",
+  "stem": "双滚轮式行程开关在撞铁移开滚轮后，（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "各部分立即自动复位"
+   },
+   {
+    "key": "B",
+    "text": "触点不会自动复位"
+   },
+   {
+    "key": "C",
+    "text": "常开触点断开"
+   },
+   {
+    "key": "D",
+    "text": "常闭触点闭合"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "双滚轮式撞铁移开后触点不会自动复位，要等运动机械返回、撞铁压到另一侧滚轮时才复位。（教材课后习题 实训任务1-7）",
+  "source": "电气控制技术实训 第3版 项目1课后习题"
+ },
+ {
+  "id": "wiring-single-123",
+  "number": 123,
+  "type": "single",
+  "stem": "文字符号 KM 表示（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "中间继电器"
+   },
+   {
+    "key": "B",
+    "text": "接触器"
+   },
+   {
+    "key": "C",
+    "text": "时间继电器"
+   },
+   {
+    "key": "D",
+    "text": "热继电器"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "KM 接触器；KA 中间继电器；KT 时间继电器；FR 热继电器。（教材 p27）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 27
+ },
+ {
+  "id": "wiring-single-124",
+  "number": 124,
+  "type": "single",
+  "stem": "文字符号 KA 表示（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "接触器"
+   },
+   {
+    "key": "B",
+    "text": "中间继电器"
+   },
+   {
+    "key": "C",
+    "text": "速度继电器"
+   },
+   {
+    "key": "D",
+    "text": "电流表"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "KA 中间继电器。（教材 p30）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 30
+ },
+ {
+  "id": "wiring-single-125",
+  "number": 125,
+  "type": "single",
+  "stem": "文字符号 KT 表示（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "时间继电器"
+   },
+   {
+    "key": "B",
+    "text": "热继电器"
+   },
+   {
+    "key": "C",
+    "text": "接触器"
+   },
+   {
+    "key": "D",
+    "text": "变压器"
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "KT 时间继电器。（教材 p31）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 31
+ },
+ {
+  "id": "wiring-single-126",
+  "number": 126,
+  "type": "single",
+  "stem": "文字符号 KS 表示（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "时间继电器"
+   },
+   {
+    "key": "B",
+    "text": "行程开关"
+   },
+   {
+    "key": "C",
+    "text": "速度继电器"
+   },
+   {
+    "key": "D",
+    "text": "按钮"
+   }
+  ],
+  "answer": [
+   "C"
+  ],
+  "explanation": "KS 速度继电器。（教材 p32）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 32
+ },
+ {
+  "id": "wiring-single-127",
+  "number": 127,
+  "type": "single",
+  "stem": "文字符号 FR 表示（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "熔断器"
+   },
+   {
+    "key": "B",
+    "text": "热继电器"
+   },
+   {
+    "key": "C",
+    "text": "低压断路器"
+   },
+   {
+    "key": "D",
+    "text": "接触器"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "FR 热继电器；FU 熔断器。（教材 p29）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 29
+ },
+ {
+  "id": "wiring-single-128",
+  "number": 128,
+  "type": "single",
+  "stem": "文字符号 FU 表示（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "熔断器"
+   },
+   {
+    "key": "B",
+    "text": "热继电器"
+   },
+   {
+    "key": "C",
+    "text": "低压断路器"
+   },
+   {
+    "key": "D",
+    "text": "刀开关"
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "FU 熔断器。（教材 p25）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 25
+ },
+ {
+  "id": "wiring-single-129",
+  "number": 129,
+  "type": "single",
+  "stem": "文字符号 QF 表示（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "刀开关"
+   },
+   {
+    "key": "B",
+    "text": "组合开关"
+   },
+   {
+    "key": "C",
+    "text": "低压断路器"
+   },
+   {
+    "key": "D",
+    "text": "熔断器"
+   }
+  ],
+  "answer": [
+   "C"
+  ],
+  "explanation": "QF 低压断路器；QS 刀开关、组合开关。（教材 p23）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 23
+ },
+ {
+  "id": "wiring-single-130",
+  "number": 130,
+  "type": "single",
+  "stem": "文字符号 QS 表示（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "低压断路器"
+   },
+   {
+    "key": "B",
+    "text": "刀开关或组合开关"
+   },
+   {
+    "key": "C",
+    "text": "行程开关"
+   },
+   {
+    "key": "D",
+    "text": "接触器"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "QS 刀开关、组合开关；QF 低压断路器。（教材 p23）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 23
+ },
+ {
+  "id": "wiring-single-131",
+  "number": 131,
+  "type": "single",
+  "stem": "文字符号 SB 表示（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "行程开关"
+   },
+   {
+    "key": "B",
+    "text": "按钮"
+   },
+   {
+    "key": "C",
+    "text": "速度继电器"
+   },
+   {
+    "key": "D",
+    "text": "刀开关"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "SB 按钮；SQ 位置开关。（教材 p33）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 33
+ },
+ {
+  "id": "wiring-single-132",
+  "number": 132,
+  "type": "single",
+  "stem": "文字符号 SQ 表示（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "按钮"
+   },
+   {
+    "key": "B",
+    "text": "行程开关（位置开关）"
+   },
+   {
+    "key": "C",
+    "text": "组合开关"
+   },
+   {
+    "key": "D",
+    "text": "速度继电器"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "SQ 位置开关（行程开关）。（教材 p34）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 34
+ },
+ {
+  "id": "wiring-single-133",
+  "number": 133,
+  "type": "single",
+  "stem": "电路图中电动机的文字符号是（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "M"
+   },
+   {
+    "key": "B",
+    "text": "G"
+   },
+   {
+    "key": "C",
+    "text": "T"
+   },
+   {
+    "key": "D",
+    "text": "D"
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "电动机文字符号 M，三相异步电动机画成圆内写“M 3～”。",
+  "source": "电气控制技术实训 第3版 项目1"
+ },
+ {
+  "id": "wiring-single-134",
+  "number": 134,
+  "type": "single",
+  "stem": "电路图中某元件标 KM1、KM2，表示（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "一个接触器的两组触点"
+   },
+   {
+    "key": "B",
+    "text": "两个不同的接触器"
+   },
+   {
+    "key": "C",
+    "text": "接触器的两个线圈端子"
+   },
+   {
+    "key": "D",
+    "text": "两个熔断器"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "同类电器有多个时在文字符号后加数字序号区分，KM1、KM2 是两个接触器。",
+  "source": "电气控制技术实训 第3版 项目1"
+ },
+ {
+  "id": "wiring-single-135",
+  "number": 135,
+  "type": "single",
+  "stem": "图中的图形符号表示（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "热继电器热元件"
+   },
+   {
+    "key": "B",
+    "text": "熔断器"
+   },
+   {
+    "key": "C",
+    "text": "接触器线圈"
+   },
+   {
+    "key": "D",
+    "text": "电阻"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "熔断器：长方形中间有一条导线穿过，文字符号 FU。热元件的长方形里是弯折线。（教材 p25）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 25,
+  "fig": "fu"
+ },
+ {
+  "id": "wiring-single-136",
+  "number": 136,
+  "type": "single",
+  "stem": "图中的图形符号，文字符号应标（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "FR"
+   },
+   {
+    "key": "B",
+    "text": "FU"
+   },
+   {
+    "key": "C",
+    "text": "QF"
+   },
+   {
+    "key": "D",
+    "text": "KM"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "这是熔断器，文字符号 FU。（教材 p25）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 25,
+  "fig": "fu"
+ },
+ {
+  "id": "wiring-single-137",
+  "number": 137,
+  "type": "single",
+  "stem": "图中的图形符号表示（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "三极刀开关"
+   },
+   {
+    "key": "B",
+    "text": "三极低压断路器"
+   },
+   {
+    "key": "C",
+    "text": "接触器主触点"
+   },
+   {
+    "key": "D",
+    "text": "复合按钮"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "三个动合触点、虚线连动、手动操作，静触点处画“×”的是低压断路器，文字符号 QF。（教材 p23）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 23,
+  "fig": "qf3"
+ },
+ {
+  "id": "wiring-single-138",
+  "number": 138,
+  "type": "single",
+  "stem": "图中的图形符号，文字符号应标（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "QS"
+   },
+   {
+    "key": "B",
+    "text": "QF"
+   },
+   {
+    "key": "C",
+    "text": "KM"
+   },
+   {
+    "key": "D",
+    "text": "FU"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "静触点处有“×”的是低压断路器 QF。（教材 p23）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 23,
+  "fig": "qf3"
+ },
+ {
+  "id": "wiring-single-139",
+  "number": 139,
+  "type": "single",
+  "stem": "图中的图形符号表示（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "三极刀开关"
+   },
+   {
+    "key": "B",
+    "text": "三极低压断路器"
+   },
+   {
+    "key": "C",
+    "text": "接触器主触点"
+   },
+   {
+    "key": "D",
+    "text": "热继电器"
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "三个动合触点用虚线连动、手动操作，没有“×”和半圆的是三极刀开关，文字符号 QS。（教材 p21）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 21,
+  "fig": "qs3"
+ },
+ {
+  "id": "wiring-single-140",
+  "number": 140,
+  "type": "single",
+  "stem": "图中的图形符号，文字符号应标（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "QS"
+   },
+   {
+    "key": "B",
+    "text": "QF"
+   },
+   {
+    "key": "C",
+    "text": "SB"
+   },
+   {
+    "key": "D",
+    "text": "KM"
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "三极刀开关，文字符号 QS。（教材 p21）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 21,
+  "fig": "qs3"
+ },
+ {
+  "id": "wiring-single-141",
+  "number": 141,
+  "type": "single",
+  "stem": "图中的图形符号表示（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "低压断路器"
+   },
+   {
+    "key": "B",
+    "text": "刀开关"
+   },
+   {
+    "key": "C",
+    "text": "接触器主触点"
+   },
+   {
+    "key": "D",
+    "text": "按钮"
+   }
+  ],
+  "answer": [
+   "C"
+  ],
+  "explanation": "三个动合触点、静触点处画小半圆的是接触器主触点，串在主电路里，文字符号 KM。（教材 p27）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 27,
+  "fig": "km3"
+ },
+ {
+  "id": "wiring-single-142",
+  "number": 142,
+  "type": "single",
+  "stem": "图中的图形符号，文字符号应标（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "KA"
+   },
+   {
+    "key": "B",
+    "text": "KM"
+   },
+   {
+    "key": "C",
+    "text": "QF"
+   },
+   {
+    "key": "D",
+    "text": "FR"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "接触器主触点，文字符号 KM。（教材 p27）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 27,
+  "fig": "km3"
+ },
+ {
+  "id": "wiring-single-143",
+  "number": 143,
+  "type": "single",
+  "stem": "图中的长方形符号在控制电路中旁边标 KM，它表示接触器的（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "主触点"
+   },
+   {
+    "key": "B",
+    "text": "线圈"
+   },
+   {
+    "key": "C",
+    "text": "辅助常开触点"
+   },
+   {
+    "key": "D",
+    "text": "辅助常闭触点"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "长方形是线圈的图形符号；接触器、中间继电器、时间继电器的线圈都画成长方形，靠文字符号区分。（教材 p27）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 27,
+  "fig": "coil"
+ },
+ {
+  "id": "wiring-single-144",
+  "number": 144,
+  "type": "single",
+  "stem": "图中的触点符号表示（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "动合（常开）触点"
+   },
+   {
+    "key": "B",
+    "text": "动断（常闭）触点"
+   },
+   {
+    "key": "C",
+    "text": "延时触点"
+   },
+   {
+    "key": "D",
+    "text": "主触点"
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "动合触点：不受外力时刀片离开静触点，电路断开。（教材 p27）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 27,
+  "fig": "no"
+ },
+ {
+  "id": "wiring-single-145",
+  "number": 145,
+  "type": "single",
+  "stem": "图中的触点符号表示（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "动合（常开）触点"
+   },
+   {
+    "key": "B",
+    "text": "动断（常闭）触点"
+   },
+   {
+    "key": "C",
+    "text": "熔断器"
+   },
+   {
+    "key": "D",
+    "text": "线圈"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "动断触点：刀片搭在静触点的横线上，不受外力时电路接通。（教材 p27）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 27,
+  "fig": "nc"
+ },
+ {
+  "id": "wiring-single-146",
+  "number": 146,
+  "type": "single",
+  "stem": "图中的图形符号表示（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "熔断器"
+   },
+   {
+    "key": "B",
+    "text": "热继电器的热元件"
+   },
+   {
+    "key": "C",
+    "text": "接触器线圈"
+   },
+   {
+    "key": "D",
+    "text": "电动机"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "长方形里有弯折线的是热继电器热元件，串在主电路，文字符号 FR。（教材 p29）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 29,
+  "fig": "frh"
+ },
+ {
+  "id": "wiring-single-147",
+  "number": 147,
+  "type": "single",
+  "stem": "图中的图形符号，文字符号应标（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "FU"
+   },
+   {
+    "key": "B",
+    "text": "FR"
+   },
+   {
+    "key": "C",
+    "text": "KT"
+   },
+   {
+    "key": "D",
+    "text": "R"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "热继电器热元件，文字符号 FR。（教材 p29）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 29,
+  "fig": "frh"
+ },
+ {
+  "id": "wiring-single-148",
+  "number": 148,
+  "type": "single",
+  "stem": "图中的触点符号表示（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "停止按钮"
+   },
+   {
+    "key": "B",
+    "text": "热继电器动断（常闭）触点"
+   },
+   {
+    "key": "C",
+    "text": "行程开关常闭触点"
+   },
+   {
+    "key": "D",
+    "text": "时间继电器延时触点"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "动断触点用虚线连到热执行器符号（方形凸起），是热继电器的常闭触点，串在控制电路里。（教材 p29）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 29,
+  "fig": "frnc"
+ },
+ {
+  "id": "wiring-single-149",
+  "number": 149,
+  "type": "single",
+  "stem": "图中的触点符号，文字符号应标（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "SB"
+   },
+   {
+    "key": "B",
+    "text": "FR"
+   },
+   {
+    "key": "C",
+    "text": "SQ"
+   },
+   {
+    "key": "D",
+    "text": "KM"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "带热执行器符号的常闭触点属于热继电器 FR。（教材 p29）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 29,
+  "fig": "frnc"
+ },
+ {
+  "id": "wiring-single-150",
+  "number": 150,
+  "type": "single",
+  "stem": "图中的图形符号表示（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "停止按钮"
+   },
+   {
+    "key": "B",
+    "text": "起动按钮（常开按钮）"
+   },
+   {
+    "key": "C",
+    "text": "行程开关"
+   },
+   {
+    "key": "D",
+    "text": "刀开关"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "动合触点用虚线连到“E”形按钮操作件，是常开按钮，一般作起动按钮。（教材 p33）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 33,
+  "fig": "sbno"
+ },
+ {
+  "id": "wiring-single-151",
+  "number": 151,
+  "type": "single",
+  "stem": "图中的图形符号表示（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "停止按钮（常闭按钮）"
+   },
+   {
+    "key": "B",
+    "text": "起动按钮"
+   },
+   {
+    "key": "C",
+    "text": "热继电器常闭触点"
+   },
+   {
+    "key": "D",
+    "text": "行程开关常闭触点"
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "动断触点用虚线连到“E”形按钮操作件，是常闭按钮，一般作停止按钮。（教材 p33）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 33,
+  "fig": "sbnc"
+ },
+ {
+  "id": "wiring-single-152",
+  "number": 152,
+  "type": "single",
+  "stem": "图中的图形符号，文字符号应标（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "SQ"
+   },
+   {
+    "key": "B",
+    "text": "SB"
+   },
+   {
+    "key": "C",
+    "text": "SA"
+   },
+   {
+    "key": "D",
+    "text": "KA"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "带“E”形操作件的是按钮，文字符号 SB。（教材 p33）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 33,
+  "fig": "sbnc"
+ },
+ {
+  "id": "wiring-single-153",
+  "number": 153,
+  "type": "single",
+  "stem": "图中的图形符号表示（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "两个独立按钮"
+   },
+   {
+    "key": "B",
+    "text": "复合按钮"
+   },
+   {
+    "key": "C",
+    "text": "接触器辅助触点"
+   },
+   {
+    "key": "D",
+    "text": "组合开关"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "一个常开、一个常闭触点由同一个按钮操作件带动（虚线连动），是复合按钮。（教材 p33）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 33,
+  "fig": "sb2"
+ },
+ {
+  "id": "wiring-single-154",
+  "number": 154,
+  "type": "single",
+  "stem": "图中的触点符号表示（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "按钮常开触点"
+   },
+   {
+    "key": "B",
+    "text": "行程开关（位置开关）常开触点"
+   },
+   {
+    "key": "C",
+    "text": "接触器辅助常开触点"
+   },
+   {
+    "key": "D",
+    "text": "时间继电器触点"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "刀片上画小三角的是位置开关（行程开关）的触点，这个是常开触点，文字符号 SQ。（教材 p34）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 34,
+  "fig": "sqno"
+ },
+ {
+  "id": "wiring-single-155",
+  "number": 155,
+  "type": "single",
+  "stem": "图中的触点符号，文字符号应标（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "SB"
+   },
+   {
+    "key": "B",
+    "text": "SQ"
+   },
+   {
+    "key": "C",
+    "text": "KS"
+   },
+   {
+    "key": "D",
+    "text": "QS"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "刀片上带小三角的是行程开关（位置开关），文字符号 SQ。（教材 p34）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 34,
+  "fig": "sqnc"
+ },
+ {
+  "id": "wiring-single-156",
+  "number": 156,
+  "type": "single",
+  "stem": "图中的图形符号表示（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "三相异步电动机"
+   },
+   {
+    "key": "B",
+    "text": "指示灯"
+   },
+   {
+    "key": "C",
+    "text": "电流表"
+   },
+   {
+    "key": "D",
+    "text": "变压器"
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "圆内写“M 3～”是三相交流电动机，文字符号 M。",
+  "source": "电气控制技术实训 第3版 项目1",
+  "fig": "m3"
+ },
+ {
+  "id": "wiring-single-157",
+  "number": 157,
+  "type": "single",
+  "stem": "熔断器的图形符号是（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "fig": "frh",
+    "text": ""
+   },
+   {
+    "key": "B",
+    "fig": "fu",
+    "text": ""
+   },
+   {
+    "key": "C",
+    "fig": "coil",
+    "text": ""
+   },
+   {
+    "key": "D",
+    "fig": "nc",
+    "text": ""
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "熔断器：长方形中间有导线穿过。A 热元件，C 线圈，D 动断触点。（教材 p25）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 25
+ },
+ {
+  "id": "wiring-single-158",
+  "number": 158,
+  "type": "single",
+  "stem": "热继电器热元件的图形符号是（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "fig": "fu",
+    "text": ""
+   },
+   {
+    "key": "B",
+    "fig": "coil",
+    "text": ""
+   },
+   {
+    "key": "C",
+    "fig": "frh",
+    "text": ""
+   },
+   {
+    "key": "D",
+    "fig": "no",
+    "text": ""
+   }
+  ],
+  "answer": [
+   "C"
+  ],
+  "explanation": "长方形里有弯折线的是热元件。（教材 p29）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 29
+ },
+ {
+  "id": "wiring-single-159",
+  "number": 159,
+  "type": "single",
+  "stem": "接触器线圈的图形符号是（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "fig": "coil",
+    "text": ""
+   },
+   {
+    "key": "B",
+    "fig": "fu",
+    "text": ""
+   },
+   {
+    "key": "C",
+    "fig": "frh",
+    "text": ""
+   },
+   {
+    "key": "D",
+    "fig": "nc",
+    "text": ""
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "线圈画成长方形，导线只接到上下两边。（教材 p27）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 27
+ },
+ {
+  "id": "wiring-single-160",
+  "number": 160,
+  "type": "single",
+  "stem": "动合（常开）触点的图形符号是（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "fig": "nc",
+    "text": ""
+   },
+   {
+    "key": "B",
+    "fig": "no",
+    "text": ""
+   },
+   {
+    "key": "C",
+    "fig": "fu",
+    "text": ""
+   },
+   {
+    "key": "D",
+    "fig": "coil",
+    "text": ""
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "动合触点不受外力时刀片离开静触点。（教材 p27）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 27
+ },
+ {
+  "id": "wiring-single-161",
+  "number": 161,
+  "type": "single",
+  "stem": "动断（常闭）触点的图形符号是（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "fig": "no",
+    "text": ""
+   },
+   {
+    "key": "B",
+    "fig": "coil",
+    "text": ""
+   },
+   {
+    "key": "C",
+    "fig": "nc",
+    "text": ""
+   },
+   {
+    "key": "D",
+    "fig": "frh",
+    "text": ""
+   }
+  ],
+  "answer": [
+   "C"
+  ],
+  "explanation": "动断触点刀片搭在静触点的横线上。（教材 p27）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 27
+ },
+ {
+  "id": "wiring-single-162",
+  "number": 162,
+  "type": "single",
+  "stem": "停止按钮的图形符号是（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "fig": "sbno",
+    "text": ""
+   },
+   {
+    "key": "B",
+    "fig": "sbnc",
+    "text": ""
+   },
+   {
+    "key": "C",
+    "fig": "frnc",
+    "text": ""
+   },
+   {
+    "key": "D",
+    "fig": "sqnc",
+    "text": ""
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "停止按钮用常闭按钮：动断触点 + “E”形按钮操作件。C 是热继电器常闭触点，D 是行程开关常闭触点。（教材 p33）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 33
+ },
+ {
+  "id": "wiring-single-163",
+  "number": 163,
+  "type": "single",
+  "stem": "起动按钮的图形符号是（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "fig": "sqno",
+    "text": ""
+   },
+   {
+    "key": "B",
+    "fig": "no",
+    "text": ""
+   },
+   {
+    "key": "C",
+    "fig": "sbno",
+    "text": ""
+   },
+   {
+    "key": "D",
+    "fig": "sbnc",
+    "text": ""
+   }
+  ],
+  "answer": [
+   "C"
+  ],
+  "explanation": "起动按钮用常开按钮：动合触点 + “E”形按钮操作件。（教材 p33）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 33
+ },
+ {
+  "id": "wiring-single-164",
+  "number": 164,
+  "type": "single",
+  "stem": "热继电器常闭触点的图形符号是（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "fig": "sbnc",
+    "text": ""
+   },
+   {
+    "key": "B",
+    "fig": "frnc",
+    "text": ""
+   },
+   {
+    "key": "C",
+    "fig": "nc",
+    "text": ""
+   },
+   {
+    "key": "D",
+    "fig": "sqnc",
+    "text": ""
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "常闭触点用虚线连到热执行器符号（方形凸起）。（教材 p29）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 29
+ },
+ {
+  "id": "wiring-single-165",
+  "number": 165,
+  "type": "single",
+  "stem": "行程开关常开触点的图形符号是（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "fig": "sbno",
+    "text": ""
+   },
+   {
+    "key": "B",
+    "fig": "no",
+    "text": ""
+   },
+   {
+    "key": "C",
+    "fig": "sqno",
+    "text": ""
+   },
+   {
+    "key": "D",
+    "fig": "sbnc",
+    "text": ""
+   }
+  ],
+  "answer": [
+   "C"
+  ],
+  "explanation": "刀片上带小三角的是行程开关触点。（教材 p34）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 34
+ },
+ {
+  "id": "wiring-single-166",
+  "number": 166,
+  "type": "single",
+  "stem": "低压断路器的图形符号是（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "fig": "qs3",
+    "text": ""
+   },
+   {
+    "key": "B",
+    "fig": "qf3",
+    "text": ""
+   },
+   {
+    "key": "C",
+    "fig": "km3",
+    "text": ""
+   },
+   {
+    "key": "D",
+    "fig": "sb2",
+    "text": ""
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "静触点处画“×”的是断路器；A 刀开关，C 接触器主触点（半圆）。（教材 p23）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 23
+ },
+ {
+  "id": "wiring-single-167",
+  "number": 167,
+  "type": "single",
+  "stem": "接触器主触点的图形符号是（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "fig": "qs3",
+    "text": ""
+   },
+   {
+    "key": "B",
+    "fig": "qf3",
+    "text": ""
+   },
+   {
+    "key": "C",
+    "fig": "km3",
+    "text": ""
+   },
+   {
+    "key": "D",
+    "fig": "sb2",
+    "text": ""
+   }
+  ],
+  "answer": [
+   "C"
+  ],
+  "explanation": "静触点处画小半圆的是接触器主触点。（教材 p27）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 27
+ },
+ {
+  "id": "wiring-single-168",
+  "number": 168,
+  "type": "single",
+  "stem": "三极刀开关的图形符号是（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "fig": "qs3",
+    "text": ""
+   },
+   {
+    "key": "B",
+    "fig": "qf3",
+    "text": ""
+   },
+   {
+    "key": "C",
+    "fig": "km3",
+    "text": ""
+   },
+   {
+    "key": "D",
+    "fig": "sb2",
+    "text": ""
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "三个动合触点虚线连动、手动操作，静触点处没有符号。（教材 p21）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 21
+ },
+ {
+  "id": "wiring-single-169",
+  "number": 169,
+  "type": "single",
+  "stem": "复合按钮的图形符号是（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "fig": "sb2",
+    "text": ""
+   },
+   {
+    "key": "B",
+    "fig": "sbno",
+    "text": ""
+   },
+   {
+    "key": "C",
+    "fig": "sbnc",
+    "text": ""
+   },
+   {
+    "key": "D",
+    "fig": "qs3",
+    "text": ""
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "复合按钮：常开、常闭两组触点由同一个按钮操作件带动。（教材 p33）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 33
+ },
+ {
+  "id": "wiring-single-170",
+  "number": 170,
+  "type": "single",
+  "stem": "交流接触器线圈通电后，动作过程正确的是（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "线圈通电→铁心产生电磁吸力→衔铁吸合→带动触点动作"
+   },
+   {
+    "key": "B",
+    "text": "衔铁吸合→线圈通电→触点动作"
+   },
+   {
+    "key": "C",
+    "text": "触点动作→线圈通电→衔铁吸合"
+   },
+   {
+    "key": "D",
+    "text": "线圈通电→触点动作→衔铁释放"
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "线圈通电，铁心产生电磁吸力吸合衔铁，衔铁带动动触点，使动合闭合、动断断开。（教材 p27）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 27
+ },
+ {
+  "id": "wiring-single-171",
+  "number": 171,
+  "type": "single",
+  "stem": "接触器线圈断电后，使衔铁释放、触点复位的是（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "电磁吸力"
+   },
+   {
+    "key": "B",
+    "text": "反作用弹簧的反力"
+   },
+   {
+    "key": "C",
+    "text": "灭弧罩"
+   },
+   {
+    "key": "D",
+    "text": "短路环"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "线圈断电后电磁吸力消失，弹簧反力使衔铁释放，触点恢复初始状态。（教材 p28）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 28
+ },
+ {
+  "id": "wiring-single-172",
+  "number": 172,
+  "type": "single",
+  "stem": "交流接触器铁心端面嵌装短路环的作用是（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "增大吸力"
+   },
+   {
+    "key": "B",
+    "text": "减小衔铁振动和噪声"
+   },
+   {
+    "key": "C",
+    "text": "灭弧"
+   },
+   {
+    "key": "D",
+    "text": "散热"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "交流电过零时吸力减小会使衔铁振动，短路环产生的磁通使吸力不过零，减小振动和噪声；短路环断裂时噪声大。（教材 p35）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 35
+ },
+ {
+  "id": "wiring-single-173",
+  "number": 173,
+  "type": "single",
+  "stem": "接触器的主触点用于（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "控制电路"
+   },
+   {
+    "key": "B",
+    "text": "通断主电路"
+   },
+   {
+    "key": "C",
+    "text": "指示信号"
+   },
+   {
+    "key": "D",
+    "text": "自锁"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "主触点用于通断主电路；辅助触点用于控制电路。（教材 p27）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 27
+ },
+ {
+  "id": "wiring-single-174",
+  "number": 174,
+  "type": "single",
+  "stem": "接触器的辅助触点用于（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "通断主电路"
+   },
+   {
+    "key": "B",
+    "text": "控制电路，起电气联锁或控制作用"
+   },
+   {
+    "key": "C",
+    "text": "过载保护"
+   },
+   {
+    "key": "D",
+    "text": "短路保护"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "辅助触点用于控制电路，起电气联锁或控制作用。（教材 p27）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 27
+ },
+ {
+  "id": "wiring-single-175",
+  "number": 175,
+  "type": "single",
+  "stem": "热继电器是利用（ ）原理工作的。",
+  "options": [
+   {
+    "key": "A",
+    "text": "电磁感应"
+   },
+   {
+    "key": "B",
+    "text": "电流的热效应"
+   },
+   {
+    "key": "C",
+    "text": "空气阻尼"
+   },
+   {
+    "key": "D",
+    "text": "电磁吸力"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "电流流过热元件发热，使双金属片受热弯曲推动触点动作，是电流的热效应。（教材 p29）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 29
+ },
+ {
+  "id": "wiring-single-176",
+  "number": 176,
+  "type": "single",
+  "stem": "热继电器中的双金属片由两种（ ）不同的金属片压合而成。",
+  "options": [
+   {
+    "key": "A",
+    "text": "颜色"
+   },
+   {
+    "key": "B",
+    "text": "热膨胀系数"
+   },
+   {
+    "key": "C",
+    "text": "导电率"
+   },
+   {
+    "key": "D",
+    "text": "厚度"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "两层金属受热膨胀程度不同，受热后向膨胀小的一侧弯曲，推动导板使触点动作。（教材 p29）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 29
+ },
+ {
+  "id": "wiring-single-177",
+  "number": 177,
+  "type": "single",
+  "stem": "电动机过载时热继电器的动作过程是（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "热元件发热→双金属片弯曲→推动导板→常闭触点断开→接触器线圈断电"
+   },
+   {
+    "key": "B",
+    "text": "常闭触点断开→热元件发热→电动机停转"
+   },
+   {
+    "key": "C",
+    "text": "双金属片弯曲→熔体熔断"
+   },
+   {
+    "key": "D",
+    "text": "热元件发热→常开触点闭合→接触器线圈通电"
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "过载电流使热元件发热，双金属片弯曲推动导板，常闭触点断开，切断接触器线圈电路，主触点断开，电动机停转。（教材 p29）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 29
+ },
+ {
+  "id": "wiring-single-178",
+  "number": 178,
+  "type": "single",
+  "stem": "热继电器的热元件应接在（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "控制电路中"
+   },
+   {
+    "key": "B",
+    "text": "电动机主电路中，与电动机串联"
+   },
+   {
+    "key": "C",
+    "text": "与电动机并联"
+   },
+   {
+    "key": "D",
+    "text": "接触器线圈两端"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "热元件串接在电动机主电路中，感受电动机电流。（教材 p29）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 29
+ },
+ {
+  "id": "wiring-single-179",
+  "number": 179,
+  "type": "single",
+  "stem": "热继电器的常闭触点应接在（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "主电路中"
+   },
+   {
+    "key": "B",
+    "text": "接触器线圈所在的控制电路中"
+   },
+   {
+    "key": "C",
+    "text": "电源进线端"
+   },
+   {
+    "key": "D",
+    "text": "电动机绕组上"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "常闭触点串在接触器线圈电路中，过载时断开使接触器线圈断电。（教材 p29）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 29
+ },
+ {
+  "id": "wiring-single-180",
+  "number": 180,
+  "type": "single",
+  "stem": "熔断器熔体熔断的原因是（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "电压过高"
+   },
+   {
+    "key": "B",
+    "text": "电流超过规定值，熔体发热熔化"
+   },
+   {
+    "key": "C",
+    "text": "温度过低"
+   },
+   {
+    "key": "D",
+    "text": "电路断开"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "电流超过规定值一定时间后，熔体自身发热熔断，切断电路。（教材 p24）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 24
+ },
+ {
+  "id": "wiring-single-181",
+  "number": 181,
+  "type": "single",
+  "stem": "熔断器的保护特性是（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "电流越大，熔断时间越长"
+   },
+   {
+    "key": "B",
+    "text": "电流越大，熔断时间越短"
+   },
+   {
+    "key": "C",
+    "text": "熔断时间与电流无关"
+   },
+   {
+    "key": "D",
+    "text": "电流越小，熔断越快"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "熔断器具有反时限特性：通过的电流越大，熔断时间越短。（教材 p24）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 24
+ },
+ {
+  "id": "wiring-single-182",
+  "number": 182,
+  "type": "single",
+  "stem": "低压断路器中，用于过载保护的是（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "热脱扣器"
+   },
+   {
+    "key": "B",
+    "text": "电磁（过电流）脱扣器"
+   },
+   {
+    "key": "C",
+    "text": "欠电压脱扣器"
+   },
+   {
+    "key": "D",
+    "text": "分励脱扣器"
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "热脱扣器用于过载保护；电磁脱扣器用于短路保护；欠电压脱扣器用于欠电压、失电压保护。（教材 p23）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 23
+ },
+ {
+  "id": "wiring-single-183",
+  "number": 183,
+  "type": "single",
+  "stem": "低压断路器中，用于短路保护的是（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "热脱扣器"
+   },
+   {
+    "key": "B",
+    "text": "电磁（过电流）脱扣器"
+   },
+   {
+    "key": "C",
+    "text": "欠电压脱扣器"
+   },
+   {
+    "key": "D",
+    "text": "辅助触点"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "电磁（过电流）脱扣器在短路大电流时瞬时动作。（教材 p23）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 23
+ },
+ {
+  "id": "wiring-single-184",
+  "number": 184,
+  "type": "single",
+  "stem": "低压断路器的欠电压脱扣器在（ ）时使断路器跳闸。",
+  "options": [
+   {
+    "key": "A",
+    "text": "过载"
+   },
+   {
+    "key": "B",
+    "text": "短路"
+   },
+   {
+    "key": "C",
+    "text": "电源电压过低或失电压"
+   },
+   {
+    "key": "D",
+    "text": "漏电"
+   }
+  ],
+  "answer": [
+   "C"
+  ],
+  "explanation": "欠电压脱扣器在电压过低或失电压时动作。（教材 p23）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 23
+ },
+ {
+  "id": "wiring-single-185",
+  "number": 185,
+  "type": "single",
+  "stem": "起动按钮一般选用（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "常开按钮"
+   },
+   {
+    "key": "B",
+    "text": "常闭按钮"
+   },
+   {
+    "key": "C",
+    "text": "急停按钮"
+   },
+   {
+    "key": "D",
+    "text": "行程开关"
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "起动按钮用常开触点，按下接通；停止按钮用常闭触点，按下断开。（教材 p33）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 33
+ },
+ {
+  "id": "wiring-single-186",
+  "number": 186,
+  "type": "single",
+  "stem": "按钮松开后，触点靠（ ）恢复原来状态。",
+  "options": [
+   {
+    "key": "A",
+    "text": "电磁吸力"
+   },
+   {
+    "key": "B",
+    "text": "复位弹簧"
+   },
+   {
+    "key": "C",
+    "text": "双金属片"
+   },
+   {
+    "key": "D",
+    "text": "手动拨回"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "按钮由按钮帽、复位弹簧、触点等组成，松开后复位弹簧使触点复位。（教材 p33）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 33
+ },
+ {
+  "id": "wiring-single-187",
+  "number": 187,
+  "type": "single",
+  "stem": "行程开关的作用是（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "把机械位移转换成电信号，控制运动部件的行程、方向或限位"
+   },
+   {
+    "key": "B",
+    "text": "过载保护"
+   },
+   {
+    "key": "C",
+    "text": "短路保护"
+   },
+   {
+    "key": "D",
+    "text": "延时控制"
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "行程开关靠运动部件上的挡铁碰撞而动作，把机械信号变成电信号，用于控制行程、方向和限位保护。（教材 p33）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 33
+ },
+ {
+  "id": "wiring-single-188",
+  "number": 188,
+  "type": "single",
+  "stem": "通电延时型时间继电器线圈通电后，其延时触点（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "立即动作"
+   },
+   {
+    "key": "B",
+    "text": "经过整定的时间后才动作"
+   },
+   {
+    "key": "C",
+    "text": "不动作"
+   },
+   {
+    "key": "D",
+    "text": "先动作后复位"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "通电延时型：线圈通电后延时触点延时动作，线圈断电时迅速复位。（教材 p32）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 32
+ },
+ {
+  "id": "wiring-single-189",
+  "number": 189,
+  "type": "single",
+  "stem": "中间继电器在电路中的主要作用是（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "通断大电流主电路"
+   },
+   {
+    "key": "B",
+    "text": "增加触点数量、传递和放大信号"
+   },
+   {
+    "key": "C",
+    "text": "过载保护"
+   },
+   {
+    "key": "D",
+    "text": "短路保护"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "中间继电器触点对数多，用来增加控制电路中的信号数量或传递、放大信号。（教材 p30）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 30
+ },
+ {
+  "id": "wiring-single-190",
+  "number": 190,
+  "type": "single",
+  "stem": "速度继电器常用于电动机的（ ）控制。",
+  "options": [
+   {
+    "key": "A",
+    "text": "星-三角降压起动"
+   },
+   {
+    "key": "B",
+    "text": "反接制动"
+   },
+   {
+    "key": "C",
+    "text": "正反转"
+   },
+   {
+    "key": "D",
+    "text": "顺序起动"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "速度继电器与电动机同轴，转速降到复位转速以下时触点复位，常用于反接制动及时切断电源。（教材 p32）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 32
+ },
+ {
+  "id": "wiring-single-191",
+  "number": 191,
+  "type": "single",
+  "stem": "速度继电器的定子结构类似于（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "笼型异步电动机的转子"
+   },
+   {
+    "key": "B",
+    "text": "直流电动机的电枢"
+   },
+   {
+    "key": "C",
+    "text": "变压器铁心"
+   },
+   {
+    "key": "D",
+    "text": "电磁铁"
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "定子由硅钢片叠成并装有笼形绕组，转子是永久磁铁，原理与笼型异步电动机相似。（教材 p32）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 32
+ },
+ {
   "id": "wiring-multiple-1",
   "number": 1,
   "type": "multiple",
@@ -3813,6 +6592,650 @@
   "explanation": "各实训任务的仪表都是万用表和绝缘电阻表。（教材 p2）",
   "source": "电气控制技术实训 第3版 项目1",
   "sourcePage": 2
+ },
+ {
+  "id": "wiring-multiple-26",
+  "number": 26,
+  "type": "multiple",
+  "stem": "低压断路器由（ ）等部分组成。",
+  "options": [
+   {
+    "key": "A",
+    "text": "触点系统"
+   },
+   {
+    "key": "B",
+    "text": "各种脱扣器"
+   },
+   {
+    "key": "C",
+    "text": "自由脱扣机构"
+   },
+   {
+    "key": "D",
+    "text": "操作机构"
+   }
+  ],
+  "answer": [
+   "A",
+   "B",
+   "C",
+   "D"
+  ],
+  "explanation": "低压断路器由触点系统、各种脱扣器、自由脱扣机构和操作机构等部分组成。（教材课后习题 实训任务1-1）",
+  "source": "电气控制技术实训 第3版 项目1课后习题"
+ },
+ {
+  "id": "wiring-multiple-27",
+  "number": 27,
+  "type": "multiple",
+  "stem": "常用熔断器类型有（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "瓷插式 RC1A"
+   },
+   {
+    "key": "B",
+    "text": "螺旋式 RL6"
+   },
+   {
+    "key": "C",
+    "text": "无填料封闭管式 RM12"
+   },
+   {
+    "key": "D",
+    "text": "有填料封闭管式 RT18"
+   }
+  ],
+  "answer": [
+   "A",
+   "B",
+   "C",
+   "D"
+  ],
+  "explanation": "四种都是项目 1 介绍的常用熔断器。（教材课后习题 实训任务1-2）",
+  "source": "电气控制技术实训 第3版 项目1课后习题"
+ },
+ {
+  "id": "wiring-multiple-28",
+  "number": 28,
+  "type": "multiple",
+  "stem": "关于熔断器额定电流与熔体额定电流，说法正确的有（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "二者是两个不同的概念"
+   },
+   {
+    "key": "B",
+    "text": "一个额定电流等级的熔断器可以配用若干个额定电流等级的熔体"
+   },
+   {
+    "key": "C",
+    "text": "熔体额定电流不能大于熔断器额定电流"
+   },
+   {
+    "key": "D",
+    "text": "熔体额定电流必须等于熔断器额定电流"
+   }
+  ],
+  "answer": [
+   "A",
+   "B",
+   "C"
+  ],
+  "explanation": "熔断器可配多种熔体，但熔体额定电流不能大于熔断器的额定电流。（教材课后习题 实训任务1-2）",
+  "source": "电气控制技术实训 第3版 项目1课后习题"
+ },
+ {
+  "id": "wiring-multiple-29",
+  "number": 29,
+  "type": "multiple",
+  "stem": "带灯按钮的结构一般包括（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "按钮帽"
+   },
+   {
+    "key": "B",
+    "text": "复位弹簧"
+   },
+   {
+    "key": "C",
+    "text": "桥式动触点和静触点"
+   },
+   {
+    "key": "D",
+    "text": "指示灯"
+   }
+  ],
+  "answer": [
+   "A",
+   "B",
+   "C",
+   "D"
+  ],
+  "explanation": "带灯按钮一般由按钮帽、复位弹簧、桥式动触点、静触点、指示灯和外壳等组成。（教材课后习题 实训任务1-6）",
+  "source": "电气控制技术实训 第3版 项目1课后习题"
+ },
+ {
+  "id": "wiring-multiple-30",
+  "number": 30,
+  "type": "multiple",
+  "stem": "关于 JS7 系列空气阻尼式时间继电器，说法正确的有（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "JS7-1A 和 JS7-2A 都是通电延时型"
+   },
+   {
+    "key": "B",
+    "text": "JS7-2A 比 JS7-1A 多两对瞬时触点"
+   },
+   {
+    "key": "C",
+    "text": "JS7-4A 是断电延时型"
+   },
+   {
+    "key": "D",
+    "text": "JS7-2A 与 JS7-4A 电磁机构安装方向相同"
+   }
+  ],
+  "answer": [
+   "A",
+   "B",
+   "C"
+  ],
+  "explanation": "JS7-2A 与 JS7-4A 结构相同，但电磁机构安装方向相差 180°。（教材课后习题 实训任务1-5）",
+  "source": "电气控制技术实训 第3版 项目1课后习题"
+ },
+ {
+  "id": "wiring-multiple-31",
+  "number": 31,
+  "type": "multiple",
+  "stem": "下列元件中，文字符号以 K 开头的有（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "接触器"
+   },
+   {
+    "key": "B",
+    "text": "中间继电器"
+   },
+   {
+    "key": "C",
+    "text": "热继电器"
+   },
+   {
+    "key": "D",
+    "text": "时间继电器"
+   }
+  ],
+  "answer": [
+   "A",
+   "B",
+   "D"
+  ],
+  "explanation": "接触器 KM、中间继电器 KA、时间继电器 KT；热继电器是 FR。（教材 p30）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 30
+ },
+ {
+  "id": "wiring-multiple-32",
+  "number": 32,
+  "type": "multiple",
+  "stem": "下列元件中，文字符号以 F 开头的有（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "熔断器"
+   },
+   {
+    "key": "B",
+    "text": "热继电器"
+   },
+   {
+    "key": "C",
+    "text": "低压断路器"
+   },
+   {
+    "key": "D",
+    "text": "接触器"
+   }
+  ],
+  "answer": [
+   "A",
+   "B"
+  ],
+  "explanation": "熔断器 FU、热继电器 FR；低压断路器 QF，接触器 KM。（教材 p29）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 29
+ },
+ {
+  "id": "wiring-multiple-33",
+  "number": 33,
+  "type": "multiple",
+  "stem": "下列元件中，文字符号以 S 开头的有（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "按钮"
+   },
+   {
+    "key": "B",
+    "text": "行程开关"
+   },
+   {
+    "key": "C",
+    "text": "刀开关"
+   },
+   {
+    "key": "D",
+    "text": "速度继电器"
+   }
+  ],
+  "answer": [
+   "A",
+   "B"
+  ],
+  "explanation": "按钮 SB、行程开关 SQ；刀开关 QS，速度继电器 KS。（教材 p33）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 33
+ },
+ {
+  "id": "wiring-multiple-34",
+  "number": 34,
+  "type": "multiple",
+  "stem": "文字符号可以标 QS 的有（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "刀开关"
+   },
+   {
+    "key": "B",
+    "text": "组合开关"
+   },
+   {
+    "key": "C",
+    "text": "低压断路器"
+   },
+   {
+    "key": "D",
+    "text": "熔断器"
+   }
+  ],
+  "answer": [
+   "A",
+   "B"
+  ],
+  "explanation": "刀开关、组合开关标 QS；低压断路器 QF，熔断器 FU。（教材 p23）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 23
+ },
+ {
+  "id": "wiring-multiple-35",
+  "number": 35,
+  "type": "multiple",
+  "stem": "下列图形符号中，不受外力时触点处于断开状态的有（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "fig": "sbno",
+    "text": ""
+   },
+   {
+    "key": "B",
+    "fig": "sqno",
+    "text": ""
+   },
+   {
+    "key": "C",
+    "fig": "nc",
+    "text": ""
+   },
+   {
+    "key": "D",
+    "fig": "sbnc",
+    "text": ""
+   }
+  ],
+  "answer": [
+   "A",
+   "B"
+  ],
+  "explanation": "A 常开按钮、B 行程开关常开触点不受外力时断开；C、D 是动断（常闭）触点，平时接通。（教材 p27）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 27
+ },
+ {
+  "id": "wiring-multiple-36",
+  "number": 36,
+  "type": "multiple",
+  "stem": "下列图形符号中，属于接触器 KM 的有（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "fig": "coil",
+    "text": ""
+   },
+   {
+    "key": "B",
+    "fig": "km3",
+    "text": ""
+   },
+   {
+    "key": "C",
+    "fig": "no",
+    "text": ""
+   },
+   {
+    "key": "D",
+    "fig": "fu",
+    "text": ""
+   }
+  ],
+  "answer": [
+   "A",
+   "B",
+   "C"
+  ],
+  "explanation": "接触器的线圈、主触点、辅助触点分开画在电路各处，都标 KM；D 是熔断器。（教材 p27）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 27
+ },
+ {
+  "id": "wiring-multiple-37",
+  "number": 37,
+  "type": "multiple",
+  "stem": "下列图形符号中，属于热继电器 FR 的有（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "fig": "frh",
+    "text": ""
+   },
+   {
+    "key": "B",
+    "fig": "frnc",
+    "text": ""
+   },
+   {
+    "key": "C",
+    "fig": "fu",
+    "text": ""
+   },
+   {
+    "key": "D",
+    "fig": "sbnc",
+    "text": ""
+   }
+  ],
+  "answer": [
+   "A",
+   "B"
+  ],
+  "explanation": "热继电器有热元件（主电路）和常闭触点（控制电路）；C 熔断器，D 停止按钮。（教材 p29）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 29
+ },
+ {
+  "id": "wiring-multiple-38",
+  "number": 38,
+  "type": "multiple",
+  "stem": "下列图形符号中，属于按钮 SB 的有（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "fig": "sbno",
+    "text": ""
+   },
+   {
+    "key": "B",
+    "fig": "sbnc",
+    "text": ""
+   },
+   {
+    "key": "C",
+    "fig": "sqno",
+    "text": ""
+   },
+   {
+    "key": "D",
+    "fig": "frnc",
+    "text": ""
+   }
+  ],
+  "answer": [
+   "A",
+   "B"
+  ],
+  "explanation": "带“E”形按钮操作件的是按钮；C 行程开关，D 热继电器常闭触点。（教材 p33）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 33
+ },
+ {
+  "id": "wiring-multiple-39",
+  "number": 39,
+  "type": "multiple",
+  "stem": "下列电器中，能实现短路保护的有（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "熔断器"
+   },
+   {
+    "key": "B",
+    "text": "低压断路器"
+   },
+   {
+    "key": "C",
+    "text": "热继电器"
+   },
+   {
+    "key": "D",
+    "text": "按钮"
+   }
+  ],
+  "answer": [
+   "A",
+   "B"
+  ],
+  "explanation": "熔断器和低压断路器（电磁脱扣器）能做短路保护；热继电器不能做短路保护。（教材 p24）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 24
+ },
+ {
+  "id": "wiring-multiple-40",
+  "number": 40,
+  "type": "multiple",
+  "stem": "下列电器中，能实现过载保护的有（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "热继电器"
+   },
+   {
+    "key": "B",
+    "text": "低压断路器"
+   },
+   {
+    "key": "C",
+    "text": "按钮"
+   },
+   {
+    "key": "D",
+    "text": "行程开关"
+   }
+  ],
+  "answer": [
+   "A",
+   "B"
+  ],
+  "explanation": "热继电器和低压断路器（热脱扣器）能做过载保护。（教材 p29）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 29
+ },
+ {
+  "id": "wiring-multiple-41",
+  "number": 41,
+  "type": "multiple",
+  "stem": "下列电器中，具有欠电压（失电压）保护作用的有（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "接触器"
+   },
+   {
+    "key": "B",
+    "text": "低压断路器"
+   },
+   {
+    "key": "C",
+    "text": "熔断器"
+   },
+   {
+    "key": "D",
+    "text": "热继电器"
+   }
+  ],
+  "answer": [
+   "A",
+   "B"
+  ],
+  "explanation": "接触器有低电压释放保护功能；低压断路器失电压时自动跳闸。（教材 p27）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 27
+ },
+ {
+  "id": "wiring-multiple-42",
+  "number": 42,
+  "type": "multiple",
+  "stem": "接触器的电磁机构由（ ）组成。",
+  "options": [
+   {
+    "key": "A",
+    "text": "线圈"
+   },
+   {
+    "key": "B",
+    "text": "铁心"
+   },
+   {
+    "key": "C",
+    "text": "衔铁"
+   },
+   {
+    "key": "D",
+    "text": "双金属片"
+   }
+  ],
+  "answer": [
+   "A",
+   "B",
+   "C"
+  ],
+  "explanation": "电磁机构由线圈、铁心和衔铁三部分组成；双金属片是热继电器的。（教材 p27）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 27
+ },
+ {
+  "id": "wiring-multiple-43",
+  "number": 43,
+  "type": "multiple",
+  "stem": "属于主令电器（发出控制指令）的有（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "按钮"
+   },
+   {
+    "key": "B",
+    "text": "行程开关"
+   },
+   {
+    "key": "C",
+    "text": "接触器"
+   },
+   {
+    "key": "D",
+    "text": "熔断器"
+   }
+  ],
+  "answer": [
+   "A",
+   "B"
+  ],
+  "explanation": "按钮、位置开关用来发出控制指令；接触器是执行电器，熔断器是保护电器。（教材 p33）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 33
+ },
+ {
+  "id": "wiring-multiple-44",
+  "number": 44,
+  "type": "multiple",
+  "stem": "电动机主电路中通常串接的元件有（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "熔断器"
+   },
+   {
+    "key": "B",
+    "text": "接触器主触点"
+   },
+   {
+    "key": "C",
+    "text": "热继电器热元件"
+   },
+   {
+    "key": "D",
+    "text": "停止按钮"
+   }
+  ],
+  "answer": [
+   "A",
+   "B",
+   "C"
+  ],
+  "explanation": "主电路：熔断器、接触器主触点、热元件；按钮在控制电路里。（教材 p27）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 27
+ },
+ {
+  "id": "wiring-multiple-45",
+  "number": 45,
+  "type": "multiple",
+  "stem": "接触器线圈所在的控制电路中，通常会串接（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "停止按钮常闭触点"
+   },
+   {
+    "key": "B",
+    "text": "热继电器常闭触点"
+   },
+   {
+    "key": "C",
+    "text": "起动按钮常开触点"
+   },
+   {
+    "key": "D",
+    "text": "热继电器热元件"
+   }
+  ],
+  "answer": [
+   "A",
+   "B",
+   "C"
+  ],
+  "explanation": "控制电路串停止按钮、热继电器常闭触点和起动按钮；热元件在主电路。（教材 p29）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 29
  },
  {
   "id": "wiring-judgment-1",
@@ -4869,5 +8292,638 @@
   "explanation": "项目 1 注意事项原文。（教材 p20）",
   "source": "电气控制技术实训 第3版 项目1",
   "sourcePage": 20
+ },
+ {
+  "id": "wiring-judgment-49",
+  "number": 49,
+  "type": "judgment",
+  "stem": "低压断路器的各种脱扣器感测到故障信号后，经自由脱扣机构使主触点断开，起到保护作用。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "脱扣器是感受元件，经自由脱扣机构使主触点断开。（教材课后习题 实训任务1-1）",
+  "source": "电气控制技术实训 第3版 项目1课后习题"
+ },
+ {
+  "id": "wiring-judgment-50",
+  "number": 50,
+  "type": "judgment",
+  "stem": "熔断器的额定电流与熔体的额定电流是同一个概念。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "F"
+  ],
+  "explanation": "二者是两个不同的概念，熔体额定电流不能大于熔断器额定电流。（教材课后习题 实训任务1-2）",
+  "source": "电气控制技术实训 第3版 项目1课后习题"
+ },
+ {
+  "id": "wiring-judgment-51",
+  "number": 51,
+  "type": "judgment",
+  "stem": "交流接触器动作时，动合触点先闭合，动断触点后断开。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "F"
+  ],
+  "explanation": "动断触点先断开，动合触点后闭合。（教材课后习题 实训任务1-3）",
+  "source": "电气控制技术实训 第3版 项目1课后习题"
+ },
+ {
+  "id": "wiring-judgment-52",
+  "number": 52,
+  "type": "judgment",
+  "stem": "直流接触器的铁心一般用硅钢片叠压铆成。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "F"
+  ],
+  "explanation": "交流接触器铁心用硅钢片叠压；直流接触器铁心一般是整块铸铁或铸钢。（教材课后习题 实训任务1-3）",
+  "source": "电气控制技术实训 第3版 项目1课后习题"
+ },
+ {
+  "id": "wiring-judgment-53",
+  "number": 53,
+  "type": "judgment",
+  "stem": "热继电器主要由热元件和触点系统两部分组成。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "原文如此。（教材课后习题 实训任务1-4）",
+  "source": "电气控制技术实训 第3版 项目1课后习题"
+ },
+ {
+  "id": "wiring-judgment-54",
+  "number": 54,
+  "type": "judgment",
+  "stem": "热继电器设为手动复位时，过载动作后双金属片冷却了触点也不会自动复位。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "需按下手动复位按钮才能使触点复位。（教材课后习题 实训任务1-4）",
+  "source": "电气控制技术实训 第3版 项目1课后习题"
+ },
+ {
+  "id": "wiring-judgment-55",
+  "number": 55,
+  "type": "judgment",
+  "stem": "JS7-2A 和 JS7-4A 结构相同，只是电磁机构安装方向相差 180°。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "JS7-2A 通电延时，JS7-4A 断电延时。（教材课后习题 实训任务1-5）",
+  "source": "电气控制技术实训 第3版 项目1课后习题"
+ },
+ {
+  "id": "wiring-judgment-56",
+  "number": 56,
+  "type": "judgment",
+  "stem": "电子式时间继电器在不通电时，可对照侧面接线图，用万用表电阻档测常开、常闭触点的初始状态。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "原文如此。（教材课后习题 实训任务1-5）",
+  "source": "电气控制技术实训 第3版 项目1课后习题"
+ },
+ {
+  "id": "wiring-judgment-57",
+  "number": 57,
+  "type": "judgment",
+  "stem": "单滚轮式行程开关在撞铁移开后，复位弹簧使其各部分自动复位。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "单滚轮式能自动复位；双滚轮式不能自动复位。（教材课后习题 实训任务1-7）",
+  "source": "电气控制技术实训 第3版 项目1课后习题"
+ },
+ {
+  "id": "wiring-judgment-58",
+  "number": 58,
+  "type": "judgment",
+  "stem": "双滚轮式行程开关在撞铁移开滚轮后会自动复位。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "F"
+  ],
+  "explanation": "双滚轮式要等运动机械返回、撞铁压另一侧滚轮时才复位。（教材课后习题 实训任务1-7）",
+  "source": "电气控制技术实训 第3版 项目1课后习题"
+ },
+ {
+  "id": "wiring-judgment-59",
+  "number": 59,
+  "type": "judgment",
+  "stem": "熔断器的文字符号是 FR。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "F"
+  ],
+  "explanation": "熔断器 FU，热继电器 FR。（教材 p25）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 25
+ },
+ {
+  "id": "wiring-judgment-60",
+  "number": 60,
+  "type": "judgment",
+  "stem": "行程开关的文字符号是 SQ，按钮的文字符号是 SB。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "位置开关 SQ，按钮 SB。（教材 p33）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 33
+ },
+ {
+  "id": "wiring-judgment-61",
+  "number": 61,
+  "type": "judgment",
+  "stem": "低压断路器的文字符号是 QS。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "F"
+  ],
+  "explanation": "低压断路器 QF；QS 是刀开关、组合开关。（教材 p23）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 23
+ },
+ {
+  "id": "wiring-judgment-62",
+  "number": 62,
+  "type": "judgment",
+  "stem": "接触器、中间继电器、时间继电器的线圈都画成长方形，靠文字符号 KM、KA、KT 区分。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "线圈图形符号相同，用文字符号区分（时间继电器线圈中的延时符号可以不画）。（教材 p31）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 31
+ },
+ {
+  "id": "wiring-judgment-63",
+  "number": 63,
+  "type": "judgment",
+  "stem": "同一个接触器的线圈和触点在电路图中可以分开画在不同位置，但要标同一个文字符号。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "分开表示法：同一电器各部分标同一文字符号，如线圈和触点都标 KM1。",
+  "source": "电气控制技术实训 第3版 项目1"
+ },
+ {
+  "id": "wiring-judgment-64",
+  "number": 64,
+  "type": "judgment",
+  "stem": "图中的符号是熔断器。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "F"
+  ],
+  "explanation": "这是热继电器热元件（长方形里有弯折线）；熔断器是导线直穿长方形。（教材 p29）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 29,
+  "fig": "frh"
+ },
+ {
+  "id": "wiring-judgment-65",
+  "number": 65,
+  "type": "judgment",
+  "stem": "图中的符号是停止按钮。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "动断触点 + “E”形按钮操作件，是常闭按钮，作停止按钮。（教材 p33）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 33,
+  "fig": "sbnc"
+ },
+ {
+  "id": "wiring-judgment-66",
+  "number": 66,
+  "type": "judgment",
+  "stem": "图中的符号是低压断路器。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "F"
+  ],
+  "explanation": "静触点处是小半圆，这是接触器主触点；低压断路器画“×”。（教材 p27）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 27,
+  "fig": "km3"
+ },
+ {
+  "id": "wiring-judgment-67",
+  "number": 67,
+  "type": "judgment",
+  "stem": "图中的符号是行程开关的常开触点。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "刀片上带小三角，不受外力时断开。（教材 p34）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 34,
+  "fig": "sqno"
+ },
+ {
+  "id": "wiring-judgment-68",
+  "number": 68,
+  "type": "judgment",
+  "stem": "图中的触点不受外力时是接通的。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "这是动断（常闭）触点，平时接通，动作时断开。（教材 p27）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 27,
+  "fig": "nc"
+ },
+ {
+  "id": "wiring-judgment-69",
+  "number": 69,
+  "type": "judgment",
+  "stem": "图中的符号是热继电器的常闭触点，它应串在主电路中。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "F"
+  ],
+  "explanation": "热继电器常闭触点串在接触器线圈所在的控制电路中；热元件才串在主电路。（教材 p29）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 29,
+  "fig": "frnc"
+ },
+ {
+  "id": "wiring-judgment-70",
+  "number": 70,
+  "type": "judgment",
+  "stem": "交流接触器铁心上的短路环断裂，会使接触器电磁噪声变大。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "短路环用来减小振动和噪声，断裂后噪声大，应更换。（教材 p35）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 35
+ },
+ {
+  "id": "wiring-judgment-71",
+  "number": 71,
+  "type": "judgment",
+  "stem": "热继电器的双金属片受热后会向热膨胀系数大的一侧弯曲。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "F"
+  ],
+  "explanation": "受热后向膨胀系数小的一侧弯曲。（教材 p29）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 29
+ },
+ {
+  "id": "wiring-judgment-72",
+  "number": 72,
+  "type": "judgment",
+  "stem": "熔断器通过的电流越大，熔体熔断的时间越短。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "熔断器具有反时限保护特性。（教材 p24）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 24
+ },
+ {
+  "id": "wiring-judgment-73",
+  "number": 73,
+  "type": "judgment",
+  "stem": "低压断路器的热脱扣器用于短路保护。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "F"
+  ],
+  "explanation": "热脱扣器用于过载保护，电磁脱扣器用于短路保护。（教材 p23）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 23
+ },
+ {
+  "id": "wiring-judgment-74",
+  "number": 74,
+  "type": "judgment",
+  "stem": "按钮的触点在松开后靠复位弹簧恢复原状态。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "按钮由按钮帽、复位弹簧、触点等组成。（教材 p33）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 33
+ },
+ {
+  "id": "wiring-judgment-75",
+  "number": 75,
+  "type": "judgment",
+  "stem": "热继电器动作使电动机停转，是因为它的常闭触点断开，使接触器线圈断电。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "接触器线圈断电，主触点断开，电动机断电停转。（教材 p29）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 29
+ },
+ {
+  "id": "wiring-judgment-76",
+  "number": 76,
+  "type": "judgment",
+  "stem": "中间继电器的触点对数多，可以用来增加控制电路中的触点数量。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "中间继电器触点对数多。（教材 p30）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 30
+ },
+ {
+  "id": "wiring-judgment-77",
+  "number": 77,
+  "type": "judgment",
+  "stem": "通电延时型时间继电器线圈断电时，延时触点也要延时才复位。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "F"
+  ],
+  "explanation": "通电延时型线圈断电时，触点迅速复位，无延时。（教材 p32）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 32
  }
 ]

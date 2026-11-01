@@ -2,7 +2,7 @@
    风格参考苹果官网：浅灰底、白卡片、胶囊按钮、分段控件、毛玻璃顶栏和操作条。手机优先：底部导航、拇指区操作条、大号选项。 */
 :root { --r: 20px; --safe: env(safe-area-inset-bottom, 0px); }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-html { background: var(--bg); }
+html { background: var(--bg); overflow-x: hidden; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; } /* 旧版苹果/微信不认 clip，html 先兜住 */
 body { margin: 0; min-height: 100vh; overflow-x: clip; color: var(--ink); background: var(--bg); font: 15px/1.55 var(--hx-font); letter-spacing: -.01em; -webkit-font-smoothing: antialiased; }
 button, input, select, textarea { font: inherit; color: inherit; letter-spacing: inherit; }
 button { cursor: pointer; }
@@ -225,6 +225,7 @@ body.focus .bar { bottom: calc(14px + var(--safe)) !important; }
 body.focus .unfocus { display: block; }
 
 @media (max-width: 720px) {
+  input, select, textarea { font-size: 16px; } /* 小于 16px 苹果手机点输入框会自动放大且不回去 */
   .tabs { display: none; }
   .brand span { display: none; }
   main { padding: 12px 12px calc(150px + var(--safe)); }

@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#f5f5f7">
 <title>华夏工具</title>
 <link rel="icon" href="logo.jpg">
@@ -16,9 +16,10 @@
 <script src="hx-theme.js"></script>
 <style>
   * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; }
+  html, body { margin: 0; height: 100%; width: 100%; overflow: hidden; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   body { display: flex; flex-direction: column; overflow: hidden; background: var(--bg); color: var(--ink); font: 17px/1.47 var(--hx-font); letter-spacing: -.01em; -webkit-font-smoothing: antialiased; }
   button, input, select { font: inherit; color: inherit; }
+  @media (max-width: 640px) { input, select, textarea { font-size: 16px !important; } } /* 小于 16px 苹果手机点输入框会自动放大且不回去 */
   button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
   svg.i { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
   /* 顶栏：苹果官网的毛玻璃导航 */
@@ -46,8 +47,9 @@
   .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 14px; } .grid2 .panel { margin: 0 0 14px; }
   .panel h3 { margin: 0 0 12px; font-size: 19px; font-weight: 600; } .dim { color: var(--dim); } .ra { text-align: right; white-space: nowrap; } .mono { font-family: ui-monospace, Consolas, monospace; letter-spacing: .06em; }
   .lbtn { height: 32px; padding: 0 16px; border: 0; border-radius: 99px; background: var(--acc); color: var(--on-acc); font-size: 14px; font-weight: 500; }
-  main { flex: 1; position: relative; min-height: 0; }
-  main iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: var(--bg); visibility: hidden; opacity: 0; transition: opacity .35s var(--hx-ease); }
+  main { flex: 1; position: relative; min-height: 0; overflow: hidden; }
+  /* 苹果手机的 iframe 会按里面内容撑宽，width:1px + min-width:100% 把它钉在屏幕宽 */
+  main iframe { position: absolute; inset: 0; width: 1px; min-width: 100%; max-width: 100%; height: 100%; border: 0; background: var(--bg); visibility: hidden; opacity: 0; transition: opacity .35s var(--hx-ease); }
   main iframe.on { visibility: visible; opacity: 1; }
   html.hx-bg main iframe { background: transparent; }
   /* 首页 */
@@ -73,8 +75,12 @@
   html.hx-bg .hero h1, html.hx-bg .hero p, html.hx-bg .sec h2 { text-shadow: 0 0 22px var(--bg), 0 0 6px var(--bg); }
   @keyframes rise { from { opacity: 0; transform: translateY(24px); } }
   /* 管理卡片的标题 */
-  .sec { margin: clamp(48px, 8vw, 80px) 0 18px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-  .sec h2 { margin: 0; font: 700 clamp(28px, 5vw, 40px)/1.1 var(--hx-font-d); letter-spacing: -.015em; }
+  /* 分组：组间距明显大于卡片间距，小标题淡一档 */
+  .sec { margin: 40px 0 14px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  #tiles > .sec:first-child { margin-top: 0; }
+  .sec h2 { margin: 0 0 0 4px; font: 600 15px/1.3 var(--hx-font); color: var(--dim); letter-spacing: .04em; }
+  .tile.act { grid-column: 1 / -1; min-height: 0; flex-direction: row; align-items: center; margin-bottom: 40px; background: var(--accbg); box-shadow: 0 0 0 1.5px var(--acc) inset; }
+  .tile.act b { margin: 0; color: var(--acc); } .tile.act .go { position: static; margin-left: auto; display: block; }
   .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 40px; padding: 0 20px; border: 0; border-radius: 99px; background: var(--acc); color: var(--on-acc); font-size: 15px; font-weight: 500; white-space: nowrap; cursor: pointer; transition: filter .2s, transform .15s; }
   .btn:hover { filter: brightness(1.08); } .btn:active { transform: scale(.97); } .btn:disabled { opacity: .45; cursor: default; }
   .btn.sub { background: var(--fill); color: var(--ink); } .btn.link { background: none; color: var(--acc); padding: 0 6px; height: 32px; }
@@ -168,7 +174,7 @@
     .hero { display: grid; grid-template-columns: auto 1fr; column-gap: 22px; align-items: center; text-align: left; padding: 52px 0 36px; }
     .hero img { grid-row: span 2; width: 76px; }
     .hero h1 { margin: 0; font-size: 46px; } .hero p { margin: 4px 0 0; font-size: 20px; }
-    .sec { margin: 56px 0 18px; } .sec h2 { font-size: 32px; }
+    .sec { margin: 48px 0 16px; } .sec h2 { font-size: 16px; }
   }
   @media (min-width: 1200px) { .wrap { width: min(1600px, 100%); } .tiles { grid-template-columns: repeat(6, 1fr); } }
 </style>
@@ -189,7 +195,7 @@
   <section id="home">
     <div class="wrap">
       <div class="hero"><img src="logo.jpg" alt=""><h1>华夏工具</h1><p id="hi"></p></div>
-      <div class="tiles" id="tiles"></div>
+      <div id="tiles"></div>
       <div id="mgmt"></div>
     </div>
   </section>
@@ -221,6 +227,7 @@
 <script>
 var SITE = location.protocol === 'file:' ? 'https://zcq19991029.github.io' : ''; // 网站上（包括本机拼好的 成品/site）用同一站点里的工具；直接双击打开时嵌线上版
 // 首页卡片：who all 所有人、teacher 只有教师看得到（学生和没登录的人不显示）；c 是图标的两种颜色（像手机桌面图标，每个工具固定）
+var GROUPS = [['学习', ['wiring', 'quiz', 'mcu', 'exam']], ['教学', ['paike', 'jiafen']]]; // 首页按使用场景分组
 var TOOLS = [
   { id: 'wiring', name: '接线仿真', url: SITE + '/wiring-lab/', who: 'all', c: ['#ffb340', '#ff7a00'], icon: '<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>' },
   { id: 'quiz', name: '刷题', url: SITE + '/shuati/', who: 'all', c: ['#5ad16f', '#24a148'], icon: '<rect x="4.5" y="3" width="15" height="18" rx="3.5"/><path d="M8.5 12l2.5 2.5 4.5-5"/>' },
@@ -295,10 +302,11 @@ function svg(d, cls) { return '<svg class="i' + (cls ? ' ' + cls : '') + '" view
 var ST = { me: null, user: null, tab: null, lm: 'in', reg: null, actFor: null, uname: null, edit: null, classes: null, open: null, studs: {}, rosters: null, newCode: null };
 var frames = {};
 function isTeacher() { return !!(ST.me && (ST.me.teacher || ST.me.admin || ST.me.dev)); }
-function can(t) { return t.who === 'all' || isTeacher(); }
+function locked() { return HX.in() && role() === '未开通'; } // 登录了没开通（GitHub 新账号等）：什么工具都不给，只能填邀请码；没登录的照样用接线仿真、刷题
+function can(t) { return !locked() && (t.who === 'all' || isTeacher()); }
 function role() {
   var m = ST.me; if (!m) return null;
-  return m.dev ? '开发者' : m.admin ? '管理员' : m.teacher ? '教师' : m.student ? '学生' : m.left ? '已退学' : '未开通';
+  return m.dev ? '开发者' : m.admin ? '管理员' : m.teacher ? '教师' : m.student ? (m.guest ? '访客' : '学生') : m.left ? '已退学' : '未开通';
 }
 function info() { // 名字、头像、GitHub 用户名、邮箱
   var u = ST.user || {}, d = u.user_metadata || {}, gh = (u.identities || []).filter(function (i) { return i.provider === 'github'; })[0];
@@ -340,7 +348,8 @@ function renderLogin() {
   else {
     h = '<input value="' + esc(R.code) + '" disabled>';
     if (R.role === 'teacher') h += '<input id="run" maxlength="32" placeholder="账号名，如工号 11445" autocomplete="username" autocapitalize="none" spellcheck="false">' + (m === 'reg' ? '<input id="rnm" maxlength="20" placeholder="名字">' : '');
-    else h += (R.classes.length ? '<select id="rcls">' + R.classes.map(function (k) { return '<option value="' + k.id + '"' + (k.preferred ? ' selected' : '') + '>' + esc(k.name) + '</option>'; }).join('') + '</select>' : '') +
+    else h += (R.role === 'guest' ? '<input id="rgc" maxlength="40" placeholder="班级，如 24机电3班">' // 好友码：自己填班级；课堂码只有码上那一个班
+      : R.classes.length ? '<select id="rcls" disabled>' + R.classes.map(function (k) { return '<option value="' + k.id + '">' + esc(k.name) + '</option>'; }).join('') + '</select>' : '') +
       '<input id="rno" inputmode="numeric" maxlength="20" placeholder="学号" autocomplete="username"><input id="rnm" maxlength="20" placeholder="姓名">';
     if (m === 'reg') h += '<input id="rpw" type="password" autocomplete="new-password" placeholder="密码（至少 6 位）"><input id="rpw2" type="password" autocomplete="new-password" placeholder="再输一次密码">';
   }
@@ -370,11 +379,16 @@ function show(id) {
   render();
 }
 function render() {
-  $('tiles').innerHTML = TOOLS.filter(can).map(function (t, n) {
-    return '<button class="tile" type="button" data-id="' + t.id + '" style="--c1:' + t.c[0] + ';--c2:' + t.c[1] + ';animation-delay:' + (n * 50) + 'ms">' +
-      '<span class="ic">' + svg(t.icon) + '</span><b>' + t.name + '</b>' + svg('<path d="M9 6l6 6-6 6"/>', 'go') + '</button>';
-  }).join('');
-  $('tiles').querySelectorAll('.tile').forEach(function (b) { b.onclick = function () { show(b.dataset.id); }; });
+  var go = svg('<path d="M9 6l6 6-6 6"/>', 'go'), n = 0, G = GROUPS.map(function (g) { return { name: g[0], list: TOOLS.filter(function (t) { return can(t) && g[1].indexOf(t.id) >= 0; }) }; }).filter(function (g) { return g.list.length; });
+  $('tiles').innerHTML = (locked() ? '<div class="tiles"><button class="tile act" type="button" id="tAct" style="--c1:#5ac8fa;--c2:#0a84ff"><span class="ic">' + svg('<rect x="3" y="6" width="18" height="12" rx="2.5"/><path d="M15 6v12" stroke-dasharray="1.5 2.5"/><path d="M7 10.5h4M7 13.5h3"/>') + '</span><b>填写邀请码开通</b>' + go + '</button></div>' : '') +
+    G.map(function (g) { // 只有一组又没有“管理”时不加小标题
+      return (G.length > 1 || mgList().length ? '<div class="sec"><h2>' + g.name + '</h2></div>' : '') + '<div class="tiles">' + g.list.map(function (t) {
+        return '<button class="tile" type="button" data-id="' + t.id + '" style="--c1:' + t.c[0] + ';--c2:' + t.c[1] + ';animation-delay:' + (n++ * 50) + 'ms">' +
+          '<span class="ic">' + svg(t.icon) + '</span><b>' + t.name + '</b>' + go + '</button>';
+      }).join('') + '</div>';
+    }).join('');
+  $('tiles').querySelectorAll('.tile[data-id]').forEach(function (b) { b.onclick = function () { show(b.dataset.id); }; });
+  if ($('tAct')) $('tAct').onclick = function () { openLogin('', 'act'); };
   var i = HX.in() && ST.user ? info() : null;
   $('hi').innerHTML = i ? '你好，' + esc(i.name) + badge() : '';
   if (i) {
@@ -466,21 +480,22 @@ document.addEventListener('keydown', function (e) { if (e.key === 'Escape') clos
 var MG = {
   cls: { name: '班级', c: ['#ffd60a', '#f4a700'], icon: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6.5 6.5 0 0 1 3.5 6"/>' },
   tcode: { name: '教师邀请码', c: ['#c38cff', '#9b51e0'], icon: '<rect x="3" y="6" width="18" height="12" rx="2.5"/><path d="M15 6v12" stroke-dasharray="1.5 2.5"/><path d="M7 10.5h4M7 13.5h3"/>' },
+  gcode: { name: '好友邀请码', c: ['#ff9f0a', '#ff6b00'], icon: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M19 8v6M16 11h6"/>' },
   scode: { name: '学生课堂码', c: ['#64d2c8', '#0fa3a0'], icon: '<rect x="4" y="4" width="6" height="6" rx="1.2"/><rect x="14" y="4" width="6" height="6" rx="1.2"/><rect x="4" y="14" width="6" height="6" rx="1.2"/><path d="M14 14h2.5v2.5H14zM17.5 17.5H20V20h-2.5zM20 14v1M14 20v-1"/>' },
   adm: { name: '管理员', c: ['#a1a1a6', '#636366'], icon: '<path d="M12 3l7.5 3v5.5c0 4.5-3.2 8.2-7.5 9.5-4.3-1.3-7.5-5-7.5-9.5V6z"/><path d="M9 12l2 2 4-4"/>' }
 };
-var NEED = { cls: ['cls'], tcode: ['codes'], scode: ['codes', 'cls'], adm: ['adm'] }; // 哪份数据变了，要重画哪张面板
-function mgList() { var m = ST.me || {}, L = []; if (isTeacher()) L.push('cls'); if (m.admin) L.push('tcode', 'scode'); if (m.dev) L.push('adm'); return L; }
+var NEED = { cls: ['cls'], gcode: ['codes'], tcode: ['codes'], scode: ['codes', 'cls'], adm: ['adm'] }; // 哪份数据变了，要重画哪张面板
+function mgList() { var m = ST.me || {}, L = []; if (isTeacher()) L.push('cls', 'gcode'); if (m.admin) L.push('tcode', 'scode'); if (m.dev) L.push('adm'); return L; }
 function liveN(role) { var C = ST.codes; if (!C) return '…'; var n = C.filter(function (c) { return c.live && c.role === role; }).length; return n ? '有效 ' + n + ' 个' : '没有有效的码'; }
 function mgSum(k) {
   if (k === 'cls') { var C = ST.classes || []; return !ST.clsOk ? '…' : C.length ? C.length + ' 个班 · ' + C.reduce(function (s, c) { return s + (c.total || 0); }, 0) + ' 人' : '还没有班级'; }
-  if (k !== 'adm') return liveN(k === 'tcode' ? 'teacher' : 'student');
+  if (k !== 'adm') return liveN(k === 'tcode' ? 'teacher' : k === 'gcode' ? 'guest' : 'student');
   var T = ST.teachers; return !T ? '…' : T.err ? '读取失败' : T.filter(function (t) { return t.is_admin && !t.is_dev; }).length + ' 位管理员';
 }
 function renderMgmt(part) {
   var m = ST.me || {}, L = mgList(), box = $('mgmt'), sig = L.join() + badge();
   if (isTeacher() && ST.classes === null) { ST.classes = []; loadClasses(); }
-  if (m.admin && ST.codes === undefined) { ST.codes = null; loadCodes(); }
+  if (isTeacher() && ST.codes === undefined) { ST.codes = null; loadCodes(); }
   if (m.dev && ST.teachers === undefined) { ST.teachers = null; loadTeachers(); }
   if (box.dataset.sig !== sig) { // 身份变了才重建卡片（重建会重放进场动画），数据变了只改概要
     box.dataset.sig = sig;
@@ -495,18 +510,18 @@ function renderMgmt(part) {
   else if (ST.sheet && (!part || NEED[ST.sheet].indexOf(part) >= 0)) renderSheet();
 }
 function openSheet(k) { ST.sheet = k; $('shT').textContent = MG[k].name; renderSheet(); if (!$('sheet').open) $('sheet').showModal(); $('shB').scrollTop = 0; }
-function renderSheet() { var k = ST.sheet; $('shA').innerHTML = ''; if (k === 'cls') sheetCls(); else if (k === 'adm') sheetAdm(); else sheetCode(k === 'tcode' ? 'teacher' : 'student'); }
+function renderSheet() { var k = ST.sheet; $('shA').innerHTML = ''; if (k === 'cls') sheetCls(); else if (k === 'adm') sheetAdm(); else sheetCode(k === 'tcode' ? 'teacher' : k === 'gcode' ? 'guest' : 'student'); }
 $('sheet').addEventListener('close', function () { ST.sheet = null; });
 $('sheet').onclick = function (e) { if (e.target === $('sheet')) $('sheet').close(); }; // 点面板外面关
 $('shX').onclick = function () { $('sheet').close(); };
-function codesChanged() { if ((ST.me || {}).admin) { ST.codes = undefined; renderMgmt('codes'); } }
+function codesChanged() { if (isTeacher()) { ST.codes = undefined; renderMgmt('codes'); } }
 function codeBox(cls, code, note, acts) { return '<div class="code"><small>' + esc(cls) + '</small><b>' + esc(code) + '</b>' + (note ? '<small>' + note + '</small>' : '') + (acts ? '<div>' + acts + '</div>' : '') + '</div>'; }
 
 // 班级面板：导入考勤表、勾选给哪些工具用、课堂码、名单
 function sheetCls() {
   var box = $('shB'), R = ST.rosters, N = ST.newCode, html = '';
   $('shA').innerHTML = '<label class="btn sm">导入考勤表<input type="file" id="rFile" accept=".xls,.xlsx,.csv" multiple hidden></label>';
-  if (N) html += codeBox(N.cls, N.code, '4 小时内有效，学生在首页“注册”里填它', '<button class="btn sm" id="rShare">分享给学生</button> <button class="btn link bad sm" id="rRevoke">下课，撤销</button>');
+  if (N) html += codeBox(N.cls, N.code, '4 小时内有效，只有名单里还没开通的学生能用', '<button class="btn sm" id="rShare">分享给学生</button> <button class="btn link bad sm" id="rRevoke">下课，撤销</button>');
   if (R) html += '<div class="panel f">' + R.map(function (x, k) { // 一次选多个考勤表：每个文件一个班，班级、学期可改；读不出来或导入失败的写原因
     return '<div class="f" style="padding-bottom:10px;border-bottom:1px solid var(--edge)"><b>' + esc(x.file) + (x.list ? ' · ' + x.list.length + ' 名学生：' + x.list.slice(0, 4).map(function (y) { return esc(y.name); }).join('、') + (x.list.length > 4 ? '…' : '') : '') + '</b>' +
       (x.list ? '<input data-rc="' + k + '" value="' + esc(x.cls) + '" placeholder="班级"><input data-rt="' + k + '" value="' + esc(x.term) + '" placeholder="学期">' : '') + (x.err ? '<p class="msg">' + esc(x.err) + '</p>' : '') + '</div>';
@@ -518,7 +533,17 @@ function sheetCls() {
       '<div class="chips">' + CLASS_TOOLS.map(function (t) { return '<button type="button" class="chip" data-cls="' + c.id + '" data-tool="' + t[0] + '" aria-pressed="' + (tools.indexOf(t[0]) >= 0) + '">' + t[1] + '</button>'; }).join('') + '</div>' +
       (on ? '<div class="stu" id="stu' + c.id + '"></div>' : '') + '</div>';
   }).join('') : '<p class="empty">' + (ST.clsOk ? '还没有班级：导入教务系统导出的考勤表（学号、姓名两列）' : '加载中…') + '</p>') + '</div>';
+  var G = ST.guests || []; // 访客（好友邀请码开通的）：不算进任何班级，只能删除
+  if (G.length) html += '<div class="cls"><div class="cl"><div><h3>访客</h3><small>' + G.length + ' 人 · 用好友邀请码开通</small></div><div class="stu"><table><tr><th>班级</th><th>学号</th><th>姓名</th><th></th></tr>' + G.map(function (s) {
+    return '<tr><td>' + esc(s.class_name || '') + '</td><td>' + esc(s.student_no) + '</td><td>' + esc(s.name) + '</td><td class="ra"><button class="btn link sm ib bad" data-gdel="' + s.id + '" aria-label="删除">' + svg(BIN) + '</button></td></tr>';
+  }).join('') + '</table></div></div></div>';
   box.innerHTML = html;
+  box.querySelectorAll('[data-gdel]').forEach(function (b) {
+    b.onclick = async function () {
+      if (!sure(b, '确认删除？')) return;
+      try { var r = await HX.rpc('hx_student_remove', { p_id: +b.dataset.gdel }); toast(r === 'deleted' ? '已删除' : '已删除，账号停用'); await loadClasses(); } catch (e) { toast(e.message); }
+    };
+  });
   if (ST.open) renderStu(ST.open);
   $('rFile').onchange = async function (e) {
     var fs = [].slice.call(e.target.files); e.target.value = ''; if (!fs.length) return;
@@ -573,20 +598,22 @@ function sheetCls() {
 }
 // ---------- 管理（管理员、开发者）：发教师码、学生码，看发过的码；开发者再任命管理员 ----------
 function shareCode(code, role) {
-  var t = (role === 'teacher' ? '华夏工具教师邀请码：' : '华夏工具课堂码：') + code + '\n打开 ' + location.origin + '/ ，点右上角“登录”→“注册”，填写邀请码' + (role === 'teacher' ? '，账号名填工号' : '，选班级、填学号和姓名') + '。已有账号（如 GitHub）的，登录后会自动弹出开通窗口。';
+  var t = (role === 'teacher' ? '华夏工具教师邀请码：' : role === 'guest' ? '华夏工具好友邀请码：' : '华夏工具课堂码：') + code + '\n打开 ' + location.origin + '/ ，点右上角“登录”→“注册”，填写邀请码' +
+    (role === 'teacher' ? '，账号名填工号' : role === 'guest' ? '，再填自己的班级、学号和姓名' : '，再填学号和姓名（要和班级名单一致）') + '。已有账号（如 GitHub）的，登录后会自动弹出开通窗口。';
   if (navigator.share && matchMedia('(pointer: coarse)').matches) return navigator.share({ text: t }).catch(function () { }); // 手机、平板用系统分享；电脑上那个面板不好用
   $('shareT').value = t; if (!$('share').open) $('share').showModal(); $('shareT').select();
   (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function () { toast('已复制，发给对方就行'); }, function () { try { if (document.execCommand('copy')) toast('已复制，发给对方就行'); } catch (e) { } });
 }
 // 教师邀请码 / 学生课堂码面板：上面生成，下面是发过的这类码
 function sheetCode(role) {
-  var box = $('shB'), t = role === 'teacher', A = ST.aCode && ST.aCode.role === role ? ST.aCode : null, cls = ST.classes || [], C = ST.codes, html;
-  html = t ? '<div class="f frow"><input id="cNote" maxlength="30" placeholder="给谁（备注）"><button class="btn" id="cGo">生成</button></div>'
+  var box = $('shB'), t = role === 'teacher', g = role === 'guest', A = ST.aCode && ST.aCode.role === role ? ST.aCode : null, cls = ST.classes || [], C = ST.codes, html;
+  html = g ? '<div class="f frow"><input id="cNote" maxlength="30" placeholder="给谁（备注）"><input id="cUses" type="number" min="1" max="200" value="5" style="max-width:6em" aria-label="可用次数"><button class="btn" id="cGo">生成</button></div>'
+    : t ? '<div class="f frow"><input id="cNote" maxlength="30" placeholder="给谁（备注）"><button class="btn" id="cGo">生成</button></div>'
     : cls.length ? '<div class="f frow"><select id="cCls">' + cls.map(function (c) { return '<option value="' + c.id + '"' + (c.id === ST.sCls ? ' selected' : '') + '>' + esc(c.name) + '</option>'; }).join('') + '</select><button class="btn" id="cGo">生成</button></div>'
     : '<p class="empty">' + (ST.clsOk ? '先在“班级”里导入考勤表' : '加载中…') + '</p>';
-  if (A) html += codeBox(A.label, A.code, '', '<button class="btn sm" id="aShare">分享给' + (t ? '老师' : '学生') + '</button>');
+  if (A) html += codeBox(A.label, A.code, '', '<button class="btn sm" id="aShare">分享给' + (t ? '老师' : g ? '朋友' : '学生') + '</button>');
   C = C && C.filter(function (c) { return c.role === role; });
-  html += !C ? '<p class="empty">加载中…</p>' : !C.length ? '' : '<table><tr><th>码</th><th>' + (t ? '给' : '班级') + '</th><th>已用</th><th></th></tr>' + C.map(function (c) {
+  html += !C ? '<p class="empty">加载中…</p>' : !C.length ? '' : '<table><tr><th>码</th><th>' + (t || g ? '给' : '班级') + '</th><th>已用</th><th></th></tr>' + C.map(function (c) {
     return '<tr><td><b class="mono">' + esc(c.code) + '</b></td><td>' + esc(c.class_name || c.note || '') + '</td><td>' + c.used + ' / ' + c.max_uses + '</td><td class="ra">' +
       (c.live ? '<button class="btn link sm" data-share="' + esc(c.code) + '" data-role="' + c.role + '">分享</button><button class="btn link bad sm" data-rev="' + esc(c.code) + '">撤销</button>' : '<span class="pill">已失效</span>') + '</td></tr>';
   }).join('') + '</table>';
@@ -595,7 +622,11 @@ function sheetCode(role) {
   if ($('cGo')) $('cGo').onclick = async function () {
     var b = $('cGo'); b.disabled = true;
     try {
-      if (t) { var n = $('cNote').value.trim(); made(await HX.rpc('hx_new_code', { p_role: 'teacher', p_class: null, p_note: n }), '教师码 · ' + (n || '一码一用')); }
+      if (g) {
+        var gn = $('cNote').value.trim(), u = +$('cUses').value; if (!(u >= 1 && u <= 200 && u % 1 === 0)) throw new Error('可用次数填 1～200');
+        made(await HX.rpc('hx_new_code', { p_role: 'guest', p_class: null, p_note: gn, p_uses: u }), '好友码 · ' + (gn ? gn + ' · ' : '') + u + ' 次，撤销前一直有效');
+      }
+      else if (t) { var n = $('cNote').value.trim(); made(await HX.rpc('hx_new_code', { p_role: 'teacher', p_class: null, p_note: n }), '教师码 · ' + (n || '一码一用')); }
       else { var o = $('cCls').selectedOptions[0]; ST.sCls = +o.value; made(await HX.rpc('hx_new_code', { p_role: 'student', p_class: +o.value, p_note: '' }), o.textContent + ' · 课堂码 · 4 小时有效'); }
     } catch (e) { toast(e.message); b.disabled = false; }
   };
@@ -665,7 +696,10 @@ function renderStu(cid) {
   });
   el.querySelectorAll('[data-back]').forEach(function (b) { b.onclick = async function () { try { await HX.rpc('hx_student_restore', { p_id: +b.dataset.back }); await done('已恢复'); } catch (e) { toast(e.message); } }; });
 }
-async function loadClasses() { try { ST.classes = await HX.rpc('hx_my_classes') || []; } catch (e) { ST.classes = []; toast('班级名单读取失败：' + e.message); } ST.clsOk = true; renderMgmt('cls'); }
+async function loadClasses() {
+  try { var r = await Promise.all([HX.rpc('hx_my_classes'), HX.rpc('hx_my_guests').catch(function () { return []; })]); ST.classes = r[0] || []; ST.guests = r[1] || []; } catch (e) { ST.classes = []; toast('班级名单读取失败：' + e.message); }
+  ST.clsOk = true; renderMgmt('cls');
+}
 var xlsxP = null;
 function loadXLSX() { return xlsxP || (xlsxP = new Promise(function (ok, no) { var s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'; s.onload = ok; s.onerror = function () { xlsxP = null; no(new Error('表格组件加载失败')); }; document.head.appendChild(s); })); }
 // 考勤表：第 2 行“学期：… 班级：…”，下面每行 序号 | 学号 | 姓名；也认其他表：一行里第一个 6～20 位数字当学号，右边一格当姓名
@@ -684,7 +718,7 @@ $('brand').onclick = $('back').onclick = function () { show(null); };
 addEventListener('hashchange', function () { var id = location.hash.slice(1); if (id !== (ST.tab || '')) show(id); });
 function reloadTools() { for (var k in frames) { if (k !== ST.tab) { frames[k].remove(); delete frames[k]; } else frames[k].src = frames[k].src; } } // 工具页把登录记在内存里，换人后重新打开
 async function refresh() {
-  ST.me = null; ST.user = null; ST.uname = null; ST.classes = null; ST.clsOk = false; ST.studs = {}; ST.newCode = null; ST.edit = null; ST.codes = undefined; ST.teachers = undefined; ST.aCode = null;
+  ST.me = null; ST.user = null; ST.uname = null; ST.classes = null; ST.guests = null; ST.clsOk = false; ST.studs = {}; ST.newCode = null; ST.edit = null; ST.codes = undefined; ST.teachers = undefined; ST.aCode = null;
   if (HX.in()) {
     try { var res = await Promise.all([HX.rpc('hx_me'), HX.user()]); ST.me = res[0]; ST.user = res[1]; HXTheme.setDev(ST.me && ST.me.dev); }
     catch (e) { if (e.status === 401) { await HX.out(); HXTheme.setDev(false); } }
@@ -725,10 +759,12 @@ $('rf').onsubmit = async function (e) {
     }
     var t = R.role === 'teacher', un = v('run').toLowerCase(), nm = v('rnm'), no = v('rno');
     if (t && !/^[a-z0-9_.-]{3,32}$/.test(un)) throw new Error(un ? '账号名用 3～32 位字母、数字' : '请填写账号名');
-    if (!t && !$('rcls')) throw new Error('发码的老师还没有导入班级');
+    var g = R.role === 'guest', gc = v('rgc');
+    if (!t && !g && !$('rcls')) throw new Error('这个课堂码的班级已经删除了，请找老师');
+    if (g && !gc) throw new Error('请填写班级');
     if (!t && !/^\d{6,20}$/.test(no)) throw new Error('学号应为 6～20 位数字');
     if ((!t || ST.lm === 'reg') && !nm) throw new Error(t ? '请填写名字' : '请填写姓名');
-    var args = { p_code: R.code, p_class: t ? null : +$('rcls').value, p_no: t ? null : no, p_name: t ? null : nm, p_username: t ? un : null };
+    var args = { p_code: R.code, p_class: t || g ? null : +$('rcls').value, p_no: t ? null : no, p_name: t ? null : nm, p_username: t ? un : null, p_guest_class: g ? gc : null };
     if (ST.lm === 'reg') {
       var pw = $('rpw').value; if (pw.length < 6) throw new Error('密码至少 6 位'); if (pw !== $('rpw2').value) throw new Error('两次输的密码不一样');
       await HX.rpc('hx_redeem_check', args, false);

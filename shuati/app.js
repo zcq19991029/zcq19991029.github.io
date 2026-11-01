@@ -3,6 +3,7 @@ import * as hx from './hx.js';
 import * as store from './store.js';
 import { providers, getSettings, saveSettings, setAiProfile, chat, streamChat, listModels, explainQuestion } from './ai.js';
 import { readMaterial, normalizeQuestions, aiImport, aiGenerate } from './imports.js';
+import { figSvg, figName } from './symbols.js';
 
 // 内置课程题库（data/ 下的 JSON）；第一个是默认科目
 const BUILTIN = [
@@ -26,6 +27,8 @@ const VIEWS = [
 
 const $ = id => document.getElementById(id);
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const optText = o => o.text || (o.fig ? `［图：${figName(o.fig)}］` : ''); // 选项是图形符号时，给 AI 和扩展的文字
+const figText = q => q.fig ? `\n［图：${figName(q.fig)}］` : '';
 const typeName = t => (TYPES.find(x => x[0] === t) || [, t])[1];
 const shuffle = a => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 const sameSet = (a, b) => a.length === b.length && a.every(x => b.includes(x));
@@ -252,12 +255,12 @@ function renderCard() {
     if (picked) { const inAns = q.answer.includes(o.key), chose = picked.includes(o.key); cls = inAns && chose ? 'right' : chose ? 'wrong' : inAns ? (q.type === 'multiple' ? 'right miss' : 'right') : ''; }
     else if (S.sel.has(o.key)) cls = 'sel';
     const why = ai && ai.data && ai.data[o.key] ? `<small class="why">${esc(ai.data[o.key])}</small>` : '';
-    return `<button type="button" class="opt ${cls}" data-k="${esc(o.key)}" ${picked ? 'disabled' : ''}><i>${q.type === 'judgment' ? (o.key === 'T' ? '✓' : '✗') : esc(o.key)}</i><span>${esc(o.text)}${why}</span></button>`;
+    return `<button type="button" class="opt ${cls}" data-k="${esc(o.key)}" ${picked ? 'disabled' : ''}><i>${q.type === 'judgment' ? (o.key === 'T' ? '✓' : '✗') : esc(o.key)}</i><span>${o.fig ? `<span style="display:block">${figSvg(o.fig)}</span>` : ''}${esc(o.text)}${why}</span></button>`;
   }).join('');
   const self = SELF.has(q.type), typed = S.typed[q.id] || [];
   let stem = esc(q.stem);
   if (q.type === 'fill') { let n = 0; stem = stem.replace(/____/g, () => { const k = n++, v = typed[k] || ''; return `<input class="blank${picked && typed.length ? (blankOk(q.answer[k], v) ? ' right' : ' wrong') : ''}" data-n="${k}" value="${esc(v)}" ${picked ? 'disabled' : ''} autocomplete="off" aria-label="第 ${k + 1} 空" style="width:${Math.min(12, Math.max(4, String(q.answer[k]).replace(/[（(].*$/, '').length + 2))}em">`; }); }
-  const extra = (q.code ? `<pre class="code">${esc(q.code)}</pre>` : '') + (q.sub ? `<ol class="subs">${q.sub.map(x => `<li>${esc(x)}</li>`).join('')}</ol>` : '');
+  const extra = (q.fig ? `<figure style="margin:4px 0 12px;display:flex;justify-content:center;padding:10px;border-radius:12px;background:rgba(127,127,127,.08)">${figSvg(q.fig, true)}</figure>` : '') + (q.code ? `<pre class="code">${esc(q.code)}</pre>` : '') + (q.sub ? `<ol class="subs">${q.sub.map(x => `<li>${esc(x)}</li>`).join('')}</ol>` : '');
   const ref = () => `<div class="ref">${esc(q.answer[0])}</div>`;
   let fb = '';
   if (self && !picked) fb = S.shown[q.id] ? `<div class="fb self"><b>参考答案</b>${ref()}<div class="row"><button class="btn ghost" type="button" id="noBtn">没答对</button><button class="btn okb" type="button" id="okBtn">答对了</button></div></div>`
@@ -282,7 +285,7 @@ function renderCard() {
     <div class="veil" aria-hidden="true"><i></i></div>`;
   card.classList.toggle('drag', !!picked);
   // 给“夜夜题库AI伴侣”浏览器扩展（智慧职教AI伴学项目）读题：题型、题干、选项；答完才带答案
-  card.dataset.hxq = JSON.stringify({ type: typeName(q.type), stem: q.stem + (q.code ? '\n' + q.code : ''), options: (q.options || []).map(o => ({ label: o.key, text: o.text })), answer: picked ? (q.type === 'judgment' ? (q.answer[0] === 'T' ? '正确' : '错误') : q.answer.join(q.type === 'fill' ? '；' : '')) : '' });
+  card.dataset.hxq = JSON.stringify({ type: typeName(q.type), stem: q.stem + figText(q) + (q.code ? '\n' + q.code : ''), options: (q.options || []).map(o => ({ label: o.key, text: optText(o) })), answer: picked ? (q.type === 'judgment' ? (q.answer[0] === 'T' ? '正确' : '错误') : q.answer.join(q.type === 'fill' ? '；' : '')) : '' });
   for (const b of card.querySelectorAll('.opt')) b.onclick = e => { if (!e.detail || Date.now() - tapAt > 800) pick(b.dataset.k); }; // 鼠标、手指在 pointerup 已选过（见下面手势），这里管键盘
   const blanks = [...card.querySelectorAll('.blank:not([disabled])')];
   blanks.forEach((b, n) => b.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); n < blanks.length - 1 ? blanks[n + 1].focus() : submit(); } });
@@ -446,7 +449,7 @@ function renderBank() {
         <div class="line"><button class="btn" type="button" id="goImport">预览</button><span class="muted" id="imMsg">${getSettings().apiKey ? '' : 'JSON 题库直接导入；文字资料要先在“设置”里填 AI Key'}</span></div>
       </div>
       ${d ? `<div style="margin-top:14px"><div class="row"><b style="flex:1">预览 ${d.length} 题</b><button class="btn sm" type="button" id="okImport" ${d.length ? '' : 'disabled'}>确认导入</button><button class="btn sm ghost" type="button" id="noImport">放弃</button></div>
-        <div class="pv" style="margin-top:10px">${d.map((q, n) => `<div><p><small>${typeName(q.type)}</small> ${esc(q.stem)}<br><small>${(q.options || []).map(o => esc(o.key + '. ' + o.text)).join('　')} ｜ 答案 ${esc(q.answer.join(q.type === 'fill' ? '；' : ''))}</small></p><button type="button" data-del="${n}" aria-label="删除">✕</button></div>`).join('')}</div></div>` : ''}
+        <div class="pv" style="margin-top:10px">${d.map((q, n) => `<div><p><small>${typeName(q.type)}</small> ${esc(q.stem)}<br><small>${(q.options || []).map(o => esc(o.key + '. ' + optText(o))).join('　')} ｜ 答案 ${esc(q.answer.join(q.type === 'fill' ? '；' : ''))}</small></p><button type="button" data-del="${n}" aria-label="删除">✕</button></div>`).join('')}</div></div>` : ''}
     </div>`;
   const on = (id, fn) => { if ($(id)) $(id).onclick = fn; };
   on('expBtn', () => { const blob = new Blob([JSON.stringify(S.questions, null, 1)], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = sub.name + '.json'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); });
@@ -515,7 +518,7 @@ async function publish() {
 
 // ---------- 设置 ----------
 function renderSettings() {
-  const s = getSettings(), p = providers[s.provider];
+  const s = getSettings(), p = providers[s.provider], models = [...new Set([...(s.models || []), ...p.models])];
   $('v-settings').innerHTML = `
     <div class="panel"><h3>AI 解析</h3>${hasExt()
       ? '<p class="extok">已装“夜夜题库AI伴侣”：讲题直接点题干下的“✦ 学会这题”，用的是扩展里的 Key，这里可以不填。只有问 AI、导入资料、AI 出题才用这里的 Key。</p>'
@@ -523,8 +526,8 @@ function renderSettings() {
       <div class="f">
         <label for="prov">服务商</label><select id="prov">${Object.entries(providers).map(([k, v]) => `<option value="${k}" ${k === s.provider ? 'selected' : ''}>${esc(v.label)}</option>`).join('')}</select>
         <label for="base">接口地址</label><input id="base" type="url" value="${esc(s.baseUrl)}" placeholder="https://api.example.com/v1">
-        <label for="model">模型</label><div class="line"><input id="model" list="models" value="${esc(s.model)}" style="flex:1"><button class="btn sm ghost" type="button" id="lsModels">读取模型</button></div>
-        <datalist id="models">${p.models.map(m => `<option value="${esc(m)}">`).join('')}</datalist>
+        <label for="model">模型</label><div class="line"><select id="model" style="flex:1;min-width:0">${models.map(m => `<option value="${esc(m)}" ${m === s.model ? 'selected' : ''}>${esc(m)}</option>`).join('')}<option value="" ${models.includes(s.model) ? '' : 'selected'}>手动填写…</option></select><button class="btn sm ghost" type="button" id="lsModels">读取模型</button></div>
+        <input id="modelIn" value="${esc(models.includes(s.model) ? '' : s.model)}" placeholder="模型 ID" ${models.includes(s.model) ? 'hidden' : ''}>
         <label for="key">API Key</label><input id="key" type="password" autocomplete="off" value="${esc(s.apiKey)}" placeholder="sk-…">
         <div class="radio"><label><input type="checkbox" id="remember" ${s.remember ? 'checked' : ''}>在这台设备长期保存 Key（公共电脑别勾）</label></div>
         <div class="line"><button class="btn sm" type="button" id="saveAi">保存</button><button class="btn sm ghost" type="button" id="testAi">测试连接</button><span class="muted" id="aiMsg"></span></div>
@@ -539,11 +542,13 @@ function renderSettings() {
   };
   $('keyDef').onclick = () => { store.setLocal('keys', {}); renderSettings(); toast('快捷键已恢复默认'); };
   $('reload').onclick = async () => { S.base = {}; await loadSubjects(); await openSubject(S.subject.id); toast('题库已重新加载'); };
-  const collect = () => ({ provider: $('prov').value, baseUrl: $('base').value.trim(), model: $('model').value.trim(), apiKey: $('key').value.trim(), remember: $('remember').checked });
-  $('prov').onchange = () => { const v = providers[$('prov').value]; $('base').value = v.baseUrl; $('model').value = v.models[0] || ''; saveSettings(collect()); renderSettings(); };
+  const collect = () => ({ provider: $('prov').value, baseUrl: $('base').value.trim(), model: ($('model').value || $('modelIn').value).trim(), models: s.models || [], apiKey: $('key').value.trim(), remember: $('remember').checked });
+  $('prov').onchange = () => { const v = providers[$('prov').value]; saveSettings({ ...collect(), baseUrl: v.baseUrl, model: v.models[0] || '', models: [] }); renderSettings(); };
+  $('model').onchange = () => { $('modelIn').hidden = !!$('model').value; saveSettings(collect()); if ($('model').value) $('aiMsg').textContent = '已选 ' + $('model').value; else $('modelIn').focus(); };
+  $('modelIn').onchange = () => saveSettings(collect());
   $('saveAi').onclick = () => { saveSettings(collect()); $('aiMsg').textContent = '已保存'; };
   $('testAi').onclick = async () => { saveSettings(collect()); $('aiMsg').textContent = '正在测试…'; try { await chat([{ role: 'user', content: '只回复：连接成功' }]); $('aiMsg').textContent = '连接成功'; } catch (e) { $('aiMsg').textContent = e.message; } };
-  $('lsModels').onclick = async () => { saveSettings(collect()); $('aiMsg').textContent = '正在读取…'; try { const ms = await listModels(); $('models').innerHTML = ms.map(m => `<option value="${esc(m)}">`).join(''); $('aiMsg').textContent = `${ms.length} 个模型，点模型框选择`; } catch (e) { $('aiMsg').textContent = e.message; } };
+  $('lsModels').onclick = async () => { saveSettings(collect()); $('aiMsg').textContent = '正在读取…'; try { const ms = await listModels(), c = collect(); saveSettings({ ...c, models: ms, model: ms.includes(c.model) ? c.model : ms[0] || c.model }); renderSettings(); $('aiMsg').textContent = `读到 ${ms.length} 个模型，在模型框里选`; } catch (e) { $('aiMsg').textContent = e.message; } };
   $('resetP').onclick = e => sure(e.currentTarget, '确认清空？', resetAll);
 }
 
@@ -670,7 +675,7 @@ function openAsk() {
       if (!getSettings().apiKey) { closeSheet(); show('settings'); return toast('先填自己的 AI Key'); }
       let content = text;
       if (withQ && q) {
-        content = `题目（${typeName(q.type)}）：${q.stem}${q.code ? '\n' + q.code : ''}${(q.options || []).length ? '\n' + q.options.map(o => o.key + '. ' + o.text).join('\n') : ''}${S.picked[q.id] ? '\n题库答案：' + q.answer.join(q.type === 'fill' ? '；' : '') : ''}\n\n我的问题：${text}`;
+        content = `题目（${typeName(q.type)}）：${q.stem}${figText(q)}${q.code ? '\n' + q.code : ''}${(q.options || []).length ? '\n' + q.options.map(o => o.key + '. ' + optText(o)).join('\n') : ''}${S.picked[q.id] ? '\n题库答案：' + q.answer.join(q.type === 'fill' ? '；' : '') : ''}\n\n我的问题：${text}`;
         withQ = false; $('quote')?.remove();
       }
       S.chat.push({ role: 'user', content, show: text }); inp.value = ''; inp.oninput();
@@ -701,9 +706,19 @@ const guide = () => `<h4>刷题</h4><ul>
 <p>网页和扩展的 Key 各存各的，互不影响。装了扩展只想让 AI 讲题，网页这里不用填；装了扩展时题目下只留扩展的“✦ 学会这题”。</p>`;
 
 // ---------- 启动 ----------
+// 登录了但没开通（GitHub 新账号等，身份“未开通”）：整页挡住，只引导去首页填邀请码；没登录的照样能刷
+function lock(on) {
+  let el = document.getElementById('hxLock');
+  if (!on) { if (el) el.remove(); return false; }
+  if (!el) { el = document.createElement('div'); el.id = 'hxLock'; document.body.appendChild(el); }
+  el.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center;background:var(--card,#f5f5f7);color:var(--ink,#1d1d1f);font-size:16px';
+  el.innerHTML = '<b style="font-size:20px">这个账号还没开通</b><a href="https://zcq19991029.github.io/" target="_top" style="padding:10px 22px;border-radius:999px;background:#0a84ff;color:#fff;text-decoration:none">填写邀请码开通</a>';
+  return true;
+}
 async function boot() {
   S.user = S.me = null;
   if (hx.signedIn()) { try { [S.user, S.me] = await Promise.all([hx.user(), hx.me()]); } catch { S.user = S.me = null; } }
+  if (lock(S.me && !S.me.teacher && !S.me.admin && !S.me.dev && !S.me.student && !S.me.left)) return;
   setAiProfile(hx.uid() || 'default');
   const p = prefs();
   S.type = p.type || 'single'; S.scope = p.scope || 'todo'; S.mode = ORDERS.some(o => o[0] === p.mode) ? p.mode : 'seq';
