@@ -183,7 +183,7 @@
 <body>
 <header>
   <button class="brand" id="brand" type="button"><img src="logo.jpg" alt=""><span>华夏工具</span></button>
-  <button class="back" id="back" type="button"><svg class="i" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>首页</button>
+  <button class="back" id="back" type="button"><svg class="i" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>返回</button>
   <div class="cur" id="cur"></div>
   <div class="sp"></div>
   <button class="ibtn" id="lookBtn" type="button" aria-label="外观" aria-expanded="false"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v17a8.5 8.5 0 0 0 0-17z" fill="currentColor" stroke="none"/></svg></button>
@@ -373,11 +373,13 @@ window.addEventListener('message', function (e) {
   if (e.origin !== location.origin || !e.data || e.data.hx !== 'focus') return;
   for (var k in frames) if (frames[k].contentWindow === e.source) { zen[k] = !!e.data.on; if (k === ST.tab) document.body.classList.toggle('zen', zen[k]); }
 });
-function show(id) {
+function show(id, how) { // how：不写 = 新开一页（进浏览器历史，左上角和手机返回能退回来）；'replace' 原地换；'pop' 是浏览器后退来的
   var t = TOOLS.filter(function (x) { return x.id === id; })[0];
   if (t && !can(t)) t = null;
-  ST.tab = t ? t.id : null;
-  history.replaceState(null, '', t ? '#' + t.id : location.pathname + location.search);
+  var prevTab = ST.tab; ST.tab = t ? t.id : null;
+  var url = t ? '#' + t.id : location.pathname + location.search, st = history.state && history.state.hx || 0;
+  if (how === 'replace' || (!how && (t ? t.id : null) === (prevTab || null))) history.replaceState({ hx: st }, '', url);
+  else if (how !== 'pop') history.pushState({ hx: st + 1 }, '', url);
   if (t && !frames[t.id]) { var f = document.createElement('iframe'); f.src = t.url; f.title = t.name; f.allow = 'fullscreen; clipboard-write; clipboard-read'; $('main').appendChild(f); frames[t.id] = f; }
   for (var k in frames) frames[k].classList.toggle('on', !!t && k === t.id);
   document.body.classList.toggle('zen', !!t && !!zen[t.id]);
@@ -725,8 +727,11 @@ function parseRoster(wb, file) {
   return { cls: cls, term: term, list: list };
 }
 
-$('brand').onclick = $('back').onclick = function () { show(null); };
-addEventListener('hashchange', function () { var id = location.hash.slice(1); if (id !== (ST.tab || '')) show(id); });
+// 左上角“返回”：回到上一页（上一个工具、工具里点过去的页面或首页）；从外面直接打开的没有上一页，就回首页
+$('back').onclick = function () { if (history.state && history.state.hx > 0) history.back(); else show(null, 'replace'); };
+$('brand').onclick = function () { show(null); };
+addEventListener('popstate', function () { var id = location.hash.slice(1); if (id !== (ST.tab || '')) show(id, 'pop'); });
+addEventListener('hashchange', function () { var id = location.hash.slice(1); if (id !== (ST.tab || '')) show(id, 'replace'); });
 function reloadTools() { for (var k in frames) { if (k !== ST.tab) { frames[k].remove(); delete frames[k]; } else frames[k].src = frames[k].src; } } // 工具页把登录记在内存里，换人后重新打开
 async function refresh() {
   ST.me = null; ST.user = null; ST.uname = null; ST.classes = null; ST.guests = null; ST.clsOk = false; ST.studs = {}; ST.newCode = null; ST.edit = null; ST.codes = undefined; ST.teachers = undefined; ST.aCode = null;
@@ -734,7 +739,7 @@ async function refresh() {
     try { var res = await Promise.all([HX.rpc('hx_me'), HX.user()]); ST.me = res[0]; ST.user = res[1]; HXTheme.setDev(ST.me && ST.me.dev); }
     catch (e) { if (e.status === 401) { await HX.out(); HXTheme.setDev(false); } }
   } else HXTheme.setDev(false);
-  show(ST.tab || location.hash.slice(1));
+  show(ST.tab || location.hash.slice(1), 'replace');
   if (role() === '未开通' && ST.actFor !== HX.uid() && !$('login').open) { ST.actFor = HX.uid(); openLogin('', 'act'); } // 每个账号每次打开网页只自动弹一次
 }
 // 给嵌在框里的工具用：要登录时弹登录窗口、问身份、回首页

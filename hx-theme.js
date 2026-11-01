@@ -31,6 +31,9 @@
   // 在网站上被单独打开的子工具：回到总入口（登录、账号、外观都在那里）。离线单文件不跳；地址加 ?solo 也不跳（调试用）。
   if (tool && window.top === window && /^https?:$/.test(location.protocol) && !/[?&]solo\b/.test(location.search)) { location.replace(root + '#' + tool); return; }
 
+  // 嵌在总入口里的子工具：选了背景图时页面底色透明，透出首页的背景图（以前单片机、考试、排课、加分是整页纯色铺满）
+  if (tool && window.top !== window) { var st = document.createElement('style'); st.textContent = 'html.hx-bg,html.hx-bg body{background-color:transparent!important}'; (document.head || document.documentElement).appendChild(st); }
+
   function ls(k, v) { try { if (v === undefined) return localStorage.getItem(k); if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { if (v !== undefined && v !== null) throw e; } return null; }
   function get() {
     var raw = ls(KEY), v = null;
