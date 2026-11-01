@@ -19,6 +19,7 @@ const ORDERS = [['seq', '题库正序', '按题库里的编号从前往后'], ['
 const VIEWS = [
   ['practice', '刷题', 'M4 4h16v12H5.17L4 17.17V4zm2 2v7h12V6H6zm2 2h8v2H8V8z'],
   ['overview', '概览', 'M5 19V9h3v10H5zm5.5 0V5h3v14h-3zM16 19v-7h3v7h-3z'],
+  ['rank', '排行', 'M7 3h10v4.5a5 5 0 0 1-4 4.9V15h3.5v2h-9v-2H11v-2.6a5 5 0 0 1-4-4.9V3zM3 4h3v2H5v1a2 2 0 0 0 2 2v2a4 4 0 0 1-4-4V4zm15 0h3v3a4 4 0 0 1-4 4V9a2 2 0 0 0 2-2V6h-1V4zM6 19h12v2H6v-2z'],
   ['bank', '题库', 'M4 5h7v14H4V5zm9 0h7v14h-7V5zM6 7v3h3V7H6zm9 0v3h3V7h-3z'],
   ['settings', '设置', 'M12 8a4 4 0 1 1 0 8 4 4 0 0 1 0-8zm8.6 5.3l-1.9-.4a7 7 0 0 1-.6 1.4l1.1 1.6-1.6 1.6-1.6-1.1c-.4.3-.9.5-1.4.6l-.4 1.9h-2.3l-.4-1.9a7 7 0 0 1-1.4-.6l-1.6 1.1-1.6-1.6 1.1-1.6c-.3-.4-.5-.9-.6-1.4l-1.9-.4v-2.3l1.9-.4c.1-.5.3-1 .6-1.4L5.6 6.6l1.6-1.6 1.6 1.1c.4-.3.9-.5 1.4-.6l.4-1.9h2.3l.4 1.9c.5.1 1 .3 1.4.6l1.6-1.1 1.6 1.6-1.1 1.6c.3.4.5.9.6 1.4l1.9.4v2.3z'],
 ];
@@ -68,6 +69,7 @@ const S = {
   sel: new Set(), ai: {}, draft: null, imode: 'pick', typed: {}, shown: {}, // typed：填空填的字；shown：主观题已看参考答案
   undo: {}, lastId: null, chat: [], // undo：题 id → 标记前的状态（误点“记住”能撤销）
   hsel: new Set(), hf: 'all', // 概览“刷题记录”：勾选的题、筛选
+  rmine: false, // 排行：只看本班
 };
 const prefs = () => store.getLocal('prefs', {});
 const savePrefs = () => store.setLocal('prefs', { subject: S.subject?.id, type: S.type, scope: S.scope, mode: S.mode });
@@ -165,6 +167,7 @@ function answer(q, sel, ok) {
   r.attempts = (r.attempts || 0) + 1; if (!ok) { r.wrong = (r.wrong || 0) + 1; r.status = 'unknown'; }
   r.last = sel; r.ok = ok; r.at = Date.now();
   S.records[q.id] = r; S.picked[q.id] = sel;
+  if (ok) rankAdd(q, sel);
   saveRecords(); saveSess(); renderHero(); renderScopes(); renderCard(); renderBar();
   if (navigator.vibrate) navigator.vibrate(ok ? 12 : [20, 40, 20]);
 }
@@ -197,6 +200,7 @@ function show(v) {
   if (!S.subject) return;
   if (v === 'practice') renderPractice();
   if (v === 'overview') renderOverview();
+  if (v === 'rank') renderRank();
   if (v === 'bank') renderBank();
   if (v === 'settings') renderSettings();
 }
@@ -275,7 +279,7 @@ function renderCard() {
   card.innerHTML = `<div class="qhead"><span class="qtype">${typeName(q.type)}</span><span>${S.i + 1} / ${S.queue.length}</span><span class="sp"></span>${tag}</div>
     <h2 class="stem">${stem}</h2>${extra}${opts ? `<div class="opts">${opts}</div>` : ''}
     ${q.type === 'multiple' && !picked ? `<button class="btn submit" type="button" id="submitBtn" ${S.sel.size ? '' : 'disabled'}>提交答案${S.sel.size ? `（已选 ${[...S.sel].sort().join('')}）` : ''}</button>` : ''}${q.type === 'fill' && !picked ? '<button class="btn submit" type="button" id="submitBtn">提交答案</button>' : ''}${fb}${hint}
-    <span class="stamp k">记住</span><span class="stamp a">再练</span>`;
+    <div class="veil" aria-hidden="true"><i></i></div>`;
   card.classList.toggle('drag', !!picked);
   // 给“夜夜题库AI伴侣”浏览器扩展（智慧职教AI伴学项目）读题：题型、题干、选项；答完才带答案
   card.dataset.hxq = JSON.stringify({ type: typeName(q.type), stem: q.stem + (q.code ? '\n' + q.code : ''), options: (q.options || []).map(o => ({ label: o.key, text: o.text })), answer: picked ? (q.type === 'judgment' ? (q.answer[0] === 'T' ? '正确' : '错误') : q.answer.join(q.type === 'fill' ? '；' : '')) : '' });
@@ -387,6 +391,41 @@ function bindHist() {
     S.hsel.clear(); saveRecords(); clearSess(); buildQueue(false); renderOverview(); toast(`已放回 ${ids.length} 题，在“未做”里能刷到`);
   };
   $('hWipe').onclick = e => sure(e.currentTarget, '确认清空全部记录？', resetAll);
+}
+
+// ---------- 理论题排行：每个课程科目一个榜，分数 = 答对过的不同选择、判断题数（服务器判对、去重，见 supabase/quiz-schema.sql 第 3 节） ----------
+const RANKED = new Set(['single', 'multiple', 'judgment']);
+const rankable = sub => !!sub && (sub.kind === 'builtin' || sub.kind === 'public');
+const isStudent = () => !!(S.me && S.me.student);
+const rankDone = bank => { if (S.view === 'rank' && S.subject && S.subject.id === bank) renderRank(); };
+function rankAdd(q, sel) { // 只交课程题库里的原题（自己导入到这个科目的题不算）
+  if (!isStudent() || !rankable(S.subject) || !RANKED.has(q.type) || !(S.base[S.subject.id] || []).some(x => x.id === q.id)) return;
+  store.rankPush(S.subject.id, q.id, sel, rankDone);
+}
+async function renderRank() {
+  const sub = S.subject, el = $('v-rank'), n = (S.base[sub.id] || []).filter(q => RANKED.has(q.type)).length;
+  const head = body => `<div class="hero glow"><h1>${esc(sub.name)}</h1>${body}</div>`, note = t => `<p class="muted" style="margin:10px 0 0">${t}</p>`;
+  if (!rankable(sub)) { delete el.dataset.for; el.innerHTML = head(note('自建科目不排位，换到课程题库看排行。')); return; }
+  const who = isStudent() || isTeacher(), mineOnly = who && S.rmine;
+  const seg = who ? `<div class="seg" id="rseg" style="grid-template-columns:1fr 1fr"><button type="button" data-m="0" aria-pressed="${!mineOnly}">全校</button><button type="button" data-m="1" aria-pressed="${mineOnly}">${isStudent() ? '本班' : '我的班'}</button></div>` : '';
+  const bind = () => { for (const b of el.querySelectorAll('#rseg button')) b.onclick = () => { S.rmine = b.dataset.m === '1'; renderRank(); }; };
+  if (el.dataset.for !== sub.id) { el.dataset.for = sub.id; el.innerHTML = head(note('正在加载排行…')) + seg; bind(); }
+  let rows;
+  try { rows = await store.rankBoard(sub.id, mineOnly); }
+  catch (e) { if (S.subject === sub && S.view === 'rank') { el.innerHTML = head(note('排行榜暂时打不开：' + esc(e.message))) + seg; bind(); } return; }
+  if (S.subject !== sub || S.view !== 'rank') return; // 加载期间换了科目或页面
+  const me = rows.find(r => r.me), total = rows.length ? rows[0].total : 0;
+  const mine = isStudent()
+    ? (me ? `<div class="meter"><i style="width:${n ? me.score / n * 100 : 0}%"></i></div><div class="stats"><span><b>${me.score}</b>/ ${n} 题答对</span><span>第 <b>${me.place}</b>名</span><span><b>${total}</b>人上榜</span></div>`
+          : note('答对一道单选、多选或判断就上榜'))
+    : note(hx.signedIn() ? (isTeacher() ? '教师不上榜' : '开通学生账号后上榜') : '登录学生账号后，答对的题计入排行');
+  let prev = 0;
+  const list = rows.map(r => {
+    const gap = prev && r.place > prev + 1 ? '<li class="gap">⋯</li>' : ''; prev = r.place;
+    return `${gap}<li class="${r.me ? 'me ' : ''}p${Math.min(r.place, 4)}"><i>${r.place}</i><div><b>${esc(r.name)}</b><span>${esc(r.class_name)}</span></div><em>${r.score}<small>题</small></em></li>`;
+  }).join('');
+  el.innerHTML = head(mine) + seg + `<div class="panel">${rows.length ? `<ol class="rb">${list}</ol>` : '<p class="muted">还没有人上榜。</p>'}<p class="muted rrule">单选、多选、判断答对过的题，每题只算一次</p></div>`;
+  bind();
 }
 
 // ---------- 题库：新建科目、导入资料、AI 出题、导出、发布 ----------
@@ -530,37 +569,51 @@ addEventListener('keydown', e => {
   if (is('prev')) return hit(() => go(S.i - 1));
   if (is('next')) return hit(() => go(S.i + 1));
 });
-// 答完后拖题卡：左“记住”、右“再练”；手指、鼠标都行，拖过三分之一或甩一下就飞出去
+// 答完后拖题卡：左“记住”、右“再练”；手指、鼠标都行。按住时只跟手走，松手才判定：
+// 拖过门槛（蒙版上的圆圈变实心）或往那边甩一下才飞出去；拖回中间、停住再松手、浏览器接管手势，都放回原处
+const gate = card => Math.min(card.offsetWidth * .32, 140);
+function veil(card, dx) { // 蒙版随距离变实，左绿 ✓、右红 ✕
+  const v = card.querySelector('.veil'); if (!v) return;
+  const p = Math.min(1, Math.abs(dx) / gate(card));
+  v.style.setProperty('--p', p.toFixed(3)); v.classList.toggle('k', dx < 0); v.classList.toggle('a', dx > 0); v.classList.toggle('go', p >= 1);
+}
+function place(card) { // 圆圈放在题卡露在屏幕里那一段的正中（题长时题卡比屏幕高）
+  const v = card.querySelector('.veil'); if (!v) return;
+  const r = card.getBoundingClientRect(), t = Math.max(r.top, 60), b = Math.min(r.bottom, innerHeight - 90);
+  v.style.setProperty('--cy', `${Math.round(Math.max(70, Math.min(r.height - 70, (t + b) / 2 - r.top)))}px`);
+}
 function fly(dir) {
   const card = $('card'), q = cur(); if (!q || !S.picked[q.id] || card.classList.contains('fly')) return;
-  card.classList.remove('dragging', 'back'); card.classList.add('fly');
+  card.classList.remove('dragging', 'back'); place(card); veil(card, dir * gate(card)); card.classList.add('fly');
   card.style.transform = `translateX(${dir * (card.offsetWidth + 80)}px) rotate(${dir * 8}deg)`;
-  const st = card.querySelector(dir < 0 ? '.stamp.k' : '.stamp.a'); if (st) st.style.opacity = 1;
   setTimeout(() => mark(dir < 0 ? 'known' : 'unknown'), 220);
 }
 (() => {
   const card = $('card'); let st = null;
-  const stamp = dx => { const k = card.querySelector('.stamp.k'), a = card.querySelector('.stamp.a'); if (k) k.style.opacity = Math.max(0, Math.min(1, -dx / 90)); if (a) a.style.opacity = Math.max(0, Math.min(1, dx / 90)); };
   card.addEventListener('pointerdown', e => {
     const q = cur();
     if (!q || !S.picked[q.id] || e.button > 0 || e.target.closest('button:not(:disabled),a,input,textarea,select,.code,.ref,.tip')) return;
-    st = { x: e.clientX, y: e.clientY, t: Date.now(), id: e.pointerId, on: false };
+    st = { x: e.clientX, y: e.clientY, id: e.pointerId, on: false, dx: 0, pts: [] };
   });
   card.addEventListener('pointermove', e => {
     if (!st || e.pointerId !== st.id) return;
     const dx = e.clientX - st.x, dy = e.clientY - st.y;
-    if (!st.on) { if (Math.abs(dx) < 8) return; if (Math.abs(dy) > Math.abs(dx)) { st = null; return; } st.on = true; card.setPointerCapture(e.pointerId); card.classList.add('dragging'); }
-    card.style.transform = `translateX(${dx}px) rotate(${dx / 24}deg)`; stamp(dx);
+    if (!st.on) { if (Math.abs(dx) < 8) return; if (Math.abs(dy) > Math.abs(dx)) { st = null; return; } st.on = true; try { card.setPointerCapture(e.pointerId); } catch {} card.classList.remove('back'); card.classList.add('dragging'); place(card); }
+    st.dx = dx; st.pts.push([e.timeStamp, dx]); while (st.pts.length > 2 && e.timeStamp - st.pts[0][0] > 100) st.pts.shift();
+    card.style.transform = `translateX(${dx}px) rotate(${dx / 30}deg)`; veil(card, dx);
   });
   const end = e => {
     if (!st || e.pointerId !== st.id) return;
-    const dx = e.clientX - st.x, v = Math.abs(dx) / Math.max(1, Date.now() - st.t), on = st.on; st = null;
-    if (!on) return;
+    const s = st; st = null; if (!s.on) return;
     card.classList.remove('dragging');
-    if (Math.abs(dx) > card.offsetWidth / 3 || (Math.abs(dx) > 50 && v > .6)) return fly(dx < 0 ? -1 : 1);
-    card.classList.add('back'); card.style.transform = ''; stamp(0);
+    if (e.type === 'pointerup') { // 只看手指最后的位置和最近 0.1 秒的速度；停住再松手速度就是 0
+      const dx = s.dx, [t0, x0] = s.pts[0] || [0, 0], dt = e.timeStamp - t0, v = dt > 0 && dt < 160 ? (dx - x0) / dt : 0;
+      if (Math.abs(dx) >= gate(card) || (Math.abs(dx) > 40 && Math.abs(v) > .5 && Math.sign(v) === Math.sign(dx))) return fly(dx > 0 ? 1 : -1);
+    }
+    card.classList.add('back'); card.style.transform = ''; veil(card, 0);
   };
   card.addEventListener('pointerup', end); card.addEventListener('pointercancel', end);
+  card.addEventListener('touchmove', e => { if (st && st.on && e.cancelable) e.preventDefault(); }, { passive: false }); // 拖着时别让页面滚动抢走手势
   // 选项在松手时就选：按下时选项缩小、新题入场还在动，松手点落到按钮外面时浏览器不发 click，表现为“点了没反应”
   let tap = null;
   card.addEventListener('pointerdown', e => { const o = e.button > 0 ? null : e.target.closest('.opt:not(:disabled)'); tap = o && { k: o.dataset.k, x: e.clientX, y: e.clientY, id: e.pointerId }; });
@@ -633,7 +686,7 @@ function openAsk() {
 $('askBtn').onclick = openAsk;
 const guide = () => `<h4>刷题</h4><ul>
   <li>顶上选科目，下面选题型和范围（待掌握、错题、未做…）；“顺序 / 随机”切换出题方式。</li>
-  <li>答完：<b>左滑或按 ${esc(keyOf('know'))}</b> 记住并下一题，<b>右滑或按 ${esc(keyOf('again'))}</b> 再练；鼠标也能拖题卡。点错了用提示里的“撤销”，或回到那题点“撤销记住”。快捷键可以在上面改。</li>
+  <li>答完：<b>左滑或按 ${esc(keyOf('know'))}</b> 记住并下一题，<b>右滑或按 ${esc(keyOf('again'))}</b> 再练；鼠标也能拖题卡。按住时题卡只跟着手指走，松手才算：拖回中间再松手就放回原处。点错了用提示里的“撤销”，或回到那题点“撤销记住”。快捷键可以在上面改。</li>
   <li>“专注”只留题卡；“问 AI”（${esc(keyOf('ask'))}）可以引用当前题目提问，浏览器支持时可以语音输入。</li>
   <li>登录后进度跟账号走；没登录只存在这台设备。账号、外观在首页右上角设置。</li></ul>
 <h4>AI 解析（网页自带）</h4><ol>
@@ -659,6 +712,7 @@ async function boot() {
   await loadSubjects(pub);
   await openSubject(p.subject && S.subjects.some(s => s.id === p.subject) ? p.subject : BUILTIN[0].id);
   if (!pub) await loadSubjects(); // 老师发布的题库随后补进科目列表
+  store.rankFlush(rankDone); // 上次没交上的答对记录
 }
 if (store.getLocal('focus', false)) document.body.classList.add('focus');
 if (!store.getLocal('notice', 0)) setTimeout(openNotice, 600);

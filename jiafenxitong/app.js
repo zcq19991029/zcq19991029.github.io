@@ -317,7 +317,7 @@ function removeMemberAt(cls, g, j) {
 
   /** 所有班级加起来还有多少人没分配 */
   function pendingTotal() {
-    return S.classes.reduce(function (a, c) { return a + pendingList(c).length; }, 0);
+    return visibleClasses().reduce(function (a, c) { return a + pendingList(c).length; }, 0);
   }
 
   /* ================= 计算 ================= */
@@ -615,7 +615,7 @@ function removeMemberAt(cls, g, j) {
     var cls=curClass(); if(!cls || !window.JFDT_ASSESSMENT)return;
     if(!$('#view-attendance')){var section=document.createElement('section');section.id='view-attendance';section.className='view';$('#main').appendChild(section);}
     $('#view-attendance').hidden=false;
-    attendanceContext={root:$('#view-attendance'),cls:cls,classes:S.classes,lessons:lessonsOf(cls.id),lesson:curLesson(cls),raw:memberTotals(cls),save:function(){save();},log:addOperationLog,message:function(text){flash(text);},select:function(classId,lessonId){S.ui.classId=classId;S.ui.lessonId=lessonId;save(false);fillClassSelects();renderAttendance();}};
+    attendanceContext={root:$('#view-attendance'),cls:cls,classes:visibleClasses(),lessons:lessonsOf(cls.id),lesson:curLesson(cls),raw:memberTotals(cls),save:function(){save();},log:addOperationLog,message:function(text){flash(text);},select:function(classId,lessonId){S.ui.classId=classId;S.ui.lessonId=lessonId;save(false);fillClassSelects();renderAttendance();}};
     window.JFDT_ASSESSMENT.renderAttendance(attendanceContext);
   }
 
@@ -646,8 +646,8 @@ function removeMemberAt(cls, g, j) {
   /* ================= 上课记分视图 ================= */
 
   function curClass() {
-    var c = getClass(S.ui.classId);
-    if (!c) { c = S.classes[0]; if (c) S.ui.classId = c.id; }
+    var vis = visibleClasses(), c = getClass(S.ui.classId);
+    if (!c || vis.indexOf(c) < 0) { c = vis[0]; if (c) S.ui.classId = c.id; }
     return c;
   }
 
@@ -662,11 +662,13 @@ function removeMemberAt(cls, g, j) {
   }
 
   function fillClassSelects() {
+    var cur = curClass();
     ['#classSel', '#rankClassSel', '#poolClassSel'].forEach(function (sel) {
       var e = $(sel);
-      e.innerHTML = S.classes.map(function (c) {
+      e.innerHTML = visibleClasses().map(function (c) {
         return '<option value="' + c.id + '">' + esc(c.name) + '</option>';
       }).join('');
+      if (cur) e.value = cur.id;
     });
   }
 
@@ -1445,10 +1447,144 @@ function removeMemberAt(cls, g, j) {
   var rosterClassId = null;
 
   function renderData() {
+    renderHxRoster();
     renderLessonList();
     if (!rosterClassId) rosterClassId = (curClass() || {}).id || null;
     renderRoster();
   }
+
+  /* 班级名单来自首页“班级”（点亮“小组加分”的班），规则见 hx-roster.js：只读首页名单，不删加分里的任何数据 */
+  var HXR = window.JFDT_HXROSTER;
+  var hxRoster = { classes: null, all: null, students: {}, loading: null, error: '', review: null };
+  var hxShown = null; // 上次按首页名单画出来的班级（变了才重画）
+  function visibleClasses() { return HXR.visible(S, hxRoster.all); }
+  function loadHxRoster() {
+    if (!CLOUD_ON || !CLOUD.rpc) return Promise.resolve();
+    if (hxRoster.loading) return hxRoster.loading;
+    hxRoster.loading = CLOUD.rpc('hx_my_classes').then(function (classes) {
+      var mine = (classes || []).filter(HXR.lit);
+      return Promise.all(mine.map(function (c) {
+        return CLOUD.rpc('hx_class_students', { p_class: c.id }).then(function (rows) { return [c.id, rows || []]; });
+      })).then(function (pairs) {
+        hxRoster.students = {}; pairs.forEach(function (p) { hxRoster.students[p[0]] = p[1]; });
+        hxRoster.classes = mine; hxRoster.all = classes || []; hxRoster.error = '';
+      });
+    }).catch(function (e) { hxRoster.error = '首页班级读取失败：' + e.message; })
+      .finally(function () { hxRoster.loading = null; hxApply(); });
+    return hxRoster.loading;
+  }
+  /* 读到首页名单后自动跟随（编辑闸门开着时等开了再做），再按需重画 */
+  function hxApply() {
+    var changed = false;
+    if (hxRoster.all && !syncEditBlocked) {
+      var p = CLOUD && CLOUD.profile();
+      var r = HXR.auto(S, hxRoster.all, function (id) { return hxRoster.students[id] || null; }, p ? p.displayName : '');
+      if (r.changes.length) {
+        S = r.state; changed = true;
+        r.changes.forEach(function (c) {
+          addOperationLog('首页班级', c.cls.name + (c.created ? ' 加入加分' : '') + (c.added ? '，补进 ' + c.added + ' 人' : '') + (c.renamed ? '，改名 ' + c.renamed + ' 人' : ''));
+        });
+        save(false);
+      }
+    }
+    var now = shownKey();
+    if (changed || now !== hxShown) { hxShown = now; hxRedraw(); }
+    else if (view === 'data') renderHxRoster();
+  }
+  function shownKey() { return visibleClasses().map(function (c) { return c.id; }).join(); }
+  function hxRedraw() {
+    fillClassSelects();
+    if (view === 'attendance' && attendanceContext && attendanceContext.isDirty && attendanceContext.isDirty()) return;
+    if (editingGrade()) return;
+    switchView(view);
+  }
+  function hxAfterGate() { if (hxRoster.all) hxApply(); }
+  document.addEventListener('visibilitychange', function () { if (!document.hidden && S && CLOUD_ON) loadHxRoster(); });
+
+  function hxNames(list, fmt) {
+    return list.slice(0, 30).map(fmt).join('、') + (list.length > 30 ? ' 等 ' + list.length + ' 人' : '');
+  }
+  function hxReviewHtml(cls, hx) {
+    var d = HXR.diff(cls, hxRoster.students[hx.id] || []);
+    var line = function (label, items, fmt) { return items.length ? '<li>' + label + ' ' + items.length + ' 人：' + esc(hxNames(items, fmt)) + '</li>' : ''; };
+    return '<div class="hx-review"><ul>' +
+      '<li>学号对上 ' + d.same + ' 人，分组、课次、分数照旧</li>' +
+      line('首页新增，补进待分配', d.added, function (s) { return s.name; }) +
+      line('按首页改名', d.renamed, function (r) { return r.from + '→' + r.to; }) +
+      line('同名但学号对不上，不补也不删，请核对', d.conflicts, function (c) { return c.name + '（加分 ' + c.sid + '，首页 ' + c.homeSid + '）'; }) +
+      line('首页没有，保留在加分', d.gone, function (m) { return m.name + '（' + m.sid + '）'; }) +
+      '</ul><div class="btnrow"><button class="btn tiny primary" data-hxlink="' + esc(cls.id) + '">确认对应</button>' +
+      '<button class="btn tiny" data-hxcancel="1">取消</button></div></div>';
+  }
+  function renderHxRoster() {
+    var card = $('#hxRosterCard'), box = $('#hxRosterBox');
+    if (!card) return;
+    card.hidden = !(CLOUD_ON && CLOUD.rpc);
+    if (card.hidden) return;
+    if (!hxRoster.all) {
+      box.innerHTML = '<p class="note">' + esc(hxRoster.error || '正在读取首页班级…') + '</p>';
+      if (!hxRoster.error) loadHxRoster();
+      return;
+    }
+    var html = hxRoster.error ? '<p class="note">' + esc(hxRoster.error) + '</p>' : '';
+    var pend = HXR.pending(S), taken = {};
+    S.classes.forEach(function (c) { if (c.hxClassId) taken[c.hxClassId] = true; });
+    if (pend.length) {
+      html += '<p class="note">加分里原有的班，对应到首页的班后由首页名单维护。</p><table class="data"><tbody>' + pend.map(function (c) {
+        var rv = hxRoster.review && hxRoster.review.classId === c.id ? hxRoster.review : null;
+        var options = hxRoster.classes.filter(function (h) { return !taken[h.id]; });
+        var pick = rv ? rv.hxId : (options.filter(function (h) { return h.name === c.name; })[0] || {}).id;
+        var hx = rv && hxRoster.classes.filter(function (h) { return h.id === rv.hxId; })[0];
+        return '<tr><td>' + esc(c.name) + '</td><td><select data-hxpick="' + esc(c.id) + '"><option value="">选首页班级</option>' +
+          options.map(function (h) { return '<option value="' + h.id + '"' + (h.id === pick ? ' selected' : '') + '>' + esc(h.name) + (h.term ? ' ' + esc(h.term) : '') + '</option>'; }).join('') +
+          '</select></td><td><button class="btn tiny primary" data-hxreview="' + esc(c.id) + '">对照</button> <button class="btn tiny" data-hxlocal="' + esc(c.id) + '" title="不对应首页，保留并照常显示">保留为旧班</button></td></tr>' +
+          (hx ? '<tr><td colspan="3">' + hxReviewHtml(c, hx) + '</td></tr>' : '');
+      }).join('') + '</tbody></table>';
+    }
+    var items = HXR.list(S, hxRoster.all);
+    html += items.length ? '<table class="data"><tbody>' + items.map(function (it) {
+      var studs = hxRoster.students[it.hx.id] || [], state;
+      if (!it.cls) state = '<span class="rank-note">' + (pend.length ? '原有班对应好后加入' : '正在加入…') + '</span>';
+      else {
+        var d = HXR.diff(it.cls, studs);
+        state = '<span class="rank-note">已在加分</span>' + (d.conflicts.length ? ' <details class="note"><summary>学号对不上 ' + d.conflicts.length + ' 人</summary>' +
+          esc(hxNames(d.conflicts, function (c) { return c.name + '（加分 ' + c.sid + '，首页 ' + c.homeSid + '）'; })) + '</details>' : '');
+      }
+      return '<tr><td>' + esc(it.hx.name) + (it.hx.term ? ' <span class="rank-note">' + esc(it.hx.term) + '</span>' : '') + '</td><td>' + studs.length + ' 人</td><td>' + state + '</td></tr>';
+    }).join('') + '</tbody></table>' : (pend.length ? '' : '<p class="note">在首页“班级”导入考勤表，并点亮“小组加分”。</p>');
+    var hidden = S.classes.filter(function (c) { return c.hxClassId && visibleClasses().indexOf(c) < 0; });
+    if (hidden.length) html += '<p class="note">首页没点亮，暂不显示（记录都在）：' + esc(hidden.map(function (c) { return c.name; }).join('、')) + '</p>';
+    box.innerHTML = html;
+  }
+  $('#hxRosterBox').addEventListener('click', function (e) {
+    var b = e.target.closest('button');
+    if (!b) return;
+    try {
+      if (b.dataset.hxreview) {
+        var id = $('[data-hxpick="' + b.dataset.hxreview + '"]').value;
+        if (!id) { alert('先选这个班对应首页的哪个班。'); return; }
+        hxRoster.review = { classId: b.dataset.hxreview, hxId: +id };
+      } else if (b.dataset.hxcancel) {
+        hxRoster.review = null;
+      } else if (b.dataset.hxlink) {
+        var rv = hxRoster.review, hx = rv && hxRoster.classes.filter(function (h) { return h.id === rv.hxId; })[0];
+        if (!hx) return;
+        var r = HXR.link(S, rv.classId, hx, hxRoster.students[hx.id] || []);
+        S = r.state; hxRoster.review = null;
+        addOperationLog('首页班级', r.cls.name + ' 对应首页 ' + hx.name + (r.added ? '，补进 ' + r.added + ' 人' : '') + (r.renamed ? '，改名 ' + r.renamed + ' 人' : ''));
+        save(); flash(r.cls.name + ' 已对应首页名单');
+        hxApply(); hxRedraw();
+        return;
+      } else if (b.dataset.hxlocal) {
+        if (!confirm('保留为旧班：不对应首页，照常显示，名单不再跟首页变。')) return;
+        S = HXR.keepLocal(S, b.dataset.hxlocal);
+        save(); hxApply(); hxRedraw();
+        return;
+      } else return;
+      renderHxRoster();
+    } catch (er) { alert('操作失败：' + er.message); }
+  });
+  $('#btnHxRefresh').addEventListener('click', function () { renderHxRoster(); loadHxRoster(); });
 
   function renderLessonList() {
     var rows = S.lessons.slice().sort(function (a, b) {
@@ -1478,13 +1614,14 @@ function removeMemberAt(cls, g, j) {
   }
 
   function renderRoster() {
-    var cls = getClass(rosterClassId) || S.classes[0];
+    var cls = getClass(rosterClassId);
+    if (!cls || visibleClasses().indexOf(cls) < 0) cls = curClass();
     if (!cls) { $('#rosterCard').innerHTML = ''; return; }
     rosterClassId = cls.id;
 
     var head = '<div class="btnrow">' +
       '<label class="field"><span>班级</span><select id="rosterSel">' +
-      S.classes.map(function (c) {
+      visibleClasses().map(function (c) {
         return '<option value="' + c.id + '"' + (c.id === cls.id ? ' selected' : '') + '>' + esc(c.name) + '</option>';
       }).join('') + '</select></label>' +
       '<label class="field"><span>教师</span><input type="text" id="rosterTeacher" value="' + esc(cls.teacher || '') + '" style="width:110px"></label>' +
@@ -1677,34 +1814,6 @@ function removeMemberAt(cls, g, j) {
   $('#btnRestore').addEventListener('click', function () { $('#fileRestore').click(); });
   $('#btnRosterSetup').addEventListener('click', function () { switchView('data'); });
   $('#btnRosterGroups').addEventListener('click',function(){switchView('pool');});
-  $('#btnRosterTemplate').addEventListener('click', function () {
-    rosterDownload([['班级','姓名','学号','小组','班内序号'],['示例班','张三','26000000001',1,1],['示例班','李四','26000000002',1,2]], '名单导入模板');
-  });
-  $('#btnImportRoster').addEventListener('click', function () { $('#fileRoster').click(); });
-  $('#fileRoster').addEventListener('change', function () {
-    var file = this.files && this.files[0];
-    this.value = '';
-    if (!file) return;
-    if (file.size > 10000000) { alert('名单文件不能超过 10MB。'); return; }
-    var excel = /\.(xlsx|xls|ods)$/i.test(file.name);
-    var reader = new FileReader();
-    reader.onload = function () {
-      try {
-        var p = CLOUD && CLOUD.profile();
-        var rows = excel ? window.JFDT_ROSTER.workbook(reader.result) : window.JFDT_ROSTER.parse(reader.result);
-        var result = window.JFDT_ROSTER.apply(S, rows, p ? p.displayName : '');
-        if (!confirm('识别到：'+Array.from(new Set(rows.map(function(r){return r['班级'];}))).join('、')+'；共 ' + result.students + ' 名学生。'+(rows.skippedSheets&&rows.skippedSheets.length?' 已跳过非名单页：'+rows.skippedSheets.join('、')+'。':'')+'确认导入？同名班级的空白名单将被替换；仅提取名单与已有分组，不导入纸表考勤格。')) return;
-        S = result.state;
-        var importedClass=S.classes.find(function(c){return c.name===rows[0]['班级'];});if(importedClass){S.ui.classId=importedClass.id;S.ui.lessonId=null;}
-        save(); fillClassSelects(); renderData(); renderUndoBtn();
-        $('#rosterImportStatus').textContent = '已导入 ' + result.classes + ' 个班、' + result.students + ' 名学生。下一步：点击“名单与分组”核对或分配小组。';
-        flash('名单已导入，正在同步');
-      } catch (e) { alert('导入失败：' + e.message); }
-    };
-    reader.onerror = function () { alert('名单文件读取失败。'); };
-    if(excel) reader.readAsArrayBuffer(file); else reader.readAsText(file, 'UTF-8');
-  });
-
   function rosterDownload(rows, name) {
     var format = $('#rosterFormat').value;
     if(format==='csv'){download(name+'.csv',toCsv(rows),'text/csv;charset=utf-8');return;}
@@ -2382,7 +2491,7 @@ function removeMemberAt(cls, g, j) {
   };
 
   var syncEditBlocked=true;
-  function setSyncEditGate(blocked,message){syncEditBlocked=blocked;if(!S)return;['#view-score','#view-leader','#view-attendance','#view-pool','#scoreTools','#rosterCard','#lessonListCard'].forEach(function(selector){var el=$(selector);if(el)el.toggleAttribute('inert',blocked);});['#btnImportRoster','#btnRestore','#btnWipe'].forEach(function(selector){var b=$(selector);if(b)b.disabled=blocked;});var gate=$('#syncEditGate');if(!gate){gate=document.createElement('div');gate.id='syncEditGate';gate.className='sync-edit-gate';gate.setAttribute('role','status');$('#main').prepend(gate);}gate.hidden=!blocked;gate.textContent=message||'正在核对云端，确认后开放编辑';}
+  function setSyncEditGate(blocked,message){syncEditBlocked=blocked;if(!S)return;['#view-score','#view-leader','#view-attendance','#view-pool','#scoreTools','#rosterCard','#lessonListCard','#hxRosterBox'].forEach(function(selector){var el=$(selector);if(el)el.toggleAttribute('inert',blocked);});['#btnRestore','#btnWipe'].forEach(function(selector){var b=$(selector);if(b)b.disabled=blocked;});var gate=$('#syncEditGate');if(!gate){gate=document.createElement('div');gate.id='syncEditGate';gate.className='sync-edit-gate';gate.setAttribute('role','status');$('#main').prepend(gate);}gate.hidden=!blocked;gate.textContent=message||'正在核对云端，确认后开放编辑';if(!blocked)hxAfterGate();}
   var conflictNotice=document.createElement('dialog');conflictNotice.id='dlgSyncConflict';conflictNotice.innerHTML='<div class="dlg"><div class="dlg-head"><h3>两台设备的记录不同</h3><button type="button" class="dlg-x" id="closeSyncConflict" aria-label="关闭同步冲突提示">✕</button></div><div class="dlg-body"><p>系统已暂停上传，请先查看下面的业务数据差异，再选择保留哪一边。</p><p class="note">关闭窗口不会解决冲突；完成一次处理后才会恢复编辑和自动同步。</p><div id="syncConflictDetails" aria-live="polite"></div><div class="btnrow conflict-actions"><button class="btn" id="backupConflictLocal">先下载本机备份</button><button class="btn" id="keepCloudConflict">保留云端记录</button><button class="btn primary" id="keepLocalConflict">保留本机记录</button></div><button class="linkbtn" id="openSyncConflictTools">打开数据与备份页面</button></div></div>';document.body.appendChild(conflictNotice);wireDialog(conflictNotice);var conflictNoticeShown=false;
   $('#closeSyncConflict').onclick=function(){conflictNotice.close();};$('#backupConflictLocal').onclick=function(){$('#btnBackup').click();};$('#openSyncConflictTools').onclick=function(){conflictNotice.close();switchView('data');$('.sync-row').scrollIntoView({block:'center',behavior:'smooth'});};$('#keepCloudConflict').onclick=function(){conflictNotice.close();$('#btnPullCloud').click();};$('#keepLocalConflict').onclick=function(){conflictNotice.close();$('#btnPushCloud').click();};
   $('#cloudChip').onclick=function(){if(CLOUD&&CLOUD.status().mode==='conflict')openDlg(conflictNotice);};$('#cloudChip').setAttribute('tabindex','0');$('#cloudChip').setAttribute('role','button');$('#cloudChip').onkeydown=function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();this.click();}};
@@ -2588,6 +2697,8 @@ function removeMemberAt(cls, g, j) {
     }
     gateHide();
     setSyncEditGate(true,'正在核对云端，确认后开放编辑');
+    hxRoster = { classes: null, all: null, students: {}, loading: null, error: '', review: null }; hxShown = null;
+    loadHxRoster();
 
     /* 本机比云端新（含"第一次登录，把本机旧记录搬上云"）→ 推上去 */
     if (!syncConflict && CLOUD_ON && (mergedOnStart || !cloudData || (hadLocalState && localAt > cloudAt))) {

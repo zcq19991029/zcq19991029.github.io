@@ -68,12 +68,13 @@
   .tile b { font-size: 21px; font-weight: 600; letter-spacing: -.01em; margin-top: auto; }
   .tile .go { position: absolute; right: 22px; bottom: 24px; color: var(--acc); width: 22px; height: 22px; transition: transform .3s var(--hx-ease); }
   .tile:hover .go { transform: translateX(3px); }
+  .tile .sum { margin-top: -12px; padding-right: 26px; font-size: 14px; color: var(--dim); }
   html.hx-bg .tile, html.hx-bg .panel, html.hx-bg .cl { backdrop-filter: var(--hx-blur); -webkit-backdrop-filter: var(--hx-blur); }
   html.hx-bg .hero h1, html.hx-bg .hero p, html.hx-bg .sec h2 { text-shadow: 0 0 22px var(--bg), 0 0 6px var(--bg); }
   @keyframes rise { from { opacity: 0; transform: translateY(24px); } }
-  /* 教师：班级名单 */
-  .sec { margin: clamp(48px, 8vw, 80px) 0 18px; display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
-  .sec h2 { margin: 0; flex: 1; font: 700 clamp(28px, 5vw, 40px)/1.1 var(--hx-font-d); letter-spacing: -.015em; }
+  /* 管理卡片的标题 */
+  .sec { margin: clamp(48px, 8vw, 80px) 0 18px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .sec h2 { margin: 0; font: 700 clamp(28px, 5vw, 40px)/1.1 var(--hx-font-d); letter-spacing: -.015em; }
   .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 40px; padding: 0 20px; border: 0; border-radius: 99px; background: var(--acc); color: var(--on-acc); font-size: 15px; font-weight: 500; white-space: nowrap; cursor: pointer; transition: filter .2s, transform .15s; }
   .btn:hover { filter: brightness(1.08); } .btn:active { transform: scale(.97); } .btn:disabled { opacity: .45; cursor: default; }
   .btn.sub { background: var(--fill); color: var(--ink); } .btn.link { background: none; color: var(--acc); padding: 0 6px; height: 32px; }
@@ -132,7 +133,15 @@
   #lseg { margin-bottom: 18px; } .f[hidden], .seg[hidden] { display: none; }
   .gh { background: #24292f !important; color: #fff !important; } .gh svg { width: 18px; height: 18px; fill: #fff; }
   .or { display: flex; align-items: center; gap: 10px; color: var(--faint); font-size: 12px; } .or::before, .or::after { content: ""; flex: 1; height: 1px; background: var(--edge); }
-  .toast { position: fixed; left: 50%; bottom: calc(28px + env(safe-area-inset-bottom, 0px)); z-index: 40; transform: translate(-50%, 16px); padding: 12px 20px; border-radius: 99px; background: var(--ink); color: var(--bg); font-size: 15px; font-weight: 500; opacity: 0; pointer-events: none; transition: opacity .3s var(--hx-ease), transform .5s var(--hx-spring); max-width: calc(100vw - 32px); text-align: center; }
+  /* 管理卡片点开的面板：电脑在中间，手机从底部出来 */
+  dialog.sheet { width: min(820px, calc(100vw - 48px)); max-width: none; max-height: min(880px, calc(100dvh - 48px)); padding: 0; overflow: hidden; }
+  dialog.sheet[open] { display: flex; flex-direction: column; }
+  .sh-h { flex: none; display: flex; align-items: center; gap: 10px; padding: 16px 16px 14px 28px; border-bottom: 1px solid var(--edge); }
+  dialog .sh-h h2 { flex: 1; margin: 0; text-align: left; font-size: 24px; }
+  .sh-b { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 22px 28px 28px; }
+  .sh-b .cl, .sh-b .panel { background: var(--fill); box-shadow: none; animation: none; }
+  .f.frow { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; } .frow > input, .frow > select { flex: 1 1 220px; min-width: 0; } .frow .btn { flex: none; }
+  .toast { position: fixed; left: 50%; bottom: calc(28px + env(safe-area-inset-bottom, 0px)); z-index: 40; top: auto; right: auto; margin: 0; border: 0; overflow: visible; transform: translate(-50%, 16px); padding: 12px 20px; border-radius: 99px; background: var(--ink); color: var(--bg); font-size: 15px; font-weight: 500; opacity: 0; pointer-events: none; transition: opacity .3s var(--hx-ease), transform .5s var(--hx-spring); max-width: calc(100vw - 32px); text-align: center; }
   .toast.show { opacity: 1; transform: translate(-50%, 0); }
   @media (max-width: 640px) {
     .acct b { display: none; } .cur { font-size: 16px; max-width: 46vw; overflow: hidden; text-overflow: ellipsis; }
@@ -140,7 +149,22 @@
     .pop { top: auto; bottom: 0; left: 0; right: 0; width: auto; max-height: 86vh; border-radius: 26px 26px 0 0; padding: 22px 20px calc(22px + env(safe-area-inset-bottom, 0px)); transform: translateY(100%); transform-origin: bottom; }
     .pop.show { transform: none; } .scrim.show { opacity: 1; pointer-events: auto; }
     .cl { grid-template-columns: 1fr; } .cl .acts { flex-wrap: wrap; }
+    .tile .sum { margin-top: -8px; padding-right: 0; font-size: 13px; }
+    dialog.sheet { width: 100%; max-height: 92dvh; margin: auto 0 0; border-radius: 26px 26px 0 0; }
+    dialog.sheet[open] { animation: up .5s var(--hx-spring); }
+    .sh-h { padding: 14px 10px 12px 20px; } .sh-b { padding: 16px 16px calc(24px + env(safe-area-inset-bottom, 0px)); }
   }
+  @keyframes up { from { transform: translateY(100%); } }
+  /* 平板：一行 3 张；电脑宽屏：用满宽度，一行 6 张，标题靠左 */
+  @media (min-width: 641px) and (max-width: 1199px) { .tiles { grid-template-columns: repeat(3, 1fr); } }
+  @media (min-width: 1024px) {
+    #home { padding: 0 clamp(32px, 4vw, 72px) 64px; }
+    .hero { display: grid; grid-template-columns: auto 1fr; column-gap: 22px; align-items: center; text-align: left; padding: 52px 0 36px; }
+    .hero img { grid-row: span 2; width: 76px; }
+    .hero h1 { margin: 0; font-size: 46px; } .hero p { margin: 4px 0 0; font-size: 20px; }
+    .sec { margin: 56px 0 18px; } .sec h2 { font-size: 32px; }
+  }
+  @media (min-width: 1200px) { .wrap { width: min(1600px, 100%); } .tiles { grid-template-columns: repeat(6, 1fr); } }
 </style>
 </head>
 <body>
@@ -160,11 +184,15 @@
     <div class="wrap">
       <div class="hero"><img src="logo.jpg" alt=""><h1>华夏工具</h1><p id="hi"></p></div>
       <div class="tiles" id="tiles"></div>
-      <div id="teach"></div><div id="admin"></div>
+      <div id="mgmt"></div>
     </div>
   </section>
 </main>
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" popover="manual"></div>
+<dialog id="sheet" class="sheet">
+  <div class="sh-h"><h2 id="shT"></h2><div id="shA"></div><button class="ibtn" id="shX" type="button" aria-label="关闭"><svg class="i" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="sh-b" id="shB"></div>
+</dialog>
 <dialog id="login">
   <img src="logo.jpg" alt="">
   <h2 id="lt">登录华夏工具</h2>
@@ -281,7 +309,12 @@ function sure(b, text) {
   b.dataset.sure = setTimeout(function () { if (b.dataset.sure) { delete b.dataset.sure; b.innerHTML = b.dataset.was; } }, 3000);
   return false;
 }
-function toast(t) { var el = $('toast'); el.textContent = t; el.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(function () { el.classList.remove('show'); }, 2400); }
+function toast(t) {
+  var el = $('toast'); el.textContent = t; clearTimeout(toast.t);
+  if (el.showPopover) { try { el.hidePopover(); } catch (e) { } el.showPopover(); el.getBoundingClientRect(); } // 放到最上层：面板、弹窗开着也看得见
+  el.classList.add('show');
+  toast.t = setTimeout(function () { el.classList.remove('show'); toast.t = setTimeout(function () { try { if (el.hidePopover) el.hidePopover(); } catch (e) { } }, 400); }, 2400);
+}
 // 登录窗口三种样子：in 登录、reg 注册（先填邀请码）、act 已登录但未开通（GitHub 登录的新账号等），填邀请码开通
 function openLogin(msg, mode) {
   closePops(); ST.lm = mode || 'in'; ST.reg = null; renderLogin();
@@ -346,7 +379,7 @@ function render() {
     $('in').onclick = function () { openLogin(); };
     $('pop').classList.remove('show');
   }
-  renderTeach();
+  renderMgmt();
 }
 
 // ---------- 弹出：账号、外观 ----------
@@ -423,13 +456,51 @@ $('scrim').onclick = closePops;
 document.addEventListener('click', function (e) { if (!e.target.closest('.pop') && !e.target.closest('#acct') && !e.target.closest('#lookBtn')) { if ($('pop').classList.contains('show') || $('look').classList.contains('show')) closePops(); } });
 document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closePops(); });
 
-// ---------- 教师首页：共用的班级名单（导入考勤表、勾选给哪些工具用、课堂码） ----------
-function renderTeach() {
-  var box = $('teach');
-  if (!isTeacher()) { box.innerHTML = ''; return; }
-  if (ST.classes === null) { ST.classes = []; loadClasses(); }
-  var R = ST.rosters, N = ST.newCode, html = '<div class="sec"><h2>班级</h2><label class="btn sm">导入考勤表<input type="file" id="rFile" accept=".xls,.xlsx,.csv" multiple hidden></label></div>';
-  if (N) html += '<div class="code"><small>' + esc(N.cls) + '</small><b>' + esc(N.code) + '</b>' + (N.role === 'student' ? '<small>4 小时内有效，学生在首页“注册”里填它</small><div><button class="btn sm" id="rShare">分享给学生</button> <button class="btn link bad sm" id="rRevoke">下课，撤销</button></div>' : '') + '</div>';
+// ---------- 首页下面的管理卡片：班级（教师）、教师邀请码、学生课堂码（管理员）、管理员（开发者）；卡片上一行概要，点开是面板 ----------
+var MG = {
+  cls: { name: '班级', c: ['#ffd60a', '#f4a700'], icon: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6.5 6.5 0 0 1 3.5 6"/>' },
+  tcode: { name: '教师邀请码', c: ['#c38cff', '#9b51e0'], icon: '<rect x="3" y="6" width="18" height="12" rx="2.5"/><path d="M15 6v12" stroke-dasharray="1.5 2.5"/><path d="M7 10.5h4M7 13.5h3"/>' },
+  scode: { name: '学生课堂码', c: ['#64d2c8', '#0fa3a0'], icon: '<rect x="4" y="4" width="6" height="6" rx="1.2"/><rect x="14" y="4" width="6" height="6" rx="1.2"/><rect x="4" y="14" width="6" height="6" rx="1.2"/><path d="M14 14h2.5v2.5H14zM17.5 17.5H20V20h-2.5zM20 14v1M14 20v-1"/>' },
+  adm: { name: '管理员', c: ['#a1a1a6', '#636366'], icon: '<path d="M12 3l7.5 3v5.5c0 4.5-3.2 8.2-7.5 9.5-4.3-1.3-7.5-5-7.5-9.5V6z"/><path d="M9 12l2 2 4-4"/>' }
+};
+var NEED = { cls: ['cls'], tcode: ['codes'], scode: ['codes', 'cls'], adm: ['adm'] }; // 哪份数据变了，要重画哪张面板
+function mgList() { var m = ST.me || {}, L = []; if (isTeacher()) L.push('cls'); if (m.admin) L.push('tcode', 'scode'); if (m.dev) L.push('adm'); return L; }
+function liveN(role) { var C = ST.codes; if (!C) return '…'; var n = C.filter(function (c) { return c.live && c.role === role; }).length; return n ? '有效 ' + n + ' 个' : '没有有效的码'; }
+function mgSum(k) {
+  if (k === 'cls') { var C = ST.classes || []; return !ST.clsOk ? '…' : C.length ? C.length + ' 个班 · ' + C.reduce(function (s, c) { return s + (c.total || 0); }, 0) + ' 人' : '还没有班级'; }
+  if (k !== 'adm') return liveN(k === 'tcode' ? 'teacher' : 'student');
+  var T = ST.teachers; return !T ? '…' : T.err ? '读取失败' : T.filter(function (t) { return t.is_admin && !t.is_dev; }).length + ' 位管理员';
+}
+function renderMgmt(part) {
+  var m = ST.me || {}, L = mgList(), box = $('mgmt'), sig = L.join() + badge();
+  if (isTeacher() && ST.classes === null) { ST.classes = []; loadClasses(); }
+  if (m.admin && ST.codes === undefined) { ST.codes = null; loadCodes(); }
+  if (m.dev && ST.teachers === undefined) { ST.teachers = null; loadTeachers(); }
+  if (box.dataset.sig !== sig) { // 身份变了才重建卡片（重建会重放进场动画），数据变了只改概要
+    box.dataset.sig = sig;
+    box.innerHTML = L.length ? '<div class="sec"><h2>管理</h2>' + badge() + '</div><div class="tiles">' + L.map(function (k, n) {
+      var g = MG[k];
+      return '<button class="tile" type="button" data-k="' + k + '" style="--c1:' + g.c[0] + ';--c2:' + g.c[1] + ';animation-delay:' + (300 + n * 50) + 'ms">' +
+        '<span class="ic">' + svg(g.icon) + '</span><b>' + g.name + '</b><span class="sum">' + mgSum(k) + '</span>' + svg('<path d="M9 6l6 6-6 6"/>', 'go') + '</button>';
+    }).join('') + '</div>' : '';
+    box.querySelectorAll('[data-k]').forEach(function (b) { b.onclick = function () { openSheet(b.dataset.k); }; });
+  } else box.querySelectorAll('[data-k]').forEach(function (b) { b.querySelector('.sum').textContent = mgSum(b.dataset.k); });
+  if (ST.sheet && L.indexOf(ST.sheet) < 0) $('sheet').close();
+  else if (ST.sheet && (!part || NEED[ST.sheet].indexOf(part) >= 0)) renderSheet();
+}
+function openSheet(k) { ST.sheet = k; $('shT').textContent = MG[k].name; renderSheet(); if (!$('sheet').open) $('sheet').showModal(); $('shB').scrollTop = 0; }
+function renderSheet() { var k = ST.sheet; $('shA').innerHTML = ''; if (k === 'cls') sheetCls(); else if (k === 'adm') sheetAdm(); else sheetCode(k === 'tcode' ? 'teacher' : 'student'); }
+$('sheet').addEventListener('close', function () { ST.sheet = null; });
+$('sheet').onclick = function (e) { if (e.target === $('sheet')) $('sheet').close(); }; // 点面板外面关
+$('shX').onclick = function () { $('sheet').close(); };
+function codesChanged() { if ((ST.me || {}).admin) { ST.codes = undefined; renderMgmt('codes'); } }
+function codeBox(cls, code, note, acts) { return '<div class="code"><small>' + esc(cls) + '</small><b>' + esc(code) + '</b>' + (note ? '<small>' + note + '</small>' : '') + (acts ? '<div>' + acts + '</div>' : '') + '</div>'; }
+
+// 班级面板：导入考勤表、勾选给哪些工具用、课堂码、名单
+function sheetCls() {
+  var box = $('shB'), R = ST.rosters, N = ST.newCode, html = '';
+  $('shA').innerHTML = '<label class="btn sm">导入考勤表<input type="file" id="rFile" accept=".xls,.xlsx,.csv" multiple hidden></label>';
+  if (N) html += codeBox(N.cls, N.code, '4 小时内有效，学生在首页“注册”里填它', '<button class="btn sm" id="rShare">分享给学生</button> <button class="btn link bad sm" id="rRevoke">下课，撤销</button>');
   if (R) html += '<div class="panel f">' + R.map(function (x, k) { // 一次选多个考勤表：每个文件一个班，班级、学期可改；读不出来或导入失败的写原因
     return '<div class="f" style="padding-bottom:10px;border-bottom:1px solid var(--edge)"><b>' + esc(x.file) + (x.list ? ' · ' + x.list.length + ' 名学生：' + x.list.slice(0, 4).map(function (y) { return esc(y.name); }).join('、') + (x.list.length > 4 ? '…' : '') : '') + '</b>' +
       (x.list ? '<input data-rc="' + k + '" value="' + esc(x.cls) + '" placeholder="班级"><input data-rt="' + k + '" value="' + esc(x.term) + '" placeholder="学期">' : '') + (x.err ? '<p class="msg">' + esc(x.err) + '</p>' : '') + '</div>';
@@ -440,7 +511,7 @@ function renderTeach() {
       '<div class="acts"><button class="btn sub sm" data-code="' + c.id + '">课堂码</button><button class="btn sub sm" data-open="' + c.id + '">' + (on ? '收起' : '名单') + '</button></div>' +
       '<div class="chips">' + CLASS_TOOLS.map(function (t) { return '<button type="button" class="chip" data-cls="' + c.id + '" data-tool="' + t[0] + '" aria-pressed="' + (tools.indexOf(t[0]) >= 0) + '">' + t[1] + '</button>'; }).join('') + '</div>' +
       (on ? '<div class="stu" id="stu' + c.id + '">' + stuTable(ST.studs[c.id]) + '</div>' : '') + '</div>';
-  }).join('') : '<p class="empty">还没有班级：导入教务系统导出的考勤表（学号、姓名两列）</p>') + '</div>';
+  }).join('') : '<p class="empty">' + (ST.clsOk ? '还没有班级：导入教务系统导出的考勤表（学号、姓名两列）' : '加载中…') + '</p>') + '</div>';
   box.innerHTML = html;
   $('rFile').onchange = async function (e) {
     var fs = [].slice.call(e.target.files); e.target.value = ''; if (!fs.length) return;
@@ -450,10 +521,10 @@ function renderTeach() {
       try { await loadXLSX(); var x = parseRoster(XLSX.read(await f.arrayBuffer()), f.name); if (!x.list.length) throw new Error('没找到学号和姓名'); x.file = f.name; out.push(x); }
       catch (er) { out.push({ file: f.name, err: '读取失败：' + er.message }); }
     }
-    ST.rosters = out; renderTeach();
+    ST.rosters = out; sheetCls(); box.scrollTop = 0;
   };
   if (R) {
-    $('rNo').onclick = function () { ST.rosters = null; renderTeach(); };
+    $('rNo').onclick = function () { ST.rosters = null; sheetCls(); };
     $('rImp').onclick = async function () {
       R.forEach(function (x, k) { if (x.list) { x.cls = box.querySelector('[data-rc="' + k + '"]').value.trim(); x.term = box.querySelector('[data-rt="' + k + '"]').value.trim(); } });
       $('rImp').disabled = true;
@@ -471,7 +542,7 @@ function renderTeach() {
     };
   }
   if ($('rShare')) $('rShare').onclick = function () { shareCode(N.code, 'student'); };
-  if ($('rRevoke')) $('rRevoke').onclick = async function () { try { await HX.rpc('hx_revoke_code', { p_code: N.code }); ST.newCode = null; toast('已撤销'); renderTeach(); } catch (e) { toast(e.message); } };
+  if ($('rRevoke')) $('rRevoke').onclick = async function () { try { await HX.rpc('hx_revoke_code', { p_code: N.code }); ST.newCode = null; toast('已撤销'); sheetCls(); codesChanged(); } catch (e) { toast(e.message); } };
   box.querySelectorAll('[data-tool]').forEach(function (b) {
     b.onclick = async function () {
       var c = ST.classes.filter(function (x) { return x.id === +b.dataset.cls; })[0], t = b.dataset.tool, tools = (c.tools || []).slice(), i = tools.indexOf(t);
@@ -482,59 +553,58 @@ function renderTeach() {
   });
   box.querySelectorAll('[data-open]').forEach(function (b) {
     b.onclick = async function () {
-      var id = +b.dataset.open; ST.open = ST.open === id ? null : id; renderTeach();
+      var id = +b.dataset.open; ST.open = ST.open === id ? null : id; sheetCls();
       if (ST.open && !ST.studs[id]) { try { ST.studs[id] = await HX.rpc('hx_class_students', { p_class: id }); } catch (e) { ST.studs[id] = []; toast(e.message); } if ($('stu' + id)) $('stu' + id).innerHTML = stuTable(ST.studs[id]); }
     };
   });
-  var top = function () { $('home').scrollTo({ top: $('teach').offsetTop - 20 }); };
   box.querySelectorAll('[data-code]').forEach(function (b) {
     b.onclick = async function () {
       var c = ST.classes.filter(function (x) { return x.id === +b.dataset.code; })[0];
-      try { ST.newCode = { code: await HX.rpc('hx_new_code', { p_role: 'student', p_class: c.id, p_note: '' }), cls: c.name + ' · 课堂码', role: 'student' }; renderTeach(); top(); } catch (e) { toast(e.message); }
+      try { ST.newCode = { code: await HX.rpc('hx_new_code', { p_role: 'student', p_class: c.id, p_note: '' }), cls: c.name + ' · 课堂码', role: 'student' }; sheetCls(); box.scrollTop = 0; codesChanged(); } catch (e) { toast(e.message); }
     };
   });
-  renderAdmin();
 }
-// ---------- 管理（管理员、开发者，放在首页最后）：发教师码、学生码，看发过的码；开发者再任命管理员 ----------
+// ---------- 管理（管理员、开发者）：发教师码、学生码，看发过的码；开发者再任命管理员 ----------
 function shareCode(code, role) {
   var t = (role === 'teacher' ? '华夏工具教师邀请码：' : '华夏工具课堂码：') + code + '\n打开 ' + location.origin + '/ ，点右上角“登录”→“注册”，填写邀请码' + (role === 'teacher' ? '，账号名填工号' : '，选班级、填学号和姓名') + '。已有账号（如 GitHub）的，登录后会自动弹出开通窗口。';
   if (navigator.share && matchMedia('(pointer: coarse)').matches) return navigator.share({ text: t }).catch(function () { }); // 手机、平板用系统分享；电脑上那个面板不好用
   $('shareT').value = t; if (!$('share').open) $('share').showModal(); $('shareT').select();
   (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function () { toast('已复制，发给对方就行'); }, function () { try { if (document.execCommand('copy')) toast('已复制，发给对方就行'); } catch (e) { } });
 }
-function renderAdmin() {
-  var box = $('admin'), m = ST.me;
-  if (!m || !m.admin) { box.innerHTML = ''; return; }
-  if (ST.codes === undefined) { ST.codes = null; loadCodes(); }
-  if (m.dev && ST.teachers === undefined) { ST.teachers = null; loadTeachers(); }
-  var A = ST.aCode, cls = ST.classes || [];
-  var html = '<div class="sec"><h2>管理</h2>' + badge() + '</div>';
-  if (A) html += '<div class="code"><small>' + esc(A.label) + '</small><b>' + esc(A.code) + '</b><button class="btn sm" id="aShare">分享给' + (A.role === 'teacher' ? '老师' : '学生') + '</button></div>';
-  html += '<div class="grid2"><div class="panel f"><h3>教师邀请码</h3><input id="tNote" maxlength="30" placeholder="给谁（备注）"><button class="btn" id="tGo">生成</button></div>' +
-    '<div class="panel f"><h3>学生课堂码</h3>' + (cls.length ? '<select id="sCls">' + cls.map(function (c) { return '<option value="' + c.id + '">' + esc(c.name) + '</option>'; }).join('') + '</select><button class="btn" id="sGo">生成</button>'
-      : '<p class="empty" style="padding:8px 0">先在上面“班级”导入考勤表</p>') + '</div></div>';
-  var C = ST.codes;
-  html += '<div class="panel"><h3>发过的码</h3>' + (C === null ? '<p class="empty">加载中…</p>' : !C.length ? '<p class="empty">还没有</p>' :
-    '<table><tr><th>码</th><th>给</th><th>已用</th><th></th></tr>' + C.map(function (c) {
-      return '<tr><td><b class="mono">' + esc(c.code) + '</b></td><td>' + (c.role === 'teacher' ? '教师' : '学生') + (c.class_name || c.note ? ' · ' + esc(c.class_name || c.note) : '') + '</td><td>' + c.used + ' / ' + c.max_uses + '</td><td class="ra">' +
-        (c.live ? '<button class="btn link sm" data-share="' + esc(c.code) + '" data-role="' + c.role + '">分享</button><button class="btn link bad sm" data-rev="' + esc(c.code) + '">撤销</button>' : '<span class="pill">已失效</span>') + '</td></tr>';
-    }).join('') + '</table>') + '</div>';
-  if (m.dev) {
-    var T = ST.teachers;
-    html += '<div class="panel"><h3>管理员</h3><div class="f" style="margin-bottom:10px"><input id="aMail" type="email" placeholder="老师的登录邮箱"><button class="btn" id="aGo">设为管理员</button></div>' + (T === null ? '<p class="empty">加载中…</p>' : T.err ? '<p class="empty">名单读取失败：' + esc(T.err) + '</p>' : !T.length ? '<p class="empty">还没有教师</p>' :
-      '<table><tr><th>老师</th><th>邮箱</th><th></th></tr>' + T.map(function (t) {
-        return '<tr><td>' + esc(t.name) + '</td><td class="dim">' + esc(t.email || '') + '</td><td class="ra">' + (t.is_dev ? '<span class="pill dev">开发者</span>'
-          : '<button type="button" class="chip" data-adm="' + esc(t.email || '') + '" aria-pressed="' + !!t.is_admin + '">' + (t.is_admin ? '管理员 ✓' : '设为管理员') + '</button>') + '</td></tr>';
-      }).join('') + '</table>') + '</div>';
-  }
+// 教师邀请码 / 学生课堂码面板：上面生成，下面是发过的这类码
+function sheetCode(role) {
+  var box = $('shB'), t = role === 'teacher', A = ST.aCode && ST.aCode.role === role ? ST.aCode : null, cls = ST.classes || [], C = ST.codes, html;
+  html = t ? '<div class="f frow"><input id="cNote" maxlength="30" placeholder="给谁（备注）"><button class="btn" id="cGo">生成</button></div>'
+    : cls.length ? '<div class="f frow"><select id="cCls">' + cls.map(function (c) { return '<option value="' + c.id + '"' + (c.id === ST.sCls ? ' selected' : '') + '>' + esc(c.name) + '</option>'; }).join('') + '</select><button class="btn" id="cGo">生成</button></div>'
+    : '<p class="empty">' + (ST.clsOk ? '先在“班级”里导入考勤表' : '加载中…') + '</p>';
+  if (A) html += codeBox(A.label, A.code, '', '<button class="btn sm" id="aShare">分享给' + (t ? '老师' : '学生') + '</button>');
+  C = C && C.filter(function (c) { return c.role === role; });
+  html += !C ? '<p class="empty">加载中…</p>' : !C.length ? '' : '<table><tr><th>码</th><th>' + (t ? '给' : '班级') + '</th><th>已用</th><th></th></tr>' + C.map(function (c) {
+    return '<tr><td><b class="mono">' + esc(c.code) + '</b></td><td>' + esc(c.class_name || c.note || '') + '</td><td>' + c.used + ' / ' + c.max_uses + '</td><td class="ra">' +
+      (c.live ? '<button class="btn link sm" data-share="' + esc(c.code) + '" data-role="' + c.role + '">分享</button><button class="btn link bad sm" data-rev="' + esc(c.code) + '">撤销</button>' : '<span class="pill">已失效</span>') + '</td></tr>';
+  }).join('') + '</table>';
   box.innerHTML = html;
-  var made = function (code, role, label) { ST.aCode = { code: code, role: role, label: label }; ST.codes = undefined; renderAdmin(); $('admin').scrollIntoView({ behavior: 'smooth' }); };
-  $('tGo').onclick = async function () { var n = $('tNote').value.trim(); try { made(await HX.rpc('hx_new_code', { p_role: 'teacher', p_class: null, p_note: n }), 'teacher', '教师码 · ' + (n || '一码一用')); } catch (e) { toast(e.message); } };
-  if ($('sGo')) $('sGo').onclick = async function () { var o = $('sCls').selectedOptions[0]; try { made(await HX.rpc('hx_new_code', { p_role: 'student', p_class: +o.value, p_note: '' }), 'student', o.textContent + ' · 课堂码 · 4 小时有效'); } catch (e) { toast(e.message); } };
+  var made = function (code, label) { ST.aCode = { code: code, role: role, label: label }; box.scrollTop = 0; codesChanged(); };
+  if ($('cGo')) $('cGo').onclick = async function () {
+    var b = $('cGo'); b.disabled = true;
+    try {
+      if (t) { var n = $('cNote').value.trim(); made(await HX.rpc('hx_new_code', { p_role: 'teacher', p_class: null, p_note: n }), '教师码 · ' + (n || '一码一用')); }
+      else { var o = $('cCls').selectedOptions[0]; ST.sCls = +o.value; made(await HX.rpc('hx_new_code', { p_role: 'student', p_class: +o.value, p_note: '' }), o.textContent + ' · 课堂码 · 4 小时有效'); }
+    } catch (e) { toast(e.message); b.disabled = false; }
+  };
   if ($('aShare')) $('aShare').onclick = function () { shareCode(A.code, A.role); };
   box.querySelectorAll('[data-share]').forEach(function (b) { b.onclick = function () { shareCode(b.dataset.share, b.dataset.role); }; });
   box.querySelectorAll('[data-rev]').forEach(function (b) { b.onclick = async function () { if (!sure(b, '确认撤销？')) return; try { await HX.rpc('hx_revoke_code', { p_code: b.dataset.rev }); if (ST.aCode && ST.aCode.code === b.dataset.rev) ST.aCode = null; toast('已撤销'); loadCodes(); } catch (e) { toast(e.message); } }; });
-  if ($('aGo')) $('aGo').onclick = async function () {
+}
+// 管理员面板（开发者）：填邮箱任命，或在教师名单里点按钮
+function sheetAdm() {
+  var box = $('shB'), T = ST.teachers;
+  box.innerHTML = '<div class="f frow"><input id="aMail" type="email" placeholder="老师的登录邮箱"><button class="btn" id="aGo">设为管理员</button></div>' + (T === null ? '<p class="empty">加载中…</p>' : T.err ? '<p class="empty">名单读取失败：' + esc(T.err) + '</p>' : !T.length ? '<p class="empty">还没有教师</p>' :
+    '<table><tr><th>老师</th><th>邮箱</th><th></th></tr>' + T.map(function (t) {
+      return '<tr><td>' + esc(t.name) + '</td><td class="dim">' + esc(t.email || '') + '</td><td class="ra">' + (t.is_dev ? '<span class="pill dev">开发者</span>'
+        : '<button type="button" class="chip" data-adm="' + esc(t.email || '') + '" aria-pressed="' + !!t.is_admin + '">' + (t.is_admin ? '管理员 ✓' : '设为管理员') + '</button>') + '</td></tr>';
+    }).join('') + '</table>');
+  $('aGo').onclick = async function () {
     var em = $('aMail').value.trim(); if (!em) return toast('先填邮箱');
     try { var r = await HX.rpc('hx_set_admin', { p_email: em, p_on: true }); toast(typeof r === 'string' && r ? r : '已设为管理员'); loadTeachers(); } catch (e) { toast(e.message); }
   };
@@ -547,13 +617,13 @@ function renderAdmin() {
     };
   });
 }
-async function loadCodes() { try { ST.codes = await HX.rpc('hx_my_codes') || []; } catch (e) { ST.codes = []; toast('邀请码读取失败：' + e.message); } renderAdmin(); }
-async function loadTeachers() { try { ST.teachers = await HX.rpc('hx_teachers') || []; } catch (e) { ST.teachers = { err: e.message }; } renderAdmin(); }
+async function loadCodes() { try { ST.codes = await HX.rpc('hx_my_codes') || []; } catch (e) { ST.codes = []; toast('邀请码读取失败：' + e.message); } renderMgmt('codes'); }
+async function loadTeachers() { try { ST.teachers = await HX.rpc('hx_teachers') || []; } catch (e) { ST.teachers = { err: e.message }; } renderMgmt('adm'); }
 function stuTable(list) {
   if (!list) return '<p class="empty">加载中…</p>';
   return '<table><tr><th>序号</th><th>学号</th><th>姓名</th><th></th></tr>' + list.map(function (s) { return '<tr><td>' + (s.seq < 1000 ? s.seq : '') + '</td><td>' + esc(s.student_no) + '</td><td>' + esc(s.name) + '</td><td>' + (s.bound ? '<span class="pill acc">已开通</span>' : '') + (s.self_reg ? ' <span class="pill">自己注册</span>' : '') + '</td></tr>'; }).join('') + '</table>';
 }
-async function loadClasses() { try { ST.classes = await HX.rpc('hx_my_classes'); } catch (e) { ST.classes = []; toast('班级名单读取失败：' + e.message); } renderTeach(); }
+async function loadClasses() { try { ST.classes = await HX.rpc('hx_my_classes') || []; } catch (e) { ST.classes = []; toast('班级名单读取失败：' + e.message); } ST.clsOk = true; renderMgmt('cls'); }
 var xlsxP = null;
 function loadXLSX() { return xlsxP || (xlsxP = new Promise(function (ok, no) { var s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'; s.onload = ok; s.onerror = function () { xlsxP = null; no(new Error('表格组件加载失败')); }; document.head.appendChild(s); })); }
 // 考勤表：第 2 行“学期：… 班级：…”，下面每行 序号 | 学号 | 姓名；也认其他表：一行里第一个 6～20 位数字当学号，右边一格当姓名
@@ -572,7 +642,7 @@ $('brand').onclick = $('back').onclick = function () { show(null); };
 addEventListener('hashchange', function () { var id = location.hash.slice(1); if (id !== (ST.tab || '')) show(id); });
 function reloadTools() { for (var k in frames) { if (k !== ST.tab) { frames[k].remove(); delete frames[k]; } else frames[k].src = frames[k].src; } } // 工具页把登录记在内存里，换人后重新打开
 async function refresh() {
-  ST.me = null; ST.user = null; ST.uname = null; ST.classes = null; ST.studs = {}; ST.newCode = null; ST.edit = null; ST.codes = undefined; ST.teachers = undefined; ST.aCode = null;
+  ST.me = null; ST.user = null; ST.uname = null; ST.classes = null; ST.clsOk = false; ST.studs = {}; ST.newCode = null; ST.edit = null; ST.codes = undefined; ST.teachers = undefined; ST.aCode = null;
   if (HX.in()) {
     try { var res = await Promise.all([HX.rpc('hx_me'), HX.user()]); ST.me = res[0]; ST.user = res[1]; HXTheme.setDev(ST.me && ST.me.dev); }
     catch (e) { if (e.status === 401) { await HX.out(); HXTheme.setDev(false); } }

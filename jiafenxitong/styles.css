@@ -1639,3 +1639,9 @@ html.hx-bg body::before { display: none; }
 .gate.quiet .gate-card > :not(#gateMsg) { display: none; }
 .gate.quiet #gateMsg { background: transparent; border: 0; color: var(--muted); }
 #gateHome { display: grid; margin-top: 14px; }
+
+/* 首页班级：原有班对照 */
+.hx-review { font-size: 13px; line-height: 1.7; }
+.hx-review ul { margin: 4px 0 8px; padding-left: 18px; }
+#hxRosterBox select { max-width: 100%; }
+#hxRosterBox details { display: inline; margin: 0; }

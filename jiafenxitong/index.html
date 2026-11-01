@@ -5,11 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#fcfcfb">
 <title>夜夜小组制加分助手 · 《电气接线原理》</title>
-<link rel="stylesheet" href="styles.css?v=ff6739d23395ee269af9712667b0b77dadbb69ff">
+<link rel="stylesheet" href="styles.css?v=09d9045b5bfc7c1d2bb71ad091113776a3b2b303">
 <!-- 华夏工具外观（首页统一设置）：主色、背景图；单独打开会回到首页 /#jiafen。账号只在首页管理 -->
 <script src="../hx-theme.js" data-tool="jiafen"></script>
-<meta name="build-commit" content="ff6739d23395ee269af9712667b0b77dadbb69ff">
-<meta name="build-published-at" content="2026-10-31T17:15:45.149Z">
+<meta name="build-commit" content="09d9045b5bfc7c1d2bb71ad091113776a3b2b303">
+<meta name="build-published-at" content="2026-11-01T02:21:34.334Z">
 </head>
 <body>
 
@@ -135,8 +135,8 @@
   <section id="view-score" class="view">
     <div id="scoreTools" class="score-tools">
     <div id="rosterSetupHint" class="pool-banner" hidden>
-      当前班级还没有学生名单。请先到“数据与备份”导入名单。
-      <button class="btn tiny" id="btnRosterSetup">导入班级名单 →</button>
+      还没有班级名单。在首页“班级”导入考勤表，并点亮“小组加分”。
+      <button class="btn tiny" id="btnRosterSetup">首页班级 →</button>
     </div>
     <div id="poolBanner" class="pool-banner" hidden></div>
 
@@ -238,19 +238,18 @@
   <!-- ========== 数据与备份 ========== -->
   <section id="view-data" class="view" hidden>
 
-    <h2 class="sec-title">导入班级名单</h2>
+    <div id="hxRosterCard" hidden>
+      <h2 class="sec-title">首页班级 <button class="btn tiny" id="btnHxRefresh">刷新</button></h2>
+      <div class="card tablewrap" id="hxRosterBox"></div>
+    </div>
+
+    <h2 class="sec-title">导出名单</h2>
     <div class="card">
-      <p class="note">支持 Excel（XLSX、XLS）、ODS、UTF-8 CSV / TSV，最大10MB。必填列：班级、姓名、学号；可选列：小组、班内序号。每组最多7人，小组留空表示待分配。Excel 学号请使用文本格式以保留前导零。同名班级的名单将替换；已有课次的班级需使用新班级名。多工作表须分别包含表头。</p>
       <div class="btnrow">
         <label>文件格式 <select id="rosterFormat"><option value="xlsx">Excel .xlsx</option><option value="xls">Excel .xls</option><option value="ods">OpenDocument .ods</option><option value="csv">CSV</option></select></label>
-        <button class="btn" id="btnRosterTemplate">下载名单模板</button>
         <button class="btn" id="btnExportRoster">导出全部名单</button>
-        <button class="btn primary" id="btnImportRoster">导入名单</button>
         <button class="btn" id="btnRosterGroups">名单与分组</button>
-        <input type="file" id="fileRoster" accept=".xlsx,.xls,.ods,.csv,.tsv" hidden>
-        <details class="note"><summary>WorkBuddy 整理名单后，怎样导入？</summary><p>让 WorkBuddy 生成含“班级、姓名、学号、小组、班内序号”的 XLSX，下载到本机；点击“导入名单”选择文件，核对人数后确认，再点“名单与分组”核对。文件中小组留空则进入待分配；WorkBuddy 生成文件不会自动写入网站。已有课次的班级请在分组管理中操作，不能覆盖整班名单。</p></details>
       </div>
-      <p class="note" id="rosterImportStatus" role="status"></p>
     </div>
 
     <h2 class="sec-title">课次记录</h2>
@@ -442,13 +441,14 @@
   </form>
 </dialog>
 
-<script src="data.js?v=ff6739d23395ee269af9712667b0b77dadbb69ff"></script>
-<script src="config.js?v=ff6739d23395ee269af9712667b0b77dadbb69ff"></script>
-<script src="vendor/jspdf.umd.min.js?v=ff6739d23395ee269af9712667b0b77dadbb69ff"></script>
-<script src="vendor/xlsx.full.min.js?v=ff6739d23395ee269af9712667b0b77dadbb69ff"></script>
-<script src="roster-import.js?v=ff6739d23395ee269af9712667b0b77dadbb69ff"></script>
-<script src="cloud.js?v=ff6739d23395ee269af9712667b0b77dadbb69ff"></script>
-<script src="supabase-cloud.js?v=ff6739d23395ee269af9712667b0b77dadbb69ff"></script>
+<script src="data.js?v=09d9045b5bfc7c1d2bb71ad091113776a3b2b303"></script>
+<script src="config.js?v=09d9045b5bfc7c1d2bb71ad091113776a3b2b303"></script>
+<script src="vendor/jspdf.umd.min.js?v=09d9045b5bfc7c1d2bb71ad091113776a3b2b303"></script>
+<script src="vendor/xlsx.full.min.js?v=09d9045b5bfc7c1d2bb71ad091113776a3b2b303"></script>
+<script src="roster-import.js?v=09d9045b5bfc7c1d2bb71ad091113776a3b2b303"></script>
+<script src="hx-roster.js?v=09d9045b5bfc7c1d2bb71ad091113776a3b2b303"></script>
+<script src="cloud.js?v=09d9045b5bfc7c1d2bb71ad091113776a3b2b303"></script>
+<script src="supabase-cloud.js?v=09d9045b5bfc7c1d2bb71ad091113776a3b2b303"></script>
 <dialog id="dlgPassword">
   <form method="dialog" class="dlg" id="passwordForm">
     <div class="dlg-head"><h3>修改密码</h3><button type="button" class="dlg-x" id="btnPasswordClose" aria-label="关闭">✕</button></div>
@@ -462,12 +462,12 @@
     <div class="dlg-btns"><button type="submit" class="btn primary" id="btnPasswordSave">确认修改</button></div>
   </form>
 </dialog>
-<script src="leader-scoring.js?v=ff6739d23395ee269af9712667b0b77dadbb69ff"></script>
-<script src="assessment.js?v=ff6739d23395ee269af9712667b0b77dadbb69ff"></script>
-<script src="ui-feedback.js?v=ff6739d23395ee269af9712667b0b77dadbb69ff"></script>
+<script src="leader-scoring.js?v=09d9045b5bfc7c1d2bb71ad091113776a3b2b303"></script>
+<script src="assessment.js?v=09d9045b5bfc7c1d2bb71ad091113776a3b2b303"></script>
+<script src="ui-feedback.js?v=09d9045b5bfc7c1d2bb71ad091113776a3b2b303"></script>
 <dialog id="dlgOperationLog"><div class="dlg"><div class="dlg-head"><div><h3>操作日志</h3><span class="note">选择任意一条撤销，其他记录继续保留</span></div><button type="button" id="closeOperationLog" class="dlg-x" aria-label="关闭操作日志">✕</button></div><div class="dlg-body"><div class="log-toolbar"><label>班级<select id="logClassFilter"><option value="">全部班级</option></select></label><label>课次<select id="logLessonFilter"><option value="">全部课次</option></select></label><label class="log-search">查找<input type="search" id="logSearch" placeholder="姓名、组号、课次或项目"></label><button id="btnRedo" class="btn" disabled title="恢复最近撤销的一项（Ctrl+Shift+Z）">↷ 恢复最近一项</button></div><button id="btnUndo" hidden disabled></button><p id="undoDetail" hidden></p><p id="redoDetail" hidden></p><div id="operationLogList"></div><details class="log-help"><summary>记录与撤销说明</summary><p>点击某条右侧“撤销”，仅抵消该次操作的实际效果；已撤销的记录可单独恢复。平板支持左划，松手前拉回即可取消。个人项目的核对流水请到原评分表修改。默认5分不记作加分操作；相邻等量反向调整合并抵消。旧记录未记载时间时显示“历史记录”。</p></details></div></div></dialog>
-<script src="print-excel.js?v=ff6739d23395ee269af9712667b0b77dadbb69ff"></script>
-<script src="app.js?v=ff6739d23395ee269af9712667b0b77dadbb69ff"></script>
-<script src="password-ui.js?v=ff6739d23395ee269af9712667b0b77dadbb69ff"></script>
+<script src="print-excel.js?v=09d9045b5bfc7c1d2bb71ad091113776a3b2b303"></script>
+<script src="app.js?v=09d9045b5bfc7c1d2bb71ad091113776a3b2b303"></script>
+<script src="password-ui.js?v=09d9045b5bfc7c1d2bb71ad091113776a3b2b303"></script>
 </body>
 </html>

@@ -697,6 +697,13 @@
 
   /* ---------------- 启动 ---------------- */
 
+  /* 只读调用华夏工具的数据库函数（首页班级名单 hx_my_classes / hx_class_students） */
+  function rpc(name, args) {
+    return ensureFresh().then(function () {
+      return request(REST + '/rpc/' + name, { method: 'POST', body: JSON.stringify(args || {}) });
+    });
+  }
+
   function boot(handlers) {
     handlers = handlers || {};
     bootHandlers = handlers;
@@ -763,6 +770,7 @@
     },
     isDirty: function () { return !!(pending || inflight); },
     pull: pull,
+    rpc: rpc,
     checkLatest: checkLatest,
     acceptRemote: acceptRemote,
     hasConflict: hasConflict,

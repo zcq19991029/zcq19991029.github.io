@@ -64,3 +64,28 @@ export const publicList = () => rpc('quiz_public_list', {}, signedIn()).catch(()
 export const publicGet = id => rpc('quiz_public_get', { p_id: id }, signedIn());
 export const publish = (id, name, questions, ownerName) => rpc('quiz_publish', { p_id: id, p_name: name, p_questions: questions, p_owner_name: ownerName });
 export const unpublish = id => rpc('quiz_unpublish', { p_id: id });
+
+// 理论题排位（supabase/quiz-schema.sql 第 3 节）：答对的选择、判断题先进本机待交队列，1 秒后交给服务器判对（断网留着，下次再交）。
+// 交过的题记在 ranksent:<科目>，再答对不重复交；分数只在服务器算。
+let rankTimer = null;
+export function rankPush(bank, id, answer, onDone) {
+  if (getLocal('ranksent:' + bank, []).includes(id)) return;
+  const q = getLocal('rankq', []);
+  if (!q.some(x => x.bank === bank && x.id === id)) q.push({ bank, id, answer });
+  setLocal('rankq', q.slice(-1000));
+  clearTimeout(rankTimer); rankTimer = setTimeout(() => rankFlush(onDone), 1000);
+}
+export async function rankFlush(onDone) {
+  if (!signedIn()) return;
+  for (;;) {
+    const q = getLocal('rankq', []); if (!q.length) return;
+    const bank = q[0].bank, items = q.filter(x => x.bank === bank).slice(0, 100), ids = new Set(items.map(x => x.id));
+    let res = null, keep = false;
+    try { res = await rpc('quiz_rank_submit', { p_bank: bank, p_items: items.map(({ id, answer }) => ({ id, answer })) }, true); }
+    catch (e) { keep = !e.status || e.status >= 500 || e.status === 401 || e.status === 404; } // 断网、服务器出错、登录过期、数据库脚本还没运行：留着下次交；不是学生、科目不对就丢掉
+    if (keep) return;
+    setLocal('rankq', getLocal('rankq', []).filter(x => !(x.bank === bank && ids.has(x.id))));
+    if (res) { setLocal('ranksent:' + bank, [...new Set([...getLocal('ranksent:' + bank, []), ...ids])]); if (onDone) onDone(bank, res); }
+  }
+}
+export const rankBoard = (bank, mine) => rpc('quiz_rank_board', { p_bank: bank, p_mine: !!mine, p_limit: 100 }, signedIn());
