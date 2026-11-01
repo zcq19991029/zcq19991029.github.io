@@ -476,10 +476,12 @@ function renderLook() {
   $('look').querySelectorAll('[data-acc]').forEach(function (b) { b.onclick = function () { HXTheme.set({ acc: b.dataset.acc }); }; });
   $('look').querySelectorAll('[data-bg]').forEach(function (b) { b.onclick = function () { HXTheme.set({ bg: b.dataset.bg }); }; });
   $('bgFile').onchange = function (e) { var f = e.target.files[0]; if (f) HXTheme.upload(f).catch(function (er) { toast(er.message); }); };
-  if ($('op')) $('op').oninput = function () { $('opv').textContent = $('op').value + '%'; HXTheme.set({ op: +$('op').value }); };
+  if ($('op')) $('op').oninput = function () { opAt = Date.now(); $('opv').textContent = $('op').value + '%'; HXTheme.set({ op: +$('op').value }); };
   $('lookReset').onclick = function () { HXTheme.reset(); };
 }
-HXTheme.onChange(function () { if ($('look').classList.contains('show') && document.activeElement !== $('op')) renderLook(); });
+// 拖透明度时不重画面板：手机上拖动滑块不会获得焦点，一重画滑块就被换掉、只能点不能拖
+var opAt = 0;
+HXTheme.onChange(function () { if ($('look').classList.contains('show') && document.activeElement !== $('op') && Date.now() - opAt > 800) renderLook(); });
 $('lookBtn').onclick = function (e) { e.stopPropagation(); togglePop('look'); };
 $('scrim').onclick = closePops;
 document.addEventListener('click', function (e) { if (!e.target.closest('.pop') && !e.target.closest('#acct') && !e.target.closest('#lookBtn')) { if ($('pop').classList.contains('show') || $('look').classList.contains('show')) closePops(); } });
