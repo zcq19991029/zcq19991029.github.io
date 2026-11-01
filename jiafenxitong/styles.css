@@ -1645,3 +1645,11 @@ html.hx-bg body::before { display: none; }
 .hx-review ul { margin: 4px 0 8px; padding-left: 18px; }
 #hxRosterBox select { max-width: 100%; }
 #hxRosterBox details { display: inline; margin: 0; }
+.hx-pick { white-space: nowrap; }
+#hxRosterBox .hx-extra td { padding-top: 0; }
+@media (max-width: 600px) {
+  #hxRosterBox tr { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+  #hxRosterBox td { border: 0; padding: 4px 0; }
+  #hxRosterBox tr + tr { border-top: 1px solid var(--line, rgba(0,0,0,.08)); }
+  #hxRosterBox .hx-extra { border-top: 0 !important; }
+}

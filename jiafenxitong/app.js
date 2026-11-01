@@ -1463,7 +1463,7 @@ function removeMemberAt(cls, g, j) {
     if (hxRoster.loading) return hxRoster.loading;
     hxRoster.loading = CLOUD.rpc('hx_my_classes').then(function (classes) {
       var mine = (classes || []).filter(HXR.lit);
-      return Promise.all(mine.map(function (c) {
+      return Promise.all((classes || []).map(function (c) { // 没勾的也读：原有班对应时首页全部班都能选
         return CLOUD.rpc('hx_class_students', { p_class: c.id }).then(function (rows) { return [c.id, rows || []]; });
       })).then(function (pairs) {
         hxRoster.students = {}; pairs.forEach(function (p) { hxRoster.students[p[0]] = p[1]; });
@@ -1504,15 +1504,15 @@ function removeMemberAt(cls, g, j) {
   function hxNames(list, fmt) {
     return list.slice(0, 30).map(fmt).join('、') + (list.length > 30 ? ' 等 ' + list.length + ' 人' : '');
   }
-  function hxReviewHtml(cls, hx) {
+  function hxPreviewHtml(cls, hx) {
     var d = HXR.diff(cls, hxRoster.students[hx.id] || []);
     var line = function (label, items, fmt) { return items.length ? '<li>' + label + ' ' + items.length + ' 人：' + esc(hxNames(items, fmt)) + '</li>' : ''; };
     return '<div class="hx-review"><ul>' +
-      '<li>学号对上 ' + d.same + ' 人，分组、课次、分数照旧</li>' +
-      line('首页新增，补进待分配', d.added, function (s) { return s.name; }) +
-      line('按首页改名', d.renamed, function (r) { return r.from + '→' + r.to; }) +
-      line('同名但学号对不上，不补也不删，请核对', d.conflicts, function (c) { return c.name + '（加分 ' + c.sid + '，首页 ' + c.homeSid + '）'; }) +
-      line('首页没有，保留在加分', d.gone, function (m) { return m.name + '（' + m.sid + '）'; }) +
+      '<li>学号一致 ' + d.same + ' 人，分组和分数不变</li>' +
+      line('首页新增（加入待分配）', d.added, function (s) { return s.name; }) +
+      line('改名', d.renamed, function (r) { return r.from + '→' + r.to; }) +
+      line('学号不一致（不动，请核对）', d.conflicts, function (c) { return c.name + ' 加分' + c.sid + ' 首页' + c.homeSid; }) +
+      line('首页没有（保留）', d.gone, function (m) { return m.name + ' ' + m.sid; }) +
       '</ul><div class="btnrow"><button class="btn tiny primary" data-hxlink="' + esc(cls.id) + '">确认对应</button>' +
       '<button class="btn tiny" data-hxcancel="1">取消</button></div></div>';
   }
@@ -1527,47 +1527,61 @@ function removeMemberAt(cls, g, j) {
       return;
     }
     var html = hxRoster.error ? '<p class="note">' + esc(hxRoster.error) + '</p>' : '';
-    var pend = HXR.pending(S), taken = {};
+    var pend = HXR.pending(S), taken = {}, rv = hxRoster.review;
     S.classes.forEach(function (c) { if (c.hxClassId) taken[c.hxClassId] = true; });
     if (pend.length) {
-      html += '<p class="note">加分里原有的班，对应到首页的班后由首页名单维护。</p><table class="data"><tbody>' + pend.map(function (c) {
-        var rv = hxRoster.review && hxRoster.review.classId === c.id ? hxRoster.review : null;
-        var options = hxRoster.classes.filter(function (h) { return !taken[h.id]; });
-        var pick = rv ? rv.hxId : (options.filter(function (h) { return h.name === c.name; })[0] || {}).id;
-        var hx = rv && hxRoster.classes.filter(function (h) { return h.id === rv.hxId; })[0];
-        return '<tr><td>' + esc(c.name) + '</td><td><select data-hxpick="' + esc(c.id) + '"><option value="">选首页班级</option>' +
-          options.map(function (h) { return '<option value="' + h.id + '"' + (h.id === pick ? ' selected' : '') + '>' + esc(h.name) + (h.term ? ' ' + esc(h.term) : '') + '</option>'; }).join('') +
-          '</select></td><td><button class="btn tiny primary" data-hxreview="' + esc(c.id) + '">对照</button> <button class="btn tiny" data-hxlocal="' + esc(c.id) + '" title="不对应首页，保留并照常显示">保留为旧班</button></td></tr>' +
-          (hx ? '<tr><td colspan="3">' + hxReviewHtml(c, hx) + '</td></tr>' : '');
+      /* 原有的班：老师选对应首页哪个班（首页全部班级都能选），预览后确认 */
+      html += '<table class="data"><tbody>' + pend.map(function (c) {
+        var mine = rv && rv.classId === c.id ? rv : null;
+        var options = hxRoster.all.filter(function (h) { return !taken[h.id]; });
+        var pick = mine && mine.hxId ? mine.hxId : (options.filter(function (h) { return h.name === c.name; })[0] || {}).id;
+        var hx = mine && mine.hxId && hxRoster.all.filter(function (h) { return h.id === mine.hxId; })[0];
+        var extra = '';
+        if (mine && mine.local) extra = '<p class="note">不对应：照旧用加分里的名单，不跟首页。</p><div class="btnrow"><button class="btn tiny primary" data-hxlocalok="' + esc(c.id) + '">确定</button><button class="btn tiny" data-hxcancel="1">取消</button></div>';
+        else if (mine && mine.msg) extra = '<p class="note">' + esc(mine.msg) + '</p>';
+        else if (hx) extra = hxPreviewHtml(c, hx);
+        return '<tr><td>' + esc(c.name) + '</td><td><label class="hx-pick">对应首页 <select data-hxpick="' + esc(c.id) + '"><option value="">选择班级</option>' +
+          options.map(function (h) { return '<option value="' + h.id + '"' + (h.id === pick ? ' selected' : '') + '>' + esc(h.name) + '</option>'; }).join('') +
+          '</select></label></td><td><button class="btn tiny primary" data-hxreview="' + esc(c.id) + '">预览</button> <button class="btn tiny" data-hxlocal="' + esc(c.id) + '">不对应</button></td></tr>' +
+          (extra ? '<tr class="hx-extra"><td colspan="3">' + extra + '</td></tr>' : '');
       }).join('') + '</tbody></table>';
     }
     var items = HXR.list(S, hxRoster.all);
+    if (pend.length) { // 还有原有班没对应：先只看上面，下面的列表等对应完再出
+      if (items.some(function (it) { return !it.cls; })) html += '<p class="note">对应完后，其余首页班级自动加入。</p>';
+      items = [];
+    }
     html += items.length ? '<table class="data"><tbody>' + items.map(function (it) {
       var studs = hxRoster.students[it.hx.id] || [], state;
-      if (!it.cls) state = '<span class="rank-note">' + (pend.length ? '原有班对应好后加入' : '正在加入…') + '</span>';
+      if (!it.cls) state = '<span class="rank-note">' + (pend.length ? '等上面对应完再加入' : '正在加入…') + '</span>';
       else {
         var d = HXR.diff(it.cls, studs);
-        state = '<span class="rank-note">已在加分</span>' + (d.conflicts.length ? ' <details class="note"><summary>学号对不上 ' + d.conflicts.length + ' 人</summary>' +
-          esc(hxNames(d.conflicts, function (c) { return c.name + '（加分 ' + c.sid + '，首页 ' + c.homeSid + '）'; })) + '</details>' : '');
+        state = '<span class="rank-note">已在加分</span>' + (d.conflicts.length ? ' <details class="note"><summary>学号不一致 ' + d.conflicts.length + ' 人</summary>' +
+          esc(hxNames(d.conflicts, function (c) { return c.name + ' 加分' + c.sid + ' 首页' + c.homeSid; })) + '</details>' : '');
       }
-      return '<tr><td>' + esc(it.hx.name) + (it.hx.term ? ' <span class="rank-note">' + esc(it.hx.term) + '</span>' : '') + '</td><td>' + studs.length + ' 人</td><td>' + state + '</td></tr>';
-    }).join('') + '</tbody></table>' : (pend.length ? '' : '<p class="note">在首页“班级”导入考勤表，并点亮“小组加分”。</p>');
+      return '<tr><td>' + esc(it.hx.name) + '</td><td>' + studs.length + ' 人</td><td>' + state + '</td></tr>';
+    }).join('') + '</tbody></table>' : (pend.length ? '' : '<p class="note">在首页“班级”导入考勤表。</p>');
     var hidden = S.classes.filter(function (c) { return c.hxClassId && visibleClasses().indexOf(c) < 0; });
-    if (hidden.length) html += '<p class="note">首页没点亮，暂不显示（记录都在）：' + esc(hidden.map(function (c) { return c.name; }).join('、')) + '</p>';
+    if (hidden.length) html += '<p class="note">首页没勾“小组加分”，暂不显示（记录都在）：' + esc(hidden.map(function (c) { return c.name; }).join('、')) + '</p>';
     box.innerHTML = html;
   }
+  $('#hxRosterBox').addEventListener('change', function (e) {
+    var sel = e.target.closest('[data-hxpick]');
+    if (sel && hxRoster.review && hxRoster.review.classId === sel.dataset.hxpick) { hxRoster.review = null; renderHxRoster(); }
+  });
   $('#hxRosterBox').addEventListener('click', function (e) {
     var b = e.target.closest('button');
     if (!b) return;
     try {
       if (b.dataset.hxreview) {
         var id = $('[data-hxpick="' + b.dataset.hxreview + '"]').value;
-        if (!id) { alert('先选这个班对应首页的哪个班。'); return; }
-        hxRoster.review = { classId: b.dataset.hxreview, hxId: +id };
+        hxRoster.review = id ? { classId: b.dataset.hxreview, hxId: +id } : { classId: b.dataset.hxreview, msg: '先选对应首页的哪个班。' };
+      } else if (b.dataset.hxlocal) {
+        hxRoster.review = { classId: b.dataset.hxlocal, local: true };
       } else if (b.dataset.hxcancel) {
         hxRoster.review = null;
       } else if (b.dataset.hxlink) {
-        var rv = hxRoster.review, hx = rv && hxRoster.classes.filter(function (h) { return h.id === rv.hxId; })[0];
+        var rv = hxRoster.review, hx = rv && rv.hxId && hxRoster.all.filter(function (h) { return h.id === rv.hxId; })[0];
         if (!hx) return;
         var r = HXR.link(S, rv.classId, hx, hxRoster.students[hx.id] || []);
         S = r.state; hxRoster.review = null;
@@ -1575,14 +1589,13 @@ function removeMemberAt(cls, g, j) {
         save(); flash(r.cls.name + ' 已对应首页名单');
         hxApply(); hxRedraw();
         return;
-      } else if (b.dataset.hxlocal) {
-        if (!confirm('保留为旧班：不对应首页，照常显示，名单不再跟首页变。')) return;
-        S = HXR.keepLocal(S, b.dataset.hxlocal);
+      } else if (b.dataset.hxlocalok) {
+        S = HXR.keepLocal(S, b.dataset.hxlocalok); hxRoster.review = null;
         save(); hxApply(); hxRedraw();
         return;
       } else return;
       renderHxRoster();
-    } catch (er) { alert('操作失败：' + er.message); }
+    } catch (er) { hxRoster.review = { classId: (hxRoster.review || {}).classId, msg: '没做成：' + er.message }; renderHxRoster(); }
   });
   $('#btnHxRefresh').addEventListener('click', function () { renderHxRoster(); loadHxRoster(); });
 
