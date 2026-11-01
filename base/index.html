@@ -5,6 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#fff9f1" />
   <title>夜夜班的进制转换练习 Sites版</title>
+  <!-- 单独打开时回总入口：登录、邀请码、身份都在总入口统一把关（和刷题、单片机等工具有 data-tool 的外壳守卫同一套行为）。
+       嵌在总入口里（top !== window）不跳；本地双击打开是 file://，也不跳；调试时地址加 ?solo 不跳。 -->
+  <script>
+    (function () {
+      if (window.top === window && /^https?:$/.test(location.protocol) && !/[?&]solo\b/.test(location.search))
+        location.replace('../#base');
+    })();
+  </script>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%23ffcb54'/%3E%3Ccircle cx='23' cy='31' r='5' fill='%233b4351'/%3E%3Ccircle cx='43' cy='31' r='5' fill='%233b4351'/%3E%3Cpath d='M25 43c5 5 10 5 15 0' fill='none' stroke='%233b4351' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E" />
   <style>
     :root { --ink:#171717; --muted:#6d6d73; --cream:#fff; --paper:#ffffff; --line:#e6e6e6; --yellow:#d9272e; --yellow-deep:#ad1f25; --mint:#f3d9da; --mint-deep:#a91f27; --pink:#efb5b7; --purple:#a91f27; --shadow:0 16px 40px rgba(35,20,20,.10); --watermark-opacity:1; --surface-opacity:0; --tab-opacity:0; }
