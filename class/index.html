@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>上课快捷方式集合</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", system-ui, sans-serif;
+    background: #f2f5fa;
+    color: #1c2430;
+    min-height: 100vh;
+    padding: 26px 32px 44px;
+  }
+  header {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    gap: 20px; flex-wrap: wrap;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #e2e8f2;
+  }
+  h1 { font-size: 34px; margin: 0; letter-spacing: 1px; }
+  .clock { text-align: right; }
+  .clock .time { font-size: 40px; font-weight: 700; font-variant-numeric: tabular-nums; color: #2b4a7d; line-height: 1; }
+  .clock .date { font-size: 15px; color: #6b7889; margin-top: 9px; }
+
+  /* ---- 主入口：华夏工具 ---- */
+  .hero {
+    margin-top: 30px;
+    display: flex; align-items: center; gap: 36px; flex-wrap: wrap;
+    background: linear-gradient(135deg, #1f4fd1, #2f6df6 55%, #4a8bff);
+    color: #fff; border-radius: 24px; padding: 32px 36px;
+    box-shadow: 0 10px 30px rgba(31,79,209,.25);
+  }
+  .hero a.go { flex: 1 1 360px; min-width: 0; color: inherit; text-decoration: none; display: block; }
+  .hero .name { font-size: 40px; font-weight: 800; letter-spacing: 1px; }
+  .hero .tools { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+  .hero .tools span { background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.28); padding: 6px 14px; border-radius: 20px; font-size: 16px; }
+  .hero .open { display: inline-block; margin-top: 22px; background: #fff; color: #1f4fd1; font-weight: 700; font-size: 18px; padding: 11px 26px; border-radius: 14px; }
+  .hero .open:active { transform: scale(.97); }
+  .hero .qr { flex: 0 0 auto; background: #fff; border-radius: 18px; padding: 12px; cursor: zoom-in; text-align: center; color: #1c2430; }
+  .hero .qr svg { width: 190px; height: 190px; display: block; }
+  .hero .qr div { font-size: 14px; color: #6b7889; margin-top: 4px; }
+
+  /* ---- 其他入口 ---- */
+  .grid {
+    margin-top: 26px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+    gap: 20px;
+  }
+  .card {
+    display: flex; align-items: center; gap: 18px;
+    background: #fff; border-radius: 18px; padding: 22px 22px; min-height: 120px;
+    box-shadow: 0 2px 4px rgba(20,40,80,.05), 0 8px 24px rgba(20,40,80,.06);
+    border: 1px solid #e4eaf3;
+  }
+  .card a.go { display: flex; align-items: center; gap: 18px; flex: 1; min-width: 0; color: inherit; text-decoration: none; }
+  .card a.go:active { transform: scale(.985); }
+  .icon {
+    flex: 0 0 60px; height: 60px; border-radius: 16px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px; font-weight: 700; color: #fff;
+  }
+  .name { font-size: 21px; font-weight: 700; line-height: 1.35; }
+  .badge {
+    display: inline-block; margin-top: 6px;
+    font-size: 12px; line-height: 1.6;
+    color: #a86300; background: #fff4e3; border: 1px solid #ffd9a0;
+    padding: 1px 9px; border-radius: 20px; white-space: nowrap;
+  }
+  .card .qr { flex: 0 0 auto; width: 74px; height: 74px; padding: 4px; border: 1px solid #e4eaf3; border-radius: 10px; cursor: zoom-in; background: #fff; }
+  .card .qr svg { width: 100%; height: 100%; display: block; }
+
+  /* ---- 扫码大图 ---- */
+  #big {
+    position: fixed; inset: 0; background: rgba(12,20,36,.82);
+    display: none; align-items: center; justify-content: center; flex-direction: column; gap: 18px;
+    cursor: zoom-out; z-index: 10;
+  }
+  #big.on { display: flex; }
+  #big .box { background: #fff; border-radius: 22px; padding: 22px; }
+  #big svg { width: min(72vh, 86vw); height: min(72vh, 86vw); display: block; }
+  #big .t { color: #fff; font-size: 30px; font-weight: 700; letter-spacing: 1px; }
+
+  footer { margin-top: 40px; color: #97a2b1; font-size: 13px; line-height: 1.9; border-top: 1px solid #e2e8f2; padding-top: 18px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>上课快捷方式集合</h1>
+  <div class="clock">
+    <div class="time" id="clock">--:--</div>
+    <div class="date" id="date"></div>
+  </div>
+</header>
+
+<div id="app"></div>
+
+<div id="big"><div class="t" id="bigT"></div><div class="box" id="bigQ"></div></div>
+
+<footer>
+  点二维码放大，投屏后学生用手机扫码打开。所有工具都在华夏工具里，教室机器不用开代理。整个文件夹拷到教室一体机，双击本文件即可，按 F11 全屏。
+</footer>
+
+<script>
+/* ============================================================
+   原件就是这一个文件（华夏工具/教室快捷方式/index.html），随站发布到 /class/；
+   桌面和 E 盘那两份是给教室一体机离线用的副本，改完要同步出去
+   配置区：以后加网站，只改这里
+   MAIN 是华夏工具总入口；OTHERS 是还没并进华夏工具的独立网站（2026-11-01 已全部并入，现在为空）
+   条目：{ name 名称, url 网址, icon 图标字, color 图标底色, vpn 需科学上网 }
+   二维码是离线生成好的 SVG（QR 表），改网址后要重新生成
+   ============================================================ */
+const MAIN = {
+  name: "华夏工具",
+  url: "https://zcq19991029.github.io/",
+  tools: ["接线仿真", "刷题", "进制转换", "单片机上机", "考试", "排课", "小组加分", "课程进度"]
+};
+const OTHERS = [
+  // 2026-11-01：进制转换、本周课程表都已并进华夏工具（/base/、/course/），旧站作废，这里不再有独立站点
+];
+const QR = {"https://zcq19991029.github.io/":"<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 33 33\" shape-rendering=\"crispEdges\"><path fill=\"#ffffff\" d=\"M0 0h33v33H0z\"/><path stroke=\"#111111\" d=\"M2 2.5h7m3 0h1m3 0h1m3 0h1m3 0h7M2 3.5h1m5 0h1m1 0h1m1 0h4m5 0h2m1 0h1m5 0h1M2 4.5h1m1 0h3m1 0h1m2 0h1m1 0h1m3 0h1m1 0h1m1 0h2m1 0h1m1 0h3m1 0h1M2 5.5h1m1 0h3m1 0h1m2 0h2m1 0h2m2 0h1m2 0h1m2 0h1m1 0h3m1 0h1M2 6.5h1m1 0h3m1 0h1m1 0h1m1 0h4m2 0h5m1 0h1m1 0h3m1 0h1M2 7.5h1m5 0h1m2 0h2m3 0h3m3 0h1m1 0h1m5 0h1M2 8.5h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7M11 9.5h1m1 0h2m2 0h1m1 0h2M2 10.5h1m1 0h1m1 0h1m1 0h1m2 0h1m1 0h2m3 0h1m1 0h3m3 0h1m2 0h1M2 11.5h1m1 0h1m5 0h1m3 0h2m1 0h9m1 0h1m2 0h1M2 12.5h4m1 0h2m1 0h2m2 0h1m1 0h3m1 0h1m3 0h1m1 0h1m1 0h3M4 13.5h1m4 0h3m3 0h2m1 0h3m2 0h1m1 0h1m3 0h1M2 14.5h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h2m1 0h1m1 0h1m1 0h1m1 0h3m1 0h2M3 15.5h1m3 0h1m1 0h1m1 0h1m1 0h1m2 0h2m1 0h2m2 0h1m1 0h1m1 0h1m2 0h1M6 16.5h5m1 0h4m3 0h2m2 0h5m1 0h2M2 17.5h1m2 0h1m1 0h1m1 0h2m3 0h1m2 0h1m1 0h2m3 0h2m1 0h1m1 0h1M2 18.5h2m4 0h3m3 0h1m3 0h1m4 0h1m1 0h1m1 0h1m1 0h2M5 19.5h2m2 0h1m1 0h1m1 0h1m1 0h1m1 0h2m3 0h3m2 0h2m1 0h1M2 20.5h1m1 0h2m2 0h2m1 0h1m4 0h5m3 0h2m3 0h2M3 21.5h1m1 0h3m1 0h1m2 0h1m1 0h3m1 0h4m2 0h2m1 0h1m1 0h1M2 22.5h1m4 0h3m1 0h1m4 0h2m1 0h1m1 0h6M10 23.5h5m1 0h2m2 0h1m1 0h1m3 0h1m1 0h3M2 24.5h7m2 0h1m2 0h2m4 0h1m1 0h1m1 0h1m1 0h2m1 0h2M2 25.5h1m5 0h1m2 0h4m2 0h1m1 0h2m1 0h1m3 0h2m2 0h1M2 26.5h1m1 0h3m1 0h1m1 0h1m1 0h2m4 0h2m2 0h5M2 27.5h1m1 0h3m1 0h1m2 0h1m2 0h1m2 0h2m1 0h2m1 0h4m1 0h2M2 28.5h1m1 0h3m1 0h1m1 0h1m3 0h2m1 0h2m1 0h1m1 0h1m1 0h4m2 0h1M2 29.5h1m5 0h1m4 0h1m1 0h1m2 0h2m1 0h2m1 0h3m2 0h1M2 30.5h7m1 0h1m1 0h1m1 0h1m1 0h3m1 0h1m6 0h1m1 0h2\"/></svg>","https://ye-ye-ban-base-converter-sites.zcq991029.chatgpt.site/":"<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 37 37\" shape-rendering=\"crispEdges\"><path fill=\"#ffffff\" d=\"M0 0h37v37H0z\"/><path stroke=\"#111111\" d=\"M2 2.5h7m2 0h1m1 0h2m1 0h1m1 0h1m1 0h3m2 0h2m1 0h7M2 3.5h1m5 0h1m3 0h1m3 0h2m2 0h1m1 0h1m1 0h1m3 0h1m5 0h1M2 4.5h1m1 0h3m1 0h1m1 0h1m2 0h1m1 0h1m3 0h1m1 0h1m1 0h2m3 0h1m1 0h3m1 0h1M2 5.5h1m1 0h3m1 0h1m1 0h1m1 0h1m2 0h1m1 0h2m1 0h1m1 0h2m4 0h1m1 0h3m1 0h1M2 6.5h1m1 0h3m1 0h1m1 0h3m1 0h1m1 0h2m4 0h1m5 0h1m1 0h3m1 0h1M2 7.5h1m5 0h1m1 0h1m1 0h3m1 0h1m1 0h1m2 0h5m2 0h1m5 0h1M2 8.5h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7M10 9.5h3m4 0h1m4 0h5M2 10.5h1m1 0h5m3 0h1m2 0h6m1 0h1m1 0h3m1 0h5M2 11.5h2m6 0h1m4 0h1m2 0h6m1 0h1m2 0h2m1 0h4M8 12.5h2m1 0h2m3 0h3m3 0h1m1 0h1m2 0h2m1 0h1m1 0h2M2 13.5h1m2 0h1m6 0h3m2 0h3m3 0h2m1 0h1m1 0h1m1 0h4M2 14.5h7m2 0h1m2 0h1m2 0h2m4 0h3m1 0h1m1 0h3m1 0h2M2 15.5h1m1 0h4m1 0h5m1 0h1m1 0h4m2 0h2m1 0h4m2 0h3M3 16.5h2m3 0h1m2 0h1m4 0h1m1 0h1m2 0h2m3 0h3m1 0h2m1 0h1M2 17.5h1m1 0h4m1 0h2m4 0h4m4 0h1m2 0h4m1 0h2M8 18.5h1m3 0h6m1 0h1m4 0h1m2 0h1m1 0h2m3 0h1M4 19.5h1m1 0h1m2 0h1m3 0h4m1 0h1m1 0h4m1 0h1m1 0h3m1 0h2m1 0h1M2 20.5h1m3 0h4m3 0h1m1 0h3m2 0h1m2 0h1m4 0h3m1 0h1M2 21.5h1m1 0h3m3 0h2m2 0h3m1 0h2m1 0h1m1 0h1m4 0h5m1 0h1M2 22.5h1m3 0h1m1 0h1m1 0h1m1 0h1m1 0h2m1 0h1m7 0h1m1 0h1m2 0h2M2 23.5h1m2 0h2m4 0h2m8 0h1m1 0h2m1 0h1m1 0h1m5 0h1M2 24.5h1m1 0h1m1 0h5m2 0h1m4 0h6m4 0h1m2 0h3M2 25.5h1m1 0h3m5 0h1m1 0h5m3 0h3m1 0h2m3 0h2m1 0h1M2 26.5h1m4 0h2m3 0h1m1 0h3m1 0h2m1 0h1m2 0h1m1 0h6m2 0h1M10 27.5h2m3 0h1m2 0h1m1 0h3m3 0h1m3 0h1m1 0h3M2 28.5h7m4 0h1m2 0h2m2 0h1m1 0h2m1 0h2m1 0h1m1 0h1m1 0h2M2 29.5h1m5 0h1m1 0h2m1 0h1m2 0h1m1 0h3m1 0h1m3 0h1m3 0h4M2 30.5h1m1 0h3m1 0h1m1 0h2m2 0h1m1 0h1m2 0h3m4 0h6m1 0h1M2 31.5h1m1 0h3m1 0h1m1 0h5m1 0h4m4 0h4m2 0h3m1 0h1M2 32.5h1m1 0h3m1 0h1m1 0h3m1 0h1m3 0h2m1 0h2m1 0h3m1 0h2m2 0h1M2 33.5h1m5 0h1m5 0h4m5 0h1m1 0h1m4 0h3M2 34.5h7m1 0h1m3 0h3m2 0h1m1 0h1m3 0h5m3 0h1\"/></svg>","https://course-progress-private-preview.zcq991029.chatgpt.site/":"<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 41 41\" shape-rendering=\"crispEdges\"><path fill=\"#ffffff\" d=\"M0 0h41v41H0z\"/><path stroke=\"#111111\" d=\"M2 2.5h7m3 0h3m5 0h1m1 0h3m1 0h1m2 0h2m1 0h7M2 3.5h1m5 0h1m5 0h2m1 0h5m1 0h1m6 0h1m1 0h1m5 0h1M2 4.5h1m1 0h3m1 0h1m1 0h2m4 0h3m1 0h4m2 0h1m2 0h1m2 0h1m1 0h3m1 0h1M2 5.5h1m1 0h3m1 0h1m1 0h3m2 0h2m1 0h2m1 0h2m1 0h1m2 0h2m1 0h1m1 0h1m1 0h3m1 0h1M2 6.5h1m1 0h3m1 0h1m1 0h2m1 0h4m1 0h1m1 0h3m1 0h2m1 0h2m1 0h1m1 0h1m1 0h3m1 0h1M2 7.5h1m5 0h1m1 0h1m1 0h2m1 0h3m2 0h1m3 0h1m3 0h3m1 0h1m5 0h1M2 8.5h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7M10 9.5h1m2 0h2m2 0h1m9 0h4M2 10.5h1m1 0h5m3 0h3m5 0h1m1 0h6m2 0h1m1 0h5M2 11.5h1m1 0h2m1 0h1m2 0h1m2 0h1m2 0h3m4 0h1m10 0h4M6 12.5h1m1 0h1m3 0h4m6 0h1m2 0h3m4 0h2m2 0h3M2 13.5h3m1 0h1m5 0h2m1 0h1m2 0h1m4 0h1m1 0h1m3 0h1m1 0h1m1 0h2m1 0h1m1 0h1M2 14.5h1m1 0h3m1 0h1m1 0h1m3 0h3m2 0h1m2 0h1m1 0h6m1 0h2m1 0h1m2 0h2M2 15.5h1m2 0h3m1 0h2m1 0h2m4 0h2m1 0h3m1 0h2m6 0h1m3 0h2M3 16.5h2m2 0h11m1 0h1m2 0h2m4 0h3m1 0h4m2 0h1M2 17.5h1m1 0h1m9 0h3m2 0h2m1 0h13m3 0h1M8 18.5h2m1 0h1m1 0h1m4 0h1m2 0h1m1 0h1m4 0h3m5 0h1m1 0h1M4 19.5h2m4 0h2m2 0h1m2 0h1m2 0h1m1 0h1m1 0h1m1 0h5m1 0h1m1 0h1m1 0h2M3 20.5h1m1 0h1m2 0h3m1 0h1m2 0h5m1 0h1m1 0h1m3 0h2m1 0h2m1 0h1m2 0h3M2 21.5h1m3 0h1m2 0h1m1 0h7m2 0h5m1 0h1m1 0h2m1 0h1m2 0h2m2 0h1M7 22.5h3m2 0h3m2 0h3m1 0h1m2 0h1m2 0h3m1 0h2m1 0h2M2 23.5h2m2 0h1m2 0h5m2 0h1m1 0h1m1 0h2m2 0h2m4 0h2m3 0h1m1 0h2M4 24.5h1m2 0h4m1 0h2m1 0h3m2 0h1m1 0h1m1 0h1m4 0h7m2 0h1M2 25.5h1m1 0h1m6 0h1m2 0h3m1 0h1m3 0h1m2 0h4m2 0h4m2 0h2M2 26.5h1m2 0h1m1 0h7m1 0h1m4 0h1m1 0h3m1 0h1m2 0h1m1 0h1m1 0h2m1 0h1m1 0h1M2 27.5h1m6 0h1m3 0h7m3 0h1m4 0h5m1 0h1M2 28.5h1m1 0h2m2 0h3m4 0h1m4 0h1m1 0h1m1 0h5m1 0h3m3 0h3M2 29.5h1m1 0h1m2 0h1m1 0h1m2 0h1m2 0h2m1 0h1m4 0h1m1 0h1m2 0h5m1 0h1m2 0h1M2 30.5h1m2 0h4m1 0h2m7 0h1m4 0h2m1 0h2m1 0h5M10 31.5h2m1 0h1m5 0h5m1 0h1m2 0h1m1 0h1m3 0h2m1 0h1M2 32.5h7m2 0h1m2 0h1m2 0h3m3 0h1m4 0h1m1 0h1m1 0h1m1 0h1m1 0h3M2 33.5h1m5 0h1m1 0h1m2 0h2m3 0h3m1 0h3m2 0h1m2 0h1m3 0h2m1 0h1M2 34.5h1m1 0h3m1 0h1m1 0h1m1 0h1m4 0h2m4 0h1m2 0h2m1 0h6m1 0h1m1 0h1M2 35.5h1m1 0h3m1 0h1m1 0h2m3 0h3m2 0h1m1 0h3m1 0h1m1 0h5m1 0h2M2 36.5h1m1 0h3m1 0h1m1 0h2m1 0h3m1 0h2m2 0h1m1 0h1m2 0h2m1 0h1m1 0h1m3 0h1m2 0h1M2 37.5h1m5 0h1m2 0h2m1 0h1m1 0h2m3 0h4m7 0h1m1 0h2m2 0h1M2 38.5h7m1 0h3m1 0h6m1 0h2m1 0h9m1 0h1m1 0h3\"/></svg>"};
+
+/* ---------------- 渲染 ---------------- */
+const app = document.getElementById("app");
+const big = document.getElementById("big");
+
+function showBig(name, url) {
+  document.getElementById("bigT").textContent = name;
+  document.getElementById("bigQ").innerHTML = QR[url];
+  big.classList.add("on");
+}
+big.onclick = function () { big.classList.remove("on"); };
+document.addEventListener("keydown", function (e) { if (e.key === "Escape") big.classList.remove("on"); });
+
+const hero = document.createElement("section");
+hero.className = "hero";
+hero.innerHTML =
+  '<a class="go" href="' + MAIN.url + '" target="_blank" rel="noopener noreferrer">' +
+    '<div class="name">' + MAIN.name + '</div>' +
+    '<div class="tools">' + MAIN.tools.map(function (t) { return '<span>' + t + '</span>'; }).join("") + '</div>' +
+    '<div class="open">打开 ↗</div>' +
+  '</a>' +
+  '<div class="qr">' + QR[MAIN.url] + '<div>扫码用手机打开</div></div>';
+hero.querySelector(".qr").onclick = function () { showBig(MAIN.name, MAIN.url); };
+app.appendChild(hero);
+
+const grid = document.createElement("div");
+grid.className = "grid";
+OTHERS.forEach(function (s) {
+  const card = document.createElement("div");
+  card.className = "card";
+  card.innerHTML =
+    '<a class="go" href="' + s.url + '" target="_blank" rel="noopener noreferrer">' +
+      '<div class="icon" style="background:' + s.color + '">' + s.icon + '</div>' +
+      '<div><div class="name">' + s.name + '</div>' + (s.vpn ? '<span class="badge">需科学上网</span>' : '') + '</div>' +
+    '</a>' +
+    '<div class="qr">' + QR[s.url] + '</div>';
+  card.querySelector(".qr").onclick = function () { showBig(s.name, s.url); };
+  grid.appendChild(card);
+});
+if (OTHERS.length) app.appendChild(grid);
+
+/* ---------------- 时钟 ---------------- */
+function tick() {
+  const n = new Date();
+  const p = function (x) { return String(x).padStart(2, "0"); };
+  document.getElementById("clock").textContent = p(n.getHours()) + ":" + p(n.getMinutes());
+  const w = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"][n.getDay()];
+  document.getElementById("date").textContent =
+    n.getFullYear() + "年" + (n.getMonth() + 1) + "月" + n.getDate() + "日 " + w;
+}
+tick();
+setInterval(tick, 15000);
+</script>
+</body>
+</html>
