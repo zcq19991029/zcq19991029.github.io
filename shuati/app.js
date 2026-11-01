@@ -121,7 +121,8 @@ function buildQueue(resume) {
   const saved = resume && store.getLocal(sessKey(), null);
   const known = new Set(S.questions.map(q => q.id));
   if (saved && Array.isArray(saved.ids) && saved.ids.length && saved.ids.every(id => known.has(id))) {
-    S.queue = saved.ids; S.i = Math.min(saved.i || 0, S.queue.length); S.picked = saved.picked || {};
+    const had = new Set(saved.ids), fresh = ids.filter(id => !had.has(id)); // 题库加了新题：接在本轮后面，不打断进度
+    S.queue = [...saved.ids, ...order(fresh)]; S.i = Math.min(saved.i || 0, S.queue.length); S.picked = saved.picked || {};
   } else { S.queue = order(ids); S.i = 0; S.picked = {}; }
   S.sel = new Set(S.picked[S.queue[S.i]] || []);
 }

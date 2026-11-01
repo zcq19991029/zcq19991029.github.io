@@ -76,6 +76,7 @@ body::after{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
 .nav-h{font:600 11px/1 var(--mono);color:var(--mute);letter-spacing:.14em;padding:0 12px 8px;text-transform:uppercase}
 .nav-i{position:relative;z-index:1;display:flex;align-items:center;gap:11px;width:100%;text-align:left;background:transparent;border:0;border-radius:12px;padding:9px 12px;font-size:14px;font-weight:500;color:var(--ink2);box-shadow:none;transition:color .25s,background-color .2s}
 .nav-i:hover{background:var(--field2);transform:none}
+a.nav-i{text-decoration:none}
 .nav-i svg{width:18px;height:18px;flex:none;color:var(--mute);transition:color .25s,transform .35s var(--bounce)}
 .nav-i:hover svg{transform:scale(1.08)}
 .nav-i.on{color:var(--acc);font-weight:600;background:transparent}
@@ -394,25 +395,6 @@ button.qdel.sm{width:26px;height:26px;font-size:15px}
 .chks{display:flex;flex-wrap:wrap;gap:6px}
 .chk{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:10px;background:var(--field2);font-size:13px}
 .chk .note{font-size:11.5px}
-/* 理论练习 */
-.th-card{min-height:320px}
-.th-head{display:flex;align-items:center;gap:10px;margin-bottom:12px}
-.th-q{font-size:17px;line-height:1.8;margin-bottom:14px;text-wrap:pretty}
-.th-fill{line-height:2.4}
-.th-blank{width:150px;margin:0 6px;text-align:center;font-family:var(--mono)}
-.th-blank.right{border-color:var(--ok);box-shadow:0 0 0 3px var(--okbg)} .th-blank.wrong{border-color:var(--bad);box-shadow:0 0 0 3px var(--badbg)}
-.th-opts{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.th-opts.two{max-width:420px}
-@media(max-width:700px){.th-opts{grid-template-columns:1fr}}
-.th-opt{display:flex;align-items:center;gap:12px;text-align:left;padding:12px 16px;border-radius:14px;font-size:15px;line-height:1.5;white-space:normal}
-.th-opt b{flex:none;width:28px;height:28px;border-radius:8px;background:var(--card-solid);border:1px solid var(--hair);display:inline-flex;align-items:center;justify-content:center;font-family:var(--mono)}
-.th-opt:disabled{opacity:1;cursor:default;transform:none}
-.th-opt.right{background:var(--okbg);border-color:var(--ok);color:var(--ok)} .th-opt.wrong{background:var(--badbg);border-color:var(--bad);color:var(--bad)}
-.th-sub{margin:4px 0 0 1em;color:var(--ink2)}
-.th-write{min-height:120px;margin-top:12px;font-family:var(--font);white-space:pre-wrap}
-.th-ans{margin-top:12px;padding:12px 16px;border-radius:14px;background:var(--okbg);color:var(--ink);white-space:pre-wrap;animation:modIn .3s var(--spring) both}
-.th-ans .note{color:var(--ok);font-weight:600}
-.th-nav{margin-top:16px;justify-content:space-between}
 /* 理论试卷 */
 .ppbox{position:relative;overflow:hidden;border-radius:14px;background:#7b818c;border:1px solid var(--hair)}
 .ppbox iframe{position:absolute;left:0;top:0;border:0;transform-origin:0 0;background:#888}
@@ -4427,6 +4409,7 @@ body::after{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
 .nav-h{font:600 11px/1 var(--mono);color:var(--mute);letter-spacing:.14em;padding:0 12px 8px;text-transform:uppercase}
 .nav-i{position:relative;z-index:1;display:flex;align-items:center;gap:11px;width:100%;text-align:left;background:transparent;border:0;border-radius:12px;padding:9px 12px;font-size:14px;font-weight:500;color:var(--ink2);box-shadow:none;transition:color .25s,background-color .2s}
 .nav-i:hover{background:var(--field2);transform:none}
+a.nav-i{text-decoration:none}
 .nav-i svg{width:18px;height:18px;flex:none;color:var(--mute);transition:color .25s,transform .35s var(--bounce)}
 .nav-i:hover svg{transform:scale(1.08)}
 .nav-i.on{color:var(--acc);font-weight:600;background:transparent}
@@ -4745,25 +4728,6 @@ button.qdel.sm{width:26px;height:26px;font-size:15px}
 .chks{display:flex;flex-wrap:wrap;gap:6px}
 .chk{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:10px;background:var(--field2);font-size:13px}
 .chk .note{font-size:11.5px}
-/* 理论练习 */
-.th-card{min-height:320px}
-.th-head{display:flex;align-items:center;gap:10px;margin-bottom:12px}
-.th-q{font-size:17px;line-height:1.8;margin-bottom:14px;text-wrap:pretty}
-.th-fill{line-height:2.4}
-.th-blank{width:150px;margin:0 6px;text-align:center;font-family:var(--mono)}
-.th-blank.right{border-color:var(--ok);box-shadow:0 0 0 3px var(--okbg)} .th-blank.wrong{border-color:var(--bad);box-shadow:0 0 0 3px var(--badbg)}
-.th-opts{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.th-opts.two{max-width:420px}
-@media(max-width:700px){.th-opts{grid-template-columns:1fr}}
-.th-opt{display:flex;align-items:center;gap:12px;text-align:left;padding:12px 16px;border-radius:14px;font-size:15px;line-height:1.5;white-space:normal}
-.th-opt b{flex:none;width:28px;height:28px;border-radius:8px;background:var(--card-solid);border:1px solid var(--hair);display:inline-flex;align-items:center;justify-content:center;font-family:var(--mono)}
-.th-opt:disabled{opacity:1;cursor:default;transform:none}
-.th-opt.right{background:var(--okbg);border-color:var(--ok);color:var(--ok)} .th-opt.wrong{background:var(--badbg);border-color:var(--bad);color:var(--bad)}
-.th-sub{margin:4px 0 0 1em;color:var(--ink2)}
-.th-write{min-height:120px;margin-top:12px;font-family:var(--font);white-space:pre-wrap}
-.th-ans{margin-top:12px;padding:12px 16px;border-radius:14px;background:var(--okbg);color:var(--ink);white-space:pre-wrap;animation:modIn .3s var(--spring) both}
-.th-ans .note{color:var(--ok);font-weight:600}
-.th-nav{margin-top:16px;justify-content:space-between}
 /* 理论试卷 */
 .ppbox{position:relative;overflow:hidden;border-radius:14px;background:#7b818c;border:1px solid var(--hair)}
 .ppbox iframe{position:absolute;left:0;top:0;border:0;transform-origin:0 0;background:#888}
