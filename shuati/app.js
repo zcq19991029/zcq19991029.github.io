@@ -632,7 +632,9 @@ function fly(dir) {
 })();
 
 // ---------- 专注模式、首次提示、问 AI、使用说明 ----------
-const setFocus = on => { document.body.classList.toggle('focus', on); store.setLocal('focus', on); if (on) show('practice'); };
+// 嵌在首页里时让首页也收起它的顶栏，专注才是整屏
+const tellTop = on => { try { if (window.parent !== window) window.parent.postMessage({ hx: 'focus', on }, location.origin); } catch (e) { } };
+const setFocus = on => { document.body.classList.toggle('focus', on); store.setLocal('focus', on); tellTop(on); if (on) show('practice'); };
 $('focusBtn').onclick = () => setFocus(true);
 $('unfocus').onclick = () => setFocus(false);
 function openNotice() {
@@ -730,7 +732,7 @@ async function boot() {
   if (!pub) await loadSubjects(); // 老师发布的题库随后补进科目列表
   store.rankFlush(rankDone); // 上次没交上的答对记录
 }
-if (store.getLocal('focus', false)) document.body.classList.add('focus');
+if (store.getLocal('focus', false)) { document.body.classList.add('focus'); tellTop(true); }
 if (!store.getLocal('notice', 0)) setTimeout(openNotice, 600);
 let was = hx.signedIn();
 hx.onChange(() => { const n = hx.signedIn(); if (n !== was) { was = n; store.flush(); S.base = {}; boot(); } }); // 在总入口或别的工具登录、退出
