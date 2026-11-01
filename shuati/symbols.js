@@ -8,9 +8,14 @@ const nc = x => L(x, 0, x, 26) + L(x, 26, x + 13, 26) + L(x, 54, x, 80) + L(x, 5
 const push = (x, y) => P(`M${x + 4} ${y - 6} H${x} V${y + 6} H${x + 4}`); // 按钮操作件（E 形）
 const hand = (x, y) => L(x, y - 7, x, y + 7); // 一般手动操作
 const heat = (x, y) => P(`M${x} ${y} H${x - 4} V${y - 6} H${x - 10} V${y} H${x - 14}`); // 热执行器
-const roller = x => `<polygon points="${x - 5},41 ${x - 7},35 ${x - 13},40" fill="currentColor"/>`; // 位置开关标记，压在刀片上
+const roller = x => `<polygon points="${x - 2},49 ${x - 5},41 ${x - 10},47"/>`; // 位置开关标记：刀片下段的空心三角（同教材图 1-26）
 const breaker = x => L(x - 3, 23, x + 3, 29) + L(x - 3, 29, x + 3, 23);
 const cup = x => P(`M${x} 20 A3 3 0 0 0 ${x} 26`); // 接触器功能：静触点下端靠刀片一侧的半圆（同教材图 1-19b）
+const rotary = (x, y) => P(`M${x + 4} ${y - 6} H${x} V${y + 6} H${x - 4}`); // 旋转操作（Ƒ 形），组合开关用
+// 延时符号：刀片中点向左两条平行线 + 圆弧。通电延时圆弧向左凸，断电延时向右凸（教材图 1-22，方向不能改）
+const delay = (bx, y, on, e = on ? 15 : 10) => L(bx, y - 2, bx - e, y - 2) + L(bx, y + 2, bx - e, y + 2)
+  + (on ? P(`M${bx - 10} ${y - 6} A6 6 0 0 0 ${bx - 10} ${y + 6}`) : P(`M${bx - 16} ${y - 6} A6 6 0 0 1 ${bx - 16} ${y + 6}`));
+const speed = (x, y) => `<rect x="${x - 12}" y="${y - 6}" width="12" height="12"/><text x="${x - 6}" y="${y + 4}" font-size="11" font-style="italic" text-anchor="middle" fill="currentColor" stroke="none" font-family="Times New Roman,serif">n</text>`;
 const txt = (x, y, s, size = 14) => `<text x="${x}" y="${y}" font-size="${size}" text-anchor="middle" fill="currentColor" stroke="none" font-family="Arial,sans-serif">${s}</text>`;
 const three = (fn, extra = '') => [20, 50, 80].map(x => fn(x)).join('') + extra;
 
@@ -28,7 +33,16 @@ const SYM = {
   sbnc: ['-20 0 60 80', nc(16) + L(23, 38, -8, 38, 1) + push(-12, 38), '按钮动断（常闭）触点'],
   sb2: ['-20 0 100 80', no(24) + nc(52) + L(59, 38, -8, 38, 1) + push(-12, 38), '复合按钮'],
   sqno: ['0 0 40 80', no(24) + roller(24), '行程开关动合（常开）触点'],
-  sqnc: ['0 0 40 80', nc(14) + `<polygon points="${21},37 ${27},39 ${23},44" fill="currentColor"/>`, '行程开关动断（常闭）触点'],
+  sqnc: ['0 0 40 80', nc(14) + '<polygon points="16,49 19.5,41 16,41"/>', '行程开关动断（常闭）触点'],
+  qs3r: ['-20 0 120 80', three(no, L(-10, 39, 74, 39, 1) + rotary(-10, 39)), '三极组合开关'],
+  kton_coil: ['0 0 40 80', L(20, 0, 20, 26) + L(20, 54, 20, 80) + '<rect x="4" y="26" width="32" height="28"/><rect x="4" y="26" width="9" height="28"/>' + L(4, 26, 13, 54) + L(13, 26, 4, 54), '通电延时型时间继电器线圈'],
+  ktoff_coil: ['0 0 40 80', L(20, 0, 20, 26) + L(20, 54, 20, 80) + '<rect x="4" y="26" width="32" height="28"/><rect x="4" y="26" width="9" height="28" fill="currentColor"/>', '断电延时型时间继电器线圈'],
+  kton_no: ['-4 0 44 80', no(28) + delay(22, 39, 1), '时间继电器通电延时动合（常开）触点'],
+  kton_nc: ['-4 0 44 80', nc(20) + delay(27, 38, 1), '时间继电器通电延时动断（常闭）触点'],
+  ktoff_no: ['-4 0 44 80', no(28) + delay(22, 39, 0), '时间继电器断电延时动合（常开）触点'],
+  ktoff_nc: ['-4 0 44 80', nc(20) + delay(27, 38, 0), '时间继电器断电延时动断（常闭）触点'],
+  ks_no: ['-20 0 60 80', no(24) + L(18, 39, -6, 39, 1) + speed(-6, 39), '速度继电器动合（常开）触点'],
+  ks_nc: ['-20 0 60 80', nc(16) + L(23, 38, -6, 38, 1) + speed(-6, 38), '速度继电器动断（常闭）触点'],
   m3: ['0 0 100 100', L(34, 0, 38, 29) + L(50, 0, 50, 26) + L(66, 0, 62, 29) + '<circle cx="50" cy="56" r="30"/>' + txt(50, 56, 'M', 20) + txt(50, 76, '3～', 13), '三相异步电动机'],
 };
 
@@ -57,6 +71,17 @@ Object.assign(SYM, {
   c23e: circuit([...SB, COIL], [1, 2, [KM('nc')]]), c23f: circuit([...SB, COIL], [1, 3, [KM('no')]]),
   c23h: circuit([...SB, ['w'], COIL], [1, 3, [KM('no'), KM('nc')]]), c23ok: circuit([...SB, COIL], [1, 2, [KM('no')]]),
 });
+UNIT.frnc = nc(20) + L(27, 38, 4, 38, 1) + heat(4, 38);
+function reversing() {
+  const A = 40, B = 160, lab = (x, y, t, right) => `<text x="${right ? x + 11 : x - 18}" y="${y + 24}" font-size="11" text-anchor="${right ? 'start' : 'end'}" fill="currentColor" stroke="none" font-family="Arial,sans-serif">${t}</text>`;
+  let o = `<circle cx="${A}" cy="8" r="3"/>${L(A, 11, A, 12)}` + unit('frnc', A, 12) + lab(A, 12, 'FR') + unit('sbnc', A, 52, 'SB1') + L(A, 92, B, 92);
+  for (const [x, sb, me, other] of [[A, 'SB2', 'KM1', 'KM2'], [B, 'SB3', 'KM2', 'KM1']]) {
+    o += unit('sbno', x, 92, sb) + L(x, 92, x + 40, 92) + unit('no', x + 40, 92, me, true) + L(x + 40, 132, x, 132)
+      + unit('nc', x, 132, other) + unit('coil', x, 172, me);
+  }
+  return ['0 0 240 230', o + L(A, 212, B, 212) + L(A, 212, A, 218) + `<circle cx="${A}" cy="221" r="3"/>`, '正反转控制电路（教材图 2-4 控制部分）', [300, 180]];
+}
+SYM.zf = reversing();
 for (const k of ['a', 'b', 'c', 'd', 'e', 'f', 'h']) SYM['c23' + k][2] = `控制电路（教材图 2-3${k}）`;
 SYM.c23ok[2] = '控制电路：KM 常开触点与 SB2 并联';
 

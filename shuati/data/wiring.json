@@ -6532,6 +6532,412 @@
   "sourcePage": 59
  },
  {
+  "id": "wiring-single-216",
+  "number": 216,
+  "type": "single",
+  "stem": "图中的图形符号表示（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "三极刀开关"
+   },
+   {
+    "key": "B",
+    "text": "三极组合开关"
+   },
+   {
+    "key": "C",
+    "text": "三极低压断路器"
+   },
+   {
+    "key": "D",
+    "text": "接触器主触点"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "三个动合触点虚线连动，操作件是“Ƒ”形旋转操作符号，是组合开关（转换开关），文字符号 QS。刀开关是一般手动操作。（教材 p22）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 22,
+  "fig": "qs3r"
+ },
+ {
+  "id": "wiring-single-217",
+  "number": 217,
+  "type": "single",
+  "stem": "图中的线圈符号表示（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "接触器线圈"
+   },
+   {
+    "key": "B",
+    "text": "通电延时型时间继电器线圈"
+   },
+   {
+    "key": "C",
+    "text": "断电延时型时间继电器线圈"
+   },
+   {
+    "key": "D",
+    "text": "熔断器"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "线圈长方形左边加一个画“×”的小方框，是通电延时型（缓吸）时间继电器线圈。（教材 p31）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 31,
+  "fig": "kton_coil"
+ },
+ {
+  "id": "wiring-single-218",
+  "number": 218,
+  "type": "single",
+  "stem": "图中的线圈符号表示（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "中间继电器线圈"
+   },
+   {
+    "key": "B",
+    "text": "通电延时型时间继电器线圈"
+   },
+   {
+    "key": "C",
+    "text": "断电延时型时间继电器线圈"
+   },
+   {
+    "key": "D",
+    "text": "速度继电器"
+   }
+  ],
+  "answer": [
+   "C"
+  ],
+  "explanation": "线圈长方形左边加一个涂黑的小方框，是断电延时型（缓放）时间继电器线圈。（教材 p31）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 31,
+  "fig": "ktoff_coil"
+ },
+ {
+  "id": "wiring-single-219",
+  "number": 219,
+  "type": "single",
+  "stem": "图中的触点符号表示（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "时间继电器通电延时动合（常开）触点"
+   },
+   {
+    "key": "B",
+    "text": "时间继电器断电延时动合（常开）触点"
+   },
+   {
+    "key": "C",
+    "text": "时间继电器瞬时动合触点"
+   },
+   {
+    "key": "D",
+    "text": "速度继电器动合触点"
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "刀片上带圆弧的是延时触点；圆弧向左凸（开口朝刀片）是通电延时。（教材 p31）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 31,
+  "fig": "kton_no"
+ },
+ {
+  "id": "wiring-single-220",
+  "number": 220,
+  "type": "single",
+  "stem": "图中的触点符号表示（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "时间继电器通电延时动断（常闭）触点"
+   },
+   {
+    "key": "B",
+    "text": "时间继电器断电延时动断（常闭）触点"
+   },
+   {
+    "key": "C",
+    "text": "热继电器常闭触点"
+   },
+   {
+    "key": "D",
+    "text": "速度继电器常闭触点"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "圆弧向右凸（背向刀片）是断电延时；这是动断触点。（教材 p31）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 31,
+  "fig": "ktoff_nc"
+ },
+ {
+  "id": "wiring-single-221",
+  "number": 221,
+  "type": "single",
+  "stem": "图中的触点符号，文字符号应标（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "KM"
+   },
+   {
+    "key": "B",
+    "text": "KT"
+   },
+   {
+    "key": "C",
+    "text": "KS"
+   },
+   {
+    "key": "D",
+    "text": "KA"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "带延时圆弧的触点属于时间继电器 KT。（教材 p31）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 31,
+  "fig": "ktoff_no"
+ },
+ {
+  "id": "wiring-single-222",
+  "number": 222,
+  "type": "single",
+  "stem": "通电延时型时间继电器的延时动合（常开）触点是（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "fig": "kton_no",
+    "text": ""
+   },
+   {
+    "key": "B",
+    "fig": "ktoff_no",
+    "text": ""
+   },
+   {
+    "key": "C",
+    "fig": "sbno",
+    "text": ""
+   },
+   {
+    "key": "D",
+    "fig": "ks_no",
+    "text": ""
+   }
+  ],
+  "answer": [
+   "A"
+  ],
+  "explanation": "圆弧向左凸是通电延时；B 是断电延时，C 是按钮，D 是速度继电器触点。（教材 p31）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 31
+ },
+ {
+  "id": "wiring-single-223",
+  "number": 223,
+  "type": "single",
+  "stem": "图中的触点符号表示（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "时间继电器触点"
+   },
+   {
+    "key": "B",
+    "text": "速度继电器动合（常开）触点"
+   },
+   {
+    "key": "C",
+    "text": "按钮常开触点"
+   },
+   {
+    "key": "D",
+    "text": "行程开关常开触点"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "虚线连到写“n”的小方框（转速）的是速度继电器触点，文字符号 KS。（教材 p32）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 32,
+  "fig": "ks_no"
+ },
+ {
+  "id": "wiring-single-224",
+  "number": 224,
+  "type": "single",
+  "stem": "图中的触点符号，文字符号应标（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "KT"
+   },
+   {
+    "key": "B",
+    "text": "KS"
+   },
+   {
+    "key": "C",
+    "text": "SQ"
+   },
+   {
+    "key": "D",
+    "text": "SB"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "写“n”的方框表示转速，属于速度继电器 KS。（教材 p32）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 32,
+  "fig": "ks_nc"
+ },
+ {
+  "id": "wiring-single-225",
+  "number": 225,
+  "type": "single",
+  "stem": "图示正反转控制电路中，与 SB2 并联的 KM1 常开触点起（ ）作用。",
+  "options": [
+   {
+    "key": "A",
+    "text": "互锁"
+   },
+   {
+    "key": "B",
+    "text": "自锁"
+   },
+   {
+    "key": "C",
+    "text": "过载保护"
+   },
+   {
+    "key": "D",
+    "text": "短路保护"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "KM1 常开触点与起动按钮 SB2 并联，松开 SB2 后 KM1 线圈靠它保持通电，是自锁。（教材 p44）",
+  "source": "电气控制技术实训 第3版 项目2",
+  "sourcePage": 44,
+  "fig": "zf"
+ },
+ {
+  "id": "wiring-single-226",
+  "number": 226,
+  "type": "single",
+  "stem": "图示正反转控制电路中，串在 KM1 线圈支路里的 KM2 常闭触点起（ ）作用。",
+  "options": [
+   {
+    "key": "A",
+    "text": "自锁"
+   },
+   {
+    "key": "B",
+    "text": "电气互锁"
+   },
+   {
+    "key": "C",
+    "text": "过载保护"
+   },
+   {
+    "key": "D",
+    "text": "欠压保护"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "两只接触器的常闭触点互串在对方线圈回路中，保证 KM1、KM2 不能同时得电，是电气互锁。（教材 p44）",
+  "source": "电气控制技术实训 第3版 项目2",
+  "sourcePage": 44,
+  "fig": "zf"
+ },
+ {
+  "id": "wiring-single-227",
+  "number": 227,
+  "type": "single",
+  "stem": "图示正反转控制电路，电动机正转时直接按下 SB3，结果是（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "电动机立即反转"
+   },
+   {
+    "key": "B",
+    "text": "KM2 不能得电，电动机继续正转"
+   },
+   {
+    "key": "C",
+    "text": "电源短路"
+   },
+   {
+    "key": "D",
+    "text": "电动机停转"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "正转时 KM1 常闭触点断开了 KM2 线圈支路，按 SB3 也不能使 KM2 得电，要先按 SB1 停止。（教材 p46）",
+  "source": "电气控制技术实训 第3版 项目2",
+  "sourcePage": 46,
+  "fig": "zf"
+ },
+ {
+  "id": "wiring-single-228",
+  "number": 228,
+  "type": "single",
+  "stem": "图示正反转控制电路中，FR 常闭触点断开后（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "只有正转支路断电"
+   },
+   {
+    "key": "B",
+    "text": "KM1、KM2 线圈都断电，电动机停转"
+   },
+   {
+    "key": "C",
+    "text": "电动机反转"
+   },
+   {
+    "key": "D",
+    "text": "没有影响"
+   }
+  ],
+  "answer": [
+   "B"
+  ],
+  "explanation": "FR 常闭触点串在两条支路的公共部分，过载动作后两只接触器都断电。（教材 p44）",
+  "source": "电气控制技术实训 第3版 项目2",
+  "sourcePage": 44,
+  "fig": "zf"
+ },
+ {
   "id": "wiring-multiple-1",
   "number": 1,
   "type": "multiple",
@@ -8123,6 +8529,74 @@
   "explanation": "按 SB3 时 KM3 断电、KM2 经 SB3 常开触点和 KM3 常闭触点得电；这条支路任一处不通都换不过去。SB1 坏了电动机根本起动不了。（教材 p55 实训任务2.4 思考题）",
   "source": "电气控制技术实训 第3版 项目2思考题",
   "sourcePage": 55
+ },
+ {
+  "id": "wiring-multiple-50",
+  "number": 50,
+  "type": "multiple",
+  "stem": "下列图形符号中，属于时间继电器 KT 的有（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "fig": "kton_coil",
+    "text": ""
+   },
+   {
+    "key": "B",
+    "fig": "kton_no",
+    "text": ""
+   },
+   {
+    "key": "C",
+    "fig": "ks_no",
+    "text": ""
+   },
+   {
+    "key": "D",
+    "fig": "ktoff_nc",
+    "text": ""
+   }
+  ],
+  "answer": [
+   "A",
+   "B",
+   "D"
+  ],
+  "explanation": "A 通电延时线圈，B 通电延时常开触点，D 断电延时常闭触点；C 是速度继电器触点。（教材 p31）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 31
+ },
+ {
+  "id": "wiring-multiple-51",
+  "number": 51,
+  "type": "multiple",
+  "stem": "图示正反转控制电路中，属于电气互锁的触点有（ ）。",
+  "options": [
+   {
+    "key": "A",
+    "text": "KM1 支路里的 KM2 常闭触点"
+   },
+   {
+    "key": "B",
+    "text": "KM2 支路里的 KM1 常闭触点"
+   },
+   {
+    "key": "C",
+    "text": "与 SB2 并联的 KM1 常开触点"
+   },
+   {
+    "key": "D",
+    "text": "FR 常闭触点"
+   }
+  ],
+  "answer": [
+   "A",
+   "B"
+  ],
+  "explanation": "互串在对方线圈支路里的两个常闭触点是电气互锁；C 是自锁，D 是过载保护。（教材 p44）",
+  "source": "电气控制技术实训 第3版 项目2",
+  "sourcePage": 44,
+  "fig": "zf"
  },
  {
   "id": "wiring-judgment-1",
@@ -10042,5 +10516,97 @@
   "explanation": "原文如此。（教材 p64 实训任务2.6 思考题）",
   "source": "电气控制技术实训 第3版 项目2思考题",
   "sourcePage": 64
+ },
+ {
+  "id": "wiring-judgment-88",
+  "number": 88,
+  "type": "judgment",
+  "stem": "图中的触点是通电延时触点。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "F"
+  ],
+  "explanation": "圆弧向右凸（背向刀片）是断电延时触点；通电延时的圆弧向左凸。（教材 p31）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 31,
+  "fig": "ktoff_no"
+ },
+ {
+  "id": "wiring-judgment-89",
+  "number": 89,
+  "type": "judgment",
+  "stem": "图中的线圈是断电延时型时间继电器线圈。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "线圈左边的小方框涂黑，是断电延时型。（教材 p31）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 31,
+  "fig": "ktoff_coil"
+ },
+ {
+  "id": "wiring-judgment-90",
+  "number": 90,
+  "type": "judgment",
+  "stem": "图中三极开关是组合开关，操作件是旋转操作符号。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "组合开关又称转换开关，转动手柄操作。（教材 p22）",
+  "source": "电气控制技术实训 第3版 项目1",
+  "sourcePage": 22,
+  "fig": "qs3r"
+ },
+ {
+  "id": "wiring-judgment-91",
+  "number": 91,
+  "type": "judgment",
+  "stem": "图示正反转控制电路中，如果去掉两个互锁常闭触点，同时按下 SB2、SB3 会造成电源相间短路。",
+  "options": [
+   {
+    "key": "T",
+    "text": "正确"
+   },
+   {
+    "key": "F",
+    "text": "错误"
+   }
+  ],
+  "answer": [
+   "T"
+  ],
+  "explanation": "KM1、KM2 主触点同时闭合，L1、L3 两相短路。（教材 p43）",
+  "source": "电气控制技术实训 第3版 项目2",
+  "sourcePage": 43,
+  "fig": "zf"
  }
 ]
