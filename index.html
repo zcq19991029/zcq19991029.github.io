@@ -39,6 +39,7 @@
   .acct b { max-width: 9em; overflow: hidden; text-overflow: ellipsis; font-size: 15px; font-weight: 500; padding-right: 8px; }
   .av { flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-weight: 600; font-size: 14px; color: var(--on-acc); background: var(--acc) center / cover; }
   .av.lg { width: 72px; height: 72px; font-size: 30px; }
+  .avl { cursor: pointer; border-radius: 50%; } .avl:hover { filter: brightness(.9); }
   .pill { display: inline-flex; align-items: center; height: 22px; padding: 0 9px; border-radius: 99px; font-size: 12px; font-weight: 600; background: var(--fill); color: var(--dim); }
   .pill.acc { background: var(--accbg); color: var(--acc); }
   .pill.dev { color: #fff; background: linear-gradient(120deg, #f59e0b, #ec4899); box-shadow: 0 4px 14px -6px #ec4899; }
@@ -86,6 +87,7 @@
   .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 40px; padding: 0 20px; border: 0; border-radius: 99px; background: var(--acc); color: var(--on-acc); font-size: 15px; font-weight: 500; white-space: nowrap; cursor: pointer; transition: filter .2s, transform .15s; }
   .btn:hover { filter: brightness(1.08); } .btn:active { transform: scale(.97); } .btn:disabled { opacity: .45; cursor: default; }
   .btn.sub { background: var(--fill); color: var(--ink); } .btn.link { background: none; color: var(--acc); padding: 0 6px; height: 32px; }
+  .btn.bad-solid { background: var(--bad); color: #fff; }
   .btn.sm { height: 32px; padding: 0 14px; font-size: 14px; } .btn.bad { color: var(--bad); }
   .panel { padding: 22px 24px; border-radius: 24px; background: var(--card); box-shadow: 0 0 0 1px var(--edge) inset; margin-bottom: 14px; animation: rise .6s var(--hx-spring) both; }
   .cls { display: grid; gap: 12px; }
@@ -222,6 +224,10 @@
   </form>
   <form class="f" id="rf" hidden></form>
 </dialog>
+<dialog id="confirm">
+  <h2 id="cfT"></h2>
+  <div class="f"><p id="cfB" style="margin:0 0 6px;text-align:center;color:var(--dim)"></p><button class="btn bad-solid" type="button" id="cfOk"></button><button class="btn sub" type="button" id="cfNo">取消</button></div>
+</dialog>
 <dialog id="share">
   <h2>发给对方</h2>
   <div class="f"><textarea id="shareT" readonly rows="5"></textarea><button class="btn" type="button" id="shareC">复制</button><button class="btn link" type="button" id="shareX">关闭</button></div>
@@ -313,7 +319,7 @@ function role() {
 function info() { // 名字、头像、GitHub 用户名、邮箱
   var u = ST.user || {}, d = u.user_metadata || {}, gh = (u.identities || []).filter(function (i) { return i.provider === 'github'; })[0];
   var ghName = gh && gh.identity_data && (gh.identity_data.user_name || gh.identity_data.preferred_username) || '';
-  var name = (ST.me && ST.me.student && ST.me.student.name) || d.full_name || d.name || d.user_name || ghName || (u.email || '').split('@')[0] || '用户';
+  var name = d.full_name || (ST.me && ST.me.student && ST.me.student.name) || d.name || d.user_name || ghName || (u.email || '').split('@')[0] || '用户';
   return { name: name, email: u.email || '', avatar: d.avatar_url || '', gh: ghName, full: d.full_name || '' };
 }
 function avatar(i, cls) { return '<span class="av ' + (cls || '') + '"' + (i.avatar ? ' style="background-image:url(' + esc(i.avatar) + ')"' : '') + '>' + (i.avatar ? '' : esc(i.name.slice(0, 1))) + '</span>'; }
@@ -324,6 +330,15 @@ function sure(b, text) {
   b.dataset.was = b.innerHTML; b.textContent = text;
   b.dataset.sure = setTimeout(function () { if (b.dataset.sure) { delete b.dataset.sure; b.innerHTML = b.dataset.was; } }, 3000);
   return false;
+}
+// 弹窗二次确认：返回 Promise<boolean>，点取消、按 Esc 都是 false
+function ask(title, body, ok) {
+  return new Promise(function (done) {
+    var d = $('confirm'); $('cfT').textContent = title; $('cfB').textContent = body; $('cfOk').textContent = ok || '确认';
+    var fin = function (v) { d.onclose = null; if (d.open) d.close(); done(v); };
+    $('cfOk').onclick = function () { fin(true); }; $('cfNo').onclick = function () { fin(false); }; d.onclose = function () { fin(false); };
+    d.showModal();
+  });
 }
 function toast(t) {
   var el = $('toast'); el.textContent = t; clearTimeout(toast.t);
@@ -420,6 +435,16 @@ function render() {
 // ---------- 弹出：账号、外观 ----------
 function closePops() { ['pop', 'look'].forEach(function (k) { $(k).classList.remove('show'); }); $('scrim').classList.remove('show'); ST.edit = null; syncExp(); }
 function syncExp() { if ($('acct')) $('acct').setAttribute('aria-expanded', $('pop').classList.contains('show')); $('lookBtn').setAttribute('aria-expanded', $('look').classList.contains('show')); }
+function smallPic(file) { // 头像缩成 128 像素的方图，存成小图片地址放在账号资料里
+  return new Promise(function (ok, no) {
+    var u = URL.createObjectURL(file), im = new Image();
+    im.onload = function () {
+      var c = document.createElement('canvas'), n = 128, s = Math.min(im.width, im.height); c.width = c.height = n;
+      c.getContext('2d').drawImage(im, (im.width - s) / 2, (im.height - s) / 2, s, s, 0, 0, n, n); URL.revokeObjectURL(u); ok(c.toDataURL('image/jpeg', .85));
+    };
+    im.onerror = function () { URL.revokeObjectURL(u); no(new Error('这张图片读不了')); }; im.src = u;
+  });
+}
 function togglePop(k) {
   var on = !$(k).classList.contains('show'); closePops();
   if (on) { if (k === 'pop') renderPop(); else renderLook(); $(k).classList.add('show'); $('scrim').classList.add('show'); }
@@ -427,9 +452,10 @@ function togglePop(k) {
 }
 function renderPop() {
   var i = info(), r = role() || '', m = ST.me || {}, E = ST.edit, html, form = function (inner) { return '<div class="f">' + inner + '<p class="msg" id="pmsg"></p><button class="btn" id="psave">保存</button><button class="btn link" id="pcancel">取消</button></div>'; };
-  html = '<div class="who-top">' + avatar(i, 'lg') + '<b>' + esc(i.name) + '</b><small>' + (HX.synthetic(i.email) ? '' : esc(i.email)) + '</small><span class="pill acc">' + r + (m.student ? ' · ' + esc(m.student.class) : '') + '</span></div>';
+  html = '<div class="who-top"><label class="avl" title="点击换头像">' + avatar(i, 'lg') + '<input type="file" id="pav" accept="image/*" hidden></label><b>' + esc(i.name) + '</b><small>' + (HX.synthetic(i.email) ? '' : esc(i.email)) + '</small><span class="pill acc">' + r + (m.student ? ' · ' + esc(m.student.class) : '') + '</span></div>';
   if (E === 'name') html += form('<input id="pname1" maxlength="20" value="' + esc(i.full || i.name) + '" placeholder="名字">');
   else if (E === 'uname') html += form('<input id="puname" maxlength="32" value="' + esc(ST.uname || '') + '" placeholder="如 11445" autocapitalize="none">');
+  else if (E === 'claim') html += form('<input id="pcc" maxlength="16" placeholder="老师给的课堂码" autocapitalize="characters" autocomplete="off"><input id="pcno" inputmode="numeric" maxlength="20" placeholder="学号""><input id="pcnm" maxlength="20" placeholder="姓名（和班级名单一致）" value="' + esc(m.student ? m.student.name : '') + '">');
   else if (E === 'pw') html += form('<input id="ppw1" type="password" autocomplete="new-password" placeholder="新密码（至少 6 位）"><input id="ppw2" type="password" autocomplete="new-password" placeholder="再输一次">');
   else {
     html += '<div class="rows">' +
@@ -437,16 +463,26 @@ function renderPop() {
       '<button type="button" data-e="uname"><span>账号名</span><span>' + (ST.uname === null ? '…' : esc(ST.uname || '未设置')) + '</span></button>' +
       '<button type="button" data-e="pw"><span>密码</span><span>修改</span></button>' +
       (i.gh ? '<div><span>GitHub</span><span>' + esc(i.gh) + '</span></div>' : '<button type="button" id="plink"><span>GitHub</span><span>绑定</span></button>') + '</div>';
+    if (r === '访客') html += '<div class="f" style="margin-bottom:14px"><button class="btn" type="button" data-e="claim">认证入班</button></div>'; // 好友码注册、老师后来才建班的学生，用课堂码补认证
     if (r === '未开通') html += '<div class="f" style="margin-bottom:14px"><button class="btn" id="pgo">填写邀请码开通</button></div>'; // 登录后会自动弹出；关掉了从这里再打开
     html += '<div class="f"><button class="btn sub" id="pswitch">切换账号</button><button class="btn link bad" id="pout">退出登录</button></div>';
   }
   $('pop').innerHTML = html;
   if (ST.uname === null && !E) HX.api('/rest/v1/paike_usernames?select=username&user_id=eq.' + HX.uid()).then(function (x) { ST.uname = x && x[0] ? x[0].username : ''; if ($('pop').classList.contains('show') && !ST.edit) renderPop(); }).catch(function () { ST.uname = ''; });
   $('pop').querySelectorAll('[data-e]').forEach(function (b) { b.onclick = function () { ST.edit = b.dataset.e; renderPop(); var f = $('pop').querySelector('input'); if (f) f.focus(); }; });
+  if ($('pav')) $('pav').onchange = async function (e) {
+    var f = e.target.files[0]; if (!f) return;
+    try { ST.user = await HX.setUser({ data: { avatar_url: await smallPic(f) } }); toast('头像已更新'); render(); renderPop(); } catch (er) { toast(er.message); }
+  };
   if ($('pcancel')) $('pcancel').onclick = function () { ST.edit = null; renderPop(); };
   if ($('psave')) $('psave').onclick = async function () {
     var b = $('psave'), msg = $('pmsg'); b.disabled = true; msg.textContent = '';
     try {
+      if (E === 'claim') {
+        var cc = $('pcc').value.trim().toUpperCase(), cn = $('pcno').value.trim(), cm = $('pcnm').value.trim(); if (!cc) throw new Error('请填课堂码'); if (!/^\d{6,20}$/.test(cn)) throw new Error('学号应为 6～20 位数字'); if (!cm) throw new Error('请填姓名');
+        await HX.rpc('hx_claim_class', { p_code: cc, p_no: cn, p_name: cm });
+        ST.edit = null; toast('认证成功，已加入班级'); await refresh(); if ($('pop').classList.contains('show')) renderPop(); return;
+      }
       if (E === 'name') { var n = $('pname1').value.trim(); if (!n) throw new Error('请填名字'); ST.user = await HX.setUser({ data: { full_name: n } }); }
       if (E === 'uname') {
         var un = $('puname').value.trim().toLowerCase(); if (un && !/^[a-z0-9_.-]{2,32}$/.test(un)) throw new Error('账号名用 2～32 位字母、数字');
@@ -490,7 +526,7 @@ var opAt = 0;
 HXTheme.onChange(function () { if ($('look').classList.contains('show') && document.activeElement !== $('op') && Date.now() - opAt > 800) renderLook(); });
 $('lookBtn').onclick = function (e) { e.stopPropagation(); togglePop('look'); };
 $('scrim').onclick = closePops;
-document.addEventListener('click', function (e) { if (!e.target.closest('.pop') && !e.target.closest('#acct') && !e.target.closest('#lookBtn')) { if ($('pop').classList.contains('show') || $('look').classList.contains('show')) closePops(); } });
+document.addEventListener('click', function (e) { var path = e.composedPath ? e.composedPath() : []; if (path.indexOf($('pop')) >= 0 || path.indexOf($('look')) >= 0) return; /* 点击时面板里的按钮可能已被重画摘掉，closest 会找不到 .pop */ if (!e.target.closest('.pop') && !e.target.closest('#acct') && !e.target.closest('#lookBtn')) { if ($('pop').classList.contains('show') || $('look').classList.contains('show')) closePops(); } });
 document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closePops(); });
 
 // ---------- 首页下面的管理卡片：班级（教师）、教师邀请码、学生课堂码（管理员）、管理员（开发者）；卡片上一行概要，点开是面板 ----------
@@ -591,7 +627,7 @@ function sheetCls() {
     };
   }
   if ($('rShare')) $('rShare').onclick = function () { shareCode(N.code, 'student'); };
-  if ($('rRevoke')) $('rRevoke').onclick = async function () { try { await HX.rpc('hx_revoke_code', { p_code: N.code }); ST.newCode = null; toast('已撤销'); sheetCls(); codesChanged(); } catch (e) { toast(e.message); } };
+  if ($('rRevoke')) $('rRevoke').onclick = async function () { if (!await ask('撤销课堂码 ' + N.code, N.cls + '。撤销后这个码不能再用来注册，已经用它注册的账号不受影响。', '撤销')) return; try { await HX.rpc('hx_revoke_code', { p_code: N.code }); ST.newCode = null; toast('已撤销'); sheetCls(); codesChanged(); } catch (e) { toast(e.message); } };
   box.querySelectorAll('[data-tool]').forEach(function (b) {
     b.onclick = async function () {
       var c = ST.classes.filter(function (x) { return x.id === +b.dataset.cls; })[0], t = b.dataset.tool, tools = (c.tools || []).slice(), i = tools.indexOf(t);
@@ -649,7 +685,7 @@ function sheetCode(role) {
   };
   if ($('aShare')) $('aShare').onclick = function () { shareCode(A.code, A.role); };
   box.querySelectorAll('[data-share]').forEach(function (b) { b.onclick = function () { shareCode(b.dataset.share, b.dataset.role); }; });
-  box.querySelectorAll('[data-rev]').forEach(function (b) { b.onclick = async function () { if (!sure(b, '确认撤销？')) return; try { await HX.rpc('hx_revoke_code', { p_code: b.dataset.rev }); if (ST.aCode && ST.aCode.code === b.dataset.rev) ST.aCode = null; toast('已撤销'); loadCodes(); } catch (e) { toast(e.message); } }; });
+  box.querySelectorAll('[data-rev]').forEach(function (b) { b.onclick = async function () { var cd = b.dataset.rev, rl = ST.codes.filter(function (x) { return x.code === cd; })[0]; if (!await ask('撤销邀请码 ' + cd, (rl ? (rl.role === 'teacher' ? '教师码' : rl.role === 'guest' ? '好友码' : '课堂码') + (rl.class_name || rl.note ? '（' + (rl.class_name || rl.note) + '）' : '') + '。' : '') + '撤销后这个码不能再用来注册，已经用它注册的账号不受影响。', '撤销')) return; try { await HX.rpc('hx_revoke_code', { p_code: b.dataset.rev }); if (ST.aCode && ST.aCode.code === b.dataset.rev) ST.aCode = null; toast('已撤销'); loadCodes(); } catch (e) { toast(e.message); } }; });
 }
 // 管理员面板（开发者）：填邮箱任命，或在教师名单里点按钮
 function sheetAdm() {
