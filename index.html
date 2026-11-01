@@ -7,7 +7,7 @@
 <title>华夏工具</title>
 <link rel="icon" href="logo.jpg">
 <link rel="apple-touch-icon" href="logo.jpg">
-<!-- 华夏工具总入口 © 2026 zcq：首页是工具卡片（按身份：学生和没登录的人只看到学生工具），教师首页下面是共用的“班级名单”；点开一个工具全屏用，左上角回首页。
+<!-- 华夏工具总入口 © 2026 zcq：首页是工具卡片（没登录只有“登录 / 注册”；按身份：学生只看到学生工具），教师首页下面是共用的“班级名单”；点开一个工具全屏用，左上角回首页。
      工具都在 zcq19991029.github.io 下，用 iframe 嵌进来。登录、切换账号、个人信息、外观只在这一页：子工具不再有自己的账号和主题界面，
      要登录时调 window.HXPortal.login()；被单独打开时 hx-theme.js 会跳回这里（见 hx-theme.js 的 data-tool）。
      账号：Supabase 华夏工具项目，localStorage paike-session 和各工具共用；身份由数据库 hx_me() 决定。
@@ -227,7 +227,7 @@
 </dialog>
 <script>
 var SITE = location.protocol === 'file:' ? 'https://zcq19991029.github.io' : ''; // 网站上（包括本机拼好的 成品/site）用同一站点里的工具；直接双击打开时嵌线上版
-// 首页卡片：who all 所有人、teacher 只有教师看得到（学生和没登录的人不显示）；c 是图标的两种颜色（像手机桌面图标，每个工具固定）
+// 首页卡片：who all 登录的人都有、teacher 只有教师看得到（没登录的什么工具都不显示）；c 是图标的两种颜色（像手机桌面图标，每个工具固定）
 var GROUPS = [['学习', ['wiring', 'quiz', 'mcu', 'exam']], ['教学', ['paike', 'jiafen']]]; // 首页按使用场景分组
 var TOOLS = [
   { id: 'wiring', name: '接线仿真', url: SITE + '/wiring-lab/', who: 'all', c: ['#ffb340', '#ff7a00'], icon: '<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>' },
@@ -303,8 +303,8 @@ function svg(d, cls) { return '<svg class="i' + (cls ? ' ' + cls : '') + '" view
 var ST = { me: null, user: null, tab: null, lm: 'in', reg: null, actFor: null, uname: null, edit: null, classes: null, open: null, studs: {}, rosters: null, newCode: null };
 var frames = {};
 function isTeacher() { return !!(ST.me && (ST.me.teacher || ST.me.admin || ST.me.dev)); }
-function locked() { return HX.in() && role() === '未开通'; } // 登录了没开通（GitHub 新账号等）：什么工具都不给，只能填邀请码；没登录的照样用接线仿真、刷题
-function can(t) { return !locked() && (t.who === 'all' || isTeacher()); }
+function locked() { return HX.in() && role() === '未开通'; } // 登录了没开通（GitHub 新账号等）：什么工具都不给，只能填邀请码
+function can(t) { return HX.in() && !locked() && (t.who === 'all' || isTeacher()); } // 2026-11-01 用户定：所有工具都要登录
 function role() {
   var m = ST.me; if (!m) return null;
   return m.dev ? '开发者' : m.admin ? '管理员' : m.teacher ? '教师' : m.student ? (m.guest ? '访客' : '学生') : m.left ? '已退学' : '未开通';
@@ -388,7 +388,7 @@ function show(id) {
 }
 function render() {
   var go = svg('<path d="M9 6l6 6-6 6"/>', 'go'), n = 0, G = GROUPS.map(function (g) { return { name: g[0], list: TOOLS.filter(function (t) { return can(t) && g[1].indexOf(t.id) >= 0; }) }; }).filter(function (g) { return g.list.length; });
-  $('tiles').innerHTML = (locked() ? '<div class="tiles"><button class="tile act" type="button" id="tAct" style="--c1:#5ac8fa;--c2:#0a84ff"><span class="ic">' + svg('<rect x="3" y="6" width="18" height="12" rx="2.5"/><path d="M15 6v12" stroke-dasharray="1.5 2.5"/><path d="M7 10.5h4M7 13.5h3"/>') + '</span><b>填写邀请码开通</b>' + go + '</button></div>' : '') +
+  $('tiles').innerHTML = (!HX.in() ? '<div class="tiles"><button class="tile act" type="button" id="tIn" style="--c1:#5ac8fa;--c2:#0a84ff"><span class="ic">' + svg('<circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/>') + '</span><b>登录 / 注册</b>' + go + '</button></div>' : '') + (locked() ? '<div class="tiles"><button class="tile act" type="button" id="tAct" style="--c1:#5ac8fa;--c2:#0a84ff"><span class="ic">' + svg('<rect x="3" y="6" width="18" height="12" rx="2.5"/><path d="M15 6v12" stroke-dasharray="1.5 2.5"/><path d="M7 10.5h4M7 13.5h3"/>') + '</span><b>填写邀请码开通</b>' + go + '</button></div>' : '') +
     G.map(function (g) { // 只有一组又没有“管理”时不加小标题
       return (G.length > 1 || mgList().length ? '<div class="sec"><h2>' + g.name + '</h2></div>' : '') + '<div class="tiles">' + g.list.map(function (t) {
         return '<button class="tile" type="button" data-id="' + t.id + '" style="--c1:' + t.c[0] + ';--c2:' + t.c[1] + ';animation-delay:' + (n++ * 50) + 'ms">' +
@@ -397,6 +397,7 @@ function render() {
     }).join('');
   $('tiles').querySelectorAll('.tile[data-id]').forEach(function (b) { b.onclick = function () { show(b.dataset.id); }; });
   if ($('tAct')) $('tAct').onclick = function () { openLogin('', 'act'); };
+  if ($('tIn')) $('tIn').onclick = function () { openLogin(); };
   var i = HX.in() && ST.user ? info() : null;
   $('hi').innerHTML = i ? '你好，' + esc(i.name) + badge() : '';
   if (i) {
