@@ -49,6 +49,7 @@
   .lbtn { height: 32px; padding: 0 16px; border: 0; border-radius: 99px; background: var(--acc); color: var(--on-acc); font-size: 14px; font-weight: 500; }
   main { flex: 1; position: relative; min-height: 0; overflow: hidden; }
   body.zen header { display: none; }
+  body.hxfull header { display: none; } body.hxfull main { position: fixed; inset: 0; height: 100vh; height: 100dvh; z-index: 50; }
   /* 苹果手机的 iframe 会按里面内容撑宽，width:1px + min-width:100% 把它钉在屏幕宽 */
   main iframe { position: absolute; inset: 0; width: 1px; min-width: 100%; max-width: 100%; height: 100%; border: 0; background: var(--bg); visibility: hidden; opacity: 0; transition: opacity .35s var(--hx-ease); }
   main iframe.on { visibility: visible; opacity: 1; }
@@ -368,10 +369,12 @@ function renderLogin() {
 
 // 地址栏 #wiring 这样的直接打开对应工具；没有或没权限就是首页
 // 子工具（刷题）进出专注模式时发消息过来：它在前台时收起顶栏
-var zen = {};
+// 接线仿真进出页面内全屏（钉钉、微信里系统全屏用不了）也发消息过来（hx: 'full'）：它在前台时藏顶栏，iframe 铺满整个可视区域
+var zen = {}, full = {};
 window.addEventListener('message', function (e) {
-  if (e.origin !== location.origin || !e.data || e.data.hx !== 'focus') return;
-  for (var k in frames) if (frames[k].contentWindow === e.source) { zen[k] = !!e.data.on; if (k === ST.tab) document.body.classList.toggle('zen', zen[k]); }
+  if (e.origin !== location.origin || !e.data || (e.data.hx !== 'focus' && e.data.hx !== 'full')) return;
+  var m = e.data.hx === 'full' ? full : zen, c = e.data.hx === 'full' ? 'hxfull' : 'zen';
+  for (var k in frames) if (frames[k].contentWindow === e.source) { m[k] = !!e.data.on; if (k === ST.tab) document.body.classList.toggle(c, m[k]); }
 });
 function show(id, how) { // how：不写 = 新开一页（进浏览器历史，左上角和手机返回能退回来）；'replace' 原地换；'pop' 是浏览器后退来的
   var t = TOOLS.filter(function (x) { return x.id === id; })[0];
@@ -380,9 +383,10 @@ function show(id, how) { // how：不写 = 新开一页（进浏览器历史，�
   var url = t ? '#' + t.id : location.pathname + location.search, st = history.state && history.state.hx || 0;
   if (how === 'replace' || (!how && (t ? t.id : null) === (prevTab || null))) history.replaceState({ hx: st }, '', url);
   else if (how !== 'pop') history.pushState({ hx: st + 1 }, '', url);
-  if (t && !frames[t.id]) { var f = document.createElement('iframe'); f.src = t.url; f.title = t.name; f.allow = 'fullscreen; clipboard-write; clipboard-read'; $('main').appendChild(f); frames[t.id] = f; }
+  if (t && !frames[t.id]) { var f = document.createElement('iframe'); f.src = t.url; f.title = t.name; f.allow = 'fullscreen; clipboard-write; clipboard-read'; f.setAttribute('allowfullscreen', ''); $('main').appendChild(f); frames[t.id] = f; }
   for (var k in frames) frames[k].classList.toggle('on', !!t && k === t.id);
   document.body.classList.toggle('zen', !!t && !!zen[t.id]);
+  document.body.classList.toggle('hxfull', !!t && !!full[t.id]);
   document.body.classList.toggle('tool', !!t);
   $('cur').textContent = t ? t.name : '';
   document.title = t ? t.name + ' · 华夏工具' : '华夏工具';
