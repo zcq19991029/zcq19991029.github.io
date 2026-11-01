@@ -1482,7 +1482,7 @@ function removeMemberAt(cls, g, j) {
       if (r.changes.length) {
         S = r.state; changed = true;
         r.changes.forEach(function (c) {
-          addOperationLog('首页班级', c.cls.name + (c.created ? ' 加入加分' : '') + (c.added ? '，补进 ' + c.added + ' 人' : '') + (c.renamed ? '，改名 ' + c.renamed + ' 人' : ''));
+          addOperationLog('首页班级', c.cls.name + (c.created ? ' 加入加分' : '') + hxCounts(c));
         });
         save(false);
       }
@@ -1501,6 +1501,10 @@ function removeMemberAt(cls, g, j) {
   function hxAfterGate() { if (hxRoster.all) hxApply(); }
   document.addEventListener('visibilitychange', function () { if (!document.hidden && S && CLOUD_ON) loadHxRoster(); });
 
+  function hxCounts(c) {
+    return (c.added ? '，补进 ' + c.added + ' 人' : '') + (c.renamed ? '，改名 ' + c.renamed + ' 人' : '') +
+      (c.left ? '，退学隐藏 ' + c.left + ' 人' : '') + (c.back ? '，恢复 ' + c.back + ' 人' : '');
+  }
   function hxNames(list, fmt) {
     return list.slice(0, 30).map(fmt).join('、') + (list.length > 30 ? ' 等 ' + list.length + ' 人' : '');
   }
@@ -1513,6 +1517,7 @@ function removeMemberAt(cls, g, j) {
       line('改名', d.renamed, function (r) { return r.from + '→' + r.to; }) +
       line('学号不一致（不动，请核对）', d.conflicts, function (c) { return c.name + ' 加分' + c.sid + ' 首页' + c.homeSid; }) +
       line('首页没有（保留）', d.gone, function (m) { return m.name + ' ' + m.sid; }) +
+      line('退学（隐藏，分数保留）', d.leaving, function (x) { return x.name; }) +
       '</ul><div class="btnrow"><button class="btn tiny primary" data-hxlink="' + esc(cls.id) + '">确认对应</button>' +
       '<button class="btn tiny" data-hxcancel="1">取消</button></div></div>';
   }
@@ -1556,7 +1561,8 @@ function removeMemberAt(cls, g, j) {
       if (!it.cls) state = '<span class="rank-note">' + (pend.length ? '等上面对应完再加入' : '正在加入…') + '</span>';
       else {
         var d = HXR.diff(it.cls, studs);
-        state = '<span class="rank-note">已在加分</span>' + (d.conflicts.length ? ' <details class="note"><summary>学号不一致 ' + d.conflicts.length + ' 人</summary>' +
+        var gone = (it.cls.leftStudents || []).length;
+        state = '<span class="rank-note">已在加分' + (gone ? ' · 退学 ' + gone + ' 人已隐藏' : '') + '</span>' + (d.conflicts.length ? ' <details class="note"><summary>学号不一致 ' + d.conflicts.length + ' 人</summary>' +
           esc(hxNames(d.conflicts, function (c) { return c.name + ' 加分' + c.sid + ' 首页' + c.homeSid; })) + '</details>' : '');
       }
       return '<tr><td>' + esc(it.hx.name) + '</td><td>' + studs.length + ' 人</td><td>' + state + '</td></tr>';
@@ -1585,7 +1591,7 @@ function removeMemberAt(cls, g, j) {
         if (!hx) return;
         var r = HXR.link(S, rv.classId, hx, hxRoster.students[hx.id] || []);
         S = r.state; hxRoster.review = null;
-        addOperationLog('首页班级', r.cls.name + ' 对应首页 ' + hx.name + (r.added ? '，补进 ' + r.added + ' 人' : '') + (r.renamed ? '，改名 ' + r.renamed + ' 人' : ''));
+        addOperationLog('首页班级', r.cls.name + ' 对应首页 ' + hx.name + hxCounts(r));
         save(); flash(r.cls.name + ' 已对应首页名单');
         hxApply(); hxRedraw();
         return;

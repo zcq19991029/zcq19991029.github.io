@@ -87,7 +87,13 @@
   .chips { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; }
   .chip { height: 32px; padding: 0 14px; border: 0; border-radius: 99px; background: var(--fill); color: var(--dim); font-size: 14px; font-weight: 500; transition: background .2s, color .2s; }
   .chip[aria-pressed="true"] { background: var(--acc); color: var(--on-acc); }
-  .stu { grid-column: 1 / -1; max-height: 340px; overflow: auto; border-top: 1px solid var(--edge); padding-top: 8px; }
+  .stu { grid-column: 1 / -1; max-height: 420px; overflow: auto; border-top: 1px solid var(--edge); padding-top: 8px; }
+  .stu tr.gone td { color: var(--faint); }
+  .stu .pill { white-space: nowrap; }
+  .ti { width: 100%; min-width: 0; height: 32px; padding: 0 10px; border-radius: 9px; border: 1px solid var(--line2); background: var(--card-solid); outline: none; font-size: 14px; }
+  .ti:focus { border-color: var(--acc); box-shadow: 0 0 0 3px var(--ring); }
+  .btn.ib { width: 32px; padding: 0; } .btn.ib[data-sure] { width: auto; padding: 0 8px; } .btn.ib svg { width: 17px; height: 17px; }
+  @media (max-width: 640px) { .stu .sq { display: none; } .stu td, .stu th { padding: 7px 4px; } }
   table { width: 100%; border-collapse: collapse; font-size: 14px; } td, th { padding: 7px 8px; text-align: left; border-bottom: 1px solid var(--edge); } th { color: var(--dim); font-weight: 500; }
   .code { display: grid; justify-items: center; gap: 4px; padding: 18px; border-radius: 18px; background: var(--accbg); margin-bottom: 14px; text-align: center; }
   .code b { font: 700 40px/1.1 ui-monospace, "SF Mono", Menlo, Consolas, monospace; letter-spacing: .12em; color: var(--acc); }
@@ -292,7 +298,7 @@ function isTeacher() { return !!(ST.me && (ST.me.teacher || ST.me.admin || ST.me
 function can(t) { return t.who === 'all' || isTeacher(); }
 function role() {
   var m = ST.me; if (!m) return null;
-  return m.dev ? '开发者' : m.admin ? '管理员' : m.teacher ? '教师' : m.student ? '学生' : '未开通';
+  return m.dev ? '开发者' : m.admin ? '管理员' : m.teacher ? '教师' : m.student ? '学生' : m.left ? '已退学' : '未开通';
 }
 function info() { // 名字、头像、GitHub 用户名、邮箱
   var u = ST.user || {}, d = u.user_metadata || {}, gh = (u.identities || []).filter(function (i) { return i.provider === 'github'; })[0];
@@ -510,9 +516,10 @@ function sheetCls() {
     return '<div class="cl"><div><h3>' + esc(c.name) + '</h3><small>' + esc(c.term ? c.term + ' · ' : '') + c.total + ' 人 · 已开通 ' + c.bound + '</small></div>' +
       '<div class="acts"><button class="btn sub sm" data-code="' + c.id + '">课堂码</button><button class="btn sub sm" data-open="' + c.id + '">' + (on ? '收起' : '名单') + '</button></div>' +
       '<div class="chips">' + CLASS_TOOLS.map(function (t) { return '<button type="button" class="chip" data-cls="' + c.id + '" data-tool="' + t[0] + '" aria-pressed="' + (tools.indexOf(t[0]) >= 0) + '">' + t[1] + '</button>'; }).join('') + '</div>' +
-      (on ? '<div class="stu" id="stu' + c.id + '">' + stuTable(ST.studs[c.id]) + '</div>' : '') + '</div>';
+      (on ? '<div class="stu" id="stu' + c.id + '"></div>' : '') + '</div>';
   }).join('') : '<p class="empty">' + (ST.clsOk ? '还没有班级：导入教务系统导出的考勤表（学号、姓名两列）' : '加载中…') + '</p>') + '</div>';
   box.innerHTML = html;
+  if (ST.open) renderStu(ST.open);
   $('rFile').onchange = async function (e) {
     var fs = [].slice.call(e.target.files); e.target.value = ''; if (!fs.length) return;
     var out = [];
@@ -553,8 +560,8 @@ function sheetCls() {
   });
   box.querySelectorAll('[data-open]').forEach(function (b) {
     b.onclick = async function () {
-      var id = +b.dataset.open; ST.open = ST.open === id ? null : id; sheetCls();
-      if (ST.open && !ST.studs[id]) { try { ST.studs[id] = await HX.rpc('hx_class_students', { p_class: id }); } catch (e) { ST.studs[id] = []; toast(e.message); } if ($('stu' + id)) $('stu' + id).innerHTML = stuTable(ST.studs[id]); }
+      var id = +b.dataset.open; ST.open = ST.open === id ? null : id; ST.stuEdit = null; sheetCls();
+      if (ST.open && !ST.studs[id]) { try { ST.studs[id] = await HX.rpc('hx_class_students', { p_class: id }); } catch (e) { ST.studs[id] = []; toast(e.message); } renderStu(id); }
     };
   });
   box.querySelectorAll('[data-code]').forEach(function (b) {
@@ -619,9 +626,44 @@ function sheetAdm() {
 }
 async function loadCodes() { try { ST.codes = await HX.rpc('hx_my_codes') || []; } catch (e) { ST.codes = []; toast('邀请码读取失败：' + e.message); } renderMgmt('codes'); }
 async function loadTeachers() { try { ST.teachers = await HX.rpc('hx_teachers') || []; } catch (e) { ST.teachers = { err: e.message }; } renderMgmt('adm'); }
-function stuTable(list) {
-  if (!list) return '<p class="empty">加载中…</p>';
-  return '<table><tr><th>序号</th><th>学号</th><th>姓名</th><th></th></tr>' + list.map(function (s) { return '<tr><td>' + (s.seq < 1000 ? s.seq : '') + '</td><td>' + esc(s.student_no) + '</td><td>' + esc(s.name) + '</td><td>' + (s.bound ? '<span class="pill acc">已开通</span>' : '') + (s.self_reg ? ' <span class="pill">自己注册</span>' : '') + '</td></tr>'; }).join('') + '</table>';
+// 名单：第一行加学生；每人可改学号姓名、删除（已开通或有成绩的标为退学，灰着放最后，可恢复）
+var PEN = '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>', BIN = '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>';
+function renderStu(cid) {
+  var el = $('stu' + cid), list = ST.studs[cid], E = ST.stuEdit; if (!el) return;
+  if (!list) { el.innerHTML = '<p class="empty">加载中…</p>'; return; }
+  var inp = function (s) { return '<td><input class="ti" data-f="no" inputmode="numeric" maxlength="20" placeholder="学号" value="' + esc(s ? s.student_no : '') + '"></td><td><input class="ti" data-f="nm" maxlength="20" placeholder="姓名" value="' + esc(s ? s.name : '') + '"></td>'; };
+  el.innerHTML = '<table><tr><th class="sq">序号</th><th>学号</th><th>姓名</th><th></th></tr><tr data-sid=""><td class="sq"></td>' + inp(null) + '<td class="ra"><button class="btn sm" data-save>添加</button></td></tr>' +
+    list.map(function (s) {
+      var sq = '<td class="sq">' + (s.seq < 1000 && !s.left_school ? s.seq : '') + '</td>';
+      if (E === s.id) return '<tr data-sid="' + s.id + '">' + sq + inp(s) + '<td class="ra"><button class="btn sm" data-save>保存</button><button class="btn link sm ib" data-x aria-label="取消">' + svg('<path d="M6 6l12 12M18 6L6 18"/>') + '</button></td></tr>';
+      return '<tr' + (s.left_school ? ' class="gone"' : '') + '>' + sq + '<td>' + esc(s.student_no) + '</td><td>' + esc(s.name) + ' ' +
+        (s.left_school ? '<span class="pill">退学</span>' : (s.bound ? '<span class="pill acc">已开通</span>' : '') + (s.self_reg ? ' <span class="pill">自己注册</span>' : '')) + '</td><td class="ra">' +
+        (s.left_school ? '<button class="btn link sm" data-back="' + s.id + '">恢复</button>'
+          : '<button class="btn link sm ib" data-ed="' + s.id + '" aria-label="修改">' + svg(PEN) + '</button><button class="btn link sm ib bad" data-del="' + s.id + '" aria-label="删除">' + svg(BIN) + '</button>') + '</td></tr>';
+    }).join('') + '</table>';
+  var c = ST.classes.filter(function (x) { return x.id === cid; })[0];
+  var done = async function (msg) { // 改完重读名单，班级人数跟着变
+    ST.stuEdit = null; toast(msg);
+    try { ST.studs[cid] = await HX.rpc('hx_class_students', { p_class: cid }); } catch (e) { toast(e.message); }
+    var L = ST.studs[cid] || []; c.total = L.filter(function (s) { return !s.left_school; }).length; c.bound = L.filter(function (s) { return s.bound; }).length;
+    sheetCls(); renderMgmt('none');
+  };
+  var save = async function (tr) {
+    var b = tr.querySelector('[data-save]'), id = tr.dataset.sid ? +tr.dataset.sid : null; b.disabled = true;
+    try { await HX.rpc('hx_student_save', { p_class: cid, p_id: id, p_no: tr.querySelector('[data-f="no"]').value, p_name: tr.querySelector('[data-f="nm"]').value }); await done(id ? '已保存' : '已添加'); }
+    catch (e) { toast(e.message); b.disabled = false; }
+  };
+  el.querySelectorAll('[data-save]').forEach(function (b) { b.onclick = function () { save(b.closest('tr')); }; });
+  el.querySelectorAll('.ti').forEach(function (i) { i.onkeydown = function (e) { if (e.key === 'Enter') save(i.closest('tr')); else if (e.key === 'Escape' && ST.stuEdit) { e.preventDefault(); e.stopPropagation(); ST.stuEdit = null; renderStu(cid); } }; });
+  el.querySelectorAll('[data-x]').forEach(function (b) { b.onclick = function () { ST.stuEdit = null; renderStu(cid); }; });
+  el.querySelectorAll('[data-ed]').forEach(function (b) { b.onclick = function () { ST.stuEdit = +b.dataset.ed; renderStu(cid); var f = el.querySelector('tr[data-sid="' + ST.stuEdit + '"] .ti'); if (f) f.focus(); }; });
+  el.querySelectorAll('[data-del]').forEach(function (b) {
+    b.onclick = async function () {
+      if (!sure(b, '确认删除？')) return;
+      try { var r = await HX.rpc('hx_student_remove', { p_id: +b.dataset.del }); await done(r === 'deleted' ? '已删除' : '已标为退学，记录保留'); } catch (e) { toast(e.message); }
+    };
+  });
+  el.querySelectorAll('[data-back]').forEach(function (b) { b.onclick = async function () { try { await HX.rpc('hx_student_restore', { p_id: +b.dataset.back }); await done('已恢复'); } catch (e) { toast(e.message); } }; });
 }
 async function loadClasses() { try { ST.classes = await HX.rpc('hx_my_classes') || []; } catch (e) { ST.classes = []; toast('班级名单读取失败：' + e.message); } ST.clsOk = true; renderMgmt('cls'); }
 var xlsxP = null;
