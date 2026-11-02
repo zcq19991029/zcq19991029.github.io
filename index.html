@@ -51,9 +51,13 @@
   main { flex: 1; position: relative; min-height: 0; overflow: hidden; }
   body.zen header { display: none; }
   body.hxfull header { display: none; } body.hxfull main { position: fixed; inset: 0; height: 100vh; height: 100dvh; z-index: 50; }
-  /* 苹果手机的 iframe 会按里面内容撑宽，width:1px + min-width:100% 把它钉在屏幕宽 */
-  main iframe { position: absolute; inset: 0; width: 1px; min-width: 100%; max-width: 100%; height: 100%; border: 0; background: var(--bg); visibility: hidden; opacity: 0; transition: opacity .35s var(--hx-ease); }
-  main iframe.on { visibility: visible; opacity: 1; }
+  /* 苹果手机的 iframe 会按里面内容撑宽，width:1px + min-width:100% 把它钉在屏幕宽。
+     2026-11-02：不在前台的 iframe 一律 display:none。原来只写 visibility:hidden + opacity:0，
+     元素不画了但里面的 JS、定时器、requestAnimationFrame 照样跑（接线仿真有画布渲染循环），
+     开着三四个工具就是三四个循环在后台抢 GPU，最后点哪个都崩。display:none 才会真正让它停。 */
+  main iframe { position: absolute; inset: 0; width: 1px; min-width: 100%; max-width: 100%; height: 100%; border: 0; background: var(--bg); display: none; }
+  main iframe.on { display: block; animation: fin .22s var(--hx-ease) both; }
+  @keyframes fin { from { opacity: 0; } to { opacity: 1; } }
   html.hx-bg main iframe { background: transparent; }
   /* 弱网下点了工具到页面出来之间要等几秒，给个「正在加载」的提示，免得以为卡死 */
   .loadtip { position: absolute; left: 50%; top: 46%; z-index: 3; display: none; align-items: center; gap: 10px;
@@ -65,25 +69,34 @@
   @keyframes spin { to { transform: rotate(360deg); } }
   /* 首页 */
   #home { position: absolute; inset: 0; overflow-y: auto; padding: 0 16px calc(48px + env(safe-area-inset-bottom, 0px)); scroll-behavior: smooth; }
-  body.tool #home { visibility: hidden; }
+  body.tool #home { visibility: hidden; content-visibility: hidden; } /* 打开工具后首页整棵子树不参与渲染，只留盒子占位（滚动位置不丢） */
   .wrap { width: min(1024px, 100%); margin: 0 auto; }
   .hero { text-align: center; padding: clamp(40px, 9vw, 96px) 0 clamp(28px, 5vw, 52px); }
   .hero img { width: clamp(64px, 12vw, 88px); aspect-ratio: 1; border-radius: 22%; object-fit: cover; box-shadow: 0 12px 32px -14px var(--shade); }
   .hero h1 { margin: 18px 0 0; font: 700 clamp(40px, 8vw, 64px)/1.06 var(--hx-font-d); letter-spacing: -.02em; }
   .hero p { margin: 10px 0 0; font-size: clamp(19px, 3vw, 24px); color: var(--dim); font-weight: 500; min-height: 1.4em; }
   .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 228px), 1fr)); gap: 16px; }
-  /* 首页工具卡 =「玻璃文件夹」：一张 365×265 圆角 32 的后片（.tile 本体），叠一张略窄、贴底的前片（::after，上沿比后片上沿低一截 → 台阶）。
-     亮边 0.6px：后片用 ::before 的做法保留「左上亮 → 右下灭」的方向性，前片自带一道 0.6px 细高光（inset 顶边 + 外描边）。
-     折射高光是 .tile 自己的那层背景（左上角弧形反光），不占伪元素。
-     没有背景图时退回白卡，只留极淡一层前片，保证和原来一样干净。 */
+  /* 首页工具卡 =「玻璃文件夹」（对照稿见 概念片/玻璃文件夹/，锚点结构一致，按卡片比例缩过）：
+     后片 = .tile 本体（顶部左上伸出一个舌片 ::before，主体顶边就是"肩线"）；
+     开口 = 肩线到前片顶边之间的一段（top 44%），露出品牌渐变底（首页没有照片，"照片位"= --c1/--c2 渐变 + 背景图透出）；
+     前片 = ::after，左右各缩 6px、贴底，顶边小圆角当唇沿，再用 mask 在 72% 处挖一个拇指缺口（凹口透出后片）；
+     折角 = 舌片右端的斜肩（::before 的圆角 + 折势投影线）。
+     图标 / 标题 / 概要都在前片之上（.tile > * z-index:1），不会被玻璃盖住。
+     没有背景图时退回干净白卡：舌片不显示、前片只留极淡一层。 */
   .tile { --fld-bg: rgba(0, 0, 0, .014); --fld-edge: rgba(0, 0, 0, .045); --fld-lip: rgba(255, 255, 255, .92);
-    --fld-drop: 0 -6px 12px -12px rgba(0, 0, 0, .16); --fld-line: rgba(0, 0, 0, .035); --fld-sheen: rgba(255, 255, 255, .55);
+    --fld-drop: 0 -6px 12px -12px rgba(0, 0, 0, .16); --fld-sheen: rgba(255, 255, 255, .55);
     position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 18px; min-height: 172px; padding: 26px 24px 22px; border: 0; border-radius: 32px; background: var(--card); text-align: left; box-shadow: 0 0 0 1px var(--edge) inset;
     transition: transform .45s var(--hx-spring), box-shadow .45s var(--hx-spring); animation: rise .7s var(--hx-spring) both; }
-  .tile::after { content: ""; position: absolute; left: 7px; right: 7px; bottom: 0; top: 55%; z-index: 0; pointer-events: none;
-    border-radius: 13px 13px 30px 30px; background: var(--fld-bg);
-    box-shadow: inset 0 .6px 0 var(--fld-lip), inset 0 2px 4px -1px var(--fld-sheen),
-      0 0 0 .6px var(--fld-edge), 0 -1.6px 0 -.6px var(--fld-line), var(--fld-drop);
+  /* 舌片：从卡片左上向上伸出 13px（小于格子间距 16px，不会压到别的内容），有背景图时才显示 */
+  .tile::before { content: ""; position: absolute; left: 12px; bottom: 100%; width: 76px; height: 14px; z-index: 0; pointer-events: none;
+    display: none; border-radius: 8px 8px 0 0; background: var(--fld-tab, var(--card));
+    box-shadow: inset 0 .6px 0 var(--fld-lip), inset 1px 0 0 var(--fld-sheen); }
+  /* 前片玻璃：mask 在顶边挖拇指缺口（缺口处透出后片，和对照稿的 notch 锚点同义） */
+  .tile::after { content: ""; position: absolute; left: 6px; right: 6px; bottom: 0; top: 44%; z-index: 0; pointer-events: none;
+    border-radius: 14px 14px 28px 28px; background: var(--fld-bg);
+    -webkit-mask: radial-gradient(15px 9px at 72% 0, transparent 97%, #000); mask: radial-gradient(15px 9px at 72% 0, transparent 97%, #000);
+    box-shadow: inset 0 .6px 0 var(--fld-lip), inset 0 2px 5px -2px var(--fld-sheen),
+      0 0 0 .6px var(--fld-edge), var(--fld-drop);
     transition: transform .45s var(--hx-spring), box-shadow .45s var(--hx-ease); }
   .tile > * { z-index: 1; } /* flex 项设 z-index 就成层，前片不会盖住图标和文字 */
   .tile:hover { transform: scale(1.02); box-shadow: 0 0 0 1px var(--edge) inset, 0 22px 50px -26px var(--shade); }
@@ -92,24 +105,33 @@
   .tile .ic { width: 58px; height: 58px; border-radius: 15px; display: grid; place-items: center; color: #fff; background: linear-gradient(160deg, var(--c1), var(--c2)); box-shadow: 0 8px 20px -10px var(--c2); }
   .tile .ic svg { width: 30px; height: 30px; stroke-width: 1.9; }
   .tile b { font-size: 21px; font-weight: 600; letter-spacing: -.01em; margin-top: auto; }
-  /* 有背景图：模糊 + 增色 + 叠白（变量来自 hx-theme.css）+ 左上折射 + 0.6px 方向性亮边 */
-  html.hx-bg .tile { --fld-bg: linear-gradient(180deg, rgba(255, 255, 255, .14) 0%, rgba(255, 255, 255, .05) 55%, rgba(255, 255, 255, .02) 100%);
-    --fld-edge: rgba(255, 255, 255, .20); --fld-lip: var(--glass-top);
-    background-color: var(--glass-wash); background-image: radial-gradient(115% 88% at 16% 0%, rgba(255, 255, 255, .10), transparent 58%);
-    -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); box-shadow: var(--glass-drop); }
-  html.hx-bg .tile::before { content: ""; position: absolute; inset: 0; z-index: 2; border-radius: inherit; padding: .6px; pointer-events: none;
-    background: linear-gradient(150deg, var(--glass-top) 0%, var(--glass-bot) 58%, var(--glass-bot) 100%);
-    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; }
+  /* 有背景图：走玻璃文件夹分支——后片换成「深色底 + 品牌渐变」（照片位，深色有对比，背景图从半透明底透出，
+     透明度跟着用户选的 --hx-a 走），舌片显示，文字转白系保证可读 */
+  html.hx-bg .tile { --fld-bg: linear-gradient(180deg, rgba(255, 255, 255, .18) 0%, rgba(255, 255, 255, .06) 30%, rgba(255, 255, 255, .02) 55%, rgba(8, 10, 16, .16) 100%);
+    --fld-edge: rgba(255, 255, 255, .20); --fld-lip: var(--glass-top); --fld-sheen: rgba(255, 255, 255, .5);
+    --fld-tab: linear-gradient(180deg, color-mix(in srgb, var(--c1) 40%, rgb(22 26 32 / calc(var(--hx-a, 1) * .5))), color-mix(in srgb, var(--c1) 26%, rgb(22 26 32 / calc(var(--hx-a, 1) * .5))));
+    background-color: rgb(12 14 18 / calc(var(--hx-a, 1) * .68));
+    background-image: linear-gradient(150deg, color-mix(in srgb, var(--c1) 26%, transparent), transparent 70%);
+    box-shadow: var(--glass-drop), 0 0 0 .6px var(--fld-edge) inset; }
+  /* 2026-11-02：卡片不再各自 backdrop-filter。背景图已经在 body::before 统一糊过，
+     这里只叠半透明层 + 亮边就够（视觉一样是磨砂玻璃）。原来十几张卡各 blur 26px，
+     希沃一体机的 GPU 撑不住，点工具时直接崩渲染进程，浏览器弹「重新加载站点」。 */
+  html.hx-bg .tile::before { display: block; }
+  /* 背景图分支下文字转白（后片是深色底，原来的深灰字会读不了） */
+  html.hx-bg .tile b { color: #fff; }
+  html.hx-bg .tile .sum { color: rgba(255, 255, 255, .72); }
   html.hx-bg .tile:hover { transform: scale(1.02); box-shadow: var(--glass-drop), 0 0 0 1px var(--edge) inset; }
-  /* 深色 + 背景图：压一层暗底，保证白字完全可读（背景图很亮时玻璃太透字会飘） */
-  html[data-hx-mode="dark"].hx-bg .tile { --fld-bg: linear-gradient(180deg, rgba(255, 255, 255, .10) 0%, rgba(255, 255, 255, .03) 100%); --fld-edge: rgba(255, 255, 255, .14);
-    background-color: rgba(10, 10, 12, .58); background-image: radial-gradient(120% 100% at 18% 0%, rgba(255, 255, 255, .10), transparent 62%); }
+  /* 深色 + 背景图：后片压更暗，保证白字完全可读 */
+  html[data-hx-mode="dark"].hx-bg .tile { --fld-bg: linear-gradient(180deg, rgba(255, 255, 255, .10) 0%, rgba(255, 255, 255, .03) 55%, rgba(8, 10, 16, .20) 100%); --fld-edge: rgba(255, 255, 255, .14);
+    background-color: rgba(10, 10, 12, .58); background-image: linear-gradient(150deg, color-mix(in srgb, var(--c1) 20%, transparent), transparent 70%); }
   /* 无背景图（深色模式白卡）：前片的亮边换成白系，不然看不见 */
   html[data-hx-mode="dark"]:not(.hx-bg) .tile { --fld-bg: rgba(255, 255, 255, .028); --fld-edge: rgba(255, 255, 255, .07); --fld-lip: rgba(255, 255, 255, .16); }
+  /* 当前打开的工具（横条提示）：恢复它自己的底色和描边，不做文件夹造型 */
+  html.hx-bg .tile.act { background-color: var(--glass-wash); background-image: linear-gradient(var(--accbg), var(--accbg)); box-shadow: 0 0 0 1.5px var(--acc) inset; }
+  html.hx-bg .tile.act b { color: var(--acc); }
   .tile .go { position: absolute; right: 22px; bottom: 24px; color: var(--acc); width: 22px; height: 22px; transition: transform .3s var(--hx-ease); }
   .tile:hover .go { transform: translateX(3px); }
   .tile .sum { margin-top: -12px; padding-right: 26px; font-size: 14px; color: var(--dim); }
-  html.hx-bg .tile, html.hx-bg .panel, html.hx-bg .cl { backdrop-filter: var(--hx-blur); -webkit-backdrop-filter: var(--hx-blur); }
   html.hx-bg .hero h1, html.hx-bg .hero p, html.hx-bg .sec h2 { text-shadow: 0 0 22px var(--bg), 0 0 6px var(--bg); }
   @keyframes rise { from { opacity: 0; transform: translateY(24px); } }
   /* 管理卡片的标题 */
@@ -127,7 +149,7 @@
   .btn.sm { height: 32px; padding: 0 14px; font-size: 14px; } .btn.bad { color: var(--bad); }
   .panel { padding: 22px 24px; border-radius: 24px; background: var(--card); box-shadow: 0 0 0 1px var(--edge) inset; margin-bottom: 14px; animation: rise .6s var(--hx-spring) both; }
   /* 有背景图时：面板改用「有层次的玻璃」（模糊＋增色＋叠白＋方向性亮边＋折射），没有背景图仍是干净的白卡 */
-  html.hx-bg .panel { position: relative; background: var(--glass-wash); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); box-shadow: var(--glass-drop); }
+  html.hx-bg .panel { position: relative; background: var(--glass-wash); box-shadow: var(--glass-drop); }
   html.hx-bg .panel::before { content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px; pointer-events: none;
     background: linear-gradient(150deg, var(--glass-top) 0%, var(--glass-bot) 58%, var(--glass-bot) 100%);
     -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; }
@@ -211,7 +233,8 @@
   @media (max-width: 640px) {
     .acct b { display: none; } .cur { font-size: 16px; max-width: 46vw; overflow: hidden; text-overflow: ellipsis; }
     .tiles { grid-template-columns: repeat(2, 1fr); gap: 12px; } .tile { min-height: 148px; padding: 20px 18px 18px; border-radius: 26px; gap: 14px; } .tile b { font-size: 18px; } .tile .ic { width: 50px; height: 50px; border-radius: 13px; } .tile .ic svg { width: 26px; height: 26px; } .tile .go { display: none; }
-    .tile::after { left: 6px; right: 6px; top: 52%; border-radius: 14px 14px 24px 24px; }
+    .tile::after { left: 5px; right: 5px; top: 48%; border-radius: 13px 13px 24px 24px; -webkit-mask: radial-gradient(12px 8px at 72% 0, transparent 97%, #000); mask: radial-gradient(12px 8px at 72% 0, transparent 97%, #000); }
+    .tile::before { left: 10px; width: 52px; height: 11px; }
     .pop { top: auto; bottom: 0; left: 0; right: 0; width: auto; max-height: 86vh; border-radius: 26px 26px 0 0; padding: 22px 20px calc(22px + env(safe-area-inset-bottom, 0px)); transform: translateY(100%); transform-origin: bottom; }
     .pop.show { transform: none; } .scrim.show { opacity: 1; pointer-events: auto; }
     .cl { grid-template-columns: 1fr; } .cl .acts { flex-wrap: wrap; }
@@ -535,8 +558,11 @@ function render() {
     }).join('');
   $('tiles').querySelectorAll('.tile[data-id]').forEach(function (b) {
     b.onclick = function () { show(b.dataset.id); };
-    // 电脑上鼠标一移上去就开始下载那个工具，点下去基本是瞬间出来；触屏不预取，省流量
-    if (hoverFine) b.onpointerenter = function () {
+    // 2026-11-02 撤掉「鼠标划过就预取」。原来 pointerenter 就 mount()，教室里鼠标从一排卡上划过去，
+    // 会一次性拉起五六个工具页；而预取的 iframe 只是 visibility:hidden + opacity:0，里面的 JS、
+    // 定时器、画布全在后台照跑（接线仿真还有 requestAnimationFrame 循环），内存和 GPU 直接吃满——
+    // 表现就是点工具时渲染进程崩掉，浏览器弹「重新加载站点」。改成按下去那一刻才建：慢半秒，但不崩。
+    b.onpointerdown = function () {
       var t = TOOLS.filter(function (x) { return x.id === b.dataset.id; })[0];
       if (t && can(t)) mount(t);
     };

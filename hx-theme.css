@@ -26,25 +26,29 @@
   --hx-blur: saturate(180%) blur(20px);
   /* 玻璃分层（模糊 → 增色 → 叠白 → 亮边 → 折射）：见 hx-glass 注释 */
   --glass-blur: saturate(180%) blur(26px);
-  --glass-wash: rgba(255, 255, 255, .10);   /* 叠的一层白，10% */
+  /* 叠的一层白。2026-11-02 从 .10 提到 .72：原来这层很薄是因为下面还有 backdrop-filter 在实时糊背景，
+     糊完自然发白发虚。现在卡片不再各自模糊（背景只在 body::before 统一糊一次），薄薄 10% 白就压不住
+     底下的图，字直接读不清。改成跟 --hx-a（用户选的界面透明度）联动的半透明白，视觉仍是磨砂玻璃。 */
+  --glass-wash: rgb(255 255 255 / calc(var(--hx-a, 1) * .72));
   --glass-top: rgba(255, 255, 255, .62);    /* 左上亮边 */
   --glass-bot: rgba(255, 255, 255, 0);      /* 右下消失，形成厚度方向 */
   --glass-drop: 0 18px 46px -26px rgba(0, 0, 0, .45);
 }
 :root[data-hx-mode="dark"] {
-  --glass-wash: rgba(255, 255, 255, .045);
+  --glass-wash: rgb(10 10 12 / calc(var(--hx-a, 1) * .74));
   --glass-top: rgba(255, 255, 255, .30);
   --glass-bot: rgba(255, 255, 255, .02);
   --glass-drop: 0 22px 54px -28px rgba(0, 0, 0, .9);
 }
 /* 有层次的玻璃卡：.hx-glass 就是这套做法的封装。
-   ① 加大模糊 + 提高饱和度（背景透上来但不发灰）② 叠一层薄白 ③ 1px 亮边只亮左上 → 右下渐隐（带出厚度）
-   ④ 落影极淡，只有边缘暗部，不要整片光晕 ⑤ 折射：角上一道高光弧，做出液态感。 */
+   ① 背景图已由 body::before 统一糊过一次，这里不再各自 backdrop-filter（否则每张卡一个实时模糊层，老设备必崩）
+   ② 叠一层半透明白 ③ 1px 亮边只亮左上 → 右下渐隐（带出厚度）④ 落影极淡，只有边缘暗部
+   ⑤ 折射：角上一道高光弧，做出液态感。没有背景图时它退回普通白卡（.hx-glass 本来就只用在有背景图的页面）。 */
 .hx-glass {
-  position: relative; background: var(--glass-wash);
-  -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+  position: relative; background: var(--card);
   border-radius: 22px; box-shadow: var(--glass-drop);
 }
+html.hx-bg .hx-glass { background: var(--glass-wash); }
 .hx-glass::before { /* 方向性 1px 亮边 */
   content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px; pointer-events: none;
   background: linear-gradient(150deg, var(--glass-top) 0%, var(--glass-bot) 56%, var(--glass-bot) 100%);
@@ -69,14 +73,34 @@
 [data-hx-slide] [aria-current="true"], [data-hx-slide] > button:hover { background: transparent !important; }
 [data-hx-slide] > button[aria-current="true"] { color: var(--ink); font-weight: 600; }
 @media (prefers-reduced-motion: reduce) { [data-hx-slide] > .hx-nav-cur { transition: none; } }
-/* 背景图：固定在视口后面（手机 Safari 不支持 background-attachment: fixed，用伪元素） */
+/* 背景图：固定在视口后面（手机 Safari 不支持 background-attachment: fixed，用伪元素）
+   ── 2026-11-02 改法：模糊只在这一层做一次 ──
+   原来每张卡片各自 backdrop-filter: blur(26px)，首页十几张卡就是十几个全屏实时高斯模糊层，
+   还要每帧去采样这张背景图。希沃一体机的 GPU 扛不住，直接崩渲染进程（浏览器弹「重新加载站点」）。
+   现在改成：背景图自己先糊掉（filter 对 fixed 元素只算一次，不随滚动重算），
+   卡片只做「半透明 + 亮边 + 落影」，视觉上还是背景在玻璃后面糊着，但成本从 O(卡片数) 降到 O(1)。 */
 html.hx-bg { background: var(--bg); }
 html.hx-bg body { background: transparent !important; }
-html.hx-bg body::before { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none; background: var(--hx-img) center / cover no-repeat; }
+html.hx-bg body::before {
+  content: ""; position: fixed; inset: -48px; z-index: -1; pointer-events: none;
+  background: var(--hx-img) center / cover no-repeat;
+  filter: blur(26px) saturate(128%);
+}
 /* 深色模式必须把背景图压够暗。只写 brightness(.62) 对亮色图（比如默认的小熊，整张亮黄）不够：
    深色主题下整页被照得刺眼，玻璃卡也被背景色染成棕黄、字读不清。所以叠一层暗色 scrim 再压亮度。 */
 :root[data-hx-mode="dark"].hx-bg body::before {
   background-image: linear-gradient(rgba(8, 8, 10, .55), rgba(8, 8, 10, .55)), var(--hx-img);
-  filter: brightness(.75) saturate(.85);
+  filter: blur(26px) brightness(.75) saturate(.85);
 }
+/* 省电 / 老设备：模糊再降一档，动效基本关掉。hx-theme.js 会按设备能力自动挂 .hx-lite。 */
+html.hx-lite.hx-bg body::before { filter: blur(10px) saturate(115%); }
+html.hx-lite[data-hx-mode="dark"].hx-bg body::before { filter: blur(10px) brightness(.75) saturate(.85); }
+/* 老设备上一律不做实时背景模糊（顶栏、底栏、弹层都算）。背景图已经糊过，去掉之后几乎看不出差别，
+   但省掉的是每一次滚动都要重算的高斯模糊。顶栏改实色兜底，不然内容会从底下透上来。 */
+html.hx-lite, html.hx-lite * { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+html.hx-lite dialog::backdrop { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+html.hx-lite { --bar: rgb(251 251 253 / .95); }
+html.hx-lite[data-hx-mode="dark"] { --bar: rgb(22 22 23 / .95); }
+/* 打开工具后首页整个不参与绘制（原来只是 visibility:hidden，合成层其实还挂着） */
+html.hx-lite body.tool #home { content-visibility: hidden; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }

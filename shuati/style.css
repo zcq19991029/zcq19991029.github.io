@@ -30,12 +30,13 @@ a { color: var(--acc); }
 main { width: min(760px, 100%); margin: 0 auto; padding: 18px 16px calc(120px + var(--safe)); }
 .view { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
 .glow, .panel { position: relative; border-radius: var(--r); background: var(--card); box-shadow: 0 2px 12px var(--fill); }
-html.hx-bg .glow, html.hx-bg .panel { -webkit-backdrop-filter: blur(24px) saturate(160%); backdrop-filter: blur(24px) saturate(160%); }
-/* 有背景图时才用「有层次的玻璃」：模糊＋增色＋叠白＋方向性亮边＋折射高光（hx-theme.css 里的 --glass-*）。
-   没有背景图时保持原来的纯色卡片，别把干净的白卡做成半透明反而脏。 */
+/* 有背景图时才用「有层次的玻璃」：叠白＋方向性亮边＋折射高光（hx-theme.css 里的 --glass-*）。
+   没有背景图时保持原来的纯色卡片，别把干净的白卡做成半透明反而脏。
+   2026-11-02：这里不再 backdrop-filter。背景图已经在 body::before 统一糊过一次，
+   原来每张题卡各 blur 24px，一屏五六张就是五六层实时模糊，希沃一体机上直接把渲染进程干崩
+   （浏览器弹「重新加载站点」）。叠半透明层＋亮边，视觉一样是磨砂玻璃，成本降到 0。 */
 html.hx-bg .glow, html.hx-bg .panel {
   background: var(--glass-wash);
-  -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
   box-shadow: var(--glass-drop);
 }
 /* 深色下背景图会很亮，玻璃必须压一层暗底，否则白字飘在亮背景上读不了 */

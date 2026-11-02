@@ -53,6 +53,23 @@
   function isDev() { return ls(DEV) === '1'; } // 总入口查到 hx_me().dev 后记下（见 setDev），各工具打开时据此决定能不能用专属背景
   function setDev(on) { if (isDev() === !!on) return; ls(DEV, on ? '1' : null); apply(); }
   function modeOf(s) { return s.mode === 'auto' ? (dark && dark.matches ? 'dark' : 'light') : s.mode; }
+  // ── 省电模式（hx-lite）─────────────────────────────────────────────────────
+  // 2026-11-02：教室里的希沃一体机点工具会弹「重新加载站点」。查下来是渲染进程崩了：
+  // 首页十几张卡 + 刷题一屏五六张卡，每张各自 backdrop-filter: blur(26px)，外加背景图，
+  // 一体机的 GPU 撑不住。现在背景图已改成统一糊一次（见 hx-theme.css），这里再把老设备上的
+  // 其余实时模糊全关掉兜底。判据故意宽一点：误判的代价只是少一层模糊（视觉几乎没差），
+  // 不误判的代价是整页崩掉。也可以手动加 ?lite / ?full 覆盖，调试用。
+  function liteOn() {
+    var q = location.search;
+    if (/[?&]full\b/.test(q)) return false;
+    if (/[?&]lite\b/.test(q)) return true;
+    try { if (ls('hx-lite') === '1') return true; if (ls('hx-lite') === '0') return false; } catch (e) { }
+    var ua = navigator.userAgent || '';
+    if (/seewo|hisense|cvte|amlogic|rk3\d{3}|allwinner/i.test(ua)) return true; // 一体机 / 会议大屏 / 国产盒子主板
+    var hc = navigator.hardwareConcurrency || 8, dm = navigator.deviceMemory || 8;
+    return hc <= 4 || dm <= 4;
+  }
+  try { document.documentElement.classList.toggle('hx-lite', liteOn()); } catch (e) { }
   function apply() {
     var s = get(), m = modeOf(s), a = ACC[s.acc], r = document.documentElement, b = BG[s.bg];
     var c = m === 'dark' ? a.d : a.l, c2 = m === 'dark' ? a.d2 : a.l2;
