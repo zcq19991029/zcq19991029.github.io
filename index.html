@@ -288,8 +288,10 @@ var SITE = location.protocol === 'file:' ? 'https://zcq19991029.github.io' : '';
 // 首页卡片：who all 登录的人都有、teacher 只有教师看得到（没登录的什么工具都不显示）；c 是图标的两种颜色（像手机桌面图标，每个工具固定）
 var GROUPS = [['学习', ['wiring', 'quiz', 'base', 'mcu', 'exam']], ['教学', ['paike', 'jiafen', 'course']], ['维护', ['feedback']]]; // 首页按使用场景分组
 var TOOLS = [
-  { id: 'wiring', name: '接线仿真', url: SITE + '/wiring-lab/', who: 'all', open: true, c: ['#ffb340', '#ff7a00'], icon: '<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>' },
-  { id: 'quiz', name: '刷题', url: SITE + '/shuati/', who: 'all', open: true, c: ['#5ad16f', '#24a148'], icon: '<rect x="4.5" y="3" width="15" height="18" rx="3.5"/><path d="M8.5 12l2.5 2.5 4.5-5"/>' },
+  // 2026-11-02：注册已彻底修好（删掉了 auth.users 上的废弃触发器），临时免登录口子按用户要求收回 ——
+  // 「没账号不允许使用任何工具」。全站不再有 open:true 的工具。
+  { id: 'wiring', name: '接线仿真', url: SITE + '/wiring-lab/', who: 'all', c: ['#ffb340', '#ff7a00'], icon: '<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>' },
+  { id: 'quiz', name: '刷题', url: SITE + '/shuati/', who: 'all', c: ['#5ad16f', '#24a148'], icon: '<rect x="4.5" y="3" width="15" height="18" rx="3.5"/><path d="M8.5 12l2.5 2.5 4.5-5"/>' },
   { id: 'base', name: '进制转换', url: SITE + '/base/', who: 'all', c: ['#3ad6c6', '#00b3a4'], icon: '<path d="M4 8h14l-3.5-3.5M20 16H6l3.5 3.5"/>' },
   { id: 'mcu', name: '单片机上机', url: SITE + '/mcu/', who: 'all', c: ['#5ac8fa', '#0a84ff'], icon: '<rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/>' },
   { id: 'exam', name: '考试', url: SITE + '/exam/', who: 'all', c: ['#7d7aff', '#5e5ce6'], icon: '<path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h4"/>' },
@@ -405,10 +407,9 @@ var frames = {};
 function isTeacher() { return !!(ST.me && (ST.me.teacher || ST.me.admin || ST.me.dev)); }
 function isDev() { return !!(ST.me && ST.me.dev); }
 function locked() { return HX.in() && role() === '未开通'; } // 登录了没开通（GitHub 新账号等）：什么工具都不给，只能填邀请码
-function can(t) { // who：all 登录的人都有、teacher 教师、dev 只有开发者；open 是免登录的公共工具
-  // open 的工具（接线仿真、刷题）：不用登录、也不用开通，谁都能直接用。
-  // 2026-11-01 用户定：注册出问题时先把这两个解锁，保证教室上课能用；注册修好以后再恢复封锁。
-  if (t.open) return true;
+function can(t) { // who：all 登录的人都有、teacher 教师、dev 只有开发者
+  // 2026-11-02 用户定：「没账号不允许使用任何工具」。注册已经彻底修好（删掉了 auth.users 上的废弃触发器），
+  // 所以 2026-11-01 那个「注册坏了先解锁接线仿真和刷题」的 open 后门已经拆掉，这里不再有免登录分支。
   if (!HX.in() || locked()) return false;
   if (t.who === 'dev') return isDev();
   if (t.who === 'teacher') return isTeacher();
