@@ -610,6 +610,21 @@ function tip(on, name) { // 弱网下工具包要几秒才下完，先给个「�
   if (on) el.querySelector('b').textContent = '正在加载 · ' + (name || '');
   el.classList.toggle('on', !!on);
 }
+// 2026-11-02：让不在前台的工具页真正停下来。
+// display:none 只是不画，iframe 里的 JS、定时器、requestAnimationFrame 照跑——接线仿真的画布循环
+// 60fps 一直画下去，学生切到刷题后它还在后台抢 GPU，机器就发热、卡顿。这里主动给离开的页面发
+// hx:'visible' false，让它自己停循环；回来的发 true 接着画。
+// 为什么用 postMessage 而不是直接写 contentWindow.__hidden：工具页可能和外壳不同源（刷题等子站），
+// 跨源直接赋值会抛错；postMessage 加 origin 校验是唯一稳妥的路子，而且工具页那边本来就有消息监听的习惯。
+function pauseAll(active) {
+  for (var k in frames) {
+    try { frames[k].contentWindow.postMessage({ hx: 'visible', on: k === active }, location.origin); } catch (e) { }
+  }
+}
+// 页面切到后台（换标签、最小化、锁屏）也要停：教室里白板常常一放就是半节课
+document.addEventListener('visibilitychange', function () {
+  if (document.hidden) pauseAll(null); else pauseAll(ST.tab);
+});
 function show(id, how) { // how：不写 = 新开一页（进浏览器历史，左上角和手机返回能退回来）；'replace' 原地换；'pop' 是浏览器后退来的
   var t = TOOLS.filter(function (x) { return x.id === id; })[0];
   if (t && !can(t)) t = null;
@@ -620,6 +635,7 @@ function show(id, how) { // how：不写 = 新开一页（进浏览器历史，�
   tip(false);
   if (t) { var fr = mount(t); if (!fr.dataset.ready) tip(true, t.name); }
   for (var k in frames) frames[k].classList.toggle('on', !!t && k === t.id);
+  pauseAll(t ? t.id : null); // 2026-11-02：切走的工具页要真正停下来，见 pauseAll
   document.body.classList.toggle('zen', !!t && !!zen[t.id]);
   document.body.classList.toggle('hxfull', !!t && !!full[t.id]);
   document.body.classList.toggle('tool', !!t);
