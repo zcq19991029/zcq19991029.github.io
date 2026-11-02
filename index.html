@@ -309,10 +309,14 @@ var HX = (function () {
   var ZH = [[/Invalid login credentials/i, '账号或密码不对'], [/Email not confirmed/i, '邮箱还没确认'], [/rate limit|too many/i, '操作太频繁，请过一会儿再试'], [/JWT expired|invalid JWT/i, '登录过期了，请重新登录'],
     [/permission denied/i, '没有权限'], [/different from the old password/i, '和现在的密码一样'], [/at least 6/i, '密码至少 6 位'],
     // 「账号已存在」不要说成一句死胡同：告诉学生下一步该干什么（切到登录、用学号+原密码）。
-    [/duplicate key|already exists/i, '这个学号已经注册过账号了。请切到「登录」，用学号和你当时设的密码登录；忘了密码找老师重置。'],
+    // 「duplicate key」是数据库唯一约束冲突，不等于「这个学号已经注册过」。
+    // 2026-11-01 全班注册不了就是因为它：teacher_profiles 的 employee_no 撞了唯一约束，
+    // 被这条说成「已经注册过账号了」，学生照着提示去登录又登不进，彻底卡死。
+    // 所以这里不替数据库下结论：说清是服务器拒绝，并把原文带出来（第三个 true = 附原文）给老师看。
+    [/duplicate key|already exists/i, '注册没成功：服务器拒绝了这次写入（唯一约束冲突）。请再点一次；还是不行就把这句原文发给老师：', true],
     [/Identity is already linked/i, '这个 GitHub 已经绑定了别的账号'],
     [/already registered|user_already_exists/i, '这个学号已经注册过账号了。请切到「登录」，用学号和你当时设的密码登录；忘了密码找老师重置。']];
-  function zh(m) { m = String(m || ''); for (var i = 0; i < ZH.length; i++) if (ZH[i][0].test(m)) return ZH[i][1]; return m; }
+  function zh(m) { m = String(m || ''); for (var i = 0; i < ZH.length; i++) if (ZH[i][0].test(m)) return ZH[i][1] + (ZH[i][2] ? '（' + m + '）' : ''); return m; }
   async function api(path, o) {
     o = o || {}; var auth = o.auth !== false;
     if (auth) await fresh();

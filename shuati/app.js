@@ -308,7 +308,9 @@ function renderCard() {
     fb = `<div class="fb ${ok ? 'ok' : 'bad'}"><b>${self ? (ok ? '答对了' : '没答对') : ok ? '回答正确' : '答案是 ' + esc(ans)}</b>${self ? ref() : ''}${q.type === 'fill' && !ok && typed.length ? '<div class="ai"><button class="btn sm ghost" type="button" id="ovBtn">意思对，算我对</button></div>' : ''}</div>`;
   } else if (picked) {
     const ok = isRight(q, picked), ans = q.type === 'judgment' ? (q.answer[0] === 'T' ? '正确' : '错误') : q.answer.join('');
-    const aiPart = !ai ? (getSettings().apiKey && !hasExt() ? '<button class="btn sm ghost" type="button" id="aiBtn">✦ AI 逐项解析</button>' : '')
+    // 只要网页里配了自己的 Key 就给「✦ AI 逐项解析」。以前装了扩展就把这个按钮藏掉（怕和扩展的「学会这题」重复），
+    // 结果是用户明明填了 Key 却找不到按钮 —— 扩展归扩展，网页归网页，两个都给，用户自己挑。
+    const aiPart = !ai ? (getSettings().apiKey ? '<button class="btn sm ghost" type="button" id="aiBtn">✦ AI 逐项解析</button>' : '')
       : ai.state === 'load' ? '<span>AI 正在解析…</span>'
       : ai.state === 'err' ? `<span style="color:var(--bad)">${esc(ai.msg)}</span><button class="btn sm ghost" type="button" id="aiBtn">重试</button>`
       : (ai.data._tip ? `<div class="tip">速记：${esc(ai.data._tip)}</div>` : '') + (ai.data._review && !/^一致/.test(ai.data._review) ? `<div class="tip">题库复核：${esc(ai.data._review)}</div>` : '');
@@ -567,7 +569,7 @@ function renderSettings() {
   const s = getSettings(), p = providers[s.provider], models = [...new Set([...(s.models || []), ...p.models])];
   $('v-settings').innerHTML = `
     <div class="panel"><h3>AI 解析</h3>${hasExt()
-      ? '<p class="extok">已装“夜夜题库AI伴侣”：讲题直接点题干下的“✦ 学会这题”，用的是扩展里的 Key，这里可以不填。只有问 AI、导入资料、AI 出题才用这里的 Key。</p>'
+      ? '<p class="extok">已装“夜夜题库AI伴侣”：题干下的“✦ 学会这题”用的是扩展里的 Key，这里不填也能讲题。<b>这里填了自己的 Key 之后，题目下还会多出一个网页自己的“✦ AI 逐项解析”</b>，两个都能点，随便用哪个。</p>'
       : '<p class="muted" style="margin-top:0">填自己的 AI Key 后，答题后能逐项解析，也能识别资料、根据资料出题。请求直接从浏览器发给服务商。</p>'}
       <div class="f">
         <label for="prov">服务商</label><select id="prov">${Object.entries(providers).map(([k, v]) => `<option value="${k}" ${k === s.provider ? 'selected' : ''}>${esc(v.label)}</option>`).join('')}</select>
@@ -842,7 +844,7 @@ const guide = () => `<h4>刷题</h4><ul>
   <li>设置 AI：点浏览器右上角的扩展图标 →“设置”，填自己的硅基流动 API Key（在 cloud.siliconflow.cn 注册后创建），点“读取模型”选一个对话模型，保存，再点“测试”。</li>
   <li>调用：打开本刷题页，每道题题干后面出现“✦ 学会这题”，点它在右侧打开零基础讲解，可以继续追问。答完再点，讲解会对照标准答案。</li>
   <li>扩展更新后，在扩展页点“重新加载”，再刷新本页。</li></ol>
-<p>网页和扩展的 Key 各存各的，互不影响。装了扩展只想让 AI 讲题，网页这里不用填；装了扩展时题目下只留扩展的“✦ 学会这题”。</p>`;
+<p>网页和扩展的 Key 各存各的，互不影响。装了扩展不填网页 Key 也能用扩展讲题；<b>在这里也填一份，题目下就会同时有扩展的“✦ 学会这题”和网页的“✦ AI 逐项解析”</b>，点哪个都行。</p>`;
 
 // ---------- 启动 ----------
 // 登录了但没开通（GitHub 新账号等，身份“未开通”）：整页挡住，只引导去首页填邀请码；没登录的照样能刷
