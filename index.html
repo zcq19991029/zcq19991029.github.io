@@ -111,7 +111,7 @@
      所以只取「看得见的形」：一圈倾斜的轨道环 + 环上一颗光点 + 卡片底部内侧的品牌色光晕（已并进上面 .tile::after），
      全部用 transform / box-shadow 做，而且**默认停着不动，只有鼠标移上去那一张才转**——静止时零开销。 */
   .tile .ic { position: relative; width: 58px; height: 58px; border-radius: 15px; display: grid; place-items: center; color: #fff; background: linear-gradient(160deg, var(--c1), var(--c2)); box-shadow: 0 8px 20px -10px var(--c2), 0 0 26px -8px color-mix(in srgb, var(--c2) 52%, transparent); }
-  .tile .ic svg { width: 30px; height: 30px; stroke-width: 1.9; }
+  .tile .ic svg { position: relative; z-index: 2; width: 30px; height: 30px; stroke-width: 1.9; }
   .tile .ic::before, .tile .ic::after { content: ""; position: absolute; left: 50%; top: 50%; width: 88px; height: 88px; margin: -44px 0 0 -44px; border-radius: 50%; pointer-events: none; }
   .tile .ic::before { /* 轨道环：静态，只画一次 */
     border: 1px solid color-mix(in srgb, var(--c2) 58%, transparent); transform: rotateX(66deg);
@@ -127,13 +127,39 @@
   /* 希沃 / 低配（hx-lite）：触屏的 :hover 会粘住不松，别让轨道一直转。
      轨道环和光晕都是静态的，留着，只停旋转动画。 */
   html.hx-lite .tile .ic::after { animation: none !important; }
+  /* ── 八大行星：中心图标当太阳 ──
+     三圈轨道（内 2 / 中 3 / 外 3），每颗行星是一条 0×0 的旋转臂 + 臂尖一个圆点，纯 transform。
+     **只在鼠标 / 触控板 + 非 hx-lite 上显示**；触屏、希沃、prefers-reduced-motion 一律 display:none，
+     退回上面的单环——教室一体机上不会多出 100 多个动画元素（和「不做 canvas 粒子场」是同一条理由）。
+     默认 animation-play-state: paused，鼠标移到这张卡才 running，静止时零开销。 */
+  .tile .sys { position: absolute; left: 50%; top: 50%; width: 94px; height: 94px; margin: -47px 0 0 -47px;
+    z-index: 0; pointer-events: none; display: none;
+    background:
+      radial-gradient(circle at 50% 50%, transparent 0 27.4px, rgba(128, 128, 128, .24) 28px 28.6px, transparent 29px),
+      radial-gradient(circle at 50% 50%, transparent 0 35.4px, rgba(128, 128, 128, .21) 36px 36.6px, transparent 37px),
+      radial-gradient(circle at 50% 50%, transparent 0 43.4px, rgba(128, 128, 128, .18) 44px 44.6px, transparent 45px); }
+  .tile .sys::before { /* 太阳光冕：从图标边缘透出来的一圈暖光 */
+    content: ""; position: absolute; left: 50%; top: 50%; width: 78px; height: 78px; margin: -39px 0 0 -39px; border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(255, 205, 120, .34), rgba(255, 176, 74, .12) 60%, transparent 78%); }
+  .tile .sys i { position: absolute; left: 50%; top: 50%; width: 0; height: 0;
+    transform: rotate(var(--a)); animation: hx-orb var(--d) linear infinite; animation-play-state: paused; }
+  .tile .sys i::before { content: ""; position: absolute; width: var(--s); height: var(--s); margin: calc(var(--s) / -2); border-radius: 50%;
+    background: var(--p); box-shadow: 0 0 calc(var(--s) * 1.8) var(--p); transform: translateX(var(--r)); }
+  @keyframes hx-orb { from { transform: rotate(var(--a)); } to { transform: rotate(calc(var(--a) + 360deg)); } }
+  @media (hover: hover) and (pointer: fine) {
+    html:not(.hx-lite) .tile .sys { display: block; }
+    /* 行星系统上场时单环和光点让位，别两套叠在一起 */
+    html:not(.hx-lite) .tile .ic::before, html:not(.hx-lite) .tile .ic::after { display: none; }
+    html:not(.hx-lite) .tile:hover .sys i, html:not(.hx-lite) .tile:focus-visible .sys i { animation-play-state: running; }
+  }
+  @media (prefers-reduced-motion: reduce) { .tile .sys { display: none !important; } }
   .tile b { font-size: 21px; font-weight: 600; letter-spacing: -.01em; margin-top: auto; }
   /* 有背景图：走玻璃文件夹分支——后片换成「深色底 + 品牌渐变」（照片位，深色有对比，背景图从半透明底透出，
      透明度跟着用户选的 --hx-a 走），舌片显示，文字转白系保证可读 */
   html.hx-bg .tile { --fld-bg: linear-gradient(180deg, rgba(255, 255, 255, .18) 0%, rgba(255, 255, 255, .06) 30%, rgba(255, 255, 255, .02) 55%, rgba(8, 10, 16, .16) 100%);
     --fld-edge: rgba(255, 255, 255, .20); --fld-lip: var(--glass-top); --fld-sheen: rgba(255, 255, 255, .5);
     --fld-tab: linear-gradient(180deg, color-mix(in srgb, var(--c1) 40%, rgb(22 26 32 / calc(var(--hx-a, 1) * .5))), color-mix(in srgb, var(--c1) 26%, rgb(22 26 32 / calc(var(--hx-a, 1) * .5))));
-    background-color: rgb(12 14 18 / calc(var(--hx-a, 1) * .68));
+    background-color: rgb(12 14 18 / calc(var(--hx-a, 1) * .50));
     background-image: linear-gradient(150deg, color-mix(in srgb, var(--c1) 26%, transparent), transparent 70%);
     box-shadow: var(--glass-drop), 0 0 0 .6px var(--fld-edge) inset; }
   /* 2026-11-02：卡片不再各自 backdrop-filter。背景图已经在 body::before 统一糊过，
@@ -141,12 +167,12 @@
      希沃一体机的 GPU 撑不住，点工具时直接崩渲染进程，浏览器弹「重新加载站点」。 */
   html.hx-bg .tile::before { display: block; }
   /* 背景图分支下文字转白（后片是深色底，原来的深灰字会读不了） */
-  html.hx-bg .tile b { color: #fff; }
-  html.hx-bg .tile .sum { color: rgba(255, 255, 255, .72); }
+  html.hx-bg .tile b { color: #fff; text-shadow: 0 1px 3px rgba(0, 0, 0, .55); }
+  html.hx-bg .tile .sum { color: rgba(255, 255, 255, .78); text-shadow: 0 1px 3px rgba(0, 0, 0, .5); }
   html.hx-bg .tile:hover { transform: scale(1.02); box-shadow: var(--glass-drop), 0 0 0 1px var(--edge) inset; }
   /* 深色 + 背景图：后片压更暗，保证白字完全可读 */
   html[data-hx-mode="dark"].hx-bg .tile { --fld-bg: linear-gradient(180deg, rgba(255, 255, 255, .10) 0%, rgba(255, 255, 255, .03) 55%, rgba(8, 10, 16, .20) 100%); --fld-edge: rgba(255, 255, 255, .14);
-    background-color: rgba(10, 10, 12, .58); background-image: linear-gradient(150deg, color-mix(in srgb, var(--c1) 20%, transparent), transparent 70%); }
+    background-color: rgba(10, 10, 12, .42); background-image: linear-gradient(150deg, color-mix(in srgb, var(--c1) 20%, transparent), transparent 70%); }
   /* 无背景图（深色模式白卡）：前片的亮边换成白系，不然看不见 */
   html[data-hx-mode="dark"]:not(.hx-bg) .tile { --fld-bg: rgba(255, 255, 255, .028); --fld-edge: rgba(255, 255, 255, .07); --fld-lip: rgba(255, 255, 255, .16); }
   /* 当前打开的工具（横条提示）：恢复它自己的底色和描边，不做文件夹造型 */
@@ -258,6 +284,7 @@
     .tiles { grid-template-columns: repeat(2, 1fr); gap: 12px; } .tile { min-height: 148px; padding: 20px 18px 18px; border-radius: 26px; gap: 14px; } .tile b { font-size: 18px; } .tile .ic { width: 50px; height: 50px; border-radius: 13px; } .tile .ic svg { width: 26px; height: 26px; } .tile .go { display: none; }
     /* 窄屏两列、卡片只有 18px 内边距：轨道环同步收小，免得压到隔壁卡片 */
     .tile .ic::before, .tile .ic::after { width: 72px; height: 72px; margin: -36px 0 0 -36px; }
+    .tile .sys { transform: scale(.86); } /* 行星系统整体缩（轨道半径是行内变量，只能缩容器） */
     .tile::after { left: 5px; right: 5px; top: 48%; border-radius: 13px 13px 24px 24px; -webkit-mask: radial-gradient(12px 8px at 72% 0, transparent 97%, #000); mask: radial-gradient(12px 8px at 72% 0, transparent 97%, #000); }
     .tile::before { left: 10px; width: 52px; height: 11px; }
     .pop { top: auto; bottom: 0; left: 0; right: 0; width: auto; max-height: 86vh; border-radius: 26px 26px 0 0; padding: 22px 20px calc(22px + env(safe-area-inset-bottom, 0px)); transform: translateY(100%); transform-origin: bottom; }
@@ -450,6 +477,25 @@ var HX = (function () {
 function $(id) { return document.getElementById(id); }
 function esc(t) { return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
 function svg(d, cls) { return '<svg class="i' + (cls ? ' ' + cls : '') + '" viewBox="0 0 24 24">' + d + '</svg>'; }
+
+// 首页工具卡上的「八大行星」：中心图标当太阳，三圈轨道（内 2 / 中 3 / 外 3）。
+// 只在「鼠标 / 触控板 + 非省电设备」上渲染（显示条件在 CSS），触屏和希沃整段 display:none，
+// 所以教室一体机不会多出 100 多个动画元素。--r 轨道半径、--d 周期、--a 初始相位、--s 直径、--p 颜色。
+var PLANETS = [
+  { r: 28, d: 7, a: 0, s: 3.4, p: '#b9b3ab' },    // 水星
+  { r: 28, d: 7.9, a: 180, s: 3.8, p: '#e6c27e' },  // 金星
+  { r: 36, d: 11, a: 40, s: 4.0, p: '#6fa8dc' },   // 地球
+  { r: 36, d: 12.6, a: 160, s: 3.6, p: '#d0715a' }, // 火星
+  { r: 36, d: 14, a: 280, s: 4.6, p: '#d8b48a' },  // 木星
+  { r: 44, d: 18, a: 20, s: 4.2, p: '#e2ca8c' },   // 土星
+  { r: 44, d: 20.5, a: 140, s: 3.8, p: '#8fd3de' }, // 天王星
+  { r: 44, d: 23, a: 260, s: 3.8, p: '#6a8ee8' }   // 海王星
+];
+function planets() {
+  return '<span class="sys" aria-hidden="true">' + PLANETS.map(function (p) {
+    return '<i style="--r:' + p.r + 'px;--d:' + p.d + 's;--a:' + p.a + 'deg;--s:' + p.s + 'px;--p:' + p.p + '"></i>';
+  }).join('') + '</span>';
+}
 var ST = { me: null, user: null, tab: null, lm: 'in', reg: null, actFor: null, uname: null, edit: null, classes: null, open: null, studs: {}, rosters: null, newCode: null };
 var frames = {};
 function isTeacher() { return !!(ST.me && (ST.me.teacher || ST.me.admin || ST.me.dev)); }
@@ -578,7 +624,7 @@ function render() {
     G.map(function (g) { // 只有一组又没有“管理”时不加小标题
       return (G.length > 1 || mgList().length ? '<div class="sec"><h2>' + g.name + '</h2></div>' : '') + '<div class="tiles">' + g.list.map(function (t) {
         return '<button class="tile" type="button" data-id="' + t.id + '" style="--c1:' + t.c[0] + ';--c2:' + t.c[1] + ';animation-delay:' + (n++ * 50) + 'ms">' +
-          '<span class="ic">' + svg(t.icon) + '</span><b>' + t.name + '</b>' + go + '</button>';
+          '<span class="ic">' + planets() + svg(t.icon) + '</span><b>' + t.name + '</b>' + go + '</button>';
       }).join('') + '</div>';
     }).join('');
   $('tiles').querySelectorAll('.tile[data-id]').forEach(function (b) {
