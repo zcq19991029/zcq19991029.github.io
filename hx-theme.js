@@ -16,6 +16,7 @@
   // 推荐背景：旧站的猫耳学习图（dev：开发者专属，只有开发者账号看得到、用得上）+ 几张渐变（不占流量）；op 是选它时的推荐透明度
   var BG = {
     none: { name: '无' },
+    bear: { name: '小熊', img: 'bg/bear.jpg', op: 72 }, // 全站默认背景：不设 dev，教师、学生、外人都能选、默认就是它
     cat: { name: '猫耳学习', img: 'bg/cat-study.jpg', op: 70, dev: true },
     mist: { name: '晨雾', op: 72, css: 'radial-gradient(60% 50% at 15% 10%, #ffd6e7 0, transparent 70%), radial-gradient(55% 55% at 90% 20%, #cfe3ff 0, transparent 70%), radial-gradient(60% 60% at 50% 100%, #d9f5e5 0, transparent 70%), #f5f5f7' },
     bay: { name: '海湾', op: 70, css: 'radial-gradient(70% 60% at 0% 0%, #a8e6ff 0, transparent 65%), radial-gradient(60% 70% at 100% 30%, #8fb8ff 0, transparent 70%), radial-gradient(70% 60% at 40% 110%, #b6f0d8 0, transparent 70%), #eef6fb' },
@@ -23,7 +24,9 @@
     aurora: { name: '极光', op: 62, css: 'radial-gradient(60% 50% at 20% 20%, #1f6f5c 0, transparent 70%), radial-gradient(55% 60% at 85% 30%, #3b2f8f 0, transparent 70%), radial-gradient(70% 60% at 50% 110%, #0f4f7a 0, transparent 70%), #05070d' },
     custom: { name: '自己的图', op: 70 }
   };
-  var KEY = 'hx-theme', IMG = 'hx-theme-img', DEV = 'hx-dev', DEF = { acc: 'green', mode: 'auto', bg: 'none', op: 90 };
+  var KEY = 'hx-theme', IMG = 'hx-theme-img', DEV = 'hx-dev', VER = 2, DEF = { acc: 'green', mode: 'auto', bg: 'bear', op: 90 };
+  // VER：外观配置版本。加了全局默认背景后，老存档里没有 ver 字段 = 还没主动挑过背景，
+  // 补成新默认（小熊）；自己上传过图的（custom）与显式选过「无」的不覆盖。
   var OLD = { day: { acc: 'blue', mode: 'light' }, sea: { acc: 'green', mode: 'light' }, sakura: { acc: 'pink', mode: 'light' }, night: { acc: 'purple', mode: 'dark' }, forest: { acc: 'green', mode: 'dark' }, mist: { acc: 'mono', mode: 'dark' } };
   var me = document.currentScript, root = me ? new URL('.', me.src).href : location.origin + '/';
   var tool = me && me.getAttribute('data-tool'), subs = [], dark = window.matchMedia ? matchMedia('(prefers-color-scheme: dark)') : null;
@@ -39,6 +42,9 @@
     var raw = ls(KEY), v = null;
     if (raw && OLD[raw]) v = OLD[raw]; else try { v = JSON.parse(raw); } catch (e) { }
     v = v && typeof v === 'object' ? v : {};
+    // 老存档（没有 ver）＝ 上这一版之前就存过外观的。统一换成新默认（小熊），做到「全体人员默认」；
+    // 只有自己上传过图的例外——那是明确主动的行为，别覆盖掉。想关掉背景在外观面板点「无」即可。
+    if (raw && !v.ver && v.bg !== 'custom') v.bg = DEF.bg;
     var s = { acc: ACC[v.acc] ? v.acc : DEF.acc, mode: /^(light|dark|auto)$/.test(v.mode) ? v.mode : DEF.mode, bg: BG[v.bg] ? v.bg : DEF.bg, op: Math.min(100, Math.max(15, +v.op || DEF.op)) };
     if (s.bg === 'custom' && !ls(IMG)) s.bg = 'none';
     if (BG[s.bg].dev && !isDev()) s.bg = 'none'; // 开发者专属背景：别的账号（或没登录）回落到无背景
@@ -64,6 +70,7 @@
   function set(patch) {
     var s = get(); for (var k in patch) s[k] = patch[k];
     if (patch.bg && patch.op === undefined && BG[patch.bg].op) s.op = BG[patch.bg].op; // 换背景时用推荐透明度
+    s.ver = VER; // 记下版本：以后再加默认值就不会把用户已选过的背景顶掉
     ls(KEY, JSON.stringify(s)); apply();
   }
   // 自己上传的图：缩到长边 1920、转 JPEG，免得撑爆浏览器存储（旧站是原图、限 3MB）

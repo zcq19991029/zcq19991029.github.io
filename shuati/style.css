@@ -106,7 +106,12 @@ html[data-hx-mode="light"].hx-bg .seg button[aria-pressed="true"] { background: 
 .opt { display: flex; align-items: flex-start; gap: 12px; width: 100%; min-height: 54px; padding: 14px 16px; text-align: left; border-radius: 14px; border: 1.5px solid transparent; background: var(--fill); line-height: 1.5; transition: border-color .2s, background .2s, transform .15s var(--hx-ease); }
 .opt i { flex: none; width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; font-style: normal; font-weight: 600; font-size: 14px; background: var(--card-solid); color: var(--dim); box-shadow: 0 0 0 1px var(--line2); }
 .opt span { padding-top: 1px; }
-.opt:not(:disabled):hover { background: var(--hov); border-color: var(--line2); }
+/* 鼠标划过才有反馈；触屏不要 hover——手指滚动页面时只要无意划过某个选项，
+   那个选项就会永久停在 hover 状态（手机浏览器不会自动取消 hover），
+   看上去就是「没点它，一会儿却高亮起来」，像在暗示答案。只在真有鼠标的设备上开。 */
+@media (hover: hover) and (pointer: fine) {
+  .opt:not(:disabled):hover { background: var(--hov); border-color: var(--line2); }
+}
 .opt:not(:disabled):active { transform: scale(.985); }
 .opt.sel { border-color: var(--acc); background: var(--accbg, var(--fill)); }
 .opt.sel i { background: var(--acc); color: var(--on-acc, #fff); box-shadow: none; }

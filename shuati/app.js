@@ -31,6 +31,18 @@ const optText = o => o.text || (o.fig ? `［图：${figName(o.fig)}］` : ''); /
 const figText = q => q.fig ? `\n［图：${figName(q.fig)}］` : '';
 const typeName = t => (TYPES.find(x => x[0] === t) || [, t])[1];
 const shuffle = a => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+// 选项展示顺序：内置题库都是「答案总落在同一个位置」（电气接线原理 370 题里 213 题答案在 B，占 58%），
+// 同学不用看题、只数位置就能蒙对，等于白刷。所以显示时把选项打乱——题库本身不动（答案仍记在 key 上），
+// 判分照旧比 key，只是位置变了。用题目 id 做种子，同一道题每次打开顺序固定，不会一刷新就变来变去。
+const seedOf = s => { let h = 2166136261; for (let i = 0; i < String(s).length; i++) { h ^= String(s).charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
+function showOpts(q) { // 判断题（✓/✗）不打乱，两个选项本来就是固定的
+  const o = q.options || [];
+  if (!o.length || q.type === 'judgment' || o.length < 2) return o;
+  let s = seedOf(q.id) || 1;
+  const a = [...o];
+  for (let i = a.length - 1; i > 0; i--) { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; const j = s % (i + 1); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
 const sameSet = (a, b) => a.length === b.length && a.every(x => b.includes(x));
 const norm = t => String(t || '').replace(/[\s（）()，,。.、:：；;“”"'？?！!]/g, '').toLowerCase();
 // 填空的可接受写法：答案本身、括号前的部分、括号里“或”列出的写法，如“83（或 0x83、83H）”
@@ -273,12 +285,15 @@ function renderCard() {
     return;
   }
   const picked = S.picked[q.id], r = rec(q.id), ai = S.ai[q.id];
-  const opts = (q.options || []).map(o => {
+  // 按打乱后的顺序显示，字母标签按“显示位置”重新编（第 1 个就是 A）：这样答案落在哪个字母上不再固定，
+  // 但判分和记录仍用 o.key（题库里的原字母），所以已答记录、排行榜、AI 解析都照旧对得上。
+  const view = showOpts(q), letter = i => 'ABCDEF'[i] || String(i + 1);
+  const opts = view.map((o, i) => {
     let cls = '';
     if (picked) { const inAns = q.answer.includes(o.key), chose = picked.includes(o.key); cls = inAns && chose ? 'right' : chose ? 'wrong' : inAns ? (q.type === 'multiple' ? 'right miss' : 'right') : ''; }
     else if (S.sel.has(o.key)) cls = 'sel';
     const why = ai && ai.data && ai.data[o.key] ? `<small class="why">${esc(ai.data[o.key])}</small>` : '';
-    return `<button type="button" class="opt ${cls}" data-k="${esc(o.key)}" ${picked ? 'disabled' : ''}><i>${q.type === 'judgment' ? (o.key === 'T' ? '✓' : '✗') : esc(o.key)}</i><span>${o.fig ? `<span style="display:block">${figSvg(o.fig)}</span>` : ''}${esc(o.text)}${why}</span></button>`;
+    return `<button type="button" class="opt ${cls}" data-k="${esc(o.key)}" ${picked ? 'disabled' : ''}><i>${q.type === 'judgment' ? (o.key === 'T' ? '✓' : '✗') : letter(i)}</i><span>${o.fig ? `<span style="display:block">${figSvg(o.fig)}</span>` : ''}${esc(o.text)}${why}</span></button>`;
   }).join('');
   const self = SELF.has(q.type), typed = S.typed[q.id] || [];
   let stem = esc(q.stem);
@@ -600,7 +615,12 @@ addEventListener('keydown', e => {
   const picked = S.picked[q.id];
   if (picked && is('know')) return hit(() => fly(-1));
   if (picked && is('again')) return hit(() => fly(1));
-  if (!picked && /^[1-6a-fA-F]$/.test(e.key) && q.options && q.options.length) { const o = /\d/.test(e.key) ? q.options[+e.key - 1] : q.options.find(x => x.key === e.key.toUpperCase()); if (o) return hit(() => pick(o.key)); }
+  // 数字键 = 选屏幕上第几个（和显示顺序一致）；字母键 = 按屏幕上那个字母找（不是题库原字母）
+  if (!picked && /^[1-6a-fA-F]$/.test(e.key) && q.options && q.options.length) {
+    const v = showOpts(q);
+    const o = /\d/.test(e.key) ? v[+e.key - 1] : v['ABCDEF'.indexOf(e.key.toUpperCase())];
+    if (o) return hit(() => pick(o.key));
+  }
   if (!picked && is('submit')) { if (q.type === 'multiple' || q.type === 'fill') return hit(submit); if (SELF.has(q.type) && !S.shown[q.id]) return hit(() => { S.shown[q.id] = true; renderCard(); }); }
   if (is('prev')) return hit(() => go(S.i - 1));
   if (is('next')) return hit(() => go(S.i + 1));
