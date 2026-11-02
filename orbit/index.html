@@ -1,0 +1,1263 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Orbit — Coming Soon</title>
+
+<!--
+  ============================================================================
+  Orbit 概念片 · 32 秒 · 1280×720 · 单文件自包含（HTML/CSS/JS 全内联，无外部资源）
+  ============================================================================
+
+  这是什么
+  --------
+  按用户给的《Orbit 32 秒概念片复刻方案》逐段实现的网页版动效片。
+  9 个模块、总长约 32.1 秒，全部由代码程序化绘制：
+    · 粒子 / 光晕 / 点阵 / 热力图格子 → Canvas（确定性种子随机，可 seek）
+    · 玻璃卡片 / 文字 / 按钮 / 滑块      → DOM（文字锐利、可编辑）
+
+  怎么操作
+  --------
+    空格          播放 / 暂停
+    ← / →         后退 / 前进 1 秒
+    R             从头重播
+    F             全屏
+    H             隐藏 / 显示底部控制条
+    点 / 拖进度条  跳到任意时刻（所有段落状态同步，不是只改数字）
+  打开即自动播放，无音频。
+
+  实现要点（为什么这么写）
+  --------
+    1. 整片没有一处 setTimeout。只有一个 "当前毫秒数"，
+       renderAt(t) 是纯函数：给定 t，算出每一段的透明度/位移/缩放并直接写样式。
+       所以 seek 到任何位置都精准，不会错乱。
+    2. 粒子用 4 个「星座位形」（ambient / heat / orb / emblem）做加权插值，
+       权重随时间连续变化，所以"解构 → 重组"是连续的，不会跳。
+    3. 所有动画只写 transform / opacity / background-color，不触发重排。
+       重复元素（点阵、热力图格子）做「量化等级 + 变更才写」的缓存，
+       稳定后每帧几乎零写入，保证 60fps。
+
+  参数出处（方案文件《Orbit 32 秒概念片》）
+  --------
+    · 配色           #000000 底 / #7FA8FF 电蓝 / #8E7CFF 紫罗兰 / #5CE6FF 青 / 柔和白 / 极淡灰玻璃面
+    · 入场时长       250–450ms            → ENTER = 320ms（UI 入场统一用）
+    · 换字时长       150–250ms            → TEXT  = 190ms
+    · 粒子重组       600–900ms            → REGROUP = 780ms
+    · 弹簧过冲       < 3%                 → springOut() 峰值约 2.8%
+    · bloom 半径     8–18px               → glow() 的 blur 在 10–16px；背景体积雾另算
+    · 发光脉动       每 1.5–2.5s 一次低幅度 → PULSE = 2000ms
+    · 卡宽 46%、条高 34–42px、像素 6–9px、间距 4–6px、orb 70–90px（模块2）
+    · 缓动           全部用 cubic-bezier 风格的三次缓动，无线性
+============================================================================
+-->
+
+<style>
+/* ───────────────────────── 基础舞台 ───────────────────────── */
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#000;overflow:hidden}
+body{
+  font-family:Inter,"SF Pro Display",-apple-system,"Helvetica Neue",Arial,"PingFang SC",sans-serif;
+  color:#EEF3FF;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+  user-select:none;cursor:default;
+}
+:root{
+  --blue:#7FA8FF;   /* 电蓝 */
+  --violet:#8E7CFF; /* 紫罗兰 */
+  --cyan:#5CE6FF;   /* 青 */
+  --ink:#EEF3FF;    /* 柔和白 */
+  --dim:#7C87A3;    /* 灰字 */
+  --spring:cubic-bezier(.16,.84,.3,1);
+}
+#shell{position:fixed;inset:0;display:grid;place-items:center;background:#000}
+/* 1280×720 固定坐标，靠 transform: scale() 等比缩放居中，绝不拉伸 */
+#stage{position:relative;width:1280px;height:720px;overflow:hidden;background:#000;transform-origin:50% 50%}
+#fx{position:absolute;inset:0;width:1280px;height:720px;display:block}
+#ui{position:absolute;inset:0}
+#fade{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none;z-index:60}
+#grain{
+  position:absolute;inset:0;pointer-events:none;opacity:.045;mix-blend-mode:screen;z-index:5;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='.5'/%3E%3C/svg%3E");
+}
+
+.scene{position:absolute;inset:0;visibility:hidden;opacity:0;will-change:opacity}
+.card{position:absolute;border-radius:30px;
+  background:linear-gradient(158deg,rgba(30,36,54,.74) 0%,rgba(12,15,24,.90) 46%,rgba(8,10,16,.94) 100%);
+  border:1px solid rgba(255,255,255,.10);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.13),inset 0 -26px 46px -34px rgba(142,124,255,.55),0 30px 80px -40px #000;
+}
+.card::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  background:radial-gradient(140px 80px at 16% 4%,rgba(255,255,255,.09),transparent 72%)}
+/* 背景体积雾：不是元素发光，是铺在卡片后面的柔光层 */
+.haze{position:absolute;border-radius:50%;filter:blur(46px);pointer-events:none;z-index:-1}
+
+/* ───────────────────────── 模块 2：Level 能量条 ───────────────────────── */
+#s-level .lv-label{position:absolute;left:350px;top:278px;width:540px;height:34px;
+  font-size:24px;font-weight:500;letter-spacing:.02em;text-align:center;color:#E6EDFF}
+#s-level .lv-label span{position:absolute;left:0;right:0;top:0;opacity:0}
+#s-level .lv-bar{position:absolute;left:350px;top:340px;width:540px;height:38px;
+  border-radius:12px;background:rgba(255,255,255,.03);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}
+#s-level .lv-cells{position:absolute;inset:5px;display:flex;align-items:center}
+#s-level .lv-cells i{display:block;width:7px;height:28px;margin-right:5px;border-radius:2px;
+  background:#0d1422;will-change:background-color,opacity}
+#s-level .lv-sub{position:absolute;left:350px;top:404px;width:540px;text-align:center;
+  font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:#68738D}
+#s-level .lv-orb{position:absolute;left:892px;top:321px;width:76px;height:76px;border-radius:22px;
+  border:1px solid rgba(92,230,255,.55);
+  background:radial-gradient(60% 60% at 42% 34%,rgba(142,124,255,.55),rgba(20,24,40,.85) 68%);
+  box-shadow:0 0 14px rgba(92,230,255,.45),inset 0 0 18px rgba(142,124,255,.5);
+  will-change:transform,opacity}
+#s-level .lv-orb i{position:absolute;width:5px;height:5px;border-radius:1px;background:#BFE9FF;
+  box-shadow:0 0 8px rgba(92,230,255,.9);left:50%;top:50%;margin:-2.5px}
+
+/* ───────────────────────── 模块 3：Priority 卡片 ───────────────────────── */
+#s-priority .pr-label{position:absolute;left:410px;top:176px;width:460px;height:34px;
+  font-size:23px;font-weight:500;letter-spacing:.02em;text-align:center;color:#E6EDFF}
+#s-priority .pr-label span{position:absolute;left:0;right:0;top:0;opacity:0}
+#s-priority .pr-card{position:absolute;left:430px;top:232px;width:420px;height:300px;border-radius:28px}
+#s-priority .pr-dots{position:absolute;left:47px;top:62px;width:326px;height:201px}
+#s-priority .pr-dots i{position:absolute;width:5px;height:5px;border-radius:1px;
+  background:#141c30;will-change:background-color}
+#s-priority .pr-scan{position:absolute;left:0;top:0;width:34px;height:34px;border-radius:50%;
+  background:radial-gradient(closest-side,rgba(255,255,255,.9),rgba(127,168,255,.42) 40%,rgba(92,230,255,0) 100%);
+  filter:blur(.6px);will-change:transform,opacity}
+#s-priority .pr-urgent{position:absolute;left:22px;top:20px;font-size:11px;letter-spacing:.18em;
+  text-transform:uppercase;color:#8FB6FF;opacity:0}
+#s-priority .pr-imp{position:absolute;right:-30px;top:50%;transform:translateY(-50%) rotate(90deg);
+  font-size:11px;letter-spacing:.22em;text-transform:uppercase;
+  color:#6C7896;white-space:nowrap;opacity:0}
+
+/* ───────────────────────── 模块 4：语音面板 ───────────────────────── */
+#s-voice .vc-hello{position:absolute;left:348px;top:198px;font-size:20px;font-weight:400;
+  color:#C9D5F3;letter-spacing:.01em}
+#s-voice .vc-card{position:absolute;left:310px;top:240px;width:660px;height:316px;border-radius:30px}
+#s-voice .vc-input{position:absolute;left:32px;top:52px;width:596px;height:132px;border-radius:24px;
+  background:linear-gradient(170deg,rgba(22,27,42,.85),rgba(9,11,18,.9));
+  border:1px solid rgba(255,255,255,.09);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.10),inset 0 -20px 40px -34px rgba(127,168,255,.6)}
+#s-voice .vc-lines{position:absolute;left:28px;top:22px;width:540px;height:34px;font-size:21px;
+  font-weight:400;letter-spacing:.005em}
+#s-voice .vc-lines span{position:absolute;left:0;top:0;opacity:0;white-space:nowrap}
+#s-voice .vc-wave{position:absolute;left:28px;top:92px;width:540px;height:22px}
+#s-voice .vc-wave i{position:absolute;top:50%;width:3px;height:3px;margin:-1.5px 0 0;border-radius:50%;
+  background:#CFE0FF;will-change:transform,opacity}
+#s-voice .vc-mic{position:absolute;left:36px;top:234px;width:56px;height:56px;border-radius:50%;
+  background:radial-gradient(70% 70% at 40% 32%,rgba(127,168,255,.40),rgba(16,20,32,.92) 72%);
+  border:1px solid rgba(151,186,255,.55);
+  box-shadow:0 0 16px rgba(127,168,255,.35),inset 0 1px 0 rgba(255,255,255,.20);
+  will-change:box-shadow,transform}
+#s-voice .vc-mic b{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:12px;height:18px;border-radius:6px;background:#DCE8FF;box-shadow:0 0 6px rgba(200,220,255,.8)}
+#s-voice .vc-mic s{position:absolute;left:50%;top:50%;width:12px;height:12px;border-radius:3px;
+  background:#DCE8FF;transform:translate(-50%,-50%) scale(.35);opacity:0;box-shadow:0 0 8px rgba(200,220,255,.9)}
+#s-voice .vc-pill{position:absolute;left:104px;top:246px;height:32px;padding:0 14px;border-radius:16px;
+  display:flex;align-items:center;font-size:12px;letter-spacing:.06em;color:#B9C6E6;
+  background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09)}
+#s-voice .vc-timer{position:absolute;left:420px;top:252px;font-size:12px;letter-spacing:.10em;
+  color:#7F8DA8;font-variant-numeric:tabular-nums}
+#s-voice .vc-send{position:absolute;left:586px;top:240px;width:44px;height:44px;border-radius:50%;
+  background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.10)}
+#s-voice .vc-send b{position:absolute;left:50%;top:50%;width:8px;height:8px;
+  border-top:1.6px solid #CBD8F5;border-right:1.6px solid #CBD8F5;
+  transform:translate(-50%,-30%) rotate(-45deg)}
+#s-voice .vc-od{position:absolute;right:34px;top:288px;font-size:10px;letter-spacing:.16em;
+  text-transform:uppercase;color:#5A6480}
+
+/* ───────────────────────── 模块 5/6：任务倒计时卡 ───────────────────────── */
+#s-task .tk-card{position:absolute;left:330px;top:205px;width:620px;height:340px;border-radius:32px}
+#s-task .tk-check{position:absolute;left:32px;top:32px;width:36px;height:36px;border-radius:50%;
+  background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.16);
+  box-shadow:inset 0 0 12px rgba(127,168,255,.20);will-change:background,box-shadow,border-color}
+#s-task .tk-check b{position:absolute;left:50%;top:50%;width:7px;height:12px;
+  border-right:2px solid #DCE8FF;border-bottom:2px solid #DCE8FF;
+  transform:translate(-50%,-58%) rotate(42deg);opacity:.9}
+#s-task .tk-clock{position:absolute;right:34px;top:26px;text-align:right}
+#s-task .tk-clock b{display:block;font-size:38px;font-weight:300;letter-spacing:.01em;
+  color:#EFF4FF;font-variant-numeric:tabular-nums;line-height:1.05}
+#s-task .tk-clock span{display:block;margin-top:2px;font-size:12px;letter-spacing:.14em;
+  text-transform:uppercase;color:#6B7692}
+#s-task .tk-title{position:absolute;left:32px;top:112px;font-size:30px;font-weight:500;
+  letter-spacing:.005em;color:#F2F6FF}
+#s-task .tk-sub{position:absolute;left:32px;top:160px;font-size:13.5px;letter-spacing:.01em;color:#7C87A3}
+#s-task .tk-slider{position:absolute;left:32px;top:220px;width:556px;height:14px}
+#s-task .tk-track{position:absolute;left:0;top:5px;width:100%;height:4px;border-radius:2px;
+  background:rgba(255,255,255,.07);overflow:hidden}
+#s-task .tk-track b{position:absolute;left:0;top:0;height:100%;width:0;border-radius:2px;
+  background:linear-gradient(90deg,#7FA8FF,#8E7CFF);will-change:width}
+#s-task .tk-knob{position:absolute;top:0;left:0;width:14px;height:14px;border-radius:50%;
+  background:#F4F8FF;box-shadow:0 0 10px rgba(190,215,255,.9);will-change:transform}
+#s-task .tk-end{position:absolute;top:3px;width:9px;height:9px;border-radius:2px;background:#EAF2FF;
+  opacity:0;box-shadow:0 0 10px rgba(200,225,255,.9)}
+#s-task .tk-btns{position:absolute;right:32px;bottom:28px;display:flex;gap:14px}
+#s-task .tk-b{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;
+  font-size:17px;line-height:1;will-change:background,box-shadow,transform}
+#s-task .tk-cancel{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.10);color:#78829B}
+#s-task .tk-ok{background:rgba(127,168,255,.10);border:1px solid rgba(127,168,255,.32);color:#AFC8FF;
+  font-size:16px}
+
+/* ───────────────────────── 模块 7：Activity 热力图 ───────────────────────── */
+#s-heat .ht-card{position:absolute;left:260px;top:155px;width:760px;height:430px;border-radius:28px}
+#s-heat .ht-head{position:absolute;left:36px;top:26px;right:36px;display:flex;align-items:center;justify-content:space-between}
+#s-heat .ht-ttl{display:flex;align-items:center;gap:10px;font-size:19px;font-weight:500;color:#EAF0FF}
+#s-heat .ht-ic{width:20px;height:20px;border-radius:50%;border:1px solid rgba(127,168,255,.45);
+  box-shadow:inset 0 0 10px rgba(127,168,255,.35);position:relative}
+#s-heat .ht-ic::after{content:"";position:absolute;left:50%;top:50%;width:6px;height:6px;border-radius:50%;
+  background:#9FC0FF;transform:translate(-50%,-50%);box-shadow:0 0 8px rgba(127,168,255,.9)}
+#s-heat .ht-stat{font-size:12.5px;letter-spacing:.02em;color:#7B87A4}
+#s-heat .ht-months{position:absolute;left:40px;top:74px;width:541px;height:14px;
+  font-size:11px;letter-spacing:.08em;color:#5F6980;text-transform:uppercase}
+#s-heat .ht-months span{position:absolute;top:0}
+#s-heat .ht-grid{position:absolute;left:40px;top:104px;width:541px;height:142px}
+#s-heat .ht-grid i{position:absolute;width:16px;height:16px;border-radius:4px;background:#0c1422;
+  will-change:background-color,opacity,transform}
+#s-heat .ht-legend{position:absolute;left:40px;top:266px;display:flex;align-items:center;gap:6px;
+  font-size:10.5px;letter-spacing:.10em;text-transform:uppercase;color:#5A6480}
+#s-heat .ht-legend i{width:10px;height:10px;border-radius:3px;display:block}
+#s-heat .ht-nums{position:absolute;left:40px;bottom:32px;width:541px;display:flex;justify-content:space-between}
+#s-heat .ht-nums b{font-size:24px;font-weight:400;color:#E7EEFF;font-variant-numeric:tabular-nums;
+  letter-spacing:.01em}
+
+/* ───────────────────────── 模块 9：结尾文字 ───────────────────────── */
+#s-welcome .wl-coming{position:absolute;left:302px;top:262px;font-size:25px;font-weight:400;
+  letter-spacing:.34em;color:#6E7688;line-height:1.62}
+#s-welcome .wl-coming span{display:block;opacity:0}
+#s-welcome .wl-title{position:absolute;left:0;right:0;top:588px;text-align:center;
+  font-size:30px;font-weight:400;letter-spacing:.05em;color:#F2F6FF;opacity:0}
+
+/* ───────────────────────── 控制条 ───────────────────────── */
+#hud{position:absolute;left:0;right:0;bottom:0;height:64px;z-index:70;pointer-events:none}
+#hudTime{position:absolute;left:44px;top:26px;font-size:11px;letter-spacing:.10em;
+  color:rgba(255,255,255,.42);font-variant-numeric:tabular-nums;pointer-events:none}
+#hudBar{position:absolute;left:190px;width:880px;top:22px;height:20px;pointer-events:auto;cursor:pointer}
+#hudTrack{position:absolute;left:0;right:0;top:9px;height:2px;border-radius:2px;background:rgba(255,255,255,.13)}
+#hudFill{position:absolute;left:0;top:9px;height:2px;border-radius:2px;width:0;
+  background:linear-gradient(90deg,rgba(127,168,255,.95),rgba(142,124,255,.95));will-change:width}
+#hudKnob{position:absolute;top:3px;left:0;width:14px;height:14px;margin-left:-7px;border-radius:50%;
+  background:#F1F6FF;box-shadow:0 0 12px rgba(160,195,255,.85);will-change:transform}
+#hudKeys{position:absolute;right:44px;top:26px;font-size:10px;letter-spacing:.14em;
+  color:rgba(255,255,255,.26);pointer-events:none;text-transform:uppercase}
+</style>
+
+<div id="shell">
+<div id="stage">
+  <canvas id="fx" width="1280" height="720"></canvas>
+  <div id="ui">
+
+    <!-- 模块 2：Level Idea / Task / Goal -->
+    <section class="scene" id="s-level">
+      <div class="haze" id="lvHaze" style="left:360px;top:250px;width:560px;height:220px;
+        background:radial-gradient(closest-side,rgba(142,124,255,.34),rgba(92,230,255,.10) 62%,transparent)"></div>
+      <div class="lv-label" id="lvLabel"><span>Level Idea</span><span>Level Task</span><span>Level Goal</span></div>
+      <div class="lv-bar" id="lvBar"><div class="lv-cells" id="lvCells"></div></div>
+      <div class="lv-sub" id="lvSub">Suggested</div>
+      <div class="lv-orb" id="lvOrb"><i></i><i></i><i></i><i></i></div>
+    </section>
+
+    <!-- 模块 3：Priority -->
+    <section class="scene" id="s-priority">
+      <div class="haze" id="prHaze" style="left:430px;top:212px;width:420px;height:340px;
+        background:radial-gradient(closest-side,rgba(92,230,255,.22),rgba(142,124,255,.12) 60%,transparent)"></div>
+      <div class="pr-label" id="prLabel"><span>Priority Quick</span><span>Priority Later</span><span>Priority Do first</span></div>
+      <div class="card pr-card" id="prCard">
+        <div class="pr-urgent" id="prUrgent">Urgent</div>
+        <div class="pr-imp" id="prImp">Important</div>
+        <div class="pr-dots" id="prDots"></div>
+        <div class="pr-scan" id="prScan"></div>
+      </div>
+    </section>
+
+    <!-- 模块 4：语音输入 -->
+    <section class="scene" id="s-voice">
+      <div class="haze" id="vcHaze" style="left:300px;top:230px;width:680px;height:360px;
+        background:radial-gradient(closest-side,rgba(127,168,255,.20),rgba(142,124,255,.10) 60%,transparent)"></div>
+      <div class="vc-hello" id="vcHello">Good evening.</div>
+      <div class="card vc-card" id="vcCard">
+        <div class="vc-input">
+          <div class="vc-lines" id="vcLines">
+            <span id="vcA">What's on your mind today?</span>
+            <span id="vcB">Listening<t id="vcDots"></t></span>
+            <span id="vcC"></span>
+          </div>
+          <div class="vc-wave" id="vcWave"></div>
+        </div>
+        <div class="vc-mic" id="vcMic"><b id="vcMicDot"></b><s id="vcMicSq"></s></div>
+        <div class="vc-pill">English</div>
+        <div class="vc-timer" id="vcTimer">00:00</div>
+        <div class="vc-send"><b></b></div>
+        <div class="vc-od" id="vcOd">On-device</div>
+      </div>
+    </section>
+
+    <!-- 模块 5 + 6：任务卡 → 完成态 -->
+    <section class="scene" id="s-task">
+      <div class="haze" id="tkHaze" style="left:320px;top:190px;width:640px;height:390px;
+        background:radial-gradient(closest-side,rgba(127,168,255,.24),rgba(142,124,255,.12) 58%,transparent)"></div>
+      <div class="card tk-card" id="tkCard">
+        <div class="tk-check" id="tkCheck"><b></b></div>
+        <div class="tk-clock"><b id="tkClock">1:02:13</b><span id="tkLeftLbl">left</span></div>
+        <div class="tk-title">Finish the deck</div>
+        <div class="tk-sub" id="tkSub">Reminder 2 of 4 · next at 10%</div>
+        <div class="tk-slider">          <div class="tk-track"><b id="tkFill"></b></div>
+          <div class="tk-knob" id="tkKnob"></div>
+          <div class="tk-end" id="tkEnd" style="left:-4px"></div>
+        </div>
+        <div class="tk-btns">
+          <div class="tk-b tk-cancel">×</div>
+          <div class="tk-b tk-ok" id="tkOk">✓</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 模块 7：Activity 热力图 -->
+    <section class="scene" id="s-heat">
+      <div class="haze" id="htHaze" style="left:250px;top:140px;width:780px;height:460px;
+        background:radial-gradient(closest-side,rgba(127,168,255,.22),rgba(92,230,255,.08) 62%,transparent)"></div>
+      <div class="card ht-card" id="htCard">
+        <div class="ht-head">
+          <div class="ht-ttl"><span class="ht-ic"></span>Completed</div>
+          <div class="ht-stat">129 in 2026 · 13-day streak</div>
+        </div>
+        <div class="ht-months"><span>Jul</span><span>Aug</span><span>Sep</span><span>Oct</span></div>
+        <div class="ht-grid" id="htGrid"></div>
+        <div class="ht-legend"><span>Less</span><i style="background:#0c1422"></i><i style="background:#1b2a4a"></i>
+          <i style="background:#3a63a8"></i><i style="background:#8fb8ff"></i><span>More</span></div>
+        <div class="ht-nums" id="htNums"><b>10</b><b>32</b><b>7</b><b>1.4</b></div>
+      </div>
+    </section>
+
+    <!-- 模块 9：结尾 -->
+    <section class="scene" id="s-welcome">
+      <div class="wl-coming" id="wlComing"><span>COMING</span><span>SOON</span></div>
+      <div class="wl-title" id="wlTitle">Welcome to Orbit</div>
+    </section>
+
+  </div>
+  <div id="grain"></div>
+  <div id="fade"></div>
+
+  <div id="hud">
+    <div id="hudTime">00:00.0 / 00:32.1</div>
+    <div id="hudBar">
+      <div id="hudTrack"></div>
+      <div id="hudFill"></div>
+      <div id="hudKnob"></div>
+    </div>
+    <div id="hudKeys">Space ‖ ← → 1s ‖ R ‖ F ‖ H</div>
+  </div>
+</div>
+</div>
+
+<script>
+(function () {
+'use strict';
+
+/* ══════════════════════════════════════════════════════════════════════════
+   0. 常量与工具
+   ══════════════════════════════════════════════════════════════════════════ */
+var W = 1280, H = 720, DUR = 32100;          // 整片 32.1s（方案模块 9 结束点 0:32.1）
+
+// 方案「五、动效参数」：入场 250–450ms / 换字 150–250ms / 粒子重组 600–900ms / 脉动 1.5–2.5s
+var ENTER = 320, TEXT = 190, REGROUP = 780, PULSE = 2000;
+
+var clamp = function (v, a, b) { a = a === undefined ? 0 : a; b = b === undefined ? 1 : b; return v < a ? a : v > b ? b : v; };
+var lerp = function (a, b, p) { return a + (b - a) * p; };
+// 段内进度：把 [a,b] 映射到 0..1
+var seg = function (t, a, b) { return clamp((t - a) / (b - a)); };
+
+// 三次缓动（方案要求"平滑 ease，不要线性"）
+var easeInOut = function (p) { return p < .5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2; };
+var easeOut = function (p) { return 1 - Math.pow(1 - p, 3); };
+var easeOutQuart = function (p) { return 1 - Math.pow(1 - p, 4); };
+var easeIn = function (p) { return p * p * p; };
+
+// 弹簧：easeOut 为底，叠一个衰减正弦。峰值过冲约 2.8%，严格 < 3%（方案要求）
+function springOut(p) {
+  if (p >= 1) return 1;
+  if (p <= 0) return 0;
+  return easeOut(p) + 0.055 * Math.sin(p * Math.PI * 3) * Math.exp(-4.2 * p);
+}
+
+// 样式只在变化时写（避免每帧重复写 style 造成无谓开销）
+function st(el, prop, val) {
+  var c = el.__st || (el.__st = {});
+  if (c[prop] !== val) { c[prop] = val; el.style[prop] = val; }
+}
+function op(el, v) { st(el, 'opacity', v.toFixed(3)); }
+function tf(el, v) { st(el, 'transform', v); }
+function vis(el, on) { st(el, 'visibility', on ? 'visible' : 'hidden'); }
+
+// 确定性随机（方案要求 "deterministic seeded particle positions"）
+function mulberry(seed) {
+  return function () {
+    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    var t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+var $ = function (id) { return document.getElementById(id); };
+
+/* ══════════════════════════════════════════════════════════════════════════
+   1. 舞台等比缩放（1280×720 固定坐标，只缩放不变形）
+   ══════════════════════════════════════════════════════════════════════════ */
+var stage = $('stage'), shell = $('shell');
+var scale = 1;
+function fit() {
+  scale = Math.min(window.innerWidth / W, window.innerHeight / H);
+  stage.style.transform = 'scale(' + scale + ')';
+}
+window.addEventListener('resize', fit); fit();
+
+/* ══════════════════════════════════════════════════════════════════════════
+   2. Canvas：粒子 / 光晕（所有粒子都由时间 t 直接算出，可 seek）
+   ══════════════════════════════════════════════════════════════════════════ */
+var cv = $('fx'), ctx = cv.getContext('2d');
+var DPR = Math.min(2, window.devicePixelRatio || 1);
+cv.width = W * DPR; cv.height = H * DPR;
+ctx.scale(DPR, DPR);
+
+// 预渲染发光点精灵：比 shadowBlur 快一个量级（400+ 粒子仍稳 60fps）
+function makeSprite(size, core, halo) {
+  var c = document.createElement('canvas'); c.width = c.height = size;
+  var g = c.getContext('2d'), r = size / 2;
+  var grd = g.createRadialGradient(r, r, 0, r, r, r);
+  grd.addColorStop(0, 'rgba(' + core + ',1)');
+  grd.addColorStop(.22, 'rgba(' + core + ',.62)');
+  grd.addColorStop(.5, 'rgba(' + halo + ',.20)');
+  grd.addColorStop(1, 'rgba(' + halo + ',0)');
+  g.fillStyle = grd; g.beginPath(); g.arc(r, r, r, 0, Math.PI * 2); g.fill();
+  return c;
+}
+var SP_W = makeSprite(30, '255,255,255', '127,168,255');  // 蓝白光点
+var SP_C = makeSprite(26, '226,252,255', '92,230,255');   // 青
+var SP_V = makeSprite(26, '236,240,255', '142,124,255');  // 紫罗兰
+
+/* ── 2.1 粒子常数：420 颗（量少但每颗带光晕，够用且不卡） ── */
+var P_N = 420;
+var rand = mulberry(20261101);
+var PART = [];
+for (var i = 0; i < P_N; i++) {
+  var r1 = rand(), r2 = rand(), r3 = rand(), r4 = rand(), r5 = rand();
+  PART.push({
+    // ambient 星座位形：铺满画面，偏边缘，避免中间跟卡片抢
+    ax: r1 * W,
+    ay: r2 * H,
+    // orb 星座位形：中心右（900,330）附近的小球团
+    or: Math.pow(r3, .62) * 92,
+    oa: r4 * Math.PI * 2,
+    // emblem 星座位形：竖向轨道（椭圆 + 中轴脊线），部分粒子缺失体现"仍在构建"
+    ei: r5,
+    miss: rand() < .2,          // 20% 的粒子在结尾是"缺口"
+    s: .55 + rand() * .75,      // 尺寸系数
+    ph: rand() * Math.PI * 2,   // 漂移相位
+    of: rand(),                 // 重组错峰 0..1（避免全体一起动）
+    b: .35 + rand() * .65       // 基础亮度
+  });
+}
+// emblem 位形：竖向环 + 中轴脊线（提前算好，保证确定性）
+// 环要"像竖立的圆环"，中轴要窄而密（方案：abstract vertical orbit-like form, pixel-based）
+var EMB = { cx: 862, cy: 306, rx: 74, ry: 148 };
+for (i = 0; i < P_N; i++) {
+  var p = PART[i];
+  if (p.ei < .78) {                      // 环：78% 的粒子
+    var a = p.ei / .78 * Math.PI * 2;
+    var tilt = 0.90 + 0.10 * Math.cos(a * 2);        // 轻微 3D 感（左右略收）
+    EMB[i] = { x: EMB.cx + Math.cos(a) * EMB.rx * tilt, y: EMB.cy + Math.sin(a) * EMB.ry };
+  } else {                                // 中轴脊线：22% 的粒子，横向 ±14px，纵向铺满
+    EMB[i] = { x: EMB.cx + (p.ei - .89) * 86, y: EMB.cy + (p.of - .5) * 2 * EMB.ry * .86 };
+  }
+}
+// heat 位形：与 DOM 热力图格子完全对齐（格子中心），格子数少于粒子时循环复用
+var HEAT = { left: 300, top: 262, cols: 26, rows: 7, cell: 16, gap: 5 };
+var heatCells = HEAT.cols * HEAT.rows;
+for (i = 0; i < P_N; i++) {
+  var k = i % heatCells, hc = k % HEAT.cols, hr = Math.floor(k / HEAT.cols);
+  PART[i].hx = HEAT.left + hc * (HEAT.cell + HEAT.gap) + HEAT.cell / 2;
+  PART[i].hy = HEAT.top + hr * (HEAT.cell + HEAT.gap) + HEAT.cell / 2;
+}
+
+/* ── 2.2 彗星（模块 1 / 模块 3 入口 / 模块 8 结尾的光点）── */
+function bez(p0, p1, p2, t) {   // 二次贝塞尔：轻微弧线，不走直线
+  var u = 1 - t;
+  return { x: u * u * p0.x + 2 * u * t * p1.x + t * t * p2.x,
+           y: u * u * p0.y + 2 * u * t * p1.y + t * t * p2.y };
+}
+// 画一颗带拖尾的彗星。trail 用同一曲线往回采样，天然是弧线拖尾
+function comet(t, t0, t1, p0, p1, p2, alpha, size) {
+  if (t < t0 || alpha <= 0.002) return;
+  var p = clamp((t - t0) / (t1 - t0));
+  var e = easeOutQuart(p);              // 前半段快，接近落点减速
+  var pt = bez(p0, p1, p2, e);
+  // 拖尾：往回退一点点参数
+  for (var j = 20; j >= 1; j--) {
+    var back = clamp(e - j * 0.026, 0, 1);
+    var q = bez(p0, p1, p2, back);
+    var k = 1 - j / 20;
+    var rr = size * (0.30 + 0.52 * k);
+    ctx.globalAlpha = alpha * k * k * 0.55;
+    ctx.drawImage(SP_W, q.x - rr / 2, q.y - rr / 2, rr, rr);
+  }
+  // 核心
+  var cr = size * 0.62;
+  ctx.globalAlpha = alpha;
+  ctx.drawImage(SP_W, pt.x - cr / 2, pt.y - cr / 2, cr, cr);
+  return pt;
+}
+// 柔和呼吸（方案：每 1.5–2.5s 一次低幅度脉动）
+function pulse(t) { return 0.5 + 0.5 * Math.cos((t / PULSE) * Math.PI * 2); }
+
+/* ── 2.3 粒子场权重：随时间的连续混合（解构/重组靠这里，不会跳）──
+   约定：每段返回的权重加起来恒为 1，所以加权平均不会把粒子拉到半路。 */
+function field(t) {
+  var amb = 1, heat = 0, orb = 0, emb = 0, alpha = 0.34;
+
+  if (t < 1300) { amb = 0; alpha = 0; }                    // 模块1：纯黑，空
+  else if (t < 4000) { alpha = 0.34; }                     // 模块2
+  else if (t < 8700) { alpha = 0.30; }                     // 模块3
+  else if (t < 16000) { alpha = 0.26; }                    // 模块4
+  else if (t < 21900) { alpha = 0.28; }                    // 模块5/6
+  else if (t < 25400) { alpha = 0.22; }                    // 模块7
+
+  // 模块8（25.5–27.5）：背景粒子 → 对齐热力图格子 → 碎成粒子聚成小球
+  if (t >= 25400 && t < 25900) {
+    var q = easeInOut(seg(t, 25400, 25900));
+    amb = 1 - q; heat = q;
+    alpha = lerp(.22, .70, q);
+  } else if (t >= 25900 && t < 27200) {
+    var q2 = easeInOut(seg(t, 25900, 27200));   // 780ms 级别的重组（方案 600–900ms）
+    amb = 0; heat = 1 - q2; orb = q2;
+    alpha = lerp(.70, .86, q2);
+  } else if (t >= 27200 && t < 27500) {
+    amb = 0; heat = 0; orb = 1; alpha = .86;    // 小球停在中心右（模块 8 结尾）
+  }
+  // 模块9（27.5–32.1）：小球 → 竖向轨道徽记
+  if (t >= 27500) {
+    var q3 = easeInOut(seg(t, 27600, 29800));
+    amb = 0; heat = 0;
+    orb = 1 - q3; emb = q3;
+    alpha = lerp(.86, .60, q3);
+  }
+  return { amb: amb, heat: heat, orb: orb, emb: emb, alpha: alpha };
+}
+
+/* ── 2.4 每帧绘制 ── */
+function drawFX(t) {
+  ctx.clearRect(0, 0, W, H);
+  ctx.globalCompositeOperation = 'lighter';
+
+  var f = field(t);
+  var T = t / 1000;
+
+  // ── 粒子场 ──
+  if (f.alpha > 0.004) {
+    for (var i = 0; i < P_N; i++) {
+      var p = PART[i];
+      // 错峰：不同粒子开始移动的时刻不同，形成"由近到远剥落"的方向感
+      var lag = 0.42 * p.of;
+      var wHeat = f.heat, wOrb = f.orb, wEmb = f.emb;
+
+      // heat → orb 的错峰进度
+      var g1 = clamp((f.orb - lag) / (1 - lag));
+      // orb → emblem 的错峰进度
+      var g2 = clamp((f.emb - lag) / (1 - lag));
+
+      // orb 位置：以 (900,330) 为中心的一团，随角度缓慢自转
+      var oa = p.oa + T * 0.55;
+      var ox = 900 + Math.cos(oa) * p.or;
+      var oy = 330 + Math.sin(oa) * p.or * 0.72;
+
+      // 当前位置 = 各星座位形加权（权重和为 1，所以不会把粒子拉到半路）
+      var x = 0, y = 0, wsum = 0;
+      if (wHeat > 0) {
+        // 热力图格子 → 小球：g1 决定这颗粒子走了多远
+        x += lerp(p.hx, ox, wOrb > 0 ? g1 : 0) * wHeat;
+        y += lerp(p.hy, oy, wOrb > 0 ? g1 : 0) * wHeat;
+        wsum += wHeat;
+      }
+      if (wOrb > 0) {
+        var bx = ox, by = oy;
+        if (wEmb > 0 && !p.miss) { bx = lerp(bx, EMB[i].x, g2); by = lerp(by, EMB[i].y, g2); }
+        x += bx * wOrb; y += by * wOrb; wsum += wOrb;
+      }
+      if (wEmb > 0 && !p.miss) { x += EMB[i].x * wEmb; y += EMB[i].y * wEmb; wsum += wEmb; }
+      if (f.amb > 0) {
+        x += (p.ax + Math.cos(T * 0.35 + p.ph) * 22) * f.amb;
+        y += (p.ay + Math.sin(T * 0.42 + p.ph) * 16) * f.amb;
+        wsum += f.amb;
+      }
+
+      if (wsum <= 0.001) continue;
+      x /= wsum; y /= wsum;
+
+      // 亮度：缺口的粒子在结尾淡出
+      var al = f.alpha * p.b;
+      if (f.emb > 0.02 && p.miss) al *= (1 - f.emb * 1.6);
+      if (al <= 0.004) continue;
+
+      var sz = 10 * p.s * (0.8 + 0.4 * (wOrb + wEmb));
+      ctx.globalAlpha = al;
+      ctx.drawImage(i % 5 === 0 ? SP_C : (i % 7 === 0 ? SP_V : SP_W), x - sz / 2, y - sz / 2, sz, sz);
+    }
+  }
+
+  // ── 模块 1：彗星进入（0–1.3s）──
+  if (t < 1400) {
+    var a1 = t < 60 ? 0 : 1;
+    if (t > 1100) a1 = 1 - seg(t, 1100, 1400) * .55;
+    comet(t, 60, 1180,
+      { x: 848, y: 206 }, { x: 800, y: 300 }, { x: 722, y: 368 }, a1, 26);
+    // 落点的柔和蓝白呼吸
+    if (t > 1100) {
+      var bl = seg(t, 1100, 1300), fade = 1 - seg(t, 1300, 1500);
+      var rr = 26 + bl * 26;
+      ctx.globalAlpha = (1 - Math.abs(bl - .55) / .55) * .35 * Math.max(0, fade);
+      ctx.drawImage(SP_W, 722 - rr / 2, 368 - rr / 2, rr, rr);
+    }
+  }
+
+  // ── 模块 2 结尾：整个模块淡出，只留一个蓝白粒子（3.46–3.75s）──
+  if (t > 3420 && t < 3900) {
+    var a2 = 1 - seg(t, 3480, 3760);
+    var rr2 = 20 + 8 * pulse(t);
+    ctx.globalAlpha = a2 * .9;
+    ctx.drawImage(SP_W, 930 - rr2 / 2, 359 - rr2 / 2, rr2, rr2);
+  }
+
+  // ── 模块 3 入口：小粒子重新进入，然后"长成"卡片（4.0–4.5s）──
+  if (t > 3960 && t < 4900) {
+    var a3 = 1 - seg(t, 4380, 4700);
+    comet(t, 3960, 4380,
+      { x: 560, y: 520 }, { x: 600, y: 430 }, { x: 640, y: 375 }, a3, 24);
+  }
+
+  // ── 模块 8 结尾：小球短暂停在中心右，带柔和蓝晕 + 短弧拖尾 ──
+  if (t > 26800 && t < 28200) {
+    var hold = seg(t, 26800, 27350);
+    var a4 = 1;
+    if (t < 27100) a4 = hold;
+    a4 *= (1 - seg(t, 27600, 28200) * .75);
+    var rr3 = 46 + 10 * pulse(t);
+    ctx.globalAlpha = a4 * .30;
+    ctx.drawImage(SP_C, 900 - rr3 / 2, 330 - rr3 / 2, rr3, rr3);
+    ctx.globalAlpha = a4 * .95;
+    ctx.drawImage(SP_W, 900 - 22, 330 - 22, 44, 44);
+    // 短弧拖尾
+    for (var j = 1; j <= 14; j++) {
+      var ang = -0.6 + j * 0.075, rad = 34 + j * 3.4;
+      ctx.globalAlpha = a4 * (1 - j / 14) * .5;
+      var tx = 900 - Math.cos(ang) * rad, ty = 330 - Math.sin(ang) * rad * .55;
+      ctx.drawImage(SP_W, tx - 5, ty - 5, 10, 10);
+    }
+  }
+
+  // ── 模块 9：徽记中心的微光（让粒子轮廓有个视觉锚）──
+  if (t > 28500) {
+    var a5 = seg(t, 28500, 29800) * (1 - seg(t, 31000, 32100) * .55);
+    ctx.globalAlpha = a5 * .16 * (0.7 + 0.3 * pulse(t));
+    var rr4 = 190;
+    ctx.drawImage(SP_V, EMB.cx - rr4 / 2, EMB.cy - rr4 / 2, rr4, rr4);
+  }
+
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'source-over';
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   3. 建立重复元素（能量条像素 / 点阵 / 波形 / 热力图格子）
+   ══════════════════════════════════════════════════════════════════════════ */
+
+// ── 3.1 模块 2 能量条：像素 7px、间距 5px（方案：像素 6–9、间距 4–6）──
+var CELL_N = 45, lvCells = [];
+(function () {
+  var box = $('lvCells'), frag = document.createDocumentFragment();
+  for (var i = 0; i < CELL_N; i++) {
+    var d = document.createElement('i');
+    // 每个像素按位置预生成 12 级色阶：紫 → 蓝 → 青（方案配色）
+    var u = i / (CELL_N - 1);
+    var from = u < .5 ? [142, 124, 255] : [127, 168, 255];
+    var to = u < .5 ? [127, 168, 255] : [92, 230, 255];
+    var m = u < .5 ? u / .5 : (u - .5) / .5;
+    var base = [from[0] + (to[0] - from[0]) * m, from[1] + (to[1] - from[1]) * m, from[2] + (to[2] - from[2]) * m];
+    var pal = [];
+    for (var L = 0; L <= 12; L++) {
+      var k = L / 12;
+      var rgb = [Math.round(lerp(13, base[0], k)), Math.round(lerp(20, base[1], k)), Math.round(lerp(34, base[2], k))];
+      pal.push('rgb(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ')');
+    }
+    d.__pal = pal; d.__lvl = -1;
+    frag.appendChild(d); lvCells.push(d);
+  }
+  box.appendChild(frag);
+})();
+
+// ── 3.2 模块 3 点阵：14×9，点 5px、间距 25（方案：点阵矩阵）──
+var PR = { cols: 14, rows: 9 };
+var prDots = [];
+(function () {
+  var box = $('prDots'), frag = document.createDocumentFragment();
+  for (var r = 0; r < PR.rows; r++) for (var c = 0; c < PR.cols; c++) {
+    var d = document.createElement('i');
+    d.style.left = (c * 25) + 'px';
+    d.style.top = (r * 25) + 'px';
+    d.__lvl = -1; d.__pal = -1;
+    // 三套色带：Quick 青绿 / Later 暗 / Do first 亮白蓝（方案模块 3 要求）
+    d.__pals = [
+      ['#121a2c', '#173a44', '#1e6a76', '#39b6bd', '#7CF0E4'],
+      ['#111726', '#161d2e', '#222c44', '#39466b', '#5b6b94'],
+      ['#141d33', '#1b2a4c', '#2f4f8e', '#6f9de0', '#DCE9FF']
+    ];
+    frag.appendChild(d); prDots.push(d);
+  }
+  box.appendChild(frag);
+})();
+
+// ── 3.3 模块 4 波形：54 个微小白点（方案：fine horizontal waveform of tiny white dots）──
+var WAVE = 54, waveDots = [];
+(function () {
+  var box = $('vcWave'), frag = document.createDocumentFragment();
+  for (var i = 0; i < WAVE; i++) {
+    var d = document.createElement('i');
+    d.style.left = (i * 10) + 'px';
+    frag.appendChild(d); waveDots.push(d);
+  }
+  box.appendChild(frag);
+})();
+
+// ── 3.4 模块 7 热力图：26×7 圆角格子（方案：calendar-like heatmap，轻微圆角）──
+var htCells = [];
+(function () {
+  var box = $('htGrid'), frag = document.createDocumentFragment();
+  for (var r = 0; r < HEAT.rows; r++) for (var c = 0; c < HEAT.cols; c++) {
+    var d = document.createElement('i');
+    d.style.left = (c * (HEAT.cell + HEAT.gap)) + 'px';
+    d.style.top = (r * (HEAT.cell + HEAT.gap)) + 'px';
+    d.__lvl = -1;
+    frag.appendChild(d); htCells.push(d);
+  }
+  box.appendChild(frag);
+})();
+// 热力图 6 级冷色调（方案：dark navy / medium blue / pale blue / bright white-blue，禁彩虹）
+var HT_PAL = ['#0c1422', '#16223a', '#23406e', '#3a68b4', '#7ea6ee', '#cfe1ff'];
+// 每格的"体量"：确定性伪随机，做出真实热力图的疏密
+var htWeight = htCells.map(function (_, i) { var r = mulberry(7300 + i * 97)(); return r; });
+// 出现顺序：从零散几颗 → 补齐（方案模块 7 动效要求）
+var htDelay = htCells.map(function (_, i) { var r = mulberry(9100 + i * 41)(); return r * 620; });
+// 月份标签对齐到格子列：Jul→0 Aug→7 Sep→15 Oct→22（26 列覆盖 Jul–Oct）
+(function () {
+  var mons = document.querySelectorAll('#s-heat .ht-months span'), col = [0, 7, 15, 22];
+  for (var i = 0; i < mons.length; i++) mons[i].style.left = (col[i] * (HEAT.cell + HEAT.gap)) + 'px';
+})();
+
+/* ══════════════════════════════════════════════════════════════════════════
+   4. 各段落渲染（全部是 t 的纯函数）
+   ══════════════════════════════════════════════════════════════════════════ */
+var secLevel = $('s-level'), secPr = $('s-priority'), secVoice = $('s-voice'),
+    secTask = $('s-task'), secHeat = $('s-heat'), secWel = $('s-welcome');
+
+/* ── 模块 2：Level Idea / Task / Goal（1.3–3.6s）─────────────────────────
+   方案动效顺序：Level Idea → 像素从左点亮 → Level Task → 继续推进 →
+   Level Goal → 右端玻璃模块放大发光 → 整个模块淡出只留一个蓝白粒子        */
+function renderLevel(t) {
+  var on = t > 1260 && t < 3820;
+  vis(secLevel, on); if (!on) { op(secLevel, 0); return; }
+
+  var fadeIn = seg(t, 1300, 1560);          // 入场 260ms（方案 250–450）
+  var fadeOut = 1 - seg(t, 3480, 3680);
+  var alpha = Math.min(easeOut(fadeIn), fadeOut);
+  op(secLevel, alpha);
+  st(secLevel, 'zIndex', '2');
+
+  // 标签三态：换字 190ms（方案 150–250）
+  var lb = $('lvLabel').children;
+  var l0 = seg(t, 1520, 1520 + TEXT) * (1 - seg(t, 2340, 2340 + TEXT));
+  var l1 = seg(t, 2340, 2340 + TEXT) * (1 - seg(t, 3120, 3120 + TEXT));
+  var l2 = seg(t, 3120, 3120 + TEXT);
+  op(lb[0], l0); op(lb[1], l1); op(lb[2], l2);
+
+  // 能量条：容器从左往右展开
+  var grow = easeOut(seg(t, 1330, 1680));
+  tf($('lvBar'), 'scaleX(' + lerp(.02, 1, grow) + ')');
+  st($('lvBar'), 'transformOrigin', '0 50%');
+  op($('lvBar'), Math.min(1, alpha * 1.2));
+
+  // 像素逐格点亮：主推进 1.6–3.4s，末段补齐到 100%
+  var fill = lerp(.03, .44, easeInOut(seg(t, 1620, 2300)));
+  fill = lerp(fill, .74, easeInOut(seg(t, 2320, 2960)));
+  fill = lerp(fill, 1.00, easeInOut(seg(t, 3140, 3560)));
+  // 推进端有一小段"扫描亮带"，让点亮有方向感
+  var head = fill * CELL_N;
+  for (var i = 0; i < CELL_N; i++) {
+    var d = lvCells[i];
+    var k = head - i;                        // >0 已点亮
+    var v;
+    if (k >= 1) {
+      // 已点亮的部分：随机轻微起伏，模拟像素能量
+      v = 0.62 + 0.38 * (0.72 + 0.28 * Math.sin(t * 0.0021 + i * 0.7));
+      // 刚点亮的前 8 格更亮（扫描头部）
+      if (k < 8) v = Math.min(1, v + (8 - k) / 8 * 0.35);
+      v *= 0.55 + 0.45 * clamp(k, 0, 1);
+      v = Math.max(v, 0.55);
+    } else if (k > -3) {
+      v = clamp(1 + k / 3) * 0.5;             // 边缘 3 格半亮
+    } else v = 0.06;
+    var lvl = Math.round(clamp(v) * 12);
+    if (d.__lvl !== lvl) { d.__lvl = lvl; d.style.background = d.__pal[lvl]; }
+  }
+
+  // 下端 "Suggested"
+  op($('lvSub'), lerp(0, .85, seg(t, 1900, 2250)) * (1 - seg(t, 3480, 3600)));
+
+  // 右端玻璃方形模块：末段轻微放大 + 发光（方案：3.4–3.56）
+  var growOrb = seg(t, 3340, 3560);
+  var sc = 1 + springOut(growOrb) * 0.14;
+  tf($('lvOrb'), 'scale(' + sc.toFixed(3) + ')');
+  op($('lvOrb'), lerp(0, 1, seg(t, 1450, 1800)) * Math.min(1, fadeOut * 1.4));
+  // 玻璃模块外圈 4 颗小像素缓慢环绕
+  var sats = $('lvOrb').children;
+  for (var s2 = 0; s2 < sats.length; s2++) {
+    var ang = t * 0.0011 + s2 * Math.PI / 2;
+    var rad = 44 + 2 * Math.sin(t * 0.002 + s2);
+    sats[s2].style.transform = 'translate(' + (Math.cos(ang) * rad) + 'px,' + (Math.sin(ang) * rad) + 'px)';
+  }
+  st($('lvOrb'), 'boxShadow',
+    '0 0 ' + (12 + 6 * growOrb + (2 + 4 * pulse(t))) + 'px rgba(92,230,255,' + (0.35 + 0.35 * growOrb) + '),' +
+    'inset 0 0 18px rgba(142,124,255,.5)');
+}
+
+/* ── 模块 3：Priority 卡片（4.0–8.7s）────────────────────────────────────
+   Quick（青绿高光）→ Later（暗、扫描慢）→ Do first（亮白蓝，优先级提升）     */
+function renderPriority(t) {
+  var on = t > 3960 && t < 8900;
+  vis(secPr, on); if (!on) { op(secPr, 0); return; }
+  op(secPr, 1);
+
+  var alpha = Math.min(seg(t, 4160, 4460), 1 - seg(t, 8560, 8760));
+  var card = $('prCard');
+
+  // 卡片"从粒子里长出来"：0.06 → 1，用弹簧（过冲 <3%）
+  var grow = springOut(seg(t, 4180, 4520));
+  var settle = 1 + 0.012 * Math.sin(seg(t, 4520, 5200) * Math.PI);   // 落位后的轻微沉
+  var sc = lerp(0.06, 1, grow) * settle;
+  tf(card, 'scale(' + sc.toFixed(4) + ')');
+  st(card, 'transformOrigin', '50% 46%');
+  op(card, alpha);
+
+  // 阶段：0 Quick（4.3–5.7）/ 1 Later（5.7–7.0）/ 2 Do first（7.0–8.7）
+  var phase = t < 5700 ? 0 : (t < 7000 ? 1 : 2);
+  var labelP = [seg(t, 4300, 4300 + TEXT), seg(t, 5700, 5700 + TEXT), seg(t, 7000, 7000 + TEXT)];
+  var lb = $('prLabel').children;
+  for (var i = 0; i < 3; i++) {
+    var a = labelP[i];
+    // 上一态在下一态淡入时同步淡出
+    if (i < 2) a *= (1 - labelP[i + 1]);
+    op(lb[i], a);
+    st(lb[i], 'color', i === 0 ? '#7CEBD9' : (i === 1 ? '#5E6880' : '#DCE9FF'));
+  }
+
+  // 扫描光球位置：Quick 走一遍快、Later 慢、Do first 居中偏右扫
+  var scanPos;
+  if (phase === 0) scanPos = easeInOut(seg(t, 4300, 5650));
+  else if (phase === 1) scanPos = easeInOut(seg(t, 5700, 6980)) * .8 + .1;   // 慢、幅度小
+  else scanPos = 0.18 + 0.62 * easeInOut(seg(t, 7000, 8300));
+  var mx = scanPos * 326, my = 100 + Math.sin(t * 0.0013) * 46;
+  var scan = $('prScan');
+  // prScan 尺寸 34×34，translate 直接就是它的左上角
+  tf(scan, 'translate(' + mx.toFixed(1) + 'px,' + my.toFixed(1) + 'px)');
+  op(scan, lerp(.35, 1, seg(t, 4300, 4600)) * (1 - seg(t, 8500, 8700)));
+
+  // 点阵：离光球越近越亮（局部光照波）
+  var bright = phase === 0 ? 1.0 : (phase === 1 ? 0.52 : 1.06);
+  var cxS = mx + 17, cyS = my + 17;
+  for (var d = 0; d < prDots.length; d++) {
+    var el = prDots[d];
+    var dx = (d % PR.cols) * 25 + 2.5 - cxS;
+    var dy = Math.floor(d / PR.cols) * 25 + 2.5 - cyS;
+    var dist = Math.sqrt(dx * dx + dy * dy);
+    var wave = Math.exp(-(dist * dist) / (2 * 72 * 72));      // 高斯衰减
+    // 底噪：让点阵有细微明暗，不然像死格子
+    var base = 0.08 + 0.10 * Math.abs(Math.sin(d * 1.7 + t * 0.0005));
+    var v = clamp(base + wave * bright * 0.95);
+    var lvl = Math.round(v * 4);
+    var key = lvl * 10 + phase;
+    if (el.__lvl !== key) { el.__lvl = key; el.style.background = el.__pals[phase][lvl]; }
+  }
+
+  // 末态附加标签：Urgent（卡内顶部）+ Important（右缘竖排）
+  var fin = seg(t, 7040, 7280);
+  op($('prUrgent'), fin);
+  op($('prImp'), fin * .9);
+
+  // 卡片边缘的蓝紫光：末态更亮（表现优先级提升）
+  st(card, 'borderColor', 'rgba(255,255,255,' + lerp(.10, .18, phase / 2) + ')');
+}
+
+/* ── 模块 4：语音输入面板（9.0–16.0s）────────────────────────────────────
+   Good evening → What's on your mind → Listening → 逐字打出识别结果          */
+function renderVoice(t) {
+  var on = t > 8940 && t < 16120;
+  vis(secVoice, on); if (!on) { op(secVoice, 0); return; }
+
+  var alpha = Math.min(seg(t, 9020, 9340), 1 - seg(t, 15800, 16060));
+  op(secVoice, alpha);
+
+  var card = $('vcCard');
+  // 入场：从模糊玻璃变清晰（用 scale 从 .97 → 1，不加 filter，免得掉帧）
+  var enter = springOut(seg(t, 9060, 9440));
+  var exitShrink = 1 - 0.03 * easeInOut(seg(t, 15400, 15900));   // 输入完成后轻微缩小
+  var listening = seg(t, 10500, 11000);
+  var taller = 1 + 0.012 * listening;                             // "变得略高"
+  tf(card, 'scale(' + (lerp(.965, 1, enter) * exitShrink).toFixed(4) + ',' +
+                (lerp(.965, 1, enter) * exitShrink * taller).toFixed(4) + ')');
+  st(card, 'transformOrigin', '50% 50%');
+  op(card, alpha);
+  st(card, 'filter', 'none');
+  // Light mode 时卡片更亮
+  st(card, 'background', listening > .5
+    ? 'linear-gradient(158deg,rgba(36,43,63,.78) 0%,rgba(15,18,29,.91) 46%,rgba(10,12,19,.95) 100%)'
+    : 'linear-gradient(158deg,rgba(30,36,54,.74) 0%,rgba(12,15,24,.90) 46%,rgba(8,10,16,.94) 100%)');
+
+  // Good evening. 从上方淡入
+  var g = seg(t, 9180, 9500);
+  var hello = $('vcHello');
+  tf(hello, 'translateY(' + lerp(-14, 0, easeOut(g)).toFixed(1) + 'px)');
+  op(hello, g);
+
+  // 三行文字状态：Welcome → Listening → 逐字结果
+  var a1 = seg(t, 9400, 9640) * (1 - seg(t, 10560, 10760));
+  var a2 = seg(t, 10620, 10820) * (1 - seg(t, 11500, 11720));
+  var typeStart = 11760, typeEnd = 13800;
+  var full = 'Finish the deck by Monday';
+  var typed = Math.round(clamp(seg(t, typeStart, typeEnd)) * full.length);
+  var cEl = $('vcC');
+  if (cEl.__txt !== typed) { cEl.__txt = typed; cEl.textContent = full.slice(0, typed); }
+  var a3 = seg(t, 11700, 11900) * (1 - seg(t, 15200, 15500));
+  op($('vcA'), a1); op($('vcB'), a2); op(cEl, a3);
+  st($('vcA'), 'color', 'rgba(228,235,255,.52)');
+  st($('vcB'), 'color', 'rgba(214,226,255,.72)');
+  st(cEl, 'color', '#EEF3FF');
+  // Listening 后面的三个点在跳
+  var dots = Math.floor(t / 380) % 4;
+  var dt = $('vcDots');
+  if (dt.__n !== dots) { dt.__n = dots; dt.textContent = '...'.slice(0, dots); }
+
+  // 计时器 00:00 → 00:02（方案：稳定递增，别乱码）
+  var sec2 = Math.floor(clamp((t - 10500) / 1000, 0, 2));
+  var tm = '00:0' + sec2;
+  var tEl = $('vcTimer');
+  if (tEl.__v !== tm) { tEl.__v = tm; tEl.textContent = tm; }
+  op(tEl, seg(t, 10500, 10800) * (1 - seg(t, 15400, 15700)));
+
+  // 波形：轻微跳动（方案：不能像音乐播放器一样剧烈）
+  var wOn = seg(t, 10600, 10900) * (1 - seg(t, 13100, 13600));
+  for (var i = 0; i < WAVE; i++) {
+    var el = waveDots[i];
+    var amp = Math.sin(t * 0.0055 - i * 0.42) * 3.2 +
+              Math.sin(t * 0.0021 + i * 0.9) * 1.6;
+    // 从左往右跑的行波
+    var env = Math.sin(clamp((t - 10600 - i * 26) / 900) * Math.PI);
+    el.style.transform = 'translateY(' + (amp * Math.max(0, env)).toFixed(2) + 'px) scale(' +
+      (1 + 0.5 * Math.max(0, env) * Math.abs(Math.sin(i)).toFixed(2)) + ')';
+    op(el, wOn * (0.22 + 0.7 * Math.max(0, env) * (0.4 + 0.6 * Math.abs(Math.sin(i * 1.3 + t * 0.002)))));
+  }
+
+  // 麦克风：呼吸蓝光 → 变成停止方块
+  var micOn = seg(t, 9600, 9900);
+  var toStop = seg(t, 10560, 10920);
+  var mic = $('vcMic');
+  op(mic, micOn);
+  tf(mic, 'scale(' + (1 + 0.02 * pulse(t)).toFixed(3) + ')');
+  st(mic, 'boxShadow',
+    '0 0 ' + (10 + 8 * (0.5 + 0.5 * Math.sin(t * 0.0035))) + 'px rgba(127,168,255,' +
+    (0.28 + 0.22 * (1 - toStop) + 0.1 * (0.5 + 0.5 * Math.sin(t * 0.0035))).toFixed(2) + '),' +
+    'inset 0 1px 0 rgba(255,255,255,.20)');
+  op($('vcMicDot'), 1 - toStop);
+  op($('vcMicSq'), toStop);
+  st($('vcMicSq'), 'transform', 'translate(-50%,-50%) scale(' + lerp(.35, 1, springOut(toStop)).toFixed(3) + ')');
+
+  // 语言选择 / 发送 / On-device
+  op(document.querySelector('#s-voice .vc-pill'), seg(t, 9800, 10100));
+  op(document.querySelector('#s-voice .vc-send'), seg(t, 10100, 10400));
+  op($('vcOd'), seg(t, 12400, 12700));
+}
+
+/* ── 模块 5 + 6：任务卡 → 完成态（16.3–21.9s）──────────────────────────────
+   16.3 展开 → 倒计时 + 滑块推进 → 19.2 完成（Done / 1h 02m early / Nice work）
+   → 亮一瞬 → 21.0 缩成一条发光胶囊消失                                     */
+function renderTask(t) {
+  var on = t > 16300 && t < 22000;
+  vis(secTask, on); if (!on) { op(secTask, 0); return; }
+
+  var card = $('tkCard');
+  var alpha = seg(t, 16300, 16620);
+  var done = seg(t, 19200, 19500);                     // 完成态
+  op(secTask, alpha * (1 - seg(t, 21400, 21900)));     // 段容器（.scene 默认 opacity:0）
+
+  // 展开：小 → 大，弹簧落位
+  var expand = springOut(seg(t, 16320, 16820));
+  var sc = lerp(.42, 1, expand);
+  // 完成态整体轻微放大朝向镜头（方案：卡片向镜头轻微放大）
+  sc *= 1 + 0.035 * easeInOut(seg(t, 19500, 20800));
+  // 缩成胶囊：水平压到 22%、垂直压到 6%（方案：迅速缩成一条很小的发光横条）
+  var sx = lerp(1, 0.22, easeIn(seg(t, 21000, 21600)));
+  var sy = lerp(1, 0.06, easeIn(seg(t, 21000, 21600)));
+  tf(card, 'scale(' + (sc * sx).toFixed(4) + ',' + (sc * sy).toFixed(4) + ')');
+  st(card, 'transformOrigin', '50% 50%');
+  op(card, alpha);
+  // 收成横条时把内容整体淡掉，只留一条发光横条
+  op($('tkCheck'), 1 - seg(t, 20900, 21300));
+  op(document.querySelector('#s-task .tk-clock'), 1 - seg(t, 20900, 21300));
+  op(document.querySelector('#s-task .tk-title'), (1 - 0.25 * done) * (1 - seg(t, 20900, 21300)));
+  op(document.querySelector('#s-task .tk-slider'), 1 - seg(t, 20900, 21400));
+  op(document.querySelector('#s-task .tk-btns'), 1 - seg(t, 20800, 21300));
+
+  // 完成瞬间亮一下，然后收
+  var flash = Math.sin(seg(t, 19200, 20100) * Math.PI) * (1 - seg(t, 20100, 20900));
+  st(card, 'boxShadow',
+    'inset 0 1px 0 rgba(255,255,255,' + (0.13 + 0.10 * flash).toFixed(3) + '),' +
+    'inset 0 -26px 46px -34px rgba(142,124,255,' + (0.55 + 0.3 * flash).toFixed(2) + '),' +
+    '0 0 ' + (18 + 26 * flash).toFixed(0) + 'px rgba(127,168,255,' + (0.10 + 0.28 * flash).toFixed(2) + '),' +
+    '0 30px 80px -40px #000');
+  st(card, 'borderColor', 'rgba(255,255,255,' + (0.10 + 0.14 * done).toFixed(3) + ')');
+
+  // 右上：1:02:13 / left → Done
+  var clock = $('tkClock');
+  if (done < .5) {
+    if (clock.__v !== '1:02:13') { clock.__v = '1:02:13'; clock.textContent = '1:02:13'; }
+    st(clock, 'fontSize', '38px');
+    st(clock, 'color', '#EFF4FF');
+    op($('tkLeftLbl'), 1 - done * 2);
+  } else {
+    if (clock.__v !== 'Done') { clock.__v = 'Done'; clock.textContent = 'Done'; }
+    st(clock, 'fontSize', '30px');
+    st(clock, 'color', '#BFD4FF');
+    op($('tkLeftLbl'), 0);
+  }
+
+  // 副标题：Reminder → 1h 02m early → Nice work.（换字 190ms）
+  var sub = $('tkSub');
+  var s1 = seg(t, 16900, 17400) * (1 - done);
+  var s2 = seg(t, 19400, 19590) * (1 - seg(t, 20200, 20390));
+  var s3 = seg(t, 20200, 20390);
+  if (t < 19250) {
+    if (sub.__v !== 'Reminder 2 of 4 · next at 10%') { sub.__v = 'Reminder 2 of 4 · next at 10%'; sub.textContent = 'Reminder 2 of 4 · next at 10%'; }
+    op(sub, s1);
+    st(sub, 'color', '#7C87A3');
+  } else if (t < 20250) {
+    if (sub.__v !== '1h 02m early') { sub.__v = '1h 02m early'; sub.textContent = '1h 02m early'; }
+    op(sub, s2);
+    st(sub, 'color', '#A8C2FF');
+  } else {
+    if (sub.__v !== 'Nice work.') { sub.__v = 'Nice work.'; sub.textContent = 'Nice work.'; }
+    op(sub, s3);
+    st(sub, 'color', '#DCE9FF');
+  }
+  // 标题在完成态变淡一点点
+  op(document.querySelector('#s-task .tk-title'), 1 - 0.25 * done);
+
+  // 圆形勾选图标：完成时变亮、填浅蓝
+  var chk = $('tkCheck');
+  st(chk, 'background', done > .5
+    ? 'rgba(180,208,255,' + (0.55 + 0.25 * done).toFixed(2) + ')'
+    : 'rgba(255,255,255,.05)');
+  st(chk, 'borderColor', 'rgba(' + (done > .5 ? '190,215,255,' + (0.7).toFixed(2) : '255,255,255,.16') + ')');
+  st(chk, 'boxShadow', '0 0 ' + (6 + 16 * done).toFixed(0) + 'px rgba(127,168,255,' + (0.18 + 0.4 * done).toFixed(2) + ')');
+
+  // 滑块：像素推进（8% → 100%）
+  var prog = lerp(0.06, 0.62, easeInOut(seg(t, 16800, 19000)));
+  prog = lerp(prog, 1, easeInOut(seg(t, 19300, 20400)));     // 完成时填满
+  var knobX = prog * 542;
+  tf($('tkKnob'), 'translateX(' + knobX.toFixed(1) + 'px)');
+  st($('tkFill'), 'width', (prog * 556).toFixed(1) + 'px');
+  // 完成时末端出现小白色勾选指示
+  var endInd = seg(t, 20100, 20500);
+  op($('tkEnd'), endInd);
+  st($('tkEnd'), 'left', (556 - 6) + 'px');
+  st($('tkEnd'), 'width', '9px');
+
+  // 按钮：取消保持暗色；确认逐渐变亮蓝，并在完成前有一次小波纹
+  var ok = $('tkOk');
+  st(ok, 'background', 'rgba(127,168,255,' + lerp(.10, .55, done).toFixed(2) + ')');
+  st(ok, 'color', done > .5 ? '#0A0F1C' : '#AFC8FF');
+  st(ok, 'borderColor', 'rgba(127,168,255,' + lerp(.32, .9, done).toFixed(2) + ')');
+  // 点击波纹（18.6–19.0s 小范围蓝色涟漪）
+  var rip = seg(t, 18620, 19000);
+  st(ok, 'boxShadow', rip > 0 && rip < 1
+    ? '0 0 0 ' + (2 + 14 * easeOut(rip)).toFixed(1) + 'px rgba(127,168,255,' + (0.5 * (1 - rip)).toFixed(2) + ')'
+    : '0 0 0 0 rgba(127,168,255,0)');
+  tf(ok, 'scale(' + (1 + 0.14 * Math.sin(rip * Math.PI) * (1 - done * 0.6)).toFixed(3) + ')');
+}
+
+/* ── 模块 7：Activity 热力图（22.0–25.7s）────────────────────────────────
+   先零散几颗方块 → 补齐矩阵 → 部分格子依次点亮（近期活动）→ 统计数字淡入    */
+function renderHeat(t) {
+  var on = t > 21960 && t < 26100;
+  vis(secHeat, on); if (!on) { op(secHeat, 0); return; }
+
+  var alpha = Math.min(seg(t, 22000, 22400), 1 - seg(t, 25400, 25960));
+  op(secHeat, alpha);
+
+  var card = $('htCard');
+  var enter = springOut(seg(t, 22020, 22520));
+  st(card, 'transformOrigin', '50% 50%');
+  // 轻柔上浮淡入（方案：gentle upward fade and slight scale-in）
+  tf(card, 'translateY(' + lerp(16, 0, enter).toFixed(1) + 'px) scale(' + lerp(.955, 1, enter).toFixed(4) + ')');
+  op(card, alpha);
+
+  // 格子：出现时间错峰，先从几颗零散 → 补齐
+  for (var i = 0; i < htCells.length; i++) {
+    var el = htCells[i];
+    var appear = seg(t, 22060 + htDelay[i], 22260 + htDelay[i]);
+    if (appear <= 0) { op(el, 0); tf(el, 'scale(.55)'); continue; }
+    var e2 = springOut(appear);
+    tf(el, 'scale(' + lerp(.55, 1, e2).toFixed(3) + ')');
+
+    // 等级：按权重分布（以 0–3 级为主，高亮只占少量）
+    var w = htWeight[i];
+    var lvl = w < .24 ? 0 : w < .50 ? 1 : w < .74 ? 2 : w < .92 ? 3 : 4;
+
+    // 23.2–24.4 少量格子依次变亮，像"近期活动被揭示"（方案：several cells brighten in sequence）
+    // 只提升 1 级、且只挑约 1/4 的格子，避免整片洗白
+    if (i % 4 === 1) {
+      var bumpAt = 23200 + (i % 23) * 46;
+      var bump = seg(t, bumpAt, bumpAt + 240) * (1 - seg(t, bumpAt + 900, bumpAt + 1300));
+      if (bump > .35) lvl = Math.min(4, lvl + 1);
+    }
+    if (el.__lvl !== lvl) { el.__lvl = lvl; el.style.background = HT_PAL[lvl]; }
+    // 整体压透明度，让热力图沉下去（方案：low saturation，克制）
+    op(el, appear * 0.82);
+  }
+
+  // 统计数字最后淡入
+  var nums = $('htNums').children;
+  for (var n = 0; n < nums.length; n++) {
+    op(nums[n], seg(t, 24300 + n * 110, 24600 + n * 110));
+  }
+  // 图例 / 月份标签随卡片一起
+  op(document.querySelector('#s-heat .ht-legend'), seg(t, 23900, 24300));
+  op(document.querySelector('#s-heat .ht-months'), seg(t, 22300, 22700));
+  op(document.querySelector('#s-heat .ht-stat'), seg(t, 22500, 22900));
+}
+
+/* ── 模块 9：COMING SOON / Welcome to Orbit（27.5–32.1s）──────────────────
+   先有粒子轮廓，再有文字；COMING SOON 偏灰，Welcome 更亮；结尾极淡地黑下去  */
+function renderWelcome(t) {
+  var on = t > 27500;
+  vis(secWel, on); if (!on) { op(secWel, 0); return; }
+  op(secWel, 1);
+
+  var c = $('wlComing').children;
+  // 文字比轮廓晚 400ms 出（方案：先出现粒子轮廓，再出现文字）
+  op(c[0], seg(t, 29100, 29500));
+  op(c[1], seg(t, 29600, 30000));
+  tf($('wlComing'), 'translateY(' + lerp(8, 0, easeOut(seg(t, 29100, 29600))).toFixed(1) + 'px)');
+
+  var title = $('wlTitle');
+  op(title, seg(t, 30100, 30550));
+  tf(title, 'translateY(' + lerp(10, 0, easeOut(seg(t, 30100, 30550))).toFixed(1) + 'px)');
+}
+
+/* ── 结尾整体淡黑（31.2–32.1s，方案：End with a very subtle fade to black）── */
+function renderFade(t) {
+  op($('fade'), easeInOut(seg(t, 31200, 32080)) * 0.92);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   5. 时间轴：唯一的状态入口
+   ══════════════════════════════════════════════════════════════════════════ */
+function renderAt(t) {
+  t = clamp(t, 0, DUR);
+  renderLevel(t);
+  renderPriority(t);
+  renderVoice(t);
+  renderTask(t);
+  renderHeat(t);
+  renderWelcome(t);
+  renderFade(t);
+  drawFX(t);
+  hud(t);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   6. 播放器：空格 / ←→ / R / F / H / 进度条 seek
+   ══════════════════════════════════════════════════════════════════════════ */
+var playing = true, baseT = 0, startedAt = 0;
+function now() { return playing ? baseT + (performance.now() - startedAt) : baseT; }
+
+function play() { if (playing) return; startedAt = performance.now(); playing = true; }
+function pause() { if (!playing) return; baseT = now(); playing = false; }
+function seek(ms) {
+  baseT = clamp(ms, 0, DUR);
+  startedAt = performance.now();
+  renderAt(baseT);
+}
+function restart() { baseT = 0; startedAt = performance.now(); playing = true; renderAt(0); }
+
+var hudEl = $('hud'), hudBar = $('hudBar'), hudFill = $('hudFill'), hudKnob = $('hudKnob'), hudTime = $('hudTime');
+function hud(t) {
+  var p = t / DUR;
+  st(hudFill, 'width', (p * 880).toFixed(1) + 'px');
+  tf(hudKnob, 'translateX(' + (p * 880).toFixed(1) + 'px)');
+  var s = Math.floor(t / 1000), ds = Math.floor((t % 1000) / 100);
+  var txt = '00:' + (s < 10 ? '0' : '') + s + '.' + ds + ' / 00:32.1';
+  if (hudTime.__v !== txt) { hudTime.__v = txt; hudTime.textContent = txt; }
+}
+
+// 进度条 seek（点 + 拖）。用 getBoundingClientRect，自动适配缩放
+var dragging = false;
+function seekFrom(e) {
+  var r = hudBar.getBoundingClientRect();
+  seek(clamp((e.clientX - r.left) / r.width) * DUR);
+}
+hudBar.addEventListener('pointerdown', function (e) {
+  dragging = true;
+  try { hudBar.setPointerCapture(e.pointerId); } catch (err) {}
+  seekFrom(e); e.preventDefault();
+});
+hudBar.addEventListener('pointermove', function (e) { if (dragging) seekFrom(e); });
+hudBar.addEventListener('pointerup', function (e) {
+  dragging = false;
+  try { hudBar.releasePointerCapture(e.pointerId); } catch (err) {}
+});
+hudBar.addEventListener('pointercancel', function () { dragging = false; });
+
+window.addEventListener('keydown', function (e) {
+  var k = e.key;
+  if (k === ' ' || k === 'Spacebar') { e.preventDefault(); playing ? pause() : play(); }
+  else if (k === 'ArrowLeft') { e.preventDefault(); seek(now() - 1000); }
+  else if (k === 'ArrowRight') { e.preventDefault(); seek(now() + 1000); }
+  else if (k === 'r' || k === 'R') { e.preventDefault(); restart(); }
+  else if (k === 'f' || k === 'F') {
+    e.preventDefault();
+    if (!document.fullscreenElement) {
+      (shell.requestFullscreen || shell.webkitRequestFullscreen || function () {}).call(shell);
+    } else {
+      (document.exitFullscreen || document.webkitExitFullscreen || function () {}).call(document);
+    }
+  }
+  else if (k === 'h' || k === 'H') {
+    e.preventDefault();
+    var hidden = hudEl.style.display === 'none';
+    hudEl.style.display = hidden ? '' : 'none';
+    setTimeout(fit, 0);
+  }
+});
+document.addEventListener('fullscreenchange', function () { setTimeout(fit, 60); });
+
+/* ══════════════════════════════════════════════════════════════════════════
+   7. 主循环（requestAnimationFrame，一直跑；暂停时只渲染当前帧）
+   ══════════════════════════════════════════════════════════════════════════ */
+function loop() {
+  var t = now();
+  if (t >= DUR) { t = DUR; if (playing) { baseT = DUR; playing = false; } }
+  renderAt(t);
+  requestAnimationFrame(loop);
+}
+
+// 打开即自动播放（静音、无音频）
+baseT = 0; startedAt = performance.now(); playing = true;
+renderAt(0);
+requestAnimationFrame(loop);
+
+// 调试用：控制台可 seek(12000) / pause() / play()
+window.orbit = { seek: seek, pause: pause, play: play, restart: restart, at: now, dur: DUR };
+
+})();
+</script>
