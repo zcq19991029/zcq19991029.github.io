@@ -307,8 +307,11 @@ var HX = (function () {
   function load() { try { s = JSON.parse(localStorage.getItem(SKEY)); } catch (e) { s = null; } return s; }
   function keep(v) { s = v; try { if (v) localStorage.setItem(SKEY, JSON.stringify(v)); else localStorage.removeItem(SKEY); } catch (e) { } }
   var ZH = [[/Invalid login credentials/i, '账号或密码不对'], [/Email not confirmed/i, '邮箱还没确认'], [/rate limit|too many/i, '操作太频繁，请过一会儿再试'], [/JWT expired|invalid JWT/i, '登录过期了，请重新登录'],
-    [/permission denied/i, '没有权限'], [/different from the old password/i, '和现在的密码一样'], [/at least 6/i, '密码至少 6 位'], [/duplicate key|already exists/i, '这个账号名已经有人用了'], [/Identity is already linked/i, '这个 GitHub 已经绑定了别的账号'],
-    [/already registered|user_already_exists/i, '这个账号名已经注册过了，请直接登录']];
+    [/permission denied/i, '没有权限'], [/different from the old password/i, '和现在的密码一样'], [/at least 6/i, '密码至少 6 位'],
+    // 「账号已存在」不要说成一句死胡同：告诉学生下一步该干什么（切到登录、用学号+原密码）。
+    [/duplicate key|already exists/i, '这个学号已经注册过账号了。请切到「登录」，用学号和你当时设的密码登录；忘了密码找老师重置。'],
+    [/Identity is already linked/i, '这个 GitHub 已经绑定了别的账号'],
+    [/already registered|user_already_exists/i, '这个学号已经注册过账号了。请切到「登录」，用学号和你当时设的密码登录；忘了密码找老师重置。']];
   function zh(m) { m = String(m || ''); for (var i = 0; i < ZH.length; i++) if (ZH[i][0].test(m)) return ZH[i][1]; return m; }
   async function api(path, o) {
     o = o || {}; var auth = o.auth !== false;
@@ -367,9 +370,22 @@ var HX = (function () {
       if (id.indexOf('@') < 0) email = await rpc('paike_login_email', { p_name: id }, false) || mailOf(id); // 账号名没登记上（如学号被占）也能用注册时的合成邮箱登录
       take(await api('/auth/v1/token?grant_type=password', { method: 'POST', body: { email: email, password: pw }, auth: false }));
     },
+    // 注册：账号名 → 合成邮箱。signUp 返回 'new'（新账号）或 'existing'（这个账号名早就建过）。
+    // 「早就建过」是学生注册最常见的情况：上次账号建好了、但开通那一步没走完（网络断、邀请码正好用完、页面关掉），
+    // 账号就留在服务器上，学生再注册永远被顶「账号名已有人用」，从此进不去。
+    // 所以这里不直接报错：先用他刚填的密码试登录——能登进去就是本人，接着去开通，等于自我修复。
     signUp: async function (name, pw, full) {
-      var email = mailOf(name), j = await api('/auth/v1/signup', { method: 'POST', body: { email: email, password: pw, data: { full_name: full } }, auth: false });
-      take(j && j.access_token ? j : await api('/auth/v1/token?grant_type=password', { method: 'POST', body: { email: email, password: pw }, auth: false }));
+      var email = mailOf(name);
+      var login = () => api('/auth/v1/token?grant_type=password', { method: 'POST', body: { email: email, password: pw }, auth: false });
+      try {
+        var j = await api('/auth/v1/signup', { method: 'POST', body: { email: email, password: pw, data: { full_name: full } }, auth: false });
+        take(j && j.access_token ? j : await login());
+        return 'new';
+      } catch (e) {
+        // 建账号失败：可能是账号名已存在，也可能是网络/限流。都先试着直接登录一次（不会造成副作用），
+        // 登得进去说明账号本来就是他的；登不进去再把原来的错误抛出去。
+        try { take(await login()); return 'existing'; } catch (_) { throw e; }
+      }
     },
     synthetic: function (email) { return /@hx\.invalid$/i.test(email || ''); },
     accounts: accounts, useAccount: useAccount, forgetAccount: forgetAccount,
@@ -961,10 +977,37 @@ $('rf').onsubmit = async function (e) {
     var args = { p_code: R.code, p_class: t || g ? null : +$('rcls').value, p_no: t ? null : no, p_name: t ? null : nm, p_username: t ? un : null, p_guest_class: g ? gc : null };
     if (ST.lm === 'reg') {
       var pw = $('rpw').value; if (pw.length < 6) throw new Error('密码至少 6 位'); if (pw !== $('rpw2').value) throw new Error('两次输的密码不一样');
-      await HX.rpc('hx_redeem_check', args, false);
+      // 账号已经存在（以前注册到一半、账号留着）时，hx_redeem_check 会说「这个学号已经注册过了」，
+      // 但他现在有密码、能证明是本人，所以这一步失败不拦，让它走到 signUp → 自动登录 → 开通。
+      try { await HX.rpc('hx_redeem_check', args, false); } catch (ce) {
+        if (!/已经注册过|已经开通过/.test(ce.message)) throw ce;
+      }
       await HX.signUp(t ? un : no, pw, nm); was = true;
     }
-    var r = await HX.rpc('hx_redeem', args);
+    // 已经注册过、也开通过的学生（忘了自己注册过，又来注册一遍）：
+    // 上面这步已经把他登进来了，这里直接看身份——已经是学生/教师就别再走开通，
+    // 不然 hx_redeem 会拿「这个学号已经注册过了」把他挡在门外，看着就像注册坏了。
+    var me0 = null;
+    try { me0 = await HX.rpc('hx_me'); } catch (e0) { }
+    if (me0 && (me0.student || me0.teacher || me0.admin || me0.dev)) {
+      ST.me = me0; $('login').close();
+      toast(me0.student ? '你已经是' + (me0.student.class || '') + '的学生了，已登录' : '你之前已经注册好了，已登录');
+      reloadTools(); refresh(); return;
+    }
+    var r;
+    try { r = await HX.rpc('hx_redeem', args); }
+    catch (re) {
+      // 最后一道保险：开通失败但这个人其实已经有身份了（比如这个学号还挂在另一个班的名单里，
+      // 数据库那边 user_id 唯一，绑第二行会报「账号名已有人用」）。这时候不该拦他，应该让他进去。
+      var me1 = null;
+      try { me1 = await HX.rpc('hx_me'); } catch (e1) { }
+      if (me1 && (me1.student || me1.teacher || me1.admin || me1.dev)) {
+        ST.me = me1; $('login').close();
+        toast(me1.student ? '你已经是' + (me1.student.class || '') + '的学生了，已登录' : '你已经有账号了，已登录');
+        reloadTools(); refresh(); return;
+      }
+      throw re;
+    }
     $('login').close(); toast(r === 'teacher' ? '已开通教师账号' : '已开通，欢迎 ' + nm); reloadTools(); refresh();
   } catch (err) {
     msg.textContent = err.message; go.disabled = false;
