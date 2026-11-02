@@ -282,7 +282,24 @@ var HX = (function () {
     try { take(await api('/auth/v1/token?grant_type=refresh_token', { method: 'POST', body: { refresh_token: s.refresh_token }, auth: false })); }
     catch (e) { if (e.status) keep(null); throw e; }
   }
-  function take(j) { keep({ access_token: j.access_token, refresh_token: j.refresh_token, expires_at: j.expires_at || now() + (j.expires_in || 3600), user: j.user || (s && s.user) || null }); }
+  function take(j) { keep({ access_token: j.access_token, refresh_token: j.refresh_token, expires_at: j.expires_at || now() + (j.expires_in || 3600), user: j.user || (s && s.user) || null }); saveAccount(); }
+  // ---------- 这台设备上登录过的账号 ----------
+  // 切换账号不该让人重新输密码：登录成功后把 refresh_token 记在这台设备上，切回来时拿它换新的 access_token。
+  // 「退出登录」才把这个账号从本地列表里删掉，下次要重新输密码——两者的区别就是删不删这份记录。
+  var AKEY = 'paike-accounts';
+  function accounts() { try { return JSON.parse(localStorage.getItem(AKEY)) || []; } catch (e) { return []; } }
+  function keepAccounts(L) { try { localStorage.setItem(AKEY, JSON.stringify(L)); } catch (e) { } }
+  function saveAccount() {
+    if (!s || !s.refresh_token || !s.user || !s.user.id) return;
+    var u = s.user, L = accounts().filter(function (x) { return x.uid !== u.id; });
+    L.unshift({ uid: u.id, mail: u.email || '', name: (u.user_metadata && u.user_metadata.name) || '', rt: s.refresh_token, at: now() });
+    keepAccounts(L.slice(0, 6));
+  }
+  function useAccount(uid) { // 切到这台设备上记过的某个账号：access_token 清空、标成已过期，下一次 api() 会自己用 refresh_token 换新的
+    var a = accounts().filter(function (x) { return x.uid === uid; })[0]; if (!a) return false;
+    keep({ access_token: '', refresh_token: a.rt, expires_at: 0, user: null }); return true;
+  }
+  function forgetAccount(uid) { keepAccounts(accounts().filter(function (x) { return x.uid !== uid; })); }
   function rpc(f, body, auth) { return api('/rest/v1/rpc/' + f, { method: 'POST', body: body || {}, auth: auth }); }
   function back() { return location.origin + location.pathname; }
   // 用账号名注册的账号没有邮箱：登录邮箱用 账号名@hx.invalid（.invalid 是保留域名，永远不会是谁的真邮箱；后台已关邮件确认，不发信）
@@ -313,6 +330,8 @@ var HX = (function () {
       take(j && j.access_token ? j : await api('/auth/v1/token?grant_type=password', { method: 'POST', body: { email: email, password: pw }, auth: false }));
     },
     synthetic: function (email) { return /@hx\.invalid$/i.test(email || ''); },
+    accounts: accounts, useAccount: useAccount, forgetAccount: forgetAccount,
+    me: function () { return (load() && s.user) || null; },
     out: async function () { try { await api('/auth/v1/logout', { method: 'POST' }); } catch (e) { } keep(null); }
   };
 })();
@@ -397,7 +416,7 @@ function renderLogin() {
   if ($('rx')) $('rx').onclick = function () { $('login').close(); };
   if ($('rgh')) $('rgh').onclick = function () { HX.github(); };
   if ($('rlater')) $('rlater').onclick = function () { $('login').close(); };
-  if ($('rout')) $('rout').onclick = async function () { $('login').close(); await HX.out(); reloadTools(); refresh(); };
+  if ($('rout')) $('rout').onclick = async function () { $('login').close(); var me = HX.me(); if (me && me.id) HX.forgetAccount(me.id); await HX.out(); reloadTools(); refresh(); };
 }
 
 // 地址栏 #wiring 这样的直接打开对应工具；没有或没权限就是首页
@@ -537,9 +556,42 @@ function renderPop() {
     } catch (e) { msg.textContent = e.message; b.disabled = false; }
   };
   if ($('plink')) $('plink').onclick = function () { HX.linkGitHub().catch(function (e) { toast(e.message); }); };
-  if ($('pswitch')) $('pswitch').onclick = async function () { await HX.out(); closePops(); reloadTools(); await refresh(); openLogin(); };
-  if ($('pout')) $('pout').onclick = async function () { await HX.out(); closePops(); reloadTools(); refresh(); };
+  if ($('pswitch')) $('pswitch').onclick = function () { closePops(); openAccounts(); };
+  // 退出登录：把这个账号从这台设备上删掉，下次要重新输密码（和「切换账号」的区别就在这一步）
+  if ($('pout')) $('pout').onclick = async function () { var me = HX.me(); if (me && me.id) HX.forgetAccount(me.id); await HX.out(); closePops(); reloadTools(); refresh(); };
   if ($('pgo')) $('pgo').onclick = function () { openLogin('', 'act'); };
+}
+// 切换账号：列出这台设备上登录过的账号，点一下就切过去（拿本地存的 refresh_token 换新凭证，不用再输密码）。
+// 「退出登录」才把账号从这台设备上删掉，下次要重新输密码——这就是切换和退出的区别。
+function openAccounts() {
+  var L = HX.accounts(), me = HX.me();
+  $('shT').textContent = '切换账号';
+  $('shA').innerHTML = '';
+  $('shB').innerHTML = '<p class="msg" style="margin:0 0 14px">登录过的账号会记在这台设备上，切换不用再输密码；点「退出登录」才会清掉。</p><div class="cls">' +
+    (L.length ? L.map(function (a) {
+      var on = me && me.id === a.uid;
+      return '<div class="cl"><div><h3>' + esc(a.name || a.mail || '这个账号') + '</h3><small>' + esc(a.mail || '') + (on ? ' · 当前登录' : '') + '</small></div>' +
+        '<div class="acts">' + (on ? '' : '<button class="btn sub sm" type="button" data-acc="' + esc(a.uid) + '">切到这个账号</button>') +
+        '<button class="btn link bad sm" type="button" data-forget="' + esc(a.uid) + '">从这台设备移除</button></div></div>';
+    }).join('') : '<p class="empty">这台设备还没记过账号</p>') + '</div>' +
+    '<div class="f"><button class="btn" type="button" id="accNew">用其它账号登录</button></div>';
+  if (!$('sheet').open) $('sheet').showModal();
+  $('shB').querySelectorAll('[data-acc]').forEach(function (b) {
+    b.onclick = async function () {
+      if (!HX.useAccount(b.dataset.acc)) return;
+      $('sheet').close(); toast('正在切换…');
+      try { await refresh(); reloadTools(); toast('已切换账号'); } catch (e) { toast('切换失败：' + e.message); }
+    };
+  });
+  $('shB').querySelectorAll('[data-forget]').forEach(function (b) {
+    b.onclick = async function () {
+      var cur = HX.me();
+      HX.forgetAccount(b.dataset.forget);
+      if (cur && cur.id === b.dataset.forget) { await HX.out(); reloadTools(); refresh(); }
+      $('sheet').close(); toast('已从这台设备移除');
+    };
+  });
+  if ($('accNew')) $('accNew').onclick = function () { $('sheet').close(); openLogin('', 'in'); };
 }
 // 外观：主题色、浅色 / 深色 / 自动、背景图、透明度（存 hx-theme，全部工具一起变）
 function renderLook() {
@@ -618,6 +670,7 @@ function sheetCls() {
     return '<div class="f" style="padding-bottom:10px;border-bottom:1px solid var(--edge)"><b>' + esc(x.file) + (x.list ? ' · ' + x.list.length + ' 名学生：' + x.list.slice(0, 4).map(function (y) { return esc(y.name); }).join('、') + (x.list.length > 4 ? '…' : '') : '') + '</b>' +
       (x.list ? '<input data-rc="' + k + '" value="' + esc(x.cls) + '" placeholder="班级"><input data-rt="' + k + '" value="' + esc(x.term) + '" placeholder="学期">' : '') + (x.err ? '<p class="msg">' + esc(x.err) + '</p>' : '') + '</div>';
   }).join('') + '<div style="display:flex;gap:8px"><button class="btn" id="rImp"' + (R.some(function (x) { return x.list; }) ? '' : ' disabled') + '>导入' + (R.length > 1 ? '全部' : '') + '</button><button class="btn sub" id="rNo">取消</button></div></div>';
+  html += '<p class="msg" style="margin:0 0 12px">点亮哪个工具，这个班才在哪个工具里出现；四个都不点 = 四个工具都用不了。后面的「已开通 N」是已经注册账号的学生人数，和工具开关无关。</p>';
   html += '<div class="cls">' + (ST.classes.length ? ST.classes.map(function (c) {
     var on = ST.open === c.id, tools = c.tools || [];
     return '<div class="cl"><div><h3>' + esc(c.name) + '</h3><small>' + esc(c.term ? c.term + ' · ' : '') + c.total + ' 人 · 已开通 ' + c.bound + '</small></div>' +

@@ -4877,7 +4877,7 @@ function editExam(x) {
   const spec = x && parseExamCode(x.paper);
   let rows = spec ? spec.qs.map(q => ({ mid: q.mid ? q.mid.slice(1) : '0', type: ({ fill: 't', modify: 'g', fix: 'c' })[q.type], pts: q.pts, same: q.draw != null })) : [{ mid: '0', type: 't', pts: 30, same: false }, { mid: '0', type: 'g', pts: 35, same: false }, { mid: '0', type: 'c', pts: 35, same: false }];
   const key = spec ? spec.key : 'Q' + Math.random().toString(36).slice(2, 6).toUpperCase();
-  const own = (CLASSES || []).filter(c => !(c.tools || []).length || c.tools.includes('exam'));
+  const own = (CLASSES || []).filter(c => (c.tools || []).includes('exam')); // 首页点亮「考试」才算开通（空数组不再等于全开）
   const sel = new Set(x ? x.classes : []);
   const draw = () => {
     app().innerHTML = `<header class="ex-h"><div class="eyebrow">${x ? '修改考试' : '发布考试'}</div><h1>${x ? esc(x.title) : '新考试'}</h1></header>

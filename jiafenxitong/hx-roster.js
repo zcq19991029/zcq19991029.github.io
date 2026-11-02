@@ -6,7 +6,7 @@
   function uid(prefix) { return prefix + Date.now().toString(36) + Math.random().toString(36).slice(2, 9); }
   function copy(v) { return JSON.parse(JSON.stringify(v)); }
   /* 首页班级给不给加分用：没勾任何工具 = 都用（和接线仿真、考试一致），勾了就看有没有“小组加分” */
-  function lit(hx) { var t = hx.tools || []; return !t.length || t.indexOf('jiafen') >= 0; }
+  function lit(hx) { var t = hx.tools || []; return t.indexOf('jiafen') >= 0; } // 首页点亮「小组加分」才算开通（空数组不再等于全开）
   function byId(state, id) { return (state.classes || []).filter(function (c) { return c.id === id; })[0] || null; }
 
   /* 空白模板班（新老师的“我的班级”）：没名单、没分组成员、没课次 */
