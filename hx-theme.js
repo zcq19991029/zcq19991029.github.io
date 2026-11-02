@@ -91,5 +91,50 @@
   function portal() { try { return window.top !== window && window.top.HXPortal ? window.top.HXPortal : null; } catch (e) { return null; } }
   window.HXTheme = { acc: ACC, bg: BG, root: root, get: get, mode: function () { return modeOf(get()); }, set: set, upload: upload, reset: reset, isDev: isDev, setDev: setDev, onChange: function (fn) { subs.push(fn); },
     portal: portal, login: function () { var p = portal(); if (p) p.login(); else location.href = root + (tool ? '#' + tool : ''); } };
+  // ---------- 导航栏交互动效：滑块跟着当前项走（不用每项自己高亮） ----------
+  // 用法：HXNav.slide(容器) —— 容器里放 [data-v] 或 [aria-current] 的按钮，当前项加 aria-current="true"。
+  // 滑块自己量位置，所以文字长短不同也对得准；换项时用弹簧曲线滑过去，不是闪一下。
+  // 首帧不滑（直接落位），避免打开页面看到滑块从左上角飞过来。
+  (function () {
+    function slide(box, opts) {
+      if (!box) return null;
+      opts = opts || {};
+      var cur = null, ready = false;
+      box.setAttribute('data-hx-slide', '');
+      if (getComputedStyle(box).position === 'static') box.style.position = 'relative';
+      function make() {
+        cur = box.querySelector(':scope > .hx-nav-cur');
+        if (cur) return cur;
+        cur = document.createElement('i');
+        cur.className = 'hx-nav-cur';
+        cur.setAttribute('aria-hidden', 'true');
+        box.insertBefore(cur, box.firstChild);
+        return cur;
+      }
+      function place(anim) {
+        var b = box.querySelector('[aria-current="true"]');
+        if (!b) { make().style.opacity = 0; return; }
+        make();
+        var br = b.getBoundingClientRect(), pr = box.getBoundingClientRect();
+        if (!br.width) return; // 隐藏时不能量
+        cur.style.opacity = 1;
+        cur.style.width = br.width + 'px';
+        cur.style.height = br.height + 'px';
+        cur.style.transform = 'translate(' + (br.left - pr.left - box.clientLeft) + 'px,' + (br.top - pr.top - box.clientTop) + 'px)';
+        if (!anim) { cur.style.transition = 'none'; void cur.offsetWidth; cur.style.transition = ''; }
+      }
+      place(false);
+      ready = true;
+      var t = null;
+      function later() { clearTimeout(t); t = setTimeout(function () { place(false); }, 220); } // 字体/字体图标晚到时再对一次位
+      if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { place(false); });
+      addEventListener('resize', function () { place(false); });
+      // 观察当前项变化（各工具用 aria-current 标当前项，改属性就会触发）
+      new MutationObserver(function () { place(ready); }).observe(box, { subtree: true, attributes: true, attributeFilter: ['aria-current', 'data-v'], childList: true });
+      later();
+      return { refresh: function () { place(false); } };
+    }
+    window.HXNav = { slide: slide };
+  })();
   apply();
 })();

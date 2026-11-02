@@ -24,7 +24,51 @@
   --hx-ease: cubic-bezier(.28, .11, .32, 1); /* 苹果官网的缓动 */
   --hx-spring: cubic-bezier(.16, 1, .3, 1);
   --hx-blur: saturate(180%) blur(20px);
+  /* 玻璃分层（模糊 → 增色 → 叠白 → 亮边 → 折射）：见 hx-glass 注释 */
+  --glass-blur: saturate(180%) blur(26px);
+  --glass-wash: rgba(255, 255, 255, .10);   /* 叠的一层白，10% */
+  --glass-top: rgba(255, 255, 255, .62);    /* 左上亮边 */
+  --glass-bot: rgba(255, 255, 255, 0);      /* 右下消失，形成厚度方向 */
+  --glass-drop: 0 18px 46px -26px rgba(0, 0, 0, .45);
 }
+:root[data-hx-mode="dark"] {
+  --glass-wash: rgba(255, 255, 255, .045);
+  --glass-top: rgba(255, 255, 255, .30);
+  --glass-bot: rgba(255, 255, 255, .02);
+  --glass-drop: 0 22px 54px -28px rgba(0, 0, 0, .9);
+}
+/* 有层次的玻璃卡：.hx-glass 就是这套做法的封装。
+   ① 加大模糊 + 提高饱和度（背景透上来但不发灰）② 叠一层薄白 ③ 1px 亮边只亮左上 → 右下渐隐（带出厚度）
+   ④ 落影极淡，只有边缘暗部，不要整片光晕 ⑤ 折射：角上一道高光弧，做出液态感。 */
+.hx-glass {
+  position: relative; background: var(--glass-wash);
+  -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+  border-radius: 22px; box-shadow: var(--glass-drop);
+}
+.hx-glass::before { /* 方向性 1px 亮边 */
+  content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px; pointer-events: none;
+  background: linear-gradient(150deg, var(--glass-top) 0%, var(--glass-bot) 56%, var(--glass-bot) 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+}
+.hx-glass::after { /* 折射高光：左上角一道弧形反光 */
+  content: ""; position: absolute; left: 6%; top: 0; width: 46%; height: 42%; pointer-events: none;
+  border-radius: inherit; border-top-left-radius: 22px;
+  background: radial-gradient(120% 100% at 18% 0%, rgba(255, 255, 255, .16), transparent 62%);
+  opacity: .9;
+}
+@media (prefers-reduced-transparency: reduce) { .hx-glass { background: var(--card-solid); -webkit-backdrop-filter: none; backdrop-filter: none; } }
+/* 导航栏滑块：HXNav.slide(容器) 会在容器里插一个 .hx-nav-cur 跟着当前项滑过去。
+   原来每项选中时自己亮一块背景，切换是闪；现在是一块跟着走的滑块，用弹簧曲线，看着是"滑"过去的。 */
+[data-hx-slide] > .hx-nav-cur {
+  position: absolute; left: 0; top: 0; z-index: 0; pointer-events: none; border-radius: 99px;
+  background: var(--fill); box-shadow: 0 0 0 1px var(--edge) inset;
+  transition: transform .42s var(--hx-spring), width .42s var(--hx-spring), height .42s var(--hx-spring), opacity .2s var(--hx-ease);
+}
+[data-hx-slide] > *:not(.hx-nav-cur) { position: relative; z-index: 1; }
+[data-hx-slide] [aria-current="true"], [data-hx-slide] > button:hover { background: transparent !important; }
+[data-hx-slide] > button[aria-current="true"] { color: var(--ink); font-weight: 600; }
+@media (prefers-reduced-motion: reduce) { [data-hx-slide] > .hx-nav-cur { transition: none; } }
 /* 背景图：固定在视口后面（手机 Safari 不支持 background-attachment: fixed，用伪元素） */
 html.hx-bg { background: var(--bg); }
 html.hx-bg body { background: transparent !important; }

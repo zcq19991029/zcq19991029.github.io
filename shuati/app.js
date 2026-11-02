@@ -95,23 +95,41 @@ async function loadSubjects(withPublic = true) { // withPublic=false：先不等
 async function baseOf(sub) {
   if (S.base[sub.id]) return S.base[sub.id];
   let list = [];
-  if (sub.kind === 'builtin') { const r = await fetch(sub.file + '?v=20261031', { cache: 'no-cache' }); if (!r.ok) throw new Error('题库加载失败 HTTP ' + r.status); list = await r.json(); }
+  if (sub.kind === 'builtin') {
+    // 离线版：题库已经内联在文件里（window.__BANK），file:// 下 fetch 会被浏览器拦，直接取
+    if (window.__OFFLINE && window.__BANK && window.__BANK[sub.file]) list = window.__BANK[sub.file];
+    else { const r = await fetch(sub.file + '?v=20261031', { cache: 'no-cache' }); if (!r.ok) throw new Error('题库加载失败 HTTP ' + r.status); list = await r.json(); }
+  }
   else if (sub.kind === 'public') { const r = await store.publicGet(sub.pid); list = (r && r.questions) || []; }
   return (S.base[sub.id] = list);
 }
 async function openSubject(id) {
   const sub = S.subjects.find(s => s.id === id) || S.subjects[0];
   S.subject = sub; S.ai = {}; S.draft = null;
-  $('subjName').textContent = sub.name; document.title = sub.name + ' · 刷题';
+  paintSubj();
   $('card').innerHTML = '<div class="empty"><p class="muted">正在加载题库…</p></div>';
+  // 手快连点两个科目时，先发的那次可能后回来。用序号记住“谁最后一次点的”，
+  // 回来的旧结果直接丢掉，否则会出现左上角写着一个科目、中间却是另一个科目
+  const seq = S.subSeq = (S.subSeq || 0) + 1;
   let base = [];
   try { base = await baseOf(sub); } catch (e) { toast(e.message); }
-  S.bank = await store.read('bank:' + sub.id, [], (a, b) => (b && b.length ? b : a));
+  const bank = await store.read('bank:' + sub.id, [], (a, b) => (b && b.length ? b : a));
+  const records = await store.read('progress:' + sub.id, {}, store.mergeProgress);
+  if (seq !== S.subSeq || S.subject !== sub) return; // 期间又换过一次科目，这次结果作废
+  S.bank = bank;
   const seen = new Set(base.map(q => q.id));
   S.questions = [...base, ...S.bank.filter(q => !seen.has(q.id))];
-  S.records = await store.read('progress:' + sub.id, {}, store.mergeProgress);
+  S.records = records;
   if (!S.questions.some(q => q.type === S.type)) S.type = (TYPES.find(t => S.questions.some(q => q.type === t[0])) || TYPES[0])[0];
-  savePrefs(); buildQueue(true); show(S.view);
+  savePrefs(); buildQueue(true);
+  paintSubj(); // 加载完再对一次：科目名、标题、右侧题型，保证和中间内容是同一个科目
+  show(S.view);
+}
+// 左上角科目名 + 标签页标题：只有一个来源（S.subject），别的地方不要单独改
+function paintSubj() {
+  const n = S.subject ? S.subject.name : '';
+  if ($('subjName').textContent !== n) $('subjName').textContent = n;
+  document.title = n ? n + ' · 刷题' : '刷题 · 华夏工具';
 }
 const saveRecords = () => store.write('progress:' + S.subject.id, S.records);
 
@@ -195,6 +213,8 @@ function renderNav() {
   $('tabs').innerHTML = VIEWS.map(([a, b]) => btn([a, b])).join('');
   $('dock').innerHTML = VIEWS.map(btn).join('');
   for (const b of document.querySelectorAll('[data-v]')) b.onclick = () => show(b.dataset.v);
+  // 顶栏换成「一块跟着当前项滑过去」的指示器（只在桌面顶栏做；手机底部 dock 每项都带图标，滑块会挡图标）
+  try { window.HXNav && window.HXNav.slide($('tabs')); } catch (e) { }
 }
 function renderWho() { if (inPortal()) $('brand').style.display = 'none'; } // 账号只在首页管理；总入口顶栏已有 logo
 function show(v) {
@@ -202,6 +222,7 @@ function show(v) {
   for (const [id] of VIEWS) $('v-' + id).hidden = id !== v;
   for (const b of document.querySelectorAll('[data-v]')) b.setAttribute('aria-current', b.dataset.v === v);
   $('bar').hidden = v !== 'practice';
+  paintSubj(); // 每次换栏目都对一次标题：保证左上角的科目名永远和中间内容是同一个
   if (!S.subject) return;
   if (v === 'practice') renderPractice();
   if (v === 'overview') renderOverview();
@@ -357,7 +378,8 @@ function openSubjectSheet() {
     <div class="sgroup">课程题库</div><div class="slist">${[...g('builtin'), ...g('public')].map(item).join('')}</div>
     <div class="sgroup">我的科目</div><div class="slist">${g('mine').map(item).join('')}
     <button type="button" class="sitem" id="newSubj" style="justify-content:center;color:var(--acc3)"><b style="flex:none">＋ 新建科目</b></button></div>`, () => {
-    for (const b of $('sheetBody').querySelectorAll('.sitem[data-id]')) b.onclick = async () => { closeSheet(); S.view = 'practice'; await openSubject(b.dataset.id); };
+    // 换科目留在当前栏目（在概览就看新科目的概览，在排行就看新科目的排行），不要硬踢回刷题
+    for (const b of $('sheetBody').querySelectorAll('.sitem[data-id]')) b.onclick = async () => { closeSheet(); await openSubject(b.dataset.id); };
     $('newSubj').onclick = () => { closeSheet(); show('bank'); setTimeout(() => $('newName')?.focus(), 50); };
   });
 }
