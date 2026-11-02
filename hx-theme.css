@@ -6,6 +6,8 @@
   --bar: rgb(251 251 253 / calc(.55 + var(--hx-a, 1) * .3)); --shade: rgba(0, 0, 0, .14);
   --acc: #2f845a; --acc2: #5aa77c; --acc3: #5aa77c; --on-acc: #fff; --hov: rgba(0, 0, 0, .04);
   --ok: #248a3d; --okbg: rgba(36, 138, 61, .1); --bad: #d70015; --badbg: rgba(215, 0, 21, .08); --warn: #b25000;
+  /* 卡片渐变与方向性描边（左上亮、右下灭），班级面板等用 */
+  --card-hi: #fff; --card-lo: #fafafb; --edge-hi: rgba(0, 0, 0, .10); --edge-lo: rgba(0, 0, 0, .02);
   color-scheme: light;
 }
 :root[data-hx-mode="dark"] {
@@ -13,6 +15,7 @@
   --card: rgb(28 28 30 / var(--hx-a, 1)); --card2: rgb(44 44 46 / calc(var(--hx-a, 1) * .72)); --card-solid: #1c1c1e; --fill: rgba(255, 255, 255, .06);
   --bar: rgb(22 22 23 / calc(.55 + var(--hx-a, 1) * .3)); --shade: rgba(0, 0, 0, .6);
   --ok: #30d158; --okbg: rgba(48, 209, 88, .14); --bad: #ff453a; --badbg: rgba(255, 69, 58, .14); --warn: #ff9f0a;
+  --card-hi: #151517; --card-lo: #0b0b0c; --edge-hi: rgba(255, 255, 255, .26); --edge-lo: rgba(255, 255, 255, .03);
   color-scheme: dark;
 }
 :root {

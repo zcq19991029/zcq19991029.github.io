@@ -92,18 +92,24 @@ export async function listModels() {
   return (data.data || []).map(item => item.id).filter(Boolean).sort();
 }
 
-export async function streamChat(messages, onProgress) {
+// opts：问 AI 的「模型 / 思考程度」用。不传就按设置里的默认跑（行为和以前一样）
+//   model        换一个模型（默认用设置里选的那个）
+//   think        true 打开服务商的思考模式（DeepSeek 的 thinking、硅基流动的 enable_thinking）
+//   temperature / maxTokens  思考越久给越多预算
+export async function streamChat(messages, onProgress, opts = {}) {
   const settings = getSettings();
   if (!settings.apiKey) throw new Error('请先在 AI 设置中填写 API Key。');
-  if (!settings.model.trim()) throw new Error('请先选择或填写模型名称。');
+  const model = String(opts.model || settings.model).trim();
+  if (!model) throw new Error('请先选择或填写模型名称。');
+  const think = !!opts.think;
   const response = await fetchWithTimeout(endpoint(settings.baseUrl, '/chat/completions'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${settings.apiKey}` },
-    body: JSON.stringify({ model: settings.model.trim(), messages, temperature: 0.2,
-      max_tokens: 800, stream: true,
-      ...(settings.provider === 'deepseek' ? { thinking: { type: 'disabled' } } : {}),
-      ...(settings.provider === 'siliconflow' ? { enable_thinking: false } : {}) })
-  }, 45000);
+    body: JSON.stringify({ model, messages, temperature: opts.temperature ?? 0.2,
+      max_tokens: opts.maxTokens ?? 800, stream: true,
+      ...(settings.provider === 'deepseek' ? { thinking: { type: think ? 'enabled' : 'disabled' } } : {}),
+      ...(settings.provider === 'siliconflow' ? { enable_thinking: think } : {}) })
+  }, think ? 90000 : 45000);
   if (!response.ok) {
     let message = `接口请求失败（HTTP ${response.status}）。`;
     try { const data = await response.json(); message = data.error?.message || data.message || message; } catch { /* use status */ }

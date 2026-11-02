@@ -99,12 +99,17 @@
   .btn.sm { height: 32px; padding: 0 14px; font-size: 14px; } .btn.bad { color: var(--bad); }
   .panel { padding: 22px 24px; border-radius: 24px; background: var(--card); box-shadow: 0 0 0 1px var(--edge) inset; margin-bottom: 14px; animation: rise .6s var(--hx-spring) both; }
   .cls { display: grid; gap: 12px; }
-  .cl { display: grid; grid-template-columns: 1fr auto; gap: 12px 16px; align-items: center; padding: 18px 20px; border-radius: 22px; background: var(--card); box-shadow: 0 0 0 1px var(--edge) inset; }
+  /* 班级卡片：左上亮、右下灭的 1px 边 + 极淡落影（照参考片做的，不再用整片光晕） */
+  .cl { position: relative; display: grid; grid-template-columns: 1fr auto; gap: 12px 16px; align-items: center; padding: 18px 20px; border-radius: 24px; background: linear-gradient(175deg, var(--card-hi), var(--card-lo)); box-shadow: 0 1px 0 rgba(255, 255, 255, .05) inset, 0 22px 54px -38px var(--shade); animation: rise .7s var(--hx-spring) both; animation-delay: calc(var(--i, 0) * 55ms); transition: transform .35s var(--hx-spring), box-shadow .35s var(--hx-ease); }
+  .cl::before { content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px; pointer-events: none; background: linear-gradient(148deg, var(--edge-hi), var(--edge-lo) 36%, transparent 60%, var(--edge-hi)); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; }
+  .cl:hover { transform: translateY(-2px); }
   .cl h3 { margin: 0; font-size: 19px; font-weight: 600; } .cl small { color: var(--dim); font-size: 14px; }
   .cl .acts { display: flex; gap: 6px; }
   .chips { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; }
-  .chip { height: 32px; padding: 0 14px; border: 0; border-radius: 99px; background: var(--fill); color: var(--dim); font-size: 14px; font-weight: 500; transition: background .2s, color .2s; }
-  .chip[aria-pressed="true"] { background: var(--acc); color: var(--on-acc); }
+  .chip { height: 32px; padding: 0 14px; border: 0; border-radius: 99px; background: var(--fill); color: var(--dim); font-size: 14px; font-weight: 500; transition: background .28s var(--hx-ease), color .28s, box-shadow .35s var(--hx-ease), transform .18s var(--hx-spring); }
+  .chip:hover { background: var(--hov); color: var(--ink); }
+  .chip:active { transform: scale(.96); }
+  .chip[aria-pressed="true"] { background: var(--acc); color: var(--on-acc); box-shadow: 0 1px 0 rgba(255, 255, 255, .22) inset, 0 10px 26px -16px var(--acc); }
   .stu { grid-column: 1 / -1; max-height: 420px; overflow: auto; border-top: 1px solid var(--edge); padding-top: 8px; }
   .stu tr.gone td { color: var(--faint); }
   .stu .pill { white-space: nowrap; }
@@ -670,10 +675,11 @@ function sheetCls() {
     return '<div class="f" style="padding-bottom:10px;border-bottom:1px solid var(--edge)"><b>' + esc(x.file) + (x.list ? ' · ' + x.list.length + ' 名学生：' + x.list.slice(0, 4).map(function (y) { return esc(y.name); }).join('、') + (x.list.length > 4 ? '…' : '') : '') + '</b>' +
       (x.list ? '<input data-rc="' + k + '" value="' + esc(x.cls) + '" placeholder="班级"><input data-rt="' + k + '" value="' + esc(x.term) + '" placeholder="学期">' : '') + (x.err ? '<p class="msg">' + esc(x.err) + '</p>' : '') + '</div>';
   }).join('') + '<div style="display:flex;gap:8px"><button class="btn" id="rImp"' + (R.some(function (x) { return x.list; }) ? '' : ' disabled') + '>导入' + (R.length > 1 ? '全部' : '') + '</button><button class="btn sub" id="rNo">取消</button></div></div>';
-  html += '<p class="msg" style="margin:0 0 12px">点亮哪个工具，这个班才在哪个工具里出现；四个都不点 = 四个工具都用不了。后面的「已开通 N」是已经注册账号的学生人数，和工具开关无关。</p>';
-  html += '<div class="cls">' + (ST.classes.length ? ST.classes.map(function (c) {
+  // 这行是说明不是报错：.msg 默认是报错红，这里单独压成灰
+  html += '<p class="msg" style="margin:0 0 12px;color:var(--dim,#8a8f98)">点亮哪个工具，这个班才在哪个工具里出现；四个都不点 = 四个工具都用不了。后面的「已开通 N」是已经注册账号的学生人数，和工具开关无关。</p>';
+  html += '<div class="cls">' + (ST.classes.length ? ST.classes.map(function (c, ci) {
     var on = ST.open === c.id, tools = c.tools || [];
-    return '<div class="cl"><div><h3>' + esc(c.name) + '</h3><small>' + esc(c.term ? c.term + ' · ' : '') + c.total + ' 人 · 已开通 ' + c.bound + '</small></div>' +
+    return '<div class="cl" style="--i:' + ci + '"><div><h3>' + esc(c.name) + '</h3><small>' + esc(c.term ? c.term + ' · ' : '') + c.total + ' 人 · 已开通 ' + c.bound + '</small></div>' +
       '<div class="acts"><button class="btn sub sm" data-code="' + c.id + '">课堂码</button><button class="btn sub sm" data-open="' + c.id + '">' + (on ? '收起' : '名单') + '</button></div>' +
       '<div class="chips">' + CLASS_TOOLS.map(function (t) { return '<button type="button" class="chip" data-cls="' + c.id + '" data-tool="' + t[0] + '" aria-pressed="' + (tools.indexOf(t[0]) >= 0) + '">' + t[1] + '</button>'; }).join('') + '</div>' +
       (on ? '<div class="stu" id="stu' + c.id + '"></div>' : '') + '</div>';

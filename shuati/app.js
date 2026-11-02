@@ -656,24 +656,60 @@ function openNotice() {
   });
   store.setLocal('notice', 1);
 }
+// 问 AI 的模型可选项：设置里“读取模型”读到的 + 服务商默认 + 当前选中的，去重
+function askModels() {
+  const st = getSettings();
+  const list = [...(st.models || []), ...((providers[st.provider] || {}).models || []), st.model].filter(Boolean);
+  return [...new Set(list)];
+}
+// 思考程度映射到真实参数：开不开服务商的思考模式、temperature、输出预算（max_tokens）
+const THINK = {
+  低: { think: false, temperature: 0.2, maxTokens: 800 },
+  中: { think: true, temperature: 0.3, maxTokens: 1400 },
+  高: { think: true, temperature: 0.5, maxTokens: 2600 },
+};
+function askOpts() {
+  const lv = THINK[store.getLocal('askThink', '低')] ? store.getLocal('askThink', '低') : '低';
+  const preset = THINK[lv];
+  const budget = +store.getLocal('askBudget', preset.maxTokens) || preset.maxTokens;
+  return { lv, model: store.getLocal('askModel', '') || getSettings().model, think: preset.think, temperature: preset.temperature, budget };
+}
+const shortModel = m => String(m || '').split('/').pop();
+
 function openAsk() {
   const q = S.view === 'practice' ? cur() : null;
   let withQ = !!q;
   const big = !!store.getLocal('askBig', false); // 上次的窗口大小记着
+  const o = askOpts(), models = askModels();
   const draw = () => {
     const box = $('chat'); if (!box) return;
     box.innerHTML = S.chat.length ? S.chat.map(m => `<div class="msg ${m.role === 'user' ? 'u' : 'a'}">${esc(m.show || m.content)}</div>`).join('') : `<p class="muted">${getSettings().apiKey ? '问这道题、知识点，或让 AI 出几道类似的题。' : '先在“设置”里填自己的 AI Key。'}</p>`;
     box.scrollTop = box.scrollHeight;
   };
   const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const CARET = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg>';
   openSheet(`<h3>问 AI<span style="flex:1"></span>${S.chat.length ? '<button class="btn sm ghost" type="button" id="chatClr">清空</button>' : ''}<button class="btn sm ghost" type="button" id="askBig" title="放大／还原窗口">${big ? '还原' : '放大'}</button></h3>
     <div class="chat" id="chat"></div>
     ${S.askDraft.trim() ? '<p class="muted" style="margin:0 0 6px;font-size:12px">上次没发出去的内容已经带回来了</p>' : ''}
     ${q ? `<div class="quote" id="quote"><span>引用：${esc(q.stem)}</span><button type="button" id="unquote" aria-label="不引用">✕</button></div>` : ''}
-    <div class="ask"><textarea id="askIn" rows="1" placeholder="输入问题，回车发送"></textarea>${Rec ? '<button class="btn ghost mic" type="button" id="mic" aria-label="语音输入">🎙</button>' : ''}<button class="btn" type="button" id="askGo">发送</button></div>`, () => {
+    <div class="askbox"><textarea id="askIn" rows="1" placeholder="输入问题，回车发送"></textarea></div>
+    <div class="askbar">
+      ${Rec ? '<button class="rbtn" type="button" id="mic" aria-label="语音输入"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M12 3a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3Z"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>' : ''}
+      <div class="pw"><button class="apill" type="button" id="modelBtn" aria-expanded="false"><b>${esc(shortModel(o.model) || '未选模型')}</b>${CARET}</button>
+        <div class="pmenu" id="modelMenu"><h4>模型</h4>${models.map(m => `<button type="button" data-model="${esc(m)}" aria-selected="${m === o.model}">${esc(m)}<i>✓</i></button>`).join('')}</div></div>
+      <div class="pw"><button class="apill" type="button" id="thinkBtn" aria-expanded="false"><b id="thinkLab">思考 · ${o.lv}</b>${CARET}</button>
+        <div class="pmenu" id="thinkMenu"><h4>思考程度</h4>
+          <div class="aseg" id="thinkSeg">${['低', '中', '高'].map(v => `<button type="button" data-lv="${v}" aria-pressed="${v === o.lv}">${v}</button>`).join('')}</div>
+          <div class="alab"><span>输出预算</span><b id="budVal">${o.budget}</b></div>
+          <input type="range" id="budget" min="400" max="2600" step="100" value="${o.budget}" aria-label="输出预算">
+          <p class="muted" style="margin:2px 10px 6px;font-size:11.5px;line-height:1.5">中／高会打开服务商的思考模式，回答更细但更慢。</p>
+        </div></div>
+      <span class="sp"></span>
+      <button class="rbtn go" type="button" id="askGo" aria-label="发送"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+    </div>`, () => {
     draw();
     const inp = $('askIn');
-    inp.oninput = () => { S.askDraft = inp.value; inp.style.height = 'auto'; inp.style.height = inp.scrollHeight + 'px'; };
+    inp.oninput = () => { S.askDraft = inp.value; inp.style.height = 'auto'; inp.style.height = Math.min(inp.scrollHeight, 150) + 'px'; };
     inp.value = S.askDraft || ''; inp.oninput();
     setTimeout(() => inp.focus(), 300);
     if ($('unquote')) $('unquote').onclick = () => { withQ = false; $('quote').remove(); };
@@ -684,6 +720,42 @@ function openAsk() {
       $('sheet').classList.toggle('big', on); store.setLocal('askBig', on); $('askBig').textContent = on ? '还原' : '放大';
       draw();
     };
+    // 两个下拉：互斥打开，点外面／Esc 收起
+    const menus = [['modelBtn', 'modelMenu'], ['thinkBtn', 'thinkMenu']];
+    const closeMenus = () => menus.forEach(([b, m]) => { $(m).classList.remove('show'); $(b).setAttribute('aria-expanded', 'false'); });
+    menus.forEach(([b, m]) => {
+      $(b).onclick = e => {
+        e.stopPropagation();
+        const open = $(m).classList.contains('show');
+        closeMenus();
+        if (!open) { $(m).classList.add('show'); $(b).setAttribute('aria-expanded', 'true'); }
+      };
+      $(m).onclick = e => e.stopPropagation();
+    });
+    // 点页面其他地方收起下拉（每次打开重新挂，避免重复绑定）
+    if (window.__askCloser) document.removeEventListener('click', window.__askCloser);
+    window.__askCloser = closeMenus;
+    document.addEventListener('click', window.__askCloser);
+    // 换模型：只影响问 AI，不动设置页里选的默认模型
+    for (const b of $('modelMenu').querySelectorAll('[data-model]')) b.onclick = () => {
+      store.setLocal('askModel', b.dataset.model);
+      for (const x of $('modelMenu').querySelectorAll('[data-model]')) x.setAttribute('aria-selected', String(x === b));
+      $('modelBtn').querySelector('b').textContent = shortModel(b.dataset.model);
+      closeMenus();
+    };
+    // 思考程度：分段和预算滑块联动，改了就存
+    const seg = $('thinkSeg'), bud = $('budget'), budVal = $('budVal'), thinkLab = $('thinkLab');
+    const paintBud = v => { bud.value = v; budVal.textContent = v; store.setLocal('askBudget', +v); };
+    seg.onclick = e => {
+      const b = e.target.closest('[data-lv]'); if (!b) return;
+      const lv = b.dataset.lv;
+      store.setLocal('askThink', lv);
+      for (const x of seg.querySelectorAll('[data-lv]')) x.setAttribute('aria-pressed', String(x === b));
+      thinkLab.textContent = '思考 · ' + lv;
+      paintBud(THINK[lv].maxTokens);
+    };
+    bud.oninput = () => paintBud(+bud.value);
+    bud.onchange = () => { store.setLocal('askBudget', +bud.value); };
     inp.onkeydown = e => {
       if (e.key === 'Escape') { return closeSheet(); } // Esc 关掉，草稿照样留着
       if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); }
@@ -706,7 +778,8 @@ function openAsk() {
       const a = { role: 'assistant', content: '…' }; S.chat.push(a); draw(); $('askGo').disabled = true;
       try {
         const msgs = [{ role: 'system', content: `你是耐心的${S.subject ? '“' + S.subject.name + '”课程' : ''}辅导老师，用简洁的中文回答学生，不用 Markdown 标记；题库答案可能有误，有疑点要说明。` }, ...S.chat.slice(0, -1).slice(-12).map(({ role, content }) => ({ role, content }))];
-        a.content = await streamChat(msgs, t => { a.content = t; draw(); });
+        const oo = askOpts(); // 每次发送现读，下拉里改了立刻生效
+        a.content = await streamChat(msgs, t => { a.content = t; draw(); }, { model: oo.model, think: oo.think, temperature: oo.temperature, maxTokens: oo.budget });
       } catch (e) { a.content = '出错了：' + e.message; }
       if ($('askGo')) $('askGo').disabled = false; draw();
     }
