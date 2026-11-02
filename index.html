@@ -91,19 +91,42 @@
   .tile::before { content: ""; position: absolute; left: 12px; bottom: 100%; width: 76px; height: 14px; z-index: 0; pointer-events: none;
     display: none; border-radius: 8px 8px 0 0; background: var(--fld-tab, var(--card));
     box-shadow: inset 0 .6px 0 var(--fld-lip), inset 1px 0 0 var(--fld-sheen); }
-  /* 前片玻璃：mask 在顶边挖拇指缺口（缺口处透出后片，和对照稿的 notch 锚点同义） */
+  /* 前片玻璃：mask 在顶边挖拇指缺口（缺口处透出后片，和对照稿的 notch 锚点同义）。
+     box-shadow 里那道品牌色内晕来自 Orbit（见下方 Orbit 段）——压在玻璃里的静态光，不额外吃性能 */
   .tile::after { content: ""; position: absolute; left: 6px; right: 6px; bottom: 0; top: 44%; z-index: 0; pointer-events: none;
     border-radius: 14px 14px 28px 28px; background: var(--fld-bg);
     -webkit-mask: radial-gradient(15px 9px at 72% 0, transparent 97%, #000); mask: radial-gradient(15px 9px at 72% 0, transparent 97%, #000);
     box-shadow: inset 0 .6px 0 var(--fld-lip), inset 0 2px 5px -2px var(--fld-sheen),
+      inset 0 -24px 40px -30px color-mix(in srgb, var(--c2) 90%, transparent),
       0 0 0 .6px var(--fld-edge), var(--fld-drop);
     transition: transform .45s var(--hx-spring), box-shadow .45s var(--hx-ease); }
   .tile > * { z-index: 1; } /* flex 项设 z-index 就成层，前片不会盖住图标和文字 */
   .tile:hover { transform: scale(1.02); box-shadow: 0 0 0 1px var(--edge) inset, 0 22px 50px -26px var(--shade); }
   .tile:hover::after { transform: translateY(-2px); }
   .tile:active { transform: scale(.98); transition-duration: .15s; }
-  .tile .ic { width: 58px; height: 58px; border-radius: 15px; display: grid; place-items: center; color: #fff; background: linear-gradient(160deg, var(--c1), var(--c2)); box-shadow: 0 8px 20px -10px var(--c2); }
+  /* ── Orbit 设计语言：图标是一颗带着自己轨道的星 ──
+     取自 概念片/index.html（Orbit 32 秒片），用户 2026-11-02 定的方向是「融进首页工具卡」，
+     不是把那支片子上线。那边是 canvas 粒子场 + 体积雾，一帧几百个粒子，
+     塞进首页 14 张卡就是 14 个渲染循环，希沃上必崩（见 2026-11-02 的崩溃修复）。
+     所以只取「看得见的形」：一圈倾斜的轨道环 + 环上一颗光点 + 卡片底部内侧的品牌色光晕（已并进上面 .tile::after），
+     全部用 transform / box-shadow 做，而且**默认停着不动，只有鼠标移上去那一张才转**——静止时零开销。 */
+  .tile .ic { position: relative; width: 58px; height: 58px; border-radius: 15px; display: grid; place-items: center; color: #fff; background: linear-gradient(160deg, var(--c1), var(--c2)); box-shadow: 0 8px 20px -10px var(--c2), 0 0 26px -8px color-mix(in srgb, var(--c2) 52%, transparent); }
   .tile .ic svg { width: 30px; height: 30px; stroke-width: 1.9; }
+  .tile .ic::before, .tile .ic::after { content: ""; position: absolute; left: 50%; top: 50%; width: 88px; height: 88px; margin: -44px 0 0 -44px; border-radius: 50%; pointer-events: none; }
+  .tile .ic::before { /* 轨道环：静态，只画一次 */
+    border: 1px solid color-mix(in srgb, var(--c2) 58%, transparent); transform: rotateX(66deg);
+    opacity: .45; transition: opacity .45s var(--hx-spring); }
+  .tile .ic::after { /* 轨道上的光点：一条旋转的臂，亮点在臂尖 */
+    background: radial-gradient(closest-side, #fff 0 40%, color-mix(in srgb, var(--c2) 88%, #fff) 40% 60%, transparent 64%) top center / 7px 7px no-repeat;
+    transform: rotateX(66deg); animation: hx-orbit 3.6s linear infinite; animation-play-state: paused; opacity: 0; transition: opacity .45s var(--hx-spring); }
+  .tile:hover .ic::before, .tile:focus-visible .ic::before { opacity: 1; }
+  .tile:hover .ic::after, .tile:focus-visible .ic::after { opacity: 1; animation-play-state: running; }
+  .tile.act .ic::before, .tile.act .ic::after { display: none; } /* “当前打开”那条横条不做轨道 */
+  @keyframes hx-orbit { from { transform: rotateX(66deg) rotateZ(0deg); } to { transform: rotateX(66deg) rotateZ(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .tile .ic::after { animation: none; } }
+  /* 希沃 / 低配（hx-lite）：触屏的 :hover 会粘住不松，别让轨道一直转。
+     轨道环和光晕都是静态的，留着，只停旋转动画。 */
+  html.hx-lite .tile .ic::after { animation: none !important; }
   .tile b { font-size: 21px; font-weight: 600; letter-spacing: -.01em; margin-top: auto; }
   /* 有背景图：走玻璃文件夹分支——后片换成「深色底 + 品牌渐变」（照片位，深色有对比，背景图从半透明底透出，
      透明度跟着用户选的 --hx-a 走），舌片显示，文字转白系保证可读 */
@@ -233,6 +256,8 @@
   @media (max-width: 640px) {
     .acct b { display: none; } .cur { font-size: 16px; max-width: 46vw; overflow: hidden; text-overflow: ellipsis; }
     .tiles { grid-template-columns: repeat(2, 1fr); gap: 12px; } .tile { min-height: 148px; padding: 20px 18px 18px; border-radius: 26px; gap: 14px; } .tile b { font-size: 18px; } .tile .ic { width: 50px; height: 50px; border-radius: 13px; } .tile .ic svg { width: 26px; height: 26px; } .tile .go { display: none; }
+    /* 窄屏两列、卡片只有 18px 内边距：轨道环同步收小，免得压到隔壁卡片 */
+    .tile .ic::before, .tile .ic::after { width: 72px; height: 72px; margin: -36px 0 0 -36px; }
     .tile::after { left: 5px; right: 5px; top: 48%; border-radius: 13px 13px 24px 24px; -webkit-mask: radial-gradient(12px 8px at 72% 0, transparent 97%, #000); mask: radial-gradient(12px 8px at 72% 0, transparent 97%, #000); }
     .tile::before { left: 10px; width: 52px; height: 11px; }
     .pop { top: auto; bottom: 0; left: 0; right: 0; width: auto; max-height: 86vh; border-radius: 26px 26px 0 0; padding: 22px 20px calc(22px + env(safe-area-inset-bottom, 0px)); transform: translateY(100%); transform-origin: bottom; }
