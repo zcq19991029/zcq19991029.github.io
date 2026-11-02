@@ -825,8 +825,18 @@ function sheetCode(role) {
     : '<p class="empty">' + (ST.clsOk ? '先在“班级”里导入考勤表' : '加载中…') + '</p>';
   if (A) html += codeBox(A.label, A.code, '', '<button class="btn sm" id="aShare">分享给' + (t ? '老师' : g ? '朋友' : '学生') + '</button>');
   C = C && C.filter(function (c) { return c.role === role; });
-  html += !C ? '<p class="empty">加载中…</p>' : !C.length ? '' : '<table><tr><th>码</th><th>' + (t || g ? '给' : '班级') + '</th><th>已用</th><th></th></tr>' + C.map(function (c) {
-    return '<tr><td><b class="mono">' + esc(c.code) + '</b></td><td>' + esc(c.class_name || c.note || '') + '</td><td>' + c.used + ' / ' + c.max_uses + '</td><td class="ra">' +
+  // 课堂码这一列改成「已注册 / 班级总人数」（用户 2026-11-02 要求）：右边是全班多少人，左边是这个班已经注册了多少人。
+  // 以前显示的是「这个码用了几次 / 还能用几次」，老师看不出班级注册进度总共到哪了。
+  // 教师码、好友码没有班级，仍按「已用次数 / 总次数」显示。
+  var cnt = function (c) {
+    if (!t && !g && c.class_name) {
+      var k = (ST.classes || []).filter(function (x) { return x.name === c.class_name; })[0];
+      if (k) return (k.bound || 0) + ' / ' + (k.total || 0);
+    }
+    return c.used + ' / ' + c.max_uses;
+  };
+  html += !C ? '<p class="empty">加载中…</p>' : !C.length ? '' : '<table><tr><th>码</th><th>' + (t || g ? '给' : '班级') + '</th><th>' + (t || g ? '已用' : '已注册 / 人数') + '</th><th></th></tr>' + C.map(function (c) {
+    return '<tr><td><b class="mono">' + esc(c.code) + '</b></td><td>' + esc(c.class_name || c.note || '') + '</td><td>' + cnt(c) + '</td><td class="ra">' +
       (c.live ? '<button class="btn link sm" data-share="' + esc(c.code) + '" data-role="' + c.role + '">分享</button><button class="btn link bad sm" data-rev="' + esc(c.code) + '">撤销</button>' : '<span class="pill">已失效</span>') + '</td></tr>';
   }).join('') + '</table>';
   box.innerHTML = html;
@@ -867,7 +877,15 @@ function sheetAdm() {
     };
   });
 }
-async function loadCodes() { try { ST.codes = await HX.rpc('hx_my_codes') || []; } catch (e) { ST.codes = []; toast('邀请码读取失败：' + e.message); } renderMgmt('codes'); }
+// 「已注册 / 人数」这一列要用班级的 bound、total（hx_my_classes 已经返回），
+// 打开邀请码面板时如果还没读过班级，顺手读一次，免得列显示不出来。
+async function loadCodes() {
+  try {
+    var r = await Promise.all([HX.rpc('hx_my_codes'), ST.classes ? null : HX.rpc('hx_my_classes').catch(function () { return null; })]);
+    ST.codes = r[0] || []; if (r[1]) { ST.classes = r[1] || []; ST.clsOk = true; }
+  } catch (e) { ST.codes = []; toast('邀请码读取失败：' + e.message); }
+  renderMgmt('codes');
+}
 async function loadTeachers() { try { ST.teachers = await HX.rpc('hx_teachers') || []; } catch (e) { ST.teachers = { err: e.message }; } renderMgmt('adm'); }
 // 名单：第一行加学生；每人可改学号姓名、删除（已开通或有成绩的标为退学，灰着放最后，可恢复）
 var PEN = '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>', BIN = '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>';
