@@ -16,7 +16,7 @@
   // 推荐背景：旧站的猫耳学习图（dev：开发者专属，只有开发者账号看得到、用得上）+ 几张渐变（不占流量）；op 是选它时的推荐透明度
   var BG = {
     none: { name: '无' },
-    bear: { name: '小熊', img: 'bg/bear.jpg', op: 72 }, // 全站默认背景：不设 dev，教师、学生、外人都能选、默认就是它
+    bear: { name: '小熊', img: 'bg/bear.jpg', op: 88 }, // 全站默认背景：不设 dev，教师、学生、外人都能选、默认就是它。op 是卡片透明度，小熊这张图很亮很花，72 时卡片太透、字压在花底上读不清，提到 88
     cat: { name: '猫耳学习', img: 'bg/cat-study.jpg', op: 70, dev: true },
     mist: { name: '晨雾', op: 72, css: 'radial-gradient(60% 50% at 15% 10%, #ffd6e7 0, transparent 70%), radial-gradient(55% 55% at 90% 20%, #cfe3ff 0, transparent 70%), radial-gradient(60% 60% at 50% 100%, #d9f5e5 0, transparent 70%), #f5f5f7' },
     bay: { name: '海湾', op: 70, css: 'radial-gradient(70% 60% at 0% 0%, #a8e6ff 0, transparent 65%), radial-gradient(60% 70% at 100% 30%, #8fb8ff 0, transparent 70%), radial-gradient(70% 60% at 40% 110%, #b6f0d8 0, transparent 70%), #eef6fb' },

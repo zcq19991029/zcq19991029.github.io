@@ -73,5 +73,10 @@
 html.hx-bg { background: var(--bg); }
 html.hx-bg body { background: transparent !important; }
 html.hx-bg body::before { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none; background: var(--hx-img) center / cover no-repeat; }
-:root[data-hx-mode="dark"].hx-bg body::before { filter: brightness(.62); }
+/* 深色模式必须把背景图压够暗。只写 brightness(.62) 对亮色图（比如默认的小熊，整张亮黄）不够：
+   深色主题下整页被照得刺眼，玻璃卡也被背景色染成棕黄、字读不清。所以叠一层暗色 scrim 再压亮度。 */
+:root[data-hx-mode="dark"].hx-bg body::before {
+  background-image: linear-gradient(rgba(8, 8, 10, .55), rgba(8, 8, 10, .55)), var(--hx-img);
+  filter: brightness(.75) saturate(.85);
+}
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
