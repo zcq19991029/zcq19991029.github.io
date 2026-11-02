@@ -85,17 +85,17 @@ html.hx-bg body { background: transparent !important; }
 html.hx-bg body::before {
   content: ""; position: fixed; inset: -48px; z-index: -1; pointer-events: none;
   background: var(--hx-img) center / cover no-repeat;
-  filter: blur(14px) saturate(128%);
+  filter: blur(8px) saturate(128%);
 }
 /* 深色模式必须把背景图压够暗。只写 brightness(.62) 对亮色图（比如默认的小熊，整张亮黄）不够：
    深色主题下整页被照得刺眼，玻璃卡也被背景色染成棕黄、字读不清。所以叠一层暗色 scrim 再压亮度。 */
 :root[data-hx-mode="dark"].hx-bg body::before {
-  background-image: linear-gradient(rgba(8, 8, 10, .55), rgba(8, 8, 10, .55)), var(--hx-img);
-  filter: blur(14px) brightness(.75) saturate(.85);
+  background-image: linear-gradient(rgba(8, 8, 10, .30), rgba(8, 8, 10, .30)), var(--hx-img);
+  filter: blur(8px) brightness(.88) saturate(.95);
 }
 /* 省电 / 老设备：模糊再降一档，动效基本关掉。hx-theme.js 会按设备能力自动挂 .hx-lite。 */
-html.hx-lite.hx-bg body::before { filter: blur(6px) saturate(115%); }
-html.hx-lite[data-hx-mode="dark"].hx-bg body::before { filter: blur(6px) brightness(.75) saturate(.85); }
+html.hx-lite.hx-bg body::before { filter: blur(4px) saturate(115%); }
+html.hx-lite[data-hx-mode="dark"].hx-bg body::before { filter: blur(4px) brightness(.88) saturate(.95); }
 /* 老设备上一律不做实时背景模糊（顶栏、底栏、弹层都算）。背景图已经糊过，去掉之后几乎看不出差别，
    但省掉的是每一次滚动都要重算的高斯模糊。顶栏改实色兜底，不然内容会从底下透上来。 */
 html.hx-lite, html.hx-lite * { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
