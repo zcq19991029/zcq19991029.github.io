@@ -71,6 +71,7 @@ const S = {
   queue: [], i: 0, picked: {}, // picked：题 id → 本轮选的选项（作答过）
   sel: new Set(), ai: {}, draft: null, imode: 'pick', typed: {}, shown: {}, // typed：填空填的字；shown：主观题已看参考答案
   undo: {}, lastId: null, chat: [], // undo：题 id → 标记前的状态（误点“记住”能撤销）
+  askDraft: '', // “问 AI”打了一半的字：关掉抽屉、切到别的抽屉都不丢，发出去才清
   hsel: new Set(), hf: 'all', // 概览“刷题记录”：勾选的题、筛选
   rmine: false, // 排行：只看本班
 };
@@ -318,12 +319,19 @@ async function explain(q) {
 }
 
 // ---------- 底部抽屉：答题卡、科目 ----------
-function openSheet(html, bind) {
+function openSheet(html, bind, cls) {
   $('sheetBody').innerHTML = html; bind && bind();
+  $('sheet').classList.remove('ask', 'big'); // cls：'ask'（问 AI，聊天区自适应）/ 'big'（放大）
+  String(cls || '').split(' ').forEach(c => c && $('sheet').classList.add(c));
   $('sheet').classList.add('show'); $('sheetBg').classList.add('show');
 }
 function closeSheet() { $('sheet').classList.remove('show'); $('sheetBg').classList.remove('show'); }
-$('sheetBg').onclick = closeSheet;
+// 点周边关掉可以理解，但打了一半的字不能跟着没：关之前先把草稿留住，再打开原样带回来
+$('sheetBg').onclick = () => {
+  const inp = $('askIn'), draft = $('sheet').classList.contains('ask') && inp ? inp.value : '';
+  closeSheet();
+  if (draft && draft.trim()) toast('草稿留着了，再点“问 AI”继续');
+};
 function openCardSheet() {
   const cells = S.queue.map((id, n) => {
     const p = S.picked[id], q = S.questions.find(x => x.id === id), r = rec(id);
@@ -651,22 +659,35 @@ function openNotice() {
 function openAsk() {
   const q = S.view === 'practice' ? cur() : null;
   let withQ = !!q;
+  const big = !!store.getLocal('askBig', false); // 上次的窗口大小记着
   const draw = () => {
     const box = $('chat'); if (!box) return;
     box.innerHTML = S.chat.length ? S.chat.map(m => `<div class="msg ${m.role === 'user' ? 'u' : 'a'}">${esc(m.show || m.content)}</div>`).join('') : `<p class="muted">${getSettings().apiKey ? '问这道题、知识点，或让 AI 出几道类似的题。' : '先在“设置”里填自己的 AI Key。'}</p>`;
     box.scrollTop = box.scrollHeight;
   };
   const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
-  openSheet(`<h3>问 AI${S.chat.length ? '<span style="flex:1"></span><button class="btn sm ghost" type="button" id="chatClr">清空</button>' : ''}</h3>
+  openSheet(`<h3>问 AI<span style="flex:1"></span>${S.chat.length ? '<button class="btn sm ghost" type="button" id="chatClr">清空</button>' : ''}<button class="btn sm ghost" type="button" id="askBig" title="放大／还原窗口">${big ? '还原' : '放大'}</button></h3>
     <div class="chat" id="chat"></div>
+    ${S.askDraft.trim() ? '<p class="muted" style="margin:0 0 6px;font-size:12px">上次没发出去的内容已经带回来了</p>' : ''}
     ${q ? `<div class="quote" id="quote"><span>引用：${esc(q.stem)}</span><button type="button" id="unquote" aria-label="不引用">✕</button></div>` : ''}
     <div class="ask"><textarea id="askIn" rows="1" placeholder="输入问题，回车发送"></textarea>${Rec ? '<button class="btn ghost mic" type="button" id="mic" aria-label="语音输入">🎙</button>' : ''}<button class="btn" type="button" id="askGo">发送</button></div>`, () => {
     draw();
-    const inp = $('askIn'); setTimeout(() => inp.focus(), 300);
+    const inp = $('askIn');
+    inp.oninput = () => { S.askDraft = inp.value; inp.style.height = 'auto'; inp.style.height = inp.scrollHeight + 'px'; };
+    inp.value = S.askDraft || ''; inp.oninput();
+    setTimeout(() => inp.focus(), 300);
     if ($('unquote')) $('unquote').onclick = () => { withQ = false; $('quote').remove(); };
     if ($('chatClr')) $('chatClr').onclick = () => { S.chat = []; openAsk(); };
-    inp.oninput = () => { inp.style.height = 'auto'; inp.style.height = inp.scrollHeight + 'px'; };
-    inp.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); } };
+    // 放大／还原：只换抽屉尺寸，不重建内容，聊天和草稿都留在原位
+    $('askBig').onclick = () => {
+      const on = !$('sheet').classList.contains('big');
+      $('sheet').classList.toggle('big', on); store.setLocal('askBig', on); $('askBig').textContent = on ? '还原' : '放大';
+      draw();
+    };
+    inp.onkeydown = e => {
+      if (e.key === 'Escape') { return closeSheet(); } // Esc 关掉，草稿照样留着
+      if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); }
+    };
     $('askGo').onclick = send;
     if (Rec) $('mic').onclick = () => {
       const r = new Rec(); r.lang = 'zh-CN'; r.interimResults = true; $('mic').classList.add('on');
@@ -675,13 +696,13 @@ function openAsk() {
     };
     async function send() {
       const text = inp.value.trim(); if (!text) return;
-      if (!getSettings().apiKey) { closeSheet(); show('settings'); return toast('先填自己的 AI Key'); }
+      if (!getSettings().apiKey) { S.askDraft = inp.value; closeSheet(); show('settings'); return toast('先填自己的 AI Key'); }
       let content = text;
       if (withQ && q) {
         content = `题目（${typeName(q.type)}）：${q.stem}${figText(q)}${q.code ? '\n' + q.code : ''}${(q.options || []).length ? '\n' + q.options.map(o => o.key + '. ' + optText(o)).join('\n') : ''}${S.picked[q.id] ? '\n题库答案：' + q.answer.join(q.type === 'fill' ? '；' : '') : ''}\n\n我的问题：${text}`;
         withQ = false; $('quote')?.remove();
       }
-      S.chat.push({ role: 'user', content, show: text }); inp.value = ''; inp.oninput();
+      S.chat.push({ role: 'user', content, show: text }); inp.value = ''; inp.oninput(); // 发出去了才清草稿（oninput 会把 S.askDraft 同步成空）
       const a = { role: 'assistant', content: '…' }; S.chat.push(a); draw(); $('askGo').disabled = true;
       try {
         const msgs = [{ role: 'system', content: `你是耐心的${S.subject ? '“' + S.subject.name + '”课程' : ''}辅导老师，用简洁的中文回答学生，不用 Markdown 标记；题库答案可能有误，有疑点要说明。` }, ...S.chat.slice(0, -1).slice(-12).map(({ role, content }) => ({ role, content }))];
@@ -689,7 +710,7 @@ function openAsk() {
       } catch (e) { a.content = '出错了：' + e.message; }
       if ($('askGo')) $('askGo').disabled = false; draw();
     }
-  });
+  }, 'ask' + (big ? ' big' : '')); // 'ask'：聊天区跟着抽屉高度自适应；'big'：上次放大过就还是大的
 }
 $('askBtn').onclick = openAsk;
 const guide = () => `<h4>刷题</h4><ul>

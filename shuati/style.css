@@ -199,6 +199,11 @@ html.hx-bg .glow, html.hx-bg .panel { -webkit-backdrop-filter: blur(24px) satura
 .guide code { padding: 1px 6px; border-radius: 6px; background: var(--fill); font: 12.5px Consolas, "Cascadia Mono", monospace; }
 
 /* 问 AI */
+/* 抽屉可以放大；放不放大的聊天区都跟着抽屉高度走，长回答看得全 */
+.sheet.big { width: min(920px, 100%); max-height: 94vh; }
+.sheet.ask .body { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+.sheet.ask .body > h3, .sheet.ask .quote, .sheet.ask .ask { flex: none; }
+.sheet.ask .chat { flex: 1 1 auto; min-height: 120px; max-height: none; }
 .chat { display: grid; align-content: start; gap: 10px; min-height: 120px; max-height: 46vh; overflow: auto; padding: 2px; }
 .msg { max-width: 88%; padding: 10px 14px; border-radius: 18px; font-size: 14px; line-height: 1.6; white-space: pre-wrap; }
 .msg.u { justify-self: end; color: var(--on-acc, #fff); background: var(--acc); border-bottom-right-radius: 6px; }
