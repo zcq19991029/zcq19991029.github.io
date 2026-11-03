@@ -27,6 +27,9 @@ const VIEWS = [
 
 const $ = id => document.getElementById(id);
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+// 硅基流动注册二维码、邀请链接：二维码内联 base64（离线打包成单文件时外部图片会丢）
+const SF_QR = 'data:image/png;base64,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';
+const SF_URL = 'https://cloud.siliconflow.cn/i/aQ6Tn6dH';
 const optText = o => o.text || (o.fig ? `［图：${figName(o.fig)}］` : ''); // 选项是图形符号时，给 AI 和扩展的文字
 const figText = q => q.fig ? `\n［图：${figName(q.fig)}］` : '';
 const typeName = t => (TYPES.find(x => x[0] === t) || [, t])[1];
@@ -361,7 +364,7 @@ async function explain(q) {
 // ---------- 底部抽屉：答题卡、科目 ----------
 function openSheet(html, bind, cls) {
   $('sheetBody').innerHTML = html; bind && bind();
-  $('sheet').classList.remove('ask', 'big'); // cls：'ask'（问 AI，聊天区自适应）/ 'big'（放大）
+  $('sheet').classList.remove('ask', 'big', 'solid'); // cls：'ask'（问 AI，聊天区自适应）/ 'big'（放大）/ 'solid'（铺实底，别透出下面的页面）
   String(cls || '').split(' ').forEach(c => c && $('sheet').classList.add(c));
   $('sheet').classList.add('show'); $('sheetBg').classList.add('show');
 }
@@ -639,12 +642,75 @@ function openPublishSheet(onDone) {
 }
 
 // ---------- 设置 ----------
+// 复制文本：优先 clipboard API（要 https 或 localhost），不行退回选中 + execCommand
+function copyText(t) {
+  const done = () => toast('已复制');
+  const ta = () => { // 最后兜底：放个隐形输入框选中，让用户自己按 Ctrl+C
+    const el = document.createElement('textarea'); el.value = t; el.style.position = 'fixed'; el.style.opacity = '0';
+    document.body.appendChild(el); el.select();
+    try { document.execCommand('copy'); done(); } catch (e) { toast('复制失败，请手动抄下面的链接'); }
+    el.remove();
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(done, ta);
+  else ta();
+}
+// 「?」：教学生自己申请硅基流动的 API Key（注册 → 实名 → 建密钥 → 填进来）
+function openAiHelpSheet() {
+  const step = (n, title, body) => `<div class="astep"><div class="ahd"><i>${n}</i><b>${title}</b></div>${body}</div>`;
+  openSheet(`<h3>怎么申请 AI Key</h3><div class="aikey">
+    ${step(1, '注册硅基流动', `
+      <p>硅基流动（SiliconFlow）是国内的大模型平台，注册很简单，只要一个手机号。</p>
+      <div class="aqr">
+        <img src="${SF_QR}" alt="硅基流动注册二维码" width="132" height="132">
+        <div class="aqr-r">
+          <p class="muted">手机扫左边的二维码，或者在电脑上点下面的按钮注册。</p>
+          <div class="line"><button class="btn sm" type="button" id="sfOpen">打开注册链接</button><button class="btn sm ghost" type="button" id="sfCopy">复制链接</button></div>
+          <code class="alink">${esc(SF_URL)}</code>
+        </div>
+      </div>
+      <p class="atip">用这个链接注册，能帮老师拿到一点推广额度，不额外收你的钱。</p>`)}
+    ${step(2, '实名认证，领 16 元额度', `
+      <p>注册完登录进去，在左边菜单点「实名认证」，按提示填一下身份证信息。</p>
+      <p>认证通过后会送 <b>16 元额度券</b>，够刷很久的题了。<b class="warn">一定要实名认证</b>，不认证就拿不到这张券。</p>`)}
+    ${step(3, '创建 API 密钥', `
+      <p>左侧菜单点「API 密钥」→ 点「新建 API 密钥」→ 起个名字（随便写，比如 <code>华夏工具</code>）→ 创建。</p>
+      <p>创建完会给你一串 <code>sk-</code> 开头的密钥，这就是钥匙。</p>
+      <p><b class="warn">密钥只显示一次，关掉这个窗口就再也看不到了，一定要马上复制下来。</b>也别把它发给别人。</p>`)}
+    ${step(4, '填进这个工具', `
+      <p>回到刷题页面的「设置」：</p>
+      <ol>
+        <li>服务商选「硅基流动」，接口地址会自动填好；</li>
+        <li>把 <code>sk-</code> 密钥粘到「API Key」输入框；</li>
+        <li>点「读取模型」，读出来后在模型下拉里挑一个（推荐 <code>Qwen/Qwen2.5-7B-Instruct</code>，或者列表里价格最低的那个）；</li>
+        <li>点「测试连接」，看到「连接成功」；</li>
+        <li>最后点「保存」。</li>
+      </ol>
+      <p class="muted">Key 只存在你自己这台设备的浏览器里，不会上传到任何服务器。</p>`)}
+    <div class="awarn"><b>安全提醒</b>
+      <ul>
+        <li>别把 Key 发给别人、别发到班级群里——别人拿到就能花你的额度。</li>
+        <li>在公共电脑（机房、图书馆）上用完，记得取消勾选「在这台设备长期保存 Key」。</li>
+      </ul>
+    </div>
+  </div>`, () => {
+    const open = () => { // 有些应用内浏览器不弹新窗口，失败就把链接亮出来让人手动打开
+      let w = null;
+      // 不用第三个参数的 noopener：带它 window.open 一律返回 null，判断不出到底开没开
+      try { w = window.open(SF_URL, '_blank'); } catch (e) { }
+      if (w) { try { w.opener = null; } catch (e) { } } // 断开 opener，新窗口碰不到本页
+      else toast('浏览器拦了新窗口，手动复制下面的链接打开');
+    };
+    $('sfOpen').onclick = open;
+    $('sfCopy').onclick = () => copyText(SF_URL);
+  }, 'big solid');
+}
+
 function renderSettings() {
   const s = getSettings(), p = providers[s.provider], models = [...new Set([...(s.models || []), ...p.models])];
   $('v-settings').innerHTML = `
-    <div class="panel"><h3>AI 解析</h3>${hasExt()
+    <div class="panel"><h3>AI 解析<button class="help" type="button" id="aiHelp" title="怎么申请 AI Key" aria-label="怎么申请 AI Key">?</button></h3>${hasExt()
       ? '<p class="extok">已装“夜夜题库AI伴侣”：题干下的“✦ 学会这题”用的是扩展里的 Key，这里不填也能讲题。<b>这里填了自己的 Key 之后，题目下还会多出一个网页自己的“✦ AI 逐项解析”</b>，两个都能点，随便用哪个。</p>'
-      : '<p class="muted" style="margin-top:0">填自己的 AI Key 后，答题后能逐项解析，也能识别资料、根据资料出题。请求直接从浏览器发给服务商。</p>'}
+      : '<p class="muted" style="margin-top:0">填自己的 AI Key 后，答题后能逐项解析，也能识别资料、根据资料出题。请求直接从浏览器发给服务商。<br>不知道去哪申请？点上面的「?」看图文教学。</p>'}
       <div class="f">
         <label for="prov">服务商</label><select id="prov">${Object.entries(providers).map(([k, v]) => `<option value="${k}" ${k === s.provider ? 'selected' : ''}>${esc(v.label)}</option>`).join('')}</select>
         <label for="base">接口地址</label><input id="base" type="url" value="${esc(s.baseUrl)}" placeholder="https://api.example.com/v1">
@@ -663,6 +729,7 @@ function renderSettings() {
     b.classList.add('rec'); b.textContent = '按一个键…'; S.recKey = { a: b.dataset.ka, i: +b.dataset.ki };
   };
   $('keyDef').onclick = () => { store.setLocal('keys', {}); renderSettings(); toast('快捷键已恢复默认'); };
+  $('aiHelp').onclick = openAiHelpSheet;
   $('reload').onclick = async () => { S.base = {}; await loadSubjects(); await openSubject(S.subject.id); toast('题库已重新加载'); };
   const collect = () => ({ provider: $('prov').value, baseUrl: $('base').value.trim(), model: ($('model').value || $('modelIn').value).trim(), models: s.models || [], apiKey: $('key').value.trim(), remember: $('remember').checked });
   $('prov').onchange = () => { const v = providers[$('prov').value]; saveSettings({ ...collect(), baseUrl: v.baseUrl, model: v.models[0] || '', models: [] }); renderSettings(); };

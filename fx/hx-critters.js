@@ -184,12 +184,13 @@
 
   // still()（希沃 / 省电 / 用户关了动画）时不进 kick，但要保证画面上有第一帧，
   // 否则卡片上端会留一块空白。所以这里补一次静态绘制。
+  // 只在 attach 里调用一次；没有 stop() 了 —— 卡片一旦挂上就一直动，
+  // 停止的唯一途径是 still()（hx-lite / reduced-motion）、滚出视野、或页签切后台。
   function start(e) {
     e.active = true;
     if (still()) { if (!e.drawn) paint(e, 0); return; }
     kick();
   }
-  function stop(e) { e.active = false; }
 
   // 给一张卡挂上生物。tile 是 .tile 按钮，id 是工具 id（决定配哪只）
   function attach(tile, toolId) {
@@ -218,13 +219,17 @@
     paint(e, 0); // 先出一帧静态画面，不要空白
     watch(e);
     // 默认就在动（手机没有 hover，不默认动就等于永远是张静态图）。
-    // hover 只保留「一进来就立刻响应」的作用：没这行也不影响，因为默认已经 active 了。
     // still()（hx-lite / reduced-motion）在 kick() 里挡掉，那两种情况下就停在第一帧。
     start(e);
-    tile.addEventListener('pointerenter', function () { start(e); });
-    tile.addEventListener('pointerleave', function () { stop(e); });
-    tile.addEventListener('focus', function () { start(e); });
-    tile.addEventListener('blur', function () { stop(e); });
+    // ── 2026-11-03 删除四个悬停监听（用户报的 bug）──
+    // 原来这里挂着 pointerenter→start、pointerleave→stop、focus→start、blur→stop。
+    // 那是「第一次改」的遗留：当时的设计是「只有鼠标停上去才动」，后来改成默认全动，
+    // start() 留了下来、stop() 忘了删。结果就是鼠标划过一张卡再移开，那张卡被 stop()
+    // 把 active 置成 false，**从此再也不动**（唯一的补偿是再 hover 一次），和其它卡形成
+    // 「有的动有的不动」的错觉。用户原话：「鼠标经过在拿走后就停止了 这是不对的」。
+    // 现在什么都不绑：卡片挂上就一直是 active，靠 fpsNow() 封顶 + IntersectionObserver
+    // 控制开销，不需要用 hover 当开关。CSS 里 .tile:hover .fxc 那个放大/位移是纯视觉反馈，
+    // 和动画状态无关，保留。
   }
 
   // 工具切换 / 重新登录会重建卡片：清掉已经不在文档里的。
