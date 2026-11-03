@@ -167,7 +167,7 @@
   (function () {
     if (window.HXCrumbs) return;
     // 这些不挂：只读的小标签、已经很花的图标按钮、以及自己就有按下动效的大按钮（.rk-go 那类会冲突）
-    var SKIP = '.hx-crumb, [data-hx-nocrumb], .x, .close-x, .rk-go, .no-crumb';
+    var SKIP = '.hx-crumb, .hx-crumb-in, [data-hx-nocrumb], .x, .close-x, .rk-go, .no-crumb';
     function ok(el) {
       if (!el || el.nodeType !== 1) return false;
       if (!el.matches('button, .tile, .btn, [role="button"], input[type="button"], input[type="submit"]')) return false;
@@ -180,7 +180,21 @@
       if (!r.width && !r.height) return true;
       return !(r.width > 150 || r.height > 150 || r.width < 24);
     }
-    function mark(el) { if (ok(el)) el.classList.add('hx-crumb'); }
+    // 2026-11-02 修坑：挂类前先看真实计算样式，别拿 CSS 硬改按钮原有写法。
+    // ① 已经自己定位（absolute / fixed / sticky）的按钮：不动它，直接跳过。
+    //    碎屑层要靠 relative 托住，但把 absolute 按钮改成 relative 会让它掉回文档流、整块布局塌掉。
+    // ② 自己带 overflow:hidden 的按钮：碎屑会被裁成一圈贴边的点。不改它的 overflow（改了里面
+    //    圆角裁剪的图会溢出来），改用「内爆版」.hx-crumb-in，碎屑贴着按钮内边炸。
+    // getComputedStyle 每个元素算一次，只在挂类那一下做，不进帧循环。
+    function mark(el) {
+      if (!ok(el)) return;
+      var cs;
+      try { cs = getComputedStyle(el); } catch (e) { return; }
+      var pos = cs.position;
+      if (pos !== 'static' && pos !== 'relative') return; // absolute / fixed / sticky：别碰
+      var clip = cs.overflow !== 'visible' || cs.overflowX !== 'visible' || cs.overflowY !== 'visible';
+      el.classList.add(clip ? 'hx-crumb-in' : 'hx-crumb');
+    }
     function sweep(root) {
       var list = (root || document).querySelectorAll('button, .tile, .btn, [role="button"], input[type="button"], input[type="submit"]');
       for (var i = 0; i < list.length; i++) mark(list[i]);

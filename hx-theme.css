@@ -111,13 +111,42 @@ html.hx-lite body.tool #home { content-visibility: hidden; }
    为什么用 box-shadow 画碎屑：多重阴影每一份都是独立的硬边小方块，天生就是“像素点”，
    只要一个伪元素、不额外加 DOM，也不像渐变那样有模糊边。
    注意：伪元素本身必须透明（background: transparent），否则正中会多出一颗色点。 */
-.hx-crumb { position: relative; }
+/* ── 2026-11-02 修坑：原来这里直接写 `.hx-crumb { position: relative }`，会**硬改**按钮的定位方式。
+   隐患实测：`概念片/玻璃文件夹/` 的按钮是 `position: absolute; right/bottom: var(...)` 摆的，
+   被这句改成 relative 就掉回文档流，整块布局塌掉（那页不在发布范围，但同类写法随时会出现）。
+   现在分工明确：
+   · CSS 只管「假设按钮是 static」时补 relative（:where() 权重 0，不跟别处抢）；
+   · 真正判断在 hx-theme.js —— 挂类前先读 getComputedStyle().position，
+     不是 static 就不挂 .hx-crumb（没定位的按钮才需要 relative 来托住伪元素）。
+   这样已经自己定位的按钮完全不受影响。 */
+:where(.hx-crumb) { position: relative; }
 .hx-crumb::after {
   content: ""; position: absolute; left: 50%; top: 50%; width: 6px; height: 6px; margin: -3px 0 0 -3px;
   pointer-events: none; border-radius: 0; background: transparent; opacity: 0;
   box-shadow: 0 0 0 0 transparent;
 }
+/* 按钮自己带 overflow:hidden 会把碎屑裁掉（`.bgs button` 背景选择器就是）。
+   这类按钮不改它的 overflow（改了里面圆角裁剪的图会溢出来），
+   由 hx-theme.js 给它们加 `.hx-crumb-in`：碎屑贴着按钮内边炸，当作「在里面爆」。
+   注意下标的顺序：先写通用 .hx-crumb 的动画，再写内爆版覆盖它——
+   内爆版元素同时带两个类，后写的才生效。反过来写就会被通用版盖掉。 */
 .hx-crumb:active::after { animation: hxCrumbs .45s steps(5, end) both; }
+.hx-crumb-in::after { width: 4px; height: 4px; margin: -2px 0 0 -2px; }
+.hx-crumb-in:active::after { animation: hxCrumbsIn .4s steps(4, end) both; }
+@keyframes hxCrumbsIn {
+  0% { opacity: 1; box-shadow:
+      -14px -10px 0 0 var(--acc),     14px -10px 0 0 var(--acc),
+      -20px  -2px 0 0 var(--acc2),    20px  -2px 0 0 var(--acc2),
+      -10px -16px 0 0 #fbbf24,        10px -16px 0 0 #fbbf24; }
+  60% { opacity: 1; box-shadow:
+      -26px -18px 0 -1px var(--acc),  26px -18px 0 -1px var(--acc),
+      -32px   0px 0 -1px var(--acc2), 32px   0px 0 -1px var(--acc2),
+      -18px -26px 0 -1px #fbbf24,     18px -26px 0 -1px #fbbf24; }
+  100% { opacity: 0; box-shadow:
+      -30px  -6px 0 -2px var(--acc),  30px  -6px 0 -2px var(--acc),
+      -36px  10px 0 -2px var(--acc2), 36px  10px 0 -2px var(--acc2),
+      -22px -14px 0 -2px #fbbf24,     22px -14px 0 -2px #fbbf24; }
+}
 /* steps(5) 是关键：碎屑一格格跳着走，不做平滑插值，才有像素游戏那种“帧动画”的硬感。
    每个关键帧都重写整串 box-shadow —— CSS 不能只改其中一条阴影，只能整串换。
    ── 偏移量的取值依据 ──

@@ -34,6 +34,12 @@
   // 做法：先洗牌一副牌，按卡序依次发；发完再洗一副，所以短时间内不会重复，
   // 但每次进首页（新会话）牌序都不同，满足「每次随机」。
   // 顺序固定的卡（工具 id 固定）用 sessionStorage 记住这一副牌的分配，刷新不跳变。
+  // ── 2026-11-02 修坑：原来这里取 `deck[order % deck.length]`，order 是「已分配的卡数」。
+  //    12 只生物发完 12 张卡后 order=12，`12 % 12 === 0`，第 13、14 张卡**必然**都拿到牌堆第一张，
+  //    而且和前面某张撞得一模一样（仿真 2000 次，第 13/14 张卡撞前面的概率是 100%）。
+  //    正确做法：牌堆用尽时先记住「这一轮已经用过哪 12 只」，重新洗牌后
+  //    从「上一轮最后发的几只」之外开始取，保证紧接着的下一张不会和隔壁撞。
+  //    14 张卡 / 12 只生物，最多也就撞 2 只，但必须撞在离得远的卡上，不能挨在一起。
   function pickFor(toolId) {
     var map = {};
     try { map = JSON.parse(sessionStorage.getItem(KEY)) || {}; } catch (e) { map = {}; }
@@ -42,13 +48,27 @@
     var used = {};
     for (var k in map) used[map[k]] = 1;
     var deck = IDS.filter(function (x) { return !used[x]; });
-    if (!deck.length) deck = IDS.slice(); // 牌发完了：重新洗一副（12 只生物 / 14 张卡，最多撞 2 只）
-    for (var i = deck.length - 1; i > 0; i--) { // Fisher-Yates
-      var j = Math.floor(Math.random() * (i + 1)), tmp = deck[i];
-      deck[i] = deck[j]; deck[j] = tmp;
+
+    if (!deck.length) {
+      // 牌发完了：重新洗一副。洗完之后，把「刚才最后发出去的那几只」挪到牌堆末尾，
+      // 这样紧接着发的卡不会跟紧邻的卡撞色。
+      deck = IDS.slice();
+      for (var s = deck.length - 1; s > 0; s--) { // Fisher-Yates
+        var r = Math.floor(Math.random() * (s + 1)), tp = deck[s];
+        deck[s] = deck[r]; deck[r] = tp;
+      }
+      var recent = Object.keys(map).slice(-4).map(function (k2) { return map[k2]; });
+      var head = deck.filter(function (x) { return recent.indexOf(x) < 0; });
+      var tail = deck.filter(function (x) { return recent.indexOf(x) >= 0; });
+      deck = head.concat(tail);
+      map[toolId] = deck[0];
+    } else {
+      for (var i = deck.length - 1; i > 0; i--) { // Fisher-Yates
+        var j = Math.floor(Math.random() * (i + 1)), tmp = deck[i];
+        deck[i] = deck[j]; deck[j] = tmp;
+      }
+      map[toolId] = deck[0];
     }
-    var order = Object.keys(map).length;
-    map[toolId] = deck[order % deck.length];
     try { sessionStorage.setItem(KEY, JSON.stringify(map)); } catch (e) { }
     return map[toolId];
   }
