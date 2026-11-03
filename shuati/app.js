@@ -100,7 +100,9 @@ async function loadSubjects(withPublic = true) { // withPublic=false：先不等
   const mineIds = new Set(mine.map(s => s.id));
   S.subjects = [
     ...BUILTIN.map(s => ({ ...s, kind: 'builtin' })),
-    ...(pub || []).filter(p => !(p.mine && mineIds.has(p.id))).map(p => ({ id: 'pub-' + p.id, pid: p.id, name: p.name, kind: 'public', owner: p.owner_name, tag: p.owner_name ? p.owner_name + ' 发布' : '老师发布', total: p.total })),
+    ...(pub || []).filter(p => !(p.mine && mineIds.has(p.id))).map(p => ({ id: 'pub-' + p.id, pid: p.id, name: p.name, kind: 'public', owner: p.owner_name, tag: p.owner_name ? p.owner_name + ' 发布' : '老师发布', total: p.total,
+      // 下发范围（2026-11-02）：targets 是给人看的说明，class_ids 给发布面板回填复选框
+      mine: p.mine, targets: p.targets, class_ids: p.class_ids })),
     ...mine.map(s => ({ ...s, kind: 'mine' })),
   ];
 }
@@ -482,10 +484,11 @@ async function renderRank() {
 // ---------- 题库：新建科目、导入资料、AI 出题、导出、发布 ----------
 function renderBank() {
   const sub = S.subject, base = S.base[sub.id] || [], d = S.draft;
+  // 发布时间是「更新发布」，撤销下发单独一个字按钮：撤销只把学生那边的可见性收回来，题库留着，老师自己还能刷
   const pubBtns = isTeacher() ? `<button class="btn sm" type="button" id="pubBtn">${sub.published || sub.kind === 'public' ? '更新发布' : '发布给学生'}</button>${sub.published ? '<button class="btn sm danger" type="button" id="unpubBtn">取消发布</button>' : ''}` : '';
   $('v-bank').innerHTML = `
     <div class="panel"><h3>${esc(sub.name)}</h3>
-      <dl class="kv"><dt>来源</dt><dd>${sub.kind === 'builtin' ? '课程题库' : sub.kind === 'public' ? esc(sub.tag) : '我的科目'}</dd>${base.length ? `<dt>课程题</dt><dd>${base.length} 题</dd>` : ''}<dt>我导入的</dt><dd>${S.bank.length} 题</dd></dl>
+      <dl class="kv"><dt>来源</dt><dd>${sub.kind === 'builtin' ? '课程题库' : sub.kind === 'public' ? esc(sub.tag) : '我的科目'}</dd>${base.length ? `<dt>课程题</dt><dd>${base.length} 题</dd>` : ''}<dt>我导入的</dt><dd>${S.bank.length} 题</dd>${isTeacher() && (sub.published || sub.kind === 'public') && sub.targets ? `<dt>下发范围</dt><dd>${esc(sub.targets)}</dd>` : ''}</dl>
       <div class="f" style="margin-top:12px"><div class="line"><button class="btn sm ghost" type="button" id="expBtn">导出 JSON</button>${S.bank.length ? '<button class="btn sm ghost" type="button" id="clrBtn">清空我导入的</button>' : ''}${sub.kind === 'mine' ? '<button class="btn sm ghost" type="button" id="renBtn">改名</button><button class="btn sm danger" type="button" id="delBtn">删除科目</button>' : ''}${pubBtns}</div></div></div>
     <div class="panel"><h3>新建科目</h3><div class="f"><div class="line"><input id="newName" maxlength="30" placeholder="科目名称" style="flex:1"><button class="btn sm" type="button" id="newBtn">新建</button></div></div></div>
     <div class="panel"><h3>导入资料 · ${esc(sub.name)}</h3>
@@ -517,7 +520,7 @@ function renderBank() {
   on('okImport', confirmImport);
   on('noImport', () => { S.draft = null; renderBank(); });
   for (const x of document.querySelectorAll('[data-del]')) x.onclick = () => { S.draft.splice(+x.dataset.del, 1); renderBank(); };
-  on('pubBtn', e => sure(e.currentTarget, `确认发布 ${S.questions.length} 题？`, publish));
+  on('pubBtn', () => openPublishSheet(() => { renderBank(); loadSubjects().then(paintSubj); }));
   on('unpubBtn', e => sure(e.currentTarget, '确认取消发布？', async () => {
     try { await store.unpublish(sub.id); await saveMine(m => m.map(s => s.id === sub.id ? { ...s, published: false } : s)); S.subject.published = false; toast('已取消发布'); renderBank(); } catch (e) { toast(e.message); }
   }));
@@ -555,13 +558,84 @@ async function confirmImport() {
   const add = S.draft.map((q, n) => ({ ...q, number: S.bank.length + n + 1 }));
   S.draft = null; await setBank([...S.bank, ...add]); toast(`已导入 ${add.length} 题`);
 }
-async function publish() {
-  const sub = S.subject, id = sub.kind === 'public' ? sub.pid : sub.id;
-  try {
-    await store.publish(id, sub.name, S.questions, hx.name(S.user, S.me));
-    if (sub.kind === 'mine') { await saveMine(m => m.map(s => s.id === sub.id ? { ...s, published: true } : s)); S.subject.published = true; }
-    toast('已发布'); renderBank();
-  } catch (e) { toast(e.message); }
+
+// ---------- 发布：选下发到哪些班（2026-11-02）----------
+// 用户要求：「教师账号导入的资料允许专业班级下发和撤销，也可以只自己刷」
+// 三种状态，对应数据库里 target_classes 的三态：
+//   全部学生  → null     （老行为，默认）
+//   只自己刷  → []       （不发出去，题还在自己科目里）
+//   指定班级  → [id...]
+function openPublishSheet(onDone) {
+  const sub = S.subject, pid = sub.kind === 'public' ? sub.pid : sub.id;
+  const cur = sub.kind === 'public' ? sub.class_ids : undefined; // 已发布过的题库带回来
+  const isNew = !sub.published && sub.kind !== 'public';
+
+  openSheet(`<h3>发布 <small class="muted">${S.questions.length} 题</small></h3>
+    <p class="muted" style="margin:0 0 12px">发给谁刷？学生的“科目”列表里只会出现发给他的题库。</p>
+    <div class="radio" style="flex-direction:column;gap:8px">
+      <label><input type="radio" name="tg" value="all" ${isNew || cur == null ? 'checked' : ''}> 全部学生（所有班都能刷）</label>
+      <label><input type="radio" name="tg" value="self" ${!isNew && cur && cur.length === 0 ? 'checked' : ''}> 只自己刷（不发给学生，题留在我的科目里）</label>
+      <label><input type="radio" name="tg" value="cls" ${!isNew && cur && cur.length ? 'checked' : ''}> 只发给指定班级</label>
+    </div>
+    <div id="clsPick" style="margin-top:12px" hidden>
+      <div class="sgroup">我教的班</div>
+      <div id="clsList" class="slist"><div class="muted" style="padding:10px">正在读取班级…</div></div>
+    </div>
+    <div class="line" style="margin-top:14px"><button class="btn" type="button" id="pubGo">确认发布</button><button class="btn sm ghost" type="button" id="pubNo">取消</button></div>`,
+  async () => {
+    const rad = () => ($('sheetBody').querySelector('input[name=tg]:checked') || {}).value;
+    const sync = () => { $('clsPick').hidden = rad() !== 'cls'; };
+    for (const r of $('sheetBody').querySelectorAll('input[name=tg]')) r.onchange = sync;
+    sync();
+
+    // 班级列表懒加载：只有选了“指定班级”才去查，不选就不打扰数据库
+    let classes = null;
+    const loadCls = async () => {
+      if (classes) return;
+      const r = await store.myClasses();
+      classes = (r || []).filter(c => c && c.name);
+      const box = $('clsList');
+      if (!box) return;
+      if (!classes.length) { box.innerHTML = '<div class="muted" style="padding:10px">你还没有班级。到首页「班级」新建一个、导入名单后再来发布。</div>'; return; }
+      const sel = new Set(cur || []);
+      box.innerHTML = classes.map(c =>
+        `<label class="sitem" style="justify-content:flex-start;gap:10px;cursor:pointer">
+           <input type="checkbox" data-cid="${c.id}" ${sel.has(c.id) ? 'checked' : ''}>
+           <b style="flex:1">${esc(c.name)}</b>
+           <small>${c.bound || 0}/${c.total || 0} 人</small>
+         </label>`).join('');
+    };
+    // 一开始就选中“指定班级”的，立刻加载
+    if (rad() === 'cls') loadCls();
+    for (const r of $('sheetBody').querySelectorAll('input[name=tg]')) {
+      const prev = r.onchange;
+      r.onchange = () => { prev(); if (rad() === 'cls') loadCls(); };
+    }
+
+    $('pubNo').onclick = closeSheet;
+    $('pubGo').onclick = async () => {
+      const mode = rad();
+      let classes2;
+      if (mode === 'all') classes2 = null;
+      else if (mode === 'self') classes2 = [];
+      else {
+        const picked = [...$('sheetBody').querySelectorAll('input[data-cid]:checked')].map(x => +x.dataset.cid);
+        if (!picked.length) { toast('至少选一个班；不想发给学生就选“只自己刷”'); return; }
+        classes2 = picked;
+      }
+      $('pubGo').disabled = true;
+      try {
+        await store.publish(pid, sub.name, S.questions, hx.name(S.user, S.me), classes2);
+        if (sub.kind === 'mine') { await saveMine(m => m.map(s => s.id === sub.id ? { ...s, published: true } : s)); S.subject.published = true; }
+        // 把新的下发范围写回内存，面板再打开时能回填
+        S.subject.class_ids = classes2; S.subject.targets = mode === 'all' ? '全部学生' : mode === 'self' ? '只自己刷' : classes2.length + ' 个班';
+        closeSheet();
+        toast(mode === 'self' ? '已保存（只自己刷，学生看不到）' : mode === 'all' ? '已发布给全部学生' : `已发布给 ${classes2.length} 个班`);
+        if (onDone) onDone();
+      } catch (e) { toast(e.message); }
+      finally { if ($('pubGo')) $('pubGo').disabled = false; }
+    };
+  });
 }
 
 // ---------- 设置 ----------

@@ -60,10 +60,23 @@ export function mergeSubjects(a = [], b = []) {
 }
 
 // 公共题库（老师发布，所有人能刷）
+// 下发范围（2026-11-02 加）：classes = null → 全部学生；[] → 只自己刷；[班级id...] → 只这些班
 export const publicList = () => rpc('quiz_public_list', {}, signedIn()).catch(() => []);
 export const publicGet = id => rpc('quiz_public_get', { p_id: id }, signedIn());
-export const publish = (id, name, questions, ownerName) => rpc('quiz_publish', { p_id: id, p_name: name, p_questions: questions, p_owner_name: ownerName });
+export const publish = (id, name, questions, ownerName, classes) => rpc('quiz_publish', {
+  p_id: id, p_name: name, p_questions: questions, p_owner_name: ownerName,
+  // 不传就是 null（全部学生），保持旧行为
+  p_classes: classes === undefined ? null : classes,
+});
+// 只改下发范围，不重传题库（撤销下发传 []）
+export const setClasses = (id, classes) => rpc('quiz_set_classes', { p_id: id, p_classes: classes });
 export const unpublish = id => rpc('quiz_unpublish', { p_id: id });
+
+// 我教的班（老师选下发对象用）。走 rank-schema.sql 的 hx_my_classes，管理员/开发者会看到全部班。
+// 非老师返回空数组，不抛错（学生打开刷题不该看到报错）。
+export const myClasses = () => signedIn()
+  ? rpc('hx_my_classes', {}).catch(() => [])
+  : Promise.resolve([]);
 
 // 理论题排位（supabase/quiz-schema.sql 第 3 节）：答对的选择、判断题先进本机待交队列，1 秒后交给服务器判对（断网留着，下次再交）。
 // 交过的题记在 ranksent:<科目>，再答对不重复交；分数只在服务器算。
