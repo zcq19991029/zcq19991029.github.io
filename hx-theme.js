@@ -160,5 +160,46 @@
     }
     window.HXNav = { slide: slide };
   })();
+  // ---------- 按钮按下的像素碎屑：自动给全站按钮挂 .hx-crumb ----------
+  // 样式在 hx-theme.css 的 hxCrumbs。这里只负责找元素挂类，不写任何帧循环。
+  // 为什么放这里而不是每个工具各自写：hx-theme.js 全站都引了，一处改完全站生效（首页、刷题、单片、排课、考试、加分都算）。
+  // 用 MutationObserver 盯着后续动态生成的按钮（排课表格、刷题题卡这类是 JS 现插的），插进来就挂上。
+  (function () {
+    if (window.HXCrumbs) return;
+    // 这些不挂：只读的小标签、已经很花的图标按钮、以及自己就有按下动效的大按钮（.rk-go 那类会冲突）
+    var SKIP = '.hx-crumb, [data-hx-nocrumb], .x, .close-x, .rk-go, .no-crumb';
+    function ok(el) {
+      if (!el || el.nodeType !== 1) return false;
+      if (!el.matches('button, .tile, .btn, [role="button"], input[type="button"], input[type="submit"]')) return false;
+      if (el.closest(SKIP)) return false;
+      if (el.disabled) return false;
+      // 太大的不挂：首页工具卡（>150px）上端已经配了像素小生物，再炸一圈碎屑会打架，
+      // 而且卡片宽到 300px 时，碎屑得飞出屏幕才有“迸出来”的感觉。
+      // 量不到尺寸（元素还没显示、在隐藏面板里）就先不判尺寸，照挂——量不出来不等于它小。
+      var r = el.getBoundingClientRect();
+      if (!r.width && !r.height) return true;
+      return !(r.width > 150 || r.height > 150 || r.width < 24);
+    }
+    function mark(el) { if (ok(el)) el.classList.add('hx-crumb'); }
+    function sweep(root) {
+      var list = (root || document).querySelectorAll('button, .tile, .btn, [role="button"], input[type="button"], input[type="submit"]');
+      for (var i = 0; i < list.length; i++) mark(list[i]);
+    }
+    function boot() {
+      sweep(document);
+      // 后续插入的按钮：只处理新增子树里的，不整页重扫（首页十几张卡，重扫没必要）
+      new MutationObserver(function (ms) {
+        for (var i = 0; i < ms.length; i++) {
+          var added = ms[i].addedNodes;
+          for (var j = 0; j < added.length; j++) {
+            var n = added[j]; if (n.nodeType !== 1) continue;
+            mark(n); sweep(n);
+          }
+        }
+      }).observe(document.body, { childList: true, subtree: true });
+    }
+    window.HXCrumbs = { sweep: sweep };
+    if (document.readyState === 'loading') addEventListener('DOMContentLoaded', boot); else boot();
+  })();
   apply();
 })();

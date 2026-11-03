@@ -14,6 +14,10 @@
      脚本里不用反引号模板字符串（本机测试时整页当字符串注入到线上同源页面里）。 -->
 <link rel="stylesheet" href="hx-theme.css">
 <script src="hx-theme.js"></script>
+<!-- 首页卡片上的像素小生物：pixelfx 的 12 个 critters（MIT），打包成一个 91 KB 的独立脚本。
+     加载失败不影响首页——hx-critters.js 开头就有 window.PixelFX 存在性检查，没有就整段跳过。 -->
+<script src="fx/pixelfx-critters.js" defer></script>
+<script src="fx/hx-critters.js" defer></script>
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; width: 100%; overflow: hidden; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -76,29 +80,33 @@
   .hero h1 { margin: 18px 0 0; font: 700 clamp(40px, 8vw, 64px)/1.06 var(--hx-font-d); letter-spacing: -.02em; }
   .hero p { margin: 10px 0 0; font-size: clamp(19px, 3vw, 24px); color: var(--dim); font-weight: 500; min-height: 1.4em; }
   .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 228px), 1fr)); gap: 16px; }
-  /* 首页工具卡 =「玻璃文件夹」（对照稿见 概念片/玻璃文件夹/，锚点结构一致，按卡片比例缩过）：
-     后片 = .tile 本体（顶部左上伸出一个舌片 ::before，主体顶边就是"肩线"）；
-     开口 = 肩线到前片顶边之间的一段（top 44%），露出品牌渐变底（首页没有照片，"照片位"= --c1/--c2 渐变 + 背景图透出）；
-     前片 = ::after，左右各缩 6px、贴底，顶边小圆角当唇沿，再用 mask 在 72% 处挖一个拇指缺口（凹口透出后片）；
-     折角 = 舌片右端的斜肩（::before 的圆角 + 折势投影线）。
-     图标 / 标题 / 概要都在前片之上（.tile > * z-index:1），不会被玻璃盖住。
-     没有背景图时退回干净白卡：舌片不显示、前片只留极淡一层。 */
+  /* 首页工具卡。
+     ── 2026-11-02 大改：不再是「玻璃文件夹」──
+     原来是：后片（.tile 本体，左上伸出一个舌片）+ 开口（top 44% 露出「照片位」）+ 前片（::after 玻璃）+
+     拇指缺口（mask）+ 折角。照的是 概念片/玻璃文件夹/ 那版对照稿，本来为了给每张卡上部留一块照片位。
+     问题是：**首页根本没有照片**。开口露出来的只是背景图，于是在每张卡中间横切出一道很怪的分界线，
+     右侧还挂一道弧形的亮边——用户 2026-11-02 的原话是「上面目前是很诡异的莫名其妙的突出」。
+     舌片先撤了，但那道横线是「开口」这条结构线，撤掉舌片它反而更明显（上面少了东西，下面一道杠）。
+     现在整张卡就是一块完整的玻璃：去掉开口（前片从顶铺到底）、去掉缺口、去掉折角，
+     卡片上端那个位置交给像素小生物（.fxc）。要重建「文件夹 / 照片位」那套观感，
+     得先在 .tile 里真的放一张图，否则那条线永远是杂质。 */
   .tile { --fld-bg: rgba(0, 0, 0, .014); --fld-edge: rgba(0, 0, 0, .045); --fld-lip: rgba(255, 255, 255, .92);
     --fld-drop: 0 -6px 12px -12px rgba(0, 0, 0, .16); --fld-sheen: rgba(255, 255, 255, .55);
     position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 18px; min-height: 172px; padding: 26px 24px 22px; border: 0; border-radius: 32px; background: var(--card); text-align: left; box-shadow: 0 0 0 1px var(--edge) inset;
     transition: transform .45s var(--hx-spring), box-shadow .45s var(--hx-spring); animation: rise .7s var(--hx-spring) both; }
-  /* 舌片：从卡片左上向上伸出 13px（小于格子间距 16px，不会压到别的内容），有背景图时才显示 */
-  .tile::before { content: ""; position: absolute; left: 12px; bottom: 100%; width: 76px; height: 14px; z-index: 0; pointer-events: none;
-    display: none; border-radius: 8px 8px 0 0; background: var(--fld-tab, var(--card));
-    box-shadow: inset 0 .6px 0 var(--fld-lip), inset 1px 0 0 var(--fld-sheen); }
-  /* 前片玻璃：mask 在顶边挖拇指缺口（缺口处透出后片，和对照稿的 notch 锚点同义）。
+  /* 舌片已于 2026-11-02 撤掉：用户指出卡片上端那个凸起「很诡异、莫名其妙」。
+     现在这个位置由 .fxc（像素小生物）补上。留个空规则说明来历，避免以后有人照旧稿又加回来。 */
+  .tile::before { content: none; display: none; }
+  /* 玻璃面：从顶铺到底（原来是 top:44%，只盖下半张，上半露「照片位」——首页没照片，那条边就成了横贯卡片的怪线）。
+     还留着 1px 的亮唇（border-radius 14px）和品牌色内晕（来自 Orbit 的静态光），
+     但去掉了顶边那个拇指缺口 mask：缺口的意义是「让后片从开口里透一道」，
+     没有开口之后它只会在卡片中上部啃出一个不规则的洞。
      box-shadow 里那道品牌色内晕来自 Orbit（见下方 Orbit 段）——压在玻璃里的静态光，不额外吃性能 */
-  .tile::after { content: ""; position: absolute; left: 6px; right: 6px; bottom: 0; top: 44%; z-index: 0; pointer-events: none;
-    border-radius: 14px 14px 28px 28px; background: var(--fld-bg);
-    -webkit-mask: radial-gradient(15px 9px at 72% 0, transparent 97%, #000); mask: radial-gradient(15px 9px at 72% 0, transparent 97%, #000);
+  .tile::after { content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+    border-radius: inherit; background: var(--fld-bg);
     box-shadow: inset 0 .6px 0 var(--fld-lip), inset 0 2px 5px -2px var(--fld-sheen),
       inset 0 -24px 40px -30px color-mix(in srgb, var(--c2) 90%, transparent),
-      0 0 0 .6px var(--fld-edge), var(--fld-drop);
+      0 0 0 .6px var(--fld-edge);
     transition: transform .45s var(--hx-spring), box-shadow .45s var(--hx-ease); }
   .tile > * { z-index: 1; } /* flex 项设 z-index 就成层，前片不会盖住图标和文字 */
   .tile:hover { transform: scale(1.02); box-shadow: 0 0 0 1px var(--edge) inset, 0 22px 50px -26px var(--shade); }
@@ -160,6 +168,23 @@
     html:not(.hx-lite) .tile:hover .sysin i, html:not(.hx-lite) .tile:focus-visible .sysin i { animation-play-state: running; }
   }
   @media (prefers-reduced-motion: reduce) { .tile .sys { display: none !important; } }
+  /* ── 卡片上端的像素小生物（pixelfx critters，MIT）──
+     取代原来那个「左上角莫名其妙凸出来的舌片」。用户 2026-11-02 的要求：
+     卡片上端放一只随机匹配的动效生物，鼠标移上去才动。
+     14 张卡不各跑循环：见 fx/hx-critters.js，全局一个 rAF，只有 hover 那张才画。
+     定位在卡片右上（贴圆角内侧），尺寸由 inline width/height 定，这里只管摆放和混合模式。
+     为什么放右上：左上被图标占着，右上原本是空的；也正好补上原来舌片那个位置的空缺。 */
+  .tile .fxc { position: absolute; top: 12px; right: 14px; z-index: 1; pointer-events: none;
+    display: block; line-height: 0; opacity: .9; transition: opacity .35s var(--hx-ease), transform .45s var(--hx-spring); }
+  /* 小生物底下那层暗色圆晕已经改成画进 canvas 里（见 fx/hx-critters.js 的 halo()）：
+     原来这里是 CSS 伪元素 radial 渐变，白卡分支下在浅色背景上像一块脏斑。
+     画进 canvas 的好处是逐像素、随 canvas 一起缩放，边缘没有伪元素那层硬边。 */
+  .tile .fxc canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; image-rendering: crisp-edges; }
+  .tile:hover .fxc, .tile:focus-visible .fxc { opacity: 1; transform: translateY(-2px) scale(1.06); }
+  /* 不用 mix-blend-mode: screen。试过：背景图是亮蓝色，screen 会把小生物的暗部整个吃掉，
+     史莱姆、青蛙这种深色主体直接看不见。正常混合 + 底下那层暗晕反而最清楚。 */
+  html.hx-bg .tile .fxc { opacity: .95; }
+  @media (prefers-reduced-motion: reduce) { .tile:hover .fxc, .tile:focus-visible .fxc { transform: none; } }
   .tile b { font-size: 21px; font-weight: 600; letter-spacing: -.01em; margin-top: auto; }
   /* 有背景图：走玻璃文件夹分支——后片换成「深色底 + 品牌渐变」（照片位，深色有对比，背景图从半透明底透出，
      透明度跟着用户选的 --hx-a 走），舌片显示，文字转白系保证可读 */
@@ -172,7 +197,7 @@
   /* 2026-11-02：卡片不再各自 backdrop-filter。背景图已经在 body::before 统一糊过，
      这里只叠半透明层 + 亮边就够（视觉一样是磨砂玻璃）。原来十几张卡各 blur 26px，
      希沃一体机的 GPU 撑不住，点工具时直接崩渲染进程，浏览器弹「重新加载站点」。 */
-  html.hx-bg .tile::before { display: block; }
+  /* 舌片已撤（见上面 .tile::before）：这里原来在有背景图时把它显示出来，现在不显示了 */
   /* 背景图分支下文字转白（后片是深色底，原来的深灰字会读不了） */
   html.hx-bg .tile b { color: #fff; text-shadow: 0 1px 3px rgba(0, 0, 0, .55); }
   html.hx-bg .tile .sum { color: rgba(255, 255, 255, .78); text-shadow: 0 1px 3px rgba(0, 0, 0, .5); }
@@ -294,7 +319,8 @@
     .tile { --cx: 43px; --cy: 45px; } /* 窄屏 padding 18/20 + 图标 50/2 */
     .tile .sysin { transform: rotateX(58deg) scale(.72); } /* 窄屏整体缩；rotateX 不能丢，否则又变回平面 */
     .tile::after { left: 5px; right: 5px; top: 48%; border-radius: 13px 13px 24px 24px; -webkit-mask: radial-gradient(12px 8px at 72% 0, transparent 97%, #000); mask: radial-gradient(12px 8px at 72% 0, transparent 97%, #000); }
-    .tile::before { left: 10px; width: 52px; height: 11px; }
+    .tile .fxc { top: 8px; right: 9px; max-height: 50px; } /* 窄屏缩小：只限高，宽度按 canvas 比例自动 */
+    .tile .fxc canvas { width: auto; height: 100%; max-width: 74px; }
     .pop { top: auto; bottom: 0; left: 0; right: 0; width: auto; max-height: 86vh; border-radius: 26px 26px 0 0; padding: 22px 20px calc(22px + env(safe-area-inset-bottom, 0px)); transform: translateY(100%); transform-origin: bottom; }
     .pop.show { transform: none; } .scrim.show { opacity: 1; pointer-events: auto; }
     .cl { grid-template-columns: 1fr; } .cl .acts { flex-wrap: wrap; }
@@ -654,6 +680,8 @@ function render() {
     }).join('');
   $('tiles').querySelectorAll('.tile[data-id]').forEach(function (b) {
     b.onclick = function () { show(b.dataset.id); };
+    // 卡片上端的像素小生物：每个工具固定配一只（本会话内不变），换会话重新随机
+    if (window.HXCritters) HXCritters.attach(b, b.dataset.id);
     // 2026-11-02 撤掉「鼠标划过就预取」。原来 pointerenter 就 mount()，教室里鼠标从一排卡上划过去，
     // 会一次性拉起五六个工具页；而预取的 iframe 只是 visibility:hidden + opacity:0，里面的 JS、
     // 定时器、画布全在后台照跑（接线仿真还有 requestAnimationFrame 循环），内存和 GPU 直接吃满——

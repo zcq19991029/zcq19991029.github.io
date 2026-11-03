@@ -105,3 +105,56 @@ html.hx-lite[data-hx-mode="dark"] { --bar: rgb(22 22 23 / .95); }
 /* 打开工具后首页整个不参与绘制（原来只是 visibility:hidden，合成层其实还挂着） */
 html.hx-lite body.tool #home { content-visibility: hidden; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+/* ── 按钮按下的像素碎屑（2026-11-02）──
+   按一下按钮，四周迸出一圈像素方点，向外散开再往下落。纯 CSS，零 JS、零帧循环：
+   由 :active 触发，动画本身 0.45 秒自动结束，不占常驻开销。
+   为什么用 box-shadow 画碎屑：多重阴影每一份都是独立的硬边小方块，天生就是“像素点”，
+   只要一个伪元素、不额外加 DOM，也不像渐变那样有模糊边。
+   注意：伪元素本身必须透明（background: transparent），否则正中会多出一颗色点。 */
+.hx-crumb { position: relative; }
+.hx-crumb::after {
+  content: ""; position: absolute; left: 50%; top: 50%; width: 6px; height: 6px; margin: -3px 0 0 -3px;
+  pointer-events: none; border-radius: 0; background: transparent; opacity: 0;
+  box-shadow: 0 0 0 0 transparent;
+}
+.hx-crumb:active::after { animation: hxCrumbs .45s steps(5, end) both; }
+/* steps(5) 是关键：碎屑一格格跳着走，不做平滑插值，才有像素游戏那种“帧动画”的硬感。
+   每个关键帧都重写整串 box-shadow —— CSS 不能只改其中一条阴影，只能整串换。
+   ── 偏移量的取值依据 ──
+   伪元素挂在按钮正中，碎屑要从按钮【外面】迸出来才有“迸”的感觉，所以横纵向偏移必须大于按钮的半宽/半高。
+   实际按钮多在 60～150px 宽、32～48px 高，半宽 30～75、半高 16～24 —— 所以横向取 30→58px、纵向先上后下。
+   太大的元素（>150px 的首页卡片）不挂碎屑：卡片上端已经有像素小生物，再炸一圈碎屑会打架。 */
+@keyframes hxCrumbs {
+  0% {
+    opacity: 1;
+    box-shadow:
+      -30px -18px 0 0 var(--acc),   30px -18px 0 0 var(--acc),
+      -36px  -6px 0 0 var(--acc2),  36px  -6px 0 0 var(--acc2),
+      -24px -26px 0 0 #fbbf24,      24px -26px 0 0 #fbbf24;
+  }
+  40% {
+    opacity: 1;
+    box-shadow:
+      -44px -30px 0 0 var(--acc),   44px -30px 0 0 var(--acc),
+      -52px -10px 0 0 var(--acc2),  52px -10px 0 0 var(--acc2),
+      -34px -40px 0 0 #fbbf24,      34px -40px 0 0 #fbbf24;
+  }
+  75% {
+    opacity: .9;
+    box-shadow:
+      -54px -20px 0 -1px var(--acc),   54px -20px 0 -1px var(--acc),
+      -62px   4px 0 -1px var(--acc2),  62px   4px 0 -1px var(--acc2),
+      -40px -30px 0 -1px #fbbf24,      40px -30px 0 -1px #fbbf24;
+  }
+  100% {
+    opacity: 0;
+    box-shadow:
+      -58px  -6px 0 -2px var(--acc),   58px  -6px 0 -2px var(--acc),
+      -66px  16px 0 -2px var(--acc2),  66px  16px 0 -2px var(--acc2),
+      -42px -18px 0 -2px #fbbf24,      42px -18px 0 -2px #fbbf24;
+  }
+}
+/* 省电设备、关了动画偏好：碎屑整个不做（比让它 0.01ms 闪一下干净） */
+html.hx-lite .hx-crumb:active::after { animation: none; }
+@media (prefers-reduced-motion: reduce) { .hx-crumb:active::after { animation: none; } }
+
