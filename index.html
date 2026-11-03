@@ -899,7 +899,11 @@ function openAccounts() {
 }
 // 外观：主题色、浅色 / 深色 / 自动、背景图、透明度（存 hx-theme，全部工具一起变）
 function renderLook() {
-  var s = HXTheme.get(), A = HXTheme.acc, B = HXTheme.bg, WX = HXTheme.wx, m = HXTheme.mode();
+  var s = HXTheme.get(), A = HXTheme.acc, B = HXTheme.bg, m = HXTheme.mode();
+  // 防旧缓存：index.html 是新的、hx-theme.js 还是浏览器缓存的旧版时没有 wx 导出，
+  // Object.keys(undefined) 会把整个外观面板炸掉（用户看到的「主题按钮点不开」）。
+  // 回落成只有「无」的一组，等 hx-theme.js 缓存刷新后自动恢复完整列表。
+  var WX = HXTheme.wx || { none: { name: '无' } };
   var html = '<h3>外观</h3><div class="seg">' + [['light', '浅色'], ['dark', '深色'], ['auto', '自动']].map(function (x) { return '<button type="button" data-mode="' + x[0] + '" aria-pressed="' + (s.mode === x[0]) + '">' + x[1] + '</button>'; }).join('') + '</div>' +
     '<h3>主题色</h3><div class="sw">' + Object.keys(A).map(function (k) { return '<button type="button" data-acc="' + k + '" title="' + A[k].name + '" aria-label="' + A[k].name + '" aria-pressed="' + (s.acc === k) + '" style="--c:' + (m === 'dark' ? A[k].d : A[k].l) + '"></button>'; }).join('') + '</div>' +
     '<h3>背景</h3><div class="bgs">' + Object.keys(B).filter(function (k) { return k !== 'custom' && (!B[k].dev || HXTheme.isDev()); }).map(function (k) {

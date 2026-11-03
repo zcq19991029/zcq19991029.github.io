@@ -596,13 +596,14 @@ function removeMemberAt(cls, g, j) {
     if(view==='attendance' && v!=='attendance' && attendanceContext && attendanceContext.isDirty && attendanceContext.isDirty()){flash('请先保存本课考勤，再切换页面。');return;}
     if (v === 'admin' && !(CLOUD && CLOUD.profile() && CLOUD.profile().isAdmin)) v = 'score';
     view = v;
-    ['score', 'leader', 'rank', 'attendance', 'pool', 'data', 'admin'].forEach(function (k) {
+    ['score', 'leader', 'rank', 'gradebook', 'attendance', 'pool', 'data', 'admin'].forEach(function (k) {
       var el = $('#view-' + k);
       if (el) el.hidden = (k !== v);
     });
     $$('#tabs button').forEach(function (b) { b.classList.toggle('on', b.dataset.view === v); });
     if (UI) UI.setView(v);
     if (v === 'rank') renderRank();
+    if (v === 'gradebook') renderGradebook();
     if (v === 'pool') renderPool();
     if (v === 'data') renderData();
     if (v === 'admin') renderAdmin();
@@ -610,7 +611,6 @@ function removeMemberAt(cls, g, j) {
     if (v === 'leader') renderLeader();
     if (v === 'attendance') renderAttendance();
   }
-
   function renderAttendance() {
     var cls=curClass(); if(!cls || !window.JFDT_ASSESSMENT)return;
     if(!$('#view-attendance')){var section=document.createElement('section');section.id='view-attendance';section.className='view';$('#main').appendChild(section);}
@@ -1201,6 +1201,120 @@ function removeMemberAt(cls, g, j) {
       : '<p class="rank-note">暂无记录。</p>';
   }
 
+  /* ================= 成绩登分册 ================= */
+
+  var gbSettings = (function () {
+    try { return JSON.parse(localStorage.getItem('jfdt.gb') || '{}') || {}; } catch (e) { return {}; }
+  })();
+
+  /** 9 月以后算「当年-次年-1」，否则「上年-当年-2」 */
+  function gbDefaultSemester() {
+    var d = new Date(), y = d.getFullYear();
+    return d.getMonth() + 1 >= 8 ? y + '-' + (y + 1) + '-1' : (y - 1) + '-' + y + '-2';
+  }
+
+  function gbSaveSettings() {
+    if (!$('#gbClassSel')) return;
+    gbSettings = {
+      classId: $('#gbClassSel').value,
+      semester: $('#gbSemester').value.trim(),
+      course: $('#gbCourse').value.trim(),
+      teacher: $('#gbTeacher').value.trim()
+    };
+    try { localStorage.setItem('jfdt.gb', JSON.stringify(gbSettings)); } catch (e) { /* 隐私模式忽略 */ }
+  }
+
+  function gbSelectedClasses() {
+    var sel = $('#gbClassSel').value, vis = visibleClasses();
+    if (sel && sel !== '__all') {
+      var hit = vis.filter(function (c) { return c.id === sel; });
+      if (hit.length) return hit;
+    }
+    return vis;
+  }
+
+  /** 按当前选择生成全部表（一个班可能因为日期列不够拆成多张） */
+  function gbSheets() {
+    var GB = window.JFDT_GRADEBOOK, A = window.JFDT_ASSESSMENT;
+    if (!GB || !A) return [];
+    var semester = $('#gbSemester').value.trim(), course = $('#gbCourse').value.trim(), teacher = $('#gbTeacher').value.trim();
+    var out = [];
+    gbSelectedClasses().forEach(function (cls) {
+      var ls = lessonsOf(cls.id);
+      if (!ls.length) return;
+      GB.buildClass({
+        cls: cls, lessons: ls,
+        students: A.rows(cls, ls, memberTotals(cls)),
+        meta: { semester: semester, course: course, teacher: teacher || cls.teacher || '' }
+      }).forEach(function (sheet) { out.push(sheet); });
+    });
+    return out;
+  }
+
+  function gbRenderStage() {
+    var GB = window.JFDT_GRADEBOOK, stage = $('#gbStage');
+    if (!GB || !stage || !S) return;
+    var sheets = gbSheets(), meter = $('#gbMeter');
+    if (!sheets.length) {
+      stage.innerHTML = '<p class="empty-hint">还没有可导出的分数：先在「上课记分」页新开一课，再回来这里。</p>';
+      if (meter) meter.textContent = '';
+      return;
+    }
+    GB.render(stage, sheets);
+    var people = sheets.reduce(function (a, s) { return Math.max(a, s.rows.length); }, 0);
+    if (meter) meter.textContent = '共 ' + sheets.length + ' 张表 · ' + people + ' 名学生 · 每张 ' + GB.DATE_COLS + ' 个日期列';
+  }
+
+  function renderGradebook() {
+    var sel = $('#gbClassSel');
+    if (!sel || !S) return;
+    var vis = visibleClasses(), want = sel.value || gbSettings.classId || '';
+    sel.innerHTML = '<option value="__all">全部班级</option>' + vis.map(function (c) {
+      return '<option value="' + esc(c.id) + '">' + esc(c.name) + '</option>';
+    }).join('');
+    var keep = (want === '__all' || vis.some(function (c) { return c.id === want; })) ? want
+      : (vis.length > 1 ? '__all' : (vis[0] ? vis[0].id : '__all'));
+    sel.value = keep;
+    if (!$('#gbSemester').value) $('#gbSemester').value = gbSettings.semester || gbDefaultSemester();
+    if (!$('#gbCourse').value) $('#gbCourse').value = gbSettings.course || '电气接线原理';
+    if (!$('#gbTeacher').value && gbSettings.teacher) $('#gbTeacher').value = gbSettings.teacher;
+    gbRenderStage();
+  }
+
+  if ($('#gbClassSel')) {
+    ['#gbClassSel', '#gbSemester', '#gbCourse', '#gbTeacher'].forEach(function (id) {
+      $(id).addEventListener('change', function () { gbSaveSettings(); gbRenderStage(); });
+    });
+    $('#gbSemester').addEventListener('input', function () { gbSaveSettings(); gbRenderStage(); });
+    $('#gbCourse').addEventListener('input', function () { gbSaveSettings(); gbRenderStage(); });
+    $('#gbTeacher').addEventListener('input', function () { gbSaveSettings(); });
+    $('#gbRefresh').addEventListener('click', function () { gbRenderStage(); flash('已按最新分数刷新'); });
+    $('#gbPrint').addEventListener('click', function () {
+      gbSaveSettings();
+      var sheets = gbSheets();
+      if (!sheets.length) { flash('还没有可打印的分数：先在「上课记分」页新开一课。'); return; }
+      window.JFDT_GRADEBOOK.print(sheets);
+    });
+    $('#gbExport').addEventListener('click', function () {
+      gbSaveSettings();
+      var sheets = gbSheets();
+      if (!sheets.length) { flash('还没有可导出的分数：先在「上课记分」页新开一课。'); return; }
+      var sel = $('#gbClassSel'), label = sel.value === '__all' ? '全部班级' : (sel.selectedOptions[0] ? sel.selectedOptions[0].textContent : '班级');
+      try {
+        window.JFDT_GRADEBOOK.download(sheets, '成绩登分册_' + label + '_' + ($('#gbSemester').value.trim() || '') + '.xlsx');
+        flash('已导出 ' + sheets.length + ' 张表，可直接打印或继续编辑');
+      } catch (e) {
+        flash('导出失败：' + e.message);
+      }
+    });
+    var gbResizeTimer = null;
+    window.addEventListener('resize', function () {
+      if (view !== 'gradebook' || !window.JFDT_GRADEBOOK) return;
+      clearTimeout(gbResizeTimer);
+      gbResizeTimer = setTimeout(function () { window.JFDT_GRADEBOOK.fit($('#gbStage')); }, 120);
+    });
+  }
+
   /* ================= 待分配名单 ================= */
 
   var poolFilter = 'pending';
@@ -1547,7 +1661,7 @@ function removeMemberAt(cls, g, j) {
         else if (hx) extra = hxPreviewHtml(c, hx);
         return '<tr><td>' + esc(c.name) + '</td><td><label class="hx-pick">对应首页 <select data-hxpick="' + esc(c.id) + '"><option value="">选择班级</option>' +
           options.map(function (h) { return '<option value="' + h.id + '"' + (h.id === pick ? ' selected' : '') + '>' + esc(h.name) + '</option>'; }).join('') +
-          '</select></label></td><td><button class="btn tiny primary" data-hxreview="' + esc(c.id) + '">预览</button> <button class="btn tiny" data-hxlocal="' + esc(c.id) + '">不对应</button></td></tr>' +
+          '</select></label></td><td><button class="btn tiny primary" data-hxreview="' + esc(c.id) + '">预览</button> <button class="btn tiny" data-hxlocal="' + esc(c.id) + '">不对应</button> <button class="btn tiny danger" data-hxdel="' + esc(c.id) + '">删除</button></td></tr>' +
           (extra ? '<tr class="hx-extra"><td colspan="3">' + extra + '</td></tr>' : '');
       }).join('') + '</tbody></table>';
     }
@@ -1586,6 +1700,21 @@ function removeMemberAt(cls, g, j) {
         hxRoster.review = { classId: b.dataset.hxlocal, local: true };
       } else if (b.dataset.hxcancel) {
         hxRoster.review = null;
+      } else if (b.dataset.hxdel) {
+        /* 删除待对应班：权限放宽窗口期误导入的他人班用这个清掉。
+           已录课次的班不许删（先删课次），确认后才动 S.classes。 */
+        var dc = S.classes.filter(function (x) { return x.id === b.dataset.hxdel; })[0];
+        if (!dc) return;
+        var nL = S.lessons.filter(function (l) { return l.classId === dc.id; }).length;
+        if (nL) { hxRoster.review = { classId: dc.id, msg: '「' + dc.name + '」已录 ' + nL + ' 次课，先删掉对应课次再删班。' }; }
+        else if (!confirm('删除「' + dc.name + '」？这是清掉一条待对应记录，该班没有对应过首页名单。')) {
+          return;
+        } else {
+          S.classes = S.classes.filter(function (x) { return x.id !== dc.id; });
+          if (hxRoster.review && hxRoster.review.classId === dc.id) hxRoster.review = null;
+          addOperationLog('首页班级', '删除待对应班 ' + dc.name);
+          save(); flash('已删除 ' + dc.name);
+        }
       } else if (b.dataset.hxlink) {
         var rv = hxRoster.review, hx = rv && rv.hxId && hxRoster.all.filter(function (h) { return h.id === rv.hxId; })[0];
         if (!hx) return;
