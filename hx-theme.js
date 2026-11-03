@@ -37,6 +37,53 @@
   // 嵌在总入口里的子工具：选了背景图时页面底色透明，透出首页的背景图（以前单片机、考试、排课、加分是整页纯色铺满）
   if (tool && window.top !== window) { var st = document.createElement('style'); st.textContent = 'html.hx-bg,html.hx-bg body{background-color:transparent!important}'; (document.head || document.documentElement).appendChild(st); }
 
+  // ── 顶部加载进度条（2026-11-03）──
+  // 用户原话「刷新加载动画缺一个　包括其他界面」：首页已经有 #boot，
+  // 但各子工具刷新时是「顶栏先出来、中间内容空着」的一段白，没有任何过渡。
+  //
+  // 为什么样式写在这里注入、而不是放进 hx-theme.css：全站只有总入口和刷题真的引了那份 CSS，
+  // 接线仿真、排课、单片机、考试、小组加分、课程进度都只引 hx-theme.js（它们各自带自己的样式表，
+  // 只从这边取颜色变量）。放 CSS 里等于只覆盖 2/8 个页面，必须跟着 JS 走才全覆盖。
+  //
+  // 只在**顶层页面**挂（window.top === window）：嵌在首页 iframe 里的工具由首页那个
+  // 「正在加载 · 接线仿真」药丸负责提示，两条同时出现反而啰嗦，而且 iframe 顶部那条线
+  // 正好压在主页面的顶栏下沿，看着像顶栏掉漆。
+  if (window.top === window) {
+    var barCSS = ''
+      // 进度用 scaleX 而不是 width：transform 走合成线程、不触发重排，希沃那种老机器上也不拖慢首屏。
+      // 渐变末端留一段近白：乘上 scaleX 之后它始终贴在条的右端，像一颗光点在前面拉着走，不用第二个元素。
+      + '@keyframes hxLoadBar{0%{transform:scaleX(0)}12%{transform:scaleX(.34)}45%{transform:scaleX(.62)}100%{transform:scaleX(.88)}}'
+      + 'html.hx-loading::before{content:"";position:fixed;top:0;left:0;right:0;height:2.5px;z-index:2147483000;'
+      + 'transform:scaleX(0);transform-origin:0 50%;pointer-events:none;'
+      + 'background:linear-gradient(90deg,var(--acc2) 0%,var(--acc) 55%,#fff 96%);'
+      + 'box-shadow:0 0 10px -2px var(--acc);animation:hxLoadBar 1.7s var(--hx-ease) forwards}'
+      // 到位：从 .88 补到 1、停一瞬、再淡出。必须 animation:none 让开上一条的 forwards 帧，
+      // 否则 transform 会被动画锁死在 .88。0.88→1 只差 12%，叠在弹簧曲线上看不出来是「跳」的。
+      + 'html.hx-done::before{animation:none;transform:scaleX(1);opacity:0;'
+      + 'transition:transform .22s var(--hx-spring),opacity .3s var(--hx-ease) .24s}'
+      // 希沃一体机：条还在（让学生知道在加载），去掉发光少一层合成
+      + 'html.hx-lite.hx-loading::before{box-shadow:none;animation-duration:2.4s}'
+      // 关掉动画偏好：不跑，给一条静态半透明示意条
+      + '@media (prefers-reduced-motion:reduce){html.hx-loading::before{animation:none;transform:scaleX(.72);opacity:.75}'
+      + 'html.hx-done::before{transition:opacity .3s var(--hx-ease)}}';
+    var barSt = document.createElement('style');
+    barSt.id = 'hx-loadbar';
+    barSt.textContent = barCSS;
+    (document.head || document.documentElement).appendChild(barSt);
+
+    var de = document.documentElement, barOff = false;
+    de.classList.add('hx-loading');
+    var barDone = function () {
+      if (barOff) return; barOff = true;
+      de.classList.add('hx-done');
+      setTimeout(function () { de.classList.remove('hx-loading', 'hx-done'); }, 700);
+    };
+    if (document.readyState === 'complete') barDone();
+    else addEventListener('load', barDone);
+    // 兜底：某张图卡住时 load 可能好几秒才来，不能让它一直挂在顶上
+    setTimeout(barDone, 8000);
+  }
+
   function ls(k, v) { try { if (v === undefined) return localStorage.getItem(k); if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { if (v !== undefined && v !== null) throw e; } return null; }
   function get() {
     var raw = ls(KEY), v = null;

@@ -72,7 +72,8 @@ export const publish = (id, name, questions, ownerName, classes) => rpc('quiz_pu
 export const setClasses = (id, classes) => rpc('quiz_set_classes', { p_id: id, p_classes: classes });
 export const unpublish = id => rpc('quiz_unpublish', { p_id: id });
 
-// 我教的班（老师选下发对象用）。走 rank-schema.sql 的 hx_my_classes，管理员/开发者会看到全部班。
+// 我教的班（老师选下发对象用）。走 rank-schema.sql 的 hx_my_classes。
+// 2026-11-03 起只返回「自己教的班」：管理员/开发者也不再看到别人的班（见 supabase/2026-11-03-班级权限收回.sql）。
 // 非老师返回空数组，不抛错（学生打开刷题不该看到报错）。
 export const myClasses = () => signedIn()
   ? rpc('hx_my_classes', {}).catch(() => [])

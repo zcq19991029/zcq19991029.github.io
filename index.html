@@ -1127,20 +1127,22 @@ function sheetCode(role) {
   box.querySelectorAll('[data-share]').forEach(function (b) { b.onclick = function () { shareCode(b.dataset.share, b.dataset.role); }; });
   box.querySelectorAll('[data-rev]').forEach(function (b) { b.onclick = async function () { var cd = b.dataset.rev, rl = ST.codes.filter(function (x) { return x.code === cd; })[0]; if (!await ask('撤销邀请码 ' + cd, (rl ? (rl.role === 'teacher' ? '教师码' : rl.role === 'guest' ? '好友码' : '课堂码') + (rl.class_name || rl.note ? '（' + (rl.class_name || rl.note) + '）' : '') + '。' : '') + '撤销后这个码不能再用来注册，已经用它注册的账号不受影响。', '撤销')) return; try { await HX.rpc('hx_revoke_code', { p_code: b.dataset.rev }); if (ST.aCode && ST.aCode.code === b.dataset.rev) ST.aCode = null; toast('已撤销'); loadCodes(); } catch (e) { toast(e.message); } }; });
 }
-// 重置密码面板（2026-11-02 用户要求）
-// 「学生忘记密码可以通过管理员和任课教师和开发者选择重置密码 直接输入新密码并确认即可」。
+// 重置密码面板（2026-11-02 用户要求；2026-11-03 收紧权限）
+// 「学生忘记密码可以通过管理员和任课教师和开发者选择重置密码 直接输入新密码并确认即可」，
+// 2026-11-03 用户补充：「重置密码的权限只发给开发者和任课老师（即导入考勤表的人）」。
 //
 // 两种用法都有：
-//   ① 选班级 → 选学生（最常用，老师手边就有名单）
-//   ② 直接填学号（管理员/开发者用得多：他知道学号但不知道是哪个班）
-// 真正改密码的是数据库函数 hx_reset_pw_by_no（见 supabase/2026-11-02-管理员开发者全名单权限.sql），
-// 它自己会再判一次身份：教师只能重置自己班里的，管理员/开发者不限。前端这层只负责收集参数。
+//   ① 选班级 → 选学生（老师手边就有名单）
+//   ② 直接填学号（开发者用得多：知道学号但不知道是哪个班）
+// 真正改密码的是数据库函数 hx_reset_pw_by_no（见 supabase/2026-11-03-班级权限收回.sql），
+// 它自己会再判一次身份：开发者不限班级；老师只能重置自己班里的；单纯的管理员不行。
+// 前端这层只负责收集参数。班级下拉来自 hx_my_classes，2026-11-03 起只返回自己教的班。
 // 故意做成「新密码输两次」：重置是不可逆的，输错了学生就登不进，还得再重置一次。
 function sheetPw() {
   var box = $('shB'), cls = ST.classes || [], pick = ST.pwCls, list = pick ? ST.studs[pick] : null;
   var html = '<p class="msg" style="margin:0 0 12px;color:var(--dim,#8a8f98)">只给已经注册过账号的学生重置。没注册过的学生会提示「直接让他注册」。改完把新密码当面告诉他，系统不会发短信。</p>';
   html += '<div class="f"><div class="line"><select id="pwCls" style="flex:1">' +
-    (cls.length ? cls.map(function (c) { return '<option value="' + c.id + '"' + (c.id === pick ? ' selected' : '') + '>' + esc(c.name) + (c.mine === false ? '（' + esc(c.owner || '别的老师') + '的班）' : '') + '</option>'; }).join('')
+    (cls.length ? cls.map(function (c) { return '<option value="' + c.id + '"' + (c.id === pick ? ' selected' : '') + '>' + esc(c.name) + '</option>'; }).join('')
                  : '<option value="">还没有班级</option>') +
     '</select></div>';
   if (list) {
@@ -1154,7 +1156,7 @@ function sheetPw() {
     '<label style="display:block;margin-top:8px">再输一次</label><input id="pwNew2" type="text" autocomplete="off" placeholder="再输一遍确认">' +
     '<div class="line" style="margin-top:14px"><button class="btn" id="pwGo">重置密码</button><span class="muted" id="pwMsg"></span></div></div>';
   html += '<div class="f" style="margin-top:14px"><b>或直接按学号重置</b>' +
-    '<p class="msg" style="color:var(--dim,#8a8f98);margin:6px 0">管理员 / 开发者常用：知道学号、不知道在哪个班时走这里。教师也可以填自己班里的学号。</p>' +
+    '<p class="msg" style="color:var(--dim,#8a8f98);margin:6px 0">开发者常用：知道学号、不知道在哪个班时走这里。老师只能填自己班里的学号。</p>' +
     '<div class="line"><input id="pwNo" placeholder="学号" inputmode="numeric" maxlength="20" style="flex:1"><input id="pwNewNo" type="text" autocomplete="off" placeholder="新密码（至少 6 位）" style="flex:1"></div>' +
     '<div class="line" style="margin-top:10px"><button class="btn" id="pwGoNo">按学号重置</button><span class="muted" id="pwMsgNo"></span></div></div>';
   box.innerHTML = html;
