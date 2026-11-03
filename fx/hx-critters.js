@@ -14,6 +14,8 @@
 //
 // 生物是随机挑的：同一个工具在一台机器上第一次进首页时就定下来，记在 sessionStorage 里，
 // 刷新换了新的一批（用户要的就是「每次随机匹配」），但同一次会话里不会来回跳。
+// 2026-11-03 起改成「按排位发牌 + 色相变体」，保证 15 张卡里最多 3 只重样且长得不一样，
+// 详见 pickFor / hueOf 上面的长注释。
 //
 // 2026-11-02 第二次修正（看截图发现的两个问题）：
 //   1) 底下那层暗色圆晕原来是 CSS 伪元素，白卡分支下在浅色背景上像一块脏斑。
@@ -24,19 +26,19 @@
   if (!P || !P.effects) return;
 
   var IDS = P.ids || Object.keys(P.effects);
-  // ── 2026-11-03：发牌池剔除比例过于极端的素材 ──
-  // 卡片右上角那块地最多 84px 宽、96px 高。蛇是 136×56（宽高比 2.43），
-  // 等比缩进去只能到 84×35 —— 一屏里其它生物都有 60～80 高，就它一条细线，
-  // 正是用户说的「像素动效会显得很小」。飞骷髅 96×132（0.73）、水母 96×120（0.80）都还能看，
-  // 所以只卡宽高比超出 0.6～1.9 的。剩下 11 只缩放后视觉面积只差 1.19 倍，看上去一样大。
+  // ── 2026-11-03：发牌池放宽到全部 12 只 ──
+  // 上一版把比例极端的蛇（136×56，宽高比 2.43）剔出池子，只剩 11 只；但首页卡片有 15 张，
+  // 11 < 15，洗牌发牌数学上必然至少 4 张重复 —— 用户看到的「好几个重复的」就是它。
+  // 蛇的问题（等比缩进 84 宽的盒子只剩 35 高、显得小）由下面的 sqrt(面积) 归一化兜着，
+  // 比起「小一号」，同屏 4 对一模一样更显眼；剩下的重复观感由 hue 变体解决（见 attach）。
   var POOL = IDS.filter(function (id) {
     var m = P.effects[id] && P.effects[id].meta;
     if (!m || !m.size) return false;
     var r = m.size[0] / m.size[1];
-    return r >= 0.6 && r <= 1.9;
+    return r >= 0.6 && r <= 2.5;
   });
   if (!POOL.length) POOL = IDS; // 兜底：万一素材全被剔光了，退回全部
-  var KEY = 'hx-critter-map';
+  var KEY = 'hx-critter-v2';
   var reduced = window.matchMedia ? matchMedia('(prefers-reduced-motion: reduce)') : null;
   var entries = [];          // { cvs, ctx, fx, id, W, H, img, active, drawn, vis, wrap }
   var raf = 0;               // 全局唯一的帧循环句柄（红线：不允许每张卡一个）
@@ -44,50 +46,79 @@
   function lite() { return document.documentElement.classList.contains('hx-lite'); }
   function still() { return lite() || (reduced && reduced.matches); }
 
-  // 这个工具配哪只生物。要求是「每次随机匹配」，但不能真平均随机——
-  // 12 只里随机分给 14 张卡，纯随机会出现「四张卡都是蝙蝠」这种撞车（实测截图上就有）。
-  // 做法：先洗牌一副牌，按卡序依次发；发完再洗一副，所以短时间内不会重复，
-  // 但每次进首页（新会话）牌序都不同，满足「每次随机」。
-  // 顺序固定的卡（工具 id 固定）用 sessionStorage 记住这一副牌的分配，刷新不跳变。
-  // ── 2026-11-02 修坑：原来这里取 `deck[order % deck.length]`，order 是「已分配的卡数」。
-  //    12 只生物发完 12 张卡后 order=12，`12 % 12 === 0`，第 13、14 张卡**必然**都拿到牌堆第一张，
-  //    而且和前面某张撞得一模一样（仿真 2000 次，第 13/14 张卡撞前面的概率是 100%）。
-  //    正确做法：牌堆用尽时先记住「这一轮已经用过哪 12 只」，重新洗牌后
-  //    从「上一轮最后发的几只」之外开始取，保证紧接着的下一张不会和隔壁撞。
-  //    14 张卡 / 12 只生物，最多也就撞 2 只，但必须撞在离得远的卡上，不能挨在一起。
-  function pickFor(toolId) {
-    var map = {};
-    try { map = JSON.parse(sessionStorage.getItem(KEY)) || {}; } catch (e) { map = {}; }
-    // 认池子里的（POOL）而不是全部 IDS：老会话里可能已经把剔掉的 snake 分配出去了，
-    // 这里一并判掉，让它按新规则重新发一次牌。
-    if (map[toolId] && POOL.indexOf(map[toolId]) >= 0) return map[toolId];
-
-    var used = {};
-    for (var k in map) used[map[k]] = 1;
-    var deck = POOL.filter(function (x) { return !used[x]; });
-
-    if (!deck.length) {
-      // 牌发完了：重新洗一副。洗完之后，把「刚才最后发出去的那几只」挪到牌堆末尾，
-      // 这样紧接着发的卡不会跟紧邻的卡撞色。
-      deck = POOL.slice();
-      for (var s = deck.length - 1; s > 0; s--) { // Fisher-Yates
-        var r = Math.floor(Math.random() * (s + 1)), tp = deck[s];
-        deck[s] = deck[r]; deck[r] = tp;
-      }
-      var recent = Object.keys(map).slice(-4).map(function (k2) { return map[k2]; });
-      var head = deck.filter(function (x) { return recent.indexOf(x) < 0; });
-      var tail = deck.filter(function (x) { return recent.indexOf(x) >= 0; });
-      deck = head.concat(tail);
-      map[toolId] = deck[0];
-    } else {
-      for (var i = deck.length - 1; i > 0; i--) { // Fisher-Yates
-        var j = Math.floor(Math.random() * (i + 1)), tmp = deck[i];
-        deck[i] = deck[j]; deck[j] = tmp;
-      }
-      map[toolId] = deck[0];
+  // ── 2026-11-03 第二次改：从「按牌堆去重」升级到「按排位去重 + 色相变体」 ──
+  // 上一版是「洗一副牌按顺序发，发完再洗」。它只保证**同一副牌内**不重复：
+  // 首页 15 张卡、池子 12 只，第二轮的前 3 张必然和第二轮之外的某张撞（数学上跑不掉），
+  // 而且撞的是哪 3 只完全随机 —— 用户截图里「好几个重复的」就是这些。
+  //
+  // 现在把「卡序 → 生物」改成确定的排位映射，sessionStorage 只存「每张卡排第几」：
+  //   rank  →  round = floor(rank / 12), pos = rank % 12
+  //   decks[round][pos]  ← 第 round 副牌（一副 = 12 只生物的一次独立洗牌）
+  // 于是 rank 0–11 落在第 0 副牌里、rank 12–23 落在第 1 副牌里 —— **每一轮内部必然全唯一**。
+  // 15 张卡就是「12 张全不同 + 3 张各撞一只」，不可能再多。
+  // 剩下这 3 只靠色相偏移区分（见 hueOf）：hue-rotate 140°/280°/60° 之后颜色完全不同，
+  // 肉眼看上去就是三只不同的生物，而不再是「一模一样的复制品」。
+  //
+  // 每次进首页（新会话）排位和牌序都是新的，满足用户要的「每次随机匹配」；
+  // 同一次会话里刷新/切工具不跳变（排位存在 sessionStorage）。
+  var state = null;
+  function shuffle(a) {
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1)), t = a[i];
+      a[i] = a[j]; a[j] = t;
     }
-    try { sessionStorage.setItem(KEY, JSON.stringify(map)); } catch (e) { }
-    return map[toolId];
+    return a;
+  }
+  function stateOf() {
+    if (state) return state;
+    var st = null;
+    try { st = JSON.parse(sessionStorage.getItem(KEY)); } catch (e) { st = null; }
+    // stamp 里存着池子的成员表：素材增删过（POOL 变了）就整份作废重发，
+    // 否则装的是上一版池子里的 id，取出来可能是 undefined，卡片会直接空白。
+    var stamp = POOL.join(',');
+    if (!st || typeof st !== 'object' || st.p !== stamp || !st.n || !Array.isArray(st.decks)) {
+      st = { p: stamp, n: {}, decks: [] };
+    }
+    state = st;
+    return st;
+  }
+  function saveState() {
+    if (!state) return;
+    try { sessionStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { }
+  }
+  // 排位 ≥ 池子大小 = 抢不到独一份，只能当「变体」：按 140°/280°/60°… 依次错开色相，
+  // 用 140 是因为它在色轮上不落在任何原色的邻近位置，一眼就能看出是另一只。
+  function hueOf(rank) { return rank >= POOL.length ? ((rank - POOL.length + 1) * 140) % 360 : 0; }
+
+  // 这张卡配哪只生物。返回 { id, rank, hue }
+  function pickFor(toolId) {
+    var st = stateOf();
+    var rank = st.n[toolId];
+    if (typeof rank !== 'number') {
+      // 分配下一个空位。取「已用排位的最大值 +1」而不是 key 的数量，
+      // 免得将来删掉某张卡后新旧排位算重、两张卡落到同一格。
+      var max = -1;
+      for (var k in st.n) if (st.n[k] > max) max = st.n[k];
+      rank = max + 1;
+      st.n[toolId] = rank;
+      saveState();
+    }
+    var N = POOL.length;
+    var round = Math.floor(rank / N), pos = rank % N;
+    while (st.decks.length <= round) {
+      var deck = shuffle(POOL.slice());
+      // 新一轮的第一张别和上一轮最后一张撞：这两张卡在 DOM 里通常挨得最近，
+      // 挨着的两只一模一样最容易被看出「重复」。换到第二位去。
+      if (st.decks.length) {
+        var prev = st.decks[st.decks.length - 1];
+        if (deck[0] === prev[prev.length - 1] && deck.length > 1) {
+          var t = deck[0]; deck[0] = deck[1]; deck[1] = t;
+        }
+      }
+      st.decks.push(deck);
+      saveState();
+    }
+    return { id: st.decks[round][pos], rank: rank, hue: hueOf(rank) };
   }
 
   // 晕圈图：一张 canvas 尺寸的径向渐变，每只生物只做一次。
@@ -134,7 +165,23 @@
     P.composite(e.f, e.img.data, null); // 透明底：卡片自带的玻璃透出来
     e.ctx.clearRect(0, 0, e.W, e.H);
     if (e.halo) e.ctx.drawImage(e.halo, 0, 0); // 先铺晕圈，再叠生物
-    e.ctx.putImageData(e.img, 0, 0);
+    if (e.hue) {
+      // ── 2026-11-03：重复生物的色相变体 ──
+      // 15 张卡 12 只生物，洗牌也免不了 3 张重复；同一只生物 hue 偏移 140°/280° 后
+      // 颜色完全不同，看上去就是不同的生物。putImageData 不吃 filter，所以先把合好
+      // 的帧放进离屏 canvas，再用带 hue-rotate 的 drawImage 合成到目标（alpha 正常叠加）。
+      if (!e.off) {
+        e.off = document.createElement('canvas');
+        e.off.width = e.W; e.off.height = e.H;
+        e.offCtx = e.off.getContext('2d');
+      }
+      e.offCtx.putImageData(e.img, 0, 0);
+      e.ctx.filter = 'hue-rotate(' + e.hue + 'deg) saturate(1.3)';
+      e.ctx.drawImage(e.off, 0, 0);
+      e.ctx.filter = 'none';
+    } else {
+      e.ctx.putImageData(e.img, 0, 0);
+    }
     e.drawn = true;
   }
 
@@ -216,8 +263,14 @@
     var cvs = document.createElement('canvas');
     wrap.appendChild(cvs);
     tile.appendChild(wrap);
-    var e = frame(cvs, pickFor(toolId));
+    var pick = pickFor(toolId);
+    var e = frame(cvs, pick.id);
     if (!e) { wrap.remove(); return; }
+    // 色相变体（只在抢不到独一份时非 0，见 hueOf）：赋值给 e.hue，paint() 里走 hue-rotate 分支。
+    e.hue = pick.hue;
+    e.rank = pick.rank;
+    // 排位和变体号记在 DOM 上，方便核对「15 张卡到底有没有重样」（见文件末尾 HXCritters.info）
+    cvs.setAttribute('data-critter', pick.id + (pick.hue ? '@' + pick.hue : ''));
     // ── 2026-11-03：按「视觉质量」统一缩放 ──
     // 原来这里算「装进 96×68 的盒子」（k = min(BW/W, BH/H)），再把容器设成缩放后的尺寸贴右上。
     // 两个毛病，用户截图里都能看见：细长的（水母只剩 54px 宽）被挤到右边缘像缩在角落，
@@ -304,5 +357,18 @@
     }
   });
 
-  window.HXCritters = { attach: attach, sweep: sweep, ids: IDS };
+  // info() 只给自查用：把页面上所有生物卡的 (id, hue) 列出来，便于确认有没有重样。
+  // _pick 同理，是给离线脚本抽查发牌算法用的（见项目交接.md 里的自检命令）。
+  window.HXCritters = {
+    attach: attach, sweep: sweep, ids: IDS, pool: POOL,
+    _pick: pickFor,
+    info: function () {
+      var out = [];
+      for (var i = 0; i < entries.length; i++) {
+        if (!entries[i].cvs.isConnected) continue;
+        out.push({ id: entries[i].id, hue: entries[i].hue || 0, rank: entries[i].rank });
+      }
+      return out;
+    }
+  };
 })();

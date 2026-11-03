@@ -18,6 +18,9 @@
      加载失败不影响首页——hx-critters.js 开头就有 window.PixelFX 存在性检查，没有就整段跳过。 -->
 <script src="fx/pixelfx-critters.js" defer></script>
 <script src="fx/hx-critters.js" defer></script>
+<!-- 背景动效（2026-11-03）：12 种天气氛围特效铺在背景层，外观面板里选；加载失败或没选就完全不加载渲染器 -->
+<script src="fx/pixelfx-weather.js" defer></script>
+<script src="fx/hx-weather.js" defer></script>
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; width: 100%; overflow: hidden; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -896,19 +899,24 @@ function openAccounts() {
 }
 // 外观：主题色、浅色 / 深色 / 自动、背景图、透明度（存 hx-theme，全部工具一起变）
 function renderLook() {
-  var s = HXTheme.get(), A = HXTheme.acc, B = HXTheme.bg, m = HXTheme.mode();
+  var s = HXTheme.get(), A = HXTheme.acc, B = HXTheme.bg, WX = HXTheme.wx, m = HXTheme.mode();
   var html = '<h3>外观</h3><div class="seg">' + [['light', '浅色'], ['dark', '深色'], ['auto', '自动']].map(function (x) { return '<button type="button" data-mode="' + x[0] + '" aria-pressed="' + (s.mode === x[0]) + '">' + x[1] + '</button>'; }).join('') + '</div>' +
     '<h3>主题色</h3><div class="sw">' + Object.keys(A).map(function (k) { return '<button type="button" data-acc="' + k + '" title="' + A[k].name + '" aria-label="' + A[k].name + '" aria-pressed="' + (s.acc === k) + '" style="--c:' + (m === 'dark' ? A[k].d : A[k].l) + '"></button>'; }).join('') + '</div>' +
     '<h3>背景</h3><div class="bgs">' + Object.keys(B).filter(function (k) { return k !== 'custom' && (!B[k].dev || HXTheme.isDev()); }).map(function (k) {
       var b = B[k], bg = b.img ? 'url(' + HXTheme.root + b.img + ')' : b.css || '';
       return '<button type="button" data-bg="' + k + '" aria-pressed="' + (s.bg === k) + '"' + (bg ? ' style="--b:' + esc(bg) + '"' : '') + '><span>' + b.name + '</span></button>';
     }).join('') + '<label aria-pressed="' + (s.bg === 'custom') + '"' + (s.bg === 'custom' ? ' style="--b:var(--hx-img)"' : '') + '><input type="file" id="bgFile" accept="image/*" hidden><span>' + (s.bg === 'custom' ? '换一张' : '＋ 上传') + '</span></label></div>' +
-    (s.bg !== 'none' ? '<h3>界面透明度</h3><div class="rng"><input type="range" id="op" min="15" max="100" value="' + s.op + '"><output id="opv">' + s.op + '%</output></div>' : '') +
+    (s.bg !== 'none' ? '<h3>界面透明度</h3><div class="rng"><input type="range" id="op" min="0" max="100" value="' + s.op + '"><output id="opv">' + s.op + '%</output></div><p class="msg" style="margin:6px 0 0;color:var(--dim)">0% = 卡片完全透明，只剩文字浮在背景上。太低看不清内容的话再往回调。</p>' : '') +
+    // 背景动效（2026-11-03）：和背景主题平行的动效模块，画在背景层之上、卡片之下，两层互不覆盖
+    '<h3>背景动效</h3><div class="bgs">' + Object.keys(WX).map(function (k) {
+      return '<button type="button" data-wx="' + k + '" aria-pressed="' + (s.wx === k) + '"><span>' + WX[k].name + '</span></button>';
+    }).join('') + '</div><p class="msg" style="margin:6px 0 0;color:var(--dim)">铺在背景上的一层像素氛围动画，和背景主题互不覆盖；一体机（省电模式）只显示静态一帧。</p>' +
     '<button class="btn link" id="lookReset" type="button">恢复默认</button>';
   $('look').innerHTML = html;
   $('look').querySelectorAll('[data-mode]').forEach(function (b) { b.onclick = function () { HXTheme.set({ mode: b.dataset.mode }); }; });
   $('look').querySelectorAll('[data-acc]').forEach(function (b) { b.onclick = function () { HXTheme.set({ acc: b.dataset.acc }); }; });
   $('look').querySelectorAll('[data-bg]').forEach(function (b) { b.onclick = function () { HXTheme.set({ bg: b.dataset.bg }); }; });
+  $('look').querySelectorAll('[data-wx]').forEach(function (b) { b.onclick = function () { HXTheme.set({ wx: b.dataset.wx }); }; });
   $('bgFile').onchange = function (e) { var f = e.target.files[0]; if (f) HXTheme.upload(f).catch(function (er) { toast(er.message); }); };
   if ($('op')) $('op').oninput = function () { opAt = Date.now(); $('opv').textContent = $('op').value + '%'; HXTheme.set({ op: +$('op').value }); };
   $('lookReset').onclick = function () { HXTheme.reset(); };

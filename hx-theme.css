@@ -82,20 +82,30 @@ html.hx-bg .hx-glass { background: var(--glass-wash); }
    卡片只做「半透明 + 亮边 + 落影」，视觉上还是背景在玻璃后面糊着，但成本从 O(卡片数) 降到 O(1)。 */
 html.hx-bg { background: var(--bg); }
 html.hx-bg body { background: transparent !important; }
+/* 背景磨砂有两级：
+   ① 兜底：原图 + CSS blur（hx-theme.js 在糊图没生成好之前的样子）。
+   ② 正式（html.hx-bgblur）：hx-theme.js 把图缩到 96px 再拉伸的预糊图，filter 全撤。
+      为什么不能长期靠 ①：视口 CSS 尺寸一大（浏览器 Ctrl+- 缩小页面就是这种），Chromium
+      会把超大 fixed 图层上的 filter 整个丢掉，原图直出 —— 用户报的「缩小页面从模糊变
+      透明」就是它。预糊图不依赖 filter，怎么缩都稳。inset:-48px 只在 ① 有意义，留着无害。 */
 html.hx-bg body::before {
   content: ""; position: fixed; inset: -48px; z-index: -1; pointer-events: none;
   background: var(--hx-img) center / cover no-repeat;
   filter: blur(8px) saturate(128%);
 }
+html.hx-bg.hx-bgblur body::before { filter: none; }
 /* 深色模式必须把背景图压够暗。只写 brightness(.62) 对亮色图（比如默认的小熊，整张亮黄）不够：
-   深色主题下整页被照得刺眼，玻璃卡也被背景色染成棕黄、字读不清。所以叠一层暗色 scrim 再压亮度。 */
+   深色主题下整页被照得刺眼，玻璃卡也被背景色染成棕黄、字读不清。所以叠一层暗色 scrim 再压亮度。
+   预糊图阶段（hx-bgblur）不能再用 brightness()（filter 一挂又会被大视口丢掉、深浅跳变），
+   把 brightness(.88)×scrim(.30) 折算成更深的 scrim(.38)，效果等价。 */
 :root[data-hx-mode="dark"].hx-bg body::before {
   background-image: linear-gradient(rgba(8, 8, 10, .30), rgba(8, 8, 10, .30)), var(--hx-img);
   filter: blur(8px) brightness(.88) saturate(.95);
 }
-/* 省电 / 老设备：模糊再降一档，动效基本关掉。hx-theme.js 会按设备能力自动挂 .hx-lite。 */
-html.hx-lite.hx-bg body::before { filter: blur(4px) saturate(115%); }
-html.hx-lite[data-hx-mode="dark"].hx-bg body::before { filter: blur(4px) brightness(.88) saturate(.95); }
+:root[data-hx-mode="dark"].hx-bg.hx-bgblur body::before {
+  background-image: linear-gradient(rgba(8, 8, 10, .38), rgba(8, 8, 10, .38)), var(--hx-img);
+  filter: none;
+}
 /* 老设备上一律不做实时背景模糊（顶栏、底栏、弹层都算）。背景图已经糊过，去掉之后几乎看不出差别，
    但省掉的是每一次滚动都要重算的高斯模糊。顶栏改实色兜底，不然内容会从底下透上来。 */
 html.hx-lite, html.hx-lite * { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }

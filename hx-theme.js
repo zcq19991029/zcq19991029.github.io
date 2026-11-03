@@ -24,7 +24,16 @@
     aurora: { name: '极光', op: 62, css: 'radial-gradient(60% 50% at 20% 20%, #1f6f5c 0, transparent 70%), radial-gradient(55% 60% at 85% 30%, #3b2f8f 0, transparent 70%), radial-gradient(70% 60% at 50% 110%, #0f4f7a 0, transparent 70%), #05070d' },
     custom: { name: '自己的图', op: 70 }
   };
-  var KEY = 'hx-theme', IMG = 'hx-theme-img', DEV = 'hx-dev', VER = 2, DEF = { acc: 'green', mode: 'auto', bg: 'bear', op: 90 };
+  var KEY = 'hx-theme', IMG = 'hx-theme-img', DEV = 'hx-dev', VER = 2, DEF = { acc: 'green', mode: 'auto', bg: 'bear', op: 90, wx: 'none' };
+  // 背景动效（2026-11-03）：和背景主题平行的「动效模块」，由 fx/hx-weather.js 渲染在背景层。
+  // 白名单写死在这里（而不是由渲染器自己认）：将来下架某个特效，老存档里选着它也会安全回落到「无」。
+  var WX = {
+    none: { name: '无' },
+    aurora: { name: '极光' }, fireflies: { name: '萤火虫' }, 'shooting-stars': { name: '流星' },
+    snow: { name: '雪' }, rain: { name: '雨' }, storm: { name: '雷雨' }, blizzard: { name: '暴风雪' },
+    clouds: { name: '云' }, fog: { name: '雾' }, 'god-rays': { name: '神光' },
+    'cherry-blossoms': { name: '樱花' }, 'falling-leaves': { name: '落叶' }
+  };
   // VER：外观配置版本。加了全局默认背景后，老存档里没有 ver 字段 = 还没主动挑过背景，
   // 补成新默认（小熊）；自己上传过图的（custom）与显式选过「无」的不覆盖。
   var OLD = { day: { acc: 'blue', mode: 'light' }, sea: { acc: 'green', mode: 'light' }, sakura: { acc: 'pink', mode: 'light' }, night: { acc: 'purple', mode: 'dark' }, forest: { acc: 'green', mode: 'dark' }, mist: { acc: 'mono', mode: 'dark' } };
@@ -92,7 +101,10 @@
     // 老存档（没有 ver）＝ 上这一版之前就存过外观的。统一换成新默认（小熊），做到「全体人员默认」；
     // 只有自己上传过图的例外——那是明确主动的行为，别覆盖掉。想关掉背景在外观面板点「无」即可。
     if (raw && !v.ver && v.bg !== 'custom') v.bg = DEF.bg;
-    var s = { acc: ACC[v.acc] ? v.acc : DEF.acc, mode: /^(light|dark|auto)$/.test(v.mode) ? v.mode : DEF.mode, bg: BG[v.bg] ? v.bg : DEF.bg, op: Math.min(100, Math.max(15, +v.op || DEF.op)) };
+    // op 允许 0～100（2026-11-03 用户要求「要 0 到 100 可调节」）。
+    // ⚠️ 不能写 `+v.op || DEF.op`：0 是 falsy，会把「完全透明」静默变回默认 90。
+    var opN = +v.op;
+    var s = { acc: ACC[v.acc] ? v.acc : DEF.acc, mode: /^(light|dark|auto)$/.test(v.mode) ? v.mode : DEF.mode, bg: BG[v.bg] ? v.bg : DEF.bg, op: Math.min(100, Math.max(0, isFinite(opN) ? opN : DEF.op)), wx: WX[v.wx] ? v.wx : DEF.wx };
     if (s.bg === 'custom' && !ls(IMG)) s.bg = 'none';
     if (BG[s.bg].dev && !isDev()) s.bg = 'none'; // 开发者专属背景：别的账号（或没登录）回落到无背景
     return s;
@@ -117,6 +129,37 @@
     return hc <= 4 || dm <= 4;
   }
   try { document.documentElement.classList.toggle('hx-lite', liteOn()); } catch (e) { }
+  // ── 背景图预模糊（2026-11-03）────────────────────────────────────────────
+  // 为什么要自己糊：背景的磨砂感原来靠 CSS `filter: blur(8px)`（hx-theme.css body::before）。
+  // 用户发现「缩小页面会从模糊变透明」——实测（puppeteer 视口 5120×3200 @dpr 0.25，即浏览器
+  // Ctrl+- 到 25%）复现：视口 CSS 尺寸一大，Chromium 直接把这个超大 fixed 图层上的 filter
+  // 整个丢掉，原图直出。blur 写多大都没用，这是渲染器的行为，CSS 层面绕不过。
+  //
+  // 所以改成**把图预先糊好**：canvas 缩到长边 96px 再导出 JPEG，浏览器 cover 拉伸回全屏时
+  // 双线性插值天然就是糊的 —— 视觉和 blur(8px) 几乎一样，但零 GPU 成本、任何缩放都稳定，
+  // 希沃一体机那种跑不动的设备也少一笔开销（hx-lite 的背景降档分支随之删除）。
+  // 生成失败（离线首屏、图挂了）就回落到 CSS blur 兜底，行为和以前一样。
+  var blurCache = {}; // key: 图片 url，value: 96px JPEG dataURL。只存内存，每页生成一次（几 KB）
+  var blurToken = 0;
+  function blurImg(src, cb) {
+    if (blurCache[src]) return cb(blurCache[src]);
+    var im = new Image();
+    im.onload = function () {
+      try {
+        var cv = document.createElement('canvas');
+        var k = 96 / Math.max(im.width, im.height);
+        cv.width = Math.max(1, Math.round(im.width * k));
+        cv.height = Math.max(1, Math.round(im.height * k));
+        var ctx = cv.getContext('2d');
+        try { ctx.filter = 'saturate(1.28)'; } catch (e) { } // 顶掉原来 CSS 里的 saturate(128%)；不支持就没这层，视觉差一点
+        ctx.drawImage(im, 0, 0, cv.width, cv.height);
+        blurCache[src] = cv.toDataURL('image/jpeg', .85);
+        cb(blurCache[src]);
+      } catch (e) { cb(null); } // 画布被污染等异常：回落 CSS blur
+    };
+    im.onerror = function () { cb(null); };
+    im.src = src;
+  }
   function apply() {
     var s = get(), m = modeOf(s), a = ACC[s.acc], r = document.documentElement, b = BG[s.bg];
     var c = m === 'dark' ? a.d : a.l, c2 = m === 'dark' ? a.d2 : a.l2;
@@ -127,6 +170,19 @@
       '--accbg': 'color-mix(in srgb, ' + c + ' 14%, transparent)', '--ring': 'color-mix(in srgb, ' + c + ' 40%, transparent)',
       '--hov': 'color-mix(in srgb, ' + c + ' 10%, transparent)', '--hx-a': s.bg === 'none' ? 1 : s.op / 100, '--hx-img': img };
     for (var k in vars) r.style.setProperty(k, vars[k]);
+    // 图片背景：先按原图 + CSS blur 显示（兜底），糊图生成好了换上去并挂 .hx-bgblur 撤掉 filter。
+    // 渐变背景（mist/bay/dusk/aurora）本身就是色块，不需要糊，也不挂类。
+    r.classList.remove('hx-bgblur');
+    if (img.indexOf('url(') === 0) {
+      var src = img.slice(5, -2).replace(/"/g, ''); // url("...") → ...（custom 存的是 dataURL，同样适用）
+      var my = ++blurToken; // 竞态防护：连续换背景时，迟到的旧回调不许覆盖新设置
+      blurImg(src, function (data) {
+        if (data && my === blurToken && document.documentElement.classList.contains('hx-bg')) {
+          r.classList.add('hx-bgblur');
+          r.style.setProperty('--hx-img', 'url("' + data + '")');
+        }
+      });
+    }
     var meta = document.querySelector('meta[name="theme-color"]'); if (meta) meta.setAttribute('content', m === 'dark' ? '#000000' : '#f5f5f7');
     try { ls('zfz-practice-theme', m); ls('wanxiu-paike-theme', m); ls('ui.theme', JSON.stringify(m)); } catch (e) { }
     for (var i = 0; i < subs.length; i++) try { subs[i](s, m); } catch (e) { }
@@ -160,7 +216,7 @@
   if (dark) (dark.addEventListener ? dark.addEventListener('change', apply) : dark.addListener(apply));
   // 总入口（同源的上层页面）：子工具要登录时请它弹登录窗口；不在框里就跳回首页
   function portal() { try { return window.top !== window && window.top.HXPortal ? window.top.HXPortal : null; } catch (e) { return null; } }
-  window.HXTheme = { acc: ACC, bg: BG, root: root, get: get, mode: function () { return modeOf(get()); }, set: set, upload: upload, reset: reset, isDev: isDev, setDev: setDev, onChange: function (fn) { subs.push(fn); },
+  window.HXTheme = { acc: ACC, bg: BG, wx: WX, root: root, get: get, mode: function () { return modeOf(get()); }, set: set, upload: upload, reset: reset, isDev: isDev, setDev: setDev, onChange: function (fn) { subs.push(fn); },
     portal: portal, login: function () { var p = portal(); if (p) p.login(); else location.href = root + (tool ? '#' + tool : ''); } };
   // ---------- 导航栏交互动效：滑块跟着当前项走（不用每项自己高亮） ----------
   // 用法：HXNav.slide(容器) —— 容器里放 [data-v] 或 [aria-current] 的按钮，当前项加 aria-current="true"。
