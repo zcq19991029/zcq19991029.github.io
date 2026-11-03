@@ -348,6 +348,27 @@
   .pop.show { opacity: 1; visibility: visible; transform: none; transition-delay: 0s; }
   .pop h3 { margin: 0 0 10px; font-size: 13px; font-weight: 600; color: var(--dim); }
   .pop h3 + * { margin-bottom: 20px; }
+  /* ── 2026-11-04 新增两个弹层：使用说明（#help）、邀请拉新（#invite） ──
+     用户要求「使用说明应该单独做成导航栏」「导航栏加邀请拉新二维码和链接」。
+     比账号/外观弹层宽一些（480），说明文字和二维码并排才不憋屈；手机端仍走底部弹出。 */
+  .pop.wide { width: 480px; }
+  .pop .hx-doc h4 { margin: 18px 0 8px; font-size: 15px; font-weight: 700; color: var(--ink); }
+  .pop .hx-doc h4:first-of-type { margin-top: 4px; }
+  .pop .hx-doc p { margin: 0 0 8px; font-size: 14px; line-height: 1.65; color: var(--dim); }
+  .pop .hx-doc ul { margin: 0 0 10px; padding-left: 20px; font-size: 14px; line-height: 1.75; color: var(--dim); }
+  .pop .hx-doc b { color: var(--ink); font-weight: 600; }
+  .pop .hx-doc kbd { padding: 1px 6px; border-radius: 5px; background: var(--fill); font-size: 12.5px; font-family: inherit; color: var(--ink); }
+  /* 邀请码卡片：二维码 + 链接 + 一键复制 */
+  .inv { display: flex; flex-direction: column; gap: 12px; margin-bottom: 18px; padding: 16px; border-radius: 18px; background: var(--fill); }
+  .inv-top { display: flex; gap: 16px; align-items: center; }
+  .inv-top img { flex: none; width: 104px; height: 104px; border-radius: 12px; background: #fff; padding: 6px; object-fit: contain; }
+  .inv-top .t { min-width: 0; }
+  .inv-top .t b { display: block; margin-bottom: 4px; font-size: 15px; }
+  .inv-top .t span { display: block; font-size: 13px; line-height: 1.5; color: var(--dim); }
+  .inv-url { display: flex; gap: 8px; align-items: center; }
+  .inv-url input { flex: 1; min-width: 0; height: 34px; padding: 0 10px; border: 1px solid var(--edge); border-radius: 9px; background: var(--card-solid); font-size: 12.5px; color: var(--dim); }
+  .inv-url button { flex: none; height: 34px; padding: 0 14px; border: 0; border-radius: 9px; background: var(--acc); color: #fff; font-size: 13px; font-weight: 600; }
+  .inv-tip { margin: 0; font-size: 12.5px; line-height: 1.6; color: var(--dim); }
   .seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; padding: 3px; border-radius: 11px; background: var(--fill); }
   .seg button { height: 32px; border: 0; border-radius: 9px; background: none; font-size: 14px; font-weight: 500; color: var(--dim); transition: background .25s var(--hx-ease), color .25s; }
   .seg button[aria-pressed="true"] { background: var(--card-solid); color: var(--ink); box-shadow: 0 1px 4px rgba(0, 0, 0, .12); }
@@ -403,6 +424,7 @@
        只改盒子尺寸，不再单独给 canvas 写宽度 —— 写死了就会又把「各算各的」那套请回来。 */
     .tile .fxc { --fxc-w: 62px; --fxc-h: 70px; --fxc-g: 52px; top: 8px; right: 9px; }
     .pop { top: auto; bottom: 0; left: 0; right: 0; width: auto; max-height: 86vh; border-radius: 26px 26px 0 0; padding: 22px 20px calc(22px + env(safe-area-inset-bottom, 0px)); transform: translateY(100%); transform-origin: bottom; }
+    .pop.wide { width: auto; max-width: none; } /* 2026-11-04：使用说明/邀请两个宽弹层在手机上必须回到贴底满宽，否则 480px 比 390 视口还宽（实测量到 480 > 390） */
     .pop.show { transform: none; } .scrim.show { opacity: 1; pointer-events: auto; }
     .cl { grid-template-columns: 1fr; } .cl .acts { flex-wrap: wrap; }
     .tile .sum { margin-top: -8px; padding-right: 0; font-size: 13px; }
@@ -436,12 +458,16 @@
   <button class="back" id="back" type="button"><svg class="i" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>返回</button>
   <div class="cur" id="cur"></div>
   <div class="sp"></div>
+  <button class="ibtn" id="helpBtn" type="button" aria-label="使用说明" aria-expanded="false"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.2A2.6 2.6 0 0 1 14.6 10c0 1.7-2.6 2-2.6 3.8"/><circle cx="12" cy="17" r=".9" fill="currentColor" stroke="none"/></svg></button>
+  <button class="ibtn" id="inviteBtn" type="button" aria-label="邀请拉新" aria-expanded="false"><svg class="i" viewBox="0 0 24 24"><path d="M12 3v12"/><path d="M8 7l4-4 4 4"/><path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg></button>
   <button class="ibtn" id="lookBtn" type="button" aria-label="外观" aria-expanded="false"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v17a8.5 8.5 0 0 0 0-17z" fill="currentColor" stroke="none"/></svg></button>
   <div id="who"></div>
 </header>
 <div class="scrim" id="scrim"></div>
 <section class="pop" id="pop" aria-label="账号"></section>
 <section class="pop" id="look" aria-label="外观"></section>
+<section class="pop wide" id="help" aria-label="使用说明"></section>
+<section class="pop wide" id="invite" aria-label="邀请拉新"></section>
 <main id="main">
   <div class="loadtip" id="loadtip"><span class="hx-px"><i style="--i:0"></i><i style="--i:1"></i><i style="--i:2"></i><i style="--i:3"></i><i style="--i:4"></i><i style="--i:5"></i></span><b></b></div>
   <section id="home">
@@ -795,8 +821,10 @@ function render() {
 }
 
 // ---------- 弹出：账号、外观 ----------
-function closePops() { ['pop', 'look'].forEach(function (k) { $(k).classList.remove('show'); }); $('scrim').classList.remove('show'); ST.edit = null; syncExp(); }
-function syncExp() { if ($('acct')) $('acct').setAttribute('aria-expanded', $('pop').classList.contains('show')); $('lookBtn').setAttribute('aria-expanded', $('look').classList.contains('show')); }
+function closePops() { ['pop', 'look', 'help', 'invite'].forEach(function (k) { if ($(k)) $(k).classList.remove('show'); }); $('scrim').classList.remove('show'); ST.edit = null; syncExp(); }
+function syncExp() { if ($('acct')) $('acct').setAttribute('aria-expanded', $('pop').classList.contains('show')); $('lookBtn').setAttribute('aria-expanded', $('look').classList.contains('show'));
+  if ($('helpBtn')) $('helpBtn').setAttribute('aria-expanded', $('help').classList.contains('show'));
+  if ($('inviteBtn')) $('inviteBtn').setAttribute('aria-expanded', $('invite').classList.contains('show')); }
 function smallPic(file) { // 头像缩成 128 像素的方图，存成小图片地址放在账号资料里
   return new Promise(function (ok, no) {
     var u = URL.createObjectURL(file), im = new Image();
@@ -809,8 +837,67 @@ function smallPic(file) { // 头像缩成 128 像素的方图，存成小图片�
 }
 function togglePop(k) {
   var on = !$(k).classList.contains('show'); closePops();
-  if (on) { if (k === 'pop') renderPop(); else renderLook(); $(k).classList.add('show'); $('scrim').classList.add('show'); }
+  if (on) {
+    if (k === 'pop') renderPop();
+    else if (k === 'look') renderLook();
+    else if (k === 'help') renderHelp();
+    else if (k === 'invite') renderInvite();
+    $(k).classList.add('show'); $('scrim').classList.add('show');
+  }
   syncExp();
+}
+// ---------- 使用说明（2026-11-04 用户要求做成独立导航栏） ----------
+// 一份按工具分组的「怎么用」：不需要登录也能看，学生第一次进来点这里就知道点哪。
+// 内容只讲操作路径，不写账号密码和任何学生信息。
+function renderHelp() {
+  var h = '<h3>使用说明</h3><div class="hx-doc">'
+    + '<h4>开始之前</h4>'
+    + '<p>点右上角「登录 / 注册」用<b>教师账号</b>登录；学生要上课，先在首页下面的<b>班级</b>卡片里建班、导入名单，再发<b>课堂码</b>给学生开号。</p>'
+    + '<ul><li>所有工具的名单、成绩都存在你的账号里，换电脑登录同一个账号就都在。</li>'
+    + '<li>教师账号要邀请码才能注册（问开发者要）；学生账号用课堂码自己开通。</li></ul>'
+    + '<h4>电气接线仿真（项目二）</h4>'
+    + '<ul>'
+    + '<li>顶栏 <kbd>2.1</kbd>～<kbd>2.6</kbd>、<kbd>E1</kbd><kbd>E2</kbd> 是题目，<kbd>P</kbd> 是并联专项。</li>'
+    + '<li>点两个端子连一根线；右上角工具栏有<b>提示</b>（关 / 自由 / 顺序）、撤销、清空、检查、答案。</li>'
+    + '<li>「提示」调到<b>顺序</b>会按教材顺序逐根告诉学生下一根接哪里，入口/出口会亮圈标出来。</li>'
+    + '<li>手机横屏效果最好；竖屏也能用，工具栏和顶栏都会自动收成图标。</li>'
+    + '<li><b>排位</b>：计时接线，全对自动停表，上排行榜，可以按班级随机抽人上台。</li>'
+    + '</ul>'
+    + '<h4>小组加分</h4>'
+    + '<ul><li>选班级 → 新建一节课 → 按小组加减分；个人扣分不影响小组总分。</li>'
+    + '<li>「登分册」可以按学校模板导出 Excel、打印 PDF。</li></ul>'
+    + '<h4>刷题 / 考试 / 单片机 / 排课</h4>'
+    + '<ul><li>刷题按章节练，答错有解析；考试工具按科目出卷；单片机是上机网页版；排课按班级和课次自动排。</li></ul>'
+    + '<h4>外观</h4>'
+    + '<p>右上角调色按钮可以换<b>主题色</b>、浅色/深色、背景图和<b>界面透明度</b>、<b>背景浓度</b>——两根滑杆分开管：前者管卡片，后者管背景图本身。设置会同步到所有工具。</p>'
+    + '</div>';
+  $('help').innerHTML = h;
+}
+// ---------- 邀请拉新（2026-11-04 用户要求：二维码 + 链接，方便拉新拿代金券） ----------
+// 两个都是用户给的真实邀请链接，二维码是用 qrcode 生成后反解验证过的（内容与链接逐字一致）。
+// 链接在弹层里可复制；图片懒加载，弹层没打开不下载。
+function renderInvite() {
+  var items = [
+    { img: 'invite/siliconflow.png', name: '硅基流动（SiliconFlow）', desc: '注册并完成身份认证就能领免费 API 额度，先用国产模型练手。', url: 'https://cloud.siliconflow.cn/i/aQ6Tn6dH' },
+    { img: 'invite/workbuddy.png', name: 'WorkBuddy（腾讯）', desc: '注册后做任务领额度、每天打卡；新手先用这个上手，再学 Codex / Claude。', url: 'https://www.workbuddy.cn/events/invite?inviteCode=u1ds11m0hxo1bgw4' }
+  ];
+  var h = '<h3>邀请拉新</h3><div class="hx-doc"><p style="margin:0 0 14px">扫码或复制链接注册，双方都有额度/代金券。手机上长按二维码可以「识别图中二维码」。</p>';
+  items.forEach(function (it, i) {
+    h += '<div class="inv"><div class="inv-top"><img src="' + it.img + '" alt="' + esc(it.name) + ' 邀请二维码" loading="lazy" width="104" height="104">'
+      + '<div class="t"><b>' + esc(it.name) + '</b><span>' + esc(it.desc) + '</span></div></div>'
+      + '<div class="inv-url"><input id="iv' + i + '" readonly value="' + esc(it.url) + '"><button type="button" id="ic' + i + '">复制</button></div></div>';
+  });
+  h += '<p class="inv-tip">提示：这些是第三方平台，注册和使用要遵守它们自己的规则；用不用、用哪个都不影响华夏工具的正常使用。</p></div>';
+  $('invite').innerHTML = h;
+  items.forEach(function (it, i) {
+    var btn = $('ic' + i); if (!btn) return;
+    btn.onclick = function () {
+      var inp = $('iv' + i);
+      var done = function () { btn.textContent = '已复制'; setTimeout(function () { btn.textContent = '复制'; }, 1600); };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(it.url).then(done, function () { inp.select(); document.execCommand('copy'); done(); });
+      else { inp.select(); document.execCommand('copy'); done(); } // 老浏览器 / 非 https：退回选中+execCommand
+    };
+  });
 }
 function renderPop() {
   var i = info(), r = role() || '', m = ST.me || {}, E = ST.edit, html, form = function (inner) { return '<div class="f">' + inner + '<p class="msg" id="pmsg"></p><button class="btn" id="psave">保存</button><button class="btn link" id="pcancel">取消</button></div>'; };
@@ -931,8 +1018,17 @@ function renderLook() {
 var opAt = 0;
 HXTheme.onChange(function () { if ($('look').classList.contains('show') && document.activeElement !== $('op') && Date.now() - opAt > 800) renderLook(); });
 $('lookBtn').onclick = function (e) { e.stopPropagation(); togglePop('look'); };
+$('helpBtn').onclick = function (e) { e.stopPropagation(); togglePop('help'); };
+$('inviteBtn').onclick = function (e) { e.stopPropagation(); togglePop('invite'); };
 $('scrim').onclick = closePops;
-document.addEventListener('click', function (e) { var path = e.composedPath ? e.composedPath() : []; if (path.indexOf($('pop')) >= 0 || path.indexOf($('look')) >= 0) return; /* 点击时面板里的按钮可能已被重画摘掉，closest 会找不到 .pop */ if (!e.target.closest('.pop') && !e.target.closest('#acct') && !e.target.closest('#lookBtn')) { if ($('pop').classList.contains('show') || $('look').classList.contains('show')) closePops(); } });
+document.addEventListener('click', function (e) {
+  var path = e.composedPath ? e.composedPath() : [];
+  var ids = ['pop', 'look', 'help', 'invite'];
+  for (var i = 0; i < ids.length; i++) if (path.indexOf($(ids[i])) >= 0) return; /* 点击时面板里的按钮可能已被重画摘掉，closest 会找不到 .pop */
+  if (!e.target.closest('.pop') && !e.target.closest('#acct') && !e.target.closest('#lookBtn') && !e.target.closest('#helpBtn') && !e.target.closest('#inviteBtn')) {
+    if (ids.some(function (k) { return $(k).classList.contains('show'); })) closePops();
+  }
+});
 document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closePops(); });
 
 // ---------- 首页下面的管理卡片：班级（教师）、教师邀请码、学生课堂码（管理员）、管理员（开发者）；卡片上一行概要，点开是面板 ----------
