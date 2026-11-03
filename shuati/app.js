@@ -709,7 +709,7 @@ function renderSettings() {
   const s = getSettings(), p = providers[s.provider], models = [...new Set([...(s.models || []), ...p.models])];
   $('v-settings').innerHTML = `
     <div class="panel"><h3>AI 解析<button class="help" type="button" id="aiHelp" title="怎么申请 AI Key" aria-label="怎么申请 AI Key">?</button></h3>${hasExt()
-      ? '<p class="extok">已装“夜夜题库AI伴侣”：题干下的“✦ 学会这题”用的是扩展里的 Key，这里不填也能讲题。<b>这里填了自己的 Key 之后，题目下还会多出一个网页自己的“✦ AI 逐项解析”</b>，两个都能点，随便用哪个。</p>'
+      ? '<p class="extok">已装“夜夜题库AI伴侣”：题干下的“✦ 学会这题”用的是扩展里的 Key，这里不填也能讲题。<b>这里填了自己的 Key 之后，题目下还会多出一个网页自己的“✦ AI 逐项解析”</b>，两个都能点，随便用哪个。<br>想自己申请一个 Key？点上面的「?」看图文教学（现在能领 16 元额度）。</p>'
       : '<p class="muted" style="margin-top:0">填自己的 AI Key 后，答题后能逐项解析，也能识别资料、根据资料出题。请求直接从浏览器发给服务商。<br>不知道去哪申请？点上面的「?」看图文教学。</p>'}
       <div class="f">
         <label for="prov">服务商</label><select id="prov">${Object.entries(providers).map(([k, v]) => `<option value="${k}" ${k === s.provider ? 'selected' : ''}>${esc(v.label)}</option>`).join('')}</select>

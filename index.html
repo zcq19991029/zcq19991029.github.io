@@ -63,13 +63,67 @@
   main iframe.on { display: block; animation: fin .22s var(--hx-ease) both; }
   @keyframes fin { from { opacity: 0; } to { opacity: 1; } }
   html.hx-bg main iframe { background: transparent; }
+  /* ── 加载动效（2026-11-03 用户要求「刷新加载动画缺一个 包括其他界面」）──
+     统一做成「像素方块波浪」：7 个小方块错峰起伏，像一条跑动的像素带。
+     为什么用纯 CSS 而不是 canvas：这是全站显示频率最高、生命周期最短的动画，
+     CSS 动画走合成线程，不占主线程、不用 rAF，和首页小生物那套「全局只有一个循环」的规矩不冲突。
+     方块尺寸用 clamp(9px, 2.4vw, 13px)：手机上是 8~9px，一体机大屏封顶 12px，
+     不会在小屏上糊成一片、也不会在大屏上细得像根线。 */
+  .hx-px { display: inline-flex; align-items: flex-end; gap: clamp(3px, .7vw, 5px); height: calc(clamp(9px, 2.4vw, 13px) * 2.2); }
+  .hx-px i { width: clamp(9px, 2.4vw, 13px); height: clamp(9px, 2.4vw, 13px); border-radius: 2px;
+    background: linear-gradient(180deg, var(--acc), var(--acc2));
+    /* 一点落影：浅色背景（#f5f5f7 默认主题）下方块本来会糊成一片淡绿，
+       加一层同色系的淡影之后才有「浮在桌面上跳」的实体感。 */
+    box-shadow: 0 5px 12px -6px var(--acc);
+    animation: hxPx 1.15s var(--hx-ease) infinite; animation-delay: calc(var(--i) * 90ms); }
+  .hx-px i:nth-child(2n) { background: linear-gradient(180deg, var(--acc2), var(--acc3)); }
+  @keyframes hxPx {
+    /* 起始透明度不能太低：原来写 .35，在浅灰背景上几乎看不见方块（截图上只剩一抹淡绿）。
+       提到 .55 起跳、1 到顶，起伏才看得出来，同时又不刺眼。
+       位移用 -110%（相对方块自身高度）而不是写死的 px —— 这样同一套动画在首屏（大方块）
+       和「正在加载」药丸（小方块）里都能用，不用各写一份。 */
+    0%, 100% { transform: translateY(0); opacity: .55; }
+    35% { transform: translateY(-110%); opacity: 1; }
+    60% { transform: translateY(0); opacity: .7; }
+  }
+
+  /* 首屏加载层：刷新页面时先出这个，脚本跑完再淡出。
+     它必须在样式生效的第一帧就可见（样式是内联的，所以不会白屏闪一下）。 */
+  #boot { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 15px;
+    background: var(--bg); color: var(--ink);
+    /* 离场：内容先走（0~120ms），背景紧跟（60~280ms），两段**重叠**着撤。
+       踩过的坑：第一版让内容先淡完、背景再等 280ms 才撤，中间有约 200ms 是「只有一块底色、
+       什么内容都没有」的纯空白（实测截图 2.7KB，几乎是一张纯色图）——学生看到的是
+       「动画 → 白一下 → 首页」，比不做动画还难看。重叠之后画面是连续过渡，没有空档。 */
+    transition: opacity .22s var(--hx-ease) .06s, visibility .3s;
+    padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px); }
+  #boot > * { transition: opacity .12s var(--hx-ease); }
+  #boot.done { opacity: 0; visibility: hidden; pointer-events: none; }
+  #boot.done > * { opacity: 0; }
+  #boot img { width: clamp(56px, 13vw, 76px); aspect-ratio: 1; border-radius: 22%; object-fit: cover;
+    box-shadow: 0 12px 32px -14px var(--shade, rgba(0,0,0,.35)); animation: bootIn .7s var(--hx-spring) both; }
+  #boot b { font: 600 clamp(17px, 4.2vw, 21px)/1 var(--hx-font-d, var(--hx-font)); letter-spacing: .18em; text-indent: .18em; color: var(--ink);
+    animation: bootIn .7s .08s var(--hx-spring) both; }
+  #boot .hx-px { animation: bootIn .7s .16s var(--hx-spring) both; }
+  @keyframes bootIn { from { opacity: 0; transform: translateY(10px) scale(.94); } }
+  /* 一体机 / 省电：不做动画，直接给静态帧（这台机器本来就在省电模式，动画越少越好） */
+  html.hx-lite #boot .hx-px i { animation: none; opacity: .8; }
+  @media (prefers-reduced-motion: reduce) {
+    #boot img, #boot b, #boot .hx-px { animation: none; }
+    .hx-px i { animation: none; opacity: .8; transform: none; }
+  }
+
   /* 弱网下点了工具到页面出来之间要等几秒，给个「正在加载」的提示，免得以为卡死 */
   .loadtip { position: absolute; left: 50%; top: 46%; z-index: 3; display: none; align-items: center; gap: 10px;
     transform: translate(-50%, -50%); padding: 12px 20px; border-radius: 99px; background: var(--card); color: var(--ink);
     font-size: 14px; box-shadow: 0 18px 40px -18px rgba(0,0,0,.35); border: 1px solid var(--edge); pointer-events: none; }
   .loadtip.on { display: inline-flex; animation: pop .22s var(--hx-ease) both; }
-  .loadtip i { width: 16px; height: 16px; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--acc) 30%, transparent);
-    border-top-color: var(--acc); animation: spin .7s linear infinite; }
+  /* 工具加载中的转圈改成同一套像素方块，和首屏加载、和小生物是一条视觉语言。
+     药丸里的方块要比首屏小一档，并且给足跳动空间 —— 否则方块向上跳时会顶出圆角外面。
+     文字必须 nowrap：第一版没写，手机上「正在加载 · 接线仿真」被压成两行，药丸变成一个方块疙瘩。 */
+  .loadtip .hx-px { height: 15px; gap: 3px; }
+  .loadtip .hx-px i { width: 8px; height: 8px; border-radius: 1.5px; box-shadow: none; }
+  .loadtip b { white-space: nowrap; }
   @keyframes spin { to { transform: rotate(360deg); } }
   /* 首页 */
   #home { position: absolute; inset: 0; overflow-y: auto; padding: 0 16px calc(48px + env(safe-area-inset-bottom, 0px)); scroll-behavior: smooth; }
@@ -172,14 +226,37 @@
      取代原来那个「左上角莫名其妙凸出来的舌片」。用户 2026-11-02 的要求：
      卡片上端放一只随机匹配的动效生物，鼠标移上去才动。
      14 张卡不各跑循环：见 fx/hx-critters.js，全局一个 rAF，只有 hover 那张才画。
-     定位在卡片右上（贴圆角内侧），尺寸由 inline width/height 定，这里只管摆放和混合模式。
-     为什么放右上：左上被图标占着，右上原本是空的；也正好补上原来舌片那个位置的空缺。 */
-  .tile .fxc { position: absolute; top: 12px; right: 14px; z-index: 1; pointer-events: none;
-    display: block; line-height: 0; opacity: .9; transition: opacity .35s var(--hx-ease), transform .45s var(--hx-spring); }
+     为什么放右上：左上被图标占着，右上原本是空的；也正好补上原来舌片那个位置的空缺。
+     ── 2026-11-03 重做摆放：固定盒子 + 居中 ──
+     原来的做法（JS 里按 96×68 算缩放比，再把容器设成缩放后的实际大小、贴着右上）
+     有两个毛病，用户截图里都看得见：
+       ① 位置不一致：12 只生物原始比例差很远（蛇 136×56、飞骷髅 96×132、水母 96×120），
+          统一塞进 96×68 之后，细长的（水母只剩 54px 宽）被挤到右边缘，像缩在角落；
+          宽扁的（96px）又往左伸，压到左上图标上 —— 实测 8 张卡里有 4 张和图标重叠。
+       ② 尺寸参差：同样是「装满盒子」，视觉大小完全不一样。
+     现在：容器固定成一个盒子（--fxc-w × --fxc-h）**居中**摆放，
+     缩放交给 CSS —— canvas 只写 max-width/max-height:100%，浏览器自己等比 contain 进去。
+     所有生物都在同一块地方居中，谁都不偏；缩放规则只有一条，不再各算各的。
+     盒子为什么是竖向：卡片 183px 宽时左上图标占 24~82、右边距 14，横向只剩 84 左右；
+     而纵向从 12px 到标题上方有 90 多，富余得多 —— 竖向盒子能装下更高的生物，还不会碰图标。 */
+  /* --fxc-w/h 是摆放用的盒子；--fxc-g 是「目标视觉尺寸」，见 fx/hx-critters.js 里的解释：
+     12 只生物原始比例差得远，光靠「填满盒子」会让细长的显得很小、高瘦的显得很大。
+     按 sqrt(宽×高) 归一化到同一个 --fxc-g，看上去才一样大。 */
+  .tile .fxc { --fxc-w: 84px; --fxc-h: 96px; --fxc-g: 70px;
+    position: absolute; top: 12px; right: 14px; z-index: 1; pointer-events: none;
+    width: var(--fxc-w); height: var(--fxc-h);
+    display: flex; align-items: center; justify-content: center;
+    line-height: 0; opacity: .9; transition: opacity .35s var(--hx-ease), transform .45s var(--hx-spring); }
   /* 小生物底下那层暗色圆晕已经改成画进 canvas 里（见 fx/hx-critters.js 的 halo()）：
      原来这里是 CSS 伪元素 radial 渐变，白卡分支下在浅色背景上像一块脏斑。
-     画进 canvas 的好处是逐像素、随 canvas 一起缩放，边缘没有伪元素那层硬边。 */
-  .tile .fxc canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; image-rendering: crisp-edges; }
+     画进 canvas 的好处是逐像素、随 canvas 一起缩放，边缘没有伪元素那层硬边。
+     这里不再写死 width/height：canvas 的 width/height 属性就是生物的原始像素尺寸，
+     只用 max-width/max-height 把它等比装进上面的固定盒子（JS 不再逐个算缩放比）。
+     image-rendering: pixelated 保证放大时是硬边像素块，不会糊成一团。 */
+  /* 尺寸由 JS 按「视觉质量一致」算好写在行内（px）；这里的 max-* 是兜底，
+     object-fit: contain 保证万一被盒子夹住也是等比缩，不会拉扁。 */
+  .tile .fxc canvas { display: block; max-width: 100%; max-height: 100%; object-fit: contain;
+    image-rendering: pixelated; image-rendering: crisp-edges; }
   .tile:hover .fxc, .tile:focus-visible .fxc { opacity: 1; transform: translateY(-2px) scale(1.06); }
   /* 不用 mix-blend-mode: screen。试过：背景图是亮蓝色，screen 会把小生物的暗部整个吃掉，
      史莱姆、青蛙这种深色主体直接看不见。正常混合 + 底下那层暗晕反而最清楚。 */
@@ -319,8 +396,9 @@
     .tile { --cx: 43px; --cy: 45px; } /* 窄屏 padding 18/20 + 图标 50/2 */
     .tile .sysin { transform: rotateX(58deg) scale(.72); } /* 窄屏整体缩；rotateX 不能丢，否则又变回平面 */
     .tile::after { left: 5px; right: 5px; top: 48%; border-radius: 13px 13px 24px 24px; -webkit-mask: radial-gradient(12px 8px at 72% 0, transparent 97%, #000); mask: radial-gradient(12px 8px at 72% 0, transparent 97%, #000); }
-    .tile .fxc { top: 8px; right: 9px; max-height: 50px; } /* 窄屏缩小：只限高，宽度按 canvas 比例自动 */
-    .tile .fxc canvas { width: auto; height: 100%; max-width: 74px; }
+    /* 窄屏：卡片只有 148px 高、图标 50px，盒子整体收小并挪一点，缩放仍然由 max-width/max-height 自动完成。
+       只改盒子尺寸，不再单独给 canvas 写宽度 —— 写死了就会又把「各算各的」那套请回来。 */
+    .tile .fxc { --fxc-w: 62px; --fxc-h: 70px; --fxc-g: 52px; top: 8px; right: 9px; }
     .pop { top: auto; bottom: 0; left: 0; right: 0; width: auto; max-height: 86vh; border-radius: 26px 26px 0 0; padding: 22px 20px calc(22px + env(safe-area-inset-bottom, 0px)); transform: translateY(100%); transform-origin: bottom; }
     .pop.show { transform: none; } .scrim.show { opacity: 1; pointer-events: auto; }
     .cl { grid-template-columns: 1fr; } .cl .acts { flex-wrap: wrap; }
@@ -343,6 +421,13 @@
 </style>
 </head>
 <body>
+<!-- 首屏加载层：刷新页面时先看到它，脚本跑完（或最多 2.5 秒）自动淡出。
+     放在 body 第一个元素，保证样式一生效就是它铺在最上面，不会先闪一下半成品页面。 -->
+<div id="boot" role="status" aria-label="正在加载">
+  <img src="logo.jpg" alt="">
+  <b>华夏工具</b>
+  <span class="hx-px"><i style="--i:0"></i><i style="--i:1"></i><i style="--i:2"></i><i style="--i:3"></i><i style="--i:4"></i><i style="--i:5"></i><i style="--i:6"></i></span>
+</div>
 <header>
   <button class="brand" id="brand" type="button"><img src="logo.jpg" alt=""><span>华夏工具</span></button>
   <button class="back" id="back" type="button"><svg class="i" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>返回</button>
@@ -355,7 +440,7 @@
 <section class="pop" id="pop" aria-label="账号"></section>
 <section class="pop" id="look" aria-label="外观"></section>
 <main id="main">
-  <div class="loadtip" id="loadtip"><i></i><b></b></div>
+  <div class="loadtip" id="loadtip"><span class="hx-px"><i style="--i:0"></i><i style="--i:1"></i><i style="--i:2"></i><i style="--i:3"></i><i style="--i:4"></i><i style="--i:5"></i></span><b></b></div>
   <section id="home">
     <div class="wrap">
       <div class="hero"><img src="logo.jpg" alt=""><h1>华夏工具</h1><p id="hi"></p></div>
@@ -1291,6 +1376,32 @@ addEventListener('storage', function (e) { if (e.key !== 'paike-session') return
 var gerr = HX.grab(); was = HX.in();
 refresh();
 if (gerr) openLogin(gerr);
+// ── 首屏加载层淡出 ──
+// 两个时间点要一起满足：
+//   ① 资源到位（window.load）后再撤 —— 否则页面还没画好就露出半成品；
+//   ② **至少显示 520ms** —— 本地/教室局域网里首页往往 150ms 就加载完了，
+//      不等就直接淡出，学生看到的是「白闪一下」，比没有加载动画更糟。
+//      520ms 是「看得清一轮方块起伏、又不觉得被拖慢」的长度，实测低于 400ms 就像闪屏。
+// 不等 refresh() 的接口返回：弱网下那个可能要几秒，让动画一直转反而更像卡死；
+// 先把首页骨架露出来、名单随后填上，观感更好。
+// 兜底：3 秒后无论如何都撤（万一某张图卡住，不能让它一直盖着页面）。
+(function () {
+  var b = $('boot'); if (!b) return;
+  var off = false, MIN = 520;
+  function doHide() {
+    if (off) return; off = true;
+    b.classList.add('done');
+    setTimeout(function () { if (b.parentNode) b.remove(); }, 600); // 淡出 0.38s 后移出 DOM，别留着挡点击
+  }
+  function hide() {
+    // performance.now() 从导航开始计时，正好是「加载层已经显示了多久」
+    var left = MIN - (window.performance && performance.now ? performance.now() : MIN);
+    setTimeout(doHide, Math.max(0, left));
+  }
+  if (document.readyState === 'complete') hide();
+  else addEventListener('load', hide);
+  setTimeout(doHide, 3000);
+})();
 </script>
 </body>
 </html>

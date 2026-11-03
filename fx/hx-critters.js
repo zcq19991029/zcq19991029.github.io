@@ -24,6 +24,18 @@
   if (!P || !P.effects) return;
 
   var IDS = P.ids || Object.keys(P.effects);
+  // ── 2026-11-03：发牌池剔除比例过于极端的素材 ──
+  // 卡片右上角那块地最多 84px 宽、96px 高。蛇是 136×56（宽高比 2.43），
+  // 等比缩进去只能到 84×35 —— 一屏里其它生物都有 60～80 高，就它一条细线，
+  // 正是用户说的「像素动效会显得很小」。飞骷髅 96×132（0.73）、水母 96×120（0.80）都还能看，
+  // 所以只卡宽高比超出 0.6～1.9 的。剩下 11 只缩放后视觉面积只差 1.19 倍，看上去一样大。
+  var POOL = IDS.filter(function (id) {
+    var m = P.effects[id] && P.effects[id].meta;
+    if (!m || !m.size) return false;
+    var r = m.size[0] / m.size[1];
+    return r >= 0.6 && r <= 1.9;
+  });
+  if (!POOL.length) POOL = IDS; // 兜底：万一素材全被剔光了，退回全部
   var KEY = 'hx-critter-map';
   var reduced = window.matchMedia ? matchMedia('(prefers-reduced-motion: reduce)') : null;
   var entries = [];          // { cvs, ctx, fx, id, W, H, img, active, drawn, vis, wrap }
@@ -46,16 +58,18 @@
   function pickFor(toolId) {
     var map = {};
     try { map = JSON.parse(sessionStorage.getItem(KEY)) || {}; } catch (e) { map = {}; }
-    if (map[toolId] && IDS.indexOf(map[toolId]) >= 0) return map[toolId];
+    // 认池子里的（POOL）而不是全部 IDS：老会话里可能已经把剔掉的 snake 分配出去了，
+    // 这里一并判掉，让它按新规则重新发一次牌。
+    if (map[toolId] && POOL.indexOf(map[toolId]) >= 0) return map[toolId];
 
     var used = {};
     for (var k in map) used[map[k]] = 1;
-    var deck = IDS.filter(function (x) { return !used[x]; });
+    var deck = POOL.filter(function (x) { return !used[x]; });
 
     if (!deck.length) {
       // 牌发完了：重新洗一副。洗完之后，把「刚才最后发出去的那几只」挪到牌堆末尾，
       // 这样紧接着发的卡不会跟紧邻的卡撞色。
-      deck = IDS.slice();
+      deck = POOL.slice();
       for (var s = deck.length - 1; s > 0; s--) { // Fisher-Yates
         var r = Math.floor(Math.random() * (s + 1)), tp = deck[s];
         deck[s] = deck[r]; deck[r] = tp;
@@ -204,14 +218,28 @@
     tile.appendChild(wrap);
     var e = frame(cvs, pickFor(toolId));
     if (!e) { wrap.remove(); return; }
-    // CSS 尺寸：装进一个 96×68 的盒子（高优先），超宽的就按宽缩。
-    // 为什么是这个盒子：卡片上端右侧空位约 100×76，36px 以下看不清是什么生物，
-    // 90px 以上会顶到左上图标。蛇、鱼群那种 136 宽的按宽缩，免得横着爬到图标上。
-    // 缩放只写在 .fxc 这个外层容器上（见 index.html 的 .tile .fxc），
-    // canvas 用 width/height:100% 铺满它 —— 这样窄屏只改容器高度就能等比缩，不用监听 resize。
-    var BW = 96, BH = 68, k = Math.min(BW / e.W, BH / e.H);
-    wrap.style.width = (e.W * k).toFixed(1) + 'px';
-    wrap.style.height = (e.H * k).toFixed(1) + 'px';
+    // ── 2026-11-03：按「视觉质量」统一缩放 ──
+    // 原来这里算「装进 96×68 的盒子」（k = min(BW/W, BH/H)），再把容器设成缩放后的尺寸贴右上。
+    // 两个毛病，用户截图里都能看见：细长的（水母只剩 54px 宽）被挤到右边缘像缩在角落，
+    // 宽的（96px）往左顶到左上图标上 —— 实测 8 张卡有 4 张和图标重叠；而且大小参差。
+    //
+    // 现在两步：
+    //   ① 位置：容器是 CSS 里的固定盒子（--fxc-w × --fxc-h），flex 居中 —— 所有生物都待在同一块地方；
+    //   ② 大小：不按「填满盒子」缩，按 **sqrt(宽×高)** 归一化到同一个目标视觉尺寸 --fxc-g。
+    //      为什么用 sqrt(面积)：12 只生物原始比例差太远（蛇 136×56、飞骷髅 96×132、水母 96×120）。
+    //      「填满盒子」会让高的撑满、扁的很小，实测面积差 2.3 倍；按 sqrt(面积) 拉平后差 1.18 倍，
+    //      看上去才是「一样大」—— 这正是用户说的「缩放要一致」。
+    //   最后再 clamp 进盒子，保证绝不越界压到图标或标题。
+    var cs = getComputedStyle(wrap);
+    var BW = parseFloat(cs.getPropertyValue('--fxc-w')) || 84;
+    var BH = parseFloat(cs.getPropertyValue('--fxc-h')) || 96;
+    var G = parseFloat(cs.getPropertyValue('--fxc-g')) || 70; // 目标视觉质量（sqrt(宽×高)）
+    var k = G / Math.sqrt(e.W * e.H);
+    k = Math.min(k, BW / e.W, BH / e.H); // 不超出盒子
+    cvs.style.width = (e.W * k).toFixed(1) + 'px';
+    cvs.style.height = (e.H * k).toFixed(1) + 'px';
+    // canvas 的 width/height 属性仍是生物的原始像素尺寸，CSS 尺寸负责缩放；
+    // 窗口变窄时 CSS 里的 --fxc-w/h/g 会变（见窄屏 media query），resize 时由 layoutAll 重算。
     // 有背景图（hx-bg）才垫晕圈：白卡分支不垫（暗斑在浅底上显脏）
     if (document.documentElement.classList.contains('hx-bg')) e.halo = halo(cvs, e.W, e.H, 0.42);
     e.wrap = wrap;
@@ -231,6 +259,28 @@
     // 控制开销，不需要用 hover 当开关。CSS 里 .tile:hover .fxc 那个放大/位移是纯视觉反馈，
     // 和动画状态无关，保留。
   }
+
+  // 窗口尺寸变了（转屏、拖窗口、桌面→窄屏档），CSS 里的 --fxc-w/h/g 跟着变，
+  // canvas 的行内像素尺寸得重算一次，否则还是按旧盒子的大小显示。
+  // 只做尺寸计算，不碰动画状态；用 rAF 合并连续的 resize 事件。
+  function relayout() {
+    for (var i = 0; i < entries.length; i++) {
+      var e = entries[i];
+      if (!e.cvs.isConnected || !e.wrap) continue;
+      var cs = getComputedStyle(e.wrap);
+      var BW = parseFloat(cs.getPropertyValue('--fxc-w')) || 84;
+      var BH = parseFloat(cs.getPropertyValue('--fxc-h')) || 96;
+      var G = parseFloat(cs.getPropertyValue('--fxc-g')) || 70;
+      var k = Math.min(G / Math.sqrt(e.W * e.H), BW / e.W, BH / e.H);
+      e.cvs.style.width = (e.W * k).toFixed(1) + 'px';
+      e.cvs.style.height = (e.H * k).toFixed(1) + 'px';
+    }
+  }
+  var rzT = 0;
+  addEventListener('resize', function () {
+    if (rzT) return;
+    rzT = setTimeout(function () { rzT = 0; relayout(); }, 180);
+  });
 
   // 工具切换 / 重新登录会重建卡片：清掉已经不在文档里的。
   // 2026-11-02 修坑：这个函数导出以后一直没人调用，每次 render() 重建 9 张卡就多留 9 条死记录
