@@ -103,8 +103,10 @@
     if (raw && !v.ver && v.bg !== 'custom') v.bg = DEF.bg;
     // op 允许 0～100（2026-11-03 用户要求「要 0 到 100 可调节」）。
     // ⚠️ 不能写 `+v.op || DEF.op`：0 是 falsy，会把「完全透明」静默变回默认 90。
-    var opN = +v.op;
-    var s = { acc: ACC[v.acc] ? v.acc : DEF.acc, mode: /^(light|dark|auto)$/.test(v.mode) ? v.mode : DEF.mode, bg: BG[v.bg] ? v.bg : DEF.bg, op: Math.min(100, Math.max(0, isFinite(opN) ? opN : DEF.op)), wx: WX[v.wx] ? v.wx : DEF.wx };
+    var opN = +v.op, bgoN = +v.bgo;
+    // bgo = 背景浓度（2026-11-03 用户报「透明度完全不会让背景透明」——原来的 op 滑杆只管卡片透明度，
+    // 背景纹丝不动。现在加一根独立的「背景浓度」滑杆：100 = 现状，0 = 背景完全消失只剩底色）
+    var s = { acc: ACC[v.acc] ? v.acc : DEF.acc, mode: /^(light|dark|auto)$/.test(v.mode) ? v.mode : DEF.mode, bg: BG[v.bg] ? v.bg : DEF.bg, op: Math.min(100, Math.max(0, isFinite(opN) ? opN : DEF.op)), bgo: Math.min(100, Math.max(0, isFinite(bgoN) ? bgoN : 100)), wx: WX[v.wx] ? v.wx : DEF.wx };
     if (s.bg === 'custom' && !ls(IMG)) s.bg = 'none';
     if (BG[s.bg].dev && !isDev()) s.bg = 'none'; // 开发者专属背景：别的账号（或没登录）回落到无背景
     return s;
@@ -135,24 +137,31 @@
   // Ctrl+- 到 25%）复现：视口 CSS 尺寸一大，Chromium 直接把这个超大 fixed 图层上的 filter
   // 整个丢掉，原图直出。blur 写多大都没用，这是渲染器的行为，CSS 层面绕不过。
   //
-  // 所以改成**把图预先糊好**：canvas 缩到长边 96px 再导出 JPEG，浏览器 cover 拉伸回全屏时
-  // 双线性插值天然就是糊的 —— 视觉和 blur(8px) 几乎一样，但零 GPU 成本、任何缩放都稳定，
+  // 所以改成**把图预先糊好**：两级降采样到长边 480px、canvas 上再 blur(2.5px) 后导出 JPEG，
+  // 浏览器 cover 拉伸回全屏时自然就是糊的 —— 零 GPU 成本、任何缩放都稳定，
   // 希沃一体机那种跑不动的设备也少一笔开销（hx-lite 的背景降档分支随之删除）。
+  // 2026-11-03 用户报「背景变成马赛克画质」：初版缩到 96px，拉伸 20 倍像素块太明显。
+  // 480px 拉到 1080p 是 4.5 倍、4K 是 9 倍，糊图本来就是要糊的，放大痕迹已不可见。
   // 生成失败（离线首屏、图挂了）就回落到 CSS blur 兜底，行为和以前一样。
-  var blurCache = {}; // key: 图片 url，value: 96px JPEG dataURL。只存内存，每页生成一次（几 KB）
+  var blurCache = {}; // key: 图片 url，value: 480px JPEG dataURL。只存内存（每张几十 KB）
   var blurToken = 0;
   function blurImg(src, cb) {
     if (blurCache[src]) return cb(blurCache[src]);
     var im = new Image();
     im.onload = function () {
       try {
+        // 两级降采样：先缩到中间尺寸（一半）再缩到目标，比一步到位少锯齿；
+        // blur(2.5px) 是按 480px 尺度给的，等效原图上约 8px 的磨砂感（和旧 CSS blur(8px) 一致）
+        var target = 480, k0 = target / Math.max(im.width, im.height);
+        var mid = document.createElement('canvas');
+        mid.width = Math.max(1, Math.round(im.width * k0 * 2)); mid.height = Math.max(1, Math.round(im.height * k0 * 2));
+        var mctx = mid.getContext('2d');
+        mctx.drawImage(im, 0, 0, mid.width, mid.height);
         var cv = document.createElement('canvas');
-        var k = 96 / Math.max(im.width, im.height);
-        cv.width = Math.max(1, Math.round(im.width * k));
-        cv.height = Math.max(1, Math.round(im.height * k));
+        cv.width = Math.max(1, Math.round(im.width * k0)); cv.height = Math.max(1, Math.round(im.height * k0));
         var ctx = cv.getContext('2d');
-        try { ctx.filter = 'saturate(1.28)'; } catch (e) { } // 顶掉原来 CSS 里的 saturate(128%)；不支持就没这层，视觉差一点
-        ctx.drawImage(im, 0, 0, cv.width, cv.height);
+        try { ctx.filter = 'blur(2.5px) saturate(1.28)'; } catch (e) { } // 顶掉原来 CSS 里的 saturate(128%)；不支持就没这层，视觉差一点
+        ctx.drawImage(mid, 0, 0, cv.width, cv.height);
         blurCache[src] = cv.toDataURL('image/jpeg', .85);
         cb(blurCache[src]);
       } catch (e) { cb(null); } // 画布被污染等异常：回落 CSS blur
@@ -168,7 +177,7 @@
     var img = s.bg === 'custom' ? 'url("' + ls(IMG) + '")' : b.img ? 'url("' + root + b.img + '")' : b.css || 'none';
     var vars = { '--acc': c, '--acc2': c2, '--acc3': c2, '--acc-h': c2, '--on-acc': s.acc === 'mono' && m === 'dark' ? '#1d1d1f' : '#fff',
       '--accbg': 'color-mix(in srgb, ' + c + ' 14%, transparent)', '--ring': 'color-mix(in srgb, ' + c + ' 40%, transparent)',
-      '--hov': 'color-mix(in srgb, ' + c + ' 10%, transparent)', '--hx-a': s.bg === 'none' ? 1 : s.op / 100, '--hx-img': img };
+      '--hov': 'color-mix(in srgb, ' + c + ' 10%, transparent)', '--hx-a': s.bg === 'none' ? 1 : s.op / 100, '--hx-img': img, '--hx-bgo': s.bgo / 100 };
     for (var k in vars) r.style.setProperty(k, vars[k]);
     // 图片背景：先按原图 + CSS blur 显示（兜底），糊图生成好了换上去并挂 .hx-bgblur 撤掉 filter。
     // 渐变背景（mist/bay/dusk/aurora）本身就是色块，不需要糊，也不挂类。

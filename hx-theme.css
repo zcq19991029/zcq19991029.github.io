@@ -92,6 +92,7 @@ html.hx-bg body::before {
   content: ""; position: fixed; inset: -48px; z-index: -1; pointer-events: none;
   background: var(--hx-img) center / cover no-repeat;
   filter: blur(8px) saturate(128%);
+  opacity: var(--hx-bgo, 1); /* 背景浓度（外观面板「背景浓度」滑杆）：100 = 现状，0 = 背景消失只剩底色 */
 }
 html.hx-bg.hx-bgblur body::before { filter: none; }
 /* 深色模式必须把背景图压够暗。只写 brightness(.62) 对亮色图（比如默认的小熊，整张亮黄）不够：

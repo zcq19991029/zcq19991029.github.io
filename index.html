@@ -910,7 +910,8 @@ function renderLook() {
       var b = B[k], bg = b.img ? 'url(' + HXTheme.root + b.img + ')' : b.css || '';
       return '<button type="button" data-bg="' + k + '" aria-pressed="' + (s.bg === k) + '"' + (bg ? ' style="--b:' + esc(bg) + '"' : '') + '><span>' + b.name + '</span></button>';
     }).join('') + '<label aria-pressed="' + (s.bg === 'custom') + '"' + (s.bg === 'custom' ? ' style="--b:var(--hx-img)"' : '') + '><input type="file" id="bgFile" accept="image/*" hidden><span>' + (s.bg === 'custom' ? '换一张' : '＋ 上传') + '</span></label></div>' +
-    (s.bg !== 'none' ? '<h3>界面透明度</h3><div class="rng"><input type="range" id="op" min="0" max="100" value="' + s.op + '"><output id="opv">' + s.op + '%</output></div><p class="msg" style="margin:6px 0 0;color:var(--dim)">0% = 卡片完全透明，只剩文字浮在背景上。太低看不清内容的话再往回调。</p>' : '') +
+    (s.bg !== 'none' ? '<h3>界面透明度</h3><div class="rng"><input type="range" id="op" min="0" max="100" value="' + s.op + '"><output id="opv">' + s.op + '%</output></div><p class="msg" style="margin:6px 0 0;color:var(--dim)">0% = 卡片完全透明，只剩文字浮在背景上。太低看不清内容的话再往回调。</p>' +
+    '<h3>背景浓度</h3><div class="rng"><input type="range" id="bgo" min="0" max="100" value="' + (s.bgo == null ? 100 : s.bgo) + '"><output id="bgov">' + (s.bgo == null ? 100 : s.bgo) + '%</output></div><p class="msg" style="margin:6px 0 0;color:var(--dim)">这根才是管背景的：100% = 背景完整显示，0% = 背景完全消失只剩页面底色。想看清楚背景图就把「界面透明度」调高、这根调低。</p>' : '') +
     // 背景动效（2026-11-03）：和背景主题平行的动效模块，画在背景层之上、卡片之下，两层互不覆盖
     '<h3>背景动效</h3><div class="bgs">' + Object.keys(WX).map(function (k) {
       return '<button type="button" data-wx="' + k + '" aria-pressed="' + (s.wx === k) + '"><span>' + WX[k].name + '</span></button>';
@@ -923,6 +924,7 @@ function renderLook() {
   $('look').querySelectorAll('[data-wx]').forEach(function (b) { b.onclick = function () { HXTheme.set({ wx: b.dataset.wx }); }; });
   $('bgFile').onchange = function (e) { var f = e.target.files[0]; if (f) HXTheme.upload(f).catch(function (er) { toast(er.message); }); };
   if ($('op')) $('op').oninput = function () { opAt = Date.now(); $('opv').textContent = $('op').value + '%'; HXTheme.set({ op: +$('op').value }); };
+  if ($('bgo')) $('bgo').oninput = function () { opAt = Date.now(); $('bgov').textContent = $('bgo').value + '%'; HXTheme.set({ bgo: +$('bgo').value }); };
   $('lookReset').onclick = function () { HXTheme.reset(); };
 }
 // 拖透明度时不重画面板：手机上拖动滑块不会获得焦点，一重画滑块就被换掉、只能点不能拖
@@ -1103,11 +1105,19 @@ function shareCode(code, role) {
 function sheetCode(role) {
   var box = $('shB'), t = role === 'teacher', g = role === 'guest', A = ST.aCode && ST.aCode.role === role ? ST.aCode : null, cls = ST.classes || [], C = ST.codes, html;
   html = g ? '<div class="f frow"><input id="cNote" maxlength="30" placeholder="给谁（备注）"><input id="cUses" type="number" min="1" max="200" value="5" style="max-width:6em" aria-label="可用次数"><button class="btn" id="cGo">生成</button></div>'
-    : t ? '<div class="f frow"><input id="cNote" maxlength="30" placeholder="给谁（备注）"><button class="btn" id="cGo">生成</button></div>'
+    : t ? '<div class="f frow"><input id="cNum" type="number" min="1" max="20" value="1" style="max-width:6em" aria-label="生成几个"><button class="btn" id="cGo">生成</button></div>'
     : cls.length ? '<div class="f frow"><select id="cCls">' + cls.map(function (c) { return '<option value="' + c.id + '"' + (c.id === ST.sCls ? ' selected' : '') + '>' + esc(c.name) + '</option>'; }).join('') + '</select><button class="btn" id="cGo">生成</button></div>'
     : '<p class="empty">' + (ST.clsOk ? '先在“班级”里导入考勤表' : '加载中…') + '</p>';
   if (A) html += codeBox(A.label, A.code, '', '<button class="btn sm" id="aShare">分享给' + (t ? '老师' : g ? '朋友' : '学生') + '</button>');
   C = C && C.filter(function (c) { return c.role === role; });
+  // 列表只渲染还有意义的码（用户 2026-11-03 要求）：已失效的（用完、过期、撤销）不再显示，
+  // 历史码数据留在数据库里不动，只是这里不画出来。代码上方这些行只是显示过滤，不影响任何数据。
+  if (C) {
+    C = C.filter(function (c) { return c.live || (!t && !g && c.used >= c.max_uses); });
+    if (!t && !g) { // 课堂码一个班只显示最新的一条（hx_my_codes 按 created_at 倒序，第一个就是最新的）
+      var seenCls = {}; C = C.filter(function (c) { if (!c.class_name) return true; if (seenCls[c.class_name]) return false; seenCls[c.class_name] = 1; return true; });
+    }
+  }
   // 课堂码这一列改成「已注册 / 班级总人数」（用户 2026-11-02 要求）：右边是全班多少人，左边是这个班已经注册了多少人。
   // 以前显示的是「这个码用了几次 / 还能用几次」，老师看不出班级注册进度总共到哪了。
   // 教师码、好友码没有班级，仍按「已用次数 / 总次数」显示。
