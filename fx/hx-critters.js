@@ -12,8 +12,8 @@
 //   3) hx-lite（教室一体机 / 省电）和 prefers-reduced-motion 下只画静态一帧，永不跑循环。
 //   4) 标签页切到后台（document.hidden）立刻停；切回来重新起循环。
 //
-// 生物是随机挑的：同一个工具在一台机器上第一次进首页时就定下来，记在 sessionStorage 里，
-// 刷新换了新的一批（用户要的就是「每次随机匹配」），但同一次会话里不会来回跳。
+// 生物是随机挑的：2026-11-04 起每次刷新或新开网页都重新洗牌（用户要求「不要一成不变」），
+// 只有从工具内返回主页（浏览器后退 / 本站跳回）保持原样不跳变。
 // 2026-11-03 起改成「按排位发牌 + 色相变体」，保证 15 张卡里最多 3 只重样且长得不一样，
 // 详见 pickFor / hueOf 上面的长注释。
 //
@@ -26,10 +26,11 @@
   if (!P || !P.effects) return;
 
   var IDS = P.ids || Object.keys(P.effects);
-  // ── 2026-11-03 第二次扩充：池子 = 12 只小生物 + 17 个循环特效，共 29 个 ──
-  // 用户要求「别弄一样的」：首页 15 张卡，池子 ≥ 15 就能张张不同（排位发牌 rank 0..14 全唯一），
-  // 色相变体成了纯兜底（卡片数超过池子才会触发）。挑的全是 loop 型、≤152px、无辉光合成下
-  // 也有实心像素的特效（Node 逐帧测过可见像素占比），教室机跑得动。
+  // ── 2026-11-04 第三次扩充：池子 29 → 84 个（小生物 + 循环特效 + 状态图标 + 水系等） ──
+  // 用户要求「从两百多个素材里筛选合适的做备选，随机显示而不是一成不变」。
+  // 全库 244 个特效里 loop 型 108 个、尺寸比例合格（≤200px、比例 0.6-2.5）85 个，
+  // 其中 29 个已在池中；剩余 56 个候选在 Node 里逐帧测「无辉光合成下的实心像素占比」，
+  // 淘汰几乎不可见的 xp-orb，55 个入池。15 张卡张张不同绰绰有余，色相变体基本不会触发。
   // 宽高比仍限 0.6～2.5（sqrt(面积) 归一化兜「显小」，太极端的比例塞进卡片盒子难看）。
   var POOL = IDS.filter(function (id) {
     var m = P.effects[id] && P.effects[id].meta;
@@ -61,6 +62,23 @@
   //
   // 每次进首页（新会话）排位和牌序都是新的，满足用户要的「每次随机匹配」；
   // 同一次会话里刷新/切工具不跳变（排位存在 sessionStorage）。
+  // ── 2026-11-04 第三次改：从「同会话稳定」改成「刷新/新进重洗，从工具返回不洗」 ──
+  // 用户要求「每次刷新或重新登录或重新进网页，卡片像素动效都会随机变化；
+  // 除了从工具内返回主页」。区分手段（navigation.type + referrer）：
+  //   reload        → 刷新，重洗；
+  //   back_forward  → 浏览器后退/前进（从工具返回的常见路径），不洗；
+  //   navigate      → 看来源：referrer 是本站（从工具页点返回链接回来）不洗，
+  //                    referrer 为空或外域（新开/重开网页）重洗。
+  function shouldReshuffle() {
+    try {
+      var nav = performance.getEntriesByType && performance.getEntriesByType('navigation')[0];
+      if (!nav) return true;
+      if (nav.type === 'reload') return true;
+      if (nav.type === 'back_forward') return false;
+      var ref = document.referrer || '';
+      return !(ref && ref.indexOf(location.origin) === 0);
+    } catch (e) { return true; }
+  }
   var state = null;
   function shuffle(a) {
     for (var i = a.length - 1; i > 0; i--) {
@@ -72,7 +90,10 @@
   function stateOf() {
     if (state) return state;
     var st = null;
-    try { st = JSON.parse(sessionStorage.getItem(KEY)); } catch (e) { st = null; }
+    var fresh = shouldReshuffle();
+    if (!fresh) {
+      try { st = JSON.parse(sessionStorage.getItem(KEY)); } catch (e) { st = null; }
+    }
     // stamp 里存着池子的成员表：素材增删过（POOL 变了）就整份作废重发，
     // 否则装的是上一版池子里的 id，取出来可能是 undefined，卡片会直接空白。
     var stamp = POOL.join(',');

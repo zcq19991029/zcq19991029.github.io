@@ -619,7 +619,7 @@ function planets() {
     return '<i style="--r:' + p.r + 'px;--d:' + p.d + 's;--a:' + p.a + 'deg;--s:' + p.s + 'px;--p:' + p.p + '"></i>';
   }).join('') + '</span></span>';
 }
-var ST = { me: null, user: null, tab: null, lm: 'in', reg: null, actFor: null, uname: null, edit: null, classes: null, open: null, studs: {}, rosters: null, newCode: null };
+var ST = { me: null, user: null, tab: null, lm: 'in', reg: null, actFor: null, uname: null, edit: null, classes: null, open: null, studs: {}, rosters: null };
 var frames = {};
 function isTeacher() { return !!(ST.me && (ST.me.teacher || ST.me.admin || ST.me.dev)); }
 function isDev() { return !!(ST.me && ST.me.dev); }
@@ -954,12 +954,19 @@ function mgList() {
   var m = ST.me || {}, L = [], staff = isTeacher() || m.admin || m.dev;
   if (isTeacher()) L.push('cls');
   if (staff) L.push('pw');
-  if (isTeacher()) L.push('gcode');
-  if (m.admin) L.push('tcode', 'scode');
+  if (isTeacher()) L.push('gcode', 'scode'); // 发课堂码数据库只要求教师身份（hx_new_code），所以「学生课堂码」给所有教师；班级面板里的「课堂码」按钮也跳到这里，入口只有一个
+  if (m.admin) L.push('tcode');
   if (m.dev) L.push('adm');
   return L;
 }
-function liveN(role) { var C = ST.codes; if (!C) return '…'; var n = C.filter(function (c) { return c.live && c.role === role; }).length; return n ? '有效 ' + n + ' 个' : '没有有效的码'; }
+function liveN(role) {
+  var C = ST.codes; if (!C) return '…';
+  var L = C.filter(function (c) { return c.live && c.role === role; });
+  if (role === 'student') { // 课堂码列表里一个班只显示最新一条，卡片摘要也按班去重，两边对得上
+    var s = {}; L = L.filter(function (c) { if (!c.class_name || s[c.class_name]) return false; s[c.class_name] = 1; return true; });
+  }
+  var n = L.length; return n ? '有效 ' + n + ' 个' : '没有有效的码';
+}
 function mgSum(k) {
   if (k === 'cls') { var C = ST.classes || []; return !ST.clsOk ? '…' : C.length ? C.length + ' 个班 · ' + C.reduce(function (s, c) { return s + (c.total || 0); }, 0) + ' 人' : '还没有班级'; }
   // 重置密码这张卡的摘要显示「可以重置多少人的密码」= 所有班已开通人数之和，比「几个码」有用
@@ -1014,9 +1021,9 @@ function codeBox(cls, code, note, acts) { return '<div class="code"><small>' + e
 
 // 班级面板：导入考勤表、勾选给哪些工具用、课堂码、名单
 function sheetCls() {
-  var box = $('shB'), R = ST.rosters, N = ST.newCode, html = '';
+  var box = $('shB'), R = ST.rosters, html = '';
   $('shA').innerHTML = '<label class="btn sm">导入考勤表<input type="file" id="rFile" accept=".xls,.xlsx,.csv" multiple hidden></label>';
-  if (N) html += codeBox(N.cls, N.code, '4 小时内有效，只有名单里还没开通的学生能用', '<button class="btn sm" id="rShare">分享给学生</button> <button class="btn link bad sm" id="rRevoke">下课，撤销</button>');
+  // 课堂码不再在这个面板里直接生成/展示：班级旁的「课堂码」按钮跳到「学生课堂码」面板（同一套数据，入口合并成一个）。
   if (R) html += '<div class="panel f">' + R.map(function (x, k) { // 一次选多个考勤表：每个文件一个班，班级、学期可改；读不出来或导入失败的写原因
     return '<div class="f" style="padding-bottom:10px;border-bottom:1px solid var(--edge)"><b>' + esc(x.file) + (x.list ? ' · ' + x.list.length + ' 名学生：' + x.list.slice(0, 4).map(function (y) { return esc(y.name); }).join('、') + (x.list.length > 4 ? '…' : '') : '') + '</b>' +
       (x.list ? '<input data-rc="' + k + '" value="' + esc(x.cls) + '" placeholder="班级"><input data-rt="' + k + '" value="' + esc(x.term) + '" placeholder="学期">' : '') + (x.err ? '<p class="msg">' + esc(x.err) + '</p>' : '') + '</div>';
@@ -1070,8 +1077,6 @@ function sheetCls() {
       await loadClasses();
     };
   }
-  if ($('rShare')) $('rShare').onclick = function () { shareCode(N.code, 'student'); };
-  if ($('rRevoke')) $('rRevoke').onclick = async function () { if (!await ask('撤销课堂码 ' + N.code, N.cls + '。撤销后这个码不能再用来注册，已经用它注册的账号不受影响。', '撤销')) return; try { await HX.rpc('hx_revoke_code', { p_code: N.code }); ST.newCode = null; toast('已撤销'); sheetCls(); codesChanged(); } catch (e) { toast(e.message); } };
   box.querySelectorAll('[data-tool]').forEach(function (b) {
     b.onclick = async function () {
       var c = ST.classes.filter(function (x) { return x.id === +b.dataset.cls; })[0], t = b.dataset.tool, tools = (c.tools || []).slice(), i = tools.indexOf(t);
@@ -1087,10 +1092,9 @@ function sheetCls() {
     };
   });
   box.querySelectorAll('[data-code]').forEach(function (b) {
-    b.onclick = async function () {
-      var c = ST.classes.filter(function (x) { return x.id === +b.dataset.code; })[0];
-      try { ST.newCode = { code: await HX.rpc('hx_new_code', { p_role: 'student', p_class: c.id, p_note: '' }), cls: c.name + ' · 课堂码', role: 'student' }; sheetCls(); box.scrollTop = 0; codesChanged(); } catch (e) { toast(e.message); }
-    };
+    // 以前点这里就直接发一个新课堂码（和学生课堂码面板是同一套 hx_new_code / hx_my_codes 数据，入口重复）。
+    // 现在改成跳到「学生课堂码」面板并选中这个班：那里能看到本班当前有效的码、注册进度，也能发新的。
+    b.onclick = function () { ST.sCls = +b.dataset.code; openSheet('scode'); };
   });
 }
 // ---------- 管理（管理员、开发者）：发教师码、学生码，看发过的码；开发者再任命管理员 ----------
@@ -1129,8 +1133,11 @@ function sheetCode(role) {
     return c.used + ' / ' + c.max_uses;
   };
   html += !C ? '<p class="empty">加载中…</p>' : !C.length ? '' : '<table><tr><th>码</th><th>' + (t || g ? '给' : '班级') + '</th><th>' + (t || g ? '已用' : '已注册 / 人数') + '</th><th></th></tr>' + C.map(function (c) {
+    // 课堂码：注册满（used 达到 max_uses，过 4 小时才作废）显示「已使用」；没满的显示「注册中」并保留分享/撤销。
+    // 教师码一码一用，用完就不出现在列表里，所以 live 的教师码必然还没用过，保持「分享/撤销」。
+    var full = !t && !g && c.used >= c.max_uses;
     return '<tr><td><b class="mono">' + esc(c.code) + '</b></td><td>' + esc(c.class_name || c.note || '') + '</td><td>' + cnt(c) + '</td><td class="ra">' +
-      (c.live ? '<button class="btn link sm" data-share="' + esc(c.code) + '" data-role="' + c.role + '">分享</button><button class="btn link bad sm" data-rev="' + esc(c.code) + '">撤销</button>' : '<span class="pill">已失效</span>') + '</td></tr>';
+      (full ? '<span class="pill">已使用</span>' : c.live ? (!t && !g ? '<span class="pill acc">注册中</span>' : '') + '<button class="btn link sm" data-share="' + esc(c.code) + '" data-role="' + c.role + '">分享</button><button class="btn link bad sm" data-rev="' + esc(c.code) + '">撤销</button>' : '') + '</td></tr>';
   }).join('') + '</table>';
   box.innerHTML = html;
   var made = function (code, label) { ST.aCode = { code: code, role: role, label: label }; box.scrollTop = 0; codesChanged(); };
@@ -1141,7 +1148,11 @@ function sheetCode(role) {
         var gn = $('cNote').value.trim(), u = +$('cUses').value; if (!(u >= 1 && u <= 200 && u % 1 === 0)) throw new Error('可用次数填 1～200');
         made(await HX.rpc('hx_new_code', { p_role: 'guest', p_class: null, p_note: gn, p_uses: u }), '好友码 · ' + (gn ? gn + ' · ' : '') + u + ' 次，撤销前一直有效');
       }
-      else if (t) { var n = $('cNote').value.trim(); made(await HX.rpc('hx_new_code', { p_role: 'teacher', p_class: null, p_note: n }), '教师码 · ' + (n || '一码一用')); }
+      else if (t) { // 用户 2026-11-03 要求：一次生成 1～20 个教师码（都是一码一用，备注去掉），全部出现在下面的列表里
+        var n = +$('cNum').value; if (!(n >= 1 && n <= 20 && n % 1 === 0)) throw new Error('生成几个填 1～20');
+        var first = null; for (var i = 0; i < n; i++) { var cd = await HX.rpc('hx_new_code', { p_role: 'teacher', p_class: null, p_note: '' }); if (!first) first = cd; }
+        made(first, '教师码 × ' + n + ' · 一码一用，都在下面列表里');
+      }
       else { var o = $('cCls').selectedOptions[0]; ST.sCls = +o.value; made(await HX.rpc('hx_new_code', { p_role: 'student', p_class: +o.value, p_note: '' }), o.textContent + ' · 课堂码 · 4 小时有效'); }
     } catch (e) { toast(e.message); b.disabled = false; }
   };
@@ -1308,7 +1319,7 @@ addEventListener('popstate', function () { var id = location.hash.slice(1); if (
 addEventListener('hashchange', function () { var id = location.hash.slice(1); if (id !== (ST.tab || '')) show(id, 'replace'); });
 function reloadTools() { for (var k in frames) { if (k !== ST.tab) { frames[k].remove(); delete frames[k]; } else { delete frames[k].dataset.ready; frames[k].src = frames[k].src; tip(true, frames[k].title); } } } // 工具页把登录记在内存里，换人后重新打开
 async function refresh() {
-  ST.me = null; ST.user = null; ST.uname = null; ST.classes = null; ST.guests = null; ST.clsOk = false; ST.studs = {}; ST.newCode = null; ST.edit = null; ST.codes = undefined; ST.teachers = undefined; ST.aCode = null;
+  ST.me = null; ST.user = null; ST.uname = null; ST.classes = null; ST.guests = null; ST.clsOk = false; ST.studs = {}; ST.edit = null; ST.codes = undefined; ST.teachers = undefined; ST.aCode = null;
   if (HX.in()) {
     try { var res = await Promise.all([HX.rpc('hx_me'), HX.user()]); ST.me = res[0]; ST.user = res[1]; HXTheme.setDev(ST.me && ST.me.dev); }
     catch (e) { if (e.status === 401) { await HX.out(); HXTheme.setDev(false); } }
