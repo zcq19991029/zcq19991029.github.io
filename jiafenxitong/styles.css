@@ -487,6 +487,78 @@ table.data input { padding: 2px 6px; font-size: 12.5px; }
 .pool-toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
 .pool-toolbar #poolSearch { flex: 1 1 160px; min-width: 0; }
 
+/* 一键分组：每组几人 + 按序号 / 随机 */
+.pool-autogroup { margin-bottom: 12px; }
+.pool-autogroup .btnrow { align-items: center; gap: 10px; }
+.pool-autogroup #poolSize { width: 72px; text-align: center; font-variant-numeric: tabular-nums; }
+.pool-autogroup #poolSizeHint { margin: 0 8px 0 0; }
+.pool-autogroup .note { margin: 8px 0 0; }
+.pool-autogroup .btnrow + .note { margin-top: 6px; }
+
+/* ---- 学生自助选桌组队（教师端看板） ---- */
+.pool-team { margin-bottom: 12px; }
+.pool-team .btnrow { align-items: center; gap: 10px; }
+.pool-team #teamTables, .pool-team #teamSize {
+  width: 72px; text-align: center; font-variant-numeric: tabular-nums;
+}
+.pool-team .note { margin: 8px 0 0; }
+.pool-team #teamHint { margin: 0 8px 0 0; }
+
+.tm-bar {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--line-strong);
+  font-size: 13px; color: var(--muted);
+}
+.tm-bar b { color: var(--text); }
+.tm-stat { font-variant-numeric: tabular-nums; }
+.tm-warn { color: var(--warn); background: var(--warn-bg); border: 1px solid var(--vip-line);
+  border-radius: var(--pill); padding: 2px 9px; font-size: 12px; }
+
+.tm-desks {
+  display: grid; gap: 8px; margin-top: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(186px, 1fr));
+}
+.tm-desk {
+  border: 1px solid var(--line); border-radius: var(--radius-sm);
+  background: var(--panel-soft); padding: 7px 9px; min-height: 62px;
+}
+.tm-desk.full { background: var(--accent-bg); border-color: var(--accent-line); }
+.tm-desk-h {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 6px;
+  font-size: 12px; font-weight: 700; color: var(--text); margin-bottom: 4px;
+}
+.tm-desk-h small { font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
+.tm-names { display: flex; flex-wrap: wrap; gap: 4px; }
+.tm-name {
+  display: inline-flex; align-items: center; gap: 2px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--pill);
+  padding: 1px 4px 1px 8px; font-size: 12px; color: var(--text);
+}
+.tm-x {
+  appearance: none; border: 0; background: transparent; color: var(--faint);
+  font: inherit; line-height: 1; cursor: pointer; padding: 0 2px; border-radius: 50%;
+}
+.tm-x:hover { color: var(--bad); }
+.tm-empty { font-size: 12px; color: var(--faint); }
+
+.tm-pend { margin-top: 12px; }
+.tm-pend-h { font-size: 13px; color: var(--text); margin-bottom: 6px; }
+.tm-pend-h small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+.tm-pend-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.tm-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  border: 1px solid var(--line); border-radius: var(--pill);
+  background: var(--panel); padding: 2px 4px 2px 9px; font-size: 12px;
+}
+.tm-chip.nobind { background: var(--warn-bg); border-color: var(--vip-line); }
+.tm-chip i { font-style: normal; font-size: 11px; color: var(--warn); }
+.tm-chip select {
+  font: inherit; font-size: 12px; padding: 1px 4px; border-radius: var(--radius-sm);
+  border: 1px solid var(--line-strong); background: var(--panel); color: var(--text);
+  max-width: 96px;
+}
+.tm-allin { margin: 12px 0 0; font-size: 13px; color: var(--good); }
+
 .seg {
   display: inline-flex; flex: none; gap: 3px; padding: 3px;
   border: 0; border-radius: var(--pill); background: var(--panel-soft);

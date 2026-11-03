@@ -604,7 +604,7 @@ function removeMemberAt(cls, g, j) {
     if (UI) UI.setView(v);
     if (v === 'rank') renderRank();
     if (v === 'gradebook') renderGradebook();
-    if (v === 'pool') renderPool();
+    if (v === 'pool') { renderPool(); renderTeamCard(); } else { tmStop(); }
     if (v === 'data') renderData();
     if (v === 'admin') renderAdmin();
     if (v === 'score') renderScore();
@@ -1447,12 +1447,13 @@ function removeMemberAt(cls, g, j) {
       : '<p class="rank-note">' + (poolFilter === 'pending' ? '没有待分配的学生，全班都分好组了。' : '没有记录。') + '</p>';
 
     updatePoolBadge();
+    updatePoolSizeHint();
   }
 
   /* ---- 待分配页的交互 ---- */
 
   $('#poolClassSel').addEventListener('change', function () {
-    S.ui.classId = this.value; S.ui.lessonId = null; save(); renderPool();
+    S.ui.classId = this.value; S.ui.lessonId = null; save(); renderPool(); renderTeamCard();
   });
   $('#poolFilter').addEventListener('click', function (e) {
     var b = e.target.closest('button[data-f]');
@@ -1547,6 +1548,457 @@ function removeMemberAt(cls, g, j) {
     save(); renderPool(); renderScore();
     flash('已把「' + name + '」加入全班名单，排在待分配里');
   });
+
+  /* ================= 学生自助选桌组队（教师端） =================
+     老师在库里开一个「组队房间」（桌数 + 每桌人数），学生用学号账号打开
+     team.html，点一张圆桌就算加入那个组。教师端每 2 秒拉一次看板，
+     随时能看到谁坐哪桌、谁还没选；点「按选座确认分组」把选座结果写回
+     本班分组（组号 = 桌号），之后照常加分。
+
+     房间只存在云端两张表里，读写全走 security definer 函数（见
+     supabase/2026-11-03-学生选组.sql），所以没登录的人碰不到数据。 */
+
+  var tmRoom = null;      // jf_team_room 的结果
+  var tmState = null;     // jf_team_state 的结果
+  var tmTimer = null;
+  var tmBusy = false;
+  var tmSig = '';         // 上次画出来的内容指纹，没变就不重画（免得把老师正在点的下拉框刷掉）
+
+  function tmOn() { return !!(CLOUD_ON && CLOUD && CLOUD.rpc); }
+
+  /** 这套班在云端的班级 id（组队函数都要它；没有就说明还没对应首页班级） */
+  function tmClassId(cls) {
+    var id = cls && cls.hxClassId;
+    return id ? Number(id) : 0;
+  }
+
+  function tmStop() { if (tmTimer) { clearInterval(tmTimer); tmTimer = null; } }
+
+  function tmStart() {
+    tmStop();
+    tmTimer = setInterval(function () {
+      if (document.hidden || view !== 'pool' || tmBusy) return;
+      tmPull();
+    }, 2000);
+  }
+
+  function tmPull() {
+    var cls = curClass();
+    if (!cls || !tmOn() || !tmClassId(cls)) { tmRoom = null; tmState = null; tmPaint(); return Promise.resolve(); }
+    var cid = tmClassId(cls), r = tmRoom && tmRoom.room ? tmRoom.room : null;
+    return CLOUD.rpc('jf_team_room', { p_class: cid }).then(function (room) {
+      tmRoom = room || { room: null };
+      if (!tmRoom.room) { tmState = null; return null; }
+      return CLOUD.rpc('jf_team_state', { p_room: Number(tmRoom.room) }).then(function (st) { tmState = st; });
+    }).then(function () {
+      tmBusy = false; tmPaint();
+    }).catch(function (e) {
+      tmBusy = false;
+      var msg = (e && e.message) || '读取失败';
+      if (/could not find|does not exist|schema cache/i.test(msg)) {
+        msg = '云端还没装组队功能：需要在 Supabase 控制台执行 supabase/2026-11-03-学生选组.sql。';
+      }
+      tmRoom = null; tmState = null;
+      var box = $('#teamBoard');
+      if (box) box.innerHTML = '<p class="note">' + esc(msg) + '</p>';
+      tmButtons(null);
+    });
+  }
+
+  /** 四个按钮的显隐与文案跟着房间状态走 */
+  function tmButtons(room) {
+    var open = $('#btnTeamOpen'), lock = $('#btnTeamLock'),
+        fin = $('#btnTeamFinish'), close = $('#btnTeamClose'), link = $('#teamLink');
+    var st = room ? room.status : 'none';
+    open.hidden = !!room;
+    lock.hidden = !room || st === 'closed';
+    fin.hidden = !room || st === 'closed';
+    close.hidden = !room || st === 'closed';
+    link.hidden = !room || st === 'closed';
+    lock.textContent = st === 'locked' ? '继续组队' : '停止组队';
+    fin.disabled = !room || !tmState || !(tmState.seats || []).length;
+    if (room && room.room) {
+      link.href = 'team.html?r=' + room.room;
+      link.hidden = false;
+    }
+  }
+
+  function tmPaint() {
+    var box = $('#teamBoard');
+    if (!box) return;
+    var cls = curClass();
+
+    if (!tmOn()) {
+      box.innerHTML = '<p class="note">登录后（右上角账号）才能用学生选桌组队：房间和选座结果都存在云端，' +
+        '学生用自己的学号账号打开「学生入口」就能连上。</p>';
+      tmButtons(null);
+      return;
+    }
+    if (!tmClassId(cls)) {
+      box.innerHTML = '<p class="note">这个班还没对应首页班级，组队用不了。先到「数据与备份」页把本班对应到' +
+        '首页同名的班 —— 学生账号就是从那份名单来的。</p>';
+      tmButtons(null);
+      return;
+    }
+
+    var room = tmRoom && tmRoom.room ? tmRoom : null;
+    tmButtons(room);
+
+    if (!room) {
+      box.innerHTML = '<p class="note">还没开放组队。先设好<b>圆桌数</b>和<b>每桌几人</b>，点「开放组队」，' +
+        '再把「学生入口」链接发到班级群；学生点一张圆桌就坐下了，你这边实时能看到。</p>';
+      return;
+    }
+
+    var st = tmState || {};
+    var roster = st.roster || [], seats = st.seats || [];
+    var size = Number(st.size || room.size || 6), tables = Number(st.tables || room.tables || 10);
+    var byTable = {}, seatNo = {};
+    seats.forEach(function (s) {
+      var t = Number(s.table);
+      (byTable[t] = byTable[t] || []).push(s);
+      if (s.no) seatNo[String(s.no)] = true;
+    });
+    var joined = roster.filter(function (x) { return x.joined; }).length;
+    var left = roster.filter(function (x) { return !seatNo[String(x.no)]; });
+    var statusText = st.status === 'open' ? '组队中' : st.status === 'locked' ? '已停止（锁定）' : '已结束';
+    var statusCls = st.status === 'open' ? 'done' : st.status === 'locked' ? 'pending' : '';
+
+    var html = '<div class="tm-bar">' +
+      '<span class="pill ' + statusCls + '">' + statusText + '</span>' +
+      '<span>第 <b>' + (room.room) + '</b> 号房间 · ' + tables + ' 桌 · 每桌 ' + size + ' 人</span>' +
+      '<span class="tm-stat">已坐 <b>' + seats.length + '</b>/' + roster.length + ' 人</span>' +
+      '<span class="tm-stat">有账号 <b>' + joined + '</b>/' + roster.length + ' 人</span>' +
+      (joined < roster.length
+        ? '<span class="tm-warn">' + (roster.length - joined) + ' 人还没有学号账号，只能你代点</span>' : '') +
+      '</div>';
+
+    html += '<div class="tm-desks">';
+    for (var n = 1; n <= tables; n++) {
+      var list = byTable[n] || [];
+      var full = list.length >= size;
+      html += '<div class="tm-desk' + (full ? ' full' : '') + '">' +
+        '<div class="tm-desk-h">第 ' + n + ' 桌<small>' + list.length + '/' + size + '</small></div>' +
+        '<div class="tm-names">' + (list.length
+          ? list.map(function (s) {
+              return '<span class="tm-name">' + esc(s.name) +
+                (st.status === 'closed' ? '' :
+                  '<button class="tm-x" data-unseat="' + s.student + '" title="移出">×</button>') +
+                '</span>';
+            }).join('')
+          : '<span class="tm-empty">空</span>') +
+        '</div></div>';
+    }
+    html += '</div>';
+
+    if (left.length) {
+      var opts = '';
+      for (var k = 1; k <= tables; k++) {
+        var cnt = (byTable[k] || []).length;
+        opts += '<option value="' + k + '"' + (cnt >= size ? ' disabled' : '') + '>' + k + ' 桌' +
+          (cnt >= size ? '（满）' : '') + '</option>';
+      }
+      html += '<div class="tm-pend">' +
+        '<div class="tm-pend-h">还没选桌 <b>' + left.length + '</b> 人' +
+        '<small>名字后面带「未绑」的是还没有学号账号的，直接在下拉框里帮他放桌</small></div>' +
+        '<div class="tm-pend-list">' + left.map(function (s) {
+          return '<span class="tm-chip' + (s.joined ? '' : ' nobind') + '">' + esc(s.name) +
+            (s.joined ? '' : '<i>未绑</i>') +
+            '<select data-seat="' + s.id + '"><option value="">放桌…</option>' + opts + '</select></span>';
+        }).join('') + '</div></div>';
+    } else {
+      html += '<p class="tm-allin">全班 ' + roster.length + ' 人都选好桌了，可以点「停止组队」再「按选座确认分组」。</p>';
+    }
+
+    if (st.status === 'closed') {
+      html += '<p class="note">这次组队已结束，学生端只能看不能改。想重新来过就再点一次「开放组队」。</p>';
+    }
+
+    var sig = JSON.stringify([room.room, st.status, tables, size, seats, left.length, joined]);
+    if (sig === tmSig) return;   // 内容没变就别重画，省得打断老师正在点的下拉框
+    tmSig = sig;
+    box.innerHTML = html;
+  }
+
+  function renderTeamCard() {
+    if (!$('#teamBoard')) return;
+    tmSig = '';
+    if (!tmOn() || !tmClassId(curClass())) { tmStop(); tmPaint(); return; }
+    tmPull();
+    tmStart();
+  }
+
+  /* ---- 教师端组队按钮 ---- */
+
+  $('#btnTeamOpen').addEventListener('click', function () {
+    var cls = curClass();
+    if (!cls || !tmOn()) { alert('先登录再来开放组队。'); return; }
+    if (!tmClassId(cls)) { alert('这个班还没对应首页班级，先在「数据与备份」页对应。'); return; }
+    var tables = Math.max(1, Math.min(40, Math.round(Number($('#teamTables').value) || 10)));
+    var size = Math.max(2, Math.min(GROUP_CAP, Math.round(Number($('#teamSize').value) || 6)));
+    var pending = pendingList(cls).length;
+    if (!confirm('开放组队：' + tables + ' 张圆桌，每桌 ' + size + ' 人。\n\n' +
+      '学生用学号账号打开「学生入口」，点一张圆桌就坐下，可以自己换桌。\n' +
+      '本班现在还有 ' + pending + ' 人没分组。\n\n' +
+      (tmRoom && tmRoom.room && tmRoom.status !== 'closed'
+        ? '注意：本班上一次的组队房间会被作废。\n\n' : '') + '确定开放？')) return;
+    tmBusy = true;
+    CLOUD.rpc('jf_team_open', { p_class: tmClassId(cls), p_tables: tables, p_size: size })
+      .then(function (res) {
+        tmBusy = false;
+        addOperationLog('组队', cls.name + ' · 开放组队：' + tables + ' 桌 × ' + size + ' 人' +
+          (res && res.accounts != null ? '（本班 ' + res.accounts + ' 人有学号账号）' : ''));
+        save(false);
+        flash('已开放组队：' + tables + ' 桌 × ' + size + ' 人' +
+          (res && res.accounts != null ? '，可自助选座 ' + res.accounts + ' 人' : '') +
+          '。把「学生入口」链接发到班级群。');
+        return tmPull();
+      })
+      .catch(function (e) { tmBusy = false; alert('没开成：' + ((e && e.message) || '未知错误')); });
+  });
+
+  $('#btnTeamLock').addEventListener('click', function () {
+    if (!tmRoom || !tmRoom.room) return;
+    var lock = tmRoom.status === 'open';
+    tmBusy = true;
+    CLOUD.rpc('jf_team_lock', { p_room: Number(tmRoom.room), p_locked: lock })
+      .then(function () {
+        tmBusy = false;
+        flash(lock ? '已停止组队：学生现在只能看，不能再换桌' : '已恢复组队：学生可以继续选桌');
+        return tmPull();
+      })
+      .catch(function (e) { tmBusy = false; alert('操作失败：' + ((e && e.message) || '未知错误')); });
+  });
+
+  $('#btnTeamClose').addEventListener('click', function () {
+    if (!tmRoom || !tmRoom.room) return;
+    if (!confirm('结束这次组队？学生端变成只读，之后想再组队要重新开放。\n\n' +
+      '（结束不会自动改分组，还要再点「按选座确认分组」）')) return;
+    tmBusy = true;
+    CLOUD.rpc('jf_team_close', { p_room: Number(tmRoom.room) })
+      .then(function () { tmBusy = false; flash('这次组队已结束'); return tmPull(); })
+      .catch(function (e) { tmBusy = false; alert('操作失败：' + ((e && e.message) || '未知错误')); });
+  });
+
+  /* 把选座结果写回本班分组：桌号 = 组号，桌上的人 = 这组的人 */
+  function tmApplySeating() {
+    var cls = curClass();
+    var st = tmState;
+    if (!cls || !st || !(st.seats || []).length) { alert('还没有学生选桌，先把「学生入口」链接发到班级群。'); return; }
+    var seats = st.seats.slice();
+    var byTable = {};
+    seats.forEach(function (s) {
+      var t = Number(s.table);
+      if (t) (byTable[t] = byTable[t] || []).push(s);
+    });
+    var tables = Object.keys(byTable).map(Number).sort(function (a, b) { return a - b; });
+    if (!tables.length) { alert('还没有学生选桌。'); return; }
+
+    var seatNo = Object.create(null), seatName = Object.create(null), seatByName = Object.create(null);
+    seats.forEach(function (s) {
+      if (s.no) seatNo[String(s.no)] = s;
+      seatName[s.name] = (seatName[s.name] || 0) + 1;
+      seatByName[s.name] = s;
+    });
+    function isSeated(m) {
+      if (!m || !m.name) return false;
+      if (m.sid && seatNo[String(m.sid)]) return true;
+      if (seatName[m.name] === 1) {
+        var hit = seatByName[m.name];
+        return !m.sid || !hit.no;    // 只有一方没学号时才靠唯一姓名认
+      }
+      return false;
+    }
+
+    /* 这几组历史上记过个人扣分才提醒（新班没有，不必吓人） */
+    var hasPersonal = (S.lessons || []).some(function (l) {
+      if (l.classId !== cls.id) return false;
+      return tables.some(function (t) {
+        var sc = l.scores && l.scores[String(t)];
+        return !!(sc && sc.personal && Object.keys(sc.personal).length);
+      });
+    });
+
+    if (!confirm('按选座确认分组？\n\n' +
+      '· 第 ' + tables.join('、') + ' 桌共 ' + seats.length + ' 人，写成 ' + tables.length + ' 组（组号＝桌号）\n' +
+      '· 这几个组会按选座重建：原来在这几个组、但这节课没来选座的人，会回到待分配名单\n' +
+      '· 没坐人的桌（组）一律不动\n' +
+      (hasPersonal ? '· 这几个组记过的「个人扣分」会清空（小组分、考勤分不受影响）\n' : '') +
+      '\n确认前建议先到「数据与备份」下载一份备份。继续？')) return;
+
+    /* 保住原来的成员对象，好让组长标记（leaderKey）不失联 */
+    var keep = Object.create(null);
+    cls.groups.forEach(function (g) {
+      g.members.forEach(function (m) {
+        if (!m.name) return;
+        var k = m.sid ? 'sid:' + m.sid : 'name:' + m.name;
+        if (!keep[k]) keep[k] = m;
+      });
+    });
+
+    var moved = 0;
+    cls.groups.forEach(function (g) {
+      for (var i = g.members.length - 1; i >= 0; i--) {
+        if (isSeated(g.members[i])) { removeMemberAt(cls, g, i); moved++; }
+      }
+    });
+
+    var made = 0, filled = 0, toPending = 0;
+    tables.forEach(function (t) {
+      var g = groupOf(cls, t);
+      if (!g) { g = { id: uid('g'), no: t, members: [] }; cls.groups.push(g); made++; }
+      toPending += g.members.filter(function (m) { return !!m.name; }).length;
+      while (g.members.length) removeMemberAt(cls, g, g.members.length - 1);
+      byTable[t].forEach(function (s) {
+        var old = (s.no && keep['sid:' + s.no]) || (seatName[s.name] === 1 ? keep['name:' + s.name] : null);
+        pushMember(g, {
+          id: (old && old.id) || uid('m'),
+          name: s.name,
+          sid: (old && old.sid) || (s.no ? String(s.no) : ''),
+          no: old && old.no != null ? old.no : studentNo(cls, s.name, s.no ? String(s.no) : '')
+        });
+        filled++;
+      });
+      if (g.leaderKey && !g.members.some(function (m) { return memberKey(m) === g.leaderKey; })) delete g.leaderKey;
+    });
+
+    addOperationLog('分组', cls.name + ' · 按选座确认分组：第 ' + tables.join('、') + ' 桌 ' + filled +
+      ' 人写成 ' + tables.length + ' 组' + (made ? '（新建 ' + made + ' 组）' : '') +
+      (toPending ? '，' + toPending + ' 人回到待分配' : ''));
+    save(); renderPool(); renderScore(); renderPoolBanner(cls);
+
+    var rest = pendingList(cls).length;
+    flash('已按选座写成 ' + tables.length + ' 组（' + filled + ' 人）' +
+      (rest ? '，还剩 ' + rest + ' 人待分配，可以用下面的「一键分组」收尾' : '，全班都分好了'));
+  }
+
+  $('#btnTeamFinish').addEventListener('click', tmApplySeating);
+
+  /* 看板上的两个小操作：移出某人 / 把没账号的人放到某桌 */
+  $('#teamBoard').addEventListener('click', function (e) {
+    var b = e.target.closest ? e.target.closest('[data-unseat]') : null;
+    if (!b || !tmRoom || !tmRoom.room || tmBusy) return;
+    var sid = Number(b.dataset.unseat);
+    if (!sid) return;
+    tmBusy = true;
+    CLOUD.rpc('jf_team_place', { p_room: Number(tmRoom.room), p_student: sid, p_table: 0 })
+      .then(function () { tmBusy = false; return tmPull(); })
+      .catch(function (err) { tmBusy = false; alert('没移出来：' + ((err && err.message) || '未知错误')); });
+  });
+
+  $('#teamBoard').addEventListener('change', function (e) {
+    var sel = e.target.closest ? e.target.closest('select[data-seat]') : null;
+    if (!sel || !sel.value || !tmRoom || !tmRoom.room || tmBusy) return;
+    var sid = Number(sel.dataset.seat), table = Number(sel.value);
+    if (!sid || !table) return;
+    tmBusy = true;
+    CLOUD.rpc('jf_team_place', { p_room: Number(tmRoom.room), p_student: sid, p_table: table })
+      .then(function () { tmBusy = false; flash('已把学生放到第 ' + table + ' 桌'); return tmPull(); })
+      .catch(function (err) { tmBusy = false; alert('没放成：' + ((err && err.message) || '未知错误')); return tmPull(); });
+  });
+
+  /* ---- 一键按「每组几人」分组 ----
+     新班开课第一天最常见的动作：全班几十个人还没分组，一个一个下拉太慢。
+     这里按人数切组：需要几组就留几组，多出来的空组删掉，已经分好的组一律不动。 */
+
+  /** 这个组在历史课次里有没有记分痕迹（有痕迹的空组不删，免得丢历史） */
+  function groupHasHistory(cls, gno) {
+    return (S.lessons || []).some(function (l) {
+      if (l.classId !== cls.id) return false;
+      return !!(l.scores && l.scores[String(gno)]) || !!(l.leaderScores && l.leaderScores[String(gno)]);
+    });
+  }
+
+  function clampSize(v) {
+    var n = Math.round(Number(v) || 6);
+    return Math.max(2, Math.min(GROUP_CAP, n));
+  }
+
+  /** 待分配学生按每组 size 人切组：只用空组，缺组补、多余空组删，返回安排结果 */
+  function autoGroupBySize(cls, size, shuffle) {
+    size = clampSize(size);
+    var pending = pendingList(cls).slice();
+    if (!pending.length) return { error: '这个班没有待分配的学生，都分好组了。' };
+    pending.sort(function (a, b) {
+      var x = a.no == null ? 1e9 : a.no, y = b.no == null ? 1e9 : b.no;
+      if (x !== y) return x - y;
+      return String(a.name).localeCompare(String(b.name), 'zh-Hans-CN');
+    });
+    if (shuffle) {
+      for (var i = pending.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var t = pending[i]; pending[i] = pending[j]; pending[j] = t;
+      }
+    }
+    var empty = cls.groups.filter(function (g) { return memberCount(g) === 0; })
+      .sort(function (a, b) { return a.no - b.no; });
+    var need = Math.ceil(pending.length / size);
+    var use = empty.slice(0, need);
+    var drop = empty.slice(need).filter(function (g) { return !groupHasHistory(cls, g.no); });
+    drop.forEach(function (g) {
+      var at = cls.groups.indexOf(g);
+      if (at >= 0) cls.groups.splice(at, 1);
+    });
+    var maxNo = cls.groups.reduce(function (a, g) { return Math.max(a, g.no); }, 0);
+    while (use.length < need) {
+      var ng = { id: uid('g'), no: ++maxNo, members: [] };
+      cls.groups.push(ng);
+      use.push(ng);
+    }
+    var n = use.length;
+    var base = Math.floor(pending.length / n), rem = pending.length % n, at = 0;
+    use.forEach(function (g, gi) {
+      var take = base + (gi < rem ? 1 : 0);
+      for (var k = 0; k < take; k++) {
+        var r = pending[at++];
+        pushMember(g, { id: uid('m'), name: r.name, sid: r.sid || '', no: r.no == null ? null : r.no });
+      }
+    });
+    return {
+      groups: n, min: base, max: base + (rem ? 1 : 0),
+      people: pending.length, removed: drop.length
+    };
+  }
+
+  function pendingCountOf(cls) { return cls ? pendingList(cls).length : 0; }
+
+  /** 输入框旁实时算给老师看：49 人分 6 人一组 = 9 组，每组 5–6 人 */
+  function updatePoolSizeHint() {
+    var box = $('#poolSizeHint');
+    if (!box) return;
+    var n = pendingCountOf(curClass()), size = clampSize($('#poolSize').value);
+    if (!n) { box.textContent = '人（没有待分配学生）'; return; }
+    var g = Math.ceil(n / size), lo = Math.floor(n / g), hi = Math.ceil(n / g);
+    box.textContent = '人 → 共 ' + n + ' 人，分 ' + g + ' 组，每组 ' + (lo === hi ? lo : lo + '–' + hi) + ' 人';
+  }
+
+  function runAutoGroup(shuffle) {
+    var cls = curClass();
+    if (!cls) return;
+    var size = clampSize($('#poolSize').value);
+    var pending = pendingList(cls);
+    if (!pending.length) { alert('这个班没有待分配的学生，都分好组了。'); return; }
+    var need = Math.ceil(pending.length / size);
+    if (!confirm('把 ' + pending.length + ' 名待分配学生' + (shuffle ? '随机' : '按班内序号') +
+      '分成 ' + need + ' 组（每组不超过 ' + size + ' 人）？\n\n' +
+      '已经分好的组一律不动；用不上的空组会删掉（有历史记分的空组保留）。\n' +
+      '建议先到「数据与备份」页下载一份备份。')) return;
+    var res = autoGroupBySize(cls, size, shuffle);
+    if (res.error) { alert(res.error); return; }
+    addOperationLog('分组', cls.name + ' · 一键分组：待分配 ' + res.people + ' 人' + (shuffle ? '随机' : '按序号') +
+      '分成 ' + res.groups + ' 组（每组 ' + (res.min === res.max ? res.min : res.min + '–' + res.max) + ' 人）' +
+      (res.removed ? '，清掉 ' + res.removed + ' 个空组' : ''));
+    save();
+    renderPool();
+    renderScore();
+    renderPoolBanner(cls);
+    flash('已分成 ' + res.groups + ' 组：每组 ' + (res.min === res.max ? res.min : res.min + '–' + res.max) + ' 人' +
+      (res.removed ? '，清掉 ' + res.removed + ' 个空组' : ''));
+  }
+
+  $('#btnPoolBySize').addEventListener('click', function () { runAutoGroup(false); });
+  $('#btnPoolRandom').addEventListener('click', function () { runAutoGroup(true); });
+  $('#poolSize').addEventListener('input', updatePoolSizeHint);
 
   /* 均匀分配 */
   $('#btnPoolAuto').addEventListener('click', function () {
