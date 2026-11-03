@@ -1207,6 +1207,16 @@ function removeMemberAt(cls, g, j) {
     try { return JSON.parse(localStorage.getItem('jfdt.gb') || '{}') || {}; } catch (e) { return {}; }
   })();
 
+  /** 导出文件名：成绩登分册_班级_学期.扩展名 */
+  var gbPdfBusy = false;
+  function gbFileName(ext) {
+    var sel = $('#gbClassSel');
+    var label = sel && sel.value === '__all' ? '全部班级'
+      : (sel && sel.selectedOptions[0] ? sel.selectedOptions[0].textContent : '班级');
+    var semester = $('#gbSemester').value.trim();
+    return '成绩登分册_' + label + (semester ? '_' + semester : '') + '.' + ext;
+  }
+
   /** 9 月以后算「当年-次年-1」，否则「上年-当年-2」 */
   function gbDefaultSemester() {
     var d = new Date(), y = d.getFullYear();
@@ -1299,13 +1309,30 @@ function removeMemberAt(cls, g, j) {
       gbSaveSettings();
       var sheets = gbSheets();
       if (!sheets.length) { flash('还没有可导出的分数：先在「上课记分」页新开一课。'); return; }
-      var sel = $('#gbClassSel'), label = sel.value === '__all' ? '全部班级' : (sel.selectedOptions[0] ? sel.selectedOptions[0].textContent : '班级');
       try {
-        window.JFDT_GRADEBOOK.download(sheets, '成绩登分册_' + label + '_' + ($('#gbSemester').value.trim() || '') + '.xlsx');
+        window.JFDT_GRADEBOOK.download(sheets, gbFileName('xlsx'));
         flash('已导出 ' + sheets.length + ' 张表，可直接打印或继续编辑');
       } catch (e) {
         flash('导出失败：' + e.message);
       }
+    });
+    if ($('#gbPdf')) $('#gbPdf').addEventListener('click', function () {
+      if (gbPdfBusy) return;
+      gbSaveSettings();
+      var sheets = gbSheets();
+      if (!sheets.length) { flash('还没有可导出的分数：先在「上课记分」页新开一课。'); return; }
+      var btn = $('#gbPdf');
+      gbPdfBusy = true;
+      btn.disabled = true;
+      flash('正在生成 PDF…（人多时稍等几秒）');
+      window.JFDT_GRADEBOOK.pdf(sheets, gbFileName('pdf')).then(function (n) {
+        flash('PDF 已下载：A4 横向共 ' + n + ' 页，可直接打印或发给别人');
+      }).catch(function (e) {
+        flash('导出 PDF 失败：' + e.message + '。可以先用「打印」再选另存为 PDF。');
+      }).then(function () {
+        gbPdfBusy = false;
+        btn.disabled = false;
+      });
     });
     var gbResizeTimer = null;
     window.addEventListener('resize', function () {
@@ -2193,7 +2220,7 @@ function removeMemberAt(cls, g, j) {
   function redo(index) {if(typeof index!=='number')index=(S.redo||[]).length-1;var entry=(S.redo||[]).splice(index,1)[0];if(!entry)return false;var l=getLesson(entry.op.lessonId);if(!l)return false;var effect=entry.redoEffect||operationEffect(entry.op),actual=applyEffect(entry.op,effect,1);entry.op.effect=actual;S.undo.push(entry.op);S.ui.classId=l.classId;S.ui.lessonId=l.id;addOperationLog('重做',undoLabel(reverseOp(entry.op)));save(false);renderScore();if(entry.op.projectBatch)renderLeader();renderUndoBtn();flash('已恢复所选操作');return true;}
   $('#btnRedo').addEventListener('click', redo);
   var specialDialog=document.createElement('dialog');specialDialog.id='dlgSpecialRecords';specialDialog.innerHTML='<div id="specialContent"></div>';document.body.appendChild(specialDialog);wireDialog(specialDialog);var specialClassId=null,specialEditing=null;
-  function specialMembers(cls){var map=new Map();cls.groups.forEach(function(g){g.members.forEach(function(m){if(m.name)map.set(window.JFDT_ASSESSMENT.key(m),m);});});(cls.roster||[]).forEach(function(m){if(m.name&&!map.has(window.JFDT_ASSESSMENT.key(m)))map.set(window.JFDT_ASSESSMENT.key(m),m);});return Array.from(map.entries()).map(function(pair){return {key:pair[0],name:pair[1].name,sid:pair[1].sid||''};});}
+  function specialMembers(cls){var A=window.JFDT_ASSESSMENT,ident=A.ident,map=new Map(),seen=new Set();cls.groups.forEach(function(g){g.members.forEach(function(m){if(!m.name||seen.has(ident(m)))return;seen.add(ident(m));map.set(A.key(m),m);});});(cls.roster||[]).forEach(function(m){if(!m.name||seen.has(ident(m)))return;seen.add(ident(m));map.set(A.key(m),m);});return Array.from(map.entries()).map(function(pair){return {key:pair[0],name:pair[1].name,sid:pair[1].sid||''};});}
   function renderSpecial(){var cls=getClass(specialClassId)||curClass(),members=specialMembers(cls),records=cls.specialRecords||[],editing=records.find(function(r){return r.id===specialEditing;});specialClassId=cls.id;$('#specialContent').innerHTML='<h2>特殊表现记录</h2><p class="note">仅供期末核分参考，不计入项目满分、完成率、平时分、总评、排名或期末需考。</p><label class="field col">班级<select id="specialClass">'+S.classes.map(function(c){return '<option value="'+esc(c.id)+'"'+(c.id===cls.id?' selected':'')+'>'+esc(c.name)+'</option>';}).join('')+'</select></label><form id="specialForm"><div class="btnrow"><label class="field">日期<input type="date" id="specialDate" value="'+esc(editing?editing.date:today())+'" required></label><label class="field">参考加分<input type="number" id="specialPoints" min="0.1" max="1000" step="0.1" value="'+(editing?editing.points:1)+'" required></label></div><label class="field col">事由<input id="specialReason" maxlength="300" value="'+esc(editing?editing.reason:'')+'" placeholder="例如：非本组值日，主动留下打扫" required></label><label class="field col">选择学生<input id="specialSearch" placeholder="姓名或学号筛选"></label><div class="special-members">'+members.map(function(m){return '<label data-special-person="'+esc(m.name+' '+m.sid)+'"><input type="checkbox" name="specialMember" value="'+esc(m.key)+'"'+(editing&&editing.members.some(function(x){return x.key===m.key;})?' checked':'')+'>'+esc(m.name)+' <small>'+esc(m.sid)+'</small></label>';}).join('')+'</div><p id="specialError" class="note" role="alert"></p><div class="btnrow"><button class="btn primary" type="submit">'+(editing?'保存修改':'记录特殊表现')+'</button><button class="btn" type="button" id="specialNew">清空填写</button></div></form><details><summary>按学生汇总（独立参考）</summary><table class="data"><thead><tr><th>学生</th><th>次数</th><th>参考分</th></tr></thead><tbody>'+members.map(function(m){var hits=records.filter(function(r){return r.members.some(function(x){return x.key===m.key;});});return hits.length?'<tr><td>'+esc(m.name)+'</td><td>'+hits.length+'</td><td>'+Math.round(hits.reduce(function(a,r){return a+r.points;},0)*10)/10+'</td></tr>':'';}).join('')+'</tbody></table></details><div class="btnrow"><button class="btn" id="specialExport">导出参考Excel</button><button class="btn" id="specialRestore"'+(!(cls.specialRecordsTrash||[]).length?' disabled':'')+'>恢复最近删除</button><button class="btn" id="specialClose">关闭</button></div><div class="special-history">'+records.slice().sort(function(a,b){return b.date.localeCompare(a.date);}).map(function(r){return '<article><b>'+esc(r.date)+' · +'+r.points+'</b><p>'+esc(r.members.map(function(m){return m.name;}).join('、'))+'</p><p>'+esc(r.reason)+'</p><button class="btn" data-special-edit="'+esc(r.id)+'">修改</button> <button class="btn" data-special-delete="'+esc(r.id)+'">删除</button></article>';}).join('')+(!records.length?'<p class="note">暂无特殊表现记录。</p>':'')+'</div>';
     $('#specialClass').onchange=function(){specialClassId=this.value;specialEditing=null;renderSpecial();};$('#specialClose').onclick=function(){specialDialog.close();};$('#specialNew').onclick=function(){specialEditing=null;renderSpecial();};$('#specialSearch').oninput=function(){var q=this.value.trim();$$('[data-special-person]',specialDialog).forEach(function(el){el.hidden=!el.dataset.specialPerson.includes(q);});};$('#specialForm').onsubmit=function(e){e.preventDefault();var selected=$$('input[name="specialMember"]:checked',specialDialog).map(function(el){return members.find(function(m){return m.key===el.value;});}),points=Number($('#specialPoints').value),date=$('#specialDate').value,reason=$('#specialReason').value.trim();if(!selected.length||!reason||!Number.isFinite(points)||points<=0||points>1000||!/^\d{4}-\d{2}-\d{2}$/.test(date)){$('#specialError').textContent='请选择学生并填写有效日期、事由和正数参考分。';return;}if(!cls.specialRecords)cls.specialRecords=[];var record={id:specialEditing||uid('special'),date:date,points:Math.round(points*10)/10,reason:reason,members:selected,updatedAt:new Date().toISOString()};if(editing)cls.specialRecords[cls.specialRecords.findIndex(function(r){return r.id===specialEditing;})]=record;else cls.specialRecords.push(record);specialEditing=null;save();renderSpecial();};$$('[data-special-edit]',specialDialog).forEach(function(b){b.onclick=function(){specialEditing=b.dataset.specialEdit;renderSpecial();};});$$('[data-special-delete]',specialDialog).forEach(function(b){b.onclick=function(){var index=cls.specialRecords.findIndex(function(r){return r.id===b.dataset.specialDelete;});if(index<0)return;if(!cls.specialRecordsTrash)cls.specialRecordsTrash=[];cls.specialRecordsTrash.push(cls.specialRecords.splice(index,1)[0]);cls.specialRecordsTrash=cls.specialRecordsTrash.slice(-100);save();renderSpecial();};});$('#specialRestore').onclick=function(){if(!cls.specialRecords)cls.specialRecords=[];var record=(cls.specialRecordsTrash||[]).pop();if(record&&!cls.specialRecords.some(function(r){return r.id===record.id;}))cls.specialRecords.push(record);save();renderSpecial();};$('#specialExport').onclick=function(){var X=window.XLSX,wb=X.utils.book_new(),summary=[['班级','姓名','学号','记录次数','特殊参考分（不计成绩）']],detail=[['日期','班级','姓名','学号','参考加分','事由']];members.forEach(function(m){var hits=records.filter(function(r){return r.members.some(function(x){return x.key===m.key;});});if(hits.length)summary.push([cls.name,m.name,m.sid,hits.length,Math.round(hits.reduce(function(a,r){return a+r.points;},0)*10)/10]);});records.forEach(function(r){r.members.forEach(function(m){detail.push([r.date,cls.name,m.name,m.sid,r.points,r.reason]);});});[summary,detail].forEach(function(rows,i){var ws=X.utils.aoa_to_sheet(rows);ws['!cols']=rows[0].map(function(_,j){return {wch:j===5?50:22};});X.utils.book_append_sheet(wb,ws,i?'事由明细':'独立参考汇总');});var url=URL.createObjectURL(new Blob([X.write(wb,{bookType:'xlsx',type:'array'})],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'})),a=document.createElement('a');a.href=url;a.download=cls.name+'_特殊表现参考.xlsx';a.click();setTimeout(function(){URL.revokeObjectURL(url);},1000);};
   }

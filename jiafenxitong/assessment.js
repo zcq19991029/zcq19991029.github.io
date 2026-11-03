@@ -6,6 +6,9 @@
   function esc(v) { return String(v == null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
   function round(n) { return Math.round((n+Number.EPSILON)*10)/10; }
   function key(m) { return m.sid?'sid:'+m.sid:m.id?'id:'+m.id:m.no!=null?'no:'+m.no:'name:'+m.name; }
+  /* 判人身份：只认跨名单稳定、两条记录都带的字段。
+     m.id 是分组里的内部 uid，全班名单那条没有，拿它当身份会让“没学号的人”在分组和名单里各算一个。 */
+  function ident(m) { return m.sid?'sid:'+m.sid:m.no!=null?'no:'+m.no:'name:'+m.name; }
   function settings(cls) {
     var cfg=Object.assign({},defaults,cls.assessmentSettings||{});
     ['totalLessons','late','truant','leave','early','passScore'].forEach(function(k){var max=k==='totalLessons'?1000:100,min=k==='totalLessons'?1:0;if(!Number.isInteger(cfg[k])||cfg[k]<min||cfg[k]>max)cfg[k]=defaults[k];});
@@ -15,9 +18,10 @@
     return cfg;
   }
   function roster(cls,raw) {
-    var map=new Map();
-    cls.groups.forEach(function(g){g.members.forEach(function(m){if(m.name)map.set(key(m),Object.assign({},m,{gno:g.no,memberIndex:g.members.indexOf(m)}));});});
-    (cls.roster||[]).forEach(function(m){if(m.name && !map.has(key(m)))map.set(key(m),Object.assign({},m,{gno:0}));});
+    var map=new Map(),seen=new Set();
+    /* 分组里的先放（有组号、能算分），全班名单只补没出现过的人；同一人两条记录只留一条 */
+    cls.groups.forEach(function(g){g.members.forEach(function(m){if(!m.name)return;var who=ident(m);if(seen.has(who))return;seen.add(who);map.set(key(m),Object.assign({},m,{gno:g.no,memberIndex:g.members.indexOf(m)}));});});
+    (cls.roster||[]).forEach(function(m){if(!m.name)return;var who=ident(m);if(seen.has(who))return;seen.add(who);map.set(key(m),Object.assign({},m,{gno:0}));});
     return Array.from(map.values()).map(function(m){var r=(raw||[]).find(function(r){return r.gno===m.gno && r.name===m.name && r.sid===m.sid;});return Object.assign({},m,{key:key(m),groupScore:r?r.groupScore:0,project:r?r.project:0,personal:r?r.personal:0,total:r?r.total:0});});
   }
   function deduction(status,cfg) {
@@ -123,5 +127,5 @@
     var ms=rows(cls,lessons,raw);
     return '<h2>平时赋分与期末测算</h2><p>项目与考勤合并为0–100完成率；考勤是学期固定9分项目，初始9/9=100%。迟到/早退合计3次折旷课1次，实际旷课＋折算旷课合计3次考勤挂科，折算不重复扣分；平时40%＋期末60%。名次只展示，未批改/考勤未齐为预估。</p><table><thead><tr><th>名次</th><th>姓名</th><th>学号</th><th>当前累计</th><th>项目完成率</th><th>考勤项目/9</th><th>平时/100</th><th>折合/40</th><th>期末需考</th><th>实际期末</th><th>综合</th><th>记录状态</th></tr></thead><tbody>'+ms.map(function(m){return '<tr><td>'+m.rank+'</td><td>'+esc(m.name)+'</td><td>'+esc(m.sid||m.no||'')+'</td><td>'+m.total+'</td><td>'+round(m.task.rate*100)+'%<small>'+m.task.earned+'/'+m.task.maximum+'</small></td><td>'+m.attendance+'<small>'+round(m.attendanceRate*100)+'%</small></td><td>'+m.regular+'<small>'+round(m.performanceRate*100)+'%</small></td><td>'+m.contribution+'</td><td>'+(neededText(m))+'</td><td>'+m.exam+'</td><td>'+(m.attendanceFailed?'考勤挂科'+(m.final==null?'':'<small>数值参考 '+m.final+'</small>'):m.final==null?'—':m.final)+'</td><td>'+esc(confirmationText(m))+(m.ready?' · 已齐':' · 预估')+'<br>'+esc(attendanceText(m))+'</td></tr>';}).join('')+'</tbody></table>';
   }
-  root.JFDT_ASSESSMENT={groupNet:groupNet,projectNames:projectNames,printHtml:printHtml,taskEvidence:taskEvidence,key:key,settings:settings,roster:roster,rows:rows,deduction:deduction,renderRank:renderRank,renderAttendance:renderAttendance};
+  root.JFDT_ASSESSMENT={groupNet:groupNet,projectNames:projectNames,printHtml:printHtml,taskEvidence:taskEvidence,key:key,ident:ident,settings:settings,roster:roster,rows:rows,deduction:deduction,renderRank:renderRank,renderAttendance:renderAttendance};
 })(typeof window==='undefined'?globalThis:window);

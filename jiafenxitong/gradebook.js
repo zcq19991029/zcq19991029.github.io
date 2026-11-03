@@ -94,6 +94,20 @@
     return String(a.name || '').localeCompare(String(b.name || ''), 'zh-Hans-CN');
   }
 
+  /** 同一名学生只留一行（身份 = 学号 → 班内序号 → 姓名）。
+   *  上游名单出过「没录学号的人在分组和全班名单里各算一条」，导出前在这里兜一道，
+   *  免得同一个人印两行、应考人数也多算。留已分组的那条，因为它才有小组分。 */
+  function unique(students) {
+    var out = [], at = Object.create(null);
+    students.forEach(function (m) {
+      var who = m.sid ? 'sid:' + m.sid : (m.no != null && m.no !== '' ? 'no:' + m.no : 'name:' + m.name);
+      if (!(who in at)) { at[who] = out.length; out.push(m); return; }
+      var keep = out[at[who]];
+      if (!keep.gno && m.gno) out[at[who]] = m;
+    });
+    return out;
+  }
+
   function sheetName(base, index, count) {
     var name = base + (count > 1 ? '-' + (index + 1) : '');
     return name.replace(/[:\\\/\?\*\[\]]/g, ' ').slice(0, 31);
@@ -112,7 +126,7 @@
       if (da !== db) return da < db ? -1 : 1;
       return (a.seq || 0) - (b.seq || 0);
     });
-    var students = (input.students || []).slice().sort(bySid);
+    var students = unique(input.students || []).sort(bySid);
     var chunks = [];
     for (var i = 0; i < Math.max(1, Math.ceil(lessons.length / DATE_COLS)); i++) {
       chunks.push(lessons.slice(i * DATE_COLS, (i + 1) * DATE_COLS));
@@ -408,6 +422,77 @@
     setTimeout(function () { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
   }
 
+  /* ---------- PDF ---------- */
+
+  /* A4 横向 297×210，减去四边 7mm，正好是模板的 283×196 版面 */
+  var PDF_W = 283, PDF_H = 196, PDF_MARGIN = 7, PDF_SCALE = 2.6;   /* 2.6 ≈ 238dpi，A4 横向一页约 0.4MB，7.6pt 的字打印仍清晰 */
+
+  /** 把一页 HTML 画成图片（data URL）。
+   *  走 SVG foreignObject，和「上课记分 → 下载打印版 PDF」同一套路：字体交给浏览器，
+   *  中文不用嵌任何字体文件，版面与打印预览一模一样。
+   *  注意必须用 XMLSerializer 序列化：innerHTML 里的 &nbsp;、没闭合的 <col> 直接拼进 SVG 会报 XML 错。 */
+  function pageImage(html, wpx, hpx) {
+    var body = document.createElement('div');
+    body.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
+    body.style.cssText = 'margin:0;width:' + wpx + 'px;height:' + hpx + 'px;background:#fff';
+    var style = document.createElement('style');
+    style.textContent = PRINT_CSS;
+    var page = document.createElement('div');
+    page.innerHTML = html;
+    body.appendChild(style);
+    body.appendChild(page);
+    var markup = new XMLSerializer().serializeToString(body);
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + wpx + '" height="' + hpx + '">' +
+      '<foreignObject width="100%" height="100%">' + markup + '</foreignObject></svg>';
+    return new Promise(function (resolve, reject) {
+      var img = new Image();
+      img.onload = function () { resolve(img); };
+      img.onerror = function () { reject(new Error('页面渲染失败')); };
+      img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+    }).then(function (img) {
+      var canvas = document.createElement('canvas');
+      canvas.width = Math.round(wpx * PDF_SCALE);
+      canvas.height = Math.round(hpx * PDF_SCALE);
+      var ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      var url = canvas.toDataURL('image/png');
+      canvas.width = canvas.height = 1;
+      return url;
+    });
+  }
+
+  /** 导出 PDF：每页一张 A4 横向，一页一次图片，打印出来和「打印」完全一致 */
+  function pdfDoc(sheets) {
+    var J = global.jspdf && global.jspdf.jsPDF;
+    if (!J) return Promise.reject(new Error('缺少 PDF 组件'));
+    if (!sheets.length) return Promise.reject(new Error('没有可导出的表'));
+    var wpx = Math.round(PDF_W * 96 / 25.4), hpx = Math.round(PDF_H * 96 / 25.4);
+    var doc = new J({ orientation: 'landscape', unit: 'mm', format: 'a4', compress: true });
+    var pages = [];
+    sheets.forEach(function (sheet) {
+      paginate(sheet).forEach(function (part) { pages.push(pageHtml(sheet, part)); });
+    });
+    var chain = Promise.resolve();
+    pages.forEach(function (html, i) {
+      chain = chain.then(function () {
+        return pageImage(html, wpx, hpx).then(function (url) {
+          if (i) doc.addPage('a4', 'landscape');
+          doc.addImage(url, 'PNG', PDF_MARGIN, PDF_MARGIN, PDF_W, PDF_H, undefined, 'FAST');
+        });
+      });
+    });
+    return chain.then(function () { doc.__pageCount = pages.length; return doc; });
+  }
+
+  function pdf(sheets, filename) {
+    return pdfDoc(sheets).then(function (doc) {
+      doc.save(filename);
+      return doc.__pageCount;
+    });
+  }
+
   function render(root, sheets) {
     root.innerHTML = sheets.length
       ? '<div class="gb-stage-inner">' + pagesHtml(sheets) + '</div>'
@@ -434,6 +519,7 @@
     DATE_COLS: DATE_COLS, PER_PAGE: PER_PAGE, WIDTH: WIDTH, WIDTH_SUM: WIDTH_SUM,
     buildClass: buildClass, stats: stats, studentRow: studentRow, lessonPercent: lessonPercent,
     sheetName: sheetName, workbook: workbook, aoa: aoa, md: md, num: num,
-    pagesHtml: pagesHtml, printDoc: printDoc, render: render, fit: fit, print: printSheets, download: download
+    pagesHtml: pagesHtml, printDoc: printDoc, render: render, fit: fit, print: printSheets,
+    download: download, pdf: pdf, pdfDoc: pdfDoc
   };
 })(typeof window === 'undefined' ? globalThis : window);
