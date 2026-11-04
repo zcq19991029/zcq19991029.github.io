@@ -49,6 +49,12 @@ body {
 }
 .notice b { color: var(--ink); }
 .notice a { color: var(--brand); }
+/* 「去登录」这类按钮也放在 .notice 里，必须压过上面那条 .notice a 的蓝色，
+   否则文字和按钮底色同为 var(--brand) → 只剩一坨蓝，学生看不到「去登录」四个字（2026-11-03 紧急修） */
+.notice a.btn-primary, .notice a.btn-primary:visited { color: #fff; }
+/* 登录步骤：竖着一行一步，学生一眼看清要做几件事 */
+.notice .steps { display: grid; gap: 6px; margin: 10px 0 12px; }
+.notice .steps span { display: block; }
 
 /* ---------- 圆桌 ---------- */
 .desks {

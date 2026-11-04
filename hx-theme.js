@@ -126,9 +126,16 @@
     if (/[?&]lite\b/.test(q)) return true;
     try { if (ls('hx-lite') === '1') return true; if (ls('hx-lite') === '0') return false; } catch (e) { }
     var ua = navigator.userAgent || '';
+    // ── 2026-11-04 改：判定收紧，别再误伤机房电脑 ──
+    // 用户报「我机房的浏览器打开画面不会动像素特效」。查下来是这里把 4 核机也算成省电模式：
+    // 机房那批机器 hardwareConcurrency 正好 4，命中 hc <= 4 → hx-lite → hx-critters.js 的 still()
+    // 只画第一帧、永远不动，看起来就像「特效坏了」。而这批机器其实跑得动（真正的开销是当年的
+    // 每卡 backdrop-filter blur(26px)，2026-11-02 已经改成全局只糊一次了，现在没有任何实时模糊）。
+    // 所以：只有明确的一体机 / 国产盒子主板才进省电模式；核心数只认 ≤2（真的老掉牙那种），
+    // deviceMemory 只认 ≤2。4 核 / 4G 的机房机正常跑动效。
     if (/seewo|hisense|cvte|amlogic|rk3\d{3}|allwinner/i.test(ua)) return true; // 一体机 / 会议大屏 / 国产盒子主板
     var hc = navigator.hardwareConcurrency || 8, dm = navigator.deviceMemory || 8;
-    return hc <= 4 || dm <= 4;
+    return hc <= 2 || dm <= 2;
   }
   try { document.documentElement.classList.toggle('hx-lite', liteOn()); } catch (e) { }
   // ── 背景图预模糊（2026-11-03）────────────────────────────────────────────

@@ -3442,6 +3442,16 @@ function removeMemberAt(cls, g, j) {
   $('#btnMe').addEventListener('click', openMe);
   $('#btnUserMenu').addEventListener('click', function () { switchView('data'); });
 
+  /* 随机抽人（draw-person.js）：本文件闭包里的 S / rosterOf / curClass 拿不出去，
+     所以只在这里交一个「读取器」出去，抽人模块每次要数据时现读，不缓存，
+     这样切班、导入名单、删人之后打开抽人都拿到最新的名单。 */
+  window.JFDT_DRAW_SRC = {
+    classes: function () { return visibleClasses(); },
+    rosterOf: rosterOf,
+    curClass: curClass,
+    toast: flash
+  };
+
   /* 管理页 */
   $('#teacherList').addEventListener('click', function (e) {
     var b = e.target.closest('button[data-look]');

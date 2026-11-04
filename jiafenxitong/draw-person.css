@@ -1,0 +1,230 @@
+/* ===== 随机抽人：游戏卡包开包（从接线仿真搬过来，2026-11-06 版）=====
+   卡包浮动 → 蓄力抖动 → 开包强光 → 卡片飞出翻面 → 揭示。
+   抽取结果由 draw-person.js 先算好，动画只负责演；动画期间 DRW.busy + #drwGo disabled
+   双保险防连点。颜色写死（深色舞台 #0B1020→#18233D + 主光 #6C8CFF/#8B5CF6 + 结果金 #FFC857），
+   教室投影可读；工具本身换主题也不影响这一块。
+
+   小组加分这边和接线仿真的差别只有两处：
+     ① 不需要「设为当前选手」（这边没有排位选手这个概念），底栏改成「再抽一次 / 关闭」；
+     ② 结果卡多一行「第 N 组」，抽到人之后老师立刻知道该给哪一组加分。
+   —— 卡包、状态机、防重复抽取逻辑全部照搬，一行没改。 */
+
+/* 接线仿真那套变量名（--edge/--card/--ink/--dim/--track）小组加分里没有，
+   这里就地兜成小组加分自己的语义色，两边的 CSS 才能共用同一份规则。 */
+.drw {
+  --edge: var(--line, #f2e4e4);
+  --card: var(--panel, #fff);
+  --ink: var(--text, #1c1c1e);
+  --dim: var(--muted, #83848a);
+  --track: var(--panel-soft, #fef5f5);
+}
+
+.drw-bar { gap: 12px; padding: 10px 14px; display: flex; align-items: center; flex-wrap: wrap; border-bottom: 1px solid var(--edge); }
+.drw-tabs { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.drw-tabs button { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--edge); background: var(--card); color: var(--ink); font: inherit; font-size: 14px; font-weight: 700; padding: 7px 14px; border-radius: 11px; cursor: pointer; }
+.drw-tabs button em { font-style: normal; font-size: 11.5px; font-weight: 800; padding: 1px 6px; border-radius: 7px; background: var(--track); color: var(--dim); }
+.drw-tabs button.on { border-color: transparent; background: linear-gradient(120deg, #f59e0b, #ef4444); color: #fff; }
+.drw-tabs button.on em { background: rgba(255, 255, 255, .26); color: #fff; }
+/* 只有一个班：不摆 tabs（一次课就一个班，没什么可切的），顶上直接写「班名 · N 人」 */
+.drw-clsname { flex: 1; min-width: 0; display: flex; align-items: center; font-size: 15px; font-weight: 800;
+  color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.drw-go { flex: none; height: 44px; padding: 0 28px; border: 0; border-radius: 13px; cursor: pointer; font: inherit;
+  font-size: 17px; font-weight: 900; letter-spacing: 1px; color: #fff;
+  background: linear-gradient(120deg, #f59e0b, #ef4444); box-shadow: 0 10px 22px -12px #ef4444; }
+.drw-go:disabled { opacity: .5; cursor: default; }
+
+/* 深色舞台：抽人这件事只发生在这一块里，顶栏/底栏照旧。
+   overflow:hidden 保证开包强光和飞出的卡片不会撑出横向滚动 */
+.drw-stage { flex: 1; min-height: 0; position: relative; overflow: hidden; display: grid; place-items: center;
+  background: radial-gradient(120% 95% at 50% 28%, #18233d 0%, #0b1020 74%); }
+.drw-stage::before { content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(closest-side at 50% 44%, rgba(108, 140, 255, .18), transparent 74%); }
+.drw-scene { position: relative; display: grid; place-items: center; width: min(72%, 420px); aspect-ratio: 1 / 1.06; perspective: 1100px; }
+/* aria-live 播报区：视觉上藏掉，读屏/旁白工具照常读到 */
+.drw-live { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* 卡包：层叠卡片 + 金色封条 + 高光描边 + 背后光晕 + 浮动粒子，全部 CSS 画的，没有外部图片 */
+.drw-halo { position: absolute; width: 78%; aspect-ratio: 1; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(closest-side, rgba(139, 92, 246, .38), rgba(108, 140, 255, .16) 55%, transparent 75%);
+  filter: blur(6px); animation: drwHalo 2.6s ease-in-out infinite; }
+@keyframes drwHalo { 50% { transform: scale(1.1); opacity: .75; } }
+.drw-pack { position: relative; z-index: 1; width: min(58%, 250px); aspect-ratio: 3 / 4.1; cursor: pointer; -webkit-tap-highlight-color: transparent;
+  animation: drwFloat 3.2s ease-in-out infinite; }
+@keyframes drwFloat { 50% { transform: translateY(-10px); } }
+.drw-lyr { position: absolute; inset: 0; border-radius: 16px; border: 1.5px solid rgba(108, 140, 255, .4); background: linear-gradient(160deg, #1d2a4d, #131c36); }
+.drw-lyr.l1 { transform: rotate(-4deg) translate(-7px, 5px); opacity: .8; }
+.drw-lyr.l2 { transform: rotate(3.5deg) translate(7px, -4px); opacity: .65; }
+/* 卡包由上下两半拼成：同一张 .drw-skin 各裁一半，合起来严丝合缝，开包时两半分开 */
+.drw-half { position: absolute; inset: 0; transition: transform .6s cubic-bezier(.25, .8, .3, 1), opacity .6s; will-change: transform; }
+.drw-half.top { clip-path: inset(0 0 49.4% 0); }
+.drw-half.bot { clip-path: inset(50.6% 0 0 0); }
+.drw-skin { position: absolute; inset: 0; border-radius: 18px; overflow: hidden;
+  background: linear-gradient(158deg, #223058 0%, #18233d 46%, #101830 100%);
+  border: 2px solid rgba(108, 140, 255, .55);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, .08) inset, 0 0 24px rgba(108, 140, 255, .28), 0 24px 60px -22px rgba(0, 0, 0, .8); }
+.drw-skin::before { content: ''; position: absolute; inset: 7px; border-radius: 12px; border: 1px dashed rgba(139, 92, 246, .5); }
+.drw-skin::after { content: ''; position: absolute; inset: 0;
+  background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, .1) 44%, transparent 58%),
+    radial-gradient(58% 34% at 50% 26%, rgba(108, 140, 255, .3), transparent 70%); }
+/* 卡包标题：垫一块深色小牌，压在金色封条上面。
+   原来这行字是给封条穿过去的（z-index 比封条低、又挤在正中），
+   4 个字被金色竖带切成「随 … 人」，投影上一眼就看出来，所以改成一枚标签牌。 */
+.drw-pname { position: absolute; z-index: 3; left: 50%; top: 11%; transform: translateX(-50%);
+  padding: 3px 12px; border-radius: 8px; white-space: nowrap;
+  background: rgba(8, 13, 26, .82); box-shadow: 0 2px 10px rgba(0, 0, 0, .5);
+  color: #e8ecff; font-weight: 900; font-size: clamp(15px, 2vw, 20px); letter-spacing: .18em; text-indent: .18em; }
+.drw-seal { position: absolute; z-index: 2; left: 50%; top: 0; bottom: 0; width: 17%; transform: translateX(-50%); font-style: normal;
+  background: linear-gradient(180deg, #ffd98a, #f5b942 30%, #e09b2d 70%, #c9871f);
+  border-left: 1px solid rgba(255, 255, 255, .4); border-right: 1px solid rgba(0, 0, 0, .25);
+  display: grid; place-items: center; font-weight: 900; color: #5b3a00;
+  font-size: clamp(22px, 3vw, 34px); box-shadow: 0 0 18px rgba(255, 200, 87, .45); }
+/* 浮动光点：只在卡包周围闪，开包后跟着卡包一起消失 */
+.drw-pt { position: absolute; width: 5px; height: 5px; border-radius: 50%; background: #9db4ff; opacity: 0; pointer-events: none;
+  box-shadow: 0 0 8px #6c8cff; animation: drwPt 2.8s ease-in-out infinite; transition: opacity .4s; }
+.drw-pt:nth-of-type(3) { left: 6%; top: 20%; }
+.drw-pt:nth-of-type(4) { left: 90%; top: 13%; animation-delay: .5s; }
+.drw-pt:nth-of-type(5) { left: 2%; top: 62%; animation-delay: 1s; }
+.drw-pt:nth-of-type(6) { left: 94%; top: 58%; animation-delay: 1.4s; }
+.drw-pt:nth-of-type(7) { left: 20%; top: 92%; animation-delay: 1.9s; }
+.drw-pt:nth-of-type(8) { left: 76%; top: 90%; animation-delay: 2.3s; }
+@keyframes drwPt { 0%, 100% { opacity: 0; transform: translateY(0) scale(.7); } 50% { opacity: .9; transform: translateY(-14px) scale(1.15); } }
+
+/* ── 状态机（DRW.phase → 舞台 data-phase）── */
+/* preparing：光晕收紧、卡包蓄势 */
+.drw-stage[data-phase="preparing"] .drw-halo { animation-duration: .8s; opacity: 1; }
+.drw-stage[data-phase="preparing"] .drw-pack { animation: drwCharge .48s ease-out both; }
+@keyframes drwCharge { 0% { transform: scale(1); } 55% { transform: scale(1.05) translateY(-4px); } 100% { transform: scale(1.02); } }
+/* shaking：蓄力抖动，幅度渐增 */
+.drw-stage[data-phase="shaking"] .drw-pack { animation: drwShake .88s cubic-bezier(.36, .07, .19, .97) both; }
+@keyframes drwShake {
+  0%, 100% { transform: translate(0, 0) rotate(0deg) scale(1.02); }
+  10% { transform: translate(-2px, 1px) rotate(-1deg) scale(1.03); }
+  22% { transform: translate(3px, -2px) rotate(1.2deg) scale(1.04); }
+  36% { transform: translate(-4px, 2px) rotate(-1.6deg) scale(1.05); }
+  50% { transform: translate(6px, -3px) rotate(2.1deg) scale(1.07); }
+  64% { transform: translate(-8px, 4px) rotate(-2.7deg) scale(1.09); }
+  78% { transform: translate(10px, -5px) rotate(3.4deg) scale(1.11); }
+  90% { transform: translate(-11px, 5px) rotate(-4deg) scale(1.13); }
+}
+/* opening/revealing/result：上下分离 + 层叠卡片淡出；下一轮 preparing 时两半顺着过渡合回去 */
+.drw-stage[data-phase="opening"] .drw-half.top, .drw-stage[data-phase="revealing"] .drw-half.top, .drw-stage[data-phase="result"] .drw-half.top {
+  transform: translate(-14%, -150%) rotate(-14deg); opacity: 0; }
+.drw-stage[data-phase="opening"] .drw-half.bot, .drw-stage[data-phase="revealing"] .drw-half.bot, .drw-stage[data-phase="result"] .drw-half.bot {
+  transform: translate(12%, 150%) rotate(10deg); opacity: 0; }
+.drw-stage[data-phase="opening"] .drw-lyr, .drw-stage[data-phase="revealing"] .drw-lyr, .drw-stage[data-phase="result"] .drw-lyr {
+  opacity: 0; transition: opacity .4s; }
+.drw-stage[data-phase="opening"] .drw-pt, .drw-stage[data-phase="revealing"] .drw-pt, .drw-stage[data-phase="result"] .drw-pt { opacity: 0; }
+/* 开包强光 */
+.drw-flash { position: absolute; z-index: 3; width: 150%; aspect-ratio: 1; border-radius: 50%; pointer-events: none; opacity: 0;
+  background: radial-gradient(closest-side, rgba(255, 255, 255, .95), rgba(165, 180, 255, .55) 45%, transparent 72%); }
+.drw-stage[data-phase="opening"] .drw-flash { animation: drwFlash .65s ease-out both; }
+@keyframes drwFlash { 0% { opacity: 0; transform: scale(.3); } 30% { opacity: 1; } 100% { opacity: 0; transform: scale(1.5); } }
+/* 结果卡：飞出 → 翻面 → 揭示。姓名最大（手机也不低于 26px），组号·学号次级，「本轮抽中」金色标签 */
+.drw-cards { position: absolute; z-index: 4; inset: 0; display: flex; align-items: center; justify-content: center; gap: 3%; pointer-events: none; }
+.drw-card { flex: none; width: min(64%, 230px); aspect-ratio: 3 / 4; perspective: 900px; opacity: 0;
+  animation: drwFly .6s cubic-bezier(.2, .85, .3, 1.1) both; filter: drop-shadow(0 22px 44px rgba(0, 0, 0, .6)); }
+@keyframes drwFly { 0% { opacity: 0; transform: translateY(26%) scale(.22) rotate(-6deg); } 60% { opacity: 1; } 100% { opacity: 1; transform: none; } }
+.drw-cardin { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; transition: transform .55s cubic-bezier(.3, 1.15, .4, 1); }
+.drw-stage[data-phase="revealing"] .drw-cardin, .drw-stage[data-phase="result"] .drw-cardin { transform: rotateY(180deg); }
+.drw-cback, .drw-cface { position: absolute; inset: 0; border-radius: 16px; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.drw-cback { border: 2px solid rgba(108, 140, 255, .6);
+  background: radial-gradient(46% 30% at 50% 34%, rgba(108, 140, 255, .4), transparent 70%), linear-gradient(155deg, #243258, #131c36);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, .1) inset; }
+.drw-cback::before { content: ''; position: absolute; inset: 8px; border-radius: 10px; border: 1px dashed rgba(139, 92, 246, .55);
+  background: repeating-linear-gradient(45deg, rgba(108, 140, 255, .08) 0 8px, transparent 8px 16px); }
+.drw-cback::after { content: '✦'; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  color: #9db4ff; font-size: clamp(30px, 5vw, 44px); text-shadow: 0 0 18px rgba(108, 140, 255, .8); }
+.drw-cface { transform: rotateY(180deg); display: grid; align-content: center; justify-items: center; gap: 8px; text-align: center; padding: 12px;
+  background: linear-gradient(160deg, #1b2748, #0e1528 75%); border: 2px solid #ffc857;
+  box-shadow: 0 0 0 1px rgba(255, 200, 87, .35) inset, 0 0 26px rgba(255, 200, 87, .3); }
+.drw-cface em { font-style: normal; font-weight: 800; font-size: clamp(12px, 1.6vw, 15px); letter-spacing: .18em; color: #0b1020;
+  background: linear-gradient(120deg, #ffd98a, #ffc857); padding: 4px 12px; border-radius: 999px; }
+.drw-cface b { font-size: clamp(26px, 6vw, 54px); line-height: 1.15; font-weight: 900; color: #fff;
+  text-shadow: 0 0 22px rgba(255, 200, 87, .55), 0 2px 10px rgba(0, 0, 0, .5); max-width: 100%; overflow-wrap: anywhere; }
+.drw-cface span { font-weight: 700; font-size: clamp(14px, 2vw, 18px); color: #b8c4e6; }
+/* 揭示瞬间：名字弹一下 + 卡面金光呼吸 */
+.drw-stage[data-phase="result"] .drw-cface b { animation: drwName .55s cubic-bezier(.2, 1.5, .4, 1) both; }
+@keyframes drwName { 0% { transform: scale(.72); opacity: .4; } 100% { transform: scale(1); opacity: 1; } }
+.drw-stage[data-phase="result"] .drw-cface { animation: drwGold 1.6s ease-in-out .3s infinite; }
+@keyframes drwGold { 50% { box-shadow: 0 0 0 1px rgba(255, 200, 87, .5) inset, 0 0 40px rgba(255, 200, 87, .55); } }
+
+/* 关动画偏好 / 低端设备：不演过程，卡片直接亮出结果（JS 侧 drwNoAnim() 也走 fast 路径） */
+@media (prefers-reduced-motion: reduce) {
+  .drw-stage, .drw-stage * { animation: none !important; transition-duration: .01s !important; }
+  .drw-card { opacity: 1 !important; }
+  .drw-pt { opacity: 0 !important; }
+}
+html.is-lite .drw-stage, html.is-lite .drw-stage * { animation: none !important; transition-duration: .01s !important; }
+html.is-lite .drw-card { opacity: 1 !important; }
+html.is-lite .drw-pt { opacity: 0 !important; }
+
+/* 底栏：抽中谁 + 第几组 + 按钮 */
+.drw-foot { flex: none; display: flex; align-items: center; gap: 14px; padding: 12px 14px; border-top: 1px solid var(--edge); min-height: 64px; }
+.drw-foot .btn { flex: none; min-height: 44px; }
+.drw-hint { color: var(--dim); font-size: 13px; font-weight: 600; }
+.drw-res { flex: 1; min-width: 0; }
+.drw-res b { display: block; font-size: 15px; }
+.drw-res b em { font-style: normal; font-size: 22px; color: #f59e0b; }
+.drw-res span { display: block; color: var(--dim); font-size: 13px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------- 弹窗外壳 ---------- */
+/* 直接复用小组加分已有的 <dialog> 样式（能拖右下角改大小、点空白关掉、手机贴底抽屉），
+   只把尺寸定成适合抽人舞台的比例 */
+dialog.draw-dlg { width: 680px; height: min(720px, 88vh); min-height: 420px; min-width: 340px; }
+/* 标题栏：标题不长，把剩余宽度留给副标题（当前是哪个班）；副标题单行截断，别挤掉 ✕ */
+dialog.draw-dlg .dlg-head h3 { flex: none; }
+dialog.draw-dlg .dlg-head small { flex: 1; min-width: 0; margin: 0; text-align: right;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* .drw 撑满内容区剩余高度：舞台靠它撑到整屏，动画才不会挤成一个小方块 */
+dialog.draw-dlg .dlg { padding: 14px 16px 12px; }
+dialog.draw-dlg .dlg > .drw { flex: 1 1 auto; min-height: 0; }
+dialog.draw-dlg .drw { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+
+/* 顶栏入口按钮：和旁边的 chip/图标同一行，别做得太重 */
+.draw-entry { display: inline-flex; align-items: center; gap: 5px; flex: none; }
+
+/* 手机竖屏：卡包舞台占满宽度，结果卡姓名保持 ≥26px */
+@media (max-width: 560px) {
+  .drw-scene { width: 88%; }
+  .drw-pack { width: min(62%, 220px); }
+  .drw-cface b { font-size: 26px; }
+  .drw-cface span { font-size: 14px; }
+  /* 底栏窄：结果说明自己占一行再放按钮，别把名字挤成竖排 */
+  .drw-foot { flex-wrap: wrap; }
+  .drw-res { flex: 1 1 100%; }
+  .drw-res b em { font-size: 18px; }
+  .drw-bar { gap: 8px; padding: 8px 10px; }
+  .drw-go { padding: 0 18px; font-size: 15px; letter-spacing: 0; }
+}
+@media (max-width: 700px) {
+  /* 手机上抽人满屏更实用（舞台越大越好点卡包） */
+  dialog.draw-dlg { width: auto; height: 100vh; max-height: 100vh; min-height: 0; }
+}
+
+/* 矮窗口（横屏手机 844×390、投影上被压扁的窗口）：舞台高度不够，结果卡和卡包必须整体缩小，
+   否则卡片按 230px 宽 × 3/4 比例画出来比舞台还高，底部会被 overflow:hidden 切掉一半
+   （实测 844×390 下结果卡名字只剩上半截）。这里改成按舞台高度算尺寸：卡片高度取舞台高的 94%。 */
+@media (max-height: 560px) {
+  dialog.draw-dlg { height: 96vh; min-height: 0; }
+  dialog.draw-dlg .dlg { padding: 8px 12px 8px; }
+  .drw-bar { padding: 6px 10px; gap: 8px; }
+  .drw-tabs button { padding: 5px 11px; font-size: 13px; }
+  .drw-go { height: 38px; padding: 0 20px; font-size: 15px; letter-spacing: 0; }
+  /* 舞台用 grid 居中，卡片改成按高度定宽，名字字号也跟着收 */
+  .drw-scene { width: auto; height: 100%; aspect-ratio: auto; }
+  .drw-pack { width: auto; height: min(84%, 300px); aspect-ratio: 3 / 4.1; }
+  .drw-card { width: auto; height: min(94%, 300px); aspect-ratio: 3 / 4; }
+  .drw-cface { gap: 5px; padding: 8px; }
+  .drw-cface b { font-size: clamp(20px, 4.4vh, 34px); }
+  .drw-cface span { font-size: clamp(11px, 2.6vh, 15px); }
+  .drw-cface em { font-size: 11px; padding: 3px 9px; letter-spacing: .12em; }
+  .drw-pname { font-size: 13px; padding: 2px 9px; letter-spacing: .12em; text-indent: .12em; }
+  .drw-seal { font-size: clamp(16px, 4vh, 26px); }
+  /* 底栏不许换行占掉舞台：一行放完，结果说明截断 */
+  .drw-foot { flex-wrap: nowrap; min-height: 48px; padding: 6px 10px; gap: 10px; }
+  .drw-foot .btn { min-height: 38px; padding: 5px 14px; font-size: 12.5px; }
+  .drw-res b { font-size: 13px; }
+  .drw-res b em { font-size: 16px; }
+  .drw-res span { font-size: 11.5px; }
+  .drw-hint { font-size: 12px; }
+}

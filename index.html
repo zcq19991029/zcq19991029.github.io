@@ -12,15 +12,15 @@
      要登录时调 window.HXPortal.login()；被单独打开时 hx-theme.js 会跳回这里（见 hx-theme.js 的 data-tool）。
      账号：Supabase 华夏工具项目，localStorage paike-session 和各工具共用；身份由数据库 hx_me() 决定。
      脚本里不用反引号模板字符串（本机测试时整页当字符串注入到线上同源页面里）。 -->
-<link rel="stylesheet" href="hx-theme.css">
-<script src="hx-theme.js"></script>
+<link rel="stylesheet" href="hx-theme.css?v=287c6e7">
+<script src="hx-theme.js?v=287c6e7"></script>
 <!-- 首页卡片上的像素小生物：pixelfx 的 12 个 critters（MIT），打包成一个 91 KB 的独立脚本。
      加载失败不影响首页——hx-critters.js 开头就有 window.PixelFX 存在性检查，没有就整段跳过。 -->
-<script src="fx/pixelfx-critters.js" defer></script>
-<script src="fx/hx-critters.js" defer></script>
+<script src="fx/pixelfx-critters.js?v=287c6e7" defer></script>
+<script src="fx/hx-critters.js?v=287c6e7" defer></script>
 <!-- 背景动效（2026-11-03）：12 种天气氛围特效铺在背景层，外观面板里选；加载失败或没选就完全不加载渲染器 -->
-<script src="fx/pixelfx-weather.js" defer></script>
-<script src="fx/hx-weather.js" defer></script>
+<script src="fx/pixelfx-weather.js?v=287c6e7" defer></script>
+<script src="fx/hx-weather.js?v=287c6e7" defer></script>
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; width: 100%; overflow: hidden; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -459,7 +459,7 @@
   <div class="cur" id="cur"></div>
   <div class="sp"></div>
   <button class="ibtn" id="helpBtn" type="button" aria-label="使用说明" aria-expanded="false"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.2A2.6 2.6 0 0 1 14.6 10c0 1.7-2.6 2-2.6 3.8"/><circle cx="12" cy="17" r=".9" fill="currentColor" stroke="none"/></svg></button>
-  <button class="ibtn" id="inviteBtn" type="button" aria-label="邀请拉新" aria-expanded="false"><svg class="i" viewBox="0 0 24 24"><path d="M12 3v12"/><path d="M8 7l4-4 4 4"/><path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg></button>
+  <button class="ibtn" id="inviteBtn" type="button" aria-label="AI 注册：领免费 AI 额度" aria-expanded="false"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><text x="12" y="12.5" text-anchor="middle" dominant-baseline="middle" font-size="8.2" font-weight="800" font-family="-apple-system,system-ui,sans-serif" fill="currentColor" stroke="none" letter-spacing="-.4">AI</text></svg></button>
   <button class="ibtn" id="lookBtn" type="button" aria-label="外观" aria-expanded="false"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v17a8.5 8.5 0 0 0 0-17z" fill="currentColor" stroke="none"/></svg></button>
   <div id="who"></div>
 </header>
@@ -509,6 +509,8 @@
 <script>
 var SITE = location.protocol === 'file:' ? 'https://zcq19991029.github.io' : ''; // 网站上（包括本机拼好的 成品/site）用同一站点里的工具；直接双击打开时嵌线上版
 // 首页卡片：who all 登录的人都有、teacher 只有教师看得到（没登录的什么工具都不显示）；c 是图标的两种颜色（像手机桌面图标，每个工具固定）
+// stu 是「学生点开时去哪个页面」：不给就照 who:'all' 用 url。给 who:'all' + stu 就是「老师进完整工具、
+// 学生只进一个页面」——2026-11-03 用户要「单独开放小组加分里面的分组模块给学生」，先用这个机制开一个模块。
 var GROUPS = [['学习', ['wiring', 'quiz', 'base', 'mcu', 'exam']], ['教学', ['paike', 'jiafen', 'course']], ['维护', ['feedback']]]; // 首页按使用场景分组
 var TOOLS = [
   // 2026-11-02：注册已彻底修好（删掉了 auth.users 上的废弃触发器），临时免登录口子按用户要求收回 ——
@@ -519,7 +521,11 @@ var TOOLS = [
   { id: 'mcu', name: '单片机上机', url: SITE + '/mcu/', who: 'all', c: ['#5ac8fa', '#0a84ff'], icon: '<rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/>' },
   { id: 'exam', name: '考试', url: SITE + '/exam/', who: 'all', c: ['#7d7aff', '#5e5ce6'], icon: '<path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h4"/>' },
   { id: 'paike', name: '排课', url: SITE + '/paike/', who: 'teacher', c: ['#ff6b6b', '#ff3b30'], icon: '<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4M8 14h3M13 14h3M8 17h3"/>' },
-  { id: 'jiafen', name: '小组加分', url: SITE + '/jiafenxitong/', who: 'teacher', c: ['#ff8fb7', '#ff2d55'], icon: '<path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/>' },
+  // 小组加分：老师进完整记分台，学生只进「选桌组队」这一个页面（studentUrl）。
+  // 为什么不是 who:'teacher'：学生要自己分组，进不去就分不了。后面要给学生开别的模块，
+  // 就往 studentUrl 那个页面上加，老师这边不受影响。
+  { id: 'jiafen', name: '小组加分', url: SITE + '/jiafenxitong/', who: 'all', studentUrl: SITE + '/jiafenxitong/team.html',
+    studentHint: '小组加分 · 选桌组队', c: ['#ff8fb7', '#ff2d55'], icon: '<path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/>' },
   { id: 'course', name: '课程进度', url: SITE + '/course/', who: 'teacher', c: ['#ffd166', '#f0a500'], icon: '<rect x="4" y="4" width="16" height="17" rx="3"/><path d="M8 9h8M8 13h8M8 17h5"/>' },
   { id: 'feedback', name: '反馈', url: SITE + '/feedback/', who: 'dev', c: ['#c084fc', '#7c3aed'], icon: '<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 8.5l9 6 9-6"/>' } // 开发者专用：看各工具收到的建议和问题
 ];
@@ -738,10 +744,13 @@ window.addEventListener('message', function (e) {
   for (var k in frames) if (frames[k].contentWindow === e.source) { m[k] = !!e.data.on; if (k === ST.tab) document.body.classList.toggle(c, m[k]); }
 });
 var hoverFine = !!(window.matchMedia && matchMedia('(hover:hover) and (pointer:fine)').matches);
+function toolUrl(t) { // 学生点开时用 t.studentUrl（只给一个页面），老师始终用完整的 t.url
+  return (!isTeacher() && t && t.studentUrl) ? t.studentUrl : (t ? t.url : '');
+}
 function mount(t) { // 建（或复用）工具 iframe。真正的下载发生在这一步，所以只在要打开时才调
   if (frames[t.id]) return frames[t.id];
   var f = document.createElement('iframe');
-  f.src = t.url; f.title = t.name; f.allow = 'fullscreen; clipboard-write; clipboard-read'; f.setAttribute('allowfullscreen', '');
+  f.src = toolUrl(t); f.title = t.name; f.allow = 'fullscreen; clipboard-write; clipboard-read'; f.setAttribute('allowfullscreen', '');
   f.addEventListener('load', function () { f.dataset.ready = '1'; if (ST.tab === t.id) tip(false); });
   $('main').appendChild(f); frames[t.id] = f; return f;
 }
@@ -780,7 +789,10 @@ function show(id, how) { // how：不写 = 新开一页（进浏览器历史，�
   document.body.classList.toggle('hxfull', !!t && !!full[t.id]);
   document.body.classList.toggle('tool', !!t);
   $('cur').textContent = t ? t.name : '';
-  document.title = t ? t.name + ' · 华夏工具' : '华夏工具';
+  /* 学生进的是「只开了一个模块」的页面：标签栏写清楚进去干什么，别让他以为开错了工具。
+     老师那边照旧显示工具名。 */
+  var label = (t && !isTeacher() && t.studentHint) ? t.studentHint : (t ? t.name : '');
+  document.title = label ? label + ' · 华夏工具' : '华夏工具';
   render();
 }
 function render() {
@@ -881,7 +893,7 @@ function renderInvite() {
     { img: 'invite/siliconflow.png', name: '硅基流动（SiliconFlow）', desc: '注册并完成身份认证就能领免费 API 额度，先用国产模型练手。', url: 'https://cloud.siliconflow.cn/i/aQ6Tn6dH' },
     { img: 'invite/workbuddy.png', name: 'WorkBuddy（腾讯）', desc: '注册后做任务领额度、每天打卡；新手先用这个上手，再学 Codex / Claude。', url: 'https://www.workbuddy.cn/events/invite?inviteCode=u1ds11m0hxo1bgw4' }
   ];
-  var h = '<h3>邀请拉新</h3><div class="hx-doc"><p style="margin:0 0 14px">扫码或复制链接注册，双方都有额度/代金券。手机上长按二维码可以「识别图中二维码」。</p>';
+  var h = '<h3>AI 注册 · 领免费额度</h3><div class="hx-doc"><p style="margin:0 0 14px">注册下面两个 AI 平台就能领免费额度（双方都有），扫码或复制链接都行。手机上长按二维码可以「识别图中二维码」。新手建议先用 WorkBuddy 上手，再学 Codex / Claude。</p>';
   items.forEach(function (it, i) {
     h += '<div class="inv"><div class="inv-top"><img src="' + it.img + '" alt="' + esc(it.name) + ' 邀请二维码" loading="lazy" width="104" height="104">'
       + '<div class="t"><b>' + esc(it.name) + '</b><span>' + esc(it.desc) + '</span></div></div>'

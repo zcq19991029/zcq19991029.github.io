@@ -137,10 +137,19 @@
     if (kind === 'no_login') {
       $('clsName').textContent = '还没登录';
       $('who').textContent = '';
-      notice('<b>请先用学号登录华夏工具。</b><br>登录后再回到这个页面：<br>' +
-        '<a class="btn-primary" href="' + PORTAL + '" target="_blank" rel="noopener">去登录</a>' +
-        '<br><br>账号就是你的<b>学号</b>，密码是第一次登录时自己设的。忘了密码就在登录页点“忘记密码”。' +
-        '<br><small>登录完回来看这一页就行，它会自己发现你已经登录，不用刷新。</small>');
+      /* 2026-11-03 紧急修：这段是学生进不来的第一道坎。
+         ① .notice a 的蓝色会把 .btn-primary 的白字染成和底色一样 → 按钮只剩一坨蓝、看不见「去登录」
+            （已在 team.css 里用 .notice a.btn-primary 压住，这里再显式写一遍颜色兜底）；
+         ② 原来只有一句「去登录」，学生不知道登录完要干嘛 → 把「登录完回这一页」写成步骤。
+         另外如果这个页面是从首页的 iframe 里打开的，target=_blank 跳首页登录会开新标签，
+         登录完回 iframe 里这一页就行（它会自己发现登录态）。 */
+      notice('<b>请先用学号登录华夏工具，再回来选桌。</b>' +
+        '<div class="steps">' +
+        '<span>1. 点下面的按钮去登录（账号是<b>学号</b>，密码是第一次登录时自己设的）</span>' +
+        '<span>2. 登录成功后，回到这一页 —— 不用刷新，它会自己认出你</span>' +
+        '</div>' +
+        '<a class="btn-primary" style="color:#fff" href="' + PORTAL + '" target="_blank" rel="noopener">去登录 →</a>' +
+        '<br><br><small>忘了密码就在登录页点「忘记密码」。没登录过的话，问老师要课堂码注册。</small>');
       watchLogin();
     } else if (kind === 'not_student') {
       $('clsName').textContent = '账号没绑定班级';
