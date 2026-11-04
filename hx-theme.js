@@ -173,8 +173,21 @@
   (document.head || document.documentElement).appendChild(pillSt);
 
   var PILL_N = 7;
-  function loadPill(host, text) {
+  // 2026-11-06 用户：「这个加载重叠了 请清理多余的 很多工具都要查」。
+  // 全站同一个时刻只允许存在**一条**「正在载入」药丸。原来没有任何互斥：闪屏里的像素动效、
+  // 闪屏标题、闪屏里的方块＋文案、登录门的 gatepill、页面级的药丸，各写各的，弱网下就叠成一坨。
+  // 现在 loadPill 一进来先把还在的旧药丸 fade 掉（旧句柄的 done() 之后变成空操作，不会误删新的）。
+  var LIVE_PILLS = [];
+  function killPills(except) {
+    for (var i = LIVE_PILLS.length - 1; i >= 0; i--) {
+      var p = LIVE_PILLS[i];
+      if (p === except) continue;
+      try { p._kill(); } catch (e) { }
+      LIVE_PILLS.splice(i, 1);
+    }
+  }  function loadPill(host, text) {
     if (typeof host === 'string' && text === undefined) { text = host; host = null; }
+    killPills(null);                       // 互斥：新的上来，旧的必须先退场
     var wrap = document.createElement('div');
     wrap.className = 'hx-loadwrap' + (host ? '' : ' full');
     var pill = document.createElement('div');
@@ -195,8 +208,19 @@
         if (done) return; done = true;
         pill.classList.add('out');
         setTimeout(function () { wrap.remove(); }, 260);
+        var k = LIVE_PILLS.indexOf(api); if (k >= 0) LIVE_PILLS.splice(k, 1);
+      },
+      // 互斥淘汰用：不排队、**立刻摘掉**（不留淡出），旧句柄再调 done()/text() 都不会碰到新药丸。
+      //
+      // 为什么不沿用 done() 那套 260ms 淡出：实测连开三个药丸时，DOM 里会同时挂着 2～3 个
+      // （`n1=1, n2=2, n3=3`）—— 淡出期间旧的还在画面上，正好就是用户抱怨的「加载重叠」。
+      // 换药丸=换一句话，不该两个同时渐变；直接 remove，屏幕上永远只有一条。
+      _kill: function () {
+        if (done) return; done = true;
+        wrap.remove();
       }
     };
+    LIVE_PILLS.push(api);
     (host || document.body).appendChild(wrap);
     return api;
   }

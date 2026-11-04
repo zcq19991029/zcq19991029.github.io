@@ -34,7 +34,8 @@
   var t0 = performance.now();
   var raf = 0, lastPaint = 0;
   var MIN_SHOW = 400;   // 秒开时也至少看 0.4s，不闪一下
-  var FADE = 380;       // 与 styles.css 里的淡出时长保持一致
+  var FADE = 260;       // 卡片内容淡出（与 styles.css .hx-splash-card 的 transition 一致）
+  var GONE = 200;       // 第二步：整层连底色淡出（与 #hxSplash 自己的 transition 一致）
   var MAX_WAIT = 6000;  // 就绪判定失灵的兜底
 
   function finish() {
@@ -42,12 +43,16 @@
     dbg.done = true;
     var elapsed = performance.now() - t0;
     setTimeout(function () {
-      splash.classList.add('hx-splash-out');        // CSS 淡出
+      // 2026-11-06 分两步淡出（原因见 styles.css #hxSplash 注释）：
+      //   ① 底色保持不透明，只淡卡片内容 —— 屏幕上从来看不到「闪屏」和「登录门」两层同框；
+      //   ② 内容淡完（FADE）再把整层连底色一起淡（GONE），最后 remove。
+      splash.classList.add('hx-splash-out');
       if (raf) { cancelAnimationFrame(raf); raf = 0; }
       dbg.stopped = true;
+      setTimeout(function () { splash.classList.add('hx-splash-gone'); }, FADE - 100);
       setTimeout(function () {
         if (splash.parentNode) splash.parentNode.removeChild(splash); // canvas 一并移除
-      }, FADE + 80);
+      }, FADE + GONE + 80);
     }, Math.max(0, MIN_SHOW - elapsed));
   }
 

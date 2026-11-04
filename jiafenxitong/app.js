@@ -3115,8 +3115,10 @@ function removeMemberAt(cls, g, j) {
     var av = $('#userAvatar');
     if (p.avatarUrl) {
       av.innerHTML = '<img alt="" src="' + esc(p.avatarUrl) + '">';
+      av.classList.add('has-img');   // 有图 → 圆盘透明（见 styles.css .avatar.has-img）
     } else {
       av.textContent = nm.slice(0, 1);
+      av.classList.remove('has-img');
     }
     /* 管理员在名字后面挂一块 VIP 金牌 —— 和「管理」页一致的身份提示 */
     box.classList.toggle('is-admin', !!p.isAdmin);

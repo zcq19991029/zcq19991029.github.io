@@ -124,6 +124,14 @@
     opacity: 0; transform: translateY(10px) scale(.97); pointer-events: none; transition: opacity .22s, transform .38s cubic-bezier(.25,1.3,.4,1); }
   .fw.show { opacity: 1; transform: none; pointer-events: auto; }
   .fw.moving { transition: none; }
+  /* 2026-11-06 全屏浮窗（目前只有排位用）：铺满可视区、无圆角、不可拖。
+     用户原话：「我在排位的时候还是能切换题目啊 这不对 应该全屏显示排位图」——
+     排位必须是一堵墙，底下的练习页一点都不能露。
+     dvh 而不是 vh：手机地址栏收起时 vh 会跳，用 dvh 钉住当前可视高度。 */
+  .fw.fw-full { left: 0 !important; top: 0 !important; width: 100vw !important; height: 100dvh !important; border-radius: 0; border: 0; }
+  .fw.fw-full .fw-head { cursor: default; touch-action: auto; }
+  .fw.fw-full .fw-rs { display: none; }             /* 三个缩放手柄直接摘掉 */
+  .fw.fw-full .fw-body { flex: 1; min-height: 0; }  /* 内容撑满剩下的高度，内部自己滚 */
   .fw-head { flex: none; display: flex; align-items: center; gap: 10px; padding: 10px 12px 10px 16px; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none;
     background: linear-gradient(110deg, color-mix(in srgb, var(--a1) 30%, transparent), color-mix(in srgb, var(--a2) 22%, transparent) 55%, transparent); border-bottom: 1px solid var(--edge); }
   .fw.moving .fw-head { cursor: grabbing; }
@@ -381,7 +389,10 @@
   .fb-bar { display: flex; justify-content: flex-end; }
   /* 右上角账号：头像 + 名字 + 身份；点开是账号卡片（嵌在华夏工具总入口里时不显示，用总入口的） */
   .acct-btn { padding: 0 10px 0 3px; } .acct-btn b { max-width: 9em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* 2026-11-06 同总入口 .av：像素头像 PNG 本身是透明底，容器不能再垫紫粉渐变，否则圆盘从图形四周透出来。
+     默认（没图，用首字）照旧铺渐变；.has-img（挂的是头像图）改成透明 + 细描边。 */
   .acct-av { flex: none; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 800; color: #fff; background: linear-gradient(135deg, #8b5cf6, #ec4899) center / cover; }
+  .acct-av.has-img { background-image: none !important; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .22); }
   .acct-av.lg { width: 64px; height: 64px; font-size: 26px; box-shadow: 0 0 0 3px var(--card), 0 0 0 5px #8b5cf6, 0 0 26px -2px #ec4899; }
   .acct-card { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 6px 0 14px; text-align: center; border-bottom: 1px solid var(--edge); }
   .acct-card b { font-size: 18px; } .acct-card small { color: var(--dim); word-break: break-all; }
@@ -613,6 +624,20 @@
   .rk-locked > div { display: grid; gap: 4px; min-width: 0; }
   .rk-locked b { font-size: 17px; }
   .rk-locked span { color: var(--dim); font-size: 12.5px; font-weight: 600; line-height: 1.55; }
+  /* 2026-11-06 排位中被拒的提示（换题、点别的分段）。画在排位窗这一层而不是练习页上 ——
+     排位现在全屏，底下的 toast 根本看不见，学生会以为点了没反应就一直点。
+     悬在窗口底部居中，2.6 秒自己收走，不挡任何按钮。
+     配色写死深色玻璃底 + 白字，**不跟主题变量**：第一版用 color-mix(#ef4444, var(--card-solid, #fff))，
+     深色模式下 --card-solid 在接线仿真里没定义、回落到 #fff，结果浅粉底配深色模式下的浅色 --ink 文字，
+     标题几乎看不见（实测截图确认）。这条路太容易踩坑，直接钉成深底浅字，哪种模式都清楚。 */
+  .rk-deny { position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 14px); z-index: 9999;
+    display: grid; gap: 3px; max-width: min(92vw, 520px); padding: 12px 18px; border-radius: 14px;
+    background: color-mix(in srgb, #ef4444 22%, #16161a); border: 1px solid color-mix(in srgb, #ef4444 55%, transparent);
+    box-shadow: 0 22px 48px -20px rgba(0, 0, 0, .6); opacity: 0; pointer-events: none;
+    transition: opacity .22s var(--hx-ease, ease), transform .28s var(--hx-spring, ease); }
+  .rk-deny.on { opacity: 1; transform: translate(-50%, 0); }
+  .rk-deny b { font-size: 14px; color: #fff; font-weight: 700; }
+  .rk-deny span { font-size: 12.5px; line-height: 1.5; color: rgba(255, 255, 255, .82); font-weight: 600; }
   @media (max-width: 900px) { .rk-par { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
   .rk-names { max-height: 300px; }
   /* ===== 准备屏：放大 + 紧张感（2026-11-03 改科技风：深空蓝底 + 青色辉光，配 pixelfx 的蓝色 Countdown）===== */
@@ -898,9 +923,20 @@ function floatWin(id, o) {
       Object.assign(el.style, { left: box.x + 'px', top: box.y + 'px', width: box.w + 'px', height: box.h + 'px' });
     };
     const keep = () => { try { localStorage.setItem(key, JSON.stringify(box)); } catch (e) { } };
-    fit(); addEventListener('resize', fit);
+    // 2026-11-06 用户：「我在排位的时候还是能切换题目啊 这不对 应该全屏显示排位图」。
+    // o.full 的窗口不给拖、不给改大小：位置尺寸固定铺满整块可视区，连标题栏的拖拽把手也去掉
+    // （见样式 .fw.fw-full）。排位是个「进去就出不来、只能排这一题」的状态，
+    // 一旦它是一块可以随手拖走的浮窗，旁边的练习页就永远露在外面，学生自然会去点别的题。
+    if (o.full) {
+      el.classList.add('fw-full');
+      const place = () => Object.assign(el.style, { left: '0px', top: '0px', width: innerWidth + 'px', height: innerHeight + 'px' });
+      place(); addEventListener('resize', place);
+    } else {
+      fit(); addEventListener('resize', fit);
+    }
     el.addEventListener('pointerdown', () => (el.style.zIndex = ++fwZ));
     const drag = (handle, mode) => handle.addEventListener('pointerdown', e => {
+      if (o.full) return;                     // 全屏窗口不参与拖拽/缩放
       if (e.target.closest('.fw-x')) return;
       e.preventDefault(); handle.setPointerCapture(e.pointerId); el.classList.add('moving');
       const p0 = { px: e.clientX, py: e.clientY, ...box };
@@ -1558,33 +1594,78 @@ function rkParQi() {
   try { const s = JSON.parse(localStorage.getItem('zfz-parallel')); if (s && typeof s.cur === 'number') return clamp(s.cur); } catch (e) { }
   return 0;
 }
-// ── 排位锁题 ──
-// 进入排位后只排入口那一题：顶部分段按钮、扩展练习窗口、专项小题切换全部按不下去。
-// select() 是外壳里同作用域的函数声明，这里原地包一层（不改 project2.html 的逻辑）：
-// 锁着自己的题（含它的 base 页面，比如 P4 → P）放行，其余一律拒绝并提示。
-// 锁在「排位窗口开着」或「这一局还在进行」期间有效；退出排位 / 关掉窗口自动失效，不用额外收尾。
+// ── 排位锁题（2026-11-06 加固版）──
+// 进入排位后只排入口那一题：顶部分段按钮、扩展练习窗口、专项小题切换、键盘左右、浏览器 hash 后退，
+// 全部按不下去。select() 是外壳里同作用域的函数声明，这里原地包一层（不改 project2.html 的逻辑）。
+//
+// 2026-11-05 那版只「拒绝别人的题」，但留了三个洞，用户 2026-11-06 又撞上了：
+//   ① rkLockOn() 要求 RK.lock 是真值。openRank 里那一行是
+//      `RK.lock = pick && rkCircuits().some(c => c.id === pick) ? pick : null`
+//      —— 只要 rkEntryCircuit() 返回的 id 不在 rkCircuits() 里（比如那一题还没做完、
+//      或者 id 带后缀），RK.lock 就静默变成 null，锁整个失效，切题畅通无阻。
+//   ② 只判断「窗口有没有 .show」，没判断「排位这一局是不是在跑」。开始排位后窗口被转场盖住，
+//      .show 可能被摘掉，锁跟着没了。
+//   ③ 被拒绝时只 toast 一句，而 toast 画在练习页上 —— 排位全屏后底下那一层根本看不见，
+//      学生以为点了没反应，就一直点。
+//
+// 现在：锁的来源按「入口锁 → 运行中电路 → 当前页」三层兜底，保证非 null；
+// 一打开排位就**强制**把练习页切到锁定的那一题（画面必须和锁一致，否则学生会以为排错了题）；
+// 被拒绝的提示改成画在排位窗里（看得见的地方）。
 const rkPageId = id => { const c = rkCircuits().find(x => x.id === id); return c && c.base ? c.base : id; };
 function rkLockOn() {
   if (RK.run && RK.run.circuit) return RK.run.circuit;
   const w = document.getElementById('fw-rank');
-  return (w && w.classList.contains('show') && RK.lock) ? RK.lock : null;
+  if (!w || !w.classList.contains('show')) return null;
+  // 三层兜底：入口锁 → 当前锁 → 练习页当前这一题。
+  // 任何一层能给出 id 就锁它，「算不出来 = 不锁」这个洞必须堵死。
+  return RK.lock || RK.circuit || (typeof cur === 'string' && cur ? cur : null);
 }
 const rkSelectRaw = select;
 select = function (id, focus) {
   const lk = rkLockOn();
   if (lk && id !== lk && id !== rkPageId(lk)) {
-    toast('排位中只排「' + cName(lk) + '」，退出排位才能换题');
+    rkDeny(id, lk);
     return;
   }
   return rkSelectRaw(id, focus);
 };
+// 拒绝提示画在排位窗这一层（全屏后就这一层看得见）；窗还没渲染好就退回 toast
+//
+// 注意挂载点必须是 document.body 而不是 #rk：rkRender / rkMain 每渲染一次就 box.innerHTML = …，
+// 提示要是塞在 #rk 里面，随便一次重绘就把它冲掉了（实测点一次切题按钮，提示刚 add('on')
+// 就被下一帧的重绘抹掉，学生什么也没看见）。挂 body 上、position:fixed 悬浮，重绘不碰它。
+function rkDeny(id, lk) {
+  const w = document.getElementById('fw-rank');
+  if (w && w.classList.contains('show')) {
+    let tip = document.getElementById('rkDeny');
+    if (!tip) { tip = document.createElement('div'); tip.className = 'rk-deny'; tip.id = 'rkDeny'; document.body.appendChild(tip); }
+    tip.innerHTML = '<b>排位中不能换题</b><span>这一局只排「' + esc(cName(lk)) + '」。要换题请先退出排位，回练习页选好题再点「排位」。</span>';
+    // 强制回流再上 class：连着点两下时，第二次不会因为「上一帧的 opacity 还没画出来」而不重播动画
+    void tip.offsetWidth;
+    tip.classList.add('on');
+    clearTimeout(rkDeny.t);
+    rkDeny.t = setTimeout(() => tip.classList.remove('on'), 2600);
+  } else {
+    toast('排位中只排「' + cName(lk) + '」，退出排位才能换题');
+  }
+}
 async function openRank(lockTo) {
   // 入口：从外面点「排位」= 锁当前这一题；内部「换人」会把原题传回来（见 rkSwap），不会被当前页带跑。
   const pick = typeof lockTo === 'string' && lockTo ? lockTo : rkEntryCircuit();
   RK.lock = pick && rkCircuits().some(c => c.id === pick) ? pick : null;
+  // 兜底：算不出入口题就锁练习页当前这一题，绝不留 null（null = 完全不锁，这是上一版的洞）
+  if (!RK.lock && typeof cur === 'string' && cur) RK.lock = cur;
   if (RK.lock) RK.circuit = RK.lock; // 本次入口覆盖上一次的 circuit（localStorage / 内存里的旧值）
-  floatWin('rank', { title: '排位', sub: '计时接线 · 全对自动停表', w: 1040, h: 700, a1: '#f59e0b', a2: '#ef4444', html: '<div class="rk" id="rk"><p class="rk-wait">加载中…</p></div>' });
+  floatWin('rank', { title: '排位', sub: '计时接线 · 全对自动停表', w: 1040, h: 700, a1: '#f59e0b', a2: '#ef4444', full: true, html: '<div class="rk" id="rk"><p class="rk-wait">加载中…</p></div>' });
   if (!RK.circuit || !rkCircuits().some(c => c.id === RK.circuit)) RK.circuit = rkCircuits()[0].id;
+  // 强制对齐：练习页必须停在锁定的那一题上。用户 2026-11-06 的原话是
+  // 「我在外面排位选的题和我开始排位的题不一样 比如我刚刚排位已经玩了并联第四题 出去换第六题点排位 结果还是第四题」
+  // —— 画面和锁不同步时，人根本分不清自己排的是哪一题。这里先切过去（切完锁还是有效的，
+  // 因为 id 等于 lk，包装函数会放行），再渲染排位。
+  try {
+    const want = RK.lock && rkPageId(RK.lock);
+    if (want && typeof cur === 'string' && cur !== want && typeof rkSelectRaw === 'function') rkSelectRaw(want);
+  } catch (e) { }
   await rkRender();
 }
 async function rkRender() {
@@ -2294,7 +2375,8 @@ function acctInfo() {
   const name = (ACCT.me && ACCT.me.student && rkStuName(ACCT.me.student)) || d.full_name || d.name || d.user_name || ghName || (u.email || '').split('@')[0] || '用户';
   return { name, email: u.email || '', avatar: d.avatar_url || '', gh: ghName };
 }
-const acctAv = (i, lg) => `<span class="acct-av${lg ? ' lg' : ''}"${i.avatar ? ` style="background-image:url('${esc(i.avatar)}')"` : ''}>${i.avatar ? '' : esc(i.name.slice(0, 1))}</span>`;
+// 有图 = 透明圆盘（.has-img，见 project2.html 注释）；没图 = 首字 + 紫粉渐变
+const acctAv = (i, lg) => `<span class="acct-av${i.avatar ? ' has-img' : ''}${lg ? ' lg' : ''}"${i.avatar ? ` style="background-image:url('${esc(i.avatar)}')"` : ''}>${i.avatar ? '' : esc(i.name.slice(0, 1))}</span>`;
 const roleCls = me => me.dev ? 'dev' : me.admin ? 'admin' : me.teacher ? 't' : 's';
 async function acctRefresh() {
   const b = document.getElementById('acctBtn');

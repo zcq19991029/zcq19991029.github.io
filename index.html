@@ -12,20 +12,20 @@
      要登录时调 window.HXPortal.login()；被单独打开时 hx-theme.js 会跳回这里（见 hx-theme.js 的 data-tool）。
      账号：Supabase 华夏工具项目，localStorage paike-session 和各工具共用；身份由数据库 hx_me() 决定。
      脚本里不用反引号模板字符串（本机测试时整页当字符串注入到线上同源页面里）。 -->
-<link rel="stylesheet" href="hx-theme.css?v=0536cd7">
-<script src="hx-theme.js?v=0536cd7"></script>
+<link rel="stylesheet" href="hx-theme.css?v=67ab64f">
+<script src="hx-theme.js?v=67ab64f"></script>
 <!-- 首页卡片上的像素小生物：pixelfx 的 12 个 critters（MIT），打包成一个 91 KB 的独立脚本。
      加载失败不影响首页——hx-critters.js 开头就有 window.PixelFX 存在性检查，没有就整段跳过。 -->
-<script src="fx/pixelfx-critters.js?v=0536cd7" defer></script>
-<script src="fx/hx-critters.js?v=0536cd7" defer></script>
+<script src="fx/pixelfx-critters.js?v=67ab64f" defer></script>
+<script src="fx/hx-critters.js?v=67ab64f" defer></script>
 <!-- 像素头像库（2026-11-04）：账号面板里除了传照片，还能从 200 多个像素动效里挑一个当头像。
      和上面 critters 同一套路：库（pixelfx-avatars.js）+ 渲染器（hx-avatar.js），都是 defer、
      不进首屏关键路径；不点「像素头像库」就一个动画都不跑。 -->
-<script src="fx/pixelfx-avatars.js?v=0536cd7" defer></script>
-<script src="fx/hx-avatar.js?v=0536cd7" defer></script>
+<script src="fx/pixelfx-avatars.js?v=67ab64f" defer></script>
+<script src="fx/hx-avatar.js?v=67ab64f" defer></script>
 <!-- 背景动效（2026-11-03）：12 种天气氛围特效铺在背景层，外观面板里选；加载失败或没选就完全不加载渲染器 -->
-<script src="fx/pixelfx-weather.js?v=0536cd7" defer></script>
-<script src="fx/hx-weather.js?v=0536cd7" defer></script>
+<script src="fx/pixelfx-weather.js?v=67ab64f" defer></script>
+<script src="fx/hx-weather.js?v=67ab64f" defer></script>
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; width: 100%; overflow: hidden; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -49,7 +49,13 @@
   .acct { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 4px; border: 0; border-radius: 99px; background: none; white-space: nowrap; }
   .acct:hover, .acct[aria-expanded="true"] { background: var(--fill); }
   .acct b { max-width: 9em; overflow: hidden; text-overflow: ellipsis; font-size: 15px; font-weight: 500; padding-right: 8px; }
+  /* 2026-11-06 用户：「这个为什么是蓝色底 我希望是透明底」。
+     实测 pixelfx 头像 PNG 本身是 96.5% 透明底（四角 alpha 全是 0），蓝底是**这个圆形容器**垫出来的：
+     原来无论有没有图都铺 var(--acc)，透明 PNG 一放上去，圆盘的绿/蓝就从图形四周透出来。
+     所以：默认（没图、用名字首字）照旧铺主题色；挂了头像图（.has-img）就改成完全透明，
+     只留一圈极淡的内描边把圆形轮廓交代清楚。 */
   .av { flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-weight: 600; font-size: 14px; color: var(--on-acc); background: var(--acc) center / cover; }
+  .av.has-img { background-color: transparent; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 14%, transparent); }
   .av.lg { width: 72px; height: 72px; font-size: 30px; }
   .avl { cursor: pointer; border-radius: 50%; } .avl:hover { filter: brightness(.9); }
   .pill { display: inline-flex; align-items: center; height: 22px; padding: 0 9px; border-radius: 99px; font-size: 12px; font-weight: 600; background: var(--fill); color: var(--dim); }
@@ -459,6 +465,10 @@
   .rows > button:hover { color: var(--acc); }
   .f { display: grid; gap: 10px; }
   .f input, .f select { height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--line2); background: var(--card-solid); outline: none; transition: border-color .2s, box-shadow .2s; }
+  /* 登录框下的一句说明（2026-11-06：学生不用注册、学号即账号密码）。
+     小字、居中、弱化，不抢输入框；关键词用主色加粗，扫一眼就能看见「学号」。 */
+  .tip-line { margin: 2px 0 0; font-size: 12.5px; line-height: 1.6; color: var(--dim); text-align: center; }
+  .tip-line b { color: var(--acc); font-weight: 700; }
   .f input:focus, .f select:focus { border-color: var(--acc); box-shadow: 0 0 0 4px var(--ring); }
   .f .btn { height: 44px; }
   #shareT { padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line2); background: var(--card-solid); font: inherit; font-size: 15px; line-height: 1.6; resize: none; outline: none; }
@@ -560,6 +570,9 @@
   <form class="f" id="lf">
     <input id="lid" autocomplete="username" placeholder="账号名或邮箱" required>
     <input id="lpw" type="password" autocomplete="current-password" placeholder="密码" required>
+    <!-- 2026-11-06 新规则：学生不再注册，学号即账号、学号即密码（老师导入考勤表时批量开好）。
+         这句话就摆在这儿，否则学生打开就是「登录」两栏，根本不知道自己有没有账号。 -->
+    <p class="tip-line">学生不用注册：账号和密码都是你的<b>学号</b>。老师导入考勤表时已经给你开好了，直接登录就行。</p>
     <p class="msg" id="lmsg"></p>
     <button class="btn" type="submit">登录</button>
     <div class="or">或</div>
@@ -754,7 +767,10 @@ function info() { // 名字、头像、GitHub 用户名、邮箱
   name = name || '用户'; // 兜底后保证非空：avatar() 要取首字母，seq 可能是数字
   return { name: name, email: u.email || '', avatar: d.avatar_url || '', gh: ghName, full: d.full_name || '' };
 }
-function avatar(i, cls) { return '<span class="av ' + (cls || '') + '"' + (i.avatar ? ' style="background-image:url(' + esc(i.avatar) + ')"' : '') + '>' + (i.avatar ? '' : esc(i.name.slice(0, 1))) + '</span>'; }
+function avatar(i, cls) { // 有图 = 透明圆盘（.has-img，见上面注释）；没图 = 名字首字 + 主题色圆盘
+  var has = !!i.avatar;
+  return '<span class="av ' + (has ? 'has-img ' : '') + (cls || '') + '"' + (has ? ' style="background-image:url(' + esc(i.avatar) + ')"' : '') + '>' + (has ? '' : esc(i.name.slice(0, 1))) + '</span>';
+}
 function badge() { var m = ST.me; return m && m.dev ? '<span class="pill dev">开发者</span>' : m && m.admin ? '<span class="pill admin">管理员</span>' : ''; } // 身份象征：开发者金粉、管理员蓝
 // 按钮上二次确认：第一下变成“确认…？”，3 秒内再点才执行（不用 confirm()：应用内浏览器等环境会直接当成“取消”，看起来像点了没反应）
 function sure(b, text) {
@@ -973,19 +989,22 @@ function helpDocTeacher() {
   return '<h4>开始之前</h4>'
     + '<p>用<b>教师账号</b>登录（教师账号要邀请码才能注册，问管理员或开发者要）。首页按「学习 / 教学 / 维护」分组列出你能用的工具，首页下面的<b>班级</b>卡片管名单和课堂码。</p>'
     + '<ul><li>名单、成绩都存在云端，换一台电脑用同一个账号登录就都在。</li>'
-    + '<li>学生不能自己注册，必须用你发的<b>课堂码</b>开号。</li></ul>'
-    + '<h4>建班、导入名单</h4>'
+    + '<li><b>学生不用注册</b>：你导入考勤表的时候就把账号开好了，<b>账号是学号、密码也是学号</b>。已经自己注册过的学生不受影响，密码照旧。</li></ul>'
+    + '<h4>建班、导入名单（顺手把账号开好）</h4>'
     + '<ul>'
     + '<li>首页「班级」卡片 → 右上角<b>导入考勤表</b> → 选教务系统导出的 <kbd>.xls</kbd> / <kbd>.xlsx</kbd> / <kbd>.csv</kbd>（要有<b>学号、姓名</b>两列）。</li>'
     + '<li>可以一次选多个文件，<b>一个文件一个班</b>；导入前能改班级名和学期。</li>'
+    + '<li><b>导入完账号就有了</b>：每个没注册过的学号会自动开成「学号 / 学号」，导完的提示里会写「新开号 N 个」。已注册的一个都不动。</li>'
+    + '<li>以前就导过、当时还没批量开号的老班：班级卡片上会出现<b>一键开号 N</b> 按钮，点一下把这个班剩下的人都开好，同样不碰已注册的。</li>'
     + '<li>每个班下面四个开关（接线仿真 / 单片机 / 考试 / 小组加分）：点亮哪个，这个班才在哪个工具里出现；四个都不点 = 四个工具都用不了。</li>'
     + '<li>带完的班点<b>收起</b>，名单和成绩一条不删，随时点<b>恢复使用</b>回来。带完的班不要删。</li>'
     + '</ul>'
-    + '<h4>发课堂码，让学生开号</h4>'
+    + '<h4>课堂码还要不要发</h4>'
     + '<ul>'
-    + '<li>班级卡片那行点<b>发课堂码</b>，生成一个<b>4 小时有效</b>的码；可以「分享」给学生，也可以「撤销」。</li>'
-    + '<li>学生在登录窗口切到「注册」，填课堂码 + 学号 + 姓名 + 密码就能开号。码后面显示已注册人数（已注册 x / y）。</li>'
-    + '<li>学生忘了密码，用首页<b>重置密码</b>卡片按学号重置。</li>'
+    + '<li><b>一般不用了</b>：账号已经按学号开好，学生打开首页直接「学号 / 学号」登录即可。</li>'
+    + '<li>课堂码只在两种情况还有用：① 学生想自己设一个好记的密码；② 中途插班、考勤表还没更新的学生。</li>'
+    + '<li>要发就在班级卡片那行点<b>发课堂码</b>，生成一个<b>4 小时有效</b>的码，可以「分享」也可以「撤销」。码后面显示已注册人数（已注册 x / y）。</li>'
+    + '<li>学生忘了密码，用首页<b>重置密码</b>卡片按学号重置，或者干脆重置成学号本身。</li>'
     + '<li>旁听的访客用<b>好友邀请码</b>开通，单独列在「访客」里，不算进班级名单。</li>'
     + '</ul>'
     + '<h4>接线仿真 · 排位与随机抽人</h4>'
@@ -1020,14 +1039,13 @@ function helpDocTeacher() {
 }
 // 学生版：只讲学生自己能点的路径。**不出现建班、导入名单、导出、邀请码**这些教师操作。
 function helpDocStudent() {
-  return '<h4>第一次用：用课堂码开号</h4>'
-    + '<p>华夏工具不让学生自己注册，账号要用老师发的<b>课堂码</b>开通。</p>'
+  return '<h4>第一次用：不用注册，学号就是账号</h4>'
+    + '<p>老师导入考勤表的时候已经把你的账号开好了：<b>账号是你的学号，密码也是你的学号</b>。不用注册，直接登录。</p>'
     + '<ul>'
-    + '<li>点右上角<b>登录</b> → 切到<b>注册</b> → 填老师给的课堂码。</li>'
-    + '<li>码对上以后会自动带出班级，再填<b>学号</b>、<b>姓名</b>（和班级名单一致）、<b>密码</b>（至少 6 位），点注册就开好了。</li>'
-    + '<li>以后每次用<b>学号 + 密码</b>登录，不用再填课堂码。</li>'
-    + '<li>课堂码 4 小时有效，过期或提示不对就找老师重新发一个。</li>'
-    + '<li>忘了密码找老师重置，不要重复注册。</li>'
+    + '<li>点右上角<b>登录</b>，账号填<b>学号</b>，密码也填<b>学号</b>，点登录就进去了。</li>'
+    + '<li>如果你的账号之前已经自己注册过，那就还用你原来的密码，新规则不影响你。</li>'
+    + '<li>登不进去或者提示「账号或密码不对」，先找老师确认你的学号在不在名单里，别自己反复试。</li>'
+    + '<li>想换一个好记的密码，可以找老师要课堂码，用「注册」那条路重设一次。</li>'
     + '</ul>'
     + '<h4>首页怎么用</h4>'
     + '<ul>'
@@ -1426,13 +1444,18 @@ function clsCodeRow(c) {
   var mine = ST.codes.filter(function (x) { return x.role === 'student' && x.class_name === c.name; });
   var live = mine.filter(function (x) { return x.live; })[0] || null; // 倒序返回，第一个活的即最新
   var reg = (c.bound || 0) + ' / ' + (c.total || 0);
+  // 2026-11-06 新规则：学生不用注册，学号即账号密码。班级卡片上直接给一个「一键开号」，
+  // 显示还有几个人没开（total - bound）。0 个人没开就不显示按钮，不占地方。
+  // 导入考勤表时已经会自动开号，这个按钮是给「之前就导入过、但当时还没有批量注册」的老班补的。
+  var lack = Math.max(0, (c.total || 0) - (c.bound || 0));
+  var openBtn = lack > 0 ? '<button class="btn sub sm" data-clsopen="' + c.id + '">一键开号 ' + lack + '</button>' : '';
   if (!live) {
     return '<div class="clcode"><span class="dim">这个班还没有有效的课堂码 · 已注册 ' + reg + '</span>' +
-      '<button class="btn sub sm" data-clscode="' + c.id + '">发课堂码</button></div>';
+      openBtn + '<button class="btn sub sm" data-clscode="' + c.id + '">发课堂码</button></div>';
   }
   var full = live.used >= live.max_uses;
   return '<div class="clcode"><span class="dim">课堂码</span><b class="mono">' + esc(live.code) + '</b>' +
-    '<span class="dim">已注册 ' + reg + '</span>' +
+    '<span class="dim">已注册 ' + reg + '</span>' + openBtn +
     (full ? '<span class="pill">已使用</span>'
       : '<span class="pill acc">注册中</span><button class="btn link sm" data-clsshare="' + esc(live.code) + '">分享</button>' +
         '<button class="btn link bad sm" data-clsrev="' + esc(live.code) + '">撤销</button>') +
@@ -1490,16 +1513,23 @@ function sheetCls() {
     $('rImp').onclick = async function () {
       R.forEach(function (x, k) { if (x.list) { x.cls = box.querySelector('[data-rc="' + k + '"]').value.trim(); x.term = box.querySelector('[data-rt="' + k + '"]').value.trim(); } });
       $('rImp').disabled = true;
-      var ok = 0, n = 0, left = [];
+      var ok = 0, n = 0, left = [], made0 = 0, madeFail = 0;
       for (var k = 0; k < R.length; k++) {
         var x = R[k]; if (!x.list) { left.push(x); continue; }
         try {
           if (!x.cls) throw new Error('请填写班级');
-          var r = await HX.rpc('hx_import_class', { p_name: x.cls, p_term: x.term, p_rows: x.list }); delete ST.studs[r.class]; ok++; n += r.count;
+          // 2026-11-06：导入考勤表现在会顺手把没账号的学生开掉（hx_import_class 内部调 hx_student_signup），
+          // 已注册的一个都不动。返回值里 created/bound/failed 就是开号的结果。
+          var r = await HX.rpc('hx_import_class', { p_name: x.cls, p_term: x.term, p_rows: x.list }); delete ST.studs[r.class]; ok++; n += r.count; made0 += (r.created || 0);
+          if (r.failed) madeFail += r.failed;
         } catch (er) { x.err = '导入失败：' + er.message; left.push(x); }
       }
       ST.rosters = left.length ? left : null; // 失败的留在面板里，写着原因，改了可以再导
-      toast((ok ? '已导入 ' + ok + ' 个班、' + n + ' 人' : '没有导入成功') + (left.length ? '；' + left.length + ' 个文件失败，原因见下面' : ''));
+      // 说清楚「开了几个号」：老师的核心疑问是「学生能不能直接登录了」
+      toast((ok ? '已导入 ' + ok + ' 个班、' + n + ' 人' : '没有导入成功')
+        + (made0 ? '，新开号 ' + made0 + ' 个（密码就是学号）' : '')
+        + (madeFail ? '，' + madeFail + ' 个开号失败' : '')
+        + (left.length ? '；' + left.length + ' 个文件失败，原因见下面' : ''));
       await loadClasses();
     };
   }
@@ -1553,6 +1583,26 @@ function sheetCls() {
   });
   box.querySelectorAll('[data-clsshare]').forEach(function (b) {
     b.onclick = function () { shareCode(b.dataset.clsshare, 'student'); };
+  });
+  // 一键开号（2026-11-06）：批量把本班「还没绑定账号」的学生开成 学号/学号。
+  // 已注册的原样跳过（后端 hx_batch_signup_class 只处理 user_id is null 的行）。
+  box.querySelectorAll('[data-clsopen]').forEach(function (b) {
+    b.onclick = async function () {
+      var c = ST.classes.filter(function (x) { return x.id === +b.dataset.clsopen; })[0];
+      if (!c) return;
+      var lack = Math.max(0, (c.total || 0) - (c.bound || 0));
+      if (!await ask('给「' + c.name + '」开号',
+        '会把班里还没注册的 ' + lack + ' 个学生全部开成账号：账号 = 学号，密码 = 学号。已经注册过的学生不受影响，密码照旧。', '开始开号')) return;
+      b.disabled = true;
+      var old = b.textContent; b.textContent = '开号中…';
+      try {
+        var r = await HX.rpc('hx_batch_signup_class', { p_class: c.id });
+        toast('新建 ' + (r.created || 0) + ' 个，认领已有邮箱 ' + (r.bound || 0) + ' 个'
+          + (r.failed ? '，失败 ' + r.failed + ' 个' : '')
+          + (r.created ? '。学生现在可以用「学号 / 学号」直接登录' : ''));
+        delete ST.studs[c.id]; await loadClasses();
+      } catch (e) { toast(e.message); b.disabled = false; b.textContent = old; }
+    };
   });
   box.querySelectorAll('[data-clsrev]').forEach(function (b) {
     b.onclick = async function () {

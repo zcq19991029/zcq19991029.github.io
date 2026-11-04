@@ -681,6 +681,11 @@ body.gated .topbar, body.gated main { display: none !important; }
   transition: background .16s, border-color .16s;
 }
 .userchip:hover { background: var(--panel-soft); border-color: var(--line); }
+/* 2026-11-06 用户：「这个为什么是蓝色底 我希望是透明底」。
+   像素头像 PNG 自己就是透明底（实测 96.5% 透明），原来是这个圆盘垫的渐变从图形四周透出来。
+   所以：默认（没图、拿名字首字）照旧铺主题渐变；一旦挂的是头像图（.has-img），
+   圆盘改成完全透明 + 一圈细描边，让图形本体自己站着。
+   注意别反过来写（默认透明）——「记住的账号」那些列表用的就是首字头像，没有底色会看不清。 */
 .avatar {
   width: 28px; height: 28px; border-radius: 50%; flex: none;
   background: linear-gradient(160deg, var(--accent-hi), var(--accent));
@@ -688,6 +693,10 @@ body.gated .topbar, body.gated main { display: none !important; }
   display: inline-flex; align-items: center; justify-content: center;
   font-size: 12px; font-weight: 700; overflow: hidden;
   box-shadow: 0 2px 7px var(--accent-glow);
+}
+.avatar.has-img {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--line, rgba(0, 0, 0, .12));
 }
 .avatar img { width: 100%; height: 100%; object-fit: cover; }
 .uname {
@@ -1790,9 +1799,20 @@ html.hx-bg body::before { display: none; }
   position: fixed; inset: 0; z-index: 2147482000;
   display: flex; align-items: center; justify-content: center;
   background: var(--bg);
-  transition: opacity .38s var(--hx-ease, ease), visibility 0s linear .38s;
+  transition: opacity .2s var(--hx-ease, ease), visibility 0s linear .2s;
 }
-#hxSplash.hx-splash-out { opacity: 0; visibility: hidden; pointer-events: none; }
+/* 2026-11-06 用户：「这个加载重叠了 请清理多余的」。
+   原来是**整个 #hxSplash 一起 opacity:0** —— 背景板和不透明底色也跟着淡，淡到 50% 时底下的登录门
+   卡片已经全露出来了，于是屏幕上同时有两个「夜夜小组制加分助手」、按钮上还压着一行「正在载入…」，
+   这就是用户截图里那一坨。
+   现在分两步，保证任何时刻都不会两层同框：
+     ① .hx-splash-out：底色**继续不透明**，只淡卡片内容（260ms）→ 屏幕上只剩一块干净背景；
+     ② .hx-splash-gone（JS 在 160ms 后加）：再让整层连底色一起淡（200ms）→ 平滑露出页面。
+   两段刻意叠一点，看不到「先闪一下页面再变」的断层。 */
+#hxSplash .hx-splash-card { transition: opacity .26s var(--hx-ease, ease), transform .26s var(--hx-ease, ease); }
+#hxSplash.hx-splash-out { pointer-events: none; background: var(--bg); }
+#hxSplash.hx-splash-out .hx-splash-card { opacity: 0; transform: scale(.985); }
+#hxSplash.hx-splash-gone { opacity: 0; visibility: hidden; }
 .hx-splash-card { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 24px; }
 #hxSplashCv { image-rendering: pixelated; }
 .hx-splash-name {
@@ -1800,10 +1820,9 @@ html.hx-bg body::before { display: none; }
   color: var(--text); letter-spacing: .02em; text-align: center;
 }
 .hx-splash-tip { font: 400 12.5px/1 var(--hx-font, -apple-system, "PingFang SC", "Microsoft YaHei UI", sans-serif); color: var(--muted); }
-.hx-splash-tip span { animation: hxsplashdot 1.2s infinite; }
-.hx-splash-tip .d2 { animation-delay: .2s; }
-.hx-splash-tip .d3 { animation-delay: .4s; }
-@keyframes hxsplashdot { 0%, 60%, 100% { opacity: .25; } 30% { opacity: 1; } }
-/* 省电 / 关动画偏好：文字省略号也不闪 */
-html.hx-lite .hx-splash-tip span { animation: none; opacity: .7; }
-@media (prefers-reduced-motion: reduce) { .hx-splash-tip span { animation: none; opacity: .7; } }
+/* 2026-11-06 删：.hx-splash-tip span { animation: hxsplashdot 1.2s infinite } 和配套的 .d2/.d3、
+   @keyframes hxsplashdot、hx-lite / reduced-motion 两条覆盖。
+   那是「正在载入」后面跟三个会闪的句点的写法，2026-11-04 已经换成像素方块，句点早就不存在了。
+   留下的唯一效果是：这条选择器把闪屏里**任何** span（包括后来加的文案 .hx-splash-tip-t）也一起
+   拨到 0.25/1 之间闪 —— 文案在闪，方块也在跳，看着像两套动画打架。
+   现在闪屏只有 canvas 动效 + 两行静态文字，这几条全部无用，一并删掉。 */

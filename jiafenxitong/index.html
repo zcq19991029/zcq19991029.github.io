@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#fcfcfb">
 <title>夜夜小组制加分助手 · 《电气接线原理》</title>
-<link rel="stylesheet" href="styles.css?v=0536cd7">
-<link rel="stylesheet" href="draw-person.css?v=0536cd7">
+<link rel="stylesheet" href="styles.css?v=67ab64f">
+<link rel="stylesheet" href="draw-person.css?v=67ab64f">
 <!-- 华夏工具外观（首页统一设置）：主色、背景图；单独打开会回到首页 /#jiafen。账号只在首页管理 -->
 <script src="../hx-theme.js" data-tool="jiafen"></script>
 <!-- 闪屏「正在载入」的像素方块（2026-11-04）：原来是 正在载入 后面跟三个会闪的句点，干巴巴的。
@@ -14,23 +14,13 @@
      class 名 .hx-px 和 keyframes hxPx 与总入口 hx-theme.js 里的那一套同名同内容——
      引了 hx-theme.js 时两套规则一致不打架，单独打开没有它时这一份也够方块跳起来。
      选择器一律带 #hxSplash 前缀：styles.css 里旧的 .hx-splash-tip span{animation:hxsplashdot}
-     会连 span 一起晃，这里必须压过它。 -->
+     会连 span 一起晃，这里必须压过它。
+     2026-11-06：闪屏里的方块已删（见 body 里的注释），#hxSplash .hx-px 那几条规则随之移除；
+     #gateMsg 那套不动，登录门里没有 canvas，方块是唯一的动效。 -->
 <style>
   #hxSplash .hx-splash-tip { display: flex; flex-direction: column; align-items: center; gap: 10px; }
-  /* 闪屏是全屏的，方块比药丸里那版放大到 12px（下面 canvas 64px、标题 17px，8px 会显得太小）。
-     2026-11-04 用户：「像素动效和文字匹配总体看起来太小 … 应该需要自适应网页大小和手机端大小」——
-     改成跟视口走：手机 12px → 笔记本 18px → 一体机 20px 封顶。 */
-  #hxSplash .hx-px { display: inline-flex; align-items: flex-end; gap: .28em; height: 2.2em; font-size: clamp(12px, 1vw + 4px, 26px); animation: none; }
-  #hxSplash .hx-px i { width: 1em; height: 1em; border-radius: .16em; display: block;
-    background: linear-gradient(180deg, var(--acc, #2f845a), var(--acc2, #5aa77c));
-    animation: hxPx 1.15s cubic-bezier(.32, .72, 0, 1) infinite;
-    animation-delay: calc(var(--i) * 90ms); }
-  #hxSplash .hx-px i:nth-child(2n) { background: linear-gradient(180deg, var(--acc2, #5aa77c), var(--acc, #2f845a)); }
   #hxSplash .hx-splash-tip-t { font: 400 clamp(12.5px, .7vw + 6px, 22px)/1 var(--hx-font, -apple-system, "PingFang SC", "Microsoft YaHei UI", sans-serif); color: var(--muted); animation: none; }
   @keyframes hxPx { 0%, 100% { transform: translateY(0); opacity: .55 } 35% { transform: translateY(-110%); opacity: 1 } 60% { transform: translateY(0); opacity: .7 } }
-  /* 一体机省电 / 系统关动画：方块停在 .85 透明度，不做起伏 */
-  html.hx-lite #hxSplash .hx-px i { animation: none; opacity: .85; }
-  @media (prefers-reduced-motion: reduce) { #hxSplash .hx-px i { animation: none; opacity: .85; transform: none; } }
 
   /* 登录门里的「正在载入」（app.js gateShow('wait')）也换成同一套像素方块：
      原来这里就是一行干文字，是全站最后一处旧式加载提示（2026-11-04）。 */
@@ -46,26 +36,32 @@
   html.hx-lite #gateMsg .hx-px i { animation: none; opacity: .85; }
   @media (prefers-reduced-motion: reduce) { #gateMsg .hx-px i { animation: none; opacity: .85; transform: none; } }
 </style>
-<meta name="build-commit" content="0536cd7">
-<meta name="build-published-at" content="2026-11-04T13:06:48.549Z">
+<meta name="build-commit" content="67ab64f">
+<meta name="build-published-at" content="2026-11-04T15:12:24.897Z">
 </head>
 <body>
 
-<!-- 载入动画：像素特效 + 标题，数据就绪后由 fx/hx-jf-load.js 淡出并整体移除。
-     放在 body 最前 + 样式在 styles.css 里同步加载，保证大脚本（xlsx/jspdf）解析期间就有东西看。 -->
+<!-- 载入动画：pixelfx 特效 + 标题 + 一行文案，数据就绪后由 fx/hx-jf-load.js 淡出并整体移除。
+     放在 body 最前 + 样式在 styles.css 里同步加载，保证大脚本（xlsx/jspdf）解析期间就有东西看。
+
+     2026-11-06 用户：「这个加载重叠了 请清理多余的 很多工具都要查」。
+     这里原来叠了五层东西：canvas 像素特效 + 标题 + 7 个像素方块 + 「正在载入…」文案，
+     再叠上总入口那条「正在加载 · 小组加分」药丸，全挤在同一块屏幕中央。
+     按「同一块屏幕上只留一套语言」的原则收成三层：**canvas 动效 = 视觉主体**（它本身就是动作），
+     标题一行、文案一行。方块那套起伏动画删掉 —— 它和 canvas 特效是同一个意思的两种画法，
+     一起出现只会互相抢注意力，还会在弱网时变成 4 个方块、2 段文字的乱堆。
+     方块样式保留给登录门（#gateMsg）用，那里没有 canvas，方块是唯一的动效。 -->
 <div id="hxSplash" aria-hidden="true">
   <div class="hx-splash-card">
     <canvas id="hxSplashCv" width="64" height="64"></canvas>
     <div class="hx-splash-name">夜夜小组制加分助手</div>
     <div class="hx-splash-tip">
-      <!-- 7 个方块错峰起伏（--i 是序号，样式里用它算 animation-delay）＋下面一行文案 -->
-      <span class="hx-px" aria-hidden="true"><i style="--i:0"></i><i style="--i:1"></i><i style="--i:2"></i><i style="--i:3"></i><i style="--i:4"></i><i style="--i:5"></i><i style="--i:6"></i></span>
       <span class="hx-splash-tip-t">正在载入…</span>
     </div>
   </div>
 </div>
-<script src="fx/pixelfx-loader.js?v=0536cd7"></script>
-<script src="fx/hx-jf-load.js?v=0536cd7"></script>
+<script src="fx/pixelfx-loader.js?v=67ab64f"></script>
+<script src="fx/hx-jf-load.js?v=67ab64f"></script>
 
 <header class="topbar" id="topbar">
   <div class="topbar-main">
@@ -579,14 +575,14 @@
   </form>
 </dialog>
 
-<script src="data.js?v=0536cd7"></script>
-<script src="config.js?v=0536cd7"></script>
-<script src="vendor/jspdf.umd.min.js?v=0536cd7"></script>
-<script src="vendor/xlsx.full.min.js?v=0536cd7"></script>
-<script src="roster-import.js?v=0536cd7"></script>
-<script src="hx-roster.js?v=0536cd7"></script>
-<script src="cloud.js?v=0536cd7"></script>
-<script src="supabase-cloud.js?v=0536cd7"></script>
+<script src="data.js?v=67ab64f"></script>
+<script src="config.js?v=67ab64f"></script>
+<script src="vendor/jspdf.umd.min.js?v=67ab64f"></script>
+<script src="vendor/xlsx.full.min.js?v=67ab64f"></script>
+<script src="roster-import.js?v=67ab64f"></script>
+<script src="hx-roster.js?v=67ab64f"></script>
+<script src="cloud.js?v=67ab64f"></script>
+<script src="supabase-cloud.js?v=67ab64f"></script>
 <dialog id="dlgPassword">
   <form method="dialog" class="dlg" id="passwordForm">
     <div class="dlg-head"><h3>修改密码</h3><button type="button" class="dlg-x" id="btnPasswordClose" aria-label="关闭">✕</button></div>
@@ -611,16 +607,16 @@
     <div class="drw" id="drw"></div>
   </div>
 </dialog>
-<script src="leader-scoring.js?v=0536cd7"></script>
-<script src="assessment.js?v=0536cd7"></script>
-<script src="ui-feedback.js?v=0536cd7"></script>
+<script src="leader-scoring.js?v=67ab64f"></script>
+<script src="assessment.js?v=67ab64f"></script>
+<script src="ui-feedback.js?v=67ab64f"></script>
 <dialog id="dlgOperationLog"><div class="dlg"><div class="dlg-head"><div><h3>操作日志</h3><span class="note">选择任意一条撤销，其他记录继续保留</span></div><button type="button" id="closeOperationLog" class="dlg-x" aria-label="关闭操作日志">✕</button></div><div class="dlg-body"><div class="log-toolbar"><label>班级<select id="logClassFilter"><option value="">全部班级</option></select></label><label>课次<select id="logLessonFilter"><option value="">全部课次</option></select></label><label class="log-search">查找<input type="search" id="logSearch" placeholder="姓名、组号、课次或项目"></label><button id="btnRedo" class="btn" disabled title="恢复最近撤销的一项（Ctrl+Shift+Z）">↷ 恢复最近一项</button></div><button id="btnUndo" hidden disabled></button><p id="undoDetail" hidden></p><p id="redoDetail" hidden></p><div id="operationLogList"></div><details class="log-help"><summary>记录与撤销说明</summary><p>点击某条右侧“撤销”，仅抵消该次操作的实际效果；已撤销的记录可单独恢复。平板支持左划，松手前拉回即可取消。个人项目的核对流水请到原评分表修改。默认5分不记作加分操作；相邻等量反向调整合并抵消。旧记录未记载时间时显示“历史记录”。</p></details></div></div></dialog>
-<script src="print-excel.js?v=0536cd7"></script>
-<script src="gradebook.js?v=0536cd7"></script>
+<script src="print-excel.js?v=67ab64f"></script>
+<script src="gradebook.js?v=67ab64f"></script>
 <!-- 学生只读查分：把「每人一份」的分数快照发布到云端，app.js 每次 save() 会叫它（2026-11-04） -->
-<script src="student-feed.js?v=0536cd7"></script>
-<script src="app.js?v=0536cd7"></script>
-<script src="draw-person.js?v=0536cd7"></script>
-<script src="password-ui.js?v=0536cd7"></script>
+<script src="student-feed.js?v=67ab64f"></script>
+<script src="app.js?v=67ab64f"></script>
+<script src="draw-person.js?v=67ab64f"></script>
+<script src="password-ui.js?v=67ab64f"></script>
 </body>
 </html>
