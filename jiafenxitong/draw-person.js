@@ -1,7 +1,11 @@
-/* 随机抽人 —— 从接线仿真 src/rank.js 搬过来的卡包抽人（2026-11-06 版）
+/* 随机抽人 —— 卡包开包 + 洗牌抽卡（2026-11-06 洗牌版）
  *
- * 只搬抽人，不搬排位/连线：卡包浮 → 蓄力抖动 → 开包强光 → 卡片飞出翻面 → 揭示，
- * 抽取逻辑（先算结果、动画只负责演、不与上一次重复、busy + 按钮双保险防连点）一行没改。
+ * 流程：卡包浮 → 蓄力抖动 → 开包强光 → 甩出一叠牌（8 张背面）→ 快速洗牌/切牌（速度渐慢）
+ *       → 顶上那张升起来翻面 → 揭示。
+ * 抽取逻辑没变（结果先算好、动画只负责演、不与上一次重复、busy + 按钮双保险防连点）；
+ * 洗牌全程只露背面，中奖那张的姓名要等翻面前一刻才写进 DOM，所以看的人提前猜不到。
+ *
+ * ⚠ 接线仿真 src/rank.js 里也有一份同类实现（没有洗牌），两边已经分叉，别互相覆盖。
  *
  * 与接线仿真的差别（只有这两条）：
  *   ① 数据源换成小组加分自己的全班名单 —— 接线仿真读 RK.studs[班级id]，这边读 cls.roster；
@@ -26,7 +30,8 @@
   /* app.js 注入的数据源。没注入就什么都不做（open() 会提示未就绪） */
   var SRC = null;
 
-  /* 抽人状态机：idle → preparing → shaking → opening → revealing → result（异常时 error，按钮变「重试」）
+  /* 抽人状态机：idle → preparing → shaking → opening → shuffling → revealing → result
+     （异常时 error，按钮变「重试」）
      last 防着连抽同一个人；pool 是当前班的名单快照。
      gen 是一轮「打开窗口」的代数：每次 open() 都 +1，正在演的状态机发现代数变了就立刻停手。
      接线仿真那边窗口只是 display:none 藏起来、DOM 一直在，所以不需要这个；
@@ -130,8 +135,8 @@
           '<i class="drw-halo"></i>' +
           '<div class="drw-pack" id="drwPack" title="点卡包也能抽">' +
             '<i class="drw-lyr l1"></i><i class="drw-lyr l2"></i>' +
-            '<div class="drw-half top"><div class="drw-skin"><span class="drw-pname">随机抽人</span><i class="drw-seal">抽</i></div></div>' +
-            '<div class="drw-half bot"><div class="drw-skin"><span class="drw-pname">随机抽人</span><i class="drw-seal">抽</i></div></div>' +
+            '<div class="drw-half top"><div class="drw-skin"><i class="drw-seal">抽</i></div></div>' +
+            '<div class="drw-half bot"><div class="drw-skin"><i class="drw-seal">抽</i></div></div>' +
             '<i class="drw-pt"></i><i class="drw-pt"></i><i class="drw-pt"></i><i class="drw-pt"></i><i class="drw-pt"></i><i class="drw-pt"></i>' +
           '</div>' +
           '<i class="drw-flash"></i>' +
@@ -182,16 +187,27 @@
   function drwGo(box, label, dis) {
     var g = box.querySelector('#drwGo'); if (g) { g.textContent = label; g.disabled = !!dis; }
   }
-  /* 结果卡：姓名最大字号、组号次级、「本轮抽中」标签 */
-  function drwCards(box, list) {
-    var wrap = box.querySelector('#drwCards'); if (!wrap) return;
-    wrap.innerHTML = list.map(function (p, i) {
-      return '<div class="drw-card" style="animation-delay:' + (i * .22) + 's">' +
-        '<div class="drw-cardin" style="transition-delay:' + (i * .18) + 's">' +
-          '<div class="drw-cback"></div>' +
-          '<div class="drw-cface"><em>本轮抽中</em><b>' + esc(p.name) + '</b><span>' + esc(subLine(p) || p.cls || '') + '</span></div>' +
-        '</div></div>';
-    }).join('');
+  /* 一叠牌：8 张背面朝上的牌叠在舞台正中，洗牌完收成一摞。
+     中奖那张在 DOM 里带 .win（z-index 最高），但正面此刻是空的 —— 姓名等翻面前一刻才写进去，
+     背面朝上时看不见，洗牌全程不泄露结果。
+     每张牌的错位/幅度全靠内联变量 --i/--n/--dir/--amp 交给 CSS 算，JS 不逐帧改样式。 */
+  var DRW_DECK = 8;
+  function drwDeck(box, win) {
+    var wrap = box.querySelector('#drwCards'); if (!wrap) return null;
+    var n = DRW_DECK, w = Math.random() * n | 0, html = '';
+    for (var i = 0; i < n; i++) {
+      var amp = (0.72 + ((i * 37) % 11) / 18).toFixed(2); // 每张牌洗牌的幅度都不一样，才不像广播体操
+      html += '<div class="drw-card' + (i === w ? ' win' : '') + '"' +
+        ' style="--i:' + i + ';--n:' + n + ';--dir:' + (i % 2 ? 1 : -1) + ';--amp:' + amp + ';z-index:' + (i === w ? 99 : i) + '">' +
+        '<div class="drw-cardin"><div class="drw-cback"></div><div class="drw-cface"></div></div></div>';
+    }
+    wrap.innerHTML = html;
+    return wrap.querySelector('.drw-card.win');
+  }
+  /* 翻面前一刻才把姓名写进中奖那张的正面：姓名最大字号、组号次级、「本轮抽中」标签 */
+  function drwFace(card, p) {
+    var f = card && card.querySelector('.drw-cface'); if (!f) return;
+    f.innerHTML = '<em>本轮抽中</em><b>' + esc(p.name) + '</b><span>' + esc(subLine(p) || p.cls || '') + '</span>';
   }
   function drwBindFoot(box) {
     var a = box.querySelector('#drwAgain'), c = box.querySelector('#drwClose');
@@ -213,7 +229,11 @@
   }
 
   /* ── 一轮抽取：结果先算好，再按状态机把动画演完 ──
-     时序：preparing 0.48s → shaking 0.88s → opening 0.7s → revealing 0.88s → result，全程约 3 秒 */
+     时序（和 draw-person.css 里的动画时长一一对应，改一边记得改另一边）：
+       preparing .36s → shaking .5s → opening .46s → shuffling 1.76s → revealing .7s → result
+     合计约 3.8 秒。 */
+  var T_PREP = 360, T_SHAKE = 500, T_DEAL = 460, T_WASH = 1760, T_REVEAL = 700;
+
   function drwRoll(box) {
     if (DRW.busy) return; // 状态机没走完之前，按钮/卡包/连点全部进不来
     if (!box || !box.isConnected) return;
@@ -235,25 +255,32 @@
     /* 还能继续演吗：窗口没关、也没被 open() 换代（关掉重开） */
     function alive() { return box.isConnected && DRW.gen === gen; }
 
-    /* 降级（is-lite / 关动画偏好）：不演过程，卡片直接亮出结果。
-       正常：卡包蓄势 → 蓄力抖动（幅度渐增）→ 上下分离+强光+卡片飞出 → 翻面揭示 */
+    /* 降级（is-lite / 关动画偏好）：不演过程，直接摆一张翻好的结果卡。
+       正常：卡包蓄势 → 蓄力抖动 → 开包 + 甩出一叠牌 → 洗牌 → 一张升起来翻面 */
     var play;
     if (drwNoAnim()) {
-      drwPhase(box, 'opening'); drwCards(box, [win]);
+      var fast = drwDeck(box, win); drwFace(fast, win);
+      drwPhase(box, 'result');
       play = Promise.resolve();
     } else {
-      play = drwSleep(480)
+      play = drwSleep(T_PREP)
         .then(function () {
           if (!alive()) throw 0;         // 等待期间窗口被关了/换了：走 error 兜底，不继续演
-          drwPhase(box, 'shaking'); return drwSleep(880);
+          drwPhase(box, 'shaking'); return drwSleep(T_SHAKE);
         })
         .then(function () {
           if (!alive()) throw 0;
-          drwPhase(box, 'opening'); drwCards(box, [win]); return drwSleep(700);
+          drwPhase(box, 'opening'); drwDeck(box, win); return drwSleep(T_DEAL);
         })
         .then(function () {
           if (!alive()) throw 0;
-          drwPhase(box, 'revealing'); return drwSleep(880);
+          drwPhase(box, 'shuffling'); return drwSleep(T_WASH);
+        })
+        .then(function () {
+          if (!alive()) throw 0;
+          /* 洗牌结束、翻面前一刻才写名字：背面朝上，写进去也看不见 */
+          drwFace(box.querySelector('.drw-card.win'), win);
+          drwPhase(box, 'revealing'); return drwSleep(T_REVEAL);
         });
     }
 

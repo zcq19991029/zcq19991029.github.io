@@ -12,20 +12,20 @@
      要登录时调 window.HXPortal.login()；被单独打开时 hx-theme.js 会跳回这里（见 hx-theme.js 的 data-tool）。
      账号：Supabase 华夏工具项目，localStorage paike-session 和各工具共用；身份由数据库 hx_me() 决定。
      脚本里不用反引号模板字符串（本机测试时整页当字符串注入到线上同源页面里）。 -->
-<link rel="stylesheet" href="hx-theme.css?v=53da156">
-<script src="hx-theme.js?v=53da156"></script>
+<link rel="stylesheet" href="hx-theme.css?v=0536cd7">
+<script src="hx-theme.js?v=0536cd7"></script>
 <!-- 首页卡片上的像素小生物：pixelfx 的 12 个 critters（MIT），打包成一个 91 KB 的独立脚本。
      加载失败不影响首页——hx-critters.js 开头就有 window.PixelFX 存在性检查，没有就整段跳过。 -->
-<script src="fx/pixelfx-critters.js?v=53da156" defer></script>
-<script src="fx/hx-critters.js?v=53da156" defer></script>
+<script src="fx/pixelfx-critters.js?v=0536cd7" defer></script>
+<script src="fx/hx-critters.js?v=0536cd7" defer></script>
 <!-- 像素头像库（2026-11-04）：账号面板里除了传照片，还能从 200 多个像素动效里挑一个当头像。
      和上面 critters 同一套路：库（pixelfx-avatars.js）+ 渲染器（hx-avatar.js），都是 defer、
      不进首屏关键路径；不点「像素头像库」就一个动画都不跑。 -->
-<script src="fx/pixelfx-avatars.js?v=53da156" defer></script>
-<script src="fx/hx-avatar.js?v=53da156" defer></script>
+<script src="fx/pixelfx-avatars.js?v=0536cd7" defer></script>
+<script src="fx/hx-avatar.js?v=0536cd7" defer></script>
 <!-- 背景动效（2026-11-03）：12 种天气氛围特效铺在背景层，外观面板里选；加载失败或没选就完全不加载渲染器 -->
-<script src="fx/pixelfx-weather.js?v=53da156" defer></script>
-<script src="fx/hx-weather.js?v=53da156" defer></script>
+<script src="fx/pixelfx-weather.js?v=0536cd7" defer></script>
+<script src="fx/hx-weather.js?v=0536cd7" defer></script>
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; width: 100%; overflow: hidden; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -303,7 +303,30 @@
   .tile .go { position: absolute; right: 22px; bottom: 24px; color: var(--acc); width: 22px; height: 22px; transition: transform .3s var(--hx-ease); }
   .tile:hover .go { transform: translateX(3px); }
   .tile .sum { margin-top: -12px; padding-right: 26px; font-size: 14px; color: var(--dim); }
-  html.hx-bg .hero h1, html.hx-bg .hero p, html.hx-bg .sec h2 { text-shadow: 0 0 22px var(--bg), 0 0 6px var(--bg); }
+  /* ── 首页文字在背景上的可读性（2026-11-04 用户：「你好xxx还有学习和教学文字根本看不清 发白色朦胧光晕」）──
+     原来这里是「拿背景色 --bg 画一圈外发光」，等于给文字垫一块和底同色的光斑。
+     但全站默认背景已经换成极光视频（#hx-bgvid，z-index:-2），--bg 早就不代表「文字身后那块颜色」了：
+     浅色主题下 --bg 是 #f5f5f7 的浅灰，压在一张深绿雪山夜景上，光斑反而把深灰字糊成一片。
+     现在改成用户要的白色朦胧光晕：
+       · 文字转白（深色极光上白字才立得住；这是唯一能保证看清的颜色）；
+       · 一条很紧的暗影压在最里层，给字缘一道暗边——亮背景图 / 用户自己上传的浅色图上，
+         白色光晕会和底混成一片，这道暗边就是「不过曝」的保险；
+       · 外面几层白色半透明从 2px 到 80px 由紧到松叠加，紧的那层收字缘、松的那层做朦胧扩散，
+         远看是一团柔光托着文字，像雾气，不是发光字那种硬描边。
+     分三档写（h1 / p / 分组小标题），不是一条通吃：15px 的小标题套 80px 的光会糊成一团棉花。 */
+  html.hx-bg .hero h1 { color: #fff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, .5),
+      0 0 2px rgba(255, 255, 255, .9), 0 0 12px rgba(255, 255, 255, .72), 0 0 26px rgba(255, 255, 255, .5),
+      0 0 48px rgba(255, 255, 255, .3), 0 0 80px rgba(255, 255, 255, .18); }
+  html.hx-bg .hero p { color: rgba(255, 255, 255, .94);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, .45),
+      0 0 2px rgba(255, 255, 255, .85), 0 0 10px rgba(255, 255, 255, .6), 0 0 22px rgba(255, 255, 255, .4),
+      0 0 40px rgba(255, 255, 255, .22); }
+  html.hx-bg .sec h2 { color: #fff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, .5),
+      0 0 6px rgba(255, 255, 255, .8), 0 0 16px rgba(255, 255, 255, .5), 0 0 30px rgba(255, 255, 255, .28); }
+  /* 「你好」后面那枚身份小药丸自带底色，别继承外发光，不然小字会糊在白雾里 */
+  html.hx-bg .hero p .pill { text-shadow: none; }
   @keyframes rise { from { opacity: 0; transform: translateY(24px); } }
   /* 管理卡片的标题 */
   /* 分组：组间距明显大于卡片间距，小标题淡一档 */
@@ -719,7 +742,16 @@ function role() {
 function info() { // 名字、头像、GitHub 用户名、邮箱
   var u = ST.user || {}, d = u.user_metadata || {}, gh = (u.identities || []).filter(function (i) { return i.provider === 'github'; })[0];
   var ghName = gh && gh.identity_data && (gh.identity_data.user_name || gh.identity_data.preferred_username) || '';
-  var name = d.full_name || (ST.me && ST.me.student && ST.me.student.name) || d.name || d.user_name || ghName || (u.email || '').split('@')[0] || '用户';
+  // 2026-11-04 用户：「账号名为什么是空的学生那边 不就是注册好了显示是学号吗 这个不是昵称不需要可编辑」。
+  // 学生显示名：名单里的姓名 → 学号（hx_me 的 no / seq）。名单没写姓名时 name 是空串，
+  // 首页就成了「你好，」后面空白、账号面板和首字母头像也跟着空 —— 这里一律兜成学号，**不加改名入口**。
+  // 教师 / 管理员 / 开发者没有 st，走原来的资料顺序，行为完全不变。
+  var st = ST.me && ST.me.student;
+  // pick：null / undefined / 纯空格都当没有（考勤表里「姓名」列可能是一格空格，直接 trim 掉再判断，
+  // 否则会停在那个空格上，显示成「你好， 」还是一个空壳）。
+  var pick = function (v) { return v == null ? '' : String(v).trim(); };
+  var name = pick(st && st.name) || pick(st && (st.no || st.seq)) || pick(d.full_name) || pick(d.name) || pick(d.user_name) || pick(ghName) || pick((u.email || '').split('@')[0]) || '用户';
+  name = name || '用户'; // 兜底后保证非空：avatar() 要取首字母，seq 可能是数字
   return { name: name, email: u.email || '', avatar: d.avatar_url || '', gh: ghName, full: d.full_name || '' };
 }
 function avatar(i, cls) { return '<span class="av ' + (cls || '') + '"' + (i.avatar ? ' style="background-image:url(' + esc(i.avatar) + ')"' : '') + '>' + (i.avatar ? '' : esc(i.name.slice(0, 1))) + '</span>'; }
@@ -912,31 +944,130 @@ function togglePop(k) {
   syncExp();
 }
 // ---------- 使用说明（2026-11-04 用户要求做成独立导航栏） ----------
-// 一份按工具分组的「怎么用」：不需要登录也能看，学生第一次进来点这里就知道点哪。
-// 内容只讲操作路径，不写账号密码和任何学生信息。
-function renderHelp() {
-  var h = '<h3>使用说明</h3><div class="hx-doc">'
-    + '<h4>开始之前</h4>'
-    + '<p>点右上角「登录 / 注册」用<b>教师账号</b>登录；学生要上课，先在首页下面的<b>班级</b>卡片里建班、导入名单，再发<b>课堂码</b>给学生开号。</p>'
-    + '<ul><li>所有工具的名单、成绩都存在你的账号里，换电脑登录同一个账号就都在。</li>'
-    + '<li>教师账号要邀请码才能注册（问开发者要）；学生账号用课堂码自己开通。</li></ul>'
-    + '<h4>电气接线仿真（项目二）</h4>'
+// 2026-11-04 用户：「使用说明需要分开写 教师版本和学生版本看到内容不一样才对」。
+// 原来是一份混着写的说明——开头先教「建班、导入名单、发课堂码」，学生点开看到的全是教师操作，
+// 自己的事（怎么用码开号、排位在哪、分数在哪看）反而要自己猜。现在拆成两套：
+//   · 教师版：建班 / 名单 / 课堂码 / 排位与抽人 / 登分册导出 / 各工具 / 注意事项；
+//   · 学生版：课堂码开号 / 练接线 / 进排位 / 看分数 / 不要做什么。
+// 学生版**一条教师操作都不许出现**（建班、导入名单、导出、邀请码），这是这次拆分的主要目的。
+// 默认走当前身份：教师账号（含管理员 / 开发者）看教师版，学生、访客、没登录都看学生版。
+// 顶部两个页签可以互相看：学生想知道老师那边怎么点也能翻，只是默认不给。切页签只重画这一个弹层，
+// 不动 #help 之外任何东西（不碰账号、不碰工具 iframe）。
+function helpTab() { return isTeacher() ? 'teacher' : 'student'; }
+function renderHelp(t) {
+  if (t !== 'teacher' && t !== 'student') t = helpTab();
+  var h = '<h3>使用说明</h3>'
+    + '<div class="seg" id="hseg">'
+    + '<button type="button" data-h="teacher" aria-pressed="' + (t === 'teacher') + '">我是老师</button>'
+    + '<button type="button" data-h="student" aria-pressed="' + (t === 'student') + '">我是学生</button>'
+    + '</div>'
+    + '<div class="hx-doc">' + (t === 'teacher' ? helpDocTeacher() : helpDocStudent()) + '</div>';
+  $('help').innerHTML = h;
+  $('hseg').querySelectorAll('button').forEach(function (b) {
+    b.onclick = function () { $('help').scrollTop = 0; renderHelp(b.dataset.h); };
+  });
+}
+// 教师版：内容按现有工具的真实功能写（班级面板的导入考勤表 / 课堂码 / 收起，接线仿真的排位与抽人，
+// 小组加分的登分册导出，考试是「组卷码 + 班级 → 学生输考试码取题」）。不写不存在的按钮。
+function helpDocTeacher() {
+  return '<h4>开始之前</h4>'
+    + '<p>用<b>教师账号</b>登录（教师账号要邀请码才能注册，问管理员或开发者要）。首页按「学习 / 教学 / 维护」分组列出你能用的工具，首页下面的<b>班级</b>卡片管名单和课堂码。</p>'
+    + '<ul><li>名单、成绩都存在云端，换一台电脑用同一个账号登录就都在。</li>'
+    + '<li>学生不能自己注册，必须用你发的<b>课堂码</b>开号。</li></ul>'
+    + '<h4>建班、导入名单</h4>'
+    + '<ul>'
+    + '<li>首页「班级」卡片 → 右上角<b>导入考勤表</b> → 选教务系统导出的 <kbd>.xls</kbd> / <kbd>.xlsx</kbd> / <kbd>.csv</kbd>（要有<b>学号、姓名</b>两列）。</li>'
+    + '<li>可以一次选多个文件，<b>一个文件一个班</b>；导入前能改班级名和学期。</li>'
+    + '<li>每个班下面四个开关（接线仿真 / 单片机 / 考试 / 小组加分）：点亮哪个，这个班才在哪个工具里出现；四个都不点 = 四个工具都用不了。</li>'
+    + '<li>带完的班点<b>收起</b>，名单和成绩一条不删，随时点<b>恢复使用</b>回来。带完的班不要删。</li>'
+    + '</ul>'
+    + '<h4>发课堂码，让学生开号</h4>'
+    + '<ul>'
+    + '<li>班级卡片那行点<b>发课堂码</b>，生成一个<b>4 小时有效</b>的码；可以「分享」给学生，也可以「撤销」。</li>'
+    + '<li>学生在登录窗口切到「注册」，填课堂码 + 学号 + 姓名 + 密码就能开号。码后面显示已注册人数（已注册 x / y）。</li>'
+    + '<li>学生忘了密码，用首页<b>重置密码</b>卡片按学号重置。</li>'
+    + '<li>旁听的访客用<b>好友邀请码</b>开通，单独列在「访客」里，不算进班级名单。</li>'
+    + '</ul>'
+    + '<h4>接线仿真 · 排位与随机抽人</h4>'
     + '<ul>'
     + '<li>顶栏 <kbd>2.1</kbd>～<kbd>2.6</kbd>、<kbd>E1</kbd><kbd>E2</kbd> 是题目，<kbd>P</kbd> 是并联专项。</li>'
-    + '<li>点两个端子连一根线；右上角工具栏有<b>提示</b>（关 / 自由 / 顺序）、撤销、清空、检查、答案。</li>'
-    + '<li>「提示」调到<b>顺序</b>会按教材顺序逐根告诉学生下一根接哪里，入口/出口会亮圈标出来。</li>'
-    + '<li>手机横屏效果最好；竖屏也能用，工具栏和顶栏都会自动收成图标。</li>'
-    + '<li><b>排位</b>：计时接线，全对自动停表，上排行榜，可以按班级随机抽人上台。</li>'
+    + '<li>点两个端子连一根线；工具栏有<b>提示</b>（关 / 自由 / 顺序）、撤销、清空、检查、答案。提示调到<b>顺序</b>会按教材顺序逐根指出下一根接哪里。</li>'
+    + '<li><b>排位</b>：选电路、选学生开始，计时接线，全对自动停表，成绩进排行榜。只列在「班级」里勾了「接线仿真」的班。</li>'
+    + '<li>排位里教师账号才有<b>随机抽人</b>：按当前班级抽，一次抽一个、不与上一次重复；只抽人不连线，抽到谁由你决定怎么加分。</li>'
     + '</ul>'
     + '<h4>小组加分</h4>'
-    + '<ul><li>选班级 → 新建一节课 → 按小组加减分；个人扣分不影响小组总分。</li>'
-    + '<li>「登分册」可以按学校模板导出 Excel、打印 PDF。</li></ul>'
-    + '<h4>刷题 / 考试 / 单片机 / 排课</h4>'
-    + '<ul><li>刷题按章节练，答错有解析；考试工具按科目出卷；单片机是上机网页版；排课按班级和课次自动排。</li></ul>'
-    + '<h4>外观</h4>'
-    + '<p>右上角调色按钮可以换<b>主题色</b>、浅色/深色、背景图和<b>界面透明度</b>、<b>背景浓度</b>——两根滑杆分开管：前者管卡片，后者管背景图本身。设置会同步到所有工具。</p>'
-    + '</div>';
-  $('help').innerHTML = h;
+    + '<ul>'
+    + '<li>选班级 → <b>新开一课</b>（填日期、本节任务、值日组）→ 上课时按组加减分，本节合计和累计自动重算。</li>'
+    + '<li>记错了可以逐步撤销；个人扣分不影响小组总分。</li>'
+    + '<li><b>成绩登分册</b>按学校模板导出：勾选班级后可以<b>导出 Excel</b>（.xlsx，可继续改）或<b>导出 PDF</b>（A4 横向，每页 30 人，表头每页重复）。</li>'
+    + '</ul>'
+    + '<h4>其它工具</h4>'
+    + '<ul>'
+    + '<li><b>刷题</b>：按章节练，答错有解析。</li>'
+    + '<li><b>考试</b>：发布考试（科目 + 组卷码 + 哪几个班）后把考试码公布给学生，学生输码取题。</li>'
+    + '<li><b>单片机上机</b>：网页版上机环境。</li>'
+    + '<li><b>进制转换</b>：课堂演示用。</li>'
+    + '<li><b>排课</b>：按班级和课次自动排课表。</li>'
+    + '<li><b>课程进度</b>：按日期查课、看进度总览、调课管理，可打印进度表或导出 CSV。</li>'
+    + '</ul>'
+    + '<h4>注意事项</h4>'
+    + '<ul>'
+    + '<li>课堂码只发本班，别发到大群；过期或被用满就重新发一个。</li>'
+    + '<li>学生注册时的姓名要和名单一致，否则名单里对不上人。</li>'
+    + '<li>一个学号只能开一个号，重复注册会失败；学生开不了号先查是不是已经注册过。</li>'
+    + '<li>上学期 / 暂时不用的班用「收起」，别删数据。</li>'
+    + '</ul>';
+}
+// 学生版：只讲学生自己能点的路径。**不出现建班、导入名单、导出、邀请码**这些教师操作。
+function helpDocStudent() {
+  return '<h4>第一次用：用课堂码开号</h4>'
+    + '<p>华夏工具不让学生自己注册，账号要用老师发的<b>课堂码</b>开通。</p>'
+    + '<ul>'
+    + '<li>点右上角<b>登录</b> → 切到<b>注册</b> → 填老师给的课堂码。</li>'
+    + '<li>码对上以后会自动带出班级，再填<b>学号</b>、<b>姓名</b>（和班级名单一致）、<b>密码</b>（至少 6 位），点注册就开好了。</li>'
+    + '<li>以后每次用<b>学号 + 密码</b>登录，不用再填课堂码。</li>'
+    + '<li>课堂码 4 小时有效，过期或提示不对就找老师重新发一个。</li>'
+    + '<li>忘了密码找老师重置，不要重复注册。</li>'
+    + '</ul>'
+    + '<h4>首页怎么用</h4>'
+    + '<ul>'
+    + '<li>登录后首页按分组列出你能用的工具，点卡片就打开，左上角「返回」回首页。</li>'
+    + '<li>右上角调色按钮可以换主题色、浅色 / 深色和背景，设置只影响你自己的账号。</li>'
+    + '</ul>'
+    + '<h4>练接线</h4>'
+    + '<ul>'
+    + '<li>顶栏 <kbd>2.1</kbd>～<kbd>2.6</kbd>、<kbd>E1</kbd><kbd>E2</kbd> 是题目，<kbd>P</kbd> 是并联专项。</li>'
+    + '<li>点两个端子连一根线；连错了用<b>撤销</b>，整题重来用<b>清空</b>。</li>'
+    + '<li>工具栏的<b>提示</b>可以调成「自由」或「顺序」，顺序模式会按教材顺序告诉你下一根接哪里。</li>'
+    + '<li>接完点<b>检查</b>看对不对；想先看正确答案再练一遍，点<b>答案</b>。</li>'
+    + '<li>手机横屏最好用；竖屏工具栏会自动收成图标。</li>'
+    + '</ul>'
+    + '<h4>进排位</h4>'
+    + '<ul>'
+    + '<li>接线仿真里打开<b>排位</b>：选一个电路开始，计时接线，全对自动停表。</li>'
+    + '<li>成绩和名次存在云端，会显示在排行榜上；换电脑登录同一账号也能看到自己的记录。</li>'
+    + '<li>老师上课可能按班级抽人上台，抽到你就用自己账号登录排位。</li>'
+    + '</ul>'
+    + '<h4>在哪看成绩</h4>'
+    + '<ul>'
+    + '<li><b>小组加分</b>打开是只读的「我的分数」：上课记分、组内评分、本学期总分都能看，还能从「去选桌组队」进分组页。</li>'
+    + '<li><b>排位</b>里有本项目排行榜和自己的名次。</li>'
+    + '<li>刷题、考试的成绩由老师统计发布，按老师说的入口看。</li>'
+    + '</ul>'
+    + '<h4>其它工具</h4>'
+    + '<ul>'
+    + '<li><b>刷题</b>：按章节练，答错有解析。</li>'
+    + '<li><b>进制转换</b>：算二 / 八 / 十 / 十六进制。</li>'
+    + '<li><b>单片机上机</b>：网页版上机环境。</li>'
+    + '<li><b>考试</b>：老师公布考试码后，打开考试输码就能取到自己的题。</li>'
+    + '</ul>'
+    + '<h4>不要做这些</h4>'
+    + '<ul>'
+    + '<li>不要把账号密码给别人，也不要用别人的学号开号——成绩会记到那个学号上。</li>'
+    + '<li>不要重复注册：一个学号只能开一个号，重复注册会失败。</li>'
+    + '<li>不要把姓名随便改，和名单不一致老师那边对不上人。</li>'
+    + '<li>排位是计时的，开始以后别刷新页面、别关页面。</li>'
+    + '</ul>';
 }
 // ---------- 邀请拉新（2026-11-04 用户要求：二维码 + 链接，方便拉新拿代金券） ----------
 // 两个都是用户给的真实邀请链接，二维码是用 qrcode 生成后反解验证过的（内容与链接逐字一致）。
