@@ -12,15 +12,15 @@
      要登录时调 window.HXPortal.login()；被单独打开时 hx-theme.js 会跳回这里（见 hx-theme.js 的 data-tool）。
      账号：Supabase 华夏工具项目，localStorage paike-session 和各工具共用；身份由数据库 hx_me() 决定。
      脚本里不用反引号模板字符串（本机测试时整页当字符串注入到线上同源页面里）。 -->
-<link rel="stylesheet" href="hx-theme.css?v=287c6e7">
-<script src="hx-theme.js?v=287c6e7"></script>
+<link rel="stylesheet" href="hx-theme.css?v=95d530e">
+<script src="hx-theme.js?v=95d530e"></script>
 <!-- 首页卡片上的像素小生物：pixelfx 的 12 个 critters（MIT），打包成一个 91 KB 的独立脚本。
      加载失败不影响首页——hx-critters.js 开头就有 window.PixelFX 存在性检查，没有就整段跳过。 -->
-<script src="fx/pixelfx-critters.js?v=287c6e7" defer></script>
-<script src="fx/hx-critters.js?v=287c6e7" defer></script>
+<script src="fx/pixelfx-critters.js?v=95d530e" defer></script>
+<script src="fx/hx-critters.js?v=95d530e" defer></script>
 <!-- 背景动效（2026-11-03）：12 种天气氛围特效铺在背景层，外观面板里选；加载失败或没选就完全不加载渲染器 -->
-<script src="fx/pixelfx-weather.js?v=287c6e7" defer></script>
-<script src="fx/hx-weather.js?v=287c6e7" defer></script>
+<script src="fx/pixelfx-weather.js?v=95d530e" defer></script>
+<script src="fx/hx-weather.js?v=95d530e" defer></script>
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; width: 100%; overflow: hidden; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -322,9 +322,16 @@
   .cl { position: relative; display: grid; grid-template-columns: 1fr auto; gap: 12px 16px; align-items: center; padding: 18px 20px; border-radius: 24px; background: linear-gradient(175deg, var(--card-hi), var(--card-lo)); box-shadow: 0 1px 0 rgba(255, 255, 255, .05) inset, 0 22px 54px -38px var(--shade); animation: rise .7s var(--hx-spring) both; animation-delay: calc(var(--i, 0) * 55ms); transition: transform .35s var(--hx-spring), box-shadow .35s var(--hx-ease); }
   .cl::before { content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px; pointer-events: none; background: linear-gradient(148deg, var(--edge-hi), var(--edge-lo) 36%, transparent 60%, var(--edge-hi)); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; }
   .cl:hover { transform: translateY(-2px); }
+  /* 已收起（四个工具都没勾）的班：整张卡压淡，一眼看出「这学期不用了」，但仍可点回来 */
+  .cl.idle { opacity: .58; }
+  .cl.idle:hover { opacity: .82; }
   .cl h3 { margin: 0; font-size: 19px; font-weight: 600; } .cl small { color: var(--dim); font-size: 14px; }
   .cl .acts { display: flex; gap: 6px; }
   .chips { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; }
+  /* 课堂码那一行（2026-11-04 从独立的「学生课堂码」面板并进来）：
+     一行放「课堂码 · 码 · 已注册 x/y · 分享/撤销」，窄屏自动换行。 */
+  .clcode { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-top: 2px; font-size: 13.5px; }
+  .clcode b.mono { font-size: 15px; letter-spacing: .08em; }
   .chip { height: 32px; padding: 0 14px; border: 0; border-radius: 99px; background: var(--fill); color: var(--dim); font-size: 14px; font-weight: 500; transition: background .28s var(--hx-ease), color .28s, box-shadow .35s var(--hx-ease), transform .18s var(--hx-spring); }
   .chip:hover { background: var(--hov); color: var(--ink); }
   .chip:active { transform: scale(.96); }
@@ -521,11 +528,12 @@ var TOOLS = [
   { id: 'mcu', name: '单片机上机', url: SITE + '/mcu/', who: 'all', c: ['#5ac8fa', '#0a84ff'], icon: '<rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/>' },
   { id: 'exam', name: '考试', url: SITE + '/exam/', who: 'all', c: ['#7d7aff', '#5e5ce6'], icon: '<path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h4"/>' },
   { id: 'paike', name: '排课', url: SITE + '/paike/', who: 'teacher', c: ['#ff6b6b', '#ff3b30'], icon: '<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4M8 14h3M13 14h3M8 17h3"/>' },
-  // 小组加分：老师进完整记分台，学生只进「选桌组队」这一个页面（studentUrl）。
-  // 为什么不是 who:'teacher'：学生要自己分组，进不去就分不了。后面要给学生开别的模块，
-  // 就往 studentUrl 那个页面上加，老师这边不受影响。
-  { id: 'jiafen', name: '小组加分', url: SITE + '/jiafenxitong/', who: 'all', studentUrl: SITE + '/jiafenxitong/team.html',
-    studentHint: '小组加分 · 选桌组队', c: ['#ff8fb7', '#ff2d55'], icon: '<path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/>' },
+  // 小组加分：老师进完整记分台，学生进「我的分数」只读页（studentUrl）。
+  // 为什么不是 who:'teacher'：学生要自己分组、也要能看自己的分，进不去就什么也干不了。
+  // 学生页是一个总页面：上课记分 / 组内个人评分 / 本学期总分 / 成绩登分册 四个只读模块，
+  // 页签里再链到「选桌组队」（team.html），所以入口只留一个卡片，不拆成四张。
+  { id: 'jiafen', name: '小组加分', url: SITE + '/jiafenxitong/', who: 'all', studentUrl: SITE + '/jiafenxitong/scores.html',
+    studentHint: '小组加分 · 我的分数', c: ['#ff8fb7', '#ff2d55'], icon: '<path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/>' },
   { id: 'course', name: '课程进度', url: SITE + '/course/', who: 'teacher', c: ['#ffd166', '#f0a500'], icon: '<rect x="4" y="4" width="16" height="17" rx="3"/><path d="M8 9h8M8 13h8M8 17h5"/>' },
   { id: 'feedback', name: '反馈', url: SITE + '/feedback/', who: 'dev', c: ['#c084fc', '#7c3aed'], icon: '<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 8.5l9 6 9-6"/>' } // 开发者专用：看各工具收到的建议和问题
 ];
@@ -1052,7 +1060,9 @@ var MG = {
   scode: { name: '学生课堂码', c: ['#64d2c8', '#0fa3a0'], icon: '<rect x="4" y="4" width="6" height="6" rx="1.2"/><rect x="14" y="4" width="6" height="6" rx="1.2"/><rect x="4" y="14" width="6" height="6" rx="1.2"/><path d="M14 14h2.5v2.5H14zM17.5 17.5H20V20h-2.5zM20 14v1M14 20v-1"/>' },
   adm: { name: '管理员', c: ['#a1a1a6', '#636366'], icon: '<path d="M12 3l7.5 3v5.5c0 4.5-3.2 8.2-7.5 9.5-4.3-1.3-7.5-5-7.5-9.5V6z"/><path d="M9 12l2 2 4-4"/>' }
 };
-var NEED = { cls: ['cls'], pw: ['cls'], gcode: ['codes'], tcode: ['codes'], scode: ['codes', 'cls'], adm: ['adm'] }; // 哪份数据变了，要重画哪张面板
+// 2026-11-04 课堂码并入班级面板：cls 面板现在也画码了，codes 变了要跟着重画。
+// scode 那张独立卡已经取消，这里保留映射不影响（万一以后还有别处 openSheet('scode')）。
+var NEED = { cls: ['cls', 'codes'], pw: ['cls'], gcode: ['codes'], tcode: ['codes'], scode: ['codes', 'cls'], adm: ['adm'] }; // 哪份数据变了，要重画哪张面板
 // 2026-11-02 用户要求：学生忘密码时，管理员 / 任课教师 / 开发者都能重置。
 // 判断用 isTeacher() || m.admin || m.dev —— 不能只写 isTeacher()：
 // 管理员和开发者不一定带教师身份，只判 isTeacher() 会让他们连这张卡都看不到。
@@ -1062,7 +1072,11 @@ function mgList() {
   var m = ST.me || {}, L = [], staff = isTeacher() || m.admin || m.dev;
   if (isTeacher()) L.push('cls');
   if (staff) L.push('pw');
-  if (isTeacher()) L.push('gcode', 'scode'); // 发课堂码数据库只要求教师身份（hx_new_code），所以「学生课堂码」给所有教师；班级面板里的「课堂码」按钮也跳到这里，入口只有一个
+  // 2026-11-04 用户要求：「课堂码和班级功能重复甚至跳转多此一举，合并到班级」。
+  // 原来「班级」面板里每行有个「课堂码」按钮跳到独立的「学生课堂码」面板，两个入口看同一套数据。
+  // 现在本班课堂码直接画在班级面板里（码、已注册/人数、生成/分享/撤销都在那一行），
+  // 独立卡片取消，管理区只剩「好友邀请码」（那是访客用的，跟班级无关，留着）。
+  if (isTeacher()) L.push('gcode');
   if (m.admin) L.push('tcode');
   if (m.dev) L.push('adm');
   return L;
@@ -1128,6 +1142,30 @@ function codesChanged() { if (isTeacher()) { ST.codes = undefined; renderMgmt('c
 function codeBox(cls, code, note, acts) { return '<div class="code"><small>' + esc(cls) + '</small><b>' + esc(code) + '</b>' + (note ? '<small>' + note + '</small>' : '') + (acts ? '<div>' + acts + '</div>' : '') + '</div>'; }
 
 // 班级面板：导入考勤表、勾选给哪些工具用、课堂码、名单
+/* 一个班的课堂码那一行（2026-11-04 合并进班级面板）。
+   数据来自 hx_my_codes，一个班只取最新一条还有效的码；已注册/人数用 hx_my_classes 的 bound/total。
+   ST.codes 还没读到时先画一个"读取中"，loadCodes() 回来会重画整张面板。 */
+function clsCodeRow(c) {
+  if (!isTeacher()) return '';
+  if (ST.codes === undefined || ST.codes === null) {
+    if (ST.codes === undefined) loadCodes();
+    return '<div class="clcode"><span class="dim">课堂码读取中…</span></div>';
+  }
+  var mine = ST.codes.filter(function (x) { return x.role === 'student' && x.class_name === c.name; });
+  var live = mine.filter(function (x) { return x.live; })[0] || null; // 倒序返回，第一个活的即最新
+  var reg = (c.bound || 0) + ' / ' + (c.total || 0);
+  if (!live) {
+    return '<div class="clcode"><span class="dim">这个班还没有有效的课堂码 · 已注册 ' + reg + '</span>' +
+      '<button class="btn sub sm" data-clscode="' + c.id + '">发课堂码</button></div>';
+  }
+  var full = live.used >= live.max_uses;
+  return '<div class="clcode"><span class="dim">课堂码</span><b class="mono">' + esc(live.code) + '</b>' +
+    '<span class="dim">已注册 ' + reg + '</span>' +
+    (full ? '<span class="pill">已使用</span>'
+      : '<span class="pill acc">注册中</span><button class="btn link sm" data-clsshare="' + esc(live.code) + '">分享</button>' +
+        '<button class="btn link bad sm" data-clsrev="' + esc(live.code) + '">撤销</button>') +
+    '</div>';
+}
 function sheetCls() {
   var box = $('shB'), R = ST.rosters, html = '';
   $('shA').innerHTML = '<label class="btn sm">导入考勤表<input type="file" id="rFile" accept=".xls,.xlsx,.csv" multiple hidden></label>';
@@ -1140,9 +1178,17 @@ function sheetCls() {
   html += '<p class="msg" style="margin:0 0 12px;color:var(--dim,#8a8f98)">点亮哪个工具，这个班才在哪个工具里出现；四个都不点 = 四个工具都用不了。后面的「已开通 N」是已经注册账号的学生人数，和工具开关无关。</p>';
   html += '<div class="cls">' + (ST.classes.length ? ST.classes.map(function (c, ci) {
     var on = ST.open === c.id, tools = c.tools || [];
-    return '<div class="cl" style="--i:' + ci + '"><div><h3>' + esc(c.name) + '</h3><small>' + esc(c.term ? c.term + ' · ' : '') + c.total + ' 人 · 已开通 ' + c.bound + '</small></div>' +
-      '<div class="acts"><button class="btn sub sm" data-code="' + c.id + '">课堂码</button><button class="btn sub sm" data-open="' + c.id + '">' + (on ? '收起' : '名单') + '</button></div>' +
+    var idle = !tools.length; // 四个工具一个都没勾 = 这个班在哪个工具里都不出现（等于「本学期不用了」）
+    return '<div class="cl' + (idle ? ' idle' : '') + '" style="--i:' + ci + '"><div><h3>' + esc(c.name) + '</h3><small>' + esc(c.term ? c.term + ' · ' : '') + c.total + ' 人 · 已开通 ' + c.bound +
+        (idle ? ' · <b class="dim">已收起</b>' : '') + '</small></div>' +
+      '<div class="acts">' +
+        // 2026-11-04 用户要求「只显示当前学期在用的班」：一键收起上学期/不用的班。
+        // 复用 tools 字段（四个都不勾 = 所有工具都不出现），数据库不用改，数据一条不删，随时能点回来。
+        (idle ? '<button class="btn sub sm" data-clsresume="' + c.id + '">恢复使用</button>'
+              : '<button class="btn sub sm" data-clsidle="' + c.id + '">收起</button>') +
+        '<button class="btn sub sm" data-open="' + c.id + '">' + (on ? '收起名单' : '名单') + '</button></div>' +
       '<div class="chips">' + CLASS_TOOLS.map(function (t) { return '<button type="button" class="chip" data-cls="' + c.id + '" data-tool="' + t[0] + '" aria-pressed="' + (tools.indexOf(t[0]) >= 0) + '">' + t[1] + '</button>'; }).join('') + '</div>' +
+      clsCodeRow(c) +
       (on ? '<div class="stu" id="stu' + c.id + '"></div>' : '') + '</div>';
   }).join('') : '<p class="empty">' + (ST.clsOk ? '还没有班级：导入教务系统导出的考勤表（学号、姓名两列）' : '加载中…') + '</p>') + '</div>';
   var G = ST.guests || []; // 访客（好友邀请码开通的）：不算进任何班级，只能删除
@@ -1199,10 +1245,49 @@ function sheetCls() {
       if (ST.open && !ST.studs[id]) { try { ST.studs[id] = await HX.rpc('hx_class_students', { p_class: id }); } catch (e) { ST.studs[id] = []; toast(e.message); } renderStu(id); }
     };
   });
-  box.querySelectorAll('[data-code]').forEach(function (b) {
-    // 以前点这里就直接发一个新课堂码（和学生课堂码面板是同一套 hx_new_code / hx_my_codes 数据，入口重复）。
-    // 现在改成跳到「学生课堂码」面板并选中这个班：那里能看到本班当前有效的码、注册进度，也能发新的。
-    b.onclick = function () { ST.sCls = +b.dataset.code; openSheet('scode'); };
+  box.querySelectorAll('[data-clsidle]').forEach(function (b) {
+    // 收起 = 四个工具全部取消勾选。加分、排课、接线仿真、考试都不再出现这个班；
+    // 名单、成绩、分组一条都不删，随时点「恢复使用」回来。
+    b.onclick = async function () {
+      var c = ST.classes.filter(function (x) { return x.id === +b.dataset.clsidle; })[0];
+      if (!c) return;
+      if (!await ask('收起 ' + c.name + '？', '收起后这个班在接线仿真、单片机、考试、小组加分里都不再出现，像上学期带完的班。名单和成绩都还在，随时点「恢复使用」能回来。', '收起')) return;
+      b.disabled = true;
+      try { await HX.rpc('hx_class_tools', { p_class: c.id, p_tools: [] }); c.tools = []; await loadClasses(); toast('已收起 ' + c.name); }
+      catch (e) { toast(e.message); b.disabled = false; }
+    };
+  });
+  box.querySelectorAll('[data-clsresume]').forEach(function (b) {
+    b.onclick = async function () {
+      var c = ST.classes.filter(function (x) { return x.id === +b.dataset.clsresume; })[0];
+      if (!c) return;
+      b.disabled = true;
+      try { await HX.rpc('hx_class_tools', { p_class: c.id, p_tools: ['jiafen'] }); c.tools = ['jiafen']; await loadClasses(); toast('已恢复 ' + c.name + '（只点亮了小组加分，其他工具按需再点）'); }
+      catch (e) { toast(e.message); b.disabled = false; }
+    };
+  });
+  box.querySelectorAll('[data-clscode]').forEach(function (b) {
+    // 就地发本班课堂码（原来要跳到「学生课堂码」面板，2026-11-04 合并进来）
+    b.onclick = async function () {
+      var c = ST.classes.filter(function (x) { return x.id === +b.dataset.clscode; })[0];
+      if (!c) return;
+      b.disabled = true;
+      try {
+        var code = await HX.rpc('hx_new_code', { p_role: 'student', p_class: c.id, p_note: '' });
+        toast(c.name + ' 课堂码：' + code + '（4 小时有效）');
+        ST.codes = undefined; loadCodes(); // 重读到刚发的码，面板跟着重画
+      } catch (e) { toast(e.message); b.disabled = false; }
+    };
+  });
+  box.querySelectorAll('[data-clsshare]').forEach(function (b) {
+    b.onclick = function () { shareCode(b.dataset.clsshare, 'student'); };
+  });
+  box.querySelectorAll('[data-clsrev]').forEach(function (b) {
+    b.onclick = async function () {
+      var cd = b.dataset.clsrev;
+      if (!await ask('撤销课堂码 ' + cd, '撤销后这个码不能再用来注册，已经用它注册的账号不受影响。', '撤销')) return;
+      try { await HX.rpc('hx_revoke_code', { p_code: cd }); toast('已撤销'); ST.codes = undefined; loadCodes(); } catch (e) { toast(e.message); }
+    };
   });
 }
 // ---------- 管理（管理员、开发者）：发教师码、学生码，看发过的码；开发者再任命管理员 ----------

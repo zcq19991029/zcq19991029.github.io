@@ -19,12 +19,16 @@
   printDialog.addEventListener('close',function(){if(printDialog.returnValue!=='ok'||!printSelection)return;var c=printSelection,groups=selectedPrintGroups(),pages;try{pages=parsePageRanges(groups,Array.from(document.querySelectorAll('[data-print-page]')).map(function(el){return el.value;}));}catch(e){document.querySelector('#leaderPrintError').textContent=e.message;printDialog.showModal();return;}var html=printSheets(c.cls,c.lesson,groups,pages);document.querySelector('#printArea').innerHTML=html;if(exportMode){var bytes=window.JFDT_GROUP_EXCEL(html),url=URL.createObjectURL(new Blob([bytes],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'})),a=document.createElement('a');a.href=url;a.download=c.cls.name+'_组内评分打印版.xlsx';a.click();setTimeout(function(){URL.revokeObjectURL(url);},1000);}else printIsolated(html);});
   window.JFDT_LEADER_RENDER = function (context) {
     var root=context.root, state=context.state;
-    var cls=state.classes.find(function (c) { return c.id===state.ui.classId; }) || state.classes[0];
+    /* 班级只能来 app.js 传进来的「可见班级」（首页点亮了小组加分的班）。
+       以前这里用 state.classes = 本机所有班，历史遗留的旧班（甚至别的学期）会全部出现在下拉里，
+       用户 2026-11-04 报「出现不属于我的班」。context.classes 缺失时才退回旧行为，免得老页面炸。 */
+    var pool=(context.classes&&context.classes.length)?context.classes:(state.classes||[]);
+    var cls=pool.find(function (c) { return c.id===state.ui.classId; }) || pool[0];
     var lessons=state.lessons.filter(function (l) { return cls && l.classId===cls.id; }).sort(function (a,b) { return b.seq-a.seq; });
     window.JFDT_LEADER_LESSONS=lessons;
     var lesson=lessons.find(function (l) { return l.id===state.ui.lessonId; }) || lessons[0];
     root.innerHTML='<h2 class="sec-title">组内个人评分</h2><p class="note">填写本课项目名称，每项0–5分、全组共用，默认4项，可新增列（最多30项）；在任一组改名会同步到所有组，分数仍按成员分别填写。双击成员姓名可设为或退出组长，组长自动置顶并显示👑；个人项目分自动汇入个人总分。</p>'+
-      '<div class="card lesson-bar"><label class="field"><span>班级</span><select id="leaderClassSel">'+state.classes.map(function(c){return '<option value="'+esc(c.id)+'"'+(cls&&c.id===cls.id?' selected':'')+'>'+esc(c.name)+'</option>';}).join('')+'</select></label>'+
+      '<div class="card lesson-bar"><label class="field"><span>班级</span><select id="leaderClassSel">'+pool.map(function(c){return '<option value="'+esc(c.id)+'"'+(cls&&c.id===cls.id?' selected':'')+'>'+esc(c.name)+'</option>';}).join('')+'</select></label>'+
       '<label class="field"><span>课次</span><select id="leaderLessonSel"'+(!lessons.length?' disabled':'')+'>'+lessons.map(function(l){return '<option value="'+esc(l.id)+'"'+(lesson&&l.id===lesson.id?' selected':'')+'>第'+l.seq+'次 · '+esc(l.date)+'</option>';}).join('')+'</select></label></div><div id="leaderSheet"></div>';
     root.querySelector('#leaderClassSel').onchange=function(){context.select(this.value,null);};
     var manage=document.createElement('button');manage.className='btn';manage.id='leaderManageGroups';manage.textContent='名单与分组';manage.onclick=function(){context.openGroups();};root.querySelector('.lesson-bar').appendChild(manage);

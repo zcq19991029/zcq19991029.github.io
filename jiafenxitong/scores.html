@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>我的分数 · 夜夜小组加分</title>
+<meta name="theme-color" content="#f6f7fb">
+<link rel="stylesheet" href="scores.css?v=95d530e">
+</head>
+<body>
+<header class="top">
+  <div class="top-main">
+    <b id="clsName">正在读取…</b>
+    <span id="who" class="who"></span>
+    <span class="readonly">只读</span>
+  </div>
+  <div class="sync-line">
+    <span class="sync" id="sync"></span>
+    <a class="top-link" href="team.html">去选桌组队 →</a>
+  </div>
+</header>
+
+<nav class="tabs" id="tabs">
+  <button data-tab="score" class="on">上课记分</button>
+  <button data-tab="leader">组内评分</button>
+  <button data-tab="total">本学期总分</button>
+  <button data-tab="book">登分册</button>
+</nav>
+
+<main>
+  <section id="notice" class="notice" hidden></section>
+  <div id="view-score" class="view"></div>
+  <div id="view-leader" class="view hide"></div>
+  <div id="view-total" class="view hide"></div>
+  <div id="view-book" class="view hide"></div>
+</main>
+
+<script src="config.js?v=95d530e"></script>
+<script src="scores.js?v=95d530e"></script>
+</body>
+</html>

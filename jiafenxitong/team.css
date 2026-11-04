@@ -33,6 +33,9 @@ body {
 .top-main { flex: 1; min-width: 0; }
 .top-main b { display: block; font-size: 16px; }
 .who { color: var(--muted); font-size: 12.5px; }
+/* 学生端两个页面互相串门：这里回「我的分数」，那边去「选桌组队」 */
+.top-link { display: inline-block; margin-top: 3px; color: var(--brand); font-size: 12.5px; text-decoration: none; }
+.top-link:hover { text-decoration: underline; }
 .top-state {
   flex: none; padding: 5px 10px; border-radius: 999px;
   background: var(--brand-soft); color: var(--brand);
