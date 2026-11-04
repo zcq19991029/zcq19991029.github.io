@@ -120,11 +120,18 @@ async function baseOf(sub) {
   else if (sub.kind === 'public') { const r = await store.publicGet(sub.pid); list = (r && r.questions) || []; }
   return (S.base[sub.id] = list);
 }
+// 七个跳动的像素方块：全站加载提示的统一长相（样式在 hx-theme.js 注入的 #hx-pill-style 里，
+// 尺寸随视口自适应）。刷题原来这里是一行干文字「正在加载题库…」，2026-11-04 统一成像素动效。
+function pxBlocks() {
+  let s = '<span class="hx-px" aria-hidden="true">';
+  for (let i = 0; i < 7; i++) s += `<i style="--i:${i}"></i>`;
+  return s + '</span>';
+}
 async function openSubject(id) {
   const sub = S.subjects.find(s => s.id === id) || S.subjects[0];
   S.subject = sub; S.ai = {}; S.draft = null;
   paintSubj();
-  $('card').innerHTML = '<div class="empty"><p class="muted">正在加载题库…</p></div>';
+  $('card').innerHTML = '<div class="hx-loadwrap"><div class="hx-loadpill" role="status">' + pxBlocks() + '<b>正在加载题库…</b></div></div>';
   // 手快连点两个科目时，先发的那次可能后回来。用序号记住“谁最后一次点的”，
   // 回来的旧结果直接丢掉，否则会出现左上角写着一个科目、中间却是另一个科目
   const seq = S.subSeq = (S.subSeq || 0) + 1;

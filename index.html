@@ -12,20 +12,20 @@
      要登录时调 window.HXPortal.login()；被单独打开时 hx-theme.js 会跳回这里（见 hx-theme.js 的 data-tool）。
      账号：Supabase 华夏工具项目，localStorage paike-session 和各工具共用；身份由数据库 hx_me() 决定。
      脚本里不用反引号模板字符串（本机测试时整页当字符串注入到线上同源页面里）。 -->
-<link rel="stylesheet" href="hx-theme.css?v=a372b5e">
-<script src="hx-theme.js?v=a372b5e"></script>
+<link rel="stylesheet" href="hx-theme.css?v=53da156">
+<script src="hx-theme.js?v=53da156"></script>
 <!-- 首页卡片上的像素小生物：pixelfx 的 12 个 critters（MIT），打包成一个 91 KB 的独立脚本。
      加载失败不影响首页——hx-critters.js 开头就有 window.PixelFX 存在性检查，没有就整段跳过。 -->
-<script src="fx/pixelfx-critters.js?v=a372b5e" defer></script>
-<script src="fx/hx-critters.js?v=a372b5e" defer></script>
+<script src="fx/pixelfx-critters.js?v=53da156" defer></script>
+<script src="fx/hx-critters.js?v=53da156" defer></script>
 <!-- 像素头像库（2026-11-04）：账号面板里除了传照片，还能从 200 多个像素动效里挑一个当头像。
      和上面 critters 同一套路：库（pixelfx-avatars.js）+ 渲染器（hx-avatar.js），都是 defer、
      不进首屏关键路径；不点「像素头像库」就一个动画都不跑。 -->
-<script src="fx/pixelfx-avatars.js?v=a372b5e" defer></script>
-<script src="fx/hx-avatar.js?v=a372b5e" defer></script>
+<script src="fx/pixelfx-avatars.js?v=53da156" defer></script>
+<script src="fx/hx-avatar.js?v=53da156" defer></script>
 <!-- 背景动效（2026-11-03）：12 种天气氛围特效铺在背景层，外观面板里选；加载失败或没选就完全不加载渲染器 -->
-<script src="fx/pixelfx-weather.js?v=a372b5e" defer></script>
-<script src="fx/hx-weather.js?v=a372b5e" defer></script>
+<script src="fx/pixelfx-weather.js?v=53da156" defer></script>
+<script src="fx/hx-weather.js?v=53da156" defer></script>
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; width: 100%; overflow: hidden; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -75,10 +75,12 @@
      统一做成「像素方块波浪」：7 个小方块错峰起伏，像一条跑动的像素带。
      为什么用纯 CSS 而不是 canvas：这是全站显示频率最高、生命周期最短的动画，
      CSS 动画走合成线程，不占主线程、不用 rAF，和首页小生物那套「全局只有一个循环」的规矩不冲突。
-     方块尺寸用 clamp(9px, 2.4vw, 13px)：手机上是 8~9px，一体机大屏封顶 12px，
-     不会在小屏上糊成一片、也不会在大屏上细得像根线。 */
-  .hx-px { display: inline-flex; align-items: flex-end; gap: clamp(3px, .7vw, 5px); height: calc(clamp(9px, 2.4vw, 13px) * 2.2); }
-  .hx-px i { width: clamp(9px, 2.4vw, 13px); height: clamp(9px, 2.4vw, 13px); border-radius: 2px;
+     方块尺寸用 clamp(9px, .85vw + 3px, 26px)：手机 9px，1920 一体机 19px，4K 100% 缩放封顶 26px，
+     不会在小屏上糊成一片、也不会在大屏上细得像根线。
+     （2026-11-04 用户报「像素动效和文字匹配总体看起来太小 网页太大」：原来 2.4vw 涨得太猛、
+     13px 又封得极早（542px 宽就顶格），大屏上永远 13px。改成缓慢线性长 + 上限 26px。） */
+  .hx-px { display: inline-flex; align-items: flex-end; gap: clamp(3px, .55vw + 1px, 6px); height: calc(clamp(9px, .85vw + 3px, 26px) * 2.2); }
+  .hx-px i { width: clamp(9px, .85vw + 3px, 26px); height: clamp(9px, .85vw + 3px, 26px); border-radius: 2px;
     background: linear-gradient(180deg, var(--acc), var(--acc2));
     /* 一点落影：浅色背景（#f5f5f7 默认主题）下方块本来会糊成一片淡绿，
        加一层同色系的淡影之后才有「浮在桌面上跳」的实体感。 */
@@ -108,9 +110,9 @@
   #boot > * { transition: opacity .12s var(--hx-ease); }
   #boot.done { opacity: 0; visibility: hidden; pointer-events: none; }
   #boot.done > * { opacity: 0; }
-  #boot img { width: clamp(56px, 13vw, 76px); aspect-ratio: 1; border-radius: 22%; object-fit: cover;
+  #boot img { width: clamp(56px, 13vw, 96px); aspect-ratio: 1; border-radius: 22%; object-fit: cover;
     box-shadow: 0 12px 32px -14px var(--shade, rgba(0,0,0,.35)); animation: bootIn .7s var(--hx-spring) both; }
-  #boot b { font: 600 clamp(17px, 4.2vw, 21px)/1 var(--hx-font-d, var(--hx-font)); letter-spacing: .18em; text-indent: .18em; color: var(--ink);
+  #boot b { font: 600 clamp(17px, 1.15vw + 5px, 36px)/1 var(--hx-font-d, var(--hx-font)); letter-spacing: .18em; text-indent: .18em; color: var(--ink);
     animation: bootIn .7s .08s var(--hx-spring) both; }
   #boot .hx-px { animation: bootIn .7s .16s var(--hx-spring) both; }
   @keyframes bootIn { from { opacity: 0; transform: translateY(10px) scale(.94); } }
@@ -124,13 +126,16 @@
   /* 弱网下点了工具到页面出来之间要等几秒，给个「正在加载」的提示，免得以为卡死 */
   .loadtip { position: absolute; left: 50%; top: 46%; z-index: 3; display: none; align-items: center; gap: 10px;
     transform: translate(-50%, -50%); padding: 12px 20px; border-radius: 99px; background: var(--card); color: var(--ink);
-    font-size: 14px; box-shadow: 0 18px 40px -18px rgba(0,0,0,.35); border: 1px solid var(--edge); pointer-events: none; }
+    font-size: clamp(14px, .8vw + 6px, 26px); box-shadow: 0 18px 40px -18px rgba(0,0,0,.35); border: 1px solid var(--edge); pointer-events: none; }
   .loadtip.on { display: inline-flex; animation: pop .22s var(--hx-ease) both; }
   /* 工具加载中的转圈改成同一套像素方块，和首屏加载、和小生物是一条视觉语言。
      药丸里的方块要比首屏小一档，并且给足跳动空间 —— 否则方块向上跳时会顶出圆角外面。
-     文字必须 nowrap：第一版没写，手机上「正在加载 · 接线仿真」被压成两行，药丸变成一个方块疙瘩。 */
-  .loadtip .hx-px { height: 15px; gap: 3px; }
-  .loadtip .hx-px i { width: 8px; height: 8px; border-radius: 1.5px; box-shadow: none; }
+     文字必须 nowrap：第一版没写，手机上「正在加载 · 接线仿真」被压成两行，药丸变成一个方块疙瘩。
+     方块用 em 挂在本行的 font-size 上（2026-11-04）：字随屏幕长大，方块跟着长，比例固定是 .57。 */
+  .loadtip .hx-px { height: 2.2em; gap: .28em; font-size: .57em; }
+  /* 方块必须在这里改成 1em：全局 .hx-px i 写的是 clamp(9px…17px) 的绝对尺寸，
+     不改就会被那套盖掉，字号再变方块也不动（「字大了方块没大」）。 */
+  .loadtip .hx-px i { width: 1em; height: 1em; border-radius: 1.5px; box-shadow: none; }
   .loadtip b { white-space: nowrap; }
   @keyframes spin { to { transform: rotate(360deg); } }
   /* 首页 */

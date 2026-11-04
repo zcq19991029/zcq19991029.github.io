@@ -146,15 +146,24 @@
     // 起始透明度 .55：太淡在浅灰底上会糊成一片（总入口那边踩过），位移用百分比，大小方块通用
     + '@keyframes hxPx{0%,100%{transform:translateY(0);opacity:.55}35%{transform:translateY(-110%);opacity:1}60%{transform:translateY(0);opacity:.7}}'
     // 药丸本体
+    // 字号自适应（2026-11-04 用户：「像素动效和文字匹配总体看起来太小 网页太大 应该需要自适应网页大小和手机端大小」）：
+    // 原来写死 15px + 方块 8px，1080p 一体机上投出来只有指甲盖大。改成跟视口宽度走：
+    //   · 手机 375 → 15px（下限，再小看不清）
+    //   · 笔记本 1280 → 16.9px
+    //   · 一体机 1920 → 22.3px
+    //   · 4K 屏开了 100% 缩放（CSS 宽 3840）→ 封顶 30px，不会退化成一条细线
+    // 方块和文字都用 em 挂在药丸字号上，所以一处改动整条药丸等比放大，不会出现「字大了方块没大」。
     + '.hx-loadpill{display:inline-flex;align-items:center;gap:.7em;padding:.75em 1.15em;border-radius:99px;'
-    + 'background:var(--card-solid,rgba(255,255,255,.86));color:var(--ink,#1d1d1f);font-size:15px;line-height:1;'
+    + 'background:var(--card-solid,rgba(255,255,255,.86));color:var(--ink,#1d1d1f);'
+    + 'font-size:clamp(15px,.85vw + 6px,30px);line-height:1;'
     + 'border:1px solid var(--edge,rgba(0,0,0,.07));box-shadow:0 18px 40px -18px rgba(0,0,0,.35);'
     + 'animation:hxPillIn .28s var(--hx-ease,cubic-bezier(.32,.72,0,1)) both}'
-    + '.hx-loadpill .hx-px{font-size:8px}'
+    // 方块 = 药丸字号的 54%（原来是写死的 8px / 15px ≈ .53，比例不变，但从此跟着字号一起长）
+    + '.hx-loadpill .hx-px{font-size:.54em}'
     + '.hx-loadpill b{font-weight:600;white-space:nowrap}'
     + '@keyframes hxPillIn{from{opacity:0;transform:translateY(6px) scale(.96)}to{opacity:1;transform:none}}'
-    // 铺在 host 里那版：居中，且至少给 40px 上下空，避免卡片很矮时药丸贴边
-    + '.hx-loadwrap{display:grid;place-items:center;padding:40px 12px;box-sizing:border-box}'
+    // 铺在 host 里那版：居中，且至少给一段上下空，避免卡片很矮时药丸贴边（留白也跟视口走，大屏不再贴边）
+    + '.hx-loadwrap{display:grid;place-items:center;padding:clamp(28px,4vw,56px) 12px;box-sizing:border-box}'
     // 铺满整页那版
     + '.hx-loadwrap.full{position:fixed;inset:0;z-index:2147482000;background:transparent}'
     + '.hx-loadpill.out{opacity:0;transform:translateY(-4px);transition:opacity .25s var(--hx-ease,ease),transform .25s}'

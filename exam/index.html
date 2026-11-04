@@ -459,14 +459,15 @@ button.danger { color: var(--bad, #d70015); }
 .hx-px i:nth-child(2n){background:linear-gradient(180deg,var(--acc2,#7c5cff),var(--acc,#2f6bff))}
 /* 起始透明度 .55：太淡在浅灰底上会糊成一片；位移用百分比，大小方块通用 */
 @keyframes hxPx{0%,100%{transform:translateY(0);opacity:.55}35%{transform:translateY(-110%);opacity:1}60%{transform:translateY(0);opacity:.7}}
-.hx-loadpill{display:inline-flex;flex-direction:column;align-items:center;gap:.85em;padding:.9em 1.2em;border-radius:99px;background:var(--card-solid,#fff);color:var(--ink,#0b1220);border:1px solid var(--hair,rgba(15,23,42,.08));box-shadow:var(--shadow-up,0 18px 40px -12px rgba(15,23,42,.22));animation:hxPillIn .28s var(--spring,cubic-bezier(.32,.72,0,1)) both}
-.hx-loadpill .hx-px{font-size:8px}
-.hx-loadpill b{font-weight:600;font-size:13px;line-height:1;white-space:nowrap}
+/* 字号自适应（2026-11-04 用户：「像素动效和文字匹配总体看起来太小 网页太大」）：手机 15px → 一体机 22.3px → 4K 100% 缩放封顶 30px，方块按 .54em 同步长。 */
+.hx-loadpill{display:inline-flex;flex-direction:column;align-items:center;gap:.85em;padding:.9em 1.2em;border-radius:99px;background:var(--card-solid,#fff);color:var(--ink,#0b1220);border:1px solid var(--hair,rgba(15,23,42,.08));box-shadow:var(--shadow-up,0 18px 40px -12px rgba(15,23,42,.22));font-size:clamp(15px,.85vw + 6px,30px);animation:hxPillIn .28s var(--spring,cubic-bezier(.32,.72,0,1)) both}
+.hx-loadpill .hx-px{font-size:.54em}
+.hx-loadpill b{font-weight:600;font-size:.87em;line-height:1;white-space:nowrap}
 @keyframes hxPillIn{from{opacity:0;transform:translateY(6px) scale(.96)}to{opacity:1;transform:none}}
-/* 面板/表格里的小号：横排，压到 40px 高，塞进表格不会把行高撑变形 */
-.hx-loadpill.sm{flex-direction:row;gap:.6em;padding:.55em .9em;box-shadow:none}
-.hx-loadpill.sm b{font-size:12px;color:var(--mute,#6b7280)}
-.hx-loadwrap{display:grid;place-items:center;padding:40px 12px;box-sizing:border-box}
+/* 面板/表格里的小号：横排，压到 40px 高，塞进表格不会把行高撑变形（字号同样跟屏幕走，比大药丸克制） */
+.hx-loadpill.sm{flex-direction:row;gap:.6em;padding:.55em .9em;box-shadow:none;font-size:clamp(12px,.7vw + 4px,18px)}
+.hx-loadpill.sm b{font-size:1em;color:var(--mute,#6b7280)}
+.hx-loadwrap{display:grid;place-items:center;padding:clamp(28px,4vw,56px) 12px;box-sizing:border-box}
 .hx-loadwrap.sm{padding:0;min-height:40px}
 /* 一体机省电 / 系统关动画：方块停在 .85 透明度，药丸也不再弹入 */
 html.hx-lite .hx-px i{animation:none;opacity:.85}
