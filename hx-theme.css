@@ -82,30 +82,21 @@ html.hx-bg .hx-glass { background: var(--glass-wash); }
    卡片只做「半透明 + 亮边 + 落影」，视觉上还是背景在玻璃后面糊着，但成本从 O(卡片数) 降到 O(1)。 */
 html.hx-bg { background: var(--bg); }
 html.hx-bg body { background: transparent !important; }
-/* 背景磨砂有两级：
-   ① 兜底：原图 + CSS blur（hx-theme.js 在糊图没生成好之前的样子）。
-   ② 正式（html.hx-bgblur）：hx-theme.js 把图缩到 96px 再拉伸的预糊图，filter 全撤。
-      为什么不能长期靠 ①：视口 CSS 尺寸一大（浏览器 Ctrl+- 缩小页面就是这种），Chromium
-      会把超大 fixed 图层上的 filter 整个丢掉，原图直出 —— 用户报的「缩小页面从模糊变
-      透明」就是它。预糊图不依赖 filter，怎么缩都稳。inset:-48px 只在 ① 有意义，留着无害。 */
+/* 背景层：**原图直出，不糊**（2026-11-04 用户要求「背景始终模糊」的修法）。
+   历史包袱说明：2026-11-02 为了不复用 O(卡片数) 的 backdrop-filter，背景层统一糊过一次；
+   2026-11-03 又因为大视口下 Chromium 会丢掉超大 fixed 图层的 filter，改成预先生成 480px 糊图。
+   两步都在，代价是背景永远是模糊的 —— 而用户要的是「壁纸清楚，淡一点靠自己调」。
+   现在两种兜底都撤掉：没有 filter，就没有「被丢掉」的问题；图片本身是 1080p 级，也不糊。
+   想看淡/看浓用外观面板的「背景透明度」（--hx-bgo）：100 = 原样，0 = 只剩底色。 */
 html.hx-bg body::before {
-  content: ""; position: fixed; inset: -48px; z-index: -1; pointer-events: none;
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
   background: var(--hx-img) center / cover no-repeat;
-  filter: blur(8px) saturate(128%);
-  opacity: var(--hx-bgo, 1); /* 背景浓度（外观面板「背景浓度」滑杆）：100 = 现状，0 = 背景消失只剩底色 */
+  opacity: var(--hx-bgo, 1);
 }
-html.hx-bg.hx-bgblur body::before { filter: none; }
-/* 深色模式必须把背景图压够暗。只写 brightness(.62) 对亮色图（比如默认的小熊，整张亮黄）不够：
-   深色主题下整页被照得刺眼，玻璃卡也被背景色染成棕黄、字读不清。所以叠一层暗色 scrim 再压亮度。
-   预糊图阶段（hx-bgblur）不能再用 brightness()（filter 一挂又会被大视口丢掉、深浅跳变），
-   把 brightness(.88)×scrim(.30) 折算成更深的 scrim(.38)，效果等价。 */
+/* 深色模式：亮色壁纸（比如默认那张）会把整页照得刺眼、玻璃卡被染成棕黄。
+   叠一层暗色 scrim（不再用 brightness()，省得又依赖 filter）。 */
 :root[data-hx-mode="dark"].hx-bg body::before {
-  background-image: linear-gradient(rgba(8, 8, 10, .30), rgba(8, 8, 10, .30)), var(--hx-img);
-  filter: blur(8px) brightness(.88) saturate(.95);
-}
-:root[data-hx-mode="dark"].hx-bg.hx-bgblur body::before {
   background-image: linear-gradient(rgba(8, 8, 10, .38), rgba(8, 8, 10, .38)), var(--hx-img);
-  filter: none;
 }
 /* 老设备上一律不做实时背景模糊（顶栏、底栏、弹层都算）。背景图已经糊过，去掉之后几乎看不出差别，
    但省掉的是每一次滚动都要重算的高斯模糊。顶栏改实色兜底，不然内容会从底下透上来。 */

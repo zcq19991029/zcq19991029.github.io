@@ -16,21 +16,21 @@
   // 推荐背景：旧站的猫耳学习图（dev：开发者专属，只有开发者账号看得到、用得上）+ 几张渐变（不占流量）；op 是选它时的推荐透明度
   var BG = {
     none: { name: '无' },
-    // 2026-11-04 起的全站默认背景（用户发的「【哲风壁纸】Chiikawa-Q版」）。
-    // 大块留白 + 底部一小片草坡，卡片压在上面正好落在留白里，字不会被花底吃掉，
-    // 所以推荐透明度给 90（比小熊高）：这张图本身清淡，卡片再透也不会糊。
-    chiikawa: { name: '吉伊卡哇', img: 'bg/chiikawa.jpg', op: 90 },
-    bear: { name: '小熊', img: 'bg/bear.jpg', op: 88 }, // 旧默认（2026-11-02 ~ 11-04）：教师、学生、外人都能选
-    cat: { name: '猫耳学习', img: 'bg/cat-study.jpg', op: 70, dev: true },
-    mist: { name: '晨雾', op: 72, css: 'radial-gradient(60% 50% at 15% 10%, #ffd6e7 0, transparent 70%), radial-gradient(55% 55% at 90% 20%, #cfe3ff 0, transparent 70%), radial-gradient(60% 60% at 50% 100%, #d9f5e5 0, transparent 70%), #f5f5f7' },
-    bay: { name: '海湾', op: 70, css: 'radial-gradient(70% 60% at 0% 0%, #a8e6ff 0, transparent 65%), radial-gradient(60% 70% at 100% 30%, #8fb8ff 0, transparent 70%), radial-gradient(70% 60% at 40% 110%, #b6f0d8 0, transparent 70%), #eef6fb' },
-    dusk: { name: '暮光', op: 68, css: 'radial-gradient(60% 60% at 10% 90%, #ffb38a 0, transparent 70%), radial-gradient(60% 60% at 90% 80%, #ff8fb7 0, transparent 70%), radial-gradient(80% 60% at 50% -10%, #c7b8ff 0, transparent 70%), #fbf1ee' },
-    aurora: { name: '极光', op: 62, css: 'radial-gradient(60% 50% at 20% 20%, #1f6f5c 0, transparent 70%), radial-gradient(55% 60% at 85% 30%, #3b2f8f 0, transparent 70%), radial-gradient(70% 60% at 50% 110%, #0f4f7a 0, transparent 70%), #05070d' },
+    // 2026-11-04 深夜用户定：背景只留三档 —— 无 / 极光动态（新的全站默认）/ 自己上传。
+    // 原来的小熊、吉伊卡哇、猫耳、晨雾、海湾、暮光、极光渐变**全部下架**（原话「其他的背景删除」）。
+    //
+    // 极光是**视频**壁纸（用户给的哲风壁纸 4K 绿色极光，雪山星空）：
+    //   · 站上只拿得到 960×540 的预览版（4K 原片要登录），所以用它；
+    //   · 用「正放 + 倒放」拼成 10s 无缝循环（620KB），首尾帧完全相同，看不出接缝；
+    //   · `bg/aurora.jpg` 是海报帧，视频解码好之前先把这一帧铺上，避免黑屏闪一下；
+    //   · 省电模式（hx-lite）和系统「减少动态效果」只显示海报帧，不播视频（一体机省 GPU）。
+    aurora: { name: '极光 · 动态', video: 'bg/aurora.mp4', poster: 'bg/aurora.jpg', op: 100 },
     custom: { name: '自己的图', op: 70 }
   };
-  // VER 3（2026-11-04）：默认背景从小熊换成吉伊卡哇。老存档里 ver<3 且还停在小熊的（=没主动挑过）
-  // 一起换过去；自己上传过图、或挑了别的（晨雾/海湾…）一律不动。见 get() 里的迁移。
-  var KEY = 'hx-theme', IMG = 'hx-theme-img', DEV = 'hx-dev', VER = 3, DEF = { acc: 'green', mode: 'auto', bg: 'chiikawa', op: 90, wx: 'none' };
+  // VER 4（2026-11-04 深夜）：背景项合并成上面三档，默认改成极光视频。
+  // 老存档里凡是选了已下架背景（bear/chiikawa/cat/mist/bay/dusk/旧极光渐变）的，统一迁到新默认；
+  // 自己上传过图的（custom 且本地还有图）保留不动 —— 那是用户自己的东西，不能因为改默认就没了。
+  var KEY = 'hx-theme', IMG = 'hx-theme-img', DEV = 'hx-dev', VER = 4, DEF = { acc: 'green', mode: 'auto', bg: 'aurora', op: 100, wx: 'none' };
   // 背景动效（2026-11-03）：和背景主题平行的「动效模块」，由 fx/hx-weather.js 渲染在背景层。
   // 白名单写死在这里（而不是由渲染器自己认）：将来下架某个特效，老存档里选着它也会安全回落到「无」。
   var WX = {
@@ -58,6 +58,19 @@
     st.textContent = 'html.hx-bg,html.hx-bg body{background-color:transparent!important}';
     (document.head || document.documentElement).appendChild(st);
   }
+
+  // 动态背景（视频壁纸）那一层：样式必须全局注入 —— 全站只有总入口和刷题引了 hx-theme.css，
+  // 其余工具只引这个 JS，写进 CSS 文件等于对它们无效。
+  // z-index:-2 排在 body::before（-1，负责深色模式压暗）下面，也排在 .hx-wm（0）和所有内容下面。
+  // opacity 跟 --hx-bgo 走，所以外观面板那根「背景透明度」对视频一样有效。
+  (function () {
+    var vs = document.createElement('style');
+    vs.id = 'hx-bgvid-style';
+    vs.textContent = '#hx-bgvid{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;object-position:center;'
+      + 'z-index:-2;pointer-events:none;opacity:var(--hx-bgo,1);background:transparent}'
+      + 'html.hx-lite #hx-bgvid{opacity:var(--hx-bgo,1)}';
+    (document.head || document.documentElement).appendChild(vs);
+  })();
 
   // ── 顶部加载进度条（2026-11-03）──
   // 用户原话「刷新加载动画缺一个　包括其他界面」：首页已经有 #boot，
@@ -236,15 +249,17 @@
     var raw = ls(KEY), v = null;
     if (raw && OLD[raw]) v = OLD[raw]; else try { v = JSON.parse(raw); } catch (e) { }
     v = v && typeof v === 'object' ? v : {};
-    // 老存档（没有 ver）＝ 上这一版之前就存过外观的。统一换成新默认（小熊），做到「全体人员默认」；
+    // 老存档（没有 ver）＝ 上这一版之前就存过外观的。统一换成新默认（极光），做到「全体人员默认」；
     // 只有自己上传过图的例外——那是明确主动的行为，别覆盖掉。想关掉背景在外观面板点「无」即可。
     if (raw && !v.ver && v.bg !== 'custom') v.bg = DEF.bg;
-    // VER 3 迁移（2026-11-04）：小熊从「默认」降级成普通选项，新的默认是吉伊卡哇。
-    // 只搬「ver 还是旧的、而且正好停在小熊」的存档——那等于没主动挑过；
-    // 自己上传的图（custom）、选过晨雾/海湾/无的一律不动。用户动一下外观面板就会写上新 ver，从此不再迁移。
-    if (v.bg === 'bear' && !(+v.ver >= VER)) v.bg = DEF.bg;
+    // VER 4 迁移（2026-11-04 深夜）：背景项只剩 无/极光动态/自己的图。
+    // 规则就两条：① 存档里的背景 id 已经不存在了（bear/chiikawa/cat/mist/bay/dusk）→ 换成新默认；
+    // ② 说自己是 custom、但本机那张图已经被删了 → 也回默认（否则会留一个空背景）。
+    // 注意旧版的「极光渐变」用的就是 'aurora' 这个 id，现在它指的是极光视频——老用户会被自然升级成动态版，符合预期。
+    if (!BG[v.bg]) v.bg = DEF.bg;
+    if (v.bg === 'custom' && !ls(IMG)) v.bg = DEF.bg;
     // op 允许 0～100（2026-11-03 用户要求「要 0 到 100 可调节」）。
-    // ⚠️ 不能写 `+v.op || DEF.op`：0 是 falsy，会把「完全透明」静默变回默认 90。
+    // ⚠️ 不能写 `+v.op || DEF.op`：0 是 falsy，会把「完全透明」静默变回默认值。
     var opN = +v.op, bgoN = +v.bgo;
     // bgo = 背景浓度（2026-11-03 用户报「透明度完全不会让背景透明」——原来的 op 滑杆只管卡片透明度，
     // 背景纹丝不动。现在加一根独立的「背景浓度」滑杆：100 = 现状，0 = 背景完全消失只剩底色）
@@ -283,68 +298,87 @@
     return hc <= 2 || dm <= 2;
   }
   try { document.documentElement.classList.toggle('hx-lite', liteOn()); } catch (e) { }
-  // ── 背景图预模糊（2026-11-03）────────────────────────────────────────────
-  // 为什么要自己糊：背景的磨砂感原来靠 CSS `filter: blur(8px)`（hx-theme.css body::before）。
-  // 用户发现「缩小页面会从模糊变透明」——实测（puppeteer 视口 5120×3200 @dpr 0.25，即浏览器
-  // Ctrl+- 到 25%）复现：视口 CSS 尺寸一大，Chromium 直接把这个超大 fixed 图层上的 filter
-  // 整个丢掉，原图直出。blur 写多大都没用，这是渲染器的行为，CSS 层面绕不过。
+  // ── 背景图：原图直出，不再预模糊（2026-11-04 用户要求）──────────────────
+  // 历史：2026-11-02 为了性能把「每张卡各自 backdrop-filter」改成「背景层统一糊一次」；
+  // 2026-11-03 又发现视口一大（Ctrl+- 缩小页面）Chromium 会把超大 fixed 图层上的 filter 整个丢掉，
+  // 于是改成把图先缩到 480px、canvas 上再 blur(2.5px) 导出 JPEG，彻底不依赖 filter。
   //
-  // 所以改成**把图预先糊好**：两级降采样到长边 480px、canvas 上再 blur(2.5px) 后导出 JPEG，
-  // 浏览器 cover 拉伸回全屏时自然就是糊的 —— 零 GPU 成本、任何缩放都稳定，
-  // 希沃一体机那种跑不动的设备也少一笔开销（hx-lite 的背景降档分支随之删除）。
-  // 2026-11-03 用户报「背景变成马赛克画质」：初版缩到 96px，拉伸 20 倍像素块太明显。
-  // 480px 拉到 1080p 是 4.5 倍、4K 是 9 倍，糊图本来就是要糊的，放大痕迹已不可见。
-  // 生成失败（离线首屏、图挂了）就回落到 CSS blur 兜底，行为和以前一样。
-  var blurCache = {}; // key: 图片 url，value: 480px JPEG dataURL。只存内存（每张几十 KB）
-  var blurToken = 0;
-  function blurImg(src, cb) {
-    if (blurCache[src]) return cb(blurCache[src]);
-    var im = new Image();
-    im.onload = function () {
-      try {
-        // 两级降采样：先缩到中间尺寸（一半）再缩到目标，比一步到位少锯齿；
-        // blur(2.5px) 是按 480px 尺度给的，等效原图上约 8px 的磨砂感（和旧 CSS blur(8px) 一致）
-        var target = 480, k0 = target / Math.max(im.width, im.height);
-        var mid = document.createElement('canvas');
-        mid.width = Math.max(1, Math.round(im.width * k0 * 2)); mid.height = Math.max(1, Math.round(im.height * k0 * 2));
-        var mctx = mid.getContext('2d');
-        mctx.drawImage(im, 0, 0, mid.width, mid.height);
-        var cv = document.createElement('canvas');
-        cv.width = Math.max(1, Math.round(im.width * k0)); cv.height = Math.max(1, Math.round(im.height * k0));
-        var ctx = cv.getContext('2d');
-        try { ctx.filter = 'blur(2.5px) saturate(1.28)'; } catch (e) { } // 顶掉原来 CSS 里的 saturate(128%)；不支持就没这层，视觉差一点
-        ctx.drawImage(mid, 0, 0, cv.width, cv.height);
-        blurCache[src] = cv.toDataURL('image/jpeg', .85);
-        cb(blurCache[src]);
-      } catch (e) { cb(null); } // 画布被污染等异常：回落 CSS blur
-    };
-    im.onerror = function () { cb(null); };
-    im.src = src;
+  // 2026-11-04 用户：「背景始终模糊啊 … 你给我换成调节背景透明度的」。**磨砂不是需求，是上一个
+  // 修法的副作用**：480px 的图拉到 1080p 是 4.5 倍，怎么都糊。现在改为原图直出：
+  //   · 上传的图在 upload() 里已经缩到长边 ≤1920 并压成 JPEG（.82 起步），体积可控；
+  //   · 预设背景本身就是 1080p 级 JPEG，直接用；
+  //   · 不再有任何 blur，`--hx-img` 指向真图，缩小/放大都不会出现「糊→清」的跳变。
+  // 想要背景淡一点，用外观面板的「背景透明度」（--hx-bgo），那才是用户要的那根滑杆。
+  // ── 动态背景（视频壁纸，2026-11-04 深夜）──────────────────────────────
+  // 用户：「所有账号背景默认改为这个动态背景」。三条硬规矩：
+  //   ① 省电模式（hx-lite）或系统「减少动态效果」→ 只留海报帧，不播视频（一体机省 GPU）；
+  //   ② 切到后台标签页 → 暂停；回到前台 → 续播（教室里同时开十几个标签页很常见）；
+  //   ③ 打开工具（body.tool，背景被 iframe 完全盖住）→ 暂停，由 index.html 的 show() 调 bgPause 控制。
+  // 元素插成 body 第一个孩子、z-index:-2：永远在内容、水印、深色 scrim 的下面。
+  var bgv = null, bgWant = false;
+  function bgVideo(src, poster) {
+    bgWant = !!src;
+    if (!src) {
+      if (bgv) { try { bgv.pause(); } catch (e) { } if (bgv.parentNode) bgv.parentNode.removeChild(bgv); bgv = null; }
+      return;
+    }
+    if (!document.body) { // 脚本在 <head> 里执行：等 body 出来再插，插完重跑一次 apply
+      addEventListener('DOMContentLoaded', function () { apply(); });
+      return;
+    }
+    if (!bgv) {
+      bgv = document.createElement('video');
+      bgv.id = 'hx-bgvid';
+      bgv.setAttribute('aria-hidden', 'true');
+      bgv.muted = true; bgv.defaultMuted = true; bgv.loop = true; bgv.playsInline = true;
+      bgv.setAttribute('muted', ''); bgv.setAttribute('playsinline', ''); bgv.setAttribute('webkit-playsinline', '');
+      bgv.preload = 'auto';
+      document.body.insertBefore(bgv, document.body.firstChild);
+    }
+    if (bgv.getAttribute('data-src') !== src) {
+      bgv.setAttribute('data-src', src);
+      bgv.poster = poster ? root + poster : '';
+      bgv.src = root + src;
+    }
+    if (liteOn() || document.documentElement.classList.contains('hx-lite')
+      || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) {
+      // 省电模式：连视频都不下载（620KB 也别浪费），元素没有 src 时浏览器只显示 poster。
+      // 从「有 src」切到省电模式时要把 src 摘掉并 load()，否则已经下的分片会继续解。
+      if (bgv.getAttribute('src')) {
+        bgv.removeAttribute('src');
+        try { bgv.load(); } catch (e) { }
+        bgv.setAttribute('data-src', '');
+      }
+      try { bgv.pause(); } catch (e) { }
+      return;
+    }
+    var p = bgv.play(); if (p && p.catch) p.catch(function () { }); // 自动播放被拦时不报错，海报帧兜底
   }
+  function bgPause(on) { // index.html 打开工具时调用：背景被 iframe 盖住就别再解码了
+    if (!bgv) return;
+    if (on) { try { bgv.pause(); } catch (e) { } }
+    else if (bgWant && !liteOn()) { var p = bgv.play(); if (p && p.catch) p.catch(function () { }); }
+  }
+  addEventListener('visibilitychange', function () {
+    if (!bgv) return;
+    if (document.hidden) { try { bgv.pause(); } catch (e) { } } else { bgPause(false); }
+  });
+
   function apply() {
     var s = get(), m = modeOf(s), a = ACC[s.acc], r = document.documentElement, b = BG[s.bg];
     var c = m === 'dark' ? a.d : a.l, c2 = m === 'dark' ? a.d2 : a.l2;
     r.setAttribute('data-hx-mode', m); r.setAttribute('data-theme', m); r.setAttribute('data-hx-acc', s.acc);
     r.classList.toggle('hx-bg', s.bg !== 'none');
     r.classList.toggle('hx-wm-off', !s.wm);   // 校徽水印开关（外观面板里可切，默认开）
+    // 视频壁纸：图层面自己播，--hx-img 置空，body::before 只留深色模式那层压暗 scrim
+    var isVid = !!(b && b.video) && s.bg !== 'none';
     var img = s.bg === 'custom' ? 'url("' + ls(IMG) + '")' : b.img ? 'url("' + root + b.img + '")' : b.css || 'none';
     var vars = { '--acc': c, '--acc2': c2, '--acc3': c2, '--acc-h': c2, '--on-acc': s.acc === 'mono' && m === 'dark' ? '#1d1d1f' : '#fff',
       '--accbg': 'color-mix(in srgb, ' + c + ' 14%, transparent)', '--ring': 'color-mix(in srgb, ' + c + ' 40%, transparent)',
-      '--hov': 'color-mix(in srgb, ' + c + ' 10%, transparent)', '--hx-a': s.bg === 'none' ? 1 : s.op / 100, '--hx-img': img, '--hx-bgo': s.bgo / 100 };
+      '--hov': 'color-mix(in srgb, ' + c + ' 10%, transparent)', '--hx-a': s.bg === 'none' ? 1 : s.op / 100, '--hx-img': isVid ? 'none' : img, '--hx-bgo': s.bgo / 100 };
     for (var k in vars) r.style.setProperty(k, vars[k]);
-    // 图片背景：先按原图 + CSS blur 显示（兜底），糊图生成好了换上去并挂 .hx-bgblur 撤掉 filter。
-    // 渐变背景（mist/bay/dusk/aurora）本身就是色块，不需要糊，也不挂类。
-    r.classList.remove('hx-bgblur');
-    if (img.indexOf('url(') === 0) {
-      var src = img.slice(5, -2).replace(/"/g, ''); // url("...") → ...（custom 存的是 dataURL，同样适用）
-      var my = ++blurToken; // 竞态防护：连续换背景时，迟到的旧回调不许覆盖新设置
-      blurImg(src, function (data) {
-        if (data && my === blurToken && document.documentElement.classList.contains('hx-bg')) {
-          r.classList.add('hx-bgblur');
-          r.style.setProperty('--hx-img', 'url("' + data + '")');
-        }
-      });
-    }
+    r.classList.remove('hx-bgblur'); // 旧版挂的「预糊图」标记，现在没有任何样式依赖它，清掉防止老缓存残留
+    bgVideo(isVid ? b.video : null, isVid ? b.poster : null);
     var meta = document.querySelector('meta[name="theme-color"]'); if (meta) meta.setAttribute('content', m === 'dark' ? '#000000' : '#f5f5f7');
     try { ls('zfz-practice-theme', m); ls('wanxiu-paike-theme', m); ls('ui.theme', JSON.stringify(m)); } catch (e) { }
     for (var i = 0; i < subs.length; i++) try { subs[i](s, m); } catch (e) { }
@@ -428,7 +462,7 @@
     imgs: imgs, useImg: useImg, delImg: delImg,
     // 像素方块「正在载入」药丸（2026-11-04）：见文件上方 loadPill 那段注释。
     // HXTheme.loadPill(host, '正在载入…') / loadPill('正在载入…')（铺满整页）；返回 { el, text(), done() }
-    loadPill: loadPill };
+    loadPill: loadPill, bgPause: bgPause };
   // ---------- 导航栏交互动效：滑块跟着当前项走（不用每项自己高亮） ----------
   // 用法：HXNav.slide(容器) —— 容器里放 [data-v] 或 [aria-current] 的按钮，当前项加 aria-current="true"。
   // 滑块自己量位置，所以文字长短不同也对得准；换项时用弹簧曲线滑过去，不是闪一下。

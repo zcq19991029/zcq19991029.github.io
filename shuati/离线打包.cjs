@@ -76,6 +76,12 @@ themeJs = themeJs.replace(/var me = document\.currentScript, root = me \? new UR
   "var me = document.currentScript, root = '';");
 // 离线不该跳回总入口：把「单独打开就跳首页」那段去掉
 themeJs = themeJs.replace(/if \(tool && window\.top === window && \/\^https\?:\$\/\.test\(location\.protocol\)[\s\S]*?return; \}/, '');
+// 离线没有 bg/ 目录（图片、视频都不跟着文件走）。2026-11-04 起全站默认背景是「极光动态」视频，
+// 不处理的话离线打开会去要一个不存在的 bg/aurora.mp4（620KB 的 404），背景层还会是空的。
+// 这里就地降级成海报帧（base64 内联），离线也有极光画面，只是不动。
+const auroraJpg = fs.readFileSync(path.join(ROOT, '..', '总入口', 'bg', 'aurora.jpg')).toString('base64');
+themeJs = themeJs.replace(/aurora: \{[^}]*\}/,
+  `aurora: { name: '极光 · 静帧', img: 'data:image/jpeg;base64,${auroraJpg}' }`);
 html = html.replace(/<script src="\.\.\/hx-theme\.js"[^>]*><\/script>/, `<script>\n${themeJs}\n</script>`);
 html = html.replace(/<link rel="stylesheet" href="style\.css">/, `<style>\n${styleCss}\n</style>`);
 html = html.replace(/<a class="brand" id="brand" href="\.\.\/" target="_top">/, '<a class="brand" id="brand" href="#" onclick="return false">');

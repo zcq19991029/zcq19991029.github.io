@@ -490,8 +490,13 @@
   .drw-skin::after { content: ''; position: absolute; inset: 0;
     background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, .1) 44%, transparent 58%),
       radial-gradient(58% 34% at 50% 26%, rgba(108, 140, 255, .3), transparent 70%); }
-  .drw-pname { position: absolute; z-index: 1; left: 0; right: 0; top: 15%; text-align: center; color: #e8ecff;
-    font-weight: 900; font-size: clamp(17px, 2.4vw, 26px); letter-spacing: .22em; text-indent: .22em; }
+  /* 卡包标题必须压在金封条上面：原来 z-index:1 < 封条 z-index:2，「随机抽人」被竖带从中间切穿
+     （2026-11-04 用户截图报的遮挡）。做法和 小组加分/draw-person.css 对齐——深色小牌 z-index:3，
+     不透明底 rgba(8,13,26,.82)，字才不会被金色带子透上来吃掉。别再把它降回 1/2。 */
+  .drw-pname { position: absolute; z-index: 3; left: 50%; top: 11%; transform: translateX(-50%);
+    padding: 3px 12px; border-radius: 8px; white-space: nowrap;
+    background: rgba(8, 13, 26, .82); box-shadow: 0 2px 10px rgba(0, 0, 0, .5);
+    color: #e8ecff; font-weight: 900; font-size: clamp(17px, 2.4vw, 26px); letter-spacing: .22em; text-indent: .22em; }
   .drw-seal { position: absolute; z-index: 2; left: 50%; top: 0; bottom: 0; width: 17%; transform: translateX(-50%); font-style: normal;
     background: linear-gradient(180deg, #ffd98a, #f5b942 30%, #e09b2d 70%, #c9871f);
     border-left: 1px solid rgba(255, 255, 255, .4); border-right: 1px solid rgba(0, 0, 0, .25);
