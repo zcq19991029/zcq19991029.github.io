@@ -12,15 +12,15 @@
      要登录时调 window.HXPortal.login()；被单独打开时 hx-theme.js 会跳回这里（见 hx-theme.js 的 data-tool）。
      账号：Supabase 华夏工具项目，localStorage paike-session 和各工具共用；身份由数据库 hx_me() 决定。
      脚本里不用反引号模板字符串（本机测试时整页当字符串注入到线上同源页面里）。 -->
-<link rel="stylesheet" href="hx-theme.css?v=95d530e">
-<script src="hx-theme.js?v=95d530e"></script>
+<link rel="stylesheet" href="hx-theme.css?v=df2ced4">
+<script src="hx-theme.js?v=df2ced4"></script>
 <!-- 首页卡片上的像素小生物：pixelfx 的 12 个 critters（MIT），打包成一个 91 KB 的独立脚本。
      加载失败不影响首页——hx-critters.js 开头就有 window.PixelFX 存在性检查，没有就整段跳过。 -->
-<script src="fx/pixelfx-critters.js?v=95d530e" defer></script>
-<script src="fx/hx-critters.js?v=95d530e" defer></script>
+<script src="fx/pixelfx-critters.js?v=df2ced4" defer></script>
+<script src="fx/hx-critters.js?v=df2ced4" defer></script>
 <!-- 背景动效（2026-11-03）：12 种天气氛围特效铺在背景层，外观面板里选；加载失败或没选就完全不加载渲染器 -->
-<script src="fx/pixelfx-weather.js?v=95d530e" defer></script>
-<script src="fx/hx-weather.js?v=95d530e" defer></script>
+<script src="fx/pixelfx-weather.js?v=df2ced4" defer></script>
+<script src="fx/hx-weather.js?v=df2ced4" defer></script>
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; width: 100%; overflow: hidden; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -350,6 +350,13 @@
   .empty { color: var(--dim); text-align: center; padding: 28px 0; }
   /* 弹出：外观、账号（电脑在右上角，手机从底部出来） */
   .scrim { position: fixed; inset: 0; z-index: 19; background: rgba(0, 0, 0, .25); opacity: 0; pointer-events: none; transition: opacity .3s var(--hx-ease); }
+  /* 点面板外面就该关掉（2026-11-04 用户报「点选项卡外的地方不会关，只能再点一次按钮」）。
+     根因：这条 .scrim.show{pointer-events:auto} 原来只写在 max-width:640px 的窄屏分支里，
+     宽屏时遮罩虽然跟着面板一起 .show 了，却还是 pointer-events:none —— 点击直接穿过去落到
+     工具 iframe 上，主页面一个事件都收不到，closePops 自然不执行。提到基础样式里，宽屏窄屏都能接住。
+     宽屏不压暗（这里保持 opacity:0），只当一层透明的点不到底的挡板，浮卡外观和以前一致。 */
+  .scrim.show { opacity: 1; pointer-events: auto; }
+  @media (min-width: 641px) { .scrim.show { opacity: 0; } }
   .pop { position: fixed; top: 60px; right: 12px; z-index: 20; width: 360px; max-height: calc(100vh - 76px); overflow: auto; padding: 22px; border-radius: 24px; background: var(--card-solid); box-shadow: 0 0 0 1px var(--edge), 0 30px 80px -20px var(--shade);
     opacity: 0; visibility: hidden; transform: translateY(-8px) scale(.97); transform-origin: top right; transition: opacity .25s var(--hx-ease), transform .45s var(--hx-spring), visibility 0s .45s; }
   .pop.show { opacity: 1; visibility: visible; transform: none; transition-delay: 0s; }
@@ -1023,12 +1030,17 @@ function renderLook() {
     '<h3>背景动效</h3><div class="bgs">' + Object.keys(WX).map(function (k) {
       return '<button type="button" data-wx="' + k + '" aria-pressed="' + (s.wx === k) + '"><span>' + WX[k].name + '</span></button>';
     }).join('') + '</div><p class="msg" style="margin:6px 0 0;color:var(--dim)">铺在背景上的一层像素氛围动画，和背景主题互不覆盖；一体机（省电模式）只显示静态一帧。</p>' +
+    // 校徽水印（2026-11-04）：全站铺一层华夏校徽，卡片半透明时透出来。默认开，给个开关方便看不顺眼时关掉
+    '<h3>校徽水印</h3><div class="seg">' + [['1', '显示'], ['0', '隐藏']].map(function (x) {
+      return '<button type="button" data-wm="' + x[0] + '" aria-pressed="' + (String(s.wm) === x[0]) + '">' + x[1] + '</button>';
+    }).join('') + '</div><p class="msg" style="margin:6px 0 0;color:var(--dim)">压在内容后面的一层华夏校徽，卡片半透明时从卡片里透出来；打印不印。</p>' +
     '<button class="btn link" id="lookReset" type="button">恢复默认</button>';
   $('look').innerHTML = html;
   $('look').querySelectorAll('[data-mode]').forEach(function (b) { b.onclick = function () { HXTheme.set({ mode: b.dataset.mode }); }; });
   $('look').querySelectorAll('[data-acc]').forEach(function (b) { b.onclick = function () { HXTheme.set({ acc: b.dataset.acc }); }; });
   $('look').querySelectorAll('[data-bg]').forEach(function (b) { b.onclick = function () { HXTheme.set({ bg: b.dataset.bg }); }; });
   $('look').querySelectorAll('[data-wx]').forEach(function (b) { b.onclick = function () { HXTheme.set({ wx: b.dataset.wx }); }; });
+  $('look').querySelectorAll('[data-wm]').forEach(function (b) { b.onclick = function () { HXTheme.set({ wm: +b.dataset.wm }); }; });
   $('bgFile').onchange = function (e) { var f = e.target.files[0]; if (f) HXTheme.upload(f).catch(function (er) { toast(er.message); }); };
   if ($('op')) $('op').oninput = function () { opAt = Date.now(); $('opv').textContent = $('op').value + '%'; HXTheme.set({ op: +$('op').value }); };
   if ($('bgo')) $('bgo').oninput = function () { opAt = Date.now(); $('bgov').textContent = $('bgo').value + '%'; HXTheme.set({ bgo: +$('bgo').value }); };

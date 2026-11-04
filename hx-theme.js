@@ -44,7 +44,14 @@
   if (tool && window.top === window && /^https?:$/.test(location.protocol) && !/[?&]solo\b/.test(location.search)) { location.replace(root + '#' + tool); return; }
 
   // 嵌在总入口里的子工具：选了背景图时页面底色透明，透出首页的背景图（以前单片机、考试、排课、加分是整页纯色铺满）
-  if (tool && window.top !== window) { var st = document.createElement('style'); st.textContent = 'html.hx-bg,html.hx-bg body{background-color:transparent!important}'; (document.head || document.documentElement).appendChild(st); }
+  // hx-embedded：告诉工具「你被嵌在框里了」。自带校徽水印的工具（目前只有排课 .wm）见到它就收起自己那一份，
+  // 由总入口统一画一层，免得同一个校徽画两遍还错位。
+  if (tool && window.top !== window) {
+    document.documentElement.classList.add('hx-embedded');
+    var st = document.createElement('style');
+    st.textContent = 'html.hx-bg,html.hx-bg body{background-color:transparent!important}';
+    (document.head || document.documentElement).appendChild(st);
+  }
 
   // ── 顶部加载进度条（2026-11-03）──
   // 用户原话「刷新加载动画缺一个　包括其他界面」：首页已经有 #boot，
@@ -93,6 +100,58 @@
     setTimeout(barDone, 8000);
   }
 
+  // ── 华夏校徽水印（2026-11-04）──
+  // 用户原话「排课的背景有个华夏校徽　这个效果帮我加到全部 ui 卡片背景界面上」。
+  // 做法和排课一模一样：一张铺满视口的固定层，垫在内容下面（z-index:0）。
+  // 卡片本身是半透明的，校徽就从卡片里透出来 —— 不是给每张卡贴图，滚动时也不会跟着跑。
+  //
+  // 为什么样式写在 JS 里而不是 hx-theme.css：全站只有总入口和刷题引了那份 CSS，
+  // 接线仿真、排课、单片机、考试、小组加分、课程进度、进制转换都只引 hx-theme.js
+  // （和上面的加载进度条同一个原因，放 CSS 里等于只覆盖 2/8 个页面）。
+  //
+  // 只在**顶层页面**挂：嵌在总入口框里的工具不画自己那一份，由总入口这一层统一透上去。
+  // 否则同一个校徽会被画两遍，还会因为 iframe 的中心偏了 52px 顶栏而错开成两个。
+  // （排课自带 .wm，被嵌时由 html.hx-embedded 关掉，见排课 app.css）
+  (function () {
+    if (window.top !== window) return;
+    var wmSt = document.createElement('style');
+    wmSt.id = 'hx-wm-style';
+    wmSt.textContent =
+      // z-index 用 0、不能用 -1：-1 会掉到 body 底色后面，整张被盖住（子工具页面各自带 body 底色）。
+      // 0 是「定位元素、没抬层级」的位置，按 DOM 顺序和 main / 卡片这些同层元素排队 ——
+      // 所以下面把它插成 body 的第一个孩子：排在 main（iframe 就住在里面）和各张卡片前面，
+      // 于是压在它们下面，卡片半透明时从卡片里透出来。这和排课 .wm 的处境完全一样
+      // （排课 .wm 也是 body 第一个孩子），两边观感才对得上。
+      // 水印图是 RGBA、四周透明，pointer-events:none 也不挡点击。
+      // 密度就照排课原样：单层、不叠不混合。2026-11-04 用户看过之后明确
+      // 「不需要能看清　就这样挺好的」—— 校徽是氛围，不是要人读的图案，
+      // 别为了「看得见」加层数或 blend，压过卡片上的字就本末倒置了。
+      '.hx-wm{position:fixed;inset:0;z-index:0;pointer-events:none;margin:4vmin;'
+      + 'background:url("' + root + 'hx-seal.png") center/contain no-repeat;opacity:1}'
+      // 深色底上淡粉会发白刺眼，压到 35%（和排课的深色处理一致）
+      + ':root[data-hx-mode="dark"] .hx-wm{opacity:.35}'
+      // 外观面板里可以关掉（hx-theme 的 wm:0）
+      + 'html.hx-wm-off .hx-wm{display:none}'
+      // 工具要了全屏（总入口给 main 挂 z-index:50）时，校徽得跟着抬到 49：
+      // 还是垫在工具下面（iframe 透明，透得上来），不至于一进全屏就整层没了。
+      + 'body.hxfull .hx-wm{z-index:49}'
+      // 打印时不印校徽
+      + '@media print{.hx-wm{display:none}}';
+    (document.head || document.documentElement).appendChild(wmSt);
+    function mountWm() {
+      if (document.querySelector('.hx-wm')) return;
+      var d = document.createElement('div'), body = document.body || document.documentElement;
+      d.className = 'hx-wm';
+      d.setAttribute('aria-hidden', 'true');
+      body.insertBefore(d, body.firstChild);   // 必须是第一个孩子，见上面 z-index 那段
+      // 告诉页面「这一层已经有人画了」：自带校徽的工具（排课 .wm）见到就收起来。
+      // 和 hx-embedded 是两条路 —— hx-embedded 管「嵌在总入口框里」，这条管「自己就是顶层页」，
+      // 合起来才是「任何情况下同一个校徽只画一遍」。
+      document.documentElement.classList.add('hx-has-wm');
+    }
+    if (document.readyState === 'loading') addEventListener('DOMContentLoaded', mountWm); else mountWm();
+  })();
+
   function ls(k, v) { try { if (v === undefined) return localStorage.getItem(k); if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { if (v !== undefined && v !== null) throw e; } return null; }
   function get() {
     var raw = ls(KEY), v = null;
@@ -107,6 +166,9 @@
     // bgo = 背景浓度（2026-11-03 用户报「透明度完全不会让背景透明」——原来的 op 滑杆只管卡片透明度，
     // 背景纹丝不动。现在加一根独立的「背景浓度」滑杆：100 = 现状，0 = 背景完全消失只剩底色）
     var s = { acc: ACC[v.acc] ? v.acc : DEF.acc, mode: /^(light|dark|auto)$/.test(v.mode) ? v.mode : DEF.mode, bg: BG[v.bg] ? v.bg : DEF.bg, op: Math.min(100, Math.max(0, isFinite(opN) ? opN : DEF.op)), bgo: Math.min(100, Math.max(0, isFinite(bgoN) ? bgoN : 100)), wx: WX[v.wx] ? v.wx : DEF.wx };
+    // 校徽水印（2026-11-04）：默认开。只认显式关掉的 0 / false / '0'——
+    // 老存档里根本没有这个字段，不能把 undefined 当关。
+    s.wm = (v.wm === 0 || v.wm === '0' || v.wm === false) ? 0 : 1;
     if (s.bg === 'custom' && !ls(IMG)) s.bg = 'none';
     if (BG[s.bg].dev && !isDev()) s.bg = 'none'; // 开发者专属背景：别的账号（或没登录）回落到无背景
     return s;
@@ -181,6 +243,7 @@
     var c = m === 'dark' ? a.d : a.l, c2 = m === 'dark' ? a.d2 : a.l2;
     r.setAttribute('data-hx-mode', m); r.setAttribute('data-theme', m); r.setAttribute('data-hx-acc', s.acc);
     r.classList.toggle('hx-bg', s.bg !== 'none');
+    r.classList.toggle('hx-wm-off', !s.wm);   // 校徽水印开关（外观面板里可切，默认开）
     var img = s.bg === 'custom' ? 'url("' + ls(IMG) + '")' : b.img ? 'url("' + root + b.img + '")' : b.css || 'none';
     var vars = { '--acc': c, '--acc2': c2, '--acc3': c2, '--acc-h': c2, '--on-acc': s.acc === 'mono' && m === 'dark' ? '#1d1d1f' : '#fff',
       '--accbg': 'color-mix(in srgb, ' + c + ' 14%, transparent)', '--ring': 'color-mix(in srgb, ' + c + ' 40%, transparent)',
