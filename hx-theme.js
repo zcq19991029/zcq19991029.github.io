@@ -16,7 +16,11 @@
   // 推荐背景：旧站的猫耳学习图（dev：开发者专属，只有开发者账号看得到、用得上）+ 几张渐变（不占流量）；op 是选它时的推荐透明度
   var BG = {
     none: { name: '无' },
-    bear: { name: '小熊', img: 'bg/bear.jpg', op: 88 }, // 全站默认背景：不设 dev，教师、学生、外人都能选、默认就是它。op 是卡片透明度，小熊这张图很亮很花，72 时卡片太透、字压在花底上读不清，提到 88
+    // 2026-11-04 起的全站默认背景（用户发的「【哲风壁纸】Chiikawa-Q版」）。
+    // 大块留白 + 底部一小片草坡，卡片压在上面正好落在留白里，字不会被花底吃掉，
+    // 所以推荐透明度给 90（比小熊高）：这张图本身清淡，卡片再透也不会糊。
+    chiikawa: { name: '吉伊卡哇', img: 'bg/chiikawa.jpg', op: 90 },
+    bear: { name: '小熊', img: 'bg/bear.jpg', op: 88 }, // 旧默认（2026-11-02 ~ 11-04）：教师、学生、外人都能选
     cat: { name: '猫耳学习', img: 'bg/cat-study.jpg', op: 70, dev: true },
     mist: { name: '晨雾', op: 72, css: 'radial-gradient(60% 50% at 15% 10%, #ffd6e7 0, transparent 70%), radial-gradient(55% 55% at 90% 20%, #cfe3ff 0, transparent 70%), radial-gradient(60% 60% at 50% 100%, #d9f5e5 0, transparent 70%), #f5f5f7' },
     bay: { name: '海湾', op: 70, css: 'radial-gradient(70% 60% at 0% 0%, #a8e6ff 0, transparent 65%), radial-gradient(60% 70% at 100% 30%, #8fb8ff 0, transparent 70%), radial-gradient(70% 60% at 40% 110%, #b6f0d8 0, transparent 70%), #eef6fb' },
@@ -24,7 +28,9 @@
     aurora: { name: '极光', op: 62, css: 'radial-gradient(60% 50% at 20% 20%, #1f6f5c 0, transparent 70%), radial-gradient(55% 60% at 85% 30%, #3b2f8f 0, transparent 70%), radial-gradient(70% 60% at 50% 110%, #0f4f7a 0, transparent 70%), #05070d' },
     custom: { name: '自己的图', op: 70 }
   };
-  var KEY = 'hx-theme', IMG = 'hx-theme-img', DEV = 'hx-dev', VER = 2, DEF = { acc: 'green', mode: 'auto', bg: 'bear', op: 90, wx: 'none' };
+  // VER 3（2026-11-04）：默认背景从小熊换成吉伊卡哇。老存档里 ver<3 且还停在小熊的（=没主动挑过）
+  // 一起换过去；自己上传过图、或挑了别的（晨雾/海湾…）一律不动。见 get() 里的迁移。
+  var KEY = 'hx-theme', IMG = 'hx-theme-img', DEV = 'hx-dev', VER = 3, DEF = { acc: 'green', mode: 'auto', bg: 'chiikawa', op: 90, wx: 'none' };
   // 背景动效（2026-11-03）：和背景主题平行的「动效模块」，由 fx/hx-weather.js 渲染在背景层。
   // 白名单写死在这里（而不是由渲染器自己认）：将来下架某个特效，老存档里选着它也会安全回落到「无」。
   var WX = {
@@ -100,6 +106,79 @@
     setTimeout(barDone, 8000);
   }
 
+  // ── 像素方块「正在载入」药丸（2026-11-04）──
+  // 用户原话：「这种旧版本加载动画全部换成像素动效的加载等待效果　旧版还有更旧的没改　
+  //   可以融合　把后者加在这像素动效版本的下面　替换干枯乏味的加载文字」。
+  // 指的就是排课「正在载入…」、小组加分 logo+三个点、考试「正在载入…」这些各写各的旧样式。
+  //
+  // 方块那套动画原本只长在总入口的 #boot 和 .loadtip 里（写在 index.html 的内联样式里），
+  // 子工具根本引不到。这里把它连同样的 keyframes 一起搬进 hx-theme.js —— 全站唯一每个页面都引的脚本，
+  // 搬过来才谈得上「全部换成」。
+  //
+  // 用法（子工具里）：
+  //   var tip = HXTheme.loadPill(document.getElementById('main'), '正在载入…');
+  //   tip.text('正在读成绩…');  tip.done();
+  // 第二个参数是 host：给了就画在它里面居中（host 太矮时自动留 40px 上下空），
+  // 不给就铺满整页当全屏等待层。两个都返回同一个句柄，text() 换字、done() 淡出移除。
+  var pillSt = document.createElement('style');
+  pillSt.id = 'hx-pill-style';
+  pillSt.textContent =
+    // 方块尺寸用 em 跟着字号走：全屏那版字号大、药丸里那版字号小，一套规则两个尺寸
+    '.hx-px{display:inline-flex;align-items:flex-end;gap:.28em;height:2.2em}'
+    + '.hx-px i{width:1em;height:1em;border-radius:.16em;display:block;'
+    + 'background:linear-gradient(180deg,var(--acc,#2f845a),var(--acc2,#5aa77c));'
+    + 'box-shadow:0 .5em 1.2em -.6em var(--acc,#2f845a);'
+    + 'animation:hxPx 1.15s var(--hx-ease,cubic-bezier(.32,.72,0,1)) infinite;animation-delay:calc(var(--i) * 90ms)}'
+    + '.hx-px i:nth-child(2n){background:linear-gradient(180deg,var(--acc2,#5aa77c),var(--acc3,#5aa77c))}'
+    // 起始透明度 .55：太淡在浅灰底上会糊成一片（总入口那边踩过），位移用百分比，大小方块通用
+    + '@keyframes hxPx{0%,100%{transform:translateY(0);opacity:.55}35%{transform:translateY(-110%);opacity:1}60%{transform:translateY(0);opacity:.7}}'
+    // 药丸本体
+    + '.hx-loadpill{display:inline-flex;align-items:center;gap:.7em;padding:.75em 1.15em;border-radius:99px;'
+    + 'background:var(--card-solid,rgba(255,255,255,.86));color:var(--ink,#1d1d1f);font-size:15px;line-height:1;'
+    + 'border:1px solid var(--edge,rgba(0,0,0,.07));box-shadow:0 18px 40px -18px rgba(0,0,0,.35);'
+    + 'animation:hxPillIn .28s var(--hx-ease,cubic-bezier(.32,.72,0,1)) both}'
+    + '.hx-loadpill .hx-px{font-size:8px}'
+    + '.hx-loadpill b{font-weight:600;white-space:nowrap}'
+    + '@keyframes hxPillIn{from{opacity:0;transform:translateY(6px) scale(.96)}to{opacity:1;transform:none}}'
+    // 铺在 host 里那版：居中，且至少给 40px 上下空，避免卡片很矮时药丸贴边
+    + '.hx-loadwrap{display:grid;place-items:center;padding:40px 12px;box-sizing:border-box}'
+    // 铺满整页那版
+    + '.hx-loadwrap.full{position:fixed;inset:0;z-index:2147482000;background:transparent}'
+    + '.hx-loadpill.out{opacity:0;transform:translateY(-4px);transition:opacity .25s var(--hx-ease,ease),transform .25s}'
+    // 一体机 / 省电 / 关掉动画：方块不跳，给药丸一点静态存在感
+    + 'html.hx-lite .hx-px i{animation:none;opacity:.85}'
+    + '@media (prefers-reduced-motion:reduce){.hx-px i{animation:none;opacity:.85;transform:none}.hx-loadpill{animation:none}}';
+  (document.head || document.documentElement).appendChild(pillSt);
+
+  var PILL_N = 7;
+  function loadPill(host, text) {
+    if (typeof host === 'string' && text === undefined) { text = host; host = null; }
+    var wrap = document.createElement('div');
+    wrap.className = 'hx-loadwrap' + (host ? '' : ' full');
+    var pill = document.createElement('div');
+    pill.className = 'hx-loadpill';
+    pill.setAttribute('role', 'status');
+    var px = '<span class="hx-px" aria-hidden="true">', i;
+    for (i = 0; i < PILL_N; i++) px += '<i style="--i:' + i + '"></i>';
+    pill.innerHTML = px + '</span><b></b>';
+    var b = pill.querySelector('b');
+    b.textContent = text || '正在载入…';
+    wrap.appendChild(pill);
+    var done = false;
+    var api = {
+      el: wrap,
+      text: function (t) { b.textContent = t; return api; },
+      // done() 可以重复调：先淡出再摘掉，反正外层可能整块被清空
+      done: function () {
+        if (done) return; done = true;
+        pill.classList.add('out');
+        setTimeout(function () { wrap.remove(); }, 260);
+      }
+    };
+    (host || document.body).appendChild(wrap);
+    return api;
+  }
+
   // ── 华夏校徽水印（2026-11-04）──
   // 用户原话「排课的背景有个华夏校徽　这个效果帮我加到全部 ui 卡片背景界面上」。
   // 做法和排课一模一样：一张铺满视口的固定层，垫在内容下面（z-index:0）。
@@ -160,6 +239,10 @@
     // 老存档（没有 ver）＝ 上这一版之前就存过外观的。统一换成新默认（小熊），做到「全体人员默认」；
     // 只有自己上传过图的例外——那是明确主动的行为，别覆盖掉。想关掉背景在外观面板点「无」即可。
     if (raw && !v.ver && v.bg !== 'custom') v.bg = DEF.bg;
+    // VER 3 迁移（2026-11-04）：小熊从「默认」降级成普通选项，新的默认是吉伊卡哇。
+    // 只搬「ver 还是旧的、而且正好停在小熊」的存档——那等于没主动挑过；
+    // 自己上传的图（custom）、选过晨雾/海湾/无的一律不动。用户动一下外观面板就会写上新 ver，从此不再迁移。
+    if (v.bg === 'bear' && !(+v.ver >= VER)) v.bg = DEF.bg;
     // op 允许 0～100（2026-11-03 用户要求「要 0 到 100 可调节」）。
     // ⚠️ 不能写 `+v.op || DEF.op`：0 是 falsy，会把「完全透明」静默变回默认 90。
     var opN = +v.op, bgoN = +v.bgo;
@@ -273,6 +356,46 @@
     ls(KEY, JSON.stringify(s)); apply();
   }
   // 自己上传的图：缩到长边 1920、转 JPEG，免得撑爆浏览器存储（旧站是原图、限 3MB）
+  // ── 上传过的背景：留一本历史（2026-11-04）──
+  // 用户原话：「我上传了一个背景　但是切成别的　我之前上传的记录就没了　我没办法快速切回来　还需要重新上传　这不对」。
+  // 原来只有 hx-theme-img 一个格子，换一张就把上一张冲掉了。
+  // 现在另开 hx-theme-imgs 存一本相册（最多 6 张，新的在前），hx-theme-img 只表示「当前这张」。
+  // 为什么不把当前图也从相册里取：老存档里 hx-theme-img 早就有值了、相册是空的，
+  // 两个键各管各的，迁移路径最短——老用户第一次上传时才把新图补进相册。
+  var IMGS = 'hx-theme-imgs', IMGS_MAX = 6;
+  function imgs() {
+    try { var a = JSON.parse(ls(IMGS) || '[]'); return Object.prototype.toString.call(a) === '[object Array]' ? a : []; } catch (e) { return []; }
+  }
+  // 写相册：浏览器存储就 5MB，几张 1080p 的图很容易顶到配额。
+  // 顶到了不留半截相册（JSON 被截断会整本读不出来），而是从最老的开始丢，丢到写得进去为止。
+  function saveImgs(list) {
+    list = list.slice(0, IMGS_MAX);
+    for (var n = list.length; n >= 0; n--) {
+      try { ls(IMGS, JSON.stringify(list.slice(0, n))); return list.slice(0, n); } catch (e) { }
+    }
+    return [];
+  }
+  function addImg(data) {
+    var list = imgs().filter(function (x) { return x && x.data !== data; });
+    list.unshift({ id: 'm' + Date.now().toString(36) + Math.floor(Math.random() * 1000), data: data, at: Date.now() });
+    return saveImgs(list);
+  }
+  function delImg(id) {
+    var list = imgs(), gone = null;
+    list = list.filter(function (x) { if (x.id === id) { gone = x; return false; } return true; });
+    saveImgs(list);
+    // 删掉的正好是当前这张：别留一个指向不存在图片的 custom，回落到默认背景
+    if (gone && ls(IMG) === gone.data) { ls(IMG, null); set({ bg: DEF.bg }); }
+    return list;
+  }
+  function useImg(id) {
+    var list = imgs(), hit = null;
+    for (var i = 0; i < list.length; i++) if (list[i].id === id) hit = list[i];
+    if (!hit) return false;
+    ls(IMG, hit.data);
+    set({ bg: 'custom' });
+    return true;
+  }
   function upload(file) {
     return new Promise(function (ok, no) {
       if (!/^image\//.test(file.type)) return no(new Error('请选一张图片'));
@@ -284,19 +407,28 @@
         var q = .82, data = cv.toDataURL('image/jpeg', q);
         while (data.length > 1600000 && q > .4) { q -= .12; data = cv.toDataURL('image/jpeg', q); }
         try { ls(IMG, data); } catch (e) { return no(new Error('图片太大，浏览器存不下，换一张小一点的')); }
+        // 先存当前、再进相册：相册写失败（配额满）不该让这次上传本身失败
+        try { addImg(data); } catch (e) { }
         set({ bg: 'custom' }); ok();
       };
       im.onerror = function () { URL.revokeObjectURL(url); no(new Error('这张图片打不开')); };
       im.src = url;
     });
   }
+  // 恢复默认：清设置、清当前图，但**不动相册** —— 用户点「恢复默认」是想回到出厂样子，
+  // 不是想把辛苦攒的几张背景一起删了。要删单张去相册里点 ×。
   function reset() { ls(KEY, null); ls(IMG, null); apply(); }
   addEventListener('storage', function (e) { if (e.key === KEY || e.key === IMG || e.key === DEV || e.key === null) apply(); });
   if (dark) (dark.addEventListener ? dark.addEventListener('change', apply) : dark.addListener(apply));
   // 总入口（同源的上层页面）：子工具要登录时请它弹登录窗口；不在框里就跳回首页
   function portal() { try { return window.top !== window && window.top.HXPortal ? window.top.HXPortal : null; } catch (e) { return null; } }
   window.HXTheme = { acc: ACC, bg: BG, wx: WX, root: root, get: get, mode: function () { return modeOf(get()); }, set: set, upload: upload, reset: reset, isDev: isDev, setDev: setDev, onChange: function (fn) { subs.push(fn); },
-    portal: portal, login: function () { var p = portal(); if (p) p.login(); else location.href = root + (tool ? '#' + tool : ''); } };
+    portal: portal, login: function () { var p = portal(); if (p) p.login(); else location.href = root + (tool ? '#' + tool : ''); },
+    // 上传过的背景相册（2026-11-04）：imgs() 取列表、useImg(id) 切回、delImg(id) 删一张
+    imgs: imgs, useImg: useImg, delImg: delImg,
+    // 像素方块「正在载入」药丸（2026-11-04）：见文件上方 loadPill 那段注释。
+    // HXTheme.loadPill(host, '正在载入…') / loadPill('正在载入…')（铺满整页）；返回 { el, text(), done() }
+    loadPill: loadPill };
   // ---------- 导航栏交互动效：滑块跟着当前项走（不用每项自己高亮） ----------
   // 用法：HXNav.slide(容器) —— 容器里放 [data-v] 或 [aria-current] 的按钮，当前项加 aria-current="true"。
   // 滑块自己量位置，所以文字长短不同也对得准；换项时用弹簧曲线滑过去，不是闪一下。

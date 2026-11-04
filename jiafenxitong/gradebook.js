@@ -113,6 +113,20 @@
     return name.replace(/[:\\\/\?\*\[\]]/g, ' ').slice(0, 31);
   }
 
+  /** 多班导出时不同班级可能重名（老师真会建两个「26工器1班」），
+   *  Excel 的 sheet 名必须唯一，SheetJS 遇到重名会直接抛错（不是自动改名），
+   *  所以在这里排队加「（2）」「（3）」；31 字符上限要连后缀一起算，
+   *  否则截断后又会撞回同一个名字。 */
+  function uniqueSheetName(name, used) {
+    var base = String(name || '班级').slice(0, 31);
+    if (!used[base]) { used[base] = 1; return base; }
+    for (var n = 2; n < 1000; n++) {
+      var suffix = '（' + n + '）', cut = base.slice(0, 31 - suffix.length);
+      if (!used[cut + suffix]) { used[cut + suffix] = 1; return cut + suffix; }
+    }
+    return base;
+  }
+
   /* ---------- 组表：一个班 → 若干张同款表 ---------- */
 
   /**
@@ -135,6 +149,8 @@
       var rows = students.map(function (m) { return studentRow(cls, m, dates); });
       return {
         name: sheetName(cls.name, index, chunks.length),
+        classId: cls.id,
+        className: cls.name,
         sheetIndex: index,
         sheetCount: chunks.length,
         title: '广州华夏职业学院学生成绩登分册',
@@ -220,9 +236,12 @@
   }
 
   function pageHtml(sheet, students) {
+    /* 多班一起打印时行文里只靠 info 那行小字分不清是哪班，页眉单独再写一行班名；
+       单班导出不带 band，输出的 HTML 和原来一字不差。 */
     return '<section class="gb-page">' +
       '<div class="gb-title">' + esc(sheet.title) + '</div>' +
       '<div class="gb-info">' + esc(sheet.info) + '</div>' +
+      (sheet.band ? '<div class="gb-band">' + esc(sheet.band) + '</div>' : '') +
       tableHtml(sheet, students) +
       '</section>';
   }
@@ -331,14 +350,15 @@
   function workbook(sheets) {
     var X = global.XLSX;
     if (!X) throw new Error('缺少 Excel 组件');
-    var wb = X.utils.book_new(), meta = [];
+    var wb = X.utils.book_new(), meta = [], used = Object.create(null);
     sheets.forEach(function (sheet) {
       var built = aoa(sheet), ws = X.utils.aoa_to_sheet(built.rows);
       ws['!merges'] = mergesFor(built.rows.length, built.footerAt);
       /* SheetJS 写列宽时会多算约 0.83 个字符的边距，这里减掉才和学校模板一致 */
       ws['!cols'] = WIDTH.map(function (w) { return { wch: Math.max(2, Math.round((w / 256 - 0.83) * 100) / 100) }; });
       ws['!rows'] = built.rows.map(function (_, i) { return { hpt: i < 2 ? 22 : 21 }; });
-      X.utils.book_append_sheet(wb, ws, sheet.name);
+      /* 多班导出直接拼名字会撞名，统一在这里排队去重（预览/打印不关心 sheet 名） */
+      X.utils.book_append_sheet(wb, ws, uniqueSheetName(sheet.name, used));
       meta.push({ footerAt: built.footerAt });
     });
     var buf = X.write(wb, { bookType: 'xlsx', type: 'array' });
@@ -380,6 +400,7 @@
     '.gb-page:last-child{break-after:auto;page-break-after:auto}' +
     '.gb-title{font-size:16pt;line-height:1.25;text-align:center;margin:0 0 1.5mm}' +
     '.gb-info{font-size:10pt;line-height:1.4;text-align:center;margin:0 0 1.5mm}' +
+    '.gb-band{font-size:11pt;font-weight:bold;line-height:1.35;text-align:center;margin:0 0 1.5mm}' +
     'table.gb-table{width:100%;border-collapse:collapse;table-layout:fixed}' +
     'table.gb-table th,table.gb-table td{border:1px solid #000;text-align:center;vertical-align:middle;' +
     'padding:0;font-weight:normal;overflow:hidden;white-space:nowrap;font-size:7.6pt;line-height:1.15}' +
@@ -518,7 +539,7 @@
   global.JFDT_GRADEBOOK = {
     DATE_COLS: DATE_COLS, PER_PAGE: PER_PAGE, WIDTH: WIDTH, WIDTH_SUM: WIDTH_SUM,
     buildClass: buildClass, stats: stats, studentRow: studentRow, lessonPercent: lessonPercent,
-    sheetName: sheetName, workbook: workbook, aoa: aoa, md: md, num: num,
+    sheetName: sheetName, uniqueSheetName: uniqueSheetName, workbook: workbook, aoa: aoa, md: md, num: num,
     pagesHtml: pagesHtml, printDoc: printDoc, render: render, fit: fit, print: printSheets,
     download: download, pdf: pdf, pdfDoc: pdfDoc
   };

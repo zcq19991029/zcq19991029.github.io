@@ -12,15 +12,20 @@
      要登录时调 window.HXPortal.login()；被单独打开时 hx-theme.js 会跳回这里（见 hx-theme.js 的 data-tool）。
      账号：Supabase 华夏工具项目，localStorage paike-session 和各工具共用；身份由数据库 hx_me() 决定。
      脚本里不用反引号模板字符串（本机测试时整页当字符串注入到线上同源页面里）。 -->
-<link rel="stylesheet" href="hx-theme.css?v=df2ced4">
-<script src="hx-theme.js?v=df2ced4"></script>
+<link rel="stylesheet" href="hx-theme.css?v=deb0cae">
+<script src="hx-theme.js?v=deb0cae"></script>
 <!-- 首页卡片上的像素小生物：pixelfx 的 12 个 critters（MIT），打包成一个 91 KB 的独立脚本。
      加载失败不影响首页——hx-critters.js 开头就有 window.PixelFX 存在性检查，没有就整段跳过。 -->
-<script src="fx/pixelfx-critters.js?v=df2ced4" defer></script>
-<script src="fx/hx-critters.js?v=df2ced4" defer></script>
+<script src="fx/pixelfx-critters.js?v=deb0cae" defer></script>
+<script src="fx/hx-critters.js?v=deb0cae" defer></script>
+<!-- 像素头像库（2026-11-04）：账号面板里除了传照片，还能从 200 多个像素动效里挑一个当头像。
+     和上面 critters 同一套路：库（pixelfx-avatars.js）+ 渲染器（hx-avatar.js），都是 defer、
+     不进首屏关键路径；不点「像素头像库」就一个动画都不跑。 -->
+<script src="fx/pixelfx-avatars.js?v=deb0cae" defer></script>
+<script src="fx/hx-avatar.js?v=deb0cae" defer></script>
 <!-- 背景动效（2026-11-03）：12 种天气氛围特效铺在背景层，外观面板里选；加载失败或没选就完全不加载渲染器 -->
-<script src="fx/pixelfx-weather.js?v=df2ced4" defer></script>
-<script src="fx/hx-weather.js?v=df2ced4" defer></script>
+<script src="fx/pixelfx-weather.js?v=deb0cae" defer></script>
+<script src="fx/hx-weather.js?v=deb0cae" defer></script>
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; width: 100%; overflow: hidden; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -394,10 +399,28 @@
   .bgs button, .bgs label { position: relative; aspect-ratio: 1; border: 0; border-radius: 14px; background: var(--b, var(--fill)) center / cover; box-shadow: 0 0 0 1px var(--edge) inset; font-size: 11px; color: var(--dim); display: grid; place-items: end center; padding-bottom: 4px; overflow: hidden; cursor: pointer; }
   .bgs [aria-pressed="true"] { box-shadow: 0 0 0 2px var(--card-solid), 0 0 0 4px var(--acc); }
   .bgs span { padding: 1px 6px; border-radius: 6px; background: var(--card-solid); }
+  /* 动效预览（2026-11-04 用户：「主题里面动效缺少预览图」）：
+     每个格子垫一块真渲染的小画布，平时是静态帧、鼠标移上去才动。
+     渲染在 fx/hx-weather.js 末尾，这里只管摆位置：铺满格子、圆角跟着格子走、像素不插值。 */
+  .bgs.wxs button { background: var(--fill); }
+  .bgs.wxs canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; border-radius: inherit;
+    image-rendering: pixelated; image-rendering: crisp-edges; opacity: .95; }
+  .bgs.wxs span { position: relative; z-index: 1; }
+  /* 上传过的背景（相册，2026-11-04 用户报「切成别的之前上传的就没了」）：
+     一格一张缩略图，右上角一个小 × 删掉这张。缩略图内容由 JS 塞（dataURL 太长，不能拼进 innerHTML 字符串）。 */
+  .bgs.imgs button { display: block; padding: 0; }
+  .bgs.imgs .del { position: absolute; top: 3px; right: 3px; z-index: 2; width: 18px; height: 18px; display: grid; place-items: center;
+    border-radius: 50%; background: rgba(0, 0, 0, .45); color: #fff; font-size: 12px; font-style: normal; line-height: 1; }
+  .bgs.imgs .del.armed { width: auto; padding: 0 6px; border-radius: 9px; background: rgba(200, 40, 40, .9); }
   .rng { display: flex; align-items: center; gap: 12px; } .rng input { flex: 1; accent-color: var(--acc); } .rng output { min-width: 3em; text-align: right; font-weight: 600; font-size: 14px; }
   .who-top { display: grid; justify-items: center; gap: 6px; text-align: center; padding-bottom: 16px; margin-bottom: 8px; border-bottom: 1px solid var(--edge); }
   .who-top b { font-size: 21px; } .who-top small { color: var(--dim); word-break: break-all; font-size: 14px; }
   .rows { display: grid; margin-bottom: 14px; }
+  /* 像素头像库（2026-11-04）：账号面板里的一个子视图，不另开弹层，
+     窄面板里再叠一层很容易点穿；这里用「← 返回」回到账号信息。 */
+  .avlib-bar { display: flex; align-items: center; gap: 10px; margin: 2px 0 10px; }
+  .avlib-bar b { font-size: 15px; }
+  .avlib { max-height: min(48vh, 420px); overflow-y: auto; margin-bottom: 8px; -webkit-overflow-scrolling: touch; }
   .rows > * { display: flex; align-items: center; gap: 10px; min-height: 46px; padding: 0 4px; border: 0; border-bottom: 1px solid var(--edge); background: none; text-align: left; font-size: 15px; }
   .rows > * > span:first-child { color: var(--dim); min-width: 4.5em; } .rows > * > :nth-child(2) { flex: 1; text-align: right; word-break: break-all; }
   .rows > button:hover { color: var(--acc); }
@@ -848,7 +871,10 @@ function render() {
 }
 
 // ---------- 弹出：账号、外观 ----------
-function closePops() { ['pop', 'look', 'help', 'invite'].forEach(function (k) { if ($(k)) $(k).classList.remove('show'); }); $('scrim').classList.remove('show'); ST.edit = null; syncExp(); }
+function closePops() { ['pop', 'look', 'help', 'invite'].forEach(function (k) { if ($(k)) $(k).classList.remove('show'); }); $('scrim').classList.remove('show'); ST.edit = null; ST.avlib = false;
+  // 关面板时把头像库的循环也停掉：不停的话那个 rAF 会一直空转
+  if (ST.avPanel && ST.avPanel.destroy) { try { ST.avPanel.destroy(); } catch (e) { } ST.avPanel = null; }
+  syncExp(); }
 function syncExp() { if ($('acct')) $('acct').setAttribute('aria-expanded', $('pop').classList.contains('show')); $('lookBtn').setAttribute('aria-expanded', $('look').classList.contains('show'));
   if ($('helpBtn')) $('helpBtn').setAttribute('aria-expanded', $('help').classList.contains('show'));
   if ($('inviteBtn')) $('inviteBtn').setAttribute('aria-expanded', $('invite').classList.contains('show')); }
@@ -929,6 +955,34 @@ function renderInvite() {
 function renderPop() {
   var i = info(), r = role() || '', m = ST.me || {}, E = ST.edit, html, form = function (inner) { return '<div class="f">' + inner + '<p class="msg" id="pmsg"></p><button class="btn" id="psave">保存</button><button class="btn link" id="pcancel">取消</button></div>'; };
   html = '<div class="who-top"><label class="avl" title="点击换头像">' + avatar(i, 'lg') + '<input type="file" id="pav" accept="image/*" hidden></label><b>' + esc(i.name) + '</b><small>' + (HX.synthetic(i.email) ? '' : esc(i.email)) + '</small><span class="pill acc">' + r + (m.student ? ' · ' + esc(m.student.class) : '') + '</span></div>';
+  // 像素头像库（2026-11-04）：除了上传照片，还能从 200 多个像素动效里挑一个当头像。
+  // 是一个子视图而不是新弹层：账号面板本来就窄，再叠一层容易点穿，返回键一按就回来。
+  if (ST.avlib) {
+    html += '<div class="avlib-bar"><button class="btn link" type="button" id="avback">← 返回</button><b>选一个像素头像</b></div><div class="avlib" id="avGrid"></div><p class="msg" id="avmsg"></p>';
+    $('pop').innerHTML = html;
+    var grid = $('avGrid'), AV = window.HXAvatar;
+    if (!AV || !AV.panel) grid.innerHTML = '<p class="msg">头像库脚本没加载出来，刷新页面再试（或者直接用上面那张照片头像）。</p>';
+    else {
+      if (ST.avPanel && ST.avPanel.destroy) { try { ST.avPanel.destroy(); } catch (e) { } }
+      ST.avPanel = AV.panel(grid, {
+        size: 56,
+        onPick: function (id) {
+          var url = AV.frame ? AV.frame(id, 160) : '';
+          if (!url) { if ($('avmsg')) $('avmsg').textContent = '这个特效取不到画面，换一个试试。'; return; }
+          if ($('avmsg')) $('avmsg').textContent = '正在保存…';
+          HX.setUser({ data: { avatar_url: url } }).then(function (u) {
+            ST.user = u; ST.avlib = false; toast('头像已换成像素头像'); render(); renderPop();
+          }).catch(function (er) { if ($('avmsg')) $('avmsg').textContent = er.message; });
+        }
+      });
+    }
+    $('avback').onclick = function () {
+      ST.avlib = false;
+      if (ST.avPanel && ST.avPanel.destroy) { try { ST.avPanel.destroy(); } catch (e) { } ST.avPanel = null; }
+      renderPop();
+    };
+    return;
+  }
   if (E === 'name') html += form('<input id="pname1" maxlength="20" value="' + esc(i.full || i.name) + '" placeholder="名字">');
   else if (E === 'uname') html += form('<input id="puname" maxlength="32" value="' + esc(ST.uname || '') + '" placeholder="如 11445" autocapitalize="none">');
   else if (E === 'claim') html += form('<input id="pcc" maxlength="16" placeholder="老师给的课堂码" autocapitalize="characters" autocomplete="off"><input id="pcno" inputmode="numeric" maxlength="20" placeholder="学号""><input id="pcnm" maxlength="20" placeholder="姓名（和班级名单一致）" value="' + esc(m.student ? m.student.name : '') + '">');
@@ -938,6 +992,7 @@ function renderPop() {
       '<button type="button" data-e="name"><span>名字</span><span>' + esc(i.full || i.name) + '</span></button>' +
       '<button type="button" data-e="uname"><span>账号名</span><span>' + (ST.uname === null ? '…' : esc(ST.uname || '未设置')) + '</span></button>' +
       '<button type="button" data-e="pw"><span>密码</span><span>修改</span></button>' +
+      '<button type="button" id="pavlib"><span>头像</span><span>像素头像库</span></button>' +
       (i.gh ? '<div><span>GitHub</span><span>' + esc(i.gh) + '</span></div>' : '<button type="button" id="plink"><span>GitHub</span><span>绑定</span></button>') + '</div>';
     if (r === '访客') html += '<div class="f" style="margin-bottom:14px"><button class="btn" type="button" data-e="claim">认证入班</button></div>'; // 好友码注册、老师后来才建班的学生，用课堂码补认证
     if (r === '未开通') html += '<div class="f" style="margin-bottom:14px"><button class="btn" id="pgo">填写邀请码开通</button></div>'; // 登录后会自动弹出；关掉了从这里再打开
@@ -950,6 +1005,8 @@ function renderPop() {
     var f = e.target.files[0]; if (!f) return;
     try { ST.user = await HX.setUser({ data: { avatar_url: await smallPic(f) } }); toast('头像已更新'); render(); renderPop(); } catch (er) { toast(er.message); }
   };
+  // 进像素头像库（子视图，见 renderPop 开头）
+  if ($('pavlib')) $('pavlib').onclick = function () { ST.avlib = true; renderPop(); };
   if ($('pcancel')) $('pcancel').onclick = function () { ST.edit = null; renderPop(); };
   if ($('psave')) $('psave').onclick = async function () {
     var b = $('psave'), msg = $('pmsg'); b.disabled = true; msg.textContent = '';
@@ -1012,24 +1069,45 @@ function openAccounts() {
   if ($('accNew')) $('accNew').onclick = function () { $('sheet').close(); openLogin('', 'in'); };
 }
 // 外观：主题色、浅色 / 深色 / 自动、背景图、透明度（存 hx-theme，全部工具一起变）
+// 外面这层 try/catch 是保命的：renderLook 里任何一句抛异常，togglePop 那边 .show 还没加上，
+// 用户看到的就是「点外观按钮没反应」——2026-11-04 我自己就踩了一次（模板里变量名写错）。
+// 现在至少把错误原文摆到面板里，而不是让按钮装死。
 function renderLook() {
+  try { renderLookBody(); }
+  catch (e) {
+    var box = $('look');
+    if (box) box.innerHTML = '<h3>外观</h3><p class="msg" style="color:#c23b3b">外观面板画不出来：' + esc(e && e.message || e) + '</p><p class="msg" style="color:var(--dim)">先刷新页面再试；还不行就把这句话发给开发者。</p>';
+  }
+}
+function renderLookBody() {
   var s = HXTheme.get(), A = HXTheme.acc, B = HXTheme.bg, m = HXTheme.mode();
   // 防旧缓存：index.html 是新的、hx-theme.js 还是浏览器缓存的旧版时没有 wx 导出，
   // Object.keys(undefined) 会把整个外观面板炸掉（用户看到的「主题按钮点不开」）。
   // 回落成只有「无」的一组，等 hx-theme.js 缓存刷新后自动恢复完整列表。
   var WX = HXTheme.wx || { none: { name: '无' } };
+  // 上传过的背景相册 + 当前这张（只是给缩略图打「正在用」的高亮，拿不到就当空）
+  var MYIMGS = HXTheme.imgs ? HXTheme.imgs() : [], CURIMG = '';
+  try { CURIMG = localStorage.getItem('hx-theme-img') || ''; } catch (e) { }
   var html = '<h3>外观</h3><div class="seg">' + [['light', '浅色'], ['dark', '深色'], ['auto', '自动']].map(function (x) { return '<button type="button" data-mode="' + x[0] + '" aria-pressed="' + (s.mode === x[0]) + '">' + x[1] + '</button>'; }).join('') + '</div>' +
     '<h3>主题色</h3><div class="sw">' + Object.keys(A).map(function (k) { return '<button type="button" data-acc="' + k + '" title="' + A[k].name + '" aria-label="' + A[k].name + '" aria-pressed="' + (s.acc === k) + '" style="--c:' + (m === 'dark' ? A[k].d : A[k].l) + '"></button>'; }).join('') + '</div>' +
     '<h3>背景</h3><div class="bgs">' + Object.keys(B).filter(function (k) { return k !== 'custom' && (!B[k].dev || HXTheme.isDev()); }).map(function (k) {
       var b = B[k], bg = b.img ? 'url(' + HXTheme.root + b.img + ')' : b.css || '';
       return '<button type="button" data-bg="' + k + '" aria-pressed="' + (s.bg === k) + '"' + (bg ? ' style="--b:' + esc(bg) + '"' : '') + '><span>' + b.name + '</span></button>';
     }).join('') + '<label aria-pressed="' + (s.bg === 'custom') + '"' + (s.bg === 'custom' ? ' style="--b:var(--hx-img)"' : '') + '><input type="file" id="bgFile" accept="image/*" hidden><span>' + (s.bg === 'custom' ? '换一张' : '＋ 上传') + '</span></label></div>' +
+    // 上传过的背景（2026-11-04）：原来换一张就把上一张冲掉了，用户报「切成别的之前上传的就没了，还得重新上传」。
+    // 现在留着相册，点一下就切回去。缩略图的图由下面 JS 塞（dataURL 动辄几十万字符，拼进 innerHTML 会卡）。
+    (MYIMGS.length ? '<h3>上传过的背景</h3><div class="bgs imgs">' + MYIMGS.map(function (x) {
+      return '<button type="button" data-img="' + x.id + '" aria-pressed="' + (s.bg === 'custom' && CURIMG === x.data) + '"><i class="del" data-del="' + x.id + '" title="删掉这张">×</i></button>';
+    }).join('') + '</div><p class="msg" style="margin:6px 0 0;color:var(--dim)">点一下就换回这张；右上角 × 才删。最多留 6 张，再传新的会挤掉最旧的那张。</p>' : '') +
     (s.bg !== 'none' ? '<h3>界面透明度</h3><div class="rng"><input type="range" id="op" min="0" max="100" value="' + s.op + '"><output id="opv">' + s.op + '%</output></div><p class="msg" style="margin:6px 0 0;color:var(--dim)">0% = 卡片完全透明，只剩文字浮在背景上。太低看不清内容的话再往回调。</p>' +
     '<h3>背景浓度</h3><div class="rng"><input type="range" id="bgo" min="0" max="100" value="' + (s.bgo == null ? 100 : s.bgo) + '"><output id="bgov">' + (s.bgo == null ? 100 : s.bgo) + '%</output></div><p class="msg" style="margin:6px 0 0;color:var(--dim)">这根才是管背景的：100% = 背景完整显示，0% = 背景完全消失只剩页面底色。想看清楚背景图就把「界面透明度」调高、这根调低。</p>' : '') +
     // 背景动效（2026-11-03）：和背景主题平行的动效模块，画在背景层之上、卡片之下，两层互不覆盖
-    '<h3>背景动效</h3><div class="bgs">' + Object.keys(WX).map(function (k) {
-      return '<button type="button" data-wx="' + k + '" aria-pressed="' + (s.wx === k) + '"><span>' + WX[k].name + '</span></button>';
-    }).join('') + '</div><p class="msg" style="margin:6px 0 0;color:var(--dim)">铺在背景上的一层像素氛围动画，和背景主题互不覆盖；一体机（省电模式）只显示静态一帧。</p>' +
+    // 预览图（2026-11-04）：每个格子一块 <canvas>，选之前就看得见是什么效果；「无」没有画面，不垫画布。
+    '<h3>背景动效</h3><div class="bgs wxs">' + Object.keys(WX).map(function (k) {
+      return '<button type="button" data-wx="' + k + '" aria-pressed="' + (s.wx === k) + '">'
+        + (k === 'none' ? '' : '<canvas data-wxp="' + k + '" aria-hidden="true"></canvas>')
+        + '<span>' + WX[k].name + '</span></button>';
+    }).join('') + '</div><p class="msg" style="margin:6px 0 0;color:var(--dim)">铺在背景上的一层像素氛围动画，和背景主题互不覆盖；鼠标移上去能预览动态，一体机（省电模式）只显示静态一帧。</p>' +
     // 校徽水印（2026-11-04）：全站铺一层华夏校徽，卡片半透明时透出来。默认开，给个开关方便看不顺眼时关掉
     '<h3>校徽水印</h3><div class="seg">' + [['1', '显示'], ['0', '隐藏']].map(function (x) {
       return '<button type="button" data-wm="' + x[0] + '" aria-pressed="' + (String(s.wm) === x[0]) + '">' + x[1] + '</button>';
@@ -1039,7 +1117,45 @@ function renderLook() {
   $('look').querySelectorAll('[data-mode]').forEach(function (b) { b.onclick = function () { HXTheme.set({ mode: b.dataset.mode }); }; });
   $('look').querySelectorAll('[data-acc]').forEach(function (b) { b.onclick = function () { HXTheme.set({ acc: b.dataset.acc }); }; });
   $('look').querySelectorAll('[data-bg]').forEach(function (b) { b.onclick = function () { HXTheme.set({ bg: b.dataset.bg }); }; });
-  $('look').querySelectorAll('[data-wx]').forEach(function (b) { b.onclick = function () { HXTheme.set({ wx: b.dataset.wx }); }; });
+  $('look').querySelectorAll('[data-wx]').forEach(function (b) {
+    var id = b.dataset.wx, cv = b.querySelector('canvas'), HW = window.HXWeather;
+    b.onclick = function () { HXTheme.set({ wx: id }); };
+    if (!cv) return; // 「无」没有画面
+    // 先出一张静态帧（每个特效只渲染一次，结果缓存在 hx-weather.js 里）
+    if (!HW || !HW.has(id) || !HW.paint(cv, id, 1.2 + Math.random())) { cv.remove(); return; }
+    // 移上去 / 键盘聚焦才动：12 个一起跑循环会把教室一体机拖死
+    var play = function () { if (HW.has(id)) HW.play(cv, id); };
+    var back = function () { HW.stop(); HW.paint(cv, id, 1.2); };
+    b.addEventListener('mouseenter', play); b.addEventListener('mouseleave', back);
+    b.addEventListener('focus', play); b.addEventListener('blur', back);
+  });
+  // 相册缩略图：dataURL 太长，只能在这里塞，不能拼进上面的 innerHTML
+  $('look').querySelectorAll('[data-img]').forEach(function (b) {
+    var id = b.dataset.img, hit = null;
+    for (var j = 0; j < MYIMGS.length; j++) if (MYIMGS[j].id === id) hit = MYIMGS[j];
+    if (!hit) { b.remove(); return; }
+    b.style.setProperty('--b', 'url("' + hit.data + '")');
+    b.onclick = function (e) {
+      if (e.target && e.target.dataset && e.target.dataset.del) return; // 点的是 ×，交给下面
+      if (HXTheme.useImg) { HXTheme.useImg(id); }
+    };
+  });
+  $('look').querySelectorAll('[data-del]').forEach(function (x) {
+    // 删背景不可撤销，所以两下：第一下变成「删除?」，3 秒内再点才真删。
+    // 这里没复用 sure()：那个会把文字塞进 18px 的圆点里，撑成个方块。
+    x.onclick = function (e) {
+      e.stopPropagation();
+      if (!x.dataset.arm) {
+        x.dataset.arm = '1'; x.textContent = '删除?'; x.classList.add('armed');
+        setTimeout(function () { if (x.dataset.arm) { delete x.dataset.arm; x.textContent = '×'; x.classList.remove('armed'); } }, 3000);
+        return;
+      }
+      delete x.dataset.arm;
+      if (!HXTheme.delImg) return;
+      HXTheme.delImg(x.dataset.del);
+      renderLook();
+    };
+  });
   $('look').querySelectorAll('[data-wm]').forEach(function (b) { b.onclick = function () { HXTheme.set({ wm: +b.dataset.wm }); }; });
   $('bgFile').onchange = function (e) { var f = e.target.files[0]; if (f) HXTheme.upload(f).catch(function (er) { toast(er.message); }); };
   if ($('op')) $('op').oninput = function () { opAt = Date.now(); $('opv').textContent = $('op').value + '%'; HXTheme.set({ op: +$('op').value }); };
@@ -1126,7 +1242,7 @@ function renderMgmt(part) {
     box.innerHTML = L.length ? '<div class="sec"><h2>管理</h2>' + badge() + '</div><div class="tiles">' + L.map(function (k, n) {
       var g = MG[k];
       return '<button class="tile" type="button" data-k="' + k + '" style="--c1:' + g.c[0] + ';--c2:' + g.c[1] + ';animation-delay:' + (300 + n * 50) + 'ms">' +
-        '<span class="ic">' + svg(g.icon) + '</span><b>' + g.name + '</b><span class="sum">' + mgSum(k) + '</span>' + svg('<path d="M9 6l6 6-6 6"/>', 'go') + '</button>';
+        '<span class="ic">' + svg(g.icon) + '</span>' + planets() + '<b>' + g.name + '</b><span class="sum">' + mgSum(k) + '</span>' + svg('<path d="M9 6l6 6-6 6"/>', 'go') + '</button>';
     }).join('') + '</div>' : '';
     box.querySelectorAll('[data-k]').forEach(function (b) {
       b.onclick = function () { openSheet(b.dataset.k); };

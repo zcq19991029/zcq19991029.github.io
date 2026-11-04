@@ -108,4 +108,85 @@
     rzT = setTimeout(function () { rzT = 0; size(); }, 180);
   });
   sync();
+
+  // ── 外观面板里的缩略预览（2026-11-04）──
+  // 用户原话：「主题里面动效缺少预览图」——原来 12 个动效只有一行名字，
+  // 得先选中、退出来看效果，不好看再回去换，一来一回很费劲。
+  //
+  // 做法：同一个渲染器、同一份特效代码，只是画在一块几十像素的小画布上，选之前就看得见。
+  // 但 12 张全部实时跑循环是不可能的（教室一体机直接跪），所以分两档：
+  //   · 平时 = 静态帧：每个特效只渲染一次，结果缓存在 pvCache 里（dataURL），后面都是贴图；
+  //   · 鼠标移上去 / 键盘聚焦 = 只有这一张动起来，全局仍然只有一个 rAF，移开就停。
+  // 和主背景层互不干扰：这里用独立的 pvOff / pvImg / pvFrame，不碰上面那套 cvs。
+  var pvOff = null, pvOffG = null, pvImg = null, pvFrame = null, pvW = 0, pvH = 0, pvId = null;
+  var pvFx = null, pvRaf = 0, pvLive = null, pvLast = 0;
+  var pvCache = {}; // id -> dataURL
+
+  function pvMeta(id) {
+    var m = P.effects[id] && P.effects[id].meta;
+    return m && m.size ? m : null;
+  }
+  function pvSetup(id) {
+    var m = pvMeta(id); if (!m) return null;
+    if (pvId === id && pvOff) return m;
+    pvW = m.size[0]; pvH = m.size[1];
+    if (!pvOff) { pvOff = document.createElement('canvas'); pvOffG = pvOff.getContext('2d'); }
+    pvOff.width = pvW; pvOff.height = pvH;
+    pvImg = pvOffG.createImageData(pvW, pvH);
+    pvFrame = P.createFrame(pvW, pvH);
+    pvId = id;
+    return m;
+  }
+  // 静态帧：先空跑 t 秒（很多特效前几秒还是空的，直接取第 0 帧会得到一片黑），再画一帧存成 dataURL
+  function pvStill(id, t) {
+    if (pvCache[id]) return pvCache[id];
+    if (!pvSetup(id)) return '';
+    var fx = P.createFx(P.effects[id], { x: pvW / 2, y: pvH / 2, seed: 11 });
+    var stepT = 1 / 24, n = Math.max(1, Math.round((t || 1.6) / stepT));
+    for (var i = 0; i < n; i++) fx.update(stepT);
+    P.clearFrame(pvFrame); fx.draw(pvFrame, 'back'); fx.draw(pvFrame, 'front');
+    P.composite(pvFrame, pvImg.data, null);
+    pvOffG.putImageData(pvImg, 0, 0);
+    return (pvCache[id] = pvOff.toDataURL());
+  }
+  function pvPaint(cv, id, t) {
+    var url = pvStill(id, t);
+    if (!url) return false;
+    var im = new Image();
+    im.onload = function () { try { cv.getContext('2d').drawImage(im, 0, 0); } catch (e) { } };
+    im.src = url;
+    return true;
+  }
+  function pvStop() {
+    if (pvRaf) { cancelAnimationFrame(pvRaf); pvRaf = 0; }
+    pvLive = null; pvFx = null; pvLast = 0;
+  }
+  function pvPlay(cv, id) {
+    pvStop();
+    var m = pvSetup(id); if (!m) return false;
+    cv.width = pvW; cv.height = pvH;
+    var g2 = cv.getContext('2d');
+    pvFx = P.createFx(P.effects[id], { x: pvW / 2, y: pvH / 2, seed: 23 });
+    pvLive = { cv: cv, g: g2 };
+    var loop = function (now) {
+      pvRaf = 0;
+      if (!pvLive || pvLive.cv !== cv) return;
+      if (!pvLast) pvLast = now;
+      if (now - pvLast < 1000 / 24 - 1) { pvRaf = requestAnimationFrame(loop); return; }
+      var dt = Math.min((now - pvLast) / 1000, .12); pvLast = now;
+      pvFx.update(dt);
+      P.clearFrame(pvFrame); pvFx.draw(pvFrame, 'back'); pvFx.draw(pvFrame, 'front');
+      P.composite(pvFrame, pvImg.data, null);
+      try { g2.putImageData(pvImg, 0, 0); } catch (e) { return; }
+      pvRaf = requestAnimationFrame(loop);
+    };
+    pvRaf = requestAnimationFrame(loop);
+    return true;
+  }
+  window.HXWeather = {
+    has: function (id) { return !!pvMeta(id); },
+    paint: pvPaint, play: pvPlay, stop: pvStop,
+    // 供调试/以后导出图片用
+    still: pvStill
+  };
 })();

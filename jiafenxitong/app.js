@@ -1220,13 +1220,16 @@ function removeMemberAt(cls, g, j) {
     try { return JSON.parse(localStorage.getItem('jfdt.gb') || '{}') || {}; } catch (e) { return {}; }
   })();
 
-  /** 导出文件名：成绩登分册_班级_学期.扩展名 */
+  /** 导出文件名：只勾一个班时照旧写班名；多个班写「N个班」，免得文件名长到被系统截断。 */
   var gbPdfBusy = false;
   function gbFileName(ext) {
-    var sel = $('#gbClassSel');
-    var label = sel && sel.value === '__all' ? '全部班级'
-      : (sel && sel.selectedOptions[0] ? sel.selectedOptions[0].textContent : '班级');
-    var semester = $('#gbSemester').value.trim();
+    var ids = gbPickIds(), semester = $('#gbSemester').value.trim(), label = '班级';
+    if (ids.length === 1) {
+      var one = visibleClasses().filter(function (c) { return c.id === ids[0]; })[0];
+      if (one) label = one.name;
+    } else if (ids.length > 1) {
+      label = ids.length + '个班';
+    }
     return '成绩登分册_' + label + (semester ? '_' + semester : '') + '.' + ext;
   }
 
@@ -1237,9 +1240,9 @@ function removeMemberAt(cls, g, j) {
   }
 
   function gbSaveSettings() {
-    if (!$('#gbClassSel')) return;
+    if (!$('#gbClassList')) return;
     gbSettings = {
-      classId: $('#gbClassSel').value,
+      classIds: gbPickIds(),
       semester: $('#gbSemester').value.trim(),
       course: $('#gbCourse').value.trim(),
       teacher: $('#gbTeacher').value.trim()
@@ -1247,65 +1250,134 @@ function removeMemberAt(cls, g, j) {
     try { localStorage.setItem('jfdt.gb', JSON.stringify(gbSettings)); } catch (e) { /* 隐私模式忽略 */ }
   }
 
-  function gbSelectedClasses() {
-    var sel = $('#gbClassSel').value, vis = visibleClasses();
-    if (sel && sel !== '__all') {
-      var hit = vis.filter(function (c) { return c.id === sel; });
-      if (hit.length) return hit;
-    }
-    return vis;
+  /** 勾选框里选中的班级 id，按页面班级顺序返回（导出表顺序才稳定） */
+  function gbPickIds() {
+    var box = $('#gbClassList');
+    if (!box) return [];
+    var on = Object.create(null);
+    Array.prototype.forEach.call(box.querySelectorAll('input[type="checkbox"]:checked'), function (el) {
+      on[el.value] = true;
+    });
+    return visibleClasses().filter(function (c) { return on[c.id]; }).map(function (c) { return c.id; });
   }
 
-  /** 按当前选择生成全部表（一个班可能因为日期列不够拆成多张） */
-  function gbSheets() {
+  /** 上次的选择：新版存 classIds（数组，空数组 = 全不选也要记住）；
+      老版本存单个 classId 或 '__all'，这里顺手迁移，老师不用重新点一遍。 */
+  function gbSavedIds() {
+    if (Array.isArray(gbSettings.classIds)) return gbSettings.classIds;
+    if (!gbSettings.classId) return null;
+    if (gbSettings.classId === '__all') return visibleClasses().map(function (c) { return c.id; });
+    return [gbSettings.classId];
+  }
+
+  function gbSelectedClasses() {
+    var ids = gbPickIds(), vis = visibleClasses();
+    return vis.filter(function (c) { return ids.indexOf(c.id) >= 0; });
+  }
+
+  /** 按勾选生成全部表，并算好班级数 / 人数。
+   *  人数不能取「最多那张表」：一个班超过 11 次课会拆成几张表，多个班还要相加；
+   *  同一个班拆几张只算一次人，否则「已选 3 个班 · 152 人」就会虚高。 */
+  function gbBuild() {
     var GB = window.JFDT_GRADEBOOK, A = window.JFDT_ASSESSMENT;
-    if (!GB || !A) return [];
+    var out = { sheets: [], classCount: 0, people: 0 };
+    if (!GB || !A) return out;
     var semester = $('#gbSemester').value.trim(), course = $('#gbCourse').value.trim(), teacher = $('#gbTeacher').value.trim();
-    var out = [];
-    gbSelectedClasses().forEach(function (cls) {
+    var picked = gbSelectedClasses(), multi = picked.length > 1;
+    var perClass = Object.create(null), order = [];
+    picked.forEach(function (cls) {
       var ls = lessonsOf(cls.id);
       if (!ls.length) return;
-      GB.buildClass({
+      var made = GB.buildClass({
         cls: cls, lessons: ls,
         students: A.rows(cls, ls, memberTotals(cls)),
         meta: { semester: semester, course: course, teacher: teacher || cls.teacher || '' }
-      }).forEach(function (sheet) { out.push(sheet); });
+      });
+      if (!made.length) return;
+      out.classCount++;
+      order.push(cls.id);
+      perClass[cls.id] = 0;
+      made.forEach(function (sheet) {
+        /* 多班一起打印时页眉单独写班名；单班不加，输出和以前一字不差 */
+        if (multi) sheet.band = cls.name;
+        out.sheets.push(sheet);
+        perClass[cls.id] = Math.max(perClass[cls.id], sheet.rows.length);
+      });
     });
+    out.people = order.reduce(function (a, id) { return a + perClass[id]; }, 0);
     return out;
+  }
+
+  /** 勾选数量 → 计数文字 + 按钮可用状态。
+   *  没勾任何班时必须禁用：老师点了没反应会以为功能坏了。 */
+  function gbSyncPick(built) {
+    var ids = gbPickIds(), empty = !ids.length;
+    ['#gbPrint', '#gbPdf', '#gbExport'].forEach(function (sel) {
+      var btn = $(sel);
+      if (!btn) return;
+      if (sel === '#gbPdf' && gbPdfBusy) return;   // PDF 正在生成，保持置灰
+      btn.disabled = empty;
+    });
+    var meter = $('#gbPickMeter');
+    if (meter) meter.textContent = empty ? '还没有班级' : '已选 ' + ids.length + ' 个班 · ' + (built ? built.people : 0) + ' 人';
+    var hint = $('#gbPickHint');
+    if (hint) hint.textContent = empty ? '至少勾选一个班级才能导出' : '';
   }
 
   function gbRenderStage() {
     var GB = window.JFDT_GRADEBOOK, stage = $('#gbStage');
     if (!GB || !stage || !S) return;
-    var sheets = gbSheets(), meter = $('#gbMeter');
+    var built = gbBuild(), sheets = built.sheets, meter = $('#gbMeter');
+    gbSyncPick(built);
     if (!sheets.length) {
-      stage.innerHTML = '<p class="empty-hint">还没有可导出的分数：先在「上课记分」页新开一课，再回来这里。</p>';
+      stage.innerHTML = '<p class="empty-hint">' + (gbPickIds().length
+        ? '选中的班还没有可导出的分数：先在「上课记分」页新开一课，再回来这里。'
+        : '先在页头勾选要导出的班级。') + '</p>';
       if (meter) meter.textContent = '';
       return;
     }
     GB.render(stage, sheets);
-    var people = sheets.reduce(function (a, s) { return Math.max(a, s.rows.length); }, 0);
-    if (meter) meter.textContent = '共 ' + sheets.length + ' 张表 · ' + people + ' 名学生 · 每张 ' + GB.DATE_COLS + ' 个日期列';
+    if (meter) meter.textContent = '共 ' + sheets.length + ' 张表 · ' + built.people + ' 名学生 · 每张 ' + GB.DATE_COLS + ' 个日期列';
+  }
+
+  /** 把勾选框画出来；默认勾哪些由 renderGradebook 决定 */
+  function gbRenderPickers(ids) {
+    var box = $('#gbClassList'), vis = visibleClasses();
+    if (!box) return;
+    box.innerHTML = vis.length ? vis.map(function (c) {
+      return '<label class="gb-class"><input type="checkbox" value="' + esc(c.id) + '"' +
+        (ids.indexOf(c.id) >= 0 ? ' checked' : '') + '><span>' + esc(c.name) + '</span></label>';
+    }).join('') : '<span class="note">还没有班级：先在首页点亮要用加分的班。</span>';
   }
 
   function renderGradebook() {
-    var sel = $('#gbClassSel');
-    if (!sel || !S) return;
-    var vis = visibleClasses(), want = sel.value || gbSettings.classId || '';
-    sel.innerHTML = '<option value="__all">全部班级</option>' + vis.map(function (c) {
-      return '<option value="' + esc(c.id) + '">' + esc(c.name) + '</option>';
-    }).join('');
-    var keep = (want === '__all' || vis.some(function (c) { return c.id === want; })) ? want
-      : (vis.length > 1 ? '__all' : (vis[0] ? vis[0].id : '__all'));
-    sel.value = keep;
+    var box = $('#gbClassList');
+    if (!box || !S) return;
+    var vis = visibleClasses(), saved = gbSavedIds(), ids;
+    if (saved === null) {
+      var cur = curClass();          // 第一次打开：默认勾当前在教的班
+      ids = cur ? [cur.id] : (vis[0] ? [vis[0].id] : []);
+    } else {
+      ids = saved.filter(function (id) { return vis.some(function (c) { return c.id === id; }); });
+    }
+    gbRenderPickers(ids);
     if (!$('#gbSemester').value) $('#gbSemester').value = gbSettings.semester || gbDefaultSemester();
     if (!$('#gbCourse').value) $('#gbCourse').value = gbSettings.course || '电气接线原理';
     if (!$('#gbTeacher').value && gbSettings.teacher) $('#gbTeacher').value = gbSettings.teacher;
     gbRenderStage();
   }
 
-  if ($('#gbClassSel')) {
-    ['#gbClassSel', '#gbSemester', '#gbCourse', '#gbTeacher'].forEach(function (id) {
+  if ($('#gbClassList')) {
+    $('#gbClassList').addEventListener('change', function () { gbSaveSettings(); gbRenderStage(); });
+    $('#gbPickAll').addEventListener('click', function () {
+      Array.prototype.forEach.call($('#gbClassList').querySelectorAll('input[type="checkbox"]'), function (el) { el.checked = true; });
+      gbSaveSettings(); gbRenderStage();
+    });
+    $('#gbPickNone').addEventListener('click', function () {
+      Array.prototype.forEach.call($('#gbClassList').querySelectorAll('input[type="checkbox"]'), function (el) { el.checked = false; });
+      gbSaveSettings(); gbRenderStage();
+    });
+    ['#gbSemester', '#gbCourse', '#gbTeacher'].forEach(function (id) {
       $(id).addEventListener('change', function () { gbSaveSettings(); gbRenderStage(); });
     });
     $('#gbSemester').addEventListener('input', function () { gbSaveSettings(); gbRenderStage(); });
@@ -1314,17 +1386,17 @@ function removeMemberAt(cls, g, j) {
     $('#gbRefresh').addEventListener('click', function () { gbRenderStage(); flash('已按最新分数刷新'); });
     $('#gbPrint').addEventListener('click', function () {
       gbSaveSettings();
-      var sheets = gbSheets();
+      var sheets = gbBuild().sheets;
       if (!sheets.length) { flash('还没有可打印的分数：先在「上课记分」页新开一课。'); return; }
       window.JFDT_GRADEBOOK.print(sheets);
     });
     $('#gbExport').addEventListener('click', function () {
       gbSaveSettings();
-      var sheets = gbSheets();
+      var built = gbBuild(), sheets = built.sheets;
       if (!sheets.length) { flash('还没有可导出的分数：先在「上课记分」页新开一课。'); return; }
       try {
         window.JFDT_GRADEBOOK.download(sheets, gbFileName('xlsx'));
-        flash('已导出 ' + sheets.length + ' 张表，可直接打印或继续编辑');
+        flash('已导出 ' + sheets.length + ' 张表' + (built.classCount > 1 ? '（' + built.classCount + ' 个班）' : '') + '，可直接打印或继续编辑');
       } catch (e) {
         flash('导出失败：' + e.message);
       }
@@ -1332,7 +1404,7 @@ function removeMemberAt(cls, g, j) {
     if ($('#gbPdf')) $('#gbPdf').addEventListener('click', function () {
       if (gbPdfBusy) return;
       gbSaveSettings();
-      var sheets = gbSheets();
+      var sheets = gbBuild().sheets;
       if (!sheets.length) { flash('还没有可导出的分数：先在「上课记分」页新开一课。'); return; }
       var btn = $('#gbPdf');
       gbPdfBusy = true;
@@ -1344,7 +1416,7 @@ function removeMemberAt(cls, g, j) {
         flash('导出 PDF 失败：' + e.message + '。可以先用「打印」再选另存为 PDF。');
       }).then(function () {
         gbPdfBusy = false;
-        btn.disabled = false;
+        btn.disabled = !gbPickIds().length;   // 生成期间可能被改成全不选，不能无脑恢复
       });
     });
     var gbResizeTimer = null;
@@ -2830,7 +2902,22 @@ function removeMemberAt(cls, g, j) {
     Object.keys(panels).forEach(function (k) { var node = $(panels[k]); if (node) node.hidden = (k !== which); });
     var m = $('#gateMsg');
     m.hidden = !msg;
-    m.textContent = msg || '';
+    /* 加载中（wait）：一排跳动的像素方块 + 文案，和闪屏、各工具里的药丸是同一套。
+       2026-11-04 之前这里是一行干文字，属于全站最后一处旧式加载提示。 */
+    if (which === 'wait' && msg) {
+      m.innerHTML = '';
+      var pxw = document.createElement('span');
+      pxw.className = 'hx-px';
+      pxw.setAttribute('aria-hidden', 'true');
+      for (var gi = 0; gi < 7; gi++) { var pi = document.createElement('i'); pi.style.setProperty('--i', String(gi)); pxw.appendChild(pi); }
+      var pxt = document.createElement('span');
+      pxt.textContent = msg;
+      m.appendChild(pxw); m.appendChild(pxt);
+      m.classList.add('hx-gatepill');
+    } else {
+      m.textContent = msg || '';
+      m.classList.remove('hx-gatepill');
+    }
     m.classList.toggle('info', !!info);
   }
 

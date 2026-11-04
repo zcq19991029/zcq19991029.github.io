@@ -444,10 +444,38 @@ button.danger { color: var(--bad, #d70015); }
   .ex-item { grid-template-columns: 1fr; }
   .with-rail { display: block; }
 }
+
+/* ============================================================
+   像素方块「正在载入」药丸（2026-11-04）
+   ------------------------------------------------------------
+   为什么 class 名就叫 .hx-px / .hx-loadpill：总入口 hx-theme.js 里已经有一套同名同 keyframes
+   （hxPx / hxPillIn）的实现。线上页面两套规则内容一致，不会打架；统一名字以后也好找、好改。
+   为什么这里还要自带一份：本工具产物是 build.js 拼出来的单文件，虽然带了 <script src="../hx-theme.js">，
+   但离线/单独打开这个文件时那份脚本可能不在——样式自带一份才保证方块一定跳得起来。
+   首屏用竖排（方块在上、文案在下），面板/表格里用 .sm 横排小号（高 40px，不撑行高）。
+   ============================================================ */
+.hx-px{display:inline-flex;align-items:flex-end;gap:.28em;height:2.2em}
+.hx-px i{width:1em;height:1em;border-radius:.16em;display:block;background:linear-gradient(180deg,var(--acc,#2f6bff),var(--acc2,#7c5cff));box-shadow:0 .5em 1.2em -.6em var(--acc,#2f6bff);animation:hxPx 1.15s var(--spring,cubic-bezier(.32,.72,0,1)) infinite;animation-delay:calc(var(--i) * 90ms)}
+.hx-px i:nth-child(2n){background:linear-gradient(180deg,var(--acc2,#7c5cff),var(--acc,#2f6bff))}
+/* 起始透明度 .55：太淡在浅灰底上会糊成一片；位移用百分比，大小方块通用 */
+@keyframes hxPx{0%,100%{transform:translateY(0);opacity:.55}35%{transform:translateY(-110%);opacity:1}60%{transform:translateY(0);opacity:.7}}
+.hx-loadpill{display:inline-flex;flex-direction:column;align-items:center;gap:.85em;padding:.9em 1.2em;border-radius:99px;background:var(--card-solid,#fff);color:var(--ink,#0b1220);border:1px solid var(--hair,rgba(15,23,42,.08));box-shadow:var(--shadow-up,0 18px 40px -12px rgba(15,23,42,.22));animation:hxPillIn .28s var(--spring,cubic-bezier(.32,.72,0,1)) both}
+.hx-loadpill .hx-px{font-size:8px}
+.hx-loadpill b{font-weight:600;font-size:13px;line-height:1;white-space:nowrap}
+@keyframes hxPillIn{from{opacity:0;transform:translateY(6px) scale(.96)}to{opacity:1;transform:none}}
+/* 面板/表格里的小号：横排，压到 40px 高，塞进表格不会把行高撑变形 */
+.hx-loadpill.sm{flex-direction:row;gap:.6em;padding:.55em .9em;box-shadow:none}
+.hx-loadpill.sm b{font-size:12px;color:var(--mute,#6b7280)}
+.hx-loadwrap{display:grid;place-items:center;padding:40px 12px;box-sizing:border-box}
+.hx-loadwrap.sm{padding:0;min-height:40px}
+/* 一体机省电 / 系统关动画：方块停在 .85 透明度，药丸也不再弹入 */
+html.hx-lite .hx-px i{animation:none;opacity:.85}
+html.hx-lite .hx-loadpill{animation:none}
+@media (prefers-reduced-motion:reduce){.hx-px i{animation:none;opacity:.85;transform:none}.hx-loadpill{animation:none}}
 </style>
 </head>
 <body>
-<main class="ex" id="app"><p class="note">正在载入…</p></main>
+<main class="ex" id="app"><div class="hx-loadwrap"><div class="hx-loadpill" role="status" aria-live="polite"><span class="hx-px" aria-hidden="true"><i style="--i:0"></i><i style="--i:1"></i><i style="--i:2"></i><i style="--i:3"></i><i style="--i:4"></i><i style="--i:5"></i><i style="--i:6"></i></span><b>正在载入…</b></div></div></main>
 <script>/* ================= C51 子集解释器：预处理 / 词法 / 语法 / 名字检查 / 带硬件模型的模拟运行 ================= */
 'use strict';
 
@@ -4758,6 +4786,15 @@ const HXB = 'https://eiqgyrjrwdaunhxjmdyr.supabase.co', HXK = 'sb_publishable_Fc
 const SUBJECTS = { mcu: '单片机上机' };
 const TYPES = [['t', '改编填空'], ['g', '按要求改程序'], ['c', '改错']];
 const now = () => Math.floor(Date.now() / 1000);
+/* 像素方块「正在载入」药丸（2026-11-04）：原来面板里是干巴巴一行 <p class="note">加载中…</p>。
+   这里只做小号横排药丸（方块在左、字在右，高 40px），塞进表格/卡片里不会把行高撑变形。
+   class 名和 keyframes 跟总入口 hx-theme.js 里的 .hx-px / .hx-loadpill / hxPx 是同一套。 */
+const pxPill = (t, sm) => {
+  let s = '', i;
+  for (i = 0; i < 7; i++) s += '<i style="--i:' + i + '"></i>';
+  return '<div class="hx-loadpill' + (sm === false ? '' : ' sm') + '" role="status" aria-live="polite">'
+    + '<span class="hx-px" aria-hidden="true">' + s + '</span><b>' + t + '</b></div>';
+};
 let sess = null;
 const load = () => { try { sess = JSON.parse(localStorage.getItem(SKEY)); } catch (e) { sess = null; } return sess; };
 const keep = v => { sess = v; try { v ? localStorage.setItem(SKEY, JSON.stringify(v)) : localStorage.removeItem(SKEY); } catch (e) { } };
@@ -4854,7 +4891,7 @@ function room(code, r, back) {
 let CLASSES = null;
 async function teacherHome() {
   app().innerHTML = `<header class="ex-h"><div class="eyebrow">教师</div><h1>考试</h1><p>发布给哪几个班，学生在首页登录后输码取题</p></header>
-    <div class="row" style="margin-bottom:14px"><button class="pri" id="btnNew">发布考试</button><button id="btnTake">用码取题</button></div><div id="list"><p class="note">加载中…</p></div>`;
+    <div class="row" style="margin-bottom:14px"><button class="pri" id="btnNew">发布考试</button><button id="btnTake">用码取题</button></div><div id="list"><div class="hx-loadwrap sm">${pxPill('加载中…')}</div></div>`;
   $('btnNew').onclick = () => editExam(null);
   $('btnTake').onclick = () => { const c = prompt('输组卷码（预览自己发布的考试）'); if (c) rpc('hx_exam_take', { p_code: c.trim() }).then(r => room(c.trim(), r, teacherHome)).catch(e => toast(e.message)); };
   let list;
@@ -4926,7 +4963,7 @@ function editExam(x) {
 // 交卷与批改：逐人逐题编译 + 模拟判分（浏览器里算，不上传），导出 CSV
 async function subs(x) {
   app().innerHTML = `<header class="ex-h"><div class="eyebrow">交卷与批改 · ${esc(x.code)}</div><h1>${esc(x.title)}</h1><p class="mono">${esc(x.paper)}</p></header>
-    <div class="row" style="margin-bottom:12px"><button class="pri" id="btnGrade">全部批改</button><button id="btnCsv">导出成绩 CSV</button><button id="btnBack">返回</button><span class="note" id="gState"></span></div><div class="card" id="tbl"><p class="note">加载中…</p></div><div id="detail"></div>`;
+    <div class="row" style="margin-bottom:12px"><button class="pri" id="btnGrade">全部批改</button><button id="btnCsv">导出成绩 CSV</button><button id="btnBack">返回</button><span class="note" id="gState"></span></div><div class="card" id="tbl"><div class="hx-loadwrap sm">${pxPill('加载中…')}</div></div><div id="detail"></div>`;
   $('btnBack').onclick = teacherHome;
   let rows;
   try { rows = await rpc('hx_exam_subs_of', { p_id: x.id }); } catch (e) { $('tbl').innerHTML = `<div class="errs">${esc(e.message)}</div>`; return; }

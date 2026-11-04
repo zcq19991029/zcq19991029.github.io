@@ -524,6 +524,36 @@ button.is-error{animation:shake .42s cubic-bezier(.36,.07,.19,.97)}
 .cf-tab th{background:var(--accbg)}
 .cf-diff{margin:4px 0 8px 18px;padding:0;font-size:13.5px;max-height:200px;overflow:auto}
 
+/* ============================================================
+   像素方块「正在载入」药丸（2026-11-04）
+   ------------------------------------------------------------
+   为什么 class 名就叫 .hx-px / .hx-loadpill：总入口的 hx-theme.js 里已经有一套同名同 keyframes
+   （hxPx / hxPillIn）的实现，全站统一这一套名字，线上版两边规则一致不会互相覆盖出怪相，
+   以后谁再改动画也只需要照着同一处名字找。
+   为什么这里还要自带一份：离线单文件（成品/华夏教研室排课系统.html）是 app.html + app.css
+   拼出来的，不引 hx-theme.js，公共件够不着它——不带这一份，离线版就只剩光秃秃一行“正在载入…”。
+   方块尺寸用 em，字号一改整排跟着缩放；--i 是每个方块的错峰序号，由 app.js 写进 style。
+   ============================================================ */
+.hx-px{display:inline-flex;align-items:flex-end;gap:.28em;height:2.2em}
+.hx-px i{width:1em;height:1em;border-radius:.16em;display:block;background:linear-gradient(180deg,var(--acc,#2f6bff),var(--acc2,#7c5cff));box-shadow:0 .5em 1.2em -.6em var(--acc,#2f6bff);animation:hxPx 1.15s var(--spring,cubic-bezier(.32,.72,0,1)) infinite;animation-delay:calc(var(--i) * 90ms)}
+.hx-px i:nth-child(2n){background:linear-gradient(180deg,var(--acc2,#7c5cff),var(--acc,#2f6bff))}
+/* 起始透明度 .55：太淡在浅灰底上会糊成一片；位移用百分比，大小方块通用 */
+@keyframes hxPx{0%,100%{transform:translateY(0);opacity:.55}35%{transform:translateY(-110%);opacity:1}60%{transform:translateY(0);opacity:.7}}
+/* 药丸本体：方块在上、文案在下（用户要的“把文字加在像素动效下面”） */
+.hx-loadpill{display:inline-flex;flex-direction:column;align-items:center;gap:.85em;padding:.9em 1.2em;border-radius:99px;background:var(--card-solid,#fff);color:var(--ink,#0b1220);border:1px solid var(--hair,rgba(15,23,42,.08));box-shadow:var(--shadow-up,0 18px 40px -12px rgba(15,23,42,.22));animation:hxPillIn .28s var(--spring,cubic-bezier(.32,.72,0,1)) both}
+.hx-loadpill .hx-px{font-size:8px}
+.hx-loadpill b{font-weight:600;font-size:13px;line-height:1;white-space:nowrap}
+@keyframes hxPillIn{from{opacity:0;transform:translateY(6px) scale(.96)}to{opacity:1;transform:none}}
+/* 表格/卡片里的小号：横排（方块在左、字在右），压到 40px 高，塞进表格不撑行高 */
+.hx-loadpill.sm{flex-direction:row;gap:.6em;padding:.55em .9em;box-shadow:none}
+.hx-loadpill.sm b{font-size:12px;color:var(--mute,#6b7280)}
+.hx-loadwrap{display:grid;place-items:center;padding:40px 12px;box-sizing:border-box}
+.hx-loadwrap.sm{padding:0;min-height:40px}
+/* 一体机省电 / 系统关动画：方块停在 .85 透明度，药丸也不再弹入 */
+html.hx-lite .hx-px i{animation:none;opacity:.85}
+html.hx-lite .hx-loadpill{animation:none}
+@media (prefers-reduced-motion:reduce){.hx-px i{animation:none;opacity:.85;transform:none}.hx-loadpill{animation:none}}
+
 </style>
 </head>
 <body>
@@ -533,7 +563,7 @@ button.is-error{animation:shake .42s cubic-bezier(.36,.07,.19,.97)}
 <div id="toast" class="toast" role="status"></div>
 <script id="saved-data" type="application/json">null</script>
 <script>
-const BUILD={"time":"2026-11-04T05:16:45.219Z","sha":"df2ced4"};
+const BUILD={"time":"2026-11-04T06:24:04.956Z","sha":"deb0cae"};
 /* ---- engine.js ---- */
 /* ================= 排课引擎：数据模型、次数/轮次、自动排课、固定老师同步、校验 =================
    纯逻辑，不碰页面；浏览器里是全局 Engine，node 里 require 进来测试。
@@ -2559,12 +2589,16 @@ document.addEventListener('keydown',e=>{
   }
 });
 /* ---------- 在线版：登录页、账号、首次进入 ---------- */
-let gateMode='login';
+/* 像素方块「正在载入」药丸（2026-11-04）：原来这里是一行灰字 .note，干巴巴的。
+   现在换成 7 个错峰起伏的小方块 + 下面一行文案，class 名和 keyframes 跟总入口 hx-theme.js 里的
+   .hx-px / .hx-loadpill / hxPx 完全一致——线上版两个来源写的是同一套规则，不会打架；
+   而本工具的离线单文件（成品/华夏教研室排课系统.html）不引 hx-theme.js，只能靠 app.css 里自带的那一份。 */
+let PX7=(function(){let s='',i;for(i=0;i<7;i++)s+='<i style="--i:'+i+'"></i>';return s;})();
 function gateMsg(t,ok){const el=$('#lgMsg');if(el){el.textContent=t;el.className='lg-msg'+(ok?' ok':'');}}
 function showGate(state,err){
   document.body.classList.add('gated');
   /* 登录、注册、找回密码都在华夏工具首页；这里只剩加载中和“登录教师账号”（打开首页的登录） */
-  $('#main').innerHTML=state==='loading'?'<div class="gate"><p class="note">正在载入…</p></div>':
+  $('#main').innerHTML=state==='loading'?'<div class="gate"><div class="hx-loadpill" role="status" aria-live="polite"><span class="hx-px" aria-hidden="true">'+PX7+'</span><b>正在载入…</b></div></div>':
   `<div class="gate"><div class="card gate-card">
     <h1 class="gate-t">晚修排课系统</h1>
     ${err?'<p class="lg-msg">'+h(err)+'</p>':'<p class="note">用教师账号登录后使用</p>'}
