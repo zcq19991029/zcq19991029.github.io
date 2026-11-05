@@ -156,6 +156,11 @@ button.big{font-size:16px;padding:12px 30px}
 .grid2{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:18px;align-items:start}
 @media(max-width:920px){.grid2{grid-template-columns:1fr}}
 .row{display:flex;flex-wrap:wrap;gap:10px 12px;align-items:center}
+/* 2026-11-05 手机 320 实测：练习页「母题」下拉框右边缘被撑出屏幕 32px（实测 越界2处，母题 label/select right=352 > 320）。
+   根因：label 作为 flex 子项 min-width 默认 auto，长选项文字把它的最小宽度锁死在内容宽度，flex-wrap 无法收窄。
+   实测修法只动 label 即可（与放开全部子项 min-width 的结果在所有宽度上完全一致），390/360/430 布局零变化。 */
+.row>label{min-width:0;max-width:100%}
+.row>label select,.row>label input{min-width:0;max-width:100%}
 .note{font-size:13px;color:var(--mute)}
 .empty{text-align:center;color:var(--mute);padding:28px 10px}
 
@@ -4773,6 +4778,11 @@ button.big{font-size:16px;padding:12px 30px}
 .grid2{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:18px;align-items:start}
 @media(max-width:920px){.grid2{grid-template-columns:1fr}}
 .row{display:flex;flex-wrap:wrap;gap:10px 12px;align-items:center}
+/* 2026-11-05 手机 320 实测：练习页「母题」下拉框右边缘被撑出屏幕 32px（实测 越界2处，母题 label/select right=352 > 320）。
+   根因：label 作为 flex 子项 min-width 默认 auto，长选项文字把它的最小宽度锁死在内容宽度，flex-wrap 无法收窄。
+   实测修法只动 label 即可（与放开全部子项 min-width 的结果在所有宽度上完全一致），390/360/430 布局零变化。 */
+.row>label{min-width:0;max-width:100%}
+.row>label select,.row>label input{min-width:0;max-width:100%}
 .note{font-size:13px;color:var(--mute)}
 .empty{text-align:center;color:var(--mute);padding:28px 10px}
 

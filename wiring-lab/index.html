@@ -314,7 +314,9 @@
   #fw-about .fw-head, #fw-about .fw-rs { display: none; } /* 自带标题栏/缩放手柄摘掉，面板有自己的头部和关闭钮 */
   #fw-about .fw-body { flex: 1; min-width: 0; min-height: 0; overflow: hidden; display: grid; place-items: center; }
   /* 面板外层 = 1.5px 霓虹描边（紫蓝交替流光，clip-path 切角），内层 = 深蓝黑半透明玻璃 */
-  #fw-about .pt-panel { position: relative; width: clamp(680px, 90vw, 820px); max-width: 100%; height: clamp(480px, 84dvh, 560px); max-height: 100%;
+  /* min-width:0 —— 2026-11-05：卡片里加了人名预览后，一条超长贡献者名（min-content 很宽）会把这块
+     grid 子项顶宽（实测手机 390 时面板被撑到 466px，右侧被遮罩裁掉）。给整条宽度链都可收缩。 */
+  #fw-about .pt-panel { position: relative; min-width: 0; width: clamp(680px, 90vw, 820px); max-width: 100%; height: clamp(480px, 84dvh, 560px); max-height: 100%;
     --pt-cut: 22px; --pt-p: #9254FF; --pt-b: #368CFF; --pt-c: #00DEFF; --pt-ink: #F4F7FF; --pt-dim: #A7B5D6;
     padding: 1.5px; box-sizing: border-box;
     clip-path: polygon(var(--pt-cut) 0, calc(100% - var(--pt-cut)) 0, 100% var(--pt-cut), 100% calc(100% - var(--pt-cut)),
@@ -323,7 +325,7 @@
     background-size: 300% 300%; animation: ptFlow 10s linear infinite;
     filter: drop-shadow(0 0 22px rgba(146, 84, 255, .3)) drop-shadow(0 18px 44px rgba(0, 0, 0, .55)); }
   @keyframes ptFlow { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
-  #fw-about .pt-in { position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; overflow: hidden;
+  #fw-about .pt-in { position: relative; width: 100%; height: 100%; min-width: 0; display: flex; flex-direction: column; overflow: hidden;
     clip-path: polygon(var(--pt-cut) 0, calc(100% - var(--pt-cut)) 0, 100% var(--pt-cut), 100% calc(100% - var(--pt-cut)),
       calc(100% - var(--pt-cut)) 100%, var(--pt-cut) 100%, 0 calc(100% - var(--pt-cut)), 0 var(--pt-cut));
     background: linear-gradient(165deg, rgba(16, 26, 56, .94), rgba(7, 13, 32, .96) 58%, rgba(10, 16, 38, .94)); }
@@ -383,11 +385,14 @@
   #fw-about .pt-crystal i:nth-child(3) { width: 12px; height: 12px; background: radial-gradient(circle, rgba(0, 222, 255, .8), transparent 70%); border: 0; animation: ptCry 7s linear infinite; }
   @keyframes ptCry { from { transform: rotateX(62deg) rotateZ(45deg) rotate(0deg); } to { transform: rotateX(62deg) rotateZ(45deg) rotate(360deg); } }
   /* 视图区（双卡片 / 详情都在这里换） */
-  #fw-about .pt-stage { position: relative; z-index: 2; flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  #fw-about .pt-stage { position: relative; z-index: 2; flex: 1; min-width: 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
     display: flex; flex-direction: column; scrollbar-width: thin; scrollbar-color: rgba(54, 140, 255, .4) transparent; }
-  #fw-about .pt-cards { display: flex; flex-direction: column; justify-content: safe center; gap: 14px; padding: 22px 28px 34px; perspective: 900px; }
-  /* 入口卡片：左 3D 图标 + 椭圆全息底座，中 标题+装饰光线，右 科技条纹+方向箭头 */
-  #fw-about .pt-card { position: relative; display: flex; align-items: center; gap: 18px; height: 122px; padding: 0 20px 0 12px;
+  #fw-about .pt-cards { display: flex; flex-direction: column; justify-content: safe center; gap: 14px; padding: 22px 28px 34px; perspective: 900px; min-width: 0; }
+  /* 入口卡片：左 3D 图标 + 椭圆全息底座，中 标题+人员预览，右 科技条纹+方向箭头
+     2026-11-05：卡片里直接放人（开发者名字 / 前 5 位贡献者）—— 用户要求「直接显示预览开发者和贡献者的前五名人，
+     其他的放第二界面」。所以高度从死高 122px 改成 min-height + 上下内边距，名字多了自己长高，
+     长太高由 .pt-stage 的滚动兜住（.pt-panel 高度不变，绝不溢出切成半个字）。 */
+  #fw-about .pt-card { position: relative; display: flex; align-items: center; gap: 18px; min-height: 122px; padding: 14px 20px 14px 12px;
     border: 1px solid rgba(146, 84, 255, .34); border-radius: 16px; cursor: pointer; text-align: left; font: inherit; color: inherit;
     background: linear-gradient(120deg, rgba(20, 30, 64, .55), rgba(10, 16, 38, .66)); overflow: hidden;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05);
@@ -443,6 +448,25 @@
   #fw-about .pt-mid b { display: block; margin-top: 4px; font-size: 19px; letter-spacing: 2px; color: var(--pt-ink); }
   #fw-about .pt-ray { display: block; margin-top: 8px; width: 64px; height: 2px; border-radius: 2px; background: linear-gradient(90deg, var(--pt-p), transparent); }
   #fw-about .pt-card.con .pt-ray { background: linear-gradient(90deg, var(--pt-c), transparent); }
+  /* ── 首屏卡片内的人员预览（2026-11-05 新增）──
+     名字全部由 JS 从 ABOUT 里取、esc() 转义，CSS 只管排版：
+     · 开发者：单个名字，字号偏大、带霓虹微光，后面跟「详情 ›」
+     · 贡献者：最多 5 个小胶囊（chip），自动换行；超过 5 位补一个「还有 N 位 ›」
+     数据为空时渲染 .pt-mini-none（「暂无贡献者信息」），不留空白、不放假名字。 */
+  #fw-about .pt-name { display: flex; align-items: baseline; gap: 9px; margin-top: 5px; min-width: 0; }
+  #fw-about .pt-name b { min-width: 0; margin: 0; font-size: 20px; font-weight: 900; letter-spacing: .5px; line-height: 1.3; color: #ffffff;
+    text-shadow: 0 0 10px rgba(146, 84, 255, .65), 0 0 20px rgba(54, 140, 255, .35);
+    overflow-wrap: anywhere; } /* 名字长得离谱（拼音/英文全名）也只在自己这行折，不横向撑破卡片 */
+  #fw-about .pt-go { flex: none; font-style: normal; font-size: 11.5px; font-weight: 800; letter-spacing: 1.5px; color: var(--pt-dim); transition: color .2s; }
+  #fw-about .pt-card:hover .pt-go { color: var(--pt-c); }
+  #fw-about .pt-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
+  #fw-about .pt-mini { display: inline-flex; align-items: center; min-width: 0; max-width: 100%; padding: 3px 9px; border-radius: 999px;
+    font-size: 12px; font-weight: 700; line-height: 1.45; color: #dbecff; white-space: nowrap;
+    background: rgba(0, 222, 255, .09); border: 1px solid rgba(0, 222, 255, .3); box-shadow: inset 0 0 10px rgba(0, 222, 255, .1); }
+  #fw-about .pt-mini > i { font-style: normal; margin-right: 5px; font-size: 10px; font-weight: 800; color: var(--pt-c); opacity: .8; }
+  #fw-about .pt-mini span { min-width: 0; overflow: hidden; text-overflow: ellipsis; } /* 单条超长就省略号，不让胶囊横向冲出卡片 */
+  #fw-about .pt-mini.more { color: var(--pt-c); background: rgba(146, 84, 255, .16); border-color: rgba(146, 84, 255, .5); }
+  #fw-about .pt-mini-none { margin-top: 8px; font-size: 12px; font-weight: 700; color: var(--pt-dim); opacity: .8; }
   #fw-about .pt-side { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 11px; }
   #fw-about .pt-stripes { width: 46px; height: 18px; opacity: .65; background: repeating-linear-gradient(135deg, rgba(146, 84, 255, .55) 0 2px, transparent 2px 7px); }
   #fw-about .pt-card.con .pt-stripes { background: repeating-linear-gradient(135deg, rgba(0, 222, 255, .55) 0 2px, transparent 2px 7px); }
@@ -534,11 +558,19 @@
     #fw-about .pt-x { top: 12px; right: 12px; width: 34px; height: 34px; } /* 关闭钮始终可见 */
     #fw-about .pt-div { margin: 0 16px; }
     #fw-about .pt-cards { padding: 14px 14px 26px; gap: 12px; }
-    #fw-about .pt-card { height: 104px; gap: 10px; padding: 0 14px 0 8px; }
-    #fw-about .pt-ic { width: 92px; } #fw-about .pt-ic3d { width: 66px; height: 50px; transform-origin: bottom center; }
+    /* min-height 而不是死高：贡献者胶囊换行后卡片自己长高，靠 .pt-stage 滚动，不裁字 */
+    #fw-about .pt-card { min-height: 104px; gap: 10px; padding: 12px 14px 12px 8px; align-items: flex-start; }
+    #fw-about .pt-ic { width: 92px; align-self: center; } #fw-about .pt-ic3d { width: 66px; height: 50px; transform-origin: bottom center; }
+    #fw-about .pt-side { align-self: center; } /* 卡片变高时图标/箭头仍居中，不被拉到顶 */
     #fw-about .pt-ic3d > * { transform: scale(.82); transform-origin: bottom center; }
     #fw-about .pt-card:hover .pt-ic3d { transform: translateY(-4px); }
     #fw-about .pt-mid b { font-size: 16px; } #fw-about .pt-mid small { font-size: 9px; letter-spacing: 2.5px; } #fw-about .pt-ray { width: 44px; }
+    /* 手机上人员预览收紧：名字 15px、胶囊 11px、间距 4px，保证一屏能放下、不横向溢出 */
+    #fw-about .pt-name { gap: 6px; margin-top: 3px; } #fw-about .pt-name b { font-size: 15px; letter-spacing: 0; }
+    #fw-about .pt-go { font-size: 10px; letter-spacing: .5px; }
+    #fw-about .pt-chips { gap: 4px; margin-top: 6px; } #fw-about .pt-mini { padding: 2px 7px; font-size: 11px; }
+    #fw-about .pt-mini > i { margin-right: 4px; font-size: 9px; }
+    #fw-about .pt-mini-none { margin-top: 6px; font-size: 11px; }
     #fw-about .pt-stripes { width: 30px; height: 14px; } #fw-about .pt-arrow { width: 19px; height: 19px; }
     #fw-about .pt-ring { width: 240px; margin-left: -120px; height: 70px; bottom: -34px; }
     #fw-about .pt-view { padding: 14px 16px 18px; } #fw-about .pt-who b { font-size: 18px; }
@@ -2518,6 +2550,11 @@ function ptIni(s) {
 //      → 视图区 .pt-stage（main=双入口卡片 / dev=开发者详情 / con=贡献者详情 / edit=开发者编辑名单）→ 底部全息环。
 // 数据全部来自上面 ABOUT（本机缓存 / 云端 hx_about / ABOUT0 默认值），一个名字都不编造；
 // 代码里没有开发者的主页/仓库链接，所以详情里不做链接按钮。
+// 首屏卡片里直接预览人（用户 2026-11-05 要求「直接显示预览开发者和贡献者的前五名人，其他的放第二界面」）。
+const PT_PREVIEW = 5; // 卡片上最多露几位：前 5，多出来的进详情页（第二界面）
+// 开发者可能是一个人（ABOUT.dev 就是 'zcq（夜夜）'），也可能将来写成多人：「zcq、小李, 小王」。
+// 这里按中英文顿号/逗号/斜杠拆开，只留非空项；拆不出来就整串当一个人（名字本身带括号，不能乱切）。
+const ptDevNames = dev => String(dev == null ? '' : dev).split(/[、,，;；\/|]/).map(s => s.trim()).filter(Boolean);
 const ptDots = () => { // 16 个低透明度粒子（纯 CSS 漂移动画，pointer-events:none）
   let h = '';
   for (let k = 0; k < 16; k++) {
@@ -2546,23 +2583,41 @@ const ptShell = () => `<div class="pt-panel">
 </div>`;
 const ptArrowSvg = '<svg class="pt-arrow" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h14M13 6l6 6-6 6"/></svg>';
 const ptBackSvg = '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14 6l-6 6 6 6"/></svg>';
-const ptCard = v => v === 'dev'
-  ? `<button class="pt-card" type="button" data-v="dev" aria-label="查看开发者详情">
+/* 首屏卡片：卡片本体仍可点（点哪都进详情 = 第二界面），卡片里直接把人的名字露出来：
+   开发者 = 名字本身；贡献者 = 前 5 位小胶囊 + 「还有 N 位 ›」。所有名字来自 ABOUT，经 esc() 转义。 */
+const ptCard = (v, A) => {
+  const devNames = ptDevNames(A.dev), thanks = A.thanks || [];
+  const devPreview = devNames.length
+    ? `<span class="pt-name"><b>${esc(devNames.slice(0, PT_PREVIEW).join('、'))}</b><i class="pt-go">详情 ›</i></span>`
+    : `<span class="pt-mini-none">暂无开发者信息</span>`;
+  const conPreview = thanks.length
+    ? `<span class="pt-chips">${thanks.slice(0, PT_PREVIEW).map((n, k) =>
+        `<span class="pt-mini"><i>${String(k + 1).padStart(2, '0')}</i><span>${esc(n)}</span></span>`).join('')}` +
+      `${thanks.length > PT_PREVIEW ? `<span class="pt-mini more">还有 ${thanks.length - PT_PREVIEW} 位 ›</span>` : ''}</span>`
+    : `<span class="pt-mini-none">暂无贡献者信息</span>`;
+  return v === 'dev'
+    ? `<button class="pt-card" type="button" data-v="dev" aria-label="查看开发者详情（共 ${devNames.length} 人）">
       <span class="pt-ic"><span class="pt-ic3d"><span class="pc" aria-hidden="true"><span class="pc-s">&lt;/&gt;</span><span class="pc-k"></span></span></span><span class="pt-base" aria-hidden="true"></span></span>
-      <span class="pt-mid"><small>DEVELOPER</small><b>开发者</b><i class="pt-ray"></i></span>
+      <span class="pt-mid"><small>DEVELOPER</small><b>开发者</b><i class="pt-ray"></i>${devPreview}</span>
       <span class="pt-side"><span class="pt-stripes" aria-hidden="true"></span>${ptArrowSvg}</span>
     </button>`
-  : `<button class="pt-card con" type="button" data-v="con" aria-label="查看贡献者详情">
+    : `<button class="pt-card con" type="button" data-v="con" aria-label="查看贡献者详情（共 ${thanks.length} 人）">
       <span class="pt-ic"><span class="pt-ic3d"><span class="pp3" aria-hidden="true"><span class="pp"></span><span class="pp"></span><span class="pp"></span></span></span><span class="pt-base" aria-hidden="true"></span></span>
-      <span class="pt-mid"><small>CONTRIBUTORS</small><b>贡献者</b><i class="pt-ray"></i></span>
+      <span class="pt-mid"><small>CONTRIBUTORS</small><b>贡献者</b><i class="pt-ray"></i>${conPreview}</span>
       <span class="pt-side"><span class="pt-stripes" aria-hidden="true"></span>${ptArrowSvg}</span>
     </button>`;
-const ptMain = () => `<div class="pt-cards">${ptCard('dev')}${ptCard('con')}</div>`;
+};
+const ptMain = A => `<div class="pt-cards">${ptCard('dev', A)}${ptCard('con', A)}</div>`;
+/* 开发者详情（第二界面）：完整 ABOUT.dev —— 单人就是那一串原名（'zcq（夜夜）' 里括号是名字的一部分，不拆）；
+   将来写成多人时，下面再补一份带序号的完整名单，一个不少。 */
 const ptDevView = A => `<div class="pt-view">
     <button class="pt-back" type="button" data-back>${ptBackSvg}返回</button>
     <div class="pt-view-scroll">
       <div class="pt-who"><span class="pt-av">${esc(ptIni(A.dev))}</span>
         <div><small>DEVELOPER</small><b>${esc(A.dev)}</b><span>设计 · 开发 · 维护</span></div></div>
+      ${ptDevNames(A.dev).length > 1
+        ? `<div class="pt-list">${ptDevNames(A.dev).map((n, k) => `<div class="pt-chip"><i>${String(k + 1).padStart(2, '0')}</i>${esc(n)}</div>`).join('')}</div>`
+        : ''}
     </div>
   </div>`;
 const ptConView = A => `<div class="pt-view">
@@ -2633,7 +2688,7 @@ function aboutView(edit) {
   const go = mode => { // 视图切换不跳新页面：只换 .pt-stage 内容，详情入场动画见 .pt-view
     el.dataset.ptView = mode; // 记下当前视图：云端名单回来重画时，别把用户正看着的详情顶回双卡片
     const st = el.querySelector('.pt-stage'); if (!st) return;
-    st.innerHTML = mode === 'dev' ? ptDevView(A) : mode === 'con' ? ptConView(A) : mode === 'edit' ? ptEditView(A) : ptMain();
+    st.innerHTML = mode === 'dev' ? ptDevView(A) : mode === 'con' ? ptConView(A) : mode === 'edit' ? ptEditView(A) : ptMain(A);
     st.querySelectorAll('.pt-card').forEach(c => { c.onclick = () => go(c.dataset.v); ptTilt(c); });
     const bk = st.querySelector('[data-back]'); if (bk) bk.onclick = () => go('main');
     const eb = st.querySelector('[data-editback]'); if (eb) eb.onclick = () => go('con');
