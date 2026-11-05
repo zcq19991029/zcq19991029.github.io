@@ -1819,13 +1819,22 @@ html.hx-bg body::before { display: none; }
 #hxSplash.hx-splash-out { pointer-events: none; background: var(--bg); }
 #hxSplash.hx-splash-out .hx-splash-card { opacity: 0; transform: scale(.985); }
 #hxSplash.hx-splash-gone { opacity: 0; visibility: hidden; }
-.hx-splash-card { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 24px; }
+.hx-splash-card {
+  display: flex; flex-direction: column; align-items: center;
+  gap: clamp(14px, 2vh, 30px); padding: 24px;
+  /* 2026-11-06 用户：「加载动效普遍太小 紧急修复」。
+     全站字号规矩：**只在这一处父元素 clamp，闪屏内部（标题、药丸、方块）全用 em**，
+     一处改动整组等比放大，不会出现「标题大了药丸没大」。
+     1080p（1920 宽）→ 30px 基准：标题 1.35em ≈ 40px、药丸 1em = 30px，投在教室大屏上醒目；
+     手机 390 → 16px 基准，比原来 17px 的标题略大，但不会撑破屏。 */
+  font-size: clamp(16px, 1.1vw + 9px, 30px);
+}
 #hxSplashCv { image-rendering: pixelated; }
 .hx-splash-name {
-  font: 600 17px/1.3 var(--hx-font, -apple-system, "PingFang SC", "Microsoft YaHei UI", sans-serif);
+  font: 600 1.35em/1.3 var(--hx-font, -apple-system, "PingFang SC", "Microsoft YaHei UI", sans-serif);
   color: var(--text); letter-spacing: .02em; text-align: center;
 }
-.hx-splash-tip { font: 400 12.5px/1 var(--hx-font, -apple-system, "PingFang SC", "Microsoft YaHei UI", sans-serif); color: var(--muted); }
+.hx-splash-tip { font: 400 1em/1 var(--hx-font, -apple-system, "PingFang SC", "Microsoft YaHei UI", sans-serif); color: var(--muted); }
 /* 2026-11-06 删：.hx-splash-tip span { animation: hxsplashdot 1.2s infinite } 和配套的 .d2/.d3、
    @keyframes hxsplashdot、hx-lite / reduced-motion 两条覆盖。
    那是「正在载入」后面跟三个会闪的句点的写法，2026-11-04 已经换成像素方块，句点早就不存在了。

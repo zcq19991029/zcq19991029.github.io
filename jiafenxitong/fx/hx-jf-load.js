@@ -69,17 +69,19 @@
     cv.style.display = 'none';
   }
 
-  // canvas 按 3～4 倍整数放大（像素画非整数缩放会糊），随视口自适应
+  // canvas 按整数倍放大（像素画非整数缩放会糊），随视口自适应
   // 2026-11-06 用户：「像素动效和文字匹配总体看起来太小 网页太大 应该需要自适应网页大小和手机端大小」，
   // 之后又追加「我要保留的是像素动效那一个版本啊」「抽奖卡片太小了不够震撼」——方向已经很清楚：
   // 像素动效是这块屏幕的主体，必须**大**，不能再是中间一个小方块。
-  // 原来上限是 4 倍、宽度顶到 560：128px 的特效最多 512px，在 1440 宽的屏幕中央只占三分之一。
-  // 现在按「短边的 42%」定目标尺寸，倍数上限放到 8，并保证至少 3 倍（小屏也要看清像素块）。
+  // 2026-11-06 再次返修（用户：「加载动效普遍太小 紧急修复」）：原来上限 4 倍、按短边 42% 定目标，
+  // 1080p 下 128px 的篝火最多只有 384px，投在教室大屏上确实偏小。
+  // 现在按**短边的 62%** 定目标尺寸，倍数上限 12、下限 3：1920×1080 下 128px 特效放大 5 倍（640px），
+  // 56～64px 的小特效放到 10～11 倍（560～640px），不同特效的视觉体量接近，都是第一眼就能看见的主体。
   function sizeCanvas() {
     var m = mod && mod.meta; if (!m) return;
-    var vw = (window.innerWidth || 960) * 0.92;
-    var vh = (window.innerHeight || 640) * 0.42;
-    var k = Math.max(3, Math.min(Math.floor(vw / m.size[0]), Math.floor(vh / m.size[1]), 8));
+    var vw = (window.innerWidth || 960) * 0.88;
+    var vh = (window.innerHeight || 640) * 0.62;
+    var k = Math.max(3, Math.min(Math.floor(vw / m.size[0]), Math.floor(vh / m.size[1]), 12));
     cv.style.width = (m.size[0] * k) + 'px';
     cv.style.height = (m.size[1] * k) + 'px';
   }
@@ -154,4 +156,103 @@
     if ((seenGated && !gated) || gateReady) { clearInterval(timer); finish(); }
   }, 80);
   setTimeout(function () { clearInterval(timer); finish(); }, MAX_WAIT);
+
+  // ── 内部面板的加载态（2026-11-06 用户：「覆盖各个子模块……不许有子模块还是裸文字或没动效」）
+  // 管理页「正在加载…」/「查看某位老师的数据」这类面板，业务代码只写一行
+  // <p class="note">正在加载…</p>（见 app.js 的 renderAdmin / showTeacherData）。这里不改业务代码，
+  // 用 MutationObserver 把这类**只在加载中**的占位就地升级成同一套「canvas 像素动效 + 药丸」：
+  //   · 只认文本以「正在加载」开头且没有任何子元素的 .note —— 正常文案、加载失败提示都不动；
+  //   · 面板拿到数据后 innerHTML 被整体替换，canvas 一并移除，循环下一帧发现脱离文档就自停；
+  //   · 特效包缺失 / 省电 / 关动画：不建 canvas，只补一条像素方块药丸（回落不空屏）。
+  (function panelFx() {
+    var st = document.createElement('style');
+    st.id = 'hx-jf-panelfx-style';
+    st.textContent =
+      '.hx-fxpanel{display:flex;flex-direction:column;align-items:center;justify-content:center;'
+      + 'gap:clamp(10px,1.4vh,18px);padding:clamp(14px,2vh,26px) 8px}'
+      + '.hx-fxpanel canvas{image-rendering:pixelated;display:block}'
+      // 字号一处 clamp、内部方块/文字全 em（全站规矩）；面板里比首屏闪屏克制一档
+      + '.hx-fxpanel .hx-loadpill{font-size:clamp(13px,.8vw + 7px,20px);box-shadow:none}';
+    (document.head || document.documentElement).appendChild(st);
+
+    // 小号引擎：和首屏闪屏同一套特效包、同一个会话内固定 id
+    function mini(cv) {
+      var P = window.PixelFX;
+      if (!P || !P.effects || !P.ids || !P.ids.length) return null;
+      var eid = '';
+      try { eid = sessionStorage.getItem('hx-loadfx-jiafen') || ''; } catch (e) { }
+      if (!eid || !P.effects[eid]) eid = P.ids[Math.floor(Math.random() * P.ids.length)];
+      var mm = P.effects[eid];
+      if (!mm || !mm.meta) return null;
+      var m = mm.meta, W = m.size[0], H = m.size[1], O = m.origin || [W / 2, H / 2];
+      cv.width = W; cv.height = H;
+      var k = Math.max(2, Math.min(3, Math.floor(Math.min(190 / W, 160 / H)) || 2));
+      cv.style.width = (W * k) + 'px';
+      cv.style.height = (H * k) + 'px';
+      var ctx = cv.getContext('2d');
+      if (!ctx) return null;
+      var img = ctx.createImageData(W, H), fr = P.createFrame(W, H);
+      var fx = P.createFx(mm, { x: O[0], y: O[1], seed: Math.floor(Math.random() * 997) });
+      var touch = window.matchMedia ? matchMedia('(hover: none), (pointer: coarse)').matches : false;
+      var GAP = (touch || lite()) ? 1000 / 18 : 1000 / 30;
+      var raf = 0, last = 0, stopped = false;
+      function step(now) {
+        raf = 0; if (stopped) return;
+        if (!cv.isConnected) { stopped = true; return; }  // 面板被结果替换：自停，不在后台空转
+        if (last && now - last < GAP - 1) { raf = requestAnimationFrame(step); return; }
+        var dt = last ? Math.min((now - last) / 1000, 0.12) : 0;
+        last = now;
+        if (dt) fx.update(dt);
+        P.clearFrame(fr); fx.draw(fr, 'back'); fx.draw(fr, 'front');
+        P.composite(fr, img.data, null);
+        ctx.clearRect(0, 0, W, H); ctx.putImageData(img, 0, 0);
+        raf = requestAnimationFrame(step);
+      }
+      raf = requestAnimationFrame(step);
+      return { stop: function () { stopped = true; if (raf) { cancelAnimationFrame(raf); raf = 0; } } };
+    }
+
+    function pill(text) {
+      var p = document.createElement('div');
+      p.className = 'hx-loadpill sm';
+      p.setAttribute('role', 'status');
+      var s = '<span class="hx-px" aria-hidden="true">', i;
+      for (i = 0; i < 7; i++) s += '<i style="--i:' + i + '"></i>';
+      p.innerHTML = s + '</span><b></b>';
+      p.querySelector('b').textContent = text || '正在加载…';
+      return p;
+    }
+
+    function upgrade(el) {
+      if (!el || el.dataset.hxfx || el.children.length) return;
+      var text = (el.textContent || '').trim();
+      if (!/^正在加载/.test(text)) return;
+      el.dataset.hxfx = '1';
+      el.classList.add('hx-fxpanel');
+      el.setAttribute('aria-busy', 'true');
+      var cv = document.createElement('canvas');
+      var ok = !still() && mini(cv);
+      el.textContent = '';
+      if (ok) el.appendChild(cv);
+      el.appendChild(pill(text));
+    }
+
+    function scan(root) {
+      if (!root) return;
+      if (root.nodeType === 1 && root.classList && root.classList.contains('note')) upgrade(root);
+      if (root.querySelectorAll) {
+        var list = root.querySelectorAll('.note');
+        for (var i = 0; i < list.length; i++) upgrade(list[i]);
+      }
+    }
+
+    var mo = new MutationObserver(function (muts) {
+      for (var i = 0; i < muts.length; i++) {
+        var add = muts[i].addedNodes;
+        for (var j = 0; j < add.length; j++) scan(add[j]);
+      }
+    });
+    mo.observe(document.documentElement, { childList: true, subtree: true });
+    scan(document.body);
+  })();
 })();

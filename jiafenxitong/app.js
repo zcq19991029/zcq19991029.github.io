@@ -1748,6 +1748,9 @@ function removeMemberAt(cls, g, j) {
     S.ui.classId = cls.id;
     $('#poolClassSel').value = cls.id;
     $('#classSel').value = cls.id;
+    var sizeBox = $('#poolSize');
+    /* 正在输入的框不抢回来：看板每 2 秒刷新一次，别把老师刚敲的数字改回去 */
+    if (sizeBox && document.activeElement !== sizeBox) sizeBox.value = String(poolSizeOf(cls));
 
     var map = placedMap(cls), seat = seatIndex(cls);
     var rows = rosterOf(cls).map(function (r) {
@@ -2133,31 +2136,69 @@ function removeMemberAt(cls, g, j) {
   /* ---- 教师端组队按钮 ---- */
 
   $('#btnTeamOpen').addEventListener('click', function () {
+    if (tmBusy) return;
     var cls = curClass();
     if (!cls || !tmOn()) { alert('先登录再来开放组队。'); return; }
     if (!tmClassId(cls)) { alert('这个班还没对应首页班级，先在「数据与备份」页对应。'); return; }
     var tables = Math.max(1, Math.min(40, Math.round(Number($('#teamTables').value) || 10)));
     var size = Math.max(2, Math.min(GROUP_CAP, Math.round(Number($('#teamSize').value) || 6)));
     var pending = truePendingList(cls).length;
-    if (!confirm('开放组队：' + tables + ' 张圆桌，每桌 ' + size + ' 人。\n\n' +
+    /* 「每桌人数」只是上限：重开房间时，上一场已经选好的座位必须原样搬过来。
+       以前 jf_team_open 只新建房间，座位按 room_id 挂在旧房间上，看板只读最新一间，
+       于是老师把 6 改成 7 再点「开放组队」，全班座位一夜之间全看不见了（数据还在旧房间里）。 */
+    var old = (tmRoom && tmRoom.room && tmState && tmSeatClass === cls.id && (tmState.seats || []).length)
+      ? tmState.seats.map(function (s) { return { student: Number(s.student), name: s.name, table: Number(s.table) || 0 }; })
+      : [];
+    var keep = old;
+    if (old.length && tmRoom.status === 'closed') {
+      keep = confirm('上一场（已结束）还留着 ' + old.length + ' 个座位。\n\n要沿用到这次的圆桌上吗？\n' +
+        '· 确定 = 沿用（桌号不变，只改每桌上限）\n· 取消 = 从空桌子重新选座') ? old : [];
+    }
+    if (!confirm('开放组队：' + tables + ' 张圆桌，每桌最多 ' + size + ' 人。\n\n' +
       '学生用学号账号打开「学生入口」，点一张圆桌就坐下，可以自己换桌。\n' +
       '本班现在还有 ' + pending + ' 人没分组。\n\n' +
+      (keep.length ? '已经选好的 ' + keep.length + ' 个座位会原样保留（改每桌人数只改上限，不会重新分座）。\n\n' : '') +
       (tmRoom && tmRoom.room && tmRoom.status !== 'closed'
-        ? '注意：本班上一次的组队房间会被作废。\n\n' : '') + '确定开放？')) return;
+        ? '注意：本班上一次的组队房间会被作废，没确认的座位靠这里搬过来。\n\n' : '') + '确定开放？')) return;
     tmBusy = true;
+    if (keep.length) flash('正在沿用上一场 ' + keep.length + ' 个座位…');
     CLOUD.rpc('jf_team_open', { p_class: tmClassId(cls), p_tables: tables, p_size: size })
       .then(function (res) {
-        tmBusy = false;
-        addOperationLog('组队', cls.name + ' · 开放组队：' + tables + ' 桌 × ' + size + ' 人' +
-          (res && res.accounts != null ? '（本班 ' + res.accounts + ' 人有学号账号）' : ''));
-        save(false);
-        flash('已开放组队：' + tables + ' 桌 × ' + size + ' 人' +
-          (res && res.accounts != null ? '，可自助选座 ' + res.accounts + ' 人' : '') +
-          '。把「学生入口」链接发到班级群。');
-        return tmPull();
+        var room = (res && res.room) || null;
+        return tmCarrySeats(room, keep, room ? Number(res.tables) || tables : tables, room ? Number(res.size) || size : size)
+          .then(function (carried) {
+            tmBusy = false;
+            addOperationLog('组队', cls.name + ' · 开放组队：' + tables + ' 桌 × ' + size + ' 人' +
+              (keep.length ? '，沿用上一场 ' + carried.moved + '/' + keep.length + ' 个座位' +
+                (carried.lost ? '（' + carried.lost + ' 人放不下，回到待选）' : '') : '') +
+              (res && res.accounts != null ? '（本班 ' + res.accounts + ' 人有学号账号）' : ''));
+            save(false);
+            flash('已开放组队：' + tables + ' 桌 × 每桌最多 ' + size + ' 人' +
+              (carried.moved ? '，沿用上一场 ' + carried.moved + ' 个座位' : '') +
+              (carried.lost ? '；' + carried.lost + ' 人因为每桌人数变少还没坐下' : '') + '。');
+            return tmPull();
+          });
       })
       .catch(function (e) { tmBusy = false; alert('没开成：' + ((e && e.message) || '未知错误')); });
   });
+
+  /** 把上一场已选好的座位搬到新房间：桌号不变，桌数/每桌人数不够的人留在待选。
+      走的是老师专用的 jf_team_place，所以不必等云端加新函数也能生效。 */
+  function tmCarrySeats(room, seats, tables, size) {
+    if (!room || !seats.length) return Promise.resolve({ moved: 0, lost: 0 });
+    var per = Object.create(null), moved = 0, lost = 0;
+    return seats.reduce(function (chain, s) {
+      return chain.then(function () {
+        var t = s.table > 0 ? Math.min(s.table, tables) : 0;
+        if (!t) { lost++; return; }
+        per[t] = per[t] || 0;
+        if (per[t] >= size) { lost++; return; }
+        return CLOUD.rpc('jf_team_place', { p_room: Number(room), p_student: s.student, p_table: t })
+          .then(function () { per[t]++; moved++; })
+          .catch(function () { lost++; });
+      });
+    }, Promise.resolve()).then(function () { return { moved: moved, lost: lost }; });
+  }
 
   $('#btnTeamLock').addEventListener('click', function () {
     if (!tmRoom || !tmRoom.room) return;
@@ -2348,6 +2389,14 @@ function removeMemberAt(cls, g, j) {
     size = clampSize(size);
     var pending = truePendingList(cls).slice();
     if (!pending.length) return { error: '这个班没有待分配的学生，都分好组了。' };
+    /* 护栏：全班人都算「没分组」，可班里明明有几组是满的——这不是缺人，是名单和分组对不上
+       （学号变了 / 换了首页班级）。这时硬分只会在旧组旁边再叠一套新组，越修越乱，直接停手。 */
+    var grouped = cls.groups.filter(function (g) { return memberCount(g) > 0; }).length;
+    if (grouped && pending.length >= rosterOf(cls).length) {
+      return { error: '全班 ' + pending.length + ' 人都被当成「待分配」，但班里已经有 ' + grouped +
+        ' 个组是有人的——分组名单和全班名单的学号对不上。\n先到「数据与备份」页核对这个班对应的首页班级，' +
+        '别在这里重新分组，否则会在旧组旁边再叠一套新组。' };
+    }
     pending.sort(function (a, b) {
       var x = a.no == null ? 1e9 : a.no, y = b.no == null ? 1e9 : b.no;
       if (x !== y) return x - y;
@@ -2410,6 +2459,13 @@ function removeMemberAt(cls, g, j) {
       (lo === hi ? lo : lo + '–' + hi) + ' 人' + tail;
   }
 
+  /** 「每组几人」只决定**以后**怎么切组，记在班上（cls.poolSize），刷新也不丢；
+      它绝不回头改已经分好的组——那个框里改数字，除了提示和下一次一键分组，什么都不该发生。 */
+  function poolSizeOf(cls) {
+    var v = Number(cls && cls.poolSize);
+    return v >= 2 ? clampSize(v) : 6;
+  }
+
   function runAutoGroup(shuffle) {
     var cls = curClass();
     if (!cls) return;
@@ -2445,6 +2501,20 @@ function removeMemberAt(cls, g, j) {
   $('#btnPoolBySize').addEventListener('click', function () { runAutoGroup(false); });
   $('#btnPoolRandom').addEventListener('click', function () { runAutoGroup(true); });
   $('#poolSize').addEventListener('input', updatePoolSizeHint);
+  /* 改完数字别急着离开页面就忘了：记在本班上，下次进来还是这个数。
+     这里只存上限，不重排——已经分好的组、已经选好座的人一个都不动。 */
+  $('#poolSize').addEventListener('change', function () {
+    var cls = curClass();
+    if (!cls) return;
+    var size = clampSize(this.value);
+    this.value = String(size);
+    if (Number(cls.poolSize) === size) { updatePoolSizeHint(); return; }
+    cls.poolSize = size;
+    addOperationLog('分组', cls.name + ' · 每组人数上限改为 ' + size + ' 人（只影响以后的新分组，已分好的组不动）');
+    save(false);
+    updatePoolSizeHint();
+    flash('每组最多 ' + size + ' 人（只影响以后的一键分组，已分好的组原样保留）');
+  });
 
   /* 均匀分配 */
   $('#btnPoolAuto').addEventListener('click', function () {

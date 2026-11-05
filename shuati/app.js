@@ -137,8 +137,11 @@ async function openSubject(id) {
   // 播不了（reduced-motion / hx-lite / 特效包没出来 / canvas 建不出来）回落到原来的方块药丸。
   // 无论走哪条路，屏幕上只有这一套加载提示。
   const card = $('card'); card.innerHTML = '';
-  const loadfx = window.HXLoadFx ? HXLoadFx.mount(card, 'quiz', '正在加载题库…') : null;
-  if (!loadfx) card.innerHTML = '<div class="hx-loadwrap"><div class="hx-loadpill" role="status">' + pxBlocks() + '<b>正在加载题库…</b></div></div>';
+  // 2026-11-06 时序返修：首屏那一轮由 index.html 里的 #hxBoot 整屏闪屏负责（第一帧就有像素动效），
+  // 这里不再往题卡里塞第二套；只有之后切科目 / 重新打开时（闪屏已撤）才在题卡里画「canvas + 药丸」。
+  const splash = !!(window.HXLoadFx && HXLoadFx.booting && HXLoadFx.booting());
+  const loadfx = (!splash && window.HXLoadFx) ? HXLoadFx.mount(card, 'quiz', '正在加载题库…') : null;
+  if (!loadfx && !splash) card.innerHTML = '<div class="hx-loadwrap"><div class="hx-loadpill" role="status">' + pxBlocks() + '<b>正在加载题库…</b></div></div>';
   // 手快连点两个科目时，先发的那次可能后回来。用序号记住“谁最后一次点的”，
   // 回来的旧结果直接丢掉，否则会出现左上角写着一个科目、中间却是另一个科目
   const seq = S.subSeq = (S.subSeq || 0) + 1;
@@ -480,7 +483,15 @@ async function renderRank() {
   const who = isStudent() || isTeacher(), mineOnly = who && S.rmine;
   const seg = who ? `<div class="seg" id="rseg" style="grid-template-columns:1fr 1fr"><button type="button" data-m="0" aria-pressed="${!mineOnly}">全校</button><button type="button" data-m="1" aria-pressed="${mineOnly}">${isStudent() ? '本班' : '我的班'}</button></div>` : '';
   const bind = () => { for (const b of el.querySelectorAll('#rseg button')) b.onclick = () => { S.rmine = b.dataset.m === '1'; renderRank(); }; };
-  if (el.dataset.for !== sub.id) { el.dataset.for = sub.id; el.innerHTML = head(note('正在加载排行…')) + seg; bind(); }
+  // 2026-11-06：子模块（排行）的加载态也换成「canvas 像素动效 + 药丸」结合体，
+  // 不再是一行裸文字「正在加载排行…」。占位节点交给 HXLoadFx.auto() 就地升级；
+  // 播不了（省电 / 关动画 / 特效包缺失）时 auto() 会填回落药丸，不会空屏。
+  if (el.dataset.for !== sub.id) {
+    el.dataset.for = sub.id;
+    el.innerHTML = head('<div class="hx-loadwrap sm" data-fxload="正在加载排行…" data-fxtool="quiz"></div>') + seg;
+    if (window.HXLoadFx) HXLoadFx.auto(el);
+    bind();
+  }
   let rows;
   try { rows = await store.rankBoard(sub.id, mineOnly); }
   catch (e) { if (S.subject === sub && S.view === 'rank') { el.innerHTML = head(note('排行榜暂时打不开：' + esc(e.message))) + seg; bind(); } return; }
@@ -1015,7 +1026,7 @@ function lock(on) {
 async function boot() {
   S.user = S.me = null;
   if (hx.signedIn()) { try { [S.user, S.me] = await Promise.all([hx.user(), hx.me()]); } catch { S.user = S.me = null; } }
-  if (lock(S.me && !S.me.teacher && !S.me.admin && !S.me.dev && !S.me.student && !S.me.left)) return;
+  if (lock(S.me && !S.me.teacher && !S.me.admin && !S.me.dev && !S.me.student && !S.me.left)) { if (window.HXLoadFx) HXLoadFx.finishBoot(); return; }
   setAiProfile(hx.uid() || 'default');
   const p = prefs();
   S.type = p.type || 'single'; S.scope = p.scope || 'todo'; S.mode = ORDERS.some(o => o[0] === p.mode) ? p.mode : 'seq';
@@ -1023,6 +1034,9 @@ async function boot() {
   const pub = String(p.subject || '').startsWith('pub-');
   await loadSubjects(pub);
   await openSubject(p.subject && S.subjects.some(s => s.id === p.subject) ? p.subject : BUILTIN[0].id);
+  // 首屏内容已经画好（openSubject 末尾的 show()），撤掉 #hxBoot：整层淡出，
+  // 屏幕上不会出现「内容已渲染、像素闪屏才盖上来」的空窗。
+  if (window.HXLoadFx) HXLoadFx.finishBoot();
   if (!pub) await loadSubjects(); // 老师发布的题库随后补进科目列表
   store.rankFlush(rankDone); // 上次没交上的答对记录
 }

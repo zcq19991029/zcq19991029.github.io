@@ -18,6 +18,22 @@
 <script src="loadfx.js"></script>
 </head>
 <body>
+<!-- 首屏加载层（2026-11-06 修时序）：页面解析到这里就由 loadfx.js 的 boot() 接管并在**同一次绘制**里
+     画出第一帧像素动效，所以用户看到的第一眼就是「canvas 动效 + 药丸」的结合体。
+     以前这里什么都没有，要等 app.js 的 boot() 走到 openSubject() 才在题卡里画动效——
+     那段时间屏幕上只有左上角一行「加载中」，内容出来后动效才蹦出来，用户实测就是这个时序反了。
+     数据就绪后 app.js 调 HXLoadFx.finishBoot()，整层淡出移除。 -->
+<div class="hx-boot" id="hxBoot" aria-hidden="true">
+  <div class="hx-boot-card">
+    <canvas id="hxBootCv" width="96" height="96"></canvas>
+    <p class="hx-boot-title">刷题</p>
+    <div class="hx-loadpill sm" role="status" aria-live="polite">
+      <span class="hx-px" aria-hidden="true"><i style="--i:0"></i><i style="--i:1"></i><i style="--i:2"></i><i style="--i:3"></i><i style="--i:4"></i><i style="--i:5"></i><i style="--i:6"></i></span>
+      <b>正在载入…</b>
+    </div>
+  </div>
+</div>
+<script>window.HXLoadFx && HXLoadFx.boot('quiz', 'hxBoot');</script>
 <header class="top">
   <a class="brand" id="brand" href="../" target="_top"><img src="../logo.jpg" alt=""><span>刷题</span></a>
   <button class="subj" id="subjBtn" type="button"><b id="subjName">加载中</b><svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg></button>
