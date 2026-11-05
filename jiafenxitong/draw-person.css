@@ -1,291 +1,321 @@
-/* ===== 随机抽人：卡包开包 → 洗牌 → 抽出一张（2026-11-06 洗牌版）=====
-   时序（draw-person.js 里的 T_* 常量必须和这里的时长对上，改一边记得改另一边）：
-     preparing .36s 卡包蓄势 → shaking .5s 抖 → opening .46s 开包 + 一叠牌飞出
-     → shuffling 1.76s 洗牌/切牌（幅度渐小、速度渐慢）→ revealing .7s 顶上那张升起来翻面 → result
-   全程只动 transform / opacity：8 张牌都是合成层动画，不触发重排，一体机上不掉帧。
+/* ===== 随机抽人 · 无畏契约「夜市」抽卡（2026-11-06 夜市版）=====
+   布局：顶栏（左上像素动效 / 中 NIGHT MARKET / 右上点券 + 老师头像 + ✕）
+        → 班级 tab → 6 个卡位横排 → 底栏（1~6 数量 / 开始翻牌 / 刷新卡组）
 
-   尺寸单位：.drw-scene 声明了 container-type:size，所以 cqh / cqw = 舞台高/宽的 1%。
-   卡片尺寸按「舞台高度」定（min(88cqh, 76cqw)），舞台再矮也不会撑出 overflow:hidden 的舞台、
-   更不会把底栏顶出可视区；屏幕更高（1080p）卡片就等比更大。1366×768 / 1920×1080 都验过。
+   动效时序（和 draw-person.js 里的 T_* / ST_* 常量一一对应，改一边记得改另一边）：
+     发牌 .42s（每张错 45ms）→ 翻面每张错 120ms、单片 .66s → 静止
+   翻牌是纯 transform: rotateY，卡片都是合成层，一体机上不掉帧。
 
-   ⚠ 接线仿真 src/rank.js 里还有一份同类实现，那份没有洗牌，两边已经分叉，
-     不要直接互相覆盖。
+   尺寸：JS 在 drwFit() 里按舞台实际宽高算一次 --cw / --ch / --gap 写到 .drw-grid 上，
+        卡片内部所有字号 / 间距都用 calc(var(--cw) * k) 跟着卡片等比缩放，
+        1366×768 和 1920×1080 都是同一套规则，窗口拖小也不会溢出。
 
-   小组加分这边和接线仿真的差别：
-     ① 不需要「设为当前选手」（这边没有排位选手这个概念），底栏是「再抽一次 / 关闭」；
-     ② 结果卡多一行「第 N 组」，抽到人之后老师立刻知道该给哪一组加分。 */
+   稀有度（复刻夜市）：
+     --r-gold / --r-purple / --r-green / --r-blue，分别对应 传说 / 史诗 / 稀有 / 精良。
 
-/* 接线仿真那套变量名（--edge/--card/--ink/--dim/--track）小组加分里没有，
-   这里就地兜成小组加分自己的语义色，两边的 CSS 才能共用同一份规则。 */
+   ⚠ 接线仿真 src/rank.js 里还有一份老的抽人实现，两边已经分叉，不要互相覆盖。 */
+
+/* ---------- 弹窗外壳改成夜市深色 ---------- */
+dialog.draw-dlg {
+  width: min(1320px, 96vw); height: min(880px, 94vh); max-height: 94vh;
+  min-width: 340px; min-height: 420px;
+  background: #060d17;
+  box-shadow: 0 40px 90px -40px #000, 0 0 0 1px #2a4a70 inset;
+  border-radius: 16px;
+  /* 底纹：两道斜向霓虹射线，夜市网页那种斜切感 */
+  background-image:
+    linear-gradient(115deg, transparent 49.6%, rgba(255, 45, 115, .16) 50%, transparent 50.5%),
+    linear-gradient(25deg, transparent 49.6%, rgba(39, 201, 255, .14) 50%, transparent 50.5%),
+    radial-gradient(120% 90% at 50% 24%, #0f2740 0%, #060d17 62%);
+  background-size: 100% 100%, 100% 100%, 100% 100%;
+}
+/* 深色窗口下这几处系统自带的浅色件要跟着换：标题栏（新顶栏里已有品牌和 ✕）、缩放把手、拖拽斜纹 */
+dialog.draw-dlg .dlg { padding: 0; gap: 0; }
+dialog.draw-dlg .dlg-head { display: none; }
+dialog.draw-dlg::after {
+  background-image: repeating-linear-gradient(135deg, #33547c 0 1.5px, transparent 1.5px 5px);
+  opacity: .5;
+}
+dialog.draw-dlg::backdrop { background: rgba(2, 6, 12, .74); }
+
+/* ---------- 容器 ---------- */
 .drw {
-  --edge: var(--line, #f2e4e4);
-  --card: var(--panel, #fff);
-  --ink: var(--text, #1c1c1e);
-  --dim: var(--muted, #83848a);
-  --track: var(--panel-soft, #fef5f5);
+  display: flex; flex-direction: column; height: 100%; min-height: 0;
+  color: #eef6ff; font-family: inherit;
+  --r-gold: #f5c542; --rg-gold: rgba(245, 197, 66, .55);
+  --r-purple: #b46cf0; --rg-purple: rgba(180, 108, 240, .5);
+  --r-green: #3fd98a; --rg-green: rgba(63, 217, 138, .45);
+  --r-blue: #4aa8f0; --rg-blue: rgba(74, 168, 240, .4);
 }
 
-.drw-bar { gap: 12px; padding: 10px 14px; display: flex; align-items: center; flex-wrap: wrap; border-bottom: 1px solid var(--edge); }
-.drw-tabs { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 6px; }
-.drw-tabs button { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--edge); background: var(--card); color: var(--ink); font: inherit; font-size: 14px; font-weight: 700; padding: 7px 14px; border-radius: 11px; cursor: pointer; }
-.drw-tabs button em { font-style: normal; font-size: 11.5px; font-weight: 800; padding: 1px 6px; border-radius: 7px; background: var(--track); color: var(--dim); }
-.drw-tabs button.on { border-color: transparent; background: linear-gradient(120deg, #f59e0b, #ef4444); color: #fff; }
-.drw-tabs button.on em { background: rgba(255, 255, 255, .26); color: #fff; }
-/* 只有一个班：不摆 tabs（一次课就一个班，没什么可切的），顶上直接写「班名 · N 人」 */
-.drw-clsname { flex: 1; min-width: 0; display: flex; align-items: center; font-size: 15px; font-weight: 800;
-  color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.drw-go { flex: none; height: 44px; padding: 0 28px; border: 0; border-radius: 13px; cursor: pointer; font: inherit;
-  font-size: 17px; font-weight: 900; letter-spacing: 1px; color: #fff;
-  background: linear-gradient(120deg, #f59e0b, #ef4444); box-shadow: 0 10px 22px -12px #ef4444; }
-.drw-go:disabled { opacity: .5; cursor: default; }
-
-/* 深色舞台：抽人这件事只发生在这一块里，顶栏/底栏照旧。
-   overflow:hidden 保证开包强光和甩出去的牌不会撑出横向滚动 */
-.drw-stage { flex: 1; min-height: 0; position: relative; overflow: hidden; display: grid; place-items: center;
-  background: radial-gradient(120% 95% at 50% 28%, #18233d 0%, #0b1020 74%); }
-.drw-stage::before { content: ''; position: absolute; inset: 0; pointer-events: none;
-  background: radial-gradient(closest-side at 50% 44%, rgba(108, 140, 255, .18), transparent 74%); }
-
-/* 舞台正面：绝对铺满（尺寸确定，cq 单位才有地方量），也是 cq 容器。
-   --ch/--cw 是「结果卡」的高宽，--ph/--pw 是「卡包」的高宽，全部按舞台比例算：
-     1366×768 舞台约 1068×511 → 卡片 450×337
-     1920×1080 舞台约 1068×744 → 卡片 655×491
-   两个分辨率下卡片都顶到舞台高度的 88%，姓名跟着一起放大。 */
-.drw-scene { position: absolute; inset: 0; display: grid; place-items: center;
-  container-type: size; perspective: 1500px;
-  --ch: min(88cqh, 76cqw);
-  --cw: calc(var(--ch) * 3 / 4);
-  --ph: min(72cqh, 66cqw);
-  --pw: calc(var(--ph) * 3 / 4.1);
+/* ---------- 顶栏 ---------- */
+.nm-top {
+  flex: none; height: 62px; padding: 0 18px;
+  display: flex; align-items: center; gap: 14px;
+  border-bottom: 1px solid #22405f;
+  background: linear-gradient(180deg, rgba(11, 28, 46, .9), rgba(6, 13, 23, .2));
 }
-/* aria-live 播报区：视觉上藏掉，读屏/旁白工具照常读到 */
-.drw-live { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-
-/* 卡包：层叠卡片 + 金色封条 + 高光描边 + 背后光晕 + 浮动粒子，全部 CSS 画的，没有外部图片 */
-.drw-halo { position: absolute; width: min(150cqh, 96cqw); aspect-ratio: 1; border-radius: 50%; pointer-events: none;
-  background: radial-gradient(closest-side, rgba(139, 92, 246, .38), rgba(108, 140, 255, .16) 55%, transparent 75%);
-  filter: blur(6px); animation: drwHalo 2.6s ease-in-out infinite; }
-@keyframes drwHalo { 50% { transform: scale(1.1); opacity: .75; } }
-.drw-pack { position: relative; z-index: 1; width: var(--pw); height: var(--ph); cursor: pointer; -webkit-tap-highlight-color: transparent;
-  animation: drwFloat 3.2s ease-in-out infinite; }
-@keyframes drwFloat { 50% { transform: translateY(-10px); } }
-.drw-lyr { position: absolute; inset: 0; border-radius: 18px; border: 1.5px solid rgba(108, 140, 255, .4); background: linear-gradient(160deg, #1d2a4d, #131c36); }
-.drw-lyr.l1 { transform: rotate(-4deg) translate(-7px, 5px); opacity: .8; }
-.drw-lyr.l2 { transform: rotate(3.5deg) translate(7px, -4px); opacity: .65; }
-/* 卡包由上下两半拼成：同一张 .drw-skin 各裁一半，合起来严丝合缝，开包时两半分开 */
-.drw-half { position: absolute; inset: 0; transition: transform .46s cubic-bezier(.25, .8, .3, 1), opacity .46s; will-change: transform; }
-.drw-half.top { clip-path: inset(0 0 49.4% 0); }
-.drw-half.bot { clip-path: inset(50.6% 0 0 0); }
-.drw-skin { position: absolute; inset: 0; border-radius: 18px; overflow: hidden;
-  background: linear-gradient(158deg, #223058 0%, #18233d 46%, #101830 100%);
-  border: 2px solid rgba(108, 140, 255, .55);
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, .08) inset, 0 0 24px rgba(108, 140, 255, .28), 0 24px 60px -22px rgba(0, 0, 0, .8); }
-.drw-skin::before { content: ''; position: absolute; inset: 7px; border-radius: 12px; border: 1px dashed rgba(139, 92, 246, .5); }
-.drw-skin::after { content: ''; position: absolute; inset: 0;
-  background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, .1) 44%, transparent 58%),
-    radial-gradient(58% 34% at 50% 26%, rgba(108, 140, 255, .3), transparent 70%); }
-/* 金色封条（正面只有它，不再压「随机抽人」字牌）：竖带上写一个「抽」字 */
-.drw-seal { position: absolute; z-index: 2; left: 50%; top: 0; bottom: 0; width: 17%; transform: translateX(-50%); font-style: normal;
-  background: linear-gradient(180deg, #ffd98a, #f5b942 30%, #e09b2d 70%, #c9871f);
-  border-left: 1px solid rgba(255, 255, 255, .4); border-right: 1px solid rgba(0, 0, 0, .25);
-  display: grid; place-items: center; font-weight: 900; color: #5b3a00;
-  font-size: clamp(20px, 8.6cqh, 58px); box-shadow: 0 0 18px rgba(255, 200, 87, .45); }
-/* 浮动光点：只在卡包周围闪，开包后跟着卡包一起消失 */
-.drw-pt { position: absolute; width: 5px; height: 5px; border-radius: 50%; background: #9db4ff; opacity: 0; pointer-events: none;
-  box-shadow: 0 0 8px #6c8cff; animation: drwPt 2.8s ease-in-out infinite; transition: opacity .4s; }
-.drw-pt:nth-of-type(3) { left: 6%; top: 20%; }
-.drw-pt:nth-of-type(4) { left: 90%; top: 13%; animation-delay: .5s; }
-.drw-pt:nth-of-type(5) { left: 2%; top: 62%; animation-delay: 1s; }
-.drw-pt:nth-of-type(6) { left: 94%; top: 58%; animation-delay: 1.4s; }
-.drw-pt:nth-of-type(7) { left: 20%; top: 92%; animation-delay: 1.9s; }
-.drw-pt:nth-of-type(8) { left: 76%; top: 90%; animation-delay: 2.3s; }
-@keyframes drwPt { 0%, 100% { opacity: 0; transform: translateY(0) scale(.7); } 50% { opacity: .9; transform: translateY(-14px) scale(1.15); } }
-
-/* ── 状态机（DRW.phase → 舞台 data-phase）── */
-/* preparing：光晕收紧、卡包蓄势 */
-.drw-stage[data-phase="preparing"] .drw-halo { animation-duration: .8s; opacity: 1; }
-.drw-stage[data-phase="preparing"] .drw-pack { animation: drwCharge .36s ease-out both; }
-@keyframes drwCharge { 0% { transform: scale(1); } 55% { transform: scale(1.06) translateY(-4px); } 100% { transform: scale(1.02); } }
-/* shaking：蓄力抖动，幅度渐增 */
-.drw-stage[data-phase="shaking"] .drw-pack { animation: drwShake .5s cubic-bezier(.36, .07, .19, .97) both; }
-@keyframes drwShake {
-  0%, 100% { transform: translate(0, 0) rotate(0deg) scale(1.02); }
-  18% { transform: translate(-3px, 2px) rotate(-1.4deg) scale(1.04); }
-  36% { transform: translate(4px, -2px) rotate(1.8deg) scale(1.06); }
-  54% { transform: translate(-6px, 3px) rotate(-2.4deg) scale(1.09); }
-  72% { transform: translate(8px, -4px) rotate(3.2deg) scale(1.12); }
-  88% { transform: translate(-10px, 4px) rotate(-3.6deg) scale(1.14); }
+/* 左上角常驻像素动效 */
+.nm-fxl { flex: none; width: 46px; height: 46px; display: grid; place-items: center; }
+.nm-fxl canvas { display: block; image-rendering: pixelated; image-rendering: crisp-edges; filter: drop-shadow(0 0 10px rgba(120, 200, 255, .45)); }
+.nm-brand { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 12px; justify-content: center; }
+.nm-brand b {
+  font-size: clamp(15px, 1.5vw, 21px); font-weight: 900; letter-spacing: .34em; font-style: italic;
+  background: linear-gradient(92deg, #fff, #ff9ec4 46%, #ffd866);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  white-space: nowrap;
 }
-/* opening/shuffling/revealing/result：上下分离 + 层叠卡片淡出；下一轮 preparing 时两半顺着过渡合回去 */
-.drw-stage[data-phase="opening"] .drw-half.top, .drw-stage[data-phase="shuffling"] .drw-half.top,
-.drw-stage[data-phase="revealing"] .drw-half.top, .drw-stage[data-phase="result"] .drw-half.top {
-  transform: translate(-14%, -150%) rotate(-14deg); opacity: 0; }
-.drw-stage[data-phase="opening"] .drw-half.bot, .drw-stage[data-phase="shuffling"] .drw-half.bot,
-.drw-stage[data-phase="revealing"] .drw-half.bot, .drw-stage[data-phase="result"] .drw-half.bot {
-  transform: translate(12%, 150%) rotate(10deg); opacity: 0; }
-.drw-stage[data-phase="opening"] .drw-lyr, .drw-stage[data-phase="shuffling"] .drw-lyr,
-.drw-stage[data-phase="revealing"] .drw-lyr, .drw-stage[data-phase="result"] .drw-lyr {
-  opacity: 0; transition: opacity .4s; }
-.drw-stage[data-phase="opening"] .drw-pt, .drw-stage[data-phase="shuffling"] .drw-pt,
-.drw-stage[data-phase="revealing"] .drw-pt, .drw-stage[data-phase="result"] .drw-pt { opacity: 0; }
-/* 开包强光 */
-.drw-flash { position: absolute; z-index: 3; width: min(200cqh, 140cqw); aspect-ratio: 1; border-radius: 50%; pointer-events: none; opacity: 0;
-  background: radial-gradient(closest-side, rgba(255, 255, 255, .95), rgba(165, 180, 255, .55) 45%, transparent 72%); }
-.drw-stage[data-phase="opening"] .drw-flash { animation: drwFlash .46s ease-out both; }
-@keyframes drwFlash { 0% { opacity: 0; transform: scale(.3); } 30% { opacity: 1; } 100% { opacity: 0; transform: scale(1.5); } }
+.nm-brand span { font-size: 12.5px; font-weight: 700; color: #7f9bb8; letter-spacing: .22em; white-space: nowrap; }
+.nm-right { flex: none; display: flex; align-items: center; gap: 12px; }
+/* 点券：金色菱形 + 数字 */
+.nm-vp { display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px; border-radius: 999px;
+  border: 1px solid #3d5880; background: rgba(10, 24, 40, .8); font-size: 13px; font-weight: 800; color: #ffd86d; }
+.nm-vp i { font-style: normal; font-size: 14px; color: #f5c542; text-shadow: 0 0 10px rgba(245, 197, 66, .8); }
+.nm-vp b { font-size: 15px; letter-spacing: .04em; }
+.nm-vp em { font-style: normal; font-size: 11px; font-weight: 700; color: #7f9bb8; letter-spacing: .1em; }
+.nm-me { display: inline-flex; }
+.nm-x { flex: none; width: 32px; height: 32px; padding: 0; appearance: none; cursor: pointer; line-height: 1;
+  font-size: 13px; font-family: inherit; color: #9fb6cf;
+  background: rgba(18, 38, 60, .9); border: 1px solid #3d5880; border-radius: 50%; }
+.nm-x:hover { color: #fff; border-color: #ff5b8a; background: rgba(78, 22, 44, .9); }
 
-/* ── 一叠牌 ──
-   8 张背面朝上的牌全部叠在舞台正中（grid 同一个格子），只靠 --i / --n / --dir / --amp 四个内联变量
-   分化出扇形错位、左右分组、洗牌幅度。牌的尺寸是「结果卡」的尺寸，洗牌时整体缩到 84%，
-   收尾那一下再长回 100%，看起来像被推到眼前。 */
-.drw-cards { position: absolute; z-index: 4; inset: 0; display: grid; place-items: center; pointer-events: none; }
+/* 头像（老师 / 学生共用一个圆盘）：有图显示图，没有就首字 + 色相底 */
+.drw-av { flex: none; width: 34px; height: 34px; border-radius: 50%; overflow: hidden;
+  display: grid; place-items: center; font-style: normal; font-size: 14px; font-weight: 900; color: #061018;
+  background: radial-gradient(circle at 34% 28%, hsl(var(--h, 268) 92% 82%), hsl(var(--h, 268) 62% 44%) 62%, hsl(var(--h, 268) 58% 26%));
+  border: 1px solid rgba(255, 255, 255, .5); box-shadow: 0 0 14px rgba(140, 96, 255, .5); }
+.drw-av.has-img { background: #0b1622; }
+.drw-av img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* ---------- 班级 tab ---------- */
+.drw-tabrow { flex: none; padding: 8px 18px 0; display: flex; align-items: center; gap: 10px; min-height: 40px; }
+.drw-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.drw-tabs button { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font: inherit;
+  font-size: 13px; font-weight: 700; padding: 6px 12px; border-radius: 9px;
+  color: #a8c0d8; background: rgba(12, 28, 46, .9); border: 1px solid #2c4a6c; }
+.drw-tabs button em { font-style: normal; font-size: 11px; font-weight: 800; padding: 1px 6px; border-radius: 6px;
+  background: rgba(120, 170, 220, .16); color: #8fb2d2; }
+.drw-tabs button.on { color: #14100a; border-color: #ffc85c;
+  background: linear-gradient(135deg, #f7bd38, #cf7a13); }
+.drw-tabs button.on em { background: rgba(0, 0, 0, .18); color: #2a1c05; }
+.drw-clsname { font-size: 13px; font-weight: 800; color: #b8cbe0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------- 舞台 / 卡组 ---------- */
+.drw-stage { flex: 1; min-height: 0; position: relative; display: grid; place-items: center;
+  padding: 6px 18px 2px; overflow: hidden; }
+.drw-stage::before { content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(closest-side at 50% 46%, rgba(90, 150, 255, .14), transparent 76%); }
+
+.drw-grid {
+  position: relative; z-index: 1; width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  gap: var(--gap, 12px);
+  /* JS 的 drwFit() 会覆盖这三个；下面只是 jsdom / 未布局时的兜底 */
+  --cw: 150px;
+  --ch: 326px;
+}
+/* 空位：没被抽的卡位暗掉，让老师一眼看出这组翻几张 */
+.drw-slot { flex: none; width: var(--cw); height: var(--ch); border-radius: 12px;
+  display: grid; place-items: center;
+  border: 1px dashed rgba(120, 160, 200, .26); background: rgba(10, 22, 38, .5);
+  animation: drwDeal .42s both; animation-delay: calc(var(--i, 0) * 45ms); }
+.drw-slot::after { content: ""; width: 7px; height: 7px; border-radius: 50%; background: rgba(120, 160, 200, .3); }
+
+/* ---------- 一张牌 ---------- */
 .drw-card {
-  grid-area: 1 / 1;
-  height: var(--ch); width: var(--cw);
-  perspective: calc(var(--cw) * 3.2);
-  transform-origin: 50% 50%;
-  opacity: 0; will-change: transform, opacity;
-  filter: drop-shadow(0 calc(var(--ch) * .04) calc(var(--ch) * .09) rgba(0, 0, 0, .58));
-  /* 扇形错位：中间那张正着，两边依次偏出去并带一点倾角 */
-  --mid: calc((var(--n, 8) - 1) / 2);
-  --fx: calc((var(--i, 0) - var(--mid)) * 1.5cqw);
-  --fy: calc((var(--i, 0) - var(--mid)) * .35cqh);
-  --fro: calc((var(--i, 0) - var(--mid)) * 1.7deg);
-  --zs: .84;
-  /* 洗牌：--dir 决定往左还是往右（奇偶交错），--amp 让每张幅度都不一样 */
-  --dx: calc(var(--dir, 1) * var(--amp, 1) * 22cqw);
-  --dr: calc(var(--dir, 1) * var(--amp, 1) * 10deg);
+  flex: none; position: relative; width: var(--cw); height: var(--ch);
+  perspective: calc(var(--cw) * 3.4);
+  animation: drwDeal .42s cubic-bezier(.2, .8, .3, 1) both;
+  animation-delay: calc(var(--i, 0) * 45ms);
+  will-change: transform;
 }
-/* opening：从卡包里甩出一叠牌，落到扇形位置 */
-.drw-stage[data-phase="opening"] .drw-card { animation: drwDeal .46s cubic-bezier(.2, .8, .3, 1.02) both; }
 @keyframes drwDeal {
-  0% { opacity: 0; transform: translate(0, calc(var(--ch) * .1)) rotate(calc(var(--fro) * 1.8)) scale(.3); }
-  45% { opacity: 1; }
-  72% { transform: translate(calc(var(--fx) * 1.16), calc(var(--fy) * 1.16)) rotate(calc(var(--fro) * 1.16)) scale(.9); }
-  100% { opacity: 1; transform: translate(var(--fx), var(--fy)) rotate(var(--fro)) scale(var(--zs)); }
-}
-/* shuffling：左右分堆 → 交错 → 再来一轮（幅度更小）→ 收成一摞。
-   中间几个关键帧的间隔在变大，就是"越洗越慢"的感觉；不用 JS 逐帧算。 */
-.drw-stage[data-phase="shuffling"] .drw-card { animation: drwWash 1.76s cubic-bezier(.42, 0, .58, 1) both; }
-@keyframes drwWash {
-  0% { opacity: 1; transform: translate(var(--fx), var(--fy)) rotate(var(--fro)) scale(var(--zs)); }
-  8% { transform: translate(calc(var(--fx) + var(--dx) * .12), calc(var(--fy) - 1.2cqh)) rotate(calc(var(--fro) + var(--dr) * .3)) scale(var(--zs)); }
-  22% { transform: translate(calc(var(--fx) + var(--dx)), calc(var(--fy) - 2.4cqh)) rotate(calc(var(--fro) + var(--dr) * 2.1)) scale(calc(var(--zs) * .97)); }
-  40% { transform: translate(calc(var(--fx) - var(--dx) * .38), calc(var(--fy) + 1cqh)) rotate(calc(var(--fro) - var(--dr) * .85)) scale(var(--zs)); }
-  56% { transform: translate(calc(var(--fx) + var(--dx) * .74), calc(var(--fy) - 1.7cqh)) rotate(calc(var(--fro) + var(--dr) * 1.5)) scale(calc(var(--zs) * .98)); }
-  72% { transform: translate(calc(var(--fx) - var(--dx) * .3), calc(var(--fy) + .7cqh)) rotate(calc(var(--fro) - var(--dr) * .55)) scale(var(--zs)); }
-  88% { transform: translate(calc(var(--fx) * .22), calc(var(--fy) * .2 - 1.2cqh)) rotate(calc(var(--fro) * .25)) scale(calc(var(--zs) * 1.03)); }
+  0% { opacity: 0; transform: translateY(22px) scale(.94); }
   100% { opacity: 1; transform: none; }
 }
-/* revealing：没抽中的牌沉下去淡出，抽中的那张升起来、放大，同时翻面 */
-.drw-stage[data-phase="revealing"] .drw-card { animation: drwDeckOut .5s ease-in both; }
-@keyframes drwDeckOut { 0% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translate(0, 7cqh) scale(.72); } }
-.drw-stage[data-phase="revealing"] .drw-card.win { animation: drwWinOut .7s cubic-bezier(.2, .8, .3, 1) both; z-index: 99; }
-@keyframes drwWinOut {
+.drw-cardin {
+  position: relative; width: 100%; height: 100%;
+  transform-style: preserve-3d;
+  transition: transform .66s cubic-bezier(.2, .9, .3, 1);
+}
+/* 翻面：rotateY 180°，正反面各 backface-visibility:hidden，所以只看得到应该看的那一面 */
+.drw-card.is-flip .drw-cardin { transform: rotateY(180deg); }
+
+.drw-cback-wrap, .drw-cface {
+  position: absolute; inset: 0; border-radius: 12px;
+  backface-visibility: hidden; -webkit-backface-visibility: hidden;
+  transform: rotateY(0deg);
+  overflow: hidden;
+}
+.drw-cface { transform: rotateY(180deg); }
+
+/* ---------- 牌背：深紫黑底 + 霓虹边框 + 中央菱形几何花纹 ---------- */
+.drw-cback {
+  position: absolute; inset: 0; border-radius: 12px; overflow: hidden;
+  background: linear-gradient(158deg, #1b2c46 0%, #0a1626 46%, #050b14 100%);
+  border: 1px solid #446281;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .07), 0 10px 30px rgba(0, 0, 0, .55);
+}
+.drw-cback::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(150deg, rgba(255, 255, 255, .08), transparent 46%, rgba(0, 0, 0, .35)); }
+/* 两个 45° 旋转的方框，就是夜市牌背那个菱形套菱形 */
+.nm-dia { position: absolute; border: 1px solid rgba(93, 143, 190, .5); transform: rotate(45deg); pointer-events: none; }
+.nm-dia.d1 { inset: 24%; }
+.nm-dia.d2 { inset: 38%; border-color: rgba(239, 122, 183, .48); }
+.nm-sig { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  font-style: normal; font-weight: 400; color: #b9d7f5; line-height: 1;
+  font-size: calc(var(--cw) * .2); text-shadow: 0 0 18px rgba(120, 180, 255, .7); }
+.drw-cback small { position: absolute; left: 4%; right: 4%; bottom: 7%; text-align: center;
+  font-size: calc(var(--cw) * .056); letter-spacing: .05em; color: #6f87a3; font-weight: 700;
+  white-space: nowrap; }
+
+/* ---------- 稀有度：同一套变量，牌背和牌面都用 ---------- */
+.drw-card[data-r="blue"] { --rc: var(--r-blue); --rg: var(--rg-blue); }
+.drw-card[data-r="green"] { --rc: var(--r-green); --rg: var(--rg-green); }
+.drw-card[data-r="purple"] { --rc: var(--r-purple); --rg: var(--rg-purple); }
+.drw-card[data-r="gold"] { --rc: var(--r-gold); --rg: var(--rg-gold); }
+/* 未翻开的牌背也带一点稀有度味道（夜市里牌背就是按品质上色的） */
+.drw-card[data-r] .drw-cback { border-color: var(--rc); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08), 0 0 calc(var(--cw) * .16) var(--rg); }
+.drw-card[data-r="gold"] .drw-cback { background: linear-gradient(158deg, #4d3308 0%, #1d1509 48%, #6d4309 100%); }
+.drw-card[data-r="purple"] .drw-cback { background: linear-gradient(158deg, #3a0e4d 0%, #150f1f 48%, #57207a 100%); }
+.drw-card[data-r="green"] .drw-cback { background: linear-gradient(158deg, #064a44 0%, #061a24 48%, #07756a 100%); }
+.drw-card[data-r="blue"] .drw-cback { background: linear-gradient(158deg, #06375c 0%, #061322 48%, #075683 100%); }
+.drw-card[data-r] .nm-sig { color: var(--rc); text-shadow: 0 0 calc(var(--cw) * .12) var(--rg); }
+
+/* ---------- 牌面：学号 + 姓名 ---------- */
+.drw-cface {
+  display: flex; flex-direction: column; justify-content: space-between;
+  padding: calc(var(--cw) * .07);
+  background: linear-gradient(160deg, #16233a 0%, #0a1120 62%, #060c16 100%);
+  border: 1px solid var(--rc, #4aa8f0);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .06), 0 0 calc(var(--cw) * .2) var(--rg, rgba(74, 168, 240, .4));
+}
+.drw-cface::before { content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(150deg, rgba(255, 255, 255, .12), transparent 34%, rgba(0, 0, 0, .32)); }
+.drw-cface > * { position: relative; }
+
+/* 顶行：左像素小图 · 右「点券」角标（该同学的头像 + 数字） */
+.drw-cn { display: flex; align-items: flex-start; justify-content: space-between; gap: 4px; }
+.drw-fx { flex: none; width: calc(var(--cw) * .26); height: calc(var(--cw) * .26);
+  display: grid; place-items: center; }
+.drw-fx canvas { display: block; image-rendering: pixelated; image-rendering: crisp-edges;
+  filter: drop-shadow(0 0 calc(var(--cw) * .05) var(--rg, rgba(74, 168, 240, .4))); }
+.drw-vp { display: inline-flex; align-items: center; gap: 3px; }
+.drw-vp .drw-av { width: calc(var(--cw) * .2); height: calc(var(--cw) * .2); font-size: calc(var(--cw) * .1); }
+.drw-vp > b:last-child { font-size: calc(var(--cw) * .088); font-weight: 900; color: #ffd86d; letter-spacing: .02em;
+  text-shadow: 0 0 8px rgba(245, 197, 66, .5); white-space: nowrap; }
+
+/* 中间：学号大号 + 姓名（吃掉上下两行之间的全部余量并居中，卡越高越居中） */
+.drw-mid { flex: 1 1 auto; display: flex; flex-direction: column; justify-content: center;
+  text-align: center; gap: calc(var(--cw) * .05); min-height: 0; }
+/* 学号单行不折：11 位学号在 0.6em 字宽下最宽，字号必须 ≤ 卡宽的 13%，再大就折行 */
+.drw-no { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: calc(var(--cw) * .13); font-weight: 900; letter-spacing: -.01em; white-space: nowrap;
+  color: #fff; line-height: 1.1;
+  text-shadow: 0 0 calc(var(--cw) * .14) var(--rg, rgba(74, 168, 240, .4)), 0 2px 6px rgba(0, 0, 0, .6); }
+.drw-nm { font-size: calc(var(--cw) * .163); font-weight: 900; line-height: 1.14; color: #eaf3ff;
+  overflow-wrap: anywhere; max-height: 2.4em; overflow: hidden; }
+.drw-card[data-r="gold"] .drw-nm { color: #ffe9a8; }
+
+/* 底行：稀有度标签 + 第 N 组 */
+.drw-tag { display: flex; align-items: center; justify-content: space-between; gap: 4px;
+  border-top: 1px solid rgba(255, 255, 255, .16); padding-top: calc(var(--cw) * .035); }
+.drw-rar { font-style: normal; font-size: calc(var(--cw) * .085); font-weight: 900; letter-spacing: .14em;
+  color: var(--rc, #4aa8f0); }
+.drw-tag span { font-size: calc(var(--cw) * .085); font-weight: 700; color: rgba(255, 255, 255, .62);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* 揭示瞬间：每张牌翻到位时，牌面亮一下（一次性，不常驻，省电） */
+.drw-card.is-flip .drw-cface { animation: drwPop .5s cubic-bezier(.2, 1.3, .4, 1) both; }
+@keyframes drwPop {
+  0% { filter: brightness(1.9) saturate(1.4); }
+  100% { filter: brightness(1) saturate(1); }
+}
+/* 金卡额外一圈光环：只有 4 星才配，也只在静止后跑，不会一直烧 GPU */
+.drw-stage[data-phase="revealed"] .drw-card[data-r="gold"] .drw-cface { animation: drwGold 2.4s ease-in-out .4s infinite; }
+@keyframes drwGold {
+  50% { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .1), 0 0 calc(var(--cw) * .34) rgba(245, 197, 66, .75); }
+}
+
+/* 刷新卡组：220ms 洗牌过渡（和 JS 里 drwRefresh 的 220 对上） */
+.drw-grid.is-washing .drw-card { animation: drwWash .22s cubic-bezier(.4, 0, .6, 1) both; }
+.drw-grid.is-washing .drw-slot { animation: drwWashSlot .22s ease both; }
+@keyframes drwWash {
   0% { opacity: 1; transform: none; }
-  55% { opacity: 1; transform: translate(0, -2.4cqh) rotate(-2.2deg) scale(1.11); }
-  100% { opacity: 1; transform: translate(0, 0) rotate(0deg) scale(1.05); }
+  45% { opacity: .55; transform: translateY(-10px) rotate(4deg) scale(.94); }
+  100% { opacity: 0; transform: translateY(14px) rotate(-3deg) scale(.9); }
 }
-/* 牌面 */
-.drw-cardin { position: relative; width: 100%; height: 100%; transform-style: preserve-3d;
-  transition: transform .62s cubic-bezier(.3, 1.05, .4, 1) .06s; }
-.drw-stage[data-phase="revealing"] .drw-card.win .drw-cardin,
-.drw-stage[data-phase="result"] .drw-card.win .drw-cardin { transform: rotateY(180deg); }
-.drw-cback, .drw-cface { position: absolute; inset: 0; border-radius: 18px; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
-.drw-cback { border: 2px solid rgba(108, 140, 255, .6);
-  background: radial-gradient(46% 30% at 50% 34%, rgba(108, 140, 255, .4), transparent 70%), linear-gradient(155deg, #243258, #131c36);
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, .1) inset; }
-.drw-cback::before { content: ''; position: absolute; inset: 10px; border-radius: 12px; border: 1px dashed rgba(139, 92, 246, .55);
-  background: repeating-linear-gradient(45deg, rgba(108, 140, 255, .08) 0 8px, transparent 8px 16px); }
-.drw-cback::after { content: '✦'; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
-  color: #9db4ff; font-size: clamp(30px, 11cqh, 96px); text-shadow: 0 0 18px rgba(108, 140, 255, .8); }
-/* 结果卡正面：姓名最大（跟着卡片大小走），组号·学号次级，「本轮抽中」金色标签 */
-.drw-cface { transform: rotateY(180deg); display: grid; align-content: center; justify-items: center;
-  gap: 2.2cqh; text-align: center; padding: 4% 5%;
-  background: linear-gradient(160deg, #1b2748, #0e1528 75%); border: 2px solid #ffc857;
-  box-shadow: 0 0 0 1px rgba(255, 200, 87, .35) inset, 0 0 26px rgba(255, 200, 87, .3); }
-.drw-cface em { font-style: normal; font-weight: 800; font-size: clamp(11px, 2.6cqh, 30px); letter-spacing: .18em; color: #0b1020;
-  background: linear-gradient(120deg, #ffd98a, #ffc857); padding: 4px 14px; border-radius: 999px; white-space: nowrap; }
-.drw-cface b { font-size: clamp(24px, min(15cqh, 16cqw), 150px); line-height: 1.12; font-weight: 900; color: #fff;
-  text-shadow: 0 0 22px rgba(255, 200, 87, .55), 0 2px 10px rgba(0, 0, 0, .5); max-width: 100%; overflow-wrap: anywhere; }
-.drw-cface span { font-weight: 700; font-size: clamp(12px, 3.1cqh, 36px); color: #b8c4e6; }
-/* 揭示瞬间：名字弹一下 + 卡面金光呼吸 */
-.drw-stage[data-phase="result"] .drw-cface b { animation: drwName .55s cubic-bezier(.2, 1.5, .4, 1) both; }
-@keyframes drwName { 0% { transform: scale(.72); opacity: .4; } 100% { transform: scale(1); opacity: 1; } }
-.drw-stage[data-phase="result"] .drw-card { animation: none; opacity: 0; transform: none; }
-.drw-stage[data-phase="result"] .drw-card.win { opacity: 1; transform: scale(1.05); }
-.drw-stage[data-phase="result"] .drw-card.win .drw-cface { animation: drwGold 1.6s ease-in-out .3s infinite; }
-@keyframes drwGold { 50% { box-shadow: 0 0 0 1px rgba(255, 200, 87, .5) inset, 0 0 40px rgba(255, 200, 87, .55); } }
+@keyframes drwWashSlot { 0% { opacity: 1; } 100% { opacity: 0; } }
 
-/* 关动画偏好 / 低端设备：不演过程，卡片直接亮出结果（JS 侧 drwNoAnim() 也走 fast 路径） */
+/* aria-live 播报区：视觉上藏掉，读屏照常读到 */
+.drw-live { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ---------- 底栏 ---------- */
+.drw-foot {
+  flex: none; min-height: 68px; padding: 10px 18px 14px;
+  display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 12px;
+  border-top: 1px solid #1e3a58;
+}
+.drw-count { display: inline-flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 11px;
+  border: 1px solid #2c4a6c; background: rgba(10, 24, 40, .9); }
+.drw-count > span { font-size: 12.5px; font-weight: 700; color: #8fb2d2; white-space: nowrap; }
+.drw-cbtns { display: inline-flex; gap: 2px; }
+.drw-cbtns button { width: 30px; height: 30px; padding: 0; cursor: pointer; font: inherit; font-size: 14px; font-weight: 800;
+  color: #9fb6cf; background: transparent; border: 0; border-radius: 8px; }
+.drw-cbtns button:hover { color: #fff; background: rgba(120, 170, 220, .16); }
+.drw-cbtns button.on { color: #fff; background: #e53778; }
+.drw-go { cursor: pointer; font: inherit; font-size: 15px; font-weight: 900; letter-spacing: .06em;
+  min-width: 150px; height: 44px; padding: 0 24px; border-radius: 11px;
+  color: #1d1306; border: 1px solid #ffc85c;
+  background: linear-gradient(135deg, #f7bd38, #c66712);
+  box-shadow: 0 10px 26px -14px #ffc85c; }
+.drw-refresh { cursor: pointer; font: inherit; font-size: 14.5px; font-weight: 800;
+  height: 44px; padding: 0 20px; border-radius: 11px; color: #e8f1ff;
+  border: 1px solid #6b7fff; background: linear-gradient(135deg, #4a54bd, #252d70); }
+.drw-go:hover, .drw-refresh:hover { filter: brightness(1.1); }
+.drw-go:disabled, .drw-refresh:disabled, .drw-cbtns button:disabled { opacity: .5; cursor: default; filter: none; }
+.drw-tip { font-size: 12.5px; font-weight: 700; color: #ffd86d; white-space: nowrap; }
+.drw-hint { font-size: 13px; font-weight: 600; color: #8fb2d2; }
+
+/* ---------- 关动画偏好 / 省电：不演过程，牌直接摆好 ---------- */
 @media (prefers-reduced-motion: reduce) {
-  .drw-stage, .drw-stage * { animation: none !important; transition-duration: .01s !important; }
-  .drw-card { opacity: 0 !important; }
-  .drw-card.win { opacity: 1 !important; }
-  .drw-pt { opacity: 0 !important; }
+  .drw-card, .drw-slot, .drw-cface, .drw-grid.is-washing .drw-card { animation: none !important; }
+  .drw-cardin { transition-duration: .01s !important; }
 }
-html.is-lite .drw-stage, html.is-lite .drw-stage * { animation: none !important; transition-duration: .01s !important; }
-html.is-lite .drw-card { opacity: 0 !important; }
-html.is-lite .drw-card.win { opacity: 1 !important; }
-html.is-lite .drw-pt { opacity: 0 !important; }
+html.is-lite .drw-card, html.is-lite .drw-slot, html.is-lite .drw-cface { animation: none !important; }
+html.is-lite .drw-cardin { transition-duration: .01s !important; }
+html.hx-lite .drw-card, html.hx-lite .drw-slot, html.hx-lite .drw-cface { animation: none !important; }
+html.hx-lite .drw-cardin { transition-duration: .01s !important; }
 
-/* 底栏：抽中谁 + 第几组 + 按钮。
-   高度写死（不是 min-height）：底栏从「提示一行」变成「结果+两个按钮」时高度一变，
-   舞台高度跟着变，卡片尺寸按 cq 单位算就会在揭示那一刻缩一下 —— 钉死就没事了。 */
-.drw-foot { flex: none; display: flex; align-items: center; gap: 14px; padding: 12px 14px; border-top: 1px solid var(--edge);
-  height: 78px; box-sizing: border-box; }
-.drw-foot .btn { flex: none; min-height: 44px; }
-.drw-hint { color: var(--dim); font-size: 13px; font-weight: 600; }
-.drw-res { flex: 1; min-width: 0; }
-.drw-res b { display: block; font-size: 15px; }
-.drw-res b em { font-style: normal; font-size: 22px; color: #f59e0b; }
-.drw-res span { display: block; color: var(--dim); font-size: 13px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-/* ---------- 弹窗外壳 ---------- */
-/* 舞台要装下一叠牌，窗口比原来大一圈：宽到 1180、高到 94vh（基础样式里的 max-height:88vh 要一起放开，
-   否则高度还是被卡在 88vh）。卡片尺寸按舞台高度算，所以窗口拖小也不会溢出。 */
-dialog.draw-dlg { width: min(1180px, 96vw); height: min(980px, 94vh); max-height: 94vh; min-height: 420px; min-width: 340px; }
-/* 标题栏：标题不长，把剩余宽度留给副标题（当前是哪个班）；副标题单行截断，别挤掉 ✕ */
-dialog.draw-dlg .dlg-head h3 { flex: none; }
-dialog.draw-dlg .dlg-head small { flex: 1; min-width: 0; margin: 0; text-align: right;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* .drw 撑满内容区剩余高度：舞台靠它撑到整屏，动画才不会挤成一个小方块 */
-dialog.draw-dlg .dlg { padding: 14px 16px 12px; }
-dialog.draw-dlg .dlg > .drw { flex: 1 1 auto; min-height: 0; }
-dialog.draw-dlg .drw { display: flex; flex-direction: column; height: 100%; min-height: 0; }
-
-/* 顶栏入口按钮：和旁边的 chip/图标同一行，别做得太重 */
-.draw-entry { display: inline-flex; align-items: center; gap: 5px; flex: none; }
-
-/* 手机竖屏：舞台铺满宽度，卡片按宽度算（--ch 里的 76cqw 会先咬住），姓名靠 clamp 兜底不小于 24px */
-@media (max-width: 560px) {
-  /* 底栏窄：结果说明自己占一行再放按钮，别把名字挤成竖排（换行了就不能钉死高度） */
-  .drw-foot { flex-wrap: wrap; height: auto; min-height: 78px; }
-  .drw-res { flex: 1 1 100%; }
-  .drw-res b em { font-size: 18px; }
-  .drw-bar { gap: 8px; padding: 8px 10px; }
-  .drw-go { padding: 0 18px; font-size: 15px; letter-spacing: 0; }
+/* ---------- 窄屏：6 张排不下就两行（3+3），卡片按行数缩 ---------- */
+@media (max-width: 900px) {
+  .nm-brand span { display: none; }
+  .drw-grid { flex-wrap: wrap; align-content: center; }
+  .drw-stage { padding: 4px 12px; }
+  .drw-foot { gap: 8px; }
+  .drw-tip { flex: 1 1 100%; text-align: center; }
 }
-@media (max-width: 700px) {
-  /* 手机上抽人满屏更实用（舞台越大越好点卡包） */
-  dialog.draw-dlg { width: auto; height: 100vh; max-height: 100vh; min-height: 0; }
+@media (max-width: 620px) {
+  dialog.draw-dlg { width: auto; height: 100vh; max-height: 100vh; border-radius: 0; }
+  .nm-top { height: 54px; padding: 0 12px; gap: 8px; }
+  .nm-fxl { width: 36px; height: 36px; }
+  .nm-brand b { font-size: 14px; letter-spacing: .2em; }
+  .nm-vp { display: none; }
+  .drw-tabrow { padding: 6px 12px 0; }
+  .drw-go, .drw-refresh { min-width: 0; flex: 1 1 40%; padding: 0 12px; font-size: 14px; }
+  .drw-count { flex: 1 1 100%; justify-content: center; }
 }
 
-/* 矮窗口（横屏手机 844×390、投影上被压扁的窗口）：卡片尺寸本来就是按舞台高度算的，
-   这里只需要把顶栏/底栏压薄，把高度让给舞台。 */
+/* 矮窗口（横屏手机 / 投影上被压扁）：顶栏和底栏压薄，把高度让给卡组 */
 @media (max-height: 560px) {
-  dialog.draw-dlg { height: 96vh; max-height: 96vh; min-height: 0; }
-  dialog.draw-dlg .dlg { padding: 8px 12px 8px; }
-  .drw-bar { padding: 6px 10px; gap: 8px; }
-  .drw-tabs button { padding: 5px 11px; font-size: 13px; }
-  .drw-go { height: 38px; padding: 0 20px; font-size: 15px; letter-spacing: 0; }
-  /* 底栏不许换行占掉舞台：一行放完，结果说明截断 */
-  .drw-foot { flex-wrap: nowrap; height: 56px; padding: 6px 10px; gap: 10px; }
-  .drw-foot .btn { min-height: 38px; padding: 5px 14px; font-size: 12.5px; }
-  .drw-res b { font-size: 13px; }
-  .drw-res b em { font-size: 16px; }
-  .drw-res span { font-size: 11.5px; }
-  .drw-hint { font-size: 12px; }
-  /* 矮窗口里姓名不能太占：卡片本身已经很小，字号跟着收一档 */
-  .drw-cface b { font-size: clamp(20px, min(13cqh, 15cqw), 64px); }
+  dialog.draw-dlg { height: 96vh; max-height: 96vh; }
+  .nm-top { height: 46px; }
+  .nm-fxl { width: 34px; height: 34px; }
+  .drw-tabrow { min-height: 32px; padding-top: 4px; }
+  .drw-foot { min-height: 52px; padding: 6px 14px 8px; }
+  .drw-go, .drw-refresh { height: 38px; font-size: 13.5px; }
+  .drw-cbtns button { width: 26px; height: 26px; font-size: 13px; }
 }
+
+/* 顶栏入口按钮：和旁边的 chip/图标同一行 */
+.draw-entry { display: inline-flex; align-items: center; gap: 5px; flex: none; }

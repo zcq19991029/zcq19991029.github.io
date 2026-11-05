@@ -24,7 +24,10 @@
     //   · 用「正放 + 倒放」拼成 10s 无缝循环（620KB），首尾帧完全相同，看不出接缝；
     //   · `bg/aurora.jpg` 是海报帧，视频解码好之前先把这一帧铺上，避免黑屏闪一下；
     //   · 省电模式（hx-lite）和系统「减少动态效果」只显示海报帧，不播视频（一体机省 GPU）。
-    aurora: { name: '极光 · 动态', video: 'bg/aurora.mp4', poster: 'bg/aurora.jpg', op: 100 },
+    // mirror：这条片子是「正放 5 秒 + 倒放 5 秒」拼的（ffprobe 抽帧验证过：第 f 帧与第 299-f 帧
+    // 几乎完全相同，平均差 1.30，而相邻帧平均差 3.10）。倒放那半段就是用户说的「播放完再倒放一遍」，
+    // 所以播放层只取前一半（0～5s）当循环周期，靠交叉淡入接回开头 —— 见 bgTick()。
+    aurora: { name: '极光 · 动态', video: 'bg/aurora.mp4', poster: 'bg/aurora.jpg', op: 100, mirror: 1 },
     custom: { name: '自己的图', op: 70 }
   };
   // VER 4（2026-11-04 深夜）：背景项合并成上面三档，默认改成极光视频。
@@ -66,9 +69,26 @@
   (function () {
     var vs = document.createElement('style');
     vs.id = 'hx-bgvid-style';
-    vs.textContent = '#hx-bgvid{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;object-position:center;'
-      + 'z-index:-2;pointer-events:none;opacity:var(--hx-bgo,1);background:transparent}'
-      + 'html.hx-lite #hx-bgvid{opacity:var(--hx-bgo,1)}';
+    // 2026-11-04 深夜（bug：手机打开首页变成全屏视频播放器）：
+    //  · pointer-events:none —— 之前只写了 z-index，没写这条。手机上手指点/长按/滑过视频元素，
+    //    Safari 与部分国产内核会把它当成「用户点了媒体」，弹出原生播放器控件、甚至整页接管播放。
+    //    背景壁纸必须是**画**：点不到、选不中、拖不动。
+    //  · z-index:-2 —— 一直写在注释里，样式串里其实也有；这里保留并叠在 body::before(-1) 之下。
+    //  · touch-action:none / user-select:none —— 双保险，禁止滑动/长按选中触发媒体手势。
+    //  · -webkit-user-drag:none —— 桌面端也顺手禁止拖拽成独立窗口。
+    //  · opacity 拆成两层：外层 .hx-bgvid-wrap 吃 --hx-bgo（背景浓度滑杆），
+    //    内层两路只吃 --hx-fade（交叉淡入）。为什么不把 bgo 乘进每一路：
+    //    两路同时半透明时叠加的合成 alpha = o1+o2-o1·o2，比单路更大，整块背景会在淡入中点亮一下。
+    //    把 bgo 提到外层之后，内层永远只有一路"满不透明 + 一路淡出"，合成结果严格等于 bgo。
+    vs.textContent = '.hx-bgvid-wrap{position:fixed;inset:0;z-index:-2;pointer-events:none;'
+      + 'opacity:var(--hx-bgo,1);background:transparent}'
+      + '.hx-bgvid{position:absolute;inset:0;width:100%;height:100%;'
+      + 'object-fit:cover;object-position:center;background:transparent;pointer-events:none;'
+      + 'touch-action:none;user-select:none;-webkit-user-select:none;-webkit-user-drag:none;'
+      + 'opacity:var(--hx-fade,1);'
+      + 'transition:opacity .7s var(--hx-ease,ease);will-change:opacity}'
+      // 屏宽 ≤820px 时一律不挂视频（JS 侧已提前拦掉，这条防「旧缓存 JS + 新 CSS」这种混搭）
+      + '@media (max-width:820px){.hx-bgvid-wrap{display:none!important}}';
     (document.head || document.documentElement).appendChild(vs);
   })();
 
@@ -348,54 +368,207 @@
   //   ② 切到后台标签页 → 暂停；回到前台 → 续播（教室里同时开十几个标签页很常见）；
   //   ③ 打开工具（body.tool，背景被 iframe 完全盖住）→ 暂停，由 index.html 的 show() 调 bgPause 控制。
   // 元素插成 body 第一个孩子、z-index:-2：永远在内容、水印、深色 scrim 的下面。
-  var bgv = null, bgWant = false;
-  function bgVideo(src, poster) {
-    bgWant = !!src;
-    if (!src) {
-      if (bgv) { try { bgv.pause(); } catch (e) { } if (bgv.parentNode) bgv.parentNode.removeChild(bgv); bgv = null; }
+  //
+  // ── 2026-11-04 深夜重写（两个用户报障）──────────────────────────────────
+  // 【报障 A：手机上打开首页直接变成全屏视频播放器，退不掉】
+  //   根因不是 controls（本来就没设），是**背景层太"真"**：
+  //     ① #hx-bgvid 没有 pointer-events:none（样式串里只有 z-index），手机上手指点在/长按在
+  //        这块铺满视口的 video 上，Safari 与部分国产内核当成"用户点了媒体"，弹原生控件、进而接管整页；
+  //     ② 没有 disablepictureinpicture / controlslist / x5-* 属性，微信、QQ 浏览器的 X5 内核会自作主张
+  //        把 <video> 提升成原生播放器（顶部标题栏 + 中间 16:9 + 底部进度条，正是用户截图那个样子）。
+  //   修法两条并行：
+  //     · 样式补 pointer-events:none / z-index:-2 / touch-action:none / user-select:none；
+  //       元素补齐 controls=false、disablePictureInPicture、controlslist、x5-video-player-type=h5-page 等；
+  //     · **移动端根本不建 <video>**（见 bgNoVideo()）—— 没有元素就没有控件可接管，这是治本的那条。
+  //       手机只剩海报帧 bg/aurora.jpg（31KB）铺满，视觉几乎一样，还省掉 634KB 的 h264 和一路解码。
+  // 【报障 B：「播放完 再倒放一遍 不丝滑 没有无缝衔接」】
+  //   ffprobe/ffmpeg 逐帧验证过：aurora.mp4 是「正放 150 帧 + 倒放 150 帧」拼的
+  //   （第 f 帧与第 299-f 帧的平均灰度差 1.30，相邻帧却是 3.10；f149 与 f150 差 0.11 = 同一帧），
+  //   所以那半段倒放是**素材里就有的**，用户看到的就是这个"来回摆"。
+  //   播放层不再整段放 10 秒：只取前一半（0～5s，即 mirror 标志 → loopEnd = duration/2），
+  //   到 4.2s 开始双 video 交叉淡入，接回**开头**，于是永远朝同一个方向流动。
+  //   顺带解决原生 loop 的接缝（同一帧被重复/跳过，会看到一顿）：淡入的 0.7s 里两路叠着，
+  //   接缝被渐变彻底盖掉。
+  //   两路复用同一个 src（浏览器共享缓存，不会多下一次）。
+  var BG_FADE = 700, BG_LEAD = 0.8;         // 淡入时长（和 CSS transition 对齐）/ 提前多少秒换路
+  var bgVids = [], bgCur = 0, bgWant = false, bgTick = null, bgFading = false, bgFadeAt = 0;
+  var bgLoopEnd = 0, bgHalf = false, bgPosterUrl = '';
+
+  // 移动端 / 触屏 / 省电 / 减少动效 → 一个 video 都不建。
+  // 判据（宽 + 无 hover 的粗指针 + 常见移动 UA）：故意不用「有粗指针就关」，
+  // 因为带触摸屏的笔记本、教室一体机也有 (pointer:coarse)，那些机器该正常播；
+  // 加上 (hover:none) 才能把「真的只能摸」的设备和「能摸也能用鼠标」的设备分开。
+  function bgNoVideo() {
+    if (liteOn() || document.documentElement.classList.contains('hx-lite')) return true;
+    if (!window.matchMedia) return false;
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return true;
+    if (matchMedia('(max-width: 820px)').matches) return true;
+    if (matchMedia('(pointer: coarse)').matches && matchMedia('(hover: none)').matches) return true;
+    var ua = navigator.userAgent || '';
+    if (/iPhone|iPod|Windows Phone|Android.+Mobile|IEMobile/i.test(ua)) return true;
+    // iPad 走「桌面版网站」时 UA 是 Macintosh，只能靠触摸点数认出来
+    if (navigator.maxTouchPoints > 1 && /Macintosh/.test(ua)) return true;
+    return false;
+  }
+
+  function bgSetFade(v, k) {
+    if (!v) return;
+    v.style.setProperty('--hx-fade', k ? '1' : '0');
+  }
+  // 两路的上下关系用 z-index 显式定死（不能只靠 DOM 顺序：insertBefore 会让先插的那路反而在上面）。
+  // 都在 -1 以下：-2 = 正在淡入的那路（上），-3 = 垫在下面一直全不透明的那路（下）。
+  // 为什么不让两路同时半透明交叉：0.5 + 0.5 叠起来，合成后的不透明度只有 0.75，
+  // 中间那 0.35 秒整块背景会往页面底色沉一下 —— 每 5 秒一次的亮度脉冲，比接缝还显眼。
+  // 改成「新的从 0 淡上来、旧的始终满不透明垫底」，全程没有亮度凹谷，只有两帧叠影的柔化。
+  function bgSetZ(v, onTop) {
+    if (!v) return;
+    v.style.zIndex = onTop ? '-2' : '-3';
+  }
+  function bgStopAll() {
+    for (var i = 0; i < bgVids.length; i++) { try { bgVids[i].pause(); } catch (e) { } }
+  }
+  function bgDrop() {
+    bgStopAll();
+    if (bgTick) { clearInterval(bgTick); bgTick = null; }
+    for (var i = 0; i < bgVids.length; i++) if (bgVids[i].parentNode) bgVids[i].parentNode.removeChild(bgVids[i]);
+    bgVids = []; bgCur = 0; bgFading = false; bgLoopEnd = 0;
+  }
+  var bgWrap = null;
+  function bgMake() {
+    // 两路共用一个定位父层：--hx-bgo 挂在外层，交叉淡入只在内层动。见上面 style 那段注释。
+    bgWrap = document.createElement('div');
+    bgWrap.className = 'hx-bgvid-wrap';
+    bgWrap.setAttribute('aria-hidden', 'true');
+    for (var i = 0; i < 2; i++) {
+      var v = document.createElement('video');
+      // 第一路保留 #hx-bgvid 这个 id：外部（验收脚本、旧样式缓存）可能按它找元素
+      if (!i) v.id = 'hx-bgvid';
+      v.className = 'hx-bgvid';
+      v.setAttribute('aria-hidden', 'true');
+      // muted 必须在插入 DOM **之前**写好，否则移动端自动播放策略直接拒
+      v.muted = true; v.defaultMuted = true;
+      v.setAttribute('muted', '');
+      v.playsInline = true;
+      v.setAttribute('playsinline', ''); v.setAttribute('webkit-playsinline', '');
+      // 不让任何内核把这块背景画当成"可播放的媒体"（X5 / 部分国产内核的接管开关）
+      v.controls = false;
+      v.disablePictureInPicture = true;
+      v.setAttribute('disablepictureinpicture', '');
+      v.setAttribute('controlslist', 'nodownload nofullscreen noplaybackrate noremoteplayback');
+      v.setAttribute('x5-video-player-type', 'h5-page');
+      v.setAttribute('x5-video-player-fullscreen', 'false');
+      v.setAttribute('x5-playsinline', 'true');
+      v.setAttribute('tabindex', '-1');
+      // loop 交给 bgStep() 手动管：要在片尾之前换路，原生 loop 会先跳到 0 再淡，闪一帧
+      v.loop = false;
+      v.preload = 'auto';
+      bgSetFade(v, i === 0);
+      bgSetZ(v, i === 0);
+      bgWrap.appendChild(v);
+      bgVids.push(v);
+    }
+    document.body.insertBefore(bgWrap, document.body.firstChild);
+  }
+  // 换路：旧那一路保持满不透明垫在下面，新那一路叠在上面从 0 淡到 1。
+  // 淡到 1 之后旧的被完全盖住，这时再把它停下、透明度归零 —— 这一步在屏幕上不可见，
+  // 所以全程整块背景的合成 alpha 恒等于 1，既没有接缝一帧，也没有"亮度凹一次"的闪烁。
+  function bgSwap() {
+    var cur = bgVids[bgCur], nxt = bgVids[1 - bgCur];
+    if (!cur || !nxt) return;
+    bgSetZ(cur, false); bgSetZ(nxt, true);
+    try { nxt.currentTime = 0; } catch (e) { }
+    var p = nxt.play(); if (p && p.catch) p.catch(function () { });
+    bgSetFade(nxt, 1);
+    bgFading = true; bgFadeAt = Date.now();
+  }
+  function bgStep() {
+    if (!bgVids.length || document.hidden || bgWant === false) return;
+    var cur = bgVids[bgCur], nxt = bgVids[1 - bgCur];
+    if (!cur || !nxt) return;
+    if (!bgLoopEnd) {
+      var d = cur.duration;
+      if (!isFinite(d) || !d) return;          // 元数据还没到
+      bgLoopEnd = bgHalf ? d / 2 : d;
+    }
+    if (bgFading) {
+      if (Date.now() - bgFadeAt >= BG_FADE + 80) {
+        // 新的那一路已经满不透明、把旧的完全盖住了：这时停掉旧的、把它透明度归零并送回下层待命。
+        // 顺序很重要 —— 先归零再抬 z 会露出下一个下层，所以必须「旧的先降 opacity（已被盖住看不见）
+        // → 旧的挪到下层 → 新的升到上层」。
+        try { cur.pause(); cur.currentTime = 0; } catch (e) { }
+        bgSetFade(cur, 0); bgSetZ(cur, false); bgSetZ(nxt, true);
+        bgCur = 1 - bgCur; bgFading = false;
+      }
       return;
     }
+    if (cur.paused) return;
+    // 定时器被节流时可能一次跨过整段：直接强制换路，别让旧那一路自己撞到 duration 卡住
+    if (cur.currentTime >= bgLoopEnd - BG_LEAD || cur.currentTime >= bgLoopEnd) bgSwap();
+  }
+  function bgRun(on) {
+    if (!bgVids.length) return;
+    if (bgTick) { clearInterval(bgTick); bgTick = null; }
+    if (!on) { bgStopAll(); return; }
+    // 从暂停里回来时，主那一路可能正停在换路窗口边缘（甚至已经滑进片尾）。
+    // 先把时间拨回开头再起播：否则恢复的那一瞬间会先闪一次"倒放段"。
+    var curV = bgVids[bgCur];
+    if (curV && bgLoopEnd && curV.currentTime >= bgLoopEnd - BG_LEAD) { try { curV.currentTime = 0; } catch (e) { } }
+    for (var i = 0; i < bgVids.length; i++) {
+      // 换路窗口里被 bgPause 停过的话，两路都还在淡入淡出中间态，续播必须两路一起起 ——
+      // 只起主那一路会让另一路卡在中间的不透明度上，画面变成两层半透明叠着
+      if (i !== bgCur && !bgFading) continue;
+      var p = bgVids[i].play(); if (p && p.catch) p.catch(function () { }); // 自动播放被拦时不报错，海报帧兜底
+    }
+    // 不用 rAF：每帧读 currentTime 纯白烧 CPU。150ms 一次足够（换路窗口 0.8s ≈ 5 次采样）
+    bgTick = setInterval(bgStep, 150);
+  }
+  function bgVideo(src, poster, half) {
+    var wasSrc = bgVids.length ? bgVids[0].getAttribute('data-src') : '';
+    bgWant = !!src;
+    if (!src) { bgPosterUrl = ''; bgDrop(); return; }
     if (!document.body) { // 脚本在 <head> 里执行：等 body 出来再插，插完重跑一次 apply
       addEventListener('DOMContentLoaded', function () { apply(); });
       return;
     }
-    if (!bgv) {
-      bgv = document.createElement('video');
-      bgv.id = 'hx-bgvid';
-      bgv.setAttribute('aria-hidden', 'true');
-      bgv.muted = true; bgv.defaultMuted = true; bgv.loop = true; bgv.playsInline = true;
-      bgv.setAttribute('muted', ''); bgv.setAttribute('playsinline', ''); bgv.setAttribute('webkit-playsinline', '');
-      bgv.preload = 'auto';
-      document.body.insertBefore(bgv, document.body.firstChild);
-    }
-    if (bgv.getAttribute('data-src') !== src) {
-      bgv.setAttribute('data-src', src);
-      bgv.poster = poster ? root + poster : '';
-      bgv.src = root + src;
-    }
-    if (liteOn() || document.documentElement.classList.contains('hx-lite')
-      || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) {
-      // 省电模式：连视频都不下载（620KB 也别浪费），元素没有 src 时浏览器只显示 poster。
-      // 从「有 src」切到省电模式时要把 src 摘掉并 load()，否则已经下的分片会继续解。
-      if (bgv.getAttribute('src')) {
-        bgv.removeAttribute('src');
-        try { bgv.load(); } catch (e) { }
-        bgv.setAttribute('data-src', '');
-      }
-      try { bgv.pause(); } catch (e) { }
+    bgPosterUrl = poster ? root + poster : '';
+    bgHalf = !!half;
+    if (bgNoVideo()) { bgDrop(); return; }   // 移动端：--hx-img 由 apply() 设成海报帧
+    if (!bgVids.length) bgMake();
+    if (wasSrc === src) {
+      // 同一张片子：只在被降级掉/暂停掉之后重新起播，不重置淡入状态 ——
+      // apply() 会因为改主题色、改透明度被反复调用，每调一次就 reset 会让背景一直闪
+      if (!bgTick) bgRun(true);
       return;
     }
-    var p = bgv.play(); if (p && p.catch) p.catch(function () { }); // 自动播放被拦时不报错，海报帧兜底
+    for (var i = 0; i < 2; i++) {
+      var v = bgVids[i];
+      v.setAttribute('data-src', src);
+      v.poster = bgPosterUrl;
+      v.src = root + src;
+    }
+    bgLoopEnd = 0;
+    bgCur = 0; bgFading = false;
+    bgSetFade(bgVids[0], 1); bgSetFade(bgVids[1], 0);
+    bgRun(true);
   }
   function bgPause(on) { // index.html 打开工具时调用：背景被 iframe 盖住就别再解码了
-    if (!bgv) return;
-    if (on) { try { bgv.pause(); } catch (e) { } }
-    else if (bgWant && !liteOn()) { var p = bgv.play(); if (p && p.catch) p.catch(function () { }); }
+    if (!bgVids.length) return;
+    // 两路都要停：只停主那一路的话，交叉淡入窗口里正好被调到的那条会继续解
+    if (on) bgRun(false);
+    else if (bgWant && !bgNoVideo()) bgRun(true);
   }
   addEventListener('visibilitychange', function () {
-    if (!bgv) return;
-    if (document.hidden) { try { bgv.pause(); } catch (e) { } } else { bgPause(false); }
+    if (!bgVids.length) return;
+    if (document.hidden) bgStopAll(); else bgPause(false);
   });
+  // 视口跨过 820px（手机横竖屏切换、开发者拖窄窗口）时重新判一次：该降级的降级成海报帧、
+  // 该恢复的恢复成视频。只挂在那一根断点上，不会因为普通 resize 反复跑 apply。
+  (function () {
+    if (!window.matchMedia) return;
+    var mq = matchMedia('(max-width:820px)'), last = mq.matches;
+    var on = function () { if (mq.matches !== last) { last = mq.matches; apply(); } };
+    if (mq.addEventListener) mq.addEventListener('change', on); else if (mq.addListener) mq.addListener(on);
+  })();
 
   function apply() {
     var s = get(), m = modeOf(s), a = ACC[s.acc], r = document.documentElement, b = BG[s.bg];
@@ -406,12 +579,17 @@
     // 视频壁纸：图层面自己播，--hx-img 置空，body::before 只留深色模式那层压暗 scrim
     var isVid = !!(b && b.video) && s.bg !== 'none';
     var img = s.bg === 'custom' ? 'url("' + ls(IMG) + '")' : b.img ? 'url("' + root + b.img + '")' : b.css || 'none';
+    // 移动端 / 省电 / 减少动效：不播视频，但**背景照样得有** —— 把海报帧交给 --hx-img，
+    // 走 body::before 那条现成的「铺满 cover + --hx-bgo 透明度」链路，观感和视频帧一模一样，
+    // 且手机不需要下载 634KB 的 mp4。这条是「手机跳成播放器」的治本修法。
+    var vidStill = isVid && bgNoVideo();
+    if (vidStill && b.poster) img = 'url("' + root + b.poster + '")';
     var vars = { '--acc': c, '--acc2': c2, '--acc3': c2, '--acc-h': c2, '--on-acc': s.acc === 'mono' && m === 'dark' ? '#1d1d1f' : '#fff',
       '--accbg': 'color-mix(in srgb, ' + c + ' 14%, transparent)', '--ring': 'color-mix(in srgb, ' + c + ' 40%, transparent)',
-      '--hov': 'color-mix(in srgb, ' + c + ' 10%, transparent)', '--hx-a': s.bg === 'none' ? 1 : s.op / 100, '--hx-img': isVid ? 'none' : img, '--hx-bgo': s.bgo / 100 };
+      '--hov': 'color-mix(in srgb, ' + c + ' 10%, transparent)', '--hx-a': s.bg === 'none' ? 1 : s.op / 100, '--hx-img': isVid && !vidStill ? 'none' : img, '--hx-bgo': s.bgo / 100 };
     for (var k in vars) r.style.setProperty(k, vars[k]);
     r.classList.remove('hx-bgblur'); // 旧版挂的「预糊图」标记，现在没有任何样式依赖它，清掉防止老缓存残留
-    bgVideo(isVid ? b.video : null, isVid ? b.poster : null);
+    bgVideo(isVid ? b.video : null, isVid ? b.poster : null, isVid && b.mirror);
     var meta = document.querySelector('meta[name="theme-color"]'); if (meta) meta.setAttribute('content', m === 'dark' ? '#000000' : '#f5f5f7');
     try { ls('zfz-practice-theme', m); ls('wanxiu-paike-theme', m); ls('ui.theme', JSON.stringify(m)); } catch (e) { }
     for (var i = 0; i < subs.length; i++) try { subs[i](s, m); } catch (e) { }

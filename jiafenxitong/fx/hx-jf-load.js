@@ -60,11 +60,16 @@
   splash.dataset.armed = '1';
 
   // canvas 按 3～4 倍整数放大（像素画非整数缩放会糊），随视口自适应
+  // 2026-11-06 用户：「像素动效和文字匹配总体看起来太小 网页太大 应该需要自适应网页大小和手机端大小」，
+  // 之后又追加「我要保留的是像素动效那一个版本啊」「抽奖卡片太小了不够震撼」——方向已经很清楚：
+  // 像素动效是这块屏幕的主体，必须**大**，不能再是中间一个小方块。
+  // 原来上限是 4 倍、宽度顶到 560：128px 的特效最多 512px，在 1440 宽的屏幕中央只占三分之一。
+  // 现在按「短边的 42%」定目标尺寸，倍数上限放到 8，并保证至少 3 倍（小屏也要看清像素块）。
   function sizeCanvas() {
     var m = mod && mod.meta; if (!m) return;
-    var vw = Math.min(window.innerWidth || 960, 560);
-    var vh = Math.max(200, (window.innerHeight || 640) * 0.5);
-    var k = Math.max(1, Math.min(Math.floor(vw / m.size[0]), Math.floor(vh / m.size[1]), 4));
+    var vw = (window.innerWidth || 960) * 0.92;
+    var vh = (window.innerHeight || 640) * 0.42;
+    var k = Math.max(3, Math.min(Math.floor(vw / m.size[0]), Math.floor(vh / m.size[1]), 8));
     cv.style.width = (m.size[0] * k) + 'px';
     cv.style.height = (m.size[1] * k) + 'px';
   }

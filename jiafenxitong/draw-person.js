@@ -1,22 +1,28 @@
-/* 随机抽人 —— 卡包开包 + 洗牌抽卡（2026-11-06 洗牌版）
+/* 随机抽人 —— 无畏契约「夜市」抽卡版（2026-11-06 夜市版）
  *
- * 流程：卡包浮 → 蓄力抖动 → 开包强光 → 甩出一叠牌（8 张背面）→ 快速洗牌/切牌（速度渐慢）
- *       → 顶上那张升起来翻面 → 揭示。
- * 抽取逻辑没变（结果先算好、动画只负责演、不与上一次重复、busy + 按钮双保险防连点）；
- * 洗牌全程只露背面，中奖那张的姓名要等翻面前一刻才写进 DOM，所以看的人提前猜不到。
+ * 流程：老师先选这一组翻几张（1~6）→ 舞台横排 n 张牌背 → 点「开始翻牌」
+ *       → 依次错峰 3D 翻面（每张间隔 120ms）→ 每张牌正面是【学号 + 姓名】，
+ *         左上角一个随机像素动效，右上角「点券」角标挂该同学的头像，稀有度决定边框与光晕。
+ *       → 「刷新卡组」清空本轮、重新发一组背面牌（数量不变），可以接着翻下一组。
  *
- * ⚠ 接线仿真 src/rank.js 里也有一份同类实现（没有洗牌），两边已经分叉，别互相覆盖。
+ * 稀有度（复刻夜市金 / 紫 / 绿 / 蓝）：蓝 45%、绿 32%、紫 18%、金 5%，每张牌独立摇。
  *
- * 与接线仿真的差别（只有这两条）：
- *   ① 数据源换成小组加分自己的全班名单 —— 接线仿真读 RK.studs[班级id]，这边读 cls.roster；
- *   ② 底栏不要「设为当前选手」（小组加分没有排位选手这个概念），改成「再抽一次 / 关闭」，
- *      结果卡多显示「第 N 组」，抽到人之后老师立刻知道该给哪一组加分。
+ * 抽取逻辑：结果在翻牌前先算好（动画只负责演），同一轮内不重复；
+ *   DRW.drawn 记住本窗口已经翻出来过的人，下一组会先绕开他们，整班发完再从头轮。
+ *   busy + 按钮禁用双保险防连点。
  *
- * 对外接口（app.js 只调这两个）：
- *   JFDrawPerson.open()  —— 打开抽人窗口（自己读当前班级和名单）
- *   JFDrawPerson.ready  —— 名单依赖 app.js 的状态，未就绪时 open() 只提示不动
- * 数据源由 app.js 通过 JFDrawPerson.bind({ classes, rosterOf, curClass }) 注入，
- * 这样本文件不碰 S 这个全局私有对象，两边耦合只在一个函数签名上。
+ * 性能红线（教室一体机 4G/4核）：
+ *   ① 翻牌是纯 CSS transform（rotateY），JS 只在错峰调度时 setTimeout；
+ *   ② 像素动效全页只有一条 rAF，帧率封顶 12fps，动画结束 / 刷新 / 关窗立刻 cancel；
+ *   ③ is-lite、prefers-reduced-motion 下不演过程：直接摆好翻开的牌、像素动效只画静态一帧。
+ *
+ * 头像：小组加分页面没有引 总入口/fx/hx-avatar.js（那个包太重，不为了一个角标去引），
+ *   所以按约定退回首字圆形头像；万一将来页面引了 HXAvatar，frame() 会自动接管。
+ *
+ * 数据源由 app.js 通过 JFDrawPerson.bind({ classes, rosterOf, curClass, toast }) 注入。
+ * 对外接口只有 JFDrawPerson.open() / JFDrawPerson.ready。
+ *
+ * ⚠ 接线仿真 src/rank.js 里还有一份老的抽人实现，两边已经分叉，不要互相覆盖。
  */
 (function () {
   'use strict';
@@ -30,15 +36,16 @@
   /* app.js 注入的数据源。没注入就什么都不做（open() 会提示未就绪） */
   var SRC = null;
 
-  /* 抽人状态机：idle → preparing → shaking → opening → shuffling → revealing → result
-     （异常时 error，按钮变「重试」）
-     last 防着连抽同一个人；pool 是当前班的名单快照。
-     gen 是一轮「打开窗口」的代数：每次 open() 都 +1，正在演的状态机发现代数变了就立刻停手。
-     接线仿真那边窗口只是 display:none 藏起来、DOM 一直在，所以不需要这个；
-     小组加分用的是 <dialog>，关掉再打开会整块重画，老状态机若还活着会把新舞台覆盖成上一轮的残留
-     （实测：切班后一直停在 result、底栏卡在「抽取中…」），必须靠代数把它掐掉。 */
-  var DRW = { cls: null, picked: null, busy: false, phase: 'idle', pool: [], box: null, last: null, gen: 0 };
-  var DRW_CLS_KEY = 'jfdt-draw-cls'; // 记住选的班，下次打开不用重选（一次课一个班）
+  var MAX_CARDS = 6;
+  var CNT_KEY = 'jfdt-draw-count';   // 记住老师上次选的数量
+  var CLS_KEY = 'jfdt-draw-cls';     // 记住选的班（一次课一个班）
+
+  /* 状态机：idle → dealing（发牌）→ flipping（错峰翻面）→ revealed（静止在结果上）
+     refreshing 是刷新卡组的那 220ms 洗牌过渡；error 只在被打断时短暂出现。 */
+  var DRW = {
+    cls: null, count: 6, busy: false, phase: 'idle',
+    pool: [], box: null, round: [], drawn: [], gen: 0, timers: [], cw: 0
+  };
 
   function classes() { return (SRC && SRC.classes && SRC.classes()) || []; }
   function rosterOf(cls) { return (SRC && SRC.rosterOf && SRC.rosterOf(cls)) || []; }
@@ -53,7 +60,7 @@
       return null;
     };
     var mem = null;
-    try { mem = ok(localStorage.getItem(DRW_CLS_KEY)); } catch (e) { }
+    try { mem = ok(localStorage.getItem(CLS_KEY)); } catch (e) { }
     var cur = curClassNow();
     return ok(mem) || ok(cur && cur.id) || list[0].id;
   }
@@ -64,8 +71,8 @@
     return list[0] || null;
   }
 
-  /* 当前班的名单快照：小组加分的 roster 条目是 { name, sid, no }，
-     统一映射成抽人模块认的 { id, name, seq, cls }（seq = 班内序号，没有就不显示学号） */
+  /* 当前班的名单快照：小组加分的 roster 条目是 { name, sid, no }（sid = 学号，no = 班内序号），
+     统一映射成抽人模块认的 { id, name, sid, seq, cls, group } */
   function drwPool() {
     var c = drwCls(); if (!c) return [];
     return rosterOf(c).filter(function (r) {
@@ -74,6 +81,7 @@
       return {
         id: r.sid || r.id || r.name,
         name: r.name,
+        sid: (r.sid == null || r.sid === '' ? '' : String(r.sid)),
         seq: (r.no == null ? null : r.no),
         cls: c.name,
         group: groupLabel(c, r)
@@ -81,8 +89,7 @@
     });
   }
 
-  /* 这个人在当前班分到第几组（没分组就返回空串）。抽到人之后老师要立刻知道给哪一组加分，
-     所以结果卡和底栏都带上组号。members 里按 sid 优先、名字兜底匹配。 */
+  /* 这个人在当前班分到第几组（没分组就返回空串）。抽到人之后老师要立刻知道给哪一组加分。 */
   function groupLabel(cls, r) {
     var gs = (cls && cls.groups) || [];
     for (var i = 0; i < gs.length; i++) {
@@ -97,215 +104,508 @@
     return '';
   }
 
-  function subLine(p) {
-    var bits = [];
-    if (p.group) bits.push(p.group);
-    if (p.seq != null && p.seq !== '') bits.push('班内序号 ' + p.seq);
-    return bits.join(' · ');
+  /* 学号：优先真实学号，没有就退班内序号（都没有显示占位符，绝不空着） */
+  function noOf(p) {
+    if (p.sid) return p.sid;
+    if (p.seq != null && p.seq !== '') return String(p.seq);
+    return '——';
   }
 
+  /* ── 稀有度：复刻夜市金 / 紫 / 绿 / 蓝 ── */
+  var RAR = [
+    { k: 'blue', t: '精良', w: 45, vp: [120, 320] },
+    { k: 'green', t: '稀有', w: 32, vp: [280, 620] },
+    { k: 'purple', t: '史诗', w: 18, vp: [560, 1000] },
+    { k: 'gold', t: '传说', w: 5, vp: [900, 1600] }
+  ];
+  function rollRarity() {
+    var r = Math.random() * 100, acc = 0;
+    for (var i = 0; i < RAR.length; i++) { acc += RAR[i].w; if (r < acc) return RAR[i]; }
+    return RAR[0];
+  }
+
+  /* 名字 / 学号 → 稳定的色相，做首字头像的底色（同一个人每次都一样，不是随机闪色） */
+  function hueOf(p) {
+    var d = 0, s = String(p.id) + String(p.name);
+    for (var i = 0; i < s.length; i++) d = (d * 33 + s.charCodeAt(i)) % 360;
+    return d;
+  }
+  /* 点券数字只是装饰，但同一个人同一稀有度要稳定（不闪），所以用 id 做种子 */
+  function vpOf(p, r) {
+    var d = 0, s = String(p.id);
+    for (var i = 0; i < s.length; i++) { var c = s.charCodeAt(i) - 48; if (c >= 0 && c <= 9) d = (d * 31 + c) % 997; }
+    var span = r.vp[1] - r.vp[0] + 1;
+    return r.vp[0] + (d % span);
+  }
+  /* 头像：有 HXAvatar 就用像素头像（页面目前没引，自动跳过），否则首字 */
+  function avatarHTML(p, size) {
+    var HX = window.HXAvatar;
+    if (HX && typeof HX.frame === 'function' && p.pix) {
+      try {
+        var u = HX.frame(p.pix, size || 96);
+        if (u) return '<b class="drw-av has-img"><img alt="" src="' + esc(u) + '"></b>';
+      } catch (e) { }
+    }
+    return '<b class="drw-av" style="--h:' + hueOf(p) + '">' + esc(String(p.name || '?').slice(0, 1)) + '</b>';
+  }
+
+  /* ══════════ 像素动效：全页一条 rAF，帧率封顶 12fps ══════════ */
+  var FX = { raf: 0, last: 0, items: [], gap: 1000 / 12 };
+
+  function fxPack() { var P = window.PixelFX; return (P && P.effects && P.ids && P.createFx && P.createFrame) ? P : null; }
+
+  /* 造一块像素画布（尺寸按特效 meta.size，CSS 上等比缩到 cssSize 宽） */
+  function fxMake(id, cssSize) {
+    var P = fxPack(); if (!P) return null;
+    var mod = P.effects[id] || P.effects[P.ids[0]]; if (!mod || !mod.meta || !mod.meta.size) return null;
+    var W = mod.meta.size[0], H = mod.meta.size[1];
+    var cv = document.createElement('canvas');
+    cv.width = W; cv.height = H;
+    cv.style.width = cssSize + 'px';
+    cv.style.height = Math.round(cssSize * H / W) + 'px';
+    cv.setAttribute('aria-hidden', 'true');
+    var ctx = null;
+    try { ctx = cv.getContext('2d'); } catch (e) { ctx = null; }
+    if (!ctx || typeof ctx.createImageData !== 'function') return null;   // 无 canvas 环境（jsdom）：静默降级
+    var O = mod.meta.origin || [W / 2, H / 2];
+    return {
+      cv: cv, ctx: ctx, W: W, H: H,
+      img: ctx.createImageData(W, H),
+      fr: P.createFrame(W, H),
+      fx: P.createFx(mod, { x: O[0], y: O[1], seed: (Math.random() * 997) | 0 })
+    };
+  }
+
+  function fxPaint(it, dt) {
+    var P = fxPack(); if (!P) return;
+    if (dt) it.fx.update(dt);
+    P.clearFrame(it.fr);
+    it.fx.draw(it.fr, 'back');
+    it.fx.draw(it.fr, 'front');
+    P.composite(it.fr, it.img.data, null);
+    it.ctx.putImageData(it.img, 0, 0);
+  }
+
+  var rafFn = window.requestAnimationFrame || function (cb) { return setTimeout(function () { cb(performance.now ? performance.now() : Date.now()); }, 16); };
+  var cafFn = window.cancelAnimationFrame || function (id) { clearTimeout(id); };
+
+  function fxTick(now) {
+    FX.raf = 0;
+    if (!FX.items.length) { FX.last = 0; return; }
+    var dt = 0;
+    if (!FX.last) { FX.last = now; dt = 0; }
+    else if (now - FX.last < FX.gap - 1) { FX.raf = rafFn(fxTick); return; }   // 帧率封顶
+    else { dt = Math.min((now - FX.last) / 1000, .12); FX.last = now; }
+    for (var i = 0; i < FX.items.length; i++) {
+      try { fxPaint(FX.items[i], dt); } catch (e) { /* 单个坏掉不影响别的 */ }
+    }
+    FX.raf = rafFn(fxTick);
+  }
+
+  function fxRun() {
+    if (!FX.items.length) return;
+    if (drwNoAnim()) { FX.items.forEach(function (it) { fxPaint(it, 0); }); return; }  // 省电 / 关动画：只画一帧
+    if (!FX.raf) { FX.last = 0; FX.raf = rafFn(fxTick); }
+  }
+
+  /* 停循环 + 清空所有画布引用（刷新卡组、关窗、重新抽都要调） */
+  function fxStop() {
+    if (FX.raf) { cafFn(FX.raf); FX.raf = 0; }
+    FX.last = 0;
+    FX.items.length = 0;
+  }
+
+  /* 往一个容器里挂一个会动的像素动效（id 为空就随机挑）。
+     挂之前先清空容器：刷新 / 落定时会重复调用，不清就会叠出一摞 canvas。 */
+  function fxMount(holder, id, cssSize, startAt) {
+    if (!holder) return null;
+    var P = fxPack(); if (!P) return null;
+    var it = fxMake(id || P.ids[(Math.random() * P.ids.length) | 0], cssSize);
+    if (!it) return null;
+    while (holder.firstChild) holder.removeChild(holder.firstChild);
+    holder.appendChild(it.cv);
+    /* 错开相位：6 张牌同一秒起步会像广播体操，先空推一个随机时长 */
+    if (startAt) { try { it.fx.update(startAt); } catch (e) { } }
+    FX.items.push(it);
+    return it;
+  }
+
+  /* 卡片左上角那颗：落定后一起跑（共享同一条 rAF，不多开循环）。
+     尺寸按卡片实际宽度算（.drw-fx 占卡宽 26%），jsdom 量不到就用 30px 兜底。 */
+  function fxOnCard(holder, cardW) {
+    if (!holder) return null;
+    var px = Math.max(20, Math.min(72, Math.round((cardW || 115) * .3)));
+    return fxMount(holder, '', px, .2 + Math.random() * 1.4);
+  }
+
+  /* ══════════ 渲染 ══════════ */
+
+  function cntOf(c) { return rosterOf(c).filter(function (r) { return r && r.name; }).length; }
+
+  function drwBarHTML() {
+    var list = classes(), cur = drwCls();
+    /* 只有一个班就不摆 tabs（一次课就一个班），直接把班名和人数写在标题区；
+       有多个班才摆 tab 供切换 —— 不管几个班都不会出现「全部班级」这种混抽选项。 */
+    if (list.length > 1) {
+      return '<div class="drw-tabs">' + list.map(function (c) {
+        return '<button type="button" data-c="' + esc(c.id) + '"' + (String(c.id) === String(DRW.cls) ? ' class="on"' : '') + '>' +
+          esc(c.name) + '<em>' + cntOf(c) + '</em></button>';
+      }).join('') + '</div>';
+    }
+    return '<div class="drw-clsname">' + esc(cur ? cur.name : '') + ' · ' + cntOf(cur || {}) + ' 人</div>';
+  }
+
+  /* 顶栏：左上像素动效 / 中间 NIGHT MARKET 标题 / 右上点券 + 老师头像 + 关闭 */
+  function drwTopHTML() {
+    var who = teacherAvatar();
+    return '<header class="nm-top">' +
+      '<div class="nm-fxl" id="drwFxl"></div>' +
+      '<div class="nm-brand"><b>NIGHT MARKET</b><span>抽人夜市</span></div>' +
+      '<div class="nm-right">' +
+        '<span class="nm-vp" title="课堂点券（装饰）"><i aria-hidden="true">✦</i><b>1280</b><em>点券</em></span>' +
+        '<span class="nm-me" title="当前账号">' + who + '</span>' +
+        '<button type="button" class="nm-x" id="drwCloseX" aria-label="关闭">✕</button>' +
+      '</div>' +
+    '</header>';
+  }
+
+  /* 右上角那颗头像 = 华夏工具当前登录老师（顶栏 #userAvatar 已经画好了，直接借过来用）。
+     没有就退回一个「华」字圆盘 —— 绝不空着。 */
+  function teacherAvatar() {
+    var av = document.getElementById('userAvatar');
+    var img = av && av.querySelector('img');
+    if (img && img.getAttribute('src')) return '<b class="drw-av has-img"><img alt="" src="' + esc(img.getAttribute('src')) + '"></b>';
+    var ch = (av && (av.textContent || '').trim()).slice(0, 1) || '华';
+    return '<b class="drw-av" style="--h:268">' + esc(ch) + '</b>';
+  }
+
+  /* 底部工具条：数量 1~6 / 开始翻牌 / 刷新卡组 */
   function drwFootHTML() {
-    var p = DRW.picked;
-    if (!p) return '<span class="drw-hint">点上面「开始抽人」，卡包开启翻出本轮抽中的同学（一次抽一个）。</span>';
-    var sub = subLine(p);
-    return '<div class="drw-res"><b>抽中 <em>' + esc(p.name) + '</em></b><span>' + esc(sub || p.cls || '') + '</span></div>' +
-      '<button class="btn primary" id="drwAgain">再抽一次</button>' +
-      '<button class="btn ghost" id="drwClose">关闭</button>';
+    var btns = '';
+    for (var i = 1; i <= MAX_CARDS; i++) {
+      btns += '<button type="button" data-k="' + i + '"' + (i === DRW.count ? ' class="on"' : '') + '>' + i + '</button>';
+    }
+    var label = DRW.busy ? '翻牌中…' : (DRW.phase === 'revealed' ? '再翻一组 ▶' : '开始翻牌 ▶');
+    var tip = DRW.busy ? '正在翻牌…'
+      : DRW.phase === 'revealed'
+        ? '本轮已翻 ' + DRW.round.length + ' 人 · 可点「刷新卡组」换一组'
+        : '每轮最多 6 人 · 本轮不重复';
+    return '<div class="drw-count"><span>本轮抽取</span><div class="drw-cbtns">' + btns + '</div></div>' +
+      '<button type="button" class="drw-go" id="drwGo"' + (DRW.busy ? ' disabled' : '') + '>' + label + '</button>' +
+      '<button type="button" class="drw-refresh" id="drwRefresh"' + (DRW.busy ? ' disabled' : '') + '>↻ 刷新卡组</button>' +
+      '<span class="drw-tip" id="drwTip">' + tip + '</span>';
+  }
+
+  /* 牌背：深紫黑底 + 霓虹边框 + 中央菱形几何花纹 + 底下一行品牌字 */
+  function backHTML() {
+    return '<div class="drw-cback"><i class="nm-dia d1"></i><i class="nm-dia d2"></i>' +
+      '<b class="nm-sig" aria-hidden="true">◇</b><small>华夏 · NIGHT MARKET</small></div>';
+  }
+
+  /* 发一组牌：effCount 张真卡 + (6-effCount) 个暗掉的空位。
+     空位用 .drw-slot（不是 .drw-card），所以「.drw-card 数量 = 这一组翻几张」永远成立；
+     班里的学生比选的张数还少时（5 人班选 6 张），以人数为准，不摆空白牌。 */
+  function effCount() {
+    var cap = DRW.pool.length || 0;
+    if (!cap) return DRW.count;
+    return Math.max(1, Math.min(DRW.count, cap));
+  }
+
+  function drwGrid(box) {
+    var g = box.querySelector('#drwGrid'); if (!g) return g;
+    var n = effCount(), html = '';
+    for (var i = 0; i < MAX_CARDS; i++) {
+      if (i < n) {
+        html += '<div class="drw-card" data-i="' + i + '" style="--i:' + i + '">' +
+          '<div class="drw-cardin"><div class="drw-cback-wrap">' + backHTML() + '</div>' +
+          '<div class="drw-cface"></div></div></div>';
+      } else {
+        html += '<div class="drw-slot" style="--i:' + i + '" aria-hidden="true"></div>';
+      }
+    }
+    g.innerHTML = html;
+    return g;
+  }
+
+  function faceHTML(p, r) {
+    return '<div class="drw-cn">' +
+        '<i class="drw-fx" data-fx aria-hidden="true"></i>' +
+        '<span class="drw-vp" title="课堂点券（装饰）">' + avatarHTML(p, 96) + '<b>✦' + vpOf(p, r) + '</b></span>' +
+      '</div>' +
+      '<div class="drw-mid"><b class="drw-no">' + esc(noOf(p)) + '</b>' +
+        '<span class="drw-nm">' + esc(p.name) + '</span></div>' +
+      '<div class="drw-tag"><em class="drw-rar">' + esc(r.t) + '</em>' +
+        (p.group ? '<span>' + esc(p.group) + '</span>' : '') + '</div>';
   }
 
   function drwRender(box) {
     DRW.box = box; DRW.pool = drwPool();
-    var list = classes();
-    var cur = drwCls();
-    var cnt = function (c) { return rosterOf(c).filter(function (r) { return r && r.name; }).length; };
-    /* 只有一个班就不摆 tabs（一次课就一个班），直接把班名和人数写在顶上；
-       有多个班才摆 tab 供切换 —— 不管几个班都不会出现「全部班级」这种混抽选项。 */
-    var bar = list.length > 1
-      ? '<div class="drw-tabs">' + list.map(function (c) {
-          return '<button type="button" data-c="' + esc(c.id) + '"' + (String(c.id) === String(DRW.cls) ? ' class="on"' : '') + '>' +
-            esc(c.name) + '<em>' + cnt(c) + '</em></button>';
-        }).join('') + '</div>'
-      : '<div class="drw-clsname">' + esc(cur ? cur.name : '') + ' · ' + cnt(cur || {}) + ' 人</div>';
-
-    box.innerHTML = '<div class="drw-bar">' + bar +
-        '<button type="button" class="drw-go" id="drwGo">' + (DRW.picked ? '继续抽取' : '开始抽人') + '</button>' +
-      '</div>' +
-      '<div class="drw-stage" id="drwStage" data-phase="' + (DRW.phase === 'result' ? 'result' : 'idle') + '" role="region" aria-label="抽人舞台">' +
-        '<div class="drw-scene">' +
-          '<i class="drw-halo"></i>' +
-          '<div class="drw-pack" id="drwPack" title="点卡包也能抽">' +
-            '<i class="drw-lyr l1"></i><i class="drw-lyr l2"></i>' +
-            '<div class="drw-half top"><div class="drw-skin"><i class="drw-seal">抽</i></div></div>' +
-            '<div class="drw-half bot"><div class="drw-skin"><i class="drw-seal">抽</i></div></div>' +
-            '<i class="drw-pt"></i><i class="drw-pt"></i><i class="drw-pt"></i><i class="drw-pt"></i><i class="drw-pt"></i><i class="drw-pt"></i>' +
-          '</div>' +
-          '<i class="drw-flash"></i>' +
-          '<div class="drw-cards" id="drwCards"></div>' +
-        '</div>' +
+    fxStop();
+    box.innerHTML = drwTopHTML() +
+      '<div class="drw-tabrow">' + drwBarHTML() + '</div>' +
+      '<div class="drw-stage" id="drwStage" data-phase="idle" role="region" aria-label="抽人夜市卡组">' +
+        '<div class="drw-grid" id="drwGrid"></div>' +
         '<p class="drw-live" id="drwLive" role="status" aria-live="polite"></p>' +
       '</div>' +
-      '<div class="drw-foot" id="drwFoot">' + drwFootHTML() + '</div>';
+      '<footer class="drw-foot" id="drwFoot">' + drwFootHTML() + '</footer>';
 
     box.querySelectorAll('[data-c]').forEach(function (b) {
       b.onclick = function () {
-        if (DRW.busy) return; // 抽着的时候不许换班：换班会重画卡包，动画会被打断
+        if (DRW.busy) return;               // 翻牌中途不许换班：换班要重画卡组，动画会被打断
         drwSwitch(b.getAttribute('data-c'), box);
       };
     });
-    var go = box.querySelector('#drwGo'); if (go) go.onclick = function () { drwRoll(box); };
-    var pack = box.querySelector('#drwPack'); if (pack) pack.onclick = function () { drwRoll(box); }; // 点卡包也能抽
+    var x = box.querySelector('#drwCloseX'); if (x) x.onclick = function () { drwHalt(); closeDlg(); };
+
+    drwGrid(box);
+    drwFit(box);
     drwBindFoot(box);
+
+    /* 左上角那颗常驻像素动效：随机挑一个，只在窗口开着的时候跑 */
+    fxMount(box.querySelector('#drwFxl'), '', 46);
+    fxRun();
   }
 
-  /* 切班：换班等于换这节课的班，名字和名单全部重来。
-     注意也把 busy 归零：动画正演到一半时如果状态机已经把 busy 挂了，换班重画之后
-     新的舞台是全新的，不该带着旧的锁（否则点「开始抽人」没反应） */
+  /* 切班：换班等于换这节课的班，名单全部重来（busy 一并归零，重画之后是新舞台） */
   function drwSwitch(id, box) {
     var list = classes(), hit = null;
     for (var i = 0; i < list.length; i++) if (String(list[i].id) === String(id)) hit = list[i];
     if (!hit) return;
-    DRW.cls = hit.id; DRW.picked = null; DRW.last = null; DRW.phase = 'idle';
-    DRW.busy = false;
-    try { localStorage.setItem(DRW_CLS_KEY, String(hit.id)); } catch (e) { }
-    drwSub();
+    DRW.cls = hit.id; DRW.round = []; DRW.drawn = []; DRW.phase = 'idle'; DRW.busy = false;
+    drwClearTimers();
+    try { localStorage.setItem(CLS_KEY, String(hit.id)); } catch (e) { }
     drwRender(box);
   }
 
-  /* 弹窗标题栏的副标题跟着当前班走 */
-  function drwSub() {
-    var c = drwCls(), d = document.getElementById('dlgDraw');
-    var small = d && d.querySelector('.dlg-head small');
-    if (small) small.textContent = c ? (c.name + ' · 一次抽一个') : '随机抽人 · 一次抽一个';
-  }
-
-  /* 状态机推进：改 DRW.phase + 舞台的 data-phase（CSS 动画全挂在 data-phase 上） */
+  /* 状态机推进：DRW.phase + 舞台 data-phase（CSS 动画都挂在 data-phase 上） */
   function drwPhase(box, p) {
     DRW.phase = p;
     var s = box.querySelector('#drwStage'); if (s) s.setAttribute('data-phase', p);
+    var f = box.querySelector('#drwFoot'); if (f) { f.innerHTML = drwFootHTML(); drwBindFoot(box); }
   }
-  /* 按钮文案跟随状态机：开始抽人 → 抽取中…（禁用）→ 继续抽取 → 重试 */
+
   function drwGo(box, label, dis) {
     var g = box.querySelector('#drwGo'); if (g) { g.textContent = label; g.disabled = !!dis; }
+    var r = box.querySelector('#drwRefresh'); if (r) r.disabled = !!dis;
   }
-  /* 一叠牌：8 张背面朝上的牌叠在舞台正中，洗牌完收成一摞。
-     中奖那张在 DOM 里带 .win（z-index 最高），但正面此刻是空的 —— 姓名等翻面前一刻才写进去，
-     背面朝上时看不见，洗牌全程不泄露结果。
-     每张牌的错位/幅度全靠内联变量 --i/--n/--dir/--amp 交给 CSS 算，JS 不逐帧改样式。 */
-  var DRW_DECK = 8;
-  function drwDeck(box, win) {
-    var wrap = box.querySelector('#drwCards'); if (!wrap) return null;
-    var n = DRW_DECK, w = Math.random() * n | 0, html = '';
-    for (var i = 0; i < n; i++) {
-      var amp = (0.72 + ((i * 37) % 11) / 18).toFixed(2); // 每张牌洗牌的幅度都不一样，才不像广播体操
-      html += '<div class="drw-card' + (i === w ? ' win' : '') + '"' +
-        ' style="--i:' + i + ';--n:' + n + ';--dir:' + (i % 2 ? 1 : -1) + ';--amp:' + amp + ';z-index:' + (i === w ? 99 : i) + '">' +
-        '<div class="drw-cardin"><div class="drw-cback"></div><div class="drw-cface"></div></div></div>';
-    }
-    wrap.innerHTML = html;
-    return wrap.querySelector('.drw-card.win');
+
+  /* 按舞台实际尺寸算卡片宽高（纯 CSS 的 min()/calc 在老 Chromium 上不稳，这里算一次写变量）。
+     两个约束同时咬：① 6 张必须并排塞进舞台宽度；② 卡片高度不超过舞台的 96%。
+     比例 0.42（宽/高）是夜市长卡的手感，比 0.62 的方卡更接近参考网页。 */
+  var CARD_RATIO = 0.40;
+  function drwFit(box) {
+    var stage = box.querySelector('#drwStage'); if (!stage) return;
+    var g = box.querySelector('#drwGrid'); if (!g) return;
+    var W = stage.clientWidth, H = stage.clientHeight;
+    if (!W || !H) return;                 // jsdom / 还没布局：交给 CSS 里的默认值
+    var gap = Math.max(6, Math.round(W * 0.012));
+    var cw = Math.floor(Math.min((W * 0.98 - gap * 5) / MAX_CARDS, H * 0.96 * CARD_RATIO));
+    cw = Math.max(60, cw);
+    var ch = Math.round(cw / CARD_RATIO);
+    DRW.cw = cw;
+    g.style.setProperty('--gap', gap + 'px');
+    g.style.setProperty('--cw', cw + 'px');
+    g.style.setProperty('--ch', ch + 'px');
   }
-  /* 翻面前一刻才把姓名写进中奖那张的正面：姓名最大字号、组号次级、「本轮抽中」标签 */
-  function drwFace(card, p) {
-    var f = card && card.querySelector('.drw-cface'); if (!f) return;
-    f.innerHTML = '<em>本轮抽中</em><b>' + esc(p.name) + '</b><span>' + esc(subLine(p) || p.cls || '') + '</span>';
-  }
+
+  var fitTimer = 0;
+  window.addEventListener('resize', function () {
+    if (fitTimer) clearTimeout(fitTimer);
+    fitTimer = setTimeout(function () {
+      if (DRW.box && DRW.box.isConnected) drwFit(DRW.box);
+    }, 160);
+  });
+
   function drwBindFoot(box) {
-    var a = box.querySelector('#drwAgain'), c = box.querySelector('#drwClose');
-    if (a) a.onclick = function () { drwRoll(box); };
-    if (c) c.onclick = function () { closeDlg(); };
+    box.querySelectorAll('[data-k]').forEach(function (b) {
+      b.onclick = function () {
+        if (DRW.busy) return;
+        drwSetCount(parseInt(b.getAttribute('data-k'), 10) || 1, box);
+      };
+    });
+    var go = box.querySelector('#drwGo'); if (go) go.onclick = function () { drwFlip(box); };
+    var rf = box.querySelector('#drwRefresh'); if (rf) rf.onclick = function () { drwRefresh(box); };
   }
+
+  /* 改数量：只换牌（不抽），老师随时能改成本组翻 1~6 张 */
+  function drwSetCount(n, box) {
+    n = Math.max(1, Math.min(MAX_CARDS, n || 1));
+    if (n === DRW.count && DRW.phase !== 'revealed') return;
+    DRW.count = n;
+    try { localStorage.setItem(CNT_KEY, String(n)); } catch (e) { }
+    DRW.round = []; DRW.phase = 'idle'; DRW.busy = false;
+    drwClearTimers(); fxStop();
+    drwGrid(box); drwFit(box);
+    box.querySelector('#drwStage').setAttribute('data-phase', 'idle');
+    var f = box.querySelector('#drwFoot'); if (f) { f.innerHTML = drwFootHTML(); drwBindFoot(box); }
+    var live = box.querySelector('#drwLive'); if (live) live.textContent = '本轮翻 ' + n + ' 张';
+  }
+
   function closeDlg() {
     var d = document.getElementById('dlgDraw');
     if (d && typeof d.close === 'function') d.close();
   }
 
   var drwSleep = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
-  /* 关掉动画偏好 / 低端设备（hx-theme 的 is-lite）走 fast 路径，直接出结果 */
+
+  /* 关动画偏好 / 低端设备（hx-theme 的 is-lite）走 fast 路径，直接出结果 */
   function drwNoAnim() {
-    var lite = document.documentElement.classList.contains('is-lite');
+    var lite = document.documentElement.classList.contains('is-lite') || document.documentElement.classList.contains('hx-lite');
     var rm = false;
     try { rm = matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { }
     return lite || rm;
   }
 
-  /* ── 一轮抽取：结果先算好，再按状态机把动画演完 ──
-     时序（和 draw-person.css 里的动画时长一一对应，改一边记得改另一边）：
-       preparing .36s → shaking .5s → opening .46s → shuffling 1.76s → revealing .7s → result
-     合计约 3.8 秒。 */
-  var T_PREP = 360, T_SHAKE = 500, T_DEAL = 460, T_WASH = 1760, T_REVEAL = 700;
+  function drwClearTimers() {
+    for (var i = 0; i < DRW.timers.length; i++) clearTimeout(DRW.timers[i]);
+    DRW.timers.length = 0;
+  }
+  function drwLater(fn, ms) { DRW.timers.push(setTimeout(fn, ms)); }
 
-  function drwRoll(box) {
-    if (DRW.busy) return; // 状态机没走完之前，按钮/卡包/连点全部进不来
+  /* 打断（关窗 / 换班 / 重新发牌）：停掉所有定时器和像素循环，别再往新舞台上写 */
+  function drwHalt() {
+    drwClearTimers();
+    fxStop();
+    DRW.busy = false;
+  }
+
+  /* ── 抽人：从全班的名单里去掉已经翻过的，洗一洗，取前 n 个 ──
+     整班都翻完了就自动从头轮（不然人少的班第二组就没牌了）。 */
+  function pickStudents(pool, n) {
+    var used = {};
+    DRW.drawn.forEach(function (id) { used[id] = true; });
+    var avail = pool.filter(function (p) { return !used[p.id]; });
+    if (avail.length < n) { DRW.drawn = []; avail = pool.slice(); }
+    var list = avail.slice();
+    for (var i = list.length - 1; i > 0; i--) {               // Fisher-Yates，比 sort(random) 稳
+      var j = (Math.random() * (i + 1)) | 0, t = list[i]; list[i] = list[j]; list[j] = t;
+    }
+    return list.slice(0, Math.min(n, list.length));
+  }
+
+  /* ── 一轮翻牌 ──
+     时序（和 draw-person.css 的时长一一对应，改一边记得改另一边）：
+       dealing .42s（每张错 45ms）→ flipping 每张错 120ms、单片翻面 .66s → revealed
+     6 张合计约 2.1 秒。 */
+  var T_DEAL = 420, T_FLIP = 660, ST_FLIP = 120, ST_DEAL = 45;
+
+  function drwFlip(box) {
+    if (DRW.busy) return;                                   // 状态机没走完之前，连点进不来
     if (!box || !box.isConnected) return;
     var pool = DRW.pool.length ? DRW.pool : (DRW.pool = drwPool());
-    var n = pool.length;
-    if (!n) { toast('这个班还没有学生：先在「待分配名单」里导入全班名单'); return; }
-    /* 一次只抽一个；连着点「再抽一次」不许还是刚才那个人（只有 1 个人的班除外） */
-    var idx = Math.random() * n | 0;
-    if (n > 1 && DRW.last != null && pool[idx].id === DRW.last) idx = (idx + 1 + (Math.random() * (n - 1) | 0)) % n;
-    var win = pool[idx];
-    var gen = DRW.gen;  // 记住本轮属于哪一代窗口：窗口被关掉重开（gen 变了）就立刻停手
+    if (!pool.length) { toast('这个班还没有学生：先在「待分配名单」里导入全班名单'); return; }
 
-    DRW.busy = true; DRW.picked = null;
-    var wrap = box.querySelector('#drwCards'); if (wrap) wrap.innerHTML = ''; // 上一轮的卡收走，卡包在 preparing 里重新合体
+    var picks = pickStudents(pool, effCount());
+    if (!picks.length) { toast('这个班还没有学生：先在「待分配名单」里导入全班名单'); return; }
 
-    drwPhase(box, 'preparing'); drwGo(box, '抽取中…', true);
-    var foot = box.querySelector('#drwFoot'); if (foot) foot.innerHTML = '<span class="drw-hint">抽取中…</span>';
+    /* 稀有度 + 点券先算好（结果先定，动画只负责演） */
+    DRW.round = picks.map(function (p) {
+      var r = rollRarity();
+      return { p: p, r: r };
+    });
+    DRW.drawn = DRW.drawn.concat(picks.map(function (p) { return p.id; }));
 
-    /* 还能继续演吗：窗口没关、也没被 open() 换代（关掉重开） */
+    var gen = DRW.gen;
     function alive() { return box.isConnected && DRW.gen === gen; }
 
-    /* 降级（is-lite / 关动画偏好）：不演过程，直接摆一张翻好的结果卡。
-       正常：卡包蓄势 → 蓄力抖动 → 开包 + 甩出一叠牌 → 洗牌 → 一张升起来翻面 */
-    var play;
+    DRW.busy = true;
+    drwClearTimers();
+    fxStop();                                                // 上一轮的卡片动效先停
+    var grid = drwGrid(box);
+    drwFit(box);
+    drwFillFaces(grid);                                      // 正面先写好（背面朝上，看不见）
+    drwPhase(box, 'dealing');
+    drwGo(box, '翻牌中…', true);
+
+    var lastFlip = (DRW.round.length - 1) * ST_FLIP;
+
     if (drwNoAnim()) {
-      var fast = drwDeck(box, win); drwFace(fast, win);
-      drwPhase(box, 'result');
-      play = Promise.resolve();
-    } else {
-      play = drwSleep(T_PREP)
-        .then(function () {
-          if (!alive()) throw 0;         // 等待期间窗口被关了/换了：走 error 兜底，不继续演
-          drwPhase(box, 'shaking'); return drwSleep(T_SHAKE);
-        })
-        .then(function () {
-          if (!alive()) throw 0;
-          drwPhase(box, 'opening'); drwDeck(box, win); return drwSleep(T_DEAL);
-        })
-        .then(function () {
-          if (!alive()) throw 0;
-          drwPhase(box, 'shuffling'); return drwSleep(T_WASH);
-        })
-        .then(function () {
-          if (!alive()) throw 0;
-          /* 洗牌结束、翻面前一刻才写名字：背面朝上，写进去也看不见 */
-          drwFace(box.querySelector('.drw-card.win'), win);
-          drwPhase(box, 'revealing'); return drwSleep(T_REVEAL);
-        });
+      drwRevealAll(grid, box, gen);
+      return;
     }
 
-    return play.then(function () {
-        if (!alive()) throw 0;
-        drwPhase(box, 'result');
-        DRW.picked = win; DRW.last = win.id;
-        var live = box.querySelector('#drwLive');
-        if (live) live.textContent = '抽中：' + win.name + '（' + (subLine(win) || win.cls || '') + '）';
-        drwGo(box, '继续抽取', false);
-        if (foot) { foot.innerHTML = drwFootHTML(); drwBindFoot(box); }
-      }).catch(function () {
-        /* 被打断就走 error 兜底，让老师点「重试」。但如果整代窗口已经换了（关掉重开），
-           新的那只卡包是全新的 idle 状态，不能把它的按钮改成「重试」 */
-        DRW.phase = 'error';
-        if (alive()) {
-          drwGo(box, '重试', false);
-          var f = box.querySelector('#drwFoot');
-          if (f) f.innerHTML = '<span class="drw-hint">刚才被打断了，点「重试」再来一次。</span>';
-        }
-      }).then(function () {
-        /* busy 只在同一代里解锁：换代之后新一轮 open() 已经把 busy 归零了，
-           这里再动一下会把新窗口的抽取锁解掉（连点就会重复抽） */
-        if (DRW.gen === gen) DRW.busy = false;
+    drwLater(function () {
+      if (!alive()) return;
+      drwPhase(box, 'flipping');
+      DRW.round.forEach(function (it, i) {
+        drwLater(function () {
+          if (!alive()) return;
+          var card = grid.querySelector('.drw-card[data-i="' + i + '"]');
+          if (card) card.classList.add('is-flip');
+        }, i * ST_FLIP);
       });
+      drwLater(function () {
+        if (!alive()) return;
+        drwSettle(box, gen);
+      }, lastFlip + T_FLIP + 60);
+    }, T_DEAL + (DRW.round.length - 1) * ST_DEAL + 40);
+  }
+
+  /* 把这一轮的学生写进每张卡的正面（只在背面朝上时调用，不泄漏结果） */
+  function drwFillFaces(grid) {
+    if (!grid) return;
+    DRW.round.forEach(function (it, i) {
+      var card = grid.querySelector('.drw-card[data-i="' + i + '"]');
+      if (!card) return;
+      card.setAttribute('data-r', it.r.k);
+      var face = card.querySelector('.drw-cface');
+      if (face) face.innerHTML = faceHTML(it.p, it.r);
+    });
+  }
+
+  /* 落定：全部翻好、卡片静止，这时候才允许像素动效跑起来 */
+  function drwSettle(box, gen) {
+    if (!box.isConnected || DRW.gen !== gen) return;
+    DRW.busy = false;
+    drwPhase(box, 'revealed');           // 底栏按「已落定」重画：按钮解禁、文案换成「再翻一组」
+
+    var names = DRW.round.map(function (it) { return it.p.name; });
+    var live = box.querySelector('#drwLive');
+    if (live) live.textContent = '本轮翻出 ' + names.length + ' 人：' + names.join('、');
+
+    /* 每张翻开的牌左上角都有一个随机像素动效（用户原话要的就是这个）。
+       6 张小图 + 左上角大图共用同一条 rAF、帧率封顶 12fps，一体机扛得住；
+       缓存一份画布列表，fxStop 之后卡片翻过去就不再画。 */
+    fxStop();
+    var grid = box.querySelector('#drwGrid');
+    if (grid) {
+      var cw = DRW.cw || 115;
+      grid.querySelectorAll('.drw-card[data-r] .drw-fx').forEach(function (h) {
+        fxOnCard(h, cw);
+      });
+    }
+    fxMount(box.querySelector('#drwFxl'), '', 46);
+    fxRun();
+  }
+
+  /* 降级路径：不演过程，牌直接翻好、动效只画一帧 */
+  function drwRevealAll(grid, box, gen) {
+    if (grid) grid.querySelectorAll('.drw-card').forEach(function (c) { c.classList.add('is-flip'); });
+    drwSettle(box, gen);
+  }
+
+  /* ── 刷新卡组：清空本轮结果、重新发一组背面牌（数量不变） ── */
+  function drwRefresh(box) {
+    if (DRW.busy) return;
+    if (!box || !box.isConnected) return;
+    DRW.round = []; DRW.phase = 'refreshing';
+    drwClearTimers(); fxStop();
+    var stage = box.querySelector('#drwStage'); if (stage) stage.setAttribute('data-phase', 'refreshing');
+    var grid = box.querySelector('#drwGrid');
+    if (grid) grid.classList.add('is-washing');              // 200ms 洗牌过渡（纯 CSS）
+    var live = box.querySelector('#drwLive'); if (live) live.textContent = '';
+
+    drwLater(function () {
+      if (!box.isConnected) return;
+      if (grid) grid.classList.remove('is-washing');
+      DRW.phase = 'idle';
+      drwGrid(box); drwFit(box);
+      if (stage) stage.setAttribute('data-phase', 'idle');
+      var f = box.querySelector('#drwFoot'); if (f) { f.innerHTML = drwFootHTML(); drwBindFoot(box); }
+      /* 刷新后左上角那颗还在，重新挂一次（fxStop 已经把画布引用清掉了） */
+      fxMount(box.querySelector('#drwFxl'), '', 46);
+      fxRun();
+    }, 220);
   }
 
   /* 轻提示：小组加分顶栏的 #saveState 就是提示条，直接复用它，别另造一个 */
@@ -322,16 +622,22 @@
     if (!list.length) return toast('还没有班级：先在「数据与备份」里导入班级和名单');
 
     DRW.cls = pickCls();
-    /* 换代：上一次打开时还没演完的状态机（窗口被关掉、动画还在 setTimeout 里等）
-       靠这个代数认出自己已经过期，不会再往新舞台上写东西 */
+    /* 换代：上一次打开时还没演完的状态机（窗口被关掉、setTimeout 还在等）
+       靠这个代数认出自己过期，不会再往新舞台上写东西 */
     DRW.gen += 1;
-    DRW.picked = null; DRW.busy = false; DRW.last = null; DRW.phase = 'idle';
+    DRW.round = []; DRW.drawn = []; DRW.busy = false; DRW.phase = 'idle';
+    drwClearTimers(); fxStop();
+
+    var n = 6;
+    try { n = parseInt(localStorage.getItem(CNT_KEY), 10) || 6; } catch (e) { }
+    DRW.count = Math.max(1, Math.min(MAX_CARDS, n));
 
     var d = document.getElementById('dlgDraw');
     if (!d) return toast('抽人窗口没加载出来，请刷新页面');
-    var c0 = drwCls();
-    var small = d.querySelector('.dlg-head small');
-    if (small) small.textContent = c0 ? (c0.name + ' · 一次抽一个') : '随机抽人 · 一次抽一个';
+    if (!d.__drwBound) {
+      d.__drwBound = true;
+      d.addEventListener('close', function () { drwHalt(); });   // 关窗（含 Esc）一定停掉循环
+    }
 
     var box = d.querySelector('#drw');
     if (box) drwRender(box);
@@ -340,11 +646,10 @@
     } else {
       d.setAttribute('open', '');
     }
+    if (box) drwFit(box);          // showModal 之后才有真实尺寸
   }
 
-  function bind(src) {
-    SRC = src || null;
-  }
+  function bind(src) { SRC = src || null; }
 
   window.JFDrawPerson = { open: open, bind: bind, ready: function () { return !!SRC; } };
 
@@ -361,5 +666,5 @@
   if (entry) entry.addEventListener('click', function () { autoBind(); open(); });
 
   var closeBtn = document.getElementById('btnDrawClose');
-  if (closeBtn) closeBtn.addEventListener('click', function () { closeDlg(); });
+  if (closeBtn) closeBtn.addEventListener('click', function () { drwHalt(); closeDlg(); });
 })();
