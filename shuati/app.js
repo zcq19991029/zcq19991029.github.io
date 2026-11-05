@@ -131,7 +131,14 @@ async function openSubject(id) {
   const sub = S.subjects.find(s => s.id === id) || S.subjects[0];
   S.subject = sub; S.ai = {}; S.draft = null;
   paintSubj();
-  $('card').innerHTML = '<div class="hx-loadwrap"><div class="hx-loadpill" role="status">' + pxBlocks() + '<b>正在加载题库…</b></div></div>';
+  // 加载提示统一规则（2026-11-04，用户：「加载动效呢 像素动效没有随机使用啊」）：
+  // 首选像素动效——HXLoadFx 从特效包随机挑一个画 canvas（会话内固定，见 loadfx.js 头注释），
+  // 「正在加载题库…」以药丸形式跟在动效下方作状态说明（要的是结合，不是二选一）；
+  // 播不了（reduced-motion / hx-lite / 特效包没出来 / canvas 建不出来）回落到原来的方块药丸。
+  // 无论走哪条路，屏幕上只有这一套加载提示。
+  const card = $('card'); card.innerHTML = '';
+  const loadfx = window.HXLoadFx ? HXLoadFx.mount(card, 'quiz', '正在加载题库…') : null;
+  if (!loadfx) card.innerHTML = '<div class="hx-loadwrap"><div class="hx-loadpill" role="status">' + pxBlocks() + '<b>正在加载题库…</b></div></div>';
   // 手快连点两个科目时，先发的那次可能后回来。用序号记住“谁最后一次点的”，
   // 回来的旧结果直接丢掉，否则会出现左上角写着一个科目、中间却是另一个科目
   const seq = S.subSeq = (S.subSeq || 0) + 1;
@@ -139,7 +146,7 @@ async function openSubject(id) {
   try { base = await baseOf(sub); } catch (e) { toast(e.message); }
   const bank = await store.read('bank:' + sub.id, [], (a, b) => (b && b.length ? b : a));
   const records = await store.read('progress:' + sub.id, {}, store.mergeProgress);
-  if (seq !== S.subSeq || S.subject !== sub) return; // 期间又换过一次科目，这次结果作废
+  if (seq !== S.subSeq || S.subject !== sub) { if (loadfx) loadfx.done(); return; } // 期间又换过一次科目，这次结果作废
   S.bank = bank;
   const seen = new Set(base.map(q => q.id));
   S.questions = [...base, ...S.bank.filter(q => !seen.has(q.id))];
@@ -147,6 +154,7 @@ async function openSubject(id) {
   if (!S.questions.some(q => q.type === S.type)) S.type = (TYPES.find(t => S.questions.some(q => q.type === t[0])) || TYPES[0])[0];
   savePrefs(); buildQueue(true);
   paintSubj(); // 加载完再对一次：科目名、标题、右侧题型，保证和中间内容是同一个科目
+  if (loadfx) loadfx.done(); // 收掉加载动效再换题卡（show 会重画 #card），不留第二套
   show(S.view);
 }
 // 左上角科目名 + 标签页标题：只有一个来源（S.subject），别的地方不要单独改

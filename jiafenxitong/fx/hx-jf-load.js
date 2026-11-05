@@ -9,7 +9,8 @@
  *   1) 全局只有一个 requestAnimationFrame 循环；动画结束 cancelAnimationFrame
  *      并把 overlay 连同 canvas 一起 remove。
  *   2) 帧率封顶：触屏 / hx-lite 18fps，桌面 30fps（特效 meta 本来就是 30）。
- *   3) hx-lite（省电）或 prefers-reduced-motion 下只画静态一帧，永不跑循环。
+ *   3) hx-lite（省电）或 prefers-reduced-motion 下不跑循环，也不再画静帧——
+ *      2026-11-04 全站统一规则：藏掉 canvas，回落到闪屏里的像素方块药丸（见下方 noFx）。
  *   4) 页签切后台浏览器自动停 rAF，回来 dt 已钳制，不会跳帧爆走。
  *
  * 就绪判定（不碰 app.js，靠观察 DOM 状态机）：
@@ -59,6 +60,15 @@
   if (splash.dataset.armed) return; // 防御性：脚本意外被引两次
   splash.dataset.armed = '1';
 
+  // ── 回落（2026-11-04 全站统一规则）──────────────────────────────────────
+  // canvas 动效播不起来（特效包没加载出来 / canvas 建不出来 / hx-lite 省电 / prefers-reduced-motion）
+  // 时，藏掉 canvas、**保留下面的像素方块药丸和标题**等到数据就绪再收场——
+  // 用户要的是「动效 + 原来的加载样式结合」，回落也不许空屏、不许只剩裸文字。
+  function noFx(why) {
+    dbg.fx = 'fallback:' + why;
+    cv.style.display = 'none';
+  }
+
   // canvas 按 3～4 倍整数放大（像素画非整数缩放会糊），随视口自适应
   // 2026-11-06 用户：「像素动效和文字匹配总体看起来太小 网页太大 应该需要自适应网页大小和手机端大小」，
   // 之后又追加「我要保留的是像素动效那一个版本啊」「抽奖卡片太小了不够震撼」——方向已经很清楚：
@@ -74,49 +84,62 @@
     cv.style.height = (m.size[1] * k) + 'px';
   }
 
-  if (!P || !P.effects || !P.ids || !P.ids.length) { finish(); return; } // 包没加载出来：直接放行，别把页面盖死
-  var id = P.ids[Math.floor(Math.random() * P.ids.length)];
-  var mod = P.effects[id];
-  if (!mod || !mod.meta) { finish(); return; }
-  dbg.fx = id;
-  cv.setAttribute('data-fx', id);
-
-  var m = mod.meta, W = m.size[0], H = m.size[1], O = m.origin || [W / 2, H / 2];
-  cv.width = W; cv.height = H;
-  var ctx = cv.getContext('2d');
-  if (!ctx) { finish(); return; }
-  var img = ctx.createImageData(W, H);
-  var fr = P.createFrame(W, H);
-  var fx = P.createFx(mod, { x: O[0], y: O[1], seed: Math.floor(Math.random() * 997) });
-  sizeCanvas();
-  addEventListener('resize', sizeCanvas);
-
-  function touch() { return window.matchMedia ? matchMedia('(hover: none), (pointer: coarse)').matches : false; }
-  var GAP = (touch() || lite()) ? 1000 / 18 : 1000 / 30;
-
-  function paint(dt) {
-    if (dt) fx.update(dt);
-    P.clearFrame(fr);
-    fx.draw(fr, 'back');
-    fx.draw(fr, 'front');
-    P.composite(fr, img.data, null);   // 透明底，透出卡片的浅色底
-    ctx.clearRect(0, 0, W, H);
-    ctx.putImageData(img, 0, 0);
-    dbg.frames++;
+  // 特效选择（2026-11-04 与 刷题/考试 统一）：从包里随机挑，但**同一会话内固定**——
+  // 选择记在 sessionStorage（hx-loadfx-jiafen），刷新 / 重进不换，避免每次开页都不一样显得乱；
+  // 关掉标签页（会话结束）重新随机。取舍写明：用户要的是「随机用起来」，不是「每次都洗牌」。
+  // （P 在文件开头已取好 window.PixelFX。）
+  var id = '';
+  try { id = sessionStorage.getItem('hx-loadfx-jiafen') || ''; } catch (e) { }
+  if (!P || !P.effects || !P.ids || !P.ids.length) { noFx('pack'); } // 包没加载出来：回落药丸，别把页面盖死
+  else {
+    if (!id || !P.effects[id]) id = P.ids[Math.floor(Math.random() * P.ids.length)];
+    try { sessionStorage.setItem('hx-loadfx-jiafen', id); } catch (e) { }
+    var mod = P.effects[id];
+    if (!mod || !mod.meta) noFx('meta');
   }
+  var m = mod && mod.meta;
+  if (m) {
+    dbg.fx = id;
+    cv.setAttribute('data-fx', id);
+    var W = m.size[0], H = m.size[1], O = m.origin || [W / 2, H / 2];
+    cv.width = W; cv.height = H;
+    var ctx = cv.getContext('2d');
+    if (!ctx) { noFx('ctx'); } else {
+      var img = ctx.createImageData(W, H);
+      var fr = P.createFrame(W, H);
+      var fx = P.createFx(mod, { x: O[0], y: O[1], seed: Math.floor(Math.random() * 997) });
+      sizeCanvas();
+      addEventListener('resize', sizeCanvas);
 
-  function step(now) {
-    raf = 0;
-    if (dbg.done) return;
-    if (lastPaint && now - lastPaint < GAP - 1) { raf = requestAnimationFrame(step); return; } // 帧率封顶
-    var dt = lastPaint ? Math.min((now - lastPaint) / 1000, 0.12) : 0;
-    lastPaint = now;
-    paint(dt);
-    raf = requestAnimationFrame(step);
+      function touch() { return window.matchMedia ? matchMedia('(hover: none), (pointer: coarse)').matches : false; }
+      var GAP = (touch() || lite()) ? 1000 / 18 : 1000 / 30;
+
+      function paint(dt) {
+        if (dt) fx.update(dt);
+        P.clearFrame(fr);
+        fx.draw(fr, 'back');
+        fx.draw(fr, 'front');
+        P.composite(fr, img.data, null);   // 透明底，透出卡片的浅色底
+        ctx.clearRect(0, 0, W, H);
+        ctx.putImageData(img, 0, 0);
+        dbg.frames++;
+      }
+
+      function step(now) {
+        raf = 0;
+        if (dbg.done) return;
+        if (lastPaint && now - lastPaint < GAP - 1) { raf = requestAnimationFrame(step); return; } // 帧率封顶
+        var dt = lastPaint ? Math.min((now - lastPaint) / 1000, 0.12) : 0;
+        lastPaint = now;
+        paint(dt);
+        raf = requestAnimationFrame(step);
+      }
+
+      // 省电 / 关动画：不再画静帧（2026-11-04 统一规则）——回落到药丸，canvas 藏掉
+      if (still()) noFx('still');
+      else raf = requestAnimationFrame(step);
+    }
   }
-
-  if (still()) paint(0);            // 省电 / 关动画：只画一帧
-  else raf = requestAnimationFrame(step);
 
   // ── 就绪判定 ──────────────────────────────────────────────────────────
   // 轻量轮询（80ms）而不是 MutationObserver：本脚本在 <body> 开头执行时

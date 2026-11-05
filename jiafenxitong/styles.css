@@ -1542,7 +1542,13 @@ table.sheet col.w-grp,table.sheet th.c-grp,table.sheet td.c-grp,#printArea col.w
 .group-pick-box input{width:100%;min-width:0;box-sizing:border-box;font-size:13px}
 .group-pick-results{max-height:180px;overflow:auto;display:flex;flex-direction:column;gap:4px;background:var(--card,#fff);font-size:12px;overflow-wrap:anywhere}
 .group-pick-results button{white-space:normal;text-align:left}
-@media print{.group-pick-lock,.group-pick-box{display:none!important}}
+/* 组卡片上常显「人数/上限」，打开分组后是「本组 5/7 人 + 加人/减人」 */
+.gcount{display:inline-block;margin-left:6px;font-size:11px;font-weight:600;color:var(--muted, #667);letter-spacing:0}
+.sheet-vertical .c-no .gcount{display:block;margin:2px 0 0}
+.group-pick-count{display:inline-block;margin-right:6px;font-size:12px;color:var(--muted, #667)}
+[data-pick-members]{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+[data-pick-members] button{white-space:normal;text-align:left}
+@media print{.group-pick-lock,.group-pick-box,.gcount{display:none!important}}
 /* 操作记录：主列表清晰，核对内容二级展开。 */
 #dlgOperationLog{width:min(920px,94vw);padding:0}
 #dlgOperationLog .dlg-body{padding:16px 22px;overflow:auto;max-height:75dvh}

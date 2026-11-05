@@ -96,6 +96,15 @@ window.__OFFLINE = true;
 </script>`;
 html = html.replace('</head>', offlineHook + '\n</head>');
 
+// 统一像素加载动效（2026-11-04）：线上刷题引用 vendor/pixelfx-loader.js + loadfx.js 两个外部脚本，
+// 离线单文件里没有目录，必须内联，否则 404 后 loadfx 不存在 → 永远走药丸回落（能用但没有动效）。
+// 内联顺序和 index.html 一致：先特效包（挂 window.PixelFX）再胶水（挂 window.HXLoadFx）。
+const fxBundle = read('vendor/pixelfx-loader.js');
+const fxGlue = read('loadfx.js');
+if (/<\/script/i.test(fxBundle + fxGlue)) throw new Error('加载动效脚本里不能出现 </script');
+html = html.replace('<script src="vendor/pixelfx-loader.js"></script>\n<script src="loadfx.js"></script>',
+  `<script>\n${fxBundle}\n</script>\n<script>\n${fxGlue}\n</script>`);
+
 // 所有模块拼成一个普通 script（非 module，避免 file:// 下的 CORS）
 const bundle = `<script>
 (function(){

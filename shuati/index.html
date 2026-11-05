@@ -10,6 +10,12 @@
 <link rel="stylesheet" href="../hx-theme.css">
 <script src="../hx-theme.js" data-tool="quiz"></script>
 <link rel="stylesheet" href="style.css">
+<!-- 统一像素加载动效（2026-11-04）：打开科目时「正在加载题库…」不再只是药丸方块，
+     首选随机挑一个 pixelfx 特效画 canvas（会话内固定，规则见 loadfx.js 头注释），
+     播不了回落到原来的像素方块药丸。两个脚本都必须在 app.js（module）之前同步加载完，
+     module 本身是 deferred 的，顺序天然保证；特效包拷自 小组加分/fx/pixelfx-loader.js（MIT）。 -->
+<script src="vendor/pixelfx-loader.js"></script>
+<script src="loadfx.js"></script>
 </head>
 <body>
 <header class="top">

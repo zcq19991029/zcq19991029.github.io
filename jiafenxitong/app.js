@@ -218,7 +218,15 @@
 
   /* ================= 全班名单 / 待分配 ================= */
 
-var GROUP_CAP = 7;          // 一张小组卡最多 6 个成员位
+var GROUP_CAP = 7;          // 默认上限：自动分组、均匀分配、待分配下拉都按它算
+
+/** 某个组自己的上限（默认 GROUP_CAP）。
+    老师可以直接在组里加人/减人，不受默认上限约束；一旦加到超过默认上限，
+    就把实际人数记进 g.cap = 「这个组我特许 N 个人」。
+    自动分组/均匀分配仍只认 GROUP_CAP，不然下一次自动分组会把特许的组又摊平。 */
+function groupCap(g) {
+  return Math.max(GROUP_CAP, Number(g && g.cap) || 0, memberCount(g));
+}
 
 function rosterOf(cls) {
   if (!cls.roster) cls.roster = [];
@@ -323,9 +331,61 @@ function removeMemberAt(cls, g, j) {
     return rosterOf(cls).filter(function (r) { return groupOfStudent(cls, r, map) === null; });
   }
 
+  /* ---- 学生自助选座的座位表 ----
+     选座表和经典分组是两套数据：学生点圆桌坐下、老师代点放桌，都只写进选座表
+     （jf_team_seats），要点「按选座确认分组」才写回 cls.groups。
+     以前统计和待分配只认经典分组，于是出现了「看板说已选 59/59，下面还挂着 7 个待分配」
+     的自相矛盾——老师明明看到 7 个人坐在桌上，统计却说他们没分。
+     现在统一口径：坐在桌上的人算「已选座 · 待确认」，不再算待分配，也不再进一键分组的池子
+     （一键分组会把他挪到别的组，和圆桌上的座次打架）。 */
+  var tmSeatClass = null;   // tmState 是哪个班拉回来的，免得把 A 班的座位算到 B 班头上
+  var tmSeatSig = '';
+  var tmTried = Object.create(null);   // 哪个班已经自动拉过座位（记分页每次加分都会重画，不能每次都发请求）
+
+  function seatIndex(cls) {
+    var out = { bySid: Object.create(null), byName: Object.create(null), nameCounts: Object.create(null), n: 0 };
+    if (!cls || !tmState || tmSeatClass !== cls.id) return out;
+    (tmState.seats || []).forEach(function (s) {
+      if (!s || !s.name || !Number(s.table)) return;
+      if (s.no) out.bySid[String(s.no)] = Number(s.table);
+      out.nameCounts[s.name] = (out.nameCounts[s.name] || 0) + 1;
+      out.byName[s.name] = Number(s.table);
+      out.n++;
+    });
+    return out;
+  }
+
+  /** 这个人在选座表里坐第几桌；没坐返回 0 */
+  function seatedTable(cls, r, seat) {
+    if (!r) return 0;
+    seat = seat || seatIndex(cls);
+    if (r.sid && seat.bySid[String(r.sid)]) return seat.bySid[String(r.sid)];
+    /* 同名的人不能靠姓名猜桌 */
+    return (seat.nameCounts[r.name] || 0) === 1 ? (seat.byName[r.name] || 0) : 0;
+  }
+
+  /** 已经坐在圆桌上、但还没写进分组的名单行 */
+  function seatedNotGrouped(cls) {
+    if (!cls) return [];
+    var seat = seatIndex(cls);
+    if (!seat.n) return [];
+    var map = placedMap(cls);
+    return rosterOf(cls).filter(function (r) {
+      return groupOfStudent(cls, r, map) === null && !!seatedTable(cls, r, seat);
+    });
+  }
+
+  /** 真正没着落的人：既不在任何组，也不在圆桌上 */
+  function truePendingList(cls) {
+    if (!cls) return [];
+    var seated = seatedNotGrouped(cls);
+    if (!seated.length) return pendingList(cls);
+    return pendingList(cls).filter(function (r) { return seated.indexOf(r) < 0; });
+  }
+
   /** 所有班级加起来还有多少人没分配 */
   function pendingTotal() {
-    return visibleClasses().reduce(function (a, c) { return a + pendingList(c).length; }, 0);
+    return visibleClasses().reduce(function (a, c) { return a + truePendingList(c).length; }, 0);
   }
 
   /* ================= 计算 ================= */
@@ -692,6 +752,7 @@ function removeMemberAt(cls, g, j) {
     $('#rankClassSel').value = cls.id;
     $('#poolClassSel').value = cls.id;
     renderPoolBanner(cls);
+    tmMaybePull(cls);   /* 记分页也要知道「谁已经坐在圆桌上」，否则横幅和待分配页是两套数字 */
     updatePoolBadge();
     $('#rosterSetupHint').hidden = !!(rosterOf(cls).length || cls.groups.some(function (g) { return memberCount(g) > 0; }));
 
@@ -715,6 +776,12 @@ function removeMemberAt(cls, g, j) {
 
     renderLessonMeta(cls, lesson);
     renderGroups(cls, lesson);
+    /* 连一个组都没有时，记分页会只剩一堆空白；说清楚下一步该做什么，别让老师以为「没分完不让进」。
+       这里只提示，不拦人：有一个组就能进来记分。 */
+    if (!cls.groups.length) {
+      $('#groupList').innerHTML = '<p class="empty-hint">这个班还没有小组。到「待分配名单」用「一键分组」，' +
+        '或者做完学生选座后点「按选座确认分组」，分好组就能在这里记分。</p>';
+    }
     renderMetrics(cls, lesson);
     if (UI) UI.pill();
   }
@@ -825,13 +892,61 @@ function removeMemberAt(cls, g, j) {
       function toggleGroup(e){e.preventDefault();e.stopPropagation();groupPicking=unlocked?null:{classId:cls.id,lessonId:lesson.id,no:g.no};renderGroups(cls,lesson);}
       target.ondblclick=toggleGroup;target.onkeydown=function(e){if(e.key==='Enter')toggleGroup(e);};
       if(unlocked){var done=document.createElement('button');done.type='button';done.className='btn tiny';done.textContent='完成';done.onclick=toggleGroup;target.appendChild(done);if(scoreLayout==='table'){var clear=document.createElement('button');clear.type='button';clear.className='btn tiny';clear.textContent='清零本组';clear.dataset.cleargroup=g.no;target.appendChild(clear);}}
-      if(!unlocked)return;if(memberCount(g)>=GROUP_CAP){var full=card.querySelector('[data-group-picker-slot]');if(full)full.textContent='本组已满7人';return;}
+      if(!unlocked)return;
+      /* 以前这里「满 7 人就整个不挂控件」，老师看到组号双击后什么都没有，只能以为分组坏了。
+         现在满员也照常展开：加人/减人是老师的手动决定，只受这个组自己的上限约束（见 groupCap）。 */
       var slot=scoreLayout==='table'?card.querySelector('[data-group-picker-slot]'):card.querySelector('.gnames');
-      if(!slot){target.title='本组已满7人，请到名单与分组调整';return;}
-      var box=document.createElement('div');box.className='group-pick-box';box.innerHTML='<button type="button" class="btn tiny" data-pick-add aria-label="第'+g.no+'组新增成员">＋</button><div data-pick-editor hidden><input type="search" autocomplete="off" aria-label="第'+g.no+'组检索学号" placeholder="学号或后两位"><div class="group-pick-results" role="list"></div><button type="button" class="btn tiny" data-pick-exit>退出选人</button></div>';slot.appendChild(box);
-      var editor=box.querySelector('[data-pick-editor]'),input=box.querySelector('input'),results=box.querySelector('.group-pick-results');
-      function matches(){var query=input.value.trim().toLowerCase(),pending=pendingList(cls),list=pending.filter(function(r){return !query||String(r.sid||'').includes(query)||r.name.toLowerCase().includes(query);});results.innerHTML='';if(!list.length){results.textContent='没有匹配的待分配成员';return;}list.forEach(function(r){var button=document.createElement('button');button.type='button';button.className='btn tiny';button.textContent=r.name+' '+(r.sid||'');button.setAttribute('data-pick-sid',r.sid||'');button.onclick=function(e){e.stopPropagation();if(!groupPicking||groupPicking.no!==g.no||curClass().id!==cls.id)return;if(memberCount(g)>=GROUP_CAP){flash('本组已满7人');return;}if(!pendingList(cls).some(function(p){return p===r;})){matches();return;}pushMember(g,{id:uid('m'),name:r.name,sid:r.sid||'',no:studentNo(cls,r.name,r.sid)});addOperationLog('分组',cls.name+' · '+r.name+'加入第'+g.no+'组');save();renderScore();renderPoolBanner(cls);flash('已加入第'+g.no+'组，分组已全局同步');};results.appendChild(button);});}
-      box.onclick=function(e){e.stopPropagation();};box.querySelector('[data-pick-add]').onclick=function(){editor.hidden=false;this.hidden=true;matches();input.focus();};input.oninput=matches;box.querySelector('[data-pick-exit]').onclick=function(){groupPicking=null;renderGroups(cls,lesson);};
+      if(!slot){target.title='这里放不下加人控件，请到「待分配名单」页调整';return;}
+      var box=document.createElement('div');box.className='group-pick-box';
+      box.innerHTML='<span class="group-pick-count">本组 <b>'+memberCount(g)+'</b>/'+groupCap(g)+' 人'+(groupCap(g)>GROUP_CAP?'（特许）':'')+'</span>'+
+        '<button type="button" class="btn tiny" data-pick-add aria-label="第'+g.no+'组新增成员">＋ 加人</button>'+
+        '<button type="button" class="btn tiny" data-pick-minus aria-label="第'+g.no+'组移出成员">－ 减人</button>'+
+        '<div data-pick-editor hidden><input type="search" autocomplete="off" aria-label="第'+g.no+'组检索学号" placeholder="学号或后两位"><div class="group-pick-results" role="list"></div><button type="button" class="btn tiny" data-pick-exit>退出选人</button></div>'+
+        '<div data-pick-members hidden></div>';
+      slot.appendChild(box);
+      var editor=box.querySelector('[data-pick-editor]'),input=box.querySelector('input'),results=box.querySelector('.group-pick-results'),members=box.querySelector('[data-pick-members]');
+
+      function addMember(r){
+        if(!groupPicking||groupPicking.no!==g.no||curClass().id!==cls.id)return;
+        if(!pendingList(cls).some(function(p){return p===r;})){matches();return;}
+        var capBefore=groupCap(g);
+        pushMember(g,{id:uid('m'),name:r.name,sid:r.sid||'',no:studentNo(cls,r.name,r.sid)});
+        var over=memberCount(g)>capBefore;
+        if(over)g.cap=memberCount(g);   // 老师显式加超了，就等于给这个组开了特许
+        addOperationLog('分组',cls.name+' · '+r.name+'加入第'+g.no+'组'+(over?'（特许 '+g.cap+' 人）':''));
+        save();renderScore();renderPoolBanner(cls);
+        flash('已加入第'+g.no+'组'+(over?'，本组特许 '+g.cap+' 人':'')+'，分组已全局同步');
+      }
+
+      function dropMember(i){
+        var m=g.members[i];if(!m||!m.name)return;
+        /* 个人扣分是按「组内位置」存在每课 scores[组].personal 里的，必须走 removeMemberAt
+           让它把后面成员的索引左移，自己 splice 会让整组人的扣分错位。 */
+        removeMemberAt(cls,g,i);
+        addOperationLog('分组',cls.name+' · '+m.name+'移出第'+g.no+'组');
+        save();renderScore();renderPoolBanner(cls);
+        flash('已把「'+m.name+'」移出第'+g.no+'组，回到待分配名单');
+      }
+
+      function matches(){var query=input.value.trim().toLowerCase(),pending=pendingList(cls),list=pending.filter(function(r){return !query||String(r.sid||'').includes(query)||r.name.toLowerCase().includes(query);});results.innerHTML='';if(!list.length){results.textContent='没有匹配的待分配成员';return;}list.forEach(function(r){var button=document.createElement('button');button.type='button';button.className='btn tiny';button.textContent=r.name+' '+(r.sid||'');button.setAttribute('data-pick-sid',r.sid||'');button.onclick=function(e){e.stopPropagation();addMember(r);};results.appendChild(button);});}
+
+      function showRemoval(){
+        editor.hidden=true;results.innerHTML='';members.hidden=false;members.innerHTML='';
+        var entries=groupMemberEntries(g);
+        if(!entries.length){members.textContent='这个组还没有人';return;}
+        entries.forEach(function(en){
+          var b=document.createElement('button');b.type='button';b.className='btn tiny danger';
+          b.setAttribute('data-drop-index',en.i);b.textContent=en.m.name+' ×';
+          b.onclick=function(e){e.stopPropagation();dropMember(en.i);};
+          members.appendChild(b);
+        });
+      }
+
+      box.onclick=function(e){e.stopPropagation();};
+      box.querySelector('[data-pick-add]').onclick=function(){members.hidden=true;editor.hidden=false;this.hidden=true;matches();input.focus();};
+      box.querySelector('[data-pick-minus]').onclick=function(){showRemoval();};
+      input.oninput=matches;
+      box.querySelector('[data-pick-exit]').onclick=function(){groupPicking=null;renderGroups(cls,lesson);};
     });
   }
   function renderGroups(cls, lesson) {
@@ -880,6 +995,7 @@ function removeMemberAt(cls, g, j) {
       '<div class="gcard' + (duty ? ' is-duty' : '') + (touched(lesson, g.no) ? ' touched' : '') + '" data-card="' + g.no + '">' +
         '<div class="gcard-head">' +
           '<div class="group-identity"><span class="gnum">第 ' + g.no + ' 组</span>' +
+            '<span class="gcount" title="本组人数 / 上限（双击组号可加人减人）">' + cnt + '/' + groupCap(g) + '</span>' +
             (duty ? '<span class="dutytag">值日</span>' : '') + '</div>' +
           '<div class="gsum"><span class="k">本节</span>' +
             '<div class="v ' + signClass(total) + '" data-total="' + g.no + '">' + fmt(total) + '</div></div>' +
@@ -922,7 +1038,7 @@ function removeMemberAt(cls, g, j) {
     var entries=groupMemberEntries(g),editing=!printing&&groupPicking&&groupPicking.classId===cls.id&&groupPicking.lessonId===lesson.id&&groupPicking.no===g.no;
     var display=entries.length?entries:[{m:null,i:-1}],span=display.length+(editing?1:0),rows=display.map(function(x,j){var m=x.m,i=x.i,key=m&&A.key(m),grade=m&&grades.find(function(r){return r.key===key;}),total=m?Math.round((remaining(lesson,g.no,i)+projectScore(lesson,g.no,m)+duty)*100)/100:'';
       var out='<tr class="vertical-member-row"'+(m?' data-member-index="'+i+'" data-member-key="'+esc(key)+'"':'')+'>';
-      if(!j)out+='<td class="c-no" rowspan="'+span+'">'+g.no+'</td>';
+      if(!j)out+='<td class="c-no" rowspan="'+span+'">'+g.no+' <small class="gcount" title="本组人数 / 上限（双击组号可加人减人）">'+entries.length+'/'+groupCap(g)+'</small></td>';
       out+='<td class="c-mem member-name-cell'+(m?attendanceNameClass(cls,m,lesson):'')+(m&&isGroupLeader(g,m)?' group-leader-name':'')+'"'+(m?' data-leader-toggle data-g="'+g.no+'" data-member-index="'+i+'"':'')+' title="'+esc(m?(m.name+' '+(m.sid||'')+' · 双击设置或退出组长'):'双击组号添加成员')+'">'+(m?(isGroupLeader(g,m)?'<span class="leader-crown" aria-label="组长">👑</span> ':'')+esc(m.name)+(m.no==null?'':' <small>'+two(m.no)+'</small>'):'未分配成员')+'</td>';
       out+='<td class="c-ded">'+(m?(printing?remaining(lesson,g.no,i):ctlPersonal(g.no,m,i,0)):'')+'</td>';
       out+='<td class="home-attendance">'+(grade?(printing?'<strong>'+grade.attendance+'</strong>':'<button type="button" class="attendance-score" data-attendance-open="'+esc(key)+'" aria-label="'+esc(m.name)+' 考勤'+grade.attendance+'分，点击修改">'+grade.attendance+'</button>'):'')+'</td>';
@@ -1432,18 +1548,21 @@ function removeMemberAt(cls, g, j) {
   var poolFilter = 'pending';
   var poolSearch = '';
 
-  /** 上课记分页顶部的跳转提示条 */
+  /** 上课记分页顶部的跳转提示条（只提示，不拦人：没分完照样能记分） */
   function renderPoolBanner(cls) {
     var el = $('#poolBanner');
-    var p = pendingList(cls);
-    if (!p.length) { el.hidden = true; el.innerHTML = ''; return; }
+    var p = truePendingList(cls), seated = seatedNotGrouped(cls);
+    if (!p.length && !seated.length) { el.hidden = true; el.innerHTML = ''; return; }
     var names = p.slice(0, 6).map(function (r) { return r.name; }).join('、');
     if (p.length > 6) names += ' 等';
+    var text = p.length
+      ? '本班还有 <b>' + p.length + '</b> 人没分到组：' + esc(names) + ' · 不影响现在照常记分'
+      : '本班有 <b>' + seated.length + '</b> 人已经坐在圆桌上，但还没确认分组，确认后才写进记分表';
     el.hidden = false;
     el.innerHTML =
       '<span class="dot"></span>' +
-      '<span>本班还有 <b>' + p.length + '</b> 人没分配小组：' + esc(names) + '</span>' +
-      '<button class="btn tiny" id="btnGoPool">查看待分配名单 →</button>';
+      '<span>' + text + (p.length && seated.length ? '（另有 <b>' + seated.length + '</b> 人已选座待确认）' : '') + '</span>' +
+      '<button class="btn tiny" id="btnGoPool">' + (seated.length ? '去确认分组 →' : '查看待分配名单 →') + '</button>';
     $('#btnGoPool').addEventListener('click', function () {
       $('#poolClassSel').value = cls.id;
       switchView('pool');
@@ -1465,24 +1584,31 @@ function removeMemberAt(cls, g, j) {
     $('#poolClassSel').value = cls.id;
     $('#classSel').value = cls.id;
 
-    var map = placedMap(cls);
+    var map = placedMap(cls), seat = seatIndex(cls);
     var rows = rosterOf(cls).map(function (r) {
-      return { r: r, g: groupOfStudent(cls, r, map) };
+      var g = groupOfStudent(cls, r, map);
+      var table = g === null ? seatedTable(cls, r, seat) : 0;
+      return { r: r, g: g, table: table };
     });
-    var nAssigned = rows.filter(function (x) { return x.g !== null; }).length;
-    var nPending = rows.length - nAssigned;
+    var nGrouped = rows.filter(function (x) { return x.g !== null; }).length;
+    var nSeated = rows.filter(function (x) { return x.g === null && x.table; }).length;
+    var nPending = rows.length - nGrouped - nSeated;
+    /* 坐在圆桌上的人也算「有着落」，分配率才和看板的「已选 59/59」对得上 */
+    var nSettled = nGrouped + nSeated;
 
     $('#poolMetrics').innerHTML =
       '<div class="metric"><div class="k">全班人数</div><div class="v">' + rows.length +
         ' <small>人</small></div></div>' +
-      '<div class="metric"><div class="k">已分配小组</div><div class="v good">' + nAssigned +
+      '<div class="metric"><div class="k">已分组</div><div class="v good">' + nGrouped +
         ' <small>人</small></div></div>' +
+      (nSeated ? '<div class="metric"><div class="k">已选座 · 待确认</div><div class="v">' + nSeated +
+        ' <small>人</small></div></div>' : '') +
       '<div class="metric"><div class="k">本班待分配</div><div class="v ' + (nPending ? 'neg' : '') + '">' +
         nPending + ' <small>人</small></div></div>' +
       '<div class="metric"><div class="k">分配率</div><div class="v">' +
-        (rows.length ? Math.round(nAssigned / rows.length * 100) : 0) + ' <small>%</small></div></div>';
+        (rows.length ? Math.round(nSettled / rows.length * 100) : 0) + ' <small>%</small></div></div>';
 
-    /* 筛选 */
+    /* 筛选：圆桌上的人还没写进分组，仍然归在「待分配」这一栏里等人点确认 */
     var list = rows;
     if (poolFilter === 'pending') list = rows.filter(function (x) { return x.g === null; });
     else if (poolFilter === 'assigned') list = rows.filter(function (x) { return x.g !== null; });
@@ -1498,11 +1624,11 @@ function removeMemberAt(cls, g, j) {
       return (a.r.no == null ? 9999 : a.r.no) - (b.r.no == null ? 9999 : b.r.no);
     });
 
-    /* 可分配的目标组 */
+    /* 可分配的目标组（上限读该组自己的 groupCap，老师特许过的组还能继续放人） */
     var groupOpts = cls.groups.map(function (g) {
-      var left = GROUP_CAP - memberCount(g);
+      var cap = groupCap(g), left = cap - memberCount(g);
       return '<option value="' + g.no + '"' + (left <= 0 ? ' disabled' : '') + '>' +
-        '第 ' + g.no + ' 组（' + memberCount(g) + '/' + GROUP_CAP + '）</option>';
+        '第 ' + g.no + ' 组（' + memberCount(g) + '/' + cap + '）</option>';
     }).join('');
 
     $('#poolList').innerHTML = list.length
@@ -1511,13 +1637,18 @@ function removeMemberAt(cls, g, j) {
         '</tr></thead><tbody>' +
         list.map(function (x) {
           var r = x.r;
+          /* 坐在圆桌上的人不算「待分配」：他已经在看板上坐在第 N 桌，只是老师还没点
+             「按选座确认分组」把它写成组。这里如实写「已选座 · 待确认」，别让老师以为没做。 */
+          var status = x.g !== null
+            ? '<span class="pill done">第 ' + x.g + ' 组</span>'
+            : x.table
+              ? '<span class="pill pending" title="看板上已经坐在第 ' + x.table + ' 桌，点组队卡片的「按选座确认分组」才写进记分表">已选座 · 第 ' + x.table + ' 桌（待确认）</span>'
+              : '<span class="pill pending">待分配</span>';
           return '<tr' + (x.g === null ? ' class="row-pending"' : '') + '>' +
             '<td>' + (r.no == null ? '' : r.no) + '</td>' +
             '<td>' + esc(r.name || '（未命名）') + '</td>' +
             '<td>' + esc(r.sid || '') + '</td>' +
-            '<td>' + (x.g === null
-              ? '<span class="pill pending">待分配</span>'
-              : '<span class="pill done">第 ' + x.g + ' 组</span>') + '</td>' +
+            '<td>' + status + '</td>' +
             '<td>' + (x.g === null
               ? '<select class="assign" data-name="' + esc(r.name) + '" data-sid="' + esc(r.sid || '') + '">' +
                   '<option value="">分配到…</option>' + groupOpts + '</select>'
@@ -1557,8 +1688,8 @@ function removeMemberAt(cls, g, j) {
     var cls = curClass();
     var g = groupOf(cls, +sel.value);
     if (!g) return;
-    if (memberCount(g) >= GROUP_CAP) {
-      alert('第 ' + g.no + ' 组已满 ' + GROUP_CAP + ' 人。请先移出或选别的组。');
+    if (memberCount(g) >= groupCap(g)) {
+      alert('第 ' + g.no + ' 组已满 ' + groupCap(g) + ' 人。请先移出或选别的组。');
       renderPool();
       return;
     }
@@ -1667,23 +1798,40 @@ function removeMemberAt(cls, g, j) {
     }, 2000);
   }
 
+  /** 记分页每次加减分都会重画，这里每班只静默拉一次座位：拉到了统计和横幅才和看板同一个口径 */
+  function tmMaybePull(cls) {
+    if (!cls || !tmOn() || !tmClassId(cls) || tmTried[cls.id]) return;
+    tmTried[cls.id] = true;
+    tmPull();
+  }
+
   function tmPull() {
     var cls = curClass();
-    if (!cls || !tmOn() || !tmClassId(cls)) { tmRoom = null; tmState = null; tmPaint(); return Promise.resolve(); }
+    if (!cls || !tmOn() || !tmClassId(cls)) { tmRoom = null; tmState = null; tmSeatClass = null; tmPaint(); return Promise.resolve(); }
     var cid = tmClassId(cls), r = tmRoom && tmRoom.room ? tmRoom.room : null;
     return CLOUD.rpc('jf_team_room', { p_class: cid }).then(function (room) {
       tmRoom = room || { room: null };
       if (!tmRoom.room) { tmState = null; return null; }
       return CLOUD.rpc('jf_team_state', { p_room: Number(tmRoom.room) }).then(function (st) { tmState = st; });
     }).then(function () {
-      tmBusy = false; tmPaint();
+      tmBusy = false;
+      tmSeatClass = tmState ? cls.id : null;
+      /* 座位变了要连带重画统计和待分配名单：统计把「坐在桌上的人」算已分配，
+         否则看板已经刷新成 59/59，下面还停在旧的 52/7。 */
+      var sig = JSON.stringify((tmState && tmState.seats || []).map(function (s) { return [s.no || '', s.name, s.table]; }));
+      if (sig !== tmSeatSig) {
+        tmSeatSig = sig;
+        if (view === 'pool') renderPool();
+        else if (view === 'score') renderPoolBanner(curClass());
+      }
+      tmPaint();
     }).catch(function (e) {
       tmBusy = false;
       var msg = (e && e.message) || '读取失败';
       if (/could not find|does not exist|schema cache/i.test(msg)) {
         msg = '云端还没装组队功能：需要在 Supabase 控制台执行 supabase/2026-11-03-学生选组.sql。';
       }
-      tmRoom = null; tmState = null;
+      tmRoom = null; tmState = null; tmSeatClass = null;
       var box = $('#teamBoard');
       if (box) box.innerHTML = '<p class="note">' + esc(msg) + '</p>';
       tmButtons(null);
@@ -1695,7 +1843,11 @@ function removeMemberAt(cls, g, j) {
     var open = $('#btnTeamOpen'), lock = $('#btnTeamLock'),
         fin = $('#btnTeamFinish'), close = $('#btnTeamClose'), link = $('#teamLink');
     var st = room ? room.status : 'none';
-    open.hidden = !!room;
+    /* 云端 jf_team_room 只按 created_at 取最新一间，房间「结束」后也照样返回它。
+       所以这里不能只判断「有没有房间」：不然老师点一次「结束」，这个班四个按钮全被藏光，
+       再也点不到「开放组队」，表现为「确认分组后就打不开分组了」。房间结束=这一轮收工，
+       把「开放组队」放回来，老师随时能再开一轮（jf_team_open 会先把旧房间作废）。 */
+    open.hidden = !!room && st !== 'closed';
     lock.hidden = !room || st === 'closed';
     fin.hidden = !room || st === 'closed';
     close.hidden = !room || st === 'closed';
@@ -1821,7 +1973,7 @@ function removeMemberAt(cls, g, j) {
     if (!tmClassId(cls)) { alert('这个班还没对应首页班级，先在「数据与备份」页对应。'); return; }
     var tables = Math.max(1, Math.min(40, Math.round(Number($('#teamTables').value) || 10)));
     var size = Math.max(2, Math.min(GROUP_CAP, Math.round(Number($('#teamSize').value) || 6)));
-    var pending = pendingList(cls).length;
+    var pending = truePendingList(cls).length;
     if (!confirm('开放组队：' + tables + ' 张圆桌，每桌 ' + size + ' 人。\n\n' +
       '学生用学号账号打开「学生入口」，点一张圆桌就坐下，可以自己换桌。\n' +
       '本班现在还有 ' + pending + ' 人没分组。\n\n' +
@@ -1857,11 +2009,15 @@ function removeMemberAt(cls, g, j) {
 
   $('#btnTeamClose').addEventListener('click', function () {
     if (!tmRoom || !tmRoom.room) return;
-    if (!confirm('结束这次组队？学生端变成只读，之后想再组队要重新开放。\n\n' +
-      '（结束不会自动改分组，还要再点「按选座确认分组」）')) return;
+    /* 结束只改房间状态，座位原样留着——那是学生自己商量出来的结果，不能替他们抹掉。
+       所以文案要说清「座位还在、等你确认」；再开一场时看板只显示最新房间的座位，
+       上一场没确认的就看不到了（不是被删，是跟着旧房间一起归档）。 */
+    if (!confirm('结束这次组队？学生端变成只读。\n\n' +
+      '结束只是停止学生改座，已选的座位会留着，等你点「按选座确认分组」才写进记分表。\n' +
+      '想整班重来就再开一次组队——上一场还没确认的座位会被新房间顶掉，看板上就看不到了。')) return;
     tmBusy = true;
     CLOUD.rpc('jf_team_close', { p_room: Number(tmRoom.room) })
-      .then(function () { tmBusy = false; flash('这次组队已结束'); return tmPull(); })
+      .then(function () { tmBusy = false; flash('这次组队已结束，座位保留着，确认分组后才会写进记分表'); return tmPull(); })
       .catch(function (e) { tmBusy = false; alert('操作失败：' + ((e && e.message) || '未知错误')); });
   });
 
@@ -1999,10 +2155,33 @@ function removeMemberAt(cls, g, j) {
     return Math.max(2, Math.min(GROUP_CAP, n));
   }
 
+  /** 每组几人 → 每组实际分几人。
+      老师选 7 人就是想 7 个人坐一桌，所以按 size 装满，最后剩几个算一组；
+      只有「剩下来的人太少」（不到半组）时才回头摊平，免得出现 1–2 人的残组。
+      49 人 ÷ 6 → 8 组 6 人 + 剩 1 人（太少）→ 摊平成 4 组 6 人 + 5 组 5 人；
+      47 人 ÷ 7 → 6 组 7 人 + 1 组 5 人。 */
+  function planSizes(total, size) {
+    size = clampSize(size);
+    if (!total) return [];
+    var full = Math.floor(total / size), rem = total % size, out = [], i;
+    if (!rem) {
+      for (i = 0; i < full; i++) out.push(size);
+      return out;
+    }
+    if (rem < size / 2) {
+      var n = full + 1, base = Math.floor(total / n), rest = total % n;
+      for (i = 0; i < n; i++) out.push(base + (i < rest ? 1 : 0));
+      return out;
+    }
+    for (i = 0; i < full; i++) out.push(size);
+    out.push(rem);
+    return out;
+  }
+
   /** 待分配学生按每组 size 人切组：只用空组，缺组补、多余空组删，返回安排结果 */
   function autoGroupBySize(cls, size, shuffle) {
     size = clampSize(size);
-    var pending = pendingList(cls).slice();
+    var pending = truePendingList(cls).slice();
     if (!pending.length) return { error: '这个班没有待分配的学生，都分好组了。' };
     pending.sort(function (a, b) {
       var x = a.no == null ? 1e9 : a.no, y = b.no == null ? 1e9 : b.no;
@@ -2015,9 +2194,10 @@ function removeMemberAt(cls, g, j) {
         var t = pending[i]; pending[i] = pending[j]; pending[j] = t;
       }
     }
+    var plan = planSizes(pending.length, size);
+    var need = plan.length;
     var empty = cls.groups.filter(function (g) { return memberCount(g) === 0; })
       .sort(function (a, b) { return a.no - b.no; });
-    var need = Math.ceil(pending.length / size);
     var use = empty.slice(0, need);
     var drop = empty.slice(need).filter(function (g) { return !groupHasHistory(cls, g.no); });
     drop.forEach(function (g) {
@@ -2030,40 +2210,56 @@ function removeMemberAt(cls, g, j) {
       cls.groups.push(ng);
       use.push(ng);
     }
-    var n = use.length;
-    var base = Math.floor(pending.length / n), rem = pending.length % n, at = 0;
+    var at = 0;
     use.forEach(function (g, gi) {
-      var take = base + (gi < rem ? 1 : 0);
-      for (var k = 0; k < take; k++) {
+      for (var k = 0; k < plan[gi]; k++) {
         var r = pending[at++];
         pushMember(g, { id: uid('m'), name: r.name, sid: r.sid || '', no: r.no == null ? null : r.no });
       }
     });
     return {
-      groups: n, min: base, max: base + (rem ? 1 : 0),
+      groups: need,
+      min: Math.min.apply(null, plan), max: Math.max.apply(null, plan),
       people: pending.length, removed: drop.length
     };
   }
 
-  function pendingCountOf(cls) { return cls ? pendingList(cls).length : 0; }
+  function pendingCountOf(cls) { return cls ? truePendingList(cls).length : 0; }
 
-  /** 输入框旁实时算给老师看：49 人分 6 人一组 = 9 组，每组 5–6 人 */
+  /** 输入框旁实时算给老师看：49 人分 6 人一组 = 9 组，每组 5–6 人
+      和真正分组用同一份 planSizes 算，免得提示说 7 人、分出来却是 6 人。 */
   function updatePoolSizeHint() {
     var box = $('#poolSizeHint');
     if (!box) return;
     var n = pendingCountOf(curClass()), size = clampSize($('#poolSize').value);
     if (!n) { box.textContent = '人（没有待分配学生）'; return; }
-    var g = Math.ceil(n / size), lo = Math.floor(n / g), hi = Math.ceil(n / g);
-    box.textContent = '人 → 共 ' + n + ' 人，分 ' + g + ' 组，每组 ' + (lo === hi ? lo : lo + '–' + hi) + ' 人';
+    var plan = planSizes(n, size);
+    var lo = Math.min.apply(null, plan), hi = Math.max.apply(null, plan), tail = '';
+    /* 装满后剩一组人数不一样时，直接把「最后一组几人」写出来：
+       老师选 7 就得看见 7，不能只看到一句「5–7 人」还以为没生效。 */
+    if (lo !== hi && plan[plan.length - 1] === lo && plan.slice(0, -1).every(function (x) { return x === hi; })) {
+      tail = '（最后一组 ' + lo + ' 人）';
+      lo = hi;
+    }
+    box.textContent = '人 → 共 ' + n + ' 人，分 ' + plan.length + ' 组，每组 ' +
+      (lo === hi ? lo : lo + '–' + hi) + ' 人' + tail;
   }
 
   function runAutoGroup(shuffle) {
     var cls = curClass();
     if (!cls) return;
     var size = clampSize($('#poolSize').value);
-    var pending = pendingList(cls);
-    if (!pending.length) { alert('这个班没有待分配的学生，都分好组了。'); return; }
-    var need = Math.ceil(pending.length / size);
+    var pending = truePendingList(cls);
+    if (!pending.length) {
+      /* 一键分组不碰已经在圆桌上的人：他在看板上坐第 N 桌，硬分到别的组会和座次打架。
+         所以这里要告诉老师「不是没人可分，是还没确认选座」，而不是一句「都分好组了」。 */
+      var seated = seatedNotGrouped(cls);
+      alert(seated.length
+        ? '还有 ' + seated.length + ' 人选好了圆桌但没确认分组。\n请先在组队卡片上点「按选座确认分组」把它们写进记分表，再来一键分组。'
+        : '这个班没有待分配的学生，都分好组了。');
+      return;
+    }
+    var need = planSizes(pending.length, size).length;
     if (!confirm('把 ' + pending.length + ' 名待分配学生' + (shuffle ? '随机' : '按班内序号') +
       '分成 ' + need + ' 组（每组不超过 ' + size + ' 人）？\n\n' +
       '已经分好的组一律不动；用不上的空组会删掉（有历史记分的空组保留）。\n' +
@@ -2088,7 +2284,7 @@ function removeMemberAt(cls, g, j) {
   /* 均匀分配 */
   $('#btnPoolAuto').addEventListener('click', function () {
     var cls = curClass();
-    var pending = pendingList(cls);
+    var pending = truePendingList(cls);
     if (!pending.length) { alert('这个班没有待分配的学生。'); return; }
     var room = cls.groups.map(function (g) {
       return { g: g, left: GROUP_CAP - memberCount(g) };
