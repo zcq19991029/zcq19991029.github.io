@@ -516,8 +516,9 @@ html.hx-lite #hxBootCv{display:none}
  *   3. 随机但**同一会话内固定**：选择记在 sessionStorage（键 hx-loadfx-<tool>）。
  *   4. 播不了就回落：prefers-reduced-motion、hx-lite（省电一体机）、特效包没加载出来、
  *      canvas 建不出来时回落到原来的像素方块药丸——绝不允许什么都不显示。
- *   5. 尺寸按视口自适应（2026-11-06 用户「加载动效普遍太小 紧急修复」）：像素主体按短边
- *      最大 62% 定尺寸、整数倍放大 3～8 倍，1080p 上是一块醒目的主体，不再是指甲盖。
+ *   5. 尺寸按视口自适应（2026-11-06 用户「加载动效普遍太小 紧急修复」；2026-11-07 再放大：
+ *      用户「再放大点」，短边 62% → 70%）：像素主体按短边最大 70% 定尺寸、整数倍放大 3～8 倍，
+ *      1080p 上是一块醒目的主体，不再是指甲盖。
  *
  * 性能红线（同 小组加分/fx/hx-jf-load.js）：全局唯一 requestAnimationFrame 循环、
  * 帧率封顶（触屏 18fps / 桌面 30fps）、done() 后 cancel；canvas 被 innerHTML 换掉
@@ -559,11 +560,12 @@ html.hx-lite #hxBootCv{display:none}
   })();
 
   // 按视口算整数放大倍数（像素画非整数缩放会糊）。
-  // 首屏：短边 62% 定上限，3～8 倍；面板内嵌：上限收紧，2～4 倍，放进卡片不撑爆。
+  // 首屏：短边 70% 定上限（2026-11-07 用户「再放大点」，62% → 70%），3～8 倍；
+  // 面板内嵌：上限收紧，2～4 倍，放进卡片不撑爆。
   function fit(cv, m, compact) {
     var vw = window.innerWidth || 960, vh = window.innerHeight || 640;
-    var maxW = compact ? Math.min(vw * 0.72, 340) : vw * 0.66;
-    var maxH = compact ? Math.min(vh * 0.3, 260) : vh * 0.62;
+    var maxW = compact ? Math.min(vw * 0.72, 340) : vw * 0.72;
+    var maxH = compact ? Math.min(vh * 0.3, 260) : vh * 0.70;
     var k = Math.floor(Math.min(maxW / m.size[0], maxH / m.size[1]));
     // 上限 12：56px 的小特效在 1080p 也能放大到 ~620px，和 128px 大特效（5 倍 640px）
     // 视觉体量接近——不然随机抽到小特效那几把，「动效明显小一圈」。
@@ -727,7 +729,7 @@ html.hx-lite #hxBootCv{display:none}
 </script>
 </head>
 <body>
-<div id="hxBoot" class="hx-boot" aria-hidden="true"><div class="hx-boot-card"><canvas id="hxBootCv" width="96" height="96"></canvas><div class="hx-loadpill sm" role="status" aria-live="polite"><span class="hx-px" aria-hidden="true"><i style="--i:0"></i><i style="--i:1"></i><i style="--i:2"></i><i style="--i:3"></i><i style="--i:4"></i><i style="--i:5"></i><i style="--i:6"></i></span><b>正在载入…</b></div></div></div>
+<div id="hxBoot" class="hx-boot" aria-hidden="true"><div class="hx-boot-card"><canvas id="hxBootCv" width="96" height="96"></canvas><p class="hx-boot-title">考试</p><div class="hx-loadpill sm" role="status" aria-live="polite"><span class="hx-px" aria-hidden="true"><i style="--i:0"></i><i style="--i:1"></i><i style="--i:2"></i><i style="--i:3"></i><i style="--i:4"></i><i style="--i:5"></i><i style="--i:6"></i></span><b>正在载入…</b></div></div></div>
 <script>HXLoadFx.boot('exam', 'hxBoot');</script>
 <main class="ex" id="app"></main>
 <script>/* ================= C51 子集解释器：预处理 / 词法 / 语法 / 名字检查 / 带硬件模型的模拟运行 ================= */

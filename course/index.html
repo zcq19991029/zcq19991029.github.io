@@ -231,8 +231,29 @@ html[data-kc="wait"] body{overflow:hidden}
 <link rel="stylesheet" href="assets/week-home.css?release=20261007-theme-swatches">
 <link rel="stylesheet" href="assets/teacher-home.css?release=20261007-theme-swatches">
 <link rel="stylesheet" href="assets/import-ui.css?release=20261007-theme-swatches">
+<!-- 统一像素加载动效（2026-11-07）：head 阻塞加载站点根 /fx/ 的共享特效件（与刷题/考试/小组加分同一套规则），
+     body 开头的 #hxBoot 解析到就画出第一帧「canvas 像素动效 + 标题 + 药丸」，页面就绪后整层淡出。 -->
+<script src="/fx/pixelfx-loader.js"></script>
+<script src="/fx/hx-loadfx.js"></script>
 </head>
 <body>
+<!-- 首屏闪屏（全站统一三件套）：动效 + 标题 + 药丸；脚本没加载出来时回落药丸，8 秒兜底撤层 -->
+<div id="hxBoot" class="hx-boot" aria-hidden="true" style="background:#f4f6fa">
+  <div class="hx-boot-card">
+    <canvas id="hxBootCv" width="96" height="96"></canvas>
+    <p class="hx-boot-title">课程进度</p>
+    <div class="hx-loadpill sm" role="status" aria-live="polite"><span class="hx-px" aria-hidden="true"><i style="--i:0"></i><i style="--i:1"></i><i style="--i:2"></i><i style="--i:3"></i><i style="--i:4"></i><i style="--i:5"></i><i style="--i:6"></i></span><b>正在载入…</b></div>
+  </div>
+</div>
+<script>(function(){
+  var ov=document.getElementById('hxBoot');
+  function gone(){if(ov&&ov.parentNode)ov.parentNode.removeChild(ov);}
+  if(window.HXLoadFx){HXLoadFx.boot('course','hxBoot');
+    var fin=function(){if(window.HXLoadFx&&HXLoadFx.booting())HXLoadFx.finishBoot();else gone();};
+    if(document.readyState==='complete')setTimeout(fin,60);else addEventListener('load',function(){setTimeout(fin,60);});
+  }
+  setTimeout(function(){if(!window.HXLoadFx||!HXLoadFx.booting||!HXLoadFx.booting())gone();},8000);
+})();</script>
 <!-- 由 assets/cloud-store.js 控制：没有华夏工具登录、账号不是老师、云端没读到时显示 -->
 <div class="kc-gate" id="kcGate" hidden>
   <div class="kc-gate-card">

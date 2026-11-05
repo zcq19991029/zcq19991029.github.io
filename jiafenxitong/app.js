@@ -68,6 +68,23 @@
 
   Array.prototype.forEach.call(document.querySelectorAll('dialog'), wireDialog);
 
+  /* ================= 侧栏抽屉（窄屏 <1100px） =================
+     纯 UI：☰ 打开、点遮罩或选中任一菜单收起；宽屏侧栏常驻时这条逻辑不生效。 */
+  (function () {
+    var body = document.body;
+    var toggle = document.getElementById('navToggle');
+    var scrim = document.getElementById('navScrim');
+    function setNav(open) {
+      body.classList.toggle('nav-open', open);
+      if (scrim) scrim.hidden = !open;
+      if (toggle) toggle.setAttribute('aria-expanded', String(open));
+    }
+    if (toggle) toggle.addEventListener('click', function () { setNav(!body.classList.contains('nav-open')); });
+    if (scrim) scrim.addEventListener('click', function () { setNav(false); });
+    var tabs = document.getElementById('tabs');
+    if (tabs) tabs.addEventListener('click', function (e) { if (e.target.closest('button[data-view]')) setNav(false); });
+  })();
+
   /* ================= 状态 ================= */
 
   var S = null;
@@ -172,17 +189,20 @@
     try {
       localStorage.setItem(LS_KEY, JSON.stringify(S));
     } catch (e) {
-      $('#saveState').textContent = '⚠ 保存失败：浏览器存储已满或被禁用';
+      var failEl = $('#saveState');
+      if (failEl) failEl.textContent = '⚠ 保存失败：浏览器存储已满或被禁用';
       return;
     }
     publishStudentFeed();
     if (flash !== false) {
       var el = $('#saveState');
-      var d = new Date();
-      el.textContent = '已保存 ' + d.getHours() + ':' + ('0' + d.getMinutes()).slice(-2);
-      el.classList.add('flash');
-      clearTimeout(saveTimer);
-      saveTimer = setTimeout(function () { el.classList.remove('flash'); }, 1200);
+      if (el) {
+        var d = new Date();
+        el.textContent = '已保存 ' + d.getHours() + ':' + ('0' + d.getMinutes()).slice(-2);
+        el.classList.add('flash');
+        clearTimeout(saveTimer);
+        saveTimer = setTimeout(function () { el.classList.remove('flash'); }, 1200);
+      }
     }
     /* 本机先落盘，云端在后台合并推送；离线时排队等恢复 */
     if (CLOUD && CLOUD_ON) CLOUD.touch(function () { return S; });
@@ -599,14 +619,16 @@ function removeMemberAt(cls, g, j) {
   /** 顶栏那句小字兼做提示条 */
   function flash(msg, quiet) {
     var el = $('#saveState');
-    el.textContent = msg;
-    el.classList.add('flash');
-    clearTimeout(saveTimer);
-    saveTimer = setTimeout(function () {
-      el.classList.remove('flash');
-      var d = new Date();
-      el.textContent = '已自动保存到本机 ' + d.getHours() + ':' + ('0' + d.getMinutes()).slice(-2);
-    }, 2600);
+    if (el) {
+      el.textContent = msg;
+      el.classList.add('flash');
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(function () {
+        el.classList.remove('flash');
+        var d = new Date();
+        el.textContent = '已自动保存到本机 ' + d.getHours() + ':' + ('0' + d.getMinutes()).slice(-2);
+      }, 2600);
+    }
 
     if (!quiet) toast(msg);
   }
@@ -3656,7 +3678,12 @@ function removeMemberAt(cls, g, j) {
   function setSyncEditGate(blocked,message){syncEditBlocked=blocked;if(!S)return;['#view-score','#view-leader','#view-attendance','#view-pool','#scoreTools','#rosterCard','#lessonListCard','#hxRosterBox'].forEach(function(selector){var el=$(selector);if(el)el.toggleAttribute('inert',blocked);});['#btnRestore','#btnWipe'].forEach(function(selector){var b=$(selector);if(b)b.disabled=blocked;});var gate=$('#syncEditGate');if(!gate){gate=document.createElement('div');gate.id='syncEditGate';gate.className='sync-edit-gate';gate.setAttribute('role','status');$('#main').prepend(gate);}gate.hidden=!blocked;gate.textContent=message||'正在核对云端，确认后开放编辑';if(!blocked)hxAfterGate();}
   var conflictNotice=document.createElement('dialog');conflictNotice.id='dlgSyncConflict';conflictNotice.innerHTML='<div class="dlg"><div class="dlg-head"><h3>两台设备的记录不同</h3><button type="button" class="dlg-x" id="closeSyncConflict" aria-label="关闭同步冲突提示">✕</button></div><div class="dlg-body"><p>系统已暂停上传，请先查看下面的业务数据差异，再选择保留哪一边。</p><p class="note">关闭窗口不会解决冲突；完成一次处理后才会恢复编辑和自动同步。</p><div id="syncConflictDetails" aria-live="polite"></div><div class="btnrow conflict-actions"><button class="btn" id="backupConflictLocal">先下载本机备份</button><button class="btn" id="keepCloudConflict">保留云端记录</button><button class="btn primary" id="keepLocalConflict">保留本机记录</button></div><button class="linkbtn" id="openSyncConflictTools">打开数据与备份页面</button></div></div>';document.body.appendChild(conflictNotice);wireDialog(conflictNotice);var conflictNoticeShown=false;
   $('#closeSyncConflict').onclick=function(){conflictNotice.close();};$('#backupConflictLocal').onclick=function(){$('#btnBackup').click();};$('#openSyncConflictTools').onclick=function(){conflictNotice.close();switchView('data');$('.sync-row').scrollIntoView({block:'center',behavior:'smooth'});};$('#keepCloudConflict').onclick=function(){conflictNotice.close();$('#btnPullCloud').click();};$('#keepLocalConflict').onclick=function(){conflictNotice.close();$('#btnPushCloud').click();};
-  $('#cloudChip').onclick=function(){if(CLOUD&&CLOUD.status().mode==='conflict')openDlg(conflictNotice);};$('#cloudChip').setAttribute('tabindex','0');$('#cloudChip').setAttribute('role','button');$('#cloudChip').onkeydown=function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();this.click();}};
+  var cloudChip = $('#cloudChip');
+  if (cloudChip) {
+    cloudChip.onclick = function () { if (CLOUD && CLOUD.status().mode === 'conflict') openDlg(conflictNotice); };
+    cloudChip.setAttribute('tabindex', '0'); cloudChip.setAttribute('role', 'button');
+    cloudChip.onkeydown = function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this.click(); } };
+  }
   function renderCloudStatus(st) {
     st = st || (CLOUD && CLOUD.status()) || { mode: 'idle', text: '' };
     var map = { checking:'saving',ok: 'ok', saving: 'saving', connecting: 'saving', offline: 'offline', error: 'error', conflict: 'error' };
@@ -3673,10 +3700,12 @@ function removeMemberAt(cls, g, j) {
     if(st.mode==='ok')text=st.checkedAt?'云端核对于 '+new Date(st.checkedAt).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}):'已连接云端，等待核对';
 
     var chip = $('#cloudChip');
-    chip.className = 'chip ' + cls;
-    chip.textContent = text;chip.title='云端版本：'+(st.cloudVersion==null?'未核对':st.cloudVersion)+'；最近核对：'+(st.checkedAt?new Date(st.checkedAt).toLocaleString():'尚未核对')+'；云端保存：'+(st.serverTime?new Date(st.serverTime).toLocaleString():'未知');
-    if(st.mode==='conflict'){chip.textContent='同步冲突 · 点击处理';chip.title=text;chip.classList.add('conflict-action');if(!conflictNoticeShown){conflictNoticeShown=true;setTimeout(function(){if(!document.querySelector('dialog[open]')&&CLOUD.status().mode==='conflict')openDlg(conflictNotice);},0);}}else{chip.classList.remove('conflict-action');if(st.mode==='ok')conflictNoticeShown=false;}
-    chip.hidden = false;
+    if (chip) {
+      chip.className = 'chip ' + cls;
+      chip.textContent = text;chip.title='云端版本：'+(st.cloudVersion==null?'未核对':st.cloudVersion)+'；最近核对：'+(st.checkedAt?new Date(st.checkedAt).toLocaleString():'尚未核对')+'；云端保存：'+(st.serverTime?new Date(st.serverTime).toLocaleString():'未知');
+      if(st.mode==='conflict'){chip.textContent='同步冲突 · 点击处理';chip.title=text;chip.classList.add('conflict-action');if(!conflictNoticeShown){conflictNoticeShown=true;setTimeout(function(){if(!document.querySelector('dialog[open]')&&CLOUD.status().mode==='conflict')openDlg(conflictNotice);},0);}}else{chip.classList.remove('conflict-action');if(st.mode==='ok')conflictNoticeShown=false;}
+      chip.hidden = false;
+    }
 
     var row = $('.sync-row');
     if (row) {
@@ -3889,7 +3918,7 @@ function removeMemberAt(cls, g, j) {
 
   /* 云端状态 → 顶栏小圆点 + 数据页同步条 */
   if (CLOUD) CLOUD.onStatus(renderCloudStatus);
-  $('#btnCheckAppVersion').addEventListener('click',function(){checkAppVersion(true);});
+  if ($('#btnCheckAppVersion')) $('#btnCheckAppVersion').addEventListener('click',function(){checkAppVersion(true);});
   checkAppVersion(false);
   var checkCloudButton=document.createElement('button');checkCloudButton.id='btnCheckCloudLatest';checkCloudButton.className='btn';checkCloudButton.textContent='核对云端最新版';checkCloudButton.onclick=function(){checkCloudButton.disabled=true;checkCloudButton.setAttribute('aria-busy','true');refreshCloud().then(function(ok){flash(ok?'核对完成：本机已是云端最新版':'核对未完成：请查看同步冲突详情');}).finally(function(){checkCloudButton.disabled=false;checkCloudButton.removeAttribute('aria-busy');});};$('#btnSyncNow').parentElement.appendChild(checkCloudButton);
 

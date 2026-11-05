@@ -75,12 +75,13 @@
   // 像素动效是这块屏幕的主体，必须**大**，不能再是中间一个小方块。
   // 2026-11-06 再次返修（用户：「加载动效普遍太小 紧急修复」）：原来上限 4 倍、按短边 42% 定目标，
   // 1080p 下 128px 的篝火最多只有 384px，投在教室大屏上确实偏小。
-  // 现在按**短边的 62%** 定目标尺寸，倍数上限 12、下限 3：1920×1080 下 128px 特效放大 5 倍（640px），
-  // 56～64px 的小特效放到 10～11 倍（560～640px），不同特效的视觉体量接近，都是第一眼就能看见的主体。
+  // 现在按**短边的 70%** 定目标尺寸（2026-11-07 用户「再放大点」，62% → 70%），倍数上限 12、下限 3：
+  // 1920×1080 下 128px 特效放大 6 倍（768px），56～64px 的小特效放到 11～12 倍（620～768px），
+  // 不同特效的视觉体量接近，都是第一眼就能看见的主体。
   function sizeCanvas() {
     var m = mod && mod.meta; if (!m) return;
-    var vw = (window.innerWidth || 960) * 0.88;
-    var vh = (window.innerHeight || 640) * 0.62;
+    var vw = (window.innerWidth || 960) * 0.9;
+    var vh = (window.innerHeight || 640) * 0.70;
     var k = Math.max(3, Math.min(Math.floor(vw / m.size[0]), Math.floor(vh / m.size[1]), 12));
     cv.style.width = (m.size[0] * k) + 'px';
     cv.style.height = (m.size[1] * k) + 'px';

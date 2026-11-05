@@ -1943,3 +1943,344 @@ html.hx-bg body::before { display: none; }
   .peer-score { font-size: 10pt !important; color: #111 !important; }
   .peer-src { display: none !important; }
 }
+
+/* ============================================================
+   侧栏与全站视觉统一重做（2026-11-05，ui-redo）
+   参考数据看板那套深色玻璃：深海蓝半透明面板、渐变高亮菜单、青/紫/橙强调色。
+   原则：
+   · 深色玻璃只在夜览（html[data-hx-mode="dark"]，总入口外观面板切换）生效；
+     日间保持协调的浅色玻璃，两套主题共用同一套结构样式。
+   · 纸质记分表（table.sheet）的列色由 --xl-* 变量画：深色下把变量改成
+     半透明深色玻璃版，列的色相不变（蓝/红/绿/黄对应关系原样），打印仍是纸白。
+   · 业务逻辑零改动；弹窗/卡片/表格都吃 :root 变量，深色下自动统一。
+   ============================================================ */
+
+/* ---------- 菜单分组（两套主题通用） ---------- */
+.nav-group { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.nav-group-t {
+  padding: 0 12px 4px; font-size: 11px; font-weight: 700;
+  letter-spacing: .12em; color: var(--faint); white-space: nowrap;
+}
+.tabs .nav-group button { position: relative; }
+
+/* ---------- 顶栏/侧栏玻璃（浅色玻璃为默认，深色在下面覆盖） ---------- */
+@media screen {
+  .topbar {
+    background: color-mix(in srgb, var(--panel) 86%, transparent);
+    -webkit-backdrop-filter: blur(18px) saturate(160%);
+    backdrop-filter: blur(18px) saturate(160%);
+  }
+
+  /* 宽屏：顶栏整体变成离窗口边缘留白的圆角玻璃侧栏 */
+  body.sidebar-layout .topbar {
+    left: 12px; top: 12px; bottom: 12px; width: 264px; padding: 14px 12px 16px;
+    border: 1px solid var(--line); border-radius: 22px;
+    background: color-mix(in srgb, var(--panel) 74%, transparent);
+    -webkit-backdrop-filter: blur(18px) saturate(160%);
+    backdrop-filter: blur(18px) saturate(160%);
+    box-shadow: var(--shadow-lift);
+  }
+  body.sidebar-layout main { margin: 0 0 0 292px; padding: 14px 20px 44px; }
+  body.sidebar-layout .local-warn {
+    margin: 10px 16px 0 292px; border: 1px solid var(--warn);
+    border-radius: 14px; background: var(--warn-bg);
+  }
+
+  /* 侧栏顶部：小图标 + 名称 + 一句状态，紧凑一行，不再有大白块 */
+  body.sidebar-layout .topbar-main { gap: 9px; }
+  body.sidebar-layout .brandmark { width: 30px; height: 30px; border-radius: 10px; font-size: 15px; }
+  body.sidebar-layout .topbar h1 { font-size: 14.5px; white-space: nowrap; }
+  body.sidebar-layout .topbar .sub { font-size: 11px; }
+
+  /* 侧栏菜单：当前项品牌渐变 + 左侧指示条 + 细微外发光；普通项低对比、hover 柔和高亮 */
+  body.sidebar-layout .tabs { flex-direction: column; gap: 14px; margin: 16px 0 0; padding: 0 0 10px; }
+  body.sidebar-layout .tabs button {
+    text-align: left; padding: 9px 12px 9px 18px; min-height: 36px;
+    border-radius: 12px; font-size: 13.5px; font-weight: 500; color: var(--muted);
+    transition: background .18s, color .18s, box-shadow .18s;
+  }
+  body.sidebar-layout .tabs button:hover {
+    background: color-mix(in srgb, var(--accent) 9%, transparent); color: var(--text);
+  }
+  body.sidebar-layout .tabs button.on {
+    background: linear-gradient(90deg,
+      color-mix(in srgb, var(--accent) 22%, transparent),
+      color-mix(in srgb, #8b7cff 12%, transparent) 88%);
+    color: var(--text); font-weight: 700;
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 28%, transparent),
+                0 4px 18px -6px var(--accent-glow);
+  }
+  body.sidebar-layout .tabs button.on::before {
+    content: ''; position: absolute; left: 5px; top: 24%; bottom: 24%; width: 3px;
+    border-radius: 3px; background: linear-gradient(180deg, var(--accent), #8b7cff);
+    box-shadow: 0 0 8px var(--accent-glow);
+  }
+
+  /* 侧栏底部（ui-feedback.js 把 #scoreTools 挪进来）：班级/课次玻璃胶囊 */
+  body.sidebar-layout #scoreTools {
+    margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--line);
+  }
+  body.sidebar-layout #scoreTools .lesson-bar { flex-direction: column; align-items: stretch; gap: 8px; }
+  body.sidebar-layout #scoreTools .lesson-bar .field {
+    flex: none; padding: 6px 8px 6px 12px; border-radius: 999px;
+    background: color-mix(in srgb, var(--panel-soft) 78%, transparent);
+    border: 1px solid var(--line);
+  }
+  body.sidebar-layout #scoreTools .lesson-bar .field > span { font-size: 12px; }
+  body.sidebar-layout #scoreTools .lesson-bar .field > select {
+    background: transparent; border-color: transparent; padding: 4px 2px;
+  }
+  body.sidebar-layout #scoreTools .lesson-bar .field > select:focus {
+    background: var(--panel); border-color: var(--accent);
+  }
+  body.sidebar-layout #scoreTools .lesson-bar .btn { min-height: 36px; }
+
+  /* 窄屏抽屉（<1100px，sidebar-layout 关闭时）：☰ 开、遮罩关 */
+  .nav-toggle { display: inline-flex; }
+  /* topbar 的 backdrop-filter 会成为 fixed 后代的包含块，把抽屉压成一条；
+     抽屉打开时顶栏被遮罩盖住，去掉模糊改用更实的底色即可 */
+  body.nav-open .topbar {
+    -webkit-backdrop-filter: none; backdrop-filter: none;
+    background: color-mix(in srgb, var(--panel) 96%, transparent);
+  }
+  body .tabs {
+    position: fixed; z-index: 120; left: 10px; top: 10px; bottom: 10px; width: min(80vw, 320px);
+    flex-direction: column; gap: 14px; margin: 0; padding: 18px 12px 20px; overflow-y: auto;
+    border-radius: 22px; border: 1px solid var(--line);
+    background: color-mix(in srgb, var(--panel) 92%, transparent);
+    -webkit-backdrop-filter: blur(18px) saturate(160%);
+    backdrop-filter: blur(18px) saturate(160%);
+    box-shadow: var(--shadow-lift);
+    transform: translateX(calc(-100% - 30px)); visibility: hidden;
+    transition: transform .26s cubic-bezier(.16, 1, .3, 1), visibility 0s linear .26s;
+    scrollbar-width: none;
+  }
+  body .tabs::-webkit-scrollbar { display: none; }
+  body.nav-open .tabs { transform: none; visibility: visible; transition-delay: 0s, 0s; }
+  body .tabs button {
+    text-align: left; padding: 11px 14px 11px 18px; min-height: 44px;
+    border-radius: 12px; font-size: 14px; color: var(--muted);
+  }
+  body .tabs button:hover { background: color-mix(in srgb, var(--accent) 9%, transparent); color: var(--text); }
+  body .tabs button.on {
+    background: linear-gradient(90deg,
+      color-mix(in srgb, var(--accent) 22%, transparent),
+      color-mix(in srgb, #8b7cff 12%, transparent) 88%);
+    color: var(--text); font-weight: 700;
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 28%, transparent);
+  }
+  body .tabs button.on::before {
+    content: ''; position: absolute; left: 5px; top: 26%; bottom: 26%; width: 3px;
+    border-radius: 3px; background: linear-gradient(180deg, var(--accent), #8b7cff);
+  }
+  .nav-scrim {
+    position: fixed; inset: 0; z-index: 110; border: 0; padding: 0;
+    background: rgba(4, 8, 18, .5);
+  }
+}
+
+@media screen and (min-width: 1100px) {
+  .nav-toggle { display: none; }
+  body .tabs, body.nav-open .tabs {
+    position: static; width: auto; transform: none; visibility: visible;
+    background: transparent; border: 0; box-shadow: none; padding: 0; margin: 16px 0 0;
+    -webkit-backdrop-filter: none; backdrop-filter: none; transition: none;
+  }
+}
+
+@media print {
+  .nav-toggle, .nav-scrim { display: none !important; }
+}
+
+/* ---------- 夜览：深色玻璃主题 ---------- */
+:root[data-hx-mode="dark"] {
+  --bg: #060a15;
+  --panel: rgba(13, 22, 46, .72);
+  --panel-soft: rgba(19, 30, 60, .62);
+  --panel-tint: rgba(26, 39, 78, .6);
+  --raise: rgba(26, 38, 74, .88);
+  --line: rgba(126, 156, 235, .13);
+  --line-strong: rgba(136, 164, 230, .27);
+  --text: #e9eefb;
+  --muted: #9fb0d4;
+  --faint: #7183a8;
+
+  --accent: #43d6c4;
+  --accent-hi: #74e8d8;
+  --accent-strong: #2fb7a7;
+  --accent-bg: rgba(67, 214, 196, .13);
+  --accent-line: rgba(67, 214, 196, .34);
+  --accent-glow: rgba(67, 214, 196, .25);
+
+  --vip: #f2c76b;
+  --vip-bg: rgba(242, 199, 107, .13);
+  --vip-line: rgba(242, 199, 107, .38);
+
+  --good: #3ddc97; --good-bg: rgba(61, 220, 151, .13);
+  --bad: #ff8598; --bad-bg: rgba(255, 133, 152, .13);
+  --warn: #fbbc55; --warn-bg: rgba(251, 188, 85, .13);
+
+  --shadow: 0 1px 2px rgba(0, 0, 0, .35), 0 8px 26px rgba(0, 0, 0, .38);
+  --shadow-lift: 0 6px 16px rgba(0, 0, 0, .4), 0 22px 48px rgba(0, 0, 0, .5);
+
+  /* 纸质记分表的玻璃版：色相不变（蓝表头/红手机/绿值日/黄合计），底改暗、字改亮 */
+  --xl-no: rgba(88, 128, 208, .34);
+  --xl-mem: rgba(58, 86, 152, .30);
+  --xl-phone: rgba(214, 104, 126, .26);
+  --xl-duty: rgba(84, 172, 128, .28);
+  --xl-sum: rgba(222, 180, 92, .28);
+  --xl-line: rgba(146, 170, 224, .34);
+  --xl-line-strong: rgba(170, 192, 240, .6);
+  --xl-ink: #e9eefb;
+  --xl-input-bg: rgba(9, 16, 36, .88);
+
+  color-scheme: dark;
+}
+
+/* 夜览页面底色：深海蓝 + 一团靛青光；校徽水印压暗 */
+:root[data-hx-mode="dark"] body::after {
+  background-image: radial-gradient(60vmin 46vmin at 50% 18%,
+                    rgba(86, 112, 255, .12), rgba(86, 112, 255, 0) 72%),
+                    linear-gradient(rgba(6, 10, 22, .45), rgba(6, 10, 22, .45));
+  background-repeat: no-repeat, no-repeat;
+  background-size: 100% 100%, 100% 100%;
+}
+:root[data-hx-mode="dark"] body::before { opacity: .12; }
+/* 挂了整站壁纸（html.hx-bg）时：壁纸保持，上面压深海蓝 scrim */
+html.hx-bg[data-hx-mode="dark"] body::after,
+:root[data-hx-mode="dark"].hx-bg body::after {
+  background-image: linear-gradient(rgba(6, 10, 22, .62), rgba(6, 10, 22, .62)), var(--hx-img);
+  background-size: 100% 100%, cover;
+  background-position: center;
+}
+
+/* 夜览玻璃面板：卡片/指标/课次条/弹窗/横幅统一半透明深蓝 */
+:root[data-hx-mode="dark"] .card,
+:root[data-hx-mode="dark"] .metric,
+:root[data-hx-mode="dark"] .gate-card,
+:root[data-hx-mode="dark"] .pool-banner,
+:root[data-hx-mode="dark"] .hint-line,
+:root[data-hx-mode="dark"] .tm-desk,
+:root[data-hx-mode="dark"] .remembered-account,
+:root[data-hx-mode="dark"] .foundation-review {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05), var(--shadow);
+}
+:root[data-hx-mode="dark"] .lesson-meta {
+  background: linear-gradient(90deg, rgba(30, 44, 88, .6), rgba(17, 27, 56, .55));
+  border-color: var(--accent-line);
+}
+:root[data-hx-mode="dark"] .gate {
+  background: radial-gradient(circle at 50% 0%, rgba(86, 112, 255, .10), transparent 42%), var(--bg);
+}
+:root[data-hx-mode="dark"] dialog { background: #0d1630; }
+:root[data-hx-mode="dark"] dialog::backdrop {
+  background: rgba(3, 6, 14, .62);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+}
+:root[data-hx-mode="dark"] .card.admin-hero {
+  background: linear-gradient(135deg, rgba(242, 199, 107, .10), rgba(13, 22, 46, .72) 46%);
+}
+:root[data-hx-mode="dark"] .formula { background: rgba(6, 11, 24, .6); }
+:root[data-hx-mode="dark"] .profile-save-feedback {
+  background: rgba(10, 20, 40, .96); color: #7ef0bd; border-color: rgba(61, 220, 151, .4);
+}
+:root[data-hx-mode="dark"] .gctl .lbl { color: var(--text); }
+:root[data-hx-mode="dark"] .duty-score {
+  border-color: rgba(84, 172, 128, .5); background: rgba(84, 172, 128, .18); color: #8ef0c0;
+}
+:root[data-hx-mode="dark"] button.toggle[data-act="first"] {
+  color: #9fb0d4; background: rgba(19, 30, 60, .62); border-color: var(--line-strong);
+}
+:root[data-hx-mode="dark"] button.toggle.on[data-act="first"] {
+  color: #05261c; background: var(--accent); border-color: var(--accent);
+}
+:root[data-hx-mode="dark"] .assessment-scroll { scrollbar-color: #46536f #101a36; }
+:root[data-hx-mode="dark"] .assessment-scroll::-webkit-scrollbar-thumb { background: #46536f; border-color: #101a36; }
+:root[data-hx-mode="dark"] .sheetwrap::-webkit-scrollbar-thumb { background: #3d4a68; }
+:root[data-hx-mode="dark"] .attendance-score:hover { background: rgba(67, 214, 196, .12); }
+:root[data-hx-mode="dark"] .attendance-failed { color: #ff9aa9 !important; }
+:root[data-hx-mode="dark"] .leader-project { background: rgba(9, 16, 36, .88); color: var(--xl-ink); }
+
+/* 夜览玻璃表格：通用数据表（排行/名单/日志/考勤），表头半透明深蓝、行悬停柔和 */
+:root[data-hx-mode="dark"] table.data th { background: rgba(24, 38, 76, .92); color: var(--muted); }
+:root[data-hx-mode="dark"] table.data tbody tr:hover td { background: rgba(67, 214, 196, .06); }
+:root[data-hx-mode="dark"] table.data tr.top1 td { background: rgba(242, 199, 107, .1); }
+:root[data-hx-mode="dark"] .assessment-table thead th { background: rgba(24, 38, 76, .92); }
+:root[data-hx-mode="dark"] .assessment-table .grade-regular { background: rgba(61, 220, 151, .1); color: #7ef0bd; }
+:root[data-hx-mode="dark"] .assessment-table .grade-contribution { background: rgba(96, 150, 255, .12); color: #a7c4ff; }
+:root[data-hx-mode="dark"] .assessment-table .grade-needed { background: rgba(251, 146, 60, .12); color: #ffc48f; }
+:root[data-hx-mode="dark"] .assessment-table .grade-regular small,
+:root[data-hx-mode="dark"] .assessment-table .grade-contribution small,
+:root[data-hx-mode="dark"] .assessment-table .grade-needed small { color: var(--muted); }
+:root[data-hx-mode="dark"] .assessment-table th.grade-regular,
+:root[data-hx-mode="dark"] .assessment-table th.grade-contribution,
+:root[data-hx-mode="dark"] .assessment-table th.grade-needed { background: rgba(24, 38, 76, .92); }
+:root[data-hx-mode="dark"] .foundation-check { background: rgba(19, 30, 60, .62); color: var(--text); border-color: var(--line-strong); }
+:root[data-hx-mode="dark"] .assessment-exam { background: rgba(9, 16, 36, .88); color: var(--text); }
+
+/* 夜览：纸质记分表（table.sheet）随之变暗底彩色玻璃；打印时变量不生效（打印样式自带纸白） */
+:root[data-hx-mode="dark"] .duty-people input { background: var(--xl-input-bg); color: var(--xl-ink); }
+:root[data-hx-mode="dark"] .home-grade { background: rgba(61, 220, 151, .1) !important; color: #7ef0bd !important; }
+:root[data-hx-mode="dark"] .home-grade.contribution { background: rgba(96, 150, 255, .12) !important; color: #a7c4ff !important; }
+:root[data-hx-mode="dark"] .home-grade.needed { background: rgba(251, 146, 60, .12) !important; color: #ffc48f !important; }
+:root[data-hx-mode="dark"] .home-attendance { background: rgba(58, 86, 152, .22); }
+:root[data-hx-mode="dark"] .home-grade-person { border-bottom-color: rgba(146, 170, 224, .16); }
+:root[data-hx-mode="dark"] .peer-pick { color: var(--text); border-color: var(--line-strong); }
+:root[data-hx-mode="dark"] .peer-pick.p1 { color: #ff9aa9; }
+:root[data-hx-mode="dark"] .peer-pick.p2 { color: #ffc48f; }
+:root[data-hx-mode="dark"] .peer-pick.p3 { color: #8ef0c0; }
+:root[data-hx-mode="dark"] .peer-pick.p4 { color: #7cd0ff; }
+:root[data-hx-mode="dark"] .peer-pick.p5 { color: #b9aaff; }
+:root[data-hx-mode="dark"] .peer-cell.is-set { --tcbg: rgba(255, 255, 255, .08); }
+:root[data-hx-mode="dark"] .peer-cell.is-set.score-1 { --tc: #ff9aa9; }
+:root[data-hx-mode="dark"] .peer-cell.is-set.score-2 { --tc: #ffc48f; }
+:root[data-hx-mode="dark"] .peer-cell.is-set.score-3 { --tc: #8ef0c0; }
+:root[data-hx-mode="dark"] .peer-cell.is-set.score-4 { --tc: #7cd0ff; }
+:root[data-hx-mode="dark"] .peer-cell.is-set.score-5 { --tc: #b9aaff; }
+:root[data-hx-mode="dark"] .peer-gate { background: rgba(19, 30, 60, .62); border-color: var(--line); }
+:root[data-hx-mode="dark"] .peer-gate.is-open { background: rgba(61, 220, 151, .08); border-color: rgba(61, 220, 151, .35); }
+:root[data-hx-mode="dark"] .peer-gate.is-open .peer-gate-btn { color: #7ef0bd; background: transparent; border-color: rgba(61, 220, 151, .4); }
+:root[data-hx-mode="dark"] .peer-no { background: transparent !important; color: var(--accent-strong) !important; }
+:root[data-hx-mode="dark"] .peer-ok { background: rgba(61, 220, 151, .1) !important; color: #7ef0bd !important; }
+
+/* 夜览侧栏：深海蓝玻璃 */
+:root[data-hx-mode="dark"] body.sidebar-layout .topbar,
+:root[data-hx-mode="dark"] body .tabs {
+  background: linear-gradient(180deg, rgba(14, 23, 48, .84), rgba(8, 15, 32, .8));
+  border-color: rgba(126, 156, 235, .17);
+  box-shadow: 0 26px 64px -30px rgba(0, 0, 0, .7), inset 0 1px 0 rgba(255, 255, 255, .06);
+}
+:root[data-hx-mode="dark"] .topbar {
+  background: rgba(8, 15, 32, .72);
+}
+:root[data-hx-mode="dark"] .nav-scrim { background: rgba(2, 4, 10, .62); }
+
+/* 触屏：主要按钮保底触达尺寸 */
+@media (pointer: coarse) {
+  .btn { min-height: 40px; }
+  .tabs button { min-height: 44px; }
+}
+
+/* 分组里所有菜单项都隐藏时（如非管理员看不到「管理」），整组标题一起藏 */
+.nav-group:not(:has(button:not([hidden]))) { display: none; }
+
+/* 夜览：CDS 变量同步映射成深色玻璃（.btn/输入框等直接引用 --cds-*，不映射就会漏出浅米色） */
+:root[data-hx-mode="dark"] {
+  --cds-bg-surface-0: #0a1226;
+  --cds-bg-surface-1: rgba(13, 22, 46, .72);
+  --cds-bg-surface-2: rgba(19, 30, 60, .62);
+  --cds-bg-surface-3: rgba(19, 30, 60, .62);
+  --cds-bg-input: rgba(9, 16, 36, .88);
+  --cds-text-primary: #e9eefb;
+  --cds-text-secondary: #9fb0d4;
+  --cds-border-subtle: rgba(126, 156, 235, .13);
+  --cds-border-card: rgba(126, 156, 235, .2);
+  --cds-clay: #43d6c4;
+  --cds-clay-hover: #2fb7a7;
+  --cds-clay-soft: rgba(67, 214, 196, .13);
+}
+:root[data-hx-mode="dark"] input:focus, :root[data-hx-mode="dark"] select:focus { color: var(--text); }
+:root[data-hx-mode="dark"] ::placeholder { color: var(--faint); }
+:root[data-hx-mode="dark"] input[readonly] { background: rgba(9, 16, 36, .6); color: var(--muted); }
+/* 深色下拉的原生选项列表：color-scheme 已切 dark，浏览器自己会用深色菜单 */

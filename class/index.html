@@ -86,8 +86,29 @@
 
   footer { margin-top: 40px; color: #97a2b1; font-size: 13px; line-height: 1.9; border-top: 1px solid #e2e8f2; padding-top: 18px; }
 </style>
+<!-- 统一像素加载动效（2026-11-07）：head 阻塞加载站点根 /fx/ 的共享特效件（与刷题/考试/小组加分同一套规则），
+     body 开头的 #hxBoot 解析到就画出第一帧「canvas 像素动效 + 标题 + 药丸」，页面就绪后整层淡出。 -->
+<script src="/fx/pixelfx-loader.js"></script>
+<script src="/fx/hx-loadfx.js"></script>
 </head>
 <body>
+<!-- 首屏闪屏（全站统一三件套）：动效 + 标题 + 药丸；脚本没加载出来时回落药丸，8 秒兜底撤层 -->
+<div id="hxBoot" class="hx-boot" aria-hidden="true" style="background:#f2f5fa">
+  <div class="hx-boot-card">
+    <canvas id="hxBootCv" width="96" height="96"></canvas>
+    <p class="hx-boot-title">教室快捷方式</p>
+    <div class="hx-loadpill sm" role="status" aria-live="polite"><span class="hx-px" aria-hidden="true"><i style="--i:0"></i><i style="--i:1"></i><i style="--i:2"></i><i style="--i:3"></i><i style="--i:4"></i><i style="--i:5"></i><i style="--i:6"></i></span><b>正在载入…</b></div>
+  </div>
+</div>
+<script>(function(){
+  var ov=document.getElementById('hxBoot');
+  function gone(){if(ov&&ov.parentNode)ov.parentNode.removeChild(ov);}
+  if(window.HXLoadFx){HXLoadFx.boot('class','hxBoot');
+    var fin=function(){if(window.HXLoadFx&&HXLoadFx.booting())HXLoadFx.finishBoot();else gone();};
+    if(document.readyState==='complete')setTimeout(fin,60);else addEventListener('load',function(){setTimeout(fin,60);});
+  }
+  setTimeout(function(){if(!window.HXLoadFx||!HXLoadFx.booting||!HXLoadFx.booting())gone();},8000);
+})();</script>
 <header>
   <h1>上课快捷方式集合</h1>
   <div class="clock">
