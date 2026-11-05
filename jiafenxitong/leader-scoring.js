@@ -2,6 +2,8 @@
 (function () {
   'use strict';
   var selectedGroup = 1, printing = false;
+  /* 开关 / 确认操作后的提示句：重绘一次表格还要把它显示出来，所以放在渲染函数外面 */
+  var peerMsg = '';
   function esc(value) { return String(value == null ? '' : value).replace(/[&<>"']/g,function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
   function key(member) { return member.sid ? 'sid:'+member.sid : 'id:'+member.id; }
   function csvCell(value) { var s=String(value == null ? '' : value); if (/^[=+\-@]/.test(s)) s="'"+s; return '"'+s.replace(/"/g,'""')+'"'; }
@@ -27,7 +29,7 @@
     var lessons=state.lessons.filter(function (l) { return cls && l.classId===cls.id; }).sort(function (a,b) { return b.seq-a.seq; });
     window.JFDT_LEADER_LESSONS=lessons;
     var lesson=lessons.find(function (l) { return l.id===state.ui.lessonId; }) || lessons[0];
-    root.innerHTML='<h2 class="sec-title">组内个人评分</h2><p class="note">填写本课项目名称，每项0–5分、全组共用，默认4项，可新增列（最多30项）；在任一组改名会同步到所有组，分数仍按成员分别填写。双击成员姓名可设为或退出组长，组长自动置顶并显示👑；个人项目分自动汇入个人总分。</p>'+
+    root.innerHTML='<h2 class="sec-title">组内个人评分</h2><p class="note">每项 5 分，点 1–5 直接记分，其他按钮收起、分数占住这一格；双击分数撤销。项目名称全班共用，默认 4 列、最多 30 列；双击成员姓名可设为或退出组长（👑 置顶）。「组长打分」开关只管本节课：开了组长才能给自己组员打分，其他课次对组长一律只读；组员给组长打分取平均；每一列都要教师确认才计分。</p>'+
       '<div class="card lesson-bar"><label class="field"><span>班级</span><select id="leaderClassSel">'+pool.map(function(c){return '<option value="'+esc(c.id)+'"'+(cls&&c.id===cls.id?' selected':'')+'>'+esc(c.name)+'</option>';}).join('')+'</select></label>'+
       '<label class="field"><span>课次</span><select id="leaderLessonSel"'+(!lessons.length?' disabled':'')+'>'+lessons.map(function(l){return '<option value="'+esc(l.id)+'"'+(lesson&&l.id===lesson.id?' selected':'')+'>第'+l.seq+'次 · '+esc(l.date)+'</option>';}).join('')+'</select></label></div><div id="leaderSheet"></div>';
     root.querySelector('#leaderClassSel').onchange=function(){context.select(this.value,null);};
@@ -44,31 +46,202 @@
     record.projects=sharedProjects.slice();
     function persist() { if(!lesson.leaderScores) lesson.leaderScores={};lesson.leaderScores[String(group.no)]=record;context.save(); }
     function log(detail) { if(context.log) context.log(cls.name+' · 第'+lesson.seq+'次课 · 第'+group.no+'组 · '+detail); }
-    function scores(member) {var v=record.members[key(member)]||[];return record.projects.map(function(_,i){return v[i]??null;});}
     var members=context.memberEntries?context.memberEntries(group):group.members.map(function(m,i){return {m:m,i:i};}).filter(function(x){return x.m.name;});
+
+    /* ---------- 组内互评：开关 / 提交看板 / 逐列确认 ---------- */
+    var peer=context.peer||null;
+    var peerReady=!!(peer&&peer.ready&&peer.ready(cls));
+    var peerReason=peer&&peer.reason?peer.reason(cls):'';
+    function projectCols(){return record.projects.map(function(n,i){return {name:String(n||'').trim(),col:i};}).filter(function(p){return !!p.name;});}
+    function numText(v){var n=Math.round((Number(v)+Number.EPSILON)*10)/10;return n%1===0?String(n):n.toFixed(1);}
+    /* 4.5 这种平均分按最近的整数取色调，别掉回默认灰色 */
+    function toneOf(v){return Math.max(1,Math.min(5,Math.round(Number(v)||0)));}
+    function cellValue(m,col){var v=(record.members[key(m)]||[])[col];return v==null||v===''?null:Number(v);}
+    function cellMeta(m,col){return (lesson.peerMeta&&lesson.peerMeta[group.no+'|'+key(m)+'|'+col])||'';}
+    function picksHtml(m,col){
+      var label=esc(m.name)+' · '+esc(record.projects[col]||('项目'+(col+1)));
+      return [1,2,3,4,5].map(function(s){
+        return '<button type="button" class="peer-pick p'+s+'" data-score="'+s+'" title="给 '+s+' 分" aria-label="'+label+' 给 '+s+' 分">'+s+'</button>';
+      }).join('');
+    }
+    function cellHtml(m,col){
+      var v=cellValue(m,col), meta=cellMeta(m,col);
+      var open=v==null;
+      return '<div class="peer-cell'+(open?'':' is-set score-'+toneOf(v))+'" data-peer-cell="'+col+'" data-member="'+esc(key(m))+'"'+
+        (open?'':' data-score="'+v+'" title="双击撤销这一格的加分" role="button" tabindex="0"')+
+        ' role="group" aria-label="'+esc(m.name)+' '+esc(record.projects[col]||('项目'+(col+1)))+'">'+
+        (open?picksHtml(m,col):'<span class="peer-score">'+numText(v)+'</span>'+(meta?'<span class="peer-src peer-src-'+meta+'">'+(meta==='avg'?'平均':'互评')+'</span>':''))+
+        '</div>';
+    }
+    function paintCell(el,m,col){
+      var v=cellValue(m,col), meta=cellMeta(m,col);
+      el.classList.toggle('is-set',v!=null);
+      for(var i=1;i<=5;i++)el.classList.toggle('score-'+i,v!=null&&toneOf(v)===i);
+      if(v==null){el.removeAttribute('data-score');el.removeAttribute('title');el.removeAttribute('role');el.removeAttribute('tabindex');}
+      else {el.setAttribute('data-score',v);el.setAttribute('title','双击撤销这一格的加分');el.setAttribute('role','button');el.setAttribute('tabindex','0');}
+      el.innerHTML=v==null?picksHtml(m,col):'<span class="peer-score">'+numText(v)+'</span>'+(meta?'<span class="peer-src peer-src-'+meta+'">'+(meta==='avg'?'平均':'互评')+'</span>':'');
+    }
+    function setCell(m,col,value){
+      var mk=key(m);
+      if(!record.members[mk])record.members[mk]=[];
+      var old=record.members[mk][col];old=(old==null||old==='')?null:Number(old);
+      if(old===value)return;
+      record.members[mk][col]=value;
+      if(lesson.peerMeta)delete lesson.peerMeta[group.no+'|'+mk+'|'+col];
+      log(m.name+' · '+(record.projects[col]||('项目'+(col+1)))+'：'+(old==null?'未填':numText(old))+' → '+(value==null?'未填':numText(value)));
+      persist();
+      var fb=sheet.querySelector('#leaderFeedback');
+      if(fb)fb.textContent=value==null?'已撤销这一格的加分。':'已记 '+value+' 分，正在随账号同步。';
+    }
+
     var head='<tr><th>序号</th><th>成员 / 完整学号</th>'+record.projects.map(function(p,i){return '<th><input class="leader-project" data-project="'+i+'" aria-label="评分项目'+(i+1)+'" maxlength="80" placeholder="项目'+(i+1)+'" value="'+esc(p)+'"><button type="button" class="project-remove" data-remove-project="'+i+'" aria-label="删除项目'+(i+1)+'" title="删除本课全班此项目列">×</button></th>';}).join('')+'</tr>';
-    var body=members.map(function(entry,row){var m=entry.m,values=scores(m),lead=context.isLeader&&context.isLeader(group,m);return '<tr><td>'+(row+1)+'</td><td class="leader-member'+(lead?' group-leader-name':'')+'" data-leader-member="'+esc(key(m))+'" title="双击设置或退出组长">'+(lead?'<span class="leader-crown" aria-label="组长">👑</span> ':'')+esc(m.name)+'<small>'+esc(m.sid||'未填写学号')+'</small></td>'+values.map(function(n,col){return '<td><input type="number" class="leader-number" data-member="'+esc(key(m))+'" data-item="'+col+'" aria-label="'+esc(m.name)+' 项目'+(col+1)+'" min="0" max="5" step="1" value="'+(n==null?'':n)+'"></td>';}).join('')+'</tr>';}).join('');
-    sheet.innerHTML='<div class="card"><div class="btnrow"><label class="field"><span>小组</span><select id="leaderGroupSel">'+cls.groups.map(function(g){return '<option value="'+g.no+'"'+(g.no===group.no?' selected':'')+'>第'+g.no+'组（'+g.members.filter(function(m){return m.name;}).length+'人）</option>';}).join('')+'</select></label><button class="btn" id="leaderAddProject">新增项目列</button><button class="btn" id="leaderPrint">打印本组评分表</button><button class="btn" id="leaderExport">导出本组CSV</button></div><p class="note">课次：第'+lesson.seq+'次 · '+esc(lesson.date)+'　任务：'+esc(lesson.topic)+'</p><div class="tablewrap"><table class="leader-table"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div>'+(!members.length?'<p class="note">本组暂无成员。已确定名单和分组后，成员会出现在这里。</p>':'')+'<label class="field"><span>组长 / 复核人</span><input id="leaderSignedBy" maxlength="100" value="'+esc(record.signedBy)+'"></label><label class="field col"><span>备注</span><textarea id="leaderNote" maxlength="500">'+esc(record.note)+'</textarea></label><p id="leaderFeedback" class="note" role="status">填写后自动保存，随教师账号同步。</p></div>';
+    var body=members.map(function(entry,row){var m=entry.m,lead=context.isLeader&&context.isLeader(group,m);return '<tr><td>'+(row+1)+'</td><td class="leader-member'+(lead?' group-leader-name':'')+'" data-leader-member="'+esc(key(m))+'" title="双击设置或退出组长">'+(lead?'<span class="leader-crown" aria-label="组长">👑</span> ':'')+esc(m.name)+'<small>'+esc(m.sid||'未填写学号')+'</small></td>'+record.projects.map(function(_,col){return '<td class="peer-td">'+cellHtml(m,col)+'</td>';}).join('')+'</tr>';}).join('');
+
+    var gateOpen=!!lesson.peerGate;
+    var gateText=!peerReady?'组长打分 · 需要登录教师账号':(gateOpen?'组长打分：本节课已开放':'组长打分：未开放');
+    sheet.innerHTML='<div class="card"><div class="btnrow"><label class="field"><span>小组</span><select id="leaderGroupSel">'+cls.groups.map(function(g){return '<option value="'+g.no+'"'+(g.no===group.no?' selected':'')+'>第'+g.no+'组（'+g.members.filter(function(m){return m.name;}).length+'人）</option>';}).join('')+'</select></label><button class="btn" id="leaderAddProject">新增项目列</button><button class="btn" id="leaderPrint">打印评分表</button><button class="btn" id="leaderExport">下载打印版Excel</button></div><p class="note">课次：第'+lesson.seq+'次 · '+esc(lesson.date)+'　任务：'+esc(lesson.topic)+'</p>'+
+      '<div class="peer-gate'+(gateOpen?' is-open':'')+'" id="leaderPeerBar"><span class="peer-gate-ico" aria-hidden="true">'+(gateOpen?'●':'○')+'</span><button type="button" class="btn peer-gate-btn" id="leaderPeerToggle" aria-pressed="'+(gateOpen?'true':'false')+'"'+(peerReady?'':' title="'+esc(peerReason)+'"')+'>'+esc(gateText)+'</button><button type="button" class="btn tiny" id="leaderPeerRefresh"'+(!peerReady?' disabled':'')+'>刷新提交</button><span class="peer-gate-note" id="leaderPeerNote">'+
+        (peerReady?'开放后组长只能打本节课；组员给组长打分取平均；每一列教师确认后才计入成绩。':'互评需要：'+esc(peerReason))+
+      '</span></div><div class="peer-panel" id="leaderPeerPanel" hidden></div>'+
+      '<div class="tablewrap"><table class="leader-table"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div>'+(!members.length?'<p class="note">本组暂无成员。已确定名单和分组后，成员会出现在这里。</p>':'')+'<label class="field"><span>组长 / 复核人</span><input id="leaderSignedBy" maxlength="100" value="'+esc(record.signedBy)+'"></label><label class="field col"><span>备注</span><textarea id="leaderNote" maxlength="500">'+esc(record.note)+'</textarea></label><p id="leaderFeedback" class="note" role="status">'+(peerMsg||'填分后自动保存，随教师账号同步。')+'</p></div>';
+    if(peerMsg)peerMsg='';
     sheet.querySelectorAll('[data-leader-member]').forEach(function(cell){cell.ondblclick=function(e){e.preventDefault();var member=members.find(function(entry){return key(entry.m)===cell.dataset.leaderMember;});if(member&&context.toggleLeader)context.toggleLeader(cls,group,member.m);};});
+
+    /* 点分数子按钮 = 记这一格；双击已有分数 = 撤销 */
+    function memberByKey(mk){return members.find(function(entry){return key(entry.m)===mk;});}
+    sheet.addEventListener('click',function(e){
+      var pick=e.target.closest&&e.target.closest('.peer-pick');
+      if(!pick)return;
+      var cell=pick.closest('.peer-cell'),entry=cell&&memberByKey(cell.dataset.member);
+      if(!cell||!entry)return;
+      var value=Number(pick.dataset.score);
+      setCell(entry.m,+cell.dataset.peerCell,value);
+      paintCell(cell,entry.m,+cell.dataset.peerCell);
+    });
+    sheet.addEventListener('dblclick',function(e){
+      var cell=e.target.closest&&e.target.closest('.peer-cell.is-set');
+      if(!cell)return;
+      var entry=memberByKey(cell.dataset.member);
+      if(!entry)return;
+      e.preventDefault();
+      var col=+cell.dataset.peerCell;
+      setCell(entry.m,col,null);
+      paintCell(cell,entry.m,col);
+    });
+    sheet.addEventListener('keydown',function(e){
+      if(e.key!=='Enter'&&e.key!=='Delete'&&e.key!=='Backspace')return;
+      var cell=e.target.closest&&e.target.closest('.peer-cell.is-set');
+      if(!cell)return;
+      var entry=memberByKey(cell.dataset.member);
+      if(!entry)return;
+      e.preventDefault();
+      var col=+cell.dataset.peerCell;
+      setCell(entry.m,col,null);
+      paintCell(cell,entry.m,col);
+    });
+
     var fullButton=document.createElement('button');fullButton.type='button';fullButton.className='btn';fullButton.id='leaderFullMarks';fullButton.textContent='一键全员满分';sheet.querySelector('.btnrow').insertBefore(fullButton,sheet.querySelector('#leaderPrint'));
     fullButton.onclick=function(){var named=sharedProjects.map(function(p,i){return String(p).trim()?i:-1;}).filter(function(i){return i>=0;});if(!named.length){sheet.querySelector('#leaderFeedback').textContent='请先填写项目名称；每个项目满分5分。';return;}var dlg=document.createElement('dialog');dlg.id='dlgLeaderFullMarks';dlg.innerHTML='<form method="dialog"><h2>一键全员满分</h2><p>每人每个已命名项目填为5分，共'+named.length+'项；空白预留列不变。已有较低分会被改为5分，可在操作日志按组撤销。</p><label class="field col">范围<select id="leaderFullScope"><option value="current">当前第'+group.no+'组</option><option value="all">本课全部小组</option></select></label><div class="btnrow"><button class="btn" value="cancel">取消</button><button class="btn primary" value="ok">确认填满5分</button></div></form>';document.body.appendChild(dlg);dlg.addEventListener('close',function(){if(dlg.returnValue==='ok'){var groups=dlg.querySelector('select').value==='all'?cls.groups:[group];context.fullMarks(lesson,groups,named,sharedProjects);window.JFDT_LEADER_RENDER(context);}dlg.remove();});dlg.showModal();};
     sheet.querySelectorAll('[data-remove-project]').forEach(function(button){button.onclick=function(){if(sharedProjects.length<=1){sheet.querySelector('#leaderFeedback').textContent='至少保留1列。';return;}var index=Number(button.dataset.removeProject),records=lesson.leaderScores||{},hasData=String(sharedProjects[index]||'').trim()||Object.values(records).some(function(r){return Object.values(r.members||{}).some(function(v){return v[index]!==null&&v[index]!==undefined;});});if(hasData&&!window.confirm('删除此项目会同步删除本课所有组这一列的名称和分数，并重新计算完成率。确定删除？'))return;sharedProjects.splice(index,1);lesson.leaderProjectNames=sharedProjects.slice();lesson.leaderProjectCount=sharedProjects.length;Object.values(records).forEach(function(r){r.projects=sharedProjects.slice();Object.keys(r.members||{}).forEach(function(k){r.members[k].splice(index,1);});});log('删除全班项目列'+(index+1));context.save();window.JFDT_LEADER_RENDER(context);};});
     sheet.querySelector('#leaderAddProject').onclick=function(){if(sharedProjects.length>=30){sheet.querySelector('#leaderFeedback').textContent='最多30个项目列。';return;}lesson.leaderProjectNames=sharedProjects.concat('');lesson.leaderProjectCount=lesson.leaderProjectNames.length;if(!lesson.leaderScores)lesson.leaderScores={};cls.groups.forEach(function(g){var r=lesson.leaderScores[String(g.no)];if(r)r.projects=lesson.leaderProjectNames.slice();});context.save();window.JFDT_LEADER_RENDER(context);};
     sheet.querySelector('#leaderGroupSel').onchange=function(){selectedGroup=+this.value;window.JFDT_LEADER_RENDER(context);};
     sheet.querySelectorAll('[data-project]').forEach(function(input){input.onchange=function(){var index=+input.dataset.project,old=sharedProjects[index],next=input.value.trim(); if(old===next)return;sharedProjects[index]=next;lesson.leaderProjectNames=sharedProjects.slice();cls.groups.forEach(function(g){if(!lesson.leaderScores)lesson.leaderScores={};var target=lesson.leaderScores[String(g.no)];if(!target)target=lesson.leaderScores[String(g.no)]={projects:sharedProjects.slice(),members:{},signedBy:'',note:''};if(!Array.isArray(target.projects))target.projects=sharedProjects.slice();target.projects=sharedProjects.slice();});record=lesson.leaderScores[String(group.no)];log('全班统一项目'+(index+1)+'名称：'+(old||'空')+' → '+(next||'空')+'（所有小组同步）');context.save();};});
-    sheet.querySelectorAll('[data-member]').forEach(function(input){input.onchange=function(){
-      var value=input.value===''?null:Number(input.value), id=input.dataset.member, index=+input.dataset.item;
-      if(value!==null&&(!Number.isInteger(value)||value<0||value>5)){input.value=(record.members[id]||[])[index]??'';sheet.querySelector('#leaderFeedback').textContent='每项请填写0–5的整数，或留空。';return;}
-      if(!record.members[id])record.members[id]=Array(record.projects.length).fill(null);
-      var old=record.members[id][index]; if(old===value)return;
-      record.members[id][index]=value; var memberEntry=members.find(function(entry){return key(entry.m)===id;}),member=memberEntry&&memberEntry.m;
-      log((member?member.name:'成员')+' · '+(record.projects[index]||('项目'+(index+1)))+'：'+(old==null?'未填':old)+' → '+(value==null?'未填':value));persist();
-      sheet.querySelector('#leaderFeedback').textContent='已保存，正在随账号同步。';
-    };});
     sheet.querySelector('#leaderSignedBy').onchange=function(){record.signedBy=this.value.trim();persist();};
     sheet.querySelector('#leaderNote').onchange=function(){record.note=this.value;persist();};
     sheet.querySelector('#leaderExport').textContent='下载打印版Excel';sheet.querySelector('#leaderExport').onclick=function(){exportMode=true;printSelection={cls:cls,lesson:lesson,group:group};printDialog.returnValue='';fillPageRanges(true);printDialog.querySelector('h2').textContent='下载打印版Excel';printDialog.querySelector('button[value="ok"]').textContent='下载Excel';printDialog.showModal();};
     sheet.querySelector('#leaderPrint').textContent='打印评分表';
     sheet.querySelector('#leaderPrint').onclick=function(){exportMode=false;printDialog.querySelector('h2').textContent='打印组长评分表';printDialog.querySelector('button[value="ok"]').textContent='开始打印';printSelection={cls:cls,lesson:lesson,group:group};printDialog.returnValue='';fillPageRanges(true);if(printDialog.showModal)printDialog.showModal();else printDialog.setAttribute('open','');};
+
+    /* ---------- 教师端：开关 + 逐列确认面版 ---------- */
+    var bar=sheet.querySelector('#leaderPeerBar'),toggle=sheet.querySelector('#leaderPeerToggle'),refresh=sheet.querySelector('#leaderPeerRefresh'),panel=sheet.querySelector('#leaderPeerPanel');
+    function feedback(text){var fb=sheet.querySelector('#leaderFeedback');if(fb)fb.textContent=text;}
+    function setGateUI(open){
+      lesson.peerGate=!!open;
+      bar.classList.toggle('is-open',!!open);
+      bar.querySelector('.peer-gate-ico').textContent=open?'●':'○';
+      toggle.setAttribute('aria-pressed',open?'true':'false');
+      toggle.textContent=open?'组长打分：本节课已开放':'组长打分：未开放';
+    }
+    toggle.onclick=function(){
+      if(!peerReady){feedback(peerReason||'互评功能不可用。');return;}
+      var going=!lesson.peerGate;
+      toggle.disabled=true;
+      toggle.textContent=going?'正在开放…':'正在关闭…';
+      peer.setGate(cls,lesson,going).then(function(){
+        peerMsg=going?'已开放本节课的组长打分（组长只能打这一节，其他课次只读）。':'已关闭：组长现在只能看，不能改分。';
+        window.JFDT_LEADER_RENDER(context);
+      },function(err){toggle.disabled=false;setGateUI(lesson.peerGate);feedback((err&&err.message)||'操作失败，检查网络后重试。');});
+    };
+    function panelHtml(board){
+      var cols=projectCols();
+      if(!cols.length)return '<p class="note">先把项目名称填上，再开放组长打分。</p>';
+      var confirms={},counts={},people={};
+      ((board&&board.confirms)||[]).forEach(function(c){confirms[c.project]=c.status;});
+      ((board&&board.cells)||[]).forEach(function(c){
+        counts[c.project]=(counts[c.project]||0)+1;
+        if(!people[c.project])people[c.project]={};
+        people[c.project][c.target]=1;
+      });
+      var rows=cols.map(function(p){
+        var status=confirms[p.name]||'pending',n=counts[p.name]||0,who=people[p.name]?Object.keys(people[p.name]).length:0;
+        var label=status==='confirmed'?'已确认计分':status==='rejected'?'已否决 · 本轮作废':'待确认';
+        return '<div class="peer-row" data-peer-project="'+esc(p.name)+'">'+
+          '<span class="peer-row-name">'+esc(p.name)+'</span>'+
+          '<span class="peer-row-count">'+(n?who+' 人 · '+n+' 条提交':'还没有提交')+'</span>'+
+          '<span class="peer-status is-'+status+'">'+label+'</span>'+
+          '<button type="button" class="btn tiny peer-ok" data-peer-ok="'+esc(p.name)+'"'+(!n?' disabled':'')+'>确认加分</button>'+
+          '<button type="button" class="btn tiny peer-no" data-peer-no="'+esc(p.name)+'"'+(!n&&status==='pending'?' disabled':'')+'>否决 / 清除</button>'+
+        '</div>';
+      }).join('');
+      return '<div class="peer-panel-head"><b>组长提交 · 逐列确认</b><span>教师确认后这一列才计入成绩；否决会清掉本轮提交，组长可重打。</span></div>'+rows;
+    }
+    function paintPanel(board){
+      if(!panel)return;
+      if(!peerReady){panel.hidden=true;return;}
+      panel.hidden=false;
+      panel.innerHTML=panelHtml(board);
+      panel.querySelectorAll('[data-peer-ok],[data-peer-no]').forEach(function(btn){
+        btn.onclick=function(){
+          var yes=!!btn.dataset.peerOk,name=yes?btn.dataset.peerOk:btn.dataset.peerNo;
+          if(!yes&&!window.confirm('否决「'+name+'」会清除这一列本轮所有提交，确定？'))return;
+          btn.disabled=true;
+          peer.confirm(cls,lesson,name,yes).then(function(res){
+            peerMsg='「'+name+'」'+(yes?'已确认加分':'已否决并清除')+(res&&res.changed?'（'+res.changed+' 格）':'');
+            window.JFDT_LEADER_RENDER(context);
+          },function(err){btn.disabled=false;feedback((err&&err.message)||'确认失败，检查网络后重试。');});
+        };
+      });
+    }
+    if(peerReady){
+      var cached=peer.cached(lesson);
+      if(cached)paintPanel(cached);else paintPanel(null);
+      refresh.onclick=function(){
+        refresh.disabled=true;
+        peer.fetchBoard(cls,lesson).then(function(board){
+          if(!document.body.contains(sheet))return;
+          setGateUI(!!board.open);paintPanel(board);refresh.disabled=false;feedback('已刷新：'+((board.cells||[]).length)+' 条提交。');
+        },function(err){refresh.disabled=false;feedback((err&&err.message)||'刷新失败。');});
+      };
+      /* 打开本节课后每 8 秒自动刷新提交数，老师不用一直点；只重画面版，不动表格里正在填的格子 */
+      (function poll(){
+        clearTimeout(window.__leaderPeerTimer);
+        if(!lesson.peerGate||!document.body.contains(sheet)||root.hidden)return;
+        window.__leaderPeerTimer=setTimeout(function(){
+          if(!document.body.contains(sheet)||root.hidden)return;
+          peer.fetchBoard(cls,lesson).then(function(board){
+            if(!document.body.contains(sheet)||root.hidden)return;
+            setGateUI(!!board.open);paintPanel(board);poll();
+          },function(){poll();});
+        },8000);
+      })();
+      peer.fetchBoard(cls,lesson).then(function(board){
+        if(!document.body.contains(sheet))return;
+        setGateUI(!!board.open);paintPanel(board);
+      },function(){});
+    }else{
+      refresh.disabled=true;
+      toggle.title=peerReason;
+      toggle.classList.add('is-blocked');
+    }
   };
 })();

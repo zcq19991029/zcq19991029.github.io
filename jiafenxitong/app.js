@@ -688,6 +688,156 @@ function removeMemberAt(cls, g, j) {
     window.JFDT_ASSESSMENT.renderAttendance(attendanceContext);
   }
 
+  /* ================= 组内互评（2026-11-04） =================
+     老师在「项目评分表」里按本节课开「组长打分」→ 组长给组员打分、组员给组长打分（取平均）
+     → 老师逐列「确认加分 / 否决清除」。原始提交存在云端 jf_peer_scores，
+     确认后才写回本节 leaderScores —— 总分、排名、登分册、打印、学生快照全部沿用旧口径。
+     数据库脚本：supabase/2026-11-04-组内互评打分.sql。 */
+  var peerCache = Object.create(null);      // lessonId -> 最近一次看板
+
+  function peerClassId(cls) { return Number(cls && cls.hxClassId) || 0; }
+  function peerLessonKey(lesson) { return String((lesson && lesson.id) || ''); }
+
+  /** 云端能不能用：必须登录了教师账号、这个班绑了首页班级 */
+  function peerReady(cls) {
+    return !!(CLOUD_ON && CLOUD && typeof CLOUD.rpc === 'function' &&
+      CLOUD.profile && CLOUD.profile() && peerClassId(cls));
+  }
+  function peerReason(cls) {
+    if (!CLOUD || typeof CLOUD.rpc !== 'function') return '没加载云端模块，只能本机记分';
+    if (!CLOUD.profile || !CLOUD.profile()) return '请先登录教师账号，组长才能用自己账号打分';
+    if (!peerClassId(cls)) return '这个班还没绑定首页班级，学生账号找不到它';
+    return '';
+  }
+
+  /** 本节课要发布的项目列（只发有名字的列，col 保持与 leaderScores 下标一致） */
+  function peerProjectList(lesson) {
+    var names = (window.JFDT_ASSESSMENT && window.JFDT_ASSESSMENT.projectNames(lesson)) || [];
+    var out = [];
+    names.forEach(function (n, i) {
+      var name = String(n == null ? '' : n).trim();
+      if (name) out.push({ name: name, col: i });
+    });
+    return out;
+  }
+
+  function peerPayload(cls, lesson) {
+    return {
+      v: 1,
+      seq: Number(lesson.seq) || 0,
+      date: lesson.date || '',
+      topic: lesson.topic || '',
+      projects: peerProjectList(lesson),
+      groups: (cls.groups || []).map(function (g) {
+        var members = g.members.filter(function (m) { return !!m.name; })
+          .map(function (m) { return { key: memberKey(m), name: m.name }; });
+        return { no: g.no, leader: groupLeaderKey(g), members: members };
+      }).filter(function (g) { return g.members.length; })
+    };
+  }
+
+  /** 开 / 关本节课的组长打分。开的时候顺带把最新分组、项目、组长发布上去 */
+  function peerSetGate(cls, lesson, open) {
+    if (!peerReady(cls)) return Promise.reject(new Error(peerReason(cls)));
+    var args = { p_class: peerClassId(cls), p_lesson: peerLessonKey(lesson), p_open: !!open };
+    if (open) args.p_payload = peerPayload(cls, lesson);
+    return CLOUD.rpc('jf_peer_gate', args).then(function (res) {
+      lesson.peerGate = !!open;
+      lesson.peerGateAt = new Date().toISOString();
+      delete peerCache[peerLessonKey(lesson)];
+      addOperationLog('组内互评', cls.name + ' · 第' + lesson.seq + '次课 · ' +
+        (open ? '开放组长打分（仅本节）' : '关闭组长打分'));
+      save();
+      return res || { open: !!open };
+    });
+  }
+
+  function peerFetchBoard(cls, lesson) {
+    if (!peerReady(cls)) return Promise.reject(new Error(peerReason(cls)));
+    return CLOUD.rpc('jf_peer_board', {
+      p_class: peerClassId(cls), p_lesson: peerLessonKey(lesson)
+    }).then(function (res) {
+      var board = res || {};
+      board.at = Date.now();
+      peerCache[peerLessonKey(lesson)] = board;
+      lesson.peerGate = !!board.open;
+      return board;
+    });
+  }
+  function peerCached(lesson) { return peerCache[peerLessonKey(lesson)] || null; }
+
+  /** 取该组该课的评分记录，缺就补一个空壳（结构和 leader-scoring.js 一致） */
+  function peerRecord(lesson, gno) {
+    if (!lesson.leaderScores) lesson.leaderScores = {};
+    var rec = lesson.leaderScores[String(gno)];
+    if (!rec) {
+      rec = lesson.leaderScores[String(gno)] = {
+        projects: (window.JFDT_ASSESSMENT.projectNames(lesson) || []).slice(),
+        members: {}, signedBy: '', note: ''
+      };
+    }
+    if (!Array.isArray(rec.projects)) rec.projects = (window.JFDT_ASSESSMENT.projectNames(lesson) || []).slice();
+    if (!rec.members) rec.members = {};
+    return rec;
+  }
+
+  function peerColumnOf(lesson, project) {
+    var hit = peerProjectList(lesson).find(function (p) { return p.name === project; });
+    return hit ? hit.col : -1;
+  }
+
+  /** 把服务端算好的确认结果写回本节 leaderScores（成员=组长给的原始分，组长=组员平均分） */
+  function peerApplyRows(lesson, project, rows) {
+    var col = peerColumnOf(lesson, project);
+    if (col < 0) return 0;
+    var n = 0;
+    (rows || []).forEach(function (r) {
+      var gno = Number(r.gno), target = String(r.target || ''), score = Number(r.score);
+      if (!gno || !target || !isFinite(score)) return;
+      var rec = peerRecord(lesson, gno);
+      if (!Array.isArray(rec.members[target])) rec.members[target] = [];
+      rec.members[target][col] = Math.round(Math.max(0, Math.min(5, score)) * 10) / 10;
+      if (!lesson.peerMeta) lesson.peerMeta = {};
+      lesson.peerMeta[gno + '|' + target + '|' + col] = r.kind === 'avg' ? 'avg' : 'leader';
+      n++;
+    });
+    return n;
+  }
+
+  /** 老师点「否」：这一列本轮加分全部清掉（含互评标记） */
+  function peerClearColumn(cls, lesson, project) {
+    var col = peerColumnOf(lesson, project);
+    if (col < 0) return 0;
+    var n = 0;
+    (cls.groups || []).forEach(function (g) {
+      var rec = lesson.leaderScores && lesson.leaderScores[String(g.no)];
+      if (!rec || !rec.members) return;
+      Object.keys(rec.members).forEach(function (k) {
+        var values = rec.members[k];
+        if (Array.isArray(values) && values[col] != null) { values[col] = null; n++; }
+        if (lesson.peerMeta) delete lesson.peerMeta[g.no + '|' + k + '|' + col];
+      });
+    });
+    return n;
+  }
+
+  /** 老师逐列确认：ok = true 采纳加分，false 否决并清除本轮提交 */
+  function peerConfirm(cls, lesson, project, ok) {
+    if (!peerReady(cls)) return Promise.reject(new Error(peerReason(cls)));
+    return CLOUD.rpc('jf_peer_confirm', {
+      p_class: peerClassId(cls), p_lesson: peerLessonKey(lesson),
+      p_project: project, p_ok: !!ok
+    }).then(function (res) {
+      var rows = (res && res.rows) || [];
+      var changed = ok ? peerApplyRows(lesson, project, rows) : peerClearColumn(cls, lesson, project);
+      delete peerCache[peerLessonKey(lesson)];
+      addOperationLog('组内互评', cls.name + ' · 第' + lesson.seq + '次课 · 项目「' + project + '」' +
+        (ok ? '教师确认加分' + (changed ? '（' + changed + ' 格）' : '（无提交）') : '教师否决，清除本轮加分'));
+      save();
+      return { ok: !!ok, changed: changed, rows: rows };
+    });
+  }
+
   function renderLeader() {
     if (!$('#view-leader')) {
       var section = document.createElement('section');
@@ -702,7 +852,9 @@ function removeMemberAt(cls, g, j) {
       classes: visibleClasses(),
       save: function () { save(); var cls=curClass(),lesson=curLesson(cls);if(lesson)renderGroups(cls,lesson); },
       log: function(detail) { addOperationLog('个人项目评分',detail); },
-      fullMarks:function(lesson,groups,columns,names){var cls=getClass(lesson.classId),changed=0;if(!lesson.leaderScores)lesson.leaderScores={};groups.forEach(function(g){var r=lesson.leaderScores[String(g.no)]||(lesson.leaderScores[String(g.no)]={projects:names.slice(),members:{},signedBy:'',note:''}),effect=[];g.members.filter(function(m){return m.name;}).forEach(function(m){var key=m.sid?'sid:'+m.sid:'id:'+m.id,values=r.members[key]||(r.members[key]=[]);columns.forEach(function(i){var old=values[i];if(old===5)return;effect.push({path:'leader:'+key+'|'+i,delta:5-(Number(old)||0),wasBlank:old==null});values[i]=5;changed++;});});if(!effect.length)return;var totals=memberTotals(cls);pushUndo({lessonId:lesson.id,gno:g.no,projectBatch:true,projectNames:names.slice(),effect:effect,audit:{source:'项目批量满分',lesson:cls.name+' · 第'+lesson.seq+'次课 · '+lesson.date+' · '+(lesson.topic||''),student:'第'+g.no+'组全员，'+columns.length+'项各5分',sid:'全组操作',delta:'+'+effect.reduce(function(a,e){return a+e.delta;},0)+'（全组合计）',after:g.members.filter(function(m){return m.name;}).map(function(m){var t=totals.find(function(t){return m.sid?t.sid===m.sid:t.gno===g.no&&t.name===m.name;});return t?t.total:'—';}).join(' / ')}});});save();renderGroups(cls,lesson);flash(changed?'已将'+changed+'个项目成绩填为5分':'所选项目已全部满分，无需修改');},
+      fullMarks:function(lesson,groups,columns,names){var cls=getClass(lesson.classId),changed=0;if(!lesson.leaderScores)lesson.leaderScores={};groups.forEach(function(g){var r=lesson.leaderScores[String(g.no)]||(lesson.leaderScores[String(g.no)]={projects:names.slice(),members:{},signedBy:'',note:''}),effect=[];g.members.filter(function(m){return m.name;}).forEach(function(m){var key=m.sid?'sid:'+m.sid:'id:'+m.id,values=r.members[key]||(r.members[key]=[]);columns.forEach(function(i){var old=values[i];if(old===5)return;effect.push({path:'leader:'+key+'|'+i,delta:5-(Number(old)||0),wasBlank:old==null});values[i]=5;changed++;});});
+      if(lesson.peerMeta){g.members.filter(function(m){return m.name;}).forEach(function(m){var k=m.sid?'sid:'+m.sid:'id:'+m.id;columns.forEach(function(i){delete lesson.peerMeta[g.no+'|'+k+'|'+i];});});}
+      if(!effect.length)return;var totals=memberTotals(cls);pushUndo({lessonId:lesson.id,gno:g.no,projectBatch:true,projectNames:names.slice(),effect:effect,audit:{source:'项目批量满分',lesson:cls.name+' · 第'+lesson.seq+'次课 · '+lesson.date+' · '+(lesson.topic||''),student:'第'+g.no+'组全员，'+columns.length+'项各5分',sid:'全组操作',delta:'+'+effect.reduce(function(a,e){return a+e.delta;},0)+'（全组合计）',after:g.members.filter(function(m){return m.name;}).map(function(m){var t=totals.find(function(t){return m.sid?t.sid===m.sid:t.gno===g.no&&t.name===m.name;});return t?t.total:'—';}).join(' / ')}});});save();renderGroups(cls,lesson);flash(changed?'已将'+changed+'个项目成绩填为5分':'所选项目已全部满分，无需修改');},
 
       select: function (classId, lessonId) {
         S.ui.classId = classId; S.ui.lessonId = lessonId;
@@ -711,6 +863,19 @@ function removeMemberAt(cls, g, j) {
       toggleLeader: function (cls, group, member) { return setGroupLeader(cls, group, member); },
       memberEntries: function (group) { return groupMemberEntries(group); },
       isLeader: function (group, member) { return isGroupLeader(group, member); },
+      /* 组内互评（2026-11-04）：开关、看板、逐列确认都走这里，界面在 leader-scoring.js */
+      peer: {
+        ready: peerReady,
+        reason: peerReason,
+        payload: peerPayload,
+        projectList: peerProjectList,
+        setGate: peerSetGate,
+        fetchBoard: peerFetchBoard,
+        cached: peerCached,
+        confirm: peerConfirm,
+        memberKey: memberKey,
+        leaderKey: groupLeaderKey
+      },
       openScore: function () { switchView('score'); }
       ,openGroups: function () { switchView('pool'); }
     });

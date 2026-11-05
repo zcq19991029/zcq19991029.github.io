@@ -1832,3 +1832,105 @@ html.hx-bg body::before { display: none; }
    留下的唯一效果是：这条选择器把闪屏里**任何** span（包括后来加的文案 .hx-splash-tip-t）也一起
    拨到 0.25/1 之间闪 —— 文案在闪，方块也在跳，看着像两套动画打架。
    现在闪屏只有 canvas 动效 + 两行静态文字，这几条全部无用，一并删掉。 */
+
+/* ============================================================
+   组内互评 · 按钮式打分单元格（2026-11-04）
+   1/2/3/4/5 五颗玻璃质感小按钮，颜色分五档但不刺眼；
+   点一颗 → 其余收起、分数占住这一格；双击分数 → 撤销回五颗。
+   ============================================================ */
+.leader-table td.peer-td { padding: 4px 3px; background: var(--xl-duty); }
+.peer-cell { display: flex; align-items: center; justify-content: center; gap: 2px; min-height: 32px; border-radius: 10px; }
+.peer-pick {
+  appearance: none; -webkit-appearance: none;
+  width: 22px; height: 27px; padding: 0; border-radius: 8px;
+  font: 700 12px/1 'Segoe UI', 'Microsoft YaHei', sans-serif;
+  cursor: pointer; border: 1px solid rgba(255, 255, 255, .6);
+  -webkit-backdrop-filter: blur(6px) saturate(160%);
+  backdrop-filter: blur(6px) saturate(160%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .85), 0 1px 2px rgba(70, 50, 50, .08);
+  transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+}
+.peer-pick.p1 { background: rgba(226, 114, 107, .18); border-color: rgba(204, 92, 84, .45); color: #8f2f28; }
+.peer-pick.p2 { background: rgba(224, 161, 90, .18); border-color: rgba(205, 141, 67, .45); color: #87510f; }
+.peer-pick.p3 { background: rgba(143, 185, 106, .20); border-color: rgba(122, 166, 85, .48); color: #3e661d; }
+.peer-pick.p4 { background: rgba(95, 168, 201, .20); border-color: rgba(72, 148, 183, .48); color: #17566e; }
+.peer-pick.p5 { background: rgba(138, 127, 214, .20); border-color: rgba(116, 104, 196, .48); color: #3d3279; }
+.peer-pick:hover { transform: translateY(-1px); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .9), 0 3px 8px rgba(70, 50, 50, .16); }
+.peer-pick:active { transform: translateY(0) scale(.97); }
+.peer-pick:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* 已记分：一颗玻璃胶囊占住整格 */
+.peer-cell.is-set {
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, .7);
+  background: linear-gradient(180deg, rgba(255, 255, 255, .82), rgba(255, 255, 255, .42));
+  -webkit-backdrop-filter: blur(8px) saturate(170%);
+  backdrop-filter: blur(8px) saturate(170%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .95), 0 2px 7px rgba(70, 50, 50, .12);
+  --tc: var(--xl-ink); --tcbg: rgba(255, 255, 255, .55);
+}
+.peer-cell.is-set.score-1 { --tc: #a5332b; --tcbg: rgba(226, 114, 107, .16); }
+.peer-cell.is-set.score-2 { --tc: #8a5310; --tcbg: rgba(224, 161, 90, .16); }
+.peer-cell.is-set.score-3 { --tc: #3f6a1f; --tcbg: rgba(143, 185, 106, .18); }
+.peer-cell.is-set.score-4 { --tc: #17566e; --tcbg: rgba(95, 168, 201, .18); }
+.peer-cell.is-set.score-5 { --tc: #3d3279; --tcbg: rgba(138, 127, 214, .20); }
+.peer-cell.is-set:hover { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .95), 0 4px 12px rgba(70, 50, 50, .18); }
+.peer-score { font: 800 17px/1 'Segoe UI', 'Microsoft YaHei', sans-serif; color: var(--tc); letter-spacing: .02em; }
+.peer-src {
+  margin-left: 3px; padding: 1px 4px; border-radius: 999px;
+  font: 600 9px/1.4 'Segoe UI', 'Microsoft YaHei', sans-serif;
+  color: var(--tc); background: var(--tcbg); border: 1px solid rgba(255, 255, 255, .5);
+}
+
+/* 本节课「组长打分」开关条 */
+.peer-gate {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin: 12px 0 6px; padding: 10px 12px;
+  border: 1px solid var(--line); border-radius: 14px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, .92), rgba(254, 245, 245, .78));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .9);
+}
+.peer-gate.is-open { border-color: #bfe3cf; background: linear-gradient(180deg, #f3fcf6, #e8f7ef); }
+.peer-gate-ico { font-size: 13px; color: var(--faint); line-height: 1; }
+.peer-gate.is-open .peer-gate-ico { color: var(--good); }
+.peer-gate-btn { font-weight: 700; }
+.peer-gate.is-open .peer-gate-btn { border-color: #9fd4b4; color: #127242; background: #fff; }
+.peer-gate-note { flex: 1 1 260px; font-size: 12px; color: var(--muted); line-height: 1.5; }
+.peer-gate-btn.is-blocked { color: var(--muted); }
+
+/* 教师逐列确认面板 */
+.peer-panel {
+  margin: 8px 0 14px; padding: 10px 12px;
+  border: 1px solid var(--line); border-radius: 14px;
+  background: var(--panel-soft);
+}
+.peer-panel[hidden] { display: none; }
+.peer-panel-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
+.peer-panel-head b { font-size: 14px; }
+.peer-panel-head span { font-size: 12px; color: var(--muted); }
+.peer-row {
+  display: grid; grid-template-columns: minmax(90px, 1.4fr) minmax(110px, 1fr) auto auto auto;
+  gap: 8px; align-items: center; padding: 7px 0; border-top: 1px dashed var(--line);
+}
+.peer-row-name { font-weight: 700; overflow-wrap: anywhere; }
+.peer-row-count { font-size: 12px; color: var(--muted); }
+.peer-status { padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.peer-status.is-pending { background: var(--warn-bg); color: var(--warn); }
+.peer-status.is-confirmed { background: var(--good-bg); color: var(--good); }
+.peer-status.is-rejected { background: var(--bad-bg); color: var(--bad); }
+.peer-ok { border-color: #bfe3cf !important; color: #127242 !important; background: #f3fcf6 !important; }
+.peer-ok:disabled, .peer-no:disabled { opacity: .45; cursor: not-allowed; }
+.peer-no { border-color: var(--accent-line) !important; color: var(--accent-strong) !important; background: #fff !important; }
+
+@media (max-width: 720px) {
+  .peer-row { grid-template-columns: 1fr auto; }
+  .peer-row-count { grid-column: 1 / -1; }
+}
+
+/* 打印：按钮消失，只留分数（和旧打印件一致） */
+@media print {
+  .peer-pick, .peer-gate, .peer-panel { display: none !important; }
+  .peer-cell, .peer-cell.is-set { border: 0 !important; background: transparent !important; box-shadow: none !important; min-height: 0; }
+  .peer-score { font-size: 10pt !important; color: #111 !important; }
+  .peer-src { display: none !important; }
+}

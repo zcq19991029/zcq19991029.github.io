@@ -14,20 +14,20 @@
      要登录时调 window.HXPortal.login()；被单独打开时 hx-theme.js 会跳回这里（见 hx-theme.js 的 data-tool）。
      账号：Supabase 华夏工具项目，localStorage paike-session 和各工具共用；身份由数据库 hx_me() 决定。
      脚本里不用反引号模板字符串（本机测试时整页当字符串注入到线上同源页面里）。 -->
-<link rel="stylesheet" href="hx-theme.css?v=d1daf20">
-<script src="hx-theme.js?v=d1daf20"></script>
+<link rel="stylesheet" href="hx-theme.css?v=d2ae34b">
+<script src="hx-theme.js?v=d2ae34b"></script>
 <!-- 首页卡片上的像素小生物：pixelfx 的 12 个 critters（MIT），打包成一个 91 KB 的独立脚本。
      加载失败不影响首页——hx-critters.js 开头就有 window.PixelFX 存在性检查，没有就整段跳过。 -->
-<script src="fx/pixelfx-critters.js?v=d1daf20" defer></script>
-<script src="fx/hx-critters.js?v=d1daf20" defer></script>
+<script src="fx/pixelfx-critters.js?v=d2ae34b" defer></script>
+<script src="fx/hx-critters.js?v=d2ae34b" defer></script>
 <!-- 像素头像库（2026-11-04）：账号面板里除了传照片，还能从 200 多个像素动效里挑一个当头像。
      和上面 critters 同一套路：库（pixelfx-avatars.js）+ 渲染器（hx-avatar.js），都是 defer、
      不进首屏关键路径；不点「像素头像库」就一个动画都不跑。 -->
-<script src="fx/pixelfx-avatars.js?v=d1daf20" defer></script>
-<script src="fx/hx-avatar.js?v=d1daf20" defer></script>
+<script src="fx/pixelfx-avatars.js?v=d2ae34b" defer></script>
+<script src="fx/hx-avatar.js?v=d2ae34b" defer></script>
 <!-- 背景动效（2026-11-03）：12 种天气氛围特效铺在背景层，外观面板里选；加载失败或没选就完全不加载渲染器 -->
-<script src="fx/pixelfx-weather.js?v=d1daf20" defer></script>
-<script src="fx/hx-weather.js?v=d1daf20" defer></script>
+<script src="fx/pixelfx-weather.js?v=d2ae34b" defer></script>
+<script src="fx/hx-weather.js?v=d2ae34b" defer></script>
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; width: 100%; overflow: hidden; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -176,25 +176,23 @@
   .tile { --fld-bg: rgba(0, 0, 0, .014); --fld-edge: rgba(0, 0, 0, .045); --fld-lip: rgba(255, 255, 255, .92);
     --fld-drop: 0 -6px 12px -12px rgba(0, 0, 0, .16); --fld-sheen: rgba(255, 255, 255, .55);
     /* 噪点 / 扫光的强度都放在变量里：深色模式和省电模式只改这两个值，不用重写整套规则。
-       注意噪点在浅色卡上必须是**深色点**（rgba 0,0,0）—— 白卡上撒白点等于没撒，
-       这是改造时踩的坑：第一版统一用白点，浅色模式截图上卡面依旧是「一块干净的塑料」。
-       浓度也不能高：.055 在 1:1 缩放下会读成一张网格纸（整页截图上一眼就是脏的），
-       压到 .028 —— 只在贴着屏幕看时感觉得到「表面不光滑」，远看仍然是干净的玻璃。 */
-    --fld-grain: rgba(24, 30, 38, .028); --fld-scan: rgba(255, 255, 255, .34);
-    --fld-scan2: rgba(255, 255, 255, .08); --fld-deep: rgba(0, 0, 0, .17);
+       ── 2026-11-04 二次修复（UI 回归）──
+       这层 4px 点阵噪点就是失败版「整卡浑浊」的主要来源之一（任务书 F3）：网格在深色卡上
+       连成一片灰膜，把本该清透的玻璃糊成毛玻璃纸。**点阵整层删除**（它是本轮失败改造新加的，
+       不是原版素材）；扫光保留但压到极淡，只给玻璃留一点「有厚度」的方向感。 */
+    --fld-scan: rgba(255, 255, 255, .10);
+    --fld-scan2: rgba(255, 255, 255, .03); --fld-deep: rgba(0, 0, 0, .17);
     position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 18px; min-height: 172px; padding: 26px 24px 22px; border: 0; border-radius: 32px; background: var(--card); text-align: left; box-shadow: 0 0 0 1px var(--edge) inset;
     transition: transform .25s var(--hx-ease), box-shadow .25s var(--hx-ease); animation: rise .7s var(--hx-spring) both; }
   /* 舌片已于 2026-11-02 撤掉：用户指出卡片上端那个凸起「很诡异、莫名其妙」。
      现在这个位置由 .fxc（像素小生物）补上。那条空规则在 2026-11-04 被重新启用——
      不再是舌片，而是玻璃表面的「噪点 + 扫光」层（见下面 .tile::before）。 */
-  /* 表面质感层：噪点 + 斜向扫光。
+  /* 表面质感层：只剩一道极淡的斜向扫光（点阵噪点已删，见上面 .tile 的注释）。
      z-index 给 1（和内容层同级但排在它们前面），所以它在玻璃体之上、文字图标之下。
      扫光的图幅给到 150%，是为了 hover 时能用 background-position 移动它（模拟视角变化），
      图幅等于 100% 时 background-position 的百分比是无效的。 */
   .tile::before { content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none; border-radius: inherit;
-    background:
-      radial-gradient(circle at 1px 1px, var(--fld-grain) 1px, transparent 1.7px) 0 0 / 4px 4px repeat,
-      linear-gradient(148deg, var(--fld-scan) 0%, var(--fld-scan2) 24%, transparent 54%) 50% 50% / 150% 150% no-repeat;
+    background: linear-gradient(148deg, var(--fld-scan) 0%, var(--fld-scan2) 22%, transparent 50%) 50% 50% / 150% 150% no-repeat;
     transition: background-position .25s var(--hx-ease), opacity .25s var(--hx-ease); }
   /* 玻璃面：从顶铺到底（原来是 top:44%，只盖下半张，上半露「照片位」——首页没照片，那条边就成了横贯卡片的怪线）。
      还留着 1px 的亮唇（border-radius 14px）和品牌色内晕（来自 Orbit 的静态光），
@@ -212,7 +210,8 @@
     box-shadow: inset 0 .8px 0 var(--fld-lip),
       inset .5px 0 0 rgba(255, 255, 255, .22),
       inset 0 2px 6px -3px var(--fld-sheen),
-      inset 0 -24px 40px -30px color-mix(in srgb, var(--c2) 90%, transparent),
+      /* 底边主题色内反射压到 55%（原 90% 会在深色卡底边烧出一圈明显的色晕，喧宾夺主） */
+      inset 0 -22px 36px -30px color-mix(in srgb, var(--c2) 55%, transparent),
       inset 0 -30px 42px -34px var(--fld-deep),
       0 0 0 .6px var(--fld-edge);
     transition: box-shadow .25s var(--hx-ease); }
@@ -248,76 +247,77 @@
      轨道环和光晕都是静态的，留着，只停旋转动画。 */
   html.hx-lite .tile .ic::after { animation: none !important; }
   /* ── 八大行星：中心图标当太阳 ──
-     ── 2026-11-04 重做（微缩 3D 太阳系）──
-     原来三圈轨道挤 8 颗行星（内 2 / 中 3 / 外 3），轨道是三条等宽的灰圈，行星是纯色圆点 + 一层外发光，
-     远看像「一串彩珠绕着图标转」。现在改成**每条行星一条独立轨道**、轨道前亮后暗、行星有球面材质。
-     用户原话要点：「注意球体材质、轨道透视」「不要完全按真实天文比例」——
-     所以大小是刻意夸张过的（水星 3.2px、木星 8px），比例不对，但一眼能分得出谁大谁小。
-
-     ① 轨道线：conic-gradient(from 150deg) 做「左上前亮 → 右下后暗」的圆环光，
-        再用 8 层 radial-gradient 当 mask 挖出 8 条环带。mask 的 alpha 逐条递减（.58 → .16），
-        于是越靠外的轨道越淡，形成景深感。只有一张 background + 一组 mask，零额外元素。
-     ② 球体：radial-gradient 高光固定在偏左上 30%（光源统一从左上方来），背光侧一层暗部收边；
-        木星是 repeating-linear-gradient 横条带，地球是几团不规则色块当海陆。
-     ③ 土星环：唯一用 ::after 的行星，椭圆环中间挖空，球体压在环中心（不是真实遮挡关系，
-        但这个尺寸下眼睛分不出来，比做前后分层省一个元素）。
-     ④ 元素数不变：8 个 <i>，最多 16 个伪元素（土星多一个），和改造前完全一样。
-
-     **只在鼠标 / 触控板 + 非 hx-lite 上显示**；触屏、希沃、prefers-reduced-motion 一律 display:none，
-     退回上面的单环——教室一体机上不会多出 100 多个动画元素（和「不做 canvas 粒子场」是同一条理由）。
-     默认 animation-play-state: paused，鼠标移到这张卡才 running，静止时零开销。 */
+     ── 2026-11-04 二次重做（UI 回归，任务书 §4）──
+     上一版的问题（对应任务书 F2/F5/F7）：轨道盘 240px 铺满整卡、8 条环几乎同亮，
+     远看像「唱片刻纹」；右上像素小生物保护区被轨道压住。
+     这一版：
+     ① 八条轨道**共心**（圆心 = 图标中心 --cx/--cy）、**同一投影**（一个 rotateX 盘面），
+        半径 52 → 108 等距铺开；盘面收到 216px，太阳系只占卡片左侧图标后方，
+        右侧留给像素动效（任务书 §4.1 的保护区）。
+     ② 轨道光：conic 从左下（近观察者一侧）起亮、转到右后几乎熄灭；8 层 mask 挖环带，
+        alpha 逐条递减（.50 → .15），远侧的环自己就淡进卡面 —— 不再是等亮唱片纹。
+     ③ 整层 .sys 加一道 45° 渐隐 mask：右上角（.fxc 像素小生物的盒子）整层淡出，
+        轨道和行星扫过保护区时自动衰减（任务书 §4.3-6「渲染层安全裁切/衰减」）。
+     ④ 行星位置只由 (轨道半径 r, 相位 a) 决定：`<i>` 是旋转臂，臂尖挂球体 translateX(r)，
+        **不存在任何写死的 left/top**（F1 的「行星与轨道脱节」从结构上不可能再发生）。
+     ⑤ 球体材质统一光源（高光都压在 32% 27% 偏左上），土星环拆成**后半环（s）→ 球体 →
+        前半环（::after 裁下半）**三层，前后遮挡关系正确（任务书 §4.2）。
+     ⑥ 行星默认**缓慢公转**（任务书 §5「默认：行星缓慢公转」）：周期 26s → 52s，
+        transform 合成器动画、无 JS 循环；触屏 / 希沃（hx-lite）整段不显示，
+        prefers-reduced-motion 下行星停转、轨道保持静态。 */
   /* 太阳系圆心 = 图标中心：桌面 padding 24/26 + 图标 58/2 → (53,55)；窄屏由媒体查询覆盖 */
   .tile { --cx: 53px; --cy: 55px;
     /* 轨道线的三段亮度（前亮 / 过渡 / 后暗）。浅色卡是白底，白线画上去等于没画，
-       所以默认走**灰蓝**：a=.72 近处的环最清楚，c=.10 最远处几乎化进卡面。
-       有背景图 / 深色模式下面各自改成亮线，见对应的 html.hx-bg / data-hx-mode 分支。 */
-    --orb-a: rgba(104, 120, 140, .72); --orb-b: rgba(112, 128, 148, .30); --orb-c: rgba(120, 136, 156, .10); }
-  /* .sys 铺满整张卡，只负责按卡片圆角裁剪（**不旋转**，否则 overflow 的裁剪框会跟着压扁） */
+       所以默认走**灰蓝**；有背景图 / 深色模式下面各自改成亮线，见对应分支。 */
+    --orb-a: rgba(104, 120, 140, .60); --orb-b: rgba(112, 128, 148, .26); --orb-c: rgba(120, 136, 156, .09); }
+  /* .sys 铺满整张卡，只负责按卡片圆角裁剪（**不旋转**，否则 overflow 的裁剪框会跟着压扁）。
+     mask 是右上保护区的渐隐：45° 方向从卡片中带向右上角淡出，.fxc 盒子（top:12 right:14
+     84×96）落在渐隐区里，轨道/行星都压不住像素动效。 */
   .tile .sys { position: absolute; inset: 0; z-index: 0; pointer-events: none; display: none;
-    overflow: hidden; border-radius: inherit; perspective: 700px; perspective-origin: var(--cx) var(--cy); }
-  /* .sysin 才是那块倾斜的轨道盘：240×240 以图标为圆心，58° 俯角把正圆投成椭圆。
-     2026-11-04 从 220 放大到 240：最外一条轨道半径 118px，需要至少 236 的盘面才装得下。
-     （盘面超出卡片的部分由 .sys 的 overflow 裁掉，正好成了「轨道延伸出卡片」的透视感。）
+    overflow: hidden; border-radius: inherit; perspective: 700px; perspective-origin: var(--cx) var(--cy);
+    -webkit-mask-image: linear-gradient(45deg, #000 40%, transparent 72%);
+    mask-image: linear-gradient(45deg, #000 40%, transparent 72%); }
+  /* .sysin 才是那块倾斜的轨道盘：216×216 以图标为圆心，58° 俯角把正圆投成椭圆。
+     盘面超出卡片的部分由 .sys 的 overflow 裁掉，正好是「轨道延伸出卡片」的透视感。
 
-     **轨道线必须画在 ::after 上，不能画在 .sysin 自己身上** —— 这是本次改造踩的坑：
-     mask 会连同**后代元素**一起裁。第一版把 conic + 8 层 mask 直接写在 .sysin 的 background 上，
-     结果 8 颗行星球体全被挖掉了（只有恰好压在 0.8px 环带上的那一丝边缘还留着）。
-     现在 .sysin 只当容器，轨道是它的一张独立伪元素，mask 只作用于那张伪元素本身。
-     轨道色走 --orb-A/B/C 三个变量：浅色卡上必须用灰调（白线压在白卡上等于没画），
-     深色卡 / 有背景图时才用亮线。 */
-  .tile .sysin { position: absolute; left: var(--cx); top: var(--cy); width: 240px; height: 240px; margin: -120px 0 0 -120px;
+     **轨道线必须画在 ::after 上，不能画在 .sysin 自己身上** —— mask 会连同**后代元素**一起裁，
+     .sysin 只当容器，轨道是它的一张独立伪元素。 */
+  .tile .sysin { position: absolute; left: var(--cx); top: var(--cy); width: 220px; height: 220px; margin: -110px 0 0 -110px;
     transform: rotateX(58deg); transform-origin: 50% 50%; }
-  /* 轨道光：一条 conic 从左上（150deg 方向）起亮，转到右下时几乎熄灭，再转回来。
-     这就是「前亮后暗」——观者站在轨道盘的上方偏左，靠近自己的那半圈反射环境光。
-     8 条环带靠 mask 的 8 层 radial-gradient 挖出来，每层 alpha 就是「这条轨道有多清楚」，
-     逐条 .58 → .18，于是越靠外越淡，形成景深。环宽 0.8px（1px 在这个尺度下显得笨重）。 */
-  .tile .sysin::after { content: ""; position: absolute; inset: 0; border-radius: 50%;
+  /* 轨道光：conic 从 150deg（左下、靠近观察者）起亮，转到右后几乎熄灭再转回来。
+     8 条环带靠 mask 的 8 层 radial-gradient 挖出来；半径 50→110、间距内密外疏，
+     alpha 逐条 .45 → .07 —— 外侧两条几乎隐入卡面（局部渐隐，任务书 §4.3-3），
+     免得 8 条等亮细环又读成「唱片刻纹」。环宽 0.8px。
+     hover 时整体略提亮（opacity .85 → 1），克制的反馈，不加新光源。 */
+  .tile .sysin::after { content: ""; position: absolute; inset: 0; border-radius: 50%; opacity: .85;
+    transition: opacity .35s var(--hx-ease);
     background: conic-gradient(from 150deg at 50% 50%,
       var(--orb-a) 0deg, var(--orb-b) 62deg, var(--orb-c) 128deg,
       var(--orb-c) 232deg, var(--orb-b) 298deg, var(--orb-a) 360deg);
     -webkit-mask-image:
-      radial-gradient(closest-side, transparent 0 61.4px, #00000094 62px 62.8px, transparent 63.2px),
-      radial-gradient(closest-side, transparent 0 69.4px, #0000008a 70px 70.8px, transparent 71.2px),
-      radial-gradient(closest-side, transparent 0 77.4px, #00000080 78px 78.8px, transparent 79.2px),
-      radial-gradient(closest-side, transparent 0 85.4px, #00000074 86px 86.8px, transparent 87.2px),
-      radial-gradient(closest-side, transparent 0 93.4px, #00000066 94px 94.8px, transparent 95.2px),
-      radial-gradient(closest-side, transparent 0 101.4px, #00000056 102px 102.8px, transparent 103.2px),
-      radial-gradient(closest-side, transparent 0 109.4px, #00000044 110px 110.8px, transparent 111.2px),
-      radial-gradient(closest-side, transparent 0 117.4px, #0000002e 118px 118.8px, transparent 119.2px);
+      radial-gradient(closest-side, transparent 0 49.4px, #00000073 50px 50.8px, transparent 51.2px),
+      radial-gradient(closest-side, transparent 0 57.4px, #00000061 58px 58.8px, transparent 59.2px),
+      radial-gradient(closest-side, transparent 0 66.4px, #0000004f 67px 67.8px, transparent 68.2px),
+      radial-gradient(closest-side, transparent 0 75.4px, #00000040 76px 76.8px, transparent 77.2px),
+      radial-gradient(closest-side, transparent 0 84.4px, #00000033 85px 85.8px, transparent 86.2px),
+      radial-gradient(closest-side, transparent 0 93.4px, #00000026 94px 94.8px, transparent 95.2px),
+      radial-gradient(closest-side, transparent 0 101.4px, #0000001c 102px 102.8px, transparent 103.2px),
+      radial-gradient(closest-side, transparent 0 109.4px, #00000012 110px 110.8px, transparent 111.2px);
     mask-image:
-      radial-gradient(closest-side, transparent 0 61.4px, #00000094 62px 62.8px, transparent 63.2px),
-      radial-gradient(closest-side, transparent 0 69.4px, #0000008a 70px 70.8px, transparent 71.2px),
-      radial-gradient(closest-side, transparent 0 77.4px, #00000080 78px 78.8px, transparent 79.2px),
-      radial-gradient(closest-side, transparent 0 85.4px, #00000074 86px 86.8px, transparent 87.2px),
-      radial-gradient(closest-side, transparent 0 93.4px, #00000066 94px 94.8px, transparent 95.2px),
-      radial-gradient(closest-side, transparent 0 101.4px, #00000056 102px 102.8px, transparent 103.2px),
-      radial-gradient(closest-side, transparent 0 109.4px, #00000044 110px 110.8px, transparent 111.2px),
-      radial-gradient(closest-side, transparent 0 117.4px, #0000002e 118px 118.8px, transparent 119.2px); }
-  .tile .sysin::before { /* 太阳光冕：从图标边缘透出来的一圈暖光 */
-    content: ""; position: absolute; left: 50%; top: 50%; width: 96px; height: 96px; margin: -48px 0 0 -48px; border-radius: 50%;
-    background: radial-gradient(closest-side, rgba(255, 205, 120, .42), rgba(255, 176, 74, .16) 60%, transparent 78%); }
+      radial-gradient(closest-side, transparent 0 49.4px, #00000073 50px 50.8px, transparent 51.2px),
+      radial-gradient(closest-side, transparent 0 57.4px, #00000061 58px 58.8px, transparent 59.2px),
+      radial-gradient(closest-side, transparent 0 66.4px, #0000004f 67px 67.8px, transparent 68.2px),
+      radial-gradient(closest-side, transparent 0 75.4px, #00000040 76px 76.8px, transparent 77.2px),
+      radial-gradient(closest-side, transparent 0 84.4px, #00000033 85px 85.8px, transparent 86.2px),
+      radial-gradient(closest-side, transparent 0 93.4px, #00000026 94px 94.8px, transparent 95.2px),
+      radial-gradient(closest-side, transparent 0 101.4px, #0000001c 102px 102.8px, transparent 103.2px),
+      radial-gradient(closest-side, transparent 0 109.4px, #00000012 110px 110.8px, transparent 111.2px); }
+  .tile:hover .sysin::after, .tile:focus-visible .sysin::after { opacity: 1; }
+  .tile .sysin::before { /* 太阳光冕：从图标边缘透出来的一圈暖光（比上一版收敛：图标才是主角） */
+    content: ""; position: absolute; left: 50%; top: 50%; width: 88px; height: 88px; margin: -44px 0 0 -44px; border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(255, 205, 120, .28), rgba(255, 176, 74, .11) 60%, transparent 78%); }
   .tile .sysin i { position: absolute; left: 50%; top: 50%; width: 0; height: 0; z-index: 1;
-    transform: rotate(var(--a)); animation: hx-orb var(--d) linear infinite; animation-play-state: paused; }
+    transform: rotate(var(--a)); animation: hx-orb var(--d) linear infinite; }
   /* 行星球体。三道渐变叠出球感：
        · 最上层是偏左上 30% 的高光（小半径、高亮度，模拟镜面反射）；
        · 中间是行星自己的材质（--pt：木星的条带、地球的海陆团块都在这一层）；
@@ -328,32 +328,34 @@
     background: var(--pt);
     box-shadow: 0 0 calc(var(--s) * .9) color-mix(in srgb, var(--p) 55%, transparent);
     transform: translateX(var(--r)) rotateX(-58deg); }
-  /* 土星环：唯一用到 ::after 的行星。带宽 2.9 倍球径，中间挖空到 39%（球体压在空心里），
-     环本身压扁成椭圆再斜 14°。
-     ── 2026-11-04 修正（三版才定下来）──
-     第①版 `rotateX(-58deg) scaleY(.42)`：父级已经把球压扁过一次，这里再压两遍，
-       7px 的球配出来是一根 3px 的「棍子」，截图上像一块脏斑；
-     第②版改成 .85：又太圆，像枚金戒指；
-     现在 .5：环径 2.9 倍、带宽 39%~80%，读得出是「一圈斜着绕球转的盘」。
-     z-index：::after 默认画在 ::before 之上，不处理会盖住球心；把球体抬到 1，环留 0。 */
-  .tile .sysin i.sat::after { content: ""; position: absolute; width: calc(var(--s) * 2.9); height: calc(var(--s) * 2.9);
-    margin: calc(var(--s) * -1.45); border-radius: 50%;
+  /* 土星环：拆成三层做**真实前后遮挡**（任务书 §4.2，2026-11-04 二次修复）——
+       后半环 <s>（z:0）→ 球体 ::before（z:1）→ 前半环 ::after（z:2，clip-path 只留视觉下半）。
+     环径 2.9 倍球径，中间挖空到 39%；rotateX(-58deg) 抵掉父级俯角，rotate(-14deg) 斜环，
+     scaleY(.5) 压成椭圆。clip 在元素本地坐标系里取「下半」，经同一串 transform 后
+     正好是屏幕上的前半（靠观察者一侧），球体把它挡住的那截环让出来 —— 环从球后穿过去。 */
+  .tile .sysin i.sat s { position: absolute; width: calc(var(--s) * 2.9); height: calc(var(--s) * 2.9);
+    margin: calc(var(--s) * -1.45); border-radius: 50%; z-index: 0;
     background: radial-gradient(closest-side, transparent 0 39%,
       rgba(246, 232, 198, .95) 42% 60%, rgba(206, 184, 140, .55) 62% 71%, rgba(140, 118, 84, .20) 73% 78%, transparent 80%);
-    /* 这里的 rotateX(-58deg) 正好抵掉父级 .sysin 的 rotateX(58deg)，所以真正决定形状的是 scaleY。
-       第一版 .42 出来是一根棍，第二版 .85 又太圆（像枚金戒指），.5 落在中间。 */
     transform: translateX(var(--r)) rotateX(-58deg) rotate(-14deg) scaleY(.5); }
+  .tile .sysin i.sat::after { content: ""; position: absolute; width: calc(var(--s) * 2.9); height: calc(var(--s) * 2.9);
+    margin: calc(var(--s) * -1.45); border-radius: 50%; z-index: 2;
+    background: radial-gradient(closest-side, transparent 0 39%,
+      rgba(246, 232, 198, .95) 42% 60%, rgba(206, 184, 140, .55) 62% 71%, rgba(140, 118, 84, .20) 73% 78%, transparent 80%);
+    transform: translateX(var(--r)) rotateX(-58deg) rotate(-14deg) scaleY(.5);
+    -webkit-clip-path: inset(50% 0 0 0); clip-path: inset(50% 0 0 0); }
   .tile .sysin i.sat::before { z-index: 1; }
   @keyframes hx-orb { from { transform: rotate(var(--a)); } to { transform: rotate(calc(var(--a) + 360deg)); } }
   @media (hover: hover) and (pointer: fine) {
     html:not(.hx-lite) .tile .sys { display: block; }
     /* 行星系统上场时单环和光点让位，别两套叠在一起 */
     html:not(.hx-lite) .tile .ic::before, html:not(.hx-lite) .tile .ic::after { display: none; }
-    html:not(.hx-lite) .tile:hover .sysin i, html:not(.hx-lite) .tile:focus-visible .sysin i { animation-play-state: running; }
   }
-  /* 有背景图 / 深色卡：卡面本来就是深色，轨道线换成冷白才看得见（浅色卡那套灰蓝等于隐形） */
-  html.hx-bg .tile, html[data-hx-mode="dark"] .tile { --orb-a: rgba(208, 224, 244, .60); --orb-b: rgba(190, 208, 232, .26); --orb-c: rgba(176, 194, 220, .09); }
-  @media (prefers-reduced-motion: reduce) { .tile .sys { display: none !important; } }
+  /* 有背景图 / 深色卡：卡面本来就是深色，轨道线换成冷白才看得见（浅色卡那套灰蓝等于隐形）。
+     2026-11-04 二次修复：整体压暗一档（.60→.52），后侧几乎熄灭，只留近处半圈柔光。 */
+  html.hx-bg .tile, html[data-hx-mode="dark"] .tile { --orb-a: rgba(208, 224, 244, .52); --orb-b: rgba(190, 208, 232, .22); --orb-c: rgba(176, 194, 220, .07); }
+  /* prefers-reduced-motion：行星停转（冻结在当前相位），轨道保持静态氛围——不再是整层消失 */
+  @media (prefers-reduced-motion: reduce) { .tile .sysin i { animation: none; } .tile:hover .sysin::after { opacity: .85; } }
   /* ── 卡片上端的像素小生物（pixelfx critters，MIT）──
      取代原来那个「左上角莫名其妙凸出来的舌片」。用户 2026-11-02 的要求：
      卡片上端放一只随机匹配的动效生物，鼠标移上去才动。
@@ -395,17 +397,23 @@
   html.hx-bg .tile .fxc { opacity: .95; }
   @media (prefers-reduced-motion: reduce) { .tile:hover .fxc, .tile:focus-visible .fxc { transform: none; } }
   .tile b { font-size: 21px; font-weight: 600; letter-spacing: -.01em; margin-top: auto; }
-  /* 有背景图：走玻璃文件夹分支——后片换成「深色底 + 品牌渐变」（照片位，深色有对比，背景图从半透明底透出，
-     透明度跟着用户选的 --hx-a 走），舌片显示，文字转白系保证可读 */
-  html.hx-bg .tile { --fld-bg: linear-gradient(180deg, rgba(255, 255, 255, .18) 0%, rgba(255, 255, 255, .06) 30%, rgba(255, 255, 255, .02) 55%, rgba(8, 10, 16, .16) 100%);
-    --fld-edge: rgba(255, 255, 255, .20); --fld-lip: var(--glass-top); --fld-sheen: rgba(255, 255, 255, .5);
-    /* 有背景图时玻璃本来就是压在照片上的，噪点可以稍微明显一点（照片会盖掉一部分质感），
-       扫光也跟着降到 .22：图本来就亮，再加亮扫光会过曝。 */
-    --fld-grain: rgba(255, 255, 255, .05); --fld-scan: rgba(255, 255, 255, .22); --fld-scan2: rgba(255, 255, 255, .05);
+  /* 有背景图：走玻璃文件夹分支——后片换成「深色清透玻璃」（Deep / Clear Cosmic Glass，任务书 §3.1）：
+     深黑蓝底 rgba(9,16,29,·) 打底 + 左上一道很弱的主题色反射 + 底边一圈更弱的垫光。
+     ── 2026-11-04 二次修复（UI 回归）──
+     失败版的问题：① 白色 gradient 薄膜（--fld-bg .18/.06）把深色玻璃罩成灰片；
+     ② 主题色渐变 20% 太浓，橙色卡整面发棕（失败截图 03 的「棕灰蒙层」）；
+     ③ 噪点点阵连成灰膜。现在：底色换 9,16,29、透明度 .50（在任务书 .40–.68 区间内，
+     背景极光能透出来），主题色反射降到 12%，白膜只剩顶部 .06 的一道「玻璃顶光」。 */
+  html.hx-bg .tile { --fld-bg: linear-gradient(180deg, rgba(255, 255, 255, .07) 0%, rgba(255, 255, 255, .02) 38%, rgba(9, 16, 29, 0) 58%, rgba(8, 10, 16, .20) 100%);
+    --fld-edge: rgba(255, 255, 255, .17); --fld-lip: var(--glass-top); --fld-sheen: rgba(255, 255, 255, .34);
+    /* 有背景图时噪点可以稍微明显一点（照片会盖掉一部分质感），扫光跟着降到 .12 */
+    --fld-scan: rgba(255, 255, 255, .12); --fld-scan2: rgba(255, 255, 255, .02);
     --fld-deep: rgba(0, 0, 0, .34);
     --fld-tab: linear-gradient(180deg, color-mix(in srgb, var(--c1) 40%, rgb(22 26 32 / calc(var(--hx-a, 1) * .5))), color-mix(in srgb, var(--c1) 26%, rgb(22 26 32 / calc(var(--hx-a, 1) * .5))));
-    background-color: rgb(12 14 18 / calc(var(--hx-a, 1) * .50));
-    background-image: linear-gradient(150deg, color-mix(in srgb, var(--c1) 26%, transparent), transparent 70%);
+    background-color: rgb(9 16 29 / calc(var(--hx-a, 1) * .50));
+    background-image:
+      linear-gradient(152deg, color-mix(in srgb, var(--c1) 12%, transparent), transparent 52%),
+      radial-gradient(130% 62% at 20% 110%, color-mix(in srgb, var(--c2) 14%, transparent), transparent 62%);
     box-shadow: var(--glass-drop), 0 0 0 .6px var(--fld-edge) inset; }
   /* 2026-11-02：卡片不再各自 backdrop-filter。背景图已经在 body::before 统一糊过，
      这里只叠半透明层 + 亮边就够（视觉一样是磨砂玻璃）。原来十几张卡各 blur 26px，
@@ -424,7 +432,7 @@
   html:not([data-hx-mode="dark"]).hx-bg .tile {
     --fld-bg: linear-gradient(180deg, rgba(255, 255, 255, .62) 0%, rgba(255, 255, 255, .34) 55%, rgba(255, 255, 255, .16) 100%);
     --fld-edge: rgba(0, 0, 0, .07); --fld-lip: rgba(255, 255, 255, .95); --fld-sheen: rgba(255, 255, 255, .55);
-    --fld-grain: rgba(24, 30, 38, .024); --fld-scan: rgba(255, 255, 255, .34); --fld-scan2: rgba(255, 255, 255, .06);
+    --fld-scan: rgba(255, 255, 255, .34); --fld-scan2: rgba(255, 255, 255, .06);
     --fld-deep: rgba(0, 0, 0, .10);
     /* 卡面变白了，轨道线不能再用给深色卡准备的冷白（353 行那套在白卡上等于隐形），
        退回浅色卡默认的灰蓝三段亮度（见 272 行）。 */
@@ -448,20 +456,24 @@
      ── 2026-11-04 修坑：底色原来写死 rgba(10,10,12,.42)，不跟 --hx-a 走 ——
      外观面板的「卡片透明度」在这条分支上完全失效（实测 op 100→0，卡片 computed
      background-color 一格没变，像素均差 0.86）。浅色分支一直吃 --hx-a（.5 × α），
-     深色这条漏了。op=100 时 α=1，视觉和改之前完全一样。 */
-  html[data-hx-mode="dark"].hx-bg .tile { --fld-bg: linear-gradient(180deg, rgba(255, 255, 255, .10) 0%, rgba(255, 255, 255, .03) 55%, rgba(8, 10, 16, .20) 100%); --fld-edge: rgba(255, 255, 255, .14);
-    background-color: rgb(10 10 12 / calc(var(--hx-a, 1) * .42)); background-image: linear-gradient(150deg, color-mix(in srgb, var(--c1) 20%, transparent), transparent 70%); }
+     深色这条漏了。op=100 时 α=1，视觉和改之前完全一样。
+     ── 2026-11-04 二次修复（UI 回归，任务书 §3.1）──
+     这是首页暗色 + 极光背景下**实际生效**的配方：换成深黑蓝清透玻璃
+     rgba(9,16,29,·.52)（乘 --hx-a），主题色左上反射从 20% 降到 12%（失败版整卡发棕的来源），
+     白膜从 .10/.03 压到 .05/.01，另加底边一圈更弱的主题色垫光。 */
+  html[data-hx-mode="dark"].hx-bg .tile { --fld-bg: linear-gradient(180deg, rgba(255, 255, 255, .05) 0%, rgba(255, 255, 255, .01) 40%, rgba(9, 16, 29, 0) 60%, rgba(8, 10, 16, .22) 100%); --fld-edge: rgba(255, 255, 255, .14);
+    background-color: rgb(9 16 29 / calc(var(--hx-a, 1) * .52));
+    background-image:
+      linear-gradient(152deg, color-mix(in srgb, var(--c1) 12%, transparent), transparent 52%),
+      radial-gradient(130% 62% at 20% 110%, color-mix(in srgb, var(--c2) 12%, transparent), transparent 62%); }
   /* ── 无背景图 + 深色模式（2026-11-04 玻璃拟态升级时合并成一条）──
-     浅色那套白玻璃搬到深色下会「发灰」：白点阵 + 白马赛克扫光压在近黑的卡面上，
-     噪点变成一层脏灰膜，扫光变成一块突兀的亮斑。三处一起改：
-       ① 噪点降到 .045，点阵不至于像灰尘；
-       ② 扫光只留左上一点（.10 → .02），深色卡面上大面积亮扫光会让卡看起来是「半透明的塑料」；
-       ③ 亮唇从 .16 提到 .28，深色下边缘亮线是唯一的轮廓提示，弱了就整个人糊进背景。 */
+     浅色那套白玻璃搬到深色下会「发灰」。2026-11-04 二次修复：点阵噪点整层已删（F3），
+     这里只留极淡扫光 + 提亮的边缘亮唇。 */
   html[data-hx-mode="dark"]:not(.hx-bg) .tile { --fld-bg: rgba(255, 255, 255, .028); --fld-edge: rgba(255, 255, 255, .07); --fld-lip: rgba(255, 255, 255, .28);
-    --fld-grain: rgba(255, 255, 255, .045); --fld-scan: rgba(255, 255, 255, .10); --fld-scan2: rgba(255, 255, 255, .02);
+    --fld-scan: rgba(255, 255, 255, .10); --fld-scan2: rgba(255, 255, 255, .02);
     --fld-deep: rgba(0, 0, 0, .55); }
-  /* 深色 + 背景图：卡片本来就是深灰玻璃，亮唇要更明显，噪点保持极低 */
-  html[data-hx-mode="dark"].hx-bg .tile { --fld-grain: rgba(255, 255, 255, .04); --fld-scan: rgba(255, 255, 255, .12); --fld-scan2: rgba(255, 255, 255, .02); }
+  /* 深色 + 背景图：扫光保持极低 */
+  html[data-hx-mode="dark"].hx-bg .tile { --fld-scan: rgba(255, 255, 255, .12); --fld-scan2: rgba(255, 255, 255, .02); }
   /* ── 省电模式（html.hx-lite）的玻璃降级 ──
      任务红线要求「去掉噪点和悬停位移，只保留静态玻璃」。这里做三件事：
        ① 噪点整层关掉（点阵在 4px 网格上重复铺满整卡，是这四层里唯一的逐像素填充）；
@@ -471,11 +483,10 @@
   html.hx-lite .tile::before { background: none; }
   html.hx-lite .tile { transition: box-shadow .2s var(--hx-ease); }
   html.hx-lite .tile:hover, html.hx-lite .tile:active { transform: none; }
-  /* 系统「减少动态效果」：同 hx-lite，位移和扫光都停，只保留静态玻璃 */
+  /* 系统「减少动态效果」：同 hx-lite，扫光位移停（噪点层已删，见 .tile 注释），只保留静态玻璃 */
   @media (prefers-reduced-motion: reduce) {
-    .tile::before { background: radial-gradient(circle at 1px 1px, var(--fld-grain) 1px, transparent 1.7px) 0 0 / 4px 4px repeat; }
+    .tile::before { background: none; }
     .tile, .tile:hover, .tile:active { transform: none; transition: box-shadow .2s var(--hx-ease); }
-    .tile:hover::before { background-position: 0 0; }
   }
   /* 当前打开的工具（横条提示）：恢复它自己的底色和描边，不做文件夹造型 */
   html.hx-bg .tile.act { background-color: var(--glass-wash); background-image: linear-gradient(var(--accbg), var(--accbg)); box-shadow: 0 0 0 1.5px var(--acc) inset; }
@@ -902,62 +913,61 @@ function $(id) { return document.getElementById(id); }
 function esc(t) { return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
 function svg(d, cls) { return '<svg class="i' + (cls ? ' ' + cls : '') + '" viewBox="0 0 24 24">' + d + '</svg>'; }
 
-// 首页工具卡上的「八大行星」：中心图标当太阳，**八条独立轨道、每颗行星一条**。
-// 只在「鼠标 / 触控板 + 非省电设备」上渲染（显示条件在 CSS），触屏和希沃整段 display:none，
-// 所以教室一体机不会多出 100 多个动画元素。
-// ── 2026-11-04 重做 ──
-// 半径：62 → 118 均匀铺开（原来三档 70/85/100 挤了 8 颗，视觉上全糊成一团）。
-// 大小：**故意不按真实比例**。真实比例下木星直径是水星的 28 倍，在这个 240px 的盘面上
-// 木星会盖住一半轨道、水星小到看不见。用户明确说过「不要完全按真实天文比例绘制」，
-// 所以压成 3.2 → 8 的区间：最小和最大差 2.5 倍，一眼分得出谁大谁小，又不互相遮挡。
-// 周期：内圈 14s、外圈 26s（原来 7~23s，慢到看不出在动）。仍然只在 hover 时才 running。
+// 首页工具卡上的「八大行星」：中心图标当太阳，**八条共心轨道、每颗行星一条**。
+// 只在「鼠标 / 触控板 + 非省电设备」上渲染（显示条件在 CSS），触屏和希沃整段 display:none。
+// ── 2026-11-04 二次重做（UI 回归，任务书 §4）──
+// 半径：50 → 110、间距内密外疏（与 CSS 里 .sysin::after 的 8 层环带 mask 一一对应，
+// **改这里必须同步改那里**）；盘面 220px 只占卡片左侧图标后方，
+// 右侧是像素小生物的保护区（.sys 上有渐隐 mask 兜底）。
+// 相位：八颗各不相同、围绕整圈散开（上一版挤在右半圈，静止时读成「一排贴纸」——F1）。
+//   初始相位挑过位置：静止时没有一颗落在右上保护区里，也不和图标/标题重叠。
+// 周期：26s → 52s 缓慢公转（任务书 §5「默认：行星缓慢公转」），内快外慢；
+//   纯 CSS transform 动画，无 JS 循环，14 张卡也不引入任何渲染循环。
+// 大小：**故意不按真实比例**（用户明确说过「不要完全按真实天文比例绘制」），
+//   3.2 → 8 的区间：最小和最大差 2.5 倍，一眼分得出谁大谁小，又不互相遮挡。
 // 字段：--r 轨道半径 / --d 周期 / --a 初始相位 / --s 直径 / --p 主色 / --pt 球面材质（CSS 渐变）。
 // 颜色一律压灰：真实行星在真空里没有环境光补色，纯色会显得像塑料珠子。
 function ball(c1, c2, c3, extra) {
-  // 统一的高光位置：circle at 32% 27%（偏左上，光源统一从左上方来）。
+  // 统一的高光位置：circle at 32% 27%（偏左上，八颗行星光源统一从左上方来）。
   // extra 是行星自己的材质层（木星条带、地球海陆），插在高光和球体明暗之间。
   return 'radial-gradient(circle at 32% 27%,' + c1 + ' 0 3%,' + c2 + ' 34%,' + c3 + ' 74%,#14100c 100%)' + (extra ? ',' + extra : '');
 }
 var PLANETS = [
-  // 半径  相位  周期  直径  主色        球面材质
-  // 相位：8 颗全挤在**右半圈**（-82° ~ 110°），不是均匀撒一圈。原因很实际：
-  //   圆心在图标中心（--cx 53px），卡片只有 195px 宽，左边只剩 53px 余量 ——
-  //   均匀撒一圈会有 4~5 颗跑到卡片外面被 overflow 裁掉，等于白做。
-  //   右半圈从「右上 → 右 → 右下 → 左下」铺成一道扇形，8 条轨道仍然各自独立、半径各不相同。
-  { r: 62, a: -82, d: 14.0, s: 3.2, p: '#a89c8e', n: 'mercury',
+  // 半径  相位   周期   直径  主色        球面材质
+  { r: 50, a: 210, d: 26.0, s: 3.2, p: '#a89c8e', n: 'mercury',
     pt: ball('#cdc3b6', '#a89c8e', '#726557') },
-  { r: 70, a: -52, d: 15.6, s: 4.4, p: '#d5c093', n: 'venus',
+  { r: 58, a: -60, d: 29.0, s: 4.4, p: '#d5c093', n: 'venus',
     pt: ball('#f6e6c2', '#dcc79a', '#8a6c47',
       'radial-gradient(circle at 70% 76%, rgba(120,92,52,.45) 0 40%, transparent 70%)') },
-  { r: 78, a: -20, d: 17.2, s: 4.8, p: '#5d93b8', n: 'earth',
+  { r: 67, a: 115, d: 32.0, s: 4.8, p: '#5d93b8', n: 'earth',
     // 地球：先铺两团「陆地」（不规则圆），再用海蓝的明暗盖上去 —— 陆地的边缘被海色吃掉一部分，
     // 看起来就是海陆交错而不像三个贴上去的圆片。
     pt: ball('#8fc6e8', '#4f8db4', '#27506a',
       'radial-gradient(circle at 63% 42%, rgba(96,158,110,.85) 0 19%, transparent 37%),'
       + 'radial-gradient(circle at 38% 72%, rgba(108,166,118,.7) 0 17%, transparent 33%)') },
-  { r: 86, a: 8, d: 18.8, s: 4.0, p: '#b8704f', n: 'mars',
+  { r: 76, a: 80, d: 36.0, s: 4.0, p: '#b8704f', n: 'mars',
     pt: ball('#f2c4a4', '#c9775a', '#7a3c24',
       'radial-gradient(circle at 68% 48%, rgba(120,58,38,.5) 0 26%, transparent 52%)') },
   // 木星：横向色带。用 repeating-linear-gradient 而不是一条条写，
   // 周期设为球径的百分比，任何尺寸下条数和比例都不变。
-  { r: 94, a: 38, d: 20.4, s: 8.0, p: '#b18a63', n: 'jupiter',
+  { r: 85, a: 100, d: 40.0, s: 8.0, p: '#b18a63', n: 'jupiter',
     pt: 'radial-gradient(circle at 30% 25%, rgba(255,248,222,.66) 0 3%, rgba(255,248,222,.16) 15%, transparent 40%),'
       + 'repeating-linear-gradient(177deg, #b18a63 0 9%, #8f6d4b 9% 15%, #c8a87e 15% 25%, #7d5e42 25% 31%, #ab8560 31% 42%),'
       + 'radial-gradient(circle at 32% 27%, #d4b48c 0 2%, #a9865f 40%, #6a5035 78%, #2a1e13 100%)' },
-  // 土星：7px + 一条环（环在 CSS 里，见 .sysin i.sat::after）
-  { r: 102, a: 68, d: 22.0, s: 7.0, p: '#cdb489', n: 'sat',
+  // 土星：7px + 一条环（环在 CSS 里拆三层：s 后半环 → 球 → ::after 前半环，见 .sysin i.sat）
+  { r: 94, a: -115, d: 44.0, s: 7.0, p: '#cdb489', n: 'sat',
     pt: ball('#f8eccd', '#e0c894', '#ac8e5c') },
-  { r: 110, a: 96, d: 24.2, s: 5.2, p: '#8ecdd6', n: 'uranus',
+  { r: 102, a: -95, d: 48.0, s: 5.2, p: '#8ecdd6', n: 'uranus',
     pt: ball('#d6f2f4', '#a2dbe0', '#5b97a2') },
-  { r: 118, a: 110, d: 26.4, s: 5.0, p: '#7189d0', n: 'neptune',
+  { r: 110, a: 80, d: 52.0, s: 5.0, p: '#7189d0', n: 'neptune',
     pt: ball('#b9cdf6', '#7c94d6', '#43548f') }
 ];
-// .sys 铺满整张卡（负责按卡片边界裁剪），.sysin 是以图标为圆心旋转的 3D 轨道盘。
-// 每颗行星一条轨道：i 是一个 0×0 的旋转臂，臂尖挂球体；土星多一个 class 用来挂环。
-// 元素数：和改造前一样 8 个 i（伪元素也是 8 + 1）。
+// .sys 铺满整张卡（负责按卡片边界裁剪 + 右上保护区渐隐），.sysin 是以图标为圆心旋转的 3D 轨道盘。
+// 每颗行星一条轨道：i 是一个 0×0 的旋转臂，臂尖挂球体；土星多一层 <s> 当后半环（前后遮挡）。
+// 元素数：8 个 i（土星多 1 个 s），伪元素 8 + 1。
 function planets() {
   return '<span class="sys" aria-hidden="true"><span class="sysin">' + PLANETS.map(function (p) {
-    return '<i class="' + p.n + '" style="--r:' + p.r + 'px;--d:' + p.d + 's;--a:' + p.a + 'deg;--s:' + p.s + 'px;--p:' + p.p + ';--pt:' + p.pt + '"></i>';
+    return '<i class="' + p.n + '" style="--r:' + p.r + 'px;--d:' + p.d + 's;--a:' + p.a + 'deg;--s:' + p.s + 'px;--p:' + p.p + ';--pt:' + p.pt + '">' + (p.n === 'sat' ? '<s></s>' : '') + '</i>';
   }).join('') + '</span></span>';
 }
 var ST = { me: null, user: null, tab: null, lm: 'in', reg: null, actFor: null, uname: null, edit: null, classes: null, open: null, studs: {}, rosters: null };

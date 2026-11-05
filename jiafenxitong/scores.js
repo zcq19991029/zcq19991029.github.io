@@ -23,6 +23,10 @@
   var timer = null;
   var fatal = null;        // no_login / not_student / no_data / error
 
+  /* 组内互评（2026-11-04）：老师按「本节课」开放后，组长才能给组员打分、组员才能给组长打分。
+     其他课次一律只读；这里只存「本节」的看板，换课要重新拉。 */
+  var peer = { lessons: [], lesson: '', data: null, msg: '', busy: false, loaded: false, queue: Promise.resolve() };
+
   var $ = function (id) { return document.getElementById(id); };
 
   /* ---------- 登录态（和华夏工具共用 paike-session） ---------- */
@@ -199,11 +203,189 @@
     return html;
   }
 
+  /* ---------- 组内互评（2026-11-04） ----------
+     只对「老师当节点了开放」的那一节课生效；其他课次仍只看自己快照，改不了。
+     数据全在云端：jf_peer_open 列出开放的课，jf_peer_mine 拉本节我这一组，
+     jf_peer_submit / jf_peer_clear 打分和撤分。老师逐列确认后才计入成绩。 */
+
+  function peerMineMap() {
+    var map = Object.create(null);
+    ((peer.data && peer.data.mine) || []).forEach(function (r) { map[r.project + '\u0000' + r.target] = r.score; });
+    return map;
+  }
+  function peerScore(project, target) {
+    return peerMineMap()[project + '\u0000' + target];
+  }
+  function peerStatusText(s) { return s === 'confirmed' ? '已确认' : s === 'rejected' ? '已否决' : '待确认'; }
+  function peerStatusClass(s) { return 'peer-badge is-' + (s || 'pending'); }
+
+  function refreshPeer(reset) {
+    return rpc('jf_peer_open', {}).then(function (res) {
+      peer.lessons = (res && res.lessons) || [];
+      peer.loaded = true;
+      if (!peer.lessons.length) { peer.lesson = ''; peer.data = null; return null; }
+      var keep = !reset && peer.lessons.some(function (l) { return l.lesson === peer.lesson; });
+      if (!keep) peer.lesson = peer.lessons[0].lesson;
+      return rpc('jf_peer_mine', { p_lesson: peer.lesson }).then(function (d) {
+        peer.data = d && d.ok ? d : null;
+        return peer.data;
+      });
+    }).catch(function (e) {
+      peer.loaded = true;
+      /* 云端没装这套函数时不该把整页打挂：静默降级成只读 */
+      if (e && e.status === 401) throw e;
+      peer.lessons = [];
+      peer.data = null;
+      return null;
+    });
+  }
+
+  /* 打分的请求排队发：先点 3 再双击撤销，两个请求按点击顺序到云端，最后一定是「撤销」。
+     界面上先乐观更新（点完立刻变），失败再退回原值。 */
+  function peerRun(task) {
+    peer.queue = peer.queue.then(task, task);
+    return peer.queue;
+  }
+
+  function submitPeer(project, target, score) {
+    if (!peer.data) return;
+    var lessonKey = peer.data.lesson, prev = peerScore(project, target);
+    upsertMine(project, target, score);
+    peer.busy = true;
+    paint();
+    peerRun(function () {
+      return rpc('jf_peer_submit', { p_lesson: lessonKey, p_project: project, p_target: target, p_score: score });
+    }).then(function () {
+      peer.msg = '已提交 ' + score + ' 分，等老师确认后计入成绩。';
+    }, function (e) {
+      upsertMine(project, target, prev);
+      peer.msg = (e && e.message) || '提交失败，检查网络后重试。';
+    }).then(function () {
+      peer.busy = false;
+      return refreshPeer(false);
+    }).catch(function () {}).then(function () { paint(); });
+  }
+
+  function clearPeer(project, target) {
+    if (!peer.data) return;
+    var lessonKey = peer.data.lesson, prev = peerScore(project, target);
+    if (prev == null) return;
+    upsertMine(project, target, null);
+    peer.busy = true;
+    paint();
+    peerRun(function () {
+      return rpc('jf_peer_clear', { p_lesson: lessonKey, p_project: project, p_target: target });
+    }).then(function () {
+      peer.msg = '已撤销这一格的加分。';
+    }, function (e) {
+      upsertMine(project, target, prev);
+      peer.msg = (e && e.message) || '撤销失败，检查网络后重试。';
+    }).then(function () {
+      peer.busy = false;
+      return refreshPeer(false);
+    }).catch(function () {}).then(function () { paint(); });
+  }
+
+  function upsertMine(project, target, score) {
+    if (!peer.data) return;
+    if (!Array.isArray(peer.data.mine)) peer.data.mine = [];
+    var hit = peer.data.mine.find(function (r) { return r.project === project && r.target === target; });
+    if (score == null) { peer.data.mine = peer.data.mine.filter(function (r) { return r !== hit; }); return; }
+    if (hit) hit.score = score;
+    else peer.data.mine.push({ project: project, target: target, score: score });
+  }
+
+  function peerCellHtml(project, target) {
+    var value = peerScore(project.name, target.key), locked = project.status === 'confirmed';
+    var label = esc(target.name) + ' · ' + esc(project.name);
+    if (value != null) {
+      return '<div class="peer-cell is-set" data-score="' + value + '" data-project="' + esc(project.name) +
+        '" data-target="' + esc(target.key) + '" role="button" tabindex="0" title="双击撤销这一格的加分">' +
+        '<span class="peer-score">' + num(value) + '</span></div>';
+    }
+    if (locked) {
+      return '<div class="peer-cell is-locked" title="老师已确认这一列，不能再改"><span>已锁定</span></div>';
+    }
+    return '<div class="peer-cell" data-project="' + esc(project.name) + '" data-target="' + esc(target.key) + '" role="group" aria-label="' + label + '">' +
+      [1, 2, 3, 4, 5].map(function (s) {
+        return '<button type="button" class="peer-pick p' + s + '" data-peer-pick="' + s + '" aria-label="' + label + ' 给 ' + s + ' 分" title="给 ' + s + ' 分">' + s + '</button>';
+      }).join('') + '</div>';
+  }
+
+  function renderPeerCard() {
+    if (!peer.loaded) {
+      return '<div class="card peer-card"><div class="peer-card-head"><h3>组内互评</h3></div>' +
+        '<p class="note">正在读取本节课的互评状态…</p></div>';
+    }
+    if (peer.lessons.length === 0) {
+      return '<div class="card peer-card"><div class="peer-card-head"><h3>组内互评</h3>' +
+        '<span class="peer-pill is-closed">未开放 · 只读</span></div>' +
+        '<p class="note">老师还没开放本节课的「组长打分」。开放后：组长给本组组员打分，组员给组长打分（取平均），' +
+        '每一列老师确认后才计入成绩。其他课次一律只读。</p></div>';
+    }
+    var d = peer.data;
+    if (!d) {
+      return '<div class="card peer-card"><div class="peer-card-head"><h3>组内互评</h3>' +
+        '<span class="peer-pill is-open">教师已开放</span></div>' +
+        '<p class="note">' + (peer.loaded
+          ? '老师开放了本节课的互评，但名单里找不到你所在的组。先找老师确认一下座位和分组，再回来打分。'
+          : '正在读取本节课的互评名单…') +
+        (peer.msg ? '（' + esc(peer.msg) + '）' : '') + '</p></div>';
+    }
+
+    var targets = d.me.is_leader
+      ? (d.members || []).filter(function (m) { return m.key !== d.me.key; })
+      : (d.members || []).filter(function (m) { return m.key === (d.leader && d.leader.key); });
+    var projects = d.projects || [];
+
+    var html = '<div class="card peer-card"><div class="peer-card-head"><h3>组内互评 · 第 ' + d.seq + ' 次课</h3>' +
+      '<span class="peer-pill is-open">教师已开放</span>' +
+      (peer.lessons.length > 1 ? '<select id="peerLessonSel" aria-label="选择开放互评的课次">' +
+        peer.lessons.map(function (l) {
+          return '<option value="' + esc(l.lesson) + '"' + (l.lesson === d.lesson ? ' selected' : '') + '>第' + l.seq + '次 · ' + esc(md(l.date)) + '</option>';
+        }).join('') + '</select>' : '') +
+      '</div>' +
+      '<p class="note">' + (d.me.is_leader
+        ? '你是 <b>第 ' + d.me.group_no + ' 组组长</b>：给本组组员逐项打分（5 分制）。'
+        : '你是 <b>第 ' + d.me.group_no + ' 组组员</b>：给组长 <b>' + esc((d.leader && d.leader.name) || '') + '</b> 打分（5 分制）。') +
+      '点 1–5 直接记分，双击分数撤销。老师逐列确认后计入成绩；确认过的列会锁定。' +
+      (peer.msg ? '<br><b class="peer-msg">' + esc(peer.msg) + '</b>' : '') + '</p>';
+
+    if (!projects.length) {
+      html += '<p class="note">老师还没在本节课填项目名称，等填好后再来打分。</p>';
+    } else if (!targets.length) {
+      html += '<p class="note">本组暂时没有可打分的对象。</p>';
+    } else {
+      html += '<div class="peer-scroll"><table class="peer-grid"><thead><tr><th>成员</th>' +
+        projects.map(function (p) {
+          return '<th><span class="peer-proj">' + esc(p.name) + '</span>' +
+            '<em class="' + peerStatusClass(p.status) + '">' + peerStatusText(p.status) + '</em></th>';
+        }).join('') + '</tr></thead><tbody>' +
+        targets.map(function (m) {
+          return '<tr><th class="peer-who">' + (m.leader ? '<span aria-label="组长">👑</span> ' : '') + esc(m.name) + '</th>' +
+            projects.map(function (p) { return '<td>' + peerCellHtml(p, m) + '</td>'; }).join('') + '</tr>';
+        }).join('') + '</tbody></table></div>' +
+        (projects.length > 2 ? '<p class="peer-swipe-hint">左右滑动可以看更多项目列 →</p>' : '');
+    }
+
+    var got = (d.got || []).map(function (g) {
+      var st = (projects.filter(function (p) { return p.name === g.project; })[0] || {}).status || 'pending';
+      return '<span class="peer-got-item"><b>' + esc(g.project) + '</b> ' +
+        (g.avg ? num(g.score) + '<small>（' + g.count + ' 人平均）</small>' : num(g.score)) +
+        ' <em class="' + peerStatusClass(st) + '">' + peerStatusText(st) + '</em></span>';
+    }).join('');
+    html += '<div class="peer-got"><span class="peer-got-label">我收到的分</span>' +
+      (got || '<span class="note">还没有人给我打分。</span>') + '</div>' +
+      '<p class="note">组长分数 = 收到的分数求平均（打几次除几次，不除组员总数）。例如两个组员分别打 3 和 5 → 组长 4 分。' +
+      '老师确认前只显示在这里，不计入总分。</p></div>';
+    return html;
+  }
+
   function renderLeader() {
     var d = D;
     if (!d) return '';
     var ls = (d.lessons || []).filter(function (l) { return l.projects.length; });
-    var html = '<div class="card"><h3>组内个人评分</h3><div class="big">' +
+    var html = renderPeerCard() + '<div class="card"><h3>组内个人评分</h3><div class="big">' +
       '<div class="n good"><em>' + num(d.total.project) + '</em><span>个人项目累计</span></div>' +
       '<div class="n"><em>' + (d.group && d.group.size ? d.group.rank + ' / ' + d.group.size : '—') +
       '</em><span>组内名次（按累计）</span></div>' +
@@ -298,6 +480,13 @@
       b.classList.toggle('on', b.dataset.tab === tab);
     });
     clearNotice();
+    /* 页头小标签：本节开了互评就写「本节可互评」，否则老实写「只读」 */
+    var ro = document.querySelector('.readonly');
+    if (ro) {
+      var live = !!(peer.data && peer.data.gate);
+      ro.textContent = live ? '本节可互评' : '只读';
+      ro.classList.toggle('live', live);
+    }
   }
 
   function paintSync() {
@@ -325,6 +514,8 @@
       (payload.me.gname ? ' · ' + payload.me.gname : '');
     paint();
     paintSync();
+    /* 只读页也带上本节互评：没开放时这里只多一次查询，不会挡住看分 */
+    refreshPeer(false).then(function () { paint(); }).catch(function () {});
     schedule(POLL_MS);
   }
 
@@ -359,11 +550,41 @@
     }, ms);
   }
 
-  /* ---------- 交互：只有切页签，没有任何写入 ---------- */
+  /* ---------- 交互：切页签 + 本节互评打分（其他课次仍然只读） ---------- */
 
   document.querySelectorAll('#tabs button').forEach(function (b) {
     b.addEventListener('click', function () {
       tab = b.dataset.tab;
+      paint();
+      if (tab === 'leader') refreshPeer(true).then(function () { paint(); }).catch(function () {});
+    });
+  });
+
+  /* 点 1–5：记这一格；双击已有分数：撤销 */
+  document.addEventListener('click', function (e) {
+    var pick = e.target.closest && e.target.closest('[data-peer-pick]');
+    if (!pick) return;
+    var cell = pick.closest('.peer-cell');
+    if (!cell || !cell.closest('#view-leader')) return;
+    submitPeer(cell.dataset.project, cell.dataset.target, Number(pick.dataset.peerPick));
+  });
+  document.addEventListener('dblclick', function (e) {
+    var cell = e.target.closest && e.target.closest('.peer-cell.is-set');
+    if (!cell || !cell.closest('#view-leader')) return;
+    e.preventDefault();
+    clearPeer(cell.dataset.project, cell.dataset.target);
+  });
+  document.addEventListener('change', function (e) {
+    var sel = e.target;
+    if (!sel || sel.id !== 'peerLessonSel') return;
+    peer.lesson = sel.value;
+    peer.data = null;
+    peer.msg = '';
+    rpc('jf_peer_mine', { p_lesson: peer.lesson }).then(function (d) {
+      peer.data = d && d.ok ? d : null;
+      paint();
+    }).catch(function (err) {
+      peer.msg = (err && err.message) || '读取失败，检查网络后重试。';
       paint();
     });
   });

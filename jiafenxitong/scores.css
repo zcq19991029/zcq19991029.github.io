@@ -137,3 +137,104 @@ table.book td b { font-size: 15px; }
   display: inline-block; padding: 2px 8px; border-radius: 999px;
   background: #eef0f5; color: var(--muted); font-size: 11.5px;
 }
+
+/* ============================================================
+   组内互评（2026-11-04）：组长给组员打分 / 组员给组长打分
+   和老师端同一套「1–5 玻璃小按钮」：点一颗 → 分数占住这一格，双击撤销。
+   ============================================================ */
+.readonly.live { background: var(--ok-soft); color: var(--ok); }
+
+.peer-card { border: 1px solid #d9e8df; }
+.peer-card-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+.peer-card-head h3 { margin: 0; font-size: 15px; color: var(--ink); font-weight: 700; }
+.peer-card-head select {
+  margin-left: auto; max-width: 60%; padding: 5px 8px; border-radius: 10px;
+  border: 1px solid var(--line-strong); background: #fff; color: var(--ink); font: inherit; font-size: 12.5px;
+}
+.peer-pill { padding: 2px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 700; }
+.peer-pill.is-open { background: var(--ok-soft); color: var(--ok); }
+.peer-pill.is-closed { background: #eef0f5; color: var(--muted); }
+.peer-msg { color: var(--ok); font-weight: 700; }
+
+.peer-scroll { overflow-x: auto; margin-top: 8px; -webkit-overflow-scrolling: touch; }
+.peer-grid { border-collapse: separate; border-spacing: 4px; min-width: 100%; }
+.peer-grid th, .peer-grid td { padding: 0; vertical-align: middle; }
+.peer-grid thead th {
+  min-width: 108px; padding: 6px; border-radius: 10px;
+  background: #f3f6ff; font-size: 12px; font-weight: 700; text-align: center; color: var(--ink);
+}
+.peer-grid thead th .peer-proj { display: block; overflow-wrap: anywhere; }
+.peer-grid thead th .peer-badge { display: inline-block; margin: 3px 0 0; }
+.peer-grid th.peer-who {
+  min-width: 84px; padding: 8px 6px; text-align: left; white-space: nowrap;
+  background: #f7f9ff; border-radius: 10px; font-size: 13px;
+}
+.peer-badge { padding: 1px 7px; border-radius: 999px; font-size: 10.5px; font-weight: 700; font-style: normal; }
+.peer-badge.is-pending { background: var(--warn-soft); color: var(--warn); }
+.peer-badge.is-confirmed { background: var(--ok-soft); color: var(--ok); }
+.peer-badge.is-rejected { background: var(--danger-soft); color: var(--danger); }
+
+.peer-cell { display: flex; align-items: center; justify-content: center; gap: 2px; min-height: 38px; border-radius: 10px; }
+.peer-cell.is-locked {
+  min-height: 34px; border: 1px dashed var(--line-strong); color: var(--muted);
+  font-size: 11px; background: #f5f6f9;
+}
+.peer-pick {
+  appearance: none; -webkit-appearance: none;
+  width: 26px; height: 32px; padding: 0; border-radius: 9px;
+  font: 700 13px/1 "PingFang SC", "Microsoft YaHei", sans-serif;
+  cursor: pointer; border: 1px solid rgba(255, 255, 255, .65);
+  -webkit-backdrop-filter: blur(6px) saturate(160%);
+  backdrop-filter: blur(6px) saturate(160%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .9), 0 1px 3px rgba(40, 50, 80, .10);
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.peer-pick.p1 { background: rgba(226, 114, 107, .18); border-color: rgba(204, 92, 84, .45); color: #8f2f28; }
+.peer-pick.p2 { background: rgba(224, 161, 90, .18); border-color: rgba(205, 141, 67, .45); color: #87510f; }
+.peer-pick.p3 { background: rgba(143, 185, 106, .20); border-color: rgba(122, 166, 85, .48); color: #3e661d; }
+.peer-pick.p4 { background: rgba(95, 168, 201, .20); border-color: rgba(72, 148, 183, .48); color: #17566e; }
+.peer-pick.p5 { background: rgba(138, 127, 214, .20); border-color: rgba(116, 104, 196, .48); color: #3d3279; }
+.peer-pick:hover { transform: translateY(-1px); }
+.peer-pick:active { transform: scale(.96); }
+.peer-pick:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+
+.peer-cell.is-set {
+  cursor: pointer; min-height: 36px;
+  border: 1px solid rgba(255, 255, 255, .75);
+  background: linear-gradient(180deg, rgba(255, 255, 255, .9), rgba(255, 255, 255, .5));
+  -webkit-backdrop-filter: blur(9px) saturate(170%);
+  backdrop-filter: blur(9px) saturate(170%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .95), 0 2px 8px rgba(40, 50, 80, .12);
+  --tc: var(--ink);
+}
+.peer-cell.is-set.score-1 { --tc: #a5332b; }
+.peer-cell.is-set.score-2 { --tc: #8a5310; }
+.peer-cell.is-set.score-3 { --tc: #3f6a1f; }
+.peer-cell.is-set.score-4 { --tc: #17566e; }
+.peer-cell.is-set.score-5 { --tc: #3d3279; }
+.peer-score { font: 800 18px/1 "PingFang SC", "Microsoft YaHei", sans-serif; color: var(--tc); }
+
+.peer-got { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--line); }
+.peer-got-label { font-size: 12px; color: var(--muted); font-weight: 700; }
+.peer-got-item {
+  display: inline-flex; align-items: baseline; gap: 4px;
+  padding: 4px 10px; border-radius: 999px; background: #f4f7ff;
+  font-size: 12.5px; color: var(--ink);
+}
+.peer-got-item b { font-weight: 700; }
+.peer-got-item small { color: var(--muted); font-size: 11px; }
+
+/* 手机窄屏：按钮略收一点，项目列多时左右滑（下面那条提示只在窄屏出现） */
+.peer-swipe-hint { display: none; margin: 6px 0 0; font-size: 11.5px; color: var(--faint); text-align: center; }
+@media (max-width: 520px) {
+  .peer-grid { border-spacing: 3px; }
+  .peer-grid thead th { min-width: 96px; padding: 5px 4px; font-size: 11.5px; }
+  .peer-grid th.peer-who { min-width: 70px; padding: 7px 4px; font-size: 12px; }
+  .peer-cell { gap: 1px; }
+  .peer-pick { width: 22px; height: 29px; font-size: 12px; border-radius: 7px; }
+  .peer-score { font-size: 17px; }
+}
+
+@media (max-width: 520px) {
+  .peer-swipe-hint { display: block; }
+}
