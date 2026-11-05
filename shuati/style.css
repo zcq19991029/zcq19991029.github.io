@@ -10,7 +10,15 @@ button { cursor: pointer; }
 a { color: var(--acc); }
 
 /* 顶栏 */
-.top { position: sticky; top: 0; z-index: 20; height: 52px; display: flex; align-items: center; gap: 10px; padding: 0 14px; background: var(--bar); -webkit-backdrop-filter: var(--hx-blur); backdrop-filter: var(--hx-blur); border-bottom: 1px solid var(--edge); }
+/* 2026-11-06：这里原先是「position: sticky + backdrop-filter: saturate(180%) blur(20px)」，全站只有这一处
+   把这两样叠在一起（总入口顶栏是 position: relative，小组加分的 .topbar 同样是 sticky 但底白 90%）。
+   条子钉在顶上、内容在它下面滚，Chrome 每一帧都要重新取一次条子背后那 52px 去实时糊 —— 底下还是条
+   一直在动的极光视频，取到的还是脏区，于是整条顶栏一帧亮一帧暗地跳，就是用户说的「狂闪」。
+   解法：把这层实时模糊去掉。代价几乎没有 —— --bar 默认档本来就有 85% 不透明（calc(.55 + --hx-a*..3)），
+   blur 那点活儿看不出来；85% 白底压字对比度照样够。要真玻璃感，走 .glow 那套「叠白 + 方向性亮边」
+   （见下面 .glow 的注释：2026-11-02 就是同一个教训，每张题卡各 blur 24px 把希沃一体机的渲染进程干崩过）。
+   .bar / .dock 留着 backdrop-filter 不动：它们是 position: fixed，不会随滚动每帧重合成。 */
+.top { position: sticky; top: 0; z-index: 20; height: 52px; display: flex; align-items: center; gap: 10px; padding: 0 14px; background: var(--bar); -webkit-backdrop-filter: none; backdrop-filter: none; border-bottom: 1px solid var(--edge); }
 .brand { display: flex; align-items: center; gap: 8px; color: var(--ink); text-decoration: none; font-weight: 600; }
 .brand img { width: 28px; height: 28px; border-radius: 8px; object-fit: cover; }
 .subj { display: flex; align-items: center; gap: 4px; min-width: 0; height: 34px; padding: 0 10px 0 14px; border: 0; border-radius: 99px; background: var(--fill); font-weight: 600; transition: background .2s; }

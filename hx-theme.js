@@ -393,16 +393,26 @@
   var BG_FADE = 700, BG_LEAD = 0.8;         // 淡入时长（和 CSS transition 对齐）/ 提前多少秒换路
   var bgVids = [], bgCur = 0, bgWant = false, bgTick = null, bgFading = false, bgFadeAt = 0;
   var bgLoopEnd = 0, bgHalf = false, bgPosterUrl = '';
+  // bgHold：外面（总入口 show()）要求的「背景先别播」。2026-11-06 修 bug：这个状态原来不存在，
+  // bgPause(true) 只是把 bgTick 清掉，于是之后**任何一次 apply()**（改主题、storage 事件、
+  // 系统深浅色切换、跨 820 断点）走到 bgVideo() 的「同 src」分支时看到 !bgTick，就又把视频
+  // 恢复播放了；visibilitychange 回来更是无条件 bgPause(false)。表现：打开工具后，父页面（总入口）
+  // 那层背景视频被反复唤醒/暂停/回卷 —— 它正好垫在总入口 52px 顶栏后面（--bar 85% 白 + 15% 透出），
+  // 顶栏亮度就跟着一明一暗地跳，用户看到的就是「刷题页顶部导航条狂闪」（iframe 里的内容其实是稳的）。
+  var bgHold = false;
 
   // 移动端 / 触屏 / 省电 / 减少动效 → 一个 video 都不建。
-  // 判据（宽 + 无 hover 的粗指针 + 常见移动 UA）：故意不用「有粗指针就关」，
+  // 判据（无 hover 的粗指针 + 常见移动 UA）：故意不用「有粗指针就关」，
   // 因为带触摸屏的笔记本、教室一体机也有 (pointer:coarse)，那些机器该正常播；
   // 加上 (hover:none) 才能把「真的只能摸」的设备和「能摸也能用鼠标」的设备分开。
+  // 2026-11-06：**820px 断点从这条里拿掉了**。原来它和 bgNarrow() 混在一起，
+  // 跨一次断点就 bgDrop()（销毁两路 video）再跨回来 bgMake()（重建 + 重新解码），
+  // 窗口宽度正好卡在 806~820（滚动条出现/消失就差 15px）时，翻一页题就来回跨 → 背景层反复重建。
+  // 现在窄屏只「暂停 + 靠 CSS display:none 藏起来」（样式里本来就有这条），元素留着，回宽屏接着播，不跳。
   function bgNoVideo() {
     if (liteOn() || document.documentElement.classList.contains('hx-lite')) return true;
     if (!window.matchMedia) return false;
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) return true;
-    if (matchMedia('(max-width: 820px)').matches) return true;
     if (matchMedia('(pointer: coarse)').matches && matchMedia('(hover: none)').matches) return true;
     var ua = navigator.userAgent || '';
     if (/iPhone|iPod|Windows Phone|Android.+Mobile|IEMobile/i.test(ua)) return true;
@@ -410,6 +420,8 @@
     if (navigator.maxTouchPoints > 1 && /Macintosh/.test(ua)) return true;
     return false;
   }
+  // 窄屏（≤820px）：不建新元素、但已有的元素只暂停不销毁 —— CSS 那边 .hx-bgvid-wrap 会 display:none。
+  function bgNarrow() { return !!(window.matchMedia && matchMedia('(max-width: 820px)').matches); }
 
   function bgSetFade(v, k) {
     if (!v) return;
@@ -431,10 +443,18 @@
     bgStopAll();
     if (bgTick) { clearInterval(bgTick); bgTick = null; }
     for (var i = 0; i < bgVids.length; i++) if (bgVids[i].parentNode) bgVids[i].parentNode.removeChild(bgVids[i]);
+    // 2026-11-06 修 bug：原来只摘 video、不摘外层 wrap。跨 820 断点（或切背景）走到这里时，
+    // body 里那个 position:fixed inset:0 的空 wrap 会留下来；再跨回来 bgMake() 又插一个新的，
+    // 每切一次攒一层全屏 fixed 图层（实测拖 8 次窗口宽 821↔819 → 8 个空 wrap 堆着）。
+    // 老机器上这些层会拖慢合成；更重要的是它们让「背景层到底有没有」变得不可判定。
+    if (bgWrap && bgWrap.parentNode) bgWrap.parentNode.removeChild(bgWrap);
+    bgWrap = null;
     bgVids = []; bgCur = 0; bgFading = false; bgLoopEnd = 0;
   }
   var bgWrap = null;
   function bgMake() {
+    // 防御：万一还有旧的空 wrap（bgDrop 之前的代码路径），先摘掉再建
+    if (bgWrap && bgWrap.parentNode) bgWrap.parentNode.removeChild(bgWrap);
     // 两路共用一个定位父层：--hx-bgo 挂在外层，交叉淡入只在内层动。见上面 style 那段注释。
     bgWrap = document.createElement('div');
     bgWrap.className = 'hx-bgvid-wrap';
@@ -476,7 +496,11 @@
     var cur = bgVids[bgCur], nxt = bgVids[1 - bgCur];
     if (!cur || !nxt) return;
     bgSetZ(cur, false); bgSetZ(nxt, true);
-    try { nxt.currentTime = 0; } catch (e) { }
+    // 2026-11-06 修 bug：待命那一路在上一轮收尾时已经 currentTime = 0 过了（见 bgStep），
+    // 这里再赋一次 0 会**再触发一次 seek**（Chrome 对相同值赋值也发 seeking），把已解码的帧
+    // 缓冲丢掉、等新帧（实测每轮换路都有一次 seeking + waiting）。弱网 / 老一体机上就是
+    // 每 4.3 秒一次的卡帧或黑帧，正好发生在它往上淡入的时候。没必要就别 seek。
+    try { if (nxt.currentTime > 0.05) nxt.currentTime = 0; } catch (e) { }
     var p = nxt.play(); if (p && p.catch) p.catch(function () { });
     bgSetFade(nxt, 1);
     bgFading = true; bgFadeAt = Date.now();
@@ -533,10 +557,18 @@
     bgPosterUrl = poster ? root + poster : '';
     bgHalf = !!half;
     if (bgNoVideo()) { bgDrop(); return; }   // 移动端：--hx-img 由 apply() 设成海报帧
-    if (!bgVids.length) bgMake();
+    // 窄屏且还没建过：先不建（省一次 620KB 下载），等窗口放宽了再建。
+    // 已经建好的绝不销毁 —— 见 bgNarrow() 上面那段：销毁/重建正是跨断点时背景跳变的来源。
+    if (!bgVids.length) {
+      if (bgNarrow()) { bgDrop(); return; }
+      bgMake();
+    }
     if (wasSrc === src) {
       // 同一张片子：只在被降级掉/暂停掉之后重新起播，不重置淡入状态 ——
       // apply() 会因为改主题色、改透明度被反复调用，每调一次就 reset 会让背景一直闪
+      // 2026-11-06：bgHold（外面要求暂停，比如总入口开着工具）时绝不能自己起来，见 bgHold 那段注释。
+      // 窄屏同理：元素留着（CSS 已经 display:none），只把解码停掉，跨断点回来就能接着播。
+      if (bgHold || bgNarrow()) { bgStopAll(); if (bgTick) { clearInterval(bgTick); bgTick = null; } return; }
       if (!bgTick) bgRun(true);
       return;
     }
@@ -549,17 +581,23 @@
     bgLoopEnd = 0;
     bgCur = 0; bgFading = false;
     bgSetFade(bgVids[0], 1); bgSetFade(bgVids[1], 0);
+    // 暂停态（工具开着）或窄屏：元素照样备好，等条件满足再起播
+    if (bgHold || bgNarrow()) { bgStopAll(); return; }
     bgRun(true);
   }
   function bgPause(on) { // index.html 打开工具时调用：背景被 iframe 盖住就别再解码了
+    // 状态必须先记下来 —— 即使此刻视频还没建（bgVids 为空），后面 apply() 建出来也不能自己播。
+    bgHold = !!on;
     if (!bgVids.length) return;
     // 两路都要停：只停主那一路的话，交叉淡入窗口里正好被调到的那条会继续解
     if (on) bgRun(false);
-    else if (bgWant && !bgNoVideo()) bgRun(true);
+    else if (bgWant && !bgNoVideo() && !bgNarrow()) bgRun(true);
   }
   addEventListener('visibilitychange', function () {
     if (!bgVids.length) return;
-    if (document.hidden) bgStopAll(); else bgPause(false);
+    // 2026-11-06：原来回来那句是无条件 bgPause(false)，把 show() 之前设的暂停也一起解掉了，
+    // 于是工具还开着、父页面背景视频却在 iframe 背后恢复播放（白烧一路 4K 解码，还顶着顶栏）。
+    if (document.hidden) bgStopAll(); else if (!bgHold) bgPause(false);
   });
   // 视口跨过 820px（手机横竖屏切换、开发者拖窄窗口）时重新判一次：该降级的降级成海报帧、
   // 该恢复的恢复成视频。只挂在那一根断点上，不会因为普通 resize 反复跑 apply。
@@ -582,7 +620,8 @@
     // 移动端 / 省电 / 减少动效：不播视频，但**背景照样得有** —— 把海报帧交给 --hx-img，
     // 走 body::before 那条现成的「铺满 cover + --hx-bgo 透明度」链路，观感和视频帧一模一样，
     // 且手机不需要下载 634KB 的 mp4。这条是「手机跳成播放器」的治本修法。
-    var vidStill = isVid && bgNoVideo();
+    // 窄屏（≤820）也要给海报：视频元素此时被 CSS display:none 藏了，不给海报就只剩页底色。
+    var vidStill = isVid && (bgNoVideo() || bgNarrow());
     if (vidStill && b.poster) img = 'url("' + root + b.poster + '")';
     var vars = { '--acc': c, '--acc2': c2, '--acc3': c2, '--acc-h': c2, '--on-acc': s.acc === 'mono' && m === 'dark' ? '#1d1d1f' : '#fff',
       '--accbg': 'color-mix(in srgb, ' + c + ' 14%, transparent)', '--ring': 'color-mix(in srgb, ' + c + ' 40%, transparent)',

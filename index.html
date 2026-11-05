@@ -12,20 +12,20 @@
      要登录时调 window.HXPortal.login()；被单独打开时 hx-theme.js 会跳回这里（见 hx-theme.js 的 data-tool）。
      账号：Supabase 华夏工具项目，localStorage paike-session 和各工具共用；身份由数据库 hx_me() 决定。
      脚本里不用反引号模板字符串（本机测试时整页当字符串注入到线上同源页面里）。 -->
-<link rel="stylesheet" href="hx-theme.css?v=17aaa4a">
-<script src="hx-theme.js?v=17aaa4a"></script>
+<link rel="stylesheet" href="hx-theme.css?v=122e3de">
+<script src="hx-theme.js?v=122e3de"></script>
 <!-- 首页卡片上的像素小生物：pixelfx 的 12 个 critters（MIT），打包成一个 91 KB 的独立脚本。
      加载失败不影响首页——hx-critters.js 开头就有 window.PixelFX 存在性检查，没有就整段跳过。 -->
-<script src="fx/pixelfx-critters.js?v=17aaa4a" defer></script>
-<script src="fx/hx-critters.js?v=17aaa4a" defer></script>
+<script src="fx/pixelfx-critters.js?v=122e3de" defer></script>
+<script src="fx/hx-critters.js?v=122e3de" defer></script>
 <!-- 像素头像库（2026-11-04）：账号面板里除了传照片，还能从 200 多个像素动效里挑一个当头像。
      和上面 critters 同一套路：库（pixelfx-avatars.js）+ 渲染器（hx-avatar.js），都是 defer、
      不进首屏关键路径；不点「像素头像库」就一个动画都不跑。 -->
-<script src="fx/pixelfx-avatars.js?v=17aaa4a" defer></script>
-<script src="fx/hx-avatar.js?v=17aaa4a" defer></script>
+<script src="fx/pixelfx-avatars.js?v=122e3de" defer></script>
+<script src="fx/hx-avatar.js?v=122e3de" defer></script>
 <!-- 背景动效（2026-11-03）：12 种天气氛围特效铺在背景层，外观面板里选；加载失败或没选就完全不加载渲染器 -->
-<script src="fx/pixelfx-weather.js?v=17aaa4a" defer></script>
-<script src="fx/hx-weather.js?v=17aaa4a" defer></script>
+<script src="fx/pixelfx-weather.js?v=122e3de" defer></script>
+<script src="fx/hx-weather.js?v=122e3de" defer></script>
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; width: 100%; overflow: hidden; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -412,11 +412,43 @@
   /* 背景图分支下文字转白（后片是深色底，原来的深灰字会读不了） */
   html.hx-bg .tile b { color: #fff; text-shadow: 0 1px 3px rgba(0, 0, 0, .55); }
   html.hx-bg .tile .sum { color: rgba(255, 255, 255, .78); text-shadow: 0 1px 3px rgba(0, 0, 0, .5); }
+  /* ── 浅色 + 背景图：单独一套「白玻璃」（2026-11-04 修「深色透明度对、浅色不行」）──
+     原来这条分支**不存在**，浅色直接吃上面 398 行的深色配方：深灰底 + 白字。
+     于是浅色主题下卡片是深色玻璃，把「卡片透明度」拖低时卡片底色越来越淡、
+     白字却留在浅色页面上 —— 看上去就是一块发白的糊片、字也读不清，用户只能得出
+     「浅色不行」。深色主题那边正好相反：字是白的、页面也暗，怎么拖都顺眼。
+     现在按主题分开：浅色 = 白玻璃 + 深墨字（和浅色主题其它卡片一致），
+     底色/白膜都乘 --hx-a，所以 100% 是干净白卡、0% 真的全透明（和面板文案一致）。 */
+  html:not([data-hx-mode="dark"]).hx-bg .tile {
+    --fld-bg: linear-gradient(180deg, rgba(255, 255, 255, .62) 0%, rgba(255, 255, 255, .34) 55%, rgba(255, 255, 255, .16) 100%);
+    --fld-edge: rgba(0, 0, 0, .07); --fld-lip: rgba(255, 255, 255, .95); --fld-sheen: rgba(255, 255, 255, .55);
+    --fld-grain: rgba(24, 30, 38, .024); --fld-scan: rgba(255, 255, 255, .34); --fld-scan2: rgba(255, 255, 255, .06);
+    --fld-deep: rgba(0, 0, 0, .10);
+    /* 卡面变白了，轨道线不能再用给深色卡准备的冷白（353 行那套在白卡上等于隐形），
+       退回浅色卡默认的灰蓝三段亮度（见 272 行）。 */
+    --orb-a: rgba(104, 120, 140, .72); --orb-b: rgba(112, 128, 148, .30); --orb-c: rgba(120, 136, 156, .10);
+    background-color: rgb(255 255 255 / calc(var(--hx-a, 1) * .72));
+    background-image: linear-gradient(150deg, color-mix(in srgb, var(--c1) 10%, transparent), transparent 70%);
+    box-shadow: var(--glass-drop), 0 0 0 .6px var(--fld-edge) inset; }
+  html:not([data-hx-mode="dark"]).hx-bg .tile b { color: var(--ink);
+    /* 深墨字 + 白色光晕：卡片透明度拉低后，字底下可能是深色壁纸，没有这层光晕深字就糊了
+       （和首页大标题「白色朦胧光晕」是同一套思路，只是字号小，光晕收得更紧）。 */
+    text-shadow: 0 0 4px rgba(255, 255, 255, .95), 0 0 10px rgba(255, 255, 255, .75), 0 1px 2px rgba(255, 255, 255, .9); }
+  html:not([data-hx-mode="dark"]).hx-bg .tile .sum { color: var(--dim);
+    text-shadow: 0 0 4px rgba(255, 255, 255, .9), 0 0 8px rgba(255, 255, 255, .6); }
+  /* 玻璃膜（::before 噪点/扫光、::after 白膜/亮唇）也随 --hx-a 淡出：
+     不这么做的话底色透明了、这层白膜还挂在上面，0% 时仍是一块白花花的方片。 */
+  html:not([data-hx-mode="dark"]).hx-bg .tile::before,
+  html:not([data-hx-mode="dark"]).hx-bg .tile::after { opacity: var(--hx-a, 1); }
   /* 2026-11-04：悬停从 scale(1.02) 统一改成上浮 4px（和上面 .tile:hover 一致，只是落影换成背景图那套） */
   html.hx-bg .tile:hover { transform: translateY(-4px); box-shadow: var(--glass-drop), 0 0 0 1px var(--edge) inset; }
-  /* 深色 + 背景图：后片压更暗，保证白字完全可读 */
+  /* 深色 + 背景图：后片压更暗，保证白字完全可读。
+     ── 2026-11-04 修坑：底色原来写死 rgba(10,10,12,.42)，不跟 --hx-a 走 ——
+     外观面板的「卡片透明度」在这条分支上完全失效（实测 op 100→0，卡片 computed
+     background-color 一格没变，像素均差 0.86）。浅色分支一直吃 --hx-a（.5 × α），
+     深色这条漏了。op=100 时 α=1，视觉和改之前完全一样。 */
   html[data-hx-mode="dark"].hx-bg .tile { --fld-bg: linear-gradient(180deg, rgba(255, 255, 255, .10) 0%, rgba(255, 255, 255, .03) 55%, rgba(8, 10, 16, .20) 100%); --fld-edge: rgba(255, 255, 255, .14);
-    background-color: rgba(10, 10, 12, .42); background-image: linear-gradient(150deg, color-mix(in srgb, var(--c1) 20%, transparent), transparent 70%); }
+    background-color: rgb(10 10 12 / calc(var(--hx-a, 1) * .42)); background-image: linear-gradient(150deg, color-mix(in srgb, var(--c1) 20%, transparent), transparent 70%); }
   /* ── 无背景图 + 深色模式（2026-11-04 玻璃拟态升级时合并成一条）──
      浅色那套白玻璃搬到深色下会「发灰」：白点阵 + 白马赛克扫光压在近黑的卡面上，
      噪点变成一层脏灰膜，扫光变成一块突兀的亮斑。三处一起改：
@@ -1667,6 +1699,17 @@ function sheetCls() {
   }).join('') + '<div style="display:flex;gap:8px"><button class="btn" id="rImp"' + (R.some(function (x) { return x.list; }) ? '' : ' disabled') + '>导入' + (R.length > 1 ? '全部' : '') + '</button><button class="btn sub" id="rNo">取消</button></div></div>';
   // 这行是说明不是报错：.msg 默认是报错红，这里单独压成灰
   html += '<p class="msg" style="margin:0 0 12px;color:var(--dim,#8a8f98)">点亮哪个工具，这个班才在哪个工具里出现；四个都不点 = 四个工具都用不了。后面的「已开通 N」是已经注册账号的学生人数，和工具开关无关。</p>';
+  // ── 2026-11-04 开号密码设置（用户：「支持各自老师自己设置开号密码 我的话就是学号作为密码」）──
+  // 每位老师一条自己的策略（hx_signup_policy 按 teacher_id 存，跟班无关——改一次，之后所有班的一键开号/导入考勤表都按这个发密码）。
+  // 默认「学号即密码」；选「统一密码」的必须是至少 6 位。入口放在班级面板顶部，展开一个小表单，不另开弹窗。
+  html += '<div class="panel f" style="margin:0 0 12px"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">' +
+    '<b>开号密码</b><span class="dim" style="font-size:12px" id="pwRule">读取中…</span>' +
+    '<button class="btn sub sm" id="pwSet" style="margin-left:auto">修改</button></div>' +
+    '<div id="pwForm" hidden style="margin-top:10px;display:grid;gap:8px">' +
+    '<label style="display:flex;gap:8px;align-items:center"><input type="radio" name="pwm" value="no" checked>学号即密码（学生用 学号/学号 登录）</label>' +
+    '<label style="display:flex;gap:8px;align-items:center"><input type="radio" name="pwm" value="fixed">统一密码：<input id="pwFixed" type="text" maxlength="40" placeholder="至少 6 位，发给你班所有学生" style="max-width:16em" disabled></label>' +
+    '<div style="display:flex;gap:8px"><button class="btn sm" id="pwSave">保存</button><button class="btn sub sm" id="pwCancel">取消</button></div>' +
+    '<p class="msg" style="margin:0;color:var(--dim,#8a8f98);font-size:12px">只影响之后新开号的账号；已经注册的学生密码照旧。别的老师看不见你设的密码，各自的班各自管。</p></div></div>';
   html += '<div class="cls">' + (ST.classes.length ? ST.classes.map(function (c, ci) {
     var on = ST.open === c.id, tools = c.tools || [];
     var idle = !tools.length; // 四个工具一个都没勾 = 这个班在哪个工具里都不出现（等于「本学期不用了」）
@@ -1780,6 +1823,46 @@ function sheetCls() {
   box.querySelectorAll('[data-clsshare]').forEach(function (b) {
     b.onclick = function () { shareCode(b.dataset.clsshare, 'student'); };
   });
+  // ── 开号密码设置（2026-11-04）：回显 + 展开/保存 ──
+  // hx_my_signup_policy 返回 {mode, has_fixed}；安全起见不回显密码明文，只显示「已设统一密码」，
+  // 要换密码就输新的（留空保存会报「至少 6 位」，照后端 hx_set_signup_policy 的规则来）。
+  (function () {
+    var ruleEl = $('pwRule'), form = $('pwForm');
+    if (!ruleEl || !form) return;
+    var ruleText = function (r) {
+      return r && r.mode === 'fixed' && r.has_fixed ? '现在：统一密码' : '现在：学号即密码';
+    };
+    HX.rpc('hx_my_signup_policy').then(function (r) {
+      ST.pwPolicy = r || { mode: 'no', has_fixed: false };
+      ruleEl.textContent = ruleText(ST.pwPolicy);
+    }).catch(function () { ruleEl.textContent = '现在：学号即密码'; });
+    $('pwSet').onclick = function () {
+      form.hidden = !form.hidden;
+      if (!form.hidden) {
+        var fixed = ST.pwPolicy && ST.pwPolicy.mode === 'fixed' && ST.pwPolicy.has_fixed;
+        form.querySelector('[value=no]').checked = !fixed;
+        form.querySelector('[value=fixed]').checked = !!fixed;
+        $('pwFixed').disabled = !fixed;
+        $('pwFixed').value = ''; // 不回显明文
+      }
+    };
+    form.querySelectorAll('[name=pwm]').forEach(function (r) {
+      r.onchange = function () { $('pwFixed').disabled = r.value !== 'fixed' || !r.checked; };
+    });
+    $('pwCancel').onclick = function () { form.hidden = true; };
+    $('pwSave').onclick = async function () {
+      var mode = form.querySelector('[name=pwm]:checked').value;
+      var pw = $('pwFixed').value.trim();
+      if (mode === 'fixed' && pw.length < 6) { toast('统一密码至少 6 位'); return; }
+      try {
+        var r = await HX.rpc('hx_set_signup_policy', { p_mode: mode, p_fixed_pw: mode === 'fixed' ? pw : null });
+        ST.pwPolicy = { mode: r.mode, has_fixed: r.has_fixed };
+        ruleEl.textContent = ruleText(ST.pwPolicy);
+        form.hidden = true;
+        toast(mode === 'fixed' ? '已设为统一密码，之后新开号的账号都用它' : '已设为学号即密码');
+      } catch (e) { toast(e.message); }
+    };
+  })();
   // 一键开号（2026-11-06）：批量把本班「还没绑定账号」的学生开成 学号/学号。
   // 已注册的原样跳过（后端 hx_batch_signup_class 只处理 user_id is null 的行）。
   box.querySelectorAll('[data-clsopen]').forEach(function (b) {
@@ -1787,15 +1870,20 @@ function sheetCls() {
       var c = ST.classes.filter(function (x) { return x.id === +b.dataset.clsopen; })[0];
       if (!c) return;
       var lack = Math.max(0, (c.total || 0) - (c.bound || 0));
+      // 2026-11-04：确认文案按老师自己的密码策略动态显示（不再写死「密码 = 学号」）
+      var fixed = ST.pwPolicy && ST.pwPolicy.mode === 'fixed' && ST.pwPolicy.has_fixed;
       if (!await ask('给「' + c.name + '」开号',
-        '会把班里还没注册的 ' + lack + ' 个学生全部开成账号：账号 = 学号，密码 = 学号。已经注册过的学生不受影响，密码照旧。', '开始开号')) return;
+        '会把班里还没注册的 ' + lack + ' 个学生全部开成账号：账号 = 学号，密码 = ' +
+        (fixed ? '你设置的统一密码' : '学号') + '。已经注册过的学生不受影响，密码照旧。', '开始开号')) return;
       b.disabled = true;
       var old = b.textContent; b.textContent = '开号中…';
       try {
         var r = await HX.rpc('hx_batch_signup_class', { p_class: c.id });
+        // 2026-11-04：登录提示按这个班班主任的密码策略显示（后端返回 password_rule），不再写死「学号/学号」
+        var rule = r.password_rule === 'fixed' ? '学号 / 统一密码' : '学号 / 学号';
         toast('新建 ' + (r.created || 0) + ' 个，认领已有邮箱 ' + (r.bound || 0) + ' 个'
           + (r.failed ? '，失败 ' + r.failed + ' 个' : '')
-          + (r.created ? '。学生现在可以用「学号 / 学号」直接登录' : ''));
+          + (r.created ? '。学生现在可以用「' + rule + '」直接登录' : ''));
         delete ST.studs[c.id]; await loadClasses();
       } catch (e) { toast(e.message); b.disabled = false; b.textContent = old; }
     };
