@@ -14,20 +14,20 @@
      要登录时调 window.HXPortal.login()；被单独打开时 hx-theme.js 会跳回这里（见 hx-theme.js 的 data-tool）。
      账号：Supabase 华夏工具项目，localStorage paike-session 和各工具共用；身份由数据库 hx_me() 决定。
      脚本里不用反引号模板字符串（本机测试时整页当字符串注入到线上同源页面里）。 -->
-<link rel="stylesheet" href="hx-theme.css?v=2d2195f">
-<script src="hx-theme.js?v=2d2195f"></script>
+<link rel="stylesheet" href="hx-theme.css?v=104b130">
+<script src="hx-theme.js?v=104b130"></script>
 <!-- 首页卡片上的像素小生物：pixelfx 的 12 个 critters（MIT），打包成一个 91 KB 的独立脚本。
      加载失败不影响首页——hx-critters.js 开头就有 window.PixelFX 存在性检查，没有就整段跳过。 -->
-<script src="fx/pixelfx-critters.js?v=2d2195f" defer></script>
-<script src="fx/hx-critters.js?v=2d2195f" defer></script>
+<script src="fx/pixelfx-critters.js?v=104b130" defer></script>
+<script src="fx/hx-critters.js?v=104b130" defer></script>
 <!-- 像素头像库（2026-11-04）：账号面板里除了传照片，还能从 200 多个像素动效里挑一个当头像。
      和上面 critters 同一套路：库（pixelfx-avatars.js）+ 渲染器（hx-avatar.js），都是 defer、
      不进首屏关键路径；不点「像素头像库」就一个动画都不跑。 -->
-<script src="fx/pixelfx-avatars.js?v=2d2195f" defer></script>
-<script src="fx/hx-avatar.js?v=2d2195f" defer></script>
+<script src="fx/pixelfx-avatars.js?v=104b130" defer></script>
+<script src="fx/hx-avatar.js?v=104b130" defer></script>
 <!-- 背景动效（2026-11-03）：12 种天气氛围特效铺在背景层，外观面板里选；加载失败或没选就完全不加载渲染器 -->
-<script src="fx/pixelfx-weather.js?v=2d2195f" defer></script>
-<script src="fx/hx-weather.js?v=2d2195f" defer></script>
+<script src="fx/pixelfx-weather.js?v=104b130" defer></script>
+<script src="fx/hx-weather.js?v=104b130" defer></script>
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; width: 100%; overflow: hidden; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -229,7 +229,7 @@
      塞进首页 14 张卡就是 14 个渲染循环，希沃上必崩（见 2026-11-02 的崩溃修复）。
      所以只取「看得见的形」：一圈倾斜的轨道环 + 环上一颗光点 + 卡片底部内侧的品牌色光晕（已并进上面 .tile::after），
      全部用 transform / box-shadow 做，而且**默认停着不动，只有鼠标移上去那一张才转**——静止时零开销。 */
-  .tile .ic { position: relative; width: 58px; height: 58px; border-radius: 15px; display: grid; place-items: center; color: #fff; background: linear-gradient(160deg, var(--c1), var(--c2)); box-shadow: 0 8px 20px -10px var(--c2), 0 0 26px -8px color-mix(in srgb, var(--c2) 52%, transparent); }
+  .tile .ic { position: relative; z-index: 1; width: 58px; height: 58px; border-radius: 15px; display: grid; place-items: center; color: #fff; background: linear-gradient(160deg, var(--c1), var(--c2)); box-shadow: 0 8px 20px -10px var(--c2), 0 0 26px -8px color-mix(in srgb, var(--c2) 52%, transparent); }
   .tile .ic svg { position: relative; z-index: 2; width: 30px; height: 30px; stroke-width: 1.9; }
   .tile .ic::before, .tile .ic::after { content: ""; position: absolute; left: 50%; top: 50%; width: 88px; height: 88px; margin: -44px 0 0 -44px; border-radius: 50%; pointer-events: none; }
   .tile .ic::before { /* 轨道环：静态，只画一次 */
@@ -260,7 +260,7 @@
         轨道和行星扫过保护区时自动衰减（任务书 §4.3-6「渲染层安全裁切/衰减」）。
      ④ 行星位置只由 (轨道半径 r, 相位 a) 决定：`<i>` 是旋转臂，臂尖挂球体 translateX(r)，
         **不存在任何写死的 left/top**（F1 的「行星与轨道脱节」从结构上不可能再发生）。
-     ⑤ 球体材质统一光源（高光都压在 32% 27% 偏左上），土星环拆成**后半环（s）→ 球体 →
+     ⑤ 球体材质统一光源（高光都压在 29% 24% 偏左上），土星环拆成**后半环（s）→ 球体 →
         前半环（::after 裁下半）**三层，前后遮挡关系正确（任务书 §4.2）。
      ⑥ 行星默认**缓慢公转**（任务书 §5「默认：行星缓慢公转」）：周期 26s → 52s，
         transform 合成器动画、无 JS 循环；触屏 / 希沃（hx-lite）整段不显示，
@@ -318,15 +318,23 @@
     background: radial-gradient(closest-side, rgba(255, 205, 120, .28), rgba(255, 176, 74, .11) 60%, transparent 78%); }
   .tile .sysin i { position: absolute; left: 50%; top: 50%; width: 0; height: 0; z-index: 1;
     transform: rotate(var(--a)); animation: hx-orb var(--d) linear infinite; }
-  /* 行星球体。三道渐变叠出球感：
-       · 最上层是偏左上 30% 的高光（小半径、高亮度，模拟镜面反射）；
+  /* 行星球体（2026-11-05 三修：用户反馈「2D 贴图感、很淡很小」）。层序见 JS ball()：
+       · 最上层是偏左上 29% 24% 的镜面高光（白点渐隐）；
        · 中间是行星自己的材质（--pt：木星的条带、地球的海陆团块都在这一层）；
-       · 最下层是球体本身的明暗：高光处亮、边缘暗，做出「球」而不是「圆」。
-     球体自己不发光，所以去掉了原来那圈 box-shadow 外发光（8 颗球各一圈光晕，在浅色卡上像 8 个灯泡）。
-     只留一层极淡的同色外扩，模拟大气散射。 */
+       · 然后是受光面体色（亮 → 中 → 暗的同轴渐变）；
+       · 最上面再压一层「边缘暗角」：背光侧（右下）透明度一路加深，做出明暗交界线，
+         球才立得起来 —— 平面圆和球的差别就在这层 terminator。
+     box-shadow 三层（尺寸全部跟 --s 走，行星放大缩小影线跟着缩）：
+       · inset 右下暗边：把渐变暗角再压实一点，边缘不是一条硬线而是圆滑收进去；
+       · 向下的柔和投影：球「浮」在卡面上，而不是画在卡面上；
+       · 同色大气光（2026-11-05 四修：用户要 1:1 下扫一眼就认出是行星，.40 → .60）：
+         暗色卡上帮行星从背景里脱出来，这一圈是「远看可见」的关键，比球本身还显眼。 */
   .tile .sysin i::before { content: ""; position: absolute; width: var(--s); height: var(--s); margin: calc(var(--s) / -2); border-radius: 50%;
     background: var(--pt);
-    box-shadow: 0 0 calc(var(--s) * .9) color-mix(in srgb, var(--p) 55%, transparent);
+    box-shadow:
+      inset calc(var(--s) * -0.09) calc(var(--s) * -0.11) calc(var(--s) * 0.28) rgba(5, 4, 12, .56),
+      0 calc(var(--s) * 0.18) calc(var(--s) * 0.42) rgba(3, 5, 12, .46),
+      0 0 calc(var(--s) * .95) color-mix(in srgb, var(--p) 60%, transparent);
     transform: translateX(var(--r)) rotateX(-58deg); }
   /* 土星环：拆成三层做**真实前后遮挡**（任务书 §4.2，2026-11-04 二次修复）——
        后半环 <s>（z:0）→ 球体 ::before（z:1）→ 前半环 ::after（z:2，clip-path 只留视觉下半）。
@@ -422,30 +430,29 @@
   /* 背景图分支下文字转白（后片是深色底，原来的深灰字会读不了） */
   html.hx-bg .tile b { color: #fff; text-shadow: 0 1px 3px rgba(0, 0, 0, .55); }
   html.hx-bg .tile .sum { color: rgba(255, 255, 255, .78); text-shadow: 0 1px 3px rgba(0, 0, 0, .5); }
-  /* ── 浅色 + 背景图：单独一套「白玻璃」（2026-11-04 修「深色透明度对、浅色不行」）──
-     原来这条分支**不存在**，浅色直接吃上面 398 行的深色配方：深灰底 + 白字。
-     于是浅色主题下卡片是深色玻璃，把「卡片透明度」拖低时卡片底色越来越淡、
-     白字却留在浅色页面上 —— 看上去就是一块发白的糊片、字也读不清，用户只能得出
-     「浅色不行」。深色主题那边正好相反：字是白的、页面也暗，怎么拖都顺眼。
-     现在按主题分开：浅色 = 白玻璃 + 深墨字（和浅色主题其它卡片一致），
-     底色/白膜都乘 --hx-a，所以 100% 是干净白卡、0% 真的全透明（和面板文案一致）。 */
+  /* ── 浅色 + 背景图：「高级白玻璃」重做（2026-11-05）──
+     旧版（2026-11-04）是「白色渐变薄膜 + 深墨字 + 白色光晕」，Mac 浅色下被用户评为
+     「玻璃质感不高级 仅仅只是白色雾蒙蒙」「标题文字带白色光晕几乎看不清」。三个病根：
+       ① 白色 gradient 膜（.62/.34/.16）整面罩在深色壁纸上，又没有深色描边和落影 = 一块没有边界的白雾；
+       ② 字上再叠三层白光晕：白字拖白雾、深字被光晕泡糊，怎么都看不清；
+       ③ 玻璃「放不住」——没有影子就没有实体感。
+     新配方（Premium Light Glass）：白玻璃 rgba(255,255,255,.70×浓度) + 深色细描边（--glass-edge）
+     + 有方向的柔影（--glass-drop）+ 顶唇高光；配字用玻璃专用 token --g-ink / --g-dim
+     （hx-theme.css，随 data-hx-mode 一起换），**不加任何光晕**——雾感来自「无边界的白」，不来自透。
+     底色仍乘 --hx-a（卡片通透度）：100% = 最透（默认），0% = 实色白卡（可读性兜底端）。 */
   html:not([data-hx-mode="dark"]).hx-bg .tile {
-    --fld-bg: linear-gradient(180deg, rgba(255, 255, 255, .62) 0%, rgba(255, 255, 255, .34) 55%, rgba(255, 255, 255, .16) 100%);
-    --fld-edge: rgba(0, 0, 0, .07); --fld-lip: rgba(255, 255, 255, .95); --fld-sheen: rgba(255, 255, 255, .55);
-    --fld-scan: rgba(255, 255, 255, .34); --fld-scan2: rgba(255, 255, 255, .06);
-    --fld-deep: rgba(0, 0, 0, .10);
+    --fld-bg: linear-gradient(180deg, rgba(255, 255, 255, .16) 0%, rgba(255, 255, 255, .04) 42%, rgba(20, 26, 38, .05) 100%);
+    --fld-edge: var(--glass-edge); --fld-lip: rgba(255, 255, 255, .95); --fld-sheen: rgba(255, 255, 255, .40);
+    --fld-scan: rgba(255, 255, 255, .26); --fld-scan2: rgba(255, 255, 255, .05);
+    --fld-deep: rgba(18, 22, 30, .14);
     /* 卡面变白了，轨道线不能再用给深色卡准备的冷白（353 行那套在白卡上等于隐形），
        退回浅色卡默认的灰蓝三段亮度（见 272 行）。 */
     --orb-a: rgba(104, 120, 140, .72); --orb-b: rgba(112, 128, 148, .30); --orb-c: rgba(120, 136, 156, .10);
-    background-color: rgb(255 255 255 / calc(var(--hx-a, 1) * .72));
-    background-image: linear-gradient(150deg, color-mix(in srgb, var(--c1) 10%, transparent), transparent 70%);
+    background-color: rgb(255 255 255 / calc(var(--hx-a, 1) * .70));
+    background-image: linear-gradient(150deg, color-mix(in srgb, var(--c1) 8%, transparent), transparent 68%);
     box-shadow: var(--glass-drop), 0 0 0 .6px var(--fld-edge) inset; }
-  html:not([data-hx-mode="dark"]).hx-bg .tile b { color: var(--ink);
-    /* 深墨字 + 白色光晕：卡片透明度拉低后，字底下可能是深色壁纸，没有这层光晕深字就糊了
-       （和首页大标题「白色朦胧光晕」是同一套思路，只是字号小，光晕收得更紧）。 */
-    text-shadow: 0 0 4px rgba(255, 255, 255, .95), 0 0 10px rgba(255, 255, 255, .75), 0 1px 2px rgba(255, 255, 255, .9); }
-  html:not([data-hx-mode="dark"]).hx-bg .tile .sum { color: var(--dim);
-    text-shadow: 0 0 4px rgba(255, 255, 255, .9), 0 0 8px rgba(255, 255, 255, .6); }
+  html:not([data-hx-mode="dark"]).hx-bg .tile b { color: var(--g-ink); text-shadow: none; }
+  html:not([data-hx-mode="dark"]).hx-bg .tile .sum { color: var(--g-dim); text-shadow: none; }
   /* 玻璃膜（::before 噪点/扫光、::after 白膜/亮唇）也随 --hx-a 淡出：
      不这么做的话底色透明了、这层白膜还挂在上面，0% 时仍是一块白花花的方片。 */
   html:not([data-hx-mode="dark"]).hx-bg .tile::before,
@@ -518,6 +525,24 @@
       0 0 6px rgba(255, 255, 255, .8), 0 0 16px rgba(255, 255, 255, .5), 0 0 30px rgba(255, 255, 255, .28); }
   /* 「你好」后面那枚身份小药丸自带底色，别继承外发光，不然小字会糊在白雾里 */
   html.hx-bg .hero p .pill { text-shadow: none; }
+  /* ── 浅色 + 背景图：hero / 分组标题的配字适配（2026-11-05 浅色重做）──
+     用户原话「标题文字带白色光晕几乎看不清」——浅色下不再给文字套白光晕。
+     但深墨字直接压深色极光只有 1.7:1，也不行。做法：hero 整块升级成一块真正的玻璃板
+     （和工具卡同一套配方：白玻璃 .70×浓度 + 深色细描边 + 柔影），标题、副标题、校徽都坐在板上——
+     可读性靠「字坐在玻璃上」，不靠给字加晕；深浅两种模式的 hero 于是共用同一套卡片语言。
+     分组小标题（学习/教学/维护）改成 frosted 药丸，压在画面任何位置都读得清。 */
+  html:not([data-hx-mode="dark"]).hx-bg .hero {
+    position: relative; width: 100%; margin: clamp(30px, 6vw, 68px) auto 0;
+    padding: clamp(26px, 4.5vw, 46px) clamp(22px, 4vw, 40px);
+    background: rgb(255 255 255 / calc(var(--hx-a, 1) * .70));
+    border-radius: 32px;
+    box-shadow: var(--glass-drop), 0 0 0 .6px var(--glass-edge) inset; }
+  html:not([data-hx-mode="dark"]).hx-bg .hero h1,
+  html:not([data-hx-mode="dark"]).hx-bg .hero p,
+  html:not([data-hx-mode="dark"]).hx-bg .sec h2 { color: var(--g-ink); text-shadow: none; }
+  html:not([data-hx-mode="dark"]).hx-bg .sec h2 {
+    background: rgba(255, 255, 255, .62); padding: 5px 14px; border-radius: 99px;
+    box-shadow: 0 0 0 .6px rgba(18, 22, 30, .14) inset, 0 10px 24px -16px rgba(15, 22, 35, .5); }
   @keyframes rise { from { opacity: 0; transform: translateY(24px); } }
   /* 管理卡片的标题 */
   /* 分组：组间距明显大于卡片间距，小标题淡一档 */
@@ -541,6 +566,8 @@
   html.hx-bg .panel::after { content: ""; position: absolute; left: 5%; top: 0; width: 44%; height: 40%; pointer-events: none; border-radius: inherit;
     background: radial-gradient(120% 100% at 18% 0%, rgba(255, 255, 255, .16), transparent 62%); }
   html[data-hx-mode="dark"].hx-bg .panel { background: rgba(10, 10, 12, .58); }
+  /* 浅色玻璃面板：加一圈深色细描边（2026-11-05 浅色重做，和 .tile 同一套「有边界的玻璃」，去白雾感） */
+  html:not([data-hx-mode="dark"]).hx-bg .panel { box-shadow: var(--glass-drop), 0 0 0 .6px var(--glass-edge) inset; }
   .cls { display: grid; gap: 12px; }
   /* 班级卡片：左上亮、右下灭的 1px 边 + 极淡落影（照参考片做的，不再用整片光晕） */
   .cl { position: relative; display: grid; grid-template-columns: 1fr auto; gap: 12px 16px; align-items: center; padding: 18px 20px; border-radius: 24px; background: linear-gradient(175deg, var(--card-hi), var(--card-lo)); box-shadow: 0 1px 0 rgba(255, 255, 255, .05) inset, 0 22px 54px -38px var(--shade); animation: rise .7s var(--hx-spring) both; animation-delay: calc(var(--i, 0) * 55ms); transition: transform .35s var(--hx-spring), box-shadow .35s var(--hx-ease); }
@@ -969,43 +996,60 @@ function svg(d, cls) { return '<svg class="i' + (cls ? ' ' + cls : '') + '" view
 // 周期：26s → 52s 缓慢公转（任务书 §5「默认：行星缓慢公转」），内快外慢；
 //   纯 CSS transform 动画，无 JS 循环，14 张卡也不引入任何渲染循环。
 // 大小：**故意不按真实比例**（用户明确说过「不要完全按真实天文比例绘制」），
-//   3.2 → 8 的区间：最小和最大差 2.5 倍，一眼分得出谁大谁小，又不互相遮挡。
+//   9.5 → 20 的区间：最小和最大差 2 倍出头，一眼分得出谁大谁小，又不互相遮挡。
+//   2026-11-05 四修：用户仍觉得「很淡很小看不清」，3.2 → 6.5 → 9.5~20（每次一档）。
 // 字段：--r 轨道半径 / --d 周期 / --a 初始相位 / --s 直径 / --p 主色 / --pt 球面材质（CSS 渐变）。
-// 颜色一律压灰：真实行星在真空里没有环境光补色，纯色会显得像塑料珠子。
+// 颜色：上一版「一律压灰」在深色卡上读不出是行星（用户 2026-11-05 反馈「很淡」），
+//   三修整体提饱和，四修再把受光面提亮一档；球体感靠 ball() 里**半透明的边缘暗角层**压回去，
+//   不会艳成塑料珠。
+// ball() 的层序（background 先写的在上）：
+//   ① 镜面高光（白色小点，circle at 29% 24% 偏左上，八颗行星光源统一从左上方来）
+//   ② extra 行星材质（木星条带、地球海陆）—— **在体色之上**。旧版把材质垫在不透明的
+//      体色下面，海陆团块其实一直被盖住根本没画出来（隐藏 bug，这次顺手修掉）；
+//   ③ 受光面体色：亮 c1 → 中 c2 → 暗 c3；
+//   ④ 边缘暗角（terminator）：从透明到深黑的半透明渐变，只压右下背光侧 —— 球感的来源。
 function ball(c1, c2, c3, extra) {
-  // 统一的高光位置：circle at 32% 27%（偏左上，八颗行星光源统一从左上方来）。
-  // extra 是行星自己的材质层（木星条带、地球海陆），插在高光和球体明暗之间。
-  return 'radial-gradient(circle at 32% 27%,' + c1 + ' 0 3%,' + c2 + ' 34%,' + c3 + ' 74%,#14100c 100%)' + (extra ? ',' + extra : '');
+  return 'radial-gradient(circle at 29% 24%, rgba(255,255,255,.96) 0 5%, rgba(255,255,255,0) 32%),'
+    + (extra ? extra + ',' : '')
+    + 'radial-gradient(circle at 29% 24%, ' + c1 + ' 0 24%, ' + c2 + ' 50%, ' + c3 + ' 80%),'
+    + 'radial-gradient(circle at 29% 24%, rgba(6,5,14,0) 0 36%, rgba(6,5,14,.40) 64%, rgba(4,3,10,.84) 94%)';
 }
+// 相位（四修）：球加大后，土星环 / 天王星 / 海王星的静止位置要么顶到卡片上边缘被裁，
+// 要么压到标题（标题在卡内 y=119 起）。下面三个相位是按几何算过的：静止时整颗球（连同土星环）
+// 都在卡内、与标题留 ≥3px 空隙、也不落进右上像素生物保护区。
 var PLANETS = [
   // 半径  相位   周期   直径  主色        球面材质
-  { r: 50, a: 210, d: 26.0, s: 3.2, p: '#a89c8e', n: 'mercury',
-    pt: ball('#cdc3b6', '#a89c8e', '#726557') },
-  { r: 58, a: -60, d: 29.0, s: 4.4, p: '#d5c093', n: 'venus',
-    pt: ball('#f6e6c2', '#dcc79a', '#8a6c47',
-      'radial-gradient(circle at 70% 76%, rgba(120,92,52,.45) 0 40%, transparent 70%)') },
-  { r: 67, a: 115, d: 32.0, s: 4.8, p: '#5d93b8', n: 'earth',
+  { r: 50, a: 210, d: 26.0, s: 9.5, p: '#b0a394', n: 'mercury',
+    pt: ball('#f2e8da', '#bcaf9f', '#6e6154') },
+  { r: 58, a: -60, d: 29.0, s: 12, p: '#e0b96e', n: 'venus',
+    pt: ball('#ffefc8', '#efd196', '#9a7442',
+      'radial-gradient(circle at 70% 76%, rgba(140,104,56,.40) 0 40%, transparent 70%)') },
+  { r: 67, a: 115, d: 32.0, s: 13, p: '#4f9dd8', n: 'earth',
     // 地球：先铺两团「陆地」（不规则圆），再用海蓝的明暗盖上去 —— 陆地的边缘被海色吃掉一部分，
     // 看起来就是海陆交错而不像三个贴上去的圆片。
-    pt: ball('#8fc6e8', '#4f8db4', '#27506a',
-      'radial-gradient(circle at 63% 42%, rgba(96,158,110,.85) 0 19%, transparent 37%),'
-      + 'radial-gradient(circle at 38% 72%, rgba(108,166,118,.7) 0 17%, transparent 33%)') },
-  { r: 76, a: 80, d: 36.0, s: 4.0, p: '#b8704f', n: 'mars',
-    pt: ball('#f2c4a4', '#c9775a', '#7a3c24',
-      'radial-gradient(circle at 68% 48%, rgba(120,58,38,.5) 0 26%, transparent 52%)') },
+    pt: ball('#b8e6f8', '#4f9cd0', '#1f4a68',
+      'radial-gradient(circle at 63% 42%, rgba(112,190,120,.9) 0 19%, transparent 37%),'
+      + 'radial-gradient(circle at 38% 72%, rgba(120,186,128,.75) 0 17%, transparent 33%)') },
+  { r: 76, a: 80, d: 36.0, s: 11, p: '#d4693f', n: 'mars',
+    pt: ball('#ffd8b4', '#e28254', '#7c361c',
+      'radial-gradient(circle at 68% 48%, rgba(150,66,36,.45) 0 26%, transparent 52%)') },
   // 木星：横向色带。用 repeating-linear-gradient 而不是一条条写，
-  // 周期设为球径的百分比，任何尺寸下条数和比例都不变。
-  { r: 85, a: 100, d: 40.0, s: 8.0, p: '#b18a63', n: 'jupiter',
-    pt: 'radial-gradient(circle at 30% 25%, rgba(255,248,222,.66) 0 3%, rgba(255,248,222,.16) 15%, transparent 40%),'
-      + 'repeating-linear-gradient(177deg, #b18a63 0 9%, #8f6d4b 9% 15%, #c8a87e 15% 25%, #7d5e42 25% 31%, #ab8560 31% 42%),'
-      + 'radial-gradient(circle at 32% 27%, #d4b48c 0 2%, #a9865f 40%, #6a5035 78%, #2a1e13 100%)' },
-  // 土星：7px + 一条环（环在 CSS 里拆三层：s 后半环 → 球 → ::after 前半环，见 .sysin i.sat）
-  { r: 94, a: -115, d: 44.0, s: 7.0, p: '#cdb489', n: 'sat',
-    pt: ball('#f8eccd', '#e0c894', '#ac8e5c') },
-  { r: 102, a: -95, d: 48.0, s: 5.2, p: '#8ecdd6', n: 'uranus',
-    pt: ball('#d6f2f4', '#a2dbe0', '#5b97a2') },
-  { r: 110, a: 80, d: 52.0, s: 5.0, p: '#7189d0', n: 'neptune',
-    pt: ball('#b9cdf6', '#7c94d6', '#43548f') }
+  // 周期设为球径的百分比，任何尺寸下条数和比例都不变。末尾同样压一层边缘暗角。
+  { r: 85, a: 100, d: 40.0, s: 20, p: '#d2a06a', n: 'jupiter',
+    pt: 'radial-gradient(circle at 29% 24%, rgba(255,255,255,.95) 0 5%, rgba(255,255,255,0) 30%),'
+      + 'repeating-linear-gradient(177deg, #dcae76 0 9%, #b07f4c 9% 15%, #f2d59c 15% 25%, #8f6639 25% 31%, #cd9e6c 31% 42%),'
+      + 'radial-gradient(circle at 29% 24%, #f2d59c 0 22%, #c08e5c 52%, #6e4c2c 84%),'
+      + 'radial-gradient(circle at 29% 24%, rgba(6,5,14,0) 0 36%, rgba(6,5,14,.36) 64%, rgba(4,3,10,.80) 94%)' },
+  // 土星：17px + 一条环（环在 CSS 里拆三层：s 后半环 → 球 → ::after 前半环，见 .sysin i.sat）
+  // 相位 -45：球和环比上一版大了一档，相位必须往回收，否则环顶会被卡片上边缘切掉。
+  { r: 94, a: -45, d: 44.0, s: 17, p: '#e3c98c', n: 'sat',
+    pt: ball('#fff3cd', '#f2d494', '#a8814a') },
+  // 相位 55：同上，往右下让开上边缘；也不能和火星/海王星挤在一起。
+  { r: 102, a: 55, d: 48.0, s: 13, p: '#7fd4de', n: 'uranus',
+    pt: ball('#ecfbfd', '#a6e4ea', '#4a8f9e') },
+  // 相位 70：外圈最大轨道，sin 再大一点球底就会压到标题（y≥119）。
+  { r: 110, a: 70, d: 52.0, s: 12.5, p: '#6d8ce0', n: 'neptune',
+    pt: ball('#cadcfc', '#7690e2', '#33418f') }
 ];
 // .sys 铺满整张卡（负责按卡片边界裁剪 + 右上保护区渐隐），.sysin 是以图标为圆心旋转的 3D 轨道盘。
 // 每颗行星一条轨道：i 是一个 0×0 的旋转臂，臂尖挂球体；土星多一层 <s> 当后半环（前后遮挡）。
@@ -1537,7 +1581,7 @@ function openAccounts() {
   });
   if ($('accNew')) $('accNew').onclick = function () { $('sheet').close(); openLogin('', 'in'); };
 }
-// 外观：主题色、浅色 / 深色 / 自动、背景图、透明度（存 hx-theme，全部工具一起变）
+// 外观：主题色、深色 / 浅色 / 自动、背景图、通透度（全局键管背景/动效/水印；主题色、深浅、两根滑杆按界面分键，只影响本页）
 // 外面这层 try/catch 是保命的：renderLook 里任何一句抛异常，togglePop 那边 .show 还没加上，
 // 用户看到的就是「点外观按钮没反应」——2026-11-04 我自己就踩了一次（模板里变量名写错）。
 // 现在至少把错误原文摆到面板里，而不是让按钮装死。
@@ -1569,8 +1613,8 @@ function renderLookBody() {
     (MYIMGS.length ? '<h3>上传过的背景</h3><div class="bgs imgs">' + MYIMGS.map(function (x) {
       return '<button type="button" data-img="' + x.id + '" aria-pressed="' + (s.bg === 'custom' && CURIMG === x.data) + '"><i class="del" data-del="' + x.id + '" title="删掉这张">×</i></button>';
     }).join('') + '</div><p class="msg" style="margin:6px 0 0;color:var(--dim)">点一下就换回这张；鼠标移到上面，右上角会浮出 ×，点两下才真删。最多留 6 张，再传新的会挤掉最旧的那张。</p>' : '') +
-    (s.bg !== 'none' ? '<h3>卡片透明度</h3><div class="rng"><input type="range" id="op" min="0" max="100" value="' + s.op + '"><output id="opv">' + s.op + '%</output></div><p class="msg" style="margin:6px 0 0;color:var(--dim)">管的是卡片本身：0% = 卡片完全透明，只剩文字浮在背景上。太低看不清内容的话再往回调。</p>' +
-    '<h3>背景透明度</h3><div class="rng"><input type="range" id="bgo" min="0" max="100" value="' + (s.bgo == null ? 100 : s.bgo) + '"><output id="bgov">' + (s.bgo == null ? 100 : s.bgo) + '%</output></div><p class="msg" style="margin:6px 0 0;color:var(--dim)">管的是背景图：100% = 原样显示（现在不再磨砂，是清楚的），0% = 背景完全看不见、只剩页面底色。想让背景淡一点、别抢文字，就把这根调低。</p>' : '') +
+    (s.bg !== 'none' ? '<h3>卡片通透度</h3><div class="rng"><input type="range" id="op" min="0" max="100" value="' + s.clr + '"><output id="opv">' + s.clr + '%</output></div><p class="msg" style="margin:6px 0 0;color:var(--dim)">管的是玻璃透不透：100% = 最透（默认，深浅两套都是清透玻璃、背景从卡里透出来）；往下调卡片变实、文字更清楚；0% = 实色卡。这是「兜底可读」的方向，不再是越调越透。</p>' +
+    '<h3>背景清晰度</h3><div class="rng"><input type="range" id="bgo" min="0" max="100" value="' + (s.bgo == null ? 100 : s.bgo) + '"><output id="bgov">' + (s.bgo == null ? 100 : s.bgo) + '%</output></div><p class="msg" style="margin:6px 0 0;color:var(--dim)">管的是背景：100% = 原样显示（最清楚），0% = 背景几乎看不见、只剩页面底色。想让背景淡一点、别抢文字，就把这根调低。</p>' : '') +
     // 背景动效（2026-11-03）：和背景主题平行的动效模块，画在背景层之上、卡片之下，两层互不覆盖
     // 预览图（2026-11-04）：每个格子一块 <canvas>，选之前就看得见是什么效果；「无」没有画面，不垫画布。
     '<h3>背景动效</h3><div class="bgs wxs">' + Object.keys(WX).map(function (k) {
@@ -1628,7 +1672,7 @@ function renderLookBody() {
   });
   $('look').querySelectorAll('[data-wm]').forEach(function (b) { b.onclick = function () { HXTheme.set({ wm: +b.dataset.wm }); }; });
   $('bgFile').onchange = function (e) { var f = e.target.files[0]; if (f) HXTheme.upload(f).catch(function (er) { toast(er.message); }); };
-  if ($('op')) $('op').oninput = function () { opAt = Date.now(); $('opv').textContent = $('op').value + '%'; HXTheme.set({ op: +$('op').value }); };
+  if ($('op')) $('op').oninput = function () { opAt = Date.now(); $('opv').textContent = $('op').value + '%'; HXTheme.set({ clr: +$('op').value }); };
   if ($('bgo')) $('bgo').oninput = function () { opAt = Date.now(); $('bgov').textContent = $('bgo').value + '%'; HXTheme.set({ bgo: +$('bgo').value }); };
   $('lookReset').onclick = function () { HXTheme.reset(); };
 }

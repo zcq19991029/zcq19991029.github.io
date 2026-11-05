@@ -222,19 +222,7 @@
     background: linear-gradient(120deg, #f59e0b, #ef4444); box-shadow: 0 10px 22px -12px #ef4444; transition: transform .15s; }
   .rk-drawbtn svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; }
   .rk-drawbtn:active { transform: scale(.95); }
-  .drw { display: flex; flex-direction: column; height: 100%; min-height: 380px; }
-  .drw-bar { flex: none; display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--edge); }
-  .drw-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
-  .drw-tabs button { border: 1px solid var(--edge); background: var(--card); color: var(--ink); font: inherit; font-size: 13px; font-weight: 700; padding: 6px 12px; border-radius: 10px; cursor: pointer; }
-  .drw-tabs button.on { border-color: transparent; background: linear-gradient(120deg, #f59e0b, #ef4444); color: #fff; }
-  .drw-go { height: 44px; padding: 0 20px; border: 0; border-radius: 11px; cursor: pointer; font: inherit; font-size: 14px; font-weight: 800; color: #fff; background: linear-gradient(120deg, #f59e0b, #ef4444); box-shadow: 0 10px 22px -12px #ef4444; }
-  .drw-go:disabled { opacity: .5; cursor: default; }
-  .drw-foot { flex: none; display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-top: 1px solid var(--edge); min-height: 58px; }
-  .drw-foot .rk-btn, .drw-foot .rk-ghost { flex: none; }
-  .drw-hint { color: var(--dim); font-size: 13px; font-weight: 600; }
-  .drw-res { flex: 1; min-width: 0; }
-  .drw-res b { display: block; font-size: 15px; }
-  .drw-res span { display: block; color: var(--dim); font-size: 13px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* 抽人窗口的全部样式在下面「随机抽人：夜市卡组」整块里（2026-11-06 完整迁移夜市原型，全部收在 #fw-draw 下） */
   .rk-player { margin-top: 16px; display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 16px; background: var(--card); border: 1px solid var(--edge); }
   .rk-player div { flex: 1; min-width: 0; } .rk-player small { display: block; color: var(--dim); font-weight: 700; font-size: 12px; } .rk-player b { display: block; font-size: 24px; } .rk-player span { color: var(--dim); font-weight: 600; }
   .rk-start { flex: none; height: 52px; padding: 0 26px; border: 0; border-radius: 16px; cursor: pointer; font: inherit; font-size: 17px; font-weight: 800; color: #fff; background: linear-gradient(120deg, #f59e0b, #ef4444); box-shadow: 0 14px 30px -12px #ef4444; transition: transform .15s; }
@@ -551,155 +539,223 @@
   body.hxrot .stage iframe { inset: auto; left: 0; top: 0; width: var(--rw) !important; height: var(--rh) !important; animation: none !important; transform-origin: 0 0; transform: translateX(var(--rh)) rotate(90deg) !important; }
   /* ---------- 排位 / 随机抽人（2026-11-02 重做）：样式统一写在这条标记下面 ---------- */
   /* @@RK_CSS@@ */
-  /* ===== 随机抽人：游戏卡包开包（2026-11-06 重做）=====
-     「班级大转盘」(.drw-wheel，2026-11-02 版) 整体退役：现在是 卡包浮动 → 蓄力抖动 → 开包强光 →
-     卡片飞出翻面 → 揭示。抽取结果由 rank.js 的 drwRoll() 先算好，动画只负责演；
-     动画期间 #drwGo 禁用 + DRW.busy 双保险防连点。
-     配色：主光 #6C8CFF / #8B5CF6，结果强调 #FFC857，深色舞台 #0B1020→#18233D（课堂投影可读）。 */
-  .drw-bar { gap: 12px; padding: 10px 14px; }
-  .drw-tabs { flex: 1; min-width: 0; }
-  .drw-tabs button { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; padding: 7px 14px; border-radius: 11px; }
-  .drw-tabs button em { font-style: normal; font-size: 11.5px; font-weight: 800; padding: 1px 6px; border-radius: 7px; background: var(--track); color: var(--dim); }
-  .drw-tabs button.on em { background: rgba(255, 255, 255, .26); color: #fff; }
-  /* 只有一个班：不摆 tabs（一次课就一个班，没什么可切的），顶上直接写“班名 · N 人” */
-  .drw-clsname { flex: 1; min-width: 0; display: flex; align-items: center; font-size: 15px; font-weight: 800;
-    color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .drw-go { flex: none; padding: 0 28px; font-size: 17px; font-weight: 900; letter-spacing: 1px; border-radius: 13px; }
-  /* 深色舞台：抽人这件事只发生在这一块里，顶栏/底栏照旧。overflow:hidden 保证开包强光和飞出的卡片不会撑出横向滚动 */
-  .drw-stage { flex: 1; min-height: 0; position: relative; overflow: hidden; display: grid; place-items: center;
-    background: radial-gradient(120% 95% at 50% 28%, #18233d 0%, #0b1020 74%); }
-  .drw-stage::before { content: ''; position: absolute; inset: 0; pointer-events: none;
-    background: radial-gradient(closest-side at 50% 44%, rgba(108, 140, 255, .18), transparent 74%); }
-  .drw-scene { position: relative; display: grid; place-items: center; width: min(72%, 420px); aspect-ratio: 1 / 1.06; perspective: 1100px; }
-  /* aria-live 播报区：视觉上藏掉，读屏/旁白工具照常读到 */
-  .drw-live { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-  /* 卡包：层叠卡片 + 金色封条 + 高光描边 + 背后光晕 + 浮动粒子，全部 CSS 画的，没有外部图片 */
-  .drw-halo { position: absolute; width: 78%; aspect-ratio: 1; border-radius: 50%; pointer-events: none;
-    background: radial-gradient(closest-side, rgba(139, 92, 246, .38), rgba(108, 140, 255, .16) 55%, transparent 75%);
-    filter: blur(6px); animation: drwHalo 2.6s ease-in-out infinite; }
-  @keyframes drwHalo { 50% { transform: scale(1.1); opacity: .75; } }
-  .drw-pack { position: relative; z-index: 1; width: min(58%, 250px); aspect-ratio: 3 / 4.1; cursor: pointer; -webkit-tap-highlight-color: transparent;
-    animation: drwFloat 3.2s ease-in-out infinite; }
-  @keyframes drwFloat { 50% { transform: translateY(-10px); } }
-  .drw-lyr { position: absolute; inset: 0; border-radius: 16px; border: 1.5px solid rgba(108, 140, 255, .4); background: linear-gradient(160deg, #1d2a4d, #131c36); }
-  .drw-lyr.l1 { transform: rotate(-4deg) translate(-7px, 5px); opacity: .8; }
-  .drw-lyr.l2 { transform: rotate(3.5deg) translate(7px, -4px); opacity: .65; }
-  /* 卡包由上下两半拼成：同一张 .drw-skin 各裁一半，合起来严丝合缝，开包时两半分开 */
-  .drw-half { position: absolute; inset: 0; transition: transform .6s cubic-bezier(.25, .8, .3, 1), opacity .6s; will-change: transform; }
-  .drw-half.top { clip-path: inset(0 0 49.4% 0); }
-  .drw-half.bot { clip-path: inset(50.6% 0 0 0); }
-  .drw-skin { position: absolute; inset: 0; border-radius: 18px; overflow: hidden;
-    background: linear-gradient(158deg, #223058 0%, #18233d 46%, #101830 100%);
-    border: 2px solid rgba(108, 140, 255, .55);
-    box-shadow: 0 0 0 1px rgba(255, 255, 255, .08) inset, 0 0 24px rgba(108, 140, 255, .28), 0 24px 60px -22px rgba(0, 0, 0, .8); }
-  .drw-skin::before { content: ''; position: absolute; inset: 7px; border-radius: 12px; border: 1px dashed rgba(139, 92, 246, .5); }
-  .drw-skin::after { content: ''; position: absolute; inset: 0;
-    background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, .1) 44%, transparent 58%),
-      radial-gradient(58% 34% at 50% 26%, rgba(108, 140, 255, .3), transparent 70%); }
-  /* 卡包标题必须压在金封条上面：原来 z-index:1 < 封条 z-index:2，「随机抽人」被竖带从中间切穿
-     （2026-11-04 用户截图报的遮挡）。做法和 小组加分/draw-person.css 对齐——深色小牌 z-index:3，
-     不透明底 rgba(8,13,26,.82)，字才不会被金色带子透上来吃掉。别再把它降回 1/2。 */
-  .drw-pname { position: absolute; z-index: 3; left: 50%; top: 11%; transform: translateX(-50%);
-    padding: 3px 12px; border-radius: 8px; white-space: nowrap;
-    background: rgba(8, 13, 26, .82); box-shadow: 0 2px 10px rgba(0, 0, 0, .5);
-    color: #e8ecff; font-weight: 900; font-size: clamp(17px, 2.4vw, 26px); letter-spacing: .22em; text-indent: .22em; }
-  .drw-seal { position: absolute; z-index: 2; left: 50%; top: 0; bottom: 0; width: 17%; transform: translateX(-50%); font-style: normal;
-    background: linear-gradient(180deg, #ffd98a, #f5b942 30%, #e09b2d 70%, #c9871f);
-    border-left: 1px solid rgba(255, 255, 255, .4); border-right: 1px solid rgba(0, 0, 0, .25);
-    display: grid; place-items: center; font-weight: 900; color: #5b3a00;
-    font-size: clamp(22px, 3vw, 34px); box-shadow: 0 0 18px rgba(255, 200, 87, .45); }
-  /* 浮动光点：只在卡包周围闪，开包后跟着卡包一起消失 */
-  .drw-pt { position: absolute; width: 5px; height: 5px; border-radius: 50%; background: #9db4ff; opacity: 0; pointer-events: none;
-    box-shadow: 0 0 8px #6c8cff; animation: drwPt 2.8s ease-in-out infinite; transition: opacity .4s; }
-  .drw-pt:nth-of-type(3) { left: 6%; top: 20%; }
-  .drw-pt:nth-of-type(4) { left: 90%; top: 13%; animation-delay: .5s; }
-  .drw-pt:nth-of-type(5) { left: 2%; top: 62%; animation-delay: 1s; }
-  .drw-pt:nth-of-type(6) { left: 94%; top: 58%; animation-delay: 1.4s; }
-  .drw-pt:nth-of-type(7) { left: 20%; top: 92%; animation-delay: 1.9s; }
-  .drw-pt:nth-of-type(8) { left: 76%; top: 90%; animation-delay: 2.3s; }
-  @keyframes drwPt { 0%, 100% { opacity: 0; transform: translateY(0) scale(.7); } 50% { opacity: .9; transform: translateY(-14px) scale(1.15); } }
-  /* ── 状态机（rank.js 的 DRW.phase → 舞台 data-phase）── */
-  /* preparing：光晕收紧、卡包蓄势 */
-  .drw-stage[data-phase="preparing"] .drw-halo { animation-duration: .8s; opacity: 1; }
-  .drw-stage[data-phase="preparing"] .drw-pack { animation: drwCharge .48s ease-out both; }
-  @keyframes drwCharge { 0% { transform: scale(1); } 55% { transform: scale(1.05) translateY(-4px); } 100% { transform: scale(1.02); } }
-  /* shaking：蓄力抖动，幅度渐增 */
-  .drw-stage[data-phase="shaking"] .drw-pack { animation: drwShake .88s cubic-bezier(.36, .07, .19, .97) both; }
-  @keyframes drwShake {
-    0%, 100% { transform: translate(0, 0) rotate(0deg) scale(1.02); }
-    10% { transform: translate(-2px, 1px) rotate(-1deg) scale(1.03); }
-    22% { transform: translate(3px, -2px) rotate(1.2deg) scale(1.04); }
-    36% { transform: translate(-4px, 2px) rotate(-1.6deg) scale(1.05); }
-    50% { transform: translate(6px, -3px) rotate(2.1deg) scale(1.07); }
-    64% { transform: translate(-8px, 4px) rotate(-2.7deg) scale(1.09); }
-    78% { transform: translate(10px, -5px) rotate(3.4deg) scale(1.11); }
-    90% { transform: translate(-11px, 5px) rotate(-4deg) scale(1.13); }
+  /* ===== 随机抽人：夜市卡组（2026-11-06 完整迁移自 .tmp-ref/night-market-draw-prototype.html）=====
+     旧「卡包 → 蓄力抖动 → 开包 → 翻牌」整套退役；现在是夜市原型：
+     顶栏（NIGHT MARKET / 点券 / ✕）→ 工具条（班级 / 开始翻牌 / 刷新下一组）→
+     6 个卡位的卡组（牌背按稀有度上色、3D 翻牌、像素动效、金色票据）。
+     抽取逻辑在 rank.js 的 drwFlip()（一次抽一个、不连抽同一人、可设为当前选手）。
+     时序和 rank.js 一一对应：发牌 .42s → 翻面单片 .72s。
+     所有选择器都收在 #fw-draw 下，不污染练习页和别的浮窗。 */
+  #fw-draw { background: #040a12; }
+  #fw-draw .fw-head { display: none; }            /* 夜市顶栏自带品牌和 ✕，窗口标题栏不再重复摆 */
+  #fw-draw .fw-body { overflow: hidden; }
+  /* ---------- 舞台根 ---------- */
+  #fw-draw .drw {
+    position: relative; height: 100%; min-height: 0; display: flex; flex-direction: column; overflow: hidden;
+    color: #eef6ff; font-family: inherit;
+    background: radial-gradient(circle at 50% 26%, #14365b, #081421 46%, #040a12 100%);
+    --r-gold: #f5c542; --rg-gold: rgba(245, 197, 66, .55);
+    --r-purple: #c06bff; --rg-purple: rgba(192, 107, 255, .5);
+    --r-green: #22e0a8; --rg-green: rgba(34, 224, 168, .45);
+    --r-blue: #3fb6ff; --rg-blue: rgba(63, 182, 255, .42);
   }
-  /* opening/revealing/result：上下分离 + 层叠卡片淡出；下一轮 preparing 时两半顺着过渡合回去 */
-  .drw-stage[data-phase="opening"] .drw-half.top, .drw-stage[data-phase="revealing"] .drw-half.top, .drw-stage[data-phase="result"] .drw-half.top {
-    transform: translate(-14%, -150%) rotate(-14deg); opacity: 0; }
-  .drw-stage[data-phase="opening"] .drw-half.bot, .drw-stage[data-phase="revealing"] .drw-half.bot, .drw-stage[data-phase="result"] .drw-half.bot {
-    transform: translate(12%, 150%) rotate(10deg); opacity: 0; }
-  .drw-stage[data-phase="opening"] .drw-lyr, .drw-stage[data-phase="revealing"] .drw-lyr, .drw-stage[data-phase="result"] .drw-lyr {
-    opacity: 0; transition: opacity .4s; }
-  .drw-stage[data-phase="opening"] .drw-pt, .drw-stage[data-phase="revealing"] .drw-pt, .drw-stage[data-phase="result"] .drw-pt { opacity: 0; }
-  /* 开包强光 */
-  .drw-flash { position: absolute; z-index: 3; width: 150%; aspect-ratio: 1; border-radius: 50%; pointer-events: none; opacity: 0;
-    background: radial-gradient(closest-side, rgba(255, 255, 255, .95), rgba(165, 180, 255, .55) 45%, transparent 72%); }
-  .drw-stage[data-phase="opening"] .drw-flash { animation: drwFlash .65s ease-out both; }
-  @keyframes drwFlash { 0% { opacity: 0; transform: scale(.3); } 30% { opacity: 1; } 100% { opacity: 0; transform: scale(1.5); } }
-  /* 结果卡：飞出 → 翻面 → 揭示。姓名最大（手机也不低于 26px），班级·学号次级，「本轮抽中」金色标签 */
-  .drw-cards { position: absolute; z-index: 4; inset: 0; display: flex; align-items: center; justify-content: center; gap: 3%; pointer-events: none; }
-  .drw-card { flex: none; width: min(64%, 230px); aspect-ratio: 3 / 4; perspective: 900px; opacity: 0;
-    animation: drwFly .6s cubic-bezier(.2, .85, .3, 1.1) both; filter: drop-shadow(0 22px 44px rgba(0, 0, 0, .6)); }
-  @keyframes drwFly { 0% { opacity: 0; transform: translateY(26%) scale(.22) rotate(-6deg); } 60% { opacity: 1; } 100% { opacity: 1; transform: none; } }
-  .drw-cardin { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; transition: transform .55s cubic-bezier(.3, 1.15, .4, 1); }
-  .drw-stage[data-phase="revealing"] .drw-cardin, .drw-stage[data-phase="result"] .drw-cardin { transform: rotateY(180deg); }
-  .drw-cback, .drw-cface { position: absolute; inset: 0; border-radius: 16px; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
-  .drw-cback { border: 2px solid rgba(108, 140, 255, .6);
-    background: radial-gradient(46% 30% at 50% 34%, rgba(108, 140, 255, .4), transparent 70%), linear-gradient(155deg, #243258, #131c36);
-    box-shadow: 0 0 0 1px rgba(255, 255, 255, .1) inset; }
-  .drw-cback::before { content: ''; position: absolute; inset: 8px; border-radius: 10px; border: 1px dashed rgba(139, 92, 246, .55);
-    background: repeating-linear-gradient(45deg, rgba(108, 140, 255, .08) 0 8px, transparent 8px 16px); }
-  .drw-cback::after { content: '✦'; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
-    color: #9db4ff; font-size: clamp(30px, 5vw, 44px); text-shadow: 0 0 18px rgba(108, 140, 255, .8); }
-  .drw-cface { transform: rotateY(180deg); display: grid; align-content: center; justify-items: center; gap: 8px; text-align: center; padding: 12px;
-    background: linear-gradient(160deg, #1b2748, #0e1528 75%); border: 2px solid #ffc857;
-    box-shadow: 0 0 0 1px rgba(255, 200, 87, .35) inset, 0 0 26px rgba(255, 200, 87, .3); }
-  .drw-cface em { font-style: normal; font-weight: 800; font-size: clamp(12px, 1.6vw, 15px); letter-spacing: .18em; color: #0b1020;
-    background: linear-gradient(120deg, #ffd98a, #ffc857); padding: 4px 12px; border-radius: 999px; }
-  .drw-cface b { font-size: clamp(26px, 6vw, 54px); line-height: 1.15; font-weight: 900; color: #fff;
-    text-shadow: 0 0 22px rgba(255, 200, 87, .55), 0 2px 10px rgba(0, 0, 0, .5); max-width: 100%; overflow-wrap: anywhere; }
-  .drw-cface span { font-weight: 700; font-size: clamp(14px, 2vw, 18px); color: #b8c4e6; }
-  /* 揭示瞬间：名字弹一下 + 卡面金光呼吸 */
-  .drw-stage[data-phase="result"] .drw-cface b { animation: drwName .55s cubic-bezier(.2, 1.5, .4, 1) both; }
-  @keyframes drwName { 0% { transform: scale(.72); opacity: .4; } 100% { transform: scale(1); opacity: 1; } }
-  .drw-stage[data-phase="result"] .drw-cface { animation: drwGold 1.6s ease-in-out .3s infinite; }
-  @keyframes drwGold { 50% { box-shadow: 0 0 0 1px rgba(255, 200, 87, .5) inset, 0 0 40px rgba(255, 200, 87, .55); } }
-  /* 关动画偏好 / 低端设备：不演过程，卡片直接亮出结果（JS 侧 drwNoAnim() 也走 fast 路径） */
+  /* 原型背景的斜向霓虹射线；只在窗口里铺，不溢出 */
+  #fw-draw .drw::before {
+    content: ""; position: absolute; inset: -20%; pointer-events: none; opacity: .16;
+    background: linear-gradient(115deg, transparent 48%, #ff2d73 49%, transparent 50%),
+      linear-gradient(25deg, transparent 48%, #27c9ff 49%, transparent 50%);
+    background-size: 420px 420px; transform: rotate(8deg);
+  }
+  #fw-draw .drw > * { position: relative; z-index: 1; }
+  /* ---------- 顶栏 ---------- */
+  #fw-draw .nm-top {
+    flex: none; height: 60px; padding: 0 18px; display: flex; align-items: center; gap: 14px;
+    border-bottom: 1px solid #22405f;
+    background: linear-gradient(180deg, rgba(11, 28, 46, .92), rgba(6, 13, 23, .25));
+  }
+  #fw-draw .nm-fxl { flex: none; width: 44px; height: 44px; display: grid; place-items: center; }
+  #fw-draw .nm-fxl canvas { display: block; max-width: 100%; max-height: 100%; image-rendering: pixelated; image-rendering: crisp-edges;
+    filter: drop-shadow(0 0 10px rgba(120, 200, 255, .45)); }
+  #fw-draw .nm-brand { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 12px; justify-content: center; }
+  #fw-draw .nm-brand b { font-size: clamp(15px, 1.4vw, 21px); font-weight: 900; letter-spacing: .34em; font-style: italic;
+    background: linear-gradient(92deg, #fff, #ff9ec4 46%, #ffd866); -webkit-background-clip: text; background-clip: text; color: transparent; white-space: nowrap; }
+  #fw-draw .nm-brand span { font-size: 12.5px; font-weight: 700; color: #7f9bb8; letter-spacing: .22em; white-space: nowrap; }
+  #fw-draw .nm-right { flex: none; display: flex; align-items: center; gap: 12px; }
+  #fw-draw .nm-vp { display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px; border-radius: 999px;
+    border: 1px solid #3d5880; background: rgba(10, 24, 40, .8); font-size: 13px; font-weight: 800; color: #ffd86d; }
+  #fw-draw .nm-vp i { font-style: normal; font-size: 14px; color: #f5c542; text-shadow: 0 0 10px rgba(245, 197, 66, .8); }
+  #fw-draw .nm-vp b { font-size: 15px; letter-spacing: .04em; }
+  #fw-draw .nm-vp em { font-style: normal; font-size: 11px; font-weight: 700; color: #7f9bb8; letter-spacing: .1em; }
+  #fw-draw .nm-x { flex: none; width: 32px; height: 32px; padding: 0; appearance: none; cursor: pointer; line-height: 1;
+    font-size: 13px; font-family: inherit; color: #9fb6cf; background: rgba(18, 38, 60, .9); border: 1px solid #3d5880; border-radius: 50%; }
+  #fw-draw .nm-x:hover { color: #fff; border-color: #ff5b8a; background: rgba(78, 22, 44, .9); }
+  /* 圆盘头像（学生首字） */
+  #fw-draw .drw-av { flex: none; width: 22px; height: 22px; border-radius: 50%; overflow: hidden; display: grid; place-items: center;
+    font-style: normal; font-size: 10.5px; font-weight: 900; color: #061018;
+    background: radial-gradient(circle at 34% 28%, hsl(var(--h, 268) 92% 82%), hsl(var(--h, 268) 62% 44%) 62%, hsl(var(--h, 268) 58% 26%));
+    border: 1px solid rgba(255, 255, 255, .5); box-shadow: 0 0 8px rgba(140, 96, 255, .4); }
+  /* ---------- 工具条 ---------- */
+  #fw-draw .nm-tool { flex: none; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 10px;
+    padding: 10px 16px; border-bottom: 1px solid #1c3550; background: rgba(7, 18, 31, .55); }
+  #fw-draw .drw-tabs { display: flex; flex-wrap: wrap; gap: 6px; max-width: 100%; }
+  #fw-draw .drw-tabs button { display: inline-flex; align-items: center; gap: 7px; cursor: pointer; font: inherit; font-size: 13px; font-weight: 800;
+    padding: 8px 13px; border-radius: 10px; color: #a8c0d8; background: rgba(12, 28, 46, .9); border: 1px solid #2c4a6c; }
+  #fw-draw .drw-tabs button em { font-style: normal; font-size: 11px; font-weight: 800; padding: 1px 6px; border-radius: 6px;
+    background: rgba(120, 170, 220, .16); color: #8fb2d2; }
+  #fw-draw .drw-tabs button.on { color: #fff; border-color: #e53778; background: linear-gradient(135deg, #e53778, #8f164c); box-shadow: 0 8px 20px -12px #e53778; }
+  #fw-draw .drw-tabs button.on em { background: rgba(255, 255, 255, .2); color: #fff; }
+  #fw-draw .drw-clsname { font-size: 13.5px; font-weight: 800; color: #b8cbe0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #fw-draw .drw-one { flex: none; padding: 7px 12px; border-radius: 10px; border: 1px dashed #2c4a6c;
+    color: #8fb2d2; font-size: 12.5px; font-weight: 800; white-space: nowrap; }
+  #fw-draw .drw-go { cursor: pointer; font: inherit; font-size: 15px; font-weight: 900; letter-spacing: .05em;
+    min-width: 148px; height: 44px; padding: 0 22px; border-radius: 11px; color: #1d1306; border: 1px solid #ffc85c;
+    background: linear-gradient(135deg, #f7bd38, #c66712); box-shadow: 0 10px 26px -14px #ffc85c; }
+  #fw-draw .drw-refresh { cursor: pointer; font: inherit; font-size: 14px; font-weight: 800; height: 44px; padding: 0 18px;
+    border-radius: 11px; color: #e8f1ff; border: 1px solid #6b7fff; background: linear-gradient(135deg, #4a54bd, #252d70); }
+  #fw-draw .drw-refresh.sm { height: 38px; padding: 0 14px; font-size: 13px; flex: none; }
+  #fw-draw .drw-use { cursor: pointer; font: inherit; font-size: 14px; font-weight: 900; height: 40px; padding: 0 18px;
+    border-radius: 11px; color: #062015; border: 1px solid #22e0a8;
+    background: linear-gradient(135deg, #2fe6b4, #0b9d77); box-shadow: 0 10px 24px -14px #22e0a8; flex: none; }
+  #fw-draw .drw-go:hover, #fw-draw .drw-refresh:hover, #fw-draw .drw-use:hover { filter: brightness(1.08); }
+  #fw-draw .drw-go:disabled, #fw-draw .drw-refresh:disabled { opacity: .5; cursor: default; filter: none; }
+  /* ---------- 状态行 ---------- */
+  #fw-draw .nm-sel { flex: none; padding: 8px 16px 2px; text-align: center; color: #ffd86d; font-size: 13.5px; font-weight: 700; min-height: 30px; }
+  /* ---------- 卡组舞台 ---------- */
+  #fw-draw .nm-stage { flex: 1 1 auto; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 8px 16px 4px; scrollbar-width: thin; }
+  #fw-draw .nm-stage::-webkit-scrollbar { width: 10px; height: 10px; }
+  #fw-draw .nm-stage::-webkit-scrollbar-thumb { background: #24425f; border-radius: 10px; }
+  #fw-draw .nm-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px; align-content: start;
+    width: 100%; max-width: 1500px; margin: 0 auto; }
+  /* ---------- 一张牌 ---------- */
+  #fw-draw .drw-card { position: relative; height: 400px; perspective: 1100px; cursor: pointer;
+    animation: nmDeal .42s cubic-bezier(.2, .8, .3, 1) both; animation-delay: calc(var(--i, 0) * 55ms); }
+  @keyframes nmDeal { 0% { opacity: 0; transform: translateY(22px) scale(.95); } 100% { opacity: 1; transform: none; } }
+  #fw-draw .drw-cardin { position: relative; width: 100%; height: 100%; transform-style: preserve-3d;
+    transition: transform .72s cubic-bezier(.2, .8, .2, 1); }
+  #fw-draw .drw-card.is-flip .drw-cardin { transform: rotateY(180deg); }
+  #fw-draw .drw-cback-wrap, #fw-draw .drw-cface { position: absolute; inset: 0; border-radius: 13px;
+    backface-visibility: hidden; -webkit-backface-visibility: hidden; overflow: hidden; }
+  #fw-draw .drw-cface { transform: rotateY(180deg); }
+  /* ---------- 牌背 ---------- */
+  #fw-draw .drw-cback { position: absolute; inset: 0; border-radius: 13px; overflow: hidden;
+    background: linear-gradient(145deg, #182c45, #0a1424); border: 1px solid #446281;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .07), 0 10px 30px rgba(0, 0, 0, .55); }
+  #fw-draw .drw-cback::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(150deg, rgba(255, 255, 255, .08), transparent 46%, rgba(0, 0, 0, .35)); }
+  #fw-draw .nm-dia { position: absolute; border: 1px solid rgba(83, 128, 170, .42); transform: rotate(45deg); pointer-events: none; }
+  #fw-draw .nm-dia.d1 { inset: 14%; }
+  #fw-draw .nm-dia.d2 { inset: 32%; border-color: rgba(239, 122, 183, .42); }
+  #fw-draw .nm-sig { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    font-style: normal; font-weight: 400; color: #b9d7f5; line-height: 1; font-size: 42px;
+    text-shadow: 0 0 18px rgba(120, 180, 255, .7); }
+  #fw-draw .drw-cback small { position: absolute; left: 4%; right: 4%; bottom: 7%; text-align: center;
+    font-size: 9.5px; letter-spacing: .12em; color: #6f87a3; font-weight: 700; white-space: nowrap; }
+  /* 牌背按稀有度上色（原型：牌背就是品质色） */
+  #fw-draw .drw-card[data-r="blue"] { --rc: var(--r-blue); --rg: var(--rg-blue); }
+  #fw-draw .drw-card[data-r="green"] { --rc: var(--r-green); --rg: var(--rg-green); }
+  #fw-draw .drw-card[data-r="purple"] { --rc: var(--r-purple); --rg: var(--rg-purple); }
+  #fw-draw .drw-card[data-r="gold"] { --rc: var(--r-gold); --rg: var(--rg-gold); }
+  #fw-draw .drw-card[data-r="blue"] .drw-cback { background: linear-gradient(160deg, #073e66, #071525 48%, #075b93); border-color: #24b8ff; box-shadow: inset 0 0 0 1px rgba(255,255,255,.07), 0 0 30px #1aaeff66; }
+  #fw-draw .drw-card[data-r="green"] .drw-cback { background: linear-gradient(160deg, #07544e, #071d28 48%, #087d70); border-color: #12e5b1; box-shadow: inset 0 0 0 1px rgba(255,255,255,.07), 0 0 30px #00e5c066; }
+  #fw-draw .drw-card[data-r="purple"] .drw-cback { background: linear-gradient(160deg, #431055, #181124 48%, #64258a); border-color: #bd54ff; box-shadow: inset 0 0 0 1px rgba(255,255,255,.07), 0 0 30px #d04cff66; }
+  #fw-draw .drw-card[data-r="gold"] .drw-cback { background: linear-gradient(160deg, #5b3a08, #21170d 48%, #7f4d0c); border-color: #ffc83d; box-shadow: inset 0 0 0 1px rgba(255,255,255,.07), 0 0 32px #ffbd3d77; }
+  #fw-draw .drw-card[data-r] .nm-sig { color: var(--rc); text-shadow: 0 0 16px var(--rg); }
+  /* ---------- 牌面 ---------- */
+  #fw-draw .drw-cface { display: flex; flex-direction: column; justify-content: space-between; padding: 14px 13px 12px;
+    background: linear-gradient(160deg, #16233a 0%, #0a1120 62%, #060c16 100%);
+    border: 1px solid var(--rc, #3fb6ff);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .06), 0 0 26px var(--rg, rgba(63, 182, 255, .4)); }
+  #fw-draw .drw-cface::before { content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(145deg, rgba(255, 255, 255, .12), transparent 34%, rgba(0, 0, 0, .32)); }
+  #fw-draw .drw-cface > * { position: relative; }
+  #fw-draw .drw-card[data-r="gold"] .drw-cface { background: linear-gradient(160deg, #3a2809, #170f06 62%, #2b1c07); }
+  #fw-draw .drw-card[data-r="purple"] .drw-cface { background: linear-gradient(160deg, #2b0e3c, #120b1d 62%, #1f0a2c); }
+  #fw-draw .drw-card[data-r="green"] .drw-cface { background: linear-gradient(160deg, #063a35, #06131a 62%, #052622); }
+  #fw-draw .drw-card[data-r="blue"] .drw-cface { background: linear-gradient(160deg, #0a2942, #07131f 62%, #061d2d); }
+  #fw-draw .drw-cn { display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; min-height: 16px; }
+  #fw-draw .drw-rar { font-style: normal; font-size: 10.5px; font-weight: 900; letter-spacing: .16em; color: var(--rc, #3fb6ff);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #fw-draw .drw-mid { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; gap: 2px; }
+  #fw-draw .drw-fx { flex: none; width: clamp(58px, 58%, 100px); aspect-ratio: 1; display: grid; place-items: center; margin: 0 auto 6px;
+    filter: drop-shadow(0 0 14px var(--rg, rgba(63, 182, 255, .45))); }
+  #fw-draw .drw-fx canvas { display: block; width: 100%; height: auto; image-rendering: pixelated; image-rendering: crisp-edges; }
+  #fw-draw .drw-nm { display: block; font-size: clamp(18px, 1.8vw, 30px); font-weight: 900; line-height: 1.16; letter-spacing: .04em;
+    color: #f2f8ff; overflow-wrap: anywhere; max-height: 2.4em; overflow: hidden;
+    text-shadow: 0 0 18px var(--rg, rgba(63, 182, 255, .45)), 0 2px 8px rgba(0, 0, 0, .55); }
+  #fw-draw .drw-card[data-r="gold"] .drw-nm { color: #ffe9a8; }
+  #fw-draw .drw-no { display: block; margin-top: 4px; font-family: ui-monospace, Consolas, monospace;
+    font-size: clamp(11px, .9vw, 14px); font-weight: 800; letter-spacing: .02em; color: rgba(239, 245, 255, .8); white-space: nowrap; }
+  #fw-draw .drw-tag { display: flex; justify-content: center; gap: 6px; min-height: 0; padding: 2px 0 5px; }
+  #fw-draw .drw-tag span { font-size: 10.5px; font-weight: 800; color: rgba(255, 255, 255, .72); padding: 1px 8px; border-radius: 999px;
+    background: rgba(255, 255, 255, .09); border: 1px solid rgba(255, 255, 255, .12); white-space: nowrap; max-width: 100%;
+    overflow: hidden; text-overflow: ellipsis; }
+  /* 票据行（原型 .ticket：课堂幸运卡 | ✦ +N 分） */
+  #fw-draw .nm-ticket { border-top: 1px solid rgba(255, 255, 255, .18); padding-top: 8px; display: flex; align-items: center;
+    justify-content: space-between; gap: 6px; color: rgba(255, 255, 255, .6); font-size: 11px; font-weight: 700; }
+  #fw-draw .nm-ticket > span:first-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #fw-draw .drw-vp { display: inline-flex; align-items: center; gap: 4px; flex: none; }
+  #fw-draw .drw-vp b { font-size: 11.5px; font-weight: 900; color: #ffd86d; letter-spacing: .02em;
+    text-shadow: 0 0 8px rgba(245, 197, 66, .5); white-space: nowrap; }
+  #fw-draw .drw-vp em { font-style: normal; font-size: 10px; font-weight: 700; color: rgba(255, 255, 255, .55); }
+  @media (hover: hover) { #fw-draw .drw-card:not(.is-flip):hover { filter: brightness(1.22); transform: translateY(-5px); } }
+  /* 揭示：牌面亮一下 + 金卡呼吸 */
+  #fw-draw .drw-card.is-flip .drw-cface { animation: nmPop .5s cubic-bezier(.2, 1.3, .4, 1) both; }
+  @keyframes nmPop { 0% { filter: brightness(1.9) saturate(1.35); } 100% { filter: brightness(1) saturate(1); } }
+  #fw-draw .nm-stage[data-phase="revealed"] .drw-card[data-r="gold"] .drw-cface { animation: nmGold 2.6s ease-in-out .35s infinite; }
+  @keyframes nmGold { 50% { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .1), 0 0 34px rgba(245, 197, 66, .7); } }
+  /* 空位：这组不发的卡位 */
+  #fw-draw .drw-slot { height: 400px; border-radius: 13px; border: 1px dashed rgba(120, 160, 200, .26);
+    background: rgba(10, 22, 38, .5); display: grid; place-items: center;
+    animation: nmDeal .42s both; animation-delay: calc(var(--i, 0) * 55ms); }
+  #fw-draw .drw-slot::after { content: ""; width: 7px; height: 7px; border-radius: 50%; background: rgba(120, 160, 200, .3); }
+  /* 刷新：220ms 洗牌过渡（和 rank.js drwRefresh 的 220 对上） */
+  #fw-draw .nm-grid.is-washing .drw-card { animation: nmWash .22s cubic-bezier(.4, 0, .6, 1) both; }
+  #fw-draw .nm-grid.is-washing .drw-slot { animation: nmWashSlot .22s ease both; }
+  @keyframes nmWash { 0% { opacity: 1; transform: none; } 45% { opacity: .55; transform: translateY(-10px) rotate(4deg) scale(.94); }
+    100% { opacity: 0; transform: translateY(14px) rotate(-3deg) scale(.9); } }
+  @keyframes nmWashSlot { 0% { opacity: 1; } 100% { opacity: 0; } }
+  /* aria-live 播报区：视觉上藏掉 */
+  #fw-draw .drw-live { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  /* ---------- 底栏 ---------- */
+  #fw-draw .drw-foot { flex: none; min-height: 52px; padding: 6px 16px 12px; display: flex; align-items: center; justify-content: center;
+    flex-wrap: wrap; gap: 10px; color: #a9b8cc; text-align: center; border-top: 1px solid #12253c; }
+  #fw-draw .drw-tip { font-size: 13px; font-weight: 700; color: #8fb2d2; }
+  #fw-draw .drw-tip b { color: #ffd86d; font-weight: 900; font-size: 15px; }
+  #fw-draw .nm-note { font-size: 11.5px; font-weight: 600; color: #6f87a3; }
+  /* ---------- 关动画 / 省电 ---------- */
   @media (prefers-reduced-motion: reduce) {
-    .drw-stage, .drw-stage * { animation: none !important; transition-duration: .01s !important; }
-    .drw-card, .drw-pt { opacity: 1 !important; }
-    .drw-pt { opacity: 0 !important; }
+    #fw-draw .drw-card, #fw-draw .drw-slot, #fw-draw .drw-cface,
+    #fw-draw .nm-grid.is-washing .drw-card,
+    #fw-draw .nm-stage[data-phase="revealed"] .drw-card[data-r="gold"] .drw-cface { animation: none !important; }
+    #fw-draw .drw-cardin { transition-duration: .01s !important; }
   }
-  html.is-lite .drw-stage, html.is-lite .drw-stage * { animation: none !important; transition-duration: .01s !important; }
-  html.is-lite .drw-card { opacity: 1 !important; }
-  html.is-lite .drw-pt { opacity: 0 !important; }
-  .drw-foot { gap: 14px; min-height: 64px; }
-  /* 触屏/投影：底栏按钮统一 ≥44px 的可点高度 */
-  .drw-foot .rk-btn { min-height: 44px; }
-  .drw-foot .rk-ghost { min-height: 44px; padding: 8px 14px; }
-  .drw-res b { font-size: 15px; } .drw-res b em { font-style: normal; font-size: 22px; color: #f59e0b; }
-  /* 手机竖屏：卡包舞台占满宽度，结果卡姓名保持 ≥26px */
+  html.is-lite #fw-draw .drw-card, html.is-lite #fw-draw .drw-slot, html.is-lite #fw-draw .drw-cface { animation: none !important; }
+  html.is-lite #fw-draw .drw-cardin { transition-duration: .01s !important; }
+  /* ---------- 窄屏（原型断点：≤900 三列、≤540 两列） ---------- */
+  @media (max-width: 1100px) { #fw-draw .drw-card, #fw-draw .drw-slot { height: 370px; } }
+  @media (max-width: 900px) {
+    #fw-draw .nm-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    #fw-draw .nm-brand span { display: none; }
+    #fw-draw .nm-tool { gap: 8px; padding: 9px 12px; }
+    #fw-draw .drw-go { min-width: 130px; }
+  }
   @media (max-width: 560px) {
-    .drw-scene { width: 88%; }
-    .drw-pack { width: min(62%, 220px); }
-    .drw-cface b { font-size: 26px; }
-    .drw-cface span { font-size: 14px; }
-    /* 底栏窄：结果说明自己占一行再放按钮，别把名字挤成竖排 */
-    .drw-foot { flex-wrap: wrap; }
-    .drw-res { flex: 1 1 100%; }
-    .drw-res b em { font-size: 18px; }
+    #fw-draw .nm-top { height: 50px; padding: 0 12px; gap: 8px; }
+    #fw-draw .nm-fxl { width: 32px; height: 32px; }
+    #fw-draw .nm-brand b { font-size: 14px; letter-spacing: .2em; }
+    #fw-draw .nm-vp { display: none; }
+    #fw-draw .nm-tool { justify-content: stretch; }
+    #fw-draw .drw-tabs { flex: 1 1 100%; max-height: 120px; overflow: auto; }
+    #fw-draw .drw-go, #fw-draw .drw-refresh { flex: 1 1 40%; min-width: 0; padding: 0 12px; font-size: 14px; }
+    #fw-draw .nm-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    #fw-draw .drw-card, #fw-draw .drw-slot { height: 300px; }
+    #fw-draw .nm-sig { font-size: 32px; }
+    #fw-draw .drw-cface { padding: 11px 10px 10px; }
+    #fw-draw .drw-nm { font-size: 20px; }
+    #fw-draw .drw-fx { width: 62%; max-width: 74px; }
+    #fw-draw .drw-foot { flex-wrap: wrap; }
+    #fw-draw .drw-tip { flex: 1 1 100%; }
   }
   /* ===== 排位主页：电路分三组、开始排位放最上面 ===== */
   .rk-main { grid-template-columns: 1.2fr 1fr; }
@@ -2390,16 +2446,24 @@ async function rkPicker(el, body) {
   el.querySelectorAll('[data-k]').forEach(b => (b.onclick = () => { RK.cls = +b.dataset.k; rkPicker(el, body); }));
   el.querySelectorAll('[data-s]').forEach(b => (b.onclick = () => { const s = list.find(x => x.id === +b.dataset.s); RK.pick = { id: s.id, name: rkStuName(s), cls: cls.name }; ls.set('hx-rank-pick', JSON.stringify(RK.pick)); rkMain(body); }));
 }
-// ---------- 随机抽人（教师）：游戏抽卡交互（卡包开启 / 翻牌揭示） ----------
-// 2026-11-06 由「班级大转盘」(.drw-wheel，2026-11-02 版) 整体换成「卡包 → 蓄力抖动 → 开包 → 翻牌揭示」：
-// 抽取逻辑原样保留 —— 先算出结果（一次只抽一个、不与上一次重复），动画只负责展示；
-// 动画期间 DRW.busy + #drwGo disabled 双保险，快速连点/连按卡包都不会重复抽取。
-// 按当前班级抽：一次课就一个班，卡包里只装这一个班的人，不允许把几个班合在一起混抽（老师明确要求）。
+// ---------- 随机抽人（教师）：夜市翻牌（2026-11-06 完整迁移自 .tmp-ref/night-market-draw-prototype.html） ----------
+// 呈现整体换成原型：顶栏（NIGHT MARKET / 点券 / ✕）→ 工具条（班级 / 开始翻牌 / 刷新下一组）→
+// 6 个卡位的夜市卡组（牌背按稀有度上色、3D 翻牌、像素动效、金色票据）。
+// 抽取逻辑原样保留：按当前班级抽、一次只抽一个、不与上一次重复（DRW.last）、抽中可「设为当前选手」；
+// 动画期间 DRW.busy + #drwGo disabled 双保险，快速连点不会重复抽取。
+// 按当前班级抽：一次课就一个班，卡组里只装这一个班的人，不允许把几个班合在一起混抽（老师明确要求）。
 function isT() { return !!(RK.me && (RK.me.teacher || RK.me.admin || RK.me.dev)); } // 函数声明，提升到顶部：rkRender 里先用到也不会撞上暂时性死区
-// 抽人状态机：idle → preparing → shaking → opening → revealing → result（异常时 error，按钮变「重试」）。
-// last 防着连抽同一个人；pool 是当前班的名单快照。
-const DRW = { cls: null, picked: null, busy: false, phase: 'idle', pool: [], box: null, last: null };
+// 抽人状态机：idle → dealing（发牌）→ flipping（翻面）→ revealed（抽中静止）；refreshing 是刷新卡组的洗牌过渡
+const DRW = { cls: null, picked: null, busy: false, phase: 'idle', pool: [], box: null, last: null, dealt: [], gen: 0, timers: [] };
 const DRW_CLS_KEY = 'zfz-draw-cls'; // 记住这一节课选的班：一次课一个班，下次打开不用重选
+// 稀有度：夜市 4 档（蓝 / 绿 / 紫 / 金），每张牌独立摇，装饰性质
+const DRW_RAR = [
+  { k: 'blue', t: '精良', w: 45 },
+  { k: 'green', t: '稀有', w: 32 },
+  { k: 'purple', t: '史诗', w: 18 },
+  { k: 'gold', t: '传说', w: 5 }
+];
+function drwRollRarity() { let r = Math.random() * 100, acc = 0; for (const x of DRW_RAR) { acc += x.w; if (r < acc) return x; } return DRW_RAR[0]; }
 // 选哪个班：localStorage 里上次课选的（失效就回落到下面）→ 排位主页当前选的 RK.cls
 // → 用当前选手的班级名去 RK.classes 反查 → 第一个班。拿到的 id 一定要还在 RK.classes 里。
 function drwPickCls() {
@@ -2418,13 +2482,7 @@ function drwSwitch(id, box) {
   const list = RK.studs[id] || [];
   if (RK.pick && list.length && !list.some(s => s.id === RK.pick.id)) { RK.pick = null; ls.set('hx-rank-pick', 'null'); }
   if (RK.body) rkMain(RK.body);
-  drwSub(); drwRender(box);
-}
-// 窗口副标题跟着当前班走：标题栏上就写着这次抽的是哪个班
-function drwSub() {
-  const c = RK.classes.find(x => x.id === DRW.cls), w = document.getElementById('fw-draw');
-  const s = w && w.querySelector('.fw-t small');
-  if (s) s.textContent = c ? `${c.name} · 一次抽一个` : '随机抽人 · 一次抽一个';
+  drwRender(box);
 }
 async function rkDrawWin() {
   if (!isT()) return toast('只有教师账号能随机抽人');
@@ -2433,14 +2491,9 @@ async function rkDrawWin() {
     catch (e) { return toast('加载班级失败：' + e.message); }
   }
   if (!RK.classes.length) return toast('还没有班级：在首页“班级”里导入考勤表，勾上“接线仿真”');
-  // 铺满整屏：转盘要占满教室大屏。floatWin 会记住上次拖动后的大小，先把整屏尺寸写回记忆里，
-  // 免得上次拖小了这次只开一条缝（位置一起写，左上角留 8/48 的边）
-  const W = Math.max(880, innerWidth - 16), H = Math.max(560, innerHeight - 56);
-  try { localStorage.setItem('zfz-fw-draw', JSON.stringify({ w: W, h: H, x: 8, y: 48 })); } catch (e) { }
-  // 先把这次抽哪个班定下来（副标题要用），再开窗；名单没到之前窗口里先显示“读取名单…”
+  // 铺满整屏（和排位同一个 fw-full 形制）：夜市卡组要占满教室大屏；窗口标题栏不摆，品牌和 ✕ 在夜市顶栏里
   DRW.cls = drwPickCls();
-  const c0 = RK.classes.find(c => c.id === DRW.cls);
-  const el = floatWin('draw', { title: '随机抽人', sub: c0 ? `${c0.name} · 一次抽一个` : '随机抽人 · 一次抽一个', w: W, h: H, minW: 520, minH: 460, a1: '#f59e0b', a2: '#ef4444', html: '<div class="drw" id="drw"><p class="rk-wait">读取名单…</p></div>' });
+  const el = floatWin('draw', { title: '随机抽人', sub: '抽人夜市 · 一次抽一个', full: true, a1: '#f59e0b', a2: '#ef4444', html: '<div class="drw" id="drw"><p class="rk-wait">读取名单…</p></div>' });
   // 所有班一次拉全：切班不用等，也不用再发一次请求
   await Promise.all(RK.classes.map(async c => {
     if (RK.studs[c.id]) return;
@@ -2449,6 +2502,12 @@ async function rkDrawWin() {
   const box = el.querySelector('#drw'); if (!box) return; // 等名单的时候窗口被关了
   DRW.cls = drwPickCls(); DRW.picked = null; DRW.busy = false; DRW.last = null; DRW.phase = 'idle';
   drwRender(box);
+  // 窗口被关掉（✕ / Esc）时停掉像素循环和定时器，不留常驻开销
+  if (!el.__drwWatch) {
+    el.__drwWatch = true;
+    new MutationObserver(() => { if (!el.classList.contains('show')) drwHalt(); })
+      .observe(el, { attributes: true, attributeFilter: ['class'] });
+  }
 }
 // 只抽当前这一个班（一次课一个班）：drwPool 里装的都是这个班的人
 function drwCls() { return RK.classes.find(c => c.id === DRW.cls) || RK.classes[0]; }
@@ -2456,123 +2515,250 @@ function drwPool() {
   const c = drwCls(); if (!c) return [];
   return (RK.studs[c.id] || []).map(s => ({ id: s.id, name: rkStuName(s), seq: s.seq, cls: c.name }));
 }
-function drwFootHTML() {
-  const p = DRW.picked;
-  if (!p) return '<span class="drw-hint">点上面「开始抽人」，卡包开启翻出本轮抽中的同学（一次抽一个）。</span>';
-  return `<div class="drw-res"><b>抽中 <em>${esc(p.name)}</em></b><span>${esc(p.cls || '')}${p.seq != null && p.seq < 1000 ? ' · 学号 ' + p.seq : ''}</span></div>
-    <button class="rk-btn" id="drwUse">设为当前选手</button>
-    <button class="rk-ghost" id="drwAgain">再抽一次</button>
-    <button class="rk-ghost" id="drwClose">关闭</button>`;
+/* ── 像素动效（PixelFXRank，MIT，见 NOTICE-pixelfx.md）：一条 rAF，12fps 封顶 ──
+   窗口关掉 / 重画立刻停；is-lite、关动画偏好只画一帧。 */
+const DRW_FX = { raf: 0, last: 0, items: [], gap: 1000 / 12 };
+const DRW_FX_IDS = ['level-up', 'collect-burst', 'hit-spark', 'rune-circle', 'quest-complete', 'zap-hit'];
+function drwFxPack() { const P = window.PixelFXRank; return (P && P.effects && P.createFx && P.createFrame) ? P : null; }
+function drwFxMount(holder, startAt) {
+  if (!holder) return null;
+  const P = drwFxPack(); if (!P) return null;
+  const pool = (P.ids && P.ids.length ? P.ids : DRW_FX_IDS).filter(id => P.effects[id] && P.effects[id].meta && P.effects[id].meta.size);
+  const mod = pool.length ? P.effects[pool[(Math.random() * pool.length) | 0]] : null;
+  if (!mod) return null;
+  const W = mod.meta.size[0], H = mod.meta.size[1];
+  const cv = document.createElement('canvas');
+  cv.width = W; cv.height = H; cv.setAttribute('aria-hidden', 'true');
+  let ctx = null; try { ctx = cv.getContext('2d'); } catch (e) { ctx = null; }
+  if (!ctx || typeof ctx.createImageData !== 'function') return null;   // 无 canvas 环境：静默降级
+  const O = mod.meta.origin || [W / 2, H / 2];
+  while (holder.firstChild) holder.removeChild(holder.firstChild);
+  holder.appendChild(cv);
+  const it = { ctx, img: ctx.createImageData(W, H), fr: P.createFrame(W, H), fx: P.createFx(mod, { x: O[0], y: O[1], seed: (Math.random() * 997) | 0 }) };
+  if (startAt) { try { it.fx.update(startAt); } catch (e) { } }
+  DRW_FX.items.push(it);
+  return it;
 }
-function drwRender(box) {
-  DRW.box = box; DRW.pool = drwPool();
+function drwFxPaint(it, dt) {
+  const P = drwFxPack(); if (!P) return;
+  if (dt) it.fx.update(dt);
+  P.clearFrame(it.fr); it.fx.draw(it.fr, 'back'); it.fx.draw(it.fr, 'front');
+  P.composite(it.fr, it.img.data, null);
+  it.ctx.putImageData(it.img, 0, 0);
+}
+function drwFxTick(now) {
+  DRW_FX.raf = 0;
+  if (!DRW_FX.items.length) { DRW_FX.last = 0; return; }
+  let dt = 0;
+  if (!DRW_FX.last) { DRW_FX.last = now; dt = 0; }
+  else if (now - DRW_FX.last < DRW_FX.gap - 1) { DRW_FX.raf = requestAnimationFrame(drwFxTick); return; }
+  else { dt = Math.min((now - DRW_FX.last) / 1000, .12); DRW_FX.last = now; }
+  for (const it of DRW_FX.items) { try { drwFxPaint(it, dt); } catch (e) { } }
+  DRW_FX.raf = requestAnimationFrame(drwFxTick);
+}
+function drwFxRun() {
+  if (!DRW_FX.items.length) return;
+  if (drwNoAnim()) { DRW_FX.items.forEach(it => drwFxPaint(it, 0)); return; }
+  if (!DRW_FX.raf) { DRW_FX.last = 0; DRW_FX.raf = requestAnimationFrame(drwFxTick); }
+}
+function drwFxStop() { if (DRW_FX.raf) cancelAnimationFrame(DRW_FX.raf); DRW_FX.raf = 0; DRW_FX.last = 0; DRW_FX.items.length = 0; }
+
+/* 头像 / 点券：同一个人每次一样（用 id 做种子），不闪 */
+function drwHueOf(p) { let d = 0; const s = String(p.id) + p.name; for (let i = 0; i < s.length; i++) d = (d * 33 + s.charCodeAt(i)) % 360; return d; }
+function drwScoreOf(p) { let d = 0; const s = String(p.id); for (let i = 0; i < s.length; i++) { const c = s.charCodeAt(i) - 48; if (c >= 0 && c <= 9) d = (d * 31 + c) % 997; } return 5 + (d % 7); }
+function drwAvatar(p) { return `<b class="drw-av" style="--h:${drwHueOf(p)}">${esc(p.name.slice(0, 1))}</b>`; }
+
+function drwBarHTML() {
   const cnt = c => (RK.studs[c.id] || []).length;
   const cur = drwCls();
-  // 只有一个班就不摆 tabs 了（一次课就一个班，没什么可切的），直接把班名和人数写在顶上；
+  // 只有一个班就不摆 tabs（一次课就一个班），直接把班名和人数写在工具条上；
   // 有多个班才摆各班 tab 供切换——不管几个班都绝不会出现“全部班级”这种混抽选项。
-  const bar = RK.classes.length > 1
-    ? `<div class="drw-tabs">${RK.classes.map(c => `<button data-c="${c.id}" class="${c.id === DRW.cls ? 'on' : ''}">${esc(c.name)}<em>${cnt(c)}</em></button>`).join('')}</div>`
+  return RK.classes.length > 1
+    ? `<div class="drw-tabs">${RK.classes.map(c => `<button type="button" data-c="${c.id}"${c.id === DRW.cls ? ' class="on"' : ''}>${esc(c.name)}<em>${cnt(c)}</em></button>`).join('')}</div>`
     : `<div class="drw-clsname">${esc(cur ? cur.name : '')} · ${cnt(cur || {})} 人</div>`;
-  // 深色舞台：中央一只卡包（层叠卡片 + 金色封条 + 高光描边 + 光晕粒子，纯 CSS，没有外部图片）。
-  // 卡包由上下两半拼成（同一张 .drw-skin 各裁一半），开包时两半分开，平时严丝合缝看不出接缝。
-  box.innerHTML = `<div class="drw-bar">
-      ${bar}
-      <button class="drw-go" id="drwGo">${DRW.picked ? '继续抽取' : '开始抽人'}</button>
-    </div>
-    <div class="drw-stage" id="drwStage" data-phase="${DRW.phase === 'result' ? 'result' : 'idle'}" role="region" aria-label="抽人舞台">
-      <div class="drw-scene">
-        <i class="drw-halo"></i>
-        <div class="drw-pack" id="drwPack" title="点卡包也能抽">
-          <i class="drw-lyr l1"></i><i class="drw-lyr l2"></i>
-          <div class="drw-half top"><div class="drw-skin"><span class="drw-pname">随机抽人</span><i class="drw-seal">抽</i></div></div>
-          <div class="drw-half bot"><div class="drw-skin"><span class="drw-pname">随机抽人</span><i class="drw-seal">抽</i></div></div>
-          <i class="drw-pt"></i><i class="drw-pt"></i><i class="drw-pt"></i><i class="drw-pt"></i><i class="drw-pt"></i><i class="drw-pt"></i>
-        </div>
-        <i class="drw-flash"></i>
-        <div class="drw-cards" id="drwCards"></div>
-      </div>
-      <p class="drw-live" id="drwLive" role="status" aria-live="polite"></p>
-    </div>
-    <div class="drw-foot" id="drwFoot">${drwFootHTML()}</div>`;
-  box.querySelectorAll('[data-c]').forEach(b => (b.onclick = () => {
-    if (DRW.busy) return; // 抽着的时候不许换班：换班会重画卡包，动画会被打断
-    drwSwitch(+b.dataset.c, box);
-  }));
-  const go = box.querySelector('#drwGo'); if (go) go.onclick = () => drwRoll(box);
-  const pack = box.querySelector('#drwPack'); if (pack) pack.onclick = () => drwRoll(box); // 点卡包也能抽（投影上更好点）
-  drwBindFoot(box);
 }
-// 抽人状态机的推进：改 DRW.phase + 舞台的 data-phase（CSS 动画全部挂在 data-phase 上）
-function drwPhase(box, p) { DRW.phase = p; const s = box.querySelector('#drwStage'); if (s) s.dataset.phase = p; }
-// 按钮文案跟随状态机：开始抽人 → 抽取中…（禁用）→ 继续抽取 → 重试
-function drwGo(box, label, dis) { const g = box.querySelector('#drwGo'); if (g) { g.textContent = label; g.disabled = !!dis; } }
-// 结果卡：姓名最大字号、班级·学号次级、「本轮抽中」标签；多人时依次揭示（animation-delay / transition-delay 错开）
-function drwCards(box, list) {
-  const wrap = box.querySelector('#drwCards'); if (!wrap) return;
-  wrap.innerHTML = list.map((p, i) => `<div class="drw-card" style="animation-delay:${i * .22}s">
-    <div class="drw-cardin" style="transition-delay:${i * .18}s">
-      <div class="drw-cback"></div>
-      <div class="drw-cface"><em>本轮抽中</em><b>${esc(p.name)}</b><span>${esc(p.cls || '')}${p.seq != null && p.seq < 1000 ? ' · 学号 ' + p.seq : ''}</span></div>
-    </div></div>`).join('');
+/* 顶栏：左上像素动效 / 中间 NIGHT MARKET 标题 / 右上点券 + 关闭（窗口标题栏不摆，品牌和 ✕ 都在这里） */
+function drwTopHTML() {
+  return `<header class="nm-top"><div class="nm-fxl" id="drwFxl"></div>` +
+    `<div class="nm-brand"><b>NIGHT MARKET</b><span>抽人夜市</span></div>` +
+    `<div class="nm-right"><span class="nm-vp" title="课堂点券（装饰）"><i aria-hidden="true">✦</i><b>1280</b><em>点券</em></span>` +
+    `<button type="button" class="nm-x" id="drwCloseX" aria-label="关闭">✕</button></div></header>`;
 }
-function drwBindFoot(box) {
-  const u = box.querySelector('#drwUse'), a = box.querySelector('#drwAgain'), c = box.querySelector('#drwClose');
-  if (a) a.onclick = () => drwRoll(box);
-  if (c) c.onclick = () => { const w = document.getElementById('fw-draw'); if (w) w.classList.remove('show'); };
-  if (!u) return;
-  u.onclick = () => {
-    const p = DRW.picked; if (!p) return;
-    RK.pick = { id: p.id, name: p.name, cls: p.cls };
-    ls.set('hx-rank-pick', JSON.stringify(RK.pick));
-    const w = document.getElementById('fw-draw'); if (w) w.classList.remove('show');
-    if (RK.body) rkMain(RK.body);
-    toast('当前选手：' + p.name);
-  };
+function drwFootHTML() {
+  const p = DRW.picked;
+  if (DRW.busy) return '<span class="drw-tip">正在翻牌…</span>';
+  if (p) return `<span class="drw-tip">本轮抽中 <b>${esc(p.name)}</b>${p.seq != null && p.seq < 1000 ? ' · 学号 ' + p.seq : ''}</span>` +
+    `<button type="button" class="drw-use" id="drwUse">设为当前选手</button>` +
+    `<button type="button" class="drw-refresh sm" id="drwAgain">↻ 再抽一张</button>`;
+  return '<span class="drw-tip">翻开一张卡牌，抽出的同学可设为当前选手</span><span class="nm-note">一次只抽一个 · 不会和上一位重复</span>';
 }
-// 舞台是纯 CSS 弹性布局（clamp 字号 + grid/flex 居中），手机竖屏、希沃横屏都自适应，不需要 JS 量尺寸重排。
-// ── 一轮抽取：结果先算好（上面的防重复逻辑），再按状态机把动画演完 ──
-// 时序（关掉动画偏好 / is-lite 走 fast 路径，直接出结果）：
-//   preparing 0.48s 卡包蓄势 → shaking 0.88s 蓄力抖动（幅度渐增）→ opening 0.7s 上下分离+强光+卡片飞出
-//   → revealing 0.88s 翻面揭示 → result。全程约 3 秒，符合 2.5～4 秒的要求。
-const drwSleep = ms => new Promise(r => setTimeout(r, ms));
+function drwSelHTML() {
+  const c = drwCls();
+  if (DRW.busy) return '正在翻牌…';
+  if (DRW.picked) return `本轮抽中：${esc(DRW.picked.name)} · 可「设为当前选手」或「再抽一张」`;
+  return `可翻开 1 张卡牌 · 当前班级：${esc(c ? c.name : '—')} · 共 ${(RK.studs[DRW.cls] || []).length} 人`;
+}
+/* 牌背：霓虹底面 + 菱形套菱形 + 中央 ◇ + 品牌字（原型 .back） */
+function drwBackHTML() {
+  return `<div class="drw-cback"><i class="nm-dia d1"></i><i class="nm-dia d2"></i>` +
+    `<b class="nm-sig" aria-hidden="true">◇</b><small>华夏 · NIGHT MARKET</small></div>`;
+}
+/* 牌面：稀有度 / 像素动效 / 姓名 + 学号 / 班级 / 课堂幸运卡（原型 .front） */
+function drwFaceHTML(p, r) {
+  return `<div class="drw-cn"><em class="drw-rar">${r.t} · 接线仿真</em></div>` +
+    `<div class="drw-mid"><i class="drw-fx" data-fx aria-hidden="true"></i>` +
+    `<strong class="drw-nm">${esc(p.name)}</strong>` +
+    `<span class="drw-no">${p.seq != null && p.seq < 1000 ? p.seq : '——'}</span></div>` +
+    `<div class="drw-tag">${p.cls ? `<span>${esc(p.cls)}</span>` : ''}</div>` +
+    `<div class="nm-ticket"><span>课堂幸运卡</span><span class="drw-vp">${drwAvatar(p)}<b>✦${drwScoreOf(p)}</b><em>分</em></span></div>`;
+}
+function drwRender(box) {
+  DRW.box = box; DRW.pool = drwPool(); DRW.picked = null;
+  drwHalt();
+  box.innerHTML = drwTopHTML() +
+    `<div class="nm-tool" id="drwTool">${drwBarHTML()}<span class="drw-one">一次抽一个</span>` +
+      `<button type="button" class="drw-go" id="drwGo">开始翻牌 ▶</button>` +
+      `<button type="button" class="drw-refresh" id="drwRefresh">↻ 刷新下一组</button></div>` +
+    `<div class="nm-sel" id="drwSel">${drwSelHTML()}</div>` +
+    `<div class="nm-stage" id="drwStage" data-phase="idle" role="region" aria-label="抽人夜市卡组">` +
+      `<div class="nm-grid" id="drwGrid"></div>` +
+      `<p class="drw-live" id="drwLive" role="status" aria-live="polite"></p></div>` +
+    `<footer class="drw-foot" id="drwFoot">${drwFootHTML()}</footer>`;
+  const x = box.querySelector('#drwCloseX'); if (x) x.onclick = drwCloseWin;
+  drwDeal(box);
+  drwFxMount(box.querySelector('#drwFxl'), .2); drwFxRun();
+}
+/* 这组发几张：原型固定 6 张，班比 6 人还少时以人数为准 */
+function drwDealCount() { return Math.min(6, DRW.pool.length); }
+/* 发一组牌：避开上一次抽中的人（一次课里不连抽同一个），整班只剩 1 人时例外 */
+function drwSample(n) {
+  let avail = DRW.pool.filter(p => !(DRW.last != null && p.id === DRW.last));
+  if (avail.length < n) avail = DRW.pool.slice();
+  const list = avail.slice();
+  for (let i = list.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0, t = list[i]; list[i] = list[j]; list[j] = t; }
+  return list.slice(0, Math.min(n, list.length));
+}
+function drwDeal(box) {
+  DRW.pool = drwPool();
+  const g = box.querySelector('#drwGrid'); if (!g) return;
+  const n = drwDealCount();
+  const picks = drwSample(n);
+  DRW.dealt = picks.map(p => ({ p, r: drwRollRarity() }));
+  DRW.picked = null; DRW.busy = false; DRW.phase = 'idle';
+  let html = '';
+  for (let i = 0; i < 6; i++) {
+    html += i < n
+      ? `<article class="drw-card" data-i="${i}" data-r="${DRW.dealt[i].r.k}" style="--i:${i}">` +
+        `<div class="drw-cardin"><div class="drw-cback-wrap">${drwBackHTML()}</div>` +
+        `<div class="drw-cface">${drwFaceHTML(DRW.dealt[i].p, DRW.dealt[i].r)}</div></div></article>`
+      : `<div class="drw-slot" style="--i:${i}" aria-hidden="true"></div>`;
+  }
+  g.innerHTML = html;
+  g.classList.remove('is-washing');
+  const stage = box.querySelector('#drwStage'); if (stage) stage.setAttribute('data-phase', 'idle');
+  const live = box.querySelector('#drwLive'); if (live) live.textContent = '';
+  drwChrome(box);
+  g.querySelectorAll('.drw-card').forEach(el => (el.onclick = () => drwManualFlip(el, box)));
+}
+/* 工具条 / 状态行 / 底栏都跟着状态机重画（和 .drw-card 的 onclick 一起重新绑） */
+function drwChrome(box) {
+  const t = box.querySelector('#drwTool');
+  if (t) t.innerHTML = `${drwBarHTML()}<span class="drw-one">一次抽一个</span>` +
+    `<button type="button" class="drw-go" id="drwGo"${DRW.busy ? ' disabled' : ''}>${DRW.busy ? '翻牌中…' : DRW.picked ? '再抽一张 ▶' : '开始翻牌 ▶'}</button>` +
+    `<button type="button" class="drw-refresh" id="drwRefresh"${DRW.busy ? ' disabled' : ''}>↻ 刷新下一组</button>`;
+  const s = box.querySelector('#drwSel'); if (s) s.innerHTML = drwSelHTML();
+  const f = box.querySelector('#drwFoot'); if (f) f.innerHTML = drwFootHTML();
+  box.querySelectorAll('[data-c]').forEach(b => (b.onclick = () => { if (DRW.busy) return; drwSwitch(+b.dataset.c, box); }));
+  const g = box.querySelector('#drwGrid'); if (g) g.querySelectorAll('.drw-card').forEach(el => (el.onclick = () => drwManualFlip(el, box)));
+  const go = box.querySelector('#drwGo'); if (go) go.onclick = () => drwFlip(box);
+  const rf = box.querySelector('#drwRefresh'); if (rf) rf.onclick = () => drwRefresh(box);
+  const u = box.querySelector('#drwUse'); if (u) u.onclick = drwUse;
+  const ag = box.querySelector('#drwAgain'); if (ag) ag.onclick = () => drwFlip(box);
+}
+/* 手动点牌翻面（原型：点牌就翻） */
+function drwManualFlip(card, box) {
+  if (DRW.busy || !card || card.classList.contains('is-flip')) return;
+  if (DRW.picked) return;                                  // 一次抽一个：本轮已出结果，先「再抽一张」
+  const it = DRW.dealt[+card.getAttribute('data-i')]; if (!it) return;
+  card.classList.add('is-flip');
+  DRW.picked = it.p; DRW.last = it.p.id;
+  drwSettle(box);
+}
+/* ── 一轮抽取：时序 dealing .42s → 翻面（单片 .72s）→ revealed；和 project2.html 的时长一一对应 ── */
+function drwFlip(box) {
+  if (DRW.busy) return;
+  if (!DRW.pool.length) { toast('这个班还没有学生'); return; }
+  if (DRW.picked) return drwRefresh(box);                  // 「再抽一张」：洗一组新牌再翻
+  const pending = [...box.querySelectorAll('.drw-card:not(.is-flip)')];
+  if (!pending.length) return;
+  DRW.busy = true; DRW.gen += 1; const gen = DRW.gen;
+  drwClearTimers(); drwFxStop();
+  DRW.phase = 'dealing';
+  const stage = box.querySelector('#drwStage'); if (stage) stage.setAttribute('data-phase', 'dealing');
+  drwChrome(box);
+  const card = pending[(Math.random() * pending.length) | 0];
+  if (drwNoAnim()) { drwDoFlip(card, box); drwSettle(box); return; }   // 降级：不演过程，直接出结果
+  drwLater(() => {
+    if (!box.isConnected || DRW.gen !== gen) return;
+    DRW.phase = 'flipping';
+    const st = box.querySelector('#drwStage'); if (st) st.setAttribute('data-phase', 'flipping');
+    drwLater(() => { if (!box.isConnected || DRW.gen !== gen) return; drwDoFlip(card, box); }, 120 + Math.random() * 180);
+    drwLater(() => { if (!box.isConnected || DRW.gen !== gen) return; drwSettle(box); }, 120 + 180 + 720 + 40);
+  }, 420);
+}
+function drwDoFlip(card, box) {
+  if (!card || card.classList.contains('is-flip')) return;
+  const it = DRW.dealt[+card.getAttribute('data-i')]; if (!it) return;
+  card.classList.add('is-flip');
+  DRW.picked = it.p; DRW.last = it.p.id;
+  const live = box.querySelector('#drwLive');
+  if (live) live.textContent = `抽中：${it.p.name}（${it.p.cls || ''}${it.p.seq != null && it.p.seq < 1000 ? ' · 学号 ' + it.p.seq : ''}）`;
+}
+/* 落定：翻好、像素动效这时候才跑（和原型一致：翻完才亮） */
+function drwSettle(box) {
+  DRW.busy = false; DRW.phase = 'revealed';
+  const stage = box.querySelector('#drwStage'); if (stage) stage.setAttribute('data-phase', 'revealed');
+  drwChrome(box);
+  drwFxStop();
+  box.querySelectorAll('.drw-card.is-flip .drw-fx').forEach(h => drwFxMount(h, .2 + Math.random() * 1.4));
+  drwFxMount(box.querySelector('#drwFxl'), .2);
+  drwFxRun();
+}
+/* ── 刷新下一组：清空本轮结果、重新发一组牌 ── */
+function drwRefresh(box) {
+  if (DRW.busy) return;
+  DRW.busy = true; DRW.phase = 'refreshing'; DRW.gen += 1; const gen = DRW.gen;
+  drwClearTimers(); drwFxStop();
+  const stage = box.querySelector('#drwStage'); if (stage) stage.setAttribute('data-phase', 'refreshing');
+  const grid = box.querySelector('#drwGrid'); if (grid) grid.classList.add('is-washing');
+  const live = box.querySelector('#drwLive'); if (live) live.textContent = '';
+  drwLater(() => {
+    if (!box.isConnected || DRW.gen !== gen) return;
+    DRW.busy = false;
+    if (grid) grid.classList.remove('is-washing');
+    drwDeal(box);
+    drwFxMount(box.querySelector('#drwFxl'), .2); drwFxRun();
+  }, 220);
+}
+/* 抽中的人设为当前选手：业务联动和旧版完全一致（写回 hx-rank-pick 并重绘排位主页） */
+function drwUse() {
+  const p = DRW.picked; if (!p) return;
+  RK.pick = { id: p.id, name: p.name, cls: p.cls };
+  ls.set('hx-rank-pick', JSON.stringify(RK.pick));
+  drwCloseWin();
+  if (RK.body) rkMain(RK.body);
+  toast('当前选手：' + p.name);
+}
+function drwCloseWin() {
+  drwHalt();
+  const w = document.getElementById('fw-draw'); if (w) w.classList.remove('show');
+}
+function drwClearTimers() { DRW.timers.forEach(clearTimeout); DRW.timers.length = 0; }
+function drwLater(fn, ms) { DRW.timers.push(setTimeout(fn, ms)); }
+/* 关窗 / 换班 / 重画：停掉定时器和像素循环，别再往新舞台上写 */
+function drwHalt() { drwClearTimers(); drwFxStop(); DRW.busy = false; DRW.gen += 1; }
 const drwNoAnim = () => document.documentElement.classList.contains('is-lite')
   || matchMedia('(prefers-reduced-motion: reduce)').matches;
-async function drwRoll(box) {
-  if (DRW.busy) return; // 状态机没走完之前，按钮/卡包/连点全部进不来
-  const pool = DRW.pool.length ? DRW.pool : (DRW.pool = drwPool());
-  const n = pool.length; if (!n) return toast('这个班还没有学生');
-  // 一次只抽一个；连着点“再抽一次”不许还是刚才那个人（只有 1 个人的班除外）——抽取逻辑原样保留
-  let idx = Math.random() * n | 0;
-  if (n > 1 && DRW.last != null && pool[idx].id === DRW.last) idx = (idx + 1 + (Math.random() * (n - 1) | 0)) % n;
-  const win = pool[idx];
-  DRW.busy = true; DRW.picked = null;
-  const wrap = box.querySelector('#drwCards'); if (wrap) wrap.innerHTML = ''; // 上一轮的卡收走，卡包在 preparing 里重新合体
-  try {
-    drwPhase(box, 'preparing'); drwGo(box, '抽取中…', true);
-    box.querySelector('#drwFoot').innerHTML = '<span class="drw-hint">抽取中…</span>';
-    if (!drwNoAnim()) {
-      await drwSleep(480);                            // 卡包蓄势（放大 + 光晕收紧）
-      if (!box.isConnected) throw 0;                  // 等待期间窗口被关了：走 error 兜底，不继续演
-      drwPhase(box, 'shaking'); await drwSleep(880);  // 蓄力抖动，幅度渐增
-      drwPhase(box, 'opening'); drwCards(box, [win]); // 上下分离 + 强光 + 卡片飞出
-      await drwSleep(700);
-      drwPhase(box, 'revealing'); await drwSleep(880);// 翻面揭示
-      if (!box.isConnected) throw 0;
-    } else { drwPhase(box, 'opening'); drwCards(box, [win]); } // 降级：不演动画，卡片直接亮出结果
-    drwPhase(box, 'result');
-    DRW.picked = win; DRW.last = win.id;
-    const live = box.querySelector('#drwLive');
-    if (live) live.textContent = `抽中：${win.name}（${win.cls || ''}${win.seq != null && win.seq < 1000 ? ' · 学号 ' + win.seq : ''}）`;
-    drwGo(box, '继续抽取', false);
-    box.querySelector('#drwFoot').innerHTML = drwFootHTML(); drwBindFoot(box);
-  } catch (e) {
-    DRW.phase = 'error';
-    if (box.isConnected) {
-      drwGo(box, '重试', false);
-      box.querySelector('#drwFoot').innerHTML = '<span class="drw-hint">刚才被打断了，点「重试」再来一次。</span>';
-    }
-  } finally { DRW.busy = false; }
-}
 async function rkBoard(el, hl) {
   let rows; try { rows = await HX.rpc('rank_board', { p_circuit: RK.circuit, p_limit: 50 }, HX.in()); } catch (e) { el.innerHTML = `<p class="rk-err">${esc(e.message)}</p>`; return; }
   if (!rows.length) { el.innerHTML = '<p class="rk-empty">还没有人上榜，来当第一名</p>'; return; }

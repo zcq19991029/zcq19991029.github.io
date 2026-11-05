@@ -1847,13 +1847,21 @@ html.hx-bg body::before { display: none; }
    1/2/3/4/5 五颗玻璃质感小按钮，颜色分五档但不刺眼；
    点一颗 → 其余收起、分数占住这一格；双击分数 → 撤销回五颗。
    ============================================================ */
-.leader-table td.peer-td { padding: 4px 3px; background: var(--xl-duty); }
-.peer-cell { display: flex; align-items: center; justify-content: center; gap: 2px; min-height: 32px; border-radius: 10px; }
+/* 2026-11-05 用户：「1~5 分按钮太小，建议合理铺满单元格、可以自适应」。
+   做法：按钮组 flex 等分单元格宽度 —— 列宽变大按钮跟着变宽，列再挤也保底 40px 高（触屏能点）。
+   列宽按项目列数算：leader-scoring.js 把列数写到 .tablewrap 的 --peer-cols 上，
+   默认 4 列约 200px/列；30 列时整表横向滚动，不会把 5 颗按钮压成一条缝。 */
+.tablewrap.peer-tablewrap .leader-table { min-width: max(1100px, calc(245px + var(--peer-cols, 4) * 200px)) !important; }
+.tablewrap.peer-tablewrap .leader-table th:nth-child(n+3) { width: 200px; }
+.leader-table td.peer-td { padding: 4px; background: var(--xl-duty); }
+.peer-cell { display: flex; align-items: stretch; justify-content: stretch; gap: 4px; width: 100%; min-height: 44px; border-radius: 10px; }
 .peer-pick {
   appearance: none; -webkit-appearance: none;
-  width: 22px; height: 27px; padding: 0; border-radius: 8px;
-  font: 700 12px/1 'Segoe UI', 'Microsoft YaHei', sans-serif;
-  cursor: pointer; border: 1px solid rgba(255, 255, 255, .6);
+  flex: 1 1 0; min-width: 30px; width: auto; height: auto; min-height: 40px; padding: 0 2px;
+  border-radius: 9px;
+  font: 700 clamp(13px, .5vw + 10px, 17px)/1 'Segoe UI', 'Microsoft YaHei', sans-serif;
+  cursor: pointer; touch-action: manipulation;
+  border: 1px solid rgba(255, 255, 255, .6);
   -webkit-backdrop-filter: blur(6px) saturate(160%);
   backdrop-filter: blur(6px) saturate(160%);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .85), 0 1px 2px rgba(70, 50, 50, .08);
@@ -1867,6 +1875,17 @@ html.hx-bg body::before { display: none; }
 .peer-pick:hover { transform: translateY(-1px); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .9), 0 3px 8px rgba(70, 50, 50, .16); }
 .peer-pick:active { transform: translateY(0) scale(.97); }
 .peer-pick:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* 说明文字颜色跟着主题走（2026-11-05 用户：「主题能改颜色，那为什么配字不能改」）。
+   --hint-ink 是面板里解释性文字（「每项 5 分，点 1–5 直接记分…」这类）的专用色：
+   浅色主题比 --muted 再深一档（12.5px 灰字压在粉白底上对比度不够），深色主题换成偏亮蓝灰。
+   两块都写在主题变量里，切深浅/换强调色时说明文字自动换到可读的组合，不再写死 #83848a。
+   只作用于组内个人评分这一屏（#view-leader），别的页面 .note 不受影响。 */
+:root { --hint-ink: #56575f; }
+:root[data-hx-mode="dark"] { --hint-ink: #b6c4e8; }
+#view-leader .note,
+#view-leader .peer-gate-note,
+#view-leader .peer-panel-head span { color: var(--hint-ink); }
 
 /* 已记分：一颗玻璃胶囊占住整格 */
 .peer-cell.is-set {
@@ -1884,7 +1903,7 @@ html.hx-bg body::before { display: none; }
 .peer-cell.is-set.score-4 { --tc: #17566e; --tcbg: rgba(95, 168, 201, .18); }
 .peer-cell.is-set.score-5 { --tc: #3d3279; --tcbg: rgba(138, 127, 214, .20); }
 .peer-cell.is-set:hover { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .95), 0 4px 12px rgba(70, 50, 50, .18); }
-.peer-score { font: 800 17px/1 'Segoe UI', 'Microsoft YaHei', sans-serif; color: var(--tc); letter-spacing: .02em; }
+.peer-score { font: 800 clamp(17px, .6vw + 10px, 22px)/1 'Segoe UI', 'Microsoft YaHei', sans-serif; color: var(--tc); letter-spacing: .02em; }
 .peer-src {
   margin-left: 3px; padding: 1px 4px; border-radius: 999px;
   font: 600 9px/1.4 'Segoe UI', 'Microsoft YaHei', sans-serif;

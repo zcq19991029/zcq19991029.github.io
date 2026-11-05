@@ -1,6 +1,10 @@
 // 华夏工具外观（网站根目录 /hx-theme.js + /hx-theme.css）。全部工具在 <head> 里同步引用，打开就是选好的外观、不闪。
-// 外观只在总入口右上角改：主题色（沿用旧刷题站的 7 套）、浅色 / 深色 / 自动、背景图（推荐几张或自己上传）、界面透明度。
-// 存在 localStorage hx-theme（JSON），自己上传的背景图压缩后存 hx-theme-img；同一网站的页面（包括嵌在总入口里的工具）通过 storage 事件一起变。
+// ── 分层（2026-11-05 定稿）──
+//   · 全局层（键 hx-theme）：背景图/视频、背景动效、校徽水印 —— 全站通用，只在总入口右上角改；
+//   · 界面层（键 hx-theme:s:home / hx-theme:s:<tool>）：主题色、深色/浅色/自动、卡片通透度、背景清晰度
+//     —— 每个页面（首页和每个工具）各自一份、互不干扰；总入口外观面板改的是它自己（home）那份。
+// 外观只在总入口右上角改：主题色（沿用旧刷题站的 7 套）、深色 / 浅色 / 自动、背景图、通透度两根滑杆。
+// 自己上传的背景图压缩后存 hx-theme-img；同一网站的页面（包括嵌在总入口里的工具）通过 storage 事件一起变。
 // 子工具只适配：<html data-theme="light|dark">（排课、单片机上机原有的深浅色写法）+ 行内 CSS 变量 --acc 等；接线仿真、排课、单片机的旧主题键顺带改好。
 // <script src="../hx-theme.js" data-tool="paike">：子工具在网站上被单独打开（不在总入口框里）时，跳回总入口的对应工具，登录、账号只在总入口。
 (function () {
@@ -13,7 +17,8 @@
     red: { name: '朱红', l: '#c23b3b', d: '#ff6961', l2: '#d66a6a', d2: '#ff9a94' },
     mono: { name: '黑白', l: '#1d1d1f', d: '#f5f5f7', l2: '#55555a', d2: '#c7c7cc' }
   };
-  // 推荐背景：旧站的猫耳学习图（dev：开发者专属，只有开发者账号看得到、用得上）+ 几张渐变（不占流量）；op 是选它时的推荐透明度
+  // 推荐背景：旧站的猫耳学习图（dev：开发者专属，只有开发者账号看得到、用得上）+ 几张渐变（不占流量）。
+  // （op 字段是旧版「选背景时顺手改卡片透明度」的推荐值，VER 5 起不再使用：通透度归界面层管，换背景不动它。）
   var BG = {
     none: { name: '无' },
     // 2026-11-04 深夜用户定：背景只留三档 —— 无 / 极光动态（新的全站默认）/ 自己上传。
@@ -33,7 +38,17 @@
   // VER 4（2026-11-04 深夜）：背景项合并成上面三档，默认改成极光视频。
   // 老存档里凡是选了已下架背景（bear/chiikawa/cat/mist/bay/dusk/旧极光渐变）的，统一迁到新默认；
   // 自己上传过图的（custom 且本地还有图）保留不动 —— 那是用户自己的东西，不能因为改默认就没了。
-  var KEY = 'hx-theme', IMG = 'hx-theme-img', DEV = 'hx-dev', VER = 4, DEF = { acc: 'green', mode: 'auto', bg: 'aurora', op: 100, wx: 'none' };
+  // VER 5（2026-11-05）：主题体系分层。全局键 hx-theme 只管「背景 / 动效 / 校徽水印」（全站通用，总入口统一换）；
+  // 主题色、深浅模式、卡片通透度、背景清晰度改成**按界面分键**（hx-theme:s:home = 总入口首页，
+  // hx-theme:s:<tool> = 各工具页），互不干扰：首页改浅色不会带着工具一起变。
+  // 滑杆语义 2026-11-05 翻转：原来的 op「卡片透明度」100 = 最实；现在叫 clr「卡片通透度」，100 = 最透
+  // （也就是用户定下的默认观感：深色玻璃底、背景透出来），往下调卡片变实、文字更清楚。
+  // 老存档里的 op 不再折算：旧 100 = 新 100（同一观感），旧值更小的本意是「更透」——新体系 100 已经是最透，
+  // 一律落回默认 100，保证老用户刷新后看到的就是这版定稿的玻璃观感。
+  var KEY = 'hx-theme', SKEY = 'hx-theme:s:', IMG = 'hx-theme-img', DEV = 'hx-dev', VER = 5,
+    // 2026-11-05 用户定：默认进来 = 深色主题 + 两个滑杆都 100%（通透度 100 = 深色清透玻璃，背景最透出）。
+    // 之前默认 mode:'auto'，Mac 浅色系统打开就是浅色 + 旧白玻璃配方，用户原话「玻璃质感不高级 仅仅只是白色雾蒙蒙」。
+    DEF = { acc: 'green', mode: 'dark', bg: 'aurora', clr: 100, bgo: 100, wx: 'none' };
   // 背景动效（2026-11-03）：和背景主题平行的「动效模块」，由 fx/hx-weather.js 渲染在背景层。
   // 白名单写死在这里（而不是由渲染器自己认）：将来下架某个特效，老存档里选着它也会安全回落到「无」。
   var WX = {
@@ -298,29 +313,39 @@
   })();
 
   function ls(k, v) { try { if (v === undefined) return localStorage.getItem(k); if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { if (v !== undefined && v !== null) throw e; } return null; }
+  function jparse(raw) { try { var v = JSON.parse(raw); return v && typeof v === 'object' ? v : null; } catch (e) { return null; } }
+  function clamp01(n, d) { return Math.min(100, Math.max(0, isFinite(n) ? n : d)); }
+  // 当前界面的名字：总入口（没有 data-tool）= home，各工具 = data-tool 的值。
+  // 界面层设置（主题色 / 深浅 / 卡片通透度 / 背景清晰度）都存自己的键，互不干扰。
+  var SURF = tool || 'home';
   function get() {
-    var raw = ls(KEY), v = null;
-    if (raw && OLD[raw]) v = OLD[raw]; else try { v = JSON.parse(raw); } catch (e) { }
-    v = v && typeof v === 'object' ? v : {};
+    // ── 全局层（hx-theme）：背景 / 动效 / 水印，全站一份，总入口统一管 ──
+    var raw = ls(KEY), v = raw && OLD[raw] ? OLD[raw] : jparse(raw);
+    v = v || {};
     // 老存档（没有 ver）＝ 上这一版之前就存过外观的。统一换成新默认（极光），做到「全体人员默认」；
     // 只有自己上传过图的例外——那是明确主动的行为，别覆盖掉。想关掉背景在外观面板点「无」即可。
     if (raw && !v.ver && v.bg !== 'custom') v.bg = DEF.bg;
     // VER 4 迁移（2026-11-04 深夜）：背景项只剩 无/极光动态/自己的图。
-    // 规则就两条：① 存档里的背景 id 已经不存在了（bear/chiikawa/cat/mist/bay/dusk）→ 换成新默认；
-    // ② 说自己是 custom、但本机那张图已经被删了 → 也回默认（否则会留一个空背景）。
-    // 注意旧版的「极光渐变」用的就是 'aurora' 这个 id，现在它指的是极光视频——老用户会被自然升级成动态版，符合预期。
     if (!BG[v.bg]) v.bg = DEF.bg;
-    if (v.bg === 'custom' && !ls(IMG)) v.bg = DEF.bg;
-    // op 允许 0～100（2026-11-03 用户要求「要 0 到 100 可调节」）。
-    // ⚠️ 不能写 `+v.op || DEF.op`：0 是 falsy，会把「完全透明」静默变回默认值。
-    var opN = +v.op, bgoN = +v.bgo;
-    // bgo = 背景浓度（2026-11-03 用户报「透明度完全不会让背景透明」——原来的 op 滑杆只管卡片透明度，
-    // 背景纹丝不动。现在加一根独立的「背景浓度」滑杆：100 = 现状，0 = 背景完全消失只剩底色）
-    var s = { acc: ACC[v.acc] ? v.acc : DEF.acc, mode: /^(light|dark|auto)$/.test(v.mode) ? v.mode : DEF.mode, bg: BG[v.bg] ? v.bg : DEF.bg, op: Math.min(100, Math.max(0, isFinite(opN) ? opN : DEF.op)), bgo: Math.min(100, Math.max(0, isFinite(bgoN) ? bgoN : 100)), wx: WX[v.wx] ? v.wx : DEF.wx };
-    // 校徽水印（2026-11-04）：默认开。只认显式关掉的 0 / false / '0'——
-    // 老存档里根本没有这个字段，不能把 undefined 当关。
-    s.wm = (v.wm === 0 || v.wm === '0' || v.wm === false) ? 0 : 1;
-    if (s.bg === 'custom' && !ls(IMG)) s.bg = 'none';
+    // ── 界面层（hx-theme:s:<界面>）：主题色 / 深浅 / 卡片通透度 / 背景清晰度 ──
+    // 键存在即权威：缺了的字段回到 DEF，不再翻老存档（从改第一项起这个界面就走自己的设置）。
+    // 键不存在（从没在这个界面上改过外观）→ 沿用全局老存档里的 acc / mode / bgo（老用户观感不变），
+    //   都没有就落 DEF。老 op 滑杆不再折算，见 VER 5 注释。
+    var sv = jparse(ls(SKEY + SURF)), own = !!sv;
+    if (!own) sv = {};
+    var s = {
+      bg: BG[v.bg] ? v.bg : DEF.bg,
+      wx: WX[v.wx] ? v.wx : DEF.wx,
+      // 校徽水印：默认开。只认显式关掉的 0 / false / '0'——老存档里根本没有这个字段，不能把 undefined 当关。
+      wm: (v.wm === 0 || v.wm === '0' || v.wm === false) ? 0 : 1,
+      acc: own ? (ACC[sv.acc] ? sv.acc : DEF.acc) : (ACC[v.acc] ? v.acc : DEF.acc),
+      mode: own ? (/^(light|dark|auto)$/.test(sv.mode) ? sv.mode : DEF.mode) : (/^(light|dark|auto)$/.test(v.mode) ? v.mode : DEF.mode),
+      // 卡片通透度（2026-11-05 翻转语义）：100 = 最透（清透玻璃、背景透出来，默认），0 = 最实。
+      clr: own ? clamp01(+sv.clr, DEF.clr) : DEF.clr,
+      // 背景清晰度：100 = 原样显示（最清楚），0 = 背景几乎看不见、只剩页面底色。
+      bgo: own ? clamp01(+sv.bgo, 100) : clamp01(+v.bgo, 100)
+    };
+    if (s.bg === 'custom' && !ls(IMG)) s.bg = DEF.bg;
     if (BG[s.bg].dev && !isDev()) s.bg = 'none'; // 开发者专属背景：别的账号（或没登录）回落到无背景
     return s;
   }
@@ -623,9 +648,13 @@
     // 窄屏（≤820）也要给海报：视频元素此时被 CSS display:none 藏了，不给海报就只剩页底色。
     var vidStill = isVid && (bgNoVideo() || bgNarrow());
     if (vidStill && b.poster) img = 'url("' + root + b.poster + '")';
+    // --hx-a：玻璃浓度乘数（各条玻璃配方的 alpha 都乘它）。
+    // 2026-11-05 随通透度滑杆翻转语义：100（最透）= 1，正好是 2026-11-04 定稿的那套清透玻璃；
+    // 往下调卡片变实：0 = 2，各配方 alpha × 2 后被浏览器钳到 1，整卡变成实色（保可读的兜底端）。
+    var hx_a = s.bg === 'none' ? 1 : 1 + (100 - s.clr) / 100;
     var vars = { '--acc': c, '--acc2': c2, '--acc3': c2, '--acc-h': c2, '--on-acc': s.acc === 'mono' && m === 'dark' ? '#1d1d1f' : '#fff',
       '--accbg': 'color-mix(in srgb, ' + c + ' 14%, transparent)', '--ring': 'color-mix(in srgb, ' + c + ' 40%, transparent)',
-      '--hov': 'color-mix(in srgb, ' + c + ' 10%, transparent)', '--hx-a': s.bg === 'none' ? 1 : s.op / 100, '--hx-img': isVid && !vidStill ? 'none' : img, '--hx-bgo': s.bgo / 100 };
+      '--hov': 'color-mix(in srgb, ' + c + ' 10%, transparent)', '--hx-a': hx_a, '--hx-img': isVid && !vidStill ? 'none' : img, '--hx-bgo': s.bgo / 100 };
     for (var k in vars) r.style.setProperty(k, vars[k]);
     r.classList.remove('hx-bgblur'); // 旧版挂的「预糊图」标记，现在没有任何样式依赖它，清掉防止老缓存残留
     bgVideo(isVid ? b.video : null, isVid ? b.poster : null, isVid && b.mirror);
@@ -633,11 +662,18 @@
     try { ls('zfz-practice-theme', m); ls('wanxiu-paike-theme', m); ls('ui.theme', JSON.stringify(m)); } catch (e) { }
     for (var i = 0; i < subs.length; i++) try { subs[i](s, m); } catch (e) { }
   }
+  // set(patch)：按字段落键。bg / wx / wm → 全局键 hx-theme（全站一份）；
+  // acc / mode / clr / bgo → 当前界面键 hx-theme:s:<界面>（首页是 home，工具是 data-tool，互不干扰）。
+  // 换背景时不再自动改卡片透明度（老版会把 op 拉到该背景的「推荐值」）：通透度是界面自己的设置，不该被背景顺手改掉。
   function set(patch) {
-    var s = get(); for (var k in patch) s[k] = patch[k];
-    if (patch.bg && patch.op === undefined && BG[patch.bg].op) s.op = BG[patch.bg].op; // 换背景时用推荐透明度
-    s.ver = VER; // 记下版本：以后再加默认值就不会把用户已选过的背景顶掉
-    ls(KEY, JSON.stringify(s)); apply();
+    var g = jparse(ls(KEY)) || {}, o = jparse(ls(SKEY + SURF)) || {}, hitG = false, hitO = false;
+    for (var k in patch) {
+      if (k === 'bg' || k === 'wx' || k === 'wm') { g[k] = patch[k]; hitG = true; }
+      else if (k === 'acc' || k === 'mode' || k === 'clr' || k === 'bgo') { o[k] = patch[k]; hitO = true; }
+    }
+    if (hitG) { g.ver = VER; try { ls(KEY, JSON.stringify(g)); } catch (e) { } }
+    if (hitO) { try { ls(SKEY + SURF, JSON.stringify(o)); } catch (e) { } }
+    apply();
   }
   // 自己上传的图：缩到长边 1920、转 JPEG，免得撑爆浏览器存储（旧站是原图、限 3MB）
   // ── 上传过的背景：留一本历史（2026-11-04）──
@@ -699,14 +735,16 @@
       im.src = url;
     });
   }
-  // 恢复默认：清设置、清当前图，但**不动相册** —— 用户点「恢复默认」是想回到出厂样子，
+  // 恢复默认：清全局设置、清当前图、清**本界面**的设置，但**不动相册** —— 用户点「恢复默认」是想回到出厂样子，
   // 不是想把辛苦攒的几张背景一起删了。要删单张去相册里点 ×。
-  function reset() { ls(KEY, null); ls(IMG, null); apply(); }
-  addEventListener('storage', function (e) { if (e.key === KEY || e.key === IMG || e.key === DEV || e.key === null) apply(); });
+  function reset() { ls(KEY, null); ls(IMG, null); ls(SKEY + SURF, null); apply(); }
+  // storage 事件：全局键（背景 / 动效 / 水印 / 图 / 开发者标）变了全站跟着刷；
+  // 界面键只有「自己的那一份」变了才刷——别的工具改深浅色不该惊动这一页（分层隔离的意义就在这）。
+  addEventListener('storage', function (e) { if (e.key === KEY || e.key === IMG || e.key === DEV || e.key === SKEY + SURF || e.key === null) apply(); });
   if (dark) (dark.addEventListener ? dark.addEventListener('change', apply) : dark.addListener(apply));
   // 总入口（同源的上层页面）：子工具要登录时请它弹登录窗口；不在框里就跳回首页
   function portal() { try { return window.top !== window && window.top.HXPortal ? window.top.HXPortal : null; } catch (e) { return null; } }
-  window.HXTheme = { acc: ACC, bg: BG, wx: WX, root: root, get: get, mode: function () { return modeOf(get()); }, set: set, upload: upload, reset: reset, isDev: isDev, setDev: setDev, onChange: function (fn) { subs.push(fn); },
+  window.HXTheme = { acc: ACC, bg: BG, wx: WX, root: root, surface: SURF, get: get, mode: function () { return modeOf(get()); }, set: set, upload: upload, reset: reset, isDev: isDev, setDev: setDev, onChange: function (fn) { subs.push(fn); },
     portal: portal, login: function () { var p = portal(); if (p) p.login(); else location.href = root + (tool ? '#' + tool : ''); },
     // 上传过的背景相册（2026-11-04）：imgs() 取列表、useImg(id) 切回、delImg(id) 删一张
     imgs: imgs, useImg: useImg, delImg: delImg,
