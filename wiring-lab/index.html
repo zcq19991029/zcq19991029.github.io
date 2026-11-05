@@ -1044,12 +1044,8 @@
   .rk-group h4::after { content: ''; flex: 1; height: 1px; background: var(--edge); }
   .rk-par { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; margin-top: 2px; }
   .rk-par button { width: 100%; font-size: 12px; padding: 7px 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  /* 排位锁题：不再列出别的电路，只显示这一题（2026-11-04 用户：是哪一题就只能看到哪一题） */
-  .rk-locked { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 16px;
-    background: linear-gradient(120deg, color-mix(in srgb, #38bdf8 14%, var(--card)), var(--card)); border: 1px solid color-mix(in srgb, #38bdf8 42%, var(--edge)); }
-  .rk-locked > div { display: grid; gap: 4px; min-width: 0; }
-  .rk-locked b { font-size: 17px; }
-  .rk-locked span { color: var(--dim); font-size: 12.5px; font-weight: 600; line-height: 1.55; }
+  /* 2026-11-08：原来的 .rk-locked「排位锁题卡」已整张删除（排位里换不了题，那卡只是白占高度），
+     题名改为选手卡上的 .rk-qpill 小胶囊，见下方 #fw-rank 那一段。 */
   /* 2026-11-06 排位中被拒的提示（换题、点别的分段）。画在排位窗这一层而不是练习页上 ——
      排位现在全屏，底下的 toast 根本看不见，学生会以为点了没反应就一直点。
      悬在窗口底部居中，2.6 秒自己收走，不挡任何按钮。
@@ -1120,6 +1116,10 @@
   .rk-count.show { animation: rkCount .62s cubic-bezier(.2, .9, .25, 1) both; }
   @keyframes rkCount { 0% { opacity: 0; transform: scale(.45); } 22% { opacity: 1; transform: scale(1.08); } 62% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.55); } }
   /* ===== 成绩页：巨大时间 + 扫光 ===== */
+  /* 「抽取下一个人」（2026-11-08）：教师上完一个人的成绩页直接抽下一位，形成课堂循环。
+     它是成绩页上的**主按钮**（和「再来一次」同为 .rk-btn），图标是线性方块牌，不能沿用 .rk-btn svg 的 fill:currentColor
+     （那样会变成一块实心方块），这里单独给描边。 */
+  .rk-result .rk-nextp svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
   .rk-result { max-width: min(760px, 94vw); gap: 4px; }
   .rk-result h2 { font-size: clamp(34px, 5.4vw, 62px); }
   .rk-result.win h2 { background: linear-gradient(100deg, #fde047 0%, #f59e0b 28%, #f43f5e 52%, #fde047 100%); background-size: 220% 100%;
@@ -1263,6 +1263,20 @@
   /* ── 主区布局 ── */
   #fw-rank .rk-main { flex: 1; min-height: 0; }
   #fw-rank .rk-left { display: flex; flex-direction: column; gap: 13px; min-height: 0; }
+  /* ── 2026-11-08 排位空间（用户：「这是不是又能省下一部分空间给排位显示」）──
+     原来 #rkBody 不参与 #fw-rank .rk 的 flex 链，.rk-main 又只写列不写行：
+     网格行按内容撑开，20 行榜单 1337px 把整页顶到 1394px（可视只有 841px），
+     右栏表头下面一屏全是榜单、名单被挤到看不见（改前实测：名单 1057px 高、页面溢出 553px）。
+     这里把剩余高度真正下发：rk → #rkBody → .rk-main（行也约束成 1fr）→ 左右两栏，
+     名单和榜单各自在面板内滚动。
+     **只在宽屏生效**：手机断点（<=760px）本来就该整页纵向滚动，而且那里的 #rkBody 是 block
+     （宽度由父级决定）；硬换成 flex 会让 .rk-main 按内容撑宽（实测 390 宽被撑到 459，
+     学生第 4 列、榜单用时列全被裁掉）——手机那套一行别动。 */
+  @media (min-width: 761px) {
+    #fw-rank #rkBody { flex: 1; min-height: 0; display: flex; }
+    #fw-rank .rk-main { grid-template-rows: minmax(0, 1fr); overflow: hidden; }
+    #fw-rank .rk-left > .rk-students { min-height: 0; }
+  }
 
   /* ── 当前选手卡：六边形徽章 + 大姓名 + 机械切角开始按钮 ── */
   #fw-rank .rk-player { position: relative; overflow: hidden; gap: 15px; padding: 15px 18px; border-radius: 18px;
@@ -1316,21 +1330,14 @@
   #fw-rank .rk-start:disabled { animation: none; opacity: .45; cursor: default; }
   @keyframes rkStartBreath { 0%, 100% { filter: drop-shadow(0 12px 22px rgba(255, 90, 40, .4)); } 50% { filter: drop-shadow(0 14px 30px rgba(255, 150, 40, .8)); } }
 
-  /* ── 排位项目卡：紫蓝模块（固定项目，不是按钮） ── */
-  #fw-rank .rk-locked { position: relative; overflow: hidden; gap: 15px; padding: 13px 18px;
-    border: 1px solid rgba(152, 87, 255, .42); border-radius: 16px;
-    background: linear-gradient(120deg, rgba(152, 87, 255, .15), rgba(18, 28, 54, .8) 58%), linear-gradient(165deg, #121C36, #0C1428);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05), 0 14px 30px -20px rgba(0, 0, 0, .7), inset 0 0 24px rgba(152, 87, 255, .07); }
-  #fw-rank .rk-lockic { flex: none; position: relative; width: 52px; height: 56px; display: grid; place-items: center; }
-  #fw-rank .rk-lockic::before { content: ""; position: absolute; inset: 3px 5px;
-    background: linear-gradient(160deg, rgba(152, 87, 255, .85), rgba(54, 140, 255, .55));
-    clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
-    filter: drop-shadow(0 0 10px rgba(152, 87, 255, .5)); }
-  #fw-rank .rk-lockic svg { position: relative; z-index: 1; width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round;
-    color: #D9C2FF; filter: drop-shadow(0 0 7px rgba(152, 87, 255, .9)); }
-  #fw-rank .rk-locked small { display: block; font-size: 10.5px; font-weight: 800; letter-spacing: 3.5px; color: #B99CFF; }
-  #fw-rank .rk-locked b { font-size: 17px; letter-spacing: .5px; color: var(--rk-ink); }
-  #fw-rank .rk-locked span { color: var(--rk-dim); font-size: 12.5px; font-weight: 600; line-height: 1.55; }
+  /* ── 当前题目的小胶囊（2026-11-08）──
+     原来这里是一整张紫蓝「排位题目」卡（92px 高），写着「只排这一题。要换题请先退出排位…」。
+     排位里本来就换不了题，这段解释纯属占地方：整卡删除，题名压进选手卡上那行小字里。
+     胶囊只负责「这一局排的是哪一题」，多长都不换行（ellipsis + title 里放全名）。 */
+  #fw-rank .rk-qpill { font-style: normal; display: inline-block; max-width: 15em; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap; vertical-align: bottom; padding: 1px 9px; margin-left: 2px; border-radius: 999px;
+    font-weight: 800; letter-spacing: .5px;
+    color: #D9C2FF; background: rgba(152, 87, 255, .16); border: 1px solid rgba(152, 87, 255, .38); }
 
   /* ── 学生面板：大型全息容器（左下/右上切角 + 青蓝描边流光 + 内部淡网格） ── */
   #fw-rank .rk-students { --rkc: 16px; flex: 1; min-height: 200px; min-width: 0; padding: 1.5px; box-sizing: border-box;
@@ -1366,10 +1373,14 @@
   /* 学生网格：序号+姓名按钮（结构不动，只换皮肤）。选中不只靠颜色：aria-pressed + :focus-visible */
   #fw-rank .rk-names { position: relative; display: grid; grid-template-columns: repeat(auto-fit, minmax(92px, 1fr)); gap: 7px;
     flex: 1; min-height: 140px; max-height: none; overflow: auto; padding: 2px;
+    /* 2026-11-08：网格默认 align-content: stretch，面板变高后每行会被均匀拉长
+       （实测一个学生按钮被拉成 165px 的空格子，17 个人看着像 3 行巨型方块）。
+       按钮保持 38px 的内容高度，多余的空间只留在下面，不许摊到行上。 */
+    align-content: start;
     animation: rkNamesIn .3s ease both; }
   #fw-rank .rk-names.rk-fading { opacity: 0; transition: opacity .14s ease; }
   @keyframes rkNamesIn { from { opacity: 0; transform: translateY(7px); } }
-  #fw-rank .rk-names button { position: relative; min-height: 38px; border-radius: 9px;
+  #fw-rank .rk-names button { position: relative; min-height: 44px; border-radius: 9px;
     border-color: rgba(122, 140, 180, .28); background: rgba(16, 26, 50, .75); color: var(--rk-ink);
     animation: rkBtnIn .4s var(--rk-ease) both; animation-delay: calc(var(--i, 0) * 28ms);
     transition: transform .18s var(--rk-ease), border-color .18s, background-color .18s, box-shadow .18s; }
@@ -2010,6 +2021,21 @@ const TAB_KEY = 'zfz-project2-tab', THEME_KEY = 'zfz-practice-theme';
     || (navigator.deviceMemory || 8) <= 4
     || /seewo|hisense|cvte|amlogic|rk3\d{3}|allwinner/i.test(ua);
   if (lite) document.documentElement.classList.add('is-lite');
+}
+/* 2026-11-05 用户手机实测：「手机上完全没有 321GO 动效，也没有转场 —— 你是不是省了很多东西」。
+   根因是**两个概念被绑在一起**：is-lite 的本意只是「降掉毛玻璃 blur 和重阴影」（顶栏每帧重算模糊会让手机发烫），
+   但 rank.js 里所有像素动效的门控也读 is-lite —— 而 is-lite 的第一条判据是「触屏 + 粗指针」，
+   等于**所有手机/平板/触屏一体机一律被当成跑不动动效的破机器**，像素 321GO 和转场全被跳过，
+   手机上只剩文字倒数、转场直接没有。
+   现在拆开：is-lite 继续只管视觉降级（模糊/阴影）；动效另用 fx-lite，只有**真跑不动**的才跳过 ——
+   设备内存 ≤2G、或 CPU 核心 ≤2（这是 2015 年前后的老安卓/廉价平板级别），
+   希沃这类教学一体机虽然触屏，但 CPU/GPU 够用，教室里反而更要看动效，所以**不**进 fx-lite。 */
+{
+  const ua = navigator.userAgent || '';
+  const weak = (navigator.deviceMemory || 8) <= 2
+    || (navigator.hardwareConcurrency || 8) <= 2
+    || /amlogic|rk3\d{3}|allwinner|sun50/i.test(ua);
+  if (weak) document.documentElement.classList.add('fx-lite');
 }
 const seg = document.getElementById('seg'), thumb = document.getElementById('thumb'), stage = document.getElementById('stage'), toastEl = document.getElementById('toast');
 const ls = { get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) { } } };
@@ -2979,10 +3005,13 @@ const fmtMs = ms => { const cs = Math.floor(ms / 10), m = Math.floor(cs / 6000),
 // 所以准备页的符文环、停表的电弧都已删除，只留 rkResult 里的 confetti，且它塞在遮罩内部播放。
 // 特效本体是打包时原样内联进来的 window.PixelFXRank（见 build-practice.cjs 的 /*RANKFX*/ 占位），
 // 这里只负责「播一次就走」：建一张 canvas → 对准元素 → 播完 remove，不留常驻画布、不留常设帧循环。
-// 低端设备（.is-lite）、关了动画偏好（prefers-reduced-motion）、页面在后台，一律直接跳过 ——
+// 真跑不动的设备（.fx-lite）、关了动画偏好（prefers-reduced-motion）、页面在后台，一律直接跳过 ——
 // 排位是逐帧重绘的画布页，2026-11-02 那次渲染崩溃的教训就是别在它上面再加常驻开销。
 const RFX = (() => {
-  const idle = () => !window.PixelFXRank || document.documentElement.classList.contains('is-lite')
+  // 2026-11-05：动效门控从 is-lite 换成 fx-lite（见 project2.html 的 fx-lite 判定注释）。
+  // is-lite = 触屏/低配的「视觉降级」（只关模糊阴影），把它当动效开关会误杀所有手机：
+  // 用户实测「手机上完全没有 321GO、也没有转场」就是这么来的。fx-lite 只在真跑不动的设备上命中。
+  const idle = () => !window.PixelFXRank || document.documentElement.classList.contains('fx-lite')
     || matchMedia('(prefers-reduced-motion: reduce)').matches;
   // at：把特效原点对准这个元素的正中；into：把 canvas 塞进这个元素里（跟着它一起消失）。
   // scale 必须取正整数 —— 像素画按 1.6 倍放大会出现粗细不均的点，很难看。
@@ -3233,6 +3262,10 @@ async function rkMain(body) {
   // ── 2026-11-04 用户：排位要和练习页隔离，「是哪一题就只能看到哪一题」──
   // 这里不再渲染任何电路选择（项目二 / 扩展练习 / 专项小题都不出现）：
   // 入口已经锁定了这一题，界面里也没有别的题可点，学生不可能在排位里换成别的题。
+  // ── 2026-11-08 用户：「排位中不能换题你给我展示其他题目干嘛，这是不是又能省下一部分空间给排位显示」──
+  // 原来这里挂着一张紫蓝的「排位题目」卡，写着「只排这一题。要换题请先退出排位，回到练习页选好题再点「排位」」。
+  // 既然排位里根本换不了题，这段解释等于白占 90 多像素——整张卡删掉，题目名压成选手卡上一枚小胶囊，
+  // 省下的高度全给下面的学生网格和右栏榜单（榜单表头本来也写着题名，不会认不出排的是哪一题）。
   const lock = RK.lock || RK.circuit;
   // UI 重构（2026-11-08）：面板换成全息控制台外观。calm = 选人/切班触发的重绘——
   // 入场编排（左右面板错峰上滑）只在窗口第一次打开时播，重绘时加上 .calm 不重放；
@@ -3241,10 +3274,8 @@ async function rkMain(body) {
   const av = RK.pick && RK.pick.name ? String(RK.pick.name).trim().slice(0, 1) : '选';
   body.innerHTML = `<div class="rk-main${calm}"><div class="rk-left">
     <div class="rk-player"><div class="rk-pav" aria-hidden="true"><i>${esc(av)}</i></div>
-      <div class="rk-pinfo"><small>${T ? '当前选手' : '我'}</small><b>${RK.pick ? esc(RK.pick.name) : '还没选学生'}</b><span>${RK.pick ? esc(RK.pick.cls || '') : T ? '在下面选一个学生' : ''}</span></div>
+      <div class="rk-pinfo"><small>${T ? '当前选手' : '我'} · <i class="rk-qpill" title="${esc(cName(lock))}">${esc(cName(lock))}</i></small><b>${RK.pick ? esc(RK.pick.name) : '还没选学生'}</b><span>${RK.pick ? esc(RK.pick.cls || '') : T ? '在下面选一个学生' : ''}</span></div>
       <button class="rk-start" id="rkStart" ${RK.pick ? '' : 'disabled'}><span>开始排位</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg></button></div>
-    <div class="rk-locked"><div class="rk-lockic" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M9 7V4M12 7V4M15 7V4M9 20v-3M12 20v-3M15 20v-3M7 9H4M7 12H4M7 15H4M20 9h-3M20 12h-3M20 15h-3"/></svg></div>
-      <div><small>排位题目</small><b>${esc(cName(lock))}</b><span>只排这一题。要换题请先退出排位，回到练习页选好题再点「排位」。</span></div></div>
     ${T ? `<div class="rk-students"><div class="rk-stin">
       <div class="rk-sh"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M4 19a5 5 0 0 1 10 0"/><circle cx="17" cy="9" r="2.4"/><path d="M14.6 19a4.2 4.2 0 0 1 5.8-3.9"/></svg><b>学生</b></div>
       <div id="rkPick"><p class="rk-wait">加载班级…</p></div></div></div>` : ''}</div>
@@ -3357,7 +3388,7 @@ function drwPool() {
   return (RK.studs[c.id] || []).map(s => ({ id: s.id, name: rkStuName(s), seq: s.seq, cls: c.name }));
 }
 /* ── 像素动效（PixelFXRank，MIT，见 NOTICE-pixelfx.md）：一条 rAF，12fps 封顶 ──
-   窗口关掉 / 重画立刻停；is-lite、关动画偏好只画一帧。 */
+   窗口关掉 / 重画立刻停；fx-lite、关动画偏好只画一帧。 */
 const DRW_FX = { raf: 0, last: 0, items: [], gap: 1000 / 12 };
 const DRW_FX_IDS = ['level-up', 'collect-burst', 'hit-spark', 'rune-circle', 'quest-complete', 'zap-hit'];
 function drwFxPack() { const P = window.PixelFXRank; return (P && P.effects && P.createFx && P.createFrame) ? P : null; }
@@ -3429,14 +3460,14 @@ function drwFootHTML() {
   const p = DRW.picked;
   if (DRW.busy) return '<span class="drw-tip">正在翻牌…</span>';
   if (p) return `<span class="drw-tip">本轮抽中 <b>${esc(p.name)}</b>${p.seq != null && p.seq < 1000 ? ' · 学号 ' + p.seq : ''}</span>` +
-    `<button type="button" class="drw-use" id="drwUse">设为当前选手</button>` +
+    `<button type="button" class="drw-use" id="drwUse">确定并开始排位</button>` +
     `<button type="button" class="drw-refresh sm" id="drwAgain">↻ 再抽一张</button>`;
-  return '<span class="drw-tip">翻开一张卡牌，抽出的同学可设为当前选手</span><span class="nm-note">一次只抽一个 · 不会和上一位重复</span>';
+  return '<span class="drw-tip">翻开一张卡牌，抽出的同学直接开始排位</span><span class="nm-note">一次只抽一个 · 不会和上一位重复</span>';
 }
 function drwSelHTML() {
   const c = drwCls();
   if (DRW.busy) return '正在翻牌…';
-  if (DRW.picked) return `本轮抽中：${esc(DRW.picked.name)} · 可「设为当前选手」或「再抽一张」`;
+  if (DRW.picked) return `本轮抽中：${esc(DRW.picked.name)} · 点「确定并开始排位」直接开这一局，或「再抽一张」`;
   return `可翻开 1 张卡牌 · 当前班级：${esc(c ? c.name : '—')} · 共 ${(RK.studs[DRW.cls] || []).length} 人`;
 }
 /* 牌背：霓虹底面 + 菱形套菱形 + 中央 ◇ + 品牌字（原型 .back） */
@@ -3581,14 +3612,22 @@ function drwRefresh(box) {
     drwFxMount(box.querySelector('#drwFxl'), .2); drwFxRun();
   }, 220);
 }
-/* 抽中的人设为当前选手：业务联动和旧版完全一致（写回 hx-rank-pick 并重绘排位主页） */
+/* 抽中的人设为当前选手 —— 2026-11-08 用户：「我还以为选题抽人 抽到人后直接确定开始排位 就不要跳转回那个选人抽人页面了」。
+   旧行为：写回 hx-rank-pick → 关窗 → 重绘排位主页（还得老师再点一次「开始排位」）。
+   现在：写完照样关窗，但**紧接着直接开局**（同一条 rkStartRun 链路：切页面 → 等电路页 → 准备页倒数）。
+   这是唯一改动的一处交接逻辑：夜市翻牌窗口的视觉、动画、抽取算法一行没碰。
+   注意 RK.circuit 必须是这一局的题：第一次进排位时 openRank 已经写好；
+   从成绩页「抽取下一个人」回来时 rkQuit 会清 RK.lock 但保留 circuit（见 rkQuit），所以这里再兜一层。 */
 function drwUse() {
   const p = DRW.picked; if (!p) return;
   RK.pick = { id: p.id, name: p.name, cls: p.cls };
   ls.set('hx-rank-pick', JSON.stringify(RK.pick));
   drwCloseWin();
-  if (RK.body) rkMain(RK.body);
+  if (RK.body) rkMain(RK.body); // 排位主页仍更新一次：万一开局失败（页面还在加载 / 断网），老师看到的是新选手
   toast('当前选手：' + p.name);
+  // 抽中即开局：不等老师再点一次「开始排位」，也不把画面撤回去让人再选一遍
+  if (!RK.lock) RK.lock = RK.circuit;
+  Promise.resolve().then(rkStartRun).catch(e => toast('开始排位失败：' + ((e && e.message) || e)));
 }
 function drwCloseWin() {
   drwHalt();
@@ -3598,7 +3637,10 @@ function drwClearTimers() { DRW.timers.forEach(clearTimeout); DRW.timers.length 
 function drwLater(fn, ms) { DRW.timers.push(setTimeout(fn, ms)); }
 /* 关窗 / 换班 / 重画：停掉定时器和像素循环，别再往新舞台上写 */
 function drwHalt() { drwClearTimers(); drwFxStop(); DRW.busy = false; DRW.gen += 1; }
-const drwNoAnim = () => document.documentElement.classList.contains('is-lite')
+/* 2026-11-05：判据从 is-lite 换成 fx-lite。is-lite 命中所有触屏设备，等于手机上切班过场、
+   选手身份切换、抽人翻牌过场、榜单 FLIP 全都不演（直接跳变）——用户要的是「手机上也要有动效」，
+   这些过场很轻（transform/opacity），手机完全跑得动；只有真正跑不动的老设备才降级。 */
+const drwNoAnim = () => document.documentElement.classList.contains('fx-lite')
   || matchMedia('(prefers-reduced-motion: reduce)').matches;
 async function rkBoard(el, hl) {
   let rows; try { rows = await HX.rpc('rank_board', { p_circuit: RK.circuit, p_limit: 50 }, HX.in()); } catch (e) { el.innerHTML = `<p class="rk-err">${esc(e.message)}</p>`; return; }
@@ -3753,7 +3795,7 @@ function rkReady(msg) {
 // 3 → 2 → 1 撞进圆环里烧引线，GO! 爆开冲击波光芒）—— 用户给的参考图（pixelfx 画廊 Countdown 页）就是它。
 // 特效 152×136、一次性 3.1 秒，整数倍放大塞进遮罩（into: v）：遮罩一关画布跟着走，
 // 不会重演 2026-11-02 符文环漏在练习页上一直转的事故。
-// 放不了（老 bundle / is-lite / reduced-motion / 画布建不出来）回落到文字倒数（rkCountText，原实现原样保留）。
+// 放不了（老 bundle / fx-lite / reduced-motion / 画布建不出来）回落到文字倒数（rkCountText，原实现原样保留）。
 //
 // ── 2026-11-04 用户报「开始排位的时候 321go 是不是偶尔会不显示」──
 // 真有两个原因，都修在这里：
@@ -3767,11 +3809,13 @@ function rkReady(msg) {
 const RK_GO_T = 2.85;      // 动画时间轴上交给转场的时刻（秒）：GO 爆开在 1.86s，2.85s 时余韵正好
 const RK_GO_CAP = 6000;    // 墙钟兜底：再慢也不在这儿耗超过 6s（正常情况下 60fps ≈ 3.0s 就转场）
 async function rkCountDown(v, R) {
-  // 什么情况不播像素特效：关了动画偏好 / 低端机与触屏（is-lite，希沃一体机、手机都算）/ 老 bundle 没有 countdown。
+  // 什么情况不播像素特效：关了动画偏好 / 真跑不动的设备（fx-lite）/ 老 bundle 没有 countdown。
+  // 2026-11-05：判据从 is-lite 换成 fx-lite —— is-lite 把「触屏」当成低端，手机/平板/希沃全被跳过，
+  // 用户实测「手机上完全没有 321GO」就是这个原因。fx-lite 只命中真正跑不动的老设备。
   // 注意这里只是「不播特效」，**不是不倒数** —— 一律回落到文字 3-2-1-GO（rkCountText 现在不会跳过倒数）。
   const idle = matchMedia('(prefers-reduced-motion: reduce)').matches
     || !window.PixelFXRank || !window.PixelFXRank.effects.countdown
-    || document.documentElement.classList.contains('is-lite');
+    || document.documentElement.classList.contains('fx-lite');
   if (idle) return rkCountText(v, R);
   // 点了开始：准备页内容（名字/圆环按钮/提示）立即隐去，画面交给倒数特效（.counting 见 CSS）；
   // 只留底部「换人 / 退出排位」那排，中途要撤还能撤。文字倒数兜底不走这条（大数字盖在原位）。
@@ -3899,7 +3943,8 @@ const RK_FX_IN = [
   { id: 'glitch-wipe', cover: 0.8, open: 1.0, opts: { palette: RK_FX_PAL.red }, name: '红' },
 ];
 function rkRevealIdle() {
-  return !window.PixelFXRank || document.documentElement.classList.contains('is-lite')
+  // 2026-11-05：从 is-lite 换成 fx-lite —— 转场在手机上也要真播（用户：「也没有转场」）
+  return !window.PixelFXRank || document.documentElement.classList.contains('fx-lite')
     || matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 function rkReveal(R) {
@@ -3963,7 +4008,7 @@ function rkReveal(R) {
 }
 // ── 2026-11-03 排位结束的完成横幅（用户给的参考图：pixelfx 的 Quest complete）──
 // 成绩算完先在屏幕正中放大播一遍「QUEST COMPLETE」织带横幅（2.6 秒），播完再进成绩页/排名 —— 仪式感。
-// 一次性特效、z 60 盖在计时条之上、自己收尾；is-lite / reduced-motion / 老 bundle 直接跳过（行为同旧）。
+// 一次性特效、z 60 盖在计时条之上、自己收尾；fx-lite / reduced-motion / 老 bundle 直接跳过（行为同旧）。
 async function rkQuestDone() {
   if (rkRevealIdle() || !window.PixelFXRank.effects['quest-complete']) return;
   const P = window.PixelFXRank, m = P.effects['quest-complete'].meta;
@@ -4065,7 +4110,7 @@ async function rkResult(res, err) {
     ${res ? `<div class="rk-time" id="rkTime">0:00.00</div>` : ''}
     ${res && res.improved ? `<div class="rk-place">第 <b id="rkPl">${res.before || res.total}</b> 名${res.before && res.before > res.after ? `<em>↑ ${res.before - res.after}</em>` : ''}<span>共 ${res.total} 人</span></div><ol class="rk-board rk-ladder" id="rkLad"></ol>`
       : res ? `<p class="rk-nope">本次 ${fmtMs(res.ms)}，没有超过最好成绩 ${fmtMs(res.best)}，不计入排行（仍是第 ${res.after} 名）</p>` : `<p class="rk-err">${esc(err || '')}</p>`}
-    <div class="rk-row"><button class="rk-btn" id="rkAgain">再来一次</button><button class="rk-ghost" id="rkNext">下一题</button>${rkSelfRun() ? '' : '<button class="rk-ghost" id="rkSwap">换人</button>'}<button class="rk-ghost" id="rkQuit">退出排位</button></div></div>`);
+    <div class="rk-row">${!rkSelfRun() && isT() ? '<button class="rk-btn rk-nextp" id="rkNextPerson"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8.5" cy="8.5" r="1.3"/><circle cx="15.5" cy="15.5" r="1.3"/><circle cx="12" cy="12" r="1.3"/></svg>抽取下一个人</button>' : ''}<button class="rk-btn" id="rkAgain">再来一次</button><button class="rk-ghost" id="rkNext">下一题</button>${rkSelfRun() ? '' : '<button class="rk-ghost" id="rkSwap">换人</button>'}<button class="rk-ghost" id="rkQuit">退出排位</button></div></div>`);
   // 再来一次：把上一局残留的东西全清掉再回准备页。
   // aid / t0 一定要清 —— 它们是**上一局**的：万一这一局中途开不了局（rank_start 失败），
   // R.aid 还挂着上一条已经结算过的记录，rkFinish 拿着它去结算只会报「这次排位已失效」。
@@ -4075,6 +4120,21 @@ async function rkResult(res, err) {
     R.aid = null; R.t0 = 0; R.phase = 'ready'; rkReady();
   };
   v.querySelector('#rkQuit').onclick = rkQuit;
+  // ── 2026-11-08 用户上课流程：「我上课一般是第一个人我抽，后续的人由上一题做完的人抽，
+  //    所以排位完成后要增加一个抽取下一个人的按钮跳转翻牌子抽人的地方，如此循环，直到结束我点退出排位」──
+  // 点它 → 打开的是**现有**的夜市翻牌窗口（rkDrawWin → floatWin('draw')，同一套牌组 / 同一套抽取算法），
+  // 不另写一套随机；抽中确认后走 drwUse 的「抽中即开局」，于是自动进入下一局准备页 —— 循环成立。
+  // 排除规则沿用原有的：drwSample 避开 DRW.last（一次课里不连抽同一人），不新造业务规则。
+  // 学生自己排位（rkSelfRun）不显示这个按钮：学生不能替别人抽；只有教师 / 管理员 / 开发者看得到。
+  const np = v.querySelector('#rkNextPerson');
+  if (np) np.onclick = () => {
+    // 先彻底收尾这一局：RK.run=null、计时条收起、遮罩关掉，但**保留 RK.circuit**，
+    // 下一局还是排同一题（rkStartRun 里 drwUse 兜的那层会用它）。
+    const keep = RK.circuit;
+    rkQuit();
+    RK.circuit = keep;
+    rkDrawWin();
+  };
   const nx = v.querySelector('#rkNext'); if (nx) nx.onclick = rkGoNext; // 学生自己的账号：直接下一题，不用换人
   const sw = v.querySelector('#rkSwap'); if (sw) sw.onclick = () => { const c = RK.circuit; rkQuit(); openRank(c); }; // 换人：还是这一题，别被当前页带跑
   if (res && res.improved) { fireworks(); rkLadder(v.querySelector('#rkLad'), rows, res); rkCount(v.querySelector('#rkPl'), res.before || res.total, res.after); }
