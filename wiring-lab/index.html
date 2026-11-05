@@ -302,38 +302,247 @@
   /* 扩展练习行里的「视频」：可点的胶囊，和「开始」并排 */
   .vid-row em.ext-vid { cursor: pointer; }
   .vid-row em.ext-vid:hover { filter: brightness(1.08); }
-  .about-card { padding: 14px 18px; border-radius: 16px; background: var(--card); border: 1px solid var(--edge); }
-  .about-card small { display: block; color: var(--dim); font-weight: 700; font-size: 12.5px; letter-spacing: 1px; margin-bottom: 4px; } .about-card b { font-size: 24px; }
-  .about-card ul { margin: 2px 0 0; padding-left: 20px; font-size: 16px; font-weight: 600; line-height: 1.9; }
-  .about-note { margin: 4px 2px 0; color: var(--dim); font-size: 12.5px; }
-  .about-bar { display: flex; justify-content: flex-end; gap: 10px; }
-  /* ---------- 关于：名片式（2026-11-01 重做） ---------- */
-  .ab { display: flex; flex-direction: column; gap: 12px; }
-  .ab-hero { position: relative; overflow: hidden; padding: 18px 18px 16px; border-radius: 18px; color: #fff; background: linear-gradient(125deg, #4338ca 0%, #7c3aed 38%, #db2777 74%, #f59e0b 128%); box-shadow: 0 18px 38px -20px rgba(124,58,237,.95); }
-  .ab-hero::before { content: ""; position: absolute; inset: 0; opacity: .28; background-image: linear-gradient(rgba(255,255,255,.85) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.85) 1px, transparent 1px); background-size: 24px 24px; -webkit-mask-image: radial-gradient(circle at 86% -4%, #000, transparent 70%); mask-image: radial-gradient(circle at 86% -4%, #000, transparent 70%); }
-  .ab-hero::after { content: ""; position: absolute; right: -46px; bottom: -78px; width: 190px; height: 190px; border-radius: 50%; background: rgba(255,255,255,.16); }
-  .ab-top { position: relative; display: flex; align-items: flex-start; gap: 12px; }
-  .ab-logo { flex: none; width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; font-size: 21px; font-weight: 900; background: rgba(255,255,255,.2); box-shadow: inset 0 0 0 1px rgba(255,255,255,.5), 0 8px 20px -10px rgba(0,0,0,.6); }
-  .ab-name { font-size: 19px; font-weight: 800; letter-spacing: .4px; line-height: 1.25; }
-  .ab-sub { font-size: 12.5px; font-weight: 600; opacity: .92; margin-top: 3px; }
-  .ab-ver { margin-left: auto; flex: none; font-size: 11.5px; font-weight: 800; padding: 4px 10px; border-radius: 999px; background: rgba(0,0,0,.26); box-shadow: inset 0 0 0 1px rgba(255,255,255,.42); }
-  .ab-tag { position: relative; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
-  .ab-tag span { font-size: 11.5px; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: rgba(255,255,255,.19); box-shadow: inset 0 0 0 1px rgba(255,255,255,.34); }
-  .ab-sec { padding: 14px 16px; border-radius: 16px; background: var(--card); border: 1px solid var(--edge); }
-  .ab-sec > h5 { margin: 0 0 11px; display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 800; letter-spacing: 1.2px; color: var(--dim); }
-  .ab-sec > h5::before { content: ""; width: 3px; height: 13px; border-radius: 2px; background: linear-gradient(180deg, #8b5cf6, #ec4899); }
-  .ab-sec > h5 em { margin-left: auto; font-style: normal; font-size: 11.5px; font-weight: 700; letter-spacing: 0; color: var(--dim); opacity: .85; }
-  .ab-dev { display: flex; align-items: center; gap: 12px; }
-  .ab-av { flex: none; width: 44px; height: 44px; border-radius: 13px; display: grid; place-items: center; font-size: 18px; font-weight: 900; color: #fff; background: linear-gradient(140deg, #8b5cf6, #db2777); box-shadow: 0 10px 22px -10px rgba(139,92,246,.95); }
-  .ab-dev b { display: block; font-size: 17px; line-height: 1.3; }
-  .ab-dev small { display: block; color: var(--dim); font-size: 12px; font-weight: 600; margin-top: 2px; }
-  .ab-list { display: flex; flex-wrap: wrap; gap: 8px; }
-  .ab-chip { display: flex; align-items: center; gap: 8px; padding: 6px 13px 6px 7px; border-radius: 12px; background: var(--bg, rgba(127,127,127,.08)); border: 1px solid var(--edge); font-size: 14px; font-weight: 700; }
-  .ab-chip i { flex: none; width: 23px; height: 23px; border-radius: 7px; display: grid; place-items: center; font-style: normal; font-size: 10.5px; font-weight: 900; color: #fff; background: linear-gradient(140deg, #f59e0b, #ec4899); }
-  .ab-empty { color: var(--dim); font-size: 13px; font-weight: 600; }
-  .ab-foot { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 2px 2px 0; }
-  .ab-copy { margin: 0; color: var(--dim); font-size: 12px; }
-  .ab-foot .about-bar { margin-left: auto; }
+  /* ---------- 「关于」→「项目团队」全息面板（2026-11-05 重构）----------
+     不再沿用浮动窗的拖拽卡片外观：#fw-about 本体改成整屏遮罩（rgba(2,6,18,.72)+blur，页面原背景隐约可见），
+     .fw-body 里放一块四角机械切角的全息面板（蓝紫双色描边流光）。只作用 #fw-about，其他浮窗照旧。
+     业务不变：开发者/贡献者仍强制每次打开就弹、3 秒没人碰自动收（aboutArm 只看 class 'show'，跟外观无关）。 */
+  #fw-about { left: 0 !important; top: 0 !important; width: 100vw !important; height: 100dvh !important; min-width: 0; min-height: 0;
+    border: 0; border-radius: 0; overflow: hidden; display: flex; padding: 16px; box-sizing: border-box;
+    background: rgba(2, 6, 18, .72); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    transform: none; transition: opacity .45s ease; }
+  html.is-lite #fw-about { backdrop-filter: none; -webkit-backdrop-filter: none; } /* 低端设备不跑整屏模糊 */
+  #fw-about .fw-head, #fw-about .fw-rs { display: none; } /* 自带标题栏/缩放手柄摘掉，面板有自己的头部和关闭钮 */
+  #fw-about .fw-body { flex: 1; min-width: 0; min-height: 0; overflow: hidden; display: grid; place-items: center; }
+  /* 面板外层 = 1.5px 霓虹描边（紫蓝交替流光，clip-path 切角），内层 = 深蓝黑半透明玻璃 */
+  #fw-about .pt-panel { position: relative; width: clamp(680px, 90vw, 820px); max-width: 100%; height: clamp(480px, 84dvh, 560px); max-height: 100%;
+    --pt-cut: 22px; --pt-p: #9254FF; --pt-b: #368CFF; --pt-c: #00DEFF; --pt-ink: #F4F7FF; --pt-dim: #A7B5D6;
+    padding: 1.5px; box-sizing: border-box;
+    clip-path: polygon(var(--pt-cut) 0, calc(100% - var(--pt-cut)) 0, 100% var(--pt-cut), 100% calc(100% - var(--pt-cut)),
+      calc(100% - var(--pt-cut)) 100%, var(--pt-cut) 100%, 0 calc(100% - var(--pt-cut)), 0 var(--pt-cut));
+    background: linear-gradient(115deg, var(--pt-p), var(--pt-b) 28%, var(--pt-c) 50%, var(--pt-b) 72%, var(--pt-p));
+    background-size: 300% 300%; animation: ptFlow 10s linear infinite;
+    filter: drop-shadow(0 0 22px rgba(146, 84, 255, .3)) drop-shadow(0 18px 44px rgba(0, 0, 0, .55)); }
+  @keyframes ptFlow { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+  #fw-about .pt-in { position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; overflow: hidden;
+    clip-path: polygon(var(--pt-cut) 0, calc(100% - var(--pt-cut)) 0, 100% var(--pt-cut), 100% calc(100% - var(--pt-cut)),
+      calc(100% - var(--pt-cut)) 100%, var(--pt-cut) 100%, 0 calc(100% - var(--pt-cut)), 0 var(--pt-cut));
+    background: linear-gradient(165deg, rgba(16, 26, 56, .94), rgba(7, 13, 32, .96) 58%, rgba(10, 16, 38, .94)); }
+  /* 内部低透明度科技网格纹理（只在右上角亮，压着不抢内容） */
+  #fw-about .pt-in::before { content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none; opacity: .55;
+    background-image: linear-gradient(rgba(54, 140, 255, .06) 1px, transparent 1px), linear-gradient(90deg, rgba(54, 140, 255, .06) 1px, transparent 1px);
+    background-size: 36px 36px;
+    -webkit-mask-image: radial-gradient(120% 90% at 74% 0%, #000 28%, transparent 76%); mask-image: radial-gradient(120% 90% at 74% 0%, #000 28%, transparent 76%); }
+  /* 顶部 / 底部极细动态光线 */
+  #fw-about .pt-beam { position: absolute; z-index: 0; left: 9%; right: 9%; height: 1px; pointer-events: none;
+    background: linear-gradient(90deg, transparent, rgba(0, 222, 255, .65), rgba(146, 84, 255, .65), transparent);
+    animation: ptBeam 5.2s ease-in-out infinite; }
+  #fw-about .pt-beam.t { top: 11px; } #fw-about .pt-beam.b { bottom: 11px; animation-delay: -2.6s; }
+  @keyframes ptBeam { 50% { opacity: .15; } }
+  /* 四个切角上的发光节点 */
+  #fw-about .pt-node { position: absolute; z-index: 3; width: 7px; height: 7px; border-radius: 50%; background: var(--pt-c);
+    box-shadow: 0 0 10px var(--pt-c), 0 0 18px rgba(0, 222, 255, .5); animation: ptNode 3.4s ease-in-out infinite; }
+  #fw-about .pt-node.n1 { left: 9px; top: 9px; } #fw-about .pt-node.n2 { right: 9px; top: 9px; animation-delay: -.9s; }
+  #fw-about .pt-node.n3 { right: 9px; bottom: 9px; animation-delay: -1.7s; } #fw-about .pt-node.n4 { left: 9px; bottom: 9px; animation-delay: -2.6s; }
+  @keyframes ptNode { 50% { opacity: .35; } }
+  /* 头部：大型发光 </> 图标 + 标题（横向扫描光）+ 副标题 */
+  #fw-about .pt-head { position: relative; z-index: 2; display: flex; align-items: center; gap: 16px; padding: 24px 28px 16px; }
+  #fw-about .pt-logo { flex: none; width: 54px; height: 54px; display: grid; place-items: center; border-radius: 16px;
+    font: 900 20px/1 ui-monospace, Consolas, monospace; color: #cfe0ff; letter-spacing: -1px;
+    background: linear-gradient(150deg, rgba(146, 84, 255, .24), rgba(0, 222, 255, .1));
+    box-shadow: inset 0 0 0 1px rgba(146, 84, 255, .45), 0 0 18px rgba(146, 84, 255, .35), 0 0 32px rgba(54, 140, 255, .22);
+    text-shadow: 0 0 8px rgba(0, 222, 255, .9), 0 0 16px rgba(146, 84, 255, .7); animation: ptFloat 4.5s ease-in-out infinite; }
+  #fw-about .pt-tt { min-width: 0; }
+  #fw-about .pt-tt b { display: block; font-size: 22px; letter-spacing: 3px; line-height: 1.2;
+    background: linear-gradient(100deg, var(--pt-ink) 32%, #ffffff 45%, var(--pt-c) 52%, #ffffff 59%, var(--pt-ink) 68%);
+    background-size: 240% 100%; -webkit-background-clip: text; background-clip: text; color: transparent;
+    animation: ptTitleScan 4.5s linear infinite; }
+  @keyframes ptTitleScan { from { background-position: 130% 0; } to { background-position: -130% 0; } }
+  #fw-about .pt-tt small { display: block; margin-top: 3px; color: var(--pt-dim); font-size: 11px; font-weight: 800; letter-spacing: 5px; }
+  /* 能量分割线：一道小光斑来回跑 */
+  #fw-about .pt-div { position: relative; z-index: 2; flex: none; height: 1px; margin: 0 28px;
+    background: linear-gradient(90deg, transparent, rgba(146, 84, 255, .55), rgba(0, 222, 255, .55), transparent); }
+  #fw-about .pt-div i { position: absolute; top: -1px; width: 46px; height: 3px; border-radius: 3px;
+    background: linear-gradient(90deg, transparent, var(--pt-c), transparent); filter: blur(.5px); animation: ptDivRun 4.2s ease-in-out infinite; }
+  @keyframes ptDivRun { 0% { left: -6%; opacity: 0; } 12%, 88% { opacity: 1; } 100% { left: 103%; opacity: 0; } }
+  /* 关闭钮：全息玻璃圆钮，hover 边框增亮、X 轻旋 */
+  #fw-about .pt-x { position: absolute; z-index: 6; top: 16px; right: 18px; width: 38px; height: 38px; border-radius: 50%; cursor: pointer;
+    border: 1px solid rgba(167, 181, 214, .38); background: linear-gradient(150deg, rgba(16, 26, 56, .72), rgba(7, 13, 32, .72));
+    box-shadow: inset 0 0 12px rgba(54, 140, 255, .16), 0 4px 14px rgba(0, 0, 0, .4); transition: border-color .2s, box-shadow .25s; }
+  #fw-about .pt-x::before, #fw-about .pt-x::after { content: ""; position: absolute; left: 50%; top: 50%; width: 14px; height: 2px; border-radius: 2px;
+    background: var(--pt-ink); box-shadow: 0 0 6px rgba(0, 222, 255, .8); transform: translate(-50%, -50%) rotate(45deg);
+    transition: transform .28s cubic-bezier(.22, 1, .36, 1); }
+  #fw-about .pt-x::after { transform: translate(-50%, -50%) rotate(-45deg); }
+  #fw-about .pt-x:hover, #fw-about .pt-x:focus-visible { border-color: rgba(0, 222, 255, .9); box-shadow: inset 0 0 14px rgba(0, 222, 255, .28), 0 0 16px rgba(0, 222, 255, .4); outline: none; }
+  #fw-about .pt-x:hover::before { transform: translate(-50%, -50%) rotate(135deg); } #fw-about .pt-x:hover::after { transform: translate(-50%, -50%) rotate(45deg); }
+  /* 右上角低透明度 3D 晶体装饰（三片斜面缓慢自转，不遮文字、不吃点击） */
+  #fw-about .pt-crystal { position: absolute; z-index: 1; top: 14px; right: 70px; width: 76px; height: 76px; pointer-events: none; opacity: .5;
+    perspective: 260px; -webkit-mask-image: radial-gradient(closest-side, #000 55%, transparent); mask-image: radial-gradient(closest-side, #000 55%, transparent); }
+  #fw-about .pt-crystal i { position: absolute; inset: 0; margin: auto; border-radius: 4px; transform-style: preserve-3d; }
+  #fw-about .pt-crystal i:nth-child(1) { width: 46px; height: 46px; border: 1px solid rgba(146, 84, 255, .55); box-shadow: inset 0 0 16px rgba(146, 84, 255, .35); animation: ptCry 13s linear infinite; }
+  #fw-about .pt-crystal i:nth-child(2) { width: 30px; height: 30px; border: 1px solid rgba(0, 222, 255, .6); box-shadow: inset 0 0 12px rgba(0, 222, 255, .3); animation: ptCry 9s linear infinite reverse; }
+  #fw-about .pt-crystal i:nth-child(3) { width: 12px; height: 12px; background: radial-gradient(circle, rgba(0, 222, 255, .8), transparent 70%); border: 0; animation: ptCry 7s linear infinite; }
+  @keyframes ptCry { from { transform: rotateX(62deg) rotateZ(45deg) rotate(0deg); } to { transform: rotateX(62deg) rotateZ(45deg) rotate(360deg); } }
+  /* 视图区（双卡片 / 详情都在这里换） */
+  #fw-about .pt-stage { position: relative; z-index: 2; flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+    display: flex; flex-direction: column; scrollbar-width: thin; scrollbar-color: rgba(54, 140, 255, .4) transparent; }
+  #fw-about .pt-cards { display: flex; flex-direction: column; justify-content: safe center; gap: 14px; padding: 22px 28px 34px; perspective: 900px; }
+  /* 入口卡片：左 3D 图标 + 椭圆全息底座，中 标题+装饰光线，右 科技条纹+方向箭头 */
+  #fw-about .pt-card { position: relative; display: flex; align-items: center; gap: 18px; height: 122px; padding: 0 20px 0 12px;
+    border: 1px solid rgba(146, 84, 255, .34); border-radius: 16px; cursor: pointer; text-align: left; font: inherit; color: inherit;
+    background: linear-gradient(120deg, rgba(20, 30, 64, .55), rgba(10, 16, 38, .66)); overflow: hidden;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05);
+    transform: translateY(0) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+    transition: transform .32s cubic-bezier(.22, 1, .36, 1), border-color .25s, box-shadow .3s; }
+  #fw-about .pt-card.con { border-color: rgba(54, 140, 255, .34); }
+  #fw-about .pt-card:hover, #fw-about .pt-card:focus-visible { border-color: rgba(0, 222, 255, .68); outline: none;
+    transform: translateY(-3px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+    box-shadow: inset 0 0 28px rgba(54, 140, 255, .13), 0 14px 30px -14px rgba(0, 0, 0, .6), 0 0 20px -4px rgba(146, 84, 255, .38); }
+  /* hover 扫描光掠过（一次）：一道斜光从左划到右 */
+  #fw-about .pt-card::after { content: ""; position: absolute; top: -10%; bottom: -10%; width: 38%; left: -46%;
+    background: linear-gradient(100deg, transparent, rgba(160, 220, 255, .16), transparent);
+    transform: skewX(-14deg); transition: left .6s ease; pointer-events: none; }
+  #fw-about .pt-card:hover::after { left: 114%; }
+  #fw-about .pt-ic { flex: none; width: 118px; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  #fw-about .pt-ic3d { position: relative; width: 88px; height: 62px; display: grid; place-items: end center; perspective: 320px;
+    transition: transform .35s cubic-bezier(.22, 1, .36, 1); }
+  #fw-about .pt-card:hover .pt-ic3d { transform: translateY(-5px); } /* 3D 图标浮起 */
+  @keyframes ptFloat { 50% { transform: translateY(-4px); } }
+  /* 开发者：发光笔记本电脑 + 屏上 </> */
+  #fw-about .pc { position: relative; width: 64px; height: 46px; transform-style: preserve-3d; animation: ptFloat 4.2s ease-in-out infinite; }
+  #fw-about .pc-s { position: absolute; left: 0; top: 0; width: 64px; height: 40px; border-radius: 7px 7px 3px 3px; display: grid; place-items: center;
+    background: linear-gradient(160deg, #101a38, #0a1228); border: 1px solid rgba(146, 84, 255, .75); transform: rotateX(8deg);
+    box-shadow: 0 0 14px rgba(146, 84, 255, .4), inset 0 0 12px rgba(54, 140, 255, .2);
+    font: 900 15px/1 ui-monospace, Consolas, monospace; color: #9fe8ff; text-shadow: 0 0 8px rgba(0, 222, 255, .95); }
+  #fw-about .pc-k { position: absolute; left: 50%; bottom: 0; width: 78px; height: 13px; margin-left: -39px; border-radius: 3px 3px 7px 7px;
+    transform: rotateX(58deg); transform-origin: top center;
+    background: linear-gradient(180deg, rgba(54, 140, 255, .42), rgba(20, 30, 64, .92)); border: 1px solid rgba(54, 140, 255, .5); border-top-color: rgba(0, 222, 255, .6); }
+  /* 贡献者：三人立体群组（前后三层错开 translateZ） */
+  #fw-about .pp3 { position: relative; width: 84px; height: 58px; transform-style: preserve-3d; animation: ptFloat 4.6s ease-in-out infinite; }
+  #fw-about .pp { position: absolute; bottom: 2px; width: 22px; height: 32px; }
+  #fw-about .pp::before { content: ""; position: absolute; top: 0; left: 50%; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%;
+    background: linear-gradient(160deg, #9fd9ff, #368CFF); box-shadow: 0 0 8px rgba(0, 222, 255, .65); }
+  #fw-about .pp::after { content: ""; position: absolute; bottom: 0; left: 50%; width: 22px; height: 16px; margin-left: -11px; border-radius: 9px 9px 3px 3px;
+    background: linear-gradient(180deg, rgba(0, 222, 255, .55), rgba(54, 140, 255, .22)); box-shadow: inset 0 0 6px rgba(0, 222, 255, .3); }
+  #fw-about .pp:nth-child(1) { left: 0; transform: translateZ(12px) scale(.9); opacity: .92; }
+  #fw-about .pp:nth-child(2) { left: 31px; bottom: 5px; transform: translateZ(26px); }
+  #fw-about .pp:nth-child(3) { right: 0; transform: translateZ(12px) scale(.9); opacity: .92; }
+  /* 椭圆全息投影底座：光晕 + 缓慢旋转的光圈（conic 光斑绕椭圆跑） */
+  #fw-about .pt-base { position: relative; width: 94px; height: 18px; pointer-events: none; }
+  #fw-about .pt-base::before { content: ""; position: absolute; inset: 0; border-radius: 50%; filter: blur(1px); transition: opacity .3s;
+    background: radial-gradient(50% 62% at 50% 42%, rgba(146, 84, 255, .5), rgba(146, 84, 255, .12) 62%, transparent 78%); opacity: .8; }
+  #fw-about .pt-card.con .pt-base::before { background: radial-gradient(50% 62% at 50% 42%, rgba(0, 222, 255, .5), rgba(0, 222, 255, .12) 62%, transparent 78%); }
+  #fw-about .pt-base::after { content: ""; position: absolute; left: 50%; top: 50%; width: 94px; height: 94px; margin: -47px 0 0 -47px; border-radius: 50%;
+    background: conic-gradient(from 0deg, transparent 0 12%, var(--pt-c) 24%, transparent 36% 56%, var(--pt-p) 68%, transparent 80%);
+    -webkit-mask: radial-gradient(closest-side, transparent 73%, #000 75% 86%, transparent 88%); mask: radial-gradient(closest-side, transparent 73%, #000 75% 86%, transparent 88%);
+    transform: rotateX(72deg); animation: ptSpin 6s linear infinite; opacity: .85; }
+  @keyframes ptSpin { to { transform: rotateX(72deg) rotate(360deg); } }
+  #fw-about .pt-card:hover .pt-base::before { opacity: 1; } /* 底座增亮 */
+  #fw-about .pt-mid { flex: 1; min-width: 0; }
+  #fw-about .pt-mid small { display: block; font-size: 10.5px; letter-spacing: 3.5px; font-weight: 800; color: #b99cff; }
+  #fw-about .pt-card.con .pt-mid small { color: var(--pt-c); }
+  #fw-about .pt-mid b { display: block; margin-top: 4px; font-size: 19px; letter-spacing: 2px; color: var(--pt-ink); }
+  #fw-about .pt-ray { display: block; margin-top: 8px; width: 64px; height: 2px; border-radius: 2px; background: linear-gradient(90deg, var(--pt-p), transparent); }
+  #fw-about .pt-card.con .pt-ray { background: linear-gradient(90deg, var(--pt-c), transparent); }
+  #fw-about .pt-side { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 11px; }
+  #fw-about .pt-stripes { width: 46px; height: 18px; opacity: .65; background: repeating-linear-gradient(135deg, rgba(146, 84, 255, .55) 0 2px, transparent 2px 7px); }
+  #fw-about .pt-card.con .pt-stripes { background: repeating-linear-gradient(135deg, rgba(0, 222, 255, .55) 0 2px, transparent 2px 7px); }
+  #fw-about .pt-arrow { width: 22px; height: 22px; color: var(--pt-dim); transition: transform .3s cubic-bezier(.22, 1, .36, 1), color .2s; }
+  #fw-about .pt-card:hover .pt-arrow { transform: translateX(5px); color: var(--pt-c); } /* 箭头右移 */
+  /* 详情视图：淡入 + 右滑入场 */
+  #fw-about .pt-view { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 18px 28px 24px; animation: ptViewIn .38s cubic-bezier(.22, 1, .36, 1) both; }
+  @keyframes ptViewIn { from { opacity: 0; transform: translateX(26px); } }
+  #fw-about .pt-back { align-self: flex-start; flex: none; display: inline-flex; align-items: center; gap: 7px; padding: 8px 15px 8px 11px;
+    border-radius: 999px; border: 1px solid rgba(167, 181, 214, .35); background: rgba(16, 26, 56, .55); color: var(--pt-dim);
+    font: 700 13px/1 inherit; letter-spacing: 1px; cursor: pointer; transition: color .2s, border-color .2s, transform .15s; }
+  #fw-about .pt-back svg { width: 14px; height: 14px; }
+  #fw-about .pt-back:hover, #fw-about .pt-back:focus-visible { color: var(--pt-ink); border-color: rgba(0, 222, 255, .6); outline: none; } #fw-about .pt-back:active { transform: scale(.95); }
+  #fw-about .pt-view-scroll { flex: 1; min-height: 0; overflow-y: auto; margin-top: 16px; display: flex; flex-direction: column; justify-content: safe center; gap: 14px;
+    scrollbar-width: thin; scrollbar-color: rgba(54, 140, 255, .4) transparent; }
+  /* 开发者详情：头像 + 身份（数据来自 ABOUT.dev，代码里没有主页/仓库链接，就不做链接按钮） */
+  #fw-about .pt-who { display: flex; align-items: center; gap: 18px; padding: 18px 20px; border-radius: 16px;
+    background: linear-gradient(120deg, rgba(20, 30, 64, .6), rgba(10, 16, 38, .66)); border: 1px solid rgba(146, 84, 255, .3); }
+  #fw-about .pt-av { flex: none; width: 64px; height: 64px; border-radius: 20px; display: grid; place-items: center; font-size: 26px; font-weight: 900; color: #fff;
+    background: linear-gradient(150deg, rgba(146, 84, 255, .9), rgba(54, 140, 255, .5));
+    box-shadow: 0 0 22px rgba(146, 84, 255, .45), inset 0 0 14px rgba(255, 255, 255, .18); }
+  #fw-about .pt-who small { display: block; font-size: 10.5px; letter-spacing: 3.5px; font-weight: 800; color: #b99cff; }
+  #fw-about .pt-who b { display: block; margin-top: 4px; font-size: 21px; letter-spacing: 1px; color: var(--pt-ink); }
+  /* 只命中身份那行 span；不能写 .pt-who span，否则会把头像 .pt-av 的 display:grid 顶掉，「夜」字会跑出方块 */
+  #fw-about .pt-who > div > span { display: block; margin-top: 5px; color: var(--pt-dim); font-size: 13px; font-weight: 600; }
+  /* 贡献者详情：名单 / 统一风格空状态 */
+  #fw-about .pt-list { display: flex; flex-direction: column; gap: 8px; }
+  #fw-about .pt-chip { display: flex; align-items: center; gap: 13px; padding: 11px 15px; border-radius: 13px; font-size: 15px; font-weight: 600; color: var(--pt-ink);
+    background: rgba(16, 26, 56, .55); border: 1px solid rgba(54, 140, 255, .26); }
+  #fw-about .pt-chip i { font-style: normal; font-size: 11px; font-weight: 800; letter-spacing: 1px; color: var(--pt-c); opacity: .85; }
+  #fw-about .pt-none { display: grid; place-items: center; gap: 8px; padding: 36px 12px; border: 1px dashed rgba(54, 140, 255, .38); border-radius: 16px;
+    text-align: center; color: var(--pt-dim); }
+  #fw-about .pt-none svg { width: 34px; height: 34px; color: rgba(0, 222, 255, .55); }
+  #fw-about .pt-none b { font-size: 16px; letter-spacing: 2px; color: var(--pt-ink); }
+  #fw-about .pt-none small { font-size: 12.5px; }
+  #fw-about .pt-act { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 2px; }
+  #fw-about .pt-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 38px; padding: 0 18px; border-radius: 12px;
+    border: 1px solid rgba(146, 84, 255, .5); background: rgba(146, 84, 255, .14); color: var(--pt-ink); font: 700 14px/1 inherit;
+    letter-spacing: 1px; cursor: pointer; transition: background .2s, border-color .2s, transform .15s; }
+  #fw-about .pt-btn:hover { background: rgba(146, 84, 255, .3); border-color: rgba(0, 222, 255, .75); } #fw-about .pt-btn:active { transform: scale(.96); }
+  #fw-about .pt-btn.cy { border-color: rgba(0, 222, 255, .45); background: rgba(0, 222, 255, .1); }
+  #fw-about .pt-btn.cy:hover { background: rgba(0, 222, 255, .22); }
+  /* 开发者编辑名单（原 about-edit 的业务照旧，样式换成本面板同款深色） */
+  #fw-about .pt-form { display: flex; flex-direction: column; gap: 13px; }
+  #fw-about .pt-form label { display: grid; gap: 6px; font-size: 12px; font-weight: 800; letter-spacing: 1px; color: var(--pt-dim); }
+  #fw-about .pt-form input, #fw-about .pt-form textarea { box-sizing: border-box; width: 100%; padding: 10px 12px; border-radius: 11px;
+    border: 1px solid rgba(167, 181, 214, .3); background: rgba(7, 13, 32, .72); color: var(--pt-ink); font: inherit; font-size: 15px; outline: none; resize: vertical; }
+  #fw-about .pt-form input:focus, #fw-about .pt-form textarea:focus { border-color: rgba(0, 222, 255, .7); box-shadow: 0 0 0 3px rgba(0, 222, 255, .15); }
+  #fw-about .pt-msg { margin: 0; min-height: 1.4em; font-size: 12.5px; color: var(--pt-dim); }
+  /* 粒子：16 个低透明度光点缓慢漂移（纯 CSS 动画，pointer-events:none 不挡鼠标） */
+  #fw-about .pt-dots { position: absolute; inset: 0; z-index: 1; pointer-events: none; overflow: hidden; }
+  #fw-about .pt-dot { position: absolute; width: 3px; height: 3px; border-radius: 50%; background: var(--pt-c);
+    animation: ptDrift var(--dd, 14s) ease-in-out var(--dl, 0s) infinite alternate; }
+  @keyframes ptDrift { from { transform: translate(0, 0); opacity: .08; } to { transform: translate(var(--dx, 20px), var(--dy, -36px)); opacity: .3; } }
+  /* 面板底部弱透视椭圆全息环（蓝紫双层，缓慢脉冲） */
+  #fw-about .pt-ring { position: absolute; z-index: 0; left: 50%; bottom: -44px; width: 340px; height: 92px; margin-left: -170px; pointer-events: none;
+    opacity: .75; animation: ptRingPulse 4.6s ease-in-out infinite; }
+  #fw-about .pt-ring i { position: absolute; border-radius: 50%; border: 1px solid; }
+  #fw-about .pt-ring i:nth-child(1) { inset: 0; border-color: rgba(54, 140, 255, .45); box-shadow: 0 0 12px rgba(54, 140, 255, .35), inset 0 0 20px rgba(54, 140, 255, .2); }
+  #fw-about .pt-ring i:nth-child(2) { inset: 15px 36px; border-color: rgba(146, 84, 255, .4); box-shadow: 0 0 12px rgba(146, 84, 255, .3); animation: ptRingPulse 4.6s ease-in-out -2.3s infinite; }
+  @keyframes ptRingPulse { 0%, 100% { transform: perspective(420px) rotateX(58deg) scale(1); } 50% { transform: perspective(420px) rotateX(58deg) scale(1.045); opacity: .45; } }
+  /* ── 入场动画：遮罩渐暗模糊(.fw 自身) + 面板上浮缩放 + 霓虹沿轮廓点亮 + 卡片 90ms 依次入场 + 底部环亮起 ── */
+  #fw-about.show .pt-panel { animation: ptFlow 10s linear infinite, ptIn .58s cubic-bezier(.22, 1, .36, 1) both, ptLight .85s ease-out both; }
+  @keyframes ptIn { from { opacity: 0; transform: translateY(16px) scale(.94); } }
+  @keyframes ptLight { from { filter: brightness(2) saturate(1.35); } }
+  #fw-about.show .pt-head, #fw-about.show .pt-div { animation: ptFade .5s .1s cubic-bezier(.22, 1, .36, 1) both; }
+  @keyframes ptFade { from { opacity: 0; transform: translateY(8px); } }
+  #fw-about.show .pt-card { animation: ptCardIn .5s cubic-bezier(.22, 1, .36, 1) both; animation-delay: .17s; }
+  #fw-about.show .pt-card + .pt-card { animation-delay: .26s; } /* 两卡片间隔 90ms 依次入场 */
+  @keyframes ptCardIn { from { opacity: 0; transform: translateY(18px); } }
+  #fw-about.show .pt-ring { animation: ptRingIn .6s .3s both, ptRingPulse 4.6s 1.2s ease-in-out infinite; }
+  @keyframes ptRingIn { from { opacity: 0; } }
+  /* 减少动态：全停，直接就位（弹窗本体沿用上面 .fw 的 .01s 过渡规则，这里补 id 覆盖） */
+  @media (prefers-reduced-motion: reduce) {
+    #fw-about, #fw-about.show { transition-duration: .01s; }
+    #fw-about .pt-panel, #fw-about .pt-head, #fw-about .pt-div, #fw-about .pt-card, #fw-about .pt-view, #fw-about .pt-ring,
+    #fw-about .pt-dot, #fw-about .pt-beam, #fw-about .pt-node, #fw-about .pt-logo, #fw-about .pt-crystal i, #fw-about .pc,
+    #fw-about .pp3, #fw-about .pt-base::after, #fw-about .pt-div i, #fw-about .pt-tt b { animation: none !important; }
+    #fw-about .pt-panel { filter: drop-shadow(0 18px 44px rgba(0, 0, 0, .55)); }
+  }
+  /* 响应式：平板缩装饰；手机卡片缩小、晶体隐藏、内容超高内部滚 */
+  @media (max-width: 900px) { .pt-panel { --pt-cut: 16px; } #fw-about .pt-crystal { display: none; } }
+  @media (max-width: 640px) {
+    #fw-about { padding: 10px; }
+    #fw-about .pt-panel { width: 100%; height: auto; max-height: calc(100dvh - 20px); }
+    #fw-about .pt-head { padding: 16px 16px 12px; gap: 12px; }
+    #fw-about .pt-logo { width: 44px; height: 44px; font-size: 16px; border-radius: 13px; }
+    #fw-about .pt-tt b { font-size: 18px; letter-spacing: 2px; } #fw-about .pt-tt small { font-size: 9.5px; letter-spacing: 3px; }
+    #fw-about .pt-x { top: 12px; right: 12px; width: 34px; height: 34px; } /* 关闭钮始终可见 */
+    #fw-about .pt-div { margin: 0 16px; }
+    #fw-about .pt-cards { padding: 14px 14px 26px; gap: 12px; }
+    #fw-about .pt-card { height: 104px; gap: 10px; padding: 0 14px 0 8px; }
+    #fw-about .pt-ic { width: 92px; } #fw-about .pt-ic3d { width: 66px; height: 50px; transform-origin: bottom center; }
+    #fw-about .pt-ic3d > * { transform: scale(.82); transform-origin: bottom center; }
+    #fw-about .pt-card:hover .pt-ic3d { transform: translateY(-4px); }
+    #fw-about .pt-mid b { font-size: 16px; } #fw-about .pt-mid small { font-size: 9px; letter-spacing: 2.5px; } #fw-about .pt-ray { width: 44px; }
+    #fw-about .pt-stripes { width: 30px; height: 14px; } #fw-about .pt-arrow { width: 19px; height: 19px; }
+    #fw-about .pt-ring { width: 240px; margin-left: -120px; height: 70px; bottom: -34px; }
+    #fw-about .pt-view { padding: 14px 16px 18px; } #fw-about .pt-who b { font-size: 18px; }
+  }
   /* ---------- 元器件介绍（2026-11-02）：只收 2.1～2.6 真正用到的元件，带缩写、端子号、实物图 ---------- */
   .pt { padding: 16px 18px 22px; display: grid; grid-template-columns: 226px minmax(0, 1fr); gap: 14px; align-items: start; }
   .pt-list { display: grid; gap: 5px; align-content: start; }
@@ -442,9 +651,6 @@
   .acct-card { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 6px 0 14px; text-align: center; border-bottom: 1px solid var(--edge); }
   .acct-card b { font-size: 18px; } .acct-card small { color: var(--dim); word-break: break-all; }
   .acct-dl { margin: 12px 4px; display: grid; grid-template-columns: auto 1fr; gap: 8px 14px; font-size: 14px; } .acct-dl dt { color: var(--dim); } .acct-dl dd { margin: 0; text-align: right; word-break: break-all; }
-  .about-edit .about-card { display: block; }
-  .about-edit input, .about-edit textarea { box-sizing: border-box; width: 100%; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--edge); background: var(--bg, transparent); color: var(--ink); font: inherit; font-size: 16px; outline: none; resize: vertical; }
-  .about-edit input:focus, .about-edit textarea:focus { border-color: var(--acc); }
   @media (max-width: 1100px) { .side { display: none; } }
   /* 触屏设备：分段按钮的点按区抬到 44px（苹果 HIG / Material 的最小可点尺寸）。
      桌面鼠标点 34px 完全够，就不动桌面高度 —— 顶栏保持 44px 一行，和原来一模一样。 */
@@ -884,6 +1090,374 @@
     .rk-go { width: clamp(176px, 17vw, 210px); height: clamp(176px, 17vw, 210px); }
     .rk-halo, .rk-dash { width: 206px; height: 206px; }
     .rk-dots { margin: 12px 0 2px; }
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════
+     排位窗口 UI 重构（2026-11-08）：未来电竞排位系统 + 赛博朋克控制台 + 全息玻璃卡片。
+     与「关于 → 项目团队」(#fw-about .pt-*) 同一设计语言：机械切角 clip-path、霓虹描边流光、
+     全息环、科技网格。全部收在 #fw-rank 作用域 + --rk-* 变量下，不污染别的浮窗和练习页；
+     遮罩/倒数/转场/成绩页（.rk-veil 一族）与夜市抽人窗口（#fw-draw）一行都不碰。
+     颜色语义（不许混用）：橙=操作/当前选手/选中/第一名，蓝=结构/默认交互，紫=项目模块/装饰。
+     ══════════════════════════════════════════════════════════════════════ */
+  #fw-rank {
+    --rk-bg: #060B1B; --rk-panel: #101A32; --rk-panel2: #17223C;
+    --rk-blue: #368CFF; --rk-cyan: #00DFFF; --rk-purple: #9857FF;
+    --rk-orange: #FF9B12; --rk-red: #FF493B; --rk-gold: #FFBE45;
+    --rk-ink: #F5F7FF; --rk-dim: #A4B2D0;
+    --rk-ease: cubic-bezier(.22, 1, .36, 1);
+    /* 低成本暗层叠在底下的视频/主题背景之上，不替换背景 */
+    background: linear-gradient(168deg, rgba(6, 11, 27, .93), rgba(6, 11, 27, .9) 55%, rgba(6, 11, 27, .96));
+  }
+  #fw-rank .fw-body { display: flex; overflow: hidden; }
+  #fw-rank .rk { position: relative; flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; padding: 14px 20px 18px; }
+  /* 背景装饰两层：科技网格（右上亮）+ 缓移微粒子。都压在内容后面（z-index:-1，宿主 #fw-rank 是 fixed+zIndex 的层叠上下文） */
+  #fw-rank .rk::before, #fw-rank .rk::after { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; }
+  #fw-rank .rk::before {
+    background-image: linear-gradient(rgba(54, 140, 255, .055) 1px, transparent 1px), linear-gradient(90deg, rgba(54, 140, 255, .055) 1px, transparent 1px);
+    background-size: 44px 44px;
+    -webkit-mask-image: radial-gradient(130% 100% at 82% 0%, #000 22%, transparent 72%); mask-image: radial-gradient(130% 100% at 82% 0%, #000 22%, transparent 72%);
+  }
+  #fw-rank .rk::after { inset: -140px; opacity: .55;
+    background-image: radial-gradient(circle 1.5px at 12% 24%, rgba(0, 223, 255, .5), transparent 60%), radial-gradient(circle 1px at 38% 66%, rgba(152, 87, 255, .5), transparent 60%),
+      radial-gradient(circle 1.5px at 64% 18%, rgba(54, 140, 255, .45), transparent 60%), radial-gradient(circle 1px at 84% 52%, rgba(0, 223, 255, .4), transparent 60%),
+      radial-gradient(circle 1px at 28% 88%, rgba(54, 140, 255, .4), transparent 60%), radial-gradient(circle 1.5px at 92% 84%, rgba(152, 87, 255, .4), transparent 60%);
+    background-repeat: repeat; background-size: 560px 560px;
+    animation: rkDotsDrift 26s ease-in-out infinite alternate; }
+  @keyframes rkDotsDrift { to { transform: translate3d(-64px, -44px, 0); } }
+
+  /* ── 顶部标题栏：横向控制台 ── */
+  #fw-rank .fw-head { position: relative; flex: none; height: 58px; padding: 0 18px 0 16px; gap: 14px; overflow: hidden;
+    border-bottom: 1px solid rgba(0, 223, 255, .22);
+    background: linear-gradient(90deg, rgba(255, 155, 18, .17), rgba(80, 48, 140, .16) 40%, rgba(10, 16, 38, .5) 64%, rgba(54, 140, 255, .15)), rgba(8, 13, 30, .92);
+    box-shadow: 0 1px 0 rgba(255, 155, 18, .28) inset, 0 12px 32px -20px rgba(0, 0, 0, .85); }
+  /* 局部光斑细线 */
+  #fw-rank .fw-head::before { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .6;
+    background: repeating-linear-gradient(90deg, transparent 0 96px, rgba(0, 223, 255, .07) 96px 98px, transparent 98px 168px, rgba(255, 155, 18, .05) 168px 169px, transparent 169px 240px); }
+  /* 底部能量线 + 扫光来回 */
+  #fw-rank .fw-head::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; pointer-events: none;
+    background: linear-gradient(90deg, transparent, rgba(255, 155, 18, .8), rgba(0, 223, 255, .8), transparent);
+    background-size: 220% 100%; animation: rkHeadScan 9s ease-in-out infinite; }
+  @keyframes rkHeadScan { 0%, 100% { background-position: 180% 0; } 50% { background-position: -80% 0; } }
+  /* 橙色 3D 闪电/能量徽章（六边形底座 + 白色闪电，drop-shadow 才不会被 clip-path 裁掉） */
+  #fw-rank .fw-dot { flex: none; position: relative; width: 36px; height: 36px; border-radius: 0; background: linear-gradient(150deg, #FFC24D, #FF9B12 55%, #FF6A3D);
+    clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+    filter: drop-shadow(0 0 10px rgba(255, 155, 18, .65)) drop-shadow(0 3px 5px rgba(0, 0, 0, .5));
+    animation: rkBadgeGlow 3.2s ease-in-out infinite; }
+  #fw-rank .fw-dot::after { content: ""; position: absolute; inset: 8px; background: #fff;
+    clip-path: polygon(58% 0, 18% 56%, 44% 56%, 32% 100%, 82% 42%, 52% 42%, 72% 0);
+    filter: drop-shadow(0 0 3px rgba(255, 255, 255, .9)); }
+  @keyframes rkBadgeGlow { 50% { filter: drop-shadow(0 0 16px rgba(255, 175, 40, .95)) drop-shadow(0 3px 5px rgba(0, 0, 0, .5)); } }
+  #fw-rank .fw-t { display: flex; align-items: center; gap: 14px; }
+  #fw-rank .fw-t b { display: flex; align-items: center; gap: 13px; font-size: 26px; font-weight: 900; letter-spacing: 8px; white-space: nowrap;
+    color: var(--rk-ink); text-shadow: 0 0 20px rgba(255, 155, 18, .35), 0 2px 8px rgba(0, 0, 0, .6); }
+  /* 倾斜能量分隔线（标题和副标题之间，光点上下跑） */
+  #fw-rank .fw-t b::after { content: ""; width: 2px; height: 26px; border-radius: 2px; transform: skewX(-18deg);
+    background: linear-gradient(180deg, transparent, rgba(0, 223, 255, .85), transparent);
+    box-shadow: 0 0 9px rgba(0, 223, 255, .55); animation: rkDivPulse 3.2s ease-in-out infinite; }
+  @keyframes rkDivPulse { 50% { opacity: .45; box-shadow: 0 0 16px rgba(0, 223, 255, .9); } }
+  #fw-rank .fw-t small { color: var(--rk-dim); font-size: 13px; font-weight: 600; letter-spacing: 2px; }
+  /* 关闭钮：机械切角，hover 蓝紫发光 */
+  #fw-rank .fw-x { flex: none; width: 40px; height: 34px; border: 0; border-radius: 0; font-size: 17px; color: var(--rk-ink); cursor: pointer;
+    background: linear-gradient(160deg, rgba(54, 140, 255, .22), rgba(23, 34, 60, .92) 55%);
+    clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+    transition: filter .18s, transform .1s; }
+  #fw-rank .fw-x:hover, #fw-rank .fw-x:focus-visible { outline: none;
+    background: linear-gradient(160deg, rgba(0, 223, 255, .3), rgba(28, 44, 80, .95) 55%);
+    filter: drop-shadow(0 0 10px rgba(0, 223, 255, .7)) drop-shadow(0 0 18px rgba(152, 87, 255, .45)); }
+  #fw-rank .fw-x:active { transform: scale(.9); }
+
+  /* ── 「排位 / 随机抽人」切换 ── */
+  #fw-rank .rk-top { margin-bottom: 15px; }
+  #fw-rank .rk-tabs { padding: 3px; border-radius: 12px; border: 1px solid rgba(54, 140, 255, .28);
+    background: rgba(16, 26, 50, .75); box-shadow: inset 0 0 14px rgba(54, 140, 255, .08); }
+  #fw-rank .rk-tabs button { position: relative; padding: 8px 20px; border-radius: 9px; color: var(--rk-dim);
+    font-weight: 700; letter-spacing: 3px; transition: color .18s, background-color .18s, box-shadow .18s; }
+  #fw-rank .rk-tabs button.on { color: #fff; background: rgba(54, 140, 255, .18);
+    text-shadow: 0 0 12px rgba(0, 223, 255, .8);
+    box-shadow: 0 0 14px -2px rgba(54, 140, 255, .5), inset 0 0 10px rgba(0, 223, 255, .12); }
+  #fw-rank .rk-tabs button.on::after { content: ""; position: absolute; left: 22%; right: 22%; bottom: 2px; height: 2px; border-radius: 2px;
+    background: linear-gradient(90deg, transparent, var(--rk-cyan), transparent); box-shadow: 0 0 8px rgba(0, 223, 255, .8); }
+  /* 随机抽人：橙红渐变 + 外发光 + 内高光 + hover 扫光 + 按下压缩/能量脉冲（真实抽取在夜市窗口里完成） */
+  #fw-rank .rk-drawbtn { position: relative; overflow: hidden; height: 40px; padding: 0 20px; border: 1px solid rgba(255, 116, 60, .55); border-radius: 12px;
+    background: linear-gradient(120deg, #FF9B12, #FF453A);
+    box-shadow: 0 0 18px -4px rgba(255, 90, 50, .6), inset 0 1px 0 rgba(255, 255, 255, .35), inset 0 -8px 14px -8px rgba(120, 20, 0, .55);
+    transition: transform .1s, filter .18s; }
+  #fw-rank .rk-drawbtn::before { content: ""; position: absolute; top: -22%; bottom: -22%; width: 38%; left: -48%;
+    background: linear-gradient(100deg, transparent, rgba(255, 255, 255, .3), transparent);
+    transform: skewX(-16deg); transition: left .55s ease; }
+  #fw-rank .rk-drawbtn:hover { filter: brightness(1.08); }
+  #fw-rank .rk-drawbtn:hover::before { left: 116%; }
+  #fw-rank .rk-drawbtn:active { transform: scale(.94); animation: rkDrawPulse .55s ease-out; }
+  @keyframes rkDrawPulse { 0% { box-shadow: 0 0 0 0 rgba(255, 155, 18, .65), inset 0 1px 0 rgba(255, 255, 255, .35); } 100% { box-shadow: 0 0 0 24px rgba(255, 155, 18, 0), inset 0 1px 0 rgba(255, 255, 255, .35); } }
+  #fw-rank .rk-who span { color: #CFE0FF; }
+
+  /* ── 主区布局 ── */
+  #fw-rank .rk-main { flex: 1; min-height: 0; }
+  #fw-rank .rk-left { display: flex; flex-direction: column; gap: 13px; min-height: 0; }
+
+  /* ── 当前选手卡：六边形徽章 + 大姓名 + 机械切角开始按钮 ── */
+  #fw-rank .rk-player { position: relative; overflow: hidden; gap: 15px; padding: 15px 18px; border-radius: 18px;
+    border-color: rgba(255, 155, 18, .38);
+    background: linear-gradient(120deg, rgba(255, 155, 18, .1), rgba(16, 26, 50, .82) 52%, rgba(13, 20, 40, .8));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), 0 16px 36px -20px rgba(0, 0, 0, .75);
+    animation: rkCardIn .42s var(--rk-ease) both; }
+  /* 挂载即掠过一道扫描线（选人重绘时也重放 = 身份更新动画的后半段） */
+  #fw-rank .rk-player::after { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 2px; transform-origin: left;
+    background: linear-gradient(90deg, transparent, rgba(0, 223, 255, .95), rgba(255, 155, 18, .95), transparent);
+    animation: rkSweep .48s .06s var(--rk-ease) both; }
+  @keyframes rkSweep { from { transform: scaleX(0); opacity: 0; } 30% { opacity: 1; } to { transform: scaleX(1); opacity: 0; } }
+  @keyframes rkCardIn { from { opacity: 0; transform: translateY(10px); } }
+  /* 切换选手：旧名字先淡出（rank.js 给卡片加 .rk-switching，190ms 后重绘） */
+  #fw-rank .rk-player.rk-switching .rk-pinfo b, #fw-rank .rk-player.rk-switching .rk-pinfo span, #fw-rank .rk-player.rk-switching .rk-pinfo small { animation: rkNameOut .18s ease both; }
+  @keyframes rkNameOut { to { opacity: 0; transform: translateY(-6px); filter: blur(4px); } }
+  /* 发光六边形人物徽章 */
+  #fw-rank .rk-pav { flex: none; position: relative; width: 56px; height: 62px; display: grid; place-items: center; }
+  #fw-rank .rk-pav::before { content: ""; position: absolute; inset: 1px 2px;
+    background: linear-gradient(160deg, #FFC24D, #FF9B12 55%, #FF6A3D);
+    clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+    filter: drop-shadow(0 0 12px rgba(255, 155, 18, .55)); animation: rkBadgeGlow 3.2s ease-in-out infinite; }
+  #fw-rank .rk-pav i { position: relative; z-index: 1; display: grid; place-items: center; width: 42px; height: 46px; overflow: hidden;
+    font-style: normal; font-size: 19px; font-weight: 900; color: #FFE9C8; text-shadow: 0 1px 6px rgba(0, 0, 0, .55);
+    clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+    background: linear-gradient(165deg, #24180C, #131A2E); animation: rkAvIn .4s .12s var(--rk-ease) both; }
+  @keyframes rkAvIn { from { opacity: 0; transform: scale(.6); } 60% { filter: brightness(1.9); } }
+  #fw-rank .rk-pinfo small { color: var(--rk-dim); font-size: 12px; font-weight: 700; letter-spacing: 2px; }
+  #fw-rank .rk-pinfo b { display: block; margin: 2px 0 1px; font-size: 30px; font-weight: 800; line-height: 1.2; color: var(--rk-ink);
+    text-shadow: 0 2px 14px rgba(0, 0, 0, .55); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    animation: rkNameIn .34s .08s var(--rk-ease) both; }
+  @keyframes rkNameIn { from { opacity: 0; transform: translateY(7px); } }
+  #fw-rank .rk-pinfo span { color: var(--rk-dim); font-size: 14px; font-weight: 600; }
+  /* 开始排位：橙红渐变 + 机械切角 + 内高光 + 3s 呼吸光 + hover 上浮/图标右移 + 按下压缩 */
+  #fw-rank .rk-start { position: relative; flex: none; display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+    height: 56px; padding: 0 28px; border: 0; border-radius: 0; overflow: hidden; cursor: pointer;
+    font: 800 18px/1 inherit; letter-spacing: 3px; color: #fff;
+    clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
+    background: linear-gradient(115deg, #FFAA18, #FF493B);
+    filter: drop-shadow(0 12px 22px rgba(255, 90, 40, .45));
+    animation: rkStartBreath 3s ease-in-out infinite;
+    transition: transform .12s var(--rk-ease), filter .18s; }
+  #fw-rank .rk-start::before { content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(180deg, rgba(255, 255, 255, .34), transparent 44%, rgba(110, 18, 0, .24) 92%); }
+  #fw-rank .rk-start span, #fw-rank .rk-start svg { position: relative; z-index: 1; }
+  #fw-rank .rk-start svg { width: 20px; height: 20px; fill: currentColor; transition: transform .2s var(--rk-ease); }
+  #fw-rank .rk-start:hover:not(:disabled) { animation: none; transform: translateY(-2px);
+    filter: drop-shadow(0 16px 26px rgba(255, 120, 40, .6)) brightness(1.05); }
+  #fw-rank .rk-start:hover:not(:disabled) svg { transform: translateX(4px); }
+  #fw-rank .rk-start:active:not(:disabled) { transform: translateY(0) scale(.97); }
+  #fw-rank .rk-start:disabled { animation: none; opacity: .45; cursor: default; }
+  @keyframes rkStartBreath { 0%, 100% { filter: drop-shadow(0 12px 22px rgba(255, 90, 40, .4)); } 50% { filter: drop-shadow(0 14px 30px rgba(255, 150, 40, .8)); } }
+
+  /* ── 排位项目卡：紫蓝模块（固定项目，不是按钮） ── */
+  #fw-rank .rk-locked { position: relative; overflow: hidden; gap: 15px; padding: 13px 18px;
+    border: 1px solid rgba(152, 87, 255, .42); border-radius: 16px;
+    background: linear-gradient(120deg, rgba(152, 87, 255, .15), rgba(18, 28, 54, .8) 58%), linear-gradient(165deg, #121C36, #0C1428);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05), 0 14px 30px -20px rgba(0, 0, 0, .7), inset 0 0 24px rgba(152, 87, 255, .07); }
+  #fw-rank .rk-lockic { flex: none; position: relative; width: 52px; height: 56px; display: grid; place-items: center; }
+  #fw-rank .rk-lockic::before { content: ""; position: absolute; inset: 3px 5px;
+    background: linear-gradient(160deg, rgba(152, 87, 255, .85), rgba(54, 140, 255, .55));
+    clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+    filter: drop-shadow(0 0 10px rgba(152, 87, 255, .5)); }
+  #fw-rank .rk-lockic svg { position: relative; z-index: 1; width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round;
+    color: #D9C2FF; filter: drop-shadow(0 0 7px rgba(152, 87, 255, .9)); }
+  #fw-rank .rk-locked small { display: block; font-size: 10.5px; font-weight: 800; letter-spacing: 3.5px; color: #B99CFF; }
+  #fw-rank .rk-locked b { font-size: 17px; letter-spacing: .5px; color: var(--rk-ink); }
+  #fw-rank .rk-locked span { color: var(--rk-dim); font-size: 12.5px; font-weight: 600; line-height: 1.55; }
+
+  /* ── 学生面板：大型全息容器（左下/右上切角 + 青蓝描边流光 + 内部淡网格） ── */
+  #fw-rank .rk-students { --rkc: 16px; flex: 1; min-height: 200px; min-width: 0; padding: 1.5px; box-sizing: border-box;
+    clip-path: polygon(0 0, calc(100% - var(--rkc)) 0, 100% var(--rkc), 100% 100%, var(--rkc) 100%, 0 calc(100% - var(--rkc)));
+    background: linear-gradient(120deg, rgba(0, 223, 255, .55), rgba(54, 140, 255, .3) 42%, rgba(152, 87, 255, .42));
+    background-size: 300% 300%; animation: rkEdgeFlow 10s linear infinite;
+    filter: drop-shadow(0 0 16px rgba(54, 140, 255, .16)); }
+  @keyframes rkEdgeFlow { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+  #fw-rank .rk-stin { position: relative; display: flex; flex-direction: column; height: 100%; min-height: 0; overflow: hidden;
+    clip-path: polygon(0 0, calc(100% - var(--rkc)) 0, 100% var(--rkc), 100% 100%, var(--rkc) 100%, 0 calc(100% - var(--rkc)));
+    background: linear-gradient(168deg, rgba(16, 26, 50, .92), rgba(9, 15, 32, .95)); }
+  #fw-rank .rk-stin::before { content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none; opacity: .5;
+    background-image: linear-gradient(rgba(54, 140, 255, .06) 1px, transparent 1px), linear-gradient(90deg, rgba(54, 140, 255, .06) 1px, transparent 1px);
+    background-size: 34px 34px;
+    -webkit-mask-image: radial-gradient(120% 90% at 78% 0%, #000 26%, transparent 74%); mask-image: radial-gradient(120% 90% at 78% 0%, #000 26%, transparent 74%); }
+  #fw-rank .rk-sh { position: relative; z-index: 1; flex: none; display: flex; align-items: center; gap: 9px; padding: 13px 15px 9px; }
+  #fw-rank .rk-sh svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round;
+    color: #B99CFF; filter: drop-shadow(0 0 7px rgba(152, 87, 255, .8)); }
+  #fw-rank .rk-sh b { font-size: 14px; font-weight: 800; letter-spacing: 4px; color: var(--rk-ink); }
+  #fw-rank .rk-sh::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, rgba(152, 87, 255, .5), transparent); }
+  #fw-rank #rkPick { position: relative; z-index: 1; display: flex; flex-direction: column; flex: 1; min-height: 0; padding: 0 13px 13px; }
+
+  /* 班级页签：选中=橙色发光胶囊，未选=深蓝玻璃 hover 蓝光 */
+  #fw-rank .rk-chips.sm { margin: 0 0 10px; }
+  #fw-rank .rk-chips.sm button { padding: 6px 15px; border-radius: 999px; border-color: rgba(54, 140, 255, .3);
+    background: rgba(16, 26, 50, .72); color: var(--rk-dim);
+    transition: color .18s, border-color .18s, box-shadow .18s, background-color .18s; }
+  #fw-rank .rk-chips.sm button:hover { color: var(--rk-ink); border-color: rgba(0, 223, 255, .7); box-shadow: 0 0 12px -2px rgba(54, 140, 255, .55); }
+  #fw-rank .rk-chips.sm button.on { border-color: rgba(255, 155, 18, .8); background: rgba(255, 155, 18, .16); color: #FFD9A0;
+    text-shadow: 0 0 8px rgba(255, 155, 18, .55);
+    box-shadow: 0 0 14px -2px rgba(255, 155, 18, .55), inset 0 0 8px rgba(255, 155, 18, .18); }
+
+  /* 学生网格：序号+姓名按钮（结构不动，只换皮肤）。选中不只靠颜色：aria-pressed + :focus-visible */
+  #fw-rank .rk-names { position: relative; display: grid; grid-template-columns: repeat(auto-fit, minmax(92px, 1fr)); gap: 7px;
+    flex: 1; min-height: 140px; max-height: none; overflow: auto; padding: 2px;
+    animation: rkNamesIn .3s ease both; }
+  #fw-rank .rk-names.rk-fading { opacity: 0; transition: opacity .14s ease; }
+  @keyframes rkNamesIn { from { opacity: 0; transform: translateY(7px); } }
+  #fw-rank .rk-names button { position: relative; min-height: 38px; border-radius: 9px;
+    border-color: rgba(122, 140, 180, .28); background: rgba(16, 26, 50, .75); color: var(--rk-ink);
+    animation: rkBtnIn .4s var(--rk-ease) both; animation-delay: calc(var(--i, 0) * 28ms);
+    transition: transform .18s var(--rk-ease), border-color .18s, background-color .18s, box-shadow .18s; }
+  @keyframes rkBtnIn { from { opacity: 0; transform: translateY(6px); } }
+  #fw-rank .rk-names button:hover { transform: translateY(-2px); border-color: rgba(0, 223, 255, .65);
+    background: rgba(24, 38, 72, .92); box-shadow: 0 6px 16px -8px rgba(0, 223, 255, .45); }
+  #fw-rank .rk-names button:focus-visible { outline: 2px solid var(--rk-cyan); outline-offset: 2px; }
+  #fw-rank .rk-names button i { color: #7FA0D8; }
+  #fw-rank .rk-names button.self i { color: var(--rk-cyan); text-shadow: 0 0 7px rgba(0, 223, 255, .7); }
+  #fw-rank .rk-names button.on { border-color: #FF9A16; background: rgba(255, 130, 20, .16);
+    box-shadow: 0 0 0 1px rgba(255, 154, 22, .5), 0 0 16px -2px rgba(255, 154, 22, .5);
+    animation: rkBtnIn .4s var(--rk-ease) both, rkPickPulse .65s .05s ease-out 1; }
+  @keyframes rkPickPulse { 0% { box-shadow: 0 0 0 0 rgba(255, 154, 22, .6); } 100% { box-shadow: 0 0 0 14px rgba(255, 154, 22, 0); } }
+  /* 选中角标（右上小三角，颜色之外的第二重标识） */
+  #fw-rank .rk-names button.on::after { content: ""; position: absolute; right: -1px; top: -1px; width: 0; height: 0;
+    border: 7px solid transparent; border-top-color: #FF9A16; border-right-color: #FF9A16; border-top-right-radius: 8px; }
+
+  /* ── 排行榜：独立全息玻璃面板 ── */
+  #fw-rank .rk-right { --rkc: 18px; min-width: 0; min-height: 0; padding: 1.5px; box-sizing: border-box;
+    clip-path: polygon(0 0, calc(100% - var(--rkc)) 0, 100% var(--rkc), 100% 100%, var(--rkc) 100%, 0 calc(100% - var(--rkc)));
+    background: linear-gradient(120deg, rgba(0, 223, 255, .5), rgba(54, 140, 255, .28) 40%, rgba(152, 87, 255, .4));
+    background-size: 300% 300%; animation: rkEdgeFlow 10s linear infinite;
+    filter: drop-shadow(0 0 18px rgba(54, 140, 255, .18)); }
+  #fw-rank .rk-rin { position: relative; display: flex; flex-direction: column; height: 100%; min-height: 0; overflow: hidden;
+    clip-path: polygon(0 0, calc(100% - var(--rkc)) 0, 100% var(--rkc), 100% 100%, var(--rkc) 100%, 0 calc(100% - var(--rkc)));
+    background: linear-gradient(168deg, rgba(16, 26, 50, .9), rgba(9, 15, 32, .95)); }
+  #fw-rank .rk-rin::before { content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none; opacity: .45;
+    background-image: linear-gradient(rgba(54, 140, 255, .055) 1px, transparent 1px), linear-gradient(90deg, rgba(54, 140, 255, .055) 1px, transparent 1px);
+    background-size: 34px 34px;
+    -webkit-mask-image: radial-gradient(120% 90% at 80% 0%, #000 24%, transparent 72%); mask-image: radial-gradient(120% 90% at 80% 0%, #000 24%, transparent 72%); }
+  #fw-rank .rk-bh { position: relative; z-index: 1; flex: none; display: flex; align-items: center; gap: 10px; padding: 13px 15px 9px; }
+  #fw-rank .rk-bh svg { flex: none; width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round;
+    color: var(--rk-orange); filter: drop-shadow(0 0 7px rgba(255, 155, 18, .8)); }
+  #fw-rank .rk-bh b { font-size: 15px; font-weight: 800; letter-spacing: 1px; color: var(--rk-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #fw-rank .rk-bh::after { content: ""; flex: none; width: 34px; height: 2px; border-radius: 2px; margin-left: auto;
+    background: linear-gradient(90deg, rgba(255, 155, 18, .7), transparent); }
+  #fw-rank #rkBoard { position: relative; z-index: 1; display: flex; flex-direction: column; flex: 1; min-height: 0; padding: 0 12px 12px; }
+  #fw-rank .rk-wait { color: var(--rk-dim); }
+  /* 榜单行：排名徽章 | 姓名 | 班级 | 用时（右对齐等宽数字）。错峰入场；steady=重绘时不重放入场（配合 FLIP 平滑移动） */
+  #fw-rank .rk-board { position: relative; flex: 1; display: grid; gap: 7px; align-content: start; max-height: none; overflow: auto; padding: 2px; }
+  #fw-rank .rk-board li { position: relative; display: grid; grid-template-columns: 44px 1.6fr 1.1fr auto; align-items: center; gap: 10px;
+    min-height: 44px; padding: 7px 12px; border-radius: 12px; border-color: rgba(122, 140, 180, .22);
+    background: linear-gradient(120deg, rgba(23, 34, 60, .85), rgba(16, 26, 50, .8)); color: var(--rk-ink);
+    animation: rkRowIn .5s var(--rk-ease) both; animation-delay: calc(var(--i, 0) * 45ms);
+    transition: border-color .18s, background-color .18s, box-shadow .18s, transform .55s var(--rk-ease); }
+  @keyframes rkRowIn { from { opacity: 0; transform: translateY(12px); } }
+  #fw-rank .rk-board li:hover { border-color: rgba(0, 223, 255, .5); background: rgba(28, 42, 78, .92); }
+  #fw-rank .rk-board li i { display: grid; place-items: center; width: 27px; height: 28px; border-radius: 0; overflow: hidden;
+    background: rgba(54, 140, 255, .22); color: #BFD6FF;
+    clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); }
+  #fw-rank .rk-board li b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #fw-rank .rk-board li span { color: var(--rk-dim); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #fw-rank .rk-board li em { font-style: normal; font-weight: 800; font-variant-numeric: tabular-nums; text-align: right; justify-self: end; color: #CFE0FF; }
+  /* 第一名：冠军金（金渐变边 + 奖杯徽章 + 微金粒子 + 低频流光） */
+  #fw-rank .rk-board li.p1 { border-color: rgba(255, 190, 69, .65); z-index: 1;
+    background: linear-gradient(120deg, rgba(255, 190, 69, .16), rgba(255, 155, 18, .07) 52%, rgba(23, 34, 60, .85));
+    box-shadow: 0 0 18px -6px rgba(255, 190, 69, .5), inset 0 0 16px rgba(255, 190, 69, .08); }
+  #fw-rank .rk-board li.p1 i { background: linear-gradient(160deg, #FFD868, #FF9B12); color: #3A2200;
+    filter: drop-shadow(0 0 8px rgba(255, 190, 69, .7)); }
+  #fw-rank .rk-board li.p1::before { content: ""; position: absolute; inset: 0; border-radius: 12px; pointer-events: none;
+    background: linear-gradient(100deg, transparent 32%, rgba(255, 240, 200, .16) 50%, transparent 68%); background-size: 250% 100%;
+    animation: rkGoldSheen 9s ease-in-out infinite; }
+  @keyframes rkGoldSheen { 0%, 55% { background-position: 180% 0; } 90%, 100% { background-position: -80% 0; } }
+  #fw-rank .rk-board li.p1::after { content: ""; position: absolute; right: 16px; top: 9px; width: 5px; height: 5px; border-radius: 50%;
+    background: radial-gradient(circle, #FFE9AE, transparent 70%); opacity: .85;
+    box-shadow: -11px 11px 0 -1px rgba(255, 220, 140, .7), -5px 20px 0 -2px rgba(255, 220, 140, .45);
+    animation: rkGoldDust 4s ease-in-out infinite; }
+  @keyframes rkGoldDust { 50% { transform: translateY(-3px); opacity: .4; } }
+  /* 第二名：银蓝 */
+  #fw-rank .rk-board li.p2 { border-color: rgba(168, 216, 255, .5);
+    background: linear-gradient(120deg, rgba(120, 180, 255, .13), rgba(16, 26, 50, .85) 60%);
+    box-shadow: 0 0 16px -6px rgba(140, 200, 255, .4), inset 0 0 14px rgba(160, 220, 255, .06); }
+  #fw-rank .rk-board li.p2 i { background: linear-gradient(160deg, #DFEFFF, #9CC4F0); color: #12233D; }
+  /* 第三名：玫瑰铜 */
+  #fw-rank .rk-board li.p3 { border-color: rgba(255, 122, 158, .5);
+    background: linear-gradient(120deg, rgba(255, 110, 150, .13), rgba(152, 87, 255, .08) 55%, rgba(16, 26, 50, .85));
+    box-shadow: 0 0 16px -6px rgba(255, 120, 160, .4); }
+  #fw-rank .rk-board li.p3 i { background: linear-gradient(160deg, #FFB3C8, #E879A8); color: #3A0A1C; }
+  /* 自己 / 刚上榜那一行：橙色描边（语义与「当前选手」一致） */
+  #fw-rank .rk-board li.me { border-color: rgba(255, 155, 18, .8);
+    background: linear-gradient(120deg, rgba(255, 155, 18, .14), rgba(16, 26, 50, .85) 60%);
+    box-shadow: 0 0 0 1px rgba(255, 155, 18, .5) inset, 0 0 18px -4px rgba(255, 155, 18, .55); }
+  #fw-rank .rk-board.steady li { animation: none; }
+  #fw-rank .rk-board li.rk-new { animation: rkNewGlow 1.8s ease-out both; }
+  @keyframes rkNewGlow { 0% { border-color: rgba(0, 223, 255, .95); box-shadow: 0 0 22px -2px rgba(0, 223, 255, .7); background: rgba(0, 223, 255, .14); }
+    100% { border-color: rgba(122, 140, 180, .22); } }
+  /* 空榜单（不许放假成绩） */
+  #fw-rank .rk-emptybox { flex: 1; display: grid; place-items: center; align-content: center; gap: 9px; margin: 4px 2px; padding: 26px 12px; text-align: center;
+    border: 1px dashed rgba(54, 140, 255, .38); border-radius: 14px; color: var(--rk-dim); }
+  #fw-rank .rk-emptybox svg { width: 36px; height: 36px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round;
+    color: rgba(0, 223, 255, .55); filter: drop-shadow(0 0 8px rgba(0, 223, 255, .35)); }
+  #fw-rank .rk-emptybox b { font-size: 16px; letter-spacing: 3px; color: var(--rk-ink); }
+  #fw-rank .rk-emptybox span { font-size: 12.5px; }
+
+  /* ── 入场编排：标题栏上滑入 → 顶排 → 左右面板依次 → 榜单行错峰（.calm=选人重绘时不重放） ── */
+  #fw-rank.show .fw-head { animation: rkHeadIn .55s var(--rk-ease) both; }
+  @keyframes rkHeadIn { from { opacity: 0; transform: translateY(-14px); } }
+  #fw-rank.show .rk-top { animation: rkFadeUp .5s .08s var(--rk-ease) both; }
+  #fw-rank.show .rk-main:not(.calm) .rk-left { animation: rkFadeUp .55s .12s var(--rk-ease) both; }
+  #fw-rank.show .rk-main:not(.calm) .rk-right { animation: rkFadeUp .55s .22s var(--rk-ease) both; }
+  @keyframes rkFadeUp { from { opacity: 0; transform: translateY(16px); } }
+  /* 滚动条 */
+  #fw-rank .rk-names::-webkit-scrollbar, #fw-rank .rk-board::-webkit-scrollbar { width: 8px; }
+  #fw-rank .rk-names::-webkit-scrollbar-thumb, #fw-rank .rk-board::-webkit-scrollbar-thumb { background: rgba(54, 140, 255, .35); border-radius: 8px; }
+  #fw-rank .rk-names { scrollbar-width: thin; scrollbar-color: rgba(54, 140, 255, .35) transparent; }
+  #fw-rank .rk-board { scrollbar-width: thin; scrollbar-color: rgba(54, 140, 255, .35) transparent; }
+
+  /* 低端设备（is-lite）：全部循环动画停掉，只留静态外观 */
+  html.is-lite #fw-rank, html.is-lite #fw-rank *, html.is-lite #fw-rank *::before, html.is-lite #fw-rank *::after { animation: none !important; }
+  html.is-lite #fw-rank .rk-start { filter: drop-shadow(0 12px 22px rgba(255, 90, 40, .45)); }
+  html.is-lite #fw-rank .rk-right, html.is-lite #fw-rank .rk-students { filter: none; }
+  /* 减少动态偏好：全停，元素直接就位 */
+  @media (prefers-reduced-motion: reduce) {
+    #fw-rank, #fw-rank *, #fw-rank *::before, #fw-rank *::after { animation: none !important; transition-duration: .01s !important; }
+    #fw-rank .rk-start { filter: drop-shadow(0 12px 22px rgba(255, 90, 40, .45)); }
+    #fw-rank .rk-right, #fw-rank .rk-students { filter: none; }
+  }
+
+  /* ── 响应式：窄屏单列、按钮全宽、面板内部高度放开由页面滚动 ── */
+  @media (max-width: 760px) {
+    #fw-rank .fw-head { height: 52px; gap: 10px; padding: 0 12px; }
+    #fw-rank .fw-dot { width: 30px; height: 30px; }
+    #fw-rank .fw-t { gap: 10px; }
+    #fw-rank .fw-t b { font-size: 21px; letter-spacing: 5px; gap: 9px; }
+    #fw-rank .fw-t b::after { height: 20px; }
+    #fw-rank .fw-t small { font-size: 11px; letter-spacing: 1px; }
+    #fw-rank .rk { padding: 12px 12px 16px; }
+    #fw-rank .fw-body { display: block; overflow: auto; }
+    #fw-rank .rk { min-height: auto; }
+    #fw-rank .rk-main { flex: none; }
+    /* 2026-11-05 手机实测：原规则只写 flex:none，没把左右两栏改成一列 ——
+       375 宽下左栏被压到 190px，选手名/题目说明/学生区全部竖排挤成一竖条，
+       右栏排行榜却占一半宽度、表头被压缩成「2.1 …」。
+       修：窄屏左右栏改上下堆叠（左栏完整宽度 → 排行榜整宽排在学生区下方），
+       面板内放开高度由页面滚动。 */
+    #fw-rank .rk-left, #fw-rank .rk-right { width: 100%; min-width: 0; }
+    #fw-rank .rk-right { min-height: 0; margin-top: 2px; }
+    /* 关键：旧样式 .rk-main 是 display:grid + 1.2fr/1fr 双列（760 断点只对裸 .rk-main 生效，
+       被 #fw-rank 前缀的规则盖掉了）。这里显式改单列，否则手机上左右栏并排挤成两条窄条。 */
+    #fw-rank .rk-main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+    #fw-rank .rk-right { width: 100%; }
+    #fw-rank .rk-player { flex-wrap: wrap; }
+    #fw-rank .rk-player .rk-start { flex: 1 1 100%; }
+    #fw-rank .rk-pav { width: 48px; height: 54px; }
+    #fw-rank .rk-pav i { width: 36px; height: 40px; font-size: 16px; }
+    #fw-rank .rk-pinfo b { font-size: 26px; }
+    #fw-rank .rk-students { flex: none; min-height: 0; }
+    #fw-rank .rk-names { flex: none; max-height: 300px; }
+    #fw-rank .rk-right { min-height: 300px; }
+    #fw-rank .rk-board { flex: none; max-height: 420px; }
+  }
+  @media (max-width: 480px) {
+    #fw-rank .fw-t small { display: none; }
+    #fw-rank .rk-who span { display: none; }
+    #fw-rank .rk-drawbtn { padding: 0 14px; }
+    #fw-rank .rk-board li { grid-template-columns: 38px 1.4fr auto; }
+    #fw-rank .rk-board li span { display: none; }
   }
 </style>
 </head>
@@ -1772,61 +2346,157 @@ try { ABOUT = cleanAbout(JSON.parse(ls.get('hx-about'))) || ABOUT0; } catch (e) 
 // 别在这里碰 HX：HX 是外壳（rank.js）里的 const，位置在脚本末尾，画「关于」时还不一定初始化，取它会抛 TDZ 错误被 try 吞掉，按钮就永远不出来。
 // 入口只按「是不是 http(s)」判断；真正提交时 openFeedback 里再去用 HX。
 const fbOn = () => /^https?:$/.test(location.protocol);
-function aboutView(edit) {
-  const A = ABOUT, VER = (typeof CHANGELOG !== 'undefined' && CHANGELOG[0]) ? CHANGELOG[0].v : '';
-  const ini = s => { // 头像字：有括号取括号里第一个字（zcq（夜夜）→ 夜）；否则取最后一个汉字；再否则首字母
-    const t = String(s), m = t.match(/[（(]([^)）]+)[)）]/);
-    if (m) return [...m[1].trim()][0].toUpperCase();
-    const zh = t.match(/[\u4e00-\u9fa5]+/g);
-    if (zh) { const a = [...zh[zh.length - 1]]; return a[a.length - 1]; }
-    return (t.trim()[0] || '·').toUpperCase();
-  };
-  const el = floatWin('about', { title: '关于', sub: '项目二接线仿真 · 开发者与贡献者', w: 500, h: 560, minH: 560, a1: '#7c3aed', a2: '#db2777', html: edit ? `<div class="vid about-edit">
-    <label class="about-card"><small>开发者</small><input id="abDev" maxlength="60" value="${esc(A.dev)}"></label>
-    <label class="about-card"><small>特别鸣谢贡献者（一行一位，建议写“班级 + 姓名”）</small><textarea id="abThanks" rows="6">${esc(A.thanks.join('\n'))}</textarea></label>
-    <p class="about-note" id="abMsg"></p>
-    <div class="about-bar"><button class="rk-btn sm alt" id="abCancel">取消</button><button class="rk-btn sm" id="abSave">保存</button></div>
-  </div>` : `<div class="ab">
-    <div class="ab-hero">
-      <div class="ab-top">
-        <span class="ab-logo">⚡</span>
-        <div><div class="ab-name">项目二接线仿真</div><div class="ab-sub">电气接线原理 · 电工中级应会实操</div></div>
-        ${VER ? `<span class="ab-ver">v${esc(VER)}</span>` : ''}
-      </div>
-      <div class="ab-tag"><span>磁吸连线</span><span>实时仿真</span><span>自动判分</span><span>课堂投屏</span></div>
+// 头像字：有括号取括号里第一个字（zcq（夜夜）→ 夜）；否则取最后一个汉字；再否则首字母
+function ptIni(s) {
+  const t = String(s), m = t.match(/[（(]([^)）]+)[)）]/);
+  if (m) return [...m[1].trim()][0].toUpperCase();
+  const zh = t.match(/[\u4e00-\u9fa5]+/g);
+  if (zh) { const a = [...zh[zh.length - 1]]; return a[a.length - 1]; }
+  return (t.trim()[0] || '·').toUpperCase();
+}
+// ── 2026-11-05 「关于」重构为「项目团队」全息面板 ──
+// 结构：整屏遮罩(#fw-about 本体) → 切角面板 .pt-panel → 头部(</> 图标 + 项目团队/PROJECT TEAM + 玻璃关闭钮)
+//      → 视图区 .pt-stage（main=双入口卡片 / dev=开发者详情 / con=贡献者详情 / edit=开发者编辑名单）→ 底部全息环。
+// 数据全部来自上面 ABOUT（本机缓存 / 云端 hx_about / ABOUT0 默认值），一个名字都不编造；
+// 代码里没有开发者的主页/仓库链接，所以详情里不做链接按钮。
+const ptDots = () => { // 16 个低透明度粒子（纯 CSS 漂移动画，pointer-events:none）
+  let h = '';
+  for (let k = 0; k < 16; k++) {
+    const cy = k % 3 === 0; // 三分之一用霓虹紫，其余冰晶青
+    h += `<i class="pt-dot" style="left:${(Math.random() * 95 + 2).toFixed(1)}%;top:${(Math.random() * 86 + 5).toFixed(1)}%;` +
+      `--dx:${(Math.random() * 64 - 32).toFixed(0)}px;--dy:${(-Math.random() * 66 - 12).toFixed(0)}px;` +
+      `--dd:${(11 + Math.random() * 9).toFixed(1)}s;--dl:-${(Math.random() * 12).toFixed(1)}s;${cy ? 'background:#9254FF;' : ''}"></i>`;
+  }
+  return `<span class="pt-dots" aria-hidden="true">${h}</span>`;
+};
+const ptShell = () => `<div class="pt-panel">
+  <i class="pt-node n1"></i><i class="pt-node n2"></i><i class="pt-node n3"></i><i class="pt-node n4"></i>
+  <div class="pt-in">
+    <span class="pt-crystal" aria-hidden="true"><i></i><i></i><i></i></span>
+    <button class="pt-x" type="button" title="关闭（Esc）" aria-label="关闭"></button>
+    <header class="pt-head">
+      <span class="pt-logo" aria-hidden="true">&lt;/&gt;</span>
+      <div class="pt-tt"><b>项目团队</b><small>PROJECT TEAM</small></div>
+    </header>
+    <div class="pt-div" aria-hidden="true"><i></i></div>
+    <div class="pt-stage"></div>
+    <span class="pt-ring" aria-hidden="true"><i></i><i></i></span>
+    <span class="pt-beam t" aria-hidden="true"></span><span class="pt-beam b" aria-hidden="true"></span>
+    ${ptDots()}
+  </div>
+</div>`;
+const ptArrowSvg = '<svg class="pt-arrow" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h14M13 6l6 6-6 6"/></svg>';
+const ptBackSvg = '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14 6l-6 6 6 6"/></svg>';
+const ptCard = v => v === 'dev'
+  ? `<button class="pt-card" type="button" data-v="dev" aria-label="查看开发者详情">
+      <span class="pt-ic"><span class="pt-ic3d"><span class="pc" aria-hidden="true"><span class="pc-s">&lt;/&gt;</span><span class="pc-k"></span></span></span><span class="pt-base" aria-hidden="true"></span></span>
+      <span class="pt-mid"><small>DEVELOPER</small><b>开发者</b><i class="pt-ray"></i></span>
+      <span class="pt-side"><span class="pt-stripes" aria-hidden="true"></span>${ptArrowSvg}</span>
+    </button>`
+  : `<button class="pt-card con" type="button" data-v="con" aria-label="查看贡献者详情">
+      <span class="pt-ic"><span class="pt-ic3d"><span class="pp3" aria-hidden="true"><span class="pp"></span><span class="pp"></span><span class="pp"></span></span></span><span class="pt-base" aria-hidden="true"></span></span>
+      <span class="pt-mid"><small>CONTRIBUTORS</small><b>贡献者</b><i class="pt-ray"></i></span>
+      <span class="pt-side"><span class="pt-stripes" aria-hidden="true"></span>${ptArrowSvg}</span>
+    </button>`;
+const ptMain = () => `<div class="pt-cards">${ptCard('dev')}${ptCard('con')}</div>`;
+const ptDevView = A => `<div class="pt-view">
+    <button class="pt-back" type="button" data-back>${ptBackSvg}返回</button>
+    <div class="pt-view-scroll">
+      <div class="pt-who"><span class="pt-av">${esc(ptIni(A.dev))}</span>
+        <div><small>DEVELOPER</small><b>${esc(A.dev)}</b><span>设计 · 开发 · 维护</span></div></div>
     </div>
-    <div class="ab-sec">
-      <h5>开发者</h5>
-      <div class="ab-dev"><span class="ab-av">${esc(ini(A.dev))}</span><div><b>${esc(A.dev)}</b><small>设计 · 开发 · 维护</small></div></div>
-      <p class="about-note" style="margin-top:10px">手机上想让画面铺满整个屏幕（连浏览器地址栏都没有）：普通网页做不到藏地址栏，把本站「添加到主屏幕」后从桌面图标打开就是独立全屏应用；或点顶栏 / 工具栏的「全屏」按钮，先藏掉页内导航。</p>
-    </div>
-    <div class="ab-sec">
-      <h5>特别鸣谢<em>${A.thanks.length ? A.thanks.length + ' 位' : ''}</em></h5>
+  </div>`;
+const ptConView = A => `<div class="pt-view">
+    <button class="pt-back" type="button" data-back>${ptBackSvg}返回</button>
+    <div class="pt-view-scroll">
       ${A.thanks.length
-        ? `<div class="ab-list">${A.thanks.map((n, k) => `<span class="ab-chip"><i>${String(k + 1).padStart(2, '0')}</i>${esc(n)}</span>`).join('')}</div>`
-        : '<p class="ab-empty">还没有贡献者。提出被采纳的建议，名字就会出现在这里。</p>'}
-      <p class="about-note" style="margin-top:10px">名单来自被采纳的课堂反馈与建议，真心感谢。</p>
+        ? `<div class="pt-list">${A.thanks.map((n, k) => `<div class="pt-chip"><i>${String(k + 1).padStart(2, '0')}</i>${esc(n)}</div>`).join('')}</div>`
+        : `<div class="pt-none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><circle cx="16.5" cy="9" r="2.4" opacity=".6"/><path d="M15.5 14.6a4.6 4.6 0 0 1 5 4.1" opacity=".6"/></svg><b>暂无贡献者信息</b><small>提出被采纳的建议，名字就会出现在这里。</small></div>`}
+      ${(fbOn() || aboutDev) ? `<div class="pt-act">${fbOn() ? '<button class="pt-btn" type="button" id="abFb">提建议</button>' : ''}${aboutDev ? '<button class="pt-btn cy" type="button" id="abEdit">编辑名单</button>' : ''}</div>` : ''}
     </div>
-    <div class="ab-foot">
-      <p class="ab-copy">© 2026 zcq 版权所有，未经许可禁止复制、修改、转载。</p>
-      <div class="about-bar">
-        ${fbOn() ? '<button class="rk-btn sm alt" id="abFb">提建议</button>' : ''}
-        ${aboutDev ? '<button class="rk-btn sm alt" id="abEdit">编辑名单</button>' : ''}
-      </div>
-    </div>
-  </div>` });
-  const $ = id => el.querySelector('#' + id);
-  if ($('abFb')) $('abFb').onclick = openFeedback;
-  if ($('abEdit')) $('abEdit').onclick = () => aboutView(true);
-  if (!edit) return;
-  $('abCancel').onclick = () => aboutView(false);
-  $('abSave').onclick = async () => {
-    const dev = $('abDev').value.trim(), thanks = $('abThanks').value.split('\n').map(s => s.trim()).filter(Boolean);
-    if (!dev) { $('abMsg').textContent = '开发者不能为空'; return; }
-    $('abSave').disabled = true; $('abMsg').textContent = '保存中…';
-    try { aboutKeep(await HX.rpc('hx_set_about', { p_tool: 'wiring-lab', p_dev: dev, p_thanks: thanks })); aboutView(false); toast('“关于”已保存'); }
-    catch (e) { $('abMsg').textContent = e.message; $('abSave').disabled = false; }
+  </div>`;
+const ptEditView = A => `<div class="pt-view">
+    <button class="pt-back" type="button" data-editback>${ptBackSvg}返回</button>
+    <div class="pt-view-scroll"><div class="pt-form">
+      <label>开发者<input id="abDev" maxlength="60" value="${esc(A.dev)}"></label>
+      <label>特别鸣谢贡献者（一行一位，建议写“班级 + 姓名”）<textarea id="abThanks" rows="6">${esc(A.thanks.join('\n'))}</textarea></label>
+      <p class="pt-msg" id="abMsg"></p>
+      <div class="pt-act"><button class="pt-btn" type="button" id="abCancel">取消</button><button class="pt-btn cy" type="button" id="abSave">保存</button></div>
+    </div></div>
+  </div>`;
+// 卡片 3D 倾斜：跟鼠标位置转，最大 4°（--rx/--ry 写进 CSS transform，离开平滑回正）。触屏设备不挂。
+function ptTilt(card) {
+  if (!matchMedia('(hover: hover)').matches) return;
+  card.addEventListener('pointermove', e => {
+    const r = card.getBoundingClientRect();
+    card.style.setProperty('--ry', (((e.clientX - r.left) / r.width - .5) * 7).toFixed(2) + 'deg');
+    card.style.setProperty('--rx', ((.5 - (e.clientY - r.top) / r.height) * 7).toFixed(2) + 'deg');
+  });
+  card.addEventListener('pointerleave', () => { card.style.setProperty('--rx', '0deg'); card.style.setProperty('--ry', '0deg'); });
+}
+// 面板骨架的常驻行为，只挂一次（#fw-about 元素本身由 floatWin 复用，重画内容不会清掉这些监听）
+function ptSetup(el) {
+  if (el.dataset.ptReady) return; el.dataset.ptReady = '1';
+  el.addEventListener('click', e => {
+    if (!el.classList.contains('show')) return;
+    // 点 × 或遮罩关闭；面板内点击不误关。
+    // 必须用 composedPath()：卡片的 onclick 会当场重画 .pt-stage，等 click 冒泡到遮罩时
+    // e.target 已经脱网，closest('.pt-panel') 会变 null，把「点了卡片」误判成「点了遮罩」把窗口收走。
+    const path = e.composedPath ? e.composedPath() : [];
+    const hit = c => path.some(n => n && n.classList && n.classList.contains(c));
+    if (hit('pt-x') || !hit('pt-panel')) el.classList.remove('show');
+  });
+  // Tab 只在面板里循环（焦点管理），不跑到遮罩后面去
+  el.addEventListener('keydown', e => {
+    if (e.key !== 'Tab' || !el.classList.contains('show')) return;
+    const f = [...el.querySelectorAll('.pt-panel button, .pt-panel input, .pt-panel textarea')].filter(x => x.offsetParent && !x.disabled);
+    if (!f.length) return;
+    const i = f.indexOf(document.activeElement);
+    if (e.shiftKey && i <= 0) { e.preventDefault(); f[f.length - 1].focus(); }
+    else if (!e.shiftKey && i === f.length - 1) { e.preventDefault(); f[0].focus(); }
+  });
+  // 打开时记住焦点来源并聚焦面板；关闭（× / Esc / 遮罩 / 3 秒自动关都走 class 'show'）后还回去
+  let wasShown = false;
+  new MutationObserver(() => {
+    const on = el.classList.contains('show');
+    if (on && !wasShown) { const c = el.querySelector('.pt-card, .pt-back'); if (c) c.focus({ preventScroll: true }); }
+    if (!on && wasShown && el._ptBack && document.body.contains(el._ptBack)) { try { el._ptBack.focus({ preventScroll: true }); } catch (e) { } el._ptBack = null; }
+    wasShown = on;
+  }).observe(el, { attributes: true, attributeFilter: ['class'] });
+}
+function aboutView(edit) {
+  const A = ABOUT;
+  // w/h 传给 floatWin 只是兜底（遮罩尺寸由 CSS 钉死整屏）；标题照传，隐藏的原生标题栏不用它
+  const prevFocus = document.activeElement; // 趁还没把焦点挪进面板，先记下「是从哪打开的」（关闭时还回去）
+  const el = floatWin('about', { title: '项目团队', sub: 'PROJECT TEAM', w: 760, h: 540, minH: 360, a1: '#9254FF', a2: '#368CFF', html: ptShell() });
+  ptSetup(el);
+  if (prevFocus && !el.contains(prevFocus)) el._ptBack = prevFocus; // 云端名单回来重画时焦点已在面板里，沿用上次记的
+  const go = mode => { // 视图切换不跳新页面：只换 .pt-stage 内容，详情入场动画见 .pt-view
+    el.dataset.ptView = mode; // 记下当前视图：云端名单回来重画时，别把用户正看着的详情顶回双卡片
+    const st = el.querySelector('.pt-stage'); if (!st) return;
+    st.innerHTML = mode === 'dev' ? ptDevView(A) : mode === 'con' ? ptConView(A) : mode === 'edit' ? ptEditView(A) : ptMain();
+    st.querySelectorAll('.pt-card').forEach(c => { c.onclick = () => go(c.dataset.v); ptTilt(c); });
+    const bk = st.querySelector('[data-back]'); if (bk) bk.onclick = () => go('main');
+    const eb = st.querySelector('[data-editback]'); if (eb) eb.onclick = () => go('con');
+    if (st.querySelector('#abFb')) st.querySelector('#abFb').onclick = openFeedback;
+    if (st.querySelector('#abEdit')) st.querySelector('#abEdit').onclick = () => go('edit');
+    if (mode === 'edit') {
+      st.querySelector('#abCancel').onclick = () => go('con');
+      st.querySelector('#abSave').onclick = async () => {
+        const dev = st.querySelector('#abDev').value.trim(), thanks = st.querySelector('#abThanks').value.split('\n').map(s => s.trim()).filter(Boolean);
+        if (!dev) { st.querySelector('#abMsg').textContent = '开发者不能为空'; return; }
+        st.querySelector('#abSave').disabled = true; st.querySelector('#abMsg').textContent = '保存中…';
+        try { aboutKeep(await HX.rpc('hx_set_about', { p_tool: 'wiring-lab', p_dev: dev, p_thanks: thanks })); go('con'); toast('“关于”已保存'); }
+        catch (e) { st.querySelector('#abMsg').textContent = e.message; st.querySelector('#abSave').disabled = false; }
+      };
+      st.querySelector('#abDev').focus({ preventScroll: true });
+    } else {
+      const c = st.querySelector('.pt-card, .pt-back'); if (c) c.focus({ preventScroll: true });
+    }
   };
+  // 首次打开从双卡片进；窗口正开着（云端名单回来重画）就留在当前视图，不把人顶回去
+  const keep = el.dataset.ptReady && el.classList.contains('show') ? el.dataset.ptView : '';
+  go(edit ? 'edit' : (keep || 'main'));
 }
 // 把云端回来的名单收下并记到本机：只认“带开发者”的；云端这次没带 thanks（旧接口/旧数据）时，
 // 保留本机已有的那几位，不把鸣谢名单刷成空的 —— 名单要每次打开都在。
@@ -2242,10 +2912,20 @@ const RFX = (() => {
     const step = now => {
       if (dead) return;
       if (!cv.isConnected || document.hidden || hiddenHost()) return kill(); // 切后台 / 宿主没了就收工，回来也不补播
-      const dt = Math.min((now - last) / 1000, .05); last = now; t += dt; fx.update(dt);
-      P.clearFrame(f); fx.draw(f, 'back'); fx.draw(f, 'front');
-      P.composite(f, img.data, null); // 透明底：下面的玻璃、牌桌都还看得见
-      g.clearRect(0, 0, W, H); g.putImageData(img, 0, 0);
+      // ── 2026-11-06 修坑：dt 必须夹到 ≥ 0 ──
+      //   rAF 回调参数是合成器帧时间戳，负载高的机器（希沃一体机跑 60fps 电路画布是常态）
+      //   第一帧时间戳可能比注册时的 performance.now() 还早 → dt 为负。
+      //   负 dt 灌进 PixelFX 后 countdown 内部时间 g 变负：y=floor(g/.62) 算出 -1，
+      //   数字字形表 M[-1] 不存在 → draw 抛「Cannot read properties of undefined (reading 'w')」
+      //   → rAF 循环当场死掉，画布冻在空白上（实测 0 帧），倒数从此再也不出来。
+      //   复现：test/rank-transition-repro.cjs；最小实验：负 dt 第一帧必炸（countdown），其余特效不炸。
+      const dt = Math.max(0, Math.min((now - last) / 1000, .05)); last = now; t += dt;
+      try {
+        fx.update(dt);
+        P.clearFrame(f); fx.draw(f, 'back'); fx.draw(f, 'front');
+        P.composite(f, img.data, null); // 透明底：下面的玻璃、牌桌都还看得见
+        g.clearRect(0, 0, W, H); g.putImageData(img, 0, 0);
+      } catch (e) { return kill(); } // 特效本体炸了也要干净收摊：摘画布、停循环，别把僵尸 canvas 留在遮罩里
       if (t < (m.loop ? (o.hold || 3600) : m.duration + .25)) raf = requestAnimationFrame(step); else kill();
     };
     raf = requestAnimationFrame(step);
@@ -2421,13 +3101,23 @@ async function rkMain(body) {
   // 这里不再渲染任何电路选择（项目二 / 扩展练习 / 专项小题都不出现）：
   // 入口已经锁定了这一题，界面里也没有别的题可点，学生不可能在排位里换成别的题。
   const lock = RK.lock || RK.circuit;
-  body.innerHTML = `<div class="rk-main"><div class="rk-left">
-    <div class="rk-player"><div><small>${T ? '当前选手' : '我'}</small><b>${RK.pick ? esc(RK.pick.name) : '还没选学生'}</b><span>${RK.pick ? esc(RK.pick.cls || '') : T ? '在下面选一个学生' : ''}</span></div>
-      <button class="rk-start" id="rkStart" ${RK.pick ? '' : 'disabled'}>开始排位</button></div>
-    <h3>排位题目</h3>
-    <div class="rk-locked"><div><b>${esc(cName(lock))}</b><span>只排这一题。要换题请先退出排位，回到练习页选好题再点「排位」。</span></div></div>
-    ${T ? `<h3>学生</h3><div id="rkPick"><p class="rk-wait">加载班级…</p></div>` : ''}</div>
-    <div class="rk-right"><h3>${esc(cName(lock))} 排行榜</h3><div id="rkBoard"><p class="rk-wait">加载中…</p></div></div></div>`;
+  // UI 重构（2026-11-08）：面板换成全息控制台外观。calm = 选人/切班触发的重绘——
+  // 入场编排（左右面板错峰上滑）只在窗口第一次打开时播，重绘时加上 .calm 不重放；
+  // 选手卡的扫描/名字动画不在编排里，重绘时照常重放（那就是“切换选手”的动画本身）。
+  const calm = body.dataset.rkInit ? ' calm' : ''; body.dataset.rkInit = '1';
+  const av = RK.pick && RK.pick.name ? String(RK.pick.name).trim().slice(0, 1) : '选';
+  body.innerHTML = `<div class="rk-main${calm}"><div class="rk-left">
+    <div class="rk-player"><div class="rk-pav" aria-hidden="true"><i>${esc(av)}</i></div>
+      <div class="rk-pinfo"><small>${T ? '当前选手' : '我'}</small><b>${RK.pick ? esc(RK.pick.name) : '还没选学生'}</b><span>${RK.pick ? esc(RK.pick.cls || '') : T ? '在下面选一个学生' : ''}</span></div>
+      <button class="rk-start" id="rkStart" ${RK.pick ? '' : 'disabled'}><span>开始排位</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg></button></div>
+    <div class="rk-locked"><div class="rk-lockic" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M9 7V4M12 7V4M15 7V4M9 20v-3M12 20v-3M15 20v-3M7 9H4M7 12H4M7 15H4M20 9h-3M20 12h-3M20 15h-3"/></svg></div>
+      <div><small>排位题目</small><b>${esc(cName(lock))}</b><span>只排这一题。要换题请先退出排位，回到练习页选好题再点「排位」。</span></div></div>
+    ${T ? `<div class="rk-students"><div class="rk-stin">
+      <div class="rk-sh"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M4 19a5 5 0 0 1 10 0"/><circle cx="17" cy="9" r="2.4"/><path d="M14.6 19a4.2 4.2 0 0 1 5.8-3.9"/></svg><b>学生</b></div>
+      <div id="rkPick"><p class="rk-wait">加载班级…</p></div></div></div>` : ''}</div>
+    <div class="rk-right"><div class="rk-rin">
+      <div class="rk-bh"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10v4a5 5 0 0 1-10 0z"/><path d="M7 5H4v1.5A3.5 3.5 0 0 0 7.5 10M17 5h3v1.5A3.5 3.5 0 0 1 16.5 10M12 13v4M8.5 20h7M10 17h4l1 3H9z"/></svg><b>${esc(cName(lock))} 排行榜</b></div>
+      <div id="rkBoard"><p class="rk-wait">加载中…</p></div></div></div></div>`;
   body.querySelector('#rkStart').onclick = () => rkStartRun();
   rkBoard(body.querySelector('#rkBoard'));
   if (T) rkPicker(body.querySelector('#rkPick'), body);
@@ -2441,10 +3131,28 @@ async function rkPicker(el, body) {
   let list = RK.studs[RK.cls];
   try { if (!list) list = RK.studs[RK.cls] = await HX.rpc('hx_class_students', { p_class: RK.cls }); } catch (e) { el.innerHTML = `<p class="rk-err">${esc(e.message)}</p>`; return; }
   const cls = RK.classes.find(c => c.id === RK.cls);
-  el.innerHTML = `<div class="rk-chips sm">${RK.classes.map(c => `<button data-k="${c.id}" class="${c.id === RK.cls ? 'on' : ''}">${esc(c.name)}</button>`).join('')}</div>
-    <div class="rk-names">${list.map(s => `<button data-s="${s.id}" class="${RK.pick && RK.pick.id === s.id ? 'on' : ''}${s.self_reg ? ' self' : ''}"><i>${s.seq < 1000 ? s.seq : '+'}</i>${esc(rkStuName(s))}</button>`).join('')}</div>`;
-  el.querySelectorAll('[data-k]').forEach(b => (b.onclick = () => { RK.cls = +b.dataset.k; rkPicker(el, body); }));
-  el.querySelectorAll('[data-s]').forEach(b => (b.onclick = () => { const s = list.find(x => x.id === +b.dataset.s); RK.pick = { id: s.id, name: rkStuName(s), cls: cls.name }; ls.set('hx-rank-pick', JSON.stringify(RK.pick)); rkMain(body); }));
+  // UI 重构（2026-11-08）：只换皮肤和过场，数据与选中逻辑一字未动。
+  // aria-pressed + 角标 = 颜色之外的第二/三重选中标识；--i 供 CSS 做网格错峰入场。
+  el.innerHTML = `<div class="rk-chips sm">${RK.classes.map(c => `<button data-k="${c.id}" class="${c.id === RK.cls ? 'on' : ''}" aria-pressed="${c.id === RK.cls ? 'true' : 'false'}">${esc(c.name)}</button>`).join('')}</div>
+    <div class="rk-names">${list.map((s, i) => `<button data-s="${s.id}" class="${RK.pick && RK.pick.id === s.id ? 'on' : ''}${s.self_reg ? ' self' : ''}" aria-pressed="${RK.pick && RK.pick.id === s.id ? 'true' : 'false'}" style="--i:${Math.min(i, 12)}"><i>${s.seq < 1000 ? s.seq : '+'}</i>${esc(rkStuName(s))}</button>`).join('')}</div>`;
+  el.querySelectorAll('[data-k]').forEach(b => (b.onclick = () => {
+    if (+b.dataset.k === RK.cls) return; // 点的就是当前班：状态没变，不再重绘（原逻辑重绘结果等价）
+    RK.cls = +b.dataset.k;
+    // 切班过场：名单先淡出 140ms 再重绘（新名单挂载时自带淡入，见 .rk-names 的 rkNamesIn）。
+    // RK.cls 已即时写好，重绘拿的一定是新班 —— 纯视觉延迟，不碰数据；弱机/减动画直接重绘。
+    const g = el.querySelector('.rk-names');
+    if (g && !drwNoAnim()) { g.classList.add('rk-fading'); setTimeout(() => rkPicker(el, body), 140); }
+    else rkPicker(el, body);
+  }));
+  el.querySelectorAll('[data-s]').forEach(b => (b.onclick = () => {
+    const s = list.find(x => x.id === +b.dataset.s);
+    RK.pick = { id: s.id, name: rkStuName(s), cls: cls.name }; ls.set('hx-rank-pick', JSON.stringify(RK.pick));
+    // 选手身份切换动画：旧名字淡出（.rk-switching，180ms）→ 重绘（新卡自带扫描线掠过 + 新名淡入 +
+    // 徽章增亮 + 网格里对应学生的橙色角标同步亮起）。RK.pick 已即时写好，纯视觉延迟。
+    const card = body.querySelector('.rk-player');
+    if (card && !drwNoAnim()) { card.classList.add('rk-switching'); setTimeout(() => rkMain(body), 190); }
+    else rkMain(body);
+  }));
 }
 // ---------- 随机抽人（教师）：夜市翻牌（2026-11-06 完整迁移自 .tmp-ref/night-market-draw-prototype.html） ----------
 // 呈现整体换成原型：顶栏（NIGHT MARKET / 点券 / ✕）→ 工具条（班级 / 开始翻牌 / 刷新下一组）→
@@ -2552,7 +3260,7 @@ function drwFxTick(now) {
   let dt = 0;
   if (!DRW_FX.last) { DRW_FX.last = now; dt = 0; }
   else if (now - DRW_FX.last < DRW_FX.gap - 1) { DRW_FX.raf = requestAnimationFrame(drwFxTick); return; }
-  else { dt = Math.min((now - DRW_FX.last) / 1000, .12); DRW_FX.last = now; }
+  else { dt = Math.max(0, Math.min((now - DRW_FX.last) / 1000, .12)); DRW_FX.last = now; } // 下限夹 0：帧时间戳回退会让 dt 为负、特效内部时间打负（同一根因在倒数字形表上抛过错，见 RFX.play 修坑注释）
   for (const it of DRW_FX.items) { try { drwFxPaint(it, dt); } catch (e) { } }
   DRW_FX.raf = requestAnimationFrame(drwFxTick);
 }
@@ -2761,8 +3469,24 @@ const drwNoAnim = () => document.documentElement.classList.contains('is-lite')
   || matchMedia('(prefers-reduced-motion: reduce)').matches;
 async function rkBoard(el, hl) {
   let rows; try { rows = await HX.rpc('rank_board', { p_circuit: RK.circuit, p_limit: 50 }, HX.in()); } catch (e) { el.innerHTML = `<p class="rk-err">${esc(e.message)}</p>`; return; }
-  if (!rows.length) { el.innerHTML = '<p class="rk-empty">还没有人上榜，来当第一名</p>'; return; }
-  el.innerHTML = `<ol class="rk-board">${rows.map(r => `<li class="${r.me || r.place === hl ? 'me' : ''} p${Math.min(r.place, 4)}"><i>${r.place}</i><b>${esc(r.name)}</b><span>${esc(r.class_name)}</span><em>${fmtMs(r.ms)}</em></li>`).join('')}</ol>`;
+  // 空榜单只放提示语，绝不放假成绩（2026-11-08 UI 重构：文案换成两句引导）
+  if (!rows.length) { el.innerHTML = `<div class="rk-emptybox"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10v4a5 5 0 0 1-10 0z"/><path d="M7 5H4v1.5A3.5 3.5 0 0 0 7.5 10M17 5h3v1.5A3.5 3.5 0 0 1 16.5 10M12 13v4M8.5 20h7"/></svg><b>暂无排位成绩</b><span>完成首次接线挑战后，成绩将在此展示</span></div>`; return; }
+  // FLIP（2026-11-08，纯视觉）：重绘前记下旧行位置（按 姓名|班级 找），重绘后把位置变化过的行
+  // 从旧位置平移到新位置 —— 数据更新时行是“滑过去”的，新上榜的行短暂高亮一下。
+  // 数值、排序、me/highlight 判定全部原样；首绘（没有旧行）走错峰入场，不做 FLIP。
+  const prev = {};
+  if (!drwNoAnim()) el.querySelectorAll('.rk-board li').forEach(li => { const k = li.getAttribute('data-k'); if (k != null) prev[k] = li.offsetTop; });
+  const steady = Object.keys(prev).length ? ' steady' : '';
+  el.innerHTML = `<ol class="rk-board${steady}">${rows.map((r, i) => `<li data-k="${esc(r.name + '|' + r.class_name)}" style="--i:${Math.min(i, 12)}" class="${r.me || r.place === hl ? 'me' : ''} p${Math.min(r.place, 4)}"><i>${r.place}</i><b>${esc(r.name)}</b><span>${esc(r.class_name)}</span><em>${fmtMs(r.ms)}</em></li>`).join('')}</ol>`;
+  if (steady) el.querySelectorAll('.rk-board li').forEach(li => {
+    const o = prev[li.getAttribute('data-k')];
+    if (o == null) { li.classList.add('rk-new'); return; }              // 新上榜：短暂高亮
+    const dy = o - li.offsetTop;
+    if (dy) {                                                             // 位置变了：从旧位置滑过来
+      li.style.transition = 'none'; li.style.transform = `translateY(${dy}px)`;
+      requestAnimationFrame(() => { void li.offsetWidth; li.style.transition = ''; li.style.transform = ''; });
+    }
+  });
 }
 // ---------- 一局排位：模糊背景 + 中间开始按钮 → 计时（0.01 秒）→ 全对自动停表 → 服务器算成绩和名次 → 祝贺、烟花、名次上升动画 ----------
 const rkWin = () => { try { return frames.get(cur).contentWindow; } catch (e) { return null; } };
@@ -2932,15 +3656,23 @@ async function rkCountDown(v, R) {
     return rkCountText(v, R);
   }
   const t0 = performance.now();
-  let done = true; // true = 走完了；false = 中途被环境掐掉
+  let reached = false; // true = 特效自己的动画时间走到了 RK_GO_T（GO 爆完了）
   while (performance.now() - t0 < RK_GO_CAP) {
     if (RK.run !== R) return false;      // 倒数期间退出 / 换人：绝不能把计时叫起来
-    if (!fx.cv.isConnected) { done = false; break; } // 被 document.hidden / 宿主不可见 kill 了
-    if (fx.progress() >= RK_GO_T) break;             // 走到转场的动画时刻
+    if (!fx.cv.isConnected) break;       // 被 document.hidden / 宿主不可见 kill 了
+    if (fx.progress() >= RK_GO_T) { reached = true; break; }  // 走到转场的动画时刻
+    // 冻住或慢得没指望都别等满 6 秒 —— 练习页把主线程占满时 rAF 能整整饿死一整局
+    // （4 倍 CPU 节流实测：6 秒只画 23 帧，学生对着黑屏干等）。
+    //   一帧没画，或 2 秒只走了 0.5s（照这个速度走完 2.85s 要 11 秒以上）—— 2 秒内撤，改走文字倒数。
+    if (performance.now() - t0 > 2000 && fx.progress() < .5) break;
     await new Promise(r => setTimeout(r, 50));
   }
-  // 没走到该走的点就被掐了：恢复准备页，改用文字倒数重来一遍，学生总得看见 3-2-1-GO!
-  if (!done && (!fx.progress || fx.progress() < RK_GO_T)) {
+  // 没走到 GO 的动画时刻（被 kill / 冻住 / 6 秒墙钟兜底烧完了还慢着）：停掉像素倒数，
+  // 恢复准备页，用文字倒数重来一遍，学生总得看见 3-2-1-GO!
+  // ── 2026-11-06 修坑：原来的 done 只在「canvas 断开」时才置 false，6 秒兜底**超时出循环**
+  //   时仍带着 done=true 直接过关 —— 慢机上的表现就是黑屏 6 秒后直接起表，倒数整段消失。
+  if (!reached) {
+    try { fx.stop(); } catch (e) { } // 别让像素画布和文字数字叠在一起
     v.classList.remove('counting');
     return rkCountText(v, R);
   }
@@ -3053,25 +3785,41 @@ function rkReveal(R) {
   const g = cv.getContext('2d'); if (!g) { cv.remove(); rkHideOverlay(); return Promise.resolve(true); }
   const img = g.createImageData(W, H), f = P.createFrame(W, H);
   const O = m.origin || [0, 0];
-  // ── 2026-11-06：opts 必须真的传进 createFx，否则 RK_FX_PAL 那几组换色全是摆设 ──
+  // ── 2026-11-06 修坑：opts 必须真的传进 createFx，否则 RK_FX_PAL 那几组换色全是摆设 ──
   // createFx(effectsModule, options) 的第二个参数就是 options，它会跟 meta.options 深合并（库内 re(o,t)），
   // 所以这里把它铺在 x/y/seed 之上：换色（palette）、聚光圈落点（focus）都靠这一句才生效。
   // 实测过不传 = 变体和原色 RGBA 逐字节相同（见 .tmp-ref/_fxpal.cjs 的输出对比）。
   const fx = P.createFx(mod, Object.assign({ x: O[0], y: O[1], seed: Math.random() * 999 | 0 }, pick.opts || {}));
+  // ── 2026-11-06 修坑：转场期间把练习页的 60fps 画布暂停 —— 它跟转场共用主线程，
+  //   不让的话希沃这类弱机上转场一秒只能画 4~6 帧（4 倍 CPU 节流实测），等于「转场没出来」。
+  //   转场 canvas 从头到尾整屏盖住练习页，底下停不停学生看不见；__hidden 是练习页
+  //   原有的暂停开关（外壳切别的电路就在用，见 practice.js 的 frame 循环，250ms 轮询自动恢复），
+  //   finish 时原样恢复，不碰别的暂停来源。
+  const wI = rkWin(); let hidPrev = null;
+  try { if (wI) { hidPrev = wI.__hidden; wI.__hidden = true; } } catch (e) { }
   let t0 = performance.now(), last = t0, covered = false, done = false, raf = 0;
   return new Promise(res => {
     const finish = ok => {
       if (done) return; done = true; cancelAnimationFrame(raf); cv.remove();
+      try { if (wI && hidPrev !== null) wI.__hidden = hidPrev; } catch (e) { } // 练习页画布放行（250ms 内自动恢复）
+      // 兜底收遮罩：正常流程在「盖满」那一刻收；但弱机上转场 rAF 可能被练习页饿死、一步都没跑
+      // （covered 永远不置位，只有 setTimeout 兜底把 promise 结掉）——不补这一句就是
+      // 整局带着准备页遮罩起跑，练习页和计时条全被盖住（无头环境实测复现）。
+      if (!covered) rkHideOverlay();
       res(ok && RK.run === R);
     };
     const step = now => {
       if (done) return;
       if (!cv.isConnected || document.hidden || RK.run !== R) return finish(false); // 中途退出 / 切后台：收摊
-      const dt = Math.min((now - last) / 1000, .05); last = now; const t = (now - t0) / 1000;
-      fx.update(dt);
-      P.clearFrame(f); fx.draw(f, 'back'); fx.draw(f, 'front');
-      P.composite(f, img.data, null);
-      g.clearRect(0, 0, W, H); g.putImageData(img, 0, 0);
+      // dt 下限夹 0：帧时间戳回退（高负载下常见）会让 dt 为负，灌进特效会把内部时间打负、
+      // 下一帧 draw 抛错打死整条 rAF —— 倒数特效就是这么「第一次正常之后再也不出来」的（见 RFX.play 的修坑注释）
+      const dt = Math.max(0, Math.min((now - last) / 1000, .05)); last = now; const t = Math.max(0, (now - t0) / 1000);
+      try {
+        fx.update(dt);
+        P.clearFrame(f); fx.draw(f, 'back'); fx.draw(f, 'front');
+        P.composite(f, img.data, null);
+        g.clearRect(0, 0, W, H); g.putImageData(img, 0, 0);
+      } catch (e) { rkHideOverlay(); return finish(true); } // 特效本体炸了：照常揭幕起表，别把整局卡死在这
       if (!covered && t >= pick.cover) { covered = true; rkHideOverlay(); } // 盖满：收准备页（这一瞬看不见切换）
       if (t >= pick.open) return finish(true);                             // 揭幕开始：起表
       raf = requestAnimationFrame(step);

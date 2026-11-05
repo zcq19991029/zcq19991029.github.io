@@ -14,20 +14,22 @@
      要登录时调 window.HXPortal.login()；被单独打开时 hx-theme.js 会跳回这里（见 hx-theme.js 的 data-tool）。
      账号：Supabase 华夏工具项目，localStorage paike-session 和各工具共用；身份由数据库 hx_me() 决定。
      脚本里不用反引号模板字符串（本机测试时整页当字符串注入到线上同源页面里）。 -->
-<link rel="stylesheet" href="hx-theme.css?v=104b130">
-<script src="hx-theme.js?v=104b130"></script>
+<link rel="stylesheet" href="hx-theme.css?v=2bf8565">
+<script src="hx-theme.js?v=2bf8565"></script>
 <!-- 首页卡片上的像素小生物：pixelfx 的 12 个 critters（MIT），打包成一个 91 KB 的独立脚本。
      加载失败不影响首页——hx-critters.js 开头就有 window.PixelFX 存在性检查，没有就整段跳过。 -->
-<script src="fx/pixelfx-critters.js?v=104b130" defer></script>
-<script src="fx/hx-critters.js?v=104b130" defer></script>
+<script src="fx/pixelfx-critters.js?v=2bf8565" defer></script>
+<script src="fx/hx-critters.js?v=2bf8565" defer></script>
 <!-- 像素头像库（2026-11-04）：账号面板里除了传照片，还能从 200 多个像素动效里挑一个当头像。
      和上面 critters 同一套路：库（pixelfx-avatars.js）+ 渲染器（hx-avatar.js），都是 defer、
      不进首屏关键路径；不点「像素头像库」就一个动画都不跑。 -->
-<script src="fx/pixelfx-avatars.js?v=104b130" defer></script>
-<script src="fx/hx-avatar.js?v=104b130" defer></script>
+<script src="fx/pixelfx-avatars.js?v=2bf8565" defer></script>
+<script src="fx/hx-avatar.js?v=2bf8565" defer></script>
 <!-- 背景动效（2026-11-03）：12 种天气氛围特效铺在背景层，外观面板里选；加载失败或没选就完全不加载渲染器 -->
-<script src="fx/pixelfx-weather.js?v=104b130" defer></script>
-<script src="fx/hx-weather.js?v=104b130" defer></script>
+<script src="fx/pixelfx-weather.js?v=2bf8565" defer></script>
+<script src="fx/hx-weather.js?v=2bf8565" defer></script>
+<!-- 课堂码大屏二维码：离线 QR 编码器（qrcode 1.5.4 core 打包，MIT，见 fx/NOTICE-qr.md）。延迟加载即可：只有老师点「大屏二维码」时才用 -->
+<script src="fx/hx-qr.js?v=2bf8565" defer></script>
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; width: 100%; overflow: hidden; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -131,20 +133,9 @@
     .hx-px i { animation: none; opacity: .8; transform: none; }
   }
 
-  /* 弱网下点了工具到页面出来之间要等几秒，给个「正在加载」的提示，免得以为卡死 */
-  .loadtip { position: absolute; left: 50%; top: 46%; z-index: 3; display: none; align-items: center; gap: 10px;
-    transform: translate(-50%, -50%); padding: 12px 20px; border-radius: 99px; background: var(--card); color: var(--ink);
-    font-size: clamp(14px, .8vw + 6px, 26px); box-shadow: 0 18px 40px -18px rgba(0,0,0,.35); border: 1px solid var(--edge); pointer-events: none; }
-  .loadtip.on { display: inline-flex; animation: pop .22s var(--hx-ease) both; }
-  /* 工具加载中的转圈改成同一套像素方块，和首屏加载、和小生物是一条视觉语言。
-     药丸里的方块要比首屏小一档，并且给足跳动空间 —— 否则方块向上跳时会顶出圆角外面。
-     文字必须 nowrap：第一版没写，手机上「正在加载 · 接线仿真」被压成两行，药丸变成一个方块疙瘩。
-     方块用 em 挂在本行的 font-size 上（2026-11-04）：字随屏幕长大，方块跟着长，比例固定是 .57。 */
-  .loadtip .hx-px { height: 2.2em; gap: .28em; font-size: .57em; }
-  /* 方块必须在这里改成 1em：全局 .hx-px i 写的是 clamp(9px…17px) 的绝对尺寸，
-     不改就会被那套盖掉，字号再变方块也不动（「字大了方块没大」）。 */
-  .loadtip .hx-px i { width: 1em; height: 1em; border-radius: 1.5px; box-shadow: none; }
-  .loadtip b { white-space: nowrap; }
+  /* 这里原来是外层「正在加载 · XX」药丸（.loadtip）的样式。2026-11-05 用户拍板删掉它：
+     9 个工具全部 splash:1、各自带整屏像素启动屏，外层药丸只会压在像素动效上变成双层加载。
+     元素、样式、逻辑一起退役，详见 tip()。 */
   @keyframes spin { to { transform: rotate(360deg); } }
   /* 首页 */
   #home { position: absolute; inset: 0; overflow-y: auto; padding: 0 16px calc(48px + env(safe-area-inset-bottom, 0px)); scroll-behavior: smooth; }
@@ -694,6 +685,22 @@
   #lseg { margin-bottom: 18px; } .f[hidden], .seg[hidden] { display: none; }
   .gh { background: #24292f !important; color: #fff !important; } .gh svg { width: 18px; height: 18px; fill: #fff; }
   .or { display: flex; align-items: center; gap: 10px; color: var(--faint); font-size: 12px; } .or::before, .or::after { content: ""; flex: 1; height: 1px; background: var(--edge); }
+  /* ── 课堂码大屏二维码弹窗（#qr）：给教室投影用的，比普通弹窗大得多 ──
+     居中大卡 + 遮罩压暗（教室后排也要看清）；课堂码用超大等宽字；
+     二维码画在白底圆角画布上（QR 要强对比，不跟主题色走）。 */
+  dialog#qr { width: min(560px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); padding: 34px 30px 28px; text-align: center; overflow: auto; }
+  dialog#qr .qr-code { font: 700 64px/1.15 ui-monospace, "SF Mono", Menlo, Consolas, monospace; letter-spacing: .14em; color: var(--ink); margin: 0 0 14px; word-break: break-all; }
+  dialog#qr .qr-box { display: inline-block; padding: 16px; border-radius: 22px; background: #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.06) inset; }
+  dialog#qr canvas { display: block; width: min(380px, calc(100vw - 110px)); height: auto; image-rendering: pixelated; }
+  dialog#qr .qr-tip { margin: 18px 0 0; font-size: 16px; line-height: 1.7; color: var(--ink); }
+  dialog#qr .qr-tip small { display: block; margin-top: 6px; font-size: 13px; color: var(--dim); }
+  dialog#qr .qr-x { position: absolute; top: 10px; right: 10px; }
+  @media (max-width: 640px) {
+    dialog#qr { padding: 24px 18px 20px; }
+    dialog#qr .qr-code { font-size: 42px; }
+    dialog#qr canvas { width: min(300px, calc(100vw - 92px)); }
+    dialog#qr .qr-tip { font-size: 14.5px; }
+  }
   /* 管理卡片点开的面板：电脑在中间，手机从底部出来 */
   dialog.sheet { width: min(820px, calc(100vw - 48px)); max-width: none; max-height: min(880px, calc(100dvh - 48px)); padding: 0; overflow: hidden; }
   dialog.sheet[open] { display: flex; flex-direction: column; }
@@ -706,6 +713,31 @@
   .toast.show { opacity: 1; transform: translate(-50%, 0); }
   @media (max-width: 640px) {
     .acct b { display: none; } .cur { font-size: 16px; max-width: 46vw; overflow: hidden; text-overflow: ellipsis; }
+    /* 2026-11-05 登录态首页实测（360/320 宽）：顶栏右侧被「同步胶囊 + 头像」推爆 ——
+       头像右边缘跑到 x=369，320 视口根本装不下（截图上就是头像被切掉一半）。
+       根因：窄屏每个元素都按自己的最小宽度排，加起来超过视口，header 又不换行不收。
+       修法：① 顶栏窄屏允许横向压缩但不许溢出（min-width:0 + 图标统一 36px）；
+       ② 同步胶囊在 ≤640 只留圆点（.bgs/文字藏掉），省出 30 多 px；
+       ③ 头像徽标固定 36px 不参与伸缩；④ ≤380 再收紧图标间距，保证任何手机都不切边。 */
+    header { gap: 6px; }
+    header .brand span { max-width: 7.5em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    header .ibtn { flex: 0 0 36px; width: 36px; height: 36px; }
+    #syncPill { flex: 0 0 auto; max-width: 40px; overflow: hidden; }
+    #who, #who .acct { flex: 0 0 auto; min-width: 0; }
+    .hx-px { display: none; } /* 品牌右侧的像素小方块在窄屏没有信息量，先让位给账号 */
+    /* 2026-11-05 用户手机实测：工具页顶栏「? 刷题 AI」挤在一起互相遮挡。
+       根因是 .cur（工具名）用 position:absolute + left:50% 居中，390 宽下右侧的
+       帮助(?) / AI 图标正好压到标题上。窄屏改成参与 flex 排布：标题吃剩余空间、
+       超长省略，两侧图标各占各的，谁也不会盖住谁。 */
+    body.tool .cur { position: static; left: auto; transform: none; flex: 1 1 auto; min-width: 0; max-width: none; padding: 0 4px; text-align: center; }
+    body.tool header .sp { display: none; }
+    /* 2026-11-05 手机实测第二轮：标题不再被绝对定位压住之后，390 宽也只剩 116px ——
+       右侧「AI」是拉新促销徽标（首页也有），却和帮助/外观/账号挤在工具页顶栏里抢位置，
+       320 宽下标题只剩 46px。工具页顶栏的职责是「返回 · 工具名 · 账号」，促销徽标让位；
+       图标 36px 手指按不准，工具页统一放大到 40px（顶栏 52px 高，放得下）。 */
+    body.tool header #inviteBtn { display: none; }
+    body.tool header .ibtn { flex: none; width: 40px; height: 40px; }
+    body.tool header .back, body.tool header .acct, body.tool header .lbtn { min-height: 40px; }
     .tiles { grid-template-columns: repeat(2, 1fr); gap: 12px; } .tile { min-height: 148px; padding: 20px 18px 18px; border-radius: 26px; gap: 14px; } .tile b { font-size: 18px; } .tile .ic { width: 50px; height: 50px; border-radius: 13px; } .tile .ic svg { width: 26px; height: 26px; } .tile .go { display: none; }
     /* 窄屏两列、卡片只有 18px 内边距：轨道环同步收小，免得压到隔壁卡片 */
     .tile .ic::before, .tile .ic::after { width: 72px; height: 72px; margin: -36px 0 0 -36px; }
@@ -729,6 +761,17 @@
     dialog.sheet { width: 100%; max-height: 92dvh; margin: auto 0 0; border-radius: 26px 26px 0 0; }
     dialog.sheet[open] { animation: up .5s var(--hx-spring); }
     .sh-h { padding: 14px 10px 12px 20px; } .sh-b { padding: 16px 16px calc(24px + env(safe-area-inset-bottom, 0px)); }
+  }
+  /* 320/360 这类超窄屏：工具页的「返回」只留箭头，把 40px 还给标题（文字仍在 DOM 里，读屏照常读「返回」）。
+     只在 body.tool 生效 —— 首页顶栏没有返回键，不受影响。 */
+  @media (max-width: 380px) {
+    body.tool header .back { padding: 0 8px; font-size: 0; gap: 0; }
+    body.tool header .back svg { width: 24px; height: 24px; }
+    /* 2026-11-05：≤380（320 小屏实测仍差 33px）再让两步：品牌字缩小、同步胶囊彻底收起
+       （同步状态在账号面板里仍能看到，顶栏这一颗圆点不值得挤掉头像）。 */
+    header { gap: 4px; }
+    header .brand span { max-width: 5.5em; font-size: 15px; }
+    header #syncPill { display: none; } /* 用 header 前缀提高优先度：≤640 那条 max-width 会把裸 #syncPill 的 display:none 盖掉 */
   }
   @keyframes up { from { transform: translateY(100%); } }
   /* 平板：一行 3 张；电脑宽屏：用满宽度，一行 6 张，标题靠左 */
@@ -812,7 +855,6 @@
 <section class="pop wide" id="invite" aria-label="邀请拉新"></section>
 <section id="syncPop" aria-label="全站云端同步"></section>
 <main id="main">
-  <div class="loadtip" id="loadtip"><span class="hx-px"><i style="--i:0"></i><i style="--i:1"></i><i style="--i:2"></i><i style="--i:3"></i><i style="--i:4"></i><i style="--i:5"></i></span><b></b></div>
   <section id="home">
     <div class="wrap">
       <div class="hero"><img src="logo.jpg" alt=""><h1>华夏工具</h1><p id="hi"></p></div>
@@ -852,6 +894,14 @@
   <h2>发给对方</h2>
   <div class="f"><textarea id="shareT" readonly rows="5"></textarea><button class="btn" type="button" id="shareC">复制</button><button class="btn link" type="button" id="shareX">关闭</button></div>
 </dialog>
+<!-- 课堂码大屏二维码：内容（大字课堂码 + 二维码 + 引导语）由 openQr() 动态填 -->
+<dialog id="qr" aria-label="课堂码大屏二维码">
+  <button class="btn sub sm ib qr-x" type="button" id="qrX" aria-label="关闭"><svg class="i" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  <h2 style="margin-bottom:14px">扫码进入华夏工具</h2>
+  <div class="qr-code" id="qrCode"></div>
+  <div class="qr-box"><canvas id="qrCanvas" width="380" height="380" role="img" aria-label="注册二维码"></canvas></div>
+  <p class="qr-tip" id="qrTip"></p>
+</dialog>
 <script>
 var SITE = location.protocol === 'file:' ? 'https://zcq19991029.github.io' : ''; // 网站上（包括本机拼好的 成品/site）用同一站点里的工具；直接双击打开时嵌线上版
 // 首页卡片：who all 登录的人都有、teacher 只有教师看得到（没登录的什么工具都不显示）；c 是图标的两种颜色（像手机桌面图标，每个工具固定）
@@ -864,8 +914,8 @@ var TOOLS = [
   { id: 'wiring', name: '接线仿真', url: SITE + '/wiring-lab/', splash: 1, who: 'all', c: ['#ffb340', '#ff7a00'], icon: '<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>' },
   // 2026-11-04 统一加载动效：刷题、考试也各自带像素加载动效了（刷题在题卡里、考试是整屏闪屏，
   // 随机挑 pixelfx 特效 + 药丸文字结合）。规则：屏幕上任何时刻只许有一套加载提示——
-  // 带自带加载的工具（splash:1）打开时，外层这条 tip() 药丸必须让位，由工具页自己演，
-  // 否则就是用户截图里「外层圆形药丸 + 工具内长药丸」的双层加载（见 tip()）。
+  // 带自带加载的工具（splash:1）打开时，等待期的提示完全由工具页自己的启动屏负责，
+  // 外层那条「正在加载」药丸已经整个退役（见 tip()）。
   { id: 'quiz', name: '刷题', url: SITE + '/shuati/', who: 'all', splash: 1, c: ['#5ad16f', '#24a148'], icon: '<rect x="4.5" y="3" width="15" height="18" rx="3.5"/><path d="M8.5 12l2.5 2.5 4.5-5"/>' },
   { id: 'base', name: '进制转换', url: SITE + '/base/', splash: 1, who: 'all', c: ['#3ad6c6', '#00b3a4'], icon: '<path d="M4 8h14l-3.5-3.5M20 16H6l3.5 3.5"/>' },
   { id: 'mcu', name: '单片机上机', url: SITE + '/mcu/', splash: 1, who: 'all', c: ['#5ac8fa', '#0a84ff'], icon: '<rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/>' },
@@ -876,7 +926,7 @@ var TOOLS = [
   // 学生页是一个总页面：上课记分 / 组内个人评分 / 本学期总分 / 成绩登分册 四个只读模块，
   // 页签里再链到「选桌组队」（team.html），所以入口只留一个卡片，不拆成四张。
   // splash:1 = 这个工具页自己带整屏像素闪屏（小组加分的 fx/hx-jf-load.js）。
-  // 带闪屏的工具，外层那条「正在加载」提示必须让位，否则两层加载动画叠在一起（见 tip()）。
+  // 带闪屏的工具不再叠外层提示：那条药丸已退役（见 tip()）。
   { id: 'jiafen', name: '小组加分', url: SITE + '/jiafenxitong/', who: 'all', studentUrl: SITE + '/jiafenxitong/scores.html', splash: 1,
     studentHint: '小组加分 · 我的分数', c: ['#ff8fb7', '#ff2d55'], icon: '<path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/>' },
   { id: 'course', name: '课程进度', url: SITE + '/course/', splash: 1, who: 'teacher', c: ['#ffd166', '#f0a500'], icon: '<rect x="4" y="4" width="16" height="17" rx="3"/><path d="M8 9h8M8 13h8M8 17h5"/>' },
@@ -1171,41 +1221,21 @@ function mount(t) { // 建（或复用）工具 iframe。真正的下载发生�
   if (frames[t.id]) return frames[t.id];
   var f = document.createElement('iframe');
   f.src = toolUrl(t); f.title = t.name; f.allow = 'fullscreen; clipboard-write; clipboard-read'; f.setAttribute('allowfullscreen', '');
-  f.addEventListener('load', function () { f.dataset.ready = '1'; if (ST.tab === t.id) tip(false); });
+  f.addEventListener('load', function () { f.dataset.ready = '1'; });
   $('main').appendChild(f); frames[t.id] = f; return f;
 }
-function tip(on, name) { // 弱网下工具包要几秒才下完，先给个「正在加载」，别让人以为卡死
-  // 2026-11-06 用户：「这个加载重叠了 请清理多余的 很多工具都要查」+ 后一张截图指出
-  // 「这里还剩像素特效 但是我想放弃的加载动画 还在重叠显示 … 我不是说融合吗」。
-  // 真凶就是这条 tip()：**小组加分自带整屏像素闪屏**（#hxSplash + canvas pixelfx + 标题），
-  // 而外层还在同一块屏幕中央画一条白底药丸「正在加载 · 小组加分」——两层加载语言同框，
-  // 药丸正好压在闪屏的 canvas 上（截图里那排蓝色方块和像素小人就是这么叠上的）。
-  // 融合方式：**谁的动效更完整就让谁演**。带闪屏的工具（TOOLS 里 splash:1）不画外层药丸，
-  // 由工具页自己的整屏动效负责这一段等待；其它工具没有闪屏，仍用这条药丸。
-  // 2026-11-05 决策②（弱网兜底）：闪屏工具的药丸不再「立刻让位」，改成**延迟 1200ms 再上**——
-  // 正常网速下 iframe 早就 load（load 监听里的 tip(false) 会把这个定时器撤掉），闪屏无缝接管，
-  // 外层药丸一帧都不会闪出来，屏幕上始终只有一套加载；弱网下 iframe 迟迟没就绪，
-  // 1200ms 后药丸照常出现兜底，用户不会对着总入口干等且毫无提示。
-  // 任何新的 tip() 调用都会先撤掉未触发的定时器（切工具、tip(false)、reloadTools 都会走到这里），
-  // 定时器触发时再核对一遍「当前 tab 还是这个工具、iframe 还没 ready」，保险不闪、不重影。
-  var t = ST.tab && TOOLS.filter(function (x) { return x.id === ST.tab; })[0];
-  var el = $('loadtip'); if (!el) return;
-  if (tip.tm) { clearTimeout(tip.tm); tip.tm = 0; } // 撤掉上一条还没触发的延迟药丸
-  if (on && t && t.splash) {
-    el.classList.remove('on');
-    tip.tm = setTimeout(function () {
-      tip.tm = 0;
-      var cur = ST.tab && TOOLS.filter(function (x) { return x.id === ST.tab; })[0];
-      if (cur !== t) return;                    // 期间切去了别的工具，别再弹
-      var fr = frames[t.id];
-      if (fr && fr.dataset.ready) return;       // iframe 已经就绪（load 已触发），闪屏接管中
-      el.querySelector('b').textContent = '正在加载 · ' + t.name;
-      el.classList.add('on');
-    }, 1200);
-    return;
-  }
-  if (on) el.querySelector('b').textContent = '正在加载 · ' + (name || '');
-  el.classList.toggle('on', !!on);
+function tip() { // 空壳：外层「正在加载」药丸已退役，见下方说明
+  // 2026-11-05 用户手机实测拍板：「像素动效上面叠着一条正在加载的药丸，删掉挡住像素动效的那一个」。
+  // 前情：2026-11-06 用户两次反馈「加载重叠了 请清理多余的」「这里还剩像素特效 但是我想放弃的加载动画 还在重叠显示」。
+  // 根因：TOOLS 里 **9 个工具已全部 splash:1**，每个工具页都自带整屏启动屏（hxBoot + 像素动效 +
+  // 「正在载入…」药丸）。外层再画一条白底药丸「正在加载 · XX」，就是同屏两套加载 UI，
+  // 而且药丸正好压在工具页的像素动效 canvas 上（截图里那排方块和像素小人格外明显）。
+  // 试过的折中：延迟 1200ms 再上，想甩掉正常网速下的那一帧 —— 但弱网下 iframe load 一超过
+  // 1200ms，药丸照样冒出来，兜底反而制造了双层加载；而且「闪一下又消失」比不画更糟。
+  // 结论（用户拍板）：splash 工具的外层药丸**永不显示**。既然现在没有任何工具需要它，
+  // 就把整条逻辑连同 `#loadtip` 元素、样式一起退役；这里只留空函数壳，
+  // 防止历史调用点（show/reloadTools/iframe load）报 ReferenceError。
+  // 以后真要加「没有自带启动屏」的工具，请在工具页里补一套启动屏，别把外层药丸请回来。
 }
 // 2026-11-02：让不在前台的工具页真正停下来。
 // display:none 只是不画，iframe 里的 JS、定时器、requestAnimationFrame 照跑——接线仿真的画布循环
@@ -1229,8 +1259,7 @@ function show(id, how) { // how：不写 = 新开一页（进浏览器历史，�
   var url = t ? '#' + t.id : location.pathname + location.search, st = history.state && history.state.hx || 0;
   if (how === 'replace' || (!how && (t ? t.id : null) === (prevTab || null))) history.replaceState({ hx: st }, '', url);
   else if (how !== 'pop') history.pushState({ hx: st + 1 }, '', url);
-  tip(false);
-  if (t) { var fr = mount(t); if (!fr.dataset.ready) tip(true, t.name); }
+  if (t) mount(t); // 等待期的提示由工具页自己的启动屏负责（外层药丸已退役，见 tip()）
   for (var k in frames) frames[k].classList.toggle('on', !!t && k === t.id);
   pauseAll(t ? t.id : null); // 2026-11-02：切走的工具页要真正停下来，见 pauseAll
   document.body.classList.toggle('zen', !!t && !!zen[t.id]);
@@ -1724,7 +1753,7 @@ function mgList() {
   return L;
 }
 function liveN(role) {
-  var C = ST.codes; if (!C) return '…';
+  var C = ST.codes; if (!C) return ST.codesErr ? '读取失败' : '…';
   var L = C.filter(function (c) { return c.live && c.role === role; });
   if (role === 'student') { // 课堂码列表里一个班只显示最新一条，卡片摘要也按班去重，两边对得上
     var s = {}; L = L.filter(function (c) { if (!c.class_name || s[c.class_name]) return false; s[c.class_name] = 1; return true; });
@@ -1786,21 +1815,28 @@ function codeBox(cls, code, note, acts) { return '<div class="code"><small>' + e
 // 班级面板：导入考勤表、勾选给哪些工具用、课堂码、名单
 /* 一个班的课堂码那一行（2026-11-04 合并进班级面板）。
    数据来自 hx_my_codes，一个班只取最新一条还有效的码；已注册/人数用 hx_my_classes 的 bound/total。
-   ST.codes 还没读到时先画一个"读取中"，loadCodes() 回来会重画整张面板。 */
+   2026-11-06 修「一键开号消失」：开号按钮只看 bound/total（lack>0 必然显示），
+   课堂码那一截单独渲染——读取中/读取失败（带原因+重试）/没码/有码，
+   课堂码加载失败不再把开号按钮一起带走。 */
 function clsCodeRow(c) {
   if (!isTeacher()) return '';
-  if (ST.codes === undefined || ST.codes === null) {
-    if (ST.codes === undefined) loadCodes();
-    return '<div class="clcode"><span class="dim">课堂码读取中…</span></div>';
-  }
-  var mine = ST.codes.filter(function (x) { return x.role === 'student' && x.class_name === c.name; });
-  var live = mine.filter(function (x) { return x.live; })[0] || null; // 倒序返回，第一个活的即最新
   var reg = (c.bound || 0) + ' / ' + (c.total || 0);
   // 2026-11-06 新规则：学生不用注册，学号即账号密码。班级卡片上直接给一个「一键开号」，
   // 显示还有几个人没开（total - bound）。0 个人没开就不显示按钮，不占地方。
   // 导入考勤表时已经会自动开号，这个按钮是给「之前就导入过、但当时还没有批量注册」的老班补的。
   var lack = Math.max(0, (c.total || 0) - (c.bound || 0));
   var openBtn = lack > 0 ? '<button class="btn sub sm" data-clsopen="' + c.id + '">一键开号 ' + lack + '</button>' : '';
+  // 课堂码状态（独立于开号按钮）：
+  if (ST.codes === undefined || ST.codes === null) {
+    if (ST.codes === undefined) { ST.codes = null; loadCodes(); } // 置成 null 标记「已在路上」，避免重画一次就多发一个请求
+    return '<div class="clcode"><span class="dim">课堂码读取中…</span><span class="dim">已注册 ' + reg + '</span>' + openBtn + '</div>';
+  }
+  if (ST.codesErr) {
+    return '<div class="clcode"><span class="msg" style="font-size:13px">课堂码读取失败：' + esc(ST.codesErr) + '</span>' +
+      '<button class="btn link sm" data-codesretry>重试</button><span class="dim">已注册 ' + reg + '</span>' + openBtn + '</div>';
+  }
+  var mine = ST.codes.filter(function (x) { return x.role === 'student' && x.class_name === c.name; });
+  var live = mine.filter(function (x) { return x.live; })[0] || null; // 倒序返回，第一个活的即最新
   if (!live) {
     return '<div class="clcode"><span class="dim">这个班还没有有效的课堂码 · 已注册 ' + reg + '</span>' +
       openBtn + '<button class="btn sub sm" data-clscode="' + c.id + '">发课堂码</button></div>';
@@ -1810,6 +1846,7 @@ function clsCodeRow(c) {
     '<span class="dim">已注册 ' + reg + '</span>' + openBtn +
     (full ? '<span class="pill">已使用</span>'
       : '<span class="pill acc">注册中</span><button class="btn link sm" data-clsshare="' + esc(live.code) + '">分享</button>' +
+        '<button class="btn link sm" data-clsqr="' + esc(live.code) + '">大屏二维码</button>' +
         '<button class="btn link bad sm" data-clsrev="' + esc(live.code) + '">撤销</button>') +
     '</div>';
 }
@@ -1823,6 +1860,12 @@ function sheetCls() {
   }).join('') + '<div style="display:flex;gap:8px"><button class="btn" id="rImp"' + (R.some(function (x) { return x.list; }) ? '' : ' disabled') + '>导入' + (R.length > 1 ? '全部' : '') + '</button><button class="btn sub" id="rNo">取消</button></div></div>';
   // 这行是说明不是报错：.msg 默认是报错红，这里单独压成灰
   html += '<p class="msg" style="margin:0 0 12px;color:var(--dim,#8a8f98)">点亮哪个工具，这个班才在哪个工具里出现；四个都不点 = 四个工具都用不了。后面的「已开通 N」是已经注册账号的学生人数，和工具开关无关。</p>';
+  // ── 2026-11-06 全部班级一键开号：Σlack>0 才显示。一个班一个班地调 hx_batch_signup_class
+  //    （复用单班开号的同一个 RPC，逐班报进度），失败的班带着原因列出来。 ──
+  var allLack = (ST.classes || []).reduce(function (s, c) { return s + Math.max(0, (c.total || 0) - (c.bound || 0)); }, 0);
+  if (allLack > 0) html += '<div class="panel f" style="margin:0 0 12px"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">' +
+    '<b>批量开号</b><span class="dim" style="font-size:12px">全部班级还有 ' + allLack + ' 人没开号</span>' +
+    '<button class="btn sm" id="allOpen" data-allopen style="margin-left:auto">全部班级开号 ' + allLack + '</button></div></div>';
   // ── 2026-11-04 开号密码设置（用户：「支持各自老师自己设置开号密码 我的话就是学号作为密码」）──
   // 每位老师一条自己的策略（hx_signup_policy 按 teacher_id 存，跟班无关——改一次，之后所有班的一键开号/导入考勤表都按这个发密码）。
   // 默认「学号即密码」；选「统一密码」的必须是至少 6 位。入口放在班级面板顶部，展开一个小表单，不另开弹窗。
@@ -1947,6 +1990,41 @@ function sheetCls() {
   box.querySelectorAll('[data-clsshare]').forEach(function (b) {
     b.onclick = function () { shareCode(b.dataset.clsshare, 'student'); };
   });
+  // 大屏二维码（2026-11-06）：弹居中大窗，投影到教室大屏，学生扫码进注册页（码自动带上）
+  box.querySelectorAll('[data-clsqr]').forEach(function (b) {
+    b.onclick = function () { openQr(b.dataset.clsqr); };
+  });
+  // 课堂码读取失败后的「重试」：清掉错误状态重读一次（不影响开号按钮——那条路一直都在）
+  box.querySelectorAll('[data-codesretry]').forEach(function (b) {
+    b.onclick = function () { ST.codes = null; ST.codesErr = null; loadCodes(); };
+  });
+  // ── 全部班级一键开号（2026-11-06）：逐班调 hx_batch_signup_class（与单班开号同一 RPC）。
+  //    进度写在按钮上（第几个班），失败的班连原因列进 toast；结束重读班级刷新 bound/total。
+  var allBtn = box.querySelector('[data-allopen]');
+  if (allBtn) allBtn.onclick = async function () {
+    var L = (ST.classes || []).map(function (c) { return { c: c, lack: Math.max(0, (c.total || 0) - (c.bound || 0)) }; })
+      .filter(function (x) { return x.lack > 0; });
+    if (!L.length) return;
+    var totalLack = L.reduce(function (s, x) { return s + x.lack; }, 0);
+    var fixed = ST.pwPolicy && ST.pwPolicy.mode === 'fixed' && ST.pwPolicy.has_fixed;
+    if (!await ask('给全部 ' + L.length + ' 个班开号',
+      '会把 ' + L.length + ' 个班里还没注册的 ' + totalLack + ' 个学生全部开成账号：账号 = 学号，密码 = ' +
+      (fixed ? '你设置的统一密码' : '学号') + '。已经注册过的学生不受影响，密码照旧。', '开始开号')) return;
+    allBtn.disabled = true;
+    var made = 0, claimed = 0, failed = 0, errs = [];
+    for (var i = 0; i < L.length; i++) {
+      allBtn.textContent = '开号中… ' + (i + 1) + '/' + L.length;
+      try {
+        var r = await HX.rpc('hx_batch_signup_class', { p_class: L[i].c.id });
+        made += (r.created || 0); claimed += (r.bound || 0); failed += (r.failed || 0);
+        if (r.failed && r.errors && r.errors.length) errs.push(L[i].c.name + ' ' + (r.created || 0) + '/' + L[i].lack + '：' + r.errors.slice(0, 2).join('；'));
+      } catch (e) { failed += L[i].lack; errs.push(L[i].c.name + '：' + e.message); }
+    }
+    await loadClasses();
+    toast('共开 ' + made + ' 个账号' + (claimed ? '，认领已有 ' + claimed + ' 个' : '')
+      + (failed ? '，失败 ' + failed + ' 个' : '')
+      + (errs.length ? '（' + errs.slice(0, 3).join('；') + (errs.length > 3 ? '…' : '') + '）' : ''));
+  };
   // ── 开号密码设置（2026-11-04）：回显 + 展开/保存 ──
   // hx_my_signup_policy 返回 {mode, has_fixed}；安全起见不回显密码明文，只显示「已设统一密码」，
   // 要换密码就输新的（留空保存会报「至少 6 位」，照后端 hx_set_signup_policy 的规则来）。
@@ -2028,6 +2106,39 @@ function shareCode(code, role) {
   $('shareT').value = t; if (!$('share').open) $('share').showModal(); $('shareT').select();
   (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function () { toast('已复制，发给对方就行'); }, function () { try { if (document.execCommand('copy')) toast('已复制，发给对方就行'); } catch (e) { } });
 }
+// ── 2026-11-06 课堂码大屏二维码（扫码注册）──
+// 弹一个居中大窗（遮罩 + dialog#qr）：课堂码超大字 + 离线二维码（fx/hx-qr.js，无 CDN）+ 引导语。
+// 二维码内容 = 站点首页 + #signup=课堂码：学生扫码打开就自动弹出注册框、码已带上（见 takeSignupHash）。
+// 只有还有效的课堂码才会画到这行按钮（clsCodeRow 里 live 且没用满才给 data-clsqr），
+// 撤销/用满的码连按钮都不出现，不存在「扫了失效码」的窗口。
+function qrDeepLink(code) {
+  var base = location.protocol === 'file:' ? 'https://zcq19991029.github.io' : location.origin;
+  return base + '/#signup=' + encodeURIComponent(code);
+}
+function openQr(code) {
+  $('qrCode').textContent = code;
+  $('qrTip').innerHTML = '扫码进入华夏工具，注册时码会自动带上，填你自己的信息就行' +
+    '<small>已有账号（如 GitHub）的，登录后会自动弹出开通窗口。码 4 小时内有效。</small>';
+  var cv = $('qrCanvas'), ok = false;
+  try {
+    var ctx = cv.getContext('2d');
+    if (ctx && window.HXQR) {
+      var m = HXQR.create(qrDeepLink(code), { errorCorrectionLevel: 'M' }).modules, N = m.size;
+      var PX = 10, Q = 4, W = (N + Q * 2) * PX; // 每模块 10px、四周 4 模块静区，白底黑码
+      cv.width = W; cv.height = W;
+      ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, W);
+      ctx.fillStyle = '#000';
+      for (var r = 0; r < N; r++) for (var c = 0; c < N; c++) if (m.get(r, c)) ctx.fillRect((Q + c) * PX, (Q + r) * PX, PX, PX);
+      ok = true;
+    }
+  } catch (e) { ok = false; }
+  // 离线编码器没加载出来或 canvas 画不了（极旧环境）：降级成超大字课堂码，学生照样手输
+  cv.hidden = !ok;
+  if (ok) cv.setAttribute('aria-label', '注册二维码 ' + code);
+  if (!$('qr').open) $('qr').showModal();
+}
+$('qrX').onclick = function () { $('qr').close(); };
+$('qr').onclick = function (e) { if (e.target === $('qr')) $('qr').close(); }; // 点遮罩关；Esc 由 <dialog> 原生处理
 // 教师邀请码 / 学生课堂码面板：上面生成，下面是发过的这类码
 function sheetCode(role) {
   var box = $('shB'), t = role === 'teacher', g = role === 'guest', A = ST.aCode && ST.aCode.role === role ? ST.aCode : null, cls = ST.classes || [], C = ST.codes, html;
@@ -2171,10 +2282,16 @@ function sheetAdm() {
 // 「已注册 / 人数」这一列要用班级的 bound、total（hx_my_classes 已经返回），
 // 打开邀请码面板时如果还没读过班级，顺手读一次，免得列显示不出来。
 async function loadCodes() {
+  ST.codesErr = null;
   try {
     var r = await Promise.all([HX.rpc('hx_my_codes'), ST.classes ? null : HX.rpc('hx_my_classes').catch(function () { return null; })]);
     ST.codes = r[0] || []; if (r[1]) { ST.classes = r[1] || []; ST.clsOk = true; }
-  } catch (e) { ST.codes = []; toast('邀请码读取失败：' + e.message); }
+  } catch (e) {
+    // 2026-11-06 用户线上反馈「班级面板看不到一键开号」根因之一：codes 读不出来时整行只剩「读取中/失败」，
+    // 「一键开号」跟着消失。现在失败信息记到 ST.codesErr，clsCodeRow 里单独画一行错误+重试，
+    // 不再影响开号按钮（开号按钮只看 bound/total）。
+    ST.codes = []; ST.codesErr = e.message;
+  }
   renderMgmt('codes');
 }
 async function loadTeachers() { try { ST.teachers = await HX.rpc('hx_teachers') || []; } catch (e) { ST.teachers = { err: e.message }; } renderMgmt('adm'); }
@@ -2240,9 +2357,9 @@ $('back').onclick = function () { if (history.state && history.state.hx > 0) his
 $('brand').onclick = function () { show(null); };
 addEventListener('popstate', function () { var id = location.hash.slice(1); if (id !== (ST.tab || '')) show(id, 'pop'); });
 addEventListener('hashchange', function () { var id = location.hash.slice(1); if (id !== (ST.tab || '')) show(id, 'replace'); });
-function reloadTools() { for (var k in frames) { if (k !== ST.tab) { frames[k].remove(); delete frames[k]; } else { delete frames[k].dataset.ready; frames[k].src = frames[k].src; tip(true, frames[k].title); } } } // 工具页把登录记在内存里，换人后重新打开
+function reloadTools() { for (var k in frames) { if (k !== ST.tab) { frames[k].remove(); delete frames[k]; } else { delete frames[k].dataset.ready; frames[k].src = frames[k].src; } } } // 工具页把登录记在内存里，换人后重新打开
 async function refresh() {
-  ST.me = null; ST.user = null; ST.uname = null; ST.classes = null; ST.guests = null; ST.clsOk = false; ST.studs = {}; ST.edit = null; ST.codes = undefined; ST.teachers = undefined; ST.aCode = null;
+  ST.me = null; ST.user = null; ST.uname = null; ST.classes = null; ST.guests = null; ST.clsOk = false; ST.studs = {}; ST.edit = null; ST.codes = undefined; ST.codesErr = null; ST.teachers = undefined; ST.aCode = null;
   if (HX.in()) {
     try { var res = await Promise.all([HX.rpc('hx_me'), HX.user()]); ST.me = res[0]; ST.user = res[1]; HXTheme.setDev(ST.me && ST.me.dev); }
     catch (e) { if (e.status === 401) { await HX.out(); HXTheme.setDev(false); } }
@@ -2332,7 +2449,30 @@ $('rf').onsubmit = async function (e) {
 var was = HX.in();
 addEventListener('storage', function (e) { if (e.key !== 'paike-session') return; var n = HX.in(); if (n !== was) { was = n; reloadTools(); refresh(); } });
 var gerr = HX.grab(); was = HX.in();
-refresh();
+// ── 2026-11-06 扫码注册深链：#signup=课堂码 ──
+// 大屏二维码的内容就是这个地址。学生扫码打开首页时自动弹出注册框、课堂码已带上
+//（自动查一次码把班级/学号/姓名表单展开，学生只填自己的信息）；
+// 已登录的扫了不折腾：提示一句就进首页。注意要在 grab()（GitHub 回跳也用 #）之后、
+// refresh()（会按 location.hash 开工具页）之前把这段 hash 摘掉。
+var suCode = null;
+(function () {
+  var m = location.hash.slice(1).match(/^signup=([A-Za-z0-9]{4,16})/);
+  if (!m) return;
+  suCode = m[1].toUpperCase();
+  try { history.replaceState(history.state, '', location.pathname + location.search); } catch (e0) { }
+})();
+function openSignupCode(code) {
+  if (HX.in()) { toast('这个码是给没注册的学生用的；你已经登录了，直接用就行'); return; }
+  openLogin('', 'reg');
+  if ($('rcode')) $('rcode').value = code;
+  // 码已带上：自动做「下一步」（hx_code_info 只读不计数），把班级、学号、姓名表单直接展开
+  HX.rpc('hx_code_info', { p_code: code }).then(function (ci) {
+    if (!ci || !$('login').open || ST.lm !== 'reg') return; // 学生已自己动手就别抢
+    ST.reg = { code: code, role: ci.role, classes: ci.classes || [] };
+    renderLogin(); focusLogin();
+  }).catch(function () { /* 码查不到（撤销/用满）：留在邀请码框，点下一步会看到具体报错 */ });
+}
+refresh().then(function () { if (suCode) openSignupCode(suCode); });
 if (gerr) openLogin(gerr);
 // ── 首屏加载层淡出 ──
 // 两个时间点要一起满足：
