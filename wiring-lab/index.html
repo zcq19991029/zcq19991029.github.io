@@ -533,6 +533,23 @@
   /* 2026-11-05 重画（窗口已开着又要换名单/换视图）时不要再播入场动画：只留边框流光。
      否则用户会看到窗口「闪出来两次」。见 aboutView 里的 reopen 判断。 */
   #fw-about.show.pt-refresh .pt-panel { animation: ptFlow 10s linear infinite; }
+  /* 2026-11-06 用户：「贡献者那个卡片还是会闪两下 瞬间」。
+     ── 上一轮只挡住了 .pt-panel 自己，**children 全漏了** ──
+     重画时 floatWin 会把 .fw-body 整块重建，.pt-head / .pt-div / .pt-card / .pt-ring 全是**新元素**，
+     而它们的入场动画挂的是 `#fw-about.show …`（不是 .pt-panel 的后代选择器），于是照样重播：
+     面板不动了，但头部淡入、分隔线淡入、两张卡片依次上浮、底部环亮起 —— 四组动画一起重放，
+     看起来就是「卡片瞬间闪两下」。实测（test/_about-repro.cjs ②）重画后 .pt-card 的 animationName
+     仍然是 ptCardIn、transform 回到 translateY(18px)、opacity 掉到 0。
+     修法：这些由 floatWin 创建、go() 不会重造的元素，统一跟着 .pt-refresh 关掉入场动画；
+     环只保留常驻的 ptRingPulse（不要它那 1.2s 延迟，重画是「已经在看」不是「刚打开」）。 */
+  #fw-about.show.pt-refresh .pt-head,
+  #fw-about.show.pt-refresh .pt-div { animation: none; }
+  #fw-about.show.pt-refresh .pt-ring { animation: ptRingPulse 4.6s ease-in-out infinite; }
+  /* 卡片和详情视图由 go() 重新生成（用户点卡片 / 点返回时会再生成一次），所以不能挂 .pt-refresh 永久关掉，
+     否则点「返回」回卡片列表时也没有入场动画了。改成由 go() 往 .pt-stage 上加一次性的 .pt-noanim：
+     重画那一次关闭，之后用户自己操作照常播。 */
+  #fw-about .pt-stage.pt-noanim .pt-card,
+  #fw-about .pt-stage.pt-noanim .pt-view { animation: none; }
   @keyframes ptIn { from { opacity: 0; transform: translateY(16px) scale(.94); } }
   @keyframes ptLight { from { filter: brightness(2) saturate(1.35); } }
   #fw-about.show .pt-head, #fw-about.show .pt-div { animation: ptFade .5s .1s cubic-bezier(.22, 1, .36, 1) both; }
@@ -2749,9 +2766,12 @@ function aboutView(edit) {
   if (reopen) el.classList.add('pt-refresh'); else el.classList.remove('pt-refresh');
   ptSetup(el);
   if (prevFocus && !el.contains(prevFocus)) el._ptBack = prevFocus; // 云端名单回来重画时焦点已在面板里，沿用上次记的
-  const go = mode => { // 视图切换不跳新页面：只换 .pt-stage 内容，详情入场动画见 .pt-view
+  // noAnim：重画（云端名单回来 / 已开着窗口又调 aboutView）那一次不播卡片、详情视图的入场动画。
+  // 用户自己点卡片、点返回时 noAnim 为空，照常播 —— 见 CSS `#fw-about .pt-stage.pt-noanim`。
+  const go = (mode, noAnim) => { // 视图切换不跳新页面：只换 .pt-stage 内容，详情入场动画见 .pt-view
     el.dataset.ptView = mode; // 记下当前视图：云端名单回来重画时，别把用户正看着的详情顶回双卡片
     const st = el.querySelector('.pt-stage'); if (!st) return;
+    st.classList.toggle('pt-noanim', !!noAnim);
     st.innerHTML = mode === 'dev' ? ptDevView(A) : mode === 'con' ? ptConView(A) : mode === 'edit' ? ptEditView(A) : ptMain(A);
     st.querySelectorAll('.pt-card').forEach(c => { c.onclick = () => go(c.dataset.v); ptTilt(c); });
     const bk = st.querySelector('[data-back]'); if (bk) bk.onclick = () => go('main');
@@ -2774,7 +2794,9 @@ function aboutView(edit) {
   };
   // 首次打开从双卡片进；窗口正开着（云端名单回来重画）就留在当前视图，不把人顶回去
   const keep = el.dataset.ptReady && el.classList.contains('show') ? el.dataset.ptView : '';
-  go(edit ? 'edit' : (keep || 'main'));
+  // reopen = 窗口本来就开着（这次是重画）→ 卡片/详情视图也不播入场动画，只换内容。
+  // 首次打开 reopen 为 false，入场动画照常。
+  go(edit ? 'edit' : (keep || 'main'), reopen);
 }
 // 把云端回来的名单收下并记到本机：只认“带开发者”的；云端这次没带 thanks（旧接口/旧数据）时，
 // 保留本机已有的那几位，不把鸣谢名单刷成空的 —— 名单要每次打开都在。

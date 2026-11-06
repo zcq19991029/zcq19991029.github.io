@@ -421,6 +421,37 @@ button.qdel.sm{width:26px;height:26px;font-size:15px}
 /* 考试页面布局（组件样式沿用单片机的 BASE_CSS，颜色跟首页“外观”） */
 body { margin: 0; }
 .ex { width: min(1100px, 100%); margin: 0 auto; padding: 22px 18px 60px; box-sizing: border-box; }
+
+/* ============================================================
+   教师端外壳：左侧栏（考试 / 组卷与组卷码 / 理论试卷 + 科目）＋ 右侧内容
+   ------------------------------------------------------------
+   2026-11-06 用户：「考试/组卷/理论试卷」，并要求「各个科目考试考虑做区分选项卡」。
+   侧栏放在 #app 里、内容放进 #appMain，这样 app() 只要指向 #appMain，原来所有页面
+   （发布、交卷与批改、学生取题、考场）一行都不用改。
+   学生端不套外壳：学生只看得到自己那一张考场，侧栏对他没有意义。
+   ============================================================ */
+.ex-shell { display: grid; grid-template-columns: 232px minmax(0, 1fr); width: min(1280px, 100%); margin: 0 auto; box-sizing: border-box; }
+.ex-nav { position: sticky; top: 18px; align-self: start; max-height: calc(100vh - 36px); overflow: auto; padding: 18px 12px; scrollbar-width: thin; }
+.ex-nav-h { font: 600 11px/1.4 Consolas, "Cascadia Mono", monospace; letter-spacing: .1em; color: var(--mute, #6b7280); text-transform: uppercase; padding: 0 10px 8px; }
+.ex-nav-i { display: grid; gap: 1px; width: 100%; text-align: left; padding: 10px 12px; margin-bottom: 4px; border: 0; border-radius: 12px; background: transparent; color: var(--ink, #0b1220); cursor: pointer; font: inherit; }
+.ex-nav-i b { font-weight: 600; font-size: 14px; }
+.ex-nav-i span { font-size: 11.5px; color: var(--mute, #6b7280); }
+.ex-nav-i:hover { background: var(--fill, rgba(0, 0, 0, .04)); }
+.ex-nav-i.on { background: var(--accbg, rgba(47, 107, 255, .12)); color: var(--acc, #2f6bff); }
+.ex-nav-i.on span { color: var(--acc, #2f6bff); opacity: .78; }
+.ex-nav-sub { margin-top: 18px; border-top: 1px solid var(--hair, rgba(15, 23, 42, .08)); padding-top: 14px; }
+.ex-sub { display: block; width: 100%; text-align: left; padding: 8px 12px; border: 0; border-radius: 10px; background: transparent; color: var(--ink, #0b1220); cursor: pointer; font: inherit; font-size: 13px; }
+.ex-sub.on { background: var(--accbg, rgba(47, 107, 255, .12)); color: var(--acc, #2f6bff); font-weight: 600; }
+.ex-main { padding: 22px 18px 60px; min-width: 0; }
+@media (max-width: 900px) {
+  .ex-shell { grid-template-columns: 1fr; }
+  .ex-nav { position: static; display: flex; flex-wrap: wrap; gap: 6px; max-height: none; padding: 12px; }
+  .ex-nav-h { display: none; }
+  .ex-nav-i { width: auto; margin: 0; }
+  .ex-nav-i span { display: none; }
+  .ex-nav-sub { margin: 0; border: 0; padding: 0; display: flex; gap: 6px; }
+  .ex-main { padding: 16px 12px 50px; }
+}
 .ex-h { margin: 6px 0 18px; }
 .ex-h h1 { margin: 2px 0 4px; font-size: 32px; letter-spacing: -.02em; }
 .ex-h p { margin: 0; color: var(--dim, #6e6e73); }
@@ -5093,6 +5124,623 @@ button.qdel.sm{width:26px;height:26px;font-size:15px}
 `;
 
 ;
+const THEORY_CH={"1":"项目1 熟悉单片机操作环境","2":"项目2 单片机硬件系统","3":"项目3 并行 I/O 端口与 C51 语言","4":"项目4 显示与键盘接口","5":"项目5 定时与中断系统"};
+const THEORY=[{"ch":1,"t":"choice","q":"单片机是把 CPU、存储器、I/O 接口等集成在一块芯片上的微型计算机，它又被称为（  ）。","o":["微处理器","微控制器","中央处理器","数字信号处理器"],"a":"B"},{"ch":1,"t":"choice","q":"8051 单片机是（  ）位的单片机。","o":["4","8","16","32"],"a":"B"},{"ch":1,"t":"choice","q":"十进制数 25 转换成二进制数是（  ）。","o":["11001B","10101B","11010B","10011B"],"a":"A"},{"ch":1,"t":"choice","q":"二进制数 1111 1110B 用十六进制表示是（  ）。","o":["0xEF","0xFE","0x7F","0xFC"],"a":"B"},{"ch":1,"t":"choice","q":"十六进制数 0x3C 对应的十进制数是（  ）。","o":["36","48","60","63"],"a":"C"},{"ch":1,"t":"choice","q":"在 Keil C51 中要生成可下载到单片机（或 Proteus 中仿真）的文件，应勾选生成（  ）文件。","o":["C 源程序（.c）","工程文件（.uvproj）","十六进制目标文件（.hex）","列表文件（.lst）"],"a":"C"},{"ch":1,"t":"choice","q":"Proteus 软件在单片机课程中主要用来（  ）。","o":["编写和编译 C 程序","绘制电路原理图并进行仿真","烧写芯片","制作 PCB 外壳"],"a":"B"},{"ch":1,"t":"choice","q":"LED 发光二极管正常发光时，通过它的电流一般在（  ）。","o":["0.1～1mA","5～20mA","100～200mA","1A 以上"],"a":"B"},{"ch":1,"t":"choice","q":"LED 阳极经限流电阻接 +5V、阴极接单片机 P1.0，要让 LED 点亮，P1.0 应输出（  ）。","o":["高电平 1","低电平 0","高阻态","脉冲"],"a":"B"},{"ch":1,"t":"choice","q":"LED 电路中串联限流电阻的作用是（  ）。","o":["提高亮度","限制电流，保护 LED 和端口","改变颜色","产生延时"],"a":"B"},{"ch":1,"t":"choice","q":"一个字节（Byte）由（  ）个二进制位组成。","o":["4","8","16","32"],"a":"B"},{"ch":1,"t":"choice","q":"下列不属于单片机应用的是（  ）。","o":["智能洗衣机控制","汽车仪表","交通信号灯控制","大型数据库服务器"],"a":"D"},{"ch":1,"t":"choice","q":"Keil C51 中，创建工程后应先（  ），然后才能把 .c 文件加入工程编译。","o":["选择单片机型号（如 AT89C51）","运行 Proteus","烧写芯片","画 PCB"],"a":"A"},{"ch":1,"t":"fill","q":"单片机内部主要由 ____、____、I/O 接口、定时/计数器等部件组成。","a":["CPU（中央处理器）","存储器（ROM 和 RAM）"]},{"ch":1,"t":"fill","q":"二进制数 1010 0101B = ____H = ____（十进制）。","a":["A5","165"]},{"ch":1,"t":"fill","q":"十进制数 100 = ____H。","a":["64"]},{"ch":1,"t":"fill","q":"Keil C51 编译成功后生成的可执行文件扩展名是 ____，在 Proteus 中双击单片机，在 Program File 一栏加载它。","a":[".hex"]},{"ch":1,"t":"fill","q":"C 语言中，十六进制常数要加前缀 ____，例如 P1 = 0xFE。","a":["0x（或 0X）"]},{"ch":1,"t":"fill","q":"LED 阴极接单片机引脚的接法叫做 ____ 电平点亮。","a":["低"]},{"ch":1,"t":"fill","q":"1KB = ____ 字节。","a":["1024"]},{"ch":1,"t":"fill","q":"8 位二进制无符号数能表示的最大十进制数是 ____。","a":["255"]},{"ch":1,"t":"judge","q":"单片机就是一台完整的计算机，可以直接运行 Windows 系统。","a":false},{"ch":1,"t":"judge","q":"二进制数 1000 0000B 等于十进制数 128。","a":true},{"ch":1,"t":"judge","q":"十六进制数 0xFF 等于十进制数 256。","a":false},{"ch":1,"t":"judge","q":"Keil C51 是常用的单片机 C 语言集成开发环境。","a":true},{"ch":1,"t":"judge","q":"在 Proteus 中仿真单片机程序，需要给单片机加载编译生成的 .hex 文件。","a":true},{"ch":1,"t":"judge","q":"LED 是发光二极管，具有单向导电性，接反了也能正常发光。","a":false},{"ch":1,"t":"judge","q":"LED 电路中可以不接限流电阻，直接接到 5V 电源上。","a":false},{"ch":1,"t":"judge","q":"C 语言程序中，一个程序有且只有一个 main 函数。","a":true},{"ch":1,"t":"judge","q":"Keil 中程序有语法错误时，仍然可以生成正确的 .hex 文件。","a":false},{"ch":1,"t":"judge","q":"用软件延时让 LED 闪烁，延时时间越长，闪烁越快。","a":false},{"ch":1,"t":"term","q":"单片机","a":"把中央处理器（CPU）、存储器（ROM、RAM）、输入/输出接口、定时/计数器等集成在一块芯片上构成的微型计算机，也叫微控制器（MCU）。"},{"ch":1,"t":"term","q":"HEX 文件","a":"由编译器（如 Keil）生成的 Intel 十六进制格式的目标代码文件，可下载到单片机或在 Proteus 中加载仿真。"},{"ch":1,"t":"term","q":"限流电阻","a":"串联在 LED 回路中的电阻，用来把电流限制在 LED 正常工作的范围内（约 5～20mA），保护 LED 和单片机端口。"},{"ch":1,"t":"short","q":"简述用 Keil C51 编写程序并在 Proteus 中仿真的主要步骤。","a":"①新建工程，选择单片机型号（如 AT89C51）；②新建 .c 文件，编写程序并加入工程；③在工程选项 Output 中勾选 Create HEX File；④编译，改正错误直到 0 错误；⑤在 Proteus 中画好电路，双击单片机加载 .hex 文件，设置晶振频率；⑥运行仿真，观察现象。","lines":8},{"ch":1,"t":"short","q":"单片机有哪些特点？请列举其主要应用领域（至少 4 个）。","a":"特点：体积小、功耗低、价格低、控制功能强、可靠性高、易于开发和扩展。应用：家用电器、智能仪器仪表、工业控制、汽车电子、通信设备、医疗设备、智能玩具等（答出 4 个即可）。","lines":8},{"ch":1,"t":"short","q":"画出（或描述）一个 LED 由单片机 P1.0 控制的电路，并说明怎样让它闪烁。","a":"LED 阳极经 220Ω～1kΩ 限流电阻接 +5V，阴极接 P1.0。P1.0 输出 0 时 LED 亮，输出 1 时灭。程序中循环执行：P1.0 = 0 → 延时 → P1.0 = 1 → 延时，即可闪烁，延时长短决定闪烁快慢。","lines":8},{"ch":2,"t":"choice","q":"AT89C51 单片机采用 DIP 封装时共有（  ）个引脚。","o":["20","28","40","64"],"a":"C"},{"ch":2,"t":"choice","q":"8051 单片机的电源引脚 VCC 和 GND 分别是第（  ）脚。","o":["40 和 20","20 和 40","1 和 40","9 和 31"],"a":"A"},{"ch":2,"t":"choice","q":"8051 单片机的复位引脚是（  ）。","o":["EA","ALE","RST","PSEN"],"a":"C"},{"ch":2,"t":"choice","q":"要使 8051 单片机复位，RST 引脚上要保持（  ）以上的高电平。","o":["1 个时钟周期","2 个机器周期","1 毫秒","1 秒"],"a":"B"},{"ch":2,"t":"choice","q":"8051 单片机复位后，程序计数器 PC 的值为（  ）。","o":["0000H","0003H","07H","FFFFH"],"a":"A"},{"ch":2,"t":"choice","q":"8051 单片机复位后，P0～P3 口锁存器的值都是（  ）。","o":["00H","0FH","F0H","FFH"],"a":"D"},{"ch":2,"t":"choice","q":"单片机使用 12MHz 晶振时，一个机器周期是（  ）。","o":["1μs","2μs","12μs","0.5μs"],"a":"A"},{"ch":2,"t":"choice","q":"8051 单片机一个机器周期包含（  ）个时钟（振荡）周期。","o":["1","6","12","24"],"a":"C"},{"ch":2,"t":"choice","q":"使用片内程序存储器时，EA 引脚应接（  ）。","o":["高电平","低电平","悬空","晶振"],"a":"A"},{"ch":2,"t":"choice","q":"8051 单片机的 4 个并行 I/O 口中，作为输出口使用时必须外接上拉电阻的是（  ）。","o":["P0","P1","P2","P3"],"a":"A"},{"ch":2,"t":"choice","q":"8051 单片机 P3.2 引脚的第二功能是（  ）。","o":["RXD","INT0（外部中断 0）","T0","WR"],"a":"B"},{"ch":2,"t":"choice","q":"8051 单片机内部 RAM 中，工作寄存器区的地址范围是（  ）。","o":["00H～1FH","20H～2FH","30H～7FH","80H～FFH"],"a":"A"},{"ch":2,"t":"choice","q":"8051 单片机内部 RAM 中，可以按位寻址的区域是（  ）。","o":["00H～1FH","20H～2FH","30H～7FH","80H～FFH 全部"],"a":"B"},{"ch":2,"t":"choice","q":"8051 单片机的程序存储器和数据存储器分开编址，这种结构称为（  ）。","o":["冯·诺依曼结构","哈佛结构","流水线结构","总线结构"],"a":"B"},{"ch":2,"t":"choice","q":"单片机最小系统除了单片机芯片外，还必须包括（  ）。","o":["电源、时钟电路和复位电路","数码管和按键","LCD 和串口","蜂鸣器和继电器"],"a":"A"},{"ch":2,"t":"choice","q":"单片机时钟电路中，晶振两端一般各接一个约（  ）的电容到地。","o":["30pF","10μF","100μF","1F"],"a":"A"},{"ch":2,"t":"choice","q":"8051 单片机读引脚状态（例如读按键）前，应先向该引脚写入（  ）。","o":["0","1","0x0F","任意值"],"a":"B"},{"ch":2,"t":"choice","q":"单片机端口驱动能力有限，驱动蜂鸣器通常要经过（  ）放大。","o":["电容","三极管","二极管","晶振"],"a":"B"},{"ch":2,"t":"choice","q":"8051 单片机内部有（  ）字节的片内数据存储器（RAM）。","o":["64","128","256","4K"],"a":"B"},{"ch":2,"t":"fill","q":"8051 单片机有 ____ 个 8 位并行 I/O 口，分别是 P0、P1、P2、P3。","a":["4"]},{"ch":2,"t":"fill","q":"单片机最小系统由单片机、电源、____ 电路和 ____ 电路组成。","a":["时钟（晶振）","复位"]},{"ch":2,"t":"fill","q":"8051 单片机的晶振接在 XTAL1 和 ____ 引脚上，它们是第 19 和第 18 脚。","a":["XTAL2"]},{"ch":2,"t":"fill","q":"8051 单片机复位后 PC = ____H，堆栈指针 SP = ____H。","a":["0000","07"]},{"ch":2,"t":"fill","q":"晶振频率为 12MHz 时，时钟周期为 ____μs，机器周期为 ____μs。","a":["1/12（约 0.083）","1"]},{"ch":2,"t":"fill","q":"8051 单片机内部 RAM 低 128 字节分为工作寄存器区、____ 区和用户 RAM 区。","a":["位寻址"]},{"ch":2,"t":"fill","q":"8051 单片机的工作寄存器区共有 ____ 组，每组 8 个寄存器 R0～R7。","a":["4"]},{"ch":2,"t":"fill","q":"P3 口的第二功能中，P3.0 是 ____（串行输入），P3.1 是 ____（串行输出）。","a":["RXD","TXD"]},{"ch":2,"t":"fill","q":"8051 单片机的程序存储器可寻址空间为 ____KB。","a":["64"]},{"ch":2,"t":"fill","q":"P0 口作为通用 I/O 口输出时，必须外接 ____ 电阻。","a":["上拉"]},{"ch":2,"t":"judge","q":"8051 单片机的 P0 口是开漏结构，作输出口时需要外接上拉电阻。","a":true},{"ch":2,"t":"judge","q":"8051 单片机的 RST 引脚接低电平时单片机复位。","a":false},{"ch":2,"t":"judge","q":"晶振频率越高，单片机执行一条指令的时间越短。","a":true},{"ch":2,"t":"judge","q":"8051 单片机的程序存储器和数据存储器在同一个地址空间内统一编址。","a":false},{"ch":2,"t":"judge","q":"P3 口除了可以作普通 I/O 口外，每一位还有第二功能。","a":true},{"ch":2,"t":"judge","q":"单片机复位后，P1 口输出全为低电平。","a":false},{"ch":2,"t":"judge","q":"EA 引脚接高电平时，单片机先执行片内程序存储器中的程序。","a":true},{"ch":2,"t":"judge","q":"单片机端口可以直接驱动大功率的电动机。","a":false},{"ch":2,"t":"judge","q":"特殊功能寄存器（SFR）位于内部 RAM 的 80H～FFH 地址范围。","a":true},{"ch":2,"t":"judge","q":"无源蜂鸣器只要加上直流电压就会发出声音。","a":false},{"ch":2,"t":"term","q":"单片机最小系统","a":"能使单片机正常工作的最简电路，由单片机芯片、电源、时钟电路（晶振和电容）、复位电路组成，使用片内程序存储器时 EA 接高电平。"},{"ch":2,"t":"term","q":"机器周期","a":"单片机完成一个基本操作所需的时间，8051 的一个机器周期等于 12 个时钟（振荡）周期；12MHz 晶振时为 1μs。"},{"ch":2,"t":"term","q":"复位","a":"使单片机回到初始状态的操作：RST 引脚保持 2 个机器周期以上的高电平，复位后 PC = 0000H，程序从头开始执行，P0～P3 = FFH。"},{"ch":2,"t":"term","q":"哈佛结构","a":"程序存储器和数据存储器分开、各自独立编址的存储器结构，8051 单片机采用这种结构。"},{"ch":2,"t":"term","q":"上拉电阻","a":"一端接电源、一端接信号线的电阻，使信号线在无驱动时保持高电平；8051 的 P0 口作输出时必须外接上拉电阻。"},{"ch":2,"t":"short","q":"什么是单片机最小系统？它由哪几部分组成？各部分的作用是什么？","a":"能让单片机工作的最简电路。①电源：提供 +5V 工作电压（40 脚 VCC，20 脚 GND）；②时钟电路：晶振（如 12MHz）和两个约 30pF 电容接 XTAL1、XTAL2，提供工作时钟；③复位电路：上电复位或按键复位，使单片机从初始状态开始运行；④EA 接高电平，使用片内程序存储器。","lines":9},{"ch":2,"t":"short","q":"8051 单片机的 P0～P3 口在结构和使用上有什么区别？","a":"P0：开漏输出，作通用 I/O 时要外接上拉电阻，扩展时作低 8 位地址/数据总线；P1：准双向口，只作通用 I/O；P2：准双向口，扩展时作高 8 位地址；P3：准双向口，每一位还有第二功能（RXD、TXD、INT0、INT1、T0、T1、WR、RD）。四个口作输入时都要先写 1。","lines":9},{"ch":2,"t":"short","q":"8051 单片机内部 RAM 的低 128 字节是怎样划分的？","a":"00H～1FH：工作寄存器区，4 组 R0～R7；20H～2FH：位寻址区，共 128 位；30H～7FH：用户 RAM 区（一般数据和堆栈）。80H～FFH 为特殊功能寄存器区。","lines":7},{"ch":2,"t":"short","q":"单片机复位电路有哪两种常见形式？复位后单片机处于什么状态？","a":"上电复位（电容和电阻组成，上电瞬间 RST 为高电平）和按键复位（按键按下使 RST 为高电平）。复位后 PC = 0000H，程序从 0000H 开始执行；SP = 07H；P0～P3 = FFH。","lines":7},{"ch":3,"t":"choice","q":"在 C51 程序中，定义 8051 单片机特殊功能寄存器（如 P0、P1）的头文件通常是（  ）。","o":["stdio.h","reg51.h","math.h","intrins.h"],"a":"B"},{"ch":3,"t":"choice","q":"循环左移函数 _crol_ 包含在头文件（  ）中。","o":["reg51.h","stdio.h","intrins.h","string.h"],"a":"C"},{"ch":3,"t":"choice","q":"C51 中，用来定义可位寻址的单个引脚（如 sbit LED = P1^0;）的关键字是（  ）。","o":["bit","sbit","sfr","char"],"a":"B"},{"ch":3,"t":"choice","q":"unsigned char 型变量的取值范围是（  ）。","o":["-128～127","0～255","0～65535","-32768～32767"],"a":"B"},{"ch":3,"t":"choice","q":"在 C51 中，unsigned int 型变量占（  ）个字节。","o":["1","2","4","8"],"a":"B"},{"ch":3,"t":"choice","q":"设 a = 0xFE，执行 a = _crol_(a,1); 后，a 的值为（  ）。","o":["0xFC","0xFD","0x7F","0xFE"],"a":"B"},{"ch":3,"t":"choice","q":"设 a = 0xFE，执行 a = a << 1; 后（a 为 unsigned char），a 的值为（  ）。","o":["0xFD","0xFC","0x7F","0xFF"],"a":"B"},{"ch":3,"t":"choice","q":"表达式 0x0F & 0x3C 的值是（  ）。","o":["0x3F","0x0C","0x33","0x30"],"a":"B"},{"ch":3,"t":"choice","q":"表达式 ~0xF0（结果取低 8 位）的值是（  ）。","o":["0x0F","0xF0","0xFF","0x00"],"a":"A"},{"ch":3,"t":"choice","q":"C 语言中，while(1) 表示（  ）。","o":["循环一次","不执行","无限循环","出错"],"a":"C"},{"ch":3,"t":"choice","q":"for(i = 0; i < 8; i++) 的循环体共执行（  ）次。","o":["7","8","9","无数"],"a":"B"},{"ch":3,"t":"choice","q":"switch 语句中，每个 case 分支末尾一般要加（  ），否则会继续执行下一个分支。","o":["continue","break","return","goto"],"a":"B"},{"ch":3,"t":"choice","q":"P1 口接 8 个 LED（低电平点亮），要让 D1（P1.0）和 D8（P1.7）亮、其余灭，应送（  ）。","o":["0x81","0x7E","0x18","0xE7"],"a":"B"},{"ch":3,"t":"choice","q":"下列关于函数的说法正确的是（  ）。","o":["函数必须有返回值","被调用的函数如果写在 main 后面，要先声明","函数名可以和关键字相同","函数不能有参数"],"a":"B"},{"ch":3,"t":"choice","q":"C 语言中，判断“等于”的运算符是（  ）。","o":["=","==","!=","=>"],"a":"B"},{"ch":3,"t":"choice","q":"void delay(unsigned int x) 这个函数（  ）。","o":["有一个参数，没有返回值","没有参数，有返回值","有返回值 x","不能被调用"],"a":"A"},{"ch":3,"t":"fill","q":"C51 中，用 ____ 关键字定义特殊功能寄存器中的位，例如 ____ LED = P1^0;。","a":["sbit","sbit"]},{"ch":3,"t":"fill","q":"C 语言的三种基本程序结构是顺序结构、____ 结构和 ____ 结构。","a":["选择（分支）","循环"]},{"ch":3,"t":"fill","q":"_crol_(0x7F,1) 的结果是 ____，_cror_(0xFE,1) 的结果是 ____。","a":["0xFE","0x7F"]},{"ch":3,"t":"fill","q":"表达式 0x55 | 0xAA 的值是 ____，0x55 ^ 0xFF 的值是 ____。","a":["0xFF","0xAA"]},{"ch":3,"t":"fill","q":"C 语言中，逻辑与运算符是 ____，按位与运算符是 ____。","a":["&&","&"]},{"ch":3,"t":"fill","q":"函数的返回类型为 ____ 时，表示该函数没有返回值。","a":["void"]},{"ch":3,"t":"fill","q":"流水灯程序中，让亮灯从 D1 依次移到 D8，通常使用 ____ 函数循环左移。","a":["_crol_"]},{"ch":3,"t":"fill","q":"按键接 P3.4，按下为低电平。判断按键按下的条件语句是 if(K1 == ____)。","a":["0"]},{"ch":3,"t":"fill","q":"C 语言中，单行注释以 ____ 开头。","a":["//"]},{"ch":3,"t":"fill","q":"执行 for(i = 5; i > 0; i--) 后，循环体执行 ____ 次。","a":["5"]},{"ch":3,"t":"judge","q":"C 语言区分大小写，Delay 和 delay 是两个不同的名字。","a":true},{"ch":3,"t":"judge","q":"_crol_ 是循环左移，移出的最高位会补到最低位。","a":true},{"ch":3,"t":"judge","q":"a << 1 和 _crol_(a,1) 的结果总是相同的。","a":false},{"ch":3,"t":"judge","q":"在 C 语言中，“=” 是赋值运算符，“==” 是判断相等的关系运算符。","a":true},{"ch":3,"t":"judge","q":"switch 语句的 case 后面可以跟变量。","a":false},{"ch":3,"t":"judge","q":"do-while 循环的循环体至少执行一次。","a":true},{"ch":3,"t":"judge","q":"unsigned char 型变量可以存放 300 这个数。","a":false},{"ch":3,"t":"judge","q":"C51 程序中，每条语句以分号结束。","a":true},{"ch":3,"t":"judge","q":"按键在按下和松开时会产生抖动，所以程序中一般要加延时消抖。","a":true},{"ch":3,"t":"judge","q":"函数定义可以嵌套，即在一个函数内部定义另一个函数。","a":false},{"ch":3,"t":"term","q":"sbit","a":"C51 扩展的关键字，用来定义特殊功能寄存器中的某一位（如某个 I/O 引脚），例如 sbit LED = P1^0;，之后就可以用 LED 直接读写该引脚。"},{"ch":3,"t":"term","q":"循环左移","a":"把一个数的各位依次向左移动，最高位移出后补到最低位，例如 _crol_(0xFE,1) = 0xFD，常用来实现流水灯。"},{"ch":3,"t":"term","q":"按键抖动","a":"机械按键在按下或松开的瞬间，触点会产生 5～10ms 的不稳定通断；处理办法是检测到按下后延时约 10ms 再判断（软件消抖）。"},{"ch":3,"t":"short","q":"比较 a << 1 和 _crol_(a,1) 的区别，并以 a = 0xFE 为例说明结果。","a":"a << 1 是逻辑左移，最高位移出丢弃，最低位补 0：0xFE << 1 = 0xFC（取 8 位）。_crol_(a,1) 是循环左移，最高位移到最低位：_crol_(0xFE,1) = 0xFD。流水灯一般用 _crol_，亮的那一位能一圈圈循环。","lines":8},{"ch":3,"t":"short","q":"什么是按键抖动？在程序中怎样消除？","a":"机械按键触点在按下和释放时会弹跳，产生一串持续 5～10ms 的抖动信号，可能被误判为多次按键。软件消抖：检测到按键按下后，延时约 10ms 再检测一次，仍为按下才确认；等按键释放后再继续。","lines":8},{"ch":3,"t":"short","q":"说明 C 语言中 while、do-while、for 三种循环语句的区别。","a":"while：先判断条件，条件成立才执行循环体，可能一次都不执行；do-while：先执行一次循环体再判断，至少执行一次；for：把初值、条件、修改写在一起，适合循环次数已知的情况。三者都可用 break 跳出。","lines":8},{"ch":3,"t":"prog","q":"阅读下面的程序，P1 口接 8 个 LED（D1 接 P1.0，低电平点亮），回答问题。","a":"（1）D1 先亮（0xFE 只有最低位为 0）。（2）亮灯从 D1 向 D8 方向逐个移动；移到 D8 后又回到 D1，循环不停（循环左移，移出的位补回最低位）。（3）改成循环右移后亮灯从 D1 跳到 D8，再向 D1 方向移动，方向相反。","code":"#include <reg51.h>\n#include <intrins.h>\nvoid delay(unsigned int x)\n{\n    while(x--);\n}\nvoid main()\n{\n    unsigned char a = 0xFE;\n    while(1)\n    {\n        P1 = a;\n        delay(30000);\n        a = _crol_(a, 1);\n    }\n}","sub":["上电后哪个灯先亮？","亮灯向哪个方向移动？移到 D8 之后会怎样？","若把 _crol_ 改成 _cror_，现象有什么变化？"]},{"ch":3,"t":"prog","q":"阅读下面的程序（P1 接 8 个 LED，低电平点亮；按键 K1 接 P3.4，按下为低电平），回答问题。","a":"（1）8 个 LED 全灭（P1 = 0xFF）。（2）0x0F = 0000 1111B，为 0 的是 P1.4～P1.7，低电平点亮，所以 D5～D8 亮。（3）把 P1 = 0x0F; 改为 P1 = 0xF0;。","code":"#include <reg51.h>\nsbit K1 = P3^4;\nvoid main()\n{\n    while(1)\n    {\n        if(K1 == 0)\n            P1 = 0x0F;\n        else\n            P1 = 0xFF;\n    }\n}","sub":["K1 没有按下时，LED 的状态是什么？","按住 K1 时，哪几个 LED 亮？","若要按下时改为 D1～D4 亮，程序应怎样修改？"]},{"ch":3,"t":"prog","q":"阅读下面的程序（P1 接 8 个 LED，低电平点亮），回答问题。","a":"（1）8 个 LED 全亮、全灭交替闪烁，共闪 3 次，之后保持全灭。（2）让程序停在原地（死循环），不再往下执行。（3）main 函数执行完后程序会“跑飞”或从头重新执行，现象不可控。","code":"#include <reg51.h>\nvoid delay(unsigned int x)\n{\n    while(x--);\n}\nvoid main()\n{\n    unsigned char i;\n    for(i = 0; i < 3; i++)\n    {\n        P1 = 0x00;\n        delay(30000);\n        P1 = 0xFF;\n        delay(30000);\n    }\n    while(1);\n}","sub":["程序运行后 LED 有什么现象？一共闪几次？","最后一句 while(1); 的作用是什么？","如果去掉 while(1);，在单片机上会出现什么问题？"]},{"ch":3,"t":"prog","q":"下面的程序想让 P1 口的 8 个 LED 从 D1 到 D8 依次点亮（流水灯），但有错误，请找出并改正。","a":"①函数定义为 Delay、调用为 delay，大小写不一致，应统一为 delay；②delay(30000) 后缺分号；③LED 低电平点亮，初值应为 0xFE（只有 D1 亮），0x01 会使 7 个灯亮；④从 D1 到 D8 应循环左移 _crol_，不是 _cror_。","code":"#include <reg51.h>\n#include <intrins.h>\nvoid Delay(unsigned int x)\n{\n    while(x--);\n}\nvoid main()\n{\n    unsigned char a = 0x01;\n    while(1)\n    {\n        P1 = a;\n        delay(30000)\n        a = _cror_(a, 1);\n    }\n}","sub":["找出程序中的错误（至少 3 处）并改正。"]},{"ch":3,"t":"prog","q":"阅读下面的程序（P1 接 8 个 LED，低电平点亮），回答问题。","a":"（1）0xAA = 1010 1010B，为 0 的位是 P1.0、P1.2、P1.4、P1.6，所以 D1、D3、D5、D7 亮。（2）D1、D3、D5、D7 和 D2、D4、D6、D8 两组交替闪烁。（3）增大 delay 的参数（或多调用几次 delay）。","code":"#include <reg51.h>\nvoid delay(unsigned int x)\n{\n    while(x--);\n}\nvoid main()\n{\n    while(1)\n    {\n        P1 = 0xAA;\n        delay(30000);\n        P1 = 0x55;\n        delay(30000);\n    }\n}","sub":["P1 = 0xAA 时哪些 LED 亮？","程序运行的整体现象是什么？","如何让交替的速度变慢？"]},{"ch":4,"t":"choice","q":"共阳极数码管的公共端应接（  ）。","o":["地","高电平（+5V）","单片机 RST","悬空"],"a":"B"},{"ch":4,"t":"choice","q":"共阳极数码管显示数字“0”的段码（dp gfedcba，dp 为最高位）是（  ）。","o":["0x3F","0xC0","0xF9","0x06"],"a":"B"},{"ch":4,"t":"choice","q":"共阴极数码管显示数字“1”的段码是（  ）。","o":["0x06","0xF9","0x3F","0xC0"],"a":"A"},{"ch":4,"t":"choice","q":"一位 7 段数码管（带小数点）共有（  ）个发光段。","o":["7","8","9","10"],"a":"B"},{"ch":4,"t":"choice","q":"多位数码管动态显示利用了人眼的（  ）。","o":["色差","视觉暂留","立体视觉","夜视"],"a":"B"},{"ch":4,"t":"choice","q":"动态显示时，控制“哪一位数码管亮”的信号叫做（  ）。","o":["段选","位选","片选","复位"],"a":"B"},{"ch":4,"t":"choice","q":"4×4 矩阵键盘共有（  ）个按键，占用（  ）根 I/O 线。","o":["16，8","16，16","8，8","8，16"],"a":"A"},{"ch":4,"t":"choice","q":"8 路抢答器中，8 个按键接在 P0 口，单片机读入 P0 = 0xFB，说明按下的是（  ）号键（按键从 0 号接 P0.0 起编号）。","o":["1","2","3","5"],"a":"B"},{"ch":4,"t":"choice","q":"C51 中把段码表存放在程序存储器里，数组定义时应加关键字（  ）。","o":["data","code","xdata","bit"],"a":"B"},{"ch":4,"t":"choice","q":"8×8 LED 点阵共有（  ）个发光点。","o":["8","16","64","128"],"a":"C"},{"ch":4,"t":"choice","q":"矩阵键盘常用的识别方法是（  ）。","o":["逐行扫描法","中断法","定时法","串口法"],"a":"A"},{"ch":4,"t":"choice","q":"数组 unsigned char tab[10]; 中，数组元素下标的范围是（  ）。","o":["1～10","0～9","0～10","1～9"],"a":"B"},{"ch":4,"t":"choice","q":"独立式按键的特点是（  ）。","o":["每个按键单独占用一根 I/O 线","多个按键共用一根 I/O 线","只能接 P0 口","不需要上拉"],"a":"A"},{"ch":4,"t":"fill","q":"LED 数码管按内部连接方式分为共 ____ 极和共 ____ 极两种。","a":["阳","阴"]},{"ch":4,"t":"fill","q":"共阳极数码管显示“8”的段码是 ____，熄灭（全灭）的段码是 ____。","a":["0x80","0xFF"]},{"ch":4,"t":"fill","q":"数码管的显示方式有 ____ 显示和 ____ 显示两种。","a":["静态","动态"]},{"ch":4,"t":"fill","q":"动态显示时，单片机依次送出各位的 ____ 码和 ____ 码。","a":["段（字形）","位（选通）"]},{"ch":4,"t":"fill","q":"4×4 矩阵键盘由 4 根 ____ 线和 4 根 ____ 线组成。","a":["行","列"]},{"ch":4,"t":"fill","q":"C51 中定义存放在程序存储器中的段码数组：unsigned char ____ tab[] = {0xC0, 0xF9, …};","a":["code"]},{"ch":4,"t":"fill","q":"数组 tab[] = {0xC0,0xF9,0xA4,0xB0} 中，tab[2] 的值是 ____。","a":["0xA4"]},{"ch":4,"t":"fill","q":"共阳极数码管某一段要点亮，对应的段码位应为 ____。","a":["0"]},{"ch":4,"t":"judge","q":"共阳极数码管的段码与共阴极数码管的段码互为按位取反。","a":true},{"ch":4,"t":"judge","q":"静态显示时，每位数码管都要占用一组独立的 I/O 口线。","a":true},{"ch":4,"t":"judge","q":"动态显示时，各位数码管是同时点亮的。","a":false},{"ch":4,"t":"judge","q":"动态显示中每位的显示时间越长越好，扫描越慢越不闪烁。","a":false},{"ch":4,"t":"judge","q":"数组的下标从 1 开始。","a":false},{"ch":4,"t":"judge","q":"4×4 矩阵键盘比 16 个独立按键节省 I/O 口线。","a":true},{"ch":4,"t":"judge","q":"用 code 定义的数组存放在程序存储器中，程序运行时不能修改。","a":true},{"ch":4,"t":"judge","q":"抢答器中，有选手抢答成功后，其他选手再按键应当无效。","a":true},{"ch":4,"t":"term","q":"段码（字形码）","a":"使数码管显示某个字符时，送到各段（a～g、dp）的二进制代码；例如共阳数码管显示“0”的段码为 0xC0。"},{"ch":4,"t":"term","q":"动态显示","a":"多位数码管的段线并联，单片机轮流选通每一位（位选）并送出该位段码，每位只亮很短时间，利用视觉暂留看起来同时显示。"},{"ch":4,"t":"term","q":"矩阵键盘","a":"把按键排列在行线和列线的交叉点上构成的键盘，如 4×4 矩阵键盘用 8 根 I/O 线连接 16 个按键，通过逐行扫描识别按键。"},{"ch":4,"t":"short","q":"比较数码管静态显示和动态显示的优缺点。","a":"静态显示：每位数码管单独占一组 I/O 口，显示稳定、亮度高、程序简单，但占用口线多。动态显示：各位段线并联，轮流点亮，占用口线少、成本低，但需要不停扫描，占用 CPU 时间，亮度略低，扫描太慢会闪烁。","lines":8},{"ch":4,"t":"short","q":"简述 4×4 矩阵键盘逐行扫描法识别按键的过程。","a":"①让所有行线输出 0，读列线，若有列线为 0 说明有键按下；②延时消抖后再确认；③逐行输出 0（其余行为 1），读列线，哪一列为 0 就确定按下键所在的行和列；④由行号和列号算出键值；⑤等按键释放。","lines":9},{"ch":4,"t":"short","q":"说明 8 路抢答器的工作过程（按键接 P0，共阳数码管接 P1）。","a":"上电时数码管显示初始值（如 0 或“-”）。程序不断读 P0，若某位为 0，说明对应选手按下，把选手号的段码送 P1 显示；显示后锁定，其他选手再按无效，直到主持人复位开始下一轮。","lines":8},{"ch":4,"t":"prog","q":"阅读下面的程序（共阳极数码管接 P1），回答问题。","a":"（1）共阳数码管 0～9 的段码；code 表示存放在程序存储器（ROM）中，节省 RAM。（2）数码管循环显示 0、1、2……9，再从 0 开始。（3）改为 for(i = 10; i > 0; i--) { P1 = tab[i - 1]; delay(50000); }（i 是 unsigned char，不能写成 for(i = 9; i >= 0; i--)，否则 i 永远不小于 0，变成死循环）。","code":"#include <reg51.h>\nunsigned char code tab[] = {0xC0,0xF9,0xA4,0xB0,0x99,\n                            0x92,0x82,0xF8,0x80,0x90};\nvoid delay(unsigned int x)\n{\n    while(x--);\n}\nvoid main()\n{\n    unsigned char i;\n    while(1)\n    {\n        for(i = 0; i < 10; i++)\n        {\n            P1 = tab[i];\n            delay(50000);\n        }\n    }\n}","sub":["数组 tab 中存放的是什么？关键字 code 的作用是什么？","程序运行的现象是什么？","若要倒着从 9 显示到 0，for 语句应怎样修改？"]},{"ch":4,"t":"prog","q":"阅读下面的 8 路抢答器片段（按键 S0～S7 接 P0.0～P0.7，按下为 0；共阳数码管接 P1），回答问题。","a":"（1）显示 0（tab[0] = 0xC0）。（2）S2 接 P0.2，按下时 P0 = 0xFB，数码管显示 3。（3）先向 P0 写 1，使引脚可以正确读入按键状态（准备读引脚）。","code":"unsigned char code tab[] = {0xC0,0xF9,0xA4,0xB0,0x99,\n                            0x92,0x82,0xF8,0x80};\nvoid main()\n{\n    P0 = 0xFF;\n    P1 = tab[0];\n    while(1)\n    {\n        switch(P0)\n        {\n            case 0xFE: P1 = tab[1]; break;\n            case 0xFD: P1 = tab[2]; break;\n            case 0xFB: P1 = tab[3]; break;\n            /* ……其余选手类似…… */\n        }\n    }\n}","sub":["上电后数码管显示什么？","按下 S2 时 P0 的值是多少？数码管显示几？","程序开头 P0 = 0xFF; 的作用是什么？"]},{"ch":4,"t":"prog","q":"下面是两位数码管动态显示的程序片段（段码送 P0，位选 W1、W2 低电平有效），回答问题。","a":"（1）W1 显示十位 4（47/10），W2 显示个位 7（47%10）。（2）先关掉当前位，避免送下一位段码时出现“鬼影”（串位显示）。（3）扫描太慢，看到两位数码管轮流闪烁，而不是同时稳定显示。","code":"sbit W1 = P2^0;\nsbit W2 = P2^1;\nvoid show(unsigned char n)\n{\n    P0 = tab[n / 10];\n    W1 = 0;  delay(500);  W1 = 1;\n    P0 = tab[n % 10];\n    W2 = 0;  delay(500);  W2 = 1;\n}","sub":["n = 47 时，W1 和 W2 分别显示什么数字？","为什么每位显示后要把位选恢复为 1？","如果 delay 的参数很大（如 50000），会看到什么现象？"]},{"ch":4,"t":"prog","q":"阅读下面的程序（共阳数码管接 P1，按键 K 接 P3.4，按下为 0），回答问题。","a":"（1）按键计数：每按一次 K，数码管显示的数加 1，9 之后回到 0。（2）延时消抖，避免按键抖动被误判。（3）等待按键松开；去掉后按住不放时 n 会不停增加，数字快速跳变。","code":"#include <reg51.h>\nsbit K = P3^4;\nunsigned char code tab[] = {0xC0,0xF9,0xA4,0xB0,0x99,\n                            0x92,0x82,0xF8,0x80,0x90};\nvoid delay(unsigned int x){ while(x--); }\nvoid main()\n{\n    unsigned char n = 0;\n    P1 = tab[n];\n    while(1)\n    {\n        if(K == 0)\n        {\n            delay(1000);\n            if(K == 0)\n            {\n                n++;\n                if(n > 9) n = 0;\n                P1 = tab[n];\n                while(K == 0);\n            }\n        }\n    }\n}","sub":["程序实现了什么功能？","两次判断 K == 0 中间的 delay(1000) 起什么作用？","while(K == 0); 起什么作用？去掉会怎样？"]},{"ch":5,"t":"choice","q":"8051 单片机共有（  ）个中断源。","o":["3","5","6","8"],"a":"B"},{"ch":5,"t":"choice","q":"8051 单片机外部中断 0 的中断入口地址是（  ）。","o":["0000H","0003H","000BH","0013H"],"a":"B"},{"ch":5,"t":"choice","q":"C51 中定时器 T0 中断函数的中断号是（  ），即 void t0(void) interrupt ?。","o":["0","1","2","3"],"a":"B"},{"ch":5,"t":"choice","q":"8051 单片机内部有（  ）个 16 位定时/计数器。","o":["1","2","3","4"],"a":"B"},{"ch":5,"t":"choice","q":"定时器工作在方式 1 时，是（  ）位定时/计数器。","o":["8","13","16","8 位自动重装"],"a":"C"},{"ch":5,"t":"choice","q":"要开放定时器 T0 中断，除 ET0 = 1 外，还必须使（  ）。","o":["EA = 1","IT0 = 1","TF0 = 1","EX0 = 1"],"a":"A"},{"ch":5,"t":"choice","q":"12MHz 晶振，T0 工作在方式 1 定时 50ms，计数初值应为（  ）。","o":["50000","15536","65536","5000"],"a":"B"},{"ch":5,"t":"choice","q":"启动定时器 T0 开始计数的语句是（  ）。","o":["TR0 = 1;","TF0 = 1;","ET0 = 1;","IT0 = 1;"],"a":"A"},{"ch":5,"t":"fill","q":"8051 的 5 个中断源是外部中断 0、定时器 T0、外部中断 1、定时器 ____ 和 ____ 中断。","a":["T1","串行口"]},{"ch":5,"t":"fill","q":"设置定时器工作方式的特殊功能寄存器是 ____，控制定时器启动的是 ____ 寄存器中的 TR0、TR1。","a":["TMOD","TCON"]},{"ch":5,"t":"fill","q":"中断允许寄存器是 ____，其中总中断允许位是 ____。","a":["IE","EA"]},{"ch":5,"t":"fill","q":"T0 方式 1 定时 50ms（12MHz），TH0 = ____，TL0 = ____。","a":["0x3C","0xB0"]},{"ch":5,"t":"fill","q":"TMOD = 0x01 表示定时器 T0 工作在方式 ____ 定时状态。","a":["1"]},{"ch":5,"t":"fill","q":"外部中断 0 的触发方式由 IT0 决定，IT0 = 1 时为 ____ 触发。","a":["下降沿（边沿）"]},{"ch":5,"t":"judge","q":"8051 单片机的 5 个中断源都可以设置为高优先级或低优先级。","a":true},{"ch":5,"t":"judge","q":"定时器方式 1 计满溢出后，计数初值会自动重新装入。","a":false},{"ch":5,"t":"judge","q":"只设置 ET0 = 1、不设置 EA = 1，T0 中断也能响应。","a":false},{"ch":5,"t":"judge","q":"定时/计数器作计数器使用时，对外部引脚 T0/T1 输入的脉冲计数。","a":true},{"ch":5,"t":"judge","q":"同一优先级的中断同时请求时，按自然优先级顺序响应，外部中断 0 最高。","a":true},{"ch":5,"t":"judge","q":"用定时器中断实现定时，比用软件延时更精确，而且 CPU 在等待时还能做别的事。","a":true},{"ch":5,"t":"term","q":"中断","a":"CPU 正在执行程序时，出现了需要立即处理的事件，CPU 暂停当前程序，转去执行处理该事件的中断服务程序，处理完后再返回原来的地方继续执行。"},{"ch":5,"t":"term","q":"中断源","a":"能向 CPU 发出中断请求的来源，8051 有 5 个：外部中断 0、定时器 T0、外部中断 1、定时器 T1、串行口。"},{"ch":5,"t":"short","q":"简述 8051 定时器方式 1 定时的初始化步骤（以 T0 为例）。","a":"①设置 TMOD（如 TMOD = 0x01）；②计算并装入初值 TH0、TL0（如 50ms：TH0 = 0x3C，TL0 = 0xB0）；③开中断：ET0 = 1，EA = 1；④启动定时器：TR0 = 1；⑤在中断函数（interrupt 1）中重装初值，并完成定时要做的事。","lines":9},{"ch":5,"t":"short","q":"什么是中断？采用中断方式有什么好处？","a":"中断是 CPU 暂停当前程序去处理紧急事件、处理完再返回的过程。好处：CPU 不必一直查询等待，提高效率；能对外部事件实时响应；便于实现定时、计数等功能。","lines":7},{"ch":5,"t":"prog","q":"阅读下面的程序（12MHz 晶振，LED 接 P1.0，低电平点亮），回答问题。","a":"（1）初值 0x3CB0 = 15536，计 65536 - 15536 = 50000 个机器周期，12MHz 时为 50ms。（2）中断 20 次翻转一次，20 × 50ms = 1s。（3）方式 1 不会自动重装，溢出后计数从 0 开始，不重装下一次就不是 50ms。","code":"#include <reg51.h>\nsbit LED = P1^0;\nunsigned char cnt = 0;\nvoid main()\n{\n    TMOD = 0x01;\n    TH0 = 0x3C;  TL0 = 0xB0;\n    ET0 = 1;  EA = 1;  TR0 = 1;\n    while(1);\n}\nvoid t0_isr(void) interrupt 1\n{\n    TH0 = 0x3C;  TL0 = 0xB0;\n    cnt++;\n    if(cnt == 20)\n    {\n        cnt = 0;\n        LED = ~LED;\n    }\n}","sub":["定时器每隔多长时间中断一次？","LED 每隔多长时间翻转一次？","中断函数里为什么要重新给 TH0、TL0 赋值？"]},{"ch":5,"t":"prog","q":"下面的程序想用外部中断 0（按键接 P3.2）每按一次就让 P1 口的灯取反，请找出缺少或错误的地方。","a":"①没有开总中断，要加 EA = 1;；②外部中断 0 的中断号是 0，应写 interrupt 0（interrupt 2 是外部中断 1）。IT0 = 1 设为下降沿触发是对的。","code":"#include <reg51.h>\nvoid main()\n{\n    P1 = 0xFF;\n    IT0 = 1;\n    EX0 = 1;\n    while(1);\n}\nvoid int0_isr(void) interrupt 2\n{\n    P1 = ~P1;\n}","sub":["指出程序中的问题并改正。"]},{"ch":4,"t":"choice","q":"U1 为共阳极数码管，dp g f e d c b a 依次接 P0.7～P0.0。P0 = 1000 0110B 时，U1 显示（  ）。","o":["“U”","“1”","“Y”","“E”"],"a":"D"},{"ch":4,"t":"choice","q":"U1 为共阴极数码管，dp g f e d c b a 依次接 P0.7～P0.0。P0 = 0100 1111B 时，U1 显示（  ）。","o":["“3”","“.”","“5”","“4”"],"a":"A"},{"ch":4,"t":"choice","q":"U1 为共阳极数码管，dp g f e d c b a 依次接 P0.7～P0.0。P0 = 1100 1110B 时，U1 显示（  ）。","o":["“H”","“2”","“L”","“R”"],"a":"D"},{"ch":4,"t":"choice","q":"U1 为共阴极数码管，dp g f e d c b a 依次接 P0.7～P0.0。P0 = 0110 1101B 时，U1 显示（  ）。","o":["“4”","“H”","“5”","“7”"],"a":"C"},{"ch":4,"t":"choice","q":"U1 为共阳极数码管，dp g f e d c b a 依次接 P0.7～P0.0。P0 = 1010 0100B 时，U1 显示（  ）。","o":["“2”","“9”","“.”","“D”"],"a":"A"},{"ch":4,"t":"choice","q":"U1 为共阴极数码管，dp g f e d c b a 依次接 P0.7～P0.0。P0 = 0111 0110B 时，U1 显示（  ）。","o":["“H”","“7”","“2”","“A”"],"a":"A"},{"ch":4,"t":"choice","q":"U1 为共阳极数码管，dp g f e d c b a 依次接 P0.7～P0.0。P0 = 1100 0001B 时，U1 显示（  ）。","o":["“B”","“2”","“7”","“U”"],"a":"D"},{"ch":4,"t":"choice","q":"U1 为共阴极数码管，dp g f e d c b a 依次接 P0.7～P0.0。P0 = 0111 0001B 时，U1 显示（  ）。","o":["“F”","“C”","“E”","“6”"],"a":"A"},{"ch":4,"t":"choice","q":"共阳极数码管（dp g f e d c b a 依次接 P0.7～P0.0）要显示“9”，P0 应送（  ）。","o":["0x88","0x83","0x6F","0x90"],"a":"D"},{"ch":4,"t":"choice","q":"共阴极数码管（dp g f e d c b a 依次接 P0.7～P0.0）要显示“P”，P0 应送（  ）。","o":["0x73","0x8C","0x66","0x7C"],"a":"A"},{"ch":4,"t":"choice","q":"共阳极数码管（dp g f e d c b a 依次接 P0.7～P0.0）要显示“Y”，P0 应送（  ）。","o":["0xCE","0x91","0x6E","0xC0"],"a":"B"},{"ch":4,"t":"choice","q":"共阴极数码管（dp g f e d c b a 依次接 P0.7～P0.0）要显示“6”，P0 应送（  ）。","o":["0x07","0x82","0x7D","0x4F"],"a":"C"},{"ch":4,"t":"choice","q":"共阳极数码管（dp g f e d c b a 依次接 P0.7～P0.0）要显示“H”，P0 应送（  ）。","o":["0x83","0xB0","0x76","0x89"],"a":"D"},{"ch":4,"t":"choice","q":"共阴极数码管（dp g f e d c b a 依次接 P0.7～P0.0）要显示“R”，P0 应送（  ）。","o":["0x31","0x76","0xCE","0x38"],"a":"A"},{"ch":4,"t":"choice","q":"共阳极数码管（dp g f e d c b a 依次接 P0.7～P0.0）要显示“.”，P0 应送（  ）。","o":["0xC7","0xBF","0x80","0x7F"],"a":"D"},{"ch":4,"t":"choice","q":"共阴极数码管（dp g f e d c b a 依次接 P0.7～P0.0）要显示“7”，P0 应送（  ）。","o":["0x07","0xF8","0x79","0x80"],"a":"A"},{"ch":4,"t":"choice","q":"U1 为共阳极数码管接 P0，U2 为共阴极数码管接 P2（dp g f e d c b a 依次接 Px.7～Px.0）。P0 = 1100 0111B，P2 = 0110 0110B，则（  ）。","o":["U1 显示“H”，U2 显示“4”","U1 显示“L”，U2 显示“8”","U1 显示“4”，U2 显示“L”","U1 显示“L”，U2 显示“4”"],"a":"D"},{"ch":4,"t":"choice","q":"U1 为共阴极数码管接 P0，U2 为共阳极数码管接 P2（dp g f e d c b a 依次接 Px.7～Px.0）。P0 = 0111 1101B，P2 = 1111 1001B，则（  ）。","o":["U1 显示“1”，U2 显示“6”","U1 显示“6”，U2 显示“1”","U1 显示“6”，U2 显示“R”","U1 显示“B”，U2 显示“1”"],"a":"B"},{"ch":4,"t":"choice","q":"U1 为共阳极数码管接 P0，U2 为共阴极数码管接 P2（dp g f e d c b a 依次接 Px.7～Px.0）。P0 = 1000 1110B，P2 = 0101 1110B，则（  ）。","o":["U1 显示“E”，U2 显示“D”","U1 显示“F”，U2 显示“-”","U1 显示“D”，U2 显示“F”","U1 显示“F”，U2 显示“D”"],"a":"D"},{"ch":4,"t":"choice","q":"U1 为共阴极数码管接 P0，U2 为共阳极数码管接 P2（dp g f e d c b a 依次接 Px.7～Px.0）。P0 = 0111 0001B，P2 = 0111 1111B，则（  ）。","o":["U1 显示“-”，U2 显示“.”","U1 显示“.”，U2 显示“F”","U1 显示“F”，U2 显示“.”","U1 显示“F”，U2 显示“0”"],"a":"C"},{"ch":4,"t":"choice","q":"U1 为共阳极数码管接 P0，U2 为共阴极数码管接 P2（dp g f e d c b a 依次接 Px.7～Px.0）。P0 = 1000 1001B，P2 = 0011 1110B，则（  ）。","o":["U1 显示“H”，U2 显示“8”","U1 显示“8”，U2 显示“U”","U1 显示“U”，U2 显示“H”","U1 显示“H”，U2 显示“U”"],"a":"D"},{"ch":4,"t":"choice","q":"U1 为共阴极数码管接 P0，U2 为共阳极数码管接 P2（dp g f e d c b a 依次接 Px.7～Px.0）。P0 = 0110 1111B，P2 = 1000 0011B，则（  ）。","o":["U1 显示“0”，U2 显示“B”","U1 显示“9”，U2 显示“Y”","U1 显示“B”，U2 显示“9”","U1 显示“9”，U2 显示“B”"],"a":"D"},{"ch":4,"t":"fill","q":"U1 为共阳极数码管接 P0，U2 为共阳极数码管接 P2（dp g f e d c b a 依次接 Px.7～Px.0）。P0 = 1100 0000B，P2 = 1011 1111B，U1 显示 ____，U2 显示 ____。","a":["0","-"]},{"ch":4,"t":"fill","q":"U1 为共阴极数码管接 P0，U2 为共阴极数码管接 P2（dp g f e d c b a 依次接 Px.7～Px.0）。P0 = 0110 1110B，P2 = 0101 1011B，U1 显示 ____，U2 显示 ____。","a":["Y","2"]},{"ch":4,"t":"fill","q":"U1 为共阳极数码管接 P0，U2 为共阳极数码管接 P2（dp g f e d c b a 依次接 Px.7～Px.0）。P0 = 1000 1110B，P2 = 1000 1001B，U1 显示 ____，U2 显示 ____。","a":["F","H"]},{"ch":4,"t":"fill","q":"U1 为共阴极数码管接 P0，U2 为共阳极数码管接 P2（dp g f e d c b a 依次接 Px.7～Px.0）。P0 = 0100 0000B，P2 = 1111 1000B，U1 显示 ____，U2 显示 ____。","a":["-","7"]},{"ch":4,"t":"fill","q":"U1 为共阳极数码管接 P0，U2 为共阴极数码管接 P2（dp g f e d c b a 依次接 Px.7～Px.0）。P0 = 1011 1111B，P2 = 0111 0011B，U1 显示 ____，U2 显示 ____。","a":["-","P"]},{"ch":4,"t":"fill","q":"U1 为共阴极数码管接 P0，U2 为共阳极数码管接 P2（dp g f e d c b a 依次接 Px.7～Px.0）。P0 = 0111 1001B，P2 = 1111 1001B，U1 显示 ____，U2 显示 ____。","a":["E","1"]},{"ch":4,"t":"fill","q":"共阳极数码管显示“B”的字型码是 ____H。","a":["83（或 0x83、83H）"]},{"ch":4,"t":"fill","q":"共阴极数码管显示“Y”的字型码是 ____H。","a":["6E（或 0x6E、6EH）"]},{"ch":4,"t":"fill","q":"共阳极数码管显示“2”的字型码是 ____H。","a":["A4（或 0xA4、A4H）"]},{"ch":4,"t":"fill","q":"共阴极数码管显示“L”的字型码是 ____H。","a":["38（或 0x38、38H）"]},{"ch":4,"t":"fill","q":"共阳极数码管显示“P”的字型码是 ____H。","a":["8C（或 0x8C、8CH）"]},{"ch":4,"t":"fill","q":"共阴极数码管显示“A”的字型码是 ____H。","a":["77（或 0x77、77H）"]},{"ch":4,"t":"fill","q":"U1 为共阳极数码管接 P0，U2 为共阴极数码管接 P2（dp g f e d c b a 依次接 Px.7～Px.0）。要让 U1 显示“A”、U2 显示“Y”，应送 P0 = ____H，P2 = ____H。","a":["88（或 0x88、88H）","6E（或 0x6E、6EH）"]},{"ch":4,"t":"fill","q":"U1 为共阴极数码管接 P0，U2 为共阳极数码管接 P2（dp g f e d c b a 依次接 Px.7～Px.0）。要让 U1 显示“2”、U2 显示“5”，应送 P0 = ____H，P2 = ____H。","a":["5B（或 0x5B、5BH）","92（或 0x92、92H）"]},{"ch":4,"t":"fill","q":"U1 为共阳极数码管接 P0，U2 为共阴极数码管接 P2（dp g f e d c b a 依次接 Px.7～Px.0）。要让 U1 显示“7”、U2 显示“R”，应送 P0 = ____H，P2 = ____H。","a":["F8（或 0xF8、F8H）","31（或 0x31、31H）"]},{"ch":4,"t":"fill","q":"U1 为共阴极数码管接 P0，U2 为共阳极数码管接 P2（dp g f e d c b a 依次接 Px.7～Px.0）。要让 U1 显示“7”、U2 显示“-”，应送 P0 = ____H，P2 = ____H。","a":["07（或 0x07、07H）","BF（或 0xBF、BFH）"]},{"ch":4,"t":"fill","q":"共阳极数码管（dp g f e d c b a 依次接 P0.7～P0.0）显示“Y”，P0 的二进制是 ____B。","a":["1001 0001（或 10010001）"]},{"ch":4,"t":"fill","q":"共阴极数码管（dp g f e d c b a 依次接 P0.7～P0.0）显示“1”，P0 的二进制是 ____B。","a":["0000 0110（或 00000110）"]},{"ch":4,"t":"fill","q":"共阳极数码管（dp g f e d c b a 依次接 P0.7～P0.0）显示“4”，P0 的二进制是 ____B。","a":["1001 1001（或 10011001）"]},{"ch":4,"t":"fill","q":"共阴极数码管（dp g f e d c b a 依次接 P0.7～P0.0）显示“0”，P0 的二进制是 ____B。","a":["0011 1111（或 00111111）"]},{"ch":4,"t":"judge","q":"共阳极数码管（dp g f e d c b a 依次接 P0.7～P0.0），P0 = 1111 1001B 时显示“1”。","a":true},{"ch":4,"t":"judge","q":"共阴极数码管（dp g f e d c b a 依次接 P0.7～P0.0），P0 = 0110 1101B 时显示“5”。","a":true},{"ch":4,"t":"judge","q":"共阳极数码管（dp g f e d c b a 依次接 P0.7～P0.0），P0 = 1000 0000B 时显示“8”。","a":true},{"ch":4,"t":"judge","q":"共阴极数码管（dp g f e d c b a 依次接 P0.7～P0.0），P0 = 1000 1001B 时显示“H”。","a":false},{"ch":4,"t":"judge","q":"共阳极数码管（dp g f e d c b a 依次接 P0.7～P0.0），P0 = 0111 0011B 时显示“P”。","a":false},{"ch":4,"t":"judge","q":"共阴极数码管（dp g f e d c b a 依次接 P0.7～P0.0），P0 = 1000 0110B 时显示“E”。","a":false}];
+;
+/* ================= 理论纸质试卷：从理论题库抽题，按学校试卷模板排成 A3 横向两栏，出 PDF（打印另存）和 Word =================
+   排版参照《广州华夏职业学院试卷模板》：标题两行、专业/年级/考试方式/时间表、题号得分表、每大题前“得分”小方框、
+   正面左侧装订线（学院、班级、姓名、学号、座位号，命题人、审核人，密封线），反面右侧只有密封线；正文宋体五号、行距固定 18 磅。 */
+'use strict';
+const PAPER_TYPES={
+  choice:{name:'单项选择题',unit:'每题',per:'题'},
+  fill:{name:'填空题',unit:'每空',per:'空'},
+  judge:{name:'判断题',unit:'每题',per:'题'},
+  term:{name:'名词解释',unit:'每题',per:'题'},
+  short:{name:'简答题',unit:'每题',per:'题'},
+  prog:{name:'程序分析题',unit:'每题',per:'题'}
+};
+const CN_NUM='一二三四五六七八九十';
+const PAPER_DEFAULT={
+  year:'2026-2027',term:'第一学期',course:'单片机技术及应用',ver:'A',major:'机电一体化技术',grade:'2025级',mode:'闭卷',minutes:90,
+  key:'',space:'auto',weights:{1:20,2:20,3:25,4:25,5:10},
+  sections:[{t:'choice',n:15,pts:2},{t:'fill',n:10,pts:1},{t:'judge',n:10,pts:1},{t:'term',n:3,pts:4},{t:'short',n:3,pts:6},{t:'prog',n:2,pts:10}]
+};
+const blanksOf=q=>q.t==='fill'?(q.q.match(/____/g)||[]).length:1;
+const qid=q=>THEORY.indexOf(q);
+
+/* 抽题：整套卷一起平衡各项目的分值。先排分值大的题型（程序分析、简答……），
+   每抽一道题，都选“目前分值离目标比例差得最多”的项目；used 是别的卷（A/B/C）已用过的题，尽量避开 */
+function pickSections(cfg,rng,used){
+  const W=Object.keys(THEORY_CH).reduce((a,c)=>a+(+cfg.weights[c]||0),0)||1;
+  const acc={};let tot=0;
+  const secs=cfg.sections.filter(s=>s.n>0&&PAPER_TYPES[s.t]).map(s=>({...s,items:[]}));
+  const order=secs.slice().sort((a,b)=>b.pts*(b.t==='fill'?2:1)-a.pts*(a.t==='fill'?2:1));
+  for(const sec of order){
+    const pool=THEORY.filter(q=>q.t===sec.t&&(+cfg.weights[q.ch]||0)>0);
+    const need=sec.t==='fill'?Math.ceil(sec.n/2):sec.n;
+    const fresh=pool.filter(q=>!used.has(qid(q)));
+    const src=fresh.length>=need?fresh:pool;
+    const byCh={};rng.shuffle(src).forEach(q=>{(byCh[q.ch]=byCh[q.ch]||[]).push(q);});
+    let have=0;const cnt=q=>sec.t==='fill'?blanksOf(q):1;
+    for(let guard=0;have<sec.n&&guard<200;guard++){
+      const cands=Object.keys(byCh).filter(c=>byCh[c].some(q=>have+cnt(q)<=sec.n));
+      if(!cands.length)break;
+      const gap=c=>(cfg.weights[c]/W)*(tot+sec.pts)-(acc[c]||0);
+      cands.sort((a,b)=>gap(b)-gap(a)||rng.next()-0.5);
+      const c=cands[0],k=byCh[c].findIndex(q=>have+cnt(q)<=sec.n),q=byCh[c].splice(k,1)[0];
+      sec.items.push(q);have+=cnt(q);
+      const p=cnt(q)*sec.pts;acc[c]=(acc[c]||0)+p;tot+=p;
+    }
+    sec.items.sort((a,b)=>a.ch-b.ch||THEORY.indexOf(a)-THEORY.indexOf(b));   // 同一大题内按项目顺序排
+  }
+  return secs;
+}
+function pickPaper(cfg){
+  const vers=['A','B','C'],idx=Math.max(0,vers.indexOf(cfg.ver));
+  const used=new Set();let paper=null;
+  for(let v=0;v<=idx;v++){
+    paper=pickSections(cfg,makeRng('paper|'+cfg.key+'|'+vers[v]),used);
+    paper.forEach(s=>s.items.forEach(q=>used.add(qid(q))));
+  }
+  paper.forEach((s,i)=>{
+    s.no=CN_NUM[i];
+    s.count=s.t==='fill'?s.items.reduce((a,q)=>a+blanksOf(q),0):s.items.length;
+    s.total=s.count*s.pts;
+  });
+  return paper;
+}
+const paperTotal=P=>P.reduce((a,s)=>a+s.total,0);
+function paperStats(P){
+  const ch={};P.forEach(s=>s.items.forEach(q=>{const w=s.t==='fill'?blanksOf(q)*s.pts:s.pts;ch[q.ch]=(ch[q.ch]||0)+w;}));
+  return ch;
+}
+
+/* ---------- 题目 HTML（打印、预览、Word 共用） ---------- */
+const ptxt=s=>esc(s);
+function blankHTML(s){return ptxt(s).replace(/____/g,'<u class="bl">　　　　　　　</u>');}
+function optHTML(o){
+  const L=Math.max(...o.map(x=>x.length));
+  const cls=L<=9?'o4':L<=20?'o2':'o1';
+  return `<div class="opts ${cls}">${o.map((x,i)=>`<span>${'ABCD'[i]}.${ptxt(x)}</span>`).join('')}</div>`;
+}
+/* 答题留白：宽松 / 标准 / 紧凑 */
+const SPACE_K={auto:1,loose:1.3,normal:1,tight:0.7};
+let __spaceK=1;
+const nLines=n=>Math.max(2,Math.round(n*__spaceK));
+const lines=n=>`<div class="space" style="height:${nLines(n)*18}pt"></div>`;
+function itemHTML(s,q,i){
+  const no=`${i+1}.`;
+  switch(s.t){
+    case 'choice':return `<div class="q">${no}${ptxt(q.q)}</div>${optHTML(q.o)}`;
+    case 'fill':return `<div class="q">${no}${blankHTML(q.q)}</div>`;
+    case 'judge':return `<div class="q judge"><span>${no}${ptxt(q.q)}</span><span class="paren">（　　）</span></div>`;
+    case 'term':return `<div class="q">${no}${ptxt(q.q)}：</div>${lines(4)}`;
+    case 'short':return `<div class="q">${no}${ptxt(q.q)}</div>${lines((q.lines||8)-1)}`;
+    case 'prog':return `<div class="q">${no}${ptxt(q.q)}</div><pre class="code">${esc(q.code)}</pre>${q.sub.map((x,k)=>`<div class="q sub">（${k+1}）${ptxt(x)}</div>${lines(q.sub.length>1?3:7)}`).join('')}`;
+  }
+  return '';
+}
+const secTitle=s=>`${s.no}、${PAPER_TYPES[s.t].name}（${PAPER_TYPES[s.t].unit} ${s.pts} 分，共 ${s.total} 分）`;
+function headHTML(P,cfg){
+  const cols=P.map(s=>`<td>${s.no}</td>`).join('');
+  return `<div class="ttl1">广州华夏职业学院${esc(cfg.year)}学年${esc(cfg.term)}</div>
+<div class="ttl2">《${esc(cfg.course)}》期末考试试卷（${esc(cfg.ver)}卷）</div>
+<table class="info"><tr><td class="k">适用专业</td><td class="v">${esc(cfg.major)}</td><td class="k">适用年级</td><td class="v">${esc(cfg.grade)}</td></tr>
+<tr><td class="k">考试方式</td><td class="v">${cfg.mode==='闭卷'?'☑':'□'}闭卷　　　${cfg.mode==='开卷'?'☑':'□'}开卷</td><td class="k">考试时间</td><td class="v">${esc(cfg.minutes)} 分钟</td></tr></table>
+<table class="scoret"><tr><th>题 号</th>${cols}<th>总 分</th></tr><tr><th>得 分</th>${P.map(()=>'<td></td>').join('')}<td></td></tr><tr><th>评卷人</th>${P.map(()=>'<td></td>').join('')}<td></td></tr></table>`;
+}
+const secHeadHTML=s=>`<table class="sech"><tr><td class="box"><div>得 分</div><div class="blank"></div></td><td class="tt">${secTitle(s)}</td></tr></table>`;
+
+const PAPER_CSS=`
+@page{size:420mm 297mm;margin:0}
+*{box-sizing:border-box}
+html,body{margin:0;background:#888;font-family:"SimSun","宋体","Songti SC","STSong",serif;font-size:10.5pt;line-height:18pt;color:#000}
+.sheet{width:420mm;height:297mm;background:#fff;position:relative;margin:0 auto 10mm;display:flex;padding:12mm 12mm 14mm 0;overflow:hidden;page-break-after:always;break-after:page}
+.sheet:last-child{margin-bottom:0}
+.sheet.back{padding:12mm 0 14mm 14mm}
+.strip{width:30mm;flex:none;position:relative}
+.strip .rot{position:absolute;left:50%;top:50%;width:271mm;height:30mm;transform:translate(-50%,-50%) rotate(-90deg);display:flex;flex-direction:column;justify-content:center;gap:4mm}
+.strip .who{display:flex;justify-content:space-between;padding:0 6mm;font-size:10.5pt;white-space:nowrap}
+.strip .who u{display:inline-block;width:30mm;text-decoration:none;border-bottom:1px solid #000}
+.strip .who.sm u{width:24mm}
+.strip .seal{border-top:1.5px dotted #000;position:relative;height:0;margin:0 2mm}
+.strip .seal span{position:absolute;top:-9pt;background:#fff;padding:0 2mm;font-size:10.5pt}
+.sheet.back .strip .rot{gap:0}
+.col{flex:1;min-width:0;display:flex;flex-direction:column;padding:0 7mm}
+.col+.col{border-left:1px solid #000}
+.colbody{flex:1;overflow:hidden}
+.foot{text-align:center;font-size:9pt;padding-top:2mm}
+.blk{margin:0 0 2pt}
+.ttl1{text-align:center;font-family:"SimHei","黑体",sans-serif;font-weight:bold;font-size:14pt;line-height:24pt;margin-top:2mm}
+.ttl2{text-align:center;font-family:"SimHei","黑体",sans-serif;font-weight:bold;font-size:14pt;line-height:24pt;margin-bottom:3mm}
+table{border-collapse:collapse;width:100%}
+.info td,.scoret td,.scoret th{border:1px solid #000;text-align:center;padding:0 2mm;height:20pt;font-weight:normal}
+.info{margin-bottom:3mm}.info .k{width:18%}.info .v{width:32%}
+.scoret{margin-bottom:5mm}.scoret th{font-family:"SimHei","黑体",sans-serif;font-weight:bold;width:12%}
+.sech{width:auto;margin:6pt 0 4pt}
+.sech .box{border:1px solid #000;width:15mm;text-align:center;padding:0;vertical-align:top;font-family:"SimHei","黑体",sans-serif;font-weight:bold}
+.sech .box div{height:18pt;line-height:18pt}.sech .box .blank{border-top:1px solid #000;height:22pt}
+.sech .tt{padding-left:3mm;vertical-align:middle;font-family:"SimHei","黑体",sans-serif;font-weight:bold;white-space:nowrap}
+.q{margin:0}.q.sub{padding-left:1em}
+.judge{display:flex;justify-content:space-between;gap:4mm}.judge .paren{white-space:nowrap}
+.opts{padding-left:2em;display:grid}.opts.o4{grid-template-columns:repeat(4,1fr)}.opts.o2{grid-template-columns:1fr 1fr}.opts.o1{grid-template-columns:1fr}
+u.bl{text-decoration:none;border-bottom:1px solid #000;display:inline-block;min-width:22mm}
+body.dense pre.code{font-size:8pt;line-height:10pt}
+pre.code{font-family:"Consolas","Courier New",monospace;font-size:9pt;line-height:11.5pt;margin:2pt 0 4pt 1em;white-space:pre}
+.space{width:100%}
+#src{position:absolute;left:-9999px;top:0;width:var(--colw)}
+#mm{position:absolute;left:-9999px;width:1px;height:100mm}
+@media print{html,body{background:#fff}.sheet{margin:0}}
+`;
+/* 排版脚本（在预览 / 打印用的页面里运行）：量每个块的高度，按栏装，再拼成一张张 A3 */
+const PAPER_LAYOUT_JS=`
+(function(){
+  var MM=document.getElementById('mm').getBoundingClientRect().height/100,PT=96/72;
+  var probe=document.createElement('div');probe.className='sheet';probe.style.visibility='hidden';probe.innerHTML='<div class="strip"></div><div class="col"><div class="colbody"></div><div class="foot">第 1 页</div></div><div class="col"></div>';
+  document.body.appendChild(probe);
+  var cb=probe.querySelector('.colbody'),colH=cb.getBoundingClientRect().height,colW=cb.getBoundingClientRect().width;
+  probe.remove();
+  var src=document.getElementById('src');src.style.width=colW+'px';
+  var blks=[].slice.call(src.children);
+  var hOf=function(b){var r=b.getBoundingClientRect().height;var cs=getComputedStyle(b);return r+parseFloat(cs.marginTop)+parseFloat(cs.marginBottom);};
+  /* 只按高度算分栏，不动 DOM */
+  var plan=function(){
+    var hs=blks.map(hOf),cols=[[]],used=0;
+    for(var i=0;i<blks.length;i++){
+      var need=hs[i];
+      for(var j=i;blks[j]&&blks[j].classList.contains('keep')&&blks[j+1];j++)need+=hs[j+1];   // 大题标题、程序和第 1 小问连在一起，不留孤立的标题
+      need=Math.min(need,colH);
+      if(used>0&&used+need>colH){cols.push([]);used=0;}
+      cols[cols.length-1].push(i);used+=hs[i];
+    }
+    return cols;
+  };
+  var cols=plan();
+  /* 自动留白：超过 2 张 A3（4 栏）时，按比例压缩答题空白（每处至少 2 行），尽量排进 4 栏 */
+  if(document.body.getAttribute('data-fit')==='1'&&cols.length>4){
+    var sp=[].slice.call(src.querySelectorAll('.space')),orig=sp.map(function(e){return e.getBoundingClientRect().height;}),min=36*PT;
+    for(var k=0.9;k>=0.3&&cols.length>4;k-=0.05){
+      sp.forEach(function(e,j){e.style.height=Math.max(min,orig[j]*k)+'px';});
+      cols=plan();
+    }
+    /* 还排不下：程序代码改小一号再试 */
+    if(cols.length>4){document.body.classList.add('dense');cols=plan();}
+    /* 再不行：答题空白最少压到 1.5 行 */
+    for(var k2=0.6;k2>=0.2&&cols.length>4;k2-=0.05){sp.forEach(function(e,j){e.style.height=Math.max(27*PT,orig[j]*k2)+'px';});cols=plan();}
+  }
+  if(cols.length%2)cols.push([]);
+  var N=cols.length,out=document.getElementById('out');
+  for(var s=0;s<N/2;s++){
+    var back=s%2===1,sh=document.createElement('div');sh.className='sheet'+(back?' back':'');
+    var strip=document.getElementById(back?'stripBack':'stripFront').innerHTML;
+    var mk=function(k){var c=document.createElement('div');c.className='col';var bd=document.createElement('div');bd.className='colbody';cols[k].forEach(function(i){bd.appendChild(blks[i]);});c.appendChild(bd);var f=document.createElement('div');f.className='foot';f.textContent='第 '+(k+1)+' 页，共 '+N+' 页';c.appendChild(f);return c;};
+    if(!back){var st=document.createElement('div');st.className='strip';st.innerHTML=strip;sh.appendChild(st);}
+    sh.appendChild(mk(2*s));sh.appendChild(mk(2*s+1));
+    if(back){var st2=document.createElement('div');st2.className='strip';st2.innerHTML=strip;sh.appendChild(st2);}
+    out.appendChild(sh);
+  }
+  src.remove();
+  document.body.setAttribute('data-pages',N);
+  if(window.parent&&window.parent!==window)try{window.parent.postMessage({paperReady:true,pages:N},'*');}catch(e){}
+})();`;
+function paperDocHTML(P,cfg){
+  __spaceK=SPACE_K[cfg.space]||1;
+  const blocks=[`<div class="blk">${headHTML(P,cfg)}</div>`];
+  P.forEach(s=>{
+    blocks.push(`<div class="blk keep">${secHeadHTML(s)}</div>`);
+    s.items.forEach((q,i)=>{
+      /* 程序分析题按小问拆成几块，可以跨栏，不会因为整题太长空出半栏 */
+      if(s.t==='prog'){
+        const sub=k=>`<div class="q sub">（${k+1}）${ptxt(q.sub[k])}</div>${lines(q.sub.length>1?3:7)}`;
+        blocks.push(`<div class="blk keep"><div class="q">${i+1}.${ptxt(q.q)}</div><pre class="code">${esc(q.code)}</pre></div>`);
+        for(let k=0;k<q.sub.length;k++)blocks.push(`<div class="blk">${sub(k)}</div>`);
+      } else blocks.push(`<div class="blk">${itemHTML(s,q,i)}</div>`);
+    });
+  });
+  const seal=`<div class="seal"><span style="left:22%">密</span><span style="left:50%">封</span><span style="left:78%">线</span></div>`;
+  const front=`<div class="rot"><div class="who"><span>学院：<u></u></span><span>班级：<u></u></span><span>姓名：<u></u></span><span>学号：<u></u></span><span>座位号：<u></u></span></div>
+    <div class="who sm" style="justify-content:flex-start;gap:30mm;padding-left:40mm"><span>命题人：<u></u></span><span>审核人：<u></u></span></div>${seal}</div>`;
+  const back=`<div class="rot">${seal}</div>`;
+  return `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"><title>《${esc(cfg.course)}》期末考试试卷（${esc(cfg.ver)}卷）</title><style>${PAPER_CSS}</style></head><body data-fit="${cfg.space==='auto'?1:0}">
+<div id="mm"></div><template id="stripFront">${front}</template><template id="stripBack">${back}</template>
+<div id="src">${blocks.join('')}</div><div id="out"></div>
+<script>${PAPER_LAYOUT_JS}<\/script></body></html>`;
+}
+
+/* ---------- Word（.docx）：A3 横向两栏（分栏写在节属性里，Word 和 WPS 都认），宋体五号、行距固定 18 磅；
+   装订线在 PDF 版里，Word 版是给老师核对、修改内容用的。参考答案是 A4 竖排单栏。 ---------- */
+const DX={
+  x:s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])),
+  r(t,o){o=o||{};const f=o.mono?'<w:rFonts w:ascii="Consolas" w:hAnsi="Consolas" w:eastAsia="宋体"/>':o.hei?'<w:rFonts w:ascii="黑体" w:hAnsi="黑体" w:eastAsia="黑体"/>':'<w:rFonts w:ascii="宋体" w:hAnsi="宋体" w:eastAsia="宋体"/>';
+    return `<w:r><w:rPr>${f}${o.b?'<w:b/>':''}${o.u?'<w:u w:val="single"/>':''}${o.color?`<w:color w:val="${o.color}"/>`:''}<w:sz w:val="${o.sz||21}"/><w:szCs w:val="${o.sz||21}"/></w:rPr>${String(t).split('\t').map((x,i)=>(i?'<w:tab/>':'')+`<w:t xml:space="preserve">${DX.x(x)}</w:t>`).join('')}</w:r>`;},
+  p(runs,o){o=o||{};const line=o.line||360;
+    return `<w:p><w:pPr>${o.keep?'<w:keepNext/>':''}${o.tabs?`<w:tabs>${o.tabs.map(t=>`<w:tab w:val="${t.right?'right':'left'}" w:pos="${t.pos||t}"/>`).join('')}</w:tabs>`:''}<w:spacing w:before="${o.before||0}" w:after="${o.after||0}" w:line="${line}" w:lineRule="exact"/>${o.ind?`<w:ind w:left="${o.ind}"/>`:''}${o.jc?`<w:jc w:val="${o.jc}"/>`:''}</w:pPr>${Array.isArray(runs)?runs.join(''):runs}</w:p>`;},
+  cell(t,o){o=o||{};const b=o.nob?'':'<w:tcBorders><w:top w:val="single" w:sz="6"/><w:left w:val="single" w:sz="6"/><w:bottom w:val="single" w:sz="6"/><w:right w:val="single" w:sz="6"/></w:tcBorders>';
+    return `<w:tc><w:tcPr><w:tcW w:w="${o.w||1000}" w:type="dxa"/>${o.vm?`<w:vMerge${o.vm==='start'?' w:val="restart"':''}/>`:''}${b}<w:vAlign w:val="center"/></w:tcPr>${DX.p(DX.r(t,{b:o.b,hei:o.hei}),{jc:o.left?'left':'center',line:o.line||400,keep:o.keep})}</w:tc>`;},
+  tbl(rows,widths){return `<w:tbl><w:tblPr><w:tblW w:w="${widths.reduce((a,b)=>a+b,0)}" w:type="dxa"/><w:tblLayout w:type="fixed"/><w:tblCellMar><w:left w:w="60" w:type="dxa"/><w:right w:w="60" w:type="dxa"/></w:tblCellMar></w:tblPr><w:tblGrid>${widths.map(w=>`<w:gridCol w:w="${w}"/>`).join('')}</w:tblGrid>${rows.map(r=>`<w:tr>${r}</w:tr>`).join('')}</w:tbl>`;}
+};
+const COLW=10300;   // A3 横向两栏时每栏的可写宽度（缇）
+function docxSecHead(s){
+  /* 左边“得 分”小方框，右边大题标题 */
+  return DX.tbl([DX.cell('得 分',{w:900,hei:true,b:true,keep:true})+DX.cell(secTitle(s),{w:7000,nob:true,left:true,hei:true,b:true,vm:'start',keep:true}),
+                 DX.cell('',{w:900,keep:true})+DX.cell('',{w:7000,nob:true,vm:'cont',keep:true})],[900,7000])+DX.p('',{line:120,keep:true});
+}
+function docxItems(s,q,i){
+  const no=`${i+1}.`,out=[];const sp=n=>{for(let k=0;k<nLines(n);k++)out.push(DX.p(''));};
+  if(s.t==='choice'){
+    out.push(DX.p(DX.r(no+q.q)));
+    const L=Math.max(...q.o.map(x=>x.length)),o=q.o.map((x,k)=>`${'ABCD'[k]}.${x}`);
+    if(L<=9)out.push(DX.p(DX.r(o.join('\t')),{ind:420,tabs:[2900,5400,7900]}));
+    else if(L<=20){out.push(DX.p(DX.r(o[0]+'\t'+o[1]),{ind:420,tabs:[5200]}));out.push(DX.p(DX.r(o[2]+'\t'+o[3]),{ind:420,tabs:[5200]}));}
+    else o.forEach(x=>out.push(DX.p(DX.r(x),{ind:420})));
+  } else if(s.t==='fill'){
+    out.push(DX.p([DX.r(no)].concat(q.q.split('____').map((x,k)=>(k?DX.r('　　　　　　　',{u:true}):'')+DX.r(x)))));
+  } else if(s.t==='judge'){
+    out.push(DX.p(DX.r(no+q.q+'\t（　　）'),{tabs:[{pos:COLW,right:true}]}));
+  } else if(s.t==='term'){out.push(DX.p(DX.r(no+q.q+'：')));sp(4);}
+  else if(s.t==='short'){out.push(DX.p(DX.r(no+q.q)));sp((q.lines||8)-1);}
+  else if(s.t==='prog'){
+    out.push(DX.p(DX.r(no+q.q),{keep:true}));
+    q.code.split('\n').forEach(l=>out.push(DX.p(DX.r(l,{mono:true,sz:18}),{ind:210,line:240,keep:true})));
+    q.sub.forEach((x,k)=>{out.push(DX.p(DX.r(`（${k+1}）${x}`),{ind:210}));sp(q.sub.length>1?3:7);});
+  }
+  return out.join('');
+}
+function docxPackage(body,sect){
+  const enc=new TextEncoder();
+  const doc=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${body}${sect}</w:body></w:document>`;
+  const files=[
+    {name:'[Content_Types].xml',data:enc.encode('<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>')},
+    {name:'_rels/.rels',data:enc.encode('<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>')},
+    {name:'word/document.xml',data:enc.encode(doc)}
+  ];
+  return {xml:doc,files};
+}
+/* 试卷：A3 横向（42 × 29.7 cm），两栏，栏间有分隔线；左边距留出装订位置 */
+function paperDocx(P,cfg){
+  __spaceK=cfg.space==='auto'?0.75:(SPACE_K[cfg.space]||1);   // 自动：Word 自己分页，留白按 3/4 估，尽量排进 2 张 A3
+  let b='';
+  b+=DX.p(DX.r(`广州华夏职业学院${cfg.year}学年${cfg.term}`,{hei:true,b:true,sz:28}),{jc:'center',line:480});
+  b+=DX.p(DX.r(`《${cfg.course}》期末考试试卷（${cfg.ver}卷）`,{hei:true,b:true,sz:28}),{jc:'center',line:480,after:120});
+  b+=DX.tbl([DX.cell('适用专业',{w:1800})+DX.cell(cfg.major,{w:3300})+DX.cell('适用年级',{w:1800})+DX.cell(cfg.grade,{w:3300}),
+             DX.cell('考试方式',{w:1800})+DX.cell(`${cfg.mode==='闭卷'?'☑':'□'}闭卷　　${cfg.mode==='开卷'?'☑':'□'}开卷`,{w:3300})+DX.cell('考试时间',{w:1800})+DX.cell(`${cfg.minutes} 分钟`,{w:3300})],[1800,3300,1800,3300]);
+  b+=DX.p('',{line:200});
+  const n=P.length+2,cw=Math.floor(10200/n),ws=Array(n).fill(cw);
+  b+=DX.tbl([DX.cell('题 号',{w:cw,hei:true,b:true})+P.map(s=>DX.cell(s.no,{w:cw})).join('')+DX.cell('总 分',{w:cw,hei:true,b:true}),
+             DX.cell('得 分',{w:cw,hei:true,b:true})+P.map(()=>DX.cell('',{w:cw})).join('')+DX.cell('',{w:cw}),
+             DX.cell('评卷人',{w:cw,hei:true,b:true})+P.map(()=>DX.cell('',{w:cw})).join('')+DX.cell('',{w:cw})],ws);
+  b+=DX.p('',{line:240});
+  P.forEach((s,k)=>{b+=docxSecHead(s);s.items.forEach((q,i)=>{b+=docxItems(s,q,i);});if(k<P.length-1)b+=DX.p('',{line:200});});
+  const sect='<w:sectPr><w:pgSz w:w="23811" w:h="16838" w:orient="landscape"/><w:pgMar w:top="680" w:right="850" w:bottom="794" w:left="1588" w:header="0" w:footer="400" w:gutter="0"/><w:cols w:num="2" w:space="794" w:sep="1"/></w:sectPr>';
+  return docxPackage(b,sect);
+}
+/* 参考答案：A4 竖排单栏 */
+function answerDocx(P,cfg){
+  let b=DX.p(DX.r(`《${cfg.course}》期末考试试卷（${cfg.ver}卷）参考答案及评分标准`,{hei:true,b:true,sz:28}),{jc:'center',line:480});
+  b+=DX.p(DX.r(`${cfg.year}学年${cfg.term}　适用专业：${cfg.major}　适用年级：${cfg.grade}　满分 ${paperTotal(P)} 分`),{jc:'center',after:120});
+  P.forEach(s=>{
+    b+=DX.p(DX.r(secTitle(s),{hei:true,b:true}),{before:160,keep:true});
+    if(s.t==='choice')b+=DX.p(DX.r(s.items.map((q,i)=>`${i+1}.${q.a}`).join('　　')));
+    else if(s.t==='judge')b+=DX.p(DX.r(s.items.map((q,i)=>`${i+1}.${q.a?'√':'×'}`).join('　　')));
+    else if(s.t==='fill')s.items.forEach((q,i)=>{b+=DX.p(DX.r(`${i+1}.${q.a.join('；')}`));});
+    else s.items.forEach((q,i)=>{b+=DX.p(DX.r(`${i+1}.${q.q}`,{b:true}),{keep:true});b+=DX.p(DX.r(q.a,{color:'1F4E79'}));b+=DX.p(DX.r(`（评分：按要点给分，共 ${s.pts} 分）`,{color:'666666',sz:18}));});
+  });
+  const st=paperStats(P);
+  b+=DX.p(DX.r('各项目分值分布',{hei:true,b:true}),{before:160});
+  b+=DX.p(DX.r(Object.keys(st).sort().map(c=>`${THEORY_CH[c]}：${st[c]} 分`).join('；')));
+  const sect='<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1247" w:right="1247" w:bottom="1247" w:left="1247" w:header="0" w:footer="400" w:gutter="0"/></w:sectPr>';
+  return docxPackage(b,sect);
+}
+const saveDocx=(name,pkg)=>saveBlob(name,new Blob([makeZip(pkg.files)],{type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'}));
+
+;
+/* ================= 考试 · 理论试卷（2026-11-06 从单片机迁来） =================
+   用户原话：「我们单片机组卷理论试卷和导出文件全部属于考试功能 我们需要迁移」。
+   ── 和单片机那份的差别 ──
+   1. 设置存 localStorage（键 exam.paper），不再写进网页文件；导出按钮直接下载 docx / 调打印。
+   2. 没有 markDirty / 保存到文件那套（网页版没有本地文件），所以也不监听 dataload。
+   3. 预览页在隐藏的 section 里量不出尺寸，沿用「只在页面可见时排版」的老办法：
+      用 [data-page] 的显示状态判断，而不是原来的 offsetParent（结构换了）。
+   4. 科目分开存：现在只有单片机（PAPER_DEFAULT 就是单片机理论的模板参数）。 */
+'use strict';
+
+const PAPER_KEY = 'exam.paper';
+/* 每个科目一套设置；没存过就用 PAPER_DEFAULT（单片机理论卷的学校模板参数）。
+   ── sections / weights 必须深拷贝（2026-11-06 实测踩到）──
+   Object.assign 是浅拷贝：没有存过设置时 C.sections 会**指向 PAPER_DEFAULT.sections 同一个数组**，
+   renderTypes 的 change 处理又是直接改对象（s.n = ...），于是「改题型题数」当场把默认值改坏，
+   再点「恢复默认」恢复出来的还是被改过的那份（实测：题数改 0 后怎么点都回不到 100 分）。
+   单片机原版是同一个写法，只是没人这么点过。 */
+function paperLoad(sub) {
+  const all = store.get(PAPER_KEY, {}) || {};
+  const C = Object.assign({}, PAPER_DEFAULT, all[sub] || {});
+  C.weights = Object.assign({}, PAPER_DEFAULT.weights, C.weights || {});
+  const secs = Array.isArray(C.sections) && C.sections.length ? C.sections : PAPER_DEFAULT.sections;
+  C.sections = secs.map(s => ({ t: s.t, n: s.n, pts: s.pts }));
+  if (!C.key) C.key = 'T' + Math.random().toString(36).slice(2, 6).toUpperCase();
+  return C;
+}
+function paperSave(sub, C) {
+  const all = store.get(PAPER_KEY, {}) || {};
+  all[sub] = JSON.parse(JSON.stringify(C));
+  store.set(PAPER_KEY, all);
+}
+
+function mountPaper(sub) {
+  const box = $('ppBoxWrap');
+  if (!box) return;
+  const C = paperLoad(sub);
+  let P = null, timer = 0;
+
+  const F = (id, k, num) => {
+    const el = $(id);
+    if (!el) return;
+    el.value = C[k];
+    el.addEventListener('change', () => { C[k] = num ? (+el.value || 0) : el.value.trim(); changed(); });
+  };
+
+  function renderTypes() {
+    $('ppTypes').innerHTML = C.sections.map((s, i) => {
+      const T = PAPER_TYPES[s.t];
+      return `<tr><td>${CN_NUM[i]}、${T.name}</td>
+        <td><input type="number" min="0" max="40" value="${s.n}" data-i="${i}" data-f="n" aria-label="${T.name}${T.per}数"> ${T.per}</td>
+        <td><input type="number" min="0" max="30" step="0.5" value="${s.pts}" data-i="${i}" data-f="pts" aria-label="${T.name}${T.unit}分值"> 分</td></tr>`;
+    }).join('');
+    $('ppW').innerHTML = Object.keys(THEORY_CH).map(c => `<label class="ppw"><span>项目${c}</span><input type="number" min="0" max="100" value="${C.weights[c]}" data-ch="${c}" aria-label="${esc(THEORY_CH[c])}权重"></label>`).join('');
+  }
+
+  function stats() {
+    const total = paperTotal(P), st = paperStats(P);
+    const short = P.filter(s => s.count < (C.sections.find(x => x.t === s.t) || {}).n).map(s => PAPER_TYPES[s.t].name);
+    $('ppTotal').innerHTML = `<b style="${total === 100 ? '' : 'color:var(--warn)'}">满分 ${total} 分</b>${total === 100 ? '' : '（一般应为 100 分，调整题数或分值）'}`;
+    $('ppStat').innerHTML = Object.keys(THEORY_CH).map(c => `<div class="ppbar"><span>项目${c}</span><i style="--w:${total ? ((st[c] || 0) / total * 100).toFixed(1) : 0}%"></i><b>${st[c] || 0} 分</b></div>`).join('') +
+      (short.length ? `<div class="warns" style="margin-top:8px">题库里这些题型的题不够：${short.join('、')}，已按能抽到的出。</div>` : '');
+  }
+
+  /* 预览页面在不显示时量不出尺寸，所以只在「理论试卷」这一页可见时排版 */
+  let dirty = true;
+  const visible = () => { const s = box.closest('[data-page]'); return !s || !s.hidden; };
+  function preview() {
+    P = pickPaper(C);
+    stats();
+    dirty = true;
+    if (!visible()) return;
+    dirty = false;
+    const fr = $('ppFrame');
+    fr.style.height = '400px';
+    fit();
+    fr.srcdoc = paperDocHTML(P, C);
+  }
+  function changed() { paperSave(sub, C); clearTimeout(timer); timer = setTimeout(preview, 250); }
+
+  /* 预览：A3 原尺寸（420mm）按卡片宽度缩小显示 */
+  window.addEventListener('message', e => {
+    if (!e.data || !e.data.paperReady) return;
+    const fr = $('ppFrame');
+    if (!fr || e.source !== fr.contentWindow) return;
+    const h = fr.contentDocument.documentElement.scrollHeight;
+    fr.style.height = h + 'px';
+    fit();
+    $('ppPages').innerHTML = `共 ${e.data.pages} 页（${e.data.pages / 2} 张 A3，双面）` +
+      (e.data.pages > 4 ? '<span class="tag warn">超过 2 张：可选「紧凑」留白或减少题量</span>' : '');
+  });
+  function fit() {
+    const fr = $('ppFrame'), box2 = $('ppView');
+    if (!fr || !box2 || box2.clientWidth === 0) return;
+    const w = 1588, k = Math.min(1, box2.clientWidth / w);
+    fr.style.width = w + 'px';
+    fr.style.transform = `scale(${k})`;
+    box2.style.height = (parseFloat(fr.style.height) || 400) * k + 'px';
+  }
+  window.addEventListener('resize', fit);
+  /* app.js 切页时会广播 hxpag，显示到这一页时补排版 */
+  document.addEventListener('hxpag', e => {
+    if (e.detail !== 'paper') return;
+    setTimeout(() => { if (dirty) preview(); else fit(); }, 50);
+  });
+
+  F('ppYear', 'year'); F('ppTerm', 'term'); F('ppCourse', 'course'); F('ppVer', 'ver');
+  F('ppMajor', 'major'); F('ppGrade', 'grade'); F('ppMode', 'mode'); F('ppMin', 'minutes', true);
+  F('ppKey', 'key'); F('ppSpace', 'space');
+
+  $('ppTypes').addEventListener('change', e => {
+    const t = e.target, s = C.sections[+t.dataset.i];
+    if (!s || !t.dataset.f) return;
+    window.__pp=(window.__pp||[]);window.__pp.push({i:t.dataset.i,f:t.dataset.f,val:t.value,before:s.n,t:s.t});s[t.dataset.f] = Math.max(0, +t.value || 0);window.__pp.push({after:s.n,all:JSON.stringify(C.sections)});
+    changed();
+  });
+  $('ppW').addEventListener('change', e => {
+    const c = e.target.dataset.ch;
+    if (!c) return;
+    C.weights[c] = Math.max(0, +e.target.value || 0);
+    changed();
+  });
+  $('ppNew').onclick = () => { C.key = 'T' + Math.random().toString(36).slice(2, 6).toUpperCase(); $('ppKey').value = C.key; changed(); toast('已换一套题（种子变了）'); };
+  $('ppReset').onclick = () => { C.sections = PAPER_DEFAULT.sections.map(s => ({ ...s })); C.weights = { ...PAPER_DEFAULT.weights }; renderTypes(); changed(); };
+  const base = () => `${C.course}_期末试卷${C.ver}卷`;
+  $('ppPdf').onclick = () => {
+    const fr = $('ppFrame');
+    if (!fr.contentDocument || !fr.contentDocument.body.getAttribute('data-pages')) { toast('预览还没排好，稍等一下再点'); return; }
+    toast('在打印窗口里：目标选「另存为 PDF」，纸张 A3，横向，边距「无」');
+    fr.contentWindow.focus();
+    fr.contentWindow.print();
+  };
+  $('ppWord').onclick = () => { saveDocx(base() + '.docx', paperDocx(P, C)); toast('已导出 Word 试卷（A3 横向两栏）'); };
+  $('ppAns').onclick = () => { saveDocx(base() + '_参考答案.docx', answerDocx(P, C)); toast('已导出参考答案'); };
+
+  renderTypes();
+  preview();
+}
+
+window.HXPaper = { mount: mountPaper };
+
+;
+/* ================= 考试 · 组卷与组卷码（2026-11-06 从单片机迁来） =================
+   用户原话：「我们单片机组卷理论试卷和导出文件全部属于考试功能 我们需要迁移」。
+   ── 和单片机那份的差别 ──
+   1. 不再存在网页文件里（没有「保存到文件」这一步），组卷设置存 localStorage（键 exam.build），
+      换了浏览器就回到默认 —— 所以这套组卷的真正存档是「发布出去的考试」（Supabase 里那行 paper 码）。
+      组卷页的职责收窄成一件事：**调出一串组卷码**，复制去「考试」页发布。
+   2. 没有名单、没有批改、没有导出的旧入口，那些都在别的页。
+   3. 母题只认内置 M1～M6（导入书上代码那套要单片机离线文件，网页版做不了），
+      用到自定义母题的组卷码在这里直接拦住并说明原因。
+   4. 科目：现在只有单片机上机。组卷状态按科目分开存（SUBJECTS 的键），以后加科目不用改这里。 */
+'use strict';
+
+const BUILD_KEY = 'exam.build';
+/* 每道题的默认值：和「考试」页发布时的默认一致，老师来回切两页看到的是同一套 */
+const BUILD_DEFAULT_QS = [
+  { mid: null, type: 'fill', pts: 30, draw: null },
+  { mid: null, type: 'modify', pts: 35, draw: null },
+  { mid: null, type: 'fix', pts: 35, draw: null }
+];
+const randKey = () => 'K' + Math.random().toString(36).slice(2, 6).toUpperCase();
+
+/* 母题下拉：只列内置 M1～M6。
+   单片机的 motherOptions 会附上「老师导入的书上代码」和「我自己导入的代码」两组，
+   那两块在网页版考试里根本没有（导入要单片机离线文件），列出来就是一堆选了会失败的选项。
+   ── 为什么自己写一份而不复用 motherOptions ──
+   它依赖 ui-practice.js 的 PRACTICE_MOTHERS，考试工具不打包那个文件，直接调会 ReferenceError。 */
+function builderMothers(sel, first) {
+  const o = m => `<option value="${m.id}" ${sel === m.id ? 'selected' : ''}>${m.id} ${esc(m.name)}${m.task ? '（' + esc(m.task) + '）' : ''}</option>`;
+  return (first || '') + MOTHERS.map(o).join('');
+}
+
+/* 组卷状态：{ [科目]: { key, qs:[{mid,type,pts,draw}], requireHex } } */
+function buildLoad(sub) {
+  const all = store.get(BUILD_KEY, {}) || {};
+  const b = all[sub];
+  if (b && Array.isArray(b.qs) && b.qs.length) return { key: b.key || randKey(), qs: b.qs.map(q => ({ ...q })), requireHex: !!b.requireHex };
+  return { key: randKey(), qs: BUILD_DEFAULT_QS.map(q => ({ ...q })), requireHex: false };
+}
+function buildSave(sub, B) {
+  const all = store.get(BUILD_KEY, {}) || {};
+  all[sub] = { key: B.key, qs: B.qs.map(q => ({ ...q })), requireHex: !!B.requireHex };
+  store.set(BUILD_KEY, all);
+}
+const buildCode = B => makeExamCode(B.key, B.qs);
+
+/* 用到导入书上代码的题改回随机：网页版没有自定义母题库，留着会让组卷码解不开 */
+function buildFixMids(B) {
+  B.qs.forEach(q => { if (q.mid && !MOTHER_BY_ID[q.mid]) q.mid = null; });
+  return B;
+}
+
+/* ---------------- 组卷页 ---------------- */
+function mountBuilder(sub) {
+  const box = $('bdBox');
+  if (!box) return;
+  let B = buildFixMids(buildLoad(sub));
+
+  const total = () => B.qs.reduce((a, q) => a + (q.pts || 0), 0);
+  const redraw = () => { buildSave(sub, B); draw(); };
+
+  function draw() {
+    const mopt = sel => builderMothers(sel, '<option value="">随机（每人抽不同的母题）</option>');
+    const topt = sel => Object.entries(TYPE_NAME).map(([k, n]) => `<option value="${k}" ${sel === k ? 'selected' : ''}>${n}</option>`).join('');
+    /* 全班同一题的预览：直接把这一题按「预览」学号出出来，给老师看它到底长什么样 */
+    const preview = i => {
+      const q = B.qs[i];
+      if (q.draw == null) return '';
+      let v;
+      try { v = examPaper('预览', buildCode(B))[i]; } catch (e) { return ''; }
+      if (!v) return '';
+      return `<details class="qprev"><summary>看这道题（全班都考它）：${esc(v.title)}</summary>${questionHTML(v, { qno: i + 1 })}<details><summary>答案</summary>${answerHTML(v)}</details></details>`;
+    };
+    box.innerHTML = `<div class="with-rail">
+      <div class="rail-main">
+        <div class="card">
+          <h2>组卷</h2>
+          <div class="row">
+            <label>换题种子 <input id="bdKey" style="width:150px" placeholder="字母和数字" autocomplete="off" value="${esc(B.key)}"></label>
+            <button id="bdNewKey">换一套题</button>
+            <span class="note">种子是组卷码最前面那段，决定具体抽到哪些题、参数怎么变；题目设置不变时，换种子 = 换一整套题。一般不用手动改。</span>
+          </div>
+          <div id="bdList" class="qlist">${B.qs.map((q, i) => `<div class="qrow" data-i="${i}">
+            <span class="qno">第 ${i + 1} 题</span>
+            <select data-f="mid" aria-label="第${i + 1}题的母题">${mopt(q.mid)}</select>
+            <select data-f="type" aria-label="第${i + 1}题的题型">${topt(q.type)}</select>
+            <label class="qpts"><input type="number" min="1" max="100" data-f="pts" value="${q.pts}" aria-label="第${i + 1}题分值"> 分</label>
+            <select data-f="mode" aria-label="第${i + 1}题的出题方式"><option value="each" ${q.draw == null ? 'selected' : ''}>每人参数不同</option><option value="fixed" ${q.draw != null ? 'selected' : ''}>全班同一题</option></select>
+            ${q.draw != null ? '<button data-f="redraw" title="不满意就换一道（全班一起换）">换一题</button>' : ''}
+            <button class="qdel" data-f="del" title="删掉这一题" aria-label="删掉第${i + 1}题" ${B.qs.length <= 1 ? 'disabled' : ''}>×</button>
+            ${preview(i)}
+          </div>`).join('')}</div>
+          <div class="row"><button id="bdAddQ" ${B.qs.length >= 5 ? 'disabled' : ''}>＋ 添加一题</button><span class="note" id="bdSum"></span></div>
+          <div class="row" style="margin-top:12px"><label><input type="checkbox" id="bdHex" ${B.requireHex ? 'checked' : ''}> 批改时必须交有效 .hex 才给「编译通过」分</label></div>
+        </div>
+      </div>
+      <aside class="rail">
+        <div class="card">
+          <div class="codebox"><div class="cb-l"><div class="note">组卷码（自动生成 = 换题种子 + 每道题的设置；学生直接输这个）</div><div class="cb-code mono" id="bdCode"></div><div class="note" id="bdLen"></div></div>
+            <button id="bdCopy">复制</button></div>
+          <p class="note" style="margin-top:10px">拿到码之后去「考试」页：<b>发布考试 → 粘贴组卷码 → 选班级</b>，网页会再给你一个学生输的短码。</p>
+          <div class="card band" style="margin-top:12px"><b>这套卷还没有发布</b><p class="note" style="margin:0">组卷只在这里调；真正的考试记录（谁交了、多少分）在「考试」页。</p></div>
+        </div>
+        <div class="card">
+          <details><summary>读入一个已有的组卷码</summary>
+            <div class="row" style="margin-top:6px"><input id="bdIn" style="width:100%" placeholder="例如 QM25-2t30-4g35.3-6c35" autocomplete="off"><button id="bdLoad">读入</button></div></details>
+        </div>
+      </aside>
+    </div>`;
+    $('bdSum').textContent = `共 ${B.qs.length} 题，满分 ${total()} 分`;
+    $('bdCode').textContent = buildCode(B);
+    $('bdLen').textContent = buildCode(B).length + ' 个字符';
+  }
+
+  /* 事件：用委托，draw() 重建 DOM 后不用重绑 */
+  box.addEventListener('change', e => {
+    const row = e.target.closest('.qrow');
+    if (row) {
+      const q = B.qs[+row.dataset.i], f = e.target.dataset.f;
+      if (!q) return;
+      if (f === 'mid') q.mid = e.target.value || null;
+      if (f === 'type') q.type = e.target.value;
+      if (f === 'pts') q.pts = Math.max(1, Math.min(100, Math.round(+e.target.value || 1)));
+      if (f === 'mode') q.draw = e.target.value === 'fixed' ? 1 : null;
+      redraw(); return;
+    }
+    if (e.target.id === 'bdHex') { B.requireHex = e.target.checked; buildSave(sub, B); toast('已记下（只影响这台设备上的组卷设置）'); return; }
+    if (e.target.id === 'bdKey') {
+      const k = e.target.value.trim();
+      if (!/^[A-Za-z0-9]{1,16}$/.test(k)) { toast('换题种子只能用字母和数字（最多 16 个）'); e.target.value = B.key; return; }
+      B.key = k; redraw();
+    }
+  });
+  box.addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    const row = b.closest('.qrow');
+    if (row && b.dataset.f) {
+      const i = +row.dataset.i;
+      if (b.dataset.f === 'del' && B.qs.length > 1) { B.qs.splice(i, 1); redraw(); }
+      if (b.dataset.f === 'redraw') { B.qs[i].draw = (B.qs[i].draw || 0) % 9999 + 1; redraw(); toast(`第 ${i + 1} 题已换成另一道`); }
+      return;
+    }
+    if (b.id === 'bdAddQ') { if (B.qs.length < 5) { B.qs.push({ mid: null, type: 'fill', pts: 20, draw: null }); redraw(); } return; }
+    if (b.id === 'bdNewKey') { B.key = randKey(); redraw(); toast('已换一套题（种子变了）'); return; }
+    if (b.id === 'bdCopy') {
+      const code = buildCode(B);
+      (navigator.clipboard ? navigator.clipboard.writeText(code) : Promise.reject()).then(() => toast('组卷码已复制')).catch(() => toast('复制失败，请手动选中复制'));
+      return;
+    }
+    if (b.id === 'bdLoad') {
+      const p = parseExamCode($('bdIn').value);
+      if (!p) { toast('组卷码格式不对，例如 QM25-2t30-4g35.3-6c35'); return; }
+      if (!p.qs.length) { toast('组卷码里至少要有 1 道题'); return; }
+      /* 网页版没有导入的母题库：用到 M7 以上（自定义）的码读不进来说明原因，别让老师以为坏了 */
+      if (p.qs.some(q => q.mid && !MOTHER_BY_ID[q.mid])) { toast('这个组卷码用到了导入书上代码的母题，网页版还不支持（要用单片机离线文件）'); return; }
+      B.key = p.key; B.qs = p.qs.map(q => ({ ...q })); redraw(); toast('已读入组卷码');
+    }
+  });
+
+  draw();
+}
+
+/* ---------------- 科目里的其他页：由 app.js 的导航调 ---------------- */
+window.HXBuilder = { mount: mountBuilder, codify: () => buildCode(buildFixMids(buildLoad('mcu'))) };
+
+;
 /* ================= 华夏工具 · 考试 =================
    教师账号发布考试：科目（现在只有单片机上机）+ 组卷码（单片机的组卷设置，如 QM25-2t30-4g35.3-6c35）+ 哪几个班。
    这几个班的学生在首页登录后，输老师公布的码（自动生成的 6 位码或老师起的名字）取题：每人的题由学号 + 组卷码算出来，和单片机离线文件一样。
@@ -5129,16 +5777,117 @@ async function api(p, o) {
   return j;
 }
 const rpc = (f, b) => api('/rest/v1/rpc/' + f, { method: 'POST', body: b || {} });
-const app = () => $('app');
+/* 2026-11-06 用户：「我们单片机组卷理论试卷和导出文件全部属于考试功能 我们需要迁移」+
+   「考试/组卷/理论试卷」三页。所以 #app 里现在是一个外壳（左边侧栏、右边内容），
+   所有页面内容画进 #appMain —— app() 直接指向它，原来那一堆 app().innerHTML 不用改。
+   登录门/错误门时外壳还没建，app() 回落到 #app，不会空引用。 */
+const app = () => $('appMain') || $('app');
 const when = t => { const d = new Date(t); return isNaN(d) ? '' : (d.getMonth() + 1) + '月' + d.getDate() + '日 ' + d.getHours() + ':' + String(d.getMinutes()).padStart(2, '0'); };
 const login = () => { if (window.HXTheme) HXTheme.login(); else location.href = '../#exam'; };
 const ME = { me: null };
 
+/* ---------------- 教师端外壳：侧栏三页 + 科目选项卡 ---------------- */
+const T_PAGES = [['exam', '考试', '发布、交卷、批改'], ['build', '组卷与组卷码', '调题、生成码'], ['paper', '理论试卷', 'A3 试卷与导出']];
+let CUR_T = 'exam', CUR_SUB = 'mcu';
+function teacherShell() {
+  $('app').innerHTML = `<div class="ex-shell">
+    <nav class="ex-nav" id="exNav">
+      <div class="ex-nav-h">考试</div>
+      ${T_PAGES.map(([k, n, s]) => `<button class="ex-nav-i" data-t="${k}"><b>${n}</b><span>${s}</span></button>`).join('')}
+      <div class="ex-nav-sub">
+        <div class="ex-nav-h">科目</div>
+        ${Object.entries(SUBJECTS).map(([k, n]) => `<button class="ex-sub${k === CUR_SUB ? ' on' : ''}" data-sub="${k}">${n}</button>`).join('')}
+      </div>
+    </nav>
+    <div class="ex-main" id="appMain"></div></div>`;
+  $('exNav').addEventListener('click', e => {
+    const t = e.target.closest('[data-t]'), s = e.target.closest('[data-sub]');
+    if (t) { showT(t.dataset.t); return; }
+    /* 科目目前只有一个：点它只是提示，不做切换（以后加科目在这里接） */
+    if (s) toast('现在只有「单片机上机」一个科目');
+  });
+  showT(CUR_T);
+}
+function showT(k) {
+  if (!T_PAGES.some(x => x[0] === k)) k = 'exam';
+  CUR_T = k;
+  document.querySelectorAll('#exNav [data-t]').forEach(b => b.classList.toggle('on', b.dataset.t === k));
+  try { history.replaceState(null, '', '#' + k); } catch (e) { }
+  document.dispatchEvent(new CustomEvent('hxpag', { detail: k }));
+  if (k === 'exam') return teacherHome();
+  if (k === 'build') return buildHome();
+  if (k === 'paper') return paperHome();
+}
+/* 组卷页：只有组卷器本体（挂进 #bdBox），没别的 */
+function buildHome() {
+  app().innerHTML = `<header class="ex-h"><div class="eyebrow">教师 · ${SUBJECTS[CUR_SUB]}</div><h1>组卷与组卷码</h1>
+    <p>调每道题的母题、题型、分值，网页现算出一串组卷码；拿去「考试」页发布，学生就能取题</p></header>
+    <div id="bdBox"></div>`;
+  if (window.HXBuilder) HXBuilder.mount(CUR_SUB);
+  else app().innerHTML += '<div class="errs">组卷模块没打包进来，请重新 node build.js</div>';
+}
+/* 理论试卷页：模板参数 + 预览 + 导出 PDF / Word / 参考答案（理论题库来自 刷题/data/mcu.json） */
+function paperHome() {
+  app().innerHTML = `<header class="ex-h"><div class="eyebrow">教师 · ${SUBJECTS[CUR_SUB]}理论</div><h1>理论试卷</h1>
+    <p>按学校试卷模板排版，A3 横向两栏、双面；题目来自教材项目 1～5，可以换一套、出 A/B/C 卷（互不重题）</p></header>
+    <div class="with-rail">
+      <div class="rail-main"><div class="card"><div class="row" style="justify-content:space-between;margin-bottom:10px"><h2 style="margin:0">预览</h2><span class="note" id="ppPages"></span></div>
+        <div class="ppbox" id="ppView"><iframe id="ppFrame" title="试卷预览"></iframe></div></div></div>
+      <aside class="rail" id="ppBoxWrap">
+        <div class="card"><h2>导出</h2>
+          <div class="row"><button class="pri" id="ppPdf">导出 PDF（A3）</button><button id="ppWord">Word 试卷</button><button id="ppAns">Word 参考答案</button></div>
+          <p class="note" style="margin-top:8px">PDF：在打印窗口里选「另存为 PDF」，纸张 A3、横向、边距「无」。Word 版方便人工核对和修改（A3 横向两栏，装订线以 PDF 版为准）。</p></div>
+        <div class="card"><h2>试卷信息</h2>
+          <div class="ppform">
+            <label>学年 <input id="ppYear"></label>
+            <label>学期 <select id="ppTerm"><option>第一学期</option><option>第二学期</option></select></label>
+            <label class="wide">课程名称（与课表一致）<input id="ppCourse"></label>
+            <label>卷别 <select id="ppVer"><option>A</option><option>B</option><option>C</option></select></label>
+            <label>考试方式 <select id="ppMode"><option>闭卷</option><option>开卷</option></select></label>
+            <label class="wide">适用专业 <input id="ppMajor"></label>
+            <label>适用年级 <input id="ppGrade"></label>
+            <label>考试时间（分钟）<input id="ppMin" type="number" min="30" max="180"></label>
+            <label>答题留白 <select id="ppSpace"><option value="auto">自动（尽量 2 张 A3）</option><option value="loose">宽松</option><option value="normal">标准</option><option value="tight">紧凑</option></select></label>
+            <label>换题种子 <input id="ppKey" class="mono"></label>
+            <div class="row" style="align-items:flex-end"><button id="ppNew">换一套</button></div>
+          </div>
+          <p class="note">同一个种子出的 A、B、C 卷互不重题；种子不变，再打开还是同一套。</p></div>
+        <div class="card"><h2>题型和分值</h2>
+          <table class="mini pptypes"><tbody id="ppTypes"></tbody></table>
+          <div class="row" style="justify-content:space-between;margin-top:8px"><span id="ppTotal"></span><button id="ppReset">恢复默认</button></div></div>
+        <div class="card"><h2>各项目比重</h2>
+          <div class="ppws" id="ppW"></div>
+          <p class="note">数字是相对比重，默认项目 1～4 为主、项目 5 少一些；填 0 表示不出这一项目的题。下面是这套卷实际的分值分布：</p>
+          <div id="ppStat"></div></div>
+      </aside></div>`;
+  if (window.HXPaper) HXPaper.mount(CUR_SUB);
+  else app().innerHTML = '<div class="errs">理论试卷模块没打包进来，请重新 node build.js</div>';
+}
+
+/* 开机 / 换账号时整站重进。── 必须防重入（2026-11-06 实测踩到）──
+   理论试卷的预览 iframe 是 srcdoc，和父页面同源；iframe 里任何写 paike-session 的动作
+   都会让父页面收到 storage 事件 → boot() → 重画 #appMain → 重建 iframe → 再触发……
+   实测点了「理论试卷」后 boot 跑了 300+ 次、hxpag 发了 3.8 万次，页面卡死。
+   线上正常不会有人往 iframe 里写会话（那是测试桩干的），但同源 srcdoc + storage 监听
+   这个组合本身就不该无限重进：加个进行中标志，同一时刻只跑一份。 */
+let booting = false, bootDone = false;
+/* 上次见到的账号 id：storage 事件里用来判断「是不是真的换了人」 */
+let lastUid = null;
 async function boot() {
+  if (booting) return;
+  booting = true;
+  try {
+    const t = await bootOnce();
+    bootDone = true;
+    return t;
+  } finally { booting = false; }
+}
+async function bootOnce() {
   load();
+  lastUid = sess && sess.user ? sess.user.id : null;
   if (!sess || !sess.access_token) return gate('登录后考试', '老师在这里发布考试，学生输老师公布的码取题', '登录', login);
   try { ME.me = await rpc('hx_me'); } catch (e) { if (e.status === 401) return gate('登录过期了', '请在首页重新登录', '登录', login); return gate('出错了', e.message); }
-  if (ME.me.teacher) return teacherHome();
+  if (ME.me.teacher) { teacherShell(); return; }
   if (ME.me.student) return studentHome();
   gate('账号还没开通', '在首页右上角的账号里填邀请码', '去首页', () => { const p = window.HXTheme && HXTheme.portal(); p ? p.home() : (location.href = '../'); });
 }
@@ -5305,7 +6054,16 @@ async function subs(x) {
   };
 }
 
-addEventListener('storage', e => { if (e.key === SKEY) boot(); }); // 在首页登录、退出
+/* 别处登录/退出（首页、别的标签页）才重进。同源 srcdoc 预览页也算「别处」，
+   所以再加一道判断：会话里的用户没变就别白跑一遍（boot 自己也有防重入）。 */
+addEventListener('storage', e => {
+  if (e.key !== SKEY) return;
+  const s = load();
+  const uid = s && s.user ? s.user.id : null;
+  if (bootDone && uid === lastUid) return;
+  lastUid = uid;
+  boot();
+});
 // 首屏闪屏（build.js 里写死的 #hxBoot）：由 src/loadfx.js 接管——canvas 随机挑一个 pixelfx 特效
 // （会话内固定），播不起来就把 canvas 藏掉只留下面的药丸，绝不允许空屏。
 // 2026-11-06 修时序：boot() 已挪到 build.js 产物的 #hxBoot 标记后面立刻调用（第一帧就有像素动效），

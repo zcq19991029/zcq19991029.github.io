@@ -766,6 +766,11 @@ button.qdel.sm{width:26px;height:26px;font-size:15px}
       <div id="answer" hidden></div>
     </div>
     <div class="card"><h2>检测结果</h2><div id="result"></div></div>
+    <!-- 2026-11-06 用户：「学生刷题上机题目也需要有记录功能和耗时排名榜单」。
+         耗时榜 + 我的练习记录放在这里（不在右栏），因为学生测完会往下看结果，
+         顺手就能看到自己第几名；右栏留给题目和虚拟板。
+         离线单文件里 MCU_CLOUD.on 为 false，ui-practice 会把这块整体隐藏。 -->
+    <div id="cloudBox" hidden></div>
     <details class="card" id="pImportCard"><summary><b>用书上的代码自己出题练习</b>　<span class="note">粘贴课本或课堂上的程序，网页自动改参数出题</span></summary>
       <div id="pImport" style="margin-top:10px"></div>
       <div class="note" style="margin-top:6px">自己导入的代码只存在这台电脑的浏览器里，只用来练习，不会进考试。</div>
@@ -778,10 +783,10 @@ button.qdel.sm{width:26px;height:26px;font-size:15px}
   </aside>
 </div></section>
 
-<section class="page" data-page="t-lock" hidden><header class="page-h"><div class="eyebrow">老师模块</div><h1>老师</h1><p>班级名单、组卷、看答案、批改。用教师账号进入</p></header><div id="lockBox"></div></section>
+
 <div id="teacherMain">
 <section class="page" data-page="t-overview" hidden>
-<header class="page-h"><div class="eyebrow">老师模块</div><h1>概览</h1><p>先看现在到哪一步了：导入名单、选上课的班级 → 组卷、给组卷码起名字 → 保存到文件，发给学生 → 考完批改</p></header>
+<header class="page-h"><div class="eyebrow">老师模块</div><h1>概览</h1><p>先看现在到哪一步了：导入名单、选上课的班级 → 保存到文件，发给学生 → 考完批改。组卷与组卷码、理论试卷在「考试」工具里</p></header>
 <div class="card band anspw" id="pwCard">
   <div class="row" style="justify-content:space-between;align-items:flex-start;gap:16px">
     <div style="min-width:0;flex:1"><h2 style="margin:0 0 4px">本节课的查看答案密码</h2><p class="note" id="ansPwNote" style="margin:0"></p></div>
@@ -802,13 +807,12 @@ button.qdel.sm{width:26px;height:26px;font-size:15px}
 <div class="flow band">
   <button type="button" class="step" data-goto="t-roster"><span class="n">1</span><b>班级名单</b><span class="note" id="ovRosterS"></span></button>
   <button type="button" class="step" data-goto="t-import"><span class="n">2</span><b>导入书上代码（可选）</b><span class="note" id="ovBank"></span></button>
-  <button type="button" class="step" data-goto="t-build"><span class="n">3</span><b>组卷与组卷码</b><span class="note" id="ovBuild"></span></button>
-  <button type="button" class="step" data-goto="t-grade"><span class="n">4</span><b>批改成绩</b><span class="note" id="ovGrade"></span></button>
+  
+  <button type="button" class="step" data-goto="t-grade"><span class="n">3</span><b>批改成绩</b><span class="note" id="ovGrade"></span></button>
 </div>
-<div class="card band">
-  <div class="row" style="justify-content:space-between"><h2 style="margin:0">当前这套卷</h2><span class="mono note" id="ovCode"></span></div>
-  <table class="mini" style="margin-top:10px"><tbody id="ovPaper"></tbody></table>
-</div></section>
+<div class="card band"><div class="row" style="justify-content:space-between"><h2 style="margin:0">组卷与理论试卷</h2><span class="note">已迁到「考试」工具</span></div>
+  <p class="note" style="margin:8px 0 0">组卷、组卷码命名、理论试卷预览与导出（PDF / Word / 参考答案）都放在<a href="../exam/">考试</a>里，
+  在那边组好的卷直接用来发布上机考试，不用两边各做一份。这里只留名单、导入代码和批改。</p></div></section>
 <section class="page" data-page="t-roster" hidden>
 <header class="page-h"><div class="eyebrow">老师模块</div><h1>班级名单</h1><p>每个班一份名单，存在这个网页文件里（姓名用老师密码加密）。导入考勤表或粘贴加新班级，勾选上课的班级，再点左下角“保存到文件”</p></header>
 <div class="card band-tool"><div data-cls-tabs></div></div>
@@ -816,9 +820,7 @@ button.qdel.sm{width:26px;height:26px;font-size:15px}
   <div class="rail-main">
     <div class="card"><div class="row" style="justify-content:space-between;margin-bottom:8px"><h2 style="margin:0">学生名单</h2><input id="rSearch" placeholder="搜学号或姓名" style="width:180px" aria-label="搜学号或姓名"></div>
       <div id="rTable"></div></div>
-    <div class="card"><h2>查看学生的题和答案</h2>
-      <label>学号 <select id="stuSel"></select></label>
-      <div id="paperView" style="margin-top:10px"></div></div>
+    
   </div>
   <aside class="rail">
     <div class="card"><h2>上课的班级</h2>
@@ -843,99 +845,9 @@ button.qdel.sm{width:26px;height:26px;font-size:15px}
 <section class="page" data-page="t-import" hidden>
 <header class="page-h"><div class="eyebrow">老师模块</div><h1>导入书上代码</h1><p>把书上或课堂上的程序导进来当母题：自动识别电路、找出能改的参数，出填空 / 改错 / 按要求改程序。组卷时“母题”里就能选它</p></header>
 <div class="card"><div id="tImport"></div></div></section>
-<section class="page" data-page="t-build" hidden>
-<header class="page-h"><div class="eyebrow">老师模块</div><h1>组卷与组卷码</h1><p>定好每道题，网页生成组卷码；可以给组卷码起个好记的名字（如“期末A”），学生输名字就能取题。改完点左下角“保存到文件”</p></header>
-<div class="with-rail">
-  <div class="rail-main">
-    <div class="card">
-      <h2>组卷</h2>
-      <div class="row">
-        <label>换题种子 <input id="ekey" style="width:150px" placeholder="字母和数字" autocomplete="off"></label>
-        <button id="btnNewKey">换一套题</button>
-        <span class="note">种子是组卷码最前面那段，决定具体抽到哪些题、参数怎么变；题目设置不变时，换种子 = 换一整套题。一般不用手动改。</span>
-      </div>
-      <div id="qlist" class="qlist"></div>
-      <div class="row"><button id="btnAddQ">＋ 添加一题</button><span class="note" id="ptsum"></span></div>
-      <div class="row" style="margin-top:12px"><label><input type="checkbox" id="reqhex"> 批改时必须交有效 .hex 才给“编译通过”分</label></div>
-    </div>
-  </div>
-  <aside class="rail">
-    <div class="card">
-      <div class="codebox"><div class="cb-l"><div class="note">组卷码（自动生成 = 换题种子 + 每道题的设置；学生可以直接输这个）</div><div class="cb-code mono" id="examCode"></div><div class="note" id="codeLen"></div></div>
-        <button id="btnCopy">复制</button></div>
-      <h2 style="margin-top:14px">给这套卷起名字</h2>
-      <div class="row"><input id="exName" style="width:170px" placeholder="例如 期末A" aria-label="组卷码名字"><button class="pri" id="btnExName">用这个名字</button></div>
-      <p class="note">学生输这个名字就等于输上面的组卷码。名字只能解开这一套卷；组卷改了要重新点一次。</p>
-      <div id="exNames"></div>
-      <p class="note" style="margin-top:10px">只有“班级名单”里勾选的上课班级的学号能取题；插班生（名单里没有）要填验证码 <b>1029</b>；老师自己验证时，学号直接填 固定老师密码（不要告诉学生）。查看答案密码在“概览”页最上面设。</p>
-    </div>
-    <div class="card">
-      <details><summary>读入一个已有的组卷码</summary>
-        <div class="row" style="margin-top:6px"><input id="codeIn" style="width:100%" placeholder="例如 QM25-2t30-4g35.3-6c35" autocomplete="off"><button id="btnLoadCode">读入</button></div></details>
-    </div>
-  </aside>
-</div></section>
-<section class="page" data-page="t-paper" hidden>
-<header class="page-h"><div class="eyebrow">老师模块</div><h1>理论试卷</h1><p>纸质理论考试：按学校试卷模板排版，A3 横向两栏、双面。题目来自教材项目 1～5（项目 1～4 为主），可以换一套、出 A/B 卷（两套不重题）</p></header>
-<div class="with-rail">
-  <div class="rail-main">
-    <div class="card"><div class="row" style="justify-content:space-between;margin-bottom:10px"><h2 style="margin:0">预览</h2><span class="note" id="ppPages"></span></div>
-      <div class="ppbox" id="ppBox"><iframe id="ppFrame" title="试卷预览"></iframe></div></div>
-  </div>
-  <aside class="rail">
-    <div class="card"><h2>导出</h2>
-      <div class="row"><button class="pri" id="ppPdf">导出 PDF（A3）</button><button id="ppWord">Word 试卷</button><button id="ppAns">Word 参考答案</button></div>
-      <p class="note" style="margin-top:8px">PDF：在打印窗口里选“另存为 PDF”，纸张 A3、横向、边距“无”。Word 版方便人工核对和修改（A3 横向两栏，装订线以 PDF 版为准）。</p></div>
-    <div class="card"><h2>试卷信息</h2>
-      <div class="ppform">
-        <label>学年 <input id="ppYear"></label>
-        <label>学期 <select id="ppTerm"><option>第一学期</option><option>第二学期</option></select></label>
-        <label class="wide">课程名称（与课表一致）<input id="ppCourse"></label>
-        <label>卷别 <select id="ppVer"><option>A</option><option>B</option><option>C</option></select></label>
-        <label>考试方式 <select id="ppMode"><option>闭卷</option><option>开卷</option></select></label>
-        <label class="wide">适用专业 <input id="ppMajor"></label>
-        <label>适用年级 <input id="ppGrade"></label>
-        <label>考试时间（分钟）<input id="ppMin" type="number" min="30" max="180"></label>
-        <label>答题留白 <select id="ppSpace"><option value="auto">自动（尽量 2 张 A3）</option><option value="loose">宽松</option><option value="normal">标准</option><option value="tight">紧凑</option></select></label>
-        <label>换题种子 <input id="ppKey" class="mono"></label>
-        <div class="row" style="align-items:flex-end"><button id="ppNew">换一套</button></div>
-      </div>
-      <p class="note">同一个种子出的 A、B、C 卷互不重题；种子不变，再打开还是同一套。</p></div>
-    <div class="card"><h2>题型和分值</h2>
-      <table class="mini pptypes"><tbody id="ppTypes"></tbody></table>
-      <div class="row" style="justify-content:space-between;margin-top:8px"><span id="ppTotal"></span><button id="ppReset">恢复默认</button></div></div>
-    <div class="card"><h2>各项目比重</h2>
-      <div class="ppws" id="ppW"></div>
-      <p class="note">数字是相对比重，默认项目 1～4 为主、项目 5 少一些；填 0 表示不出这一项目的题。下面是这套卷实际的分值分布：</p>
-      <div id="ppStat"></div></div>
-  </aside>
-</div></section>
-<section class="page" data-page="t-grade" hidden>
-<header class="page-h"><div class="eyebrow">老师模块</div><h1>批改成绩</h1><p>把学生交的 .c / .hex（或整个文件夹）拖到页面任意位置。上面选哪个班，成绩表和导出就只算这个班；分数点开看明细</p></header>
-<div class="card band-tool"><div data-cls-tabs></div></div>
-<div class="card band-tool">
-  <div class="row">
-    <button class="pri" id="btnPick">选择文件</button><button id="btnFolder">选择文件夹</button>
-    <input type="file" id="gFilePick" multiple accept=".c,.txt,.hex" hidden>
-    <input type="file" id="folderPick" webkitdirectory multiple hidden>
-    <span class="note" id="stat"></span>
-    <span style="flex:1"></span>
-    <button id="btnCsv">导出成绩 CSV</button>
-    <button id="btnClear">清空提交</button>
-  </div>
-  <div class="note" style="margin-top:6px">文件名按 <code>学号_Q1.c</code> 或 <code>学号_姓名_Q1.c</code> 识别；认不出时看文件开头注释里的“学号：”和“第N题”。</div>
-</div>
-<div class="card">
-  <div style="overflow:auto"><table><thead id="thead"></thead><tbody id="tbody"></tbody></table></div>
-  <div class="note">“调整分”可以手动加减（比如思路对但编译没过），总分 = 各题得分 + 调整分。最终以 Keil + Proteus 现象为准，有疑问的请人工复核。</div>
-  <details><summary>粘贴单份代码批改</summary>
-    <div class="row" style="margin:6px 0"><label>学号 <input id="pSid" style="width:140px"></label>
-      <label>题号 <select id="pQ"></select></label>
-      <button class="pri" id="btnPaste">批改</button></div>
-    <textarea id="pCode" class="editor" style="min-height:160px" aria-label="粘贴的代码"></textarea>
-  </details>
-</div>
-<div id="details"></div></section>
+
+
+
 </div>
 </main>
 </div>
@@ -946,7 +858,7 @@ const PRISTINE_HTML='<!DOCTYPE html>\n'+document.documentElement.outerHTML;
 ;
 const HX_ONLINE=true;
 ;
-const GBK_MAP={"　":"a1a1","、":"a1a2","。":"a1a3","·":"a1a4","—":"a1aa","～":"a1ab","…":"a1ad","‘":"a1ae","’":"a1af","“":"a1b0","”":"a1b1","《":"a1b6","》":"a1b7","「":"a1b8","」":"a1b9","【":"a1be","】":"a1bf","×":"a1c1","÷":"a1c2","∈":"a1ca","√":"a1cc","≥":"a1dd","□":"a1f5","→":"a1fa","←":"a1fb","①":"a2d9","②":"a2da","③":"a2db","④":"a2dc","⑤":"a2dd","⑥":"a2de","！":"a3a1","（":"a3a8","）":"a3a9","，":"a3ac","：":"a3ba","；":"a3bb","？":"a3bf","Ω":"a6b8","μ":"a6cc","按":"b0b4","案":"b0b8","八":"b0cb","把":"b0d1","白":"b0d7","摆":"b0da","败":"b0dc","班":"b0e0","搬":"b0e1","般":"b0e3","板":"b0e5","版":"b0e6","半":"b0eb","办":"b0ec","磅":"b0f5","包":"b0fc","保":"b1a3","报":"b1a8","背":"b1b3","倍":"b1b6","备":"b1b8","被":"b1bb","本":"b1be","比":"b1c8","闭":"b1d5","必":"b1d8","避":"b1dc","边":"b1df","编":"b1e0","便":"b1e3","变":"b1e4","遍":"b1e9","标":"b1ea","表":"b1ed","别":"b1f0","并":"b2a2","玻":"b2a3","播":"b2a5","补":"b2b9","不":"b2bb","布":"b2bc","步":"b2bd","簿":"b2be","部":"b2bf","材":"b2c4","才":"b2c5","采":"b2c9","参":"b2ce","藏":"b2d8","操":"b2d9","侧":"b2e0","册":"b2e1","测":"b2e2","层":"b2e3","插":"b2e5","叉":"b2e6","查":"b2e9","察":"b2ec","差":"b2ee","拆":"b2f0","产":"b2fa","场":"b3a1","常":"b3a3","长":"b3a4","超":"b3ac","车":"b3b5","撑":"b3c5","称":"b3c6","成":"b3c9","程":"b3cc","持":"b3d6","尺":"b3df","冲":"b3e5","抽":"b3e9","初":"b3f5","出":"b3f6","除":"b3fd","础":"b4a1","储":"b4a2","触":"b4a5","处":"b4a6","传":"b4ab","串":"b4ae","窗":"b4b0","创":"b4b4","纯":"b4bf","词":"b4ca","此":"b4cb","次":"b4ce","从":"b4d3","凑":"b4d5","粗":"b4d6","存":"b4e6","寸":"b4e7","错":"b4ed","达":"b4ef","答":"b4f0","打":"b4f2","大":"b4f3","带":"b4f8","代":"b4fa","待":"b4fd","单":"b5a5","但":"b5ab","淡":"b5ad","弹":"b5af","当":"b5b1","荡":"b5b4","档":"b5b5","倒":"b5b9","导":"b5bc","到":"b5bd","道":"b5c0","得":"b5c3","的":"b5c4","灯":"b5c6","登":"b5c7","等":"b5c8","低":"b5cd","底":"b5d7","地":"b5d8","第":"b5da","递":"b5dd","点":"b5e3","电":"b5e7","掉":"b5f4","调":"b5f7","叠":"b5fe","定":"b6a8","订":"b6a9","丢":"b6aa","东":"b6ab","动":"b6af","抖":"b6b6","都":"b6bc","独":"b6c0","读":"b6c1","度":"b6c8","渡":"b6c9","端":"b6cb","短":"b6cc","段":"b6ce","断":"b6cf","堆":"b6d1","对":"b6d4","多":"b6e0","而":"b6f8","二":"b6fe","发":"b7a2","法":"b7a8","翻":"b7ad","反":"b7b4","返":"b7b5","范":"b7b6","方":"b7bd","仿":"b7c2","放":"b7c5","非":"b7c7","飞":"b7c9","分":"b7d6","份":"b7dd","封":"b7e2","蜂":"b7e4","冯":"b7eb","佛":"b7f0","否":"b7f1","符":"b7fb","服":"b7fe","浮":"b8a1","副":"b8b1","赋":"b8b3","复":"b8b4","负":"b8ba","附":"b8bd","该":"b8c3","改":"b8c4","概":"b8c5","干":"b8c9","杆":"b8cb","赶":"b8cf","刚":"b8d5","高":"b8df","告":"b8e6","格":"b8f1","隔":"b8f4","个":"b8f6","各":"b8f7","给":"b8f8","根":"b8f9","跟":"b8fa","更":"b8fc","工":"b9a4","功":"b9a6","供":"b9a9","公":"b9ab","共":"b9b2","勾":"b9b4","构":"b9b9","够":"b9bb","估":"b9c0","孤":"b9c2","固":"b9cc","关":"b9d8","观":"b9db","管":"b9dc","光":"b9e2","广":"b9e3","规":"b9e6","归":"b9e9","轨":"b9ec","鬼":"b9ed","滚":"b9f6","果":"b9fb","过":"b9fd","哈":"b9fe","含":"baac","函":"baaf","汉":"baba","毫":"bac1","好":"bac3","耗":"bac4","号":"bac5","核":"bacb","和":"bacd","何":"bace","合":"bacf","黑":"bada","很":"badc","横":"bae1","衡":"bae2","虹":"bae7","后":"baf3","忽":"baf6","糊":"bafd","护":"bba4","互":"bba5","户":"bba7","花":"bba8","华":"bbaa","滑":"bbac","画":"bbad","划":"bbae","化":"bbaf","话":"bbb0","环":"bbb7","还":"bbb9","缓":"bbba","换":"bbbb","恢":"bbd6","回":"bbd8","会":"bbe1","汇":"bbe3","绘":"bbe6","混":"bbec","或":"bbf2","击":"bbf7","基":"bbf9","机":"bbfa","积":"bbfd","绩":"bca8","极":"bcab","辑":"bcad","集":"bcaf","及":"bcb0","急":"bcb1","即":"bcb4","级":"bcb6","几":"bcb8","己":"bcba","技":"bcbc","寄":"bcc4","计":"bcc6","记":"bcc7","际":"bcca","继":"bccc","夹":"bcd0","家":"bcd2","加":"bcd3","假":"bcd9","价":"bcdb","间":"bce4","兼":"bce6","检":"bcec","简":"bcf2","减":"bcf5","见":"bcfb","键":"bcfc","件":"bcfe","渐":"bda5","建":"bda8","降":"bdb5","胶":"bdba","交":"bdbb","脚":"bdc5","角":"bdc7","教":"bdcc","较":"bdcf","叫":"bdd0","接":"bdd3","截":"bdd8","节":"bdda","结":"bde1","解":"bde2","界":"bde7","紧":"bdf4","锦":"bdf5","进":"bdf8","近":"bdfc","尽":"bea1","睛":"bea6","晶":"bea7","精":"beab","经":"bead","景":"beb0","静":"beb2","境":"beb3","久":"bec3","九":"bec5","旧":"bec9","就":"becd","局":"bed6","矩":"bed8","举":"bed9","据":"bedd","具":"bedf","距":"bee0","句":"bee4","卷":"beed","觉":"bef5","决":"bef6","均":"bef9","卡":"bfa8","开":"bfaa","看":"bfb4","考":"bfbc","靠":"bfbf","壳":"bfc7","可":"bfc9","刻":"bfcc","课":"bfce","空":"bfd5","控":"bfd8","口":"bfda","库":"bfe2","跨":"bfe7","块":"bfe9","快":"bfec","宽":"bfed","框":"bff2","况":"bff6","括":"c0a8","扩":"c0a9","拉":"c0ad","来":"c0b4","赖":"c0b5","蓝":"c0b6","栏":"c0b8","拦":"c0b9","览":"c0c0","老":"c0cf","类":"c0e0","离":"c0eb","理":"c0ed","里":"c0ef","利":"c0fb","例":"c0fd","立":"c1a2","力":"c1a6","璃":"c1a7","联":"c1aa","连":"c1ac","练":"c1b7","两":"c1bd","量":"c1bf","亮":"c1c1","疗":"c1c6","了":"c1cb","列":"c1d0","零":"c1e3","领":"c1ec","另":"c1ed","令":"c1ee","留":"c1f4","流":"c1f7","六":"c1f9","漏":"c2a9","路":"c2b7","录":"c2bc","律":"c2c9","率":"c2ca","乱":"c2d2","略":"c2d4","轮":"c2d6","论":"c2db","逻":"c2df","络":"c2e7","码":"c2eb","吗":"c2f0","脉":"c2f6","满":"c2fa","曼":"c2fc","慢":"c2fd","么":"c3b4","没":"c3bb","每":"c3bf","们":"c3c7","密":"c3dc","免":"c3e2","面":"c3e6","描":"c3e8","秒":"c3eb","灭":"c3f0","明":"c3f7","鸣":"c3f9","名":"c3fb","命":"c3fc","模":"c4a3","磨":"c4a5","末":"c4a9","默":"c4ac","某":"c4b3","母":"c4b8","幕":"c4bb","目":"c4bf","拿":"c4c3","哪":"c4c4","那":"c4c7","囊":"c4d2","脑":"c4d4","内":"c4da","能":"c4dc","霓":"c4de","拟":"c4e2","你":"c4e3","年":"c4ea","钮":"c5a5","挪":"c5b2","诺":"c5b5","拍":"c5c4","排":"c5c5","盘":"c5cc","判":"c5d0","跑":"c5dc","配":"c5e4","碰":"c5f6","批":"c5fa","片":"c6ac","漂":"c6af","拼":"c6b4","频":"c6b5","平":"c6bd","评":"c6c0","屏":"c6c1","普":"c6d5","期":"c6da","七":"c6df","其":"c6e4","齐":"c6eb","起":"c6f0","启":"c6f4","器":"c6f7","弃":"c6fa","汽":"c6fb","签":"c7a9","前":"c7b0","浅":"c7b3","嵌":"c7b6","强":"c7bf","抢":"c7c0","切":"c7d0","且":"c7d2","勤":"c7da","清":"c7e5","擎":"c7e6","情":"c7e9","请":"c7eb","求":"c7f3","区":"c7f8","驱":"c7fd","取":"c8a1","去":"c8a5","圈":"c8a6","权":"c8a8","全":"c8ab","缺":"c8b1","确":"c8b7","然":"c8bb","让":"c8c3","人":"c8cb","任":"c8ce","认":"c8cf","仍":"c8d4","日":"c8d5","容":"c8dd","如":"c8e7","入":"c8eb","软":"c8ed","若":"c8f4","三":"c8fd","散":"c9a2","扫":"c9a8","色":"c9ab","砂":"c9b0","筛":"c9b8","删":"c9be","闪":"c9c1","商":"c9cc","上":"c9cf","稍":"c9d4","烧":"c9d5","少":"c9d9","设":"c9e8","身":"c9ed","深":"c9ee","审":"c9f3","声":"c9f9","生":"c9fa","升":"c9fd","省":"caa1","师":"caa6","失":"caa7","十":"caae","时":"cab1","什":"cab2","实":"cab5","识":"cab6","使":"cab9","始":"cabc","式":"cabd","示":"cabe","事":"cac2","是":"cac7","适":"caca","释":"cacd","视":"cad3","试":"cad4","收":"cad5","手":"cad6","首":"cad7","殊":"cae2","输":"cae4","书":"cae9","熟":"caec","鼠":"caf3","属":"caf4","术":"caf5","述":"caf6","束":"caf8","竖":"cafa","数":"cafd","双":"cbab","谁":"cbad","水":"cbae","瞬":"cbb2","顺":"cbb3","说":"cbb5","烁":"cbb8","死":"cbc0","四":"cbc4","似":"cbc6","松":"cbc9","送":"cbcd","宋":"cbce","素":"cbd8","速":"cbd9","诉":"cbdf","算":"cbe3","随":"cbe6","缩":"cbf5","锁":"cbf8","所":"cbf9","他":"cbfb","它":"cbfc","台":"cca8","太":"ccab","态":"ccac","堂":"ccc3","套":"ccd7","特":"ccd8","提":"cce1","题":"cce2","体":"cce5","替":"cce6","添":"cced","填":"ccee","条":"ccf5","跳":"ccf8","贴":"ccf9","停":"cda3","通":"cda8","同":"cdac","统":"cdb3","头":"cdb7","图":"cdbc","团":"cdc5","退":"cdcb","拖":"cdcf","外":"cde2","玩":"cde6","完":"cdea","万":"cdf2","网":"cdf8","往":"cdf9","微":"cea2","围":"cea7","为":"ceaa","尾":"ceb2","未":"ceb4","位":"cebb","文":"cec4","纹":"cec6","稳":"cec8","问":"ceca","我":"ced2","无":"cede","五":"cee5","务":"cef1","误":"cef3","析":"cef6","西":"cef7","吸":"cefc","希":"cfa3","悉":"cfa4","熄":"cfa8","习":"cfb0","洗":"cfb4","系":"cfb5","细":"cfb8","下":"cfc2","夏":"cfc4","先":"cfc8","显":"cfd4","险":"cfd5","现":"cfd6","限":"cfde","线":"cfdf","相":"cfe0","箱":"cfe4","想":"cfeb","响":"cfec","享":"cfed","项":"cfee","像":"cff1","向":"cff2","象":"cff3","消":"cffb","小":"d0a1","校":"d0a3","效":"d0a7","些":"d0a9","写":"d0b4","械":"d0b5","芯":"d0be","新":"d0c2","信":"d0c5","型":"d0cd","形":"d0ce","行":"d0d0","性":"d0d4","姓":"d0d5","修":"d0de","需":"d0e8","虚":"d0e9","须":"d0eb","许":"d0ed","序":"d0f2","续":"d0f8","悬":"d0fc","选":"d1a1","学":"d1a7","循":"d1ad","询":"d1af","寻":"d1b0","压":"d1b9","盐":"d1ce","延":"d1d3","言":"d1d4","颜":"d1d5","沿":"d1d8","眼":"d1db","验":"d1e9","央":"d1eb","阳":"d1f4","样":"d1f9","要":"d2aa","也":"d2b2","页":"d2b3","业":"d2b5","夜":"d2b9","一":"d2bb","医":"d2bd","依":"d2c0","衣":"d2c2","移":"d2c6","仪":"d2c7","已":"d2d1","以":"d2d4","易":"d2d7","意":"d2e2","义":"d2e5","溢":"d2e7","议":"d2e9","译":"d2eb","因":"d2f2","音":"d2f4","阴":"d2f5","引":"d2fd","隐":"d2fe","印":"d3a1","英":"d3a2","应":"d3a6","影":"d3b0","硬":"d3b2","永":"d3c0","用":"d3c3","优":"d3c5","由":"d3c9","有":"d3d0","右":"d3d2","又":"d3d6","于":"d3da","余":"d3e0","与":"d3eb","语":"d3ef","域":"d3f2","遇":"d3f6","预":"d4a4","元":"d4aa","原":"d4ad","员":"d4b1","圆":"d4b2","源":"d4b4","缘":"d4b5","远":"d4b6","院":"d4ba","约":"d4bc","越":"d4bd","阅":"d4c4","允":"d4ca","运":"d4cb","载":"d4d8","再":"d4d9","在":"d4da","暂":"d4dd","早":"d4e7","造":"d4ec","择":"d4f1","则":"d4f2","泽":"d4f3","怎":"d4f5","增":"d4f6","窄":"d5ad","粘":"d5b3","展":"d5b9","栈":"d5bb","占":"d5bc","张":"d5c5","账":"d5cb","找":"d5d2","照":"d5d5","罩":"d5d6","遮":"d5da","折":"d5db","者":"d5df","这":"d5e2","真":"d5e6","针":"d5eb","振":"d5f1","阵":"d5f3","整":"d5fb","正":"d5fd","证":"d6a4","支":"d6a7","知":"d6aa","之":"d6ae","职":"d6b0","直":"d6b1","执":"d6b4","值":"d6b5","址":"d6b7","指":"d6b8","止":"d6b9","只":"d6bb","纸":"d6bd","至":"d6c1","致":"d6c2","置":"d6c3","制":"d6c6","智":"d6c7","质":"d6ca","中":"d6d0","钟":"d6d3","终":"d6d5","种":"d6d6","重":"d6d8","周":"d6dc","州":"d6dd","轴":"d6e1","骤":"d6e8","逐":"d6f0","主":"d6f7","住":"d7a1","注":"d7a2","专":"d7a8","转":"d7aa","装":"d7b0","状":"d7b4","缀":"d7ba","准":"d7bc","着":"d7c5","紫":"d7cf","子":"d7d3","自":"d7d4","字":"d7d6","综":"d7db","总":"d7dc","走":"d7df","阻":"d7e8","组":"d7e9","最":"d7ee","左":"d7f3","做":"d7f6","作":"d7f7","座":"d7f9","浏":"e4af","缇":"e7be","龥":"fd9b"};
+const GBK_MAP={"　":"a1a1","、":"a1a2","。":"a1a3","·":"a1a4","—":"a1aa","～":"a1ab","…":"a1ad","‘":"a1ae","’":"a1af","“":"a1b0","”":"a1b1","《":"a1b6","》":"a1b7","「":"a1b8","」":"a1b9","【":"a1be","】":"a1bf","×":"a1c1","÷":"a1c2","∈":"a1ca","√":"a1cc","≥":"a1dd","□":"a1f5","→":"a1fa","←":"a1fb","①":"a2d9","②":"a2da","③":"a2db","④":"a2dc","⑤":"a2dd","⑥":"a2de","！":"a3a1","（":"a3a8","）":"a3a9","＋":"a3ab","，":"a3ac","：":"a3ba","；":"a3bb","？":"a3bf","Ω":"a6b8","μ":"a6cc","─":"a9a4","安":"b0b2","按":"b0b4","案":"b0b8","八":"b0cb","把":"b0d1","白":"b0d7","摆":"b0da","败":"b0dc","班":"b0e0","搬":"b0e1","般":"b0e3","板":"b0e5","版":"b0e6","半":"b0eb","办":"b0ec","榜":"b0f1","磅":"b0f5","包":"b0fc","保":"b1a3","报":"b1a8","背":"b1b3","倍":"b1b6","备":"b1b8","被":"b1bb","本":"b1be","比":"b1c8","闭":"b1d5","必":"b1d8","避":"b1dc","边":"b1df","编":"b1e0","便":"b1e3","变":"b1e4","遍":"b1e9","标":"b1ea","表":"b1ed","别":"b1f0","并":"b2a2","玻":"b2a3","播":"b2a5","补":"b2b9","不":"b2bb","布":"b2bc","步":"b2bd","簿":"b2be","部":"b2bf","材":"b2c4","才":"b2c5","采":"b2c9","参":"b2ce","藏":"b2d8","操":"b2d9","侧":"b2e0","册":"b2e1","测":"b2e2","层":"b2e3","插":"b2e5","叉":"b2e6","查":"b2e9","察":"b2ec","差":"b2ee","拆":"b2f0","产":"b2fa","场":"b3a1","常":"b3a3","长":"b3a4","超":"b3ac","车":"b3b5","撑":"b3c5","称":"b3c6","成":"b3c9","程":"b3cc","持":"b3d6","尺":"b3df","冲":"b3e5","抽":"b3e9","初":"b3f5","出":"b3f6","除":"b3fd","础":"b4a1","储":"b4a2","触":"b4a5","处":"b4a6","传":"b4ab","串":"b4ae","窗":"b4b0","创":"b4b4","纯":"b4bf","词":"b4ca","此":"b4cb","次":"b4ce","从":"b4d3","凑":"b4d5","粗":"b4d6","存":"b4e6","寸":"b4e7","错":"b4ed","达":"b4ef","答":"b4f0","打":"b4f2","大":"b4f3","带":"b4f8","代":"b4fa","待":"b4fd","单":"b5a5","但":"b5ab","淡":"b5ad","弹":"b5af","当":"b5b1","挡":"b5b2","荡":"b5b4","档":"b5b5","倒":"b5b9","导":"b5bc","到":"b5bd","道":"b5c0","得":"b5c3","的":"b5c4","灯":"b5c6","登":"b5c7","等":"b5c8","低":"b5cd","底":"b5d7","地":"b5d8","第":"b5da","递":"b5dd","点":"b5e3","电":"b5e7","掉":"b5f4","调":"b5f7","叠":"b5fe","顶":"b6a5","定":"b6a8","订":"b6a9","丢":"b6aa","东":"b6ab","动":"b6af","兜":"b6b5","抖":"b6b6","都":"b6bc","独":"b6c0","读":"b6c1","度":"b6c8","渡":"b6c9","端":"b6cb","短":"b6cc","段":"b6ce","断":"b6cf","堆":"b6d1","对":"b6d4","多":"b6e0","而":"b6f8","二":"b6fe","发":"b7a2","法":"b7a8","翻":"b7ad","凡":"b7b2","反":"b7b4","返":"b7b5","范":"b7b6","方":"b7bd","防":"b7c0","仿":"b7c2","放":"b7c5","非":"b7c7","飞":"b7c9","分":"b7d6","份":"b7dd","封":"b7e2","蜂":"b7e4","冯":"b7eb","佛":"b7f0","否":"b7f1","符":"b7fb","服":"b7fe","浮":"b8a1","副":"b8b1","赋":"b8b3","复":"b8b4","负":"b8ba","附":"b8bd","该":"b8c3","改":"b8c4","概":"b8c5","干":"b8c9","杆":"b8cb","赶":"b8cf","刚":"b8d5","高":"b8df","告":"b8e6","格":"b8f1","隔":"b8f4","个":"b8f6","各":"b8f7","给":"b8f8","根":"b8f9","跟":"b8fa","更":"b8fc","工":"b9a4","功":"b9a6","供":"b9a9","公":"b9ab","共":"b9b2","勾":"b9b4","构":"b9b9","够":"b9bb","估":"b9c0","孤":"b9c2","固":"b9cc","挂":"b9d2","关":"b9d8","观":"b9db","管":"b9dc","光":"b9e2","广":"b9e3","规":"b9e6","归":"b9e9","轨":"b9ec","鬼":"b9ed","滚":"b9f6","果":"b9fb","过":"b9fd","哈":"b9fe","含":"baac","函":"baaf","汉":"baba","毫":"bac1","好":"bac3","耗":"bac4","号":"bac5","核":"bacb","和":"bacd","何":"bace","合":"bacf","黑":"bada","很":"badc","横":"bae1","衡":"bae2","虹":"bae7","后":"baf3","忽":"baf6","糊":"bafd","护":"bba4","互":"bba5","户":"bba7","花":"bba8","华":"bbaa","滑":"bbac","画":"bbad","划":"bbae","化":"bbaf","话":"bbb0","环":"bbb7","还":"bbb9","缓":"bbba","换":"bbbb","恢":"bbd6","回":"bbd8","会":"bbe1","汇":"bbe3","绘":"bbe6","混":"bbec","或":"bbf2","击":"bbf7","基":"bbf9","机":"bbfa","积":"bbfd","绩":"bca8","极":"bcab","辑":"bcad","集":"bcaf","及":"bcb0","急":"bcb1","即":"bcb4","级":"bcb6","几":"bcb8","己":"bcba","技":"bcbc","寄":"bcc4","计":"bcc6","记":"bcc7","际":"bcca","继":"bccc","夹":"bcd0","家":"bcd2","加":"bcd3","假":"bcd9","价":"bcdb","间":"bce4","兼":"bce6","检":"bcec","简":"bcf2","减":"bcf5","见":"bcfb","键":"bcfc","件":"bcfe","渐":"bda5","建":"bda8","降":"bdb5","胶":"bdba","交":"bdbb","脚":"bdc5","角":"bdc7","教":"bdcc","较":"bdcf","叫":"bdd0","接":"bdd3","截":"bdd8","节":"bdda","结":"bde1","解":"bde2","界":"bde7","紧":"bdf4","锦":"bdf5","进":"bdf8","近":"bdfc","尽":"bea1","睛":"bea6","晶":"bea7","精":"beab","经":"bead","景":"beb0","静":"beb2","境":"beb3","久":"bec3","九":"bec5","旧":"bec9","就":"becd","局":"bed6","矩":"bed8","举":"bed9","据":"bedd","具":"bedf","距":"bee0","句":"bee4","卷":"beed","觉":"bef5","决":"bef6","均":"bef9","卡":"bfa8","开":"bfaa","看":"bfb4","考":"bfbc","靠":"bfbf","颗":"bfc5","科":"bfc6","壳":"bfc7","可":"bfc9","刻":"bfcc","课":"bfce","空":"bfd5","控":"bfd8","口":"bfda","库":"bfe2","跨":"bfe7","块":"bfe9","快":"bfec","宽":"bfed","框":"bff2","况":"bff6","括":"c0a8","扩":"c0a9","拉":"c0ad","来":"c0b4","赖":"c0b5","蓝":"c0b6","栏":"c0b8","拦":"c0b9","览":"c0c0","老":"c0cf","类":"c0e0","离":"c0eb","理":"c0ed","里":"c0ef","利":"c0fb","例":"c0fd","立":"c1a2","力":"c1a6","璃":"c1a7","联":"c1aa","连":"c1ac","练":"c1b7","两":"c1bd","量":"c1bf","亮":"c1c1","疗":"c1c6","了":"c1cb","料":"c1cf","列":"c1d0","零":"c1e3","领":"c1ec","另":"c1ed","令":"c1ee","留":"c1f4","流":"c1f7","六":"c1f9","漏":"c2a9","露":"c2b6","路":"c2b7","录":"c2bc","律":"c2c9","率":"c2ca","乱":"c2d2","略":"c2d4","轮":"c2d6","论":"c2db","逻":"c2df","裸":"c2e3","落":"c2e4","络":"c2e7","码":"c2eb","吗":"c2f0","脉":"c2f6","满":"c2fa","曼":"c2fc","慢":"c2fd","么":"c3b4","没":"c3bb","每":"c3bf","门":"c3c5","们":"c3c7","密":"c3dc","免":"c3e2","面":"c3e6","描":"c3e8","秒":"c3eb","灭":"c3f0","明":"c3f7","鸣":"c3f9","名":"c3fb","命":"c3fc","模":"c4a3","磨":"c4a5","末":"c4a9","默":"c4ac","某":"c4b3","母":"c4b8","幕":"c4bb","目":"c4bf","拿":"c4c3","哪":"c4c4","那":"c4c7","囊":"c4d2","脑":"c4d4","内":"c4da","能":"c4dc","霓":"c4de","拟":"c4e2","你":"c4e3","年":"c4ea","钮":"c5a5","挪":"c5b2","诺":"c5b5","拍":"c5c4","排":"c5c5","牌":"c5c6","盘":"c5cc","判":"c5d0","跑":"c5dc","配":"c5e4","碰":"c5f6","批":"c5fa","片":"c6ac","漂":"c6af","拼":"c6b4","频":"c6b5","平":"c6bd","评":"c6c0","屏":"c6c1","普":"c6d5","期":"c6da","七":"c6df","其":"c6e4","齐":"c6eb","起":"c6f0","启":"c6f4","器":"c6f7","弃":"c6fa","汽":"c6fb","迁":"c7a8","签":"c7a9","前":"c7b0","浅":"c7b3","嵌":"c7b6","强":"c7bf","抢":"c7c0","切":"c7d0","且":"c7d2","勤":"c7da","清":"c7e5","擎":"c7e6","情":"c7e9","请":"c7eb","求":"c7f3","区":"c7f8","驱":"c7fd","取":"c8a1","去":"c8a5","圈":"c8a6","权":"c8a8","全":"c8ab","缺":"c8b1","确":"c8b7","然":"c8bb","染":"c8be","让":"c8c3","扰":"c8c5","人":"c8cb","任":"c8ce","认":"c8cf","仍":"c8d4","日":"c8d5","容":"c8dd","如":"c8e7","入":"c8eb","软":"c8ed","若":"c8f4","三":"c8fd","散":"c9a2","扫":"c9a8","色":"c9ab","砂":"c9b0","筛":"c9b8","删":"c9be","闪":"c9c1","商":"c9cc","上":"c9cf","稍":"c9d4","烧":"c9d5","少":"c9d9","设":"c9e8","身":"c9ed","深":"c9ee","审":"c9f3","声":"c9f9","生":"c9fa","升":"c9fd","省":"caa1","师":"caa6","失":"caa7","十":"caae","时":"cab1","什":"cab2","实":"cab5","识":"cab6","使":"cab9","始":"cabc","式":"cabd","示":"cabe","事":"cac2","是":"cac7","适":"caca","释":"cacd","视":"cad3","试":"cad4","收":"cad5","手":"cad6","首":"cad7","殊":"cae2","输":"cae4","书":"cae9","熟":"caec","鼠":"caf3","属":"caf4","术":"caf5","述":"caf6","束":"caf8","竖":"cafa","数":"cafd","刷":"cba2","双":"cbab","谁":"cbad","水":"cbae","瞬":"cbb2","顺":"cbb3","说":"cbb5","烁":"cbb8","死":"cbc0","四":"cbc4","似":"cbc6","松":"cbc9","送":"cbcd","宋":"cbce","素":"cbd8","速":"cbd9","诉":"cbdf","算":"cbe3","随":"cbe6","缩":"cbf5","锁":"cbf8","所":"cbf9","他":"cbfb","它":"cbfc","台":"cca8","太":"ccab","态":"ccac","堂":"ccc3","套":"ccd7","特":"ccd8","提":"cce1","题":"cce2","体":"cce5","替":"cce6","添":"cced","填":"ccee","条":"ccf5","跳":"ccf8","贴":"ccf9","停":"cda3","通":"cda8","同":"cdac","统":"cdb3","头":"cdb7","图":"cdbc","团":"cdc5","退":"cdcb","拖":"cdcf","外":"cde2","玩":"cde6","完":"cdea","万":"cdf2","网":"cdf8","往":"cdf9","微":"cea2","围":"cea7","为":"ceaa","尾":"ceb2","未":"ceb4","位":"cebb","文":"cec4","纹":"cec6","稳":"cec8","问":"ceca","我":"ced2","无":"cede","五":"cee5","务":"cef1","误":"cef3","析":"cef6","西":"cef7","吸":"cefc","希":"cfa3","悉":"cfa4","熄":"cfa8","习":"cfb0","洗":"cfb4","系":"cfb5","细":"cfb8","下":"cfc2","夏":"cfc4","先":"cfc8","显":"cfd4","险":"cfd5","现":"cfd6","限":"cfde","线":"cfdf","相":"cfe0","箱":"cfe4","想":"cfeb","响":"cfec","享":"cfed","项":"cfee","像":"cff1","向":"cff2","象":"cff3","消":"cffb","小":"d0a1","校":"d0a3","效":"d0a7","些":"d0a9","写":"d0b4","械":"d0b5","芯":"d0be","新":"d0c2","信":"d0c5","型":"d0cd","形":"d0ce","行":"d0d0","性":"d0d4","姓":"d0d5","修":"d0de","需":"d0e8","虚":"d0e9","须":"d0eb","许":"d0ed","序":"d0f2","续":"d0f8","悬":"d0fc","选":"d1a1","学":"d1a7","循":"d1ad","询":"d1af","寻":"d1b0","压":"d1b9","盐":"d1ce","延":"d1d3","言":"d1d4","颜":"d1d5","沿":"d1d8","眼":"d1db","验":"d1e9","央":"d1eb","阳":"d1f4","样":"d1f9","要":"d2aa","也":"d2b2","页":"d2b3","业":"d2b5","夜":"d2b9","一":"d2bb","医":"d2bd","依":"d2c0","衣":"d2c2","移":"d2c6","仪":"d2c7","宜":"d2cb","已":"d2d1","以":"d2d4","易":"d2d7","意":"d2e2","义":"d2e5","溢":"d2e7","议":"d2e9","译":"d2eb","异":"d2ec","因":"d2f2","音":"d2f4","阴":"d2f5","引":"d2fd","隐":"d2fe","印":"d3a1","英":"d3a2","应":"d3a6","影":"d3b0","硬":"d3b2","永":"d3c0","用":"d3c3","优":"d3c5","由":"d3c9","有":"d3d0","右":"d3d2","又":"d3d6","于":"d3da","余":"d3e0","与":"d3eb","语":"d3ef","域":"d3f2","遇":"d3f6","预":"d4a4","元":"d4aa","原":"d4ad","员":"d4b1","圆":"d4b2","源":"d4b4","缘":"d4b5","远":"d4b6","院":"d4ba","约":"d4bc","越":"d4bd","月":"d4c2","阅":"d4c4","云":"d4c6","允":"d4ca","运":"d4cb","载":"d4d8","再":"d4d9","在":"d4da","暂":"d4dd","早":"d4e7","造":"d4ec","择":"d4f1","则":"d4f2","泽":"d4f3","怎":"d4f5","增":"d4f6","窄":"d5ad","粘":"d5b3","展":"d5b9","栈":"d5bb","占":"d5bc","张":"d5c5","账":"d5cb","找":"d5d2","照":"d5d5","罩":"d5d6","遮":"d5da","折":"d5db","者":"d5df","这":"d5e2","真":"d5e6","针":"d5eb","振":"d5f1","阵":"d5f3","整":"d5fb","正":"d5fd","证":"d6a4","支":"d6a7","知":"d6aa","之":"d6ae","职":"d6b0","直":"d6b1","执":"d6b4","值":"d6b5","址":"d6b7","指":"d6b8","止":"d6b9","只":"d6bb","纸":"d6bd","志":"d6be","至":"d6c1","致":"d6c2","置":"d6c3","制":"d6c6","智":"d6c7","质":"d6ca","中":"d6d0","钟":"d6d3","终":"d6d5","种":"d6d6","重":"d6d8","周":"d6dc","州":"d6dd","轴":"d6e1","骤":"d6e8","逐":"d6f0","主":"d6f7","住":"d7a1","注":"d7a2","驻":"d7a4","专":"d7a8","转":"d7aa","装":"d7b0","状":"d7b4","缀":"d7ba","准":"d7bc","着":"d7c5","紫":"d7cf","子":"d7d3","自":"d7d4","字":"d7d6","综":"d7db","总":"d7dc","走":"d7df","阻":"d7e8","组":"d7e9","最":"d7ee","左":"d7f3","做":"d7f6","作":"d7f7","座":"d7f9","浏":"e4af","渲":"e4d6","缇":"e7be","龥":"fd9b"};
 ;
 /* ================= C51 子集解释器：预处理 / 词法 / 语法 / 名字检查 / 带硬件模型的模拟运行 ================= */
 'use strict';
@@ -6080,13 +5992,28 @@ const ICO={
 };
 const svgI=k=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICO[k]}</svg>`;
 const T_PAGES=[['t-overview','概览','overview'],['t-roster','班级名单','roster'],['t-import','导入书上代码','import'],['t-build','组卷与组卷码','build'],['t-paper','理论试卷','paper'],['t-grade','批改成绩','grade']];
+/* ── 2026-11-06 用户：「删除老师入口按钮 直接改为只有老师账号才有这个界面」──
+   网页版的老师分组只在**教师账号登录后**出现，不再有「老师入口」那颗按钮、也没有密码门：
+   启动时 startShell() 先问 hx_me，是教师就自动解锁（口令照样从 hx_mcu_secret 取，网页里不放密码），
+   不是教师的学生账号根本看不到这个分组。离线单文件（不是网页版）照旧留着密码门，那边没有账号体系。 */
+/* 2026-11-06 用户：「组卷和理论试卷、导出文件全部属于考试功能 我们需要迁移 然后删除老师入口按钮
+   直接改为只有老师账号才有这个界面」＋「批改全在考试」。
+   网页版（/mcu/）老师模块只留 概览 / 班级名单 / 导入书上代码 三页：
+     组卷、组卷码命名、理论试卷、批改成绩、导出（.c / .hex / CSV / Word）统统一在考试工具里；
+     那边按科目分选项卡（现在只有单片机上机），学生交卷后自动判分。
+   离线单文件（U 盘版）保持原样，六页全有——它没有账号体系、连不上云端。 */
+const T_PAGES_ONLINE=[['t-overview','概览','overview'],['t-roster','班级名单','roster'],['t-import','导入书上代码','import']];
+const navPages=()=>HX_ON?T_PAGES_ONLINE:T_PAGES;
 function renderNav(){
   const item=(p,name,ic,extra)=>`<button type="button" class="nav-i${CUR_PAGE===p?' on':''}" data-go="${p}" ${CUR_PAGE===p?'aria-current="page"':''}>${svgI(ic)}<span>${name}</span>${extra||''}</button>`;
   let h=`<div class="nav-g"><div class="nav-h">学生</div>${item('practice','平时练习','practice')}${HX_ON?'':item('exam','考试','exam')}</div>`;
-  h+=`<div class="nav-g"><div class="nav-h">老师</div>`;
-  if(teacherOk())h+=T_PAGES.map(([p,n,i])=>item(p,n,i)).join('')+`<button type="button" class="nav-i" data-act="logout">${svgI('out')}<span>退出老师模块</span></button>`;
-  else h+=item('t-lock','老师入口','lock',HX_ON?'':'<span class="nav-b">需密码</span>');
-  h+='</div>';
+  // 老师分组：网页版只在解锁后（= 教师账号）才整块出现，没解锁的学生连「老师」两个字都看不到
+  if(!HX_ON||teacherOk()){
+    h+=`<div class="nav-g"><div class="nav-h">老师</div>`;
+    if(teacherOk())h+=navPages().map(([p,n,i])=>item(p,n,i)).join('')+`<button type="button" class="nav-i" data-act="logout">${svgI('out')}<span>退出老师模块</span></button>`;
+    else h+=item('t-lock','老师入口','lock','<span class="nav-b">需密码</span>');
+    h+='</div>';
+  }
   $('nav').innerHTML=h;
   __navRect=slideInd($('nav'),'.nav-i.on',__navRect);   // 选中底块从上一项滑过来
   renderSaveBar();
@@ -6104,6 +6031,17 @@ function lockHTML(){
 /* 网页版：老师模块按华夏工具账号进入。口令（名单加密用）由服务器只发给教师账号，网页里没有老师密码 */
 const HX_ON=typeof HX_ONLINE!=='undefined'&&HX_ONLINE;
 const HX_API='https://eiqgyrjrwdaunhxjmdyr.supabase.co',HX_KEY='sb_publishable_FcVnLx3TNrj6HnbgarYnRw_DW4-yFzd';
+/* 问服务器「我是谁」。hx_me 是教师返回 {teacher:true,...}，是学生返回 {student:{...}}。
+   开机自动解锁必须先过这一关：hx_mcu_secret 对学生返回的是 null，而 defaultLock() 是拿同一个
+   口令现算哈希来比对的 —— 传 null 进去等于「自己跟自己比」，永远相等，学生会因此被误判成老师。 */
+async function hxMe(){
+  let s=null;try{s=JSON.parse(localStorage.getItem('paike-session'));}catch(e){}
+  if(!s||!s.access_token)return null;          // 没登录：安静返回，不当成教师
+  let r;try{r=await fetch(HX_API+'/rest/v1/rpc/hx_me',{method:'POST',headers:{apikey:HX_KEY,Authorization:'Bearer '+s.access_token,'Content-Type':'application/json'},body:'{}'});}
+  catch(e){return undefined;}                  // 断网：undefined = 「没问成」，留给自动解锁下次重试
+  if(!r.ok)return r.status===401?null:undefined;
+  return await r.json().catch(()=>undefined);
+}
 async function hxSecret(){
   let s=null;try{s=JSON.parse(localStorage.getItem('paike-session'));}catch(e){}
   const need=m=>Object.assign(new Error(m),{login:true});
@@ -6120,7 +6058,12 @@ function mountLock(){
     $('lockBox').innerHTML='<div class="card lockcard"><h2>老师模块</h2><p class="note">用教师账号进入。学生看不到名单、答案和批改。</p><div class="row"><button class="pri" id="lockGo">进入</button></div></div>';
     $('lockGo').onclick=async()=>{
       $('lockGo').disabled=true;
-      try{const pw=await hxSecret();DEFAULT_TEACHER_PW=pw;__defLock=null;if(!(await unlockTeacher(pw)))throw new Error('口令对不上，请联系管理员');showPage(store.get('ui.tpage','t-overview'));}
+      try{
+        const me=await hxMe();
+        if(!me||!me.teacher)throw new Error('这个账号不是教师账号');
+        const pw=await hxSecret();
+        if(!pw)throw new Error('服务器没给口令，请联系管理员');
+        DEFAULT_TEACHER_PW=pw;__defLock=null;if(!(await unlockTeacher(pw)))throw new Error('口令对不上，请联系管理员');showPage(store.get('ui.tpage','t-overview'));}
       catch(e){toast(e.message);if(e.login&&window.HXTheme)HXTheme.login();}
       finally{if($('lockGo'))$('lockGo').disabled=false;}
     };
@@ -6155,8 +6098,12 @@ function applyPage(p){
 function showPage(p){
   const all=['practice',...(HX_ON?[]:['exam']),'t-lock',...T_PAGES.map(x=>x[0])];
   if(!all.includes(p))p='practice';
-  if(p.startsWith('t-')&&p!=='t-lock'&&!teacherOk())p='t-lock';
-  if(p==='t-lock'&&teacherOk())p=store.get('ui.tpage','t-overview');
+  // 网页版组卷/理论试卷已经搬到「考试」工具了（2026-11-06），这两页不再存在 —— 老书签/老 hash 直接落回概览
+  if(HX_ON&&(p==='t-build'||p==='t-paper'))p='t-overview';
+  // 网页版没有密码门：登录了教师账号就自动解锁，没解锁（= 学生或没登录）就不给进老师页面，回练习。
+  // 离线单文件照旧回 t-lock 输密码。
+  if(p.startsWith('t-')&&p!=='t-lock'&&!teacherOk())p=HX_ON?'practice':'t-lock';
+  if(p==='t-lock')p=teacherOk()?store.get('ui.tpage','t-overview'):(HX_ON?'practice':'t-lock');
   const main=$('main');
   clearTimeout(__swapT);
   const reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -6190,7 +6137,41 @@ function startShell(){
     if(b.dataset.go)showPage(b.dataset.go);
   });
   document.addEventListener('click',e=>{const b=e.target.closest('[data-goto]');if(b)showPage(b.dataset.goto);});
-  showPage(location.hash.slice(1)||store.get('ui.page','practice'));
+  __bootHash=(location.hash||'').slice(1);   // 必须在 showPage() 改写 hash 之前记
+  showPage(__bootHash||store.get('ui.page','practice'));
+  // 网页版：进页面就问一次身份，教师账号直接解锁老师模块（用户 2026-11-06：「删除老师入口按钮，
+  // 只有老师账号才有这个界面」）。不再有「点一下老师入口 → 等网络 → 才解锁」那一步。
+  if(HX_ON)autoTeacher();
+}
+/* 教师账号自动进入老师模块：口令仍是服务器只发给教师账号的那串（hx_mcu_secret），网页里没有密码。
+   不是教师 / 没登录 → 什么都不做，侧栏连「老师」分组都不出现（见 renderNav）。
+   失败一律静默（断网、令牌过期都不该在开机时弹错误），老师点页面里的按钮时才会看到原因。 */
+let __autoTeacherTried=false;
+/* 开机时网址上的 hash（用户真正指定的那一页）。必须在任何 showPage() 之前记下来：
+   showPage() 每次都会 history.replaceState 把 hash 改写成当前页，等 autoTeacher 跑起来时
+   location.hash 已经变成 `#practice`，分不清「用户没指定」和「用户指定了 practice」。 */
+let __bootHash='';
+async function autoTeacher(){
+  if(__autoTeacherTried||teacherOk())return;
+  __autoTeacherTried=true;
+  try{
+    /* 第一关：问服务器身份。学生账号、没登录一律安静退出 —— 侧栏连「老师」分组都不出现。
+       少了这一步，学生会因为下面「口令 = null」自证通过而误入老师模块（2026-11-06 实测过）。
+       me===undefined 表示没问成（断网/服务器错误）：复位标志，下次打开或联网后再试一遍。 */
+    const me=await hxMe();
+    if(me===undefined){__autoTeacherTried=false;return;}
+    if(!me||!me.teacher)return;
+    /* 第二关：口令本身。服务器对学生返回 null，这里再挡一次兜底。 */
+    const pw=await hxSecret();
+    if(!pw)return;
+    DEFAULT_TEACHER_PW=pw;__defLock=null;
+    if(!(await unlockTeacher(pw)))throw new Error('口令对不上');
+    renderNav();
+    // 落点：老师下次打开就停在上次那一页；第一次进来停「概览」。
+    // 用户明确点过某个学生页（#practice / #exam）就不打断他。
+    const want=store.get('ui.tpage','t-overview');
+    if(CUR_PAGE==='practice' && (!__bootHash || __bootHash==='practice')) showPage(want);
+  }catch(e){__autoTeacherTried=false;}
 }
 
 ;
@@ -6330,10 +6311,71 @@ function initRoster(){
 }
 
 ;
+/* ================= 上机练习的云端记录 + 耗时榜（2026-11-06） =================
+   用户原话：「学生刷题上机题目也需要有记录功能和耗时排名榜单」。
+   ── 设计要点（和接线仿真排位、刷题题数榜同一套）──
+   1. **计时由服务器算**：开始时调 mcu_start 拿一个起点 id，拿满分时调 mcu_finish，
+      服务器用 now() 减起点得出用时。前端只报「我做的是哪道题、得了多少分」，不报秒数 ——
+      Date.now() 学生随手改，靠它计时等于没计时。
+   2. **每次检测都记一行**（含没满分的），这叫「记录功能」；**只有满分那一次才进耗时榜**，
+      否则学生可以反复换种子刷出一堆「10 秒做完」的假成绩。
+   3. **练习号按题分开**：榜按 M2-fill-ABC123 这种练习号分榜，不同题不混在一起比。
+   4. 断网 / 没登录一律安静跳过 —— 上机练习的第一要务是能做题，云端只是加料。
+      所以所有函数都 catch 住错误、返回 null，页面照常工作。 */
+'use strict';
+
+const MCU_CLOUD = {
+  /* 当前是不是网页版（离线单文件没有账号体系，不上报） */
+  on: typeof HX_ONLINE !== 'undefined' && HX_ONLINE,
+  api: 'https://eiqgyrjrwdaunhxjmdyr.supabase.co',
+  key: 'sb_publishable_FcVnLx3TNrj6HnbgarYnRw_DW4-yFzd',
+  sess() { try { return JSON.parse(localStorage.getItem('paike-session')); } catch (e) { return null; } },
+  /* 登录了才有云端记录可看：面板是否露面、要不要显示「正在记到云端」都看这个 */
+  logged() { const s = this.sess(); return !!(s && s.access_token); },
+  async rpc(fn, body) {
+    if (!this.on) return null;
+    const s = this.sess();
+    if (!s || !s.access_token) return null;       // 没登录：不做记录，也不打扰
+    let r;
+    try {
+      r = await fetch(this.api + '/rest/v1/rpc/' + fn, {
+        method: 'POST',
+        headers: { apikey: this.key, Authorization: 'Bearer ' + s.access_token, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body || {})
+      });
+    } catch (e) { return null; }                   // 断网：安静失败
+    if (!r.ok) return null;
+    return r.json().catch(() => null);
+  }
+};
+
+/* 计时起点：每进入一道题调一次，返回起点 id（失败返回 null，这次就不计时、只记记录） */
+MCU_CLOUD.start = code => MCU_CLOUD.rpc('mcu_start', { p_code: code });
+
+/* 交一次检测结果。返回服务器的 jsonb（含 ranked / ms / after / total / why），失败返回 null */
+MCU_CLOUD.finish = (attempt, score, max, code) =>
+  MCU_CLOUD.rpc('mcu_finish', { p_attempt: attempt, p_score: score, p_max: max, p_code: code });
+
+/* 耗时榜 */
+MCU_CLOUD.board = code => MCU_CLOUD.rpc('mcu_board', { p_code: code, p_limit: 50 });
+/* 我的记录 */
+MCU_CLOUD.tries = () => MCU_CLOUD.rpc('mcu_my_tries', { p_limit: 100 });
+
+/* 用时显示：12.4 秒 / 1 分 05 秒 */
+const msText = ms => {
+  if (ms == null) return '—';
+  if (ms < 60000) return (ms / 1000).toFixed(1) + ' 秒';
+  const m = Math.floor(ms / 60000), s = Math.round((ms % 60000) / 1000);
+  return m + ' 分 ' + String(s).padStart(2, '0') + ' 秒';
+};
+
+;
 /* ================= 练习模式 ================= */
 'use strict';
 MODE_INIT.practice=function(){
-  const S={v:null,code:'',board:null,res:null};
+  const S={v:null,code:'',board:null,res:null,attempt:null,startedAt:0};
+  /* 离线版不打包 mcu-cloud.js，裸名会 ReferenceError；统一走这个判断 */
+  const cloudOn=()=>typeof MCU_CLOUD!=='undefined'&&!!MCU_CLOUD.on&&MCU_CLOUD.logged();
   const randSeed=()=>Math.random().toString(36).slice(2,8).toUpperCase();
   function fillSelectors(){
     const cur=$('selM').value;
@@ -6356,6 +6398,66 @@ MODE_INIT.practice=function(){
     $('result').innerHTML='<div class="empty">写好后点“检测”（或按 Ctrl+Enter），这里显示得分和错在哪里。</div>';
     $('answer').innerHTML='';$('answer').hidden=true;$('btnAns').textContent='查看答案';$('hexInfo').innerHTML='';
     if(S.board)S.board.stop();$('board').innerHTML='<div class="empty">点“上板运行”，用鼠标按住 S 键看现象。</div>';
+    /* 2026-11-06：每换一道题就在服务器开一个计时起点（用时榜的「开始」）。
+       计时器必须由服务器发，前端只记住这个 id —— 学生改本机时间也占不到便宜。
+       断网 / 没登录 / 没有学生身份时 start 返回 null，题目照做，只是这次不计时。 */
+    S.attempt=null;S.startedAt=Date.now();
+    /* 打包后顶层 const 不挂到 window 上，这里必须判裸名；typeof 防离线版没这个文件 */
+    if(typeof MCU_CLOUD!=='undefined')MCU_CLOUD.start(code).then(id=>{S.attempt=id||null;}).catch(()=>{});
+    showCloudPanels(code);
+  }
+  /* 得分下面的云端小条：这次进榜了没有 + 当前名次 + 榜入口 */
+  function cloudLine(r){
+    if(!r)return '<div class="note">云端记录没通（没登录或断网），这次只在本地显示。</div>';
+    if(r.ranked){
+      const t=msText(r.ms);
+      return `<div class="note">这次用时 <b>${t}</b>，${r.first?'第一次进榜':'当前第 '+r.after+' 名'}（榜上共 ${r.total} 人）${r.improved?'':`，你最好的成绩是 ${msText(r.best)}`}</div>`;
+    }
+    return `<div class="note">${esc(r.why||'这次没进榜')}${r.ok?'':''}</div>`;
+  }
+  /* 练习记录 + 耗时榜：一个折叠块，切到这道题时刷新一次。不做成常驻大面板，练习页的主角还是题目 */
+  function showCloudPanels(code){
+    const box=$('cloudBox');if(!box)return;
+    if(!cloudOn()){box.innerHTML='';box.hidden=true;return;}
+    box.hidden=false;
+    box.innerHTML=`<div class="card">
+      <div class="row" style="justify-content:space-between;margin-bottom:6px">
+        <h2 style="margin:0">这道题的耗时榜</h2>
+        <button class="sm" id="btnBoard">刷新</button></div>
+      <div id="boardBox"><div class="note">正在取榜…</div></div>
+      <p class="note" style="margin-top:8px">只算<b>拿满分</b>的那一次，用时由服务器计时（少于 5 秒不算）。榜上同一个同学同一道题只留最快的一次。</p>
+    </div>
+    <div class="card">
+      <div class="row" style="justify-content:space-between;margin-bottom:6px">
+        <h2 style="margin:0">我的练习记录</h2>
+        <button class="sm" id="btnTries">刷新</button></div>
+      <div id="triesBox"><div class="note">正在取记录…</div></div>
+    </div>`;
+    const loadBoard=async()=>{
+      const L=await MCU_CLOUD.board(code).catch(()=>null);
+      const el=$('boardBox');if(!el)return;
+      if(!L){el.innerHTML='<div class="note">取不到榜（没登录或断网）。</div>';return;}
+      if(!L.length){el.innerHTML='<div class="note">这道题还没有人拿满分上榜。你可以是第一个。</div>';return;}
+      el.innerHTML=`<table class="mini"><thead><tr><th>名次</th><th>班级</th><th>姓名</th><th>用时</th></tr></thead><tbody>${
+        L.map(x=>`<tr${x.me?' style="font-weight:600"':''}><td>${x.place}</td><td>${esc(x.class_name||'')}</td><td>${esc(x.name)}${x.me?'（我）':''}</td><td class="mono">${msText(x.ms)}</td></tr>`).join('')
+      }</tbody></table>`;
+    };
+    const loadTries=async()=>{
+      const L=await MCU_CLOUD.tries().catch(()=>null);
+      const el=$('triesBox');if(!el)return;
+      if(!L){el.innerHTML='<div class="note">取不到记录（没登录或断网）。</div>';return;}
+      if(!L.length){el.innerHTML='<div class="note">还没有记录。做几道题、点一次「检测」就会记下来。</div>';return;}
+      el.innerHTML=`<table class="mini"><thead><tr><th>时间</th><th>练习号</th><th>得分</th><th>用时</th></tr></thead><tbody>${
+        L.slice(0,20).map(x=>`<tr><td class="note">${whenText(x.at)}</td><td class="mono">${esc(x.code)}</td><td>${x.score===x.max_score?'<b class="ok-t">'+x.score+'</b>':x.score+' / '+x.max_score}</td><td class="mono">${msText(x.ms)}</td></tr>`).join('')
+      }</tbody></table><div class="note">显示最近 20 条，共 ${L.length} 条。</div>`;
+    };
+    $('btnBoard').onclick=loadBoard;$('btnTries').onclick=loadTries;
+    loadBoard();loadTries();
+  }
+  function whenText(t){
+    const d=new Date(t);if(isNaN(d))return '';
+    const p=n=>String(n).padStart(2,'0');
+    return (d.getMonth()+1)+'月'+d.getDate()+'日 '+p(d.getHours())+':'+p(d.getMinutes());
   }
   function next(){
     const all=MOTHERS.concat(CUSTOM_MOTHERS,PRACTICE_MOTHERS);
@@ -6369,11 +6471,23 @@ MODE_INIT.practice=function(){
     const res=gradeVariant(S.v,$('editor').value);S.res=res;
     showResult(true);
     toast(`得分 ${res.score} / ${res.max}`);
+    /* 云端记录：每次检测都交一次（含没满分的），只有满分那次进耗时榜。
+       服务器拿 S.attempt 那个起点算用时；没有起点（断网/没登录）就只记记录。
+       上报是异步的，检测结果不等它 —— 网慢不该卡住学生做题。 */
+    if(cloudOn()){
+      const code=$('pcode').value;
+      MCU_CLOUD.finish(S.attempt,res.score,res.max,code).then(r=>{
+        S.attempt=null;            // 服务器把起点用掉了，这次做题不再重开（否则重复检测能把时间刷到极短）；换题时 load 会重新开
+        const line=$('cloudLine');
+        if(line)line.innerHTML=cloudLine(r);
+        if(r&&r.ranked){toast(r.first?`上榜了：${msText(r.ms)}，第 ${r.after} 名`:`第 ${r.after} 名，用时 ${msText(r.ms)}`);}
+      }).catch(()=>{});
+    }
   }
   /* 答案没解锁时，检测结果只报错，不给正确写法 */
   function showResult(autoplay){
     if(!S.res)return;
-    $('result').innerHTML=resultHTML(S.res,{hideAns:!answersOpen()});
+    $('result').innerHTML=resultHTML(S.res,{hideAns:!answersOpen()})+(cloudOn()?'<div id="cloudLine" class="note" style="margin-top:6px">正在记到云端…</div>':'');
     if(autoplay)countUp($('result'));
     mountPlayers($('result'),{autoplay});
   }
@@ -6417,82 +6531,18 @@ MODE_INIT.practice=function(){
 };
 
 ;
-/* ================= 老师：理论纸质试卷（预览、换一套、导出 PDF / Word / 答案） ================= */
-'use strict';
-function initPaper(){
-  const C=Object.assign({},PAPER_DEFAULT,DATA.paper||{});   // 理论试卷设置存在网页文件里
-  C.weights=Object.assign({},PAPER_DEFAULT.weights,C.weights||{});
-  if(!Array.isArray(C.sections)||!C.sections.length)C.sections=PAPER_DEFAULT.sections.map(s=>({...s}));
-  if(!C.key)C.key='T'+Math.random().toString(36).slice(2,6).toUpperCase();
-  let P=null,timer=0;
-  const save=()=>{DATA.paper=JSON.parse(JSON.stringify(C));markDirty();};
-  const F=(id,k,num)=>{const el=$(id);el.value=C[k];el.addEventListener('change',()=>{C[k]=num?(+el.value||0):el.value.trim();changed();});};
-  function renderTypes(){
-    $('ppTypes').innerHTML=C.sections.map((s,i)=>{const T=PAPER_TYPES[s.t];return `<tr><td>${CN_NUM[i]}、${T.name}</td>
-      <td><input type="number" min="0" max="40" value="${s.n}" data-i="${i}" data-f="n" aria-label="${T.name}${T.per}数"> ${T.per}</td>
-      <td><input type="number" min="0" max="30" step="0.5" value="${s.pts}" data-i="${i}" data-f="pts" aria-label="${T.name}${T.unit}分值"> 分</td></tr>`;}).join('');
-    $('ppW').innerHTML=Object.keys(THEORY_CH).map(c=>`<label class="ppw"><span>项目${c}</span><input type="number" min="0" max="100" value="${C.weights[c]}" data-ch="${c}" aria-label="${esc(THEORY_CH[c])}权重"></label>`).join('');
-  }
-  function stats(){
-    const total=paperTotal(P),st=paperStats(P);
-    const short=P.filter(s=>s.count<(C.sections.find(x=>x.t===s.t)||{}).n).map(s=>PAPER_TYPES[s.t].name);
-    $('ppTotal').innerHTML=`<b class="${total===100?'':'bad-t'}" style="${total===100?'':'color:var(--warn)'}">满分 ${total} 分</b>${total===100?'':'（一般应为 100 分，调整题数或分值）'}`;
-    $('ppStat').innerHTML=Object.keys(THEORY_CH).map(c=>`<div class="ppbar"><span>项目${c}</span><i style="--w:${total?((st[c]||0)/total*100).toFixed(1):0}%"></i><b>${st[c]||0} 分</b></div>`).join('')+
-      (short.length?`<div class="warns" style="margin-top:8px">题库里这些题型的题不够：${short.join('、')}，已按能抽到的出。</div>`:'');
-  }
-  /* 预览页面在隐藏的页里量不出尺寸，所以只在“理论试卷”页显示时排版 */
-  let dirty=true;
-  function preview(){
-    P=pickPaper(C);stats();dirty=true;
-    if($('ppBox').offsetParent===null)return;
-    dirty=false;
-    const fr=$('ppFrame');fr.style.height='400px';fit();
-    fr.srcdoc=paperDocHTML(P,C);
-  }
-  function changed(){save();clearTimeout(timer);timer=setTimeout(preview,250);}
-  /* 预览：A3 原尺寸（420mm）按卡片宽度缩小显示 */
-  window.addEventListener('message',e=>{
-    if(!e.data||!e.data.paperReady)return;
-    const fr=$('ppFrame');if(e.source!==fr.contentWindow)return;
-    const d=fr.contentDocument,h=d.documentElement.scrollHeight;
-    fr.style.height=h+'px';fit();
-    $('ppPages').innerHTML=`共 ${e.data.pages} 页（${e.data.pages/2} 张 A3，双面）`+(e.data.pages>4?'<span class="tag warn">超过 2 张：可选“紧凑”留白或减少题量</span>':'');
-  });
-  function fit(){
-    const fr=$('ppFrame'),box=$('ppBox');if(!fr||box.clientWidth===0)return;
-    const w=1588,k=Math.min(1,box.clientWidth/w);
-    fr.style.width=w+'px';fr.style.transform=`scale(${k})`;
-    box.style.height=(parseFloat(fr.style.height)||400)*k+'px';
-  }
-  window.addEventListener('resize',fit);
-  document.addEventListener('pageshow',e=>{if(e.detail==='t-paper')setTimeout(()=>{if(dirty)preview();else fit();},50);});
-  F('ppYear','year');F('ppTerm','term');F('ppCourse','course');F('ppVer','ver');F('ppMajor','major');F('ppGrade','grade');F('ppMode','mode');F('ppMin','minutes',true);F('ppKey','key');F('ppSpace','space');
-  $('ppTypes').addEventListener('change',e=>{const t=e.target,s=C.sections[+t.dataset.i];if(!s)return;s[t.dataset.f]=Math.max(0,+t.value||0);changed();});
-  $('ppW').addEventListener('change',e=>{const c=e.target.dataset.ch;if(!c)return;C.weights[c]=Math.max(0,+e.target.value||0);changed();});
-  $('ppNew').onclick=()=>{C.key='T'+Math.random().toString(36).slice(2,6).toUpperCase();$('ppKey').value=C.key;changed();toast('已换一套题（种子变了）');};
-  $('ppReset').onclick=()=>{C.sections=PAPER_DEFAULT.sections.map(s=>({...s}));C.weights={...PAPER_DEFAULT.weights};renderTypes();changed();};
-  const base=()=>`${C.course}_期末试卷${C.ver}卷`;
-  $('ppPdf').onclick=()=>{
-    const fr=$('ppFrame');
-    if(!fr.contentDocument||!fr.contentDocument.body.getAttribute('data-pages')){toast('预览还没排好，稍等一下再点');return;}
-    toast('在打印窗口里：目标选“另存为 PDF”，纸张 A3，横向，边距“无”');
-    fr.contentWindow.focus();fr.contentWindow.print();
-  };
-  $('ppWord').onclick=()=>{saveDocx(base()+'.docx',paperDocx(P,C));toast('已导出 Word 试卷（A3 横向两栏）');};
-  $('ppAns').onclick=()=>{saveDocx(base()+'_参考答案.docx',answerDocx(P,C));toast('已导出参考答案');};
-  /* 从旧文件导入数据后，换成旧文件里的设置 */
-  document.addEventListener('dataload',()=>{
-    const N=Object.assign({},PAPER_DEFAULT,DATA.paper||{});Object.keys(N).forEach(k=>{C[k]=N[k];});
-    C.weights=Object.assign({},PAPER_DEFAULT.weights,C.weights||{});
-    ['ppYear','year','ppTerm','term','ppCourse','course','ppVer','ver','ppMajor','major','ppGrade','grade','ppMode','mode','ppMin','minutes','ppKey','key','ppSpace','space'].reduce((a,x,i,arr)=>{if(i%2===0)$(x).value=C[arr[i+1]];return a;},0);
-    renderTypes();preview();
-  });
-  renderTypes();preview();
-}
-
-;
 /* ================= 老师模式：导入书上代码、组卷、批改 ================= */
 'use strict';
+/* 2026-11-06 用户：「组卷和理论试卷、导出文件全部属于考试功能 我们需要迁移 然后删除老师入口按钮
+   直接改为只有老师账号才有这个界面」。
+   ── 这个文件现在的版本分支 ──
+   HX_ONLINE（网页版 /mcu/）：
+     · 页面只有 概览 / 班级名单 / 导入书上代码 / 批改成绩（组卷、理论试卷两页不生成，见 build.js）
+     · 组卷器、组卷码命名、理论试卷全部不初始化（DOM 不存在，初始化会到处空引用）
+     · 组卷码改由「考试」工具生成；这里批改只按**考试那边传过来的组卷码**判分
+   离线单文件：照旧全功能（没有账号体系、连不上云端，组卷/试卷只能在原地做）
+   所以下面凡是碰 #ekey / #qlist / #ppFrame / #ppTypes 的代码都用 WEB 挡住。 */
+const WEB=typeof HX_ONLINE!=='undefined'&&HX_ONLINE;
 MODE_INIT.teacher=function(){
   const subs=new Map();      // `${sid}|${q}` → 提交
   const stus=new Map();      // 学号 → {adj}（姓名、班级查名单）
@@ -6517,7 +6567,13 @@ MODE_INIT.teacher=function(){
 
   /* ---------- 组卷器 ---------- */
   function saveExam(){DATA.exam=JSON.parse(JSON.stringify(B));}
+  /* 网页版没有组卷页：这些元素全不存在。用 on(id,ev,fn) / set(id,prop,val) 安全转发，
+     元素不在就安静跳过 —— 这样同一份老师模块代码在两种版本里都能跑，不必到处 if。 */
+  const on=(id,ev,fn)=>{const el=$(id);if(el)el.addEventListener(ev,fn);};
+  const set=(id,prop,val)=>{const el=$(id);if(el)el[prop]=val;};
+  const on1=(id,fn)=>{const el=$(id);if(el)el.onclick=fn;};
   function renderBuilder(){
+    if(!$('qlist'))return;   // 网页版没有组卷页
     $('ekey').value=B.key;
     const mopt=sel=>motherOptions(sel,false,'<option value="">随机（每人抽不同的母题）</option>');
     const topt=sel=>Object.entries(TYPE_NAME).map(([k,n])=>`<option value="${k}" ${sel===k?'selected':''}>${n}</option>`).join('');
@@ -6548,7 +6604,7 @@ MODE_INIT.teacher=function(){
   function examChanged(){
     saveExam();markDirty();paperCache.clear();renderBuilder();regradeAll();showPaper($('stuSel').value);fillPQ();
   }
-  $('qlist').addEventListener('change',e=>{
+  on('qlist','change',e=>{
     const row=e.target.closest('.qrow');if(!row)return;const q=B.qs[+row.dataset.i],f=e.target.dataset.f;
     if(f==='mid')q.mid=e.target.value||null;
     if(f==='type')q.type=e.target.value;
@@ -6556,26 +6612,26 @@ MODE_INIT.teacher=function(){
     if(f==='mode')q.draw=e.target.value==='fixed'?1:null;
     examChanged();
   });
-  $('qlist').addEventListener('click',e=>{
+  on('qlist','click',e=>{
     const b=e.target.closest('button');if(!b)return;const row=b.closest('.qrow');const i=+row.dataset.i;
     if(b.dataset.f==='del'&&B.qs.length>1){B.qs.splice(i,1);examChanged();}
     if(b.dataset.f==='redraw'){B.qs[i].draw=(B.qs[i].draw||0)%9999+1;examChanged();toast(`第 ${i+1} 题已换成另一道`);}
   });
-  $('btnAddQ').onclick=()=>{if(B.qs.length<5){B.qs.push({mid:null,type:'fill',pts:20,draw:null});examChanged();}};
-  $('ekey').addEventListener('change',()=>{
+  on1('btnAddQ',()=>{if(B.qs.length<5){B.qs.push({mid:null,type:'fill',pts:20,draw:null});examChanged();}});
+  on('ekey','change',()=>{
     const k=$('ekey').value.trim();
     if(!/^[A-Za-z0-9]{1,16}$/.test(k)){toast('换题种子只能用字母和数字（最多 16 个）');$('ekey').value=B.key;return;}
     B.key=k;examChanged();
   });
-  $('btnNewKey').onclick=()=>{B.key=randKey();examChanged();toast('已换一套题（种子变了）。起过名字的话，要重新点一次“用这个名字”');};
-  $('btnCopy').onclick=async()=>{try{await navigator.clipboard.writeText(code());toast('组卷码已复制');}catch(e){toast('复制失败，请手动选中复制');}};
-  $('btnLoadCode').onclick=()=>{
+  on1('btnNewKey',()=>{B.key=randKey();examChanged();toast('已换一套题（种子变了）。起过名字的话，要重新点一次“用这个名字”');});
+  on1('btnCopy',async()=>{try{await navigator.clipboard.writeText(code());toast('组卷码已复制');}catch(e){toast('复制失败，请手动选中复制');}});
+  on1('btnLoadCode',()=>{
     const p=parseExamCode($('codeIn').value);
     if(!p){toast('组卷码格式不对，例如 QM25-2t30-4g35.3-6c35');return;}
     if(!p.qs.length){toast('组卷码里至少要有 1 道题');return;}
     if(p.qs.some(q=>q.mid&&!MOTHER_BY_ID[q.mid])||(p.fp&&p.fp!==customBankFp())){toast('这个组卷码用到的导入代码和本网页里的不一样，读不进来');return;}
     B.key=p.key;B.qs=p.qs;examChanged();toast('已读入组卷码');
-  };
+  });
 
   /* ---------- 名单（按班级，见 ui-roster.js；当前选中的班级决定下面的范围） ---------- */
   function rosterIds(){return ROSTER.students().map(s=>s.id);}
@@ -6585,13 +6641,18 @@ MODE_INIT.teacher=function(){
     return [...new Set([...rosterIds(),...sub.filter(id=>!cur||clsOf(id)===cur)])].sort();
   }
   function fillStuSel(){
-    const cur=$('stuSel').value;
-    $('stuSel').innerHTML='<option value="">选择学号…</option>'+scopeIds().map(id=>`<option value="${esc(id)}" ${id===cur?'selected':''}>${esc(id)} ${esc(nameOf(id))}</option>`).join('');
+    const el=$('stuSel');if(!el)return;   // 网页版「班级名单」页没有这个下拉（看题和答案已迁到「考试」）
+    const cur=el.value;
+    el.innerHTML='<option value="">选择学号…</option>'+scopeIds().map(id=>`<option value="${esc(id)}" ${id===cur?'selected':''}>${esc(id)} ${esc(nameOf(id))}</option>`).join('');
   }
-  function fillPQ(){const cur=+$('pQ').value||1;$('pQ').innerHTML=qnums().map(q=>`<option value="${q}" ${q===cur?'selected':''}>第${q}题</option>`).join('');}
+  function fillPQ(){
+    const el=$('pQ');if(!el)return;
+    const cur=+el.value||1;el.innerHTML=qnums().map(q=>`<option value="${q}" ${q===cur?'selected':''}>第${q}题</option>`).join('');
+  }
 
   /* ---------- 看题和答案 ---------- */
   function showPaper(sid){
+    if(!$('paperView'))return;
     if(!sid){$('paperView').innerHTML='';return;}
     const P=paperOf(sid);
     $('paperView').innerHTML=`<div class="note">学号 ${esc(sid)}　卷号 <b>${P[0].paper}</b></div>`+P.map((v,i)=>`<div class="card">${questionHTML(v,{qno:i+1,extra:`<span class="tag na">${v.pts} 分</span>${v.fixed?'<span class="tag warn">全班同一题</span>':''}`})}<details><summary>答案</summary>${answerHTML(v)}
@@ -6665,6 +6726,7 @@ MODE_INIT.teacher=function(){
     return {qs,adj,total:fmt(qs.reduce((a,b)=>a+(b||0),0)+adj)};
   }
   function render(){
+    if(!$('thead'))return;   // 网页版没有批改成绩页（.c/.hex 自动判分与成绩导出都在「考试」工具里）
     const ids=scopeIds(),all=!ROSTER.cur();
     const C=cfg();
     $('thead').innerHTML=`<tr><th>学号</th><th>姓名</th>${all?'<th>班级</th>':''}${qnums().map(q=>`<th>第${q}题</th>`).join('')}<th>调整分</th><th>总分</th></tr>`;
@@ -6709,22 +6771,21 @@ MODE_INIT.teacher=function(){
     subs.set(sid+'|'+q,{sid,q,code,file:'（粘贴）',stem:sid+'_Q'+q});stu(sid);grade(subs.get(sid+'|'+q));render();fillStuSel();
     toast('已批改，见下方成绩表');
   }
-
   /* ---------- 初始化 ---------- */
   const RS=initRoster();
-  document.addEventListener('rosterchange',()=>{fillStuSel();render();showPaper($('stuSel').value);updateOverview();});
-  $('reqhex').onchange=regradeAll;
-  $('stuSel').onchange=()=>showPaper($('stuSel').value);
-  $('btnPapers').onclick=exportPapers;
-  $('btnAnswers').onclick=exportAnswers;
-  $('btnCsv').onclick=exportCsv;
-  $('btnPick').onclick=()=>$('gFilePick').click();
-  $('btnFolder').onclick=()=>$('folderPick').click();
-  $('gFilePick').onchange=e=>{addFiles([...e.target.files]);e.target.value='';};
-  $('folderPick').onchange=e=>{addFiles([...e.target.files]);e.target.value='';};
-  $('btnClear').onclick=()=>{if(confirm('清空所有已读入的提交？名单保留。')){subs.clear();render();}};
-  $('btnPaste').onclick=pasteGrade;
-  $('tbody').addEventListener('change',e=>{const t=e.target;if(t.dataset.adj!=null){stu(t.dataset.adj).adj=parseFloat(t.value)||0;const b=document.querySelector(`[data-tot="${t.dataset.adj}"]`);if(b)b.textContent=scoreOf(t.dataset.adj).total;}});
+  document.addEventListener('rosterchange',()=>{fillStuSel();render();showPaper($('stuSel')?$('stuSel').value:'');updateOverview();});
+  on('reqhex','change',regradeAll);
+  on('stuSel','change',()=>showPaper($('stuSel').value));
+  on1('btnPapers',exportPapers);
+  on1('btnAnswers',exportAnswers);
+  on1('btnCsv',exportCsv);
+  on1('btnPick',()=>{const f=$('gFilePick');if(f)f.click();});
+  on1('btnFolder',()=>{const f=$('folderPick');if(f)f.click();});
+  on('gFilePick','change',e=>{addFiles([...e.target.files]);e.target.value='';});
+  on('folderPick','change',e=>{addFiles([...e.target.files]);e.target.value='';});
+  on1('btnClear',()=>{if(confirm('清空所有已读入的提交？名单保留。')){subs.clear();render();}});
+  on1('btnPaste',pasteGrade);
+  on('tbody','change',e=>{const t=e.target;if(t.dataset.adj!=null){stu(t.dataset.adj).adj=parseFloat(t.value)||0;const b=document.querySelector(`[data-tot="${t.dataset.adj}"]`);if(b)b.textContent=scoreOf(t.dataset.adj).total;}});
   /* 参考答案 / 学生代码 → HEX */
   document.addEventListener('click',e=>{
     const b=e.target.closest('[data-refhex],[data-stuhex]');if(!b)return;
@@ -6737,16 +6798,17 @@ MODE_INIT.teacher=function(){
   /* 拖进来的文件：在“名单与试卷”页是名单（考勤表），其他页是学生交的程序 */
   enableDrop(files=>{if(CUR_PAGE==='t-roster'&&files.some(f=>/\.(xls|xlsx|csv)$/i.test(f.name)))RS.importFiles(files);else addFiles(files);},'teacher');
   /* 导入书上代码 */
-  importWidget($('tImport'),{list:BANK.teacher,save:BANK.saveTeacher,mothers:()=>CUSTOM_MOTHERS,who:'teacher'});
+  if($('tImport'))importWidget($('tImport'),{list:BANK.teacher,save:BANK.saveTeacher,mothers:()=>CUSTOM_MOTHERS,who:'teacher'});
   document.addEventListener('bankchange',()=>{fixMids();examChanged();});
   /* ---------- 组卷码名字：给当前这套卷起个好记的名字（如“期末A”），学生输名字就能取题；不起名就用自动生成的码 ---------- */
   const total=()=>B.qs.reduce((a,q)=>a+q.pts,0);
   function renderExamNames(){
+    if(!$('exNames'))return;    // 网页版没有组卷页（组卷码改在「考试」工具里起名）
     const L=(DATA.exams||[]).map(e=>({h:e.h,made:e.made,...(VAULT.examNames[e.h]||{label:'（名字在别处设的）',code:''})}));
     $('exNames').innerHTML=L.length?`<table class="mini"><thead><tr><th>名字</th><th>对应的组卷码</th><th>设于</th><th></th></tr></thead><tbody>${L.map(e=>`<tr><td><b>${esc(e.label)}</b></td><td class="mono note">${esc(e.code)}${e.code===code()?' <span class="tag ok" style="margin:0">当前</span>':''}</td><td class="note">${esc(e.made||'')}</td><td><button class="sm" data-exdel="${esc(e.h)}">删除</button></td></tr>`).join('')}</tbody></table>`:'<div class="note">还没有起名字的组卷码。</div>';
-    $('ansPwNote').innerHTML=answerPw()?`现在是 <b class="mono">${esc(answerPw())}</b>：学生在平时练习里输入它才能看答案；检测结果只报错、不给正确写法。改了要“保存到文件”再发给学生。`:'还没设：学生的“查看答案”打不开，检测只报错。';
+    if($('ansPwNote'))$('ansPwNote').innerHTML=answerPw()?`现在是 <b class="mono">${esc(answerPw())}</b>：学生在平时练习里输入它才能看答案；检测结果只报错、不给正确写法。改了要“保存到文件”再发给学生。`:'还没设：学生的“查看答案”打不开，检测只报错。';
   }
-  $('btnExName').onclick=async()=>{
+  on1('btnExName',async()=>{
     const n=$('exName').value.trim();
     if(!n){toast('先填一个名字，例如 期末A');return;}
     if(n.length>20){toast('名字最多 20 个字');return;}
@@ -6755,33 +6817,33 @@ MODE_INIT.teacher=function(){
     try{await setExamName(n,code());$('exName').value='';renderExamNames();updateOverview();toast(`“${n}”现在对应这套卷。保存到文件后，学生输“${n}”就能取题`);}
     catch(e){toast('设置失败：'+e.message);}
     finally{$('btnExName').disabled=false;}
-  };
-  $('exNames').addEventListener('click',e=>{const b=e.target.closest('[data-exdel]');if(b)twoStep(b,'再点一次',()=>{delExamName(b.dataset.exdel);renderExamNames();updateOverview();});});
+  });
+  on('exNames','click',e=>{const b=e.target.closest('[data-exdel]');if(b)twoStep(b,'再点一次',()=>{delExamName(b.dataset.exdel);renderExamNames();updateOverview();});});
   /* 查看答案密码（放在概览页最上面）：每节课随时改，保存到文件后发给学生生效；明文在加密的保险箱里，方便上课时看 */
-  $('ansPwIn').value=answerPw();
-  $('btnAnsPw').onclick=()=>{
+  set('ansPwIn','value',answerPw());
+  on1('btnAnsPw',()=>{
     const v=$('ansPwIn').value.trim();
     if(v&&!/^[\w\-]{2,20}$/.test(v)){toast('查看答案密码用 2～20 个字母、数字');return;}
     setAnswerPw(v);renderExamNames();
     toast(v?'已设好。点左下角“保存到文件”，再把文件发给学生':'已清空查看答案密码：学生的答案打不开');
-  };
+  });
   renderExamNames();
 
   /* ---------- 换新版本：从旧文件导入数据 ---------- */
   document.addEventListener('dataload',()=>{
     const E=DATA.exam;if(E&&E.qs){B.key=E.key;B.qs=E.qs.map(q=>({...q}));}
     fixMids();paperCache.clear();renderBuilder();regradeAll();fillStuSel();fillPQ();
-    $('ansPwIn').value=answerPw();renderExamNames();
+    set('ansPwIn','value',answerPw());renderExamNames();
   });
-  $('btnUpgrade').onclick=()=>$('upFile').click();
-  $('upFile').onchange=async e=>{
+  on1('btnUpgrade',()=>{const f=$('upFile');if(f)f.click();});
+  on('upFile','change',async e=>{
     const f=e.target.files[0];e.target.value='';if(!f)return;
     try{
       const r=await importDataFromHTML(decodeBytes(await f.arrayBuffer()));
-      $('upNote').innerHTML=`已从 <b>${esc(f.name)}</b>${r.saved?'（'+esc(r.saved)+' 保存的）':''}读入：${r.classes} 个班级 ${r.students} 人、${r.exams} 个组卷码名字、${r.bank} 段导入的代码，以及组卷、密码和理论试卷设置。<b>点左下角“保存到文件”</b>存进现在这个新版本。`;
+      if($('upNote'))$('upNote').innerHTML=`已从 <b>${esc(f.name)}</b>${r.saved?'（'+esc(r.saved)+' 保存的）':''}读入：${r.classes} 个班级 ${r.students} 人、${r.exams} 个组卷码名字、${r.bank} 段导入的代码，以及组卷、密码和理论试卷设置。<b>点左下角“保存到文件”</b>存进现在这个新版本。`;
       toast('旧文件的数据已读入，点“保存到文件”');updateOverview();
-    }catch(err){$('upNote').textContent=err.message;toast(err.message);}
-  };
+    }catch(err){if($('upNote'))$('upNote').textContent=err.message;toast(err.message);}
+  });
 
   /* ---------- 概览（横带：数字 → 流程 → 当前这套卷） ---------- */
   document.addEventListener('pageshow',e=>{if(e.detail==='t-overview'){updateOverview();countUp(document.querySelector('[data-page="t-overview"]'),'.stat .v');}});
@@ -6789,19 +6851,21 @@ MODE_INIT.teacher=function(){
     if(!$('ovRoster'))return;
     const all=ROSTER.students('');
     $('ovRoster').textContent=all.length||'-';
-    $('ovSubs').textContent=OV.cnt==null?'-':OV.cnt;
-    $('ovAvg').textContent=OV.avg==null?'-':OV.avg;
-    const act=ROSTER.active();$('ovExam').textContent=act.length?act.length+' 个班':'未选';$('ovExamS').textContent=act.length?act.join('、'):'在“班级名单”里勾选';
-    $('ovBank').textContent=CUSTOM_MOTHERS.length?`已导入 ${CUSTOM_MOTHERS.length} 段`:'可选，不导入也能组卷';
+    set('ovSubs','textContent',OV.cnt==null?'-':OV.cnt);
+    set('ovAvg','textContent',OV.avg==null?'-':OV.avg);
+    const act=ROSTER.active();set('ovExam','textContent',act.length?act.length+' 个班':'未选');
+    set('ovExamS','textContent',act.length?act.join('、'):'在“班级名单”里勾选');
+    set('ovBank','textContent',CUSTOM_MOTHERS.length?`已导入 ${CUSTOM_MOTHERS.length} 段`:'可选，不导入也能组卷');
+    // 网页版没有「组卷」这一步：组卷码与当前这套卷都挪到「考试」工具里，这三格不渲染（元素不在就跳过）
     const nm=Object.values(VAULT.examNames).filter(e=>e.code===code()).map(e=>e.label);
-    $('ovBuild').textContent=`${B.qs.length} 题 · 满分 ${total()}${nm.length?' · 学生输“'+nm.join('”或“')+'”':''}`;
-    $('ovRosterS').textContent=ROSTER.all().length?ROSTER.all().map(c=>`${c.name} ${c.students.length} 人`).join('，'):'还没有名单：导入考勤表';
-    $('ovRosterK').textContent=`${ROSTER.all().length} 个班级`;
-    $('ovGrade').textContent=OV.cnt?`已批改 ${OV.cnt} 人，平均 ${OV.avg}`:'把学生交的文件夹拖进来';
-    $('ovCode').textContent=code();
-    $('ovPaper').innerHTML=B.qs.map((q,i)=>{const M=q.mid&&MOTHER_BY_ID[q.mid];return `<tr><td>第 ${i+1} 题</td><td>${M?esc(M.id+' '+M.name):'随机母题'}</td><td>${TYPE_NAME[q.type]}</td><td>${q.pts} 分</td><td>${q.draw!=null?'<span class="tag warn" style="margin:0">全班同一题</span>':'<span class="note">每人参数不同</span>'}</td></tr>`;}).join('');
+    set('ovBuild','textContent',`${B.qs.length} 题 · 满分 ${total()}${nm.length?' · 学生输“'+nm.join('”或“')+'”':''}`);
+    set('ovRosterS','textContent',ROSTER.all().length?ROSTER.all().map(c=>`${c.name} ${c.students.length} 人`).join('，'):'还没有名单：导入考勤表');
+    set('ovRosterK','textContent',`${ROSTER.all().length} 个班级`);
+    set('ovGrade','textContent',OV.cnt?`已批改 ${OV.cnt} 人，平均 ${OV.avg}`:'把学生交的文件夹拖进来');
+    set('ovCode','textContent',code());
+    if($('ovPaper'))$('ovPaper').innerHTML=B.qs.map((q,i)=>{const M=q.mid&&MOTHER_BY_ID[q.mid];return `<tr><td>第 ${i+1} 题</td><td>${M?esc(M.id+' '+M.name):'随机母题'}</td><td>${TYPE_NAME[q.type]}</td><td>${q.pts} 分</td><td>${q.draw!=null?'<span class="tag warn" style="margin:0">全班同一题</span>':'<span class="note">每人参数不同</span>'}</td></tr>`;}).join('');
   }
-  if(typeof initPaper==='function')initPaper();
+  if(typeof initPaper==='function'&&$('ppFrame'))initPaper();   // 网页版没有理论试卷页（已迁到「考试」）
   saveExam();renderBuilder();fillPQ();
   fillStuSel();render();
 };
