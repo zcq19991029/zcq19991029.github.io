@@ -3536,10 +3536,27 @@ function drwPool() {
 const DRW_FX = { raf: 0, last: 0, items: [], gap: 1000 / 12 };
 const DRW_FX_IDS = ['level-up', 'collect-burst', 'hit-spark', 'rune-circle', 'quest-complete', 'zap-hit'];
 function drwFxPack() { const P = window.PixelFXRank; return (P && P.effects && P.createFx && P.createFrame) ? P : null; }
+/* 2026-11-05 用户：「卡上的像素动效需要循环而不是播放一次没了」。
+   根因不在播放器，在效果包里：PixelFXRank 的循环标志是**效果自身的元数据 meta.loop**，
+   不是 createFx 的入参，而且 createFx 的 draw 里写死成
+   `u = meta.loop ? t % duration : Math.min(t, duration)`。
+   实测这 14 个效果只有 rune-circle 是 loop:true；抽卡会抽到的 5 个
+   （level-up / collect-burst / hit-spark / quest-complete / zap-hit）全是 loop:false —
+   u 顶在 duration 上不动，最后一帧又是散尽的空场，所以「播一次就没了」。
+   修法：不动 vendor（别的调用方按 meta.loop 决定要不要停，改了会连锁），
+   挂载时复制一份模块对象、只把 meta.loop 翻成 true；再自己记 acc，
+   每跑满一个 duration 重建 fx 实例（同一块 canvas、同一个种子），
+   兜住「粒子状态累加在实例里、光靠 u 回绕回不到开头」的效果。 */
 function drwFxMount(holder, startAt) {
   if (!holder) return null;
   const P = drwFxPack(); if (!P) return null;
-  const pool = (P.ids && P.ids.length ? P.ids : DRW_FX_IDS).filter(id => P.effects[id] && P.effects[id].meta && P.effects[id].meta.size);
+  // 只用 DRW_FX_IDS 这 6 个「奖励 / 打击」效果的，不能拿 P.ids 全量：
+  // 包里有 6 个是 320×180 的**整屏转场**（glitch-wipe / iris / crt-off / pixel-dissolve /
+  // slash-wipe / star-iris）加一个 countdown 倒数字形 —— 抽到卡片上就是一大块盖住姓名的色块，
+  // 擦除跑完还停在满屏不透明的一帧上，比「播一次就没了」更像卡死。DRW_FX_IDS 本来就是为此列的，
+  // 之前那句 `P.ids && P.ids.length ? P.ids : DRW_FX_IDS` 让它永远轮不到（P.ids 一直存在）。
+  const want = DRW_FX_IDS.filter(id => P.effects[id] && P.effects[id].meta && P.effects[id].meta.size);
+  const pool = want.length ? want : ((P.ids || []).filter(id => P.effects[id] && P.effects[id].meta && P.effects[id].meta.size));
   const mod = pool.length ? P.effects[pool[(Math.random() * pool.length) | 0]] : null;
   if (!mod) return null;
   const W = mod.meta.size[0], H = mod.meta.size[1];
@@ -3550,14 +3567,26 @@ function drwFxMount(holder, startAt) {
   const O = mod.meta.origin || [W / 2, H / 2];
   while (holder.firstChild) holder.removeChild(holder.firstChild);
   holder.appendChild(cv);
-  const it = { ctx, img: ctx.createImageData(W, H), fr: P.createFrame(W, H), fx: P.createFx(mod, { x: O[0], y: O[1], seed: (Math.random() * 997) | 0 }) };
-  if (startAt) { try { it.fx.update(startAt); } catch (e) { } }
+  const seed = (Math.random() * 997) | 0, opts = { x: O[0], y: O[1], seed };
+  const loop = !mod.meta.loop;   // 本来就是循环的效果（rune-circle）原样用，别多套一层
+  const M = loop ? Object.assign({}, mod, { meta: Object.assign({}, mod.meta, { loop: true }) }) : mod;
+  const it = {
+    ctx, img: ctx.createImageData(W, H), fr: P.createFrame(W, H),
+    mod: M, opts, loop, dur: Math.max(.6, mod.meta.duration || 1), acc: 0,
+    fx: P.createFx(M, opts),
+  };
+  // startAt 是发牌的错峰偏移：按周期取余，别让先发的卡一上来就撞到「该重建」的边界
+  if (startAt) { try { it.fx.update(startAt); it.acc = startAt % it.dur; } catch (e) { } }
   DRW_FX.items.push(it);
   return it;
 }
 function drwFxPaint(it, dt) {
   const P = drwFxPack(); if (!P) return;
-  if (dt) it.fx.update(dt);
+  if (dt) {
+    it.fx.update(dt); it.acc += dt;
+    // 跑满一个周期就重开：接缝落在 u 正好回绕的那一帧上，肉眼看不出换片
+    if (it.loop && it.acc >= it.dur) { it.acc = 0; try { it.fx = P.createFx(it.mod, it.opts); } catch (e) { } }
+  }
   P.clearFrame(it.fr); it.fx.draw(it.fr, 'back'); it.fx.draw(it.fr, 'front');
   P.composite(it.fr, it.img.data, null);
   it.ctx.putImageData(it.img, 0, 0);
@@ -3581,7 +3610,10 @@ function drwFxStop() { if (DRW_FX.raf) cancelAnimationFrame(DRW_FX.raf); DRW_FX.
 
 /* 头像 / 点券：同一个人每次一样（用 id 做种子），不闪 */
 function drwHueOf(p) { let d = 0; const s = String(p.id) + p.name; for (let i = 0; i < s.length; i++) d = (d * 33 + s.charCodeAt(i)) % 360; return d; }
-function drwScoreOf(p) { let d = 0; const s = String(p.id); for (let i = 0; i < s.length; i++) { const c = s.charCodeAt(i) - 48; if (c >= 0 && c <= 9) d = (d * 31 + c) % 997; } return 5 + (d % 7); }
+/* 2026-11-05 用户：「抽卡幸运分是1-10分 没有11分」。
+   原来是 5+(d%7) —— 取到的是 5~11，最大 11 分，跟课堂上说的「幸运分 1~10」对不上。
+   改成 1+(d%10)：范围 1~10，头尾都取得到，同一个学生每次抽到同一个数（还是用 id 做种子，不闪）。 */
+function drwScoreOf(p) { let d = 0; const s = String(p.id); for (let i = 0; i < s.length; i++) { const c = s.charCodeAt(i) - 48; if (c >= 0 && c <= 9) d = (d * 31 + c) % 997; } return 1 + (d % 10); }
 function drwAvatar(p) { return `<b class="drw-av" style="--h:${drwHueOf(p)}">${esc(p.name.slice(0, 1))}</b>`; }
 
 function drwBarHTML() {

@@ -10,6 +10,14 @@
 <style>
 /* 华夏工具外观：全部工具共用（网站根目录 /hx-theme.css），参考苹果官网（iPhone、iPad 页面）：浅灰底、纯白卡片、大标题、毛玻璃顶栏、细边、顺滑动效。
    <html data-hx-mode="light|dark"> 和行内变量 --acc、--hx-a（界面透明度）、--hx-img（背景图）由 hx-theme.js 设置；这里只放中性色和公共样式。 */
+:root {
+  /* 玻璃面上的配字（2026-11-05 浅色重做）：凡是「玻璃卡上的字」用这对，不用 --ink/--dim。
+     --dim（#6e6e73）是给不透明页面底色准备的；玻璃底（白 .70 乘浓度）在深色壁纸上合成出来只有中高亮度，
+     --dim 压上去对比度只剩 ~4:1 达不了标，所以玻璃上的次级文字用更深一档的 --g-dim（≥4.5:1）。
+     深色模式玻璃本来就是深底白字，两档都过 4.5:1。主题换色只动 --acc 系，配字跟着 data-hx-mode 走，
+     深浅切换时这对 token 一起换，不会出现白字白底 / 深字深底。 */
+  --g-ink: #16181d; --g-dim: #43464d;
+}
 :root, :root[data-hx-mode="light"] {
   --bg: #f5f5f7; --ink: #1d1d1f; --dim: #6e6e73; --faint: #86868b; --edge: rgba(0, 0, 0, .08); --line2: rgba(0, 0, 0, .12);
   --card: rgb(255 255 255 / var(--hx-a, 1)); --card2: rgb(255 255 255 / calc(var(--hx-a, 1) * .72)); --card-solid: #fff; --fill: rgba(0, 0, 0, .04);
@@ -22,6 +30,7 @@
 }
 :root[data-hx-mode="dark"] {
   --bg: #000; --ink: #f5f5f7; --dim: #a1a1a6; --faint: #6e6e73; --edge: rgba(255, 255, 255, .1); --line2: rgba(255, 255, 255, .16);
+  --g-ink: #fff; --g-dim: rgba(255, 255, 255, .78);
   --card: rgb(28 28 30 / var(--hx-a, 1)); --card2: rgb(44 44 46 / calc(var(--hx-a, 1) * .72)); --card-solid: #1c1c1e; --fill: rgba(255, 255, 255, .06);
   --bar: rgb(22 22 23 / calc(.55 + var(--hx-a, 1) * .3)); --shade: rgba(0, 0, 0, .6);
   --ok: #30d158; --okbg: rgba(48, 209, 88, .14); --bad: #ff453a; --badbg: rgba(255, 69, 58, .14); --warn: #ff9f0a;
@@ -43,13 +52,18 @@
   --glass-wash: rgb(255 255 255 / calc(var(--hx-a, 1) * .72));
   --glass-top: rgba(255, 255, 255, .62);    /* 左上亮边 */
   --glass-bot: rgba(255, 255, 255, 0);      /* 右下消失，形成厚度方向 */
-  --glass-drop: 0 18px 46px -26px rgba(0, 0, 0, .45);
+  /* 浅色玻璃的落影与描边（2026-11-05 浅色重做）：落影收柔、加一圈**深色**细描边。
+     白玻璃在深色壁纸上最容易「白雾蒙蒙」，雾感的来源就是没有边界：全靠白膜自己包住自己。
+     一圈 14% 的深色 0.6px 描边 + 一道有方向的柔影，玻璃才有「放在那里」的实体感。 */
+  --glass-drop: 0 24px 48px -26px rgba(15, 22, 35, .38);
+  --glass-edge: rgba(18, 22, 30, .16);
 }
 :root[data-hx-mode="dark"] {
   --glass-wash: rgb(10 10 12 / calc(var(--hx-a, 1) * .74));
   --glass-top: rgba(255, 255, 255, .30);
   --glass-bot: rgba(255, 255, 255, .02);
   --glass-drop: 0 22px 54px -28px rgba(0, 0, 0, .9);
+  --glass-edge: rgba(255, 255, 255, .14);
 }
 /* 有层次的玻璃卡：.hx-glass 就是这套做法的封装。
    ① 背景图已由 body::before 统一糊过一次，这里不再各自 backdrop-filter（否则每张卡一个实时模糊层，老设备必崩）
@@ -107,6 +121,54 @@ html.hx-bg body::before {
    叠一层暗色 scrim（不再用 brightness()，省得又依赖 filter）。 */
 :root[data-hx-mode="dark"].hx-bg body::before {
   background-image: linear-gradient(rgba(8, 8, 10, .38), rgba(8, 8, 10, .38)), var(--hx-img);
+}
+/* ── 2026-11-05 六修：手机（及窄屏）背景「不会动」────────────────────────
+   用户 iPhone Safari 实机：「手机上首页背景不会动」。原因不是坏了，是 2026-11-04
+   为了根治「手机弹原生播放器」，把移动端的 <video> 整条砍掉了（见 hx-theme.js 的 bgNoVideo()），
+   手机只剩一张静态海报帧 bg/aurora.jpg，一动不动。
+   现在不把 video 请回来（那正是弹播放器的根源，也不受 iOS 低电量模式待见），改成**纯 CSS 的两层
+   GPU 合成动画**，仍然一个 video 元素都不建：
+     · 层一 body::before 自己缓慢推近（ken burns）：transform 只动合成器，不重排不重绘；
+     · 层二 .hx-bgmo 里两团极光柔光反向漂移，用 radial-gradient 画（不用 filter: blur，
+       也不用 mix-blend-mode —— 两者在 iOS 上都要额外的全屏合成代价）。
+   开关在 hx-theme.js 的 bgMotion()：只给「视频壁纸被降级成海报帧」这种情况挂，
+   省电一体机（hx-lite）和系统「减少动态效果」一律不挂，保持静态。 */
+html.hx-bg-mo body::before {
+  animation: hx-bgmo-zoom 34s ease-in-out infinite alternate;
+  transform-origin: 52% 46%;
+  will-change: transform;
+}
+@keyframes hx-bgmo-zoom {
+  from { transform: scale(1.06) translate3d(-.9%, .6%, 0); }
+  to { transform: scale(1.18) translate3d(1.1%, -.9%, 0); }
+}
+/* 极光层：z-index:-1，和 body::before 同层；它在伪元素之后绘制（DOM 顺序），所以压在壁纸上、内容下。 */
+.hx-bgmo {
+  position: fixed; inset: 0; z-index: -1; pointer-events: none; overflow: hidden;
+  opacity: var(--hx-bgo, 1);      /* 跟着「背景透明度」滑杆一起收，调到 0 时背景整块不显示 */
+}
+.hx-bgmo i { position: absolute; display: block; border-radius: 50%; will-change: transform, opacity; }
+.hx-bgmo i:first-child {
+  width: 84vmax; height: 84vmax; left: -32vmax; top: -26vmax;
+  background: radial-gradient(closest-side, rgba(126, 196, 255, .34), rgba(96, 156, 240, .15) 56%, transparent 74%);
+  animation: hx-bgmo-a 24s ease-in-out infinite;
+}
+.hx-bgmo i:last-child {
+  width: 70vmax; height: 70vmax; right: -26vmax; bottom: -22vmax;
+  background: radial-gradient(closest-side, rgba(146, 255, 226, .26), rgba(108, 220, 196, .11) 56%, transparent 74%);
+  animation: hx-bgmo-b 32s ease-in-out infinite;
+}
+@keyframes hx-bgmo-a {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: .8; }
+  50% { transform: translate3d(17vmax, 11vmax, 0) scale(1.18); opacity: 1; }
+}
+@keyframes hx-bgmo-b {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1.1); opacity: .65; }
+  50% { transform: translate3d(-15vmax, -10vmax, 0) scale(.92); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html.hx-bg-mo body::before { animation: none; }
+  .hx-bgmo i { animation: none; }
 }
 /* 老设备上一律不做实时背景模糊（顶栏、底栏、弹层都算）。背景图已经糊过，去掉之后几乎看不出差别，
    但省掉的是每一次滚动都要重算的高斯模糊。顶栏改实色兜底，不然内容会从底下透上来。 */
@@ -203,8 +265,12 @@ html.hx-lite .hx-crumb:active::after { animation: none; }
 </style>
 <script>
 // 华夏工具外观（网站根目录 /hx-theme.js + /hx-theme.css）。全部工具在 <head> 里同步引用，打开就是选好的外观、不闪。
-// 外观只在总入口右上角改：主题色（沿用旧刷题站的 7 套）、浅色 / 深色 / 自动、背景图（推荐几张或自己上传）、界面透明度。
-// 存在 localStorage hx-theme（JSON），自己上传的背景图压缩后存 hx-theme-img；同一网站的页面（包括嵌在总入口里的工具）通过 storage 事件一起变。
+// ── 分层（2026-11-05 定稿）──
+//   · 全局层（键 hx-theme）：背景图/视频、背景动效、校徽水印 —— 全站通用，只在总入口右上角改；
+//   · 界面层（键 hx-theme:s:home / hx-theme:s:<tool>）：主题色、深色/浅色/自动、卡片通透度、背景清晰度
+//     —— 每个页面（首页和每个工具）各自一份、互不干扰；总入口外观面板改的是它自己（home）那份。
+// 外观只在总入口右上角改：主题色（沿用旧刷题站的 7 套）、深色 / 浅色 / 自动、背景图、通透度两根滑杆。
+// 自己上传的背景图压缩后存 hx-theme-img；同一网站的页面（包括嵌在总入口里的工具）通过 storage 事件一起变。
 // 子工具只适配：<html data-theme="light|dark">（排课、单片机上机原有的深浅色写法）+ 行内 CSS 变量 --acc 等；接线仿真、排课、单片机的旧主题键顺带改好。
 // <script src="../hx-theme.js" data-tool="paike">：子工具在网站上被单独打开（不在总入口框里）时，跳回总入口的对应工具，登录、账号只在总入口。
 (function () {
@@ -217,7 +283,8 @@ html.hx-lite .hx-crumb:active::after { animation: none; }
     red: { name: '朱红', l: '#c23b3b', d: '#ff6961', l2: '#d66a6a', d2: '#ff9a94' },
     mono: { name: '黑白', l: '#1d1d1f', d: '#f5f5f7', l2: '#55555a', d2: '#c7c7cc' }
   };
-  // 推荐背景：旧站的猫耳学习图（dev：开发者专属，只有开发者账号看得到、用得上）+ 几张渐变（不占流量）；op 是选它时的推荐透明度
+  // 推荐背景：旧站的猫耳学习图（dev：开发者专属，只有开发者账号看得到、用得上）+ 几张渐变（不占流量）。
+  // （op 字段是旧版「选背景时顺手改卡片透明度」的推荐值，VER 5 起不再使用：通透度归界面层管，换背景不动它。）
   var BG = {
     none: { name: '无' },
     // 2026-11-04 深夜用户定：背景只留三档 —— 无 / 极光动态（新的全站默认）/ 自己上传。
@@ -237,7 +304,17 @@ html.hx-lite .hx-crumb:active::after { animation: none; }
   // VER 4（2026-11-04 深夜）：背景项合并成上面三档，默认改成极光视频。
   // 老存档里凡是选了已下架背景（bear/chiikawa/cat/mist/bay/dusk/旧极光渐变）的，统一迁到新默认；
   // 自己上传过图的（custom 且本地还有图）保留不动 —— 那是用户自己的东西，不能因为改默认就没了。
-  var KEY = 'hx-theme', IMG = 'hx-theme-img', DEV = 'hx-dev', VER = 4, DEF = { acc: 'green', mode: 'auto', bg: 'aurora', op: 100, wx: 'none' };
+  // VER 5（2026-11-05）：主题体系分层。全局键 hx-theme 只管「背景 / 动效 / 校徽水印」（全站通用，总入口统一换）；
+  // 主题色、深浅模式、卡片通透度、背景清晰度改成**按界面分键**（hx-theme:s:home = 总入口首页，
+  // hx-theme:s:<tool> = 各工具页），互不干扰：首页改浅色不会带着工具一起变。
+  // 滑杆语义 2026-11-05 翻转：原来的 op「卡片透明度」100 = 最实；现在叫 clr「卡片通透度」，100 = 最透
+  // （也就是用户定下的默认观感：深色玻璃底、背景透出来），往下调卡片变实、文字更清楚。
+  // 老存档里的 op 不再折算：旧 100 = 新 100（同一观感），旧值更小的本意是「更透」——新体系 100 已经是最透，
+  // 一律落回默认 100，保证老用户刷新后看到的就是这版定稿的玻璃观感。
+  var KEY = 'hx-theme', SKEY = 'hx-theme:s:', IMG = 'hx-theme-img', DEV = 'hx-dev', VER = 5,
+    // 2026-11-05 用户定：默认进来 = 深色主题 + 两个滑杆都 100%（通透度 100 = 深色清透玻璃，背景最透出）。
+    // 之前默认 mode:'auto'，Mac 浅色系统打开就是浅色 + 旧白玻璃配方，用户原话「玻璃质感不高级 仅仅只是白色雾蒙蒙」。
+    DEF = { acc: 'green', mode: 'dark', bg: 'aurora', clr: 100, bgo: 100, wx: 'none' };
   // 背景动效（2026-11-03）：和背景主题平行的「动效模块」，由 fx/hx-weather.js 渲染在背景层。
   // 白名单写死在这里（而不是由渲染器自己认）：将来下架某个特效，老存档里选着它也会安全回落到「无」。
   var WX = {
@@ -502,29 +579,39 @@ html.hx-lite .hx-crumb:active::after { animation: none; }
   })();
 
   function ls(k, v) { try { if (v === undefined) return localStorage.getItem(k); if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { if (v !== undefined && v !== null) throw e; } return null; }
+  function jparse(raw) { try { var v = JSON.parse(raw); return v && typeof v === 'object' ? v : null; } catch (e) { return null; } }
+  function clamp01(n, d) { return Math.min(100, Math.max(0, isFinite(n) ? n : d)); }
+  // 当前界面的名字：总入口（没有 data-tool）= home，各工具 = data-tool 的值。
+  // 界面层设置（主题色 / 深浅 / 卡片通透度 / 背景清晰度）都存自己的键，互不干扰。
+  var SURF = tool || 'home';
   function get() {
-    var raw = ls(KEY), v = null;
-    if (raw && OLD[raw]) v = OLD[raw]; else try { v = JSON.parse(raw); } catch (e) { }
-    v = v && typeof v === 'object' ? v : {};
+    // ── 全局层（hx-theme）：背景 / 动效 / 水印，全站一份，总入口统一管 ──
+    var raw = ls(KEY), v = raw && OLD[raw] ? OLD[raw] : jparse(raw);
+    v = v || {};
     // 老存档（没有 ver）＝ 上这一版之前就存过外观的。统一换成新默认（极光），做到「全体人员默认」；
     // 只有自己上传过图的例外——那是明确主动的行为，别覆盖掉。想关掉背景在外观面板点「无」即可。
     if (raw && !v.ver && v.bg !== 'custom') v.bg = DEF.bg;
     // VER 4 迁移（2026-11-04 深夜）：背景项只剩 无/极光动态/自己的图。
-    // 规则就两条：① 存档里的背景 id 已经不存在了（bear/chiikawa/cat/mist/bay/dusk）→ 换成新默认；
-    // ② 说自己是 custom、但本机那张图已经被删了 → 也回默认（否则会留一个空背景）。
-    // 注意旧版的「极光渐变」用的就是 'aurora' 这个 id，现在它指的是极光视频——老用户会被自然升级成动态版，符合预期。
     if (!BG[v.bg]) v.bg = DEF.bg;
-    if (v.bg === 'custom' && !ls(IMG)) v.bg = DEF.bg;
-    // op 允许 0～100（2026-11-03 用户要求「要 0 到 100 可调节」）。
-    // ⚠️ 不能写 `+v.op || DEF.op`：0 是 falsy，会把「完全透明」静默变回默认值。
-    var opN = +v.op, bgoN = +v.bgo;
-    // bgo = 背景浓度（2026-11-03 用户报「透明度完全不会让背景透明」——原来的 op 滑杆只管卡片透明度，
-    // 背景纹丝不动。现在加一根独立的「背景浓度」滑杆：100 = 现状，0 = 背景完全消失只剩底色）
-    var s = { acc: ACC[v.acc] ? v.acc : DEF.acc, mode: /^(light|dark|auto)$/.test(v.mode) ? v.mode : DEF.mode, bg: BG[v.bg] ? v.bg : DEF.bg, op: Math.min(100, Math.max(0, isFinite(opN) ? opN : DEF.op)), bgo: Math.min(100, Math.max(0, isFinite(bgoN) ? bgoN : 100)), wx: WX[v.wx] ? v.wx : DEF.wx };
-    // 校徽水印（2026-11-04）：默认开。只认显式关掉的 0 / false / '0'——
-    // 老存档里根本没有这个字段，不能把 undefined 当关。
-    s.wm = (v.wm === 0 || v.wm === '0' || v.wm === false) ? 0 : 1;
-    if (s.bg === 'custom' && !ls(IMG)) s.bg = 'none';
+    // ── 界面层（hx-theme:s:<界面>）：主题色 / 深浅 / 卡片通透度 / 背景清晰度 ──
+    // 键存在即权威：缺了的字段回到 DEF，不再翻老存档（从改第一项起这个界面就走自己的设置）。
+    // 键不存在（从没在这个界面上改过外观）→ 沿用全局老存档里的 acc / mode / bgo（老用户观感不变），
+    //   都没有就落 DEF。老 op 滑杆不再折算，见 VER 5 注释。
+    var sv = jparse(ls(SKEY + SURF)), own = !!sv;
+    if (!own) sv = {};
+    var s = {
+      bg: BG[v.bg] ? v.bg : DEF.bg,
+      wx: WX[v.wx] ? v.wx : DEF.wx,
+      // 校徽水印：默认开。只认显式关掉的 0 / false / '0'——老存档里根本没有这个字段，不能把 undefined 当关。
+      wm: (v.wm === 0 || v.wm === '0' || v.wm === false) ? 0 : 1,
+      acc: own ? (ACC[sv.acc] ? sv.acc : DEF.acc) : (ACC[v.acc] ? v.acc : DEF.acc),
+      mode: own ? (/^(light|dark|auto)$/.test(sv.mode) ? sv.mode : DEF.mode) : (/^(light|dark|auto)$/.test(v.mode) ? v.mode : DEF.mode),
+      // 卡片通透度（2026-11-05 翻转语义）：100 = 最透（清透玻璃、背景透出来，默认），0 = 最实。
+      clr: own ? clamp01(+sv.clr, DEF.clr) : DEF.clr,
+      // 背景清晰度：100 = 原样显示（最清楚），0 = 背景几乎看不见、只剩页面底色。
+      bgo: own ? clamp01(+sv.bgo, 100) : clamp01(+v.bgo, 100)
+    };
+    if (s.bg === 'custom' && !ls(IMG)) s.bg = DEF.bg;
     if (BG[s.bg].dev && !isDev()) s.bg = 'none'; // 开发者专属背景：别的账号（或没登录）回落到无背景
     return s;
   }
@@ -626,6 +713,34 @@ html.hx-lite .hx-crumb:active::after { animation: none; }
   }
   // 窄屏（≤820px）：不建新元素、但已有的元素只暂停不销毁 —— CSS 那边 .hx-bgvid-wrap 会 display:none。
   function bgNarrow() { return !!(window.matchMedia && matchMedia('(max-width: 820px)').matches); }
+
+  // ── 2026-11-05 六修：手机（及窄屏）背景「不会动」──
+  // 移动端不建 video（bgNoVideo，为了根治 Safari 弹原生播放器），只剩 --hx-img 一张静态海报帧，
+  // 用户反馈「手机上首页背景不会动」。这里补一层**纯 CSS 合成动画**（见 hx-theme.css 的 hx-bgmo-*）：
+  //   · html.hx-bg-mo body::before 自己做缓慢推近（ken burns）；
+  //   · body 里插一个 .hx-bgmo，两团极光柔光反向漂移。
+  // 只在「视频壁纸被降级成海报帧」时挂；省电一体机 / 系统减少动态效果 一律不挂（保持静态，也不白烧合成）。
+  // 全程零 video、零 rAF、零 blur、零 blend-mode：只有 transform / opacity 两个合成器属性在动。
+  var bgMo = null;
+  function bgMotion(on) {
+    var r = document.documentElement;
+    var need = !!on && !liteOn() && !r.classList.contains('hx-lite')
+      && !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+    r.classList.toggle('hx-bg-mo', need);
+    if (!need) {
+      if (bgMo && bgMo.parentNode) bgMo.parentNode.removeChild(bgMo);
+      bgMo = null;
+      return;
+    }
+    if (bgMo) return;
+    if (!document.body) return;               // 脚本在 <head> 里跑，body 还没出来：下次 apply() 再补
+    bgMo = document.createElement('div');
+    bgMo.className = 'hx-bgmo';
+    bgMo.setAttribute('aria-hidden', 'true');
+    bgMo.appendChild(document.createElement('i'));
+    bgMo.appendChild(document.createElement('i'));
+    document.body.insertBefore(bgMo, document.body.firstChild);
+  }
 
   function bgSetFade(v, k) {
     if (!v) return;
@@ -827,21 +942,35 @@ html.hx-lite .hx-crumb:active::after { animation: none; }
     // 窄屏（≤820）也要给海报：视频元素此时被 CSS display:none 藏了，不给海报就只剩页底色。
     var vidStill = isVid && (bgNoVideo() || bgNarrow());
     if (vidStill && b.poster) img = 'url("' + root + b.poster + '")';
+    // --hx-a：玻璃浓度乘数（各条玻璃配方的 alpha 都乘它）。
+    // 2026-11-05 随通透度滑杆翻转语义：100（最透）= 1，正好是 2026-11-04 定稿的那套清透玻璃；
+    // 往下调卡片变实：0 = 2，各配方 alpha × 2 后被浏览器钳到 1，整卡变成实色（保可读的兜底端）。
+    var hx_a = s.bg === 'none' ? 1 : 1 + (100 - s.clr) / 100;
     var vars = { '--acc': c, '--acc2': c2, '--acc3': c2, '--acc-h': c2, '--on-acc': s.acc === 'mono' && m === 'dark' ? '#1d1d1f' : '#fff',
       '--accbg': 'color-mix(in srgb, ' + c + ' 14%, transparent)', '--ring': 'color-mix(in srgb, ' + c + ' 40%, transparent)',
-      '--hov': 'color-mix(in srgb, ' + c + ' 10%, transparent)', '--hx-a': s.bg === 'none' ? 1 : s.op / 100, '--hx-img': isVid && !vidStill ? 'none' : img, '--hx-bgo': s.bgo / 100 };
+      '--hov': 'color-mix(in srgb, ' + c + ' 10%, transparent)', '--hx-a': hx_a, '--hx-img': isVid && !vidStill ? 'none' : img, '--hx-bgo': s.bgo / 100 };
     for (var k in vars) r.style.setProperty(k, vars[k]);
     r.classList.remove('hx-bgblur'); // 旧版挂的「预糊图」标记，现在没有任何样式依赖它，清掉防止老缓存残留
     bgVideo(isVid ? b.video : null, isVid ? b.poster : null, isVid && b.mirror);
+    // 海报帧兜底时（手机 / 窄屏）补一层 CSS 合成动画，不然手机上的背景是一张不动的静图。
+    // 只认「视频壁纸被降级」这一种：普通图片壁纸、纯色背景保持原样，不动用户选好的画面。
+    bgMotion(vidStill && !!b.video);
     var meta = document.querySelector('meta[name="theme-color"]'); if (meta) meta.setAttribute('content', m === 'dark' ? '#000000' : '#f5f5f7');
     try { ls('zfz-practice-theme', m); ls('wanxiu-paike-theme', m); ls('ui.theme', JSON.stringify(m)); } catch (e) { }
     for (var i = 0; i < subs.length; i++) try { subs[i](s, m); } catch (e) { }
   }
+  // set(patch)：按字段落键。bg / wx / wm → 全局键 hx-theme（全站一份）；
+  // acc / mode / clr / bgo → 当前界面键 hx-theme:s:<界面>（首页是 home，工具是 data-tool，互不干扰）。
+  // 换背景时不再自动改卡片透明度（老版会把 op 拉到该背景的「推荐值」）：通透度是界面自己的设置，不该被背景顺手改掉。
   function set(patch) {
-    var s = get(); for (var k in patch) s[k] = patch[k];
-    if (patch.bg && patch.op === undefined && BG[patch.bg].op) s.op = BG[patch.bg].op; // 换背景时用推荐透明度
-    s.ver = VER; // 记下版本：以后再加默认值就不会把用户已选过的背景顶掉
-    ls(KEY, JSON.stringify(s)); apply();
+    var g = jparse(ls(KEY)) || {}, o = jparse(ls(SKEY + SURF)) || {}, hitG = false, hitO = false;
+    for (var k in patch) {
+      if (k === 'bg' || k === 'wx' || k === 'wm') { g[k] = patch[k]; hitG = true; }
+      else if (k === 'acc' || k === 'mode' || k === 'clr' || k === 'bgo') { o[k] = patch[k]; hitO = true; }
+    }
+    if (hitG) { g.ver = VER; try { ls(KEY, JSON.stringify(g)); } catch (e) { } }
+    if (hitO) { try { ls(SKEY + SURF, JSON.stringify(o)); } catch (e) { } }
+    apply();
   }
   // 自己上传的图：缩到长边 1920、转 JPEG，免得撑爆浏览器存储（旧站是原图、限 3MB）
   // ── 上传过的背景：留一本历史（2026-11-04）──
@@ -903,14 +1032,16 @@ html.hx-lite .hx-crumb:active::after { animation: none; }
       im.src = url;
     });
   }
-  // 恢复默认：清设置、清当前图，但**不动相册** —— 用户点「恢复默认」是想回到出厂样子，
+  // 恢复默认：清全局设置、清当前图、清**本界面**的设置，但**不动相册** —— 用户点「恢复默认」是想回到出厂样子，
   // 不是想把辛苦攒的几张背景一起删了。要删单张去相册里点 ×。
-  function reset() { ls(KEY, null); ls(IMG, null); apply(); }
-  addEventListener('storage', function (e) { if (e.key === KEY || e.key === IMG || e.key === DEV || e.key === null) apply(); });
+  function reset() { ls(KEY, null); ls(IMG, null); ls(SKEY + SURF, null); apply(); }
+  // storage 事件：全局键（背景 / 动效 / 水印 / 图 / 开发者标）变了全站跟着刷；
+  // 界面键只有「自己的那一份」变了才刷——别的工具改深浅色不该惊动这一页（分层隔离的意义就在这）。
+  addEventListener('storage', function (e) { if (e.key === KEY || e.key === IMG || e.key === DEV || e.key === SKEY + SURF || e.key === null) apply(); });
   if (dark) (dark.addEventListener ? dark.addEventListener('change', apply) : dark.addListener(apply));
   // 总入口（同源的上层页面）：子工具要登录时请它弹登录窗口；不在框里就跳回首页
   function portal() { try { return window.top !== window && window.top.HXPortal ? window.top.HXPortal : null; } catch (e) { return null; } }
-  window.HXTheme = { acc: ACC, bg: BG, wx: WX, root: root, get: get, mode: function () { return modeOf(get()); }, set: set, upload: upload, reset: reset, isDev: isDev, setDev: setDev, onChange: function (fn) { subs.push(fn); },
+  window.HXTheme = { acc: ACC, bg: BG, wx: WX, root: root, surface: SURF, get: get, mode: function () { return modeOf(get()); }, set: set, upload: upload, reset: reset, isDev: isDev, setDev: setDev, onChange: function (fn) { subs.push(fn); },
     portal: portal, login: function () { var p = portal(); if (p) p.login(); else location.href = root + (tool ? '#' + tool : ''); },
     // 上传过的背景相册（2026-11-04）：imgs() 取列表、useImg(id) 切回、delImg(id) 删一张
     imgs: imgs, useImg: useImg, delImg: delImg,
@@ -1407,9 +1538,9 @@ var PixelFX=(()=>{var Yo=Object.defineProperty;var Le=Object.getOwnPropertyDescr
  * 页面引用的公共目录，所以用「同一份源码拷三份」而不是抽包；改这里时同步另外两份：
  *   · 刷题/loadfx.js（本文件）
  *   · 考试/src/loadfx.js（build.js 打进单文件产物）
- *   · 小组加分/fx/hx-jf-load.js（那边逻辑更重，只对齐「随机 + 会话内固定 + 回落」三条规则）
+ *   · 小组加分/fx/hx-jf-load.js（那边逻辑更重，只对齐「每次随机 + 避开上一次 + 最短停留 + 预跑 + 回落」规则）
  *
- * 规则（用户 2026-11-04 定，2026-11-06 返修）：
+ * 规则（用户 2026-11-04 定，2026-11-06 返修，2026-11-05 随机与时长返修）：
  *   1. **第一帧就是动效**：页面的首屏等待必须由「canvas 像素动效 + 药丸」组成，不允许先出现
  *      一条光秃秃的文字药丸、等内容渲染完再补一层像素闪屏盖上去（用户原话：「你东西加载好了
  *      才跳出来像素动效加载画面」「岂不是全屏状态」）。所以首屏用 boot()：标记先写进 HTML，
@@ -1417,11 +1548,21 @@ var PixelFX=(()=>{var Yo=Object.defineProperty;var Le=Object.getOwnPropertyDescr
  *   2. 首选：从特效包（pixelfx，MIT，见仓库根 NOTICE-pixelfx.md）里**随机**挑一个 loop 特效，
  *      画在 canvas 上；「正在加载…」文字以药丸（方块 + 文字）形式跟在动效下方 —— 文字是状态说明，
  *      要的是「结合」，不是二选一。
- *   3. 随机但**同一会话内固定**：选择记在 sessionStorage（键 hx-loadfx-<tool>）。
- *   4. 播不了就回落：prefers-reduced-motion、hx-lite（省电一体机）、特效包没加载出来、
+ *   3. **每次打开都重新随机**（2026-11-05 返修）：原先「同一会话内固定」（sessionStorage 存选中 id）
+ *      被用户否掉了——同一个会话反复进同一个工具永远抽到同一个特效，用户原话「点击接线仿真永远是
+ *      一个像素动效的加载画面」「我说了这种需要随机加载动效」。现在每次 boot/mount 都重新抽，
+ *      只把**上一次这个工具用过的 id** 记在 sessionStorage（键 hx-loadfx-last-<tool>）作为排除项，
+ *      继续开两次一定不一样；关掉标签页后「上一次」也清空，不影响正常随机。
+ *   4. **动效要真的动得看得见**（2026-11-05 返修）：最短停留从 520ms 提到 900ms（面板 420→640ms）。
+ *      首帧策略按 meta 区分：loop 特效在内存里**预跑 0.35 秒**再上屏（它们有的前 0.3～0.5 秒才长主体）；
+ *      one-shot 特效（meta.loop === false）**不预跑**——它们的第 0 帧本来就是峰值，预跑等于把动画提前放完，
+ *      播到 meta.duration 就重新起一个，保证闪屏期间一直有动作、不会停在空画布上。
+ *      预跑只在内存里算，最后一次性 putImageData。
+ *   5. 播不了就回落：prefers-reduced-motion、hx-lite（省电一体机）、特效包没加载出来、
  *      canvas 建不出来时回落到原来的像素方块药丸——绝不允许什么都不显示。
- *   5. 尺寸按视口自适应（2026-11-06 用户「加载动效普遍太小 紧急修复」）：像素主体按短边
- *      最大 62% 定尺寸、整数倍放大 3～8 倍，1080p 上是一块醒目的主体，不再是指甲盖。
+ *   6. 尺寸按视口自适应（2026-11-06 用户「加载动效普遍太小 紧急修复」；2026-11-07 再放大：
+ *      用户「再放大点」，短边 62% → 70%）：像素主体按短边最大 70% 定尺寸、整数倍放大 3～8 倍，
+ *      1080p 上是一块醒目的主体，不再是指甲盖。
  *
  * 性能红线（同 小组加分/fx/hx-jf-load.js）：全局唯一 requestAnimationFrame 循环、
  * 帧率封顶（触屏 18fps / 桌面 30fps）、done() 后 cancel；canvas 被 innerHTML 换掉
@@ -1463,11 +1604,12 @@ var PixelFX=(()=>{var Yo=Object.defineProperty;var Le=Object.getOwnPropertyDescr
   })();
 
   // 按视口算整数放大倍数（像素画非整数缩放会糊）。
-  // 首屏：短边 62% 定上限，3～8 倍；面板内嵌：上限收紧，2～4 倍，放进卡片不撑爆。
+  // 首屏：短边 70% 定上限（2026-11-07 用户「再放大点」，62% → 70%），3～8 倍；
+  // 面板内嵌：上限收紧，2～4 倍，放进卡片不撑爆。
   function fit(cv, m, compact) {
     var vw = window.innerWidth || 960, vh = window.innerHeight || 640;
-    var maxW = compact ? Math.min(vw * 0.72, 340) : vw * 0.66;
-    var maxH = compact ? Math.min(vh * 0.3, 260) : vh * 0.62;
+    var maxW = compact ? Math.min(vw * 0.72, 340) : vw * 0.72;
+    var maxH = compact ? Math.min(vh * 0.3, 260) : vh * 0.70;
     var k = Math.floor(Math.min(maxW / m.size[0], maxH / m.size[1]));
     // 上限 12：56px 的小特效在 1080p 也能放大到 ~620px，和 128px 大特效（5 倍 640px）
     // 视觉体量接近——不然随机抽到小特效那几把，「动效明显小一圈」。
@@ -1476,14 +1618,28 @@ var PixelFX=(()=>{var Yo=Object.defineProperty;var Le=Object.getOwnPropertyDescr
     cv.style.height = (m.size[1] * k) + 'px';
   }
 
+  // 抽签（2026-11-05 返修）：**每次调用都重新随机**，只排除「上一次这个工具用过的 id」，
+  // 保证连开两次一定不一样。「上一次」存 sessionStorage，仅作排除项，不再用来固定本次选择；
+  // 同一会话里反复打开不再永远同一个特效（旧版 hx-loadfx-<tool> 固定键废弃，读到也忽略）。
+  function pickId(tool) {
+    var P = window.PixelFX;
+    if (!P || !P.ids || !P.ids.length) return '';
+    var K = 'hx-loadfx-last-' + tool, pool = P.ids, prev = '', i, cand = [];
+    try { prev = sessionStorage.getItem(K) || ''; } catch (e) { }
+    if (prev) {
+      for (i = 0; i < pool.length; i++) if (pool[i] !== prev) cand.push(pool[i]);
+      if (cand.length) pool = cand;               // 只有 1 个特效时只能重复，不硬造空池
+    }
+    var id = pool[Math.floor(Math.random() * pool.length)] || '';
+    try { if (id) sessionStorage.setItem(K, id); } catch (e) { }
+    return id;
+  }
+
   // 在指定 canvas 上起一个特效引擎；起不来返回 null（调用方决定回落）
   function start(cv, tool, compact) {
     var P = window.PixelFX;
     if (!cv || !cv.getContext || !P || !P.effects || !P.ids || !P.ids.length) return null;
-    var K = 'hx-loadfx-' + tool, id = '';
-    try { id = sessionStorage.getItem(K) || ''; } catch (e) { }
-    if (!id || !P.effects[id]) id = P.ids[Math.floor(Math.random() * P.ids.length)];
-    try { if (id) sessionStorage.setItem(K, id); } catch (e) { }
+    var id = pickId(tool);
     var mod = P.effects[id];
     if (!mod || !mod.meta) return null;
     var m = mod.meta, W = m.size[0], H = m.size[1], O = m.origin || [W / 2, H / 2];
@@ -1495,12 +1651,22 @@ var PixelFX=(()=>{var Yo=Object.defineProperty;var Le=Object.getOwnPropertyDescr
     fit(cv, m, compact);
     addEventListener('resize', function () { fit(cv, m, compact); });
     var img = ctx.createImageData(W, H), fr = P.createFrame(W, H);
-    var fx = P.createFx(mod, { x: O[0], y: O[1], seed: Math.floor(Math.random() * 997) });
+    // one-shot 特效（meta.loop === false）播完 meta.duration 就重开一个：
+    // 接线仿真的 hit-spark 只有 0.5 秒，闪屏保底 0.9 秒，不重播的话后 0.4 秒是一张空画布。
+    var oneShot = m.loop === false, life = +m.duration || 0, age = 0;
+    function spawn() {
+      age = 0;
+      return P.createFx(mod, { x: O[0], y: O[1], seed: Math.floor(Math.random() * 997) });
+    }
+    var fx = spawn();
     var touch = window.matchMedia ? matchMedia('(hover: none), (pointer: coarse)').matches : false;
     var GAP = (touch || lite()) ? 1000 / 18 : 1000 / 30;
     var raf = 0, last = 0, stopped = false;
     function paint(dt) {
-      if (dt) fx.update(dt);
+      if (dt) {
+        fx.update(dt);
+        if (oneShot && life) { age += dt; if (age >= life) fx = spawn(); }  // one-shot 到期重播
+      }
       P.clearFrame(fr); fx.draw(fr, 'back'); fx.draw(fr, 'front');
       P.composite(fr, img.data, null);
       ctx.clearRect(0, 0, W, H); ctx.putImageData(img, 0, 0);
@@ -1514,7 +1680,14 @@ var PixelFX=(()=>{var Yo=Object.defineProperty;var Le=Object.getOwnPropertyDescr
       last = now; paint(dt);
       raf = requestAnimationFrame(step);
     }
+    // 首帧（2026-11-05 返修）：
+    //   · loop 特效：不少前 0.3～0.5 秒才长出主体，先在内存里按 1/60 步长预跑 0.35 秒
+    //     （只 update，不 putImageData），再把这一帧一次性上屏，第一眼就有主体且继续在动；
+    //   · one-shot 特效：第 0 帧就是峰值（实测 hit-spark t=0 实心 22.5%），预跑反而把动画放完，
+    //     所以直接从 0 帧开播。预跑不建 rAF、不额外上屏，性能红线不变。
+    if (!oneShot) for (var t = 0; t < 0.35; t += 1 / 60) fx.update(1 / 60);
     paint(0);
+    last = performance.now();   // 下一帧直接吃真实 dt，不再补一帧 dt=0 的重复画面
     raf = requestAnimationFrame(step);
     return {
       stop: function () { stopped = true; if (raf) { cancelAnimationFrame(raf); raf = 0; } },
@@ -1549,17 +1722,23 @@ var PixelFX=(()=>{var Yo=Object.defineProperty;var Le=Object.getOwnPropertyDescr
     wrap.setAttribute('aria-hidden', 'true');
     wrap.appendChild(cv); wrap.appendChild(pill);
     host.appendChild(wrap);
-    // 最少停留：本地题库 30ms 就回来了，秒闪一下反而像故障；不足 420ms 的补到 420ms 再淡出
-    var at = performance.now(), MIN_SHOW = 420, out = false;
+    // 最少停留（2026-11-05：420 → 640ms）：本地题库 30ms 就回来，秒闪一下反而像故障；
+    // 面板小号也给足时间，短于 0.6 秒根本看不出像素在动。
+    var at = performance.now(), MIN_SHOW = 640, out = false;
     return {
       el: wrap,
       fx: eng.fx,
-      done: function () {                              // 淡出并整体移除，停 rAF
+      done: function () {                              // 淡出并整体移除；动效要活到移除那一刻
         if (out) return; out = true;
         setTimeout(function () {
-          eng.stop();
           wrap.classList.add('out');
-          setTimeout(function () { if (wrap.parentNode) wrap.parentNode.removeChild(wrap); }, 240);
+          // 2026-11-05 五修：**stop 必须放在移除之后**。原来先 eng.stop() 再淡出，
+          // 数据一就绪（手机上 0.3~0.7s）画面就冻住，淡出的那 240ms 是一张静止图 ——
+          // 用户看到的正是「一个像素动效的加载画面且不会动」。
+          setTimeout(function () {
+            if (wrap.parentNode) wrap.parentNode.removeChild(wrap);
+            eng.stop();
+          }, 240);
         }, Math.max(0, MIN_SHOW - (performance.now() - at)));
       }
     };
@@ -1571,7 +1750,9 @@ var PixelFX=(()=>{var Yo=Object.defineProperty;var Le=Object.getOwnPropertyDescr
   // canvas 播不起来就把 canvas 藏掉，只留药丸（fallback 不空屏）。
   // finishBoot() 由工具在数据就绪后调：先保底 MIN_SHOW 再整层淡出移除。
   var bootH = null;
-  var MIN_SHOW = 520;
+  // 2026-11-05：520 → 900ms。接线仿真在手机上约 0.7 秒就绪就淡出，动效刚进主体就被拿走；
+  // 加载本来就在等，多留这三四百毫秒用户感知不到卡，却能从「一帧」变成「看得见在动」。
+  var MIN_SHOW = 900;
   function boot(tool, overlayId) {
     var ov = document.getElementById(overlayId || 'hxBoot');
     if (!ov || ov.dataset.armed) return null;
@@ -1590,10 +1771,16 @@ var PixelFX=(()=>{var Yo=Object.defineProperty;var Le=Object.getOwnPropertyDescr
   function finishBoot() {
     if (!bootH) return;
     var b = bootH; bootH = null;
-    if (b.eng) b.eng.stop();
+    // 2026-11-05 五修：**别在这里 stop 引擎**。工具准备好就会调本函数（手机 0.3~0.7s），
+    // 而遮罩还得亮到 MIN_SHOW（900ms）。原来这里立刻 eng.stop()，于是引擎只画了第一帧，
+    // 剩下的大半秒用户盯着一张冻图 —— 这就是「永远是一个像素动效的画面且不会动」的真因
+    // （实测成品页 1.4 秒内 putImageData 只被调用 1 次）。停 rAF 只允许发生在移除之后。
     setTimeout(function () {
       b.ov.classList.add('out');                       // .hx-boot.out 淡出整层
-      setTimeout(function () { if (b.ov.parentNode) b.ov.parentNode.removeChild(b.ov); }, 300);
+      setTimeout(function () {
+        if (b.ov.parentNode) b.ov.parentNode.removeChild(b.ov);
+        if (b.eng) b.eng.stop();                       // 移除之后再停：淡出全程仍在动
+      }, 300);
     }, Math.max(0, MIN_SHOW - (performance.now() - b.at)));
   }
   function booting() { return !!bootH; }
@@ -1615,11 +1802,8 @@ var PixelFX=(()=>{var Yo=Object.defineProperty;var Le=Object.getOwnPropertyDescr
   }
 
   window.HXLoadFx = {
-    pick: function (tool) {                            // 供调试 / 自查：看本会话选中了哪个特效
-      var P = window.PixelFX, K = 'hx-loadfx-' + tool, id = '';
-      try { id = sessionStorage.getItem(K) || ''; } catch (e) { }
-      if (!id && P && P.ids && P.ids.length) id = P.ids[Math.floor(Math.random() * P.ids.length)];
-      return id;
+    pick: function (tool) {                            // 供调试 / 自查：现抽一个（并记为「上一次」）
+      return pickId(tool);
     },
     mount: mount,
     boot: boot,

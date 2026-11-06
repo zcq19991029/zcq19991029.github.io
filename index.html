@@ -14,22 +14,22 @@
      要登录时调 window.HXPortal.login()；被单独打开时 hx-theme.js 会跳回这里（见 hx-theme.js 的 data-tool）。
      账号：Supabase 华夏工具项目，localStorage paike-session 和各工具共用；身份由数据库 hx_me() 决定。
      脚本里不用反引号模板字符串（本机测试时整页当字符串注入到线上同源页面里）。 -->
-<link rel="stylesheet" href="hx-theme.css?v=15dcd25">
-<script src="hx-theme.js?v=15dcd25"></script>
+<link rel="stylesheet" href="hx-theme.css?v=ad3e2c4">
+<script src="hx-theme.js?v=ad3e2c4"></script>
 <!-- 首页卡片上的像素小生物：pixelfx 的 12 个 critters（MIT），打包成一个 91 KB 的独立脚本。
      加载失败不影响首页——hx-critters.js 开头就有 window.PixelFX 存在性检查，没有就整段跳过。 -->
-<script src="fx/pixelfx-critters.js?v=15dcd25" defer></script>
-<script src="fx/hx-critters.js?v=15dcd25" defer></script>
+<script src="fx/pixelfx-critters.js?v=ad3e2c4" defer></script>
+<script src="fx/hx-critters.js?v=ad3e2c4" defer></script>
 <!-- 像素头像库（2026-11-04）：账号面板里除了传照片，还能从 200 多个像素动效里挑一个当头像。
      和上面 critters 同一套路：库（pixelfx-avatars.js）+ 渲染器（hx-avatar.js），都是 defer、
      不进首屏关键路径；不点「像素头像库」就一个动画都不跑。 -->
-<script src="fx/pixelfx-avatars.js?v=15dcd25" defer></script>
-<script src="fx/hx-avatar.js?v=15dcd25" defer></script>
+<script src="fx/pixelfx-avatars.js?v=ad3e2c4" defer></script>
+<script src="fx/hx-avatar.js?v=ad3e2c4" defer></script>
 <!-- 背景动效（2026-11-03）：12 种天气氛围特效铺在背景层，外观面板里选；加载失败或没选就完全不加载渲染器 -->
-<script src="fx/pixelfx-weather.js?v=15dcd25" defer></script>
-<script src="fx/hx-weather.js?v=15dcd25" defer></script>
+<script src="fx/pixelfx-weather.js?v=ad3e2c4" defer></script>
+<script src="fx/hx-weather.js?v=ad3e2c4" defer></script>
 <!-- 课堂码大屏二维码：离线 QR 编码器（qrcode 1.5.4 core 打包，MIT，见 fx/NOTICE-qr.md）。延迟加载即可：只有老师点「大屏二维码」时才用 -->
-<script src="fx/hx-qr.js?v=15dcd25" defer></script>
+<script src="fx/hx-qr.js?v=ad3e2c4" defer></script>
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; width: 100%; overflow: hidden; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -747,7 +747,13 @@
     header { gap: 6px; }
     header .brand span { max-width: 7.5em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     header .ibtn { flex: 0 0 36px; width: 36px; height: 36px; }
-    #syncPill { flex: 0 0 auto; max-width: 40px; overflow: hidden; }
+    /* 2026-11-05 用户：「同步按钮显示不完整」。
+       实测（390/430/480/600 四档都一样）：胶囊里的内容是「圆点 7 + 间距 6 + 刷新钮 24」
+       + 内边距左右 17 = **自然宽度 56px**，却被 `max-width:40px` 硬压到 40px、`overflow:hidden`
+       → 最右边的刷新钮（24px）被切掉 16px，截图里就是半个 ↻。
+       修法：窄屏把内边距和间距收紧（文字本来就 display:none），40px 里正好装得下；
+       并把 max-width 放开到 none，让它按内容撑开、永不再裁 —— 顶栏的余量由 .sp 弹性占位吸收。 */
+    #syncPill { flex: 0 0 auto; max-width: none; padding: 0 2px 0 3px; gap: 2px; }
     /* 2026-11-05 用户手机实测第二轮（图2）：首页右上角「混乱、显示不全」。
        根因：`#who, #who .acct { flex: 0 0 auto }` —— 账号块**不许被压缩**。手机登录态下
        头像 36 + 身份徽标（开发者/管理员，pill 自带 padding 9px×2 + 文字）+ 按钮 padding 4，
@@ -759,8 +765,13 @@
     #who .acct { flex: 0 1 auto; min-width: 0; gap: 6px; }
     header .acct b { max-width: 5.5em; }
     header .acct .pill { flex: none; }
-    /* ≤430（含 320/360/390）身份徽标只留圆点：高度 22 太占，改成 8px 圆点 + 保持可读的 title */
-    header .acct .pill.tight { width: 8px; height: 8px; min-width: 8px; padding: 0; border-radius: 50%; overflow: hidden; font-size: 0; }
+    /* 2026-11-05 用户：「首页的开发者三个字右边还是遮挡显示不全」。
+       上一轮的圆点样式写在 ≤640 里、而且 JS 从没加过 tight 类，等于双份失效。
+       现在 badge(1) 一定会带 tight（只给顶栏用），但是否收成圆点由下面 ≤480 那条决定：
+       ≥481 的地方顶栏有 .sp 弹性余量（实测 480 宽时余量 93px），完整显示「开发者」三个字；
+       ≤480（390/430 这些真机宽度）顶栏没有余量，收成 8px 圆点，身份信息在账号面板和
+       首页「你好，XX」那行仍然完整可见 —— 宁可少一颗字，也不让文字被屏幕边切一半。 */
+    header .acct .pill.tight { flex: none; }
     .hx-px { display: none; } /* 品牌右侧的像素小方块在窄屏没有信息量，先让位给账号 */
     /* 2026-11-05 用户手机实测：工具页顶栏「? 刷题 AI」挤在一起互相遮挡。
        根因是 .cur（工具名）用 position:absolute + left:50% 居中，390 宽下右侧的
@@ -804,6 +815,13 @@
     dialog.sheet { width: 100%; max-height: 92dvh; margin: auto 0 0; border-radius: 26px 26px 0 0; }
     dialog.sheet[open] { animation: up .5s var(--hx-spring); }
     .sh-h { padding: 14px 10px 12px 20px; } .sh-b { padding: 16px 16px calc(24px + env(safe-area-inset-bottom, 0px)); }
+  }
+  /* 2026-11-05 用户：「首页的开发者三个字右边还是遮挡显示不全」。
+     ≤480 的顶栏没有任何余量（实测 390 时头像右边缘已经到 378/390），身份徽标只好收成 8px 圆点：
+     宁可少一颗字，也不让「开发者」被屏幕边切掉一半。title/aria 仍在，长按或读屏能拿到身份。
+     ≥481 顶栏有 .sp 弹性余量（480 实测余量 93px），照常完整显示文字 —— 见 badge(1) 那处注释。 */
+  @media (max-width: 480px) {
+    header .acct .pill.tight { width: 8px; height: 8px; min-width: 8px; padding: 0; border-radius: 50%; overflow: hidden; font-size: 0; }
   }
   /* 320/360 这类超窄屏：工具页的「返回」只留箭头，把 40px 还给标题（文字仍在 DOM 里，读屏照常读「返回」）。
      只在 body.tool 生效 —— 首页顶栏没有返回键，不受影响。 */
@@ -1188,7 +1206,13 @@ function avatar(i, cls) { // 有图 = 透明圆盘（.has-img，见上面注释�
   var has = !!i.avatar;
   return '<span class="av ' + (has ? 'has-img ' : '') + (cls || '') + '"' + (has ? ' style="background-image:url(' + esc(i.avatar) + ')"' : '') + '>' + (has ? '' : esc(i.name.slice(0, 1))) + '</span>';
 }
-function badge() { var m = ST.me; return m && m.dev ? '<span class="pill dev" title="开发者">开发者</span>' : m && m.admin ? '<span class="pill admin" title="管理员">管理员</span>' : ''; } // 身份象征：开发者金粉、管理员蓝
+/* 2026-11-05 用户：「首页的开发者三个字右边还是遮挡显示不全」。
+   上一轮只写了 CSS（`header .acct .pill.tight`，≤640 时把徽标收成 8px 圆点），
+   但**没有任何一处 JS 加过 tight 这个类** —— 所以顶栏里的徽标始终是「开发者」三个字的完整宽度，
+   窄屏就被 #who 的 max-width 裁掉一半，字露在外面、右边被切。
+   现在 badge(1) 表示「窄屏顶栏用的紧凑版」（只给 #who 用）；不带参数的地方
+   （首页「你好，XX」那行、管理区标题）保持完整文字，那里不缺空间。 */
+function badge(tight) { var m = ST.me, t = tight ? ' tight' : ''; return m && m.dev ? '<span class="pill dev' + t + '" title="开发者">开发者</span>' : m && m.admin ? '<span class="pill admin' + t + '" title="管理员">管理员</span>' : ''; } // 身份象征：开发者金粉、管理员蓝
 // 按钮上二次确认：第一下变成“确认…？”，3 秒内再点才执行（不用 confirm()：应用内浏览器等环境会直接当成“取消”，看起来像点了没反应）
 function sure(b, text) {
   if (b.dataset.sure) { clearTimeout(+b.dataset.sure); delete b.dataset.sure; b.innerHTML = b.dataset.was; return true; }
@@ -1344,7 +1368,7 @@ function render() {
   var i = HX.in() && ST.user ? info() : null;
   $('hi').innerHTML = i ? '你好，' + esc(i.name) + badge() : '';
   if (i) {
-    $('who').innerHTML = '<button class="acct" id="acct" type="button" aria-expanded="' + $('pop').classList.contains('show') + '">' + avatar(i) + '<b>' + esc(i.name) + '</b>' + badge() + '</button>';
+    $('who').innerHTML = '<button class="acct" id="acct" type="button" aria-expanded="' + $('pop').classList.contains('show') + '">' + avatar(i) + '<b>' + esc(i.name) + '</b>' + badge(1) + '</button>';
     $('acct').onclick = function (e) { e.stopPropagation(); togglePop('pop'); };
   } else {
     $('who').innerHTML = '<button class="lbtn" id="in" type="button">登录</button>';
@@ -2589,7 +2613,8 @@ if (gerr) openLogin(gerr);
 //   小组加分  jf_score_states(owner_id = 我, revision/updated_at) 教师可读（schema 限定 hx_is_teacher）
 //   课程进度  kc_workspaces  (owner_id = 我, revision/updated_at) 教师
 //   考试     hx_exams       (teacher_id = 我, created_at)       教师（学生侧没有个人行，标 N/A）
-//   接线仿真 / 单片机 / 进制转换 / 反馈 → N/A（无个人同步行或只能走写侧 RPC，见 .sync-note）
+//   接线仿真 / 单片机 / 进制转换 / 反馈 → N/A（接线排位走 rank_start/rank_finish 服务端函数直写排行榜，
+//   客户端没有「我的那一行」可 GET；其余是纯本地工具或公共流。给用户看的是 NA_WHY 里的大白话，不是这句注释）
 // 会话完全复用 localStorage paike-session（HX.api 内部自带 fresh() 续期），不重复登录；
 // 全部探测一次并行发出、结果缓存 5 分钟，首屏只多 4~5 个极小 select，不拖慢加载。
 (function () {
@@ -2608,7 +2633,10 @@ if (gerr) openLogin(gerr);
   };
   // 工具 → 探测方式：probe / probe-teacher（仅教师）/ na（没有可只读查询的个人云端数据）
   var MODE = { wiring: 'na', quiz: 'probe', base: 'na', mcu: 'na', exam: 'probe-teacher', paike: 'probe', jiafen: 'probe', course: 'probe', feedback: 'na' };
-  var NA_WHY = { wiring: '排位成绩走写侧 RPC，无个人同步行', base: '纯本地工具', mcu: '上机数据在本地与考试端', feedback: '公共反馈流，非个人同步' };
+  // 2026-11-05 用户：「接线排位走侧rpc我没懂啥意思」—— 原文案是「排位成绩走写侧 RPC，无个人同步行」，
+  // 全是术语。改成大白话：成绩确实在云端，只是存在「排行榜」里，没有「你自己的一行」可以单独查，
+  // 所以这个胶囊查不到它、只能显示 N/A。要看成绩点进排位看排行榜就行。
+  var NA_WHY = { wiring: '排位成绩存在云端排行榜里，没有「你自己的一行」可单独核对（进排位就能看到）', base: '纯本地工具，不上云', mcu: '上机数据存在本机和考试端', feedback: '公共反馈流，不是个人同步数据' };
 
   function fmt(ms, withSec) {
     if (!ms) return '';
@@ -2652,15 +2680,23 @@ if (gerr) openLogin(gerr);
     });
   }
 
-  function summary() { // 全站一句话状态：ok=有同步行且全通，warn=通了但有暂无记录，bad=有探测失败/全离线
+  /* 2026-11-05 用户：「一直是黄色的课程进度表是空的那不就是已同步吗 压根没导入」。
+     原文案「已连接 · 暂无云端记录」+ 黄点，让人读成「已同步」或者「出问题了」，两样都不对。
+     实际含义只有一个：**这个账号在云端还没有这个工具的数据行**（没导入/没保存过），既不是同步成功，
+     也不是故障。所以：
+       · empty 不再算 warn（黄点是留给真出事的），改成中性灰；
+       · 文案直接说「云端还没有记录」，并点明「保存过才有」。
+     金/黄只表示「有工具探测失败」，红只表示「所有工具都连不上」。 */
+  function summary() { // ok=至少一个工具有云端记录且全通 / empty=都还没存过（不是问题）/ bad·off=真出事
     if (!st.results) return st.checking ? 'checking' : 'idle';
     var off = st.results.filter(function (r) { return r.st === 'off'; }).length;
-    var empty = st.results.filter(function (r) { return r.st === 'empty'; }).length;
     var probed = st.results.length - st.results.filter(function (r) { return r.st === 'na'; }).length;
-    if (off >= probed && probed > 0) return 'off';
-    return off ? 'bad' : (empty ? 'warn' : 'ok');
+    if (probed > 0 && off >= probed) return 'off';
+    if (off) return 'bad';
+    var ok = st.results.filter(function (r) { return r.st === 'ok'; }).length;
+    return ok ? 'ok' : 'empty';
   }
-  function dotCls(k) { return k === 'ok' ? 'ok' : k === 'warn' || k === 'empty' ? 'warn' : k === 'off' || k === 'bad' ? 'bad' : ''; }
+  function dotCls(k) { return k === 'ok' ? 'ok' : k === 'bad' || k === 'off' ? 'bad' : ''; } // warn/empty/idle 一律中性灰
 
   function renderPill() {
     if (!HX.in()) { pill.hidden = true; closePop(); return; }
@@ -2668,6 +2704,7 @@ if (gerr) openLogin(gerr);
     var s = summary(), ver = st.version ? 'v' + esc(st.version.commit) : '', txt;
     if (st.checking && !st.checkedAt) txt = '正在核对云端…';
     else if (s === 'off' && !st.checking) txt = (ver ? ver + ' · ' : '') + '离线未核对';
+    else if (s === 'empty' && st.checkedAt) txt = (ver ? ver + ' · ' : '') + '云端还没有记录';
     else if (st.checkedAt) txt = (ver ? ver + ' · ' : '') + '云端核对于 ' + fmt(st.checkedAt, true);
     else txt = (ver ? ver + ' · ' : '') + '未核对';
     pill.innerHTML = '<span class="sync-dot ' + dotCls(s) + '"></span><span class="sync-txt">' + txt + '</span>' +
@@ -2684,7 +2721,7 @@ if (gerr) openLogin(gerr);
       if (!t) return '';
       var state, time = '';
       if (r.st === 'ok') { state = '正常同步'; time = fmtISO(r.at); }
-      else if (r.st === 'empty') { state = '已连接 · 暂无云端记录'; time = st.checkedAt ? fmt(st.checkedAt, false) : ''; }
+      else if (r.st === 'empty') { state = '云端还没有记录（保存过才有）'; time = st.checkedAt ? fmt(st.checkedAt, false) : ''; }
       else if (r.st === 'off') { state = '离线未核'; time = st.checkedAt ? fmt(st.checkedAt, false) : ''; }
       else if (r.st === 'na') { state = 'N/A · ' + (r.why || NA_WHY[r.id] || '无个人云端同步数据'); }
       else state = '等待核对…';
@@ -2694,7 +2731,7 @@ if (gerr) openLogin(gerr);
     pop.innerHTML = '<h3>华夏工具 ' + (ver !== '读取中' ? 'v' + ver : '') + ' · 全站云端同步</h3>' +
       '<p class="sync-sub">' + (st.checkedAt ? '核对于 ' + fmt(st.checkedAt, true) + (st.checking ? ' · 正在重新核对…' : ' · 每 5 分钟自动核对') : '正在核对云端数据…') + '</p>' +
       rows +
-      '<p class="sync-note">状态只读自各工具现有的云端表（Supabase，按账号 RLS 隔离）；N/A = 该工具没有可只读查询的个人同步数据，不影响使用。</p>';
+      '<p class="sync-note">状态只读自各工具现有的云端表（Supabase，按账号 RLS 隔离）。灰点＝还没往云端存过，不是故障；黄点＝有工具没查通，红点＝全部连不上；N/A ＝该工具本来就没有「个人同步数据」可查，不影响使用。</p>';
   }
 
   function openPop() { if (pill.hidden) return; st.open = true; renderPop(); pop.classList.add('show'); pill.setAttribute('aria-expanded', 'true'); if (!st.results && !st.checking) probe(false); }
