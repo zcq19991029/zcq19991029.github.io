@@ -448,6 +448,34 @@
   // 窄屏（≤820px）：不建新元素、但已有的元素只暂停不销毁 —— CSS 那边 .hx-bgvid-wrap 会 display:none。
   function bgNarrow() { return !!(window.matchMedia && matchMedia('(max-width: 820px)').matches); }
 
+  // ── 2026-11-05 六修：手机（及窄屏）背景「不会动」──
+  // 移动端不建 video（bgNoVideo，为了根治 Safari 弹原生播放器），只剩 --hx-img 一张静态海报帧，
+  // 用户反馈「手机上首页背景不会动」。这里补一层**纯 CSS 合成动画**（见 hx-theme.css 的 hx-bgmo-*）：
+  //   · html.hx-bg-mo body::before 自己做缓慢推近（ken burns）；
+  //   · body 里插一个 .hx-bgmo，两团极光柔光反向漂移。
+  // 只在「视频壁纸被降级成海报帧」时挂；省电一体机 / 系统减少动态效果 一律不挂（保持静态，也不白烧合成）。
+  // 全程零 video、零 rAF、零 blur、零 blend-mode：只有 transform / opacity 两个合成器属性在动。
+  var bgMo = null;
+  function bgMotion(on) {
+    var r = document.documentElement;
+    var need = !!on && !liteOn() && !r.classList.contains('hx-lite')
+      && !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+    r.classList.toggle('hx-bg-mo', need);
+    if (!need) {
+      if (bgMo && bgMo.parentNode) bgMo.parentNode.removeChild(bgMo);
+      bgMo = null;
+      return;
+    }
+    if (bgMo) return;
+    if (!document.body) return;               // 脚本在 <head> 里跑，body 还没出来：下次 apply() 再补
+    bgMo = document.createElement('div');
+    bgMo.className = 'hx-bgmo';
+    bgMo.setAttribute('aria-hidden', 'true');
+    bgMo.appendChild(document.createElement('i'));
+    bgMo.appendChild(document.createElement('i'));
+    document.body.insertBefore(bgMo, document.body.firstChild);
+  }
+
   function bgSetFade(v, k) {
     if (!v) return;
     v.style.setProperty('--hx-fade', k ? '1' : '0');
@@ -658,6 +686,9 @@
     for (var k in vars) r.style.setProperty(k, vars[k]);
     r.classList.remove('hx-bgblur'); // 旧版挂的「预糊图」标记，现在没有任何样式依赖它，清掉防止老缓存残留
     bgVideo(isVid ? b.video : null, isVid ? b.poster : null, isVid && b.mirror);
+    // 海报帧兜底时（手机 / 窄屏）补一层 CSS 合成动画，不然手机上的背景是一张不动的静图。
+    // 只认「视频壁纸被降级」这一种：普通图片壁纸、纯色背景保持原样，不动用户选好的画面。
+    bgMotion(vidStill && !!b.video);
     var meta = document.querySelector('meta[name="theme-color"]'); if (meta) meta.setAttribute('content', m === 'dark' ? '#000000' : '#f5f5f7');
     try { ls('zfz-practice-theme', m); ls('wanxiu-paike-theme', m); ls('ui.theme', JSON.stringify(m)); } catch (e) { }
     for (var i = 0; i < subs.length; i++) try { subs[i](s, m); } catch (e) { }

@@ -530,6 +530,9 @@
   @keyframes ptRingPulse { 0%, 100% { transform: perspective(420px) rotateX(58deg) scale(1); } 50% { transform: perspective(420px) rotateX(58deg) scale(1.045); opacity: .45; } }
   /* ── 入场动画：遮罩渐暗模糊(.fw 自身) + 面板上浮缩放 + 霓虹沿轮廓点亮 + 卡片 90ms 依次入场 + 底部环亮起 ── */
   #fw-about.show .pt-panel { animation: ptFlow 10s linear infinite, ptIn .58s cubic-bezier(.22, 1, .36, 1) both, ptLight .85s ease-out both; }
+  /* 2026-11-05 重画（窗口已开着又要换名单/换视图）时不要再播入场动画：只留边框流光。
+     否则用户会看到窗口「闪出来两次」。见 aboutView 里的 reopen 判断。 */
+  #fw-about.show.pt-refresh .pt-panel { animation: ptFlow 10s linear infinite; }
   @keyframes ptIn { from { opacity: 0; transform: translateY(16px) scale(.94); } }
   @keyframes ptLight { from { filter: brightness(2) saturate(1.35); } }
   #fw-about.show .pt-head, #fw-about.show .pt-div { animation: ptFade .5s .1s cubic-bezier(.22, 1, .36, 1) both; }
@@ -1732,16 +1735,25 @@ window.SYMBOL_PHOTOS = {
  *   · 刷题/loadfx.js 与 考试/src/loadfx.js 是本文件的同步拷贝（那两处要随页面一起走相对路径），
  *     小组加分/fx/hx-jf-load.js 是同规则的重量级变体——改规则时四处对齐。
  *
- * 规则（用户 2026-11-04 定，2026-11-06 / 2026-11-07 返修）：
+ * 规则（用户 2026-11-04 定，2026-11-06 / 2026-11-07 返修，2026-11-05 随机与时长返修）：
  *   1. **第一帧就是动效**：页面的首屏等待必须由「canvas 像素动效 + 药丸」组成，不允许先出现
  *      一条光秃秃的文字药丸、等内容渲染完再补一层像素闪屏盖上去。首屏用 boot()：标记先写进 HTML，
  *      boot() 在解析到它时立刻画第一帧，内容就绪后整层淡出。
  *   2. 首选：从特效包里**随机**挑一个 loop 特效画在 canvas 上；「正在载入…」文字以药丸
  *      （方块 + 文字）形式跟在动效下方——文字是状态说明，要的是「结合」，不是二选一。
- *   3. 随机但**同一会话内固定**：选择记在 sessionStorage（键 hx-loadfx-<tool>）。
- *   4. 播不了就回落：prefers-reduced-motion、hx-lite（省电一体机）、特效包没加载出来、
+ *   3. **每次打开都重新随机**（2026-11-05 返修）：原先「同一会话内固定」（sessionStorage 存选中 id）
+ *      被用户否掉了——同一个会话反复进同一个工具永远抽到同一个特效，用户原话「点击接线仿真永远是
+ *      一个像素动效的加载画面」「我说了这种需要随机加载动效」。现在每次 boot/mount 都重新抽，
+ *      只把**上一次这个工具用过的 id** 记在 sessionStorage（键 hx-loadfx-last-<tool>）作为排除项，
+ *      继续开两次一定不一样；关掉标签页后「上一次」也清空，不影响正常随机。
+ *   4. **动效要真的动得看得见**（2026-11-05 返修）：最短停留从 520ms 提到 900ms（面板 420→640ms）。
+ *      首帧策略按 meta 区分：loop 特效在内存里**预跑 0.35 秒**再上屏（它们有的前 0.3～0.5 秒才长主体）；
+ *      one-shot 特效（meta.loop === false）**不预跑**——它们的第 0 帧本来就是峰值，预跑等于把动画提前放完，
+ *      播到 meta.duration 就重新起一个，保证闪屏期间一直有动作、不会停在空画布上。
+ *      预跑只在内存里算，最后一次性 putImageData。
+ *   5. 播不了就回落：prefers-reduced-motion、hx-lite（省电一体机）、特效包没加载出来、
  *      canvas 建不出来时回落到像素方块药丸——绝不允许什么都不显示、也不许把页面盖死（8 秒兜底）。
- *   5. 尺寸按视口自适应（2026-11-06「加载动效普遍太小 紧急修复」；2026-11-07 用户「再放大点」：
+ *   6. 尺寸按视口自适应（2026-11-06「加载动效普遍太小 紧急修复」；2026-11-07 用户「再放大点」：
  *      短边 62% → 70%）：像素主体按短边最大 70% 定尺寸、整数倍放大。
  *
  * 性能红线（同 小组加分/fx/hx-jf-load.js）：全局唯一 requestAnimationFrame 循环、
@@ -1815,14 +1827,28 @@ window.SYMBOL_PHOTOS = {
     cv.style.height = (m.size[1] * k) + 'px';
   }
 
+  // 抽签（2026-11-05 返修）：**每次调用都重新随机**，只排除「上一次这个工具用过的 id」，
+  // 保证连开两次一定不一样。「上一次」存 sessionStorage，仅作排除项，不再用来固定本次选择；
+  // 同一会话里反复打开不再永远同一个特效（旧版 hx-loadfx-<tool> 固定键废弃，读到也忽略）。
+  function pickId(tool) {
+    var P = window.PixelFX;
+    if (!P || !P.ids || !P.ids.length) return '';
+    var K = 'hx-loadfx-last-' + tool, pool = P.ids, prev = '', i, cand = [];
+    try { prev = sessionStorage.getItem(K) || ''; } catch (e) { }
+    if (prev) {
+      for (i = 0; i < pool.length; i++) if (pool[i] !== prev) cand.push(pool[i]);
+      if (cand.length) pool = cand;               // 只有 1 个特效时只能重复，不硬造空池
+    }
+    var id = pool[Math.floor(Math.random() * pool.length)] || '';
+    try { if (id) sessionStorage.setItem(K, id); } catch (e) { }
+    return id;
+  }
+
   // 在指定 canvas 上起一个特效引擎；起不来返回 null（调用方决定回落）
   function start(cv, tool, compact) {
     var P = window.PixelFX;
     if (!cv || !cv.getContext || !P || !P.effects || !P.ids || !P.ids.length) return null;
-    var K = 'hx-loadfx-' + tool, id = '';
-    try { id = sessionStorage.getItem(K) || ''; } catch (e) { }
-    if (!id || !P.effects[id]) id = P.ids[Math.floor(Math.random() * P.ids.length)];
-    try { if (id) sessionStorage.setItem(K, id); } catch (e) { }
+    var id = pickId(tool);
     var mod = P.effects[id];
     if (!mod || !mod.meta) return null;
     var m = mod.meta, W = m.size[0], H = m.size[1], O = m.origin || [W / 2, H / 2];
@@ -1834,12 +1860,22 @@ window.SYMBOL_PHOTOS = {
     fit(cv, m, compact);
     addEventListener('resize', function () { fit(cv, m, compact); });
     var img = ctx.createImageData(W, H), fr = P.createFrame(W, H);
-    var fx = P.createFx(mod, { x: O[0], y: O[1], seed: Math.floor(Math.random() * 997) });
+    // one-shot 特效（meta.loop === false）播完 meta.duration 就重开一个：
+    // 接线仿真的 hit-spark 只有 0.5 秒，闪屏保底 0.9 秒，不重播的话后 0.4 秒是一张空画布。
+    var oneShot = m.loop === false, life = +m.duration || 0, age = 0;
+    function spawn() {
+      age = 0;
+      return P.createFx(mod, { x: O[0], y: O[1], seed: Math.floor(Math.random() * 997) });
+    }
+    var fx = spawn();
     var touch = window.matchMedia ? matchMedia('(hover: none), (pointer: coarse)').matches : false;
     var GAP = (touch || lite()) ? 1000 / 18 : 1000 / 30;
     var raf = 0, last = 0, stopped = false;
     function paint(dt) {
-      if (dt) fx.update(dt);
+      if (dt) {
+        fx.update(dt);
+        if (oneShot && life) { age += dt; if (age >= life) fx = spawn(); }  // one-shot 到期重播
+      }
       P.clearFrame(fr); fx.draw(fr, 'back'); fx.draw(fr, 'front');
       P.composite(fr, img.data, null);
       ctx.clearRect(0, 0, W, H); ctx.putImageData(img, 0, 0);
@@ -1853,7 +1889,14 @@ window.SYMBOL_PHOTOS = {
       last = now; paint(dt);
       raf = requestAnimationFrame(step);
     }
+    // 首帧（2026-11-05 返修）：
+    //   · loop 特效：不少前 0.3～0.5 秒才长出主体，先在内存里按 1/60 步长预跑 0.35 秒
+    //     （只 update，不 putImageData），再把这一帧一次性上屏，第一眼就有主体且继续在动；
+    //   · one-shot 特效：第 0 帧就是峰值（实测 hit-spark t=0 实心 22.5%），预跑反而把动画放完，
+    //     所以直接从 0 帧开播。预跑不建 rAF、不额外上屏，性能红线不变。
+    if (!oneShot) for (var t = 0; t < 0.35; t += 1 / 60) fx.update(1 / 60);
     paint(0);
+    last = performance.now();   // 下一帧直接吃真实 dt，不再补一帧 dt=0 的重复画面
     raf = requestAnimationFrame(step);
     return {
       stop: function () { stopped = true; if (raf) { cancelAnimationFrame(raf); raf = 0; } },
@@ -1888,17 +1931,23 @@ window.SYMBOL_PHOTOS = {
     wrap.setAttribute('aria-hidden', 'true');
     wrap.appendChild(cv); wrap.appendChild(pill);
     host.appendChild(wrap);
-    // 最少停留：本地题库 30ms 就回来了，秒闪一下反而像故障；不足 420ms 的补到 420ms 再淡出
-    var at = performance.now(), MIN_SHOW = 420, out = false;
+    // 最少停留（2026-11-05：420 → 640ms）：本地题库 30ms 就回来，秒闪一下反而像故障；
+    // 面板小号也给足时间，短于 0.6 秒根本看不出像素在动。
+    var at = performance.now(), MIN_SHOW = 640, out = false;
     return {
       el: wrap,
       fx: eng.fx,
-      done: function () {                              // 淡出并整体移除，停 rAF
+      done: function () {                              // 淡出并整体移除；动效要活到移除那一刻
         if (out) return; out = true;
         setTimeout(function () {
-          eng.stop();
           wrap.classList.add('out');
-          setTimeout(function () { if (wrap.parentNode) wrap.parentNode.removeChild(wrap); }, 240);
+          // 2026-11-05 五修：**stop 必须放在移除之后**。原来先 eng.stop() 再淡出，
+          // 数据一就绪（手机上 0.3~0.7s）画面就冻住，淡出的那 240ms 是一张静止图 ——
+          // 用户看到的正是「一个像素动效的加载画面且不会动」。
+          setTimeout(function () {
+            if (wrap.parentNode) wrap.parentNode.removeChild(wrap);
+            eng.stop();
+          }, 240);
         }, Math.max(0, MIN_SHOW - (performance.now() - at)));
       }
     };
@@ -1910,7 +1959,9 @@ window.SYMBOL_PHOTOS = {
   // canvas 播不起来就把 canvas 藏掉，只留药丸（fallback 不空屏）。
   // finishBoot() 由工具在数据就绪后调：先保底 MIN_SHOW 再整层淡出移除。
   var bootH = null;
-  var MIN_SHOW = 520;
+  // 2026-11-05：520 → 900ms。接线仿真在手机上约 0.7 秒就绪就淡出，动效刚进主体就被拿走；
+  // 加载本来就在等，多留这三四百毫秒用户感知不到卡，却能从「一帧」变成「看得见在动」。
+  var MIN_SHOW = 900;
   function boot(tool, overlayId) {
     var ov = document.getElementById(overlayId || 'hxBoot');
     if (!ov || ov.dataset.armed) return null;
@@ -1929,10 +1980,16 @@ window.SYMBOL_PHOTOS = {
   function finishBoot() {
     if (!bootH) return;
     var b = bootH; bootH = null;
-    if (b.eng) b.eng.stop();
+    // 2026-11-05 五修：**别在这里 stop 引擎**。工具准备好就会调本函数（手机 0.3~0.7s），
+    // 而遮罩还得亮到 MIN_SHOW（900ms）。原来这里立刻 eng.stop()，于是引擎只画了第一帧，
+    // 剩下的大半秒用户盯着一张冻图 —— 这就是「永远是一个像素动效的画面且不会动」的真因
+    // （实测成品页 1.4 秒内 putImageData 只被调用 1 次）。停 rAF 只允许发生在移除之后。
     setTimeout(function () {
       b.ov.classList.add('out');                       // .hx-boot.out 淡出整层
-      setTimeout(function () { if (b.ov.parentNode) b.ov.parentNode.removeChild(b.ov); }, 300);
+      setTimeout(function () {
+        if (b.ov.parentNode) b.ov.parentNode.removeChild(b.ov);
+        if (b.eng) b.eng.stop();                       // 移除之后再停：淡出全程仍在动
+      }, 300);
     }, Math.max(0, MIN_SHOW - (performance.now() - b.at)));
   }
   function booting() { return !!bootH; }
@@ -1954,11 +2011,8 @@ window.SYMBOL_PHOTOS = {
   }
 
   window.HXLoadFx = {
-    pick: function (tool) {                            // 供调试 / 自查：看本会话选中了哪个特效
-      var P = window.PixelFX, K = 'hx-loadfx-' + tool, id = '';
-      try { id = sessionStorage.getItem(K) || ''; } catch (e) { }
-      if (!id && P && P.ids && P.ids.length) id = P.ids[Math.floor(Math.random() * P.ids.length)];
-      return id;
+    pick: function (tool) {                            // 供调试 / 自查：现抽一个（并记为「上一次」）
+      return pickId(tool);
     },
     mount: mount,
     boot: boot,
@@ -2680,9 +2734,19 @@ function ptSetup(el) {
 }
 function aboutView(edit) {
   const A = ABOUT;
+  // 2026-11-05 用户报「项目团队会闪出来两次」：窗口已经开着的时候又调一次 aboutView，
+  // floatWin 会把 .fw-body 整个重建 → 生成新的 .pt-panel → CSS `.show .pt-panel{animation:ptIn}`
+  // 跟着重播一遍入场动画（实测：panel#1 → panel#2，transform 从 none 回到 translateY(16px)scale(.94)、opacity 掉到 .68）。
+  // 用户看到的就是「闪一下又闪一下」。这里先判断「是不是重画」，是就给窗口打 pt-refresh，
+  // 只保留边框流光 ptFlow，把入场动画摘掉（见 CSS `.show.pt-refresh .pt-panel`）。
+  const reopen = (() => {
+    const w = document.getElementById('fw-about');
+    return !!(w && w.classList.contains('show'));
+  })();
   // w/h 传给 floatWin 只是兜底（遮罩尺寸由 CSS 钉死整屏）；标题照传，隐藏的原生标题栏不用它
   const prevFocus = document.activeElement; // 趁还没把焦点挪进面板，先记下「是从哪打开的」（关闭时还回去）
   const el = floatWin('about', { title: '项目团队', sub: 'PROJECT TEAM', w: 760, h: 540, minH: 360, a1: '#9254FF', a2: '#368CFF', html: ptShell() });
+  if (reopen) el.classList.add('pt-refresh'); else el.classList.remove('pt-refresh');
   ptSetup(el);
   if (prevFocus && !el.contains(prevFocus)) el._ptBack = prevFocus; // 云端名单回来重画时焦点已在面板里，沿用上次记的
   const go = mode => { // 视图切换不跳新页面：只换 .pt-stage 内容，详情入场动画见 .pt-view
@@ -2738,7 +2802,8 @@ document.getElementById('aboutBtn').onclick = openAbout;
 // 用户原话：「对于电气接线开发者和贡献者每次打开必须强制显示 如果不主动关闭那也会3s后自动关闭」。
 // 三条规矩，别改回去：
 //   ① 每次打开都弹 —— 不写 localStorage、不记「已读」、不做「今天看过就不弹」，刷新几次弹几次；
-//   ② 3 秒没人碰就自己收走；这 3 秒里只要碰了窗口（点、滚、输入、编辑名单）就当场取消自动关闭，窗口一直留着等人点 ×；
+//   ② 3 秒没人碰就自己收走；在这 3 秒里**碰了面板内部只续 3 秒**（怎么点都不会变成常亮），
+//      碰面板外面或直接去操作主页面/电路区 → 立刻收走（2026-11-05 依用户「不是 3s 自动消失吗」改）；
 //   ③ 普通学生 / 教师 / 没登录的人一律不弹，只用「关于」按钮自己开 —— 别为了弹窗打断上课。
 const ABOUT_FORCE_MS = 3000;
 let aboutForceT = 0, aboutForceOff = null;
@@ -2762,10 +2827,34 @@ function aboutArm(el) {
   // 先把 closeAbout 声明出来：下面定时器要用它。虽然 setTimeout 是延迟执行的，
   // 但按「先定义后使用」写，读代码时不必自己去推执行顺序。
   const closeAbout = () => { aboutForceStop(); aboutAutoClosed = true; el.classList.remove('show'); };
-  aboutForceT = setTimeout(() => { aboutForceT = 0; closeAbout(); }, ABOUT_FORCE_MS);
-  const inside = e => el.contains(e.target);
-  const keep = e => { if (inside(e)) aboutForceStop(); };
-  const away = e => { if (inside(e)) return; closeAbout(); };
+  // 计时器单独抽出来，好让「面板里动过手」只**续期**而不是当场取消（见下面 keep 的注释）
+  const aboutRearm = () => {
+    if (aboutForceT) clearTimeout(aboutForceT);
+    aboutForceT = setTimeout(() => { aboutForceT = 0; closeAbout(); }, ABOUT_FORCE_MS);
+  };
+  aboutRearm();
+  // ── 2026-11-05 用户：「会闪出来两次然后常亮不退出 不是 3s 自动消失吗」──
+  // 根因：判断「有没有操作」的边界原来是 el（= #fw-about），而它已经被改成**整屏遮罩**
+  // （left/top:0, width:100vw, height:100dvh，见上面 #fw-about 的 CSS）。
+  // 于是 el.contains(e.target) 对屏幕上任何一点都成立 → 任何一次触摸/滚轮/按键都算「碰了窗口」
+  // → aboutForceStop() 当场把 3 秒计时器清掉 → 窗口从此常亮，只能手点 ×。
+  // 实测（test/_about-repro.cjs ③）：完全不碰 = 3.6s 已自动消失；点遮罩空白 = 已自动消失；
+  // 点面板内卡片 = 3.6s 后还亮着。差别就在这个边界。
+  // 修法：边界改成**面板 .pt-panel 本身**（真正的内容白框），遮罩空白区不算「操作」。
+  // 另外两点，防止「没人碰也常亮」：
+  //   · 入场/重画后的前 260ms 内的不算操作 —— 那几帧里浏览器会补发滚动/焦点类事件，
+  //     云端名单回来重画（第二次 aboutView）也落在这段时间附近，不该被当成「人在动」；
+  //   · e.isTrusted === false 的一律不算 —— 那是脚本合成的事件（验收脚本、动效库都可能发）。
+  // ── 2026-11-05 二改：面板里动手 = **续 3 秒**，不再是「当场取消」 ──
+  // 一改只把边界收窄到 .pt-panel，实测（test/_about-repro.cjs ③）点面板内卡片仍会 3.6s 还亮着。
+  // 用户原话是「不是 3s 自动消失吗」，说明他要的是**一定会自己消失**，不是「我点过就永久留着」。
+  // 所以 keep 改成 aboutRearm()：读完一段再动一下手就再给 3 秒，怎么点都不会变成常亮挡着上课。
+  const ABOUT_GRACE_MS = 260;
+  const armedAt = performance.now();
+  const onPanel = e => { const p = el.querySelector('.pt-panel'); return !!(p && e.target && p.contains(e.target)); };
+  const real = e => (performance.now() - armedAt) >= ABOUT_GRACE_MS && e.isTrusted !== false;
+  const keep = e => { if (real(e) && onPanel(e)) aboutRearm(); };
+  const away = e => { if (!real(e)) return; if (onPanel(e)) return; closeAbout(); };
   ['pointerdown', 'keydown', 'input', 'wheel'].forEach(t => document.addEventListener(t, keep, true));
   ['pointerdown', 'keydown'].forEach(t => document.addEventListener(t, away, true));
   // ── 2026-11-06 补：电路区在 iframe 里，iframe 内部的事件**不会冒泡到父 document** ──

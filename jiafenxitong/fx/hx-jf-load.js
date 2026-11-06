@@ -5,6 +5,14 @@
  * 动效体系复用总入口的 pixelfx（fx/pixelfx-loader.js，只打包 6 个特效，
  * 构建见 tools/build-loader-fx.mjs），渲染写法对照 总入口/fx/hx-critters.js。
  *
+ * 2026-11-05 返修（用户：「点击接线仿真永远是一个像素动效的加载画面且不会动」「需要随机加载动效」）：
+ *   1) 抽签从「同一会话内固定」改成**每次打开重新随机**：只把上一次用过的 id 记在
+ *      sessionStorage（hx-loadfx-last-jiafen）做排除，连开两次一定不一样；
+ *   2) MIN_SHOW 400 → 640ms，别让就绪太快把动效抽走；
+ *   3) 首帧策略按 meta 区分：loop 特效预跑 0.35 秒再上屏；one-shot（meta.loop === false）
+ *      从 0 帧开播并在 meta.duration 到期后重开，别把动画提前放完/停在空画布。
+ *   面板小号引擎（mini）同样适用这三条。
+ *
  * 教室一体机性能红线（同 hx-critters.js）：
  *   1) 全局只有一个 requestAnimationFrame 循环；动画结束 cancelAnimationFrame
  *      并把 overlay 连同 canvas 一起 remove。
@@ -34,7 +42,11 @@
 
   var t0 = performance.now();
   var raf = 0, lastPaint = 0;
-  var MIN_SHOW = 400;   // 秒开时也至少看 0.4s，不闪一下
+  // 2026-11-05 五修：循环的退出条件从「就绪(done)」改成「整层已移除(removed)」。
+  // 原来 step() 里写的是 if (dbg.done) return;，而 done 在数据一就绪就置 true（常常只过 0.3~0.6 秒），
+  // 于是引擎只画了第一帧（实测 puts=1 / frames=1），剩下大半秒用户看的是一张冻图。
+  var removed = false;
+  var MIN_SHOW = 640;   // 2026-11-05：400 → 640ms，秒开时也能看清像素在动，不闪一下
   var FADE = 260;       // 卡片内容淡出（与 styles.css .hx-splash-card 的 transition 一致）
   var GONE = 200;       // 第二步：整层连底色淡出（与 #hxSplash 自己的 transition 一致）
   var MAX_WAIT = 6000;  // 就绪判定失灵的兜底
@@ -48,11 +60,15 @@
       //   ① 底色保持不透明，只淡卡片内容 —— 屏幕上从来看不到「闪屏」和「登录门」两层同框；
       //   ② 内容淡完（FADE）再把整层连底色一起淡（GONE），最后 remove。
       splash.classList.add('hx-splash-out');
-      if (raf) { cancelAnimationFrame(raf); raf = 0; }
-      dbg.stopped = true;
+      // 2026-11-05 五修：**停 rAF 挪到整层移除之后**。原来在这里就 cancelAnimationFrame，
+      // 于是淡出那 260+200ms 全是同一张静止帧；数据一就绪（常常只过 0.3~0.6s）就开始淡，
+      // 用户看到的正是「一个像素动效的画面且不会动」。动效必须活到遮罩消失那一刻。
       setTimeout(function () { splash.classList.add('hx-splash-gone'); }, FADE - 100);
       setTimeout(function () {
         if (splash.parentNode) splash.parentNode.removeChild(splash); // canvas 一并移除
+        removed = true;                     // 到这里才允许循环退出（淡出全程仍在动）
+        if (raf) { cancelAnimationFrame(raf); raf = 0; }
+        dbg.stopped = true;
       }, FADE + GONE + 80);
     }, Math.max(0, MIN_SHOW - elapsed));
   }
@@ -87,16 +103,26 @@
     cv.style.height = (m.size[1] * k) + 'px';
   }
 
-  // 特效选择（2026-11-04 与 刷题/考试 统一）：从包里随机挑，但**同一会话内固定**——
-  // 选择记在 sessionStorage（hx-loadfx-jiafen），刷新 / 重进不换，避免每次开页都不一样显得乱；
-  // 关掉标签页（会话结束）重新随机。取舍写明：用户要的是「随机用起来」，不是「每次都洗牌」。
-  // （P 在文件开头已取好 window.PixelFX。）
+  // 特效选择（2026-11-04 与 刷题/考试 统一，2026-11-05 返修）：**每次打开重新随机**，
+  // 只排除「上一次用过的 id」（sessionStorage hx-loadfx-last-jiafen），连开两次一定不一样。
+  // 旧版「同一会话内固定」已废弃——用户明确要求「需要随机加载动效」，不再照顾「每次都换会眼晕」。
+  function pickJf() {
+    var ids = P && P.ids;
+    if (!ids || !ids.length) return '';
+    var K = 'hx-loadfx-last-jiafen', prev = '', pool = ids, i, cand = [];
+    try { prev = sessionStorage.getItem(K) || ''; } catch (e) { }
+    if (prev) {
+      for (i = 0; i < ids.length; i++) if (ids[i] !== prev) cand.push(ids[i]);
+      if (cand.length) pool = cand;               // 只有 1 个特效时只能重复，不硬造空池
+    }
+    var eid = pool[Math.floor(Math.random() * pool.length)] || '';
+    try { if (eid) sessionStorage.setItem(K, eid); } catch (e) { }
+    return eid;
+  }
   var id = '';
-  try { id = sessionStorage.getItem('hx-loadfx-jiafen') || ''; } catch (e) { }
   if (!P || !P.effects || !P.ids || !P.ids.length) { noFx('pack'); } // 包没加载出来：回落药丸，别把页面盖死
   else {
-    if (!id || !P.effects[id]) id = P.ids[Math.floor(Math.random() * P.ids.length)];
-    try { sessionStorage.setItem('hx-loadfx-jiafen', id); } catch (e) { }
+    id = pickJf();
     var mod = P.effects[id];
     if (!mod || !mod.meta) noFx('meta');
   }
@@ -110,7 +136,13 @@
     if (!ctx) { noFx('ctx'); } else {
       var img = ctx.createImageData(W, H);
       var fr = P.createFrame(W, H);
-      var fx = P.createFx(mod, { x: O[0], y: O[1], seed: Math.floor(Math.random() * 997) });
+      // one-shot 特效（meta.loop === false）播完 meta.duration 就重开一个，闪屏期间一直有动作
+      var oneShot = m.loop === false, life = +m.duration || 0, age = 0;
+      function spawn() {
+        age = 0;
+        return P.createFx(mod, { x: O[0], y: O[1], seed: Math.floor(Math.random() * 997) });
+      }
+      var fx = spawn();
       sizeCanvas();
       addEventListener('resize', sizeCanvas);
 
@@ -118,7 +150,10 @@
       var GAP = (touch() || lite()) ? 1000 / 18 : 1000 / 30;
 
       function paint(dt) {
-        if (dt) fx.update(dt);
+        if (dt) {
+          fx.update(dt);
+          if (oneShot && life) { age += dt; if (age >= life) fx = spawn(); }
+        }
         P.clearFrame(fr);
         fx.draw(fr, 'back');
         fx.draw(fr, 'front');
@@ -130,7 +165,7 @@
 
       function step(now) {
         raf = 0;
-        if (dbg.done) return;
+        if (removed) return;   // 只在整层移除之后停，见上面 removed 那段注释
         if (lastPaint && now - lastPaint < GAP - 1) { raf = requestAnimationFrame(step); return; } // 帧率封顶
         var dt = lastPaint ? Math.min((now - lastPaint) / 1000, 0.12) : 0;
         lastPaint = now;
@@ -140,7 +175,14 @@
 
       // 省电 / 关动画：不再画静帧（2026-11-04 统一规则）——回落到药丸，canvas 藏掉
       if (still()) noFx('still');
-      else raf = requestAnimationFrame(step);
+      else {
+        // 首帧（2026-11-05）：loop 特效先在内存里按 1/60 步长预跑 0.35 秒再一次性上屏，
+        // 第一眼就有主体；one-shot 的 t=0 就是峰值，预跑等于把动画提前放完，所以直接开播。
+        if (!oneShot) for (var t = 0; t < 0.35; t += 1 / 60) fx.update(1 / 60);
+        paint(0);
+        lastPaint = performance.now();
+        raf = requestAnimationFrame(step);
+      }
     }
   }
 
@@ -176,13 +218,11 @@
       + '.hx-fxpanel .hx-loadpill{font-size:clamp(13px,.8vw + 7px,20px);box-shadow:none}';
     (document.head || document.documentElement).appendChild(st);
 
-    // 小号引擎：和首屏闪屏同一套特效包、同一个会话内固定 id
+    // 小号引擎：和首屏闪屏同一套特效包、同一套「每次随机 + 避开上一次」抽签（2026-11-05）
     function mini(cv) {
       var P = window.PixelFX;
       if (!P || !P.effects || !P.ids || !P.ids.length) return null;
-      var eid = '';
-      try { eid = sessionStorage.getItem('hx-loadfx-jiafen') || ''; } catch (e) { }
-      if (!eid || !P.effects[eid]) eid = P.ids[Math.floor(Math.random() * P.ids.length)];
+      var eid = pickJf();
       var mm = P.effects[eid];
       if (!mm || !mm.meta) return null;
       var m = mm.meta, W = m.size[0], H = m.size[1], O = m.origin || [W / 2, H / 2];
@@ -193,22 +233,37 @@
       var ctx = cv.getContext('2d');
       if (!ctx) return null;
       var img = ctx.createImageData(W, H), fr = P.createFrame(W, H);
-      var fx = P.createFx(mm, { x: O[0], y: O[1], seed: Math.floor(Math.random() * 997) });
+      var oneShot = m.loop === false, life = +m.duration || 0, age = 0;
+      function spawn() {
+        age = 0;
+        return P.createFx(mm, { x: O[0], y: O[1], seed: Math.floor(Math.random() * 997) });
+      }
+      var fx = spawn();
       var touch = window.matchMedia ? matchMedia('(hover: none), (pointer: coarse)').matches : false;
       var GAP = (touch || lite()) ? 1000 / 18 : 1000 / 30;
       var raf = 0, last = 0, stopped = false;
+      function draw() {
+        P.clearFrame(fr); fx.draw(fr, 'back'); fx.draw(fr, 'front');
+        P.composite(fr, img.data, null);
+        ctx.clearRect(0, 0, W, H); ctx.putImageData(img, 0, 0);
+      }
       function step(now) {
         raf = 0; if (stopped) return;
         if (!cv.isConnected) { stopped = true; return; }  // 面板被结果替换：自停，不在后台空转
         if (last && now - last < GAP - 1) { raf = requestAnimationFrame(step); return; }
         var dt = last ? Math.min((now - last) / 1000, 0.12) : 0;
         last = now;
-        if (dt) fx.update(dt);
-        P.clearFrame(fr); fx.draw(fr, 'back'); fx.draw(fr, 'front');
-        P.composite(fr, img.data, null);
-        ctx.clearRect(0, 0, W, H); ctx.putImageData(img, 0, 0);
+        if (dt) {
+          fx.update(dt);
+          if (oneShot && life) { age += dt; if (age >= life) fx = spawn(); }
+        }
+        draw();
         raf = requestAnimationFrame(step);
       }
+      // 首帧（2026-11-05）：loop 特效预跑 0.35 秒再上屏，one-shot 从 0 帧直接播
+      if (!oneShot) for (var t = 0; t < 0.35; t += 1 / 60) fx.update(1 / 60);
+      draw();
+      last = performance.now();
       raf = requestAnimationFrame(step);
       return { stop: function () { stopped = true; if (raf) { cancelAnimationFrame(raf); raf = 0; } } };
     }

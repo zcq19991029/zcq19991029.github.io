@@ -112,6 +112,54 @@ html.hx-bg body::before {
 :root[data-hx-mode="dark"].hx-bg body::before {
   background-image: linear-gradient(rgba(8, 8, 10, .38), rgba(8, 8, 10, .38)), var(--hx-img);
 }
+/* ── 2026-11-05 六修：手机（及窄屏）背景「不会动」────────────────────────
+   用户 iPhone Safari 实机：「手机上首页背景不会动」。原因不是坏了，是 2026-11-04
+   为了根治「手机弹原生播放器」，把移动端的 <video> 整条砍掉了（见 hx-theme.js 的 bgNoVideo()），
+   手机只剩一张静态海报帧 bg/aurora.jpg，一动不动。
+   现在不把 video 请回来（那正是弹播放器的根源，也不受 iOS 低电量模式待见），改成**纯 CSS 的两层
+   GPU 合成动画**，仍然一个 video 元素都不建：
+     · 层一 body::before 自己缓慢推近（ken burns）：transform 只动合成器，不重排不重绘；
+     · 层二 .hx-bgmo 里两团极光柔光反向漂移，用 radial-gradient 画（不用 filter: blur，
+       也不用 mix-blend-mode —— 两者在 iOS 上都要额外的全屏合成代价）。
+   开关在 hx-theme.js 的 bgMotion()：只给「视频壁纸被降级成海报帧」这种情况挂，
+   省电一体机（hx-lite）和系统「减少动态效果」一律不挂，保持静态。 */
+html.hx-bg-mo body::before {
+  animation: hx-bgmo-zoom 34s ease-in-out infinite alternate;
+  transform-origin: 52% 46%;
+  will-change: transform;
+}
+@keyframes hx-bgmo-zoom {
+  from { transform: scale(1.06) translate3d(-.9%, .6%, 0); }
+  to { transform: scale(1.18) translate3d(1.1%, -.9%, 0); }
+}
+/* 极光层：z-index:-1，和 body::before 同层；它在伪元素之后绘制（DOM 顺序），所以压在壁纸上、内容下。 */
+.hx-bgmo {
+  position: fixed; inset: 0; z-index: -1; pointer-events: none; overflow: hidden;
+  opacity: var(--hx-bgo, 1);      /* 跟着「背景透明度」滑杆一起收，调到 0 时背景整块不显示 */
+}
+.hx-bgmo i { position: absolute; display: block; border-radius: 50%; will-change: transform, opacity; }
+.hx-bgmo i:first-child {
+  width: 84vmax; height: 84vmax; left: -32vmax; top: -26vmax;
+  background: radial-gradient(closest-side, rgba(126, 196, 255, .34), rgba(96, 156, 240, .15) 56%, transparent 74%);
+  animation: hx-bgmo-a 24s ease-in-out infinite;
+}
+.hx-bgmo i:last-child {
+  width: 70vmax; height: 70vmax; right: -26vmax; bottom: -22vmax;
+  background: radial-gradient(closest-side, rgba(146, 255, 226, .26), rgba(108, 220, 196, .11) 56%, transparent 74%);
+  animation: hx-bgmo-b 32s ease-in-out infinite;
+}
+@keyframes hx-bgmo-a {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: .8; }
+  50% { transform: translate3d(17vmax, 11vmax, 0) scale(1.18); opacity: 1; }
+}
+@keyframes hx-bgmo-b {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1.1); opacity: .65; }
+  50% { transform: translate3d(-15vmax, -10vmax, 0) scale(.92); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html.hx-bg-mo body::before { animation: none; }
+  .hx-bgmo i { animation: none; }
+}
 /* 老设备上一律不做实时背景模糊（顶栏、底栏、弹层都算）。背景图已经糊过，去掉之后几乎看不出差别，
    但省掉的是每一次滚动都要重算的高斯模糊。顶栏改实色兜底，不然内容会从底下透上来。 */
 html.hx-lite, html.hx-lite * { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }

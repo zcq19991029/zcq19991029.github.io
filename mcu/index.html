@@ -429,16 +429,25 @@ button.qdel.sm{width:26px;height:26px;font-size:15px}
  *   · 刷题/loadfx.js 与 考试/src/loadfx.js 是本文件的同步拷贝（那两处要随页面一起走相对路径），
  *     小组加分/fx/hx-jf-load.js 是同规则的重量级变体——改规则时四处对齐。
  *
- * 规则（用户 2026-11-04 定，2026-11-06 / 2026-11-07 返修）：
+ * 规则（用户 2026-11-04 定，2026-11-06 / 2026-11-07 返修，2026-11-05 随机与时长返修）：
  *   1. **第一帧就是动效**：页面的首屏等待必须由「canvas 像素动效 + 药丸」组成，不允许先出现
  *      一条光秃秃的文字药丸、等内容渲染完再补一层像素闪屏盖上去。首屏用 boot()：标记先写进 HTML，
  *      boot() 在解析到它时立刻画第一帧，内容就绪后整层淡出。
  *   2. 首选：从特效包里**随机**挑一个 loop 特效画在 canvas 上；「正在载入…」文字以药丸
  *      （方块 + 文字）形式跟在动效下方——文字是状态说明，要的是「结合」，不是二选一。
- *   3. 随机但**同一会话内固定**：选择记在 sessionStorage（键 hx-loadfx-<tool>）。
- *   4. 播不了就回落：prefers-reduced-motion、hx-lite（省电一体机）、特效包没加载出来、
+ *   3. **每次打开都重新随机**（2026-11-05 返修）：原先「同一会话内固定」（sessionStorage 存选中 id）
+ *      被用户否掉了——同一个会话反复进同一个工具永远抽到同一个特效，用户原话「点击接线仿真永远是
+ *      一个像素动效的加载画面」「我说了这种需要随机加载动效」。现在每次 boot/mount 都重新抽，
+ *      只把**上一次这个工具用过的 id** 记在 sessionStorage（键 hx-loadfx-last-<tool>）作为排除项，
+ *      继续开两次一定不一样；关掉标签页后「上一次」也清空，不影响正常随机。
+ *   4. **动效要真的动得看得见**（2026-11-05 返修）：最短停留从 520ms 提到 900ms（面板 420→640ms）。
+ *      首帧策略按 meta 区分：loop 特效在内存里**预跑 0.35 秒**再上屏（它们有的前 0.3～0.5 秒才长主体）；
+ *      one-shot 特效（meta.loop === false）**不预跑**——它们的第 0 帧本来就是峰值，预跑等于把动画提前放完，
+ *      播到 meta.duration 就重新起一个，保证闪屏期间一直有动作、不会停在空画布上。
+ *      预跑只在内存里算，最后一次性 putImageData。
+ *   5. 播不了就回落：prefers-reduced-motion、hx-lite（省电一体机）、特效包没加载出来、
  *      canvas 建不出来时回落到像素方块药丸——绝不允许什么都不显示、也不许把页面盖死（8 秒兜底）。
- *   5. 尺寸按视口自适应（2026-11-06「加载动效普遍太小 紧急修复」；2026-11-07 用户「再放大点」：
+ *   6. 尺寸按视口自适应（2026-11-06「加载动效普遍太小 紧急修复」；2026-11-07 用户「再放大点」：
  *      短边 62% → 70%）：像素主体按短边最大 70% 定尺寸、整数倍放大。
  *
  * 性能红线（同 小组加分/fx/hx-jf-load.js）：全局唯一 requestAnimationFrame 循环、
@@ -512,14 +521,28 @@ button.qdel.sm{width:26px;height:26px;font-size:15px}
     cv.style.height = (m.size[1] * k) + 'px';
   }
 
+  // 抽签（2026-11-05 返修）：**每次调用都重新随机**，只排除「上一次这个工具用过的 id」，
+  // 保证连开两次一定不一样。「上一次」存 sessionStorage，仅作排除项，不再用来固定本次选择；
+  // 同一会话里反复打开不再永远同一个特效（旧版 hx-loadfx-<tool> 固定键废弃，读到也忽略）。
+  function pickId(tool) {
+    var P = window.PixelFX;
+    if (!P || !P.ids || !P.ids.length) return '';
+    var K = 'hx-loadfx-last-' + tool, pool = P.ids, prev = '', i, cand = [];
+    try { prev = sessionStorage.getItem(K) || ''; } catch (e) { }
+    if (prev) {
+      for (i = 0; i < pool.length; i++) if (pool[i] !== prev) cand.push(pool[i]);
+      if (cand.length) pool = cand;               // 只有 1 个特效时只能重复，不硬造空池
+    }
+    var id = pool[Math.floor(Math.random() * pool.length)] || '';
+    try { if (id) sessionStorage.setItem(K, id); } catch (e) { }
+    return id;
+  }
+
   // 在指定 canvas 上起一个特效引擎；起不来返回 null（调用方决定回落）
   function start(cv, tool, compact) {
     var P = window.PixelFX;
     if (!cv || !cv.getContext || !P || !P.effects || !P.ids || !P.ids.length) return null;
-    var K = 'hx-loadfx-' + tool, id = '';
-    try { id = sessionStorage.getItem(K) || ''; } catch (e) { }
-    if (!id || !P.effects[id]) id = P.ids[Math.floor(Math.random() * P.ids.length)];
-    try { if (id) sessionStorage.setItem(K, id); } catch (e) { }
+    var id = pickId(tool);
     var mod = P.effects[id];
     if (!mod || !mod.meta) return null;
     var m = mod.meta, W = m.size[0], H = m.size[1], O = m.origin || [W / 2, H / 2];
@@ -531,12 +554,22 @@ button.qdel.sm{width:26px;height:26px;font-size:15px}
     fit(cv, m, compact);
     addEventListener('resize', function () { fit(cv, m, compact); });
     var img = ctx.createImageData(W, H), fr = P.createFrame(W, H);
-    var fx = P.createFx(mod, { x: O[0], y: O[1], seed: Math.floor(Math.random() * 997) });
+    // one-shot 特效（meta.loop === false）播完 meta.duration 就重开一个：
+    // 接线仿真的 hit-spark 只有 0.5 秒，闪屏保底 0.9 秒，不重播的话后 0.4 秒是一张空画布。
+    var oneShot = m.loop === false, life = +m.duration || 0, age = 0;
+    function spawn() {
+      age = 0;
+      return P.createFx(mod, { x: O[0], y: O[1], seed: Math.floor(Math.random() * 997) });
+    }
+    var fx = spawn();
     var touch = window.matchMedia ? matchMedia('(hover: none), (pointer: coarse)').matches : false;
     var GAP = (touch || lite()) ? 1000 / 18 : 1000 / 30;
     var raf = 0, last = 0, stopped = false;
     function paint(dt) {
-      if (dt) fx.update(dt);
+      if (dt) {
+        fx.update(dt);
+        if (oneShot && life) { age += dt; if (age >= life) fx = spawn(); }  // one-shot 到期重播
+      }
       P.clearFrame(fr); fx.draw(fr, 'back'); fx.draw(fr, 'front');
       P.composite(fr, img.data, null);
       ctx.clearRect(0, 0, W, H); ctx.putImageData(img, 0, 0);
@@ -550,7 +583,14 @@ button.qdel.sm{width:26px;height:26px;font-size:15px}
       last = now; paint(dt);
       raf = requestAnimationFrame(step);
     }
+    // 首帧（2026-11-05 返修）：
+    //   · loop 特效：不少前 0.3～0.5 秒才长出主体，先在内存里按 1/60 步长预跑 0.35 秒
+    //     （只 update，不 putImageData），再把这一帧一次性上屏，第一眼就有主体且继续在动；
+    //   · one-shot 特效：第 0 帧就是峰值（实测 hit-spark t=0 实心 22.5%），预跑反而把动画放完，
+    //     所以直接从 0 帧开播。预跑不建 rAF、不额外上屏，性能红线不变。
+    if (!oneShot) for (var t = 0; t < 0.35; t += 1 / 60) fx.update(1 / 60);
     paint(0);
+    last = performance.now();   // 下一帧直接吃真实 dt，不再补一帧 dt=0 的重复画面
     raf = requestAnimationFrame(step);
     return {
       stop: function () { stopped = true; if (raf) { cancelAnimationFrame(raf); raf = 0; } },
@@ -585,17 +625,23 @@ button.qdel.sm{width:26px;height:26px;font-size:15px}
     wrap.setAttribute('aria-hidden', 'true');
     wrap.appendChild(cv); wrap.appendChild(pill);
     host.appendChild(wrap);
-    // 最少停留：本地题库 30ms 就回来了，秒闪一下反而像故障；不足 420ms 的补到 420ms 再淡出
-    var at = performance.now(), MIN_SHOW = 420, out = false;
+    // 最少停留（2026-11-05：420 → 640ms）：本地题库 30ms 就回来，秒闪一下反而像故障；
+    // 面板小号也给足时间，短于 0.6 秒根本看不出像素在动。
+    var at = performance.now(), MIN_SHOW = 640, out = false;
     return {
       el: wrap,
       fx: eng.fx,
-      done: function () {                              // 淡出并整体移除，停 rAF
+      done: function () {                              // 淡出并整体移除；动效要活到移除那一刻
         if (out) return; out = true;
         setTimeout(function () {
-          eng.stop();
           wrap.classList.add('out');
-          setTimeout(function () { if (wrap.parentNode) wrap.parentNode.removeChild(wrap); }, 240);
+          // 2026-11-05 五修：**stop 必须放在移除之后**。原来先 eng.stop() 再淡出，
+          // 数据一就绪（手机上 0.3~0.7s）画面就冻住，淡出的那 240ms 是一张静止图 ——
+          // 用户看到的正是「一个像素动效的加载画面且不会动」。
+          setTimeout(function () {
+            if (wrap.parentNode) wrap.parentNode.removeChild(wrap);
+            eng.stop();
+          }, 240);
         }, Math.max(0, MIN_SHOW - (performance.now() - at)));
       }
     };
@@ -607,7 +653,9 @@ button.qdel.sm{width:26px;height:26px;font-size:15px}
   // canvas 播不起来就把 canvas 藏掉，只留药丸（fallback 不空屏）。
   // finishBoot() 由工具在数据就绪后调：先保底 MIN_SHOW 再整层淡出移除。
   var bootH = null;
-  var MIN_SHOW = 520;
+  // 2026-11-05：520 → 900ms。接线仿真在手机上约 0.7 秒就绪就淡出，动效刚进主体就被拿走；
+  // 加载本来就在等，多留这三四百毫秒用户感知不到卡，却能从「一帧」变成「看得见在动」。
+  var MIN_SHOW = 900;
   function boot(tool, overlayId) {
     var ov = document.getElementById(overlayId || 'hxBoot');
     if (!ov || ov.dataset.armed) return null;
@@ -626,10 +674,16 @@ button.qdel.sm{width:26px;height:26px;font-size:15px}
   function finishBoot() {
     if (!bootH) return;
     var b = bootH; bootH = null;
-    if (b.eng) b.eng.stop();
+    // 2026-11-05 五修：**别在这里 stop 引擎**。工具准备好就会调本函数（手机 0.3~0.7s），
+    // 而遮罩还得亮到 MIN_SHOW（900ms）。原来这里立刻 eng.stop()，于是引擎只画了第一帧，
+    // 剩下的大半秒用户盯着一张冻图 —— 这就是「永远是一个像素动效的画面且不会动」的真因
+    // （实测成品页 1.4 秒内 putImageData 只被调用 1 次）。停 rAF 只允许发生在移除之后。
     setTimeout(function () {
       b.ov.classList.add('out');                       // .hx-boot.out 淡出整层
-      setTimeout(function () { if (b.ov.parentNode) b.ov.parentNode.removeChild(b.ov); }, 300);
+      setTimeout(function () {
+        if (b.ov.parentNode) b.ov.parentNode.removeChild(b.ov);
+        if (b.eng) b.eng.stop();                       // 移除之后再停：淡出全程仍在动
+      }, 300);
     }, Math.max(0, MIN_SHOW - (performance.now() - b.at)));
   }
   function booting() { return !!bootH; }
@@ -651,11 +705,8 @@ button.qdel.sm{width:26px;height:26px;font-size:15px}
   }
 
   window.HXLoadFx = {
-    pick: function (tool) {                            // 供调试 / 自查：看本会话选中了哪个特效
-      var P = window.PixelFX, K = 'hx-loadfx-' + tool, id = '';
-      try { id = sessionStorage.getItem(K) || ''; } catch (e) { }
-      if (!id && P && P.ids && P.ids.length) id = P.ids[Math.floor(Math.random() * P.ids.length)];
-      return id;
+    pick: function (tool) {                            // 供调试 / 自查：现抽一个（并记为「上一次」）
+      return pickId(tool);
     },
     mount: mount,
     boot: boot,
@@ -681,7 +732,7 @@ button.qdel.sm{width:26px;height:26px;font-size:15px}
 <aside class="side" aria-label="导航">
   <div class="brand"><svg class="chip" viewBox="0 0 34 34" aria-hidden="true"><defs><linearGradient id="chipg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5b8cff"/><stop offset="1" stop-color="#7c5cff"/></linearGradient></defs><g fill="#8a93a5"><rect x="3" y="7" width="4" height="2" rx="1"/><rect x="27" y="7" width="4" height="2" rx="1"/><rect x="3" y="11.4" width="4" height="2" rx="1"/><rect x="27" y="11.4" width="4" height="2" rx="1"/><rect x="3" y="15.8" width="4" height="2" rx="1"/><rect x="27" y="15.8" width="4" height="2" rx="1"/><rect x="3" y="20.200000000000003" width="4" height="2" rx="1"/><rect x="27" y="20.200000000000003" width="4" height="2" rx="1"/><rect x="3" y="24.6" width="4" height="2" rx="1"/><rect x="27" y="24.6" width="4" height="2" rx="1"/></g><rect x="7" y="3" width="20" height="28" rx="4" fill="url(#chipg)"/><circle cx="17" cy="7" r="1.6" fill="rgba(255,255,255,.55)"/><text x="17" y="21" text-anchor="middle" font-family="Consolas,monospace" font-size="6.5" font-weight="700" fill="#fff">8051</text><circle class="led" cx="23" cy="27" r="1.6" fill="#ff453a"/></svg><div>单片机上机<small>练习与考试</small></div></div>
   <nav id="nav"></nav>
-  <div class="side-foot"><div class="savebar" id="saveBar" hidden></div><div>网页版 · 2026-11-05<br>名单只存在你保存的文件里</div></div>
+  <div class="side-foot"><div class="savebar" id="saveBar" hidden></div><div>网页版 · 2026-11-06<br>名单只存在你保存的文件里</div></div>
 </aside>
 <main class="main" id="main">
 <section class="page" data-page="practice" hidden>
