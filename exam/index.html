@@ -141,6 +141,9 @@ a.nav-i{text-decoration:none}
 .flow{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
 .step{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:5px;text-align:left;background:var(--card);border:1px solid var(--card-brd);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-radius:20px;box-shadow:var(--shadow);padding:16px 18px;font-size:15px;color:var(--ink);transition:transform .35s var(--spring),box-shadow .35s var(--spring),border-color .25s}
 .step:hover{background:var(--card);transform:translateY(-3px);box-shadow:var(--shadow-up);border-color:var(--accbg)}
+/* 网页版概览第 3 步指向「考试」工具，是 <a> 不是 <button>：去掉链接默认下划线，跟其他步骤长一样 */
+a.step{text-decoration:none;color:var(--ink);cursor:pointer}
+a.step:hover{text-decoration:none}
 .step .n{width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,var(--acc),var(--acc2));color:#fff;font:700 13px/1 var(--mono);display:inline-flex;align-items:center;justify-content:center;box-shadow:0 4px 12px -2px var(--ring)}
 @media(max-width:900px){.flow{grid-template-columns:repeat(2,minmax(0,1fr))}}
 /* 进考场 */
@@ -4845,6 +4848,9 @@ a.nav-i{text-decoration:none}
 .flow{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
 .step{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:5px;text-align:left;background:var(--card);border:1px solid var(--card-brd);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-radius:20px;box-shadow:var(--shadow);padding:16px 18px;font-size:15px;color:var(--ink);transition:transform .35s var(--spring),box-shadow .35s var(--spring),border-color .25s}
 .step:hover{background:var(--card);transform:translateY(-3px);box-shadow:var(--shadow-up);border-color:var(--accbg)}
+/* 网页版概览第 3 步指向「考试」工具，是 <a> 不是 <button>：去掉链接默认下划线，跟其他步骤长一样 */
+a.step{text-decoration:none;color:var(--ink);cursor:pointer}
+a.step:hover{text-decoration:none}
 .step .n{width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,var(--acc),var(--acc2));color:#fff;font:700 13px/1 var(--mono);display:inline-flex;align-items:center;justify-content:center;box-shadow:0 4px 12px -2px var(--ring)}
 @media(max-width:900px){.flow{grid-template-columns:repeat(2,minmax(0,1fr))}}
 /* 进考场 */
