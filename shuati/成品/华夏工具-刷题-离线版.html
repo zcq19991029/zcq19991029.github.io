@@ -1594,6 +1594,85 @@ body.focus .unfocus { display: block; }
 .imp-rep .rej { margin: 6px 0 0; padding-left: 18px; line-height: 1.6; }
 .imp-rep .rej li { margin: 2px 0; }
 
+/* ============================================================
+   学习卡色块（2026-11-07 新增）
+   ------------------------------------------------------------
+   用户拿「兼职家教/高数/高等数学练习题(5)-交互答案解析.html」当参考：
+   那道页面每题后面挂一张暖黄的「小技巧 tips」，里面是四块颜色分明的格子 ——
+   零基础做题步骤（白）/ 顺口溜（黄）/ 必须记住的小表（白+小表）/ 易错提醒（粉红）。
+   他要的是「这套东西搬进刷题，AI 解析也用它铺开」。
+
+   ── 为什么单独一套变量、不复用 --ok / --bad ──
+   这块是「讲解」，不是「判定对错」。用 --okbg / --badbg 会跟外面的对错反馈撞色
+   （绿底里再套绿块，粉块套红底），分不出来谁在说什么。所以这里自带一组暖色，
+   深浅两套各写一份，跟着 html[data-hx-mode] 走 —— 和 hx-theme 的做法一致。
+
+   ── 色块顺序固定：步骤 → 口诀 → 小表 → 易错 ──
+   这是「从零到能用」的阅读顺序（先怎么做、再好记、再背下、最后别踩坑）。
+   缺哪块就不画哪块，grid 自己补位；手机上不分两列，一路竖着排。
+   ============================================================ */
+.study {
+  --sd-bg1: #fff9e9; --sd-bg2: #fffdf6; --sd-line: #eedda8; --sd-bar: #c98a00; --sd-ink: #5f4707; --sd-h: #8b5d00;
+  --g-bg: rgba(255, 255, 255, .72); --g-line: #eadfbf; --g-ink: #4e421f; --g-h: #75520a;
+  --mn-bg: #fff4d2; --mn-line: #e6c86d; --mn-ink: #6a3900; --mn-h: #8a4f00;
+  --wn-bg: #fff1ed; --wn-line: #efc1b7; --wn-ink: #7a2c20; --wn-h: #a3311f;
+  --tb-th: #f7edcf; --tb-th-ink: #644800; --tb-line: #dfd4b5;
+  margin-top: 14px; padding: 15px 16px 16px;
+  color: var(--sd-ink);
+  background: linear-gradient(135deg, var(--sd-bg1), var(--sd-bg2));
+  border: 1px solid var(--sd-line);
+  border-left: 4px solid var(--sd-bar);
+  border-radius: 5px 16px 16px 5px;
+}
+html[data-hx-mode="dark"] .study {
+  --sd-bg1: rgba(201, 138, 0, .13); --sd-bg2: rgba(201, 138, 0, .04);
+  --sd-line: rgba(201, 138, 0, .30); --sd-bar: #d99b1a;
+  --sd-ink: #ece0c8; --sd-h: #f2c877;
+  --g-bg: rgba(255, 255, 255, .05); --g-line: rgba(255, 255, 255, .10);
+  --g-ink: #e4dbc7; --g-h: #f2c877;
+  --mn-bg: rgba(230, 200, 109, .13); --mn-line: rgba(230, 200, 109, .34);
+  --mn-ink: #ffe9b0; --mn-h: #ffd67a;
+  --wn-bg: rgba(255, 69, 58, .10); --wn-line: rgba(255, 120, 110, .30);
+  --wn-ink: #ffd6cf; --wn-h: #ff9d92;
+  --tb-th: rgba(230, 200, 109, .18); --tb-th-ink: #ffe9b0; --tb-line: rgba(255, 255, 255, .14);
+}
+/* 卡片抬头：左边「学习卡」，右边小字标来源（AI 解析 / 题库自带）—— 别让人以为题库里写着这些 */
+.study-head { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; }
+.study-head h4 { margin: 0; color: var(--sd-h); font: 600 15px/1.3 var(--hx-font-d); letter-spacing: .01em; }
+.study-head .sp { flex: 1; }
+.study-src { padding: 1px 8px; border: 1px solid var(--sd-line); border-radius: 99px; color: var(--sd-h); font-size: 11.5px; white-space: nowrap; }
+/* 一句话考点：比色块更醒目一点，回答「这题到底在考什么」 */
+.study-lead { margin: 0 0 10px; padding: 9px 12px; border-radius: 10px; background: var(--g-bg); border: 1px solid var(--g-line); color: var(--g-ink); font-size: 14px; line-height: 1.6; }
+.study-lead b { color: var(--g-h); font-weight: 600; }
+/* align-items:start：四块各按自己内容高度排，别互相拉齐 ——
+   步骤有 3 条、口诀只有一句话时，拉齐会让黄块里空出大半个身位，看着像没加载出来 */
+.study-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; align-items: start; }
+.study-grid .wide { grid-column: 1 / -1; }
+.g { min-width: 0; padding: 11px 13px; border-radius: 11px; background: var(--g-bg); border: 1px solid var(--g-line); color: var(--g-ink); font-size: 14px; line-height: 1.62; }
+.g h5 { margin: 0 0 6px; color: var(--g-h); font: 600 13.5px/1.35 var(--hx-font); }
+.g p { margin: 4px 0; }
+.g ol, .g ul { margin: 4px 0; padding-left: 1.35em; }
+.g li { margin: 4px 0; }
+.g li::marker { color: var(--g-h); font-weight: 600; }
+.g.mnemonic { background: var(--mn-bg); border-color: var(--mn-line); color: var(--mn-ink); }
+.g.mnemonic h5 { color: var(--mn-h); }
+.g.mnemonic p { font-weight: 600; line-height: 1.8; }
+.g.warn { background: var(--wn-bg); border-color: var(--wn-line); color: var(--wn-ink); }
+.g.warn h5 { color: var(--wn-h); }
+/* 小表：条件 → 结果。第一列窄一点（都是“x→0”这种），第二列给结果留宽度 */
+.g table { width: 100%; margin: 4px 0 0; border-collapse: collapse; font-size: 13.5px; }
+.g table th, .g table td { padding: 6px 8px; border: 1px solid var(--tb-line); text-align: left; vertical-align: top; }
+.g table th { background: var(--tb-th); color: var(--tb-th-ink); font-weight: 600; white-space: nowrap; }
+/* 单元格一律允许换行：整行拉满的那种（一句话里带两个箭头）要是 nowrap 会横着撑破卡片 */
+/* AI 自己说「题库答案可能有问题」时的复核提示：不占色块，做卡片脚注 */
+.study-note { margin: 10px 0 0; padding-top: 9px; border-top: 1px dashed var(--sd-line); font-size: 12.5px; line-height: 1.6; opacity: .92; }
+.study-note b { color: var(--sd-h); font-weight: 600; }
+@media (max-width: 620px) {
+  .study { padding: 13px 12px 14px; }
+  .study-grid { grid-template-columns: 1fr; }
+  .study-grid .wide { grid-column: auto; }
+}
+
 </style>
 <!-- 统一像素加载动效（2026-11-04）：打开科目时「正在加载题库…」不再只是药丸方块，
      首选随机挑一个 pixelfx 特效画 canvas（会话内固定，规则见 loadfx.js 头注释），
@@ -2236,7 +2315,13 @@ async function fetchWithTimeout(url, options, timeoutMs = 30000) {
   const keys = question.options.map(item => item.key);
   const prompt = `请针对这道${subjectName ? `“${subjectName}”课程的` : ''}考试题逐项解析。每项解释它为何符合或不符合题意，联系具体知识点；不能只重复答案。否定式题干要说明判别标准；没有依据时如实说明。涉及理论的发展水平、阶段或概念归属时，必须给出准确归属，不能笼统猜测。每项 25-60 字。严格按选项顺序逐行输出，格式为“A: 解析”。
 
-所有选项结束后，再按规则决定是否输出速记技巧：
+所有选项结束后，再给出这张「学习卡」的内容（写给零基础学生看）。能写就写，确实没有就整行省略 —— 不要凑字、不要复述题干、不要写 Markdown：
+考点: 这道题真正在考什么，一句话，不超过 30 字。
+步骤1: 从零开始的做题顺序，2～5 条，每条一句话、不超过 40 字（先判断什么、再套什么、最后检查什么）。按步骤1、步骤2 依次编号。
+记住1: 这类题必须背下来的对应关系，最多 4 条，写成「条件｜结果」（中间用全角竖线，例如“x 趋于 0｜sinx/x 趋于 1”）；没有就省略。
+易错: 最容易错在哪、怎么自检，不超过 60 字。
+
+再按规则决定是否输出速记技巧：
 1. 仅在你确信存在广泛通用且准确的备考口诀时，输出“速记技巧: 常见口诀｜……”。不得声称或暗示来自粉笔等机构，除非题目资料明确给出了出处。
 2. 若没有现成口诀，但可以从本题核心概念做出简短、不改变知识事实的谐音或联想，可输出“速记技巧: AI 联想｜……”。它必须明确是 AI 联想，不能伪装成现成口诀。
 3. 两者都不合适时，输出“速记技巧: 无”。不要复述题干、硬押韵或编造口诀。
@@ -2250,10 +2335,34 @@ ${options}
 题库标注答案（可能有误，仅供交叉核对）：${question.answer.join(',')}
 ${question.explanation ? `资料校对材料（可能有误，需独立判断）：${question.explanation}` : ''}
 学生选择：${selection.join(',')}`;
-  const raw = await streamChat([{ role: 'system', content: `你是审慎、独立的${subjectName ? `“${subjectName}”课程` : ''}辅导老师。逐项解析必须准确，不要把题库答案当作权威结论；发现疑点应明确建议复核。速记技巧只在有可靠常见口诀，或有明确标注的 AI 联想时给出；不合适就写无。` }, { role: 'user', content: prompt }], onProgress);
+  const raw = await streamChat([{ role: 'system', content: `你是审慎、独立的${subjectName ? `“${subjectName}”课程` : ''}辅导老师。逐项解析必须准确，不要把题库答案当作权威结论；发现疑点应明确建议复核。速记技巧只在有可靠常见口诀，或有明确标注的 AI 联想时给出；不合适就写无。学习卡（考点/步骤/记住/易错）只写你有把握的，宁可少写一行，也不要编。` }, { role: 'user', content: prompt }], onProgress);
   let parsed;
   try { parsed = JSON.parse(raw.replace(/^\x60\x60\x60(?:json)?\s*/i, '').replace(/\x60\x60\x60\s*$/, '')); } catch { /* try line parsing below */ }
   const source = parsed?.options || parsed;
+  const txt = v => String(v == null ? '' : v).trim();
+  const strOr = (a, b) => (typeof a === 'string' && a.trim() ? a : typeof b === 'string' ? b : '');
+  /* 学习卡四块（2026-11-07）。模型可能给 JSON，也可能给逐行文本，两条路都要认 ——
+     先把 JSON 那边取出来，逐行解析时再覆盖，谁的拿得到算谁的。 */
+  const toList = v => (Array.isArray(v) ? v : v ? [v] : []).map(txt).filter(Boolean);
+  /* 「记住N」要拆成「条件 / 结果」两列。模型写起来有两种习惯：
+     · 条件｜结果（提示词里推荐的，最明确）
+     · 条件→结果
+     箭头这条要小心：极限本身就带箭头（“x→0 时 sinx/x→1” 有两个箭头），
+     拆开就成了「x」和「0 时 sinx/x → 1」，读起来是错的。所以**只有恰好一个箭头时才拆**，
+     两三个箭头的整条留在一格里（渲染时 colspan 拉满），宁可少两列也不要切错。 */
+  const toRows = v => (Array.isArray(v) ? v : []).map(r => {
+    if (Array.isArray(r)) return [txt(r[0]), txt(r[1])];
+    const s = txt(r);
+    let m = s.split(/\s*[｜|]\s*/);
+    if (m.length < 2 && (s.match(/→|->|⇒|=>/g) || []).length === 1) m = s.split(/\s*(?:→|->|⇒|=>)\s*/);
+    return m.length > 1 ? [m[0], m.slice(1).join(' → ')] : ['', s];
+  }).filter(r => r[0] || r[1]);
+  let card = {
+    lead: txt(strOr(parsed?.lead, parsed?.['考点'])),
+    steps: toList(parsed?.steps || parsed?.['步骤']),
+    table: toRows(parsed?.table || parsed?.['记住']),
+    warn: txt(strOr(parsed?.warn, parsed?.['易错']))
+  };
   const normalizeTip = value => {
     const tip = String(value || '').trim();
     return /^(?:无|暂无|没有|不适用)[。！!]?$/u.test(tip) ? '' : tip;
@@ -2264,11 +2373,13 @@ ${question.explanation ? `资料校对材料（可能有误，需独立判断）
   const explicitReviewAnswer = normalizeReviewAnswer(parsed?.reviewAnswer || parsed?.['AI结论']);
   const inferredReviewAnswer = parsedReview.match(/(?:以|选|答案为|应为)\s*([A-Z])/u)?.[1];
   const parsedReviewAnswer = explicitReviewAnswer.length ? explicitReviewAnswer : (inferredReviewAnswer ? [inferredReviewAnswer] : []);
+  const cardOut = () => ({ _lead: card.lead, _steps: card.steps, _table: card.table, _warn: card.warn });
   if (source && keys.every(key => typeof source[key] === 'string' && source[key].trim())) {
-    return { ...Object.fromEntries(keys.map(key => [key, source[key].trim()])), _tip: parsedTip, _review: parsedReview, _reviewAnswer: parsedReviewAnswer };
+    return { ...Object.fromEntries(keys.map(key => [key, source[key].trim()])), _tip: parsedTip, _review: parsedReview, _reviewAnswer: parsedReviewAnswer, ...cardOut() };
   }
   const lines = {};
   let tip = '', review = '', reviewAnswer = [];
+  const stepList = [], tableRows = [];
   for (const line of raw.split('\n')) {
     const tipMatch = line.match(/^\s*(?:速记技巧|记忆技巧|口诀)\s*[：:]\s*(.+)$/);
     if (tipMatch) { tip = tipMatch[1].trim(); continue; }
@@ -2276,10 +2387,25 @@ ${question.explanation ? `资料校对材料（可能有误，需独立判断）
     if (reviewMatch) { review = reviewMatch[1].trim(); continue; }
     const conclusionMatch = line.match(/^\s*AI结论\s*[：:]\s*([A-Z])\s*[|｜:]\s*(.+)$/);
     if (conclusionMatch && keys.includes(conclusionMatch[1])) { reviewAnswer = [conclusionMatch[1]]; continue; }
+    /* 学习卡：考点 / 步骤N / 记住N / 易错。编号可省（“步骤:”也算一条），冒号全角半角、点号都认；
+       这几条必须排在下面的「A: 解析」之前判断 —— 虽然 A-Z 不会跟中文撞，但顺序写死以后好读。 */
+    const leadMatch = line.match(/^\s*考点\s*[：:.、．]\s*(.+)$/);
+    if (leadMatch) { card.lead = leadMatch[1].trim(); continue; }
+    const stepMatch = line.match(/^\s*步骤\s*\d*\s*[：:.、．]\s*(.+)$/);
+    if (stepMatch) { stepList.push(stepMatch[1].trim()); continue; }
+    const memoMatch = line.match(/^\s*记住\s*\d*\s*[：:.、．]\s*(.+)$/);
+    if (memoMatch) { tableRows.push(memoMatch[1].trim()); continue; }
+    const warnMatch = line.match(/^\s*易错(?:提醒|点|提示)?\s*[：:.、．]\s*(.+)$/);
+    if (warnMatch) { card.warn = warnMatch[1].trim(); continue; }
     const match = line.match(/^\s*([A-ZTF])\s*[.、:：]\s*(.+)$/);
     if (match) lines[match[1]] = match[2].trim();
   }
-  if (keys.every(key => lines[key])) return { ...Object.fromEntries(keys.map(key => [key, lines[key]])), _tip: normalizeTip(tip), _review: review, _reviewAnswer: reviewAnswer };
+  /* 逐行格式下模型常把好几步挤在一行（“步骤1: 甲；乙；丙”），只有一条又带分号的拆开；
+     多条各自成段的不动，免得把“先求导；再代值”这种一句话拆成两半。 */
+  if (stepList.length === 1 && /[；;]/.test(stepList[0])) card.steps = stepList[0].split(/[；;]/).map(txt).filter(Boolean);
+  else if (stepList.length) card.steps = stepList;
+  if (tableRows.length) card.table = toRows(tableRows);
+  if (keys.every(key => lines[key])) return { ...Object.fromEntries(keys.map(key => [key, lines[key]])), _tip: normalizeTip(tip), _review: review, _reviewAnswer: reviewAnswer, ...cardOut() };
   throw new Error('模型未返回完整的逐项解析，请重试或更换模型。');
 }
 
@@ -2471,6 +2597,9 @@ function normalizeQuestions(raw, subject) {
       number: item?.number || questions.length + 1,
       stem, type, options, answer,
       explanation: String(item?.explanation ?? item?.解析 ?? '').trim(),
+      /* tip（可选）：老师自己写的一句口诀／小技巧。刷题页会用它画「学习卡」的黄色那块
+         （见 app.js 的 studyCard）。不写就是空串，不影响别的字段。 */
+      tip: String(item?.tip ?? item?.小技巧 ?? item?.口诀 ?? '').trim(),
       source: item?.source || item?.出处 || '导入'
     });
   });
@@ -3026,6 +3155,44 @@ function renderPractice() {
   $('modeBtn').onclick = openOrderSheet;
   renderCard(); renderBar();
 }
+/* ---------- 学习卡色块（2026-11-07） ----------
+   用户拿他自己做的「高数交互解析」页面当参考：一张暖黄卡，里面四块 ——
+   零基础做题步骤 / 顺口溜 / 必须记住的小表 / 易错提醒。要求「有机融合进刷题，
+   点 AI 解析的时候也用色块区域铺开」。所以这里是一个纯渲染函数，两个来源共用：
+     · AI 解析 —— ai.js 回来的 _lead / _steps / _tip / _table / _warn / _review
+     · 题库自带 —— 题目上的 tip 字段（老师手写的一句口诀，见 imports.js）
+   没有内容时返回空串，调用处直接拼，不用先判断。
+   ── 为什么固定这个顺序 ──
+   先怎么做（步骤）→ 再好记（口诀）→ 再背下来（小表）→ 最后别踩坑（易错），
+   这是从零到能用的顺序；缺哪块就不画，别用「暂无」占位。 */
+function studyCard(d, src) {
+  if (!d) return '';
+  const lead = String(d._lead || '').trim();
+  const steps = (Array.isArray(d._steps) ? d._steps : []).map(x => String(x || '').trim()).filter(Boolean);
+  const tip = String(d._tip || '').trim();
+  const rows = (Array.isArray(d._table) ? d._table : []).filter(r => r && (r[0] || r[1]));
+  const warn = String(d._warn || '').trim();
+  const note = String(d._note || '').trim();
+  if (!lead && !steps.length && !tip && !rows.length && !warn && !note) return '';
+  const blocks = [];
+  if (steps.length) blocks.push(`<section class="g"><h5>零基础做题步骤</h5><ol>${steps.map(s => `<li>${esc(s)}</li>`).join('')}</ol></section>`);
+  if (tip) blocks.push(`<section class="g mnemonic"><h5>顺口溜 · 速记</h5><p>${esc(tip)}</p></section>`);
+  if (rows.length) {
+    /* 有「条件/结果」两列就画表头；整行没有拆开的（模型只给了半句，或者一句话里带了两个箭头）
+       那一行自己拉满两列 —— 逐行判断，不能因为别的行是全的就给它补一个破折号。 */
+    const two = rows.some(r => r[0] && r[1]);
+    const body = rows.map(r => (r[0] && r[1])
+      ? `<tr><td>${esc(r[0])}</td><td>${esc(r[1])}</td></tr>`
+      : `<tr><td colspan="${two ? 2 : 1}">${esc(r[0] || r[1])}</td></tr>`).join('');
+    blocks.push(`<section class="g"><h5>必须记住的小表</h5><table>${two ? '<tr><th>条件</th><th>结果</th></tr>' : ''}${body}</table></section>`);
+  }
+  if (warn) blocks.push(`<section class="g warn"><h5>易错提醒与自检</h5><p>${esc(warn)}</p></section>`);
+  return `<div class="study"><div class="study-head"><h4>学习卡</h4><span class="sp"></span>${src ? `<span class="study-src">${esc(src)}</span>` : ''}</div>
+    ${lead ? `<p class="study-lead"><b>考什么：</b>${esc(lead)}</p>` : ''}
+    ${blocks.length ? `<div class="study-grid">${blocks.join('')}</div>` : ''}
+    ${note ? `<p class="study-note"><b>题库复核：</b>${esc(note)}</p>` : ''}</div>`;
+}
+
 function renderCard() {
   const card = $('card'), q = cur();
   card.classList.remove('drag', 'dragging', 'back', 'fly'); card.style.transform = card.style.opacity = '';
@@ -3071,15 +3238,25 @@ function renderCard() {
     const aiPart = !ai ? (getSettings().apiKey ? '<button class="btn sm ghost" type="button" id="aiBtn">✦ AI 逐项解析</button>' : '')
       : ai.state === 'load' ? '<span>AI 正在解析…</span>'
       : ai.state === 'err' ? `<span style="color:var(--bad)">${esc(ai.msg)}</span><button class="btn sm ghost" type="button" id="aiBtn">重试</button>`
-      : (ai.data._tip ? `<div class="tip">速记：${esc(ai.data._tip)}</div>` : '') + (ai.data._review && !/^一致/.test(ai.data._review) ? `<div class="tip">题库复核：${esc(ai.data._review)}</div>` : '');
+      // 解析成功后按钮留着改成「重新解析」：以前一旦拿到结果就没了，模型答得不好只能刷新页面
+      : '<button class="btn sm ghost" type="button" id="aiBtn">重新解析</button>';
     fb = `<div class="fb ${ok ? 'ok' : 'bad'}"><b>${ok ? '回答正确' : '答案是 ' + esc(ans)}</b>${q.explanation ? `<p>${esc(q.explanation)}</p>` : ''}<div class="ai">${aiPart}</div></div>`;
   }
+  /* 学习卡：AI 解析出来的一整块 + 题库自带的一句口诀（两个来源分开标，别让人以为是题库里写的）。
+     「题库复核」原来单独一行灰字，现在并进卡片底部的脚注 —— 它说的是题库准不准，不是知识点。
+     ── 为什么 !picked 就整块不画 ──
+     口诀往往就是把答案编进去了（「写 1 关管子」= 选 B），答题前摆出来等于送分。
+     和参考答案、解析一样，都是答完才给。 */
+  const aiDone = ai && ai.state === 'done' && ai.data;
+  const cards = !picked ? ''
+    : (aiDone ? studyCard({ ...ai.data, _note: /^一致/.test(ai.data._review || '') ? '' : ai.data._review }, 'AI 解析') : '')
+      + (String(q.tip || '').trim() ? studyCard({ _tip: String(q.tip).trim() }, '题库自带') : '');
   const tag = (r.wrong ? `<span style="color:var(--bad)">错过 ${r.wrong} 次</span>` : r.status === 'known' ? '<span style="color:var(--ok)">已记住</span>' : '')
     + (r.status === 'known' && q.id in S.undo ? '<button class="btn sm ghost" type="button" id="undoBtn" style="height:26px">撤销记住</button>' : '');
   const hint = picked ? `<div class="hint">左滑或 <kbd>${esc(keyOf('know'))}</kbd> 记住 · 右滑或 <kbd>${esc(keyOf('again'))}</kbd> 再练</div>` : '';
   card.innerHTML = `<div class="qhead"><span class="qtype">${typeName(q.type)}</span><span>${S.i + 1} / ${S.queue.length}</span><span class="sp"></span>${tag}</div>
     <h2 class="stem">${stem}</h2>${extra}${opts ? `<div class="opts">${opts}</div>` : ''}
-    ${q.type === 'multiple' && !picked ? `<button class="btn submit" type="button" id="submitBtn" ${S.sel.size ? '' : 'disabled'}>提交答案${S.sel.size ? `（已选 ${[...S.sel].sort().join('')}）` : ''}</button>` : ''}${q.type === 'fill' && !picked ? '<button class="btn submit" type="button" id="submitBtn">提交答案</button>' : ''}${fb}${hint}
+    ${q.type === 'multiple' && !picked ? `<button class="btn submit" type="button" id="submitBtn" ${S.sel.size ? '' : 'disabled'}>提交答案${S.sel.size ? `（已选 ${[...S.sel].sort().join('')}）` : ''}</button>` : ''}${q.type === 'fill' && !picked ? '<button class="btn submit" type="button" id="submitBtn">提交答案</button>' : ''}${fb}${cards}${hint}
     <div class="veil" aria-hidden="true"><i></i></div>`;
   card.classList.toggle('drag', !!picked);
   // 给“夜夜题库AI伴侣”浏览器扩展（智慧职教AI伴学项目）读题：题型、题干、选项；答完才带答案

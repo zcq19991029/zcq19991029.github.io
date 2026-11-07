@@ -396,3 +396,82 @@ body.focus .unfocus { display: block; }
 .imp-rep .rejbox summary { cursor: pointer; }
 .imp-rep .rej { margin: 6px 0 0; padding-left: 18px; line-height: 1.6; }
 .imp-rep .rej li { margin: 2px 0; }
+
+/* ============================================================
+   学习卡色块（2026-11-07 新增）
+   ------------------------------------------------------------
+   用户拿「兼职家教/高数/高等数学练习题(5)-交互答案解析.html」当参考：
+   那道页面每题后面挂一张暖黄的「小技巧 tips」，里面是四块颜色分明的格子 ——
+   零基础做题步骤（白）/ 顺口溜（黄）/ 必须记住的小表（白+小表）/ 易错提醒（粉红）。
+   他要的是「这套东西搬进刷题，AI 解析也用它铺开」。
+
+   ── 为什么单独一套变量、不复用 --ok / --bad ──
+   这块是「讲解」，不是「判定对错」。用 --okbg / --badbg 会跟外面的对错反馈撞色
+   （绿底里再套绿块，粉块套红底），分不出来谁在说什么。所以这里自带一组暖色，
+   深浅两套各写一份，跟着 html[data-hx-mode] 走 —— 和 hx-theme 的做法一致。
+
+   ── 色块顺序固定：步骤 → 口诀 → 小表 → 易错 ──
+   这是「从零到能用」的阅读顺序（先怎么做、再好记、再背下、最后别踩坑）。
+   缺哪块就不画哪块，grid 自己补位；手机上不分两列，一路竖着排。
+   ============================================================ */
+.study {
+  --sd-bg1: #fff9e9; --sd-bg2: #fffdf6; --sd-line: #eedda8; --sd-bar: #c98a00; --sd-ink: #5f4707; --sd-h: #8b5d00;
+  --g-bg: rgba(255, 255, 255, .72); --g-line: #eadfbf; --g-ink: #4e421f; --g-h: #75520a;
+  --mn-bg: #fff4d2; --mn-line: #e6c86d; --mn-ink: #6a3900; --mn-h: #8a4f00;
+  --wn-bg: #fff1ed; --wn-line: #efc1b7; --wn-ink: #7a2c20; --wn-h: #a3311f;
+  --tb-th: #f7edcf; --tb-th-ink: #644800; --tb-line: #dfd4b5;
+  margin-top: 14px; padding: 15px 16px 16px;
+  color: var(--sd-ink);
+  background: linear-gradient(135deg, var(--sd-bg1), var(--sd-bg2));
+  border: 1px solid var(--sd-line);
+  border-left: 4px solid var(--sd-bar);
+  border-radius: 5px 16px 16px 5px;
+}
+html[data-hx-mode="dark"] .study {
+  --sd-bg1: rgba(201, 138, 0, .13); --sd-bg2: rgba(201, 138, 0, .04);
+  --sd-line: rgba(201, 138, 0, .30); --sd-bar: #d99b1a;
+  --sd-ink: #ece0c8; --sd-h: #f2c877;
+  --g-bg: rgba(255, 255, 255, .05); --g-line: rgba(255, 255, 255, .10);
+  --g-ink: #e4dbc7; --g-h: #f2c877;
+  --mn-bg: rgba(230, 200, 109, .13); --mn-line: rgba(230, 200, 109, .34);
+  --mn-ink: #ffe9b0; --mn-h: #ffd67a;
+  --wn-bg: rgba(255, 69, 58, .10); --wn-line: rgba(255, 120, 110, .30);
+  --wn-ink: #ffd6cf; --wn-h: #ff9d92;
+  --tb-th: rgba(230, 200, 109, .18); --tb-th-ink: #ffe9b0; --tb-line: rgba(255, 255, 255, .14);
+}
+/* 卡片抬头：左边「学习卡」，右边小字标来源（AI 解析 / 题库自带）—— 别让人以为题库里写着这些 */
+.study-head { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; }
+.study-head h4 { margin: 0; color: var(--sd-h); font: 600 15px/1.3 var(--hx-font-d); letter-spacing: .01em; }
+.study-head .sp { flex: 1; }
+.study-src { padding: 1px 8px; border: 1px solid var(--sd-line); border-radius: 99px; color: var(--sd-h); font-size: 11.5px; white-space: nowrap; }
+/* 一句话考点：比色块更醒目一点，回答「这题到底在考什么」 */
+.study-lead { margin: 0 0 10px; padding: 9px 12px; border-radius: 10px; background: var(--g-bg); border: 1px solid var(--g-line); color: var(--g-ink); font-size: 14px; line-height: 1.6; }
+.study-lead b { color: var(--g-h); font-weight: 600; }
+/* align-items:start：四块各按自己内容高度排，别互相拉齐 ——
+   步骤有 3 条、口诀只有一句话时，拉齐会让黄块里空出大半个身位，看着像没加载出来 */
+.study-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; align-items: start; }
+.study-grid .wide { grid-column: 1 / -1; }
+.g { min-width: 0; padding: 11px 13px; border-radius: 11px; background: var(--g-bg); border: 1px solid var(--g-line); color: var(--g-ink); font-size: 14px; line-height: 1.62; }
+.g h5 { margin: 0 0 6px; color: var(--g-h); font: 600 13.5px/1.35 var(--hx-font); }
+.g p { margin: 4px 0; }
+.g ol, .g ul { margin: 4px 0; padding-left: 1.35em; }
+.g li { margin: 4px 0; }
+.g li::marker { color: var(--g-h); font-weight: 600; }
+.g.mnemonic { background: var(--mn-bg); border-color: var(--mn-line); color: var(--mn-ink); }
+.g.mnemonic h5 { color: var(--mn-h); }
+.g.mnemonic p { font-weight: 600; line-height: 1.8; }
+.g.warn { background: var(--wn-bg); border-color: var(--wn-line); color: var(--wn-ink); }
+.g.warn h5 { color: var(--wn-h); }
+/* 小表：条件 → 结果。第一列窄一点（都是“x→0”这种），第二列给结果留宽度 */
+.g table { width: 100%; margin: 4px 0 0; border-collapse: collapse; font-size: 13.5px; }
+.g table th, .g table td { padding: 6px 8px; border: 1px solid var(--tb-line); text-align: left; vertical-align: top; }
+.g table th { background: var(--tb-th); color: var(--tb-th-ink); font-weight: 600; white-space: nowrap; }
+/* 单元格一律允许换行：整行拉满的那种（一句话里带两个箭头）要是 nowrap 会横着撑破卡片 */
+/* AI 自己说「题库答案可能有问题」时的复核提示：不占色块，做卡片脚注 */
+.study-note { margin: 10px 0 0; padding-top: 9px; border-top: 1px dashed var(--sd-line); font-size: 12.5px; line-height: 1.6; opacity: .92; }
+.study-note b { color: var(--sd-h); font-weight: 600; }
+@media (max-width: 620px) {
+  .study { padding: 13px 12px 14px; }
+  .study-grid { grid-template-columns: 1fr; }
+  .study-grid .wide { grid-column: auto; }
+}

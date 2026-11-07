@@ -182,6 +182,9 @@ export function normalizeQuestions(raw, subject) {
       number: item?.number || questions.length + 1,
       stem, type, options, answer,
       explanation: String(item?.explanation ?? item?.解析 ?? '').trim(),
+      /* tip（可选）：老师自己写的一句口诀／小技巧。刷题页会用它画「学习卡」的黄色那块
+         （见 app.js 的 studyCard）。不写就是空串，不影响别的字段。 */
+      tip: String(item?.tip ?? item?.小技巧 ?? item?.口诀 ?? '').trim(),
       source: item?.source || item?.出处 || '导入'
     });
   });

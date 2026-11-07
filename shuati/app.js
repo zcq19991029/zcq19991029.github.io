@@ -299,6 +299,44 @@ function renderPractice() {
   $('modeBtn').onclick = openOrderSheet;
   renderCard(); renderBar();
 }
+/* ---------- 学习卡色块（2026-11-07） ----------
+   用户拿他自己做的「高数交互解析」页面当参考：一张暖黄卡，里面四块 ——
+   零基础做题步骤 / 顺口溜 / 必须记住的小表 / 易错提醒。要求「有机融合进刷题，
+   点 AI 解析的时候也用色块区域铺开」。所以这里是一个纯渲染函数，两个来源共用：
+     · AI 解析 —— ai.js 回来的 _lead / _steps / _tip / _table / _warn / _review
+     · 题库自带 —— 题目上的 tip 字段（老师手写的一句口诀，见 imports.js）
+   没有内容时返回空串，调用处直接拼，不用先判断。
+   ── 为什么固定这个顺序 ──
+   先怎么做（步骤）→ 再好记（口诀）→ 再背下来（小表）→ 最后别踩坑（易错），
+   这是从零到能用的顺序；缺哪块就不画，别用「暂无」占位。 */
+function studyCard(d, src) {
+  if (!d) return '';
+  const lead = String(d._lead || '').trim();
+  const steps = (Array.isArray(d._steps) ? d._steps : []).map(x => String(x || '').trim()).filter(Boolean);
+  const tip = String(d._tip || '').trim();
+  const rows = (Array.isArray(d._table) ? d._table : []).filter(r => r && (r[0] || r[1]));
+  const warn = String(d._warn || '').trim();
+  const note = String(d._note || '').trim();
+  if (!lead && !steps.length && !tip && !rows.length && !warn && !note) return '';
+  const blocks = [];
+  if (steps.length) blocks.push(`<section class="g"><h5>零基础做题步骤</h5><ol>${steps.map(s => `<li>${esc(s)}</li>`).join('')}</ol></section>`);
+  if (tip) blocks.push(`<section class="g mnemonic"><h5>顺口溜 · 速记</h5><p>${esc(tip)}</p></section>`);
+  if (rows.length) {
+    /* 有「条件/结果」两列就画表头；整行没有拆开的（模型只给了半句，或者一句话里带了两个箭头）
+       那一行自己拉满两列 —— 逐行判断，不能因为别的行是全的就给它补一个破折号。 */
+    const two = rows.some(r => r[0] && r[1]);
+    const body = rows.map(r => (r[0] && r[1])
+      ? `<tr><td>${esc(r[0])}</td><td>${esc(r[1])}</td></tr>`
+      : `<tr><td colspan="${two ? 2 : 1}">${esc(r[0] || r[1])}</td></tr>`).join('');
+    blocks.push(`<section class="g"><h5>必须记住的小表</h5><table>${two ? '<tr><th>条件</th><th>结果</th></tr>' : ''}${body}</table></section>`);
+  }
+  if (warn) blocks.push(`<section class="g warn"><h5>易错提醒与自检</h5><p>${esc(warn)}</p></section>`);
+  return `<div class="study"><div class="study-head"><h4>学习卡</h4><span class="sp"></span>${src ? `<span class="study-src">${esc(src)}</span>` : ''}</div>
+    ${lead ? `<p class="study-lead"><b>考什么：</b>${esc(lead)}</p>` : ''}
+    ${blocks.length ? `<div class="study-grid">${blocks.join('')}</div>` : ''}
+    ${note ? `<p class="study-note"><b>题库复核：</b>${esc(note)}</p>` : ''}</div>`;
+}
+
 function renderCard() {
   const card = $('card'), q = cur();
   card.classList.remove('drag', 'dragging', 'back', 'fly'); card.style.transform = card.style.opacity = '';
@@ -344,15 +382,25 @@ function renderCard() {
     const aiPart = !ai ? (getSettings().apiKey ? '<button class="btn sm ghost" type="button" id="aiBtn">✦ AI 逐项解析</button>' : '')
       : ai.state === 'load' ? '<span>AI 正在解析…</span>'
       : ai.state === 'err' ? `<span style="color:var(--bad)">${esc(ai.msg)}</span><button class="btn sm ghost" type="button" id="aiBtn">重试</button>`
-      : (ai.data._tip ? `<div class="tip">速记：${esc(ai.data._tip)}</div>` : '') + (ai.data._review && !/^一致/.test(ai.data._review) ? `<div class="tip">题库复核：${esc(ai.data._review)}</div>` : '');
+      // 解析成功后按钮留着改成「重新解析」：以前一旦拿到结果就没了，模型答得不好只能刷新页面
+      : '<button class="btn sm ghost" type="button" id="aiBtn">重新解析</button>';
     fb = `<div class="fb ${ok ? 'ok' : 'bad'}"><b>${ok ? '回答正确' : '答案是 ' + esc(ans)}</b>${q.explanation ? `<p>${esc(q.explanation)}</p>` : ''}<div class="ai">${aiPart}</div></div>`;
   }
+  /* 学习卡：AI 解析出来的一整块 + 题库自带的一句口诀（两个来源分开标，别让人以为是题库里写的）。
+     「题库复核」原来单独一行灰字，现在并进卡片底部的脚注 —— 它说的是题库准不准，不是知识点。
+     ── 为什么 !picked 就整块不画 ──
+     口诀往往就是把答案编进去了（「写 1 关管子」= 选 B），答题前摆出来等于送分。
+     和参考答案、解析一样，都是答完才给。 */
+  const aiDone = ai && ai.state === 'done' && ai.data;
+  const cards = !picked ? ''
+    : (aiDone ? studyCard({ ...ai.data, _note: /^一致/.test(ai.data._review || '') ? '' : ai.data._review }, 'AI 解析') : '')
+      + (String(q.tip || '').trim() ? studyCard({ _tip: String(q.tip).trim() }, '题库自带') : '');
   const tag = (r.wrong ? `<span style="color:var(--bad)">错过 ${r.wrong} 次</span>` : r.status === 'known' ? '<span style="color:var(--ok)">已记住</span>' : '')
     + (r.status === 'known' && q.id in S.undo ? '<button class="btn sm ghost" type="button" id="undoBtn" style="height:26px">撤销记住</button>' : '');
   const hint = picked ? `<div class="hint">左滑或 <kbd>${esc(keyOf('know'))}</kbd> 记住 · 右滑或 <kbd>${esc(keyOf('again'))}</kbd> 再练</div>` : '';
   card.innerHTML = `<div class="qhead"><span class="qtype">${typeName(q.type)}</span><span>${S.i + 1} / ${S.queue.length}</span><span class="sp"></span>${tag}</div>
     <h2 class="stem">${stem}</h2>${extra}${opts ? `<div class="opts">${opts}</div>` : ''}
-    ${q.type === 'multiple' && !picked ? `<button class="btn submit" type="button" id="submitBtn" ${S.sel.size ? '' : 'disabled'}>提交答案${S.sel.size ? `（已选 ${[...S.sel].sort().join('')}）` : ''}</button>` : ''}${q.type === 'fill' && !picked ? '<button class="btn submit" type="button" id="submitBtn">提交答案</button>' : ''}${fb}${hint}
+    ${q.type === 'multiple' && !picked ? `<button class="btn submit" type="button" id="submitBtn" ${S.sel.size ? '' : 'disabled'}>提交答案${S.sel.size ? `（已选 ${[...S.sel].sort().join('')}）` : ''}</button>` : ''}${q.type === 'fill' && !picked ? '<button class="btn submit" type="button" id="submitBtn">提交答案</button>' : ''}${fb}${cards}${hint}
     <div class="veil" aria-hidden="true"><i></i></div>`;
   card.classList.toggle('drag', !!picked);
   // 给“夜夜题库AI伴侣”浏览器扩展（智慧职教AI伴学项目）读题：题型、题干、选项；答完才带答案

@@ -529,6 +529,8 @@ button.danger { color: var(--bad, #d70015); }
    而本页又有一条 button.danger{color:var(--bad)} 把字也刷成红色，红字红底会变成一块看不出字的大红块（实测截图踩到）。 */
 .lib-a [data-lib="del"] { color: var(--bad, #d70015); }
 .lib-empty { margin: 10px 0 0; }
+/* 列表底下那行「存在云端」/「连不上云端」的说明：比正文小一号，别抢卷子名字的注意力 */
+.lib-src { margin: 8px 0 0; font-size: 11.5px; opacity: .72; }
 
 /* ============================================================
    理论试卷 · 大平铺画布 + 设置 / 题库抽屉（2026-11-06 第二轮）
@@ -5669,37 +5671,99 @@ function answerDocx(P,cfg){
 const saveDocx=(name,pkg)=>saveBlob(name,new Blob([makeZip(pkg.files)],{type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'}));
 
 ;
-/* ================= 考试 · 试卷库（2026-11-06 新增） =================
-   用户原话：「我们确认了 这套卷子就可以命名为XXX保存到理论试卷库里面供我挑选和备用等」。
-   ── 设计上的几个决定 ──
-   1. 纯本地（localStorage 键 exam.lib），这一版不接云端。云端表已经写好了
-      （supabase/2026-11-06-试卷库.sql），等用户点头再跑；跑完前端再改读写那一层，
-      所以这里把读写都收在 libLoad/libSave 两个函数里，接云端只动这两个。
-   2. 组卷页和理论试卷页共用一份：kind='build'（上机组卷，payload = exam.build[sub] 那份）
-      / kind='paper'（理论试卷，payload = exam.paper[sub] 那份设置 C）。用 sub 分开科目。
-   3. 重名**不弹 confirm**（手机上 confirm 很难用、测试里也会卡住），直接加 (2)、(3)。
-   4. 上限 60 条：这是 localStorage，一条上机卷几百字节、理论卷几 KB，60 条够存两届，
-      超了从最旧的开始删 —— 不删的话早晚撑爆 5MB 配额，写一次全库都失败。
-   5. 存的是**快照**（JSON 深拷贝）：以后改默认值、改题目，不会把已存的卷子改坏。 */
+/* ================= 考试 · 试卷库（2026-11-06 建，2026-11-08 接云端） =================
+   用户原话：「我们确认了 这套卷子就可以命名为XXX保存到理论试卷库里面供我挑选和备用等」，
+   后来纠正：「我整个工具不都是需要走在线多设备交互互通吗」——
+   所以这一版的**真相在云端**（public.hx_exam_lib + 4 个 security definer 函数），
+   本机 localStorage['exam.lib'] 降级成**镜像**：断网 / 没登录时照样能看、能选用；
+   一进这页就自动做三件事：
+     ① 把云端列表拉下来（这份就是页面显示的）；
+     ② 把本机还没传上去的（_sync !== 1，例如「这个功能还是纯本机版」时存的老卷子）逐条补传；
+     ③ 合并结果写回本机镜像。
+   ── 为什么读写都收在这一个文件里 ──
+   组卷页和理论试卷页共用一份库，只在 kind / sub 上分开（build = 上机组卷，
+   paper = 理论试卷设置 C）；以后加科目、加「教研组共享」，只动这里。
+   ── 上限 60 条 ──
+   云端 hx_exam_lib_save 也按 60 条裁（多的从最旧的删），本机镜像同样 60，两头一致。
+   ── 重名不弹 confirm ──
+   手机上 confirm 很难用、自动化测试里也会卡住：云端函数自己加「(2)」「(3)」，
+   本机 libUniqName 做同样的事 —— 规则一致，断网存的名字不会跟云端对不上。
+   ── 存的都是快照（JSON 深拷贝）──
+   以后改默认值、改题目，不会把已经存下的卷子改坏。 */
 'use strict';
 
 const LIB_KEY = 'exam.lib', LIB_MAX = 60;
 
-function libLoad() {
+/* ---------------- 本机镜像 ---------------- */
+function libRead() {
   const o = store.get(LIB_KEY, null);
   const items = o && Array.isArray(o.items) ? o.items : [];
-  /* 只留结构完整的：手改 localStorage、旧版本残留都可能塞进半截数据，读到就跳过，不让整库崩掉 */
-  return { v: 1, items: items.filter(x => x && x.id && x.kind && x.payload) };
+  /* 只留结构完整的：手改 localStorage、旧版本残留都可能塞进半截数据，
+     读到就跳过，不让整库崩掉 */
+  return items.filter(x => x && x.id && x.kind && x.payload);
 }
-function libSave(L) { store.set(LIB_KEY, { v: 1, items: L.items.slice(0, LIB_MAX) }); }
+function libWrite(items) { store.set(LIB_KEY, { v: 2, items: items.slice(0, LIB_MAX) }); }
 
-function libItems(kind, sub) { return libLoad().items.filter(x => x.kind === kind && x.sub === sub); }
-function libById(id) { return libLoad().items.find(x => x.id === id) || null; }
+const libId = () => 'L' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+const libMsg = e => (e && e.message ? e.message : '连不上云端');
 
-/* 重名自动加序号：同名第二份叫「名字 (2)」，第三份「(3)」…… 不打断老师 */
-function libUniqName(L, name, selfId) {
+/* 云端一条 → 页面 / 镜像用的一条。
+   id 统一成字符串：云端是 bigint（Number 转字符串不会丢精度，60 条卷子远远到不了 2^53），
+   DOM 的 data-lib-id 只能是字符串。_sync:1 表示「云端已经有这条」。 */
+function libNorm(x) {
+  return {
+    id: String(x.id), name: String(x.name || '未命名'), kind: x.kind, sub: x.sub,
+    payload: x.payload || {}, at: Number(x.at) || Date.now(), _sync: 1
+  };
+}
+
+/* 上一次跟云端对齐的时间。3 秒内重画不重复发请求（改一处设置就会重画一次列表）。 */
+let libCache = [], libSynced = 0, libErr = '';
+
+async function libSync() {
+  let cloud;
+  try {
+    const r = await rpc('hx_exam_lib_list', {});
+    if (!Array.isArray(r)) throw new Error('云端返回的格式不对');
+    cloud = r.map(libNorm);
+    libErr = '';
+  } catch (e) {
+    /* 没登录 / 不是教师 / 断网：退回本机镜像，不弹窗、不报错，只在列表底下写一行灰字 */
+    libErr = libMsg(e);
+    libCache = libRead().slice(0, LIB_MAX);
+    return libCache;
+  }
+  libSynced = Date.now();
+  /* 补传：以前纯本机版存的卷子（没有 _sync 字段）也走这条，第一次登录就自动搬上云 */
+  const keep = [];
+  for (const it of libRead().filter(x => x._sync !== 1)) {
+    try {
+      const s = await rpc('hx_exam_lib_save', { p_sub: it.sub, p_kind: it.kind, p_name: it.name, p_payload: it.payload });
+      if (!s || !s.id) throw new Error('云端没返回编号');
+      cloud.push(libNorm({ id: s.id, name: s.name || it.name, kind: it.kind, sub: it.sub, payload: it.payload, at: Date.now() }));
+    } catch (e) {
+      keep.push(it);   // 传不上去的留着，下次进这页再试；不打扰老师
+    }
+  }
+  libCache = cloud.concat(keep).sort((a, b) => b.at - a.at).slice(0, LIB_MAX);
+  libWrite(libCache);
+  return libCache;
+}
+
+/* 进页面时调这个：保证 libCache 已经是「云端 ∪ 本机未上传」那一份 */
+async function libLoad(kind, sub) {
+  if (!libCache.length || Date.now() - libSynced > 3000) { libSynced = Date.now(); await libSync(); }
+  return libItems(kind, sub);
+}
+
+function libItems(kind, sub) { return libCache.filter(x => x.kind === kind && x.sub === sub); }
+function libById(id) { return libCache.find(x => x.id === id) || libRead().find(x => x.id === id) || null; }
+
+/* 重名自动加序号：同名第二份叫「名字 (2)」，第三份「(3)」…… 不打断老师。
+   云端函数里是同一条规则（hx_exam_lib_save 的 while 循环）。 */
+function libUniqName(items, name, selfId) {
   const base = String(name || '').trim() || '未命名';
-  const taken = new Set(L.items.filter(x => x.id !== selfId).map(x => x.name));
+  const taken = new Set(items.filter(x => x.id !== selfId).map(x => x.name));
   if (!taken.has(base)) return base;
   for (let n = 2; n < 999; n++) {
     const s = `${base} (${n})`;
@@ -5708,31 +5772,55 @@ function libUniqName(L, name, selfId) {
   return base + ' (' + Date.now() + ')';
 }
 
-function libAdd(name, kind, sub, payload) {
-  const L = libLoad();
-  const it = {
-    id: 'L' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-    name: libUniqName(L, name),
-    kind: kind, sub: sub,
-    payload: JSON.parse(JSON.stringify(payload || {})),  // 快照：外面再改组卷设置不影响已存的卷子
-    at: Date.now()
-  };
-  L.items.unshift(it);
-  libSave(L);
-  return it;
+/* 存一份。云端成功 → 返回云端那条（id 是数字串）；
+   云端失败 → 先存本机（_sync:0），带上 __offline 标记，下次进页面自动补传。 */
+async function libAdd(name, kind, sub, payload) {
+  const snap = JSON.parse(JSON.stringify(payload || {}));
+  const nm = libUniqName(libCache, name);
+  try {
+    const r = await rpc('hx_exam_lib_save', { p_sub: sub, p_kind: kind, p_name: nm, p_payload: snap });
+    if (!r || !r.id) throw new Error('云端没返回编号');
+    const it = libNorm({ id: r.id, name: r.name || nm, kind: kind, sub: sub, payload: snap, at: Date.now() });
+    libCache.unshift(it);
+  } catch (e) {
+    const it = { id: libId(), name: nm, kind: kind, sub: sub, payload: snap, at: Date.now(), _sync: 0 };
+    it.__offline = true; it.__err = libMsg(e);
+    libCache.unshift(it);
+  }
+  libSynced = Date.now();
+  libCache = libCache.slice(0, LIB_MAX);
+  libWrite(libCache);
+  return libCache[0];
 }
-function libDel(id) {
-  const L = libLoad();
-  L.items = L.items.filter(x => x.id !== id);
-  libSave(L);
+
+/* 删 / 改名都是**先问云端、成功了再动本机**：
+   反过来的话云端那条还在，下次列表一拉又活过来，老师会以为没删掉。 */
+async function libDel(id) {
+  const it = libById(id);
+  if (!it) return { ok: false, err: '列表里没有这条了，刷新一下' };
+  if (it._sync === 1 && /^\d+$/.test(id)) {
+    try { await rpc('hx_exam_lib_del', { p_id: Number(id) }); }
+    catch (e) { return { ok: false, err: libMsg(e) }; }
+  }
+  libCache = libCache.filter(x => x.id !== id);
+  libWrite(libCache);
+  libSynced = Date.now();
+  return { ok: true };
 }
-function libRename(id, name) {
-  const L = libLoad();
-  const it = L.items.find(x => x.id === id);
-  if (!it) return null;
-  it.name = libUniqName(L, name, id);
-  libSave(L);
-  return it.name;
+async function libRename(id, name) {
+  const it = libById(id);
+  if (!it) return { ok: false, err: '列表里没有这条了，刷新一下' };
+  const nm = String(name || '').trim();
+  if (!nm) return { ok: false, err: '名字不能为空' };
+  let name2 = libUniqName(libCache, nm, id);
+  if (it._sync === 1 && /^\d+$/.test(id)) {
+    try { name2 = await rpc('hx_exam_lib_rename', { p_id: Number(id), p_name: nm }) || name2; }
+    catch (e) { return { ok: false, err: libMsg(e) }; }
+  }
+  it.name = name2;
+  libWrite(libCache);
+  libSynced = Date.now();
+  return { ok: true, name: name2 };
 }
 
 /* 默认名字：一眼看出是哪份卷子、什么时候存的（同一天存两份也不会撞名，撞了会自动加序号）。
@@ -5756,25 +5844,31 @@ function libCode(it) {
   return '';
 }
 
+/* 列表：读 libCache（libLoad 已经把它填好），本身不发请求 —— 要发请求的地方只有 drawLib 一处 */
 function libListHTML(kind, sub) {
   const items = libItems(kind, sub);
-  if (!items.length) return `<p class="note lib-empty">还没有存过卷子。组好一套、起个名字存下，下一届直接用。</p>`;
+  const src = libErr
+    ? `<p class="note lib-src">现在连不上云端（${esc(libErr)}），下面是这台电脑上存着的；连上之后会自动跟云端对齐。</p>`
+    : `<p class="note lib-src">存在云端，换电脑、换教室也看得到。</p>`;
+  if (!items.length) return `<p class="note lib-empty">还没有存过卷子。组好一套、起个名字存下，下一届直接用。</p>${src}`;
   return `<div class="lib-list">${items.map(it => `<div class="lib-i" data-lib-id="${esc(it.id)}">
-    <div class="lib-m"><b>${esc(it.name)}</b><span class="note">${esc(libWhen(it.at))}${libCode(it) ? ' · ' + esc(libCode(it)) : ''}</span></div>
+    <div class="lib-m"><b>${esc(it.name)}</b><span class="note">${esc(libWhen(it.at))}${libCode(it) ? ' · ' + esc(libCode(it)) : ''}${it._sync === 1 ? '' : ' · 待上传'}</span></div>
     <div class="lib-a"><button class="sm pri" data-lib="use">选用</button><button class="sm" data-lib="ren">改名</button><button class="sm" data-lib="del">删</button></div>
-  </div>`).join('')}</div>`;
+  </div>`).join('')}</div>${src}`;
 }
 
 /* 列表交互：两页共用一份，省得各写一遍还写歪。
    opt = { onUse(id, item), refresh() }；refresh 重新画列表（改名 / 删之后）。
    ── 为什么要 abort 上一次的监听 ──
-   refresh 只换 innerHTML、不换外层元素，反复绑定会把监听叠起来（一次删除触发 N 次）。 */
+   refresh 只换 innerHTML、不换外层元素，反复绑定会把监听叠起来（一次删除触发 N 次）。
+   ── 为什么 handler 是 async ──
+   删 / 改名要先跟云端确认（见 libDel / libRename）；失败就把原因说出来，别假装删掉了。 */
 function libBind(root, kind, sub, opt) {
   if (!root) return;
   if (root._libAc) root._libAc.abort();
   const ac = root._libAc = new AbortController();
   opt = opt || {};
-  root.addEventListener('click', e => {
+  root.addEventListener('click', async e => {
     const b = e.target.closest('[data-lib]');
     if (!b || !root.contains(b)) return;
     const row = b.closest('[data-lib-id]');
@@ -5783,18 +5877,23 @@ function libBind(root, kind, sub, opt) {
     if (!it) return;
     const act = b.dataset.lib;
     if (act === 'use') { opt.onUse && opt.onUse(id, it); return; }
-    if (act === 'del') { libDel(id); toast('已删除'); opt.refresh && opt.refresh(); return; }
+    if (act === 'del') {
+      const r = await libDel(id);
+      toast(r.ok ? '已删除' : '没删掉：' + r.err);
+      opt.refresh && opt.refresh();
+      return;
+    }
     if (act === 'ren') {
       const nm = typeof prompt === 'function' ? prompt('新的名字', it.name) : null;
       if (nm == null) return;
-      const s = libRename(id, nm);
-      if (s) toast('已改名为 ' + s);
+      const r = await libRename(id, nm);
+      toast(r.ok ? '已改名为 ' + r.name : '没改成：' + r.err);
       opt.refresh && opt.refresh();
     }
   }, { signal: ac.signal });
 }
 
-window.HXLib = { items: libItems, add: libAdd, del: libDel, rename: libRename, listHTML: libListHTML, bind: libBind, defaultName: libDefaultName, when: libWhen, code: libCode };
+window.HXLib = { items: libItems, load: libLoad, sync: libSync, add: libAdd, del: libDel, rename: libRename, listHTML: libListHTML, bind: libBind, defaultName: libDefaultName, when: libWhen, code: libCode, err: () => libErr };
 
 ;
 /* ================= 考试 · 理论试卷（2026-11-06 从单片机迁来；2026-11-06 第二轮：点题换题） =================
@@ -6114,10 +6213,13 @@ function mountPaper(sub) {
   $('ppWord').onclick = () => { if (!P) return; saveDocx(base() + '.docx', paperDocx(P, C)); toast('已导出 Word 试卷（A3 横向两栏）'); };
   $('ppAns').onclick = () => { if (!P) return; saveDocx(base() + '_参考答案.docx', answerDocx(P, C)); toast('已导出参考答案'); };
 
-  /* ---------- 试卷库（2026-11-06）：存的是这份设置 C 的快照（picks 一起存） ---------- */
-  function drawLib() {
+  /* ---------- 试卷库（2026-11-06 建，2026-11-08 接云端）：存的是这份设置 C 的快照（picks 一起存） ---------- */
+  async function drawLib() {
     const el = $('ppLibList');
     if (!el) return;
+    if (!el.querySelector('.lib-i') && !el.querySelector('.lib-empty')) el.innerHTML = '<p class="note lib-empty">正在读试卷库…</p>';
+    await libLoad('paper', sub);          // 先跟云端对齐；连不上就退回本机镜像
+    if (!el.isConnected) return;          // 期间切页了
     el.innerHTML = libListHTML('paper', sub);
     libBind(el, 'paper', sub, {
       onUse: (id, it) => {
@@ -6133,11 +6235,18 @@ function mountPaper(sub) {
     });
   }
   if ($('ppLibName')) $('ppLibName').value = libDefaultName('paper', sub);
-  if ($('ppLibSave')) $('ppLibSave').onclick = () => {
-    const it = libAdd($('ppLibName') ? $('ppLibName').value : '', 'paper', sub, C);
-    drawLib();
-    if ($('ppLibName')) $('ppLibName').value = libDefaultName('paper', sub);
-    toast('已存入试卷库：' + it.name + '（含 ' + picksCount() + ' 道手动选的题）');
+  if ($('ppLibSave')) $('ppLibSave').onclick = async () => {
+    const btn = $('ppLibSave');
+    btn.disabled = true;                       // 存云端要等一下，禁掉免得连点存两份
+    try {
+      const it = await libAdd($('ppLibName') ? $('ppLibName').value : '', 'paper', sub, C);
+      if ($('ppLibName')) $('ppLibName').value = libDefaultName('paper', sub);
+      toast(it.__offline
+        ? '已存在这台电脑上（' + it.__err + '），下次连上云端会自动传上去：' + it.name
+        : '已存入试卷库（云端）：' + it.name + '（含 ' + picksCount() + ' 道手动选的题）');
+      await drawLib();
+    } catch (e) { toast('没存上：' + (e && e.message ? e.message : e)); }
+    btn.disabled = false;
   };
   drawLib();
 
@@ -6323,7 +6432,7 @@ function mountBuilder(sub) {
           <h2>试卷库</h2>
           <div class="row"><input id="bdLibName" class="lib-name" autocomplete="off" placeholder="给这套卷起个名字"><button id="bdLibSave">保存到试卷库</button></div>
           <div id="bdLibList"></div>
-          <p class="note">存的是这一页的全部设置（换题种子 + 每题母题/题型/分值/题库选题）。下一届点「选用」就回来了；只存在这台设备上。</p>
+          <p class="note">存的是这一页的全部设置（换题种子 + 每题母题/题型/分值/题库选题）。下一届点「选用」就回来了。</p>
         </div>
         <div class="card">
           <details><summary>读入一个已有的组卷码</summary>
@@ -6337,10 +6446,16 @@ function mountBuilder(sub) {
     drawLib();
   }
 
-  /* ---------- 试卷库 ---------- */
-  function drawLib() {
+  /* ---------- 试卷库 ----------
+     2026-11-08 接云端：libLoad 先跟云端对齐（失败退回本机镜像），对齐完才画列表。
+     所以这里是 async —— 调用处不用 await（draw() 里是最后一句，等它没意义），
+     只保证「先出占位文案、回来再替换」。 */
+  async function drawLib() {
     const el = $('bdLibList');
     if (!el) return;
+    if (!el.querySelector('.lib-i') && !el.querySelector('.lib-empty')) el.innerHTML = '<p class="note lib-empty">正在读试卷库…</p>';
+    await libLoad('build', sub);
+    if (!el.isConnected) return;   // 等云端这段时间里切页了，别再往旧 DOM 上写
     el.innerHTML = libListHTML('build', sub);
     libBind(el, 'build', sub, {
       onUse: (id, it) => {
@@ -6405,10 +6520,16 @@ function mountBuilder(sub) {
       return;
     }
     if (b.id === 'bdLibSave') {
-      const it = libAdd($('bdLibName') ? $('bdLibName').value : '', 'build', sub, { key: B.key, qs: B.qs.map(q => ({ ...q })), requireHex: !!B.requireHex });
-      drawLib();
-      if ($('bdLibName')) $('bdLibName').value = libDefaultName('build', sub);
-      toast('已存入试卷库：' + it.name);
+      /* 存云端要等一下：先把按钮禁掉，免得连点存出两份 */
+      b.disabled = true;
+      libAdd($('bdLibName') ? $('bdLibName').value : '', 'build', sub, { key: B.key, qs: B.qs.map(q => ({ ...q })), requireHex: !!B.requireHex })
+        .then(it => {
+          if ($('bdLibName')) $('bdLibName').value = libDefaultName('build', sub);
+          toast(it.__offline ? '已存在这台电脑上（' + it.__err + '），下次连上云端会自动传上去：' + it.name : '已存入试卷库（云端）：' + it.name);
+          return drawLib();
+        })
+        .catch(e => toast('没存上：' + (e && e.message ? e.message : e)))
+        .then(() => { b.disabled = false; });
       return;
     }
     const row = b.closest('.qrow');
