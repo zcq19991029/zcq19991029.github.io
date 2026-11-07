@@ -485,6 +485,140 @@ button.danger { color: var(--bad, #d70015); }
 }
 
 /* ============================================================
+   组卷页的「题库选题」面板（2026-11-06）
+   ------------------------------------------------------------
+   用户要「每一题都可以去选择题库去添加进去 精准组卷」。面板放在右侧 rail 顶部，
+   是卡片不是弹窗：和这一页其他东西同一套视觉，手机上也不用处理遮罩/滚动锁。
+   72 项（6 母题 × 12 变式）必须**自己能滚**：整页跟着变长的话，老师点开题库就找不到
+   下面那张组卷码卡了；.bk-h 吸顶是为了滚到 M5 时还知道自己在哪个母题里。
+   ============================================================ */
+.bk-card h2 { font-size: 16px; }
+.bk-list { max-height: min(58vh, 560px); overflow: auto; overscroll-behavior: contain; margin: 10px 0; padding-right: 4px; border-top: 1px solid var(--hair); scrollbar-width: thin; }
+.bk-h { position: sticky; top: 0; z-index: 1; background: var(--card-solid, #fff); padding: 8px 2px 4px; font: 600 12px/1.5 Consolas, "Cascadia Mono", monospace; letter-spacing: .02em; color: var(--mute); border-bottom: 1px solid var(--hair); }
+.bk-i { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 7px 6px; border: 1px solid transparent; border-radius: 10px; cursor: pointer; transition: background-color .15s, border-color .15s; }
+.bk-i:hover { background: var(--field2); }
+.bk-i.on { background: var(--accbg); border-color: var(--acc); }
+.bk-n { font: 600 12px/1.4 Consolas, "Cascadia Mono", monospace; color: var(--mute); white-space: nowrap; }
+.bk-t { font-size: 13px; color: var(--ink2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.bk-i.on .bk-t { color: var(--ink); }
+/* 「✓ 已在用」必须放在摘要**前面**：.bk-t 是两行截断（-webkit-line-clamp），
+   跟在长摘要后面时手机上直接被截掉 —— 选中了却看不到标记，等于没写。 */
+.bk-on { color: var(--acc); font-weight: 600; margin-right: 6px; white-space: nowrap; }
+.bk-q { margin: 2px 0 10px 8px; padding: 8px 12px 12px; border-left: 2px solid var(--acc); background: var(--field2); border-radius: 0 12px 12px 0; }
+.bk-q .q-head { margin-top: 0; }
+.bk-q .q-req ul { margin: 6px 0 0; padding-left: 18px; }
+/* 手机上 rail 不再是侧栏（见 BASE_CSS 的 .with-rail），面板仍保持内部滚动，别把整页顶得很长 */
+@media (max-width: 1000px) {
+  .bk-list { max-height: 52vh; }
+}
+
+/* ============================================================
+   试卷库列表（组卷页 + 理论试卷页共用，2026-11-06）
+   ------------------------------------------------------------
+   每行三件事：名字 / 存的时间 + 识别码 / 选用·改名·删。手机上按钮换行也不会挤成一坨。
+   列表自己滚（60 条上限），否则组卷页 rail 会被历史卷子推到看不见组卷码。
+   ============================================================ */
+.lib-name { flex: 1 1 150px; min-width: 0; max-width: 100%; }
+.lib-list { display: grid; gap: 8px; margin-top: 10px; max-height: 260px; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+.lib-i { display: grid; gap: 6px; padding: 9px 11px; border-radius: 12px; background: var(--field2); border: 1px solid var(--hair); }
+.lib-m { display: grid; gap: 1px; min-width: 0; }
+.lib-m b { font-size: 13.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lib-m .note { font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lib-a { display: flex; flex-wrap: wrap; gap: 6px; }
+/* 删：只用红字，不用 button.danger —— 那个类在 BASE_CSS 里是**红底**，
+   而本页又有一条 button.danger{color:var(--bad)} 把字也刷成红色，红字红底会变成一块看不出字的大红块（实测截图踩到）。 */
+.lib-a [data-lib="del"] { color: var(--bad, #d70015); }
+.lib-empty { margin: 10px 0 0; }
+
+/* ============================================================
+   理论试卷 · 大平铺画布 + 设置 / 题库抽屉（2026-11-06 第二轮）
+   ------------------------------------------------------------
+   用户原话：「组卷页面需要很大平铺那种 然后正反面不就是两页吗 点击题目那一区域就可以换题」
+   「目前这个也太小」「2.排版不合理」（截图中 A3 缩成中间一小条、右边栏很长）。
+   根因三条，这里逐条对应：
+     ① .with-rail 留了 380px 常驻右栏，加上 .ex-shell 的 1280 上限，画布只剩六百来像素；
+     ② 缩放只写了 transform:scale，没写 transform-origin —— 默认 50% 50%，缩完还居中，两边全空；
+     ③ 预览高度靠 iframe 自己报，加上 .ppbox 的 overflow:hidden，滚不动也看不全。
+   现在：整页宽（.ex-shell.wide）+ transform-origin:0 0 + 按缩放后尺寸撑开的 .ppstage，
+   设置全部收进右侧抽屉，画布独占屏幕。
+   ============================================================ */
+.ex.wide-paper { width: 100%; padding: 10px 12px 24px; }
+.ex-shell.wide { width: 100%; grid-template-columns: 232px minmax(0, 1fr); }
+.ex-shell.wide .ex-main { padding: 14px 16px 36px; }
+@media (max-width: 900px) { .ex-shell.wide { grid-template-columns: 1fr; } .ex-shell.wide .ex-main { padding: 10px 8px 30px; } }
+/* 标题只在侧栏切换时用来认页，压成一行给画布腾高度 */
+.pp-hex { margin: 0 0 10px; }
+.pp-hex h1 { font-size: 24px; margin: 0 0 2px; }
+.pp-hex p { font-size: 13px; }
+.pp-page { display: grid; gap: 8px; }
+
+.pp-bar { position: sticky; top: 0; z-index: 7; display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; justify-content: space-between;
+  padding: 7px 10px; border-radius: 14px; background: var(--card); border: 1px solid var(--card-brd); box-shadow: var(--shadow); }
+.pp-bar-l, .pp-bar-r { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; min-width: 0; }
+.pp-bar button { padding: 5px 12px; font-size: 13px; }
+.pp-bar .note { font-size: 12px; white-space: nowrap; }
+.ppmeta { font-size: 12.5px; color: var(--mute); white-space: nowrap; }
+.ppmeta b { color: var(--ink); font-weight: 600; }
+.pppicked { color: var(--acc); font-weight: 600; }
+.ppset.on { background: var(--accbg); border-color: var(--acc); color: var(--acc); }
+/* 缩放：一组按钮贴在一起，选中那个用主题强调色，和单选按钮的语义一致 */
+.ppzoom { display: inline-flex; border: 1px solid var(--hair); border-radius: 999px; overflow: hidden; background: var(--field2); }
+.ppzoom button { border: 0; border-radius: 0; background: transparent; padding: 5px 11px; font-size: 12.5px; color: var(--mute); }
+.ppzoom button:hover { background: var(--field3); transform: none; }
+.ppzoom button.on { background: var(--accbg); color: var(--acc); font-weight: 600; }
+
+/* 画布：自身滚动，工具栏始终留在上面；.ppstage 按缩放后的真实尺寸撑开，
+   所以不会出现“里面一层滚动条” */
+.ppwrap { position: relative; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin;
+  border-radius: 14px; border: 1px solid var(--hair); background: var(--field2); padding: 12px; max-height: calc(100vh - 190px); }
+.ppstage { position: relative; margin: 0 auto; }
+#ppFrame { position: absolute; left: 0; top: 0; border: 0; display: block; transform-origin: 0 0; background: #8a8f98; box-shadow: 0 10px 30px -16px rgba(0, 0, 0, .5); }
+@media (max-width: 900px) { .ppwrap { max-height: calc(100vh - 150px); padding: 6px; } }
+
+/* 抽屉：右侧滑出，不占画布宽度；手机上全屏（否则 A3 只剩一条） */
+.ppdrawer { position: fixed; top: 0; right: 0; z-index: 60; display: flex; flex-direction: column; gap: 10px;
+  width: min(430px, 92vw); height: 100vh; padding: 14px 14px 70px; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin;
+  background: var(--card-solid); border-left: 1px solid var(--hair); box-shadow: -24px 0 60px -34px rgba(0, 0, 0, .45);
+  transform: translateX(102%); visibility: hidden; transition: transform .26s var(--spring, cubic-bezier(.32, .72, 0, 1)), visibility 0s linear .26s; }
+.ppdrawer.on { transform: none; visibility: visible; transition: transform .26s var(--spring, cubic-bezier(.32, .72, 0, 1)); }
+.ppdrawer .card { margin-bottom: 10px; padding: 16px 18px; }
+.ppdrawer .card h2 { font-size: 16px; margin-bottom: 10px; }
+.ppd-h { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; align-items: center; position: sticky; top: -14px; z-index: 2;
+  padding: 10px 0; margin: -14px 0 0; background: var(--card-solid); border-bottom: 1px solid var(--hair); }
+.ppd-h b { font: 650 15px/1.4 var(--font-d); letter-spacing: -.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ppd-h .sm { grid-column: 2; grid-row: 1; }
+/* 当前这道题的长摘要：单独一行、截断 —— 塞在标题右边会把它挤成三行（实测截图） */
+.ppd-cur { grid-column: 1 / -1; font-size: 12px; color: var(--mute); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ppd-h .note { font-size: 12px; }
+.ppd-f { position: sticky; bottom: -70px; display: flex; gap: 10px; align-items: center; justify-content: space-between;
+  padding: 10px 0; background: var(--card-solid); border-top: 1px solid var(--hair); }
+@media (max-width: 720px) { .ppdrawer { width: 100vw; border-left: 0; padding: 12px 10px 70px; } }
+
+/* 题库抽屉：筛选（项目 + 关键词）吸顶，列表自己滚，底部「恢复随机」常驻 */
+.ppdbank { width: min(480px, 94vw); padding-bottom: 12px; }
+/* 手机上抽屉要的是「全屏」而不是 94vw：留着那 6% 既不美观也点不到边框 */
+@media (max-width: 720px) { .ppdrawer.ppdbank, .ppdrawer { width: 100vw; } }
+.ppb-f { position: sticky; top: 34px; z-index: 2; display: grid; gap: 8px; padding: 8px 0; background: var(--card-solid); border-bottom: 1px solid var(--hair); }
+.ppb-ch { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 12.5px; color: var(--ink2); }
+.ppb-ch label { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+.ppb-l { display: grid; gap: 2px; align-content: start; }
+.bkq { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 8px; align-items: center; padding: 8px 8px;
+  border: 1px solid transparent; border-radius: 10px; cursor: pointer; }
+.bkq:hover { background: var(--field2); }
+.bkq.on { background: var(--accbg); border-color: var(--acc); }
+.bkq-ch { font: 600 11px/1.5 Consolas, "Cascadia Mono", monospace; color: var(--mute); }
+.bkq-q { font-size: 13px; color: var(--ink2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.bkq.on .bkq-q { color: var(--ink); }
+.bkq-tag { font-size: 11px; color: var(--mute); white-space: nowrap; }
+.bkq-tag.on { color: var(--acc); font-weight: 600; }
+.bkq-p { padding: 2px 8px; font-size: 12px; }
+.bkq-d { margin: 0 0 8px 8px; padding: 8px 12px 10px; border-left: 2px solid var(--acc); background: var(--field2); border-radius: 0 10px 10px 0; font-size: 13px; }
+.bkq-fq { color: var(--ink); margin-bottom: 6px; }
+.bkq-op { margin: 0 0 6px; padding-left: 18px; color: var(--ink2); }
+.bkq-a { margin-top: 6px; color: var(--acc); }
+.bkq-a b { color: var(--mute); font-weight: 600; margin-right: 6px; font-size: 12px; }
+
+/* ============================================================
    像素方块「正在载入」药丸（2026-11-04）
    ------------------------------------------------------------
    为什么 class 名就叫 .hx-px / .hx-loadpill：总入口 hx-theme.js 里已经有一套同名同 keyframes
@@ -3095,7 +3229,10 @@ const EXAM_TYPES=['fill','modify','fix'];
 /* ---------- 组卷码：口令-第1题-第2题…（1～5 题）
    每题 = 母题号（0 表示随机，1～6 对应 M1～M6）+ 题型字母（t 改编填空 / g 按要求改程序 / c 改错）+ 分值，
    后面带“.数字”表示全班同一题（数字是老师“换一题”换到第几次），不带表示每人参数不同。
-   例：QM25-2t30-4g35.3-6c35
+   再后面可带“~数字”表示**题库里的第几个变式**（2026-11-06 加，老师从题库里精准挑的那一道）：
+   它把种子钉死成 'P<母题>|<变式号>'，不含口令、不含学号、不含这是第几题，
+   所以同一道题换位置、换口令、换学号出的都是同一道题，才配叫“题库里的题”。
+   例：QM25-2t30-4g35.3-6c35 / QM25-2t30~5-4g35-6c35
    母题是导入的书上代码时用大写字母（A = 第 1 段导入的代码……），并在口令后面带“.指纹”（4 位），
    用来核对学生网页里导入的代码和老师的一样，例：QM25.k3f9-At30-2g35 ---------- */
 const TYPE_LETTER={fill:'t',modify:'g',fix:'c'},LETTER_TYPE={t:'fill',g:'modify',c:'fix'};
@@ -3107,11 +3244,12 @@ function parseExamCode(code){
   const key=km[1],fp=km[2]||'';
   const qs=[];
   for(const p of parts.slice(1)){
-    const m=/^([0-6A-Z])([tgcTGC])(\d{1,3})(?:\.(\d{1,4}))?$/.exec(p);
+    /* pin 是可选的第五段：老码里没有，解出来是 null，后面的分支和原来完全一样 */
+    const m=/^([0-6A-Z])([tgcTGC])(\d{1,3})(?:\.(\d{1,4}))?(?:~(\d{1,4}))?$/.exec(p);
     if(!m)return null;
     const mc=m[1];
     const mid=/\d/.test(mc)?(+mc?'M'+mc:null):'C'+(mc.charCodeAt(0)-64);
-    qs.push({mid,type:LETTER_TYPE[m[2].toLowerCase()],pts:+m[3],draw:m[4]!==undefined?+m[4]:null});
+    qs.push({mid,type:LETTER_TYPE[m[2].toLowerCase()],pts:+m[3],draw:m[4]!==undefined?+m[4]:null,pin:m[5]!==undefined?+m[5]:null});
   }
   if(qs.some(q=>q.mid&&q.mid[0]==='C')&&!fp)return null;
   return {key,fp,qs};
@@ -3119,7 +3257,8 @@ function parseExamCode(code){
 function makeExamCode(key,qs){
   const mc=q=>!q.mid?'0':q.mid[0]==='M'?q.mid.slice(1):String.fromCharCode(64+(+q.mid.slice(1)));
   const usesCustom=qs.some(q=>q.mid&&q.mid[0]==='C');
-  return [key+(usesCustom?'.'+customBankFp():''),...qs.map(q=>`${mc(q)}${TYPE_LETTER[q.type]}${q.pts}${q.draw!=null?'.'+q.draw:''}`)].join('-');
+  /* ~pin 拼在 .draw 后面：老码没有这两个字段，拼出来的字符串和以前一字不差 */
+  return [key+(usesCustom?'.'+customBankFp():''),...qs.map(q=>`${mc(q)}${TYPE_LETTER[q.type]}${q.pts}${q.draw!=null?'.'+q.draw:''}${q.pin!=null?'~'+q.pin:''}`)].join('-');
 }
 /* 全班同一题的那道（不依赖学号）；母题随机时也只由口令和换题次数决定 */
 function examPaper(stuId,code){
@@ -3138,16 +3277,27 @@ function examPaper(stuId,code){
   const used=new Set(spec.qs.filter(q=>q.mid).map(q=>q.mid));
   const mids=spec.qs.map(q=>q.mid);
   const pick=(i,salt)=>{const cand=all.filter(x=>!used.has(x));const m=makeRng('pick|'+k+'|'+salt+'|'+i).pick(cand.length?cand:all);used.add(m);return m;};
-  spec.qs.forEach((q,i)=>{if(!mids[i]&&q.draw!=null)mids[i]=pick(i,'F'+q.draw);});   // 先定全班同一题的随机母题，和学号无关
+  spec.qs.forEach((q,i)=>{if(!mids[i]&&(q.draw!=null||q.pin!=null))mids[i]=pick(i,'F'+(q.pin!=null?'P'+q.pin:q.draw));});   // 先定「全班同一题 / 题库指定」的随机母题，和学号无关
   spec.qs.forEach((q,i)=>{if(!mids[i])mids[i]=pick(i,'S'+sid);});
   const paper=(hashStr(raw+'|'+sid)%90000+10000).toString();
   return spec.qs.map((q,i)=>{
-    const seed=q.draw!=null?'F'+k+'|'+i+'|'+q.draw:'E'+k+'|'+sid+'|'+i;
+    /* 种子优先级：题库变式（pin）> 全班同一题（draw）> 每人按学号不同。
+       pin 那一支故意不含口令 k、学号 sid、位置 i —— 这就是“题库里第 N 个变式”的唯一身份，
+       老师从题库挑的题，换到第几题、坐哪个学号，出的都是同一道（判分才算得准）。 */
+    const seed=q.pin!=null?'P'+mids[i]+'|'+q.pin
+             :q.draw!=null?'F'+k+'|'+i+'|'+q.draw
+             :'E'+k+'|'+sid+'|'+i;
     const v=buildVariant(mids[i],q.type,seed);
-    v.qno=i+1;v.paper=paper;v.pts=q.pts;v.fixed=q.draw!=null;
+    v.qno=i+1;v.paper=paper;v.pts=q.pts;v.fixed=q.draw!=null||q.pin!=null;
     return v;
   });
 }
+
+/* ---------- 题库列表用的：第 pin 个变式（2026-11-06 加） ----------
+   必须和 examPaper 里 pin 那一支用的是**同一个**种子 'P<母题>|<pin>'，
+   否则老师看到的题和真正发给学生的题不是同一道 —— 这是这次改动最容易错的地方。 */
+function bankVariant(mid,type,pin){ return buildVariant(mid,type,'P'+mid+'|'+pin); }
+const BANK_PINS=12;   // 每个母题给老师看几个变式（6 母题 × 3 题型 × 12 = 216 道，够挑了）
 
 /* ---------- 旧版第 1、2、4 题（兼容原检测器的分值，用来验证新引擎） ---------- */
 function legacyVariant(q){
@@ -5155,19 +5305,46 @@ const blanksOf=q=>q.t==='fill'?(q.q.match(/____/g)||[]).length:1;
 const qid=q=>THEORY.indexOf(q);
 
 /* 抽题：整套卷一起平衡各项目的分值。先排分值大的题型（程序分析、简答……），
-   每抽一道题，都选“目前分值离目标比例差得最多”的项目；used 是别的卷（A/B/C）已用过的题，尽量避开 */
-function pickSections(cfg,rng,used){
+   每抽一道题，都选“目前分值离目标比例差得最多”的项目；used 是别的卷（A/B/C）已用过的题，尽量避开。
+   picks：老师在题库里点名的题（键 = 题型:该节内第几题，值 = THEORY 下标），先落位再补名额。
+   ── 每个大题用自己的种子（seed+题型）──
+   原来六个大题串着用同一个 rng：老师在第 1 大题点名换一道，后面所有大题的随机序列全错位，
+   整张卷子除了那一道全变样。按题型拆种子后，换哪一大题就只动那一大题。 */
+function pickSections(cfg,seed,used,picks){
   const W=Object.keys(THEORY_CH).reduce((a,c)=>a+(+cfg.weights[c]||0),0)||1;
   const acc={};let tot=0;
   const secs=cfg.sections.filter(s=>s.n>0&&PAPER_TYPES[s.t]).map(s=>({...s,items:[]}));
   const order=secs.slice().sort((a,b)=>b.pts*(b.t==='fill'?2:1)-a.pts*(a.t==='fill'?2:1));
+  const hasPicks=!!picks&&typeof picks==='object';
   for(const sec of order){
-    const pool=THEORY.filter(q=>q.t===sec.t&&(+cfg.weights[q.ch]||0)>0);
+    const rng=makeRng(seed+'|'+sec.t);
+    const cnt=q=>sec.t==='fill'?blanksOf(q):1;
+    /* 点名：不受项目比重、也不受“别的卷用过”限制——老师点了就是要它。
+       下标越界 / 题型对不上 / 同一个下标点两次，都当没点过（不能因为一份存坏的设置把整页弄崩）。 */
+    const pin=[];
+    if(hasPicks){
+      for(let i=0;i<sec.n;i++){
+        const raw=picks[sec.t+':'+i];
+        if(raw===undefined||raw===null||raw==='')continue;
+        const k=+raw;
+        if(!Number.isInteger(k)||k<0||k>=THEORY.length)continue;
+        const q=THEORY[k];
+        if(!q||q.t!==sec.t)continue;
+        if(pin.some(x=>x.k===k))continue;
+        pin.push({i,k,q});
+      }
+    }
+    const pinK=new Set(pin.map(x=>x.k));
+    let have=0;
+    pin.forEach(x=>{
+      have+=cnt(x.q);used.add(x.k);           // 同一套卷里不能再出现第二遍
+      const p=cnt(x.q)*sec.pts;acc[x.q.ch]=(acc[x.q.ch]||0)+p;tot+=p;
+    });
+    const pool=THEORY.filter(q=>q.t===sec.t&&(+cfg.weights[q.ch]||0)>0&&!pinK.has(qid(q)));
     const need=sec.t==='fill'?Math.ceil(sec.n/2):sec.n;
     const fresh=pool.filter(q=>!used.has(qid(q)));
     const src=fresh.length>=need?fresh:pool;
     const byCh={};rng.shuffle(src).forEach(q=>{(byCh[q.ch]=byCh[q.ch]||[]).push(q);});
-    let have=0;const cnt=q=>sec.t==='fill'?blanksOf(q):1;
     for(let guard=0;have<sec.n&&guard<200;guard++){
       const cands=Object.keys(byCh).filter(c=>byCh[c].some(q=>have+cnt(q)<=sec.n));
       if(!cands.length)break;
@@ -5177,15 +5354,29 @@ function pickSections(cfg,rng,used){
       sec.items.push(q);have+=cnt(q);
       const p=cnt(q)*sec.pts;acc[c]=(acc[c]||0)+p;tot+=p;
     }
-    sec.items.sort((a,b)=>a.ch-b.ch||THEORY.indexOf(a)-THEORY.indexOf(b));   // 同一大题内按项目顺序排
+    const byPos=(a,b)=>a.ch-b.ch||qid(a)-qid(b);
+    if(!pin.length)sec.items.sort(byPos);   // 同一大题内按项目顺序排
+    /* 有指定题时排序会把老师点的题挪走，所以先按位置摆进去（“第 4 题”点了就要在第 4 题），
+       空出来的位置再把随机补的题按原顺序填进去。 */
+    else{
+      const rest=sec.items.slice().sort(byPos);
+      const total=Math.max(rest.length,...pin.map(x=>x.i+1));
+      const items=new Array(total).fill(null);
+      pin.forEach(x=>{items[x.i]=x.q;});
+      for(let i=0;i<total;i++)if(!items[i])items[i]=rest.shift()||null;
+      rest.forEach(q=>items.push(q));
+      sec.items=items.filter(Boolean);
+    }
   }
   return secs;
 }
 function pickPaper(cfg){
   const vers=['A','B','C'],idx=Math.max(0,vers.indexOf(cfg.ver));
   const used=new Set();let paper=null;
+  const picks=cfg.picks&&typeof cfg.picks==='object'?cfg.picks:null;
   for(let v=0;v<=idx;v++){
-    paper=pickSections(cfg,makeRng('paper|'+cfg.key+'|'+vers[v]),used);
+    /* 点名只作用于当前这一卷：B/C 卷继承 A 的点名就会和 A 出现同一道题 */
+    paper=pickSections(cfg,'paper|'+cfg.key+'|'+vers[v],used,vers[v]===cfg.ver?picks:null);
     paper.forEach(s=>s.items.forEach(q=>used.add(qid(q))));
   }
   paper.forEach((s,i)=>{
@@ -5276,7 +5467,23 @@ pre.code{font-family:"Consolas","Courier New",monospace;font-size:9pt;line-heigh
 .space{width:100%}
 #src{position:absolute;left:-9999px;top:0;width:var(--colw)}
 #mm{position:absolute;left:-9999px;width:1px;height:100mm}
-@media print{html,body{background:#fff}.sheet{margin:0}}
+/* ── 编辑态（只在网页预览里出现，打印一定不能带） ──
+   题目块整块可点：悬停给底色 + 虚线框，右上角一枚「N 换」小标；老师点名的题左边一道蓝线。
+   颜色在这里写死是因为这段 CSS 也进打印文档（iframe 里拿不到父页的主题变量），
+   而且纸面本身永远是白底黑字，不需要跟随明暗主题。 */
+body[data-edit="1"] .ed{position:relative;cursor:pointer;border-radius:3px;outline:1px dashed transparent;outline-offset:1px;transition:background-color .12s,outline-color .12s}
+body[data-edit="1"] .ed:hover{background:#e9f0ff;outline-color:#8db0ff}
+body[data-edit="1"] .ed.pin{box-shadow:inset 3px 0 0 #2f6bff}
+/* 角落的「N 换」：常亮但很淡（老师一看就知道这里能点），鼠标放上去变实；
+   触屏没有 hover，直接常亮。已经点名的题更实一点，一眼能看出哪几道是自己定的。 */
+body[data-edit="1"] .edx{position:absolute;right:0;top:-1px;font:9px/1.35 "SimHei","黑体",sans-serif;font-style:normal;color:#fff;background:#2f6bff;border-radius:0 3px 3px 0;padding:0 4px;opacity:.22;transition:opacity .12s;pointer-events:none;user-select:none}
+body[data-edit="1"] .ed.pin .edx{opacity:.7}
+body[data-edit="1"] .ed:hover .edx{opacity:1}
+/* 手机上看不出 hover，小标常亮，否则老师根本发现不了题目能点 */
+@media (hover:none),(pointer:coarse){body[data-edit="1"] .edx{opacity:.85;padding:0 5px;font-size:10px}}
+@media print{html,body{background:#fff}.sheet{margin:0}
+  .ed{position:static!important;background:none!important;outline:0!important;box-shadow:none!important;border-radius:0!important}
+  .edx{display:none!important}}
 `;
 /* 排版脚本（在预览 / 打印用的页面里运行）：量每个块的高度，按栏装，再拼成一张张 A3 */
 const PAPER_LAYOUT_JS=`
@@ -5319,7 +5526,7 @@ const PAPER_LAYOUT_JS=`
   for(var s=0;s<N/2;s++){
     var back=s%2===1,sh=document.createElement('div');sh.className='sheet'+(back?' back':'');
     var strip=document.getElementById(back?'stripBack':'stripFront').innerHTML;
-    var mk=function(k){var c=document.createElement('div');c.className='col';var bd=document.createElement('div');bd.className='colbody';cols[k].forEach(function(i){bd.appendChild(blks[i]);});c.appendChild(bd);var f=document.createElement('div');f.className='foot';f.textContent='第 '+(k+1)+' 页，共 '+N+' 页';c.appendChild(f);return c;};
+    var mk=function(k){var c=document.createElement('div');c.className='col pp-sheet';var bd=document.createElement('div');bd.className='colbody';cols[k].forEach(function(i){bd.appendChild(blks[i]);});c.appendChild(bd);var f=document.createElement('div');f.className='foot';f.textContent='第 '+(k+1)+' 页，共 '+N+' 页';c.appendChild(f);return c;};
     if(!back){var st=document.createElement('div');st.className='strip';st.innerHTML=strip;sh.appendChild(st);}
     sh.appendChild(mk(2*s));sh.appendChild(mk(2*s+1));
     if(back){var st2=document.createElement('div');st2.className='strip';st2.innerHTML=strip;sh.appendChild(st2);}
@@ -5329,28 +5536,50 @@ const PAPER_LAYOUT_JS=`
   document.body.setAttribute('data-pages',N);
   if(window.parent&&window.parent!==window)try{window.parent.postMessage({paperReady:true,pages:N},'*');}catch(e){}
 })();`;
-function paperDocHTML(P,cfg){
+/* 编辑态脚本：点题 → 告诉父页“哪一节第几题”，父页开题库抽屉。
+   产物是单文件 HTML，这里绝不能出现结束标签的字面写法（build.js 会拦），所以只用字符串拼。 */
+const PAPER_EDIT_JS=`
+(function(){
+  document.addEventListener('click',function(e){
+    var el=e.target;
+    while(el&&el!==document&&!(el.getAttribute&&el.getAttribute('data-k')))el=el.parentNode;
+    if(!el||el===document||!el.getAttribute)return;
+    try{parent.postMessage({hxPaperPick:el.getAttribute('data-k'),no:+el.getAttribute('data-no'),t:el.getAttribute('data-t')},'*');}catch(x){}
+  },true);
+})();`;
+function paperDocHTML(P,cfg,opts){
+  opts=opts||{};
+  const edit=opts.edit===true;
   __spaceK=SPACE_K[cfg.space]||1;
+  const picks=cfg.picks&&typeof cfg.picks==='object'?cfg.picks:{};
   const blocks=[`<div class="blk">${headHTML(P,cfg)}</div>`];
   P.forEach(s=>{
     blocks.push(`<div class="blk keep">${secHeadHTML(s)}</div>`);
     s.items.forEach((q,i)=>{
+      /* 键和 cfg.picks 的键一致；data-no 是“这一大题里的第几小题”，填空题也按小题算，
+         否则一节填空里有 1 个空和 3 个空的题时，序号和老师数的对不上。 */
+      const kk=`${s.t}:${i}`, at=edit?` data-k="${kk}" data-no="${i+1}" data-t="${s.t}"`:'';
+      /* 蓝线只在“这一格确实是老师点的那道题”时出现：设置里存了个越界/题型不符的下标时
+         抽题会退回随机，这时不该还画着“已指定”的样子 */
+      const pin=picks[kk]!=null&&THEORY[+picks[kk]]===q;
+      const cls=edit?('blk ed'+(pin?' pin':'')):'blk';
+      const tag=edit?`<i class="edx">${i+1} 换</i>`:'';
       /* 程序分析题按小问拆成几块，可以跨栏，不会因为整题太长空出半栏 */
       if(s.t==='prog'){
         const sub=k=>`<div class="q sub">（${k+1}）${ptxt(q.sub[k])}</div>${lines(q.sub.length>1?3:7)}`;
-        blocks.push(`<div class="blk keep"><div class="q">${i+1}.${ptxt(q.q)}</div><pre class="code">${esc(q.code)}</pre></div>`);
-        for(let k=0;k<q.sub.length;k++)blocks.push(`<div class="blk">${sub(k)}</div>`);
-      } else blocks.push(`<div class="blk">${itemHTML(s,q,i)}</div>`);
+        blocks.push(`<div class="${cls} keep"${at}>${tag}<div class="q">${i+1}.${ptxt(q.q)}</div><pre class="code">${esc(q.code)}</pre></div>`);
+        for(let k=0;k<q.sub.length;k++)blocks.push(`<div class="${cls}"${at}>${sub(k)}</div>`);
+      } else blocks.push(`<div class="${cls}"${at}>${tag}${itemHTML(s,q,i)}</div>`);
     });
   });
   const seal=`<div class="seal"><span style="left:22%">密</span><span style="left:50%">封</span><span style="left:78%">线</span></div>`;
   const front=`<div class="rot"><div class="who"><span>学院：<u></u></span><span>班级：<u></u></span><span>姓名：<u></u></span><span>学号：<u></u></span><span>座位号：<u></u></span></div>
     <div class="who sm" style="justify-content:flex-start;gap:30mm;padding-left:40mm"><span>命题人：<u></u></span><span>审核人：<u></u></span></div>${seal}</div>`;
   const back=`<div class="rot">${seal}</div>`;
-  return `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"><title>《${esc(cfg.course)}》期末考试试卷（${esc(cfg.ver)}卷）</title><style>${PAPER_CSS}</style></head><body data-fit="${cfg.space==='auto'?1:0}">
+  return `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"><title>《${esc(cfg.course)}》期末考试试卷（${esc(cfg.ver)}卷）</title><style>${PAPER_CSS}</style></head><body data-fit="${cfg.space==='auto'?1:0}"${edit?' data-edit="1"':''}>
 <div id="mm"></div><template id="stripFront">${front}</template><template id="stripBack">${back}</template>
 <div id="src">${blocks.join('')}</div><div id="out"></div>
-<script>${PAPER_LAYOUT_JS}<\/script></body></html>`;
+<script>${PAPER_LAYOUT_JS}${edit?PAPER_EDIT_JS:''}<\/script></body></html>`;
 }
 
 /* ---------- Word（.docx）：A3 横向两栏（分栏写在节属性里，Word 和 WPS 都认），宋体五号、行距固定 18 磅；
@@ -5440,14 +5669,146 @@ function answerDocx(P,cfg){
 const saveDocx=(name,pkg)=>saveBlob(name,new Blob([makeZip(pkg.files)],{type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'}));
 
 ;
-/* ================= 考试 · 理论试卷（2026-11-06 从单片机迁来） =================
-   用户原话：「我们单片机组卷理论试卷和导出文件全部属于考试功能 我们需要迁移」。
-   ── 和单片机那份的差别 ──
-   1. 设置存 localStorage（键 exam.paper），不再写进网页文件；导出按钮直接下载 docx / 调打印。
-   2. 没有 markDirty / 保存到文件那套（网页版没有本地文件），所以也不监听 dataload。
-   3. 预览页在隐藏的 section 里量不出尺寸，沿用「只在页面可见时排版」的老办法：
-      用 [data-page] 的显示状态判断，而不是原来的 offsetParent（结构换了）。
-   4. 科目分开存：现在只有单片机（PAPER_DEFAULT 就是单片机理论的模板参数）。 */
+/* ================= 考试 · 试卷库（2026-11-06 新增） =================
+   用户原话：「我们确认了 这套卷子就可以命名为XXX保存到理论试卷库里面供我挑选和备用等」。
+   ── 设计上的几个决定 ──
+   1. 纯本地（localStorage 键 exam.lib），这一版不接云端。云端表已经写好了
+      （supabase/2026-11-06-试卷库.sql），等用户点头再跑；跑完前端再改读写那一层，
+      所以这里把读写都收在 libLoad/libSave 两个函数里，接云端只动这两个。
+   2. 组卷页和理论试卷页共用一份：kind='build'（上机组卷，payload = exam.build[sub] 那份）
+      / kind='paper'（理论试卷，payload = exam.paper[sub] 那份设置 C）。用 sub 分开科目。
+   3. 重名**不弹 confirm**（手机上 confirm 很难用、测试里也会卡住），直接加 (2)、(3)。
+   4. 上限 60 条：这是 localStorage，一条上机卷几百字节、理论卷几 KB，60 条够存两届，
+      超了从最旧的开始删 —— 不删的话早晚撑爆 5MB 配额，写一次全库都失败。
+   5. 存的是**快照**（JSON 深拷贝）：以后改默认值、改题目，不会把已存的卷子改坏。 */
+'use strict';
+
+const LIB_KEY = 'exam.lib', LIB_MAX = 60;
+
+function libLoad() {
+  const o = store.get(LIB_KEY, null);
+  const items = o && Array.isArray(o.items) ? o.items : [];
+  /* 只留结构完整的：手改 localStorage、旧版本残留都可能塞进半截数据，读到就跳过，不让整库崩掉 */
+  return { v: 1, items: items.filter(x => x && x.id && x.kind && x.payload) };
+}
+function libSave(L) { store.set(LIB_KEY, { v: 1, items: L.items.slice(0, LIB_MAX) }); }
+
+function libItems(kind, sub) { return libLoad().items.filter(x => x.kind === kind && x.sub === sub); }
+function libById(id) { return libLoad().items.find(x => x.id === id) || null; }
+
+/* 重名自动加序号：同名第二份叫「名字 (2)」，第三份「(3)」…… 不打断老师 */
+function libUniqName(L, name, selfId) {
+  const base = String(name || '').trim() || '未命名';
+  const taken = new Set(L.items.filter(x => x.id !== selfId).map(x => x.name));
+  if (!taken.has(base)) return base;
+  for (let n = 2; n < 999; n++) {
+    const s = `${base} (${n})`;
+    if (!taken.has(s)) return s;
+  }
+  return base + ' (' + Date.now() + ')';
+}
+
+function libAdd(name, kind, sub, payload) {
+  const L = libLoad();
+  const it = {
+    id: 'L' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    name: libUniqName(L, name),
+    kind: kind, sub: sub,
+    payload: JSON.parse(JSON.stringify(payload || {})),  // 快照：外面再改组卷设置不影响已存的卷子
+    at: Date.now()
+  };
+  L.items.unshift(it);
+  libSave(L);
+  return it;
+}
+function libDel(id) {
+  const L = libLoad();
+  L.items = L.items.filter(x => x.id !== id);
+  libSave(L);
+}
+function libRename(id, name) {
+  const L = libLoad();
+  const it = L.items.find(x => x.id === id);
+  if (!it) return null;
+  it.name = libUniqName(L, name, id);
+  libSave(L);
+  return it.name;
+}
+
+/* 默认名字：一眼看出是哪份卷子、什么时候存的（同一天存两份也不会撞名，撞了会自动加序号）。
+   SUBJECTS.mcu 本身就是「单片机上机」，所以只加「卷」字，别再叠一个「上机」。 */
+function libDefaultName(kind, sub) {
+  const d = new Date(), p = n => String(n).padStart(2, '0');
+  const s = (typeof SUBJECTS !== 'undefined' && SUBJECTS[sub]) || '';
+  const what = kind === 'paper' ? s + '理论卷' : s + '卷';
+  return `${what} ${d.getMonth() + 1}月${d.getDate()}日 ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+function libWhen(at) {
+  const d = new Date(at), p = n => String(n).padStart(2, '0');
+  return `${d.getMonth() + 1}月${d.getDate()}日 ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+/* 列表里显示的识别码：上机卷看组卷码前 8 位（一眼能对上），理论卷看换题种子 */
+function libCode(it) {
+  try {
+    if (it.kind === 'build' && it.payload && it.payload.key) return makeExamCode(it.payload.key, it.payload.qs || []).slice(0, 8) + '…';
+    if (it.payload && it.payload.key) return String(it.payload.key);
+  } catch (e) { }
+  return '';
+}
+
+function libListHTML(kind, sub) {
+  const items = libItems(kind, sub);
+  if (!items.length) return `<p class="note lib-empty">还没有存过卷子。组好一套、起个名字存下，下一届直接用。</p>`;
+  return `<div class="lib-list">${items.map(it => `<div class="lib-i" data-lib-id="${esc(it.id)}">
+    <div class="lib-m"><b>${esc(it.name)}</b><span class="note">${esc(libWhen(it.at))}${libCode(it) ? ' · ' + esc(libCode(it)) : ''}</span></div>
+    <div class="lib-a"><button class="sm pri" data-lib="use">选用</button><button class="sm" data-lib="ren">改名</button><button class="sm" data-lib="del">删</button></div>
+  </div>`).join('')}</div>`;
+}
+
+/* 列表交互：两页共用一份，省得各写一遍还写歪。
+   opt = { onUse(id, item), refresh() }；refresh 重新画列表（改名 / 删之后）。
+   ── 为什么要 abort 上一次的监听 ──
+   refresh 只换 innerHTML、不换外层元素，反复绑定会把监听叠起来（一次删除触发 N 次）。 */
+function libBind(root, kind, sub, opt) {
+  if (!root) return;
+  if (root._libAc) root._libAc.abort();
+  const ac = root._libAc = new AbortController();
+  opt = opt || {};
+  root.addEventListener('click', e => {
+    const b = e.target.closest('[data-lib]');
+    if (!b || !root.contains(b)) return;
+    const row = b.closest('[data-lib-id]');
+    const id = row && row.dataset.libId;
+    const it = id && libById(id);
+    if (!it) return;
+    const act = b.dataset.lib;
+    if (act === 'use') { opt.onUse && opt.onUse(id, it); return; }
+    if (act === 'del') { libDel(id); toast('已删除'); opt.refresh && opt.refresh(); return; }
+    if (act === 'ren') {
+      const nm = typeof prompt === 'function' ? prompt('新的名字', it.name) : null;
+      if (nm == null) return;
+      const s = libRename(id, nm);
+      if (s) toast('已改名为 ' + s);
+      opt.refresh && opt.refresh();
+    }
+  }, { signal: ac.signal });
+}
+
+window.HXLib = { items: libItems, add: libAdd, del: libDel, rename: libRename, listHTML: libListHTML, bind: libBind, defaultName: libDefaultName, when: libWhen, code: libCode };
+
+;
+/* ================= 考试 · 理论试卷（2026-11-06 从单片机迁来；2026-11-06 第二轮：点题换题） =================
+   用户原话：「目前我的试卷无法编辑每一个题选什么从题库里 我希望能在这个上面直接点击选择 目前这个也太小
+   组卷页面需要很大平铺那种 然后正反面不就是两页吗 点击题目那一区域就可以换题」。
+   ── 这一轮的四个决定 ──
+   1. 画布占满整幅（.ex-shell.wide），不再有 380px 的常驻右栏；设置收进右侧抽屉。
+      旧的「缩成中间一小条」是 transform-origin 默认 50% 50% 造成的：缩完还居中，两边全空。
+   2. 预览仍然用 iframe（srcdoc）：打印要的是 iframe 里那份**独立的** A3 文档，
+      用 Shadow DOM 挂进主文档反而会把主文档的打印样式卷进来，风险更大。
+      尺寸由父页算：iframe 保持 A3 原宽 1588px，只做 scale（origin 0 0），外面套一层
+      按缩放后尺寸撑开的 .ppstage，所以不会出现内层滚动条。
+   3. 点题：iframe 里每个题目块带 data-k，点了 postMessage 回来；父页开题库抽屉。
+   4. 设置存 localStorage（键 exam.paper），手动选题 picks 跟着整份 C 一起存。 */
 'use strict';
 
 const PAPER_KEY = 'exam.paper';
@@ -5455,14 +5816,16 @@ const PAPER_KEY = 'exam.paper';
    ── sections / weights 必须深拷贝（2026-11-06 实测踩到）──
    Object.assign 是浅拷贝：没有存过设置时 C.sections 会**指向 PAPER_DEFAULT.sections 同一个数组**，
    renderTypes 的 change 处理又是直接改对象（s.n = ...），于是「改题型题数」当场把默认值改坏，
-   再点「恢复默认」恢复出来的还是被改过的那份（实测：题数改 0 后怎么点都回不到 100 分）。
-   单片机原版是同一个写法，只是没人这么点过。 */
+   再点「恢复默认」恢复出来的还是被改过的那份（实测：题数改 0 后怎么点都回不到 100 分）。 */
 function paperLoad(sub) {
   const all = store.get(PAPER_KEY, {}) || {};
   const C = Object.assign({}, PAPER_DEFAULT, all[sub] || {});
   C.weights = Object.assign({}, PAPER_DEFAULT.weights, C.weights || {});
   const secs = Array.isArray(C.sections) && C.sections.length ? C.sections : PAPER_DEFAULT.sections;
   C.sections = secs.map(s => ({ t: s.t, n: s.n, pts: s.pts }));
+  /* picks：老师点名要的题。旧存档里没有这一项、或者被手改坏了，都归零 —— 抽题那边也会
+     自己挡掉越界/题型不符的下标，这里只保证类型是对的。 */
+  C.picks = C.picks && typeof C.picks === 'object' && !Array.isArray(C.picks) ? Object.assign({}, C.picks) : {};
   if (!C.key) C.key = 'T' + Math.random().toString(36).slice(2, 6).toUpperCase();
   return C;
 }
@@ -5472,11 +5835,23 @@ function paperSave(sub, C) {
   store.set(PAPER_KEY, all);
 }
 
+/* 上一份 mountPaper 的监听：2026-11-06 加试卷库之后，「选用」要重新挂载这一页。
+   window/document 上的监听（message / resize / hxpag）如果不解绑，每挂一次就多一份，
+   预览每排一次版，高度回调会被算 N 次（实测叠到第三次就开始闪）。
+   页面内 $() 拿到的 DOM 监听不用管：整页重画时元素本身就没了。 */
+let PPAC = null;
+
+const PPTXT = s => String(s == null ? '' : s);
+const ppCut = (s, n) => { s = PPTXT(s).replace(/\s+/g, ' '); return s.length > n ? s.slice(0, n) + '…' : s; };
+
 function mountPaper(sub) {
-  const box = $('ppBoxWrap');
-  if (!box) return;
+  if (PPAC) PPAC.abort();
+  PPAC = new AbortController();
+  const sig = { signal: PPAC.signal };
+  const view = $('ppView');
+  if (!view) return;
   const C = paperLoad(sub);
-  let P = null, timer = 0;
+  let P = null, timer = 0, ZOOM = 'fit', bankKey = '', pendingScroll = null;
 
   const F = (id, k, num) => {
     const el = $(id);
@@ -5495,17 +5870,39 @@ function mountPaper(sub) {
     $('ppW').innerHTML = Object.keys(THEORY_CH).map(c => `<label class="ppw"><span>项目${c}</span><input type="number" min="0" max="100" value="${C.weights[c]}" data-ch="${c}" aria-label="${esc(THEORY_CH[c])}权重"></label>`).join('');
   }
 
+  const picksCount = () => Object.keys(C.picks || {}).length;
+
   function stats() {
-    const total = paperTotal(P), st = paperStats(P);
+    const total = paperTotal(P), st = paperStats(P), nq = P.reduce((a, s) => a + s.items.length, 0);
     const short = P.filter(s => s.count < (C.sections.find(x => x.t === s.t) || {}).n).map(s => PAPER_TYPES[s.t].name);
     $('ppTotal').innerHTML = `<b style="${total === 100 ? '' : 'color:var(--warn)'}">满分 ${total} 分</b>${total === 100 ? '' : '（一般应为 100 分，调整题数或分值）'}`;
+    if ($('ppMeta')) $('ppMeta').innerHTML = `<b>共 ${nq} 题</b> · 满分 ${total} 分` + (picksCount() ? ` · <span class="pppicked">已手动选 ${picksCount()} 道</span>` : '');
     $('ppStat').innerHTML = Object.keys(THEORY_CH).map(c => `<div class="ppbar"><span>项目${c}</span><i style="--w:${total ? ((st[c] || 0) / total * 100).toFixed(1) : 0}%"></i><b>${st[c] || 0} 分</b></div>`).join('') +
       (short.length ? `<div class="warns" style="margin-top:8px">题库里这些题型的题不够：${short.join('、')}，已按能抽到的出。</div>` : '');
   }
 
+  /* ================= 画布：缩放 + 尺寸 ================= */
+  const NAT_W = 1588;   // A3 横向 420mm ≈ 1588px @96dpi
+  function fit() {
+    const fr = $('ppFrame'), stage = $('ppStage');
+    if (!fr || !stage || !view.clientWidth) return;
+    /* 手机屏宽 380 时“适应宽度”只有 0.22 倍，字小到既读不了也点不准 —— 给个下限，
+       宁可横向滚一滚，也别把整张 A3 压成一条。 */
+    const floor = matchMedia('(pointer:coarse)').matches ? 0.42 : 0.2;
+    const k = ZOOM === 'fit' ? Math.max(floor, Math.min(1, (view.clientWidth - 24) / NAT_W)) : (+ZOOM || 1);
+    const h = +fr.dataset.h || 400;
+    /* iframe 自己必须撑到整份文档那么高：不然浏览器给它 150px 的默认高度，
+       装不下就在里面长出滚动条（用户报的「排版不合理」就是这么来的） */
+    fr.style.height = h + 'px';
+    fr.style.width = NAT_W + 'px';
+    fr.style.transform = `scale(${k})`;
+    stage.style.width = Math.round(NAT_W * k) + 'px';
+    stage.style.height = Math.round(h * k) + 'px';
+  }
+
   /* 预览页面在不显示时量不出尺寸，所以只在「理论试卷」这一页可见时排版 */
   let dirty = true;
-  const visible = () => { const s = box.closest('[data-page]'); return !s || !s.hidden; };
+  const visible = () => { const s = view.closest('[data-page]'); return !s || !s.hidden; };
   function preview() {
     P = pickPaper(C);
     stats();
@@ -5513,38 +5910,167 @@ function mountPaper(sub) {
     if (!visible()) return;
     dirty = false;
     const fr = $('ppFrame');
-    fr.style.height = '400px';
+    if (!fr) return;
+    pendingScroll = view.scrollTop;      // 换一道题不要把老师看的那一页顶回顶部
+    fr.dataset.h = 400;
     fit();
-    fr.srcdoc = paperDocHTML(P, C);
+    fr.srcdoc = paperDocHTML(P, C, { edit: true });
+    if (bankKey) renderBank();
   }
   function changed() { paperSave(sub, C); clearTimeout(timer); timer = setTimeout(preview, 250); }
+  PPAC.signal.addEventListener('abort', () => clearTimeout(timer));
 
-  /* 预览：A3 原尺寸（420mm）按卡片宽度缩小显示 */
   window.addEventListener('message', e => {
-    if (!e.data || !e.data.paperReady) return;
     const fr = $('ppFrame');
     if (!fr || e.source !== fr.contentWindow) return;
-    const h = fr.contentDocument.documentElement.scrollHeight;
-    fr.style.height = h + 'px';
+    const d = e.data || {};
+    if (d.hxPaperPick) { openBank(String(d.hxPaperPick), +d.no || 1, String(d.t || '')); return; }
+    if (!d.paperReady) return;
+    fr.dataset.h = fr.contentDocument.documentElement.scrollHeight;
     fit();
-    $('ppPages').innerHTML = `共 ${e.data.pages} 页（${e.data.pages / 2} 张 A3，双面）` +
-      (e.data.pages > 4 ? '<span class="tag warn">超过 2 张：可选「紧凑」留白或减少题量</span>' : '');
-  });
-  function fit() {
-    const fr = $('ppFrame'), box2 = $('ppView');
-    if (!fr || !box2 || box2.clientWidth === 0) return;
-    const w = 1588, k = Math.min(1, box2.clientWidth / w);
-    fr.style.width = w + 'px';
-    fr.style.transform = `scale(${k})`;
-    box2.style.height = (parseFloat(fr.style.height) || 400) * k + 'px';
-  }
-  window.addEventListener('resize', fit);
+    $('ppPages').textContent = `共 ${d.pages} 页（${d.pages / 2} 张 A3，双面）` +
+      (d.pages > 4 ? ' · 超过 2 张，可改「紧凑」留白或减少题量' : '');
+    if (pendingScroll != null) { view.scrollTop = pendingScroll; pendingScroll = null; }
+  }, sig);
+
+  let rzTimer = 0;
+  window.addEventListener('resize', () => { clearTimeout(rzTimer); rzTimer = setTimeout(fit, 120); }, sig);
   /* app.js 切页时会广播 hxpag，显示到这一页时补排版 */
   document.addEventListener('hxpag', e => {
     if (e.detail !== 'paper') return;
     setTimeout(() => { if (dirty) preview(); else fit(); }, 50);
+  }, sig);
+  /* 缩放按钮 */
+  const zoomBox = $('ppZoom');
+  if (zoomBox) zoomBox.addEventListener('click', ev => {
+    const b = ev.target.closest('[data-z]');
+    if (!b) return;
+    ZOOM = b.dataset.z;
+    zoomBox.querySelectorAll('[data-z]').forEach(x => x.classList.toggle('on', x === b));
+    fit();
   });
 
+  /* ================= 抽屉（设置 / 题库） ================= */
+  function drawer(id, on) {
+    const d = $(id);
+    if (!d) return;
+    const open = on === undefined ? !d.classList.contains('on') : on;
+    /* 两个抽屉互斥：手机上都是全屏，同时开着的话后开的那个会把先开的整个盖住，
+       老师点「设置」却看不到任何变化（实测踩到）。 */
+    if (open) drawer(id === 'ppDrawer' ? 'ppBank' : 'ppDrawer', false);
+    d.classList.toggle('on', open);
+    d.setAttribute('aria-hidden', open ? 'false' : 'true');
+    if (id === 'ppDrawer' && $('ppSet')) {
+      $('ppSet').classList.toggle('on', open);
+      $('ppSet').setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+  }
+  if ($('ppSet')) $('ppSet').onclick = () => drawer('ppDrawer');
+  if ($('ppLibBtn')) $('ppLibBtn').onclick = () => drawer('ppDrawer', true);
+  document.querySelectorAll('[data-ppclose]').forEach(b => { b.onclick = () => drawer(b.dataset.ppclose, false); });
+  document.addEventListener('keydown', ev => {
+    if (ev.key !== 'Escape') return;
+    drawer('ppDrawer', false); drawer('ppBank', false);
+  }, sig);
+
+  /* ================= 题库抽屉：点题换题 ================= */
+  function openBank(key, no, t) {
+    const sec = P && P.find(s => s.t === t);
+    if (!sec) return;
+    bankKey = key;
+    drawer('ppDrawer', false);
+    drawer('ppBank', true);
+    $('ppBankQ').value = '';
+    document.querySelectorAll('#ppBankCh input').forEach(x => { x.checked = true; });
+    renderBank();
+    const l = $('ppBankList'); if (l) l.scrollTop = 0;
+  }
+
+  function usedIds() {
+    const s = new Set();
+    if (P) P.forEach(sec => sec.items.forEach(q => s.add(qid(q))));
+    return s;
+  }
+  function renderBank() {
+    const wrap = $('ppBankList');
+    if (!wrap || !bankKey) return;
+    const t = bankKey.split(':')[0], idx = +bankKey.split(':')[1] || 0;
+    const T = PAPER_TYPES[t];
+    if (!T) return;
+    const sec = P && P.find(x => x.t === t);
+    const cur = sec ? sec.items[idx] : null;
+    $('ppBankTitle').innerHTML = `<b>${T.name} · 第 ${idx + 1} 题</b>` +
+      (cur ? `<span class="ppd-cur">当前：项目${cur.ch} ${esc(THEORY_CH[cur.ch])} · ${esc(ppCut(cur.q, 40))}</span>` : '');
+    const pinIdx = C.picks[bankKey] != null ? +C.picks[bankKey] : -1;
+    const chk = [...document.querySelectorAll('#ppBankCh input:checked')].map(x => +x.dataset.ch);
+    const kw = ($('ppBankQ').value || '').trim().toLowerCase();
+    const used = usedIds();
+    const rows = [];
+    THEORY.forEach((q, i) => {
+      if (q.t !== t) return;
+      if (chk.length && chk.indexOf(q.ch) < 0) return;
+      if (kw && (q.q + ' ' + (q.o || []).join(' ') + ' ' + THEORY_CH[q.ch]).toLowerCase().indexOf(kw) < 0) return;
+      const on = i === pinIdx;
+      const busy = used.has(i) && !(cur && qid(cur) === i);
+      rows.push(`<div class="bkq${on ? ' on' : ''}" data-i="${i}" role="button" tabindex="0">
+        <span class="bkq-ch">P${q.ch}</span><span class="bkq-q">${esc(ppCut(q.q, 60))}</span>
+        ${on ? '<span class="bkq-tag on">当前</span>' : busy ? '<span class="bkq-tag">本卷已用</span>' : ''}
+        <button class="sm bkq-p" data-peek="${i}" aria-label="预览这道题">看</button></div>
+        <div class="bkq-d" data-d="${i}" hidden>${fullHTML(q)}</div>`);
+    });
+    wrap.innerHTML = rows.length ? rows.join('') : `<p class="note" style="padding:12px 4px">没有符合条件的题（换个项目或清空搜索词）</p>`;
+    $('ppBankHint').textContent = `${T.name}共 ${rows.length} 道可选`;
+    $('ppBankRand').disabled = !(C.picks[bankKey] != null);
+  }
+
+  function fullHTML(q) {
+    const t = q.t;
+    let h = `<div class="bkq-fq">${esc(q.q)}</div>`;
+    if (t === 'choice') h += `<ol class="bkq-op">${(q.o || []).map((x, k) => `<li>${'ABCD'[k]}. ${esc(x)}</li>`).join('')}</ol>`;
+    if (t === 'prog' && q.code) h += `<pre class="code">${esc(q.code)}</pre>` + (q.sub || []).map((x, k) => `<div class="note">（${k + 1}）${esc(x)}</div>`).join('');
+    const a = t === 'choice' ? q.a : t === 'judge' ? (q.a ? '正确' : '错误') : Array.isArray(q.a) ? q.a.join('；') : q.a;
+    h += `<div class="bkq-a"><b>答案</b>${esc(a)}</div>`;
+    return h;
+  }
+
+  function usePick(i) {
+    if (!bankKey) return;
+    C.picks[bankKey] = i;
+    paperSave(sub, C);
+    preview();
+    const q = THEORY[i];
+    toast(`已换成项目${q.ch}：${ppCut(q.q, 18)}`);
+  }
+
+  const list = $('ppBankList'), bank = $('ppBank');
+  if (bank) {
+    bank.addEventListener('click', ev => {
+      const peek = ev.target.closest('[data-peek]');
+      if (peek) {
+        const d = bank.querySelector(`[data-d="${peek.dataset.peek}"]`);
+        if (d) { d.hidden = !d.hidden; peek.textContent = d.hidden ? '看' : '收'; }
+        return;
+      }
+      const row = ev.target.closest('.bkq');
+      if (row && list.contains(row)) usePick(+row.dataset.i);
+    });
+    bank.addEventListener('keydown', ev => {
+      const row = ev.target.closest && ev.target.closest('.bkq');
+      if (row && (ev.key === 'Enter' || ev.key === ' ')) { ev.preventDefault(); usePick(+row.dataset.i); }
+    });
+  }
+  let kwTimer = 0;
+  if ($('ppBankQ')) $('ppBankQ').addEventListener('input', () => { clearTimeout(kwTimer); kwTimer = setTimeout(renderBank, 130); });
+  if ($('ppBankCh')) $('ppBankCh').addEventListener('change', renderBank);
+  if ($('ppBankRand')) $('ppBankRand').onclick = () => {
+    if (!bankKey || C.picks[bankKey] == null) return;
+    delete C.picks[bankKey];
+    paperSave(sub, C);
+    preview();
+    toast('已恢复随机抽题');
+  };
+
+  /* ================= 表单 ================= */
   F('ppYear', 'year'); F('ppTerm', 'term'); F('ppCourse', 'course'); F('ppVer', 'ver');
   F('ppMajor', 'major'); F('ppGrade', 'grade'); F('ppMode', 'mode'); F('ppMin', 'minutes', true);
   F('ppKey', 'key'); F('ppSpace', 'space');
@@ -5552,7 +6078,7 @@ function mountPaper(sub) {
   $('ppTypes').addEventListener('change', e => {
     const t = e.target, s = C.sections[+t.dataset.i];
     if (!s || !t.dataset.f) return;
-    window.__pp=(window.__pp||[]);window.__pp.push({i:t.dataset.i,f:t.dataset.f,val:t.value,before:s.n,t:s.t});s[t.dataset.f] = Math.max(0, +t.value || 0);window.__pp.push({after:s.n,all:JSON.stringify(C.sections)});
+    s[t.dataset.f] = Math.max(0, +t.value || 0);
     changed();
   });
   $('ppW').addEventListener('change', e => {
@@ -5561,18 +6087,59 @@ function mountPaper(sub) {
     C.weights[c] = Math.max(0, +e.target.value || 0);
     changed();
   });
-  $('ppNew').onclick = () => { C.key = 'T' + Math.random().toString(36).slice(2, 6).toUpperCase(); $('ppKey').value = C.key; changed(); toast('已换一套题（种子变了）'); };
-  $('ppReset').onclick = () => { C.sections = PAPER_DEFAULT.sections.map(s => ({ ...s })); C.weights = { ...PAPER_DEFAULT.weights }; renderTypes(); changed(); };
+  /* 换种子：**手动选过的题保留** —— 老师挑的就是要它，换种子只是想换掉那些随机补的。
+     这一点要明说（toast 里报数量），否则老师会以为又得重挑一遍。 */
+  $('ppNew').onclick = () => {
+    C.key = 'T' + Math.random().toString(36).slice(2, 6).toUpperCase();
+    if ($('ppKey')) $('ppKey').value = C.key;
+    changed();
+    const n = picksCount();
+    toast(n ? `已换一套题；你手动选的 ${n} 道题保留着` : '已换一套题（种子变了）');
+  };
+  $('ppReset').onclick = () => {
+    C.sections = PAPER_DEFAULT.sections.map(s => ({ ...s }));
+    C.weights = { ...PAPER_DEFAULT.weights };
+    renderTypes(); changed();
+    toast(picksCount() ? `已恢复默认题量；${picksCount()} 道手动选的题还在` : '已恢复默认题量与比重');
+  };
+
   const base = () => `${C.course}_期末试卷${C.ver}卷`;
   $('ppPdf').onclick = () => {
     const fr = $('ppFrame');
-    if (!fr.contentDocument || !fr.contentDocument.body.getAttribute('data-pages')) { toast('预览还没排好，稍等一下再点'); return; }
+    if (!fr || !fr.contentDocument || !fr.contentDocument.body || !fr.contentDocument.body.getAttribute('data-pages')) { toast('预览还没排好，稍等一下再点'); return; }
     toast('在打印窗口里：目标选「另存为 PDF」，纸张 A3，横向，边距「无」');
     fr.contentWindow.focus();
     fr.contentWindow.print();
   };
-  $('ppWord').onclick = () => { saveDocx(base() + '.docx', paperDocx(P, C)); toast('已导出 Word 试卷（A3 横向两栏）'); };
-  $('ppAns').onclick = () => { saveDocx(base() + '_参考答案.docx', answerDocx(P, C)); toast('已导出参考答案'); };
+  $('ppWord').onclick = () => { if (!P) return; saveDocx(base() + '.docx', paperDocx(P, C)); toast('已导出 Word 试卷（A3 横向两栏）'); };
+  $('ppAns').onclick = () => { if (!P) return; saveDocx(base() + '_参考答案.docx', answerDocx(P, C)); toast('已导出参考答案'); };
+
+  /* ---------- 试卷库（2026-11-06）：存的是这份设置 C 的快照（picks 一起存） ---------- */
+  function drawLib() {
+    const el = $('ppLibList');
+    if (!el) return;
+    el.innerHTML = libListHTML('paper', sub);
+    libBind(el, 'paper', sub, {
+      onUse: (id, it) => {
+        const p = it.payload || {};
+        if (!Array.isArray(p.sections) || !p.weights) { toast('这份记录里没有试卷设置，可能存坏了，删掉重存一次'); return; }
+        paperSave(sub, p);
+        toast('已选用「' + it.name + '」');
+        /* 整页重画，而不是只重挂 mountPaper：ppTypes / ppW 这两个元素不会重建，
+           只重挂的话挂在它们身上的 change 监听会叠一份（改一次题数等于改两次）。 */
+        if (typeof paperHome === 'function') paperHome(); else window.HXPaper.mount(sub);
+      },
+      refresh: drawLib
+    });
+  }
+  if ($('ppLibName')) $('ppLibName').value = libDefaultName('paper', sub);
+  if ($('ppLibSave')) $('ppLibSave').onclick = () => {
+    const it = libAdd($('ppLibName') ? $('ppLibName').value : '', 'paper', sub, C);
+    drawLib();
+    if ($('ppLibName')) $('ppLibName').value = libDefaultName('paper', sub);
+    toast('已存入试卷库：' + it.name + '（含 ' + picksCount() + ' 道手动选的题）');
+  };
+  drawLib();
 
   renderTypes();
   preview();
@@ -5590,7 +6157,11 @@ window.HXPaper = { mount: mountPaper };
    2. 没有名单、没有批改、没有导出的旧入口，那些都在别的页。
    3. 母题只认内置 M1～M6（导入书上代码那套要单片机离线文件，网页版做不了），
       用到自定义母题的组卷码在这里直接拦住并说明原因。
-   4. 科目：现在只有单片机上机。组卷状态按科目分开存（SUBJECTS 的键），以后加科目不用改这里。 */
+   4. 科目：现在只有单片机上机。组卷状态按科目分开存（SUBJECTS 的键），以后加科目不用改这里。
+   5. 2026-11-06 加「题库选题」与「试卷库」：用户要「每一题都可以去选择题库去添加进去 精准组卷，
+      而不是只有随机」，以及「这套卷子就可以命名为XXX保存到理论试卷库里面供我挑选和备用」。
+      题库的本质还是 M1～M6 的生成器，只是把变式号 pin 钉死（见 bank.js 的 bankVariant）：
+      钉死的题和口令、学号、这是第几题都无关，所以老师在题库里看到的那道就是学生拿到的那道。 */
 'use strict';
 
 const BUILD_KEY = 'exam.build';
@@ -5602,6 +6173,27 @@ const BUILD_DEFAULT_QS = [
 ];
 const randKey = () => 'K' + Math.random().toString(36).slice(2, 6).toUpperCase();
 
+/* ---------- 题库（变式清单）的状态 ----------
+   bankCache 是模块级的：buildVariant 不便宜（要生成代码、算评分点），
+   72 项每次 draw() 重算会让点一下卡一下；同一个 (题型,母题,变式号) 出的题永远一样，缓存绝对安全。
+   上限是 3 题型 × 72 = 216 道，几 MB 以内，比反复重算划算。 */
+const bankCache = new Map();
+let bankFor = null;        // 题库面板开着的是第几题（null = 关着）。只在内存里，不存盘：这是临时动作，不是设置
+let bankPeek = new Set();  // 展开了「看」的变式（'M3|5'）
+
+function bankGet(mid, type, pin) {
+  const k = type + '|' + mid + '|' + pin;
+  let v = bankCache.get(k);
+  if (!v) { v = bankVariant(mid, type, pin); bankCache.set(k, v); }
+  return v;
+}
+/* 列表里只放一句摘要：72 项如果每项都渲染整道题（题目 + 程序 + 评分点），手机上直接卡死。
+   摘要取的是「要求」的第一句，正好是这题跟别题最不一样的地方。 */
+function bankSum(v) {
+  const s = (v.req || []).join('；').replace(/\s+/g, ' ').trim();
+  return s.length > 60 ? s.slice(0, 60) + '…' : s;
+}
+
 /* 母题下拉：只列内置 M1～M6。
    单片机的 motherOptions 会附上「老师导入的书上代码」和「我自己导入的代码」两组，
    那两块在网页版考试里根本没有（导入要单片机离线文件），列出来就是一堆选了会失败的选项。
@@ -5612,7 +6204,7 @@ function builderMothers(sel, first) {
   return (first || '') + MOTHERS.map(o).join('');
 }
 
-/* 组卷状态：{ [科目]: { key, qs:[{mid,type,pts,draw}], requireHex } } */
+/* 组卷状态：{ [科目]: { key, qs:[{mid,type,pts,draw,pin}], requireHex } } */
 function buildLoad(sub) {
   const all = store.get(BUILD_KEY, {}) || {};
   const b = all[sub];
@@ -5626,9 +6218,14 @@ function buildSave(sub, B) {
 }
 const buildCode = B => makeExamCode(B.key, B.qs);
 
-/* 用到导入书上代码的题改回随机：网页版没有自定义母题库，留着会让组卷码解不开 */
+/* 用到导入书上代码的题改回随机：网页版没有自定义母题库，留着会让组卷码解不开。
+   顺带把没有 pin 的题补成 pin:null，让下面所有判断都能直接写 q.pin != null */
 function buildFixMids(B) {
-  B.qs.forEach(q => { if (q.mid && !MOTHER_BY_ID[q.mid]) q.mid = null; });
+  B.qs.forEach(q => {
+    if (q.mid && !MOTHER_BY_ID[q.mid]) { q.mid = null; q.pin = null; }
+    if (q.pin === undefined) q.pin = null;
+    if (q.pin != null) q.draw = null;   // pin 和 draw 同时存在时 pin 说话（seed 以 pin 优先），留着 draw 只会让码更乱
+  });
   return B;
 }
 
@@ -5636,23 +6233,60 @@ function buildFixMids(B) {
 function mountBuilder(sub) {
   const box = $('bdBox');
   if (!box) return;
+  /* 重复挂载要能重复调（2026-11-06）：试卷库「选用」之后要重挂组卷器，
+     以前这里每次都在 box 上加一对 change/click 监听 —— 元素没换，监听就叠一份，
+     点一次删除会删两题、点一次换题会换两次。现在每次挂载先把上一份全部解绑。 */
+  if (box._ac) box._ac.abort();
+  const ac = box._ac = new AbortController();
+  const sig = { signal: ac.signal };
+
   let B = buildFixMids(buildLoad(sub));
+  bankFor = null; bankPeek.clear();   // 每次进组卷页都从「关着」开始，别让上次开在哪一题的记忆带过来
 
   const total = () => B.qs.reduce((a, q) => a + (q.pts || 0), 0);
   const redraw = () => { buildSave(sub, B); draw(); };
 
+  /* 题库面板：只在打开时渲染（懒生成）。第一行是母题标题，下面 12 个变式。 */
+  function bankCard() {
+    if (bankFor == null || !B.qs[bankFor]) { bankFor = null; return ''; }
+    const i = bankFor, q = B.qs[i];
+    const list = MOTHERS.map(M => {
+      let rows = `<div class="bk-h">${esc(M.id + ' ' + M.name)}${M.task ? ' · ' + esc(M.task) : ''}</div>`;
+      for (let pin = 1; pin <= BANK_PINS; pin++) {
+        const v = bankGet(M.id, q.type, pin);
+        const on = q.mid === M.id && q.pin === pin;
+        const peek = bankPeek.has(M.id + '|' + pin);
+        rows += `<div class="bk-i${on ? ' on' : ''}" data-mid="${M.id}" data-pin="${pin}">
+          <span class="bk-n">变式 ${pin}</span>
+          <span class="bk-t">${on ? '<b class="bk-on">✓ 已在用</b>' : ''}${esc(bankSum(v))}</span>
+          <button class="sm" data-bk="peek" data-mid="${M.id}" data-pin="${pin}" aria-label="看第${pin}个变式">${peek ? '收起' : '看'}</button>
+        </div>`;
+        if (peek) rows += `<div class="bk-q">${questionHTML(v, { qno: i + 1 })}<details><summary>答案</summary>${answerHTML(v)}</details></div>`;
+      }
+      return rows;
+    }).join('');
+    return `<div class="card bk-card">
+      <div class="row" style="justify-content:space-between;align-items:center"><h2 style="margin:0">${esc(TYPE_NAME[q.type])} · 题库（共 ${MOTHERS.length * BANK_PINS} 题）</h2><button class="sm" id="bkClose">关闭</button></div>
+      <p class="note">放进第 ${i + 1} 题：点一行就把这道变式钉进这一题（全班都做它，和口令、学号都无关）；点「看」先看题和答案。</p>
+      <div class="bk-list">${list}</div>
+      <div class="row" style="margin-top:10px"><button id="bkRand">改用随机（每人不同）</button></div>
+    </div>`;
+  }
+
   function draw() {
     const mopt = sel => builderMothers(sel, '<option value="">随机（每人抽不同的母题）</option>');
     const topt = sel => Object.entries(TYPE_NAME).map(([k, n]) => `<option value="${k}" ${sel === k ? 'selected' : ''}>${n}</option>`).join('');
-    /* 全班同一题的预览：直接把这一题按「预览」学号出出来，给老师看它到底长什么样 */
+    /* 全班同一题 / 题库指定的预览：pin 也一律出同一道，所以两种都要给老师看 */
     const preview = i => {
       const q = B.qs[i];
-      if (q.draw == null) return '';
+      if (q.draw == null && q.pin == null) return '';
       let v;
       try { v = examPaper('预览', buildCode(B))[i]; } catch (e) { return ''; }
       if (!v) return '';
       return `<details class="qprev"><summary>看这道题（全班都考它）：${esc(v.title)}</summary>${questionHTML(v, { qno: i + 1 })}<details><summary>答案</summary>${answerHTML(v)}</details></details>`;
     };
+    const pinned = q => q.pin != null;
+    const same = q => q.draw != null || q.pin != null;
     box.innerHTML = `<div class="with-rail">
       <div class="rail-main">
         <div class="card">
@@ -5667,7 +6301,8 @@ function mountBuilder(sub) {
             <select data-f="mid" aria-label="第${i + 1}题的母题">${mopt(q.mid)}</select>
             <select data-f="type" aria-label="第${i + 1}题的题型">${topt(q.type)}</select>
             <label class="qpts"><input type="number" min="1" max="100" data-f="pts" value="${q.pts}" aria-label="第${i + 1}题分值"> 分</label>
-            <select data-f="mode" aria-label="第${i + 1}题的出题方式"><option value="each" ${q.draw == null ? 'selected' : ''}>每人参数不同</option><option value="fixed" ${q.draw != null ? 'selected' : ''}>全班同一题</option></select>
+            <select data-f="mode" aria-label="第${i + 1}题的出题方式"><option value="each" ${same(q) ? '' : 'selected'}>每人参数不同</option><option value="fixed" ${same(q) ? 'selected' : ''}>全班同一题</option></select>
+            <button class="sm" data-f="bank" aria-label="第${i + 1}题从题库选题">${pinned(q) ? esc(q.mid) + ' · 变式' + q.pin : '题库选题'}</button>
             ${q.draw != null ? '<button data-f="redraw" title="不满意就换一道（全班一起换）">换一题</button>' : ''}
             <button class="qdel" data-f="del" title="删掉这一题" aria-label="删掉第${i + 1}题" ${B.qs.length <= 1 ? 'disabled' : ''}>×</button>
             ${preview(i)}
@@ -5677,11 +6312,18 @@ function mountBuilder(sub) {
         </div>
       </div>
       <aside class="rail">
+        ${bankCard()}
         <div class="card">
           <div class="codebox"><div class="cb-l"><div class="note">组卷码（自动生成 = 换题种子 + 每道题的设置；学生直接输这个）</div><div class="cb-code mono" id="bdCode"></div><div class="note" id="bdLen"></div></div>
             <button id="bdCopy">复制</button></div>
           <p class="note" style="margin-top:10px">拿到码之后去「考试」页：<b>发布考试 → 粘贴组卷码 → 选班级</b>，网页会再给你一个学生输的短码。</p>
           <div class="card band" style="margin-top:12px"><b>这套卷还没有发布</b><p class="note" style="margin:0">组卷只在这里调；真正的考试记录（谁交了、多少分）在「考试」页。</p></div>
+        </div>
+        <div class="card">
+          <h2>试卷库</h2>
+          <div class="row"><input id="bdLibName" class="lib-name" autocomplete="off" placeholder="给这套卷起个名字"><button id="bdLibSave">保存到试卷库</button></div>
+          <div id="bdLibList"></div>
+          <p class="note">存的是这一页的全部设置（换题种子 + 每题母题/题型/分值/题库选题）。下一届点「选用」就回来了；只存在这台设备上。</p>
         </div>
         <div class="card">
           <details><summary>读入一个已有的组卷码</summary>
@@ -5692,7 +6334,27 @@ function mountBuilder(sub) {
     $('bdSum').textContent = `共 ${B.qs.length} 题，满分 ${total()} 分`;
     $('bdCode').textContent = buildCode(B);
     $('bdLen').textContent = buildCode(B).length + ' 个字符';
+    drawLib();
   }
+
+  /* ---------- 试卷库 ---------- */
+  function drawLib() {
+    const el = $('bdLibList');
+    if (!el) return;
+    el.innerHTML = libListHTML('build', sub);
+    libBind(el, 'build', sub, {
+      onUse: (id, it) => {
+        const p = it.payload || {};
+        if (!Array.isArray(p.qs) || !p.qs.length) { toast('这份记录里没有题目，可能存坏了，删掉重存一次'); return; }
+        buildSave(sub, { key: p.key || randKey(), qs: p.qs.map(q => ({ ...q })), requireHex: !!p.requireHex });
+        bankFor = null; bankPeek.clear();
+        mountBuilder(sub);   // 重挂：上面的 AbortController 会先把旧监听解绑
+        toast('已选用「' + it.name + '」');
+      },
+      refresh: drawLib
+    });
+  }
+  if ($('bdLibName')) $('bdLibName').value = libDefaultName('build', sub);
 
   /* 事件：用委托，draw() 重建 DOM 后不用重绑 */
   box.addEventListener('change', e => {
@@ -5703,7 +6365,12 @@ function mountBuilder(sub) {
       if (f === 'mid') q.mid = e.target.value || null;
       if (f === 'type') q.type = e.target.value;
       if (f === 'pts') q.pts = Math.max(1, Math.min(100, Math.round(+e.target.value || 1)));
-      if (f === 'mode') q.draw = e.target.value === 'fixed' ? 1 : null;
+      /* 出题方式：切回「每人不同」等于放弃题库选题；切到「全班同一题」时如果本来就是题库里的题，
+         不用再补 draw —— pin 已经保证全班一样，多一个 .1 只会让组卷码看不懂 */
+      if (f === 'mode') {
+        if (e.target.value === 'fixed') { if (q.draw == null && q.pin == null) q.draw = 1; }
+        else { q.draw = null; q.pin = null; }
+      }
       redraw(); return;
     }
     if (e.target.id === 'bdHex') { B.requireHex = e.target.checked; buildSave(sub, B); toast('已记下（只影响这台设备上的组卷设置）'); return; }
@@ -5712,18 +6379,53 @@ function mountBuilder(sub) {
       if (!/^[A-Za-z0-9]{1,16}$/.test(k)) { toast('换题种子只能用字母和数字（最多 16 个）'); e.target.value = B.key; return; }
       B.key = k; redraw();
     }
-  });
+  }, sig);
   box.addEventListener('click', e => {
+    /* 题库面板：整行都能点，所以要排在「必须是按钮」的判断前面 */
+    const peek = e.target.closest('[data-bk="peek"]');
+    if (peek) {
+      const k = peek.dataset.mid + '|' + peek.dataset.pin;
+      bankPeek.has(k) ? bankPeek.delete(k) : bankPeek.add(k);
+      draw(); return;
+    }
+    const bi = e.target.closest('.bk-i');
+    if (bi && bankFor != null && B.qs[bankFor]) {
+      const q = B.qs[bankFor];
+      q.mid = bi.dataset.mid; q.pin = +bi.dataset.pin; q.draw = null;
+      redraw();
+      toast(`第 ${bankFor + 1} 题已换成 ${q.mid} 变式 ${q.pin}（全班都做这道）`);
+      return;
+    }
     const b = e.target.closest('button');
     if (!b) return;
+    if (b.id === 'bkClose') { bankFor = null; draw(); return; }
+    if (b.id === 'bkRand') {
+      const q = bankFor != null ? B.qs[bankFor] : null;
+      if (q) { q.mid = null; q.pin = null; q.draw = null; redraw(); toast(`第 ${bankFor + 1} 题改回随机：每人按学号抽不同的题`); }
+      return;
+    }
+    if (b.id === 'bdLibSave') {
+      const it = libAdd($('bdLibName') ? $('bdLibName').value : '', 'build', sub, { key: B.key, qs: B.qs.map(q => ({ ...q })), requireHex: !!B.requireHex });
+      drawLib();
+      if ($('bdLibName')) $('bdLibName').value = libDefaultName('build', sub);
+      toast('已存入试卷库：' + it.name);
+      return;
+    }
     const row = b.closest('.qrow');
     if (row && b.dataset.f) {
       const i = +row.dataset.i;
-      if (b.dataset.f === 'del' && B.qs.length > 1) { B.qs.splice(i, 1); redraw(); }
+      if (b.dataset.f === 'del' && B.qs.length > 1) {
+        B.qs.splice(i, 1);
+        /* 删掉的题在题库面板上面时，面板指向的行号要跟着往前挪，否则会开到隔壁那道题上 */
+        if (bankFor === i) bankFor = null;
+        else if (bankFor != null && bankFor > i) bankFor--;
+        redraw();
+      }
       if (b.dataset.f === 'redraw') { B.qs[i].draw = (B.qs[i].draw || 0) % 9999 + 1; redraw(); toast(`第 ${i + 1} 题已换成另一道`); }
+      if (b.dataset.f === 'bank') { bankFor = bankFor === i ? null : i; draw(); if (bankFor != null) { const c = box.querySelector('.bk-card'); if (c) c.scrollIntoView({ block: 'nearest' }); } }
       return;
     }
-    if (b.id === 'bdAddQ') { if (B.qs.length < 5) { B.qs.push({ mid: null, type: 'fill', pts: 20, draw: null }); redraw(); } return; }
+    if (b.id === 'bdAddQ') { if (B.qs.length < 5) { B.qs.push({ mid: null, type: 'fill', pts: 20, draw: null, pin: null }); redraw(); } return; }
     if (b.id === 'bdNewKey') { B.key = randKey(); redraw(); toast('已换一套题（种子变了）'); return; }
     if (b.id === 'bdCopy') {
       const code = buildCode(B);
@@ -5736,9 +6438,9 @@ function mountBuilder(sub) {
       if (!p.qs.length) { toast('组卷码里至少要有 1 道题'); return; }
       /* 网页版没有导入的母题库：用到 M7 以上（自定义）的码读不进来说明原因，别让老师以为坏了 */
       if (p.qs.some(q => q.mid && !MOTHER_BY_ID[q.mid])) { toast('这个组卷码用到了导入书上代码的母题，网页版还不支持（要用单片机离线文件）'); return; }
-      B.key = p.key; B.qs = p.qs.map(q => ({ ...q })); redraw(); toast('已读入组卷码');
+      B.key = p.key; B.qs = p.qs.map(q => ({ ...q })); bankFor = null; bankPeek.clear(); redraw(); toast('已读入组卷码');
     }
-  });
+  }, sig);
 
   draw();
 }
@@ -5818,6 +6520,11 @@ function showT(k) {
   if (!T_PAGES.some(x => x[0] === k)) k = 'exam';
   CUR_T = k;
   document.querySelectorAll('#exNav [data-t]').forEach(b => b.classList.toggle('on', b.dataset.t === k));
+  /* 理论试卷页要整幅画布（1280 的壳宽装不下 A3），其余页保持原来的阅读宽度。
+     #app 自己也有 width:min(1100px,100%)，只放宽 .ex-shell 没用 —— 两级都要放。 */
+  const shell = document.querySelector('.ex-shell'), root = $('app');
+  if (shell) shell.classList.toggle('wide', k === 'paper');
+  if (root) root.classList.toggle('wide-paper', k === 'paper');
   try { history.replaceState(null, '', '#' + k); } catch (e) { }
   document.dispatchEvent(new CustomEvent('hxpag', { detail: k }));
   if (k === 'exam') return teacherHome();
@@ -5832,17 +6539,34 @@ function buildHome() {
   if (window.HXBuilder) HXBuilder.mount(CUR_SUB);
   else app().innerHTML += '<div class="errs">组卷模块没打包进来，请重新 node build.js</div>';
 }
-/* 理论试卷页：模板参数 + 预览 + 导出 PDF / Word / 参考答案（理论题库来自 刷题/data/mcu.json） */
+/* 理论试卷页（2026-11-06 第二轮重做）：上面一条工具栏、下面整幅 A3 画布，设置收进右侧抽屉。
+   用户原话：「组卷页面需要很大平铺那种 然后正反面不就是两页吗 点击题目那一区域就可以换题」。
+   ── 为什么把 header 压成一行 ──
+   画布要占满整幅，标题再占三行就没剩多少高度了；h1「理论试卷」保留（侧栏切换时靠它认页）。 */
 function paperHome() {
-  app().innerHTML = `<header class="ex-h"><div class="eyebrow">教师 · ${SUBJECTS[CUR_SUB]}理论</div><h1>理论试卷</h1>
-    <p>按学校试卷模板排版，A3 横向两栏、双面；题目来自教材项目 1～5，可以换一套、出 A/B/C 卷（互不重题）</p></header>
-    <div class="with-rail">
-      <div class="rail-main"><div class="card"><div class="row" style="justify-content:space-between;margin-bottom:10px"><h2 style="margin:0">预览</h2><span class="note" id="ppPages"></span></div>
-        <div class="ppbox" id="ppView"><iframe id="ppFrame" title="试卷预览"></iframe></div></div></div>
-      <aside class="rail" id="ppBoxWrap">
-        <div class="card"><h2>导出</h2>
-          <div class="row"><button class="pri" id="ppPdf">导出 PDF（A3）</button><button id="ppWord">Word 试卷</button><button id="ppAns">Word 参考答案</button></div>
-          <p class="note" style="margin-top:8px">PDF：在打印窗口里选「另存为 PDF」，纸张 A3、横向、边距「无」。Word 版方便人工核对和修改（A3 横向两栏，装订线以 PDF 版为准）。</p></div>
+  app().innerHTML = `<header class="ex-h pp-hex"><div class="eyebrow">教师 · ${SUBJECTS[CUR_SUB]}理论</div><h1>理论试卷</h1>
+    <p>点卷面上任意一题，就能从题库里换掉它；A3 横向两栏、双面，题目来自教材项目 1～5</p></header>
+    <div class="pp-page">
+      <div class="pp-bar">
+        <div class="pp-bar-l">
+          <button id="ppSet" class="ppset" aria-expanded="false" aria-controls="ppDrawer">设置</button>
+          <div class="ppzoom" id="ppZoom" role="group" aria-label="缩放">
+            <button data-z="fit" class="on">适应宽度</button><button data-z="1">100%</button><button data-z="0.75">75%</button><button data-z="0.5">50%</button>
+          </div>
+          <span class="note" id="ppPages"></span>
+        </div>
+        <div class="pp-bar-r">
+          <span class="ppmeta" id="ppMeta"></span>
+          <button class="pri" id="ppPdf">导出 PDF</button><button id="ppWord">Word 试卷</button><button id="ppAns">参考答案</button><button id="ppLibBtn">试卷库</button>
+        </div>
+      </div>
+      <div class="ppwrap" id="ppView"><div class="ppstage" id="ppStage"><iframe id="ppFrame" title="试卷预览" scrolling="no"></iframe></div></div>
+      <aside class="ppdrawer" id="ppDrawer" aria-hidden="true" aria-label="试卷设置">
+        <div class="ppd-h"><b>试卷设置</b><button class="sm" data-ppclose="ppDrawer" aria-label="关闭设置">关闭</button></div>
+        <div class="card"><h2>试卷库</h2>
+          <div class="row"><input id="ppLibName" class="lib-name" autocomplete="off" placeholder="给这套卷起个名字"><button id="ppLibSave">保存到试卷库</button></div>
+          <div id="ppLibList"></div>
+          <p class="note">存的是这一页的全部设置（试卷信息、题型分值、各项目比重、换题种子、你手动选的题）。下一届点「选用」就回来了；只存在这台设备上。</p></div>
         <div class="card"><h2>试卷信息</h2>
           <div class="ppform">
             <label>学年 <input id="ppYear"></label>
@@ -5857,15 +6581,26 @@ function paperHome() {
             <label>换题种子 <input id="ppKey" class="mono"></label>
             <div class="row" style="align-items:flex-end"><button id="ppNew">换一套</button></div>
           </div>
-          <p class="note">同一个种子出的 A、B、C 卷互不重题；种子不变，再打开还是同一套。</p></div>
+          <p class="note">同一个种子出的 A、B、C 卷互不重题；种子不变，再打开还是同一套。换种子时你手动选的题会保留。</p></div>
         <div class="card"><h2>题型和分值</h2>
           <table class="mini pptypes"><tbody id="ppTypes"></tbody></table>
           <div class="row" style="justify-content:space-between;margin-top:8px"><span id="ppTotal"></span><button id="ppReset">恢复默认</button></div></div>
         <div class="card"><h2>各项目比重</h2>
           <div class="ppws" id="ppW"></div>
-          <p class="note">数字是相对比重，默认项目 1～4 为主、项目 5 少一些；填 0 表示不出这一项目的题。下面是这套卷实际的分值分布：</p>
+          <p class="note">数字是相对比重，默认项目 1～4 为主、项目 5 少一些；填 0 表示不出这一项目的题（你手动点的题不受这条限制）。下面是这套卷实际的分值分布：</p>
           <div id="ppStat"></div></div>
-      </aside></div>`;
+        <p class="note">导出 PDF：在打印窗口里选「另存为 PDF」，纸张 A3、横向、边距「无」。Word 版方便人工核对和修改（装订线以 PDF 版为准）。</p>
+      </aside>
+      <aside class="ppdrawer ppdbank" id="ppBank" aria-hidden="true" aria-label="题库">
+        <div class="ppd-h"><b id="ppBankTitle"></b><button class="sm" data-ppclose="ppBank" aria-label="关闭题库">关闭</button></div>
+        <div class="ppb-f">
+          <div class="ppb-ch" id="ppBankCh">${Object.keys(THEORY_CH).map(c => `<label><input type="checkbox" data-ch="${c}" checked>项目${c}</label>`).join('')}</div>
+          <input id="ppBankQ" type="search" autocomplete="off" placeholder="搜题干关键词…" aria-label="搜索题目">
+        </div>
+        <div class="ppb-l" id="ppBankList"></div>
+        <div class="ppd-f"><button id="ppBankRand">恢复随机</button><span class="note" id="ppBankHint"></span></div>
+      </aside>
+    </div>`;
   if (window.HXPaper) HXPaper.mount(CUR_SUB);
   else app().innerHTML = '<div class="errs">理论试卷模块没打包进来，请重新 node build.js</div>';
 }
@@ -5981,7 +6716,9 @@ async function teacherHome() {
 // 发布 / 修改：标题、题目（母题、题型、分值、全班同一题）或直接粘贴单片机里生成的组卷码、班级、可选的好记名字
 function editExam(x) {
   const spec = x && parseExamCode(x.paper);
-  let rows = spec ? spec.qs.map(q => ({ mid: q.mid ? q.mid.slice(1) : '0', type: ({ fill: 't', modify: 'g', fix: 'c' })[q.type], pts: q.pts, same: q.draw != null })) : [{ mid: '0', type: 't', pts: 30, same: false }, { mid: '0', type: 'g', pts: 35, same: false }, { mid: '0', type: 'c', pts: 35, same: false }];
+  /* pin（题库里挑的第几个变式）也要带过来：以前只认 draw，老师一「修改」再保存，
+     题库挑的题就被悄悄换成随机的了 —— 判分重算、学生看到的题也变了。 */
+  let rows = spec ? spec.qs.map(q => ({ mid: q.mid ? q.mid.slice(1) : '0', type: ({ fill: 't', modify: 'g', fix: 'c' })[q.type], pts: q.pts, same: q.draw != null || q.pin != null, pin: q.pin })) : [{ mid: '0', type: 't', pts: 30, same: false }, { mid: '0', type: 'g', pts: 35, same: false }, { mid: '0', type: 'c', pts: 35, same: false }];
   const key = spec ? spec.key : 'Q' + Math.random().toString(36).slice(2, 6).toUpperCase();
   const own = (CLASSES || []).filter(c => (c.tools || []).includes('exam')); // 首页点亮「考试」才算开通（空数组不再等于全开）
   const sel = new Set(x ? x.classes : []);
@@ -6018,7 +6755,7 @@ function editExam(x) {
       if (paper) { if (!parseExamCode(paper)) return fail('粘贴的组卷码格式不对'); }
       else {
         const k = $('fKey').value.trim(); if (!/^[A-Za-z0-9]{1,16}$/.test(k)) return fail('口令只能是 1～16 位字母或数字');
-        paper = makeExamCode(k, rows.map(q => ({ mid: +q.mid ? 'M' + q.mid : null, type: ({ t: 'fill', g: 'modify', c: 'fix' })[q.type], pts: Math.max(1, Math.min(100, +q.pts || 0)), draw: q.same ? 1 : null })));
+        paper = makeExamCode(k, rows.map(q => ({ mid: +q.mid ? 'M' + q.mid : null, type: ({ t: 'fill', g: 'modify', c: 'fix' })[q.type], pts: Math.max(1, Math.min(100, +q.pts || 0)), draw: q.same && q.pin == null ? 1 : null, pin: q.same && q.pin != null ? q.pin : null })));
       }
       if (parseExamCode(paper).fp) return fail('这套卷用到了单片机里导入的书上代码，网页考试还不支持；请只用 M1～M6 母题');
       if (!sel.size && !confirm('没选班级，学生取不到题。先保存？')) return;

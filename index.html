@@ -14,22 +14,22 @@
      要登录时调 window.HXPortal.login()；被单独打开时 hx-theme.js 会跳回这里（见 hx-theme.js 的 data-tool）。
      账号：Supabase 华夏工具项目，localStorage paike-session 和各工具共用；身份由数据库 hx_me() 决定。
      脚本里不用反引号模板字符串（本机测试时整页当字符串注入到线上同源页面里）。 -->
-<link rel="stylesheet" href="hx-theme.css?v=13ebe8f">
-<script src="hx-theme.js?v=13ebe8f"></script>
+<link rel="stylesheet" href="hx-theme.css?v=0620c58">
+<script src="hx-theme.js?v=0620c58"></script>
 <!-- 首页卡片上的像素小生物：pixelfx 的 12 个 critters（MIT），打包成一个 91 KB 的独立脚本。
      加载失败不影响首页——hx-critters.js 开头就有 window.PixelFX 存在性检查，没有就整段跳过。 -->
-<script src="fx/pixelfx-critters.js?v=13ebe8f" defer></script>
-<script src="fx/hx-critters.js?v=13ebe8f" defer></script>
+<script src="fx/pixelfx-critters.js?v=0620c58" defer></script>
+<script src="fx/hx-critters.js?v=0620c58" defer></script>
 <!-- 像素头像库（2026-11-04）：账号面板里除了传照片，还能从 200 多个像素动效里挑一个当头像。
      和上面 critters 同一套路：库（pixelfx-avatars.js）+ 渲染器（hx-avatar.js），都是 defer、
      不进首屏关键路径；不点「像素头像库」就一个动画都不跑。 -->
-<script src="fx/pixelfx-avatars.js?v=13ebe8f" defer></script>
-<script src="fx/hx-avatar.js?v=13ebe8f" defer></script>
+<script src="fx/pixelfx-avatars.js?v=0620c58" defer></script>
+<script src="fx/hx-avatar.js?v=0620c58" defer></script>
 <!-- 背景动效（2026-11-03）：12 种天气氛围特效铺在背景层，外观面板里选；加载失败或没选就完全不加载渲染器 -->
-<script src="fx/pixelfx-weather.js?v=13ebe8f" defer></script>
-<script src="fx/hx-weather.js?v=13ebe8f" defer></script>
+<script src="fx/pixelfx-weather.js?v=0620c58" defer></script>
+<script src="fx/hx-weather.js?v=0620c58" defer></script>
 <!-- 课堂码大屏二维码：离线 QR 编码器（qrcode 1.5.4 core 打包，MIT，见 fx/NOTICE-qr.md）。延迟加载即可：只有老师点「大屏二维码」时才用 -->
-<script src="fx/hx-qr.js?v=13ebe8f" defer></script>
+<script src="fx/hx-qr.js?v=0620c58" defer></script>
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; width: 100%; overflow: hidden; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -968,7 +968,7 @@ var SITE = location.protocol === 'file:' ? 'https://zcq19991029.github.io' : '';
 // 首页卡片：who all 登录的人都有、teacher 只有教师看得到（没登录的什么工具都不显示）；c 是图标的两种颜色（像手机桌面图标，每个工具固定）
 // stu 是「学生点开时去哪个页面」：不给就照 who:'all' 用 url。给 who:'all' + stu 就是「老师进完整工具、
 // 学生只进一个页面」——2026-11-03 用户要「单独开放小组加分里面的分组模块给学生」，先用这个机制开一个模块。
-var GROUPS = [['学习', ['wiring', 'quiz', 'base', 'mcu', 'exam']], ['教学', ['paike', 'jiafen', 'course']], ['维护', ['feedback']]]; // 首页按使用场景分组
+var GROUPS = [['学习', ['wiring', 'quiz', 'base', 'mcu', 'exam']], ['教学', ['paike', 'jiafen', 'course']], ['维护', ['ai', 'feedback']]]; // 首页按使用场景分组
 var TOOLS = [
   // 2026-11-02：注册已彻底修好（删掉了 auth.users 上的废弃触发器），临时免登录口子按用户要求收回 ——
   // 「没账号不允许使用任何工具」。全站不再有 open:true 的工具。
@@ -991,6 +991,11 @@ var TOOLS = [
   { id: 'jiafen', name: '小组加分', url: SITE + '/jiafenxitong/', who: 'all', studentUrl: SITE + '/jiafenxitong/scores.html', splash: 1,
     studentHint: '小组加分 · 我的分数', c: ['#ff8fb7', '#ff2d55'], icon: '<path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/>' },
   { id: 'course', name: '课程进度', url: SITE + '/course/', splash: 1, who: 'teacher', c: ['#ffd166', '#f0a500'], icon: '<rect x="4" y="4" width="16" height="17" rx="3"/><path d="M8 9h8M8 13h8M8 17h5"/>' },
+  // AI 设置：给各个工具配 AI 模型 —— 文本、图片识别、推理，各选各的。
+  // 2026-11-06 用户要求「把 api 设置放到首页作为单独卡片工具」：各工具不再各自填 Key，
+  // 统一在这里配好，工具页引 /hx-ai.js 读同一份配置（localStorage hx-ai-v1）。
+  // 放「维护」组、who 用 teacher：这是老师配后台的页面，不该占学生首屏；学生也不用懂 Key。
+  { id: 'ai', name: 'AI 设置', url: SITE + '/ai/', who: 'teacher', c: ['#8ee7ff', '#0891b2'], icon: '<path d="M4 7h16M4 12h16M4 17h16"/><circle cx="9" cy="7" r="2.1"/><circle cx="15" cy="12" r="2.1"/><circle cx="8" cy="17" r="2.1"/>' },
   { id: 'feedback', name: '反馈', url: SITE + '/feedback/', splash: 1, who: 'dev', c: ['#c084fc', '#7c3aed'], icon: '<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 8.5l9 6 9-6"/>' } // 开发者专用：看各工具收到的建议和问题
 ];
 // 班级给哪些工具用（数据库 hx_classes.tools）；一个都不勾 = 都用
@@ -2632,11 +2637,13 @@ if (gerr) openLogin(gerr);
     exam:   function ()    { return HX.api('/rest/v1/hx_exams?select=created_at&order=created_at.desc&limit=1'); } // 只有教师有行；学生在下面直接标 N/A
   };
   // 工具 → 探测方式：probe / probe-teacher（仅教师）/ na（没有可只读查询的个人云端数据）
-  var MODE = { wiring: 'na', quiz: 'probe', base: 'na', mcu: 'na', exam: 'probe-teacher', paike: 'probe', jiafen: 'probe', course: 'probe', feedback: 'na' };
+  var MODE = { wiring: 'na', quiz: 'probe', base: 'na', mcu: 'na', exam: 'probe-teacher', paike: 'probe', jiafen: 'probe', course: 'probe', ai: 'na', feedback: 'na' };
+  // 2026-11-06 加 AI 设置卡片时必须同步加这一项：上面 jobs 里 `PROBES[t.id](uid)` 对没有探测器的工具
+  // 会直接抛 TypeError（PROBES.ai is not a function），整个同步胶囊的检查就挂掉。设置页本来也没有云端数据。
   // 2026-11-05 用户：「接线排位走侧rpc我没懂啥意思」—— 原文案是「排位成绩走写侧 RPC，无个人同步行」，
   // 全是术语。改成大白话：成绩确实在云端，只是存在「排行榜」里，没有「你自己的一行」可以单独查，
   // 所以这个胶囊查不到它、只能显示 N/A。要看成绩点进排位看排行榜就行。
-  var NA_WHY = { wiring: '排位成绩存在云端排行榜里，没有「你自己的一行」可单独核对（进排位就能看到）', base: '纯本地工具，不上云', mcu: '上机数据存在本机和考试端', feedback: '公共反馈流，不是个人同步数据' };
+  var NA_WHY = { wiring: '排位成绩存在云端排行榜里，没有「你自己的一行」可单独核对（进排位就能看到）', base: '纯本地工具，不上云', mcu: '上机数据存在本机和考试端', ai: 'AI 设置只存在这台电脑的浏览器里', feedback: '公共反馈流，不是个人同步数据' };
 
   function fmt(ms, withSec) {
     if (!ms) return '';

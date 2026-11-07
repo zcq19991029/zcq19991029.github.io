@@ -2,7 +2,7 @@
 import * as hx from './hx.js';
 import * as store from './store.js';
 import { providers, getSettings, saveSettings, setAiProfile, chat, streamChat, listModels, explainQuestion } from './ai.js';
-import { readMaterial, normalizeQuestions, aiImport, aiGenerate } from './imports.js';
+import { readMaterial, readImages, normalizeQuestions, aiImport, aiGenerate, aiVision, isImageFile } from './imports.js';
 import { figSvg, figName } from './symbols.js';
 
 // 内置课程题库（data/ 下的 JSON）；第一个是默认科目
@@ -14,6 +14,14 @@ const BUILTIN = [
 ];
 const TYPES = [['single', '单选'], ['multiple', '多选'], ['judgment', '判断'], ['fill', '填空'], ['term', '名词解释'], ['short', '简答'], ['prog', '程序分析']];
 const SELF = new Set(['term', 'short', 'prog']); // 主观题：看参考答案自己判对错
+// 出题要求（导入区“根据资料出题”）：默认只出选择题；填空/简答要用户自己勾，
+// 因为它们在刷题页只能「看参考答案自评」，不参与排行榜计分，默认勾上会让人误会。
+const GEN_DEF = {
+  scope: '', level: '中等', extra: '',
+  count: { single: 5, multiple: 3, judgment: 5, fill: 5, short: 3 },
+  on: { single: true, multiple: true, judgment: true, fill: false, short: false }
+};
+const GEN_TYPES = [['single', '单选'], ['multiple', '多选'], ['judgment', '判断'], ['fill', '填空'], ['short', '简答']];
 const SCOPES = [['todo', '待掌握'], ['wrong', '错题'], ['new', '未做'], ['done', '已做'], ['known', '已记住']];
 // 出题顺序：题库顺序、刷题顺序（按上次作答时间，没做过的排在后面）各有正序倒序，再加随机
 const ORDERS = [['seq', '题库正序', '按题库里的编号从前往后'], ['seqR', '题库倒序', '按题库里的编号从后往前'], ['time', '刷题正序', '先出很久以前做的，没做过的在最后'], ['timeR', '刷题倒序', '先出最近做的，没做过的在最后'], ['rand', '随机', '打乱顺序']];
@@ -84,7 +92,7 @@ const S = {
   questions: [], records: {},
   type: 'single', scope: 'todo', mode: 'seq',
   queue: [], i: 0, picked: {}, // picked：题 id → 本轮选的选项（作答过）
-  sel: new Set(), ai: {}, draft: null, imode: 'pick', typed: {}, shown: {}, // typed：填空填的字；shown：主观题已看参考答案
+  sel: new Set(), ai: {}, draft: null, imode: 'pick', gen: null, pending: [], typed: {}, shown: {}, // typed：填空填的字；shown：主观题已看参考答案
   undo: {}, lastId: null, chat: [], // undo：题 id → 标记前的状态（误点“记住”能撤销）
   askDraft: '', // “问 AI”打了一半的字：关掉抽屉、切到别的抽屉都不丢，发出去才清
   hsel: new Set(), hf: 'all', // 概览“刷题记录”：勾选的题、筛选
@@ -129,7 +137,7 @@ function pxBlocks() {
 }
 async function openSubject(id) {
   const sub = S.subjects.find(s => s.id === id) || S.subjects[0];
-  S.subject = sub; S.ai = {}; S.draft = null;
+  S.subject = sub; S.ai = {}; S.draft = null; S.pending = []; S.imText = '';
   paintSubj();
   // 加载提示统一规则（2026-11-04，用户：「加载动效呢 像素动效没有随机使用啊」）：
   // 首选像素动效——HXLoadFx 从特效包随机挑一个画 canvas（会话内固定，见 loadfx.js 头注释），
@@ -510,6 +518,113 @@ async function renderRank() {
   bind();
 }
 
+// ---------- 导入区的小零件（说明、模板、出题要求、识别报告） ----------
+// 出题要求存在本机：老师这次勾了「只出单选 10 道」，下次打开还是这套，不用重填
+function genState() {
+  if (!S.gen) S.gen = { ...GEN_DEF, count: { ...GEN_DEF.count }, on: { ...GEN_DEF.on }, ...(store.getLocal('importGen', null) || {}) };
+  S.gen.count = { ...GEN_DEF.count, ...(S.gen.count || {}) };
+  S.gen.on = { ...GEN_DEF.on, ...(S.gen.on || {}) };
+  return S.gen;
+}
+const saveGen = () => store.setLocal('importGen', genState());
+// 真正交给 AI 的题型和数量：勾了且数量大于 0 才算
+function genTypes() {
+  const g = genState(), out = {};
+  for (const [t] of GEN_TYPES) {
+    if (!g.on[t]) continue;
+    const n = Math.max(0, Math.min(50, Math.round(+g.count[t] || 0)));
+    if (n) out[t] = n;
+  }
+  return out;
+}
+// 首页的 hx-ai.js（window.HXAI）刷题页不主动引：它还没部署时每次打开都会 404。
+// 真要用看图模型时再按需加载；加载不到就当没配，退回“请先在首页配一套能看图的模型”的提示。
+let hxaiLoading = null;
+function ensureHxAi() {
+  if (window.HXAI) return Promise.resolve(window.HXAI);
+  if (!hxaiLoading) {
+    hxaiLoading = new Promise(resolve => {
+      const s = document.createElement('script');
+      s.src = '../hx-ai.js';
+      s.onload = () => resolve(window.HXAI || null);
+      s.onerror = () => { hxaiLoading = null; resolve(null); }; // 失败允许下次再试
+      document.head.appendChild(s);
+    });
+  }
+  return hxaiLoading;
+}
+// 配没配模型：2026-11 起统一在首页「AI 设置」（hx-ai.js 挂 window.HXAI）。
+// HXAI 不在（离线版、首页脚本还没部署）时退回刷题自己的设置，行为跟以前一样。
+function aiReady() {
+  try {
+    const H = window.HXAI;
+    if (H && typeof H.forTool === 'function') {
+      const p = H.forTool('quiz');
+      if (p === true) return true;
+      if (p) {
+        const k = p.key || p.apiKey || p.api_key;
+        if (typeof k === 'string' ? k.trim() : k) return true;
+        if (p.ready === true || p.ok === true || p.hasKey === true) return true;
+      }
+    }
+  } catch { /* 别的模块的接口长得不一样时，当没配，退回下面 */ }
+  return !!getSettings().apiKey;
+}
+// 下载一段文本：导出题库、下载模板共用
+function downloadText(name, text, type = 'application/json') {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], { type }));
+  a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+// 下载的模板：4 种题型各一道，老师照着改就行（不用 AI，直接拖回来导入）
+const TPL = [
+  { type: 'single', stem: '并行 I/O 端口工作在输入方式时，要先向端口写（　）。', options: [{ key: 'A', text: '0' }, { key: 'B', text: '1' }, { key: 'C', text: '0xFF' }, { key: 'D', text: '任意值' }], answer: ['B'], explanation: '写 1 关掉端口内部的场效应管，引脚才能被外部电路拉低。' },
+  { type: 'multiple', stem: '下面属于单片机最小系统组成部分的有（　）。', options: [{ key: 'A', text: '时钟电路' }, { key: 'B', text: '复位电路' }, { key: 'C', text: '电源' }, { key: 'D', text: '打印机' }], answer: ['A', 'B', 'C'], explanation: '最小系统 = 单片机 + 时钟 + 复位 + 电源。' },
+  { type: 'judgment', stem: '定时器工作在方式 2 时是 8 位自动重装。', options: [{ key: 'T', text: '正确' }, { key: 'F', text: '错误' }], answer: ['T'], explanation: '方式 2 为 8 位自动重装载定时/计数。' },
+  { type: 'fill', stem: '8051 单片机的 P0 口作为通用 I/O 使用时，需要外接 ____。', answer: ['上拉电阻'], explanation: 'P0 是开漏输出，没有内部上拉。' }
+];
+function genHtml() {
+  const g = genState();
+  return `<div class="gen" id="gen" ${S.imode === 'gen' ? '' : 'hidden'}>
+        <label for="genScope">出题范围</label>
+        <input id="genScope" maxlength="120" value="${esc(g.scope)}" placeholder="例如：项目3 并行 I/O 端口；或第 5 章；留空 = 整份资料">
+        <div class="gt">题型和数量（整份资料一共要几道）</div>
+        ${GEN_TYPES.map(([t, n]) => `<div class="genrow"><label><input type="checkbox" data-tp="${t}" ${g.on[t] ? 'checked' : ''}>${n}</label><input type="number" min="0" max="50" step="1" data-n="${t}" value="${esc(g.count[t])}"><span class="muted">道</span>${t === 'fill' || t === 'short' ? '<span class="muted">· 只能自评，不计分</span>' : ''}</div>`).join('')}
+        <label for="genLevel">难度</label>
+        <select id="genLevel">${['基础', '中等', '综合'].map(v => `<option ${v === g.level ? 'selected' : ''}>${v}</option>`).join('')}</select>
+        <label for="genExtra">额外要求</label>
+        <textarea id="genExtra" rows="3" placeholder="例如：多考电路图和端口地址；不要出计算量太大的；答案要能在原文找到依据">${esc(g.extra)}</textarea>
+        <p class="muted" style="margin:0">填空、简答也会存进题库：填空能自动判分（题干里的 ____ 就是填空框）；简答只能「看参考答案」自己判，不参与排行榜（排行榜只算单选、多选、判断）。</p>
+      </div>`;
+}
+function bindGen() {
+  const g = genState();
+  const box = $('v-bank');
+  if ($('genScope')) $('genScope').oninput = e => { g.scope = e.target.value; saveGen(); };
+  if ($('genLevel')) $('genLevel').onchange = e => { g.level = e.target.value; saveGen(); };
+  if ($('genExtra')) $('genExtra').oninput = e => { g.extra = e.target.value; saveGen(); };
+  for (const c of box.querySelectorAll('[data-tp]')) c.onchange = () => { g.on[c.dataset.tp] = c.checked; saveGen(); };
+  for (const n of box.querySelectorAll('[data-n]')) n.oninput = () => { g.count[n.dataset.n] = Math.max(0, Math.min(50, Math.round(+n.value || 0))); saveGen(); };
+}
+// 识别报告：先给人看“认出来多少、为什么有没认出来的”，再决定要不要入库
+function draftHtml(d) {
+  if (!d) return '';
+  const cnt = GEN_TYPES.map(([t, n]) => { const k = d.qs.filter(q => q.type === t).length; return k ? `${n} ${k}` : ''; }).filter(Boolean).join(' · ');
+  const keep = d.pick.size;
+  return `<div class="imp-rep" id="impRep">
+        <h4>识别报告</h4>
+        <p style="margin:0">识别到 <b>${d.qs.length}</b> 题${cnt ? `（${cnt}）` : ''}${d.rej.length ? `，有 <b>${d.rej.length}</b> 条没认出来` : ''}${d.dup ? `，<b>${d.dup}</b> 题和已有的重复，已自动去掉` : ''}</p>
+        ${d.rej.length ? `<details class="rejbox" open><summary>没认出来的 ${d.rej.length} 条：</summary><ul class="rej">${d.rej.slice(0, 10).map(r => `<li>第 ${r.index} 条${r.stem ? `「${esc(r.stem)}」` : ''}：${esc(r.reason)}</li>`).join('')}${d.rej.length > 10 ? `<li>……还有 ${d.rej.length - 10} 条，多半是同一类问题（缺答案、选项不够、题型不支持），按上面的原因改原文再导一次。</li>` : ''}</ul></details>` : ''}
+        <div class="line" style="margin-top:10px;flex-wrap:wrap">
+          <button class="btn sm" type="button" id="okImport" ${keep ? '' : 'disabled'}>全部添加${keep ? `（${keep}）` : ''}</button>
+          <button class="btn sm ghost" type="button" id="dtlBtn">${d.open ? '收起明细' : '看逐条明细'}</button>
+          <button class="btn sm ghost" type="button" id="noImport">放弃</button>
+        </div>
+        ${d.open ? `<div class="hl" style="margin-top:10px">${d.qs.length ? d.qs.map((q, i) => `<label><input type="checkbox" data-pick="${i}" ${d.pick.has(i) ? 'checked' : ''}><span title="${esc(q.stem)}">${esc(q.stem)}</span><small>${typeName(q.type)} · ${q.type === 'short' ? '看参考答案自评' : esc(String(q.answer.join('、')).slice(0, 14))}</small></label>`).join('') : '<p class="muted" style="margin:0">一道都没认出来，换个格式或换份资料再试。</p>'}</div>` : ''}
+      </div>`;
+}
+
 // ---------- 题库：新建科目、导入资料、AI 出题、导出、发布 ----------
 function renderBank() {
   const sub = S.subject, base = S.base[sub.id] || [], d = S.draft;
@@ -520,19 +635,32 @@ function renderBank() {
       <dl class="kv"><dt>来源</dt><dd>${sub.kind === 'builtin' ? '课程题库' : sub.kind === 'public' ? esc(sub.tag) : '我的科目'}</dd>${base.length ? `<dt>课程题</dt><dd>${base.length} 题</dd>` : ''}<dt>我导入的</dt><dd>${S.bank.length} 题</dd>${isTeacher() && (sub.published || sub.kind === 'public') && sub.targets ? `<dt>下发范围</dt><dd>${esc(sub.targets)}</dd>` : ''}</dl>
       <div class="f" style="margin-top:12px"><div class="line"><button class="btn sm ghost" type="button" id="expBtn">导出 JSON</button>${S.bank.length ? '<button class="btn sm ghost" type="button" id="clrBtn">清空我导入的</button>' : ''}${sub.kind === 'mine' ? '<button class="btn sm ghost" type="button" id="renBtn">改名</button><button class="btn sm danger" type="button" id="delBtn">删除科目</button>' : ''}${pubBtns}</div></div></div>
     <div class="panel"><h3>新建科目</h3><div class="f"><div class="line"><input id="newName" maxlength="30" placeholder="科目名称" style="flex:1"><button class="btn sm" type="button" id="newBtn">新建</button></div></div></div>
-    <div class="panel"><h3>导入资料 · ${esc(sub.name)}</h3>
-      <div class="f">
-        <div class="radio"><label><input type="radio" name="im" value="pick" ${S.imode === 'pick' ? 'checked' : ''}>资料里有现成的题</label><label><input type="radio" name="im" value="gen" ${S.imode === 'gen' ? 'checked' : ''}>根据资料出题（AI）</label></div>
-        <input id="mFile" type="file" accept=".pdf,.docx,.txt,.md,.json">
-        <textarea id="mText" rows="6" placeholder="或者把资料文字粘贴在这里"></textarea>
-        <div class="line" id="genRow" ${S.imode === 'gen' ? '' : 'hidden'}><label for="perChunk">每段出题</label><select id="perChunk" style="width:auto">${[10, 15, 20, 30].map(n => `<option ${n === 15 ? 'selected' : ''}>${n}</option>`).join('')}</select><span class="muted">资料按约 6000 字一段</span></div>
-        <div class="line"><button class="btn" type="button" id="goImport">预览</button><span class="muted" id="imMsg">${getSettings().apiKey ? '' : 'JSON 题库直接导入；文字资料要先在“设置”里填 AI Key'}</span></div>
+    <div class="panel" id="impPanel"><h3>导入资料 · ${esc(sub.name)}</h3>
+      ${aiReady() ? '' : '<div class="imp-warn"><span>还没配 AI 模型 → 去首页「AI 设置」</span><button class="btn sm" type="button" id="toAi">去首页「AI 设置」</button></div>'}
+      <div class="imp-note">
+        <b>两种导入方式</b>
+        <ul>
+          <li><b>我这份资料里本来就有题目</b> —— 网页会把资料里的文字发给 AI，让它把题干、选项、答案原样抠出来。<b>不会替你编题</b>。</li>
+          <li><b>我这份资料是教材／讲义，没有题目</b> —— 网页会让 AI 照着你圈定的范围出题。</li>
+        </ul>
+        <p class="muted" style="margin:6px 0 0">两种都要用 AI，都要先配好模型（首页「AI 设置」）。扫描件（拍照／图片 PDF）读不出文字——可以拍下来或用截图，直接在下面选图片，让支持看图的模型来读。手上有整理好的 JSON 题库？拖进来就行，纯本地导入，不用 AI、不花钱。</p>
       </div>
-      ${d ? `<div style="margin-top:14px"><div class="row"><b style="flex:1">预览 ${d.length} 题</b><button class="btn sm" type="button" id="okImport" ${d.length ? '' : 'disabled'}>确认导入</button><button class="btn sm ghost" type="button" id="noImport">放弃</button></div>
-        <div class="pv" style="margin-top:10px">${d.map((q, n) => `<div><p><small>${typeName(q.type)}</small> ${esc(q.stem)}<br><small>${(q.options || []).map(o => esc(o.key + '. ' + optText(o))).join('　')} ｜ 答案 ${esc(q.answer.join(q.type === 'fill' ? '；' : ''))}</small></p><button type="button" data-del="${n}" aria-label="删除">✕</button></div>`).join('')}</div></div>` : ''}
+      <div class="f" style="margin-top:12px">
+        <div class="radio"><label><input type="radio" name="im" value="pick" ${S.imode === 'pick' ? 'checked' : ''}>资料里有现成的题</label><label><input type="radio" name="im" value="gen" ${S.imode === 'gen' ? 'checked' : ''}>根据资料出题（AI）</label></div>
+        ${genHtml()}
+        <input id="mFile" type="file" multiple accept=".pdf,.docx,.txt,.md,.json,image/*">
+        <textarea id="mText" rows="5" placeholder="或者把资料文字粘贴在这里（也可以直接粘贴题库 JSON、粘贴截图）">${esc(S.imText || '')}</textarea>
+        <div class="line"><button class="btn" type="button" id="goImport">预览</button><span class="muted" id="imMsg">JSON 题库不用 AI，直接导入；文字／图片资料要先配好 AI 模型</span></div>
+        <div class="muted" id="imFiles">${S.pending.length ? `已选 ${S.pending.length} 个文件（点「预览」开始）` : ''}</div>
+      </div>
+      <details class="imp-tpl"><summary>题库格式说明 · 下载模板</summary>
+        <p style="margin:8px 0">一题一条，字段：<code>stem</code> 题干 / <code>type</code> 题型（single 单选、multiple 多选、judgment 判断、fill 填空、short 简答）/ <code>options</code> 选项 / <code>answer</code> 答案 / <code>explanation</code> 解析。判断题选项写 T（正确）、F（错误）；填空题在题干里用 <code>____</code> 表示空。</p>
+        <div class="line"><button class="btn sm ghost" type="button" id="tplBtn">下载模板</button><span class="muted">照着填，填好直接拖进来</span></div>
+      </details>
+      ${draftHtml(d)}
     </div>`;
   const on = (id, fn) => { if ($(id)) $(id).onclick = fn; };
-  on('expBtn', () => { const blob = new Blob([JSON.stringify(S.questions, null, 1)], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = sub.name + '.json'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); });
+  on('expBtn', () => downloadText(sub.name + '.json', JSON.stringify(S.questions, null, 1)));
   on('clrBtn', e => sure(e.currentTarget, `确认清空 ${S.bank.length} 题？`, () => setBank([])));
   on('renBtn', async () => { const n = prompt('科目新名字', sub.name)?.trim(); if (!n) return; await saveMine(m => m.map(s => s.id === sub.id ? { ...s, name: n.slice(0, 30) } : s)); S.view = 'bank'; await openSubject(sub.id); });
   on('delBtn', e => sure(e.currentTarget, '确认删除科目？', async () => {
@@ -544,11 +672,63 @@ function renderBank() {
     const id = 'c-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
     await saveMine(m => [...m, { id, name: n.slice(0, 30) }]); S.view = 'bank'; await openSubject(id); toast('已新建，接着导入资料');
   });
-  for (const r of document.querySelectorAll('input[name=im]')) r.onchange = () => { S.imode = r.value; $('genRow').hidden = r.value !== 'gen'; };
+  // 导入区：两种方式只切“出题要求”的显隐，不整块重画（重画会丢刚粘贴的资料和已选的文件）
+  for (const r of document.querySelectorAll('input[name=im]')) r.onchange = () => {
+    S.imode = r.value; store.setLocal('importMode', S.imode);
+    if ($('gen')) $('gen').hidden = r.value !== 'gen';
+  };
+  bindGen();
+  on('toAi', () => {
+    if (window.__OFFLINE) return toast('离线版没有首页设置页，请先在网页版配好模型');
+    location.href = '../ai/';
+  });
+  on('tplBtn', () => {
+    downloadText('题库模板.json', JSON.stringify({ 说明: '一题一条；type 可写 single/multiple/judgment/fill/short；判断题选项写 T（正确）、F（错误）；填空题题干用 ____ 表示空。填好直接拖进导入区即可，不用 AI。', questions: TPL }, null, 2));
+    toast('模板已下载，照着填，填完拖进来');
+  });
+  if ($('mFile')) $('mFile').onchange = () => {
+    const files = [...$('mFile').files];
+    if (!files.length) return;
+    $('imFiles').textContent = `已选 ${files.length} 个文件：${files.map(f => f.name).join('、').slice(0, 60)}`;
+  };
+  if ($('mText')) {
+    $('mText').oninput = e => { S.imText = e.target.value; };
+    // 手机和电脑都能直接粘贴截图（老师最常用的一步：截图 → Ctrl+V）
+    $('mText').onpaste = e => {
+      const items = [...((e.clipboardData || {}).items || [])].filter(i => /^image\//.test(i.type));
+      if (!items.length) return;
+      e.preventDefault();
+      const pics = items.map(i => i.getAsFile()).filter(Boolean);
+      if (!pics.length) return;
+      S.pending = [...S.pending, ...pics];
+      $('imFiles').textContent = `已粘贴 ${S.pending.length} 张截图（点「预览」开始）`;
+    };
+  }
+  if ($('impPanel')) {
+    const panel = $('impPanel');
+    panel.ondragover = e => { e.preventDefault(); panel.classList.add('drop'); };
+    panel.ondragleave = () => panel.classList.remove('drop');
+    panel.ondrop = e => {
+      e.preventDefault(); panel.classList.remove('drop');
+      const files = [...((e.dataTransfer || {}).files || [])];
+      if (!files.length) return;
+      S.pending = files;
+      $('imFiles').textContent = `已选 ${files.length} 个文件：${files.map(f => f.name).join('、').slice(0, 60)}`;
+      if (files.every(f => /\.json$/i.test(f.name))) startImport(); // JSON 纯本地解析，直接给报告
+    };
+  }
   on('goImport', startImport);
   on('okImport', confirmImport);
+  on('dtlBtn', () => { if (S.draft) { S.draft.open = !S.draft.open; renderBank(); } });
   on('noImport', () => { S.draft = null; renderBank(); });
-  for (const x of document.querySelectorAll('[data-del]')) x.onclick = () => { S.draft.splice(+x.dataset.del, 1); renderBank(); };
+  // 逐条明细里勾掉不要的题：只改按钮上的数字，不重画整块（重画会跳到面板顶部）
+  for (const c of document.querySelectorAll('[data-pick]')) c.onchange = () => {
+    if (!S.draft) return;
+    const i = +c.dataset.pick;
+    c.checked ? S.draft.pick.add(i) : S.draft.pick.delete(i);
+    const b = $('okImport'), n = S.draft.pick.size;
+    if (b) { b.disabled = !n; b.textContent = '全部添加' + (n ? `（${n}）` : ''); }
+  };
   on('pubBtn', () => openPublishSheet(() => { renderBank(); loadSubjects().then(paintSubj); }));
   on('unpubBtn', e => sure(e.currentTarget, '确认取消发布？', async () => {
     try { await store.unpublish(sub.id); await saveMine(m => m.map(s => s.id === sub.id ? { ...s, published: false } : s)); S.subject.published = false; toast('已取消发布'); renderBank(); } catch (e) { toast(e.message); }
@@ -565,26 +745,77 @@ async function setBank(list) {
   S.view = 'bank'; await openSubject(S.subject.id);
 }
 async function startImport() {
-  const msg = $('imMsg'), file = $('mFile').files[0], pasted = $('mText').value.trim(), sub = S.subject;
-  $('goImport').disabled = true; msg.textContent = '正在读取资料…';
+  const sub = S.subject;
+  // 文件来源三种：文件框、拖进面板、粘贴截图。拖/粘的放在 S.pending 里
+  const files = S.pending.length ? S.pending : [...($('mFile').files || [])];
+  S.pending = [];
+  const pics = files.filter(f => isImageFile(f.name));
+  const docs = files.filter(f => !isImageFile(f.name));
+  const pasted = ($('mText').value || '').trim();
+  if (!files.length && !pasted) return toast('先选一个文件、粘贴资料，或粘一段题库 JSON');
+  const btn = $('goImport'); if (btn) btn.disabled = true;
+  if ($('imMsg')) $('imMsg').textContent = '正在读取资料…';
   try {
-    let m = file ? await readMaterial(file) : { text: pasted };
-    if (!file && /^[[{]/.test(pasted)) try { m = { json: JSON.parse(pasted) }; } catch { /* 不是 JSON，当文字资料 */ }
-    let qs;
-    if (m.json) { const r = normalizeQuestions(m.json, sub.id); qs = r.questions; if (r.rejected.length) toast(`有 ${r.rejected.length} 题格式不对，已跳过`); }
-    else if (S.imode === 'gen') qs = await aiGenerate(m.text || '', sub.id, sub.name, +$('perChunk').value, t => (msg.textContent = t));
-    else qs = await aiImport(m.text || '', sub.id, t => (msg.textContent = t));
-    const have = new Set(S.questions.map(q => norm(q.stem)));
-    const fresh = qs.filter(q => { const k = norm(q.stem); if (have.has(k)) return false; have.add(k); return true; });
-    S.draft = fresh; renderBank();
-    toast(`识别到 ${qs.length} 题${qs.length - fresh.length ? `，${qs.length - fresh.length} 题和已有的重复，已去掉` : ''}`);
+    let text = pasted, json = null;
+    for (const f of docs) {
+      const m = await readMaterial(f);
+      if (m.json) { json = m.json; continue; } // 一个 JSON 就够，别的文档不再读
+      if (m.text) text = text ? text + '\n\n' + m.text : m.text;
+    }
+    // 粘贴／拖进来的 JSON 题库：纯本地解析，不用 AI、不花钱
+    if (!json && /^[[{]/.test(text)) { try { json = JSON.parse(text); text = ''; } catch { /* 不是 JSON，当文字资料 */ } }
+    if (json) {
+      showReport(normalizeQuestions(json, sub.id));
+      if ($('imMsg')) $('imMsg').textContent = '这是本地解析的 JSON：不用 AI，也没花钱。核对没问题就点「全部添加」。';
+      return;
+    }
+    if (!text.trim() && !pics.length) throw new Error('这个文件里没有读到文字。PDF 请确认不是扫描件；扫描件可以拍成图片再选图片导入。');
+    const gen = S.imode === 'gen';
+    const g = genState();
+    const opts = { scope: (g.scope || '').trim(), level: g.level, extra: (g.extra || '').trim(), types: genTypes() };
+    let got = { questions: [], rejected: [] };
+    const tick = t => { if ($('imMsg')) $('imMsg').textContent = t; };
+    if (text.trim()) {
+      got = gen ? await aiGenerate(text, sub.id, sub.name, opts, tick) : await aiImport(text, sub.id, tick);
+    }
+    if (pics.length) {
+      await ensureHxAi(); // 看图要靠首页那套（HXAI.vision），用到时才加载
+      const images = await readImages(pics);
+      const vis = await aiVision(images, { subject: sub.id, subjectName: sub.name, mode: gen ? 'gen' : 'pick', opts, onProgress: tick });
+      got = { questions: [...got.questions, ...vis.questions], rejected: [...got.rejected, ...vis.rejected] };
+    }
+    showReport(got);
   } catch (e) {
-    if (e.partialQuestions?.length) { S.draft = e.partialQuestions; renderBank(); }
+    // 中途出错也要把已经拿到的题交出来，别让老师白等一场
+    if (e.partialQuestions?.length) {
+      showReport({ questions: e.partialQuestions, rejected: e.partialRejected || [] });
+      if ($('imMsg')) $('imMsg').textContent = '出错了，下面是出错前已经认出来的部分：' + e.message;
+      return;
+    }
     if ($('imMsg')) $('imMsg').textContent = e.message; else toast(e.message);
   } finally { if ($('goImport')) $('goImport').disabled = false; }
 }
+// 识别结果先出报告、再入库：去掉和已有题库重复的题干，把没认出来的原因一起带出来
+function showReport(got) {
+  const list = Array.isArray(got) ? got : (got.questions || []);
+  const rej = (Array.isArray(got) ? [] : got.rejected) || [];
+  const have = new Set(S.questions.map(q => norm(q.stem)));
+  const qs = []; let dup = 0;
+  for (const q of list) {
+    const k = norm(q.stem);
+    if (!k) continue;
+    if (have.has(k)) { dup++; continue; }
+    have.add(k); qs.push(q);
+  }
+  S.draft = { qs, rej, dup, open: false, pick: new Set(qs.map((_, i) => i)) };
+  renderBank();
+  toast(qs.length ? `识别到 ${qs.length} 题${rej.length ? `，${rej.length} 条没认出来` : ''}` : '一道题都没认出来，看看报告里的原因');
+}
 async function confirmImport() {
-  const add = S.draft.map((q, n) => ({ ...q, number: S.bank.length + n + 1 }));
+  const d = S.draft; if (!d) return;
+  const qs = d.qs.filter((q, i) => d.pick.has(i));
+  if (!qs.length) return toast('一道题都没勾，先勾上要留的题');
+  const add = qs.map((q, n) => ({ ...q, number: S.bank.length + n + 1 }));
   S.draft = null; await setBank([...S.bank, ...add]); toast(`已导入 ${add.length} 题`);
 }
 
@@ -1028,8 +1259,12 @@ async function boot() {
   if (hx.signedIn()) { try { [S.user, S.me] = await Promise.all([hx.user(), hx.me()]); } catch { S.user = S.me = null; } }
   if (lock(S.me && !S.me.teacher && !S.me.admin && !S.me.dev && !S.me.student && !S.me.left)) { if (window.HXLoadFx) HXLoadFx.finishBoot(); return; }
   setAiProfile(hx.uid() || 'default');
+  // 首页那套 AI 配置（hx-ai.js）要尽早拿到：导入区要判断“配没配模型”，配了就不该再弹提示。
+  // 只在刷题自己没 Key 时才去加载（有 Key 就不必多一次请求）；没部署／离线打开会很快失败，所以最多等 1.5 秒。
+  if (!getSettings().apiKey) await Promise.race([ensureHxAi(), new Promise(r => setTimeout(r, 1500))]);
   const p = prefs();
   S.type = p.type || 'single'; S.scope = p.scope || 'todo'; S.mode = ORDERS.some(o => o[0] === p.mode) ? p.mode : 'seq';
+  S.imode = store.getLocal('importMode', 'pick') === 'gen' ? 'gen' : 'pick'; // 上次选的导入方式
   renderNav(); renderWho();
   const pub = String(p.subject || '').startsWith('pub-');
   await loadSubjects(pub);

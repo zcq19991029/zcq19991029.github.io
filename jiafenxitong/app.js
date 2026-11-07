@@ -1852,9 +1852,351 @@ function removeMemberAt(cls, g, j) {
           (q ? '，搜索「' + esc(poolSearch) + '」' : '') + '。</p>'
       : '<p class="rank-note">' + (poolFilter === 'pending' ? '没有待分配的学生，全班都分好组了。' : '没有记录。') + '</p>';
 
+    gbRows = rows;
+    renderGroupBoard(cls);
+
     updatePoolBadge();
     updatePoolSizeHint();
   }
+
+  /* ================= 分组看板：所有组都看得见，可拖可点换人 =================
+     用户 2026-11-06：「已分组也要在这边显示好 各个组哪些人 方便老师后期换组换人操作；
+     这有历史班级已经分好组的，不是用你这个分组功能分的就没有显示，请予以显示和操作能力」。
+
+     原来这一页只有一张「待分配的人」的表，已经分好的几十个人一个都看不到 —— 老师想换组
+     只能切到「上课记分」页一个个点。现在把 cls.groups 原样铺成卡片，不管这些组是
+     本工具的一键分组、按选座确认，还是更早版本 / 别的工具留下的历史数据，有组就画。
+
+     三条原则（每一条都是踩过的坑）：
+     ① 只换人，不动组结构 —— 这里刻意没有「删组 / 改组号 / 重新分组」的入口，
+        那些还在「上课记分」页的现有流程里。用户特别交代过别让「开放组队」把组冲掉。
+     ② 组号可能重复（历史数据里真出现过两组都叫第 3 组），所以 DOM 上只用数组下标
+        data-gi 定位，绝不拿组号当主键。
+     ③ 组内成员可能根本不在全班名单里（历史组员从没导进 roster），所以组员直接读
+        g.members，不拿 roster 反查 —— 否则历史组的成员会凭空消失，正是用户抱怨的那件事。 */
+
+  var gbPick = null;        // 点选后等落点的来源：{kind:'member',gi,mi} / {kind:'pending',key}
+  var gbAddTo = -1;         // 「＋ 加人」模式：接下来点待分配区的人就加进这个下标的组
+  var gbRows = null;        // 上一次 renderPool 算出来的名单行（含 g / table），看板直接复用
+  var gbDrag = null;        // 当前这一下拖动
+  var gbSwallowClick = false;   // 拖完松手浏览器还会补一个 click，别让它被当成「点选」
+
+  /** 名单行 → 稳定键。学号优先，没有学号才用姓名+班内序号；同名学生不会串。 */
+  function gbRowKey(r) {
+    return r.sid ? 's:' + r.sid : 'n:' + r.name + '#' + (r.no == null ? '' : r.no);
+  }
+
+  /** 画整块看板。cls.groups 里有什么就画什么，不筛、不合并。 */
+  function renderGroupBoard(cls) {
+    var box = $('#groupBoard');
+    if (!box || !cls) return;
+    /* 正在拖的时候别重画：看板每 2 秒会跟一次云端座位，重画会把手里那张卡换掉，拖到一半就断了 */
+    if (gbDrag && gbDrag.active) return;
+    var q = poolSearch.trim().toLowerCase();
+    function match(name, sid, no) {
+      if (!q) return true;
+      return String(name || '').toLowerCase().indexOf(q) >= 0 ||
+        String(sid || '').indexOf(q) >= 0 ||
+        String(no == null ? '' : no) === q;
+    }
+    var groups = cls.groups || [];
+    /* 新账号的空白模板是 13 个空组：全空的时候不铺 13 张空卡片（一整屏都是「这组还没人」），
+       只留一句提示，等老师用下面的「按序号分 / 随机分」建组。
+       只要有一个组里有人，空组也照常画出来 —— 那是拖人时的落点。 */
+    var anyMember = groups.some(function (g) { return memberCount(g) > 0; });
+    /* 按组号排一下（老师看着顺），但记的是原下标 —— 拖拽写回要用它定位 */
+    var order = anyMember ? groups.map(function (g, i) { return i; }).sort(function (a, b) {
+      return (Number(groups[a].no) || 0) - (Number(groups[b].no) || 0) || a - b;
+    }) : [];
+
+    var cards = order.map(function (gi) {
+      var g = groups[gi], cap = groupCap(g), n = memberCount(g), full = n >= cap;
+      var mem = '';
+      g.members.forEach(function (m, mi) {
+        if (!m.name) return;                       // 名单页留的空占位格不画出来
+        if (!match(m.name, m.sid, m.no)) return;   // 搜索只滤「人」，组卡片本身留着，免得老师找不到组
+        var on = gbPick && gbPick.kind === 'member' && gbPick.gi === gi && gbPick.mi === mi;
+        mem += '<div class="gb-chip' + (on ? ' on' : '') + '" role="button" tabindex="0"' +
+          ' data-gi="' + gi + '" data-mi="' + mi + '"' +
+          ' title="拖到别的组就换组，拖到下面待分配区就移出">' +
+          '<span class="gb-av" aria-hidden="true">' + esc(String(m.name).slice(0, 1)) + '</span>' +
+          '<span class="gb-nm">' + esc(m.name) + '</span>' +
+          (m.no == null || m.no === '' ? '' : '<span class="gb-no">' + esc(m.no) + '</span>') +
+          '<button type="button" class="gb-x" data-gi="' + gi + '" data-mi="' + mi + '"' +
+            ' title="移出到待分配" aria-label="把' + esc(m.name) + '移出到待分配">×</button>' +
+          '</div>';
+      });
+      if (!mem) mem = '<p class="gb-empty">' + (q ? '没有匹配的人' : '这组还没人，点「＋ 加人」或把待分配的人拖进来') + '</p>';
+      return '<section class="gb-group' + (full ? ' is-full' : '') + (gbAddTo === gi ? ' is-target' : '') +
+          '" data-gi="' + gi + '">' +
+        '<header class="gb-ghead">' +
+          '<span class="gb-gno">第 ' + esc(g.no) + ' 组</span>' +
+          '<span class="gb-gcnt"><b>' + n + '</b>/' + cap + ' 人' +
+            (full ? '<i class="gb-flag">满</i>' : '') + '</span>' +
+        '</header>' +
+        '<div class="gb-members">' + mem + '</div>' +
+        '<button type="button" class="gb-add" data-add="' + gi + '">＋ 加人</button>' +
+        '</section>';
+    }).join('');
+
+    var pend = (gbRows || []).filter(function (x) { return x.g === null; })
+      .filter(function (x) { return match(x.r.name, x.r.sid, x.r.no); });
+    var nSeat = pend.filter(function (x) { return !!x.table; }).length;
+    var nWait = pend.length - nSeat;
+    var pChips = pend.map(function (x) {
+      var r = x.r, key = gbRowKey(r);
+      var on = gbPick && gbPick.kind === 'pending' && gbPick.key === key;
+      return '<div class="gb-chip gb-pend-chip' + (on ? ' on' : '') + '" role="button" tabindex="0"' +
+        ' data-pkey="' + esc(key) + '" title="拖到任意一组就加进去">' +
+        '<span class="gb-av" aria-hidden="true">' + esc(String(r.name || '?').slice(0, 1)) + '</span>' +
+        '<span class="gb-nm">' + esc(r.name || '（未命名）') + '</span>' +
+        (r.no == null || r.no === '' ? '' : '<span class="gb-no">' + esc(r.no) + '</span>') +
+        (x.table ? '<span class="gb-tag">已选座 · 第 ' + x.table + ' 桌</span>' : '') +
+        '</div>';
+    }).join('');
+
+    box.innerHTML =
+      '<div class="gb-groups">' +
+        (cards || '<p class="gb-empty">这个班还没有小组。用下面的「按序号分 / 随机分」建组，或者等学生自己选座。</p>') +
+      '</div>' +
+      '<section class="gb-pending" data-drop="pending">' +
+        '<header class="gb-phead">' +
+          '<span class="gb-ptitle">待分配</span>' +
+          '<span class="gb-gcnt"><b>' + nWait + '</b> 人</span>' +
+          (nSeat ? '<span class="gb-pseat">另有 <b>' + nSeat + '</b> 人已选座 · 待确认</span>' : '') +
+        '</header>' +
+        '<div class="gb-members">' +
+          (pChips || '<p class="gb-empty">' + (q ? '没有匹配的人' : '没有待分配的学生，全班都分好组了。') + '</p>') +
+        '</div>' +
+      '</section>' +
+      '<p class="gb-hint">拖动卡片换组；手机上也可以先点一个人，再点目标组。' +
+        '这一页<b>只换人不改组</b> —— 删组、改组号、重新分组都在「上课记分」页的原流程里。</p>';
+  }
+
+  /** 重画看板（只刷新卡片，不动整页） */
+  function gbRepaint() { renderGroupBoard(curClass()); }
+
+  /** 改完统一走这里：save() 落到本机 + 云端，然后把看板、统计、记分页一起刷新 */
+  function gbCommit(cls, msg) {
+    gbPick = null; gbAddTo = -1;
+    save();
+    renderPool();
+    renderScore();
+    if (msg) flash(msg);
+  }
+
+  /** 待分配的人 → 第 gi 组（gi 是 cls.groups 的下标，不是组号） */
+  function gbJoin(cls, r, gi) {
+    var g = cls.groups[gi];
+    if (!g || !r) return false;
+    var cap = groupCap(g);
+    /* 满了要说一句，不能静默失败：老师拖过去没反应会以为程序坏了 */
+    if (memberCount(g) >= cap) {
+      flash('第 ' + g.no + ' 组已经满 ' + cap + ' 人（每组上限 ' + GROUP_CAP + ' 人），先移出一个再放进去');
+      return false;
+    }
+    pushMember(g, { id: uid('m'), name: r.name, sid: r.sid || '', no: r.no == null ? null : r.no });
+    addOperationLog('分组', cls.name + ' · ' + r.name + ' → 第' + g.no + '组（待分配页拖拽）');
+    gbCommit(cls, '已把「' + r.name + '」加进第 ' + g.no + ' 组');
+    return true;
+  }
+
+  /** 组员从第 fromGi 组换到第 toGi 组 */
+  function gbMoveTo(cls, fromGi, mi, toGi) {
+    var from = cls.groups[fromGi], to = cls.groups[toGi];
+    if (!from || !to || fromGi === toGi) return false;
+    var m = from.members[mi];
+    if (!m || !m.name) return false;
+    var cap = groupCap(to);
+    if (memberCount(to) >= cap) {
+      flash('第 ' + to.no + ' 组已经满 ' + cap + ' 人（每组上限 ' + GROUP_CAP + ' 人），先移出一个再换过去');
+      return false;
+    }
+    removeMemberAt(cls, from, mi);   // 顺带把该组历史课次的「个人扣分」索引左移，和「移出小组」同一套
+    pushMember(to, m);               // 成员对象整个搬过去，组长标记 leaderKey 里的 id 不会失联
+    addOperationLog('分组', cls.name + ' · ' + m.name + '：第' + from.no + '组 → 第' + to.no + '组（待分配页拖拽）');
+    gbCommit(cls, '已把「' + m.name + '」从第 ' + from.no + ' 组换到第 ' + to.no + ' 组');
+    return true;
+  }
+
+  /** 组员 → 待分配区 */
+  function gbUnassign(cls, gi, mi) {
+    var g = cls.groups[gi];
+    if (!g) return false;
+    var m = g.members[mi];
+    if (!m || !m.name) return false;
+    removeMemberAt(cls, g, mi);
+    addOperationLog('分组', cls.name + ' · ' + m.name + '：移出第' + g.no + '组（待分配页拖拽）');
+    gbCommit(cls, '已把「' + m.name + '」移出第 ' + g.no + ' 组，回到待分配');
+    return true;
+  }
+
+  function gbRowByKey(key) {
+    var rows = gbRows || [];
+    for (var i = 0; i < rows.length; i++) {
+      if (rows[i].g === null && gbRowKey(rows[i].r) === key) return rows[i].r;
+    }
+    return null;
+  }
+
+  /** 卡片上的「起点」：组员看 data-gi/data-mi，待分配的人看 data-pkey */
+  function gbChipSource(chip) {
+    if (!chip || !chip.dataset) return null;
+    if (chip.dataset.gi !== undefined && chip.dataset.mi !== undefined) {
+      return { kind: 'member', gi: +chip.dataset.gi, mi: +chip.dataset.mi };
+    }
+    if (chip.dataset.pkey !== undefined) return { kind: 'pending', key: chip.dataset.pkey };
+    return null;
+  }
+
+  /** 点一下（没拖动）＝选中；再点一个落点就搬过去。手机上这是最稳的一条路。 */
+  function gbTap(src) {
+    var cls = curClass();
+    if (!cls || !src) return;
+    if (gbAddTo >= 0 && src.kind === 'pending') {
+      gbJoin(cls, gbRowByKey(src.key), gbAddTo);
+      return;
+    }
+    if (gbPick && gbPick.kind === src.kind && gbPick.gi === src.gi &&
+        gbPick.mi === src.mi && gbPick.key === src.key) {
+      gbPick = null; gbRepaint();
+      return;
+    }
+    gbPick = src; gbAddTo = -1;
+    gbRepaint();
+    flash(src.kind === 'member'
+      ? '已选中「' + (cls.groups[src.gi].members[src.mi] || {}).name + '」：点另一组就换过去，点下面待分配区就移出'
+      : '已选中待分配的「' + ((gbRowByKey(src.key) || {}).name || '') + '」：点任意一组就加进去');
+  }
+
+  /* ---- 拖动：pointer 事件，鼠标和触摸同一套（HTML5 draggable 在手机上不工作） ---- */
+
+  function gbGhostOf(chip, x, y) {
+    var r = chip.getBoundingClientRect();
+    var el = chip.cloneNode(true);
+    el.classList.add('gb-ghost');
+    el.classList.remove('on');
+    var xb = el.querySelector('.gb-x');
+    if (xb) xb.parentNode.removeChild(xb);
+    el.style.width = r.width + 'px';
+    el.style.left = '0px'; el.style.top = '0px';
+    el.style.transform = 'translate3d(' + r.left + 'px,' + r.top + 'px,0) rotate(-1.5deg) scale(1.03)';
+    document.body.appendChild(el);
+    return { el: el, ox: x - r.left, oy: y - r.top };
+  }
+
+  function gbDropOn(x, y) {
+    var el = document.elementFromPoint(x, y);
+    if (!el || !el.closest) return null;
+    return el.closest('.gb-group') || el.closest('.gb-pending');
+  }
+
+  function gbMark(el) {
+    $$('.gb-over').forEach(function (n) { n.classList.remove('gb-over'); });
+    if (el) el.classList.add('gb-over');
+  }
+
+  (function () {
+    var board = $('#groupBoard');
+    if (!board) return;
+
+    board.addEventListener('pointerdown', function (e) {
+      if (e.button) return;                                  // 只认左键 / 触摸
+      var chip = e.target.closest ? e.target.closest('.gb-chip') : null;
+      if (!chip) return;
+      if (e.target.closest('.gb-x')) return;                 // × 有它自己的点击
+      var src = gbChipSource(chip);
+      if (!src) return;
+      gbDrag = { chip: chip, src: src, x0: e.clientX, y0: e.clientY, id: e.pointerId, active: false, target: null, ghost: null };
+    });
+
+    window.addEventListener('pointermove', function (e) {
+      if (!gbDrag || e.pointerId !== gbDrag.id) return;
+      var dx = e.clientX - gbDrag.x0, dy = e.clientY - gbDrag.y0;
+      if (!gbDrag.active) {
+        /* 8px 以内当「点一下」：手机上手指总要抖一两个像素，不能一动就算拖 */
+        if (dx * dx + dy * dy < 64) return;
+        gbDrag.active = true;
+        gbDrag.ghost = gbGhostOf(gbDrag.chip, gbDrag.x0, gbDrag.y0);
+        gbDrag.chip.classList.add('gb-lift');
+        document.body.classList.add('gb-dragging');
+        /* 拖起来就把之前的「点选」样子抹掉（这里不能整块重画，会把手里这张卡换掉） */
+        gbPick = null; gbAddTo = -1;
+        $$('.gb-chip.on').forEach(function (n) { n.classList.remove('on'); });
+        $$('.gb-group.is-target').forEach(function (n) { n.classList.remove('is-target'); });
+      }
+      if (e.cancelable) e.preventDefault();
+      var g = gbDrag.ghost;
+      g.el.style.transform = 'translate3d(' + (e.clientX - g.ox) + 'px,' + (e.clientY - g.oy) + 'px,0) rotate(-1.5deg) scale(1.03)';
+      gbDrag.target = gbDropOn(e.clientX, e.clientY);
+      gbMark(gbDrag.target);
+    }, { passive: false });
+
+    function endDrag(e, cancelled) {
+      if (!gbDrag || e.pointerId !== gbDrag.id) return;
+      var d = gbDrag; gbDrag = null;
+      if (d.ghost && d.ghost.el.parentNode) d.ghost.el.parentNode.removeChild(d.ghost.el);
+      document.body.classList.remove('gb-dragging');
+      d.chip.classList.remove('gb-lift');
+      gbMark(null);
+      if (!d.active) { gbTap(d.src); return; }
+      gbSwallowClick = true;
+      setTimeout(function () { gbSwallowClick = false; }, 30);
+      if (cancelled) return;
+      var cls = curClass();
+      if (!cls) return;
+      if (d.target && d.target.classList.contains('gb-group')) {
+        var gi = +d.target.dataset.gi;
+        if (d.src.kind === 'member') gbMoveTo(cls, d.src.gi, d.src.mi, gi);
+        else gbJoin(cls, gbRowByKey(d.src.key), gi);
+      } else if (d.target) {
+        /* 拖回待分配区：只有组员需要处理，待分配的人拖回原处当作没动 */
+        if (d.src.kind === 'member') gbUnassign(cls, d.src.gi, d.src.mi);
+      }
+    }
+    window.addEventListener('pointerup', function (e) { endDrag(e, false); });
+    window.addEventListener('pointercancel', function (e) { endDrag(e, true); });
+
+    board.addEventListener('click', function (e) {
+      if (gbSwallowClick) return;
+      var cls = curClass();
+      if (!cls) return;
+      var xb = e.target.closest ? e.target.closest('.gb-x') : null;
+      if (xb) { gbUnassign(cls, +xb.dataset.gi, +xb.dataset.mi); return; }
+      if (e.target.closest('.gb-chip')) return;      // 点人已经在 pointerup 里处理过，别算两次
+      var add = e.target.closest('.gb-add');
+      if (add) {
+        var gi = +add.dataset.add;
+        var waiting = (gbRows || []).filter(function (x) { return x.g === null; }).length;
+        if (!waiting) { flash('待分配区已经没人了：先在上面把人移出来，或者点「＋ 添加学生」'); return; }
+        gbAddTo = gbAddTo === gi ? -1 : gi;
+        gbPick = null;
+        gbRepaint();
+        if (gbAddTo >= 0) flash('加人模式：点下面待分配区的同学，就会加进第 ' + cls.groups[gi].no + ' 组（再点一次「＋ 加人」退出）');
+        return;
+      }
+      var card = e.target.closest('.gb-group');
+      var pend = e.target.closest('.gb-pending');
+      if (card && gbPick) {
+        var toGi = +card.dataset.gi;
+        if (gbPick.kind === 'member') gbMoveTo(cls, gbPick.gi, gbPick.mi, toGi);
+        else gbJoin(cls, gbRowByKey(gbPick.key), toGi);
+        return;
+      }
+      if (pend && gbPick && gbPick.kind === 'member') { gbUnassign(cls, gbPick.gi, gbPick.mi); return; }
+      if ((card || pend) && (gbPick || gbAddTo >= 0)) { gbPick = null; gbAddTo = -1; gbRepaint(); }
+    });
+
+    /* 键盘也能用：Tab 到人身上，空格/回车选中，再 Tab 到组上回车 */
+    board.addEventListener('keydown', function (e) {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      var chip = e.target.closest ? e.target.closest('.gb-chip') : null;
+      if (!chip) return;
+      e.preventDefault();
+      var src = gbChipSource(chip);
+      if (src) gbTap(src);
+    });
+  })();
 
   /* ---- 待分配页的交互 ---- */
 

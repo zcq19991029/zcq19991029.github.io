@@ -5,8 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#fcfcfb">
 <title>夜夜小组制加分助手 · 《电气接线原理》</title>
-<link rel="stylesheet" href="styles.css?v=13ebe8f">
-<link rel="stylesheet" href="draw-person.css?v=13ebe8f">
+<link rel="stylesheet" href="styles.css?v=0620c58">
+<link rel="stylesheet" href="draw-person.css?v=0620c58">
+<!-- 分组看板 + 学生端桌卡（2026-11-06）：新样式一律写这个文件，不去动 styles.css / team.css
+     里已有的行（那几个文件正有人在改深浅色变量）。-->
+<link rel="stylesheet" href="roster-board.css">
 <!-- 华夏工具外观（首页统一设置）：主色、背景图；单独打开会回到首页 /#jiafen。账号只在首页管理 -->
 <script src="../hx-theme.js" data-tool="jiafen"></script>
 <!-- 闪屏「正在载入」的像素方块（2026-11-04）：原来是 正在载入 后面跟三个会闪的句点，干巴巴的。
@@ -47,8 +50,8 @@
      这里把药丸钉回 1em，跟着卡片字号一起长大，不再自己写一套 clamp 互相打架。 */
   #hxSplash .hx-loadpill { font-size: 1em; box-shadow: none; }
 </style>
-<meta name="build-commit" content="13ebe8f">
-<meta name="build-published-at" content="2026-11-06T15:31:29.857Z">
+<meta name="build-commit" content="0620c58">
+<meta name="build-published-at" content="2026-11-07T04:51:46.951Z">
 </head>
 <body>
 
@@ -77,8 +80,8 @@
     </div>
   </div>
 </div>
-<script src="fx/pixelfx-loader.js?v=13ebe8f"></script>
-<script src="fx/hx-jf-load.js?v=13ebe8f"></script>
+<script src="fx/pixelfx-loader.js?v=0620c58"></script>
+<script src="fx/hx-jf-load.js?v=0620c58"></script>
 
 <header class="topbar" id="topbar">
   <div class="topbar-main">
@@ -316,6 +319,13 @@
         <span class="spacer"></span>
         <a id="teamLink" class="btn ghost small" target="_blank" rel="noopener" href="team.html" hidden>学生入口 ↗</a>
       </div>
+      <!-- 用户最怕的一件事：点「开放组队」把已经分好的组冲掉。代码里确认过它只操作云端的
+           组队房间（jf_team_open / jf_team_place），一个字都不碰 cls.groups；这里把这句话
+           写在按钮旁边，免得老师不敢点。 -->
+      <p class="note gb-open-note" id="openNote">
+        开放组队只是让学生自己选座，<b>不会清空你已有的分组</b>，记分表里的组一个都不会动。
+        只有你点了「按选座确认分组」，才会按桌号把这几个组重写一遍。
+      </p>
       <p class="note" id="teamNote">
         学生用<b>学号账号</b>登录后打开「学生入口」（或直接把链接发群里），就会看到这些圆桌；点一张桌就坐下，可以换桌。
         你这边每 2 秒自动刷新，能看到谁坐了哪桌、还有谁没选。分够了点「按选座确认分组」，选座结果直接写进本班分组。
@@ -344,20 +354,33 @@
     <p class="pool-scope note">以下只统计当前所选班级；顶部角标统计全部班级的待分配总人数。</p>
     <div class="metrics" id="poolMetrics"></div>
 
+    <!-- 分组看板（2026-11-06）：cls.groups 里的组一个不落地铺成卡片，可拖动换人。
+         内容是 app.js 的 renderGroupBoard 画的，这里只留一个容器。 -->
+    <div class="card gb-card">
+      <h2 class="sec-title">各组名单<span class="hint">所有组都在这儿 · 拖动换人</span></h2>
+      <div id="groupBoard"></div>
+    </div>
+
     <div class="card">
       <div class="pool-toolbar">
+        <span class="note pool-toolbar-t">明细</span>
         <div class="seg" id="poolFilter">
           <button data-f="pending" class="on">仅待分配</button>
           <button data-f="all">全部</button>
           <button data-f="assigned">仅已分配</button>
         </div>
-        <input type="text" id="poolSearch" placeholder="搜索姓名 / 学号 / 序号">
+        <input type="text" id="poolSearch" placeholder="搜索姓名 / 学号 / 序号（看板也跟着筛）">
       </div>
-      <div class="tablewrap" id="poolList"></div>
-      <p class="rank-note">
-        「班内序号」来自考勤表，和纸质记录表上的短号一致；「学号」是教务系统的完整学号。
-        把待分配学生分配到小组后，他/她就会出现在「上课记分」页对应的组里。
-      </p>
+      <!-- 名单表默认收起：看板才是主视图，这张表留下来做「下拉分配 / 移出 / 删除学生」这些
+           成批操作用的备用入口（原来的行结构一个字没改，老流程照旧）。 -->
+      <details class="gb-details">
+        <summary>名单明细（批量操作备用：下拉分配 / 移出小组 / 删除学生）</summary>
+        <div class="tablewrap" id="poolList"></div>
+        <p class="rank-note">
+          「班内序号」来自考勤表，和纸质记录表上的短号一致；「学号」是教务系统的完整学号。
+          把待分配学生分配到小组后，他/她就会出现在「上课记分」页对应的组里。
+        </p>
+      </details>
     </div>
   </section>
 
@@ -607,14 +630,14 @@
   </form>
 </dialog>
 
-<script src="data.js?v=13ebe8f"></script>
-<script src="config.js?v=13ebe8f"></script>
-<script src="vendor/jspdf.umd.min.js?v=13ebe8f"></script>
-<script src="vendor/xlsx.full.min.js?v=13ebe8f"></script>
-<script src="roster-import.js?v=13ebe8f"></script>
-<script src="hx-roster.js?v=13ebe8f"></script>
-<script src="cloud.js?v=13ebe8f"></script>
-<script src="supabase-cloud.js?v=13ebe8f"></script>
+<script src="data.js?v=0620c58"></script>
+<script src="config.js?v=0620c58"></script>
+<script src="vendor/jspdf.umd.min.js?v=0620c58"></script>
+<script src="vendor/xlsx.full.min.js?v=0620c58"></script>
+<script src="roster-import.js?v=0620c58"></script>
+<script src="hx-roster.js?v=0620c58"></script>
+<script src="cloud.js?v=0620c58"></script>
+<script src="supabase-cloud.js?v=0620c58"></script>
 <dialog id="dlgPassword">
   <form method="dialog" class="dlg" id="passwordForm">
     <div class="dlg-head"><h3>修改密码</h3><button type="button" class="dlg-x" id="btnPasswordClose" aria-label="关闭">✕</button></div>
@@ -639,16 +662,16 @@
     <div class="drw" id="drw"></div>
   </div>
 </dialog>
-<script src="leader-scoring.js?v=13ebe8f"></script>
-<script src="assessment.js?v=13ebe8f"></script>
-<script src="ui-feedback.js?v=13ebe8f"></script>
+<script src="leader-scoring.js?v=0620c58"></script>
+<script src="assessment.js?v=0620c58"></script>
+<script src="ui-feedback.js?v=0620c58"></script>
 <dialog id="dlgOperationLog"><div class="dlg"><div class="dlg-head"><div><h3>操作日志</h3><span class="note">选择任意一条撤销，其他记录继续保留</span></div><button type="button" id="closeOperationLog" class="dlg-x" aria-label="关闭操作日志">✕</button></div><div class="dlg-body"><div class="log-toolbar"><label>班级<select id="logClassFilter"><option value="">全部班级</option></select></label><label>课次<select id="logLessonFilter"><option value="">全部课次</option></select></label><label class="log-search">查找<input type="search" id="logSearch" placeholder="姓名、组号、课次或项目"></label><button id="btnRedo" class="btn" disabled title="恢复最近撤销的一项（Ctrl+Shift+Z）">↷ 恢复最近一项</button></div><button id="btnUndo" hidden disabled></button><p id="undoDetail" hidden></p><p id="redoDetail" hidden></p><div id="operationLogList"></div><details class="log-help"><summary>记录与撤销说明</summary><p>点击某条右侧“撤销”，仅抵消该次操作的实际效果；已撤销的记录可单独恢复。平板支持左划，松手前拉回即可取消。个人项目的核对流水请到原评分表修改。默认5分不记作加分操作；相邻等量反向调整合并抵消。旧记录未记载时间时显示“历史记录”。</p></details></div></div></dialog>
-<script src="print-excel.js?v=13ebe8f"></script>
-<script src="gradebook.js?v=13ebe8f"></script>
+<script src="print-excel.js?v=0620c58"></script>
+<script src="gradebook.js?v=0620c58"></script>
 <!-- 学生只读查分：把「每人一份」的分数快照发布到云端，app.js 每次 save() 会叫它（2026-11-04） -->
-<script src="student-feed.js?v=13ebe8f"></script>
-<script src="app.js?v=13ebe8f"></script>
-<script src="draw-person.js?v=13ebe8f"></script>
-<script src="password-ui.js?v=13ebe8f"></script>
+<script src="student-feed.js?v=0620c58"></script>
+<script src="app.js?v=0620c58"></script>
+<script src="draw-person.js?v=0620c58"></script>
+<script src="password-ui.js?v=0620c58"></script>
 </body>
 </html>

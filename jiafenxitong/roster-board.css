@@ -1,0 +1,262 @@
+/* 分组看板 + 学生端桌卡（2026-11-06）
+ *
+ * 为什么单独一个文件：styles.css / team.css 里已有的行正有人改成深浅色变量，
+ * 这一轮的样式全部落在这里，只新增、不改别人那几行（index.html 和 team.html 各引一次）。
+ *
+ * 视觉参照「排课」工具：卡片圆角 14～22、1px 细边、一层很轻的阴影、标题重字重、
+ * 留白靠 gap 而不是 margin。颜色一律走现成变量，深浅色自动跟随。
+ *
+ * 两个页面各有一半变量名：加分页用 --text / --accent，学生端 team.css 用 --ink / --brand。
+ * 所以在 :root 上补一层 --gb-* 别名，后面的规则只认 --gb-*，两边都不会踩空。
+ */
+
+:root {
+  --gb-ink: var(--text, var(--ink, #1b2130));
+  --gb-muted: var(--muted, #83848a);
+  --gb-line: var(--line, #e6e6ee);
+  --gb-line-strong: var(--line-strong, #d5d8e2);
+  --gb-panel: var(--panel, #fff);
+  --gb-soft: var(--panel-soft, var(--bg, #f6f7fb));
+  --gb-accent: var(--accent, var(--brand, #2f6df6));
+  --gb-accent-bg: var(--accent-bg, var(--brand-soft, #eef3ff));
+  --gb-accent-line: var(--accent-line, #cfd9f6);
+  --gb-good: var(--good, var(--ok, #10884f));
+  --gb-good-bg: var(--good-bg, var(--ok-soft, #e6f6ed));
+  --gb-warn: var(--warn, #b26a00);
+  --gb-warn-bg: var(--warn-bg, var(--warn-soft, #fff3df));
+  --gb-bad: var(--bad, var(--danger, #c1362f));
+  --gb-bad-bg: var(--bad-bg, #fdecea);
+  --gb-radius: var(--radius, var(--r, 14px));
+  --gb-shadow: var(--shadow, 0 1px 2px rgba(20, 25, 40, .05), 0 10px 24px -14px rgba(20, 25, 40, .26));
+  --gb-shadow-lift: var(--shadow-lift, 0 4px 12px rgba(20, 25, 40, .10), 0 18px 36px -12px rgba(20, 25, 40, .30));
+}
+
+/* ============================================================
+   一、老师端「待分配名单」页 —— 分组看板
+   ============================================================ */
+
+.gb-card { margin-top: 12px; }
+.gb-card .sec-title { margin-bottom: 10px; }
+
+/* 组卡片：默认 3 列，窄屏 2 列，手机 1 列，超宽屏 4 列。
+   不用 auto-fill —— auto-fill 会为「放得下但没组」的位置留空轨道，3 个组时右边会空一大块。 */
+.gb-groups {
+  display: grid; gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+@media (max-width: 900px) { .gb-groups { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .gb-groups { grid-template-columns: 1fr; gap: 8px; } }
+@media (min-width: 1500px) { .gb-groups { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+
+.gb-group {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 10px 12px 12px;
+  border: 1px solid var(--gb-line);
+  border-radius: 16px;
+  background: var(--gb-panel);
+  transition: border-color .12s, background-color .12s, box-shadow .12s, transform .12s;
+}
+.gb-group.is-full { background: var(--gb-soft); }
+/* 点选等待落点时，把「可以放进来」的组描个边，老师不用猜哪里能点 */
+.gb-group.is-target { border-color: var(--gb-accent-line); }
+/* 拖动经过的目标：整张卡抬一下，落点够明显 */
+.gb-group.gb-over {
+  border-color: var(--gb-accent);
+  background: var(--gb-accent-bg);
+  box-shadow: var(--gb-shadow-lift);
+  transform: translateY(-1px);
+}
+
+.gb-ghead { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.gb-gno { font-size: 13.5px; font-weight: 700; color: var(--gb-ink); letter-spacing: .01em; }
+.gb-gcnt { font-size: 11.5px; color: var(--gb-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.gb-gcnt b { font-size: 15px; font-weight: 800; color: var(--gb-ink); }
+.gb-flag {
+  margin-left: 4px; padding: 0 5px; border-radius: 6px;
+  background: var(--gb-warn-bg); color: var(--gb-warn);
+  font-size: 10.5px; font-style: normal; font-weight: 700;
+}
+
+.gb-members { display: flex; flex-direction: column; gap: 4px; }
+
+/* 一张人卡：头像 + 姓名 + 班内序号 + 移出。整块是拖动把手，所以 touch-action 必须关掉，
+   不然手机上手指一按就先滚页面，拖不动（页面还能从卡片空白处和卡片间距滚）。 */
+.gb-chip {
+  display: flex; align-items: center; gap: 7px;
+  padding: 5px 7px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: var(--gb-soft);
+  color: var(--gb-ink);
+  font-size: 13px; line-height: 1.35;
+  cursor: grab;
+  touch-action: none;
+  -webkit-user-select: none; user-select: none;
+  transition: border-color .12s, box-shadow .12s, background-color .12s, opacity .12s;
+}
+.gb-chip:hover { border-color: var(--gb-accent-line); }
+.gb-chip:focus-visible { outline: 2px solid var(--gb-accent); outline-offset: 1px; }
+.gb-chip.on {
+  border-color: var(--gb-accent);
+  box-shadow: 0 0 0 2px var(--gb-accent-bg);
+}
+/* 正在被拖走的那一张原地留个淡影，老师知道它从哪儿出来的 */
+.gb-chip.gb-lift { opacity: .32; }
+
+.gb-av {
+  flex: none; width: 20px; height: 20px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--gb-accent-bg); color: var(--gb-accent);
+  font-size: 11px; font-weight: 700;
+}
+.gb-nm { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gb-no { flex: none; font-size: 11px; color: var(--gb-muted); font-variant-numeric: tabular-nums; }
+.gb-tag {
+  flex: none; padding: 0 5px; border-radius: 6px;
+  background: var(--gb-warn-bg); color: var(--gb-warn);
+  font-size: 10.5px; font-weight: 600; white-space: nowrap;
+}
+
+.gb-x {
+  flex: none; width: 19px; height: 19px; padding: 0;
+  border: 0; border-radius: 6px; background: transparent;
+  color: var(--gb-muted); font: inherit; font-size: 14px; line-height: 1;
+  cursor: pointer;
+}
+.gb-x:hover { background: var(--gb-bad-bg); color: var(--gb-bad); }
+
+.gb-add {
+  width: 100%; padding: 5px 8px; margin-top: auto;   /* 同一行里人少的组，按钮贴底，一排看过去是齐的 */
+  border: 1px dashed var(--gb-line-strong); border-radius: 10px;
+  background: transparent; color: var(--gb-muted);
+  font: inherit; font-size: 12px; cursor: pointer;
+  transition: border-color .12s, color .12s, background-color .12s;
+}
+.gb-add:hover { border-color: var(--gb-accent); color: var(--gb-accent); background: var(--gb-accent-bg); }
+
+/* 待分配区：虚线 + 浅底，和上面「已分好」的实线卡片一眼分开 */
+.gb-pending {
+  margin-top: 12px; padding: 10px 12px 12px;
+  border: 1.5px dashed var(--gb-line-strong);
+  border-radius: 16px;
+  background: var(--gb-soft);
+  transition: border-color .12s, background-color .12s, box-shadow .12s;
+}
+.gb-pending.gb-over {
+  border-color: var(--gb-accent);
+  border-style: solid;
+  background: var(--gb-accent-bg);
+  box-shadow: var(--gb-shadow-lift);
+}
+.gb-phead { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.gb-ptitle { font-size: 13.5px; font-weight: 700; color: var(--gb-ink); }
+.gb-pseat { font-size: 11.5px; color: var(--gb-muted); }
+.gb-pseat b { color: var(--gb-warn); }
+.gb-pending .gb-members { flex-direction: row; flex-wrap: wrap; gap: 6px; }
+.gb-pend-chip { background: var(--gb-panel); border-color: var(--gb-line); }
+
+.gb-empty { margin: 2px 0; font-size: 12px; color: var(--gb-muted); }
+
+.gb-hint { margin: 10px 0 0; font-size: 12px; line-height: 1.7; color: var(--gb-muted); }
+.gb-hint b { color: var(--gb-ink); }
+
+/* 拖动中：全局光标 + 禁止选中，免得拖一次把整页字都选蓝 */
+body.gb-dragging { cursor: grabbing; -webkit-user-select: none; user-select: none; }
+body.gb-dragging .gb-chip { cursor: grabbing; }
+
+/* 跟着手指/鼠标走的那一张。position:fixed + transform，只写 transform 不碰 left/top，手机上不卡 */
+.gb-ghost {
+  position: fixed; left: 0; top: 0; z-index: 4000;
+  pointer-events: none;
+  background: var(--gb-panel);
+  border: 1px solid var(--gb-accent-line);
+  border-radius: 10px;
+  box-shadow: var(--gb-shadow-lift);
+  opacity: .97;
+  will-change: transform;
+}
+
+/* 名单明细：默认收起，做批量操作的备用入口 */
+.gb-details > summary {
+  cursor: pointer; padding: 8px 0 2px;
+  font-size: 12.5px; color: var(--gb-muted);
+  list-style-position: inside;
+}
+.gb-details > summary:hover { color: var(--gb-accent); }
+.gb-details[open] > summary { margin-bottom: 8px; }
+.pool-toolbar-t { margin: 0; flex: none; }
+
+/* 「开放组队不动已有分组」那句说明：左侧一道绿条，别让它混在正文里被跳过 */
+.gb-open-note {
+  margin: 8px 0 0; padding: 8px 10px;
+  border-left: 3px solid var(--gb-good);
+  border-radius: 8px;
+  background: var(--gb-good-bg);
+  color: var(--gb-ink);
+  font-size: 12.5px; line-height: 1.7;
+}
+.gb-open-note b { color: var(--gb-good); }
+
+/* ============================================================
+   二、学生端「选桌组队」页 —— 圆桌改桌卡
+   team.css 里的 .desks 是 2 列圆桌网格，这里整段覆盖成手机一列、桌面多列。
+   只覆盖布局与卡片本身，team.css 里那几行一个字都没动。
+   ============================================================ */
+
+.desks {
+  grid-template-columns: 1fr;
+  gap: 10px;
+  padding: 12px;
+}
+/* 手机竖屏（375）一列一卡，卡高控制在 ~100px，一屏能看 4～6 桌 */
+@media (min-width: 560px) { .desks { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; } }
+@media (min-width: 900px) { .desks { grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 14px; } }
+@media (min-width: 1200px) { .desks { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+
+.tcard {
+  display: flex; flex-direction: column; gap: 7px;
+  width: 100%; padding: 10px 12px 11px;
+  border: 1px solid var(--gb-line);
+  border-radius: 16px;
+  background: var(--gb-panel);
+  box-shadow: var(--gb-shadow);
+  text-align: left; cursor: pointer;
+  transition: transform .12s, border-color .12s, box-shadow .12s, background-color .12s;
+}
+.tcard:active:not(:disabled) { transform: scale(.985); }
+.tcard.mine {
+  border-color: var(--gb-accent);
+  box-shadow: 0 0 0 3px var(--gb-accent-bg), var(--gb-shadow);
+}
+.tcard.full { background: var(--gb-soft); }
+.tcard:disabled { cursor: default; box-shadow: none; }
+
+.tc-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.tc-no { font-size: 13.5px; font-weight: 700; color: var(--gb-ink); letter-spacing: .01em; }
+.tcard.mine .tc-no { color: var(--gb-accent); }
+.tc-count { flex: none; font-size: 11.5px; color: var(--gb-muted); font-variant-numeric: tabular-nums; }
+.tc-count b { font-size: 16px; font-weight: 800; color: var(--gb-ink); }
+.tcard.mine .tc-count b { color: var(--gb-accent); }
+.tcard.full .tc-count b { color: var(--gb-muted); }
+
+.tc-seats { display: flex; flex-wrap: wrap; gap: 4px; }
+.tc-seat {
+  max-width: 100%;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--gb-accent-bg); color: var(--gb-accent);
+  font-size: 11.5px; font-weight: 600; line-height: 1.6;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* 我自己那一个座位反白，扫一眼就知道我在哪 */
+.tc-seat.me { background: var(--gb-accent); color: #fff; }
+.tc-seat.empty {
+  border: 1px dashed var(--gb-line-strong);
+  background: transparent;
+  color: var(--gb-muted); font-weight: 400;
+}
+.tcard.full .tc-seat { opacity: .85; }
+
+.tc-foot { font-size: 11.5px; color: var(--gb-muted); }
+.tcard.mine .tc-foot { color: var(--gb-accent); font-weight: 600; }
+.tcard.full .tc-foot { color: var(--gb-warn); }

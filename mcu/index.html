@@ -735,7 +735,7 @@ button.qdel.sm{width:26px;height:26px;font-size:15px}
 <aside class="side" aria-label="导航">
   <div class="brand"><svg class="chip" viewBox="0 0 34 34" aria-hidden="true"><defs><linearGradient id="chipg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5b8cff"/><stop offset="1" stop-color="#7c5cff"/></linearGradient></defs><g fill="#8a93a5"><rect x="3" y="7" width="4" height="2" rx="1"/><rect x="27" y="7" width="4" height="2" rx="1"/><rect x="3" y="11.4" width="4" height="2" rx="1"/><rect x="27" y="11.4" width="4" height="2" rx="1"/><rect x="3" y="15.8" width="4" height="2" rx="1"/><rect x="27" y="15.8" width="4" height="2" rx="1"/><rect x="3" y="20.200000000000003" width="4" height="2" rx="1"/><rect x="27" y="20.200000000000003" width="4" height="2" rx="1"/><rect x="3" y="24.6" width="4" height="2" rx="1"/><rect x="27" y="24.6" width="4" height="2" rx="1"/></g><rect x="7" y="3" width="20" height="28" rx="4" fill="url(#chipg)"/><circle cx="17" cy="7" r="1.6" fill="rgba(255,255,255,.55)"/><text x="17" y="21" text-anchor="middle" font-family="Consolas,monospace" font-size="6.5" font-weight="700" fill="#fff">8051</text><circle class="led" cx="23" cy="27" r="1.6" fill="#ff453a"/></svg><div>单片机上机<small>练习与考试</small></div></div>
   <nav id="nav"></nav>
-  <div class="side-foot"><div class="savebar" id="saveBar" hidden></div><div>网页版 · 2026-11-06<br>名单只存在你保存的文件里</div></div>
+  <div class="side-foot"><div class="savebar" id="saveBar" hidden></div><div>网页版 · 2026-11-07<br>名单来自首页「班级」</div></div>
 </aside>
 <main class="main" id="main">
 <section class="page" data-page="practice" hidden>
@@ -789,22 +789,24 @@ button.qdel.sm{width:26px;height:26px;font-size:15px}
 
 <div id="teacherMain">
 <section class="page" data-page="t-overview" hidden>
-<header class="page-h"><div class="eyebrow">老师模块</div><h1>概览</h1><p>先看现在到哪一步了：导入名单、选上课的班级 → 保存到文件，发给学生 → 考完在「考试」工具批改。组卷、组卷码、理论试卷也都在「考试」里</p></header>
+<header class="page-h"><div class="eyebrow">老师模块</div><h1>概览</h1><p>先看现在到哪一步了：名单在首页「班级」导入（这个账号下的工具通用）→ 这里勾上课的班级 → 到「考试」发布考试、批改。组卷、组卷码、理论试卷也在「考试」里</p></header>
 <div class="card band anspw" id="pwCard">
   <div class="row" style="justify-content:space-between;align-items:flex-start;gap:16px">
     <div style="min-width:0;flex:1"><h2 style="margin:0 0 4px">本节课的查看答案密码</h2><p class="note" id="ansPwNote" style="margin:0"></p></div>
     <div class="row"><input id="ansPwIn" style="width:170px" autocomplete="off" placeholder="例如 1023A" aria-label="查看答案密码"><button class="pri" id="btnAnsPw">设好</button></div>
   </div>
 </div>
-<details class="card band" id="upCard"><summary><b>换新版本：从旧文件导入数据</b>　<span class="note">拿到新版本的网页后，在这里选你以前保存过数据的旧网页文件</span></summary>
-  <p class="note" style="margin-top:8px">会把旧文件里的班级名单、上课的班级、组卷、组卷码名字、查看答案密码、导入的代码和理论试卷设置全部读进来（替换现在这个文件里的），然后点“保存到文件”存进新版本。旧文件不会被改动。</p>
-  <div class="row"><button class="pri" id="btnUpgrade">选择旧的网页文件</button><input type="file" id="upFile" accept=".html,.htm" hidden></div>
-  <p class="note" id="upNote" style="margin-top:8px"></p>
-</details>
 <div class="stats band">
   <div class="stat"><div class="k">名单人数</div><div class="v" id="ovRoster">-</div><div class="s" id="ovRosterK"></div></div>
   <div class="stat"><div class="k">上课的班级</div><div class="v sm" id="ovExam">-</div><div class="s" id="ovExamS"></div></div>
   
+</div>
+<div class="card band" id="ovClsCard" hidden>
+  <div class="row" style="justify-content:space-between;align-items:baseline">
+    <h2 style="margin:0">上课的班级</h2><span class="note">勾选只记在这台电脑上，换台电脑要重勾</span>
+  </div>
+  <p class="note" style="margin:6px 0 0">名单来自首页「班级」，这个账号下的工具通用，不用在这里再导一遍。勾上的班算“这节课在上机”，只影响这一页的显示；发布考试时在<a href="../exam/">考试</a>里选班。</p>
+  <div id="ovClsPick" style="margin-top:10px"></div>
 </div>
 <div class="flow band">
   <button type="button" class="step" data-goto="t-roster"><span class="n">1</span><b>班级名单</b><span class="note" id="ovRosterS"></span></button>
@@ -861,7 +863,7 @@ const PRISTINE_HTML='<!DOCTYPE html>\n'+document.documentElement.outerHTML;
 ;
 const HX_ONLINE=true;
 ;
-const GBK_MAP={"　":"a1a1","、":"a1a2","。":"a1a3","·":"a1a4","—":"a1aa","～":"a1ab","…":"a1ad","‘":"a1ae","’":"a1af","“":"a1b0","”":"a1b1","《":"a1b6","》":"a1b7","「":"a1b8","」":"a1b9","【":"a1be","】":"a1bf","×":"a1c1","÷":"a1c2","∈":"a1ca","√":"a1cc","≥":"a1dd","□":"a1f5","→":"a1fa","←":"a1fb","①":"a2d9","②":"a2da","③":"a2db","④":"a2dc","⑤":"a2dd","⑥":"a2de","！":"a3a1","（":"a3a8","）":"a3a9","＋":"a3ab","，":"a3ac","：":"a3ba","；":"a3bb","？":"a3bf","Ω":"a6b8","μ":"a6cc","─":"a9a4","啊":"b0a1","安":"b0b2","按":"b0b4","案":"b0b8","八":"b0cb","把":"b0d1","白":"b0d7","摆":"b0da","败":"b0dc","班":"b0e0","搬":"b0e1","般":"b0e3","板":"b0e5","版":"b0e6","半":"b0eb","办":"b0ec","榜":"b0f1","磅":"b0f5","包":"b0fc","保":"b1a3","报":"b1a8","背":"b1b3","倍":"b1b6","备":"b1b8","被":"b1bb","本":"b1be","比":"b1c8","闭":"b1d5","必":"b1d8","避":"b1dc","边":"b1df","编":"b1e0","便":"b1e3","变":"b1e4","遍":"b1e9","标":"b1ea","表":"b1ed","别":"b1f0","并":"b2a2","玻":"b2a3","播":"b2a5","补":"b2b9","不":"b2bb","布":"b2bc","步":"b2bd","簿":"b2be","部":"b2bf","材":"b2c4","才":"b2c5","采":"b2c9","参":"b2ce","残":"b2d0","藏":"b2d8","操":"b2d9","侧":"b2e0","册":"b2e1","测":"b2e2","层":"b2e3","插":"b2e5","叉":"b2e6","查":"b2e9","察":"b2ec","差":"b2ee","拆":"b2f0","产":"b2fa","场":"b3a1","常":"b3a3","长":"b3a4","超":"b3ac","车":"b3b5","撑":"b3c5","称":"b3c6","成":"b3c9","程":"b3cc","持":"b3d6","尺":"b3df","冲":"b3e5","抽":"b3e9","初":"b3f5","出":"b3f6","除":"b3fd","础":"b4a1","储":"b4a2","触":"b4a5","处":"b4a6","传":"b4ab","串":"b4ae","窗":"b4b0","创":"b4b4","纯":"b4bf","词":"b4ca","此":"b4cb","次":"b4ce","从":"b4d3","凑":"b4d5","粗":"b4d6","存":"b4e6","寸":"b4e7","错":"b4ed","达":"b4ef","答":"b4f0","打":"b4f2","大":"b4f3","带":"b4f8","代":"b4fa","待":"b4fd","单":"b5a5","但":"b5ab","淡":"b5ad","弹":"b5af","当":"b5b1","挡":"b5b2","荡":"b5b4","档":"b5b5","倒":"b5b9","导":"b5bc","到":"b5bd","道":"b5c0","得":"b5c3","的":"b5c4","灯":"b5c6","登":"b5c7","等":"b5c8","低":"b5cd","底":"b5d7","地":"b5d8","第":"b5da","递":"b5dd","点":"b5e3","电":"b5e7","掉":"b5f4","调":"b5f7","叠":"b5fe","顶":"b6a5","定":"b6a8","订":"b6a9","丢":"b6aa","东":"b6ab","动":"b6af","兜":"b6b5","抖":"b6b6","都":"b6bc","独":"b6c0","读":"b6c1","度":"b6c8","渡":"b6c9","端":"b6cb","短":"b6cc","段":"b6ce","断":"b6cf","堆":"b6d1","对":"b6d4","多":"b6e0","而":"b6f8","二":"b6fe","发":"b7a2","法":"b7a8","翻":"b7ad","凡":"b7b2","反":"b7b4","返":"b7b5","范":"b7b6","方":"b7bd","防":"b7c0","仿":"b7c2","放":"b7c5","非":"b7c7","飞":"b7c9","分":"b7d6","份":"b7dd","封":"b7e2","蜂":"b7e4","冯":"b7eb","佛":"b7f0","否":"b7f1","符":"b7fb","服":"b7fe","浮":"b8a1","副":"b8b1","赋":"b8b3","复":"b8b4","负":"b8ba","附":"b8bd","该":"b8c3","改":"b8c4","概":"b8c5","干":"b8c9","杆":"b8cb","赶":"b8cf","刚":"b8d5","高":"b8df","告":"b8e6","格":"b8f1","隔":"b8f4","个":"b8f6","各":"b8f7","给":"b8f8","根":"b8f9","跟":"b8fa","更":"b8fc","工":"b9a4","功":"b9a6","供":"b9a9","公":"b9ab","共":"b9b2","勾":"b9b4","构":"b9b9","够":"b9bb","估":"b9c0","孤":"b9c2","固":"b9cc","挂":"b9d2","关":"b9d8","观":"b9db","管":"b9dc","光":"b9e2","广":"b9e3","规":"b9e6","归":"b9e9","轨":"b9ec","鬼":"b9ed","滚":"b9f6","果":"b9fb","过":"b9fd","哈":"b9fe","含":"baac","函":"baaf","汉":"baba","毫":"bac1","好":"bac3","耗":"bac4","号":"bac5","核":"bacb","和":"bacd","何":"bace","合":"bacf","黑":"bada","很":"badc","横":"bae1","衡":"bae2","虹":"bae7","红":"baec","后":"baf3","忽":"baf6","糊":"bafd","护":"bba4","互":"bba5","户":"bba7","花":"bba8","华":"bbaa","滑":"bbac","画":"bbad","划":"bbae","化":"bbaf","话":"bbb0","环":"bbb7","还":"bbb9","缓":"bbba","换":"bbbb","恢":"bbd6","回":"bbd8","会":"bbe1","汇":"bbe3","绘":"bbe6","混":"bbec","或":"bbf2","击":"bbf7","基":"bbf9","机":"bbfa","积":"bbfd","绩":"bca8","极":"bcab","辑":"bcad","集":"bcaf","及":"bcb0","急":"bcb1","即":"bcb4","级":"bcb6","几":"bcb8","己":"bcba","技":"bcbc","寄":"bcc4","计":"bcc6","记":"bcc7","际":"bcca","继":"bccc","夹":"bcd0","家":"bcd2","加":"bcd3","假":"bcd9","价":"bcdb","间":"bce4","兼":"bce6","检":"bcec","简":"bcf2","减":"bcf5","见":"bcfb","键":"bcfc","件":"bcfe","渐":"bda5","建":"bda8","降":"bdb5","胶":"bdba","交":"bdbb","脚":"bdc5","角":"bdc7","教":"bdcc","较":"bdcf","叫":"bdd0","接":"bdd3","截":"bdd8","节":"bdda","结":"bde1","解":"bde2","界":"bde7","紧":"bdf4","锦":"bdf5","进":"bdf8","近":"bdfc","尽":"bea1","睛":"bea6","晶":"bea7","精":"beab","经":"bead","景":"beb0","静":"beb2","境":"beb3","久":"bec3","九":"bec5","旧":"bec9","就":"becd","局":"bed6","矩":"bed8","举":"bed9","据":"bedd","具":"bedf","距":"bee0","句":"bee4","卷":"beed","觉":"bef5","决":"bef6","均":"bef9","卡":"bfa8","开":"bfaa","看":"bfb4","考":"bfbc","靠":"bfbf","颗":"bfc5","科":"bfc6","壳":"bfc7","可":"bfc9","刻":"bfcc","课":"bfce","空":"bfd5","控":"bfd8","口":"bfda","库":"bfe2","跨":"bfe7","块":"bfe9","快":"bfec","宽":"bfed","框":"bff2","况":"bff6","括":"c0a8","扩":"c0a9","拉":"c0ad","来":"c0b4","赖":"c0b5","蓝":"c0b6","栏":"c0b8","拦":"c0b9","览":"c0c0","老":"c0cf","类":"c0e0","离":"c0eb","理":"c0ed","里":"c0ef","利":"c0fb","例":"c0fd","立":"c1a2","力":"c1a6","璃":"c1a7","联":"c1aa","连":"c1ac","链":"c1b4","练":"c1b7","两":"c1bd","量":"c1bf","亮":"c1c1","疗":"c1c6","了":"c1cb","料":"c1cf","列":"c1d0","零":"c1e3","领":"c1ec","另":"c1ed","令":"c1ee","留":"c1f4","流":"c1f7","六":"c1f9","漏":"c2a9","露":"c2b6","路":"c2b7","录":"c2bc","律":"c2c9","率":"c2ca","乱":"c2d2","略":"c2d4","轮":"c2d6","论":"c2db","逻":"c2df","裸":"c2e3","落":"c2e4","络":"c2e7","码":"c2eb","吗":"c2f0","脉":"c2f6","满":"c2fa","曼":"c2fc","慢":"c2fd","么":"c3b4","没":"c3bb","每":"c3bf","门":"c3c5","们":"c3c7","密":"c3dc","免":"c3e2","面":"c3e6","描":"c3e8","秒":"c3eb","灭":"c3f0","明":"c3f7","鸣":"c3f9","名":"c3fb","命":"c3fc","模":"c4a3","磨":"c4a5","末":"c4a9","默":"c4ac","某":"c4b3","母":"c4b8","幕":"c4bb","目":"c4bf","拿":"c4c3","哪":"c4c4","那":"c4c7","囊":"c4d2","脑":"c4d4","内":"c4da","能":"c4dc","霓":"c4de","拟":"c4e2","你":"c4e3","年":"c4ea","钮":"c5a5","挪":"c5b2","诺":"c5b5","拍":"c5c4","排":"c5c5","牌":"c5c6","盘":"c5cc","判":"c5d0","跑":"c5dc","配":"c5e4","碰":"c5f6","批":"c5fa","片":"c6ac","漂":"c6af","拼":"c6b4","频":"c6b5","平":"c6bd","评":"c6c0","屏":"c6c1","普":"c6d5","期":"c6da","七":"c6df","其":"c6e4","齐":"c6eb","起":"c6f0","启":"c6f4","器":"c6f7","弃":"c6fa","汽":"c6fb","迁":"c7a8","签":"c7a9","前":"c7b0","浅":"c7b3","嵌":"c7b6","强":"c7bf","抢":"c7c0","切":"c7d0","且":"c7d2","勤":"c7da","清":"c7e5","擎":"c7e6","情":"c7e9","请":"c7eb","求":"c7f3","区":"c7f8","驱":"c7fd","取":"c8a1","去":"c8a5","圈":"c8a6","权":"c8a8","全":"c8ab","缺":"c8b1","确":"c8b7","然":"c8bb","染":"c8be","让":"c8c3","扰":"c8c5","人":"c8cb","任":"c8ce","认":"c8cf","仍":"c8d4","日":"c8d5","容":"c8dd","如":"c8e7","入":"c8eb","软":"c8ed","若":"c8f4","三":"c8fd","散":"c9a2","扫":"c9a8","色":"c9ab","砂":"c9b0","筛":"c9b8","删":"c9be","闪":"c9c1","商":"c9cc","上":"c9cf","稍":"c9d4","烧":"c9d5","少":"c9d9","设":"c9e8","身":"c9ed","深":"c9ee","审":"c9f3","声":"c9f9","生":"c9fa","升":"c9fd","省":"caa1","师":"caa6","失":"caa7","十":"caae","时":"cab1","什":"cab2","实":"cab5","识":"cab6","使":"cab9","始":"cabc","式":"cabd","示":"cabe","事":"cac2","是":"cac7","适":"caca","释":"cacd","视":"cad3","试":"cad4","收":"cad5","手":"cad6","首":"cad7","殊":"cae2","输":"cae4","书":"cae9","熟":"caec","鼠":"caf3","属":"caf4","术":"caf5","述":"caf6","束":"caf8","竖":"cafa","数":"cafd","刷":"cba2","双":"cbab","谁":"cbad","水":"cbae","瞬":"cbb2","顺":"cbb3","说":"cbb5","烁":"cbb8","死":"cbc0","四":"cbc4","似":"cbc6","松":"cbc9","送":"cbcd","宋":"cbce","素":"cbd8","速":"cbd9","诉":"cbdf","算":"cbe3","随":"cbe6","缩":"cbf5","锁":"cbf8","所":"cbf9","他":"cbfb","它":"cbfc","台":"cca8","太":"ccab","态":"ccac","堂":"ccc3","套":"ccd7","特":"ccd8","提":"cce1","题":"cce2","体":"cce5","替":"cce6","添":"cced","填":"ccee","条":"ccf5","跳":"ccf8","贴":"ccf9","停":"cda3","通":"cda8","同":"cdac","统":"cdb3","头":"cdb7","图":"cdbc","团":"cdc5","退":"cdcb","拖":"cdcf","外":"cde2","玩":"cde6","完":"cdea","万":"cdf2","网":"cdf8","往":"cdf9","微":"cea2","围":"cea7","为":"ceaa","尾":"ceb2","未":"ceb4","位":"cebb","文":"cec4","纹":"cec6","稳":"cec8","问":"ceca","我":"ced2","无":"cede","五":"cee5","务":"cef1","误":"cef3","析":"cef6","西":"cef7","吸":"cefc","希":"cfa3","悉":"cfa4","熄":"cfa8","习":"cfb0","洗":"cfb4","系":"cfb5","细":"cfb8","下":"cfc2","夏":"cfc4","先":"cfc8","显":"cfd4","险":"cfd5","现":"cfd6","限":"cfde","线":"cfdf","相":"cfe0","箱":"cfe4","想":"cfeb","响":"cfec","享":"cfed","项":"cfee","像":"cff1","向":"cff2","象":"cff3","消":"cffb","小":"d0a1","校":"d0a3","效":"d0a7","些":"d0a9","写":"d0b4","械":"d0b5","芯":"d0be","新":"d0c2","信":"d0c5","型":"d0cd","形":"d0ce","行":"d0d0","性":"d0d4","姓":"d0d5","修":"d0de","需":"d0e8","虚":"d0e9","须":"d0eb","许":"d0ed","序":"d0f2","续":"d0f8","悬":"d0fc","选":"d1a1","学":"d1a7","循":"d1ad","询":"d1af","寻":"d1b0","压":"d1b9","盐":"d1ce","延":"d1d3","言":"d1d4","颜":"d1d5","沿":"d1d8","眼":"d1db","验":"d1e9","央":"d1eb","阳":"d1f4","样":"d1f9","要":"d2aa","也":"d2b2","页":"d2b3","业":"d2b5","夜":"d2b9","一":"d2bb","医":"d2bd","依":"d2c0","衣":"d2c2","移":"d2c6","仪":"d2c7","宜":"d2cb","已":"d2d1","以":"d2d4","易":"d2d7","意":"d2e2","义":"d2e5","溢":"d2e7","议":"d2e9","译":"d2eb","异":"d2ec","因":"d2f2","音":"d2f4","阴":"d2f5","引":"d2fd","隐":"d2fe","印":"d3a1","英":"d3a2","应":"d3a6","影":"d3b0","硬":"d3b2","永":"d3c0","用":"d3c3","优":"d3c5","由":"d3c9","有":"d3d0","右":"d3d2","又":"d3d6","于":"d3da","余":"d3e0","与":"d3eb","语":"d3ef","域":"d3f2","遇":"d3f6","御":"d3f9","预":"d4a4","元":"d4aa","原":"d4ad","员":"d4b1","圆":"d4b2","源":"d4b4","缘":"d4b5","远":"d4b6","院":"d4ba","约":"d4bc","越":"d4bd","月":"d4c2","阅":"d4c4","云":"d4c6","允":"d4ca","运":"d4cb","载":"d4d8","再":"d4d9","在":"d4da","暂":"d4dd","糟":"d4e3","早":"d4e7","造":"d4ec","择":"d4f1","则":"d4f2","泽":"d4f3","怎":"d4f5","增":"d4f6","窄":"d5ad","粘":"d5b3","展":"d5b9","栈":"d5bb","占":"d5bc","张":"d5c5","账":"d5cb","找":"d5d2","照":"d5d5","罩":"d5d6","遮":"d5da","折":"d5db","者":"d5df","这":"d5e2","真":"d5e6","针":"d5eb","振":"d5f1","阵":"d5f3","整":"d5fb","正":"d5fd","证":"d6a4","支":"d6a7","知":"d6aa","之":"d6ae","职":"d6b0","直":"d6b1","执":"d6b4","值":"d6b5","址":"d6b7","指":"d6b8","止":"d6b9","只":"d6bb","纸":"d6bd","志":"d6be","至":"d6c1","致":"d6c2","置":"d6c3","制":"d6c6","智":"d6c7","质":"d6ca","中":"d6d0","钟":"d6d3","终":"d6d5","种":"d6d6","重":"d6d8","周":"d6dc","州":"d6dd","轴":"d6e1","骤":"d6e8","逐":"d6f0","主":"d6f7","住":"d7a1","注":"d7a2","驻":"d7a4","专":"d7a8","转":"d7aa","装":"d7b0","状":"d7b4","缀":"d7ba","准":"d7bc","着":"d7c5","紫":"d7cf","子":"d7d3","自":"d7d4","字":"d7d6","综":"d7db","总":"d7dc","走":"d7df","阻":"d7e8","组":"d7e9","最":"d7ee","左":"d7f3","做":"d7f6","作":"d7f7","座":"d7f9","浏":"e4af","渲":"e4d6","缇":"e7be","龥":"fd9b"};
+const GBK_MAP={"　":"a1a1","、":"a1a2","。":"a1a3","·":"a1a4","—":"a1aa","～":"a1ab","…":"a1ad","‘":"a1ae","’":"a1af","“":"a1b0","”":"a1b1","《":"a1b6","》":"a1b7","「":"a1b8","」":"a1b9","『":"a1ba","』":"a1bb","【":"a1be","】":"a1bf","×":"a1c1","÷":"a1c2","∈":"a1ca","√":"a1cc","≥":"a1dd","□":"a1f5","→":"a1fa","←":"a1fb","①":"a2d9","②":"a2da","③":"a2db","④":"a2dc","⑤":"a2dd","⑥":"a2de","！":"a3a1","（":"a3a8","）":"a3a9","＋":"a3ab","，":"a3ac","：":"a3ba","；":"a3bb","？":"a3bf","Ω":"a6b8","μ":"a6cc","─":"a9a4","啊":"b0a1","安":"b0b2","按":"b0b4","案":"b0b8","八":"b0cb","把":"b0d1","白":"b0d7","摆":"b0da","败":"b0dc","班":"b0e0","搬":"b0e1","般":"b0e3","板":"b0e5","版":"b0e6","半":"b0eb","办":"b0ec","榜":"b0f1","磅":"b0f5","包":"b0fc","保":"b1a3","报":"b1a8","背":"b1b3","倍":"b1b6","备":"b1b8","被":"b1bb","本":"b1be","比":"b1c8","闭":"b1d5","必":"b1d8","避":"b1dc","边":"b1df","编":"b1e0","便":"b1e3","变":"b1e4","遍":"b1e9","标":"b1ea","表":"b1ed","别":"b1f0","并":"b2a2","玻":"b2a3","播":"b2a5","补":"b2b9","不":"b2bb","布":"b2bc","步":"b2bd","簿":"b2be","部":"b2bf","材":"b2c4","才":"b2c5","采":"b2c9","参":"b2ce","残":"b2d0","藏":"b2d8","操":"b2d9","侧":"b2e0","册":"b2e1","测":"b2e2","层":"b2e3","插":"b2e5","叉":"b2e6","查":"b2e9","察":"b2ec","差":"b2ee","拆":"b2f0","产":"b2fa","场":"b3a1","常":"b3a3","长":"b3a4","超":"b3ac","车":"b3b5","撑":"b3c5","称":"b3c6","成":"b3c9","程":"b3cc","持":"b3d6","尺":"b3df","冲":"b3e5","抽":"b3e9","初":"b3f5","出":"b3f6","除":"b3fd","础":"b4a1","储":"b4a2","触":"b4a5","处":"b4a6","传":"b4ab","串":"b4ae","窗":"b4b0","创":"b4b4","纯":"b4bf","词":"b4ca","此":"b4cb","次":"b4ce","从":"b4d3","凑":"b4d5","粗":"b4d6","存":"b4e6","寸":"b4e7","错":"b4ed","达":"b4ef","答":"b4f0","打":"b4f2","大":"b4f3","带":"b4f8","代":"b4fa","待":"b4fd","单":"b5a5","但":"b5ab","淡":"b5ad","弹":"b5af","当":"b5b1","挡":"b5b2","荡":"b5b4","档":"b5b5","倒":"b5b9","导":"b5bc","到":"b5bd","道":"b5c0","得":"b5c3","的":"b5c4","灯":"b5c6","登":"b5c7","等":"b5c8","低":"b5cd","底":"b5d7","地":"b5d8","第":"b5da","递":"b5dd","点":"b5e3","电":"b5e7","掉":"b5f4","调":"b5f7","叠":"b5fe","钉":"b6a4","顶":"b6a5","定":"b6a8","订":"b6a9","丢":"b6aa","东":"b6ab","动":"b6af","兜":"b6b5","抖":"b6b6","都":"b6bc","独":"b6c0","读":"b6c1","度":"b6c8","渡":"b6c9","端":"b6cb","短":"b6cc","段":"b6ce","断":"b6cf","堆":"b6d1","对":"b6d4","多":"b6e0","而":"b6f8","二":"b6fe","发":"b7a2","法":"b7a8","翻":"b7ad","凡":"b7b2","反":"b7b4","返":"b7b5","范":"b7b6","方":"b7bd","防":"b7c0","仿":"b7c2","放":"b7c5","非":"b7c7","飞":"b7c9","分":"b7d6","份":"b7dd","封":"b7e2","蜂":"b7e4","冯":"b7eb","佛":"b7f0","否":"b7f1","符":"b7fb","服":"b7fe","浮":"b8a1","副":"b8b1","赋":"b8b3","复":"b8b4","负":"b8ba","附":"b8bd","该":"b8c3","改":"b8c4","概":"b8c5","干":"b8c9","杆":"b8cb","赶":"b8cf","刚":"b8d5","高":"b8df","告":"b8e6","格":"b8f1","隔":"b8f4","个":"b8f6","各":"b8f7","给":"b8f8","根":"b8f9","跟":"b8fa","更":"b8fc","工":"b9a4","功":"b9a6","供":"b9a9","公":"b9ab","共":"b9b2","勾":"b9b4","构":"b9b9","够":"b9bb","估":"b9c0","孤":"b9c2","故":"b9ca","固":"b9cc","挂":"b9d2","关":"b9d8","观":"b9db","管":"b9dc","光":"b9e2","广":"b9e3","规":"b9e6","归":"b9e9","轨":"b9ec","鬼":"b9ed","滚":"b9f6","果":"b9fb","过":"b9fd","哈":"b9fe","含":"baac","函":"baaf","汉":"baba","毫":"bac1","好":"bac3","耗":"bac4","号":"bac5","核":"bacb","和":"bacd","何":"bace","合":"bacf","黑":"bada","很":"badc","横":"bae1","衡":"bae2","虹":"bae7","红":"baec","后":"baf3","忽":"baf6","糊":"bafd","护":"bba4","互":"bba5","户":"bba7","花":"bba8","华":"bbaa","滑":"bbac","画":"bbad","划":"bbae","化":"bbaf","话":"bbb0","环":"bbb7","还":"bbb9","缓":"bbba","换":"bbbb","恢":"bbd6","回":"bbd8","会":"bbe1","汇":"bbe3","绘":"bbe6","混":"bbec","或":"bbf2","击":"bbf7","基":"bbf9","机":"bbfa","积":"bbfd","绩":"bca8","极":"bcab","辑":"bcad","集":"bcaf","及":"bcb0","急":"bcb1","即":"bcb4","级":"bcb6","几":"bcb8","己":"bcba","技":"bcbc","寄":"bcc4","计":"bcc6","记":"bcc7","际":"bcca","继":"bccc","夹":"bcd0","家":"bcd2","加":"bcd3","假":"bcd9","价":"bcdb","间":"bce4","兼":"bce6","检":"bcec","简":"bcf2","减":"bcf5","见":"bcfb","键":"bcfc","件":"bcfe","渐":"bda5","建":"bda8","降":"bdb5","胶":"bdba","交":"bdbb","脚":"bdc5","角":"bdc7","教":"bdcc","较":"bdcf","叫":"bdd0","接":"bdd3","截":"bdd8","节":"bdda","结":"bde1","解":"bde2","界":"bde7","紧":"bdf4","锦":"bdf5","进":"bdf8","近":"bdfc","尽":"bea1","睛":"bea6","晶":"bea7","精":"beab","经":"bead","景":"beb0","静":"beb2","境":"beb3","径":"beb6","久":"bec3","九":"bec5","旧":"bec9","就":"becd","局":"bed6","矩":"bed8","举":"bed9","据":"bedd","具":"bedf","距":"bee0","句":"bee4","卷":"beed","觉":"bef5","决":"bef6","均":"bef9","卡":"bfa8","开":"bfaa","看":"bfb4","考":"bfbc","靠":"bfbf","颗":"bfc5","科":"bfc6","壳":"bfc7","可":"bfc9","刻":"bfcc","课":"bfce","空":"bfd5","控":"bfd8","口":"bfda","库":"bfe2","跨":"bfe7","块":"bfe9","快":"bfec","宽":"bfed","框":"bff2","况":"bff6","括":"c0a8","扩":"c0a9","拉":"c0ad","来":"c0b4","赖":"c0b5","蓝":"c0b6","栏":"c0b8","拦":"c0b9","览":"c0c0","老":"c0cf","类":"c0e0","离":"c0eb","理":"c0ed","里":"c0ef","利":"c0fb","例":"c0fd","立":"c1a2","力":"c1a6","璃":"c1a7","联":"c1aa","连":"c1ac","链":"c1b4","练":"c1b7","两":"c1bd","量":"c1bf","亮":"c1c1","疗":"c1c6","了":"c1cb","料":"c1cf","列":"c1d0","零":"c1e3","领":"c1ec","另":"c1ed","令":"c1ee","留":"c1f4","流":"c1f7","六":"c1f9","漏":"c2a9","露":"c2b6","路":"c2b7","录":"c2bc","律":"c2c9","率":"c2ca","乱":"c2d2","略":"c2d4","轮":"c2d6","论":"c2db","逻":"c2df","裸":"c2e3","落":"c2e4","络":"c2e7","码":"c2eb","吗":"c2f0","脉":"c2f6","满":"c2fa","曼":"c2fc","慢":"c2fd","么":"c3b4","没":"c3bb","每":"c3bf","门":"c3c5","们":"c3c7","密":"c3dc","免":"c3e2","面":"c3e6","描":"c3e8","秒":"c3eb","灭":"c3f0","明":"c3f7","鸣":"c3f9","名":"c3fb","命":"c3fc","模":"c4a3","磨":"c4a5","末":"c4a9","默":"c4ac","某":"c4b3","母":"c4b8","幕":"c4bb","目":"c4bf","拿":"c4c3","哪":"c4c4","那":"c4c7","囊":"c4d2","脑":"c4d4","内":"c4da","能":"c4dc","霓":"c4de","拟":"c4e2","你":"c4e3","年":"c4ea","钮":"c5a5","挪":"c5b2","诺":"c5b5","拍":"c5c4","排":"c5c5","牌":"c5c6","盘":"c5cc","判":"c5d0","跑":"c5dc","配":"c5e4","碰":"c5f6","批":"c5fa","片":"c6ac","漂":"c6af","拼":"c6b4","频":"c6b5","平":"c6bd","评":"c6c0","屏":"c6c1","普":"c6d5","期":"c6da","七":"c6df","其":"c6e4","齐":"c6eb","起":"c6f0","启":"c6f4","器":"c6f7","弃":"c6fa","汽":"c6fb","迁":"c7a8","签":"c7a9","前":"c7b0","浅":"c7b3","嵌":"c7b6","强":"c7bf","抢":"c7c0","切":"c7d0","且":"c7d2","勤":"c7da","清":"c7e5","擎":"c7e6","情":"c7e9","请":"c7eb","求":"c7f3","区":"c7f8","驱":"c7fd","取":"c8a1","去":"c8a5","圈":"c8a6","权":"c8a8","全":"c8ab","缺":"c8b1","确":"c8b7","然":"c8bb","染":"c8be","让":"c8c3","扰":"c8c5","人":"c8cb","任":"c8ce","认":"c8cf","仍":"c8d4","日":"c8d5","容":"c8dd","如":"c8e7","入":"c8eb","软":"c8ed","若":"c8f4","三":"c8fd","散":"c9a2","扫":"c9a8","色":"c9ab","砂":"c9b0","筛":"c9b8","删":"c9be","闪":"c9c1","商":"c9cc","上":"c9cf","稍":"c9d4","烧":"c9d5","少":"c9d9","设":"c9e8","身":"c9ed","深":"c9ee","审":"c9f3","声":"c9f9","生":"c9fa","升":"c9fd","省":"caa1","师":"caa6","失":"caa7","十":"caae","时":"cab1","什":"cab2","实":"cab5","识":"cab6","使":"cab9","始":"cabc","式":"cabd","示":"cabe","事":"cac2","是":"cac7","适":"caca","释":"cacd","视":"cad3","试":"cad4","收":"cad5","手":"cad6","首":"cad7","殊":"cae2","输":"cae4","书":"cae9","熟":"caec","鼠":"caf3","属":"caf4","术":"caf5","述":"caf6","束":"caf8","竖":"cafa","数":"cafd","刷":"cba2","双":"cbab","谁":"cbad","水":"cbae","瞬":"cbb2","顺":"cbb3","说":"cbb5","烁":"cbb8","死":"cbc0","四":"cbc4","似":"cbc6","松":"cbc9","送":"cbcd","宋":"cbce","素":"cbd8","速":"cbd9","诉":"cbdf","算":"cbe3","随":"cbe6","缩":"cbf5","锁":"cbf8","所":"cbf9","他":"cbfb","它":"cbfc","台":"cca8","太":"ccab","态":"ccac","堂":"ccc3","套":"ccd7","特":"ccd8","提":"cce1","题":"cce2","体":"cce5","替":"cce6","添":"cced","填":"ccee","挑":"ccf4","条":"ccf5","跳":"ccf8","贴":"ccf9","停":"cda3","通":"cda8","同":"cdac","统":"cdb3","头":"cdb7","图":"cdbc","团":"cdc5","退":"cdcb","拖":"cdcf","外":"cde2","玩":"cde6","完":"cdea","万":"cdf2","网":"cdf8","往":"cdf9","微":"cea2","围":"cea7","唯":"cea8","为":"ceaa","尾":"ceb2","未":"ceb4","位":"cebb","文":"cec4","纹":"cec6","稳":"cec8","问":"ceca","我":"ced2","无":"cede","五":"cee5","务":"cef1","误":"cef3","析":"cef6","西":"cef7","吸":"cefc","希":"cfa3","悉":"cfa4","熄":"cfa8","习":"cfb0","洗":"cfb4","系":"cfb5","细":"cfb8","下":"cfc2","夏":"cfc4","先":"cfc8","显":"cfd4","险":"cfd5","现":"cfd6","限":"cfde","线":"cfdf","相":"cfe0","箱":"cfe4","想":"cfeb","响":"cfec","享":"cfed","项":"cfee","像":"cff1","向":"cff2","象":"cff3","消":"cffb","小":"d0a1","校":"d0a3","效":"d0a7","些":"d0a9","写":"d0b4","械":"d0b5","芯":"d0be","新":"d0c2","信":"d0c5","型":"d0cd","形":"d0ce","行":"d0d0","性":"d0d4","姓":"d0d5","修":"d0de","需":"d0e8","虚":"d0e9","须":"d0eb","许":"d0ed","序":"d0f2","续":"d0f8","悬":"d0fc","选":"d1a1","学":"d1a7","循":"d1ad","询":"d1af","寻":"d1b0","压":"d1b9","盐":"d1ce","延":"d1d3","言":"d1d4","颜":"d1d5","沿":"d1d8","眼":"d1db","验":"d1e9","央":"d1eb","阳":"d1f4","样":"d1f9","要":"d2aa","也":"d2b2","页":"d2b3","业":"d2b5","夜":"d2b9","一":"d2bb","医":"d2bd","依":"d2c0","衣":"d2c2","移":"d2c6","仪":"d2c7","宜":"d2cb","已":"d2d1","以":"d2d4","易":"d2d7","意":"d2e2","义":"d2e5","溢":"d2e7","议":"d2e9","译":"d2eb","异":"d2ec","因":"d2f2","音":"d2f4","阴":"d2f5","引":"d2fd","隐":"d2fe","印":"d3a1","英":"d3a2","应":"d3a6","影":"d3b0","硬":"d3b2","永":"d3c0","用":"d3c3","优":"d3c5","由":"d3c9","有":"d3d0","右":"d3d2","又":"d3d6","于":"d3da","余":"d3e0","与":"d3eb","语":"d3ef","域":"d3f2","遇":"d3f6","御":"d3f9","预":"d4a4","元":"d4aa","原":"d4ad","员":"d4b1","圆":"d4b2","源":"d4b4","缘":"d4b5","远":"d4b6","院":"d4ba","约":"d4bc","越":"d4bd","月":"d4c2","阅":"d4c4","云":"d4c6","允":"d4ca","运":"d4cb","载":"d4d8","再":"d4d9","在":"d4da","暂":"d4dd","糟":"d4e3","造":"d4ec","择":"d4f1","则":"d4f2","泽":"d4f3","怎":"d4f5","增":"d4f6","窄":"d5ad","粘":"d5b3","展":"d5b9","栈":"d5bb","占":"d5bc","张":"d5c5","账":"d5cb","找":"d5d2","照":"d5d5","罩":"d5d6","遮":"d5da","折":"d5db","者":"d5df","这":"d5e2","真":"d5e6","针":"d5eb","振":"d5f1","阵":"d5f3","整":"d5fb","正":"d5fd","证":"d6a4","支":"d6a7","知":"d6aa","之":"d6ae","职":"d6b0","直":"d6b1","执":"d6b4","值":"d6b5","址":"d6b7","指":"d6b8","止":"d6b9","只":"d6bb","纸":"d6bd","志":"d6be","至":"d6c1","致":"d6c2","置":"d6c3","制":"d6c6","智":"d6c7","质":"d6ca","中":"d6d0","钟":"d6d3","终":"d6d5","种":"d6d6","重":"d6d8","周":"d6dc","州":"d6dd","轴":"d6e1","骤":"d6e8","逐":"d6f0","主":"d6f7","住":"d7a1","注":"d7a2","驻":"d7a4","专":"d7a8","转":"d7aa","装":"d7b0","状":"d7b4","缀":"d7ba","准":"d7bc","着":"d7c5","紫":"d7cf","子":"d7d3","自":"d7d4","字":"d7d6","综":"d7db","总":"d7dc","走":"d7df","阻":"d7e8","组":"d7e9","最":"d7ee","左":"d7f3","做":"d7f6","作":"d7f7","坐":"d7f8","座":"d7f9","浏":"e4af","渲":"e4d6","缇":"e7be","龥":"fd9b"};
 ;
 /* ================= C51 子集解释器：预处理 / 词法 / 语法 / 名字检查 / 带硬件模型的模拟运行 ================= */
 'use strict';
@@ -3136,7 +3138,10 @@ const EXAM_TYPES=['fill','modify','fix'];
 /* ---------- 组卷码：口令-第1题-第2题…（1～5 题）
    每题 = 母题号（0 表示随机，1～6 对应 M1～M6）+ 题型字母（t 改编填空 / g 按要求改程序 / c 改错）+ 分值，
    后面带“.数字”表示全班同一题（数字是老师“换一题”换到第几次），不带表示每人参数不同。
-   例：QM25-2t30-4g35.3-6c35
+   再后面可带“~数字”表示**题库里的第几个变式**（2026-11-06 加，老师从题库里精准挑的那一道）：
+   它把种子钉死成 'P<母题>|<变式号>'，不含口令、不含学号、不含这是第几题，
+   所以同一道题换位置、换口令、换学号出的都是同一道题，才配叫“题库里的题”。
+   例：QM25-2t30-4g35.3-6c35 / QM25-2t30~5-4g35-6c35
    母题是导入的书上代码时用大写字母（A = 第 1 段导入的代码……），并在口令后面带“.指纹”（4 位），
    用来核对学生网页里导入的代码和老师的一样，例：QM25.k3f9-At30-2g35 ---------- */
 const TYPE_LETTER={fill:'t',modify:'g',fix:'c'},LETTER_TYPE={t:'fill',g:'modify',c:'fix'};
@@ -3148,11 +3153,12 @@ function parseExamCode(code){
   const key=km[1],fp=km[2]||'';
   const qs=[];
   for(const p of parts.slice(1)){
-    const m=/^([0-6A-Z])([tgcTGC])(\d{1,3})(?:\.(\d{1,4}))?$/.exec(p);
+    /* pin 是可选的第五段：老码里没有，解出来是 null，后面的分支和原来完全一样 */
+    const m=/^([0-6A-Z])([tgcTGC])(\d{1,3})(?:\.(\d{1,4}))?(?:~(\d{1,4}))?$/.exec(p);
     if(!m)return null;
     const mc=m[1];
     const mid=/\d/.test(mc)?(+mc?'M'+mc:null):'C'+(mc.charCodeAt(0)-64);
-    qs.push({mid,type:LETTER_TYPE[m[2].toLowerCase()],pts:+m[3],draw:m[4]!==undefined?+m[4]:null});
+    qs.push({mid,type:LETTER_TYPE[m[2].toLowerCase()],pts:+m[3],draw:m[4]!==undefined?+m[4]:null,pin:m[5]!==undefined?+m[5]:null});
   }
   if(qs.some(q=>q.mid&&q.mid[0]==='C')&&!fp)return null;
   return {key,fp,qs};
@@ -3160,7 +3166,8 @@ function parseExamCode(code){
 function makeExamCode(key,qs){
   const mc=q=>!q.mid?'0':q.mid[0]==='M'?q.mid.slice(1):String.fromCharCode(64+(+q.mid.slice(1)));
   const usesCustom=qs.some(q=>q.mid&&q.mid[0]==='C');
-  return [key+(usesCustom?'.'+customBankFp():''),...qs.map(q=>`${mc(q)}${TYPE_LETTER[q.type]}${q.pts}${q.draw!=null?'.'+q.draw:''}`)].join('-');
+  /* ~pin 拼在 .draw 后面：老码没有这两个字段，拼出来的字符串和以前一字不差 */
+  return [key+(usesCustom?'.'+customBankFp():''),...qs.map(q=>`${mc(q)}${TYPE_LETTER[q.type]}${q.pts}${q.draw!=null?'.'+q.draw:''}${q.pin!=null?'~'+q.pin:''}`)].join('-');
 }
 /* 全班同一题的那道（不依赖学号）；母题随机时也只由口令和换题次数决定 */
 function examPaper(stuId,code){
@@ -3179,16 +3186,27 @@ function examPaper(stuId,code){
   const used=new Set(spec.qs.filter(q=>q.mid).map(q=>q.mid));
   const mids=spec.qs.map(q=>q.mid);
   const pick=(i,salt)=>{const cand=all.filter(x=>!used.has(x));const m=makeRng('pick|'+k+'|'+salt+'|'+i).pick(cand.length?cand:all);used.add(m);return m;};
-  spec.qs.forEach((q,i)=>{if(!mids[i]&&q.draw!=null)mids[i]=pick(i,'F'+q.draw);});   // 先定全班同一题的随机母题，和学号无关
+  spec.qs.forEach((q,i)=>{if(!mids[i]&&(q.draw!=null||q.pin!=null))mids[i]=pick(i,'F'+(q.pin!=null?'P'+q.pin:q.draw));});   // 先定「全班同一题 / 题库指定」的随机母题，和学号无关
   spec.qs.forEach((q,i)=>{if(!mids[i])mids[i]=pick(i,'S'+sid);});
   const paper=(hashStr(raw+'|'+sid)%90000+10000).toString();
   return spec.qs.map((q,i)=>{
-    const seed=q.draw!=null?'F'+k+'|'+i+'|'+q.draw:'E'+k+'|'+sid+'|'+i;
+    /* 种子优先级：题库变式（pin）> 全班同一题（draw）> 每人按学号不同。
+       pin 那一支故意不含口令 k、学号 sid、位置 i —— 这就是“题库里第 N 个变式”的唯一身份，
+       老师从题库挑的题，换到第几题、坐哪个学号，出的都是同一道（判分才算得准）。 */
+    const seed=q.pin!=null?'P'+mids[i]+'|'+q.pin
+             :q.draw!=null?'F'+k+'|'+i+'|'+q.draw
+             :'E'+k+'|'+sid+'|'+i;
     const v=buildVariant(mids[i],q.type,seed);
-    v.qno=i+1;v.paper=paper;v.pts=q.pts;v.fixed=q.draw!=null;
+    v.qno=i+1;v.paper=paper;v.pts=q.pts;v.fixed=q.draw!=null||q.pin!=null;
     return v;
   });
 }
+
+/* ---------- 题库列表用的：第 pin 个变式（2026-11-06 加） ----------
+   必须和 examPaper 里 pin 那一支用的是**同一个**种子 'P<母题>|<pin>'，
+   否则老师看到的题和真正发给学生的题不是同一道 —— 这是这次改动最容易错的地方。 */
+function bankVariant(mid,type,pin){ return buildVariant(mid,type,'P'+mid+'|'+pin); }
+const BANK_PINS=12;   // 每个母题给老师看几个变式（6 母题 × 3 题型 × 12 = 216 道，够挑了）
 
 /* ---------- 旧版第 1、2、4 题（兼容原检测器的分值，用来验证新引擎） ---------- */
 function legacyVariant(q){
@@ -5830,28 +5848,6 @@ function migrateOld(){
   if(moved){markDirty();setTimeout(()=>toast('已把这台电脑浏览器里原来的名单和设置搬进文件，点“保存到文件”存下来'),400);}
 }
 
-/* ---------- 换新版本：从旧的网页文件里把数据（班级、组卷、组卷码名字、密码、导入的代码、理论试卷设置）读进来 ---------- */
-async function importDataFromHTML(text){
-  const m=/<script id="appData" type="application\/json">([\s\S]*?)<\/script>/.exec(text);
-  if(!m)throw new Error('这个文件里没有存数据：它是更早的版本，数据存在当时那台电脑的浏览器里。在那台电脑上用新版本进一次老师模块，会自动搬进文件');
-  let D;try{D=JSON.parse(m[1]);}catch(e){throw new Error('文件里的数据读不出来');}
-  if(!D.vault&&!(D.bank||[]).length&&!D.exam)throw new Error('这个文件还没有保存过任何数据');
-  if(D.lock)throw new Error('这个旧文件是用改过的老师密码保存的：先用旧文件进一次老师模块（用那个旧密码）并保存，再来导入');
-  if(!D.vsalt)D.vsalt=randSalt();
-  const key=await deriveKey(DEFAULT_TEACHER_PW,D.vsalt);
-  let V={classes:[],ansPw:'',examNames:{}};
-  if(D.vault){try{V=await unseal(key,D.vault);}catch(e){throw new Error('旧文件里的名单解不开（文件可能被改过）');}}
-  V.classes=V.classes||[];V.examNames=V.examNames||{};
-  Object.keys(DATA).forEach(k=>delete DATA[k]);Object.assign(DATA,D,{migrated:1});
-  VAULT=V;VKEY=key;
-  try{setCustomMothers(DATA.bank||[]);}catch(e){console.error(e);}
-  markDirty();
-  document.dispatchEvent(new Event('dataload'));   // 组卷、理论试卷设置先换成旧文件里的
-  document.dispatchEvent(new Event('bankchange'));
-  document.dispatchEvent(new Event('rosterchange'));
-  return {classes:V.classes.length,students:V.classes.reduce((a,c)=>a+c.students.length,0),exams:(D.exams||[]).length,bank:(D.bank||[]).length,saved:D.saved||''};
-}
-
 /* ---------- 改动和保存：写回原来这个 .html 文件 ---------- */
 let DIRTY=false;
 function markDirty(){DIRTY=true;renderSaveBar();}
@@ -6375,6 +6371,33 @@ MCU_CLOUD.start = code => MCU_CLOUD.rpc('mcu_start', { p_code: code });
 MCU_CLOUD.finish = (attempt, score, max, code) =>
   MCU_CLOUD.rpc('mcu_finish', { p_attempt: attempt, p_score: score, p_max: max, p_code: code });
 
+/* 班级名单：首页「班级」导入的名单是**全账户通用**的（用户原话：「我首页的班级名单是用户导入后
+   本账户内全工具通用的」），单片机这边不该再让老师导一遍。以前概览读的是 VAULT.classes ——
+   那是离线单文件时代的本地加密存储，网页版没有导入入口，所以永远是 0 个班。
+   两个 RPC 都是现成的（考试工具在用）：hx_my_classes 拿自己的班，hx_class_students 拿班里学生。
+   → [{id, name, tools:[...], students:[{no,name}]}]
+   断网 / 没登录 / 服务器报错一律返回 []：概览页的第一要务是能打开，不能因为名单没了就报错。 */
+MCU_CLOUD.classes = async function () {
+  if (!this.on || !this.logged()) return [];
+  let cls;
+  try { cls = await this.rpc('hx_my_classes'); } catch (e) { return []; }
+  if (!Array.isArray(cls) || !cls.length) return [];
+  /* 每个班一次请求，必须并发 —— 五六个班串行起来，概览要转好几秒才出数字 */
+  const lists = await Promise.all(cls.map(c =>
+    Promise.resolve(this.rpc('hx_class_students', { p_class: c.id })).catch(() => null)
+  ));
+  return cls.map((c, i) => ({
+    id: c.id,
+    name: c.name,
+    /* tools 是「这个班开通了哪些工具」。概览要显示**所有**班（名单全工具通用），
+       但要不要标「未开通单片机」得看它，所以原样带出去，由界面决定怎么显示。 */
+    tools: Array.isArray(c.tools) ? c.tools : [],
+    /* 转学/退学的（left_school）不算在名单人数里，和 hx_my_classes 的 total 口径一致 */
+    students: (Array.isArray(lists[i]) ? lists[i] : []).filter(s => !s.left_school)
+      .map(s => ({ no: s.student_no, name: s.name }))
+  }));
+};
+
 /* 耗时榜 */
 MCU_CLOUD.board = code => MCU_CLOUD.rpc('mcu_board', { p_code: code, p_limit: 50 });
 /* 我的记录 */
@@ -6859,38 +6882,89 @@ MODE_INIT.teacher=function(){
   });
   renderExamNames();
 
-  /* ---------- 换新版本：从旧文件导入数据 ---------- */
-  document.addEventListener('dataload',()=>{
-    const E=DATA.exam;if(E&&E.qs){B.key=E.key;B.qs=E.qs.map(q=>({...q}));}
-    fixMids();paperCache.clear();renderBuilder();regradeAll();fillStuSel();fillPQ();
-    set('ansPwIn','value',answerPw());renderExamNames();
-  });
-  on1('btnUpgrade',()=>{const f=$('upFile');if(f)f.click();});
-  on('upFile','change',async e=>{
-    const f=e.target.files[0];e.target.value='';if(!f)return;
-    try{
-      const r=await importDataFromHTML(decodeBytes(await f.arrayBuffer()));
-      if($('upNote'))$('upNote').innerHTML=`已从 <b>${esc(f.name)}</b>${r.saved?'（'+esc(r.saved)+' 保存的）':''}读入：${r.classes} 个班级 ${r.students} 人、${r.exams} 个组卷码名字、${r.bank} 段导入的代码，以及组卷、密码和理论试卷设置。<b>点左下角“保存到文件”</b>存进现在这个新版本。`;
-      toast('旧文件的数据已读入，点“保存到文件”');updateOverview();
-    }catch(err){if($('upNote'))$('upNote').textContent=err.message;toast(err.message);}
-  });
-
   /* ---------- 概览（横带：数字 → 流程 → 当前这套卷） ---------- */
-  document.addEventListener('pageshow',e=>{if(e.detail==='t-overview'){updateOverview();countUp(document.querySelector('[data-page="t-overview"]'),'.stat .v');}});
+  /* 网页版的班级名单来自**首页「班级」**（同一个账号下的工具通用，存云端），
+     不再读 VAULT.classes —— 那是离线单文件时代的本地加密存储，网页版没有导入入口，
+     所以以前永远是「名单人数 -」「0 个班级」。用户原话：
+     「为什么没有名单 我首页的班级名单是用户导入后本账户内全工具通用的」。
+     取名单是异步的：先显示「读取中…」，拿到再重画；取不到（断网 / 服务器 500 / 没登录）
+     一律当空名单，概览照常能打开 —— 名单是加料，不是页面能不能用的前提。 */
+  let cloudCls=null,cloudBusy=false,cloudTried=false;   // cloudCls: null = 还没拿到（不是「没有班」）
+  function cloudClasses(){
+    if(!WEB)return null;
+    if(!cloudBusy&&!cloudTried){
+      cloudBusy=true;
+      const p=(typeof MCU_CLOUD!=='undefined'&&MCU_CLOUD.classes)?MCU_CLOUD.classes():Promise.resolve([]);
+      p.catch(()=>[]).then(L=>{cloudCls=Array.isArray(L)?L:[];cloudBusy=false;cloudTried=true;updateOverview();});
+    }
+    return cloudCls;
+  }
+  /* 勾选「上课的班级」只记在这台电脑上（store → localStorage）：
+     云端 hx_classes.tools 是「这个班开通了哪些工具」，和「这节课上哪个班」不是一回事，
+     用户也要求别改数据库结构。离线版照旧用 DATA.active / ROSTER.setActive。 */
+  const ACTIVE_KEY='mcu.active';
+  function activeNames(L){
+    const v=store.get(ACTIVE_KEY,[]);
+    return (Array.isArray(v)?v:[]).filter(n=>(L||[]).some(c=>c.name===n));
+  }
+  function renderActPick(L,act){
+    const box=$('ovClsPick');if(!box)return;
+    if($('ovClsCard'))$('ovClsCard').hidden=!L.length;
+    box.innerHTML=L.length?`<div class="chks">${L.map(c=>`<label class="chk"><input type="checkbox" data-mcu-cls="${esc(c.name)}" ${act.includes(c.name)?'checked':''}> <b>${esc(c.name)}</b><span class="note">${c.students.length} 人${(c.tools||[]).includes('mcu')?'':' · 未开通单片机'}</span></label>`).join('')}</div>`:'';
+  }
+  on('ovClsPick','change',e=>{
+    const b=e.target.closest('[data-mcu-cls]');if(!b)return;
+    const cur=new Set(activeNames(cloudCls||[]));
+    if(b.checked)cur.add(b.dataset.mcuCls);else cur.delete(b.dataset.mcuCls);
+    store.set(ACTIVE_KEY,[...cur]);
+    updateOverview();
+  });
+  document.addEventListener('pageshow',e=>{
+    if(e.detail!=='t-overview')return;
+    /* 每次回概览都重新问一次云端：老师常先去首页导名单再回来，名单得跟着变。
+       已经在手的那份继续显示（不闪回「读取中…」），新的到了再替换；上次没取成也走这条路重试。 */
+    if(WEB&&!cloudBusy)cloudTried=false;
+    updateOverview();countUp(document.querySelector('[data-page="t-overview"]'),'.stat .v');
+  });
   function updateOverview(){
     if(!$('ovRoster'))return;
-    const all=ROSTER.students('');
-    $('ovRoster').textContent=all.length||'-';
+    if(WEB){
+      const L=cloudClasses();
+      if(!L){
+        set('ovRoster','textContent','…');
+        set('ovRosterK','textContent','读取中…');
+        set('ovRosterS','textContent','读取中…');
+        set('ovExam','textContent','…');
+        set('ovExamS','textContent','读取中…');
+      }else{
+        /* 名单人数按「学号」去重：同一个学生被两个班都导过，只能算一个人 */
+        const ids=new Set();
+        L.forEach(c=>c.students.forEach(s=>ids.add(s.no||s.name)));
+        const act=activeNames(L);
+        set('ovRoster','textContent',ids.size||'-');
+        set('ovRosterK','textContent',`${L.length} 个班级`);
+        set('ovRosterS','textContent',L.length
+          ?L.map(c=>`${c.name} ${c.students.length} 人${(c.tools||[]).includes('mcu')?'':'（未开通单片机）'}`).join('，')
+          :'还没有名单：到首页『班级』导入');
+        set('ovExam','textContent',act.length?act.length+' 个班':'未选');
+        set('ovExamS','textContent',act.length?act.join('、'):'在下面勾选');
+        renderActPick(L,act);
+      }
+    }else{
+      /* 离线单文件：没有账号体系，名单只能来自文件里的 VAULT（照旧） */
+      const all=ROSTER.students('');
+      $('ovRoster').textContent=all.length||'-';
+      const act=ROSTER.active();set('ovExam','textContent',act.length?act.length+' 个班':'未选');
+      set('ovExamS','textContent',act.length?act.join('、'):'在“班级名单”里勾选');
+      set('ovRosterS','textContent',ROSTER.all().length?ROSTER.all().map(c=>`${c.name} ${c.students.length} 人`).join('，'):'还没有名单：导入考勤表');
+      set('ovRosterK','textContent',`${ROSTER.all().length} 个班级`);
+    }
     set('ovSubs','textContent',OV.cnt==null?'-':OV.cnt);
     set('ovAvg','textContent',OV.avg==null?'-':OV.avg);
-    const act=ROSTER.active();set('ovExam','textContent',act.length?act.length+' 个班':'未选');
-    set('ovExamS','textContent',act.length?act.join('、'):'在“班级名单”里勾选');
     set('ovBank','textContent',CUSTOM_MOTHERS.length?`已导入 ${CUSTOM_MOTHERS.length} 段`:'可选，不导入也能组卷');
     // 网页版没有「组卷」这一步：组卷码与当前这套卷都挪到「考试」工具里，这三格不渲染（元素不在就跳过）
     const nm=Object.values(VAULT.examNames).filter(e=>e.code===code()).map(e=>e.label);
     set('ovBuild','textContent',`${B.qs.length} 题 · 满分 ${total()}${nm.length?' · 学生输“'+nm.join('”或“')+'”':''}`);
-    set('ovRosterS','textContent',ROSTER.all().length?ROSTER.all().map(c=>`${c.name} ${c.students.length} 人`).join('，'):'还没有名单：导入考勤表');
-    set('ovRosterK','textContent',`${ROSTER.all().length} 个班级`);
     set('ovGrade','textContent',OV.cnt?`已批改 ${OV.cnt} 人，平均 ${OV.avg}`:'把学生交的文件夹拖进来');
     set('ovCode','textContent',code());
     if($('ovPaper'))$('ovPaper').innerHTML=B.qs.map((q,i)=>{const M=q.mid&&MOTHER_BY_ID[q.mid];return `<tr><td>第 ${i+1} 题</td><td>${M?esc(M.id+' '+M.name):'随机母题'}</td><td>${TYPE_NAME[q.type]}</td><td>${q.pts} 分</td><td>${q.draw!=null?'<span class="tag warn" style="margin:0">全班同一题</span>':'<span class="note">每人参数不同</span>'}</td></tr>`;}).join('');

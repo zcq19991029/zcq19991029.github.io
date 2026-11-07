@@ -1,0 +1,519 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AI 设置 · 华夏工具</title>
+<!-- 一个设置型页面，不是聊天工具：在哪儿配模型、在哪儿指定工具用哪套。
+     配置走 hx-ai.js 的存储契约（localStorage hx-ai-v1 + 分开存的 Key），各工具引同一个脚本读同一份数据。 -->
+<style>
+:root{
+  --bg:#f4f6fa; --panel:#fff; --panel2:#f7f9fc; --edge:#e3e8f0; --ink:#1b2333; --dim:#77839a; --faint:#a2adbf;
+  --acc:#5e5ce6; --acc2:#7c5cff; --ok:#17a34a; --bad:#dc2626; --warn:#b45309;
+  --shadow:0 14px 34px -24px rgba(23,33,58,.5);
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#0f1420; --panel:#161d2b; --panel2:#1c2536; --edge:#25304a; --ink:#e8edf7; --dim:#94a1b8; --faint:#5d6a82;
+    --acc:#7d7aff; --acc2:#9d8cff; --ok:#3ddc84; --bad:#ff6b6b; --warn:#f0b429;
+    --shadow:0 16px 38px -26px rgba(0,0,0,.9); }
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.62 "Microsoft YaHei",system-ui,-apple-system,"Segoe UI",sans-serif;
+  -webkit-font-smoothing:antialiased;padding:0 0 70px}
+a{color:inherit}
+.wrap{max-width:900px;margin:0 auto;padding:0 16px}
+header.top{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 90%,transparent);backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--edge)}
+header.top .wrap{display:flex;align-items:center;gap:12px;min-height:62px;flex-wrap:wrap;padding-top:9px;padding-bottom:9px}
+.back{flex:none;text-decoration:none;font-size:13.5px;font-weight:700;color:var(--dim);padding:7px 12px;border-radius:10px;
+  border:1px solid var(--edge);background:var(--panel)}
+.back:hover{color:var(--ink);border-color:var(--acc)}
+h1{margin:0;font-size:19px;letter-spacing:.3px;display:flex;align-items:center;gap:9px}
+h1 i{font-style:normal;width:30px;height:30px;border-radius:9px;display:grid;place-items:center;font-size:13px;font-weight:800;color:#fff;
+  background:linear-gradient(140deg,var(--acc),var(--acc2));box-shadow:0 8px 18px -10px var(--acc)}
+.count{margin-left:auto;font-size:12.5px;font-weight:700;color:var(--dim);padding:5px 11px;border-radius:999px;
+  background:var(--panel);border:1px solid var(--edge)}
+main{padding-top:16px}
+.lead{margin:0 0 16px;font-size:13.5px;line-height:1.7;color:var(--dim);background:var(--panel);border:1px solid var(--edge);
+  border-left:3px solid var(--acc);border-radius:12px;padding:12px 14px}
+.lead b{color:var(--ink)}
+.card{background:var(--panel);border:1px solid var(--edge);border-radius:16px;padding:16px;margin-bottom:14px;box-shadow:var(--shadow)}
+.card > h2{margin:0 0 4px;font-size:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.card > .sub{margin:0 0 12px;font-size:13px;color:var(--dim)}
+.card > h2 .right{margin-left:auto;display:flex;gap:8px}
+button{font:inherit;cursor:pointer}
+.btn{font-size:13.5px;font-weight:700;padding:8px 14px;border-radius:10px;border:1px solid var(--edge);
+  background:var(--panel);color:var(--ink);transition:.15s}
+.btn:hover{border-color:var(--acc);color:var(--acc)}
+.btn.pri{background:linear-gradient(140deg,var(--acc),var(--acc2));border-color:transparent;color:#fff;
+  box-shadow:0 10px 20px -12px var(--acc)}
+.btn.pri:hover{filter:brightness(1.06);color:#fff}
+.btn.sm{font-size:12.5px;padding:6px 11px;border-radius:9px}
+.btn.bad:hover{border-color:var(--bad);color:var(--bad)}
+/* ---- 配置列表 ---- */
+#list:empty::after{content:'还没有配置。点右上角「+ 新增一套」，先把一个能用的模型加进来。';display:block;
+  font-size:13.5px;color:var(--faint);padding:14px 4px 6px}
+.row{display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;border-top:1px solid var(--edge);padding:12px 0}
+.row:first-child{border-top:0}
+.rmain{flex:1 1 320px;min-width:0}
+.rmain .t{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.rmain .t b{font-size:15px}
+.rmain .t .pv{font-size:11.5px;font-weight:800;padding:2px 8px;border-radius:7px;color:var(--acc);
+  background:color-mix(in srgb,var(--acc) 13%,transparent)}
+.rmain .m{margin:3px 0 6px;font-size:12.5px;color:var(--dim);word-break:break-all}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{font-size:11.5px;font-weight:800;padding:3px 9px;border-radius:999px;border:1px solid var(--edge);color:var(--dim);background:var(--panel2)}
+.chip.on{border-color:color-mix(in srgb,var(--acc) 55%,transparent);color:var(--acc)}
+.racts{display:flex;gap:6px;align-items:center;flex-wrap:wrap;flex:none}
+.kst{font-size:11.5px;font-weight:800;padding:3px 9px;border-radius:999px;background:var(--panel2);border:1px solid var(--edge);color:var(--faint)}
+.kst.ok{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 45%,transparent)}
+.rmsg{flex:1 1 100%;margin:0;font-size:12.5px;color:var(--dim);min-height:0}
+.rmsg.bad{color:var(--bad)}
+.rmsg.good{color:var(--ok)}
+/* ---- 表单 ---- */
+form.pf{border-top:1px solid var(--edge);margin-top:10px;padding-top:14px}
+form.pf h3{margin:0 0 10px;font-size:14.5px}
+label.fld{display:block;margin:0 0 11px;font-size:13px;font-weight:700;color:var(--dim)}
+label.fld > span{display:block;margin-bottom:5px}
+input[type=text],input[type=url],input[type=password],select,textarea{
+  width:100%;font:inherit;font-size:14px;font-weight:400;color:var(--ink);background:var(--panel2);
+  border:1px solid var(--edge);border-radius:10px;padding:9px 11px}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--acc);background:var(--panel)}
+textarea{resize:vertical;line-height:1.55;font-family:ui-monospace,Consolas,monospace;font-size:12.5px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+.line{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.line > input,.line > select{flex:1 1 200px;min-width:0}
+.caps{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin:2px 0 12px;font-size:13.5px}
+.caps > span{font-size:13px;font-weight:700;color:var(--dim)}
+.caps label,.chk{display:flex;align-items:center;gap:7px;font-size:13.5px;font-weight:400;color:var(--ink);cursor:pointer}
+.chk{margin:0 0 12px}
+input[type=checkbox]{width:17px;height:17px;accent-color:var(--acc);flex:none}
+.hint{font-size:12px;color:var(--faint);font-weight:400}
+.acts{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:4px}
+.msg{margin:0;font-size:13px;color:var(--dim);flex:1 1 180px;min-width:0}
+.msg.bad{color:var(--bad)} .msg.good{color:var(--ok)}
+/* ---- 默认 / 工具 / 导入导出 ---- */
+.dl{display:grid;grid-template-columns:150px 1fr;gap:9px 14px;align-items:center}
+.dl > b{font-size:13.5px;font-weight:700}
+.dl > b em{display:block;font-style:normal;font-size:11.5px;font-weight:400;color:var(--faint)}
+.dl .eff{grid-column:2;font-size:11.5px;color:var(--faint);margin-top:-4px}
+.ioacts{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+#toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,20px);opacity:0;pointer-events:none;
+  background:#1b2333;color:#fff;font-size:13.5px;font-weight:700;padding:10px 18px;border-radius:999px;
+  box-shadow:0 16px 32px -18px rgba(0,0,0,.7);transition:.2s;z-index:50;max-width:86vw;text-align:center}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+#toast.bad{background:var(--bad)}
+@media (max-width:620px){
+  .grid2{grid-template-columns:1fr}
+  .dl{grid-template-columns:1fr;gap:5px}
+  .dl .eff{grid-column:1}
+  header.top .wrap{min-height:auto}
+  .racts{width:100%;justify-content:flex-start;gap:8px}
+  /* 手指点的东西别做成 6px 内边距的小药丸：一眼看着像标签、点起来容易点空 */
+  .racts .btn.sm{padding:8px 12px}
+}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <a class="back" id="back" href="../">← 回首页</a>
+  <h1><i>AI</i>AI 设置</h1>
+  <span class="count" id="count">0 套配置</span>
+</div></header>
+
+<main class="wrap">
+  <p class="lead">这些设置存在这台电脑的浏览器里，不会上传到任何服务器；<b>Key 只在调用时直接发给服务商</b>。
+    同一个浏览器里的各个工具（刷题、单片机、考试……）共用这一份配置。</p>
+
+  <section class="card">
+    <h2>模型配置<span class="right"><button class="btn sm pri" type="button" id="add">+ 新增一套</button></span></h2>
+    <p class="sub">一套 = 一家服务商的一个模型。同一个 Key 可以配多套：便宜的跑批量出题，带视觉的专门读照片。</p>
+    <div id="list"></div>
+    <form class="pf" id="pf" hidden>
+      <h3 id="pfT">新增一套</h3>
+      <div class="grid2">
+        <label class="fld"><span>名字（自己认得出就行）</span><input type="text" id="fName" maxlength="24" placeholder="如：DeepSeek 文本 / 通义千问 视觉"></label>
+        <label class="fld"><span>供应商</span><select id="fProv"></select></label>
+      </div>
+      <label class="fld"><span>接口地址</span><input type="url" id="fBase" placeholder="https://api.deepseek.com" spellcheck="false"></label>
+      <label class="fld"><span>模型名</span>
+        <div class="line"><input type="text" id="fModel" list="modelTips" placeholder="填服务商给的模型 ID" spellcheck="false">
+          <button class="btn sm" type="button" id="fFetch">读取模型</button></div>
+        <datalist id="modelTips"></datalist>
+      </label>
+      <label class="fld"><span>API Key</span><input type="password" id="fKey" autocomplete="off" placeholder="sk-..." spellcheck="false"></label>
+      <label class="chk"><input type="checkbox" id="fRemember" checked>记住这把 Key（存到这台电脑，关掉浏览器也还在；<b>机房公共电脑别勾</b>）</label>
+      <div class="caps"><span>能力标签</span><span id="fCaps"></span></div>
+      <p class="hint" style="margin:-4px 0 12px">不勾「记住」时 Key 只在这个标签页里活着：关掉页面就得重填。勾了就存在本机浏览器，下次打开直接能用。</p>
+      <div class="acts">
+        <button class="btn pri" type="submit" id="fSave">保存</button>
+        <button class="btn" type="button" id="fTest">测试连接</button>
+        <button class="btn" type="button" id="fCancel">取消</button>
+        <p class="msg" id="fMsg"></p>
+      </div>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>按能力设默认</h2>
+    <p class="sub">工具没单独指定时，就按这里找模型。</p>
+    <div class="dl" id="defaults"></div>
+  </section>
+
+  <section class="card">
+    <h2>按工具指定（可选）</h2>
+    <p class="sub">留空就跟随上面的默认。需要读图的工具（比如刷题导入照片）要选勾了「图片识别」的那套。</p>
+    <div class="dl" id="tools"></div>
+  </section>
+
+  <section class="card">
+    <h2>导入 / 导出</h2>
+    <p class="sub">换电脑或者给同事复制配置用。<b>导出的 JSON 里没有 Key</b>（Key 只在你自己的浏览器里，本来就不该跟着文件走），
+      导入后要把每套的 Key 补上。</p>
+    <textarea id="io" rows="7" placeholder="点「复制配置」把 JSON 弄出来；或者把别人给的 JSON 粘到这里再点「导入」" spellcheck="false"></textarea>
+    <div class="ioacts">
+      <button class="btn" type="button" id="copyCfg">复制配置 JSON</button>
+      <button class="btn" type="button" id="importCfg">从上面的 JSON 导入</button>
+      <p class="msg" id="ioMsg"></p>
+    </div>
+  </section>
+</main>
+<div id="toast"></div>
+
+<script src="../hx-ai.js"></script>
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  var CAPN = { text: '文本问答', vision: '图片识别', reason: '擅长推理' };
+  var editing = '';        // '' = 正在新增；有 id = 正在编辑那一套
+  var lastCfg = null;      // 从存储里读出来的完整设置快照，画下拉用
+
+  function esc(v) {
+    return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  var toastTimer = 0;
+  function toast(msg, bad) {
+    var t = $('toast');
+    t.textContent = msg;
+    t.className = bad ? 'show bad' : 'show';
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.className = ''; }, bad ? 4200 : 2000);
+  }
+
+  // 这套的 Key 到底存在哪儿：localStorage 里 = 勾了「记住」
+  function remembered(id) {
+    try { return !!localStorage.getItem('hx-ai-key:' + id); } catch (e) { return false; }
+  }
+
+  function provName(key) {
+    var p = HXAI.providers[key];
+    return p ? p.label : key;
+  }
+
+  function capNames(cs) {
+    return (cs || []).map(function (c) { return CAPN[c] || c; });
+  }
+
+  // ---------- 画列表 ----------
+  function renderList() {
+    var rows = HXAI.list();
+    $('count').textContent = rows.length + ' 套配置';
+    $('list').innerHTML = rows.map(function (p) {
+      var ks = HXAI.hasKey(p.id);
+      return '<div class="row" data-id="' + esc(p.id) + '">' +
+        '<div class="rmain">' +
+          '<div class="t"><b>' + esc(p.name || p.model) + '</b><span class="pv">' + esc(provName(p.provider)) + '</span></div>' +
+          '<p class="m">' + esc(p.model || '（没填模型名）') + ' · ' + esc(p.baseUrl || '（没填地址）') + '</p>' +
+          '<div class="chips">' + (p.caps || []).map(function (c) {
+            return '<span class="chip on">' + esc(CAPN[c] || c) + '</span>';
+          }).join('') + '</div>' +
+        '</div>' +
+        '<div class="racts">' +
+          '<span class="kst' + (ks ? ' ok' : '') + '">' + (ks ? 'Key 已填' : '没填 Key') + '</span>' +
+          '<button class="btn sm" type="button" data-act="test">测试连接</button>' +
+          '<button class="btn sm" type="button" data-act="edit">编辑</button>' +
+          '<button class="btn sm bad" type="button" data-act="del">删除</button>' +
+        '</div>' +
+        '<p class="rmsg"></p>' +
+      '</div>';
+    }).join('');
+    Array.prototype.forEach.call($('list').querySelectorAll('.row'), function (row) {
+      var id = row.dataset.id;
+      row.querySelectorAll('[data-act]').forEach(function (b) {
+        b.onclick = function () { onRowAct(b.dataset.act, id, row); };
+      });
+    });
+  }
+
+  function onRowAct(act, id, row) {
+    var p = HXAI.get(id);
+    if (!p) return renderAll();
+    if (act === 'edit') return openForm(id);
+    if (act === 'del') {
+      if (!confirm('删掉「' + (p.name || p.model) + '」这套配置？\n它的 Key 也会一起清掉，别的工具要是正用着它会退回默认。')) return;
+      HXAI.remove(id);
+      if (editing === id) closeForm();
+      renderAll();
+      toast('已删除');
+      return;
+    }
+    if (act === 'test') {
+      var msg = row.querySelector('.rmsg');
+      msg.className = 'rmsg';
+      msg.textContent = '正在测试…';
+      HXAI.test(Object.assign({}, p, { key: HXAI.key(id) })).then(function (r) {
+        msg.className = 'rmsg good';
+        msg.textContent = '连接成功 · ' + r.ms + ' 毫秒 · 返回「' + r.text + '」';
+      }).catch(function (e) {
+        msg.className = 'rmsg bad';
+        msg.textContent = '连接失败：' + e.message;
+      });
+    }
+  }
+
+  // ---------- 画「按能力设默认」 ----------
+  function renderDefaults() {
+    lastCfg = HXAI.settings();
+    var all = lastCfg.profiles;
+    $('defaults').innerHTML = HXAI.caps.map(function (c) {
+      var opts = all.filter(function (p) { return c.id === 'text' || (p.caps || []).indexOf(c.id) >= 0; });
+      var cur = lastCfg.active[c.id] || '';
+      var curP = all.filter(function (p) { return p.id === cur; })[0];
+      return '<b>' + esc(c.name) + '<em>' + esc(c.hint) + '</em></b>' +
+        '<select data-cap="' + c.id + '">' +
+          '<option value="">' + (opts.length ? '未设置' : '还没有勾「' + esc(c.name) + '」的模型') + '</option>' +
+          opts.map(function (p) {
+            return '<option value="' + esc(p.id) + '"' + (p.id === cur ? ' selected' : '') + '>' + esc(p.name || p.model) + '</option>';
+          }).join('') +
+        '</select>' +
+        '<span class="eff">' + (curP ? '当前：' + esc(curP.name || curP.model) : '当前：未设置') + '</span>';
+    }).join('');
+    $('defaults').querySelectorAll('select[data-cap]').forEach(function (sel) {
+      sel.onchange = function () {
+        HXAI.setActive(sel.dataset.cap, sel.value);
+        renderDefaults(); renderTools();
+        toast('已更新默认模型');
+      };
+    });
+  }
+
+  // ---------- 画「按工具指定」 ----------
+  function renderTools() {
+    var all = (lastCfg || HXAI.settings()).profiles;
+    var tk = (HXAI.settings().tools) || {};
+    $('tools').innerHTML = HXAI.toolList.map(function (t) {
+      var cur = tk[t.id] || '';
+      var eff = HXAI.forTool(t.id);
+      return '<b>' + esc(t.name) + '</b>' +
+        '<select data-tool="' + esc(t.id) + '">' +
+          '<option value="">跟随默认</option>' +
+          all.map(function (p) {
+            return '<option value="' + esc(p.id) + '"' + (p.id === cur ? ' selected' : '') + '>' + esc(p.name || p.model) + '</option>';
+          }).join('') +
+        '</select>' +
+        '<span class="eff">' + (cur ? '指定了单独的一套' : '跟随默认') + (eff ? ' · 现在会用「' + esc(eff.name || eff.model) + '」' : ' · 现在没有可用的模型') + '</span>';
+    }).join('');
+    $('tools').querySelectorAll('select[data-tool]').forEach(function (sel) {
+      sel.onchange = function () {
+        HXAI.setTool(sel.dataset.tool, sel.value);
+        renderTools();
+        toast(sel.value ? '已指定' : '已改回跟随默认');
+      };
+    });
+  }
+
+  function renderAll() { renderList(); renderDefaults(); renderTools(); }
+
+  // ---------- 表单 ----------
+  function fillProvider(prov) {
+    var preset = HXAI.providers[prov];
+    $('fBase').value = preset.baseUrl || '';
+    $('fModel').value = (preset.models || [])[0] || '';
+    $('modelTips').innerHTML = (preset.models || []).map(function (m) { return '<option value="' + esc(m) + '"></option>'; }).join('');
+    // 能力勾选按供应商推荐值预填：用户改成不支持的组合（比如给 DeepSeek 勾视觉）也只提醒、不拦
+    var want = preset.caps || ['text'];
+    $('fCaps').querySelectorAll('input[type=checkbox]').forEach(function (b) {
+      b.checked = want.indexOf(b.value) >= 0;
+    });
+  }
+
+  function openForm(id) {
+    editing = id || '';
+    var p = id ? HXAI.get(id) : null;
+    $('pf').hidden = false;
+    $('pfT').textContent = p ? '编辑：' + (p.name || p.model) : '新增一套';
+    $('fName').value = p ? (p.name || '') : '';
+    $('fProv').value = p ? p.provider : 'deepseek';
+    if (p) {
+      $('fBase').value = p.baseUrl || '';
+      $('fModel').value = p.model || '';
+      $('modelTips').innerHTML = (HXAI.providers[p.provider].models || []).map(function (m) { return '<option value="' + esc(m) + '"></option>'; }).join('');
+      $('fCaps').querySelectorAll('input[type=checkbox]').forEach(function (b) {
+        b.checked = (p.caps || []).indexOf(b.value) >= 0;
+      });
+    } else {
+      fillProvider('deepseek');
+    }
+    // Key 从不回显：留空 = 不动原来那把
+    var has = p && HXAI.hasKey(p.id);
+    $('fKey').value = '';
+    $('fKey').placeholder = has ? '已保存（留空表示不改）' : 'sk-...';
+    $('fRemember').checked = p ? remembered(p.id) : true;
+    $('fMsg').textContent = '';
+    $('fMsg').className = 'msg';
+    $('fName').focus();
+  }
+
+  function closeForm() {
+    editing = '';
+    $('pf').hidden = true;
+    $('fMsg').textContent = '';
+  }
+
+  function collect() {
+    var capsSel = Array.prototype.filter.call($('fCaps').querySelectorAll('input[type=checkbox]'), function (b) { return b.checked; })
+      .map(function (b) { return b.value; });
+    return {
+      id: editing || undefined,
+      name: $('fName').value.trim(),
+      provider: $('fProv').value,
+      baseUrl: $('fBase').value.trim(),
+      model: $('fModel').value.trim(),
+      caps: capsSel,
+      remember: $('fRemember').checked
+    };
+  }
+
+  $('add').onclick = function () {
+    if (!$('pf').hidden && !editing) { closeForm(); return; }
+    openForm('');
+    $('pf').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  };
+  $('fCancel').onclick = closeForm;
+
+  $('fProv').onchange = function () {
+    // 换供应商 = 换一家服务，地址和模型建议跟着换（已经手填过的地址会被覆盖，这是有意的）
+    fillProvider($('fProv').value);
+    $('fModel').focus();
+  };
+
+  $('fFetch').onclick = function () {
+    var c = collect(), msg = $('fMsg');
+    var k = $('fKey').value.trim() || (editing ? HXAI.key(editing) : '');
+    if (!k) { msg.className = 'msg bad'; msg.textContent = '先填 API Key 才能读模型列表。'; return; }
+    msg.className = 'msg'; msg.textContent = '正在读取模型列表…';
+    HXAI.models(Object.assign({}, c, { key: k })).then(function (ms) {
+      if (!ms.length) {
+        msg.className = 'msg bad';
+        msg.textContent = '没读到模型列表（有的服务商不开放这个接口）。直接手填模型名也可以。';
+        return;
+      }
+      $('modelTips').innerHTML = ms.map(function (m) { return '<option value="' + esc(m) + '"></option>'; }).join('');
+      $('fModel').value = ms.indexOf($('fModel').value) >= 0 ? $('fModel').value : ms[0];
+      msg.className = 'msg good';
+      msg.textContent = '读到 ' + ms.length + ' 个模型，点模型框可以选。';
+    });
+  };
+
+  $('fTest').onclick = function () {
+    var c = collect(), msg = $('fMsg');
+    var k = $('fKey').value.trim() || (editing ? HXAI.key(editing) : '');
+    if (!c.model) { msg.className = 'msg bad'; msg.textContent = '先填模型名。'; return; }
+    if (!k) { msg.className = 'msg bad'; msg.textContent = '先填 API Key。'; return; }
+    msg.className = 'msg'; msg.textContent = '正在测试…';
+    HXAI.test(Object.assign({}, c, { key: k })).then(function (r) {
+      msg.className = 'msg good';
+      msg.textContent = '连接成功 · ' + r.ms + ' 毫秒 · 返回「' + r.text + '」';
+    }).catch(function (e) {
+      msg.className = 'msg bad';
+      msg.textContent = '连接失败：' + e.message;
+    });
+  };
+
+  $('pf').onsubmit = function (e) {
+    e.preventDefault();
+    var c = collect(), msg = $('fMsg');
+    if (!c.model) { msg.className = 'msg bad'; msg.textContent = '模型名不能空。'; return; }
+    if (!c.baseUrl) { msg.className = 'msg bad'; msg.textContent = '接口地址不能空。'; return; }
+    var k = $('fKey').value.trim();
+    if (!editing && !k) { msg.className = 'msg bad'; msg.textContent = '新加的这一套要填 API Key。'; return; }
+    if (k) c.key = k;                      // 留空 = 不改原来那把
+    else if (editing && HXAI.hasKey(editing) && c.remember !== remembered(editing)) {
+      c.key = HXAI.key(editing);            // 只改了「记住」：把 Key 挪到另一个存储里
+    }
+    try {
+      HXAI.save(c);
+    } catch (err) {
+      msg.className = 'msg bad'; msg.textContent = err.message; return;
+    }
+    closeForm();
+    renderAll();
+    toast('已保存');
+  };
+
+  // ---------- 导入 / 导出 ----------
+  $('copyCfg').onclick = function () {
+    var text = HXAI.exportJson();
+    $('io').value = text;
+    var done = function () {
+      $('ioMsg').className = 'msg good';
+      $('ioMsg').textContent = '已复制（只有模型和地址，没有 Key）。';
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, function () {
+        $('io').select();
+        $('ioMsg').className = 'msg';
+        $('ioMsg').textContent = '浏览器不给自动复制，已经选中，按 Ctrl+C。';
+      });
+    } else {
+      $('io').select();
+      $('ioMsg').className = 'msg';
+      $('ioMsg').textContent = '已经选中，按 Ctrl+C 复制。';
+    }
+  };
+
+  $('importCfg').onclick = function () {
+    var msg = $('ioMsg');
+    msg.className = 'msg';
+    try {
+      var r = HXAI.importJson($('io').value);
+      renderAll();
+      msg.className = 'msg good';
+      msg.textContent = '导入完成：新增 ' + r.added + ' 套，更新 ' + r.updated + ' 套。Key 需要自己重新填。';
+      toast('已导入');
+    } catch (e) {
+      msg.className = 'msg bad';
+      msg.textContent = e.message;
+    }
+  };
+
+  // ---------- 启动 ----------
+  function boot() {
+    if (typeof HXAI === 'undefined') {
+      $('list').innerHTML = '<p class="rmsg bad">没加载到 hx-ai.js。确认它在网站根目录（/hx-ai.js），并且这个页面叫 /ai/。</p>';
+      return;
+    }
+    $('fProv').innerHTML = Object.keys(HXAI.providers).map(function (k) {
+      return '<option value="' + k + '">' + esc(HXAI.providers[k].label) + '</option>';
+    }).join('');
+    $('fCaps').innerHTML = HXAI.caps.map(function (c) {
+      return '<label><input type="checkbox" value="' + c.id + '">' + esc(c.name) + '</label>';
+    }).join('');
+    renderAll();
+    // 从首页卡片点进来时这个页面在 iframe 里：这时「回首页」会把总入口整个塞进框里，越点越乱，
+    // 直接在框里隐藏掉（框外面本来就是首页，左上角还有返回）
+    if (self !== top) $('back').style.display = 'none';
+    // 一套都没有就把表单直接摊开，别让人找「新增」按钮
+    if (!HXAI.list().length) openForm('');
+  }
+
+  boot();
+})();
+</script>
+</body>
+</html>

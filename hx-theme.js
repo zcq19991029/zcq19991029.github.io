@@ -70,10 +70,13 @@
   // 嵌在总入口里的子工具：选了背景图时页面底色透明，透出首页的背景图（以前单片机、考试、排课、加分是整页纯色铺满）
   // hx-embedded：告诉工具「你被嵌在框里了」。自带校徽水印的工具（目前只有排课 .wm）见到它就收起自己那一份，
   // 由总入口统一画一层，免得同一个校徽画两遍还错位。
+  // 2026-11-06 修「点浅色页面还是深色」：透明只给深色用。浅色时让工具页铺自己的浅色底
+  // （各工具的 :root 默认就是浅色底），否则首页那张深海蓝壁纸从 iframe 下面透上来，
+  // 卡片和侧栏都变浅了、整页还是看着深深一片 —— 用户说的「深浅都不变化」有一半是这一条。
   if (tool && window.top !== window) {
     document.documentElement.classList.add('hx-embedded');
     var st = document.createElement('style');
-    st.textContent = 'html.hx-bg,html.hx-bg body{background-color:transparent!important}';
+    st.textContent = 'html.hx-bg:not([data-hx-mode="light"]),html.hx-bg:not([data-hx-mode="light"]) body{background-color:transparent!important}';
     (document.head || document.documentElement).appendChild(st);
   }
 
@@ -318,7 +321,27 @@
   // 当前界面的名字：总入口（没有 data-tool）= home，各工具 = data-tool 的值。
   // 界面层设置（主题色 / 深浅 / 卡片通透度 / 背景清晰度）都存自己的键，互不干扰。
   var SURF = tool || 'home';
-  function get() {
+  // ── 外观面板到底管哪一层（2026-11-06 修「点浅色/深色页面都不变」）──────────────
+  // 面板画在总入口上，可用户点它的时候，眼睛盯着的是 iframe 里的那个工具。
+  // 老写法里 set() 永远写 SKEY + SURF，而总入口的 SURF 恒为 'home' ——
+  // 于是点「浅色」只把 52px 顶栏换了颜色，下面整块工具页（自己的 hx-theme:s:jiafen）纹丝不动，
+  // 用户看到的就是「点了没反应」。所以：**面板跟着屏幕上真正显示的那一层走**。
+  //   · 工具自己的页面（含被嵌在首页 iframe 里的）：就是它自己，SURF；
+  //   · 总入口 + 地址栏带 #jiafen 这种工具路由：写那个工具的界面键（iframe 收到 storage 事件会自己刷）；
+  //   · 总入口 + 没开工具：home，和以前一模一样。
+  // 分层隔离不受影响，反而更准确：没开工具时改的仍然是 home，之后打开工具不会跟着变。
+  // 为什么要校验 hash 形状：总入口也会把 #signup=xxxx / #error_description=... 短暂写在地址栏，
+  // 那些不是工具名，落到它们头上就会写出一个永远不会被读到的设置键。
+  var HASH_TOOL = /^[A-Za-z0-9_-]{2,32}$/;
+  function paneSurf() {
+    if (tool || window.top !== window) return SURF;   // 工具页自己（顶层 / 被嵌）
+    var h = (location.hash || '').replace(/^#/, '');
+    return HASH_TOOL.test(h) ? h : 'home';
+  }
+  // surf 不传 = 屏幕上正在显示的那一层（面板画按钮高亮、apply 上色都用它）。
+  // 传值只在"要读别的界面"时用，目前没有这种调用点。
+  function get(surf) {
+    surf = surf || paneSurf();
     // ── 全局层（hx-theme）：背景 / 动效 / 水印，全站一份，总入口统一管 ──
     var raw = ls(KEY), v = raw && OLD[raw] ? OLD[raw] : jparse(raw);
     v = v || {};
@@ -331,7 +354,7 @@
     // 键存在即权威：缺了的字段回到 DEF，不再翻老存档（从改第一项起这个界面就走自己的设置）。
     // 键不存在（从没在这个界面上改过外观）→ 沿用全局老存档里的 acc / mode / bgo（老用户观感不变），
     //   都没有就落 DEF。老 op 滑杆不再折算，见 VER 5 注释。
-    var sv = jparse(ls(SKEY + SURF)), own = !!sv;
+    var sv = jparse(ls(SKEY + surf)), own = !!sv;
     if (!own) sv = {};
     var s = {
       bg: BG[v.bg] ? v.bg : DEF.bg,
@@ -662,6 +685,9 @@
   })();
 
   function apply() {
+    // get() 不带参数 = 取「屏幕上正在显示的那一层」：总入口开着工具时就是那个工具，
+    // 于是顶栏/地址栏主题色和工具页同一套，不会出现「上面深色条、下面浅色页」的拼接感。
+    // 关掉工具回首页时 paneRefresh() 会再 apply 一次，顶栏自动换回首页自己的设置。
     var s = get(), m = modeOf(s), a = ACC[s.acc], r = document.documentElement, b = BG[s.bg];
     var c = m === 'dark' ? a.d : a.l, c2 = m === 'dark' ? a.d2 : a.l2;
     r.setAttribute('data-hx-mode', m); r.setAttribute('data-theme', m); r.setAttribute('data-hx-acc', s.acc);
@@ -680,9 +706,15 @@
     // 2026-11-05 随通透度滑杆翻转语义：100（最透）= 1，正好是 2026-11-04 定稿的那套清透玻璃；
     // 往下调卡片变实：0 = 2，各配方 alpha × 2 后被浏览器钳到 1，整卡变成实色（保可读的兜底端）。
     var hx_a = s.bg === 'none' ? 1 : 1 + (100 - s.clr) / 100;
+    // 2026-11-06 浅色：壁纸浓度整体压到 14%（视频层、图片层、手机上的海报帧**都吃这根变量**，一处管住全站）。
+    // 为什么不给每张页面补一条遮罩：背景视频是独立合成层，页面上的半透明遮罩压不住它 ——
+    // 实测把遮罩改成 0.9 不透明红，页面一点红都不出，视频照样盖在最上面；
+    // 只有把壁纸层自己的不透明度降下来，浅色下的主体才真的变浅（18,52,76 → 213,217,223）。
+    // 「背景清晰度」滑杆照旧按比例生效：100 → 14%，30 → 4.2%，0 → 背景全无。深色一行没动。
+    var bgo = s.bgo / 100 * (m === 'light' ? .14 : 1);
     var vars = { '--acc': c, '--acc2': c2, '--acc3': c2, '--acc-h': c2, '--on-acc': s.acc === 'mono' && m === 'dark' ? '#1d1d1f' : '#fff',
       '--accbg': 'color-mix(in srgb, ' + c + ' 14%, transparent)', '--ring': 'color-mix(in srgb, ' + c + ' 40%, transparent)',
-      '--hov': 'color-mix(in srgb, ' + c + ' 10%, transparent)', '--hx-a': hx_a, '--hx-img': isVid && !vidStill ? 'none' : img, '--hx-bgo': s.bgo / 100 };
+      '--hov': 'color-mix(in srgb, ' + c + ' 10%, transparent)', '--hx-a': hx_a, '--hx-img': isVid && !vidStill ? 'none' : img, '--hx-bgo': bgo };
     for (var k in vars) r.style.setProperty(k, vars[k]);
     r.classList.remove('hx-bgblur'); // 旧版挂的「预糊图」标记，现在没有任何样式依赖它，清掉防止老缓存残留
     bgVideo(isVid ? b.video : null, isVid ? b.poster : null, isVid && b.mirror);
@@ -694,16 +726,19 @@
     for (var i = 0; i < subs.length; i++) try { subs[i](s, m); } catch (e) { }
   }
   // set(patch)：按字段落键。bg / wx / wm → 全局键 hx-theme（全站一份）；
-  // acc / mode / clr / bgo → 当前界面键 hx-theme:s:<界面>（首页是 home，工具是 data-tool，互不干扰）。
+  // acc / mode / clr / bgo → 界面上正在显示的那一层（paneSurf：总入口开了工具就是那个工具，见上面那段）。
   // 换背景时不再自动改卡片透明度（老版会把 op 拉到该背景的「推荐值」）：通透度是界面自己的设置，不该被背景顺手改掉。
   function set(patch) {
-    var g = jparse(ls(KEY)) || {}, o = jparse(ls(SKEY + SURF)) || {}, hitG = false, hitO = false;
+    var surf = paneSurf();
+    var g = jparse(ls(KEY)) || {}, o = jparse(ls(SKEY + surf)) || {}, hitG = false, hitO = false;
     for (var k in patch) {
       if (k === 'bg' || k === 'wx' || k === 'wm') { g[k] = patch[k]; hitG = true; }
       else if (k === 'acc' || k === 'mode' || k === 'clr' || k === 'bgo') { o[k] = patch[k]; hitO = true; }
     }
     if (hitG) { g.ver = VER; try { ls(KEY, JSON.stringify(g)); } catch (e) { } }
-    if (hitO) { try { ls(SKEY + SURF, JSON.stringify(o)); } catch (e) { } }
+    // 写到别的界面（总入口开着工具）时，那一页是**另一个文档**：它靠 storage 事件自己刷，
+    // 本页的 apply() 只是把面板重画一遍（get() 读的也是那一层，按钮高亮才对得上）。
+    if (hitO) { try { ls(SKEY + surf, JSON.stringify(o)); } catch (e) { } }
     apply();
   }
   // 自己上传的图：缩到长边 1920、转 JPEG，免得撑爆浏览器存储（旧站是原图、限 3MB）
@@ -768,10 +803,17 @@
   }
   // 恢复默认：清全局设置、清当前图、清**本界面**的设置，但**不动相册** —— 用户点「恢复默认」是想回到出厂样子，
   // 不是想把辛苦攒的几张背景一起删了。要删单张去相册里点 ×。
-  function reset() { ls(KEY, null); ls(IMG, null); ls(SKEY + SURF, null); apply(); }
+  function reset() { ls(KEY, null); ls(IMG, null); ls(SKEY + paneSurf(), null); apply(); }
   // storage 事件：全局键（背景 / 动效 / 水印 / 图 / 开发者标）变了全站跟着刷；
   // 界面键只有「自己的那一份」变了才刷——别的工具改深浅色不该惊动这一页（分层隔离的意义就在这）。
-  addEventListener('storage', function (e) { if (e.key === KEY || e.key === IMG || e.key === DEV || e.key === SKEY + SURF || e.key === null) apply(); });
+  // 例外：总入口正开着某个工具时，那个工具的键也算"自己这一份"（顶栏要和 iframe 里保持一致），
+  // 见 paneSurf()。
+  addEventListener('storage', function (e) { if (e.key === KEY || e.key === IMG || e.key === DEV || e.key === SKEY + SURF || e.key === SKEY + paneSurf() || e.key === null) apply(); });
+  // 总入口换工具（#jiafen ↔ 首页）时，面板要改的那一层跟着换：重画面板（get() 读 paneSurf）。
+  // popstate 和 hashchange 都挂：Safari 上前进/后退不一定两个都发，宁可多调一次 —— apply() 是幂等的。
+  var lastPane = paneSurf();
+  function paneRefresh() { var n = paneSurf(); if (n === lastPane) return; lastPane = n; apply(); }
+  addEventListener('hashchange', paneRefresh); addEventListener('popstate', paneRefresh);
   if (dark) (dark.addEventListener ? dark.addEventListener('change', apply) : dark.addListener(apply));
   // 总入口（同源的上层页面）：子工具要登录时请它弹登录窗口；不在框里就跳回首页
   function portal() { try { return window.top !== window && window.top.HXPortal ? window.top.HXPortal : null; } catch (e) { return null; } }

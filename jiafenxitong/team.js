@@ -169,18 +169,12 @@
     }
   }
 
-  /* ---------- 画圆桌 ---------- */
-
-  function seatDots(size, filled) {
-    var out = '';
-    for (var i = 0; i < size; i++) {
-      var a = -Math.PI / 2 + i * (2 * Math.PI / size);
-      var x = 50 + 46 * Math.cos(a), y = 50 + 46 * Math.sin(a);
-      out += '<span class="seat-dot' + (i < filled ? ' on' : '') + '" style="left:' +
-        x.toFixed(2) + '%;top:' + y.toFixed(2) + '%"></span>';
-    }
-    return '<span class="seats">' + out + '</span>';
-  }
+  /* ---------- 画桌卡 ----------
+     2026-11-06 用户：「学生端目前的圆桌太丑了 就用排课 ui 和卡片交互设计」。
+     原来是一圈圆点 + 圆形排布（.desk-round + seatDots 算圆周坐标），在手机上又小又挤，
+     名字只能缩在圆里。现在换成和排课同款的卡片：桌号 + 已坐/容量 + 座位上的人名，
+     点一张卡就坐这桌。座位点（seatDots）连同那条圆周计算一起删掉——卡片上的
+     「空位」占位格就是座位，不另外画点了。 */
 
   function render() {
     if (!S || fatal) return;
@@ -196,18 +190,32 @@
       var list = byTable[n] || [];
       var full = list.length >= S.size;
       var isMine = mine === n;
-      var names = list.map(function (s) {
-        var me = S.me && s.student === S.me.id;
-        return '<span>' + (me ? '<em>' + esc(s.name) + '</em>' : esc(s.name)) + '</span>';
-      }).join('');
-      html += '<button class="desk' + (isMine ? ' mine' : '') + (full && !isMine ? ' full' : '') + '"' +
+      /* 座位按「已坐的人 + 剩余空位」画满整排：一眼看出这桌还剩几个位置 */
+      var seats = '';
+      for (var i = 0; i < S.size; i++) {
+        var s = list[i];
+        if (s) {
+          var me = S.me && s.student === S.me.id;
+          seats += '<span class="tc-seat' + (me ? ' me' : '') + '" title="' +
+            esc(s.name) + '">' + esc(s.name) + '</span>';
+        } else {
+          seats += '<span class="tc-seat empty">空位</span>';
+        }
+      }
+      var foot = isMine
+        ? (locked ? '你在这桌' : '你在这桌 · 点别的桌换桌')
+        : full ? '已坐满'
+          : locked ? '老师已锁定'
+            : '点一下坐这桌';
+      html += '<button class="desk tcard' + (isMine ? ' mine' : '') + (full && !isMine ? ' full' : '') + '"' +
         ' data-table="' + n + '"' + (locked ? ' disabled' : '') + '>' +
-        '<span class="desk-round">' +
-        seatDots(S.size, list.length) +
-        '<span class="desk-no">第 ' + n + ' 桌' + (isMine ? ' · 我在这' : '') + '</span>' +
-        '<span class="desk-count">' + list.length + '<small>/' + S.size + '</small></span>' +
-        '<span class="desk-names">' + names + '</span>' +
-        '</span></button>';
+        '<span class="tc-head">' +
+          '<span class="tc-no">第 ' + n + ' 桌' + (isMine ? ' · 我在这' : '') + '</span>' +
+          '<span class="tc-count"><b>' + list.length + '</b>/' + S.size + '</span>' +
+        '</span>' +
+        '<span class="tc-seats">' + seats + '</span>' +
+        '<span class="tc-foot">' + foot + '</span>' +
+        '</button>';
     }
     $('desks').innerHTML = html;
 
@@ -230,7 +238,7 @@
       stand.hidden = S.status !== 'open';
     } else if (S.status === 'open') {
       bar.hidden = false;
-      info.innerHTML = '<b>还没选桌</b>：点上面任意一张圆桌坐下';
+      info.innerHTML = '<b>还没选桌</b>：点上面任意一张桌卡坐下';
       stand.hidden = true;
     } else {
       bar.hidden = true;

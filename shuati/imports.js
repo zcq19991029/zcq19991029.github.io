@@ -1,9 +1,59 @@
-// 资料读取和 AI 识题／出题（从“高校资格证刷题”沿用；云端同步改由 store.js 负责）
+// 资料读取、AI 识题／出题、图片转数据（从“高校资格证刷题”沿用；云端同步改由 store.js 负责）
+//
+// 2026-11-06 导入流程重做（用户：「我随便导入个试卷他怎么知道怎么出题的呢」「根据资料里现成的题你又没给模板 怎么能保证成功」）：
+//   1. 识题（pick）和出题（gen）是两件事，提示词必须分开写死，不能靠一句“提取所有题”蒙；
+//   2. 识题结果要能核对：每条被拒的题都要带“第几条 + 题干前几个字 + 为什么不行”，用户才知道该改哪里；
+//   3. 出题要能下指令：范围、题型、每种几道、难度、额外要求都要真的塞进提示词；
+//   4. 拍照/截图（扫描件）交给支持看图的模型，图片先压到 1600px，避免一次发 5 页就超限。
 import { chat } from './ai.js';
+
+const IMAGE_RE = /\.(jpe?g|png|webp|gif|bmp)$/i;
+export const isImageFile = name => IMAGE_RE.test(String(name || '').toLowerCase());
+
+// 图片转 dataURL。手机拍一页教材动辄 4MB，原样发 5 张多数模型会直接拒；
+// 最长边压到 1600px、JPEG 0.8，题干文字仍然清楚，体积通常剩下十分之一。
+export function fileToDataUrl(file, max = 1600, quality = 0.8) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const scale = Math.min(1, max / Math.max(img.naturalWidth || 1, img.naturalHeight || 1));
+        const w = Math.max(1, Math.round((img.naturalWidth || 1) * scale));
+        const h = Math.max(1, Math.round((img.naturalHeight || 1) * scale));
+        const cv = document.createElement('canvas');
+        cv.width = w; cv.height = h;
+        const ctx = cv.getContext('2d');
+        // 透明 PNG 铺白底：直接转 JPEG 会把透明区域压成黑块，文字就看不清了
+        ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(cv.toDataURL('image/jpeg', quality));
+      } catch (e) {
+        reject(new Error('图片处理失败：' + e.message));
+      } finally { URL.revokeObjectURL(url); }
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('这张图片读不出来（可能不是常见的 jpg/png）。换一张，或先用扫描软件导出成 PDF／文字。')); };
+    img.src = url;
+  });
+}
+
+// 一次拍了好几页：逐张压，坏的跳过（不能因为第 3 张坏掉就整批失败）
+export async function readImages(files) {
+  const list = []; const bad = [];
+  for (const f of files) {
+    try { list.push(await fileToDataUrl(f)); } catch (e) { bad.push(`${f.name}：${e.message}`); }
+  }
+  if (!list.length) throw new Error(bad[0] || '没有读到图片。');
+  return list;
+}
 
 export async function readMaterial(file) {
   const name = file.name.toLowerCase();
-  if (name.endsWith('.json')) return { json: JSON.parse(await file.text()), text: '' };
+  if (isImageFile(name)) return { image: await fileToDataUrl(file), text: '' }; // 图片不在这里转文字，交给视觉模型
+  if (name.endsWith('.json')) {
+    try { return { json: JSON.parse(await file.text()), text: '' }; }
+    catch { throw new Error('这个 .json 文件不是合法的 JSON，检查一下括号、逗号是否齐全（可以对照导入区的「题库格式说明 · 下载模板」）。'); }
+  }
   if (/\.(txt|md)$/i.test(name)) return { text: await file.text() };
   if (name.endsWith('.docx')) {
     await import('./vendor/mammoth.browser.min.js');
@@ -21,14 +71,14 @@ export async function readMaterial(file) {
       pages.push(content.items.map(item => item.str).join(' '));
     }
     const text = pages.join('\n');
-    if (text.trim().length < 50) throw new Error('这份 PDF 没有可提取的文字（扫描件）。请先用扫描全能王等软件转成文字，或改用可复制文字的 Word／PDF。');
+    if (text.trim().length < 50) throw new Error('这份 PDF 没有可提取的文字（扫描件）。可以先把每页截图存成图片，在导入区选图片让 AI 看着读；或先用扫描全能王转成文字。');
     return { text };
   }
-  throw new Error('支持 PDF、DOCX、TXT、MD 和题库 JSON；旧版 .doc 请另存为 .docx。');
+  throw new Error('支持 PDF、DOCX、TXT、MD、题库 JSON，以及 jpg／png 图片（拍照、截图）；旧版 .doc 请另存为 .docx。');
 }
 
 function parseJson(text) {
-  const cleaned = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '');
+  const cleaned = String(text || '').trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '');
   try { return JSON.parse(cleaned); } catch {
     const first = cleaned.indexOf('{'); const last = cleaned.lastIndexOf('}');
     if (first >= 0 && last > first) return JSON.parse(cleaned.slice(first, last + 1));
@@ -36,33 +86,110 @@ function parseJson(text) {
   }
 }
 
+// 题型名称（AI 常写中文，也常写英文，两种都认）
+const TYPE_ALIAS = {
+  single: 'single', 单选: 'single', 单选题: 'single', 单项选择题: 'single', 单项选择: 'single',
+  multiple: 'multiple', 多选: 'multiple', 多选题: 'multiple', 多项选择: 'multiple', 多项选择题: 'multiple',
+  judgment: 'judgment', judge: 'judgment', 判断: 'judgment', 判断题: 'judgment',
+  fill: 'fill', blank: 'fill', 填空: 'fill', 填空题: 'fill',
+  short: 'short', 简答: 'short', 简答题: 'short', 问答: 'short', 问答题: 'short', 论述: 'short', 论述题: 'short'
+};
+const SUPPORTED = ['single', 'multiple', 'judgment', 'fill', 'short'];
+const TYPE_LABEL = { single: '单选题', multiple: '多选题', judgment: '判断题', fill: '填空题', short: '简答题' };
+
+// 把 answer 里的各种写法拆成一个个 token：['A']、'A,C'、'AB'、['正确'] 都认
+function answerTokens(raw) {
+  const out = [];
+  for (const v of (Array.isArray(raw) ? raw : [raw])) {
+    const s = String(v ?? '').trim();
+    if (!s) continue;
+    if (/^[A-Fa-f]{2,}$/.test(s)) out.push(...s.toUpperCase().split('')); // "AB" 当成 A、B
+    else out.push(...s.split(/[,，、/;；\s]+/).filter(Boolean));
+  }
+  return out;
+}
+const judgeKey = t => /^(正确|对|是|√|T|TRUE|Y|YES)$/i.test(t) ? 'T' : /^(错误|错|否|×|X|F|FALSE|N|NO)$/i.test(t) ? 'F' : '';
+
+// 题库校验。rejected 从「序号数组」改成带原因的明细 —— 用户看不到原因就不知道该怎么改。
 export function normalizeQuestions(raw, subject) {
   const input = Array.isArray(raw) ? raw : raw?.questions;
   if (!Array.isArray(input)) throw new Error('题库需要是数组，或包含 questions 数组的 JSON 对象。');
   const questions = []; const rejected = [];
   input.forEach((item, index) => {
-    const stem = String(item.stem || item.question || '').trim();
-    let type = String(item.type || '').toLowerCase();
-    if (['单选', '单选题'].includes(type)) type = 'single';
-    if (['多选', '多选题'].includes(type)) type = 'multiple';
-    if (['判断', '判断题'].includes(type)) type = 'judgment';
-    const rawOptions = item.options || [];
-    let options = Array.isArray(rawOptions) ? rawOptions.map((option, i) => typeof option === 'string' ? { key: String.fromCharCode(65 + i), text: option } : { key: String(option.key || '').toUpperCase(), text: String(option.text || '') }) : Object.entries(rawOptions).map(([key, text]) => ({ key: key.toUpperCase(), text: String(text) }));
-    if (type === 'judgment' && !options.length) options = [{ key: 'T', text: '正确' }, { key: 'F', text: '错误' }];
-    let answer = Array.isArray(item.answer) ? item.answer : String(item.answer || '').replace(/正确|对|√/g, 'T').replace(/错误|错|×/g, 'F').match(/[A-Z]/gi) || [];
-    answer = [...new Set(answer.map(a => String(a).toUpperCase()))];
-    if (!type) type = options.some(o => o.key === 'T') ? 'judgment' : answer.length > 1 ? 'multiple' : 'single';
-    const keys = new Set(options.map(o => o.key));
-    if (!stem || !['single', 'multiple', 'judgment'].includes(type) || options.length < 2 || !answer.length || answer.some(a => !keys.has(a)) || (type !== 'multiple' && answer.length !== 1)) {
-      rejected.push(index + 1); return;
+    const stem0 = String(item?.stem || item?.question || item?.title || '').trim();
+    let stem = stem0;
+    const rawType = String(item?.type || item?.题型 || '').trim();
+    let type = TYPE_ALIAS[rawType.toLowerCase()] || TYPE_ALIAS[rawType] || '';
+    const reject = reason => { rejected.push({ index: index + 1, stem: stem0.slice(0, 20), reason }); };
+    if (!stem0) return reject('题干是空的');
+    if (!type) {
+      // 没写题型时按选项形状猜：有 T/F 选项就是判断题，选项都没有又只有一两个字答案就当填空
+      const opt = item?.options;
+      const list = Array.isArray(opt) ? opt : (opt && typeof opt === 'object' ? Object.keys(opt) : []);
+      if (list.length && (String(list[0]).toUpperCase() === 'T' || /正确/.test(String(opt[0]?.text ?? opt[0] ?? '')))) type = 'judgment';
+      else if (list.length >= 2) type = answerTokens(item?.answer).length > 1 ? 'multiple' : 'single';
+      else type = 'fill';
     }
-    questions.push({ id: `${subject}-import-${crypto.randomUUID()}`, number: item.number || questions.length + 1, stem, type, options, answer, explanation: String(item.explanation || '').trim(), source: item.source || '导入' });
+    if (!SUPPORTED.includes(type)) return reject(`题型「${rawType || '未知'}」暂时不支持（只支持单选、多选、判断、填空、简答）`);
+
+    // 选项：兼容 ["文本"]、[{key,text}]、{A:"文本"} 三种写法；"A. 文本" 这种带前缀的去掉前缀
+    const rawOptions = item?.options || item?.选项 || [];
+    let options = Array.isArray(rawOptions)
+      ? rawOptions.map((option, i) => typeof option === 'string'
+        ? { key: String.fromCharCode(65 + i), text: option.replace(/^[A-Fa-f][.、:：)）]\s*/, '') }
+        : { key: String(option?.key || String.fromCharCode(65 + i)).toUpperCase(), text: String(option?.text ?? option?.value ?? '') })
+      : Object.entries(rawOptions).map(([key, text]) => ({ key: key.toUpperCase(), text: String(text) }));
+    if (type === 'fill' || type === 'short') options = [];
+    if (type === 'judgment' && !options.length) options = [{ key: 'T', text: '正确' }, { key: 'F', text: '错误' }];
+
+    // 答案
+    let answer;
+    if (type === 'fill' || type === 'short') {
+      // 填空/简答的答案本身就是文字：不能像选择题那样按空格拆（英文答案里带空格会被拆成好几空）
+      const vals = (Array.isArray(item?.answer ?? item?.答案) ? (item.answer ?? item.答案) : [item?.answer ?? item?.答案])
+        .map(v => String(v ?? '').trim()).filter(Boolean);
+      answer = type === 'short'
+        ? [vals.join(' ')].filter(Boolean)
+        : vals.flatMap(v => v.split(/[、，,；;]+/).map(s => s.trim()).filter(Boolean));
+    } else {
+      answer = answerTokens(item?.answer ?? item?.答案).map(token => {
+        const t = token.replace(/[.。、:：)）]$/, '');
+        if (type === 'judgment') return judgeKey(t) || t.toUpperCase();
+        if (/^[A-Fa-f]$/.test(t)) return t.toUpperCase();
+        const hit = options.find(o => String(o.text).trim() === t); // AI 有时直接回选项原文
+        return hit ? hit.key : t.toUpperCase();
+      });
+    }
+    answer = [...new Set(answer)];
+
+    // 填空题的题干必须有空位，否则刷题页画不出输入框
+    if (type === 'fill') {
+      if (!/_{2,}/.test(stem)) stem = stem.replace(/[（(]\s*[)）]/, '____').replace(/\s*[（(]\s*[)）]\s*/g, ' ____ ');
+      if (!/_{2,}/.test(stem)) return reject('填空题的题干里没有 ____ 表示空格位置，学生没地方填');
+    }
+    const keys = new Set(options.map(o => o.key));
+    if (!answer.length) return reject(type === 'short' ? '简答题没有参考答案' : '没有答案');
+    if (type === 'fill' || type === 'short') {
+      // 填空/简答不需要选项，答案本身就是文字，长度太离谱的多半是 AI 把整段原文搬过来了
+      if (type === 'short' && answer[0].length > 1200) return reject('简答题的参考答案太长（超过 1200 字），像是把原文整段搬过来了');
+    } else {
+      if (options.length < 2) return reject('选项少于 2 个');
+      if (answer.some(a => !keys.has(a))) return reject(`答案 ${answer.filter(a => !keys.has(a)).join('、')} 不在选项里`);
+      if (type !== 'multiple' && answer.length !== 1) return reject(`${TYPE_LABEL[type]}只能有 1 个答案，这份给了 ${answer.length} 个`);
+    }
+    questions.push({
+      id: `${subject}-import-${crypto.randomUUID()}`,
+      number: item?.number || questions.length + 1,
+      stem, type, options, answer,
+      explanation: String(item?.explanation ?? item?.解析 ?? '').trim(),
+      source: item?.source || item?.出处 || '导入'
+    });
   });
   return { questions, rejected };
 }
 
 function chunks(text, size = 4200, overlap = 450) {
-  const clean = text.replace(/\r/g, '');
+  const clean = String(text || '').replace(/\r/g, '');
   const result = [];
   for (let start = 0; start < clean.length; start += size - overlap) {
     result.push(clean.slice(start, start + size));
@@ -71,42 +198,135 @@ function chunks(text, size = 4200, overlap = 450) {
   return result;
 }
 
+// ---------- 提示词 ----------
+// 每种题型的写题规则：只把用户勾选的题型放进去。这样提示词里不会出现“没让你出的题型”，
+// 也避免模型顺手出几道多选（用户勾掉多选就是为了不要）。
+const TYPE_RULE = {
+  single: '单选题给 4 个选项、只有 1 个正确，干扰项要像真的（错在关键点上，不是一眼假）；',
+  multiple: '多选题给 4 个选项、至少 2 个正确；',
+  judgment: '判断题选项固定用 T（正确）、F（错误）；错的判断题要把原文一个关键点改掉，不能靠“好像不对”；',
+  fill: '填空题把要考的地方写成 ____（连续 4 个下划线），answer 按空格顺序给每一空的答案；',
+  short: '简答题给一段能直接对照的参考答案（30～120 字），answer 里就放这一段；'
+};
+const TYPE_SAMPLE = {
+  single: '{"type":"single","stem":"题干","options":[{"key":"A","text":"选项"}],"answer":["A"],"explanation":"原文依据"}',
+  multiple: '{"type":"multiple","stem":"题干","options":[{"key":"A","text":"选项"}],"answer":["A","C"],"explanation":"原文依据"}',
+  judgment: '{"type":"judgment","stem":"题干","options":[{"key":"T","text":"正确"},{"key":"F","text":"错误"}],"answer":["T"],"explanation":"原文依据"}',
+  fill: '{"type":"fill","stem":"并行口方向寄存器决定端口是输入还是 ____","answer":["输出"],"explanation":"原文依据"}',
+  short: '{"type":"short","stem":"简述……的步骤","answer":["参考答案那一段话"],"explanation":"原文依据"}'
+};
+
+function genPrompt({ subjectName, piece, scope, level, counts, extra, note }) {
+  const list = Object.entries(counts).filter(([, n]) => n > 0);
+  const parts = list.map(([t, n]) => `${TYPE_LABEL[t]} ${n} 道`).join('、');
+  const rules = list.map(([t]) => TYPE_RULE[t]).join('\n   ');
+  const samples = list.map(([t]) => '  ' + TYPE_SAMPLE[t]).join(',\n');
+  return `你是「${subjectName}」课程的出题老师。请根据下面的资料出题。
+范围：${scope || '整份资料'}（只出这个范围里写到的内容）
+难度：${level || '中等'}
+这一轮要出：${parts}
+${extra ? `额外要求：${extra}\n` : ''}硬要求：
+1. 每道题都必须能在原文找到依据；原文没写的不出，不编型号、参数、页码。
+2. ${rules}
+3. 答案唯一、没有歧义；explanation 写一句依据（引用原文要点）。
+4. 只输出 JSON 对象，不要任何解释文字：
+{"questions":[
+  ${samples}
+]}${note ? '\n' + note : ''}
+资料原文：
+${piece}`;
+}
+
+function pickPrompt({ piece, note }) {
+  return `从下面的资料里把已有的题原样抠出来：不要自己编题，不要改题干和选项的表述。
+题型可以是 single（单选）、multiple（多选）、judgment（判断）、fill（填空）、short（简答）：判断题选项固定 T=正确、F=错误；填空题题干用 ____ 表示空，answer 按空的顺序给答案；简答题 answer 放参考答案。
+只提取原文写得清清楚楚的题：题干、选项、答案都能从原文确定的才要；缺答案或缺选项的跳过，不要猜。
+只输出 JSON 对象：{"questions":[{"type":"single","stem":"题干","options":[{"key":"A","text":"选项"}],"answer":["A"],"explanation":"原文解析或空字符串","source":"原文位置"}]}${note ? '\n' + note : ''}
+资料：
+${piece}`;
+}
+
+// 识题：把资料里现成的题抠出来（不编题）。返回带 rejected 的报告，界面上要能逐条核对。
 export async function aiImport(text, subject, onProgress) {
-  if (!text.trim()) throw new Error('请先选择文件或粘贴资料。');
+  if (!String(text || '').trim()) throw new Error('请先选择文件或粘贴资料。');
   const pieces = chunks(text);
-  const collected = [];
+  const collected = []; const rejected = [];
   for (let i = 0; i < pieces.length; i++) {
     onProgress?.(`正在识别第 ${i + 1} / ${pieces.length} 段，已提取 ${collected.length} 题…`, collected);
     try {
-      const prompt = `从下面的原始学习资料中提取所有完整的客观题，分类为 single、multiple、judgment。只输出 JSON 对象 {"questions":[{"type":"single","stem":"题干","options":[{"key":"A","text":"选项"}],"answer":["A"],"explanation":"原文解析或空字符串"}]}。判断题选项使用 T=正确、F=错误。只提取原文能够确定答案的题，不要编造题干、选项或答案；跨段不完整的题跳过。保留原文表述。资料：\n${pieces[i]}`;
-      const response = await chat([{ role: 'system', content: '你是严谨的试题结构化助手。只返回合法 JSON。' }, { role: 'user', content: prompt }]);
-      const { questions } = normalizeQuestions(parseJson(response), subject);
-      collected.push(...questions);
+      const response = await chat([{ role: 'system', content: '你是严谨的试题结构化助手。只返回合法 JSON。' }, { role: 'user', content: pickPrompt({ piece: pieces[i] }) }]);
+      const result = normalizeQuestions(parseJson(response), subject);
+      collected.push(...result.questions);
+      rejected.push(...result.rejected);
     } catch (error) {
       error.partialQuestions = collected;
+      error.partialRejected = rejected;
       throw error;
     }
   }
-  return collected;
+  return { questions: collected, rejected };
 }
 
-// 根据资料出题：教材、讲义等没有现成题目的资料，让 AI 按资料内容出单选、多选、判断题（每段出若干题，答案和解析必须能在原文找到依据）
-export async function aiGenerate(text, subject, subjectName, perChunk, onProgress) {
-  if (!text.trim()) throw new Error('请先选择文件或粘贴资料。');
+// 出题：教材、讲义等没有现成题目的资料，按用户圈的范围/题型/数量/难度/额外要求让 AI 出题。
+// 数量按段分摊：用户说的是“整份资料一共要几道”，不是“每 6000 字几道”。
+export async function aiGenerate(text, subject, subjectName, opts = {}, onProgress) {
+  if (!String(text || '').trim()) throw new Error('请先选择文件或粘贴资料。');
+  const wanted = {};
+  for (const t of SUPPORTED) {
+    const n = Math.max(0, Math.min(50, Math.round(+((opts.types || {})[t]) || 0)));
+    if (n) wanted[t] = n;
+  }
+  if (!Object.keys(wanted).length) throw new Error('请在“出题要求”里至少勾选一种题型，并填一个大于 0 的数量。');
   const pieces = chunks(text, 6000, 300);
-  const collected = [];
+  const plan = pieces.map(() => ({})); // plan[i] = 第 i 段要出哪些题型各几道
+  for (const [t, n] of Object.entries(wanted)) {
+    const base = Math.floor(n / pieces.length), rem = n % pieces.length;
+    pieces.forEach((_, i) => { const c = base + (i < rem ? 1 : 0); if (c) plan[i][t] = c; });
+  }
+  const collected = []; const rejected = [];
+  let done = 0;
   for (let i = 0; i < pieces.length; i++) {
+    const counts = plan[i];
+    if (!Object.keys(counts).length) continue; // 这一段没分到题，别白花 token
+    done++;
     onProgress?.(`正在根据第 ${i + 1} / ${pieces.length} 段出题，已出 ${collected.length} 题…`, collected);
     try {
-      const prompt = `你是“${subjectName}”课程的出题老师。根据下面的教材原文出期末理论考试客观题：单选约占 55%、多选约 15%、判断约 30%，共 ${perChunk} 题左右。要求：1. 只考原文明确写到的知识点（概念、结构组成、型号含义、参数、选用原则、检测方法、故障原因），答案必须能在原文找到依据，不编造数据；2. 单选 4 个选项且只有 1 个正确，干扰项要合理；多选 4 个选项、至少 2 个正确；判断题选项用 T=正确、F=错误，错误的判断题要改动原文一个关键点；3. explanation 写一句依据（引用原文要点）。只输出 JSON 对象 {"questions":[{"type":"single","stem":"题干","options":[{"key":"A","text":"选项"}],"answer":["A"],"explanation":"依据"}]}。原文：
-${pieces[i]}`;
+      const prompt = genPrompt({ subjectName, piece: pieces[i], scope: opts.scope, level: opts.level, counts, extra: opts.extra });
       const response = await chat([{ role: 'system', content: '你是严谨的职业院校出题老师。只返回合法 JSON。' }, { role: 'user', content: prompt }], { json: true });
-      const { questions } = normalizeQuestions(parseJson(response), subject);
-      collected.push(...questions.map(q => ({ ...q, source: 'AI 根据资料出题' })));
+      const result = normalizeQuestions(parseJson(response), subject);
+      collected.push(...result.questions.map(q => ({ ...q, source: 'AI 根据资料出题' })));
+      rejected.push(...result.rejected);
     } catch (error) {
       error.partialQuestions = collected;
+      error.partialRejected = rejected;
       throw error;
     }
   }
-  return collected;
+  if (!done) throw new Error('资料太短，没凑够一段。多贴一些文字再试。');
+  return { questions: collected, rejected };
+}
+
+// 图片/扫描件：交给支持看图的模型（首页 hx-ai.js 暴露的 window.HXAI.vision）。
+// 离线版、或只配了纯文字模型时，HXAI 不存在或没有 vision —— 那时候不要假装能读，直接说清楚怎么配。
+export async function aiVision(images, { subject, subjectName = '', mode = 'pick', opts = {}, onProgress } = {}) {
+  if (!images || !images.length) throw new Error('没有读到图片。');
+  const H = globalThis.HXAI;
+  const vision = H && typeof H.vision === 'function' ? H.vision.bind(H) : null;
+  if (!vision) throw new Error('要读图片／扫描件，得先在首页「AI 设置」里配一套支持图片的模型（如 Qwen-VL 这类看图模型）。只配纯文字模型时，图片里的字是读不出来的。');
+  const note = `这是 ${images.length} 张图片（拍下来或截图的资料），可能歪、可能不清楚：只依据看得清的内容出题，看不清的地方跳过，不要猜。`;
+  onProgress?.(`正在把 ${images.length} 张图片交给 AI 看…`);
+  let prompt;
+  if (mode === 'gen') {
+    const counts = {};
+    for (const t of SUPPORTED) { const n = Math.max(0, Math.min(50, Math.round(+((opts.types || {})[t]) || 0))); if (n) counts[t] = n; }
+    if (!Object.keys(counts).length) throw new Error('请在“出题要求”里至少勾选一种题型，并填一个大于 0 的数量。');
+    prompt = genPrompt({ subjectName, piece: '（资料就在这次一起发来的图片里）', scope: opts.scope, level: opts.level, counts, extra: opts.extra, note });
+  } else {
+    prompt = pickPrompt({ piece: '（资料就在这次一起发来的图片里）', note });
+  }
+  const raw = await vision({ prompt, images, json: true, tool: 'quiz' });
+  const data = typeof raw === 'string' ? parseJson(raw) : raw;
+  const result = normalizeQuestions(data, subject);
+  if (mode === 'gen') result.questions = result.questions.map(q => ({ ...q, source: 'AI 根据图片出题' }));
+  return result;
 }
