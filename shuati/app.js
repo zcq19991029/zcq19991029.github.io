@@ -18,10 +18,11 @@ const SELF = new Set(['term', 'short', 'prog']); // 主观题：看参考答案�
 // 因为它们在刷题页只能「看参考答案自评」，不参与排行榜计分，默认勾上会让人误会。
 const GEN_DEF = {
   scope: '', level: '中等', extra: '',
-  count: { single: 5, multiple: 3, judgment: 5, fill: 5, short: 3 },
-  on: { single: true, multiple: true, judgment: true, fill: false, short: false }
+  count: { single: 5, multiple: 3, judgment: 5, fill: 5, short: 3, prog: 3 },
+  on: { single: true, multiple: true, judgment: true, fill: false, short: false, prog: false }
 };
-const GEN_TYPES = [['single', '单选'], ['multiple', '多选'], ['judgment', '判断'], ['fill', '填空'], ['short', '简答']];
+// 程序分析（prog）2026-11-08 加：单片机、C 语言资料里最常见的题型，以前导入这条路没开
+const GEN_TYPES = [['single', '单选'], ['multiple', '多选'], ['judgment', '判断'], ['fill', '填空'], ['short', '简答'], ['prog', '程序分析']];
 const SCOPES = [['todo', '待掌握'], ['wrong', '错题'], ['new', '未做'], ['done', '已做'], ['known', '已记住']];
 // 出题顺序：题库顺序、刷题顺序（按上次作答时间，没做过的排在后面）各有正序倒序，再加随机
 const ORDERS = [['seq', '题库正序', '按题库里的编号从前往后'], ['seqR', '题库倒序', '按题库里的编号从后往前'], ['time', '刷题正序', '先出很久以前做的，没做过的在最后'], ['timeR', '刷题倒序', '先出最近做的，没做过的在最后'], ['rand', '随机', '打乱顺序']];
@@ -634,7 +635,9 @@ const TPL = [
   { type: 'single', stem: '并行 I/O 端口工作在输入方式时，要先向端口写（　）。', options: [{ key: 'A', text: '0' }, { key: 'B', text: '1' }, { key: 'C', text: '0xFF' }, { key: 'D', text: '任意值' }], answer: ['B'], explanation: '写 1 关掉端口内部的场效应管，引脚才能被外部电路拉低。' },
   { type: 'multiple', stem: '下面属于单片机最小系统组成部分的有（　）。', options: [{ key: 'A', text: '时钟电路' }, { key: 'B', text: '复位电路' }, { key: 'C', text: '电源' }, { key: 'D', text: '打印机' }], answer: ['A', 'B', 'C'], explanation: '最小系统 = 单片机 + 时钟 + 复位 + 电源。' },
   { type: 'judgment', stem: '定时器工作在方式 2 时是 8 位自动重装。', options: [{ key: 'T', text: '正确' }, { key: 'F', text: '错误' }], answer: ['T'], explanation: '方式 2 为 8 位自动重装载定时/计数。' },
-  { type: 'fill', stem: '8051 单片机的 P0 口作为通用 I/O 使用时，需要外接 ____。', answer: ['上拉电阻'], explanation: 'P0 是开漏输出，没有内部上拉。' }
+  { type: 'fill', stem: '8051 单片机的 P0 口作为通用 I/O 使用时，需要外接 ____。', answer: ['上拉电阻'], explanation: 'P0 是开漏输出，没有内部上拉。' },
+  // 程序分析题（2026-11-08）：代码放 code、小问放 sub、参考答案放 answer，跟内置单片机题库同一个形状
+  { type: 'prog', stem: '阅读下面的程序，P1 口接 8 个 LED（D1 接 P1.0，低电平点亮），回答问题。', code: '#include <reg51.h>\nvoid main()\n{\n    P1 = 0xFE;\n    while(1);\n}', sub: ['上电后哪个灯先亮？', '程序会不会自己停下来？'], answer: ['（1）D1 先亮（0xFE 只有最低位为 0）。（2）不会，while(1) 是死循环。'], explanation: '最低位为 0，P1.0 输出低电平。' }
 ];
 function genHtml() {
   const g = genState();
@@ -642,12 +645,12 @@ function genHtml() {
         <label for="genScope">出题范围</label>
         <input id="genScope" maxlength="120" value="${esc(g.scope)}" placeholder="例如：项目3 并行 I/O 端口；或第 5 章；留空 = 整份资料">
         <div class="gt">题型和数量（整份资料一共要几道）</div>
-        ${GEN_TYPES.map(([t, n]) => `<div class="genrow"><label><input type="checkbox" data-tp="${t}" ${g.on[t] ? 'checked' : ''}>${n}</label><input type="number" min="0" max="50" step="1" data-n="${t}" value="${esc(g.count[t])}"><span class="muted">道</span>${t === 'fill' || t === 'short' ? '<span class="muted">· 只能自评，不计分</span>' : ''}</div>`).join('')}
+        ${GEN_TYPES.map(([t, n]) => `<div class="genrow"><label><input type="checkbox" data-tp="${t}" ${g.on[t] ? 'checked' : ''}>${n}</label><input type="number" min="0" max="50" step="1" data-n="${t}" value="${esc(g.count[t])}"><span class="muted">道</span>${t === 'fill' || t === 'short' || t === 'prog' ? '<span class="muted">· 只能自评，不计分</span>' : ''}</div>`).join('')}
         <label for="genLevel">难度</label>
         <select id="genLevel">${['基础', '中等', '综合'].map(v => `<option ${v === g.level ? 'selected' : ''}>${v}</option>`).join('')}</select>
         <label for="genExtra">额外要求</label>
         <textarea id="genExtra" rows="3" placeholder="例如：多考电路图和端口地址；不要出计算量太大的；答案要能在原文找到依据">${esc(g.extra)}</textarea>
-        <p class="muted" style="margin:0">填空、简答也会存进题库：填空能自动判分（题干里的 ____ 就是填空框）；简答只能「看参考答案」自己判，不参与排行榜（排行榜只算单选、多选、判断）。</p>
+        <p class="muted" style="margin:0">填空、简答、程序分析也会存进题库：填空能自动判分（题干里的 ____ 就是填空框）；简答、程序分析只能「看参考答案」自己判，不参与排行榜（排行榜只算单选、多选、判断）。程序分析会把代码和几个小问分开摆，跟内置单片机题库里那 11 道一个样子。</p>
       </div>`;
 }
 function bindGen() {
@@ -799,7 +802,7 @@ function renderBank() {
         <div class="muted" id="imFiles">${S.pending.length ? `已选 ${S.pending.length} 个文件（点「预览」开始）` : ''}</div>
       </div>
       <details class="imp-tpl"><summary>题库格式说明 · 下载模板</summary>
-        <p style="margin:8px 0">一题一条，字段：<code>stem</code> 题干 / <code>type</code> 题型（single 单选、multiple 多选、judgment 判断、fill 填空、short 简答）/ <code>options</code> 选项 / <code>answer</code> 答案 / <code>explanation</code> 解析。判断题选项写 T（正确）、F（错误）；填空题在题干里用 <code>____</code> 表示空。</p>
+        <p style="margin:8px 0">一题一条，字段：<code>stem</code> 题干 / <code>type</code> 题型（single 单选、multiple 多选、judgment 判断、fill 填空、short 简答、prog 程序分析）/ <code>options</code> 选项 / <code>answer</code> 答案 / <code>explanation</code> 解析。判断题选项写 T（正确）、F（错误）；填空题在题干里用 <code>____</code> 表示空。程序分析题再多两个字段：<code>code</code> 放代码、<code>sub</code> 放几个小问（数组），参考答案照旧写在 <code>answer</code>。</p>
         <div class="line"><button class="btn sm ghost" type="button" id="tplBtn">下载模板</button><span class="muted">照着填，填好直接拖进来</span></div>
       </details>
       ${draftHtml(d)}
@@ -829,7 +832,7 @@ function renderBank() {
     location.href = '../ai/';
   });
   on('tplBtn', () => {
-    downloadText('题库模板.json', JSON.stringify({ 说明: '一题一条；type 可写 single/multiple/judgment/fill/short；判断题选项写 T（正确）、F（错误）；填空题题干用 ____ 表示空。填好直接拖进导入区即可，不用 AI。', questions: TPL }, null, 2));
+    downloadText('题库模板.json', JSON.stringify({ 说明: '一题一条；type 可写 single/multiple/judgment/fill/short/prog；判断题选项写 T（正确）、F（错误）；填空题题干用 ____ 表示空；程序分析题把代码写在 code、小问写在 sub、参考答案写在 answer。填好直接拖进导入区即可，不用 AI。', questions: TPL }, null, 2));
     toast('模板已下载，照着填，填完拖进来');
   });
   if ($('mFile')) $('mFile').onchange = () => {

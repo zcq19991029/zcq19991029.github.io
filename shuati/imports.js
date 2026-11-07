@@ -92,10 +92,14 @@ const TYPE_ALIAS = {
   multiple: 'multiple', 多选: 'multiple', 多选题: 'multiple', 多项选择: 'multiple', 多项选择题: 'multiple',
   judgment: 'judgment', judge: 'judgment', 判断: 'judgment', 判断题: 'judgment',
   fill: 'fill', blank: 'fill', 填空: 'fill', 填空题: 'fill',
-  short: 'short', 简答: 'short', 简答题: 'short', 问答: 'short', 问答题: 'short', 论述: 'short', 论述题: 'short'
+  short: 'short', 简答: 'short', 简答题: 'short', 问答: 'short', 问答题: 'short', 论述: 'short', 论述题: 'short',
+  /* 程序分析题（2026-11-08 加）：单片机、C 语言这类资料里的「阅读程序回答问题」。
+     刷题页早就支持 prog（内置单片机题库里有 11 道），只是导入和出题这条路一直没开。 */
+  prog: 'prog', 程序: 'prog', 程序题: 'prog', 程序分析: 'prog', 程序分析题: 'prog',
+  程序设计: 'prog', 程序设计题: 'prog', 编程: 'prog', 编程题: 'prog', 代码分析: 'prog', 读程序: 'prog'
 };
-const SUPPORTED = ['single', 'multiple', 'judgment', 'fill', 'short'];
-const TYPE_LABEL = { single: '单选题', multiple: '多选题', judgment: '判断题', fill: '填空题', short: '简答题' };
+const SUPPORTED = ['single', 'multiple', 'judgment', 'fill', 'short', 'prog'];
+const TYPE_LABEL = { single: '单选题', multiple: '多选题', judgment: '判断题', fill: '填空题', short: '简答题', prog: '程序分析题' };
 
 // 把 answer 里的各种写法拆成一个个 token：['A']、'A,C'、'AB'、['正确'] 都认
 function answerTokens(raw) {
@@ -139,18 +143,19 @@ export function normalizeQuestions(raw, subject) {
         ? { key: String.fromCharCode(65 + i), text: option.replace(/^[A-Fa-f][.、:：)）]\s*/, '') }
         : { key: String(option?.key || String.fromCharCode(65 + i)).toUpperCase(), text: String(option?.text ?? option?.value ?? '') })
       : Object.entries(rawOptions).map(([key, text]) => ({ key: key.toUpperCase(), text: String(text) }));
-    if (type === 'fill' || type === 'short') options = [];
+    // 填空、简答、程序分析都不需要选项：答案本身就是文字
+    if (type === 'fill' || type === 'short' || type === 'prog') options = [];
     if (type === 'judgment' && !options.length) options = [{ key: 'T', text: '正确' }, { key: 'F', text: '错误' }];
 
     // 答案
     let answer;
-    if (type === 'fill' || type === 'short') {
-      // 填空/简答的答案本身就是文字：不能像选择题那样按空格拆（英文答案里带空格会被拆成好几空）
+    if (type === 'fill' || type === 'short' || type === 'prog') {
+      // 填空/简答/程序分析的答案本身就是文字：不能像选择题那样按空格拆（英文答案里带空格会被拆成好几空）
       const vals = (Array.isArray(item?.answer ?? item?.答案) ? (item.answer ?? item.答案) : [item?.answer ?? item?.答案])
         .map(v => String(v ?? '').trim()).filter(Boolean);
-      answer = type === 'short'
-        ? [vals.join(' ')].filter(Boolean)
-        : vals.flatMap(v => v.split(/[、，,；;]+/).map(s => s.trim()).filter(Boolean));
+      answer = type === 'fill'
+        ? vals.flatMap(v => v.split(/[、，,；;]+/).map(s => s.trim()).filter(Boolean))
+        : [vals.join(' ')].filter(Boolean);
     } else {
       answer = answerTokens(item?.answer ?? item?.答案).map(token => {
         const t = token.replace(/[.。、:：)）]$/, '');
@@ -168,19 +173,25 @@ export function normalizeQuestions(raw, subject) {
       if (!/_{2,}/.test(stem)) return reject('填空题的题干里没有 ____ 表示空格位置，学生没地方填');
     }
     const keys = new Set(options.map(o => o.key));
-    if (!answer.length) return reject(type === 'short' ? '简答题没有参考答案' : '没有答案');
-    if (type === 'fill' || type === 'short') {
-      // 填空/简答不需要选项，答案本身就是文字，长度太离谱的多半是 AI 把整段原文搬过来了
+    if (!answer.length) return reject(type === 'prog' ? '程序分析题没有参考答案' : type === 'short' ? '简答题没有参考答案' : '没有答案');
+    if (type === 'fill' || type === 'short' || type === 'prog') {
+      // 这几类不需要选项，答案本身就是文字，长度太离谱的多半是 AI 把整段原文搬过来了
       if (type === 'short' && answer[0].length > 1200) return reject('简答题的参考答案太长（超过 1200 字），像是把原文整段搬过来了');
+      // 程序分析常有好几问，参考答案比简答长是正常的，但超过 2000 字基本就是抄原文了
+      if (type === 'prog' && answer[0].length > 2000) return reject('程序分析题的参考答案太长（超过 2000 字），像是把原文整段搬过来了');
     } else {
       if (options.length < 2) return reject('选项少于 2 个');
       if (answer.some(a => !keys.has(a))) return reject(`答案 ${answer.filter(a => !keys.has(a)).join('、')} 不在选项里`);
       if (type !== 'multiple' && answer.length !== 1) return reject(`${TYPE_LABEL[type]}只能有 1 个答案，这份给了 ${answer.length} 个`);
     }
+    const arr = v => (Array.isArray(v) ? v : v ? [v] : []).map(x => String(x ?? '').trim()).filter(Boolean);
+    /* 程序分析题的两个附加字段：`code` 是题目下面那段代码，`sub` 是几个小问。
+       内置单片机题库里就有（`mcu-prog-*`），导入这条路以前没接，现在一起留住。 */
+    const code = String(item?.code ?? item?.代码 ?? item?.程序 ?? '').trim();
+    const sub = arr(item?.sub ?? item?.小问 ?? item?.问题);
     /* study（可选）：题库页「说人话写学习卡」整理出来的四块（app.js 的 studyCard 画）。
        导出的 JSON 再导回来时要原样保留，否则卡一导出就没了。形状不对就当没有。 */
     const rawStudy = item?.study || item?.学习卡;
-    const arr = v => (Array.isArray(v) ? v : v ? [v] : []).map(x => String(x ?? '').trim()).filter(Boolean);
     const study = (() => {
       if (!rawStudy || typeof rawStudy !== 'object') return null;
       const table = (Array.isArray(rawStudy.table) ? rawStudy.table : []).map(r => (Array.isArray(r) ? [String(r[0] ?? '').trim(), String(r[1] ?? '').trim()] : null)).filter(r => r && (r[0] || r[1]));
@@ -200,6 +211,8 @@ export function normalizeQuestions(raw, subject) {
       /* tip（可选）：老师自己写的一句口诀／小技巧。刷题页会用它画「学习卡」的黄色那块
          （见 app.js 的 studyCard）。不写就是空串，不影响别的字段。 */
       tip: String(item?.tip ?? item?.小技巧 ?? item?.口诀 ?? '').trim(),
+      ...(code ? { code } : {}),
+      ...(sub.length ? { sub } : {}),
       ...(study ? { study } : {}),
       source: item?.source || item?.出处 || '导入'
     });
@@ -225,14 +238,18 @@ const TYPE_RULE = {
   multiple: '多选题给 4 个选项、至少 2 个正确；',
   judgment: '判断题选项固定用 T（正确）、F（错误）；错的判断题要把原文一个关键点改掉，不能靠“好像不对”；',
   fill: '填空题把要考的地方写成 ____（连续 4 个下划线），answer 按空格顺序给每一空的答案；',
-  short: '简答题给一段能直接对照的参考答案（30～120 字），answer 里就放这一段；'
+  short: '简答题给一段能直接对照的参考答案（30～120 字），answer 里就放这一段；',
+  /* 程序分析题（2026-11-08）：单片机、C 语言资料里最常见的题型。
+     代码单独放 code 字段（带换行和缩进），小问单独放 sub，答案按小问顺序写。 */
+  prog: '程序分析题：stem 写清背景和要求（哪个口接了什么、要读哪段程序），code 里放这段完整可读的程序（保留换行和缩进，不要用 Markdown 代码块、不要加 ```），sub 里放 2～4 个具体小问，answer 里按小问顺序（1）（2）（3）写参考答案；'
 };
 const TYPE_SAMPLE = {
   single: '{"type":"single","stem":"题干","options":[{"key":"A","text":"选项"}],"answer":["A"],"explanation":"原文依据"}',
   multiple: '{"type":"multiple","stem":"题干","options":[{"key":"A","text":"选项"}],"answer":["A","C"],"explanation":"原文依据"}',
   judgment: '{"type":"judgment","stem":"题干","options":[{"key":"T","text":"正确"},{"key":"F","text":"错误"}],"answer":["T"],"explanation":"原文依据"}',
   fill: '{"type":"fill","stem":"并行口方向寄存器决定端口是输入还是 ____","answer":["输出"],"explanation":"原文依据"}',
-  short: '{"type":"short","stem":"简述……的步骤","answer":["参考答案那一段话"],"explanation":"原文依据"}'
+  short: '{"type":"short","stem":"简述……的步骤","answer":["参考答案那一段话"],"explanation":"原文依据"}',
+  prog: '{"type":"prog","stem":"阅读下面的程序，P1 口接 8 个 LED（低电平点亮），回答问题。","code":"#include <reg51.h>\\nvoid main()\\n{\\n    P1 = 0xFE;\\n    while(1);\\n}","sub":["哪个灯先亮？","程序会不会停下来？"],"answer":["（1）D1 先亮（0xFE 最低位为 0）。（2）不会，while(1) 是死循环。"],"explanation":"原文依据"}'
 };
 
 function genPrompt({ subjectName, piece, scope, level, counts, extra, note }) {
@@ -258,7 +275,7 @@ ${piece}`;
 
 function pickPrompt({ piece, note }) {
   return `从下面的资料里把已有的题原样抠出来：不要自己编题，不要改题干和选项的表述。
-题型可以是 single（单选）、multiple（多选）、judgment（判断）、fill（填空）、short（简答）：判断题选项固定 T=正确、F=错误；填空题题干用 ____ 表示空，answer 按空的顺序给答案；简答题 answer 放参考答案。
+题型可以是 single（单选）、multiple（多选）、judgment（判断）、fill（填空）、short（简答）、prog（程序分析）：判断题选项固定 T=正确、F=错误；填空题题干用 ____ 表示空，answer 按空的顺序给答案；简答题 answer 放参考答案；程序分析题把代码放进 code 字段、小问放进 sub、参考答案放进 answer。
 只提取原文写得清清楚楚的题：题干、选项、答案都能从原文确定的才要；缺答案或缺选项的跳过，不要猜。
 只输出 JSON 对象：{"questions":[{"type":"single","stem":"题干","options":[{"key":"A","text":"选项"}],"answer":["A"],"explanation":"原文解析或空字符串","source":"原文位置"}]}${note ? '\n' + note : ''}
 资料：
