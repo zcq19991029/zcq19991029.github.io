@@ -24,41 +24,166 @@
   var NO_AI = '还没有配置 AI 模型，请到首页「AI 设置」里加一套';
 
   // 供应商预设。baseUrl 照各家「OpenAI 兼容」入口填，末尾不写 /chat/completions（下面统一拼）。
-  // models 只是候选（datalsit / 下拉里的建议），真实可用性以「读取模型」和「测试连接」为准。
+  // models 只是候选（datalist / 下拉里的建议），真实可用性以「读取模型」和「测试连接」为准。
+  // group 决定下拉框里的分组（照 cc-switch 的 90+ 预设挑了对上课有用的：国内官方 / 国内聚合 / 海外官方 / 海外聚合）。
+  // 一律只收「认 /chat/completions」的 —— Anthropic 原生 /v1/messages 不走这套，别往里加。
   var providers = {
+    // ---------- 国内 · 官方 ----------
     deepseek: {
-      label: 'DeepSeek', baseUrl: 'https://api.deepseek.com',
-      models: ['deepseek-chat', 'deepseek-reasoner', 'deepseek-flash', 'deepseek-v4-pro'],
+      label: 'DeepSeek', group: '国内 · 官方', baseUrl: 'https://api.deepseek.com',
+      models: ['deepseek-chat', 'deepseek-reasoner'],
       caps: ['text', 'reason'],
-      note: 'DeepSeek 目前没有能读图的模型，别勾「图片识别」。'
-    },
-    siliconflow: {
-      label: '硅基流动', baseUrl: 'https://api.siliconflow.cn/v1',
-      models: ['Qwen/Qwen2.5-VL-72B-Instruct', 'Qwen/Qwen3.6-27B', 'deepseek-ai/DeepSeek-V4-Flash', 'Pro/deepseek-ai/DeepSeek-V4'],
-      caps: ['text', 'vision'],
-      note: '带 VL / V 的多是视觉模型（能读图），价格按图张数算。'
-    },
-    openai: {
-      label: 'OpenAI', baseUrl: 'https://api.openai.com/v1',
-      models: ['gpt-4o-mini', 'gpt-4o'],
-      caps: ['text', 'vision', 'reason'],
-      note: '国内直连多半不通，需要自备代理地址。'
+      note: '最便宜，写题改题够用。目前没有能读图的模型，别勾「图片识别」。'
     },
     qwen: {
-      label: '通义千问（DashScope）', baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-      models: ['qwen-plus', 'qwen-max', 'qwen-vl-max', 'qwen-vl-plus'],
+      label: '通义千问（阿里云百炼）', group: '国内 · 官方', baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+      models: ['qwen-plus', 'qwen-max', 'qwen-turbo', 'qwen-vl-max', 'qwen-vl-plus'],
       caps: ['text', 'vision'],
-      note: 'qwen-vl- 开头的是视觉模型。'
+      note: 'qwen-vl- 开头的是视觉模型，读扫描件用它。阿里云后台要先开通「百炼」。'
     },
     moonshot: {
-      label: '月之暗面 Moonshot', baseUrl: 'https://api.moonshot.cn/v1',
-      models: ['moonshot-v1-8k', 'moonshot-v1-32k', 'moonshot-v1-8k-vision-preview'],
+      label: 'Kimi / 月之暗面', group: '国内 · 官方', baseUrl: 'https://api.moonshot.cn/v1',
+      models: ['moonshot-v1-8k', 'moonshot-v1-32k', 'moonshot-v1-128k', 'moonshot-v1-8k-vision-preview'],
       caps: ['text', 'vision'],
-      note: 'vision 结尾的才能读图。'
+      note: '长文强，整本教材丢进去也行。vision 结尾的才能读图。'
     },
+    zhipu: {
+      label: '智谱 GLM', group: '国内 · 官方', baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
+      models: ['glm-4-plus', 'glm-4-air', 'glm-4-flash', 'glm-4v-plus', 'glm-4v'],
+      caps: ['text', 'vision'],
+      note: 'glm-4v 系列能读图；glm-4-flash 有免费额度。'
+    },
+    volc: {
+      label: '火山方舟（豆包）', group: '国内 · 官方', baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
+      models: ['doubao-pro-32k', 'doubao-pro-128k', 'doubao-lite-32k', 'doubao-vision-pro-32k'],
+      caps: ['text', 'vision'],
+      note: '模型名要填「接入点 ID」（ep-xxxx）或模型名，看你后台怎么开的。'
+    },
+    hunyuan: {
+      label: '腾讯混元', group: '国内 · 官方', baseUrl: 'https://api.hunyuan.cloud.tencent.com/v1',
+      models: ['hunyuan-turbo', 'hunyuan-pro', 'hunyuan-standard', 'hunyuan-vision'],
+      caps: ['text', 'vision'],
+      note: 'hunyuan-vision 能读图。腾讯云后台拿 Key。'
+    },
+    qianfan: {
+      label: '百度千帆（文心）', group: '国内 · 官方', baseUrl: 'https://qianfan.baidubce.com/v2',
+      models: ['ernie-4.5-turbo-128k', 'ernie-4.0-8k', 'ernie-speed-128k'],
+      caps: ['text'],
+      note: '走 v2 的 OpenAI 兼容入口。老版本用的是 access_token，地址会不一样。'
+    },
+    minimax: {
+      label: 'MiniMax', group: '国内 · 官方', baseUrl: 'https://api.minimax.chat/v1',
+      models: ['MiniMax-Text-01', 'abab6.5s-chat', 'MiniMax-VL-01'],
+      caps: ['text', 'vision'],
+      note: '部分账号的地址是 api.minimaxi.com，报 404 就换一下。'
+    },
+    stepfun: {
+      label: '阶跃星辰 StepFun', group: '国内 · 官方', baseUrl: 'https://api.stepfun.com/v1',
+      models: ['step-2-16k', 'step-1-8k', 'step-1v-8k'],
+      caps: ['text', 'vision'],
+      note: 'step-1v 能读图。'
+    },
+    modelscope: {
+      label: '魔搭 ModelScope', group: '国内 · 官方', baseUrl: 'https://api-inference.modelscope.cn/v1',
+      models: ['Qwen/Qwen2.5-72B-Instruct', 'Qwen/Qwen2.5-VL-72B-Instruct', 'deepseek-ai/DeepSeek-V3'],
+      caps: ['text', 'vision'],
+      note: '阿里社区，模型名带斜杠，常送免费额度。'
+    },
+
+    // ---------- 国内 · 聚合中转 ----------
+    siliconflow: {
+      label: '硅基流动 SiliconFlow', group: '国内 · 聚合', baseUrl: 'https://api.siliconflow.cn/v1',
+      models: ['Qwen/Qwen2.5-VL-72B-Instruct', 'Qwen/Qwen2.5-72B-Instruct', 'deepseek-ai/DeepSeek-V3'],
+      caps: ['text', 'vision'],
+      note: '一个 Key 用几十家模型，带 VL 的能读图，价格按图张数算。实名送额度。'
+    },
+    ppio: {
+      label: '派欧云 PPIO', group: '国内 · 聚合', baseUrl: 'https://api.ppinfra.com/v3/openai',
+      models: ['deepseek/deepseek-v3', 'qwen/qwen2.5-72b-instruct', 'deepseek/deepseek-r1'],
+      caps: ['text', 'reason'],
+      note: '模型名带「厂/型号」前缀。'
+    },
+    qiniu: {
+      label: '七牛云 AI', group: '国内 · 聚合', baseUrl: 'https://openai.qiniu.com/v1',
+      models: ['deepseek-v3', 'deepseek-r1', 'gpt-4o-mini'],
+      caps: ['text', 'reason'],
+      note: '企业用户有免费 token 额度。'
+    },
+    ai302: {
+      label: '302.AI', group: '国内 · 聚合', baseUrl: 'https://api.302.ai/v1',
+      models: ['gpt-4o-mini', 'deepseek-chat', 'claude-3-5-sonnet-20241022'],
+      caps: ['text', 'vision'],
+      note: '按量付费，海内外模型都有。'
+    },
+    aihubmix: {
+      label: 'AiHubMix', group: '国内 · 聚合', baseUrl: 'https://aihubmix.com/v1',
+      models: ['gpt-4o-mini', 'claude-3-5-sonnet-20241022', 'gemini-1.5-pro', 'deepseek-chat'],
+      caps: ['text', 'vision'],
+      note: '一个 Key 打通各家，国内可直连；价格比官方便宜。'
+    },
+
+    // ---------- 海外 · 官方 ----------
+    openai: {
+      label: 'OpenAI', group: '海外 · 官方', baseUrl: 'https://api.openai.com/v1',
+      models: ['gpt-4o-mini', 'gpt-4o', 'o3-mini'],
+      caps: ['text', 'vision', 'reason'],
+      note: '国内直连多半不通，要么自备代理地址，要么用上面的聚合。'
+    },
+    gemini: {
+      label: 'Google Gemini', group: '海外 · 官方', baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
+      models: ['gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-1.5-flash'],
+      caps: ['text', 'vision'],
+      note: '走 Google 的 OpenAI 兼容入口，地址结尾必须带 /openai。'
+    },
+    xai: {
+      label: 'xAI Grok', group: '海外 · 官方', baseUrl: 'https://api.x.ai/v1',
+      models: ['grok-2-latest', 'grok-beta', 'grok-vision-beta'],
+      caps: ['text', 'vision'],
+      note: 'vision 结尾的能读图。国内需代理。'
+    },
+    mistral: {
+      label: 'Mistral', group: '海外 · 官方', baseUrl: 'https://api.mistral.ai/v1',
+      models: ['mistral-large-latest', 'mistral-small-latest', 'pixtral-large-latest'],
+      caps: ['text', 'vision'],
+      note: 'pixtral 系列能读图，欧洲服务，国内需代理。'
+    },
+
+    // ---------- 海外 · 聚合中转 ----------
+    openrouter: {
+      label: 'OpenRouter', group: '海外 · 聚合', baseUrl: 'https://openrouter.ai/api/v1',
+      models: ['openai/gpt-4o-mini', 'anthropic/claude-3.5-sonnet', 'deepseek/deepseek-chat', 'google/gemini-1.5-pro'],
+      caps: ['text', 'vision'],
+      note: '一个 Key 用所有模型，模型名是「厂/型号」；有免费模型（名字带 :free）。'
+    },
+    together: {
+      label: 'Together AI', group: '海外 · 聚合', baseUrl: 'https://api.together.xyz/v1',
+      models: ['meta-llama/Llama-3.3-70B-Instruct-Turbo', 'Qwen/Qwen2.5-72B-Instruct-Turbo'],
+      caps: ['text'],
+      note: '开源模型为主，价格低。'
+    },
+    groq: {
+      label: 'Groq', group: '海外 · 聚合', baseUrl: 'https://api.groq.com/openai/v1',
+      models: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'],
+      caps: ['text'],
+      note: '速度极快（推理芯片），适合要秒回的场景。'
+    },
+    novita: {
+      label: 'Novita AI', group: '海外 · 聚合', baseUrl: 'https://api.novita.ai/v3/openai',
+      models: ['meta-llama/llama-3.1-70b-instruct', 'deepseek/deepseek-v3'],
+      caps: ['text'],
+      note: '开源模型托管，按量计费。'
+    },
+    nvidia: {
+      label: 'NVIDIA NIM', group: '海外 · 聚合', baseUrl: 'https://integrate.api.nvidia.com/v1',
+      models: ['meta/llama-3.1-70b-instruct', 'nvidia/llama-3.1-nemotron-70b-instruct'],
+      caps: ['text'],
+      note: '注册送额度，模型名带「厂/型号」。'
+    },
+
+    // ---------- 自定义 ----------
     custom: {
-      label: '自定义（任意 OpenAI 兼容）', baseUrl: '', models: [], caps: ['text'],
-      note: '任何认 /chat/completions 的服务都行，比如学校自建的中转。'
+      label: '自定义（任意 OpenAI 兼容）', group: '自定义', baseUrl: '', models: [], caps: ['text'],
+      note: '学校自建的中转、或上面没列的服务，只要认 /chat/completions 都能填。'
     }
   };
 

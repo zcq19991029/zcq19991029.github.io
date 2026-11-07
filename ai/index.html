@@ -136,6 +136,7 @@ input[type=checkbox]{width:17px;height:17px;accent-color:var(--acc);flex:none}
         <label class="fld"><span>名字（自己认得出就行）</span><input type="text" id="fName" maxlength="24" placeholder="如：DeepSeek 文本 / 通义千问 视觉"></label>
         <label class="fld"><span>供应商</span><select id="fProv"></select></label>
       </div>
+      <p class="hint" id="fProvNote" style="margin:-4px 0 12px" hidden></p>
       <label class="fld"><span>接口地址</span><input type="url" id="fBase" placeholder="https://api.deepseek.com" spellcheck="false"></label>
       <label class="fld"><span>模型名</span>
         <div class="line"><input type="text" id="fModel" list="modelTips" placeholder="填服务商给的模型 ID" spellcheck="false">
@@ -330,11 +331,21 @@ input[type=checkbox]{width:17px;height:17px;accent-color:var(--acc);flex:none}
   function renderAll() { renderList(); renderDefaults(); renderTools(); }
 
   // ---------- 表单 ----------
+  // 供应商那句提醒（能不能读图、地址要不要改、额度怎么算）
+  function setProvNote(prov) {
+    var el = $('fProvNote');
+    if (!el) return;
+    var preset = HXAI.providers[prov];
+    el.textContent = (preset && preset.note) || '';
+    el.hidden = !(preset && preset.note);
+  }
+
   function fillProvider(prov) {
     var preset = HXAI.providers[prov];
     $('fBase').value = preset.baseUrl || '';
     $('fModel').value = (preset.models || [])[0] || '';
     $('modelTips').innerHTML = (preset.models || []).map(function (m) { return '<option value="' + esc(m) + '"></option>'; }).join('');
+    setProvNote(prov);
     // 能力勾选按供应商推荐值预填：用户改成不支持的组合（比如给 DeepSeek 勾视觉）也只提醒、不拦
     var want = preset.caps || ['text'];
     $('fCaps').querySelectorAll('input[type=checkbox]').forEach(function (b) {
@@ -359,6 +370,8 @@ input[type=checkbox]{width:17px;height:17px;accent-color:var(--acc);flex:none}
     } else {
       fillProvider('deepseek');
     }
+    // 编辑已有配置时不会走 fillProvider（怕把用户手填的地址覆盖掉），提醒得单独刷一下
+    setProvNote(p ? p.provider : 'deepseek');
     // Key 从不回显：留空 = 不动原来那把
     var has = p && HXAI.hasKey(p.id);
     $('fKey').value = '';
@@ -498,8 +511,20 @@ input[type=checkbox]{width:17px;height:17px;accent-color:var(--acc);flex:none}
       $('list').innerHTML = '<p class="rmsg bad">没加载到 hx-ai.js。确认它在网站根目录（/hx-ai.js），并且这个页面叫 /ai/。</p>';
       return;
     }
-    $('fProv').innerHTML = Object.keys(HXAI.providers).map(function (k) {
-      return '<option value="' + k + '">' + esc(HXAI.providers[k].label) + '</option>';
+    // 供应商按 group 分堆（国内官方 / 国内聚合 / 海外官方 / 海外聚合 / 自定义），
+    // 顺序照 HXAI.providers 里第一次出现的先后，不另维护一份名单。
+    var order = [], byG = {};
+    Object.keys(HXAI.providers).forEach(function (k) {
+      var gname = HXAI.providers[k].group || '其他';
+      if (!byG[gname]) { byG[gname] = []; order.push(gname); }
+      byG[gname].push(k);
+    });
+    $('fProv').innerHTML = order.map(function (gname) {
+      var opts = byG[gname].map(function (k) {
+        return '<option value="' + k + '">' + esc(HXAI.providers[k].label) + '</option>';
+      }).join('');
+      // 只有一堆就不加分组框，省得下拉里多一层没意义的缩进
+      return order.length > 1 ? '<optgroup label="' + esc(gname) + '">' + opts + '</optgroup>' : opts;
     }).join('');
     $('fCaps').innerHTML = HXAI.caps.map(function (c) {
       return '<label><input type="checkbox" value="' + c.id + '">' + esc(c.name) + '</label>';
