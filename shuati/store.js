@@ -63,13 +63,26 @@ export function mergeSubjects(a = [], b = []) {
 // 下发范围（2026-11-02 加）：classes = null → 全部学生；[] → 只自己刷；[班级id...] → 只这些班
 export const publicList = () => rpc('quiz_public_list', {}, signedIn()).catch(() => []);
 export const publicGet = id => rpc('quiz_public_get', { p_id: id }, signedIn());
-export const publish = (id, name, questions, ownerName, classes) => rpc('quiz_publish', {
+export const publish = (id, name, questions, ownerName, classes, teachers) => rpc('quiz_publish', {
   p_id: id, p_name: name, p_questions: questions, p_owner_name: ownerName,
   // 不传就是 null（全部学生），保持旧行为
   p_classes: classes === undefined ? null : classes,
+  // 发给哪些老师（2026-11-08 加）：不传 = null = 不按老师下发，行为和以前一样。
+  // ⚠️ 只发老师时 classes 必须传 []：数据库里传 null（= 全部学生可见）会直接报错，不允许悄悄发全校。
+  p_teachers: teachers === undefined ? null : teachers,
 });
 // 只改下发范围，不重传题库（撤销下发传 []）
 export const setClasses = (id, classes) => rpc('quiz_set_classes', { p_id: id, p_classes: classes });
+// 只改「发给哪些老师」，不重传题库
+export const setTeachers = (id, teachers) => rpc('quiz_set_teachers', { p_id: id, p_teachers: teachers });
+/* 转发：老师把看到的题复制成自己名下的一份，之后能随便改、按自己的班下发。
+   是复制不是授权 —— 几个老师各改一份互不干扰，排位也算在各自那份上。见 2026-11-08-题库发给老师.sql。 */
+export const forward = (id, newName, ownerName, classes) => rpc('quiz_forward', {
+  p_id: id, p_new_name: newName || '', p_owner_name: ownerName || '',
+  p_classes: classes === undefined ? null : classes,
+});
+// 发题时能选哪些老师（不返回邮箱；管理员/开发者也在里面）
+export const teacherList = () => signedIn() ? rpc('quiz_teacher_list', {}).catch(() => []) : Promise.resolve([]);
 export const unpublish = id => rpc('quiz_unpublish', { p_id: id });
 
 /* 题库分享码（2026-11-08）：用户要求「用户自己上传的也可以通过分享码（二维码加6位分享码）发给他的朋友去刷题」。

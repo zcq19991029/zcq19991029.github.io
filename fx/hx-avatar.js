@@ -27,6 +27,13 @@
 //   只在 frame() 输出时往 PNG 里塞一张 tEXt 纸片（关键字 hxa，值是特效 id），扫描到 .av 就叠一块
 //   canvas 接着动，元素离开 DOM / 切到静帧就还原成背景图。所以换设备、刷新页面后头像照样会动。
 //
+// 【2026-11-08 修「头像老是静止」】avScan() 原来只由 listen() 触发，而 listen() 只在
+// panel()（打开头像库）和 mount()（显式挂载）里被调 —— 也就是说：**必须先打开一次头像库面板**，
+// 首页顶栏那个头像才会被接管成动画。刷新页面之后没人再点头像库，头像就一直停在 CSS 背景图上。
+// 实测证据：首屏直接读 HXAvatar._debug() 得到 { views:0, avatars:0, heat:0, cool:0 }，
+// 连名额分配都没跑过（接线仿真/test/_avatar-fx.cjs 的第一条断言就是它）。
+// 现在模块一加载就自启：页面上只要有 .av 就接管，不再依赖「先去点一次头像库」。
+//
 // 对外只有 window.HXAvatar 一个全局（红线：不污染全局）。
 //   HXAvatar.list()                  → [{ id:'critters/ghost', cat:'critters', name:'ghost' }, …]
 //   HXAvatar.panel(container, opts)  → 画可选网格，返回 { destroy() }
@@ -53,12 +60,29 @@
   var LIV = [];            // 活着的视图 { mode:'cell'|'mount', el, cvs, ctx, eng, hot, vis, live, S }
   var raf = 0, lastPaint = 0;
   var DBG = { heat: 0, cool: 0 };    // 只在 _debug() 里露出来的计数，排查「格子不动」用
-  var GAP = 1000 / 24;     // 帧率封顶 24fps：像素画本来 8～12fps 的观感，再高纯属烧电
+  // 帧率封顶：像素画本来 8～12fps 的观感，再高纯属烧电。
+  // 2026-11-08：分成两档 —— 正常 24fps；系统「减少动态效果」时压到 9fps（见 slow()）。
+  var GAP_FULL = 1000 / 24, GAP_SLOW = 1000 / 9;
   var io = null;           // 全页共用一个 IntersectionObserver
 
-  function still() {
-    return document.documentElement.classList.contains('hx-lite') || !!(reduced && reduced.matches);
-  }
+  /* ── 2026-11-08 修「头像老是静止」「背景不会动」──
+     用户报障：「手机端背景不会动和头像老是静止」。
+     实测（接线仿真/test/_avatar-fx.cjs）定位到两个成因，这是第二个：
+     旧 still() = hx-lite || prefers-reduced-motion:reduce —— 把系统「减少动态效果」和
+     「省电一体机」当成一回事，一票否决 → capNow() 返回 0 → 头像名额清零 → 退回 CSS 静图。
+     **iOS 低电量模式会自动打开 prefers-reduced-motion:reduce**，所以用户手机上这两条同时命中。
+     为什么这不合理：减少动态效果的本意是「别让大幅位移/快速运动引起眩晕」，而这些像素头像
+     是**用户自己主动挑的 30px 小图**，不是页面自己弹的广告动效；把它整条关掉，用户看到的就是「坏了」。
+     现在拆成两级：
+       · hardOff() = 省电一体机（hx-lite）或页面切后台 —— 真的硬件吃力/看不见，名额清零，彻底不画；
+       · slow()    = 系统减动效 —— 名额打折（40%）、帧率 24→9fps，动作明显更缓，但仍然在动。 */
+  function lite() { return document.documentElement.classList.contains('hx-lite'); }
+  function reduceMotion() { return !!(reduced && reduced.matches); }
+  function hardOff() { return lite() || document.hidden; }
+  function slow() { return reduceMotion() && !lite(); }
+  function gap() { return slow() ? GAP_SLOW : GAP_FULL; }
+  // 兼容旧名：still() 保留给「到底跑不跑循环」这个判断，语义 = 硬停
+  function still() { return hardOff(); }
   function clock() {
     return (window.performance && performance.now) ? performance.now() : Date.now();
   }
@@ -78,8 +102,11 @@
   var rebT = 0;
 
   function capNow() {
-    if (still() || document.hidden) return 0;
-    return Math.max(2, Math.round(BASE * PRF.k));
+    if (hardOff()) return 0;
+    var n = Math.max(2, Math.round(BASE * PRF.k));
+    // 系统减动效：名额打折。屏幕上同时动的东西少一半多，观感更安静，也让低电量模式真的省电。
+    if (slow()) n = Math.max(1, Math.round(n * 0.4));
+    return n;
   }
 
   // 数一下有多少不透明像素：判断「这一帧是不是空白」，别把空框当头图
@@ -300,18 +327,20 @@
   }
 
   // ── 唯一的一条 rAF ──
+  /* 系统减动效下仍要有一个「保底视角」：顶栏头像这种 mount 视图不受名额限制（它本来就只有 1-2 个），
+     但帧率要跟着 gap() 降。所以这里只拦 hardOff（真的硬件吃力 / 看不见）。 */
   function want(v) { return v.vis && !!v.eng && (v.mode === 'mount' || v.hot); }
 
   function kick() {
-    if (still() || document.hidden || raf) return;
+    if (hardOff() || raf) return;
     for (var i = 0; i < LIV.length; i++) if (want(LIV[i])) { lastPaint = 0; raf = requestAnimationFrame(step); return; }
   }
 
   function step(now) {
     raf = 0;
-    if (document.hidden) return;
-    if (still()) { lastPaint = 0; return; }        // 运行中被切到省电模式：这一帧收工，不再续
-    if (lastPaint && now - lastPaint < GAP - 1) { raf = requestAnimationFrame(step); return; }
+    if (document.hidden || hardOff()) { lastPaint = 0; return; }   // 硬停：这一帧收工，不再续
+    var G = gap();
+    if (lastPaint && now - lastPaint < G - 1) { raf = requestAnimationFrame(step); return; }
     var dt = lastPaint ? Math.min((now - lastPaint) / 1000, 0.12) : 0;
     lastPaint = now;
     var busy = false, t0 = clock();
@@ -364,18 +393,19 @@
     if (i >= 0) LIV.splice(i, 1);
   }
 
-  // 全部回到静帧：切后台 / 省电模式 / reduced-motion 走这里。格子引擎一个不留。
+  // 全部回到静帧：切后台 / 省电一体机走这里。格子引擎一个不留。
+  // 2026-11-08：系统「减少动态效果」不再走这里（它只降帧率，见 gap()/capNow()）。
   function pauseAll() {
     if (raf) { cancelAnimationFrame(raf); raf = 0; }
     lastPaint = 0;
     for (var i = 0; i < LIV.length; i++) if (LIV[i].mode === 'cell') release(LIV[i]);
     CAP = 0;
-    avScan();     // still() 成立时它会把已接管的头像也还原成背景图
+    avScan();     // hardOff() 成立时它会把已接管的头像也还原成背景图
   }
 
-  // 状态一变（省电模式开关 / 切前台）就重新判断：该停的停，该恢复的恢复
+  // 状态一变（省电模式开关 / 切前台 / 减动效开关）就重新判断：该停的停，该恢复的恢复
   function resumeAll() {
-    if (still() || document.hidden) { pauseAll(); return; }
+    if (hardOff()) { pauseAll(); return; }
     avScan();
     scheduleRebalance(0);
     kick();
@@ -617,7 +647,10 @@
       var b = AVB[i];
       if (!b.el || !document.body.contains(b.el)) avDrop(b);
     }
-    if (still() || document.hidden) {    // 静帧模式：头像也交回给 CSS 背景图
+    // 只有真的硬件吃力（hx-lite）/ 页面切后台才把头像交回 CSS 静图。
+    // 2026-11-08：原来这里还认 prefers-reduced-motion，于是 iOS 低电量模式下头像永远是静图 ——
+    // 用户报的「头像老是静止」就是这里退掉的。现在减动效只降帧率（见 gap()），不收回头像。
+    if (hardOff()) {
       for (i = AVB.length - 1; i >= 0; i--) avDrop(AVB[i]);
       return;
     }
@@ -847,6 +880,28 @@
     };
   }
 
+  // 首页顶栏头像要在**首屏**就动，不能等用户先去点一次头像库：
+  // · 脚本是 defer，DOM 解析完才执行，但那时 index.html 的 render() 还没跑（它要等身份回来）；
+  // · 所以除了 listen() 那次 600ms 的扫描，还要在 body 里挂 MutationObserver，
+  //   一旦顶栏被 innerHTML 重建（登录/换头像/切换账号），立刻重扫 —— 见 listen() 的 watchAvatars()。
+  // 这里只负责「模块一加载就把监听挂上」，让后续任何一次 .av 出现都能被接管。
+  function autostart() {
+    if (!document.body) {                                   // 脚本在 <head> 里跑：等 DOM 就绪
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', autostart, { once: true });
+        return;
+      }
+      return;
+    }
+    listen();
+    watchAvatars();
+  }
+  autostart();
+  // 万一 autostart 时 body 还没出来（defer + 极快的内联脚本组合），就绪后再补一次
+  if (!document.body && document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', autostart, { once: true });
+  }
+
   window.HXAvatar = {
     list: function () { return P.list(); },
     panel: panel,
@@ -862,7 +917,9 @@
       return {
         views: LIV.length, cells: cells, mounts: mounts, live: live, cap: CAP,
         base: BASE, k: Math.round(PRF.k * 100) / 100, ema: Math.round(PRF.ema * 10) / 10,
-        raf: !!raf, still: still(), heat: DBG.heat, cool: DBG.cool, avatars: AVB.length
+        raf: !!raf, still: still(), heat: DBG.heat, cool: DBG.cool, avatars: AVB.length,
+        // 2026-11-08 新增：排查「头像/格子不动」时先看这两条 ——
+        lite: lite(), reduce: reduceMotion(), slow: slow(), gap: Math.round(gap())
       };
     }
   };

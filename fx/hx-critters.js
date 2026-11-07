@@ -45,7 +45,13 @@
   var raf = 0;               // 全局唯一的帧循环句柄（红线：不允许每张卡一个）
 
   function lite() { return document.documentElement.classList.contains('hx-lite'); }
-  function still() { return lite() || (reduced && reduced.matches); }
+  function reduceMotion() { return !!(reduced && reduced.matches); }
+  // 2026-11-08 修「手机上动效全静」：原来 still() = lite() || reduce-motion，
+  // 把系统「减少动态效果」和「省电一体机」混成一条，一票否决。iOS 低电量模式会自动开 reduce，
+  // 于是手机上首页 14 张卡的像素生物一张都不动。现在拆两级：
+  //   · 硬停只有 hx-lite（真的硬件吃力）和页签切后台；
+  //   · 减动效只是把帧率从 18/50 压到 6fps（见 fpsNow），画面还在动，但明显更缓。
+  function still() { return lite(); }
 
   // ── 2026-11-03 第二次改：从「按牌堆去重」升级到「按排位去重 + 色相变体」 ──
   // 上一版是「洗一副牌按顺序发，发完再洗」。它只保证**同一副牌内**不重复：
@@ -219,7 +225,12 @@
   function touch() {
     return window.matchMedia ? matchMedia('(hover: none), (pointer: coarse)').matches : false;
   }
-  function fpsNow() { return (touch() || lite()) ? 18 : 50; }
+  // 帧率：触屏/低配 18fps，桌面 50fps；系统「减少动态效果」再压到 6fps（动作明显更缓，但仍活着）。
+  // 2026-11-08：原来 reduce 是直接 still() 停掉，现在是降档 —— 见 still() 上面的注释。
+  function fpsNow() {
+    if (reduceMotion()) return 6;
+    return (touch() || lite()) ? 18 : 50;
+  }
 
   var io = null;
   function watch(e) {
@@ -248,6 +259,9 @@
   function step(now) {
     raf = 0;
     if (document.hidden) return;
+    // 硬停的最后一层保险：省电标记可能在两帧之间刚被加上（apply() 是异步触发的一整串），
+    // 等 MutationObserver 回调再停就多跑了几帧。这里每帧确认一次，成本可以忽略。
+    if (still()) { lastPaint = 0; return; }
     gap = 1000 / fpsNow();
     // 封顶：还没到下一帧的时间就直接跳过，但仍然把 rAF 续上（不然循环就断了）
     if (lastPaint && now - lastPaint < gap - 1) { raf = requestAnimationFrame(step); return; }
@@ -377,6 +391,27 @@
       kick();
     }
   });
+  /* 2026-11-08 补一个省电缺口：原来只有 visibilitychange 一条，`html.hx-lite` 是**运行中**变出来的
+     （用户在总入口切省电、或窗口跨 820 断点重新判档），但这里没人监听它 ——
+     entry 还是 active、循环还在跑，省电开关等于对像素生物无效，这是真实的白烧电。
+     现在挂 MutationObserver 看 html 的 class：一进 hx-lite 立刻停循环（并补一帧静图），
+     退出来再踢起来。这是「手机容易发烫」里能直接修掉的一条。 */
+  if (typeof MutationObserver === 'function' && document.documentElement) {
+    var wasLite = lite();
+    new MutationObserver(function () {
+      var now = lite();
+      if (now === wasLite) return;
+      wasLite = now;
+      if (now) {
+        if (raf) { cancelAnimationFrame(raf); raf = 0; }
+        lastPaint = 0;
+        for (var i = 0; i < entries.length; i++) if (!entries[i].drawn) paint(entries[i], 0);
+      } else {
+        lastPaint = 0;
+        kick();
+      }
+    }).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+  }
 
   // info() 只给自查用：把页面上所有生物卡的 (id, hue) 列出来，便于确认有没有重样。
   // _pick 同理，是给离线脚本抽查发牌算法用的（见项目交接.md 里的自检命令）。

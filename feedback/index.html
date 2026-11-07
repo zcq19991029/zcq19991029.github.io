@@ -89,6 +89,9 @@ button.btn[disabled]{opacity:.5;cursor:default}
      body 开头的 #hxBoot 解析到就画出第一帧「canvas 像素动效 + 标题 + 药丸」，页面就绪后整层淡出。 -->
 <script src="/fx/pixelfx-loader.js"></script>
 <script src="/fx/hx-loadfx.js"></script>
+<!-- 未登录闸门（2026-11-08）：hx-theme.js 的 gate() 会在没登录时把单独打开的页面送回总入口。
+     这一页以前没引 hx-theme.js（纯本机 localStorage，不依赖账号），所以不登录也能直接用 —— 用户要求收回。 -->
+<script src="/hx-theme.js" data-tool="feedback"></script>
 </head>
 <body>
 <!-- 首屏闪屏（全站统一三件套）：动效 + 标题 + 药丸；脚本没加载出来时回落药丸，8 秒兜底撤层 -->

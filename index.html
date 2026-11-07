@@ -14,22 +14,22 @@
      要登录时调 window.HXPortal.login()；被单独打开时 hx-theme.js 会跳回这里（见 hx-theme.js 的 data-tool）。
      账号：Supabase 华夏工具项目，localStorage paike-session 和各工具共用；身份由数据库 hx_me() 决定。
      脚本里不用反引号模板字符串（本机测试时整页当字符串注入到线上同源页面里）。 -->
-<link rel="stylesheet" href="hx-theme.css?v=2b925e6">
-<script src="hx-theme.js?v=2b925e6"></script>
+<link rel="stylesheet" href="hx-theme.css?v=0577b0d">
+<script src="hx-theme.js?v=0577b0d"></script>
 <!-- 首页卡片上的像素小生物：pixelfx 的 12 个 critters（MIT），打包成一个 91 KB 的独立脚本。
      加载失败不影响首页——hx-critters.js 开头就有 window.PixelFX 存在性检查，没有就整段跳过。 -->
-<script src="fx/pixelfx-critters.js?v=2b925e6" defer></script>
-<script src="fx/hx-critters.js?v=2b925e6" defer></script>
+<script src="fx/pixelfx-critters.js?v=0577b0d" defer></script>
+<script src="fx/hx-critters.js?v=0577b0d" defer></script>
 <!-- 像素头像库（2026-11-04）：账号面板里除了传照片，还能从 200 多个像素动效里挑一个当头像。
      和上面 critters 同一套路：库（pixelfx-avatars.js）+ 渲染器（hx-avatar.js），都是 defer、
      不进首屏关键路径；不点「像素头像库」就一个动画都不跑。 -->
-<script src="fx/pixelfx-avatars.js?v=2b925e6" defer></script>
-<script src="fx/hx-avatar.js?v=2b925e6" defer></script>
+<script src="fx/pixelfx-avatars.js?v=0577b0d" defer></script>
+<script src="fx/hx-avatar.js?v=0577b0d" defer></script>
 <!-- 背景动效（2026-11-03）：12 种天气氛围特效铺在背景层，外观面板里选；加载失败或没选就完全不加载渲染器 -->
-<script src="fx/pixelfx-weather.js?v=2b925e6" defer></script>
-<script src="fx/hx-weather.js?v=2b925e6" defer></script>
+<script src="fx/pixelfx-weather.js?v=0577b0d" defer></script>
+<script src="fx/hx-weather.js?v=0577b0d" defer></script>
 <!-- 课堂码大屏二维码：离线 QR 编码器（qrcode 1.5.4 core 打包，MIT，见 fx/NOTICE-qr.md）。延迟加载即可：只有老师点「大屏二维码」时才用 -->
-<script src="fx/hx-qr.js?v=2b925e6" defer></script>
+<script src="fx/hx-qr.js?v=0577b0d" defer></script>
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; width: 100%; overflow: hidden; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -38,8 +38,22 @@
   @media (max-width: 640px) { input, select, textarea { font-size: 16px !important; } } /* 小于 16px 苹果手机点输入框会自动放大且不回去 */
   button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
   svg.i { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
-  /* 顶栏：苹果官网的毛玻璃导航 */
-  header { flex: none; position: relative; z-index: 10; height: 52px; display: flex; align-items: center; gap: 6px; padding: 0 max(12px, env(safe-area-inset-left)); background: var(--bar); backdrop-filter: var(--hx-blur); -webkit-backdrop-filter: var(--hx-blur); border-bottom: 1px solid var(--edge); }
+  /* 顶栏：苹果官网的毛玻璃导航。
+     2026-11-08 修发烫：审计（接线仿真/test/_heat-audit.cjs）抓到两条「非 fixed 的实时模糊」——
+     就是这里和 #syncPill。关键细节：本页滚动的是 #home（体是 flex column + overflow:hidden），
+     所以 header **本身不在滚动流里**，它不会随滚动位移；但浏览器仍把它当成「可能变化的底层」，
+     每次 #home 滚动都要为它重算一次全宽 blur。
+     两处收紧：
+       ① blur 半径 20px → 12px。52px 高的条上肉眼几乎看不出差别，成本按半径平方降（约省 64%）；
+       ② 手机（≤820px 且触屏）上直接不做实时模糊 —— 背景本身已经是一张极光海报帧，
+          顶栏底色 var(--bar) 本来就不透明度很高（浅色 .72 白 / 深色 .95），去掉 blur 几乎看不出，
+          省掉的却是每帧一次全宽高斯。桌面/教室一体机（能悬停、屏幕大）保留毛玻璃。 */
+  header { flex: none; position: relative; z-index: 10; height: 52px; display: flex; align-items: center; gap: 6px; padding: 0 max(12px, env(safe-area-inset-left)); background: var(--bar); backdrop-filter: saturate(180%) blur(12px); -webkit-backdrop-filter: saturate(180%) blur(12px); border-bottom: 1px solid var(--edge); }
+  @media (max-width: 820px) {
+    header, #syncPill, #syncPop { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+    /* 去掉模糊后顶栏底色调实一点，避免内容从底下透上来（--bar 本身已是高不透明度，这里再兜一层） */
+    header { background: color-mix(in srgb, var(--bar) 92%, var(--bg)); }
+  }
   .brand { display: flex; align-items: center; gap: 9px; height: 40px; padding: 0 10px 0 4px; border: 0; border-radius: 12px; background: none; font-weight: 600; font-size: 17px; white-space: nowrap; }
   .brand img { width: 28px; height: 28px; border-radius: 8px; object-fit: cover; }
   .back { display: none; align-items: center; gap: 2px; height: 36px; padding: 0 12px 0 4px; border: 0; border-radius: 99px; background: none; color: var(--acc); font-size: 17px; white-space: nowrap; }
@@ -802,6 +816,12 @@
     .tile .ic::before, .tile .ic::after { width: 72px; height: 72px; margin: -36px 0 0 -36px; }
     .tile { --cx: 43px; --cy: 45px; } /* 窄屏 padding 18/20 + 图标 50/2 */
     .tile .sysin { transform: rotateX(58deg) scale(.72); } /* 窄屏整体缩；rotateX 不能丢，否则又变回平面 */
+    /* 2026-11-08 手机发烫：行星的 `hx-orb` 是 **infinite 常驻旋转**，桌面上 14 张卡 × 每张几颗行星，
+       手机上这些合成动画照样每秒都在算（它们不是 canvas，但每一颗都是一个要重新合成的图层）。
+       手机屏幕小、本来也看不太出行星自转，所以窄屏下**停掉常驻旋转**、把行星冻结在当前相位 ——
+       轨道盘、光冕、球体材质全留着（静态氛围一点不少），省掉的是永不停止的重合成。
+       这和 prefers-reduced-motion 那条媒体的做法一致（冻结相位，而不是整层消失）。 */
+    .tile .sysin i { animation: none; }
     /* 2026-11-04：这里原来有一条 `.tile::after { top: 48%; border-radius: 13px 13px 24px 24px;
        mask: radial-gradient(12px 8px at 72% 0, transparent 97%, #000) }` —— 是 2026-11-02
        撤掉「玻璃文件夹开口 + 拇指缺口」时漏改的宽屏残留。宽屏早就改成整张玻璃了，窄屏还在按
@@ -864,9 +884,11 @@
      风格与首页卡片同语言：rgba 半透明玻璃 + 细描边 + 毛玻璃模糊（--card2 本身就是带
      alpha 的卡片色，会跟随界面透明度 --hx-a，和 .tile 一致），不挡 14 张卡和太阳系装饰。 */
   #syncPill { display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 5px 0 12px; border-radius: 99px;
-    border: 1px solid var(--edge); background: var(--card2); -webkit-backdrop-filter: var(--hx-blur); backdrop-filter: var(--hx-blur);
+    border: 1px solid var(--edge); background: var(--card2); -webkit-backdrop-filter: saturate(180%) blur(12px); backdrop-filter: saturate(180%) blur(12px);
     color: var(--dim); font-size: 13px; font-weight: 500; white-space: nowrap; cursor: pointer;
     transition: background .28s var(--hx-ease), color .28s var(--hx-ease), box-shadow .28s var(--hx-ease); }
+  /* 2026-11-08 发烫：这颗胶囊是 position:relative 的实时模糊，滚动时会重算 —— 见 header 那段注释。
+     手机在 ≤820px 断点里已经统一关掉（那一段写了 header/#syncPill/#syncPop），这里只把半径降到 12px。 */
   #syncPill:hover { background: var(--fill); color: var(--ink); }
   #syncPill .sync-dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--dim); box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 18%, transparent); }
   #syncPill .sync-dot.ok { background: var(--ok); } #syncPill .sync-dot.warn { background: var(--warn); } #syncPill .sync-dot.bad { background: var(--bad); }

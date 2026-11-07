@@ -138,12 +138,13 @@ async function loadSubjects(withPublic = true) { // withPublic=false：先不等
     ...BUILTIN.map(s => {
       const p = cloudBuiltin.get(s.id);
       return p
-        ? { ...s, kind: 'builtin', cloud: true, pid: p.id, owner: p.owner_name, total: p.total, targets: p.targets, class_ids: p.class_ids, mine: p.mine }
+        ? { ...s, kind: 'builtin', cloud: true, pid: p.id, owner: p.owner_name, total: p.total, targets: p.targets, class_ids: p.class_ids, teacher_ids: p.teacher_ids, mine: p.mine }
         : { ...s, kind: 'builtin' };
     }),
     ...(pub || []).filter(p => !BUILTIN_IDS.has(p.id) && !(p.mine && mineIds.has(p.id))).map(p => ({ id: 'pub-' + p.id, pid: p.id, name: p.name, kind: 'public', owner: p.owner_name, tag: p.owner_name ? p.owner_name + ' 发布' : '老师发布', total: p.total,
       // 下发范围（2026-11-02）：targets 是给人看的说明，class_ids 给发布面板回填复选框
-      mine: p.mine, targets: p.targets, class_ids: p.class_ids })),
+      // 2026-11-08 加 teacher_ids：发给指定老师时回填那一栏
+      mine: p.mine, targets: p.targets, class_ids: p.class_ids, teacher_ids: p.teacher_ids })),
     /* 分享码换来的题库：不是「我的科目」（自己没编过），也不是「别人发布」（不走班级），
        单独一类 shared，卡片上标清是谁分享的码。 */
     ...(shares || []).filter(s => s && s.id).map(s => ({ id: s.id, code: s.code, name: s.name, kind: 'shared', tag: s.owner ? s.owner + ' 分享' : '分享码', total: s.total })),
@@ -857,8 +858,20 @@ async function saveStudyCard() {
 // ---------- 题库：新建科目、导入资料、AI 出题、导出、发布 ----------
 function renderBank() {
   const sub = S.subject, base = S.base[sub.id] || [], d = S.draft;
+  /* 这套题是不是「我自己名下的」：决定能不能发布/撤销。
+     builtin 的本地只读那份、别人发来的 public、别人搬的 builtin，都不是自己的 ——
+     点「更新发布」数据库会直接报「这是别的老师发布的题库」，那种按钮不该出现。
+     2026-11-08：不能只看 sub.mine。它是服务端 quiz_public_list 返回的 `mine = (owner = auth.uid())`，
+     而「云端有这份但列表还没回来 / 老缓存 / 测试桩没这个字段」时它是 undefined ——
+     于是开发者自己搬上去的内置题会瞬间失去「更新发布」按钮（_quiz-builtin-cloud.cjs 抓到的就是这条）。
+     加一道按 owner_name 的本地兜底：列表里显示的发布者就是我当前显示名，也算我的。
+     （owner_name 是发布时写死在库里的，改名后可能对不上，所以它只是兜底，主判据仍是 sub.mine） */
+  const myName = hx.name(S.user, S.me);
+  const ownIt = sub.kind === 'mine'
+    || sub.mine === true
+    || (sub.kind !== 'public' && !!sub.cloud && !!myName && sub.owner === myName);
   // 发布时间是「更新发布」，撤销下发单独一个字按钮：撤销只把学生那边的可见性收回来，题库留着，老师自己还能刷
-  const pubBtns = isTeacher() ? `<button class="btn sm" type="button" id="pubBtn">${sub.published || sub.cloud || sub.kind === 'public' ? '更新发布' : '发布给学生'}</button>${sub.published || sub.cloud ? '<button class="btn sm danger" type="button" id="unpubBtn">取消发布</button>' : ''}` : '';
+  const pubBtns = isTeacher() && ownIt ? `<button class="btn sm" type="button" id="pubBtn">${sub.published || sub.cloud || sub.kind === 'public' ? '更新发布' : '发布给学生'}</button>${sub.published || sub.cloud ? '<button class="btn sm danger" type="button" id="unpubBtn">取消发布</button>' : ''}` : '';
   /* 来源这一行现在有三种意思，得说清楚，不然用户分不清「题到底在哪」：
      · 云端（builtin + cloud）—— 题存在数据库里，挂在开发者名下，能改能发布；
      · 课程题库 —— 只有本地 data/*.json，改不了（刷新回原样）；
@@ -869,11 +882,22 @@ function renderBank() {
   const pubBtns2 = sub.kind === 'builtin' && !sub.cloud && isDev()
     ? '<button class="btn sm" type="button" id="moveBtn">搬到我的账号</button>'
     : pubBtns;
+  /* 转发（2026-11-08）：别人发给我的题，我能复制一份到自己名下，再发给我自己的班。
+     条件：是老师 + 这套题不是我发的 + 是「发布」类（builtin 云端 / public）。
+     我的科目、分享码来的不用转发 —— 那些本来就在我自己名下。 */
+  const canFwd = isTeacher()
+    && (sub.kind === 'public' ? !sub.mine : (sub.kind === 'builtin' && sub.cloud && !sub.mine))
+    && !sub.forwarded;
+  const fwdBtn = canFwd ? '<button class="btn sm ghost" type="button" id="fwdBtn">转发给自己</button>' : '';
+  // 「这套题是发给我的」提示：老师看到别人发来、还没有自己那份时，说清可以转发
+  const sentToMe = canFwd && sub.teacher_ids && sub.teacher_ids.length
+    ? '<p class="muted" style="margin:8px 0 0">这套题是发给老师的：你能自己刷。要发给你的学生，点「转发给自己」复制一份，再在那一份里选班级。</p>' : '';
   $('v-bank').innerHTML = `
     <div class="panel"><h3>${esc(sub.name)}</h3>
       <dl class="kv"><dt>来源</dt><dd>${srcText}</dd>${base.length ? `<dt>课程题</dt><dd>${base.length} 题</dd>` : ''}<dt>我导入的</dt><dd>${S.bank.length} 题</dd>${isTeacher() && (sub.published || sub.kind === 'public') && sub.targets ? `<dt>下发范围</dt><dd>${esc(sub.targets)}</dd>` : ''}</dl>
       ${sub.kind === 'builtin' && !sub.cloud ? '<p class="muted" style="margin:8px 0 0">这套题现在是随代码发布的本地文件，改不了。搬到你的账号之后就能在云端改、也能发布给班级。</p>' : ''}
-      <div class="f" style="margin-top:12px"><div class="line"><button class="btn sm ghost" type="button" id="expBtn">导出 JSON</button>${S.questions.length ? '<button class="btn sm ghost" type="button" id="shareBtn">生成分享码</button>' : ''}${S.bank.length ? '<button class="btn sm ghost" type="button" id="clrBtn">清空我导入的</button>' : ''}${sub.kind === 'mine' ? '<button class="btn sm ghost" type="button" id="renBtn">改名</button><button class="btn sm danger" type="button" id="delBtn">删除科目</button>' : sub.kind === 'shared' ? '<button class="btn sm danger" type="button" id="delBtn">移出我的列表</button>' : ''}${pubBtns2}</div></div></div>
+      ${sentToMe}
+      <div class="f" style="margin-top:12px"><div class="line"><button class="btn sm ghost" type="button" id="expBtn">导出 JSON</button>${S.questions.length ? '<button class="btn sm ghost" type="button" id="shareBtn">生成分享码</button>' : ''}${S.bank.length ? '<button class="btn sm ghost" type="button" id="clrBtn">清空我导入的</button>' : ''}${sub.kind === 'mine' ? '<button class="btn sm ghost" type="button" id="renBtn">改名</button><button class="btn sm danger" type="button" id="delBtn">删除科目</button>' : sub.kind === 'shared' ? '<button class="btn sm danger" type="button" id="delBtn">移出我的列表</button>' : ''}${fwdBtn}${pubBtns2}</div></div></div>
     <div class="panel"><h3>新建科目</h3><div class="f"><div class="line"><input id="newName" maxlength="30" placeholder="科目名称" style="flex:1"><button class="btn sm" type="button" id="newBtn">新建</button></div></div></div>
     <div class="panel" id="impPanel"><h3>导入资料 · ${esc(sub.name)}</h3>
       ${aiReady() ? '' : '<div class="imp-warn"><span>还没配 AI 模型 → 去首页「AI 设置」</span><button class="btn sm" type="button" id="toAi">去首页「AI 设置」</button></div>'}
@@ -903,6 +927,22 @@ function renderBank() {
   const on = (id, fn) => { if ($(id)) $(id).onclick = fn; };
   on('expBtn', () => downloadText(sub.name + '.json', JSON.stringify(S.questions, null, 1)));
   on('shareBtn', openShareSheet); // 生成分享码（6 位 + 二维码）
+  /* 转发给自己（2026-11-08）：老师收到别人发来的题，复制一份到自己名下。
+     复制完默认「只自己刷」，老师再去那一份里选班级发给自己的学生 ——
+     这样「老师也能自己刷」和「老师再发给学生」两件事都成立，而且不用原作者的权限。
+     题库 id 由服务端生成（f-xxxx），前端不自己编，避免撞车覆盖别人的题库。 */
+  on('fwdBtn', e => {
+    const nm = sub.name;
+    sure(e.currentTarget, `把「${nm}」复制一份到你名下？复制后你能改、能发给你自己的班；原来那份不动。`, async () => {
+      try {
+        toast('正在复制…');
+        const r = await store.forward(sub.pid || sub.id, nm, hx.name(S.user, S.me), []);
+        await loadSubjects();
+        await openSubject('pub-' + r.id);
+        toast(`已复制 ${r.total} 题到你名下（现在只自己刷；选班级就能发给你的学生）`);
+      } catch (err) { toast('转发失败：' + (err.message || err)); }
+    });
+  });
   on('clrBtn', e => sure(e.currentTarget, `确认清空 ${S.bank.length} 题？`, () => setBank([])));
   on('renBtn', async () => { const n = prompt('科目新名字', sub.name)?.trim(); if (!n) return; await saveMine(m => m.map(s => s.id === sub.id ? { ...s, name: n.slice(0, 30) } : s)); S.view = 'bank'; await openSubject(sub.id); });
   on('delBtn', e => sure(e.currentTarget, sub.kind === 'shared' ? '确认移出列表？' : '确认删除科目？', async () => {
@@ -1104,36 +1144,49 @@ async function confirmImport() {
   S.draft = null; await setBank([...S.bank, ...add]); toast(`已导入 ${add.length} 题`);
 }
 
-// ---------- 发布：选下发到哪些班（2026-11-02）----------
+// ---------- 发布：选下发到哪些班 / 哪些老师（2026-11-02 建，2026-11-08 加老师这一维）----------
 // 用户要求：「教师账号导入的资料允许专业班级下发和撤销，也可以只自己刷」
-// 三种状态，对应数据库里 target_classes 的三态：
-//   全部学生  → null     （老行为，默认）
-//   只自己刷  → []       （不发出去，题还在自己科目里）
-//   指定班级  → [id...]
+// 2026-11-08 又要求：「开发者没有发布给老师账号的功能 发给老师 老师也可以再发给学生 也可以自己刷」
+// 四种状态，对应数据库里 target_classes / target_teachers 的组合：
+//   全部学生    → classes = null,  teachers = null   （老行为，默认）
+//   只自己刷    → classes = [],    teachers = null
+//   指定班级    → classes = [id...], teachers = null
+//   指定老师    → classes = [],    teachers = [uid...]  ← 学生看不到，老师能看到、能转发
+// ※ 「指定老师」必须一起把班级传成空数组：数据库里只发老师却传 classes=null 会直接报错，
+//   因为 null 的意思是「全部学生可见」——那就等于发给全校了。
 function openPublishSheet(onDone) {
   const sub = S.subject, pid = sub.kind === 'public' ? sub.pid : sub.id;
-  const cur = sub.kind === 'public' ? sub.class_ids : undefined; // 已发布过的题库带回来
+  const cur = sub.kind === 'public' ? sub.class_ids : undefined;   // 已发布过的题库带回来
+  const curT = sub.kind === 'public' ? sub.teacher_ids : undefined;
   const isNew = !sub.published && sub.kind !== 'public';
+  // 回填默认值：有老师名单就选「指定老师」，否则按班级三态走
+  const mode0 = (curT && curT.length) ? 'tea' : (isNew || cur == null) ? 'all' : cur.length ? 'cls' : 'self';
 
   openSheet(`<h3>发布 <small class="muted">${S.questions.length} 题</small></h3>
-    <p class="muted" style="margin:0 0 12px">发给谁刷？学生的“科目”列表里只会出现发给他的题库。</p>
+    <p class="muted" style="margin:0 0 12px">发给谁刷？发给学生之后，只有名单里的人能在“科目”里看到这套题。</p>
     <div class="radio" style="flex-direction:column;gap:8px">
-      <label><input type="radio" name="tg" value="all" ${isNew || cur == null ? 'checked' : ''}> 全部学生（所有班都能刷）</label>
-      <label><input type="radio" name="tg" value="self" ${!isNew && cur && cur.length === 0 ? 'checked' : ''}> 只自己刷（不发给学生，题留在我的科目里）</label>
-      <label><input type="radio" name="tg" value="cls" ${!isNew && cur && cur.length ? 'checked' : ''}> 只发给指定班级</label>
+      <label><input type="radio" name="tg" value="all" ${mode0 === 'all' ? 'checked' : ''}> 全部学生（所有班都能刷）</label>
+      <label><input type="radio" name="tg" value="self" ${mode0 === 'self' ? 'checked' : ''}> 只自己刷（不发给学生，题留在我的科目里）</label>
+      <label><input type="radio" name="tg" value="cls" ${mode0 === 'cls' ? 'checked' : ''}> 只发给指定班级</label>
+      <label><input type="radio" name="tg" value="tea" ${mode0 === 'tea' ? 'checked' : ''}> 只发给指定老师（学生看不到；老师能自己刷，也能再发给他自己的班）</label>
     </div>
     <div id="clsPick" style="margin-top:12px" hidden>
       <div class="sgroup">我教的班</div>
       <div id="clsList" class="slist"><div class="muted" style="padding:10px">正在读取班级…</div></div>
     </div>
+    <div id="teaPick" style="margin-top:12px" hidden>
+      <div class="sgroup">老师账号</div>
+      <div id="teaL" class="slist"><div class="muted" style="padding:10px">正在读教师名单…</div></div>
+      <p class="muted" style="margin:8px 0 0">老师收到后能自己刷，也能点“转发给自己”复制一份，再发给他自己的班。</p>
+    </div>
     <div class="line" style="margin-top:14px"><button class="btn" type="button" id="pubGo">确认发布</button><button class="btn sm ghost" type="button" id="pubNo">取消</button></div>`,
   async () => {
     const rad = () => ($('sheetBody').querySelector('input[name=tg]:checked') || {}).value;
-    const sync = () => { $('clsPick').hidden = rad() !== 'cls'; };
+    const sync = () => { $('clsPick').hidden = rad() !== 'cls'; $('teaPick').hidden = rad() !== 'tea'; };
     for (const r of $('sheetBody').querySelectorAll('input[name=tg]')) r.onchange = sync;
     sync();
 
-    // 班级列表懒加载：只有选了“指定班级”才去查，不选就不打扰数据库
+    // 班级 / 教师名单都懒加载：只有选了那一项才去查，不选就不打扰数据库
     let classes = null;
     const loadCls = async () => {
       if (classes) return;
@@ -1150,32 +1203,58 @@ function openPublishSheet(onDone) {
            <small>${c.bound || 0}/${c.total || 0} 人</small>
          </label>`).join('');
     };
-    // 一开始就选中“指定班级”的，立刻加载
+    let teas = null;
+    const loadTea = async () => {
+      if (teas) return;
+      const r = await store.teacherList();
+      teas = (r || []).filter(t => t && t.uid);
+      const box = $('teaL');
+      if (!box) return;
+      if (!teas.length) { box.innerHTML = '<div class="muted" style="padding:10px">还没有别的教师账号。让对方用教师邀请码开通后再来发。</div>'; return; }
+      const sel = new Set(curT || []);
+      box.innerHTML = teas.map(t =>
+        `<label class="sitem" style="justify-content:flex-start;gap:10px;cursor:pointer">
+           <input type="checkbox" data-tuid="${esc(t.uid)}" ${sel.has(t.uid) ? 'checked' : ''}>
+           <b style="flex:1">${esc(t.name || '（没名字）')}</b>
+           <small>${t.is_dev ? '开发者' : t.is_admin ? '管理员' : '教师'}</small>
+         </label>`).join('');
+    };
     if (rad() === 'cls') loadCls();
+    if (rad() === 'tea') loadTea();
     for (const r of $('sheetBody').querySelectorAll('input[name=tg]')) {
       const prev = r.onchange;
-      r.onchange = () => { prev(); if (rad() === 'cls') loadCls(); };
+      r.onchange = () => { prev(); if (rad() === 'cls') loadCls(); if (rad() === 'tea') loadTea(); };
     }
 
     $('pubNo').onclick = closeSheet;
     $('pubGo').onclick = async () => {
       const mode = rad();
-      let classes2;
+      let classes2, teachers2 = null;
       if (mode === 'all') classes2 = null;
       else if (mode === 'self') classes2 = [];
-      else {
+      else if (mode === 'tea') {
+        const picked = [...$('sheetBody').querySelectorAll('input[data-tuid]:checked')].map(x => x.dataset.tuid);
+        if (!picked.length) { toast('至少选一位老师'); return; }
+        classes2 = [];        // 关键：发给老师时学生一律看不到
+        teachers2 = picked;
+      } else {
         const picked = [...$('sheetBody').querySelectorAll('input[data-cid]:checked')].map(x => +x.dataset.cid);
         if (!picked.length) { toast('至少选一个班；不想发给学生就选“只自己刷”'); return; }
         classes2 = picked;
       }
       $('pubGo').disabled = true;
       try {
-        await store.publish(pid, sub.name, S.questions, hx.name(S.user, S.me), classes2);
+        await store.publish(pid, sub.name, S.questions, hx.name(S.user, S.me), classes2, teachers2);
         if (sub.kind === 'mine') { await saveMine(m => m.map(s => s.id === sub.id ? { ...s, published: true } : s)); S.subject.published = true; }
         // 把新的下发范围写回内存，面板再打开时能回填
-        S.subject.class_ids = classes2; S.subject.targets = mode === 'all' ? '全部学生' : mode === 'self' ? '只自己刷' : classes2.length + ' 个班';
+        S.subject.class_ids = classes2; S.subject.teacher_ids = teachers2;
+        S.subject.targets = mode === 'all' ? '全部学生' : mode === 'self' ? '只自己刷'
+          : mode === 'tea' ? teachers2.length + ' 位老师' : classes2.length + ' 个班';
         closeSheet();
-        toast(mode === 'self' ? '已保存（只自己刷，学生看不到）' : mode === 'all' ? '已发布给全部学生' : `已发布给 ${classes2.length} 个班`);
+        toast(mode === 'self' ? '已保存（只自己刷，学生看不到）'
+          : mode === 'all' ? '已发布给全部学生'
+          : mode === 'tea' ? `已发给 ${teachers2.length} 位老师（学生看不到；老师能转发给自己的班）`
+          : `已发布给 ${classes2.length} 个班`);
         if (onDone) onDone();
       } catch (e) { toast(e.message); }
       finally { if ($('pubGo')) $('pubGo').disabled = false; }
@@ -1635,17 +1714,24 @@ const guide = () => `<h4>刷题</h4><ul>
 <p>网页和扩展的 Key 各存各的，互不影响。装了扩展不填网页 Key 也能用扩展讲题；<b>在这里也填一份，题目下就会同时有扩展的“✦ 学会这题”和网页的“✦ AI 逐项解析”</b>，点哪个都行。</p>`;
 
 // ---------- 启动 ----------
-// 登录了但没开通（GitHub 新账号等，身份“未开通”）：整页挡住，只引导去首页填邀请码；没登录的照样能刷
+// 未登录 / 登录了但没开通：整页挡住。
+// 2026-11-08 用户定：「没登录的人不允许使用任何工具」——原来这里写「没登录的照样能刷」，那是 2026-11-01
+// 修注册时临时放开的，后来忘了收。现在两道：hx-theme.js 的 gate() 负责跳回总入口（单独打开时），
+// 这里负责「已经在工具页里但没资格用」的那一档（嵌在总入口里、或者 hx-theme 没跑起来时兜底）。
 function lock(on) {
   let el = document.getElementById('hxLock');
   if (!on) { if (el) el.remove(); return false; }
   if (!el) { el = document.createElement('div'); el.id = 'hxLock'; document.body.appendChild(el); }
   el.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center;background:var(--card,#f5f5f7);color:var(--ink,#1d1d1f);font-size:16px';
-  el.innerHTML = '<b style="font-size:20px">这个账号还没开通</b><a href="https://zcq19991029.github.io/" target="_top" style="padding:10px 22px;border-radius:999px;background:#0a84ff;color:#fff;text-decoration:none">填写邀请码开通</a>';
+  el.innerHTML = hx.signedIn()
+    ? '<b style="font-size:20px">这个账号还没开通</b><a href="https://zcq19991029.github.io/" target="_top" style="padding:10px 22px;border-radius:999px;background:#0a84ff;color:#fff;text-decoration:none">填写邀请码开通</a>'
+    : '<b style="font-size:20px">先登录才能刷题</b><span style="color:#666">没登录的人不能用任何工具</span><a href="https://zcq19991029.github.io/" target="_top" style="padding:10px 22px;border-radius:999px;background:#0a84ff;color:#fff;text-decoration:none">去首页登录</a>';
   return true;
 }
 async function boot() {
   S.user = S.me = null;
+  // 未登录：什么工具都不给（2026-11-08 用户定）。放在最前面，免得先把题库拉下来再挡住。
+  if (!hx.signedIn()) { if (window.HXLoadFx) HXLoadFx.finishBoot(); lock(true); return; }
   if (hx.signedIn()) { try { [S.user, S.me] = await Promise.all([hx.user(), hx.me()]); } catch { S.user = S.me = null; } }
   if (lock(S.me && !S.me.teacher && !S.me.admin && !S.me.dev && !S.me.student && !S.me.left)) { if (window.HXLoadFx) HXLoadFx.finishBoot(); return; }
   setAiProfile(hx.uid() || 'default');
