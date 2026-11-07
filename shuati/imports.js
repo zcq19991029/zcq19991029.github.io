@@ -203,6 +203,15 @@ export function normalizeQuestions(raw, subject) {
       };
       return (card.lead || card.steps.length || table.length || card.tip || card.warn) ? card : null;
     })();
+    /* spec（可选，2026-11-08）：题库页「给这道题提要求」存下来的几条祈使句。
+       它**不是给学生看的文案**，是点 AI 解析时拼进提示词的要求；导出再导回来要原样留住，
+       否则一导出老师提的要求就全没了。没有 items 就当没有。 */
+    const rawSpec = item?.spec || item?.要求;
+    const spec = (() => {
+      if (!rawSpec || typeof rawSpec !== 'object') return null;
+      const items = arr(rawSpec.items).slice(0, 5);
+      return items.length ? { items, words: String(rawSpec.words ?? '').trim().slice(0, 400), at: Number(rawSpec.at) || Date.now() } : null;
+    })();
     questions.push({
       id: `${subject}-import-${crypto.randomUUID()}`,
       number: item?.number || questions.length + 1,
@@ -214,6 +223,7 @@ export function normalizeQuestions(raw, subject) {
       ...(code ? { code } : {}),
       ...(sub.length ? { sub } : {}),
       ...(study ? { study } : {}),
+      ...(spec ? { spec } : {}),
       source: item?.source || item?.出处 || '导入'
     });
   });

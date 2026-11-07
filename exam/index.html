@@ -423,7 +423,7 @@ button.qdel.sm{width:26px;height:26px;font-size:15px}
 
 /* 考试页面布局（组件样式沿用单片机的 BASE_CSS，颜色跟首页“外观”） */
 body { margin: 0; }
-.ex { width: min(1100px, 100%); margin: 0 auto; padding: 22px 18px 60px; box-sizing: border-box; }
+.ex { width: min(1600px, 100%); margin: 0 auto; padding: 22px 18px 60px; box-sizing: border-box; }
 
 /* ============================================================
    教师端外壳：左侧栏（考试 / 组卷与组卷码 / 理论试卷 + 科目）＋ 右侧内容
@@ -433,7 +433,9 @@ body { margin: 0; }
    （发布、交卷与批改、学生取题、考场）一行都不用改。
    学生端不套外壳：学生只看得到自己那一张考场，侧栏对他没有意义。
    ============================================================ */
-.ex-shell { display: grid; grid-template-columns: 232px minmax(0, 1fr); width: min(1280px, 100%); margin: 0 auto; box-sizing: border-box; }
+/* 横屏铺满（2026-11-08）：外壳原来 min(1280px,100%)，比 .ex 的 1600px 更窄，大屏上正文呈一条窄柱；
+   统一到 1600px（用户要求「横屏网页铺满」）。左栏 232px 固定、右栏 minmax(0,1fr) 继续自适应，窄屏在 900px 断点变单列。 */
+.ex-shell { display: grid; grid-template-columns: 232px minmax(0, 1fr); width: min(1600px, 100%); margin: 0 auto; box-sizing: border-box; }
 .ex-nav { position: sticky; top: 18px; align-self: start; max-height: calc(100vh - 36px); overflow: auto; padding: 18px 12px; scrollbar-width: thin; }
 .ex-nav-h { font: 600 11px/1.4 Consolas, "Cascadia Mono", monospace; letter-spacing: .1em; color: var(--mute, #6b7280); text-transform: uppercase; padding: 0 10px 8px; }
 .ex-nav-i { display: grid; gap: 1px; width: 100%; text-align: left; padding: 10px 12px; margin-bottom: 4px; border: 0; border-radius: 12px; background: transparent; color: var(--ink, #0b1220); cursor: pointer; font: inherit; }

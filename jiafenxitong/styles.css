@@ -149,7 +149,9 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .tabs button:hover { background: var(--panel-soft); color: var(--accent); }
 .tabs button.on { background: var(--accent-bg); color: var(--accent); font-weight: 700; }
 
-main { padding: 18px 16px 44px; max-width: 1180px; margin: 0 auto; }
+/* 横屏铺满（2026-11-08）：原 max-width:1180px 在 1440/1920 屏上左右各留一大片空白，
+   用户要求「全部工具的排版横屏网页铺满」。看板/表格型放宽到 1800px，窄屏仍被 max-width 兜住不溢出。 */
+main { padding: 18px 16px 44px; max-width: 1800px; margin: 0 auto; }
 .view { display: flex; flex-direction: column; gap: 16px; }
 
 /* ---------- 通用控件 ---------- */
@@ -1064,7 +1066,8 @@ dialog::backdrop {
   }
   body::before, body::after { display: none; }
   body { font-family: system-ui,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif; }
-  .topbar { background: var(--bg); backdrop-filter: none; padding: 10px max(20px,calc((100vw - 1180px)/2)) 0; }
+  /* 2026-11-08：这里的内边距是按主内容 1180px 算的，主内容放宽到 1800 后必须同步，否则顶栏和正文错位。 */
+  .topbar { background: var(--bg); backdrop-filter: none; padding: 10px max(20px,calc((100vw - 1800px)/2)) 0; }
   .topbar-main { min-height: 34px; }
   .brandmark { background: var(--accent); border-radius: 10px; box-shadow: none; }
   .tabs { gap: 4px; margin-top: 8px; padding-bottom: 8px; }
@@ -1999,7 +2002,11 @@ html.hx-bg body::before { display: none; }
     backdrop-filter: blur(18px) saturate(160%);
     box-shadow: var(--shadow-lift);
   }
-  body.sidebar-layout main { margin: 0 0 0 292px; padding: 14px 20px 44px; }
+  /* 2026-11-08 修横向溢出：上面 @media(min-width:1000px) 那条给 main 写死了 width:calc(100% - 250px)，
+     这里又把 margin-left 改成 292px（侧栏 264 + 两侧 12px + 间隔），两个数对不上 → 右边界冲出视口 42px
+     （body 上 overflow-x 裁掉，最后一列被切）。侧栏布局里 main 的宽度交给「自动填满剩余」，只留 margin。
+     同时配合横屏铺满：main 不再有 1180px 的小上限，剩余宽度全给内容。 */
+  body.sidebar-layout main { width: auto; margin: 0 0 0 292px; padding: 14px 20px 44px; }
   body.sidebar-layout .local-warn {
     margin: 10px 16px 0 292px; border: 1px solid var(--warn);
     border-radius: 14px; background: var(--warn-bg);

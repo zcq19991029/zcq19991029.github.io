@@ -35,7 +35,10 @@ a { color: var(--acc); }
 .tbtn:hover { color: var(--ink); background: var(--fill); }
 
 /* 页面 */
-main { width: min(760px, 100%); margin: 0 auto; padding: 18px 16px calc(120px + var(--safe)); }
+/* 横屏铺满（2026-11-08）：原来 min(760px, 100%) 在两米宽的一体机大屏上两边大片空白，像把手机界面放大；
+   用户要求「全部工具的排版横屏网页铺满和移动端竖屏的自适应」。阅读型页面给 1600px 上限，
+   余量靠 padding 吸收，窄屏仍是 100% 不撑破。 */
+main { width: min(1600px, 100%); margin: 0 auto; padding: 18px 16px calc(120px + var(--safe)); }
 .view { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
 .glow, .panel { position: relative; border-radius: var(--r); background: var(--card); box-shadow: 0 2px 12px var(--fill); }
 /* 有背景图时才用「有层次的玻璃」：叠白＋方向性亮边＋折射高光（hx-theme.css 里的 --glass-*）。
@@ -158,7 +161,9 @@ html[data-hx-mode="light"].hx-bg .seg button[aria-pressed="true"] { background: 
 .submit { width: 100%; margin-top: 16px; }
 
 /* 拇指区操作条 */
-.bar { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(14px + var(--safe)); z-index: 15; width: min(728px, calc(100% - 20px)); display: flex; align-items: center; gap: 8px; padding: 8px; border-radius: 26px; background: var(--bar); -webkit-backdrop-filter: var(--hx-blur); backdrop-filter: var(--hx-blur); box-shadow: 0 0 0 1px var(--edge), 0 12px 32px var(--shade); }
+/* 2026-11-08 横屏铺满：底部操作条原来只到 728px，主内容放宽到 1600 后它会缩在中间像一条小药丸，
+   跟着一起放宽（手机端 100% - 20px 不变，竖屏观感零变化）。 */
+.bar { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(14px + var(--safe)); z-index: 15; width: min(1600px, calc(100% - 20px)); display: flex; align-items: center; gap: 8px; padding: 8px; border-radius: 26px; background: var(--bar); -webkit-backdrop-filter: var(--hx-blur); backdrop-filter: var(--hx-blur); box-shadow: 0 0 0 1px var(--edge), 0 12px 32px var(--shade); }
 .bar .nav { flex: none; width: 44px; height: 44px; border-radius: 50%; border: 0; background: var(--fill); font-size: 22px; line-height: 1; color: var(--ink); }
 .bar .nav:disabled { opacity: .3; }
 .bar .mid { flex: 1; display: flex; gap: 8px; min-width: 0; }
@@ -484,15 +489,36 @@ html[data-hx-mode="dark"] .study {
   .g table th, .g table td { padding: 5px 6px; }
 }
 
-/* ---------- 题库页「说人话写学习卡」（2026-11-08） ----------
-   老师不写 JSON：说一段大白话 → AI 整理 → 先把结果摆出来核对 → 点头才存。
-   结果区要一眼看出「这是 AI 的理解，还不是题库里的东西」，所以底色用灰、卡片标签写「先给你看 · 还没存」。 */
+/* ---------- 题库页「给这道题提要求」（2026-11-08 改方向） ----------
+   老师不写 JSON：说一段大白话 → AI 整理成「教另一个 AI 怎么讲」的几条要求 → 核对 → 点头才存。
+   这里存的是要求，不是给学生看的文字；所以清单用序号列出、一眼能数清几条，
+   已存的要求（.st-saved）放在输入框上方，改之前先知道自己原来要求的是什么。 */
 .st-out { margin-top: 14px; padding: 14px; border-radius: 14px; background: var(--fill); }
 .st-read { margin: 0 0 10px; font-size: 13.5px; line-height: 1.7; }
 .st-read b { color: var(--dim); font-weight: 600; }
+/* 要求清单：AI 以后每题都照这个讲，摆成一条一条比一段话好核对 */
+.st-spec { margin: 0 0 12px; font-size: 13.5px; line-height: 1.75; }
+.st-spec > b { color: var(--dim); font-weight: 600; }
+.st-spec ol { margin: 8px 0 0; padding-left: 22px; }
+.st-spec li { margin: 5px 0; }
+.st-saved { margin: 10px 0 2px; padding: 10px 14px; border-radius: 12px; background: var(--fill); font-size: 13px; line-height: 1.7; }
+.st-saved b { color: var(--dim); font-weight: 600; }
+.st-saved ol { margin: 6px 0 6px; padding-left: 20px; }
+.st-saved li { margin: 3px 0; }
+.st-saved .muted { display: block; }
 /* AI 反问的那几条：用提醒色，别让人当成错误 —— 它只是没听准 */
 .st-ask { margin: 0 0 12px; padding: 10px 14px; border-radius: 12px; background: var(--badbg); font-size: 13.5px; line-height: 1.7; }
 .st-ask ul { margin: 6px 0 8px; padding-left: 18px; }
 .st-ask li { margin: 3px 0; }
 .st-ask .muted { display: block; }
 .st-out .study { margin-top: 10px; }
+
+/* ---------- 题库分享码（2026-11-08）----------
+   6 位码要念得清、看得见：等宽字体 + 拉开字距，避免把 0 看成 O（字母表里本来就没有 O/0/1/I/L）。
+   二维码给固定方块底，深浅两套主题下都能扫。 */
+.sh-out { margin-top: 16px; text-align: center; }
+.sh-code { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.sh-code b { font: 700 clamp(28px, 8vw, 40px)/1.1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: .28em; text-indent: .28em; }
+.sh-qr { margin: 14px auto 12px; }
+.sh-qr canvas { width: min(240px, 70vw); height: auto; display: block; margin: 0 auto; padding: 8px; border-radius: 14px; background: #fff; }
+.sh-out .line { flex-wrap: wrap; }

@@ -1,17 +1,27 @@
 // 华夏工具 · 刷题：界面和刷题流程。题库解析、AI 解析沿用 imports.js / ai.js；存储见 store.js；账号见 hx.js。
 import * as hx from './hx.js';
 import * as store from './store.js';
-import { providers, getSettings, saveSettings, setAiProfile, chat, streamChat, listModels, explainQuestion, parseStudyCard } from './ai.js';
+import { providers, getSettings, saveSettings, setAiProfile, chat, streamChat, listModels, explainQuestion, parseStudySpec } from './ai.js';
 import { readMaterial, readImages, normalizeQuestions, aiImport, aiGenerate, aiVision, isImageFile } from './imports.js';
 import { figSvg, figName } from './symbols.js';
 
 // 内置课程题库（data/ 下的 JSON）；第一个是默认科目
+/* 2026-11-08：这 4 套「搬到了开发者名下」。
+   用户原话：「内置的转换成开发者的权限 算我上传的 搬我那里 这个我同意」。
+   做法不是把 JSON 删掉，而是同一份题**两边都有**：
+     · 云端（quiz_public，owner = 开发者，id 就是这里的 id）——登录后优先读它，可以发布给班级、可以改；
+     · 本地 data/*.json —— 没网、没登录、云端还没搬过时的兜底。
+   为什么 id 必须一字不改（wiring / mcu / psychology / education）：
+   排位表 quiz_rank_hits.bank / quiz_rank_keys.bank 存的就是这 4 个名字，
+   换了 bank 名，1792 道题的排位成绩全部对不上，等于把历史数据作废。
+   搬的动作见设置页「把内置题库搬到我的账号」按钮（只有开发者看得到）。 */
 const BUILTIN = [
   { id: 'wiring', name: '电气接线原理', file: 'data/wiring.json', tag: '期末理论' },
   { id: 'mcu', name: '单片机应用技术', file: 'data/mcu.json', tag: '期末理论' },
   { id: 'psychology', name: '教育心理学', file: 'data/questions.json', tag: '教资' },
   { id: 'education', name: '教育学', file: 'data/education.json', tag: '教资' },
 ];
+const BUILTIN_IDS = new Set(BUILTIN.map(s => s.id));
 const TYPES = [['single', '单选'], ['multiple', '多选'], ['judgment', '判断'], ['fill', '填空'], ['term', '名词解释'], ['short', '简答'], ['prog', '程序分析']];
 const SELF = new Set(['term', 'short', 'prog']); // 主观题：看参考答案自己判对错
 // 出题要求（导入区“根据资料出题”）：默认只出选择题；填空/简答要用户自己勾，
@@ -98,36 +108,87 @@ const S = {
   askDraft: '', // “问 AI”打了一半的字：关掉抽屉、切到别的抽屉都不丢，发出去才清
   hsel: new Set(), hf: 'all', // 概览“刷题记录”：勾选的题、筛选
   rmine: false, // 排行：只看本班
-  study: null, // 题库页「说人话写学习卡」：{ qid, text, busy, err, card, ask }
+  study: null, // 题库页「给这道题提要求」：{ qid, text, busy, err, spec:{read,items}, ask }
 };
 const prefs = () => store.getLocal('prefs', {});
 const savePrefs = () => store.setLocal('prefs', { subject: S.subject?.id, type: S.type, scope: S.scope, mode: S.mode });
 const inPortal = () => { try { return window.top !== window && window.top.location.pathname === '/'; } catch { return false; } };
 const isTeacher = () => !!(S.me && (S.me.teacher || S.me.admin || S.me.dev));
+// 开发者最高权限（2026-11-08 用户明确：「开发者拥有以上全部功能 管理员开发者都属于教师账号 只不过开发者最高权限」）。
+// 目前只有两件事只给开发者：把内置题库搬到自己的账号、删别人发布的题库。
+const isDev = () => !!(S.me && S.me.dev);
 const rec = id => S.records[id] || { status: 'new', attempts: 0, wrong: 0 };
 const inScope = (r, s) => s === 'todo' ? r.status !== 'known' : s === 'wrong' ? r.wrong > 0 && r.status !== 'known' : s === 'new' ? !r.attempts : s === 'done' ? r.attempts > 0 : r.status === 'known';
 
 // ---------- 科目和题库 ----------
 async function loadSubjects(withPublic = true) { // withPublic=false：先不等老师发布的题库（联网慢），内置科目马上能刷
-  const [mine, pub] = await Promise.all([store.read('subjects', [], store.mergeSubjects), withPublic ? store.publicList() : S.subjects.filter(s => s.kind === 'public').map(s => ({ id: s.pid, name: s.name, owner_name: s.owner, total: s.total }))]);
+  const [mine, pub, shares] = await Promise.all([
+    store.read('subjects', [], store.mergeSubjects),
+    withPublic ? store.publicList() : S.subjects.filter(s => s.kind === 'public').map(s => ({ id: s.pid, name: s.name, owner_name: s.owner, total: s.total })),
+    store.read('shares', []), // 别人用分享码给我的题库（2026-11-08）
+  ]);
   const mineIds = new Set(mine.map(s => s.id));
+  /* 内置 4 套搬到云端之后，quiz_public 里会出现 id 就叫 wiring / mcu / psychology / education 的记录。
+     它们**不能**再以「pub-wiring」这种第二个身份出现 —— 否则科目列表里一门课变两张卡，
+     排行榜也会裂成 wiring 和 pub-wiring 两份。所以这类记录直接挂到内置那张卡上（cloud 标记），
+     题目来源改成云端，local 那份 data/*.json 退成兜底。 */
+  const cloudBuiltin = new Map();
+  for (const p of (pub || [])) if (p && BUILTIN_IDS.has(p.id)) cloudBuiltin.set(p.id, p);
   S.subjects = [
-    ...BUILTIN.map(s => ({ ...s, kind: 'builtin' })),
-    ...(pub || []).filter(p => !(p.mine && mineIds.has(p.id))).map(p => ({ id: 'pub-' + p.id, pid: p.id, name: p.name, kind: 'public', owner: p.owner_name, tag: p.owner_name ? p.owner_name + ' 发布' : '老师发布', total: p.total,
+    ...BUILTIN.map(s => {
+      const p = cloudBuiltin.get(s.id);
+      return p
+        ? { ...s, kind: 'builtin', cloud: true, pid: p.id, owner: p.owner_name, total: p.total, targets: p.targets, class_ids: p.class_ids, mine: p.mine }
+        : { ...s, kind: 'builtin' };
+    }),
+    ...(pub || []).filter(p => !BUILTIN_IDS.has(p.id) && !(p.mine && mineIds.has(p.id))).map(p => ({ id: 'pub-' + p.id, pid: p.id, name: p.name, kind: 'public', owner: p.owner_name, tag: p.owner_name ? p.owner_name + ' 发布' : '老师发布', total: p.total,
       // 下发范围（2026-11-02）：targets 是给人看的说明，class_ids 给发布面板回填复选框
       mine: p.mine, targets: p.targets, class_ids: p.class_ids })),
+    /* 分享码换来的题库：不是「我的科目」（自己没编过），也不是「别人发布」（不走班级），
+       单独一类 shared，卡片上标清是谁分享的码。 */
+    ...(shares || []).filter(s => s && s.id).map(s => ({ id: s.id, code: s.code, name: s.name, kind: 'shared', tag: s.owner ? s.owner + ' 分享' : '分享码', total: s.total })),
     ...mine.map(s => ({ ...s, kind: 'mine' })),
   ];
+  /* 首屏为了快，是「先不等云端、直接把内置科目画出来」的；云端那条「这套题已经搬到开发者名下」
+     的信息要晚一步才到。所以这里补两件事：
+       · 把 S.subject 换成新对象（不然它还指着刚才那份没有 cloud 标记的，题库页就一直显示「本地只读」）；
+       · 云端这份第一次出现时，清掉先前从 data/*.json 读到的那份缓存，让 baseOf 重新去云端取。 */
+  if (S.subject) {
+    const fresh = S.subjects.find(s => s.id === S.subject.id);
+    if (fresh) {
+      if (fresh.cloud && !S.subject.cloud) delete S.base[fresh.id];
+      S.subject = fresh;
+    }
+  }
 }
 async function baseOf(sub) {
   if (S.base[sub.id]) return S.base[sub.id];
   let list = [];
   if (sub.kind === 'builtin') {
-    // 离线版：题库已经内联在文件里（window.__BANK），file:// 下 fetch 会被浏览器拦，直接取
-    if (window.__OFFLINE && window.__BANK && window.__BANK[sub.file]) list = window.__BANK[sub.file];
-    else { const r = await fetch(sub.file + '?v=20261031', { cache: 'no-cache' }); if (!r.ok) throw new Error('题库加载失败 HTTP ' + r.status); list = await r.json(); }
+    /* 云端优先（2026-11-08）：搬到开发者名下之后，题目以 quiz_public 那份为准 ——
+       开发者在题库页改完再发布，学生下次进来就是新题，不用跟着改代码重新发站。
+       拿不到（没网 / 没登录 / 还没搬过 / 被从「全部学生」改成只发某几个班）就退回本地 JSON。 */
+    if (sub.cloud && sub.pid) {
+      try { const r = await store.publicGet(sub.pid); if (r && Array.isArray(r.questions) && r.questions.length) list = r.questions; } catch { /* 落到下面的本地兜底 */ }
+    }
+    if (!list.length) {
+      // 离线版：题库已经内联在文件里（window.__BANK），file:// 下 fetch 会被浏览器拦，直接取
+      if (window.__OFFLINE && window.__BANK && window.__BANK[sub.file]) list = window.__BANK[sub.file];
+      else { const r = await fetch(sub.file + '?v=20261031', { cache: 'no-cache' }); if (!r.ok) throw new Error('题库加载失败 HTTP ' + r.status); list = await r.json(); }
+    }
   }
   else if (sub.kind === 'public') { const r = await store.publicGet(sub.pid); list = (r && r.questions) || []; }
+  /* 分享码换来的题库：题目存在本机（sharedq:<码>），第二次打开不再拉网；
+     本机没有（换了设备 / 清了缓存）才凭码再取一次 —— 码过期了就在这一步报错，说得清楚。 */
+  else if (sub.kind === 'shared') {
+    const cached = store.getLocal('sharedq:' + sub.code, null);
+    if (Array.isArray(cached) && cached.length) list = cached;
+    else {
+      const r = await store.shareGet(sub.code);
+      list = (r && r.questions) || [];
+      if (list.length) store.setLocal('sharedq:' + sub.code, list);
+    }
+  }
   return (S.base[sub.id] = list);
 }
 // 七个跳动的像素方块：全站加载提示的统一长相（样式在 hx-theme.js 注入的 #hx-pill-style 里，
@@ -389,7 +450,8 @@ function renderCard() {
     fb = `<div class="fb ${ok ? 'ok' : 'bad'}"><b>${ok ? '回答正确' : '答案是 ' + esc(ans)}</b>${q.explanation ? `<p>${esc(q.explanation)}</p>` : ''}<div class="ai">${aiPart}</div></div>`;
   }
   /* 学习卡：三个来源，分开标、别让人以为是同一个地方来的 ——
-       老师补充（题库页「说人话」写进去的 study）/ AI 解析 / 题库自带（导入 JSON 里的 tip）
+       老师补充（老版「说人话写学习卡」留下的 study）/ AI 解析 / 题库自带（导入 JSON 里的 tip）
+       新版存的是「给 AI 的要求」（q.spec），学生看不到成品文案，只有 AI 现场解析的结果
      「题库复核」原来单独一行灰字，现在并进卡片底部的脚注 —— 它说的是题库准不准，不是知识点。
      ── 为什么 !picked 就整块不画 ──
      口诀往往就是把答案编进去了（「写 1 关管子」= 选 B），答题前摆出来等于送分。
@@ -435,7 +497,11 @@ function renderBar() {
 }
 async function explain(q) {
   S.ai[q.id] = { state: 'load' }; renderCard();
-  try { S.ai[q.id] = { state: 'done', data: await explainQuestion(q, S.picked[q.id] || [], null, S.subject.name) }; }
+  /* 第 4 个参数是科目名（提示词里带一句“这是XX课程的题”），
+     第 5 个是老师对这道题提的要求 —— q.spec.items 在题库页存下来的那几条祈使句。
+     拼成一段塞进提示词，内容仍由模型按 PARSE_SPEC 现场生成（2026-11-08 用户拍板的方向）。 */
+  const spec = ((q.spec && q.spec.items) || []).join('；');
+  try { S.ai[q.id] = { state: 'done', data: await explainQuestion(q, S.picked[q.id] || [], null, S.subject.name, spec) }; }
   catch (e) { S.ai[q.id] = { state: 'err', msg: e.message }; }
   if (cur() === q) renderCard();
 }
@@ -477,11 +543,15 @@ function openSubjectSheet() {
   const g = k => S.subjects.filter(s => s.kind === k);
   openSheet(`<h3>选择科目</h3>
     <div class="sgroup">课程题库</div><div class="slist">${[...g('builtin'), ...g('public')].map(item).join('')}</div>
+    ${g('shared').length ? `<div class="sgroup">分享给我的</div><div class="slist">${g('shared').map(item).join('')}</div>` : ''}
     <div class="sgroup">我的科目</div><div class="slist">${g('mine').map(item).join('')}
-    <button type="button" class="sitem" id="newSubj" style="justify-content:center;color:var(--acc3)"><b style="flex:none">＋ 新建科目</b></button></div>`, () => {
+    <button type="button" class="sitem" id="newSubj" style="justify-content:center;color:var(--acc3)"><b style="flex:none">＋ 新建科目</b></button>
+    <button type="button" class="sitem" id="joinBtn" style="justify-content:center;color:var(--acc3)"><b style="flex:none">输入分享码</b></button></div>`, () => {
     // 换科目留在当前栏目（在概览就看新科目的概览，在排行就看新科目的排行），不要硬踢回刷题
     for (const b of $('sheetBody').querySelectorAll('.sitem[data-id]')) b.onclick = async () => { closeSheet(); await openSubject(b.dataset.id); };
     $('newSubj').onclick = () => { closeSheet(); show('bank'); setTimeout(() => $('newName')?.focus(), 50); };
+    // 2026-11-08：朋友把 6 位分享码发过来，从这里输进去就能刷
+    $('joinBtn').onclick = () => openJoinSheet('');
   });
 }
 $('subjBtn').onclick = openSubjectSheet;
@@ -680,53 +750,66 @@ function draftHtml(d) {
       </div>`;
 }
 
-/* ---------- 说人话，让 AI 写学习卡（2026-11-08） ----------
-   用户原话：「手写 json 谁会写？我只会写人话，需要 ai 理解和询问确认」。
-   所以这条路上没有 JSON、没有字段名：老师选一道题、用大白话说一段，AI 整理成卡片
-   先摆出来给老师核对（含糊的地方还会反问），点了「就这样」才写进题目。
-   ── 为什么只给「我导入的题」写 ──
+/* ---------- 给这道题提要求，AI 按它解析（2026-11-08 改方向） ----------
+   用户原话两段，第二段把方向拧过来了：
+     「手写 json 谁会写？我只会写人话，需要 ai 理解和询问确认」
+     「口诀是相当于给 skills 给 ai 解析回答内容的规范约束 也就是点了 ai 解析他会有指定模块
+       各自解析 而不是我们写进去 不同 api 回复还不固定呢」
+   所以这里存的**不是学生看到的文字**，是一段「给 AI 的要求」：
+   老师大白话 → AI 整理成 1～5 条祈使句 → 老师点头存进 q.spec.items →
+   以后点「✦ AI 逐项解析」，这几条拼进提示词，内容每次由模型现场生成。
+   ── 为什么不存成卡片 ──
+   存成卡片就是「我们写进去」：一段死了的文案，换个模型也不会变，还容易过期。
+   存成要求，模型每次都按规范重新生成，不同 API 回复不固定也不影响格式。
+   ── 为什么只给「我导入的题」提要求 ──
    内置课程题是 data/*.json 里的只读文件，写进去下次刷新就没了；要能改得做覆盖层，
    那是另一件事。这里只动 S.bank（自己导入／自己出的题），存哪儿写哪儿，不骗人。 */
+const specHas = q => !!(q && q.spec && (q.spec.items || []).length);
 const studyHas = q => !!(q && q.study && (q.study.tip || q.study.lead || (q.study.steps || []).length || (q.study.table || []).length || q.study.warn));
 function studyPanel() {
   const list = S.bank || [];
-  if (!list.length) return `<div class="panel" id="stPanel"><h3>说人话，自动写学习卡</h3>
+  if (!list.length) return `<div class="panel" id="stPanel"><h3>给这道题提要求</h3>
       <p class="muted" style="margin:0">这条只对<b>你自己导入的题</b>有用。先把题目导进来（上面那块），再回来写。</p></div>`;
-  const st = S.study || (S.study = { qid: '', text: '', busy: false, err: '', card: null, ask: [] });
+  const st = S.study || (S.study = { qid: '', text: '', busy: false, err: '', spec: null, ask: [] });
   // 换过科目、或者选中的题被删掉了：回落到第一题，别让下拉框显示成空的
-  if (!st.qid || !list.some(q => q.id === st.qid)) { st.qid = list[0].id; st.card = null; st.ask = []; st.err = ''; }
-  const opts = list.map((q, i) => `<option value="${esc(q.id)}" ${q.id === st.qid ? 'selected' : ''}>第 ${i + 1} 题 · ${esc(String(q.stem || '').slice(0, 24))}${studyHas(q) ? '（已有卡）' : ''}</option>`).join('');
-  return `<div class="panel" id="stPanel"><h3>说人话，自动写学习卡</h3>
+  if (!st.qid || !list.some(q => q.id === st.qid)) { st.qid = list[0].id; st.spec = null; st.ask = []; st.err = ''; }
+  const opts = list.map((q, i) => `<option value="${esc(q.id)}" ${q.id === st.qid ? 'selected' : ''}>第 ${i + 1} 题 · ${esc(String(q.stem || '').slice(0, 24))}${specHas(q) ? '（已有要求）' : studyHas(q) ? '（已有卡）' : ''}</option>`).join('');
+  const cur = list.find(q => q.id === st.qid);
+  const saved = cur && specHas(cur)
+    ? `<div class="st-saved"><b>这道题现在就按这几条讲：</b><ol>${cur.spec.items.map(x => `<li>${esc(x)}</li>`).join('')}</ol><span class="muted">在下面重新说一段再存，会整组换掉。</span></div>`
+    : '';
+  return `<div class="panel" id="stPanel"><h3>给这道题提要求（AI 按它解析）</h3>
       ${aiReady() ? '' : '<div class="imp-warn"><span>还没配 AI 模型 → 去首页「AI 设置」</span><button class="btn sm" type="button" id="toAi2">去首页「AI 设置」</button></div>'}
-      <p class="imp-note" style="margin:0 0 12px">不用写 JSON。把你想让学生记住的那段话，像跟同事聊天一样说出来就行 —— AI 整理成学习卡的几块，<b>先摆出来给你核对，你点头才存</b>。学生答完这道题才看得到（口诀里常常带着答案，提前放等于送分）。</p>
+      <p class="imp-note" style="margin:0 0 12px">不用写 JSON，也不用替 AI 写解析。你只管说「这题该怎么讲」：重点强调什么、别讲什么、用什么说法。<b>AI 把这段话整理成几条要求</b>，你核对完再保存；以后学生点「✦ AI 逐项解析」，AI 就照这几条现场生成 —— 换模型、换服务商都不影响。</p>
       <div class="f">
-        <label for="stQ">给哪道题写</label>
+        <label for="stQ">给哪道题提要求</label>
         <select id="stQ">${opts}</select>
-        <label for="stText">你要说什么</label>
-        <textarea id="stText" rows="4" placeholder="例如：这题就记住写 1 关管子、写 0 才读得进。先看方向寄存器定的是输入还是输出，输出才要写。别把 0 和 1 记反了。">${esc(st.text || '')}</textarea>
-        <div class="line"><button class="btn" type="button" id="stGo" ${st.busy ? 'disabled' : ''}>${st.busy ? 'AI 正在理解…' : st.card ? '再理解一次' : '让 AI 理解'}</button><span class="muted" id="stMsg">${esc(st.err || 'AI 会把含糊的地方列出来问你')}</span></div>
+        ${saved}
+        <label for="stText">你要 AI 怎么讲这道题</label>
+        <textarea id="stText" rows="4" placeholder="例如：这题重点讲写 1 关管子、写 0 才读得进；先看方向寄存器定的是输入还是输出，输出才要写；别讲太多寄存器细节，学生记不住；0 和 1 千万别记反。">${esc(st.text || '')}</textarea>
+        <div class="line"><button class="btn" type="button" id="stGo" ${st.busy ? 'disabled' : ''}>${st.busy ? 'AI 正在整理…' : st.spec ? '再整理一次' : '让 AI 整理成要求'}</button><span class="muted" id="stMsg">${esc(st.err || 'AI 会把含糊的地方列出来问你')}</span></div>
       </div>
       <div id="stOut">${studyOut(st)}</div>
     </div>`;
 }
-// 理解结果：先说「我理解成这样」→ 再摆卡片预览 → 最后是 AI 没听准的问题 + 两个按钮
+// 整理结果：先说「我理解成」→ 再列要求清单 → 最后是没听准的问题 + 两个按钮
 function studyOut(st) {
-  if (!st || !st.card) return '';
-  const c = st.card, ask = st.ask || [];
-  const preview = studyCard({ _lead: c.lead, _steps: c.steps, _table: c.table, _tip: c.tip, _warn: c.warn }, '先给你看 · 还没存');
+  if (!st || !st.spec) return '';
+  const c = st.spec, ask = st.ask || [], items = c.items || [];
   return `<div class="st-out">
-      ${c.read ? `<p class="st-read"><b>我理解你说的意思是：</b>${esc(c.read)}</p>` : ''}
-      ${ask.length ? `<div class="st-ask"><b>这几点我没听准，你看要不要补一句：</b><ul>${ask.map(a => `<li>${esc(a)}</li>`).join('')}</ul><span class="muted">补完再点一次「让 AI 理解」；觉得没问题，直接存也行。</span></div>` : ''}
-      ${preview || '<p class="muted" style="margin:0">这段话里没整理出能放进卡片的内容 —— 看一眼上面那几个问题，补一句再试。</p>'}
-      <div class="line" style="margin-top:12px"><button class="btn sm" type="button" id="stSave" ${preview ? '' : 'disabled'}>就这样，存进这道题</button><button class="btn sm ghost" type="button" id="stDrop">不对，我再说一遍</button></div>
+      ${c.read ? `<p class="st-read"><b>我理解你的意思是：</b>${esc(c.read)}</p>` : ''}
+      ${items.length ? `<div class="st-spec"><b>以后 AI 解析这道题，会照这几条做：</b><ol>${items.map(x => `<li>${esc(x)}</li>`).join('')}</ol></div>` : ''}
+      ${ask.length ? `<div class="st-ask"><b>这几点我没听准，你看要不要补一句：</b><ul>${ask.map(a => `<li>${esc(a)}</li>`).join('')}</ul><span class="muted">补完再点一次「让 AI 整理」；觉得没问题，直接存也行。</span></div>` : ''}
+      ${items.length ? '' : '<p class="muted" style="margin:0">这段话里没整理出具体要求 —— 看一眼上面那几个问题，说具体点再试。</p>'}
+      <div class="line" style="margin-top:12px"><button class="btn sm" type="button" id="stSave" ${items.length ? '' : 'disabled'}>就这样，存进这道题</button><button class="btn sm ghost" type="button" id="stDrop">不对，我再说一遍</button></div>
     </div>`;
 }
-// 只重画「理解结果」这一小块：整页重画会连输入框里的字、光标和滚动位置一起丢掉
+// 只重画「整理结果」这一小块：整页重画会连输入框里的字、光标和滚动位置一起丢掉
 function paintStudy() {
   const st = S.study; if (!st) return;
   const out = $('stOut'); if (out) out.innerHTML = studyOut(st);
   const go = $('stGo');
-  if (go) { go.disabled = !!st.busy; go.textContent = st.busy ? 'AI 正在理解…' : st.card ? '再理解一次' : '让 AI 理解'; }
+  if (go) { go.disabled = !!st.busy; go.textContent = st.busy ? 'AI 正在整理…' : st.spec ? '再整理一次' : '让 AI 整理成要求'; }
   if ($('stMsg')) $('stMsg').textContent = st.err || 'AI 会把含糊的地方列出来问你';
   bindStudyBtns();
 }
@@ -734,7 +817,7 @@ function bindStudyBtns() {
   if ($('stSave')) $('stSave').onclick = saveStudyCard;
   if ($('stDrop')) $('stDrop').onclick = () => {
     const st = S.study; if (!st) return;
-    st.card = null; st.ask = []; st.err = ''; paintStudy();
+    st.spec = null; st.ask = []; st.err = ''; paintStudy();
     if ($('stText')) $('stText').focus();
   };
 }
@@ -742,46 +825,55 @@ async function runStudyCard() {
   const st = S.study, q = (S.bank || []).find(x => x.id === (st && st.qid));
   if (!st || !q) return toast('先在上面选一道题');
   const words = String(st.text || '').trim();
-  if (words.length < 4) { if ($('stText')) $('stText').focus(); return toast('先用一句话说说你想让学生记住什么'); }
+  if (words.length < 4) { if ($('stText')) $('stText').focus(); return toast('先用一句话说说你想让 AI 怎么讲这道题'); }
   if (!aiReady()) return toast('还没配 AI 模型，先去首页「AI 设置」');
-  st.busy = true; st.err = ''; st.card = null; st.ask = [];
+  st.busy = true; st.err = ''; st.spec = null; st.ask = [];
   paintStudy();
   try {
-    const got = await parseStudyCard(q, words);
-    st.card = got; st.ask = got.ask || [];
+    const got = await parseStudySpec(q, words);
+    st.spec = got; st.ask = got.ask || [];
   } catch (e) { st.err = '没整理出来：' + (e.message || e); }
   st.busy = false;
   paintStudy();
 }
 async function saveStudyCard() {
-  const st = S.study, c = st && st.card; if (!c) return;
+  const st = S.study, c = st && st.spec; if (!c) return;
   const q = (S.bank || []).find(x => x.id === st.qid); if (!q) return toast('这道题已经不在题库里了');
+  const items = (c.items || []).map(x => String(x).trim()).filter(Boolean).slice(0, 5);
+  if (!items.length) return toast('还没整理出要求，再补一句');
   if ($('stSave')) $('stSave').disabled = true;
-  const study = {
-    lead: String(c.lead || '').trim(),
-    steps: (c.steps || []).map(x => String(x).trim()).filter(Boolean).slice(0, 6),
-    table: (c.table || []).filter(r => r && (r[0] || r[1])).slice(0, 6),
-    tip: String(c.tip || '').trim(),
-    warn: String(c.warn || '').trim(),
-    // 原话留一份：以后觉得卡不对，能回头看看当时到底是怎么说的
+  const spec = {
+    items,
+    // 原话留一份：以后觉得要求不准，能回头看看当时到底是怎么说的
     words: String(st.text || '').trim().slice(0, 400),
     at: Date.now()
   };
   const n = S.bank.indexOf(q) + 1;
-  st.card = null; st.ask = []; st.err = ''; st.text = '';
-  await setBank(S.bank.map(x => x.id === q.id ? { ...x, study } : x));
-  toast(`已写进第 ${n} 题，学生答完这题就能看到`);
+  st.spec = null; st.ask = []; st.err = ''; st.text = '';
+  await setBank(S.bank.map(x => x.id === q.id ? { ...x, spec } : x));
+  toast(`已存进第 ${n} 题，以后点 AI 解析就按这几条讲`);
 }
 
 // ---------- 题库：新建科目、导入资料、AI 出题、导出、发布 ----------
 function renderBank() {
   const sub = S.subject, base = S.base[sub.id] || [], d = S.draft;
   // 发布时间是「更新发布」，撤销下发单独一个字按钮：撤销只把学生那边的可见性收回来，题库留着，老师自己还能刷
-  const pubBtns = isTeacher() ? `<button class="btn sm" type="button" id="pubBtn">${sub.published || sub.kind === 'public' ? '更新发布' : '发布给学生'}</button>${sub.published ? '<button class="btn sm danger" type="button" id="unpubBtn">取消发布</button>' : ''}` : '';
+  const pubBtns = isTeacher() ? `<button class="btn sm" type="button" id="pubBtn">${sub.published || sub.cloud || sub.kind === 'public' ? '更新发布' : '发布给学生'}</button>${sub.published || sub.cloud ? '<button class="btn sm danger" type="button" id="unpubBtn">取消发布</button>' : ''}` : '';
+  /* 来源这一行现在有三种意思，得说清楚，不然用户分不清「题到底在哪」：
+     · 云端（builtin + cloud）—— 题存在数据库里，挂在开发者名下，能改能发布；
+     · 课程题库 —— 只有本地 data/*.json，改不了（刷新回原样）；
+     · 我的科目 / 别人发布 —— 老两类不变。 */
+  const srcText = sub.kind === 'builtin'
+    ? (sub.cloud ? `课程题库 · 已搬到云端${sub.owner ? `（${esc(sub.owner)}）` : ''}` : '课程题库 · 本地只读')
+    : sub.kind === 'public' ? esc(sub.tag) : '我的科目';
+  const pubBtns2 = sub.kind === 'builtin' && !sub.cloud && isDev()
+    ? '<button class="btn sm" type="button" id="moveBtn">搬到我的账号</button>'
+    : pubBtns;
   $('v-bank').innerHTML = `
     <div class="panel"><h3>${esc(sub.name)}</h3>
-      <dl class="kv"><dt>来源</dt><dd>${sub.kind === 'builtin' ? '课程题库' : sub.kind === 'public' ? esc(sub.tag) : '我的科目'}</dd>${base.length ? `<dt>课程题</dt><dd>${base.length} 题</dd>` : ''}<dt>我导入的</dt><dd>${S.bank.length} 题</dd>${isTeacher() && (sub.published || sub.kind === 'public') && sub.targets ? `<dt>下发范围</dt><dd>${esc(sub.targets)}</dd>` : ''}</dl>
-      <div class="f" style="margin-top:12px"><div class="line"><button class="btn sm ghost" type="button" id="expBtn">导出 JSON</button>${S.bank.length ? '<button class="btn sm ghost" type="button" id="clrBtn">清空我导入的</button>' : ''}${sub.kind === 'mine' ? '<button class="btn sm ghost" type="button" id="renBtn">改名</button><button class="btn sm danger" type="button" id="delBtn">删除科目</button>' : ''}${pubBtns}</div></div></div>
+      <dl class="kv"><dt>来源</dt><dd>${srcText}</dd>${base.length ? `<dt>课程题</dt><dd>${base.length} 题</dd>` : ''}<dt>我导入的</dt><dd>${S.bank.length} 题</dd>${isTeacher() && (sub.published || sub.kind === 'public') && sub.targets ? `<dt>下发范围</dt><dd>${esc(sub.targets)}</dd>` : ''}</dl>
+      ${sub.kind === 'builtin' && !sub.cloud ? '<p class="muted" style="margin:8px 0 0">这套题现在是随代码发布的本地文件，改不了。搬到你的账号之后就能在云端改、也能发布给班级。</p>' : ''}
+      <div class="f" style="margin-top:12px"><div class="line"><button class="btn sm ghost" type="button" id="expBtn">导出 JSON</button>${S.questions.length ? '<button class="btn sm ghost" type="button" id="shareBtn">生成分享码</button>' : ''}${S.bank.length ? '<button class="btn sm ghost" type="button" id="clrBtn">清空我导入的</button>' : ''}${sub.kind === 'mine' ? '<button class="btn sm ghost" type="button" id="renBtn">改名</button><button class="btn sm danger" type="button" id="delBtn">删除科目</button>' : sub.kind === 'shared' ? '<button class="btn sm danger" type="button" id="delBtn">移出我的列表</button>' : ''}${pubBtns2}</div></div></div>
     <div class="panel"><h3>新建科目</h3><div class="f"><div class="line"><input id="newName" maxlength="30" placeholder="科目名称" style="flex:1"><button class="btn sm" type="button" id="newBtn">新建</button></div></div></div>
     <div class="panel" id="impPanel"><h3>导入资料 · ${esc(sub.name)}</h3>
       ${aiReady() ? '' : '<div class="imp-warn"><span>还没配 AI 模型 → 去首页「AI 设置」</span><button class="btn sm" type="button" id="toAi">去首页「AI 设置」</button></div>'}
@@ -810,9 +902,15 @@ function renderBank() {
     ${studyPanel()}`;
   const on = (id, fn) => { if ($(id)) $(id).onclick = fn; };
   on('expBtn', () => downloadText(sub.name + '.json', JSON.stringify(S.questions, null, 1)));
+  on('shareBtn', openShareSheet); // 生成分享码（6 位 + 二维码）
   on('clrBtn', e => sure(e.currentTarget, `确认清空 ${S.bank.length} 题？`, () => setBank([])));
   on('renBtn', async () => { const n = prompt('科目新名字', sub.name)?.trim(); if (!n) return; await saveMine(m => m.map(s => s.id === sub.id ? { ...s, name: n.slice(0, 30) } : s)); S.view = 'bank'; await openSubject(sub.id); });
-  on('delBtn', e => sure(e.currentTarget, '确认删除科目？', async () => {
+  on('delBtn', e => sure(e.currentTarget, sub.kind === 'shared' ? '确认移出列表？' : '确认删除科目？', async () => {
+    if (sub.kind === 'shared') { // 分享来的：只动本机这份清单，不碰对方的码
+      await dropShared(sub);
+      S.view = 'practice'; await openSubject(BUILTIN[0].id); toast('已移出，这个码还能再加回来');
+      return;
+    }
     await saveMine(m => m.filter(s => s.id !== sub.id)); await store.remove('bank:' + sub.id); await store.remove('progress:' + sub.id);
     S.view = 'practice'; await openSubject(BUILTIN[0].id); toast('已删除');
   }));
@@ -867,7 +965,7 @@ function renderBank() {
     };
   }
   on('goImport', startImport);
-  // 说人话写学习卡：换题就清掉上一题的理解结果（不然会把甲的卡存到乙身上）
+  // 给这道题提要求：换题就清掉上一题的整理结果（不然会把给甲的要求存到乙身上）
   if ($('stQ')) $('stQ').onchange = e => {
     const st = S.study; if (!st) return;
     st.qid = e.target.value; st.card = null; st.ask = []; st.err = '';
@@ -892,8 +990,33 @@ function renderBank() {
     if (b) { b.disabled = !n; b.textContent = '全部添加' + (n ? `（${n}）` : ''); }
   };
   on('pubBtn', () => openPublishSheet(() => { renderBank(); loadSubjects().then(paintSubj); }));
+  /* 把内置的那套搬到开发者账号（只有开发者看得到这个按钮）。
+     用户原话：「内置的转换成开发者的权限 算我上传的 搬我那里 这个我同意」。
+     搬完 quiz_public 里就有一行 id = wiring/mcu/psychology/education、owner = 他自己的记录；
+     前端 baseOf 会优先读它，data/*.json 退成没网时的兜底。题目 id 一个不动，
+     所以 1792 题的历史排位成绩照样算在这门课头上。 */
+  on('moveBtn', e => {
+    const n = S.questions.length;
+    sure(e.currentTarget, `把「${sub.name}」${n} 题搬到你的账号？搬完能在云端改、也能发布给班级。`, async () => {
+      toast(`正在搬 ${n} 题，别关页面…`);
+      try {
+        await store.publish(sub.id, sub.name, S.questions, hx.name(S.user, S.me), null);
+        S.base = {};
+        await loadSubjects();
+        await openSubject(sub.id);
+        toast(`已搬到你的账号：${n} 题，学生现在刷的就是云端这份`);
+      } catch (err) { toast('搬失败：' + (err.message || err)); }
+    });
+  });
   on('unpubBtn', e => sure(e.currentTarget, '确认取消发布？', async () => {
-    try { await store.unpublish(sub.id); await saveMine(m => m.map(s => s.id === sub.id ? { ...s, published: false } : s)); S.subject.published = false; toast('已取消发布'); renderBank(); } catch (e) { toast(e.message); }
+    try {
+      await store.unpublish(sub.id);
+      if (sub.kind === 'mine') await saveMine(m => m.map(s => s.id === sub.id ? { ...s, published: false } : s));
+      else S.subject.published = false;
+      S.base = {};            // 云端那份没了，内置科目要退回 data/*.json
+      toast('已取消发布');
+      await loadSubjects(); await openSubject(sub.id);
+    } catch (e) { toast(e.message); }
   }));
 }
 async function saveMine(fn) {
@@ -1058,6 +1181,110 @@ function openPublishSheet(onDone) {
       finally { if ($('pubGo')) $('pubGo').disabled = false; }
     };
   });
+}
+
+// ---------- 题库分享码（2026-11-08）----------
+// 用户要求：「用户自己上传的也可以通过分享码（二维码加6位分享码）发给他的朋友去刷题练习」。
+// 和「发布给班级」是两条路：发布进 quiz_public、按班下发；分享码只是给码，谁拿到谁能刷。
+// 二维码用总入口那份离线生成器（fx/hx-qr.js，window.HXQR），不发请求、不依赖外部服务。
+const SHARE_SITE = 'https://zcq19991029.github.io/shuati/';
+const shareLink = code => SHARE_SITE + '#join=' + code;
+/* 画二维码：HXQR.create 给的是模块矩阵，这里逐格填。PX 是每格像素 —— 8 够手机扫，
+   太小（≤5）在低分辨率屏上会糊，太大面板放不下。失败就返回 false，界面自己退成只显示码。 */
+function drawQr(cv, text, px) {
+  try {
+    const ctx = cv.getContext('2d');
+    if (!ctx || !window.HXQR) return false;
+    const m = HXQR.create(text, { errorCorrectionLevel: 'M' }).modules, N = m.size;
+    const PX = px || 8, Q = 4, W = (N + Q * 2) * PX;
+    cv.width = W; cv.height = W;
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, W);
+    ctx.fillStyle = '#000';
+    for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) if (m.get(r, c)) ctx.fillRect((Q + c) * PX, (Q + r) * PX, PX, PX);
+    return true;
+  } catch { return false; }
+}
+function openShareSheet() {
+  const sub = S.subject, total = S.questions.length;
+  if (!total) return toast('这个科目还没有题，先导入或出题');
+  openSheet(`<h3>生成分享码 <small class="muted">${esc(sub.name)} · ${total} 题</small></h3>
+    <p class="muted" style="margin:0 0 12px">把码发给朋友，他打开刷题、输入这 6 位码就能刷这套题。<b>不占班级、也不进公共题库</b>，你随时可以撤销。发出去的是一份快照 —— 之后你再改题，要让对方拿到新题，得重新生成一个码。</p>
+    <div class="f"><label for="shDays">有效期</label><select id="shDays"><option value="7">7 天</option><option value="30" selected>30 天</option><option value="90">90 天</option></select></div>
+    <div class="line" style="margin-top:14px"><button class="btn" type="button" id="shGo">生成分享码</button><button class="btn sm ghost" type="button" id="shNo">取消</button></div>
+    <div id="shOut"></div>`, () => {
+    $('shNo').onclick = closeSheet;
+    $('shGo').onclick = async () => {
+      const days = +$('shDays').value || 30;
+      $('shGo').disabled = true; $('shGo').textContent = '正在生成…';
+      try {
+        const code = await store.shareCreate(sub.name, S.questions, days);
+        const link = shareLink(code);
+        $('shOut').innerHTML = `<div class="sh-out">
+            <div class="sh-code"><b>${esc(code)}</b><span class="muted">6 位分享码</span></div>
+            <div class="sh-qr"><canvas id="shQr" width="240" height="240" role="img" aria-label="分享码二维码 ${esc(code)}"></canvas></div>
+            <div class="line" style="justify-content:center"><button class="btn sm ghost" type="button" id="shCopy">复制链接</button><button class="btn sm ghost" type="button" id="shDl">保存二维码</button><button class="btn sm danger" type="button" id="shKill">撤销这个码</button></div>
+            <code class="alink" id="shLink">${esc(link)}</code>
+            <p class="muted" style="margin:8px 0 0">也可以只把 6 位码念给对方：打开刷题 → 左上角科目名 → 输入分享码。</p>
+          </div>`;
+        if (!drawQr($('shQr'), link, 8)) $('shQr').parentNode.hidden = true; // 生成器没加载出来就只显示码，不摆一个空白框
+        $('shCopy').onclick = () => copyText(link);
+        $('shDl').onclick = () => {
+          try {
+            const a = document.createElement('a'); a.download = '华夏工具-分享码-' + code + '.png';
+            a.href = $('shQr').toDataURL('image/png'); a.click();
+          } catch { toast('保存失败，长按二维码图片试试'); }
+        };
+        $('shKill').onclick = e => sure(e.currentTarget, '确认撤销？撤销后这个码立刻失效', async () => {
+          try { await store.shareDel(code); toast('已撤销，这个码不能用了'); } catch (err) { toast(err.message); }
+        });
+        $('shGo').textContent = '再生成一个';
+      } catch (e) {
+        toast('生成失败：' + (e.message || e));
+        $('shGo').textContent = '生成分享码';
+      } finally { if ($('shGo')) $('shGo').disabled = false; }
+    };
+  });
+}
+// 输码加入：把码里那套题存成本机一个科目（kind: 'shared'），题目也缓存下来，下次打开不再拉网
+function openJoinSheet(pre) {
+  openSheet(`<h3>输入分享码</h3>
+    <p class="muted" style="margin:0 0 12px">别人发你的 6 位码，输进来就能把这套题加到「分享给我的」里刷。不用注册成老师、也不用进班。</p>
+    <div class="f"><label for="jnCode">分享码</label><input id="jnCode" maxlength="6" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="例如 K7M2QP" value="${esc(pre || '')}" style="text-transform:uppercase;letter-spacing:.22em;font-weight:600"></div>
+    <div class="line" style="margin-top:14px"><button class="btn" type="button" id="jnGo">加进来</button><button class="btn sm ghost" type="button" id="jnNo">取消</button></div>`, () => {
+    $('jnNo').onclick = closeSheet;
+    const go = async () => {
+      const code = String($('jnCode').value || '').trim().toUpperCase();
+      if (!/^[A-Z0-9]{6}$/.test(code)) return toast('分享码是 6 位字母或数字');
+      $('jnGo').disabled = true; $('jnGo').textContent = '正在取题…';
+      try {
+        const r = await store.shareGet(code);
+        const qs = (r && r.questions) || [];
+        if (!qs.length) throw new Error('这个码里没有题');
+        const id = 'share-' + code;
+        const list = (await store.read('shares', [])).filter(x => x && x.id !== id);
+        list.push({ id, code, name: r.name || ('分享 ' + code), owner: r.owner_name || '', total: qs.length, at: Date.now() });
+        await store.write('shares', list, { now: true });
+        store.setLocal('sharedq:' + code, qs); // 题目存本机，断网也能刷
+        S.base[id] = qs;
+        await loadSubjects(); await openSubject(id);
+        closeSheet();
+        toast(`已加入「${r.name || code}」，${qs.length} 题`);
+      } catch (e) {
+        toast(e.message || String(e));
+        $('jnGo').textContent = '加进来';
+      } finally { if ($('jnGo')) $('jnGo').disabled = false; }
+    };
+    $('jnGo').onclick = go;
+    $('jnCode').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); go(); } };
+    setTimeout(() => $('jnCode') && $('jnCode').focus(), 60);
+  });
+}
+// 删掉一个「分享给我的」科目：本机这份清单去掉，缓存也清掉（码本身还在对方那儿，不影响别人）
+async function dropShared(sub) {
+  const list = (await store.read('shares', [])).filter(x => x && x.id !== sub.id);
+  await store.write('shares', list, { now: true });
+  try { localStorage.removeItem('hx-quiz:' + (hx.uid() || 'guest') + ':sharedq:' + sub.code); } catch { /* ignore */ }
+  delete S.base[sub.id];
 }
 
 // ---------- 设置 ----------
@@ -1434,11 +1661,27 @@ async function boot() {
   // 首屏内容已经画好（openSubject 末尾的 show()），撤掉 #hxBoot：整层淡出，
   // 屏幕上不会出现「内容已渲染、像素闪屏才盖上来」的空窗。
   if (window.HXLoadFx) HXLoadFx.finishBoot();
-  if (!pub) await loadSubjects(); // 老师发布的题库随后补进科目列表
+  if (!pub) {
+    await loadSubjects(); // 老师发布的题库随后补进科目列表
+    // 内置这套刚被认出来「云端有份新的」（搬到开发者名下之后就是这样）：题目要重取一遍，
+    // 否则屏幕上还是启动时从 data/*.json 读的那份，改完发布也对不上。
+    if (S.subject && S.subject.cloud && !(S.base[S.subject.id] || []).length) await openSubject(S.subject.id);
+  }
   store.rankFlush(rankDone); // 上次没交上的答对记录
 }
 if (store.getLocal('focus', false)) { document.body.classList.add('focus'); tellTop(true); }
 if (!store.getLocal('notice', 0)) setTimeout(openNotice, 600);
+/* 分享码深链（2026-11-08）：别人扫二维码打开就是 .../shuati/#join=K7M2QP。
+   直接把输码面板弹出来、码也填好，少一步手输；处理完把 hash 清掉，
+   否则刷新一次又弹一遍。没登录也能走到这里 —— 取码那一步对 anon 开放。 */
+{
+  const m = /[#&]join=([A-Za-z0-9]{1,12})/.exec(location.hash || '');
+  if (m) {
+    const code = m[1].toUpperCase();
+    try { history.replaceState(null, '', location.pathname + location.search); } catch { /* file:// 下可能不让改 */ }
+    setTimeout(() => openJoinSheet(code), 900);
+  }
+}
 let was = hx.signedIn();
 hx.onChange(() => { const n = hx.signedIn(); if (n !== was) { was = n; store.flush(); S.base = {}; boot(); } }); // 在总入口或别的工具登录、退出
 { // 扩展在页面加载完后才挂上，挂上（或停用后刷新）时重画用到它的地方

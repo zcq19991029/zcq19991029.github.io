@@ -83,6 +83,17 @@ const auroraJpg = fs.readFileSync(path.join(ROOT, '..', '总入口', 'bg', 'auro
 themeJs = themeJs.replace(/aurora: \{[^}]*\}/,
   `aurora: { name: '极光 · 静帧', img: 'data:image/jpeg;base64,${auroraJpg}' }`);
 html = html.replace(/<script src="\.\.\/hx-theme\.js"[^>]*><\/script>/, `<script>\n${themeJs}\n</script>`);
+/* 题库分享码的二维码生成器（2026-11-08）：分享码要用它画二维码。
+   离线版是单个 HTML 文件，../fx/hx-qr.js 在 file:// 下根本取不到，所以直接内联。
+   文件不在（比如只拷了刷题目录）就整段删掉那个 script 标签 —— 页面自己会退成「只显示 6 位码」。 */
+const qrPath = path.join(ROOT, '..', '总入口', 'fx', 'hx-qr.js');
+if (fs.existsSync(qrPath)) {
+  const qrJs = fs.readFileSync(qrPath, 'utf8');
+  if (/<\/script/i.test(qrJs)) throw new Error('二维码脚本里不能出现 </script');
+  html = html.replace(/<script src="\.\.\/fx\/hx-qr\.js"><\/script>/, `<script>\n${qrJs}\n</script>`);
+} else {
+  html = html.replace(/<script src="\.\.\/fx\/hx-qr\.js"><\/script>/, '');
+}
 html = html.replace(/<link rel="stylesheet" href="style\.css">/, `<style>\n${styleCss}\n</style>`);
 html = html.replace(/<a class="brand" id="brand" href="\.\.\/" target="_top">/, '<a class="brand" id="brand" href="#" onclick="return false">');
 html = html.replace(/<img src="\.\.\/logo\.jpg"/, `<img src="data:image/jpeg;base64,${logo}"`);

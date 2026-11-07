@@ -72,6 +72,14 @@ export const publish = (id, name, questions, ownerName, classes) => rpc('quiz_pu
 export const setClasses = (id, classes) => rpc('quiz_set_classes', { p_id: id, p_classes: classes });
 export const unpublish = id => rpc('quiz_unpublish', { p_id: id });
 
+/* 题库分享码（2026-11-08）：用户要求「用户自己上传的也可以通过分享码（二维码加6位分享码）发给他的朋友去刷题」。
+   和发布不是一回事 —— 发布是「按班级下发」，分享码是「谁拿到码谁能刷」，不占班级、不进公共题库列表。
+   表见 supabase/2026-11-08-题库分享码.sql；取码那一步对 anon 也开放（朋友可能还没登录）。 */
+export const shareCreate = (name, questions, days) => rpc('quiz_share_create', { p_name: name, p_questions: questions, p_days: days }, true);
+export const shareGet = code => rpc('quiz_share_get', { p_code: code }, signedIn());
+export const shareList = () => rpc('quiz_share_list', {}, true);
+export const shareDel = code => rpc('quiz_share_del', { p_code: code }, true);
+
 // 我教的班（老师选下发对象用）。走 rank-schema.sql 的 hx_my_classes。
 // 2026-11-03 起只返回「自己教的班」：管理员/开发者也不再看到别人的班（见 supabase/2026-11-03-班级权限收回.sql）。
 // 非老师返回空数组，不抛错（学生打开刷题不该看到报错）。

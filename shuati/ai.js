@@ -144,8 +144,38 @@ export async function streamChat(messages, onProgress, opts = {}) {
   return result.trim();
 }
 
+/* ---------- 解析规范（skill 式，2026-11-08） ----------
+   用户原话：「口诀是相当于给 skills 给 ai 解析回答内容的规范约束 也就是点了 ai 解析他会有指定模块
+             各自解析 而不是我们写进去 不同 api 回复还不固定呢」
+   所以下面不是「我们写死的卡片内容」，而是**给 AI 的写作规范**：点一次「✦ AI 逐项解析」，
+   模型就按这几个模块各自生成，前端只负责收和摆。
+   ── 改这里等于改所有题的解析形态 ──
+   内置题库、导入题、老师发布的题，走的是同一个 explainQuestion；模块加在这里，全站一起变。
+   ── 为什么只约束「有什么块、每块写什么、不许写什么」 ──
+   不同服务商（DeepSeek / 硅基流动 / 自定义）回复长短、句式都不固定，规范写太死反而崩；
+   解析端（explainQuestion 里 JSON + 逐行两条路）仍然尽量宽容。 */
+const PARSE_SPEC = {
+  /* 模块 1 · 逐项解析：每个选项都要交代为什么对 / 为什么错 */
+  options: `每项解释它为何符合或不符合题意，联系具体知识点；不能只重复答案。否定式题干要说明判别标准；没有依据时如实说明。涉及理论的发展水平、阶段或概念归属时，必须给出准确归属，不能笼统猜测。每项 25-60 字。严格按选项顺序逐行输出，格式为“A: 解析”。`,
+  /* 模块 2 · 学习卡：考点 / 步骤 / 记住 / 易错（缺哪块就不写，不许凑） */
+  card: `所有选项结束后，再给出这张「学习卡」的内容（写给零基础学生看）。能写就写，确实没有就整行省略 —— 不要凑字、不要复述题干、不要写 Markdown：
+考点: 这道题真正在考什么，一句话，不超过 30 字。
+步骤1: 从零开始的做题顺序，2～5 条，每条一句话、不超过 40 字（先判断什么、再套什么、最后检查什么）。按步骤1、步骤2 依次编号。
+记住1: 这类题必须背下来的对应关系，最多 4 条，写成「条件｜结果」（中间用全角竖线，例如“x 趋于 0｜sinx/x 趋于 1”）；没有就省略。
+易错: 最容易错在哪、怎么自检，不超过 60 字。`,
+  /* 模块 3 · 速记技巧：口诀必须标明来源，AI 自己编的必须写「AI 联想」 */
+  tip: `再按规则决定是否输出速记技巧：
+1. 仅在你确信存在广泛通用且准确的备考口诀时，输出“速记技巧: 常见口诀｜……”。不得声称或暗示来自粉笔等机构，除非题目资料明确给出了出处。
+2. 若没有现成口诀，但可以从本题核心概念做出简短、不改变知识事实的谐音或联想，可输出“速记技巧: AI 联想｜……”。它必须明确是 AI 联想，不能伪装成现成口诀。
+3. 两者都不合适时，输出“速记技巧: 无”。不要复述题干、硬押韵或编造口诀。`,
+  /* 模块 4 · 题库复核：题库答案只是待核对材料 */
+  review: `最后必须另起一行输出“题库复核: 一致｜简短理由”或“题库复核: 建议复核｜独立判断与理由”。如果你能明确判断更可信的选项，再另起一行输出“AI结论: B｜理由”（把 B 换成实际选项）；无法确定时输出“AI结论: 无法确定｜理由”。题库标注答案和资料校对说明都只是待核对材料，不能据此强行解释；发现冲突、题干不完整或存在不同口径时，必须写“建议复核”。`,
+  /* 硬约束：进 system，压在所有模块之上；老师给的额外要求也得服从这条底线 */
+  hard: `逐项解析必须准确，不要把题库答案当作权威结论；发现疑点应明确建议复核。速记技巧只在有可靠常见口诀，或有明确标注的 AI 联想时给出；不合适就写无。学习卡（考点/步骤/记住/易错）只写你有把握的，宁可少写一行，也不要编。用户可能会给这道题的额外要求（这道题该怎么讲、别讲什么），必须遵守；但额外要求不能推翻准确性，也不能成为编造知识的理由。`
+};
+
 /* ---------- 把模型的话变成结构化数据 ----------
-   逐项解析（explainQuestion）和「说人话写学习卡」（parseStudyCard）用的是同一套：
+   逐项解析（explainQuestion）和「给这道题提要求」（parseStudySpec）用的是同一套：
    模型可能老老实实回 JSON，也可能图省事回一行一行的中文，两条路都得认。 */
 const txt = v => String(v == null ? '' : v).trim();
 const strOr = (a, b) => (typeof a === 'string' && a.trim() ? a : typeof b === 'string' ? b : '');
@@ -168,22 +198,26 @@ const normTip = value => {
   return /^(?:无|暂无|没有|不适用)[。！!]?$/u.test(tip) ? '' : tip;
 };
 
-export async function explainQuestion(question, selection, onProgress, subjectName = '') {
+/* spec（第 5 个参数，2026-11-08 加）：老师对**这道题**的要求（该怎么讲、强调什么、别讲什么）。
+   以前这里没有这个口子，老师想让某道题多讲一句，只能自己写一段固定文案塞进题库 ——
+   用户否掉了那个方向（「不是我们写进去」），改成：要求进提示词，内容仍由模型按规范现场生成。 */
+export async function explainQuestion(question, selection, onProgress, subjectName = '', spec = '') {
   const options = question.options.map(item => `${item.key}. ${item.text}`).join('\n');
   const keys = question.options.map(item => item.key);
-  const prompt = `请针对这道${subjectName ? `“${subjectName}”课程的` : ''}考试题逐项解析。每项解释它为何符合或不符合题意，联系具体知识点；不能只重复答案。否定式题干要说明判别标准；没有依据时如实说明。涉及理论的发展水平、阶段或概念归属时，必须给出准确归属，不能笼统猜测。每项 25-60 字。严格按选项顺序逐行输出，格式为“A: 解析”。
+  const ask = String(spec || '').trim();
+  const prompt = `请针对这道${subjectName ? `“${subjectName}”课程的` : ''}考试题逐项解析。
+${ask ? `
+【这道题老师特别要求】（必须照做）
+${ask}
+要求与准确性冲突时，先保证准确，再在最后一行写“与老师要求不一致：原因”。不得为了迎合要求把错的说成对的，也不得因此编造知识。
+` : ''}
+${PARSE_SPEC.options}
 
-所有选项结束后，再给出这张「学习卡」的内容（写给零基础学生看）。能写就写，确实没有就整行省略 —— 不要凑字、不要复述题干、不要写 Markdown：
-考点: 这道题真正在考什么，一句话，不超过 30 字。
-步骤1: 从零开始的做题顺序，2～5 条，每条一句话、不超过 40 字（先判断什么、再套什么、最后检查什么）。按步骤1、步骤2 依次编号。
-记住1: 这类题必须背下来的对应关系，最多 4 条，写成「条件｜结果」（中间用全角竖线，例如“x 趋于 0｜sinx/x 趋于 1”）；没有就省略。
-易错: 最容易错在哪、怎么自检，不超过 60 字。
+${PARSE_SPEC.card}
 
-再按规则决定是否输出速记技巧：
-1. 仅在你确信存在广泛通用且准确的备考口诀时，输出“速记技巧: 常见口诀｜……”。不得声称或暗示来自粉笔等机构，除非题目资料明确给出了出处。
-2. 若没有现成口诀，但可以从本题核心概念做出简短、不改变知识事实的谐音或联想，可输出“速记技巧: AI 联想｜……”。它必须明确是 AI 联想，不能伪装成现成口诀。
-3. 两者都不合适时，输出“速记技巧: 无”。不要复述题干、硬押韵或编造口诀。
-4. 最后必须另起一行输出“题库复核: 一致｜简短理由”或“题库复核: 建议复核｜独立判断与理由”。如果你能明确判断更可信的选项，再另起一行输出“AI结论: B｜理由”（把 B 换成实际选项）；无法确定时输出“AI结论: 无法确定｜理由”。题库标注答案和资料校对说明都只是待核对材料，不能据此强行解释；发现冲突、题干不完整或存在不同口径时，必须写“建议复核”。
+${PARSE_SPEC.tip}
+
+${PARSE_SPEC.review}
 
 不要 Markdown、不要开头结尾。
 题型：${question.type}
@@ -193,7 +227,7 @@ ${options}
 题库标注答案（可能有误，仅供交叉核对）：${question.answer.join(',')}
 ${question.explanation ? `资料校对材料（可能有误，需独立判断）：${question.explanation}` : ''}
 学生选择：${selection.join(',')}`;
-  const raw = await streamChat([{ role: 'system', content: `你是审慎、独立的${subjectName ? `“${subjectName}”课程` : ''}辅导老师。逐项解析必须准确，不要把题库答案当作权威结论；发现疑点应明确建议复核。速记技巧只在有可靠常见口诀，或有明确标注的 AI 联想时给出；不合适就写无。学习卡（考点/步骤/记住/易错）只写你有把握的，宁可少写一行，也不要编。` }, { role: 'user', content: prompt }], onProgress);
+  const raw = await streamChat([{ role: 'system', content: `你是审慎、独立的${subjectName ? `“${subjectName}”课程` : ''}辅导老师。${PARSE_SPEC.hard}` }, { role: 'user', content: prompt }], onProgress);
   let parsed;
   try { parsed = JSON.parse(raw.replace(/^\x60\x60\x60(?:json)?\s*/i, '').replace(/\x60\x60\x60\s*$/, '')); } catch { /* try line parsing below */ }
   const source = parsed?.options || parsed;
@@ -248,37 +282,39 @@ ${question.explanation ? `资料校对材料（可能有误，需独立判断）
   throw new Error('模型未返回完整的逐项解析，请重试或更换模型。');
 }
 
-/* ---------- 说人话，让 AI 整理成学习卡（2026-11-08） ----------
-   用户原话：「手写 json 谁会写？我只会写人话，需要 ai 理解和询问确认」。
-   老师只说大白话，这个函数负责三件事：
-     ① 把话整理成学习卡那几块（考点 / 步骤 / 口诀 / 小表 / 易错）
-     ② 先复述一遍「我理解你说的意思是……」，让老师核对
-     ③ 拿不准的地方列成问题（ask）反问老师，不替老师决定
+/* ---------- 说人话，让 AI 整理成「给 AI 的要求」（2026-11-08 改方向） ----------
+   用户先说：「手写 json 谁会写？我只会写人话，需要 ai 理解和询问确认」。
+   紧接着纠正了方向：「口诀是相当于给 skills 给 ai 解析回答内容的规范约束
+   也就是点了 ai 解析他会有指定模块各自解析 而不是我们写进去 不同 api 回复还不固定呢」。
+   所以这个函数**不产出学生会看到的文字**，只产出三样东西：
+     ① read —— 复述一遍老师的意思，让老师核对（只给老师看，不入库）
+     ② items —— 整理成 1～5 条祈使句要求（「必须……」「不要……」「重点讲……」），入库
+     ③ ask —— 没听准的地方反问老师（只给老师看，不入库）
+   入库的只有 items。点「✦ AI 逐项解析」时，items 拼成一段塞进提示词，内容仍由模型现场生成。
    ── 为什么不许它补知识 ──
-   补了就成了 AI 的答案：老师以为是自己写的，学生看到的却不是老师说的意思。
+   在这里补了，就等于替老师写下了解析，又回到「我们写进去」那条老路；
    真觉得该补的，写进 ask 问老师，让老师自己决定要不要说。
    ── 为什么不用流式 ──
-   这里要的是一整个对象，不是边出边看的长文；chat({json:true}) 一次给全，25 秒够用。 */
-export async function parseStudyCard(question, words) {
+   这里要的是一整个对象，不是边出边看的长文；chat({json:true}) 一次给全。 */
+export async function parseStudySpec(question, words) {
   const q = question || {};
   const stem = String(q.stem || '').replace(/\s+/g, ' ').trim();
   const options = (q.options || []).map(o => `${o.key}. ${o.text}`).join('\n');
-  const prompt = `下面是老师给自己班题库里的一道题写的「大白话」。你的任务不是重新解这道题，而是把老师这段话整理成学生看得懂的学习卡，并且标出你没听准的地方。
+  const prompt = `下面是老师对「这道题该怎么讲」说的一段大白话。你的任务**不是替他写解析**，而是把这段话整理成**给 AI 的写作要求**：以后每次点「AI 逐项解析」，AI 就照这几条要求讲这道题。
 
 规则：
-1. 只整理老师说过的东西。他没提到的知识点，不要自己补进卡片，写进 ask 去问他。
-2. 老师说的和题目标注答案冲突时，不要改他的话，把矛盾写进 ask。
-3. 大白话原样保留（「关管子」「拉低」「写 1」这类说法别换成术语），学生听着才顺。
-4. 同一件事不要在两块里重复：steps 是做这道题的动作顺序，tip 是能背下来的一句话，table 是对应关系，warn 是最容易踩的坑。
-5. 某项老师没讲、你也整理不出来，就给空字符串或空数组。不要凑字、不要复述题干、不要写 Markdown。
+1. 只整理老师明确表达过的意思。他没说的知识点不要补进来 —— 这里补一句，AI 以后每次都会照着讲，等于替他改了题。
+2. 老师说的和题库标注答案冲突时，不要替他选边，把这个矛盾写进 ask 问他。
+3. 大白话原样保留（「关管子」「拉低」「写 1」这类说法别换成术语），AI 要看的就是老师本人的说法。
+4. items 一律写成**祈使句**，直接对 AI 下命令：
+   · 必须…… / 不要…… / 重点讲…… / 先说……再说…… / 用……的说法解释
+   · 每条只说一件事，不超过 40 字，最多 5 条
+   · 不要写成「老师认为 xxx」这种转述，更不能写成解析内容本身
+5. 老师只说「这题简单讲讲」这类没有具体要求的话，items 就给空数组，并在 ask 里问他到底想强调什么。
 
 只输出一个 JSON 对象，不要 Markdown、不要额外解释：
-{"read":"用一句话复述老师说的大意，让老师核对（不超过 60 字）",
- "lead":"这道题考什么，一句话，不超过 30 字",
- "steps":["做题动作顺序，1～5 条，每条一句话、不超过 40 字"],
- "tip":"能背下来的一句话（口诀、顺口溜），没有就空串",
- "table":[["要记住的条件","对应的结果"]],
- "warn":"最容易错在哪、怎么自检，不超过 60 字",
+{"read":"用一句话复述老师的意思，让老师核对（不超过 60 字）",
+ "items":["给 AI 的祈使句要求 1","要求 2"],
  "ask":["需要老师确认或补充的问题，最多 3 条，问得具体；没有就空数组"]}
 
 题目题型：${q.type || ''}
@@ -287,44 +323,33 @@ ${options ? `选项：\n${options}\n` : ''}标准答案：${(q.answer || []).joi
 ${q.explanation ? `题库原解析（可能不全，只作参考）：${q.explanation}\n` : ''}老师原话：
 ${String(words || '').trim()}`;
   const raw = await chat([
-    { role: 'system', content: '你是帮老师整理教学卡片的中文助手。只整理老师说过的话，不替他补知识、不替他改答案；把握不准的地方列成问题反问老师，而不是自己替他决定。' },
+    { role: 'system', content: '你是帮老师把大白话整理成「讲解要求」的中文助手。你只做整理和追问，不替老师解题、不替他补知识；整理出来的每一条都是给另一个 AI 的祈使句命令，不是解析内容本身。' },
     { role: 'user', content: prompt }
   ], { json: true });
   let parsed = null;
   try { parsed = JSON.parse(raw.replace(/^\x60\x60\x60(?:json)?\s*/i, '').replace(/\x60\x60\x60\s*$/, '')); } catch { /* 逐行兜底，见下 */ }
-  /* read 前面常带「你说的是：」「老师说：」——界面上已经写了一遍「我理解你说的意思是：」，
-     不剥掉就会变成「我理解你说的意思是：你说的是：……」。模型爱怎么开头都行，这里统一削掉。 */
-  const stripLead = s => String(s || '').replace(/^(?:你说的是|你说的意思(?:是)?|你的意思(?:是)?|老师说的意思(?:是)?|老师说|意思(?:是)?|大意(?:是)?)\s*[：:，,、]\s*/, '');
-  const card = {
+  /* read 前面常带「你说的是：」「老师说：」—— 界面上已经写了一遍「我理解你的意思是：」，
+     不剥掉就会变成「我理解你的意思是：你说的是：……」。模型爱怎么开头都行，这里统一削掉。 */
+  const stripLead = s => String(s || '').replace(/^(?:你说的是|你说的意思(?:是)?|你的意思(?:是)?|老师说的意思(?:是)?|老师说|意思(?:是)?|大意(?:是)?|要求(?:是)?)\s*[：:，,、]\s*/, '');
+  /* items 里的编号（“1. ”“① ”“- ”）全部削掉：前端自己会排号，带着编号会出现「1. 1. 必须…」。 */
+  const cleanItem = s => txt(s).replace(/^\s*(?:[-—*·•]|\(?\d{1,2}[).、．]|[①-⑩])\s*/, '').replace(/^(?:要求|强调)\s*\d*\s*[：:.、．]\s*/, '');
+  const spec = {
     read: stripLead(txt(strOr(parsed?.read, parsed?.['理解']))),
-    lead: txt(strOr(parsed?.lead, parsed?.['考点'])),
-    steps: toList(parsed?.steps || parsed?.['步骤']).slice(0, 6),
-    tip: normTip(typeof parsed?.tip === 'string' ? parsed.tip : parsed?.['口诀']),
-    table: toRows(parsed?.table || parsed?.['记住']).slice(0, 6),
-    warn: txt(strOr(parsed?.warn, parsed?.['易错'])),
+    items: toList(parsed?.items || parsed?.['要求'] || parsed?.spec).map(cleanItem).filter(Boolean).slice(0, 5),
     ask: toList(parsed?.ask || parsed?.['要确认']).slice(0, 3)
   };
-  const has = c => !!(c.read || c.lead || c.steps.length || c.tip || c.table.length || c.warn);
-  if (has(card)) return card;
-  /* 模型没给 JSON、给了一行行中文也得能用 —— 人写的时候本来就是这么写的。 */
-  const steps = [], rows = [], ask = [];
+  if (spec.items.length || spec.read) return spec;
+  /* 模型没给 JSON、给了一行行中文也得能用 —— 老师本来也是这么写的。 */
   for (const line of raw.split('\n')) {
     const pick = re => { const m = line.match(re); return m ? m[1].trim() : ''; };
     let v;
-    if ((v = pick(/^\s*(?:理解|复述)\s*[：:.、．]\s*(.+)$/))) { card.read = stripLead(v); continue; }
-    if ((v = pick(/^\s*考点\s*[：:.、．]\s*(.+)$/))) { card.lead = v; continue; }
-    if ((v = pick(/^\s*步骤\s*\d*\s*[：:.、．]\s*(.+)$/))) { steps.push(v); continue; }
-    if ((v = pick(/^\s*记住\s*\d*\s*[：:.、．]\s*(.+)$/))) { rows.push(v); continue; }
-    if ((v = pick(/^\s*(?:口诀|速记|顺口溜)\s*[：:.、．]\s*(.+)$/))) { card.tip = normTip(v); continue; }
-    if ((v = pick(/^\s*易错(?:提醒|点|提示)?\s*[：:.、．]\s*(.+)$/))) { card.warn = v; continue; }
-    if ((v = pick(/^\s*(?:要确认|需确认|要问|确认)\s*\d*\s*[：:.、．]\s*(.+)$/))) { ask.push(v); continue; }
+    if ((v = pick(/^\s*(?:理解|复述)\s*[：:.、．]\s*(.+)$/))) { spec.read = spec.read || stripLead(v); continue; }
+    if ((v = pick(/^\s*(?:要确认|需确认|要问|确认)\s*\d*\s*[：:.、．]\s*(.+)$/))) { spec.ask.push(v); continue; }
+    if ((v = pick(/^\s*(?:要求|强调|别讲|不要|必须|重点讲|重点)\s*\d*\s*[：:.、．]?\s*(.+)$/))) { const c = cleanItem(v); if (c) spec.items.push(c); continue; }
   }
-  if (steps.length === 1 && /[；;]/.test(steps[0])) card.steps = steps[0].split(/[；;]/).map(txt).filter(Boolean).slice(0, 6);
-  else if (steps.length) card.steps = steps.slice(0, 6);
-  if (rows.length) card.table = toRows(rows).slice(0, 6);
-  if (ask.length) card.ask = ask.slice(0, 3);
-  /* 什么都没整理出来、只剩几个问题：也照样返回 —— 老师看到问题就知道该补哪句，
-     比一句“失败了”有用。前端会把「存」按钮禁掉。 */
-  if (has(card) || card.ask.length) return card;
-  throw new Error('AI 没从这段话里整理出卡片内容，换个说法再试试');
+  spec.items = spec.items.slice(0, 5);
+  spec.ask = spec.ask.slice(0, 3);
+  /* 只剩几个问题也算有结果：老师看到问题就知道该补哪句，比一句「失败了」有用。前端会把「保存」禁掉。 */
+  if (spec.items.length || spec.read || spec.ask.length) return spec;
+  throw new Error('AI 没从这段话里整理出要求，换个说法再试试');
 }

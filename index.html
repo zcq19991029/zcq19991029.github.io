@@ -14,22 +14,22 @@
      要登录时调 window.HXPortal.login()；被单独打开时 hx-theme.js 会跳回这里（见 hx-theme.js 的 data-tool）。
      账号：Supabase 华夏工具项目，localStorage paike-session 和各工具共用；身份由数据库 hx_me() 决定。
      脚本里不用反引号模板字符串（本机测试时整页当字符串注入到线上同源页面里）。 -->
-<link rel="stylesheet" href="hx-theme.css?v=b5ba1ed">
-<script src="hx-theme.js?v=b5ba1ed"></script>
+<link rel="stylesheet" href="hx-theme.css?v=d97b1e8">
+<script src="hx-theme.js?v=d97b1e8"></script>
 <!-- 首页卡片上的像素小生物：pixelfx 的 12 个 critters（MIT），打包成一个 91 KB 的独立脚本。
      加载失败不影响首页——hx-critters.js 开头就有 window.PixelFX 存在性检查，没有就整段跳过。 -->
-<script src="fx/pixelfx-critters.js?v=b5ba1ed" defer></script>
-<script src="fx/hx-critters.js?v=b5ba1ed" defer></script>
+<script src="fx/pixelfx-critters.js?v=d97b1e8" defer></script>
+<script src="fx/hx-critters.js?v=d97b1e8" defer></script>
 <!-- 像素头像库（2026-11-04）：账号面板里除了传照片，还能从 200 多个像素动效里挑一个当头像。
      和上面 critters 同一套路：库（pixelfx-avatars.js）+ 渲染器（hx-avatar.js），都是 defer、
      不进首屏关键路径；不点「像素头像库」就一个动画都不跑。 -->
-<script src="fx/pixelfx-avatars.js?v=b5ba1ed" defer></script>
-<script src="fx/hx-avatar.js?v=b5ba1ed" defer></script>
+<script src="fx/pixelfx-avatars.js?v=d97b1e8" defer></script>
+<script src="fx/hx-avatar.js?v=d97b1e8" defer></script>
 <!-- 背景动效（2026-11-03）：12 种天气氛围特效铺在背景层，外观面板里选；加载失败或没选就完全不加载渲染器 -->
-<script src="fx/pixelfx-weather.js?v=b5ba1ed" defer></script>
-<script src="fx/hx-weather.js?v=b5ba1ed" defer></script>
+<script src="fx/pixelfx-weather.js?v=d97b1e8" defer></script>
+<script src="fx/hx-weather.js?v=d97b1e8" defer></script>
 <!-- 课堂码大屏二维码：离线 QR 编码器（qrcode 1.5.4 core 打包，MIT，见 fx/NOTICE-qr.md）。延迟加载即可：只有老师点「大屏二维码」时才用 -->
-<script src="fx/hx-qr.js?v=b5ba1ed" defer></script>
+<script src="fx/hx-qr.js?v=d97b1e8" defer></script>
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; width: 100%; overflow: hidden; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -140,7 +140,9 @@
   /* 首页 */
   #home { position: absolute; inset: 0; overflow-y: auto; padding: 0 16px calc(48px + env(safe-area-inset-bottom, 0px)); scroll-behavior: smooth; }
   body.tool #home { visibility: hidden; content-visibility: hidden; } /* 打开工具后首页整棵子树不参与渲染，只留盒子占位（滚动位置不丢） */
-  .wrap { width: min(1024px, 100%); margin: 0 auto; }
+  /* 横屏铺满（2026-11-08）：原来 min(1024px,100%)，1440 屏上只占 71%，两边大片空白；
+     用户要求「全部工具的排版横屏网页铺满」。工具卡是看板型，上限给 1600px（≥1200 的断点原本也是 1600）。 */
+  .wrap { width: min(1600px, 100%); margin: 0 auto; }
   .hero { text-align: center; padding: clamp(40px, 9vw, 96px) 0 clamp(28px, 5vw, 52px); }
   .hero img { width: clamp(64px, 12vw, 88px); aspect-ratio: 1; border-radius: 22%; object-fit: cover; box-shadow: 0 12px 32px -14px var(--shade); }
   .hero h1 { margin: 18px 0 0; font: 700 clamp(40px, 8vw, 64px)/1.06 var(--hx-font-d); letter-spacing: -.02em; }
@@ -726,6 +728,15 @@
     dialog#qr canvas { width: min(300px, calc(100vw - 92px)); }
     dialog#qr .qr-tip { font-size: 14.5px; }
   }
+  /* 邀请码分享弹窗（#share）里的普通尺寸二维码：教师码、好友码用。
+     和大屏投影那套 #qr 区别：不求大，只求「截个图 / 长按 / 点保存就能发给对方」。
+     二维码必须白底黑码，不跟主题色走（对比度不够就扫不出来）。 */
+  dialog#share { max-height: calc(100dvh - 32px); overflow: auto; }
+  dialog#share .share-qr { text-align: center; }
+  dialog#share .share-qr canvas { display: block; width: min(240px, 100%); height: auto; margin: 0 auto; border-radius: 14px; background: #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.06) inset; image-rendering: pixelated; }
+  dialog#share .share-qr p { margin: 8px 0 0; font-size: 12.5px; line-height: 1.6; color: var(--dim); }
+  dialog#share .share-qr b { color: var(--ink); font-weight: 700; }
+  dialog#share .share-qr .btn { margin-top: 8px; }
   /* 管理卡片点开的面板：电脑在中间，手机从底部出来 */
   dialog.sheet { width: min(820px, calc(100vw - 48px)); max-width: none; max-height: min(880px, calc(100dvh - 48px)); padding: 0; overflow: hidden; }
   dialog.sheet[open] { display: flex; flex-direction: column; }
@@ -953,7 +964,16 @@
 </dialog>
 <dialog id="share">
   <h2>发给对方</h2>
-  <div class="f"><textarea id="shareT" readonly rows="5"></textarea><button class="btn" type="button" id="shareC">复制</button><button class="btn link" type="button" id="shareX">关闭</button></div>
+  <div class="f">
+    <!-- 教师码、好友码：普通尺寸二维码，截图 / 长按 / 点「保存图片」就能发给对方。
+         课堂码走 #qr 那套大屏二维码，这里不画（shareCode 里按身份控制显不显示）。 -->
+    <div class="share-qr" id="shareQrBox" hidden>
+      <canvas id="shareQr" width="240" height="240" role="img" aria-label="邀请二维码"></canvas>
+      <p>对方扫码打开华夏工具，<b>邀请码已经填好</b>，按提示注册就行。截图或点下面保存都能发给他。</p>
+      <button class="btn sub sm" type="button" id="shareQrDl">保存图片</button>
+    </div>
+    <textarea id="shareT" readonly rows="5"></textarea><button class="btn" type="button" id="shareC">复制</button><button class="btn link" type="button" id="shareX">关闭</button>
+  </div>
 </dialog>
 <!-- 课堂码大屏二维码：内容（大字课堂码 + 二维码 + 引导语）由 openQr() 动态填 -->
 <dialog id="qr" aria-label="课堂码大屏二维码">
@@ -2203,12 +2223,41 @@ function sheetCls() {
   });
 }
 // ---------- 管理（管理员、开发者）：发教师码、学生码，看发过的码；开发者再任命管理员 ----------
+// 分享：一段文字 +（教师码、好友码）一个普通尺寸二维码。
+// 教师码、好友码都是短码，对方手输容易错，所以和课堂码一样给二维码：
+// 内容同样是首页 + #signup=码，对方扫码打开注册框里邀请码已经填好（见 openSignupCode）。
+// 课堂码本来就有大屏二维码（openQr），这里照旧只给文字 / 系统分享。
 function shareCode(code, role) {
   var t = (role === 'teacher' ? '华夏工具教师邀请码：' : role === 'guest' ? '华夏工具好友邀请码：' : '华夏工具课堂码：') + code + '\n打开 ' + location.origin + '/ ，点右上角“登录”→“注册”，填写邀请码' +
     (role === 'teacher' ? '，账号名填工号' : role === 'guest' ? '，再填自己的班级、学号和姓名' : '，再填学号和姓名（要和班级名单一致）') + '。已有账号（如 GitHub）的，登录后会自动弹出开通窗口。';
-  if (navigator.share && matchMedia('(pointer: coarse)').matches) return navigator.share({ text: t }).catch(function () { }); // 手机、平板用系统分享；电脑上那个面板不好用
-  $('shareT').value = t; if (!$('share').open) $('share').showModal(); $('shareT').select();
+  // 带二维码的两种必须弹窗（系统分享面板只能传文字，二维码就没了）；课堂码在手机、平板上继续用系统分享
+  var withQr = role === 'teacher' || role === 'guest';
+  if (!withQr && navigator.share && matchMedia('(pointer: coarse)').matches) return navigator.share({ text: t }).catch(function () { });
+  $('shareT').value = t;
+  // 8px / 模块：整张约 300px，截图发给对方扫得出来，又不至于把弹窗撑爆
+  var ok = withQr && drawQr($('shareQr'), qrDeepLink(code), 8);
+  $('shareQrBox').hidden = !ok;
+  if (ok) $('shareQr').setAttribute('aria-label', (role === 'teacher' ? '教师邀请二维码 ' : '好友邀请二维码 ') + code);
+  if (!$('share').open) $('share').showModal();
+  if (ok) $('shareT').blur(); else $('shareT').select(); // 有二维码就别抢焦点，不然弹窗会滚到下面的文字框
   (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function () { toast('已复制，发给对方就行'); }, function () { try { if (document.execCommand('copy')) toast('已复制，发给对方就行'); } catch (e) { } });
+}
+// 通用二维码画法（2026-11-08）：大屏课堂码和分享弹窗里的小码用同一套画法，
+// 差别只在「每个模块多少像素」（大屏 10px、分享 8px）。白底黑码，不跟主题色走 ——
+// 二维码的对比度掉了就扫不出来。返回 false 表示画不出来（离线编码器没加载 / canvas 不可用），
+// 调用方自己降级成文字码，别让用户对着一块空白猜。
+function drawQr(cv, text, px) {
+  try {
+    var ctx = cv.getContext('2d');
+    if (!ctx || !window.HXQR) return false;
+    var m = HXQR.create(text, { errorCorrectionLevel: 'M' }).modules, N = m.size;
+    var PX = px || 8, Q = 4, W = (N + Q * 2) * PX; // 四周留 4 个模块的静区，扫得稳
+    cv.width = W; cv.height = W;
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, W);
+    ctx.fillStyle = '#000';
+    for (var r = 0; r < N; r++) for (var c = 0; c < N; c++) if (m.get(r, c)) ctx.fillRect((Q + c) * PX, (Q + r) * PX, PX, PX);
+    return true;
+  } catch (e) { return false; }
 }
 // ── 2026-11-06 课堂码大屏二维码（扫码注册）──
 // 弹一个居中大窗（遮罩 + dialog#qr）：课堂码超大字 + 离线二维码（fx/hx-qr.js，无 CDN）+ 引导语。
@@ -2243,6 +2292,17 @@ function openQr(code) {
 }
 $('qrX').onclick = function () { $('qr').close(); };
 $('qr').onclick = function (e) { if (e.target === $('qr')) $('qr').close(); }; // 点遮罩关；Esc 由 <dialog> 原生处理
+// 分享弹窗里的「保存图片」：二维码画在 canvas 上，转 PNG 直接下载。
+// 手机上很多浏览器不让 a[download] 存图，那就提示长按 —— 不假装成功。
+$('shareQrDl').onclick = function () {
+  try {
+    var a = document.createElement('a');
+    a.href = $('shareQr').toDataURL('image/png');
+    a.download = '华夏工具邀请二维码.png';
+    document.body.appendChild(a); a.click(); a.remove();
+    toast('已保存，发给对方就行');
+  } catch (e) { toast('这个浏览器不让直接保存，长按二维码图片也能存'); }
+};
 // 教师邀请码 / 学生课堂码面板：上面生成，下面是发过的这类码
 function sheetCode(role) {
   var box = $('shB'), t = role === 'teacher', g = role === 'guest', A = ST.aCode && ST.aCode.role === role ? ST.aCode : null, cls = ST.classes || [], C = ST.codes, html;
