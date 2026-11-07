@@ -476,13 +476,16 @@
   // 用户反馈「手机上首页背景不会动」。这里补一层**纯 CSS 合成动画**（见 hx-theme.css 的 hx-bgmo-*）：
   //   · html.hx-bg-mo body::before 自己做缓慢推近（ken burns）；
   //   · body 里插一个 .hx-bgmo，两团极光柔光反向漂移。
-  // 只在「视频壁纸被降级成海报帧」时挂；省电一体机 / 系统减少动态效果 一律不挂（保持静态，也不白烧合成）。
+  // 只在「视频壁纸被降级成海报帧」时挂；省电一体机（hx-lite）不挂（那才是真的硬件吃力）。
+  // 2026-11-08 修「手机端背景不会动」：原来这里还认 prefers-reduced-motion，一票否决。
+  //   iOS 低电量模式会自动打开 reduce → 手机上背景永远是静图 —— 这正是用户报的障。
+  //   现在减动效**照挂**，由 hx-theme.css 那边把三条动画的周期拉长 3 倍（34s→102s 等），
+  //   画面仍然在缓缓呼吸，但没有快速位移，符合减动效的本意（见 css 里那段注释）。
   // 全程零 video、零 rAF、零 blur、零 blend-mode：只有 transform / opacity 两个合成器属性在动。
   var bgMo = null;
   function bgMotion(on) {
     var r = document.documentElement;
-    var need = !!on && !liteOn() && !r.classList.contains('hx-lite')
-      && !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+    var need = !!on && !liteOn() && !r.classList.contains('hx-lite');
     r.classList.toggle('hx-bg-mo', need);
     if (!need) {
       if (bgMo && bgMo.parentNode) bgMo.parentNode.removeChild(bgMo);
@@ -817,8 +820,39 @@
   if (dark) (dark.addEventListener ? dark.addEventListener('change', apply) : dark.addListener(apply));
   // 总入口（同源的上层页面）：子工具要登录时请它弹登录窗口；不在框里就跳回首页
   function portal() { try { return window.top !== window && window.top.HXPortal ? window.top.HXPortal : null; } catch (e) { return null; } }
+  /* ---------- 未登录不许用工具（2026-11-08 用户定，补回上次的临时放开） ----------
+     用户原话：「没登录的人不允许使用任何工具 现在我发现不登录都能有好多工具 这是不对的 上次临时放开没有关闭上你」。
+     2026-11-01 为了修注册，曾经在总入口和各工具页放开过免登录；注册早修好了，总入口那边已经收，
+     但**工具页自己没收到通知**——直接把 /shuati/ 这类地址打开，照样能刷题、能做题。
+     所以闸门放在这里：凡是引用本脚本的工具页（刷题、接线仿真、单片机、考试、排课、小组加分、课程进度、
+     进制转换、反馈，含各工具打包后的线上产物）都过这一道，一处改、全部生效。
+
+     判定只看「有没有 access_token」，不做网络请求、不续期（续期是各工具自己的 hx.js 的事）。
+     没登录时：
+       · 在总入口里（iframe）→ 不自己画东西，请总入口弹登录（login()）；总入口已经把整块 iframe 挡住了。
+       · 单独打开 → 跳回总入口对应工具（hx-theme.js 开头本来就这么做）。
+     总入口首页（没有 data-tool）不走这里 —— 它自己要显示「登录 / 注册」那一格。
+     调试例外：地址带 ?solo 不做闸门（离线单文件、本地预览、自动化测试都用它）。 */
+  var SKEY_SESS = 'paike-session';
+  function signedIn() {
+    try { var s = JSON.parse(localStorage.getItem(SKEY_SESS) || 'null'); return !!(s && s.access_token); } catch (e) { return false; }
+  }
+  function gate() {
+    if (!tool) return false;                                        // 总入口自己不管
+    if (/[?&]solo\b/.test(location.search)) return false;           // 调试例外
+    // 离线单文件（file:// / 打包成 data:）没有总入口可跳，也就不该拦 —— 那是机房无网时的用法
+    if (!/^https?:$/.test(location.protocol)) return false;
+    if (signedIn()) return false;
+    var p = portal();
+    if (p) return false;   // 在总入口里：整块 iframe 由总入口遮住，这里不用再画
+    location.replace(root + '#' + tool);                            // 单独打开：回总入口登录
+    return true;
+  }
+  var gated = gate();
   window.HXTheme = { acc: ACC, bg: BG, wx: WX, root: root, surface: SURF, get: get, mode: function () { return modeOf(get()); }, set: set, upload: upload, reset: reset, isDev: isDev, setDev: setDev, onChange: function (fn) { subs.push(fn); },
     portal: portal, login: function () { var p = portal(); if (p) p.login(); else location.href = root + (tool ? '#' + tool : ''); },
+    // 未登录闸门结果：工具页拿到 true 就该立刻停下（别先画界面再被跳走）
+    gated: gated, signedIn: signedIn,
     // 上传过的背景相册（2026-11-04）：imgs() 取列表、useImg(id) 切回、delImg(id) 删一张
     imgs: imgs, useImg: useImg, delImg: delImg,
     // 像素方块「正在载入」药丸（2026-11-04）：见文件上方 loadPill 那段注释。

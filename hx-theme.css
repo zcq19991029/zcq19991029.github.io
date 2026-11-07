@@ -156,9 +156,17 @@ html.hx-bg-mo body::before {
   0%, 100% { transform: translate3d(0, 0, 0) scale(1.1); opacity: .65; }
   50% { transform: translate3d(-15vmax, -10vmax, 0) scale(.92); opacity: 1; }
 }
+/* ── 2026-11-08：系统「减少动态效果」不再把背景压成死图，改成**同一条动画放慢 3 倍** ──
+   用户报障：「手机端背景不会动」。实测根因之一就是这条 `animation: none`：
+   iOS 低电量模式会自动打开 prefers-reduced-motion:reduce，于是手机上背景永远是一张静图。
+   减动效的诉求是「别有大位移/快速运动」，不是「整页不许有生机」；背景极光是极慢的漂移，
+   把周期拉长到 3 倍（34s→102s / 24s→72s / 32s→96s）就已经足够安静，而画面还在缓缓呼吸。
+   注意：只改 animation-duration，不动 @keyframes —— 这样「有没有在动」一眼可辨，也没有额外合成开销
+   （transform/opacity 仍是合成器属性，帧更少反而更省电）。 */
 @media (prefers-reduced-motion: reduce) {
-  html.hx-bg-mo body::before { animation: none; }
-  .hx-bgmo i { animation: none; }
+  html.hx-bg-mo body::before { animation-duration: 102s; }
+  .hx-bgmo i:first-child { animation-duration: 72s; }
+  .hx-bgmo i:last-child { animation-duration: 96s; }
 }
 /* 老设备上一律不做实时背景模糊（顶栏、底栏、弹层都算）。背景图已经糊过，去掉之后几乎看不出差别，
    但省掉的是每一次滚动都要重算的高斯模糊。顶栏改实色兜底，不然内容会从底下透上来。 */
@@ -169,6 +177,15 @@ html.hx-lite[data-hx-mode="dark"] { --bar: rgb(22 22 23 / .95); }
 /* 打开工具后首页整个不参与绘制（原来只是 visibility:hidden，合成层其实还挂着） */
 html.hx-lite body.tool #home { content-visibility: hidden; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+/* ── 2026-11-08：上面那条全局兜底会把背景极光也压成 .01ms（等于死图）。
+     背景动画是「极慢的呼吸」，不是减动效要治理的「大幅位移」，单独开个例外放回来。
+     必须写成比 `*` 更高特异度的选择器 + !important 才能压过它。── */
+@media (prefers-reduced-motion: reduce) {
+  html.hx-bg-mo body::before, .hx-bgmo i:first-child, .hx-bgmo i:last-child { animation-duration: revert !important; }
+  html.hx-bg-mo body::before { animation-duration: 102s !important; }
+  .hx-bgmo i:first-child { animation-duration: 72s !important; }
+  .hx-bgmo i:last-child { animation-duration: 96s !important; }
+}
 /* ── 按钮按下的像素碎屑（2026-11-02）──
    按一下按钮，四周迸出一圈像素方点，向外散开再往下落。纯 CSS，零 JS、零帧循环：
    由 :active 触发，动画本身 0.45 秒自动结束，不占常驻开销。
