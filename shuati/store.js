@@ -74,8 +74,10 @@ export const unpublish = id => rpc('quiz_unpublish', { p_id: id });
 
 /* 题库分享码（2026-11-08）：用户要求「用户自己上传的也可以通过分享码（二维码加6位分享码）发给他的朋友去刷题」。
    和发布不是一回事 —— 发布是「按班级下发」，分享码是「谁拿到码谁能刷」，不占班级、不进公共题库列表。
-   表见 supabase/2026-11-08-题库分享码.sql；取码那一步对 anon 也开放（朋友可能还没登录）。 */
-export const shareCreate = (name, questions, days) => rpc('quiz_share_create', { p_name: name, p_questions: questions, p_days: days }, true);
+   表见 supabase/2026-11-08-题库分享码.sql；取码那一步对 anon 也开放（朋友可能还没登录）。
+   create 多传 ownerName：署名不能靠数据库猜 —— 老师/开发者不在 hx_students 里，
+   猜出来的就是邮箱前缀（实测过，变成 phh4j926xq）。前端有 hx.name()，传过来才准。 */
+export const shareCreate = (name, questions, days, ownerName = '') => rpc('quiz_share_create', { p_name: name, p_questions: questions, p_days: days, p_owner_name: ownerName }, true);
 export const shareGet = code => rpc('quiz_share_get', { p_code: code }, signedIn());
 export const shareList = () => rpc('quiz_share_list', {}, true);
 export const shareDel = code => rpc('quiz_share_del', { p_code: code }, true);

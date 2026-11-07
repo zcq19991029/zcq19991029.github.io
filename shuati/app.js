@@ -13,7 +13,7 @@ import { figSvg, figName } from './symbols.js';
      · 本地 data/*.json —— 没网、没登录、云端还没搬过时的兜底。
    为什么 id 必须一字不改（wiring / mcu / psychology / education）：
    排位表 quiz_rank_hits.bank / quiz_rank_keys.bank 存的就是这 4 个名字，
-   换了 bank 名，1792 道题的排位成绩全部对不上，等于把历史数据作废。
+   换了 bank 名，1896 道题（370+245+540+741）的排位成绩全部对不上，等于把历史数据作废。
    搬的动作见设置页「把内置题库搬到我的账号」按钮（只有开发者看得到）。 */
 const BUILTIN = [
   { id: 'wiring', name: '电气接线原理', file: 'data/wiring.json', tag: '期末理论' },
@@ -994,7 +994,7 @@ function renderBank() {
      用户原话：「内置的转换成开发者的权限 算我上传的 搬我那里 这个我同意」。
      搬完 quiz_public 里就有一行 id = wiring/mcu/psychology/education、owner = 他自己的记录；
      前端 baseOf 会优先读它，data/*.json 退成没网时的兜底。题目 id 一个不动，
-     所以 1792 题的历史排位成绩照样算在这门课头上。 */
+     所以 1896 题的历史排位成绩照样算在这门课头上。 */
   on('moveBtn', e => {
     const n = S.questions.length;
     sure(e.currentTarget, `把「${sub.name}」${n} 题搬到你的账号？搬完能在云端改、也能发布给班级。`, async () => {
@@ -1217,7 +1217,8 @@ function openShareSheet() {
       const days = +$('shDays').value || 30;
       $('shGo').disabled = true; $('shGo').textContent = '正在生成…';
       try {
-        const code = await store.shareCreate(sub.name, S.questions, days);
+        // 第 4 参是署名：和全站头像/班级列表同一个来源（hx.name），不交给数据库猜
+        const code = await store.shareCreate(sub.name, S.questions, days, hx.name(S.user, S.me));
         const link = shareLink(code);
         $('shOut').innerHTML = `<div class="sh-out">
             <div class="sh-code"><b>${esc(code)}</b><span class="muted">6 位分享码</span></div>
