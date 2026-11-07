@@ -1663,6 +1663,10 @@ html[data-hx-mode="dark"] .study {
 .g table { width: 100%; margin: 4px 0 0; border-collapse: collapse; font-size: 13.5px; }
 .g table th, .g table td { padding: 6px 8px; border: 1px solid var(--tb-line); text-align: left; vertical-align: top; }
 .g table th { background: var(--tb-th); color: var(--tb-th-ink); font-weight: 600; white-space: nowrap; }
+/* 两列的小表（条件 / 结果）：按比例分列宽，不按内容算 —— 手机上按内容算会把「端口当输入用」
+   挤成「端口当输 / 入用」。单列的那种（整行拉满、colspan=1）不加 .two，免得只占 42% 留一片空。 */
+.g table.two { table-layout: fixed; }
+.g table.two tr > :first-child { width: 42%; }
 /* 单元格一律允许换行：整行拉满的那种（一句话里带两个箭头）要是 nowrap 会横着撑破卡片 */
 /* AI 自己说「题库答案可能有问题」时的复核提示：不占色块，做卡片脚注 */
 .study-note { margin: 10px 0 0; padding-top: 9px; border-top: 1px dashed var(--sd-line); font-size: 12.5px; line-height: 1.6; opacity: .92; }
@@ -1671,7 +1675,24 @@ html[data-hx-mode="dark"] .study {
   .study { padding: 13px 12px 14px; }
   .study-grid { grid-template-columns: 1fr; }
   .study-grid .wide { grid-column: auto; }
+  /* 小表在手机上一放就挤：字号和内边距都收一点。列宽见下面 .g table.two 的 table-layout:fixed ——
+     条件那列按比例给宽度，长句子换行，不会被内容挤成「端口当输 / 入用」那样断在词中间。 */
+  .g table { font-size: 12.5px; }
+  .g table th, .g table td { padding: 5px 6px; }
 }
+
+/* ---------- 题库页「说人话写学习卡」（2026-11-08） ----------
+   老师不写 JSON：说一段大白话 → AI 整理 → 先把结果摆出来核对 → 点头才存。
+   结果区要一眼看出「这是 AI 的理解，还不是题库里的东西」，所以底色用灰、卡片标签写「先给你看 · 还没存」。 */
+.st-out { margin-top: 14px; padding: 14px; border-radius: 14px; background: var(--fill); }
+.st-read { margin: 0 0 10px; font-size: 13.5px; line-height: 1.7; }
+.st-read b { color: var(--dim); font-weight: 600; }
+/* AI 反问的那几条：用提醒色，别让人当成错误 —— 它只是没听准 */
+.st-ask { margin: 0 0 12px; padding: 10px 14px; border-radius: 12px; background: var(--badbg); font-size: 13.5px; line-height: 1.7; }
+.st-ask ul { margin: 6px 0 8px; padding-left: 18px; }
+.st-ask li { margin: 3px 0; }
+.st-ask .muted { display: block; }
+.st-out .study { margin-top: 10px; }
 
 </style>
 <!-- 统一像素加载动效（2026-11-04）：打开科目时「正在加载题库…」不再只是药丸方块，
@@ -2310,7 +2331,31 @@ async function fetchWithTimeout(url, options, timeoutMs = 30000) {
   if (pending.trim() && !finished) consume(pending);
   if (!result.trim()) throw new Error('模型未返回解析文字，请重试或更换模型。');
   return result.trim();
-}async function explainQuestion(question, selection, onProgress, subjectName = '') {
+}
+
+/* ---------- 把模型的话变成结构化数据 ----------
+   逐项解析（explainQuestion）和「说人话写学习卡」（parseStudyCard）用的是同一套：
+   模型可能老老实实回 JSON，也可能图省事回一行一行的中文，两条路都得认。 */
+const txt = v => String(v == null ? '' : v).trim();
+const strOr = (a, b) => (typeof a === 'string' && a.trim() ? a : typeof b === 'string' ? b : '');
+const toList = v => (Array.isArray(v) ? v : v ? [v] : []).map(txt).filter(Boolean);
+/* 「记住N」要拆成「条件 / 结果」两列。模型写起来有两种习惯：
+   · 条件｜结果（提示词里推荐的，最明确）
+   · 条件→结果
+   箭头这条要小心：极限本身就带箭头（“x→0 时 sinx/x→1” 有两个箭头），
+   拆开就成了「x」和「0 时 sinx/x → 1」，读起来是错的。所以**只有恰好一个箭头时才拆**，
+   两三个箭头的整条留在一格里（渲染时 colspan 拉满），宁可少两列也不要切错。 */
+const toRows = v => (Array.isArray(v) ? v : []).map(r => {
+  if (Array.isArray(r)) return [txt(r[0]), txt(r[1])];
+  const s = txt(r);
+  let m = s.split(/\s*[｜|]\s*/);
+  if (m.length < 2 && (s.match(/→|->|⇒|=>/g) || []).length === 1) m = s.split(/\s*(?:→|->|⇒|=>)\s*/);
+  return m.length > 1 ? [m[0], m.slice(1).join(' → ')] : ['', s];
+}).filter(r => r[0] || r[1]);
+const normTip = value => {
+  const tip = String(value || '').trim();
+  return /^(?:无|暂无|没有|不适用)[。！!]?$/u.test(tip) ? '' : tip;
+};async function explainQuestion(question, selection, onProgress, subjectName = '') {
   const options = question.options.map(item => `${item.key}. ${item.text}`).join('\n');
   const keys = question.options.map(item => item.key);
   const prompt = `请针对这道${subjectName ? `“${subjectName}”课程的` : ''}考试题逐项解析。每项解释它为何符合或不符合题意，联系具体知识点；不能只重复答案。否定式题干要说明判别标准；没有依据时如实说明。涉及理论的发展水平、阶段或概念归属时，必须给出准确归属，不能笼统猜测。每项 25-60 字。严格按选项顺序逐行输出，格式为“A: 解析”。
@@ -2339,35 +2384,16 @@ ${question.explanation ? `资料校对材料（可能有误，需独立判断）
   let parsed;
   try { parsed = JSON.parse(raw.replace(/^\x60\x60\x60(?:json)?\s*/i, '').replace(/\x60\x60\x60\s*$/, '')); } catch { /* try line parsing below */ }
   const source = parsed?.options || parsed;
-  const txt = v => String(v == null ? '' : v).trim();
-  const strOr = (a, b) => (typeof a === 'string' && a.trim() ? a : typeof b === 'string' ? b : '');
   /* 学习卡四块（2026-11-07）。模型可能给 JSON，也可能给逐行文本，两条路都要认 ——
-     先把 JSON 那边取出来，逐行解析时再覆盖，谁的拿得到算谁的。 */
-  const toList = v => (Array.isArray(v) ? v : v ? [v] : []).map(txt).filter(Boolean);
-  /* 「记住N」要拆成「条件 / 结果」两列。模型写起来有两种习惯：
-     · 条件｜结果（提示词里推荐的，最明确）
-     · 条件→结果
-     箭头这条要小心：极限本身就带箭头（“x→0 时 sinx/x→1” 有两个箭头），
-     拆开就成了「x」和「0 时 sinx/x → 1」，读起来是错的。所以**只有恰好一个箭头时才拆**，
-     两三个箭头的整条留在一格里（渲染时 colspan 拉满），宁可少两列也不要切错。 */
-  const toRows = v => (Array.isArray(v) ? v : []).map(r => {
-    if (Array.isArray(r)) return [txt(r[0]), txt(r[1])];
-    const s = txt(r);
-    let m = s.split(/\s*[｜|]\s*/);
-    if (m.length < 2 && (s.match(/→|->|⇒|=>/g) || []).length === 1) m = s.split(/\s*(?:→|->|⇒|=>)\s*/);
-    return m.length > 1 ? [m[0], m.slice(1).join(' → ')] : ['', s];
-  }).filter(r => r[0] || r[1]);
+     先把 JSON 那边取出来，逐行解析时再覆盖，谁的拿得到算谁的。
+     （txt / toList / toRows 已提到模块级，parseStudyCard 共用同一套。） */
   let card = {
     lead: txt(strOr(parsed?.lead, parsed?.['考点'])),
     steps: toList(parsed?.steps || parsed?.['步骤']),
     table: toRows(parsed?.table || parsed?.['记住']),
     warn: txt(strOr(parsed?.warn, parsed?.['易错']))
   };
-  const normalizeTip = value => {
-    const tip = String(value || '').trim();
-    return /^(?:无|暂无|没有|不适用)[。！!]?$/u.test(tip) ? '' : tip;
-  };
-  const parsedTip = normalizeTip(typeof parsed?.tip === 'string' ? parsed.tip : typeof parsed?.['速记技巧'] === 'string' ? parsed['速记技巧'] : '');
+  const parsedTip = normTip(typeof parsed?.tip === 'string' ? parsed.tip : typeof parsed?.['速记技巧'] === 'string' ? parsed['速记技巧'] : '');
   const normalizeReviewAnswer = value => { const match = String(value || '').match(/\b([A-Z])\b/g); return match?.length ? [...new Set(match.filter(key => keys.includes(key)))] : []; };
   const parsedReview = String(typeof parsed?.review === 'string' ? parsed.review : typeof parsed?.['题库复核'] === 'string' ? parsed['题库复核'] : '').trim();
   const explicitReviewAnswer = normalizeReviewAnswer(parsed?.reviewAnswer || parsed?.['AI结论']);
@@ -2405,12 +2431,92 @@ ${question.explanation ? `资料校对材料（可能有误，需独立判断）
   if (stepList.length === 1 && /[；;]/.test(stepList[0])) card.steps = stepList[0].split(/[；;]/).map(txt).filter(Boolean);
   else if (stepList.length) card.steps = stepList;
   if (tableRows.length) card.table = toRows(tableRows);
-  if (keys.every(key => lines[key])) return { ...Object.fromEntries(keys.map(key => [key, lines[key]])), _tip: normalizeTip(tip), _review: review, _reviewAnswer: reviewAnswer, ...cardOut() };
+  if (keys.every(key => lines[key])) return { ...Object.fromEntries(keys.map(key => [key, lines[key]])), _tip: normTip(tip), _review: review, _reviewAnswer: reviewAnswer, ...cardOut() };
   throw new Error('模型未返回完整的逐项解析，请重试或更换模型。');
 }
 
+/* ---------- 说人话，让 AI 整理成学习卡（2026-11-08） ----------
+   用户原话：「手写 json 谁会写？我只会写人话，需要 ai 理解和询问确认」。
+   老师只说大白话，这个函数负责三件事：
+     ① 把话整理成学习卡那几块（考点 / 步骤 / 口诀 / 小表 / 易错）
+     ② 先复述一遍「我理解你说的意思是……」，让老师核对
+     ③ 拿不准的地方列成问题（ask）反问老师，不替老师决定
+   ── 为什么不许它补知识 ──
+   补了就成了 AI 的答案：老师以为是自己写的，学生看到的却不是老师说的意思。
+   真觉得该补的，写进 ask 问老师，让老师自己决定要不要说。
+   ── 为什么不用流式 ──
+   这里要的是一整个对象，不是边出边看的长文；chat({json:true}) 一次给全，25 秒够用。 */async function parseStudyCard(question, words) {
+  const q = question || {};
+  const stem = String(q.stem || '').replace(/\s+/g, ' ').trim();
+  const options = (q.options || []).map(o => `${o.key}. ${o.text}`).join('\n');
+  const prompt = `下面是老师给自己班题库里的一道题写的「大白话」。你的任务不是重新解这道题，而是把老师这段话整理成学生看得懂的学习卡，并且标出你没听准的地方。
 
-return { setAiProfile, getSettings, saveSettings, chat, listModels, streamChat, explainQuestion, providers };
+规则：
+1. 只整理老师说过的东西。他没提到的知识点，不要自己补进卡片，写进 ask 去问他。
+2. 老师说的和题目标注答案冲突时，不要改他的话，把矛盾写进 ask。
+3. 大白话原样保留（「关管子」「拉低」「写 1」这类说法别换成术语），学生听着才顺。
+4. 同一件事不要在两块里重复：steps 是做这道题的动作顺序，tip 是能背下来的一句话，table 是对应关系，warn 是最容易踩的坑。
+5. 某项老师没讲、你也整理不出来，就给空字符串或空数组。不要凑字、不要复述题干、不要写 Markdown。
+
+只输出一个 JSON 对象，不要 Markdown、不要额外解释：
+{"read":"用一句话复述老师说的大意，让老师核对（不超过 60 字）",
+ "lead":"这道题考什么，一句话，不超过 30 字",
+ "steps":["做题动作顺序，1～5 条，每条一句话、不超过 40 字"],
+ "tip":"能背下来的一句话（口诀、顺口溜），没有就空串",
+ "table":[["要记住的条件","对应的结果"]],
+ "warn":"最容易错在哪、怎么自检，不超过 60 字",
+ "ask":["需要老师确认或补充的问题，最多 3 条，问得具体；没有就空数组"]}
+
+题目题型：${q.type || ''}
+题干：${stem}
+${options ? `选项：\n${options}\n` : ''}标准答案：${(q.answer || []).join('、')}
+${q.explanation ? `题库原解析（可能不全，只作参考）：${q.explanation}\n` : ''}老师原话：
+${String(words || '').trim()}`;
+  const raw = await chat([
+    { role: 'system', content: '你是帮老师整理教学卡片的中文助手。只整理老师说过的话，不替他补知识、不替他改答案；把握不准的地方列成问题反问老师，而不是自己替他决定。' },
+    { role: 'user', content: prompt }
+  ], { json: true });
+  let parsed = null;
+  try { parsed = JSON.parse(raw.replace(/^\x60\x60\x60(?:json)?\s*/i, '').replace(/\x60\x60\x60\s*$/, '')); } catch { /* 逐行兜底，见下 */ }
+  /* read 前面常带「你说的是：」「老师说：」——界面上已经写了一遍「我理解你说的意思是：」，
+     不剥掉就会变成「我理解你说的意思是：你说的是：……」。模型爱怎么开头都行，这里统一削掉。 */
+  const stripLead = s => String(s || '').replace(/^(?:你说的是|你说的意思(?:是)?|你的意思(?:是)?|老师说的意思(?:是)?|老师说|意思(?:是)?|大意(?:是)?)\s*[：:，,、]\s*/, '');
+  const card = {
+    read: stripLead(txt(strOr(parsed?.read, parsed?.['理解']))),
+    lead: txt(strOr(parsed?.lead, parsed?.['考点'])),
+    steps: toList(parsed?.steps || parsed?.['步骤']).slice(0, 6),
+    tip: normTip(typeof parsed?.tip === 'string' ? parsed.tip : parsed?.['口诀']),
+    table: toRows(parsed?.table || parsed?.['记住']).slice(0, 6),
+    warn: txt(strOr(parsed?.warn, parsed?.['易错'])),
+    ask: toList(parsed?.ask || parsed?.['要确认']).slice(0, 3)
+  };
+  const has = c => !!(c.read || c.lead || c.steps.length || c.tip || c.table.length || c.warn);
+  if (has(card)) return card;
+  /* 模型没给 JSON、给了一行行中文也得能用 —— 人写的时候本来就是这么写的。 */
+  const steps = [], rows = [], ask = [];
+  for (const line of raw.split('\n')) {
+    const pick = re => { const m = line.match(re); return m ? m[1].trim() : ''; };
+    let v;
+    if ((v = pick(/^\s*(?:理解|复述)\s*[：:.、．]\s*(.+)$/))) { card.read = stripLead(v); continue; }
+    if ((v = pick(/^\s*考点\s*[：:.、．]\s*(.+)$/))) { card.lead = v; continue; }
+    if ((v = pick(/^\s*步骤\s*\d*\s*[：:.、．]\s*(.+)$/))) { steps.push(v); continue; }
+    if ((v = pick(/^\s*记住\s*\d*\s*[：:.、．]\s*(.+)$/))) { rows.push(v); continue; }
+    if ((v = pick(/^\s*(?:口诀|速记|顺口溜)\s*[：:.、．]\s*(.+)$/))) { card.tip = normTip(v); continue; }
+    if ((v = pick(/^\s*易错(?:提醒|点|提示)?\s*[：:.、．]\s*(.+)$/))) { card.warn = v; continue; }
+    if ((v = pick(/^\s*(?:要确认|需确认|要问|确认)\s*\d*\s*[：:.、．]\s*(.+)$/))) { ask.push(v); continue; }
+  }
+  if (steps.length === 1 && /[；;]/.test(steps[0])) card.steps = steps[0].split(/[；;]/).map(txt).filter(Boolean).slice(0, 6);
+  else if (steps.length) card.steps = steps.slice(0, 6);
+  if (rows.length) card.table = toRows(rows).slice(0, 6);
+  if (ask.length) card.ask = ask.slice(0, 3);
+  /* 什么都没整理出来、只剩几个问题：也照样返回 —— 老师看到问题就知道该补哪句，
+     比一句“失败了”有用。前端会把「存」按钮禁掉。 */
+  if (has(card) || card.ask.length) return card;
+  throw new Error('AI 没从这段话里整理出卡片内容，换个说法再试试');
+}
+
+
+return { setAiProfile, getSettings, saveSettings, chat, listModels, streamChat, explainQuestion, parseStudyCard, providers };
 })();
 
 __M['imports.js'] = (function(){
@@ -2592,6 +2698,21 @@ function normalizeQuestions(raw, subject) {
       if (answer.some(a => !keys.has(a))) return reject(`答案 ${answer.filter(a => !keys.has(a)).join('、')} 不在选项里`);
       if (type !== 'multiple' && answer.length !== 1) return reject(`${TYPE_LABEL[type]}只能有 1 个答案，这份给了 ${answer.length} 个`);
     }
+    /* study（可选）：题库页「说人话写学习卡」整理出来的四块（app.js 的 studyCard 画）。
+       导出的 JSON 再导回来时要原样保留，否则卡一导出就没了。形状不对就当没有。 */
+    const rawStudy = item?.study || item?.学习卡;
+    const arr = v => (Array.isArray(v) ? v : v ? [v] : []).map(x => String(x ?? '').trim()).filter(Boolean);
+    const study = (() => {
+      if (!rawStudy || typeof rawStudy !== 'object') return null;
+      const table = (Array.isArray(rawStudy.table) ? rawStudy.table : []).map(r => (Array.isArray(r) ? [String(r[0] ?? '').trim(), String(r[1] ?? '').trim()] : null)).filter(r => r && (r[0] || r[1]));
+      const card = {
+        lead: String(rawStudy.lead ?? '').trim(),
+        steps: arr(rawStudy.steps), table,
+        tip: String(rawStudy.tip ?? '').trim(),
+        warn: String(rawStudy.warn ?? '').trim()
+      };
+      return (card.lead || card.steps.length || table.length || card.tip || card.warn) ? card : null;
+    })();
     questions.push({
       id: `${subject}-import-${crypto.randomUUID()}`,
       number: item?.number || questions.length + 1,
@@ -2600,6 +2721,7 @@ function normalizeQuestions(raw, subject) {
       /* tip（可选）：老师自己写的一句口诀／小技巧。刷题页会用它画「学习卡」的黄色那块
          （见 app.js 的 studyCard）。不写就是空串，不影响别的字段。 */
       tip: String(item?.tip ?? item?.小技巧 ?? item?.口诀 ?? '').trim(),
+      ...(study ? { study } : {}),
       source: item?.source || item?.出处 || '导入'
     });
   });
@@ -2857,7 +2979,7 @@ __M['app.js'] = (function(){
 // 华夏工具 · 刷题：界面和刷题流程。题库解析、AI 解析沿用 imports.js / ai.js；存储见 store.js；账号见 hx.js。
 const hx = __M['hx.js'];
 const store = __M['store.js'];
-const {  providers, getSettings, saveSettings, setAiProfile, chat, streamChat, listModels, explainQuestion  } = __M['ai.js'];
+const {  providers, getSettings, saveSettings, setAiProfile, chat, streamChat, listModels, explainQuestion, parseStudyCard  } = __M['ai.js'];
 const {  readMaterial, readImages, normalizeQuestions, aiImport, aiGenerate, aiVision, isImageFile  } = __M['imports.js'];
 const {  figSvg, figName  } = __M['symbols.js'];
 
@@ -2953,6 +3075,7 @@ const S = {
   askDraft: '', // “问 AI”打了一半的字：关掉抽屉、切到别的抽屉都不丢，发出去才清
   hsel: new Set(), hf: 'all', // 概览“刷题记录”：勾选的题、筛选
   rmine: false, // 排行：只看本班
+  study: null, // 题库页「说人话写学习卡」：{ qid, text, busy, err, card, ask }
 };
 const prefs = () => store.getLocal('prefs', {});
 const savePrefs = () => store.setLocal('prefs', { subject: S.subject?.id, type: S.type, scope: S.scope, mode: S.mode });
@@ -2993,7 +3116,7 @@ function pxBlocks() {
 }
 async function openSubject(id) {
   const sub = S.subjects.find(s => s.id === id) || S.subjects[0];
-  S.subject = sub; S.ai = {}; S.draft = null; S.pending = []; S.imText = '';
+  S.subject = sub; S.ai = {}; S.draft = null; S.pending = []; S.imText = ''; S.study = null; // 换了科目，先说的一半话不带过去
   paintSubj();
   // 加载提示统一规则（2026-11-04，用户：「加载动效呢 像素动效没有随机使用啊」）：
   // 首选像素动效——HXLoadFx 从特效包随机挑一个画 canvas（会话内固定，见 loadfx.js 头注释），
@@ -3184,7 +3307,7 @@ function studyCard(d, src) {
     const body = rows.map(r => (r[0] && r[1])
       ? `<tr><td>${esc(r[0])}</td><td>${esc(r[1])}</td></tr>`
       : `<tr><td colspan="${two ? 2 : 1}">${esc(r[0] || r[1])}</td></tr>`).join('');
-    blocks.push(`<section class="g"><h5>必须记住的小表</h5><table>${two ? '<tr><th>条件</th><th>结果</th></tr>' : ''}${body}</table></section>`);
+    blocks.push(`<section class="g"><h5>必须记住的小表</h5><table${two ? ' class="two"' : ''}>${two ? '<tr><th>条件</th><th>结果</th></tr>' : ''}${body}</table></section>`);
   }
   if (warn) blocks.push(`<section class="g warn"><h5>易错提醒与自检</h5><p>${esc(warn)}</p></section>`);
   return `<div class="study"><div class="study-head"><h4>学习卡</h4><span class="sp"></span>${src ? `<span class="study-src">${esc(src)}</span>` : ''}</div>
@@ -3242,14 +3365,17 @@ function renderCard() {
       : '<button class="btn sm ghost" type="button" id="aiBtn">重新解析</button>';
     fb = `<div class="fb ${ok ? 'ok' : 'bad'}"><b>${ok ? '回答正确' : '答案是 ' + esc(ans)}</b>${q.explanation ? `<p>${esc(q.explanation)}</p>` : ''}<div class="ai">${aiPart}</div></div>`;
   }
-  /* 学习卡：AI 解析出来的一整块 + 题库自带的一句口诀（两个来源分开标，别让人以为是题库里写的）。
+  /* 学习卡：三个来源，分开标、别让人以为是同一个地方来的 ——
+       老师补充（题库页「说人话」写进去的 study）/ AI 解析 / 题库自带（导入 JSON 里的 tip）
      「题库复核」原来单独一行灰字，现在并进卡片底部的脚注 —— 它说的是题库准不准，不是知识点。
      ── 为什么 !picked 就整块不画 ──
      口诀往往就是把答案编进去了（「写 1 关管子」= 选 B），答题前摆出来等于送分。
      和参考答案、解析一样，都是答完才给。 */
   const aiDone = ai && ai.state === 'done' && ai.data;
+  const mine = q.study && typeof q.study === 'object' ? q.study : null;
   const cards = !picked ? ''
-    : (aiDone ? studyCard({ ...ai.data, _note: /^一致/.test(ai.data._review || '') ? '' : ai.data._review }, 'AI 解析') : '')
+    : (mine ? studyCard({ _lead: mine.lead, _steps: mine.steps, _table: mine.table, _tip: mine.tip, _warn: mine.warn }, '老师补充') : '')
+      + (aiDone ? studyCard({ ...ai.data, _note: /^一致/.test(ai.data._review || '') ? '' : ai.data._review }, 'AI 解析') : '')
       + (String(q.tip || '').trim() ? studyCard({ _tip: String(q.tip).trim() }, '题库自带') : '');
   const tag = (r.wrong ? `<span style="color:var(--bad)">错过 ${r.wrong} 次</span>` : r.status === 'known' ? '<span style="color:var(--ok)">已记住</span>' : '')
     + (r.status === 'known' && q.id in S.undo ? '<button class="btn sm ghost" type="button" id="undoBtn" style="height:26px">撤销记住</button>' : '');
@@ -3529,6 +3655,99 @@ function draftHtml(d) {
       </div>`;
 }
 
+/* ---------- 说人话，让 AI 写学习卡（2026-11-08） ----------
+   用户原话：「手写 json 谁会写？我只会写人话，需要 ai 理解和询问确认」。
+   所以这条路上没有 JSON、没有字段名：老师选一道题、用大白话说一段，AI 整理成卡片
+   先摆出来给老师核对（含糊的地方还会反问），点了「就这样」才写进题目。
+   ── 为什么只给「我导入的题」写 ──
+   内置课程题是 data/*.json 里的只读文件，写进去下次刷新就没了；要能改得做覆盖层，
+   那是另一件事。这里只动 S.bank（自己导入／自己出的题），存哪儿写哪儿，不骗人。 */
+const studyHas = q => !!(q && q.study && (q.study.tip || q.study.lead || (q.study.steps || []).length || (q.study.table || []).length || q.study.warn));
+function studyPanel() {
+  const list = S.bank || [];
+  if (!list.length) return `<div class="panel" id="stPanel"><h3>说人话，自动写学习卡</h3>
+      <p class="muted" style="margin:0">这条只对<b>你自己导入的题</b>有用。先把题目导进来（上面那块），再回来写。</p></div>`;
+  const st = S.study || (S.study = { qid: '', text: '', busy: false, err: '', card: null, ask: [] });
+  // 换过科目、或者选中的题被删掉了：回落到第一题，别让下拉框显示成空的
+  if (!st.qid || !list.some(q => q.id === st.qid)) { st.qid = list[0].id; st.card = null; st.ask = []; st.err = ''; }
+  const opts = list.map((q, i) => `<option value="${esc(q.id)}" ${q.id === st.qid ? 'selected' : ''}>第 ${i + 1} 题 · ${esc(String(q.stem || '').slice(0, 24))}${studyHas(q) ? '（已有卡）' : ''}</option>`).join('');
+  return `<div class="panel" id="stPanel"><h3>说人话，自动写学习卡</h3>
+      ${aiReady() ? '' : '<div class="imp-warn"><span>还没配 AI 模型 → 去首页「AI 设置」</span><button class="btn sm" type="button" id="toAi2">去首页「AI 设置」</button></div>'}
+      <p class="imp-note" style="margin:0 0 12px">不用写 JSON。把你想让学生记住的那段话，像跟同事聊天一样说出来就行 —— AI 整理成学习卡的几块，<b>先摆出来给你核对，你点头才存</b>。学生答完这道题才看得到（口诀里常常带着答案，提前放等于送分）。</p>
+      <div class="f">
+        <label for="stQ">给哪道题写</label>
+        <select id="stQ">${opts}</select>
+        <label for="stText">你要说什么</label>
+        <textarea id="stText" rows="4" placeholder="例如：这题就记住写 1 关管子、写 0 才读得进。先看方向寄存器定的是输入还是输出，输出才要写。别把 0 和 1 记反了。">${esc(st.text || '')}</textarea>
+        <div class="line"><button class="btn" type="button" id="stGo" ${st.busy ? 'disabled' : ''}>${st.busy ? 'AI 正在理解…' : st.card ? '再理解一次' : '让 AI 理解'}</button><span class="muted" id="stMsg">${esc(st.err || 'AI 会把含糊的地方列出来问你')}</span></div>
+      </div>
+      <div id="stOut">${studyOut(st)}</div>
+    </div>`;
+}
+// 理解结果：先说「我理解成这样」→ 再摆卡片预览 → 最后是 AI 没听准的问题 + 两个按钮
+function studyOut(st) {
+  if (!st || !st.card) return '';
+  const c = st.card, ask = st.ask || [];
+  const preview = studyCard({ _lead: c.lead, _steps: c.steps, _table: c.table, _tip: c.tip, _warn: c.warn }, '先给你看 · 还没存');
+  return `<div class="st-out">
+      ${c.read ? `<p class="st-read"><b>我理解你说的意思是：</b>${esc(c.read)}</p>` : ''}
+      ${ask.length ? `<div class="st-ask"><b>这几点我没听准，你看要不要补一句：</b><ul>${ask.map(a => `<li>${esc(a)}</li>`).join('')}</ul><span class="muted">补完再点一次「让 AI 理解」；觉得没问题，直接存也行。</span></div>` : ''}
+      ${preview || '<p class="muted" style="margin:0">这段话里没整理出能放进卡片的内容 —— 看一眼上面那几个问题，补一句再试。</p>'}
+      <div class="line" style="margin-top:12px"><button class="btn sm" type="button" id="stSave" ${preview ? '' : 'disabled'}>就这样，存进这道题</button><button class="btn sm ghost" type="button" id="stDrop">不对，我再说一遍</button></div>
+    </div>`;
+}
+// 只重画「理解结果」这一小块：整页重画会连输入框里的字、光标和滚动位置一起丢掉
+function paintStudy() {
+  const st = S.study; if (!st) return;
+  const out = $('stOut'); if (out) out.innerHTML = studyOut(st);
+  const go = $('stGo');
+  if (go) { go.disabled = !!st.busy; go.textContent = st.busy ? 'AI 正在理解…' : st.card ? '再理解一次' : '让 AI 理解'; }
+  if ($('stMsg')) $('stMsg').textContent = st.err || 'AI 会把含糊的地方列出来问你';
+  bindStudyBtns();
+}
+function bindStudyBtns() {
+  if ($('stSave')) $('stSave').onclick = saveStudyCard;
+  if ($('stDrop')) $('stDrop').onclick = () => {
+    const st = S.study; if (!st) return;
+    st.card = null; st.ask = []; st.err = ''; paintStudy();
+    if ($('stText')) $('stText').focus();
+  };
+}
+async function runStudyCard() {
+  const st = S.study, q = (S.bank || []).find(x => x.id === (st && st.qid));
+  if (!st || !q) return toast('先在上面选一道题');
+  const words = String(st.text || '').trim();
+  if (words.length < 4) { if ($('stText')) $('stText').focus(); return toast('先用一句话说说你想让学生记住什么'); }
+  if (!aiReady()) return toast('还没配 AI 模型，先去首页「AI 设置」');
+  st.busy = true; st.err = ''; st.card = null; st.ask = [];
+  paintStudy();
+  try {
+    const got = await parseStudyCard(q, words);
+    st.card = got; st.ask = got.ask || [];
+  } catch (e) { st.err = '没整理出来：' + (e.message || e); }
+  st.busy = false;
+  paintStudy();
+}
+async function saveStudyCard() {
+  const st = S.study, c = st && st.card; if (!c) return;
+  const q = (S.bank || []).find(x => x.id === st.qid); if (!q) return toast('这道题已经不在题库里了');
+  if ($('stSave')) $('stSave').disabled = true;
+  const study = {
+    lead: String(c.lead || '').trim(),
+    steps: (c.steps || []).map(x => String(x).trim()).filter(Boolean).slice(0, 6),
+    table: (c.table || []).filter(r => r && (r[0] || r[1])).slice(0, 6),
+    tip: String(c.tip || '').trim(),
+    warn: String(c.warn || '').trim(),
+    // 原话留一份：以后觉得卡不对，能回头看看当时到底是怎么说的
+    words: String(st.text || '').trim().slice(0, 400),
+    at: Date.now()
+  };
+  const n = S.bank.indexOf(q) + 1;
+  st.card = null; st.ask = []; st.err = ''; st.text = '';
+  await setBank(S.bank.map(x => x.id === q.id ? { ...x, study } : x));
+  toast(`已写进第 ${n} 题，学生答完这题就能看到`);
+}
+
 // ---------- 题库：新建科目、导入资料、AI 出题、导出、发布 ----------
 function renderBank() {
   const sub = S.subject, base = S.base[sub.id] || [], d = S.draft;
@@ -3562,7 +3781,8 @@ function renderBank() {
         <div class="line"><button class="btn sm ghost" type="button" id="tplBtn">下载模板</button><span class="muted">照着填，填好直接拖进来</span></div>
       </details>
       ${draftHtml(d)}
-    </div>`;
+    </div>
+    ${studyPanel()}`;
   const on = (id, fn) => { if ($(id)) $(id).onclick = fn; };
   on('expBtn', () => downloadText(sub.name + '.json', JSON.stringify(S.questions, null, 1)));
   on('clrBtn', e => sure(e.currentTarget, `确认清空 ${S.bank.length} 题？`, () => setBank([])));
@@ -3622,6 +3842,19 @@ function renderBank() {
     };
   }
   on('goImport', startImport);
+  // 说人话写学习卡：换题就清掉上一题的理解结果（不然会把甲的卡存到乙身上）
+  if ($('stQ')) $('stQ').onchange = e => {
+    const st = S.study; if (!st) return;
+    st.qid = e.target.value; st.card = null; st.ask = []; st.err = '';
+    paintStudy();
+  };
+  if ($('stText')) $('stText').oninput = e => { if (S.study) S.study.text = e.target.value; };
+  on('stGo', runStudyCard);
+  bindStudyBtns();
+  on('toAi2', () => {
+    if (window.__OFFLINE) return toast('离线版没有首页设置页，请先在网页版配好模型');
+    location.href = '../ai/';
+  });
   on('okImport', confirmImport);
   on('dtlBtn', () => { if (S.draft) { S.draft.open = !S.draft.open; renderBank(); } });
   on('noImport', () => { S.draft = null; renderBank(); });

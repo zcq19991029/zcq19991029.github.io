@@ -466,6 +466,10 @@ html[data-hx-mode="dark"] .study {
 .g table { width: 100%; margin: 4px 0 0; border-collapse: collapse; font-size: 13.5px; }
 .g table th, .g table td { padding: 6px 8px; border: 1px solid var(--tb-line); text-align: left; vertical-align: top; }
 .g table th { background: var(--tb-th); color: var(--tb-th-ink); font-weight: 600; white-space: nowrap; }
+/* 两列的小表（条件 / 结果）：按比例分列宽，不按内容算 —— 手机上按内容算会把「端口当输入用」
+   挤成「端口当输 / 入用」。单列的那种（整行拉满、colspan=1）不加 .two，免得只占 42% 留一片空。 */
+.g table.two { table-layout: fixed; }
+.g table.two tr > :first-child { width: 42%; }
 /* 单元格一律允许换行：整行拉满的那种（一句话里带两个箭头）要是 nowrap 会横着撑破卡片 */
 /* AI 自己说「题库答案可能有问题」时的复核提示：不占色块，做卡片脚注 */
 .study-note { margin: 10px 0 0; padding-top: 9px; border-top: 1px dashed var(--sd-line); font-size: 12.5px; line-height: 1.6; opacity: .92; }
@@ -474,4 +478,21 @@ html[data-hx-mode="dark"] .study {
   .study { padding: 13px 12px 14px; }
   .study-grid { grid-template-columns: 1fr; }
   .study-grid .wide { grid-column: auto; }
+  /* 小表在手机上一放就挤：字号和内边距都收一点。列宽见下面 .g table.two 的 table-layout:fixed ——
+     条件那列按比例给宽度，长句子换行，不会被内容挤成「端口当输 / 入用」那样断在词中间。 */
+  .g table { font-size: 12.5px; }
+  .g table th, .g table td { padding: 5px 6px; }
 }
+
+/* ---------- 题库页「说人话写学习卡」（2026-11-08） ----------
+   老师不写 JSON：说一段大白话 → AI 整理 → 先把结果摆出来核对 → 点头才存。
+   结果区要一眼看出「这是 AI 的理解，还不是题库里的东西」，所以底色用灰、卡片标签写「先给你看 · 还没存」。 */
+.st-out { margin-top: 14px; padding: 14px; border-radius: 14px; background: var(--fill); }
+.st-read { margin: 0 0 10px; font-size: 13.5px; line-height: 1.7; }
+.st-read b { color: var(--dim); font-weight: 600; }
+/* AI 反问的那几条：用提醒色，别让人当成错误 —— 它只是没听准 */
+.st-ask { margin: 0 0 12px; padding: 10px 14px; border-radius: 12px; background: var(--badbg); font-size: 13.5px; line-height: 1.7; }
+.st-ask ul { margin: 6px 0 8px; padding-left: 18px; }
+.st-ask li { margin: 3px 0; }
+.st-ask .muted { display: block; }
+.st-out .study { margin-top: 10px; }

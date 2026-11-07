@@ -177,6 +177,21 @@ export function normalizeQuestions(raw, subject) {
       if (answer.some(a => !keys.has(a))) return reject(`答案 ${answer.filter(a => !keys.has(a)).join('、')} 不在选项里`);
       if (type !== 'multiple' && answer.length !== 1) return reject(`${TYPE_LABEL[type]}只能有 1 个答案，这份给了 ${answer.length} 个`);
     }
+    /* study（可选）：题库页「说人话写学习卡」整理出来的四块（app.js 的 studyCard 画）。
+       导出的 JSON 再导回来时要原样保留，否则卡一导出就没了。形状不对就当没有。 */
+    const rawStudy = item?.study || item?.学习卡;
+    const arr = v => (Array.isArray(v) ? v : v ? [v] : []).map(x => String(x ?? '').trim()).filter(Boolean);
+    const study = (() => {
+      if (!rawStudy || typeof rawStudy !== 'object') return null;
+      const table = (Array.isArray(rawStudy.table) ? rawStudy.table : []).map(r => (Array.isArray(r) ? [String(r[0] ?? '').trim(), String(r[1] ?? '').trim()] : null)).filter(r => r && (r[0] || r[1]));
+      const card = {
+        lead: String(rawStudy.lead ?? '').trim(),
+        steps: arr(rawStudy.steps), table,
+        tip: String(rawStudy.tip ?? '').trim(),
+        warn: String(rawStudy.warn ?? '').trim()
+      };
+      return (card.lead || card.steps.length || table.length || card.tip || card.warn) ? card : null;
+    })();
     questions.push({
       id: `${subject}-import-${crypto.randomUUID()}`,
       number: item?.number || questions.length + 1,
@@ -185,6 +200,7 @@ export function normalizeQuestions(raw, subject) {
       /* tip（可选）：老师自己写的一句口诀／小技巧。刷题页会用它画「学习卡」的黄色那块
          （见 app.js 的 studyCard）。不写就是空串，不影响别的字段。 */
       tip: String(item?.tip ?? item?.小技巧 ?? item?.口诀 ?? '').trim(),
+      ...(study ? { study } : {}),
       source: item?.source || item?.出处 || '导入'
     });
   });

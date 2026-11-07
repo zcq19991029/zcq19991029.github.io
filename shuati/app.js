@@ -1,7 +1,7 @@
 // 华夏工具 · 刷题：界面和刷题流程。题库解析、AI 解析沿用 imports.js / ai.js；存储见 store.js；账号见 hx.js。
 import * as hx from './hx.js';
 import * as store from './store.js';
-import { providers, getSettings, saveSettings, setAiProfile, chat, streamChat, listModels, explainQuestion } from './ai.js';
+import { providers, getSettings, saveSettings, setAiProfile, chat, streamChat, listModels, explainQuestion, parseStudyCard } from './ai.js';
 import { readMaterial, readImages, normalizeQuestions, aiImport, aiGenerate, aiVision, isImageFile } from './imports.js';
 import { figSvg, figName } from './symbols.js';
 
@@ -97,6 +97,7 @@ const S = {
   askDraft: '', // “问 AI”打了一半的字：关掉抽屉、切到别的抽屉都不丢，发出去才清
   hsel: new Set(), hf: 'all', // 概览“刷题记录”：勾选的题、筛选
   rmine: false, // 排行：只看本班
+  study: null, // 题库页「说人话写学习卡」：{ qid, text, busy, err, card, ask }
 };
 const prefs = () => store.getLocal('prefs', {});
 const savePrefs = () => store.setLocal('prefs', { subject: S.subject?.id, type: S.type, scope: S.scope, mode: S.mode });
@@ -137,7 +138,7 @@ function pxBlocks() {
 }
 async function openSubject(id) {
   const sub = S.subjects.find(s => s.id === id) || S.subjects[0];
-  S.subject = sub; S.ai = {}; S.draft = null; S.pending = []; S.imText = '';
+  S.subject = sub; S.ai = {}; S.draft = null; S.pending = []; S.imText = ''; S.study = null; // 换了科目，先说的一半话不带过去
   paintSubj();
   // 加载提示统一规则（2026-11-04，用户：「加载动效呢 像素动效没有随机使用啊」）：
   // 首选像素动效——HXLoadFx 从特效包随机挑一个画 canvas（会话内固定，见 loadfx.js 头注释），
@@ -328,7 +329,7 @@ function studyCard(d, src) {
     const body = rows.map(r => (r[0] && r[1])
       ? `<tr><td>${esc(r[0])}</td><td>${esc(r[1])}</td></tr>`
       : `<tr><td colspan="${two ? 2 : 1}">${esc(r[0] || r[1])}</td></tr>`).join('');
-    blocks.push(`<section class="g"><h5>必须记住的小表</h5><table>${two ? '<tr><th>条件</th><th>结果</th></tr>' : ''}${body}</table></section>`);
+    blocks.push(`<section class="g"><h5>必须记住的小表</h5><table${two ? ' class="two"' : ''}>${two ? '<tr><th>条件</th><th>结果</th></tr>' : ''}${body}</table></section>`);
   }
   if (warn) blocks.push(`<section class="g warn"><h5>易错提醒与自检</h5><p>${esc(warn)}</p></section>`);
   return `<div class="study"><div class="study-head"><h4>学习卡</h4><span class="sp"></span>${src ? `<span class="study-src">${esc(src)}</span>` : ''}</div>
@@ -386,14 +387,17 @@ function renderCard() {
       : '<button class="btn sm ghost" type="button" id="aiBtn">重新解析</button>';
     fb = `<div class="fb ${ok ? 'ok' : 'bad'}"><b>${ok ? '回答正确' : '答案是 ' + esc(ans)}</b>${q.explanation ? `<p>${esc(q.explanation)}</p>` : ''}<div class="ai">${aiPart}</div></div>`;
   }
-  /* 学习卡：AI 解析出来的一整块 + 题库自带的一句口诀（两个来源分开标，别让人以为是题库里写的）。
+  /* 学习卡：三个来源，分开标、别让人以为是同一个地方来的 ——
+       老师补充（题库页「说人话」写进去的 study）/ AI 解析 / 题库自带（导入 JSON 里的 tip）
      「题库复核」原来单独一行灰字，现在并进卡片底部的脚注 —— 它说的是题库准不准，不是知识点。
      ── 为什么 !picked 就整块不画 ──
      口诀往往就是把答案编进去了（「写 1 关管子」= 选 B），答题前摆出来等于送分。
      和参考答案、解析一样，都是答完才给。 */
   const aiDone = ai && ai.state === 'done' && ai.data;
+  const mine = q.study && typeof q.study === 'object' ? q.study : null;
   const cards = !picked ? ''
-    : (aiDone ? studyCard({ ...ai.data, _note: /^一致/.test(ai.data._review || '') ? '' : ai.data._review }, 'AI 解析') : '')
+    : (mine ? studyCard({ _lead: mine.lead, _steps: mine.steps, _table: mine.table, _tip: mine.tip, _warn: mine.warn }, '老师补充') : '')
+      + (aiDone ? studyCard({ ...ai.data, _note: /^一致/.test(ai.data._review || '') ? '' : ai.data._review }, 'AI 解析') : '')
       + (String(q.tip || '').trim() ? studyCard({ _tip: String(q.tip).trim() }, '题库自带') : '');
   const tag = (r.wrong ? `<span style="color:var(--bad)">错过 ${r.wrong} 次</span>` : r.status === 'known' ? '<span style="color:var(--ok)">已记住</span>' : '')
     + (r.status === 'known' && q.id in S.undo ? '<button class="btn sm ghost" type="button" id="undoBtn" style="height:26px">撤销记住</button>' : '');
@@ -673,6 +677,99 @@ function draftHtml(d) {
       </div>`;
 }
 
+/* ---------- 说人话，让 AI 写学习卡（2026-11-08） ----------
+   用户原话：「手写 json 谁会写？我只会写人话，需要 ai 理解和询问确认」。
+   所以这条路上没有 JSON、没有字段名：老师选一道题、用大白话说一段，AI 整理成卡片
+   先摆出来给老师核对（含糊的地方还会反问），点了「就这样」才写进题目。
+   ── 为什么只给「我导入的题」写 ──
+   内置课程题是 data/*.json 里的只读文件，写进去下次刷新就没了；要能改得做覆盖层，
+   那是另一件事。这里只动 S.bank（自己导入／自己出的题），存哪儿写哪儿，不骗人。 */
+const studyHas = q => !!(q && q.study && (q.study.tip || q.study.lead || (q.study.steps || []).length || (q.study.table || []).length || q.study.warn));
+function studyPanel() {
+  const list = S.bank || [];
+  if (!list.length) return `<div class="panel" id="stPanel"><h3>说人话，自动写学习卡</h3>
+      <p class="muted" style="margin:0">这条只对<b>你自己导入的题</b>有用。先把题目导进来（上面那块），再回来写。</p></div>`;
+  const st = S.study || (S.study = { qid: '', text: '', busy: false, err: '', card: null, ask: [] });
+  // 换过科目、或者选中的题被删掉了：回落到第一题，别让下拉框显示成空的
+  if (!st.qid || !list.some(q => q.id === st.qid)) { st.qid = list[0].id; st.card = null; st.ask = []; st.err = ''; }
+  const opts = list.map((q, i) => `<option value="${esc(q.id)}" ${q.id === st.qid ? 'selected' : ''}>第 ${i + 1} 题 · ${esc(String(q.stem || '').slice(0, 24))}${studyHas(q) ? '（已有卡）' : ''}</option>`).join('');
+  return `<div class="panel" id="stPanel"><h3>说人话，自动写学习卡</h3>
+      ${aiReady() ? '' : '<div class="imp-warn"><span>还没配 AI 模型 → 去首页「AI 设置」</span><button class="btn sm" type="button" id="toAi2">去首页「AI 设置」</button></div>'}
+      <p class="imp-note" style="margin:0 0 12px">不用写 JSON。把你想让学生记住的那段话，像跟同事聊天一样说出来就行 —— AI 整理成学习卡的几块，<b>先摆出来给你核对，你点头才存</b>。学生答完这道题才看得到（口诀里常常带着答案，提前放等于送分）。</p>
+      <div class="f">
+        <label for="stQ">给哪道题写</label>
+        <select id="stQ">${opts}</select>
+        <label for="stText">你要说什么</label>
+        <textarea id="stText" rows="4" placeholder="例如：这题就记住写 1 关管子、写 0 才读得进。先看方向寄存器定的是输入还是输出，输出才要写。别把 0 和 1 记反了。">${esc(st.text || '')}</textarea>
+        <div class="line"><button class="btn" type="button" id="stGo" ${st.busy ? 'disabled' : ''}>${st.busy ? 'AI 正在理解…' : st.card ? '再理解一次' : '让 AI 理解'}</button><span class="muted" id="stMsg">${esc(st.err || 'AI 会把含糊的地方列出来问你')}</span></div>
+      </div>
+      <div id="stOut">${studyOut(st)}</div>
+    </div>`;
+}
+// 理解结果：先说「我理解成这样」→ 再摆卡片预览 → 最后是 AI 没听准的问题 + 两个按钮
+function studyOut(st) {
+  if (!st || !st.card) return '';
+  const c = st.card, ask = st.ask || [];
+  const preview = studyCard({ _lead: c.lead, _steps: c.steps, _table: c.table, _tip: c.tip, _warn: c.warn }, '先给你看 · 还没存');
+  return `<div class="st-out">
+      ${c.read ? `<p class="st-read"><b>我理解你说的意思是：</b>${esc(c.read)}</p>` : ''}
+      ${ask.length ? `<div class="st-ask"><b>这几点我没听准，你看要不要补一句：</b><ul>${ask.map(a => `<li>${esc(a)}</li>`).join('')}</ul><span class="muted">补完再点一次「让 AI 理解」；觉得没问题，直接存也行。</span></div>` : ''}
+      ${preview || '<p class="muted" style="margin:0">这段话里没整理出能放进卡片的内容 —— 看一眼上面那几个问题，补一句再试。</p>'}
+      <div class="line" style="margin-top:12px"><button class="btn sm" type="button" id="stSave" ${preview ? '' : 'disabled'}>就这样，存进这道题</button><button class="btn sm ghost" type="button" id="stDrop">不对，我再说一遍</button></div>
+    </div>`;
+}
+// 只重画「理解结果」这一小块：整页重画会连输入框里的字、光标和滚动位置一起丢掉
+function paintStudy() {
+  const st = S.study; if (!st) return;
+  const out = $('stOut'); if (out) out.innerHTML = studyOut(st);
+  const go = $('stGo');
+  if (go) { go.disabled = !!st.busy; go.textContent = st.busy ? 'AI 正在理解…' : st.card ? '再理解一次' : '让 AI 理解'; }
+  if ($('stMsg')) $('stMsg').textContent = st.err || 'AI 会把含糊的地方列出来问你';
+  bindStudyBtns();
+}
+function bindStudyBtns() {
+  if ($('stSave')) $('stSave').onclick = saveStudyCard;
+  if ($('stDrop')) $('stDrop').onclick = () => {
+    const st = S.study; if (!st) return;
+    st.card = null; st.ask = []; st.err = ''; paintStudy();
+    if ($('stText')) $('stText').focus();
+  };
+}
+async function runStudyCard() {
+  const st = S.study, q = (S.bank || []).find(x => x.id === (st && st.qid));
+  if (!st || !q) return toast('先在上面选一道题');
+  const words = String(st.text || '').trim();
+  if (words.length < 4) { if ($('stText')) $('stText').focus(); return toast('先用一句话说说你想让学生记住什么'); }
+  if (!aiReady()) return toast('还没配 AI 模型，先去首页「AI 设置」');
+  st.busy = true; st.err = ''; st.card = null; st.ask = [];
+  paintStudy();
+  try {
+    const got = await parseStudyCard(q, words);
+    st.card = got; st.ask = got.ask || [];
+  } catch (e) { st.err = '没整理出来：' + (e.message || e); }
+  st.busy = false;
+  paintStudy();
+}
+async function saveStudyCard() {
+  const st = S.study, c = st && st.card; if (!c) return;
+  const q = (S.bank || []).find(x => x.id === st.qid); if (!q) return toast('这道题已经不在题库里了');
+  if ($('stSave')) $('stSave').disabled = true;
+  const study = {
+    lead: String(c.lead || '').trim(),
+    steps: (c.steps || []).map(x => String(x).trim()).filter(Boolean).slice(0, 6),
+    table: (c.table || []).filter(r => r && (r[0] || r[1])).slice(0, 6),
+    tip: String(c.tip || '').trim(),
+    warn: String(c.warn || '').trim(),
+    // 原话留一份：以后觉得卡不对，能回头看看当时到底是怎么说的
+    words: String(st.text || '').trim().slice(0, 400),
+    at: Date.now()
+  };
+  const n = S.bank.indexOf(q) + 1;
+  st.card = null; st.ask = []; st.err = ''; st.text = '';
+  await setBank(S.bank.map(x => x.id === q.id ? { ...x, study } : x));
+  toast(`已写进第 ${n} 题，学生答完这题就能看到`);
+}
+
 // ---------- 题库：新建科目、导入资料、AI 出题、导出、发布 ----------
 function renderBank() {
   const sub = S.subject, base = S.base[sub.id] || [], d = S.draft;
@@ -706,7 +803,8 @@ function renderBank() {
         <div class="line"><button class="btn sm ghost" type="button" id="tplBtn">下载模板</button><span class="muted">照着填，填好直接拖进来</span></div>
       </details>
       ${draftHtml(d)}
-    </div>`;
+    </div>
+    ${studyPanel()}`;
   const on = (id, fn) => { if ($(id)) $(id).onclick = fn; };
   on('expBtn', () => downloadText(sub.name + '.json', JSON.stringify(S.questions, null, 1)));
   on('clrBtn', e => sure(e.currentTarget, `确认清空 ${S.bank.length} 题？`, () => setBank([])));
@@ -766,6 +864,19 @@ function renderBank() {
     };
   }
   on('goImport', startImport);
+  // 说人话写学习卡：换题就清掉上一题的理解结果（不然会把甲的卡存到乙身上）
+  if ($('stQ')) $('stQ').onchange = e => {
+    const st = S.study; if (!st) return;
+    st.qid = e.target.value; st.card = null; st.ask = []; st.err = '';
+    paintStudy();
+  };
+  if ($('stText')) $('stText').oninput = e => { if (S.study) S.study.text = e.target.value; };
+  on('stGo', runStudyCard);
+  bindStudyBtns();
+  on('toAi2', () => {
+    if (window.__OFFLINE) return toast('离线版没有首页设置页，请先在网页版配好模型');
+    location.href = '../ai/';
+  });
   on('okImport', confirmImport);
   on('dtlBtn', () => { if (S.draft) { S.draft.open = !S.draft.open; renderBank(); } });
   on('noImport', () => { S.draft = null; renderBank(); });
