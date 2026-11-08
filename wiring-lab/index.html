@@ -2488,14 +2488,14 @@ function openExtra() {
   const extVideoBtn = c => VIDEO_LINKS[c.id]
     ? `<em class="play ext-vid" data-v="${c.id}">视频</em>`
     : `<em class="soon">视频待上线</em>`;
-  /* 题数从数据来，不写死在名称里（2026-11-08 用户：「并联明显不止7个题目啊 未来还会更多
-     不需要标题目数量对不对」）。c.n 由 build-practice.cjs 的 countOf() 算好随包发；
-     旧包/旧缓存没有这个字段时就不显示，宁可少一句也不报错的数字。 */
+  /* 题数不显示（2026-11-08 用户：「共 12 题你也觉得不必显示我也觉得没必要显示」）。
+     上一版我刚加上「共 N 题」，用户看过后认为没必要 —— 题目数量会一直变，
+     对使用者没有帮助，行里只要说清「这行是什么、怎么练」就够了。
+     这里把 n 的判断去掉；build-practice.cjs 里算 n 的逻辑**保留**（不显示但仍在数据里，
+     将来若要在别处用「共 N 题」不用重新算）。 */
   const extSub = c => {
-    const n = c.n > 1 ? `共 ${c.n} 题` : '';
-    if (c.id === cur) return n ? '正在练习 · ' + n : '正在练习';
-    const base = c.drill ? '先判出入口 · 同一个点任选端子 · 一个端子最多 2 根线' : '电工中级 · 接线仿真';
-    return n ? n + ' · ' + base : base;
+    if (c.id === cur) return '正在练习';
+    return c.drill ? '先判出入口 · 同一个点任选端子 · 一个端子最多 2 根线' : '电工中级 · 接线仿真';
   };
   floatWin('extra', { title: '扩展练习', sub: '电工证类 · 电工中级应会实操', w: 560, h: 460, a1: '#14b8a6', a2: '#6366f1',
     render: (body, el) => {

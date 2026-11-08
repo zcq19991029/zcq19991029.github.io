@@ -670,6 +670,110 @@ html.hx-lite .hx-loadpill{animation:none}
 #hxBootCv{image-rendering:pixelated;display:block}
 #hxBoot .hx-loadpill{font-size:clamp(16px,1.1vw + 9px,30px);box-shadow:none}
 html.hx-lite #hxBootCv{display:none}
+
+/* 「这一页怎么用」折叠说明（2026-11-08）：用户原话「说实话我没懂这一页咋用」。
+   不弹窗、不占版面：默认收起，点开才展开；小屏也能读。 */
+.ex-help{margin:10px 0 0;border:1px solid var(--line,rgba(148,163,184,.35));border-radius:12px;padding:8px 12px;background:rgba(148,163,184,.06);max-width:920px}
+.ex-help>summary{cursor:pointer;font-weight:600;font-size:14px;list-style:none;display:flex;align-items:center;gap:6px;outline:none}
+.ex-help>summary::-webkit-details-marker{display:none}
+.ex-help>summary::before{content:'?';display:inline-grid;place-items:center;width:18px;height:18px;border-radius:50%;background:#2f6bff;color:#fff;font-size:12px;font-weight:700}
+.ex-help[open]>summary{margin-bottom:6px}
+.ex-help ol{margin:4px 0 6px;padding-left:20px;font-size:13.5px;line-height:1.75}
+.ex-help ol li{margin:2px 0}
+.ex-help .note{margin:2px 0 0;font-size:13px;line-height:1.7;opacity:.85}
+
+/* ============================================================
+   科目（2026-11-08 起可新建 / 改名 / 删除）
+   ------------------------------------------------------------
+   一行 = 名字 + 改 + 删。名字那个按钮沿用 .ex-sub（选中态），
+   右边两个小的是行内动作，不能跟名字抢宽度，所以给 .ex-sub 撑满、动作按钮固定小号。
+   手机上侧栏变横排（BASE 的 900px 断点），这里补一条：科目按 140px 起换行，
+   否则「+ 科目」会被挤到看不见的地方。
+   ============================================================ */
+.ex-subrow { display: flex; gap: 4px; align-items: center; }
+.ex-subrow .ex-sub { flex: 1 1 auto; width: auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ex-subx { flex: 0 0 auto; padding: 6px 7px; border: 0; border-radius: 8px; background: transparent; color: var(--mute, #6b7280); cursor: pointer; font: inherit; font-size: 11px; }
+.ex-subx:hover { background: var(--fill, rgba(0, 0, 0, .05)); color: var(--ink, #0b1220); }
+.ex-subadd { display: block; width: 100%; margin-top: 6px; padding: 8px 12px; border-radius: 10px; border: 1px dashed var(--hair, rgba(15, 23, 42, .12)); background: transparent; color: var(--mute, #6b7280); cursor: pointer; font: inherit; font-size: 12.5px; }
+.ex-subadd:hover { color: var(--acc, #2f6bff); border-color: var(--acc, #2f6bff); }
+.ex-subnote { margin: 8px 2px 0; font-size: 11px; line-height: 1.5; color: var(--mute, #6b7280); opacity: .8; }
+@media (max-width: 900px) {
+  .ex-nav-sub { flex-wrap: wrap; align-items: center; }
+  .ex-subrow { flex: 1 1 150px; }
+  .ex-subadd { flex: 1 1 100%; width: auto; margin-top: 0; padding: 8px 12px; }
+  .ex-subnote { flex: 1 1 100%; }
+}
+
+/* ============================================================
+   资料库（2026-11-08）：上传区 / 资料列表 / AI 出题
+   ------------------------------------------------------------
+   用户要的是「导入的文件自动加入资料库 可以删除出去」。所以上传只有一个按钮，
+   传完直接出现在下面的列表里，不再要老师点第二次。
+   排版取舍：
+     · 上传框是虚线 + 拖放区，和卡片同一套底色，不用另画一个面板；
+     · 资料列表每行「名字/字数」在左、两个按钮在右，手机上按钮换到下一行（不挤成一坨）；
+     · 出题面板的题型用 auto-fit 网格（120px 起），桌面一行六格、手机两格，
+       不会出现 375 宽还要横向滚动的情况。
+   ============================================================ */
+.mat-drop { display: grid; gap: 10px; justify-items: start; padding: 18px 16px; border: 1px dashed var(--hair, rgba(15, 23, 42, .14)); border-radius: 14px; background: var(--field2, rgba(0, 0, 0, .03)); }
+.mat-drop.on { border-color: var(--acc, #2f6bff); background: var(--accbg, rgba(47, 107, 255, .08)); }
+.mat-drop .note { margin: 0; font-size: 12.5px; }
+.mat-prog { margin: 10px 0 0; font-size: 13px; line-height: 1.6; word-break: break-word; }
+.mat-list { display: grid; gap: 8px; max-height: 380px; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+.mat-i { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 9px 12px; border-radius: 12px; background: var(--field2, rgba(0, 0, 0, .03)); border: 1px solid var(--hair, rgba(15, 23, 42, .08)); }
+.mat-m { display: grid; gap: 2px; min-width: 0; }
+.mat-m b { font-size: 13.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mat-m .note { font-size: 11.5px; }
+.mat-a { display: flex; gap: 6px; flex: 0 0 auto; }
+@media (max-width: 640px) { .mat-i { grid-template-columns: 1fr; } .mat-a { flex-wrap: wrap; } }
+
+/* 出题面板：① 选资料 ② 题型数量 ③ 难度范围 ④ 额外要求，四块用虚线分隔，顺序一眼能看出来 */
+.mg-step { display: grid; gap: 8px; margin: 14px 0 0; padding-top: 12px; border-top: 1px solid var(--hair, rgba(15, 23, 42, .08)); }
+.mg-step > b { font-size: 13px; }
+.mg-mats { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.mg-mats label { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; max-width: 100%; }
+.mg-mats label span { min-width: 0; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mg-types { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+.mg-types label { display: grid; gap: 4px; font-size: 12.5px; font-weight: 600; }
+.mg-types input { width: 100%; box-sizing: border-box; }
+/* 难度 / 范围 两栏：难度是短下拉，别让它被拉成一整行宽（实测截图里看着像输入框坏了） */
+@media (min-width: 641px) { .mg-row { grid-template-columns: minmax(150px, 220px) minmax(0, 1fr); } }
+.mg-row label, .mg-wide { display: grid; gap: 6px; font-size: 13px; font-weight: 600; }
+.mg-wide { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--hair, rgba(15, 23, 42, .08)); }
+.mg-wide textarea { width: 100%; box-sizing: border-box; resize: vertical; }
+.mg-res { margin-top: 14px; }
+.mg-rh { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; margin-bottom: 8px; }
+.mg-rh .note { font-size: 12px; }
+.mg-list { display: grid; gap: 6px; max-height: 460px; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+.mg-item { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; align-items: start; padding: 8px 10px; border-radius: 10px; background: var(--field2, rgba(0, 0, 0, .03)); font-size: 13px; cursor: pointer; }
+.mg-item input { margin-top: 3px; }
+.mg-q { display: grid; gap: 2px; min-width: 0; line-height: 1.55; }
+.mg-q b { font-weight: 600; color: var(--acc, #2f6bff); font-size: 11.5px; }
+.mg-q .note { font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; }
+.mg-rej { margin-top: 10px; font-size: 12.5px; }
+.mg-rej summary { cursor: pointer; color: var(--mute, #6b7280); }
+.mg-rej ul { margin: 6px 0 0; padding-left: 18px; line-height: 1.7; }
+
+/* ============================================================
+   AI 题库（2026-11-08）
+   ------------------------------------------------------------
+   每行四件事：题型 / 题干（两行截断）/ 答案 + 来源 / 删除。
+   题多了不可能一屏看完，所以这里不加 max-height —— 整页滚比“卡片里再套一层滚动”好找。
+   ============================================================ */
+.qb-f { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 10px 0; }
+.qb-f label { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; }
+.qb-stat { display: flex; flex-wrap: wrap; gap: 6px; }
+.qb-stat span { padding: 5px 11px; border-radius: 999px; background: var(--field2, rgba(0, 0, 0, .03)); font-size: 12.5px; color: var(--mute, #6b7280); }
+.qb-stat b { color: var(--ink, #0b1220); }
+.qb-i { display: grid; grid-template-columns: 72px minmax(0, 1fr) auto; gap: 10px; align-items: start; padding: 10px 12px; border-radius: 12px; background: var(--field2, rgba(0, 0, 0, .03)); border: 1px solid var(--hair, rgba(15, 23, 42, .08)); margin-bottom: 8px; }
+.qb-t { font: 600 11px/1.7 Consolas, "Cascadia Mono", monospace; color: var(--acc, #2f6bff); white-space: nowrap; }
+.qb-q { font-size: 13px; line-height: 1.6; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.qb-a { margin-top: 4px; font-size: 11.5px; color: var(--mute, #6b7280); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 640px) { .qb-i { grid-template-columns: 1fr auto; } .qb-t { grid-column: 1 / -1; } }
+/* 红字按钮：**不能**用 button.danger —— BASE_CSS 里它是红底白字，本文件又有一条
+   button.danger{color:var(--bad)} 把字刷成红色，红字红底 = 看不出字的大红块（实测踩到）。
+   所以危险动作只用 data-danger 标一下、把字染红，底色还是普通按钮。 */
+.qb-f [data-danger], .qb-i [data-danger] { color: var(--bad, #d70015); }
 </style>
 <script>var PixelFX=(()=>{var Yo=Object.defineProperty;var Le=Object.getOwnPropertyDescriptor;var Ce=Object.getOwnPropertyNames;var Te=Object.prototype.hasOwnProperty;var jt=(o,t)=>{for(var e in t)Yo(o,e,{get:t[e],enumerable:!0})},je=(o,t,e,n)=>{if(t&&typeof t=="object"||typeof t=="function")for(let a of Ce(t))!Te.call(o,a)&&a!==e&&Yo(o,a,{get:()=>t[a],enumerable:!(n=Le(t,a))||n.enumerable});return o};var Ye=o=>je(Yo({},"__esModule",{value:!0}),o);var Ws={};jt(Ws,{clearFrame:()=>Fo,composite:()=>Uo,createFrame:()=>Vt,createFx:()=>Mo,effects:()=>Be,ids:()=>Hs});var R=Math.PI*2,tt=(o,t=0,e=1)=>o<t?t:o>e?e:o,ko=(o,t,e)=>o+(t-o)*e;var It=(o,t)=>(o%t+t)%t;var wo={linear:o=>o,inQuad:o=>o*o,outQuad:o=>1-(1-o)*(1-o),inOutQuad:o=>o<.5?2*o*o:1-Math.pow(-2*o+2,2)/2,inCubic:o=>o*o*o,outCubic:o=>1-Math.pow(1-o,3),inOutCubic:o=>o<.5?4*o*o*o:1-Math.pow(-2*o+2,3)/2,inQuart:o=>o*o*o*o,outQuart:o=>1-Math.pow(1-o,4),inExpo:o=>o<=0?0:Math.pow(2,10*o-10),outExpo:o=>o>=1?1:1-Math.pow(2,-10*o),inSine:o=>1-Math.cos(o*Math.PI/2),outSine:o=>Math.sin(o*Math.PI/2),inOutSine:o=>-(Math.cos(Math.PI*o)-1)/2,inBack:(o,t=1.70158)=>o<=0?0:o>=1?1:(t+1)*o*o*o-t*o*o,outBack:(o,t=1.70158)=>o<=0?0:o>=1?1:1+(t+1)*Math.pow(o-1,3)+t*Math.pow(o-1,2),outElastic:o=>o<=0?0:o>=1?1:Math.pow(2,-10*o)*Math.sin((o*10-.75)*(2*Math.PI/3))+1,outBounce:o=>o<1/2.75?7.5625*o*o:o<2/2.75?7.5625*(o-=1.5/2.75)*o+.75:o<2.5/2.75?7.5625*(o-=2.25/2.75)*o+.9375:7.5625*(o-=2.625/2.75)*o+.984375};function Dn(...o){let t=2654435769;for(let e of o)t=Math.imul(t^(e|0),2246822507),t^=t>>>13,t=Math.imul(t,3266489909),t^=t>>>16;return t>>>0}var P=(...o)=>Dn(...o)/4294967296,dt=class{constructor(t=1){this.s=t>>>0||1}next(){let t=this.s=this.s+1831565813>>>0;return t=Math.imul(t^t>>>15,t|1),t^=t+Math.imul(t^t>>>7,t|61),((t^t>>>14)>>>0)/4294967296}range(t,e){return t+(e-t)*this.next()}int(t,e){return Math.floor(this.range(t,e+1))}chance(t){return this.next()<t}sign(){return this.next()<.5?-1:1}pick(t){return t[Math.floor(this.next()*t.length)]}gauss(){return(this.next()+this.next()+this.next()+this.next()-2)*1.732}},io=(...o)=>new dt(Dn(...o));function Fn(o,t=0){let e=Math.floor(o),n=o-e,a=n*n*(3-2*n);return ko(P(e,t),P(e+1,t),a)*2-1}function Je(o,t,e=0,n=0,a=0){let i=Math.floor(o),s=Math.floor(t),r=o-i,c=t-s,l=r*r*(3-2*r),f=c*c*(3-2*c),h=e?It(i,e):i,u=e?It(i+1,e):i+1,M=n?It(s,n):s,d=n?It(s+1,n):s+1,g=P(h,M,a),m=P(u,M,a),x=P(h,d,a),y=P(u,d,a);return ko(ko(g,m,l),ko(x,y,l),f)*2-1}function En(o,t,e=0,n=0,a=0,i=3){let s=0,r=.5,c=0,l=1;for(let f=0;f<i;f++)s+=Je(o*l,t*l,e*l,n*l,a+f*101)*r,c+=r,r*=.5,l*=2;return s/c}var Jo=(o,t,e)=>255<<24|(e&255)<<16|(t&255)<<8|o&255,ro=o=>o&255,co=o=>o>>>8&255,fo=o=>o>>>16&255;function E(o){if(typeof o=="number")return o;let t=o.replace("#","");t.length===3&&(t=t[0]+t[0]+t[1]+t[1]+t[2]+t[2]);let e=parseInt(t.slice(0,6),16);return Jo(e>>16&255,e>>8&255,e&255)}var Rn=o=>"#"+[ro(o),co(o),fo(o)].map(t=>t.toString(16).padStart(2,"0")).join("");function ot(o,t,e){return e=tt(e),Jo(ro(o)+(ro(t)-ro(o))*e,co(o)+(co(t)-co(o))*e,fo(o)+(fo(t)-fo(o))*e)}var vt=(o,t)=>Jo(Math.min(255,ro(o)*t),Math.min(255,co(o)*t),Math.min(255,fo(o)*t));var In=o=>o.map(E);function X(o,t){return o=o.map(E),o.length===t?o:Array.from({length:t},(e,n)=>o[Math.round(n*(o.length-1)/Math.max(1,t-1))])}var Ke={fire:["#1f0b10","#4a1118","#8c1d1c","#cc3a1a","#f2701f","#ffae35","#ffe27a","#fff8d6"],ember:["#1a0a0e","#3d1012","#701a14","#a8301a","#e0561e","#ff8a2a","#ffc46a"],lava:["#14060a","#380a10","#6e1210","#ac2410","#e8501a","#ff8c2a","#ffd25a"],smoke:["#0e0c12","#1d1a22","#2e2a35","#433e4b","#5c5664","#7b7484","#a39cab"],dust:["#1c1610","#33281c","#4f3f2c","#6e5a40","#927a58","#b89f78","#dcc8a2"],ice:["#0c1430","#162c5c","#1f4f94","#2f7fcc","#58b4ec","#9bdcff","#d8f4ff","#ffffff"],water:["#081830","#0e2e5a","#14508c","#1c76bc","#36a2e0","#78ccf4","#c4ecff","#ffffff"],electric:["#0a0f2e","#172a78","#2550d0","#3f8cff","#7cc8ff","#c8f0ff","#ffffff"],volt:["#24160a","#5e3a0c","#a8680f","#e8a218","#ffd23c","#fff08a","#ffffff"],poison:["#0d1a0c","#173a14","#265e18","#3f8a1e","#6cb82a","#a8e04a","#e0ff8a"],holy:["#2a1c08","#5a3e10","#9a6c18","#d8a428","#ffd84a","#fff09a","#fffbe6","#ffffff"],heal:["#08201a","#0f3f2c","#17663e","#24924e","#3ec466","#7ee88a","#c8ffc4","#ffffff"],arcane:["#140a26","#2b1252","#481c88","#6b2cc0","#9a48ec","#c684ff","#ecc8ff","#ffffff"],shadow:["#050308","#0f0a18","#1c1230","#2c1a4a","#432468","#5e3290","#8048b8","#a970e0"],blood:["#14040a","#3a0a14","#6a101c","#a01824","#d42a30","#ff5a50","#ff9a8a"],earth:["#140e0a","#2a1e14","#47321e","#69492a","#8e6638","#b88a52","#dcb47c"],stone:["#0e0e12","#1c1c24","#2c2c38","#42424f","#5c5c6b","#7d7d8c","#a4a4b2","#d0d0da"],gold:["#1e1206","#4a2c08","#86520c","#c48412","#f0b424","#ffe066","#fff6c4","#ffffff"],leaf:["#0c1a0e","#163418","#225224","#357530","#4f9a3a","#7cc048","#b4e070","#e4ffb0"],wood:["#160c06","#2e1a0c","#4a2c14","#6a421e","#8e5c2c","#b47c40","#d8a464"],metal:["#0c0e14","#1c2230","#2e3648","#4a5468","#6e7a90","#9aa6ba","#d0d8e6","#ffffff"],bone:["#1a1814","#3a352c","#5e5648","#8a806c","#b8ad96","#e4dcc8","#fffaf0"],neon:["#1a0516","#3d0a33","#701560","#b0228f","#f53cd1","#ff86e6","#ffd2f6","#ffffff"],cyber:["#041418","#08303a","#0c5260","#108088","#18b4b0","#4ce8d8","#b4fff0","#ffffff"],matrix:["#020a04","#05200c","#0a3c16","#106624","#1a9a34","#3cd650","#a4ffa8","#e8ffe8"],candy:["#ff4a5a","#ff9a2a","#ffe03c","#5ad84a","#3cc8ff","#7a6cff","#f53cd1"],night:["#07060d","#0c0a18","#131026","#1b1734","#241f44","#2f2956"]},$s=Object.fromEntries(Object.entries(Ke).map(([o,t])=>[o,In(t)])),S=E("#ffffff"),qs=E("#000000"),t0=E("#0b0a10"),o0=E("#f53cd1");function Sn(o,t,e,n,a,i=0,s=0){if(s<=0)return[o+e*a,t+n*a+.5*i*a*a];let r=(1-Math.exp(-s*a))/s,c=i/s;return[o+e*r,t+c*a+(n-c)*r]}function bo(o,t,e,n,a,{jag:i=.22,depth:s=5}={}){let r=[[t,e],[n,a]];for(let c=0;c<s;c++){let l=[r[0]];for(let f=1;f<r.length;f++){let[h,u]=r[f-1],[M,d]=r[f],g=M-h,m=d-u,x=Math.hypot(g,m),y=(o.next()*2-1)*i*x;l.push([(h+M)/2+-m/(x||1)*y,(u+d)/2+g/(x||1)*y],r[f])}r=l}return r}function On(o,t,{count:e=3,len:n=20,jag:a=.3,spread:i=.9}={}){let s=[];for(let r=0;r<e;r++){let c=1+Math.floor(o.next()*(t.length-2)),[l,f]=t[c],[h,u]=t[c-1],M=Math.atan2(f-u,l-h)+(o.next()<.5?-1:1)*i*(.4+.6*o.next()),d=n*(.4+.6*o.next());s.push(bo(o,l,f,l+Math.cos(M)*d,f+Math.sin(M)*d,{jag:a,depth:3}))}return s}var Yt=950,Ln=[[1,0],[-1,0],[0,1],[0,-1]],Bn=[[1,1],[1,-1],[-1,1],[-1,-1]],_t=["#fff3a6","#ffe26b","#ff8a2a","#f2561d"].map(E),Cn=["#ffffff","#fff3a6","#ffe26b","#ffc23d","#ff8a2a","#f2561d","#c9281f","#8a1f17","#4a1712"].map(E),Ht=["#7b6f72","#5d5660","#433d48","#2b2630","#1a171e"].map(E),Pn=(o,t)=>o[Math.min(o.length-1,Math.max(0,Math.floor(t*o.length)))],O={SPARK:0,MOTE:1,STREAK:2,FLAKE:3,VAPOUR:4,DUST:5,STAR:6,EMBER:7,SMOKE:8,FIRE:9,BRAND:10,GRIT:11},nt={SMOKES:1,BIG:2,BACK:4},Nn=new Set([O.VAPOUR,O.DUST,O.SMOKE]),ho=class{constructor(t={}){var e,n,a,i,s;this.R=(n=t.rng)!=null?n:new dt((e=t.seed)!=null?e:1),this.list=[],this.t=0,this.ground=(a=t.ground)!=null?a:(()=>1/0),this.sparks=((i=t.sparks)!=null?i:_t).map(E),this.haze=t.haze===void 0?null:E(t.haze),this.onLand=(s=t.onLand)!=null?s:null}spawn(t,e,n,a,i,s,r=S,c=1,l=0,f=0){this.list.push({k:t,x:e,y:n,vx:a,vy:i,life:s,max:s,col:r?E(r):0,size:c,seed:this.R.next()*100,delay:l,flag:f})}get count(){return this.list.length}update(t){var a;this.t+=t;let e=this.R,n=this.t;for(let i=this.list.length-1;i>=0;i--){let s=this.list[i];if(s.delay>0){s.delay-=t;continue}if((s.life-=t)<=0){if(s.k===O.FIRE&&s.flag&nt.SMOKES){let r=s.flag&nt.BIG;this.spawn(O.SMOKE,s.x,s.y,s.vx*.6,s.vy*.6-6,r?e.range(1.3,2.3):e.range(.8,1.4),0,s.size*(r?.85:.7),0,r?nt.BIG:0)}this.list.splice(i,1);continue}switch(s.k){case O.FIRE:s.vy-=95*t,s.vx+=Math.sin(n*17+s.seed)*30*t,s.vx-=s.vx*5*t,s.vy-=s.vy*3.2*t;break;case O.GRIT:{s.vy+=Yt*t,s.vx-=s.vx*.8*t;let r=this.ground(s.x),c=s.y+s.vy*t;s.x+=s.vx*t,s.vy>0&&s.y<=r&&c>=r?(s.y=r-.25,s.vy>130&&e.chance(.4)?(s.vy=-s.vy*.25,s.vx=s.vx*.5+e.range(-10,10)):(s.vx=s.vy=0,s.life=Math.min(s.life,.5))):s.y=c;continue}case O.BRAND:{s.vy+=Yt*.8*t,s.vx-=s.vx*.9*t,e.chance(.9*Math.min(1,t*60))&&this.spawn(O.FIRE,s.x,s.y,s.vx*.1+e.range(-7,7),s.vy*.1-10,e.range(.16,.32),0,e.range(.9,1.7)*(.5+s.life/s.max*.6),0,e.chance(.4)?nt.SMOKES:0);let r=this.ground(s.x),c=s.y+s.vy*t;s.x+=s.vx*t,s.vy>0&&s.y<=r&&c>=r?((a=this.onLand)==null||a.call(this,s.x,r),this.list.splice(i,1)):s.y=c;continue}case O.SPARK:{s.vy+=Yt*.45*t,s.vx-=s.vx*2.2*t,s.vy-=s.vy*2.2*t;let r=this.ground(s.x),c=s.y+s.vy*t;s.x+=s.vx*t,s.vy>0&&s.y<=r&&c>=r?(s.vy=-s.vy*.45,s.vx*=.7,s.y=r-.25):s.y=c;continue}case O.STREAK:s.vx+=s.vx*3*t,s.vy+=s.vy*3*t;break;case O.FLAKE:s.vx-=s.vx*2.2*t,s.vy-=s.vy*2.2*t-35*t,s.x+=Math.sin(this.t*2.5+s.seed)*7*t;break;case O.EMBER:s.vy+=(-30+Math.sin(n*3+s.seed)*20)*t,s.vx+=Math.cos(n*2.3+s.seed)*45*t,s.vx-=s.vx*1.6*t,s.vy-=s.vy*1.6*t;break;case O.SMOKE:{let r=s.flag&nt.BIG;s.vy-=(r?23:16)*t,s.vx+=Math.sin(n*1.3+s.seed)*8*t,s.vx-=s.vx*1.6*t,s.vy-=s.vy*1.2*t;break}case O.MOTE:s.vx-=s.vx*.6*t,s.vy-=s.vy*.6*t;break;default:{let r=Nn.has(s.k)?4:1.6;s.vx-=s.vx*r*t,s.vy-=s.vy*r*t+5*t}}s.x+=s.vx*t,s.y+=s.vy*t}}draw(t,e){for(let n of this.list){if(n.delay>0||e&&(Nn.has(n.k)||n.flag&nt.BACK?"back":"front")!==e)continue;let a=n.life/n.max,i=n.x,s=n.y,r=Math.hypot(n.vx,n.vy)||1,c=n.vx/r,l=n.vy/r;switch(n.k){case O.SPARK:{let f=this.sparks,h=a>.6?f[0]:a>.3?f[1]:f[2],u=Math.min(9,1+r*.022);t.line(i-c*u,s-l*u,i-c*u*.4,s-l*u*.4,a>.5?h:f[f.length-1]),t.line(i-c*u*.45,s-l*u*.45,i,s,h),t.glow(i,s,3,h,.45*a);break}case O.MOTE:{let f=Math.min(16,.5+r*.026)*n.size,h=a<.35?a/.35:1;t.line(i-c*f,s-l*f,i-c*f*.35,s-l*f*.35,vt(n.col,.55),h),t.line(i-c*f*.4,s-l*f*.4,i,s,n.col,h),t.glow(i,s,2.5+n.size,n.col,.4*a);break}case O.STREAK:{let f=tt(r/30,1,7);for(let h=f;h>=0;h-=.5)t.dot(i-c*h,s-l*h,h<1?S:h<f*.5?n.col:vt(n.col,.6),h<f*.5?1:1.2-h/f);t.glow(i,s,4,n.col,.4);break}case O.FLAKE:{let f=Math.min(1,a*3);if(t.dot(i,s,n.col,f),n.size>1.3)for(let[h,u]of Ln)t.dot(i+h,s+u,vt(n.col,.8),f*.8);break}case O.VAPOUR:{let f=n.size*(.6+(1-a)*.9);t.disc(i,s,f,n.col,Math.pow(a,1.3)*.45),this.haze&&t.glow(i,s,f*1.8,this.haze,.16*a);break}case O.DUST:t.disc(i,s,n.size*(.6+(1-a)*.9),n.col,Math.pow(a,1.3)*.7);break;case O.SMOKE:{let f=1-a,h=n.flag&nt.BIG,u=n.size*(.65+Math.min(1,f*2.5)*.45+f*(h?.5:.4)),M=Math.min(1,f*12)*Math.min(1,a*2.4)*(h?.7:.58),d=n.col?ot(n.col,Pn(Ht,f),f):Pn(Ht,f*1.05);t.disc(i,s,u,d,M*.45),t.disc(i+u*.05,s+u*.06,u*.74,d,M*.62),f<.5&&t.disc(i-u*.22,s-u*.3,u*.5,ot(d,S,.12),M*.4*(1-f*2));break}case O.FIRE:{let f=1-a,h=Math.min(.999,Math.pow(f,.62)+n.seed%1*.1),u=Cn,M=u.length,d=Math.min(M-2,Math.floor(h*(M-1))),g=n.size*(.55+.45*Math.min(1,f*7))*(1-f*.55),m=u[d];d>=M-2?t.disc(i,s,g,m,Math.min(1,a*3)*.85):(t.circle(i,s,g,u[Math.min(M-1,d+2)]),t.circle(i-g*.16,s-g*.22,g*.78,m),g>1.6&&t.circle(i,s-g*.9,g*.42,m),d<=3&&g>1.8&&t.circle(i-g*.28,s-g*.34,g*.36,u[Math.max(0,d-1)]),d<6&&t.glow(i,s,g*2.4+2,m,.18*a));break}case O.BRAND:t.circle(i,s,1.6,_t[3]),t.px(i,s,Math.sin(this.t*40+n.seed)>0?_t[0]:_t[1]),t.px(i+1,s,_t[1]),t.glow(i,s,7,_t[2],.45);break;case O.GRIT:(a>.25||a*4>.5)&&(t.px(i,s,n.col),n.size>=2&&(t.px(i+1,s,n.col),t.px(i,s+1,vt(n.col,.8)),t.px(i+1,s+1,vt(n.col,.7))));break;case O.EMBER:{let f=a>.6?this.sparks[0]:a>.3?this.sparks[1]:this.sparks[2];if(a<.25&&Math.sin(this.t*40+n.seed)<0)break;t.px(i,s,f),n.size>1.5&&t.px(i,s+1,this.sparks[this.sparks.length-1]),t.glow(i,s,3+n.size,f,.35*a);break}default:{let f=.6+.4*Math.sin(this.t*(8+n.seed%5)+n.seed);if(n.size<1){f*a>.25&&t.px(i,s,f>.8?S:n.col),t.glow(i,s,3,n.col,.4*a*f);break}Tn(t,i,s,n.size*f*Math.min(1,a*3),n.col,vt(n.col,.75),.5*a*f)}}}}};function Tn(o,t,e,n,a,i=a,s=.6){let r=Math.round(n);if(r<1)return;let c=Math.floor(t),l=Math.floor(e);for(let f=1;f<=r;f++){let h=f>r*.6?i:a;for(let[u,M]of Ln)o.px(c+u*f,l+M*f,h)}if(r>=3)for(let[f,h]of Bn)o.px(c+f,l+h,a);if(r>=6)for(let[f,h]of Bn)o.px(c+f*2,l+h*2,i);o.px(c,l,S),o.glow(t,e,4+r*2,a,s)}var ze={A:".#.|#.#|###|#.#|#.#",B:"##.|#.#|##.|#.#|##.",C:".##|#..|#..|#..|.##",D:"##.|#.#|#.#|#.#|##.",E:"###|#..|##.|#..|###",F:"###|#..|##.|#..|#..",G:".##|#..|#.#|#.#|.##",H:"#.#|#.#|###|#.#|#.#",I:"###|.#.|.#.|.#.|###",J:"..#|..#|..#|#.#|.#.",K:"#.#|#.#|##.|#.#|#.#",L:"#..|#..|#..|#..|###",M:"#.#|###|###|#.#|#.#",N:"##.|#.#|#.#|#.#|#.#",O:".#.|#.#|#.#|#.#|.#.",P:"##.|#.#|##.|#..|#..",Q:".#.|#.#|#.#|##.|.##",R:"##.|#.#|##.|#.#|#.#",S:".##|#..|.#.|..#|##.",T:"###|.#.|.#.|.#.|.#.",U:"#.#|#.#|#.#|#.#|###",V:"#.#|#.#|#.#|#.#|.#.",W:"#.#|#.#|###|###|#.#",X:"#.#|#.#|.#.|#.#|#.#",Y:"#.#|#.#|.#.|.#.|.#.",Z:"###|..#|.#.|#..|###",0:"###|#.#|#.#|#.#|###",1:".#.|##.|.#.|.#.|###",2:"##.|..#|.#.|#..|###",3:"##.|..#|.#.|..#|##.",4:"#.#|#.#|###|..#|..#",5:"###|#..|##.|..#|##.",6:".##|#..|###|#.#|###",7:"###|..#|.#.|.#.|.#.",8:"###|#.#|###|#.#|###",9:"###|#.#|###|..#|##.","+":"...|.#.|###|.#.|...","-":"...|...|###|...|...","!":"#|#|#|.|#","?":"##.|..#|.#.|...|.#.",".":".|.|.|.|#",",":"..|..|..|.#|#.",":":".|#|.|#|.","/":"..#|..#|.#.|#..|#..","%":"#.#|..#|.#.|#..|#.#",x:"...|#.#|.#.|#.#|...","*":"#.#|.#.|#.#|...|...","'":"#|#|.|.|.","(":".#|#.|#.|#.|.#",")":"#.|.#|.#|.#|#.","<":"..#|.#.|#..|.#.|..#",">":"#..|.#.|..#|.#.|#..","=":"...|###|...|###|...",_:"...|...|...|...|###","#":"#.#|###|#.#|###|#.#"},Ue={A:".###.|#...#|#...#|#####|#...#|#...#|#...#",B:"####.|#...#|#...#|####.|#...#|#...#|####.",C:".###.|#...#|#....|#....|#....|#...#|.###.",D:"####.|#...#|#...#|#...#|#...#|#...#|####.",E:"#####|#....|#....|####.|#....|#....|#####",F:"#####|#....|#....|####.|#....|#....|#....",G:".###.|#...#|#....|#.###|#...#|#...#|.####",H:"#...#|#...#|#...#|#####|#...#|#...#|#...#",I:"###|.#.|.#.|.#.|.#.|.#.|###",J:"..###|...#.|...#.|...#.|...#.|#..#.|.##..",K:"#...#|#..#.|#.#..|##...|#.#..|#..#.|#...#",L:"#....|#....|#....|#....|#....|#....|#####",M:"#...#|##.##|#.#.#|#.#.#|#...#|#...#|#...#",N:"#...#|#...#|##..#|#.#.#|#..##|#...#|#...#",O:".###.|#...#|#...#|#...#|#...#|#...#|.###.",P:"####.|#...#|#...#|####.|#....|#....|#....",Q:".###.|#...#|#...#|#...#|#.#.#|#..#.|.##.#",R:"####.|#...#|#...#|####.|#.#..|#..#.|#...#",S:".####|#....|#....|.###.|....#|....#|####.",T:"#####|..#..|..#..|..#..|..#..|..#..|..#..",U:"#...#|#...#|#...#|#...#|#...#|#...#|.###.",V:"#...#|#...#|#...#|#...#|#...#|.#.#.|..#..",W:"#...#|#...#|#...#|#.#.#|#.#.#|#.#.#|.#.#.",X:"#...#|#...#|.#.#.|..#..|.#.#.|#...#|#...#",Y:"#...#|#...#|.#.#.|..#..|..#..|..#..|..#..",Z:"#####|....#|...#.|..#..|.#...|#....|#####",0:".###.|#...#|#..##|#.#.#|##..#|#...#|.###.",1:".#.|##.|.#.|.#.|.#.|.#.|###",2:".###.|#...#|....#|...#.|..#..|.#...|#####",3:"#####|...#.|..#..|...#.|....#|#...#|.###.",4:"...#.|..##.|.#.#.|#..#.|#####|...#.|...#.",5:"#####|#....|####.|....#|....#|#...#|.###.",6:"..##.|.#...|#....|####.|#...#|#...#|.###.",7:"#####|....#|...#.|..#..|.#...|.#...|.#...",8:".###.|#...#|#...#|.###.|#...#|#...#|.###.",9:".###.|#...#|#...#|.####|....#|...#.|.##..","!":"#|#|#|#|#|.|#","?":".###.|#...#|....#|...#.|..#..|.....|..#..","+":".....|..#..|..#..|#####|..#..|..#..|.....","-":"....|....|....|####|....|....|....",".":".|.|.|.|.|.|#",",":"..|..|..|..|..|.#|#.",":":".|.|#|.|.|#|.","/":"....#|....#|...#.|..#..|.#...|#....|#....","%":"##...|##..#|...#.|..#..|.#...|#..##|...##",x:".....|.....|#...#|.#.#.|..#..|.#.#.|#...#","*":".....|..#..|#.#.#|.###.|#.#.#|..#..|.....","'":"#|#|.|.|.|.|.","<":"...#|..#.|.#..|#...|.#..|..#.|...#",">":"#...|.#..|..#.|...#|..#.|.#..|#...","=":"....|....|####|....|####|....|....","(":"..#|.#.|#..|#..|#..|.#.|..#",")":"#..|.#.|..#|..#|..#|.#.|#..","#":".#.#.|.#.#.|#####|.#.#.|#####|.#.#.|.#.#."};function jn(o,t){let e={};for(let[n,a]of Object.entries(o)){let i=a.split("|");if(e[n]={w:i[0].length,rows:i.map(s=>[...s].map(r=>r==="#"))},i.length!==t)throw new Error(`glyph ${n} has ${i.length} rows, expected ${t}`)}return e}var lo={mini:{h:5,space:2,gap:1,glyphs:jn(ze,5)},big:{h:7,space:3,gap:1,glyphs:jn(Ue,7)}};function vo(o,t="mini"){var a;let e=lo[t],n=0;for(let i of String(o)){let s=(a=e.glyphs[i])!=null?a:e.glyphs[i.toUpperCase()];n+=(s?s.w:e.space)+e.gap}return Math.max(0,n-e.gap)}function Ao(o,t,e){var i;let n=lo[t],a=0;for(let s of String(o)){let r=(i=n.glyphs[s])!=null?i:n.glyphs[s.toUpperCase()];if(!r){a+=n.space+n.gap;continue}for(let c=0;c<n.h;c++)for(let l=0;l<r.w;l++)r.rows[c][l]&&e(a+l,c);a+=r.w+n.gap}}var Ge=[0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5].map(o=>(o+.5)/16),Xe={c:0,a:1,l:0,k:0},Yn=new WeakMap,K=(o,...t)=>typeof o=="function"?o(...t):o,Jt=class{constructor(t){this.frame=t,this.reset()}reset(){let t=this.frame;return this.w=t.w,this.h=t.h,this.ox=t.ox|0,this.oy=t.oy|0,this.C=t.color,this.L=t.light,this.tx=0,this.ty=0,this.fx=1,this.cs=1,this.sn=0,this.fade=1,this.lightK=1,this.layer="front",this}place(t,e,n=!1,a=0){return this.tx=t,this.ty=e,this.fx=n?-1:1,this.cs=Math.cos(a),this.sn=Math.sin(a),this}toX(t,e){return this.tx+t*this.fx*this.cs-e*this.sn}toY(t,e){return this.ty+t*this.fx*this.sn+e*this.cs}fromX(t,e){let n=t-this.tx,a=e-this.ty;return(n*this.cs+a*this.sn)*this.fx}fromY(t,e){let n=t-this.tx,a=e-this.ty;return-n*this.sn+a*this.cs}cellX(t,e){return Math.floor(this.toX(Math.floor(t)+.5,Math.floor(e)+.5))}cellY(t,e){return Math.floor(this.toY(Math.floor(t)+.5,Math.floor(e)+.5))}put(t,e,n,a=1){if(!n||(a*=this.fade,a<1&&a<=Ge[(e&3)<<2|t&3]))return;let i=t-this.ox,s=e-this.oy;i<0||s<0||i>=this.w||s>=this.h||(this.C[s*this.w+i]=n)}add(t,e,n,a=1){if(a*=this.fade*this.lightK,a<=.004)return;let i=t-this.ox,s=e-this.oy;if(i<0||s<0||i>=this.w||s>=this.h)return;let r=s*this.w+i,c=this.L[r],l=Math.min(255,(c&255)+(n&255)*a)|0,f=Math.min(255,(c>>>8&255)+(n>>>8&255)*a)|0,h=Math.min(255,(c>>>16&255)+(n>>>16&255)*a)|0;this.L[r]=255<<24|h<<16|f<<8|l}blendPx(t,e,n,a){if(a*=this.fade,!n||a<=.004)return;let i=t-this.ox,s=e-this.oy;if(i<0||s<0||i>=this.w||s>=this.h)return;let r=s*this.w+i,c=this.C[r],l=(c>>>24)/255,f=a+l*(1-a),h=a/f,u=M=>(n>>>M&255)*h+(c>>>M&255)*(1-h)&255;this.C[r]=(f*255&255)<<24|u(16)<<16|u(8)<<8|u(0)}blend(t,e,n,a){this.blendPx(this.cellX(t,e),this.cellY(t,e),n,a)}disc(t,e,n,a,i){if(n<.5)return this.blend(t,e,K(a,0,0),K(i,0,0));this.each(t-n,e-n,t+n,e+n,(s,r,c,l)=>{let f=s-t,h=r-e,u=f*f+h*h;if(u>n*n)return;let M=Math.sqrt(u)/n,d=Math.atan2(h,f);this.blendPx(c,l,K(a,M,d),K(i,M,d))})}get(t,e){let n=this.cellX(t,e)-this.ox,a=this.cellY(t,e)-this.oy;return n<0||a<0||n>=this.w||a>=this.h?0:this.C[a*this.w+n]}px(t,e,n){this.put(this.cellX(t,e),this.cellY(t,e),n,1)}dot(t,e,n,a=1){a>0&&this.put(this.cellX(t,e),this.cellY(t,e),n,a)}light(t,e,n,a=1){this.add(this.cellX(t,e),this.cellY(t,e),n,a)}each(t,e,n,a,i){let s=1/0,r=-1/0,c=1/0,l=-1/0;for(let d=0;d<4;d++){let g=d&1?n:t,m=d&2?a:e,x=this.toX(g,m),y=this.toY(g,m);x<s&&(s=x),x>r&&(r=x),y<c&&(c=y),y>l&&(l=y)}let f=Math.max(Math.floor(s),this.ox),h=Math.min(Math.ceil(r),this.ox+this.w-1),u=Math.max(Math.floor(c),this.oy),M=Math.min(Math.ceil(l),this.oy+this.h-1);for(let d=u;d<=M;d++)for(let g=f;g<=h;g++){let m=g+.5,x=d+.5;i(this.fromX(m,x),this.fromY(m,x),g,d)}}shade(t,e,n,a,i){let s=Xe;this.each(t,e,n,a,(r,c,l,f)=>{s.c=0,s.a=1,s.l=0,s.k=0;let h=i(r,c,s)||s.c;h&&this.put(l,f,h,s.a),s.k>0&&this.add(l,f,s.l||h,s.k)})}line(t,e,n,a,i,s=1){let r=this.cellX(t,e),c=this.cellY(t,e),l=this.cellX(n,a),f=this.cellY(n,a),h=Math.abs(l-r),u=-Math.abs(f-c),M=r<l?1:-1,d=c<f?1:-1,g=Math.max(h,-u)||1,m=typeof i=="function",x=typeof s=="function",y=h+u,w=0;for(;;){let D=w++/g;if(this.put(r,c,m?i(D):i,x?s(D):s),r===l&&c===f)break;let v=2*y;v>=u&&(y+=u,r+=M),v<=h&&(y+=h,c+=d)}}polyline(t,e,n=1){for(let a=1;a<t.length;a++)this.line(t[a-1][0],t[a-1][1],t[a][0],t[a][1],e,n)}beam(t,e,n,a,i,s,r=1){let c=i/2,l=n-t,f=a-e,h=l*l+f*f||1e-9;this.shade(Math.min(t,n)-c,Math.min(e,a)-c,Math.max(t,n)+c,Math.max(e,a)+c,(u,M,d)=>{let g=tt(((u-t)*l+(M-e)*f)/h),m=t+l*g-u,x=e+f*g-M,y=m*m+x*x;if(y>c*c)return;let w=Math.sqrt(y)/c;d.c=K(s,g,w),d.a=K(r,g,w)})}circle(t,e,n,a,i=1){if(n<.6)return this.dot(t,e,K(a,0,0),K(i,0,0));this.shade(t-n,e-n,t+n,e+n,(s,r,c)=>{let l=s-t,f=r-e,h=l*l+f*f;if(h>n*n)return;let u=Math.sqrt(h)/n,M=Math.atan2(f,l);c.c=K(a,u,M),c.a=K(i,u,M)})}ellipse(t,e,n,a,i,s=1){n<=0||a<=0||this.shade(t-n,e-a,t+n,e+a,(r,c,l)=>{let f=(r-t)/n,h=(c-e)/a,u=f*f+h*h;if(u>1)return;let M=Math.sqrt(u),d=Math.atan2(h,f);l.c=K(i,M,d),l.a=K(s,M,d)})}ring(t,e,n,a,i,s=1){let r=Math.max(0,n-a);this.shade(t-n,e-n,t+n,e+n,(c,l,f)=>{let h=c-t,u=l-e,M=h*h+u*u;if(M>n*n||M<r*r)return;let d=a>0?(Math.sqrt(M)-r)/(n-r||1):1,g=Math.atan2(u,h);f.c=K(i,d,g),f.a=K(s,d,g)})}arc(t,e,n,a,i,s,r,c=1){let l=s-i,f=typeof a=="function";this.shade(t-n,e-n,t+n,e+n,(h,u,M)=>{let d=h-t,g=u-e,m=Math.sqrt(d*d+g*g);if(m>n)return;let x=Math.atan2(g,d)-i;if(x-=Math.floor(x/(Math.PI*2))*Math.PI*2,x>l)return;let y=x/l,w=f?a(y):a;if(w<=0||m<n-w)return;let D=(m-(n-w))/w;M.c=K(r,y,D),M.a=K(c,y,D)})}rect(t,e,n,a,i,s=1){if(this.sn===0){let r=Math.round(t),c=Math.round(e),l=Math.round(t+n),f=Math.round(e+a);for(let h=c;h<f;h++)for(let u=r;u<l;u++)this.put(this.cellX(u,h),this.cellY(u,h),i,s);return}this.shade(t,e,t+n,e+a,(r,c,l)=>{r<t||c<e||r>=t+n||c>=e+a||(l.c=i,l.a=s)})}poly(t,e,n=1){let a=1/0,i=1/0,s=-1/0,r=-1/0;for(let[l,f]of t)l<a&&(a=l),l>s&&(s=l),f<i&&(i=f),f>r&&(r=f);let c=t.length;this.shade(a,i,s,r,(l,f,h)=>{let u=!1;for(let M=0,d=c-1;M<c;d=M++){let[g,m]=t[M],[x,y]=t[d];m>f!=y>f&&l<(x-g)*(f-m)/(y-m)+g&&(u=!u)}u&&(h.c=K(e,l,f),h.a=K(n,l,f))})}tri(t,e,n,a,i,s,r,c=1){this.poly([[t,e],[n,a],[i,s]],r,c)}glow(t,e,n,a,i=.5){if(n<1||i<=.004)return;let s=this.toX(t,e),r=this.toY(t,e),c=Math.floor(s-n),l=Math.ceil(s+n),f=Math.floor(r-n),h=Math.ceil(r+n);for(let u=f;u<=h;u++){let M=(u+.5-r)/n;for(let d=c;d<=l;d++){let g=(d+.5-s)/n,m=g*g+M*M;if(m>=1)continue;let x=1-Math.sqrt(m);this.add(d,u,a,x*x*i)}}}glowLine(t,e,n,a,i,s,r=.5){if(i<1||r<=.004)return;let c=this.toX(t,e),l=this.toY(t,e),f=this.toX(n,a),h=this.toY(n,a),u=f-c,M=h-l,d=u*u+M*M||1e-9,g=Math.floor(Math.min(c,f)-i),m=Math.ceil(Math.max(c,f)+i),x=Math.floor(Math.min(l,h)-i),y=Math.ceil(Math.max(l,h)+i);for(let w=x;w<=y;w++)for(let D=g;D<=m;D++){let v=D+.5,B=w+.5,N=tt(((v-c)*u+(B-l)*M)/d),L=c+u*N-v,p=l+M*N-B,k=Math.sqrt(L*L+p*p)/i;if(k>=1)continue;let F=1-k;this.add(D,w,s,F*F*r)}}glowRing(t,e,n,a,i,s=.5){if(a<1||s<=.004)return;let r=this.toX(t,e),c=this.toY(t,e),l=n+a;for(let f=Math.floor(c-l);f<=Math.ceil(c+l);f++)for(let h=Math.floor(r-l);h<=Math.ceil(r+l);h++){let u=Math.abs(Math.hypot(h+.5-r,f+.5-c)-n)/a;if(u>=1)continue;let M=1-u;this.add(h,f,i,M*M*s)}}sprite(t,e,n,a,i={}){var h,u,M,d;let s=Yn.get(t);s||Yn.set(t,s=t.map(g=>[...g]));let r=(h=i.scale)!=null?h:1,c=(u=i.a)!=null?u:1,l=(d=(M=s[0])==null?void 0:M.length)!=null?d:0,f={};for(let g=0;g<s.length;g++)for(let m=0;m<s[g].length;m++){let x=s[g][m];if(x==="."||x===" ")continue;let y=i.tint;if(y===void 0&&(y=f[x],y===void 0&&(y=f[x]=e[x]===void 0?0:E(e[x]))),!y)continue;let w=i.flip?l-1-m:m,D=i.flipY?s.length-1-g:g;r===1?this.dot(n+w,a+D,y,c):this.rect(n+w*r,a+D*r,r,r,y,c)}}text(t,e,n,a,i={}){var d,g,m;let s=(d=i.font)!=null?d:"mini",r=(g=i.scale)!=null?g:1,c=(m=i.a)!=null?m:1,l=vo(t,s)*r,f=Math.round(i.align==="center"?e-l/2:i.align==="right"?e-l:e),h=Math.round(n),u=i.outline,M=i.shadow;u!==void 0&&Ao(t,s,(x,y)=>this.rect(f+x*r-1,h+y*r-1,r+2,r+2,u,c)),M!==void 0&&Ao(t,s,(x,y)=>this.rect(f+x*r+1,h+y*r+1,r,r,M,c)),Ao(t,s,(x,y)=>this.rect(f+x*r,h+y*r,r,r,K(a,x,y),c))}measure(t,e={}){var a,i,s;let n=(a=e.scale)!=null?a:1;return[vo(t,(i=e.font)!=null?i:"mini")*n,lo[(s=e.font)!=null?s:"mini"].h*n]}mask(t,e,n,a,i=1){for(let s=0;s<t.h;s++)for(let r=0;r<t.w;r++)t.data[s*t.w+r]&&this.dot(e+r,n+s,K(a,r,s),K(i,r,s))}outline(t,e,n,a,i=1){let s=(r,c)=>r>=0&&c>=0&&r<t.w&&c<t.h&&t.data[c*t.w+r];for(let r=-1;r<=t.h;r++)for(let c=-1;c<=t.w;c++)!s(c,r)&&(s(c-1,r)||s(c+1,r)||s(c,r-1)||s(c,r+1))&&this.dot(e+c,n+r,K(a,c,r),K(i,c,r))}};var Ko=["....kkkkk...","..kkhhhhhk..",".khhhhhhhhk.",".khhhhhhhhhk",".khhssssshhk",".khsessesshk",".khsessesshk","..ksssssssk.","...kkSSSkk..","..kttttttk..",".kttTttTttk.",".ksttTTttsk.",".kstttttttk.","..kbbbbbbk..","..kppkkppk..","..kppk.kppk.","..kppk.kppk.","..koook.kook","..kkkkk.kkkk"],zn={k:"#17121f",h:"#7a4128",s:"#f3c49d",S:"#c98b6c",e:"#17121f",t:"#5f6f94",T:"#46536f",b:"#8a5a32",p:"#38334a",o:"#6a4030",H:"#a35d34",w:"#ffffff",m:"#a3564a",g:"#e8c060",L:"#7f90b6",O:"#8f5a3f",P:"#4b4560",c:"#f53cd1",C:"#ff8fe6",D:"#a31f8a"},Wt={k:"#0e0c14",A:"#e4e6ec",B:"#b6b9c3",C:"#868995",D:"#5c5e6a",E:"#6e707c",F:"#4b4d58",G:"#34353f",J:"#2a2b33",m:"#f53cd1"},uo=["...........kkk..........","..........kAABk.........",".........kAAABJk........",".........kABBJJk........",".........kBBBJCDk.......",".........kBCJDDDk.......",".........kkJJJDk........",".......kkkkABBJCkk......","......kAABCJBCCCkDk.....","......kABBCJCCCmDkDk....","......kBBCDDJCDDDkDk....","......kABCDJDDDDDkk.....",".....kAABDkDDDDJkk......",".....kABCDkDDJJGkk......",".....kABCkJJJGGGkk......","....kJJCDkFFFGGGk.......","....kAJJDkJJJGGGk.......","....kJCJJkABBJGGk.......",".....kJCCkBBCDJJJk......",".....kCCCJBBCDJJDk......",".....kCCCDJCCDkJDDk.....","......kCDDJBCDkDDDk.....",".......kDJJJCDkDDDkk....",".......kJBCJCDkDDDkk....",".......kBDJBCDkCDDkk....","........kJJBCDkCDDk.....","........kBBBCDkCCDDk....","........kBBBCDkCCDDk....",".........kBBCDkJDDDk....","........kBJJJJkCJJJk....","........kBBCCDkCCDDk....","........kBBCDDkCDDk.....","........kBBCDkCCDDk.....","........kBCCDkCCDDk.....","........kBCDDkCDDDk.....",".......kJBCJkkkDJkkkk...",".......kAJJAAAAkCCCCCk..","........kkkkkkkkkkkkk..."];function Jn(o,t=1){let e=o.length*t,n=o[0].length*t,a=new Uint8Array(n*e);return o.forEach((i,s)=>[...i].forEach((r,c)=>{if(r!==".")for(let l=0;l<t*t;l++)a[(s*t+(l/t|0))*n+c*t+l%t]=1})),{w:n,h:e,data:a}}var _e={1:Jn(Ko,1),2:Jn(uo,1)};function Kn(o,t){let e=o[0].length,n=new Uint32Array(e*o.length);return o.forEach((a,i)=>[...a].forEach((s,r)=>n[i*e+r]=s==="."?0:E(t[s]))),n}var He={1:Kn(Ko,zn),2:Kn(uo,Wt)};function Do(o=1){o=o===2?2:1;let t=_e[o],e=-Math.floor(t.w/2),n=-t.h;return{mask:t,pixels:He[o],x:e,y:n,w:t.w,h:t.h,k:o,head:[0,n],chest:[0,o===2?-26:n+11],...o===2?{eyes:[[13,3],[15,3]]}:{}}}function Vt(o,t,e=0,n=0){return{w:o,h:t,ox:e,oy:n,color:new Uint32Array(o*t),light:new Uint32Array(o*t)}}function Fo(o){return o.color.fill(0),o.light.fill(0),o}var Un=new WeakMap;function zo(o){let t=Un.get(o);return t||Un.set(o,t=new Jt(o)),t.reset()}var Gn=.3,Xn=o=>Array.isArray(o)&&o.length>0&&o.every(t=>typeof t=="number"||/^#[0-9a-f]{3,8}$/i.test(t));function _n(o,t={}){var n,a;let e={...(n=o.options)!=null?n:{},...t};for(let[i,s]of Object.entries((a=o.options)!=null?a:{}))Xn(s)&&Xn(t[i])&&t[i].length!==s.length&&(e[i]=X(t[i],s.length).map(Rn));return o.actor&&!e.actor&&(e.actor=Do(o.actor===2?2:1)),e}function Mo(o,t={}){var c,l;let e=(c=o.meta)!=null?c:{},n=_n(e,t),a=o.create?o.create(n):o,i=(l=e.duration)!=null?l:1,s=0,r=1/0;return{meta:e,options:n,get t(){return s},update(f){if(s+=f,!a.update)return;let h=Math.max(1,Math.ceil(f*120-1e-9));for(let u=0;u<h;u++)a.update(f/h,n)},draw(f,h){var d,g,m,x;let u=zo(f);u.place((d=n.x)!=null?d:0,(g=n.y)!=null?g:0,!!n.flip,(m=n.angle)!=null?m:0),u.fade=r===1/0?1:tt(1-(s-r)/Gn),u.lightK=(x=n.light)!=null?x:1;let M=e.loop?s%i:Math.min(s,i);h!=="front"&&a.drawBack&&(u.layer="back",a.drawBack(u,M,n)),h!=="back"&&(u.layer="front",a.draw(u,M,n))},stop(){r===1/0&&(r=s)},done(){return s-r>=Gn||!e.loop&&s>=i}}}function Uo(o,t,e=null,n=1){let a=o.w*o.h,i=o.color,s=o.light,r=typeof e=="number";for(let c=0;c<a;c++){let l=i[c],f=s[c]&16777215,h,u,M,d,g=l>>>24;if(g===255)h=l&255,u=l>>>8&255,M=l>>>16&255,d=255;else if(e===null)h=l&255,u=l>>>8&255,M=l>>>16&255,d=g;else{let x=r?e:e[c],y=g/255;h=(l&255)*y+(x&255)*(1-y),u=(l>>>8&255)*y+(x>>>8&255)*(1-y),M=(l>>>16&255)*y+(x>>>16&255)*(1-y),d=255}if(f){let x=(f&255)*n,y=(f>>>8&255)*n,w=(f>>>16&255)*n;if(d<255){let D=d/255,v=h*D+x,B=u*D+y,N=M*D+w,L=Math.min(1,Math.max(D,Math.max(x,y,w)/255));L>0&&(h=Math.min(255,v/L),u=Math.min(255,B/L),M=Math.min(255,N/L),d=L*255)}else h=Math.min(255,h+x),u=Math.min(255,u+y),M=Math.min(255,M+w)}let m=c*4;t[m]=h,t[m+1]=u,t[m+2]=M,t[m+3]=d}return t}var D0=E("#15131d"),F0=E("#0d0b14"),E0=E("#221d33"),R0=E("#4a4263"),I0=E("#2b2639"),S0=E("#211d2d"),O0=E("#1a1724");var xt=Object.fromEntries(Object.entries(Wt).map(([o,t])=>[o,E(t)>>>0])),L0=xt.k,C0=xt.J,T0=xt.m,j0=[xt.A,xt.B,xt.C,xt.D],Y0=[xt.E,xt.F,xt.G,xt.G],gt=Math.PI/180;var ht=(o,t)=>[o[0]+t[0],o[1]+t[1],o[2]+t[2]],At=(o,t)=>[o[0]-t[0],o[1]-t[1],o[2]-t[2]],mt=(o,t)=>[o[0]*t,o[1]*t,o[2]*t],Ro=(o,t)=>o[0]*t[0]+o[1]*t[1]+o[2]*t[2],mo=(o,t)=>[o[1]*t[2]-o[2]*t[1],o[2]*t[0]-o[0]*t[2],o[0]*t[1]-o[1]*t[0]],to=o=>Math.hypot(o[0],o[1],o[2]),lt=o=>mt(o,1/(to(o)||1e-6)),Qt=o=>{let t=Math.cos(o),e=Math.sin(o);return[t,0,e,0,1,0,-e,0,t]},Zt=o=>{let t=Math.cos(o),e=Math.sin(o);return[t,-e,0,e,t,0,0,0,1]},$t=(o,t)=>{let e=new Array(9);for(let n=0;n<3;n++)for(let a=0;a<3;a++)e[n*3+a]=o[n*3]*t[a]+o[n*3+1]*t[3+a]+o[n*3+2]*t[6+a];return e},xo=(o,t)=>[o[0]*t[0]+o[1]*t[1]+o[2]*t[2],o[3]*t[0]+o[4]*t[1]+o[5]*t[2],o[6]*t[0]+o[7]*t[1]+o[8]*t[2]];var We=o=>Math.max(0,Math.min(1,o)),Y={pelvis:19.7,spine1:2.8,spine2:4.6,shoulderUp:2.5,shoulderOut:5.9,neckUp:4,headUp:3.1,hipDown:1.1,hipOut:2.8,thigh:8.6,shin:8.3,upper:7.6,fore:7.4,turn:36*gt},go={lean:0,crouch:0,yaw:0,fx:-3,fy:-15,bx:5,by:-15,ffx:-2,ffy:-4,fbx:3,fby:-4};function po(o,t,e,n,a){let i=At(t,o),s=to(i),r=e+n-.02;s>r&&(i=mt(i,r/s),s=r);let c=lt(i),l=(e*e-n*n+s*s)/(2*s),f=Math.sqrt(Math.max(0,e*e-l*l)),h=At(a,mt(c,Ro(a,c)));return h=to(h)<1e-4?lt(mo(c,[0,0,1])):lt(h),{joint:ht(o,ht(mt(c,l),mt(h,f))),end:ht(o,i),u:c,v:h}}function Ot(o,t){return{t:o,R:t}}function St(o,t,e){let n=lt(At(t,o)),a=At(e,mt(n,Ro(e,n)));a=to(a)<1e-4?lt(mo(n,[0,0,1])):lt(a);let i=mo(n,a);return Ot(o,[n[0],a[0],i[0],n[1],a[1],i[1],n[2],a[2],i[2]])}var Hn=o=>rs[o];function Ve(o){var ct,Gt,so,Tt,ln,un,Mn,dn,xn,pn,gn,mn;let t={...go,...o},e=t.lean,n=t.weapon&&Hn(t.weapon),a=t.offWeapon&&Hn(t.offWeapon),i=(ct=t.sa)!=null?ct:0,s=(Gt=t.wl)!=null?Gt:1,r=Math.sqrt(Math.max(0,1-s*s))*((so=t.wz)!=null?so:1),c=[Math.cos(i)*s,-Math.sin(i)*s,r],l=[-Math.sin(i),-Math.cos(i),0],f=!!(t.two&&n),h=(Tt=t.fz)!=null?Tt:f?3:4.5,u=(t.fx-go.fx)/24,M=f?0:(t.bx-go.bx)/22,d=Y.turn+(u>=0?-44*gt*Math.min(1,u):28*gt*Math.min(1,-u*1.8));d+=(M>0?34*gt*Math.min(1,M):0)+((ln=t.twist)!=null?ln:0)*4*gt,t.turn!==void 0&&(d=t.turn);let g=Y.turn+(d-Y.turn)*.45,m=Math.atan2(e,13),x=$t(Zt(-m*.25),Qt(-g)),y=$t(Zt(-m),Qt(-d)),w=[t.ffx,-t.ffy-1.8,(un=t.fzz)!=null?un:2.4],D=[t.fbx,-t.fby-1.8,(Mn=t.bzz)!=null?Mn:-2.4],v=[e*.2,Y.pelvis-t.crouch,0],B=ut=>ht(v,xo(x,[0,-Y.hipDown,ut*Y.hipOut])),N=(Y.thigh+Y.shin)*.995;for(let[ut,ft]of[[1,w],[-1,D]]){let Mt=B(ut),Et=Mt[0]-ft[0],Rt=Mt[2]-ft[2],Xt=Et*Et+Rt*Rt;if(Xt<N*N){let ao=ft[1]+Math.sqrt(N*N-Xt);Mt[1]>ao&&(v=[v[0],v[1]-(Mt[1]-ao),v[2]])}}let L=ht(v,[Math.sin(m*.45)*Y.spine1,Math.cos(m*.45)*Y.spine1,0]),p=ht(L,[Math.sin(m)*Y.spine2,Math.cos(m)*Y.spine2,0]),k=ht(p,xo(y,[0,Y.neckUp,0])),F=Y.turn*.9+(d-Y.turn)*.35,I=m*.35+((dn=t.hy)!=null?dn:0)*7*gt,C=((xn=t.hx)!=null?xn:0)*7*gt,z=$t(Zt(-I-C),Qt(-F)),q=ht(k,xo(z,[.15,Y.headUp,0])),_=(ut,ft)=>{let Mt=ht(p,xo(y,[0,Y.shoulderUp,ut*Y.shoulderOut])),Et=At(ft,Mt),Rt=to(Et);return ht(Mt,mt(lt(Et),Math.min(1.8,Math.max(0,Rt-11)*.35)))},T=[t.fx,-t.fy,h],J=f?[t.fx+c[0]*n.two,-t.fy+c[1]*n.two,h+c[2]*n.two]:[t.bx,-t.by,(pn=t.bz)!=null?pn:t.armsFront?5.5:-4.5],Z=_(1,T),H=_(-1,J),it=(ut,ft,Mt,Et)=>{let Rt=We((ft[1]-Mt[1]+2)/10),Xt=[-.55+Rt*1.1,-1+Rt*.9,ut*(.45+Rt*.5)];if(!Et)return Xt;let ao=lt(At(ft,Mt)),yn=Xt,kn=1/0;for(let To=0;To<16;To++){let wn=To/16*Math.PI*2,bn=lt(mo(ao,[.3,1,.2])),Pe=mo(ao,bn),jo=ht(mt(bn,Math.cos(wn)),mt(Pe,Math.sin(wn))),vn=po(Mt,ft,Y.upper,Y.fore,jo),Ne=lt(At(vn.end,vn.joint)),An=Math.abs(Ro(Ne,Et))*.7+(1-Ro(lt(Xt),jo))*.55;An<kn&&(kn=An,yn=jo)}return yn},W=n?n.across?l:c:null,V=f?n.across?l:c:a?[Math.cos((gn=t.sb)!=null?gn:Math.PI),-Math.sin((mn=t.sb)!=null?mn:Math.PI),0]:null,j=po(Z,T,Y.upper,Y.fore,it(1,T,Z,W)),U=po(H,J,Y.upper,Y.fore,it(-1,J,H,V)),et=ut=>xo(x,[1,0,ut*.35]),G=B(1),st=B(-1),Q=po(G,w,Y.thigh,Y.shin,et(1)),pt=po(st,D,Y.thigh,Y.shin,et(-1)),rt=ut=>{let ft=g*.6+ut*8*gt;return[Math.cos(ft),0,Math.sin(ft)]},Ct={pelvis:Ot(v,x),waist:Ot(L,$t(Zt(-m*.6),Qt(-(d+g)/2))),chest:Ot(p,y),head:Ot(q,z),neck:Ot(k,z),upperN:St(Z,j.joint,j.v),foreN:St(j.joint,j.end,j.v),upperF:St(H,U.joint,U.v),foreF:St(U.joint,U.end,U.v),thighN:St(G,Q.joint,Q.v),shinN:St(Q.joint,Q.end,Q.v),thighF:St(st,pt.joint,pt.v),shinF:St(pt.joint,pt.end,pt.v)};return Ct.footN=Ot(Q.end,$t(Qt(-Math.atan2(rt(1)[2],rt(1)[0])),Zt(t.toeF?-55*gt:0))),Ct.footF=Ot(pt.end,$t(Qt(-Math.atan2(rt(-1)[2],rt(-1)[0])),Zt(t.toeB?-55*gt:0))),{B:Ct,W:n,OW:a,q:t,axis:c,side:l,armN:j,armF:U,legN:Q,legF:pt,sN:Z,sF:H,hipN:G,hipF:st,turn:d}}var Dt=300,Bt=240,Qe=150,Ze=180,Wn=new Float32Array(Dt*Bt),$e=new Float32Array(Dt*Bt),Vn=new Int8Array(Dt*Bt),qe=new Int8Array(Dt*Bt),ts=new Int8Array(Dt*Bt),os=new Float32Array(Dt*Bt),ns=new Float32Array(Dt*Bt),es=new Uint32Array(Dt*Bt),ss=[],J0=lt([-.55,.72,.5]);var Zn=0;var Qn=0;function as(o,t,e,n,a,i,s,r){if(!(Qn&&n!==Qn)){if(Vn[o]===0)ss.push(o);else if(t<=Wn[o])return;Wn[o]=t,$e[o]=e,Vn[o]=n,qe[o]=a,ts[o]=Zn,os[o]=i,ns[o]=s,es[o]=r}}var is={pelvis:1,waist:2,chest:3,neck:4,head:5,face:6,upperN:7,elbowN:8,foreN:9,handN:10,upperF:11,elbowF:12,foreF:13,handF:14,thighN:15,kneeN:16,shinN:17,footN:18,thighF:19,kneeF:20,shinF:21,footF:22,weapon:23,offWeapon:24};var A=Object.fromEntries(Object.entries({hi:"#ffffff",a:"#e8edf6",b:"#a4afc6",d:"#68748f",gold:"#ffd84a",goldD:"#b8862a",grip:"#7a3a2a",gripD:"#4a2018",wood:"#8a5a32",woodD:"#5a3820",dark:"#3a3448",darkD:"#262033",olive:"#58663f",oliveA:"#7d8c58",oliveD:"#3a4529"}).map(([o,t])=>[o,E(t)>>>0]));function Eo(o,t,e,n){for(let a=t;a<=t+e+.01;a+=.4){let i=a-t,s=i>e-5?Math.max(0,(e-i)/5*n):n;for(let r=-s;r<=s+.01;r+=.4)o(a,r,r<-n*.4?A.hi:r>n*.4?A.d:A.a)}}var qt=(o,t,e,n,a,i=.8)=>{for(let s=t;s<=e;s+=.4)for(let r=-i;r<=i+.01;r+=.4)o(s,r,r>.1?a:n)},rs={sword:{two:-4.4,draw(o,t){let e=t.two?-6.5:-2.6;qt(o,e,2.2,A.grip,A.gripD);for(let n=-1.4;n<=1.4;n+=.4)o(e-.4,n,A.gold);for(let n=-4.6;n<=4.6;n+=.4)o(2.6,n,Math.abs(n)>3.8?A.goldD:A.gold),o(3,n,A.goldD);Eo(o,3.2,25,2.2)}},greatsword:{two:-4.8,draw(o){qt(o,-7.2,2.2,A.grip,A.gripD);for(let t=-1.8;t<=1.8;t+=.4)o(-7.6,t,A.gold);for(let t=-6.6;t<=6.6;t+=.4)o(2.6,t,Math.abs(t)>5.6?A.goldD:A.gold),o(3,t,A.goldD);Eo(o,3.2,31,3);for(let t=4;t<=28;t+=.4)o(t,0,A.b)}},dagger:{draw(o){qt(o,-2.4,1.8,A.grip,A.gripD);for(let t=-2.6;t<=2.6;t+=.4)o(2.2,t,A.goldD);Eo(o,2.6,10,1.3)}},spear:{two:-12,draw(o){qt(o,-18,36,A.wood,A.woodD,.5),Eo(o,36,11,2);for(let t=-2.4;t<=2.4;t+=.4)o(36,t,A.goldD)}},hammer:{two:-7,draw(o){for(let t of[-.8,0,.8])for(let e=-10;e<=18;e+=.4)for(let n=-.8;n<=.81;n+=.4)o(e,n,n>.1?A.woodD:A.wood,t);for(let t=18;t<=28;t+=.4)for(let e=-9;e<=9;e+=.4){let n=Math.abs(e)>7.4?e<0?A.a:A.d:t<20?A.hi:t>26.4?A.d:Math.abs(e)<2?A.gold:A.b;if(o(t,e,n,4.5),o(t,e,n,-4.5),t<18.4||t>27.6||Math.abs(e)>8.6)for(let a=-4;a<=4;a+=.4)o(t,e,e<0?A.a:t>27.6?A.d:A.b,a)}}},scythe:{two:-11,draw(o){qt(o,-16,31,A.dark,A.darkD,.5);for(let t=0;t<=28;t+=.4){let e=t/28,n=3.2*(1-e)+.3,a=31.5-e*e*12;for(let i=-n;i<=n;i+=.4)o(a+i,t+.8,i>n*.3?A.hi:i<-n*.4?A.d:A.b)}}},claw:{draw(o){for(let t of[-2.4,0,2.4])for(let e=2;e<=9.5;e+=.4){let n=(e-2)/7.5,a=t+n*n*1.8;o(e,a,n>.55?A.hi:A.a),n<.6&&o(e,a+.8,A.d)}}},bow:{across:!0,draw(o,t,e){for(let r=-1;r<=1.001;r+=.025){let c=r*17,l=6*(1-r*r)-1;o(l,c,Math.abs(r)>.85?A.goldD:A.wood),o(l+.8,c,A.woodD)}let n=o.at(-1,-17),a=o.at(-1,17),i=t.pull?e:o.at(-1,0),s=(r,c,l)=>{let f=Math.max(2,Math.ceil(to(At(c,r))/.4)),h=A.a;for(let u=0;u<=f;u++){let M=ht(r,mt(At(c,r),u/f)),d=Math.round(M[0]),g=Math.round(M[1]),m=(Ze-g)*Dt+(Qe+d);Zn=-1,as(m,M[2]+.05,2,is.weapon,2,d,g,l!=null?l:h)}};if(s(n,i),s(a,i),t.nocked){let r=i,c=o.at(13,0);s(r,c,A.wood);for(let l=9;l<=13;l+=.4)for(let f=-(13-l)*.45;f<=(13-l)*.45;f+=.4)o(l,f,A.hi)}}},pistol:{across:!0,draw(o){for(let t=-1;t<=9.5;t+=.4)for(let e=-4.2;e<=-2.4;e+=.4)o(t,e,e<-3.6?A.a:e>-2.9?A.d:A.b);for(let t=-1.2;t<=1.2;t+=.4)for(let e=-2.4;e<=2.4;e+=.4)o(t,e,A.gripD);o(9,-4.6,A.hi)}},launcher:{two:-9,draw(o){for(let t=-14;t<=22;t+=.4)for(let e=-6;e<=-1;e+=.4)o(t,e,e<-4.8?A.oliveA:e>-2.2?A.oliveD:Math.abs(t-3)<1.4?A.gold:A.olive);for(let t=-6.8;t<=-.2;t+=.4)o(22.4,t,A.b),o(-14.4,t,A.d)}},handle:{draw(o){qt(o,-2.6,6,A.grip,A.gripD);for(let t=-1.6;t<=1.6;t+=.4)o(-3,t,A.gold),o(6.4,t,A.gold)}}};var cs=null;cs=Ve({}).B;var Go=38,$n=52,b=Object.fromEntries(Object.entries({ink:"#0b0a1a",wood:"#724c2e",woodL:"#a0703a",woodD:"#4e331f",straw:"#d2aa55",strawL:"#f0d98a",burlapD:"#86643a",burlap:"#b38b57",burlapL:"#c9a26c",red:"#9a2f3c",redL:"#c4434f",white:"#ffffff"}).map(([o,t])=>[o,E(t)])),H0=["#efe7dc","#c9bfb8","#8f8693","#5a5468"].map(E),us=new Uint32Array(Go*$n);(function(){let t=(a,i,s)=>{a>=0&&i>=0&&a<Go&&i<$n&&(us[i*Go+a]=s)},e=(a,i,s,r,c)=>{for(let l=0;l<r;l++)for(let f=0;f<s;f++)t(a+f,i+l,c)};e(15,38,8,14,b.ink),e(16,34,6,18,b.wood),e(16,34,2,18,b.woodL),e(20,34,2,18,b.woodD),e(1,18,36,1,b.ink),e(1,23,36,1,b.ink),e(1,19,36,4,b.wood),e(1,19,36,1,b.woodL),e(1,22,36,1,b.woodD);for(let[a,i]of[[0,-1],[33,1]]){e(a,17,5,8,b.straw);for(let[s,r,c]of[[2,16,b.straw],[3,15,b.strawL],[1,17,b.strawL],[2,25,b.straw],[1,26,b.strawL],[3,25,b.burlapD],[2,19,b.strawL],[3,21,b.strawL],[1,22,b.burlapD],[2,23,b.strawL]])t(a+s,r,c);t(i<0?a-1:a+5,19,b.straw),t(i<0?a-1:a+5,22,b.strawL)}let n=(a,i,s,r)=>{e(a+1,i,s-2,1,b.ink),e(a+1,i+r-1,s-2,1,b.ink),e(a,i+1,1,r-2,b.ink),e(a+s-1,i+1,1,r-2,b.ink),e(a+1,i+1,s-2,r-2,b.burlap),e(a+s-4,i+1,3,r-2,b.burlapD),e(a+1,i+r-3,s-2,2,b.burlapD),e(a+1,i+1,1,r-4,b.burlapL),e(a+1,i+1,s-6,1,b.burlapL);for(let c=i+2;c<i+r-2;c+=3)for(let l=a+3+c%2;l<a+s-4;l+=4)t(l,c,b.burlapD)};n(9,17,20,24);for(let a=19;a<36;a++)for(let i=11;i<27;i++){let s=Math.hypot(i-18.5,a-27);(s>4&&s<5.4||s<1.9)&&t(i,a,i+a<45?b.redL:b.red)}for(let a=10;a<28;a++)t(a,36,a&1?b.woodL:b.straw),t(a,37,a&1?b.woodD:b.wood);for(let[a,i,s]of[[11,41,b.straw],[12,42,b.strawL],[14,41,b.strawL],[15,42,b.straw],[23,41,b.straw],[24,42,b.strawL],[26,41,b.straw],[13,43,b.straw],[25,43,b.straw]])t(a,i,s);n(10,1,18,16);for(let a of[14,23])for(let i=-2;i<=2;i++)t(a+i,7+i,b.ink),t(a-i,7+i,b.ink);for(let a=14;a<24;a++)t(a,12,a&1?b.ink:b.burlapD);for(let a of[15,18,21])t(a,11,b.ink),t(a,13,b.ink);for(let a=12;a<26;a++)t(a,16,a&1?b.woodL:b.straw),t(a,17,a&1?b.wood:b.woodD);for(let[a,i,s]of[[13,0,b.straw],[15,0,b.strawL],[18,0,b.straw],[21,0,b.strawL],[24,0,b.straw],[9,4,b.straw],[28,6,b.straw],[8,7,b.strawL],[29,3,b.strawL]])t(a,i,s)})();var Ms={flash:[b.white,1],char:[E("#1a0c0e"),.72],ice:[E("#a8e8ff"),.72],shadow:[E("#3a1a70"),.5],holy:[E("#fff4c0"),.5],red:[E("#ff2040"),.45],shock:[E("#8fd6ff"),.6],poison:[E("#58c43a"),.5]},W0=[b.strawL,b.straw,b.straw,b.burlapD,b.burlapD];var qn=new Uint8Array(912),ds=new Uint32Array(912);uo.forEach((o,t)=>[...o].forEach((e,n)=>{e!=="."&&(qn[t*24+n]=1,ds[t*24+n]=E(Wt[e]))}));var xs=new Int16Array(912).fill(-1);for(let o=0;o<38;o++)for(let t=0;t<24;t++){let e=-1,n=1e9;for(let a=Math.max(0,o-7);a<Math.min(38,o+8);a++)for(let i=Math.max(0,t-7);i<Math.min(24,t+8);i++){let s=(i-t)*(i-t)+(a-o)*(a-o);qn[a*24+i]&&s<n&&(n=s,e=a*24+i)}xs[o*24+t]=e}var Ho={};jt(Ho,{draw:()=>ks,drawBack:()=>ys,meta:()=>_o});var Pt=class{constructor(t=64,e=64){this.f=Vt(t,e),this.q=new Jt(this.f),this.tmp=new Uint32Array(t*e)}begin(t,e){let n=this.f;return n.ox=Math.floor(t),n.oy=Math.floor(e),n.color.fill(0),n.light.fill(0),this.q.reset().place(0,0)}idx(t,e){let n=this.f,a=Math.floor(t)-n.ox,i=Math.floor(e)-n.oy;return a<0||i<0||a>=n.w||i>=n.h?-1:i*n.w+a}get(t,e){let n=this.idx(t,e);return n<0?0:this.f.color[n]}set(t,e,n){let a=this.idx(t,e);a>=0&&(this.f.color[a]=n)}fill(t,e,n,a,i){for(let s=Math.floor(e);s<=a;s++)for(let r=Math.floor(t);r<=n;r++){let c=i(r+.5,s+.5);c&&this.set(r,s,c)}}outline(t,e=!1){let n=this.f,a=n.color,i=this.tmp,s=n.w,r=n.h;i.fill(0);for(let c=0;c<r;c++)for(let l=0;l<s;l++){let f=c*s+l;if(a[f])continue;let h=l>0&&a[f-1]||l<s-1&&a[f+1]||c>0&&a[f-s]||c<r-1&&a[f+s];!h&&e&&(h=l>0&&c>0&&a[f-s-1]||l<s-1&&c>0&&a[f-s+1]||l>0&&c<r-1&&a[f+s-1]||l<s-1&&c<r-1&&a[f+s+1]),h&&(i[f]=typeof t=="function"?t(l+n.ox,c+n.oy,h):t)}for(let c=0;c<s*r;c++)i[c]&&(a[c]=i[c]);return this}map(t){let e=this.f,n=e.color;for(let a=0;a<n.length;a++)n[a]&&(n[a]=t(a%e.w+e.ox,Math.floor(a/e.w)+e.oy,n[a])||n[a]);return this}draw(t,e=0,n=0,a=1,i=null){let s=this.f,r=s.color;for(let c=0;c<r.length;c++){if(!r[c])continue;let l=c%s.w+s.ox+e;i&&(l<i[0]||l>=i[1])||t.dot(l,Math.floor(c/s.w)+s.oy+n,r[c],a)}return this}},Ta=E("#100e17");var te=E("#0b0814");function oo(o,t,e,n=1,a=0){if(!(e<.8||n<=0))for(let i=Math.floor(t-e);i<=Math.ceil(t+e);i++){let s=Math.abs(i+.5-t)/e;if(s>1)continue;let r=n*(1-s*s);o.dot(i,a,te,r*1.1),s<.6&&o.dot(i,a+1,te,r*.6)}}function yt(o,t,e,n,a,i=.4,s=vt(a,.8)){let r=Math.round(n),c=Math.floor(t),l=Math.floor(e);if(!(r<0)){for(let f=1;f<=r;f++){let h=f===r&&r>1?s:a;o.px(c+f,l,h),o.px(c-f,l,h),o.px(c,l+f,h),o.px(c,l-f,h)}o.px(c,l,r>0?S:a),o.glow(c+.5,l+.5,3+r*2.5,a,i)}}function oe({r:o=7.5,crown:t=3.6,table:e=.52,pavilion:n=8,girdle:a=.8,n:i=8}={}){let s=[{n:[0,1,0],d:t+a/2,kind:0}],r=Math.atan2(t,o*(1-e)),c=Math.atan2(n,o);for(let l=0;l<i*2;l++){let f=l*Math.PI/i,h=l%2,u=h?Math.min(1.45,r+.22):r,M=h?c-.1:c;s.push({n:[Math.sin(u)*Math.cos(f),Math.cos(u),Math.sin(u)*Math.sin(f)],d:o*Math.sin(u)*(h?1.012:1)+a/2*Math.cos(u),kind:h?2:1}),s.push({n:[Math.cos(f),0,Math.sin(f)],d:o*1,kind:3}),s.push({n:[Math.sin(M)*Math.cos(f),-Math.cos(M),Math.sin(M)*Math.sin(f)],d:o*Math.sin(M)*(h?1.03:1)+a/2*Math.cos(M),kind:h?5:4})}return{planes:s,r:o,top:t+a/2,bottom:n+a/2}}function ne(o,t,e,n,a,i,s,{tilt:r=.32,white:c=!1,a:l=1,edges:f=!0,gain:h=1}={}){let u=Math.cos(i),M=Math.sin(i),d=Math.cos(r),g=Math.sin(r),m=e.planes.map(T=>({n:[T.n[0]*u-T.n[2]*M,T.n[1],T.n[0]*M+T.n[2]*u],d:T.d,kind:T.kind})),x=-.55,y=.72,w=.42,D=[0,-g,-d],v=[0,g,d],B=Math.hypot(x+v[0],y+v[1],w+v[2]),N=[(x+v[0])/B,(y+v[1])/B,(w+v[2])/B],L=Math.round(n),p=Math.round(a),k=Math.ceil(e.r)+2,F=Math.ceil(e.top+2),I=Math.ceil(e.bottom+2),C=-1,z=L,q=p,_=new Map;if(o.begin(L-k,p-F),o.fill(L-k,p-F,L+k,p+I,(T,J)=>{let Z=T-L,H=-(J-p),it=[Z,H*d,-H*g],W=-1e9,V=1e9,j=null;for(let ct of m){let Gt=ct.n[0]*D[0]+ct.n[1]*D[1]+ct.n[2]*D[2],so=ct.n[0]*it[0]+ct.n[1]*it[1]+ct.n[2]*it[2];if(Math.abs(Gt)<1e-6){if(so>ct.d)return 0;continue}let Tt=(ct.d-so)/Gt;Gt<0?Tt>W&&(W=Tt,j=ct):Tt<V&&(V=Tt)}if(!j||W>V)return 0;if(c)return S;_.set((Math.floor(T)+500)*1e3+Math.floor(J)+500,m.indexOf(j));let U=j.n,et=j.kind===4||j.kind===5||j.kind===8,G=et?[U[0],-U[1]*.6,U[2]]:U,st=Math.hypot(G[0],G[1],G[2]),Q=Math.max(0,(G[0]*x+G[1]*y+G[2]*w)/st),pt=Math.pow(Math.max(0,(G[0]*N[0]+G[1]*N[1]+G[2]*N[2])/st),18),rt=et?.02+.72*Math.pow(Q,2.4):j.kind===3?.12+.4*Q:.04+.66*Math.pow(Q,1.8);j.kind===6?rt=.16+.66*Math.pow(Math.max(0,(U[0]*x+U[2]*w)/Math.hypot(x,w)),1.3):j.kind===7?rt=.22+.62*Math.pow(Q,1.2):j.kind===9?rt=.62+.25*Q:j.kind===10&&(rt=.3+.5*Q+(P(Math.floor(T-L),Math.floor(J-p),43)-.5)*.08),j.kind!==9&&(rt*=h),j.kind===0&&(rt-=.04);let Ct=rt+pt*.6;return Ct>C&&(C=Ct,z=T,q=J),pt>.8?et?s[6]:S:s[Math.max(1,Math.min(6,Math.round(1+Ct*5.6)))]}),!c&&f){let T=[];for(let[J,Z]of _){let H=Math.floor(J/1e3),it=J-H*1e3,W=H-500,V=it-500,j=_.get(J+1e3),U=_.get(J+1);if(j!==void 0&&j!==Z||U!==void 0&&U!==Z){let et=o.get(W,V)>>>0,G=s.findIndex(Q=>Q>>>0===et),st=[4,5,8].includes(m[Z].kind);G>0&&T.push([W,V,st?s[Math.max(1,G-1)]:s[Math.min(7,G+1)]])}}for(let[J,Z,H]of T)o.set(J,Z,H)}return o.outline(s[0]).draw(t,0,0,l),{x:z,y:q,k:C}}function ee(o,t,e,n,a,i,s,r,{a:c=1,white:l=!1}={}){let f=Math.cos(s),h=Math.sin(s),u=f<0?-1:1,M=Math.abs(f),d=Math.abs(h),g=i/2*h*u,m=h*u,x=-.55,y=.45,w=.7,D=Math.hypot(x,y,w),v=(m*x+M*w)/D,B=x/D,N=w/D+1,L=Math.hypot(B,N),p=Math.max(2,Math.min(5,Math.round(2+v*3.2))),k=Math.round(e),F=Math.round(n),I=Math.ceil(a+i)+2,C=0;return o.begin(k-I,F-I),o.fill(k-I,F-I,k+I,F+I,(z,q)=>{let _=z-k,T=-(q-F);if(Math.abs(T)>a)return 0;let J=Math.sqrt(1-(T/a)**2),Z=a*J*M,H=-(h<0?-1:1)*J*a*f,it=i/2*d;if(l&&(Math.abs(_-g)<=Z||Math.abs(_-H)<=it+.05))return S;if(Math.abs(_-g)<=Z&&M>.08){let W=(_-g)/M,V=T,j=Math.hypot(W,V)/a,U=m+W/a*.3*M,et=Math.pow(Math.max(0,(U*B+M*N)/L/Math.hypot(U,M)),130);C=Math.max(C,et);let G=(-W*.6+V*.8)/Math.max(.5,Math.hypot(W,V)),st;if(j>.76)st=p+(G>.75?2:G>.3?1:G<-.35?-1:0);else{let Q=(Math.abs(W)+Math.abs(V))/(a*.52);st=Q>=1?p-1:Q<.45||W<=0&&V>=0?p+1:W>0&&V<0?p-2:p}return et>.5?et>.8?S:r[Math.min(7,st+2)]:r[Math.max(2,Math.min(6,st))]}if(Math.abs(_-H)<=it+.05){let W=H<0?-J:J,V=[W*f,T/a,-W*h],j=(V[0]*x+V[1]*y+V[2]*w)/D,U=Math.floor((Math.asin(T/a)+Math.PI)*9)%2,et=Math.abs(_-H)>it-.6&&Math.sign(_-H)===Math.sign(g-H);return r[Math.max(1,Math.min(6,Math.round(2.6+j*2.6)-U+(et?1:0)))]}return 0}),o.outline(r[1]).draw(t,0,0,c),C}var _o={name:"Coin spin",desc:"A thick gold coin turning on its edge: an embossed star face, a reeded rim showing as it goes edge-on, a flash sweeping the face, bobbing over its shadow.",tags:["pickup","coin","gold","money","loop"],size:[56,56],origin:[28,48],duration:1.6,loop:!0,fps:30,bg:"ground",options:{palette:["#1e1206","#4a2c08","#86520c","#c48412","#f0b424","#ffe066","#fff6c4","#ffffff"],seed:3}},ps=new Pt(32,32),gs=7,ms=3,Xo=17;function ys(o,t,e){let n=_o.duration,a=t/n,i=a*R,s=-Xo-2*Math.sin(a*R);oo(o,0,2.5+4.5*Math.abs(Math.cos(i))+1.5*Math.abs(Math.sin(i)),.85-(-s-Xo+2)*.06)}function ks(o,t,e){let n=X(e.palette,8),a=_o.duration,i=t/a,s=i*R,r=-Xo-2*Math.sin(i*R),c=Math.abs(Math.cos(s));o.glow(0,r,20,n[4],.3+.12*c);let l=ee(ps,o,0,r,gs,ms,s,n);o.glow(-1,r-1,12,n[6],.35*l),l>.3&&yt(o,-4,r-4,1+3.2*l,n[6],.5*l);for(let f=0;f<5;f++){let u=((t-f/5*a-P(f,e.seed,3)*.08)%a+a)%a;if(u>.35)continue;let M=P(f,e.seed,1)*R+f*2.1,d=10+P(f,e.seed,2)*5,g=Math.sin(u/.35*Math.PI);yt(o,Math.cos(M)*d,r+Math.sin(M)*d*.85-u*8,Math.round(2*g),f%2?n[6]:S,.35*g)}}var Vo={};jt(Vo,{draw:()=>As,drawBack:()=>vs,meta:()=>Wo});var Wo={name:"Gem spin",desc:"A brilliant-cut ruby turning on its axis: real facets catch the light in turn, flashes roll over the crown, refracted light slides across the floor, sparkles wink round it.",tags:["pickup","gem","jewel","treasure","ruby","loop"],size:[64,64],origin:[32,56],duration:2.4,loop:!0,fps:30,bg:"ground",options:{palette:["#16040e","#3e0a1e","#760e2e","#b8163c","#ec3250","#ff7482","#ffc4c8","#ffffff"],seed:6}},ws=oe({r:7.5,crown:3.2,table:.5,pavilion:9.5,girdle:.9}),bs=new Pt(32,32),se=19,ae=(o,t)=>({y:-se-1.8*Math.sin(o/t*R),spin:o/t*Math.PI});function vs(o,t,e){let n=X(e.palette,8),a=Wo.duration,{y:i,spin:s}=ae(t,a),r=(-i-se+2)/4;oo(o,0,8-r*1.5,.75-r*.2);for(let c=0;c<3;c++){let l=s*4+c*R/3,f=Math.sin(l)*9,h=.5+.5*Math.cos(l);h<.15||(o.dot(f,0,h>.7?n[6]:n[5],h*1.2),o.dot(f+1,0,n[4],h*.8),o.dot(f-1,0,n[4],h*.6),o.glow(f+.5,0,6,n[5],.3*h))}}function As(o,t,e){let n=X(e.palette,8),a=Wo.duration,i=t/a,{y:s,spin:r}=ae(t,a);o.glowRing(0,s-1,5,15,n[4],.34),o.glow(0,s,26,n[3],.14);let c=ne(bs,o,ws,0,s,r,n,{tilt:.22}),l=r*4/R%1,f=Math.max(0,1-Math.abs(l-.5)/.08);f>0&&yt(o,-3,s-3,3.4*wo.outQuad(f),n[6],.45*f);for(let h=0;h<8;h++){let M=((t-h/8*a-P(h,e.seed,3)*.1)%a+a)%a;if(M>.4)continue;let d=P(h,e.seed,1)*R+h*2.4,g=10+P(h,e.seed,2)*7,m=Math.sin(M/.4*Math.PI);yt(o,Math.cos(d)*g,s+Math.sin(d)*g*.8-M*6,Math.round(2.4*m*(.6+.4*P(h,9))),h%3?n[6]:S,.4*m)}}var $o={};jt($o,{draw:()=>Rs,drawBack:()=>Es,meta:()=>Nt});var Nt={name:"Power star",desc:"A fat bevelled star rocks side to side and swells on each beat, rays of light turning slowly behind it, sparks spinning off its points.",tags:["pickup","star","power-up","invincible","bonus","loop"],size:[88,84],origin:[44,76],duration:1.6,loop:!0,fps:30,bg:"ground",options:{palette:["#2a1604","#5e3208","#a05c0c","#e09414","#ffc626","#ffe866","#fff8c4","#ffffff"],seed:9}},Qo=new Pt(44,44),ce=25,Kt=11.5,ie=5.2,Ds=E("#1a0e04"),fe=[.25,.75],Zo=10,re=Math.atan2(-.8,-.6),he=o=>{let t=0;for(let e of fe){let n=((o-e)%1+1)%1;t+=Math.exp(-n*14)*(1-n*2.5>0?1:0)}return t};function Fs(o,t,e,n,a,i){Qo.begin(Math.floor(e)-21,Math.floor(n)-21),Qo.fill(Math.floor(e)-21,Math.floor(n)-21,Math.floor(e)+20,Math.floor(n)+20,(s,r)=>{let c=(s-e)/i,l=(r-n)/i,f=Math.hypot(c,l);if(f>Kt+.5)return 0;let h=Math.atan2(l,c)-a+Math.PI/2;h=(h%R+R)%R;let u=Math.floor(h/(Math.PI/5)),M=u%2,g=(Math.floor(u/2)+M)*(2*Math.PI/5)-Math.PI/2+a,m=g+(M?-1:1)*(Math.PI/5),x=Math.cos(g)*Kt,y=Math.sin(g)*Kt,w=Math.cos(m)*ie,D=Math.sin(m)*ie,v=w-x,B=D-y,N=(c-x)*B-(l-y)*v,L=-x*B+y*v;if(N*L<0)return 0;let p=g+(M?-1:1)*(Math.PI/2),k=Math.cos(p-re),F=Math.abs(Math.sin(Math.atan2(l,c)-g))*f<.6;if(f<1.2)return S;let I=Math.cos(g-re);return F?I>.3?S:I>-.4?t[6]:t[5]:t[k>.6?6:k>.15?5:k>-.35?4:k>-.75?3:2]}),Qo.outline(Ds).draw(o)}function Es(o,t,e){let n=X(e.palette,8),a=t/Nt.duration,i=-ce-1.5*Math.sin(a*R*2),s=he(a);oo(o,0,9+2*s,.7);let r=a*(R/Zo*2);for(let c=0;c<Zo;c++){let l=r+c*R/Zo,f=(c%2?22:34)*(1+.18*s),h=Math.cos(l),u=Math.sin(l),M=c%2?.06:.09;if(o.shade(-f-2,i-f-2,f+2,i+f+2,(d,g,m)=>{let x=d,y=g-i,w=x*h+y*u;if(w<8||w>f)return;let D=Math.abs(x*u-y*h),v=.5+w*M;D>v+1.5||(m.l=D<v*.5?n[6]:n[5],m.k=(.32+.22*s)*(D<v?1:1-(D-v)/1.5)*Math.pow(1-w/f,1.2)*Math.min(1,(w-8)/4))}),c%2===0){let d=Kt+3,g=Math.min(f*.88,u>.05?(-2-i)/u:1/0);g>d&&o.line(h*d,i+u*d,h*g,i+u*g,m=>m<.35?n[6]:n[5],m=>(m<.5?1:1.6-m*1.4)*(.75+.35*s))}}}function Rs(o,t,e){let n=X(e.palette,8),a=t/Nt.duration,i=-ce-1.5*Math.sin(a*R*2),s=he(a),r=.22*Math.sin(a*R),c=1+.13*s;o.glowRing(0,i,Kt*c+3,13,n[4],.32+.25*s),o.glow(0,i,6,n[6],.12+.2*s),Fs(o,n,0,i,r,c);for(let h of fe){let u=((a-h)%1+1)%1*Nt.duration;if(!(u>.45))for(let M=0;M<5;M++){let d=r+M*R/5-Math.PI/2,g=70+P(M,h*10,3)*30,m=35,x=Math.cos(d)*g-Math.sin(d)*m,y=Math.sin(d)*g+Math.cos(d)*m,[w,D]=Sn(Math.cos(d)*Kt*c,i+Math.sin(d)*Kt*c,x,y,u,60,4),v=1-u/.45;yt(o,w,D,Math.round(2*v),v>.5?S:n[6],.45*v)}}let l=Math.floor(a*24);for(let h=0;h<18;h++){if(P(l+h*3,h,e.seed)>.32)continue;let u=P(h,1,e.seed)*R,M=13+P(h,2,e.seed)*20,d=i+Math.sin(u)*M*.85;d<-2&&o.px(Math.cos(u)*M,d,P(l,h,5)<.5?S:n[6])}for(let h=0;h<4;h++){let M=((t-(h+.3)/4*Nt.duration)%Nt.duration+Nt.duration)%Nt.duration;if(M>.3)continue;let d=P(h,7,e.seed)*R,g=15+P(h,8,e.seed)*12,m=Math.sin(M/.3*Math.PI);yt(o,Math.cos(d)*g,i+Math.sin(d)*g*.85,Math.round(2.5*m),h%2?n[6]:S,.4*m)}let f=(a+.1)%.5/.5;f<.14&&yt(o,-2+r*4,i-6,3*Math.sin(f/.14*Math.PI),S,.5)}var nn={};jt(nn,{draw:()=>Ls,meta:()=>ve});function Is(o,t,e=0){let n=Math.floor(o),a=o-n,i=a*a*(3-2*a),s=P(It(n,t),e),r=P(It(n+1,t),e);return(s+(r-s)*i)*2-1}function Io(o){return o?(t,e,n=0,a=0)=>{let i=Math.max(1,Math.round(e*o));return Is(t/o*i+a,i,n)}:(t,e,n=0,a=0)=>Fn(t*e+a,n)}function kt(o,t,e,n,a,i){for(let s=0;s<e;s++){let r=io(n,s),c=r.next()*t,l=a(r,s);for(let f=It(o-c,t);f<l.life;f+=t)i(l,f,s)}}var So=o=>[...o].reverse(),qo=[[1,1,6],[.76,.86,4],[.54,.68,2],[.3,.42,0]];var Me=[[1,1,7],[.76,.86,5],[.54,.68,3],[.3,.42,2]];function de(o,t,e,n,a,i,s,r,c,l=qo,f=.5,h=1.1){if(!(n<1))for(let[u,M,d]of l){let g=n*M,m=c[d];for(let x=0;x<=g;x++){let y=x/Math.max(1,g),w=a*u*Math.pow(1-y,.85)*Math.min(1,(x+1.5)/3.5)+s(9,r,x*.45)*f;if(w<.3)continue;let D=t+i*y*y*M+s(4,r+7,x*.2)*y*h,v=Math.round(e-x);for(let B=Math.round(D-w),N=Math.round(D+w);B<=N;B++)o.px(B,v,m)}}}function zt(o,t,e,n,a){if(n<.6)return o.px(t,e,a);let i=o.toX(t,e),s=o.toY(t,e),r=n*n;for(let c=Math.floor(s-n);c<=Math.ceil(s+n);c++){let l=c+.5-s,f=r-l*l;if(f<0)continue;let h=Math.sqrt(f);for(let u=Math.ceil(i-h-.5);u<=Math.floor(i+h-.5);u++)o.put(u,c,a,1)}}function Ut(o,t,e,n,a,i){if(i<=.004)return;if(n<.5)return o.blend(t,e,a,i);let s=o.toX(t,e),r=o.toY(t,e),c=n*n;for(let l=Math.floor(r-n);l<=Math.ceil(r+n);l++){let f=l+.5-r,h=c-f*f;if(h<0)continue;let u=Math.sqrt(h);for(let M=Math.ceil(s-u-.5);M<=Math.floor(s+u-.5);M++)o.blendPx(M,l,a,i)}}function tn(o,t,e,n,a,i,s,r=.18,c=0,l=-1){let f=1-n,h=s.length,u=Math.min(.999,Math.pow(f,.62)+i*.1),M=Math.min(h-2,Math.floor(u*(h-1))),d=a*(.55+.45*Math.min(1,f*7))*(1-f*.55),g=s[M];if(M>=h-2)return Ut(o,t,e,d,g,Math.min(1,n*3)*.85);zt(o,t,e,d,s[Math.min(h-1,M+2)]),d>1.6&&l>-.99&&zt(o,t+c*d*1.5,e+l*d*1.5,d*.3,s[Math.min(h-1,M+1)]),zt(o,t-d*.16,e-d*.22,d*.78,g),d>1.6&&zt(o,t+c*d*.9,e+l*d*.9,d*.42,g),M<=3&&d>1.8&&zt(o,t-d*.28,e-d*.34,d*.36,s[Math.max(0,M-1)]),M<6&&o.glow(t,e,d*2.4+2,g,r*n)}function xe(o,t,e,n,a,i){let s=a*(.4+.6*n);zt(o,t,e,s+.6,n>.5?i[5]:i[6]),n>.35&&zt(o,t,e-.3,s*.6,n>.7?i[2]:i[4])}var le=(o,t)=>o[Math.min(o.length-1,Math.max(0,Math.floor(t*o.length)))];function on(o,t,e,n,a,i=0,s=!1,r=1){let c=1-n,l=a*(.65+Math.min(1,c*2.5)*.45+c*(s?.5:.4)),f=Math.min(1,c*12)*Math.min(1,n*2.4)*(s?.7:.58)*r,h=i?ot(i,le(Ht,c),c):le(Ht,c*1.05);Ut(o,t,e,l,h,f*.45),Ut(o,t+l*.05,e+l*.06,l*.74,h,f*.62),c<.5&&Ut(o,t-l*.22,e-l*.3,l*.5,ot(h,S,.12),f*.4*(1-c*2))}function pe(o,t,e,n,a,i,s){if(n<.25&&Math.sin(s)<0)return;let r=n>.6?i[0]:n>.3?i[1]:i[2];if(a>=2){let c=n>.45?i[2]:i[3];o.px(t-1,e,c),o.px(t+1,e,c),o.px(t,e-1,c),o.px(t,e+1,c),o.px(t,e,r),o.glow(t,e,8,r,.4*n);return}o.px(t,e,r),a>1.4&&o.px(t,e+1,i[3]),o.glow(t,e,3+a,r,.35*n)}function ge(o,t,e,n,a,i,s){let r=Math.hypot(n,a)||1,c=n/r,l=a/r,f=Math.min(9,1+r*.022),h=i>.6?s[0]:i>.3?s[1]:s[2];o.line(t-c*f,e-l*f,t-c*f*.4,e-l*f*.4,i>.5?h:s[s.length-1]),o.line(t-c*f*.45,e-l*f*.45,t,e,h),o.glow(t,e,3,h,.45*i)}function ue(o,t,e,n,a){if(n<=0)return[o+t*a+.5*e*a*a,t+e*a];let i=Math.exp(-n*a),s=e/n;return[o+s*a+(t-s)*(1-i)/n,s+(t-s)*i]}function at(o,t,e,n,a,i,s,r,c){let l=ue(o,e,i,r,a),f=ue(t,n,s,c,a);return[l[0],f[0],l[1],f[1]]}function me(o,t,e,n,a,i=0,s=427,r=2.2){let c=[o,t,e,n],l=a;for(let h=0;h<3;h++){let u=at(c[0],c[1],c[2],c[3],l,0,s,r,r);if(u[1]<i||c[1]>=i)return u;let M=0,d=l;for(let m=0;m<16;m++){let x=(M+d)/2;at(c[0],c[1],c[2],c[3],x,0,s,r,r)[1]<i?M=x:d=x}let g=at(c[0],c[1],c[2],c[3],d,0,s,r,r);c=[g[0],i-.25,g[2]*.7,-Math.abs(g[3])*.45],l-=d}let f=at(c[0],c[1],c[2],c[3],l,0,s,r,r);return f[1]<i?f:[f[0],i-.25,f[2],0]}function ye(o,t,e,n,a,i,s){s<=.004||n<1||a<.5||o.shade(t-n,e-a,t+n,e+a,(r,c,l)=>{let f=(r-t)/n,h=(c-e)/a,u=f*f+h*h;if(u>=1)return;let M=1-Math.sqrt(u);l.l=i,l.k=M*M*s})}var ti=E("#5b5566");var ve={name:"Campfire",desc:"Crossed logs on a bed of coals and a lively fire: tongues that lick and leap, popping sparks, embers drifting up, smoke curling off, a warm pool of light.",tags:["fire","campfire","prop","light","smoke","ambient","loop"],size:[128,128],origin:[64,112],duration:3,loop:!0,fps:30,bg:"ground",options:{palette:["#4a1712","#8a1f17","#c9281f","#f2561d","#ff8a2a","#ffc23d","#ffe26b","#fff3a6","#ffffff"],wood:["#0e080a","#24130f","#3b2216","#5a3520","#8a5a34","#b9884f"],height:22,seed:3}},Ft=ve.duration,Lt=Io(Ft),Ss=E("#5b5566"),Os=[E("#2a2530"),E("#4a4350"),E("#6b6270")],ke=[[-19,2,15,-12,3.4],[19,2,-15,-12,3.4]],we=.56,Bs=[[1,1,6],[.8,.9,5],[.62,.78,4],[.44,.6,3],[.26,.4,1],[.12,.22,0]],Ps=[[-7.5,-7,.42,1.8,1],[7.5,-7,.46,1.8,1],[-3,-9,.78,2,1],[3.2,-9,.82,2,1],[-12,-3,.14,1.3,0],[12.5,-3,.16,1.3,0],[-9.5,-4.5,.3,1.9,0],[9.5,-4.5,.34,1.9,0],[-5,-6,.6,2.6,0],[5.2,-6,.66,2.6,0],[0,-7,1,3.4,0]];function be(o,t,e,n,a,i,s,r){let[c,l,f,h,u]=t,M=f-c,d=h-l,g=Math.hypot(M,d),m=M/g,x=d/g,y=-x,w=m;w<0&&(y=-y,w=-w);let D=1-1.05/u;o.shade(Math.min(c,f)-u-1,Math.min(l,h)-u-1,Math.max(c,f)+u+1,Math.max(l,h)+u+1,(v,B,N)=>{let L=(v-c)*m+(B-l)*x,p=L/g,k=((v-c)*y+(B-l)*w)/u;if(p<a||p>i||Math.abs(k)>1)return;let F=tt(1.2-Math.abs(v)/8),I=Math.round(k*u*.85),C=P(Math.floor(L/3),I,r);if(Math.abs(k)>D||L>g-1)return k<0&&F>.4?n[7]:e[0];if(F>.35&&I<2){if(C<.55&&I>-2){let z=.5+.5*Math.sin(s/Ft*Math.PI*6+P(Math.floor(L/2),I,r+1)*6.3);return N.k=.3*F*z,z>.72?n[3]:z>.4?n[4]:n[5]}return I<-1?e[1]:e[0]}return I<=-2?C<.25?e[2]:ot(e[3],n[4],.45*F):I===-1?C<.45?e[1]:e[2]:I===0?C<.2?e[1]:e[2]:C<.4?e[0]:e[1]}),a<=0&&o.ellipse(c,l,u*.62,u+.2,v=>v>.78?e[0]:v>.56?e[5]:v>.32?e[4]:e[3])}function Ns(o,t,e,n,a){o.shade(-15,-3,15,2,(i,s,r)=>{let c=i/14,l=(s+.3)/2.2,f=c*c+l*l;if(f>1)return;let h=P(Math.floor(i/2),Math.floor(s),a+20);if(f>.55&&h<.55)return Os[h<.15?2:h<.32?1:0];if(h>.5){let u=(.5+.5*Math.sin(n/Ft*Math.PI*4+h*40))*(1.1-f);return r.k=.35*u,u>.7?e[2]:u>.5?e[3]:u>.3?e[4]:e[5]}return h>.3?t[1]:t[0]})}function Ls(o,t,e){let n=X(e.palette,9),a=So(n),i=X(e.wood,6),s=e.seed,r=new dt(s),c=e.height,l=(p,k=0,F=0)=>Lt(t,p,k,F),f=p=>.74+.16*Lt(p,7.3,s+1)+.1*Lt(p,19,s+2),h=f(t),u=ot(ot(a[3],a[4],.5),S,.25),M=ot(Ss,a[6],.25),d=[a[1],a[2],a[4],a[5]],g=[a[1],a[2],a[4],a[6]],m=Ps.map(([p,k,F,I,C],z)=>({dx:p+r.range(-.4,.4),y:k,h:3+c*F*r.range(.92,1.08),w:I*r.range(.9,1.1),back:C,env:F,n:(s*7+z)*13})),x=p=>Lt(p,.67,s+90)*.12,y=(p,k)=>{let{h:F,n:I}=m[p],C=Math.max(0,Lt(k,2.6,I+70)-.55)*1.4;return(F+.25*F*Lt(k,3.3,I)+F*C)*(.9+.1*f(k))},w=(p,k,F)=>Lt(k,2.2,m[p].n+40)*(1+F*.08)+x(k)*F*.9-tt(m[p].dx*.3,-2.5,2.5),D=(p,k)=>{let F=y(p,k);return[m[p].dx+w(p,k,F)*.85,m[p].y-F*.88+3,F]},v=p=>{let{dx:k,y:F,w:I,n:C,back:z}=m[p],q=y(p,t);de(o,k,F,q,I,w(p,t,q),l,C,a,z?Me:I>2.2?Bs:qo,.5,1.1+q*.04)};kt(t,Ft,48,s+300,p=>({x:p.range(-5,5),y:-c*.8-p.range(0,8),vx:p.range(-2,2),vy:-p.range(10,17),life:p.range(2,2.9),s:p.range(2.4,3.8)}),(p,k)=>{let[F,I]=at(p.x,p.y,p.vx,p.vy,k,4,-20,1.6,1);on(o,F+Lt(t-k,.8,s+60)*(2+3*k),I,1-k/p.life,p.s,M)});let B=[];kt(t,Ft,m.length*24,s+200,(p,k)=>{let F=k%m.length,I=p.range(.14,.3),C=p.chance(.45);return{i:F,fire:I,smokes:C,sl:p.range(.8,1.4),ox:p.range(-1,1),oy:p.range(0,4),vx:p.range(-4,4),vy:-p.range(15,30),s:p.range(.8,1.6)*(.8+.6*m[F].env),f:p.next(),life:I+(C?1.4:0)}},(p,k)=>{let[F,I]=D(p.i,t-k),[C,z,q,_]=at(F+p.ox,I+p.oy,p.vx,p.vy,Math.min(k,p.fire),0,-95,5,3.2);if(k<p.fire)return B.push([C,z,1-k/p.fire,p.s,p.f]);if(k-p.fire>p.sl)return;let[T,J]=at(C,z,q*.6,_*.6-6,k-p.fire,2,-16,1.6,1.2);on(o,T,J,1-(k-p.fire)/p.sl,p.s*.7,0)}),Ns(o,i,a,t,s);for(let p of ke)be(o,p,i,a,we,1,t,s+11);for(let p=0;p<m.length;p++)m[p].back&&v(p);kt(t,Ft,90,s+210,p=>({x:p.range(-10,10),y:-p.range(3,8),vx:p.range(-5,5),vy:-p.range(20,40),life:p.range(.16,.3),s:p.range(1,1.8),f:p.next()}),(p,k)=>{let[F,I]=at(p.x,p.y,p.vx,p.vy,k,0,-95,5,3.2);tn(o,F,I,1-k/p.life,p.s,p.f,a)});for(let p=0;p<m.length;p++)m[p].back||v(p);kt(t,Ft,m.length*12,s+220,(p,k)=>({i:k%m.length,vx:p.range(-3,3),vy:-p.range(12,22),s:p.range(.9,1.6)*(.8+.5*m[k%m.length].env),life:.26}),(p,k)=>{let[F,I]=D(p.i,t-k);xe(o,F+p.vx*k,I-2+p.vy*k,1-k/p.life,p.s,a)});for(let[p,k,F,I,C]of B)tn(o,p,k,F,I,C,a);for(let p of ke)be(o,p,i,a,0,we,t,s+11);kt(t,Ft,4,s+400,p=>({x:p.range(-9,9),y:-p.range(4,9),n:p.int(3,5),seed:p.int(0,1e6),life:.7}),(p,k)=>{k<.08&&(o.px(p.x,p.y,S),o.glow(p.x,p.y,12,a[1],.7*(1-k/.08)));let F=new dt(p.seed);for(let I=0;I<p.n;I++){let C=-Math.PI/2+F.range(-.8,.8),z=F.range(110,220),q=F.range(.25,.6);if(k>=q)continue;let[_,T,J,Z]=me(p.x,p.y,Math.cos(C)*z,Math.sin(C)*z,k,0);ge(o,_,T,J,Z,1-k/q,d)}}),kt(t,Ft,36,s+500,p=>({x:p.range(-7,7),y:-p.range(8,18),vx:p.range(-15,15),vy:-p.range(25,60),life:p.range(1.1,2.5),s:p.chance(.15)?2:p.range(1,1.6),a:p.range(0,6.3),b:p.range(0,6.3)}),(p,k)=>{let[F,I]=at(p.x,p.y,p.vx,p.vy,k,0,-30,1.6,1.6);pe(o,F+7*(Math.sin(k*2.3+p.a)-Math.sin(p.a)),I+2*(Math.sin(k*3+p.b)-Math.sin(p.b)),1-k/p.life,p.s,g,k*40+p.a)});let N=.92+.08*l(.67,s+3),L=x(t)*12;o.glow(L,-8,74*N*(.9+.1*h),u,.3*h);for(let[p,k,F]of[[-6,-17,.85],[0,-21,1],[6,-17,.85]])o.glow(p+L,k,46*N,u,.3*F*h),o.glow(p*.6,k+13,15,a[2],.16*F*h);o.glow(0,-3,9,a[0],.16*h),ye(o,0,.5,48,8,u,.3*h)}var an={};jt(an,{draw:()=>Ts,meta:()=>Ae});var Ae={name:"Spirit flame",desc:"A cold blue-teal ghost fire floating in the air: a bright rim round a hollow dark heart, a wave climbing its wispy tail, curls breaking off, cold sparks rising.",tags:["fire","spirit","ghost","magic","cold","ambient","loop"],size:[80,124],origin:[40,94],duration:3,loop:!0,fps:30,bg:"dark",options:{palette:["#040a16","#08203a","#0b3a52","#0f5e6e","#16908e","#2cc4b4","#7ef0dc","#c8fff2","#ffffff"],seed:7}},Oo=Ae.duration,Cs=Io(Oo),en=[[1,1,1],[.8,.92,3],[.6,.78,6],[.3,.42,2],[.14,.22,0]];function sn(o,t,e,n,a,i,s,r,c,l,f=.5){for(let[h,u,M]of l){let d=n*u,g=c[M];for(let m=0;m<=d;m++){let x=m/Math.max(1,d),y=m/n,w=a*h*Math.pow(1-x,.75)*Math.min(1,(m+1.5)/4)+s(6,r,m*.4)*f*x;if(w<.3)continue;let D=t+i(y,m),v=Math.round(e-m);for(let B=Math.round(D-w),N=Math.round(D+w);B<=N;B++)o.px(B,v,g)}}}function Ts(o,t,e){let n=X(e.palette,9),a=So(n),i=e.seed,s=t/Oo,r=(x,y=0,w=0)=>Cs(t,x,y,w),c=ot(a[3],S,.15),l=Math.sin(s*R)*1.5,f=r(.67,i+2)*3,h=(x,y,w=0)=>(Math.sin(y*.24-s*R*2+w)*2.2+Math.sin(y*.11-s*R+w*.5)*3.2)*x*x+f*x*x,u=44*(.92+.08*r(1.3,i+3)),M=l,d=.9+.1*r(2,i+4);o.glow(0,M-16,60,c,.36*d),o.glow(h(.5,20)*.5,M-20,26,a[2],.2*d),kt(t,Oo,40,i+300,x=>({x:x.range(-4,4),y:-u*x.range(.55,.95),vx:x.range(-7,7),vy:-x.range(10,22),life:x.range(1,1.9),s:x.range(1.4,2.8),a:x.range(0,R),w:x.range(2,3.5)}),(x,y)=>{let w=t-y,[D,v]=at(x.x+h(.9,26,0)*.5,x.y+M,x.vx,x.vy,y,0,-6,1.2,.6),B=1-y/x.life,N=D+Math.sin(y*x.w+x.a)*3*(y+.2),L=Math.min(1,y*5)*B;Ut(o,N,v,x.s*(.8+y*.8),a[4],.35*L),Ut(o,N-.4,v-.6,x.s*.5*(.8+y*.5),a[2],.4*L*B),o.glow(N,v,6,a[3],.15*L)});let g=Math.max(0,.25+.55*r(1.7,i+6)),m=Math.max(0,.25+.55*r(1.7,i+7));g>.12&&sn(o,-4,M-4,u*g,2.4,(x,y)=>h(x,y,2.1)-6*x*x+3*Math.sin(x*5-s*R*2)*x,r,i*11+1,a,en),m>.12&&sn(o,4.2,M-4,u*m,2.4,(x,y)=>h(x,y,-1.8)+6*x*x-3*Math.sin(x*5-s*R*2+1)*x,r,i*11+2,a,en),sn(o,0,M,u,8.6,(x,y)=>h(x,y),r,i*11,a,en,.6);for(let x of[0,1])for(let y=4;y<u*.72;y++){let w=y/u,D=h(w,y)+Math.sin(y*.35-s*R*3+x*Math.PI)*2.2*(1-w);Math.sin(y*.2-s*R*4+x*2)>.2&&o.px(D,M-y,x?a[2]:a[1])}for(let x of[.2,.45,.7])o.glow(h(x,u*x),M-u*x,12,a[2],.16*d);o.glow(0,M-4,9,a[1],.22+.06*r(3,i+5)),kt(t,Oo,34,i+400,x=>({x:x.range(-7,7),y:-x.range(4,28),vx:x.range(-12,12),vy:-x.range(14,34),life:x.range(.9,1.8),a:x.range(0,R)}),(x,y)=>{let[w,D]=at(x.x,x.y+M,x.vx,x.vy,y,0,-10,1.2,1.2),v=1-y/x.life,B=.5+.5*Math.sin(y*14+x.a),N=w+Math.sin(y*3+x.a)*3;v*(.4+.6*B)<.2||(o.px(N,D,B>.7&&v>.5?a[0]:v>.5?a[1]:a[3]),B>.85&&v>.6&&(o.px(N-1,D,a[3]),o.px(N+1,D,a[3]),o.px(N,D-1,a[3]),o.px(N,D+1,a[3])),o.glow(N,D,4,a[2],.3*v))})}var hn={};jt(hn,{draw:()=>_s,drawBack:()=>Xs,meta:()=>Fe});var js=new Set([O.VAPOUR,O.DUST,O.SMOKE]),Ys=1/240;function Js(o,t,e,n){switch(o.k){case O.FIRE:o.vy-=95*t,o.vx+=Math.sin(e*17+o.seed)*30*t,o.vx-=o.vx*5*t,o.vy-=o.vy*3.2*t;break;case O.GRIT:{o.vy+=Yt*t,o.vx-=o.vx*.8*t;let a=n(o.x),i=o.y+o.vy*t;o.x+=o.vx*t,o.vy>0&&o.y<=a&&i>=a?(o.y=a-.25,o.vy>130&&P(o.seed*1e3,o.hops++)<.4?(o.vy=-o.vy*.25,o.vx=o.vx*.5):(o.vx=o.vy=0,o.life=Math.min(o.life,.5))):o.y=i;return}case O.SPARK:{o.vy+=Yt*.45*t,o.vx-=o.vx*2.2*t,o.vy-=o.vy*2.2*t;let a=n(o.x),i=o.y+o.vy*t;o.x+=o.vx*t,o.vy>0&&o.y<=a&&i>=a?(o.vy=-o.vy*.45,o.vx*=.7,o.y=a-.25):o.y=i;return}case O.STREAK:o.vx+=o.vx*3*t,o.vy+=o.vy*3*t;break;case O.FLAKE:o.vx-=o.vx*2.2*t,o.vy-=o.vy*2.2*t-35*t,o.x+=Math.sin(e*2.5+o.seed)*7*t;break;case O.EMBER:o.vy+=(-30+Math.sin(e*3+o.seed)*20)*t,o.vx+=Math.cos(e*2.3+o.seed)*45*t,o.vx-=o.vx*1.6*t,o.vy-=o.vy*1.6*t;break;case O.SMOKE:{let a=o.flag&nt.BIG;o.vy-=(a?23:16)*t,o.vx+=Math.sin(e*1.3+o.seed)*8*t,o.vx-=o.vx*1.6*t,o.vy-=o.vy*1.2*t;break}case O.MOTE:o.vx-=o.vx*.6*t,o.vy-=o.vy*.6*t;break;default:{let a=js.has(o.k)?4:1.6;o.vx-=o.vx*a*t,o.vy-=o.vy*a*t+5*t}}o.x+=o.vx*t,o.y+=o.vy*t}var Bo=class{constructor(t,e={}){var n,a;this.D=t,this.ground=(n=e.ground)!=null?n:(()=>1/0),this.box=(a=e.box)!=null?a:null,this.ps=new ho({ground:this.ground,sparks:e.sparks,haze:e.haze}),this.specs=[]}add(t,e,n,a,i,s,r,c=S,l=1,f=0){let h=this.specs.length,u=this.D,M=P(h,41)*100;if(e===O.STAR){let d=Math.ceil(8*u/R),g=R*d/u-8;g<5&&(M=g+5*Math.floor(P(h,43)*19))}this.specs.push({born:(t%u+u)%u,k:e,x:n,y:a,vx:i,vy:s,life:r,col:c?E(c):0,size:l,flag:f,seed:M})}get count(){return this.specs.length}state(t,e){let n={k:t.k,x:t.x,y:t.y,vx:t.vx,vy:t.vy,life:t.life,max:t.life,col:t.col,size:t.size,seed:t.seed,delay:0,flag:t.flag,hops:0},a=0;for(;a<e-1e-9;){let i=Math.min(Ys,e-a);if(Js(n,i,a,this.ground),a+=i,n.life-=i,n.life<=0){if(n.k!==O.FIRE||!(n.flag&nt.SMOKES))return null;let s=n.flag&nt.BIG,r=s?1.3+P(t.seed*7,1):.8+P(t.seed*7,1)*.6;Object.assign(n,{k:O.SMOKE,vx:n.vx*.6,vy:n.vy*.6-6,life:r,max:r,col:0,size:n.size*(s?.85:.7),flag:s?nt.BIG:0})}}if(this.box){let[i,s,r,c]=this.box;if(n.x<i||n.x>r||n.y<s||n.y>c)return null}return n}at(t){let e=this.D,n=[];for(let a of this.specs){let i=a.k===O.FIRE&&a.flag&nt.SMOKES?a.life+2.4:a.life;for(let s=((t-a.born)%e+e)%e;s<i;s+=e){let r=this.state(a,s);r&&n.push(r)}}return this.ps.list=n,this.ps.t=t,this.ps}};var Po=(o,t,e)=>((o-t)%e+e)%e;function rn(o,t,e,n=1,a=1){let[i,s,r]=e;for(let c of[0,1,2])for(let l=1;l<t.length;l++){let[f,h]=t[l-1],[u,M]=t[l],d=Math.max(1,Math.hypot(u-f,M-h));for(let g=0;g<=d;g+=.5){let m=f+(u-f)*g/d,x=h+(M-h)*g/d;c===0?o.circle(m,x,(n>.6?1.6:1.1)*a,i):c===1?o.circle(m,x,(n>.6?.9:.6)*a,s):n>.3&&o.px(m,x,S)}c===0&&l%3===0&&o.glow(f,h,9*a,r,.45*n)}}var Fe={name:"Energy core",desc:"A plasma core beating in a steel cage: it swells and throws a shock ring on each beat, two tilted rings orbit it, and arcs jump to the bars and spark.",tags:["scifi","reactor","core","power","plasma","machine","prop","ground","loop"],size:[112,100],origin:[56,88],duration:2.4,loop:!0,fps:30,bg:"ground",options:{palette:["#1a0516","#3d0a33","#701560","#b0228f","#f53cd1","#ff86e6","#ffd2f6","#ffffff"],metal:["#0e0d14","#1e1c27","#312e3e","#4b4759","#6f6a82","#9d98b0"],seed:35}},bt=Fe.duration,$=-36,no=11,yo=24,wt=-64,Co=-9,eo=.1,Ee=Math.round(bt/eo),No=[[.05,1,!0],[.25,.5,!1],[1.25,1,!0],[1.45,.5,!1]],Ks=o=>o<.03?o/.03:Math.exp(-(o-.03)/.12),Re=o=>No.reduce((t,[e,n])=>Math.max(t,n*Ks(Po(o,e,bt))),0),fn=Array.from({length:6},(o,t)=>{let e=t/6*R+Math.PI/6;return{x:yo*Math.sin(e),z:Math.cos(e)}});function De(o,t,e,n){let a=o*Math.cos(n),i=o*Math.sin(n),s=-i*Math.sin(t),r=i*Math.cos(t);return[a*Math.cos(e)+r*Math.sin(e),$-s,-a*Math.sin(e)+r*Math.cos(e)]}var Ie=[{r:17,tilt:1.15,spin:o=>R*(o/bt)},{r:19,tilt:-.9,spin:o=>-R*2*(o/bt)+1}],cn=new Map;function zs(o){let t=`${o.seed}:${o.palette.join()}`;if(cn.has(t))return cn.get(t);let e=X(o.palette,8),n=new dt(o.seed),a=new Bo(bt,{ground:()=>0,sparks:[S,e[6],e[5],e[4]],haze:e[5],box:[-54,-98,54,11]}),i=[];for(let r=0;r<Ee;r++){let c=r*eo,l=No.some(([f,,h])=>h&&Po(c,f,bt)<.16);for(let f=0;f<(l?2:1);f++){if(!l&&!n.chance(.4))continue;let h=n.pick(fn.filter(x=>x.z>-.2)),u=n.range(wt+8,Co-6),M=Math.atan2(u-$,h.x),d=Math.cos(M)*no,g=$+Math.sin(M)*no,m=bo(n,d,g,h.x-Math.sign(h.x)*1.5,u,{jag:.3,depth:4});i.push({s:r,path:m,fk:On(n,m,{count:n.int(0,1),len:7,jag:.35})});for(let x=0;x<5;x++){let y=Math.atan2(u-g,h.x-d)+Math.PI+n.range(-1.2,1.2),w=n.range(60,170);a.add(c,O.SPARK,h.x,u,Math.cos(y)*w,Math.sin(y)*w-40,n.range(.2,.5))}}}for(let[r,,c]of No)if(c)for(let l=0;l<12;l++){let f=n.range(0,R),h=n.range(40,110);a.add(r+.02,O.MOTE,Math.cos(f)*no,$+Math.sin(f)*no,Math.cos(f)*h,Math.sin(f)*h,n.range(.25,.5),n.pick([S,e[6],e[5]]),.7)}let s={C:e,arcs:i,g:a};return cn.set(t,s),s}function Us(o,t,e,n,a){o.shade(-30,-10,30,2,(i,s,r)=>{let c=(i/29)**2+((s+7)/4)**2<=1,l=Math.abs(i)<=29&&s>-7&&s<=0;!c&&!l||(c?r.c=(i/29)**2+((s+7)/4)**2>.82?e[0]:s<-8?e[5]:i<0?e[4]:e[3]:r.c=Math.abs(i)>28||s===0?e[0]:s===-6?e[4]:i<-14?e[3]:i>14?e[1]:e[2])});for(let i=0;i<7;i++){let s=-18+i*6,r=.5+.5*Math.cos(R*(2*(n/bt)-i/7));o.px(s,-3,r>.75?S:r>.4?t[5]:t[2]),r>.6&&o.glow(s,-3,4,t[4],.3*r)}o.glow(0,-8,26,t[4],.25+.3*a)}function Se(o,t,e,n,a,i){let s=i?e[3]:a>.5?e[6]:e[5],r=-Math.sign(t.x);for(let c=wt+2;c<Co;c++)for(let l=-1;l<=1;l++){let f=l===r;o.px(t.x+l,c,i?f?s:n[1]:f?s:l===0?n[3]:n[1])}}function Lo(o,t,e,n,a,i,s){for(let r=0,c=Math.ceil(e*8);r<c;r++){let l=r/c*R,f=Math.sin(l);if(f>=0!==i)continue;let h=Math.cos(l)*e,u=t+f*4;o.px(h,u,i?f>.6?n[4]:n[3]:n[1]),o.px(h,u+1,i?n[1]:n[0]),i&&f<.3&&o.px(h,u-1,s>.5?a[5]:a[3])}}function Gs(o,t,e,n,a,i){let s=t/bt;o.shade(-n-2,$-n-2,n+2,$+n+2,(l,f,h)=>{let u=l,M=f-$,d=Math.sqrt(u*u+M*M)/n;if(d>1.1)return;if(d>1)return h.c=e[2];if(d>.9)return h.c=M<-n*.3&&u<n*.3?e[6]:e[4];let g=Math.atan2(M,u),m=.5+.5*En(g/R*6+s*6+d*1.5,d*2.2-s*4,6,4,i,2),x=Math.abs(m-.5)<.05+.05*a,y=(1-d)**2+a*.45;x?h.c=y>.5?S:y>.2?e[6]:e[5]:h.c=y>.7?e[6]:y>.42?e[5]:y>.2?e[3]:m>.5?e[2]:e[1]});let r=Math.floor(t*15),c=io(i,r,5);for(let l=0;l<3;l++){let f=l/3*R+r*.7+c.range(-.4,.4),h=bo(c,0,$,Math.cos(f)*n*.88,$+Math.sin(f)*n*.88,{jag:.32,depth:3});o.polyline(h,d=>d<.4?S:e[6]);let[u,M]=h[h.length-1];o.px(u,M,S),o.glow(u,M,4,e[5],.4)}o.circle(0,$,1.8+a*2,S),o.circle(0,$,3+a*2,l=>l>.6?e[6]:S,1e-4),o.px(-n*.45,$-n*.55,S),o.px(-n*.45+1,$-n*.55,e[6])}function Oe(o,t,e,n,a,i){let s=e.spin(t),r=t/bt*R*3;for(let c=0,l=Math.ceil(e.r*9);c<l;c++){let f=c/l*R,[h,u,M]=De(e.r,e.tilt,s,f);if(M>=0!==a)continue;let d=((f-r)/R%1+1)%1,g=d>.9;o.px(h,u,g?S:a?M>.5*e.r||i>.6?n[6]:n[5]:n[3])}if(a){let[c,l]=De(e.r,e.tilt,s,r);o.glow(c,l,6,n[5],.5)}}function Xs(o,t,e){let n=X(e.palette,8),a=X(e.metal,6),i=Re(t);Lo(o,Co,yo,a,n,!1,i),Lo(o,wt,yo,a,n,!1,i);for(let s of fn)s.z<0&&Se(o,s,n,a,i,!0);for(let s of Ie)Oe(o,t,s,n,!1,i)}function _s(o,t,e){let{C:n,arcs:a,g:i}=zs(e),s=X(e.metal,6),r=Re(t),c=no*(1+.14*r);Us(o,n,s,t,r),Gs(o,t,n,c,r,e.seed);for(let h of Ie)Oe(o,t,h,n,!0,r);for(let h of fn)h.z>=0&&Se(o,h,n,s,r,!1);Lo(o,Co,yo,s,n,!0,r),Lo(o,wt,yo,s,n,!0,r),o.shade(-15,wt-7,15,wt,(h,u,M)=>{let d=(h/14.5)**2+((u-wt)/6.5)**2;if(d>1)return;let g=-h*.05-(u-wt)*.12;M.c=d>.8?s[0]:g>.55?s[5]:g>.3?s[4]:s[3]}),o.px(0,wt-7,r>.4?S:n[5]),o.glow(0,wt-7,5,n[4],.4+.4*r);let l=Math.floor(t/eo)%Ee,f=1-(t-Math.floor(t/eo)*eo)/eo;for(let h of a){if(h.s!==l)continue;rn(o,h.path,[n[2],n[5],n[4]],f);for(let d of h.fk)rn(o,d,[n[2],n[5],n[4]],f,.6);let[u,M]=h.path[h.path.length-1];o.glow(u,M,8,n[5],.6*f)}for(let[h,,u]of No){let M=Po(t,h,bt);if(!u||M>.45)continue;let d=M/.45,g=no+34*wo.outCubic(d);o.ring(0,$,g,Math.max(1,3*(1-d)),d<.25?S:d<.5?n[6]:n[5],1.1-d),o.glowRing(0,$,g,6,n[4],.35*(1-d))}i.at(t).draw(o),o.glow(0,$,46,n[4],.2+.3*r),o.glow(0,$,9,S,.35+.4*r)}var Be={"coin-spin":Ho,"gem-spin":Vo,"power-star":$o,campfire:nn,"spirit-flame":an,"energy-core":hn},Hs=Object.keys(Be);return Ye(Ws);})();
 </script>
@@ -5316,11 +5420,17 @@ const qid=q=>THEORY.indexOf(q);
    整张卷子除了那一道全变样。按题型拆种子后，换哪一大题就只动那一大题。 */
 function pickSections(cfg,seed,used,picks){
   const W=Object.keys(THEORY_CH).reduce((a,c)=>a+(+cfg.weights[c]||0),0)||1;
-  const acc={};let tot=0;
   const secs=cfg.sections.filter(s=>s.n>0&&PAPER_TYPES[s.t]).map(s=>({...s,items:[]}));
   const order=secs.slice().sort((a,b)=>b.pts*(b.t==='fill'?2:1)-a.pts*(a.t==='fill'?2:1));
   const hasPicks=!!picks&&typeof picks==='object';
   for(const sec of order){
+    /* 项目比重平衡器（acc/tot）原来是**跨大题共用**的：acc 在大题循环外声明，
+       而大题是按分值从高到低处理的（程序分析 → 简答 → 名词 → 填空/选择 → 判断）。
+       结果老师在程序分析里换一道题，acc 就变了 → 后面填空/选择/判断的 gap 排序全变 → 那几大题跟着变题。
+       用户原话：「我任意选一个其他都会变 无法控制某一个问题？还是说这是整体？一换整体就换了？」
+       现在改成**每个大题各自平衡**：本大题内按各项目的权重比例分名额，改哪一个大题就只动那一个大题。
+       代价：不再做「全卷跨大题的均衡」，换来的是一处改动只影响一处。 */
+    const acc={};let tot=0;
     const rng=makeRng(seed+'|'+sec.t);
     const cnt=q=>sec.t==='fill'?blanksOf(q):1;
     /* 点名：不受项目比重、也不受“别的卷用过”限制——老师点了就是要它。
@@ -5427,7 +5537,7 @@ function headHTML(P,cfg){
   return `<div class="ttl1">广州华夏职业学院${esc(cfg.year)}学年${esc(cfg.term)}</div>
 <div class="ttl2">《${esc(cfg.course)}》期末考试试卷（${esc(cfg.ver)}卷）</div>
 <table class="info"><tr><td class="k">适用专业</td><td class="v">${esc(cfg.major)}</td><td class="k">适用年级</td><td class="v">${esc(cfg.grade)}</td></tr>
-<tr><td class="k">考试方式</td><td class="v">${cfg.mode==='闭卷'?'☑':'□'}闭卷　　　${cfg.mode==='开卷'?'☑':'□'}开卷</td><td class="k">考试时间</td><td class="v">${esc(cfg.minutes)} 分钟</td></tr></table>
+<tr><td class="k">考试方式</td><td class="v">${cfg.mode==='闭卷'?'■':'□'}闭卷　　　${cfg.mode==='开卷'?'■':'□'}开卷</td><td class="k">考试时间</td><td class="v">${esc(cfg.minutes)} 分钟</td></tr></table>
 <table class="scoret"><tr><th>题 号</th>${cols}<th>总 分</th></tr><tr><th>得 分</th>${P.map(()=>'<td></td>').join('')}<td></td></tr><tr><th>评卷人</th>${P.map(()=>'<td></td>').join('')}<td></td></tr></table>`;
 }
 const secHeadHTML=s=>`<table class="sech"><tr><td class="box"><div>得 分</div><div class="blank"></div></td><td class="tt">${secTitle(s)}</td></tr></table>`;
@@ -5478,6 +5588,12 @@ pre.code{font-family:"Consolas","Courier New",monospace;font-size:9pt;line-heigh
 body[data-edit="1"] .ed{position:relative;cursor:pointer;border-radius:3px;outline:1px dashed transparent;outline-offset:1px;transition:background-color .12s,outline-color .12s}
 body[data-edit="1"] .ed:hover{background:#e9f0ff;outline-color:#8db0ff}
 body[data-edit="1"] .ed.pin{box-shadow:inset 3px 0 0 #2f6bff}
+/* 程序分析题的小问（(1)(2)(3)）不是三道独立题，是同一道题自带的：
+   2026-11-08 用户看到连续几个蓝框，以为「怎么变成两个 / 三个大题了」。
+   所以小问块不再各画一个虚线框，只保留悬停底色，并整块跟题干共用同一个 data-k（点哪块都是换整道）。 */
+body[data-edit="1"] .ed.edsub{outline:none;cursor:pointer}
+body[data-edit="1"] .ed.edsub:hover{background:#e9f0ff}
+body[data-edit="1"] .ednote{display:block;font:9px/1.5 "SimHei","黑体",sans-serif;font-style:normal;color:#94a3b8;margin:2px 0 0;user-select:none}
 /* 角落的「N 换」：常亮但很淡（老师一看就知道这里能点），鼠标放上去变实；
    触屏没有 hover，直接常亮。已经点名的题更实一点，一眼能看出哪几道是自己定的。 */
 body[data-edit="1"] .edx{position:absolute;right:0;top:-1px;font:9px/1.35 "SimHei","黑体",sans-serif;font-style:normal;color:#fff;background:#2f6bff;border-radius:0 3px 3px 0;padding:0 4px;opacity:.22;transition:opacity .12s;pointer-events:none;user-select:none}
@@ -5487,7 +5603,7 @@ body[data-edit="1"] .ed:hover .edx{opacity:1}
 @media (hover:none),(pointer:coarse){body[data-edit="1"] .edx{opacity:.85;padding:0 5px;font-size:10px}}
 @media print{html,body{background:#fff}.sheet{margin:0}
   .ed{position:static!important;background:none!important;outline:0!important;box-shadow:none!important;border-radius:0!important}
-  .edx{display:none!important}}
+  .edx,.ednote{display:none!important}}
 `;
 /* 排版脚本（在预览 / 打印用的页面里运行）：量每个块的高度，按栏装，再拼成一张张 A3 */
 const PAPER_LAYOUT_JS=`
@@ -5567,12 +5683,17 @@ function paperDocHTML(P,cfg,opts){
          抽题会退回随机，这时不该还画着“已指定”的样子 */
       const pin=picks[kk]!=null&&THEORY[+picks[kk]]===q;
       const cls=edit?('blk ed'+(pin?' pin':'')):'blk';
-      const tag=edit?`<i class="edx">${i+1} 换</i>`:'';
-      /* 程序分析题按小问拆成几块，可以跨栏，不会因为整题太长空出半栏 */
+      const nsub=Array.isArray(q.sub)?q.sub.length:0;
+      /* 有多个小问的题，小标写「换整题」，免得老师以为只是换这个小问 */
+      const tag=edit?`<i class="edx">${i+1} 换${nsub>1?'整题':''}</i>`:'';
+      /* 程序分析题按小问拆成几块，可以跨栏，不会因为整题太长空出半栏。
+         2026-11-08：小问块加 edsub（不单独画虚线框），并在题干块下加一行灰字说明 —— 
+         用户原话「这个大题的位置为什么是两个 / 这个咋是三个 咋选的」，说明拆块让人误以为是多道题。 */
       if(s.t==='prog'){
         const sub=k=>`<div class="q sub">（${k+1}）${ptxt(q.sub[k])}</div>${lines(q.sub.length>1?3:7)}`;
-        blocks.push(`<div class="${cls} keep"${at}>${tag}<div class="q">${i+1}.${ptxt(q.q)}</div><pre class="code">${esc(q.code)}</pre></div>`);
-        for(let k=0;k<q.sub.length;k++)blocks.push(`<div class="${cls}"${at}>${sub(k)}</div>`);
+        const subcls=edit?('blk ed edsub'+(pin?' pin':'')):'blk';
+        blocks.push(`<div class="${cls} keep"${at}>${tag}<div class="q">${i+1}.${ptxt(q.q)}</div><pre class="code">${esc(q.code)}</pre>${edit&&nsub>1?`<i class="ednote">（1）～（${nsub}）是这道题自带的小问；点右上角「换整题」是整道一起换，不是只换其中一问</i>`:''}</div>`);
+        for(let k=0;k<q.sub.length;k++)blocks.push(`<div class="${subcls}"${at}>${sub(k)}</div>`);
       } else blocks.push(`<div class="${cls}"${at}>${tag}${itemHTML(s,q,i)}</div>`);
     });
   });
@@ -5613,9 +5734,9 @@ function docxItems(s,q,i){
     else if(L<=20){out.push(DX.p(DX.r(o[0]+'\t'+o[1]),{ind:420,tabs:[5200]}));out.push(DX.p(DX.r(o[2]+'\t'+o[3]),{ind:420,tabs:[5200]}));}
     else o.forEach(x=>out.push(DX.p(DX.r(x),{ind:420})));
   } else if(s.t==='fill'){
-    out.push(DX.p([DX.r(no)].concat(q.q.split('____').map((x,k)=>(k?DX.r('　　　　　　　',{u:true}):'')+DX.r(x)))));
+    out.push(DX.p([DX.r(no)].concat(q.q.split('____').map((x,k)=>(k?DX.r('              ',{u:true}):'')+DX.r(x)))));
   } else if(s.t==='judge'){
-    out.push(DX.p(DX.r(no+q.q+'\t（　　）'),{tabs:[{pos:COLW,right:true}]}));
+    out.push(DX.p(DX.r(no+q.q+'\t（    ）'),{tabs:[{pos:COLW,right:true}]}));
   } else if(s.t==='term'){out.push(DX.p(DX.r(no+q.q+'：')));sp(4);}
   else if(s.t==='short'){out.push(DX.p(DX.r(no+q.q)));sp((q.lines||8)-1);}
   else if(s.t==='prog'){
@@ -5642,7 +5763,7 @@ function paperDocx(P,cfg){
   b+=DX.p(DX.r(`广州华夏职业学院${cfg.year}学年${cfg.term}`,{hei:true,b:true,sz:28}),{jc:'center',line:480});
   b+=DX.p(DX.r(`《${cfg.course}》期末考试试卷（${cfg.ver}卷）`,{hei:true,b:true,sz:28}),{jc:'center',line:480,after:120});
   b+=DX.tbl([DX.cell('适用专业',{w:1800})+DX.cell(cfg.major,{w:3300})+DX.cell('适用年级',{w:1800})+DX.cell(cfg.grade,{w:3300}),
-             DX.cell('考试方式',{w:1800})+DX.cell(`${cfg.mode==='闭卷'?'☑':'□'}闭卷　　${cfg.mode==='开卷'?'☑':'□'}开卷`,{w:3300})+DX.cell('考试时间',{w:1800})+DX.cell(`${cfg.minutes} 分钟`,{w:3300})],[1800,3300,1800,3300]);
+             DX.cell('考试方式',{w:1800})+DX.cell(`${cfg.mode==='闭卷'?'■':'□'}闭卷    ${cfg.mode==='开卷'?'■':'□'}开卷`,{w:3300})+DX.cell('考试时间',{w:1800})+DX.cell(`${cfg.minutes} 分钟`,{w:3300})],[1800,3300,1800,3300]);
   b+=DX.p('',{line:200});
   const n=P.length+2,cw=Math.floor(10200/n),ws=Array(n).fill(cw);
   b+=DX.tbl([DX.cell('题 号',{w:cw,hei:true,b:true})+P.map(s=>DX.cell(s.no,{w:cw})).join('')+DX.cell('总 分',{w:cw,hei:true,b:true}),
@@ -5653,14 +5774,21 @@ function paperDocx(P,cfg){
   const sect='<w:sectPr><w:pgSz w:w="23811" w:h="16838" w:orient="landscape"/><w:pgMar w:top="680" w:right="850" w:bottom="794" w:left="1588" w:header="0" w:footer="400" w:gutter="0"/><w:cols w:num="2" w:space="794" w:sep="1"/></w:sectPr>';
   return docxPackage(b,sect);
 }
-/* 参考答案：A4 竖排单栏 */
+/* 参考答案：A4 竖排单栏
+   ── 2026-11-08 修乱码 ──
+   原来答案之间用「　　」（U+3000 全角空格）拼接，Word / WPS 里这几个字符没有字形，
+   整行变成一排空心方框，用户截图上就是「1. A□ 2. A□」。整份文档里只有 U+3000 一种可疑字符（49 个），
+   所以规矩改成：**Word 输出里一律不出现 U+3000**，列间距用制表位（w:tabs）实现，既不缺字又对得齐。 */
+const ANS_COLS=6, ANS_TAB=[1560,3120,4680,6240,7800];   // A4 竖排单栏可用宽约 9400 缇，6 列 × 1560
+const ansRows=(cells,cols=ANS_COLS)=>cells.reduce((a,c,i)=>{if(i%cols===0)a.push([]);a[a.length-1].push(c);return a;},[])
+  .map(row=>DX.p(DX.r(row.join('\t')),{tabs:ANS_TAB.slice(0,row.length-1)}));
 function answerDocx(P,cfg){
   let b=DX.p(DX.r(`《${cfg.course}》期末考试试卷（${cfg.ver}卷）参考答案及评分标准`,{hei:true,b:true,sz:28}),{jc:'center',line:480});
-  b+=DX.p(DX.r(`${cfg.year}学年${cfg.term}　适用专业：${cfg.major}　适用年级：${cfg.grade}　满分 ${paperTotal(P)} 分`),{jc:'center',after:120});
+  b+=DX.p(DX.r(`${cfg.year}学年${cfg.term}   适用专业：${cfg.major}   适用年级：${cfg.grade}   满分 ${paperTotal(P)} 分`),{jc:'center',after:120});
   P.forEach(s=>{
     b+=DX.p(DX.r(secTitle(s),{hei:true,b:true}),{before:160,keep:true});
-    if(s.t==='choice')b+=DX.p(DX.r(s.items.map((q,i)=>`${i+1}.${q.a}`).join('　　')));
-    else if(s.t==='judge')b+=DX.p(DX.r(s.items.map((q,i)=>`${i+1}.${q.a?'√':'×'}`).join('　　')));
+    if(s.t==='choice')b+=ansRows(s.items.map((q,i)=>`${i+1}.${q.a}`));
+    else if(s.t==='judge')b+=ansRows(s.items.map((q,i)=>`${i+1}.${q.a?'√':'×'}`));
     else if(s.t==='fill')s.items.forEach((q,i)=>{b+=DX.p(DX.r(`${i+1}.${q.a.join('；')}`));});
     else s.items.forEach((q,i)=>{b+=DX.p(DX.r(`${i+1}.${q.q}`,{b:true}),{keep:true});b+=DX.p(DX.r(q.a,{color:'1F4E79'}));b+=DX.p(DX.r(`（评分：按要点给分，共 ${s.pts} 分）`,{color:'666666',sz:18}));});
   });
@@ -6572,6 +6700,854 @@ function mountBuilder(sub) {
 window.HXBuilder = { mount: mountBuilder, codify: () => buildCode(buildFixMids(buildLoad('mcu'))) };
 
 ;
+/* ================= 考试 · 资料解析 + AI 出题 =================
+   用户原话（2026-11-08）：「理论试卷出题依据是什么？不会又是内置题库吧 没用上ai能力吗？
+   可以支持导入电子书教材和其他资料让他ai出题 …… 出题由ai读取相关资料并给题等
+   也可以ai输入要求生成题库」
+
+   这一份是从 `刷题/imports.js`（378 行，已上线验证过）搬过来的**同一套引擎**，
+   不另写一套 —— 识题/出题/校验的坑都在那边踩完了（提示词分家、被拒题带原因、
+   数量按段分摊、填空题必须有 ____ …）。搬过来只改了三处：
+     ① ES module → 经典脚本：产物是 build.js 拼成的**一个 <script>**，不能用 import/export，
+        对外只挂 window.HXImp（同样的函数名、同样的签名）；`chat` 换成 HXAI.chat({tool:'exam'})。
+     ② 解析组件的路径改成**按页面相对**动态 import：产物单文件在 /exam/index.html，
+        pdf.js 和 worker 放在同目录 vendor/ 下（build.js 会复制过去）。
+     ③ 加了 term（名词解释）题型：DB 的 hx_exam_qbank.t 允许 choice/fill/judge/term/short/prog，
+        理论试卷 PAPER_TYPES 也有 term，所以出题这一侧要能出。
+   ── HXAI 是懒加载的 ──
+   和 刷题/app.js 一样：用到 AI 的那一刻才插 <script src="../hx-ai.js">，
+   线上没部署/404 时不弹错，而是告诉你「还没有配置 AI 模型」。
+   ── 资料解析拿不到组件时 ──
+   pdf.js / mammoth 是外部文件，网络断了会 404。那时只降级这两类，
+   TXT/MD 仍然能用 —— 提示里把这件事说清楚，不假装全部失败。 */
+'use strict';
+
+const HXIMP_AI_MISS = '还没有配置 AI 模型，请到首页「AI 设置」里加一套';
+const HXIMP_VISION_MISS = '要读图片／扫描件，得先在首页「AI 设置」里配一套支持图片的模型（如 Qwen-VL 这类看图模型）';
+const HXIMP_LIB_MISS = '资料解析组件没加载到（可能是网络），TXT／MD 仍然可以直接用';
+
+/* 解析组件按页面相对路径取：/exam/index.html → /exam/vendor/pdf.js */
+const HXIMP_V = p => new URL('vendor/' + p, location.href).href;
+
+let hximpAiLoading = null;
+// 用到 AI 才加载 hx-ai.js；失败不报错，允许下次再试（线上可能还没部署这个文件）
+function hximpAI() {
+  if (window.HXAI) return Promise.resolve(window.HXAI);
+  if (!hximpAiLoading) {
+    hximpAiLoading = new Promise(resolve => {
+      let s;
+      try { s = document.createElement('script'); s.src = new URL('../hx-ai.js', location.href).href; }
+      catch (e) { hximpAiLoading = null; return resolve(null); }
+      s.onload = () => resolve(window.HXAI || null);
+      s.onerror = () => { hximpAiLoading = null; resolve(null); };
+      document.head.appendChild(s);
+    });
+  }
+  return hximpAiLoading;
+}
+async function hximpChat(messages, opts) {
+  const H = await hximpAI();
+  if (!H || typeof H.chat !== 'function') throw new Error(HXIMP_AI_MISS);
+  return H.chat({ messages, tool: 'exam', json: !!(opts && opts.json) });
+}
+async function hximpVision(opts) {
+  const H = await hximpAI();
+  if (!H || typeof H.vision !== 'function') throw new Error(HXIMP_VISION_MISS);
+  return H.vision(Object.assign({ tool: 'exam' }, opts));
+}
+
+const HXIMP_IMG = /\.(jpe?g|png|webp|gif|bmp)$/i;
+const isImageFile = name => HXIMP_IMG.test(String(name || '').toLowerCase());
+
+// 图片转 dataURL：最长边压到 1600px、JPEG 0.8。手机拍一页教材 4MB，原样发几张模型会直接拒。
+function fileToDataUrl(file, max = 1600, quality = 0.8) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const scale = Math.min(1, max / Math.max(img.naturalWidth || 1, img.naturalHeight || 1));
+        const w = Math.max(1, Math.round((img.naturalWidth || 1) * scale));
+        const h = Math.max(1, Math.round((img.naturalHeight || 1) * scale));
+        const cv = document.createElement('canvas');
+        cv.width = w; cv.height = h;
+        const ctx = cv.getContext('2d');
+        ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h); // 透明 PNG 铺白底，否则转 JPEG 会变黑块
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(cv.toDataURL('image/jpeg', quality));
+      } catch (e) { reject(new Error('图片处理失败：' + e.message)); }
+      finally { URL.revokeObjectURL(url); }
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('这张图片读不出来（可能不是常见的 jpg/png）')); };
+    img.src = url;
+  });
+}
+
+/* 读一份资料 → { text } 或 { image }（图片不在这一步转文字，交给视觉模型） */
+async function readMaterial(file) {
+  const name = String(file && file.name || '').toLowerCase();
+  if (isImageFile(name)) return { image: await fileToDataUrl(file), text: '' };
+  if (/\.(txt|md|text)$/i.test(name)) return { text: await file.text() };
+  if (name.endsWith('.docx')) {
+    let m;
+    try { m = await import(HXIMP_V('mammoth.browser.min.js')); }
+    catch (e) { throw new Error(HXIMP_LIB_MISS); }
+    const lib = globalThis.mammoth || (m && m.default) || m;
+    if (!lib || !lib.extractRawText) throw new Error(HXIMP_LIB_MISS);
+    const r = await lib.extractRawText({ arrayBuffer: await file.arrayBuffer() });
+    return { text: r.value || '' };
+  }
+  if (name.endsWith('.pdf')) {
+    let pdfjs;
+    try { pdfjs = await import(HXIMP_V('pdf.js')); }
+    catch (e) { throw new Error(HXIMP_LIB_MISS); }
+    pdfjs = pdfjs.default && pdfjs.default.getDocument ? pdfjs.default : pdfjs;
+    pdfjs.GlobalWorkerOptions.workerSrc = HXIMP_V('pdf.worker.js');
+    const pdf = await pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+    const pages = [];
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const c = await page.getTextContent();
+      pages.push(c.items.map(it => it.str).join(' '));
+    }
+    const text = pages.join('\n');
+    if (text.trim().length < 50) throw new Error('这份 PDF 没有可提取的文字（扫描件）。把每页截图存成 JPG/PNG 再传，让 AI 看着读。');
+    return { text };
+  }
+  throw new Error('支持 PDF、DOCX、TXT、MD，以及 jpg／png 图片；旧版 .doc 请另存为 .docx');
+}
+
+// 图片/扫描件 → 文字。走视觉模型（HXAI.vision），没配看图模型时把话说清楚。
+async function ocrImages(images) {
+  if (!images || !images.length) throw new Error('没有读到图片。');
+  const txt = await hximpVision({
+    prompt: '把这张资料图片里的文字逐字抄下来：保留段落和小标题，公式用文字描述。看不清的地方写（看不清），不要总结、不要编。',
+    images
+  });
+  return String(txt || '');
+}
+
+function parseJson(text) {
+  const cleaned = String(text || '').trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '');
+  try { return JSON.parse(cleaned); } catch (e) {
+    const a = cleaned.indexOf('{'), b = cleaned.lastIndexOf('}');
+    if (a >= 0 && b > a) return JSON.parse(cleaned.slice(a, b + 1));
+    throw new Error('AI 返回的内容不是有效 JSON，请重试或换一个模型。');
+  }
+}
+
+const TYPE_ALIAS = {
+  single: 'single', 单选: 'single', 单选题: 'single', 单项选择题: 'single', 单项选择: 'single',
+  multiple: 'multiple', 多选: 'multiple', 多选题: 'multiple', 多项选择: 'multiple', 多项选择题: 'multiple',
+  judgment: 'judgment', judge: 'judgment', 判断: 'judgment', 判断题: 'judgment',
+  fill: 'fill', blank: 'fill', 填空: 'fill', 填空题: 'fill',
+  short: 'short', 简答: 'short', 简答题: 'short', 问答: 'short', 问答题: 'short', 论述: 'short', 论述题: 'short',
+  term: 'term', 名词解释: 'term', 名词: 'term', 术语解释: 'term', 概念解释: 'term',
+  prog: 'prog', 程序: 'prog', 程序题: 'prog', 程序分析: 'prog', 程序分析题: 'prog',
+  程序设计: 'prog', 程序设计题: 'prog', 编程: 'prog', 编程题: 'prog', 代码分析: 'prog', 读程序: 'prog'
+};
+const SUPPORTED = ['single', 'multiple', 'judgment', 'fill', 'short', 'term', 'prog'];
+const TYPE_LABEL = { single: '单选题', multiple: '多选题', judgment: '判断题', fill: '填空题', short: '简答题', term: '名词解释', prog: '程序分析题' };
+
+function answerTokens(raw) {
+  const out = [];
+  for (const v of (Array.isArray(raw) ? raw : [raw])) {
+    const s = String(v == null ? '' : v).trim();
+    if (!s) continue;
+    if (/^[A-Fa-f]{2,}$/.test(s)) out.push(...s.toUpperCase().split(''));
+    else out.push(...s.split(/[,，、/;；\s]+/).filter(Boolean));
+  }
+  return out;
+}
+const judgeKey = t => /^(正确|对|是|√|T|TRUE|Y|YES)$/i.test(t) ? 'T' : /^(错误|错|否|×|X|F|FALSE|N|NO)$/i.test(t) ? 'F' : '';
+const hximpUid = () => (globalThis.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2));
+
+/* 校验/规整一道题。和 刷题 那份逐条一致（含“被拒的题要带第几条 + 题干前几个字 + 原因”），
+   只多了 term 和 term 的长度上限。返回 {questions, rejected}。 */
+function normalizeQuestions(raw, subject) {
+  const input = Array.isArray(raw) ? raw : raw && raw.questions;
+  if (!Array.isArray(input)) throw new Error('题库需要是数组，或包含 questions 数组的 JSON 对象。');
+  const questions = [], rejected = [];
+  input.forEach((item, index) => {
+    const stem0 = String((item && (item.stem || item.question || item.title)) || '').trim();
+    let stem = stem0;
+    const rawType = String((item && item.type) || '').trim();
+    let type = TYPE_ALIAS[rawType.toLowerCase()] || TYPE_ALIAS[rawType] || '';
+    const reject = reason => { rejected.push({ index: index + 1, stem: stem0.slice(0, 20), reason }); };
+    if (!stem0) return reject('题干是空的');
+    if (!type) {
+      const opt = item && item.options;
+      const list = Array.isArray(opt) ? opt : (opt && typeof opt === 'object' ? Object.keys(opt) : []);
+      if (list.length && (String(list[0]).toUpperCase() === 'T' || /正确/.test(String((opt[0] && opt[0].text) != null ? opt[0].text : opt[0])))) type = 'judgment';
+      else if (list.length >= 2) type = answerTokens(item.answer).length > 1 ? 'multiple' : 'single';
+      else type = 'fill';
+    }
+    if (!SUPPORTED.includes(type)) return reject('题型「' + (rawType || '未知') + '」暂时不支持');
+
+    const rawOptions = (item && (item.options || item.选项)) || [];
+    let options = Array.isArray(rawOptions)
+      ? rawOptions.map((op, i) => typeof op === 'string'
+        ? { key: String.fromCharCode(65 + i), text: op.replace(/^[A-Fa-f][.、:：)）]\s*/, '') }
+        : { key: String((op && op.key) || String.fromCharCode(65 + i)).toUpperCase(), text: String(op && op.text != null ? op.text : (op && op.value) || '') })
+      : Object.entries(rawOptions).map(([k, v]) => ({ key: k.toUpperCase(), text: String(v) }));
+    const texty = type === 'fill' || type === 'short' || type === 'term' || type === 'prog';
+    if (texty) options = [];
+    if (type === 'judgment' && !options.length) options = [{ key: 'T', text: '正确' }, { key: 'F', text: '错误' }];
+
+    let answer;
+    if (texty) {
+      const raw2 = item.answer != null ? item.answer : item.答案;
+      const vals = (Array.isArray(raw2) ? raw2 : [raw2]).map(v => String(v == null ? '' : v).trim()).filter(Boolean);
+      answer = type === 'fill'
+        ? vals.flatMap(v => v.split(/[、，,；;]+/).map(s => s.trim()).filter(Boolean))
+        : [vals.join(' ')].filter(Boolean);
+    } else {
+      answer = answerTokens(item.answer != null ? item.answer : item.答案).map(tk => {
+        const t = tk.replace(/[.。、:：)）]$/, '');
+        if (type === 'judgment') return judgeKey(t) || t.toUpperCase();
+        if (/^[A-Fa-f]$/.test(t)) return t.toUpperCase();
+        const hit = options.find(o => String(o.text).trim() === t);
+        return hit ? hit.key : t.toUpperCase();
+      });
+    }
+    answer = [...new Set(answer)];
+
+    if (type === 'fill') {
+      if (!/_{2,}/.test(stem)) stem = stem.replace(/[（(]\s*[)）]/, '____').replace(/\s*[（(]\s*[)）]\s*/g, ' ____ ');
+      if (!/_{2,}/.test(stem)) return reject('填空题的题干里没有 ____ 表示空格位置，学生没地方填');
+    }
+    const keys = new Set(options.map(o => o.key));
+    if (!answer.length) return reject(type === 'prog' ? '程序分析题没有参考答案' : texty ? '参考答案是空的' : '没有答案');
+    if (texty) {
+      if (type === 'short' && answer[0].length > 1200) return reject('简答题的参考答案太长（超过 1200 字），像是把原文整段搬过来了');
+      if (type === 'term' && answer[0].length > 600) return reject('名词解释的答案太长（超过 600 字），应该是几句话的解释');
+      if (type === 'prog' && answer[0].length > 2000) return reject('程序分析题的参考答案太长（超过 2000 字），像是把原文整段搬过来了');
+    } else {
+      if (options.length < 2) return reject('选项少于 2 个');
+      if (answer.some(a => !keys.has(a))) return reject('答案 ' + answer.filter(a => !keys.has(a)).join('、') + ' 不在选项里');
+      if (type !== 'multiple' && answer.length !== 1) return reject(TYPE_LABEL[type] + '只能有 1 个答案，这份给了 ' + answer.length + ' 个');
+    }
+    const arr = v => (Array.isArray(v) ? v : v ? [v] : []).map(x => String(x == null ? '' : x).trim()).filter(Boolean);
+    const code = String((item && (item.code || item.代码 || item.程序)) || '').trim();
+    const sub = arr(item && (item.sub || item.小问 || item.问题));
+    questions.push({
+      id: subject + '-ai-' + hximpUid(),
+      number: (item && item.number) || questions.length + 1,
+      stem, type, options, answer,
+      explanation: String((item && (item.explanation || item.解析)) || '').trim(),
+      ...(code ? { code } : {}),
+      ...(sub.length ? { sub } : {}),
+      source: (item && (item.source || item.出处)) || 'AI'
+    });
+  });
+  return { questions, rejected };
+}
+
+/* 切块：上传资料时存进 hx_exam_chunk（DB 里每块 body 最多 8000 字），
+   所以 size 取 3600、overlap 320 —— 留足余量，也不会把一句话切两半切得太狠。 */
+function chunks(text, size = 4200, overlap = 450) {
+  const clean = String(text || '').replace(/\r/g, '');
+  const out = [];
+  for (let start = 0; start < clean.length; start += Math.max(1, size - overlap)) {
+    out.push(clean.slice(start, start + size));
+    if (start + size >= clean.length) break;
+  }
+  return out;
+}
+
+// ---------- 提示词 ----------
+const TYPE_RULE = {
+  single: '单选题给 4 个选项、只有 1 个正确，干扰项要像真的（错在关键点上，不是一眼假）；',
+  multiple: '多选题给 4 个选项、至少 2 个正确；',
+  judgment: '判断题选项固定用 T（正确）、F（错误）；错的判断题要把原文一个关键点改掉，不能靠“好像不对”；',
+  fill: '填空题把要考的地方写成 ____（连续 4 个下划线），answer 按空格顺序给每一空的答案；',
+  short: '简答题给一段能直接对照的参考答案（30～120 字），answer 里就放这一段；',
+  term: '名词解释题题干写「解释：××」，answer 给 30～80 字的解释，要能在原文找到依据；',
+  prog: '程序分析题：stem 写清背景和要求（哪个口接了什么、要读哪段程序），code 里放这段完整可读的程序（保留换行和缩进，不要用 Markdown 代码块、不要加 ```），sub 里放 2～4 个具体小问，answer 里按小问顺序（1）（2）（3）写参考答案；'
+};
+const TYPE_SAMPLE = {
+  single: '{"type":"single","stem":"题干","options":[{"key":"A","text":"选项"}],"answer":["A"],"explanation":"原文依据"}',
+  multiple: '{"type":"multiple","stem":"题干","options":[{"key":"A","text":"选项"}],"answer":["A","C"],"explanation":"原文依据"}',
+  judgment: '{"type":"judgment","stem":"题干","options":[{"key":"T","text":"正确"},{"key":"F","text":"错误"}],"answer":["T"],"explanation":"原文依据"}',
+  fill: '{"type":"fill","stem":"并行口方向寄存器决定端口是输入还是 ____","answer":["输出"],"explanation":"原文依据"}',
+  short: '{"type":"short","stem":"简述……的步骤","answer":["参考答案那一段话"],"explanation":"原文依据"}',
+  term: '{"type":"term","stem":"解释：中断优先级","answer":["几句话的解释"],"explanation":"原文依据"}',
+  prog: '{"type":"prog","stem":"阅读下面的程序，P1 口接 8 个 LED（低电平点亮），回答问题。","code":"#include <reg51.h>\\nvoid main()\\n{\\n    P1 = 0xFE;\\n    while(1);\\n}","sub":["哪个灯先亮？","程序会不会停下来？"],"answer":["（1）D1 先亮（0xFE 最低位为 0）。（2）不会，while(1) 是死循环。"],"explanation":"原文依据"}'
+};
+
+function genPrompt(o) {
+  const list = Object.entries(o.counts || {}).filter(([, n]) => n > 0);
+  const parts = list.map(([t, n]) => TYPE_LABEL[t] + ' ' + n + ' 道').join('、');
+  const rules = list.map(([t]) => TYPE_RULE[t]).join('\n   ');
+  const samples = list.map(([t]) => '  ' + TYPE_SAMPLE[t]).join(',\n');
+  return '你是「' + o.subjectName + '」课程的出题老师。请根据下面的资料出题。\n'
+    + '范围：' + (o.scope || '整份资料') + '（只出这个范围里写到的内容）\n'
+    + '难度：' + (o.level || '中等') + '\n'
+    + '这一轮要出：' + parts + '\n'
+    + (o.extra ? '额外要求：' + o.extra + '\n' : '')
+    + '硬要求：\n'
+    + '1. 每道题都必须能在原文找到依据；原文没写的不出，不编型号、参数、页码。\n'
+    + '2. ' + rules + '\n'
+    + '3. 答案唯一、没有歧义；explanation 写一句依据（引用原文要点）。\n'
+    + '4. 只输出 JSON 对象，不要任何解释文字：\n'
+    + '{"questions":[\n  ' + samples + '\n]}' + (o.note ? '\n' + o.note : '')
+    + '\n资料原文：\n' + o.piece;
+}
+
+/* 出题：教材、讲义这类没有现成题目的资料，按老师的范围/题型/数量/难度/额外要求让 AI 出题。
+   数量按段分摊（老师说的是“整份资料一共几道”），一段没分到题就不白花 token。 */
+async function aiGenerate(text, subject, subjectName, opts, onProgress) {
+  opts = opts || {};
+  if (!String(text || '').trim()) throw new Error('请先勾选资料，或在「额外要求」里写下要出题的内容。');
+  const wanted = {};
+  for (const t of SUPPORTED) {
+    const n = Math.max(0, Math.min(50, Math.round(+((opts.types || {})[t]) || 0)));
+    if (n) wanted[t] = n;
+  }
+  if (!Object.keys(wanted).length) throw new Error('请至少填一种题型的数量（大于 0）。');
+  const pieces = chunks(text, 6000, 300);
+  const plan = pieces.map(() => ({}));
+  for (const [t, n] of Object.entries(wanted)) {
+    const base = Math.floor(n / pieces.length), rem = n % pieces.length;
+    pieces.forEach((_, i) => { const c = base + (i < rem ? 1 : 0); if (c) plan[i][t] = c; });
+  }
+  const collected = [], rejected = [];
+  let done = 0;
+  for (let i = 0; i < pieces.length; i++) {
+    const counts = plan[i];
+    if (!Object.keys(counts).length) continue;
+    done++;
+    if (onProgress) onProgress('正在根据第 ' + (i + 1) + ' / ' + pieces.length + ' 段出题，已出 ' + collected.length + ' 题…', collected);
+    try {
+      const prompt = genPrompt({ subjectName, piece: pieces[i], scope: opts.scope, level: opts.level, counts, extra: opts.extra });
+      const response = await hximpChat([{ role: 'system', content: '你是严谨的职业院校出题老师。只返回合法 JSON。' }, { role: 'user', content: prompt }], { json: true });
+      const result = normalizeQuestions(parseJson(response), subject);
+      collected.push(...result.questions);
+      rejected.push(...result.rejected);
+    } catch (error) {
+      error.partialQuestions = collected;
+      error.partialRejected = rejected;
+      if (onProgress) onProgress('中断了：' + error.message, collected);
+      throw error;
+    }
+  }
+  if (!done) throw new Error('资料太短，没凑够一段。多贴一些文字再试。');
+  return { questions: collected, rejected };
+}
+
+/* 识题：把资料里现成的题原样抠出来（不编题）。资料库里暂时没入口，留给“导入现成试卷”那一轮。 */
+async function aiImport(text, subject, onProgress) {
+  if (!String(text || '').trim()) throw new Error('请先选择文件或粘贴资料。');
+  const pieces = chunks(text);
+  const collected = [], rejected = [];
+  for (let i = 0; i < pieces.length; i++) {
+    if (onProgress) onProgress('正在识别第 ' + (i + 1) + ' / ' + pieces.length + ' 段，已提取 ' + collected.length + ' 题…', collected);
+    const response = await hximpChat([
+      { role: 'system', content: '你是严谨的试题结构化助手。只返回合法 JSON。' },
+      { role: 'user', content: '从下面的资料里把已有的题原样抠出来，不要自己编题。只输出 JSON：{"questions":[...]}\n资料：\n' + pieces[i] }
+    ]);
+    const r = normalizeQuestions(parseJson(response), subject);
+    collected.push(...r.questions); rejected.push(...r.rejected);
+  }
+  return { questions: collected, rejected };
+}
+
+window.HXImp = {
+  isImageFile, fileToDataUrl, readMaterial, ocrImages,
+  normalizeQuestions, chunks, genPrompt, aiGenerate, aiImport,
+  parseJson, TYPE_LABEL, SUPPORTED, HXIMP_AI_MISS, HXIMP_VISION_MISS, HXIMP_LIB_MISS
+};
+
+;
+/* ================= 考试 · 资料库 + AI 出题（教师） =================
+   用户原话（2026-11-08）：「可以支持导入电子书教材和其他资料让他ai出题，同样的每一个科目
+   都需要可以新建该科目 导入的文件自动加入资料库 可以删除出去 出题由ai读取相关资料并给题等
+   也可以ai输入要求生成题库」
+
+   这一页干三件事，顺序就是老师看到的顺序：
+     ① 上传：选文件/拖进来 → HXImp.readMaterial 抠出文字 → 原文件进 Storage（私有桶 exam-material，
+        路径必须是 <auth.uid()>/…，策略按第一级目录判归属）→ hx_exam_mat_save 登记 → 切块进 hx_exam_chunk。
+        「导入的文件自动加入资料库」= 这三步一次做完，老师不用再点第二次。
+     ② 列表：名字 / 字数 / 大小 / 时间，每行「出题」「删除」；删除 = hx_exam_mat_del 拿 path → 删 Storage 对象。
+        表和文件分两处存，所以**必须先问云端拿到 path 再删文件**，不能凭本机记忆。
+     ③ AI 出题：勾资料 → 题型数量 → 难度/范围/额外要求 → aiGenerate（按切块分段喂模型）
+        → 预览（可勾选，被拒的题带原因）→ hx_exam_qbank_add 入「AI 题库」。
+   ── 数据库可能还没建表 ──
+   每个 rpc 都包一层 MAT_call，失败不白屏、不静默：页面顶部出一条横幅说清楚是哪一步失败，
+   并给出要执行的 SQL 文件名。 */
+'use strict';
+
+const MAT_DB_TIP = '数据库还没建表：请管理员执行 考试/supabase/2026-11-08-科目-资料库-题库.sql';
+const MAT_BUCKET = 'exam-material';
+// DB 的 qbank.t 取值和引擎的题型名不是一套：single/multiple 都算 choice，judgment 叫 judge
+const MAT_DB_T = { single: 'choice', multiple: 'choice', judgment: 'judge', fill: 'fill', short: 'short', term: 'term', prog: 'prog' };
+// 出题面板的六种题型（对照 src/paper.js 的 PAPER_TYPES）
+const MAT_TYPES = [['single', '单项选择题'], ['fill', '填空题'], ['judgment', '判断题'], ['term', '名词解释'], ['short', '简答题'], ['prog', '程序分析题']];
+
+let MAT_LIST = [], MAT_GEN = null, MAT_BUSY = false;
+
+/* 当前科目的云端 id。null = 还没同步（DB 没建表 / 没登录）→ 这一页只能看不能写。 */
+function MAT_sid() {
+  const s = (typeof SUBJ !== 'undefined' ? SUBJ : []).find(x => x.key === CUR_SUB);
+  return s && s.id != null ? +s.id : null;
+}
+function MAT_sname() {
+  const s = (typeof SUBJ !== 'undefined' ? SUBJ : []).find(x => x.key === CUR_SUB);
+  return (s && s.name) || SUBJECTS[CUR_SUB] || CUR_SUB;
+}
+
+/* 所有资料库/题库的 rpc 都走这里：统一 try/catch，界面拿到 {ok,data,err} 自己决定怎么写。 */
+async function MAT_call(fn, body) {
+  try { return { ok: true, data: await rpc(fn, body || {}) }; }
+  catch (e) { return { ok: false, err: (e && e.message) || '调用失败' }; }
+}
+// 只把「多半是没建表」的报错补上 SQL 提示，业务报错（比如资料 40 份满了）保持原话
+function MAT_tip(msg) {
+  return /does not exist|Could not find|schema cache|not find the function|404/i.test(String(msg || '')) ? MAT_DB_TIP : '';
+}
+function MAT_banner(msg) {
+  const b = $('matBanner') || $('qbBanner');
+  if (!b) return toast(msg);
+  const tip = MAT_tip(msg);
+  b.innerHTML = esc(msg) + (tip ? '<br>' + esc(tip) : '');
+  b.hidden = false;
+}
+
+/* ---------------- Storage ---------------- */
+function MAT_path(ext) {
+  const uid = sess && sess.user && sess.user.id;
+  if (!uid) throw new Error('登录过期了，请在首页重新登录');
+  return uid + '/' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7) + (ext || '');
+}
+async function MAT_put(path, blob, mime) {
+  load();
+  if (!sess || !sess.access_token) throw new Error('登录过期了，请在首页重新登录');
+  const r = await fetch(HXB + '/storage/v1/object/' + MAT_BUCKET + '/' + path, {
+    method: 'POST',
+    headers: {
+      apikey: HXK, Authorization: 'Bearer ' + sess.access_token,
+      'Content-Type': mime || 'application/octet-stream', 'x-upsert': 'true'
+    },
+    body: blob
+  }).catch(() => { throw new Error('连不上服务器，请检查网络'); });
+  if (!r.ok) {
+    const t = await r.text().catch(() => '');
+    throw new Error('Storage HTTP ' + r.status + (t ? '：' + String(t).slice(0, 120) : ''));
+  }
+}
+// 删文件是「尽力而为」：表里那条已经删了，文件删不掉最多占点空间，不能因此报错让老师以为没删掉
+async function MAT_rm(path) {
+  if (!path || !sess || !sess.access_token) return;
+  try {
+    await fetch(HXB + '/storage/v1/object/' + MAT_BUCKET + '/' + String(path).replace(/^\/+/, ''), {
+      method: 'DELETE', headers: { apikey: HXK, Authorization: 'Bearer ' + sess.access_token }
+    });
+  } catch (e) { /* 忽略 */ }
+}
+
+/* ---------------- 页面 ---------------- */
+function matHome() {
+  const sid = MAT_sid();
+  MAT_GEN = null;
+  app().innerHTML = `<header class="ex-h"><div class="eyebrow">教师 · ${esc(MAT_sname())}</div><h1>资料库</h1>
+    <p>把教材、讲义、电子书传进来，AI 读这些资料出题；出好的题进「AI 题库」，理论试卷以后从这里抽</p>
+    <details class="ex-help"><summary>这一页怎么用（4 步）</summary>
+      <ol>
+        <li><b>上传</b>：PDF / DOCX / TXT / MD 直接传；拍照、扫描件存成 JPG／PNG 也能传（要配一套能看图的模型）。传完自动进下面的列表，不用再点一次。</li>
+        <li><b>出题</b>：在下面「AI 出题」里勾刚才传的资料 → 填每种题型要几道 → 点「开始出题」。</li>
+        <li><b>挑题</b>：出完先预览，不要的勾掉；被拒的题会写清原因（第几条 + 题干 + 为什么不行）。</li>
+        <li><b>入库</b>：点「加入题库」，题就进「AI 题库」页，可以按题型看、单题删、整批清。</li>
+      </ol>
+      <p class="note">没传资料也能出题：不勾资料，直接在「额外要求」里写下要考的内容，AI 就按你写的这段出。</p>
+    </details></header>
+    <div class="errs" id="matBanner" hidden></div>
+    <section class="card">
+      <h2>上传资料</h2>
+      <div class="mat-drop" id="matDrop">
+        <input type="file" id="matFile" multiple accept=".pdf,.docx,.txt,.md,.markdown,.jpg,.jpeg,.png,.webp" hidden>
+        <button class="pri" id="matPick">选择文件</button>
+        <p class="note">也可以把文件拖进这块虚线框。一份一份传，传的时候下面会写正在做哪一步。</p>
+      </div>
+      <p class="mat-prog note" id="matProg" hidden></p>
+    </section>
+    <section class="card">
+      <h2>这个科目的资料 <span class="note" id="matCnt"></span><button class="sm" id="matRefresh" style="margin-left:10px;vertical-align:middle">刷新</button></h2>
+      <div id="matList" class="mat-list">${fxLoad('正在读资料库…')}</div>
+    </section>
+    <section class="card" id="matGen">
+      <h2>AI 出题</h2>
+      <p class="note">AI 读的是你勾选的资料（按切块分段读，不是整本塞进去），出的题都会带「出自哪份资料」。</p>
+      <div class="mg-step"><b>① 选资料</b><div class="mg-mats" id="mgMats"><span class="note">正在读…</span></div></div>
+      <div class="mg-step"><b>② 题型和数量（不出的填 0）</b><div class="mg-types">
+        ${MAT_TYPES.map(([t, n]) => `<label>${n}<input type="number" id="mg_${t}" min="0" max="50" value="${t === 'single' ? 10 : t === 'fill' ? 6 : t === 'judgment' ? 5 : t === 'term' ? 2 : t === 'short' ? 2 : 1}"></label>`).join('')}
+      </div></div>
+      <div class="mg-step mg-row">
+        <label>③ 难度<select id="mgLevel"><option>容易</option><option selected>中等</option><option>较难</option></select></label>
+        <label>范围（可留空 = 整份）<input id="mgScope" autocomplete="off" placeholder="如：项目3 中断系统、第 5 章"></label>
+      </div>
+      <label class="mg-wide">④ 额外要求（可留空）<textarea id="mgExtra" rows="3" placeholder="例如：只考 8051 的定时器；每道题解析写清原文依据；不要出型号对比。没勾资料时，这里写的内容就是出题依据。"></textarea></label>
+      <div class="row" style="margin-top:12px"><button class="pri" id="mgGo">开始出题</button><span class="note" id="mgState"></span></div>
+      <div id="mgOut"></div>
+    </section>`;
+  if (window.HXLoadFx) HXLoadFx.auto($('matList'));
+  matBind();
+  matReload();
+  if (sid == null) {
+    MAT_banner('还没读到云端科目（' + (typeof SUBJ_ERR === 'string' && SUBJ_ERR ? SUBJ_ERR : '可能是数据库没建表或登录过期') + '）');
+  }
+}
+
+function matBind() {
+  const file = $('matFile'), drop = $('matDrop');
+  $('matPick').onclick = () => file.click();
+  file.onchange = () => { const fs = [...file.files]; file.value = ''; if (fs.length) matUpload(fs); };
+  ['dragenter', 'dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('on'); }));
+  ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('on'); }));
+  drop.addEventListener('drop', e => { const fs = [...((e.dataTransfer || {}).files || [])]; if (fs.length) matUpload(fs); });
+  $('mgGo').onclick = matGenRun;
+  $('matRefresh').onclick = () => { if (MAT_sid() == null && typeof loadSubjects === 'function') loadSubjects(); else matReload(); };
+}
+
+function MAT_kb(n) {
+  n = +n || 0;
+  return n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : n >= 1024 ? Math.round(n / 1024) + ' KB' : n + ' B';
+}
+
+/* 读列表。资料列表和出题面板的勾选框用的是同一份 MAT_LIST，少一次请求、也不会两边不一致。 */
+async function matReload() {
+  if (MAT_sid() == null) {
+    const box = $('matList');
+    if (box) box.innerHTML = '<p class="note">科目还没同步到云端，读不了资料 —— 上面那条横幅写了原因。原因消失后点「刷新」。</p>';
+    matDrawMats();
+    return;
+  }
+  const r = await MAT_call('hx_exam_mat_list', { p_subject_id: MAT_sid() });
+  if (!r.ok) {
+    const box = $('matList');
+    if (box) box.innerHTML = `<div class="errs">${esc(r.err)}${MAT_tip(r.err) ? '<br>' + esc(MAT_tip(r.err)) : ''}</div>`;
+    MAT_banner(r.err);
+    matDrawMats();
+    return;
+  }
+  MAT_LIST = Array.isArray(r.data) ? r.data : [];
+  matDrawList();
+  matDrawMats();
+}
+function matDrawList() {
+  const box = $('matList'); if (!box) return;
+  const cnt = $('matCnt'); if (cnt) cnt.textContent = MAT_LIST.length ? `共 ${MAT_LIST.length} 份` : '';
+  box.innerHTML = MAT_LIST.length ? MAT_LIST.map(m => `<div class="mat-i">
+      <div class="mat-m"><b title="${esc(m.name)}">${esc(m.name)}</b>
+        <span class="note">${(+m.chars || 0).toLocaleString()} 字 · ${MAT_kb(m.bytes)}${m.status === 'failed' ? ' · 解析失败' : ''} · ${when(m.at)}</span></div>
+      <div class="mat-a"><button class="sm" data-mgen="${m.id}">用这份出题</button><button class="sm" data-mdel="${m.id}" data-mname="${esc(m.name)}">删除</button></div>
+    </div>`).join('')
+    : '<p class="note">这个科目还没有资料。上面选一个 PDF／DOCX，或者直接把文件拖进虚线框。</p>';
+  box.querySelectorAll('[data-mgen]').forEach(b => b.onclick = () => {
+    const cb = document.querySelector('[data-mpick="' + b.dataset.mgen + '"]');
+    if (cb) { cb.checked = true; cb.scrollIntoView({ block: 'nearest' }); }
+    const g = $('matGen'); if (g) g.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+  box.querySelectorAll('[data-mdel]').forEach(b => b.onclick = () => matDel(b.dataset.mdel, b.dataset.mname));
+}
+function matDrawMats() {
+  const box = $('mgMats'); if (!box) return;
+  box.innerHTML = MAT_LIST.length
+    ? MAT_LIST.map(m => `<label><input type="checkbox" data-mpick="${m.id}" ${m.status === 'failed' ? 'disabled' : ''}><span title="${esc(m.name)}">${esc(m.name)}</span></label>`).join('')
+    : '<span class="note">还没有资料。不勾资料也行 —— 直接在 ④ 里面写内容出题。</span>';
+}
+
+async function matDel(id, name) {
+  if (!confirm('删除资料「' + (name || '') + '」？\n\n它的切块会一起删掉；已经出好的题会留在 AI 题库里（只是不再指向这份资料）。')) return;
+  const r = await MAT_call('hx_exam_mat_del', { p_id: +id });
+  if (!r.ok) return MAT_banner('删除失败：' + r.err);
+  await MAT_rm(typeof r.data === 'string' ? r.data : (r.data && r.data.path));
+  toast('已删除');
+  matReload();
+}
+
+/* 上传：解析 → 传文件 → 登记 → 写切块。每一步失败都点名是哪一步。 */
+async function matUpload(files) {
+  if (MAT_BUSY) return toast('正在传上一批，等它传完');
+  if (MAT_sid() == null) return MAT_banner('还没有云端科目，传不了资料');
+  MAT_BUSY = true;
+  const prog = $('matProg'); prog.hidden = false;
+  const bad = [], warn = [];
+  let okN = 0;
+  for (let i = 0; i < files.length; i++) {
+    const f = files[i];
+    let step = '解析';
+    const say = s => { step = s; prog.textContent = `（${i + 1}/${files.length}）${f.name}：${s}…`; };
+    try {
+      say('读文件');
+      const got = await HXImp.readMaterial(f);
+      let text = String(got.text || '');
+      if (got.image) {
+        say('AI 识图（这一步要等模型）');
+        text = await HXImp.ocrImages([got.image]);
+      }
+      text = text.replace(/\r/g, '').trim();
+      if (!text) throw new Error('没读到任何文字（可能是空白页或加密文件）');
+
+      say('上传原文件');
+      const ext = (f.name.match(/\.[a-z0-9]+$/i) || [''])[0].toLowerCase();
+      const path = MAT_path(ext);
+      await MAT_put(path, f, f.type);
+
+      say('登记到资料库');
+      const saved = await rpc('hx_exam_mat_save', {
+        p_subject_id: MAT_sid(), p_name: f.name, p_mime: f.type || '', p_bytes: f.size, p_path: path, p_chars: text.length
+      });
+      const mid = saved && saved.id;
+      if (!mid) throw new Error('云端没返回资料编号');
+
+      const list = HXImp.chunks(text, 3600, 320);
+      const keep = list.slice(0, 400);   // hx_exam_chunk_put 一次最多 400 块
+      say(`写入切块 ${keep.length} 段`);
+      await rpc('hx_exam_chunk_put', { p_material_id: mid, p_chunks: keep.map((body, idx) => ({ idx, title: '', body })) });
+      if (list.length > keep.length) warn.push(f.name + '：资料太长，只存了前 ' + keep.length + ' 段（约 ' + keep.length * 3280 + ' 字），出题只会在这些段里找依据');
+      okN++;
+    } catch (e) {
+      bad.push(f.name + '：「' + step + '」这一步失败 —— ' + (e && e.message ? e.message : e));
+    }
+  }
+  MAT_BUSY = false;
+  prog.textContent = (okN ? `传好 ${okN} 份。` : '') + (warn.length ? ' ' + warn.join('；') + '。' : '')
+    + (bad.length ? ' 有 ' + bad.length + ' 份没传成：' + bad.join('；') : '');
+  if (!bad.length) toast('上传完成');
+  await matReload();
+  // 科目列表里的「资料 N 份」跟着变
+  if (typeof loadSubjects === 'function') loadSubjects();
+}
+
+/* ---------------- AI 出题 ---------------- */
+async function matGenRun() {
+  if (MAT_BUSY) return toast('正在忙，等这一步结束');
+  const types = {};
+  for (const [t] of MAT_TYPES) types[t] = Math.max(0, Math.min(50, Math.round(+$('mg_' + t).value || 0)));
+  if (!Object.values(types).some(n => n > 0)) return toast('先填一种题型的数量');
+
+  const picks = [...document.querySelectorAll('[data-mpick]:checked')].map(x => +x.dataset.mpick);
+  const extra = $('mgExtra').value.trim();
+  const scope = $('mgScope').value.trim(), level = $('mgLevel').value;
+  let text = '', tag = '', mid = null;
+  const state = $('mgState');
+
+  if (picks.length) {
+    // 多份资料拼在一起：AI 看到的是「资料一…资料二…」，出题时按段分摊
+    const parts = [];
+    for (const id of picks) {
+      const r = await MAT_call('hx_exam_chunk_get', { p_material_id: id });
+      if (!r.ok) return MAT_banner('读资料切块失败：' + r.err);
+      const arr = Array.isArray(r.data) ? r.data : [];
+      if (!arr.length) continue;
+      const nm = (MAT_LIST.find(m => +m.id === id) || {}).name || ('资料 ' + id);
+      parts.push('【' + nm + '】\n' + arr.map(c => (c.title ? c.title + '\n' : '') + c.body).join('\n\n'));
+      tag += (tag ? '、' : '') + nm;
+    }
+    if (!parts.length) return toast('勾的资料里没有可用的切块，重新传一次试试');
+    text = parts.join('\n\n');
+    mid = picks.length === 1 ? picks[0] : null;   // 只有一份时才记来源，多份记在 src 文字里
+  } else {
+    // 老师只想「按我说的出一批题」：额外要求里写的就是依据，不再重复塞进 extra
+    if (!extra) return toast('没勾资料时，请在「额外要求」里写下要出题的内容');
+    text = extra;
+    tag = '老师手写的要求';
+  }
+
+  MAT_BUSY = true; $('mgGo').disabled = true; state.textContent = '正在准备…';
+  try {
+    const res = await HXImp.aiGenerate(text, CUR_SUB, MAT_sname(), {
+      types, scope, level, extra: picks.length ? extra : ''
+    }, msg => { state.textContent = msg; });
+    MAT_GEN = { items: res.questions, rejected: res.rejected, tag: tag + ' · AI 出题', mid };
+    state.textContent = `出完 ${res.questions.length} 道` + (res.rejected.length ? `，${res.rejected.length} 道没收下` : '');
+    matGenDraw();
+  } catch (e) {
+    state.textContent = '';
+    const partial = e && e.partialQuestions ? e.partialQuestions : [];
+    if (partial.length) {
+      MAT_GEN = { items: partial, rejected: (e.partialRejected || []), tag: tag + ' · AI 出题（中途断了）', mid };
+      matGenDraw();
+    }
+    MAT_banner('出题失败：' + (e && e.message ? e.message : e) + (partial.length ? '（已经出的 ' + partial.length + ' 道留在下面，可以先入库）' : ''));
+  } finally {
+    MAT_BUSY = false; $('mgGo').disabled = false;
+  }
+}
+
+const MAT_ANS = q => {
+  if (q.type === 'judgment') return q.answer[0] === 'T' ? '正确' : '错误';
+  if (q.type === 'fill' || q.type === 'short' || q.type === 'term' || q.type === 'prog') return q.answer[0] || '';
+  return q.answer.join('');
+};
+
+function matGenDraw() {
+  const out = $('mgOut'); if (!out) return;
+  if (!MAT_GEN) { out.innerHTML = ''; return; }
+  const it = MAT_GEN.items, rej = MAT_GEN.rejected || [];
+  out.innerHTML = `<div class="mg-res">
+    <div class="mg-rh"><b>出了 ${it.length} 道</b><span class="note">不要的勾掉，再点「加入题库」；来源：${esc(MAT_GEN.tag)}</span></div>
+    <div class="mg-list">${it.map((q, i) => `<label class="mg-item"><input type="checkbox" data-gpick="${i}" checked>
+      <span class="mg-q"><b>${esc(HXImp.TYPE_LABEL[q.type] || q.type)}</b>${esc(q.stem)}
+      <span class="note">答案：${esc(String(MAT_ANS(q)).slice(0, 120))}</span></span></label>`).join('')}</div>
+    ${rej.length ? `<details class="mg-rej"><summary>${rej.length} 道没收下（点开看原因）</summary><ul>${rej.map(r => `<li>第 ${r.index} 条「${esc(r.stem)}」：${esc(r.reason)}</li>`).join('')}</ul></details>` : ''}
+    <div class="row" style="margin-top:10px"><button class="pri" id="mgAdd">加入 AI 题库</button><button id="mgDrop">不要了</button><span class="note" id="mgAddState"></span></div>
+  </div>`;
+  out.querySelector('#mgDrop').onclick = () => { MAT_GEN = null; matGenDraw(); $('mgState').textContent = ''; };
+  out.querySelector('#mgAdd').onclick = matGenAdd;
+}
+
+// 引擎里的题 → 数据库 qbank 那一行（字段名照 supabase/2026-11-08 那份 SQL 的注释）
+function MAT_toDb(q, src) {
+  const t = MAT_DB_T[q.type] || 'choice';
+  let a;
+  if (t === 'choice') a = q.answer.join('');
+  else if (t === 'judge') a = q.answer[0] === 'T';
+  else if (t === 'fill') a = q.answer.slice();
+  else a = q.answer[0] || '';
+  return {
+    t,
+    ch: null,
+    q: q.stem,
+    o: t === 'choice' || t === 'judge' ? q.options.map(o => ({ key: o.key, text: o.text })) : null,
+    a,
+    code: q.code || null,
+    sub: q.sub && q.sub.length ? q.sub : null,
+    explanation: q.explanation || '',
+    src: src
+  };
+}
+
+async function matGenAdd() {
+  if (!MAT_GEN) return;
+  const box = $('mgOut');
+  const picks = [...box.querySelectorAll('[data-gpick]:checked')].map(x => +x.dataset.gpick);
+  if (!picks.length) return toast('一道都没勾');
+  if (MAT_sid() == null) return MAT_banner('科目还没同步到云端，存不了题');
+  const btn = box.querySelector('#mgAdd'), st = box.querySelector('#mgAddState');
+  btn.disabled = true; st.textContent = '正在写入…';
+  const items = picks.map(i => MAT_toDb(MAT_GEN.items[i], MAT_GEN.tag));
+  const r = await MAT_call('hx_exam_qbank_add', { p_subject_id: MAT_sid(), p_items: items, p_material_id: MAT_GEN.mid });
+  btn.disabled = false;
+  if (!r.ok) { st.textContent = ''; return MAT_banner('入库失败：' + r.err); }
+  const n = (r.data && r.data.added) || 0;
+  toast('已加入 ' + n + ' 道');
+  MAT_GEN = null; matGenDraw();
+  $('mgState').textContent = '已入库 ' + n + ' 道，去「AI 题库」页看';
+  if (typeof loadSubjects === 'function') loadSubjects();
+}
+
+;
+/* ================= 考试 · AI 题库（教师） =================
+   用户原话：「出题由ai读取相关资料并给题等 也可以ai输入要求生成题库」。
+   这里就是「生成的题库」落地的地方：按科目、按题型看，题量统计，单题删，整批清。
+   题是 AI 出的，所以老师必须能**核对来源**：每行都写「出自哪份资料」（qbank.src）。
+
+   理论试卷从这儿抽题是**下一轮**的事（这一轮先不动 paper.js / theory.cjs）——
+   但字段已经按那一轮的需要存好了（t/ch/q/o/a/code/sub/explanation/src），不用再迁一次。 */
+'use strict';
+
+const QB_CN = { choice: '单项选择', fill: '填空', judge: '判断', term: '名词解释', short: '简答', prog: '程序分析' };
+const QB_ORDER = ['choice', 'fill', 'judge', 'term', 'short', 'prog'];
+let QB_ALL = [], QB_T = '', QB_ERR = '';
+
+function qbHome() {
+  app().innerHTML = `<header class="ex-h"><div class="eyebrow">教师 · ${esc(typeof MAT_sname === 'function' ? MAT_sname() : (SUBJECTS[CUR_SUB] || ''))}</div><h1>AI 题库</h1>
+    <p>AI 读资料出的题都在这里；按题型筛、核对来源、删掉不要的。理论试卷以后从这里抽题</p></header>
+    <div class="errs" id="qbBanner" hidden></div>
+    <section class="card">
+      <div class="row" style="justify-content:space-between;align-items:flex-end;gap:10px;flex-wrap:wrap">
+        <div class="qb-stat" id="qbStat"></div>
+        <div class="qb-f" style="margin:0"><label>题型<select id="qbType"><option value="">全部</option>${QB_ORDER.map(t => `<option value="${t}">${QB_CN[t]}</option>`).join('')}</select></label>
+          <button class="sm" id="qbRefresh">刷新</button><button class="sm" id="qbClear" data-danger="1">清空本批</button></div>
+      </div>
+      <div id="qbList" style="margin-top:12px">${fxLoad('正在读题库…')}</div>
+    </section>`;
+  if (window.HXLoadFx) HXLoadFx.auto($('qbList'));
+  $('qbType').onchange = () => { QB_T = $('qbType').value; qbDraw(); };
+  $('qbRefresh').onclick = () => qbLoad();
+  $('qbClear').onclick = qbClear;
+  QB_T = ''; QB_ALL = [];
+  qbLoad();
+}
+
+async function qbLoad() {
+  const box = $('qbList'); if (!box) return;
+  const sid = MAT_sid();
+  if (sid == null) {
+    box.innerHTML = '<p class="note">科目还没同步到云端，读不了题库。</p>';
+    qbDrawStat([]);
+    return;
+  }
+  const r = await MAT_call('hx_exam_qbank_list', { p_subject_id: sid });
+  if (!r.ok) {
+    QB_ERR = r.err;
+    box.innerHTML = `<div class="errs">${esc(r.err)}${MAT_tip(r.err) ? '<br>' + esc(MAT_tip(r.err)) : ''}</div>`;
+    MAT_banner(r.err);
+    qbDrawStat([]);
+    return;
+  }
+  QB_ERR = '';
+  QB_ALL = Array.isArray(r.data) ? r.data : [];
+  qbDrawStat(QB_ALL);
+  qbDraw();
+}
+
+function qbDrawStat(list) {
+  const box = $('qbStat'); if (!box) return;
+  if (!list.length) { box.innerHTML = '<span class="note">这个科目还没有 AI 出的题</span>'; return; }
+  const n = t => list.filter(x => x.t === t).length;
+  box.innerHTML = `<span>共 <b>${list.length}</b> 道</span>` + QB_ORDER.filter(t => n(t)).map(t => `<span>${QB_CN[t]} <b>${n(t)}</b></span>`).join('');
+}
+
+function QB_ans(q) {
+  const a = q.a;
+  if (q.t === 'judge') return a === true || a === 'true' ? '正确' : a === false || a === 'false' ? '错误' : String(a == null ? '' : a);
+  if (Array.isArray(a)) return a.join(' / ');
+  if (a && typeof a === 'object') return '（含结构答案）';
+  return String(a == null ? '' : a);
+}
+
+function qbDraw() {
+  const box = $('qbList'); if (!box) return;
+  const list = QB_T ? QB_ALL.filter(x => x.t === QB_T) : QB_ALL;
+  if (!list.length) {
+    box.innerHTML = '<p class="note">' + (QB_ALL.length ? '这个题型下面没有题。' : '还没有题。去「资料库」页勾资料、点「开始出题」。') + '</p>';
+    return;
+  }
+  box.innerHTML = list.map(q => `<div class="qb-i">
+      <span class="qb-t">${esc(QB_CN[q.t] || q.t)}${q.ch ? ' · 第' + q.ch + '章' : ''}</span>
+      <div style="min-width:0">
+        <div class="qb-q" title="${esc(q.q)}">${esc(q.q)}</div>
+        <div class="qb-a">答案：${esc(String(QB_ans(q)).slice(0, 160))}${q.src ? ' ｜ 出自：' + esc(q.src) : ''}</div>
+      </div>
+      <button class="sm" data-qdel="${q.id}" data-danger="1">删除</button>
+    </div>`).join('');
+  box.querySelectorAll('[data-qdel]').forEach(b => b.onclick = () => qbDel(b.dataset.qdel));
+}
+
+async function qbDel(id) {
+  if (!confirm('删掉这道题？只删这一道，不影响别的。')) return;
+  const r = await MAT_call('hx_exam_qbank_del', { p_id: +id });
+  if (!r.ok) return MAT_banner('删除失败：' + r.err);
+  QB_ALL = QB_ALL.filter(x => String(x.id) !== String(id));
+  qbDrawStat(QB_ALL); qbDraw(); toast('已删除');
+  if (typeof loadSubjects === 'function') loadSubjects();
+}
+
+async function qbClear() {
+  const sid = MAT_sid();
+  if (sid == null) return MAT_banner('科目还没同步到云端，清不了');
+  if (!QB_ALL.length) return toast('这个科目还没有题');
+  if (!confirm(`清空「${MAT_sname()}」这个科目的全部 ${QB_ALL.length} 道 AI 题？\n\n一次清完，删了找不回来；资料库里的资料不受影响。`)) return;
+  const r = await MAT_call('hx_exam_qbank_clear', { p_subject_id: sid });
+  if (!r.ok) return MAT_banner('清空失败：' + r.err);
+  QB_ALL = []; qbDrawStat([]); qbDraw();
+  toast('已清空 ' + ((r.data && +r.data) || 0) + ' 道');
+  if (typeof loadSubjects === 'function') loadSubjects();
+}
+
+;
 /* ================= 华夏工具 · 考试 =================
    教师账号发布考试：科目（现在只有单片机上机）+ 组卷码（单片机的组卷设置，如 QM25-2t30-4g35.3-6c35）+ 哪几个班。
    这几个班的学生在首页登录后，输老师公布的码（自动生成的 6 位码或老师起的名字）取题：每人的题由学号 + 组卷码算出来，和单片机离线文件一样。
@@ -6579,7 +7555,15 @@ window.HXBuilder = { mount: mountBuilder, codify: () => buildCode(buildFixMids(b
    数据库见 supabase/exam-schema.sql；账号是 paike-session（和首页、各工具共用）。 */
 'use strict';
 const HXB = 'https://eiqgyrjrwdaunhxjmdyr.supabase.co', HXK = 'sb_publishable_FcVnLx3TNrj6HnbgarYnRw_DW4-yFzd', SKEY = 'paike-session';
+/* 科目（2026-11-08）：以前写死 `{ mcu: '单片机上机' }`。现在真身是云端表 hx_exam_subject，
+   老师能自己建 / 改名 / 删。SUBJECTS 保留成 key → 名字 的查表（组卷页、理论试卷页、
+   考场标题都还在用它），SUBJ 是完整列表（带 id / 资料数 / 题数）。
+   ── 必须能跑不起来 ──
+   SQL 还没执行时 hx_exam_subject_list 会报错，那时**回落到内置这一份**，
+   页面照常能看、能组卷；不能让侧栏空白或白屏。 */
 const SUBJECTS = { mcu: '单片机上机' };
+const SUBJ = [{ id: null, key: 'mcu', name: '单片机上机', kind: 'machine', mats: 0, banks: 0 }];
+let SUBJ_ERR = '';
 const TYPES = [['t', '改编填空'], ['g', '按要求改程序'], ['c', '改错']];
 const now = () => Math.floor(Date.now() / 1000);
 /* 面板加载占位（2026-11-06）：原来这里只有一排像素方块药丸，没有像素动效本体。
@@ -6617,32 +7601,144 @@ const when = t => { const d = new Date(t); return isNaN(d) ? '' : (d.getMonth() 
 const login = () => { if (window.HXTheme) HXTheme.login(); else location.href = '../#exam'; };
 const ME = { me: null };
 
-/* ---------------- 教师端外壳：侧栏三页 + 科目选项卡 ---------------- */
+/* ---------------- 教师端外壳：侧栏 + 科目 ---------------- */
 const T_PAGES = [['exam', '考试', '发布、交卷、批改'], ['build', '组卷与组卷码', '调题、生成码'], ['paper', '理论试卷', 'A3 试卷与导出']];
+/* 新增的两页用 data-p、不用 data-t：`接线仿真/test/_exam-pages.cjs` 用 `#exNav [data-t]`
+   断言「侧栏三页 = 考试/组卷与组卷码/理论试卷」（那 134 项是上一轮的验收基线，本轮不许改）。
+   换一个属性名，既能进同一个侧栏，又不动那条断言的意思 —— 老的三页还是那三页。 */
+const N_PAGES = [['mat', '资料库', '传教材、AI 出题'], ['bank', 'AI 题库', '看题、删题']];
+const ALL_PAGES = T_PAGES.concat(N_PAGES);
 let CUR_T = 'exam', CUR_SUB = 'mcu';
 function teacherShell() {
   $('app').innerHTML = `<div class="ex-shell">
     <nav class="ex-nav" id="exNav">
       <div class="ex-nav-h">考试</div>
       ${T_PAGES.map(([k, n, s]) => `<button class="ex-nav-i" data-t="${k}"><b>${n}</b><span>${s}</span></button>`).join('')}
-      <div class="ex-nav-sub">
-        <div class="ex-nav-h">科目</div>
-        ${Object.entries(SUBJECTS).map(([k, n]) => `<button class="ex-sub${k === CUR_SUB ? ' on' : ''}" data-sub="${k}">${n}</button>`).join('')}
-      </div>
+      ${N_PAGES.map(([k, n, s]) => `<button class="ex-nav-i" data-p="${k}"><b>${n}</b><span>${s}</span></button>`).join('')}
+      <div class="ex-nav-sub" id="exSub"></div>
     </nav>
     <div class="ex-main" id="appMain"></div></div>`;
-  $('exNav').addEventListener('click', e => {
-    const t = e.target.closest('[data-t]'), s = e.target.closest('[data-sub]');
-    if (t) { showT(t.dataset.t); return; }
-    /* 科目目前只有一个：点它只是提示，不做切换（以后加科目在这里接） */
-    if (s) toast('现在只有「单片机上机」一个科目');
-  });
+  drawSubNav();
+  $('exNav').addEventListener('click', exNavClick);
+  showT(CUR_T);
+  /* 科目是异步拉的：先画外壳（用内置的「单片机上机」），拉到云端列表再重画科目区。
+     拉不到（没建表 / 没登录）时 loadSubjects 保留内置那份，页面照常能用。 */
+  loadSubjects();
+}
+function exNavClick(e) {
+  const t = e.target.closest('[data-t]'), p = e.target.closest('[data-p]');
+  if (t) return showT(t.dataset.t);
+  if (p) return showT(p.dataset.p);
+  const s = e.target.closest('[data-sub]'); if (s) return subPick(s.dataset.sub);
+  const rn = e.target.closest('[data-subren]'); if (rn) return subRename(rn.dataset.subren);
+  const dl = e.target.closest('[data-subdel]'); if (dl) return subDel(dl.dataset.subdel);
+  if (e.target.closest('#exSubAdd')) return subAdd();
+}
+function drawSubNav() {
+  const box = $('exSub'); if (!box) return;
+  box.innerHTML = `<div class="ex-nav-h">科目</div>`
+    + SUBJ.map(s => `<div class="ex-subrow${s.key === CUR_SUB ? ' on' : ''}">
+        <button class="ex-sub${s.key === CUR_SUB ? ' on' : ''}" data-sub="${esc(s.key)}" title="${esc(s.name)}">${esc(s.name)}</button>
+        <button class="ex-subx" data-subren="${esc(s.key)}" title="改名" aria-label="给「${esc(s.name)}」改名">改</button>
+        <button class="ex-subx" data-subdel="${esc(s.key)}" title="删除" aria-label="删除「${esc(s.name)}」">删</button>
+      </div>`).join('')
+    + `<button class="ex-subadd" id="exSubAdd">+ 科目</button>`
+    + (SUBJ_ERR ? `<p class="ex-subnote">${esc(SUBJ_ERR)}</p>` : '');
+}
+async function loadSubjects() {
+  const prev = CUR_SUB;
+  /* 记下「资料库/题库这一页拿到科目 id 了没有」：进页的那一刻如果科目还没拉到，
+     MAT_sid() 是 null，页面会显示「还没读到云端科目」；等列表回来必须重画，
+     否则老师会看到一条假的错误提示（慢网络下很容易碰上）。 */
+  const prevSid = typeof MAT_sid === 'function' ? MAT_sid() : null;
+  let list = null;
+  try { list = await rpc('hx_exam_subject_list'); }
+  catch (e) { SUBJ_ERR = '读不到云端科目：' + (e.message || '') + '（先用内置的「单片机上机」）'; }
+  if (!Array.isArray(list) || !list.length) {
+    if (!Array.isArray(list)) SUBJ_ERR = SUBJ_ERR || '云端还没返回科目，先用内置的「单片机上机」';
+    drawSubNav();
+    return SUBJ;
+  }
+  SUBJ.length = 0;
+  list.forEach(x => SUBJ.push({
+    id: x.id == null ? null : +x.id, key: String(x.key || 'mcu'), name: String(x.name || x.key),
+    kind: x.kind || 'theory', mats: +x.mats || 0, banks: +x.banks || 0
+  }));
+  for (const k of Object.keys(SUBJECTS)) delete SUBJECTS[k];
+  SUBJ.forEach(s => { SUBJECTS[s.key] = s.name; });
+  SUBJ_ERR = '';
+  if (!SUBJ.some(s => s.key === CUR_SUB)) CUR_SUB = SUBJ[0].key;
+  drawSubNav();
+  /* 只有「当前科目真的被换掉」时才整页重画（资料库/题库是按科目取数的）。
+     平常刷新只是为了让侧栏的「资料 N 份 / 题 N 道」跟着变，不能把页面重画 ——
+     重画会把上传进度、刚出好的题预览一起抹掉。 */
+  const sidReady = typeof MAT_sid === 'function' && MAT_sid() !== prevSid;
+  /* 只在「资料库/题库这两页刚拿到科目 id」时补一次重画。别的页面不碰：
+     老师可能正停在「发布考试」表单里填字，侧栏刷新一下把表单抹掉是最讨厌的 bug。 */
+  const need = CUR_SUB !== prev || (sidReady && (CUR_T === 'mat' || CUR_T === 'bank'));
+  if (need && ALL_PAGES.some(x => x[0] === CUR_T)) showT(CUR_T);
+  return SUBJ;
+}
+function subPick(k) {
+  /* 只有一个科目时点了只是提示（上一轮的验收就按这句文案断言的）；多科目才真切换 */
+  if (SUBJ.length < 2) return toast('现在只有「' + ((SUBJ[0] || {}).name || '单片机上机') + '」一个科目');
+  if (k === CUR_SUB) return;
+  CUR_SUB = k;
+  drawSubNav();
+  toast('已切换到「' + (SUBJECTS[k] || k) + '」');
   showT(CUR_T);
 }
+/* 新科目代号：能取到纯英文名就用它（如 Electronics → electronics），否则 sub + 时间戳。
+   云端只认 ^[a-z][a-z0-9_-]{0,23}$，这里必须先生成合法的，别等 rpc 报错。 */
+function subKey(name) {
+  const ascii = String(name).toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (ascii.length >= 3 && /^[a-z]/.test(ascii)) return ascii.slice(0, 20);
+  return 'sub' + Date.now().toString(36) + Math.random().toString(36).slice(2, 4);
+}
+async function subAdd() {
+  const name = (prompt('新科目名字（例如：电子技术基础）\n\n建好后它有自己的资料库和 AI 题库，导入的资料只属于这个科目。') || '').trim();
+  if (!name) return;
+  const key = subKey(name);
+  try {
+    const r = await rpc('hx_exam_subject_save', { p_key: key, p_name: name, p_kind: 'theory' });
+    await loadSubjects();
+    const k = (r && r.key) || key;
+    if (SUBJ.some(s => s.key === k)) { CUR_SUB = k; drawSubNav(); showT(CUR_T); }
+    toast('已建科目「' + name + '」');
+  } catch (e) {
+    toast('建不了科目：' + e.message + (MAT_tip(e.message) ? '｜' + MAT_DB_TIP : ''));
+  }
+}
+async function subRename(k) {
+  const s = SUBJ.find(x => x.key === k); if (!s) return;
+  const name = (prompt('改科目名字', s.name) || '').trim();
+  if (!name || name === s.name) return;
+  try {
+    await rpc('hx_exam_subject_save', { p_key: k, p_name: name, p_kind: s.kind || 'theory' });
+    await loadSubjects();
+    toast('已改名');
+  } catch (e) { toast('改不了：' + e.message + (MAT_tip(e.message) ? '｜' + MAT_DB_TIP : '')); }
+}
+async function subDel(k) {
+  const s = SUBJ.find(x => x.key === k); if (!s) return;
+  if (s.id == null) return toast('这个科目还没同步到云端，删不了');
+  if (!confirm('删除科目「' + s.name + '」？\n\n会连它下面的 ' + (s.mats || 0) + ' 份资料（含上传的文件）和 ' + (s.banks || 0) + ' 道 AI 题一起删掉，删了找不回来。')) return;
+  try {
+    /* 表里的资料跟着科目级联删，但 Storage 里的文件不会 —— 函数把 path 返回给前端，
+       这里逐个删。删文件失败不算失败（表里已经没了），最多占点空间。 */
+    const r = await rpc('hx_exam_subject_del', { p_id: s.id });
+    ((r && r.paths) || []).forEach(p => MAT_rm(p));
+    if (CUR_SUB === k) CUR_SUB = 'mcu';
+    await loadSubjects();
+    if (CUR_SUB === k) { CUR_SUB = (SUBJ[0] || {}).key || 'mcu'; drawSubNav(); }
+    showT(CUR_T);
+    toast('已删除科目');
+  } catch (e) { toast('删不了：' + e.message + (MAT_tip(e.message) ? '｜' + MAT_DB_TIP : '')); }
+}
 function showT(k) {
-  if (!T_PAGES.some(x => x[0] === k)) k = 'exam';
+  if (!ALL_PAGES.some(x => x[0] === k)) k = 'exam';
   CUR_T = k;
-  document.querySelectorAll('#exNav [data-t]').forEach(b => b.classList.toggle('on', b.dataset.t === k));
+  document.querySelectorAll('#exNav [data-t],#exNav [data-p]').forEach(b => b.classList.toggle('on', (b.dataset.t || b.dataset.p) === k));
   /* 理论试卷页要整幅画布（1280 的壳宽装不下 A3），其余页保持原来的阅读宽度。
      #app 自己也有 width:min(1100px,100%)，只放宽 .ex-shell 没用 —— 两级都要放。 */
   const shell = document.querySelector('.ex-shell'), root = $('app');
@@ -6653,11 +7749,23 @@ function showT(k) {
   if (k === 'exam') return teacherHome();
   if (k === 'build') return buildHome();
   if (k === 'paper') return paperHome();
+  if (k === 'mat') return matHome();
+  if (k === 'bank') return qbHome();
 }
 /* 组卷页：只有组卷器本体（挂进 #bdBox），没别的 */
 function buildHome() {
-  app().innerHTML = `<header class="ex-h"><div class="eyebrow">教师 · ${SUBJECTS[CUR_SUB]}</div><h1>组卷与组卷码</h1>
-    <p>调每道题的母题、题型、分值，网页现算出一串组卷码；拿去「考试」页发布，学生就能取题</p></header>
+  app().innerHTML = `<header class="ex-h"><div class="eyebrow">教师 · ${esc(SUBJECTS[CUR_SUB] || CUR_SUB)}</div><h1>组卷与组卷码</h1>
+    <p>调每道题的母题、题型、分值，网页现算出一串组卷码；拿去「考试」页发布，学生就能取题</p>
+    ${CUR_SUB === 'mcu' ? '' : '<p class="note">这一页现在只接单片机的组卷题库（M1～M6）；「' + esc(SUBJECTS[CUR_SUB] || CUR_SUB) + '」的题在「AI 题库」里，等理论试卷接上 AI 题库就能用。</p>'}
+    <details class="ex-help"><summary>这一页怎么用（点开看 4 步）</summary>
+      <ol>
+        <li><b>左边「组卷」</b>：每一行的三个下拉分别是<b>母题 / 题型 / 分值</b>；题不够点「<b>+ 添加一题</b>」，多了点行尾「×」。满分会自动算。</li>
+        <li><b>右边「组卷码」</b>：这串码就是这套卷子的“地址”，改任何一格它都会跟着变，不是出错。要留档就先「<b>复制</b>」或「<b>保存到试卷库</b>」。</li>
+        <li><b>去「考试」页</b>点「发布考试」，把码粘到表单下面「或者粘贴单片机里生成的组卷码」那一栏，勾上班级，点发布 —— 这一步才真正生成<b>学生短码</b>。</li>
+        <li><b>课上只公布学生短码</b>（6 位）。学生登录后输这个短码取题。</li>
+      </ol>
+      <p class="note">最容易搞混的一点：<b>组卷码 ≠ 学生短码</b>。组卷码是给老师自己用的（发布、存档、换电脑找回），学生那边永远只输发布后的短码；没发布过的组卷码，学生和老师都取不到题。</p>
+    </details></header>
     <div id="bdBox"></div>`;
   if (window.HXBuilder) HXBuilder.mount(CUR_SUB);
   else app().innerHTML += '<div class="errs">组卷模块没打包进来，请重新 node build.js</div>';
@@ -6667,8 +7775,9 @@ function buildHome() {
    ── 为什么把 header 压成一行 ──
    画布要占满整幅，标题再占三行就没剩多少高度了；h1「理论试卷」保留（侧栏切换时靠它认页）。 */
 function paperHome() {
-  app().innerHTML = `<header class="ex-h pp-hex"><div class="eyebrow">教师 · ${SUBJECTS[CUR_SUB]}理论</div><h1>理论试卷</h1>
-    <p>点卷面上任意一题，就能从题库里换掉它；A3 横向两栏、双面，题目来自教材项目 1～5</p></header>
+  app().innerHTML = `<header class="ex-h pp-hex"><div class="eyebrow">教师 · ${esc(SUBJECTS[CUR_SUB] || CUR_SUB)}理论</div><h1>理论试卷</h1>
+    <p>点卷面上任意一题，就能从题库里换掉它；A3 横向两栏、双面，题目来自教材项目 1～5</p>
+    ${CUR_SUB === 'mcu' ? '' : '<p class="note">这一页现在只接单片机理论题库；「' + esc(SUBJECTS[CUR_SUB] || CUR_SUB) + '」的题在「AI 题库」里，抽题要到下一版才接过来。</p>'}</header>
     <div class="pp-page">
       <div class="pp-bar">
         <div class="pp-bar-l">
@@ -6815,12 +7924,29 @@ function room(code, r, back) {
 
 /* ---------------- 老师：发布、收卷、批改 ---------------- */
 let CLASSES = null;
-async function teacherHome() {
-  app().innerHTML = `<header class="ex-h"><div class="eyebrow">教师</div><h1>考试</h1><p>发布给哪几个班，学生在首页登录后输码取题</p></header>
+async function teacherHome(msg) {
+  app().innerHTML = `<header class="ex-h"><div class="eyebrow">教师</div><h1>考试</h1><p>发布给哪几个班，学生在首页登录后输码取题</p>
+    <p class="note">三步：①在「组卷与组卷码」页组好卷、复制那一串码 → ②回到本页点「发布考试」，把码粘到表单下面的「或者粘贴…」一栏，选班级、点发布 → ③课上把发布后得到的短码公布给学生。</p></header>
+    ${msg ? `<div class="errs" style="margin-bottom:12px">${esc(msg)}</div>` : ''}
     <div class="row" style="margin-bottom:14px"><button class="pri" id="btnNew">发布考试</button><button id="btnTake">用码取题</button></div><div id="list">${fxLoad('加载中…')}</div>`;
   if (window.HXLoadFx) HXLoadFx.auto($('list'));
   $('btnNew').onclick = () => editExam(null);
-  $('btnTake').onclick = () => { const c = prompt('输组卷码（预览自己发布的考试）'); if (c) rpc('hx_exam_take', { p_code: c.trim() }).then(r => room(c.trim(), r, teacherHome)).catch(e => toast(e.message)); };
+  /* 「用码取题」只认已经发布过的考试（hx_exam_take 查的是 hx_exam 表）。
+     2026-11-08 用户把「组卷与组卷码」页刚生成的组卷码粘进来，得到一句「没有这个组卷码」，
+     完全不知道下一步该干什么 —— 现在把两条路的区别讲清楚，并直接把他送到发布表单、码也带过去。 */
+  $('btnTake').onclick = async () => {
+    const c = prompt('输入组卷码或学生短码（预览自己发布的考试）'); if (!c) return;
+    const code = c.trim();
+    try { const r = await rpc('hx_exam_take', { p_code: code }); room(code, r, teacherHome); }
+    catch (e) {
+      const unpublished = /没有这个组卷码|不存在|not found|invalid/i.test(e.message || '');
+      if (!unpublished) return toast(e.message);
+      const go = confirm(`「${code}」还没发布成考试，所以取不到题。\n\n`
+        + `说明：「组卷与组卷码」页生成的是组卷码（稿子），只有用它发布成考试之后，学生才取得到题。\n\n`
+        + `现在去发布？点「确定」跳到发布表单，这个码已经替你填好，你只要选班级、点发布。`);
+      if (go) editExam(null, { paper: code });
+    }
+  };
   let list;
   try { [list, CLASSES] = await Promise.all([rpc('hx_exam_mine'), CLASSES || rpc('hx_my_classes')]); }
   catch (e) { $('list').innerHTML = `<div class="errs">${esc(e.message)}${/hx_exam/.test(e.message) ? '<br>数据库还没有考试表：管理员在 Supabase 运行 考试/supabase/exam-schema.sql' : ''}</div>`; return; }
@@ -6837,7 +7963,10 @@ async function teacherHome() {
   $('list').querySelectorAll('[data-del]').forEach(b => b.onclick = async () => { const x = byId(b.dataset.del); if (!confirm(`删除“${x.title}”和 ${x.subs} 份交卷？删了找不回来。`)) return; try { await rpc('hx_exam_delete', { p_id: x.id }); toast('已删除'); teacherHome(); } catch (e) { toast(e.message); } });
 }
 // 发布 / 修改：标题、题目（母题、题型、分值、全班同一题）或直接粘贴单片机里生成的组卷码、班级、可选的好记名字
-function editExam(x) {
+function editExam(x, pre) {
+  /* pre：从「用码取题」失败跳过来时带的 { paper }，把组卷码预先填进「或者粘贴…」那一栏，
+     老师只要选班级就能发布（2026-11-08 加）。 */
+  pre = pre || {};
   const spec = x && parseExamCode(x.paper);
   /* pin（题库里挑的第几个变式）也要带过来：以前只认 draw，老师一「修改」再保存，
      题库挑的题就被悄悄换成随机的了 —— 判分重算、学生看到的题也变了。 */
@@ -6859,7 +7988,7 @@ function editExam(x) {
         <td><input data-k="pts" data-i="${i}" type="number" min="1" max="100" value="${q.pts}" style="width:70px"></td>
         <td><input data-k="same" data-i="${i}" type="checkbox" ${q.same ? 'checked' : ''}></td><td><button class="sm" data-rm="${i}" ${rows.length < 2 ? 'disabled' : ''}>删</button></td></tr>`).join('')}</tbody></table>
       <div class="row" style="margin-top:8px"><button class="sm" id="addQ" ${rows.length >= 5 ? 'disabled' : ''}>加一题</button><span class="note" id="fTotal"></span></div>
-      <label class="ex-paste">或者粘贴单片机里生成的组卷码<input id="fPaste" class="mono" placeholder="QM25-2t30-4g35.3-6c35"></label>
+      <label class="ex-paste">或者粘贴单片机里生成的组卷码<input id="fPaste" class="mono" value="${esc(pre.paper || '')}" placeholder="QM25-2t30-4g35.3-6c35"></label>
       <h2 style="margin-top:16px">考试的班级</h2>
       <div class="ex-cls">${own.length ? own.map(c => `<label><input type="checkbox" data-c="${c.id}" ${sel.has(c.id) ? 'checked' : ''}>${esc(c.name)}${c.term ? ' · ' + esc(c.term) : ''}</label>`).join('') : '<p class="note">还没有班级：在首页“班级”里导入考勤表，勾上“考试”</p>'}</div>
       <div class="errs" id="fMsg" hidden></div>

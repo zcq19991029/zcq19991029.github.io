@@ -123,10 +123,30 @@ html.hx-bg body::before {
        也不用 mix-blend-mode —— 两者在 iOS 上都要额外的全屏合成代价）。
    开关在 hx-theme.js 的 bgMotion()：只给「视频壁纸被降级成海报帧」这种情况挂，
    省电一体机（hx-lite）和系统「减少动态效果」一律不挂，保持静态。 */
+/* ── 2026-11-08 七修：Safari 上背景还是不动（用户实机报「我用safari还是背景视频没动」）──
+   前面几修已经解决了两件事：① 不再被 prefers-reduced-motion 一票否决（iOS 低电量会自动打开它）
+   ② 手机不建 video（bgNoVideo），改用纯 CSS 两层合成动画。
+   Chromium 模拟 iPhone UA + reduce 实测两档都在动（transform 矩阵 1.5 秒内确实变了），
+   但**Safari 真机不动** —— 差异就在 WebKit 对「position:fixed 伪元素 + transform 动画」的处理：
+     · body::before 是 position:fixed 的伪元素，WebKit 里它不一定被提升成独立合成层，
+       动画就退化成主线程重绘；一旦主线程忙（首屏加载、滚动），动画看着就是停的。
+     · 更严重的是 Safari 有个「后台标签页 / 滚动中暂停非合成动画」的省电策略，
+       没被提升到合成层的动画会被静默停掉 —— 表现就是「一直是那张静图」。
+   兜底做法（都是 WebKit 认的老写法，不影响 Chromium）：
+     · translateZ(0)：显式让 WebKit 建合成层（will-change 在旧 WebKit 上不总生效）
+     · backface-visibility:hidden：同上，强制 GPU 层
+     · 动画里带 translate3d（已经带了，保留）
+   注意：这些属性只挂在 hx-bg-mo 这个「已降级成静图、需要靠动画补生机」的状态上，
+   不影响有视频的桌面端（那边根本不加 hx-bg-mo）。 */
 html.hx-bg-mo body::before {
   animation: hx-bgmo-zoom 34s ease-in-out infinite alternate;
   transform-origin: 52% 46%;
   will-change: transform;
+  /* Safari 合成层兜底：只加 backface-visibility 和 perspective，**不写 transform**——
+     写 transform: translateZ(0) 会把 @keyframes 里的 transform 整个覆盖掉，动画直接压死。
+     这是 CSS 动画最常见的自杀写法，这里特意避开。 */
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 }
 @keyframes hx-bgmo-zoom {
   from { transform: scale(1.06) translate3d(-.9%, .6%, 0); }

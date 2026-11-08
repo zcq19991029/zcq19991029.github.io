@@ -464,8 +464,14 @@
     if (matchMedia('(pointer: coarse)').matches && matchMedia('(hover: none)').matches) return true;
     var ua = navigator.userAgent || '';
     if (/iPhone|iPod|Windows Phone|Android.+Mobile|IEMobile/i.test(ua)) return true;
-    // iPad 走「桌面版网站」时 UA 是 Macintosh，只能靠触摸点数认出来
-    if (navigator.maxTouchPoints > 1 && /Macintosh/.test(ua)) return true;
+    /* iPad 走「桌面版网站」时 UA 是 Macintosh，只能靠触摸点数认出来。
+       2026-11-08 修误判：原来只判 `maxTouchPoints > 1 && /Macintosh/`，会把两类机器错杀 ——
+         ① 装了触摸屏的 Mac / 某些远程桌面环境（触摸点会报 10），被当成 iPad → 不建视频 → 背景静图；
+         ② Chromium headless（自动化测试）默认报 10 个触摸点，导致测试里根本建不出 video（本轮踩到）。
+       真 iPad 的特征是 **Macintosh UA + 触摸 + 指针是 coarse（无精确悬停）**；
+       带触屏的 Mac 指针仍是 fine（有鼠标/触控板），据此区分。 */
+    if (navigator.maxTouchPoints > 1 && /Macintosh/.test(ua)
+        && matchMedia('(pointer: coarse)').matches && matchMedia('(hover: none)').matches) return true;
     return false;
   }
   // 窄屏（≤820px）：不建新元素、但已有的元素只暂停不销毁 —— CSS 那边 .hx-bgvid-wrap 会 display:none。
@@ -483,9 +489,14 @@
   //   画面仍然在缓缓呼吸，但没有快速位移，符合减动效的本意（见 css 里那段注释）。
   // 全程零 video、零 rAF、零 blur、零 blend-mode：只有 transform / opacity 两个合成器属性在动。
   var bgMo = null;
+  // 2026-11-08：视频自动播放被拒时降级成 CSS 动画，只降一次（见 bgPlay 里的 catch）
+  var bgMoFallback = false;
   function bgMotion(on) {
     var r = document.documentElement;
-    var need = !!on && !liteOn() && !r.classList.contains('hx-lite');
+    // 2026-11-08：降级模式下（视频播不动）即使 on=false 也要挂着 ——
+    // 降级是「视频真的不动了，用动画顶上」，不能被下一次 apply() 顺手取消掉，
+    // 否则 Safari 上会出现「刚降级成功、切个主题又变回静图」的怪象。
+    var need = (!!on || bgMoFallback) && !liteOn() && !r.classList.contains('hx-lite');
     r.classList.toggle('hx-bg-mo', need);
     if (!need) {
       if (bgMo && bgMo.parentNode) bgMo.parentNode.removeChild(bgMo);
@@ -620,7 +631,28 @@
       // 换路窗口里被 bgPause 停过的话，两路都还在淡入淡出中间态，续播必须两路一起起 ——
       // 只起主那一路会让另一路卡在中间的不透明度上，画面变成两层半透明叠着
       if (i !== bgCur && !bgFading) continue;
-      var p = bgVids[i].play(); if (p && p.catch) p.catch(function () { }); // 自动播放被拦时不报错，海报帧兜底
+      (function (v) {
+        var p = v.play();
+        if (!p || !p.catch) return;
+        p.catch(function () {
+          /* ── 2026-11-08 修：Safari 上「背景视频没动」（用户实机报）──
+             原来这里 catch 里什么都不做，注释写「海报帧兜底」——但海报帧是**静图**，
+             用户看到的就是背景一动不动，而日志里一点痕迹都没有，极难排查。
+             Safari 的自动播放策略比 Chrome 严：桌面 Safari 在「低电量模式」、
+             「设置里关了自动播放」、「页面不是用户主动打开」等情况下会拒绝 play()，
+             而且只抛 Promise，不报错不弹提示。
+             现在拒绝就**自动降级成 CSS 合成动画**（和手机上同一套 hx-bgmo），
+             背景照样在缓缓动，不再是一张死图。用户完全不用管是视频还是动画。
+             注意只降级一次（bgMoFallback 打标），避免播放被反复拒时反复建元素。 */
+          if (!bgMoFallback) {
+            bgMoFallback = true;
+            try {
+              document.documentElement.classList.add('hx-bg-mo');
+              bgMotion(true);
+            } catch (e) { }
+          }
+        });
+      })(bgVids[i]);
     }
     // 不用 rAF：每帧读 currentTime 纯白烧 CPU。150ms 一次足够（换路窗口 0.8s ≈ 5 次采样）
     bgTick = setInterval(bgStep, 150);
