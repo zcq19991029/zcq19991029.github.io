@@ -606,7 +606,7 @@ button.danger { color: var(--bad, #d70015); }
 .ppb-ch { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 12.5px; color: var(--ink2); }
 .ppb-ch label { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
 .ppb-l { display: grid; gap: 2px; align-content: start; }
-.bkq { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 8px; align-items: center; padding: 8px 8px;
+.bkq { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto auto; gap: 8px; align-items: center; padding: 8px 8px;
   border: 1px solid transparent; border-radius: 10px; cursor: pointer; }
 .bkq:hover { background: var(--field2); }
 .bkq.on { background: var(--accbg); border-color: var(--acc); }
@@ -616,6 +616,9 @@ button.danger { color: var(--bad, #d70015); }
 .bkq-tag { font-size: 11px; color: var(--mute); white-space: nowrap; }
 .bkq-tag.on { color: var(--acc); font-weight: 600; }
 .bkq-p { padding: 2px 8px; font-size: 12px; }
+.bkq-src { font-size: 11px; color: var(--mute); white-space: nowrap; max-width: 140px; overflow: hidden; text-overflow: ellipsis; }
+/* 题库里没有 src 的题（mcu）只有 4 列：章 / 题干 / 标记 / 看 */
+.bkq:not(:has(.bkq-src)) { grid-template-columns: auto minmax(0, 1fr) auto auto; }
 .bkq-d { margin: 0 0 8px 8px; padding: 8px 12px 10px; border-left: 2px solid var(--acc); background: var(--field2); border-radius: 0 10px 10px 0; font-size: 13px; }
 .bkq-fq { color: var(--ink); margin-bottom: 6px; }
 .bkq-op { margin: 0 0 6px; padding-left: 18px; color: var(--ink2); }
@@ -5410,7 +5413,42 @@ const PAPER_DEFAULT={
   sections:[{t:'choice',n:15,pts:2},{t:'fill',n:10,pts:1},{t:'judge',n:10,pts:1},{t:'term',n:3,pts:4},{t:'short',n:3,pts:6},{t:'prog',n:2,pts:10}]
 };
 const blanksOf=q=>q.t==='fill'?(q.q.match(/____/g)||[]).length:1;
-const qid=q=>THEORY.indexOf(q);
+
+/* ================= 题池（2026-11-08 第二轮：理论试卷接 AI 题库） =================
+   非 mcu 科目的题来自云端 hx_exam_qbank（AI 题库页 / 资料库页出的题），
+   app.js 的理论试卷入口拉完题后调 __examSetPool 挂进来；mcu 永远走内置 THEORY，行为零变化。
+   POOL_CH 按题库里实际出现的章节建：ch 为 null 的题归 0（「未分章」）。 */
+let POOL=null, POOL_CH=null;
+const curPool=()=>POOL||THEORY;
+const curCH=()=>POOL_CH||THEORY_CH;
+/* 章节显示名：mcu 保持「项目1」（和试卷库老存档一致），AI 题库用建池时给的名字（「第1章」「未分章」） */
+const chLabel=c=>POOL?(curCH()[c]||('第'+c+'章')):('项目'+c);
+window.__examSetPool=(items,ch)=>{
+  POOL=items||null;POOL_CH=ch||null;
+  if(items)items.forEach((q,i)=>{q._k='Q'+q.id;q._i=i;});
+};
+/* 稳定键：内置题 'T'+下标（懒赋）；AI 题 'Q'+表 id（挂池时赋）。
+   以前是 THEORY.indexOf(q) —— 题库顺序一变、增删一道，设置里存的点名就全错位。 */
+function qid(q){
+  if(q._k!=null)return q._k;
+  const i=THEORY.indexOf(q);
+  q._k='T'+i;q._i=i;
+  return q._k;
+}
+const qidx=q=>{qid(q);return q._i;};
+/* 点名 → 题。数字下标只对内置单片机题库有效（老师以前的试卷库里存的正是下标，不许作废）；
+   AI 题库里存的是 'Q'+id 字符串。切了池之后另一种形式直接当没点过 —— 宁可退回随机，
+   也不能拿数字下标去指 AI 题库里第 N 道（那是指错题）。 */
+function pickQ(v){
+  if(v==null||v==='')return null;
+  if(typeof v==='string'&&v[0]==='Q'){
+    if(!POOL)return null;
+    return curPool().find(q=>q._k===v)||null;
+  }
+  if(POOL)return null;
+  const n=+v;
+  return Number.isInteger(n)&&n>=0&&n<THEORY.length?THEORY[n]:null;
+}
 
 /* 抽题：整套卷一起平衡各项目的分值。先排分值大的题型（程序分析、简答……），
    每抽一道题，都选“目前分值离目标比例差得最多”的项目；used 是别的卷（A/B/C）已用过的题，尽量避开。
@@ -5419,7 +5457,7 @@ const qid=q=>THEORY.indexOf(q);
    原来六个大题串着用同一个 rng：老师在第 1 大题点名换一道，后面所有大题的随机序列全错位，
    整张卷子除了那一道全变样。按题型拆种子后，换哪一大题就只动那一大题。 */
 function pickSections(cfg,seed,used,picks){
-  const W=Object.keys(THEORY_CH).reduce((a,c)=>a+(+cfg.weights[c]||0),0)||1;
+  const W=Object.keys(curCH()).reduce((a,c)=>a+(+cfg.weights[c]||0),0)||1;
   const secs=cfg.sections.filter(s=>s.n>0&&PAPER_TYPES[s.t]).map(s=>({...s,items:[]}));
   const order=secs.slice().sort((a,b)=>b.pts*(b.t==='fill'?2:1)-a.pts*(a.t==='fill'?2:1));
   const hasPicks=!!picks&&typeof picks==='object';
@@ -5440,10 +5478,9 @@ function pickSections(cfg,seed,used,picks){
       for(let i=0;i<sec.n;i++){
         const raw=picks[sec.t+':'+i];
         if(raw===undefined||raw===null||raw==='')continue;
-        const k=+raw;
-        if(!Number.isInteger(k)||k<0||k>=THEORY.length)continue;
-        const q=THEORY[k];
+        const q=pickQ(raw);           // 数字下标（mcu 老存档）/ 'Q'+id（AI 题库）都认，越界或题型不符当没点过
         if(!q||q.t!==sec.t)continue;
+        const k=qid(q);
         if(pin.some(x=>x.k===k))continue;
         pin.push({i,k,q});
       }
@@ -5454,7 +5491,7 @@ function pickSections(cfg,seed,used,picks){
       have+=cnt(x.q);used.add(x.k);           // 同一套卷里不能再出现第二遍
       const p=cnt(x.q)*sec.pts;acc[x.q.ch]=(acc[x.q.ch]||0)+p;tot+=p;
     });
-    const pool=THEORY.filter(q=>q.t===sec.t&&(+cfg.weights[q.ch]||0)>0&&!pinK.has(qid(q)));
+    const pool=curPool().filter(q=>q.t===sec.t&&(+cfg.weights[q.ch]||0)>0&&!pinK.has(qid(q)));
     const need=sec.t==='fill'?Math.ceil(sec.n/2):sec.n;
     const fresh=pool.filter(q=>!used.has(qid(q)));
     const src=fresh.length>=need?fresh:pool;
@@ -5468,7 +5505,7 @@ function pickSections(cfg,seed,used,picks){
       sec.items.push(q);have+=cnt(q);
       const p=cnt(q)*sec.pts;acc[c]=(acc[c]||0)+p;tot+=p;
     }
-    const byPos=(a,b)=>a.ch-b.ch||qid(a)-qid(b);
+    const byPos=(a,b)=>(a.ch-b.ch)||(qidx(a)-qidx(b));
     if(!pin.length)sec.items.sort(byPos);   // 同一大题内按项目顺序排
     /* 有指定题时排序会把老师点的题挪走，所以先按位置摆进去（“第 4 题”点了就要在第 4 题），
        空出来的位置再把随机补的题按原顺序填进去。 */
@@ -5681,7 +5718,7 @@ function paperDocHTML(P,cfg,opts){
       const kk=`${s.t}:${i}`, at=edit?` data-k="${kk}" data-no="${i+1}" data-t="${s.t}"`:'';
       /* 蓝线只在“这一格确实是老师点的那道题”时出现：设置里存了个越界/题型不符的下标时
          抽题会退回随机，这时不该还画着“已指定”的样子 */
-      const pin=picks[kk]!=null&&THEORY[+picks[kk]]===q;
+      const pin=picks[kk]!=null&&pickQ(picks[kk])===q;
       const cls=edit?('blk ed'+(pin?' pin':'')):'blk';
       const nsub=Array.isArray(q.sub)?q.sub.length:0;
       /* 有多个小问的题，小标写「换整题」，免得老师以为只是换这个小问 */
@@ -5794,7 +5831,7 @@ function answerDocx(P,cfg){
   });
   const st=paperStats(P);
   b+=DX.p(DX.r('各项目分值分布',{hei:true,b:true}),{before:160});
-  b+=DX.p(DX.r(Object.keys(st).sort().map(c=>`${THEORY_CH[c]}：${st[c]} 分`).join('；')));
+  b+=DX.p(DX.r(Object.keys(st).sort((a,b)=>(+a)-(+b)).map(c=>`${curCH()[c]}：${st[c]} 分`).join('；')));
   const sect='<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1247" w:right="1247" w:bottom="1247" w:left="1247" w:header="0" w:footer="400" w:gutter="0"/></w:sectPr>';
   return docxPackage(b,sect);
 }
@@ -6080,6 +6117,11 @@ function mountPaper(sub) {
   const view = $('ppView');
   if (!view) return;
   const C = paperLoad(sub);
+  /* AI 题库科目（2026-11-08 第二轮）：章节按题库里实际出现的章节来；新出现的章节没存过权重，
+     补个 20（和默认比重一个量级），不然会被「权重 0 不出题」那条悄悄滤掉，老师还以为是没抽到。 */
+  if (POOL && POOL_CH) for (const c of Object.keys(POOL_CH)) if (C.weights[c] == null) C.weights[c] = 20;
+  /* 非 mcu 第一次进：课程名不能用单片机的默认值，用科目名 */
+  if (POOL && !(store.get(PAPER_KEY, {}) || {})[sub]) C.course = SUBJECTS[sub] || C.course;
   let P = null, timer = 0, ZOOM = 'fit', bankKey = '', pendingScroll = null;
 
   const F = (id, k, num) => {
@@ -6096,18 +6138,23 @@ function mountPaper(sub) {
         <td><input type="number" min="0" max="40" value="${s.n}" data-i="${i}" data-f="n" aria-label="${T.name}${T.per}数"> ${T.per}</td>
         <td><input type="number" min="0" max="30" step="0.5" value="${s.pts}" data-i="${i}" data-f="pts" aria-label="${T.name}${T.unit}分值"> 分</td></tr>`;
     }).join('');
-    $('ppW').innerHTML = Object.keys(THEORY_CH).map(c => `<label class="ppw"><span>项目${c}</span><input type="number" min="0" max="100" value="${C.weights[c]}" data-ch="${c}" aria-label="${esc(THEORY_CH[c])}权重"></label>`).join('');
+    $('ppW').innerHTML = Object.keys(curCH()).map(c => `<label class="ppw"><span>${esc(chLabel(c))}</span><input type="number" min="0" max="100" value="${C.weights[c]}" data-ch="${c}" aria-label="${esc(curCH()[c])}权重"></label>`).join('');
   }
 
   const picksCount = () => Object.keys(C.picks || {}).length;
 
   function stats() {
     const total = paperTotal(P), st = paperStats(P), nq = P.reduce((a, s) => a + s.items.length, 0);
-    const short = P.filter(s => s.count < (C.sections.find(x => x.t === s.t) || {}).n).map(s => PAPER_TYPES[s.t].name);
+    /* 题不够要说清楚差多少（2026-11-08 第二轮）：AI 题库刚建时某个题型可能只有两三道，
+       以前只报题型名，老师不知道差几道、还以为抽题坏了 */
+    const short = P.map(s => {
+      const want = (C.sections.find(x => x.t === s.t) || {}).n || 0;
+      return s.count < want ? `${PAPER_TYPES[s.t].name} 题库只出 ${s.count}${PAPER_TYPES[s.t].per}、要 ${want}${PAPER_TYPES[s.t].per}` : null;
+    }).filter(Boolean);
     $('ppTotal').innerHTML = `<b style="${total === 100 ? '' : 'color:var(--warn)'}">满分 ${total} 分</b>${total === 100 ? '' : '（一般应为 100 分，调整题数或分值）'}`;
     if ($('ppMeta')) $('ppMeta').innerHTML = `<b>共 ${nq} 题</b> · 满分 ${total} 分` + (picksCount() ? ` · <span class="pppicked">已手动选 ${picksCount()} 道</span>` : '');
-    $('ppStat').innerHTML = Object.keys(THEORY_CH).map(c => `<div class="ppbar"><span>项目${c}</span><i style="--w:${total ? ((st[c] || 0) / total * 100).toFixed(1) : 0}%"></i><b>${st[c] || 0} 分</b></div>`).join('') +
-      (short.length ? `<div class="warns" style="margin-top:8px">题库里这些题型的题不够：${short.join('、')}，已按能抽到的出。</div>` : '');
+    $('ppStat').innerHTML = Object.keys(curCH()).map(c => `<div class="ppbar"><span>${esc(chLabel(c))}</span><i style="--w:${total ? ((st[c] || 0) / total * 100).toFixed(1) : 0}%"></i><b>${st[c] || 0} 分</b></div>`).join('') +
+      (short.length ? `<div class="warns" style="margin-top:8px">题库里题不够：${short.join('；')}，已按能抽到的出。</div>` : '');
   }
 
   /* ================= 画布：缩放 + 尺寸 ================= */
@@ -6229,20 +6276,24 @@ function mountPaper(sub) {
     const sec = P && P.find(x => x.t === t);
     const cur = sec ? sec.items[idx] : null;
     $('ppBankTitle').innerHTML = `<b>${T.name} · 第 ${idx + 1} 题</b>` +
-      (cur ? `<span class="ppd-cur">当前：项目${cur.ch} ${esc(THEORY_CH[cur.ch])} · ${esc(ppCut(cur.q, 40))}</span>` : '');
-    const pinIdx = C.picks[bankKey] != null ? +C.picks[bankKey] : -1;
+      (cur ? `<span class="ppd-cur">当前：${POOL ? esc(chLabel(cur.ch)) : '项目' + cur.ch + ' ' + esc(curCH()[cur.ch])} · ${esc(ppCut(cur.q, 40))}${POOL && cur.src ? ` · 出自「${esc(cur.src)}」` : ''}</span>` : '');
+    const pinVal = C.picks[bankKey];
     const chk = [...document.querySelectorAll('#ppBankCh input:checked')].map(x => +x.dataset.ch);
     const kw = ($('ppBankQ').value || '').trim().toLowerCase();
     const used = usedIds();
     const rows = [];
-    THEORY.forEach((q, i) => {
+    /* 点名存什么：mcu 存数字下标（和老存档一致），AI 题库存 'Q'+id（2026-11-08 第二轮）。
+       data-i 里两种形态都有，点击处理时不能再 + 转数字（'Q123' 会变 NaN），按当前池决定。 */
+    curPool().forEach((q, i) => {
       if (q.t !== t) return;
       if (chk.length && chk.indexOf(q.ch) < 0) return;
-      if (kw && (q.q + ' ' + (q.o || []).join(' ') + ' ' + THEORY_CH[q.ch]).toLowerCase().indexOf(kw) < 0) return;
-      const on = i === pinIdx;
-      const busy = used.has(i) && !(cur && qid(cur) === i);
-      rows.push(`<div class="bkq${on ? ' on' : ''}" data-i="${i}" role="button" tabindex="0">
-        <span class="bkq-ch">P${q.ch}</span><span class="bkq-q">${esc(ppCut(q.q, 60))}</span>
+      if (kw && (q.q + ' ' + (q.o || []).join(' ') + ' ' + curCH()[q.ch]).toLowerCase().indexOf(kw) < 0) return;
+      const pv = POOL ? qid(q) : i;
+      const on = pinVal != null && String(pinVal) === String(pv);
+      const busy = used.has(qid(q)) && !(cur && qid(cur) === qid(q));
+      rows.push(`<div class="bkq${on ? ' on' : ''}" data-i="${pv}" role="button" tabindex="0">
+        <span class="bkq-ch">${POOL ? '章' + q.ch : 'P' + q.ch}</span><span class="bkq-q">${esc(ppCut(q.q, 60))}</span>
+        ${POOL && q.src ? `<span class="bkq-src" title="${esc(q.src)}">${esc(ppCut(q.src, 20))}</span>` : ''}
         ${on ? '<span class="bkq-tag on">当前</span>' : busy ? '<span class="bkq-tag">本卷已用</span>' : ''}
         <button class="sm bkq-p" data-peek="${i}" aria-label="预览这道题">看</button></div>
         <div class="bkq-d" data-d="${i}" hidden>${fullHTML(q)}</div>`);
@@ -6262,13 +6313,13 @@ function mountPaper(sub) {
     return h;
   }
 
-  function usePick(i) {
+  function usePick(v) {
     if (!bankKey) return;
-    C.picks[bankKey] = i;
+    C.picks[bankKey] = POOL ? v : +v;   // mcu 存数字下标，AI 题库存 'Q'+id
     paperSave(sub, C);
     preview();
-    const q = THEORY[i];
-    toast(`已换成项目${q.ch}：${ppCut(q.q, 18)}`);
+    const q = pickQ(C.picks[bankKey]);
+    if (q) toast(`已换成${POOL ? chLabel(q.ch) : '项目' + q.ch}：${ppCut(q.q, 18)}`);
   }
 
   const list = $('ppBankList'), bank = $('ppBank');
@@ -6281,11 +6332,11 @@ function mountPaper(sub) {
         return;
       }
       const row = ev.target.closest('.bkq');
-      if (row && list.contains(row)) usePick(+row.dataset.i);
+      if (row && list.contains(row)) usePick(row.dataset.i);
     });
     bank.addEventListener('keydown', ev => {
       const row = ev.target.closest && ev.target.closest('.bkq');
-      if (row && (ev.key === 'Enter' || ev.key === ' ')) { ev.preventDefault(); usePick(+row.dataset.i); }
+      if (row && (ev.key === 'Enter' || ev.key === ' ')) { ev.preventDefault(); usePick(row.dataset.i); }
     });
   }
   let kwTimer = 0;
@@ -7752,11 +7803,18 @@ function showT(k) {
   if (k === 'mat') return matHome();
   if (k === 'bank') return qbHome();
 }
+/* 2026-11-08：给网站外壳（总入口）左上角「返回」用的「上一步」接口。
+   外壳先问当前工具能不能自己退一步：true = 工具退了（外壳什么都不做），false = 已在第一屏，外壳回首页。
+   本站第一屏是「考试」页，组卷/理论试卷/资料库/AI 题库都退它一步。 */
+window.HXBack = function () {
+  if (CUR_T && CUR_T !== 'exam') { showT('exam'); return true; }
+  return false;
+};
 /* 组卷页：只有组卷器本体（挂进 #bdBox），没别的 */
 function buildHome() {
   app().innerHTML = `<header class="ex-h"><div class="eyebrow">教师 · ${esc(SUBJECTS[CUR_SUB] || CUR_SUB)}</div><h1>组卷与组卷码</h1>
     <p>调每道题的母题、题型、分值，网页现算出一串组卷码；拿去「考试」页发布，学生就能取题</p>
-    ${CUR_SUB === 'mcu' ? '' : '<p class="note">这一页现在只接单片机的组卷题库（M1～M6）；「' + esc(SUBJECTS[CUR_SUB] || CUR_SUB) + '」的题在「AI 题库」里，等理论试卷接上 AI 题库就能用。</p>'}
+    ${CUR_SUB === 'mcu' ? '' : '<p class="note">这一页（网页答题器）现在只接单片机的组卷题库（M1～M6）；「' + esc(SUBJECTS[CUR_SUB] || CUR_SUB) + '」的题在「AI 题库」里——出 A3 纸质试卷去「理论试卷」页，那边已经直接抽 AI 题库了。</p>'}
     <details class="ex-help"><summary>这一页怎么用（点开看 4 步）</summary>
       <ol>
         <li><b>左边「组卷」</b>：每一行的三个下拉分别是<b>母题 / 题型 / 分值</b>；题不够点「<b>+ 添加一题</b>」，多了点行尾「×」。满分会自动算。</li>
@@ -7774,10 +7832,47 @@ function buildHome() {
    用户原话：「组卷页面需要很大平铺那种 然后正反面不就是两页吗 点击题目那一区域就可以换题」。
    ── 为什么把 header 压成一行 ──
    画布要占满整幅，标题再占三行就没剩多少高度了；h1「理论试卷」保留（侧栏切换时靠它认页）。 */
-function paperHome() {
+/* 理论试卷页入口（2026-11-08 第二轮：接 AI 题库）。
+   mcu：题仍来自内置 THEORY（打包时从刷题 mcu.json 转来），一个字都不动；
+   非 mcu：题全部来自云端 hx_exam_qbank（资料库/AI 题库页出的题），先拉题建池（__examSetPool），
+   再画页面 —— 页面里的章节勾、各项目比重、题库抽屉全都照着池子建，先画再换池会把这些画错。
+   空池：单独一页指引（去资料库出题），不让老师对着一张空卷子发愣。 */
+async function paperHome() {
+  if (CUR_SUB !== 'mcu') {
+    const s = SUBJ.find(x => x.key === CUR_SUB);
+    app().innerHTML = `<header class="ex-h pp-hex"><div class="eyebrow">教师 · ${esc(SUBJECTS[CUR_SUB] || CUR_SUB)}理论</div><h1>理论试卷</h1><p class="note">正在从 AI 题库读题…</p></header>`;
+    let rows;
+    try { rows = await rpc('hx_exam_qbank_list', { p_subject_id: s && s.id }); }
+    catch (e) {
+      window.__examSetPool(null, null);
+      app().innerHTML = `<header class="ex-h pp-hex"><div class="eyebrow">教师 · ${esc(SUBJECTS[CUR_SUB] || CUR_SUB)}理论</div><h1>理论试卷</h1></header>
+      <div class="card" style="max-width:640px;margin:40px auto"><h2>题库读不出来</h2>
+      <p>${esc(e && e.message ? e.message : e)}</p>
+      <p class="note">可以检查网络后重进这一页；或者从左侧切回单片机。</p>
+      <div class="row"><button class="pri" onclick="paperHome()">重试</button></div></div>`;
+      return;
+    }
+    rows = rows || [];
+    /* ch 为 null 的题归 0（「未分章」）；章节名先用「第N章」——src 里带的是资料名，不是章节名 */
+    const items = rows.map(q => ({ id: q.id, t: q.t, ch: q.ch == null ? 0 : +q.ch, q: q.q, o: q.o || undefined, a: q.a, code: q.code, sub: q.sub, src: q.src }));
+    const chs = {};
+    items.forEach(q => { chs[q.ch] = q.ch === 0 ? '未分章' : '第' + q.ch + '章'; });
+    window.__examSetPool(items, chs);
+    if (!items.length) {
+      app().innerHTML = `<header class="ex-h pp-hex"><div class="eyebrow">教师 · ${esc(SUBJECTS[CUR_SUB] || CUR_SUB)}理论</div><h1>理论试卷</h1></header>
+      <div class="card" style="max-width:640px;margin:40px auto"><h2>这个科目的 AI 题库还是空的</h2>
+      <p>理论试卷的题全部来自这个科目的「AI 题库」。先去出题，回来就能抽：</p>
+      <ol>
+        <li>点左边「<b>资料库</b>」，把教材 PDF / DOCX / TXT 传上去（也可以直接拖文件）；</li>
+        <li>在同页勾选资料、选题型题数，点「AI 出题」；预览里勾掉不要的，点「加入题库」；</li>
+        <li>回到这一页，题型、比重、点名换题都和单片机一样用。</li>
+      </ol>
+      <div class="row"><button class="pri" onclick="showT('mat')">去资料库出题</button><button onclick="showT('bank')">去 AI 题库看看</button></div></div>`;
+      return;
+    }
+  } else window.__examSetPool(null, null);
   app().innerHTML = `<header class="ex-h pp-hex"><div class="eyebrow">教师 · ${esc(SUBJECTS[CUR_SUB] || CUR_SUB)}理论</div><h1>理论试卷</h1>
-    <p>点卷面上任意一题，就能从题库里换掉它；A3 横向两栏、双面，题目来自教材项目 1～5</p>
-    ${CUR_SUB === 'mcu' ? '' : '<p class="note">这一页现在只接单片机理论题库；「' + esc(SUBJECTS[CUR_SUB] || CUR_SUB) + '」的题在「AI 题库」里，抽题要到下一版才接过来。</p>'}</header>
+    <p>点卷面上任意一题，就能从题库里换掉它；A3 横向两栏、双面${CUR_SUB === 'mcu' ? '，题目来自教材项目 1～5' : '，题目来自这个科目的 AI 题库（共 ' + POOL.length + ' 道）'}</p></header>
     <div class="pp-page">
       <div class="pp-bar">
         <div class="pp-bar-l">
@@ -7826,7 +7921,7 @@ function paperHome() {
       <aside class="ppdrawer ppdbank" id="ppBank" aria-hidden="true" aria-label="题库">
         <div class="ppd-h"><b id="ppBankTitle"></b><button class="sm" data-ppclose="ppBank" aria-label="关闭题库">关闭</button></div>
         <div class="ppb-f">
-          <div class="ppb-ch" id="ppBankCh">${Object.keys(THEORY_CH).map(c => `<label><input type="checkbox" data-ch="${c}" checked>项目${c}</label>`).join('')}</div>
+          <div class="ppb-ch" id="ppBankCh">${Object.keys(curCH()).map(c => `<label><input type="checkbox" data-ch="${c}" checked>${esc(chLabel(c))}</label>`).join('')}</div>
           <input id="ppBankQ" type="search" autocomplete="off" placeholder="搜题干关键词…" aria-label="搜索题目">
         </div>
         <div class="ppb-l" id="ppBankList"></div>

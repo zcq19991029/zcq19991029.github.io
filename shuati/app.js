@@ -337,6 +337,13 @@ function show(v) {
   if (v === 'bank') renderBank();
   if (v === 'settings') renderSettings();
 }
+/* 2026-11-08：给网站外壳（总入口）左上角「返回」用的「上一步」接口。
+   外壳先问当前工具能不能自己退一步：true = 工具退了（外壳什么都不做），false = 已经在第一屏，外壳回首页。
+   本站的第一屏是「练习」（practice），其余栏目（总览/排位/题库/设置）都退它一步。 */
+window.HXBack = function () {
+  if (S.view && S.view !== 'practice') { show('practice'); return true; }
+  return false;
+};
 function counts(list = S.questions) {
   let known = 0, wrong = 0, done = 0;
   for (const q of list) { const r = rec(q.id); if (r.status === 'known') known++; if (r.wrong > 0 && r.status !== 'known') wrong++; if (r.attempts) done++; }
