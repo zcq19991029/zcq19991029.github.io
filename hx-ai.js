@@ -5,8 +5,10 @@
    收在一处，各工具只调 HXAI.chat / HXAI.vision，不再自己造轮子。
 
    配置存放（严格按这个契约，别的工具要读同一份）：
-     localStorage['hx-ai-v1'] = { v:1, profiles:[{id,name,provider,baseUrl,model,models,caps,at}],
-                                  active:{text,vision,reason}, tools:{quiz,mcu,exam,wiring,paike,course} }
+     localStorage['hx-ai-v1'] = { v:1, profiles:[{id,name,provider,baseUrl,model,models,caps,thinkLevel,at}],
+                                  active:{text,vision,reason,image,video,audio}, tools:{quiz,mcu,exam,wiring,paike,course} }
+   caps 六项：text 文本 / vision 图片识别 / reason 推理 / image 图像生成 / video 视频生成 / audio 音频（TTS+ASR）。
+   thinkLevel 三档：quick 快速 / balanced 均衡 / deep 深度（老存档没有 = 均衡，读的时候自动补上）。
    Key 不进上面那份（导出配置时就不会带出去）：
      localStorage['hx-ai-key:<id>'] —— 用户勾了「记住」
      sessionStorage['hx-ai-key:<id>'] —— 没勾，只活在这个标签页
@@ -24,9 +26,11 @@
   var NO_AI = '还没有配置 AI 模型，请到首页「AI 设置」里加一套';
 
   // 供应商预设。baseUrl 照各家「OpenAI 兼容」入口填，末尾不写 /chat/completions（下面统一拼）。
-  // models 只是候选（datalist / 下拉里的建议），真实可用性以「读取模型」和「测试连接」为准。
+  // models 只是候选（下拉里的建议），真实可用性以「读取模型」和「测试连接」为准。
   // group 决定下拉框里的分组（照 cc-switch 的 90+ 预设挑了对上课有用的：国内官方 / 国内聚合 / 海外官方 / 海外聚合）。
   // 一律只收「认 /chat/completions」的 —— Anthropic 原生 /v1/messages 不走这套，别往里加。
+  // 文生图 / 文生视频 / TTS 的模型 ID 各平台改得快，这里只填有把握的主流 ID，
+  // 拿不准的一律留空、靠「读取模型」拉 /models 补全（别瞎编一个不存在的 ID 糊弄用户）。
   var providers = {
     // ---------- 国内 · 官方 ----------
     deepseek: {
@@ -93,9 +97,11 @@
     // ---------- 国内 · 聚合中转 ----------
     siliconflow: {
       label: '硅基流动 SiliconFlow', group: '国内 · 聚合', baseUrl: 'https://api.siliconflow.cn/v1',
-      models: ['Qwen/Qwen2.5-VL-72B-Instruct', 'Qwen/Qwen2.5-72B-Instruct', 'deepseek-ai/DeepSeek-V3'],
-      caps: ['text', 'vision'],
-      note: '一个 Key 用几十家模型，带 VL 的能读图，价格按图张数算。实名送额度。'
+      models: ['Qwen/Qwen2.5-VL-72B-Instruct', 'Qwen/Qwen2.5-72B-Instruct', 'deepseek-ai/DeepSeek-V3',
+        'black-forest-labs/FLUX.1-schnell', 'Kwai-Kolors/Kolors',
+        'FunAudioLLM/CosyVoice2-0.5B', 'Lightricks/LTX-Video'],
+      caps: ['text', 'vision', 'image', 'audio'],
+      note: '一个 Key 用几十家模型，带 VL 的能读图；文生图（FLUX/Kolors）、TTS（CosyVoice）、文生视频也有，点「读取模型」拉全列表。实名送额度。'
     },
     ppio: {
       label: '派欧云 PPIO', group: '国内 · 聚合', baseUrl: 'https://api.ppinfra.com/v3/openai',
@@ -125,9 +131,9 @@
     // ---------- 海外 · 官方 ----------
     openai: {
       label: 'OpenAI', group: '海外 · 官方', baseUrl: 'https://api.openai.com/v1',
-      models: ['gpt-4o-mini', 'gpt-4o', 'o3-mini'],
-      caps: ['text', 'vision', 'reason'],
-      note: '国内直连多半不通，要么自备代理地址，要么用上面的聚合。'
+      models: ['gpt-4o-mini', 'gpt-4o', 'o3-mini', 'gpt-image-1', 'dall-e-3', 'tts-1', 'whisper-1'],
+      caps: ['text', 'vision', 'reason', 'image', 'audio'],
+      note: '国内直连多半不通，要么自备代理地址，要么用上面的聚合。文生图用 gpt-image-1/dall-e-3，语音用 tts-1/whisper-1。'
     },
     gemini: {
       label: 'Google Gemini', group: '海外 · 官方', baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
@@ -157,9 +163,9 @@
     },
     together: {
       label: 'Together AI', group: '海外 · 聚合', baseUrl: 'https://api.together.xyz/v1',
-      models: ['meta-llama/Llama-3.3-70B-Instruct-Turbo', 'Qwen/Qwen2.5-72B-Instruct-Turbo'],
-      caps: ['text'],
-      note: '开源模型为主，价格低。'
+      models: ['meta-llama/Llama-3.3-70B-Instruct-Turbo', 'Qwen/Qwen2.5-72B-Instruct-Turbo', 'black-forest-labs/FLUX.1-schnell'],
+      caps: ['text', 'image'],
+      note: '开源模型为主，价格低；也有 FLUX 这类文生图，点「读取模型」拉全列表。'
     },
     groq: {
       label: 'Groq', group: '海外 · 聚合', baseUrl: 'https://api.groq.com/openai/v1',
@@ -188,10 +194,23 @@
   };
 
   // 能力标签：模型能干什么。chat 默认按 text 找人，vision 只找勾了 vision 的。
+  // 2026-11-08 扩展：在 text/vision/reason 之外新增 image（图像生成）、video（视频生成）、
+  // audio（音频：文字转语音 TTS + 语音识别 ASR，合并成一个能力，勾选即代表这套能同时做语音合成与识别）。
+  // 每项 hint 写清楚「它干嘛、哪些功能用到」，报错和设置页都从这里取，别让用户猜。
   var caps = [
     { id: 'text', name: '文本问答', hint: '出题、解析、纠错这类纯文字' },
-    { id: 'vision', name: '图片识别', hint: '读照片、扫描件、截图' },
-    { id: 'reason', name: '擅长推理', hint: '长文、难题，愿意等久一点' }
+    { id: 'vision', name: '图片识别', hint: '读照片、扫描件、截图（读题、识别试卷）' },
+    { id: 'reason', name: '擅长推理', hint: '长文、难题，愿意等久一点' },
+    { id: 'image', name: '图像生成', hint: '按文字画图 / 示意图（文生图）' },
+    { id: 'video', name: '视频生成', hint: '文生视频（讲解 / 演示短片）' },
+    { id: 'audio', name: '音频（语音）', hint: '文字转语音（TTS）+ 语音识别（ASR）' }
+  ];
+
+  // 思考程度三档：存在每套配置（profile.thinkLevel）里，调用时落到各家兼容字段（见 request()）。
+  var thinkLevels = [
+    { id: 'quick', name: '快速', hint: '少思考、回得快，适合出题 / 批改' },
+    { id: 'balanced', name: '均衡', hint: '默认档，速度与质量取中' },
+    { id: 'deep', name: '深度', hint: '多思考、更准，难题 / 长文用它' }
   ];
 
   // 能单独指定模型的工具（和首页 TOOLS 的 id 对齐，改了要两边一起改）
@@ -223,6 +242,9 @@
     var cs = Array.isArray(o.caps) ? o.caps.map(str).filter(function (c) { return capIds.indexOf(c) >= 0; }) : [];
     cs = cs.filter(function (c, i) { return cs.indexOf(c) === i; });
     if (!cs.length) cs = ['text']; // 没勾就当文本模型，不能让一套配置「什么都不能干」
+    // 思考程度：只认三档，老存档没这个字段 = 均衡（默认），不报错。
+    var tl = str(o.thinkLevel);
+    if (thinkLevels.map(function (x) { return x.id; }).indexOf(tl) < 0) tl = 'balanced';
     return {
       id: str(o.id).replace(/[^\w-]/g, '').slice(0, 32),
       name: str(o.name),
@@ -231,6 +253,7 @@
       model: str(o.model),
       models: list,
       caps: cs,
+      thinkLevel: tl,
       at: Number(o.at) || Date.now()
     };
   }
@@ -394,13 +417,22 @@
     return cap === 'text' ? (s.profiles[0] ? clone(s.profiles[0]) : null) : null;
   }
 
+  // 统一友好报错：落到「缺什么能力 / 缺什么模型 / 缺什么 Key」三个维度，别让用户猜。
+  function capLabel(cap) {
+    for (var i = 0; i < caps.length; i++) if (caps[i].id === cap) return caps[i].name;
+    return cap || '文本';
+  }
   function missMsg(profile, cap) {
+    cap = cap || 'text';
     if (!profile) {
-      if (cap === 'vision') return '没有设置「图片识别」的默认模型，请到首页「AI 设置」里选一套勾了「图片识别」的';
-      if (cap === 'reason') return '没有可用的 AI 模型，请到首页「AI 设置」里加一套';
+      // 这套能力（图片识别 / 图像生成 / 视频生成 / 音频）没配默认模型：说清「缺什么能力、怎么补」。
+      if (cap !== 'text' && cap !== 'reason') {
+        return '这个功能需要「' + capLabel(cap) + '」能力的模型，但你还没配。请到「AI 设置」里加一套勾了「' + capLabel(cap) + '」的模型，再在「按能力设默认」里把它选为默认。';
+      }
+      if (cap === 'reason') return '还没有可用的推理模型，请到「AI 设置」里加一套勾了「擅长推理」的（不设的话会退回文本默认）。';
       return NO_AI;
     }
-    return NO_AI + '（「' + (profile.name || profile.model) + '」还缺 API Key）';
+    return '这套「' + (profile.name || profile.model) + '」还没填 API Key，调不起来。请到「AI 设置」里把它的 Key 补上。';
   }
 
   // 地址校验照刷题/ai.js 的规矩：只允许 HTTPS，本机调试放行 http://127.0.0.1 和 localhost
@@ -499,10 +531,22 @@
     };
     if (opts.maxTokens) body.max_tokens = opts.maxTokens;
     if (opts.json) body.response_format = { type: 'json_object' };
-    // 思考模式默认关：各工具要的是「快」。DeepSeek / 硅基流动的开关名不一样，照刷题/ai.js 的写法分开传。
+    // 思考开关（老字段 think）默认关：各工具要的是「快」。DeepSeek / 硅基流动的开关名不一样，照刷题/ai.js 的写法分开传。
     var think = !!opts.think;
     if (profile.provider === 'deepseek') body.thinking = { type: think ? 'enabled' : 'disabled' };
     if (profile.provider === 'siliconflow') body.enable_thinking = think;
+    // 思考程度三档（新字段 thinkLevel）：quick 显式压低、deep 显式拉高、balanced 跟随模型默认（不塞字段）。
+    // reasoning_effort 只给认这套的服务（OpenAI o 系列 + 主流聚合），其余退回 temperature 近似，
+    // 且只在调用方没显式给 temperature 时才覆盖（别盖掉 test() 这类明确要 0 的场景）。
+    var lvl = opts.thinkLevel || profile.thinkLevel;
+    if (lvl && lvl !== 'balanced') {
+      if (profile.provider === 'deepseek') body.thinking = { type: lvl === 'quick' ? 'disabled' : 'enabled' };
+      else if (profile.provider === 'siliconflow') body.enable_thinking = lvl !== 'quick';
+      else if (['openai', 'openrouter', 'ai302', 'aihubmix', 'gemini'].indexOf(profile.provider) >= 0)
+        body.reasoning_effort = lvl === 'quick' ? 'low' : 'high';
+      else if (opts.temperature == null)
+        body.temperature = lvl === 'quick' ? 0.2 : 0.8;
+    }
     var text = await post(profile, k, body, opts);
     return opts.json ? stripFence(text) : text;
   }
@@ -542,6 +586,66 @@
     return request(profile, k, messages, opts);
   }
 
+  /* 按「能力」挑一套配置 + 校验 Key，是 image / video / audio 三个入口的公共前置。
+     挑不到就把「缺什么能力 / 缺什么 Key」说清楚，供调用方直接抛给用户。 */
+  function capProfile(opts, cap) {
+    var profile = pick({ cap: cap, tool: opts.tool, profile: opts.profile });
+    if (!profile) throw new Error(missMsg(null, cap));
+    var k = keyOf(profile, opts);
+    if (!k) throw new Error(missMsg(profile, cap));
+    return { profile: profile, key: k };
+  }
+
+  /* 图像生成（文生图）。走 OpenAI 兼容的 /images/generations（OpenAI / SiliconFlow 等都认），
+     opts：{ prompt, n, size, tool, profile }。返回图片 URL（或 base64）数组。 */
+  async function image(opts) {
+    opts = opts || {};
+    var prompt = str(opts.prompt);
+    if (!prompt) throw new Error('图像生成要一段文字描述（prompt），比如「画一张三相异步电动机的接线示意图」。');
+    var cp = capProfile(opts, 'image');
+    var body = {
+      model: str(cp.profile.model),
+      prompt: prompt,
+      n: opts.n || 1,
+      size: opts.size || '1024x1024',
+      response_format: opts.response_format || 'url'
+    };
+    var url = endpoint(cp.profile.baseUrl, '/images/generations');
+    var res;
+    try {
+      res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + cp.key },
+        body: JSON.stringify(body)
+      });
+    } catch (e) {
+      throw new Error('图像生成请求失败：连不上「' + (providers[cp.profile.provider] ? providers[cp.profile.provider].label : cp.profile.provider) + '」的图片接口。');
+    }
+    var raw = await res.text();
+    var data = null; try { data = raw ? JSON.parse(raw) : null; } catch (e) { data = null; }
+    if (!res.ok) {
+      var m = data && ((data.error && data.error.message) || data.message);
+      if (!m) m = 'HTTP ' + res.status;
+      throw new Error('图像生成失败：' + hideKey(m, cp.key) + '（模型「' + (cp.profile.model) + '」可能不支持文生图，换个勾了「图像生成」的模型试试）。');
+    }
+    if (!data || !Array.isArray(data.data) || !data.data.length) throw new Error('图像生成没有返回图片，换一个支持文生图的模型试试。');
+    return data.data.map(function (x) { return str(x.url) || str(x.b64_json); }).filter(Boolean);
+  }
+
+  /* 视频生成 / 音频（TTS + ASR）：调用入口先预留。挑得到模型就说清当前状态，
+     挑不到就把「缺什么能力 / 缺什么模型」讲清楚，等后端接口接上后在这里补实现。 */
+  function reservedGen(cap, what) {
+    return async function (opts) {
+      opts = opts || {};
+      var cp = capProfile(opts, cap);
+      throw new Error(what + '的调用入口已经预留，但生成接口还没接上。当前已选好「' + (cp.profile.name || cp.profile.model) + '」这套（勾了「' + capLabel(cap) + '」），接入后即可直接调用。');
+    };
+  }
+  var video = reservedGen('video', '视频生成');
+  var audio = reservedGen('audio', '音频（语音合成 / 识别）');
+  var tts = audio;    // 语音合成走 audio 能力（和 ASR 合并），入口名方便调用方语义化
+  var asr = audio;    // 语音识别同 audio 能力
+
   /* 设置页的「测试连接」：拿当前（可能还没保存的）配置发一句最短的话。
      成功返回 { ms, text }，失败把服务商原话抛出来——原话比「测试失败」有用得多。 */
   async function test(profileLike) {
@@ -553,18 +657,27 @@
     return { ms: Date.now() - t0, text: str(text).slice(0, 40) };
   }
 
-  // 拉模型列表：GET {baseUrl}/models。失败一律返回 []（设置页允许手填模型名）
+  // 拉模型列表：GET {baseUrl}/models。失败不再默默返回空数组 —— 抛出「缺什么」说清楚的错，
+  // 让设置页把「读不到模型」的原因（Key 无效 / 没权限 / 地址不对 / 服务商不开放这接口）直接告诉用户。
   async function models(profileLike) {
     var p = profileLike ? norm(profileLike) : pick({ cap: 'text' });
-    if (!p) return [];
+    if (!p) throw new Error('还没有可用的模型配置，先加一套再读。');
     var k = str(profileLike && (profileLike.key || profileLike.apiKey)) || key(p.id);
-    if (!k) return [];
+    if (!k) throw new Error('这套「' + (p.name || p.model) + '」还没填 API Key，读不了模型列表。');
+    var res;
     try {
-      var res = await fetch(endpoint(p.baseUrl, '/models'), { headers: { Authorization: 'Bearer ' + k } });
-      if (!res.ok) return [];
-      var data = await res.json();
-      return (data.data || []).map(function (x) { return str(x.id); }).filter(Boolean).sort();
-    } catch (e) { return []; }
+      res = await fetch(endpoint(p.baseUrl, '/models'), { headers: { Authorization: 'Bearer ' + k } });
+    } catch (e) {
+      throw new Error('连不上「' + (providers[p.provider] ? providers[p.provider].label : p.provider) + '」的模型列表接口（网络不通，或接口地址不对）。');
+    }
+    if (res.status === 401) throw new Error('读模型列表失败：接口返回 401，说明 API Key 无效或已过期，请检查 Key 是否正确。');
+    if (res.status === 403) throw new Error('读模型列表失败：接口返回 403，这个 Key 没有权限（可能没开通、或额度用完了）。');
+    if (res.status === 404) throw new Error('读模型列表失败：接口返回 404，这个服务商不开放 /models 接口，直接手填模型名即可。');
+    if (!res.ok) throw new Error('读模型列表失败：接口返回 HTTP ' + res.status + '，请检查接口地址和 Key。');
+    var data;
+    try { data = await res.json(); } catch (e) { data = null; }
+    if (!data || !Array.isArray(data.data)) throw new Error('读模型列表失败：接口返回的内容不是模型列表（可能地址填成了别的接口）。');
+    return data.data.map(function (x) { return str(x.id); }).filter(Boolean).sort();
   }
 
   // 导出：只导「模型和地址」，Key 永远不进来。顺便再兜一层 replacer，防止以后有人往 profile 里塞了 key 字段。
@@ -616,6 +729,7 @@
     VERSION: VERSION,
     providers: providers,
     caps: caps,
+    thinkLevels: thinkLevels,
     toolList: toolList,
     NO_AI: NO_AI,
     list: list,
@@ -633,6 +747,11 @@
     importJson: importJson,
     chat: chat,
     vision: vision,
+    image: image,
+    video: video,
+    audio: audio,
+    tts: tts,
+    asr: asr,
     test: test,
     models: models
   };

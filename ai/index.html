@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>AI 设置 · 华夏工具</title>
+<!-- 主题按 data-tool="ai" 分键（和刷题/排课等工具一样）：这个页面的背景 / 主题色独立存 hx-theme:s:ai，
+     改这里不影响首页、也不影响别的工具。别漏了 data-tool，否则会写进 home 键、和首页互相污染。 -->
+<script src="../hx-theme.js" data-tool="ai"></script>
 <!-- 一个设置型页面，不是聊天工具：在哪儿配模型、在哪儿指定工具用哪套。
      配置走 hx-ai.js 的存储契约（localStorage hx-ai-v1 + 分开存的 Key），各工具引同一个脚本读同一份数据。 -->
 <style>
@@ -12,11 +15,14 @@
   --acc:#5e5ce6; --acc2:#7c5cff; --ok:#17a34a; --bad:#dc2626; --warn:#b45309;
   --shadow:0 14px 34px -24px rgba(23,33,58,.5);
 }
+/* 深浅色跟随主题：hx-theme.js 会在 <html> 上写 data-hx-mode；主题色 --acc/--acc2 由 hx-theme.js 行内覆盖，
+   这里只管背景/面板/文字这些中性色。没引到主题时退回系统偏好（:not([data-hx-mode])）。 */
 @media (prefers-color-scheme: dark){
-  :root{ --bg:#0f1420; --panel:#161d2b; --panel2:#1c2536; --edge:#25304a; --ink:#e8edf7; --dim:#94a1b8; --faint:#5d6a82;
-    --acc:#7d7aff; --acc2:#9d8cff; --ok:#3ddc84; --bad:#ff6b6b; --warn:#f0b429;
-    --shadow:0 16px 38px -26px rgba(0,0,0,.9); }
+  :root:not([data-hx-mode]){ --bg:#0f1420; --panel:#161d2b; --panel2:#1c2536; --edge:#25304a; --ink:#e8edf7; --dim:#94a1b8; --faint:#5d6a82;
+    --ok:#3ddc84; --bad:#ff6b6b; --warn:#f0b429; --shadow:0 16px 38px -26px rgba(0,0,0,.9); }
 }
+:root[data-hx-mode="dark"]{ --bg:#0f1420; --panel:#161d2b; --panel2:#1c2536; --edge:#25304a; --ink:#e8edf7; --dim:#94a1b8; --faint:#5d6a82;
+  --ok:#3ddc84; --bad:#ff6b6b; --warn:#f0b429; --shadow:0 16px 38px -26px rgba(0,0,0,.9); }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
 body{background:var(--bg);color:var(--ink);font:15px/1.62 "Microsoft YaHei",system-ui,-apple-system,"Segoe UI",sans-serif;
@@ -93,6 +99,24 @@ input[type=checkbox]{width:17px;height:17px;accent-color:var(--acc);flex:none}
 .acts{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:4px}
 .msg{margin:0;font-size:13px;color:var(--dim);flex:1 1 180px;min-width:0}
 .msg.bad{color:var(--bad)} .msg.good{color:var(--ok)}
+/* ---- 自定义模型下拉（替代原生 datalist：后者在某些内核里点不弹、选中不灵，见 README） ---- */
+.combo{position:relative}
+.mdd{position:absolute;left:0;right:0;top:calc(100% + 5px);z-index:30;max-height:264px;overflow:auto;
+  background:var(--panel);border:1px solid var(--edge);border-radius:11px;box-shadow:var(--shadow);padding:4px}
+.mdd .opt{display:block;width:100%;text-align:left;padding:8px 11px;font-size:13px;line-height:1.4;color:var(--ink);
+  background:none;border:0;border-radius:8px;cursor:pointer;word-break:break-all;font-family:ui-monospace,Consolas,monospace}
+.mdd .opt:hover,.mdd .opt.sel{background:var(--panel2)}
+.mdd .empty{padding:10px 11px;font-size:12.5px;color:var(--faint)}
+.mdd .tip{padding:7px 11px 3px;font-size:11.5px;color:var(--faint);border-top:1px solid var(--edge);margin-top:4px}
+/* 思考程度三档 */
+input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
+.thinkwrap{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.thinkwrap label{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:400;color:var(--ink);cursor:pointer;
+  padding:6px 11px;border:1px solid var(--edge);border-radius:999px;background:var(--panel2)}
+.thinkwrap label.on{border-color:color-mix(in srgb,var(--acc) 55%,transparent);color:var(--acc)}
+.rmain .u{margin:0;font-size:12px;color:var(--dim);line-height:1.55}
+.rmain .u b{color:var(--ink);font-weight:700}
+.tl-chip{font-size:11px;font-weight:800;padding:2px 8px;border-radius:7px;background:color-mix(in srgb,var(--acc) 12%,transparent);color:var(--acc)}
 /* ---- 默认 / 工具 / 导入导出 ---- */
 .dl{display:grid;grid-template-columns:150px 1fr;gap:9px 14px;align-items:center}
 .dl > b{font-size:13.5px;font-weight:700}
@@ -139,13 +163,17 @@ input[type=checkbox]{width:17px;height:17px;accent-color:var(--acc);flex:none}
       <p class="hint" id="fProvNote" style="margin:-4px 0 12px" hidden></p>
       <label class="fld"><span>接口地址</span><input type="url" id="fBase" placeholder="https://api.deepseek.com" spellcheck="false"></label>
       <label class="fld"><span>模型名</span>
-        <div class="line"><input type="text" id="fModel" list="modelTips" placeholder="填服务商给的模型 ID" spellcheck="false">
-          <button class="btn sm" type="button" id="fFetch">读取模型</button></div>
-        <datalist id="modelTips"></datalist>
+        <div class="combo" id="modelCombo">
+          <div class="line"><input type="text" id="fModel" placeholder="填服务商给的模型 ID，或点「读取模型」" spellcheck="false" autocomplete="off">
+            <button class="btn sm" type="button" id="fFetch">读取模型</button></div>
+          <div class="mdd" id="modelPanel" hidden></div>
+        </div>
       </label>
       <label class="fld"><span>API Key</span><input type="password" id="fKey" autocomplete="off" placeholder="sk-..." spellcheck="false"></label>
       <label class="chk"><input type="checkbox" id="fRemember" checked>记住这把 Key（存到这台电脑，关掉浏览器也还在；<b>机房公共电脑别勾</b>）</label>
       <div class="caps"><span>能力标签</span><span id="fCaps"></span></div>
+      <div class="caps"><span>思考程度</span><span class="thinkwrap" id="fThink"></span></div>
+      <p class="hint" style="margin:-4px 0 12px">思考程度决定「思考开不开、想多想久」：快速少想回得快，深度多想更准，均衡跟随模型默认。会落到真实请求参数里（reasoning_effort / thinking / temperature，按各家认的字段传）。</p>
       <p class="hint" style="margin:-4px 0 12px">不勾「记住」时 Key 只在这个标签页里活着：关掉页面就得重填。勾了就存在本机浏览器，下次打开直接能用。</p>
       <div class="acts">
         <button class="btn pri" type="submit" id="fSave">保存</button>
@@ -187,9 +215,20 @@ input[type=checkbox]{width:17px;height:17px;accent-color:var(--acc);flex:none}
 (function () {
   'use strict';
   var $ = function (id) { return document.getElementById(id); };
-  var CAPN = { text: '文本问答', vision: '图片识别', reason: '擅长推理' };
   var editing = '';        // '' = 正在新增；有 id = 正在编辑那一套
   var lastCfg = null;      // 从存储里读出来的完整设置快照，画下拉用
+  var modelList = [];      // 模型名候选（供应商预设 + 读取模型拉回来的），喂自定义下拉
+
+  // 能力名 / 提示 / 思考程度名都从 hx-ai.js 的 HXAI.caps / HXAI.thinkLevels 现取，改一处两边一致
+  function capDef(c) {
+    for (var i = 0; i < HXAI.caps.length; i++) if (HXAI.caps[i].id === c) return HXAI.caps[i];
+    return { id: c, name: c, hint: '' };
+  }
+  function capName(c) { return capDef(c).name; }
+  function thinkName(id) {
+    for (var i = 0; i < HXAI.thinkLevels.length; i++) if (HXAI.thinkLevels[i].id === id) return HXAI.thinkLevels[i].name;
+    return id || '均衡';
+  }
 
   function esc(v) {
     return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) {
@@ -217,22 +256,31 @@ input[type=checkbox]{width:17px;height:17px;accent-color:var(--acc);flex:none}
   }
 
   function capNames(cs) {
-    return (cs || []).map(function (c) { return CAPN[c] || c; });
+    return (cs || []).map(function (c) { return capName(c); });
   }
 
   // ---------- 画列表 ----------
   function renderList() {
-    var rows = HXAI.list();
+    var s = HXAI.settings();
+    var rows = s.profiles;
     $('count').textContent = rows.length + ' 套配置';
     $('list').innerHTML = rows.map(function (p) {
       var ks = HXAI.hasKey(p.id);
+      // 这套被哪些能力设为默认、被哪些工具指定（说清「谁在用这套」）
+      var usedCaps = [], usedTools = [];
+      Object.keys(s.active).forEach(function (c) { if (s.active[c] === p.id) usedCaps.push(capName(c)); });
+      HXAI.toolList.forEach(function (t) { if (s.tools[t.id] === p.id) usedTools.push(t.name); });
+      var usage = '';
+      if (usedCaps.length) usage += '<b>默认能力</b>：' + usedCaps.join('、');
+      if (usedTools.length) usage += (usage ? '；' : '') + '<b>工具指定</b>：' + usedTools.join('、');
       return '<div class="row" data-id="' + esc(p.id) + '">' +
         '<div class="rmain">' +
-          '<div class="t"><b>' + esc(p.name || p.model) + '</b><span class="pv">' + esc(provName(p.provider)) + '</span></div>' +
+          '<div class="t"><b>' + esc(p.name || p.model) + '</b><span class="pv">' + esc(provName(p.provider)) + '</span><span class="tl-chip">' + esc(thinkName(p.thinkLevel)) + '</span></div>' +
           '<p class="m">' + esc(p.model || '（没填模型名）') + ' · ' + esc(p.baseUrl || '（没填地址）') + '</p>' +
           '<div class="chips">' + (p.caps || []).map(function (c) {
-            return '<span class="chip on">' + esc(CAPN[c] || c) + '</span>';
+            return '<span class="chip on">' + esc(capName(c)) + '</span>';
           }).join('') + '</div>' +
+          '<p class="u">' + (usage || '还没被任何能力 / 工具设为默认') + '</p>' +
         '</div>' +
         '<div class="racts">' +
           '<span class="kst' + (ks ? ' ok' : '') + '">' + (ks ? 'Key 已填' : '没填 Key') + '</span>' +
@@ -285,14 +333,15 @@ input[type=checkbox]{width:17px;height:17px;accent-color:var(--acc);flex:none}
       var opts = all.filter(function (p) { return c.id === 'text' || (p.caps || []).indexOf(c.id) >= 0; });
       var cur = lastCfg.active[c.id] || '';
       var curP = all.filter(function (p) { return p.id === cur; })[0];
+      var eff = curP ? '当前：' + esc(curP.name || curP.model) + '（' + esc(curP.model) + '）· 思考 ' + esc(thinkName(curP.thinkLevel)) : '当前：未设置';
       return '<b>' + esc(c.name) + '<em>' + esc(c.hint) + '</em></b>' +
         '<select data-cap="' + c.id + '">' +
           '<option value="">' + (opts.length ? '未设置' : '还没有勾「' + esc(c.name) + '」的模型') + '</option>' +
           opts.map(function (p) {
-            return '<option value="' + esc(p.id) + '"' + (p.id === cur ? ' selected' : '') + '>' + esc(p.name || p.model) + '</option>';
+            return '<option value="' + esc(p.id) + '"' + (p.id === cur ? ' selected' : '') + '>' + esc(p.name || p.model) + '（' + esc(p.model) + '）</option>';
           }).join('') +
         '</select>' +
-        '<span class="eff">' + (curP ? '当前：' + esc(curP.name || curP.model) : '当前：未设置') + '</span>';
+        '<span class="eff">' + eff + '</span>';
     }).join('');
     $('defaults').querySelectorAll('select[data-cap]').forEach(function (sel) {
       sel.onchange = function () {
@@ -310,14 +359,18 @@ input[type=checkbox]{width:17px;height:17px;accent-color:var(--acc);flex:none}
     $('tools').innerHTML = HXAI.toolList.map(function (t) {
       var cur = tk[t.id] || '';
       var eff = HXAI.forTool(t.id);
+      // 把「这个工具现在用哪套、什么模型、思考程度、能干什么」一次说清
+      var effTxt = eff
+        ? '现在会用「' + esc(eff.name || eff.model) + '」(' + esc(eff.model) + ') · 思考 ' + esc(thinkName(eff.thinkLevel)) + ' · ' + capNames(eff.caps).join('/')
+        : '现在没有可用的模型（先加一套勾了「文本问答」的）';
       return '<b>' + esc(t.name) + '</b>' +
         '<select data-tool="' + esc(t.id) + '">' +
           '<option value="">跟随默认</option>' +
           all.map(function (p) {
-            return '<option value="' + esc(p.id) + '"' + (p.id === cur ? ' selected' : '') + '>' + esc(p.name || p.model) + '</option>';
+            return '<option value="' + esc(p.id) + '"' + (p.id === cur ? ' selected' : '') + '>' + esc(p.name || p.model) + '（' + esc(p.model) + '）</option>';
           }).join('') +
         '</select>' +
-        '<span class="eff">' + (cur ? '指定了单独的一套' : '跟随默认') + (eff ? ' · 现在会用「' + esc(eff.name || eff.model) + '」' : ' · 现在没有可用的模型') + '</span>';
+        '<span class="eff">' + (cur ? '指定了单独的一套 · ' : '跟随默认 · ') + effTxt + '</span>';
     }).join('');
     $('tools').querySelectorAll('select[data-tool]').forEach(function (sel) {
       sel.onchange = function () {
@@ -344,7 +397,7 @@ input[type=checkbox]{width:17px;height:17px;accent-color:var(--acc);flex:none}
     var preset = HXAI.providers[prov];
     $('fBase').value = preset.baseUrl || '';
     $('fModel').value = (preset.models || [])[0] || '';
-    $('modelTips').innerHTML = (preset.models || []).map(function (m) { return '<option value="' + esc(m) + '"></option>'; }).join('');
+    modelList = (preset.models || []).slice();
     setProvNote(prov);
     // 能力勾选按供应商推荐值预填：用户改成不支持的组合（比如给 DeepSeek 勾视觉）也只提醒、不拦
     var want = preset.caps || ['text'];
@@ -352,6 +405,22 @@ input[type=checkbox]{width:17px;height:17px;accent-color:var(--acc);flex:none}
       b.checked = want.indexOf(b.value) >= 0;
     });
   }
+
+  // ---------- 自定义模型下拉（替代原生 datalist：某些内核里点不弹、选中不生效） ----------
+  function renderModelPanel() {
+    var panel = $('modelPanel');
+    var q = $('fModel').value.trim().toLowerCase();
+    var items = modelList.filter(function (m) { return !q || m.toLowerCase().indexOf(q) >= 0; });
+    if (!items.length) {
+      panel.innerHTML = '<div class="empty">' + (modelList.length ? '没有匹配「' + esc($('fModel').value.trim()) + '」的候选，直接手填模型名即可。' : '还没有候选模型。点「读取模型」拉列表，或直接手填模型名。') + '</div>';
+    } else {
+      panel.innerHTML = items.map(function (m) {
+        return '<button type="button" class="opt' + (m === $('fModel').value ? ' sel' : '') + '" data-m="' + esc(m) + '">' + esc(m) + '</button>';
+      }).join('');
+    }
+    panel.hidden = false;
+  }
+  function closeModelPanel() { $('modelPanel').hidden = true; }
 
   function openForm(id) {
     editing = id || '';
@@ -363,15 +432,18 @@ input[type=checkbox]{width:17px;height:17px;accent-color:var(--acc);flex:none}
     if (p) {
       $('fBase').value = p.baseUrl || '';
       $('fModel').value = p.model || '';
-      $('modelTips').innerHTML = (HXAI.providers[p.provider].models || []).map(function (m) { return '<option value="' + esc(m) + '"></option>'; }).join('');
+      modelList = (HXAI.providers[p.provider].models || []).slice();
       $('fCaps').querySelectorAll('input[type=checkbox]').forEach(function (b) {
         b.checked = (p.caps || []).indexOf(b.value) >= 0;
       });
+      setThink(p.thinkLevel || 'balanced');
     } else {
       fillProvider('deepseek');
+      setThink('balanced');
     }
     // 编辑已有配置时不会走 fillProvider（怕把用户手填的地址覆盖掉），提醒得单独刷一下
     setProvNote(p ? p.provider : 'deepseek');
+    closeModelPanel();
     // Key 从不回显：留空 = 不动原来那把
     var has = p && HXAI.hasKey(p.id);
     $('fKey').value = '';
@@ -380,6 +452,16 @@ input[type=checkbox]{width:17px;height:17px;accent-color:var(--acc);flex:none}
     $('fMsg').textContent = '';
     $('fMsg').className = 'msg';
     $('fName').focus();
+  }
+
+  // 思考程度三档的 radio 高亮：点一下选一档，名字段 fThink
+  function setThink(id) {
+    $('fThink').querySelectorAll('input[type=radio]').forEach(function (r) {
+      r.checked = r.value === id;
+    });
+    $('fThink').querySelectorAll('label').forEach(function (l) {
+      l.classList.toggle('on', l.querySelector('input') && l.querySelector('input').checked);
+    });
   }
 
   function closeForm() {
@@ -391,6 +473,8 @@ input[type=checkbox]{width:17px;height:17px;accent-color:var(--acc);flex:none}
   function collect() {
     var capsSel = Array.prototype.filter.call($('fCaps').querySelectorAll('input[type=checkbox]'), function (b) { return b.checked; })
       .map(function (b) { return b.value; });
+    var tl = '';
+    $('fThink').querySelectorAll('input[type=radio]').forEach(function (r) { if (r.checked) tl = r.value; });
     return {
       id: editing || undefined,
       name: $('fName').value.trim(),
@@ -398,6 +482,7 @@ input[type=checkbox]{width:17px;height:17px;accent-color:var(--acc);flex:none}
       baseUrl: $('fBase').value.trim(),
       model: $('fModel').value.trim(),
       caps: capsSel,
+      thinkLevel: tl || 'balanced',
       remember: $('fRemember').checked
     };
   }
@@ -418,18 +503,24 @@ input[type=checkbox]{width:17px;height:17px;accent-color:var(--acc);flex:none}
   $('fFetch').onclick = function () {
     var c = collect(), msg = $('fMsg');
     var k = $('fKey').value.trim() || (editing ? HXAI.key(editing) : '');
-    if (!k) { msg.className = 'msg bad'; msg.textContent = '先填 API Key 才能读模型列表。'; return; }
+    if (!c.baseUrl) { msg.className = 'msg bad'; msg.textContent = '先填接口地址，才能读模型列表。'; return; }
+    if (!k) { msg.className = 'msg bad'; msg.textContent = '先填 API Key 才能读模型列表（Key 是服务商给的 sk- 开头那一串）。'; return; }
     msg.className = 'msg'; msg.textContent = '正在读取模型列表…';
     HXAI.models(Object.assign({}, c, { key: k })).then(function (ms) {
       if (!ms.length) {
         msg.className = 'msg bad';
-        msg.textContent = '没读到模型列表（有的服务商不开放这个接口）。直接手填模型名也可以。';
+        msg.textContent = '这个服务商没有返回任何模型（可能不开放 /models 接口）。直接手填模型名也可以。';
         return;
       }
-      $('modelTips').innerHTML = ms.map(function (m) { return '<option value="' + esc(m) + '"></option>'; }).join('');
-      $('fModel').value = ms.indexOf($('fModel').value) >= 0 ? $('fModel').value : ms[0];
+      modelList = ms;
+      // 保持当前已填的模型不变；没填过就默认选第一个
+      if (ms.indexOf($('fModel').value) < 0) $('fModel').value = ms[0];
+      renderModelPanel();  // 读到了直接展开候选，点一下就能选（不再依赖原生 datalist 的不可控弹层）
       msg.className = 'msg good';
-      msg.textContent = '读到 ' + ms.length + ' 个模型，点模型框可以选。';
+      msg.textContent = '读到 ' + ms.length + ' 个模型，已展开列表，点一下模型名即可选中。';
+    }).catch(function (e) {
+      msg.className = 'msg bad';
+      msg.textContent = e.message;  // models() 已经把「缺什么 Key / 什么权限 / 什么地址」说清
     });
   };
 
@@ -529,6 +620,28 @@ input[type=checkbox]{width:17px;height:17px;accent-color:var(--acc);flex:none}
     $('fCaps').innerHTML = HXAI.caps.map(function (c) {
       return '<label><input type="checkbox" value="' + c.id + '">' + esc(c.name) + '</label>';
     }).join('');
+    // 思考程度三档 radio
+    $('fThink').innerHTML = HXAI.thinkLevels.map(function (t) {
+      return '<label><input type="radio" name="fThink" value="' + t.id + '"><span>' + esc(t.name) + '</span></label>';
+    }).join('');
+    $('fThink').querySelectorAll('input[type=radio]').forEach(function (r) {
+      r.onchange = function () { setThink(r.value); };
+    });
+    // 自定义模型下拉：聚焦 / 点击 / 输入都展开候选，点选项即选中，点外面收起
+    $('fModel').addEventListener('focus', renderModelPanel);
+    $('fModel').addEventListener('input', renderModelPanel);
+    $('fModel').addEventListener('click', renderModelPanel);
+    $('modelPanel').addEventListener('click', function (e) {
+      var b = e.target && e.target.closest ? e.target.closest('.opt') : null;
+      if (!b) return;
+      $('fModel').value = b.getAttribute('data-m');
+      closeModelPanel();
+      $('fModel').focus();
+    });
+    document.addEventListener('click', function (e) {
+      var combo = $('modelCombo');
+      if (combo && !combo.contains(e.target)) closeModelPanel();
+    });
     renderAll();
     // 从首页卡片点进来时这个页面在 iframe 里：这时「回首页」会把总入口整个塞进框里，越点越乱，
     // 直接在框里隐藏掉（框外面本来就是首页，左上角还有返回）
