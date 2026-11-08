@@ -108,9 +108,10 @@ html.hx-bg body::before {
   opacity: var(--hx-bgo, 1);
 }
 /* 深色模式：亮色壁纸（比如默认那张）会把整页照得刺眼、玻璃卡被染成棕黄。
-   叠一层暗色 scrim（不再用 brightness()，省得又依赖 filter）。 */
+   叠一层暗色 scrim（不再用 brightness()，省得又依赖 filter）。
+   浓度跟 --hx-scrim 走（hx-theme.js 的 apply 按 bgo 算）：bgo=100 时 = 0，背景原图直出、不再蒙灰。 */
 :root[data-hx-mode="dark"].hx-bg body::before {
-  background-image: linear-gradient(rgba(8, 8, 10, .38), rgba(8, 8, 10, .38)), var(--hx-img);
+  background-image: linear-gradient(rgba(8, 8, 10, var(--hx-scrim, .38)), rgba(8, 8, 10, var(--hx-scrim, .38))), var(--hx-img);
 }
 /* ── 2026-11-05 六修：手机（及窄屏）背景「不会动」────────────────────────
    用户 iPhone Safari 实机：「手机上首页背景不会动」。原因不是坏了，是 2026-11-04

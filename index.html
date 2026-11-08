@@ -14,22 +14,22 @@
      要登录时调 window.HXPortal.login()；被单独打开时 hx-theme.js 会跳回这里（见 hx-theme.js 的 data-tool）。
      账号：Supabase 华夏工具项目，localStorage paike-session 和各工具共用；身份由数据库 hx_me() 决定。
      脚本里不用反引号模板字符串（本机测试时整页当字符串注入到线上同源页面里）。 -->
-<link rel="stylesheet" href="hx-theme.css?v=e7b6889">
-<script src="hx-theme.js?v=e7b6889"></script>
+<link rel="stylesheet" href="hx-theme.css?v=72b1d33">
+<script src="hx-theme.js?v=72b1d33"></script>
 <!-- 首页卡片上的像素小生物：pixelfx 的 12 个 critters（MIT），打包成一个 91 KB 的独立脚本。
      加载失败不影响首页——hx-critters.js 开头就有 window.PixelFX 存在性检查，没有就整段跳过。 -->
-<script src="fx/pixelfx-critters.js?v=e7b6889" defer></script>
-<script src="fx/hx-critters.js?v=e7b6889" defer></script>
+<script src="fx/pixelfx-critters.js?v=72b1d33" defer></script>
+<script src="fx/hx-critters.js?v=72b1d33" defer></script>
 <!-- 像素头像库（2026-11-04）：账号面板里除了传照片，还能从 200 多个像素动效里挑一个当头像。
      和上面 critters 同一套路：库（pixelfx-avatars.js）+ 渲染器（hx-avatar.js），都是 defer、
      不进首屏关键路径；不点「像素头像库」就一个动画都不跑。 -->
-<script src="fx/pixelfx-avatars.js?v=e7b6889" defer></script>
-<script src="fx/hx-avatar.js?v=e7b6889" defer></script>
+<script src="fx/pixelfx-avatars.js?v=72b1d33" defer></script>
+<script src="fx/hx-avatar.js?v=72b1d33" defer></script>
 <!-- 背景动效（2026-11-03）：12 种天气氛围特效铺在背景层，外观面板里选；加载失败或没选就完全不加载渲染器 -->
-<script src="fx/pixelfx-weather.js?v=e7b6889" defer></script>
-<script src="fx/hx-weather.js?v=e7b6889" defer></script>
+<script src="fx/pixelfx-weather.js?v=72b1d33" defer></script>
+<script src="fx/hx-weather.js?v=72b1d33" defer></script>
 <!-- 课堂码大屏二维码：离线 QR 编码器（qrcode 1.5.4 core 打包，MIT，见 fx/NOTICE-qr.md）。延迟加载即可：只有老师点「大屏二维码」时才用 -->
-<script src="fx/hx-qr.js?v=e7b6889" defer></script>
+<script src="fx/hx-qr.js?v=72b1d33" defer></script>
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; width: 100%; overflow: hidden; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -657,12 +657,27 @@
      用户要求「使用说明应该单独做成导航栏」「导航栏加邀请拉新二维码和链接」。
      比账号/外观弹层宽一些（480），说明文字和二维码并排才不憋屈；手机端仍走底部弹出。 */
   .pop.wide { width: 480px; }
+  /* ── 2026-11-08 AI 设置弹层：上半是原 AI 配置页（/ai/）嵌的 iframe，下半是注册渠道区块。
+     比使用说明更宽一点，900px 的配置页缩到 640 里仍是完整布局；iframe 懒加载（见 renderAi）。 ── */
+  .pop.aipop { width: 640px; }
+  .pop.aipop #aiFrame { width: 100%; height: 62vh; border: 1px solid var(--edge); border-radius: 14px; background: var(--card-solid); }
   .pop .hx-doc h4 { margin: 18px 0 8px; font-size: 15px; font-weight: 700; color: var(--ink); }
   .pop .hx-doc h4:first-of-type { margin-top: 4px; }
   .pop .hx-doc p { margin: 0 0 8px; font-size: 14px; line-height: 1.65; color: var(--dim); }
   .pop .hx-doc ul { margin: 0 0 10px; padding-left: 20px; font-size: 14px; line-height: 1.75; color: var(--dim); }
   .pop .hx-doc b { color: var(--ink); font-weight: 600; }
   .pop .hx-doc kbd { padding: 1px 6px; border-radius: 5px; background: var(--fill); font-size: 12.5px; font-family: inherit; color: var(--ink); }
+  /* ── 2026-11-08 使用说明分色块：每个工具/模块一个色块，颜色区分，强调「模块隔离」──
+     主色走内联 --hc（挑中间亮度的颜色，深色/浅色下都可读）；底是 8% 同色 tint，
+     左侧一条 3px 色条 + 同色加粗标题；块尾那条虚线是「数据独立」注脚。 */
+  .pop .hx-doc .hd { position: relative; margin: 0 0 12px; padding: 13px 16px 12px 18px; border-radius: 14px;
+    background: color-mix(in srgb, var(--hc, var(--acc)) 8%, transparent);
+    border: 1px solid color-mix(in srgb, var(--hc, var(--acc)) 22%, transparent); }
+  .pop .hx-doc .hd::before { content: ""; position: absolute; left: 0; top: 14px; bottom: 14px; width: 3px; border-radius: 3px; background: var(--hc, var(--acc)); }
+  .pop .hx-doc .hd .hdt { display: block; margin-bottom: 6px; font-size: 14.5px; font-weight: 700; color: var(--hc, var(--acc)); }
+  .pop .hx-doc .hd ul { margin: 0; padding-left: 17px; }
+  .pop .hx-doc .hd li { margin: 3px 0; }
+  .pop .hx-doc .hd .iso { margin: 8px 0 0; padding-top: 7px; border-top: 1px dashed color-mix(in srgb, var(--hc, var(--acc)) 34%, transparent); font-size: 12.5px; line-height: 1.55; color: var(--dim); }
   /* 邀请码卡片：二维码 + 链接 + 一键复制 */
   .inv { display: flex; flex-direction: column; gap: 12px; margin-bottom: 18px; padding: 16px; border-radius: 18px; background: var(--fill); }
   .inv-top { display: flex; gap: 16px; align-items: center; }
@@ -848,6 +863,8 @@
     .pop { top: auto; bottom: 0; left: 0; right: 0; width: auto; max-height: 88dvh; border-radius: 26px 26px 0 0; padding: 14px 20px calc(30px + env(safe-area-inset-bottom, 0px)); transform: translateY(100%); transform-origin: bottom; overscroll-behavior: contain; }
     @supports not (height: 1dvh) { .pop { max-height: 84vh; } }
     .pop.wide { width: auto; max-width: none; } /* 2026-11-04：使用说明/邀请两个宽弹层在手机上必须回到贴底满宽，否则 480px 比 390 视口还宽（实测量到 480 > 390） */
+    .pop.aipop { width: auto; max-width: none; } /* AI 设置弹层同理：手机上贴底满宽，iframe 高度收一点给注册渠道留位置 */
+    .pop.aipop #aiFrame { height: 52vh; }
     .pop.show { transform: none; } .scrim.show { opacity: 1; pointer-events: auto; }
     .cl { grid-template-columns: 1fr; } .cl .acts { flex-wrap: wrap; }
     .tile .sum { margin-top: -8px; padding-right: 0; font-size: 13px; }
@@ -955,7 +972,7 @@
 <section class="pop" id="pop" aria-label="账号"></section>
 <section class="pop" id="look" aria-label="外观"></section>
 <section class="pop wide" id="help" aria-label="使用说明"></section>
-<section class="pop wide" id="invite" aria-label="邀请拉新"></section>
+<section class="pop aipop" id="ai" aria-label="AI 设置"></section>
 <section id="syncPop" aria-label="全站云端同步"></section>
 <main id="main">
   <section id="home">
@@ -1020,7 +1037,7 @@ var SITE = location.protocol === 'file:' ? 'https://zcq19991029.github.io' : '';
 // stu 是「学生点开时去哪个页面」：不给就照 who:'all' 用 url。给 who:'all' + stu 就是「老师进完整工具、
 // 学生只进一个页面」——2026-11-03 用户要「单独开放小组加分里面的分组模块给学生」，先用这个机制开一个模块。
 // pop 是「不挂工具页、点开直接弹层」的卡片（2026-11-08 用户要求把顶栏的 ? 和 AI 两颗圆钮挪成卡片）。
-var GROUPS = [['学习', ['wiring', 'quiz', 'base', 'mcu', 'exam']], ['教学', ['paike', 'jiafen', 'course']], ['维护', ['help', 'invite', 'ai', 'feedback']]]; // 首页按使用场景分组
+var GROUPS = [['学习', ['wiring', 'quiz', 'base', 'mcu', 'exam']], ['教学', ['paike', 'jiafen', 'course']], ['维护', ['help', 'ai', 'feedback']]]; // 首页按使用场景分组
 var TOOLS = [
   // 2026-11-02：注册已彻底修好（删掉了 auth.users 上的废弃触发器），临时免登录口子按用户要求收回 ——
   // 「没账号不允许使用任何工具」。全站不再有 open:true 的工具。
@@ -1047,14 +1064,16 @@ var TOOLS = [
   // 2026-11-06 用户要求「把 api 设置放到首页作为单独卡片工具」：各工具不再各自填 Key，
   // 统一在这里配好，工具页引 /hx-ai.js 读同一份配置（localStorage hx-ai-v1）。
   // 放「维护」组、who 用 teacher：这是老师配后台的页面，不该占学生首屏；学生也不用懂 Key。
-  { id: 'ai', name: 'AI 设置', url: SITE + '/ai/', who: 'teacher', c: ['#8ee7ff', '#0891b2'], icon: '<path d="M4 7h16M4 12h16M4 17h16"/><circle cx="9" cy="7" r="2.1"/><circle cx="15" cy="12" r="2.1"/><circle cx="8" cy="17" r="2.1"/>' },
+  // 2026-11-08 AI 额度卡并进来：不再是挂 iframe 的工具页，改成弹层卡片（pop:'ai'）——
+  // 弹层上半是原来的 AI 配置页（/ai/ 原样嵌进来，功能不动），下半是「AI 注册渠道与工具建议」
+  // 区块（原 #invite 弹层的内容）。可见性沿用 who:'teacher'：只有教师看得到这张卡。
+  { id: 'ai', name: 'AI 设置', pop: 'ai', who: 'teacher', c: ['#8ee7ff', '#0891b2'], icon: '<path d="M4 7h16M4 12h16M4 17h16"/><circle cx="9" cy="7" r="2.1"/><circle cx="15" cy="12" r="2.1"/><circle cx="8" cy="17" r="2.1"/>' },
   // 2026-11-08 用户截图：「首页顶部那两颗圆钮 ? 和 AI 撤掉，内容挪到首页卡片」。
-  // 这两张不是工具页（不挂 iframe），点开是原来的 #help / #invite 弹层 —— pop 字段标明弹哪个。
-  // who:'all' = 登录后的老师和学生都能看到；anon:1 = 未登录 / 还没开通的账号也能看使用说明
-  // （原来顶栏那颗 ? 本来就对所有人可见，挪成卡片不能反而把还没登录的人挡在外面）。
-  // AI 额度沿用原按钮文案的语义（领免费 AI 额度）；AI 设置那张仍然只给教师，别把它放开。
-  { id: 'help', name: '使用说明', pop: 'help', who: 'all', anon: 1, c: ['#7c9cff', '#4f46e5'], icon: '<circle cx="12" cy="12" r="9"/><path d="M9.6 9.2A2.6 2.6 0 0 1 14.6 10c0 1.7-2.6 2-2.6 3.7"/><circle cx="12" cy="17" r=".9" fill="currentColor" stroke="none"/>' },
-  { id: 'invite', name: 'AI 额度', pop: 'invite', who: 'all', c: ['#8ee7ff', '#0ea5e9'], icon: '<circle cx="12" cy="12" r="9"/><path d="M12 7.5v5l3.2 2"/><path d="M8.4 4.2A9 9 0 0 1 12 3"/><path d="M12 3a9 9 0 0 1 3.6 17.2" stroke-dasharray="2.2 2.6"/>' },
+  // 这两张不是工具页（不挂 iframe），点开是原来的 #help / #ai 弹层 —— pop 字段标明弹哪个。
+  // who:'all' = 登录后的老师和学生都能看到；anon:0 = 未登录 / 还没开通时**不显示**这张卡
+  // （2026-11-08 用户新要求：使用说明只在登录后出现，未登录首页只留「登录 / 注册」一张卡，
+  //  保持干净空白）。登录后老师和学生都看得到；AI 设置卡本来就是 who:'teacher'，未登录同样看不到。
+  { id: 'help', name: '使用说明', pop: 'help', who: 'all', anon: 0, c: ['#7c9cff', '#4f46e5'], icon: '<circle cx="12" cy="12" r="9"/><path d="M9.6 9.2A2.6 2.6 0 0 1 14.6 10c0 1.7-2.6 2-2.6 3.7"/><circle cx="12" cy="17" r=".9" fill="currentColor" stroke="none"/>' },
   { id: 'feedback', name: '反馈', url: SITE + '/feedback/', splash: 1, who: 'dev', c: ['#c084fc', '#7c3aed'], icon: '<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 8.5l9 6 9-6"/>' } // 开发者专用：看各工具收到的建议和问题
 ];
 // 班级给哪些工具用（数据库 hx_classes.tools）；一个都不勾 = 都用
@@ -1242,7 +1261,7 @@ function locked() { return HX.in() && role() === '未开通'; } // 登录了没�
 function can(t) { // who：all 登录的人都有、teacher 教师、dev 只有开发者
   // 2026-11-02 用户定：「没账号不允许使用任何工具」。注册已经彻底修好（删掉了 auth.users 上的废弃触发器），
   // 所以 2026-11-01 那个「注册坏了先解锁接线仿真和刷题」的 open 后门已经拆掉，这里不再有免登录分支。
-  if (t.anon) return true; // 「使用说明」这类不依赖账号的卡片：未登录、还没开通也能看
+  if (t.anon) return true; // anon:1 的卡片（当前没有）未登录也放行；「使用说明」已改成 anon:0，随登录闸门一起收
   if (!HX.in() || locked()) return false;
   if (t.who === 'dev') return isDev();
   if (t.who === 'teacher') return isTeacher();
@@ -1386,7 +1405,7 @@ document.addEventListener('visibilitychange', function () {
 });
 function show(id, how) { // how：不写 = 新开一页（进浏览器历史，左上角和手机返回能退回来）；'replace' 原地换；'pop' 是浏览器后退来的
   var t = TOOLS.filter(function (x) { return x.id === id; })[0];
-  if (t && t.pop) t = null; // 使用说明 / AI 额度是弹层卡片，没有工具页；地址栏 #help 这种也回首页，不挂空 iframe
+  if (t && t.pop) t = null; // 使用说明 / AI 设置是弹层卡片，没有工具页；地址栏 #help 这种也回首页，不挂空 iframe
   if (t && !can(t)) t = null;
   var prevTab = ST.tab; ST.tab = t ? t.id : null;
   var url = t ? '#' + t.id : location.pathname + location.search, st = history.state && history.state.hx || 0;
@@ -1412,7 +1431,7 @@ function render() {
   $('tiles').innerHTML = (!HX.in() ? '<div class="tiles"><button class="tile act" type="button" id="tIn" style="--c1:#5ac8fa;--c2:#0a84ff"><span class="ic">' + svg('<circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/>') + '</span><b>登录 / 注册</b>' + go + '</button></div>' : '') + (locked() ? '<div class="tiles"><button class="tile act" type="button" id="tAct" style="--c1:#5ac8fa;--c2:#0a84ff"><span class="ic">' + svg('<rect x="3" y="6" width="18" height="12" rx="2.5"/><path d="M15 6v12" stroke-dasharray="1.5 2.5"/><path d="M7 10.5h4M7 13.5h3"/>') + '</span><b>填写邀请码开通</b>' + go + '</button></div>' : '') +
     G.map(function (g) { // 只有一组又没有“管理”时不加小标题
       return (G.length > 1 || mgList().length ? '<div class="sec"><h2>' + g.name + '</h2></div>' : '') + '<div class="tiles">' + g.list.map(function (t) {
-        // 弹层卡片（使用说明 / AI 额度）带 data-pop 和 aria-haspopup，展开状态由 syncExp 跟着弹层同步
+        // 弹层卡片（使用说明 / AI 设置）带 data-pop 和 aria-haspopup，展开状态由 syncExp 跟着弹层同步
         var popAttr = t.pop ? ' data-pop="' + t.pop + '" aria-haspopup="dialog" aria-expanded="' + $(t.pop).classList.contains('show') + '"' : '';
         return '<button class="tile" type="button" data-id="' + t.id + '"' + popAttr + ' style="--c1:' + t.c[0] + ';--c2:' + t.c[1] + ';animation-delay:' + (n++ * 50) + 'ms">' +
           '<span class="ic">' + svg(t.icon) + '</span>' + planets() + '<b>' + t.name + '</b>' + go + '</button>';
@@ -1421,7 +1440,7 @@ function render() {
   $('tiles').querySelectorAll('.tile[data-id]').forEach(function (b) {
     b.onclick = function () {
       var t = TOOLS.filter(function (x) { return x.id === b.dataset.id; })[0];
-      if (t && t.pop) { togglePop(t.pop); return; } // 使用说明 / AI 额度：直接开弹层，不建 iframe
+      if (t && t.pop) { togglePop(t.pop); return; } // 使用说明 / AI 设置：直接开弹层，不建 iframe
       show(b.dataset.id);
     };
     // 卡片上端的像素小生物：每个工具固定配一只（本会话内不变），换会话重新随机
@@ -1456,7 +1475,7 @@ function render() {
    手机上没有 Esc，抽屉又几乎铺满整屏，留给遮罩的只有顶上一条缝，一抖就点进面板里，
    表现就是「关不掉」。这里给每个面板**自己**注入一颗吸顶关闭钮（sticky，滚到多深都在可见区右上角）。
    幂等：已在就复用，不会因为反复重画面板长出一堆×。 */
-var POP_TITLES = { pop: '账号', look: '外观', help: '使用说明', invite: '邀请拉新' };
+var POP_TITLES = { pop: '账号', look: '外观', help: '使用说明', ai: 'AI 设置' };
 function ensurePopX(k) {
   var el = $(k); if (!el) return;
   var x = el.querySelector(':scope > .pop-x');
@@ -1472,12 +1491,12 @@ function ensurePopX(k) {
   x.title = '关闭（Esc）';
   x.onclick = function (e) { e.stopPropagation(); closePops(); };
 }
-function closePops() { ['pop', 'look', 'help', 'invite'].forEach(function (k) { if ($(k)) $(k).classList.remove('show'); }); $('scrim').classList.remove('show'); ST.edit = null; ST.avlib = false;
+function closePops() { ['pop', 'look', 'help', 'ai'].forEach(function (k) { if ($(k)) $(k).classList.remove('show'); }); $('scrim').classList.remove('show'); ST.edit = null; ST.avlib = false;
   // 关面板时把头像库的循环也停掉：不停的话那个 rAF 会一直空转
   if (ST.avPanel && ST.avPanel.destroy) { try { ST.avPanel.destroy(); } catch (e) { } ST.avPanel = null; }
   syncExp(); }
 function syncExp() { if ($('acct')) $('acct').setAttribute('aria-expanded', $('pop').classList.contains('show')); $('lookBtn').setAttribute('aria-expanded', $('look').classList.contains('show'));
-  // 首屏卡片版的「使用说明 / AI 额度」：aria-expanded 跟着弹层走（原来管的是顶栏两颗圆钮，圆钮已撤）
+  // 首屏卡片版的「使用说明 / AI 设置」：aria-expanded 跟着弹层走（原来管的是顶栏两颗圆钮，圆钮已撤）
   document.querySelectorAll('.tile[data-pop]').forEach(function (b) {
     var p = $(b.dataset.pop); if (p) b.setAttribute('aria-expanded', String(p.classList.contains('show')));
   }); }
@@ -1497,7 +1516,7 @@ function togglePop(k) {
     if (k === 'pop') renderPop();
     else if (k === 'look') renderLook();
     else if (k === 'help') renderHelp();
-    else if (k === 'invite') renderInvite();
+    else if (k === 'ai') renderAi();
     // 关闭钮必须放在 render 之后：四个 render 都是 innerHTML 整体重写，先插会被抹掉。
     // 反过来，各 render 内部（比如 renderLook 里点主题色会重画）也会抹掉它，
     // 所以 render 末尾也要调一次 ensurePopX —— 见各函数结尾。
@@ -1537,26 +1556,30 @@ function renderHelp(t) {
 }
 // 教师版：口径按各工具 README / 项目交接写，只写真实存在的按钮和路径。
 // 2026-11-08 用户要求重写：覆盖全部工具，不再只讲建班导入名单；以后还会继续更新。
+// 2026-11-08 二次改版：内容改成「每个工具/模块一个色块」的卡片布局（见 hd() 与 .hd 样式），
+// 每个工具块尾点一句「数据独立、和别的工具不互通」，强调模块隔离。
+// c 是这一块的主色（挑中间亮度的颜色，深色/浅色下都可读）；iso 为真才挂「数据独立」注脚。
+function hd(c, title, body, iso) {
+  return '<div class="hd" style="--hc:' + c + '"><b class="hdt">' + title + '</b>' + body
+    + (iso ? '<p class="iso">' + iso + '</p>' : '') + '</div>';
+}
 function helpDocTeacher() {
-  return '<p style="margin:0 0 10px;color:var(--dim)">这份说明按现在的功能写，<b>会持续更新</b>；发现哪一步对不上，用工具「关于」里的「提建议」告诉我们。</p>'
-    + '<h4>账号与登录</h4>'
-    + '<ul>'
+  return '<p style="margin:0 0 10px;color:var(--dim)">这份说明按现在的功能写，<b>会持续更新</b>；发现哪一步对不上，用工具「关于」里的「提建议」告诉我们。每个工具的数据各自独立、互不通用。</p>'
+    + hd('#4f8ce8', '账号与登录', '<ul>'
     + '<li>教师账号要<b>邀请码</b>才能注册：首页「登录 / 注册」→ 注册 → 填邀请码 → 账号名填工号、设密码。管理员 / 开发者也能发教师码。</li>'
     + '<li>也可以用 <b>GitHub 登录</b>；同一个账号可以再设一个账号名和密码，几种方式进的是同一份数据。</li>'
     + '<li><b>学生不用注册</b>：你导入考勤表的时候就批量开好了，<b>账号是学号、密码也是学号</b>。已经自己注册过的学生不受影响。</li>'
     + '<li>右上角头像 → 账号面板：改头像（含像素头像库）、改资料、切换这台设备上登录过的账号、退出登录。</li>'
-    + '</ul>'
-    + '<h4>首页：分组、班级、外观</h4>'
-    + '<ul>'
+    + '</ul>')
+    + hd('#8a6fd0', '首页：分组、班级、外观', '<ul>'
     + '<li>卡片按<b>学习 / 教学 / 维护</b>三组排。点卡片进入工具，左上角「返回」回首页；手机返回键同样是「上一步」。</li>'
     + '<li>右上角那颗<b>外观</b>按钮：深浅色、主色、背景图、透明度、校徽水印开关，设置跟着账号走。</li>'
     + '<li>首页下方的<b>班级</b>卡片管名单和课堂码：导入考勤表（<kbd>.xls</kbd> / <kbd>.xlsx</kbd> / <kbd>.csv</kbd>，要有<b>学号、姓名</b>两列）、一个文件一个班、可一次选多个。</li>'
     + '<li>导入完账号就有了（提示里写「新开号 N 个」）；老班可以点<b>一键开号 N</b>。每个班四个开关（接线仿真 / 单片机 / 考试 / 小组加分），点亮哪个，这个班才在哪个工具里出现。</li>'
     + '<li>带完的班点<b>收起</b>，数据一条不删，随时「恢复使用」；带完的班不要删。</li>'
     + '<li><b>课堂码</b>一般不用发了（学生直接学号登录）。需要时在班级卡片那行点「发课堂码」，<b>4 小时有效</b>，可以分享或撤销；学生忘了密码用首页的重置功能按学号重置。</li>'
-    + '</ul>'
-    + '<h4>接线仿真</h4>'
-    + '<ul>'
+    + '</ul>')
+    + hd('#43a06e', '接线仿真', '<ul>'
     + '<li>顶部 <kbd>2.1</kbd>～<kbd>2.6</kbd> 是主电路，<b>按住题号条左右拖</b>可以滑到最后；右边箭头能把整排收起，把高度让给电路。</li>'
     + '<li>顶栏还有：<b>排位</b>、<b>本节内容</b>、<b>教学视频</b>、<b>元器件</b>、<b>符号</b>、<b>扩展练习</b>、<b>更新日志</b>、<b>关于</b>、<b>全屏</b>。窄屏只显示图标，长按有文字提示。</li>'
     + '<li>点两个端子连一根线；工具栏有<b>提示</b>（关 / 自由 / 顺序）、撤销、清空、检查、答案。顺序提示会按教材顺序逐根指出下一根接哪里。</li>'
@@ -1564,136 +1587,131 @@ function helpDocTeacher() {
     + '<li><b>教学视频</b>：按节播放（2.1～2.6 已陆续做完），关窗口自动暂停。</li>'
     + '<li><b>扩展练习</b>：电工证类题（E1 双重联锁正反转启动能耗制动、E2 C6140T 车床），从「扩展练习」窗口打开；<b>并联专项</b>（P）是独立一套小题，专练「并到哪个点」。</li>'
     + '<li>手机支持双指放大（最多 4 倍），放大后照样点端子、按按钮；「超级排位」（先摆元件再连线）还在做，入口做好后会写在这里。</li>'
-    + '</ul>'
-    + '<h4>刷题</h4>'
-    + '<ul>'
+    + '</ul>', '本工具成绩与排位独立，和刷题、考试、单片机互不通用。')
+    + hd('#d68a4a', '刷题', '<ul>'
     + '<li>顶部切换<b>科目</b>：内置电气接线原理、教育心理学、教育学，加上你发布的科目；也能建自己的科目。</li>'
     + '<li>按<b>题型 × 范围</b>（待掌握 / 错题 / 未做 / 已做 / 已记住）× 顺序或随机刷；单选、判断点一下就判，多选选完提交。题卡还能左滑「记住了」、右滑「再练」。</li>'
     + '<li><b>概览</b>看掌握度、各题型进度、正确率和错题列表；<b>排行</b>按答对的不同题数记分，可切「我的班」。</li>'
     + '<li><b>导入题库</b>走 AI：识题（PDF / Word / TXT / Markdown 里拆题）或出题两套提示词，图片走视觉模型。没有文件模板。</li>'
     + '<li>题库页最下面可以「说人话让 AI 帮你写学习卡」，不用手写 JSON；写好把科目<b>发布给学生</b>。</li>'
-    + '</ul>'
-    + '<h4>进制转换</h4>'
-    + '<ul><li>课堂演示用：进制学习、实操教程、8421 拼数小花园三个入口。纯本地，不登录也能用，不记成绩。</li></ul>'
-    + '<h4>单片机上机</h4>'
-    + '<ul>'
+    + '</ul>', '题库和刷题记录独立，与考试、接线仿真的数据不互通。')
+    + hd('#2fa8b8', '进制转换', '<ul>'
+    + '<li>课堂演示用：进制学习、实操教程、8421 拼数小花园三个入口。纯本地，不登录也能用，不记成绩。</li>'
+    + '</ul>', '纯本地演示、不记成绩，和别的工具零数据往来。')
+    + hd('#3aa8d8', '单片机上机', '<ul>'
     + '<li>名单<b>不在这里导入</b>：全部来自首页「班级」的共享名单，首页加人、改名这里自动跟上。</li>'
     + '<li>老师菜单只有<b>班级名单</b>和<b>导入书上代码</b>；在班级名单页勾「上课的班级」（只记这台电脑），并把<b>查看答案密码</b>设好——<b>4 小时自动失效</b>，也可以立刻撤销。</li>'
     + '<li>学生做「平时练习」和「考试」取题；网页版有练习记录和耗时榜，用时由服务器计算，学生只报做的是哪道题、得了多少分。</li>'
-    + '</ul>'
-    + '<h4>考试</h4>'
-    + '<ul>'
+    + '</ul>', '名单来自首页班级（共享），练习/考试成绩只记在本工具。')
+    + hd('#7d7aff', '考试', '<ul>'
     + '<li>三页：<b>组卷与组卷码</b>、<b>理论试卷</b>、<b>批改成绩</b>（教师账号登录后自动进，学生看不到）。</li>'
     + '<li>组卷码可以自动生成，也可以起名字（如「期末A」）；发布时选科目 / 组卷码 / 哪几个班，再把考试码公布给学生，学生输码 + 学号取题。</li>'
     + '<li>理论试卷是 A3 双面排版，可以点题换题、按题型搜索；四档缩放（适应宽度 / 100% / 75% / 50%）。</li>'
     + '<li><b>试卷库</b>走云端，换电脑登录同一账号还在；批改在本机浏览器里编译模拟。</li>'
-    + '</ul>'
-    + '<h4>排课</h4>'
-    + '<ul>'
+    + '</ul>', '组卷码与试卷库独立，学生只凭码取题、看不到批改。')
+    + hd('#e06a6a', '排课', '<ul>'
     + '<li>月课表一列一个周一、一行一间教室；可切列表视图，整月或单周重排、换人、互换、锁定、停课、冲突提示。</li>'
     + '<li>右侧是「第 N 轮还没排」的待分配名单；名片可以直接拖进课表、课表里互拖 = 互换（触屏长按 0.3 秒再拖）。</li>'
     + '<li><b>老师与分配</b>、<b>班级与教室</b>、<b>统计</b>三个页签管规则和课时；导出有正式版 Excel、含轮次课时版、课表 / 列表 PNG。按 Ctrl+Alt+P 是排课偏好（只有排课人看得到）。</li>'
     + '<li>改动 1.2 秒后自动上云，多台设备用版本号核对，不会互相覆盖；冲突时选「用本机 / 用云端」，不会静默覆盖。</li>'
-    + '</ul>'
-    + '<h4>小组加分</h4>'
-    + '<ul>'
+    + '</ul>', '一个账号一份课表，老师之间互相看不见，和别的工具不互通。')
+    + hd('#d97ea3', '小组加分', '<ul>'
     + '<li>班级和名单同样来自首页「班级」（点亮「小组加分」的班才出现）。先确认分组 → <b>新开一课</b>（日期、本节任务、值日组）→ 上课记分。</li>'
     + '<li>课堂小组合计 = <b>首个正确 + 小组分 + 值日分 − 手机未入袋次数</b>；点错了可以撤销（最多 60 步），右键 / 长按返还个人扣分。</li>'
     + '<li><b>组内个人评分</b>：10 个自定义项目，每项 0～5 分，独立小计 + 签名；项目分自动计入个人总分。</li>'
     + '<li><b>学期总分</b>把项目完成率和考勤（学期 9 分）合并算平时分，再折算总评；<b>成绩登分册</b>可导出 Excel / PDF。</li>'
     + '<li>学生打开是只读的「我的分数」，看不到别人的明细，也进不了记分台。</li>'
-    + '</ul>'
-    + '<h4>课程进度</h4>'
-    + '<ul>'
+    + '</ul>', '分数只在本工具，学生端只读，和别的工具不互通。')
+    + hd('#c99a3a', '课程进度', '<ul>'
     + '<li>首页是本周课表；另有按日期查课、进度总览、实际记录（可导出 CSV / 打印）、调课管理。</li>'
     + '<li>课表和教学进度可以用 Excel / CSV / Markdown / DOCX / PDF 统一导入，四步走完，提交前自动下载备份。</li>'
     + '<li>一个账号一份数据，老师之间互相看不见；学生用不了。</li>'
-    + '</ul>'
-    + '<h4>AI 设置与 AI 额度</h4>'
-    + '<ul>'
+    + '</ul>', '一个账号一份数据，学生用不了，和别的工具不互通。')
+    + hd('#0891b2', 'AI 设置', '<ul>'
     + '<li><b>AI 设置</b>（维护组）：全站填一次 Key，刷题、考试、单片机、接线仿真、排课、课程进度都从这里读。可以存多套配置、按能力（文本 / 图片识别 / 推理）分派、按工具单独指定，点「测试连接」确认通不通。</li>'
     + '<li>导出 JSON 永远不含 Key；没配 Key 时工具会提示「到首页 AI 设置里加一套」，不会静默失败。</li>'
-    + '<li><b>AI 额度</b>（维护组）：硅基流动、WorkBuddy 两个平台的邀请链接和二维码，注册双方都有免费额度。这些是第三方平台，不用也不影响华夏工具。</li>'
-    + '</ul>'
-    + '<h4>常见问题</h4>'
-    + '<ul>'
+    + '<li>弹层下半是<b>「AI 注册渠道与工具建议」</b>：列了几个注册门槛低的 AI 平台（以后会继续加），注册拿到自己的 Key 后回到上面配好就能用。这些是第三方平台，不用也不影响华夏工具。</li>'
+    + '</ul>', '这是全站共用的一套配置：填一次，各工具从这里读，不需要每个工具单独配。')
+    + hd('#9aa0a8', '常见问题', '<ul>'
     + '<li>学生登不进：先确认学号在名单里、且这个班点亮了对应工具的开关；再看是不是已经自己注册过（密码就不是学号了）。</li>'
     + '<li>课堂码别发大群，过期或被用满就重新发一个。</li>'
     + '<li>换电脑看不到数据：先确认登录的是同一个账号；排课的「上课的班级」、单片机的「上课的班级」这类设置只记本机，需要重勾。</li>'
-    + '</ul>';
+    + '</ul>');
 }
 // 学生版：只讲学生自己能点的路径。**不出现建班、导入名单、导出、邀请码**这些教师操作。
 function helpDocStudent() {
-  return '<p style="margin:0 0 10px;color:var(--dim)">这份说明按现在的功能写，<b>会持续更新</b>；哪里看不懂就问老师。</p>'
-    + '<h4>账号：不用注册，学号就是账号</h4>'
-    + '<ul>'
+  return '<p style="margin:0 0 10px;color:var(--dim)">这份说明按现在的功能写，<b>会持续更新</b>；哪里看不懂就问老师。每个工具的数据各自独立、互不通用。</p>'
+    + hd('#4f8ce8', '账号：不用注册，学号就是账号', '<ul>'
     + '<li>老师导入考勤表时已经把你的账号开好了：<b>账号是学号，密码也是学号</b>，直接登录。</li>'
     + '<li>如果你以前自己注册过，就还用原来的密码，新规则不影响你。</li>'
     + '<li>登不进去或提示「账号或密码不对」，先找老师确认学号在不在名单里，别自己反复试；忘了密码也让老师重置。</li>'
-    + '</ul>'
-    + '<h4>首页能看到什么</h4>'
-    + '<ul>'
+    + '</ul>')
+    + hd('#8a6fd0', '首页能看到什么', '<ul>'
     + '<li>登录后按<b>学习 / 教学 / 维护</b>分组列出你能用的工具，点卡片进入，左上角「返回」回首页。</li>'
-    + '<li>「小组加分」你打开是只读的「我的分数」；「使用说明」「AI 额度」两张卡谁都能看。</li>'
+    + '<li>「小组加分」你打开是只读的「我的分数」；「使用说明」这张卡登录后就能看。</li>'
     + '<li><b>看不到</b>排课、课程进度、AI 设置、反馈这些老师 / 开发者用的后台，也看不到老师的批改过程。</li>'
     + '<li>右上角调色按钮可以换深浅色、主色和背景，只影响你自己。</li>'
-    + '</ul>'
-    + '<h4>接线仿真</h4>'
-    + '<ul>'
+    + '</ul>')
+    + hd('#43a06e', '接线仿真', '<ul>'
     + '<li>顶部 <kbd>2.1</kbd>～<kbd>2.6</kbd> 是题目，<b>按住题号条左右拖</b>可以滑到最后；右边箭头能把整排收起，把地方让给电路。</li>'
     + '<li>点两个端子连一根线；工具栏有提示（关 / 自由 / 顺序）、撤销、清空、检查、答案。<b>顺序</b>会按教材顺序告诉你下一根接哪里。</li>'
     + '<li><b>排位</b>：选电路开始，计时接线，全对自动停表，成绩进排行榜，换电脑登录也看得到自己的记录。</li>'
     + '<li><b>教学视频</b>、<b>本节内容</b>、<b>元器件</b>、<b>符号</b>都在顶栏；<b>扩展练习</b>里是电工证类题和并联专项。</li>'
     + '<li>手机上双指可以放大（最多 4 倍），放大后照样点端子、按按钮。</li>'
-    + '</ul>'
-    + '<h4>刷题</h4>'
-    + '<ul>'
+    + '</ul>', '本工具成绩与排位独立，和刷题、考试、单片机互不通用。')
+    + hd('#d68a4a', '刷题', '<ul>'
     + '<li>顶部选科目，按题型和范围（待掌握 / 错题 / 未做 / 已做 / 已记住）练；答错有解析，答完会看到学习卡。</li>'
     + '<li>概览能看自己的掌握度和错题；排行是全校榜，可以切到本班。<b>登录后才计分</b>，老师不上榜。</li>'
-    + '</ul>'
-    + '<h4>进制转换</h4>'
-    + '<ul><li>进制学习、实操教程、8421 拼数小花园，用来练二 / 八 / 十 / 十六进制的换算。这段不记成绩。</li></ul>'
-    + '<h4>单片机上机</h4>'
-    + '<ul>'
+    + '</ul>', '题库和刷题记录独立，与考试、接线仿真的数据不互通。')
+    + hd('#2fa8b8', '进制转换', '<ul>'
+    + '<li>进制学习、实操教程、8421 拼数小花园，用来练二 / 八 / 十 / 十六进制的换算。这段不记成绩。</li>'
+    + '</ul>', '纯本地演示、不记成绩，和别的工具零数据往来。')
+    + hd('#3aa8d8', '单片机上机', '<ul>'
     + '<li>平时练习：选母题和题型后「换一题」，在网页里作答或下载 .c 到 Keil 做完再拖回来，即时判分（只指出哪里错，不给正确写法）；「查看答案」要问老师要密码。</li>'
     + '<li>考试：输<b>学号 + 老师公布的组卷码</b>取题，学号要在老师勾的「上课的班级」里；做完把 .c 拖进来生成 .hex。</li>'
     + '<li>练习记录和耗时榜在网页版里，用时由服务器算，改电脑时间没用。</li>'
-    + '</ul>'
-    + '<h4>考试</h4>'
-    + '<ul><li>老师公布考试码后，打开「考试」输码（和学号）就能取到自己的题，按页面提示作答 / 交卷。</li></ul>'
-    + '<h4>小组加分（我的分数）</h4>'
-    + '<ul>'
+    + '</ul>', '名单来自首页班级（共享），练习/考试成绩只记在本工具。')
+    + hd('#7d7aff', '考试', '<ul>'
+    + '<li>老师公布考试码后，打开「考试」输码（和学号）就能取到自己的题，按页面提示作答 / 交卷。</li>'
+    + '</ul>', '组卷码与试卷库独立，你只凭码取题、看不到批改。')
+    + hd('#d97ea3', '小组加分（我的分数）', '<ul>'
     + '<li>能看上课记分、组内个人评分、本学期总分；从「去选桌组队」进分组页。</li>'
     + '<li>只读：分数由老师记，你改不了；个人扣分和组内评分也由老师确认。</li>'
-    + '</ul>'
-    + '<h4>不要做这些</h4>'
-    + '<ul>'
+    + '</ul>', '分数只在本工具，你只能看自己的，和别的工具不互通。')
+    + hd('#e06a6a', '不要做这些', '<ul>'
     + '<li>不要把账号密码给别人，也不要用别人的学号登录——成绩会记到那个学号上。</li>'
     + '<li>不要重复注册：一个学号只能有一个账号。</li>'
     + '<li>排位是计时的，开始以后别刷新、别关页面。</li>'
-    + '</ul>';
+    + '</ul>');
 }
-// ---------- 邀请拉新（2026-11-04 用户要求：二维码 + 链接，方便拉新拿代金券） ----------
-// 两个都是用户给的真实邀请链接，二维码是用 qrcode 生成后反解验证过的（内容与链接逐字一致）。
-// 链接在弹层里可复制；图片懒加载，弹层没打开不下载。
-function renderInvite() {
-  var items = [
-    { img: 'invite/siliconflow.png', name: '硅基流动（SiliconFlow）', desc: '注册并完成身份认证就能领免费 API 额度，先用国产模型练手。', url: 'https://cloud.siliconflow.cn/i/aQ6Tn6dH' },
-    { img: 'invite/workbuddy.png', name: 'WorkBuddy（腾讯）', desc: '注册后做任务领额度、每天打卡；新手先用这个上手，再学 Codex / Claude。', url: 'https://www.workbuddy.cn/events/invite?inviteCode=u1ds11m0hxo1bgw4' }
-  ];
-  var h = '<h3>AI 注册 · 领免费额度</h3><div class="hx-doc"><p style="margin:0 0 14px">注册下面两个 AI 平台就能领免费额度（双方都有），扫码或复制链接都行。手机上长按二维码可以「识别图中二维码」。新手建议先用 WorkBuddy 上手，再学 Codex / Claude。</p>';
-  items.forEach(function (it, i) {
-    h += '<div class="inv"><div class="inv-top"><img src="' + it.img + '" alt="' + esc(it.name) + ' 邀请二维码" loading="lazy" width="104" height="104">'
+// ---------- AI 设置弹层（2026-11-08：AI 额度卡并进 AI 设置卡） ----------
+// 两块内容：
+//   ① 原 AI 配置页（/ai/）原样嵌一个 iframe —— 配置功能一行没动，还是那一个页面；
+//   ② 「AI 注册渠道与工具建议」区块（原 #invite 弹层的内容搬过来）。
+// 注册渠道是**可扩展列表**：以后加平台就往 AI_CHANNELS 里添一项，弹层自动多一行，
+// 不用再动布局代码。按用户的定稿口径，这里不出现「额度 / 拉新 / 邀请奖励」这类推广字眼。
+var AI_CHANNELS = [
+  { img: 'invite/siliconflow.png', name: '硅基流动（SiliconFlow）', desc: '注册并完成身份认证后就能开通国产模型（DeepSeek、Qwen 等）的 API Key，先用便宜模型练手。', url: 'https://cloud.siliconflow.cn/i/aQ6Tn6dH' },
+  { img: 'invite/workbuddy.png', name: 'WorkBuddy（腾讯）', desc: '注册后在网页里就能用主流大模型，适合新手第一步；熟悉了再学 Codex / Claude 这类编程助手。', url: 'https://www.workbuddy.cn/events/invite?inviteCode=u1ds11m0hxo1bgw4' }
+];
+function renderAi() {
+  var h = '<h3>AI 配置</h3><iframe id="aiFrame" title="AI 配置" loading="lazy"></iframe>'
+    + '<h3>AI 注册渠道与工具建议</h3><div class="hx-doc"><p style="margin:0 0 14px">工具里的 AI 功能要有一把自己的 Key 才能用。下面几个平台注册门槛低，按顺序挑一个先把 Key 配到上面的「AI 配置」里；扫码或复制链接都行，手机上长按二维码可以「识别图中二维码」。</p>';
+  AI_CHANNELS.forEach(function (it, i) {
+    h += '<div class="inv"><div class="inv-top"><img src="' + it.img + '" alt="' + esc(it.name) + ' 二维码" loading="lazy" width="104" height="104">'
       + '<div class="t"><b>' + esc(it.name) + '</b><span>' + esc(it.desc) + '</span></div></div>'
-      + '<div class="inv-url"><input id="iv' + i + '" readonly value="' + esc(it.url) + '"><button type="button" id="ic' + i + '">复制</button></div></div>';
+      + '<div class="inv-url"><input id="aiv' + i + '" readonly value="' + esc(it.url) + '"><button type="button" id="aic' + i + '">复制</button></div></div>';
   });
   h += '<p class="inv-tip">提示：这些是第三方平台，注册和使用要遵守它们自己的规则；用不用、用哪个都不影响华夏工具的正常使用。</p></div>';
-  $('invite').innerHTML = h;
-  ensurePopX('invite');
-  items.forEach(function (it, i) {
-    var btn = $('ic' + i); if (!btn) return;
+  $('ai').innerHTML = h;
+  ensurePopX('ai');
+  // iframe 懒加载：第一次打开弹层才给 src，不占首页首屏的请求；每次重开不重载（保留填写到一半的内容）
+  var f = $('aiFrame');
+  if (f && !f.src) f.src = SITE + '/ai/';
+  AI_CHANNELS.forEach(function (it, i) {
+    var btn = $('aic' + i); if (!btn) return;
     btn.onclick = function () {
-      var inp = $('iv' + i);
+      var inp = $('aiv' + i);
       var done = function () { btn.textContent = '已复制'; setTimeout(function () { btn.textContent = '复制'; }, 1600); };
       if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(it.url).then(done, function () { inp.select(); document.execCommand('copy'); done(); });
       else { inp.select(); document.execCommand('copy'); done(); } // 老浏览器 / 非 https：退回选中+execCommand
@@ -1841,7 +1859,13 @@ function renderLookBody() {
   // 上传过的背景相册 + 当前这张（只是给缩略图打「正在用」的高亮，拿不到就当空）
   var MYIMGS = HXTheme.imgs ? HXTheme.imgs() : [], CURIMG = '';
   try { CURIMG = localStorage.getItem('hx-theme-img') || ''; } catch (e) { }
-  var html = '<h3>外观</h3><div class="seg">' + [['light', '浅色'], ['dark', '深色'], ['auto', '自动']].map(function (x) { return '<button type="button" data-mode="' + x[0] + '" aria-pressed="' + (s.mode === x[0]) + '">' + x[1] + '</button>'; }).join('') + '</div>' +
+  // 2026-11-08 每个界面独立一套外观：面板顶部标明「现在改的是谁」——
+  // 没开工具时是首页自己；地址栏带 #wiring（或点了某张工具卡）时改的就是那个工具，
+  // 首页和别的工具都不会跟着变。用户怀疑的「首页和工具卡牵一发而动全身」从这版起不存在了。
+  var HSH = (location.hash || '').replace(/^#/, ''), PANE = /^[A-Za-z0-9_-]{2,32}$/.test(HSH) ? HSH : 'home';
+  var PTOOL = null; for (var pi = 0; pi < TOOLS.length; pi++) if (TOOLS[pi].id === PANE) PTOOL = TOOLS[pi];
+  var PNAME = PANE === 'home' ? '首页' : (PTOOL ? PTOOL.name : PANE);
+  var html = '<h3>外观</h3><p class="msg" style="margin:0 0 8px;color:var(--dim)">正在设置：<b style="color:var(--acc)">' + esc(PNAME) + '</b>' + (PANE === 'home' ? '' : '（只影响' + esc(PNAME) + '，首页和其它工具不变）') + '</p><div class="seg">' + [['light', '浅色'], ['dark', '深色'], ['auto', '自动']].map(function (x) { return '<button type="button" data-mode="' + x[0] + '" aria-pressed="' + (s.mode === x[0]) + '">' + x[1] + '</button>'; }).join('') + '</div>' +
     '<h3>主题色</h3><div class="sw">' + Object.keys(A).map(function (k) { return '<button type="button" data-acc="' + k + '" title="' + A[k].name + '" aria-label="' + A[k].name + '" aria-pressed="' + (s.acc === k) + '" style="--c:' + (m === 'dark' ? A[k].d : A[k].l) + '"></button>'; }).join('') + '</div>' +
     '<h3>背景</h3><div class="bgs">' + Object.keys(B).filter(function (k) { return k !== 'custom' && (!B[k].dev || HXTheme.isDev()); }).map(function (k) {
       // 极光是视频壁纸，没有 img 只有 poster：缩略图用海报帧，否则格子里只剩灰底＋字，看不出是哪个
@@ -1865,7 +1889,7 @@ function renderLookBody() {
     // 校徽水印（2026-11-04）：全站铺一层华夏校徽，卡片半透明时透出来。默认开，给个开关方便看不顺眼时关掉
     '<h3>校徽水印</h3><div class="seg">' + [['1', '显示'], ['0', '隐藏']].map(function (x) {
       return '<button type="button" data-wm="' + x[0] + '" aria-pressed="' + (String(s.wm) === x[0]) + '">' + x[1] + '</button>';
-    }).join('') + '</div><p class="msg" style="margin:6px 0 0;color:var(--dim)">压在内容后面的一层华夏校徽，卡片半透明时从卡片里透出来；打印不印。</p>' +
+    }).join('') + '</div><p class="msg" style="margin:6px 0 0;color:var(--dim)">压在内容后面的一层华夏校徽，卡片半透明时从卡片里透出来；打印不印。按界面独立：首页默认显示，工具页默认隐藏（2026-11-08 起，各自记住各自的选择）。</p>' +
     '<button class="btn link" id="lookReset" type="button">恢复默认</button>';
   $('look').innerHTML = html;
   $('look').querySelectorAll('[data-mode]').forEach(function (b) { b.onclick = function () { HXTheme.set({ mode: b.dataset.mode }); }; });
@@ -1924,7 +1948,7 @@ $('lookBtn').onclick = function (e) { e.stopPropagation(); togglePop('look'); };
 $('scrim').onclick = closePops;
 document.addEventListener('click', function (e) {
   var path = e.composedPath ? e.composedPath() : [];
-  var ids = ['pop', 'look', 'help', 'invite'];
+  var ids = ['pop', 'look', 'help', 'ai'];
   for (var i = 0; i < ids.length; i++) if (path.indexOf($(ids[i])) >= 0) return; /* 点击时面板里的按钮可能已被重画摘掉，closest 会找不到 .pop */
   // 卡片自己的点击要在冒泡到这里之前把弹层开好；不放行的话文档这一层会立刻又把它关掉（看起来像点了没反应）
   if (!e.target.closest('.pop') && !e.target.closest('#acct') && !e.target.closest('#lookBtn') && !e.target.closest('.tile[data-pop]')) {
@@ -1932,6 +1956,17 @@ document.addEventListener('click', function (e) {
   }
 });
 document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closePops(); });
+
+// ── 弹层卡片 / 工具卡的像素小生物兜底（2026-11-08）──
+// render() 给每张 .tile[data-id] 卡（含「使用说明」这类 data-pop 弹层卡、匿名首页也能看到的那张）
+// 统一挂一只随机小生物（fx/hx-critters.js 的 attach：洗牌分牌保证不重样，canvas 全站一个 rAF）。
+// 但 render 可能跑得比 defer 的 critters 库早（首屏渲染在 defer 脚本执行前就完成的时刻，
+// window.HXCritters 还不存在 → attach 被跳过，卡片从此没有生物）。DOMContentLoaded 时 defer 一定跑完了，
+// 这里补挂一轮：已经有的跳过，没有的补上 —— 弹层卡、工具卡、匿名页走同一条路径，谁都不会漏。
+addEventListener('DOMContentLoaded', function () {
+  if (!window.HXCritters) return;
+  document.querySelectorAll('.tile[data-id]').forEach(function (b) { if (!b.querySelector('.fxc')) HXCritters.attach(b, b.dataset.id); });
+});
 
 // ---------- 首页下面的管理卡片：班级（教师）、教师邀请码、学生课堂码（管理员）、管理员（开发者）；卡片上一行概要，点开是面板 ----------
 var MG = {
@@ -2799,14 +2834,14 @@ if (gerr) openLogin(gerr);
     exam:   function ()    { return HX.api('/rest/v1/hx_exams?select=created_at&order=created_at.desc&limit=1'); } // 只有教师有行；学生在下面直接标 N/A
   };
   // 工具 → 探测方式：probe / probe-teacher（仅教师）/ na（没有可只读查询的个人云端数据）
-  var MODE = { wiring: 'na', quiz: 'probe', base: 'na', mcu: 'na', exam: 'probe-teacher', paike: 'probe', jiafen: 'probe', course: 'probe', ai: 'na', feedback: 'na', help: 'na', invite: 'na' };
+  var MODE = { wiring: 'na', quiz: 'probe', base: 'na', mcu: 'na', exam: 'probe-teacher', paike: 'probe', jiafen: 'probe', course: 'probe', ai: 'na', feedback: 'na', help: 'na' };
   // 2026-11-06 加 AI 设置卡片时必须同步加这一项：上面 jobs 里 `PROBES[t.id](uid)` 对没有探测器的工具
   // 会直接抛 TypeError（PROBES.ai is not a function），整个同步胶囊的检查就挂掉。设置页本来也没有云端数据。
   // 2026-11-08 的「使用说明 / AI 额度」两张弹层卡片同理，必须显式标 na。
   // 2026-11-05 用户：「接线排位走侧rpc我没懂啥意思」—— 原文案是「排位成绩走写侧 RPC，无个人同步行」，
   // 全是术语。改成大白话：成绩确实在云端，只是存在「排行榜」里，没有「你自己的一行」可以单独查，
   // 所以这个胶囊查不到它、只能显示 N/A。要看成绩点进排位看排行榜就行。
-  var NA_WHY = { wiring: '排位成绩存在云端排行榜里，没有「你自己的一行」可单独核对（进排位就能看到）', base: '纯本地工具，不上云', mcu: '上机数据存在本机和考试端', ai: 'AI 设置只存在这台电脑的浏览器里', feedback: '公共反馈流，不是个人同步数据', help: '使用说明是本地文档，没有云端数据', invite: 'AI 额度是第三方平台邀请页，没有云端数据' };
+  var NA_WHY = { wiring: '排位成绩存在云端排行榜里，没有「你自己的一行」可单独核对（进排位就能看到）', base: '纯本地工具，不上云', mcu: '上机数据存在本机和考试端', ai: 'AI 设置只存在这台电脑的浏览器里', feedback: '公共反馈流，不是个人同步数据', help: '使用说明是本地文档，没有云端数据' };
 
   function fmt(ms, withSec) {
     if (!ms) return '';

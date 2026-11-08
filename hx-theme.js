@@ -1,8 +1,12 @@
 // 华夏工具外观（网站根目录 /hx-theme.js + /hx-theme.css）。全部工具在 <head> 里同步引用，打开就是选好的外观、不闪。
-// ── 分层（2026-11-05 定稿）──
-//   · 全局层（键 hx-theme）：背景图/视频、背景动效、校徽水印 —— 全站通用，只在总入口右上角改；
-//   · 界面层（键 hx-theme:s:home / hx-theme:s:<tool>）：主题色、深色/浅色/自动、卡片通透度、背景清晰度
-//     —— 每个页面（首页和每个工具）各自一份、互不干扰；总入口外观面板改的是它自己（home）那份。
+// ── 分层（2026-11-08 定稿 VER 6：每个界面完全独立）──
+//   · 首页（键 hx-theme + hx-theme:s:home）：背景图/视频、背景动效、校徽水印沿用旧全局键 hx-theme
+//     （fx/hx-weather.js 写死只认它，动效渲染器只挂在首页）；主题色、深浅、通透度两根滑杆在 hx-theme:s:home；
+//   · 每个工具页（键 hx-theme:s:<tool>）：主题色、深色/浅色/自动、卡片通透度、背景清晰度、
+//     **背景图、背景动效、校徽水印**全部存自己的一份，和首页、和别的工具互不干扰。
+//   · 一次性迁移：工具页第一次打开、还没有自己的存档时，继承旧全局键 hx-theme 里的
+//     背景/动效/水印/主题色/深浅（老用户观感不变）；用户在哪个页面改，就只写哪个页面的键。
+//     旧全局键不删（首页还在用它），工具页一旦有了自己的存档就再也不看它。
 // 外观只在总入口右上角改：主题色（沿用旧刷题站的 7 套）、深色 / 浅色 / 自动、背景图、通透度两根滑杆。
 // 自己上传的背景图压缩后存 hx-theme-img；同一网站的页面（包括嵌在总入口里的工具）通过 storage 事件一起变。
 // 子工具只适配：<html data-theme="light|dark">（排课、单片机上机原有的深浅色写法）+ 行内 CSS 变量 --acc 等；接线仿真、排课、单片机的旧主题键顺带改好。
@@ -38,14 +42,15 @@
   // VER 4（2026-11-04 深夜）：背景项合并成上面三档，默认改成极光视频。
   // 老存档里凡是选了已下架背景（bear/chiikawa/cat/mist/bay/dusk/旧极光渐变）的，统一迁到新默认；
   // 自己上传过图的（custom 且本地还有图）保留不动 —— 那是用户自己的东西，不能因为改默认就没了。
-  // VER 5（2026-11-05）：主题体系分层。全局键 hx-theme 只管「背景 / 动效 / 校徽水印」（全站通用，总入口统一换）；
-  // 主题色、深浅模式、卡片通透度、背景清晰度改成**按界面分键**（hx-theme:s:home = 总入口首页，
-  // hx-theme:s:<tool> = 各工具页），互不干扰：首页改浅色不会带着工具一起变。
+  // VER 5（2026-11-05）：主题色、深浅模式、卡片通透度、背景清晰度改成按界面分键。
+  // VER 6（2026-11-08）：背景图 / 背景动效 / 校徽水印也按界面分键（用户原话「各个工具下主题独立控制
+  //   在本工具下 压根不生效」）。首页的这三样继续存旧全局键 hx-theme（fx/hx-weather.js 写死只认它，
+  // 顺带当所有工具页的迁移来源）；每个工具页存 hx-theme:s:<tool>，七个字段全在自己键里。
   // 滑杆语义 2026-11-05 翻转：原来的 op「卡片透明度」100 = 最实；现在叫 clr「卡片通透度」，100 = 最透
   // （也就是用户定下的默认观感：深色玻璃底、背景透出来），往下调卡片变实、文字更清楚。
   // 老存档里的 op 不再折算：旧 100 = 新 100（同一观感），旧值更小的本意是「更透」——新体系 100 已经是最透，
   // 一律落回默认 100，保证老用户刷新后看到的就是这版定稿的玻璃观感。
-  var KEY = 'hx-theme', SKEY = 'hx-theme:s:', IMG = 'hx-theme-img', DEV = 'hx-dev', VER = 5,
+  var KEY = 'hx-theme', SKEY = 'hx-theme:s:', IMG = 'hx-theme-img', DEV = 'hx-dev', VER = 6,
     // 2026-11-05 用户定：默认进来 = 深色主题 + 两个滑杆都 100%（通透度 100 = 深色清透玻璃，背景最透出）。
     // 之前默认 mode:'auto'，Mac 浅色系统打开就是浅色 + 旧白玻璃配方，用户原话「玻璃质感不高级 仅仅只是白色雾蒙蒙」。
     DEF = { acc: 'green', mode: 'dark', bg: 'aurora', clr: 100, bgo: 100, wx: 'none' };
@@ -76,7 +81,13 @@
   if (tool && window.top !== window) {
     document.documentElement.classList.add('hx-embedded');
     var st = document.createElement('style');
-    st.textContent = 'html.hx-bg:not([data-hx-mode="light"]),html.hx-bg:not([data-hx-mode="light"]) body{background-color:transparent!important}';
+    // 嵌入时背景由总入口统一画：这里把自己画背景的每一层都关掉（html/body 底色与背景图、
+    // body::before 背景层、视频层、极光层），深色只留透明让总入口壁纸从 iframe 底下透上来 ——
+    // 否则同一张图会在 iframe 里再画一遍，和总入口叠成双重背景（用户报「透明度拉低出现双重背景重叠」）。
+    // 浅色仍铺自己的浅色底（见 apply 里那段注释），所以只对深色关。
+    st.textContent = 'html.hx-embedded[data-hx-mode="dark"],html.hx-embedded[data-hx-mode="dark"] body{background-color:transparent!important;background-image:none!important}'
+      + 'html.hx-embedded[data-hx-mode="dark"] body::before{background-image:none!important}'
+      + 'html.hx-embedded[data-hx-mode="dark"] .hx-bgvid-wrap,html.hx-embedded[data-hx-mode="dark"] .hx-bgmo{display:none!important}';
     (document.head || document.documentElement).appendChild(st);
   }
 
@@ -108,6 +119,35 @@
       // 屏宽 ≤820px 时一律不挂视频（JS 侧已提前拦掉，这条防「旧缓存 JS + 新 CSS」这种混搭）
       + '@media (max-width:820px){.hx-bgvid-wrap{display:none!important}}';
     (document.head || document.documentElement).appendChild(vs);
+  })();
+
+  // ── 页面层基础样式（2026-11-08 修「工具页选背景没东西」）──────────────────
+  // 背景图 / 背景动效要看得见，前提是页面自己别先铺一层不透明底色把它们全盖住。
+  // 这几条规则原来写在 hx-theme.css 里，但全站只有总入口和刷题引了那份 CSS ——
+  // 接线仿真、排课、单片机、考试、加分、课程进度都只引 hx-theme.js，
+  // 于是背景层（body::before）根本没铺、视频层（z-index:-2）又被工具页 body 的底色压住，
+  // 用户选什么都看不见（「点了没反应」）。所以跟着 JS 注入，全站每个页面都生效。
+  //
+  // 只在「有东西可看」时才挂（apply() 会按 bg / wx 给 <html> 加 .hx-layer）：
+  //   · 背景 = 无 且 动效 = 无 → 不挂，页面保持自己原来的底色（用户要的「干净纯色背景」）；
+  //   · 挂上之后：html 铺一层纯色底（--hx-page，跟深浅主题走），body 放透明，
+  //     body::before 铺背景图（--hx-img，透明度跟 --hx-bgo），动效画布垫在内容之下。
+  // !important 是必须的：接线仿真外壳会用行内 style 给 body 写背景图，只有 !important 压得住行内样式。
+  (function () {
+    var ls2 = document.createElement('style');
+    ls2.id = 'hx-layer-style';
+    ls2.textContent =
+      'html.hx-layer{background:var(--hx-page,#f5f5f7)}'
+      + 'html.hx-layer body{background:transparent!important}'
+      // 背景图层：fixed 铺满视口、垫在内容下面（z-index:-1），浓度跟「背景清晰度」滑杆（--hx-bgo）
+      + 'html.hx-layer body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;'
+      + 'background:var(--hx-img) center / cover no-repeat;opacity:var(--hx-bgo,1)}'
+      // 深色模式压暗：和 hx-theme.css 里同一条 scrim，壁纸太亮时把整页压回来。
+      // 浓度跟 --hx-scrim 走（apply 里按 bgo 算）：bgo=100 时 = 0，背景原图直出、不再蒙灰。
+      + ':root[data-hx-mode="dark"].hx-layer body::before{background-image:linear-gradient(rgba(8,8,10,var(--hx-scrim,.38)),rgba(8,8,10,var(--hx-scrim,.38))),var(--hx-img)}'
+      // 视频播放中：海报帧层让位给视频（否则 z-index:-1 的海报把 -2 的视频盖住）
+      + 'html.hx-vidlive body::before{background-image:none!important}';
+    (document.head || document.documentElement).appendChild(ls2);
   })();
 
   // ── 顶部加载进度条（2026-11-03）──
@@ -342,31 +382,42 @@
   // 传值只在"要读别的界面"时用，目前没有这种调用点。
   function get(surf) {
     surf = surf || paneSurf();
-    // ── 全局层（hx-theme）：背景 / 动效 / 水印，全站一份，总入口统一管 ──
-    var raw = ls(KEY), v = raw && OLD[raw] ? OLD[raw] : jparse(raw);
-    v = v || {};
+    var home = surf === 'home';
+    // ── 旧全局键（hx-theme）：首页的「背景 / 动效 / 水印」存档，也是各工具页的迁移来源 ──
+    var raw = ls(KEY), lg = raw && OLD[raw] ? OLD[raw] : jparse(raw);
+    lg = lg || {};
     // 老存档（没有 ver）＝ 上这一版之前就存过外观的。统一换成新默认（极光），做到「全体人员默认」；
     // 只有自己上传过图的例外——那是明确主动的行为，别覆盖掉。想关掉背景在外观面板点「无」即可。
-    if (raw && !v.ver && v.bg !== 'custom') v.bg = DEF.bg;
+    if (raw && !lg.ver && lg.bg !== 'custom') lg.bg = DEF.bg;
     // VER 4 迁移（2026-11-04 深夜）：背景项只剩 无/极光动态/自己的图。
-    if (!BG[v.bg]) v.bg = DEF.bg;
-    // ── 界面层（hx-theme:s:<界面>）：主题色 / 深浅 / 卡片通透度 / 背景清晰度 ──
-    // 键存在即权威：缺了的字段回到 DEF，不再翻老存档（从改第一项起这个界面就走自己的设置）。
-    // 键不存在（从没在这个界面上改过外观）→ 沿用全局老存档里的 acc / mode / bgo（老用户观感不变），
-    //   都没有就落 DEF。老 op 滑杆不再折算，见 VER 5 注释。
+    if (!BG[lg.bg]) lg.bg = DEF.bg;
+    // ── 本界面自己的存档（hx-theme:s:<界面>）────────────────────────────
+    // 键存在即权威：七个字段（主题色/深浅/通透度/清晰度/背景/动效/水印）里**有的**一律用自己的；
+    // 没有的字段继承旧全局键 —— 工具页第一次打开观感和从前一致，之后改哪个页面就只写哪个页面的键。
     var sv = jparse(ls(SKEY + surf)), own = !!sv;
     if (!own) sv = {};
+    // 字段来源：自己的存档优先；没有就翻旧全局键（首页本来就用它，工具页第一次打开继承它）。
+    // 七个字段统一走 src()：**存了哪个字段就看哪个，没存的字段继承旧值**——
+    // 不能因为「这个界面已经有过一次改动」（比如只改过背景）就把没改过的字段打成默认值，
+    // 那样改背景的一瞬间主题色/深浅会突兀地跳回默认（2026-11-08 修）。
+    function src(k) { return own && sv[k] !== undefined ? sv[k] : lg[k]; }
     var s = {
-      bg: BG[v.bg] ? v.bg : DEF.bg,
-      wx: WX[v.wx] ? v.wx : DEF.wx,
-      // 校徽水印：默认开。只认显式关掉的 0 / false / '0'——老存档里根本没有这个字段，不能把 undefined 当关。
-      wm: (v.wm === 0 || v.wm === '0' || v.wm === false) ? 0 : 1,
-      acc: own ? (ACC[sv.acc] ? sv.acc : DEF.acc) : (ACC[v.acc] ? v.acc : DEF.acc),
-      mode: own ? (/^(light|dark|auto)$/.test(sv.mode) ? sv.mode : DEF.mode) : (/^(light|dark|auto)$/.test(v.mode) ? v.mode : DEF.mode),
+      bg: BG[src('bg')] ? src('bg') : DEF.bg,
+      wx: WX[src('wx')] ? src('wx') : DEF.wx,
+      // 校徽水印：只认显式写过的 0/1（老存档里可能没有这个字段）。没写过的：
+      // 首页默认开、工具页默认关 —— 用户的定稿是「首页有校徽，工具页干净」。
+      wm: (function () {
+        var w = src('wm');
+        if (w === 0 || w === '0' || w === false) return 0;
+        if (w === 1 || w === '1' || w === true) return 1;
+        return home ? 1 : 0;
+      })(),
+      acc: ACC[src('acc')] ? src('acc') : DEF.acc,
+      mode: /^(light|dark|auto)$/.test(src('mode')) ? src('mode') : DEF.mode,
       // 卡片通透度（2026-11-05 翻转语义）：100 = 最透（清透玻璃、背景透出来，默认），0 = 最实。
-      clr: own ? clamp01(+sv.clr, DEF.clr) : DEF.clr,
+      clr: clamp01(+src('clr'), DEF.clr),
       // 背景清晰度：100 = 原样显示（最清楚），0 = 背景几乎看不见、只剩页面底色。
-      bgo: own ? clamp01(+sv.bgo, 100) : clamp01(+v.bgo, 100)
+      bgo: clamp01(+src('bgo'), 100)
     };
     if (s.bg === 'custom' && !ls(IMG)) s.bg = DEF.bg;
     if (BG[s.bg].dev && !isDev()) s.bg = 'none'; // 开发者专属背景：别的账号（或没登录）回落到无背景
@@ -719,61 +770,257 @@
     if (mq.addEventListener) mq.addEventListener('change', on); else if (mq.addListener) mq.addListener(on);
   })();
 
+  // ── 背景动效：工具页这一侧（2026-11-08）────────────────────────────────
+  // 用户原话「背景没东西…动效 点了没反应」。查下来动效从来没在工具页生效过：
+  // 渲染器 fx/hx-weather.js 只有总入口的 index.html 引了，而且它写死读旧全局键 hx-theme。
+  // 这里给工具页补一份同款渲染（首页不进来，那边继续走 hx-weather.js，零回归）：
+  //   · 用到才懒加载特效库 fx/pixelfx-weather.js（失败就安静放弃，不影响页面）；
+  //   · 挂一块 z-index:-1 的像素画布，摆位和 hx-weather.js 一致：背景层之上、内容之下；
+  //   · 省电（hx-lite）/ 减少动效：只画静态一帧；页签切后台停循环。
+  // 和 hx-weather.js 的差别只有一条：动效的值来自本工具自己的键（get() 已经算好传进来）。
+  var wxLib = false, wxRaf = 0, wxCur = null, wxCvs = null, wxG = null, wxImgD = null, wxFrame = null, wxFx = null, wxMod = null, wxLast = 0, wxW = 0, wxH = 0;
+  function wxStill() { return document.documentElement.classList.contains('hx-lite') || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches); }
+  function wxRemove() {
+    if (wxRaf) { cancelAnimationFrame(wxRaf); wxRaf = 0; }
+    if (wxCvs && wxCvs.parentNode) wxCvs.parentNode.removeChild(wxCvs);
+    wxCvs = null; wxG = null; wxImgD = null; wxFrame = null; wxFx = null; wxMod = null; wxCur = null;
+    wxMirrorDrop();
+  }
+  // ── 镜像画布（2026-11-08）──接线仿真这类「整页被同源 iframe 盖满」的工具，外壳层的
+  // 动效画布（z-index:-1）会被 iframe 里的练习画布整个挡住，用户选了动效照样「点了没反应」。
+  // iframe 和外壳同源（srcdoc / 同站），所以把同一帧再画一份塞进每个 iframe 文档里：
+  // 镜像也是 z-index:-1，垫在练习画布下面、壁纸上面 —— 练习画布本身是半透明的
+  //（theme.js 选了背景时把底色调成 rgba），粒子就从它底下透出来。
+  // 全部帧由外壳这一个 rAF 循环驱动，镜像只多一次 putImageData，不另起循环（红线不破）。
+  var wxMirrors = [];
+  function wxMirrorDrop() {
+    for (var i = 0; i < wxMirrors.length; i++) {
+      var m = wxMirrors[i];
+      try { if (m.cvs && m.cvs.parentNode) m.cvs.parentNode.removeChild(m.cvs); } catch (e) { }
+    }
+    wxMirrors = [];
+  }
+  function wxMirrorScan() {
+    if (!tool || !wxCvs || !document.body) return;
+    var fr = document.querySelectorAll('iframe');
+    for (var i = 0; i < fr.length; i++) {
+      (function (f) {
+        if (f.__hxWxMirror) return;
+        var d = null;
+        try { d = f.contentDocument; } catch (e) { }
+        if (!d || !d.body) return;               // 跨域 / 还没就绪：下一次 apply 或 load 再试
+        f.__hxWxMirror = true;
+        var c = d.createElement('canvas');
+        c.width = wxW; c.height = wxH;
+        c.setAttribute('aria-hidden', 'true');
+        // 摆位与外壳画布一致：居中 cover、垫到内容下面；iframe 文档自己的 CSS 管不着它
+        c.style.cssText = 'position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:-1;pointer-events:none;'
+          + 'image-rendering:pixelated;image-rendering:crisp-edges;opacity:.85';
+        d.body.appendChild(c);
+        var g = null; try { g = c.getContext('2d'); } catch (e) { }
+        wxMirrors.push({ fr: f, cvs: c, g: g });
+        wxMirrorSize();
+      })(fr[i]);
+    }
+  }
+  function wxMirrorSize() {
+    for (var i = 0; i < wxMirrors.length; i++) {
+      var m = wxMirrors[i], w = 0, h = 0;
+      try { w = m.fr.contentWindow.innerWidth; h = m.fr.contentWindow.innerHeight; } catch (e) { }
+      if (!w || !h) continue;
+      var sc = Math.max(1, Math.ceil(Math.max(w / wxW, h / wxH)));
+      m.cvs.style.width = wxW * sc + 'px';
+      m.cvs.style.height = wxH * sc + 'px';
+    }
+  }
+  function wxMirrorDraw() {
+    for (var i = 0; i < wxMirrors.length; i++) {
+      var m = wxMirrors[i];
+      if (!m.g) continue;
+      try {
+        // 藏起来的 iframe（visibility:hidden）不画，省一截合成开销；显示时下一帧自动跟上
+        if (getComputedStyle(m.fr).visibility === 'hidden') continue;
+        if (!m.img) m.img = m.g.createImageData(wxW, wxH);
+        m.img.data.set(wxImgD.data);
+        m.g.clearRect(0, 0, wxW, wxH);
+        m.g.putImageData(m.img, 0, 0);
+      } catch (e) { }
+    }
+  }
+  function wxMount(id) {
+    wxRemove();
+    var P = window.PixelFXWeather;
+    var m2 = P && P.effects && P.effects[id] && P.effects[id].meta;
+    if (!m2 || !m2.size || !document.body) return;
+    wxMod = P.effects[id]; wxW = m2.size[0]; wxH = m2.size[1];
+    wxCvs = document.createElement('canvas');
+    wxCvs.id = 'hxWxTool';
+    wxCvs.setAttribute('aria-hidden', 'true');
+    wxCvs.width = wxW; wxCvs.height = wxH;
+    // 摆位照抄 hx-weather.js：320×180 像素帧整数倍放大、居中 cover、垫在内容下面
+    wxCvs.style.cssText = 'position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:-1;pointer-events:none;'
+      + 'image-rendering:pixelated;image-rendering:crisp-edges;opacity:.9';
+    document.body.appendChild(wxCvs);
+    wxG = wxCvs.getContext('2d');
+    if (!wxG) return wxRemove();
+    wxImgD = wxG.createImageData(wxW, wxH);
+    wxFrame = P.createFrame(wxW, wxH);
+    var o = m2.origin || [wxW / 2, wxH / 2];
+    wxFx = P.createFx(wxMod, { x: o[0], y: o[1], seed: Math.floor(Math.random() * 997) });
+    wxSize();
+    wxMirrorScan();
+    wxDraw(0); // 先出一帧，别空白等下一帧
+    if (!wxStill()) wxKick();
+    wxCur = id;
+  }
+  function wxSize() {
+    if (!wxCvs) return;
+    var sc = Math.max(1, Math.ceil(Math.max(innerWidth / wxW, innerHeight / wxH)));
+    wxCvs.style.width = wxW * sc + 'px';
+    wxCvs.style.height = wxH * sc + 'px';
+  }
+  function wxDraw(dt) {
+    if (!wxFx || !wxG) return;
+    if (dt) wxFx.update(dt);
+    var P = window.PixelFXWeather;
+    P.clearFrame(wxFrame); wxFx.draw(wxFrame, 'back'); wxFx.draw(wxFrame, 'front');
+    P.composite(wxFrame, wxImgD.data, null);
+    wxG.clearRect(0, 0, wxW, wxH);
+    wxG.putImageData(wxImgD, 0, 0);
+    wxMirrorDraw(); // 同源 iframe 里的镜像同步这一帧（接线仿真这类被 iframe 盖满的工具就靠它看见动效）
+  }
+  function wxKick() {
+    if (wxStill() || document.hidden || !wxFx || wxRaf) return;
+    wxRaf = requestAnimationFrame(wxStep);
+  }
+  function wxStep(now) {
+    wxRaf = 0;
+    if (document.hidden || !wxFx) return;
+    var gap = 1000 / (document.documentElement.classList.contains('hx-lite') ? 18 : 24); // 氛围动画，24fps 封顶（省电 18）
+    if (wxLast && now - wxLast < gap - 1) { wxRaf = requestAnimationFrame(wxStep); return; }
+    var dt = wxLast ? Math.min((now - wxLast) / 1000, 0.12) : 0;
+    wxLast = now;
+    wxDraw(dt);
+    wxRaf = requestAnimationFrame(wxStep);
+  }
+  function wxApply(id) {
+    if (!tool) return;                      // 首页交给 fx/hx-weather.js（它读旧全局键 = 首页自己的存档）
+    if (id === wxCur) return;
+    wxCur = id;
+    if (!id) return wxRemove();
+    var P = window.PixelFXWeather;
+    if (!P || !P.effects) {                 // 特效库还没到：懒加载一次，到了再挂
+      if (wxLib) return;
+      wxLib = true;
+      var sc2 = document.createElement('script');
+      sc2.src = root + 'fx/pixelfx-weather.js';
+      sc2.onerror = function () { };
+      sc2.onload = function () { if (wxCur) { var c = wxCur; wxCur = null; wxApply(c); } };
+      (document.head || document.documentElement).appendChild(sc2);
+      return;
+    }
+    if (!document.body) { addEventListener('DOMContentLoaded', function () { if (wxCur) { var c2 = wxCur; wxCur = null; wxApply(c2); } }); return; }
+    wxMount(id);
+  }
+  addEventListener('visibilitychange', function () { if (!tool) return; if (document.hidden) { if (wxRaf) { cancelAnimationFrame(wxRaf); wxRaf = 0; } } else wxKick(); });
+  var wxRzT = 0;
+  addEventListener('resize', function () { if (!wxCvs || wxRzT) return; wxRzT = setTimeout(function () { wxRzT = 0; wxSize(); wxMirrorSize(); }, 180); });
+  // 接线仿真按需创建电路 iframe：它的 load 事件不冒泡，但捕获阶段能到达 window（srcdoc 页面
+  // 的 target 是那份 Document，不是 iframe 元素），所以不判 tagName、来了就补扫一遍 ——
+  // 扫描本身带去重（挂过的 iframe 有标记）和 try/catch，跑空也几乎零开销。
+  addEventListener('load', function () { if (tool && wxCvs) { wxMirrorScan(); wxMirrorSize(); } }, true);
+
   function apply() {
     // get() 不带参数 = 取「屏幕上正在显示的那一层」：总入口开着工具时就是那个工具，
     // 于是顶栏/地址栏主题色和工具页同一套，不会出现「上面深色条、下面浅色页」的拼接感。
     // 关掉工具回首页时 paneRefresh() 会再 apply 一次，顶栏自动换回首页自己的设置。
     var s = get(), m = modeOf(s), a = ACC[s.acc], r = document.documentElement, b = BG[s.bg];
+    // 嵌在总入口 iframe 里的工具：背景由总入口统一画，自己不再画背景层（见文件开头 hx-embedded 那段）。
+    var embedded = !!(tool && window.top !== window);
     var c = m === 'dark' ? a.d : a.l, c2 = m === 'dark' ? a.d2 : a.l2;
     r.setAttribute('data-hx-mode', m); r.setAttribute('data-theme', m); r.setAttribute('data-hx-acc', s.acc);
-    r.classList.toggle('hx-bg', s.bg !== 'none');
-    r.classList.toggle('hx-wm-off', !s.wm);   // 校徽水印开关（外观面板里可切，默认开）
-    // 视频壁纸：图层面自己播，--hx-img 置空，body::before 只留深色模式那层压暗 scrim
+    r.classList.toggle('hx-bg', s.bg !== 'none' || (tool && s.wx !== 'none'));
+    // ↑ 工具页只开了动效、没开背景时也要挂 hx-bg：接线仿真这类工具靠 hx-bg + --hx-img 判断
+    //   「要不要把自己的画布调成半透明」（见下面透明哨兵图那段）。hx-theme.css 里 html.hx-bg 的
+    //   几条规则此时铺的是透明哨兵图，肉眼无感，不会多出一层画面。
+    r.classList.toggle('hx-wm-off', !s.wm);   // 校徽水印开关（每界面独立：首页默认开、工具页默认关）
+    // 页面层开关（VER 6）：有背景或动效可看时才把 body 放透明、铺页面底色；
+    // 两个都是「无」时不挂 —— 页面保持自己原来的底色，就是用户要的干净纯色背景。
+    // 嵌入时不挂：body::before 这一层背景由总入口透上来，挂了自己又画一遍 = 双重背景。
+    r.classList.toggle('hx-layer', !embedded && (s.bg !== 'none' || s.wx !== 'none'));
+    // 视频壁纸：图层面自己播。--hx-img 给海报帧而不是 'none'：
+    //   · 视频解码好之前 body::before 先铺海报，避免黑屏闪一下；
+    //   · 接线仿真这类「画布不透明的工具」靠读 --hx-img 拿到背景图地址（theme.js 的 hxLook 通道），
+    //     给 'none' 它就拿不到，背景永远是纯色 —— 用户说的「背景没东西」一半是这条。
+    //   · 视频真正在播时 body::before 会整层藏起来（hx-vidlive），不会盖住视频。
     var isVid = !!(b && b.video) && s.bg !== 'none';
     var img = s.bg === 'custom' ? 'url("' + ls(IMG) + '")' : b.img ? 'url("' + root + b.img + '")' : b.css || 'none';
+    if (isVid && b.poster) img = 'url("' + root + b.poster + '")';
     // 移动端 / 省电 / 减少动效：不播视频，但**背景照样得有** —— 把海报帧交给 --hx-img，
     // 走 body::before 那条现成的「铺满 cover + --hx-bgo 透明度」链路，观感和视频帧一模一样，
     // 且手机不需要下载 634KB 的 mp4。这条是「手机跳成播放器」的治本修法。
     // 窄屏（≤820）也要给海报：视频元素此时被 CSS display:none 藏了，不给海报就只剩页底色。
     var vidStill = isVid && (bgNoVideo() || bgNarrow());
     if (vidStill && b.poster) img = 'url("' + root + b.poster + '")';
+    // 视频真的在播：把 body::before 的海报帧整层藏起来 —— 它在 z-index:-1、视频层(-2)之上，
+    // 不藏会把视频整个盖住。视频停了/降级了（手机、省电）再放回来当静图。
+    r.classList.toggle('hx-vidlive', isVid && !vidStill);
+    // 透明哨兵图（2026-11-08）：工具页选了「背景=无 + 动效≠无」时，动效画布要能被看见，
+    // 前提是接线仿真这类「自带不透明画布的工具」肯把自己的底色调成半透明 —— 它们只认
+    // hxLook 传过去的 --hx-img（有图才肯透）。所以这里放一张 1px 的透明 GIF 冒充「有背景」：
+    // 练习页把画布调成半透明、把一张透明图铺在自己 html 底上（等于透明），
+    // 真正的画面由外壳的动效画布 + iframe 里的镜像画布透上来。背景选了真图时不走这条。
+    var wxOn = !!tool && s.wx !== 'none';
+    if (wxOn && s.bg === 'none') img = 'url("data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7")';
     // --hx-a：玻璃浓度乘数（各条玻璃配方的 alpha 都乘它）。
     // 2026-11-05 随通透度滑杆翻转语义：100（最透）= 1，正好是 2026-11-04 定稿的那套清透玻璃；
     // 往下调卡片变实：0 = 2，各配方 alpha × 2 后被浏览器钳到 1，整卡变成实色（保可读的兜底端）。
     var hx_a = s.bg === 'none' ? 1 : 1 + (100 - s.clr) / 100;
-    // 2026-11-06 浅色：壁纸浓度整体压到 14%（视频层、图片层、手机上的海报帧**都吃这根变量**，一处管住全站）。
-    // 为什么不给每张页面补一条遮罩：背景视频是独立合成层，页面上的半透明遮罩压不住它 ——
-    // 实测把遮罩改成 0.9 不透明红，页面一点红都不出，视频照样盖在最上面；
-    // 只有把壁纸层自己的不透明度降下来，浅色下的主体才真的变浅（18,52,76 → 213,217,223）。
-    // 「背景清晰度」滑杆照旧按比例生效：100 → 14%，30 → 4.2%，0 → 背景全无。深色一行没动。
-    var bgo = s.bgo / 100 * (m === 'light' ? .14 : 1);
+    // ── 背景清晰度（bgo）滑杆：0～100 直映到 0～1 的不透明度，两端真实可到 ──
+    // 2026-11-08 修用户报障「拉满还是浅浅雾蒙蒙 / 透明度没有真实到 0-100」：
+    // 原来浅色整体压到 14%，滑杆拉满也只有 14% —— 现在两个模式都是 100% = 原样、0% = 几乎全无。
+    var bgo = s.bgo / 100;
+    // 深色 scrim（壁纸太亮时压暗）随 bgo 一起收：bgo=100 时 scrim=0，背景原图直出、不再蒙灰。
+    var scrim = m === 'dark' ? (1 - bgo) * 0.38 : 0;
     var vars = { '--acc': c, '--acc2': c2, '--acc3': c2, '--acc-h': c2, '--on-acc': s.acc === 'mono' && m === 'dark' ? '#1d1d1f' : '#fff',
       '--accbg': 'color-mix(in srgb, ' + c + ' 14%, transparent)', '--ring': 'color-mix(in srgb, ' + c + ' 40%, transparent)',
-      '--hov': 'color-mix(in srgb, ' + c + ' 10%, transparent)', '--hx-a': hx_a, '--hx-img': isVid && !vidStill ? 'none' : img, '--hx-bgo': bgo };
+      '--hov': 'color-mix(in srgb, ' + c + ' 10%, transparent)', '--hx-a': hx_a, '--hx-img': img, '--hx-bgo': bgo, '--hx-scrim': scrim,
+      // --hx-page：挂 .hx-layer 时 html 铺的纯色底（跟深浅主题走）。工具页各有各的底色调子，
+      // 这里统一成主题的标准底色 —— 只在「有背景/动效可看」时才露出来，无 + 无 时页面还是自己的底色。
+      '--hx-page': m === 'dark' ? '#000' : '#f5f5f7' };
     for (var k in vars) r.style.setProperty(k, vars[k]);
     r.classList.remove('hx-bgblur'); // 旧版挂的「预糊图」标记，现在没有任何样式依赖它，清掉防止老缓存残留
-    bgVideo(isVid ? b.video : null, isVid ? b.poster : null, isVid && b.mirror);
-    // 海报帧兜底时（手机 / 窄屏）补一层 CSS 合成动画，不然手机上的背景是一张不动的静图。
-    // 只认「视频壁纸被降级」这一种：普通图片壁纸、纯色背景保持原样，不动用户选好的画面。
-    bgMotion(vidStill && !!b.video);
+    // 嵌入的工具不建自己的视频/极光层（背景由总入口透上来），只把 --hx-img 传下去供工具判断画布是否半透明。
+    if (!embedded) {
+      bgVideo(isVid ? b.video : null, isVid ? b.poster : null, isVid && b.mirror);
+      // 海报帧兜底时（手机 / 窄屏）补一层 CSS 合成动画，不然手机上的背景是一张不动的静图。
+      // 只认「视频壁纸被降级」这一种：普通图片壁纸、纯色背景保持原样，不动用户选好的画面。
+      bgMotion(vidStill && !!b.video);
+    }
+    // 背景动效（每界面独立）：工具页在这里挂/摘自己的那一层；首页由 fx/hx-weather.js 负责（见 wxApply 注释）
+    wxApply(s.wx !== 'none' ? s.wx : null);
     var meta = document.querySelector('meta[name="theme-color"]'); if (meta) meta.setAttribute('content', m === 'dark' ? '#000000' : '#f5f5f7');
     try { ls('zfz-practice-theme', m); ls('wanxiu-paike-theme', m); ls('ui.theme', JSON.stringify(m)); } catch (e) { }
     for (var i = 0; i < subs.length; i++) try { subs[i](s, m); } catch (e) { }
   }
-  // set(patch)：按字段落键。bg / wx / wm → 全局键 hx-theme（全站一份）；
-  // acc / mode / clr / bgo → 界面上正在显示的那一层（paneSurf：总入口开了工具就是那个工具，见上面那段）。
+  // set(patch)：按字段落键（VER 6）。acc / mode / clr / bgo → 界面上正在显示的那一层；
+  // bg / wx / wm：工具页 → 写进它自己的键；首页 → 仍写旧全局键 hx-theme
+  //（fx/hx-weather.js 只认它；它也是别的工具页第一次打开时的继承来源）。
   // 换背景时不再自动改卡片透明度（老版会把 op 拉到该背景的「推荐值」）：通透度是界面自己的设置，不该被背景顺手改掉。
   function set(patch) {
-    var surf = paneSurf();
+    var surf = paneSurf(), home = surf === 'home';
     var g = jparse(ls(KEY)) || {}, o = jparse(ls(SKEY + surf)) || {}, hitG = false, hitO = false;
     for (var k in patch) {
-      if (k === 'bg' || k === 'wx' || k === 'wm') { g[k] = patch[k]; hitG = true; }
+      if (k === 'bg' || k === 'wx' || k === 'wm') {
+        if (home) { g[k] = patch[k]; hitG = true; }   // 首页：背景三件套继续住在旧全局键里
+        else { o[k] = patch[k]; hitO = true; }        // 工具页：写自己的键，从此和首页、和别的工具脱钩
+      }
       else if (k === 'acc' || k === 'mode' || k === 'clr' || k === 'bgo') { o[k] = patch[k]; hitO = true; }
     }
     if (hitG) { g.ver = VER; try { ls(KEY, JSON.stringify(g)); } catch (e) { } }
     // 写到别的界面（总入口开着工具）时，那一页是**另一个文档**：它靠 storage 事件自己刷，
     // 本页的 apply() 只是把面板重画一遍（get() 读的也是那一层，按钮高亮才对得上）。
-    if (hitO) { try { ls(SKEY + surf, JSON.stringify(o)); } catch (e) { } }
+    if (hitO) { o.ver = VER; try { ls(SKEY + surf, JSON.stringify(o)); } catch (e) { } }
     apply();
   }
   // 自己上传的图：缩到长边 1920、转 JPEG，免得撑爆浏览器存储（旧站是原图、限 3MB）
@@ -836,14 +1083,26 @@
       im.src = url;
     });
   }
-  // 恢复默认：清全局设置、清当前图、清**本界面**的设置，但**不动相册** —— 用户点「恢复默认」是想回到出厂样子，
+  // 恢复默认：清**本界面**的设置，不动相册 —— 用户点「恢复默认」是想回到出厂样子，
   // 不是想把辛苦攒的几张背景一起删了。要删单张去相册里点 ×。
-  function reset() { ls(KEY, null); ls(IMG, null); ls(SKEY + paneSurf(), null); apply(); }
-  // storage 事件：全局键（背景 / 动效 / 水印 / 图 / 开发者标）变了全站跟着刷；
-  // 界面键只有「自己的那一份」变了才刷——别的工具改深浅色不该惊动这一页（分层隔离的意义就在这）。
-  // 例外：总入口正开着某个工具时，那个工具的键也算"自己这一份"（顶栏要和 iframe 里保持一致），
-  // 见 paneSurf()。
-  addEventListener('storage', function (e) { if (e.key === KEY || e.key === IMG || e.key === DEV || e.key === SKEY + SURF || e.key === SKEY + paneSurf() || e.key === null) apply(); });
+  // 首页：连旧全局键一起清（背景/动效/水印住在那把键里），上传的当前图也一并清；
+  // 工具页：**只写一份全默认的存档覆盖自己**（并且从此不再继承首页的任何值），
+  // 旧全局键和首页的图都别碰 —— 在工具页点恢复默认把首页的背景一起抹掉是事故（2026-11-08 修）。
+  function reset() {
+    var surf = paneSurf();
+    if (surf === 'home') { ls(KEY, null); ls(IMG, null); ls(SKEY + surf, null); }
+    else { try { ls(SKEY + surf, JSON.stringify({ ver: VER, acc: DEF.acc, mode: DEF.mode, clr: DEF.clr, bgo: 100, bg: DEF.bg, wx: DEF.wx, wm: 0 })); } catch (e) { } }
+    apply();
+  }
+  // storage 事件（VER 6）：
+  //   · 本界面的键（自己的存档）变了 → 刷；总入口正开着的那个工具的键变了也刷（顶栏要跟着 iframe 一致）；
+  //   · 旧全局键变了：首页跟着刷（背景/动效/水印就住在那把键里）；工具页**只有还没有自己的存档**
+  //     （正在继承旧值）时才跟——一旦有了自己的存档就再也不看它，这才是「相互独立」的根；
+  //   · 上传图 / 开发者标变了照旧刷。
+  addEventListener('storage', function (e) {
+    if (e.key === SKEY + SURF || e.key === SKEY + paneSurf() || e.key === IMG || e.key === DEV || e.key === null) { apply(); return; }
+    if (e.key === KEY && (SURF === 'home' || !jparse(ls(SKEY + SURF)))) apply();
+  });
   // 总入口换工具（#jiafen ↔ 首页）时，面板要改的那一层跟着换：重画面板（get() 读 paneSurf）。
   // popstate 和 hashchange 都挂：Safari 上前进/后退不一定两个都发，宁可多调一次 —— apply() 是幂等的。
   var lastPane = paneSurf();
