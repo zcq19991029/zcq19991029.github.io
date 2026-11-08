@@ -1,147 +1,123 @@
-const SETTINGS_KEY = 'zcq-ai-settings-v1';
-const SESSION_KEY = 'zcq-ai-key-session';
-const LOCAL_KEY = 'zcq-ai-key-local';
-let activeProfile = 'default';
-export function setAiProfile(id) { activeProfile = id; }
-const keyFor = key => `${key}:${activeProfile}`;
+/* 刷题的 AI 调用：2026-11-08（Z5）起**全部走首页「AI 设置」**（网站根目录 hx-ai.js 挂的 window.HXAI）。
+   以前这里自己存 Key / 接口地址 / 模型、自己拼 fetch，设置页还有一整张「AI 解析」卡；
+   同一个 Key 要在首页和刷题各填一遍，模型名、超时、报错也两套。现在：
+     · 不再自存任何 Key（旧的 zcq-ai 那族本地键已不读不写）；
+     · 文本问答 → HXAI.chat（cap:'text'）；要多想的 → cap:'reason'（没配推理默认时 HXAI 自己回落 text）；
+     · 读图 → HXAI.vision（cap:'vision'，不回落 —— 把图塞给文字模型只会换来看不懂的报错）；
+     · 调用都带 tool:'quiz'，首页「按工具指定」给刷题单独选的那套优先。
+   没配（HXAI 不在 / 该能力没有可用模型 / 没填 Key）时统一抛 NO_AI 这句中文，界面在原位给去 /ai/ 的链接。
+   离线单文件（离线打包.cjs）彻底不带 AI（用户 2026-11-08：「我们彻底放弃离线版即可」）。 */
+export const NO_AI = '还没配置 AI，去首页 AI 设置';
+export const AI_PAGE = '/ai/';
+const OFFLINE_MSG = '离线版没有 AI 功能，请用网页版';
 
-export const providers = {
-  deepseek: {
-    label: 'DeepSeek', baseUrl: 'https://api.deepseek.com',
-    models: ['deepseek-flash', 'deepseek-v4-pro']
-  },
-  siliconflow: {
-    label: '硅基流动', baseUrl: 'https://api.siliconflow.cn/v1',
-    models: ['deepseek-ai/DeepSeek-V4-Flash', 'Pro/deepseek-ai/DeepSeek-V4', 'Qwen/Qwen3.6-27B']
-  },
-  custom: { label: '自定义 OpenAI 兼容接口', baseUrl: '', models: [] }
+const hxai = () => {
+  const H = globalThis.HXAI;
+  return H && typeof H.chat === 'function' ? H : null;
 };
+const isOffline = () => !!globalThis.__OFFLINE;
 
-export function getSettings() {
-  let saved = {};
-  try { saved = JSON.parse(localStorage.getItem(keyFor(SETTINGS_KEY)) || '{}'); } catch { /* ignore */ }
-  const provider = providers[saved.provider] ? saved.provider : 'deepseek';
-  return {
-    provider,
-    baseUrl: saved.baseUrl || providers[provider].baseUrl,
-    model: saved.model || providers[provider].models[0] || '',
-    models: Array.isArray(saved.models) ? saved.models.filter(m => typeof m === 'string') : [], // 读取模型读到的列表
-    remember: !!saved.remember,
-    apiKey: sessionStorage.getItem(keyFor(SESSION_KEY)) || localStorage.getItem(keyFor(LOCAL_KEY)) || ''
-  };
-}
-
-export function saveSettings(settings) {
-  const { apiKey, remember, ...publicSettings } = settings;
-  localStorage.setItem(keyFor(SETTINGS_KEY), JSON.stringify({ ...publicSettings, remember }));
-  sessionStorage.removeItem(keyFor(SESSION_KEY));
-  localStorage.removeItem(keyFor(LOCAL_KEY));
-  if (apiKey) (remember ? localStorage : sessionStorage).setItem(keyFor(remember ? LOCAL_KEY : SESSION_KEY), apiKey.trim());
-}
-
-function endpoint(baseUrl, suffix) {
-  const url = baseUrl.trim().replace(/\/+$/, '');
-  if (!/^https:\/\//i.test(url) && !/^http:\/\/localhost(?::\d+)?(?:\/|$)/i.test(url) && !/^http:\/\/127\.0\.0\.1(?::\d+)?(?:\/|$)/i.test(url)) {
-    throw new Error('接口地址需使用 HTTPS。');
+// 首页的 hx-ai.js 按需加载（和 hx-theme.js 同一层：../hx-ai.js）。离线版不加载。
+let loading = null;
+export function ensureHxAi() {
+  if (hxai()) return Promise.resolve(hxai());
+  if (isOffline() || typeof document === 'undefined') return Promise.resolve(null);
+  if (!loading) {
+    loading = new Promise(resolve => {
+      const s = document.createElement('script');
+      s.src = '../hx-ai.js';
+      s.onload = () => resolve(hxai());
+      s.onerror = () => { loading = null; resolve(null); }; // 失败允许下次再试
+      document.head.appendChild(s);
+    });
   }
-  return `${url}${suffix}`;
+  return loading;
 }
 
-async function fetchWithTimeout(url, options, timeoutMs = 30000) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    return await fetch(url, { ...options, signal: controller.signal });
-  } catch (error) {
-    if (error?.name === 'AbortError') throw new Error(`请求超时（${Math.round(timeoutMs / 1000)} 秒）。请检查模型可用性、余额或网络后重试。`);
-    throw error;
-  } finally {
-    clearTimeout(timer);
+/* 按 hx-ai.js 的 pick() 同样的顺序猜「这次会用哪一套」，只用来判断配没配、给提示；
+   真正调用时仍由 HXAI 自己挑（两边规则一致：工具指定且能干这件事 → 按能力默认 → 推理退文本 → 文本退第一套）。 */
+function guessProfile(H, cap) {
+  const can = (p, c) => !!p && (c === 'text' || (p.caps || []).includes(c));
+  if (typeof H.settings === 'function') {
+    const s = H.settings() || {}, ps = s.profiles || [], act = s.active || {}, tools = s.tools || {};
+    const by = id => ps.find(p => p.id === id) || null;
+    const byTool = by(tools.quiz);
+    if (byTool && can(byTool, cap)) return byTool;
+    const byCap = by(act[cap]);
+    if (byCap) return byCap;
+    if (cap === 'reason' && by(act.text)) return by(act.text);
+    if (byTool) return byTool;
+    return cap === 'text' || cap === 'reason' ? ps[0] || null : null;
   }
+  // 精简版 HXAI（只有 forTool / activeFor 的桩）
+  if (cap === 'vision' && typeof H.activeFor === 'function') return H.activeFor('vision') || null;
+  return typeof H.forTool === 'function' ? H.forTool('quiz') || null : null;
 }
 
-export async function chat(messages, { json = false } = {}) {
-  const settings = getSettings();
-  if (!settings.apiKey) throw new Error('请先在 AI 设置中填写 API Key。');
-  if (!settings.model.trim()) throw new Error('请先选择或填写模型名称。');
-  const response = await fetchWithTimeout(endpoint(settings.baseUrl, '/chat/completions'), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${settings.apiKey}` },
-    body: JSON.stringify({ model: settings.model.trim(), messages, temperature: 0.2,
-      ...(settings.provider === 'deepseek' ? { thinking: { type: 'disabled' } } : {}),
-      ...(settings.provider === 'siliconflow' ? { enable_thinking: false } : {}),
-      ...(json ? { response_format: { type: 'json_object' } } : {}) })
-  }, 25000);
-  let data;
-  try { data = await response.json(); } catch { throw new Error(`接口返回了非 JSON 内容（HTTP ${response.status}）。`); }
-  if (!response.ok) {
-    const message = String(data.error?.message || data.message || `接口请求失败（HTTP ${response.status}）。`);
-    throw new Error(message.replaceAll(settings.apiKey, '[已隐藏 Key]'));
-  }
-  const content = data.choices?.[0]?.message?.content;
-  if (!content) throw new Error('模型未返回内容，请更换模型后重试。');
-  return content;
+/* 配没配：{ ok, msg, profile }。cap = text / reason / vision。 */
+export function aiState(cap = 'text') {
+  if (isOffline()) return { ok: false, offline: true, msg: OFFLINE_MSG };
+  const H = hxai();
+  if (!H) return { ok: false, msg: NO_AI };
+  let p = null;
+  try { p = guessProfile(H, cap); } catch { p = null; }
+  if (!p) return { ok: false, msg: cap === 'vision' ? '还没配置能看图片的 AI（要勾「图片识别」），去首页 AI 设置' : NO_AI };
+  if (p === true) return { ok: true, profile: null };
+  let has = true;
+  if (typeof H.hasKey === 'function' && p.id) has = H.hasKey(p.id);
+  else if ('key' in p || 'apiKey' in p) has = !!String(p.key || p.apiKey || '').trim();
+  if (!has) return { ok: false, profile: p, msg: `首页 AI 设置里「${p.name || p.model || '这套'}」还没填 Key，去首页 AI 设置补上` };
+  return { ok: true, profile: p };
+}
+export const aiReady = (cap = 'text') => aiState(cap).ok;
+
+function noAi(state) {
+  const e = new Error(state.msg || NO_AI);
+  e.noAi = true;
+  return e;
 }
 
-export async function listModels() {
-  const { baseUrl, apiKey } = getSettings();
-  if (!apiKey) throw new Error('请先填写 API Key。');
-  const response = await fetchWithTimeout(endpoint(baseUrl, '/models'), { headers: { Authorization: `Bearer ${apiKey}` } }, 15000);
-  if (!response.ok) throw new Error(`读取模型列表失败（HTTP ${response.status}）。可手动填写模型 ID。`);
-  const data = await response.json();
-  return (data.data || []).map(item => item.id).filter(Boolean).sort();
+// 首页配好的全部模型（问 AI 的模型下拉用）。没配就是空数组。
+export function aiProfiles() {
+  const H = hxai();
+  try { return H && typeof H.list === 'function' ? H.list() : []; } catch { return []; }
+}
+export function aiThinkLevels() {
+  const H = hxai();
+  return (H && Array.isArray(H.thinkLevels) && H.thinkLevels.length) ? H.thinkLevels
+    : [{ id: 'quick', name: '快速' }, { id: 'balanced', name: '均衡' }, { id: 'deep', name: '深度' }];
 }
 
-// opts：问 AI 的「模型 / 思考程度」用。不传就按设置里的默认跑（行为和以前一样）
-//   model        换一个模型（默认用设置里选的那个）
-//   think        true 打开服务商的思考模式（DeepSeek 的 thinking、硅基流动的 enable_thinking）
-//   temperature / maxTokens  思考越久给越多预算
+/* 一次性拿全文（出题、识题、整理要求）。json:true 时 HXAI 已剥掉 ```json 围栏。 */
+export async function chat(messages, { json = false, cap = 'text' } = {}) {
+  const st = aiState(cap);
+  if (!st.ok) throw noAi(st);
+  return hxai().chat({ messages, json, cap, tool: 'quiz' });
+}
+
+/* 问 AI、逐项解析用。HXAI 目前不流式，拿到全文后回调一次 onProgress（调用方的写法不用改）。
+   opts：profile（问 AI 下拉里换的那一套，不传 = 首页给刷题配的）、thinkLevel（quick/balanced/deep，
+   不传 = 那套配置自己的思考程度）、cap（'reason' 时没配推理就回落 text）、maxTokens、temperature。 */
 export async function streamChat(messages, onProgress, opts = {}) {
-  const settings = getSettings();
-  if (!settings.apiKey) throw new Error('请先在 AI 设置中填写 API Key。');
-  const model = String(opts.model || settings.model).trim();
-  if (!model) throw new Error('请先选择或填写模型名称。');
-  const think = !!opts.think;
-  const response = await fetchWithTimeout(endpoint(settings.baseUrl, '/chat/completions'), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${settings.apiKey}` },
-    body: JSON.stringify({ model, messages, temperature: opts.temperature ?? 0.2,
-      max_tokens: opts.maxTokens ?? 800, stream: true,
-      ...(settings.provider === 'deepseek' ? { thinking: { type: think ? 'enabled' : 'disabled' } } : {}),
-      ...(settings.provider === 'siliconflow' ? { enable_thinking: think } : {}) })
-  }, think ? 90000 : 45000);
-  if (!response.ok) {
-    let message = `接口请求失败（HTTP ${response.status}）。`;
-    try { const data = await response.json(); message = data.error?.message || data.message || message; } catch { /* use status */ }
-    throw new Error(String(message).replaceAll(settings.apiKey, '[已隐藏 Key]'));
-  }
-  if (!response.body) throw new Error('接口没有返回可读取的流式响应。');
-  const reader = response.body.getReader(), decoder = new TextDecoder();
-  let pending = '', result = '', finished = false;
-  const consume = event => {
-    const data = event.split(/\r?\n/).filter(line => line.startsWith('data:')).map(line => line.slice(5).trimStart()).join('\n');
-    if (!data) return;
-    if (data === '[DONE]') { finished = true; return; }
-    let packet;
-    try { packet = JSON.parse(data); } catch { return; }
-    if (packet.error) throw new Error(String(packet.error.message || '模型返回流式错误').replaceAll(settings.apiKey, '[已隐藏 Key]'));
-    const part = packet.choices?.[0]?.delta?.content;
-    if (typeof part === 'string' && part) { result += part; onProgress?.(result); }
-  };
-  while (!finished) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    pending += decoder.decode(value, { stream: true });
-    let boundary;
-    while ((boundary = /\r?\n\r?\n/.exec(pending))) {
-      consume(pending.slice(0, boundary.index));
-      pending = pending.slice(boundary.index + boundary[0].length);
-      if (finished) break;
-    }
-  }
-  if (pending.trim() && !finished) consume(pending);
-  if (!result.trim()) throw new Error('模型未返回解析文字，请重试或更换模型。');
-  return result.trim();
+  const cap = opts.cap || 'text';
+  const st = aiState(cap);
+  if (!st.ok) throw noAi(st);
+  const req = { messages, cap, tool: 'quiz' };
+  if (opts.profile) req.profile = opts.profile;
+  if (opts.thinkLevel) req.thinkLevel = opts.thinkLevel;
+  if (opts.maxTokens) req.maxTokens = opts.maxTokens;
+  if (opts.temperature != null) req.temperature = opts.temperature;
+  const text = String(await hxai().chat(req) || '').trim();
+  if (!text) throw new Error('模型未返回解析文字，请重试或更换模型。');
+  onProgress?.(text);
+  return text;
+}
+
+/* 读图：images 是 dataURL 数组。只找勾了「图片识别」的那套。 */
+export async function vision(opts = {}) {
+  const st = aiState('vision');
+  if (!st.ok) throw noAi(st);
+  return hxai().vision({ ...opts, tool: 'quiz' });
 }
 
 /* ---------- 解析规范（skill 式，2026-11-08） ----------

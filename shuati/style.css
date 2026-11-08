@@ -242,33 +242,7 @@ html[data-hx-mode="light"].hx-bg .seg button[aria-pressed="true"] { background: 
 .guide p { margin: 4px 0; font-size: 14px; }
 .guide code { padding: 1px 6px; border-radius: 6px; background: var(--fill); font: 12.5px Consolas, "Cascadia Mono", monospace; }
 
-/* 设置页标题旁的「?」：小圆钮，跟标题一个基线 */
-.panel h3 .help { display: inline-grid; place-items: center; width: 22px; height: 22px; margin-left: 8px; padding: 0; border: 0; border-radius: 50%; background: var(--fill); color: var(--dim); font: 600 13px/1 var(--hx-font); vertical-align: middle; transition: background .2s, color .2s, transform .15s var(--hx-ease); }
-.panel h3 .help:hover { background: var(--hov); color: var(--ink); }
-.panel h3 .help:active { transform: scale(.92); }
-
-/* AI Key 图文教学（底部抽屉里） */
-.aikey { display: grid; gap: 14px; font-size: 14px; line-height: 1.65; }
-.aikey p { margin: 6px 0; }
-.aikey ol { margin: 6px 0; padding-left: 1.5em; line-height: 1.85; }
-.aikey code { padding: 1px 6px; border-radius: 6px; background: var(--fill); font: 12.5px Consolas, "Cascadia Mono", monospace; }
-.aikey .warn { color: var(--warn); }
-.astep { padding: 14px 16px; border-radius: 16px; background: var(--fill); }
-.ahd { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; font-size: 15px; }
-.ahd i { flex: none; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--acc); color: var(--on-acc, #fff); font-style: normal; font-size: 13px; font-weight: 600; }
-.aqr { display: flex; gap: 14px; align-items: flex-start; margin: 10px 0 4px; flex-wrap: wrap; }
-.aqr img { flex: none; width: 132px; height: 132px; padding: 6px; border-radius: 14px; background: #fff; box-shadow: 0 1px 6px rgba(0, 0, 0, .12); object-fit: contain; }
-.aqr-r { flex: 1; min-width: 200px; display: grid; gap: 8px; align-content: start; }
-.aqr-r p { margin: 0; }
 .alink { display: block; padding: 8px 10px; border-radius: 10px; background: var(--card-solid); color: var(--dim); word-break: break-all; font-size: 12.5px; }
-.atip { margin: 8px 0 0; color: var(--dim); font-size: 13px; }
-.awarn { padding: 14px 16px; border-radius: 16px; background: var(--badbg); box-shadow: inset 0 0 0 1px var(--bad); }
-.awarn b { display: block; margin-bottom: 4px; color: var(--bad); font-size: 14px; }
-.awarn ul { margin: 0; padding-left: 1.3em; line-height: 1.7; font-size: 13.5px; }
-@media (max-width: 420px) {
-  .aqr img { width: 108px; height: 108px; }
-  .aqr-r { min-width: 0; }
-}
 
 /* 问 AI */
 /* 抽屉可以放大；放不放大的聊天区都跟着抽屉高度走，长回答看得全 */
@@ -378,6 +352,10 @@ body.focus .unfocus { display: block; }
 .imp-note li { margin: 4px 0; }
 .imp-warn { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 10px; padding: 10px 14px; border-radius: 12px; background: var(--badbg); font-size: 13.5px; }
 .imp-warn span { flex: 1; min-width: 0; }
+/* 没配 AI 时的原位提示（2026-11-08 Z5）：一句话 + 去首页 /ai/ 的链接，题卡、导入区、问 AI 共用 */
+.noai { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; color: var(--dim); }
+.noai > span { flex: 1 1 auto; }
+.noai a.btn { text-decoration: none; }
 .imp-panel.drop, .panel.drop { outline: 2px dashed var(--acc); outline-offset: -6px; }
 /* 模板折叠块：默认收起，不占地方 */
 .imp-tpl { margin-top: 10px; padding: 10px 14px; border-radius: 12px; background: var(--fill); font-size: 13px; }

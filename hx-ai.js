@@ -218,6 +218,7 @@
     { id: 'quiz', name: '刷题' },
     { id: 'mcu', name: '单片机' },
     { id: 'exam', name: '考试' },
+    { id: 'ziliao', name: '资料库' },
     { id: 'wiring', name: '接线仿真' },
     { id: 'paike', name: '排课' },
     { id: 'course', name: '课程进度' }

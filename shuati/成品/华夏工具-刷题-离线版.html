@@ -118,9 +118,10 @@ html.hx-bg body::before {
   opacity: var(--hx-bgo, 1);
 }
 /* 深色模式：亮色壁纸（比如默认那张）会把整页照得刺眼、玻璃卡被染成棕黄。
-   叠一层暗色 scrim（不再用 brightness()，省得又依赖 filter）。 */
+   叠一层暗色 scrim（不再用 brightness()，省得又依赖 filter）。
+   浓度跟 --hx-scrim 走（hx-theme.js 的 apply 按 bgo 算）：bgo=100 时 = 0，背景原图直出、不再蒙灰。 */
 :root[data-hx-mode="dark"].hx-bg body::before {
-  background-image: linear-gradient(rgba(8, 8, 10, .38), rgba(8, 8, 10, .38)), var(--hx-img);
+  background-image: linear-gradient(rgba(8, 8, 10, var(--hx-scrim, .38)), rgba(8, 8, 10, var(--hx-scrim, .38))), var(--hx-img);
 }
 /* ── 2026-11-05 六修：手机（及窄屏）背景「不会动」────────────────────────
    用户 iPhone Safari 实机：「手机上首页背景不会动」。原因不是坏了，是 2026-11-04
@@ -133,10 +134,30 @@ html.hx-bg body::before {
        也不用 mix-blend-mode —— 两者在 iOS 上都要额外的全屏合成代价）。
    开关在 hx-theme.js 的 bgMotion()：只给「视频壁纸被降级成海报帧」这种情况挂，
    省电一体机（hx-lite）和系统「减少动态效果」一律不挂，保持静态。 */
+/* ── 2026-11-08 七修：Safari 上背景还是不动（用户实机报「我用safari还是背景视频没动」）──
+   前面几修已经解决了两件事：① 不再被 prefers-reduced-motion 一票否决（iOS 低电量会自动打开它）
+   ② 手机不建 video（bgNoVideo），改用纯 CSS 两层合成动画。
+   Chromium 模拟 iPhone UA + reduce 实测两档都在动（transform 矩阵 1.5 秒内确实变了），
+   但**Safari 真机不动** —— 差异就在 WebKit 对「position:fixed 伪元素 + transform 动画」的处理：
+     · body::before 是 position:fixed 的伪元素，WebKit 里它不一定被提升成独立合成层，
+       动画就退化成主线程重绘；一旦主线程忙（首屏加载、滚动），动画看着就是停的。
+     · 更严重的是 Safari 有个「后台标签页 / 滚动中暂停非合成动画」的省电策略，
+       没被提升到合成层的动画会被静默停掉 —— 表现就是「一直是那张静图」。
+   兜底做法（都是 WebKit 认的老写法，不影响 Chromium）：
+     · translateZ(0)：显式让 WebKit 建合成层（will-change 在旧 WebKit 上不总生效）
+     · backface-visibility:hidden：同上，强制 GPU 层
+     · 动画里带 translate3d（已经带了，保留）
+   注意：这些属性只挂在 hx-bg-mo 这个「已降级成静图、需要靠动画补生机」的状态上，
+   不影响有视频的桌面端（那边根本不加 hx-bg-mo）。 */
 html.hx-bg-mo body::before {
   animation: hx-bgmo-zoom 34s ease-in-out infinite alternate;
   transform-origin: 52% 46%;
   will-change: transform;
+  /* Safari 合成层兜底：只加 backface-visibility 和 perspective，**不写 transform**——
+     写 transform: translateZ(0) 会把 @keyframes 里的 transform 整个覆盖掉，动画直接压死。
+     这是 CSS 动画最常见的自杀写法，这里特意避开。 */
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 }
 @keyframes hx-bgmo-zoom {
   from { transform: scale(1.06) translate3d(-.9%, .6%, 0); }
@@ -166,9 +187,17 @@ html.hx-bg-mo body::before {
   0%, 100% { transform: translate3d(0, 0, 0) scale(1.1); opacity: .65; }
   50% { transform: translate3d(-15vmax, -10vmax, 0) scale(.92); opacity: 1; }
 }
+/* ── 2026-11-08：系统「减少动态效果」不再把背景压成死图，改成**同一条动画放慢 3 倍** ──
+   用户报障：「手机端背景不会动」。实测根因之一就是这条 `animation: none`：
+   iOS 低电量模式会自动打开 prefers-reduced-motion:reduce，于是手机上背景永远是一张静图。
+   减动效的诉求是「别有大位移/快速运动」，不是「整页不许有生机」；背景极光是极慢的漂移，
+   把周期拉长到 3 倍（34s→102s / 24s→72s / 32s→96s）就已经足够安静，而画面还在缓缓呼吸。
+   注意：只改 animation-duration，不动 @keyframes —— 这样「有没有在动」一眼可辨，也没有额外合成开销
+   （transform/opacity 仍是合成器属性，帧更少反而更省电）。 */
 @media (prefers-reduced-motion: reduce) {
-  html.hx-bg-mo body::before { animation: none; }
-  .hx-bgmo i { animation: none; }
+  html.hx-bg-mo body::before { animation-duration: 102s; }
+  .hx-bgmo i:first-child { animation-duration: 72s; }
+  .hx-bgmo i:last-child { animation-duration: 96s; }
 }
 /* 老设备上一律不做实时背景模糊（顶栏、底栏、弹层都算）。背景图已经糊过，去掉之后几乎看不出差别，
    但省掉的是每一次滚动都要重算的高斯模糊。顶栏改实色兜底，不然内容会从底下透上来。 */
@@ -179,6 +208,15 @@ html.hx-lite[data-hx-mode="dark"] { --bar: rgb(22 22 23 / .95); }
 /* 打开工具后首页整个不参与绘制（原来只是 visibility:hidden，合成层其实还挂着） */
 html.hx-lite body.tool #home { content-visibility: hidden; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+/* ── 2026-11-08：上面那条全局兜底会把背景极光也压成 .01ms（等于死图）。
+     背景动画是「极慢的呼吸」，不是减动效要治理的「大幅位移」，单独开个例外放回来。
+     必须写成比 `*` 更高特异度的选择器 + !important 才能压过它。── */
+@media (prefers-reduced-motion: reduce) {
+  html.hx-bg-mo body::before, .hx-bgmo i:first-child, .hx-bgmo i:last-child { animation-duration: revert !important; }
+  html.hx-bg-mo body::before { animation-duration: 102s !important; }
+  .hx-bgmo i:first-child { animation-duration: 72s !important; }
+  .hx-bgmo i:last-child { animation-duration: 96s !important; }
+}
 /* ── 按钮按下的像素碎屑（2026-11-02）──
    按一下按钮，四周迸出一圈像素方点，向外散开再往下落。纯 CSS，零 JS、零帧循环：
    由 :active 触发，动画本身 0.45 秒自动结束，不占常驻开销。
@@ -265,10 +303,14 @@ html.hx-lite .hx-crumb:active::after { animation: none; }
 </style>
 <script>
 // 华夏工具外观（网站根目录 /hx-theme.js + /hx-theme.css）。全部工具在 <head> 里同步引用，打开就是选好的外观、不闪。
-// ── 分层（2026-11-05 定稿）──
-//   · 全局层（键 hx-theme）：背景图/视频、背景动效、校徽水印 —— 全站通用，只在总入口右上角改；
-//   · 界面层（键 hx-theme:s:home / hx-theme:s:<tool>）：主题色、深色/浅色/自动、卡片通透度、背景清晰度
-//     —— 每个页面（首页和每个工具）各自一份、互不干扰；总入口外观面板改的是它自己（home）那份。
+// ── 分层（2026-11-08 定稿 VER 6：每个界面完全独立）──
+//   · 首页（键 hx-theme + hx-theme:s:home）：背景图/视频、背景动效、校徽水印沿用旧全局键 hx-theme
+//     （fx/hx-weather.js 写死只认它，动效渲染器只挂在首页）；主题色、深浅、通透度两根滑杆在 hx-theme:s:home；
+//   · 每个工具页（键 hx-theme:s:<tool>）：主题色、深色/浅色/自动、卡片通透度、背景清晰度、
+//     **背景图、背景动效、校徽水印**全部存自己的一份，和首页、和别的工具互不干扰。
+//   · 一次性迁移：工具页第一次打开、还没有自己的存档时，继承旧全局键 hx-theme 里的
+//     背景/动效/水印/主题色/深浅（老用户观感不变）；用户在哪个页面改，就只写哪个页面的键。
+//     旧全局键不删（首页还在用它），工具页一旦有了自己的存档就再也不看它。
 // 外观只在总入口右上角改：主题色（沿用旧刷题站的 7 套）、深色 / 浅色 / 自动、背景图、通透度两根滑杆。
 // 自己上传的背景图压缩后存 hx-theme-img；同一网站的页面（包括嵌在总入口里的工具）通过 storage 事件一起变。
 // 子工具只适配：<html data-theme="light|dark">（排课、单片机上机原有的深浅色写法）+ 行内 CSS 变量 --acc 等；接线仿真、排课、单片机的旧主题键顺带改好。
@@ -304,14 +346,15 @@ html.hx-lite .hx-crumb:active::after { animation: none; }
   // VER 4（2026-11-04 深夜）：背景项合并成上面三档，默认改成极光视频。
   // 老存档里凡是选了已下架背景（bear/chiikawa/cat/mist/bay/dusk/旧极光渐变）的，统一迁到新默认；
   // 自己上传过图的（custom 且本地还有图）保留不动 —— 那是用户自己的东西，不能因为改默认就没了。
-  // VER 5（2026-11-05）：主题体系分层。全局键 hx-theme 只管「背景 / 动效 / 校徽水印」（全站通用，总入口统一换）；
-  // 主题色、深浅模式、卡片通透度、背景清晰度改成**按界面分键**（hx-theme:s:home = 总入口首页，
-  // hx-theme:s:<tool> = 各工具页），互不干扰：首页改浅色不会带着工具一起变。
+  // VER 5（2026-11-05）：主题色、深浅模式、卡片通透度、背景清晰度改成按界面分键。
+  // VER 6（2026-11-08）：背景图 / 背景动效 / 校徽水印也按界面分键（用户原话「各个工具下主题独立控制
+  //   在本工具下 压根不生效」）。首页的这三样继续存旧全局键 hx-theme（fx/hx-weather.js 写死只认它，
+  // 顺带当所有工具页的迁移来源）；每个工具页存 hx-theme:s:<tool>，七个字段全在自己键里。
   // 滑杆语义 2026-11-05 翻转：原来的 op「卡片透明度」100 = 最实；现在叫 clr「卡片通透度」，100 = 最透
   // （也就是用户定下的默认观感：深色玻璃底、背景透出来），往下调卡片变实、文字更清楚。
   // 老存档里的 op 不再折算：旧 100 = 新 100（同一观感），旧值更小的本意是「更透」——新体系 100 已经是最透，
   // 一律落回默认 100，保证老用户刷新后看到的就是这版定稿的玻璃观感。
-  var KEY = 'hx-theme', SKEY = 'hx-theme:s:', IMG = 'hx-theme-img', DEV = 'hx-dev', VER = 5,
+  var KEY = 'hx-theme', SKEY = 'hx-theme:s:', IMG = 'hx-theme-img', DEV = 'hx-dev', VER = 6,
     // 2026-11-05 用户定：默认进来 = 深色主题 + 两个滑杆都 100%（通透度 100 = 深色清透玻璃，背景最透出）。
     // 之前默认 mode:'auto'，Mac 浅色系统打开就是浅色 + 旧白玻璃配方，用户原话「玻璃质感不高级 仅仅只是白色雾蒙蒙」。
     DEF = { acc: 'green', mode: 'dark', bg: 'aurora', clr: 100, bgo: 100, wx: 'none' };
@@ -342,7 +385,13 @@ html.hx-lite .hx-crumb:active::after { animation: none; }
   if (tool && window.top !== window) {
     document.documentElement.classList.add('hx-embedded');
     var st = document.createElement('style');
-    st.textContent = 'html.hx-bg:not([data-hx-mode="light"]),html.hx-bg:not([data-hx-mode="light"]) body{background-color:transparent!important}';
+    // 嵌入时背景由总入口统一画：这里把自己画背景的每一层都关掉（html/body 底色与背景图、
+    // body::before 背景层、视频层、极光层），深色只留透明让总入口壁纸从 iframe 底下透上来 ——
+    // 否则同一张图会在 iframe 里再画一遍，和总入口叠成双重背景（用户报「透明度拉低出现双重背景重叠」）。
+    // 浅色仍铺自己的浅色底（见 apply 里那段注释），所以只对深色关。
+    st.textContent = 'html.hx-embedded[data-hx-mode="dark"],html.hx-embedded[data-hx-mode="dark"] body{background-color:transparent!important;background-image:none!important}'
+      + 'html.hx-embedded[data-hx-mode="dark"] body::before{background-image:none!important}'
+      + 'html.hx-embedded[data-hx-mode="dark"] .hx-bgvid-wrap,html.hx-embedded[data-hx-mode="dark"] .hx-bgmo{display:none!important}';
     (document.head || document.documentElement).appendChild(st);
   }
 
@@ -374,6 +423,35 @@ html.hx-lite .hx-crumb:active::after { animation: none; }
       // 屏宽 ≤820px 时一律不挂视频（JS 侧已提前拦掉，这条防「旧缓存 JS + 新 CSS」这种混搭）
       + '@media (max-width:820px){.hx-bgvid-wrap{display:none!important}}';
     (document.head || document.documentElement).appendChild(vs);
+  })();
+
+  // ── 页面层基础样式（2026-11-08 修「工具页选背景没东西」）──────────────────
+  // 背景图 / 背景动效要看得见，前提是页面自己别先铺一层不透明底色把它们全盖住。
+  // 这几条规则原来写在 hx-theme.css 里，但全站只有总入口和刷题引了那份 CSS ——
+  // 接线仿真、排课、单片机、考试、加分、课程进度都只引 hx-theme.js，
+  // 于是背景层（body::before）根本没铺、视频层（z-index:-2）又被工具页 body 的底色压住，
+  // 用户选什么都看不见（「点了没反应」）。所以跟着 JS 注入，全站每个页面都生效。
+  //
+  // 只在「有东西可看」时才挂（apply() 会按 bg / wx 给 <html> 加 .hx-layer）：
+  //   · 背景 = 无 且 动效 = 无 → 不挂，页面保持自己原来的底色（用户要的「干净纯色背景」）；
+  //   · 挂上之后：html 铺一层纯色底（--hx-page，跟深浅主题走），body 放透明，
+  //     body::before 铺背景图（--hx-img，透明度跟 --hx-bgo），动效画布垫在内容之下。
+  // !important 是必须的：接线仿真外壳会用行内 style 给 body 写背景图，只有 !important 压得住行内样式。
+  (function () {
+    var ls2 = document.createElement('style');
+    ls2.id = 'hx-layer-style';
+    ls2.textContent =
+      'html.hx-layer{background:var(--hx-page,#f5f5f7)}'
+      + 'html.hx-layer body{background:transparent!important}'
+      // 背景图层：fixed 铺满视口、垫在内容下面（z-index:-1），浓度跟「背景清晰度」滑杆（--hx-bgo）
+      + 'html.hx-layer body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;'
+      + 'background:var(--hx-img) center / cover no-repeat;opacity:var(--hx-bgo,1)}'
+      // 深色模式压暗：和 hx-theme.css 里同一条 scrim，壁纸太亮时把整页压回来。
+      // 浓度跟 --hx-scrim 走（apply 里按 bgo 算）：bgo=100 时 = 0，背景原图直出、不再蒙灰。
+      + ':root[data-hx-mode="dark"].hx-layer body::before{background-image:linear-gradient(rgba(8,8,10,var(--hx-scrim,.38)),rgba(8,8,10,var(--hx-scrim,.38))),var(--hx-img)}'
+      // 视频播放中：海报帧层让位给视频（否则 z-index:-1 的海报把 -2 的视频盖住）
+      + 'html.hx-vidlive body::before{background-image:none!important}';
+    (document.head || document.documentElement).appendChild(ls2);
   })();
 
   // ── 顶部加载进度条（2026-11-03）──
@@ -601,6 +679,9 @@ html.hx-lite .hx-crumb:active::after { animation: none; }
   var HASH_TOOL = /^[A-Za-z0-9_-]{2,32}$/;
   function paneSurf() {
     if (tool || window.top !== window) return SURF;   // 工具页自己（顶层 / 被嵌）
+    // 「AI 设置」是总入口的弹层（不写 hash 路由），开着它时外观面板要改的是 ai 键。
+    // 总入口通过 window.__hxSurface 临时把面板指向 ai（见 总入口/index.html 的 togglePop/closePops）。
+    if (window.__hxSurface && HASH_TOOL.test(window.__hxSurface)) return window.__hxSurface;
     var h = (location.hash || '').replace(/^#/, '');
     return HASH_TOOL.test(h) ? h : 'home';
   }
@@ -608,31 +689,42 @@ html.hx-lite .hx-crumb:active::after { animation: none; }
   // 传值只在"要读别的界面"时用，目前没有这种调用点。
   function get(surf) {
     surf = surf || paneSurf();
-    // ── 全局层（hx-theme）：背景 / 动效 / 水印，全站一份，总入口统一管 ──
-    var raw = ls(KEY), v = raw && OLD[raw] ? OLD[raw] : jparse(raw);
-    v = v || {};
+    var home = surf === 'home';
+    // ── 旧全局键（hx-theme）：首页的「背景 / 动效 / 水印」存档，也是各工具页的迁移来源 ──
+    var raw = ls(KEY), lg = raw && OLD[raw] ? OLD[raw] : jparse(raw);
+    lg = lg || {};
     // 老存档（没有 ver）＝ 上这一版之前就存过外观的。统一换成新默认（极光），做到「全体人员默认」；
     // 只有自己上传过图的例外——那是明确主动的行为，别覆盖掉。想关掉背景在外观面板点「无」即可。
-    if (raw && !v.ver && v.bg !== 'custom') v.bg = DEF.bg;
+    if (raw && !lg.ver && lg.bg !== 'custom') lg.bg = DEF.bg;
     // VER 4 迁移（2026-11-04 深夜）：背景项只剩 无/极光动态/自己的图。
-    if (!BG[v.bg]) v.bg = DEF.bg;
-    // ── 界面层（hx-theme:s:<界面>）：主题色 / 深浅 / 卡片通透度 / 背景清晰度 ──
-    // 键存在即权威：缺了的字段回到 DEF，不再翻老存档（从改第一项起这个界面就走自己的设置）。
-    // 键不存在（从没在这个界面上改过外观）→ 沿用全局老存档里的 acc / mode / bgo（老用户观感不变），
-    //   都没有就落 DEF。老 op 滑杆不再折算，见 VER 5 注释。
+    if (!BG[lg.bg]) lg.bg = DEF.bg;
+    // ── 本界面自己的存档（hx-theme:s:<界面>）────────────────────────────
+    // 键存在即权威：七个字段（主题色/深浅/通透度/清晰度/背景/动效/水印）里**有的**一律用自己的；
+    // 没有的字段继承旧全局键 —— 工具页第一次打开观感和从前一致，之后改哪个页面就只写哪个页面的键。
     var sv = jparse(ls(SKEY + surf)), own = !!sv;
     if (!own) sv = {};
+    // 字段来源：自己的存档优先；没有就翻旧全局键（首页本来就用它，工具页第一次打开继承它）。
+    // 七个字段统一走 src()：**存了哪个字段就看哪个，没存的字段继承旧值**——
+    // 不能因为「这个界面已经有过一次改动」（比如只改过背景）就把没改过的字段打成默认值，
+    // 那样改背景的一瞬间主题色/深浅会突兀地跳回默认（2026-11-08 修）。
+    function src(k) { return own && sv[k] !== undefined ? sv[k] : lg[k]; }
     var s = {
-      bg: BG[v.bg] ? v.bg : DEF.bg,
-      wx: WX[v.wx] ? v.wx : DEF.wx,
-      // 校徽水印：默认开。只认显式关掉的 0 / false / '0'——老存档里根本没有这个字段，不能把 undefined 当关。
-      wm: (v.wm === 0 || v.wm === '0' || v.wm === false) ? 0 : 1,
-      acc: own ? (ACC[sv.acc] ? sv.acc : DEF.acc) : (ACC[v.acc] ? v.acc : DEF.acc),
-      mode: own ? (/^(light|dark|auto)$/.test(sv.mode) ? sv.mode : DEF.mode) : (/^(light|dark|auto)$/.test(v.mode) ? v.mode : DEF.mode),
+      bg: BG[src('bg')] ? src('bg') : DEF.bg,
+      wx: WX[src('wx')] ? src('wx') : DEF.wx,
+      // 校徽水印：只认显式写过的 0/1（老存档里可能没有这个字段）。没写过的：
+      // 首页默认开、工具页默认关 —— 用户的定稿是「首页有校徽，工具页干净」。
+      wm: (function () {
+        var w = src('wm');
+        if (w === 0 || w === '0' || w === false) return 0;
+        if (w === 1 || w === '1' || w === true) return 1;
+        return home ? 1 : 0;
+      })(),
+      acc: ACC[src('acc')] ? src('acc') : DEF.acc,
+      mode: /^(light|dark|auto)$/.test(src('mode')) ? src('mode') : DEF.mode,
       // 卡片通透度（2026-11-05 翻转语义）：100 = 最透（清透玻璃、背景透出来，默认），0 = 最实。
-      clr: own ? clamp01(+sv.clr, DEF.clr) : DEF.clr,
+      clr: clamp01(+src('clr'), DEF.clr),
       // 背景清晰度：100 = 原样显示（最清楚），0 = 背景几乎看不见、只剩页面底色。
-      bgo: own ? clamp01(+sv.bgo, 100) : clamp01(+v.bgo, 100)
+      bgo: clamp01(+src('bgo'), 100)
     };
     if (s.bg === 'custom' && !ls(IMG)) s.bg = DEF.bg;
     if (BG[s.bg].dev && !isDev()) s.bg = 'none'; // 开发者专属背景：别的账号（或没登录）回落到无背景
@@ -730,8 +822,14 @@ html.hx-lite .hx-crumb:active::after { animation: none; }
     if (matchMedia('(pointer: coarse)').matches && matchMedia('(hover: none)').matches) return true;
     var ua = navigator.userAgent || '';
     if (/iPhone|iPod|Windows Phone|Android.+Mobile|IEMobile/i.test(ua)) return true;
-    // iPad 走「桌面版网站」时 UA 是 Macintosh，只能靠触摸点数认出来
-    if (navigator.maxTouchPoints > 1 && /Macintosh/.test(ua)) return true;
+    /* iPad 走「桌面版网站」时 UA 是 Macintosh，只能靠触摸点数认出来。
+       2026-11-08 修误判：原来只判 `maxTouchPoints > 1 && /Macintosh/`，会把两类机器错杀 ——
+         ① 装了触摸屏的 Mac / 某些远程桌面环境（触摸点会报 10），被当成 iPad → 不建视频 → 背景静图；
+         ② Chromium headless（自动化测试）默认报 10 个触摸点，导致测试里根本建不出 video（本轮踩到）。
+       真 iPad 的特征是 **Macintosh UA + 触摸 + 指针是 coarse（无精确悬停）**；
+       带触屏的 Mac 指针仍是 fine（有鼠标/触控板），据此区分。 */
+    if (navigator.maxTouchPoints > 1 && /Macintosh/.test(ua)
+        && matchMedia('(pointer: coarse)').matches && matchMedia('(hover: none)').matches) return true;
     return false;
   }
   // 窄屏（≤820px）：不建新元素、但已有的元素只暂停不销毁 —— CSS 那边 .hx-bgvid-wrap 会 display:none。
@@ -742,13 +840,21 @@ html.hx-lite .hx-crumb:active::after { animation: none; }
   // 用户反馈「手机上首页背景不会动」。这里补一层**纯 CSS 合成动画**（见 hx-theme.css 的 hx-bgmo-*）：
   //   · html.hx-bg-mo body::before 自己做缓慢推近（ken burns）；
   //   · body 里插一个 .hx-bgmo，两团极光柔光反向漂移。
-  // 只在「视频壁纸被降级成海报帧」时挂；省电一体机 / 系统减少动态效果 一律不挂（保持静态，也不白烧合成）。
+  // 只在「视频壁纸被降级成海报帧」时挂；省电一体机（hx-lite）不挂（那才是真的硬件吃力）。
+  // 2026-11-08 修「手机端背景不会动」：原来这里还认 prefers-reduced-motion，一票否决。
+  //   iOS 低电量模式会自动打开 reduce → 手机上背景永远是静图 —— 这正是用户报的障。
+  //   现在减动效**照挂**，由 hx-theme.css 那边把三条动画的周期拉长 3 倍（34s→102s 等），
+  //   画面仍然在缓缓呼吸，但没有快速位移，符合减动效的本意（见 css 里那段注释）。
   // 全程零 video、零 rAF、零 blur、零 blend-mode：只有 transform / opacity 两个合成器属性在动。
   var bgMo = null;
+  // 2026-11-08：视频自动播放被拒时降级成 CSS 动画，只降一次（见 bgPlay 里的 catch）
+  var bgMoFallback = false;
   function bgMotion(on) {
     var r = document.documentElement;
-    var need = !!on && !liteOn() && !r.classList.contains('hx-lite')
-      && !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+    // 2026-11-08：降级模式下（视频播不动）即使 on=false 也要挂着 ——
+    // 降级是「视频真的不动了，用动画顶上」，不能被下一次 apply() 顺手取消掉，
+    // 否则 Safari 上会出现「刚降级成功、切个主题又变回静图」的怪象。
+    var need = (!!on || bgMoFallback) && !liteOn() && !r.classList.contains('hx-lite');
     r.classList.toggle('hx-bg-mo', need);
     if (!need) {
       if (bgMo && bgMo.parentNode) bgMo.parentNode.removeChild(bgMo);
@@ -883,7 +989,28 @@ html.hx-lite .hx-crumb:active::after { animation: none; }
       // 换路窗口里被 bgPause 停过的话，两路都还在淡入淡出中间态，续播必须两路一起起 ——
       // 只起主那一路会让另一路卡在中间的不透明度上，画面变成两层半透明叠着
       if (i !== bgCur && !bgFading) continue;
-      var p = bgVids[i].play(); if (p && p.catch) p.catch(function () { }); // 自动播放被拦时不报错，海报帧兜底
+      (function (v) {
+        var p = v.play();
+        if (!p || !p.catch) return;
+        p.catch(function () {
+          /* ── 2026-11-08 修：Safari 上「背景视频没动」（用户实机报）──
+             原来这里 catch 里什么都不做，注释写「海报帧兜底」——但海报帧是**静图**，
+             用户看到的就是背景一动不动，而日志里一点痕迹都没有，极难排查。
+             Safari 的自动播放策略比 Chrome 严：桌面 Safari 在「低电量模式」、
+             「设置里关了自动播放」、「页面不是用户主动打开」等情况下会拒绝 play()，
+             而且只抛 Promise，不报错不弹提示。
+             现在拒绝就**自动降级成 CSS 合成动画**（和手机上同一套 hx-bgmo），
+             背景照样在缓缓动，不再是一张死图。用户完全不用管是视频还是动画。
+             注意只降级一次（bgMoFallback 打标），避免播放被反复拒时反复建元素。 */
+          if (!bgMoFallback) {
+            bgMoFallback = true;
+            try {
+              document.documentElement.classList.add('hx-bg-mo');
+              bgMotion(true);
+            } catch (e) { }
+          }
+        });
+      })(bgVids[i]);
     }
     // 不用 rAF：每帧读 currentTime 纯白烧 CPU。150ms 一次足够（换路窗口 0.8s ≈ 5 次采样）
     bgTick = setInterval(bgStep, 150);
@@ -950,61 +1077,257 @@ html.hx-lite .hx-crumb:active::after { animation: none; }
     if (mq.addEventListener) mq.addEventListener('change', on); else if (mq.addListener) mq.addListener(on);
   })();
 
+  // ── 背景动效：工具页这一侧（2026-11-08）────────────────────────────────
+  // 用户原话「背景没东西…动效 点了没反应」。查下来动效从来没在工具页生效过：
+  // 渲染器 fx/hx-weather.js 只有总入口的 index.html 引了，而且它写死读旧全局键 hx-theme。
+  // 这里给工具页补一份同款渲染（首页不进来，那边继续走 hx-weather.js，零回归）：
+  //   · 用到才懒加载特效库 fx/pixelfx-weather.js（失败就安静放弃，不影响页面）；
+  //   · 挂一块 z-index:-1 的像素画布，摆位和 hx-weather.js 一致：背景层之上、内容之下；
+  //   · 省电（hx-lite）/ 减少动效：只画静态一帧；页签切后台停循环。
+  // 和 hx-weather.js 的差别只有一条：动效的值来自本工具自己的键（get() 已经算好传进来）。
+  var wxLib = false, wxRaf = 0, wxCur = null, wxCvs = null, wxG = null, wxImgD = null, wxFrame = null, wxFx = null, wxMod = null, wxLast = 0, wxW = 0, wxH = 0;
+  function wxStill() { return document.documentElement.classList.contains('hx-lite') || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches); }
+  function wxRemove() {
+    if (wxRaf) { cancelAnimationFrame(wxRaf); wxRaf = 0; }
+    if (wxCvs && wxCvs.parentNode) wxCvs.parentNode.removeChild(wxCvs);
+    wxCvs = null; wxG = null; wxImgD = null; wxFrame = null; wxFx = null; wxMod = null; wxCur = null;
+    wxMirrorDrop();
+  }
+  // ── 镜像画布（2026-11-08）──接线仿真这类「整页被同源 iframe 盖满」的工具，外壳层的
+  // 动效画布（z-index:-1）会被 iframe 里的练习画布整个挡住，用户选了动效照样「点了没反应」。
+  // iframe 和外壳同源（srcdoc / 同站），所以把同一帧再画一份塞进每个 iframe 文档里：
+  // 镜像也是 z-index:-1，垫在练习画布下面、壁纸上面 —— 练习画布本身是半透明的
+  //（theme.js 选了背景时把底色调成 rgba），粒子就从它底下透出来。
+  // 全部帧由外壳这一个 rAF 循环驱动，镜像只多一次 putImageData，不另起循环（红线不破）。
+  var wxMirrors = [];
+  function wxMirrorDrop() {
+    for (var i = 0; i < wxMirrors.length; i++) {
+      var m = wxMirrors[i];
+      try { if (m.cvs && m.cvs.parentNode) m.cvs.parentNode.removeChild(m.cvs); } catch (e) { }
+    }
+    wxMirrors = [];
+  }
+  function wxMirrorScan() {
+    if (!tool || !wxCvs || !document.body) return;
+    var fr = document.querySelectorAll('iframe');
+    for (var i = 0; i < fr.length; i++) {
+      (function (f) {
+        if (f.__hxWxMirror) return;
+        var d = null;
+        try { d = f.contentDocument; } catch (e) { }
+        if (!d || !d.body) return;               // 跨域 / 还没就绪：下一次 apply 或 load 再试
+        f.__hxWxMirror = true;
+        var c = d.createElement('canvas');
+        c.width = wxW; c.height = wxH;
+        c.setAttribute('aria-hidden', 'true');
+        // 摆位与外壳画布一致：居中 cover、垫到内容下面；iframe 文档自己的 CSS 管不着它
+        c.style.cssText = 'position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:-1;pointer-events:none;'
+          + 'image-rendering:pixelated;image-rendering:crisp-edges;opacity:.85';
+        d.body.appendChild(c);
+        var g = null; try { g = c.getContext('2d'); } catch (e) { }
+        wxMirrors.push({ fr: f, cvs: c, g: g });
+        wxMirrorSize();
+      })(fr[i]);
+    }
+  }
+  function wxMirrorSize() {
+    for (var i = 0; i < wxMirrors.length; i++) {
+      var m = wxMirrors[i], w = 0, h = 0;
+      try { w = m.fr.contentWindow.innerWidth; h = m.fr.contentWindow.innerHeight; } catch (e) { }
+      if (!w || !h) continue;
+      var sc = Math.max(1, Math.ceil(Math.max(w / wxW, h / wxH)));
+      m.cvs.style.width = wxW * sc + 'px';
+      m.cvs.style.height = wxH * sc + 'px';
+    }
+  }
+  function wxMirrorDraw() {
+    for (var i = 0; i < wxMirrors.length; i++) {
+      var m = wxMirrors[i];
+      if (!m.g) continue;
+      try {
+        // 藏起来的 iframe（visibility:hidden）不画，省一截合成开销；显示时下一帧自动跟上
+        if (getComputedStyle(m.fr).visibility === 'hidden') continue;
+        if (!m.img) m.img = m.g.createImageData(wxW, wxH);
+        m.img.data.set(wxImgD.data);
+        m.g.clearRect(0, 0, wxW, wxH);
+        m.g.putImageData(m.img, 0, 0);
+      } catch (e) { }
+    }
+  }
+  function wxMount(id) {
+    wxRemove();
+    var P = window.PixelFXWeather;
+    var m2 = P && P.effects && P.effects[id] && P.effects[id].meta;
+    if (!m2 || !m2.size || !document.body) return;
+    wxMod = P.effects[id]; wxW = m2.size[0]; wxH = m2.size[1];
+    wxCvs = document.createElement('canvas');
+    wxCvs.id = 'hxWxTool';
+    wxCvs.setAttribute('aria-hidden', 'true');
+    wxCvs.width = wxW; wxCvs.height = wxH;
+    // 摆位照抄 hx-weather.js：320×180 像素帧整数倍放大、居中 cover、垫在内容下面
+    wxCvs.style.cssText = 'position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:-1;pointer-events:none;'
+      + 'image-rendering:pixelated;image-rendering:crisp-edges;opacity:.9';
+    document.body.appendChild(wxCvs);
+    wxG = wxCvs.getContext('2d');
+    if (!wxG) return wxRemove();
+    wxImgD = wxG.createImageData(wxW, wxH);
+    wxFrame = P.createFrame(wxW, wxH);
+    var o = m2.origin || [wxW / 2, wxH / 2];
+    wxFx = P.createFx(wxMod, { x: o[0], y: o[1], seed: Math.floor(Math.random() * 997) });
+    wxSize();
+    wxMirrorScan();
+    wxDraw(0); // 先出一帧，别空白等下一帧
+    if (!wxStill()) wxKick();
+    wxCur = id;
+  }
+  function wxSize() {
+    if (!wxCvs) return;
+    var sc = Math.max(1, Math.ceil(Math.max(innerWidth / wxW, innerHeight / wxH)));
+    wxCvs.style.width = wxW * sc + 'px';
+    wxCvs.style.height = wxH * sc + 'px';
+  }
+  function wxDraw(dt) {
+    if (!wxFx || !wxG) return;
+    if (dt) wxFx.update(dt);
+    var P = window.PixelFXWeather;
+    P.clearFrame(wxFrame); wxFx.draw(wxFrame, 'back'); wxFx.draw(wxFrame, 'front');
+    P.composite(wxFrame, wxImgD.data, null);
+    wxG.clearRect(0, 0, wxW, wxH);
+    wxG.putImageData(wxImgD, 0, 0);
+    wxMirrorDraw(); // 同源 iframe 里的镜像同步这一帧（接线仿真这类被 iframe 盖满的工具就靠它看见动效）
+  }
+  function wxKick() {
+    if (wxStill() || document.hidden || !wxFx || wxRaf) return;
+    wxRaf = requestAnimationFrame(wxStep);
+  }
+  function wxStep(now) {
+    wxRaf = 0;
+    if (document.hidden || !wxFx) return;
+    var gap = 1000 / (document.documentElement.classList.contains('hx-lite') ? 18 : 24); // 氛围动画，24fps 封顶（省电 18）
+    if (wxLast && now - wxLast < gap - 1) { wxRaf = requestAnimationFrame(wxStep); return; }
+    var dt = wxLast ? Math.min((now - wxLast) / 1000, 0.12) : 0;
+    wxLast = now;
+    wxDraw(dt);
+    wxRaf = requestAnimationFrame(wxStep);
+  }
+  function wxApply(id) {
+    if (!tool) return;                      // 首页交给 fx/hx-weather.js（它读旧全局键 = 首页自己的存档）
+    if (id === wxCur) return;
+    wxCur = id;
+    if (!id) return wxRemove();
+    var P = window.PixelFXWeather;
+    if (!P || !P.effects) {                 // 特效库还没到：懒加载一次，到了再挂
+      if (wxLib) return;
+      wxLib = true;
+      var sc2 = document.createElement('script');
+      sc2.src = root + 'fx/pixelfx-weather.js';
+      sc2.onerror = function () { };
+      sc2.onload = function () { if (wxCur) { var c = wxCur; wxCur = null; wxApply(c); } };
+      (document.head || document.documentElement).appendChild(sc2);
+      return;
+    }
+    if (!document.body) { addEventListener('DOMContentLoaded', function () { if (wxCur) { var c2 = wxCur; wxCur = null; wxApply(c2); } }); return; }
+    wxMount(id);
+  }
+  addEventListener('visibilitychange', function () { if (!tool) return; if (document.hidden) { if (wxRaf) { cancelAnimationFrame(wxRaf); wxRaf = 0; } } else wxKick(); });
+  var wxRzT = 0;
+  addEventListener('resize', function () { if (!wxCvs || wxRzT) return; wxRzT = setTimeout(function () { wxRzT = 0; wxSize(); wxMirrorSize(); }, 180); });
+  // 接线仿真按需创建电路 iframe：它的 load 事件不冒泡，但捕获阶段能到达 window（srcdoc 页面
+  // 的 target 是那份 Document，不是 iframe 元素），所以不判 tagName、来了就补扫一遍 ——
+  // 扫描本身带去重（挂过的 iframe 有标记）和 try/catch，跑空也几乎零开销。
+  addEventListener('load', function () { if (tool && wxCvs) { wxMirrorScan(); wxMirrorSize(); } }, true);
+
   function apply() {
     // get() 不带参数 = 取「屏幕上正在显示的那一层」：总入口开着工具时就是那个工具，
     // 于是顶栏/地址栏主题色和工具页同一套，不会出现「上面深色条、下面浅色页」的拼接感。
     // 关掉工具回首页时 paneRefresh() 会再 apply 一次，顶栏自动换回首页自己的设置。
     var s = get(), m = modeOf(s), a = ACC[s.acc], r = document.documentElement, b = BG[s.bg];
+    // 嵌在总入口 iframe 里的工具：背景由总入口统一画，自己不再画背景层（见文件开头 hx-embedded 那段）。
+    var embedded = !!(tool && window.top !== window);
     var c = m === 'dark' ? a.d : a.l, c2 = m === 'dark' ? a.d2 : a.l2;
     r.setAttribute('data-hx-mode', m); r.setAttribute('data-theme', m); r.setAttribute('data-hx-acc', s.acc);
-    r.classList.toggle('hx-bg', s.bg !== 'none');
-    r.classList.toggle('hx-wm-off', !s.wm);   // 校徽水印开关（外观面板里可切，默认开）
-    // 视频壁纸：图层面自己播，--hx-img 置空，body::before 只留深色模式那层压暗 scrim
+    r.classList.toggle('hx-bg', s.bg !== 'none' || (tool && s.wx !== 'none'));
+    // ↑ 工具页只开了动效、没开背景时也要挂 hx-bg：接线仿真这类工具靠 hx-bg + --hx-img 判断
+    //   「要不要把自己的画布调成半透明」（见下面透明哨兵图那段）。hx-theme.css 里 html.hx-bg 的
+    //   几条规则此时铺的是透明哨兵图，肉眼无感，不会多出一层画面。
+    r.classList.toggle('hx-wm-off', !s.wm);   // 校徽水印开关（每界面独立：首页默认开、工具页默认关）
+    // 页面层开关（VER 6）：有背景或动效可看时才把 body 放透明、铺页面底色；
+    // 两个都是「无」时不挂 —— 页面保持自己原来的底色，就是用户要的干净纯色背景。
+    // 嵌入时不挂：body::before 这一层背景由总入口透上来，挂了自己又画一遍 = 双重背景。
+    r.classList.toggle('hx-layer', !embedded && (s.bg !== 'none' || s.wx !== 'none'));
+    // 视频壁纸：图层面自己播。--hx-img 给海报帧而不是 'none'：
+    //   · 视频解码好之前 body::before 先铺海报，避免黑屏闪一下；
+    //   · 接线仿真这类「画布不透明的工具」靠读 --hx-img 拿到背景图地址（theme.js 的 hxLook 通道），
+    //     给 'none' 它就拿不到，背景永远是纯色 —— 用户说的「背景没东西」一半是这条。
+    //   · 视频真正在播时 body::before 会整层藏起来（hx-vidlive），不会盖住视频。
     var isVid = !!(b && b.video) && s.bg !== 'none';
     var img = s.bg === 'custom' ? 'url("' + ls(IMG) + '")' : b.img ? 'url("' + root + b.img + '")' : b.css || 'none';
+    if (isVid && b.poster) img = 'url("' + root + b.poster + '")';
     // 移动端 / 省电 / 减少动效：不播视频，但**背景照样得有** —— 把海报帧交给 --hx-img，
     // 走 body::before 那条现成的「铺满 cover + --hx-bgo 透明度」链路，观感和视频帧一模一样，
     // 且手机不需要下载 634KB 的 mp4。这条是「手机跳成播放器」的治本修法。
     // 窄屏（≤820）也要给海报：视频元素此时被 CSS display:none 藏了，不给海报就只剩页底色。
     var vidStill = isVid && (bgNoVideo() || bgNarrow());
     if (vidStill && b.poster) img = 'url("' + root + b.poster + '")';
+    // 视频真的在播：把 body::before 的海报帧整层藏起来 —— 它在 z-index:-1、视频层(-2)之上，
+    // 不藏会把视频整个盖住。视频停了/降级了（手机、省电）再放回来当静图。
+    r.classList.toggle('hx-vidlive', isVid && !vidStill);
+    // 透明哨兵图（2026-11-08）：工具页选了「背景=无 + 动效≠无」时，动效画布要能被看见，
+    // 前提是接线仿真这类「自带不透明画布的工具」肯把自己的底色调成半透明 —— 它们只认
+    // hxLook 传过去的 --hx-img（有图才肯透）。所以这里放一张 1px 的透明 GIF 冒充「有背景」：
+    // 练习页把画布调成半透明、把一张透明图铺在自己 html 底上（等于透明），
+    // 真正的画面由外壳的动效画布 + iframe 里的镜像画布透上来。背景选了真图时不走这条。
+    var wxOn = !!tool && s.wx !== 'none';
+    if (wxOn && s.bg === 'none') img = 'url("data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7")';
     // --hx-a：玻璃浓度乘数（各条玻璃配方的 alpha 都乘它）。
     // 2026-11-05 随通透度滑杆翻转语义：100（最透）= 1，正好是 2026-11-04 定稿的那套清透玻璃；
     // 往下调卡片变实：0 = 2，各配方 alpha × 2 后被浏览器钳到 1，整卡变成实色（保可读的兜底端）。
     var hx_a = s.bg === 'none' ? 1 : 1 + (100 - s.clr) / 100;
-    // 2026-11-06 浅色：壁纸浓度整体压到 14%（视频层、图片层、手机上的海报帧**都吃这根变量**，一处管住全站）。
-    // 为什么不给每张页面补一条遮罩：背景视频是独立合成层，页面上的半透明遮罩压不住它 ——
-    // 实测把遮罩改成 0.9 不透明红，页面一点红都不出，视频照样盖在最上面；
-    // 只有把壁纸层自己的不透明度降下来，浅色下的主体才真的变浅（18,52,76 → 213,217,223）。
-    // 「背景清晰度」滑杆照旧按比例生效：100 → 14%，30 → 4.2%，0 → 背景全无。深色一行没动。
-    var bgo = s.bgo / 100 * (m === 'light' ? .14 : 1);
+    // ── 背景清晰度（bgo）滑杆：0～100 直映到 0～1 的不透明度，两端真实可到 ──
+    // 2026-11-08 修用户报障「拉满还是浅浅雾蒙蒙 / 透明度没有真实到 0-100」：
+    // 原来浅色整体压到 14%，滑杆拉满也只有 14% —— 现在两个模式都是 100% = 原样、0% = 几乎全无。
+    var bgo = s.bgo / 100;
+    // 深色 scrim（壁纸太亮时压暗）随 bgo 一起收：bgo=100 时 scrim=0，背景原图直出、不再蒙灰。
+    var scrim = m === 'dark' ? (1 - bgo) * 0.38 : 0;
     var vars = { '--acc': c, '--acc2': c2, '--acc3': c2, '--acc-h': c2, '--on-acc': s.acc === 'mono' && m === 'dark' ? '#1d1d1f' : '#fff',
       '--accbg': 'color-mix(in srgb, ' + c + ' 14%, transparent)', '--ring': 'color-mix(in srgb, ' + c + ' 40%, transparent)',
-      '--hov': 'color-mix(in srgb, ' + c + ' 10%, transparent)', '--hx-a': hx_a, '--hx-img': isVid && !vidStill ? 'none' : img, '--hx-bgo': bgo };
+      '--hov': 'color-mix(in srgb, ' + c + ' 10%, transparent)', '--hx-a': hx_a, '--hx-img': img, '--hx-bgo': bgo, '--hx-scrim': scrim,
+      // --hx-page：挂 .hx-layer 时 html 铺的纯色底（跟深浅主题走）。工具页各有各的底色调子，
+      // 这里统一成主题的标准底色 —— 只在「有背景/动效可看」时才露出来，无 + 无 时页面还是自己的底色。
+      '--hx-page': m === 'dark' ? '#000' : '#f5f5f7' };
     for (var k in vars) r.style.setProperty(k, vars[k]);
     r.classList.remove('hx-bgblur'); // 旧版挂的「预糊图」标记，现在没有任何样式依赖它，清掉防止老缓存残留
-    bgVideo(isVid ? b.video : null, isVid ? b.poster : null, isVid && b.mirror);
-    // 海报帧兜底时（手机 / 窄屏）补一层 CSS 合成动画，不然手机上的背景是一张不动的静图。
-    // 只认「视频壁纸被降级」这一种：普通图片壁纸、纯色背景保持原样，不动用户选好的画面。
-    bgMotion(vidStill && !!b.video);
+    // 嵌入的工具不建自己的视频/极光层（背景由总入口透上来），只把 --hx-img 传下去供工具判断画布是否半透明。
+    if (!embedded) {
+      bgVideo(isVid ? b.video : null, isVid ? b.poster : null, isVid && b.mirror);
+      // 海报帧兜底时（手机 / 窄屏）补一层 CSS 合成动画，不然手机上的背景是一张不动的静图。
+      // 只认「视频壁纸被降级」这一种：普通图片壁纸、纯色背景保持原样，不动用户选好的画面。
+      bgMotion(vidStill && !!b.video);
+    }
+    // 背景动效（每界面独立）：工具页在这里挂/摘自己的那一层；首页由 fx/hx-weather.js 负责（见 wxApply 注释）
+    wxApply(s.wx !== 'none' ? s.wx : null);
     var meta = document.querySelector('meta[name="theme-color"]'); if (meta) meta.setAttribute('content', m === 'dark' ? '#000000' : '#f5f5f7');
     try { ls('zfz-practice-theme', m); ls('wanxiu-paike-theme', m); ls('ui.theme', JSON.stringify(m)); } catch (e) { }
     for (var i = 0; i < subs.length; i++) try { subs[i](s, m); } catch (e) { }
   }
-  // set(patch)：按字段落键。bg / wx / wm → 全局键 hx-theme（全站一份）；
-  // acc / mode / clr / bgo → 界面上正在显示的那一层（paneSurf：总入口开了工具就是那个工具，见上面那段）。
+  // set(patch)：按字段落键（VER 6）。acc / mode / clr / bgo → 界面上正在显示的那一层；
+  // bg / wx / wm：工具页 → 写进它自己的键；首页 → 仍写旧全局键 hx-theme
+  //（fx/hx-weather.js 只认它；它也是别的工具页第一次打开时的继承来源）。
   // 换背景时不再自动改卡片透明度（老版会把 op 拉到该背景的「推荐值」）：通透度是界面自己的设置，不该被背景顺手改掉。
   function set(patch) {
-    var surf = paneSurf();
+    var surf = paneSurf(), home = surf === 'home';
     var g = jparse(ls(KEY)) || {}, o = jparse(ls(SKEY + surf)) || {}, hitG = false, hitO = false;
     for (var k in patch) {
-      if (k === 'bg' || k === 'wx' || k === 'wm') { g[k] = patch[k]; hitG = true; }
+      if (k === 'bg' || k === 'wx' || k === 'wm') {
+        if (home) { g[k] = patch[k]; hitG = true; }   // 首页：背景三件套继续住在旧全局键里
+        else { o[k] = patch[k]; hitO = true; }        // 工具页：写自己的键，从此和首页、和别的工具脱钩
+      }
       else if (k === 'acc' || k === 'mode' || k === 'clr' || k === 'bgo') { o[k] = patch[k]; hitO = true; }
     }
     if (hitG) { g.ver = VER; try { ls(KEY, JSON.stringify(g)); } catch (e) { } }
     // 写到别的界面（总入口开着工具）时，那一页是**另一个文档**：它靠 storage 事件自己刷，
     // 本页的 apply() 只是把面板重画一遍（get() 读的也是那一层，按钮高亮才对得上）。
-    if (hitO) { try { ls(SKEY + surf, JSON.stringify(o)); } catch (e) { } }
+    if (hitO) { o.ver = VER; try { ls(SKEY + surf, JSON.stringify(o)); } catch (e) { } }
     apply();
   }
   // 自己上传的图：缩到长边 1920、转 JPEG，免得撑爆浏览器存储（旧站是原图、限 3MB）
@@ -1067,14 +1390,26 @@ html.hx-lite .hx-crumb:active::after { animation: none; }
       im.src = url;
     });
   }
-  // 恢复默认：清全局设置、清当前图、清**本界面**的设置，但**不动相册** —— 用户点「恢复默认」是想回到出厂样子，
+  // 恢复默认：清**本界面**的设置，不动相册 —— 用户点「恢复默认」是想回到出厂样子，
   // 不是想把辛苦攒的几张背景一起删了。要删单张去相册里点 ×。
-  function reset() { ls(KEY, null); ls(IMG, null); ls(SKEY + paneSurf(), null); apply(); }
-  // storage 事件：全局键（背景 / 动效 / 水印 / 图 / 开发者标）变了全站跟着刷；
-  // 界面键只有「自己的那一份」变了才刷——别的工具改深浅色不该惊动这一页（分层隔离的意义就在这）。
-  // 例外：总入口正开着某个工具时，那个工具的键也算"自己这一份"（顶栏要和 iframe 里保持一致），
-  // 见 paneSurf()。
-  addEventListener('storage', function (e) { if (e.key === KEY || e.key === IMG || e.key === DEV || e.key === SKEY + SURF || e.key === SKEY + paneSurf() || e.key === null) apply(); });
+  // 首页：连旧全局键一起清（背景/动效/水印住在那把键里），上传的当前图也一并清；
+  // 工具页：**只写一份全默认的存档覆盖自己**（并且从此不再继承首页的任何值），
+  // 旧全局键和首页的图都别碰 —— 在工具页点恢复默认把首页的背景一起抹掉是事故（2026-11-08 修）。
+  function reset() {
+    var surf = paneSurf();
+    if (surf === 'home') { ls(KEY, null); ls(IMG, null); ls(SKEY + surf, null); }
+    else { try { ls(SKEY + surf, JSON.stringify({ ver: VER, acc: DEF.acc, mode: DEF.mode, clr: DEF.clr, bgo: 100, bg: DEF.bg, wx: DEF.wx, wm: 0 })); } catch (e) { } }
+    apply();
+  }
+  // storage 事件（VER 6）：
+  //   · 本界面的键（自己的存档）变了 → 刷；总入口正开着的那个工具的键变了也刷（顶栏要跟着 iframe 一致）；
+  //   · 旧全局键变了：首页跟着刷（背景/动效/水印就住在那把键里）；工具页**只有还没有自己的存档**
+  //     （正在继承旧值）时才跟——一旦有了自己的存档就再也不看它，这才是「相互独立」的根；
+  //   · 上传图 / 开发者标变了照旧刷。
+  addEventListener('storage', function (e) {
+    if (e.key === SKEY + SURF || e.key === SKEY + paneSurf() || e.key === IMG || e.key === DEV || e.key === null) { apply(); return; }
+    if (e.key === KEY && (SURF === 'home' || !jparse(ls(SKEY + SURF)))) apply();
+  });
   // 总入口换工具（#jiafen ↔ 首页）时，面板要改的那一层跟着换：重画面板（get() 读 paneSurf）。
   // popstate 和 hashchange 都挂：Safari 上前进/后退不一定两个都发，宁可多调一次 —— apply() 是幂等的。
   var lastPane = paneSurf();
@@ -1083,8 +1418,39 @@ html.hx-lite .hx-crumb:active::after { animation: none; }
   if (dark) (dark.addEventListener ? dark.addEventListener('change', apply) : dark.addListener(apply));
   // 总入口（同源的上层页面）：子工具要登录时请它弹登录窗口；不在框里就跳回首页
   function portal() { try { return window.top !== window && window.top.HXPortal ? window.top.HXPortal : null; } catch (e) { return null; } }
+  /* ---------- 未登录不许用工具（2026-11-08 用户定，补回上次的临时放开） ----------
+     用户原话：「没登录的人不允许使用任何工具 现在我发现不登录都能有好多工具 这是不对的 上次临时放开没有关闭上你」。
+     2026-11-01 为了修注册，曾经在总入口和各工具页放开过免登录；注册早修好了，总入口那边已经收，
+     但**工具页自己没收到通知**——直接把 /shuati/ 这类地址打开，照样能刷题、能做题。
+     所以闸门放在这里：凡是引用本脚本的工具页（刷题、接线仿真、单片机、考试、排课、小组加分、课程进度、
+     进制转换、反馈，含各工具打包后的线上产物）都过这一道，一处改、全部生效。
+
+     判定只看「有没有 access_token」，不做网络请求、不续期（续期是各工具自己的 hx.js 的事）。
+     没登录时：
+       · 在总入口里（iframe）→ 不自己画东西，请总入口弹登录（login()）；总入口已经把整块 iframe 挡住了。
+       · 单独打开 → 跳回总入口对应工具（hx-theme.js 开头本来就这么做）。
+     总入口首页（没有 data-tool）不走这里 —— 它自己要显示「登录 / 注册」那一格。
+     调试例外：地址带 ?solo 不做闸门（离线单文件、本地预览、自动化测试都用它）。 */
+  var SKEY_SESS = 'paike-session';
+  function signedIn() {
+    try { var s = JSON.parse(localStorage.getItem(SKEY_SESS) || 'null'); return !!(s && s.access_token); } catch (e) { return false; }
+  }
+  function gate() {
+    if (!tool) return false;                                        // 总入口自己不管
+    if (/[?&]solo\b/.test(location.search)) return false;           // 调试例外
+    // 离线单文件（file:// / 打包成 data:）没有总入口可跳，也就不该拦 —— 那是机房无网时的用法
+    if (!/^https?:$/.test(location.protocol)) return false;
+    if (signedIn()) return false;
+    var p = portal();
+    if (p) return false;   // 在总入口里：整块 iframe 由总入口遮住，这里不用再画
+    location.replace(root + '#' + tool);                            // 单独打开：回总入口登录
+    return true;
+  }
+  var gated = gate();
   window.HXTheme = { acc: ACC, bg: BG, wx: WX, root: root, surface: SURF, get: get, mode: function () { return modeOf(get()); }, set: set, upload: upload, reset: reset, isDev: isDev, setDev: setDev, onChange: function (fn) { subs.push(fn); },
     portal: portal, login: function () { var p = portal(); if (p) p.login(); else location.href = root + (tool ? '#' + tool : ''); },
+    // 未登录闸门结果：工具页拿到 true 就该立刻停下（别先画界面再被跳走）
+    gated: gated, signedIn: signedIn,
     // 上传过的背景相册（2026-11-04）：imgs() 取列表、useImg(id) 切回、delImg(id) 删一张
     imgs: imgs, useImg: useImg, delImg: delImg,
     // 像素方块「正在载入」药丸（2026-11-04）：见文件上方 loadPill 那段注释。
@@ -1226,7 +1592,16 @@ __d('version-check', "\nexports.isValid = function isValid (version) {\n  return
 __d('format-info', "const Utils = require('utils')\n\nconst G15 = (1 << 10) | (1 << 8) | (1 << 5) | (1 << 4) | (1 << 2) | (1 << 1) | (1 << 0)\nconst G15_MASK = (1 << 14) | (1 << 12) | (1 << 10) | (1 << 4) | (1 << 1)\nconst G15_BCH = Utils.getBCHDigit(G15)\n\n\nexports.getEncodedBits = function getEncodedBits (errorCorrectionLevel, mask) {\n  const data = ((errorCorrectionLevel.bit << 3) | mask)\n  let d = data << 10\n\n  while (Utils.getBCHDigit(d) - G15_BCH >= 0) {\n    d ^= (G15 << (Utils.getBCHDigit(d) - G15_BCH))\n  }\n\n  // xor final data with mask pattern in order to ensure that\n  // no combination of Error Correction Level and data mask pattern\n  // will result in an all-zero data string\n  return ((data << 10) | d) ^ G15_MASK\n}\n");
 __d('mode', "const VersionCheck = require('version-check')\nconst Regex = require('regex')\n\n\nexports.NUMERIC = {\n  id: 'Numeric',\n  bit: 1 << 0,\n  ccBits: [10, 12, 14]\n}\n\n\nexports.ALPHANUMERIC = {\n  id: 'Alphanumeric',\n  bit: 1 << 1,\n  ccBits: [9, 11, 13]\n}\n\n\nexports.BYTE = {\n  id: 'Byte',\n  bit: 1 << 2,\n  ccBits: [8, 16, 16]\n}\n\n\nexports.KANJI = {\n  id: 'Kanji',\n  bit: 1 << 3,\n  ccBits: [8, 10, 12]\n}\n\n\nexports.MIXED = {\n  bit: -1\n}\n\n\nexports.getCharCountIndicator = function getCharCountIndicator (mode, version) {\n  if (!mode.ccBits) throw new Error('Invalid mode: ' + mode)\n\n  if (!VersionCheck.isValid(version)) {\n    throw new Error('Invalid version: ' + version)\n  }\n\n  if (version >= 1 && version < 10) return mode.ccBits[0]\n  else if (version < 27) return mode.ccBits[1]\n  return mode.ccBits[2]\n}\n\n\nexports.getBestModeForData = function getBestModeForData (dataStr) {\n  if (Regex.testNumeric(dataStr)) return exports.NUMERIC\n  else if (Regex.testAlphanumeric(dataStr)) return exports.ALPHANUMERIC\n  else if (Regex.testKanji(dataStr)) return exports.KANJI\n  else return exports.BYTE\n}\n\n\nexports.toString = function toString (mode) {\n  if (mode && mode.id) return mode.id\n  throw new Error('Invalid mode')\n}\n\n\nexports.isValid = function isValid (mode) {\n  return mode && mode.bit && mode.ccBits\n}\n\n\nfunction fromString (string) {\n  if (typeof string !== 'string') {\n    throw new Error('Param is not a string')\n  }\n\n  const lcStr = string.toLowerCase()\n\n  switch (lcStr) {\n    case 'numeric':\n      return exports.NUMERIC\n    case 'alphanumeric':\n      return exports.ALPHANUMERIC\n    case 'kanji':\n      return exports.KANJI\n    case 'byte':\n      return exports.BYTE\n    default:\n      throw new Error('Unknown mode: ' + string)\n  }\n}\n\n\nexports.from = function from (value, defaultValue) {\n  if (exports.isValid(value)) {\n    return value\n  }\n\n  try {\n    return fromString(value)\n  } catch (e) {\n    return defaultValue\n  }\n}\n");
 __d('numeric-data', "const Mode = require('mode')\n\nfunction NumericData (data) {\n  this.mode = Mode.NUMERIC\n  this.data = data.toString()\n}\n\nNumericData.getBitsLength = function getBitsLength (length) {\n  return 10 * Math.floor(length / 3) + ((length % 3) ? ((length % 3) * 3 + 1) : 0)\n}\n\nNumericData.prototype.getLength = function getLength () {\n  return this.data.length\n}\n\nNumericData.prototype.getBitsLength = function getBitsLength () {\n  return NumericData.getBitsLength(this.data.length)\n}\n\nNumericData.prototype.write = function write (bitBuffer) {\n  let i, group, value\n\n  // The input data string is divided into groups of three digits,\n  // and each group is converted to its 10-bit binary equivalent.\n  for (i = 0; i + 3 <= this.data.length; i += 3) {\n    group = this.data.substr(i, 3)\n    value = parseInt(group, 10)\n\n    bitBuffer.put(value, 10)\n  }\n\n  // If the number of input digits is not an exact multiple of three,\n  // the final one or two digits are converted to 4 or 7 bits respectively.\n  const remainingNum = this.data.length - i\n  if (remainingNum > 0) {\n    group = this.data.substr(i)\n    value = parseInt(group, 10)\n\n    bitBuffer.put(value, remainingNum * 3 + 1)\n  }\n}\n\nmodule.exports = NumericData\n");
-__d('alphanumeric-data', "const Mode = require('mode')\n\n\nconst ALPHA_NUM_CHARS = [\n  '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',\n  'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',\n  'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',\n  ' ', '
+__d('alphanumeric-data', "const Mode = require('mode')\n\n\nconst ALPHA_NUM_CHARS = [\n  '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',\n  'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',\n  'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',\n  ' ', '$', '%', '*', '+', '-', '.', '/', ':'\n]\n\nfunction AlphanumericData (data) {\n  this.mode = Mode.ALPHANUMERIC\n  this.data = data\n}\n\nAlphanumericData.getBitsLength = function getBitsLength (length) {\n  return 11 * Math.floor(length / 2) + 6 * (length % 2)\n}\n\nAlphanumericData.prototype.getLength = function getLength () {\n  return this.data.length\n}\n\nAlphanumericData.prototype.getBitsLength = function getBitsLength () {\n  return AlphanumericData.getBitsLength(this.data.length)\n}\n\nAlphanumericData.prototype.write = function write (bitBuffer) {\n  let i\n\n  // Input data characters are divided into groups of two characters\n  // and encoded as 11-bit binary codes.\n  for (i = 0; i + 2 <= this.data.length; i += 2) {\n    // The character value of the first character is multiplied by 45\n    let value = ALPHA_NUM_CHARS.indexOf(this.data[i]) * 45\n\n    // The character value of the second digit is added to the product\n    value += ALPHA_NUM_CHARS.indexOf(this.data[i + 1])\n\n    // The sum is then stored as 11-bit binary number\n    bitBuffer.put(value, 11)\n  }\n\n  // If the number of input data characters is not a multiple of two,\n  // the character value of the final character is encoded as a 6-bit binary number.\n  if (this.data.length % 2) {\n    bitBuffer.put(ALPHA_NUM_CHARS.indexOf(this.data[i]), 6)\n  }\n}\n\nmodule.exports = AlphanumericData\n");
+__d('byte-data', "const Mode = require('mode')\n\nfunction ByteData (data) {\n  this.mode = Mode.BYTE\n  if (typeof (data) === 'string') {\n    this.data = new TextEncoder().encode(data)\n  } else {\n    this.data = new Uint8Array(data)\n  }\n}\n\nByteData.getBitsLength = function getBitsLength (length) {\n  return length * 8\n}\n\nByteData.prototype.getLength = function getLength () {\n  return this.data.length\n}\n\nByteData.prototype.getBitsLength = function getBitsLength () {\n  return ByteData.getBitsLength(this.data.length)\n}\n\nByteData.prototype.write = function (bitBuffer) {\n  for (let i = 0, l = this.data.length; i < l; i++) {\n    bitBuffer.put(this.data[i], 8)\n  }\n}\n\nmodule.exports = ByteData\n");
+__d('kanji-data', "const Mode = require('mode')\nconst Utils = require('utils')\n\nfunction KanjiData (data) {\n  this.mode = Mode.KANJI\n  this.data = data\n}\n\nKanjiData.getBitsLength = function getBitsLength (length) {\n  return length * 13\n}\n\nKanjiData.prototype.getLength = function getLength () {\n  return this.data.length\n}\n\nKanjiData.prototype.getBitsLength = function getBitsLength () {\n  return KanjiData.getBitsLength(this.data.length)\n}\n\nKanjiData.prototype.write = function (bitBuffer) {\n  let i\n\n  // In the Shift JIS system, Kanji characters are represented by a two byte combination.\n  // These byte values are shifted from the JIS X 0208 values.\n  // JIS X 0208 gives details of the shift coded representation.\n  for (i = 0; i < this.data.length; i++) {\n    let value = Utils.toSJIS(this.data[i])\n\n    // For characters with Shift JIS values from 0x8140 to 0x9FFC:\n    if (value >= 0x8140 && value <= 0x9FFC) {\n      // Subtract 0x8140 from Shift JIS value\n      value -= 0x8140\n\n    // For characters with Shift JIS values from 0xE040 to 0xEBBF\n    } else if (value >= 0xE040 && value <= 0xEBBF) {\n      // Subtract 0xC140 from Shift JIS value\n      value -= 0xC140\n    } else {\n      throw new Error(\n        'Invalid SJIS character: ' + this.data[i] + '\\n' +\n        'Make sure your charset is UTF-8')\n    }\n\n    // Multiply most significant byte of result by 0xC0\n    // and add least significant byte to product\n    value = (((value >>> 8) & 0xff) * 0xC0) + (value & 0xff)\n\n    // Convert result to a 13-bit binary string\n    bitBuffer.put(value, 13)\n  }\n}\n\nmodule.exports = KanjiData\n");
+__d('regex', "const numeric = '[0-9]+'\nconst alphanumeric = '[A-Z $%*+\\\\-./:]+'\nlet kanji = '(?:[u3000-u303F]|[u3040-u309F]|[u30A0-u30FF]|' +\n  '[uFF00-uFFEF]|[u4E00-u9FAF]|[u2605-u2606]|[u2190-u2195]|u203B|' +\n  '[u2010u2015u2018u2019u2025u2026u201Cu201Du2225u2260]|' +\n  '[u0391-u0451]|[u00A7u00A8u00B1u00B4u00D7u00F7])+'\nkanji = kanji.replace(/u/g, '\\\\u')\n\nconst byte = '(?:(?![A-Z0-9 $%*+\\\\-./:]|' + kanji + ')(?:.|[\\r\\n]))+'\n\nexports.KANJI = new RegExp(kanji, 'g')\nexports.BYTE_KANJI = new RegExp('[^A-Z0-9 $%*+\\\\-./:]+', 'g')\nexports.BYTE = new RegExp(byte, 'g')\nexports.NUMERIC = new RegExp(numeric, 'g')\nexports.ALPHANUMERIC = new RegExp(alphanumeric, 'g')\n\nconst TEST_KANJI = new RegExp('^' + kanji + '$')\nconst TEST_NUMERIC = new RegExp('^' + numeric + '$')\nconst TEST_ALPHANUMERIC = new RegExp('^[A-Z0-9 $%*+\\\\-./:]+$')\n\nexports.testKanji = function testKanji (str) {\n  return TEST_KANJI.test(str)\n}\n\nexports.testNumeric = function testNumeric (str) {\n  return TEST_NUMERIC.test(str)\n}\n\nexports.testAlphanumeric = function testAlphanumeric (str) {\n  return TEST_ALPHANUMERIC.test(str)\n}\n");
+__d('segments', "const Mode = require('mode')\nconst NumericData = require('numeric-data')\nconst AlphanumericData = require('alphanumeric-data')\nconst ByteData = require('byte-data')\nconst KanjiData = require('kanji-data')\nconst Regex = require('regex')\nconst Utils = require('utils')\nconst dijkstra = require('dijkstrajs')\n\n\nfunction getStringByteLength (str) {\n  return unescape(encodeURIComponent(str)).length\n}\n\n\nfunction getSegments (regex, mode, str) {\n  const segments = []\n  let result\n\n  while ((result = regex.exec(str)) !== null) {\n    segments.push({\n      data: result[0],\n      index: result.index,\n      mode: mode,\n      length: result[0].length\n    })\n  }\n\n  return segments\n}\n\n\nfunction getSegmentsFromString (dataStr) {\n  const numSegs = getSegments(Regex.NUMERIC, Mode.NUMERIC, dataStr)\n  const alphaNumSegs = getSegments(Regex.ALPHANUMERIC, Mode.ALPHANUMERIC, dataStr)\n  let byteSegs\n  let kanjiSegs\n\n  if (Utils.isKanjiModeEnabled()) {\n    byteSegs = getSegments(Regex.BYTE, Mode.BYTE, dataStr)\n    kanjiSegs = getSegments(Regex.KANJI, Mode.KANJI, dataStr)\n  } else {\n    byteSegs = getSegments(Regex.BYTE_KANJI, Mode.BYTE, dataStr)\n    kanjiSegs = []\n  }\n\n  const segs = numSegs.concat(alphaNumSegs, byteSegs, kanjiSegs)\n\n  return segs\n    .sort(function (s1, s2) {\n      return s1.index - s2.index\n    })\n    .map(function (obj) {\n      return {\n        data: obj.data,\n        mode: obj.mode,\n        length: obj.length\n      }\n    })\n}\n\n\nfunction getSegmentBitsLength (length, mode) {\n  switch (mode) {\n    case Mode.NUMERIC:\n      return NumericData.getBitsLength(length)\n    case Mode.ALPHANUMERIC:\n      return AlphanumericData.getBitsLength(length)\n    case Mode.KANJI:\n      return KanjiData.getBitsLength(length)\n    case Mode.BYTE:\n      return ByteData.getBitsLength(length)\n  }\n}\n\n\nfunction mergeSegments (segs) {\n  return segs.reduce(function (acc, curr) {\n    const prevSeg = acc.length - 1 >= 0 ? acc[acc.length - 1] : null\n    if (prevSeg && prevSeg.mode === curr.mode) {\n      acc[acc.length - 1].data += curr.data\n      return acc\n    }\n\n    acc.push(curr)\n    return acc\n  }, [])\n}\n\n\nfunction buildNodes (segs) {\n  const nodes = []\n  for (let i = 0; i < segs.length; i++) {\n    const seg = segs[i]\n\n    switch (seg.mode) {\n      case Mode.NUMERIC:\n        nodes.push([seg,\n          { data: seg.data, mode: Mode.ALPHANUMERIC, length: seg.length },\n          { data: seg.data, mode: Mode.BYTE, length: seg.length }\n        ])\n        break\n      case Mode.ALPHANUMERIC:\n        nodes.push([seg,\n          { data: seg.data, mode: Mode.BYTE, length: seg.length }\n        ])\n        break\n      case Mode.KANJI:\n        nodes.push([seg,\n          { data: seg.data, mode: Mode.BYTE, length: getStringByteLength(seg.data) }\n        ])\n        break\n      case Mode.BYTE:\n        nodes.push([\n          { data: seg.data, mode: Mode.BYTE, length: getStringByteLength(seg.data) }\n        ])\n    }\n  }\n\n  return nodes\n}\n\n\nfunction buildGraph (nodes, version) {\n  const table = {}\n  const graph = { start: {} }\n  let prevNodeIds = ['start']\n\n  for (let i = 0; i < nodes.length; i++) {\n    const nodeGroup = nodes[i]\n    const currentNodeIds = []\n\n    for (let j = 0; j < nodeGroup.length; j++) {\n      const node = nodeGroup[j]\n      const key = '' + i + j\n\n      currentNodeIds.push(key)\n      table[key] = { node: node, lastCount: 0 }\n      graph[key] = {}\n\n      for (let n = 0; n < prevNodeIds.length; n++) {\n        const prevNodeId = prevNodeIds[n]\n\n        if (table[prevNodeId] && table[prevNodeId].node.mode === node.mode) {\n          graph[prevNodeId][key] =\n            getSegmentBitsLength(table[prevNodeId].lastCount + node.length, node.mode) -\n            getSegmentBitsLength(table[prevNodeId].lastCount, node.mode)\n\n          table[prevNodeId].lastCount += node.length\n        } else {\n          if (table[prevNodeId]) table[prevNodeId].lastCount = node.length\n\n          graph[prevNodeId][key] = getSegmentBitsLength(node.length, node.mode) +\n            4 + Mode.getCharCountIndicator(node.mode, version) // switch cost\n        }\n      }\n    }\n\n    prevNodeIds = currentNodeIds\n  }\n\n  for (let n = 0; n < prevNodeIds.length; n++) {\n    graph[prevNodeIds[n]].end = 0\n  }\n\n  return { map: graph, table: table }\n}\n\n\nfunction buildSingleSegment (data, modesHint) {\n  let mode\n  const bestMode = Mode.getBestModeForData(data)\n\n  mode = Mode.from(modesHint, bestMode)\n\n  // Make sure data can be encoded\n  if (mode !== Mode.BYTE && mode.bit < bestMode.bit) {\n    throw new Error('\"' + data + '\"' +\n      ' cannot be encoded with mode ' + Mode.toString(mode) +\n      '.\\n Suggested mode is: ' + Mode.toString(bestMode))\n  }\n\n  // Use Mode.BYTE if Kanji support is disabled\n  if (mode === Mode.KANJI && !Utils.isKanjiModeEnabled()) {\n    mode = Mode.BYTE\n  }\n\n  switch (mode) {\n    case Mode.NUMERIC:\n      return new NumericData(data)\n\n    case Mode.ALPHANUMERIC:\n      return new AlphanumericData(data)\n\n    case Mode.KANJI:\n      return new KanjiData(data)\n\n    case Mode.BYTE:\n      return new ByteData(data)\n  }\n}\n\n\nexports.fromArray = function fromArray (array) {\n  return array.reduce(function (acc, seg) {\n    if (typeof seg === 'string') {\n      acc.push(buildSingleSegment(seg, null))\n    } else if (seg.data) {\n      acc.push(buildSingleSegment(seg.data, seg.mode))\n    }\n\n    return acc\n  }, [])\n}\n\n\nexports.fromString = function fromString (data, version) {\n  const segs = getSegmentsFromString(data, Utils.isKanjiModeEnabled())\n\n  const nodes = buildNodes(segs)\n  const graph = buildGraph(nodes, version)\n  const path = dijkstra.find_path(graph.map, 'start', 'end')\n\n  const optimizedSegs = []\n  for (let i = 1; i < path.length - 1; i++) {\n    optimizedSegs.push(graph.table[path[i]].node)\n  }\n\n  return exports.fromArray(mergeSegments(optimizedSegs))\n}\n\n\nexports.rawSplit = function rawSplit (data) {\n  return exports.fromArray(\n    getSegmentsFromString(data, Utils.isKanjiModeEnabled())\n  )\n}\n");
+__d('qrcode', "const Utils = require('utils')\nconst ECLevel = require('error-correction-level')\nconst BitBuffer = require('bit-buffer')\nconst BitMatrix = require('bit-matrix')\nconst AlignmentPattern = require('alignment-pattern')\nconst FinderPattern = require('finder-pattern')\nconst MaskPattern = require('mask-pattern')\nconst ECCode = require('error-correction-code')\nconst ReedSolomonEncoder = require('reed-solomon-encoder')\nconst Version = require('version')\nconst FormatInfo = require('format-info')\nconst Mode = require('mode')\nconst Segments = require('segments')\n\n\n\n\nfunction setupFinderPattern (matrix, version) {\n  const size = matrix.size\n  const pos = FinderPattern.getPositions(version)\n\n  for (let i = 0; i < pos.length; i++) {\n    const row = pos[i][0]\n    const col = pos[i][1]\n\n    for (let r = -1; r <= 7; r++) {\n      if (row + r <= -1 || size <= row + r) continue\n\n      for (let c = -1; c <= 7; c++) {\n        if (col + c <= -1 || size <= col + c) continue\n\n        if ((r >= 0 && r <= 6 && (c === 0 || c === 6)) ||\n          (c >= 0 && c <= 6 && (r === 0 || r === 6)) ||\n          (r >= 2 && r <= 4 && c >= 2 && c <= 4)) {\n          matrix.set(row + r, col + c, true, true)\n        } else {\n          matrix.set(row + r, col + c, false, true)\n        }\n      }\n    }\n  }\n}\n\n\nfunction setupTimingPattern (matrix) {\n  const size = matrix.size\n\n  for (let r = 8; r < size - 8; r++) {\n    const value = r % 2 === 0\n    matrix.set(r, 6, value, true)\n    matrix.set(6, r, value, true)\n  }\n}\n\n\nfunction setupAlignmentPattern (matrix, version) {\n  const pos = AlignmentPattern.getPositions(version)\n\n  for (let i = 0; i < pos.length; i++) {\n    const row = pos[i][0]\n    const col = pos[i][1]\n\n    for (let r = -2; r <= 2; r++) {\n      for (let c = -2; c <= 2; c++) {\n        if (r === -2 || r === 2 || c === -2 || c === 2 ||\n          (r === 0 && c === 0)) {\n          matrix.set(row + r, col + c, true, true)\n        } else {\n          matrix.set(row + r, col + c, false, true)\n        }\n      }\n    }\n  }\n}\n\n\nfunction setupVersionInfo (matrix, version) {\n  const size = matrix.size\n  const bits = Version.getEncodedBits(version)\n  let row, col, mod\n\n  for (let i = 0; i < 18; i++) {\n    row = Math.floor(i / 3)\n    col = i % 3 + size - 8 - 3\n    mod = ((bits >> i) & 1) === 1\n\n    matrix.set(row, col, mod, true)\n    matrix.set(col, row, mod, true)\n  }\n}\n\n\nfunction setupFormatInfo (matrix, errorCorrectionLevel, maskPattern) {\n  const size = matrix.size\n  const bits = FormatInfo.getEncodedBits(errorCorrectionLevel, maskPattern)\n  let i, mod\n\n  for (i = 0; i < 15; i++) {\n    mod = ((bits >> i) & 1) === 1\n\n    // vertical\n    if (i < 6) {\n      matrix.set(i, 8, mod, true)\n    } else if (i < 8) {\n      matrix.set(i + 1, 8, mod, true)\n    } else {\n      matrix.set(size - 15 + i, 8, mod, true)\n    }\n\n    // horizontal\n    if (i < 8) {\n      matrix.set(8, size - i - 1, mod, true)\n    } else if (i < 9) {\n      matrix.set(8, 15 - i - 1 + 1, mod, true)\n    } else {\n      matrix.set(8, 15 - i - 1, mod, true)\n    }\n  }\n\n  // fixed module\n  matrix.set(size - 8, 8, 1, true)\n}\n\n\nfunction setupData (matrix, data) {\n  const size = matrix.size\n  let inc = -1\n  let row = size - 1\n  let bitIndex = 7\n  let byteIndex = 0\n\n  for (let col = size - 1; col > 0; col -= 2) {\n    if (col === 6) col--\n\n    while (true) {\n      for (let c = 0; c < 2; c++) {\n        if (!matrix.isReserved(row, col - c)) {\n          let dark = false\n\n          if (byteIndex < data.length) {\n            dark = (((data[byteIndex] >>> bitIndex) & 1) === 1)\n          }\n\n          matrix.set(row, col - c, dark)\n          bitIndex--\n\n          if (bitIndex === -1) {\n            byteIndex++\n            bitIndex = 7\n          }\n        }\n      }\n\n      row += inc\n\n      if (row < 0 || size <= row) {\n        row -= inc\n        inc = -inc\n        break\n      }\n    }\n  }\n}\n\n\nfunction createData (version, errorCorrectionLevel, segments) {\n  // Prepare data buffer\n  const buffer = new BitBuffer()\n\n  segments.forEach(function (data) {\n    // prefix data with mode indicator (4 bits)\n    buffer.put(data.mode.bit, 4)\n\n    // Prefix data with character count indicator.\n    // The character count indicator is a string of bits that represents the\n    // number of characters that are being encoded.\n    // The character count indicator must be placed after the mode indicator\n    // and must be a certain number of bits long, depending on the QR version\n    // and data mode\n    // @see {@link Mode.getCharCountIndicator}.\n    buffer.put(data.getLength(), Mode.getCharCountIndicator(data.mode, version))\n\n    // add binary data sequence to buffer\n    data.write(buffer)\n  })\n\n  // Calculate required number of bits\n  const totalCodewords = Utils.getSymbolTotalCodewords(version)\n  const ecTotalCodewords = ECCode.getTotalCodewordsCount(version, errorCorrectionLevel)\n  const dataTotalCodewordsBits = (totalCodewords - ecTotalCodewords) * 8\n\n  // Add a terminator.\n  // If the bit string is shorter than the total number of required bits,\n  // a terminator of up to four 0s must be added to the right side of the string.\n  // If the bit string is more than four bits shorter than the required number of bits,\n  // add four 0s to the end.\n  if (buffer.getLengthInBits() + 4 <= dataTotalCodewordsBits) {\n    buffer.put(0, 4)\n  }\n\n  // If the bit string is fewer than four bits shorter, add only the number of 0s that\n  // are needed to reach the required number of bits.\n\n  // After adding the terminator, if the number of bits in the string is not a multiple of 8,\n  // pad the string on the right with 0s to make the string's length a multiple of 8.\n  while (buffer.getLengthInBits() % 8 !== 0) {\n    buffer.putBit(0)\n  }\n\n  // Add pad bytes if the string is still shorter than the total number of required bits.\n  // Extend the buffer to fill the data capacity of the symbol corresponding to\n  // the Version and Error Correction Level by adding the Pad Codewords 11101100 (0xEC)\n  // and 00010001 (0x11) alternately.\n  const remainingByte = (dataTotalCodewordsBits - buffer.getLengthInBits()) / 8\n  for (let i = 0; i < remainingByte; i++) {\n    buffer.put(i % 2 ? 0x11 : 0xEC, 8)\n  }\n\n  return createCodewords(buffer, version, errorCorrectionLevel)\n}\n\n\nfunction createCodewords (bitBuffer, version, errorCorrectionLevel) {\n  // Total codewords for this QR code version (Data + Error correction)\n  const totalCodewords = Utils.getSymbolTotalCodewords(version)\n\n  // Total number of error correction codewords\n  const ecTotalCodewords = ECCode.getTotalCodewordsCount(version, errorCorrectionLevel)\n\n  // Total number of data codewords\n  const dataTotalCodewords = totalCodewords - ecTotalCodewords\n\n  // Total number of blocks\n  const ecTotalBlocks = ECCode.getBlocksCount(version, errorCorrectionLevel)\n\n  // Calculate how many blocks each group should contain\n  const blocksInGroup2 = totalCodewords % ecTotalBlocks\n  const blocksInGroup1 = ecTotalBlocks - blocksInGroup2\n\n  const totalCodewordsInGroup1 = Math.floor(totalCodewords / ecTotalBlocks)\n\n  const dataCodewordsInGroup1 = Math.floor(dataTotalCodewords / ecTotalBlocks)\n  const dataCodewordsInGroup2 = dataCodewordsInGroup1 + 1\n\n  // Number of EC codewords is the same for both groups\n  const ecCount = totalCodewordsInGroup1 - dataCodewordsInGroup1\n\n  // Initialize a Reed-Solomon encoder with a generator polynomial of degree ecCount\n  const rs = new ReedSolomonEncoder(ecCount)\n\n  let offset = 0\n  const dcData = new Array(ecTotalBlocks)\n  const ecData = new Array(ecTotalBlocks)\n  let maxDataSize = 0\n  const buffer = new Uint8Array(bitBuffer.buffer)\n\n  // Divide the buffer into the required number of blocks\n  for (let b = 0; b < ecTotalBlocks; b++) {\n    const dataSize = b < blocksInGroup1 ? dataCodewordsInGroup1 : dataCodewordsInGroup2\n\n    // extract a block of data from buffer\n    dcData[b] = buffer.slice(offset, offset + dataSize)\n\n    // Calculate EC codewords for this data block\n    ecData[b] = rs.encode(dcData[b])\n\n    offset += dataSize\n    maxDataSize = Math.max(maxDataSize, dataSize)\n  }\n\n  // Create final data\n  // Interleave the data and error correction codewords from each block\n  const data = new Uint8Array(totalCodewords)\n  let index = 0\n  let i, r\n\n  // Add data codewords\n  for (i = 0; i < maxDataSize; i++) {\n    for (r = 0; r < ecTotalBlocks; r++) {\n      if (i < dcData[r].length) {\n        data[index++] = dcData[r][i]\n      }\n    }\n  }\n\n  // Apped EC codewords\n  for (i = 0; i < ecCount; i++) {\n    for (r = 0; r < ecTotalBlocks; r++) {\n      data[index++] = ecData[r][i]\n    }\n  }\n\n  return data\n}\n\n\nfunction createSymbol (data, version, errorCorrectionLevel, maskPattern) {\n  let segments\n\n  if (Array.isArray(data)) {\n    segments = Segments.fromArray(data)\n  } else if (typeof data === 'string') {\n    let estimatedVersion = version\n\n    if (!estimatedVersion) {\n      const rawSegments = Segments.rawSplit(data)\n\n      // Estimate best version that can contain raw splitted segments\n      estimatedVersion = Version.getBestVersionForData(rawSegments, errorCorrectionLevel)\n    }\n\n    // Build optimized segments\n    // If estimated version is undefined, try with the highest version\n    segments = Segments.fromString(data, estimatedVersion || 40)\n  } else {\n    throw new Error('Invalid data')\n  }\n\n  // Get the min version that can contain data\n  const bestVersion = Version.getBestVersionForData(segments, errorCorrectionLevel)\n\n  // If no version is found, data cannot be stored\n  if (!bestVersion) {\n    throw new Error('The amount of data is too big to be stored in a QR Code')\n  }\n\n  // If not specified, use min version as default\n  if (!version) {\n    version = bestVersion\n\n  // Check if the specified version can contain the data\n  } else if (version < bestVersion) {\n    throw new Error('\\n' +\n      'The chosen QR Code version cannot contain this amount of data.\\n' +\n      'Minimum version required to store current data is: ' + bestVersion + '.\\n'\n    )\n  }\n\n  const dataBits = createData(version, errorCorrectionLevel, segments)\n\n  // Allocate matrix buffer\n  const moduleCount = Utils.getSymbolSize(version)\n  const modules = new BitMatrix(moduleCount)\n\n  // Add function modules\n  setupFinderPattern(modules, version)\n  setupTimingPattern(modules)\n  setupAlignmentPattern(modules, version)\n\n  // Add temporary dummy bits for format info just to set them as reserved.\n  // This is needed to prevent these bits from being masked by {@link MaskPattern.applyMask}\n  // since the masking operation must be performed only on the encoding region.\n  // These blocks will be replaced with correct values later in code.\n  setupFormatInfo(modules, errorCorrectionLevel, 0)\n\n  if (version >= 7) {\n    setupVersionInfo(modules, version)\n  }\n\n  // Add data codewords\n  setupData(modules, dataBits)\n\n  if (isNaN(maskPattern)) {\n    // Find best mask pattern\n    maskPattern = MaskPattern.getBestMask(modules,\n      setupFormatInfo.bind(null, modules, errorCorrectionLevel))\n  }\n\n  // Apply mask pattern\n  MaskPattern.applyMask(maskPattern, modules)\n\n  // Replace format info bits with correct values\n  setupFormatInfo(modules, errorCorrectionLevel, maskPattern)\n\n  return {\n    modules: modules,\n    version: version,\n    errorCorrectionLevel: errorCorrectionLevel,\n    maskPattern: maskPattern,\n    segments: segments\n  }\n}\n\n\nexports.create = function create (data, options) {\n  if (typeof data === 'undefined' || data === '') {\n    throw new Error('No input text')\n  }\n\n  let errorCorrectionLevel = ECLevel.M\n  let version\n  let mask\n\n  if (typeof options !== 'undefined') {\n    // Use higher error correction level as default\n    errorCorrectionLevel = ECLevel.from(options.errorCorrectionLevel, ECLevel.M)\n    version = Version.from(options.version)\n    mask = MaskPattern.from(options.maskPattern)\n\n    if (options.toSJISFunc) {\n      Utils.setToSJISFunction(options.toSJISFunc)\n    }\n  }\n\n  return createSymbol(data, version, errorCorrectionLevel, mask)\n}\n");
+window.HXQR = { create: __req("qrcode").create };
+})();
+
+</script>
 <style>
 /* 华夏工具 · 刷题。颜色、背景图、深浅色都来自网站根目录 hx-theme.css / hx-theme.js（首页“外观”统一设置），这里只做布局。
    风格参考苹果官网：浅灰底、白卡片、胶囊按钮、分段控件、毛玻璃顶栏和操作条。手机优先：底部导航、拇指区操作条、大号选项。 */
@@ -1472,33 +1847,7 @@ html[data-hx-mode="light"].hx-bg .seg button[aria-pressed="true"] { background: 
 .guide p { margin: 4px 0; font-size: 14px; }
 .guide code { padding: 1px 6px; border-radius: 6px; background: var(--fill); font: 12.5px Consolas, "Cascadia Mono", monospace; }
 
-/* 设置页标题旁的「?」：小圆钮，跟标题一个基线 */
-.panel h3 .help { display: inline-grid; place-items: center; width: 22px; height: 22px; margin-left: 8px; padding: 0; border: 0; border-radius: 50%; background: var(--fill); color: var(--dim); font: 600 13px/1 var(--hx-font); vertical-align: middle; transition: background .2s, color .2s, transform .15s var(--hx-ease); }
-.panel h3 .help:hover { background: var(--hov); color: var(--ink); }
-.panel h3 .help:active { transform: scale(.92); }
-
-/* AI Key 图文教学（底部抽屉里） */
-.aikey { display: grid; gap: 14px; font-size: 14px; line-height: 1.65; }
-.aikey p { margin: 6px 0; }
-.aikey ol { margin: 6px 0; padding-left: 1.5em; line-height: 1.85; }
-.aikey code { padding: 1px 6px; border-radius: 6px; background: var(--fill); font: 12.5px Consolas, "Cascadia Mono", monospace; }
-.aikey .warn { color: var(--warn); }
-.astep { padding: 14px 16px; border-radius: 16px; background: var(--fill); }
-.ahd { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; font-size: 15px; }
-.ahd i { flex: none; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--acc); color: var(--on-acc, #fff); font-style: normal; font-size: 13px; font-weight: 600; }
-.aqr { display: flex; gap: 14px; align-items: flex-start; margin: 10px 0 4px; flex-wrap: wrap; }
-.aqr img { flex: none; width: 132px; height: 132px; padding: 6px; border-radius: 14px; background: #fff; box-shadow: 0 1px 6px rgba(0, 0, 0, .12); object-fit: contain; }
-.aqr-r { flex: 1; min-width: 200px; display: grid; gap: 8px; align-content: start; }
-.aqr-r p { margin: 0; }
 .alink { display: block; padding: 8px 10px; border-radius: 10px; background: var(--card-solid); color: var(--dim); word-break: break-all; font-size: 12.5px; }
-.atip { margin: 8px 0 0; color: var(--dim); font-size: 13px; }
-.awarn { padding: 14px 16px; border-radius: 16px; background: var(--badbg); box-shadow: inset 0 0 0 1px var(--bad); }
-.awarn b { display: block; margin-bottom: 4px; color: var(--bad); font-size: 14px; }
-.awarn ul { margin: 0; padding-left: 1.3em; line-height: 1.7; font-size: 13.5px; }
-@media (max-width: 420px) {
-  .aqr img { width: 108px; height: 108px; }
-  .aqr-r { min-width: 0; }
-}
 
 /* 问 AI */
 /* 抽屉可以放大；放不放大的聊天区都跟着抽屉高度走，长回答看得全 */
@@ -1608,6 +1957,10 @@ body.focus .unfocus { display: block; }
 .imp-note li { margin: 4px 0; }
 .imp-warn { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 10px; padding: 10px 14px; border-radius: 12px; background: var(--badbg); font-size: 13.5px; }
 .imp-warn span { flex: 1; min-width: 0; }
+/* 没配 AI 时的原位提示（2026-11-08 Z5）：一句话 + 去首页 /ai/ 的链接，题卡、导入区、问 AI 共用 */
+.noai { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; color: var(--dim); }
+.noai > span { flex: 1 1 auto; }
+.noai a.btn { text-decoration: none; }
 .imp-panel.drop, .panel.drop { outline: 2px dashed var(--acc); outline-offset: -6px; }
 /* 模板折叠块：默认收起，不占地方 */
 .imp-tpl { margin-top: 10px; padding: 10px 14px; border-radius: 12px; background: var(--fill); font-size: 13px; }
@@ -2212,13 +2565,26 @@ function mergeSubjects(a = [], b = []) {
 // 下发范围（2026-11-02 加）：classes = null → 全部学生；[] → 只自己刷；[班级id...] → 只这些班
 const publicList = () => rpc('quiz_public_list', {}, signedIn()).catch(() => []);
 const publicGet = id => rpc('quiz_public_get', { p_id: id }, signedIn());
-const publish = (id, name, questions, ownerName, classes) => rpc('quiz_publish', {
+const publish = (id, name, questions, ownerName, classes, teachers) => rpc('quiz_publish', {
   p_id: id, p_name: name, p_questions: questions, p_owner_name: ownerName,
   // 不传就是 null（全部学生），保持旧行为
   p_classes: classes === undefined ? null : classes,
+  // 发给哪些老师（2026-11-08 加）：不传 = null = 不按老师下发，行为和以前一样。
+  // ⚠️ 只发老师时 classes 必须传 []：数据库里传 null（= 全部学生可见）会直接报错，不允许悄悄发全校。
+  p_teachers: teachers === undefined ? null : teachers,
 });
 // 只改下发范围，不重传题库（撤销下发传 []）
 const setClasses = (id, classes) => rpc('quiz_set_classes', { p_id: id, p_classes: classes });
+// 只改「发给哪些老师」，不重传题库
+const setTeachers = (id, teachers) => rpc('quiz_set_teachers', { p_id: id, p_teachers: teachers });
+/* 转发：老师把看到的题复制成自己名下的一份，之后能随便改、按自己的班下发。
+   是复制不是授权 —— 几个老师各改一份互不干扰，排位也算在各自那份上。见 2026-11-08-题库发给老师.sql。 */
+const forward = (id, newName, ownerName, classes) => rpc('quiz_forward', {
+  p_id: id, p_new_name: newName || '', p_owner_name: ownerName || '',
+  p_classes: classes === undefined ? null : classes,
+});
+// 发题时能选哪些老师（不返回邮箱；管理员/开发者也在里面）
+const teacherList = () => signedIn() ? rpc('quiz_teacher_list', {}).catch(() => []) : Promise.resolve([]);
 const unpublish = id => rpc('quiz_unpublish', { p_id: id });
 
 /* 题库分享码（2026-11-08）：用户要求「用户自己上传的也可以通过分享码（二维码加6位分享码）发给他的朋友去刷题」。
@@ -2264,149 +2630,130 @@ async function rankFlush(onDone) {
 const rankBoard = (bank, mine) => rpc('quiz_rank_board', { p_bank: bank, p_mine: !!mine, p_limit: 100 }, signedIn());
 
 
-return { getLocal, setLocal, read, write, remove, flush, mergeProgress, mergeSubjects, rankPush, rankFlush, cloud, publicList, publicGet, publish, setClasses, unpublish, shareCreate, shareGet, shareList, shareDel, myClasses, rankBoard };
+return { getLocal, setLocal, read, write, remove, flush, mergeProgress, mergeSubjects, rankPush, rankFlush, cloud, publicList, publicGet, publish, setClasses, setTeachers, forward, teacherList, unpublish, shareCreate, shareGet, shareList, shareDel, myClasses, rankBoard };
 })();
 
 __M['ai.js'] = (function(){
-const SETTINGS_KEY = 'zcq-ai-settings-v1';
-const SESSION_KEY = 'zcq-ai-key-session';
-const LOCAL_KEY = 'zcq-ai-key-local';
-let activeProfile = 'default';
-function setAiProfile(id) { activeProfile = id; }
-const keyFor = key => `${key}:${activeProfile}`;
-const providers = {
-  deepseek: {
-    label: 'DeepSeek', baseUrl: 'https://api.deepseek.com',
-    models: ['deepseek-flash', 'deepseek-v4-pro']
-  },
-  siliconflow: {
-    label: '硅基流动', baseUrl: 'https://api.siliconflow.cn/v1',
-    models: ['deepseek-ai/DeepSeek-V4-Flash', 'Pro/deepseek-ai/DeepSeek-V4', 'Qwen/Qwen3.6-27B']
-  },
-  custom: { label: '自定义 OpenAI 兼容接口', baseUrl: '', models: [] }
+/* 刷题的 AI 调用：2026-11-08（Z5）起**全部走首页「AI 设置」**（网站根目录 hx-ai.js 挂的 window.HXAI）。
+   以前这里自己存 Key / 接口地址 / 模型、自己拼 fetch，设置页还有一整张「AI 解析」卡；
+   同一个 Key 要在首页和刷题各填一遍，模型名、超时、报错也两套。现在：
+     · 不再自存任何 Key（旧的 zcq-ai 那族本地键已不读不写）；
+     · 文本问答 → HXAI.chat（cap:'text'）；要多想的 → cap:'reason'（没配推理默认时 HXAI 自己回落 text）；
+     · 读图 → HXAI.vision（cap:'vision'，不回落 —— 把图塞给文字模型只会换来看不懂的报错）；
+     · 调用都带 tool:'quiz'，首页「按工具指定」给刷题单独选的那套优先。
+   没配（HXAI 不在 / 该能力没有可用模型 / 没填 Key）时统一抛 NO_AI 这句中文，界面在原位给去 /ai/ 的链接。
+   离线单文件（离线打包.cjs）彻底不带 AI（用户 2026-11-08：「我们彻底放弃离线版即可」）。 */
+const NO_AI = '还没配置 AI，去首页 AI 设置';
+const AI_PAGE = '/ai/';
+const OFFLINE_MSG = '离线版没有 AI 功能，请用网页版';
+
+const hxai = () => {
+  const H = globalThis.HXAI;
+  return H && typeof H.chat === 'function' ? H : null;
 };
-function getSettings() {
-  let saved = {};
-  try { saved = JSON.parse(localStorage.getItem(keyFor(SETTINGS_KEY)) || '{}'); } catch { /* ignore */ }
-  const provider = providers[saved.provider] ? saved.provider : 'deepseek';
-  return {
-    provider,
-    baseUrl: saved.baseUrl || providers[provider].baseUrl,
-    model: saved.model || providers[provider].models[0] || '',
-    models: Array.isArray(saved.models) ? saved.models.filter(m => typeof m === 'string') : [], // 读取模型读到的列表
-    remember: !!saved.remember,
-    apiKey: sessionStorage.getItem(keyFor(SESSION_KEY)) || localStorage.getItem(keyFor(LOCAL_KEY)) || ''
-  };
-}
-function saveSettings(settings) {
-  const { apiKey, remember, ...publicSettings } = settings;
-  localStorage.setItem(keyFor(SETTINGS_KEY), JSON.stringify({ ...publicSettings, remember }));
-  sessionStorage.removeItem(keyFor(SESSION_KEY));
-  localStorage.removeItem(keyFor(LOCAL_KEY));
-  if (apiKey) (remember ? localStorage : sessionStorage).setItem(keyFor(remember ? LOCAL_KEY : SESSION_KEY), apiKey.trim());
+const isOffline = () => !!globalThis.__OFFLINE;
+
+// 首页的 hx-ai.js 按需加载（和 hx-theme.js 同一层：../hx-ai.js）。离线版不加载。
+let loading = null;
+function ensureHxAi() {
+  if (hxai()) return Promise.resolve(hxai());
+  if (isOffline() || typeof document === 'undefined') return Promise.resolve(null);
+  if (!loading) {
+    loading = new Promise(resolve => {
+      const s = document.createElement('script');
+      s.src = '../hx-ai.js';
+      s.onload = () => resolve(hxai());
+      s.onerror = () => { loading = null; resolve(null); }; // 失败允许下次再试
+      document.head.appendChild(s);
+    });
+  }
+  return loading;
 }
 
-function endpoint(baseUrl, suffix) {
-  const url = baseUrl.trim().replace(/\/+$/, '');
-  if (!/^https:\/\//i.test(url) && !/^http:\/\/localhost(?::\d+)?(?:\/|$)/i.test(url) && !/^http:\/\/127\.0\.0\.1(?::\d+)?(?:\/|$)/i.test(url)) {
-    throw new Error('接口地址需使用 HTTPS。');
+/* 按 hx-ai.js 的 pick() 同样的顺序猜「这次会用哪一套」，只用来判断配没配、给提示；
+   真正调用时仍由 HXAI 自己挑（两边规则一致：工具指定且能干这件事 → 按能力默认 → 推理退文本 → 文本退第一套）。 */
+function guessProfile(H, cap) {
+  const can = (p, c) => !!p && (c === 'text' || (p.caps || []).includes(c));
+  if (typeof H.settings === 'function') {
+    const s = H.settings() || {}, ps = s.profiles || [], act = s.active || {}, tools = s.tools || {};
+    const by = id => ps.find(p => p.id === id) || null;
+    const byTool = by(tools.quiz);
+    if (byTool && can(byTool, cap)) return byTool;
+    const byCap = by(act[cap]);
+    if (byCap) return byCap;
+    if (cap === 'reason' && by(act.text)) return by(act.text);
+    if (byTool) return byTool;
+    return cap === 'text' || cap === 'reason' ? ps[0] || null : null;
   }
-  return `${url}${suffix}`;
+  // 精简版 HXAI（只有 forTool / activeFor 的桩）
+  if (cap === 'vision' && typeof H.activeFor === 'function') return H.activeFor('vision') || null;
+  return typeof H.forTool === 'function' ? H.forTool('quiz') || null : null;
 }
 
-async function fetchWithTimeout(url, options, timeoutMs = 30000) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    return await fetch(url, { ...options, signal: controller.signal });
-  } catch (error) {
-    if (error?.name === 'AbortError') throw new Error(`请求超时（${Math.round(timeoutMs / 1000)} 秒）。请检查模型可用性、余额或网络后重试。`);
-    throw error;
-  } finally {
-    clearTimeout(timer);
-  }
+/* 配没配：{ ok, msg, profile }。cap = text / reason / vision。 */
+function aiState(cap = 'text') {
+  if (isOffline()) return { ok: false, offline: true, msg: OFFLINE_MSG };
+  const H = hxai();
+  if (!H) return { ok: false, msg: NO_AI };
+  let p = null;
+  try { p = guessProfile(H, cap); } catch { p = null; }
+  if (!p) return { ok: false, msg: cap === 'vision' ? '还没配置能看图片的 AI（要勾「图片识别」），去首页 AI 设置' : NO_AI };
+  if (p === true) return { ok: true, profile: null };
+  let has = true;
+  if (typeof H.hasKey === 'function' && p.id) has = H.hasKey(p.id);
+  else if ('key' in p || 'apiKey' in p) has = !!String(p.key || p.apiKey || '').trim();
+  if (!has) return { ok: false, profile: p, msg: `首页 AI 设置里「${p.name || p.model || '这套'}」还没填 Key，去首页 AI 设置补上` };
+  return { ok: true, profile: p };
 }
-async function chat(messages, { json = false } = {}) {
-  const settings = getSettings();
-  if (!settings.apiKey) throw new Error('请先在 AI 设置中填写 API Key。');
-  if (!settings.model.trim()) throw new Error('请先选择或填写模型名称。');
-  const response = await fetchWithTimeout(endpoint(settings.baseUrl, '/chat/completions'), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${settings.apiKey}` },
-    body: JSON.stringify({ model: settings.model.trim(), messages, temperature: 0.2,
-      ...(settings.provider === 'deepseek' ? { thinking: { type: 'disabled' } } : {}),
-      ...(settings.provider === 'siliconflow' ? { enable_thinking: false } : {}),
-      ...(json ? { response_format: { type: 'json_object' } } : {}) })
-  }, 25000);
-  let data;
-  try { data = await response.json(); } catch { throw new Error(`接口返回了非 JSON 内容（HTTP ${response.status}）。`); }
-  if (!response.ok) {
-    const message = String(data.error?.message || data.message || `接口请求失败（HTTP ${response.status}）。`);
-    throw new Error(message.replaceAll(settings.apiKey, '[已隐藏 Key]'));
-  }
-  const content = data.choices?.[0]?.message?.content;
-  if (!content) throw new Error('模型未返回内容，请更换模型后重试。');
-  return content;
-}
-async function listModels() {
-  const { baseUrl, apiKey } = getSettings();
-  if (!apiKey) throw new Error('请先填写 API Key。');
-  const response = await fetchWithTimeout(endpoint(baseUrl, '/models'), { headers: { Authorization: `Bearer ${apiKey}` } }, 15000);
-  if (!response.ok) throw new Error(`读取模型列表失败（HTTP ${response.status}）。可手动填写模型 ID。`);
-  const data = await response.json();
-  return (data.data || []).map(item => item.id).filter(Boolean).sort();
+const aiReady = (cap = 'text') => aiState(cap).ok;
+
+function noAi(state) {
+  const e = new Error(state.msg || NO_AI);
+  e.noAi = true;
+  return e;
 }
 
-// opts：问 AI 的「模型 / 思考程度」用。不传就按设置里的默认跑（行为和以前一样）
-//   model        换一个模型（默认用设置里选的那个）
-//   think        true 打开服务商的思考模式（DeepSeek 的 thinking、硅基流动的 enable_thinking）
-//   temperature / maxTokens  思考越久给越多预算
+// 首页配好的全部模型（问 AI 的模型下拉用）。没配就是空数组。
+function aiProfiles() {
+  const H = hxai();
+  try { return H && typeof H.list === 'function' ? H.list() : []; } catch { return []; }
+}
+function aiThinkLevels() {
+  const H = hxai();
+  return (H && Array.isArray(H.thinkLevels) && H.thinkLevels.length) ? H.thinkLevels
+    : [{ id: 'quick', name: '快速' }, { id: 'balanced', name: '均衡' }, { id: 'deep', name: '深度' }];
+}
+
+/* 一次性拿全文（出题、识题、整理要求）。json:true 时 HXAI 已剥掉 ```json 围栏。 */
+async function chat(messages, { json = false, cap = 'text' } = {}) {
+  const st = aiState(cap);
+  if (!st.ok) throw noAi(st);
+  return hxai().chat({ messages, json, cap, tool: 'quiz' });
+}
+
+/* 问 AI、逐项解析用。HXAI 目前不流式，拿到全文后回调一次 onProgress（调用方的写法不用改）。
+   opts：profile（问 AI 下拉里换的那一套，不传 = 首页给刷题配的）、thinkLevel（quick/balanced/deep，
+   不传 = 那套配置自己的思考程度）、cap（'reason' 时没配推理就回落 text）、maxTokens、temperature。 */
 async function streamChat(messages, onProgress, opts = {}) {
-  const settings = getSettings();
-  if (!settings.apiKey) throw new Error('请先在 AI 设置中填写 API Key。');
-  const model = String(opts.model || settings.model).trim();
-  if (!model) throw new Error('请先选择或填写模型名称。');
-  const think = !!opts.think;
-  const response = await fetchWithTimeout(endpoint(settings.baseUrl, '/chat/completions'), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${settings.apiKey}` },
-    body: JSON.stringify({ model, messages, temperature: opts.temperature ?? 0.2,
-      max_tokens: opts.maxTokens ?? 800, stream: true,
-      ...(settings.provider === 'deepseek' ? { thinking: { type: think ? 'enabled' : 'disabled' } } : {}),
-      ...(settings.provider === 'siliconflow' ? { enable_thinking: think } : {}) })
-  }, think ? 90000 : 45000);
-  if (!response.ok) {
-    let message = `接口请求失败（HTTP ${response.status}）。`;
-    try { const data = await response.json(); message = data.error?.message || data.message || message; } catch { /* use status */ }
-    throw new Error(String(message).replaceAll(settings.apiKey, '[已隐藏 Key]'));
-  }
-  if (!response.body) throw new Error('接口没有返回可读取的流式响应。');
-  const reader = response.body.getReader(), decoder = new TextDecoder();
-  let pending = '', result = '', finished = false;
-  const consume = event => {
-    const data = event.split(/\r?\n/).filter(line => line.startsWith('data:')).map(line => line.slice(5).trimStart()).join('\n');
-    if (!data) return;
-    if (data === '[DONE]') { finished = true; return; }
-    let packet;
-    try { packet = JSON.parse(data); } catch { return; }
-    if (packet.error) throw new Error(String(packet.error.message || '模型返回流式错误').replaceAll(settings.apiKey, '[已隐藏 Key]'));
-    const part = packet.choices?.[0]?.delta?.content;
-    if (typeof part === 'string' && part) { result += part; onProgress?.(result); }
-  };
-  while (!finished) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    pending += decoder.decode(value, { stream: true });
-    let boundary;
-    while ((boundary = /\r?\n\r?\n/.exec(pending))) {
-      consume(pending.slice(0, boundary.index));
-      pending = pending.slice(boundary.index + boundary[0].length);
-      if (finished) break;
-    }
-  }
-  if (pending.trim() && !finished) consume(pending);
-  if (!result.trim()) throw new Error('模型未返回解析文字，请重试或更换模型。');
-  return result.trim();
+  const cap = opts.cap || 'text';
+  const st = aiState(cap);
+  if (!st.ok) throw noAi(st);
+  const req = { messages, cap, tool: 'quiz' };
+  if (opts.profile) req.profile = opts.profile;
+  if (opts.thinkLevel) req.thinkLevel = opts.thinkLevel;
+  if (opts.maxTokens) req.maxTokens = opts.maxTokens;
+  if (opts.temperature != null) req.temperature = opts.temperature;
+  const text = String(await hxai().chat(req) || '').trim();
+  if (!text) throw new Error('模型未返回解析文字，请重试或更换模型。');
+  onProgress?.(text);
+  return text;
+}
+
+/* 读图：images 是 dataURL 数组。只找勾了「图片识别」的那套。 */
+async function vision(opts = {}) {
+  const st = aiState('vision');
+  if (!st.ok) throw noAi(st);
+  return hxai().vision({ ...opts, tool: 'quiz' });
 }
 
 /* ---------- 解析规范（skill 式，2026-11-08） ----------
@@ -2619,7 +2966,7 @@ ${String(words || '').trim()}`;
   throw new Error('AI 没从这段话里整理出要求，换个说法再试试');
 }
 
-return { setAiProfile, getSettings, saveSettings, chat, listModels, streamChat, explainQuestion, parseStudySpec, providers };
+return { ensureHxAi, aiState, aiProfiles, aiThinkLevels, chat, streamChat, vision, explainQuestion, parseStudySpec, NO_AI, AI_PAGE, aiReady };
 })();
 
 __M['imports.js'] = (function(){
@@ -2629,15 +2976,12 @@ __M['imports.js'] = (function(){
 //   1. 识题（pick）和出题（gen）是两件事，提示词必须分开写死，不能靠一句“提取所有题”蒙；
 //   2. 识题结果要能核对：每条被拒的题都要带“第几条 + 题干前几个字 + 为什么不行”，用户才知道该改哪里；
 //   3. 出题要能下指令：范围、题型、每种几道、难度、额外要求都要真的塞进提示词；
-//   4. 拍照/截图（扫描件）交给支持看图的模型，图片先压到 1600px，避免一次发 5 页就超限。
-const {  chat  } = __M['ai.js'];
+//   4. 拍照/截图（扫描件）交给支持看图的模型，图片先压到 1600px，避免一次发 5 页就超限。const {  chat, vision  } = __M['ai.js'];
 
-const IMAGE_RE = /\.(jpe?g|png|webp|gif|bmp)$/i;
-const isImageFile = name => IMAGE_RE.test(String(name || '').toLowerCase());
+const IMAGE_RE = /\.(jpe?g|png|webp|gif|bmp)$/i;const isImageFile = name => IMAGE_RE.test(String(name || '').toLowerCase());
 
 // 图片转 dataURL。手机拍一页教材动辄 4MB，原样发 5 张多数模型会直接拒；
-// 最长边压到 1600px、JPEG 0.8，题干文字仍然清楚，体积通常剩下十分之一。
-function fileToDataUrl(file, max = 1600, quality = 0.8) {
+// 最长边压到 1600px、JPEG 0.8，题干文字仍然清楚，体积通常剩下十分之一。function fileToDataUrl(file, max = 1600, quality = 0.8) {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
     const img = new Image();
@@ -2662,16 +3006,14 @@ function fileToDataUrl(file, max = 1600, quality = 0.8) {
   });
 }
 
-// 一次拍了好几页：逐张压，坏的跳过（不能因为第 3 张坏掉就整批失败）
-async function readImages(files) {
+// 一次拍了好几页：逐张压，坏的跳过（不能因为第 3 张坏掉就整批失败）async function readImages(files) {
   const list = []; const bad = [];
   for (const f of files) {
     try { list.push(await fileToDataUrl(f)); } catch (e) { bad.push(`${f.name}：${e.message}`); }
   }
   if (!list.length) throw new Error(bad[0] || '没有读到图片。');
   return list;
-}
-async function readMaterial(file) {
+}async function readMaterial(file) {
   const name = file.name.toLowerCase();
   if (isImageFile(name)) return { image: await fileToDataUrl(file), text: '' }; // 图片不在这里转文字，交给视觉模型
   if (name.endsWith('.json')) {
@@ -2738,8 +3080,7 @@ function answerTokens(raw) {
 }
 const judgeKey = t => /^(正确|对|是|√|T|TRUE|Y|YES)$/i.test(t) ? 'T' : /^(错误|错|否|×|X|F|FALSE|N|NO)$/i.test(t) ? 'F' : '';
 
-// 题库校验。rejected 从「序号数组」改成带原因的明细 —— 用户看不到原因就不知道该怎么改。
-function normalizeQuestions(raw, subject) {
+// 题库校验。rejected 从「序号数组」改成带原因的明细 —— 用户看不到原因就不知道该怎么改。function normalizeQuestions(raw, subject) {
   const input = Array.isArray(raw) ? raw : raw?.questions;
   if (!Array.isArray(input)) throw new Error('题库需要是数组，或包含 questions 数组的 JSON 对象。');
   const questions = []; const rejected = [];
@@ -2916,8 +3257,7 @@ function pickPrompt({ piece, note }) {
 ${piece}`;
 }
 
-// 识题：把资料里现成的题抠出来（不编题）。返回带 rejected 的报告，界面上要能逐条核对。
-async function aiImport(text, subject, onProgress) {
+// 识题：把资料里现成的题抠出来（不编题）。返回带 rejected 的报告，界面上要能逐条核对。async function aiImport(text, subject, onProgress) {
   if (!String(text || '').trim()) throw new Error('请先选择文件或粘贴资料。');
   const pieces = chunks(text);
   const collected = []; const rejected = [];
@@ -2938,8 +3278,7 @@ async function aiImport(text, subject, onProgress) {
 }
 
 // 出题：教材、讲义等没有现成题目的资料，按用户圈的范围/题型/数量/难度/额外要求让 AI 出题。
-// 数量按段分摊：用户说的是“整份资料一共要几道”，不是“每 6000 字几道”。
-async function aiGenerate(text, subject, subjectName, opts = {}, onProgress) {
+// 数量按段分摊：用户说的是“整份资料一共要几道”，不是“每 6000 字几道”。async function aiGenerate(text, subject, subjectName, opts = {}, onProgress) {
   if (!String(text || '').trim()) throw new Error('请先选择文件或粘贴资料。');
   const wanted = {};
   for (const t of SUPPORTED) {
@@ -2976,13 +3315,9 @@ async function aiGenerate(text, subject, subjectName, opts = {}, onProgress) {
   return { questions: collected, rejected };
 }
 
-// 图片/扫描件：交给支持看图的模型（首页 hx-ai.js 暴露的 window.HXAI.vision）。
-// 离线版、或只配了纯文字模型时，HXAI 不存在或没有 vision —— 那时候不要假装能读，直接说清楚怎么配。
-async function aiVision(images, { subject, subjectName = '', mode = 'pick', opts = {}, onProgress } = {}) {
+// 图片/扫描件：交给首页「AI 设置」里勾了「图片识别」的模型（ai.js 的 vision → HXAI.vision）。
+// 没配看图模型时 vision() 直接抛「去首页 AI 设置」那句，不假装能读。async function aiVision(images, { subject, subjectName = '', mode = 'pick', opts = {}, onProgress } = {}) {
   if (!images || !images.length) throw new Error('没有读到图片。');
-  const H = globalThis.HXAI;
-  const vision = H && typeof H.vision === 'function' ? H.vision.bind(H) : null;
-  if (!vision) throw new Error('要读图片／扫描件，得先在首页「AI 设置」里配一套支持图片的模型（如 Qwen-VL 这类看图模型）。只配纯文字模型时，图片里的字是读不出来的。');
   const note = `这是 ${images.length} 张图片（拍下来或截图的资料），可能歪、可能不清楚：只依据看得清的内容出题，看不清的地方跳过，不要猜。`;
   onProgress?.(`正在把 ${images.length} 张图片交给 AI 看…`);
   let prompt;
@@ -2994,7 +3329,7 @@ async function aiVision(images, { subject, subjectName = '', mode = 'pick', opts
   } else {
     prompt = pickPrompt({ piece: '（资料就在这次一起发来的图片里）', note });
   }
-  const raw = await vision({ prompt, images, json: true, tool: 'quiz' });
+  const raw = await vision({ prompt, images, json: true });
   const data = typeof raw === 'string' ? parseJson(raw) : raw;
   const result = normalizeQuestions(data, subject);
   if (mode === 'gen') result.questions = result.questions.map(q => ({ ...q, source: 'AI 根据图片出题' }));
@@ -3106,12 +3441,7 @@ return { figSvg, hasFig, figName };
 })();
 
 __M['app.js'] = (function(){
-// 华夏工具 · 刷题：界面和刷题流程。题库解析、AI 解析沿用 imports.js / ai.js；存储见 store.js；账号见 hx.js。
-const hx = __M['hx.js'];
-const store = __M['store.js'];
-const {  providers, getSettings, saveSettings, setAiProfile, chat, streamChat, listModels, explainQuestion, parseStudySpec  } = __M['ai.js'];
-const {  readMaterial, readImages, normalizeQuestions, aiImport, aiGenerate, aiVision, isImageFile  } = __M['imports.js'];
-const {  figSvg, figName  } = __M['symbols.js'];
+// 华夏工具 · 刷题：界面和刷题流程。题库解析、AI 解析沿用 imports.js / ai.js；存储见 store.js；账号见 hx.js。const hx = __M['hx.js'];const store = __M['store.js'];const {  AI_PAGE, aiState, aiReady, aiProfiles, aiThinkLevels, ensureHxAi, streamChat, explainQuestion, parseStudySpec  } = __M['ai.js'];const {  readMaterial, readImages, normalizeQuestions, aiImport, aiGenerate, aiVision, isImageFile  } = __M['imports.js'];const {  figSvg, figName  } = __M['symbols.js'];
 
 // 内置课程题库（data/ 下的 JSON）；第一个是默认科目
 /* 2026-11-08：这 4 套「搬到了开发者名下」。
@@ -3155,8 +3485,6 @@ const VIEWS = [
 const $ = id => document.getElementById(id);
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 // 硅基流动注册二维码、邀请链接：二维码内联 base64（离线打包成单文件时外部图片会丢）
-const SF_QR = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANIAAADSCAYAAAA/mZ5CAAAQAElEQVR4AexdXXLbzBEEeI4kz/IV7FRZPpnkk9mqin0F+/lLzgFkeyV8lqDtXnBA/BBslYYUZ3b+etGWa0CuTv/68Kk/gvzzw6dvzQJf/7r7+MDwqeVkftD/4+7f96xclRM25lfTI+/aomoCfmvXs1S+k2rUNiNgBKYhYCJNw8mrjIBEwESS8NhoBKYhYCJNw8mrrg+BVSs2kVaF28mOioCJdNSddV+rIqCJ1PePXd9+2Yv0TfO9Wfnrr98/v7L++779Gi2nbfsHjH9L0rctHY03bftY8oGuNhpnfSypj+LT7OzaQz2qF0mkrjk9/e/3f77vRdq+X51IAE/1D3tE2qa5V9KIL+YnCZjiqT6WsqW04e+laorE7RIXVCOSSMrRNiNwPgLH9TCRjru37mxFBEykFcF2quMiYCIdd2/d2YoImEgrgu1Ux0UgTCS8exnj1ksL4i4Bd7TOperpMcpPI948Vr3QM8bxqs8iri9K9Kl8o7aX8Bd/itaj/IBBtNAwkU5N9xn3NC4u0U5qfun+S6TW3GctdsCOix73qC4puQzVZ15QfsB9rQg+VZ9yulnafMGrPoO2OXsdJtIsJOxsBA6GgIl0sA11O9sgYCJtg7uzHgwBE2mHG+qSrg8BE+n69swV7xABE2mjTcGECNOnc6VWLsbqTFQuvCGY+c3R1+o9it1E2mon04j21PbfzhXcB2El413N//314wsTlatrTk/Mb46e1Xo0vYl0tB11P5sgYCJNg92rjIBEwESS8NhoBKYhYCJNw8mrjIBEwESS8NhoBKYhYCJNw8mrjIBE4IqJJPu6nDGNqaMHr//160d7cfn9k55chPtEqlYFCkbjyjdqUzmPZDORjrSb7mUzBEykzaB34iMhYCIdaTfdy2YImEibQe/ER0LgskQ6EjLuxQicgYCJdAZYXmoEGAJhIuHQjm6BA/bxDmZW7LXpcbA9E4yqWT94hzfzU3p8NEPtCcuX9f0yfzAhx77wA64R1WfY1pyeoqWGiYSEaOjSgrhHEXbYPfS1HrHmXMEh+mo/VE58jEL5Rm0q5xxbtJ6aX7SmWUSKJrWfEbg6BCoFm0gVgGw2AlMQMJGmoOQ1RqCCgIlUAchmIzAFARNpCkpeYwQqCEgiYZyKUexeBFOpSj8hcy8OtM82FTWNjelB+MovaMv1kJw4T1ztFa0T8VI9zFeN6pNbw/yghz0i2Gv4K1nTls9GF41IIlUPSG/bxzXXtE1z3yzwhQsQ98VKgmOqWEpc1CWfQcf85uhRzxB//Jzjij0Zr3/9Ol8oxBf/oObYhYdMMuKXr42CzxRV3msVd2VbrkcUrokkHG0yAkbgDwIm0h8s/JMRCCNgIoWhs6MR+IOAifQHC/80H4GbjWAi3ezWu/FLInDC5OkIgmnWJYGZGgtTKyZTY4zXdc3pqU8j+aK07T3Lp6Zr4xzj18CvmA91bJETea9ITnMOSN+TL0a544tj6dcYiZ7EQfjR/HiHMsMWFzzLOWfcDPz2lJPVsle9/2sXvdrtZwReIWAivQLjmD+6qzUQMJHWQNk5Do+AiXT4LXaDayBgIq2BsnMcHgET6fBb7AbXQOCkDkfH/QpWRH4L+4dPvfJf04bTdVit0KvD7DFuxpqSYCzMfHFaTcmnqqssUNjOGXGr/VB7rcrFvSeGD/TKF3umalrddvfxQdWrbP6NpNCxzQhMRMBEmgiUlxkBhYCJpNCxzQhMRMBEmgiUlxkBhYCJ9IKOn4zAHARMpDno2dcIvCAQJhLGwhj/RuQld/mp7x8jMXGASTlgXYtxM0ax5wo+thCpFT7wZfm65vSENSXpm+Z7E/wqxRt06haASod3wLM+anr4qthR29DT2c8Jd5YTtwdUP2EiISHAjwh8mXSpmUhM+LCYNT2OfsKmnivwQ96IwJflA8lYTHyMotYPs7OY0DOfKXrWR00/JXZkDfqJisqn+plFJJXUNiNwSwjsmUi3tA/u9coRMJGufANd/j4QMJH2sQ+u4soRMJGufANd/j4QOKmD1TH5YGViHIixcURYzJq+lrPmz+x5EpbG7gqLkq02clfY5FpITkwusz3yQGKiflUPsGXpcj0iLvPLeuUnbP2MMX/Ou8SDqPeE+0FM3tfyR3Nqus/5Lf2Rw8z/hDnrJ5UT4+Szgr1azPqv6dU/NDm8wAYkZPGrcXPw9w+4+FhM6OV+vQ/3twb1wL8kXbpd8ffCwg8lnym6/I9bId5WKoUB+vF/7bbaGec9FAIm0qG2081shYCJtBXyznsoBEykQ22nm4kjMM/TRJqHn72NQEYgTCRMa/o0ooxIzkweMJnDKLYkXZoQ9SQnpjwln0FH0i2qZrVCH03czcCgJ9hBr+oZMCw9Y7+ivspvjq1U56BTcYc17Fn5homEcWD0QHNVEEa0J3YwfRq5s5xdusCoX4oncy5kZLVCD/wiaeEH/5LUMCj5DDrEZfWALAxb7Bfzg575QY8LFmsuLYjNROVUfea/sSsKDRNJxLTJCNwcAibSzW35FTV8RaWaSFe0WS51vwiYSPvdG1d2RQiYSFe0WS51vwiYSPvdG1d2RQhIIuHUlCUOMsfh6kz6dK+D4te2j6wejDupX8Ug+xQHq2OUyuqp6eFbKatozh+FIH+8oIZBrSZmfz3iHheF/WJ7Cf14/SVez8kJjGifqTjUXBLcJkhm+i2JRL1sMAJG4A0CJtIbOPzCCMQQMJFiuNnLCLxBwER6A4dfGIEYAiZSDLc9ebmWHSBgIu1gE1zC9SOwCJEwnuz69gsTBRsOBWF+c/QYcTPBRzBo7Ob0xOrFO6apn+gfPninMatHjcZx0Ab8I8L6mKPHedisD+hV7LbtH7CmJOowm1rOCDbZR+w19qRU56BbhEgADxcZE9iZMJ+5eoDPpEsAqvisVuiVn7LhQmH1gGSIzUTFVTYWb66e9QG9ig27kqivwqBmi+ZcjEiqINuMwNEQMJEW2VEHvTUETKRb23H3uwgCJtIisDrorSFgIt3ajrvfRRCQRMJYGIevnysYYatq8zuY7z4+lJ4xZmS+sJV8Bh3zW1I/5D73GdMqVhcmeufGm7Ke5YO+x7vuxSHx8hpAACYiZs7J/Gp6EXcKFqU1uL5kWpFTEgn3LCKCEaMsqG0f81vzS8/CMY+FSz5Jh4tPuDbNAsYMfMpNe1E2UU/bNPehmCofbA3/wj9+kb3u0q0DHrVpVEzlp2x9Ir2Mi14Dkq8vkhjXtMopiURiWm0EjMAIARNpBIhfGoEIAiZSBDX7GIERAibSCBC/NAIRBDYlUqRg+xiBPSIgiYSpVGlMOEUnmxVjRPix+LCxMSymTtnOHkROTGSYW1Uv4lZ9yQJMpWifaWJF3J7Vqh5lS94Md6XHO7hZrdBLX0wnU96Lf6s+lS0VoupNZvotiZRBCowRa6NoNUaUOVMbzLdGBuYHfQob+kZO+DMJBU1OuH/HYsKWlhS/QUDmV9NL3NU1kCpRseUYP/ku8a3qUbZcC+m1dk1LIuXAfjACRqCKgIlUhcgLjEAdgTGR6h5eYQSMwDsETKR3kFhhBM5HwEQ6HzN7GIF3CISJhAkREzVZQgUYqzOBL4uLyQnzm6NHTVFReWkfaYQtbW17z+LW6mR+Nb3EXdQLP1WT7FPEVX61nLVemb1rTk89qamWM0wkBMbB4iXBiFGBe2r7b0y61EwpJnTIyfzm6AGsqpfZ4KfyouaIqD7zOJkUhHeNq3qUTeGueqjttfKN2mo5SZ/0mvt7fdN9ZjVVc5I9sdoIGIEzEAj/Rjojh5cagcMjYCIdfovd4BoImEhroOwch0fARDr8Fu+5wePUZiIdZy/dyYYInNjf04QeH00o/T1N6FAz1pQEB4vDHhGMIksxoUM85L604J3PiF+Uu48PyFuS/O7vXz9aVk8x3odPPfQYnZdiQodRK4uJjyZgTURYTOglBi81o+5zRdWJ6+TceFPWox8mfbpPpGpiNuyXyu3fSAw5643AGQiYSGeA5aVGgCFgIjFkblXvvkMImEgh2OxkBN4iYCK9xcOvjEAIARMpBJudjMBbBDYhUlf5+6rMjo9RYGRaEpz+8ra1t69KPoMO75p+u/rVq7Z9HNad+8z6gB6j81dZVvlR1S8x6PtH1FyS2jhe5uz776WYNV0t5xJgYr9UXZsQCUVFBB8vwIaXBCRTAJZ8Bp3yg21Yd+6z6hFxp8ql1qn6azlYL11zelK+Kid8WVylh5/KuZRN1bQJkZZq1HGNwFYImEhbIe+8h0LARDrUdrqZrRAwkbZC3nkPhYCJFNtOexmBNwgsRiSMo5m8qWD0Ir/L9u7jQ8k3L02j2Dz+HD3jnerZvvbDqI7XtZV6GHTok5UK27Bu/FybTr7Of6mfq1MygYGsIQEw7m/Ka7xTvRY3hS5+Y/JLfZOHyp/M9HsRImHkmU+7Sfdgis+0nCYt7x/Sw2NRGv43STGaTOZVv/um+Z4/8vD759fSc7GHARNRaf5bpsO60XPGlvjW6inVOEWnsIVtSozSmkyIUX8Ss2Ft6r8Ub9AlM/0e1pSes9OQY/Rc+wdsESLlgvxgBG4IARPphjbbrS6HwIGItBxIjmwEagiYSDWEbDcCExAwkSaA5CVGoIZAmEhdc6IHjvdpmqUE410mqmBMTphfTS/jVuplvWCUqvIyP+hVPZ3AVvnVbKpW5av85thUzppN5VW+UT/EVL5hImHsyQ4cr+lP4hB9Nd6FTfkqG4Bg0vft11rNJTsueJWz5DPogB+rB7Zh3fg53wNhjhW9qhUXCXPHOF75Rm3YT5ZT6eGnckrftn9gvnn0TpxrOcNEIvneqv3KCNwIAibSjWy021wWARNpWXwd/UYQMJFuZKPd5rIImEjL4uvoR0Vg1JeJNALEL41ABIETO2wceoxhI0FrPoi9tqiaMA6lB6Tf8UP0VcyaDafr0Jzi0HrEZdhhjK9iwpeJwgA+LGfXt19gZ8L85uhrORUGGGOzWufo/RtpDnr2NQIvCJhIL0D4yQjMQcBEmoOefXeFwJbFmEhbou/ch0HARDrMVrqRLREwkbZE37kPg8AJY9gjCE5/UbuCkSmTvmm+N+yr5Yfo58M7mN9S+qXq6Xt6UD4+vsKukTkYYM9YXPVu9KWgxTvr2TVS058wVz+CYLMVwLgnxkT5wabwgX1tWaKerjk9MXzwuatgTgkN9ozFxUc3pPNCRoZBTe//2i20IQ57WwiYSLe13+52IQRMpIWAddjbQsBEuq39drcLIWAiLQTsfsO6siUQkETqMRZOY1GMBfcguZ4gChi1MsHkKBhWurF80Kucuc8o7qoiFTP5oa6SYLqWzBf/xjSQXVddmiKGE6o+ha2Ws4TNoNNE6tvi4fClA8jX0GXgo+im+y/5lJjSczRmza+Ua9AJX/QZwbN2IaiY+X7QUNvoWZFetFE1qXowbq4GIAtUXGVTOfN9rREur68nSSRSp9VGwAiMEDCRRoD4pRGIEwEu+QAAA1tJREFUIGAiRVC7tI/jXT0CJtLVb6Eb2AMCJtIedsE1XD0CYSJhirGEbIFon8b8UVH1RmNi3MywVflgUzlZTOjhy0TFhI35QY/Yl5Y5b2hVtaBeJeiVSZhIaAYnz1xa0KhqZgkbTt8ZH1Y/5TX8VD1TYpTWYPzNcMV9C5YT49tSvEHHYkKvRtyoZ4gxfq5hgNiXljx2ZiBU9Bjzs3pmYVvJe7NmN24EzkEg/BvpnCReawSOjoCJdPQddn+rIGAirQKzkxwdARPp6Dvs/lZB4JqItAogTmIEIgiYSBXUMBJlh7JjlKoOg1ehcXoOiws/Gvf3z6+w70Uwcqe1/vrRbmFjuEKvxvwYq2NNREykvVyRruOqETCRrnr7XPxeEDCR9rITruOqEZhJpKvu3cUbgYshYCJdDEoHumUETKRb3n33fjEETKQKlDgsgx2gXnvnM0bcTPCOahq3be+Z3xy9bLWPHaI/p56lfGWfQSM+PsH2C3oTaQKwuFfCRLnjngWTrjmFD61nMWt6VesW9dTqjdpVn9Nt71eyawB6E+k9XtYYgbMRMJHOhswORuA9AibSe0ysMQJnI2AinQ2ZHYzAewRMpPeYWLNXBHZcV5hImPKwA9Dn6DEBWQSvNN5ldW2REz3md5bffXwYP8PGau2b5nujvkSfLCb0CoMuTRixhoqqZymb6lPk7IEf8c024atMYSIBeNxjubSoYufYVJ1z4ipflRMfwcDb9ouSgjJf3H9K5uI3LgTmV9MXA74o1V53INnLurWe+kQG1Y+qA/f+mK/CVsWELUwkOFuMgBF4RsBEesbBj0ZgFgIm0iz47GwEnhEwkZ5x8KMRmIWAiTQLPjsbgWcEJJFwvjfO4t6LPJcce1Q9xCI+e6m4yoYJEaZPRWnbe+bbpSlZn6ZWJUHM56rKjywm9GWPZy3sTHCNlGpZUoc+WT3Qq9yoF2tK0s3AVhIJo1l24PgWetTzvLXnP6p6Aer5EZsGfiqusmHTxgfSD69xoVDfpvs8rBs/Y6yr+qAx2/4bemG+uPiYL/5yxriOpV8DO1YP9Co/6sWaoszBloFn/dUi4MI3QED/RtqgIKc0AteIgIl0jbvmmneHgIm0uy1xQdeIgIl0jbvmmneHgIm0ypY4ydER+D8AAAD//0vigisAAAAGSURBVAMAq4lcbwnvu/QAAAAASUVORK5CYII=';
-const SF_URL = 'https://cloud.siliconflow.cn/i/aQ6Tn6dH';
 const optText = o => o.text || (o.fig ? `［图：${figName(o.fig)}］` : ''); // 选项是图形符号时，给 AI 和扩展的文字
 const figText = q => q.fig ? `\n［图：${figName(q.fig)}］` : '';
 const typeName = t => (TYPES.find(x => x[0] === t) || [, t])[1];
@@ -3246,12 +3574,13 @@ async function loadSubjects(withPublic = true) { // withPublic=false：先不等
     ...BUILTIN.map(s => {
       const p = cloudBuiltin.get(s.id);
       return p
-        ? { ...s, kind: 'builtin', cloud: true, pid: p.id, owner: p.owner_name, total: p.total, targets: p.targets, class_ids: p.class_ids, mine: p.mine }
+        ? { ...s, kind: 'builtin', cloud: true, pid: p.id, owner: p.owner_name, total: p.total, targets: p.targets, class_ids: p.class_ids, teacher_ids: p.teacher_ids, mine: p.mine }
         : { ...s, kind: 'builtin' };
     }),
     ...(pub || []).filter(p => !BUILTIN_IDS.has(p.id) && !(p.mine && mineIds.has(p.id))).map(p => ({ id: 'pub-' + p.id, pid: p.id, name: p.name, kind: 'public', owner: p.owner_name, tag: p.owner_name ? p.owner_name + ' 发布' : '老师发布', total: p.total,
       // 下发范围（2026-11-02）：targets 是给人看的说明，class_ids 给发布面板回填复选框
-      mine: p.mine, targets: p.targets, class_ids: p.class_ids })),
+      // 2026-11-08 加 teacher_ids：发给指定老师时回填那一栏
+      mine: p.mine, targets: p.targets, class_ids: p.class_ids, teacher_ids: p.teacher_ids })),
     /* 分享码换来的题库：不是「我的科目」（自己没编过），也不是「别人发布」（不走班级），
        单独一类 shared，卡片上标清是谁分享的码。 */
     ...(shares || []).filter(s => s && s.id).map(s => ({ id: s.id, code: s.code, name: s.name, kind: 'shared', tag: s.owner ? s.owner + ' 分享' : '分享码', total: s.total })),
@@ -3444,6 +3773,13 @@ function show(v) {
   if (v === 'bank') renderBank();
   if (v === 'settings') renderSettings();
 }
+/* 2026-11-08：给网站外壳（总入口）左上角「返回」用的「上一步」接口。
+   外壳先问当前工具能不能自己退一步：true = 工具退了（外壳什么都不做），false = 已经在第一屏，外壳回首页。
+   本站的第一屏是「练习」（practice），其余栏目（总览/排位/题库/设置）都退它一步。 */
+window.HXBack = function () {
+  if (S.view && S.view !== 'practice') { show('practice'); return true; }
+  return false;
+};
 function counts(list = S.questions) {
   let known = 0, wrong = 0, done = 0;
   for (const q of list) { const r = rec(q.id); if (r.status === 'known') known++; if (r.wrong > 0 && r.status !== 'known') wrong++; if (r.attempts) done++; }
@@ -3548,9 +3884,8 @@ function renderCard() {
     fb = `<div class="fb ${ok ? 'ok' : 'bad'}"><b>${self ? (ok ? '答对了' : '没答对') : ok ? '回答正确' : '答案是 ' + esc(ans)}</b>${self ? ref() : ''}${q.type === 'fill' && !ok && typed.length ? '<div class="ai"><button class="btn sm ghost" type="button" id="ovBtn">意思对，算我对</button></div>' : ''}</div>`;
   } else if (picked) {
     const ok = isRight(q, picked), ans = q.type === 'judgment' ? (q.answer[0] === 'T' ? '正确' : '错误') : q.answer.join('');
-    // 只要网页里配了自己的 Key 就给「✦ AI 逐项解析」。以前装了扩展就把这个按钮藏掉（怕和扩展的「学会这题」重复），
-    // 结果是用户明明填了 Key 却找不到按钮 —— 扩展归扩展，网页归网页，两个都给，用户自己挑。
-    const aiPart = !ai ? (getSettings().apiKey ? '<button class="btn sm ghost" type="button" id="aiBtn">✦ AI 逐项解析</button>' : '')
+    // 首页「AI 设置」配好了就给「✦ AI 逐项解析」；没配就在原位给一句提示 + 去 /ai/ 的链接（离线版只提示没有 AI）。
+    const aiPart = !ai ? (aiReady() ? '<button class="btn sm ghost" type="button" id="aiBtn">✦ AI 逐项解析</button>' : noAiHint())
       : ai.state === 'load' ? '<span>AI 正在解析…</span>'
       : ai.state === 'err' ? `<span style="color:var(--bad)">${esc(ai.msg)}</span><button class="btn sm ghost" type="button" id="aiBtn">重试</button>`
       // 解析成功后按钮留着改成「重新解析」：以前一旦拿到结果就没了，模型答得不好只能刷新页面
@@ -3768,39 +4103,15 @@ function genTypes() {
   }
   return out;
 }
-// 首页的 hx-ai.js（window.HXAI）刷题页不主动引：它还没部署时每次打开都会 404。
-// 真要用看图模型时再按需加载；加载不到就当没配，退回“请先在首页配一套能看图的模型”的提示。
-let hxaiLoading = null;
-function ensureHxAi() {
-  if (window.HXAI) return Promise.resolve(window.HXAI);
-  if (!hxaiLoading) {
-    hxaiLoading = new Promise(resolve => {
-      const s = document.createElement('script');
-      s.src = '../hx-ai.js';
-      s.onload = () => resolve(window.HXAI || null);
-      s.onerror = () => { hxaiLoading = null; resolve(null); }; // 失败允许下次再试
-      document.head.appendChild(s);
-    });
-  }
-  return hxaiLoading;
+// 没配 AI 时的统一提示（2026-11-08 Z5：AI 只在首页「AI 设置」配，刷题不再自存 Key）。
+// 链接用站点根的 /ai/（线上 /shuati/ 的上一层就是根）；target=_top：刷题嵌在首页 iframe 里时整页跳过去。
+// 离线单文件没有 AI，也没有首页可去，只说一句。
+function noAiHint(cap = 'text') {
+  const st = aiState(cap);
+  if (st.offline) return `<span class="noai muted" data-noai>${esc(st.msg)}</span>`;
+  return `<span class="noai" data-noai><span>${esc(st.msg)}</span><a class="btn sm ghost" href="${AI_PAGE}" target="_top">去首页 AI 设置</a></span>`;
 }
-// 配没配模型：2026-11 起统一在首页「AI 设置」（hx-ai.js 挂 window.HXAI）。
-// HXAI 不在（离线版、首页脚本还没部署）时退回刷题自己的设置，行为跟以前一样。
-function aiReady() {
-  try {
-    const H = window.HXAI;
-    if (H && typeof H.forTool === 'function') {
-      const p = H.forTool('quiz');
-      if (p === true) return true;
-      if (p) {
-        const k = p.key || p.apiKey || p.api_key;
-        if (typeof k === 'string' ? k.trim() : k) return true;
-        if (p.ready === true || p.ok === true || p.hasKey === true) return true;
-      }
-    }
-  } catch { /* 别的模块的接口长得不一样时，当没配，退回下面 */ }
-  return !!getSettings().apiKey;
-}
+const noAiWarn = (cap = 'text') => `<div class="imp-warn">${noAiHint(cap)}</div>`;
 // 下载一段文本：导出题库、下载模板共用
 function downloadText(name, text, type = 'application/json') {
   const a = document.createElement('a');
@@ -3887,7 +4198,7 @@ function studyPanel() {
     ? `<div class="st-saved"><b>这道题现在就按这几条讲：</b><ol>${cur.spec.items.map(x => `<li>${esc(x)}</li>`).join('')}</ol><span class="muted">在下面重新说一段再存，会整组换掉。</span></div>`
     : '';
   return `<div class="panel" id="stPanel"><h3>给这道题提要求（AI 按它解析）</h3>
-      ${aiReady() ? '' : '<div class="imp-warn"><span>还没配 AI 模型 → 去首页「AI 设置」</span><button class="btn sm" type="button" id="toAi2">去首页「AI 设置」</button></div>'}
+      ${aiReady() ? '' : noAiWarn()}
       <p class="imp-note" style="margin:0 0 12px">不用写 JSON，也不用替 AI 写解析。你只管说「这题该怎么讲」：重点强调什么、别讲什么、用什么说法。<b>AI 把这段话整理成几条要求</b>，你核对完再保存；以后学生点「✦ AI 逐项解析」，AI 就照这几条现场生成 —— 换模型、换服务商都不影响。</p>
       <div class="f">
         <label for="stQ">给哪道题提要求</label>
@@ -3934,7 +4245,7 @@ async function runStudyCard() {
   if (!st || !q) return toast('先在上面选一道题');
   const words = String(st.text || '').trim();
   if (words.length < 4) { if ($('stText')) $('stText').focus(); return toast('先用一句话说说你想让 AI 怎么讲这道题'); }
-  if (!aiReady()) return toast('还没配 AI 模型，先去首页「AI 设置」');
+  if (!aiReady()) return toast(aiState().msg);
   st.busy = true; st.err = ''; st.spec = null; st.ask = [];
   paintStudy();
   try {
@@ -3965,8 +4276,20 @@ async function saveStudyCard() {
 // ---------- 题库：新建科目、导入资料、AI 出题、导出、发布 ----------
 function renderBank() {
   const sub = S.subject, base = S.base[sub.id] || [], d = S.draft;
+  /* 这套题是不是「我自己名下的」：决定能不能发布/撤销。
+     builtin 的本地只读那份、别人发来的 public、别人搬的 builtin，都不是自己的 ——
+     点「更新发布」数据库会直接报「这是别的老师发布的题库」，那种按钮不该出现。
+     2026-11-08：不能只看 sub.mine。它是服务端 quiz_public_list 返回的 `mine = (owner = auth.uid())`，
+     而「云端有这份但列表还没回来 / 老缓存 / 测试桩没这个字段」时它是 undefined ——
+     于是开发者自己搬上去的内置题会瞬间失去「更新发布」按钮（_quiz-builtin-cloud.cjs 抓到的就是这条）。
+     加一道按 owner_name 的本地兜底：列表里显示的发布者就是我当前显示名，也算我的。
+     （owner_name 是发布时写死在库里的，改名后可能对不上，所以它只是兜底，主判据仍是 sub.mine） */
+  const myName = hx.name(S.user, S.me);
+  const ownIt = sub.kind === 'mine'
+    || sub.mine === true
+    || (sub.kind !== 'public' && !!sub.cloud && !!myName && sub.owner === myName);
   // 发布时间是「更新发布」，撤销下发单独一个字按钮：撤销只把学生那边的可见性收回来，题库留着，老师自己还能刷
-  const pubBtns = isTeacher() ? `<button class="btn sm" type="button" id="pubBtn">${sub.published || sub.cloud || sub.kind === 'public' ? '更新发布' : '发布给学生'}</button>${sub.published || sub.cloud ? '<button class="btn sm danger" type="button" id="unpubBtn">取消发布</button>' : ''}` : '';
+  const pubBtns = isTeacher() && ownIt ? `<button class="btn sm" type="button" id="pubBtn">${sub.published || sub.cloud || sub.kind === 'public' ? '更新发布' : '发布给学生'}</button>${sub.published || sub.cloud ? '<button class="btn sm danger" type="button" id="unpubBtn">取消发布</button>' : ''}` : '';
   /* 来源这一行现在有三种意思，得说清楚，不然用户分不清「题到底在哪」：
      · 云端（builtin + cloud）—— 题存在数据库里，挂在开发者名下，能改能发布；
      · 课程题库 —— 只有本地 data/*.json，改不了（刷新回原样）；
@@ -3977,14 +4300,25 @@ function renderBank() {
   const pubBtns2 = sub.kind === 'builtin' && !sub.cloud && isDev()
     ? '<button class="btn sm" type="button" id="moveBtn">搬到我的账号</button>'
     : pubBtns;
+  /* 转发（2026-11-08）：别人发给我的题，我能复制一份到自己名下，再发给我自己的班。
+     条件：是老师 + 这套题不是我发的 + 是「发布」类（builtin 云端 / public）。
+     我的科目、分享码来的不用转发 —— 那些本来就在我自己名下。 */
+  const canFwd = isTeacher()
+    && (sub.kind === 'public' ? !sub.mine : (sub.kind === 'builtin' && sub.cloud && !sub.mine))
+    && !sub.forwarded;
+  const fwdBtn = canFwd ? '<button class="btn sm ghost" type="button" id="fwdBtn">转发给自己</button>' : '';
+  // 「这套题是发给我的」提示：老师看到别人发来、还没有自己那份时，说清可以转发
+  const sentToMe = canFwd && sub.teacher_ids && sub.teacher_ids.length
+    ? '<p class="muted" style="margin:8px 0 0">这套题是发给老师的：你能自己刷。要发给你的学生，点「转发给自己」复制一份，再在那一份里选班级。</p>' : '';
   $('v-bank').innerHTML = `
     <div class="panel"><h3>${esc(sub.name)}</h3>
       <dl class="kv"><dt>来源</dt><dd>${srcText}</dd>${base.length ? `<dt>课程题</dt><dd>${base.length} 题</dd>` : ''}<dt>我导入的</dt><dd>${S.bank.length} 题</dd>${isTeacher() && (sub.published || sub.kind === 'public') && sub.targets ? `<dt>下发范围</dt><dd>${esc(sub.targets)}</dd>` : ''}</dl>
       ${sub.kind === 'builtin' && !sub.cloud ? '<p class="muted" style="margin:8px 0 0">这套题现在是随代码发布的本地文件，改不了。搬到你的账号之后就能在云端改、也能发布给班级。</p>' : ''}
-      <div class="f" style="margin-top:12px"><div class="line"><button class="btn sm ghost" type="button" id="expBtn">导出 JSON</button>${S.questions.length ? '<button class="btn sm ghost" type="button" id="shareBtn">生成分享码</button>' : ''}${S.bank.length ? '<button class="btn sm ghost" type="button" id="clrBtn">清空我导入的</button>' : ''}${sub.kind === 'mine' ? '<button class="btn sm ghost" type="button" id="renBtn">改名</button><button class="btn sm danger" type="button" id="delBtn">删除科目</button>' : sub.kind === 'shared' ? '<button class="btn sm danger" type="button" id="delBtn">移出我的列表</button>' : ''}${pubBtns2}</div></div></div>
+      ${sentToMe}
+      <div class="f" style="margin-top:12px"><div class="line"><button class="btn sm ghost" type="button" id="expBtn">导出 JSON</button>${S.questions.length ? '<button class="btn sm ghost" type="button" id="shareBtn">生成分享码</button>' : ''}${S.bank.length ? '<button class="btn sm ghost" type="button" id="clrBtn">清空我导入的</button>' : ''}${sub.kind === 'mine' ? '<button class="btn sm ghost" type="button" id="renBtn">改名</button><button class="btn sm danger" type="button" id="delBtn">删除科目</button>' : sub.kind === 'shared' ? '<button class="btn sm danger" type="button" id="delBtn">移出我的列表</button>' : ''}${fwdBtn}${pubBtns2}</div></div></div>
     <div class="panel"><h3>新建科目</h3><div class="f"><div class="line"><input id="newName" maxlength="30" placeholder="科目名称" style="flex:1"><button class="btn sm" type="button" id="newBtn">新建</button></div></div></div>
     <div class="panel" id="impPanel"><h3>导入资料 · ${esc(sub.name)}</h3>
-      ${aiReady() ? '' : '<div class="imp-warn"><span>还没配 AI 模型 → 去首页「AI 设置」</span><button class="btn sm" type="button" id="toAi">去首页「AI 设置」</button></div>'}
+      ${aiReady() ? '' : noAiWarn()}
       <div class="imp-note">
         <b>两种导入方式</b>
         <ul>
@@ -4011,6 +4345,22 @@ function renderBank() {
   const on = (id, fn) => { if ($(id)) $(id).onclick = fn; };
   on('expBtn', () => downloadText(sub.name + '.json', JSON.stringify(S.questions, null, 1)));
   on('shareBtn', openShareSheet); // 生成分享码（6 位 + 二维码）
+  /* 转发给自己（2026-11-08）：老师收到别人发来的题，复制一份到自己名下。
+     复制完默认「只自己刷」，老师再去那一份里选班级发给自己的学生 ——
+     这样「老师也能自己刷」和「老师再发给学生」两件事都成立，而且不用原作者的权限。
+     题库 id 由服务端生成（f-xxxx），前端不自己编，避免撞车覆盖别人的题库。 */
+  on('fwdBtn', e => {
+    const nm = sub.name;
+    sure(e.currentTarget, `把「${nm}」复制一份到你名下？复制后你能改、能发给你自己的班；原来那份不动。`, async () => {
+      try {
+        toast('正在复制…');
+        const r = await store.forward(sub.pid || sub.id, nm, hx.name(S.user, S.me), []);
+        await loadSubjects();
+        await openSubject('pub-' + r.id);
+        toast(`已复制 ${r.total} 题到你名下（现在只自己刷；选班级就能发给你的学生）`);
+      } catch (err) { toast('转发失败：' + (err.message || err)); }
+    });
+  });
   on('clrBtn', e => sure(e.currentTarget, `确认清空 ${S.bank.length} 题？`, () => setBank([])));
   on('renBtn', async () => { const n = prompt('科目新名字', sub.name)?.trim(); if (!n) return; await saveMine(m => m.map(s => s.id === sub.id ? { ...s, name: n.slice(0, 30) } : s)); S.view = 'bank'; await openSubject(sub.id); });
   on('delBtn', e => sure(e.currentTarget, sub.kind === 'shared' ? '确认移出列表？' : '确认删除科目？', async () => {
@@ -4033,10 +4383,6 @@ function renderBank() {
     if ($('gen')) $('gen').hidden = r.value !== 'gen';
   };
   bindGen();
-  on('toAi', () => {
-    if (window.__OFFLINE) return toast('离线版没有首页设置页，请先在网页版配好模型');
-    location.href = '../ai/';
-  });
   on('tplBtn', () => {
     downloadText('题库模板.json', JSON.stringify({ 说明: '一题一条；type 可写 single/multiple/judgment/fill/short/prog；判断题选项写 T（正确）、F（错误）；填空题题干用 ____ 表示空；程序分析题把代码写在 code、小问写在 sub、参考答案写在 answer。填好直接拖进导入区即可，不用 AI。', questions: TPL }, null, 2));
     toast('模板已下载，照着填，填完拖进来');
@@ -4082,10 +4428,6 @@ function renderBank() {
   if ($('stText')) $('stText').oninput = e => { if (S.study) S.study.text = e.target.value; };
   on('stGo', runStudyCard);
   bindStudyBtns();
-  on('toAi2', () => {
-    if (window.__OFFLINE) return toast('离线版没有首页设置页，请先在网页版配好模型');
-    location.href = '../ai/';
-  });
   on('okImport', confirmImport);
   on('dtlBtn', () => { if (S.draft) { S.draft.open = !S.draft.open; renderBank(); } });
   on('noImport', () => { S.draft = null; renderBank(); });
@@ -4172,7 +4514,7 @@ async function startImport() {
       got = gen ? await aiGenerate(text, sub.id, sub.name, opts, tick) : await aiImport(text, sub.id, tick);
     }
     if (pics.length) {
-      await ensureHxAi(); // 看图要靠首页那套（HXAI.vision），用到时才加载
+      await ensureHxAi(); // 看图走首页那套（HXAI.vision）；boot 时一般已经加载好了
       const images = await readImages(pics);
       const vis = await aiVision(images, { subject: sub.id, subjectName: sub.name, mode: gen ? 'gen' : 'pick', opts, onProgress: tick });
       got = { questions: [...got.questions, ...vis.questions], rejected: [...got.rejected, ...vis.rejected] };
@@ -4212,36 +4554,49 @@ async function confirmImport() {
   S.draft = null; await setBank([...S.bank, ...add]); toast(`已导入 ${add.length} 题`);
 }
 
-// ---------- 发布：选下发到哪些班（2026-11-02）----------
+// ---------- 发布：选下发到哪些班 / 哪些老师（2026-11-02 建，2026-11-08 加老师这一维）----------
 // 用户要求：「教师账号导入的资料允许专业班级下发和撤销，也可以只自己刷」
-// 三种状态，对应数据库里 target_classes 的三态：
-//   全部学生  → null     （老行为，默认）
-//   只自己刷  → []       （不发出去，题还在自己科目里）
-//   指定班级  → [id...]
+// 2026-11-08 又要求：「开发者没有发布给老师账号的功能 发给老师 老师也可以再发给学生 也可以自己刷」
+// 四种状态，对应数据库里 target_classes / target_teachers 的组合：
+//   全部学生    → classes = null,  teachers = null   （老行为，默认）
+//   只自己刷    → classes = [],    teachers = null
+//   指定班级    → classes = [id...], teachers = null
+//   指定老师    → classes = [],    teachers = [uid...]  ← 学生看不到，老师能看到、能转发
+// ※ 「指定老师」必须一起把班级传成空数组：数据库里只发老师却传 classes=null 会直接报错，
+//   因为 null 的意思是「全部学生可见」——那就等于发给全校了。
 function openPublishSheet(onDone) {
   const sub = S.subject, pid = sub.kind === 'public' ? sub.pid : sub.id;
-  const cur = sub.kind === 'public' ? sub.class_ids : undefined; // 已发布过的题库带回来
+  const cur = sub.kind === 'public' ? sub.class_ids : undefined;   // 已发布过的题库带回来
+  const curT = sub.kind === 'public' ? sub.teacher_ids : undefined;
   const isNew = !sub.published && sub.kind !== 'public';
+  // 回填默认值：有老师名单就选「指定老师」，否则按班级三态走
+  const mode0 = (curT && curT.length) ? 'tea' : (isNew || cur == null) ? 'all' : cur.length ? 'cls' : 'self';
 
   openSheet(`<h3>发布 <small class="muted">${S.questions.length} 题</small></h3>
-    <p class="muted" style="margin:0 0 12px">发给谁刷？学生的“科目”列表里只会出现发给他的题库。</p>
+    <p class="muted" style="margin:0 0 12px">发给谁刷？发给学生之后，只有名单里的人能在“科目”里看到这套题。</p>
     <div class="radio" style="flex-direction:column;gap:8px">
-      <label><input type="radio" name="tg" value="all" ${isNew || cur == null ? 'checked' : ''}> 全部学生（所有班都能刷）</label>
-      <label><input type="radio" name="tg" value="self" ${!isNew && cur && cur.length === 0 ? 'checked' : ''}> 只自己刷（不发给学生，题留在我的科目里）</label>
-      <label><input type="radio" name="tg" value="cls" ${!isNew && cur && cur.length ? 'checked' : ''}> 只发给指定班级</label>
+      <label><input type="radio" name="tg" value="all" ${mode0 === 'all' ? 'checked' : ''}> 全部学生（所有班都能刷）</label>
+      <label><input type="radio" name="tg" value="self" ${mode0 === 'self' ? 'checked' : ''}> 只自己刷（不发给学生，题留在我的科目里）</label>
+      <label><input type="radio" name="tg" value="cls" ${mode0 === 'cls' ? 'checked' : ''}> 只发给指定班级</label>
+      <label><input type="radio" name="tg" value="tea" ${mode0 === 'tea' ? 'checked' : ''}> 只发给指定老师（学生看不到；老师能自己刷，也能再发给他自己的班）</label>
     </div>
     <div id="clsPick" style="margin-top:12px" hidden>
       <div class="sgroup">我教的班</div>
       <div id="clsList" class="slist"><div class="muted" style="padding:10px">正在读取班级…</div></div>
     </div>
+    <div id="teaPick" style="margin-top:12px" hidden>
+      <div class="sgroup">老师账号</div>
+      <div id="teaL" class="slist"><div class="muted" style="padding:10px">正在读教师名单…</div></div>
+      <p class="muted" style="margin:8px 0 0">老师收到后能自己刷，也能点“转发给自己”复制一份，再发给他自己的班。</p>
+    </div>
     <div class="line" style="margin-top:14px"><button class="btn" type="button" id="pubGo">确认发布</button><button class="btn sm ghost" type="button" id="pubNo">取消</button></div>`,
   async () => {
     const rad = () => ($('sheetBody').querySelector('input[name=tg]:checked') || {}).value;
-    const sync = () => { $('clsPick').hidden = rad() !== 'cls'; };
+    const sync = () => { $('clsPick').hidden = rad() !== 'cls'; $('teaPick').hidden = rad() !== 'tea'; };
     for (const r of $('sheetBody').querySelectorAll('input[name=tg]')) r.onchange = sync;
     sync();
 
-    // 班级列表懒加载：只有选了“指定班级”才去查，不选就不打扰数据库
+    // 班级 / 教师名单都懒加载：只有选了那一项才去查，不选就不打扰数据库
     let classes = null;
     const loadCls = async () => {
       if (classes) return;
@@ -4258,32 +4613,58 @@ function openPublishSheet(onDone) {
            <small>${c.bound || 0}/${c.total || 0} 人</small>
          </label>`).join('');
     };
-    // 一开始就选中“指定班级”的，立刻加载
+    let teas = null;
+    const loadTea = async () => {
+      if (teas) return;
+      const r = await store.teacherList();
+      teas = (r || []).filter(t => t && t.uid);
+      const box = $('teaL');
+      if (!box) return;
+      if (!teas.length) { box.innerHTML = '<div class="muted" style="padding:10px">还没有别的教师账号。让对方用教师邀请码开通后再来发。</div>'; return; }
+      const sel = new Set(curT || []);
+      box.innerHTML = teas.map(t =>
+        `<label class="sitem" style="justify-content:flex-start;gap:10px;cursor:pointer">
+           <input type="checkbox" data-tuid="${esc(t.uid)}" ${sel.has(t.uid) ? 'checked' : ''}>
+           <b style="flex:1">${esc(t.name || '（没名字）')}</b>
+           <small>${t.is_dev ? '开发者' : t.is_admin ? '管理员' : '教师'}</small>
+         </label>`).join('');
+    };
     if (rad() === 'cls') loadCls();
+    if (rad() === 'tea') loadTea();
     for (const r of $('sheetBody').querySelectorAll('input[name=tg]')) {
       const prev = r.onchange;
-      r.onchange = () => { prev(); if (rad() === 'cls') loadCls(); };
+      r.onchange = () => { prev(); if (rad() === 'cls') loadCls(); if (rad() === 'tea') loadTea(); };
     }
 
     $('pubNo').onclick = closeSheet;
     $('pubGo').onclick = async () => {
       const mode = rad();
-      let classes2;
+      let classes2, teachers2 = null;
       if (mode === 'all') classes2 = null;
       else if (mode === 'self') classes2 = [];
-      else {
+      else if (mode === 'tea') {
+        const picked = [...$('sheetBody').querySelectorAll('input[data-tuid]:checked')].map(x => x.dataset.tuid);
+        if (!picked.length) { toast('至少选一位老师'); return; }
+        classes2 = [];        // 关键：发给老师时学生一律看不到
+        teachers2 = picked;
+      } else {
         const picked = [...$('sheetBody').querySelectorAll('input[data-cid]:checked')].map(x => +x.dataset.cid);
         if (!picked.length) { toast('至少选一个班；不想发给学生就选“只自己刷”'); return; }
         classes2 = picked;
       }
       $('pubGo').disabled = true;
       try {
-        await store.publish(pid, sub.name, S.questions, hx.name(S.user, S.me), classes2);
+        await store.publish(pid, sub.name, S.questions, hx.name(S.user, S.me), classes2, teachers2);
         if (sub.kind === 'mine') { await saveMine(m => m.map(s => s.id === sub.id ? { ...s, published: true } : s)); S.subject.published = true; }
         // 把新的下发范围写回内存，面板再打开时能回填
-        S.subject.class_ids = classes2; S.subject.targets = mode === 'all' ? '全部学生' : mode === 'self' ? '只自己刷' : classes2.length + ' 个班';
+        S.subject.class_ids = classes2; S.subject.teacher_ids = teachers2;
+        S.subject.targets = mode === 'all' ? '全部学生' : mode === 'self' ? '只自己刷'
+          : mode === 'tea' ? teachers2.length + ' 位老师' : classes2.length + ' 个班';
         closeSheet();
-        toast(mode === 'self' ? '已保存（只自己刷，学生看不到）' : mode === 'all' ? '已发布给全部学生' : `已发布给 ${classes2.length} 个班`);
+        toast(mode === 'self' ? '已保存（只自己刷，学生看不到）'
+          : mode === 'all' ? '已发布给全部学生'
+          : mode === 'tea' ? `已发给 ${teachers2.length} 位老师（学生看不到；老师能转发给自己的班）`
+          : `已发布给 ${classes2.length} 个班`);
         if (onDone) onDone();
       } catch (e) { toast(e.message); }
       finally { if ($('pubGo')) $('pubGo').disabled = false; }
@@ -4409,72 +4790,9 @@ function copyText(t) {
   if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(done, ta);
   else ta();
 }
-// 「?」：教学生自己申请硅基流动的 API Key（注册 → 实名 → 建密钥 → 填进来）
-function openAiHelpSheet() {
-  const step = (n, title, body) => `<div class="astep"><div class="ahd"><i>${n}</i><b>${title}</b></div>${body}</div>`;
-  openSheet(`<h3>怎么申请 AI Key</h3><div class="aikey">
-    ${step(1, '注册硅基流动', `
-      <p>硅基流动（SiliconFlow）是国内的大模型平台，注册很简单，只要一个手机号。</p>
-      <div class="aqr">
-        <img src="${SF_QR}" alt="硅基流动注册二维码" width="132" height="132">
-        <div class="aqr-r">
-          <p class="muted">手机扫左边的二维码，或者在电脑上点下面的按钮注册。</p>
-          <div class="line"><button class="btn sm" type="button" id="sfOpen">打开注册链接</button><button class="btn sm ghost" type="button" id="sfCopy">复制链接</button></div>
-          <code class="alink">${esc(SF_URL)}</code>
-        </div>
-      </div>
-      <p class="atip">用这个链接注册，能帮老师拿到一点推广额度，不额外收你的钱。</p>`)}
-    ${step(2, '实名认证，领 16 元额度', `
-      <p>注册完登录进去，在左边菜单点「实名认证」，按提示填一下身份证信息。</p>
-      <p>认证通过后会送 <b>16 元额度券</b>，够刷很久的题了。<b class="warn">一定要实名认证</b>，不认证就拿不到这张券。</p>`)}
-    ${step(3, '创建 API 密钥', `
-      <p>左侧菜单点「API 密钥」→ 点「新建 API 密钥」→ 起个名字（随便写，比如 <code>华夏工具</code>）→ 创建。</p>
-      <p>创建完会给你一串 <code>sk-</code> 开头的密钥，这就是钥匙。</p>
-      <p><b class="warn">密钥只显示一次，关掉这个窗口就再也看不到了，一定要马上复制下来。</b>也别把它发给别人。</p>`)}
-    ${step(4, '填进这个工具', `
-      <p>回到刷题页面的「设置」：</p>
-      <ol>
-        <li>服务商选「硅基流动」，接口地址会自动填好；</li>
-        <li>把 <code>sk-</code> 密钥粘到「API Key」输入框；</li>
-        <li>点「读取模型」，读出来后在模型下拉里挑一个（推荐 <code>Qwen/Qwen2.5-7B-Instruct</code>，或者列表里价格最低的那个）；</li>
-        <li>点「测试连接」，看到「连接成功」；</li>
-        <li>最后点「保存」。</li>
-      </ol>
-      <p class="muted">Key 只存在你自己这台设备的浏览器里，不会上传到任何服务器。</p>`)}
-    <div class="awarn"><b>安全提醒</b>
-      <ul>
-        <li>别把 Key 发给别人、别发到班级群里——别人拿到就能花你的额度。</li>
-        <li>在公共电脑（机房、图书馆）上用完，记得取消勾选「在这台设备长期保存 Key」。</li>
-      </ul>
-    </div>
-  </div>`, () => {
-    const open = () => { // 有些应用内浏览器不弹新窗口，失败就把链接亮出来让人手动打开
-      let w = null;
-      // 不用第三个参数的 noopener：带它 window.open 一律返回 null，判断不出到底开没开
-      try { w = window.open(SF_URL, '_blank'); } catch (e) { }
-      if (w) { try { w.opener = null; } catch (e) { } } // 断开 opener，新窗口碰不到本页
-      else toast('浏览器拦了新窗口，手动复制下面的链接打开');
-    };
-    $('sfOpen').onclick = open;
-    $('sfCopy').onclick = () => copyText(SF_URL);
-  }, 'big solid');
-}
-
 function renderSettings() {
-  const s = getSettings(), p = providers[s.provider], models = [...new Set([...(s.models || []), ...p.models])];
+  /* 2026-11-08（Z5）：「AI 解析」整张卡删掉了 —— Key、服务商、模型统一在首页「AI 设置」配。 */
   $('v-settings').innerHTML = `
-    <div class="panel"><h3>AI 解析<button class="help" type="button" id="aiHelp" title="怎么申请 AI Key" aria-label="怎么申请 AI Key">?</button></h3>${hasExt()
-      ? '<p class="extok">已装“夜夜题库AI伴侣”：题干下的“✦ 学会这题”用的是扩展里的 Key，这里不填也能讲题。<b>这里填了自己的 Key 之后，题目下还会多出一个网页自己的“✦ AI 逐项解析”</b>，两个都能点，随便用哪个。<br>想自己申请一个 Key？点上面的「?」看图文教学（现在能领 16 元额度）。</p>'
-      : '<p class="muted" style="margin-top:0">填自己的 AI Key 后，答题后能逐项解析，也能识别资料、根据资料出题。请求直接从浏览器发给服务商。<br>不知道去哪申请？点上面的「?」看图文教学。</p>'}
-      <div class="f">
-        <label for="prov">服务商</label><select id="prov">${Object.entries(providers).map(([k, v]) => `<option value="${k}" ${k === s.provider ? 'selected' : ''}>${esc(v.label)}</option>`).join('')}</select>
-        <label for="base">接口地址</label><input id="base" type="url" value="${esc(s.baseUrl)}" placeholder="https://api.example.com/v1">
-        <label for="model">模型</label><div class="line"><select id="model" style="flex:1;min-width:0">${models.map(m => `<option value="${esc(m)}" ${m === s.model ? 'selected' : ''}>${esc(m)}</option>`).join('')}<option value="" ${models.includes(s.model) ? '' : 'selected'}>手动填写…</option></select><button class="btn sm ghost" type="button" id="lsModels">读取模型</button></div>
-        <input id="modelIn" value="${esc(models.includes(s.model) ? '' : s.model)}" placeholder="模型 ID" ${models.includes(s.model) ? 'hidden' : ''}>
-        <label for="key">API Key</label><input id="key" type="password" autocomplete="off" value="${esc(s.apiKey)}" placeholder="sk-…">
-        <div class="radio"><label><input type="checkbox" id="remember" ${s.remember ? 'checked' : ''}>在这台设备长期保存 Key（公共电脑别勾）</label></div>
-        <div class="line"><button class="btn sm" type="button" id="saveAi">保存</button><button class="btn sm ghost" type="button" id="testAi">测试连接</button><span class="muted" id="aiMsg"></span></div>
-      </div></div>
     <div class="panel"><h3>快捷键</h3><div class="keys">${KEY_ACTS.map(([a, n]) => `<div><span>${n}</span>${[0, 1].map(k => `<button type="button" data-ka="${a}" data-ki="${k}">${esc(keyName(keyMap()[a][k] || '') || '—')}</button>`).join('')}</div>`).join('')}</div>
       <div style="display:flex;gap:8px;margin-top:12px;align-items:center"><button class="btn sm ghost" type="button" id="keyDef">恢复默认</button><span class="muted">点一个键位再按键盘；按退格清空</span></div></div>
     <div class="panel guide" id="guide"><h3>使用说明</h3>${guide()}</div>
@@ -4484,15 +4802,7 @@ function renderSettings() {
     b.classList.add('rec'); b.textContent = '按一个键…'; S.recKey = { a: b.dataset.ka, i: +b.dataset.ki };
   };
   $('keyDef').onclick = () => { store.setLocal('keys', {}); renderSettings(); toast('快捷键已恢复默认'); };
-  $('aiHelp').onclick = openAiHelpSheet;
   $('reload').onclick = async () => { S.base = {}; await loadSubjects(); await openSubject(S.subject.id); toast('题库已重新加载'); };
-  const collect = () => ({ provider: $('prov').value, baseUrl: $('base').value.trim(), model: ($('model').value || $('modelIn').value).trim(), models: s.models || [], apiKey: $('key').value.trim(), remember: $('remember').checked });
-  $('prov').onchange = () => { const v = providers[$('prov').value]; saveSettings({ ...collect(), baseUrl: v.baseUrl, model: v.models[0] || '', models: [] }); renderSettings(); };
-  $('model').onchange = () => { $('modelIn').hidden = !!$('model').value; saveSettings(collect()); if ($('model').value) $('aiMsg').textContent = '已选 ' + $('model').value; else $('modelIn').focus(); };
-  $('modelIn').onchange = () => saveSettings(collect());
-  $('saveAi').onclick = () => { saveSettings(collect()); $('aiMsg').textContent = '已保存'; };
-  $('testAi').onclick = async () => { saveSettings(collect()); $('aiMsg').textContent = '正在测试…'; try { await chat([{ role: 'user', content: '只回复：连接成功' }]); $('aiMsg').textContent = '连接成功'; } catch (e) { $('aiMsg').textContent = e.message; } };
-  $('lsModels').onclick = async () => { saveSettings(collect()); $('aiMsg').textContent = '正在读取…'; try { const ms = await listModels(), c = collect(); saveSettings({ ...c, models: ms, model: ms.includes(c.model) ? c.model : ms[0] || c.model }); renderSettings(); $('aiMsg').textContent = `读到 ${ms.length} 个模型，在模型框里选`; } catch (e) { $('aiMsg').textContent = e.message; } };
   $('resetP').onclick = e => sure(e.currentTarget, '确认清空？', resetAll);
 }
 
@@ -4589,41 +4899,44 @@ function openNotice() {
   openSheet(`<h3>开始刷题</h3><div class="guide">
     <p>选题型和范围，点选项作答；答完<b>左滑记住、右滑再练</b>，电脑上按 <kbd>${esc(keyOf('know'))}</kbd> / <kbd>${esc(keyOf('again'))}</kbd>。</p>
     <p>“记住”的题不再出现在“待掌握”里；点错了可以撤销。</p>
-    <p>想看 AI 逐项讲解：在“设置”里填自己的 AI Key，或装“夜夜题库AI伴侣”浏览器扩展。</p></div>
+    <p>想看 AI 逐项讲解：在首页「AI 设置」配一套模型，或装“夜夜题库AI伴侣”浏览器扩展。</p></div>
     <div class="row" style="margin-top:16px"><button class="btn ghost" type="button" id="nGuide" style="flex:1">使用说明</button><button class="btn" type="button" id="nOk" style="flex:1">开始</button></div>`, () => {
     $('nOk').onclick = closeSheet;
     $('nGuide').onclick = () => { closeSheet(); show('settings'); setTimeout(() => $('guide')?.scrollIntoView({ behavior: 'smooth' }), 80); };
   });
   store.setLocal('notice', 1);
 }
-// 问 AI 的模型可选项：设置里“读取模型”读到的 + 服务商默认 + 当前选中的，去重
-function askModels() {
-  const st = getSettings();
-  const list = [...(st.models || []), ...((providers[st.provider] || {}).models || []), st.model].filter(Boolean);
-  return [...new Set(list)];
+/* 问 AI 的「模型 / 思考程度」（2026-11-08 Z5 改走首页 HXAI）：
+   模型下拉 = 首页「AI 设置」里配好的那几套（不选 = 首页给刷题指定的 / 文本默认）；
+   思考程度 = HXAI 的三档 thinkLevel（不选 = 那套配置自己的档位），「深度」按 reason 能力找模型，没配推理就回落文本。
+   输出预算照旧（max_tokens）。老存档里的「低 / 中 / 高」自动对到 快速 / 均衡 / 深度。 */
+const OLD_LV = { 低: 'quick', 中: 'balanced', 高: 'deep' };
+const BUDGET = { quick: 800, balanced: 1400, deep: 2600 };
+function askProfile() {
+  const id = store.getLocal('askProfile', '');
+  return (id && aiProfiles().find(p => p.id === id)) || null;
 }
-// 思考程度映射到真实参数：开不开服务商的思考模式、temperature、输出预算（max_tokens）
-const THINK = {
-  低: { think: false, temperature: 0.2, maxTokens: 800 },
-  中: { think: true, temperature: 0.3, maxTokens: 1400 },
-  高: { think: true, temperature: 0.5, maxTokens: 2600 },
-};
 function askOpts() {
-  const lv = THINK[store.getLocal('askThink', '低')] ? store.getLocal('askThink', '低') : '低';
-  const preset = THINK[lv];
-  const budget = +store.getLocal('askBudget', preset.maxTokens) || preset.maxTokens;
-  return { lv, model: store.getLocal('askModel', '') || getSettings().model, think: preset.think, temperature: preset.temperature, budget };
+  const picked = askProfile(), def = aiState('text').profile;
+  const prof = picked || def || null;
+  let lv = store.getLocal('askThink', '');
+  lv = OLD_LV[lv] || lv;
+  if (!BUDGET[lv]) lv = (prof && BUDGET[prof.thinkLevel]) ? prof.thinkLevel : 'balanced';
+  const budget = +store.getLocal('askBudget', BUDGET[lv]) || BUDGET[lv];
+  return { lv, picked, prof, budget, explicit: !!BUDGET[OLD_LV[store.getLocal('askThink', '')] || store.getLocal('askThink', '')] };
 }
+const lvName = id => (aiThinkLevels().find(x => x.id === id) || {}).name || id;
+const profName = p => p ? (p.name || p.model || '未命名') : '';
 const shortModel = m => String(m || '').split('/').pop();
 
 function openAsk() {
   const q = S.view === 'practice' ? cur() : null;
   let withQ = !!q;
   const big = !!store.getLocal('askBig', false); // 上次的窗口大小记着
-  const o = askOpts(), models = askModels();
+  const o = askOpts(), profs = aiProfiles(), lvs = aiThinkLevels();
   const draw = () => {
     const box = $('chat'); if (!box) return;
-    box.innerHTML = S.chat.length ? S.chat.map(m => `<div class="msg ${m.role === 'user' ? 'u' : 'a'}">${esc(m.show || m.content)}</div>`).join('') : `<p class="muted">${getSettings().apiKey ? '问这道题、知识点，或让 AI 出几道类似的题。' : '先在“设置”里填自己的 AI Key。'}</p>`;
+    box.innerHTML = S.chat.length ? S.chat.map(m => `<div class="msg ${m.role === 'user' ? 'u' : 'a'}">${esc(m.show || m.content)}</div>`).join('') : `<p class="muted">${aiReady() ? '问这道题、知识点，或让 AI 出几道类似的题。</p>' : '</p>' + noAiHint()}`;
     box.scrollTop = box.scrollHeight;
   };
   const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -4635,14 +4948,14 @@ function openAsk() {
     <div class="askbox"><textarea id="askIn" rows="1" placeholder="输入问题，回车发送"></textarea></div>
     <div class="askbar">
       ${Rec ? '<button class="rbtn" type="button" id="mic" aria-label="语音输入"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M12 3a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3Z"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>' : ''}
-      <div class="pw"><button class="apill" type="button" id="modelBtn" aria-expanded="false"><b>${esc(shortModel(o.model) || '未选模型')}</b>${CARET}</button>
-        <div class="pmenu" id="modelMenu"><h4>模型</h4>${models.map(m => `<button type="button" data-model="${esc(m)}" aria-selected="${m === o.model}">${esc(m)}<i>✓</i></button>`).join('')}</div></div>
-      <div class="pw"><button class="apill" type="button" id="thinkBtn" aria-expanded="false"><b id="thinkLab">思考 · ${o.lv}</b>${CARET}</button>
+      <div class="pw"><button class="apill" type="button" id="modelBtn" aria-expanded="false"><b>${esc(shortModel(profName(o.prof)) || '未配模型')}</b>${CARET}</button>
+        <div class="pmenu" id="modelMenu"><h4>模型</h4>${profs.length ? `<button type="button" data-prof="" aria-selected="${!o.picked}">首页默认<i>✓</i></button>` + profs.map(p => `<button type="button" data-prof="${esc(p.id)}" aria-selected="${!!o.picked && o.picked.id === p.id}">${esc(profName(p))}${p.model && p.name ? ` · ${esc(shortModel(p.model))}` : ''}<i>✓</i></button>`).join('') : `<p class="muted" style="margin:4px 10px 8px;font-size:12px">${noAiHint()}</p>`}</div></div>
+      <div class="pw"><button class="apill" type="button" id="thinkBtn" aria-expanded="false"><b id="thinkLab">思考 · ${esc(lvName(o.lv))}</b>${CARET}</button>
         <div class="pmenu" id="thinkMenu"><h4>思考程度</h4>
-          <div class="aseg" id="thinkSeg">${['低', '中', '高'].map(v => `<button type="button" data-lv="${v}" aria-pressed="${v === o.lv}">${v}</button>`).join('')}</div>
+          <div class="aseg" id="thinkSeg">${lvs.map(v => `<button type="button" data-lv="${esc(v.id)}" aria-pressed="${v.id === o.lv}">${esc(v.name)}</button>`).join('')}</div>
           <div class="alab"><span>输出预算</span><b id="budVal">${o.budget}</b></div>
           <input type="range" id="budget" min="400" max="2600" step="100" value="${o.budget}" aria-label="输出预算">
-          <p class="muted" style="margin:2px 10px 6px;font-size:11.5px;line-height:1.5">中／高会打开服务商的思考模式，回答更细但更慢。</p>
+          <p class="muted" style="margin:2px 10px 6px;font-size:11.5px;line-height:1.5">均衡／深度会让模型多想一会儿，回答更细但更慢；深度优先用首页设的推理模型。</p>
         </div></div>
       <span class="sp"></span>
       <button class="rbtn go" type="button" id="askGo" aria-label="发送"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
@@ -4676,11 +4989,11 @@ function openAsk() {
     if (window.__askCloser) document.removeEventListener('click', window.__askCloser);
     window.__askCloser = closeMenus;
     document.addEventListener('click', window.__askCloser);
-    // 换模型：只影响问 AI，不动设置页里选的默认模型
-    for (const b of $('modelMenu').querySelectorAll('[data-model]')) b.onclick = () => {
-      store.setLocal('askModel', b.dataset.model);
-      for (const x of $('modelMenu').querySelectorAll('[data-model]')) x.setAttribute('aria-selected', String(x === b));
-      $('modelBtn').querySelector('b').textContent = shortModel(b.dataset.model);
+    // 换模型：只影响问 AI，不动首页「AI 设置」里给刷题选的那套
+    for (const b of $('modelMenu').querySelectorAll('[data-prof]')) b.onclick = () => {
+      store.setLocal('askProfile', b.dataset.prof);
+      for (const x of $('modelMenu').querySelectorAll('[data-prof]')) x.setAttribute('aria-selected', String(x === b));
+      $('modelBtn').querySelector('b').textContent = shortModel(profName(askOpts().prof)) || '未配模型';
       closeMenus();
     };
     // 思考程度：分段和预算滑块联动，改了就存
@@ -4691,8 +5004,8 @@ function openAsk() {
       const lv = b.dataset.lv;
       store.setLocal('askThink', lv);
       for (const x of seg.querySelectorAll('[data-lv]')) x.setAttribute('aria-pressed', String(x === b));
-      thinkLab.textContent = '思考 · ' + lv;
-      paintBud(THINK[lv].maxTokens);
+      thinkLab.textContent = '思考 · ' + lvName(lv);
+      paintBud(BUDGET[lv] || 1400);
     };
     bud.oninput = () => paintBud(+bud.value);
     bud.onchange = () => { store.setLocal('askBudget', +bud.value); };
@@ -4708,7 +5021,7 @@ function openAsk() {
     };
     async function send() {
       const text = inp.value.trim(); if (!text) return;
-      if (!getSettings().apiKey) { S.askDraft = inp.value; closeSheet(); show('settings'); return toast('先填自己的 AI Key'); }
+      if (!aiReady()) { S.askDraft = inp.value; draw(); return toast(aiState().msg); } // 提示 + 去 /ai/ 的链接就在聊天区里
       let content = text;
       if (withQ && q) {
         content = `题目（${typeName(q.type)}）：${q.stem}${figText(q)}${q.code ? '\n' + q.code : ''}${(q.options || []).length ? '\n' + q.options.map(o => o.key + '. ' + optText(o)).join('\n') : ''}${S.picked[q.id] ? '\n题库答案：' + q.answer.join(q.type === 'fill' ? '；' : '') : ''}\n\n我的问题：${text}`;
@@ -4719,7 +5032,12 @@ function openAsk() {
       try {
         const msgs = [{ role: 'system', content: `你是耐心的${S.subject ? '“' + S.subject.name + '”课程' : ''}辅导老师，用简洁的中文回答学生，不用 Markdown 标记；题库答案可能有误，有疑点要说明。` }, ...S.chat.slice(0, -1).slice(-12).map(({ role, content }) => ({ role, content }))];
         const oo = askOpts(); // 每次发送现读，下拉里改了立刻生效
-        a.content = await streamChat(msgs, t => { a.content = t; draw(); }, { model: oo.model, think: oo.think, temperature: oo.temperature, maxTokens: oo.budget });
+        a.content = await streamChat(msgs, t => { a.content = t; draw(); }, {
+          profile: oo.picked || undefined, // 下拉里换过就用那套，否则交给 HXAI 按「刷题指定 → 能力默认」挑
+          thinkLevel: oo.explicit ? oo.lv : undefined, // 没动过思考程度 = 跟那套配置自己的档位
+          cap: oo.lv === 'deep' ? 'reason' : 'text', // 深度优先找推理模型，没配就由 HXAI 回落文本
+          maxTokens: oo.budget
+        });
       } catch (e) { a.content = '出错了：' + e.message; }
       if ($('askGo')) $('askGo').disabled = false; draw();
     }
@@ -4731,10 +5049,10 @@ const guide = () => `<h4>刷题</h4><ul>
   <li>答完：<b>左滑或按 ${esc(keyOf('know'))}</b> 记住并下一题，<b>右滑或按 ${esc(keyOf('again'))}</b> 再练；鼠标也能拖题卡。按住时题卡只跟着手指走，松手才算：拖回中间再松手就放回原处。点错了用提示里的“撤销”，或回到那题点“撤销记住”。快捷键可以在上面改。</li>
   <li>“专注”只留题卡；“问 AI”（${esc(keyOf('ask'))}）可以引用当前题目提问，浏览器支持时可以语音输入。</li>
   <li>登录后进度跟账号走；没登录只存在这台设备。账号、外观在首页右上角设置。</li></ul>
-<h4>AI 解析（网页自带）</h4><ol>
-  <li>到硅基流动、DeepSeek 等服务商注册，创建 API Key。</li>
-  <li>在上面“AI 解析”里选服务商、填 Key，点“读取模型”选一个，保存，再点“测试连接”。</li>
-  <li>答完一道题点“✦ AI 逐项解析”。Key 只存在你的浏览器，请求直接发给服务商。</li></ol>
+<h4>AI 解析</h4><ol>
+  <li>AI 统一在首页「AI 设置」里配（服务商、Key、模型都在那儿，刷题不再单独填）。</li>
+  <li>答完一道题点“✦ AI 逐项解析”；顶上“问 AI”可以引用当前题提问。</li>
+  <li>没配时这些位置会提示「还没配置 AI」，点旁边的链接去首页配。</li></ol>
 <h4>浏览器扩展：夜夜题库AI伴侣</h4><ol>
   <li>安装：在电脑版 Chrome 或 Edge 里，从 <a href="https://github.com/zcq19991029/chorme-AIkuozhan/releases/latest" target="_blank" rel="noopener">发布页</a> 下载学生安装包（0.7.0 起支持本刷题页）并解压到固定文件夹；打开 <code>chrome://extensions</code>（Edge 是 <code>edge://extensions</code>），打开“开发者模式”，点“加载已解压的扩展程序”，选解压出来的 <code>extension</code> 文件夹。</li>
   <li>设置 AI：点浏览器右上角的扩展图标 →“设置”，填自己的硅基流动 API Key（在 cloud.siliconflow.cn 注册后创建），点“读取模型”选一个对话模型，保存，再点“测试”。</li>
@@ -4743,23 +5061,29 @@ const guide = () => `<h4>刷题</h4><ul>
 <p>网页和扩展的 Key 各存各的，互不影响。装了扩展不填网页 Key 也能用扩展讲题；<b>在这里也填一份，题目下就会同时有扩展的“✦ 学会这题”和网页的“✦ AI 逐项解析”</b>，点哪个都行。</p>`;
 
 // ---------- 启动 ----------
-// 登录了但没开通（GitHub 新账号等，身份“未开通”）：整页挡住，只引导去首页填邀请码；没登录的照样能刷
+// 未登录 / 登录了但没开通：整页挡住。
+// 2026-11-08 用户定：「没登录的人不允许使用任何工具」——原来这里写「没登录的照样能刷」，那是 2026-11-01
+// 修注册时临时放开的，后来忘了收。现在两道：hx-theme.js 的 gate() 负责跳回总入口（单独打开时），
+// 这里负责「已经在工具页里但没资格用」的那一档（嵌在总入口里、或者 hx-theme 没跑起来时兜底）。
 function lock(on) {
   let el = document.getElementById('hxLock');
   if (!on) { if (el) el.remove(); return false; }
   if (!el) { el = document.createElement('div'); el.id = 'hxLock'; document.body.appendChild(el); }
   el.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center;background:var(--card,#f5f5f7);color:var(--ink,#1d1d1f);font-size:16px';
-  el.innerHTML = '<b style="font-size:20px">这个账号还没开通</b><a href="https://zcq19991029.github.io/" target="_top" style="padding:10px 22px;border-radius:999px;background:#0a84ff;color:#fff;text-decoration:none">填写邀请码开通</a>';
+  el.innerHTML = hx.signedIn()
+    ? '<b style="font-size:20px">这个账号还没开通</b><a href="https://zcq19991029.github.io/" target="_top" style="padding:10px 22px;border-radius:999px;background:#0a84ff;color:#fff;text-decoration:none">填写邀请码开通</a>'
+    : '<b style="font-size:20px">先登录才能刷题</b><span style="color:#666">没登录的人不能用任何工具</span><a href="https://zcq19991029.github.io/" target="_top" style="padding:10px 22px;border-radius:999px;background:#0a84ff;color:#fff;text-decoration:none">去首页登录</a>';
   return true;
 }
 async function boot() {
   S.user = S.me = null;
+  // 未登录：什么工具都不给（2026-11-08 用户定）。放在最前面，免得先把题库拉下来再挡住。
+  if (!hx.signedIn()) { if (window.HXLoadFx) HXLoadFx.finishBoot(); lock(true); return; }
   if (hx.signedIn()) { try { [S.user, S.me] = await Promise.all([hx.user(), hx.me()]); } catch { S.user = S.me = null; } }
   if (lock(S.me && !S.me.teacher && !S.me.admin && !S.me.dev && !S.me.student && !S.me.left)) { if (window.HXLoadFx) HXLoadFx.finishBoot(); return; }
-  setAiProfile(hx.uid() || 'default');
-  // 首页那套 AI 配置（hx-ai.js）要尽早拿到：导入区要判断“配没配模型”，配了就不该再弹提示。
-  // 只在刷题自己没 Key 时才去加载（有 Key 就不必多一次请求）；没部署／离线打开会很快失败，所以最多等 1.5 秒。
-  if (!getSettings().apiKey) await Promise.race([ensureHxAi(), new Promise(r => setTimeout(r, 1500))]);
+  // 首页那套 AI 配置（hx-ai.js → window.HXAI）尽早拿到：题卡、导入区、问 AI 都要判断“配没配模型”。
+  // 离线版不加载（没有 AI）；加载失败很快返回，最多等 1.5 秒，不挡首屏。
+  await Promise.race([ensureHxAi(), new Promise(r => setTimeout(r, 1500))]);
   const p = prefs();
   S.type = p.type || 'single'; S.scope = p.scope || 'todo'; S.mode = ORDERS.some(o => o[0] === p.mode) ? p.mode : 'seq';
   S.imode = store.getLocal('importMode', 'pick') === 'gen' ? 'gen' : 'pick'; // 上次选的导入方式
@@ -4806,242 +5130,5 @@ return {};
 
 })();
 </script>
-</body>
-</html>
-, '%', '*', '+', '-', '.', '/', ':'\n]\n\nfunction AlphanumericData (data) {\n  this.mode = Mode.ALPHANUMERIC\n  this.data = data\n}\n\nAlphanumericData.getBitsLength = function getBitsLength (length) {\n  return 11 * Math.floor(length / 2) + 6 * (length % 2)\n}\n\nAlphanumericData.prototype.getLength = function getLength () {\n  return this.data.length\n}\n\nAlphanumericData.prototype.getBitsLength = function getBitsLength () {\n  return AlphanumericData.getBitsLength(this.data.length)\n}\n\nAlphanumericData.prototype.write = function write (bitBuffer) {\n  let i\n\n  // Input data characters are divided into groups of two characters\n  // and encoded as 11-bit binary codes.\n  for (i = 0; i + 2 <= this.data.length; i += 2) {\n    // The character value of the first character is multiplied by 45\n    let value = ALPHA_NUM_CHARS.indexOf(this.data[i]) * 45\n\n    // The character value of the second digit is added to the product\n    value += ALPHA_NUM_CHARS.indexOf(this.data[i + 1])\n\n    // The sum is then stored as 11-bit binary number\n    bitBuffer.put(value, 11)\n  }\n\n  // If the number of input data characters is not a multiple of two,\n  // the character value of the final character is encoded as a 6-bit binary number.\n  if (this.data.length % 2) {\n    bitBuffer.put(ALPHA_NUM_CHARS.indexOf(this.data[i]), 6)\n  }\n}\n\nmodule.exports = AlphanumericData\n");
-__d('byte-data', "const Mode = require('mode')\n\nfunction ByteData (data) {\n  this.mode = Mode.BYTE\n  if (typeof (data) === 'string') {\n    this.data = new TextEncoder().encode(data)\n  } else {\n    this.data = new Uint8Array(data)\n  }\n}\n\nByteData.getBitsLength = function getBitsLength (length) {\n  return length * 8\n}\n\nByteData.prototype.getLength = function getLength () {\n  return this.data.length\n}\n\nByteData.prototype.getBitsLength = function getBitsLength () {\n  return ByteData.getBitsLength(this.data.length)\n}\n\nByteData.prototype.write = function (bitBuffer) {\n  for (let i = 0, l = this.data.length; i < l; i++) {\n    bitBuffer.put(this.data[i], 8)\n  }\n}\n\nmodule.exports = ByteData\n");
-__d('kanji-data', "const Mode = require('mode')\nconst Utils = require('utils')\n\nfunction KanjiData (data) {\n  this.mode = Mode.KANJI\n  this.data = data\n}\n\nKanjiData.getBitsLength = function getBitsLength (length) {\n  return length * 13\n}\n\nKanjiData.prototype.getLength = function getLength () {\n  return this.data.length\n}\n\nKanjiData.prototype.getBitsLength = function getBitsLength () {\n  return KanjiData.getBitsLength(this.data.length)\n}\n\nKanjiData.prototype.write = function (bitBuffer) {\n  let i\n\n  // In the Shift JIS system, Kanji characters are represented by a two byte combination.\n  // These byte values are shifted from the JIS X 0208 values.\n  // JIS X 0208 gives details of the shift coded representation.\n  for (i = 0; i < this.data.length; i++) {\n    let value = Utils.toSJIS(this.data[i])\n\n    // For characters with Shift JIS values from 0x8140 to 0x9FFC:\n    if (value >= 0x8140 && value <= 0x9FFC) {\n      // Subtract 0x8140 from Shift JIS value\n      value -= 0x8140\n\n    // For characters with Shift JIS values from 0xE040 to 0xEBBF\n    } else if (value >= 0xE040 && value <= 0xEBBF) {\n      // Subtract 0xC140 from Shift JIS value\n      value -= 0xC140\n    } else {\n      throw new Error(\n        'Invalid SJIS character: ' + this.data[i] + '\\n' +\n        'Make sure your charset is UTF-8')\n    }\n\n    // Multiply most significant byte of result by 0xC0\n    // and add least significant byte to product\n    value = (((value >>> 8) & 0xff) * 0xC0) + (value & 0xff)\n\n    // Convert result to a 13-bit binary string\n    bitBuffer.put(value, 13)\n  }\n}\n\nmodule.exports = KanjiData\n");
-__d('regex', "const numeric = '[0-9]+'\nconst alphanumeric = '[A-Z $%*+\\\\-./:]+'\nlet kanji = '(?:[u3000-u303F]|[u3040-u309F]|[u30A0-u30FF]|' +\n  '[uFF00-uFFEF]|[u4E00-u9FAF]|[u2605-u2606]|[u2190-u2195]|u203B|' +\n  '[u2010u2015u2018u2019u2025u2026u201Cu201Du2225u2260]|' +\n  '[u0391-u0451]|[u00A7u00A8u00B1u00B4u00D7u00F7])+'\nkanji = kanji.replace(/u/g, '\\\\u')\n\nconst byte = '(?:(?![A-Z0-9 $%*+\\\\-./:]|' + kanji + ')(?:.|[\\r\\n]))+'\n\nexports.KANJI = new RegExp(kanji, 'g')\nexports.BYTE_KANJI = new RegExp('[^A-Z0-9 $%*+\\\\-./:]+', 'g')\nexports.BYTE = new RegExp(byte, 'g')\nexports.NUMERIC = new RegExp(numeric, 'g')\nexports.ALPHANUMERIC = new RegExp(alphanumeric, 'g')\n\nconst TEST_KANJI = new RegExp('^' + kanji + '
-<link rel="stylesheet" href="style.css">
-<!-- 统一像素加载动效（2026-11-04）：打开科目时「正在加载题库…」不再只是药丸方块，
-     首选随机挑一个 pixelfx 特效画 canvas（会话内固定，规则见 loadfx.js 头注释），
-     播不了回落到原来的像素方块药丸。两个脚本都必须在 app.js（module）之前同步加载完，
-     module 本身是 deferred 的，顺序天然保证；特效包拷自 小组加分/fx/pixelfx-loader.js（MIT）。 -->
-<script src="vendor/pixelfx-loader.js"></script>
-<script src="loadfx.js"></script>
-</head>
-<body>
-<!-- 首屏加载层（2026-11-06 修时序）：页面解析到这里就由 loadfx.js 的 boot() 接管并在**同一次绘制**里
-     画出第一帧像素动效，所以用户看到的第一眼就是「canvas 动效 + 药丸」的结合体。
-     以前这里什么都没有，要等 app.js 的 boot() 走到 openSubject() 才在题卡里画动效——
-     那段时间屏幕上只有左上角一行「加载中」，内容出来后动效才蹦出来，用户实测就是这个时序反了。
-     数据就绪后 app.js 调 HXLoadFx.finishBoot()，整层淡出移除。 -->
-<div class="hx-boot" id="hxBoot" aria-hidden="true">
-  <div class="hx-boot-card">
-    <canvas id="hxBootCv" width="96" height="96"></canvas>
-    <p class="hx-boot-title">刷题</p>
-    <div class="hx-loadpill sm" role="status" aria-live="polite">
-      <span class="hx-px" aria-hidden="true"><i style="--i:0"></i><i style="--i:1"></i><i style="--i:2"></i><i style="--i:3"></i><i style="--i:4"></i><i style="--i:5"></i><i style="--i:6"></i></span>
-      <b>正在载入…</b>
-    </div>
-  </div>
-</div>
-<script>window.HXLoadFx && HXLoadFx.boot('quiz', 'hxBoot');</script>
-<header class="top">
-  <a class="brand" id="brand" href="../" target="_top"><img src="../logo.jpg" alt=""><span>刷题</span></a>
-  <button class="subj" id="subjBtn" type="button"><b id="subjName">加载中</b><svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg></button>
-  <nav class="tabs" id="tabs"></nav>
-  <div class="sp"></div>
-  <button class="tbtn" id="askBtn" type="button">问 AI</button>
-  <button class="tbtn" id="focusBtn" type="button">专注</button>
-</header>
-
-<main>
-  <section class="view" id="v-practice">
-    <div class="hero glow" id="hero"></div>
-    <div class="seg" id="types"></div>
-    <div class="row"><div class="chips" id="scopes"></div><button class="ibtn" id="modeBtn" type="button"></button></div>
-    <article class="card glow" id="card" aria-live="polite"></article>
-  </section>
-  <section class="view" id="v-overview" hidden></section>
-  <section class="view" id="v-rank" hidden></section>
-  <section class="view" id="v-bank" hidden></section>
-  <section class="view" id="v-settings" hidden></section>
-</main>
-
-<div class="bar" id="bar"></div>
-<nav class="dock" id="dock"></nav>
-<div class="sheet-bg" id="sheetBg"></div>
-<section class="sheet glow" id="sheet" aria-modal="true" role="dialog"><div class="grip"></div><div id="sheetBody" class="body"></div></section>
-<button class="unfocus" id="unfocus" type="button">退出专注</button>
-<div class="toast" id="toast"></div>
-<script type="module" src="app.js"></script>
-</body>
-</html>
-)\nconst TEST_NUMERIC = new RegExp('^' + numeric + '
-<link rel="stylesheet" href="style.css">
-<!-- 统一像素加载动效（2026-11-04）：打开科目时「正在加载题库…」不再只是药丸方块，
-     首选随机挑一个 pixelfx 特效画 canvas（会话内固定，规则见 loadfx.js 头注释），
-     播不了回落到原来的像素方块药丸。两个脚本都必须在 app.js（module）之前同步加载完，
-     module 本身是 deferred 的，顺序天然保证；特效包拷自 小组加分/fx/pixelfx-loader.js（MIT）。 -->
-<script src="vendor/pixelfx-loader.js"></script>
-<script src="loadfx.js"></script>
-</head>
-<body>
-<!-- 首屏加载层（2026-11-06 修时序）：页面解析到这里就由 loadfx.js 的 boot() 接管并在**同一次绘制**里
-     画出第一帧像素动效，所以用户看到的第一眼就是「canvas 动效 + 药丸」的结合体。
-     以前这里什么都没有，要等 app.js 的 boot() 走到 openSubject() 才在题卡里画动效——
-     那段时间屏幕上只有左上角一行「加载中」，内容出来后动效才蹦出来，用户实测就是这个时序反了。
-     数据就绪后 app.js 调 HXLoadFx.finishBoot()，整层淡出移除。 -->
-<div class="hx-boot" id="hxBoot" aria-hidden="true">
-  <div class="hx-boot-card">
-    <canvas id="hxBootCv" width="96" height="96"></canvas>
-    <p class="hx-boot-title">刷题</p>
-    <div class="hx-loadpill sm" role="status" aria-live="polite">
-      <span class="hx-px" aria-hidden="true"><i style="--i:0"></i><i style="--i:1"></i><i style="--i:2"></i><i style="--i:3"></i><i style="--i:4"></i><i style="--i:5"></i><i style="--i:6"></i></span>
-      <b>正在载入…</b>
-    </div>
-  </div>
-</div>
-<script>window.HXLoadFx && HXLoadFx.boot('quiz', 'hxBoot');</script>
-<header class="top">
-  <a class="brand" id="brand" href="../" target="_top"><img src="../logo.jpg" alt=""><span>刷题</span></a>
-  <button class="subj" id="subjBtn" type="button"><b id="subjName">加载中</b><svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg></button>
-  <nav class="tabs" id="tabs"></nav>
-  <div class="sp"></div>
-  <button class="tbtn" id="askBtn" type="button">问 AI</button>
-  <button class="tbtn" id="focusBtn" type="button">专注</button>
-</header>
-
-<main>
-  <section class="view" id="v-practice">
-    <div class="hero glow" id="hero"></div>
-    <div class="seg" id="types"></div>
-    <div class="row"><div class="chips" id="scopes"></div><button class="ibtn" id="modeBtn" type="button"></button></div>
-    <article class="card glow" id="card" aria-live="polite"></article>
-  </section>
-  <section class="view" id="v-overview" hidden></section>
-  <section class="view" id="v-rank" hidden></section>
-  <section class="view" id="v-bank" hidden></section>
-  <section class="view" id="v-settings" hidden></section>
-</main>
-
-<div class="bar" id="bar"></div>
-<nav class="dock" id="dock"></nav>
-<div class="sheet-bg" id="sheetBg"></div>
-<section class="sheet glow" id="sheet" aria-modal="true" role="dialog"><div class="grip"></div><div id="sheetBody" class="body"></div></section>
-<button class="unfocus" id="unfocus" type="button">退出专注</button>
-<div class="toast" id="toast"></div>
-<script type="module" src="app.js"></script>
-</body>
-</html>
-)\nconst TEST_ALPHANUMERIC = new RegExp('^[A-Z0-9 $%*+\\\\-./:]+
-<link rel="stylesheet" href="style.css">
-<!-- 统一像素加载动效（2026-11-04）：打开科目时「正在加载题库…」不再只是药丸方块，
-     首选随机挑一个 pixelfx 特效画 canvas（会话内固定，规则见 loadfx.js 头注释），
-     播不了回落到原来的像素方块药丸。两个脚本都必须在 app.js（module）之前同步加载完，
-     module 本身是 deferred 的，顺序天然保证；特效包拷自 小组加分/fx/pixelfx-loader.js（MIT）。 -->
-<script src="vendor/pixelfx-loader.js"></script>
-<script src="loadfx.js"></script>
-</head>
-<body>
-<!-- 首屏加载层（2026-11-06 修时序）：页面解析到这里就由 loadfx.js 的 boot() 接管并在**同一次绘制**里
-     画出第一帧像素动效，所以用户看到的第一眼就是「canvas 动效 + 药丸」的结合体。
-     以前这里什么都没有，要等 app.js 的 boot() 走到 openSubject() 才在题卡里画动效——
-     那段时间屏幕上只有左上角一行「加载中」，内容出来后动效才蹦出来，用户实测就是这个时序反了。
-     数据就绪后 app.js 调 HXLoadFx.finishBoot()，整层淡出移除。 -->
-<div class="hx-boot" id="hxBoot" aria-hidden="true">
-  <div class="hx-boot-card">
-    <canvas id="hxBootCv" width="96" height="96"></canvas>
-    <p class="hx-boot-title">刷题</p>
-    <div class="hx-loadpill sm" role="status" aria-live="polite">
-      <span class="hx-px" aria-hidden="true"><i style="--i:0"></i><i style="--i:1"></i><i style="--i:2"></i><i style="--i:3"></i><i style="--i:4"></i><i style="--i:5"></i><i style="--i:6"></i></span>
-      <b>正在载入…</b>
-    </div>
-  </div>
-</div>
-<script>window.HXLoadFx && HXLoadFx.boot('quiz', 'hxBoot');</script>
-<header class="top">
-  <a class="brand" id="brand" href="../" target="_top"><img src="../logo.jpg" alt=""><span>刷题</span></a>
-  <button class="subj" id="subjBtn" type="button"><b id="subjName">加载中</b><svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg></button>
-  <nav class="tabs" id="tabs"></nav>
-  <div class="sp"></div>
-  <button class="tbtn" id="askBtn" type="button">问 AI</button>
-  <button class="tbtn" id="focusBtn" type="button">专注</button>
-</header>
-
-<main>
-  <section class="view" id="v-practice">
-    <div class="hero glow" id="hero"></div>
-    <div class="seg" id="types"></div>
-    <div class="row"><div class="chips" id="scopes"></div><button class="ibtn" id="modeBtn" type="button"></button></div>
-    <article class="card glow" id="card" aria-live="polite"></article>
-  </section>
-  <section class="view" id="v-overview" hidden></section>
-  <section class="view" id="v-rank" hidden></section>
-  <section class="view" id="v-bank" hidden></section>
-  <section class="view" id="v-settings" hidden></section>
-</main>
-
-<div class="bar" id="bar"></div>
-<nav class="dock" id="dock"></nav>
-<div class="sheet-bg" id="sheetBg"></div>
-<section class="sheet glow" id="sheet" aria-modal="true" role="dialog"><div class="grip"></div><div id="sheetBody" class="body"></div></section>
-<button class="unfocus" id="unfocus" type="button">退出专注</button>
-<div class="toast" id="toast"></div>
-<script type="module" src="app.js"></script>
-</body>
-</html>
-)\n\nexports.testKanji = function testKanji (str) {\n  return TEST_KANJI.test(str)\n}\n\nexports.testNumeric = function testNumeric (str) {\n  return TEST_NUMERIC.test(str)\n}\n\nexports.testAlphanumeric = function testAlphanumeric (str) {\n  return TEST_ALPHANUMERIC.test(str)\n}\n");
-__d('segments', "const Mode = require('mode')\nconst NumericData = require('numeric-data')\nconst AlphanumericData = require('alphanumeric-data')\nconst ByteData = require('byte-data')\nconst KanjiData = require('kanji-data')\nconst Regex = require('regex')\nconst Utils = require('utils')\nconst dijkstra = require('dijkstrajs')\n\n\nfunction getStringByteLength (str) {\n  return unescape(encodeURIComponent(str)).length\n}\n\n\nfunction getSegments (regex, mode, str) {\n  const segments = []\n  let result\n\n  while ((result = regex.exec(str)) !== null) {\n    segments.push({\n      data: result[0],\n      index: result.index,\n      mode: mode,\n      length: result[0].length\n    })\n  }\n\n  return segments\n}\n\n\nfunction getSegmentsFromString (dataStr) {\n  const numSegs = getSegments(Regex.NUMERIC, Mode.NUMERIC, dataStr)\n  const alphaNumSegs = getSegments(Regex.ALPHANUMERIC, Mode.ALPHANUMERIC, dataStr)\n  let byteSegs\n  let kanjiSegs\n\n  if (Utils.isKanjiModeEnabled()) {\n    byteSegs = getSegments(Regex.BYTE, Mode.BYTE, dataStr)\n    kanjiSegs = getSegments(Regex.KANJI, Mode.KANJI, dataStr)\n  } else {\n    byteSegs = getSegments(Regex.BYTE_KANJI, Mode.BYTE, dataStr)\n    kanjiSegs = []\n  }\n\n  const segs = numSegs.concat(alphaNumSegs, byteSegs, kanjiSegs)\n\n  return segs\n    .sort(function (s1, s2) {\n      return s1.index - s2.index\n    })\n    .map(function (obj) {\n      return {\n        data: obj.data,\n        mode: obj.mode,\n        length: obj.length\n      }\n    })\n}\n\n\nfunction getSegmentBitsLength (length, mode) {\n  switch (mode) {\n    case Mode.NUMERIC:\n      return NumericData.getBitsLength(length)\n    case Mode.ALPHANUMERIC:\n      return AlphanumericData.getBitsLength(length)\n    case Mode.KANJI:\n      return KanjiData.getBitsLength(length)\n    case Mode.BYTE:\n      return ByteData.getBitsLength(length)\n  }\n}\n\n\nfunction mergeSegments (segs) {\n  return segs.reduce(function (acc, curr) {\n    const prevSeg = acc.length - 1 >= 0 ? acc[acc.length - 1] : null\n    if (prevSeg && prevSeg.mode === curr.mode) {\n      acc[acc.length - 1].data += curr.data\n      return acc\n    }\n\n    acc.push(curr)\n    return acc\n  }, [])\n}\n\n\nfunction buildNodes (segs) {\n  const nodes = []\n  for (let i = 0; i < segs.length; i++) {\n    const seg = segs[i]\n\n    switch (seg.mode) {\n      case Mode.NUMERIC:\n        nodes.push([seg,\n          { data: seg.data, mode: Mode.ALPHANUMERIC, length: seg.length },\n          { data: seg.data, mode: Mode.BYTE, length: seg.length }\n        ])\n        break\n      case Mode.ALPHANUMERIC:\n        nodes.push([seg,\n          { data: seg.data, mode: Mode.BYTE, length: seg.length }\n        ])\n        break\n      case Mode.KANJI:\n        nodes.push([seg,\n          { data: seg.data, mode: Mode.BYTE, length: getStringByteLength(seg.data) }\n        ])\n        break\n      case Mode.BYTE:\n        nodes.push([\n          { data: seg.data, mode: Mode.BYTE, length: getStringByteLength(seg.data) }\n        ])\n    }\n  }\n\n  return nodes\n}\n\n\nfunction buildGraph (nodes, version) {\n  const table = {}\n  const graph = { start: {} }\n  let prevNodeIds = ['start']\n\n  for (let i = 0; i < nodes.length; i++) {\n    const nodeGroup = nodes[i]\n    const currentNodeIds = []\n\n    for (let j = 0; j < nodeGroup.length; j++) {\n      const node = nodeGroup[j]\n      const key = '' + i + j\n\n      currentNodeIds.push(key)\n      table[key] = { node: node, lastCount: 0 }\n      graph[key] = {}\n\n      for (let n = 0; n < prevNodeIds.length; n++) {\n        const prevNodeId = prevNodeIds[n]\n\n        if (table[prevNodeId] && table[prevNodeId].node.mode === node.mode) {\n          graph[prevNodeId][key] =\n            getSegmentBitsLength(table[prevNodeId].lastCount + node.length, node.mode) -\n            getSegmentBitsLength(table[prevNodeId].lastCount, node.mode)\n\n          table[prevNodeId].lastCount += node.length\n        } else {\n          if (table[prevNodeId]) table[prevNodeId].lastCount = node.length\n\n          graph[prevNodeId][key] = getSegmentBitsLength(node.length, node.mode) +\n            4 + Mode.getCharCountIndicator(node.mode, version) // switch cost\n        }\n      }\n    }\n\n    prevNodeIds = currentNodeIds\n  }\n\n  for (let n = 0; n < prevNodeIds.length; n++) {\n    graph[prevNodeIds[n]].end = 0\n  }\n\n  return { map: graph, table: table }\n}\n\n\nfunction buildSingleSegment (data, modesHint) {\n  let mode\n  const bestMode = Mode.getBestModeForData(data)\n\n  mode = Mode.from(modesHint, bestMode)\n\n  // Make sure data can be encoded\n  if (mode !== Mode.BYTE && mode.bit < bestMode.bit) {\n    throw new Error('\"' + data + '\"' +\n      ' cannot be encoded with mode ' + Mode.toString(mode) +\n      '.\\n Suggested mode is: ' + Mode.toString(bestMode))\n  }\n\n  // Use Mode.BYTE if Kanji support is disabled\n  if (mode === Mode.KANJI && !Utils.isKanjiModeEnabled()) {\n    mode = Mode.BYTE\n  }\n\n  switch (mode) {\n    case Mode.NUMERIC:\n      return new NumericData(data)\n\n    case Mode.ALPHANUMERIC:\n      return new AlphanumericData(data)\n\n    case Mode.KANJI:\n      return new KanjiData(data)\n\n    case Mode.BYTE:\n      return new ByteData(data)\n  }\n}\n\n\nexports.fromArray = function fromArray (array) {\n  return array.reduce(function (acc, seg) {\n    if (typeof seg === 'string') {\n      acc.push(buildSingleSegment(seg, null))\n    } else if (seg.data) {\n      acc.push(buildSingleSegment(seg.data, seg.mode))\n    }\n\n    return acc\n  }, [])\n}\n\n\nexports.fromString = function fromString (data, version) {\n  const segs = getSegmentsFromString(data, Utils.isKanjiModeEnabled())\n\n  const nodes = buildNodes(segs)\n  const graph = buildGraph(nodes, version)\n  const path = dijkstra.find_path(graph.map, 'start', 'end')\n\n  const optimizedSegs = []\n  for (let i = 1; i < path.length - 1; i++) {\n    optimizedSegs.push(graph.table[path[i]].node)\n  }\n\n  return exports.fromArray(mergeSegments(optimizedSegs))\n}\n\n\nexports.rawSplit = function rawSplit (data) {\n  return exports.fromArray(\n    getSegmentsFromString(data, Utils.isKanjiModeEnabled())\n  )\n}\n");
-__d('qrcode', "const Utils = require('utils')\nconst ECLevel = require('error-correction-level')\nconst BitBuffer = require('bit-buffer')\nconst BitMatrix = require('bit-matrix')\nconst AlignmentPattern = require('alignment-pattern')\nconst FinderPattern = require('finder-pattern')\nconst MaskPattern = require('mask-pattern')\nconst ECCode = require('error-correction-code')\nconst ReedSolomonEncoder = require('reed-solomon-encoder')\nconst Version = require('version')\nconst FormatInfo = require('format-info')\nconst Mode = require('mode')\nconst Segments = require('segments')\n\n\n\n\nfunction setupFinderPattern (matrix, version) {\n  const size = matrix.size\n  const pos = FinderPattern.getPositions(version)\n\n  for (let i = 0; i < pos.length; i++) {\n    const row = pos[i][0]\n    const col = pos[i][1]\n\n    for (let r = -1; r <= 7; r++) {\n      if (row + r <= -1 || size <= row + r) continue\n\n      for (let c = -1; c <= 7; c++) {\n        if (col + c <= -1 || size <= col + c) continue\n\n        if ((r >= 0 && r <= 6 && (c === 0 || c === 6)) ||\n          (c >= 0 && c <= 6 && (r === 0 || r === 6)) ||\n          (r >= 2 && r <= 4 && c >= 2 && c <= 4)) {\n          matrix.set(row + r, col + c, true, true)\n        } else {\n          matrix.set(row + r, col + c, false, true)\n        }\n      }\n    }\n  }\n}\n\n\nfunction setupTimingPattern (matrix) {\n  const size = matrix.size\n\n  for (let r = 8; r < size - 8; r++) {\n    const value = r % 2 === 0\n    matrix.set(r, 6, value, true)\n    matrix.set(6, r, value, true)\n  }\n}\n\n\nfunction setupAlignmentPattern (matrix, version) {\n  const pos = AlignmentPattern.getPositions(version)\n\n  for (let i = 0; i < pos.length; i++) {\n    const row = pos[i][0]\n    const col = pos[i][1]\n\n    for (let r = -2; r <= 2; r++) {\n      for (let c = -2; c <= 2; c++) {\n        if (r === -2 || r === 2 || c === -2 || c === 2 ||\n          (r === 0 && c === 0)) {\n          matrix.set(row + r, col + c, true, true)\n        } else {\n          matrix.set(row + r, col + c, false, true)\n        }\n      }\n    }\n  }\n}\n\n\nfunction setupVersionInfo (matrix, version) {\n  const size = matrix.size\n  const bits = Version.getEncodedBits(version)\n  let row, col, mod\n\n  for (let i = 0; i < 18; i++) {\n    row = Math.floor(i / 3)\n    col = i % 3 + size - 8 - 3\n    mod = ((bits >> i) & 1) === 1\n\n    matrix.set(row, col, mod, true)\n    matrix.set(col, row, mod, true)\n  }\n}\n\n\nfunction setupFormatInfo (matrix, errorCorrectionLevel, maskPattern) {\n  const size = matrix.size\n  const bits = FormatInfo.getEncodedBits(errorCorrectionLevel, maskPattern)\n  let i, mod\n\n  for (i = 0; i < 15; i++) {\n    mod = ((bits >> i) & 1) === 1\n\n    // vertical\n    if (i < 6) {\n      matrix.set(i, 8, mod, true)\n    } else if (i < 8) {\n      matrix.set(i + 1, 8, mod, true)\n    } else {\n      matrix.set(size - 15 + i, 8, mod, true)\n    }\n\n    // horizontal\n    if (i < 8) {\n      matrix.set(8, size - i - 1, mod, true)\n    } else if (i < 9) {\n      matrix.set(8, 15 - i - 1 + 1, mod, true)\n    } else {\n      matrix.set(8, 15 - i - 1, mod, true)\n    }\n  }\n\n  // fixed module\n  matrix.set(size - 8, 8, 1, true)\n}\n\n\nfunction setupData (matrix, data) {\n  const size = matrix.size\n  let inc = -1\n  let row = size - 1\n  let bitIndex = 7\n  let byteIndex = 0\n\n  for (let col = size - 1; col > 0; col -= 2) {\n    if (col === 6) col--\n\n    while (true) {\n      for (let c = 0; c < 2; c++) {\n        if (!matrix.isReserved(row, col - c)) {\n          let dark = false\n\n          if (byteIndex < data.length) {\n            dark = (((data[byteIndex] >>> bitIndex) & 1) === 1)\n          }\n\n          matrix.set(row, col - c, dark)\n          bitIndex--\n\n          if (bitIndex === -1) {\n            byteIndex++\n            bitIndex = 7\n          }\n        }\n      }\n\n      row += inc\n\n      if (row < 0 || size <= row) {\n        row -= inc\n        inc = -inc\n        break\n      }\n    }\n  }\n}\n\n\nfunction createData (version, errorCorrectionLevel, segments) {\n  // Prepare data buffer\n  const buffer = new BitBuffer()\n\n  segments.forEach(function (data) {\n    // prefix data with mode indicator (4 bits)\n    buffer.put(data.mode.bit, 4)\n\n    // Prefix data with character count indicator.\n    // The character count indicator is a string of bits that represents the\n    // number of characters that are being encoded.\n    // The character count indicator must be placed after the mode indicator\n    // and must be a certain number of bits long, depending on the QR version\n    // and data mode\n    // @see {@link Mode.getCharCountIndicator}.\n    buffer.put(data.getLength(), Mode.getCharCountIndicator(data.mode, version))\n\n    // add binary data sequence to buffer\n    data.write(buffer)\n  })\n\n  // Calculate required number of bits\n  const totalCodewords = Utils.getSymbolTotalCodewords(version)\n  const ecTotalCodewords = ECCode.getTotalCodewordsCount(version, errorCorrectionLevel)\n  const dataTotalCodewordsBits = (totalCodewords - ecTotalCodewords) * 8\n\n  // Add a terminator.\n  // If the bit string is shorter than the total number of required bits,\n  // a terminator of up to four 0s must be added to the right side of the string.\n  // If the bit string is more than four bits shorter than the required number of bits,\n  // add four 0s to the end.\n  if (buffer.getLengthInBits() + 4 <= dataTotalCodewordsBits) {\n    buffer.put(0, 4)\n  }\n\n  // If the bit string is fewer than four bits shorter, add only the number of 0s that\n  // are needed to reach the required number of bits.\n\n  // After adding the terminator, if the number of bits in the string is not a multiple of 8,\n  // pad the string on the right with 0s to make the string's length a multiple of 8.\n  while (buffer.getLengthInBits() % 8 !== 0) {\n    buffer.putBit(0)\n  }\n\n  // Add pad bytes if the string is still shorter than the total number of required bits.\n  // Extend the buffer to fill the data capacity of the symbol corresponding to\n  // the Version and Error Correction Level by adding the Pad Codewords 11101100 (0xEC)\n  // and 00010001 (0x11) alternately.\n  const remainingByte = (dataTotalCodewordsBits - buffer.getLengthInBits()) / 8\n  for (let i = 0; i < remainingByte; i++) {\n    buffer.put(i % 2 ? 0x11 : 0xEC, 8)\n  }\n\n  return createCodewords(buffer, version, errorCorrectionLevel)\n}\n\n\nfunction createCodewords (bitBuffer, version, errorCorrectionLevel) {\n  // Total codewords for this QR code version (Data + Error correction)\n  const totalCodewords = Utils.getSymbolTotalCodewords(version)\n\n  // Total number of error correction codewords\n  const ecTotalCodewords = ECCode.getTotalCodewordsCount(version, errorCorrectionLevel)\n\n  // Total number of data codewords\n  const dataTotalCodewords = totalCodewords - ecTotalCodewords\n\n  // Total number of blocks\n  const ecTotalBlocks = ECCode.getBlocksCount(version, errorCorrectionLevel)\n\n  // Calculate how many blocks each group should contain\n  const blocksInGroup2 = totalCodewords % ecTotalBlocks\n  const blocksInGroup1 = ecTotalBlocks - blocksInGroup2\n\n  const totalCodewordsInGroup1 = Math.floor(totalCodewords / ecTotalBlocks)\n\n  const dataCodewordsInGroup1 = Math.floor(dataTotalCodewords / ecTotalBlocks)\n  const dataCodewordsInGroup2 = dataCodewordsInGroup1 + 1\n\n  // Number of EC codewords is the same for both groups\n  const ecCount = totalCodewordsInGroup1 - dataCodewordsInGroup1\n\n  // Initialize a Reed-Solomon encoder with a generator polynomial of degree ecCount\n  const rs = new ReedSolomonEncoder(ecCount)\n\n  let offset = 0\n  const dcData = new Array(ecTotalBlocks)\n  const ecData = new Array(ecTotalBlocks)\n  let maxDataSize = 0\n  const buffer = new Uint8Array(bitBuffer.buffer)\n\n  // Divide the buffer into the required number of blocks\n  for (let b = 0; b < ecTotalBlocks; b++) {\n    const dataSize = b < blocksInGroup1 ? dataCodewordsInGroup1 : dataCodewordsInGroup2\n\n    // extract a block of data from buffer\n    dcData[b] = buffer.slice(offset, offset + dataSize)\n\n    // Calculate EC codewords for this data block\n    ecData[b] = rs.encode(dcData[b])\n\n    offset += dataSize\n    maxDataSize = Math.max(maxDataSize, dataSize)\n  }\n\n  // Create final data\n  // Interleave the data and error correction codewords from each block\n  const data = new Uint8Array(totalCodewords)\n  let index = 0\n  let i, r\n\n  // Add data codewords\n  for (i = 0; i < maxDataSize; i++) {\n    for (r = 0; r < ecTotalBlocks; r++) {\n      if (i < dcData[r].length) {\n        data[index++] = dcData[r][i]\n      }\n    }\n  }\n\n  // Apped EC codewords\n  for (i = 0; i < ecCount; i++) {\n    for (r = 0; r < ecTotalBlocks; r++) {\n      data[index++] = ecData[r][i]\n    }\n  }\n\n  return data\n}\n\n\nfunction createSymbol (data, version, errorCorrectionLevel, maskPattern) {\n  let segments\n\n  if (Array.isArray(data)) {\n    segments = Segments.fromArray(data)\n  } else if (typeof data === 'string') {\n    let estimatedVersion = version\n\n    if (!estimatedVersion) {\n      const rawSegments = Segments.rawSplit(data)\n\n      // Estimate best version that can contain raw splitted segments\n      estimatedVersion = Version.getBestVersionForData(rawSegments, errorCorrectionLevel)\n    }\n\n    // Build optimized segments\n    // If estimated version is undefined, try with the highest version\n    segments = Segments.fromString(data, estimatedVersion || 40)\n  } else {\n    throw new Error('Invalid data')\n  }\n\n  // Get the min version that can contain data\n  const bestVersion = Version.getBestVersionForData(segments, errorCorrectionLevel)\n\n  // If no version is found, data cannot be stored\n  if (!bestVersion) {\n    throw new Error('The amount of data is too big to be stored in a QR Code')\n  }\n\n  // If not specified, use min version as default\n  if (!version) {\n    version = bestVersion\n\n  // Check if the specified version can contain the data\n  } else if (version < bestVersion) {\n    throw new Error('\\n' +\n      'The chosen QR Code version cannot contain this amount of data.\\n' +\n      'Minimum version required to store current data is: ' + bestVersion + '.\\n'\n    )\n  }\n\n  const dataBits = createData(version, errorCorrectionLevel, segments)\n\n  // Allocate matrix buffer\n  const moduleCount = Utils.getSymbolSize(version)\n  const modules = new BitMatrix(moduleCount)\n\n  // Add function modules\n  setupFinderPattern(modules, version)\n  setupTimingPattern(modules)\n  setupAlignmentPattern(modules, version)\n\n  // Add temporary dummy bits for format info just to set them as reserved.\n  // This is needed to prevent these bits from being masked by {@link MaskPattern.applyMask}\n  // since the masking operation must be performed only on the encoding region.\n  // These blocks will be replaced with correct values later in code.\n  setupFormatInfo(modules, errorCorrectionLevel, 0)\n\n  if (version >= 7) {\n    setupVersionInfo(modules, version)\n  }\n\n  // Add data codewords\n  setupData(modules, dataBits)\n\n  if (isNaN(maskPattern)) {\n    // Find best mask pattern\n    maskPattern = MaskPattern.getBestMask(modules,\n      setupFormatInfo.bind(null, modules, errorCorrectionLevel))\n  }\n\n  // Apply mask pattern\n  MaskPattern.applyMask(maskPattern, modules)\n\n  // Replace format info bits with correct values\n  setupFormatInfo(modules, errorCorrectionLevel, maskPattern)\n\n  return {\n    modules: modules,\n    version: version,\n    errorCorrectionLevel: errorCorrectionLevel,\n    maskPattern: maskPattern,\n    segments: segments\n  }\n}\n\n\nexports.create = function create (data, options) {\n  if (typeof data === 'undefined' || data === '') {\n    throw new Error('No input text')\n  }\n\n  let errorCorrectionLevel = ECLevel.M\n  let version\n  let mask\n\n  if (typeof options !== 'undefined') {\n    // Use higher error correction level as default\n    errorCorrectionLevel = ECLevel.from(options.errorCorrectionLevel, ECLevel.M)\n    version = Version.from(options.version)\n    mask = MaskPattern.from(options.maskPattern)\n\n    if (options.toSJISFunc) {\n      Utils.setToSJISFunction(options.toSJISFunc)\n    }\n  }\n\n  return createSymbol(data, version, errorCorrectionLevel, mask)\n}\n");
-window.HXQR = { create: __req("qrcode").create };
-})();
-
-</script>
-<link rel="stylesheet" href="style.css">
-<!-- 统一像素加载动效（2026-11-04）：打开科目时「正在加载题库…」不再只是药丸方块，
-     首选随机挑一个 pixelfx 特效画 canvas（会话内固定，规则见 loadfx.js 头注释），
-     播不了回落到原来的像素方块药丸。两个脚本都必须在 app.js（module）之前同步加载完，
-     module 本身是 deferred 的，顺序天然保证；特效包拷自 小组加分/fx/pixelfx-loader.js（MIT）。 -->
-<script src="vendor/pixelfx-loader.js"></script>
-<script src="loadfx.js"></script>
-</head>
-<body>
-<!-- 首屏加载层（2026-11-06 修时序）：页面解析到这里就由 loadfx.js 的 boot() 接管并在**同一次绘制**里
-     画出第一帧像素动效，所以用户看到的第一眼就是「canvas 动效 + 药丸」的结合体。
-     以前这里什么都没有，要等 app.js 的 boot() 走到 openSubject() 才在题卡里画动效——
-     那段时间屏幕上只有左上角一行「加载中」，内容出来后动效才蹦出来，用户实测就是这个时序反了。
-     数据就绪后 app.js 调 HXLoadFx.finishBoot()，整层淡出移除。 -->
-<div class="hx-boot" id="hxBoot" aria-hidden="true">
-  <div class="hx-boot-card">
-    <canvas id="hxBootCv" width="96" height="96"></canvas>
-    <p class="hx-boot-title">刷题</p>
-    <div class="hx-loadpill sm" role="status" aria-live="polite">
-      <span class="hx-px" aria-hidden="true"><i style="--i:0"></i><i style="--i:1"></i><i style="--i:2"></i><i style="--i:3"></i><i style="--i:4"></i><i style="--i:5"></i><i style="--i:6"></i></span>
-      <b>正在载入…</b>
-    </div>
-  </div>
-</div>
-<script>window.HXLoadFx && HXLoadFx.boot('quiz', 'hxBoot');</script>
-<header class="top">
-  <a class="brand" id="brand" href="../" target="_top"><img src="../logo.jpg" alt=""><span>刷题</span></a>
-  <button class="subj" id="subjBtn" type="button"><b id="subjName">加载中</b><svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg></button>
-  <nav class="tabs" id="tabs"></nav>
-  <div class="sp"></div>
-  <button class="tbtn" id="askBtn" type="button">问 AI</button>
-  <button class="tbtn" id="focusBtn" type="button">专注</button>
-</header>
-
-<main>
-  <section class="view" id="v-practice">
-    <div class="hero glow" id="hero"></div>
-    <div class="seg" id="types"></div>
-    <div class="row"><div class="chips" id="scopes"></div><button class="ibtn" id="modeBtn" type="button"></button></div>
-    <article class="card glow" id="card" aria-live="polite"></article>
-  </section>
-  <section class="view" id="v-overview" hidden></section>
-  <section class="view" id="v-rank" hidden></section>
-  <section class="view" id="v-bank" hidden></section>
-  <section class="view" id="v-settings" hidden></section>
-</main>
-
-<div class="bar" id="bar"></div>
-<nav class="dock" id="dock"></nav>
-<div class="sheet-bg" id="sheetBg"></div>
-<section class="sheet glow" id="sheet" aria-modal="true" role="dialog"><div class="grip"></div><div id="sheetBody" class="body"></div></section>
-<button class="unfocus" id="unfocus" type="button">退出专注</button>
-<div class="toast" id="toast"></div>
-<script type="module" src="app.js"></script>
 </body>
 </html>

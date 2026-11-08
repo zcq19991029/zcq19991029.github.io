@@ -1,7 +1,7 @@
 // 华夏工具 · 刷题：界面和刷题流程。题库解析、AI 解析沿用 imports.js / ai.js；存储见 store.js；账号见 hx.js。
 import * as hx from './hx.js';
 import * as store from './store.js';
-import { providers, getSettings, saveSettings, setAiProfile, chat, streamChat, listModels, explainQuestion, parseStudySpec } from './ai.js';
+import { AI_PAGE, aiState, aiReady, aiProfiles, aiThinkLevels, ensureHxAi, streamChat, explainQuestion, parseStudySpec } from './ai.js';
 import { readMaterial, readImages, normalizeQuestions, aiImport, aiGenerate, aiVision, isImageFile } from './imports.js';
 import { figSvg, figName } from './symbols.js';
 
@@ -47,8 +47,6 @@ const VIEWS = [
 const $ = id => document.getElementById(id);
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 // 硅基流动注册二维码、邀请链接：二维码内联 base64（离线打包成单文件时外部图片会丢）
-const SF_QR = 'data:image/png;base64,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';
-const SF_URL = 'https://cloud.siliconflow.cn/i/aQ6Tn6dH';
 const optText = o => o.text || (o.fig ? `［图：${figName(o.fig)}］` : ''); // 选项是图形符号时，给 AI 和扩展的文字
 const figText = q => q.fig ? `\n［图：${figName(q.fig)}］` : '';
 const typeName = t => (TYPES.find(x => x[0] === t) || [, t])[1];
@@ -448,9 +446,8 @@ function renderCard() {
     fb = `<div class="fb ${ok ? 'ok' : 'bad'}"><b>${self ? (ok ? '答对了' : '没答对') : ok ? '回答正确' : '答案是 ' + esc(ans)}</b>${self ? ref() : ''}${q.type === 'fill' && !ok && typed.length ? '<div class="ai"><button class="btn sm ghost" type="button" id="ovBtn">意思对，算我对</button></div>' : ''}</div>`;
   } else if (picked) {
     const ok = isRight(q, picked), ans = q.type === 'judgment' ? (q.answer[0] === 'T' ? '正确' : '错误') : q.answer.join('');
-    // 只要网页里配了自己的 Key 就给「✦ AI 逐项解析」。以前装了扩展就把这个按钮藏掉（怕和扩展的「学会这题」重复），
-    // 结果是用户明明填了 Key 却找不到按钮 —— 扩展归扩展，网页归网页，两个都给，用户自己挑。
-    const aiPart = !ai ? (getSettings().apiKey ? '<button class="btn sm ghost" type="button" id="aiBtn">✦ AI 逐项解析</button>' : '')
+    // 首页「AI 设置」配好了就给「✦ AI 逐项解析」；没配就在原位给一句提示 + 去 /ai/ 的链接（离线版只提示没有 AI）。
+    const aiPart = !ai ? (aiReady() ? '<button class="btn sm ghost" type="button" id="aiBtn">✦ AI 逐项解析</button>' : noAiHint())
       : ai.state === 'load' ? '<span>AI 正在解析…</span>'
       : ai.state === 'err' ? `<span style="color:var(--bad)">${esc(ai.msg)}</span><button class="btn sm ghost" type="button" id="aiBtn">重试</button>`
       // 解析成功后按钮留着改成「重新解析」：以前一旦拿到结果就没了，模型答得不好只能刷新页面
@@ -668,39 +665,15 @@ function genTypes() {
   }
   return out;
 }
-// 首页的 hx-ai.js（window.HXAI）刷题页不主动引：它还没部署时每次打开都会 404。
-// 真要用看图模型时再按需加载；加载不到就当没配，退回“请先在首页配一套能看图的模型”的提示。
-let hxaiLoading = null;
-function ensureHxAi() {
-  if (window.HXAI) return Promise.resolve(window.HXAI);
-  if (!hxaiLoading) {
-    hxaiLoading = new Promise(resolve => {
-      const s = document.createElement('script');
-      s.src = '../hx-ai.js';
-      s.onload = () => resolve(window.HXAI || null);
-      s.onerror = () => { hxaiLoading = null; resolve(null); }; // 失败允许下次再试
-      document.head.appendChild(s);
-    });
-  }
-  return hxaiLoading;
+// 没配 AI 时的统一提示（2026-11-08 Z5：AI 只在首页「AI 设置」配，刷题不再自存 Key）。
+// 链接用站点根的 /ai/（线上 /shuati/ 的上一层就是根）；target=_top：刷题嵌在首页 iframe 里时整页跳过去。
+// 离线单文件没有 AI，也没有首页可去，只说一句。
+function noAiHint(cap = 'text') {
+  const st = aiState(cap);
+  if (st.offline) return `<span class="noai muted" data-noai>${esc(st.msg)}</span>`;
+  return `<span class="noai" data-noai><span>${esc(st.msg)}</span><a class="btn sm ghost" href="${AI_PAGE}" target="_top">去首页 AI 设置</a></span>`;
 }
-// 配没配模型：2026-11 起统一在首页「AI 设置」（hx-ai.js 挂 window.HXAI）。
-// HXAI 不在（离线版、首页脚本还没部署）时退回刷题自己的设置，行为跟以前一样。
-function aiReady() {
-  try {
-    const H = window.HXAI;
-    if (H && typeof H.forTool === 'function') {
-      const p = H.forTool('quiz');
-      if (p === true) return true;
-      if (p) {
-        const k = p.key || p.apiKey || p.api_key;
-        if (typeof k === 'string' ? k.trim() : k) return true;
-        if (p.ready === true || p.ok === true || p.hasKey === true) return true;
-      }
-    }
-  } catch { /* 别的模块的接口长得不一样时，当没配，退回下面 */ }
-  return !!getSettings().apiKey;
-}
+const noAiWarn = (cap = 'text') => `<div class="imp-warn">${noAiHint(cap)}</div>`;
 // 下载一段文本：导出题库、下载模板共用
 function downloadText(name, text, type = 'application/json') {
   const a = document.createElement('a');
@@ -787,7 +760,7 @@ function studyPanel() {
     ? `<div class="st-saved"><b>这道题现在就按这几条讲：</b><ol>${cur.spec.items.map(x => `<li>${esc(x)}</li>`).join('')}</ol><span class="muted">在下面重新说一段再存，会整组换掉。</span></div>`
     : '';
   return `<div class="panel" id="stPanel"><h3>给这道题提要求（AI 按它解析）</h3>
-      ${aiReady() ? '' : '<div class="imp-warn"><span>还没配 AI 模型 → 去首页「AI 设置」</span><button class="btn sm" type="button" id="toAi2">去首页「AI 设置」</button></div>'}
+      ${aiReady() ? '' : noAiWarn()}
       <p class="imp-note" style="margin:0 0 12px">不用写 JSON，也不用替 AI 写解析。你只管说「这题该怎么讲」：重点强调什么、别讲什么、用什么说法。<b>AI 把这段话整理成几条要求</b>，你核对完再保存；以后学生点「✦ AI 逐项解析」，AI 就照这几条现场生成 —— 换模型、换服务商都不影响。</p>
       <div class="f">
         <label for="stQ">给哪道题提要求</label>
@@ -834,7 +807,7 @@ async function runStudyCard() {
   if (!st || !q) return toast('先在上面选一道题');
   const words = String(st.text || '').trim();
   if (words.length < 4) { if ($('stText')) $('stText').focus(); return toast('先用一句话说说你想让 AI 怎么讲这道题'); }
-  if (!aiReady()) return toast('还没配 AI 模型，先去首页「AI 设置」');
+  if (!aiReady()) return toast(aiState().msg);
   st.busy = true; st.err = ''; st.spec = null; st.ask = [];
   paintStudy();
   try {
@@ -907,7 +880,7 @@ function renderBank() {
       <div class="f" style="margin-top:12px"><div class="line"><button class="btn sm ghost" type="button" id="expBtn">导出 JSON</button>${S.questions.length ? '<button class="btn sm ghost" type="button" id="shareBtn">生成分享码</button>' : ''}${S.bank.length ? '<button class="btn sm ghost" type="button" id="clrBtn">清空我导入的</button>' : ''}${sub.kind === 'mine' ? '<button class="btn sm ghost" type="button" id="renBtn">改名</button><button class="btn sm danger" type="button" id="delBtn">删除科目</button>' : sub.kind === 'shared' ? '<button class="btn sm danger" type="button" id="delBtn">移出我的列表</button>' : ''}${fwdBtn}${pubBtns2}</div></div></div>
     <div class="panel"><h3>新建科目</h3><div class="f"><div class="line"><input id="newName" maxlength="30" placeholder="科目名称" style="flex:1"><button class="btn sm" type="button" id="newBtn">新建</button></div></div></div>
     <div class="panel" id="impPanel"><h3>导入资料 · ${esc(sub.name)}</h3>
-      ${aiReady() ? '' : '<div class="imp-warn"><span>还没配 AI 模型 → 去首页「AI 设置」</span><button class="btn sm" type="button" id="toAi">去首页「AI 设置」</button></div>'}
+      ${aiReady() ? '' : noAiWarn()}
       <div class="imp-note">
         <b>两种导入方式</b>
         <ul>
@@ -972,10 +945,6 @@ function renderBank() {
     if ($('gen')) $('gen').hidden = r.value !== 'gen';
   };
   bindGen();
-  on('toAi', () => {
-    if (window.__OFFLINE) return toast('离线版没有首页设置页，请先在网页版配好模型');
-    location.href = '../ai/';
-  });
   on('tplBtn', () => {
     downloadText('题库模板.json', JSON.stringify({ 说明: '一题一条；type 可写 single/multiple/judgment/fill/short/prog；判断题选项写 T（正确）、F（错误）；填空题题干用 ____ 表示空；程序分析题把代码写在 code、小问写在 sub、参考答案写在 answer。填好直接拖进导入区即可，不用 AI。', questions: TPL }, null, 2));
     toast('模板已下载，照着填，填完拖进来');
@@ -1021,10 +990,6 @@ function renderBank() {
   if ($('stText')) $('stText').oninput = e => { if (S.study) S.study.text = e.target.value; };
   on('stGo', runStudyCard);
   bindStudyBtns();
-  on('toAi2', () => {
-    if (window.__OFFLINE) return toast('离线版没有首页设置页，请先在网页版配好模型');
-    location.href = '../ai/';
-  });
   on('okImport', confirmImport);
   on('dtlBtn', () => { if (S.draft) { S.draft.open = !S.draft.open; renderBank(); } });
   on('noImport', () => { S.draft = null; renderBank(); });
@@ -1111,7 +1076,7 @@ async function startImport() {
       got = gen ? await aiGenerate(text, sub.id, sub.name, opts, tick) : await aiImport(text, sub.id, tick);
     }
     if (pics.length) {
-      await ensureHxAi(); // 看图要靠首页那套（HXAI.vision），用到时才加载
+      await ensureHxAi(); // 看图走首页那套（HXAI.vision）；boot 时一般已经加载好了
       const images = await readImages(pics);
       const vis = await aiVision(images, { subject: sub.id, subjectName: sub.name, mode: gen ? 'gen' : 'pick', opts, onProgress: tick });
       got = { questions: [...got.questions, ...vis.questions], rejected: [...got.rejected, ...vis.rejected] };
@@ -1387,72 +1352,9 @@ function copyText(t) {
   if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(done, ta);
   else ta();
 }
-// 「?」：教学生自己申请硅基流动的 API Key（注册 → 实名 → 建密钥 → 填进来）
-function openAiHelpSheet() {
-  const step = (n, title, body) => `<div class="astep"><div class="ahd"><i>${n}</i><b>${title}</b></div>${body}</div>`;
-  openSheet(`<h3>怎么申请 AI Key</h3><div class="aikey">
-    ${step(1, '注册硅基流动', `
-      <p>硅基流动（SiliconFlow）是国内的大模型平台，注册很简单，只要一个手机号。</p>
-      <div class="aqr">
-        <img src="${SF_QR}" alt="硅基流动注册二维码" width="132" height="132">
-        <div class="aqr-r">
-          <p class="muted">手机扫左边的二维码，或者在电脑上点下面的按钮注册。</p>
-          <div class="line"><button class="btn sm" type="button" id="sfOpen">打开注册链接</button><button class="btn sm ghost" type="button" id="sfCopy">复制链接</button></div>
-          <code class="alink">${esc(SF_URL)}</code>
-        </div>
-      </div>
-      <p class="atip">用这个链接注册，能帮老师拿到一点推广额度，不额外收你的钱。</p>`)}
-    ${step(2, '实名认证，领 16 元额度', `
-      <p>注册完登录进去，在左边菜单点「实名认证」，按提示填一下身份证信息。</p>
-      <p>认证通过后会送 <b>16 元额度券</b>，够刷很久的题了。<b class="warn">一定要实名认证</b>，不认证就拿不到这张券。</p>`)}
-    ${step(3, '创建 API 密钥', `
-      <p>左侧菜单点「API 密钥」→ 点「新建 API 密钥」→ 起个名字（随便写，比如 <code>华夏工具</code>）→ 创建。</p>
-      <p>创建完会给你一串 <code>sk-</code> 开头的密钥，这就是钥匙。</p>
-      <p><b class="warn">密钥只显示一次，关掉这个窗口就再也看不到了，一定要马上复制下来。</b>也别把它发给别人。</p>`)}
-    ${step(4, '填进这个工具', `
-      <p>回到刷题页面的「设置」：</p>
-      <ol>
-        <li>服务商选「硅基流动」，接口地址会自动填好；</li>
-        <li>把 <code>sk-</code> 密钥粘到「API Key」输入框；</li>
-        <li>点「读取模型」，读出来后在模型下拉里挑一个（推荐 <code>Qwen/Qwen2.5-7B-Instruct</code>，或者列表里价格最低的那个）；</li>
-        <li>点「测试连接」，看到「连接成功」；</li>
-        <li>最后点「保存」。</li>
-      </ol>
-      <p class="muted">Key 只存在你自己这台设备的浏览器里，不会上传到任何服务器。</p>`)}
-    <div class="awarn"><b>安全提醒</b>
-      <ul>
-        <li>别把 Key 发给别人、别发到班级群里——别人拿到就能花你的额度。</li>
-        <li>在公共电脑（机房、图书馆）上用完，记得取消勾选「在这台设备长期保存 Key」。</li>
-      </ul>
-    </div>
-  </div>`, () => {
-    const open = () => { // 有些应用内浏览器不弹新窗口，失败就把链接亮出来让人手动打开
-      let w = null;
-      // 不用第三个参数的 noopener：带它 window.open 一律返回 null，判断不出到底开没开
-      try { w = window.open(SF_URL, '_blank'); } catch (e) { }
-      if (w) { try { w.opener = null; } catch (e) { } } // 断开 opener，新窗口碰不到本页
-      else toast('浏览器拦了新窗口，手动复制下面的链接打开');
-    };
-    $('sfOpen').onclick = open;
-    $('sfCopy').onclick = () => copyText(SF_URL);
-  }, 'big solid');
-}
-
 function renderSettings() {
-  const s = getSettings(), p = providers[s.provider], models = [...new Set([...(s.models || []), ...p.models])];
+  /* 2026-11-08（Z5）：「AI 解析」整张卡删掉了 —— Key、服务商、模型统一在首页「AI 设置」配。 */
   $('v-settings').innerHTML = `
-    <div class="panel"><h3>AI 解析<button class="help" type="button" id="aiHelp" title="怎么申请 AI Key" aria-label="怎么申请 AI Key">?</button></h3>${hasExt()
-      ? '<p class="extok">已装“夜夜题库AI伴侣”：题干下的“✦ 学会这题”用的是扩展里的 Key，这里不填也能讲题。<b>这里填了自己的 Key 之后，题目下还会多出一个网页自己的“✦ AI 逐项解析”</b>，两个都能点，随便用哪个。<br>想自己申请一个 Key？点上面的「?」看图文教学（现在能领 16 元额度）。</p>'
-      : '<p class="muted" style="margin-top:0">填自己的 AI Key 后，答题后能逐项解析，也能识别资料、根据资料出题。请求直接从浏览器发给服务商。<br>不知道去哪申请？点上面的「?」看图文教学。</p>'}
-      <div class="f">
-        <label for="prov">服务商</label><select id="prov">${Object.entries(providers).map(([k, v]) => `<option value="${k}" ${k === s.provider ? 'selected' : ''}>${esc(v.label)}</option>`).join('')}</select>
-        <label for="base">接口地址</label><input id="base" type="url" value="${esc(s.baseUrl)}" placeholder="https://api.example.com/v1">
-        <label for="model">模型</label><div class="line"><select id="model" style="flex:1;min-width:0">${models.map(m => `<option value="${esc(m)}" ${m === s.model ? 'selected' : ''}>${esc(m)}</option>`).join('')}<option value="" ${models.includes(s.model) ? '' : 'selected'}>手动填写…</option></select><button class="btn sm ghost" type="button" id="lsModels">读取模型</button></div>
-        <input id="modelIn" value="${esc(models.includes(s.model) ? '' : s.model)}" placeholder="模型 ID" ${models.includes(s.model) ? 'hidden' : ''}>
-        <label for="key">API Key</label><input id="key" type="password" autocomplete="off" value="${esc(s.apiKey)}" placeholder="sk-…">
-        <div class="radio"><label><input type="checkbox" id="remember" ${s.remember ? 'checked' : ''}>在这台设备长期保存 Key（公共电脑别勾）</label></div>
-        <div class="line"><button class="btn sm" type="button" id="saveAi">保存</button><button class="btn sm ghost" type="button" id="testAi">测试连接</button><span class="muted" id="aiMsg"></span></div>
-      </div></div>
     <div class="panel"><h3>快捷键</h3><div class="keys">${KEY_ACTS.map(([a, n]) => `<div><span>${n}</span>${[0, 1].map(k => `<button type="button" data-ka="${a}" data-ki="${k}">${esc(keyName(keyMap()[a][k] || '') || '—')}</button>`).join('')}</div>`).join('')}</div>
       <div style="display:flex;gap:8px;margin-top:12px;align-items:center"><button class="btn sm ghost" type="button" id="keyDef">恢复默认</button><span class="muted">点一个键位再按键盘；按退格清空</span></div></div>
     <div class="panel guide" id="guide"><h3>使用说明</h3>${guide()}</div>
@@ -1462,15 +1364,7 @@ function renderSettings() {
     b.classList.add('rec'); b.textContent = '按一个键…'; S.recKey = { a: b.dataset.ka, i: +b.dataset.ki };
   };
   $('keyDef').onclick = () => { store.setLocal('keys', {}); renderSettings(); toast('快捷键已恢复默认'); };
-  $('aiHelp').onclick = openAiHelpSheet;
   $('reload').onclick = async () => { S.base = {}; await loadSubjects(); await openSubject(S.subject.id); toast('题库已重新加载'); };
-  const collect = () => ({ provider: $('prov').value, baseUrl: $('base').value.trim(), model: ($('model').value || $('modelIn').value).trim(), models: s.models || [], apiKey: $('key').value.trim(), remember: $('remember').checked });
-  $('prov').onchange = () => { const v = providers[$('prov').value]; saveSettings({ ...collect(), baseUrl: v.baseUrl, model: v.models[0] || '', models: [] }); renderSettings(); };
-  $('model').onchange = () => { $('modelIn').hidden = !!$('model').value; saveSettings(collect()); if ($('model').value) $('aiMsg').textContent = '已选 ' + $('model').value; else $('modelIn').focus(); };
-  $('modelIn').onchange = () => saveSettings(collect());
-  $('saveAi').onclick = () => { saveSettings(collect()); $('aiMsg').textContent = '已保存'; };
-  $('testAi').onclick = async () => { saveSettings(collect()); $('aiMsg').textContent = '正在测试…'; try { await chat([{ role: 'user', content: '只回复：连接成功' }]); $('aiMsg').textContent = '连接成功'; } catch (e) { $('aiMsg').textContent = e.message; } };
-  $('lsModels').onclick = async () => { saveSettings(collect()); $('aiMsg').textContent = '正在读取…'; try { const ms = await listModels(), c = collect(); saveSettings({ ...c, models: ms, model: ms.includes(c.model) ? c.model : ms[0] || c.model }); renderSettings(); $('aiMsg').textContent = `读到 ${ms.length} 个模型，在模型框里选`; } catch (e) { $('aiMsg').textContent = e.message; } };
   $('resetP').onclick = e => sure(e.currentTarget, '确认清空？', resetAll);
 }
 
@@ -1567,41 +1461,44 @@ function openNotice() {
   openSheet(`<h3>开始刷题</h3><div class="guide">
     <p>选题型和范围，点选项作答；答完<b>左滑记住、右滑再练</b>，电脑上按 <kbd>${esc(keyOf('know'))}</kbd> / <kbd>${esc(keyOf('again'))}</kbd>。</p>
     <p>“记住”的题不再出现在“待掌握”里；点错了可以撤销。</p>
-    <p>想看 AI 逐项讲解：在“设置”里填自己的 AI Key，或装“夜夜题库AI伴侣”浏览器扩展。</p></div>
+    <p>想看 AI 逐项讲解：在首页「AI 设置」配一套模型，或装“夜夜题库AI伴侣”浏览器扩展。</p></div>
     <div class="row" style="margin-top:16px"><button class="btn ghost" type="button" id="nGuide" style="flex:1">使用说明</button><button class="btn" type="button" id="nOk" style="flex:1">开始</button></div>`, () => {
     $('nOk').onclick = closeSheet;
     $('nGuide').onclick = () => { closeSheet(); show('settings'); setTimeout(() => $('guide')?.scrollIntoView({ behavior: 'smooth' }), 80); };
   });
   store.setLocal('notice', 1);
 }
-// 问 AI 的模型可选项：设置里“读取模型”读到的 + 服务商默认 + 当前选中的，去重
-function askModels() {
-  const st = getSettings();
-  const list = [...(st.models || []), ...((providers[st.provider] || {}).models || []), st.model].filter(Boolean);
-  return [...new Set(list)];
+/* 问 AI 的「模型 / 思考程度」（2026-11-08 Z5 改走首页 HXAI）：
+   模型下拉 = 首页「AI 设置」里配好的那几套（不选 = 首页给刷题指定的 / 文本默认）；
+   思考程度 = HXAI 的三档 thinkLevel（不选 = 那套配置自己的档位），「深度」按 reason 能力找模型，没配推理就回落文本。
+   输出预算照旧（max_tokens）。老存档里的「低 / 中 / 高」自动对到 快速 / 均衡 / 深度。 */
+const OLD_LV = { 低: 'quick', 中: 'balanced', 高: 'deep' };
+const BUDGET = { quick: 800, balanced: 1400, deep: 2600 };
+function askProfile() {
+  const id = store.getLocal('askProfile', '');
+  return (id && aiProfiles().find(p => p.id === id)) || null;
 }
-// 思考程度映射到真实参数：开不开服务商的思考模式、temperature、输出预算（max_tokens）
-const THINK = {
-  低: { think: false, temperature: 0.2, maxTokens: 800 },
-  中: { think: true, temperature: 0.3, maxTokens: 1400 },
-  高: { think: true, temperature: 0.5, maxTokens: 2600 },
-};
 function askOpts() {
-  const lv = THINK[store.getLocal('askThink', '低')] ? store.getLocal('askThink', '低') : '低';
-  const preset = THINK[lv];
-  const budget = +store.getLocal('askBudget', preset.maxTokens) || preset.maxTokens;
-  return { lv, model: store.getLocal('askModel', '') || getSettings().model, think: preset.think, temperature: preset.temperature, budget };
+  const picked = askProfile(), def = aiState('text').profile;
+  const prof = picked || def || null;
+  let lv = store.getLocal('askThink', '');
+  lv = OLD_LV[lv] || lv;
+  if (!BUDGET[lv]) lv = (prof && BUDGET[prof.thinkLevel]) ? prof.thinkLevel : 'balanced';
+  const budget = +store.getLocal('askBudget', BUDGET[lv]) || BUDGET[lv];
+  return { lv, picked, prof, budget, explicit: !!BUDGET[OLD_LV[store.getLocal('askThink', '')] || store.getLocal('askThink', '')] };
 }
+const lvName = id => (aiThinkLevels().find(x => x.id === id) || {}).name || id;
+const profName = p => p ? (p.name || p.model || '未命名') : '';
 const shortModel = m => String(m || '').split('/').pop();
 
 function openAsk() {
   const q = S.view === 'practice' ? cur() : null;
   let withQ = !!q;
   const big = !!store.getLocal('askBig', false); // 上次的窗口大小记着
-  const o = askOpts(), models = askModels();
+  const o = askOpts(), profs = aiProfiles(), lvs = aiThinkLevels();
   const draw = () => {
     const box = $('chat'); if (!box) return;
-    box.innerHTML = S.chat.length ? S.chat.map(m => `<div class="msg ${m.role === 'user' ? 'u' : 'a'}">${esc(m.show || m.content)}</div>`).join('') : `<p class="muted">${getSettings().apiKey ? '问这道题、知识点，或让 AI 出几道类似的题。' : '先在“设置”里填自己的 AI Key。'}</p>`;
+    box.innerHTML = S.chat.length ? S.chat.map(m => `<div class="msg ${m.role === 'user' ? 'u' : 'a'}">${esc(m.show || m.content)}</div>`).join('') : `<p class="muted">${aiReady() ? '问这道题、知识点，或让 AI 出几道类似的题。</p>' : '</p>' + noAiHint()}`;
     box.scrollTop = box.scrollHeight;
   };
   const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -1613,14 +1510,14 @@ function openAsk() {
     <div class="askbox"><textarea id="askIn" rows="1" placeholder="输入问题，回车发送"></textarea></div>
     <div class="askbar">
       ${Rec ? '<button class="rbtn" type="button" id="mic" aria-label="语音输入"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M12 3a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3Z"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>' : ''}
-      <div class="pw"><button class="apill" type="button" id="modelBtn" aria-expanded="false"><b>${esc(shortModel(o.model) || '未选模型')}</b>${CARET}</button>
-        <div class="pmenu" id="modelMenu"><h4>模型</h4>${models.map(m => `<button type="button" data-model="${esc(m)}" aria-selected="${m === o.model}">${esc(m)}<i>✓</i></button>`).join('')}</div></div>
-      <div class="pw"><button class="apill" type="button" id="thinkBtn" aria-expanded="false"><b id="thinkLab">思考 · ${o.lv}</b>${CARET}</button>
+      <div class="pw"><button class="apill" type="button" id="modelBtn" aria-expanded="false"><b>${esc(shortModel(profName(o.prof)) || '未配模型')}</b>${CARET}</button>
+        <div class="pmenu" id="modelMenu"><h4>模型</h4>${profs.length ? `<button type="button" data-prof="" aria-selected="${!o.picked}">首页默认<i>✓</i></button>` + profs.map(p => `<button type="button" data-prof="${esc(p.id)}" aria-selected="${!!o.picked && o.picked.id === p.id}">${esc(profName(p))}${p.model && p.name ? ` · ${esc(shortModel(p.model))}` : ''}<i>✓</i></button>`).join('') : `<p class="muted" style="margin:4px 10px 8px;font-size:12px">${noAiHint()}</p>`}</div></div>
+      <div class="pw"><button class="apill" type="button" id="thinkBtn" aria-expanded="false"><b id="thinkLab">思考 · ${esc(lvName(o.lv))}</b>${CARET}</button>
         <div class="pmenu" id="thinkMenu"><h4>思考程度</h4>
-          <div class="aseg" id="thinkSeg">${['低', '中', '高'].map(v => `<button type="button" data-lv="${v}" aria-pressed="${v === o.lv}">${v}</button>`).join('')}</div>
+          <div class="aseg" id="thinkSeg">${lvs.map(v => `<button type="button" data-lv="${esc(v.id)}" aria-pressed="${v.id === o.lv}">${esc(v.name)}</button>`).join('')}</div>
           <div class="alab"><span>输出预算</span><b id="budVal">${o.budget}</b></div>
           <input type="range" id="budget" min="400" max="2600" step="100" value="${o.budget}" aria-label="输出预算">
-          <p class="muted" style="margin:2px 10px 6px;font-size:11.5px;line-height:1.5">中／高会打开服务商的思考模式，回答更细但更慢。</p>
+          <p class="muted" style="margin:2px 10px 6px;font-size:11.5px;line-height:1.5">均衡／深度会让模型多想一会儿，回答更细但更慢；深度优先用首页设的推理模型。</p>
         </div></div>
       <span class="sp"></span>
       <button class="rbtn go" type="button" id="askGo" aria-label="发送"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
@@ -1654,11 +1551,11 @@ function openAsk() {
     if (window.__askCloser) document.removeEventListener('click', window.__askCloser);
     window.__askCloser = closeMenus;
     document.addEventListener('click', window.__askCloser);
-    // 换模型：只影响问 AI，不动设置页里选的默认模型
-    for (const b of $('modelMenu').querySelectorAll('[data-model]')) b.onclick = () => {
-      store.setLocal('askModel', b.dataset.model);
-      for (const x of $('modelMenu').querySelectorAll('[data-model]')) x.setAttribute('aria-selected', String(x === b));
-      $('modelBtn').querySelector('b').textContent = shortModel(b.dataset.model);
+    // 换模型：只影响问 AI，不动首页「AI 设置」里给刷题选的那套
+    for (const b of $('modelMenu').querySelectorAll('[data-prof]')) b.onclick = () => {
+      store.setLocal('askProfile', b.dataset.prof);
+      for (const x of $('modelMenu').querySelectorAll('[data-prof]')) x.setAttribute('aria-selected', String(x === b));
+      $('modelBtn').querySelector('b').textContent = shortModel(profName(askOpts().prof)) || '未配模型';
       closeMenus();
     };
     // 思考程度：分段和预算滑块联动，改了就存
@@ -1669,8 +1566,8 @@ function openAsk() {
       const lv = b.dataset.lv;
       store.setLocal('askThink', lv);
       for (const x of seg.querySelectorAll('[data-lv]')) x.setAttribute('aria-pressed', String(x === b));
-      thinkLab.textContent = '思考 · ' + lv;
-      paintBud(THINK[lv].maxTokens);
+      thinkLab.textContent = '思考 · ' + lvName(lv);
+      paintBud(BUDGET[lv] || 1400);
     };
     bud.oninput = () => paintBud(+bud.value);
     bud.onchange = () => { store.setLocal('askBudget', +bud.value); };
@@ -1686,7 +1583,7 @@ function openAsk() {
     };
     async function send() {
       const text = inp.value.trim(); if (!text) return;
-      if (!getSettings().apiKey) { S.askDraft = inp.value; closeSheet(); show('settings'); return toast('先填自己的 AI Key'); }
+      if (!aiReady()) { S.askDraft = inp.value; draw(); return toast(aiState().msg); } // 提示 + 去 /ai/ 的链接就在聊天区里
       let content = text;
       if (withQ && q) {
         content = `题目（${typeName(q.type)}）：${q.stem}${figText(q)}${q.code ? '\n' + q.code : ''}${(q.options || []).length ? '\n' + q.options.map(o => o.key + '. ' + optText(o)).join('\n') : ''}${S.picked[q.id] ? '\n题库答案：' + q.answer.join(q.type === 'fill' ? '；' : '') : ''}\n\n我的问题：${text}`;
@@ -1697,7 +1594,12 @@ function openAsk() {
       try {
         const msgs = [{ role: 'system', content: `你是耐心的${S.subject ? '“' + S.subject.name + '”课程' : ''}辅导老师，用简洁的中文回答学生，不用 Markdown 标记；题库答案可能有误，有疑点要说明。` }, ...S.chat.slice(0, -1).slice(-12).map(({ role, content }) => ({ role, content }))];
         const oo = askOpts(); // 每次发送现读，下拉里改了立刻生效
-        a.content = await streamChat(msgs, t => { a.content = t; draw(); }, { model: oo.model, think: oo.think, temperature: oo.temperature, maxTokens: oo.budget });
+        a.content = await streamChat(msgs, t => { a.content = t; draw(); }, {
+          profile: oo.picked || undefined, // 下拉里换过就用那套，否则交给 HXAI 按「刷题指定 → 能力默认」挑
+          thinkLevel: oo.explicit ? oo.lv : undefined, // 没动过思考程度 = 跟那套配置自己的档位
+          cap: oo.lv === 'deep' ? 'reason' : 'text', // 深度优先找推理模型，没配就由 HXAI 回落文本
+          maxTokens: oo.budget
+        });
       } catch (e) { a.content = '出错了：' + e.message; }
       if ($('askGo')) $('askGo').disabled = false; draw();
     }
@@ -1709,10 +1611,10 @@ const guide = () => `<h4>刷题</h4><ul>
   <li>答完：<b>左滑或按 ${esc(keyOf('know'))}</b> 记住并下一题，<b>右滑或按 ${esc(keyOf('again'))}</b> 再练；鼠标也能拖题卡。按住时题卡只跟着手指走，松手才算：拖回中间再松手就放回原处。点错了用提示里的“撤销”，或回到那题点“撤销记住”。快捷键可以在上面改。</li>
   <li>“专注”只留题卡；“问 AI”（${esc(keyOf('ask'))}）可以引用当前题目提问，浏览器支持时可以语音输入。</li>
   <li>登录后进度跟账号走；没登录只存在这台设备。账号、外观在首页右上角设置。</li></ul>
-<h4>AI 解析（网页自带）</h4><ol>
-  <li>到硅基流动、DeepSeek 等服务商注册，创建 API Key。</li>
-  <li>在上面“AI 解析”里选服务商、填 Key，点“读取模型”选一个，保存，再点“测试连接”。</li>
-  <li>答完一道题点“✦ AI 逐项解析”。Key 只存在你的浏览器，请求直接发给服务商。</li></ol>
+<h4>AI 解析</h4><ol>
+  <li>AI 统一在首页「AI 设置」里配（服务商、Key、模型都在那儿，刷题不再单独填）。</li>
+  <li>答完一道题点“✦ AI 逐项解析”；顶上“问 AI”可以引用当前题提问。</li>
+  <li>没配时这些位置会提示「还没配置 AI」，点旁边的链接去首页配。</li></ol>
 <h4>浏览器扩展：夜夜题库AI伴侣</h4><ol>
   <li>安装：在电脑版 Chrome 或 Edge 里，从 <a href="https://github.com/zcq19991029/chorme-AIkuozhan/releases/latest" target="_blank" rel="noopener">发布页</a> 下载学生安装包（0.7.0 起支持本刷题页）并解压到固定文件夹；打开 <code>chrome://extensions</code>（Edge 是 <code>edge://extensions</code>），打开“开发者模式”，点“加载已解压的扩展程序”，选解压出来的 <code>extension</code> 文件夹。</li>
   <li>设置 AI：点浏览器右上角的扩展图标 →“设置”，填自己的硅基流动 API Key（在 cloud.siliconflow.cn 注册后创建），点“读取模型”选一个对话模型，保存，再点“测试”。</li>
@@ -1741,10 +1643,9 @@ async function boot() {
   if (!hx.signedIn()) { if (window.HXLoadFx) HXLoadFx.finishBoot(); lock(true); return; }
   if (hx.signedIn()) { try { [S.user, S.me] = await Promise.all([hx.user(), hx.me()]); } catch { S.user = S.me = null; } }
   if (lock(S.me && !S.me.teacher && !S.me.admin && !S.me.dev && !S.me.student && !S.me.left)) { if (window.HXLoadFx) HXLoadFx.finishBoot(); return; }
-  setAiProfile(hx.uid() || 'default');
-  // 首页那套 AI 配置（hx-ai.js）要尽早拿到：导入区要判断“配没配模型”，配了就不该再弹提示。
-  // 只在刷题自己没 Key 时才去加载（有 Key 就不必多一次请求）；没部署／离线打开会很快失败，所以最多等 1.5 秒。
-  if (!getSettings().apiKey) await Promise.race([ensureHxAi(), new Promise(r => setTimeout(r, 1500))]);
+  // 首页那套 AI 配置（hx-ai.js → window.HXAI）尽早拿到：题卡、导入区、问 AI 都要判断“配没配模型”。
+  // 离线版不加载（没有 AI）；加载失败很快返回，最多等 1.5 秒，不挡首屏。
+  await Promise.race([ensureHxAi(), new Promise(r => setTimeout(r, 1500))]);
   const p = prefs();
   S.type = p.type || 'single'; S.scope = p.scope || 'todo'; S.mode = ORDERS.some(o => o[0] === p.mode) ? p.mode : 'seq';
   S.imode = store.getLocal('importMode', 'pick') === 'gen' ? 'gen' : 'pick'; // 上次选的导入方式

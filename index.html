@@ -14,22 +14,23 @@
      要登录时调 window.HXPortal.login()；被单独打开时 hx-theme.js 会跳回这里（见 hx-theme.js 的 data-tool）。
      账号：Supabase 华夏工具项目，localStorage paike-session 和各工具共用；身份由数据库 hx_me() 决定。
      脚本里不用反引号模板字符串（本机测试时整页当字符串注入到线上同源页面里）。 -->
-<link rel="stylesheet" href="hx-theme.css?v=0bef751">
-<script src="hx-theme.js?v=0bef751"></script>
+<link rel="stylesheet" href="hx-theme.css?v=8ef76f8">
+<script src="hx-theme.js?v=8ef76f8"></script>
 <!-- 首页卡片上的像素小生物：pixelfx 的 12 个 critters（MIT），打包成一个 91 KB 的独立脚本。
      加载失败不影响首页——hx-critters.js 开头就有 window.PixelFX 存在性检查，没有就整段跳过。 -->
-<script src="fx/pixelfx-critters.js?v=0bef751" defer></script>
-<script src="fx/hx-critters.js?v=0bef751" defer></script>
+<script src="fx/pixelfx-critters.js?v=8ef76f8" defer></script>
+<script src="fx/hx-critters.js?v=8ef76f8" defer></script>
 <!-- 像素头像库（2026-11-04）：账号面板里除了传照片，还能从 200 多个像素动效里挑一个当头像。
      和上面 critters 同一套路：库（pixelfx-avatars.js）+ 渲染器（hx-avatar.js），都是 defer、
      不进首屏关键路径；不点「像素头像库」就一个动画都不跑。 -->
-<script src="fx/pixelfx-avatars.js?v=0bef751" defer></script>
-<script src="fx/hx-avatar.js?v=0bef751" defer></script>
+<script src="fx/pixelfx-avatars.js?v=8ef76f8" defer></script>
+<script src="fx/hx-avatar.js?v=8ef76f8" defer></script>
 <!-- 背景动效（2026-11-03）：12 种天气氛围特效铺在背景层，外观面板里选；加载失败或没选就完全不加载渲染器 -->
-<script src="fx/pixelfx-weather.js?v=0bef751" defer></script>
-<script src="fx/hx-weather.js?v=0bef751" defer></script>
+<script src="fx/pixelfx-weather.js?v=8ef76f8" defer></script>
+<script src="fx/hx-weather.js?v=8ef76f8" defer></script>
 <!-- 课堂码大屏二维码：离线 QR 编码器（qrcode 1.5.4 core 打包，MIT，见 fx/NOTICE-qr.md）。延迟加载即可：只有老师点「大屏二维码」时才用 -->
-<script src="fx/hx-qr.js?v=0bef751" defer></script>
+<script src="fx/hx-qr.js?v=8ef76f8" defer></script>
+<script src="hx-scan.js?v=8ef76f8" defer></script><!-- 全站扫一扫（2026-11-08 K5）：摄像头 + BarcodeDetector / 本地 jsQR -->
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; width: 100%; overflow: hidden; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -72,6 +73,7 @@
   .sp { flex: 1; }
   .ibtn { flex: none; width: 36px; height: 36px; display: grid; place-items: center; border: 0; border-radius: 50%; background: none; color: var(--ink); opacity: .8; transition: background .2s var(--hx-ease), opacity .2s; }
   .ibtn:hover, .ibtn[aria-expanded="true"] { background: var(--fill); opacity: 1; }
+  .ibtn[hidden] { display: none; }
   .acct { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 4px; border: 0; border-radius: 99px; background: none; white-space: nowrap; }
   .acct:hover, .acct[aria-expanded="true"] { background: var(--fill); }
   .acct b { max-width: 9em; overflow: hidden; text-overflow: ellipsis; font-size: 15px; font-weight: 500; padding-right: 8px; }
@@ -964,6 +966,7 @@
   <div class="sp"></div>
   <!-- 2026-11-08 用户截图要求：顶栏这两颗圆钮（? 使用说明、AI 领额度）撤掉，内容挪到首页「维护」组的卡片里。
        弹层本身（#help / #invite）、遮罩、Esc 关闭都保留，只是改由卡片触发。 -->
+  <button class="ibtn" id="scanBtn" type="button" aria-label="扫一扫" title="扫一扫" hidden><svg class="i" viewBox="0 0 24 24"><path d="M4 8V5.5A1.5 1.5 0 0 1 5.5 4H8M16 4h2.5A1.5 1.5 0 0 1 20 5.5V8M20 16v2.5a1.5 1.5 0 0 1-1.5 1.5H16M8 20H5.5A1.5 1.5 0 0 1 4 18.5V16M4 12h16"/></svg></button>
   <button class="ibtn" id="lookBtn" type="button" aria-label="外观" aria-expanded="false"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v17a8.5 8.5 0 0 0 0-17z" fill="currentColor" stroke="none"/></svg></button>
   <div id="syncPill" hidden role="button" tabindex="0" aria-expanded="false" aria-controls="syncPop"></div>
   <div id="who"></div>
@@ -1037,7 +1040,7 @@ var SITE = location.protocol === 'file:' ? 'https://zcq19991029.github.io' : '';
 // stu 是「学生点开时去哪个页面」：不给就照 who:'all' 用 url。给 who:'all' + stu 就是「老师进完整工具、
 // 学生只进一个页面」——2026-11-03 用户要「单独开放小组加分里面的分组模块给学生」，先用这个机制开一个模块。
 // pop 是「不挂工具页、点开直接弹层」的卡片（2026-11-08 用户要求把顶栏的 ? 和 AI 两颗圆钮挪成卡片）。
-var GROUPS = [['学习', ['wiring', 'quiz', 'base', 'mcu', 'exam']], ['教学', ['paike', 'jiafen', 'course']], ['维护', ['help', 'ai', 'feedback']]]; // 首页按使用场景分组
+var GROUPS = [['学习', ['wiring', 'quiz', 'base', 'mcu', 'exam']], ['教学', ['kaoqin', 'ziliao', 'paike', 'jiafen', 'course']], ['维护', ['help', 'ai', 'feedback']]]; // 首页按使用场景分组
 var TOOLS = [
   // 2026-11-02：注册已彻底修好（删掉了 auth.users 上的废弃触发器），临时免登录口子按用户要求收回 ——
   // 「没账号不允许使用任何工具」。全站不再有 open:true 的工具。
@@ -1050,6 +1053,10 @@ var TOOLS = [
   { id: 'base', name: '进制转换', url: SITE + '/base/', splash: 1, who: 'all', c: ['#3ad6c6', '#00b3a4'], icon: '<path d="M4 8h14l-3.5-3.5M20 16H6l3.5 3.5"/>' },
   { id: 'mcu', name: '单片机上机', url: SITE + '/mcu/', splash: 1, who: 'all', c: ['#5ac8fa', '#0a84ff'], icon: '<rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/>' },
   { id: 'exam', name: '考试', url: SITE + '/exam/', who: 'all', splash: 1, c: ['#7d7aff', '#5e5ce6'], icon: '<path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h4"/>' },
+  // 2026-11-08 考勤（任务清单 K10）：教师发布/停止考勤、手改、预览导出；学生进同一页只看到「签到」（页面按身份分流）。
+  { id: 'kaoqin', name: '考勤', url: SITE + '/kaoqin/', splash: 1, who: 'all', c: ['#34d399', '#059669'], icon: '<rect x="4" y="4" width="16" height="17" rx="3"/><path d="M8 2v4M16 2v4M4 9h16M8.5 14.5l2.2 2.2 4.8-4.8"/>' },
+  // 2026-11-08 资料库独立成工具（任务清单 Z6）：教材上传、AI 出题、题池 → 发布到刷题 / 给考试组卷。只给教师。
+  { id: 'ziliao', name: '资料库', url: SITE + '/ziliao/', splash: 1, who: 'teacher', c: ['#a3e635', '#65a30d'], icon: '<path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H10l2 2h6.5A1.5 1.5 0 0 1 20 7.5v11a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18.5z"/><path d="M8 11h8M8 15h5"/>' },
   { id: 'paike', name: '排课', url: SITE + '/paike/', splash: 1, who: 'teacher', c: ['#ff6b6b', '#ff3b30'], icon: '<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4M8 14h3M13 14h3M8 17h3"/>' },
   // 小组加分：老师进完整记分台，学生进「我的分数」只读页（studentUrl）。
   // 为什么不是 who:'teacher'：学生要自己分组、也要能看自己的分，进不去就什么也干不了。
@@ -1457,6 +1464,7 @@ function render() {
   if ($('tAct')) $('tAct').onclick = function () { openLogin('', 'act'); };
   if ($('tIn')) $('tIn').onclick = function () { openLogin(); };
   var i = HX.in() && ST.user ? info() : null;
+  $('scanBtn').hidden = !i; // 扫一扫只给登录后的人
   $('hi').innerHTML = i ? '你好，' + esc(i.name) + badge() : '';
   if (i) {
     $('who').innerHTML = '<button class="acct" id="acct" type="button" aria-expanded="' + $('pop').classList.contains('show') + '">' + avatar(i) + '<b>' + esc(i.name) + '</b>' + badge(1) + '</button>';
@@ -2106,6 +2114,60 @@ function clsCodeRow(c) {
         '<button class="btn link bad sm" data-clsrev="' + esc(live.code) + '">撤销</button>') +
     '</div>';
 }
+/* 合班（2026-11-08 K13）：几个自己的班绑成一组，考勤等工具发一次覆盖整组。
+   数据：hx_class_group_list / _save / _del（考勤/supabase/2026-11-08-考勤.sql）。至少 2 个班、一个班只能在一个组，
+   冲突由数据库报错（说出哪个班），这里原样显示。ST.groups：undefined 没读、null 读取中、数组已读。 */
+async function loadGroups() {
+  try { ST.groups = (await HX.rpc('hx_class_group_list')) || []; ST.grpErr = null; } catch (e) { ST.groups = []; ST.grpErr = e.message; }
+  renderMgmt('cls');
+}
+function grpHtml() {
+  if (!isTeacher()) return '';
+  if (ST.groups === undefined) { ST.groups = null; loadGroups(); }
+  var G = ST.groups, E = ST.grpEdit, mine = (ST.classes || []).filter(function (c) { return !c.guest; });
+  var h = '<div class="panel f" id="grp" style="margin:0 0 12px"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><b>合班</b>' +
+    (E ? '' : '<button class="btn sub sm" data-gnew style="margin-left:auto"' + (mine.length < 2 ? ' disabled' : '') + '>新建合班</button>') + '</div>';
+  if (G === null) h += '<span class="dim">读取中…</span>';
+  else if (ST.grpErr) h += '<p class="msg" style="margin:0">' + esc(ST.grpErr) + '</p>';
+  else h += G.map(function (g) {
+    return '<div class="grow" data-gid="' + g.id + '" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 0;border-top:1px solid var(--edge)">' +
+      '<div style="flex:1 1 12em;min-width:0"><b>' + esc(g.name) + '</b><br><small class="dim" style="overflow-wrap:anywhere">' + (g.classes || []).map(function (c) { return esc(c.name); }).join('、') + '</small></div>' +
+      (E ? '' : '<button class="btn sub sm" data-gedit="' + g.id + '">修改</button><button class="btn link bad sm" data-gdel2="' + g.id + '">解除</button>') + '</div>';
+  }).join('');
+  if (E) h += '<div style="display:grid;gap:8px;padding-top:8px;border-top:1px solid var(--edge)">' +
+    '<input id="gName" maxlength="40" placeholder="合班名称" value="' + esc(E.name) + '">' +
+    '<div class="chips">' + mine.map(function (c) { return '<button type="button" class="chip" data-gc="' + c.id + '" aria-pressed="' + (E.ids.indexOf(c.id) >= 0) + '">' + esc(c.name) + '</button>'; }).join('') + '</div>' +
+    (E.err ? '<p class="msg" id="gErr" style="margin:0">' + esc(E.err) + '</p>' : '') +
+    '<div style="display:flex;gap:8px"><button class="btn sm" id="gSave">保存</button><button class="btn sub sm" id="gNo">取消</button></div></div>';
+  return h + '</div>';
+}
+function grpWire(box) {
+  var E = ST.grpEdit;
+  var nb = box.querySelector('[data-gnew]'); if (nb) nb.onclick = function () { ST.grpEdit = { id: null, name: '', ids: [], err: '' }; sheetCls(); var n = $('gName'); if (n) n.focus(); };
+  box.querySelectorAll('[data-gedit]').forEach(function (b) {
+    b.onclick = function () { var g = (ST.groups || []).filter(function (x) { return x.id === +b.dataset.gedit; })[0]; if (!g) return; ST.grpEdit = { id: g.id, name: g.name, ids: (g.classes || []).map(function (c) { return c.id; }), err: '' }; sheetCls(); };
+  });
+  box.querySelectorAll('[data-gdel2]').forEach(function (b) {
+    b.onclick = async function () {
+      if (!sure(b, '确认解除？')) return;
+      try { await HX.rpc('hx_class_group_del', { p_id: +b.dataset.gdel2 }); toast('已解除合班'); await loadGroups(); } catch (e) { toast(e.message); }
+    };
+  });
+  if (!E) return;
+  $('gName').oninput = function () { E.name = this.value; };
+  box.querySelectorAll('[data-gc]').forEach(function (b) {
+    b.onclick = function () { var id = +b.dataset.gc, i = E.ids.indexOf(id); if (i >= 0) E.ids.splice(i, 1); else E.ids.push(id); b.setAttribute('aria-pressed', i < 0); };
+  });
+  $('gNo').onclick = function () { ST.grpEdit = null; sheetCls(); };
+  $('gSave').onclick = async function () {
+    E.name = $('gName').value.trim(); E.err = '';
+    if (!E.name) E.err = '合班名字不能为空'; else if (E.ids.length < 2) E.err = '合班至少要选 2 个班';
+    if (E.err) { sheetCls(); return; }
+    this.disabled = true;
+    try { await HX.rpc('hx_class_group_save', { p_id: E.id, p_name: E.name, p_class_ids: E.ids.slice() }); ST.grpEdit = null; toast('合班已保存'); await loadGroups(); }
+    catch (e) { E.err = e.message; sheetCls(); }
+  };
+}
 function sheetCls() {
   var box = $('shB'), R = ST.rosters, html = '';
   $('shA').innerHTML = '<label class="btn sm">导入考勤表<input type="file" id="rFile" accept=".xls,.xlsx,.csv" multiple hidden></label>';
@@ -2133,6 +2195,7 @@ function sheetCls() {
     '<label style="display:flex;gap:8px;align-items:center"><input type="radio" name="pwm" value="fixed">统一密码：<input id="pwFixed" type="text" maxlength="40" placeholder="至少 6 位，发给你班所有学生" style="max-width:16em" disabled></label>' +
     '<div style="display:flex;gap:8px"><button class="btn sm" id="pwSave">保存</button><button class="btn sub sm" id="pwCancel">取消</button></div>' +
     '<p class="msg" style="margin:0;color:var(--dim,#8a8f98);font-size:12px">只影响之后新开号的账号；已经注册的学生密码照旧。别的老师看不见你设的密码，各自的班各自管。</p></div></div>';
+  html += grpHtml();
   html += '<div class="cls">' + (ST.classes.length ? ST.classes.map(function (c, ci) {
     var on = ST.open === c.id, tools = c.tools || [];
     var idle = !tools.length; // 四个工具一个都没勾 = 这个班在哪个工具里都不出现（等于「本学期不用了」）
@@ -2153,6 +2216,7 @@ function sheetCls() {
     return '<tr><td>' + esc(s.class_name || '') + '</td><td>' + esc(s.student_no) + '</td><td>' + esc(s.name) + '</td><td class="ra"><button class="btn link sm ib bad" data-gdel="' + s.id + '" aria-label="删除">' + svg(BIN) + '</button></td></tr>';
   }).join('') + '</table></div></div></div>';
   box.innerHTML = html;
+  grpWire(box);
   box.querySelectorAll('[data-gdel]').forEach(function (b) {
     b.onclick = async function () {
       if (!sure(b, '确认删除？')) return;
@@ -2365,7 +2429,7 @@ function shareCode(code, role) {
   // 带二维码的两种必须弹窗（系统分享面板只能传文字，二维码就没了）；课堂码在手机、平板上继续用系统分享
   var withQr = role === 'teacher' || role === 'guest';
   if (!withQr && navigator.share && matchMedia('(pointer: coarse)').matches) return navigator.share({ text: t }).catch(function () { });
-  $('shareT').value = t;
+  $('shareT').value = t; $('share').querySelector('h2').textContent = '发给对方';
   // 8px / 模块：整张约 300px，截图发给对方扫得出来，又不至于把弹窗撑爆
   var ok = withQr && drawQr($('shareQr'), qrDeepLink(code), 8);
   $('shareQrBox').hidden = !ok;
@@ -2669,7 +2733,7 @@ addEventListener('popstate', function () { var id = location.hash.slice(1); if (
 addEventListener('hashchange', function () { var id = location.hash.slice(1); if (id !== (ST.tab || '')) show(id, 'replace'); });
 function reloadTools() { for (var k in frames) { if (k !== ST.tab) { frames[k].remove(); delete frames[k]; } else { delete frames[k].dataset.ready; frames[k].src = frames[k].src; } } } // 工具页把登录记在内存里，换人后重新打开
 async function refresh() {
-  ST.me = null; ST.user = null; ST.uname = null; ST.classes = null; ST.guests = null; ST.clsOk = false; ST.studs = {}; ST.edit = null; ST.codes = undefined; ST.codesErr = null; ST.teachers = undefined; ST.aCode = null;
+  ST.me = null; ST.user = null; ST.uname = null; ST.classes = null; ST.guests = null; ST.clsOk = false; ST.studs = {}; ST.edit = null; ST.codes = undefined; ST.codesErr = null; ST.teachers = undefined; ST.aCode = null; ST.groups = undefined; ST.grpEdit = null;
   helpLastTab = null; // 换账号（登录 / 退出 / 切换）后使用说明回到按身份默认的那一版
   if (HX.in()) {
     try { var res = await Promise.all([HX.rpc('hx_me'), HX.user()]); ST.me = res[0]; ST.user = res[1]; HXTheme.setDev(ST.me && ST.me.dev); }
@@ -2694,6 +2758,24 @@ $('lf').onsubmit = async function (e) {
 $('lgh').onclick = function () { HX.github(); };
 $('shareC').onclick = function () { $('shareT').select(); (navigator.clipboard ? navigator.clipboard.writeText($('shareT').value) : Promise.reject()).then(function () { toast('已复制'); }, function () { try { document.execCommand('copy'); toast('已复制'); } catch (e) { } }); };
 $('shareX').onclick = function () { $('share').close(); };
+/* 扫一扫（2026-11-08 K5）：扫到本站网址（同源或 zcq19991029.github.io，如考勤签到 /kaoqin/#c=会话.令牌）直接跳过去；
+   别的内容只显示文字、可复制，不自动打开外站。 */
+function scanTarget(t) {
+  var u; try { u = new URL(String(t).trim()); } catch (e) { return null; }
+  if (!/^https?:$/.test(u.protocol)) return null;
+  return u.origin === location.origin || u.hostname === 'zcq19991029.github.io' ? u.href : null;
+}
+$('scanBtn').onclick = async function () {
+  if (!window.HXScan) { toast('扫一扫组件还没加载好，稍后再试'); return; }
+  var t = await HXScan.open({ title: '扫一扫' });
+  if (t == null) return;
+  var go = scanTarget(t);
+  if (go) { location.href = go; return; }
+  $('share').querySelector('h2').textContent = '扫到的内容';
+  $('shareQrBox').hidden = true; $('shareT').value = t;
+  if (!$('share').open) $('share').showModal();
+  $('shareT').select();
+};
 $('lx').onclick = function () { $('login').close(); };
 $('lseg').querySelectorAll('button').forEach(function (b) { b.onclick = function () { if (ST.lm !== b.dataset.m) { ST.lm = b.dataset.m; ST.reg = null; $('lmsg').textContent = ''; renderLogin(); focusLogin(); } }; });
 // 注册 / 开通：先查邀请码（没登录也能查）；教师码再填账号名（注册还要名字），课堂码再选班级、填学号姓名（账号名就是学号）；
@@ -2844,7 +2926,7 @@ if (gerr) openLogin(gerr);
     exam:   function ()    { return HX.api('/rest/v1/hx_exams?select=created_at&order=created_at.desc&limit=1'); } // 只有教师有行；学生在下面直接标 N/A
   };
   // 工具 → 探测方式：probe / probe-teacher（仅教师）/ na（没有可只读查询的个人云端数据）
-  var MODE = { wiring: 'na', quiz: 'probe', base: 'na', mcu: 'na', exam: 'probe-teacher', paike: 'probe', jiafen: 'probe', course: 'probe', ai: 'na', feedback: 'na', help: 'na' };
+  var MODE = { wiring: 'na', quiz: 'probe', base: 'na', mcu: 'na', exam: 'probe-teacher', ziliao: 'na', kaoqin: 'na', paike: 'probe', jiafen: 'probe', course: 'probe', ai: 'na', feedback: 'na', help: 'na' };
   // 2026-11-06 加 AI 设置卡片时必须同步加这一项：上面 jobs 里 `PROBES[t.id](uid)` 对没有探测器的工具
   // 会直接抛 TypeError（PROBES.ai is not a function），整个同步胶囊的检查就挂掉。设置页本来也没有云端数据。
   // 2026-11-08 的「使用说明 / AI 额度」两张弹层卡片同理，必须显式标 na。

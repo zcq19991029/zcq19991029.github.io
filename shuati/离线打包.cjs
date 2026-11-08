@@ -2,7 +2,7 @@
 // 做法：ES 模块按 import 图拼接成一个普通脚本（每个模块包在函数里，导出挂到一个表上），
 //       题库 JSON 内联进 window.__BANK，logo / 主题 CSS 内联，图片转 data URI。
 // 用法：node 离线打包.cjs
-// 产物：成品/华夏工具-刷题-离线版.html（约 1.5 MB，双击就开，不联网也能刷；AI 问问题需要网和 Key）
+// 产物：成品/华夏工具-刷题-离线版.html（约 1.5 MB，双击就开，不联网也能刷；2026-11-08 起离线版不带 AI，AI 只在网页版走首页「AI 设置」）
 const fs = require('fs'), path = require('path');
 const ROOT = __dirname;
 const OUT = path.join(ROOT, '成品', '华夏工具-刷题-离线版.html');
@@ -90,7 +90,9 @@ const qrPath = path.join(ROOT, '..', '总入口', 'fx', 'hx-qr.js');
 if (fs.existsSync(qrPath)) {
   const qrJs = fs.readFileSync(qrPath, 'utf8');
   if (/<\/script/i.test(qrJs)) throw new Error('二维码脚本里不能出现 </script');
-  html = html.replace(/<script src="\.\.\/fx\/hx-qr\.js"><\/script>/, `<script>\n${qrJs}\n</script>`);
+  // 用函数做替换值：二维码库源码里有 `$'` 这类字符序列，直接当替换字符串会被 String.replace 当成特殊模式展开，
+  // 拼出来的脚本就是坏的（离线版打开报 Invalid or unexpected token，2026-11-08 Z5 验收时发现）。
+  html = html.replace(/<script src="\.\.\/fx\/hx-qr\.js"><\/script>/, () => `<script>\n${qrJs}\n</script>`);
 } else {
   html = html.replace(/<script src="\.\.\/fx\/hx-qr\.js"><\/script>/, '');
 }

@@ -706,7 +706,7 @@ function removeMemberAt(cls, g, j) {
     var cls=curClass(); if(!cls || !window.JFDT_ASSESSMENT)return;
     if(!$('#view-attendance')){var section=document.createElement('section');section.id='view-attendance';section.className='view';$('#main').appendChild(section);}
     $('#view-attendance').hidden=false;
-    attendanceContext={root:$('#view-attendance'),cls:cls,classes:visibleClasses(),lessons:lessonsOf(cls.id),lesson:curLesson(cls),raw:memberTotals(cls),save:function(){save();},log:addOperationLog,message:function(text){flash(text);},select:function(classId,lessonId){S.ui.classId=classId;S.ui.lessonId=lessonId;save(false);fillClassSelects();renderAttendance();}};
+    attendanceContext={root:$('#view-attendance'),cls:cls,cloud:(CLOUD_ON&&CLOUD&&typeof CLOUD.rpc==='function'&&CLOUD.profile&&CLOUD.profile())?function(name,args){return CLOUD.rpc(name,args);}:null,classes:visibleClasses(),lessons:lessonsOf(cls.id),lesson:curLesson(cls),raw:memberTotals(cls),save:function(){save();},log:addOperationLog,message:function(text){flash(text);},select:function(classId,lessonId){S.ui.classId=classId;S.ui.lessonId=lessonId;save(false);fillClassSelects();renderAttendance();}};
     window.JFDT_ASSESSMENT.renderAttendance(attendanceContext);
   }
 

@@ -5,7 +5,7 @@
 //   2. 识题结果要能核对：每条被拒的题都要带“第几条 + 题干前几个字 + 为什么不行”，用户才知道该改哪里；
 //   3. 出题要能下指令：范围、题型、每种几道、难度、额外要求都要真的塞进提示词；
 //   4. 拍照/截图（扫描件）交给支持看图的模型，图片先压到 1600px，避免一次发 5 页就超限。
-import { chat } from './ai.js';
+import { chat, vision } from './ai.js';
 
 const IMAGE_RE = /\.(jpe?g|png|webp|gif|bmp)$/i;
 export const isImageFile = name => IMAGE_RE.test(String(name || '').toLowerCase());
@@ -352,13 +352,10 @@ export async function aiGenerate(text, subject, subjectName, opts = {}, onProgre
   return { questions: collected, rejected };
 }
 
-// 图片/扫描件：交给支持看图的模型（首页 hx-ai.js 暴露的 window.HXAI.vision）。
-// 离线版、或只配了纯文字模型时，HXAI 不存在或没有 vision —— 那时候不要假装能读，直接说清楚怎么配。
+// 图片/扫描件：交给首页「AI 设置」里勾了「图片识别」的模型（ai.js 的 vision → HXAI.vision）。
+// 没配看图模型时 vision() 直接抛「去首页 AI 设置」那句，不假装能读。
 export async function aiVision(images, { subject, subjectName = '', mode = 'pick', opts = {}, onProgress } = {}) {
   if (!images || !images.length) throw new Error('没有读到图片。');
-  const H = globalThis.HXAI;
-  const vision = H && typeof H.vision === 'function' ? H.vision.bind(H) : null;
-  if (!vision) throw new Error('要读图片／扫描件，得先在首页「AI 设置」里配一套支持图片的模型（如 Qwen-VL 这类看图模型）。只配纯文字模型时，图片里的字是读不出来的。');
   const note = `这是 ${images.length} 张图片（拍下来或截图的资料），可能歪、可能不清楚：只依据看得清的内容出题，看不清的地方跳过，不要猜。`;
   onProgress?.(`正在把 ${images.length} 张图片交给 AI 看…`);
   let prompt;
@@ -370,7 +367,7 @@ export async function aiVision(images, { subject, subjectName = '', mode = 'pick
   } else {
     prompt = pickPrompt({ piece: '（资料就在这次一起发来的图片里）', note });
   }
-  const raw = await vision({ prompt, images, json: true, tool: 'quiz' });
+  const raw = await vision({ prompt, images, json: true });
   const data = typeof raw === 'string' ? parseJson(raw) : raw;
   const result = normalizeQuestions(data, subject);
   if (mode === 'gen') result.questions = result.questions.map(q => ({ ...q, source: 'AI 根据图片出题' }));
