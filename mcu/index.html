@@ -374,15 +374,7 @@ body.dragging #dropmask{display:flex;position:fixed;inset:12px;background:var(--
 .imp-sample>details{background:var(--card-solid);border-radius:12px;padding:8px 12px;margin-top:6px}
 .imp-det{margin-top:10px;padding:12px 14px;border-radius:16px;background:var(--accbg)}
 .imp-add>summary,#pImportCard>summary{cursor:pointer}
-/* 保存到文件 */
-.savebar{display:flex;flex-direction:column;gap:6px;padding:10px 12px;border-radius:14px;background:var(--field2);border:1px solid var(--hair);margin-bottom:6px}
-.savebar .sv{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink2);line-height:1.4;flex-wrap:wrap}
-.savebar .sv small{display:block;width:100%;color:var(--mute);font-size:11px}
-.savebar .dot{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 8px var(--ok);flex:none}
-.savebar .sv.dirty .dot{background:var(--warn);box-shadow:0 0 8px var(--warn);animation:pulse 1.6s ease-in-out infinite}
-@keyframes pulse{50%{opacity:.35}}
-.savebar button{width:100%}
-@media(max-width:860px){.savebar{position:fixed;left:12px;right:12px;bottom:12px;z-index:9;flex-direction:row;align-items:center;justify-content:space-between;box-shadow:var(--shadow-up);background:var(--card-solid)}.savebar button{width:auto}.side-foot .savebar{display:flex}}
+/* 2026-11-08 「保存到文件」整套去掉（离线版取消），.savebar 的样式一并删掉 */
 button.danger{background:var(--bad);color:#fff;border-color:transparent}
 button.sm{padding:4px 12px;font-size:12.5px}
 .clslist{display:flex;flex-direction:column;gap:6px}
@@ -735,7 +727,7 @@ button.qdel.sm{width:26px;height:26px;font-size:15px}
 <aside class="side" aria-label="导航">
   <div class="brand"><svg class="chip" viewBox="0 0 34 34" aria-hidden="true"><defs><linearGradient id="chipg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5b8cff"/><stop offset="1" stop-color="#7c5cff"/></linearGradient></defs><g fill="#8a93a5"><rect x="3" y="7" width="4" height="2" rx="1"/><rect x="27" y="7" width="4" height="2" rx="1"/><rect x="3" y="11.4" width="4" height="2" rx="1"/><rect x="27" y="11.4" width="4" height="2" rx="1"/><rect x="3" y="15.8" width="4" height="2" rx="1"/><rect x="27" y="15.8" width="4" height="2" rx="1"/><rect x="3" y="20.200000000000003" width="4" height="2" rx="1"/><rect x="27" y="20.200000000000003" width="4" height="2" rx="1"/><rect x="3" y="24.6" width="4" height="2" rx="1"/><rect x="27" y="24.6" width="4" height="2" rx="1"/></g><rect x="7" y="3" width="20" height="28" rx="4" fill="url(#chipg)"/><circle cx="17" cy="7" r="1.6" fill="rgba(255,255,255,.55)"/><text x="17" y="21" text-anchor="middle" font-family="Consolas,monospace" font-size="6.5" font-weight="700" fill="#fff">8051</text><circle class="led" cx="23" cy="27" r="1.6" fill="#ff453a"/></svg><div>单片机上机<small>练习与考试</small></div></div>
   <nav id="nav"></nav>
-  <div class="side-foot"><div class="savebar" id="saveBar" hidden></div><div>网页版 · 2026-11-08<br>名单来自首页「班级」</div></div>
+  <div class="side-foot"><div>网页版 · 2026-11-08<br>名单来自首页「班级」</div></div>
 </aside>
 <main class="main" id="main">
 <section class="page" data-page="practice" hidden>
@@ -788,63 +780,32 @@ button.qdel.sm{width:26px;height:26px;font-size:15px}
 
 
 <div id="teacherMain">
-<section class="page" data-page="t-overview" hidden>
-<header class="page-h"><div class="eyebrow">老师模块</div><h1>概览</h1><p>先看现在到哪一步了：名单在首页「班级」导入（这个账号下的工具通用）→ 这里勾上课的班级 → 到「考试」发布考试、批改。组卷、组卷码、理论试卷也在「考试」里</p></header>
-<div class="card band anspw" id="pwCard">
-  <div class="row" style="justify-content:space-between;align-items:flex-start;gap:16px">
-    <div style="min-width:0;flex:1"><h2 style="margin:0 0 4px">本节课的查看答案密码</h2><p class="note" id="ansPwNote" style="margin:0"></p></div>
-    <div class="row"><input id="ansPwIn" style="width:170px" autocomplete="off" placeholder="例如 1023A" aria-label="查看答案密码"><button class="pri" id="btnAnsPw">设好</button></div>
-  </div>
-</div>
-<div class="stats band">
-  <div class="stat"><div class="k">名单人数</div><div class="v" id="ovRoster">-</div><div class="s" id="ovRosterK"></div></div>
-  <div class="stat"><div class="k">上课的班级</div><div class="v sm" id="ovExam">-</div><div class="s" id="ovExamS"></div></div>
-  
-</div>
-<div class="card band" id="ovClsCard" hidden>
-  <div class="row" style="justify-content:space-between;align-items:baseline">
-    <h2 style="margin:0">上课的班级</h2><span class="note">勾选只记在这台电脑上，换台电脑要重勾</span>
-  </div>
-  <p class="note" style="margin:6px 0 0">名单来自首页「班级」，这个账号下的工具通用，不用在这里再导一遍。勾上的班算“这节课在上机”，只影响这一页的显示；发布考试时在<a href="../exam/">考试</a>里选班。</p>
-  <div id="ovClsPick" style="margin-top:10px"></div>
-</div>
-<div class="flow band">
-  <button type="button" class="step" data-goto="t-roster"><span class="n">1</span><b>班级名单</b><span class="note" id="ovRosterS"></span></button>
-  <button type="button" class="step" data-goto="t-import"><span class="n">2</span><b>导入书上代码（可选）</b><span class="note" id="ovBank"></span></button>
-  
-  
-  <a class="step" href="../exam/"><span class="n">3</span><b>组卷 · 发布考试 · 批改</b><span class="note">在「考试」工具里，点这里直接过去</span></a>
-</div>
-<div class="card band"><div class="row" style="justify-content:space-between"><h2 style="margin:0">组卷与理论试卷</h2><span class="note">已迁到「考试」工具</span></div>
-  <p class="note" style="margin:8px 0 0">组卷、组卷码命名、理论试卷预览与导出（PDF / Word / 参考答案）、学生交卷后的批改与成绩导出，都放在<a href="../exam/">考试</a>里，
-  在那边组好的卷直接用来发布上机考试，不用两边各做一份。这里只留名单和导入书上代码。</p></div></section>
 <section class="page" data-page="t-roster" hidden>
-<header class="page-h"><div class="eyebrow">老师模块</div><h1>班级名单</h1><p>每个班一份名单，存在这个网页文件里（姓名用老师密码加密）。导入考勤表或粘贴加新班级，勾选上课的班级，再点左下角“保存到文件”</p></header>
+<header class="page-h"><div class="eyebrow">老师模块</div><h1>班级名单</h1><p>名单来自首页「班级」导入的那份（这个账号下的工具通用），这里只查看、不再导入。勾选这节课上机的班，设好查看答案密码</p></header>
 <div class="card band-tool"><div data-cls-tabs></div></div>
 <div class="with-rail">
   <div class="rail-main">
-    <div class="card"><div class="row" style="justify-content:space-between;margin-bottom:8px"><h2 style="margin:0">学生名单</h2><input id="rSearch" placeholder="搜学号或姓名" style="width:180px" aria-label="搜学号或姓名"></div>
-      <div id="rTable"></div></div>
-    
+    <div class="card">
+      <div class="row" style="justify-content:space-between;margin-bottom:8px">
+        <h2 style="margin:0">学生名单</h2>
+        <div class="row"><input id="rSearch" placeholder="搜学号或姓名" style="width:170px" aria-label="搜学号或姓名"><button id="btnRRefresh" class="sm">刷新名单</button></div>
+      </div>
+      <div id="rTable"></div>
+      <p class="note" style="margin-top:8px">要加人、删人、转班，到<a href="../">首页</a>「班级」里改；改完回这里点「刷新名单」。这里只显示，不改名单。</p>
+    </div>
   </div>
   <aside class="rail">
-    <div class="card"><h2>上课的班级</h2>
-      <p class="note">勾选的班级，学生才能用学号考试取题。删除班级要连点两次。</p>
-      <div id="rClasses"></div></div>
-    <div class="card"><h2>导入考勤表</h2>
-      <p class="note">选考勤表文件，或直接拖到这个页面。网页会认出“学号”“姓名”两列和标题里的“班级：…”，先给你看一眼，确认后才加进来。</p>
-      <div class="row"><button class="pri" id="rPick">选择 .xls / .xlsx / .csv</button><input type="file" id="rFile" accept=".xls,.xlsx,.csv,.txt" multiple hidden></div>
-      <details style="margin-top:10px"><summary>手动粘贴名单</summary>
-        <label style="display:block;margin:6px 0">班级名称 <input id="rPasteCls" style="width:100%" placeholder="例如 25机电4班"></label>
-        <textarea id="rPaste" class="editor" style="min-height:120px" placeholder="每行一个学生：学号 姓名（可以从 Excel 复制两列粘贴）" aria-label="粘贴名单"></textarea>
-        <div class="row" style="margin-top:6px"><button id="rPasteGo">读入</button></div></details>
-      <div id="rPending"></div></div>
-    <div class="card" id="rClassOps"><h2>这个班</h2>
-      <div class="row"><input id="rRename" style="width:150px" aria-label="班级名称"><button id="rRenameGo">改名</button></div>
-      <div class="row" style="margin-top:8px"><button id="rExport">导出名单 CSV</button></div></div>
-    <div class="card"><h2>试卷和答案</h2>
-      <div class="row"><button id="btnPapers">下载试卷（zip）</button><button id="btnAnswers">下载答案表（可打印）</button></div>
-      <div class="note" style="margin-top:8px">按上面选中的班级出；不想让学生在网页里取题，可以下载试卷按文件夹发下去。</div></div>
+    <div class="card anspw" id="pwCard">
+      <h2 style="margin:0 0 4px">本节课的查看答案密码</h2>
+      <p class="note" id="ansPwNote" style="margin:0 0 8px"></p>
+      <div class="row"><input id="ansPwIn" style="width:120px" autocomplete="off" placeholder="例如 1023A" aria-label="查看答案密码"><button class="pri" id="btnAnsPw">设好</button><button id="ansPwOff" hidden>撤销</button></div>
+      <p class="note" style="margin-top:8px">设好 4 小时后自动失效，撤销＝立刻失效。密码存在这台电脑的浏览器里（学生在这台电脑上做练习时才需要它）。</p>
+    </div>
+    <div class="card">
+      <h2>上课的班级</h2>
+      <p class="note">勾上的班算“这节课在上机”。只记在这台电脑上，换台电脑要重勾；不改数据库里的开课设置。</p>
+      <div id="rClasses"></div>
+    </div>
   </aside>
 </div></section>
 <section class="page" data-page="t-import" hidden>
@@ -859,11 +820,9 @@ button.qdel.sm{width:26px;height:26px;font-size:15px}
 <div class="toast" id="toast" role="status"></div>
 <script id="appData" type="application/json">{}</script>
 <script>
-const PRISTINE_HTML='<!DOCTYPE html>\n'+document.documentElement.outerHTML;
-;
 const HX_ONLINE=true;
 ;
-const GBK_MAP={"　":"a1a1","、":"a1a2","。":"a1a3","·":"a1a4","—":"a1aa","～":"a1ab","…":"a1ad","‘":"a1ae","’":"a1af","“":"a1b0","”":"a1b1","《":"a1b6","》":"a1b7","「":"a1b8","」":"a1b9","『":"a1ba","』":"a1bb","【":"a1be","】":"a1bf","×":"a1c1","÷":"a1c2","∈":"a1ca","√":"a1cc","≥":"a1dd","□":"a1f5","→":"a1fa","←":"a1fb","①":"a2d9","②":"a2da","③":"a2db","④":"a2dc","⑤":"a2dd","⑥":"a2de","！":"a3a1","（":"a3a8","）":"a3a9","＋":"a3ab","，":"a3ac","：":"a3ba","；":"a3bb","？":"a3bf","Ω":"a6b8","μ":"a6cc","─":"a9a4","啊":"b0a1","安":"b0b2","按":"b0b4","案":"b0b8","八":"b0cb","把":"b0d1","白":"b0d7","摆":"b0da","败":"b0dc","班":"b0e0","搬":"b0e1","般":"b0e3","板":"b0e5","版":"b0e6","半":"b0eb","办":"b0ec","榜":"b0f1","磅":"b0f5","包":"b0fc","保":"b1a3","报":"b1a8","背":"b1b3","倍":"b1b6","备":"b1b8","被":"b1bb","本":"b1be","比":"b1c8","闭":"b1d5","必":"b1d8","避":"b1dc","边":"b1df","编":"b1e0","便":"b1e3","变":"b1e4","遍":"b1e9","标":"b1ea","表":"b1ed","别":"b1f0","并":"b2a2","玻":"b2a3","播":"b2a5","补":"b2b9","不":"b2bb","布":"b2bc","步":"b2bd","簿":"b2be","部":"b2bf","材":"b2c4","才":"b2c5","采":"b2c9","参":"b2ce","残":"b2d0","藏":"b2d8","操":"b2d9","侧":"b2e0","册":"b2e1","测":"b2e2","层":"b2e3","插":"b2e5","叉":"b2e6","查":"b2e9","察":"b2ec","差":"b2ee","拆":"b2f0","产":"b2fa","场":"b3a1","常":"b3a3","长":"b3a4","超":"b3ac","车":"b3b5","撑":"b3c5","称":"b3c6","成":"b3c9","程":"b3cc","持":"b3d6","尺":"b3df","冲":"b3e5","抽":"b3e9","初":"b3f5","出":"b3f6","除":"b3fd","础":"b4a1","储":"b4a2","触":"b4a5","处":"b4a6","传":"b4ab","串":"b4ae","窗":"b4b0","创":"b4b4","纯":"b4bf","词":"b4ca","此":"b4cb","次":"b4ce","从":"b4d3","凑":"b4d5","粗":"b4d6","存":"b4e6","寸":"b4e7","错":"b4ed","达":"b4ef","答":"b4f0","打":"b4f2","大":"b4f3","带":"b4f8","代":"b4fa","待":"b4fd","单":"b5a5","但":"b5ab","淡":"b5ad","弹":"b5af","当":"b5b1","挡":"b5b2","荡":"b5b4","档":"b5b5","倒":"b5b9","导":"b5bc","到":"b5bd","道":"b5c0","得":"b5c3","的":"b5c4","灯":"b5c6","登":"b5c7","等":"b5c8","低":"b5cd","底":"b5d7","地":"b5d8","第":"b5da","递":"b5dd","点":"b5e3","电":"b5e7","掉":"b5f4","调":"b5f7","叠":"b5fe","钉":"b6a4","顶":"b6a5","定":"b6a8","订":"b6a9","丢":"b6aa","东":"b6ab","动":"b6af","兜":"b6b5","抖":"b6b6","都":"b6bc","独":"b6c0","读":"b6c1","度":"b6c8","渡":"b6c9","端":"b6cb","短":"b6cc","段":"b6ce","断":"b6cf","堆":"b6d1","对":"b6d4","多":"b6e0","而":"b6f8","二":"b6fe","发":"b7a2","法":"b7a8","翻":"b7ad","凡":"b7b2","反":"b7b4","返":"b7b5","范":"b7b6","方":"b7bd","防":"b7c0","仿":"b7c2","放":"b7c5","非":"b7c7","飞":"b7c9","分":"b7d6","份":"b7dd","封":"b7e2","蜂":"b7e4","冯":"b7eb","佛":"b7f0","否":"b7f1","符":"b7fb","服":"b7fe","浮":"b8a1","副":"b8b1","赋":"b8b3","复":"b8b4","负":"b8ba","附":"b8bd","该":"b8c3","改":"b8c4","概":"b8c5","干":"b8c9","杆":"b8cb","赶":"b8cf","刚":"b8d5","高":"b8df","告":"b8e6","格":"b8f1","隔":"b8f4","个":"b8f6","各":"b8f7","给":"b8f8","根":"b8f9","跟":"b8fa","更":"b8fc","工":"b9a4","功":"b9a6","供":"b9a9","公":"b9ab","共":"b9b2","勾":"b9b4","构":"b9b9","够":"b9bb","估":"b9c0","孤":"b9c2","故":"b9ca","固":"b9cc","挂":"b9d2","关":"b9d8","观":"b9db","管":"b9dc","光":"b9e2","广":"b9e3","规":"b9e6","归":"b9e9","轨":"b9ec","鬼":"b9ed","滚":"b9f6","果":"b9fb","过":"b9fd","哈":"b9fe","含":"baac","函":"baaf","汉":"baba","毫":"bac1","好":"bac3","耗":"bac4","号":"bac5","核":"bacb","和":"bacd","何":"bace","合":"bacf","黑":"bada","很":"badc","横":"bae1","衡":"bae2","虹":"bae7","红":"baec","后":"baf3","忽":"baf6","糊":"bafd","护":"bba4","互":"bba5","户":"bba7","花":"bba8","华":"bbaa","滑":"bbac","画":"bbad","划":"bbae","化":"bbaf","话":"bbb0","环":"bbb7","还":"bbb9","缓":"bbba","换":"bbbb","恢":"bbd6","回":"bbd8","会":"bbe1","汇":"bbe3","绘":"bbe6","混":"bbec","或":"bbf2","击":"bbf7","基":"bbf9","机":"bbfa","积":"bbfd","绩":"bca8","极":"bcab","辑":"bcad","集":"bcaf","及":"bcb0","急":"bcb1","即":"bcb4","级":"bcb6","几":"bcb8","己":"bcba","技":"bcbc","寄":"bcc4","计":"bcc6","记":"bcc7","际":"bcca","继":"bccc","夹":"bcd0","家":"bcd2","加":"bcd3","假":"bcd9","价":"bcdb","间":"bce4","兼":"bce6","检":"bcec","简":"bcf2","减":"bcf5","见":"bcfb","键":"bcfc","件":"bcfe","渐":"bda5","建":"bda8","降":"bdb5","胶":"bdba","交":"bdbb","脚":"bdc5","角":"bdc7","教":"bdcc","较":"bdcf","叫":"bdd0","接":"bdd3","截":"bdd8","节":"bdda","结":"bde1","解":"bde2","界":"bde7","紧":"bdf4","锦":"bdf5","进":"bdf8","近":"bdfc","尽":"bea1","睛":"bea6","晶":"bea7","精":"beab","经":"bead","景":"beb0","静":"beb2","境":"beb3","径":"beb6","久":"bec3","九":"bec5","旧":"bec9","就":"becd","局":"bed6","矩":"bed8","举":"bed9","据":"bedd","具":"bedf","距":"bee0","句":"bee4","卷":"beed","觉":"bef5","决":"bef6","均":"bef9","卡":"bfa8","开":"bfaa","看":"bfb4","考":"bfbc","靠":"bfbf","颗":"bfc5","科":"bfc6","壳":"bfc7","可":"bfc9","刻":"bfcc","课":"bfce","空":"bfd5","控":"bfd8","口":"bfda","库":"bfe2","跨":"bfe7","块":"bfe9","快":"bfec","宽":"bfed","框":"bff2","况":"bff6","括":"c0a8","扩":"c0a9","拉":"c0ad","来":"c0b4","赖":"c0b5","蓝":"c0b6","栏":"c0b8","拦":"c0b9","览":"c0c0","老":"c0cf","类":"c0e0","离":"c0eb","理":"c0ed","里":"c0ef","利":"c0fb","例":"c0fd","立":"c1a2","力":"c1a6","璃":"c1a7","联":"c1aa","连":"c1ac","链":"c1b4","练":"c1b7","两":"c1bd","量":"c1bf","亮":"c1c1","疗":"c1c6","了":"c1cb","料":"c1cf","列":"c1d0","零":"c1e3","领":"c1ec","另":"c1ed","令":"c1ee","留":"c1f4","流":"c1f7","六":"c1f9","漏":"c2a9","露":"c2b6","路":"c2b7","录":"c2bc","律":"c2c9","率":"c2ca","乱":"c2d2","略":"c2d4","轮":"c2d6","论":"c2db","逻":"c2df","裸":"c2e3","落":"c2e4","络":"c2e7","码":"c2eb","吗":"c2f0","脉":"c2f6","满":"c2fa","曼":"c2fc","慢":"c2fd","么":"c3b4","没":"c3bb","每":"c3bf","门":"c3c5","们":"c3c7","密":"c3dc","免":"c3e2","面":"c3e6","描":"c3e8","秒":"c3eb","灭":"c3f0","明":"c3f7","鸣":"c3f9","名":"c3fb","命":"c3fc","模":"c4a3","磨":"c4a5","末":"c4a9","默":"c4ac","某":"c4b3","母":"c4b8","幕":"c4bb","目":"c4bf","拿":"c4c3","哪":"c4c4","那":"c4c7","囊":"c4d2","脑":"c4d4","内":"c4da","能":"c4dc","霓":"c4de","拟":"c4e2","你":"c4e3","年":"c4ea","钮":"c5a5","挪":"c5b2","诺":"c5b5","拍":"c5c4","排":"c5c5","牌":"c5c6","盘":"c5cc","判":"c5d0","跑":"c5dc","配":"c5e4","碰":"c5f6","批":"c5fa","片":"c6ac","漂":"c6af","拼":"c6b4","频":"c6b5","平":"c6bd","评":"c6c0","屏":"c6c1","普":"c6d5","期":"c6da","七":"c6df","其":"c6e4","齐":"c6eb","起":"c6f0","启":"c6f4","器":"c6f7","弃":"c6fa","汽":"c6fb","迁":"c7a8","签":"c7a9","前":"c7b0","浅":"c7b3","嵌":"c7b6","强":"c7bf","抢":"c7c0","切":"c7d0","且":"c7d2","勤":"c7da","清":"c7e5","擎":"c7e6","情":"c7e9","请":"c7eb","求":"c7f3","区":"c7f8","驱":"c7fd","取":"c8a1","去":"c8a5","圈":"c8a6","权":"c8a8","全":"c8ab","缺":"c8b1","确":"c8b7","然":"c8bb","染":"c8be","让":"c8c3","扰":"c8c5","人":"c8cb","任":"c8ce","认":"c8cf","仍":"c8d4","日":"c8d5","容":"c8dd","如":"c8e7","入":"c8eb","软":"c8ed","若":"c8f4","三":"c8fd","散":"c9a2","扫":"c9a8","色":"c9ab","砂":"c9b0","筛":"c9b8","删":"c9be","闪":"c9c1","商":"c9cc","上":"c9cf","稍":"c9d4","烧":"c9d5","少":"c9d9","设":"c9e8","身":"c9ed","深":"c9ee","审":"c9f3","声":"c9f9","生":"c9fa","升":"c9fd","省":"caa1","师":"caa6","失":"caa7","十":"caae","时":"cab1","什":"cab2","实":"cab5","识":"cab6","使":"cab9","始":"cabc","式":"cabd","示":"cabe","事":"cac2","是":"cac7","适":"caca","释":"cacd","视":"cad3","试":"cad4","收":"cad5","手":"cad6","首":"cad7","殊":"cae2","输":"cae4","书":"cae9","熟":"caec","鼠":"caf3","属":"caf4","术":"caf5","述":"caf6","束":"caf8","竖":"cafa","数":"cafd","刷":"cba2","双":"cbab","谁":"cbad","水":"cbae","瞬":"cbb2","顺":"cbb3","说":"cbb5","烁":"cbb8","死":"cbc0","四":"cbc4","似":"cbc6","松":"cbc9","送":"cbcd","宋":"cbce","素":"cbd8","速":"cbd9","诉":"cbdf","算":"cbe3","随":"cbe6","缩":"cbf5","锁":"cbf8","所":"cbf9","他":"cbfb","它":"cbfc","台":"cca8","太":"ccab","态":"ccac","堂":"ccc3","套":"ccd7","特":"ccd8","提":"cce1","题":"cce2","体":"cce5","替":"cce6","添":"cced","填":"ccee","挑":"ccf4","条":"ccf5","跳":"ccf8","贴":"ccf9","停":"cda3","通":"cda8","同":"cdac","统":"cdb3","头":"cdb7","图":"cdbc","团":"cdc5","退":"cdcb","拖":"cdcf","外":"cde2","玩":"cde6","完":"cdea","万":"cdf2","网":"cdf8","往":"cdf9","微":"cea2","围":"cea7","唯":"cea8","为":"ceaa","尾":"ceb2","未":"ceb4","位":"cebb","文":"cec4","纹":"cec6","稳":"cec8","问":"ceca","我":"ced2","无":"cede","五":"cee5","务":"cef1","误":"cef3","析":"cef6","西":"cef7","吸":"cefc","希":"cfa3","悉":"cfa4","熄":"cfa8","习":"cfb0","洗":"cfb4","系":"cfb5","细":"cfb8","下":"cfc2","夏":"cfc4","先":"cfc8","显":"cfd4","险":"cfd5","现":"cfd6","限":"cfde","线":"cfdf","相":"cfe0","箱":"cfe4","想":"cfeb","响":"cfec","享":"cfed","项":"cfee","像":"cff1","向":"cff2","象":"cff3","消":"cffb","小":"d0a1","校":"d0a3","效":"d0a7","些":"d0a9","写":"d0b4","械":"d0b5","芯":"d0be","新":"d0c2","信":"d0c5","型":"d0cd","形":"d0ce","行":"d0d0","性":"d0d4","姓":"d0d5","修":"d0de","需":"d0e8","虚":"d0e9","须":"d0eb","许":"d0ed","序":"d0f2","续":"d0f8","悬":"d0fc","选":"d1a1","学":"d1a7","循":"d1ad","询":"d1af","寻":"d1b0","压":"d1b9","盐":"d1ce","延":"d1d3","言":"d1d4","颜":"d1d5","沿":"d1d8","眼":"d1db","验":"d1e9","央":"d1eb","阳":"d1f4","样":"d1f9","要":"d2aa","也":"d2b2","页":"d2b3","业":"d2b5","夜":"d2b9","一":"d2bb","医":"d2bd","依":"d2c0","衣":"d2c2","移":"d2c6","仪":"d2c7","宜":"d2cb","已":"d2d1","以":"d2d4","易":"d2d7","意":"d2e2","义":"d2e5","溢":"d2e7","议":"d2e9","译":"d2eb","异":"d2ec","因":"d2f2","音":"d2f4","阴":"d2f5","引":"d2fd","隐":"d2fe","印":"d3a1","英":"d3a2","应":"d3a6","影":"d3b0","硬":"d3b2","永":"d3c0","用":"d3c3","优":"d3c5","由":"d3c9","有":"d3d0","右":"d3d2","又":"d3d6","于":"d3da","余":"d3e0","与":"d3eb","语":"d3ef","域":"d3f2","遇":"d3f6","御":"d3f9","预":"d4a4","元":"d4aa","原":"d4ad","员":"d4b1","圆":"d4b2","源":"d4b4","缘":"d4b5","远":"d4b6","院":"d4ba","约":"d4bc","越":"d4bd","月":"d4c2","阅":"d4c4","云":"d4c6","允":"d4ca","运":"d4cb","载":"d4d8","再":"d4d9","在":"d4da","暂":"d4dd","糟":"d4e3","造":"d4ec","择":"d4f1","则":"d4f2","泽":"d4f3","怎":"d4f5","增":"d4f6","窄":"d5ad","粘":"d5b3","展":"d5b9","栈":"d5bb","占":"d5bc","张":"d5c5","账":"d5cb","找":"d5d2","照":"d5d5","罩":"d5d6","遮":"d5da","折":"d5db","者":"d5df","这":"d5e2","真":"d5e6","针":"d5eb","振":"d5f1","阵":"d5f3","整":"d5fb","正":"d5fd","证":"d6a4","支":"d6a7","知":"d6aa","之":"d6ae","职":"d6b0","直":"d6b1","执":"d6b4","值":"d6b5","址":"d6b7","指":"d6b8","止":"d6b9","只":"d6bb","纸":"d6bd","志":"d6be","至":"d6c1","致":"d6c2","置":"d6c3","制":"d6c6","智":"d6c7","质":"d6ca","中":"d6d0","钟":"d6d3","终":"d6d5","种":"d6d6","重":"d6d8","周":"d6dc","州":"d6dd","轴":"d6e1","骤":"d6e8","逐":"d6f0","主":"d6f7","住":"d7a1","注":"d7a2","驻":"d7a4","专":"d7a8","转":"d7aa","装":"d7b0","状":"d7b4","缀":"d7ba","准":"d7bc","着":"d7c5","紫":"d7cf","子":"d7d3","自":"d7d4","字":"d7d6","综":"d7db","总":"d7dc","走":"d7df","阻":"d7e8","组":"d7e9","最":"d7ee","左":"d7f3","做":"d7f6","作":"d7f7","坐":"d7f8","座":"d7f9","浏":"e4af","渲":"e4d6","缇":"e7be","龥":"fd9b"};
+const GBK_MAP={"　":"a1a1","、":"a1a2","。":"a1a3","·":"a1a4","—":"a1aa","～":"a1ab","…":"a1ad","‘":"a1ae","’":"a1af","“":"a1b0","”":"a1b1","《":"a1b6","》":"a1b7","「":"a1b8","」":"a1b9","『":"a1ba","』":"a1bb","【":"a1be","】":"a1bf","×":"a1c1","÷":"a1c2","∈":"a1ca","√":"a1cc","≥":"a1dd","□":"a1f5","→":"a1fa","←":"a1fb","①":"a2d9","②":"a2da","③":"a2db","④":"a2dc","⑤":"a2dd","⑥":"a2de","！":"a3a1","（":"a3a8","）":"a3a9","＋":"a3ab","，":"a3ac","：":"a3ba","；":"a3bb","？":"a3bf","Ω":"a6b8","μ":"a6cc","─":"a9a4","啊":"b0a1","安":"b0b2","按":"b0b4","案":"b0b8","八":"b0cb","把":"b0d1","白":"b0d7","摆":"b0da","败":"b0dc","班":"b0e0","搬":"b0e1","般":"b0e3","板":"b0e5","版":"b0e6","半":"b0eb","办":"b0ec","榜":"b0f1","磅":"b0f5","包":"b0fc","保":"b1a3","报":"b1a8","背":"b1b3","倍":"b1b6","备":"b1b8","被":"b1bb","奔":"b1bc","本":"b1be","比":"b1c8","闭":"b1d5","必":"b1d8","避":"b1dc","边":"b1df","编":"b1e0","便":"b1e3","变":"b1e4","遍":"b1e9","标":"b1ea","表":"b1ed","别":"b1f0","并":"b2a2","玻":"b2a3","播":"b2a5","补":"b2b9","不":"b2bb","布":"b2bc","步":"b2bd","簿":"b2be","部":"b2bf","材":"b2c4","才":"b2c5","采":"b2c9","菜":"b2cb","参":"b2ce","残":"b2d0","藏":"b2d8","操":"b2d9","侧":"b2e0","册":"b2e1","测":"b2e2","层":"b2e3","插":"b2e5","叉":"b2e6","查":"b2e9","察":"b2ec","差":"b2ee","拆":"b2f0","产":"b2fa","场":"b3a1","常":"b3a3","长":"b3a4","超":"b3ac","车":"b3b5","撤":"b3b7","撑":"b3c5","称":"b3c6","成":"b3c9","程":"b3cc","持":"b3d6","尺":"b3df","冲":"b3e5","抽":"b3e9","初":"b3f5","出":"b3f6","除":"b3fd","楚":"b3fe","础":"b4a1","储":"b4a2","触":"b4a5","处":"b4a6","传":"b4ab","串":"b4ae","窗":"b4b0","创":"b4b4","纯":"b4bf","戳":"b4c1","词":"b4ca","此":"b4cb","次":"b4ce","从":"b4d3","凑":"b4d5","粗":"b4d6","存":"b4e6","寸":"b4e7","错":"b4ed","达":"b4ef","答":"b4f0","打":"b4f2","大":"b4f3","带":"b4f8","代":"b4fa","待":"b4fd","单":"b5a5","但":"b5ab","淡":"b5ad","弹":"b5af","当":"b5b1","挡":"b5b2","荡":"b5b4","档":"b5b5","倒":"b5b9","导":"b5bc","到":"b5bd","道":"b5c0","得":"b5c3","的":"b5c4","灯":"b5c6","登":"b5c7","等":"b5c8","低":"b5cd","底":"b5d7","地":"b5d8","第":"b5da","递":"b5dd","点":"b5e3","电":"b5e7","掉":"b5f4","调":"b5f7","叠":"b5fe","钉":"b6a4","顶":"b6a5","定":"b6a8","订":"b6a9","丢":"b6aa","东":"b6ab","动":"b6af","兜":"b6b5","抖":"b6b6","都":"b6bc","独":"b6c0","读":"b6c1","度":"b6c8","渡":"b6c9","端":"b6cb","短":"b6cc","段":"b6ce","断":"b6cf","堆":"b6d1","对":"b6d4","多":"b6e0","而":"b6f8","二":"b6fe","发":"b7a2","法":"b7a8","翻":"b7ad","凡":"b7b2","反":"b7b4","返":"b7b5","范":"b7b6","方":"b7bd","防":"b7c0","仿":"b7c2","放":"b7c5","非":"b7c7","飞":"b7c9","分":"b7d6","份":"b7dd","封":"b7e2","蜂":"b7e4","冯":"b7eb","佛":"b7f0","否":"b7f1","符":"b7fb","服":"b7fe","浮":"b8a1","副":"b8b1","赋":"b8b3","复":"b8b4","负":"b8ba","附":"b8bd","该":"b8c3","改":"b8c4","概":"b8c5","干":"b8c9","杆":"b8cb","赶":"b8cf","刚":"b8d5","高":"b8df","告":"b8e6","格":"b8f1","隔":"b8f4","个":"b8f6","各":"b8f7","给":"b8f8","根":"b8f9","跟":"b8fa","更":"b8fc","工":"b9a4","功":"b9a6","供":"b9a9","公":"b9ab","共":"b9b2","勾":"b9b4","构":"b9b9","够":"b9bb","估":"b9c0","孤":"b9c2","故":"b9ca","固":"b9cc","挂":"b9d2","关":"b9d8","观":"b9db","管":"b9dc","光":"b9e2","广":"b9e3","规":"b9e6","归":"b9e9","轨":"b9ec","鬼":"b9ed","滚":"b9f6","果":"b9fb","过":"b9fd","哈":"b9fe","含":"baac","函":"baaf","汉":"baba","毫":"bac1","好":"bac3","耗":"bac4","号":"bac5","核":"bacb","和":"bacd","何":"bace","合":"bacf","黑":"bada","很":"badc","横":"bae1","衡":"bae2","虹":"bae7","红":"baec","后":"baf3","忽":"baf6","糊":"bafd","护":"bba4","互":"bba5","户":"bba7","花":"bba8","华":"bbaa","滑":"bbac","画":"bbad","划":"bbae","化":"bbaf","话":"bbb0","坏":"bbb5","环":"bbb7","还":"bbb9","缓":"bbba","换":"bbbb","恢":"bbd6","回":"bbd8","会":"bbe1","汇":"bbe3","绘":"bbe6","混":"bbec","或":"bbf2","击":"bbf7","基":"bbf9","机":"bbfa","积":"bbfd","绩":"bca8","极":"bcab","辑":"bcad","集":"bcaf","及":"bcb0","急":"bcb1","即":"bcb4","级":"bcb6","几":"bcb8","己":"bcba","技":"bcbc","寄":"bcc4","计":"bcc6","记":"bcc7","际":"bcca","继":"bccc","夹":"bcd0","家":"bcd2","加":"bcd3","假":"bcd9","价":"bcdb","间":"bce4","兼":"bce6","检":"bcec","简":"bcf2","减":"bcf5","见":"bcfb","键":"bcfc","件":"bcfe","渐":"bda5","建":"bda8","降":"bdb5","胶":"bdba","交":"bdbb","脚":"bdc5","角":"bdc7","教":"bdcc","较":"bdcf","叫":"bdd0","接":"bdd3","截":"bdd8","节":"bdda","结":"bde1","解":"bde2","界":"bde7","紧":"bdf4","锦":"bdf5","进":"bdf8","近":"bdfc","尽":"bea1","睛":"bea6","晶":"bea7","精":"beab","经":"bead","景":"beb0","静":"beb2","境":"beb3","径":"beb6","净":"bebb","久":"bec3","九":"bec5","旧":"bec9","就":"becd","局":"bed6","矩":"bed8","举":"bed9","据":"bedd","具":"bedf","距":"bee0","句":"bee4","卷":"beed","觉":"bef5","决":"bef6","均":"bef9","卡":"bfa8","开":"bfaa","看":"bfb4","考":"bfbc","靠":"bfbf","颗":"bfc5","壳":"bfc7","可":"bfc9","刻":"bfcc","课":"bfce","空":"bfd5","控":"bfd8","口":"bfda","库":"bfe2","跨":"bfe7","块":"bfe9","快":"bfec","宽":"bfed","框":"bff2","况":"bff6","括":"c0a8","扩":"c0a9","拉":"c0ad","来":"c0b4","赖":"c0b5","蓝":"c0b6","栏":"c0b8","拦":"c0b9","览":"c0c0","老":"c0cf","类":"c0e0","离":"c0eb","理":"c0ed","里":"c0ef","利":"c0fb","例":"c0fd","立":"c1a2","力":"c1a6","璃":"c1a7","联":"c1aa","连":"c1ac","链":"c1b4","练":"c1b7","两":"c1bd","量":"c1bf","亮":"c1c1","疗":"c1c6","了":"c1cb","料":"c1cf","列":"c1d0","零":"c1e3","领":"c1ec","另":"c1ed","令":"c1ee","留":"c1f4","流":"c1f7","六":"c1f9","漏":"c2a9","露":"c2b6","路":"c2b7","录":"c2bc","律":"c2c9","率":"c2ca","乱":"c2d2","略":"c2d4","轮":"c2d6","论":"c2db","逻":"c2df","裸":"c2e3","落":"c2e4","络":"c2e7","码":"c2eb","吗":"c2f0","脉":"c2f6","满":"c2fa","曼":"c2fc","慢":"c2fd","么":"c3b4","没":"c3bb","每":"c3bf","门":"c3c5","们":"c3c7","密":"c3dc","免":"c3e2","面":"c3e6","描":"c3e8","秒":"c3eb","灭":"c3f0","明":"c3f7","鸣":"c3f9","名":"c3fb","命":"c3fc","模":"c4a3","磨":"c4a5","末":"c4a9","默":"c4ac","某":"c4b3","母":"c4b8","幕":"c4bb","目":"c4bf","拿":"c4c3","哪":"c4c4","那":"c4c7","囊":"c4d2","脑":"c4d4","内":"c4da","能":"c4dc","霓":"c4de","拟":"c4e2","你":"c4e3","年":"c4ea","钮":"c5a5","挪":"c5b2","诺":"c5b5","拍":"c5c4","排":"c5c5","牌":"c5c6","派":"c5c9","盘":"c5cc","判":"c5d0","跑":"c5dc","配":"c5e4","碰":"c5f6","批":"c5fa","片":"c6ac","漂":"c6af","拼":"c6b4","频":"c6b5","平":"c6bd","评":"c6c0","屏":"c6c1","普":"c6d5","期":"c6da","七":"c6df","其":"c6e4","齐":"c6eb","起":"c6f0","启":"c6f4","器":"c6f7","弃":"c6fa","汽":"c6fb","迁":"c7a8","签":"c7a9","前":"c7b0","浅":"c7b3","嵌":"c7b6","强":"c7bf","抢":"c7c0","切":"c7d0","且":"c7d2","勤":"c7da","清":"c7e5","擎":"c7e6","情":"c7e9","请":"c7eb","求":"c7f3","区":"c7f8","驱":"c7fd","取":"c8a1","去":"c8a5","圈":"c8a6","权":"c8a8","全":"c8ab","缺":"c8b1","确":"c8b7","然":"c8bb","让":"c8c3","扰":"c8c5","人":"c8cb","任":"c8ce","认":"c8cf","仍":"c8d4","日":"c8d5","容":"c8dd","如":"c8e7","入":"c8eb","软":"c8ed","若":"c8f4","三":"c8fd","散":"c9a2","扫":"c9a8","色":"c9ab","砂":"c9b0","筛":"c9b8","删":"c9be","闪":"c9c1","商":"c9cc","上":"c9cf","稍":"c9d4","烧":"c9d5","少":"c9d9","设":"c9e8","身":"c9ed","深":"c9ee","审":"c9f3","声":"c9f9","生":"c9fa","升":"c9fd","省":"caa1","剩":"caa3","师":"caa6","失":"caa7","十":"caae","时":"cab1","什":"cab2","实":"cab5","识":"cab6","使":"cab9","始":"cabc","式":"cabd","示":"cabe","事":"cac2","是":"cac7","适":"caca","释":"cacd","视":"cad3","试":"cad4","收":"cad5","手":"cad6","首":"cad7","殊":"cae2","输":"cae4","书":"cae9","熟":"caec","鼠":"caf3","属":"caf4","术":"caf5","述":"caf6","束":"caf8","竖":"cafa","数":"cafd","刷":"cba2","双":"cbab","谁":"cbad","水":"cbae","瞬":"cbb2","顺":"cbb3","说":"cbb5","烁":"cbb8","死":"cbc0","四":"cbc4","似":"cbc6","松":"cbc9","送":"cbcd","宋":"cbce","搜":"cbd1","素":"cbd8","速":"cbd9","诉":"cbdf","算":"cbe3","随":"cbe6","缩":"cbf5","索":"cbf7","锁":"cbf8","所":"cbf9","他":"cbfb","它":"cbfc","台":"cca8","太":"ccab","态":"ccac","堂":"ccc3","套":"ccd7","特":"ccd8","提":"cce1","题":"cce2","体":"cce5","替":"cce6","添":"cced","填":"ccee","挑":"ccf4","条":"ccf5","跳":"ccf8","贴":"ccf9","停":"cda3","通":"cda8","同":"cdac","统":"cdb3","头":"cdb7","图":"cdbc","团":"cdc5","退":"cdcb","拖":"cdcf","外":"cde2","玩":"cde6","完":"cdea","万":"cdf2","网":"cdf8","往":"cdf9","微":"cea2","围":"cea7","唯":"cea8","为":"ceaa","尾":"ceb2","未":"ceb4","位":"cebb","文":"cec4","纹":"cec6","稳":"cec8","问":"ceca","我":"ced2","无":"cede","五":"cee5","务":"cef1","误":"cef3","析":"cef6","西":"cef7","吸":"cefc","希":"cfa3","悉":"cfa4","熄":"cfa8","习":"cfb0","洗":"cfb4","系":"cfb5","细":"cfb8","下":"cfc2","夏":"cfc4","先":"cfc8","显":"cfd4","险":"cfd5","现":"cfd6","限":"cfde","线":"cfdf","相":"cfe0","箱":"cfe4","想":"cfeb","响":"cfec","享":"cfed","项":"cfee","像":"cff1","向":"cff2","象":"cff3","销":"cffa","消":"cffb","小":"d0a1","校":"d0a3","效":"d0a7","些":"d0a9","写":"d0b4","械":"d0b5","芯":"d0be","新":"d0c2","信":"d0c5","型":"d0cd","形":"d0ce","行":"d0d0","性":"d0d4","姓":"d0d5","修":"d0de","需":"d0e8","虚":"d0e9","须":"d0eb","许":"d0ed","序":"d0f2","续":"d0f8","悬":"d0fc","选":"d1a1","学":"d1a7","循":"d1ad","询":"d1af","寻":"d1b0","压":"d1b9","盐":"d1ce","延":"d1d3","言":"d1d4","颜":"d1d5","沿":"d1d8","眼":"d1db","验":"d1e9","央":"d1eb","阳":"d1f4","样":"d1f9","要":"d2aa","也":"d2b2","页":"d2b3","业":"d2b5","夜":"d2b9","一":"d2bb","医":"d2bd","依":"d2c0","衣":"d2c2","移":"d2c6","仪":"d2c7","宜":"d2cb","已":"d2d1","以":"d2d4","易":"d2d7","意":"d2e2","义":"d2e5","溢":"d2e7","议":"d2e9","译":"d2eb","异":"d2ec","因":"d2f2","音":"d2f4","阴":"d2f5","引":"d2fd","隐":"d2fe","印":"d3a1","英":"d3a2","应":"d3a6","影":"d3b0","硬":"d3b2","永":"d3c0","用":"d3c3","优":"d3c5","由":"d3c9","有":"d3d0","右":"d3d2","又":"d3d6","于":"d3da","余":"d3e0","与":"d3eb","语":"d3ef","域":"d3f2","遇":"d3f6","御":"d3f9","预":"d4a4","元":"d4aa","原":"d4ad","员":"d4b1","圆":"d4b2","源":"d4b4","缘":"d4b5","远":"d4b6","院":"d4ba","约":"d4bc","越":"d4bd","钥":"d4bf","月":"d4c2","阅":"d4c4","云":"d4c6","允":"d4ca","运":"d4cb","载":"d4d8","再":"d4d9","在":"d4da","暂":"d4dd","糟":"d4e3","造":"d4ec","择":"d4f1","则":"d4f2","泽":"d4f3","怎":"d4f5","增":"d4f6","窄":"d5ad","粘":"d5b3","展":"d5b9","栈":"d5bb","占":"d5bc","张":"d5c5","账":"d5cb","找":"d5d2","照":"d5d5","罩":"d5d6","遮":"d5da","折":"d5db","者":"d5df","这":"d5e2","真":"d5e6","针":"d5eb","振":"d5f1","阵":"d5f3","整":"d5fb","正":"d5fd","证":"d6a4","支":"d6a7","知":"d6aa","之":"d6ae","职":"d6b0","直":"d6b1","执":"d6b4","值":"d6b5","址":"d6b7","指":"d6b8","止":"d6b9","只":"d6bb","纸":"d6bd","志":"d6be","至":"d6c1","致":"d6c2","置":"d6c3","制":"d6c6","智":"d6c7","质":"d6ca","中":"d6d0","钟":"d6d3","终":"d6d5","种":"d6d6","重":"d6d8","周":"d6dc","州":"d6dd","轴":"d6e1","骤":"d6e8","逐":"d6f0","主":"d6f7","住":"d7a1","注":"d7a2","驻":"d7a4","专":"d7a8","转":"d7aa","装":"d7b0","状":"d7b4","缀":"d7ba","准":"d7bc","着":"d7c5","紫":"d7cf","子":"d7d3","自":"d7d4","字":"d7d6","综":"d7db","总":"d7dc","走":"d7df","阻":"d7e8","组":"d7e9","最":"d7ee","左":"d7f3","做":"d7f6","作":"d7f7","坐":"d7f8","座":"d7f9","浏":"e4af","缇":"e7be","龥":"fd9b"};
 ;
 /* ================= C51 子集解释器：预处理 / 词法 / 语法 / 名字检查 / 带硬件模型的模拟运行 ================= */
 'use strict';
@@ -4688,168 +4647,6 @@ function answerDocx(P,cfg){
 const saveDocx=(name,pkg)=>saveBlob(name,new Blob([makeZip(pkg.files)],{type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'}));
 
 ;
-/* ================= 读表格文件：.xls（老 Excel 二进制）、.xlsx、.csv / .txt，以及从表格里认出“学号 + 姓名 + 班级” =================
-   全部在浏览器里本地读，不上传。.xls 按复合文档（CFB）+ BIFF8 记录解析，只取第一个工作表的单元格文字和数字。 */
-'use strict';
-const SHEET_END=0xFFFFFFFA;
-/* ---------- 复合文档：取出某个流（例如 Workbook） ---------- */
-function cfbStream(u8,names){
-  const dv=new DataView(u8.buffer,u8.byteOffset,u8.byteLength);
-  const sig=[0xD0,0xCF,0x11,0xE0,0xA1,0xB1,0x1A,0xE1];
-  if(sig.some((b,i)=>u8[i]!==b))throw new Error('不是 .xls（Excel 97-2003）文件');
-  const u32=o=>dv.getUint32(o,true),ss=1<<dv.getUint16(30,true),ms=1<<dv.getUint16(32,true);
-  const dirStart=u32(48),cutoff=u32(56),miniFatStart=u32(60),difatStart=u32(68),nDifat=u32(72);
-  const off=s=>(s+1)*ss;
-  const fatSecs=[];
-  for(let i=0;i<109;i++){const v=u32(76+4*i);if(v<SHEET_END)fatSecs.push(v);}
-  for(let d=difatStart,k=0;k<nDifat&&d<SHEET_END;k++){for(let i=0;i<ss/4-1;i++){const v=u32(off(d)+4*i);if(v<SHEET_END)fatSecs.push(v);}d=u32(off(d)+ss-4);}
-  const fat=[];fatSecs.forEach(s=>{for(let i=0;i<ss/4;i++)fat.push(u32(off(s)+4*i));});
-  const chain=(start,tbl)=>{const out=[];for(let s=start,g=0;s<SHEET_END&&g<1e6;g++){out.push(s);s=tbl[s];if(s===undefined)break;}return out;};
-  const readBig=(start,size)=>{const c=chain(start,fat),buf=new Uint8Array(c.length*ss);c.forEach((s,i)=>buf.set(u8.subarray(off(s),off(s)+ss),i*ss));return size==null?buf:buf.subarray(0,size);};
-  const dir=readBig(dirStart),ents=[];
-  for(let p=0;p+128<=dir.length;p+=128){
-    const nl=dir[p+64]|(dir[p+65]<<8);let nm='';for(let i=0;i+1<nl-2;i+=2)nm+=String.fromCharCode(dir[p+i]|(dir[p+i+1]<<8));
-    const dd=new DataView(dir.buffer,dir.byteOffset+p,128);
-    ents.push({name:nm,type:dir[p+66],start:dd.getUint32(116,true),size:dd.getUint32(120,true)});
-  }
-  const root=ents.find(e=>e.type===5);
-  const e=ents.find(x=>x.type===2&&names.includes(x.name));
-  if(!e)throw new Error('文件里没有工作簿');
-  if(e.size>=cutoff)return readBig(e.start,e.size);
-  const mini=readBig(root.start,root.size),mf=readBig(miniFatStart),mdv=new DataView(mf.buffer,mf.byteOffset,mf.byteLength);
-  const mfat=[];for(let i=0;i+4<=mf.length;i+=4)mfat.push(mdv.getUint32(i,true));
-  const c=chain(e.start,mfat),buf=new Uint8Array(c.length*ms);
-  c.forEach((s,i)=>buf.set(mini.subarray(s*ms,s*ms+ms),i*ms));
-  return buf.subarray(0,e.size);
-}
-/* ---------- BIFF8：共享字符串表 + 第一个工作表的单元格 ---------- */
-function rkNum(v){
-  let n;
-  if(v&2)n=(v|0)>>2;
-  else{const d=new DataView(new ArrayBuffer(8));d.setUint32(4,(v&0xFFFFFFFC)>>>0,true);d.setUint32(0,0,true);n=d.getFloat64(0,true);}
-  return v&1?n/100:n;
-}
-const numText=n=>Number.isInteger(n)?String(n):String(Math.round(n*1e10)/1e10);
-function readXls(buf){
-  const wb=cfbStream(new Uint8Array(buf),['Workbook','Book']);
-  const dv=new DataView(wb.buffer,wb.byteOffset,wb.byteLength);
-  const recs=[];for(let p=0;p+4<=wb.length;){const t=dv.getUint16(p,true),l=dv.getUint16(p+2,true);recs.push({t,p:p+4,l});p+=4+l;}
-  /* 共享字符串（可能跨好几个 CONTINUE 记录） */
-  const sst=[];let sheetPos=null;
-  for(let i=0;i<recs.length;i++){
-    const r=recs[i];
-    if(r.t===0x0085&&sheetPos===null&&wb[r.p+5]===0)sheetPos=dv.getUint32(r.p,true);
-    if(r.t!==0x00FC)continue;
-    const segs=[wb.subarray(r.p,r.p+r.l)];for(let j=i+1;j<recs.length&&recs[j].t===0x003C;j++)segs.push(wb.subarray(recs[j].p,recs[j].p+recs[j].l));
-    let si=0,o=8;const n=new DataView(segs[0].buffer,segs[0].byteOffset).getUint32(4,true);
-    const byte=()=>{if(o>=segs[si].length){si++;o=0;}return segs[si][o++];};
-    const u16=()=>byte()|(byte()<<8),u32b=()=>(u16()|(u16()<<16))>>>0;
-    const skip=k=>{for(let x=0;x<k;x++)byte();};
-    for(let k=0;k<n&&si<segs.length;k++){
-      if(o>=segs[si].length){si++;o=0;}
-      const cch=u16(),fl=byte();let high=fl&1;const runs=fl&8?u16():0,ext=fl&4?u32b():0;
-      let s='',left=cch;
-      while(left>0){
-        if(o>=segs[si].length){si++;o=0;high=segs[si][o++]&1;}
-        const can=Math.floor((segs[si].length-o)/(high?2:1)),m=Math.min(left,can);
-        for(let x=0;x<m;x++){if(high){s+=String.fromCharCode(segs[si][o]|(segs[si][o+1]<<8));o+=2;}else s+=String.fromCharCode(segs[si][o++]);}
-        left-=m;
-      }
-      skip(runs*4+ext);sst.push(s);
-    }
-  }
-  /* 单元格 */
-  const rows=[];const put=(r,c,v)=>{(rows[r]=rows[r]||[])[c]=v;};
-  const ustr=(p)=>{const cch=dv.getUint16(p,true),fl=wb[p+2];let s='';for(let i=0;i<cch;i++)s+=fl&1?String.fromCharCode(dv.getUint16(p+3+2*i,true)):String.fromCharCode(wb[p+3+i]);return s;};
-  let start=recs.findIndex(r=>r.p-4===sheetPos);if(start<0)start=recs.findIndex((r,i)=>i>0&&r.t===0x0809);
-  let pendingStr=null;
-  for(let i=start+1;i>0&&i<recs.length;i++){
-    const {t,p}=recs[i];
-    if(t===0x000A)break;
-    const row=dv.getUint16(p,true),col=dv.getUint16(p+2,true);
-    if(t===0x00FD)put(row,col,sst[dv.getUint32(p+6,true)]);
-    else if(t===0x0204)put(row,col,ustr(p+6));
-    else if(t===0x0203)put(row,col,numText(dv.getFloat64(p+6,true)));
-    else if(t===0x027E)put(row,col,numText(rkNum(dv.getUint32(p+6,true))));
-    else if(t===0x00BD){const last=dv.getUint16(p+recs[i].l-2,true);for(let c=col,q=p+4;c<=last;c++,q+=6)put(row,c,numText(rkNum(dv.getUint32(q+2,true))));}
-    else if(t===0x0006){if(dv.getUint16(p+12,true)===0xFFFF&&wb[p+6]===0)pendingStr=[row,col];else put(row,col,numText(dv.getFloat64(p+6,true)));}
-    else if(t===0x0207&&pendingStr){put(pendingStr[0],pendingStr[1],ustr(p));pendingStr=null;}
-  }
-  return rows.map(r=>r?Array.from(r,v=>v==null?'':String(v).trim()):[]);
-}
-/* ---------- .xlsx：zip 里的 sharedStrings.xml + 第一个工作表 ---------- */
-async function unzipFile(u8,want){
-  const dv=new DataView(u8.buffer,u8.byteOffset,u8.byteLength);
-  let e=u8.length-22;while(e>=0&&dv.getUint32(e,true)!==0x06054b50)e--;
-  if(e<0)throw new Error('不是 .xlsx 文件');
-  const n=dv.getUint16(e+10,true);let p=dv.getUint32(e+16,true);const dec=new TextDecoder();const out={};
-  for(let i=0;i<n;i++){
-    const method=dv.getUint16(p+10,true),csize=dv.getUint32(p+20,true),nl=dv.getUint16(p+28,true),xl=dv.getUint16(p+30,true),cl=dv.getUint16(p+32,true),lo=dv.getUint32(p+42,true);
-    const name=dec.decode(u8.subarray(p+46,p+46+nl));p+=46+nl+xl+cl;
-    if(!want(name))continue;
-    const ds=lo+30+dv.getUint16(lo+26,true)+dv.getUint16(lo+28,true),raw=u8.subarray(ds,ds+csize);
-    if(method===0)out[name]=dec.decode(raw);
-    else if(method===8){const s=new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw'));out[name]=await new Response(s).text();}
-  }
-  return out;
-}
-const xmlText=s=>s.replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&#(\d+);/g,(m,d)=>String.fromCharCode(+d)).replace(/&amp;/g,'&');
-async function readXlsx(buf){
-  const f=await unzipFile(new Uint8Array(buf),n=>n==='xl/sharedStrings.xml'||/^xl\/worksheets\/sheet\d+\.xml$/.test(n));
-  const sheet=Object.keys(f).filter(n=>n.startsWith('xl/worksheets/')).sort((a,b)=>parseInt(a.match(/\d+/))-parseInt(b.match(/\d+/)))[0];
-  if(!sheet)throw new Error('.xlsx 里没有工作表');
-  const ss=[];(f['xl/sharedStrings.xml']||'').replace(/<si>([\s\S]*?)<\/si>/g,(m,x)=>{ss.push(xmlText((x.match(/<t[^>]*>[\s\S]*?<\/t>/g)||[]).map(t=>t.replace(/<[^>]+>/g,'')).join('')));return '';});
-  const col=s=>[...s].reduce((a,c)=>a*26+c.charCodeAt(0)-64,0)-1;
-  const rows=[];
-  f[sheet].replace(/<c r="([A-Z]+)(\d+)"([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g,(m,cl,rw,attr,body)=>{
-    body=body||'';const t=(/t="(\w+)"/.exec(attr)||[])[1];let v='';
-    if(t==='s')v=ss[+((/<v>([\s\S]*?)<\/v>/.exec(body)||[])[1])]||'';
-    else if(t==='inlineStr')v=xmlText(((/<t[^>]*>([\s\S]*?)<\/t>/.exec(body))||[])[1]||'');
-    else{const x=(/<v>([\s\S]*?)<\/v>/.exec(body)||[])[1];v=x==null?'':(t==='str'?xmlText(x):(isNaN(+x)?x:numText(+x)));}
-    (rows[+rw-1]=rows[+rw-1]||[])[col(cl)]=String(v).trim();return '';
-  });
-  return rows.map(r=>r?Array.from(r,v=>v==null?'':v):[]);
-}
-/* ---------- 统一入口 ---------- */
-async function readSheetFile(name,buf){
-  const ext=(/\.([^.]+)$/.exec(name)||[])[1]||'';const u8=new Uint8Array(buf);
-  if(/^xls$/i.test(ext)||(u8[0]===0xD0&&u8[1]===0xCF))return readXls(buf);
-  if(/^xlsx$/i.test(ext)||(u8[0]===0x50&&u8[1]===0x4B))return readXlsx(buf);
-  return textRows(decodeBytes(buf));
-}
-const textRows=t=>String(t).split(/\r?\n/).map(l=>l.split(/\t|,|，|\s+/).map(x=>x.trim()).filter((x,i,a)=>x!==''||i<a.length-1));
-/* ---------- 从表格里认出名单 ---------- */
-const ID_RE=/^[A-Za-z0-9]{4,20}$/;
-function extractRoster(rows,fileName){
-  const cells=rows.flat().filter(Boolean),warn=[];
-  let cls='';
-  for(const c of cells){const m=/班\s*级\s*[：:]\s*([^\s，,；;：:]+)/.exec(c);if(m){cls=m[1];break;}}
-  if(!cls&&fileName)cls=String(fileName).replace(/\.[^.]+$/,'').replace(/[（(].*$/,'').replace(/考勤表|花名册|名单|学生/g,'').trim();
-  /* 表头行：有“学号”和“姓名”两列 */
-  let hr=-1,idc=-1,nmc=-1;
-  for(let r=0;r<Math.min(rows.length,20)&&hr<0;r++){
-    const row=rows[r]||[];const a=row.findIndex(x=>/^学\s*号$/.test(x||'')),b=row.findIndex(x=>/^姓\s*名$/.test(x||''));
-    if(a>=0&&b>=0){hr=r;idc=a;nmc=b;}
-  }
-  if(hr<0){   // 没有表头：学号最多的那一列，它右边第一列有汉字的当姓名
-    const cnt={};rows.forEach(r=>(r||[]).forEach((x,c)=>{if(/^\d{6,20}$/.test(x||''))cnt[c]=(cnt[c]||0)+1;}));
-    const best=Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a])[0];
-    if(best==null)return {cls,students:[],warn:['没有找到学号列：表里要有“学号”“姓名”两列，或每行“学号 姓名”']};
-    idc=+best;nmc=idc+1;
-    for(let c=idc+1;c<idc+4;c++)if(rows.some(r=>/[一-龥]/.test((r||[])[c]||''))){nmc=c;break;}
-  }
-  const seen=new Map(),students=[];
-  rows.slice(hr+1).forEach((r,i)=>{
-    const id=((r||[])[idc]||'').replace(/\s/g,''),name=((r||[])[nmc]||'').replace(/\s+/g,'');
-    if(!ID_RE.test(id)||!/\d/.test(id))return;
-    if(seen.has(id)){warn.push(`学号 ${id} 重复出现（${seen.get(id)}、${name}），只保留第一个`);return;}
-    seen.set(id,name);students.push({id,name});
-  });
-  if(!students.length)warn.push('没有读到学生：检查学号列是不是文字或数字');
-  return {cls,students,warn};
-}
-
-;
 /* ================= 三个页面共用的界面工具 ================= */
 'use strict';
 const $=id=>document.getElementById(id);
@@ -5613,15 +5410,7 @@ body.dragging #dropmask{display:flex;position:fixed;inset:12px;background:var(--
 .imp-sample>details{background:var(--card-solid);border-radius:12px;padding:8px 12px;margin-top:6px}
 .imp-det{margin-top:10px;padding:12px 14px;border-radius:16px;background:var(--accbg)}
 .imp-add>summary,#pImportCard>summary{cursor:pointer}
-/* 保存到文件 */
-.savebar{display:flex;flex-direction:column;gap:6px;padding:10px 12px;border-radius:14px;background:var(--field2);border:1px solid var(--hair);margin-bottom:6px}
-.savebar .sv{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink2);line-height:1.4;flex-wrap:wrap}
-.savebar .sv small{display:block;width:100%;color:var(--mute);font-size:11px}
-.savebar .dot{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 8px var(--ok);flex:none}
-.savebar .sv.dirty .dot{background:var(--warn);box-shadow:0 0 8px var(--warn);animation:pulse 1.6s ease-in-out infinite}
-@keyframes pulse{50%{opacity:.35}}
-.savebar button{width:100%}
-@media(max-width:860px){.savebar{position:fixed;left:12px;right:12px;bottom:12px;z-index:9;flex-direction:row;align-items:center;justify-content:space-between;box-shadow:var(--shadow-up);background:var(--card-solid)}.savebar button{width:auto}.side-foot .savebar{display:flex}}
+/* 2026-11-08 「保存到文件」整套去掉（离线版取消），.savebar 的样式一并删掉 */
 button.danger{background:var(--bad);color:#fff;border-color:transparent}
 button.sm{padding:4px 12px;font-size:12.5px}
 .clslist{display:flex;flex-direction:column;gap:6px}
@@ -5771,12 +5560,22 @@ function importWidget(el,opt){
 }
 
 ;
-/* ================= 外壳：左侧栏两个模块（学生 / 老师）、页面切换动效、老师密码、文件里的数据 =================
-   一个网页文件就是全部：班级名单、上课的班级、导入的书上代码、组卷、组卷码名字、查看答案密码、理论试卷设置，都存在文件里的
-   <script id="appData"> 中；老师改完点“保存到文件”，写回原来这个 .html（Chrome / Edge），不在浏览器里另存一份。
-   发给学生的就是这同一个文件：学生姓名用老师密码加密（学生看不到），学号只存校验值；老师输密码后才解开。 */
+/* ================= 外壳：左侧栏两个模块（学生 / 老师）、页面切换动效、老师身份、老师数据的存取 =================
+   2026-11-08 用户：「不需要离线文件版本」。原来的「一个 .html 文件就是全部、改完点保存到文件写回文件」
+   整套去掉；网页版（/mcu/）由 build.js 生成，老师模块按华夏工具教师账号进入（口令由服务器 hx_mcu_secret 发给教师账号）。
+   老师改的东西（导入的书上代码、查看答案密码）现在存在**这台电脑的浏览器**里（localStorage 的 mcu.data），
+   改一次就存一次，不用再点“保存到文件”。班级名单不在这里存：它是首页「班级」导入的账号级共享名单。
+   <script id="appData"> 仍保留为空对象 —— 发布脚本按它检查「数据区是空的」，页面不再读它取数据。 */
 'use strict';
-const DATA=(()=>{try{return JSON.parse($('appData').textContent)||{};}catch(e){return {};}})();
+const DATA_KEY='mcu.data';
+/* 先看本机存的那份；没有再回落到数据区（老离线文件带来的数据万一还在，也不至于丢掉）。 */
+const DATA=(()=>{
+  const saved=store.get(DATA_KEY,null);
+  if(saved&&typeof saved==='object')return saved;
+  try{return JSON.parse($('appData').textContent)||{};}catch(e){return {};}
+})();
+/* 「上课的班级」单独存 mcu.active（考试工具按这个键读；老版本就用的它），开机同步进 DATA.active */
+DATA.active=store.get('mcu.active',DATA.active||[]);
 const UNIVERSAL_ID=null;   // 万能学号：老师自己验证取题用（直接当学号填，不告诉学生）
 const INSERT_CODE='1029';         // 插班生验证码：名单里没有的学号，填它才能用自己的学号取题
 const MODE_INIT={},MODE_DONE={};
@@ -5816,94 +5615,55 @@ const defaultLock=()=>__defLock||(__defLock={salt:'default',hash:pwHash(DEFAULT_
 const teacherLock=()=>defaultLock();
 const teacherOk=()=>!!VAULT;
 async function unlockTeacher(pw){
-  const okDefault=pwHash(pw,'default')===defaultLock().hash;
-  /* 以前版本允许改老师密码：用改过的密码保存的文件，用那个密码进一次，下次保存就换回固定密码 */
-  const okOld=!!DATA.lock&&pwHash(pw,DATA.lock.salt)===DATA.lock.hash;
-  if(!okDefault&&!okOld)return false;
+  if(pwHash(pw,'default')!==defaultLock().hash)return false;
   if(!DATA.vsalt)DATA.vsalt=randSalt();
-  let key=await deriveKey(pw,DATA.vsalt);
+  const key=await deriveKey(pw,DATA.vsalt);
+  VAULT={classes:[],ansPw:'',examNames:{}};
   if(DATA.vault){
     try{VAULT=await unseal(key,DATA.vault);}
-    catch(e){throw new Error(DATA.lock?'这个文件的名单是用以前改过的老师密码加密的：请用那个密码进入一次，保存后就换回 固定老师密码':'文件里的名单解不开（文件可能被改过）');}
+    catch(e){
+      /* 口令换了（服务器那边改过 hx_mcu_secret）或者本机数据坏了：不能让老师进不去老师模块，
+         退回空数据继续用，并说清楚要重新导入什么。 */
+      console.warn('本机老师数据解不开，按空数据处理',e);
+      setTimeout(()=>toast('本机存的老师数据解不开，已按空白开始：导入的书上代码需要重新导入'),300);
+    }
   }
-  else VAULT={classes:[],ansPw:'',examNames:{}};
-  if(DATA.lock){delete DATA.lock;key=await deriveKey(DEFAULT_TEACHER_PW,DATA.vsalt);markDirty();setTimeout(()=>toast('老师密码已改回固定的 固定老师密码，点“保存到文件”存下来'),300);}
   VKEY=key;
   VAULT.classes=VAULT.classes||[];VAULT.examNames=VAULT.examNames||{};
   migrateOld();
   return true;
 }
 function lockTeacher(){VAULT=null;VKEY=null;}
-/* 以前版本存在这台电脑浏览器里的名单和设置：第一次解锁时搬进文件（只搬一次） */
+/* 以前版本存在这台电脑浏览器里的名单和设置：第一次解锁时搬进 DATA（只搬一次） */
 function migrateOld(){
   if(DATA.migrated)return;
   let moved=false;
-  const L=store.get('roster.classes',null);
-  if(Array.isArray(L)&&L.length&&!VAULT.classes.length){VAULT.classes=L;moved=true;}
   const bank=store.get('bank.custom',null);if(Array.isArray(bank)&&bank.length&&!(DATA.bank||[]).length){DATA.bank=bank;setCustomMothers(bank);moved=true;}
   const ex=store.get('teacher.exam',null);if(ex&&!DATA.exam){DATA.exam=ex;moved=true;}
   const pc=store.get('paper.cfg',null);if(pc&&!DATA.paper){DATA.paper=pc;moved=true;}
-  const ap=store.get('answer.pw','');if(ap&&!VAULT.ansPw){VAULT.ansPw=ap;DATA.ansLock={salt:'ans',hash:pwHash(ap,'ans')};moved=true;}
+  const ap=store.get('answer.pw','');
+  if(ap&&!VAULT.ansPw){VAULT.ansPw=ap;DATA.ansLock={salt:'ans',hash:pwHash(ap,'ans'),exp:Date.now()+ANS_TTL};moved=true;}
   DATA.migrated=1;
-  if(moved){markDirty();setTimeout(()=>toast('已把这台电脑浏览器里原来的名单和设置搬进文件，点“保存到文件”存下来'),400);}
+  if(moved)markDirty();
 }
 
-/* ---------- 改动和保存：写回原来这个 .html 文件 ---------- */
-let DIRTY=false;
-function markDirty(){DIRTY=true;renderSaveBar();}
-window.addEventListener('beforeunload',e=>{if(DIRTY&&teacherOk()){e.preventDefault();e.returnValue='';}});
-const fileName=()=>{try{return decodeURIComponent(location.pathname.split('/').pop())||'单片机上机练习与考试.html';}catch(e){return '单片机上机练习与考试.html';}};
-/* 记住上次选的文件（IndexedDB），下次打开不用再选，只要点一下允许 */
-const HDB={
-  open(){return new Promise((ok,no)=>{const r=indexedDB.open('dpj-file',1);r.onupgradeneeded=()=>r.result.createObjectStore('h');r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error);});},
-  async get(k){try{const db=await HDB.open();return await new Promise(ok=>{const q=db.transaction('h').objectStore('h').get(k);q.onsuccess=()=>ok(q.result||null);q.onerror=()=>ok(null);});}catch(e){return null;}},
-  async set(k,v){try{const db=await HDB.open();db.transaction('h','readwrite').objectStore('h').put(v,k);}catch(e){}}
-};
-async function buildFileHTML(){
-  if(!VKEY||!VAULT)throw new Error('先进入老师模块');
-  const idSalt=DATA.idSalt;
-  DATA.classes=VAULT.classes.map(c=>({name:c.name,hs:c.students.map(s=>idHash(s.id,idSalt))}));
-  DATA.active=(DATA.active||[]).filter(n=>VAULT.classes.some(c=>c.name===n));
+/* ---------- 改动即存：写进这台电脑的浏览器（localStorage） ---------- */
+/* 原来这里是「有改动还没存进文件 / 保存到文件 / 写回 .html」（用户 2026-11-08：「不需要离线文件版本」）。
+   现在没有文件可写：改一次存一次。保险箱（姓名/密码明文）照样先加密再落盘，
+   密钥由老师口令（服务器发的 hx_mcu_secret）经 PBKDF2 派生，本机 localStorage 里看不到明文。 */
+let __saveQ=Promise.resolve();
+function markDirty(){
+  if(!VKEY||!VAULT)return;
+  __saveQ=__saveQ.then(saveData).catch(e=>console.error('存本机数据失败',e));
+}
+async function saveData(){
   DATA.vault=await seal(VKEY,VAULT);
   const t=new Date(),p=n=>String(n).padStart(2,'0');
   DATA.saved=`${t.getFullYear()}-${p(t.getMonth()+1)}-${p(t.getDate())} ${p(t.getHours())}:${p(t.getMinutes())}`;   // 本地时间
-  const json=JSON.stringify(DATA).replace(/</g,'\\u003c');
-  const re=/(<script id="appData" type="application\/json">)[\s\S]*?(<\/script>)/;
-  if(!re.test(PRISTINE_HTML))throw new Error('没找到数据区，网页文件可能被改过');
-  return PRISTINE_HTML.replace(re,(m,a,b)=>a+json+b);
-}
-async function saveToFile(){
-  let html;try{html=await buildFileHTML();}catch(e){toast('保存失败：'+e.message);return;}
-  const name=fileName();
-  if(window.showSaveFilePicker){
-    try{
-      let h=await HDB.get(name);
-      if(h&&(await h.queryPermission({mode:'readwrite'}))!=='granted'&&(await h.requestPermission({mode:'readwrite'}))!=='granted')h=null;
-      if(!h){
-        toast('在弹出的窗口里，找到并选中现在打开的这个网页文件，确认“替换”');
-        h=await window.showSaveFilePicker({suggestedName:name,types:[{description:'网页文件',accept:{'text/html':['.html']}}]});
-        await HDB.set(name,h);
-      }
-      const w=await h.createWritable();await w.write(new Blob([html],{type:'text/html'}));await w.close();
-      DIRTY=false;renderSaveBar();
-      toast(h.name===name?'已保存到 '+h.name:`已保存到 ${h.name}（和现在打开的 ${name} 不是同一个文件，以后请打开 ${h.name}）`);
-      return;
-    }catch(e){if(e&&e.name==='AbortError'){toast('没有保存');return;}console.error(e);}
-  }
-  /* 浏览器不支持直接写文件：下载一份同名文件，替换掉原来的 */
-  saveBlob(name,new Blob([html],{type:'text/html;charset=utf-8'}));
-  DIRTY=false;renderSaveBar();
-  toast('已下载新的 '+name+'：用它替换掉原来的文件');
-}
-function renderSaveBar(){
-  const bar=$('saveBar');if(!bar)return;
-  bar.hidden=!teacherOk();
-  if(!teacherOk())return;
-  bar.innerHTML=`<div class="sv ${DIRTY?'dirty':''}"><span class="dot"></span>${DIRTY?'有改动，还没存进文件':'文件已是最新'+(DATA.saved?'<small>上次保存 '+esc(DATA.saved)+'</small>':'')}</div><button type="button" class="${DIRTY?'pri':''}" id="btnSaveFile">保存到文件</button>`;
-  $('btnSaveFile').onclick=saveToFile;
+  store.set(DATA_KEY,DATA);
 }
 
-/* ---------- 题库：老师导入的代码（存在文件里），学生自己导入的代码（只练习，存本机） ---------- */
+/* ---------- 题库：老师导入的代码（存在本机 mcu.data），学生自己导入的代码（只练习，存本机） ---------- */
 const BANK={
   teacher(){return DATA.bank||[];},
   saveTeacher(L){DATA.bank=L;setCustomMothers(L);markDirty();document.dispatchEvent(new Event('bankchange'));},
@@ -5948,10 +5708,24 @@ async function setExamName(n,code){
 }
 function delExamName(h){DATA.exams=(DATA.exams||[]).filter(x=>x.h!==h);delete VAULT.examNames[h];markDirty();}
 
-/* ---------- 查看答案密码：存在文件里（校验值）；老师登录后答案总是能看 ---------- */
+/* ---------- 查看答案密码：存在本机（只存校验值）；老师登录后答案总是能看 ----------
+   2026-11-08 用户：「查看答案密码加时效：设好 4 小时后自动失效，可以随时撤销，界面上要能看到剩余时间」。
+   存的是加盐散列 + 失效时间戳（不存原文），原文在加密的保险箱里，老师自己看得到。
+   学生「查看答案」的判断统一走 answerLock()，所以过期 / 撤销立刻生效，不需要另外记时间。 */
+const ANS_TTL=4*3600*1000;   // 4 小时
 const answerPw=()=>VAULT?VAULT.ansPw||'':'';
-const answerLock=()=>DATA.ansLock||null;
-function setAnswerPw(pw){VAULT.ansPw=pw;DATA.ansLock=pw?{salt:'ans',hash:pwHash(pw,'ans')}:null;markDirty();}
+/* null = 没设或已过期（过期就等同于没设：学生进不去，老师要重新设一次） */
+function answerLock(){
+  const L=DATA.ansLock||null;
+  if(!L)return null;
+  if(!L.exp||Date.now()>=L.exp)return null;
+  return L;
+}
+/* 还剩多少毫秒（没设/已过期 = 0） */
+const answerLeft=()=>{const L=answerLock();return L?Math.max(0,L.exp-Date.now()):0;};
+/* 有设过、但已经过期 —— 界面上要和「从来没设」区分开 */
+const answerExpired=()=>!!DATA.ansLock&&!answerLock();
+function setAnswerPw(pw){VAULT.ansPw=pw;DATA.ansLock=pw?{salt:'ans',hash:pwHash(pw,'ans'),exp:Date.now()+ANS_TTL}:null;markDirty();}
 function answersOpen(){
   if(teacherOk())return true;
   const L=answerLock();
@@ -5966,14 +5740,14 @@ function tryAnswerPw(pw){
 /* 答案锁着时的输入框；解锁后调用 onOpen */
 function answerGateHTML(){
   const L=answerLock();
-  if(!L)return `<div class="warns">老师还没有开放答案：查看答案要老师设的密码，这份网页里还没有。</div>`;
-  return `<div class="ansgate"><b>查看答案需要老师给的密码</b><div class="note">先自己做、点“检测”看哪里不对；老师说可以看答案了，再输入密码。</div>
+  if(!L)return `<div class="warns">${answerExpired()?'老师设的查看答案密码已经过期失效了：请老师重新设一个。':'老师还没有开放答案：查看答案要老师设的密码。'}</div>`;
+  return `<div class="ansgate"><b>查看答案需要老师给的密码</b><div class="note">先自己做、点“检测”看哪里不对；老师说可以看答案了，再输入密码。密码 4 小时内有效。</div>
     <div class="row" style="margin-top:8px"><input type="password" data-ans-pw style="width:200px" placeholder="查看答案密码" autocomplete="off" aria-label="查看答案密码"><button class="pri" data-ans-go>看答案</button></div></div>`;
 }
 function mountAnswerGate(box,onOpen){
   box.innerHTML=answerGateHTML();
   const inp=box.querySelector('[data-ans-pw]');if(!inp)return;
-  const go=()=>{if(tryAnswerPw(inp.value)){toast('答案已解锁（关掉网页前都有效）');onOpen();}else{toast('密码不对');inp.select();}};
+  const go=()=>{if(tryAnswerPw(inp.value)){toast('答案已解锁（4 小时内有效）');onOpen();}else{toast(answerLock()?'密码不对':'密码已过期，请老师重新设一个');inp.select();}};
   box.querySelector('[data-ans-go]').onclick=go;inp.onkeydown=e=>{if(e.key==='Enter')go();};
   setTimeout(()=>inp.focus(),0);
 }
@@ -5993,19 +5767,18 @@ const ICO={
   out:'<path d="M14 4h5v16h-5"/><path d="M10 8l-4 4 4 4M6 12h10"/>'
 };
 const svgI=k=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICO[k]}</svg>`;
-const T_PAGES=[['t-overview','概览','overview'],['t-roster','班级名单','roster'],['t-import','导入书上代码','import'],['t-build','组卷与组卷码','build'],['t-paper','理论试卷','paper'],['t-grade','批改成绩','grade']];
+const T_PAGES=[['t-roster','班级名单','roster'],['t-import','导入书上代码','import']];
 /* ── 2026-11-06 用户：「删除老师入口按钮 直接改为只有老师账号才有这个界面」──
    网页版的老师分组只在**教师账号登录后**出现，不再有「老师入口」那颗按钮、也没有密码门：
    启动时 startShell() 先问 hx_me，是教师就自动解锁（口令照样从 hx_mcu_secret 取，网页里不放密码），
-   不是教师的学生账号根本看不到这个分组。离线单文件（不是网页版）照旧留着密码门，那边没有账号体系。 */
-/* 2026-11-06 用户：「组卷和理论试卷、导出文件全部属于考试功能 我们需要迁移 然后删除老师入口按钮
-   直接改为只有老师账号才有这个界面」＋「批改全在考试」。
-   网页版（/mcu/）老师模块只留 概览 / 班级名单 / 导入书上代码 三页：
-     组卷、组卷码命名、理论试卷、批改成绩、导出（.c / .hex / CSV / Word）统统一在考试工具里；
-     那边按科目分选项卡（现在只有单片机上机），学生交卷后自动判分。
-   离线单文件（U 盘版）保持原样，六页全有——它没有账号体系、连不上云端。 */
-const T_PAGES_ONLINE=[['t-overview','概览','overview'],['t-roster','班级名单','roster'],['t-import','导入书上代码','import']];
-const navPages=()=>HX_ON?T_PAGES_ONLINE:T_PAGES;
+   不是教师的学生账号根本看不到这个分组。 */
+/* ── 2026-11-08 用户：「试卷都不再这边出的 这边是不是只有上机练习功能就够了」──
+   老师菜单只剩 班级名单 / 导入书上代码。
+   组卷与组卷码、理论试卷、批改成绩三页从菜单撤掉（**页面模板和函数都还在 build.js / ui-teacher.js 里，
+   没有删**，只是不再出现、路由也进不来），它们整套在「考试」工具里出、那边批改。
+   概览页也删了（用户：「删掉概览——它和班级名单页重复，就是个流程引导页」）：
+   里面有用的「本节课的查看答案密码」「上课的班级」两样合并进了班级名单页（见 ui-roster.js）。 */
+const navPages=()=>T_PAGES;
 function renderNav(){
   const item=(p,name,ic,extra)=>`<button type="button" class="nav-i${CUR_PAGE===p?' on':''}" data-go="${p}" ${CUR_PAGE===p?'aria-current="page"':''}>${svgI(ic)}<span>${name}</span>${extra||''}</button>`;
   let h=`<div class="nav-g"><div class="nav-h">学生</div>${item('practice','平时练习','practice')}${HX_ON?'':item('exam','考试','exam')}</div>`;
@@ -6019,8 +5792,7 @@ function renderNav(){
          ── 网页版的老师身份是服务器（hx_me → teacher）判的，不是本地密码门，
             所以「退出」本身没有意义；更糟的是退出后 teacherOk() 变 false，
             整个老师分组连「老师入口」一起消失（网页版本来就没有那个按钮），
-            页面再也点不回来，只能刷新生效 —— 这就是「退出就打不开了」。
-         离线单文件（!HX_ON）是本地密码门，那里退出有意义，保留。 */
+            页面再也点不回来，只能刷新生效 —— 这就是「退出就打不开了」。 */
       if(!HX_ON)h+=`<button type="button" class="nav-i" data-act="logout">${svgI('out')}<span>退出老师模块</span></button>`;
     }
     else h+=item('t-lock','老师入口','lock','<span class="nav-b">需密码</span>');
@@ -6028,7 +5800,6 @@ function renderNav(){
   }
   $('nav').innerHTML=h;
   __navRect=slideInd($('nav'),'.nav-i.on',__navRect);   // 选中底块从上一项滑过来
-  renderSaveBar();
 }
 let __navRect=null;
 
@@ -6075,7 +5846,7 @@ function mountLock(){
         if(!me||!me.teacher)throw new Error('这个账号不是教师账号');
         const pw=await hxSecret();
         if(!pw)throw new Error('服务器没给口令，请联系管理员');
-        DEFAULT_TEACHER_PW=pw;__defLock=null;if(!(await unlockTeacher(pw)))throw new Error('口令对不上，请联系管理员');showPage(store.get('ui.tpage','t-overview'));}
+        DEFAULT_TEACHER_PW=pw;__defLock=null;if(!(await unlockTeacher(pw)))throw new Error('口令对不上，请联系管理员');showPage(store.get('ui.tpage','t-roster'));}
       catch(e){toast(e.message);if(e.login&&window.HXTheme)HXTheme.login();}
       finally{if($('lockGo'))$('lockGo').disabled=false;}
     };
@@ -6086,7 +5857,7 @@ function mountLock(){
     $('lockGo').disabled=true;
     try{
       if(!(await unlockTeacher($('lockPw').value))){toast('密码不对');$('lockPw').select();return;}
-      showPage(store.get('ui.tpage','t-overview'));
+      showPage(store.get('ui.tpage','t-roster'));
     }catch(e){toast(e.message);}
     finally{if($('lockGo'))$('lockGo').disabled=false;}
   };
@@ -6107,15 +5878,16 @@ function applyPage(p){
   window.scrollTo(0,0);
   document.dispatchEvent(new CustomEvent('pageshow',{detail:p}));
 }
+/* 老书签 / 老 hash：概览、组卷、理论试卷、批改成绩 都已经不在这个工具里了，一律落到班级名单 */
+const MOVED_PAGE={'t-overview':'t-roster','t-build':'t-roster','t-paper':'t-roster','t-grade':'t-roster'};
 function showPage(p){
+  if(MOVED_PAGE[p])p=MOVED_PAGE[p];
   const all=['practice',...(HX_ON?[]:['exam']),'t-lock',...T_PAGES.map(x=>x[0])];
   if(!all.includes(p))p='practice';
-  // 网页版组卷/理论试卷已经搬到「考试」工具了（2026-11-06），这两页不再存在 —— 老书签/老 hash 直接落回概览
-  if(HX_ON&&(p==='t-build'||p==='t-paper'))p='t-overview';
   // 网页版没有密码门：登录了教师账号就自动解锁，没解锁（= 学生或没登录）就不给进老师页面，回练习。
   // 离线单文件照旧回 t-lock 输密码。
   if(p.startsWith('t-')&&p!=='t-lock'&&!teacherOk())p=HX_ON?'practice':'t-lock';
-  if(p==='t-lock')p=teacherOk()?store.get('ui.tpage','t-overview'):(HX_ON?'practice':'t-lock');
+  if(p==='t-lock')p=teacherOk()?(MOVED_PAGE[store.get('ui.tpage','t-roster')]||store.get('ui.tpage','t-roster')):(HX_ON?'practice':'t-lock');
   const main=$('main');
   clearTimeout(__swapT);
   const reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -6146,8 +5918,7 @@ function startShell(){
       /* 网页版没有这个按钮了（见 renderNav），这里只作防御：万一是旧 DOM 残留，
          也不要把 VAULT 清掉 —— 清了老师分组就整体消失、没有入口能回来。 */
       if(HX_ON){renderNav();return;}
-      if(DIRTY&&!b.dataset.sure){b.dataset.sure='1';b.querySelector('span').textContent='有改动没保存，再点一次退出';setTimeout(()=>{delete b.dataset.sure;renderNav();},4000);return;}
-      lockTeacher();DIRTY=false;showPage('practice');toast('已退出老师模块');return;
+      lockTeacher();showPage('practice');toast('已退出老师模块');return;
     }
     if(b.dataset.go)showPage(b.dataset.go);
   });
@@ -6182,35 +5953,72 @@ async function autoTeacher(){
     DEFAULT_TEACHER_PW=pw;__defLock=null;
     if(!(await unlockTeacher(pw)))throw new Error('口令对不上');
     renderNav();
-    // 落点：老师下次打开就停在上次那一页；第一次进来停「概览」。
-    // 用户明确点过某个学生页（#practice / #exam）就不打断他。
-    const want=store.get('ui.tpage','t-overview');
-    if(CUR_PAGE==='practice' && (!__bootHash || __bootHash==='practice')) showPage(want);
+    // 落点：老师下次打开就停在上次那一页；第一次进来停「班级名单」。
+    // 用户明确点过某个学生页（#practice / #exam）就不打断他；网址里是老师页（#t-roster / 老的 #t-overview）
+    // 时说明他本来就是奔老师模块来的，解锁后补跳一次。
+    const want=store.get('ui.tpage','t-roster');
+    if(CUR_PAGE==='practice' && (!__bootHash || __bootHash==='practice' || /^t-/.test(__bootHash))) showPage(want);
   }catch(e){__autoTeacherTried=false;}
 }
 
 ;
-/* ================= 老师：班级名单（存在网页文件里，姓名加密）、上课的班级、导入考勤表 =================
-   每个班一份名单，互不混在一起；勾选“上课的班级”后，只有这些班的学号能在考试里取题。改完点“保存到文件”。 */
+/* ================= 老师：班级名单（只读共享名单）+ 上课的班级 + 查看答案密码 =================
+   2026-11-08 用户：「班级名单页不要再自己导入 数据来源就是首页『班级』导入的账号级共享名单」
+                ＋「删掉概览——它和班级名单页重复，就是个流程引导页」。
+   1. 名单只有一处：首页「班级」导入的名单，全账户通用（MCU_CLOUD.classes → hx_my_classes + hx_class_students）。
+      这个页面只**看**不改：不导入考勤表、不粘名单、不删学生、不改名 —— 要改名单回首页。
+   2. 勾选「上课的班级」记在这台电脑上（localStorage mcu.active），并同步一份到 DATA.active
+      （考试工具按这个范围出题）。它只表示「这节课上机的是这几个班」，不改数据库里的开课设置。
+   3. 「本节课的查看答案密码」从概览页搬到这里：设一次 **4 小时自动失效**，可以随时撤销，
+      界面上直接看到还剩多久（见 ui-shell.js 的 setAnswerPw / answerLock）。 */
 'use strict';
+const ACTIVE_KEY='mcu.active';
+let CLOUD_CLASSES=[];        // 共享名单缓存：[{name, tools:[...], students:[{id,name}]}]
+let __clsBusy=false,__clsLoaded=false;
+
 const ROSTER={
-  all(){return VAULT?VAULT.classes:[];},
-  save(L){VAULT.classes=L;DATA.active=(DATA.active||[]).filter(n=>L.some(c=>c.name===n));if(!L.some(c=>c.name===ROSTER.cur()))store.set('roster.cur','');markDirty();document.dispatchEvent(new Event('rosterchange'));},
+  all(){return CLOUD_CLASSES;},
+  /* 当前选中的班（只是这一页的筛选条件，存本机；不在名单里就回“全部班级”） */
   cur(){const c=store.get('roster.cur','');return ROSTER.all().some(x=>x.name===c)?c:'';},
   setCur(c){store.set('roster.cur',c);document.dispatchEvent(new Event('rosterchange'));},
   /* 某个班（不给就是当前选中；'' = 全部班级）的学生 */
   students(c){const k=c===undefined?ROSTER.cur():c;return ROSTER.all().filter(x=>!k||x.name===k).flatMap(x=>x.students.map(s=>({...s,cls:x.name})));},
   find(id){for(const c of ROSTER.all()){const s=c.students.find(x=>x.id===id);if(s)return {...s,cls:c.name};}return null;},
-  active(){return (DATA.active||[]).filter(n=>ROSTER.all().some(c=>c.name===n));},
-  setActive(L){DATA.active=L;markDirty();document.dispatchEvent(new Event('rosterchange'));}
+  /* 上课的班级：只认名单里还在的班（首页删了班，这里自动少一个） */
+  active(){const names=ROSTER.all().map(c=>c.name);return (DATA.active||[]).filter(n=>names.includes(n));},
+  setActive(L){
+    const names=ROSTER.all().map(c=>c.name);
+    const v=[...new Set((L||[]).filter(n=>names.includes(n)))];
+    DATA.active=v;store.set(ACTIVE_KEY,v);   // 只记这台电脑，不进云端
+    document.dispatchEvent(new Event('rosterchange'));
+  }
 };
+
+/* 拉共享名单：一个班一次请求，并发取（和 mcu-cloud.js 里的 classes() 同一套）。
+   断网 / 没登录 / 服务器报错一律当「没有名单」——名单是加料，不能让班级名单页打不开。 */
+async function loadRoster(force){
+  if(__clsBusy)return CLOUD_CLASSES;
+  if(__clsLoaded&&!force)return CLOUD_CLASSES;
+  __clsBusy=true;
+  try{
+    const L=(typeof MCU_CLOUD!=='undefined'&&MCU_CLOUD.classes)?await MCU_CLOUD.classes():[];
+    CLOUD_CLASSES=(Array.isArray(L)?L:[]).filter(c=>c&&c.name).map(c=>({
+      name:c.name,tools:Array.isArray(c.tools)?c.tools:[],
+      /* 没学号的（比如刚被删掉学号的行）没法用来对学号，直接不算 */
+      students:(Array.isArray(c.students)?c.students:[]).filter(s=>s&&String(s.no||'').trim()).map(s=>({id:String(s.no).trim(),name:s.name||''}))
+    }));
+  }catch(e){CLOUD_CLASSES=[];}
+  __clsBusy=false;__clsLoaded=true;
+  document.dispatchEvent(new Event('rosterchange'));
+  return CLOUD_CLASSES;
+}
 
 /* 班级选项卡：所有带 data-cls-tabs 的地方都画一份，选中底块滑动 */
 const __clsRect=new WeakMap();
 function renderClassTabs(){
   const L=ROSTER.all(),cur=ROSTER.cur(),total=L.reduce((a,c)=>a+c.students.length,0),act=ROSTER.active();
   document.querySelectorAll('[data-cls-tabs]').forEach(box=>{
-    if(!L.length){box.innerHTML='<span class="note">还没有班级：在“班级名单”页导入考勤表。</span>';return;}
+    if(!L.length){box.innerHTML='<span class="note">还没有班级：到首页「班级」导入名单，回来点「刷新名单」。</span>';return;}
     box.innerHTML=`<div class="clstabs" role="tablist" aria-label="班级">${[['',`全部班级 · ${total}`]].concat(L.map(c=>[c.name,`${c.name} · ${c.students.length}`])).map(([k,t])=>`<button type="button" role="tab" data-cls="${esc(k)}" class="${k===cur?'on':''}" aria-selected="${k===cur}">${k&&act.includes(k)?'<i class="live" title="上课的班级"></i>':''}${esc(t)}</button>`).join('')}</div>`;
     const bar=box.firstElementChild;
     if(box.offsetParent!==null)__clsRect.set(box,slideInd(bar,'button.on',__clsRect.get(box)));
@@ -6226,103 +6034,104 @@ function twoStep(btn,label,run){
 }
 
 function initRoster(){
-  const pending=[];   // 等待确认的导入
+  /* 没有这一页（老版本 / 离线版残留）也要把名单拉下来：批改、看题要按学号查姓名 */
+  if(!$('rTable')||!$('rClasses')){loadRoster(false);return;}
+  /* 名单表格：只读。同一个学号出现在两个班（转班没删干净）时并成一行，班级写在一起 */
+  function rows(){
+    const q=($('rSearch').value||'').trim().toLowerCase();
+    const map=new Map();
+    ROSTER.students().forEach(s=>{
+      const r=map.get(s.id);
+      if(!r)map.set(s.id,{id:s.id,name:s.name||'',classes:[s.cls]});
+      else{if(!r.name)r.name=s.name||'';if(!r.classes.includes(s.cls))r.classes.push(s.cls);}
+    });
+    const L=[...map.values()];
+    return q?L.filter(s=>s.id.toLowerCase().includes(q)||s.name.toLowerCase().includes(q)):L;
+  }
   function tableHTML(){
-    const cur=ROSTER.cur(),q=($('rSearch').value||'').trim();
-    const list=ROSTER.students().filter(s=>!q||s.id.includes(q)||s.name.includes(q));
-    if(!ROSTER.all().length)return '<div class="empty">还没有班级：在右边导入考勤表，或粘贴名单。导入后记得点左下角“保存到文件”。</div>';
-    return `<div class="note" style="margin-bottom:6px">${cur?esc(cur):'全部班级'}：${list.length} 人${q?'（筛选后）':''}</div>
-      <div class="rtable"><table class="mini"><thead><tr><th>学号</th><th>姓名</th>${cur?'':'<th>班级</th>'}<th></th></tr></thead><tbody>${list.map(s=>`<tr><td class="mono">${esc(s.id)}</td><td>${esc(s.name)}</td>${cur?'':`<td>${esc(s.cls)}</td>`}<td><button class="qdel sm" data-rdel="${esc(s.cls)}|${esc(s.id)}" title="从 ${esc(s.cls)} 删掉 ${esc(s.name)}" aria-label="删掉 ${esc(s.name)}">×</button></td></tr>`).join('')}</tbody></table></div>`;
+    if(!__clsLoaded)return '<div class="empty">正在读取名单…</div>';
+    if(!ROSTER.all().length)return '<div class="empty">还没有班级。名单在首页「班级」导入（这个账号下的工具通用），导入后回到这里点「刷新名单」。</div>';
+    const cur=ROSTER.cur(),act=ROSTER.active(),list=rows();
+    const head=`${cur?esc(cur):'全部班级'}：${list.length} 人${act.length?'　上课的班级：'+esc(act.join('、')):''}`;
+    if(!list.length)return `<div class="note">${head}</div>`;
+    return `<div class="note" style="margin-bottom:6px">${head}</div>
+      <div class="rtable"><table class="mini"><thead><tr><th>学号</th><th>姓名</th><th>班级</th><th>这节课</th></tr></thead><tbody>${
+        list.map(s=>`<tr><td class="mono">${esc(s.id)}</td><td>${esc(s.name)}</td><td>${esc(s.classes.join('、'))}</td><td>${s.classes.some(c=>act.includes(c))?'<span class="tag ok" style="margin:0">上课</span>':'<span class="note">—</span>'}</td></tr>`).join('')
+      }</tbody></table></div>`;
   }
   function classesHTML(){
     const L=ROSTER.all(),act=ROSTER.active();
-    if(!L.length)return '<div class="note">还没有班级。</div>';
-    return `<div class="clslist">${L.map(c=>`<div class="clsrow"><label class="chk"><input type="checkbox" data-act-cls="${esc(c.name)}" ${act.includes(c.name)?'checked':''}> <b>${esc(c.name)}</b><span class="note">${c.students.length} 人</span></label>
-      <span style="flex:1"></span><button class="sm" data-cls-del="${esc(c.name)}" title="删除 ${esc(c.name)} 的名单">删除</button></div>`).join('')}</div>`;
+    if(!__clsLoaded)return '<div class="note">正在读取名单…</div>';
+    if(!L.length)return '<div class="note">还没有班级。到首页「班级」导入名单，回到这里点「刷新名单」。</div>';
+    return `<div class="clslist">${L.map(c=>`<label class="chk"><input type="checkbox" data-act-cls="${esc(c.name)}" ${act.includes(c.name)?'checked':''}> <b>${esc(c.name)}</b><span class="note">${c.students.length} 人${(c.tools||[]).includes('mcu')?'':' · 未开通单片机'}</span></label>`).join('')}</div>`;
+  }
+  /* 「剩余时间」：不到 1 小时按分钟说，超过按“X 小时 Y 分钟”说 */
+  const leftText=ms=>{
+    const m=Math.max(1,Math.ceil(ms/60000));
+    if(m<60)return m+' 分钟';
+    const h=Math.floor(m/60),r=m%60;
+    return h+' 小时'+(r?' '+r+' 分钟':'');
+  };
+  function renderAnsPw(){
+    const note=$('ansPwNote');if(!note)return;
+    const L=answerLock();
+    if(L){
+      const t=new Date(L.exp),p=n=>String(n).padStart(2,'0');
+      note.innerHTML=`现在是 <b class="mono">${esc(answerPw())}</b>，还剩 <b id="ansLeft">${leftText(answerLeft())}</b>（${p(t.getHours())}:${p(t.getMinutes())} 自动失效）。学生在这段时间里输入它才能看答案。`;
+    }else if(answerExpired()){
+      note.innerHTML=`上次设的 <b class="mono">${esc(answerPw())}</b> 已经失效（4 小时到了）：学生的「查看答案」现在打不开，需要重新设一个。`;
+    }else{
+      note.innerHTML='还没设：学生的「查看答案」打不开，检测只报错、不给正确写法。';
+    }
+    const inp=$('ansPwIn');if(inp&&document.activeElement!==inp)inp.value=answerPw();
+    if($('ansPwOff'))$('ansPwOff').hidden=!DATA.ansLock;
+  }
+  let __tick=0;
+  function startTick(){
+    if(__tick)return;
+    __tick=setInterval(()=>{
+      const el=$('ansLeft');
+      if(el&&answerLock())el.textContent=leftText(answerLeft());
+      else if(el||answerExpired())renderAnsPw();
+    },30000);
   }
   function render(){
+    if(!$('rTable'))return;   // 页面不在（老版本 / 离线版残留）就安静跳过
     renderClassTabs();
     $('rTable').innerHTML=tableHTML();
     $('rClasses').innerHTML=classesHTML();
-    const cur=ROSTER.cur();
-    $('rClassOps').hidden=!cur;
-    if(cur)$('rRename').value=cur;
-    $('rPending').innerHTML=pending.map((p,i)=>{
-      const L=ROSTER.all(),exists=L.some(c=>c.name===p.cls);
-      const elsewhere=p.students.filter(s=>{const f=ROSTER.find(s.id);return f&&f.cls!==p.cls;});
-      return `<div class="rprev"><div class="row" style="justify-content:space-between"><b>${esc(p.file)}</b><button class="qdel sm" data-rp-x="${i}" aria-label="不导入这个文件">×</button></div>
-        <div class="row" style="margin:8px 0"><label>班级名称 <input data-rp-cls="${i}" value="${esc(p.cls)}" style="width:180px" aria-label="班级名称"></label><span class="tag na" style="margin:0">${p.students.length} 人</span></div>
-        ${p.warn.length?`<div class="warns">${p.warn.map(esc).join('<br>')}</div>`:''}
-        ${elsewhere.length?`<div class="warns">有 ${elsewhere.length} 个学号已经在别的班：${elsewhere.slice(0,5).map(s=>esc(s.id+' '+s.name+'（'+ROSTER.find(s.id).cls+'）')).join('、')}${elsewhere.length>5?'…':''}。导入后会从原来的班移过来。</div>`:''}
-        <table class="mini"><tbody>${p.students.slice(0,5).map(s=>`<tr><td class="mono">${esc(s.id)}</td><td>${esc(s.name)}</td></tr>`).join('')}${p.students.length>5?`<tr><td colspan="2" class="note">…… 共 ${p.students.length} 人</td></tr>`:''}</tbody></table>
-        <div class="row" style="margin-top:8px">${p.students.length?(exists?`<button class="pri" data-rp-ok="${i}">替换“${esc(p.cls)}”的名单</button>`:`<button class="pri" data-rp-ok="${i}">新建班级“${esc(p.cls)}”</button>`):''}</div></div>`;
-    }).join('');
+    renderAnsPw();
+    startTick();
   }
-  async function importFiles(files){
-    for(const f of files){
-      if(!/\.(xls|xlsx|csv|txt)$/i.test(f.name)){toast('名单只认 .xls、.xlsx、.csv、.txt：'+f.name);continue;}
-      try{const rows=await readSheetFile(f.name,await f.arrayBuffer());const r=extractRoster(rows,f.name);pending.push({file:f.name,...r});}
-      catch(e){toast(`读不了 ${f.name}：${e.message}`);}
-    }
-    render();
-    if(pending.length)$('rPending').scrollIntoView({block:'nearest',behavior:'smooth'});
-  }
-  function commit(i){
-    const p=pending[i];const name=(p.cls||'').trim();
-    if(!name){toast('先填班级名称');return;}
-    const ids=new Set(p.students.map(s=>s.id));
-    const L=ROSTER.all().map(c=>({...c,students:c.students.filter(s=>c.name===name||!ids.has(s.id))})).filter(c=>c.name===name||c.students.length);
-    const at=L.findIndex(c=>c.name===name),cls={name,students:p.students.slice()};
-    if(at>=0)L[at]=cls;else L.push(cls);
-    pending.splice(i,1);
-    store.set('roster.cur',name);
-    if(at<0)DATA.active=(DATA.active||[]).concat([name]);   // 新导入的班默认就是上课的班级
-    ROSTER.save(L);
-    toast(`已导入“${name}”，${cls.students.length} 人。点左下角“保存到文件”存进网页`);
-  }
-  $('rPick').onclick=()=>$('rFile').click();
-  $('rFile').onchange=e=>{importFiles([...e.target.files]);e.target.value='';};
-  $('rPasteGo').onclick=()=>{
-    const t=$('rPaste').value;if(!t.trim()){toast('先粘贴名单：每行 学号 姓名');return;}
-    const r=extractRoster(textRows(t),'');pending.push({file:'粘贴的名单',...r,cls:$('rPasteCls').value.trim()||r.cls||''});
-    $('rPaste').value='';$('rPasteCls').value='';render();
+  /* 搜索只要重画表格 */
+  $('rSearch').addEventListener('input',()=>{$('rTable').innerHTML=tableHTML();});
+  /* 刷新：老师常先去首页导名单再回来，名单得跟着变 */
+  $('btnRRefresh').onclick=async()=>{
+    const b=$('btnRRefresh');b.disabled=true;
+    await loadRoster(true);
+    b.disabled=false;render();
+    toast(ROSTER.all().length?`已刷新：${ROSTER.all().length} 个班`:'没取到名单：没登录、断网，或者首页「班级」里还没有班');
   };
-  $('rPending').addEventListener('click',e=>{
-    const ok=e.target.closest('[data-rp-ok]'),x=e.target.closest('[data-rp-x]');
-    if(ok)commit(+ok.dataset.rpOk);
-    if(x){pending.splice(+x.dataset.rpX,1);render();}
-  });
-  $('rPending').addEventListener('input',e=>{const t=e.target;if(t.dataset.rpCls!=null)pending[+t.dataset.rpCls].cls=t.value;});
-  $('rPending').addEventListener('change',e=>{if(e.target.dataset.rpCls!=null)render();});
-  $('rTable').addEventListener('click',e=>{
-    const b=e.target.closest('[data-rdel]');if(!b)return;
-    const [c,id]=b.dataset.rdel.split('|');
-    twoStep(b,'删?',()=>ROSTER.save(ROSTER.all().map(x=>x.name===c?{...x,students:x.students.filter(y=>y.id!==id)}:x)));
-  });
+  /* 勾选上课的班级 */
   $('rClasses').addEventListener('change',e=>{
     const n=e.target.dataset.actCls;if(n==null)return;
     const act=ROSTER.active().filter(x=>x!==n);if(e.target.checked)act.push(n);
     ROSTER.setActive(act);
   });
-  $('rClasses').addEventListener('click',e=>{
-    const b=e.target.closest('[data-cls-del]');if(!b)return;const n=b.dataset.clsDel;
-    twoStep(b,'再点一次删除',()=>{ROSTER.save(ROSTER.all().filter(c=>c.name!==n));toast(`已删除 ${n}。点“保存到文件”后才会从网页文件里去掉`);});
-  });
-  $('rSearch').addEventListener('input',()=>{$('rTable').innerHTML=tableHTML();});
-  $('rRenameGo').onclick=()=>{
-    const cur=ROSTER.cur(),n=$('rRename').value.trim();
-    if(!cur||!n||n===cur)return;
-    if(ROSTER.all().some(c=>c.name===n)){toast('已经有叫这个名字的班级');return;}
-    DATA.active=(DATA.active||[]).map(x=>x===cur?n:x);
-    store.set('roster.cur',n);ROSTER.save(ROSTER.all().map(c=>c.name===cur?{...c,name:n}:c));toast('已改名');
+  /* 查看答案密码：设好 / 撤销 */
+  $('btnAnsPw').onclick=()=>{
+    const v=$('ansPwIn').value.trim();
+    if(v&&!/^[\w\-]{2,20}$/.test(v)){toast('查看答案密码用 2～20 个字母、数字');return;}
+    setAnswerPw(v);renderAnsPw();
+    toast(v?'已设好：4 小时后自动失效':'已清空查看答案密码：学生的答案立刻打不开');
   };
-  $('rExport').onclick=()=>{
-    const cur=ROSTER.cur(),list=ROSTER.students();
-    downloadText(`名单_${cur||'全部班级'}.csv`,[['学号','姓名','班级'],...list.map(s=>[s.id,s.name,s.cls])].map(r=>r.join(',')).join('\r\n'),'text/csv;charset=utf-8');
-  };
+  $('ansPwOff').onclick=()=>{setAnswerPw('');renderAnsPw();toast('已撤销查看答案密码，立即失效');};
+  $('ansPwIn').addEventListener('keydown',e=>{if(e.key==='Enter')$('btnAnsPw').click();});
   document.addEventListener('rosterchange',render);
+  /* 进来就问一次云端；每次切回这一页再问一次（老师可能刚在首页改过名单） */
+  document.addEventListener('pageshow',e=>{if(e.detail==='t-roster')loadRoster(true);});
   render();
-  return {importFiles};
+  loadRoster(false).then(render);
 }
 
 ;
@@ -6584,18 +6393,18 @@ MODE_INIT.practice=function(){
 };
 
 ;
-/* ================= 老师模式：导入书上代码、组卷、批改 ================= */
+/* ================= 老师模式：导入书上代码（+ 组卷/批改的老代码，保留着不显示） ================= */
 'use strict';
-/* 2026-11-06 用户：「组卷和理论试卷、导出文件全部属于考试功能 我们需要迁移 然后删除老师入口按钮
-   直接改为只有老师账号才有这个界面」。
-   ── 这个文件现在的版本分支 ──
-   HX_ONLINE（网页版 /mcu/）：
-     · 页面只有 概览 / 班级名单 / 导入书上代码 / 批改成绩（组卷、理论试卷两页不生成，见 build.js）
-     · 组卷器、组卷码命名、理论试卷全部不初始化（DOM 不存在，初始化会到处空引用）
-     · 组卷码改由「考试」工具生成；这里批改只按**考试那边传过来的组卷码**判分
-   离线单文件：照旧全功能（没有账号体系、连不上云端，组卷/试卷只能在原地做）
-   所以下面凡是碰 #ekey / #qlist / #ppFrame / #ppTypes 的代码都用 WEB 挡住。 */
-const WEB=typeof HX_ONLINE!=='undefined'&&HX_ONLINE;
+/* 2026-11-08 用户：「试卷都不再这边出的 这边是不是只有上机练习功能就够了」。
+   ── 这个文件现在的常态 ──
+   HX_ONLINE（网页版 /mcu/，build.js 只出这一种）：
+     · 老师菜单只有 班级名单 / 导入书上代码（见 ui-shell.js 的 T_PAGES）
+     · 组卷器、组卷码命名、理论试卷、批改成绩的**代码全部留着没删**（用户说万一要恢复），
+       但页面的 DOM 不再生成，这些初始化会到处空引用 —— 所以下面凡是碰
+       #ekey / #qlist / #ppFrame / #ppTypes / #thead / #exNames / #stuSel 的代码都先判元素在不在，
+       不在就安静跳过（原来还有个 WEB 开关，现在只剩网页版一种，直接靠元素判断）。
+       组卷、组卷码、理论试卷、批改与成绩导出整套在「考试」工具里。
+   离线单文件（U 盘版）已经停掉（用户：「不需要离线文件版本」），分支代码留着备查。 */
 MODE_INIT.teacher=function(){
   const subs=new Map();      // `${sid}|${q}` → 提交
   const stus=new Map();      // 学号 → {adj}（姓名、班级查名单）
@@ -6608,14 +6417,13 @@ MODE_INIT.teacher=function(){
   const fixMids=()=>B.qs.forEach(q=>{if(q.mid&&!MOTHER_BY_ID[q.mid])q.mid=null;});
   fixMids();
   const code=()=>makeExamCode(B.key,B.qs);
-  const cfg=()=>({code:code(),n:B.qs.length,pts:B.qs.map(q=>q.pts),requireHex:$('reqhex').checked});
+  const cfg=()=>({code:code(),n:B.qs.length,pts:B.qs.map(q=>q.pts),requireHex:!!($('reqhex')&&$('reqhex').checked)});
   const paperOf=sid=>{const k=code()+'|'+sid;if(!paperCache.has(k))paperCache.set(k,examPaper(sid,code()));return paperCache.get(k);};
   const stu=sid=>{if(!stus.has(sid))stus.set(sid,{adj:0});return stus.get(sid);};
   const nameOf=sid=>{const s=ROSTER.find(sid);return s?s.name:'';};
   const clsOf=sid=>{const s=ROSTER.find(sid);return s?s.cls:'';};
   const clsLabel=()=>ROSTER.cur()||'全部班级';
   const fmt=x=>Math.round(x*10)/10;
-  const OV={cnt:null,avg:null};
   const qnums=()=>B.qs.map((_,i)=>i+1);
 
   /* ---------- 组卷器 ---------- */
@@ -6652,10 +6460,10 @@ MODE_INIT.teacher=function(){
     $('ptsum').textContent=`共 ${B.qs.length} 题，满分 ${total} 分`;
     $('examCode').textContent=code();
     $('codeLen').textContent=code().length+' 个字符';
-    if(typeof renderExamNames==='function')renderExamNames();updateOverview();
+    if(typeof renderExamNames==='function')renderExamNames();
   }
   function examChanged(){
-    saveExam();markDirty();paperCache.clear();renderBuilder();regradeAll();showPaper($('stuSel').value);fillPQ();
+    saveExam();markDirty();paperCache.clear();renderBuilder();regradeAll();showPaper($('stuSel')?$('stuSel').value:'');fillPQ();
   }
   on('qlist','change',e=>{
     const row=e.target.closest('.qrow');if(!row)return;const q=B.qs[+row.dataset.i],f=e.target.dataset.f;
@@ -6793,7 +6601,6 @@ MODE_INIT.teacher=function(){
       return `<tr><td>${esc(sid)}</td><td>${esc(nameOf(sid))}</td>${all?`<td>${cl?esc(cl):'<span class="tag warn" style="margin:0">名单外</span>'}</td>`:''}${qnums().map(cell).join('')}<td><input class="adj" type="number" step="0.5" value="${stu(sid).adj||0}" data-adj="${esc(sid)}" style="width:72px"></td><td class="tot"><b data-tot="${esc(sid)}">${has?sc.total:'-'}</b></td></tr>`;
     }).join(''):`<tr><td colspan="${C.n+5}" class="empty">${esc(clsLabel())}还没有数据：先在“名单与试卷”里导入名单，或直接把学生交上来的文件夹拖到页面里。</td></tr>`;
     $('stat').innerHTML=`${esc(clsLabel())}：已批改 <b>${cnt}</b> 人　平均分 <b>${cnt?fmt(sum/cnt):'-'}</b>　满分 <b>${C.pts.reduce((a,b)=>a+b,0)}</b>`;
-    OV.cnt=cnt;OV.avg=cnt?fmt(sum/cnt):'-';updateOverview();
     $('details').innerHTML=ids.filter(sid=>qnums().some(q=>subs.has(sid+'|'+q))).map(sid=>{
       const P=paperOf(sid);
       return `<div class="card" id="d_${esc(sid)}"><h2>${esc(sid)} ${esc(nameOf(sid))}　<span class="note">卷号 ${P[0].paper}</span></h2>`+qnums().map(q=>{
@@ -6825,8 +6632,8 @@ MODE_INIT.teacher=function(){
     toast('已批改，见下方成绩表');
   }
   /* ---------- 初始化 ---------- */
-  const RS=initRoster();
-  document.addEventListener('rosterchange',()=>{fillStuSel();render();showPaper($('stuSel')?$('stuSel').value:'');updateOverview();});
+  initRoster();
+  document.addEventListener('rosterchange',()=>{fillStuSel();render();showPaper($('stuSel')?$('stuSel').value:'');});
   on('reqhex','change',regradeAll);
   on('stuSel','change',()=>showPaper($('stuSel').value));
   on1('btnPapers',exportPapers);
@@ -6848,18 +6655,18 @@ MODE_INIT.teacher=function(){
     const out=b.closest('details').querySelector('[data-hexout]');
     if(out)out.innerHTML=hexResultHTML(name,makeHexFile(name,code));
   });
-  /* 拖进来的文件：在“名单与试卷”页是名单（考勤表），其他页是学生交的程序 */
-  enableDrop(files=>{if(CUR_PAGE==='t-roster'&&files.some(f=>/\.(xls|xlsx|csv)$/i.test(f.name)))RS.importFiles(files);else addFiles(files);},'teacher');
+  /* 拖进来的文件就是学生交的程序（名单不在这个工具里导了：首页「班级」导入） */
+  enableDrop(files=>addFiles(files),'teacher');
   /* 导入书上代码 */
   if($('tImport'))importWidget($('tImport'),{list:BANK.teacher,save:BANK.saveTeacher,mothers:()=>CUSTOM_MOTHERS,who:'teacher'});
   document.addEventListener('bankchange',()=>{fixMids();examChanged();});
-  /* ---------- 组卷码名字：给当前这套卷起个好记的名字（如“期末A”），学生输名字就能取题；不起名就用自动生成的码 ---------- */
-  const total=()=>B.qs.reduce((a,q)=>a+q.pts,0);
+  /* ---------- 组卷码名字：给当前这套卷起个好记的名字（如“期末A”），学生输名字就能取题；不起名就用自动生成的码 ----------
+     网页版没有这一页（#exNames 不存在），renderExamNames 第一行就返回；代码留着备恢复。 */
   function renderExamNames(){
     if(!$('exNames'))return;    // 网页版没有组卷页（组卷码改在「考试」工具里起名）
     const L=(DATA.exams||[]).map(e=>({h:e.h,made:e.made,...(VAULT.examNames[e.h]||{label:'（名字在别处设的）',code:''})}));
     $('exNames').innerHTML=L.length?`<table class="mini"><thead><tr><th>名字</th><th>对应的组卷码</th><th>设于</th><th></th></tr></thead><tbody>${L.map(e=>`<tr><td><b>${esc(e.label)}</b></td><td class="mono note">${esc(e.code)}${e.code===code()?' <span class="tag ok" style="margin:0">当前</span>':''}</td><td class="note">${esc(e.made||'')}</td><td><button class="sm" data-exdel="${esc(e.h)}">删除</button></td></tr>`).join('')}</tbody></table>`:'<div class="note">还没有起名字的组卷码。</div>';
-    if($('ansPwNote'))$('ansPwNote').innerHTML=answerPw()?`现在是 <b class="mono">${esc(answerPw())}</b>：学生在平时练习里输入它才能看答案；检测结果只报错、不给正确写法。改了要“保存到文件”再发给学生。`:'还没设：学生的“查看答案”打不开，检测只报错。';
+  
   }
   on1('btnExName',async()=>{
     const n=$('exName').value.trim();
@@ -6867,109 +6674,15 @@ MODE_INIT.teacher=function(){
     if(n.length>20){toast('名字最多 20 个字');return;}
     if(parseExamCode(n)){toast('这个名字和组卷码的格式一样，换一个');return;}
     $('btnExName').disabled=true;
-    try{await setExamName(n,code());$('exName').value='';renderExamNames();updateOverview();toast(`“${n}”现在对应这套卷。保存到文件后，学生输“${n}”就能取题`);}
+    try{await setExamName(n,code());$('exName').value='';renderExamNames();toast(`“${n}”现在对应这套卷`);}
     catch(e){toast('设置失败：'+e.message);}
     finally{$('btnExName').disabled=false;}
   });
-  on('exNames','click',e=>{const b=e.target.closest('[data-exdel]');if(b)twoStep(b,'再点一次',()=>{delExamName(b.dataset.exdel);renderExamNames();updateOverview();});});
-  /* 查看答案密码（放在概览页最上面）：每节课随时改，保存到文件后发给学生生效；明文在加密的保险箱里，方便上课时看 */
-  set('ansPwIn','value',answerPw());
-  on1('btnAnsPw',()=>{
-    const v=$('ansPwIn').value.trim();
-    if(v&&!/^[\w\-]{2,20}$/.test(v)){toast('查看答案密码用 2～20 个字母、数字');return;}
-    setAnswerPw(v);renderExamNames();
-    toast(v?'已设好。点左下角“保存到文件”，再把文件发给学生':'已清空查看答案密码：学生的答案打不开');
-  });
+  on('exNames','click',e=>{const b=e.target.closest('[data-exdel]');if(b)twoStep(b,'再点一次',()=>{delExamName(b.dataset.exdel);renderExamNames();});});
   renderExamNames();
 
-  /* ---------- 概览（横带：数字 → 流程 → 当前这套卷） ---------- */
-  /* 网页版的班级名单来自**首页「班级」**（同一个账号下的工具通用，存云端），
-     不再读 VAULT.classes —— 那是离线单文件时代的本地加密存储，网页版没有导入入口，
-     所以以前永远是「名单人数 -」「0 个班级」。用户原话：
-     「为什么没有名单 我首页的班级名单是用户导入后本账户内全工具通用的」。
-     取名单是异步的：先显示「读取中…」，拿到再重画；取不到（断网 / 服务器 500 / 没登录）
-     一律当空名单，概览照常能打开 —— 名单是加料，不是页面能不能用的前提。 */
-  let cloudCls=null,cloudBusy=false,cloudTried=false;   // cloudCls: null = 还没拿到（不是「没有班」）
-  function cloudClasses(){
-    if(!WEB)return null;
-    if(!cloudBusy&&!cloudTried){
-      cloudBusy=true;
-      const p=(typeof MCU_CLOUD!=='undefined'&&MCU_CLOUD.classes)?MCU_CLOUD.classes():Promise.resolve([]);
-      p.catch(()=>[]).then(L=>{cloudCls=Array.isArray(L)?L:[];cloudBusy=false;cloudTried=true;updateOverview();});
-    }
-    return cloudCls;
-  }
-  /* 勾选「上课的班级」只记在这台电脑上（store → localStorage）：
-     云端 hx_classes.tools 是「这个班开通了哪些工具」，和「这节课上哪个班」不是一回事，
-     用户也要求别改数据库结构。离线版照旧用 DATA.active / ROSTER.setActive。 */
-  const ACTIVE_KEY='mcu.active';
-  function activeNames(L){
-    const v=store.get(ACTIVE_KEY,[]);
-    return (Array.isArray(v)?v:[]).filter(n=>(L||[]).some(c=>c.name===n));
-  }
-  function renderActPick(L,act){
-    const box=$('ovClsPick');if(!box)return;
-    if($('ovClsCard'))$('ovClsCard').hidden=!L.length;
-    box.innerHTML=L.length?`<div class="chks">${L.map(c=>`<label class="chk"><input type="checkbox" data-mcu-cls="${esc(c.name)}" ${act.includes(c.name)?'checked':''}> <b>${esc(c.name)}</b><span class="note">${c.students.length} 人${(c.tools||[]).includes('mcu')?'':' · 未开通单片机'}</span></label>`).join('')}</div>`:'';
-  }
-  on('ovClsPick','change',e=>{
-    const b=e.target.closest('[data-mcu-cls]');if(!b)return;
-    const cur=new Set(activeNames(cloudCls||[]));
-    if(b.checked)cur.add(b.dataset.mcuCls);else cur.delete(b.dataset.mcuCls);
-    store.set(ACTIVE_KEY,[...cur]);
-    updateOverview();
-  });
-  document.addEventListener('pageshow',e=>{
-    if(e.detail!=='t-overview')return;
-    /* 每次回概览都重新问一次云端：老师常先去首页导名单再回来，名单得跟着变。
-       已经在手的那份继续显示（不闪回「读取中…」），新的到了再替换；上次没取成也走这条路重试。 */
-    if(WEB&&!cloudBusy)cloudTried=false;
-    updateOverview();countUp(document.querySelector('[data-page="t-overview"]'),'.stat .v');
-  });
-  function updateOverview(){
-    if(!$('ovRoster'))return;
-    if(WEB){
-      const L=cloudClasses();
-      if(!L){
-        set('ovRoster','textContent','…');
-        set('ovRosterK','textContent','读取中…');
-        set('ovRosterS','textContent','读取中…');
-        set('ovExam','textContent','…');
-        set('ovExamS','textContent','读取中…');
-      }else{
-        /* 名单人数按「学号」去重：同一个学生被两个班都导过，只能算一个人 */
-        const ids=new Set();
-        L.forEach(c=>c.students.forEach(s=>ids.add(s.no||s.name)));
-        const act=activeNames(L);
-        set('ovRoster','textContent',ids.size||'-');
-        set('ovRosterK','textContent',`${L.length} 个班级`);
-        set('ovRosterS','textContent',L.length
-          ?L.map(c=>`${c.name} ${c.students.length} 人${(c.tools||[]).includes('mcu')?'':'（未开通单片机）'}`).join('，')
-          :'还没有名单：到首页『班级』导入');
-        set('ovExam','textContent',act.length?act.length+' 个班':'未选');
-        set('ovExamS','textContent',act.length?act.join('、'):'在下面勾选');
-        renderActPick(L,act);
-      }
-    }else{
-      /* 离线单文件：没有账号体系，名单只能来自文件里的 VAULT（照旧） */
-      const all=ROSTER.students('');
-      $('ovRoster').textContent=all.length||'-';
-      const act=ROSTER.active();set('ovExam','textContent',act.length?act.length+' 个班':'未选');
-      set('ovExamS','textContent',act.length?act.join('、'):'在“班级名单”里勾选');
-      set('ovRosterS','textContent',ROSTER.all().length?ROSTER.all().map(c=>`${c.name} ${c.students.length} 人`).join('，'):'还没有名单：导入考勤表');
-      set('ovRosterK','textContent',`${ROSTER.all().length} 个班级`);
-    }
-    set('ovSubs','textContent',OV.cnt==null?'-':OV.cnt);
-    set('ovAvg','textContent',OV.avg==null?'-':OV.avg);
-    set('ovBank','textContent',CUSTOM_MOTHERS.length?`已导入 ${CUSTOM_MOTHERS.length} 段`:'可选，不导入也能组卷');
-    // 网页版没有「组卷」这一步：组卷码与当前这套卷都挪到「考试」工具里，这三格不渲染（元素不在就跳过）
-    const nm=Object.values(VAULT.examNames).filter(e=>e.code===code()).map(e=>e.label);
-    set('ovBuild','textContent',`${B.qs.length} 题 · 满分 ${total()}${nm.length?' · 学生输“'+nm.join('”或“')+'”':''}`);
-    set('ovGrade','textContent',OV.cnt?`已批改 ${OV.cnt} 人，平均 ${OV.avg}`:'把学生交的文件夹拖进来');
-    set('ovCode','textContent',code());
-    if($('ovPaper'))$('ovPaper').innerHTML=B.qs.map((q,i)=>{const M=q.mid&&MOTHER_BY_ID[q.mid];return `<tr><td>第 ${i+1} 题</td><td>${M?esc(M.id+' '+M.name):'随机母题'}</td><td>${TYPE_NAME[q.type]}</td><td>${q.pts} 分</td><td>${q.draw!=null?'<span class="tag warn" style="margin:0">全班同一题</span>':'<span class="note">每人参数不同</span>'}</td></tr>`;}).join('');
-  }
-  if(typeof initPaper==='function'&&$('ppFrame'))initPaper();   // 网页版没有理论试卷页（已迁到「考试」）
+  /* 网页版没有理论试卷页（已迁到「考试」），#ppFrame 不存在，不初始化 */
+  if(typeof initPaper==='function'&&$('ppFrame'))initPaper();
   saveExam();renderBuilder();fillPQ();
   fillStuSel();render();
 };
