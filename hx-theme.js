@@ -72,7 +72,8 @@
   // 在网站上被单独打开的子工具：回到总入口（登录、账号、外观都在那里）。离线单文件不跳；地址加 ?solo 也不跳（调试用）。
   if (tool && window.top === window && /^https?:$/.test(location.protocol) && !/[?&]solo\b/.test(location.search)) { location.replace(root + '#' + tool); return; }
 
-  // 嵌在总入口里的子工具：选了背景图时页面底色透明，透出首页的背景图（以前单片机、考试、排课、加分是整页纯色铺满）
+  // 嵌在总入口里的子工具：背景层自己铺一遍（以前是「透明让首页壁纸透上来」，2026-11-09 证明
+  // Chrome 会把显式透明的根背景画成白画布，深色工具页整片发白 —— 详见下面那段注释）
   // hx-embedded：告诉工具「你被嵌在框里了」。自带校徽水印的工具（目前只有排课 .wm）见到它就收起自己那一份，
   // 由总入口统一画一层，免得同一个校徽画两遍还错位。
   // 2026-11-06 修「点浅色页面还是深色」：透明只给深色用。浅色时让工具页铺自己的浅色底
@@ -81,13 +82,24 @@
   if (tool && window.top !== window) {
     document.documentElement.classList.add('hx-embedded');
     var st = document.createElement('style');
-    // 嵌入时背景由总入口统一画：这里把自己画背景的每一层都关掉（html/body 底色与背景图、
-    // body::before 背景层、视频层、极光层），深色只留透明让总入口壁纸从 iframe 底下透上来 ——
-    // 否则同一张图会在 iframe 里再画一遍，和总入口叠成双重背景（用户报「透明度拉低出现双重背景重叠」）。
-    // 浅色仍铺自己的浅色底（见 apply 里那段注释），所以只对深色关。
-    st.textContent = 'html.hx-embedded[data-hx-mode="dark"],html.hx-embedded[data-hx-mode="dark"] body{background-color:transparent!important;background-image:none!important}'
-      + 'html.hx-embedded[data-hx-mode="dark"] body::before{background-image:none!important}'
-      + 'html.hx-embedded[data-hx-mode="dark"] .hx-bgvid-wrap,html.hx-embedded[data-hx-mode="dark"] .hx-bgmo{display:none!important}';
+    // 2026-11-09 修用户报障「选极光背景后工具页整体发灰、题目文字发白看不清、画布一整块灰白」。
+    // 原因查清了，不是配色也不是壁纸丢了：
+    //   原来这里把 html（根元素）的底色**显式**设成 transparent，想让总入口壁纸从 iframe 底下透上来。
+    //   但 Chrome 对「显式 transparent 的根背景」不会去透父页面，而是退回 iframe 自己的**白色画布**；
+    //   #hx-layer-style 里那些铺壁纸的规则又都挂在 .hx-layer 上，而嵌入时故意不挂 .hx-layer
+    //   （见 apply 里那段注释），视频层也被下面这条 display:none 关掉 —— 于是工具页里没有任何一层
+    //   在画背景，白色画布就直接露出来了。接线仿真的画布/卡片是半透明的（深色 .56），压在这层白上
+    //   就成了灰色，而深色主题的字是浅色，浅字压灰底 = 看不清。实测把根底色刷成不透明色，灰底立刻消失。
+    // 现在改成：根元素铺主题底色（--hx-page，深色 = #000，不是白），body 保持透明，
+    //   壁纸由 body::before 自己铺一遍（嵌入时不建视频层，用海报帧；总入口开着工具时那边视频本来就
+    //   暂停了，观感一致）。代价是「壁纸在 iframe 里又画了一遍」，但这幅画和总入口是同一张、同位置，
+    //   肉眼看不出来；不这么做的话深色工具页就只有一片白。
+    // 浅色仍铺自己的浅色底（见下面注释），所以只对深色生效。
+    st.textContent = 'html.hx-embedded[data-hx-mode="dark"]{background-color:var(--hx-page,#000)!important;background-image:none!important}'
+      + 'html.hx-embedded[data-hx-mode="dark"] body{background-color:transparent!important;background-image:none!important}'
+      + 'html.hx-embedded[data-hx-mode="dark"] body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;'
+      + 'background:var(--hx-img) center / cover no-repeat;opacity:var(--hx-bgo,1)}'
+      + 'html.hx-embedded .hx-bgvid-wrap,html.hx-embedded .hx-bgmo{display:none!important}';
     (document.head || document.documentElement).appendChild(st);
   }
 
@@ -987,7 +999,10 @@
     if (vidStill && b.poster) img = 'url("' + root + b.poster + '")';
     // 视频真的在播：把 body::before 的海报帧整层藏起来 —— 它在 z-index:-1、视频层(-2)之上，
     // 不藏会把视频整个盖住。视频停了/降级了（手机、省电）再放回来当静图。
-    r.classList.toggle('hx-vidlive', isVid && !vidStill);
+    // 嵌入时不挂：iframe 里根本不建视频（见 apply 末尾 embedded 分支），挂了只会把上面那条
+    // 嵌入专用的海报规则一起点名灭掉（html.hx-vidlive body::before{background-image:none!important}），
+    // 工具页就又回到白底了。
+    r.classList.toggle('hx-vidlive', isVid && !vidStill && !embedded);
     // 透明哨兵图（2026-11-08）：工具页选了「背景=无 + 动效≠无」时，动效画布要能被看见，
     // 前提是接线仿真这类「自带不透明画布的工具」肯把自己的底色调成半透明 —— 它们只认
     // hxLook 传过去的 --hx-img（有图才肯透）。所以这里放一张 1px 的透明 GIF 冒充「有背景」：
@@ -1077,6 +1092,7 @@
     saveImgs(list);
     // 删掉的正好是当前这张：别留一个指向不存在图片的 custom，回落到默认背景
     if (gone && ls(IMG) === gone.data) { ls(IMG, null); set({ bg: DEF.bg }); }
+    cloudDel(id);              // 云端那一行也删掉，否则换台设备又冒出来
     return list;
   }
   function useImg(id) {
@@ -1085,7 +1101,128 @@
     if (!hit) return false;
     ls(IMG, hit.data);
     set({ bg: 'custom' });
+    cloudPick(id);
     return true;
+  }
+  /* ── 上传背景的云端同步（2026-11-09 用户要求「上传的背景需要支持跨设备通用」）──────────
+     原来相册只住在 localStorage（hx-theme-imgs / hx-theme-img），换设备、换浏览器、清一次缓存就全没了。
+     现在登录后云端也存一份（表 public.hx_bg，RLS 只认本人，一人最多 6 张）：
+       · 传新图 → 立刻插一行；插完把本地那条的 id 换成云端 id（以后删除/切换才认得上）；
+       · 删一张 → 删云端那一行；
+       · 换当前 → 把 cur 标到那一行（先把别人的 cur 清掉），新设备一登进来就是这张；
+       · 打开页面（idle 后）、打开外观面板 → 拉一次目录（只取 id/cur/时间，几十字节），
+         和本地指纹对不上才去下载图片本体，正常情况一个请求都不多。
+     本地那份不删：离线、慢网、没登录时照旧能用，它降级成「缓存」。
+     失败一律安静（.catch 吞掉）：这是锦上添花的功能，不该因为它让上传/切背景失败。 */
+  var SUPA = 'https://eiqgyrjrwdaunhxjmdyr.supabase.co',
+    SKEY_PUB = 'sb_publishable_FcVnLx3TNrj6HnbgarYnRw_DW4-yFzd',
+    BG_TBL = '/rest/v1/hx_bg', BG_SIG = 'hx-bg-sig', cloudRun = null;
+  function bgTok() { try { var s = JSON.parse(ls(SKEY_SESS) || 'null'); return (s && s.access_token) || ''; } catch (e) { return ''; } }
+  function isUuid(s) { return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(s || '')); }
+  function bgApi(path, o) {
+    o = o || {};
+    var t = bgTok(); if (!t) return Promise.reject(new Error('没登录'));
+    var h = { apikey: SKEY_PUB, Authorization: 'Bearer ' + t, 'Content-Type': 'application/json' };
+    if (o.prefer) h.Prefer = o.prefer;
+    return fetch(SUPA + BG_TBL + path, { method: o.method || 'GET', headers: h, cache: 'no-store', body: o.body ? JSON.stringify(o.body) : undefined })
+      .then(function (r) {
+        if (!r.ok) return r.text().then(function (x) { throw new Error((x || '').slice(0, 140) || ('HTTP ' + r.status)); });
+        return r.status === 204 ? null : r.json().catch(function () { return null; });
+      });
+  }
+  // 拉云端目录 → 只补本地缺的那几张 → 清掉别处删过的 → 重画一次（面板靠 onChange 自己刷新）
+  // 增量而不是「整本重下」：相册最多 6 张、每张几十万字符，全量拉一次就是好几 MB，
+  // 每次切个背景都重下完全没必要（2026-11-09 第一版就是这么亏的，实测同一页发了 3 次全量 GET）。
+  var BG_SEED = 'hx-bg-seed';
+  function cloudSync() {
+    if (!bgTok()) return Promise.resolve(false);
+    if (cloudRun) return cloudRun;            // 同一时刻只跑一趟，排队的一起等它
+    cloudRun = bgApi('?select=id,cur,created_at&order=created_at.desc&limit=6')
+      .then(function (rows) {
+        rows = rows || [];
+        var local = imgs(), have = {}, keep = {}, ord = {}, curId = '';
+        for (var i = 0; i < local.length; i++) have[local[i].id] = 1;
+        for (var j = 0; j < rows.length; j++) {
+          keep[rows[j].id] = 1; ord[rows[j].id] = j;
+          if (rows[j].cur) curId = rows[j].id;
+        }
+        // 云端一张都没有，本地却有旧图（这版之前传的）：先把本地的推上去，老用户换设备也能看到。
+        // 只做一次（BG_SEED 记住），失败下次进来再试。
+        if (!rows.length && local.length && !ls(BG_SEED)) {
+          return seedLocal(local).then(function () { cloudRun = null; return cloudSync(); });
+        }
+        var sig = rows.map(function (x) { return x.id + (x.cur ? '*' : ''); }).join('|');
+        if (sig === ls(BG_SIG)) return false;
+        // 本地清单：云端没有的（在别的设备删了）去掉；id 还是 m... 的（没同步过的）留着
+        var list = local.filter(function (x) { return !isUuid(x.id) || keep[x.id]; });
+        var miss = [];
+        for (var k = 0; k < rows.length; k++) if (!have[rows[k].id]) miss.push(rows[k].id);
+        var done = function () {
+          saveImgs(list);
+          ls(BG_SIG, sig);
+          // 云端标记的「当前这张」：本地有就铺上 —— 换设备第一次登录就是同一张背景
+          for (var n = 0; n < list.length; n++) if (curId && list[n].id === curId) { try { ls(IMG, list[n].data); } catch (e) { } }
+          try { apply(); } catch (e) { }
+          return true;
+        };
+        if (!miss.length) return done();
+        return bgApi('?select=id,data,created_at&id=in.(' + miss.join(',') + ')').then(function (full) {
+          (full || []).forEach(function (x) { if (x && x.data) list.push({ id: x.id, data: x.data, at: Date.parse(x.created_at) || Date.now() }); });
+          list.sort(function (a, b) { return (ord[a.id] == null ? 99 : ord[a.id]) - (ord[b.id] == null ? 99 : ord[b.id]); });
+          return done();
+        });
+      })
+      .catch(function () { return false; })
+      .then(function (v) { cloudRun = null; return v; });
+    return cloudRun;
+  }
+  // 把本地以前传的图逐张推上云（这版之前只有一个本地格子，用户手里可能已经攒了几张）
+  function seedLocal(local) {
+    var q = Promise.resolve();
+    for (var i = 0; i < local.length; i++) {
+      (function (it, idx) {
+        if (isUuid(it.id)) return;
+        q = q.then(function () {
+          return bgApi('', { method: 'POST', prefer: 'return=representation', body: [{ data: it.data, cur: idx === 0 }] })
+            .then(function (r) {
+              var row = r && r[0];
+              if (!row || !row.id) return null;
+              var list = imgs();
+              for (var j = 0; j < list.length; j++) if (list[j].data === it.data) list[j].id = row.id;
+              saveImgs(list);
+              return null;
+            }).catch(function () { return null; });
+        });
+      })(local[i], i);
+    }
+    return q.then(function () { try { ls(BG_SEED, '1'); } catch (e) { } return true; });
+  }
+  function cloudAdd(data) {
+    if (!bgTok()) return;
+    // cur 直接给 true：新传的图一定是要用的那张
+    bgApi('', { method: 'POST', prefer: 'return=representation', body: [{ data: data, cur: true }] })
+      .then(function (r) {
+        var row = r && r[0]; if (!row || !row.id) return;
+        var list = imgs(), hit = null;
+        for (var i = 0; i < list.length; i++) if (list[i].data === data) hit = list[i];
+        if (hit && hit.id !== row.id) { hit.id = row.id; saveImgs(list); }
+        cloudPick(row.id);       // 先清掉别人的 cur，再置这张
+      })
+      .catch(function () { });
+  }
+  // PostgREST 的 PATCH 走 URL 过滤：先把所有 cur=true 的清掉，再置这一张
+  function cloudPick(id) {
+    if (!bgTok() || !isUuid(id)) return;
+    bgApi('?cur=is.true', { method: 'PATCH', body: { cur: false } })
+      .then(function () { return bgApi('?id=eq.' + id, { method: 'PATCH', body: { cur: true } }); })
+      .then(function () { setTimeout(cloudSync, 400); })
+      .catch(function () { });
+  }
+  function cloudDel(id) {
+    if (!bgTok() || !isUuid(id)) return;
+    bgApi('?id=eq.' + id, { method: 'DELETE' })
+      .then(function () { setTimeout(cloudSync, 400); })
+      .catch(function () { });
   }
   function upload(file) {
     return new Promise(function (ok, no) {
@@ -1101,6 +1238,7 @@
         // 先存当前、再进相册：相册写失败（配额满）不该让这次上传本身失败
         try { addImg(data); } catch (e) { }
         set({ bg: 'custom' }); ok();
+        cloudAdd(data);          // 云端存一份（没登录/断网就安静跳过，本地照样可用）
       };
       im.onerror = function () { URL.revokeObjectURL(url); no(new Error('这张图片打不开')); };
       im.src = url;
@@ -1163,12 +1301,23 @@
     return true;
   }
   var gated = gate();
+  // 云端相册：登录了就在页面空下来之后拉一次（别和首屏抢带宽）。
+  // 换了台设备（选了自定义背景、本地却没这张图）时它会顺手把图和「当前这张」补回来。
+  (function () {
+    if (!signedIn()) return;
+    function go() { try { cloudSync(); } catch (e) { } }
+    if (window.requestIdleCallback) requestIdleCallback(go, { timeout: 4000 });
+    else setTimeout(go, 2500);
+  })();
   window.HXTheme = { acc: ACC, bg: BG, wx: WX, root: root, surface: SURF, get: get, mode: function () { return modeOf(get()); }, set: set, upload: upload, reset: reset, isDev: isDev, setDev: setDev, onChange: function (fn) { subs.push(fn); },
     portal: portal, login: function () { var p = portal(); if (p) p.login(); else location.href = root + (tool ? '#' + tool : ''); },
     // 未登录闸门结果：工具页拿到 true 就该立刻停下（别先画界面再被跳走）
     gated: gated, signedIn: signedIn,
     // 上传过的背景相册（2026-11-04）：imgs() 取列表、useImg(id) 切回、delImg(id) 删一张
     imgs: imgs, useImg: useImg, delImg: delImg,
+    // 云端同步（2026-11-09）：打开外观面板时调一次，把别的设备上传的图拉下来。
+    // 先发一个只取目录的小请求，指纹一样就到此为止；不一致才按 id 补下载缺的那几张。
+    sync: cloudSync,
     // 像素方块「正在载入」药丸（2026-11-04）：见文件上方 loadPill 那段注释。
     // HXTheme.loadPill(host, '正在载入…') / loadPill('正在载入…')（铺满整页）；返回 { el, text(), done() }
     loadPill: loadPill, bgPause: bgPause,

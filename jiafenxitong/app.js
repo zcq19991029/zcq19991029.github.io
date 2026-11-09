@@ -2476,17 +2476,24 @@ function restoreDroppedToHome(cls) {
       return { r: r, g: g, table: table };
     });
     var nGrouped = rows.filter(function (x) { return x.g !== null; }).length;
+    /* 坐在圆桌上、还没点「按选座确认分组」的人：名单里已经写成「已选座 · 第 N 桌（待确认）」，
+       所以这里也必须单列一格，否则同一页上会出现「上面说未分组 7 人、下面 7 个人都写着已选座」
+       ——正是 2026-11-08 老师报过的那个自相矛盾。
+       口径：已分组 + 已选座待确认 + 未分组 = 全班，三个数永远对得上。 */
+    var nSeated = rows.filter(function (x) { return x.g === null && x.table; }).length;
+    var nPending = rows.length - nGrouped - nSeated;
 
-    /* 指标只算 cls.groups 这一套口径：已分组 + 未分组 = 全班，三个数一定对得上。
-       学生自助选座的「已坐 x/y」不放在这里（那是另一套数据，收在页面最底下的「更多」里），
-       否则又会出现「上面说 0/48、下面说已分 49/49」的自相矛盾。 */
     $('#poolMetrics').innerHTML =
       '<div class="metric"><div class="k">全班人数</div><div class="v">' + rows.length +
         ' <small>人</small></div></div>' +
       '<div class="metric"><div class="k">已分组</div><div class="v good">' + nGrouped +
         ' <small>人</small></div></div>' +
-      '<div class="metric"><div class="k">未分组</div><div class="v ' + ((rows.length - nGrouped) ? 'neg' : '') + '">' +
-        (rows.length - nGrouped) + ' <small>人</small></div></div>';
+      (nSeated
+        ? '<div class="metric"><div class="k">已选座 · 待确认</div><div class="v">' + nSeated +
+          ' <small>人</small></div></div>'
+        : '') +
+      '<div class="metric"><div class="k">未分组</div><div class="v ' + (nPending ? 'neg' : '') + '">' +
+        nPending + ' <small>人</small></div></div>';
 
     /* 筛选：圆桌上的人还没写进分组，仍然归在「待分配」这一栏里等人点确认 */
     var list = rows;
