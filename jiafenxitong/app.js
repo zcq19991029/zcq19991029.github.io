@@ -238,14 +238,36 @@
 
   /* ================= 全班名单 / 待分配 ================= */
 
-var GROUP_CAP = 7;          // 默认上限：自动分组、均匀分配、待分配下拉都按它算
+var GROUP_CAP = 7;          // 老师还没在分组向导里定过人数时用的老默认上限（保持旧数据行为不变）
 
-/** 某个组自己的上限（默认 GROUP_CAP）。
-    老师可以直接在组里加人/减人，不受默认上限约束；一旦加到超过默认上限，
-    就把实际人数记进 g.cap = 「这个组我特许 N 个人」。
-    自动分组/均匀分配仍只认 GROUP_CAP，不然下一次自动分组会把特许的组又摊平。 */
-function groupCap(g) {
-  return Math.max(GROUP_CAP, Number(g && g.cap) || 0, memberCount(g));
+/** 老师这次给全班定的「每组最多几人」，存在 cls.groupLimit 上（2026-11-08 分组向导里填的）。
+    没定过返回 0，表示沿用老的 GROUP_CAP=7。
+    它只决定「满没满 / 要不要标红」，任何情况下都不会因为把它改小就删人 ——
+    用户原话：「我一旦不小心点错了 就会抹除我部分同学 强制变为6人 那老师完全无法恢复正确靠自己」。 */
+function classGroupLimit(cls) {
+  var v = Math.round(Number(cls && cls.groupLimit) || 0);
+  return v >= 2 ? Math.min(40, v) : 0;
+}
+
+/** 某个组实际适用的上限 = 班级上限 与本组特许（g.cap）取大。
+    老版本把 memberCount(g) 也塞进 max() 里，于是 7 人组的上限永远显示 7、永远看不出超员，
+    正是用户说的「老师完全无法恢复正确」。现在人数只用来判断超没超，不参与算上限。 */
+function groupTargetCap(cls, g) {
+  var limit = classGroupLimit(cls), own = Number(g && g.cap) || 0;
+  /* 老师还没在向导里定过人数：完全沿用旧行为（上限 = max(7, 本组特许, 现有人数)），
+     老班级里那些 8 人组不会被升级后突然标红。一旦定过，就按定的数严格算。 */
+  if (!limit) return Math.max(GROUP_CAP, own, memberCount(g));
+  return Math.max(limit, own);
+}
+
+/** 原来到处调用的 groupCap(g)：签名保持不变，不传 cls 就按当前班级算。 */
+function groupCap(g, cls) { return groupTargetCap(cls || curClass(), g); }
+
+/** 这组超了几个人（0 = 没超）。
+    用户要求：「超出的人标红 但是不移除原来组」——超出来的人照样留在 g.members 里，
+    只有界面上标红，等老师自己决定拖走 / 留下 / 单独建一组。 */
+function overCountOf(cls, g) {
+  return Math.max(0, memberCount(g) - groupTargetCap(cls, g));
 }
 
 function rosterOf(cls) {
@@ -317,6 +339,432 @@ function removeMemberAt(cls, g, j) {
     });
     s.personal = np;
   });
+}
+
+/* ================= 分组变动时的分数迁移（2026-11-08） =================
+   用户原话：「分完组之后我之前弄的加分全部丢失了基本上」。
+   根因：lesson.scores 是按「组号 gno」存整组四列，个人扣分又按「组内下标 i」存
+   （见 sc() / remaining() / memberTotals()）。组一重排、或者组里少一个人，下标整体错位，
+   看上去就像分全丢了；旧代码在「按选座确认分组」里甚至会把整组 personal 清空。
+   现在凡是会改变「组号 → 成员顺序」的动作，都先拍一张按【学生身份】记的快照，
+   动完再按身份写回；实在对不上人的保留在原处并报数，绝不静默清零。 */
+
+/** 学生身份键：学号优先，没有学号退回「姓名#班内序号」。和看板的 gbRowKey 同一套口径。
+    不拿组内下标当身份 —— 下标一变分数就错位，正是上面那件投诉的根。 */
+function studentKeyOf(m) {
+  if (!m || !m.name) return '';
+  if (m.sid) return 's:' + m.sid;
+  return 'n:' + m.name + '#' + (m.no == null ? '' : m.no);
+}
+
+/** 动结构之前拍快照：只记「哪个组号的第几个位置是谁」，分数本身留在 lesson.scores 里不动。
+    layout 用 studentKeyOf（学号 / 姓名#序号），给「个人扣分」用；
+    keys 用 memberKey（sid: / id:），给「个人项目分 leaderScores」用 —— 两套键不能混。 */
+function scoreLayoutSnapshot(cls) {
+  var layout = {}, keys = {};
+  (cls.groups || []).forEach(function (g) {
+    layout[g.no] = g.members.map(function (m) { return studentKeyOf(m); });
+    keys[g.no] = g.members.map(function (m) { return memberKey(m); });
+  });
+  return { layout: layout, keys: keys };
+}
+
+/** 按身份把每节课的「个人扣分」重新对齐到新的组内顺序，返回对不上的条数（调用方负责提示）。
+    三件事按顺序做：
+    ① 把旧布局里「一人一格」的扣分摊成「身份 → 扣分」的池子；
+    ② 清空本班还在的组的 personal，再按新成员顺序一人一格写回；
+    ③ 池子里没领走的（人已经不在任何组 / 老数据下标对不上身份）放回原组原位置；
+       位置被别人占了就挪进 personalUnmatched 留着，并计入返回值 —— 绝不清零。 */
+function realignPersonalScores(cls, snap) {
+  var layout = (snap && snap.layout) || {};
+  var unmatched = 0;
+  var groupNos = {};
+  (cls.groups || []).forEach(function (g) { groupNos[String(g.no)] = g; });
+  S.lessons.forEach(function (l) {
+    if (l.classId !== cls.id || !l.scores) return;
+    var pool = Object.create(null);   // 身份 → [{value,gno,idx}]
+    var loose = [];                   // 没有身份的旧值
+    Object.keys(l.scores).forEach(function (gno) {
+      var s = l.scores[gno];
+      if (!s || !s.personal) return;
+      Object.keys(s.personal).forEach(function (idx) {
+        var v = +s.personal[idx] || 0;
+        if (!v) return;
+        var key = (layout[gno] || [])[+idx] || '';
+        if (key) (pool[key] = pool[key] || []).push({ value: v, gno: gno, idx: String(idx) });
+        else loose.push({ value: v, gno: gno, idx: String(idx) });
+      });
+    });
+    Object.keys(groupNos).forEach(function (gno) {
+      var s = l.scores[gno];
+      if (s) s.personal = {};
+    });
+    Object.keys(groupNos).forEach(function (gno) {
+      var g = groupNos[gno], s = l.scores[gno];
+      if (!s) return;
+      g.members.forEach(function (m, i) {
+        if (!m.name) return;
+        var bag = pool[studentKeyOf(m)];
+        if (!bag || !bag.length) return;
+        s.personal[String(i)] = bag.shift().value;
+      });
+    });
+    var rest = loose.slice();
+    Object.keys(pool).forEach(function (k) { pool[k].forEach(function (x) { rest.push(x); }); });
+    rest.forEach(function (x) {
+      var s = l.scores[x.gno];
+      if (!s) { unmatched++; return; }
+      if (!groupNos[x.gno]) return;                    // 已删掉的历史组：personal 没清过，原样留着
+      if (s.personal[x.idx] != null) {                 // 格子被别人占了：挪进待核对，不清零
+        s.personalUnmatched = s.personalUnmatched || {};
+        s.personalUnmatched[x.idx] = (s.personalUnmatched[x.idx] || 0) + x.value;
+        unmatched++;
+        return;
+      }
+      s.personal[x.idx] = x.value;                     // 空着就放回原处
+    });
+  });
+  return unmatched;
+}
+
+/** 换组前先把这个人每一节课的个人扣分取出来（取出的同时从原组删掉，
+    removeMemberAt 会把原组后面的人整体左移，两边不会打架）。 */
+function takePersonalOf(cls, gno, idx) {
+  var out = [];
+  S.lessons.forEach(function (l) {
+    if (l.classId !== cls.id) return;
+    var s = l.scores[String(gno)];
+    var v = s && s.personal ? +s.personal[String(idx)] || 0 : 0;
+    if (!v) return;
+    out.push({ lessonId: l.id, value: v });
+    delete s.personal[String(idx)];
+  });
+  return out;
+}
+
+/** 人落到新组的新位置以后，把这笔扣分写回去。
+    以前人走了扣分留在原组，算到了原位置新坐下的同学头上 —— 这也是「分丢/算错」的来源之一。 */
+function putPersonalOf(cls, gno, idx, bag) {
+  if (!bag || !bag.length) return;
+  bag.forEach(function (x) {
+    var l = getLesson(x.lessonId);
+    if (!l || !l.scores) return;
+    var s = l.scores[String(gno)];
+    /* 目标组这节本来没有分数记录：只新建一张「个人扣分表」，group 记 0，
+       免得无中生有地给这一组添上默认的 5 分。 */
+    if (!s) s = l.scores[String(gno)] = { first: 0, group: 0, phone: 0, duty: 0, personal: {} };
+    if (!s.personal) s.personal = {};
+    s.personal[String(idx)] = (+s.personal[String(idx)] || 0) + x.value;
+  });
+}
+
+/* ---- 个人项目分（leaderScores）的搬迁（2026-11-08 追加） ----
+   个人项目分存成 leaderScores[组号].members[成员键]，成员键是 sid:xxx / id:xxx。
+   它不跟着人走：人从第 3 组换到第 5 组，这份分还挂在「第 3 组」名下，
+   而 projectScore() 是按「人现在所在的组号」去找的 —— 一个数字都找不到，
+   老师看到的就是「换完组个人项目分全没了」。所以换组时必须整条记录搬过去。 */
+
+/** 把某人在某组某节课的项目分取出来（取出的同时从旧组删掉），返回按课次分装的包 */
+function takeLeaderOf(cls, gno, key) {
+  var out = [];
+  if (!key) return out;
+  S.lessons.forEach(function (l) {
+    if (l.classId !== cls.id || !l.leaderScores) return;
+    var rec = l.leaderScores[String(gno)];
+    if (!rec || !rec.members || !rec.members[key]) return;
+    var meta = {};
+    if (l.peerMeta) Object.keys(l.peerMeta).forEach(function (mk) {
+      var p = mk.split('|');
+      if (p[0] === String(gno) && p[1] === key) { meta[p[2]] = l.peerMeta[mk]; delete l.peerMeta[mk]; }
+    });
+    out.push({
+      lessonId: l.id,
+      values: rec.members[key],
+      projects: rec.projects && rec.projects.slice ? rec.projects.slice() : null,
+      meta: meta
+    });
+    delete rec.members[key];
+  });
+  return out;
+}
+
+/** 落到新组以后把项目分写回去。目标组这节还没有记录就新建一条空壳（不伪造任何分数）。 */
+function putLeaderOf(cls, gno, key, bag) {
+  if (!bag || !bag.length || !key) return;
+  bag.forEach(function (x) {
+    var l = getLesson(x.lessonId);
+    if (!l) return;
+    if (!l.leaderScores) l.leaderScores = {};
+    var rec = l.leaderScores[String(gno)];
+    if (!rec) {
+      rec = l.leaderScores[String(gno)] = {
+        projects: (x.projects || (window.JFDT_ASSESSMENT ? window.JFDT_ASSESSMENT.projectNames(l) : []) || []).slice(),
+        members: {}, signedBy: '', note: ''
+      };
+    }
+    if (!rec.members) rec.members = {};
+    rec.members[key] = x.values;
+    if (x.meta && l.peerMeta) {
+      Object.keys(x.meta).forEach(function (col) {
+        l.peerMeta[String(gno) + '|' + key + '|' + col] = x.meta[col];
+      });
+    }
+  });
+}
+
+/** 整班重排以后，按「成员键」把所有个人项目分重新归到人现在所在的组号下面。
+    只清「本班还在的组」的记录；已经删掉的历史组原样留着（那是旧数据，不能凭空抹掉）。
+    搬不动的（记录指向的组已经不在了 / 同一个键撞车）留在原处并计数报给老师，绝不清零。 */
+function realignLeaderScores(cls, snap) {
+  var moved = 0, stranded = 0, groupNos = {};
+  (cls.groups || []).forEach(function (g) { groupNos[String(g.no)] = g; });
+  S.lessons.forEach(function (l) {
+    if (l.classId !== cls.id || !l.leaderScores) return;
+    var pool = Object.create(null);            // 成员键 → [{values, gno, projects}]
+    Object.keys(l.leaderScores).forEach(function (gno) {
+      var rec = l.leaderScores[gno];
+      if (!rec || !rec.members) return;
+      Object.keys(rec.members).forEach(function (key) {
+        (pool[key] = pool[key] || []).push({ values: rec.members[key], gno: gno, projects: rec.projects });
+      });
+    });
+    Object.keys(groupNos).forEach(function (gno) {
+      var rec = l.leaderScores[gno];
+      if (rec && rec.members) rec.members = {};
+    });
+    Object.keys(groupNos).forEach(function (gno) {
+      var g = groupNos[gno];
+      g.members.forEach(function (m) {
+        if (!m.name) return;
+        var key = memberKey(m), bag = pool[key];
+        if (!bag || !bag.length) return;
+        var x = bag.shift();
+        var rec = l.leaderScores[gno];
+        if (!rec) {
+          rec = l.leaderScores[gno] = {
+            projects: (x.projects || (window.JFDT_ASSESSMENT ? window.JFDT_ASSESSMENT.projectNames(l) : []) || []).slice(),
+            members: {}, signedBy: '', note: ''
+          };
+        }
+        if (!rec.members) rec.members = {};
+        rec.members[key] = x.values;
+        if (x.gno === gno) return;
+        moved++;
+        if (l.peerMeta) Object.keys(l.peerMeta).forEach(function (mk) {
+          var p = mk.split('|');
+          if (p[0] === String(x.gno) && p[1] === key) {
+            l.peerMeta[String(gno) + '|' + key + '|' + p[2]] = l.peerMeta[mk];
+            delete l.peerMeta[mk];
+          }
+        });
+      });
+    });
+    Object.keys(pool).forEach(function (key) {
+      pool[key].forEach(function (x) {
+        var rec = l.leaderScores[x.gno];
+        if (!rec) { stranded++; return; }
+        if (!rec.members) rec.members = {};
+        if (rec.members[key]) { stranded++; return; }
+        rec.members[key] = x.values;           // 人已经不在本班任何组里：留在原组号下面，不清零
+      });
+    });
+  });
+  return { moved: moved, stranded: stranded };
+}
+
+/* ================= 分组快照 / 人数对账 / 掉队归位（2026-11-08 追加） =================
+   团队在生产数据里抓到的现场：26工器1 班 49 人、10 次课、4015 分都在，可 cls.groups 里
+   只剩 5 个组 29 人 —— 另外约 20 人掉进了「待分配」。分没丢，人丢了，老师看到的却是
+   「我的加分全没了」。用户原话：「老师完全无法恢复正确靠自己」。
+   所以这里补三件事：
+   ① 每次动分组前存一份完整快照（最多 5 份），给一颗「撤回上一次分组」整份还原；
+   ② 动完立刻做人数对账，「分之前几个组多少人 → 分之后几个组多少人」，少了人就红字拦一下；
+   ③ 从上过课的记分表倒推「这人原来在第几组」，一键放回去，并把匹配依据和命中数写出来。 */
+
+var GROUP_SNAP_MAX = 5;      // 只留最近 5 份，再多会把 localStorage 撑满
+
+/** 一份完整快照：组结构（含顺序、组长、本组特许）+ 本班所有课次的 scores / leaderScores。
+    分数必须一起拍：换组会把个人扣分、个人项目分跟着人搬，只还原人不还原分，下一次算分就错位。 */
+function groupSnapshotData(cls) {
+  return {
+    groups: JSON.parse(JSON.stringify(cls.groups || [])),
+    limit: cls.groupLimit == null ? null : cls.groupLimit,
+    lessons: lessonsOf(cls.id).map(function (l) {
+      return {
+        id: l.id,
+        scores: JSON.parse(JSON.stringify(l.scores || {})),
+        leaderScores: JSON.parse(JSON.stringify(l.leaderScores || {}))
+      };
+    })
+  };
+}
+
+/** 动结构之前存一份可回滚的快照。label 是给老师看的人话（「按组数重排：49 人分 8 组」）。 */
+function pushGroupSnapshot(cls, label) {
+  if (!cls) return null;
+  if (!S.groupSnapshots) S.groupSnapshots = [];
+  var data = groupSnapshotData(cls);
+  var snap = {
+    id: uid('gs'), clsId: cls.id, clsName: cls.name || '',
+    label: String(label || '分组'), at: new Date().toISOString(),
+    groups: data.groups, limit: data.limit, lessons: data.lessons
+  };
+  S.groupSnapshots.push(snap);
+  while (S.groupSnapshots.length > GROUP_SNAP_MAX) S.groupSnapshots.shift();
+  return snap;
+}
+
+/** 本班最近一份快照（没有就 null）。 */
+function lastGroupSnapshot(cls) {
+  if (!cls || !S.groupSnapshots) return null;
+  var hit = null;
+  S.groupSnapshots.forEach(function (x) { if (x.clsId === cls.id) hit = x; });
+  return hit;
+}
+
+/** 撤回最近一份分组快照：组结构、每组顺序、分数一起整份还原，然后把这份快照用掉。 */
+function restoreGroupSnapshot(cls, snap) {
+  if (!cls || !snap || snap.clsId !== cls.id) return false;
+  cls.groups = JSON.parse(JSON.stringify(snap.groups));
+  if (snap.limit == null) delete cls.groupLimit; else cls.groupLimit = snap.limit;
+  (snap.lessons || []).forEach(function (x) {
+    var l = getLesson(x.id);
+    if (!l) return;
+    l.scores = JSON.parse(JSON.stringify(x.scores || {}));
+    l.leaderScores = JSON.parse(JSON.stringify(x.leaderScores || {}));
+  });
+  S.groupSnapshots = (S.groupSnapshots || []).filter(function (x) { return x.id !== snap.id; });
+  gbUndo = null; gbPick = null; gbAddTo = -1;
+  addOperationLog('分组', cls.name + ' · 撤回上一次分组：' + snap.label);
+  save();
+  renderPool(); renderScore();
+  flash('已撤回：' + snap.label);
+  return true;
+}
+
+/** 一组组数人头：只数有名字的人和非空组（名单页末尾的空占位格不算）。 */
+function headcountOfGroups(groups) {
+  var g = 0, p = 0;
+  (groups || []).forEach(function (x) { var n = memberCount(x); if (n) { g++; p += n; } });
+  return { groups: g, people: p };
+}
+
+/** 组结构 → 身份键到「姓名 + 原组号」的表，用来算「谁掉出去了」。 */
+function memberIndexByKey(groups) {
+  var out = Object.create(null);
+  (groups || []).forEach(function (g) {
+    (g.members || []).forEach(function (m) {
+      if (!m.name) return;
+      var k = studentKeyOf(m);
+      if (!out[k]) out[k] = { name: m.name, gno: g.no, sid: m.sid || '' };
+    });
+  });
+  return out;
+}
+
+/** 动完之后的核对单：beforeGroups 是动手前的深拷贝，cls.groups 是现在。
+    返回 {before, after, dropped}；dropped 是「刚才还在某个组里、现在一个组都不在」的人。 */
+function reconcileGroups(cls, beforeGroups, label) {
+  var before = headcountOfGroups(beforeGroups), after = headcountOfGroups(cls.groups || []);
+  var was = memberIndexByKey(beforeGroups), now = memberIndexByKey(cls.groups || []);
+  var dropped = Object.keys(was).filter(function (k) { return !now[k]; }).map(function (k) { return was[k]; });
+  return { before: before, after: after, dropped: dropped, label: label || '' };
+}
+
+/** 这位同学原来在第几组：从历史记分里倒推，三档依据，越靠前越可信。
+    ① 组长评分表 leaderScores[组号].members[成员键]：键是学号/成员ID，最硬；
+    ② 分组快照 groupSnapshots：里面有完整成员对象，能按姓名命中；
+    ③ 都没有就不猜 —— 列出来让老师自己拖，不搞黑箱。 */
+function originalGroupIndex(cls) {
+  var bySid = Object.create(null), byName = Object.create(null);
+  function bump(map, key, gno, basis, weight, order) {
+    if (!key) return;
+    var cur = map[key];
+    if (!cur || weight > cur.weight || (weight === cur.weight && order >= cur.order)) {
+      map[key] = { gno: Number(gno) || 0, basis: basis, weight: weight, order: order, hits: (cur && cur.gno === Number(gno) ? cur.hits : 0) + 1 };
+    } else if (cur.gno === Number(gno)) {
+      cur.hits++;
+    }
+  }
+  /* ① 组长评分表：最近一次课说了算（order 用课次序号） */
+  lessonsOf(cls.id).forEach(function (l) {
+    var ls = l.leaderScores;
+    if (!ls) return;
+    Object.keys(ls).forEach(function (gno) {
+      var rec = ls[gno];
+      if (!rec || !rec.members) return;
+      Object.keys(rec.members).forEach(function (key) {
+        var v = rec.members[key];
+        if (!v) return;
+        /* 「有分」比「只有一个空壳数组」更可信，权重给高一点 */
+        var has = Array.isArray(v) ? v.some(function (x) { return +x > 0; }) : false;
+        var mk = String(key);
+        if (mk.indexOf('sid:') !== 0) return;      // id:xxx 只有在成员对象还在时才认得出，这里跳过
+        bump(bySid, mk.slice(4), gno, '组长评分表的学号', has ? 30 : 20, Number(l.seq) || 0);
+      });
+    });
+  });
+  /* ② 分组快照：越新的快照权重越高 */
+  var snaps = (S.groupSnapshots || []).filter(function (x) { return x.clsId === cls.id; });
+  snaps.forEach(function (snap, si) {
+    (snap.groups || []).forEach(function (g) {
+      (g.members || []).forEach(function (m) {
+        if (!m.name) return;
+        var w = 10 + si;
+        if (m.sid) bump(bySid, String(m.sid), g.no, '分组快照（' + String(snap.at || '').slice(0, 10) + '）', w, si);
+        bump(byName, String(m.name), g.no, '分组快照（' + String(snap.at || '').slice(0, 10) + '）', w, si);
+      });
+    });
+  });
+  return { bySid: bySid, byName: byName };
+}
+
+/** 待分配名单里「其实有原组可回」的人。返回 [{r, gno, basis, hits}]，命中不了的不进列表。 */
+function droppedWithHome(cls) {
+  if (!cls) return [];
+  var idx = originalGroupIndex(cls);
+  var nameCount = Object.create(null);
+  rosterOf(cls).forEach(function (r) { if (r.name) nameCount[r.name] = (nameCount[r.name] || 0) + 1; });
+  var map = placedMap(cls);
+  return pendingList(cls).map(function (r) {
+    if (!r || !r.name) return null;
+    if (groupOfStudent(cls, r, map) !== null) return null;
+    var hit = r.sid ? idx.bySid[String(r.sid)] : null;
+    if (!hit && (nameCount[r.name] || 0) === 1) hit = idx.byName[r.name];
+    if (!hit || !hit.gno) return null;
+    return { r: r, gno: hit.gno, basis: hit.basis, hits: hit.hits || 1 };
+  }).filter(Boolean);
+}
+
+/** 组号不存在就补一个空组：原组号恢复了，那一组的历史小组分才跟着回来。 */
+function ensureGroupNo(cls, no) {
+  var g = groupOf(cls, Number(no));
+  if (g) return g;
+  var maxNo = cls.groups.reduce(function (a, x) { return Math.max(a, Number(x.no) || 0); }, 0);
+  var ng = { id: uid('g'), no: Number(no) || (maxNo + 1), members: [], restored: true };
+  cls.groups.push(ng);
+  return ng;
+}
+
+/** 「把掉出的人放回原组」：按倒推出的原组号一个一个放回去。
+    放回去以后个人扣分按身份重新对齐；个人项目分本来就在同一个组号下面，不用搬。
+    返回 {moved, groups, people}，交给调用方去报数。 */
+function restoreDroppedToHome(cls) {
+  var rows = droppedWithHome(cls);
+  if (!rows.length) return { moved: 0, rows: [] };
+  pushGroupSnapshot(cls, '把掉出的人放回原组（' + rows.length + ' 人）');
+  var snap = scoreLayoutSnapshot(cls);
+  rows.forEach(function (x) {
+    var g = ensureGroupNo(cls, x.gno);
+    pushMember(g, { id: uid('m'), name: x.r.name, sid: x.r.sid || '', no: x.r.no == null ? null : x.r.no });
+  });
+  realignPersonalScores(cls, snap);
+  realignLeaderScores(cls, snap);
+  addOperationLog('分组', cls.name + ' · 把掉出的人放回原组：' + rows.length + ' 人（' +
+    rows.map(function (x) { return x.r.name + '→第' + x.gno + '组'; }).join('、') + '）');
+  save();
+  renderPool(); renderScore();
+  return { moved: rows.length, rows: rows };
 }
 
   /** 姓名 / 学号 → 所在组号 */
@@ -698,7 +1146,7 @@ function removeMemberAt(cls, g, j) {
     if (v === 'pool') { renderPool(); renderTeamCard(); } else { tmStop(); }
     if (v === 'data') renderData();
     if (v === 'admin') renderAdmin();
-    if (v === 'score') renderScore();
+    if (v === 'score') { renderScore(); if (window.JFDT_WIRE) window.JFDT_WIRE.maybeSync(curClass()); }
     if (v === 'leader') renderLeader();
     if (v === 'attendance') renderAttendance();
   }
@@ -933,12 +1381,14 @@ function removeMemberAt(cls, g, j) {
   }
 
   function renderScore() {
+    if (window.JFDT_WIRE) window.JFDT_WIRE.renderBanner(curClass());
     var cls = curClass();
     if (!cls) return;
     $('#classSel').value = cls.id;
     $('#rankClassSel').value = cls.id;
     $('#poolClassSel').value = cls.id;
     renderPoolBanner(cls);
+    renderGroupSummary();   /* 待分配页顶部那句「N 个组 · 已分 x/y 人」也顺手刷一下 */
     tmMaybePull(cls);   /* 记分页也要知道「谁已经坐在圆桌上」，否则横幅和待分配页是两套数字 */
     updatePoolBadge();
     $('#rosterSetupHint').hidden = !!(rosterOf(cls).length || cls.groups.some(function (g) { return memberCount(g) > 0; }));
@@ -966,8 +1416,8 @@ function removeMemberAt(cls, g, j) {
     /* 连一个组都没有时，记分页会只剩一堆空白；说清楚下一步该做什么，别让老师以为「没分完不让进」。
        这里只提示，不拦人：有一个组就能进来记分。 */
     if (!cls.groups.length) {
-      $('#groupList').innerHTML = '<p class="empty-hint">这个班还没有小组。到「待分配名单」用「一键分组」，' +
-        '或者做完学生选座后点「按选座确认分组」，分好组就能在这里记分。</p>';
+      $('#groupList').innerHTML = '<p class="empty-hint">这个班还没有小组。到「待分配名单」点「分组…」，' +
+        '按组数或每组人数分一下，分好组就能在这里记分。</p>';
     }
     renderMetrics(cls, lesson);
     if (UI) UI.pill();
@@ -1085,7 +1535,7 @@ function removeMemberAt(cls, g, j) {
       var slot=scoreLayout==='table'?card.querySelector('[data-group-picker-slot]'):card.querySelector('.gnames');
       if(!slot){target.title='这里放不下加人控件，请到「待分配名单」页调整';return;}
       var box=document.createElement('div');box.className='group-pick-box';
-      box.innerHTML='<span class="group-pick-count">本组 <b>'+memberCount(g)+'</b>/'+groupCap(g)+' 人'+(groupCap(g)>GROUP_CAP?'（特许）':'')+'</span>'+
+      box.innerHTML='<span class="group-pick-count">本组 <b>'+memberCount(g)+'</b>/'+groupCap(g,cls)+' 人'+(Number(g.cap)?'（特许）':'')+'</span>'+
         '<button type="button" class="btn tiny" data-pick-add aria-label="第'+g.no+'组新增成员">＋ 加人</button>'+
         '<button type="button" class="btn tiny" data-pick-minus aria-label="第'+g.no+'组移出成员">－ 减人</button>'+
         '<div data-pick-editor hidden><input type="search" autocomplete="off" aria-label="第'+g.no+'组检索学号" placeholder="学号或后两位"><div class="group-pick-results" role="list"></div><button type="button" class="btn tiny" data-pick-exit>退出选人</button></div>'+
@@ -1096,10 +1546,18 @@ function removeMemberAt(cls, g, j) {
       function addMember(r){
         if(!groupPicking||groupPicking.no!==g.no||curClass().id!==cls.id)return;
         if(!pendingList(cls).some(function(p){return p===r;})){matches();return;}
-        var capBefore=groupCap(g);
+        var capBefore=groupCap(g,cls);
+        /* 老师点「＋加人」把人塞进已经满员的组：以前是悄悄把 g.cap 改成实际人数，
+           等于替他做了「这组特例」的决定。2026-11-08 起改成先问一句 ——
+           用户要求「是否允许该组特殊情况设置7人这样的情况」必须由老师自己确认。 */
+        if(memberCount(g)>=capBefore&&!confirm('第'+g.no+'组现在是 '+memberCount(g)+'/'+capBefore+' 人，已经到每组上限。\n\n'+
+          '再放一个就超员了。要把第'+g.no+'组设为例外（'+(memberCount(g)+1)+' 人）吗？\\n'+
+          '· 确定 = 这一组特例放行，不再标红\\n· 取消 = 不放人，先移出一个再放')){
+          matches();return;
+        }
         pushMember(g,{id:uid('m'),name:r.name,sid:r.sid||'',no:studentNo(cls,r.name,r.sid)});
         var over=memberCount(g)>capBefore;
-        if(over)g.cap=memberCount(g);   // 老师显式加超了，就等于给这个组开了特许
+        if(over)g.cap=memberCount(g);   // 老师刚确认过，这里才写「特许 N 人」
         addOperationLog('分组',cls.name+' · '+r.name+'加入第'+g.no+'组'+(over?'（特许 '+g.cap+' 人）':''));
         save();renderScore();renderPoolBanner(cls);
         flash('已加入第'+g.no+'组'+(over?'，本组特许 '+g.cap+' 人':'')+'，分组已全局同步');
@@ -1182,7 +1640,7 @@ function removeMemberAt(cls, g, j) {
       '<div class="gcard' + (duty ? ' is-duty' : '') + (touched(lesson, g.no) ? ' touched' : '') + '" data-card="' + g.no + '">' +
         '<div class="gcard-head">' +
           '<div class="group-identity"><span class="gnum">第 ' + g.no + ' 组</span>' +
-            '<span class="gcount" title="本组人数 / 上限（双击组号可加人减人）">' + cnt + '/' + groupCap(g) + '</span>' +
+            '<span class="gcount" title="本组人数 / 上限（双击组号可加人减人）">' + cnt + '/' + groupCap(g,cls) + '</span>' +
             (duty ? '<span class="dutytag">值日</span>' : '') + '</div>' +
           '<div class="gsum"><span class="k">本节</span>' +
             '<div class="v ' + signClass(total) + '" data-total="' + g.no + '">' + fmt(total) + '</div></div>' +
@@ -1225,7 +1683,7 @@ function removeMemberAt(cls, g, j) {
     var entries=groupMemberEntries(g),editing=!printing&&groupPicking&&groupPicking.classId===cls.id&&groupPicking.lessonId===lesson.id&&groupPicking.no===g.no;
     var display=entries.length?entries:[{m:null,i:-1}],span=display.length+(editing?1:0),rows=display.map(function(x,j){var m=x.m,i=x.i,key=m&&A.key(m),grade=m&&grades.find(function(r){return r.key===key;}),total=m?Math.round((remaining(lesson,g.no,i)+projectScore(lesson,g.no,m)+duty)*100)/100:'';
       var out='<tr class="vertical-member-row"'+(m?' data-member-index="'+i+'" data-member-key="'+esc(key)+'"':'')+'>';
-      if(!j)out+='<td class="c-no" rowspan="'+span+'">'+g.no+' <small class="gcount" title="本组人数 / 上限（双击组号可加人减人）">'+entries.length+'/'+groupCap(g)+'</small></td>';
+      if(!j)out+='<td class="c-no" rowspan="'+span+'">'+g.no+' <small class="gcount" title="本组人数 / 上限（双击组号可加人减人）">'+entries.length+'/'+groupCap(g,cls)+'</small></td>';
       out+='<td class="c-mem member-name-cell'+(m?attendanceNameClass(cls,m,lesson):'')+(m&&isGroupLeader(g,m)?' group-leader-name':'')+'"'+(m?' data-leader-toggle data-g="'+g.no+'" data-member-index="'+i+'"':'')+' title="'+esc(m?(m.name+' '+(m.sid||'')+' · 双击设置或退出组长'):'双击组号添加成员')+'">'+(m?(isGroupLeader(g,m)?'<span class="leader-crown" aria-label="组长">👑</span> ':'')+esc(m.name)+(m.no==null?'':' <small>'+two(m.no)+'</small>'):'未分配成员')+'</td>';
       out+='<td class="c-ded">'+(m?(printing?remaining(lesson,g.no,i):ctlPersonal(g.no,m,i,0)):'')+'</td>';
       out+='<td class="home-attendance">'+(grade?(printing?'<strong>'+grade.attendance+'</strong>':'<button type="button" class="attendance-score" data-attendance-open="'+esc(key)+'" aria-label="'+esc(m.name)+' 考勤'+grade.attendance+'分，点击修改">'+grade.attendance+'</button>'):'')+'</td>';
@@ -1770,9 +2228,8 @@ function removeMemberAt(cls, g, j) {
     S.ui.classId = cls.id;
     $('#poolClassSel').value = cls.id;
     $('#classSel').value = cls.id;
-    var sizeBox = $('#poolSize');
-    /* 正在输入的框不抢回来：看板每 2 秒刷新一次，别把老师刚敲的数字改回去 */
-    if (sizeBox && document.activeElement !== sizeBox) sizeBox.value = String(poolSizeOf(cls));
+    /* 2026-11-08：以前这里会把 cls.poolSize 直接写进「每组」输入框，等于替老师预填了 6。
+       用户明确说「分组不要设默认预设」，所以现在一个数都不填，上次用过的值只放进 placeholder 提示。 */
 
     var map = placedMap(cls), seat = seatIndex(cls);
     var rows = rosterOf(cls).map(function (r) {
@@ -1816,7 +2273,7 @@ function removeMemberAt(cls, g, j) {
 
     /* 可分配的目标组（上限读该组自己的 groupCap，老师特许过的组还能继续放人） */
     var groupOpts = cls.groups.map(function (g) {
-      var cap = groupCap(g), left = cap - memberCount(g);
+      var cap = groupCap(g, cls), left = cap - memberCount(g);
       return '<option value="' + g.no + '"' + (left <= 0 ? ' disabled' : '') + '>' +
         '第 ' + g.no + ' 组（' + memberCount(g) + '/' + cap + '）</option>';
     }).join('');
@@ -1854,9 +2311,39 @@ function removeMemberAt(cls, g, j) {
 
     gbRows = rows;
     renderGroupBoard(cls);
+    renderPoolFix(cls);    // 「掉队归位 / 撤回上一次分组」那条（有人掉出原组时才出现）
 
     updatePoolBadge();
-    updatePoolSizeHint();
+    gpUpdate();            // 分组向导里的实时预览跟着走，不用关掉再开
+    renderGroupSummary();  // 主界面那句「N 个组 · 已分 x/y 人」
+  }
+
+  /** 待分配区顶上那条「掉队归位」（2026-11-08 追加）：
+      团队在 26工器1 班看到的现场是 49 人的班只剩 5 个组 29 人 —— 20 个人掉进待分配，
+      老师既不知道少了谁，也不知道怎么放回去。这条只在「真的有人掉出原组」时出现，
+      并且明写「记分表还认得出他们原来的组」，放回去不会清分。 */
+  function renderPoolFix(cls) {
+    var box = $('#poolFixRow');
+    if (!box) return;
+    var rows = droppedWithHome(cls);
+    var snap = lastGroupSnapshot(cls);
+    if (!rows.length && !snap) { box.hidden = true; box.innerHTML = ''; return; }
+    box.hidden = false;
+    var html = '';
+    if (rows.length) {
+      var names = rows.slice(0, 8).map(function (x) { return x.r.name; }).join('、');
+      html += '<span class="gb-badge-bad">掉队</span>' +
+        '<span class="pool-fix-text">有 <b>' + rows.length + '</b> 人现在不在任何组里，' +
+        '但记分表还认得出他们原来在第几组：' + esc(names) + (rows.length > 8 ? ' 等' : '') +
+        '。放回去不会清掉他们的分。</span>' +
+        '<button id="btnRestoreDropped" class="btn primary small" type="button">把掉出的人放回原组（' + rows.length + ' 人）</button>';
+    }
+    if (snap) {
+      html += '<button id="btnRollbackGroup" class="btn ghost small" type="button" ' +
+        'title="组结构、成员顺序、个人扣分/项目分整份还原到这个动作之前">撤回上一次分组：' +
+        esc(snap.label) + '</button>';
+    }
+    box.innerHTML = html;
   }
 
   /* ================= 分组看板：所有组都看得见，可拖可点换人 =================
@@ -1901,7 +2388,7 @@ function removeMemberAt(cls, g, j) {
     }
     var groups = cls.groups || [];
     /* 新账号的空白模板是 13 个空组：全空的时候不铺 13 张空卡片（一整屏都是「这组还没人」），
-       只留一句提示，等老师用下面的「按序号分 / 随机分」建组。
+       只留一句提示，等老师用上面的「分组…」建组。
        只要有一个组里有人，空组也照常画出来 —— 那是拖人时的落点。 */
     var anyMember = groups.some(function (g) { return memberCount(g) > 0; });
     /* 按组号排一下（老师看着顺），但记的是原下标 —— 拖拽写回要用它定位 */
@@ -1910,30 +2397,56 @@ function removeMemberAt(cls, g, j) {
     }) : [];
 
     var cards = order.map(function (gi) {
-      var g = groups[gi], cap = groupCap(g), n = memberCount(g), full = n >= cap;
+      var g = groups[gi], cap = groupTargetCap(cls, g), n = memberCount(g);
+      /* 超员 = 这组的人数超过老师在分组向导里定的上限（或本组特许）。超出来的人照样在
+         g.members 里，下面只是按界面顺序给第 cap+1 个往后的人加一个红标 ——
+         用户原话：「超出的人标红 但是不移除原来组」，所以这里绝不删人。 */
+      var over = Math.max(0, n - cap), full = n >= cap;
+      var seen = 0;
       var mem = '';
       g.members.forEach(function (m, mi) {
         if (!m.name) return;                       // 名单页留的空占位格不画出来
+        seen++;
+        var overLimit = seen > cap;                // 搜索把人滤掉时序号也要照算，标红才不会跳来跳去
         if (!match(m.name, m.sid, m.no)) return;   // 搜索只滤「人」，组卡片本身留着，免得老师找不到组
         var on = gbPick && gbPick.kind === 'member' && gbPick.gi === gi && gbPick.mi === mi;
-        mem += '<div class="gb-chip' + (on ? ' on' : '') + '" role="button" tabindex="0"' +
+        mem += '<div class="gb-chip' + (on ? ' on' : '') + (overLimit ? ' gb-over-limit' : '') +
+          '" role="button" tabindex="0"' +
           ' data-gi="' + gi + '" data-mi="' + mi + '"' +
-          ' title="拖到别的组就换组，拖到下面待分配区就移出">' +
+          ' title="' + (overLimit ? '超出本组上限 ' + cap + ' 人，但不会被自动移出：拖走 / 留下 / 单独建一组都可以。' : '') +
+            '拖到别的组就换组，拖到下面待分配区就移出">' +
           '<span class="gb-av" aria-hidden="true">' + esc(String(m.name).slice(0, 1)) + '</span>' +
           '<span class="gb-nm">' + esc(m.name) + '</span>' +
           (m.no == null || m.no === '' ? '' : '<span class="gb-no">' + esc(m.no) + '</span>') +
+          (overLimit ? '<span class="gb-over-tag">超出</span>' : '') +
           '<button type="button" class="gb-x" data-gi="' + gi + '" data-mi="' + mi + '"' +
             ' title="移出到待分配" aria-label="把' + esc(m.name) + '移出到待分配">×</button>' +
           '</div>';
       });
       if (!mem) mem = '<p class="gb-empty">' + (q ? '没有匹配的人' : '这组还没人，点「＋ 加人」或把待分配的人拖进来') + '</p>';
-      return '<section class="gb-group' + (full ? ' is-full' : '') + (gbAddTo === gi ? ' is-target' : '') +
-          '" data-gi="' + gi + '">' +
+      /* 超员时的两条出路（用户：「由教师确认移动到哪儿 以及是否允许该组特殊情况设置7人」）：
+         ① 设为例外：这组就按现在的人数放行，不再标红；
+         ② 单独建一组：把超出来的人原地拆成新的一组，一个人都不丢。 */
+      var bar = '';
+      if (over) {
+        bar = '<div class="gb-over-bar">' +
+          '<span class="gb-over-tip">超出 ' + over + ' 人（标红，未被移出）</span>' +
+          '<button type="button" class="gb-mini" data-exempt="' + gi + '" title="这组按 ' + n + ' 人特例放行，不再标红">设为例外（保留 ' + n + ' 人）</button>' +
+          '<button type="button" class="gb-mini" data-split="' + gi + '" title="把超出的 ' + over + ' 人拆到新的一组">把超出的 ' + over + ' 人单独建一组</button>' +
+          '</div>';
+      } else if (Number(g.cap) > (classGroupLimit(cls) || GROUP_CAP)) {
+        bar = '<div class="gb-exempt-row">本组按特例 ' + Number(g.cap) + ' 人放行' +
+          '<button type="button" class="gb-mini" data-unexempt="' + gi + '">取消例外</button></div>';
+      }
+      return '<section class="gb-group' + (full ? ' is-full' : '') + (over ? ' is-over' : '') +
+          (gbAddTo === gi ? ' is-target' : '') + '" data-gi="' + gi + '">' +
         '<header class="gb-ghead">' +
           '<span class="gb-gno">第 ' + esc(g.no) + ' 组</span>' +
           '<span class="gb-gcnt"><b>' + n + '</b>/' + cap + ' 人' +
-            (full ? '<i class="gb-flag">满</i>' : '') + '</span>' +
+            (over ? '<i class="gb-flag gb-flag-over">超 ' + over + '</i>'
+                  : (full ? '<i class="gb-flag">满</i>' : '')) + '</span>' +
         '</header>' +
+        bar +
         '<div class="gb-members">' + mem + '</div>' +
         '<button type="button" class="gb-add" data-add="' + gi + '">＋ 加人</button>' +
         '</section>';
@@ -1955,9 +2468,24 @@ function removeMemberAt(cls, g, j) {
         '</div>';
     }).join('');
 
-    box.innerHTML =
+    /* 撤销条：拖完人以后原地显示「撤销」，不用去操作日志里翻（用户要求「拖完给撤销」）。
+       2026-11-08 追加下面这条「撤回上一次分组」：它读的是跨操作的分组快照（最多 5 份），
+       不只撤一次拖动，而是把「按组数重排 / 按每组人数分 / 按选座确认 / 均匀填充」整份还原，
+       连成员顺序一起回去 —— 因为个人扣分是按组内下标存的，只还原人、不还原顺序照样错位。 */
+    var undoBar = (gbUndo && gbUndo.clsId === cls.id)
+      ? '<div class="gb-undo"><span>' + esc(gbUndo.label) + '</span>' +
+        '<button type="button" class="gb-mini" data-gb-undo="1">撤销</button></div>'
+      : '';
+    var lastSnap = lastGroupSnapshot(cls);
+    if (lastSnap) {
+      undoBar += '<div class="gb-undo gb-undo-snap"><span>上一次分组：' + esc(lastSnap.label) +
+        '（' + esc(String(lastSnap.at || '').slice(5, 16).replace('T', ' ')) + '）</span>' +
+        '<button type="button" class="gb-mini" data-gb-snapundo="1">撤回上一次分组</button></div>';
+    }
+
+    box.innerHTML = undoBar +
       '<div class="gb-groups">' +
-        (cards || '<p class="gb-empty">这个班还没有小组。用下面的「按序号分 / 随机分」建组，或者等学生自己选座。</p>') +
+        (cards || '<p class="gb-empty">这个班还没有小组。点上面的「分组…」按组数或每组人数建组，或者等学生自己选座。</p>') +
       '</div>' +
       '<section class="gb-pending" data-drop="pending">' +
         '<header class="gb-phead">' +
@@ -1969,12 +2497,45 @@ function removeMemberAt(cls, g, j) {
           (pChips || '<p class="gb-empty">' + (q ? '没有匹配的人' : '没有待分配的学生，全班都分好组了。') + '</p>') +
         '</div>' +
       '</section>' +
-      '<p class="gb-hint">拖动卡片换组；手机上也可以先点一个人，再点目标组。' +
-        '这一页<b>只换人不改组</b> —— 删组、改组号、重新分组都在「上课记分」页的原流程里。</p>';
+      '<p class="gb-hint">拖动就是分组：把学生拖到别的组卡片上松手就换组，手机上先点一个人再点目标组。' +
+        '超员的人会标红但不会被移出，你可以拖走、留着，或给那一组点「设为例外」。</p>';
   }
 
   /** 重画看板（只刷新卡片，不动整页） */
   function gbRepaint() { renderGroupBoard(curClass()); }
+
+  var gbUndo = null;        // 单步撤销：{clsId,label,groups,lessons}
+
+  /** 动分组之前把「组结构 + 本班所有课次的分数」一起拍张快照。
+      用户要求「拖完给撤销」；分数也要拍，是因为换组会把个人扣分跟着人搬走，
+      只还原组结构、不还原分数，下一次算分就错位了。
+      2026-11-08 追加：同时往 S.groupSnapshots 里存一份（最多留 5 份），
+      那条是跨操作、跨页面的「撤回上一次分组」，比这条单步撤销活得久。 */
+  function gbSnapshot(cls, label) {
+    var data = groupSnapshotData(cls);
+    gbUndo = { clsId: cls.id, label: label, groups: data.groups, lessons: data.lessons, limit: data.limit };
+    pushGroupSnapshot(cls, label);
+  }
+
+  /** 撤销上一次拖拽/例外/拆组：结构和分数一起退回去。 */
+  function gbUndoLast() {
+    var u = gbUndo, cls = curClass();
+    if (!u || !cls || u.clsId !== cls.id) return false;
+    cls.groups = JSON.parse(JSON.stringify(u.groups));
+    if (u.limit == null) delete cls.groupLimit; else cls.groupLimit = u.limit;
+    (u.lessons || []).forEach(function (x) {
+      var l = getLesson(x.id);
+      if (!l) return;
+      l.scores = JSON.parse(JSON.stringify(x.scores || {}));
+      l.leaderScores = JSON.parse(JSON.stringify(x.leaderScores || {}));
+    });
+    gbUndo = null; gbPick = null; gbAddTo = -1;
+    addOperationLog('分组', cls.name + ' · 撤销：' + u.label);
+    save();
+    renderPool(); renderScore();
+    flash('已撤销：' + u.label);
+    return true;
+  }
 
   /** 改完统一走这里：save() 落到本机 + 云端，然后把看板、统计、记分页一起刷新 */
   function gbCommit(cls, msg) {
@@ -1989,12 +2550,13 @@ function removeMemberAt(cls, g, j) {
   function gbJoin(cls, r, gi) {
     var g = cls.groups[gi];
     if (!g || !r) return false;
-    var cap = groupCap(g);
+    var cap = groupTargetCap(cls, g);
     /* 满了要说一句，不能静默失败：老师拖过去没反应会以为程序坏了 */
     if (memberCount(g) >= cap) {
-      flash('第 ' + g.no + ' 组已经满 ' + cap + ' 人（每组上限 ' + GROUP_CAP + ' 人），先移出一个再放进去');
+      flash('第 ' + g.no + ' 组已经满 ' + cap + ' 人（本班每组上限 ' + cap + ' 人），先移出一个再放进去');
       return false;
     }
+    gbSnapshot(cls, '把「' + r.name + '」加进第 ' + g.no + ' 组');
     pushMember(g, { id: uid('m'), name: r.name, sid: r.sid || '', no: r.no == null ? null : r.no });
     addOperationLog('分组', cls.name + ' · ' + r.name + ' → 第' + g.no + '组（待分配页拖拽）');
     gbCommit(cls, '已把「' + r.name + '」加进第 ' + g.no + ' 组');
@@ -2007,13 +2569,22 @@ function removeMemberAt(cls, g, j) {
     if (!from || !to || fromGi === toGi) return false;
     var m = from.members[mi];
     if (!m || !m.name) return false;
-    var cap = groupCap(to);
+    var cap = groupTargetCap(cls, to);
     if (memberCount(to) >= cap) {
-      flash('第 ' + to.no + ' 组已经满 ' + cap + ' 人（每组上限 ' + GROUP_CAP + ' 人），先移出一个再换过去');
+      flash('第 ' + to.no + ' 组已经满 ' + cap + ' 人（本班每组上限 ' + cap + ' 人），先移出一个再换过去');
       return false;
     }
-    removeMemberAt(cls, from, mi);   // 顺带把该组历史课次的「个人扣分」索引左移，和「移出小组」同一套
+    gbSnapshot(cls, '把「' + m.name + '」从第 ' + from.no + ' 组换到第 ' + to.no + ' 组');
+    /* 2026-11-08：个人扣分是按「组号 + 组内下标」存的，人换组时必须跟着人搬走，
+       否则这笔扣分会留在原组，算到原位置新坐下的同学头上。
+       个人项目分（leaderScores）按「组号 + 成员键」存，同一个道理：不搬过去，
+       新组按组号找不到这条记录，老师看到的就是「换组以后个人项目分没了」。 */
+    var personal = takePersonalOf(cls, from.no, mi);
+    var leader = takeLeaderOf(cls, from.no, memberKey(m));
+    removeMemberAt(cls, from, mi);   // 顺带把该组历史课次的「个人扣分」索引左移
     pushMember(to, m);               // 成员对象整个搬过去，组长标记 leaderKey 里的 id 不会失联
+    putPersonalOf(cls, to.no, to.members.length - 1, personal);
+    putLeaderOf(cls, to.no, memberKey(m), leader);
     addOperationLog('分组', cls.name + ' · ' + m.name + '：第' + from.no + '组 → 第' + to.no + '组（待分配页拖拽）');
     gbCommit(cls, '已把「' + m.name + '」从第 ' + from.no + ' 组换到第 ' + to.no + ' 组');
     return true;
@@ -2025,9 +2596,67 @@ function removeMemberAt(cls, g, j) {
     if (!g) return false;
     var m = g.members[mi];
     if (!m || !m.name) return false;
+    gbSnapshot(cls, '把「' + m.name + '」移出第 ' + g.no + ' 组');
     removeMemberAt(cls, g, mi);
     addOperationLog('分组', cls.name + ' · ' + m.name + '：移出第' + g.no + '组（待分配页拖拽）');
     gbCommit(cls, '已把「' + m.name + '」移出第 ' + g.no + ' 组，回到待分配');
+    return true;
+  }
+
+  /** 「设为例外（保留 N 人）」：这一组按现在的人数放行，不再标红。
+      用户原话：「以及是否允许该组特殊情况设置7人这样的情况」。 */
+  function gbExempt(cls, gi) {
+    var g = cls.groups[gi];
+    if (!g) return false;
+    var n = memberCount(g);
+    if (!n) return false;
+    gbSnapshot(cls, '第 ' + g.no + ' 组设为例外（' + n + ' 人）');
+    g.cap = n;
+    addOperationLog('分组', cls.name + ' · 第' + g.no + '组设为例外：' + n + ' 人（不再标红）');
+    gbCommit(cls, '第 ' + g.no + ' 组已设为例外，按 ' + n + ' 人放行');
+    return true;
+  }
+
+  /** 取消例外：回到老师定的每组上限，超出的人重新标红（人照样不动）。 */
+  function gbUnexempt(cls, gi) {
+    var g = cls.groups[gi];
+    if (!g || !Number(g.cap)) return false;
+    gbSnapshot(cls, '第 ' + g.no + ' 组取消例外');
+    delete g.cap;
+    addOperationLog('分组', cls.name + ' · 第' + g.no + '组取消例外，回到每组 ' + groupTargetCap(cls, g) + ' 人');
+    gbCommit(cls, '第 ' + g.no + ' 组已取消例外，超出的 ' + overCountOf(cls, g) + ' 人会重新标红（但不会被移出）');
+    return true;
+  }
+
+  /** 把超出的 N 人原地拆成新的一组：用户说的「单独建一组」。
+      一个人都不丢，个人扣分跟着人走；新组按自己的人数放行，不标红。 */
+  function gbSplitOver(cls, gi) {
+    var g = cls.groups[gi];
+    if (!g) return false;
+    var cap = groupTargetCap(cls, g), seen = 0, idx = [];
+    g.members.forEach(function (m, i) {
+      if (!m.name) return;
+      seen++;
+      if (seen > cap) idx.push(i);
+    });
+    if (!idx.length) return false;
+    gbSnapshot(cls, '把第 ' + g.no + ' 组超出的 ' + idx.length + ' 人单独建一组');
+    var maxNo = cls.groups.reduce(function (a, x) { return Math.max(a, Number(x.no) || 0); }, 0);
+    var ng = { id: uid('g'), no: maxNo + 1, members: [] };
+    idx.slice().sort(function (a, b) { return b - a; }).forEach(function (i) {
+      var m = g.members[i];
+      var key = memberKey(m);
+      var personal = takePersonalOf(cls, g.no, i);
+      var leader = takeLeaderOf(cls, g.no, key);
+      removeMemberAt(cls, g, i);
+      pushMember(ng, m);
+      putPersonalOf(cls, ng.no, ng.members.length - 1, personal);
+      putLeaderOf(cls, ng.no, key, leader);
+    });
+    if (memberCount(ng)) ng.cap = memberCount(ng);
+    cls.groups.push(ng);
+    addOperationLog('分组', cls.name + ' · 第' + g.no + '组超出的 ' + idx.length + ' 人拆成第' + ng.no + '组');
+    gbCommit(cls, '已把第 ' + g.no + ' 组超出的 ' + idx.length + ' 人拆成第 ' + ng.no + ' 组');
     return true;
   }
 
@@ -2161,6 +2790,20 @@ function removeMemberAt(cls, g, j) {
       if (gbSwallowClick) return;
       var cls = curClass();
       if (!cls) return;
+      /* 看板顶部那条「撤销」：拖完人以后一键退回（结构和分数一起还原） */
+      if (e.target.closest('[data-gb-undo]')) { gbUndoLast(); return; }
+      /* 「撤回上一次分组」：整份快照还原（连成员顺序和个人扣分下标一起回去） */
+      if (e.target.closest('[data-gb-snapundo]')) {
+        var snapBack = lastGroupSnapshot(cls);
+        if (snapBack) restoreGroupSnapshot(cls, snapBack);
+        return;
+      }
+      var ex = e.target.closest('[data-exempt]');
+      if (ex) { gbExempt(cls, +ex.dataset.exempt); return; }
+      var ux = e.target.closest('[data-unexempt]');
+      if (ux) { gbUnexempt(cls, +ux.dataset.unexempt); return; }
+      var sp = e.target.closest('[data-split]');
+      if (sp) { gbSplitOver(cls, +sp.dataset.split); return; }
       var xb = e.target.closest ? e.target.closest('.gb-x') : null;
       if (xb) { gbUnassign(cls, +xb.dataset.gi, +xb.dataset.mi); return; }
       if (e.target.closest('.gb-chip')) return;      // 点人已经在 pointerup 里处理过，别算两次
@@ -2214,17 +2857,48 @@ function removeMemberAt(cls, g, j) {
     poolSearch = this.value; renderPool();
   });
 
+  /* 掉队归位 / 撤回上一次分组（2026-11-08）。容器里的按钮是 renderPoolFix 每次重画的，
+     所以用事件委托，不在每次重画后重新绑。 */
+  if ($('#poolFixRow')) {
+    $('#poolFixRow').addEventListener('click', function (e) {
+      var cls = curClass();
+      if (!cls) return;
+      if (e.target.closest('#btnRestoreDropped')) {
+        var rows = droppedWithHome(cls);
+        if (!rows.length) return;
+        if (!confirm('把这 ' + rows.length + ' 人按记分表里原来所在的组放回去？\n\n' +
+          '· 一个学生都不会被删；原组号没了的会自动补一个空组，那一组的历史小组分照样挂在原组号上\n' +
+          '· 他们的个人扣分、个人项目分原样留着，不会被清掉\n' +
+          '· 放回去以后还能照常拖动调整，也可以撤回')) return;
+        var res = restoreDroppedToHome(cls);
+        flash('已把 ' + res.moved + ' 人放回原来的组');
+        renderPoolBanner(cls);
+        if (res.moved) showRestoreDetail(cls, res.rows);
+        return;
+      }
+      if (e.target.closest('#btnRollbackGroup')) {
+        var snap = lastGroupSnapshot(cls);
+        if (!snap) return;
+        if (!confirm('撤回上一次分组？\n\n「' + snap.label + '」\n\n' +
+          '组结构、每组顺序、个人扣分和个人项目分都会整份还原到这次分组之前。')) return;
+        restoreGroupSnapshot(cls, snap);
+        renderPoolBanner(cls);
+      }
+    });
+  }
+
   $('#poolList').addEventListener('change', function (e) {
     var sel = e.target.closest('select.assign');
     if (!sel || !sel.value) return;
     var cls = curClass();
     var g = groupOf(cls, +sel.value);
     if (!g) return;
-    if (memberCount(g) >= groupCap(g)) {
-      alert('第 ' + g.no + ' 组已满 ' + groupCap(g) + ' 人。请先移出或选别的组。');
+    if (memberCount(g) >= groupCap(g, cls)) {
+      alert('第 ' + g.no + ' 组已满 ' + groupCap(g, cls) + ' 人。请先移出或选别的组。');
       renderPool();
       return;
     }
+    pushGroupSnapshot(cls, '把「' + sel.dataset.name + '」分到第 ' + g.no + ' 组（名单页下拉）');
     pushMember(g, {
       id: uid('m'), name: sel.dataset.name,
       sid: sel.dataset.sid || '', no: studentNo(cls, sel.dataset.name, sel.dataset.sid)
@@ -2250,6 +2924,9 @@ function removeMemberAt(cls, g, j) {
       if (j < 0) return;
       if (!confirm('把「' + nm + '」移出第 ' + g.no + ' 组？他/她会回到待分配名单。\n' +
                    '（该组已记录的个人扣分会自动对齐，不会算到别人头上）')) return;
+      pushGroupSnapshot(cls, '把「' + nm + '」移出第 ' + g.no + ' 组（名单页）');
+      /* 人回到待分配，但他在这组的个人项目分（leaderScores[组号].members[成员键]）原样留着 ——
+         这既是他的分，也是「他原来在第几组」的证据，之后「把掉出的人放回原组」就靠它认人。 */
       removeMemberAt(cls, g, j);
       save(); renderPool(); renderScore();
       flash('已把「' + nm + '」移出第 ' + g.no + ' 组，回到待分配');
@@ -2504,8 +3181,23 @@ function removeMemberAt(cls, g, j) {
     var cls = curClass();
     if (!cls || !tmOn()) { alert('先登录再来开放组队。'); return; }
     if (!tmClassId(cls)) { alert('这个班还没对应首页班级，先在「数据与备份」页对应。'); return; }
-    var tables = Math.max(1, Math.min(40, Math.round(Number($('#teamTables').value) || 10)));
-    var size = Math.max(2, Math.min(GROUP_CAP, Math.round(Number($('#teamSize').value) || 6)));
+    /* 2026-11-08：桌数 / 每桌人数不再偷偷用 10 / 6 兜底。用户说得很清楚：
+       「默认好像是10组6人 我一旦不小心点错了 就会抹除我部分同学」——所以没填就是没填，
+       这里直接把老师拉回 ③ 页签去填，而不是替他决定一个数字。 */
+    var tRaw = String($('#teamTables').value).trim(), sRaw = String($('#teamSize').value).trim();
+    if (!tRaw || !sRaw) {
+      gpOpen('seat');
+      alert('先在「③ 按选座确认」里填圆桌数和每桌人数。\n（这两项故意不预填，避免手一滑就按默认值分掉全班。）');
+      return;
+    }
+    var tables = Math.max(1, Math.min(40, Math.round(Number(tRaw) || 0)));
+    var size = clampLimit(sRaw);
+    if (!tables || !size) {
+      gpOpen('seat');
+      alert('圆桌数要是 1–40，每桌人数要是 2–40。');
+      return;
+    }
+    cls.teamTables = tables;
     var pending = truePendingList(cls).length;
     /* 「每桌人数」只是上限：重开房间时，上一场已经选好的座位必须原样搬过来。
        以前 jf_team_open 只新建房间，座位按 room_id 挂在旧房间上，看板只读最新一间，
@@ -2524,6 +3216,7 @@ function removeMemberAt(cls, g, j) {
       (keep.length ? '已经选好的 ' + keep.length + ' 个座位会原样保留（改每桌人数只改上限，不会重新分座）。\n\n' : '') +
       (tmRoom && tmRoom.room && tmRoom.status !== 'closed'
         ? '注意：本班上一次的组队房间会被作废，没确认的座位靠这里搬过来。\n\n' : '') + '确定开放？')) return;
+    cls.groupLimit = size;    // 确认之后才记上限：每桌人数同时作为本班「每组上限」，两处口径一致
     tmBusy = true;
     if (keep.length) flash('正在沿用上一场 ' + keep.length + ' 个座位…');
     CLOUD.rpc('jf_team_open', { p_class: tmClassId(cls), p_tables: tables, p_size: size })
@@ -2621,29 +3314,32 @@ function removeMemberAt(cls, g, j) {
       return false;
     }
 
-    /* 这几组历史上记过个人扣分才提醒（新班没有，不必吓人） */
-    var hasPersonal = (S.lessons || []).some(function (l) {
-      if (l.classId !== cls.id) return false;
-      return tables.some(function (t) {
-        var sc = l.scores && l.scores[String(t)];
-        return !!(sc && sc.personal && Object.keys(sc.personal).length);
-      });
-    });
-
     if (!confirm('按选座确认分组？\n\n' +
       '· 第 ' + tables.join('、') + ' 桌共 ' + seats.length + ' 人，写成 ' + tables.length + ' 组（组号＝桌号）\n' +
       '· 这几个组会按选座重建：原来在这几个组、但这节课没来选座的人，会回到待分配名单\n' +
       '· 没坐人的桌（组）一律不动\n' +
-      (hasPersonal ? '· 这几个组记过的「个人扣分」会清空（小组分、考勤分不受影响）\n' : '') +
+      '· 记过的分按学生身份跟着人走（个人扣分不再清空）\n' +
       '\n确认前建议先到「数据与备份」下载一份备份。继续？')) return;
 
-    /* 保住原来的成员对象，好让组长标记（leaderKey）不失联 */
-    var keep = Object.create(null);
+    /* 2026-11-08 分数迁移：拍一张「组号 → 第几个人是谁」的快照，重建完再按身份写回。
+       原来这里会把整组 personal 清空（上面那句提示就是证据），用户说的
+       「分完组之后我之前弄的加分全部丢失了基本上」有一半是这个操作造成的。 */
+    var snap = scoreLayoutSnapshot(cls);
+    /* 这个动作最容易「人掉出去」：没来选座的人会回到待分配。所以动手前留一份完整快照，
+       动完再拿「分之前几个人/几个组」对一次账，少了人立刻红字拦住（团队在 26工器1 班
+       看到的 49 人只剩 29 人，就是从这类操作开始的）。 */
+    var beforeSeat = JSON.parse(JSON.stringify(cls.groups));
+    pushGroupSnapshot(cls, '按选座确认分组：第 ' + tables.join('、') + ' 桌');
+
+    /* 保住原来的成员对象，好让组长标记（leaderKey）和按 id 记的个人项目分不失联 */
+    var keep = Object.create(null), keepByName = Object.create(null);
     cls.groups.forEach(function (g) {
       g.members.forEach(function (m) {
         if (!m.name) return;
-        var k = m.sid ? 'sid:' + m.sid : 'name:' + m.name;
+        var k = studentKeyOf(m);
         if (!keep[k]) keep[k] = m;
+        /* 只有全班唯一同名时才敢用姓名回查（同名学生绝不靠名字配对） */
+        keepByName[m.name] = keepByName[m.name] ? 'DUP' : m;
       });
     });
 
@@ -2661,7 +3357,8 @@ function removeMemberAt(cls, g, j) {
       toPending += g.members.filter(function (m) { return !!m.name; }).length;
       while (g.members.length) removeMemberAt(cls, g, g.members.length - 1);
       byTable[t].forEach(function (s) {
-        var old = (s.no && keep['sid:' + s.no]) || (seatName[s.name] === 1 ? keep['name:' + s.name] : null);
+        var old = (s.no && keep['s:' + s.no]) || (seatName[s.name] === 1 ? keepByName[s.name] : null);
+        if (old === 'DUP') old = null;
         pushMember(g, {
           id: (old && old.id) || uid('m'),
           name: s.name,
@@ -2673,6 +3370,13 @@ function removeMemberAt(cls, g, j) {
       if (g.leaderKey && !g.members.some(function (m) { return memberKey(m) === g.leaderKey; })) delete g.leaderKey;
     });
 
+    /* 重建完按身份把个人扣分迁回去；对不上的（比如人已经从名单里删掉）会报数，不清零。
+       个人项目分（leaderScores）同理，按成员键搬到现在所在的组号下面。 */
+    var unmatched = realignPersonalScores(cls, snap);
+    var leaderOut = realignLeaderScores(cls, snap);
+    var seatSize = Number((tmState && tmState.size) || (tmRoom && tmRoom.room && tmRoom.size) || 0);
+    if (seatSize >= 2) cls.groupLimit = Math.min(40, seatSize);
+
     addOperationLog('分组', cls.name + ' · 按选座确认分组：第 ' + tables.join('、') + ' 桌 ' + filled +
       ' 人写成 ' + tables.length + ' 组' + (made ? '（新建 ' + made + ' 组）' : '') +
       (toPending ? '，' + toPending + ' 人回到待分配' : ''));
@@ -2680,7 +3384,9 @@ function removeMemberAt(cls, g, j) {
 
     var rest = pendingList(cls).length;
     flash('已按选座写成 ' + tables.length + ' 组（' + filled + ' 人）' +
-      (rest ? '，还剩 ' + rest + ' 人待分配，可以用下面的「一键分组」收尾' : '，全班都分好了'));
+      (rest ? '，还剩 ' + rest + ' 人待分配，可以用「分组…」收尾' : '，全班都分好了'));
+    reportScoreMigration({ personal: unmatched, leader: leaderOut });
+    reportGroupChange(cls, beforeSeat, '按选座确认分组');
   }
 
   $('#btnTeamFinish').addEventListener('click', tmApplySeating);
@@ -2708,9 +3414,13 @@ function removeMemberAt(cls, g, j) {
       .catch(function (err) { tmBusy = false; alert('没放成：' + ((err && err.message) || '未知错误')); return tmPull(); });
   });
 
-  /* ---- 一键按「每组几人」分组 ----
-     新班开课第一天最常见的动作：全班几十个人还没分组，一个一个下拉太慢。
-     这里按人数切组：需要几组就留几组，多出来的空组删掉，已经分好的组一律不动。 */
+  /* ---- 分组向导：按组数 / 按每组人数 / 按选座 / 手动拖拽（2026-11-08 重做） ----
+     用户原话：「分组不要设默认预设 就点分组弹窗选项卡 让老师先选分几组和一组多少人」
+     「如果和旧分组压缩了 也要提示确认 超出的人标红 但是不移除原来组」。
+     所以：
+     ① 这里一个默认人数都没有（原来 value="10"/"6" 全部拆掉），没填就让按钮是灰的；
+     ② 任何会打散现有分组的动作，先算一份「影响清单」再 confirm，确认前一个字都不改；
+     ③ 重排只增不删人：计划里的每个学生都会落进某个组，绝不会因为组数变少被抹掉。 */
 
   /** 这个组在历史课次里有没有记分痕迹（有痕迹的空组不删，免得丢历史） */
   function groupHasHistory(cls, gno) {
@@ -2720,9 +3430,10 @@ function removeMemberAt(cls, g, j) {
     });
   }
 
-  function clampSize(v) {
-    var n = Math.round(Number(v) || 6);
-    return Math.max(2, Math.min(GROUP_CAP, n));
+  /** 人数夹到 2–40。**没填就返回 0**，绝不偷偷当 6 用 —— 用户说的「默认好像是10组6人」就是这条。 */
+  function clampLimit(v) {
+    var n = Math.round(Number(v) || 0);
+    return n >= 2 ? Math.min(40, n) : 0;
   }
 
   /** 每组几人 → 每组实际分几人。
@@ -2731,7 +3442,7 @@ function removeMemberAt(cls, g, j) {
       49 人 ÷ 6 → 8 组 6 人 + 剩 1 人（太少）→ 摊平成 4 组 6 人 + 5 组 5 人；
       47 人 ÷ 7 → 6 组 7 人 + 1 组 5 人。 */
   function planSizes(total, size) {
-    size = clampSize(size);
+    size = clampLimit(size) || GROUP_CAP;
     if (!total) return [];
     var full = Math.floor(total / size), rem = total % size, out = [], i;
     if (!rem) {
@@ -2748,9 +3459,205 @@ function removeMemberAt(cls, g, j) {
     return out;
   }
 
+  /** 分几组 → 每组几人（尽量平均，前面几组多 1 个）。人数不够时会出现空组，调用方负责提示。 */
+  function planByCount(total, groups) {
+    groups = Math.max(1, Math.min(40, Math.round(Number(groups) || 0)));
+    if (!total) return [];
+    var base = Math.floor(total / groups), rest = total % groups, out = [];
+    for (var i = 0; i < groups; i++) out.push(base + (i < rest ? 1 : 0));
+    return out;
+  }
+
+  /** 名单行 → 重排用的人。不做去重之外的花样，sid/no 原样带过去。 */
+  function regroupPerson(r) {
+    return { name: r.name, sid: r.sid || '', no: r.no == null ? null : r.no };
+  }
+
+  /** 「全班重排」用的人 = 全班名单 + 已经在组里但不在名单上的历史组员。
+      用户要求「不能被静默抹掉」，所以历史组员也一起参与重排，不会凭空消失。 */
+  function regroupPool(cls) {
+    var out = [], seen = Object.create(null);
+    rosterOf(cls).forEach(function (r) {
+      if (!r.name) return;
+      var k = r.sid ? 's:' + r.sid : 'n:' + r.name + '#' + (r.no == null ? '' : r.no);
+      if (seen[k]) return;
+      seen[k] = 1;
+      out.push(regroupPerson(r));
+    });
+    cls.groups.forEach(function (g) {
+      g.members.forEach(function (m) {
+        if (!m.name) return;
+        var k = studentKeyOf(m);
+        if (seen[k]) return;
+        seen[k] = 1;
+        out.push(regroupPerson(m));
+      });
+    });
+    out.sort(function (a, b) {
+      var x = a.no == null ? 1e9 : a.no, y = b.no == null ? 1e9 : b.no;
+      if (x !== y) return x - y;
+      return String(a.name).localeCompare(String(b.name), 'zh-Hans-CN');
+    });
+    return out;
+  }
+
+  /** 打乱（Fisher–Yates）。随机分只是换个顺序，人一个不少。 */
+  function shuffleInPlace(arr) {
+    for (var i = arr.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = arr[i]; arr[i] = arr[j]; arr[j] = t;
+    }
+    return arr;
+  }
+
+  /** 人数计划 → 一组一筐人 */
+  function bucketsByPlan(pool, plan) {
+    var out = [], at = 0;
+    plan.forEach(function (n) { out.push(pool.slice(at, at + n)); at += n; });
+    return out;
+  }
+
+  /** 这次重排会动到哪些组、影响多少人 —— 确认框里的人话全靠它。
+      用户要的是「明确写出会动到哪几个组、影响几个人、谁会被移出」。 */
+  function regroupImpact(cls, planArr) {
+    var cur = cls.groups.filter(function (g) { return memberCount(g) > 0; })
+      .sort(function (a, b) { return (Number(a.no) || 0) - (Number(b.no) || 0); });
+    return {
+      affected: cur.slice(0, planArr.length).map(function (g) { return '第' + g.no + '组'; }),
+      emptied: cur.slice(planArr.length).map(function (g) { return '第' + g.no + '组'; }),
+      people: planArr.reduce(function (a, b) { return a + b; }, 0),
+      groups: planArr.length
+    };
+  }
+
+  /** 整班重排的二次确认。返回 true 才允许动手，一个字都不改。 */
+  function confirmRegroup(cls, planArr) {
+    var imp = regroupImpact(cls, planArr), lo = Math.min.apply(null, planArr), hi = Math.max.apply(null, planArr);
+    var lines = [];
+    lines.push('要把 ' + imp.people + ' 人重新分成 ' + imp.groups + ' 组（每组 ' + (lo === hi ? lo : lo + '–' + hi) + ' 人）。');
+    if (imp.affected.length) lines.push('· 会重排：' + imp.affected.join('、') + '（组里的人会被打散）');
+    if (imp.emptied.length) lines.push('· 会空出来：' + imp.emptied.join('、') + '（有历史记分的组只清空、不删除，分数还挂在原组号上）');
+    lines.push('· 一个学生都不会被删掉；记过的分按学生身份跟着人走。');
+    lines.push('');
+    lines.push('建议先到「数据与备份」页下载一份备份。继续吗？');
+    return confirm(lines.join('\n'));
+  }
+
+  /* ---- 分组结果核对（2026-11-08 追加） ----
+     团队在现场看到的是：49 人的班、4015 分都在，但只剩 5 个组 29 人 —— 20 个人掉进了待分配。
+     老师不会去数「组里还有几个人」，只会觉得「我的分没了」。所以每次自动分组/按选座确认/
+     删组以后都要当场对账，人头少了就用红字拦住，并给出「放回原组」和「撤回上一次分组」两条后路。 */
+
+  /** 从历史记分倒推谁有原组可回 —— 只用来在报账里写「其中 N 人可以一键放回」。 */
+  function restorableCount(cls) {
+    try { return droppedWithHome(cls).length; } catch (e) { return 0; }
+  }
+
+  /** 弹一张红字对账单。rep 来自 reconcileGroups()。 */
+  function showGroupReport(cls, rep) {
+    var d = $('#dlgGroupReport');
+    if (!d || !rep) return;
+    /* 分组向导弹窗还开着的话先关掉：两层模态叠在一起，老师会以为卡住了 */
+    var wiz = $('#dlgGroup');
+    if (wiz && wiz.open) wiz.close();
+    var lost = rep.before.people - rep.after.people;
+    var names = rep.dropped.map(function (x) { return x.name; });
+    var show = names.slice(0, 12);
+    var more = names.length - show.length;
+    var canBack = restorableCount(cls);
+    var snap = lastGroupSnapshot(cls);
+    $('#grTitle').textContent = lost > 0 ? '分组结果：少人了' : '分组结果核对';
+    $('#grBody').innerHTML =
+      '<p class="gr-flow">分之前：<b>' + rep.before.groups + '</b> 个组 · <b>' + rep.before.people + '</b> 人' +
+        '<span class="gr-arrow">→</span>分之后：<b>' + rep.after.groups + '</b> 个组 · <b class="' +
+        (lost > 0 ? 'gr-bad' : '') + '">' + rep.after.people + '</b> 人' +
+        (lost > 0 ? '（少了 <b class="gr-bad">' + lost + '</b> 人）' : '') + '</p>' +
+      (lost > 0
+        ? '<div class="gr-warn"><p><b>有 ' + names.length + ' 人掉出了原来的组</b>，现在躺在「待分配」名单里：</p>' +
+          '<p class="gr-names">' + show.map(esc).join('、') + (more > 0 ? ' 等 ' + names.length + ' 人' : '') + '</p>' +
+          '<p class="note">记住：他们的分数没有被清掉，只是人不挂在任何一个组下面了。' +
+          (canBack ? '其中 <b>' + canBack + '</b> 人能从上过课的记分表里认出原来的组，可以一键放回去。' : '') +
+          '</p></div>'
+        : '<p class="note">人数对得上：一个学生都没掉。</p>');
+    var btns = [];
+    /* 撤回优先：整份快照比逐个放回去更彻底（连成员顺序、个人扣分下标一起回到原样） */
+    if (snap) btns.push('<button type="button" class="btn" id="grRollback">撤回这一次（' + esc(snap.label) + '）</button>');
+    if (canBack) btns.push('<button type="button" class="btn primary" id="grRestore">把掉出的人放回原组（' + canBack + ' 人）</button>');
+    btns.push('<button type="button" class="btn ghost" id="grOk">知道了</button>');
+    $('#grBtns').innerHTML = btns.join('');
+    $('#grOk').addEventListener('click', function () { d.close(); });
+    if ($('#grRollback')) $('#grRollback').addEventListener('click', function () {
+      d.close();
+      if (restoreGroupSnapshot(cls, snap)) renderPoolBanner(cls);
+    });
+    if ($('#grRestore')) $('#grRestore').addEventListener('click', function () {
+      d.close();
+      var res = restoreDroppedToHome(cls);
+      flash('已把 ' + res.moved + ' 人放回原来的组');
+      renderPoolBanner(cls);
+      if (res.moved) showRestoreDetail(cls, res.rows);
+    });
+    if (!d.open) openDlg(d);
+  }
+
+  /** 归位明细：逐条写「谁 → 第几组 · 依据是什么 · 命中几条证据」，不搞黑箱。 */
+  function showRestoreDetail(cls, rows) {
+    var d = $('#dlgGroupReport');
+    if (!d || !rows || !rows.length) return;
+    var byBasis = {};
+    rows.forEach(function (x) { byBasis[x.basis] = (byBasis[x.basis] || 0) + 1; });
+    $('#grTitle').textContent = '已放回原组';
+    $('#grBody').innerHTML =
+      '<p class="gr-flow">一共放回 <b>' + rows.length + '</b> 人。依据：' +
+        Object.keys(byBasis).map(function (k) { return '<b>' + esc(k) + '</b> ' + byBasis[k] + ' 人'; }).join(' · ') +
+      '</p>' +
+      '<div class="gr-list">' + rows.map(function (x) {
+        return '<div class="gr-row"><span class="gr-nm">' + esc(x.r.name) + '</span>' +
+          '<span class="gr-to">第 ' + x.gno + ' 组</span>' +
+          '<span class="gr-why">' + esc(x.basis) + ' · 命中 ' + x.hits + ' 条</span></div>';
+      }).join('') + '</div>';
+    $('#grBtns').innerHTML = '<button type="button" class="btn primary" id="grOk2">知道了</button>';
+    $('#grOk2').addEventListener('click', function () { d.close(); });
+  }
+
+  /** 分组动作做完统一报账：先刷界面，少了人就弹红字单子。返回核对结果。 */
+  function reportGroupChange(cls, beforeGroups, label) {
+    var rep = reconcileGroups(cls, beforeGroups, label);
+    if (rep.before.people > rep.after.people) showGroupReport(cls, rep);
+    return rep;
+  }
+
+  /** 分数搬不动的时候明说，别让老师以为分数悄悄没了。 */
+  function reportScoreMigration(out) {
+    if (!out) return;
+    var p = out.personal || 0, l = (out.leader && out.leader.stranded) || 0;
+    if (!p && !l) return;
+    alert('有' + (p ? ' ' + p + ' 条个人扣分' : '') + (p && l ? '、' : '') + (l ? ' ' + l + ' 条个人项目分' : '') +
+      '找不到对应的人，已留在原来的位置（没有清零），请到「上课记分」页核对。');
+  }
+
+  /** 把上限设成 size 以后，哪些组会超员、超的是谁（只标红，不踢人）。
+      用户原话：「比如某组原来 7 人、新上限 6 人，不许直接把第 7 个人踢掉」。 */
+  function overLimitPreview(cls, size) {
+    var rows = [];
+    cls.groups.forEach(function (g) {
+      var cap = Math.max(size, Number(g.cap) || 0), n = memberCount(g);
+      if (n <= cap) return;
+      var seen = 0, names = [];
+      g.members.forEach(function (m) {
+        if (!m.name) return;
+        seen++;
+        if (seen > cap) names.push(m.name);
+      });
+      rows.push({ no: g.no, n: n, cap: cap, names: names });
+    });
+    return rows;
+  }
+
   /** 待分配学生按每组 size 人切组：只用空组，缺组补、多余空组删，返回安排结果 */
   function autoGroupBySize(cls, size, shuffle) {
-    size = clampSize(size);
+    size = clampLimit(size);
+    if (!size) return { error: '先填每组几人。' };
     var pending = truePendingList(cls).slice();
     if (!pending.length) return { error: '这个班没有待分配的学生，都分好组了。' };
     /* 护栏：全班人都算「没分组」，可班里明明有几组是满的——这不是缺人，是名单和分组对不上
@@ -2766,12 +3673,7 @@ function removeMemberAt(cls, g, j) {
       if (x !== y) return x - y;
       return String(a.name).localeCompare(String(b.name), 'zh-Hans-CN');
     });
-    if (shuffle) {
-      for (var i = pending.length - 1; i > 0; i--) {
-        var j = Math.floor(Math.random() * (i + 1));
-        var t = pending[i]; pending[i] = pending[j]; pending[j] = t;
-      }
-    }
+    if (shuffle) shuffleInPlace(pending);
     var plan = planSizes(pending.length, size);
     var need = plan.length;
     var empty = cls.groups.filter(function (g) { return memberCount(g) === 0; })
@@ -2802,100 +3704,279 @@ function removeMemberAt(cls, g, j) {
     };
   }
 
+  /** 全班重排的唯一写入口：把「一组一筐人」落进 cls.groups。
+      三条铁律，每一条都对应一句用户原话：
+      ① 只增不删人 —— 计划里每个人都落进某个组，绝不会「抹除我部分同学」；
+      ② 组号优先复用 —— 组号不变，那一组的历史小组分就还挂在原来那组上；
+         多出来的组只清空、不删除有历史记分的（分数留着，不跟着组一起消失）；
+      ③ 动手前拍分数快照，动完按学生身份把个人扣分迁回去（realignPersonalScores）。 */
+  function applyRegroup(cls, buckets) {
+    var snap = scoreLayoutSnapshot(cls);
+    /* 先把现有成员对象按身份存起来：重排时复用同一个对象，成员 id / 组长标记才不会失联
+       （个人项目分是按成员 id 记的，id 一换，leaderScores 里那份分就找不到了）。 */
+    var keep = Object.create(null);
+    cls.groups.forEach(function (g) {
+      g.members.forEach(function (m) {
+        if (!m.name) return;
+        var k = studentKeyOf(m);
+        if (!keep[k]) keep[k] = m;
+      });
+    });
+    var sorted = cls.groups.slice().sort(function (a, b) { return (Number(a.no) || 0) - (Number(b.no) || 0); });
+    var use = sorted.slice(0, buckets.length);
+    var extra = sorted.slice(buckets.length);
+    extra.forEach(function (g) {
+      g.members = [];
+      if (groupHasHistory(cls, g.no)) return;      // 有历史记分：留成空组，分数还挂在原组号上
+      var at = cls.groups.indexOf(g);
+      if (at >= 0) cls.groups.splice(at, 1);
+    });
+    var maxNo = cls.groups.reduce(function (a, g) { return Math.max(a, Number(g.no) || 0); }, 0);
+    while (use.length < buckets.length) {
+      var ng = { id: uid('g'), no: ++maxNo, members: [] };
+      cls.groups.push(ng);
+      use.push(ng);
+    }
+    use.forEach(function (g, gi) {
+      g.members = [];
+      buckets[gi].forEach(function (r) {
+        var k = r.sid ? 's:' + r.sid : 'n:' + r.name + '#' + (r.no == null ? '' : r.no);
+        var src = keep[k];
+        delete keep[k];
+        pushMember(g, src || { id: uid('m'), name: r.name, sid: r.sid || '', no: r.no == null ? null : r.no });
+      });
+      /* 人数变了：不再超员的组就别再挂着「特例」标签 */
+      if (Number(g.cap) && memberCount(g) <= (classGroupLimit(cls) || GROUP_CAP)) delete g.cap;
+      if (g.leaderKey && !g.members.some(function (m) { return memberKey(m) === g.leaderKey; })) delete g.leaderKey;
+    });
+    var personalUnmatched = realignPersonalScores(cls, snap);
+    /* 2026-11-08 追加：个人项目分（leaderScores[组号].members[成员键]）也按成员键整体搬到人现在所在的组号，
+       否则换完组 projectScore() 按新组号找不到这条记录，看上去就是「个人项目分全没了」。 */
+    var leader = realignLeaderScores(cls, snap);
+    return { personal: personalUnmatched, leader: leader };
+  }
+
   function pendingCountOf(cls) { return cls ? truePendingList(cls).length : 0; }
 
-  /** 输入框旁实时算给老师看：49 人分 6 人一组 = 9 组，每组 5–6 人
-      和真正分组用同一份 planSizes 算，免得提示说 7 人、分出来却是 6 人。 */
-  function updatePoolSizeHint() {
-    var box = $('#poolSizeHint');
-    if (!box) return;
-    var n = pendingCountOf(curClass()), size = clampSize($('#poolSize').value);
-    if (!n) { box.textContent = '人（没有待分配学生）'; return; }
-    var plan = planSizes(n, size);
-    var lo = Math.min.apply(null, plan), hi = Math.max.apply(null, plan), tail = '';
-    /* 装满后剩一组人数不一样时，直接把「最后一组几人」写出来：
-       老师选 7 就得看见 7，不能只看到一句「5–7 人」还以为没生效。 */
-    if (lo !== hi && plan[plan.length - 1] === lo && plan.slice(0, -1).every(function (x) { return x === hi; })) {
-      tail = '（最后一组 ' + lo + ' 人）';
-      lo = hi;
-    }
-    box.textContent = '人 → 共 ' + n + ' 人，分 ' + plan.length + ' 组，每组 ' +
-      (lo === hi ? lo : lo + '–' + hi) + ' 人' + tail;
+  /** 分组向导的四个页签。默认停在「按组数分」，但一个输入框都不预填。 */
+  var gpTab = 'count';
+  function gpSetTab(tab) {
+    gpTab = tab || 'count';
+    $$('#gpTabs button').forEach(function (b) {
+      var on = b.dataset.tab === gpTab;
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    $$('#dlgGroup .gp-pane').forEach(function (p) { p.hidden = p.dataset.pane !== gpTab; });
   }
 
-  /** 「每组几人」只决定**以后**怎么切组，记在班上（cls.poolSize），刷新也不丢；
-      它绝不回头改已经分好的组——那个框里改数字，除了提示和下一次一键分组，什么都不该发生。 */
-  function poolSizeOf(cls) {
-    var v = Number(cls && cls.poolSize);
-    return v >= 2 ? clampSize(v) : 6;
+  /** 当前班级一句话现状：几个组、多少人、多少待分配、每组上限多少 */
+  function groupSummaryText(cls) {
+    if (!cls) return '';
+    var nGroup = (cls.groups || []).filter(function (g) { return memberCount(g) > 0; }).length;
+    var total = regroupPool(cls).length;
+    var pending = pendingCountOf(cls);
+    var limit = classGroupLimit(cls);
+    var over = (cls.groups || []).reduce(function (a, g) { return a + overCountOf(cls, g); }, 0);
+    if (!nGroup && !total) return '这个班还没有学生';
+    return nGroup + ' 个组 · 已分 ' + (total - pending) + '/' + total + ' 人' +
+      (pending ? ' · 待分配 ' + pending + ' 人' : '') +
+      (limit ? ' · 每组上限 ' + limit + ' 人' : '') +
+      (over ? ' · 超员 ' + over + ' 人（已标红）' : '');
   }
 
-  function runAutoGroup(shuffle) {
+  function renderGroupSummary() {
+    var box = $('#groupSummary');
+    if (box) box.textContent = groupSummaryText(curClass());
+  }
+
+  /** 页签里的实时预览 + 执行按钮的灰/亮。所有输入都为空时按钮是灰的（没有默认值可点）。 */
+  function gpUpdate() {
     var cls = curClass();
     if (!cls) return;
-    var size = clampSize($('#poolSize').value);
-    var pending = truePendingList(cls);
-    if (!pending.length) {
-      /* 一键分组不碰已经在圆桌上的人：他在看板上坐第 N 桌，硬分到别的组会和座次打架。
-         所以这里要告诉老师「不是没人可分，是还没确认选座」，而不是一句「都分好组了」。 */
-      var seated = seatedNotGrouped(cls);
-      alert(seated.length
-        ? '还有 ' + seated.length + ' 人选好了圆桌但没确认分组。\n请先在组队卡片上点「按选座确认分组」把它们写进记分表，再来一键分组。'
-        : '这个班没有待分配的学生，都分好组了。');
+    var sizeIn = $('#poolSize');
+    /* 上次用过的人数值只放在 placeholder 里提示，不写进 value —— 不预填，老师必须自己填一次。 */
+    var last = classGroupLimit(cls) || Number(cls.poolSize) || 0;
+    if (sizeIn) sizeIn.placeholder = last ? '上次用 ' + last + ' 人，例如 ' + last : '先填人数，例如 6';
+    var lastTables = Number(cls.teamTables) || 0;
+    var tablesIn = $('#teamTables'), tSizeIn = $('#teamSize');
+    if (tablesIn) tablesIn.placeholder = lastTables ? '上次 ' + lastTables + ' 桌' : '先填桌数，例如 8';
+    if (tSizeIn) tSizeIn.placeholder = last ? '上次每桌 ' + last + ' 人' : '先填人数，例如 6';
+
+    /* ① 按组数分 */
+    var pool = regroupPool(cls);
+    var want = Math.round(Number($('#groupCount').value) || 0);
+    var runCount = $('#gpCountRun');
+    var prevCount = $('#gpCountPreview');
+    if (runCount) runCount.disabled = !(want >= 1 && pool.length);
+    if (prevCount) {
+      if (!pool.length) prevCount.textContent = '这个班还没有学生，先在名单里添加。';
+      else if (!(want >= 1)) prevCount.textContent = '共 ' + pool.length + ' 人。填一个组数，这里先算给你看。';
+      else {
+        var p1 = planByCount(pool.length, want);
+        var lo1 = Math.min.apply(null, p1), hi1 = Math.max.apply(null, p1);
+        prevCount.textContent = '共 ' + pool.length + ' 人 → ' + p1.length + ' 组，每组 ' +
+          (lo1 === hi1 ? lo1 : lo1 + '–' + hi1) + ' 人' +
+          (p1.some(function (n) { return !n; }) ? '（有 ' + p1.filter(function (n) { return !n; }).length + ' 个空组）' : '') +
+          '。执行前还会再确认一次。';
+      }
+    }
+
+    /* ② 按每组人数分 */
+    var size = clampLimit(sizeIn ? sizeIn.value : '');
+    var all = !!($('#gpSizeAll') && $('#gpSizeAll').checked);
+    var shuffle = !!($('#gpSizeShuffle') && $('#gpSizeShuffle').checked);
+    var list = all ? pool : truePendingList(cls);
+    var runSize = $('#btnPoolBySize');
+    if (runSize) runSize.disabled = !size;
+    var prevSize = $('#gpSizePreview');
+    if (prevSize) {
+      if (!size) prevSize.textContent = '先填每组几人，这里再算分几组。';
+      else if (!list.length) prevSize.textContent = all ? '这个班还没有学生。' : '没有待分配的学生，都分好组了。';
+      else {
+        var p2 = planSizes(list.length, size);
+        var lo2 = Math.min.apply(null, p2), hi2 = Math.max.apply(null, p2);
+        prevSize.textContent = (all ? '全班 ' : '待分配 ') + list.length + ' 人 → ' + p2.length + ' 组，每组 ' +
+          (lo2 === hi2 ? lo2 : lo2 + '–' + hi2) + ' 人' + (shuffle ? '（随机）' : '') + '。';
+      }
+      var overs = size ? overLimitPreview(cls, size) : [];
+      if (size && overs.length) {
+        prevSize.textContent += '\n注意：现有 ' + overs.length + ' 个组会超过 ' + size + ' 人（' +
+          overs.map(function (x) { return '第' + x.no + '组 ' + x.n + ' 人'; }).join('、') +
+          '）。超出来的人只标红、不会被移出，执行前还会再确认一次。';
+      }
+    }
+
+    /* ③ 按选座确认：两个数字都填了才让点「开放组队」 */
+    var tN = Math.round(Number(tablesIn ? tablesIn.value : '') || 0);
+    var tS = clampLimit(tSizeIn ? tSizeIn.value : '');
+    var openBtn = $('#btnTeamOpen');
+    /* 房间已经开着的时候，tmButtons() 会把「开放组队」藏起来，那就不归这里管 */
+    if (openBtn && !(tmRoom && tmRoom.room && tmRoom.status !== 'closed')) openBtn.disabled = !(tN >= 1 && tS);
+    var seatPrev = $('#gpSeatPreview');
+    if (seatPrev) {
+      seatPrev.textContent = (tN >= 1 && tS)
+        ? '将开 ' + tN + ' 张圆桌，每桌最多 ' + tS + ' 人。学生自己选座，你这边每 2 秒自动刷新。'
+        : '两个数字都填了才能开放组队。';
+    }
+    renderGroupSummary();
+  }
+
+  /** 打开分组向导。tab 可以指定停在哪个页签（第一次打开总是「按组数分」）。 */
+  function gpOpen(tab) {
+    var d = $('#dlgGroup');
+    if (!d) return;
+    gpSetTab(tab || 'count');
+    gpUpdate();
+    if (!d.open) openDlg(d);
+  }
+
+  function runGroupByCount() {
+    var cls = curClass();
+    if (!cls) return;
+    var want = Math.round(Number($('#groupCount').value) || 0);
+    if (!(want >= 1)) { alert('先在「分几组」里填一个数字。'); return; }
+    var pool = regroupPool(cls);
+    if (!pool.length) { alert('这个班还没有学生，先在名单里添加。'); return; }
+    if ($('#gpCountShuffle').checked) shuffleInPlace(pool);
+    var plan = planByCount(pool.length, want);
+    if (!confirmRegroup(cls, plan)) return;
+    /* 2026-11-08：动手前先留两份后路 —— 一份给「撤回上一次分组」，一份用来做前后人数对账 */
+    var before = JSON.parse(JSON.stringify(cls.groups));
+    pushGroupSnapshot(cls, '按组数重排：' + pool.length + ' 人分 ' + plan.length + ' 组');
+    cls.groupLimit = Math.max.apply(null, plan);   // 记下这次的上限，看板按它标红
+    var out = applyRegroup(cls, bucketsByPlan(pool, plan));
+    addOperationLog('分组', cls.name + ' · 按组数重排：' + pool.length + ' 人分 ' + plan.length + ' 组（每组 ' +
+      (Math.min.apply(null, plan) === Math.max.apply(null, plan) ? plan[0] : Math.min.apply(null, plan) + '–' + Math.max.apply(null, plan)) + ' 人）');
+    save(); renderPool(); renderScore(); renderPoolBanner(cls);
+    flash('已分成 ' + plan.length + ' 组，共 ' + pool.length + ' 人');
+    reportScoreMigration(out);
+    reportGroupChange(cls, before, '按组数重排');
+  }
+
+  function runGroupBySize() {
+    var cls = curClass();
+    if (!cls) return;
+    var size = clampLimit($('#poolSize').value);
+    if (!size) { alert('先在「每组」里填一个数字（2–40）。'); return; }
+    var all = $('#gpSizeAll').checked, shuffle = $('#gpSizeShuffle').checked;
+    var overs = overLimitPreview(cls, size);
+
+    if (!all) {
+      var pending = truePendingList(cls);
+      if (!pending.length) {
+        /* 不碰已经在圆桌上的人：他在看板上坐第 N 桌，硬分到别的组会和座次打架。 */
+        var seated = seatedNotGrouped(cls);
+        alert(seated.length
+          ? '还有 ' + seated.length + ' 人选好了圆桌但没确认分组。\n请先在「分组… → ③ 按选座确认」里点「按选座确认分组」把它们写进记分表，再来分组。'
+          : '这个班没有待分配的学生，都分好组了。');
+        return;
+      }
+      var need = planSizes(pending.length, size).length;
+      var msg = '把 ' + pending.length + ' 名待分配学生' + (shuffle ? '随机' : '按班内序号') +
+        '分成 ' + need + ' 组（每组不超过 ' + size + ' 人）？\n\n已经分好的组一个都不动；' +
+        '用不上的空组会删掉（有历史记分的空组保留）。';
+      if (overs.length) {
+        /* 压缩冲突：上限比现有某些组还小。这里必须写清楚「谁会被挤出去」——
+           答案是：谁都不会被挤出去，只是标红，决定权留给老师。 */
+        msg += '\n\n注意：把上限设为 ' + size + ' 人以后，现有 ' + overs.length + ' 个组会超员：\n' +
+          overs.map(function (x) {
+            return '· 第' + x.no + '组现在 ' + x.n + ' 人，超 ' + (x.n - x.cap) + ' 人：' + x.names.join('、');
+          }).join('\n') +
+          '\n他们只会「标红」，不会被移出；你可以之后把他拖到别的组、直接留着，或给那一组点「设为例外」。';
+      }
+      if (!confirm(msg)) return;
+      var beforeP = JSON.parse(JSON.stringify(cls.groups));
+      pushGroupSnapshot(cls, '按每组 ' + size + ' 人分待分配（' + pending.length + ' 人）');
+      var res = autoGroupBySize(cls, size, shuffle);
+      if (res.error) { alert(res.error); return; }
+      cls.groupLimit = size;
+      addOperationLog('分组', cls.name + ' · 按每组 ' + size + ' 人分待分配：' + res.people + ' 人分成 ' + res.groups + ' 组' +
+        (res.removed ? '，清掉 ' + res.removed + ' 个空组' : ''));
+      save(); renderPool(); renderScore(); renderPoolBanner(cls);
+      flash('已分成 ' + res.groups + ' 组：每组 ' + (res.min === res.max ? res.min : res.min + '–' + res.max) + ' 人');
+      if (overs.length) flash('第 ' + overs.map(function (x) { return x.no; }).join('、') + ' 组超员的人已标红，但没有被移出');
+      reportGroupChange(cls, beforeP, '按每组 ' + size + ' 人分待分配');
       return;
     }
-    var need = planSizes(pending.length, size).length;
-    if (!confirm('把 ' + pending.length + ' 名待分配学生' + (shuffle ? '随机' : '按班内序号') +
-      '分成 ' + need + ' 组（每组不超过 ' + size + ' 人）？\n\n' +
-      '已经分好的组一律不动；用不上的空组会删掉（有历史记分的空组保留）。\n' +
-      '建议先到「数据与备份」页下载一份备份。')) return;
-    var res = autoGroupBySize(cls, size, shuffle);
-    if (res.error) { alert(res.error); return; }
-    addOperationLog('分组', cls.name + ' · 一键分组：待分配 ' + res.people + ' 人' + (shuffle ? '随机' : '按序号') +
-      '分成 ' + res.groups + ' 组（每组 ' + (res.min === res.max ? res.min : res.min + '–' + res.max) + ' 人）' +
-      (res.removed ? '，清掉 ' + res.removed + ' 个空组' : ''));
-    save();
-    renderPool();
-    renderScore();
-    renderPoolBanner(cls);
-    flash('已分成 ' + res.groups + ' 组：每组 ' + (res.min === res.max ? res.min : res.min + '–' + res.max) + ' 人' +
-      (res.removed ? '，清掉 ' + res.removed + ' 个空组' : ''));
+
+    /* 全班重排：这是会打散现有分组的动作，先确认再动手 */
+    var pool = regroupPool(cls);
+    if (!pool.length) { alert('这个班还没有学生，先在名单里添加。'); return; }
+    if (shuffle) shuffleInPlace(pool);
+    var plan = planSizes(pool.length, size);
+    if (!confirmRegroup(cls, plan)) return;
+    var before = JSON.parse(JSON.stringify(cls.groups));
+    pushGroupSnapshot(cls, '全班重排：' + pool.length + ' 人 × 每组 ' + size + ' 人 → ' + plan.length + ' 组');
+    cls.groupLimit = size;
+    var out = applyRegroup(cls, bucketsByPlan(pool, plan));
+    addOperationLog('分组', cls.name + ' · 全班重排：' + pool.length + ' 人 × 每组 ' + size + ' 人 → ' + plan.length + ' 组');
+    save(); renderPool(); renderScore(); renderPoolBanner(cls);
+    flash('已把全班 ' + pool.length + ' 人分成 ' + plan.length + ' 组');
+    reportScoreMigration(out);
+    reportGroupChange(cls, before, '全班重排');
   }
 
-  $('#btnPoolBySize').addEventListener('click', function () { runAutoGroup(false); });
-  $('#btnPoolRandom').addEventListener('click', function () { runAutoGroup(true); });
-  $('#poolSize').addEventListener('input', updatePoolSizeHint);
-  /* 改完数字别急着离开页面就忘了：记在本班上，下次进来还是这个数。
-     这里只存上限，不重排——已经分好的组、已经选好座的人一个都不动。 */
-  $('#poolSize').addEventListener('change', function () {
+  /** 均匀分配：把待分配的人轮流塞进现有组，填到该组上限为止（不新建组） */
+  function runFillExisting() {
     var cls = curClass();
     if (!cls) return;
-    var size = clampSize(this.value);
-    this.value = String(size);
-    if (Number(cls.poolSize) === size) { updatePoolSizeHint(); return; }
-    cls.poolSize = size;
-    addOperationLog('分组', cls.name + ' · 每组人数上限改为 ' + size + ' 人（只影响以后的新分组，已分好的组不动）');
-    save(false);
-    updatePoolSizeHint();
-    flash('每组最多 ' + size + ' 人（只影响以后的一键分组，已分好的组原样保留）');
-  });
-
-  /* 均匀分配 */
-  $('#btnPoolAuto').addEventListener('click', function () {
-    var cls = curClass();
     var pending = truePendingList(cls);
     if (!pending.length) { alert('这个班没有待分配的学生。'); return; }
     var room = cls.groups.map(function (g) {
-      return { g: g, left: GROUP_CAP - memberCount(g) };
+      return { g: g, left: groupTargetCap(cls, g) - memberCount(g) };
     });
     var totalRoom = room.reduce(function (a, x) { return a + Math.max(0, x.left); }, 0);
     if (totalRoom < pending.length) {
       alert('现有小组空位不够：空位 ' + totalRoom + ' 个，待分配 ' + pending.length + ' 人。\n' +
-            '请先到「数据与备份」页添加小组，或分批分配。');
+            '请先把每组人数调大，或用 ① 按组数重新分。');
       return;
     }
-    if (!confirm('将把 ' + pending.length + ' 名待分配学生，按班内序号顺序轮流填入现有各组（每组不超过 ' +
-                 GROUP_CAP + ' 人）。\n\n这会直接改动分组，建议先到「数据与备份」下载备份后再操作。继续吗？')) return;
+    var limit = classGroupLimit(cls) || GROUP_CAP;
+    if (!confirm('把 ' + pending.length + ' 名待分配学生，按班内序号顺序轮流填进现有各组（每组不超过 ' + limit + ' 人）。\n\n' +
+      '不新建组、不挪动已经在组里的人。继续吗？')) return;
+    var beforeF = JSON.parse(JSON.stringify(cls.groups));
+    pushGroupSnapshot(cls, '均匀填充：待分配 ' + pending.length + ' 人填进现有组');
     var i = 0, done = 0;
     pending.forEach(function (r) {
       for (var k = 0; k < room.length; k++) {
@@ -2911,9 +3992,48 @@ function removeMemberAt(cls, g, j) {
         }
       }
     });
-    save(); renderPool(); renderScore();
+    addOperationLog('分组', cls.name + ' · 均匀填充：待分配 ' + done + ' 人填进现有组');
+    save(); renderPool(); renderScore(); renderPoolBanner(cls);
     flash('已均匀分配 ' + done + ' 人，可到「上课记分」页核对');
-  });
+    reportGroupChange(cls, beforeF, '均匀填充');
+  }
+
+  /* ---- 弹窗里的交互绑定 ---- */
+  if ($('#dlgGroup')) {
+    var gpDlgEl = $('#dlgGroup');
+    gpDlgEl.addEventListener('close', function () { renderGroupSummary(); });
+    $('#btnGroupWizard').addEventListener('click', function () { gpOpen('count'); });
+    $('#gpClose').addEventListener('click', function () { gpDlgEl.close(); });
+    $('#gpDone').addEventListener('click', function () { gpDlgEl.close(); });
+    $('#gpTabs').addEventListener('click', function (e) {
+      var b = e.target.closest('button[data-tab]');
+      if (!b) return;
+      gpSetTab(b.dataset.tab);
+      gpUpdate();
+    });
+    $('#gpGoDrag').addEventListener('click', function () {
+      gpDlgEl.close();
+      var board = $('#groupBoard');
+      if (board) board.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    });
+    ['#groupCount', '#poolSize', '#teamTables', '#teamSize'].forEach(function (sel) {
+      var el = $(sel);
+      if (el) el.addEventListener('input', gpUpdate);
+    });
+    ['#gpSizeAll', '#gpSizeShuffle'].forEach(function (sel) {
+      var el = $(sel);
+      if (el) el.addEventListener('change', gpUpdate);
+    });
+    $('#gpCountRun').addEventListener('click', runGroupByCount);
+    $('#btnPoolBySize').addEventListener('click', runGroupBySize);
+    $('#btnPoolAuto').addEventListener('click', runFillExisting);
+  }
+
+  /* 分组结果核对弹窗（2026-11-08）：按钮是 showGroupReport 每次重画的，只绑关闭 */
+  if ($('#dlgGroupReport')) {
+    $('#grClose').addEventListener('click', function () { $('#dlgGroupReport').close(); });
+    $('#dlgGroupReport').addEventListener('close', function () { renderGroupSummary(); });
+  }
 
   /* ================= 数据与备份视图 ================= */
 
@@ -4253,6 +5373,20 @@ function removeMemberAt(cls, g, j) {
     }
     renderPoolBanner(curClass());
     switchView('score');
+    /* 2026-11-10 接线课堂任务 → 小组加分自动入账（实现见 wire-task-link.js 顶部说明） */
+    if (window.JFDT_WIRE) {
+      window.JFDT_WIRE.boot({
+        getState: function () { return S; },
+        save: function () { save(); },
+        log: addOperationLog,
+        flash: flash,
+        rerender: function () { renderScore(); },
+        curClass: curClass,
+        rpc: function (name, args) { return CLOUD.rpc(name, args); },
+        hasRpc: function () { return !!(CLOUD_ON && CLOUD && typeof CLOUD.rpc === 'function' && CLOUD.profile && CLOUD.profile()); }
+      });
+      window.JFDT_WIRE.syncAll();
+    }
     if(CLOUD_ON)setTimeout(function(){refreshCloud();},0);
   }
 

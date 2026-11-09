@@ -1,0 +1,24 @@
+<!doctype html>
+<!-- 接线仿真 · 课堂任务大屏（2026-11-09）
+     用法：教师在任务页点「打开大屏（投影）」，新窗口地址是 board.html?t=<任务id>；
+           直接开 board.html 也行，会自动找本班/自己的进行中任务（没有就显示最近一个）。
+     设计（用户要求）：
+       · 主体是**未完成名单**，超大字号，红边卡片一排一排铺开，站最后一排也看得清；
+       · 右上角是已完成人数 / 总人数 和完成率进度环；
+       · 已完成的人缩成金色小头像条，不抢未完成名单的位置；
+       · 每 3 秒自动刷新（只看，不写），新完成的人弹一下高亮，督促效果就靠这一下。
+     ⚠️ 这一页整屏不滚动（1920×1080 投影一屏放下）：名单再多就自动缩字号/缩卡片，绝不出现滚动条。 -->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#04060e">
+<title>课堂任务大屏 · 接线仿真</title>
+<link rel="stylesheet" href="task.css">
+</head>
+<body class="board">
+<div id="bdRoot"><div class="bd-gate"><b>读取任务…</b></div></div>
+<script src="task-hx.js"></script>
+<script src="task-board.js"></script>
+</body>
+</html>

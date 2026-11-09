@@ -1,0 +1,286 @@
+/* ============================================================================
+   课堂任务 · 教师端 + 大屏（2026-11-09）
+   外观沿用 super.html / project2.html 那一套：深色底 + --acc 主色 + 玻璃卡片。
+   两页共用这份 CSS，靠 body 上的 class 区分：
+     body.page  → 教师端/学生端（信息密度高，表格 + 表单）
+     body.board → 大屏（1920×1080 投影，超大字号，一屏放下，不滚动）
+   字号全部用 vmin/rem 相对值：投影仪分辨率变了也不会「字小到后排看不清」。
+   ========================================================================== */
+:root {
+  --bg: #04060e; --ink: #e9edff; --dim: #8b95bd;
+  --edge: rgba(150, 175, 255, .16); --edge2: rgba(150, 175, 255, .3);
+  --card: rgba(22, 28, 48, .78); --card2: rgba(12, 16, 30, .72);
+  --acc: #7c9cff; --acc2: #b18cff; --ok: #34d399; --bad: #fb7185; --warn: #fbbf24;
+  --onacc: #fff;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; }
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+/* 背景两团光斑：和排位窗一个观感，但不做动画（投影机上少一份常驻开销） */
+body::before {
+  content: ''; position: fixed; inset: -10%; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(38vmax 30vmax at 12% -4%, color-mix(in srgb, var(--acc) 22%, transparent), transparent 70%),
+    radial-gradient(34vmax 28vmax at 96% 100%, color-mix(in srgb, var(--acc2) 18%, transparent), transparent 72%);
+}
+a { color: var(--acc); text-decoration: none; }
+button, input, select, textarea { font: inherit; color: inherit; }
+b, strong { font-weight: 800; }
+em { font-style: normal; }
+
+/* ---------------- 教师端 / 学生端 ---------------- */
+.page { min-height: 100dvh; display: flex; flex-direction: column; }
+.pg-top {
+  flex: none; display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  padding: 14px clamp(14px, 2vw, 30px); border-bottom: 1px solid var(--edge);
+  background: linear-gradient(180deg, rgba(14, 18, 34, .92), rgba(8, 11, 22, .78));
+  backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 8;
+}
+.pg-top .back {
+  display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 10px;
+  border: 1px solid var(--edge); color: var(--dim); background: transparent; cursor: pointer; font-size: 13px;
+}
+.pg-top .back:hover { color: var(--ink); border-color: var(--acc); }
+.pg-top h1 { margin: 0; font-size: clamp(16px, 1.6vw, 21px); letter-spacing: .06em; }
+.pg-top h1 small { display: block; font-size: 11.5px; font-weight: 400; color: var(--dim); letter-spacing: 0; margin-top: 2px; }
+.pg-top .grow { flex: 1; }
+.who { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--dim); }
+.who .role { font-size: 11.5px; font-weight: 800; padding: 3px 8px; border-radius: 8px; border: 1px solid var(--edge2); color: var(--acc); }
+.who .role.s { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 40%, transparent); }
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 9px 16px; border-radius: 11px; cursor: pointer; font-size: 14px; font-weight: 700;
+  border: 1px solid var(--edge2); background: color-mix(in srgb, var(--acc) 14%, transparent); color: var(--ink);
+  transition: background .15s, border-color .15s, transform .1s;
+}
+.btn:hover { background: color-mix(in srgb, var(--acc) 24%, transparent); border-color: var(--acc); }
+.btn:active { transform: translateY(1px); }
+.btn[disabled] { opacity: .45; cursor: not-allowed; }
+.btn.primary { background: linear-gradient(135deg, var(--acc), var(--acc2)); color: var(--onacc); border-color: transparent; }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn.ghost { background: transparent; border-color: var(--edge); color: var(--dim); }
+.btn.ghost:hover { color: var(--ink); }
+.btn.danger { background: color-mix(in srgb, var(--bad) 16%, transparent); border-color: color-mix(in srgb, var(--bad) 45%, transparent); }
+.btn.danger:hover { background: color-mix(in srgb, var(--bad) 26%, transparent); }
+.btn.big { padding: 12px 22px; font-size: 15px; }
+
+.pg-main {
+  width: min(1600px, 100%); margin: 0 auto; padding: clamp(14px, 2vw, 26px);
+  display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); align-content: start; flex: 1;
+}
+@media (min-width: 1180px) { .pg-main { grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); } .pg-main > .span2 { grid-column: 1 / -1; } }
+.panel {
+  min-width: 0; border: 1px solid var(--edge); border-radius: 16px; background: var(--card);
+  box-shadow: 0 20px 44px -28px rgba(0, 0, 0, .9); overflow: hidden;
+}
+.panel > h2 {
+  margin: 0; padding: 14px 18px; font-size: 14.5px; letter-spacing: .04em;
+  border-bottom: 1px solid var(--edge); background: var(--card2); display: flex; align-items: center; gap: 10px;
+}
+.panel > h2 .tag { margin-left: auto; font-size: 11.5px; font-weight: 700; color: var(--dim); }
+.panel .body { padding: 16px 18px; }
+.panel .body.tight { padding: 0; }
+.hint { margin: 10px 0 0; font-size: 12.5px; color: var(--dim); line-height: 1.7; }
+.err { margin: 10px 0 0; font-size: 13px; color: var(--bad); }
+
+/* 表单 */
+.form { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.form .full { grid-column: 1 / -1; }
+.field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.field > label { font-size: 12.5px; color: var(--dim); font-weight: 700; }
+.field input, .field select, .field textarea {
+  width: 100%; padding: 10px 12px; border-radius: 10px; background: rgba(6, 9, 20, .72);
+  border: 1px solid var(--edge); outline: none; font-size: 14px;
+}
+.field textarea { resize: vertical; min-height: 62px; }
+.field input:focus, .field select:focus, .field textarea:focus { border-color: var(--acc); box-shadow: 0 0 0 3px color-mix(in srgb, var(--acc) 18%, transparent); }
+.field select option { background: #0b1020; }
+
+/* 当前任务卡 */
+.task-head { display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.task-head b { font-size: clamp(15px, 1.5vw, 18px); }
+.task-head .meta { font-size: 12.5px; color: var(--dim); margin-top: 4px; }
+.state {
+  font-size: 11.5px; font-weight: 800; padding: 4px 10px; border-radius: 999px;
+  border: 1px solid var(--edge2); color: var(--acc); white-space: nowrap;
+}
+.state.open { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 55%, transparent); background: color-mix(in srgb, var(--ok) 12%, transparent); }
+.state.closed { color: var(--dim); }
+.state.void { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 45%, transparent); }
+.kpis { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); margin: 16px 0 4px; }
+.kpi { border: 1px solid var(--edge); border-radius: 12px; padding: 10px 12px; background: rgba(6, 9, 20, .5); min-width: 0; }
+.kpi em { display: block; font-size: 11.5px; color: var(--dim); font-weight: 700; }
+.kpi b { display: block; margin-top: 3px; font-size: clamp(19px, 2.1vw, 25px); font-variant-numeric: tabular-nums; letter-spacing: .01em; }
+.kpi b small { font-size: 12.5px; color: var(--dim); font-weight: 700; margin-left: 3px; }
+.bar { height: 8px; border-radius: 99px; background: rgba(120, 140, 200, .18); overflow: hidden; margin-top: 12px; }
+.bar i { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--acc), var(--ok)); transition: width .5s ease; }
+.acts { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+
+/* 表格（已完成名单 / 历史任务） */
+.tbl-wrap { overflow-x: auto; }
+table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+table.tbl th, table.tbl td { padding: 9px 12px; text-align: left; border-bottom: 1px solid rgba(150, 175, 255, .1); white-space: nowrap; }
+table.tbl th { font-size: 12px; color: var(--dim); font-weight: 700; background: rgba(10, 14, 28, .6); position: sticky; top: 0; }
+table.tbl td.num, table.tbl th.num { text-align: right; font-variant-numeric: tabular-nums; }
+table.tbl tr:last-child td { border-bottom: 0; }
+table.tbl tr.r1 td { background: color-mix(in srgb, var(--warn) 10%, transparent); }
+table.tbl tr.r2 td { background: color-mix(in srgb, var(--acc) 8%, transparent); }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 7px; font-size: 12px; font-weight: 800; }
+.badge.r100 { color: #08110a; background: var(--ok); }
+.badge.r80 { color: #0a0f1e; background: var(--acc); }
+.badge.r70 { color: #0a0f1e; background: var(--warn); }
+.badge.r0 { color: var(--dim); background: rgba(140, 155, 190, .16); }
+.scroll-y { max-height: 46vh; overflow: auto; }
+.muted { color: var(--dim); }
+.empty { padding: 26px 18px; text-align: center; color: var(--dim); font-size: 13.5px; }
+
+/* 学生端：我这一条 */
+.mine-card { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+.mine-card .kpi b { font-size: clamp(22px, 2.6vw, 30px); }
+.mine-done { border-color: color-mix(in srgb, var(--ok) 45%, transparent); background: color-mix(in srgb, var(--ok) 8%, var(--card)); }
+.mine-todo { border-color: color-mix(in srgb, var(--warn) 45%, transparent); background: color-mix(in srgb, var(--warn) 8%, var(--card)); }
+
+/* 登录 / 提示页 */
+.gate { display: grid; place-items: center; min-height: 100dvh; padding: 24px; }
+.gate-card { max-width: 520px; width: 100%; text-align: center; border: 1px solid var(--edge); border-radius: 18px; padding: 34px 28px; background: var(--card); }
+.gate-card b { display: block; font-size: 20px; }
+.gate-card p { color: var(--dim); font-size: 13.5px; line-height: 1.8; margin: 10px 0 20px; }
+.gate-acts { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+
+/* ============================================================================
+   大屏（投影）：1920×1080 一屏放下，整页不滚动
+   ========================================================================== */
+body.board { height: 100dvh; overflow: hidden; display: flex; flex-direction: column; }
+body.board::before {
+  background:
+    radial-gradient(30vmax 26vmax at 8% -6%, color-mix(in srgb, var(--acc) 26%, transparent), transparent 70%),
+    radial-gradient(26vmax 22vmax at 100% 104%, color-mix(in srgb, var(--acc2) 20%, transparent), transparent 72%);
+}
+.bd-top {
+  flex: none; display: flex; align-items: center; gap: 2vmin; padding: 1.6vmin 2.4vmin;
+  border-bottom: 1px solid var(--edge); background: linear-gradient(180deg, rgba(12, 16, 30, .94), rgba(6, 9, 18, .72));
+}
+.bd-title { min-width: 0; flex: 1; }
+.bd-title small { display: block; font-size: 1.9vmin; color: var(--dim); font-weight: 700; letter-spacing: .06em; }
+.bd-title b { display: block; font-size: 3.6vmin; line-height: 1.15; margin-top: .4vmin; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bd-title .sub { margin-top: .5vmin; font-size: 1.7vmin; color: var(--dim); }
+.bd-stat { flex: none; display: flex; align-items: center; gap: 2vmin; }
+.ring { position: relative; width: 15vmin; height: 15vmin; flex: none; }
+.ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.ring .trk { stroke: rgba(130, 150, 210, .3); }
+.ring .val { stroke: var(--ok); stroke-linecap: round; transition: stroke-dashoffset .7s cubic-bezier(.22, .8, .3, 1); }
+.ring .txt { position: absolute; inset: 0; display: grid; place-items: center; align-content: center; gap: .5vmin; text-align: center; line-height: 1; }
+.ring .txt b { font-size: 2.7vmin; font-variant-numeric: tabular-nums; }
+.ring .txt em { display: block; font-size: 1.4vmin; color: var(--dim); font-weight: 700; }
+.bd-count { text-align: right; }
+.bd-count b { font-size: 5.4vmin; line-height: 1; font-variant-numeric: tabular-nums; }
+.bd-count b small { font-size: 2.4vmin; color: var(--dim); font-weight: 700; }
+.bd-count em { display: block; font-size: 1.7vmin; color: var(--dim); margin-top: .8vmin; font-weight: 700; }
+
+.bd-main { flex: 1; min-height: 0; display: flex; gap: 1.6vmin; padding: 1.6vmin 2.4vmin 1.2vmin; }
+.bd-pending { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.bd-pending h2, .bd-done h3 {
+  margin: 0 0 1vmin; font-size: 2vmin; font-weight: 800; letter-spacing: .08em; color: var(--dim);
+  display: flex; align-items: center; gap: 1vmin;
+}
+.bd-pending h2 em, .bd-done h3 em { color: var(--warn); font-size: 2.4vmin; font-variant-numeric: tabular-nums; }
+.pend-grid {
+  flex: 1; min-height: 0; overflow: hidden; align-content: start;
+  display: grid; gap: 1.1vmin; grid-template-columns: repeat(auto-fill, minmax(20vmin, 1fr));
+  grid-auto-rows: min-content;
+}
+.pend {
+  display: flex; align-items: center; gap: 1.1vmin; padding: 1.1vmin 1.3vmin; min-width: 0;
+  border: 1px solid color-mix(in srgb, var(--bad) 30%, transparent); border-radius: 1.3vmin;
+  background: linear-gradient(135deg, rgba(40, 22, 34, .82), rgba(16, 16, 30, .7));
+  animation: pendIn .35s ease both;
+}
+.pend:nth-child(n+13) { animation-delay: .04s; }
+.pend i {
+  flex: none; width: 4.4vmin; height: 4.4vmin; border-radius: 50%; display: grid; place-items: center;
+  font-size: calc(var(--pfs, 3vmin) * .92); font-weight: 800; font-style: normal;
+  background: color-mix(in srgb, var(--bad) 22%, transparent); color: #ffd9df;
+}
+.pend .nm { min-width: 0; }
+.pend .nm b { display: block; font-size: var(--pfs, 3vmin); line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pend .nm span { display: block; font-size: calc(var(--pfs, 3vmin) * .52); color: var(--dim); font-variant-numeric: tabular-nums; margin-top: .3vmin; }
+@keyframes pendIn { from { opacity: 0; transform: translateY(.8vmin) scale(.97); } to { opacity: 1; transform: none; } }
+/* 第二轮以后的整页重绘不要再播入场：
+   每完成一个人都会重画一次名单，如果每次都 fade-in，投影上整块名单会一起闪一下，
+   看起来像掉帧。所以第一屏播动画，之后只保留「新完成那一个」的高亮（.fresh）。 */
+body.no-anim .pend { animation: none; }
+body.no-anim .done-chip:not(.fresh) { animation: none; }
+.pend-empty { grid-column: 1 / -1; display: grid; place-items: center; min-height: 30vmin; color: var(--ok); font-size: 4vmin; font-weight: 800; letter-spacing: .1em; text-align: center; }
+.pend-empty small { display: block; font-size: 1.9vmin; color: var(--dim); font-weight: 400; margin-top: 1vmin; letter-spacing: 0; }
+
+/* 已完成：右上角一竖条小头像，不抢未完成的位置。
+   人数一多就自动两列 + 缩字号（JS 给 --dcs 和列数），否则 40 个完成的人会把这一栏撑爆。 */
+.bd-done {
+  flex: none; width: 36vmin; min-width: 0; display: flex; flex-direction: column;
+  border-left: 1px solid var(--edge); padding-left: 1.4vmin;
+}
+.done-list { flex: 1; min-height: 0; overflow: hidden; display: grid; align-content: start; gap: .7vmin; }
+.done-chip {
+  display: inline-flex; align-items: center; gap: .6vmin; max-width: 100%; min-width: 0;
+  padding: .45vmin .8vmin .45vmin .45vmin; border-radius: 99px;
+  border: 1px solid color-mix(in srgb, var(--ok) 26%, transparent);
+  background: color-mix(in srgb, var(--ok) 10%, rgba(10, 14, 26, .7));
+  animation: chipIn .3s ease both;
+}
+.done-chip i {
+  flex: none; width: var(--dcs, 2.6vmin); height: var(--dcs, 2.6vmin); border-radius: 50%; display: grid; place-items: center;
+  font-size: calc(var(--dcs, 2.6vmin) * .58); font-weight: 800; font-style: normal; background: var(--ok); color: #05210f;
+}
+.done-chip span {
+  flex: 1; min-width: 0; font-size: calc(var(--dcs, 2.6vmin) * .64);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.done-chip em {
+  flex: none; font-size: calc(var(--dcs, 2.6vmin) * .5); color: var(--dim);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+/* 刚完成的人：金边闪一下（1.6 秒后由 JS 摘掉 class） */
+.done-chip.fresh { animation: freshPop 1.6s ease both; }
+@keyframes freshPop {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 color-mix(in srgb, var(--warn) 70%, transparent); background: color-mix(in srgb, var(--warn) 40%, transparent); }
+  45% { transform: scale(1.14); box-shadow: 0 0 0 1.1vmin transparent; background: color-mix(in srgb, var(--warn) 26%, transparent); }
+  100% { transform: scale(1); }
+}
+@keyframes chipIn { from { opacity: 0; transform: scale(.6); } to { opacity: 1; transform: none; } }
+/* 结束/作废：顶部标题栏里压一个印章（原来是右下角 fixed，会压住页脚那行赋分说明，已挪走） */
+.bd-stamp {
+  flex: none; align-self: center; margin-right: 1vmin;
+  font-size: 2.6vmin; font-weight: 900; letter-spacing: .16em; padding: .8vmin 1.8vmin; border-radius: 1vmin;
+  color: var(--dim); border: .35vmin solid currentColor; opacity: .7; transform: rotate(-6deg); white-space: nowrap;
+}
+.bd-stamp.void { color: var(--bad); }
+.bd-foot {
+  flex: none; display: flex; align-items: center; gap: 2vmin; padding: .8vmin 2.4vmin 1.2vmin;
+  font-size: 1.55vmin; color: var(--dim);
+}
+.bd-foot b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.bd-foot .grow { flex: 1; }
+.bd-foot .dot { width: .9vmin; height: .9vmin; border-radius: 50%; background: var(--ok); animation: pulse 2s infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
+/* 大屏的登录/空态：字要大，站最后一排也能看清 */
+.bd-gate { display: grid; place-items: center; height: 100dvh; padding: 4vmin; text-align: center; }
+.bd-gate b { display: block; font-size: 4.2vmin; }
+.bd-gate p { color: var(--dim); font-size: 2vmin; margin: 1.6vmin 0 3vmin; line-height: 1.7; }
+.bd-gate .btn { font-size: 2.1vmin; padding: 1.4vmin 3vmin; border-radius: 1.4vmin; }
+
+/* 减动画偏好 / 弱机：大屏上那两个入场动画关掉（投影时闪一下反而难看） */
+@media (prefers-reduced-motion: reduce) {
+  .pend, .done-chip, .done-chip.fresh, .bd-foot .dot { animation: none; }
+  .ring .val { transition: none; }
+}
+/* 窄屏（手机竖屏看教师端）：大屏页本来就不给手机用，这里只把教师端收成一列 */
+@media (max-width: 720px) {
+  .form { grid-template-columns: minmax(0, 1fr); }
+  .pg-main { grid-template-columns: minmax(0, 1fr); }
+  .pg-top h1 small { display: none; }
+  .scroll-y { max-height: none; }
+}

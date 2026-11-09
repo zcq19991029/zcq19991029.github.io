@@ -1,0 +1,465 @@
+/* ============================================================================
+   接线课堂任务 → 「小组加分」自动入账　2026-11-10
+   ----------------------------------------------------------------------------
+   用户原话：「课堂任务与「小组加分」的分数必须直连互通 不然还需要二次核算 我们要的就是一体化」
+
+   ── 怎么进分的（一句话）──
+   老师点「结束任务」→ 服务端把名次/完成率/得分冻结 → 这个文件把每个学生的得分
+   写成「小组加分」里**对应课次的一个 5 分项目列**（列名「接线2.3」），
+   走的是原本就有的「命名个人项目」机制：assessment.js 的 taskEvidence() 会给每个
+   有名字的项目列加 5 分满分并把学生得分计入 earned，所以总分自动 +5，不需要任何二次核算。
+
+   ── 为什么在前端写、不在数据库写 ──
+   全部成绩是 jf_score_states 里的**一个 jsonb blob**，前端用 revision 做 CAS。
+   服务端偷偷改它 → 老师下次打开就是「同步冲突」。所以数据库只提供只读函数
+   wire_task_scores()，写 blob 的事全走前端自己的保存链路（本机缓存/云端/冲突检测都不绕开）。
+
+   ── 三条设计约定（改动前先读）──
+   ① **只入账已结束（closed）的任务**。进行中名次还在实时变（前十名池会被人挤掉），
+      这时候写分等于给错分；进行中只在大屏和横幅上展示，用来督促。
+   ② **收敛式合并**：每次 sync 都重算整张目标矩阵再逐格比对，不靠「签名没变就跳过」。
+      因为换组逻辑（takeLeaderOf / putLeaderOf / realignLeaderScores）会把学生整条记录
+      搬到新组号下、新进组的学生那格是空的；只做一次性写入的话，这些格子永远是 null，
+      全班就会一直显示「N 项待批改」。
+   ③ **老师删掉这一列就不再塞回去**。列名被改掉也视为「这一列归老师管」，
+      只记一条提示，不抢回来。任务是分数的来源，但不能跟老师抢方向盘。
+   ========================================================================== */
+(function (root) {
+  'use strict';
+
+  var W = {};
+  var hooks = null;          // app.js 启动时注入（见文件末尾 boot 的说明）
+  var cache = [];            // 最近一次 RPC 拿到的任务数组
+  var lastAt = 0;            // 上次拉取时间（节流用）
+  var inflight = null;       // 正在拉的 promise
+  var lastError = '';        // 拉取失败原因（横幅要如实显示，别装作没任务）
+  var THROTTLE = 45000;      // 45 秒内不重复拉，切页面/切班都不会打爆接口
+
+  /* ---------------- 小工具 ---------------- */
+
+  function esc(v) {
+    return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  /* 和 app.js 的 uid() 同一个配方，保证课次 id 格式一致（l + base36 时间 + 5 位随机） */
+  function uid(p) { return p + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+  /* 必须和 app.js 的 memberKey() 一字不差：leaderScores[组号].members 的键就是它 */
+  function memberKey(m) { return m && (m.sid ? 'sid:' + m.sid : 'id:' + m.id); }
+  function todayStr() {
+    var d = new Date();
+    return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+  }
+  function dayOf(v) { return v == null ? '' : String(v).slice(0, 10); }
+  function num1(v) { var n = Math.round((Number(v) + Number.EPSILON) * 10) / 10; return n % 1 === 0 ? String(n) : n.toFixed(1); }
+  function score1(v) { return Math.round((Number(v) || 0) * 10) / 10; }
+  /* 当前这一次「全班共用」的项目列名。projectNames() 返回的是副本（可能是 4 个空占位列），
+     所以永远拿副本去改、再整体写回 lesson.leaderProjectNames。 */
+  function currentNames(lesson) {
+    if (Array.isArray(lesson.leaderProjectNames)) return lesson.leaderProjectNames.slice();
+    var A = root.JFDT_ASSESSMENT;
+    var names = A && A.projectNames ? A.projectNames(lesson).slice() : [];
+    /* 没有 leaderProjectNames 的老课次，projectNames() 会给出 4 个空占位列（留给组长手写）。
+       如果这一课压根没有一条组长记录带过列名，就把占位列丢掉，别让「接线2.3」排到第 5 格去。
+       老师真的写了列名（哪怕只是留下了数组）就不动它。 */
+    var hasNamed = Object.keys(lesson.leaderScores || {}).some(function (k) {
+      var r = lesson.leaderScores[k];
+      return r && Array.isArray(r.projects) && r.projects.some(function (n) { return String(n || '').trim(); });
+    });
+    if (!hasNamed && names.every(function (n) { return !String(n || '').trim(); })) return [];
+    return names;
+  }
+  /* 写回列名：每组的 rec.projects 必须跟着同步，否则列名和分数会错列（见 leader-scoring.js 的 addProject） */
+  function applyNames(lesson, names) {
+    lesson.leaderProjectNames = names.slice();
+    lesson.leaderProjectCount = names.length;
+    Object.keys(lesson.leaderScores || {}).forEach(function (k) {
+      var r = lesson.leaderScores[k];
+      if (!r) return;
+      if (!Array.isArray(r.projects) || r.projects.length !== names.length) r.projects = names.slice();
+    });
+  }
+
+  /* ---------------- 找课次（没有就建）---------------- */
+
+  function lessonFor(state, cls, task, out) {
+    var seq = Number(task.lesson_no);
+    var hit = null;
+    (state.lessons || []).forEach(function (l) {
+      if (l && l.classId === cls.id && Number(l.seq) === seq) hit = l;
+    });
+    if (hit) return hit;
+    /* 课次不存在就自动建一个：用户要的是「每节课发布即新增 5 分项目」，
+       课次不存在 → 分数无处可去 → 等于又要老师手工补一节课，那就白做了。
+       建之前已经确认 lesson_no 是有效数字（调用方先判过）。 */
+    var l = {
+      id: uid('l'), classId: cls.id, seq: seq,
+      date: dayOf(task.lesson_date) || todayStr(),
+      topic: task.title || ('接线' + task.circuit),
+      dutyGroup: null, dutyGroups: [],
+      scores: {}, memberProjectBase: 5,
+      leaderScores: {}, leaderProjectNames: [], leaderProjectCount: 0, peerMeta: {},
+      autoCreatedBy: 'wire-task'   // 留个记号：这节是接线任务自动建的，不是老师手建的
+    };
+    (cls.groups || []).forEach(function (g) {
+      if (g && g.no) l.scores[String(g.no)] = { first: 0, group: 5, phone: 0, duty: 0, personal: {} };
+    });
+    state.lessons.push(l);
+    out.created.push({ classId: cls.id, seq: seq, date: l.date, topic: l.topic });
+    return l;
+  }
+
+  /* ---------------- 定位/新增这一列 ---------------- */
+
+  function columnFor(lesson, task, out) {
+    var names = currentNames(lesson);
+    if (!lesson.wireTasks) lesson.wireTasks = {};
+    var key = String(task.task_id);
+    var entry = lesson.wireTasks[key];
+    var want = '接线' + task.circuit;
+
+    if (entry && entry.name) {
+      var at = names.indexOf(entry.name);
+      if (at >= 0) {                       // 列还在（顺序可能被老师挪过，按名字找就不会错）
+        entry.col = at;
+        entry.applied = true;
+        delete entry.dismissed;
+        return at;
+      }
+      if (entry.applied) {
+        /* 之前确实写进去过，现在这列没了 → 老师手动删的，尊重他，不再塞回来 */
+        if (!entry.dismissed) {
+          entry.dismissed = true;
+          out.notes.push({ kind: 'dismissed', taskId: task.task_id, text: '「' + entry.name + '」这一列被删掉了，这个任务不再入账（要恢复：到「上课记分」里删掉那一课的记录后重新发布/重跑）' });
+        }
+        return -1;
+      }
+    }
+
+    /* 新加一列。同名已经被别的任务占了就加 #任务号 区分 */
+    var name = want;
+    Object.keys(lesson.wireTasks).forEach(function (k) {
+      var e = lesson.wireTasks[k];
+      if (k !== key && e && e.name === name && !e.dismissed) name = want + '#' + task.task_id;
+    });
+    if (names.indexOf(name) >= 0) name = want + '#' + task.task_id;
+
+    names.push(name);
+    applyNames(lesson, names);
+    lesson.wireTasks[key] = {
+      name: name, col: names.length - 1, applied: true,
+      circuit: task.circuit || '', title: task.title || '',
+      at: new Date().toISOString()
+    };
+    out.added.push({ taskId: task.task_id, lessonSeq: lesson.seq, name: name });
+    return names.length - 1;
+  }
+
+  /* ---------------- 核心：把任务成绩摊成「组号 → 成员键 → 分数」 ---------------- */
+
+  /**
+   * 纯函数、就地改 state。给 node 单测直接用（不碰 DOM）。
+   * @param {object} state  小组加分的整份数据（S）
+   * @param {array}  tasks  wire_task_scores() 的返回
+   * @param {object} opts   {log:true} 时把「被改回去的格子」也记进 logs
+   * @returns {{changed:boolean, added:array, created:array, notes:array, unmatched:array, logs:array, live:array}}
+   */
+  W.plan = function (state, tasks, opts) {
+    opts = opts || {};
+    var out = { changed: false, added: [], created: [], notes: [], unmatched: [], logs: [], live: [] };
+    if (!state || !Array.isArray(state.classes) || !Array.isArray(tasks)) return out;
+    if (!Array.isArray(state.lessons)) state.lessons = [];
+
+    tasks.forEach(function (task) {
+      if (!task) return;
+      if (task.status !== 'closed') {          // 进行中的只用于横幅展示，绝不计分
+        if (task.status === 'open') out.live.push(task);
+        return;
+      }
+      /* 班级：接线任务挂在 hx_classes 上，小组加分这边靠 cls.hxClassId 认亲 */
+      var cls = null;
+      state.classes.forEach(function (c) {
+        if (c && Number(c.hxClassId) === Number(task.class_id)) cls = c;
+      });
+      if (!cls) {
+        out.notes.push({ kind: 'noclass', taskId: task.task_id, text: '接线' + task.circuit + '：这个班还没和「小组加分」里的班对应上（去名单页点「导入/对应班级」），分数暂时进不来' });
+        return;
+      }
+      if (!task.lesson_no) {
+        out.notes.push({ kind: 'nocourse', taskId: task.task_id, text: '接线' + task.circuit + '：任务没填课次，分数没法定位到哪一节课（下次发布记得填课次）' });
+        return;
+      }
+
+      var lesson = lessonFor(state, cls, task, out);
+      var col = columnFor(lesson, task, out);
+      if (col < 0) return;
+
+      var names = lesson.leaderProjectNames;
+      if (!lesson.leaderScores) lesson.leaderScores = {};
+      if (!lesson.peerMeta) lesson.peerMeta = {};
+
+      /* 学号 → 行；姓名 → 行（只有全组唯一时才算数，避免同名同姓张冠李戴） */
+      var byNo = Object.create(null), byName = Object.create(null), nameCount = Object.create(null);
+      (task.rows || []).forEach(function (r) {
+        if (!r) return;
+        if (r.no) byNo[String(r.no)] = r;
+        var nm = String(r.name || '').trim();
+        if (nm) { byName[nm] = r; nameCount[nm] = (nameCount[nm] || 0) + 1; }
+      });
+
+      (cls.groups || []).forEach(function (g) {
+        if (!g || !g.no) return;
+        var members = (g.members || []).filter(function (m) { return m && m.name; });
+        if (!members.length) return;
+        var rec = lesson.leaderScores[String(g.no)];
+        if (!rec) {
+          rec = lesson.leaderScores[String(g.no)] = { projects: names.slice(), members: {}, signedBy: '', note: '' };
+          out.changed = true;
+        }
+        if (!rec.members) rec.members = {};
+        if (!Array.isArray(rec.projects) || rec.projects.length !== names.length) {
+          rec.projects = names.slice();
+          out.changed = true;
+        }
+
+        members.forEach(function (m) {
+          var mk = memberKey(m);
+          if (!mk) return;
+          var row = null;
+          if (m.sid && byNo[String(m.sid)]) row = byNo[String(m.sid)];
+          else {
+            var nm = String(m.name).trim();
+            if (nameCount[nm] === 1) row = byName[nm];
+          }
+
+          var value;
+          if (row) value = score1(row.score);
+          else if (m.sid) value = 0;             // 用户定的规则：未完成 = 0%
+          else {
+            /* 没学号、名字也对不上（多半是还没分组 / 名单里是拼音占位）：
+               不猜、不写 0，列出来让老师去核对学号 */
+            out.unmatched.push({ gno: g.no, name: m.name, taskId: task.task_id, circuit: task.circuit });
+            return;
+          }
+
+          var arr = rec.members[mk];
+          if (!Array.isArray(arr)) { arr = rec.members[mk] = []; out.changed = true; }
+          var grew = false;
+          while (arr.length < names.length) { arr.push(null); grew = true; }
+          if (grew) out.changed = true;
+
+          var old = arr[col];
+          var diff = (old == null) ? true : (Number(old) !== Number(value));
+          if (diff) {
+            arr[col] = value;
+            out.changed = true;
+            /* 老师手改过的格子会被改回任务给的分：这是对的（任务是权威来源），
+               但要让老师知道，别让他以为自己填的分「自己跳回去了」 */
+            if (old != null && Number(old) !== Number(value) && opts.log) {
+              out.logs.push(cls.name + ' · 第' + lesson.seq + '次课 · ' + m.name + '「' + names[col] + '」' + num1(old) + ' → ' + num1(value));
+            }
+          }
+
+          var metaKey = g.no + '|' + mk + '|' + col;
+          if (lesson.peerMeta[metaKey] !== 'wire') { lesson.peerMeta[metaKey] = 'wire'; out.changed = true; }
+        });
+      });
+    });
+    return out;
+  };
+
+  /* ---------------- 拉取 + 保存 + 重画 ---------------- */
+
+  W.syncAll = function () {
+    /* 启动时调一次：任何异常都不能冒到 app.js 的启动流程里（会把后面的 hook 全打断） */
+    try { return W.maybeSync(null, true); } catch (e) { return Promise.resolve(null); }
+  };
+
+  W.maybeSync = function (cls, force) {
+    if (!hooks || !hooks.hasRpc || !hooks.hasRpc()) return Promise.resolve(null);
+    var now = Date.now();
+    if (!force && now - lastAt < THROTTLE) { W.renderBanner(cls); return Promise.resolve(null); }
+    if (inflight) return inflight;
+    lastAt = now;
+    /* 只拉当前班（省流量）；没有 hxClassId 的本地班拉全部，plan 里会按班各自归位 */
+    var pClass = cls && cls.hxClassId ? Number(cls.hxClassId) : null;
+    var ask;
+    try { ask = hooks.rpc('wire_task_scores', { p_class: pClass }); }
+    catch (e) { lastError = (e && e.message) || '读不到接线任务'; W.renderBanner(hooks.curClass ? hooks.curClass() : cls); return Promise.resolve(null); }
+    inflight = Promise.resolve(ask).then(function (list) {
+      lastError = '';
+      cache = Array.isArray(list) ? list : [];
+      /* 网络这一段和「写进本地数据」这一段分开兜：写数据失败不该被说成「读不到任务」，
+         也绝不能让一次多余的异常把记分页整块打崩。 */
+      try {
+        var st = hooks.getState();
+        var res = W.plan(st, cache, { log: true });
+        if (res.created.length) {
+          hooks.log('接线任务入账', res.created.map(function (x) {
+            return '自动建了第 ' + x.seq + ' 次课（' + x.date + ' · ' + x.topic + '），接线成绩记进去了';
+          }).join('；'));
+        }
+        if (res.added.length) {
+          hooks.log('接线任务入账', res.added.map(function (x) {
+            return '第 ' + x.lessonSeq + ' 次课新增项目列「' + x.name + '」（5 分项目）';
+          }).join('；'));
+        }
+        if (res.logs.length) hooks.log('接线任务入账', res.logs.join('；'));
+        if (res.changed) {
+          hooks.save();
+          if (hooks.rerender) hooks.rerender();
+        }
+        W.renderBanner(hooks.curClass ? hooks.curClass() : cls);
+        return res;
+      } catch (e2) {
+        lastError = '入账出错：' + ((e2 && e2.message) || '未知错误');
+        try { W.renderBanner(hooks.curClass ? hooks.curClass() : cls); } catch (e3) { }
+        return null;
+      }
+    }).catch(function (e) {
+      /* 读失败要说出来，别静默当「没有任务」——老师会以为没发布成功 */
+      lastError = (e && e.message) || '读不到接线任务';
+      W.renderBanner(hooks.curClass ? hooks.curClass() : cls);
+      return null;
+    }).then(function (r) { inflight = null; return r; });
+    return inflight;
+  };
+
+  /* ---------------- 横幅 ---------------- */
+
+  function scoreSplit(task) {
+    var map = Object.create(null), done = 0;
+    (task.rows || []).forEach(function (r) {
+      var v = Number(r && r.score);
+      if (!isFinite(v)) return;
+      done++;
+      var k = num1(v);
+      map[k] = (map[k] || 0) + 1;
+    });
+    var keys = Object.keys(map).sort(function (a, b) { return Number(b) - Number(a); });
+    var parts = keys.map(function (k) { return k + '分 ' + map[k] + '人'; });
+    var miss = Math.max(0, (Number(task.total) || 0) - done);
+    if (miss) parts.push('未完成 ' + miss + '人');
+    return parts.join(' · ');
+  }
+
+  W.renderBanner = function (cls) {
+    var box = document.getElementById('wireBanner');
+    if (!box) return;
+    try {
+      if (!hooks || !hooks.hasRpc || !hooks.hasRpc()) { box.hidden = true; box.innerHTML = ''; return; }
+      cls = cls && cls.id ? cls : (hooks.curClass ? hooks.curClass() : null);
+      if (!cls || !cls.hxClassId) { box.hidden = true; box.innerHTML = ''; return; }
+      var mine = cache.filter(function (t) { return t && Number(t.class_id) === Number(cls.hxClassId); });
+      if (!mine.length && !lastError) { box.hidden = true; box.innerHTML = ''; return; }
+
+      var open = null, closed = [];
+      mine.forEach(function (t) {
+        if (t.status === 'open') open = t;
+        else if (t.status === 'closed') closed.push(t);
+      });
+      closed.sort(function (a, b) { return String(b.closed_at || b.opened_at || '').localeCompare(String(a.closed_at || a.opened_at || '')); });
+
+      var lines = [];
+      if (lastError) {
+        lines.push('<div class="wire-line wire-err">接线任务读取失败：' + esc(lastError) + '（会自动重试）</div>');
+      }
+
+      if (open) {
+        var done = (open.rows || []).length, total = Number(open.total) || 0;
+        lines.push('<div class="wire-line">' +
+          '<span class="wire-tag">进行中</span>' +
+          '接线' + esc(open.circuit) + (open.title ? '「' + esc(open.title) + '」' : '') +
+          ' · 已 ' + done + '/' + total + ' 人 · <b>结束才计分</b>' +
+          '<button type="button" class="btn tiny primary" data-wire-close="' + Number(open.task_id) + '">结束并计分</button>' +
+          '</div>');
+      }
+
+      closed.slice(0, 2).forEach(function (t, i) {
+        var split = scoreSplit(t);
+        var at = '';
+        if (t.lesson_no) {
+          var lesson = null;
+          (hooks.getState().lessons || []).forEach(function (l) {
+            if (l.classId === cls.id && Number(l.seq) === Number(t.lesson_no)) lesson = l;
+          });
+          at = ' → 第' + t.lesson_no + '次课' + (lesson ? '（' + esc(lesson.date || '') + '）' : '');
+          /* 课次对上了但日期不一样：多半是两边课次号错位，分数记进了别的课，必须提醒 */
+          if (lesson && dayOf(t.lesson_date) && dayOf(lesson.date) && dayOf(t.lesson_date) !== dayOf(lesson.date)) {
+            at += '<span class="wire-warn">⚠ 任务日期 ' + esc(dayOf(t.lesson_date)) + ' 和这节课的日期 ' + esc(dayOf(lesson.date)) + ' 不一致，可能记错了课次，请核对</span>';
+          }
+        } else {
+          at = '<span class="wire-warn">没有课次，分数进不来</span>';
+        }
+        lines.push('<div class="wire-line">' +
+          '<span class="wire-tag ok">已入账</span>' +
+          '接线' + esc(t.circuit) + at +
+          (split ? '<small>' + esc(split) + '</small>' : '') +
+          '</div>');
+      });
+      if (closed.length > 2) {
+        lines.push('<div class="wire-line wire-more">这个班还有 ' + (closed.length - 2) + ' 个接线任务已入账，分数都在对应课次里</div>');
+      }
+
+      /* 没法入账的人：不猜、不静默，列出来让老师去核对 */
+      var unmatched = [];
+      var st = hooks.getState();
+      var clsTasks = closed;
+      clsTasks.forEach(function (t) {
+        var entry = null;
+        var lesson = null;
+        (st.lessons || []).forEach(function (l) {
+          if (l.classId === cls.id && Number(l.seq) === Number(t.lesson_no)) { lesson = l; entry = l; }
+        });
+        var wt = lesson && lesson.wireTasks && lesson.wireTasks[String(t.task_id)];
+        if (wt && wt.dismissed) lines.push('<div class="wire-line wire-warn">「' + esc(wt.name) + '」这一列被删掉了，这个任务不再入账</div>');
+      });
+      (cls.groups || []).forEach(function (g) {
+        (g.members || []).forEach(function (m) {
+          if (m && m.name && !m.sid) unmatched.push(m.name);
+        });
+      });
+      if (unmatched.length) {
+        var show = unmatched.slice(0, 5).join('、') + (unmatched.length > 5 ? ' 等' : '');
+        lines.push('<div class="wire-line wire-warn">' + unmatched.length + ' 人没填学号，接线分数记不上：' + esc(show) + '（去名单页补学号）</div>');
+      }
+
+      if (!lines.length) { box.hidden = true; box.innerHTML = ''; return; }
+      box.hidden = false;
+      box.innerHTML = '<span class="dot"></span><div class="wire-body">' + lines.join('') + '</div>';
+
+      var btn = box.querySelector('[data-wire-close]');
+      if (btn) btn.onclick = function () {
+        var id = Number(btn.dataset.wireClose);
+        btn.disabled = true;
+        var old = btn.textContent;
+        btn.textContent = '结束中…';
+        hooks.rpc('wire_task_close', { p_task: id }).then(function () {
+          if (hooks.flash) hooks.flash('任务已结束，分数冻结并计入这节课的项目分');
+          return W.maybeSync(cls, true);
+        }).catch(function (e) {
+          btn.disabled = false;
+          btn.textContent = old;
+          if (hooks.flash) hooks.flash('结束失败：' + ((e && e.message) || '请检查网络'));
+        });
+      };
+    } catch (e) {
+      /* 横幅是附属功能，绝不能因为它的异常把整个记分页搞白 */
+      box.hidden = true;
+      box.innerHTML = '';
+    }
+  };
+
+  /* ---------------- 启动注入 ---------------- */
+
+  /**
+   * app.js 启动时调用一次：
+   *   JFDT_WIRE.boot({ getState, save, log, flash, rerender, curClass, rpc, hasRpc })
+   * 这样本文件不依赖 app.js 内部函数（它是个 IIFE，外面拿不到），也不用把 app.js 拆开。
+   */
+  W.boot = function (h) { hooks = h || null; };
+  W.tasks = function () { return cache.slice(); };
+  W.error = function () { return lastError; };
+
+  root.JFDT_WIRE = W;
+})(typeof window === 'undefined' ? globalThis : window);

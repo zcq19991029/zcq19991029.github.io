@@ -1952,6 +1952,8 @@ html.hx-bg body::before { display: none; }
 .peer-ok { border-color: #bfe3cf !important; color: #127242 !important; background: #f3fcf6 !important; }
 .peer-ok:disabled, .peer-no:disabled { opacity: .45; cursor: not-allowed; }
 .peer-no { border-color: var(--accent-line) !important; color: var(--accent-strong) !important; background: #fff !important; }
+/* 否决要点两次：第一次只是「上膛」，按钮自己变红提醒，3 秒不点自动退回（2026-11-08 用户要求不要弹窗） */
+.peer-no.is-armed { background: var(--bad-bg) !important; border-color: var(--bad) !important; color: var(--bad) !important; font-weight: 700 !important; }
 
 @media (max-width: 720px) {
   .peer-row { grid-template-columns: 1fr auto; }
@@ -1964,6 +1966,113 @@ html.hx-bg body::before { display: none; }
   .peer-cell, .peer-cell.is-set { border: 0 !important; background: transparent !important; box-shadow: none !important; min-height: 0; }
   .peer-score { font-size: 10pt !important; color: #111 !important; }
   .peer-src { display: none !important; }
+}
+
+/* ============================================================
+   组内评分 · 全组展开 + 逐列确认（2026-11-08）
+   用户原话：「上面写了有人待确认 也没说哪个组 要不就全组展开 不要选卡了 我直接下滑全看清
+   然后点击确认 确认按钮和否按钮都在该表格项目列上面或者下面」。
+   所以这一屏只有三样东西：
+     ① 项目列卡片：全班共用一份项目名，一行输入框，改一处全组跟着改；
+     ② 逐列确认条：按项目列排开，一列一格，两颗按钮贴在该列正下方，滚动时粘在页顶
+        （确认是整列确认，对本班所有组生效，所以只做一条，不在每个组里重复摆）；
+     ③ 一组一块的评分表：块头固定写「第 N 组 · 组长 某某 · 共 M 人」。
+   颜色语义：黄圈 = 学生已提交待教师确认；金色描边 +「师」= 教师直接填的分（已计入）。
+   ============================================================ */
+.peer-colcard { padding: 10px 12px 2px; }
+.peer-colcard-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
+.peer-colcard-head b { font-size: 14px; }
+.peer-colcard-hint { flex: 1 1 260px; font-size: 12px; color: var(--hint-ink); line-height: 1.5; }
+.peer-colwrap .leader-table { margin: 0 0 8px; }
+.peer-col-table th { background: #e7eef9; }
+/* 项目名输入框 + 删除按钮：删除按钮绝对定位到格子右上角。
+   原来按钮跟在输入框后面换行掉到下一行，把表头撑成两层高（2026-11-08 自测截图）。 */
+.peer-col-th { padding-right: 22px !important; }
+.peer-col-th input.leader-project { width: 100% !important; padding-right: 4px !important; }
+.peer-col-th .project-remove { position: absolute; top: 1px; right: 1px; z-index: 1; line-height: 1; }
+.peer-dock-corner { width: 55px; }
+/* 前两列的说明格：不用 colspan，宽度跟组表格的「序号 + 成员」一致，按钮才不会和项目列错位 */
+.peer-dock-lead { text-align: left !important; vertical-align: middle; }
+.peer-dock-lead b { display: block; font-size: 12.5px; }
+.peer-dock-lead small { display: block; margin-top: 2px; font-size: 11px; font-weight: 400; color: var(--hint-ink); }
+
+/* 粘在页顶的逐列确认条：滑到第几组它都在，不用滚回顶部才能点确认 */
+.peer-dock {
+  position: sticky; top: 8px; z-index: 60;
+  margin: 12px 0 4px; padding: 8px 12px 6px;
+  border: 1px solid var(--line); border-radius: 16px;
+  background: color-mix(in srgb, var(--panel) 94%, transparent);
+  -webkit-backdrop-filter: blur(12px) saturate(160%);
+  backdrop-filter: blur(12px) saturate(160%);
+  box-shadow: 0 8px 24px rgba(60, 40, 40, .10), inset 0 1px 0 rgba(255, 255, 255, .9);
+}
+.peer-summary { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; font-size: 13px; line-height: 1.6; color: var(--text); margin-bottom: 6px; }
+.peer-sum-title { color: var(--warn); font-size: 13px; }
+.peer-sum-items { color: var(--text); }
+.peer-sum-sep { color: var(--faint); }
+.peer-sum-hint { font-size: 12px; color: var(--hint-ink); }
+.peer-sum-ok { color: var(--good); font-weight: 700; font-size: 13px; }
+.peer-sum-off { color: var(--muted); font-size: 12.5px; }
+/* 汇总里的组号是个按钮：点一下滚到那一组，直接对着看 */
+.peer-jump {
+  appearance: none; -webkit-appearance: none;
+  border: 1px solid var(--accent-line); background: #fff; color: var(--accent-strong);
+  border-radius: 999px; padding: 1px 9px; font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer;
+}
+.peer-jump:hover { background: var(--panel-soft); }
+.peer-dock-table { margin: 0 0 6px; }
+.peer-cmd-cell { vertical-align: top; padding: 6px 5px !important; }
+.peer-cmd { display: flex; flex-direction: column; gap: 4px; align-items: stretch; }
+.peer-cmd .peer-status { align-self: center; }
+.peer-cmd-count { font-size: 11.5px; line-height: 1.45; color: var(--hint-ink); text-align: center; overflow-wrap: anywhere; }
+.peer-cmd-btns { display: flex; gap: 4px; justify-content: center; flex-wrap: wrap; }
+.peer-cmd-btns .btn { flex: 1 1 auto; min-width: 0; padding: 4px 6px; }
+.peer-cmd-none { color: var(--faint); font-size: 12px; }
+.peer-dock-msg { margin: 2px 0 0; font-size: 12px; color: var(--hint-ink); min-height: 18px; }
+
+/* 一组一块：块头写清第几组、组长是谁、几个人 */
+.peer-blocks { display: flex; flex-direction: column; gap: 16px; }
+.peer-block { padding: 12px 14px 8px; scroll-margin-top: 190px; }
+.peer-block-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+.peer-block-title { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; min-width: 0; }
+.peer-block-no { font-size: 16px; font-weight: 800; color: var(--text); }
+.peer-block-meta { font-size: 12.5px; color: var(--hint-ink); }
+.peer-block-pend { flex: 1 1 200px; font-size: 12.5px; }
+.peer-block-pend-on { color: var(--warn); font-weight: 700; }
+.peer-block-pend-none { color: var(--faint); }
+.peer-block-acts { display: flex; gap: 6px; flex-wrap: wrap; }
+/* 复核人 / 备注：两列网格，标签在上、控件在下，别让「组长/复核人」和「备注」一个横一个竖 */
+.peer-block-foot { display: grid; grid-template-columns: minmax(180px, .8fr) minmax(240px, 1.4fr); gap: 8px 14px; align-items: start; margin-top: 8px; }
+.peer-block-foot .field { margin: 0; }
+.peer-block-foot textarea { min-height: 34px; resize: vertical; }
+.peer-block-fb { grid-column: 1 / -1; margin: 0; font-size: 12px; color: var(--hint-ink); }
+
+/* 格子上的两种标记：黄圈=待确认；金色+「师」=教师直接填 */
+.peer-cell { position: relative; }
+.peer-cell.is-pending { box-shadow: inset 0 0 0 2px rgba(226, 161, 48, .55); }
+.peer-cell.is-teacher { box-shadow: inset 0 0 0 2px rgba(212, 164, 58, .8), inset 0 1px 0 rgba(255, 255, 255, .95); }
+.peer-cell.is-pending.is-teacher { box-shadow: inset 0 0 0 2px rgba(226, 161, 48, .55), inset 0 1px 0 rgba(255, 255, 255, .95); }
+.peer-pend-dot { position: absolute; top: 3px; right: 3px; width: 8px; height: 8px; border-radius: 50%; background: #e2a130; box-shadow: 0 0 0 2px rgba(255, 255, 255, .85); pointer-events: none; }
+/* 空着的格子（还要点 1–5 的那种）不用小圆点：会压在第 5 颗按钮上，看着像按钮状态。
+   改成黄底黄框，配合表头「待确认 N」——哪一格有人提交了，一眼就看见。 */
+.peer-cell.is-pending:not(.is-set) { background: rgba(255, 246, 224, .6); box-shadow: inset 0 0 0 2px rgba(226, 161, 48, .68); }
+.peer-th-pend { display: block; margin-top: 2px; font-size: 10.5px; font-weight: 700; color: var(--warn); }
+.peer-col-name.is-pending { background: #fdf2dd !important; }
+.peer-src-teacher { background: #fff3d2; border-color: #e6c27c; color: #8a5a00; }
+
+@media (max-width: 1099px) {
+  /* ui-feedback.js 只在 ≥1100px 时把顶栏变成左侧固定栏；窄屏顶栏是 sticky 全宽条（top:0），
+     确认条再粘 8px 就会盖住导航。窄屏退回普通文档流，靠页顶汇总里的组号跳转。 */
+  .peer-dock { position: static; }
+}
+@media (max-width: 720px) {
+  .peer-block { padding: 10px 10px 6px; }
+  .peer-block-foot { grid-template-columns: 1fr; }
+}
+
+@media print {
+  .peer-colcard, .peer-dock, .peer-block-head, .peer-block-foot, .peer-gate { display: none !important; }
+  .peer-block { padding: 0; border: 0; box-shadow: none; break-inside: avoid; }
 }
 
 /* ============================================================
@@ -2310,3 +2419,17 @@ html.hx-bg[data-hx-mode="dark"] body::after,
 :root[data-hx-mode="dark"] ::placeholder { color: var(--faint); }
 :root[data-hx-mode="dark"] input[readonly] { background: rgba(9, 16, 36, .6); color: var(--muted); }
 /* 深色下拉的原生选项列表：color-scheme 已切 dark，浏览器自己会用深色菜单 */
+
+/* ===== 接线课堂任务 → 小组加分 入账横幅（2026-11-10） ===== */
+.wire-banner { align-items: flex-start; gap: 8px; flex-wrap: wrap; }
+.wire-banner .wire-body { display: flex; flex-direction: column; gap: 6px; min-width: 0; flex: 1 1 320px; }
+.wire-banner .wire-line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; line-height: 1.5; }
+.wire-banner .wire-line small { color: var(--muted, #8b93a7); font-size: 12px; }
+.wire-banner .wire-tag { flex: 0 0 auto; font-size: 11px; padding: 1px 7px; border-radius: 999px; border: 1px solid currentColor; opacity: .9; }
+.wire-banner .wire-tag.ok { color: var(--ok, #37b26c); }
+.wire-banner .wire-warn { color: var(--bad, #e5533d); }
+.wire-banner .wire-err { color: var(--bad, #e5533d); }
+.wire-banner .wire-more { color: var(--muted, #8b93a7); font-size: 12px; }
+.wire-banner .btn.tiny { padding: 2px 10px; height: 24px; font-size: 12px; }
+/* 「接」来源角标：和「师」同尺寸，蓝紫色，一眼区分手工打分/接线任务自动入账 */
+.peer-src-wire { background: #eef1ff; border-color: #aebfff; color: #3a55c4; }

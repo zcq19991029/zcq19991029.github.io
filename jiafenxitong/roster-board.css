@@ -198,7 +198,166 @@ body.gb-dragging .gb-chip { cursor: grabbing; }
 .gb-open-note b { color: var(--gb-good); }
 
 /* ============================================================
-   二、学生端「选桌组队」页 —— 圆桌改桌卡
+   二、分组向导弹窗（2026-11-08）
+   用户：「就点分组弹窗选项卡 让老师先选分几组和一组多少人」。
+   弹窗本身沿用 styles.css 的 dialog/.dlg 骨架，这里只补页签、说明和预览的样式。
+   ============================================================ */
+
+.group-dlg { width: 520px; }
+
+/* 页签：直接用现成的 .seg 胶囊样式，四等分，手机上也能点 */
+.gp-tabs { align-self: stretch; }
+.gp-tabs button { flex: 1 1 0; min-width: 0; padding-left: 4px; padding-right: 4px; }
+
+.gp-pane { display: flex; flex-direction: column; gap: 10px; }
+.gp-pane[hidden] { display: none; }        /* 作者样式里写了 display:flex，要自己补回 hidden */
+.gp-pane > .note { margin: 0; line-height: 1.75; }
+
+/* 勾选项：一行一句话，别做成花哨的开关（老师要的是看得懂） */
+.gp-check {
+  display: flex; align-items: flex-start; gap: 7px;
+  font-size: 12.5px; line-height: 1.6; color: var(--gb-ink);
+  cursor: pointer;
+}
+.gp-check input { margin: 3px 0 0; flex: none; }
+
+/* 实时预览：等宽数字 + 预格式，分组算式里的 \n 要能真的换行 */
+.gp-preview {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--gb-soft);
+  border: 1px solid var(--gb-line);
+  color: var(--gb-ink);
+  font-size: 12.5px; line-height: 1.7;
+  white-space: pre-line;
+  font-variant-numeric: tabular-nums;
+}
+
+.gp-tip { margin: 0; font-size: 12px; color: var(--gb-muted); line-height: 1.65; }
+.gp-pane .btnrow { flex-wrap: wrap; }
+.gp-pane .field { align-items: center; }
+/* 输入框放宽一点：placeholder 里那句「先填组数，例如 8」要能整句看见，别被截成「先填」 */
+.gp-pane .field input { width: 200px; max-width: 100%; }
+/* 单位（人 / 桌）跟输入框同一行，别掉到下一行孤零零一个字 */
+.gp-unit { font-style: normal; font-size: 12.5px; color: var(--gb-muted); margin-left: -4px; }
+.gp-pane > .note b { color: var(--gb-ink); }
+
+/* ============================================================
+   三、超员标红 / 例外 / 拆组 / 撤销（2026-11-08）
+   用户：「超出的人标红 但是不移除原来组」「是否允许该组特殊情况设置7人」。
+   ============================================================ */
+
+/* 超出上限的人：红底红字，但位置不动、也不从数组里删 */
+.gb-chip.gb-over-limit {
+  background: var(--gb-bad-bg);
+  border-color: var(--gb-bad);
+  color: var(--gb-bad);
+}
+.gb-chip.gb-over-limit .gb-av { background: var(--gb-bad); color: #fff; }
+.gb-chip.gb-over-limit:hover { border-color: var(--gb-bad); }
+.gb-over-tag {
+  flex: none; padding: 0 5px; border-radius: 6px;
+  background: var(--gb-bad); color: #fff;
+  font-size: 10.5px; font-weight: 700; white-space: nowrap;
+}
+
+.gb-flag-over { background: var(--gb-bad); color: #fff; }
+.gb-group.is-over { border-color: var(--gb-bad); }
+.gb-group.is-over.is-full { background: var(--gb-panel); }
+
+/* 超员时那一条：说明 + 「设为例外」+「单独建一组」 */
+.gb-over-bar, .gb-exempt-row {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  background: var(--gb-bad-bg);
+  font-size: 11.5px; color: var(--gb-bad);
+}
+.gb-exempt-row { background: var(--gb-good-bg); color: var(--gb-good); }
+.gb-over-tip { flex: 1 1 100%; font-weight: 600; }
+
+.gb-mini {
+  padding: 2px 8px;
+  border: 1px solid currentColor; border-radius: 999px;
+  background: transparent; color: inherit;
+  font: inherit; font-size: 11.5px; font-weight: 600;
+  cursor: pointer;
+}
+.gb-mini:hover { background: var(--gb-panel); }
+
+/* 顶部撤销条：拖完人就在原地给一次后悔的机会 */
+.gb-undo {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin-bottom: 10px; padding: 7px 10px;
+  border-radius: 10px;
+  border: 1px dashed var(--gb-line-strong);
+  background: var(--gb-soft);
+  font-size: 12px; color: var(--gb-muted);
+}
+.gb-undo span { flex: 1 1 auto; min-width: 0; }
+.gb-undo .gb-mini { color: var(--gb-accent); }
+
+/* ============================================================
+   四、分组前后人数对账 / 掉队归位 / 撤回上一次分组（2026-11-08 追加）
+   现场：49 人的班只剩 5 个组 29 人，20 个人悄悄掉进待分配，老师只觉得「分没了」。
+   所以这一组样式只有一个目标：让人头变化和「怎么退回去」一眼看见。
+   ============================================================ */
+
+/* 待分配区顶上那条：红底醒目，但只占一行高度，不挡看板 */
+.pool-fixrow {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  margin: 10px 0 0; padding: 9px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--gb-bad);
+  background: var(--gb-bad-bg);
+  font-size: 12.5px; line-height: 1.65; color: var(--gb-bad);
+}
+.pool-fixrow[hidden] { display: none; }
+.pool-fix-text { flex: 1 1 260px; min-width: 0; }
+.pool-fix-text b { color: var(--gb-bad); }
+.gb-badge-bad {
+  flex: none; padding: 1px 7px; border-radius: 999px;
+  background: var(--gb-bad); color: #fff;
+  font-size: 11px; font-weight: 700; letter-spacing: .5px;
+}
+
+/* 「撤回上一次分组」那条：用虚线，和单步撤销区分开 */
+.gb-undo-snap { border-style: solid; border-color: var(--gb-accent-line); background: var(--gb-accent-bg); }
+.gb-undo-snap .gb-mini { color: var(--gb-accent); }
+
+/* 核对弹窗：数字用大字，掉队名单折行不撑破弹窗 */
+.report-dlg { width: 520px; }
+.gr-flow {
+  margin: 0 0 10px;
+  font-size: 13px; line-height: 1.9; color: var(--gb-ink);
+  font-variant-numeric: tabular-nums;
+}
+.gr-flow b { font-size: 15px; }
+.gr-arrow { display: inline-block; margin: 0 8px; color: var(--gb-muted); }
+.gr-bad { color: var(--gb-bad); }
+.gr-warn {
+  padding: 9px 11px; border-radius: 10px;
+  background: var(--gb-bad-bg); border: 1px solid var(--gb-bad);
+  color: var(--gb-bad); font-size: 12.5px; line-height: 1.7;
+}
+.gr-warn p { margin: 0; }
+.gr-warn .note { color: var(--gb-bad); opacity: .85; }
+.gr-names { margin: 4px 0 6px !important; word-break: break-all; font-weight: 600; }
+
+/* 归位明细：一人一行，写清「依据 + 命中几条」，不做黑箱 */
+.gr-list { max-height: 46vh; overflow: auto; display: flex; flex-direction: column; gap: 4px; }
+.gr-row {
+  display: flex; align-items: baseline; gap: 8px;
+  padding: 5px 8px; border-radius: 8px; background: var(--gb-soft);
+  font-size: 12.5px;
+}
+.gr-nm { flex: none; font-weight: 600; color: var(--gb-ink); }
+.gr-to { flex: none; color: var(--gb-accent); }
+.gr-why { flex: 1 1 auto; min-width: 0; color: var(--gb-muted); font-size: 11.5px; }
+
+/* ============================================================
+   五、学生端「选桌组队」页 —— 圆桌改桌卡
    team.css 里的 .desks 是 2 列圆桌网格，这里整段覆盖成手机一列、桌面多列。
    只覆盖布局与卡片本身，team.css 里那几行一个字都没动。
    ============================================================ */

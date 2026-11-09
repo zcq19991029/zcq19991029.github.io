@@ -1,0 +1,28 @@
+<!doctype html>
+<!-- 接线仿真 · 课堂任务（教师端 + 学生端），2026-11-09
+     教师：选班 → 选电路（2.1～2.6 / E1 / E2）→ 填课次/日期/说明 → 发布（= 新增一个 5 分项目）
+           → 看实时进度 → 结束（冻结得分）/ 作废 / 导出名单 / 打开大屏
+     学生：看本班当前任务、自己有没有完成、现在第几名、能拿几分。
+     为什么不做成分步向导：老师在教室里只有 30 秒操作时间，一屏填完直接发出去最快。
+     数据全靠 task-hx.js（HX.rpc），没有登录就只给登录入口，绝不白屏。 -->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#04060e">
+<title>课堂任务 · 接线仿真</title>
+<link rel="stylesheet" href="task.css">
+</head>
+<body class="page">
+<div class="pg-top">
+  <button class="back" id="back" type="button">← 接线仿真</button>
+  <h1>课堂任务<small>发布 · 实时进度 · 按排位用时赋分（每节课 +5 分项目）</small></h1>
+  <div class="grow"></div>
+  <div class="who" id="who"></div>
+  <button class="btn ghost" id="outBtn" type="button" hidden>退出</button>
+</div>
+<main class="pg-main" id="main"><div class="panel span2"><div class="empty">读取身份…</div></div></main>
+<script src="task-hx.js"></script>
+<script src="task.js"></script>
+</body>
+</html>

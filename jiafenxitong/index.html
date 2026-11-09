@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#fcfcfb">
 <title>夜夜小组制加分助手 · 《电气接线原理》</title>
-<link rel="stylesheet" href="styles.css?v=86d68b9">
-<link rel="stylesheet" href="draw-person.css?v=86d68b9">
+<link rel="stylesheet" href="styles.css?v=6d908fc">
+<link rel="stylesheet" href="draw-person.css?v=6d908fc">
 <!-- 分组看板 + 学生端桌卡（2026-11-06）：新样式一律写这个文件，不去动 styles.css / team.css
      里已有的行（那几个文件正有人在改深浅色变量）。-->
 <link rel="stylesheet" href="roster-board.css">
@@ -50,8 +50,8 @@
      这里把药丸钉回 1em，跟着卡片字号一起长大，不再自己写一套 clamp 互相打架。 */
   #hxSplash .hx-loadpill { font-size: 1em; box-shadow: none; }
 </style>
-<meta name="build-commit" content="86d68b9">
-<meta name="build-published-at" content="2026-11-09T03:46:27.650Z">
+<meta name="build-commit" content="6d908fc">
+<meta name="build-published-at" content="2026-11-09T06:05:25.404Z">
 </head>
 <body>
 
@@ -80,8 +80,8 @@
     </div>
   </div>
 </div>
-<script src="fx/pixelfx-loader.js?v=86d68b9"></script>
-<script src="fx/hx-jf-load.js?v=86d68b9"></script>
+<script src="fx/pixelfx-loader.js?v=6d908fc"></script>
+<script src="fx/hx-jf-load.js?v=6d908fc"></script>
 
 <header class="topbar" id="topbar">
   <div class="topbar-main">
@@ -228,6 +228,7 @@
       <button class="btn tiny" id="btnRosterSetup">首页班级 →</button>
     </div>
     <div id="poolBanner" class="pool-banner" hidden></div>
+    <div id="wireBanner" class="pool-banner wire-banner" hidden></div>
 
     <div class="lesson-bar">
       <label class="field">
@@ -304,18 +305,15 @@
     </div>
 
     <div class="card pool-team" id="teamCard">
+      <!-- 分组入口（2026-11-08 重做）
+           用户原话：「分组开关不容易弄懂 然后我假如本来是7人 但是默认好像是10组6人 我一旦不小心
+           点错了 就会抹除我部分同学 强制变为6人 那老师完全无法恢复正确靠自己 所以应该予以警告
+           分组不要设默认预设 就点分组弹窗选项卡 让老师先选分几组和一组多少人」。
+           所以这里只留一个「分组…」按钮 + 一句现状说明，桌数、每组人数这些参数全搬进弹窗，
+           而且输入框一个预填值都没有 —— 老师不填，弹窗里的执行按钮就是灰的。 -->
       <div class="btnrow">
-        <label class="field"><span>圆桌数</span>
-          <input id="teamTables" type="number" min="1" max="40" step="1" value="10" inputmode="numeric" style="width:72px">
-        </label>
-        <label class="field"><span>每桌</span>
-          <input id="teamSize" type="number" min="2" max="7" step="1" value="6" inputmode="numeric" style="width:72px">
-        </label>
-        <span class="note" id="teamHint">人</span>
-        <button id="btnTeamOpen" class="btn primary">开放组队</button>
-        <button id="btnTeamLock" class="btn" hidden>锁定</button>
-        <button id="btnTeamFinish" class="btn primary" hidden>按选座确认分组</button>
-        <button id="btnTeamClose" class="btn danger" hidden>结束</button>
+        <button id="btnGroupWizard" class="btn primary" type="button">分组…</button>
+        <span class="note" id="groupSummary">还没有分组</span>
         <span class="spacer"></span>
         <a id="teamLink" class="btn ghost small" target="_blank" rel="noopener" href="team.html" hidden>学生入口 ↗</a>
       </div>
@@ -328,31 +326,18 @@
       </p>
       <p class="note" id="teamNote">
         学生用<b>学号账号</b>登录后打开「学生入口」（或直接把链接发群里），就会看到这些圆桌；点一张桌就坐下，可以换桌。
-        你这边每 2 秒自动刷新，能看到谁坐了哪桌、还有谁没选。分够了点「按选座确认分组」，选座结果直接写进本班分组。
+        你这边每 2 秒自动刷新，能看到谁坐了哪桌、还有谁没选。分够了点「分组… → ③ 按选座确认分组」，选座结果直接写进本班分组。
       </p>
       <div id="teamBoard"></div>
     </div>
 
-    <div class="card pool-autogroup">
-      <div class="btnrow">
-        <label class="field"><span>每组</span>
-          <input id="poolSize" type="number" min="2" max="7" step="1" value="6" inputmode="numeric" style="width:72px">
-        </label>
-        <span class="note" id="poolSizeHint">人</span>
-        <button id="btnPoolBySize" class="btn primary">按序号分</button>
-        <button id="btnPoolRandom" class="btn">随机分</button>
-        <span class="spacer"></span>
-        <button id="btnPoolAuto" class="btn ghost small">按现有组数平均铺</button>
-      </div>
-      <p class="note">
-        一键分组会把<b>待分配</b>的学生按每组人数切成若干组：需要几组就留几组，多出来的<b>空组会自动删掉</b>（有人的组一律不动）。
-        「按序号分」顺着班内序号排，和考勤表、纸质名单的顺序一致；「随机分」会打乱，适合不想让学生自己挑组的时候。
-        分完随时可以拖到别的组或单独调人。
-      </p>
-    </div>
-
     <p class="pool-scope note">以下只统计当前所选班级；顶部角标统计全部班级的待分配总人数。</p>
     <div class="metrics" id="poolMetrics"></div>
+    <!-- 掉队归位（2026-11-08 追加）
+         团队在生产数据里抓到的现场：49 人 / 10 次课 / 4015 分都在，可只剩 5 个组 29 人，
+         约 20 人掉进了待分配 —— 老师看到的却是「分全丢了」。
+         这条只在「真有人掉出原组」时才出现，由 renderPoolFix 画；按钮是动态的，所以这里只留空容器。 -->
+    <div class="pool-fixrow" id="poolFixRow" hidden></div>
 
     <!-- 分组看板（2026-11-06）：cls.groups 里的组一个不落地铺成卡片，可拖动换人。
          内容是 app.js 的 renderGroupBoard 画的，这里只留一个容器。 -->
@@ -586,6 +571,109 @@
   </form>
 </dialog>
 
+<!-- 分组向导（2026-11-08）
+     用户原话：「分组开关不容易弄懂……就点分组弹窗选项卡 让老师先选分几组和一组多少人」
+     「教师账号只是拖拽学生分组 不要只有死板的选项卡」。
+     四个页签各管一件事，每个页签只放必要的一两个输入框和一句人话说明；
+     输入框一律不预填、不填就不让执行，避免老师手一滑点了默认值把全班重排。 -->
+<dialog id="dlgGroup" class="group-dlg">
+  <div class="dlg">
+    <div class="dlg-head">
+      <h3>分组</h3>
+      <button type="button" class="dlg-x" id="gpClose" aria-label="关闭分组弹窗">✕</button>
+    </div>
+    <div class="dlg-body">
+      <div class="seg gp-tabs" id="gpTabs" role="tablist" aria-label="分组方式">
+        <button type="button" data-tab="count" class="on" role="tab" aria-selected="true">① 按组数分</button>
+        <button type="button" data-tab="size" role="tab" aria-selected="false">② 按每组人数分</button>
+        <button type="button" data-tab="seat" role="tab" aria-selected="false">③ 按选座确认</button>
+        <button type="button" data-tab="drag" role="tab" aria-selected="false">④ 手动拖拽</button>
+      </div>
+
+      <!-- ① 按组数分：整班重排，是唯一会打散已分组的页签。文案直说，执行前还要二次确认。 -->
+      <section class="gp-pane" data-pane="count">
+        <p class="note">把<b>全班</b>学生按班内序号重新排成你指定的组数。已经记过的小组分不会清零，
+          但组里的人会被打散重排——执行前会把「动到哪几个组、影响几个人」列出来让你确认。</p>
+        <label class="field"><span>分几组</span>
+          <input id="groupCount" type="number" min="1" max="40" step="1" inputmode="numeric" placeholder="先填组数，例如 8">
+        </label>
+        <label class="gp-check"><input type="checkbox" id="gpCountShuffle"> 打乱顺序（不按班内序号）</label>
+        <p class="gp-preview" id="gpCountPreview">填一个组数，这里先算给你看。</p>
+        <button type="button" class="btn primary" id="gpCountRun" disabled>按这个组数重新分</button>
+        <p class="gp-tip">不想打散现有的组？用 ②，它默认只给还没分组的人分组。</p>
+      </section>
+
+      <!-- ② 按每组人数分：默认只动待分配的人；超员只标红不踢人。 -->
+      <section class="gp-pane" data-pane="size" hidden>
+        <p class="note">按每组人数切组。<b>默认只给「还没分组」的学生分组</b>，已经分好的组一个都不动；
+          如果某个组人数超过你填的数，多出来的人只会<b>标红</b>，不会被移出。</p>
+        <label class="field"><span>每组</span>
+          <input id="poolSize" type="number" min="2" max="12" step="1" inputmode="numeric" placeholder="先填人数，例如 6">
+          <em class="gp-unit">人</em>
+        </label>
+        <label class="gp-check"><input type="checkbox" id="gpSizeAll"> 全班重新分（会打散现有分组，需二次确认）</label>
+        <label class="gp-check"><input type="checkbox" id="gpSizeShuffle"> 随机分（不按班内序号）</label>
+        <p class="gp-preview" id="gpSizePreview"></p>
+        <div class="btnrow">
+          <button type="button" class="btn primary" id="btnPoolBySize" disabled>按这个人数分组</button>
+          <button type="button" class="btn ghost small" id="btnPoolAuto">把待分配的人平均塞进现有组</button>
+        </div>
+        <p class="gp-tip">「平均塞进现有组」不新建组，只把待分配的人往现有组里填，填到每组上限为止。</p>
+      </section>
+
+      <!-- ③ 按选座确认：桌数 / 每桌人数只用来开云端组队房间，不直接改分组。 -->
+      <section class="gp-pane" data-pane="seat" hidden>
+        <p class="note">让学生自己点圆桌。这两个数字只用来开组队房间，<b>不会直接改分组</b>；
+          学生选完以后点「按选座确认分组」，才会按桌号写进记分表。</p>
+        <label class="field"><span>圆桌数</span>
+          <input id="teamTables" type="number" min="1" max="40" step="1" inputmode="numeric" placeholder="先填桌数，例如 8">
+          <em class="gp-unit">桌</em>
+        </label>
+        <label class="field"><span>每桌最多</span>
+          <input id="teamSize" type="number" min="2" max="12" step="1" inputmode="numeric" placeholder="先填人数，例如 6">
+          <em class="gp-unit">人</em>
+        </label>
+        <p class="gp-preview" id="gpSeatPreview">两个数字都填了才能开放组队。</p>
+        <div class="btnrow">
+          <button id="btnTeamOpen" class="btn primary" type="button" disabled>开放组队</button>
+          <button id="btnTeamLock" class="btn" type="button" hidden>停止组队</button>
+          <button id="btnTeamFinish" class="btn primary" type="button" hidden>按选座确认分组</button>
+          <button id="btnTeamClose" class="btn danger" type="button" hidden>结束</button>
+        </div>
+        <p class="gp-tip" id="gpSeatState"></p>
+      </section>
+
+      <!-- ④ 手动拖拽：主交互其实在看板上，这里只负责把人带过去。 -->
+      <section class="gp-pane" data-pane="drag" hidden>
+        <p class="note">拖动就是分组：把一个学生拖到别的组卡片上，松手就换组；手机上先点一个人，再点目标组。
+          拖到下面的「待分配」区就是移出小组，拖完在看板上点「撤销」就能退回去。</p>
+        <p class="note">超员的人会标红，但<b>不会被自动踢掉</b>。你可以把他拖走、留在原地，
+          或者给那个组点「设为例外」——被放行的组不再标红。</p>
+        <button type="button" class="btn primary" id="gpGoDrag">去看板拖动 →</button>
+      </section>
+    </div>
+    <div class="dlg-btns">
+      <button type="button" class="btn" id="gpDone">关闭</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- 分组结果核对 / 一键归位（2026-11-08 追加）
+     用户原话：「我一旦不小心点错了 就会抹除我部分同学 强制变为6人 那老师完全无法恢复正确靠自己」。
+     所以每一次动分组，都把「分之前几个组多少人 → 分之后几个组多少人」摆出来；只要人头少了，
+     就用红字列出掉了谁、他们现在在待分配，并给「撤回这一次」和「把掉出的人放回原组」两条后路。
+     内容由 app.js 的 showGroupReport 画，这里只留骨架。 -->
+<dialog id="dlgGroupReport" class="group-dlg report-dlg">
+  <div class="dlg">
+    <div class="dlg-head">
+      <h3 id="grTitle">分组结果核对</h3>
+      <button type="button" class="dlg-x" id="grClose" aria-label="关闭核对结果">✕</button>
+    </div>
+    <div class="dlg-body"><div id="grBody"></div></div>
+    <div class="dlg-btns" id="grBtns"></div>
+  </div>
+</dialog>
+
 <!-- 个人信息弹窗（点顶栏自己的名字打开） -->
 <dialog id="dlgMe">
   <form method="dialog" class="dlg">
@@ -630,14 +718,14 @@
   </form>
 </dialog>
 
-<script src="data.js?v=86d68b9"></script>
-<script src="config.js?v=86d68b9"></script>
-<script src="vendor/jspdf.umd.min.js?v=86d68b9"></script>
-<script src="vendor/xlsx.full.min.js?v=86d68b9"></script>
-<script src="roster-import.js?v=86d68b9"></script>
-<script src="hx-roster.js?v=86d68b9"></script>
-<script src="cloud.js?v=86d68b9"></script>
-<script src="supabase-cloud.js?v=86d68b9"></script>
+<script src="data.js?v=6d908fc"></script>
+<script src="config.js?v=6d908fc"></script>
+<script src="vendor/jspdf.umd.min.js?v=6d908fc"></script>
+<script src="vendor/xlsx.full.min.js?v=6d908fc"></script>
+<script src="roster-import.js?v=6d908fc"></script>
+<script src="hx-roster.js?v=6d908fc"></script>
+<script src="cloud.js?v=6d908fc"></script>
+<script src="supabase-cloud.js?v=6d908fc"></script>
 <dialog id="dlgPassword">
   <form method="dialog" class="dlg" id="passwordForm">
     <div class="dlg-head"><h3>修改密码</h3><button type="button" class="dlg-x" id="btnPasswordClose" aria-label="关闭">✕</button></div>
@@ -662,16 +750,17 @@
     <div class="drw" id="drw"></div>
   </div>
 </dialog>
-<script src="leader-scoring.js?v=86d68b9"></script>
-<script src="assessment.js?v=86d68b9"></script>
-<script src="ui-feedback.js?v=86d68b9"></script>
+<script src="leader-scoring.js?v=6d908fc"></script>
+<script src="assessment.js?v=6d908fc"></script>
+<script src="ui-feedback.js?v=6d908fc"></script>
 <dialog id="dlgOperationLog"><div class="dlg"><div class="dlg-head"><div><h3>操作日志</h3><span class="note">选择任意一条撤销，其他记录继续保留</span></div><button type="button" id="closeOperationLog" class="dlg-x" aria-label="关闭操作日志">✕</button></div><div class="dlg-body"><div class="log-toolbar"><label>班级<select id="logClassFilter"><option value="">全部班级</option></select></label><label>课次<select id="logLessonFilter"><option value="">全部课次</option></select></label><label class="log-search">查找<input type="search" id="logSearch" placeholder="姓名、组号、课次或项目"></label><button id="btnRedo" class="btn" disabled title="恢复最近撤销的一项（Ctrl+Shift+Z）">↷ 恢复最近一项</button></div><button id="btnUndo" hidden disabled></button><p id="undoDetail" hidden></p><p id="redoDetail" hidden></p><div id="operationLogList"></div><details class="log-help"><summary>记录与撤销说明</summary><p>点击某条右侧“撤销”，仅抵消该次操作的实际效果；已撤销的记录可单独恢复。平板支持左划，松手前拉回即可取消。个人项目的核对流水请到原评分表修改。默认5分不记作加分操作；相邻等量反向调整合并抵消。旧记录未记载时间时显示“历史记录”。</p></details></div></div></dialog>
-<script src="print-excel.js?v=86d68b9"></script>
-<script src="gradebook.js?v=86d68b9"></script>
+<script src="print-excel.js?v=6d908fc"></script>
+<script src="gradebook.js?v=6d908fc"></script>
 <!-- 学生只读查分：把「每人一份」的分数快照发布到云端，app.js 每次 save() 会叫它（2026-11-04） -->
-<script src="student-feed.js?v=86d68b9"></script>
-<script src="app.js?v=86d68b9"></script>
-<script src="draw-person.js?v=86d68b9"></script>
-<script src="password-ui.js?v=86d68b9"></script>
+<script src="student-feed.js?v=6d908fc"></script>
+<script src="wire-task-link.js?v=6d908fc"></script>
+<script src="app.js?v=6d908fc"></script>
+<script src="draw-person.js?v=6d908fc"></script>
+<script src="password-ui.js?v=6d908fc"></script>
 </body>
 </html>
