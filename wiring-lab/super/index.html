@@ -114,7 +114,10 @@
     box-shadow: 0 14px 28px -12px var(--tbsh), 0 0 0 3px color-mix(in srgb, var(--acc) 22%, transparent); opacity: .95; }
   .ghost img { display: block; width: 100%; height: auto; }
   /* ── 右列 ── */
-  .right { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+  /* ⚠️ min-height:0 必需（2026-11-08 手机排位溢出的真凶）：
+     flex 子项的 min-height 默认是 auto = 内容高度，右列里有原理图 + 画布两张卡，
+     内容一高就顶到屏幕外面去（overflow:hidden 再把「我摆好了」整颗裁掉）。 */
+  .right { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 12px; }
   /* 原理图卡片整块由 schview.html 用练习页的 glass() 自己画（同一张卡片、同一套主题），这里只是容器 */
   .sch-card { flex: none; height: min(44vh, 430px); display: flex; flex-direction: column; min-height: 210px;
     border-radius: 16px; overflow: hidden; background: transparent; }
@@ -165,13 +168,27 @@
   .toast.on { opacity: 1; transform: translateY(0); }
   .toast.bad { border-color: color-mix(in srgb, var(--bad) 60%, transparent); color: var(--bad); }
   .toast.ok { border-color: color-mix(in srgb, var(--ok) 60%, transparent); color: var(--ok); }
-  /* 窄屏 / 手机：库变成顶上一条横向工具条，原理图和画布上下叠（画布仍然占最大的一块） */
+  /* 窄屏 / 手机：库变成顶上一条横向工具条，原理图和画布上下叠（画布仍然占最大的一块）
+     ── 2026-11-08 晚：三块改成能收缩的弹性基准 ──
+     用户报「连线时候工具包丢失 排位也没有工具栏」。实测手机 390×844：库 150 + 原理图 287 + 画布 461
+     加起来比视口高 70 多像素，而 body 是 overflow:hidden，多出来的部分直接被裁掉——
+     元器件库的顶部被顶到 y=-23（半截在屏幕外），底部那颗「我摆好了」落在 y=867（整颗在屏幕外）。
+     现在三块各自带一个可收缩的 flex 基准（库 178→96、原理图 34vh→120、画布吃剩下的），
+     空间不够时一起让，谁也不会被裁出去。 */
   @media (max-width: 900px) {
-    .wrap { flex-direction: column; gap: 8px; padding: 8px; }
-    .tb { width: auto; flex: none; max-height: 178px; }
-    .tb-list { grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); overflow-y: auto; }
-    .sch-card { height: 34vh; min-height: 170px; }
-    .stage { min-height: 160px; }
+    .wrap { flex-direction: column; gap: 8px; padding: 8px; overflow: hidden; }
+    /* 手机上元器件库改成**横向滑动的一条**。
+       原来这里是个两列网格（minmax(92px,1fr)），390 屏上要 178px 高才放得下两行，
+       压得画布只剩 300 多，所以上一版干脆把库压成 89px —— 结果连一张卡都露不出来，
+       看起来就是「元器件库是空的」（2026-11-08 用户报「连线时候工具包丢失」的截图正是这样）。
+       现在：卡片横着排、固定 78px 宽、左右滑看全，库总高 130 上下，画布还能留 400。 */
+    .tb { width: auto; flex: 0 0 auto; min-height: 0; max-height: none; }
+    .tb-list { display: flex; flex-wrap: nowrap; gap: 8px; padding: 8px 10px 10px;
+      overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; }
+    .tb-list .grp { display: none; }                  /* 横条里放不下分组标题，卡片自己的名字够认 */
+    .tb-list .card { flex: 0 0 auto; width: 78px; }
+    .sch-card { flex: 0 1 26vh; height: auto; min-height: 110px; max-height: 26vh; }
+    .stage { flex: 1 1 auto; min-height: 150px; }
     .top .sub, .top .tag:not(.back) { display: none; }
     .top .tsk { display: none; }
     .tsel select { max-width: 136px; font-size: 11.5px; }
@@ -184,8 +201,7 @@
   }
   /* 再窄一点（手机竖屏）：原理图让一让，把高度留给连线画布 —— 第二步真正要操作的是画布 */
   @media (max-width: 520px) {
-    .sch-card { height: 28vh; min-height: 150px; }
-    .tb { max-height: 150px; }
+    .sch-card { flex: 0 1 22vh; min-height: 96px; max-height: 22vh; }
     /* 手机竖屏顶栏一共要给「标题 + 题目下拉 + 阶段徽章」留位置，这里逐个数着缩 */
     .top { gap: 6px; padding: 8px 10px 6px; }
     .top h1 { font-size: 14px; letter-spacing: .03em; }
