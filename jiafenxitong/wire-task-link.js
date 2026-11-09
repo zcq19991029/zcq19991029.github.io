@@ -486,6 +486,10 @@
     return parts.join(' · ');
   }
 
+  /* 横幅渲染（2026-11-09 用户要求撤掉：「课堂任务积分直接丢进上课计分总表，排名到投屏看」）。
+     index.html 里的 #wireBanner 已经删除，所以这个函数现在拿到 null 会立刻 return —— 等于 no-op。
+     留着它的原因：① 入账走的是 maybeSync，和这里无关，删不删都不影响分数；
+     ② 「被超了/反超了」那套 diffRates 逻辑还在这条链路上（老师以后想恢复随时把 div 放回去）。 */
   W.renderBanner = function (cls) {
     var box = document.getElementById('wireBanner');
     if (!box) return;

@@ -1516,7 +1516,8 @@ function restoreDroppedToHome(cls) {
   }
 
   function renderScore() {
-    if (window.JFDT_WIRE) window.JFDT_WIRE.renderBanner(curClass());
+    /* 2026-11-09：接线任务的横幅撤掉了（用户要求：积分直接进总表「课堂任务」列，排名看大屏）。
+       入账不靠这个调用，靠 boot 后的 syncAll + 10 秒心跳，所以这里不再画横幅。 */
     var cls = curClass();
     if (!cls) return;
     $('#classSel').value = cls.id;
@@ -5533,17 +5534,15 @@ function restoreDroppedToHome(cls) {
         hasRpc: function () { return !!(CLOUD_ON && CLOUD && typeof CLOUD.rpc === 'function' && CLOUD.profile && CLOUD.profile()); }
       });
       window.JFDT_WIRE.syncAll();
-      /* 2026-11-09：进行中的接线任务要「实时」。原来只在切到记分页时拉一次，
-         老师一直停在这一页看，完成榜和完成率就不动了 —— 用户要的是「被别人超了就会变」。
-         这里给一个 10 秒心跳，只做两件事：拉一次只读 RPC（wire_task_scores）、重画横幅。
-         三重刹车：① 页面在后台不拉；② 横幅不在（没登录/没对应班/没任务）不拉；
-         ③ wire-task-link.js 内部还有 LIVE_THROTTLE=10s 节流，重复调不会打爆接口。
-         注意：它**不会**改分数 —— plan() 只处理已结束的任务，进行中的只展示。 */
+      /* 2026-11-09：接线任务结束以后，成绩要自己走进「上课记分」总表的「课堂任务」列。
+         这里一个 10 秒心跳，只做一件事：maybeSync() 拉一次只读 RPC，把**已结束**的任务入账。
+         刹车：① 页面在后台不拉；② wire-task-link.js 内部 LIVE_THROTTLE=10s 节流。
+         注意：它不改进行中的任务 —— plan() 只处理已结束的；进行中的完成率/名次在大屏看。
+         （横幅 2026-11-09 已按用户要求撤掉，所以这里不再判断 wireBanner 是否存在。） */
       setInterval(function () {
         try {
           if (document.hidden) return;
           if (!S || !window.JFDT_WIRE) return;
-          if (!document.getElementById('wireBanner')) return;
           window.JFDT_WIRE.maybeSync(curClass());
         } catch (e) { /* 心跳失败绝不影响记分 */ }
       }, 10000);
