@@ -117,7 +117,7 @@ function renderTeacher() {
   const maxNo = ST.tasks.filter(t => t.class_id === def.id && t.lesson_no).reduce((a, t) => Math.max(a, t.lesson_no), 0);
   const cur = ST.cur;
   $('#main').innerHTML = `
-  <section class="panel">
+  <section class="panel span2">
     <h2>发布本节课任务 <span class="tag">发布即新增一个 5 分项目</span></h2>
     <div class="body">
       <div class="form">
@@ -143,7 +143,7 @@ function renderTeacher() {
     </div>
   </section>
 
-  <section class="panel" id="live"><div class="empty">加载进度…</div></section>
+  <section class="panel span2" id="live"><div class="empty">加载进度…</div></section>
 
   <section class="panel span2" id="hist"><div class="empty">加载历史任务…</div></section>`;
 
@@ -237,17 +237,32 @@ function paintLive() {
       <p class="hint">赋分：第 1–10 名 <b>100%</b>（5 分）· 第 11–20 名 <b>80%</b>（4 分）· 其余已完成 <b>70%</b>（3.5 分）· 未完成 <b>0 分</b>。<br>
         名次按用时从短到长排，会随新完成的人实时变化；<b>结束任务那一刻算一次并写死</b>，之后不再变。</p>
 
-      <div class="tbl-wrap scroll-y" style="margin-top:14px">
-        <table class="tbl"><thead><tr>
-          <th class="num">名次</th><th>姓名</th><th>学号</th><th class="num">用时</th><th class="num">完成率</th><th class="num">得分</th>
-        </tr></thead><tbody>
-          ${rows.map(r => `<tr class="${r.place === 1 ? 'r1' : r.place <= 10 ? 'r2' : ''}">
-            <td class="num">${r.place == null ? '—' : r.place}</td><td>${esc(r.name)}</td><td class="muted">${esc(r.no)}</td>
-            <td class="num">${fmtSec(r.sec)}</td><td class="num">${rateText(r.rate)}</td><td class="num">${scoreText(r.score)}</td></tr>`).join('')}
-          ${rows.length ? '' : '<tr><td colspan="6" class="muted" style="text-align:center;padding:22px">还没有人完成</td></tr>'}
-        </tbody></table>
+      <div class="live-cols">
+        <div class="live-done">
+          <h3>已完成 <em>${rows.length}</em> 人 <small>完成率按名次实时算，被更快的同学超了就会掉档</small></h3>
+          <div class="tbl-wrap scroll-y">
+            <table class="tbl"><thead><tr>
+              <th class="num">名次</th><th>姓名</th><th>学号</th><th class="num">用时</th><th class="num">完成率</th><th class="num">得分</th>
+            </tr></thead><tbody>
+              ${rows.map(r => `<tr class="${r.place === 1 ? 'r1' : r.place <= 10 ? 'r2' : ''}">
+                <td class="num">${r.place == null ? '—' : r.place}</td><td>${esc(r.name)}</td><td class="muted">${esc(r.no)}</td>
+                <td class="num">${fmtSec(r.sec)}</td>
+                <td class="num rate ${rateTier(r.rate)}">${rateText(r.rate)}</td>
+                <td class="num">${scoreText(r.score)}</td></tr>`).join('')}
+              ${rows.length ? '' : '<tr><td colspan="6" class="muted" style="text-align:center;padding:22px">还没有人完成</td></tr>'}
+            </tbody></table>
+          </div>
+        </div>
+        <div class="live-pend">
+          <h3>还没完成 <em>${pend.length}</em> 人</h3>
+          ${pend.length ? `<div class="pend-grid2 scroll-y">${pend.map(p => `<span class="pend-chip" title="${esc((p.name || '') + ' · ' + (p.no || ''))}">
+              <i>${esc(String(p.name || p.no || '?').trim().slice(0, 1))}</i>
+              <b>${esc(p.name || p.no)}</b></span>`).join('')}</div>`
+            : '<p class="hint" style="color:var(--ok)">全部完成 ✔ 这一节课没有人掉队</p>'}
+        </div>
       </div>
-      ${pend.length ? `<p class="hint" style="margin-top:12px">还没完成（${pend.length} 人）：${pend.map(p => esc(p.name)).join('、')}</p>` : ''}
+      <p class="hint" style="margin-top:12px">完成率是<b>实时</b>的：后来的人用时更短，就会把前面的人挤下一档（100% → 80% → 70%）。
+        这就是竞争 —— <b>再刷一次、把用时压下去就能反超回来</b>（重刷只记更快的那次，慢的不会顶掉好成绩）。结束任务那一刻才冻结。</p>
       ${t.status === 'closed' ? (t.lesson_no
         ? `<p class="hint" style="color:var(--ok)">✓ 分数已冻结并进入「小组加分」· 第 ${t.lesson_no} 次课 · 列名「${esc(jfCol(t.circuit))}」</p>`
         : '<p class="hint" style="color:var(--warn)">⚠ 这个任务没填课次，分数进不了「小组加分」，建议作废重发</p>') : ''}

@@ -678,6 +678,23 @@ function headcountOfGroups(groups) {
   return { groups: g, people: p };
 }
 
+/** 首页（记分页 / 分组看板）该画哪些组 —— 动态识别，不写死组数。
+    用户原话：「我明明工器2班分了7组新的 但是首页还没变 咋回事」「空组删除不要再首页显示了
+    又没人是不是 应该动态识别才对」。
+    真实原因：模板给新班 13 个空组，按组数分完 7 组以后，第 8～13 组虽然一个人都没有，
+    但因为历史课次里留着它们的分数格子（groupHasHistory），一直没被删掉，于是一直画在首页上。
+    老师看到「7 组有人 + 6 组空白」，第一反应就是「分了个寂寞 / 首页没变」。
+    规则：**只画组里至少有一个人的组**。空组一律不画。
+    ⚠ 只影响显示，不动数据：空组里可能还挂着历史分，删了反而找不回来；
+      要真删组请走「分组…」的清理（那里会保留有历史记分的组）。 */
+function visibleGroups(cls) {
+  var gs = (cls && cls.groups) || [];
+  return gs.filter(function (g) { return memberCount(g) > 0; });
+}
+
+/** 这个班「实际有几个组」——所有显示组数的地方都用它，别再用 cls.groups.length。 */
+function groupCountOf(cls) { return visibleGroups(cls).length; }
+
 /** 组结构 → 身份键到「姓名 + 原组号」的表，用来算「谁掉出去了」。 */
 function memberIndexByKey(groups) {
   var out = Object.create(null);
@@ -1442,10 +1459,10 @@ function restoreDroppedToHome(cls) {
 
     renderLessonMeta(cls, lesson);
     renderGroups(cls, lesson);
-    /* 连一个组都没有时，记分页会只剩一堆空白；说清楚下一步该做什么，别让老师以为「没分完不让进」。
-       这里只提示，不拦人：有一个组就能进来记分。 */
-    if (!cls.groups.length) {
-      $('#groupList').innerHTML = '<p class="empty-hint">这个班还没有小组。到「待分配名单」点「分组…」，' +
+    /* 一个「有人的组」都没有时（新建班只剩模板空组也一样），记分页会只剩空白；
+       说清楚下一步该做什么，别让老师以为「没分完不让进」。这里只提示，不拦人。 */
+    if (!groupCountOf(cls)) {
+      $('#groupList').innerHTML = '<p class="empty-hint">这个班还没有小组（或者组里一个人都没有）。到「待分配名单」点「分组…」，' +
         '按组数或每组人数分一下，分好组就能在这里记分。</p>';
     }
     renderMetrics(cls, lesson);
@@ -1453,7 +1470,7 @@ function restoreDroppedToHome(cls) {
   }
 
   function renderLessonMeta(cls, lesson) {
-    var dutyOpts = '<option value="">无</option>' + cls.groups.map(function (g) {
+    var dutyOpts = '<option value="">无</option>' + visibleGroups(cls).map(function (g) {
       return '<option value="' + g.no + '"' + (+lesson.dutyGroup === g.no ? ' selected' : '') +
         '>第 ' + g.no + ' 组</option>';
     }).join('');
@@ -1467,7 +1484,7 @@ function restoreDroppedToHome(cls) {
   var lessonEditor=document.createElement('dialog');lessonEditor.id='dlgEditLesson';lessonEditor.setAttribute('aria-labelledby','editLessonTitle');
   lessonEditor.innerHTML='<form id="editLessonForm"><h2 id="editLessonTitle">修改课次</h2><p class="note">更正课次资料，保留本课分数、项目评价和考勤。日期不参与计分。</p><label class="field col">课次序号<input id="editLessonSeq" type="number" min="1" step="1" required></label><label class="field col">上课日期<input id="editLessonDate" type="date" required></label><label class="field col">本节任务<input id="editLessonTopic" maxlength="300"></label><label class="field col">值日组<select id="editLessonDuty" multiple size="4"></select></label><p id="editLessonError" role="alert" class="note"></p><div class="btnrow"><button type="button" class="btn" id="cancelEditLesson">取消</button><button type="submit" class="btn primary">保存修改</button></div></form>';
   document.body.appendChild(lessonEditor);wireDialog(lessonEditor);var editingLessonId=null;
-  function openLessonEditor(cls,lesson){editingLessonId=lesson.id;$('#editLessonTitle').textContent=cls.name+' · 修改课次';$('#editLessonSeq').value=lesson.seq;$('#editLessonDate').value=lesson.date||'';$('#editLessonTopic').value=lesson.topic||'';$('#editLessonDuty').innerHTML='<option value="">无</option>'+cls.groups.map(function(g){return '<option value="'+g.no+'"'+(dutyGroups(lesson).includes(g.no)?' selected':'')+'>第'+g.no+'组</option>';}).join('');$('#editLessonError').textContent='';openDlg(lessonEditor);}
+  function openLessonEditor(cls,lesson){editingLessonId=lesson.id;$('#editLessonTitle').textContent=cls.name+' · 修改课次';$('#editLessonSeq').value=lesson.seq;$('#editLessonDate').value=lesson.date||'';$('#editLessonTopic').value=lesson.topic||'';$('#editLessonDuty').innerHTML='<option value="">无</option>'+visibleGroups(cls).map(function(g){return '<option value="'+g.no+'"'+(dutyGroups(lesson).includes(g.no)?' selected':'')+'>第'+g.no+'组</option>';}).join('');$('#editLessonError').textContent='';openDlg(lessonEditor);}
   $('#cancelEditLesson').addEventListener('click',function(){lessonEditor.close();});
   $('#editLessonForm').addEventListener('submit',function(e){e.preventDefault();var lesson=getLesson(editingLessonId);if(!lesson)return;var seq=Number($('#editLessonSeq').value),date=$('#editLessonDate').value,topic=$('#editLessonTopic').value.trim(),duties=Array.from($('#editLessonDuty').selectedOptions).map(function(o){return Number(o.value);}).filter(Boolean),duty=duties[0]||null;if(!Number.isInteger(seq)||seq<1||!/^\d{4}-\d{2}-\d{2}$/.test(date)){$('#editLessonError').textContent='请填写有效的课次序号和日期。';return;}if(S.lessons.some(function(l){return l.classId===lesson.classId&&l.id!==lesson.id&&l.seq===seq;})){$('#editLessonError').textContent='本班已有第 '+seq+' 次课，请使用其他序号。';return;}var before='第'+lesson.seq+'次 · '+lesson.date+' · '+(lesson.topic||'未填任务');if(lesson.seq===seq&&lesson.date===date&&(lesson.topic||'')===topic&&JSON.stringify(dutyGroups(lesson))===JSON.stringify(duties)){lessonEditor.close();return;}lesson.seq=seq;lesson.date=date;lesson.topic=topic;lesson.dutyGroup=duty;lesson.dutyGroups=duties;var cls=S.classes.find(function(c){return c.id===lesson.classId;});addOperationLog('修改课次',cls.name+' · '+before+' → 第'+seq+'次 · '+date+' · '+(topic||'未填任务'));save();lessonEditor.close();renderScore();flash('课次资料已修改，分数和考勤已保留');});
 
@@ -1646,7 +1663,9 @@ function restoreDroppedToHome(cls) {
   }
 
   function groupsCards(cls, lesson) {
-    return '<div class="groups">' + cls.groups.map(function (g) {
+    var gs = visibleGroups(cls);
+    if (!gs.length) return '<p class="empty-hint">这个班还没有分好组（或者组里一个人都没有）。到「待分配名单」点「分组…」分一下，分好组这里就能记分了。</p>';
+    return '<div class="groups">' + gs.map(function (g) {
       var s = sc(lesson, g.no);
       var total = groupTotal(lesson, g.no);
       var duty = dutyGroups(lesson).includes(g.no);
@@ -1724,29 +1743,32 @@ function restoreDroppedToHome(cls) {
     if(editing)rows+='<tr class="group-pick-row"><td colspan="3" data-group-picker-slot></td><td colspan="4"></td></tr>';
     return '<tbody '+(printing?'data-pg':'data-card')+'="'+g.no+'" class="'+(dutyGroups(lesson).includes(g.no)?'is-duty ':'')+(touched(lesson,g.no)?'touched':'')+'">'+rows+'</tbody>';
   }
-  function groupsTable(cls,lesson){return '<div class="sheetwrap"><table class="sheet sheet-vertical"><colgroup>'+verticalColumns(cls)+'</colgroup>'+verticalHead()+cls.groups.map(function(g){return verticalGroup(cls,lesson,g,false);}).join('')+'</table></div>';}
+  function groupsTable(cls,lesson){var gs=visibleGroups(cls);if(!gs.length)return '<p class="empty-hint">这个班还没有分好组（或者组里一个人都没有）。到「待分配名单」点「分组…」分一下，分好组这里就有记分表。</p>';return '<div class="sheetwrap"><table class="sheet sheet-vertical"><colgroup>'+verticalColumns(cls)+'</colgroup>'+verticalHead()+gs.map(function(g){return verticalGroup(cls,lesson,g,false);}).join('')+'</table></div>';}
 
   function renderMetrics(cls, lesson) {
     var ls = lessonsOf(cls.id);
+    /* 组数一律用「实际有人的组」（visibleGroups），不然模板残留的空组会把
+       「已记分 5 / 13 组」算歪，老师会以为还有 8 组没记。 */
+    var gs = visibleGroups(cls);
     var done = 0, best = null;
-    cls.groups.forEach(function (g) {
+    gs.forEach(function (g) {
       var t = groupTotal(lesson, g.no);
       if (touched(lesson, g.no)) done++;
       if (best === null || t > best.t) best = { no: g.no, t: t };
     });
-    var ranked = cls.groups.map(function (g) { return { no: g.no, t: groupCum(cls, g.no) }; })
+    var ranked = gs.map(function (g) { return { no: g.no, t: groupCum(cls, g.no) }; })
       .sort(function (a, b) { return b.t - a.t; });
     var lead = ranked[0] || { no: '-', t: 0 };
     var leaders = ranked.filter(function (r) { return r.t === lead.t; });
     var allZero = ranked.every(function (r) { return r.t === 0; });
-    var bestCount = best ? cls.groups.filter(function(g){ return groupTotal(lesson,g.no) === best.t; }).length : 0;
+    var bestCount = best ? gs.filter(function(g){ return groupTotal(lesson,g.no) === best.t; }).length : 0;
     var leadText = allZero ? '暂无领先' : leaders.length > 1
       ? '并列领先 <small>' + (leaders.length <= 3 ? leaders.map(function(r){return '第' + r.no + '组';}).join('、') : leaders.length + '个小组') + ' · ' + fmt(lead.t) + '</small>'
       : '第 ' + lead.no + ' 组 <small>' + fmt(lead.t) + '</small>';
 
     $('#scoreMetrics').innerHTML =
       '<div class="metric"><div class="k">已记分小组</div><div class="v">' + done +
-        ' <small>/ ' + cls.groups.length + ' 组</small></div></div>' +
+        ' <small>/ ' + gs.length + ' 组</small></div></div>' +
       '<div class="metric"><div class="k">本节最高</div><div class="v ' + signClass(best ? best.t : 0) + '">' +
         (best && done ? fmt(best.t) + ' <small>' + (bestCount > 1 ? bestCount + '组并列' : '第 ' + best.no + ' 组') + '</small>' : '—') + '</div></div>' +
       '<div class="metric"><div class="k">累计领先</div><div class="v' + (allZero ? '' : ' good') + '">' + leadText + '</div></div>' +
@@ -2416,14 +2438,14 @@ function restoreDroppedToHome(cls) {
         String(no == null ? '' : no) === q;
     }
     var groups = cls.groups || [];
-    /* 新账号的空白模板是 13 个空组：全空的时候不铺 13 张空卡片（一整屏都是「这组还没人」），
-       只留一句提示，等老师用上面的「分组…」建组。
-       只要有一个组里有人，空组也照常画出来 —— 那是拖人时的落点。 */
-    var anyMember = groups.some(function (g) { return memberCount(g) > 0; });
-    /* 按组号排一下（老师看着顺），但记的是原下标 —— 拖拽写回要用它定位 */
-    var order = anyMember ? groups.map(function (g, i) { return i; }).sort(function (a, b) {
+    /* 空组不再铺在首页（用户原话：「空组删除不要再首页显示了 又没人是不是 应该动态识别才对」）。
+       规则和记分页的 visibleGroups 完全一致：**只画至少有一个人的组**。
+       只影响显示：那些组的数据和历史分都还在，撤回分组、按组号找分都不受影响。 */
+    var order = groups.map(function (g, i) { return i; }).filter(function (i) {
+      return memberCount(groups[i]) > 0;
+    }).sort(function (a, b) {
       return (Number(groups[a].no) || 0) - (Number(groups[b].no) || 0) || a - b;
-    }) : [];
+    });
 
     var cards = order.map(function (gi) {
       var g = groups[gi], cap = groupTargetCap(cls, g), n = memberCount(g);
@@ -2527,7 +2549,8 @@ function restoreDroppedToHome(cls) {
         '</div>' +
       '</section>' +
       '<p class="gb-hint">拖动就是分组：把学生拖到别的组卡片上松手就换组，手机上先点一个人再点目标组。' +
-        '超员的人会标红但不会被移出，你可以拖走、留着，或给那一组点「设为例外」。</p>';
+        '超员的人会标红但不会被移出，你可以拖走、留着，或给那一组点「设为例外」。' +
+        '一个空组都不再画出来（免得看成一堆空壳）——要新建一组请用上面的「分组…」。</p>';
   }
 
   /** 重画看板（只刷新卡片，不动整页） */
@@ -5419,6 +5442,20 @@ function restoreDroppedToHome(cls) {
         hasRpc: function () { return !!(CLOUD_ON && CLOUD && typeof CLOUD.rpc === 'function' && CLOUD.profile && CLOUD.profile()); }
       });
       window.JFDT_WIRE.syncAll();
+      /* 2026-11-09：进行中的接线任务要「实时」。原来只在切到记分页时拉一次，
+         老师一直停在这一页看，完成榜和完成率就不动了 —— 用户要的是「被别人超了就会变」。
+         这里给一个 10 秒心跳，只做两件事：拉一次只读 RPC（wire_task_scores）、重画横幅。
+         三重刹车：① 页面在后台不拉；② 横幅不在（没登录/没对应班/没任务）不拉；
+         ③ wire-task-link.js 内部还有 LIVE_THROTTLE=10s 节流，重复调不会打爆接口。
+         注意：它**不会**改分数 —— plan() 只处理已结束的任务，进行中的只展示。 */
+      setInterval(function () {
+        try {
+          if (document.hidden) return;
+          if (!S || !window.JFDT_WIRE) return;
+          if (!document.getElementById('wireBanner')) return;
+          window.JFDT_WIRE.maybeSync(curClass());
+        } catch (e) { /* 心跳失败绝不影响记分 */ }
+      }, 10000);
     }
     if(CLOUD_ON)setTimeout(function(){refreshCloud();},0);
   }

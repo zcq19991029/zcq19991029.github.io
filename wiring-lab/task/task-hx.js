@@ -125,3 +125,6 @@ function downloadCsv(name, rows) {
 // 完成率 → 一句人话（大屏和教师端同一套说法，学生不会两种解释）
 const rateText = r => r == null ? '不计分' : r + '%';
 const scoreText = s => s == null ? '—' : (+s).toFixed(1) + ' 分';
+/* 完成率分档 → 颜色类（100% 金 / 80% 蓝 / 70% 灰）。档位与数据库 hx_wire_task__calc 一字对应。
+   2026-11-09 用户要求：完成率要实时可见 ——「被别人超了就会变 这是很正常的竞争学习」。 */
+const rateTier = r => r == null ? 'r-none' : Number(r) >= 100 ? 'r100' : Number(r) >= 80 ? 'r80' : 'r70';

@@ -2433,3 +2433,28 @@ html.hx-bg[data-hx-mode="dark"] body::after,
 .wire-banner .btn.tiny { padding: 2px 10px; height: 24px; font-size: 12px; }
 /* 「接」来源角标：和「师」同尺寸，蓝紫色，一眼区分手工打分/接线任务自动入账 */
 .peer-src-wire { background: #eef1ff; border-color: #aebfff; color: #3a55c4; }
+
+/* ---- 进行中任务的实时完成榜（2026-11-09）：名次 + 姓名 + 用时 + 当前完成率 ---- */
+.wire-banner .wire-board { align-items: flex-start; gap: 5px; }
+.wire-banner .wire-chip {
+  display: inline-flex; align-items: baseline; gap: 5px;
+  padding: 1px 9px; border-radius: var(--pill, 999px);
+  border: 1px solid var(--line-strong, #e6d2d2); background: var(--panel-soft, #fef5f5);
+  font-size: 12px; line-height: 1.7; white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.wire-banner .wire-chip b { font-size: 11px; font-weight: 700; opacity: .7; }
+.wire-banner .wire-chip .wire-sec { color: var(--muted, #83848a); font-size: 11.5px; }
+.wire-banner .wire-chip em { font-style: normal; font-weight: 700; }
+/* 三档完成率：100% 金（VIP 金）、80% 蓝（和「接」角标同一支蓝）、70% 灰 */
+.wire-banner .wire-chip.r100 { border-color: var(--vip-line, #eecb84); background: var(--vip-bg, #fff3d6); color: var(--vip, #b6811f); }
+.wire-banner .wire-chip.r80 { border-color: #aebfff; background: #eef1ff; color: #3a55c4; }
+.wire-banner .wire-chip.r70 { border-color: var(--line-strong, #e6d2d2); background: var(--panel-soft, #fef5f5); color: var(--muted, #83848a); }
+.wire-banner .wire-chip.wire-more { border-style: dashed; background: transparent; color: var(--muted, #83848a); }
+.wire-banner .wire-pend { color: var(--muted, #8b93a7); font-size: 12px; }
+.wire-banner .wire-move { font-size: 12px; gap: 14px; }
+.wire-banner .wire-move .down { color: var(--bad, #c0392b); }
+.wire-banner .wire-move .up { color: var(--good, #1a9c5b); }
+/* 夜览：80% 那档的浅蓝底要压暗，否则在深色横幅上刺眼（仍是同一支蓝） */
+:root[data-hx-mode="dark"] .wire-banner .wire-chip.r80 { background: rgba(58, 85, 196, .22); border-color: rgba(174, 191, 255, .42); color: #b9c8ff; }
+

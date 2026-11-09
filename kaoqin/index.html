@@ -1122,10 +1122,16 @@ async function loadBase() {
   ]);
   const raw = (Array.isArray(c) ? c : []).filter(x => x.mine !== false)
     .map(x => ({ id: +x.id, name: String(x.name || ''), term: x.term || '', total: +x.total || 0, tools: Array.isArray(x.tools) ? x.tools : [] }));
-  // 只把「首页 → 班级 里点亮了考勤」的班放进来（和接线仿真 / 考试 / 小组加分同一套 hx_classes.tools），
-  // 老师就不用在一堆上学期的班里挑。clsAll 留着，好在全被关掉时说准原因（不是没建班，是没开考勤）。
+  /* 2026-11-09 用户原话：「班级默认考勤不需要勾选 这是必备的」。
+     原来的写法是 raw.filter(k => k.tools.includes('kaoqin')) —— 但 hx_classes.tools 的**列默认值**
+     只有 ['wiring','mcu','exam','jiafen']，压根没有 'kaoqin'（见 2026-11-01 那个迁移）。
+     结果：老师明明在首页点亮了工具（接线/刷题/单片机/考试/小组加分），考勤这一页还是筛到 0 个班，
+     弹出「你有 5 个班，但首页「班级」里都还没点亮「考勤」」—— 而他根本没有「考勤」这个圆点可点。
+     现在：考勤是每个班的**必备功能**，不看 tools；只要这个班没被「收起」（收起 = tools 清空，
+     首页那个「收起/恢复使用」按钮就是写 tools: []），就能在考勤里选。
+     这样「收起上学期带完的班」的语义照样成立，新建/导入的班也不用去点亮什么。 */
   T.clsAll = raw;
-  T.cls = raw.filter(k => k.tools.includes('kaoqin'));
+  T.cls = raw.filter(k => k.tools.length > 0);
   T.groups = (Array.isArray(g) ? g : []).map(x => ({ id: +x.id, name: String(x.name || ''), ids: (x.classes || []).map(k => +k.id), names: (x.classes || []).map(k => String(k.name || '')) }));
   T.subj = (Array.isArray(s) ? s : []).map(x => ({ id: +x.id, name: String(x.name || x.key || '') }));
 }
@@ -1159,7 +1165,7 @@ function courseEdit(id) {
     <label class="att-f">科目<select id="ceSub"><option value="">（不选科目）</option>${T.subj.map(s => `<option value="${s.id}"${c && +c.subject_id === s.id ? ' selected' : ''}>${esc(s.name)}</option>`).join('')}</select></label>
     <label class="att-f">课程名<input id="ceName" maxlength="40" autocomplete="off" value="${esc(c ? c.name : '')}"></label>
     <label class="att-f">学期<input id="ceTerm" maxlength="40" autocomplete="off" value="${esc(c ? c.term : termNow())}"></label>
-    <div class="att-f">班级<div class="att-picks" id="ceCls">${T.cls.length ? T.cls.map(k => `<label class="att-pick"><input type="checkbox" value="${k.id}"${picked.has(k.id) ? ' checked' : ''}><span>${esc(k.name)}</span><em hidden>合班</em></label>`).join('') : `<p class="note">${T.clsAll.length ? `你有 ${T.clsAll.length} 个班，但首页「班级」里都还没点亮「考勤」。去首页把上课的班点亮，这里就能选了。` : '还没有班级，先去首页「班级」建班。'}</p>`}</div></div>
+    <div class="att-f">班级<div class="att-picks" id="ceCls">${T.cls.length ? T.cls.map(k => `<label class="att-pick"><input type="checkbox" value="${k.id}"${picked.has(k.id) ? ' checked' : ''}><span>${esc(k.name)}</span><em hidden>合班</em></label>`).join('') : `<p class="note">${T.clsAll.length ? `你有 ${T.clsAll.length} 个班，但都被「收起」了（首页「班级」里点过收起）。在首页对上课的班点「恢复使用」，这里就能选了。` : '还没有班级，先去首页「班级」建班。'}</p>`}</div></div>
     <p class="att-hint" id="ceHint" hidden></p>
     <div class="errs" id="ceErr" hidden></div>
     <div class="row"><button class="pri" id="ceSave">保存</button><button id="ceCancel">取消</button></div>`);

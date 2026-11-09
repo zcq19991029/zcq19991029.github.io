@@ -14,23 +14,23 @@
      要登录时调 window.HXPortal.login()；被单独打开时 hx-theme.js 会跳回这里（见 hx-theme.js 的 data-tool）。
      账号：Supabase 华夏工具项目，localStorage paike-session 和各工具共用；身份由数据库 hx_me() 决定。
      脚本里不用反引号模板字符串（本机测试时整页当字符串注入到线上同源页面里）。 -->
-<link rel="stylesheet" href="hx-theme.css?v=6d0897e">
-<script src="hx-theme.js?v=6d0897e"></script>
+<link rel="stylesheet" href="hx-theme.css?v=df58ad4">
+<script src="hx-theme.js?v=df58ad4"></script>
 <!-- 首页卡片上的像素小生物：pixelfx 的 12 个 critters（MIT），打包成一个 91 KB 的独立脚本。
      加载失败不影响首页——hx-critters.js 开头就有 window.PixelFX 存在性检查，没有就整段跳过。 -->
-<script src="fx/pixelfx-critters.js?v=6d0897e" defer></script>
-<script src="fx/hx-critters.js?v=6d0897e" defer></script>
+<script src="fx/pixelfx-critters.js?v=df58ad4" defer></script>
+<script src="fx/hx-critters.js?v=df58ad4" defer></script>
 <!-- 像素头像库（2026-11-04）：账号面板里除了传照片，还能从 200 多个像素动效里挑一个当头像。
      和上面 critters 同一套路：库（pixelfx-avatars.js）+ 渲染器（hx-avatar.js），都是 defer、
      不进首屏关键路径；不点「像素头像库」就一个动画都不跑。 -->
-<script src="fx/pixelfx-avatars.js?v=6d0897e" defer></script>
-<script src="fx/hx-avatar.js?v=6d0897e" defer></script>
+<script src="fx/pixelfx-avatars.js?v=df58ad4" defer></script>
+<script src="fx/hx-avatar.js?v=df58ad4" defer></script>
 <!-- 背景动效（2026-11-03）：12 种天气氛围特效铺在背景层，外观面板里选；加载失败或没选就完全不加载渲染器 -->
-<script src="fx/pixelfx-weather.js?v=6d0897e" defer></script>
-<script src="fx/hx-weather.js?v=6d0897e" defer></script>
+<script src="fx/pixelfx-weather.js?v=df58ad4" defer></script>
+<script src="fx/hx-weather.js?v=df58ad4" defer></script>
 <!-- 课堂码大屏二维码：离线 QR 编码器（qrcode 1.5.4 core 打包，MIT，见 fx/NOTICE-qr.md）。延迟加载即可：只有老师点「大屏二维码」时才用 -->
-<script src="fx/hx-qr.js?v=6d0897e" defer></script>
-<script src="hx-scan.js?v=6d0897e" defer></script><!-- 全站扫一扫（2026-11-08 K5）：摄像头 + BarcodeDetector / 本地 jsQR -->
+<script src="fx/hx-qr.js?v=df58ad4" defer></script>
+<script src="hx-scan.js?v=df58ad4" defer></script><!-- 全站扫一扫（2026-11-08 K5）：摄像头 + BarcodeDetector / 本地 jsQR -->
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; width: 100%; overflow: hidden; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -609,6 +609,10 @@
   .chip:hover { background: var(--hov); color: var(--ink); }
   .chip:active { transform: scale(.96); }
   .chip[aria-pressed="true"] { background: var(--acc); color: var(--on-acc); box-shadow: 0 1px 0 rgba(255, 255, 255, .22) inset, 0 10px 26px -16px var(--acc); }
+  /* 必备项（考勤）：常亮但看起来「不需要你点」——描边 + 弱一点的底，鼠标给禁止手势 */
+  .chip.chip-need { cursor: default; background: transparent; color: var(--acc); box-shadow: inset 0 0 0 1px var(--acc); opacity: .95; }
+  .chip.chip-need:hover { background: transparent; color: var(--acc); }
+  .chip.chip-need:active { transform: none; }
   .stu { grid-column: 1 / -1; max-height: 420px; overflow: auto; border-top: 1px solid var(--edge); padding-top: 8px; }
   .stu tr.gone td { color: var(--faint); }
   .stu .pill { white-space: nowrap; }
@@ -1060,7 +1064,11 @@ var TOOLS = [
 // 考试(app.js)、考勤(teacher.js T.cls)、小组加分(hx-roster lit)。
 // 放不进来的：进制转换（纯本地、不分班）、资料库/排课/课程进度/AI 设置（教师工具，学生看不到）。
 // 一个都不勾 = 这个班在这 6 个工具里都不出现（= 本学期不用了，见下面「收起 / 恢复使用」）。
-var CLASS_TOOLS = [['wiring', '接线仿真'], ['quiz', '刷题'], ['mcu', '单片机'], ['exam', '考试'], ['kaoqin', '考勤'], ['jiafen', '小组加分']];
+/* 班级工具开关。第三个元素 = 1 表示「必备，常开」：
+   2026-11-09 用户原话「班级默认考勤不需要勾选 这是必备的」。
+   考勤是每个班的必备功能，不参与「点亮」，也不允许被点掉（点了也没用，考勤页不看这个开关）。
+   真正让一个班从考勤里消失的只有「收起」（= tools 清空）。 */
+var CLASS_TOOLS = [['wiring', '接线仿真'], ['quiz', '刷题'], ['mcu', '单片机'], ['exam', '考试'], ['kaoqin', '考勤', 1], ['jiafen', '小组加分']];
 var HX = (function () {
   var BASE = 'https://eiqgyrjrwdaunhxjmdyr.supabase.co', KEY = 'sb_publishable_FcVnLx3TNrj6HnbgarYnRw_DW4-yFzd', SKEY = 'paike-session';
   var s = null;
@@ -1948,7 +1956,7 @@ function sheetCls() {
       (x.list ? '<input data-rc="' + k + '" value="' + esc(x.cls) + '" placeholder="班级"><input data-rt="' + k + '" value="' + esc(x.term) + '" placeholder="学期">' : '') + (x.err ? '<p class="msg">' + esc(x.err) + '</p>' : '') + '</div>';
   }).join('') + '<div style="display:flex;gap:8px"><button class="btn" id="rImp"' + (R.some(function (x) { return x.list; }) ? '' : ' disabled') + '>导入' + (R.length > 1 ? '全部' : '') + '</button><button class="btn sub" id="rNo">取消</button></div></div>';
   // 这行是说明不是报错：.msg 默认是报错红，这里单独压成灰
-  html += '<p class="msg" style="margin:0 0 12px;color:var(--dim,#8a8f98)">点亮哪个工具，这个班才在哪个工具里出现（接线仿真、刷题、单片机、考试、考勤、小组加分）；' + CLASS_TOOLS.length + ' 个都不点 = 这个班在这些工具里都看不到，等于「本学期不用了」。后面的「已开通 N」是已经注册账号的学生人数，和工具开关无关。</p>';
+  html += '<p class="msg" style="margin:0 0 12px;color:var(--dim,#8a8f98)">点亮哪个工具，这个班才在哪个工具里出现（接线仿真、刷题、单片机、考试、小组加分）。<b>「考勤」是必备功能，常亮、不用点</b>——这个班只要没被「收起」，考勤里就能选到它。一个都不点 = 这个班在这些工具里都看不到，等于「本学期不用了」。后面的「已开通 N」是已经注册账号的学生人数，和工具开关无关。</p>';
   // ── 2026-11-06 全部班级一键开号：Σlack>0 才显示。一个班一个班地调 hx_batch_signup_class
   //    （复用单班开号的同一个 RPC，逐班报进度），失败的班带着原因列出来。 ──
   var allLack = (ST.classes || []).reduce(function (s, c) { return s + Math.max(0, (c.total || 0) - (c.bound || 0)); }, 0);
@@ -1978,7 +1986,13 @@ function sheetCls() {
         (idle ? '<button class="btn sub sm" data-clsresume="' + c.id + '">恢复使用</button>'
               : '<button class="btn sub sm" data-clsidle="' + c.id + '">收起</button>') +
         '<button class="btn sub sm" data-open="' + c.id + '">' + (on ? '收起名单' : '名单') + '</button></div>' +
-      '<div class="chips">' + CLASS_TOOLS.map(function (t) { return '<button type="button" class="chip" data-cls="' + c.id + '" data-tool="' + t[0] + '" aria-pressed="' + (tools.indexOf(t[0]) >= 0) + '">' + t[1] + '</button>'; }).join('') + '</div>' +
+      '<div class="chips">' + CLASS_TOOLS.map(function (t) {
+        /* 必备项（考勤）永远亮着、点不动：它不靠这个开关，只看这个班有没有被「收起」 */
+        var need = !!t[2], on = need || tools.indexOf(t[0]) >= 0;
+        return '<button type="button" class="chip' + (need ? ' chip-need' : '') + '" data-cls="' + c.id + '" data-tool="' + t[0] + '"' +
+          (need ? ' data-need="1" aria-disabled="true" title="考勤是必备功能：这个班只要没被收起，考勤里就能选，不用点亮"' : '') +
+          ' aria-pressed="' + on + '">' + t[1] + '</button>';
+      }).join('') + '</div>' +
       clsCodeRow(c) +
       (on ? '<div class="stu" id="stu' + c.id + '"></div>' : '') + '</div>';
   }).join('') : '<p class="empty">' + (ST.clsOk ? '还没有班级：导入教务系统导出的考勤表（学号、姓名两列）' : '加载中…') + '</p>') + '</div>';
@@ -2031,6 +2045,7 @@ function sheetCls() {
     };
   }
   box.querySelectorAll('[data-tool]').forEach(function (b) {
+    if (b.dataset.need) return;   // 必备项（考勤）点不动：它不走 tools 开关，见 CLASS_TOOLS 的第三个元素
     b.onclick = async function () {
       var c = ST.classes.filter(function (x) { return x.id === +b.dataset.cls; })[0], t = b.dataset.tool, tools = (c.tools || []).slice(), i = tools.indexOf(t);
       if (i >= 0) tools.splice(i, 1); else tools.push(t);

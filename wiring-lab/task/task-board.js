@@ -17,6 +17,12 @@ const B = {
   fresh: new Set(),// 本轮要高亮的
   timer: null,
   lastAt: '',
+  /* 完成率变化（2026-11-09 用户要求）：
+     「课堂任务实时计分 被别人超了就会变 这是很正常的竞争学习 我们鼓励动态变化 当场就学习刷题反超」
+     名次按用时从短到长排，后来的人更快就把前面的人挤下去 → 完成率 100% 掉到 80%。
+     这不是 bug，是竞争机制，所以大屏要主动说出来：谁被超了、谁反超了。 */
+  ratePrev: {},   // student_id → 上一轮的完成率
+  moves: [],      // [{sid,name,from,to,up}] 本轮掉档/升档的人
 };
 const $ = s => document.querySelector(s);
 const root = $('#bdRoot');
@@ -65,6 +71,19 @@ async function load(first) {
   B.fresh = new Set();
   if (!first) nowIds.forEach(id => { if (!B.seen.has(id)) B.fresh.add(id); });
   B.seen = nowIds;
+  /* 完成率有没有变：后来的人更快 → 前面的人被挤下档，100% 变 80%、80% 变 70%。
+     用户明确说这是要鼓励的「竞争学习」，所以这里算出来让大屏当场播报（见 paint 的 bd-moves）。 */
+  const rateNow = {};
+  (b.done_rows || []).forEach(r => { if (r.rate != null) rateNow[r.student_id] = Number(r.rate); });
+  B.moves = [];
+  if (!first) {
+    (b.done_rows || []).forEach(r => {
+      const sid = r.student_id, was = B.ratePrev[sid], now = rateNow[sid];
+      if (was == null || now == null || was === now) return;
+      B.moves.push({ sid: sid, name: r.name || '', from: was, to: now, up: now > was });
+    });
+  }
+  B.ratePrev = rateNow;
   const changed = JSON.stringify(b) !== JSON.stringify(B.board);
   B.board = b;
   if (changed || first) paint(b);
@@ -136,11 +155,15 @@ function paint(b) {
       <div class="done-list" style="grid-template-columns:repeat(${dCols},minmax(0,1fr))">
         ${done.map(r => `<span class="done-chip${B.fresh.has(r.student_id) ? ' fresh' : ''}" data-sid="${r.student_id}">
             <i>${esc((r.name || '').trim().slice(0, 1))}</i>
-            <span>${esc(r.name)}</span><em>${r.place == null ? '' : '#' + r.place} ${Math.round(r.sec)}s</em>
+            <span>${esc(r.name)}</span>
+            <b class="dc-rate ${rateTier(r.rate)}" title="当前完成率（被更快的同学超了会掉档）">${rateText(r.rate)}</b>
+            <em>${r.place == null ? '' : '#' + r.place} ${Math.round(r.sec)}s</em>
           </span>`).join('')}
       </div>
     </aside>
   </main>
+
+  ${B.moves.length ? `<div class="bd-moves">${movesHTML()}</div>` : ''}
 
   <footer class="bd-foot">
     <span class="dot"></span><span>每 3 秒刷新 · 最后更新 <b id="bdLast">${B.lastAt || '—'}</b></span>
@@ -170,4 +193,21 @@ function paint(b) {
       setTimeout(() => tip.remove(), 3200);
     }
   }
+  /* 「被超了 / 反超了」这条 8 秒后自动收掉：它是一次通报，不是常驻内容。
+     不整页重绘（重绘会打断右侧名单的滚动位置），只摘掉这一块。 */
+  const mv = root.querySelector('.bd-moves');
+  if (mv) setTimeout(() => { if (mv.parentNode) mv.remove(); }, 8000);
+}
+
+/* 「被超了 / 反超了」通报最多放 4 条：一个人挤进前十，后面几十个全掉档是常态，
+   全铺出来会把「一屏放下、不滚动」撑破。先报反超（好消息），再报掉档，剩下的合成一句。 */
+function movesHTML() {
+  const ups = B.moves.filter(m => m.up);
+  const downs = B.moves.filter(m => !m.up);
+  const pick = ups.concat(downs).slice(0, 4);
+  const rest = B.moves.length - pick.length;
+  return pick.map(m => (m.up
+    ? `<span class="mv up">🚀 ${esc(m.name)} 反超成功 <b>${Math.round(m.from)}% → ${Math.round(m.to)}%</b></span>`
+    : `<span class="mv down">⚡ ${esc(m.name)} 被超了 <b>${Math.round(m.from)}% → ${Math.round(m.to)}%</b><small>再刷一次就能超回来</small></span>`)).join('')
+    + (rest > 0 ? `<span class="mv more">还有 ${rest} 人的完成率跟着变了</span>` : '');
 }

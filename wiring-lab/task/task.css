@@ -88,7 +88,8 @@ em { font-style: normal; }
 .err { margin: 10px 0 0; font-size: 13px; color: var(--bad); }
 
 /* 表单 */
-.form { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+/* 发布表单铺满整行以后字段横向排：5～6 个一行，比原来两列竖排短一半（老师在教室只有几十秒） */
+.form { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
 .form .full { grid-column: 1 / -1; }
 .field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .field > label { font-size: 12.5px; color: var(--dim); font-weight: 700; }
@@ -284,3 +285,69 @@ body.no-anim .done-chip:not(.fresh) { animation: none; }
   .pg-top h1 small { display: none; }
   .scroll-y { max-height: none; }
 }
+
+/* ---------------- 完成率徽标 + 「被超了 / 反超了」通报（2026-11-09） ----------------
+   用户原话：「课堂任务实时计分 被别人超了就会变 这是很正常的竞争学习 我们鼓励动态变化
+              当场就学习刷题反超」
+   名次按用时排，后来的人更快就把前面的人挤下档：100% → 80% → 70%。
+   所以已完成的头像条上必须**直接看到当前完成率**，掉档的人还要被点名，
+   学生才知道「再刷一次、把用时压下去」就能超回来，竞争才转得起来。 */
+.done-chip .dc-rate {
+  flex: none; font-weight: 800; font-variant-numeric: tabular-nums;
+  font-size: calc(var(--dcs, 2.6vmin) * .46);
+  padding: .12em .5em; border-radius: 999px; line-height: 1.5;
+  background: rgba(255, 255, 255, .08); color: var(--dim);
+}
+.done-chip .dc-rate.r100 { background: rgba(251, 191, 36, .2); color: #fbbf24; }  /* 前十名：金 */
+.done-chip .dc-rate.r80  { background: rgba(124, 156, 255, .2); color: #9db6ff; } /* 11–20：蓝 */
+.done-chip .dc-rate.r70  { background: rgba(255, 255, 255, .08); color: var(--dim); } /* 其余：灰 */
+.done-chip .dc-rate.r-none { display: none; }                                       /* 作废任务不给分，不显示 */
+
+/* 通报条：贴在名单和页脚之间，一排小胶囊，8 秒后由 JS 摘掉 */
+.bd-moves { flex: none; display: flex; flex-wrap: wrap; gap: 1vmin 1.4vmin; padding: 0 2.4vmin 1vmin; }
+.bd-moves .mv {
+  font-size: 1.7vmin; font-weight: 700; padding: .42em .95em; border-radius: 999px;
+  animation: mvIn .5s ease both;
+}
+.bd-moves .mv b { font-variant-numeric: tabular-nums; }
+.bd-moves .mv small { margin-left: .55em; font-weight: 600; color: var(--dim); }
+.bd-moves .mv.up { background: rgba(52, 211, 153, .16); color: #4be08a; box-shadow: inset 0 0 0 1px rgba(52,211,153,.35); }
+.bd-moves .mv.down { background: rgba(251, 191, 36, .16); color: #fbbf24; box-shadow: inset 0 0 0 1px rgba(251,191,36,.35); }
+@keyframes mvIn { from { opacity: 0; transform: translateY(.8vmin); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .bd-moves .mv { animation: none; } }
+
+/* ---------------- 教师端：已完成 / 还没完成 并排（2026-11-09） ----------------
+   用户原话：「课堂任务完成名单应该也有在旁边」。
+   原来未完成只是表格下面一行文字，人一多就看不清谁没交；现在左表右名单，两栏都在一屏里。 */
+.live-cols { display: grid; gap: 14px; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); align-items: start; }
+.live-cols > div { min-width: 0; }
+.live-cols h3 {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin: 0 0 8px; font-size: 13.5px; color: var(--dim); font-weight: 700;
+}
+.live-cols h3 em { color: var(--warn); font-style: normal; font-size: 16px; font-variant-numeric: tabular-nums; }
+.live-cols h3 small { font-weight: 600; color: var(--dim); font-size: 11.5px; }
+.pend-grid2 { display: grid; gap: 6px; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); align-content: start; }
+.pend-chip {
+  display: flex; align-items: center; gap: 6px; min-width: 0;
+  padding: 6px 9px; border-radius: 9px; font-size: 13px;
+  background: rgba(251, 113, 133, .1); border: 1px solid rgba(251, 113, 133, .28);
+}
+.pend-chip i {
+  flex: none; width: 21px; height: 21px; border-radius: 50%; display: grid; place-items: center;
+  background: rgba(251, 113, 133, .2); color: #fb7185; font-style: normal; font-size: 11px; font-weight: 800;
+}
+.pend-chip b { font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pend-chip small { margin-left: auto; color: var(--dim); font-size: 11px; font-variant-numeric: tabular-nums; }
+/* 完成率按档位上色：和已完成的头像条、大屏一套配色，学生看哪个页面都是同一种说法 */
+td.rate { font-variant-numeric: tabular-nums; font-weight: 700; }
+td.rate.r100 { color: #fbbf24; }
+td.rate.r80 { color: #9db6ff; }
+td.rate.r70 { color: var(--dim); }
+td.rate.r-none { color: var(--dim); font-weight: 500; }
+@media (max-width: 980px) {
+  .live-cols { grid-template-columns: minmax(0, 1fr); }
+}
+/* 通报条最多一行半：再多就换行会顶掉名单，这里直接裁掉（JS 已经把条数限到 4 条） */
+.bd-moves { max-height: 9vmin; overflow: hidden; }
+.bd-moves .mv.more { background: transparent; color: var(--dim); box-shadow: inset 0 0 0 1px var(--edge); font-weight: 600; }

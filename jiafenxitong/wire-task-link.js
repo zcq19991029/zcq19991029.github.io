@@ -23,6 +23,16 @@
       全班就会一直显示「N 项待批改」。
    ③ **老师删掉这一列就不再塞回去**。列名被改掉也视为「这一列归老师管」，
       只记一条提示，不抢回来。任务是分数的来源，但不能跟老师抢方向盘。
+
+   ── 2026-11-09 追加：进行中的任务要「实时榜」──
+   用户原话：「课堂任务完成名单应该也有在旁边 而且实时显示获得的完成率是多少 会变化才对」
+             「课堂任务实时计分 被别人超了就会变 这是很正常的竞争学习 我们鼓励动态变化」
+   ① 进行中的任务，横幅里铺一排完成 chip（名次+姓名+用时+当前完成率），按名次排，最多 20 个，
+      多的收成「还有 N 人」；没完成的人只报人数+前 8 个名字，不铺满。
+      rate 直接用服务端算的（前 10 名 100%、11–20 名 80%、其余 70%），不在这里自己算。
+   ② 有 open 任务时拉取节流 45s → 10s（LIVE_THROTTLE），靠 app.js 切到「记分」时调 maybeSync 来触发，
+      不另开 setInterval。**拉取只读**：plan() 只处理 closed，所以拉得再勤也不会写数据/触发保存。
+   ③ 记上一轮的 rate，本轮变小 = 被超了，变大 = 反超，各说一句话（第一次拉取不报）。
    ========================================================================== */
 (function (root) {
   'use strict';
@@ -34,6 +44,10 @@
   var inflight = null;       // 正在拉的 promise
   var lastError = '';        // 拉取失败原因（横幅要如实显示，别装作没任务）
   var THROTTLE = 45000;      // 45 秒内不重复拉，切页面/切班都不会打爆接口
+  var LIVE_THROTTLE = 10000; // 当前班有「进行中」任务时用这个：完成率和名次随时会变，要跟得上
+  var prevRates = null;      // 上一轮进行中任务的 { 任务号: { 学生键: {name, rate} } }，用来比「被超了/反超」
+  var moves = {};            // 本轮比出来的变化 { 任务号: {down:[], up:[]} }，只由 fetch 时算一次
+  var BOARD_MAX = 20;        // 横幅上最多铺多少个完成 chip（一个班 49 人，全铺会撑爆）
 
   /* ---------------- 小工具 ---------------- */
 
@@ -275,10 +289,19 @@
     try { return W.maybeSync(null, true); } catch (e) { return Promise.resolve(null); }
   };
 
+  /* 当前班有没有进行中的任务？有就说明名次/完成率在实时变，要用短节流 */
+  function hasLive(cls) {
+    if (!cls || !cls.hxClassId) return false;
+    return cache.some(function (t) {
+      return t && t.status === 'open' && Number(t.class_id) === Number(cls.hxClassId);
+    });
+  }
+
   W.maybeSync = function (cls, force) {
     if (!hooks || !hooks.hasRpc || !hooks.hasRpc()) return Promise.resolve(null);
     var now = Date.now();
-    if (!force && now - lastAt < THROTTLE) { W.renderBanner(cls); return Promise.resolve(null); }
+    var wait = hasLive(cls) ? LIVE_THROTTLE : THROTTLE;
+    if (!force && now - lastAt < wait) { W.renderBanner(cls); return Promise.resolve(null); }
     if (inflight) return inflight;
     lastAt = now;
     /* 只拉当前班（省流量）；没有 hxClassId 的本地班拉全部，plan 里会按班各自归位 */
@@ -289,6 +312,8 @@
     inflight = Promise.resolve(ask).then(function (list) {
       lastError = '';
       cache = Array.isArray(list) ? list : [];
+      /* 拿到新数据先比「被超了/反超」，再画横幅：只比进行中的任务，第一次拉取没有上一轮就不报 */
+      try { diffRates(cache); } catch (e0) { moves = {}; }
       /* 网络这一段和「写进本地数据」这一段分开兜：写数据失败不该被说成「读不到任务」，
          也绝不能让一次多余的异常把记分页整块打崩。 */
       try {
@@ -326,6 +351,124 @@
   };
 
   /* ---------------- 横幅 ---------------- */
+
+  function rateNum(v) {
+    if (v == null || v === '') return null;
+    var n = Number(v);
+    return isFinite(n) ? n : null;
+  }
+  function pct(v) { return num1(v) + '%'; }
+  function rateCls(n) { return n >= 100 ? 'r100' : (n >= 80 ? 'r80' : 'r70'); }
+  /* 学生键：优先学号（和 member.sid 同源），没学号退化成姓名 */
+  function rowKey(r) {
+    if (r && r.no != null && String(r.no) !== '') return 'no:' + String(r.no);
+    var nm = r ? String(r.name || '').trim() : '';
+    return nm ? 'nm:' + nm : '';
+  }
+  function rowName(r) { return String((r && (r.name || r.no)) || ''); }
+
+  /* 一轮完成率快照 → 和上一轮比：rate 变小 = 被超，变大 = 反超 */
+  function diffRates(list) {
+    var next = {}, out = {};
+    (list || []).forEach(function (t) {
+      if (!t || t.status !== 'open') return;      // 只有进行中才比：已结束的名次是冻结的
+      var id = String(t.task_id);
+      var snap = {};
+      (t.rows || []).forEach(function (r) {
+        if (!r) return;
+        var k = rowKey(r);
+        if (!k) return;
+        snap[k] = { name: rowName(r), rate: rateNum(r.rate) };
+      });
+      next[id] = snap;
+      var old = prevRates && prevRates[id];
+      if (!old) return;                            // 第一次拉取：没有上一轮，不报变化
+      var down = [], up = [];
+      Object.keys(snap).forEach(function (k) {
+        var a = old[k], b = snap[k];
+        if (!a || a.rate == null || b.rate == null || a.rate === b.rate) return;
+        (b.rate < a.rate ? down : up).push({ name: b.name, from: a.rate, to: b.rate });
+      });
+      if (down.length || up.length) {
+        down.sort(function (x, y) { return (y.from - y.to) - (x.from - x.to); });
+        up.sort(function (x, y) { return (y.to - y.from) - (x.to - x.from); });
+        out[id] = { down: down, up: up };
+      }
+    });
+    prevRates = next;
+    moves = out;
+  }
+
+  /* 进行中的完成榜：名次 + 姓名 + 用时 + 当前完成率（服务端算的 rate，不自己算） */
+  function leaderBoard(task) {
+    var rows = (task.rows || []).filter(function (r) { return r && (r.name || r.no); });
+    if (!rows.length) return '';
+    rows.sort(function (a, b) {
+      var pa = Number(a.place), pb = Number(b.place);
+      var fa = isFinite(pa) && pa > 0, fb = isFinite(pb) && pb > 0;
+      if (fa && fb && pa !== pb) return pa - pb;
+      if (fa !== fb) return fa ? -1 : 1;
+      return (Number(a.ms) || Number(a.sec) * 1000 || 1e15) - (Number(b.ms) || Number(b.sec) * 1000 || 1e15);
+    });
+    var chips = rows.slice(0, BOARD_MAX).map(function (r) {
+      var rt = rateNum(r.rate);                 // rate 为空（作废）时不显示百分比
+      var place = Number(r.place), sec = Number(r.sec);
+      return '<span class="wire-chip' + (rt == null ? '' : ' wire-rate ' + rateCls(rt)) + '">' +
+        (isFinite(place) && place > 0 ? '<b>#' + place + '</b>' : '') +
+        '<span class="wire-name">' + esc(rowName(r)) + '</span>' +
+        (isFinite(sec) && sec > 0 ? '<span class="wire-sec">' + num1(sec) + 's</span>' : '') +
+        (rt == null ? '' : '<em>' + pct(rt) + '</em>') +
+        '</span>';
+    }).join('');
+    if (rows.length > BOARD_MAX) {
+      chips += '<span class="wire-chip wire-more">还有 ' + (rows.length - BOARD_MAX) + ' 人</span>';
+    }
+    return '<div class="wire-line wire-board">' + chips + '</div>';
+  }
+
+  /* 还没完成的人：只报人数 + 前 8 个名字（49 个名字全铺会把横幅撑爆） */
+  function pendingLine(task, cls) {
+    var done = (task.rows || []).length;
+    var total = Number(task.total) || 0;
+    var miss = total > 0 ? Math.max(0, total - done) : 0;
+    if (!miss) return '';
+    var doneNo = Object.create(null), doneName = Object.create(null), seen = Object.create(null), names = [];
+    (task.rows || []).forEach(function (r) {
+      if (!r) return;
+      if (r.no != null && String(r.no) !== '') doneNo[String(r.no)] = 1;
+      var nm = String(r.name || '').trim();
+      if (nm) doneName[nm] = 1;
+    });
+    (cls.groups || []).forEach(function (g) {
+      (g && g.members || []).forEach(function (m) {
+        if (!m || !m.name) return;
+        var nm = String(m.name).trim();
+        if (m.sid && doneNo[String(m.sid)]) return;
+        if (doneName[nm]) return;
+        var k = m.sid ? 'no:' + String(m.sid) : 'nm:' + nm;
+        if (seen[k]) return;
+        seen[k] = 1;
+        names.push(nm);
+      });
+    });
+    var txt = '还没完成 ' + miss + ' 人';
+    if (names.length) txt += '：' + names.slice(0, 8).map(function (n) { return esc(n); }).join('、') + (names.length > 8 ? ' 等' : '');
+    return '<div class="wire-line wire-pend">' + txt + '</div>';
+  }
+
+  /* 被超了 / 反超成功：只在本轮比出变化时出现 */
+  function moveLine(mv) {
+    if (!mv) return '';
+    var parts = [];
+    (mv.down || []).slice(0, 3).forEach(function (x) {
+      parts.push('<span class="down">⚡ ' + esc(x.name) + ' 被超了 ' + pct(x.from) + ' → ' + pct(x.to) + '，再刷一次就能超回来</span>');
+    });
+    (mv.up || []).slice(0, 3).forEach(function (x) {
+      parts.push('<span class="up">🚀 ' + esc(x.name) + ' 反超成功 ' + pct(x.from) + ' → ' + pct(x.to) + '</span>');
+    });
+    if (!parts.length) return '';
+    return '<div class="wire-line wire-move">' + parts.join('') + '</div>';
+  }
 
   function scoreSplit(task) {
     var map = Object.create(null), done = 0;
@@ -373,6 +516,16 @@
           ' · 已 ' + done + '/' + total + ' 人 · <b>结束才计分</b>' +
           '<button type="button" class="btn tiny primary" data-wire-close="' + Number(open.task_id) + '">结束并计分</button>' +
           '</div>');
+        /* 完成名单 + 每人当前完成率（服务端实时算的，随时会被人挤下去）。
+           单独兜一层：榜画不出来也不能把「进行中 + 结束并计分」那行一起吞掉。 */
+        try {
+          var board = leaderBoard(open);
+          if (board) lines.push(board);
+          var mv = moveLine(moves[String(open.task_id)]);
+          if (mv) lines.push(mv);
+          var pend = pendingLine(open, cls);
+          if (pend) lines.push(pend);
+        } catch (eLive) { /* 忽略：横幅主体照常显示 */ }
       }
 
       closed.slice(0, 2).forEach(function (t, i) {

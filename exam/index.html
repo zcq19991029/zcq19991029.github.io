@@ -5347,6 +5347,99 @@ const PAPER_DEFAULT={
 };
 const blanksOf=q=>q.t==='fill'?(q.q.match(/____/g)||[]).length:1;
 
+/* ================= 选择题选项归一（2026-11-09） =================
+   用户原话：「电气接线的理论考试选择题选项都报错了 没有正常的」。
+   真因不是网络也不是权限，是三处代码对「选项长什么样」的约定不一致：
+     · 内置单片机题库（考试/theory.cjs:15）        o: ['常开触点','常闭触点',…]        纯字符串数组
+     · 资料库工具 AI 出题（资料库工具/src/ui-mat.js 的 MAT_toDb，写进 hx_exam_qbank.o）
+                                                    o: [{key:'A',text:'常开触点'},…]
+     · AI 直出 / 手改过的老数据（normalizeQuestions 之前兜过的）
+                                                    [{k,v}] / [{label,value}] / [{id,content}] / {A:'文本'}
+   理论试卷（本文件 optHTML、docxItems；ui-paper.js 的 fullHTML、搜索）只认第一种：
+   Math.max(...o.map(x=>x.length)) 拿到 undefined 是 NaN，模板里又直接 String(对象)，
+   卷面就成了「A.[object Object] B.[object Object] …」四行 —— 用户看到的「全报错」。
+   电子考试（app.js eQuestionHTML）认 {key,text}，但题库题型叫 choice/judge
+   （见 考试/supabase/2026-11-08-科目-资料库-题库.sql 的 check），它只认 single/multiple/judgment，
+   于是选择题掉进「非选择题」分支，被画成一个空白大题框。
+   ── 这一轮怎么修 ──
+   不追着改数据库（越改越容易二次错位），只在渲染这一层归一：
+   不管上游给的是字符串、对象数组还是 {A:文本} 的映射，统一产出 [{key:'A', text:'…'}]。
+   · 缺 key 的按**原下标**补字母（不能按「过滤后」重排，否则答案里写的 A/B/C 会对不上）；
+   · 文字取第一个非空字符串字段，数字自动转字符串；
+   · 一条文字都取不到的空选项直接丢掉，不画空的「A.」。
+   ⚠ 给上游的备注（本轮不改，改库有风险）：资料库工具最好只写 {key,text} 一种形状，
+   并且单选也存 t='single' 而不是 'choice'；现在全靠这里兼容。 */
+const OPT_KEY_FIELDS = ['key', 'k', 'letter', 'optKey'];
+/* value 放最后：{label:'A', value:'文本'} 里 label 是 key、value 才是正文 */
+const OPT_TEXT_FIELDS = ['text', 'v', 'content', 'title', 'desc', 'option', 'label', 'name', 'value'];
+const OPT_KEY_RE = /^[A-Za-z]$/;   // 单个字母才算 key（A~D 选项、判断题的 T/F 都覆盖）
+const optStr = v => {
+  if (v == null) return '';
+  if (typeof v === 'string') return v.trim();
+  if (typeof v === 'number' || typeof v === 'boolean') return String(v);
+  if (Array.isArray(v)) return v.map(optStr).filter(Boolean).join(' ');
+  return '';
+};
+const optClean = s => String(s || '')
+  .replace(/\s+/g, ' ')
+  .replace(/^[A-Za-z][.、:：)）]\s*/, '')   // 文字自带「A. 」前缀时去掉（key 由字段/下标决定）
+  .trim();
+const optLetter = i => i < 26 ? String.fromCharCode(65 + i) : 'A' + (i - 25);
+function hxChoices(raw) {
+  /* o 也可能是 JSON 字符串（有人把 jsonb 列当 text 手改过） */
+  if (typeof raw === 'string') {
+    const s = raw.trim();
+    if (!s || (s[0] !== '[' && s[0] !== '{')) return [];
+    try { raw = JSON.parse(s); } catch (e) { return []; }
+  }
+  let list;
+  if (Array.isArray(raw)) list = raw.map((x, i) => [null, x, i]);
+  else if (raw && typeof raw === 'object') list = Object.keys(raw).map((k, i) => [k, raw[k], i]);
+  else return [];
+  const out = [];
+  list.forEach(([mapKey, item, i]) => {
+    const letter = optLetter(i);
+    let key = mapKey ? String(mapKey).trim() : '';
+    let text = '';
+    if (item && typeof item === 'object' && !Array.isArray(item)) {
+      /* 1) 明确叫 key / k / letter 的字段 */
+      if (!key) { const f = OPT_KEY_FIELDS.find(x => OPT_KEY_RE.test(optStr(item[x]))); key = f ? optStr(item[f]) : ''; }
+      /* 2) label / id / option 既可能是 key 也可能是正文：短得像单个字母才当 key */
+      if (!key) { const f = ['label', 'id', 'option'].find(x => OPT_KEY_RE.test(optStr(item[x]))); key = f ? optStr(item[f]) : ''; }
+      /* 3) 正文：按优先级取第一个非空、且不等于 key 的字符串 */
+      for (const f of OPT_TEXT_FIELDS) {
+        const v = optClean(optStr(item[f]));
+        if (!v || v === key) continue;
+        text = v; break;
+      }
+      /* 4) 兜底：{A:'文本'} 这种只有一个键的对象，键名当 key、值当正文 */
+      if (!text) {
+        const ks = Object.keys(item);
+        if (ks.length === 1) {
+          const v = optClean(optStr(item[ks[0]]));
+          if (v && v !== key) { if (!key && OPT_KEY_RE.test(ks[0])) key = ks[0]; text = v; }
+        }
+      }
+    } else {
+      text = optClean(optStr(item));
+    }
+    key = OPT_KEY_RE.test(key) ? key.toUpperCase() : '';
+    if (!text) return;                       // 空选项不渲染，免得卷面出现一行孤零零的「C.」
+    out.push({ key: key || letter, text });
+  });
+  return out;
+}
+
+/* 小问（sub）归一（2026-11-09，和选项同一个毛病）：
+   hx_exam_qbank.sub 是 jsonb，没有类型约束。AI 导入时把「第一问；第二问」整段存成一个字符串
+   完全合法，而下游直接 q.sub.map / q.sub.length / q.sub[k] —— 字符串会被逐字符拆成几十个小问，
+   为 null 时则直接 TypeError 打断整页渲染（用户看到的就是「全都报错了」）。
+   统一成字符串数组，渲染处只管用。 */
+function hxSubs(v) {
+  return (Array.isArray(v) ? v : (v == null || v === '' ? [] : [v]))
+    .map(x => String(x == null ? '' : x).trim()).filter(Boolean);
+}
+
 /* ================= 题池（2026-11-08 第二轮：理论试卷接 AI 题库） =================
    非 mcu 科目的题来自云端 hx_exam_qbank（AI 题库页 / 资料库页出的题），
    app.js 的理论试卷入口拉完题后调 __examSetPool 挂进来；mcu 永远走内置 THEORY，行为零变化。
@@ -5480,9 +5573,11 @@ function paperStats(P){
 const ptxt=s=>esc(s);
 function blankHTML(s){return ptxt(s).replace(/____/g,'<u class="bl">　　　　　　　</u>');}
 function optHTML(o){
-  const L=Math.max(...o.map(x=>x.length));
+  const opts=hxChoices(o);
+  if(!opts.length)return '';
+  const L=Math.max(...opts.map(x=>x.text.length));
   const cls=L<=9?'o4':L<=20?'o2':'o1';
-  return `<div class="opts ${cls}">${o.map((x,i)=>`<span>${'ABCD'[i]}.${ptxt(x)}</span>`).join('')}</div>`;
+  return `<div class="opts ${cls}">${opts.map(x=>`<span>${ptxt(x.key)}.${ptxt(x.text)}</span>`).join('')}</div>`;
 }
 /* 答题留白：宽松 / 标准 / 紧凑 */
 const SPACE_K={auto:1,loose:1.3,normal:1,tight:0.7};
@@ -5497,7 +5592,7 @@ function itemHTML(s,q,i){
     case 'judge':return `<div class="q judge"><span>${no}${ptxt(q.q)}</span><span class="paren">（　　）</span></div>`;
     case 'term':return `<div class="q">${no}${ptxt(q.q)}：</div>${lines(4)}`;
     case 'short':return `<div class="q">${no}${ptxt(q.q)}</div>${lines((q.lines||8)-1)}`;
-    case 'prog':return `<div class="q">${no}${ptxt(q.q)}</div><pre class="code">${esc(q.code)}</pre>${q.sub.map((x,k)=>`<div class="q sub">（${k+1}）${ptxt(x)}</div>${lines(q.sub.length>1?3:7)}`).join('')}`;
+    case 'prog':{const subs=hxSubs(q.sub);return `<div class="q">${no}${ptxt(q.q)}</div><pre class="code">${esc(q.code)}</pre>${subs.map((x,k)=>`<div class="q sub">（${k+1}）${ptxt(x)}</div>${lines(subs.length>1?3:7)}`).join('')}`;}
   }
   return '';
 }
@@ -5653,17 +5748,17 @@ function paperDocHTML(P,cfg,opts){
          抽题会退回随机，这时不该还画着“已指定”的样子 */
       const pin=picks[kk]!=null&&pickQ(picks[kk])===q;
       const cls=edit?('blk ed'+(pin?' pin':'')):'blk';
-      const nsub=Array.isArray(q.sub)?q.sub.length:0;
+      const subs=hxSubs(q.sub), nsub=subs.length;
       /* 有多个小问的题，小标写「换整题」，免得老师以为只是换这个小问 */
       const tag=edit?`<i class="edx">${i+1} 换${nsub>1?'整题':''}</i>`:'';
       /* 程序分析题按小问拆成几块，可以跨栏，不会因为整题太长空出半栏。
          2026-11-08：小问块加 edsub（不单独画虚线框），并在题干块下加一行灰字说明 —— 
          用户原话「这个大题的位置为什么是两个 / 这个咋是三个 咋选的」，说明拆块让人误以为是多道题。 */
       if(s.t==='prog'){
-        const sub=k=>`<div class="q sub">（${k+1}）${ptxt(q.sub[k])}</div>${lines(q.sub.length>1?3:7)}`;
+        const sub=k=>`<div class="q sub">（${k+1}）${ptxt(subs[k])}</div>${lines(subs.length>1?3:7)}`;
         const subcls=edit?('blk ed edsub'+(pin?' pin':'')):'blk';
         blocks.push(`<div class="${cls} keep"${at}>${tag}<div class="q">${i+1}.${ptxt(q.q)}</div><pre class="code">${esc(q.code)}</pre>${edit&&nsub>1?`<i class="ednote">（1）～（${nsub}）是这道题自带的小问；点右上角「换整题」是整道一起换，不是只换其中一问</i>`:''}</div>`);
-        for(let k=0;k<q.sub.length;k++)blocks.push(`<div class="${subcls}"${at}>${sub(k)}</div>`);
+        for(let k=0;k<subs.length;k++)blocks.push(`<div class="${subcls}"${at}>${sub(k)}</div>`);
       } else blocks.push(`<div class="${cls}"${at}>${tag}${itemHTML(s,q,i)}</div>`);
     });
   });
@@ -5699,10 +5794,14 @@ function docxItems(s,q,i){
   const no=`${i+1}.`,out=[];const sp=n=>{for(let k=0;k<nLines(n);k++)out.push(DX.p(''));};
   if(s.t==='choice'){
     out.push(DX.p(DX.r(no+q.q)));
-    const L=Math.max(...q.o.map(x=>x.length)),o=q.o.map((x,k)=>`${'ABCD'[k]}.${x}`);
-    if(L<=9)out.push(DX.p(DX.r(o.join('\t')),{ind:420,tabs:[2900,5400,7900]}));
-    else if(L<=20){out.push(DX.p(DX.r(o[0]+'\t'+o[1]),{ind:420,tabs:[5200]}));out.push(DX.p(DX.r(o[2]+'\t'+o[3]),{ind:420,tabs:[5200]}));}
-    else o.forEach(x=>out.push(DX.p(DX.r(x),{ind:420})));
+    const opts=hxChoices(q.o),o=opts.map(x=>`${x.key}.${x.text}`);
+    const L=Math.max(0,...opts.map(x=>x.text.length));
+    /* 一条选项都没有时只留题干（老数据 o 为 null）——不能画「undefined」 */
+    if(o.length){
+      if(L<=9)out.push(DX.p(DX.r(o.join('\t')),{ind:420,tabs:[2900,5400,7900]}));
+      else if(L<=20){out.push(DX.p(DX.r((o[0]||'')+'\t'+(o[1]||'')),{ind:420,tabs:[5200]}));out.push(DX.p(DX.r((o[2]||'')+'\t'+(o[3]||'')),{ind:420,tabs:[5200]}));}
+      else o.forEach(x=>out.push(DX.p(DX.r(x),{ind:420})));
+    }
   } else if(s.t==='fill'){
     out.push(DX.p([DX.r(no)].concat(q.q.split('____').map((x,k)=>(k?DX.r('              ',{u:true}):'')+DX.r(x)))));
   } else if(s.t==='judge'){
@@ -5712,7 +5811,8 @@ function docxItems(s,q,i){
   else if(s.t==='prog'){
     out.push(DX.p(DX.r(no+q.q),{keep:true}));
     q.code.split('\n').forEach(l=>out.push(DX.p(DX.r(l,{mono:true,sz:18}),{ind:210,line:240,keep:true})));
-    q.sub.forEach((x,k)=>{out.push(DX.p(DX.r(`（${k+1}）${x}`),{ind:210}));sp(q.sub.length>1?3:7);});
+    const subs=hxSubs(q.sub);
+    subs.forEach((x,k)=>{out.push(DX.p(DX.r(`（${k+1}）${x}`),{ind:210}));sp(subs.length>1?3:7);});
   }
   return out.join('');
 }
@@ -6220,7 +6320,7 @@ function mountPaper(sub) {
     curPool().forEach((q, i) => {
       if (q.t !== t) return;
       if (chk.length && chk.indexOf(q.ch) < 0) return;
-      if (kw && (q.q + ' ' + (q.o || []).join(' ') + ' ' + curCH()[q.ch]).toLowerCase().indexOf(kw) < 0) return;
+      if (kw && (q.q + ' ' + hxChoices(q.o).map(x => x.text).join(' ') + ' ' + curCH()[q.ch]).toLowerCase().indexOf(kw) < 0) return;
       const pv = POOL ? qid(q) : i;
       const on = pinVal != null && String(pinVal) === String(pv);
       const busy = used.has(qid(q)) && !(cur && qid(cur) === qid(q));
@@ -6239,8 +6339,8 @@ function mountPaper(sub) {
   function fullHTML(q) {
     const t = q.t;
     let h = `<div class="bkq-fq">${esc(q.q)}</div>`;
-    if (t === 'choice') h += `<ol class="bkq-op">${(q.o || []).map((x, k) => `<li>${'ABCD'[k]}. ${esc(x)}</li>`).join('')}</ol>`;
-    if (t === 'prog' && q.code) h += `<pre class="code">${esc(q.code)}</pre>` + (q.sub || []).map((x, k) => `<div class="note">（${k + 1}）${esc(x)}</div>`).join('');
+    if (t === 'choice') h += `<ol class="bkq-op">${hxChoices(q.o).map(x => `<li>${esc(x.key)}. ${esc(x.text)}</li>`).join('')}</ol>`;
+    if (t === 'prog' && q.code) h += `<pre class="code">${esc(q.code)}</pre>` + hxSubs(q.sub).map((x, k) => `<div class="note">（${k + 1}）${esc(x)}</div>`).join('');
     const a = t === 'choice' ? q.a : t === 'judge' ? (q.a ? '正确' : '错误') : Array.isArray(q.a) ? q.a.join('；') : q.a;
     h += `<div class="bkq-a"><b>答案</b>${esc(a)}</div>`;
     return h;
@@ -7044,19 +7144,60 @@ const E_UNB64 = s => decodeURIComponent(escape(atob(String(s).replace(/-/g, '+')
 const E_ESC = s => esc(String(s == null ? '' : s));
 function ePaperEncode(qs) { return 'E1:' + E_B64(JSON.stringify({ v: 1, qs: qs.map(q => ({ id: q.id, t: q.t, q: q.q, o: q.o || [], a: q.a, sub: q.sub || [], pts: q.pts || 10, src: q.src || '' })) })); }
 function ePaperDecode(code) { if (!/^E1:/.test(String(code || ''))) return null; try { const x = JSON.parse(E_UNB64(String(code).slice(3))); return x && Array.isArray(x.qs) ? x.qs : null; } catch (e) { return null; } }
-function eType(t) { return ({ single: '单选', multiple: '多选', judgment: '判断', fill: '填空', short: '简答', term: '名词解释', prog: '编程题' }[t] || t || '题目'); }
-function eOptions(q) { return Array.isArray(q.o) ? q.o.map((x, i) => typeof x === 'string' ? { key: String.fromCharCode(65 + i), text: x } : x) : []; }
+function eType(t) { return ({ single: '单选', multiple: '多选', judgment: '判断', choice: '选择题', judge: '判断', fill: '填空', short: '简答', term: '名词解释', prog: '编程题' }[t] || t || '题目'); }
+/* ---- 选项 / 题型归一（2026-11-09）----
+   用户报「电气接线的理论考试选择题选项都报错了 没有正常的」，两处对不上：
+   ① 选项形状：题库 hx_exam_qbank.o 是 [{key,text}]（资料库工具 MAT_toDb 写进去的），
+      这一页以前只把字符串数组转成 {key,text}，其余原样返回，模板里再用 o.key / o.text 拼——
+      遇到 {k,v} / {label,value} 就是「A undefined」或「A [object Object]」。
+      现在统一走 paper.js 的 hxChoices()（理论试卷、题库抽屉也用它，一份逻辑三处共用）。
+   ② 题型：题库存的是 choice / judge（见 supabase/2026-11-08-科目-资料库-题库.sql 的 check
+      和 资料库工具/src/ui-mat.js 的 MAT_DB_T），而这里只认 single/multiple/judgment，
+      choice 掉进「非选择题」分支，被画成一个空白答题框 —— 学生一个选项都看不到。
+      老 E1 卷子里已经冻着 choice，所以必须在**读卷时**归一，不能只改发布那条路。 */
+function eNormType(q) {
+  const t = String((q && q.t) || '').toLowerCase();
+  if (t === 'choice') {
+    /* 单选还是多选看标准答案有几个字母：'B' → 单选，'AB' → 多选 */
+    const a = q.a;
+    const n = Array.isArray(a) ? a.filter(x => String(x).trim()).length : String(a == null ? '' : a).replace(/[^A-Za-z0-9]/g, '').length;
+    return n > 1 ? 'multiple' : 'single';
+  }
+  if (t === 'judge') return 'judgment';
+  return t;
+}
+function eOptions(q) { return hxChoices(q && q.o); }
+function eNormQ(q) {
+  const t = eNormType(q); let o = eOptions(q); let a = q && q.a;
+  if (t === 'judgment') {
+    /* 题库把判断题答案存成 true/false（jsonb boolean），选项 key 是 T/F；
+       以前直接 String(true)='TRUE' 去比对学生的 'T'，永远判错。 */
+    const s = String(a == null ? '' : a).trim();
+    if (a === true || /^(正确|对|是|√|T|TRUE|Y|YES)$/i.test(s)) a = 'T';
+    else if (a === false || /^(错误|错|否|×|F|FALSE|N|NO)$/i.test(s)) a = 'F';
+    if (o.length < 2) o = [{ key: 'T', text: '正确' }, { key: 'F', text: '错误' }];
+  }
+  /* ③ 小问 / 分值也要归一（2026-11-09 补）：
+     o 是 jsonb 没类型约束，sub 存成**一整段字符串**完全合法（AI 导入常见）。
+     以前 `q.sub.map(...)` 在 sub 是字符串时抛 TypeError，直接把整页渲染打断 ——
+     学生看到的就是「全都报错了」。这里统一成数组，渲染处只管 map。
+     pts 可能是 '10分' / '10' / null，统一成数字，免得题头显示「10分 分」。 */
+  const sub = Array.isArray(q.sub) ? q.sub.filter(x => String(x == null ? '' : x).trim()) : (q.sub ? [q.sub] : []);
+  const pts = Math.max(1, Math.min(100, Number(String((q && q.pts) == null ? 10 : q.pts).replace(/[^\d.]/g, '')) || 10));
+  return Object.assign({}, q, { t, o, a, sub, pts });
+}
 function eAnswer(q, value) {
   const got = String(value || '').trim().toUpperCase(); const ans = Array.isArray(q.a) ? q.a.map(x => String(x).trim().toUpperCase()) : [String(q.a || '').trim().toUpperCase()];
-  if (!got) return 0; if (q.t === 'multiple') return got.split(/[,、\s]+/).sort().join('') === ans.slice().sort().join('') ? 1 : 0;
+  if (!got) return 0; if (q.t === 'multiple') return got.split(/[,、\s]+/).filter(Boolean).sort().join('') === ans.filter(Boolean).slice().sort().join('') ? 1 : 0;
   return ans.includes(got) ? 1 : 0;
 }
 function eQuestionHTML(q, i, answer) {
-  const typ = q.t === 'single' || q.t === 'multiple' || q.t === 'judgment';
-  const opts = eOptions(q); let input = '';
-  if (typ) input = `<div class="e-options">${opts.map(o => `<label><input type="${q.t === 'multiple' ? 'checkbox' : 'radio'}" name="e_${i}" value="${E_ESC(o.key)}" ${String(answer || '').split(/[,、\s]+/).includes(String(o.key)) ? 'checked' : ''}> <b>${E_ESC(o.key)}</b> ${E_ESC(o.text)}</label>`).join('')}</div>`;
-  else input = `<textarea class="e-answer" data-ea="${i}" rows="${q.t === 'short' || q.t === 'term' || q.t === 'prog' ? 5 : 2}" placeholder="填写答案">${E_ESC(answer || '')}</textarea>`;
-  return `<article class="card e-q"><div class="e-qhead"><span>第 ${i + 1} 题 · ${E_ESC(eType(q.t))}</span><b>${q.pts || 10} 分</b></div><h3>${E_ESC(q.q || q.stem || '')}</h3>${q.sub && q.sub.length ? `<p class="note">${q.sub.map(E_ESC).join('；')}</p>` : ''}${input}</article>`;
+  const nq = eNormQ(q);
+  const typ = nq.t === 'single' || nq.t === 'multiple' || nq.t === 'judgment';
+  const opts = nq.o; let input = '';
+  if (typ) input = `<div class="e-options">${opts.map(o => `<label><input type="${nq.t === 'multiple' ? 'checkbox' : 'radio'}" name="e_${i}" value="${E_ESC(o.key)}" ${String(answer || '').split(/[,、\s]+/).includes(String(o.key)) ? 'checked' : ''}> <b>${E_ESC(o.key)}</b> ${E_ESC(o.text)}</label>`).join('')}</div>`;
+  else input = `<textarea class="e-answer" data-ea="${i}" rows="${nq.t === 'short' || nq.t === 'term' || nq.t === 'prog' ? 5 : 2}" placeholder="填写答案">${E_ESC(answer || '')}</textarea>`;
+  return `<article class="card e-q"><div class="e-qhead"><span>第 ${i + 1} 题 · ${E_ESC(eType(nq.t))}</span><b>${nq.pts || 10} 分</b></div><h3>${E_ESC(nq.q || nq.stem || '')}</h3>${nq.sub && nq.sub.length ? `<p class="note">${nq.sub.map(E_ESC).join('；')}</p>` : ''}${input}</article>`;
 }
 function electronicStudentHome(msg) {
   const st = ME.me.student;
@@ -7065,7 +7206,9 @@ function electronicStudentHome(msg) {
   $('sGo').onclick = go; $('sCode').onkeydown = e => { if (e.key === 'Enter') go(); };
 }
 function electronicRoom(code, r, back) {
-  const paper = ePaperDecode(r.paper); if (!paper) return back ? back('这场考试不是电子试卷格式') : electronicStudentHome('这场考试不是电子试卷格式');
+  const decoded = ePaperDecode(r.paper); if (!decoded) return back ? back('这场考试不是电子试卷格式') : electronicStudentHome('这场考试不是电子试卷格式');
+  /* 读卷时就归一（2026-11-09）：老 E1 卷子里冻着 t='choice' / o=[{key,text}]，不改卷子本身，只在渲染前统一 */
+  const paper = decoded.map(eNormQ);
   const draftKey = 'exam.e.' + r.id, saved = r.answers || {}, draft = store.get(draftKey, {});
   app().innerHTML = `<header class="ex-h"><div class="eyebrow">${r.preview ? '教师预览' : E_ESC(r.name)}${r.no ? ' · ' + E_ESC(r.no) : ''}</div><h1>${E_ESC(r.title)}</h1><p>${E_ESC(SUBJECTS[r.subject] || r.subject)} · 共 ${paper.length} 题 · 满分 ${paper.reduce((a, q) => a + (+q.pts || 0), 0)} 分</p></header><div class="e-paper">${paper.map((q, i) => eQuestionHTML(q, i, draft[i + 1] || saved[i + 1])).join('')}</div><div class="card e-submit"><span class="note" id="subState">${r.at ? '已交卷：' + when(r.at) : '答案会暂存在本机，交卷后老师才能看到'}</span><div class="row"><button class="pri" id="btnSub" ${r.preview ? 'hidden' : ''}>交卷</button><button id="btnBack">${r.preview ? '返回' : '换一个考试码'}</button></div></div>`;
   const read = () => { const ans = {}; paper.forEach((q, i) => { if (q.t === 'single' || q.t === 'judgment') ans[i + 1] = (app().querySelector(`input[name="e_${i}"]:checked`) || {}).value || ''; else if (q.t === 'multiple') ans[i + 1] = [...app().querySelectorAll(`input[name="e_${i}"]:checked`)].map(x => x.value).join(','); else ans[i + 1] = (app().querySelector(`[data-ea="${i}"]`) || {}).value || ''; }); return ans; };
@@ -7087,13 +7230,13 @@ async function electronicTeacherHome(msg) {
 async function electronicEditExam() {
   const subs = await rpc('hx_exam_subject_list').catch(() => SUBJ); const s = subs.find(x => String(x.key) === String(CUR_SUB)) || subs[0] || SUBJ[0]; let qs = [];
   app().innerHTML = `<header class="ex-h"><div class="eyebrow">教师 · 发布电子试卷</div><h1>新考试</h1><p>选题来自资料库题池，学生只看到题目和答题框。</p></header><div class="card"><div class="ex-form"><label>标题<input id="efTitle" maxlength="40" placeholder="例如 期末理论考试"></label><label>科目<select id="efSub">${subs.map(x => `<option value="${E_ESC(x.key)}" ${x.key === s.key ? 'selected' : ''}>${E_ESC(x.name)}</option>`).join('')}</select></label><label>考试码<input id="efCode" maxlength="20" placeholder="留空自动生成 6 位码"></label></div><div id="efQ">${fxLoad('正在读取题池…')}</div><div class="ex-cls" id="efCls"></div><div class="errs" id="efMsg" hidden></div><div class="row" style="margin-top:16px"><button class="pri big" id="efSave">发布电子试卷</button><button id="efBack">返回</button></div></div>`;
-  const drawQ = rows => { qs = rows.slice(0, 30).map((q, i) => ({ ...q, pts: 10 })); $('efQ').innerHTML = qs.length ? `<h2>题目（已选 ${qs.length}）</h2>${qs.map((q, i) => `<label class="e-pick"><input type="checkbox" data-eq="${i}" checked> <b>${i + 1}. ${E_ESC(eType(q.t))}</b> ${E_ESC(q.q || q.stem || '')}<input data-pts="${i}" type="number" min="1" max="100" value="10" aria-label="第${i + 1}题分值"></label>`).join('')}` : '<p class="note">这个科目的题池为空，请先去资料库 AI 出题并审核入池。</p>'; };
+  const drawQ = rows => { qs = rows.slice(0, 30).map((q, i) => ({ ...q, pts: 10 })); $('efQ').innerHTML = qs.length ? `<h2>题目（已选 ${qs.length}）</h2>${qs.map((q, i) => `<label class="e-pick"><input type="checkbox" data-eq="${i}" checked> <b>${i + 1}. ${E_ESC(eType(eNormType(q)))}</b> ${E_ESC(q.q || q.stem || '')}<input data-pts="${i}" type="number" min="1" max="100" value="10" aria-label="第${i + 1}题分值"></label>`).join('')}` : '<p class="note">这个科目的题池为空，请先去资料库 AI 出题并审核入池。</p>'; };
   let rows = []; try { rows = await rpc('hx_exam_qbank_list', { p_subject_id: s.id }); drawQ(rows || []); } catch (e) { $('efQ').innerHTML = `<div class="errs">${E_ESC(e.message)}</div>`; }
   const own = (CLASSES || []).filter(c => (c.tools || []).includes('exam')); $('efCls').innerHTML = own.length ? `<h2>考试班级</h2>${own.map(c => `<label><input type="checkbox" data-ec="${c.id}"> ${E_ESC(c.name)}${c.term ? ' · ' + E_ESC(c.term) : ''}</label>`).join('')}` : '<p class="note">还没有班级，请先在首页开通考试。</p>';
-  $('efBack').onclick = electronicTeacherHome; $('efSave').onclick = async () => { const fail = m => { $('efMsg').textContent = m; $('efMsg').hidden = false; }; const title = $('efTitle').value.trim(); if (!title) return fail('请填写标题'); const picked = qs.filter((q, i) => (app().querySelector(`[data-eq="${i}"]`) || {}).checked).map((q, i) => ({ ...q, pts: Math.max(1, Math.min(100, +(app().querySelector(`[data-pts="${i}"]`) || {}).value || 10)) })); if (!picked.length) return fail('至少选择一道题'); const classes = [...app().querySelectorAll('[data-ec]:checked')].map(x => +x.dataset.ec); if (!classes.length && !confirm('没有选择班级，学生将无法取题。仍要发布吗？')) return; $('efSave').disabled = true; try { const r = await rpc('hx_exam_save', { p_id: null, p_subject: $('efSub').value, p_title: title, p_paper: ePaperEncode(picked), p_classes: classes, p_code: $('efCode').value.trim() || null }); toast('已发布，学生考试码：' + r.code); electronicTeacherHome(); } catch (e) { fail(e.message); $('efSave').disabled = false; } };
+  $('efBack').onclick = electronicTeacherHome; $('efSave').onclick = async () => { const fail = m => { $('efMsg').textContent = m; $('efMsg').hidden = false; }; const title = $('efTitle').value.trim(); if (!title) return fail('请填写标题'); const picked = qs.filter((q, i) => (app().querySelector(`[data-eq="${i}"]`) || {}).checked).map((q, i) => ({ ...q, pts: Math.max(1, Math.min(100, +(app().querySelector(`[data-pts="${i}"]`) || {}).value || 10)) })); if (!picked.length) return fail('至少选择一道题'); const classes = [...app().querySelectorAll('[data-ec]:checked')].map(x => +x.dataset.ec); if (!classes.length && !confirm('没有选择班级，学生将无法取题。仍要发布吗？')) return; $('efSave').disabled = true; try { const r = await rpc('hx_exam_save', { p_id: null, p_subject: $('efSub').value, p_title: title, p_paper: ePaperEncode(picked.map(eNormQ)), p_classes: classes, p_code: $('efCode').value.trim() || null }); toast('已发布，学生考试码：' + r.code); electronicTeacherHome(); } catch (e) { fail(e.message); $('efSave').disabled = false; } };
 }
 async function subsElectronic(x) {
-  const paper = ePaperDecode(x.paper) || []; app().innerHTML = `<header class="ex-h"><div class="eyebrow">交卷与批改 · ${E_ESC(x.code)}</div><h1>${E_ESC(x.title)}</h1></header><div class="row" style="margin-bottom:12px"><button class="pri" id="eGrade">全部批改</button><button id="eCsv">导出成绩 CSV</button><button id="eBack">返回</button><span class="note" id="eState"></span></div><div class="card" id="eTbl">${fxLoad('加载中…')}</div>`; let rows = []; try { rows = await rpc('hx_exam_subs_of', { p_id: x.id }); } catch (e) { $('eTbl').innerHTML = `<div class="errs">${E_ESC(e.message)}</div>`; return; } const grade = r => { r.res = paper.map((q, i) => { const got = eAnswer(q, (r.answers || {})[i + 1]); return { got: got * (+q.pts || 0), pts: +q.pts || 0 }; }); r.total = r.res.reduce((a, z) => a + z.got, 0); }; const draw = () => { $('eTbl').innerHTML = rows.length ? `<table class="mini"><thead><tr><th>班级</th><th>学号</th><th>姓名</th><th>交卷时间</th>${paper.map((_, i) => `<th>第${i + 1}题</th>`).join('')}<th>总分</th></tr></thead><tbody>${rows.map((r, k) => `<tr><td>${E_ESC(r.class_name)}</td><td>${E_ESC(r.student_no)}</td><td>${E_ESC(r.name)}</td><td>${when(r.at)}</td>${paper.map((_, i) => `<td>${r.res ? r.res[i].got + '/' + r.res[i].pts : '—'}</td>`).join('')}<td><b>${r.res ? r.total : '—'}</b></td></tr>`).join('')}</tbody></table>` : '<p class="note">还没有人交卷。</p>'; }; draw(); $('eBack').onclick = electronicTeacherHome; $('eGrade').onclick = () => { rows.forEach(grade); draw(); $('eState').textContent = '已批改 ' + rows.length + ' 份；简答题需老师复核'; }; $('eCsv').onclick = () => { if (rows.some(r => !r.res)) return toast('先点“全部批改”'); const q = s => '"' + String(s).replace(/"/g, '""') + '"'; downloadText(x.title + '_成绩.csv', [['班级', '学号', '姓名', '交卷时间', ...paper.map((_, i) => '第' + (i + 1) + '题'), '总分'], ...rows.map(r => [r.class_name, '\t' + r.student_no, r.name, when(r.at), ...r.res.map(z => z.got), r.total])].map(a => a.map(q).join(',')).join('\r\n'), 'text/csv'); };
+  const paper = (ePaperDecode(x.paper) || []).map(eNormQ); app().innerHTML = `<header class="ex-h"><div class="eyebrow">交卷与批改 · ${E_ESC(x.code)}</div><h1>${E_ESC(x.title)}</h1></header><div class="row" style="margin-bottom:12px"><button class="pri" id="eGrade">全部批改</button><button id="eCsv">导出成绩 CSV</button><button id="eBack">返回</button><span class="note" id="eState"></span></div><div class="card" id="eTbl">${fxLoad('加载中…')}</div>`; let rows = []; try { rows = await rpc('hx_exam_subs_of', { p_id: x.id }); } catch (e) { $('eTbl').innerHTML = `<div class="errs">${E_ESC(e.message)}</div>`; return; } const grade = r => { r.res = paper.map((q, i) => { const got = eAnswer(q, (r.answers || {})[i + 1]); return { got: got * (+q.pts || 0), pts: +q.pts || 0 }; }); r.total = r.res.reduce((a, z) => a + z.got, 0); }; const draw = () => { $('eTbl').innerHTML = rows.length ? `<table class="mini"><thead><tr><th>班级</th><th>学号</th><th>姓名</th><th>交卷时间</th>${paper.map((_, i) => `<th>第${i + 1}题</th>`).join('')}<th>总分</th></tr></thead><tbody>${rows.map((r, k) => `<tr><td>${E_ESC(r.class_name)}</td><td>${E_ESC(r.student_no)}</td><td>${E_ESC(r.name)}</td><td>${when(r.at)}</td>${paper.map((_, i) => `<td>${r.res ? r.res[i].got + '/' + r.res[i].pts : '—'}</td>`).join('')}<td><b>${r.res ? r.total : '—'}</b></td></tr>`).join('')}</tbody></table>` : '<p class="note">还没有人交卷。</p>'; }; draw(); $('eBack').onclick = electronicTeacherHome; $('eGrade').onclick = () => { rows.forEach(grade); draw(); $('eState').textContent = '已批改 ' + rows.length + ' 份；简答题需老师复核'; }; $('eCsv').onclick = () => { if (rows.some(r => !r.res)) return toast('先点“全部批改”'); const q = s => '"' + String(s).replace(/"/g, '""') + '"'; downloadText(x.title + '_成绩.csv', [['班级', '学号', '姓名', '交卷时间', ...paper.map((_, i) => '第' + (i + 1) + '题'), '总分'], ...rows.map(r => [r.class_name, '\t' + r.student_no, r.name, when(r.at), ...r.res.map(z => z.got), r.total])].map(a => a.map(q).join(',')).join('\r\n'), 'text/csv'); };
 }
 
 /* ---------------- 老师：发布、收卷、批改（旧函数保留用于历史页面兼容） ---------------- */
