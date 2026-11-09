@@ -6746,19 +6746,7 @@ const T_PAGES = [['exam', '考试', '发布、交卷、批改'], ['paper', '理�
 const ZL_URL = '../ziliao/';
 const ALL_PAGES = T_PAGES;
 let CUR_T = 'exam', CUR_SUB = 'mcu';
-/* 科目管理（建 / 改名 / 删）还留在考试侧栏：理论试卷要按科目切题池。
-   下面三个小工具原来在 ui-mat.js 里，那页搬走后挪到这里。 */
-const SUB_DB_TIP = '数据库还没建表：请管理员执行 考试/supabase/2026-11-08-科目-资料库-题库.sql';
-const SUB_tip = msg => /does not exist|Could not find|schema cache|not find the function|404/i.test(String(msg || '')) ? SUB_DB_TIP : '';
-// 删科目时云端返回它下面资料的 Storage 路径，这里尽力删掉文件（失败只占空间，不报错）
-async function SUB_rmFile(path) {
-  if (!path || !sess || !sess.access_token) return;
-  try {
-    await fetch(HXB + '/storage/v1/object/exam-material/' + String(path).replace(/^\/+/, ''), {
-      method: 'DELETE', headers: { apikey: HXK, Authorization: 'Bearer ' + sess.access_token }
-    });
-  } catch (e) { /* 忽略 */ }
-}
+/* 2026-11-08 科目建 / 改名 / 删统一搬到首页「管理 → 科目」面板，这里科目只读（理论试卷要按科目切题池）。 */
 function teacherShell() {
   $('app').innerHTML = `<div class="ex-shell">
     <nav class="ex-nav" id="exNav">
@@ -6778,13 +6766,11 @@ function exNavClick(e) {
   const t = e.target.closest('[data-t]');
   if (t) return showT(t.dataset.t);
   const s = e.target.closest('[data-sub]'); if (s) return subPick(s.dataset.sub);
-  const rn = e.target.closest('[data-subren]'); if (rn) return subRename(rn.dataset.subren);
-  const dl = e.target.closest('[data-subdel]'); if (dl) return subDel(dl.dataset.subdel);
-  if (e.target.closest('#exSubAdd')) return subAdd();
+  /* 2026-11-08 科目建/改名/删统一搬到首页「管理→科目」面板，这里科目只读。 */
 }
 function drawSubNav() {
   const box = $('exSub'); if (!box) return;
-  box.innerHTML = `<div class="ex-subtabs" role="tablist" aria-label="考试科目">${SUBJ.map(s => `<button role="tab" class="ex-subtab${s.key === CUR_SUB ? ' on' : ''}" data-sub="${esc(s.key)}" aria-selected="${s.key === CUR_SUB}">${esc(s.name)}</button>`).join('')}<button class="ex-subadd" id="exSubAdd" title="新建科目">＋</button></div>`
+  box.innerHTML = `<div class="ex-subtabs" role="tablist" aria-label="考试科目">${SUBJ.map(s => `<button role="tab" class="ex-subtab${s.key === CUR_SUB ? ' on' : ''}" data-sub="${esc(s.key)}" aria-selected="${s.key === CUR_SUB}">${esc(s.name)}</button>`).join('')}</div>`
     + (SUBJ_ERR ? `<p class="ex-subnote">${esc(SUBJ_ERR)}</p>` : '');
 }
 async function loadSubjects() {
@@ -6820,53 +6806,6 @@ function subPick(k) {
   drawSubNav();
   toast('已切换到「' + (SUBJECTS[k] || k) + '」');
   showT(CUR_T);
-}
-/* 新科目代号：能取到纯英文名就用它（如 Electronics → electronics），否则 sub + 时间戳。
-   云端只认 ^[a-z][a-z0-9_-]{0,23}$，这里必须先生成合法的，别等 rpc 报错。 */
-function subKey(name) {
-  const ascii = String(name).toLowerCase().replace(/[^a-z0-9]/g, '');
-  if (ascii.length >= 3 && /^[a-z]/.test(ascii)) return ascii.slice(0, 20);
-  return 'sub' + Date.now().toString(36) + Math.random().toString(36).slice(2, 4);
-}
-async function subAdd() {
-  const name = (prompt('新科目名字（例如：电子技术基础）\n\n建好后到「资料库」工具里给它传资料、出题，题进这个科目的题池。') || '').trim();
-  if (!name) return;
-  const key = subKey(name);
-  try {
-    const r = await rpc('hx_exam_subject_save', { p_key: key, p_name: name, p_kind: 'theory' });
-    await loadSubjects();
-    const k = (r && r.key) || key;
-    if (SUBJ.some(s => s.key === k)) { CUR_SUB = k; drawSubNav(); showT(CUR_T); }
-    toast('已建科目「' + name + '」');
-  } catch (e) {
-    toast('建不了科目：' + e.message + (SUB_tip(e.message) ? '｜' + SUB_DB_TIP : ''));
-  }
-}
-async function subRename(k) {
-  const s = SUBJ.find(x => x.key === k); if (!s) return;
-  const name = (prompt('改科目名字', s.name) || '').trim();
-  if (!name || name === s.name) return;
-  try {
-    await rpc('hx_exam_subject_save', { p_key: k, p_name: name, p_kind: s.kind || 'theory' });
-    await loadSubjects();
-    toast('已改名');
-  } catch (e) { toast('改不了：' + e.message + (SUB_tip(e.message) ? '｜' + SUB_DB_TIP : '')); }
-}
-async function subDel(k) {
-  const s = SUBJ.find(x => x.key === k); if (!s) return;
-  if (s.id == null) return toast('这个科目还没同步到云端，删不了');
-  if (!confirm('删除科目「' + s.name + '」？\n\n会连它下面的 ' + (s.mats || 0) + ' 份资料（含上传的文件）和 ' + (s.banks || 0) + ' 道 AI 题一起删掉，删了找不回来。')) return;
-  try {
-    /* 表里的资料跟着科目级联删，但 Storage 里的文件不会 —— 函数把 path 返回给前端，
-       这里逐个删。删文件失败不算失败（表里已经没了），最多占点空间。 */
-    const r = await rpc('hx_exam_subject_del', { p_id: s.id });
-    ((r && r.paths) || []).forEach(p => SUB_rmFile(p));
-    if (CUR_SUB === k) CUR_SUB = 'mcu';
-    await loadSubjects();
-    if (CUR_SUB === k) { CUR_SUB = (SUBJ[0] || {}).key || 'mcu'; drawSubNav(); }
-    showT(CUR_T);
-    toast('已删除科目');
-  } catch (e) { toast('删不了：' + e.message + (SUB_tip(e.message) ? '｜' + SUB_DB_TIP : '')); }
 }
 function showT(k) {
   if (!ALL_PAGES.some(x => x[0] === k)) k = 'exam';

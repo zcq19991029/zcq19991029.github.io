@@ -14,23 +14,23 @@
      要登录时调 window.HXPortal.login()；被单独打开时 hx-theme.js 会跳回这里（见 hx-theme.js 的 data-tool）。
      账号：Supabase 华夏工具项目，localStorage paike-session 和各工具共用；身份由数据库 hx_me() 决定。
      脚本里不用反引号模板字符串（本机测试时整页当字符串注入到线上同源页面里）。 -->
-<link rel="stylesheet" href="hx-theme.css?v=fff321d">
-<script src="hx-theme.js?v=fff321d"></script>
+<link rel="stylesheet" href="hx-theme.css?v=352b181">
+<script src="hx-theme.js?v=352b181"></script>
 <!-- 首页卡片上的像素小生物：pixelfx 的 12 个 critters（MIT），打包成一个 91 KB 的独立脚本。
      加载失败不影响首页——hx-critters.js 开头就有 window.PixelFX 存在性检查，没有就整段跳过。 -->
-<script src="fx/pixelfx-critters.js?v=fff321d" defer></script>
-<script src="fx/hx-critters.js?v=fff321d" defer></script>
+<script src="fx/pixelfx-critters.js?v=352b181" defer></script>
+<script src="fx/hx-critters.js?v=352b181" defer></script>
 <!-- 像素头像库（2026-11-04）：账号面板里除了传照片，还能从 200 多个像素动效里挑一个当头像。
      和上面 critters 同一套路：库（pixelfx-avatars.js）+ 渲染器（hx-avatar.js），都是 defer、
      不进首屏关键路径；不点「像素头像库」就一个动画都不跑。 -->
-<script src="fx/pixelfx-avatars.js?v=fff321d" defer></script>
-<script src="fx/hx-avatar.js?v=fff321d" defer></script>
+<script src="fx/pixelfx-avatars.js?v=352b181" defer></script>
+<script src="fx/hx-avatar.js?v=352b181" defer></script>
 <!-- 背景动效（2026-11-03）：12 种天气氛围特效铺在背景层，外观面板里选；加载失败或没选就完全不加载渲染器 -->
-<script src="fx/pixelfx-weather.js?v=fff321d" defer></script>
-<script src="fx/hx-weather.js?v=fff321d" defer></script>
+<script src="fx/pixelfx-weather.js?v=352b181" defer></script>
+<script src="fx/hx-weather.js?v=352b181" defer></script>
 <!-- 课堂码大屏二维码：离线 QR 编码器（qrcode 1.5.4 core 打包，MIT，见 fx/NOTICE-qr.md）。延迟加载即可：只有老师点「大屏二维码」时才用 -->
-<script src="fx/hx-qr.js?v=fff321d" defer></script>
-<script src="hx-scan.js?v=fff321d" defer></script><!-- 全站扫一扫（2026-11-08 K5）：摄像头 + BarcodeDetector / 本地 jsQR -->
+<script src="fx/hx-qr.js?v=352b181" defer></script>
+<script src="hx-scan.js?v=352b181" defer></script><!-- 全站扫一扫（2026-11-08 K5）：摄像头 + BarcodeDetector / 本地 jsQR -->
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; width: 100%; overflow: hidden; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -718,7 +718,8 @@
   /* ── 课堂码大屏二维码弹窗（#qr）：给教室投影用的，比普通弹窗大得多 ──
      居中大卡 + 遮罩压暗（教室后排也要看清）；课堂码用超大等宽字；
      二维码画在白底圆角画布上（QR 要强对比，不跟主题色走）。 */
-  dialog#qr { width: min(560px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); padding: 34px 30px 28px; text-align: center; overflow: auto; }
+  dialog#qr { width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: 34px 30px 28px; text-align: center; overflow: auto; }
+  @supports (height: 1dvh) { dialog#qr { max-height: calc(100dvh - 32px); } }
   dialog#qr .qr-code { font: 700 64px/1.15 ui-monospace, "SF Mono", Menlo, Consolas, monospace; letter-spacing: .14em; color: var(--ink); margin: 0 0 14px; word-break: break-all; }
   dialog#qr .qr-box { display: inline-block; padding: 16px; border-radius: 22px; background: #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.06) inset; }
   dialog#qr canvas { display: block; width: min(380px, calc(100vw - 110px)); height: auto; image-rendering: pixelated; }
@@ -734,14 +735,22 @@
   /* 邀请码分享弹窗（#share）里的普通尺寸二维码：教师码、好友码用。
      和大屏投影那套 #qr 区别：不求大，只求「截个图 / 长按 / 点保存就能发给对方」。
      二维码必须白底黑码，不跟主题色走（对比度不够就扫不出来）。 */
-  dialog#share { max-height: calc(100dvh - 32px); overflow: auto; }
+  dialog#share { max-height: calc(100vh - 32px); overflow: auto; }
+  @supports (height: 1dvh) { dialog#share { max-height: calc(100dvh - 32px); } }
   dialog#share .share-qr { text-align: center; }
   dialog#share .share-qr canvas { display: block; width: min(240px, 100%); height: auto; margin: 0 auto; border-radius: 14px; background: #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.06) inset; image-rendering: pixelated; }
   dialog#share .share-qr p { margin: 8px 0 0; font-size: 12.5px; line-height: 1.6; color: var(--dim); }
   dialog#share .share-qr b { color: var(--ink); font-weight: 700; }
   dialog#share .share-qr .btn { margin-top: 8px; }
   /* 管理卡片点开的面板：电脑在中间，手机从底部出来 */
-  dialog.sheet { width: min(820px, calc(100vw - 48px)); max-width: none; max-height: min(880px, calc(100dvh - 48px)); padding: 0; overflow: hidden; }
+  /* 2026-11-08 用户：「手机班级弹窗卡在下面」。实测 Chrome 390x844 正常（top=68、bottom=844、
+     标题栏可见、正文可滚），所以不是布局本身，而是**老浏览器不认 dvh**：
+     微信内置 WebView / Chrome<108 / 部分国产浏览器里 `calc(100dvh - 48px)` 整条声明被丢弃，
+     max-height 失去约束 → 弹窗按内容撑开、底边溢出视口，底下的「合班」「班级行」就卡在屏幕外。
+     写法改成渐进增强：先给 vh（老浏览器能用），再用 @supports 覆盖成 dvh（新浏览器随工具栏实时变）。
+     同一套写法在第 834 行移动端、#qr、#share 上都要有 —— 只有 .pop 本来就有 vh 兜底。 */
+  dialog.sheet { width: min(820px, calc(100vw - 48px)); max-width: none; max-height: min(880px, calc(100vh - 48px)); padding: 0; overflow: hidden; }
+  @supports (height: 1dvh) { dialog.sheet { max-height: min(880px, calc(100dvh - 48px)); } }
   dialog.sheet[open] { display: flex; flex-direction: column; }
   .sh-h { flex: none; display: flex; align-items: center; gap: 10px; padding: 16px 16px 14px 28px; border-bottom: 1px solid var(--edge); }
   dialog .sh-h h2 { flex: 1; margin: 0; text-align: left; font-size: 24px; }
@@ -831,7 +840,9 @@
     .pop.show { transform: none; } .scrim.show { opacity: 1; pointer-events: auto; }
     .cl { grid-template-columns: 1fr; } .cl .acts { flex-wrap: wrap; }
     .tile .sum { margin-top: -8px; padding-right: 0; font-size: 13px; }
-    dialog.sheet { width: 100%; max-height: 92dvh; margin: auto 0 0; border-radius: 26px 26px 0 0; }
+    /* 92vh 先兜底（老 WebView 不认 dvh），新浏览器再用 dvh 盖上去 —— 见 744 行说明 */
+    dialog.sheet { width: 100%; max-height: 92vh; margin: auto 0 0; border-radius: 26px 26px 0 0; }
+    @supports (height: 1dvh) { dialog.sheet { max-height: 92dvh; } }
     dialog.sheet[open] { animation: up .5s var(--hx-spring); }
     .sh-h { padding: 14px 10px 12px 20px; } .sh-b { padding: 16px 16px calc(24px + env(safe-area-inset-bottom, 0px)); }
   }
@@ -1219,7 +1230,7 @@ function planets() {
     return '<i class="' + p.n + '" style="--r:' + p.r + 'px;--d:' + p.d + 's;--a:' + p.a + 'deg;--s:' + p.s + 'px;--p:' + p.p + ';--pt:' + p.pt + '">' + (p.n === 'sat' ? '<s></s>' : '') + '</i>';
   }).join('') + '</span></span>';
 }
-var ST = { me: null, user: null, tab: null, lm: 'in', reg: null, actFor: null, uname: null, edit: null, classes: null, open: null, studs: {}, rosters: null };
+var ST = { me: null, user: null, tab: null, lm: 'in', reg: null, actFor: null, uname: null, edit: null, classes: null, open: null, studs: {}, rosters: null, subjects: null, subjOk: false };
 var frames = {};
 function isTeacher() { return !!(ST.me && (ST.me.teacher || ST.me.admin || ST.me.dev)); }
 function isDev() { return !!(ST.me && ST.me.dev); }
@@ -1710,7 +1721,7 @@ $('lookBtn').onclick = function (e) { e.stopPropagation(); togglePop('look'); };
 $('scrim').onclick = closePops;
 document.addEventListener('click', function (e) {
   var path = e.composedPath ? e.composedPath() : [];
-  var ids = ['pop', 'look', 'help', 'ai'];
+  var ids = ['pop', 'look'];
   for (var i = 0; i < ids.length; i++) if (path.indexOf($(ids[i])) >= 0) return; /* 点击时面板里的按钮可能已被重画摘掉，closest 会找不到 .pop */
   // 卡片自己的点击要在冒泡到这里之前把弹层开好；不放行的话文档这一层会立刻又把它关掉（看起来像点了没反应）
   if (!e.target.closest('.pop') && !e.target.closest('#acct') && !e.target.closest('#lookBtn') && !e.target.closest('.tile[data-pop]')) {
@@ -1737,11 +1748,15 @@ var MG = {
   tcode: { name: '教师邀请码', c: ['#c38cff', '#9b51e0'], icon: '<rect x="3" y="6" width="18" height="12" rx="2.5"/><path d="M15 6v12" stroke-dasharray="1.5 2.5"/><path d="M7 10.5h4M7 13.5h3"/>' },
   gcode: { name: '好友邀请码', c: ['#ff9f0a', '#ff6b00'], icon: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M19 8v6M16 11h6"/>' },
   scode: { name: '学生课堂码', c: ['#64d2c8', '#0fa3a0'], icon: '<rect x="4" y="4" width="6" height="6" rx="1.2"/><rect x="14" y="4" width="6" height="6" rx="1.2"/><rect x="4" y="14" width="6" height="6" rx="1.2"/><path d="M14 14h2.5v2.5H14zM17.5 17.5H20V20h-2.5zM20 14v1M14 20v-1"/>' },
+  subj: { name: '科目', c: ['#5ad16f', '#24a148'], icon: '<rect x="4.5" y="3" width="15" height="18" rx="3.5"/><path d="M8.5 12l2.5 2.5 4.5-5"/>' },
   adm: { name: '管理员', c: ['#a1a1a6', '#636366'], icon: '<path d="M12 3l7.5 3v5.5c0 4.5-3.2 8.2-7.5 9.5-4.3-1.3-7.5-5-7.5-9.5V6z"/><path d="M9 12l2 2 4-4"/>' }
 };
 // 2026-11-04 课堂码并入班级面板：cls 面板现在也画码了，codes 变了要跟着重画。
 // scode 那张独立卡已经取消，这里保留映射不影响（万一以后还有别处 openSheet('scode')）。
-var NEED = { cls: ['cls', 'codes'], pw: ['cls'], gcode: ['codes'], tcode: ['codes'], scode: ['codes', 'cls'], adm: ['adm'] }; // 哪份数据变了，要重画哪张面板
+/* 2026-11-08 补 subj：科目面板加进来时漏登记这一项，导致 loadSubjects() → renderMgmt('subj')
+   在「面板正开着」时走 NEED['subj'].indexOf 直接抛 TypeError（保存完科目就报「失败：Cannot read
+   properties of undefined (reading 'indexOf')」，rpc 其实已经成功了）。 */
+var NEED = { cls: ['cls', 'codes'], subj: ['subj'], pw: ['cls'], gcode: ['codes'], tcode: ['codes'], scode: ['codes', 'cls'], adm: ['adm'] }; // 哪份数据变了，要重画哪张面板
 // 2026-11-02 用户要求：学生忘密码时，管理员 / 任课教师 / 开发者都能重置。
 // 判断用 isTeacher() || m.admin || m.dev —— 不能只写 isTeacher()：
 // 管理员和开发者不一定带教师身份，只判 isTeacher() 会让他们连这张卡都看不到。
@@ -1750,6 +1765,8 @@ var NEED = { cls: ['cls', 'codes'], pw: ['cls'], gcode: ['codes'], tcode: ['code
 function mgList() {
   var m = ST.me || {}, L = [], staff = isTeacher() || m.admin || m.dev;
   if (isTeacher()) L.push('cls');
+  // 2026-11-08 科目管理上收首页：和班级并列，教师统一在这里建/改/删科目，子工具只读。
+  if (isTeacher()) L.push('subj');
   if (staff) L.push('pw');
   // 2026-11-04 用户要求：「课堂码和班级功能重复甚至跳转多此一举，合并到班级」。
   // 原来「班级」面板里每行有个「课堂码」按钮跳到独立的「学生课堂码」面板，两个入口看同一套数据。
@@ -1770,6 +1787,7 @@ function liveN(role) {
 }
 function mgSum(k) {
   if (k === 'cls') { var C = ST.classes || []; return !ST.clsOk ? '…' : C.length ? C.length + ' 个班 · ' + C.reduce(function (s, c) { return s + (c.total || 0); }, 0) + ' 人' : '还没有班级'; }
+  if (k === 'subj') { var S2 = ST.subjects || []; return !ST.subjOk ? '…' : S2.length ? S2.length + ' 个科目' : '还没有科目'; }
   // 重置密码这张卡的摘要显示「可以重置多少人的密码」= 所有班已开通人数之和，比「几个码」有用
   if (k === 'pw') {
     var C2 = ST.classes || [];
@@ -1786,6 +1804,7 @@ function renderMgmt(part) {
   // 只判 isTeacher() 的话，他们点进重置密码只会看到「还没有班级」。
   var staff = isTeacher() || m.admin || m.dev;
   if (staff && ST.classes === null) { ST.classes = []; loadClasses(); }
+  if (isTeacher() && ST.subjects === null) { ST.subjects = []; loadSubjects(); }
   if (isTeacher() && ST.codes === undefined) { ST.codes = null; loadCodes(); }
   if (m.dev && ST.teachers === undefined) { ST.teachers = null; loadTeachers(); }
   if (box.dataset.sig !== sig) { // 身份变了才重建卡片（重建会重放进场动画），数据变了只改概要
@@ -1804,12 +1823,14 @@ function renderMgmt(part) {
     });
   } else box.querySelectorAll('[data-k]').forEach(function (b) { b.querySelector('.sum').textContent = mgSum(b.dataset.k); });
   if (ST.sheet && L.indexOf(ST.sheet) < 0) $('sheet').close();
-  else if (ST.sheet && (!part || NEED[ST.sheet].indexOf(part) >= 0)) renderSheet();
+  // NEED 没登记的面板（比如以后新加的）按「part 变了一律重画」处理，不要抛 undefined.indexOf
+  else if (ST.sheet && (!part || (NEED[ST.sheet] || []).indexOf(part) >= 0)) renderSheet();
 }
 function openSheet(k) { ST.sheet = k; $('shT').textContent = MG[k].name; renderSheet(); if (!$('sheet').open) $('sheet').showModal(); $('shB').scrollTop = 0; }
 function renderSheet() {
   var k = ST.sheet; $('shA').innerHTML = '';
   if (k === 'cls') sheetCls();
+  else if (k === 'subj') sheetSubj();
   else if (k === 'pw') sheetPw();
   else if (k === 'adm') sheetAdm();
   else sheetCode(k === 'tcode' ? 'teacher' : k === 'gcode' ? 'guest' : 'student');
@@ -2442,6 +2463,79 @@ async function loadClasses() {
   try { var r = await Promise.all([HX.rpc('hx_my_classes'), HX.rpc('hx_my_guests').catch(function () { return []; })]); ST.classes = r[0] || []; ST.guests = r[1] || []; } catch (e) { ST.classes = []; toast('班级名单读取失败：' + e.message); }
   ST.clsOk = true; renderMgmt('cls');
 }
+// 科目（hx_exam_subject）：教师统一在首页管理，资料库/考试/考勤只读。教师首次进来不再自动插「单片机」。
+async function loadSubjects() {
+  try { ST.subjects = await HX.rpc('hx_exam_subject_list') || []; }
+  catch (e) { ST.subjects = []; toast('科目读取失败：' + e.message); }
+  ST.subjOk = true; renderMgmt('subj');
+}
+// 新科目代号：取得到纯英文就用它（小写），否则 sub+时间戳（和资料库 subKey 同一套规则）
+function subjKey(name) {
+  var ascii = String(name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (ascii.length >= 3 && /^[a-z]/.test(ascii) && !(ST.subjects || []).some(function (s) { return s.key === ascii.slice(0, 20); })) return ascii.slice(0, 20);
+  return 'sub' + Date.now().toString(36) + Math.random().toString(36).slice(2, 4);
+}
+/* 科目面板：和「班级」同构。列表 + 新建 / 改名 / 删除。
+   新建 = 建 hx_exam_subject + 同步建同名刷题空题库（quiz_publish，id=科目代号），
+   这样刷题里立刻出现这个科目；老师之后在资料库出题「发布到刷题」填充它。 */
+function sheetSubj() {
+  var box = $('shB'), S = ST.subjects || [];
+  $('shA').innerHTML = '<button class="btn sm" id="sjAdd">＋ 新建科目</button>';
+  box.innerHTML =
+    '<p class="msg" style="margin:0 0 12px;color:var(--dim,#8a8f98)">科目给资料库、考试、考勤、刷题共用：在这里建一个，各处都能选到；建完会顺手在刷题里也建一个同名空题库。</p>' +
+    '<div class="cls">' + (S.length ? S.map(function (s) {
+      var n = [s.name].concat((s.mats || 0) ? ['资料 ' + s.mats] : []).concat((s.banks || 0) ? ['题 ' + s.banks] : []).join(' · ');
+      return '<div class="cl"><div><h3>' + esc(s.name) + '</h3><small>' + esc(n) + (s.quiz_bank ? ' · 刷题 ' + esc(s.quiz_bank) : '') + '</small></div>' +
+        '<div class="acts">' +
+        '<button class="btn sub sm" data-sjren="' + s.id + '">改名</button>' +
+        '<button class="btn sub sm ib bad" data-sjdel="' + s.id + '">删除</button></div></div>';
+    }).join('') : '<p class="empty">还没有科目：点右上角「＋ 新建科目」建第一个。</p>') + '</div>';
+  $('sjAdd').onclick = function () { subjEdit(null); };
+  box.querySelectorAll('[data-sjren]').forEach(function (b) { b.onclick = function () { subjEdit(+b.dataset.sjren); }; });
+  box.querySelectorAll('[data-sjdel]').forEach(function (b) { b.onclick = function () { subjDel(+b.dataset.sjdel); }; });
+}
+function subjEdit(id) {
+  var s = id == null ? null : (ST.subjects || []).filter(function (x) { return +x.id === id; })[0];
+  if (id != null && !s) return;
+  // 用 sheet 面板里的确认弹窗风格：直接内联一个编辑表单
+  var box = $('shB');
+  box.innerHTML = '<div class="panel f">' +
+    '<label class="f">科目名字<input id="sjName" maxlength="30" autocomplete="off" value="' + esc(s ? s.name : '') + '" placeholder="例如：电子技术基础"></label>' +
+    '<p class="msg" style="margin:0;color:var(--dim,#8a8f98);font-size:12px">' + (s ? '改名不影响资料和题。' : '建好会自动在刷题里加一个同名空题库；之后到「资料库」出题再发布进刷题。') + '</p>' +
+    '<div style="display:flex;gap:8px;margin-top:4px"><button class="btn" id="sjSave">' + (s ? '保存' : '新建') + '</button><button class="btn sub" id="sjCancel">取消</button></div>' +
+    '<p class="msg" id="sjErr" style="display:none"></p></div>';
+  $('sjCancel').onclick = function () { sheetSubj(); };
+  $('sjName').focus();
+  $('sjSave').onclick = async function () {
+    var name = $('sjName').value.trim();
+    if (!name) { $('sjErr').textContent = '请填科目名字'; $('sjErr').style.display = ''; return; }
+    $('sjSave').disabled = true; $('sjErr').style.display = 'none';
+    try {
+      var key = s ? s.key : subjKey(name);
+      var r = await HX.rpc('hx_exam_subject_save', { p_key: key, p_name: name, p_kind: s ? s.kind : 'theory', p_quiz_bank: s && s.quiz_bank ? s.quiz_bank : key });
+      // 新建时同步建刷题空题库（改名不动刷题）
+      if (!s) {
+        try { await HX.rpc('quiz_publish', { p_id: key, p_name: name, p_questions: [], p_owner_name: '', p_classes: [] }); }
+        catch (e2) { toast('科目已建，但刷题空题库没建成：' + e2.message); }
+      }
+      await loadSubjects();
+      sheetSubj();
+      toast(s ? '已保存' : '已建科目「' + name + '」');
+    } catch (e) { $('sjSave').disabled = false; $('sjErr').textContent = '失败：' + e.message; $('sjErr').style.display = ''; }
+  };
+}
+function subjDel(id) {
+  var s = (ST.subjects || []).filter(function (x) { return +x.id === id; })[0];
+  if (!s) return;
+  ask('删除科目', '删除「' + s.name + '」？它下面的资料、题池会一起删掉；已经发布到刷题的题不受影响。', '删除').then(function (ok) {
+    if (!ok) return;
+    return HX.rpc('hx_exam_subject_del', { p_id: id }).then(function (r) {
+      ((r && r.paths) || []).forEach(function (p) { try { HX.api('/storage/v1/object/exam-material/' + String(p).replace(/^\/+/, ''), { method: 'DELETE' }); } catch (e) { } });
+      toast('已删除科目');
+      loadSubjects();
+    });
+  }).catch(function (e) { toast('删不了：' + e.message); });
+}
 var xlsxP = null;
 function loadXLSX() { return xlsxP || (xlsxP = new Promise(function (ok, no) { var s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'; s.onload = ok; s.onerror = function () { xlsxP = null; no(new Error('表格组件加载失败')); }; document.head.appendChild(s); })); }
 // 考勤表：第 2 行“学期：… 班级：…”，下面每行 序号 | 学号 | 姓名；也认其他表：一行里第一个 6～20 位数字当学号，右边一格当姓名
@@ -2477,7 +2571,7 @@ addEventListener('popstate', function () { var id = location.hash.slice(1); if (
 addEventListener('hashchange', function () { var id = location.hash.slice(1); if (id !== (ST.tab || '')) show(id, 'replace'); });
 function reloadTools() { for (var k in frames) { if (k !== ST.tab) { frames[k].remove(); delete frames[k]; } else { delete frames[k].dataset.ready; frames[k].src = frames[k].src; } } } // 工具页把登录记在内存里，换人后重新打开
 async function refresh() {
-  ST.me = null; ST.user = null; ST.uname = null; ST.classes = null; ST.guests = null; ST.clsOk = false; ST.studs = {}; ST.edit = null; ST.codes = undefined; ST.codesErr = null; ST.teachers = undefined; ST.aCode = null; ST.groups = undefined; ST.grpEdit = null;
+  ST.me = null; ST.user = null; ST.uname = null; ST.classes = null; ST.guests = null; ST.clsOk = false; ST.studs = {}; ST.edit = null; ST.codes = undefined; ST.codesErr = null; ST.teachers = undefined; ST.aCode = null; ST.groups = undefined; ST.grpEdit = null; ST.subjects = null; ST.subjOk = false;
   helpLastTab = null; // 换账号（登录 / 退出 / 切换）后使用说明回到按身份默认的那一版
   if (HX.in()) {
     try { var res = await Promise.all([HX.rpc('hx_me'), HX.user()]); ST.me = res[0]; ST.user = res[1]; HXTheme.setDev(ST.me && ST.me.dev); }

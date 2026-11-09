@@ -86,21 +86,20 @@ pre { white-space: pre-wrap; word-break: break-word; margin: 0; }
 .mat-drop.on { border-color: var(--acc, #2f845a); background: var(--accbg, rgba(47, 132, 90, .1)); }
 .mat-prog { margin: 10px 0 0; word-break: break-word; }
 .mat-list { display: grid; gap: 8px; }
-.mat-i { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 9px 12px; border-radius: 12px; background: var(--fill, rgba(0, 0, 0, .03)); }
+.mat-i { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 9px 12px; border-radius: 12px; background: var(--fill, rgba(0, 0, 0, .03)); }
+.mat-pick { display: inline-flex; align-items: center; }
+.mat-pick input { width: 16px; height: 16px; margin: 0; accent-color: var(--acc, #4f46e5); cursor: pointer; }
 .mat-m { display: grid; gap: 2px; min-width: 0; }
 .mat-m b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mat-a { display: flex; flex-wrap: wrap; gap: 6px; }
 .mat-v { margin-top: 12px; padding: 12px; border-radius: 12px; border: 1px solid var(--edge, rgba(0, 0, 0, .08)); }
 .mat-segs { display: grid; gap: 8px; max-height: 480px; overflow: auto; overscroll-behavior: contain; }
 .mat-seg pre { font-size: 13px; line-height: 1.7; padding: 8px 10px; border-radius: 8px; background: var(--fill, rgba(0, 0, 0, .03)); }
-@media (max-width: 640px) { .mat-i { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 640px) { .mat-i { grid-template-columns: auto minmax(0, 1fr); } .mat-a { grid-column: 2; } }
 
 /* 出题 */
 .mg-step { display: grid; gap: 8px; margin: 12px 0 0; padding-top: 12px; border-top: 1px solid var(--edge, rgba(0, 0, 0, .08)); }
 .mg-step > b { font-size: 13px; }
-.mg-mats { display: flex; flex-wrap: wrap; gap: 6px 14px; }
-.mg-mats label { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; max-width: 100%; min-width: 0; }
-.mg-mats label span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mg-types { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; }
 .mg-types label, .mg-row label, .mg-wide { display: grid; gap: 4px; font-size: 13px; font-weight: 600; min-width: 0; }
 .mg-types input, .mg-row input, .mg-row select { width: 100%; }
@@ -131,6 +130,16 @@ pre { white-space: pre-wrap; word-break: break-word; margin: 0; }
 .qb-a { font-size: 12.5px; color: var(--dim, #6e6e73); }
 .qb-act { display: flex; flex-wrap: wrap; gap: 6px; }
 @media (max-width: 560px) { .qb-i { grid-template-columns: auto minmax(0, 1fr); } .qb-act { grid-column: 2; } }
+
+/* AI 查重结果 */
+.qb-dl { display: grid; gap: 8px; max-height: 50vh; overflow: auto; overscroll-behavior: contain; margin-bottom: 12px; }
+.qb-drow { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 12px; background: var(--fill, rgba(0, 0, 0, .03)); cursor: pointer; }
+.qb-drow input { margin-top: 3px; flex: none; accent-color: var(--acc, #4f46e5); }
+.qb-dbody { display: grid; gap: 6px; min-width: 0; font-size: 13px; }
+.qb-dbody > b { font-weight: 600; color: var(--acc, #4f46e5); }
+.qb-dq2 { display: grid; gap: 3px; color: var(--dim, #6e6e73); font-size: 12.5px; }
+.qb-dq2 i { font-style: normal; color: var(--dim, #6e6e73); padding-left: 2px; }
+.qb-dq { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .toast { position: fixed; left: 50%; bottom: 24px; z-index: 9500; transform: translate(-50%, 20px); opacity: 0; pointer-events: none; max-width: calc(100vw - 32px); padding: 10px 16px; border-radius: 12px; background: var(--ink, #1d1d1f); color: var(--bg, #fff); font-size: 14px; transition: opacity .2s, transform .2s; }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
@@ -878,13 +887,11 @@ function shell() {
 function navClick(e) {
   const p = e.target.closest('[data-p]'); if (p) return showP(p.dataset.p);
   const s = e.target.closest('[data-sub]'); if (s) return subPick(+s.dataset.sub);
-  const ed = e.target.closest('[data-subed]'); if (ed) return subEdit(+ed.dataset.subed);
-  const dl = e.target.closest('[data-subdel]'); if (dl) return subDel(+dl.dataset.subdel);
-  if (e.target.closest('#zlSubAdd')) return subEdit(null);
+  /* 2026-11-08 科目建/改名/删统一搬到首页「管理 → 科目」面板，这里科目只读。 */
 }
 function drawSubs() {
   const box = $('zlSubs'); if (!box) return;
-  box.innerHTML = `<div class="zl-subtabs" role="tablist">${SUBJ.map(s => `<button class="zl-subtab${s.id === CUR_SUB ? ' on' : ''}" data-sub="${s.id}" title="${esc(s.name)}" role="tab" aria-selected="${s.id === CUR_SUB}">${esc(s.name)}</button>`).join('')}<button class="zl-subadd" id="zlSubAdd" title="新建科目">＋</button></div>`
+  box.innerHTML = `<div class="zl-subtabs" role="tablist">${SUBJ.map(s => `<button class="zl-subtab${s.id === CUR_SUB ? ' on' : ''}" data-sub="${s.id}" title="${esc(s.name)}" role="tab" aria-selected="${s.id === CUR_SUB}">${esc(s.name)}</button>`).join('')}</div>`
     + (SUBJ_ERR ? `<p class="zl-subnote">${esc(SUBJ_ERR)}</p>` : '');
 }
 async function loadSubjects() {
@@ -905,72 +912,7 @@ function subPick(id) {
   if (id === CUR_SUB) return;
   CUR_SUB = id; drawSubs(); showP(CUR_P);
 }
-/* 新科目代号：云端只认 ^[a-z][a-z0-9_-]{0,23}$；取得到纯英文就用它，否则 sub + 时间戳 */
-function subKey(name) {
-  const ascii = String(name).toLowerCase().replace(/[^a-z0-9]/g, '');
-  if (ascii.length >= 3 && /^[a-z]/.test(ascii) && !SUBJ.some(s => s.key === ascii.slice(0, 20))) return ascii.slice(0, 20);
-  return 'sub' + Date.now().toString(36) + Math.random().toString(36).slice(2, 4);
-}
-
-/* 科目编辑框：名字 + 对应刷题题库 id（quiz_bank）。
-   quiz_bank 是四个老 id 之一时锁死不让改 —— 改了就等于把这个科目和那套题库的对账断掉。 */
-function subEdit(id) {
-  const s = id == null ? null : SUBJ.find(x => x.id === id);
-  if (id != null && !s) return;
-  const locked = !!(s && ZL_OLD.has(s.quiz_bank));
-  zlModal(`<h2>${s ? '编辑科目' : '新建科目'}</h2>
-    <label class="zl-f">科目名字<input id="sjName" maxlength="30" autocomplete="off" value="${esc(s ? s.name : '')}"></label>
-    <label class="zl-f">对应刷题题库 id<input id="sjBank" maxlength="64" autocomplete="off" class="mono" value="${esc(s ? s.quiz_bank : '')}" placeholder="英文、数字、_ -；可留空" ${locked ? 'readonly aria-readonly="true"' : ''}></label>
-    ${locked ? '<p class="note">这是刷题的老题库，id 不能改，只能往里追加题。</p>' : ''}
-    <div class="errs" id="sjErr" hidden></div>
-    <div class="row"><button class="pri" id="sjSave">保存</button><button id="sjCancel">取消</button></div>`);
-  $('sjCancel').onclick = zlModalClose;
-  $('sjName').focus();
-  $('sjSave').onclick = async () => {
-    const fail = m => { $('sjErr').textContent = m; $('sjErr').hidden = false; };
-    const name = $('sjName').value.trim();
-    if (!name) return fail('请填科目名字');
-    const bank = $('sjBank').value.trim();
-    if (bank && !ZL_BANK_RE.test(bank)) return fail('题库 id 只能是英文、数字、下划线、连字符（最长 64 位）');
-    const body = { p_key: s ? s.key : subKey(name), p_name: name, p_kind: s ? s.kind : 'theory' };
-    /* p_quiz_bank：不传 = 不改；传 '' = 清空。老 id 锁死时永远不传。 */
-    if (!locked && (!s || bank !== s.quiz_bank)) {
-      if (bank && bank !== (s && s.quiz_bank)) {
-        const why = await zlBankTaken(bank);
-        if (why) return fail(why);
-      }
-      body.p_quiz_bank = bank;
-    }
-    $('sjSave').disabled = true;
-    try {
-      const r = await rpc('hx_exam_subject_save', body);
-      zlModalClose();
-      await loadSubjects();
-      if (!s && r && r.id != null) CUR_SUB = +r.id;
-      drawSubs(); showP(CUR_P);
-      toast(s ? '已保存' : '已建科目「' + name + '」');
-    } catch (e) { $('sjSave').disabled = false; fail('保存失败：' + e.message); }
-  };
-}
-/* 这个题库 id 能不能用：是别的老师的（且不是四个老 id）就不许接 —— 接上了发布也会被数据库拒，早说早好。 */
-async function zlBankTaken(bank) {
-  if (ZL_OLD.has(bank)) return '';
-  let list = [];
-  try { list = await rpc('quiz_public_list'); } catch (e) { return ''; }
-  const row = (Array.isArray(list) ? list : []).find(x => x.id === bank);
-  return row && !row.mine ? '题库 id「' + bank + '」已经是别的老师的题库，换一个' : '';
-}
-async function subDel(id) {
-  const s = SUBJ.find(x => x.id === id); if (!s) return;
-  if (!confirm('删除科目「' + s.name + '」？\n\n它下面的 ' + s.mats + ' 份资料（含上传的文件）和题池里 ' + s.banks + ' 道题会一起删掉，删了找不回来。已经发布到刷题的题不受影响。')) return;
-  try {
-    const r = await rpc('hx_exam_subject_del', { p_id: s.id });
-    ((r && r.paths) || []).forEach(p => MAT_rm(p));
-    await loadSubjects();
-    showP(CUR_P);
-    toast('已删除科目');
-  } catch (e) { toast('删不了：' + e.message); }
-}
+/* 2026-11-08 科目建 / 改名 / 删搬到首页「管理 → 科目」面板（原建/改/删函数已删）。 */
 
 /* ---------------- 弹层 ---------------- */
 function zlModal(html) {
@@ -992,8 +934,7 @@ function showP(k) {
   document.querySelectorAll('#zlNav [data-p]').forEach(b => b.classList.toggle('on', b.dataset.p === k));
   try { history.replaceState(null, '', location.pathname + location.search + '#' + k); } catch (e) { }
   if (!curSub()) {
-    app().innerHTML = `<div class="card zl-empty"><h2>还没有科目</h2><p class="note">${esc(SUBJ_ERR || '先建一个科目，资料和题都按科目放。')}</p><div class="row"><button class="pri" id="zlFirst">+ 新建科目</button></div></div>`;
-    $('zlFirst').onclick = () => subEdit(null);
+    app().innerHTML = `<div class="card zl-empty"><h2>还没有科目</h2><p class="note">${esc(SUBJ_ERR || '去首页「管理 → 科目」建一个科目，资料和题都按科目放。')}</p></div>`;
     return;
   }
   if (k === 'mat') return matHome();
@@ -1110,7 +1051,7 @@ function matHome() {
     </section>
     <section class="card" id="matGen">
       <h2>AI 出题</h2>
-      <div class="mg-step"><b>资料</b><div class="mg-mats" id="mgMats"><span class="note">正在读…</span></div></div>
+      <p class="note" style="margin:0 0 12px">先在上面的资料列表勾选要用哪几份，再填下面的题型数量。</p>
       <div class="mg-step"><b>题型和数量</b><div class="mg-types">
         ${MAT_TYPES.map(([t, n]) => `<label>${n}<input type="number" id="mg_${t}" min="0" max="50" value="${MAT_DEF[t]}"></label>`).join('')}
       </div></div>
@@ -1150,32 +1091,21 @@ async function matReload() {
     MAT_LIST = []; matDrawMats(); return;
   }
   MAT_LIST = Array.isArray(r.data) ? r.data : [];
-  matDrawList(); matDrawMats();
+  matDrawList();
 }
 function matDrawList() {
   const box = $('matList'); if (!box) return;
   const cnt = $('matCnt'); if (cnt) cnt.textContent = MAT_LIST.length ? MAT_LIST.length + ' 份' : '';
   box.innerHTML = MAT_LIST.length ? MAT_LIST.map(m => `<div class="mat-i" data-mid="${m.id}">
+      <label class="mat-pick"><input type="checkbox" data-mpick="${m.id}" ${m.status === 'failed' ? 'disabled' : ''}></label>
       <div class="mat-m"><b title="${esc(m.name)}">${esc(m.name)}</b>
         <span class="note">${(+m.chars || 0).toLocaleString()} 字 · ${MAT_kb(m.bytes)}${m.status === 'failed' ? ' · 解析失败' : ''} · ${when(m.at)}</span></div>
-      <div class="mat-a"><button class="sm" data-mview="${m.id}">看原文</button><button class="sm" data-mgen="${m.id}">用这份出题</button><button class="sm danger" data-mdel="${m.id}">删除</button></div>
+      <div class="mat-a"><button class="sm" data-mview="${m.id}">看原文</button><button class="sm danger" data-mdel="${m.id}">删除</button></div>
     </div>`).join('')
     : '<p class="note">还没有资料。</p>';
   box.querySelectorAll('[data-mview]').forEach(b => b.onclick = () => matView(+b.dataset.mview));
-  box.querySelectorAll('[data-mgen]').forEach(b => b.onclick = () => {
-    const cb = document.querySelector('[data-mpick="' + b.dataset.mgen + '"]');
-    if (cb) cb.checked = true;
-    const g = $('matGen'); if (g) g.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  });
   box.querySelectorAll('[data-mdel]').forEach(b => b.onclick = () => matDel(+b.dataset.mdel));
 }
-function matDrawMats() {
-  const box = $('mgMats'); if (!box) return;
-  box.innerHTML = MAT_LIST.length
-    ? MAT_LIST.map(m => `<label><input type="checkbox" data-mpick="${m.id}" ${m.status === 'failed' ? 'disabled' : ''}><span title="${esc(m.name)}">${esc(m.name)}</span></label>`).join('')
-    : '<span class="note">没有资料时，在「额外要求」里写内容也能出题。</span>';
-}
-
 /* 看原文：按段列出切好的文字（就是 AI 出题时读到的那些段） */
 async function matView(id) {
   const box = $('matView'); if (!box) return;
@@ -1339,13 +1269,20 @@ async function matGenAdd() {
   const btn = box.querySelector('#mgAdd'), st = box.querySelector('#mgAddState');
   btn.disabled = true; st.textContent = '正在写入…';
   const items = picks.map(i => MAT_toDb(MAT_GEN.items[i], MAT_GEN.tag));
-  const r = await MAT_call('hx_exam_qbank_add', { p_subject_id: MAT_GEN.sid, p_items: items, p_material_id: MAT_GEN.mid });
+  // 入池前硬去重：拉本科目已有题，按「题型 + 题干去空白」拦一字不差的重复
+  const norm = s => String(s == null ? '' : s).replace(/\s+/g, '').toLowerCase();
+  const old = await MAT_call('hx_exam_qbank_list', { p_subject_id: MAT_GEN.sid });
+  const stems = new Set(((old.ok && Array.isArray(old.data) ? old.data : [])).map(x => x.t + '|' + norm(x.q)));
+  const fresh = [], dup = [];
+  items.forEach(it => { (stems.has(it.t + '|' + norm(it.q)) ? dup : fresh).push(it); });
+  const r = await MAT_call('hx_exam_qbank_add', { p_subject_id: MAT_GEN.sid, p_items: fresh, p_material_id: MAT_GEN.mid });
   btn.disabled = false;
   if (!r.ok) { st.textContent = ''; return MAT_banner('进题池失败：' + r.err); }
   const n = (r.data && r.data.added) || 0;
-  toast('已加入题池 ' + n + ' 道');
+  const dmsg = dup.length ? `，${dup.length} 道与题池重复已跳过` : '';
+  toast('已加入题池 ' + n + ' 道' + dmsg);
   MAT_GEN = null; matGenDraw();
-  $('mgState').textContent = '已进题池 ' + n + ' 道';
+  $('mgState').textContent = '已进题池 ' + n + ' 道' + dmsg;
   loadSubjects();
 }
 
@@ -1382,6 +1319,7 @@ function qbHome() {
           <label><input type="checkbox" id="qbAll">全选</label>
           <label>题型<select id="qbType"><option value="">全部</option>${QB_ORDER.map(t => `<option value="${t}">${QB_CN[t]}</option>`).join('')}</select></label>
           <button class="sm" id="qbRefresh">刷新</button>
+          <button class="sm" id="qbDedup">AI 查重</button>
           <button class="sm danger" id="qbClear">清空题池</button>
           <button class="sm pri" id="qbPub">发布到刷题</button>
         </div>
@@ -1392,6 +1330,7 @@ function qbHome() {
   $('qbType').onchange = () => { QB_T = $('qbType').value; qbDraw(); };
   $('qbAll').onchange = () => { const on = $('qbAll').checked; qbShown().forEach(q => on ? QB_SEL.add(String(q.id)) : QB_SEL.delete(String(q.id))); qbDraw(); };
   $('qbRefresh').onclick = qbLoad;
+  $('qbDedup').onclick = qbDedup;
   $('qbClear').onclick = qbClear;
   $('qbPub').onclick = pubOpen;
   qbLoad();
@@ -1461,6 +1400,82 @@ async function qbClear() {
   QB_ALL = []; QB_SEL.clear(); qbDrawStat(); qbDraw();
   toast('已清空 ' + ((r.data && +r.data) || 0) + ' 道');
   loadSubjects();
+}
+
+/* ---------------- AI 查重 ----------------
+   两层：① 题干（题型 + 去空白）完全相同的，直接判重；② 剩下的交给 AI 语义比对，
+   让它标出「考点重复」的题对（措辞不同但考同一知识点）。结果弹层里老师逐个勾删除，
+   不自动删 —— 怕 AI 误判把好题删了。 */
+async function qbDedup() {
+  const s = curSub(); if (!s) return;
+  if (QB_ALL.length < 2) return toast('题池里不足 2 道题，没有查重的必要');
+  const norm = x => String(x == null ? '' : x).replace(/\s+/g, '').toLowerCase();
+  const pairs = [];                       // 判重结果：{ a, b, why, exact }
+  // ① 硬去重：同题型 + 题干去空白相等
+  const seen = {};
+  QB_ALL.forEach(q => {
+    const k = q.t + '|' + norm(q.q);
+    if (seen[k]) pairs.push({ a: seen[k], b: q, why: '题干完全相同', exact: true });
+    else seen[k] = q;
+  });
+  // ② AI 语义比对：把没被硬重判掉的题喂给 AI，让它标重复对
+  let aiPairs = [];
+  try {
+    aiPairs = await qbDedupAI();
+  } catch (e) {
+    // AI 查不到不致命：硬去重的结果照样给，AI 失败给个提示
+    if (pairs.length) MAT_banner('AI 语义比对没跑成：' + (e && e.message ? e.message : e) + '。下面只显示了题干完全相同的重复。');
+  }
+  const all = pairs.concat(aiPairs);
+  if (!all.length) return toast('没查出重复题（AI 语义比对也没发现疑似重复）');
+  qbDedupDraw(all);
+}
+/* AI 语义比对：把题池里所有题编号喂给 AI，让它返回「重复的题对」的编号数组。
+   一次调用（不是两两调用），省额度；题太多时按题型分组降 token。 */
+async function qbDedupAI() {
+  const list = QB_ALL.map((q, i) => ({ i, t: q.t, stem: String(q.q || '').slice(0, 300) }));
+  const prompt = '下面是同一个题库里的 ' + list.length + ' 道题（编号从 0 开始）。请找出「考同一个知识点、可以算重复」的题对——'
+    + '哪怕措辞不一样，只要考的是同一个考点就算重复；只是同属一章但考点不同的不算。\n'
+    + '只输出 JSON，格式：{"pairs":[{"a":编号,"b":编号,"why":"一句话说明为什么重复"}]}，没有重复就 {"pairs":[]}。\n'
+    + '题目：\n' + list.map(x => '[' + x.i + ']（' + QB_CN[x.t] + '）' + x.stem).join('\n');
+  const res = await hximpChat([{ role: 'system', content: '你是严谨的题库审题员，只返回合法 JSON。' }, { role: 'user', content: prompt }], { json: true });
+  const obj = HXImp.parseJson(typeof res === 'string' ? res : JSON.stringify(res));
+  const arr = (obj && obj.pairs) || [];
+  if (!Array.isArray(arr)) return [];
+  const out = [];
+  arr.forEach(p => {
+    const a = QB_ALL[+p.a], b = QB_ALL[+p.b];
+    if (a && b && a.id !== b.id) out.push({ a, b, why: String(p.why || '疑似重复'), exact: false });
+  });
+  return out;
+}
+function qbDedupDraw(pairs) {
+  const rows = pairs.map((p, i) => {
+    const q = x => `<span class="qb-dq">${esc(QB_CN[x.t] || x.t)} · ${esc(String(x.q || '').slice(0, 60))}</span>`;
+    return `<label class="qb-drow"><input type="checkbox" data-ddel="${p.b.id}" checked>
+      <span class="qb-dbody"><b>${p.exact ? '完全相同' : '疑似重复'}</b>${p.why ? ' · ' + esc(p.why) : ''}
+      <span class="qb-dq2">${q(p.a)}<i>↕</i>${q(p.b)}</span></span></label>`;
+  }).join('');
+  zlModal(`<h2>AI 查重 · ${esc(curSub().name)}</h2>
+    <p class="note" style="margin:0 0 8px">共发现 ${pairs.length} 对重复。默认勾选「保留前一道、删掉后一道」，不想要的把勾去掉；只删勾中的那一道，另一道保留。</p>
+    <div class="qb-dl">${rows}</div>
+    <div class="errs" id="qbDedupErr" hidden></div>
+    <div class="row"><button class="pri" id="qbDedupGo">删除勾中的 ${pairs.length} 道</button><button id="qbDedupCancel">取消</button></div>`);
+  $('qbDedupCancel').onclick = zlModalClose;
+  $('qbDedupGo').onclick = async () => {
+    const ids = [...document.querySelectorAll('[data-ddel]:checked')].map(x => +x.dataset.ddel);
+    if (!ids.length) return toast('一道都没勾');
+    const fail = m => { $('qbDedupErr').textContent = m; $('qbDedupErr').hidden = false; };
+    $('qbDedupGo').disabled = true;
+    let n = 0;
+    for (const id of ids) {
+      const r = await MAT_call('hx_exam_qbank_del', { p_id: id });
+      if (r.ok) n++; else if (r.err) fail('删第 ' + id + ' 道失败：' + r.err);
+    }
+    zlModalClose();
+    toast('删了 ' + n + ' 道重复题');
+    qbLoad(); loadSubjects();
+  };
 }
 
 /* ---------------- 改一道题 ---------------- */

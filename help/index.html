@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN" data-hx-mode="dark">
+<html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -7,6 +7,18 @@
 <!-- 主题按 data-tool="help" 分键：这个页面的背景 / 主题色独立存 hx-theme:s:help，和首页、别的工具互不影响。 -->
 <script src="../hx-theme.js" data-tool="help"></script>
 <style>
+:root{
+  --bg:#f4f6fa; --panel:#fff; --panel2:#f7f9fc; --edge:#e3e8f0; --ink:#1b2333; --dim:#77839a; --faint:#a2adbf;
+  --shadow:0 14px 34px -24px rgba(23,33,58,.5);
+}
+/* 深浅色跟随主题：hx-theme.js 会在 <html> 上写 data-hx-mode；这里只管背景/面板/文字这些中性色。
+   没引到主题时退回系统偏好（:not([data-hx-mode])）。 */
+@media (prefers-color-scheme: dark){
+  :root:not([data-hx-mode]){ --bg:#0f1420; --panel:#161d2b; --panel2:#1c2536; --edge:#25304a; --ink:#e8edf7; --dim:#94a1b8; --faint:#5d6a82;
+    --shadow:0 16px 38px -26px rgba(0,0,0,.9); }
+}
+:root[data-hx-mode="dark"]{ --bg:#0f1420; --panel:#161d2b; --panel2:#1c2536; --edge:#25304a; --ink:#e8edf7; --dim:#94a1b8; --faint:#5d6a82;
+  --shadow:0 16px 38px -26px rgba(0,0,0,.9); }
 *{box-sizing:border-box}
 html,body{margin:0}
 body{background:var(--bg);color:var(--ink);font:15px/1.62 "Microsoft YaHei",system-ui,-apple-system,"Segoe UI",sans-serif;
@@ -23,16 +35,12 @@ header.top h1 i{font-style:normal;display:inline-grid;place-items:center;width:2
   background:linear-gradient(140deg,var(--acc),var(--acc2));color:#fff;font-size:13px;font-weight:900}
 main{padding-top:16px;padding-bottom:60px}
 .card{background:var(--panel);border:1px solid var(--edge);border-radius:16px;padding:18px;margin-bottom:14px;box-shadow:var(--shadow)}
-/* 老师 / 学生切换 */
-.seg{display:inline-flex;gap:4px;padding:4px;border-radius:12px;background:var(--panel2);border:1px solid var(--edge);margin-bottom:14px}
-.seg button{border:0;background:none;font-size:13.5px;font-weight:700;color:var(--dim);padding:7px 16px;border-radius:9px;cursor:pointer}
-.seg button[aria-pressed="true"]{background:linear-gradient(140deg,var(--acc),var(--acc2));color:#fff}
-/* 分色块说明 */
+/* 分色块说明（.hd 也是卡片：底色跟「卡片通透度」走，用 --card 而不是死透明度） */
 .hx-doc p{margin:0 0 8px;font-size:14px;line-height:1.65;color:var(--dim)}
 .hx-doc b{color:var(--ink);font-weight:600}
-.hx-doc kbd{padding:1px 6px;border-radius:5px;background:var(--fill);font-size:12.5px;font-family:inherit;color:var(--ink)}
+.hx-doc kbd{padding:1px 6px;border-radius:5px;background:var(--fill,#f0f1f4);font-size:12.5px;font-family:inherit;color:var(--ink)}
 .hd{position:relative;margin:0 0 12px;padding:13px 16px 12px 18px;border-radius:14px;
-  background:color-mix(in srgb,var(--hc,var(--acc)) 8%,transparent);
+  background:color-mix(in srgb,var(--hc,var(--acc)) 8%,var(--card,var(--panel)));
   border:1px solid color-mix(in srgb,var(--hc,var(--acc)) 22%,transparent)}
 .hd::before{content:"";position:absolute;left:0;top:14px;bottom:14px;width:3px;border-radius:3px;background:var(--hc,var(--acc))}
 .hd .hdt{display:block;margin-bottom:6px;font-size:14.5px;font-weight:700;color:var(--hc,var(--acc))}
@@ -50,11 +58,7 @@ main{padding-top:16px;padding-bottom:60px}
 </div></header>
 
 <main class="wrap">
-  <div class="seg" id="seg">
-    <button type="button" data-h="teacher" aria-pressed="true">我是老师</button>
-    <button type="button" data-h="student" aria-pressed="false">我是学生</button>
-  </div>
-  <div class="card hx-doc" id="doc"></div>
+  <div class="card hx-doc" id="doc"><p style="color:var(--dim)">正在加载…</p></div>
 </main>
 
 <script>
@@ -190,14 +194,17 @@ main{padding-top:16px;padding-bottom:60px}
   function render(t){
     var doc = document.getElementById('doc');
     doc.innerHTML = (t === 'student' ? helpDocStudent() : helpDocTeacher());
-    document.getElementById('seg').querySelectorAll('button').forEach(function(b){
-      b.setAttribute('aria-pressed', String(b.dataset.h === t));
-    });
   }
-  document.getElementById('seg').querySelectorAll('button').forEach(function(b){
-    b.onclick = function(){ window.scrollTo(0,0); render(b.dataset.h); };
-  });
-  render('teacher');
+  /* 按登录身份自动判：教师 / 管理员 / 开发者看老师版，其余（学生、未登录）看学生版。
+     身份从总入口的 HXPortal.me() 拿（teacher/admin/dev 字段）；嵌在 iframe 里时走 window.top.HXPortal，
+     被单独打开时读不到就退回学生版（不会把老师版露给任何人）。 */
+  var t = 'student';
+  try {
+    var p = (window.HXTheme && HXTheme.portal && HXTheme.portal()) || (window.top !== window && window.top.HXPortal);
+    var m = p && p.me ? p.me() : null;
+    if (m && (m.teacher || m.admin || m.dev)) t = 'teacher';
+  } catch (e) { }
+  render(t);
 })();
 </script>
 </body>
