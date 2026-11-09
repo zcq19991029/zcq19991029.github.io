@@ -194,7 +194,25 @@
   /* 自动跟随首页：已对应的班补人、改名；首页删班重导的按名字接回；
      还有原有班没对应时不自动建新班（免得和要对应的班重复），对应完再建。 */
   function auto(state, hxAll, studentsOf, teacher) {
-    var next = copy(state), changes = [], wait = pending(next).length > 0;
+    var next = copy(state), changes = [];
+
+    /* ① 同名自动对应（2026-11-08 用户报「很多分组是以前让 AI 填的，不用分组工具分的，点不点开放分组都不显示组员」）。
+       根因：这些班是 build_data.py / 手工填进 data.js 的，没有 hxClassId，
+       于是永远挂在 pending() 里「待老师确认」——互评的 peerReady 直接拦住、学生端快照 flush 也跳过（两者都要求 hxClassId）。
+       记分台按本地 cls.groups 画，所以老师看着是「分好组的」，一到云端就什么都发不出去。
+       这里补一次自动认领：**班名完全相同**、且这个首页班还没被别的加分班占着、且同名候选只有一个 —— 才自动对应。
+       名字不同、或一个名字对上多个班的，仍然留给老师手动确认（那种才会认错班）。 */
+    var used = {};
+    (next.classes || []).forEach(function (c) { if (c.hxClassId) used[c.hxClassId] = true; });
+    list(next, hxAll).forEach(function (it) {
+      if (it.cls) return;
+      var cands = pending(next).filter(function (c) { return !used[c.id] && c.name === it.hx.name; });
+      if (cands.length !== 1) return;
+      cands[0].hxClassId = it.hx.id; delete cands[0].hxLocal; used[it.hx.id] = true;
+      changes.push({ cls: cands[0], created: false, linked: true, added: 0, renamed: 0, left: 0, back: 0 });
+    });
+
+    var wait = pending(next).length > 0;
     list(next, hxAll).forEach(function (it) {
       var studs = studentsOf(it.hx.id);
       if (!studs) return;

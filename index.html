@@ -14,23 +14,23 @@
      要登录时调 window.HXPortal.login()；被单独打开时 hx-theme.js 会跳回这里（见 hx-theme.js 的 data-tool）。
      账号：Supabase 华夏工具项目，localStorage paike-session 和各工具共用；身份由数据库 hx_me() 决定。
      脚本里不用反引号模板字符串（本机测试时整页当字符串注入到线上同源页面里）。 -->
-<link rel="stylesheet" href="hx-theme.css?v=352b181">
-<script src="hx-theme.js?v=352b181"></script>
+<link rel="stylesheet" href="hx-theme.css?v=aa245f7">
+<script src="hx-theme.js?v=aa245f7"></script>
 <!-- 首页卡片上的像素小生物：pixelfx 的 12 个 critters（MIT），打包成一个 91 KB 的独立脚本。
      加载失败不影响首页——hx-critters.js 开头就有 window.PixelFX 存在性检查，没有就整段跳过。 -->
-<script src="fx/pixelfx-critters.js?v=352b181" defer></script>
-<script src="fx/hx-critters.js?v=352b181" defer></script>
+<script src="fx/pixelfx-critters.js?v=aa245f7" defer></script>
+<script src="fx/hx-critters.js?v=aa245f7" defer></script>
 <!-- 像素头像库（2026-11-04）：账号面板里除了传照片，还能从 200 多个像素动效里挑一个当头像。
      和上面 critters 同一套路：库（pixelfx-avatars.js）+ 渲染器（hx-avatar.js），都是 defer、
      不进首屏关键路径；不点「像素头像库」就一个动画都不跑。 -->
-<script src="fx/pixelfx-avatars.js?v=352b181" defer></script>
-<script src="fx/hx-avatar.js?v=352b181" defer></script>
+<script src="fx/pixelfx-avatars.js?v=aa245f7" defer></script>
+<script src="fx/hx-avatar.js?v=aa245f7" defer></script>
 <!-- 背景动效（2026-11-03）：12 种天气氛围特效铺在背景层，外观面板里选；加载失败或没选就完全不加载渲染器 -->
-<script src="fx/pixelfx-weather.js?v=352b181" defer></script>
-<script src="fx/hx-weather.js?v=352b181" defer></script>
+<script src="fx/pixelfx-weather.js?v=aa245f7" defer></script>
+<script src="fx/hx-weather.js?v=aa245f7" defer></script>
 <!-- 课堂码大屏二维码：离线 QR 编码器（qrcode 1.5.4 core 打包，MIT，见 fx/NOTICE-qr.md）。延迟加载即可：只有老师点「大屏二维码」时才用 -->
-<script src="fx/hx-qr.js?v=352b181" defer></script>
-<script src="hx-scan.js?v=352b181" defer></script><!-- 全站扫一扫（2026-11-08 K5）：摄像头 + BarcodeDetector / 本地 jsQR -->
+<script src="fx/hx-qr.js?v=aa245f7" defer></script>
+<script src="hx-scan.js?v=aa245f7" defer></script><!-- 全站扫一扫（2026-11-08 K5）：摄像头 + BarcodeDetector / 本地 jsQR -->
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; width: 100%; overflow: hidden; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -595,7 +595,7 @@
   .cl { position: relative; display: grid; grid-template-columns: 1fr auto; gap: 12px 16px; align-items: center; padding: 18px 20px; border-radius: 24px; background: linear-gradient(175deg, var(--card-hi), var(--card-lo)); box-shadow: 0 1px 0 rgba(255, 255, 255, .05) inset, 0 22px 54px -38px var(--shade); animation: rise .7s var(--hx-spring) both; animation-delay: calc(var(--i, 0) * 55ms); transition: transform .35s var(--hx-spring), box-shadow .35s var(--hx-ease); }
   .cl::before { content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px; pointer-events: none; background: linear-gradient(148deg, var(--edge-hi), var(--edge-lo) 36%, transparent 60%, var(--edge-hi)); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; }
   .cl:hover { transform: translateY(-2px); }
-  /* 已收起（四个工具都没勾）的班：整张卡压淡，一眼看出「这学期不用了」，但仍可点回来 */
+  /* 已收起（所有工具都没勾）的班：整张卡压淡，一眼看出「这学期不用了」，但仍可点回来 */
   .cl.idle { opacity: .58; }
   .cl.idle:hover { opacity: .82; }
   .cl h3 { margin: 0; font-size: 19px; font-weight: 600; } .cl small { color: var(--dim); font-size: 14px; }
@@ -1053,8 +1053,14 @@ var TOOLS = [
   { id: 'help', name: '使用说明', url: SITE + '/help/', who: 'all', anon: 0, c: ['#7c9cff', '#4f46e5'], icon: '<circle cx="12" cy="12" r="9"/><path d="M9.6 9.2A2.6 2.6 0 0 1 14.6 10c0 1.7-2.6 2-2.6 3.7"/><circle cx="12" cy="17" r=".9" fill="currentColor" stroke="none"/>' },
   { id: 'feedback', name: '反馈', url: SITE + '/feedback/', splash: 1, who: 'dev', c: ['#c084fc', '#7c3aed'], icon: '<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 8.5l9 6 9-6"/>' } // 开发者专用：看各工具收到的建议和问题
 ];
-// 班级给哪些工具用（数据库 hx_classes.tools）；一个都不勾 = 都用
-var CLASS_TOOLS = [['wiring', '接线仿真'], ['mcu', '单片机'], ['exam', '考试'], ['jiafen', '小组加分']];
+// 班级给哪些工具用（数据库 hx_classes.tools 里的 id）。
+// 2026-11-08 用户截图：「这里的按钮块好像也不够 能给学生开放的不止这些了」——
+// 原来只有 接线/单片机/考试/加分 4 个，漏了刷题和考勤（这两个学生也真在用）。
+// 现在 6 个都是「按班级开关」的：接线仿真(rank.js)、刷题(store.js myClasses)、单片机(ui-roster 提示)、
+// 考试(app.js)、考勤(teacher.js T.cls)、小组加分(hx-roster lit)。
+// 放不进来的：进制转换（纯本地、不分班）、资料库/排课/课程进度/AI 设置（教师工具，学生看不到）。
+// 一个都不勾 = 这个班在这 6 个工具里都不出现（= 本学期不用了，见下面「收起 / 恢复使用」）。
+var CLASS_TOOLS = [['wiring', '接线仿真'], ['quiz', '刷题'], ['mcu', '单片机'], ['exam', '考试'], ['kaoqin', '考勤'], ['jiafen', '小组加分']];
 var HX = (function () {
   var BASE = 'https://eiqgyrjrwdaunhxjmdyr.supabase.co', KEY = 'sb_publishable_FcVnLx3TNrj6HnbgarYnRw_DW4-yFzd', SKEY = 'paike-session';
   var s = null;
@@ -1942,7 +1948,7 @@ function sheetCls() {
       (x.list ? '<input data-rc="' + k + '" value="' + esc(x.cls) + '" placeholder="班级"><input data-rt="' + k + '" value="' + esc(x.term) + '" placeholder="学期">' : '') + (x.err ? '<p class="msg">' + esc(x.err) + '</p>' : '') + '</div>';
   }).join('') + '<div style="display:flex;gap:8px"><button class="btn" id="rImp"' + (R.some(function (x) { return x.list; }) ? '' : ' disabled') + '>导入' + (R.length > 1 ? '全部' : '') + '</button><button class="btn sub" id="rNo">取消</button></div></div>';
   // 这行是说明不是报错：.msg 默认是报错红，这里单独压成灰
-  html += '<p class="msg" style="margin:0 0 12px;color:var(--dim,#8a8f98)">点亮哪个工具，这个班才在哪个工具里出现；四个都不点 = 四个工具都用不了。后面的「已开通 N」是已经注册账号的学生人数，和工具开关无关。</p>';
+  html += '<p class="msg" style="margin:0 0 12px;color:var(--dim,#8a8f98)">点亮哪个工具，这个班才在哪个工具里出现（接线仿真、刷题、单片机、考试、考勤、小组加分）；' + CLASS_TOOLS.length + ' 个都不点 = 这个班在这些工具里都看不到，等于「本学期不用了」。后面的「已开通 N」是已经注册账号的学生人数，和工具开关无关。</p>';
   // ── 2026-11-06 全部班级一键开号：Σlack>0 才显示。一个班一个班地调 hx_batch_signup_class
   //    （复用单班开号的同一个 RPC，逐班报进度），失败的班带着原因列出来。 ──
   var allLack = (ST.classes || []).reduce(function (s, c) { return s + Math.max(0, (c.total || 0) - (c.bound || 0)); }, 0);
@@ -1963,12 +1969,12 @@ function sheetCls() {
   html += grpHtml();
   html += '<div class="cls">' + (ST.classes.length ? ST.classes.map(function (c, ci) {
     var on = ST.open === c.id, tools = c.tools || [];
-    var idle = !tools.length; // 四个工具一个都没勾 = 这个班在哪个工具里都不出现（等于「本学期不用了」）
+    var idle = !tools.length; // 所有工具一个都没勾 = 这个班在哪个工具里都不出现（等于「本学期不用了」）
     return '<div class="cl' + (idle ? ' idle' : '') + '" style="--i:' + ci + '"><div><h3>' + esc(c.name) + '</h3><small>' + esc(c.term ? c.term + ' · ' : '') + c.total + ' 人 · 已开通 ' + c.bound +
         (idle ? ' · <b class="dim">已收起</b>' : '') + '</small></div>' +
       '<div class="acts">' +
         // 2026-11-04 用户要求「只显示当前学期在用的班」：一键收起上学期/不用的班。
-        // 复用 tools 字段（四个都不勾 = 所有工具都不出现），数据库不用改，数据一条不删，随时能点回来。
+        // 复用 tools 字段（全都不勾 = 所有工具都不出现），数据库不用改，数据一条不删，随时能点回来。
         (idle ? '<button class="btn sub sm" data-clsresume="' + c.id + '">恢复使用</button>'
               : '<button class="btn sub sm" data-clsidle="' + c.id + '">收起</button>') +
         '<button class="btn sub sm" data-open="' + c.id + '">' + (on ? '收起名单' : '名单') + '</button></div>' +
@@ -2039,12 +2045,12 @@ function sheetCls() {
     };
   });
   box.querySelectorAll('[data-clsidle]').forEach(function (b) {
-    // 收起 = 四个工具全部取消勾选。加分、排课、接线仿真、考试都不再出现这个班；
+    // 收起 = 全部工具取消勾选。接线仿真、刷题、单片机、考试、考勤、小组加分都不再出现这个班；
     // 名单、成绩、分组一条都不删，随时点「恢复使用」回来。
     b.onclick = async function () {
       var c = ST.classes.filter(function (x) { return x.id === +b.dataset.clsidle; })[0];
       if (!c) return;
-      if (!await ask('收起 ' + c.name + '？', '收起后这个班在接线仿真、单片机、考试、小组加分里都不再出现，像上学期带完的班。名单和成绩都还在，随时点「恢复使用」能回来。', '收起')) return;
+      if (!await ask('收起 ' + c.name + '？', '收起后这个班在接线仿真、刷题、单片机、考试、考勤、小组加分里都不再出现，像上学期带完的班。名单和成绩都还在，随时点「恢复使用」能回来。', '收起')) return;
       b.disabled = true;
       try { await HX.rpc('hx_class_tools', { p_class: c.id, p_tools: [] }); c.tools = []; await loadClasses(); toast('已收起 ' + c.name); }
       catch (e) { toast(e.message); b.disabled = false; }

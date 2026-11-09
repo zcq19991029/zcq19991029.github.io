@@ -95,7 +95,12 @@ table { width: 100%; table-layout: fixed; border-collapse: collapse; word-break:
 .att-pvh h2 { margin: 0; }
 .att-pv { overflow: auto; max-width: 100%; }
 .att-f { display: grid; gap: 6px; font-size: 13px; font-weight: 600; margin-bottom: 12px; }
-.att-f input, .att-f select { width: 100%; }
+/* 「文本框拉满一行」——必须排除勾选框 / 单选钮。
+   2026-11-08 用户截图报「新建课程里班级是黑的、看不见字」：
+   `.att-f input { width:100% }` 连班级多选里的 checkbox 一起拉满，
+   16px 的方框被撑成 88px，把右边 `<span>班名</span>` 挤成 0 宽，
+   于是只剩一个空灰块。排除掉 checkbox/radio 就恢复正常。 */
+.att-f input:not([type=checkbox]):not([type=radio]), .att-f select { width: 100%; }
 .att-picks { display: flex; flex-wrap: wrap; gap: 8px; font-weight: 400; }
 .att-pick { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 10px; background: var(--fill, rgba(0, 0, 0, .04)); font-size: 14px; max-width: 100%; }
 .att-pick span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1098,7 +1103,7 @@ function gRandom() {
 /* 教师端：K2 课程 / 课次，K3 发布 · 大屏 · 停止，K6 手动改 + 改动日志。
    数据全走 rpc：hx_my_classes（自己的班）、hx_class_group_list（合班组）、hx_exam_subject_list（科目）、
    hx_att_course_* / hx_att_open / hx_att_close / hx_att_session_del / hx_att_code / hx_att_live / hx_att_sheet / hx_att_set。 */
-const T = { cls: [], groups: [], subj: [], courses: [], cur: null, sheet: null, view: 'list', err: '' };
+const T = { cls: [], clsAll: [], groups: [], subj: [], courses: [], cur: null, sheet: null, view: 'list', err: '' };
 
 async function teacherHome() {
   T.view = 'list'; stopTimers();
@@ -1115,7 +1120,12 @@ async function loadBase() {
     rpc('hx_class_group_list').catch(() => []),
     rpc('hx_exam_subject_list').catch(() => [])
   ]);
-  T.cls = (Array.isArray(c) ? c : []).filter(x => x.mine !== false).map(x => ({ id: +x.id, name: String(x.name || ''), term: x.term || '', total: +x.total || 0 }));
+  const raw = (Array.isArray(c) ? c : []).filter(x => x.mine !== false)
+    .map(x => ({ id: +x.id, name: String(x.name || ''), term: x.term || '', total: +x.total || 0, tools: Array.isArray(x.tools) ? x.tools : [] }));
+  // 只把「首页 → 班级 里点亮了考勤」的班放进来（和接线仿真 / 考试 / 小组加分同一套 hx_classes.tools），
+  // 老师就不用在一堆上学期的班里挑。clsAll 留着，好在全被关掉时说准原因（不是没建班，是没开考勤）。
+  T.clsAll = raw;
+  T.cls = raw.filter(k => k.tools.includes('kaoqin'));
   T.groups = (Array.isArray(g) ? g : []).map(x => ({ id: +x.id, name: String(x.name || ''), ids: (x.classes || []).map(k => +k.id), names: (x.classes || []).map(k => String(k.name || '')) }));
   T.subj = (Array.isArray(s) ? s : []).map(x => ({ id: +x.id, name: String(x.name || x.key || '') }));
 }
@@ -1149,14 +1159,41 @@ function courseEdit(id) {
     <label class="att-f">科目<select id="ceSub"><option value="">（不选科目）</option>${T.subj.map(s => `<option value="${s.id}"${c && +c.subject_id === s.id ? ' selected' : ''}>${esc(s.name)}</option>`).join('')}</select></label>
     <label class="att-f">课程名<input id="ceName" maxlength="40" autocomplete="off" value="${esc(c ? c.name : '')}"></label>
     <label class="att-f">学期<input id="ceTerm" maxlength="40" autocomplete="off" value="${esc(c ? c.term : termNow())}"></label>
-    <div class="att-f">班级<div class="att-picks" id="ceCls">${T.cls.length ? T.cls.map(k => `<label class="att-pick"><input type="checkbox" value="${k.id}"${picked.has(k.id) ? ' checked' : ''}><span>${esc(k.name)}</span><em hidden>合班</em></label>`).join('') : '<p class="note">还没有班级，先去首页「班级」建班。</p>'}</div></div>
+    <div class="att-f">班级<div class="att-picks" id="ceCls">${T.cls.length ? T.cls.map(k => `<label class="att-pick"><input type="checkbox" value="${k.id}"${picked.has(k.id) ? ' checked' : ''}><span>${esc(k.name)}</span><em hidden>合班</em></label>`).join('') : `<p class="note">${T.clsAll.length ? `你有 ${T.clsAll.length} 个班，但首页「班级」里都还没点亮「考勤」。去首页把上课的班点亮，这里就能选了。` : '还没有班级，先去首页「班级」建班。'}</p>`}</div></div>
     <p class="att-hint" id="ceHint" hidden></p>
     <div class="errs" id="ceErr" hidden></div>
     <div class="row"><button class="pri" id="ceSave">保存</button><button id="ceCancel">取消</button></div>`);
   const sub = $('ceSub'), nm = $('ceName');
-  let autoName = !c;
+  let autoName = !c;   // 新建时课程名跟着科目 + 班级自动拼；用户自己打过字就不再覆盖
   nm.oninput = () => { autoName = false; };
-  sub.onchange = () => { const s = T.subj.find(x => x.id === +sub.value); if (autoName && s) nm.value = s.name; };
+  // 「科目」是归类（全站共用的一份科目字典，考试/资料库也用），「课程名」是这张考勤表叫什么。
+  // 两个字段长得像，是因为默认自动拼成「科目 · 班级」——2026-11-08 用户问「是不是冗余了」，
+  // 改成带班名之后一眼就能看出区别：一个科目可以有好几张课程（不同学期、不同班），
+  // 名字自动带上班级，不用自己再想。
+  const autoFill = () => {
+    if (!autoName) return;
+    const s = T.subj.find(x => x.id === +sub.value);
+    // 只算「用户自己勾的」：合班自动带出来的班由服务端现算（p_class_ids 也不传它们），
+    // 名字里再堆一遍只会变长、还和实际提交的参数对不上。
+    const ids = [...$('ceCls').querySelectorAll('input:checked')].filter(b => !b.dataset.auto).map(b => +b.value);
+    const ns = T.cls.filter(k => ids.includes(k.id)).map(k => k.name);
+    nm.value = [s ? s.name : '', ns.join('、')].filter(Boolean).join(' · ');
+  };
+  sub.onchange = () => {
+    // 选科目就把它上次用的班级带出来 —— 「科目绑班级」的实用版：
+    // 不用每次都重新勾一遍，绑定关系就是这张科目上一张考勤表勾过的班（存在课程里，不另开表）。
+    const sid = +sub.value;
+    if (!picked.size && sid) {
+      const last = T.courses.filter(x => +x.subject_id === sid).sort((a, b) => (+b.id) - (+a.id))[0];
+      if (last && (last.class_ids || []).length) {
+        const want = new Set((last.class_ids || []).map(Number));
+        $('ceCls').querySelectorAll('input').forEach(b => { if (want.has(+b.value)) { b.checked = true; picked.add(+b.value); } });
+        hint();
+      }
+    }
+    autoFill();
+  };
+  // ── 合班自动带出：勾了「24电气1班」，它所属合班里的其他班一起勾上并置灰 ──
   const hint = () => {
     const boxes = [...$('ceCls').querySelectorAll('input')];
     const mine = new Set(boxes.filter(b => b.checked && !b.dataset.auto).map(b => +b.value));
@@ -1174,6 +1211,7 @@ function courseEdit(id) {
       h.textContent = Object.entries(by).map(([g, ns]) => '合班「' + g + '」自动带上：' + ns.join('、')).join('；');
       h.hidden = false;
     } else h.hidden = true;
+    autoFill();
   };
   $('ceCls').addEventListener('change', hint);
   hint();

@@ -2955,7 +2955,7 @@ function removeMemberAt(cls, g, j) {
       if (r.changes.length) {
         S = r.state; changed = true;
         r.changes.forEach(function (c) {
-          addOperationLog('首页班级', c.cls.name + (c.created ? ' 加入加分' : '') + hxCounts(c));
+          addOperationLog('首页班级', c.cls.name + (c.created ? ' 加入加分' : c.linked ? ' 已按同名对应首页班级' : '') + hxCounts(c));
         });
         save(false);
       }

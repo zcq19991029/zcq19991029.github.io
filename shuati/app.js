@@ -1163,10 +1163,18 @@ function openPublishSheet(onDone) {
     const loadCls = async () => {
       if (classes) return;
       const r = await store.myClasses();
-      classes = (r || []).filter(c => c && c.name);
+      // 首页 → 班级 里点亮了「刷题」的班才列出来（和接线仿真 / 考试 / 考勤 / 小组加分同一套 hx_classes.tools）。
+      // 两种空要分开说：一个班都没有，vs 有班但都没开刷题 —— 后者是老师忘了点开关，不能提示成「去建班」。
+      const all = (r || []).filter(c => c && c.name);
+      classes = all.filter(c => (c.tools || []).includes('quiz'));
       const box = $('clsList');
       if (!box) return;
-      if (!classes.length) { box.innerHTML = '<div class="muted" style="padding:10px">你还没有班级。到首页「班级」新建一个、导入名单后再来发布。</div>'; return; }
+      if (!classes.length) {
+        box.innerHTML = all.length
+          ? `<div class="muted" style="padding:10px">你有 ${all.length} 个班，但首页「班级」里都还没点亮「刷题」。去首页点一下刷题开关，这些班才会出现在这里。</div>`
+          : '<div class="muted" style="padding:10px">你还没有班级。到首页「班级」新建一个、导入名单后再来发布。</div>';
+        return;
+      }
       const sel = new Set(cur || []);
       box.innerHTML = classes.map(c =>
         `<label class="sitem" style="justify-content:flex-start;gap:10px;cursor:pointer">

@@ -449,22 +449,28 @@
     var d = D, t = d.total;
     var ls = d.lessons || [];
     /* 不列「班级」：页头已经写着班名，留着它只会把日期列挤到屏幕外面去 */
+    /* 2026-11-08 用户截图：「学生端缺少信息 这个表最后也要给换算后的分数」。
+       原来只有百分制的「平时成绩合计 / 考试%」，学生看不出总评是怎么来的。
+       现在把两段折合单列出来（平时×40%、期末×60%），中间一步一目了然，不用自己乘。 */
     var head = '<tr><th>学号</th><th>姓名</th>' +
       ls.map(function (l) { return '<th>' + (l.date ? md(l.date) : '第' + l.seq + '次') + '</th>'; }).join('') +
-      '<th>成绩</th><th>考勤%</th><th>平时成绩合计</th><th>考试%</th><th>总评</th></tr>';
+      '<th>成绩</th><th>考勤%</th><th>平时成绩合计</th><th>折合 40%</th><th>考试%</th><th>折合 60%</th><th>总评</th></tr>';
+    var examCut = t.exam === null ? null : num(t.exam * 0.6);
     var row = '<tr><td>' + esc(d.me.sid || d.me.no || '') + '</td><td class="nm"><b>' + esc(d.me.name) + '</b></td>' +
       ls.map(function (l) { return '<td>' + (l.pct === null ? '' : num(l.pct)) + '</td>'; }).join('') +
       '<td>' + num(t.taskRate) + '</td>' +
       '<td>' + num(t.attRate) + '</td>' +
       '<td><b>' + num(t.regular) + '</b></td>' +
+      '<td>' + num(t.regular * 0.4) + '</td>' +
       '<td>' + (t.exam === null ? '' : num(t.exam)) + '</td>' +
+      '<td>' + (examCut === null ? '' : examCut) + '</td>' +
       '<td><b>' + (t.final === null ? '' : num(t.final)) + '</b></td></tr>';
     return '<div class="card"><h3>成绩登分册（只显示我自己这一行）</h3>' +
       '<div class="scroll"><table class="book"><thead>' + head + '</thead><tbody>' + row + '</tbody></table></div>' +
       '<p class="note">班级：' + esc(d.cls.name) + '。每一格是那一次课的课堂项目完成率（％）。' +
-      '「成绩」是整学期的项目完成率，「平时成绩合计」就是平时分，' +
-      '「考试％」是实际期末，「总评」是平时×40%＋期末×60%。' +
-      '格子空着表示那次课还没录分。往右滑可以看到后面的课。</p></div>';
+      '「成绩」是整学期的项目完成率，「平时成绩合计」就是平时分（百分制），' +
+      '「折合 40%」是它计入总评的分数；「考试％」是实际期末，「折合 60%」同理；' +
+      '「总评」＝平时折合＋期末折合。格子空着表示那次课还没录分，期末没录时折合和总评都空着。往右滑可以看到后面的课。</p></div>';
   }
 
   function paint() {
