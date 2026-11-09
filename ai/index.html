@@ -106,6 +106,8 @@ input[type=checkbox]{width:17px;height:17px;accent-color:var(--acc);flex:none}
 .mdd .opt{display:block;width:100%;text-align:left;padding:8px 11px;font-size:13px;line-height:1.4;color:var(--ink);
   background:none;border:0;border-radius:8px;cursor:pointer;word-break:break-all;font-family:ui-monospace,Consolas,monospace}
 .mdd .opt:hover,.mdd .opt.sel{background:var(--panel2)}
+.mdd .grp{padding:7px 11px 2px;font-size:11px;font-weight:600;color:var(--dim);letter-spacing:.3px}
+.mdd .grp:first-child{padding-top:5px}
 .mdd .empty{padding:10px 11px;font-size:12.5px;color:var(--faint)}
 .mdd .tip{padding:7px 11px 3px;font-size:11.5px;color:var(--faint);border-top:1px solid var(--edge);margin-top:4px}
 /* 思考程度三档 */
@@ -123,6 +125,17 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
 .dl > b em{display:block;font-style:normal;font-size:11.5px;font-weight:400;color:var(--faint)}
 .dl .eff{grid-column:2;font-size:11.5px;color:var(--faint);margin-top:-4px}
 .ioacts{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+/* ---- 注册渠道（2026-11-08 从首页 AI 弹层搬进来） ---- */
+.inv{display:flex;flex-direction:column;gap:12px;margin-bottom:18px;padding:16px;border-radius:18px;background:var(--panel2)}
+.inv-top{display:flex;gap:16px;align-items:center}
+.inv-top img{flex:none;width:104px;height:104px;border-radius:12px;background:#fff;padding:6px;object-fit:contain}
+.inv-top .t{min-width:0}
+.inv-top .t b{display:block;margin-bottom:4px;font-size:15px}
+.inv-top .t span{display:block;font-size:13px;line-height:1.5;color:var(--dim)}
+.inv-url{display:flex;gap:8px;align-items:center}
+.inv-url input{flex:1;min-width:0;height:34px;padding:0 10px;border:1px solid var(--edge);border-radius:9px;background:var(--panel);font-size:12.5px;color:var(--dim)}
+.inv-url button{flex:none;height:34px;padding:0 14px;border:0;border-radius:9px;background:var(--acc);color:#fff;font-size:13px;font-weight:600}
+.inv-tip{margin:0;font-size:12.5px;line-height:1.6;color:var(--dim)}
 #toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,20px);opacity:0;pointer-events:none;
   background:#1b2333;color:#fff;font-size:13.5px;font-weight:700;padding:10px 18px;border-radius:999px;
   box-shadow:0 16px 32px -18px rgba(0,0,0,.7);transition:.2s;z-index:50;max-width:86vw;text-align:center}
@@ -141,7 +154,7 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
 </head>
 <body>
 <header class="top"><div class="wrap">
-  <a class="back" id="back" href="../">← 回首页</a>
+  <a class="back" id="back" href="../" target="_top">← 回首页</a>
   <h1><i>AI</i>AI 设置</h1>
   <span class="count" id="count">0 套配置</span>
 </div></header>
@@ -206,6 +219,13 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
       <button class="btn" type="button" id="importCfg">从上面的 JSON 导入</button>
       <p class="msg" id="ioMsg"></p>
     </div>
+  </section>
+
+  <section class="card">
+    <h2>AI 注册渠道与工具建议</h2>
+    <p class="sub">工具里的 AI 功能要有一把自己的 Key 才能用。下面几个平台注册门槛低，按顺序挑一个先把 Key 配到上面的「模型配置」里。</p>
+    <div id="channels"></div>
+    <p class="inv-tip">提示：这些是第三方平台，注册和使用要遵守它们自己的规则；用不用、用哪个都不影响华夏工具的正常使用。</p>
   </section>
 </main>
 <div id="toast"></div>
@@ -381,8 +401,30 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
     });
   }
 
-  function renderAll() { renderList(); renderDefaults(); renderTools(); }
+  // ---------- 注册渠道（从首页 AI 弹层搬来） ----------
+  var AI_CHANNELS = [
+    { img: '../invite/siliconflow.png', name: '硅基流动（SiliconFlow）', desc: '注册并完成身份认证后就能开通国产模型（DeepSeek、Qwen 等）的 API Key，先用便宜模型练手。', url: 'https://cloud.siliconflow.cn/i/aQ6Tn6dH' },
+    { img: '../invite/workbuddy.png', name: 'WorkBuddy（腾讯）', desc: '注册后在网页里就能用主流大模型，适合新手第一步；熟悉了再学 Codex / Claude 这类编程助手。', url: 'https://www.workbuddy.cn/events/invite?inviteCode=u1ds11m0hxo1bgw4' }
+  ];
+  function renderChannels() {
+    var box = $('channels'); if (!box) return;
+    box.innerHTML = AI_CHANNELS.map(function (it, i) {
+      return '<div class="inv"><div class="inv-top"><img src="' + esc(it.img) + '" alt="' + esc(it.name) + ' 二维码" loading="lazy" width="104" height="104">'
+        + '<div class="t"><b>' + esc(it.name) + '</b><span>' + esc(it.desc) + '</span></div></div>'
+        + '<div class="inv-url"><input id="aiv' + i + '" readonly value="' + esc(it.url) + '"><button type="button" id="aic' + i + '">复制</button></div></div>';
+    }).join('');
+    AI_CHANNELS.forEach(function (it, i) {
+      var btn = $('aic' + i); if (!btn) return;
+      btn.onclick = function () {
+        var inp = $('aiv' + i);
+        var done = function () { btn.textContent = '已复制'; setTimeout(function () { btn.textContent = '复制'; }, 1600); };
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(it.url).then(done, function () { inp.select(); document.execCommand('copy'); done(); });
+        else { inp.select(); document.execCommand('copy'); done(); }
+      };
+    });
+  }
 
+  function renderAll() { renderList(); renderDefaults(); renderTools(); renderChannels(); }
   // ---------- 表单 ----------
   // 供应商那句提醒（能不能读图、地址要不要改、额度怎么算）
   function setProvNote(prov) {
@@ -407,15 +449,39 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
   }
 
   // ---------- 自定义模型下拉（替代原生 datalist：某些内核里点不弹、选中不生效） ----------
-  function renderModelPanel() {
+  // 按名字猜类型分堆，让下拉不是一长条平铺（vision/图像/音频/视频一眼能认）
+  function modelGroup(m) {
+    var s = m.toLowerCase();
+    if (/vl|vision|omni|glm-4\.5v|qwen3\.5|(^|[-/])llava|pixtral|gemini-1\.5-flash|gpt-4o\b/.test(s) && /vl|vision|omni|pixtral|glm-4\.5v/.test(s)) return '视觉 · 识图';
+    if (/image|flux|kolors|dall-e|gpt-image|sd-|stable/.test(s)) return '图像生成';
+    if (/video|wan2\.|ltx|sora|kling|hailuo|veo/.test(s)) return '视频生成';
+    if (/cosyvoice|tts|ttsd|moss|whisper|speech|audio|voice|paraformer|sensevoice/.test(s)) return '音频 · 语音';
+    if (/embedding|embed|reranker|bge-|rerank/.test(s)) return '嵌入 · 检索';
+    return '文本 · 对话';
+  }
+  function renderModelPanel(filterText) {
     var panel = $('modelPanel');
-    var q = $('fModel').value.trim().toLowerCase();
+    var q = (filterText === undefined ? '' : String(filterText)).trim().toLowerCase();
     var items = modelList.filter(function (m) { return !q || m.toLowerCase().indexOf(q) >= 0; });
     if (!items.length) {
       panel.innerHTML = '<div class="empty">' + (modelList.length ? '没有匹配「' + esc($('fModel').value.trim()) + '」的候选，直接手填模型名即可。' : '还没有候选模型。点「读取模型」拉列表，或直接手填模型名。') + '</div>';
-    } else {
+    } else if (items.length === 1) {
+      // 只有一个候选就不分组，直接一行
       panel.innerHTML = items.map(function (m) {
         return '<button type="button" class="opt' + (m === $('fModel').value ? ' sel' : '') + '" data-m="' + esc(m) + '">' + esc(m) + '</button>';
+      }).join('');
+    } else {
+      // 按类型分堆；每组内保持原始顺序
+      var groups = [], seen = {};
+      items.forEach(function (m) {
+        var g = modelGroup(m);
+        if (!seen[g]) { seen[g] = groups.length; groups.push({ name: g, list: [] }); }
+        groups[seen[g]].list.push(m);
+      });
+      panel.innerHTML = groups.map(function (g) {
+        return '<div class="grp">' + esc(g.name) + '</div>' + g.list.map(function (m) {
+          return '<button type="button" class="opt' + (m === $('fModel').value ? ' sel' : '') + '" data-m="' + esc(m) + '">' + esc(m) + '</button>';
+        }).join('');
       }).join('');
     }
     panel.hidden = false;
@@ -627,10 +693,10 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
     $('fThink').querySelectorAll('input[type=radio]').forEach(function (r) {
       r.onchange = function () { setThink(r.value); };
     });
-    // 自定义模型下拉：聚焦 / 点击 / 输入都展开候选，点选项即选中，点外面收起
-    $('fModel').addEventListener('focus', renderModelPanel);
-    $('fModel').addEventListener('input', renderModelPanel);
-    $('fModel').addEventListener('click', renderModelPanel);
+    // 自定义模型下拉：聚焦 / 点击展开全部候选（不过滤），只有真正输入才按关键字过滤；点选项即选中，点外面收起
+    $('fModel').addEventListener('focus', function () { renderModelPanel(''); });
+    $('fModel').addEventListener('click', function () { renderModelPanel(''); });
+    $('fModel').addEventListener('input', function () { renderModelPanel($('fModel').value); });
     $('modelPanel').addEventListener('click', function (e) {
       var b = e.target && e.target.closest ? e.target.closest('.opt') : null;
       if (!b) return;
@@ -643,9 +709,6 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
       if (combo && !combo.contains(e.target)) closeModelPanel();
     });
     renderAll();
-    // 从首页卡片点进来时这个页面在 iframe 里：这时「回首页」会把总入口整个塞进框里，越点越乱，
-    // 直接在框里隐藏掉（框外面本来就是首页，左上角还有返回）
-    if (self !== top) $('back').style.display = 'none';
     // 一套都没有就把表单直接摊开，别让人找「新增」按钮
     if (!HXAI.list().length) openForm('');
   }

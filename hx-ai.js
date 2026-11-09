@@ -35,9 +35,9 @@
     // ---------- 国内 · 官方 ----------
     deepseek: {
       label: 'DeepSeek', group: '国内 · 官方', baseUrl: 'https://api.deepseek.com',
-      models: ['deepseek-chat', 'deepseek-reasoner'],
-      caps: ['text', 'reason'],
-      note: '最便宜，写题改题够用。目前没有能读图的模型，别勾「图片识别」。'
+      models: ['deepseek-v4-flash', 'deepseek-v4-pro'],
+      caps: ['text', 'reason', 'vision'],
+      note: '最便宜，写题改题够用。deepseek-chat / deepseek-reasoner 已于 2026-07 弃用，现在用 deepseek-v4-flash（快）和 deepseek-v4-pro（强）。flash 带视觉能读图。'
     },
     qwen: {
       label: '通义千问（阿里云百炼）', group: '国内 · 官方', baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
@@ -97,11 +97,32 @@
     // ---------- 国内 · 聚合中转 ----------
     siliconflow: {
       label: '硅基流动 SiliconFlow', group: '国内 · 聚合', baseUrl: 'https://api.siliconflow.cn/v1',
-      models: ['Qwen/Qwen2.5-VL-72B-Instruct', 'Qwen/Qwen2.5-72B-Instruct', 'deepseek-ai/DeepSeek-V3',
-        'black-forest-labs/FLUX.1-schnell', 'Kwai-Kolors/Kolors',
-        'FunAudioLLM/CosyVoice2-0.5B', 'Lightricks/LTX-Video'],
+      models: [
+        // 文本 / 对话（免费额度主力）
+        'deepseek-ai/DeepSeek-V3.2', 'deepseek-ai/DeepSeek-V3.1-Terminus', 'deepseek-ai/DeepSeek-V3', 'deepseek-ai/DeepSeek-R1',
+        'Qwen/Qwen3.5-35B-A3B', 'Qwen/Qwen3.5-27B', 'Qwen/Qwen3.5-9B',
+        'Qwen/Qwen3-32B', 'Qwen/Qwen3-14B', 'Qwen/Qwen3-30B-A3B-Instruct-2507', 'Qwen/Qwen2.5-72B-Instruct', 'Qwen/Qwen2.5-32B-Instruct', 'Qwen/Qwen2.5-7B-Instruct',
+        'inclusionAI/Ling-flash-2.0', 'inclusionAI/Ling-mini-2.0',
+        'zai-org/GLM-4.5-Air', 'THUDM/GLM-4-32B-0414', 'tencent/Hunyuan-A13B-Instruct', 'ByteDance-Seed/Seed-OSS-36B-Instruct',
+        // 视觉 / 多模态（读扫描件 PDF、识图）
+        'Qwen/Qwen3-VL-32B-Instruct', 'Qwen/Qwen3-VL-32B-Thinking', 'Qwen/Qwen3-VL-8B-Instruct', 'Qwen/Qwen3-VL-8B-Thinking', 'Qwen/Qwen3-VL-30B-A3B-Instruct', 'Qwen/Qwen3-VL-30B-A3B-Thinking',
+        'Qwen/Qwen2.5-VL-72B-Instruct', 'zai-org/GLM-4.5V',
+        // 全模态 / Omni
+        'Qwen/Qwen3-Omni-30B-A3B-Instruct', 'Qwen/Qwen3-Omni-30B-A3B-Thinking', 'Qwen/Qwen3-Omni-30B-A3B-Captioner',
+        // 图像生成 / 视频
+        'Qwen/Qwen-Image', 'Qwen/Qwen-Image-Edit', 'black-forest-labs/FLUX.1-schnell', 'Kwai-Kolors/Kolors',
+        'Wan-AI/Wan2.2-T2V-A14B', 'Wan-AI/Wan2.2-I2V-A14B',
+        // 语音 / 音频
+        'FunAudioLLM/CosyVoice2-0.5B', 'fnlp/MOSS-TTSD-v0.5',
+        // 代码
+        'Qwen/Qwen3-Coder-30B-A3B-Instruct',
+        // 全模态 / Omni
+        'Qwen/Qwen3-Omni-30B-A3B-Instruct',
+        // 检索 / 嵌入（不建议给出题用，放最后）
+        'Qwen/Qwen3-Reranker-8B', 'Qwen/Qwen3-Embedding-8B', 'BAAI/bge-m3'
+      ],
       caps: ['text', 'vision', 'image', 'audio'],
-      note: '一个 Key 用几十家模型，带 VL 的能读图；文生图（FLUX/Kolors）、TTS（CosyVoice）、文生视频也有，点「读取模型」拉全列表。实名送额度。'
+      note: '一个 Key 用几十家模型，带 VL 的能读图；文生图（FLUX/Kolors/Qwen-Image）、TTS（CosyVoice）、文生视频（Wan2.2）也有，点「读取模型」拉全列表。实名送额度。'
     },
     ppio: {
       label: '派欧云 PPIO', group: '国内 · 聚合', baseUrl: 'https://api.ppinfra.com/v3/openai',

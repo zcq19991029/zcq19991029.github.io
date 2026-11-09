@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-hx-mode="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>使用说明 · 华夏工具</title>
+<!-- 主题按 data-tool="help" 分键：这个页面的背景 / 主题色独立存 hx-theme:s:help，和首页、别的工具互不影响。 -->
+<script src="../hx-theme.js" data-tool="help"></script>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.62 "Microsoft YaHei",system-ui,-apple-system,"Segoe UI",sans-serif;
+  -webkit-font-smoothing:antialiased}
+.wrap{max-width:860px;margin:0 auto;padding:0 18px}
+header.top{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 90%,transparent);backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--edge)}
+header.top .wrap{display:flex;align-items:center;gap:12px;min-height:62px;flex-wrap:wrap;padding-top:9px;padding-bottom:9px}
+.back{flex:none;text-decoration:none;font-size:13.5px;font-weight:700;color:var(--dim);padding:7px 12px;border-radius:10px;
+  border:1px solid var(--edge);background:var(--panel)}
+.back:hover{color:var(--ink);border-color:var(--acc)}
+header.top h1{margin:0;font-size:17px;font-weight:800;display:flex;align-items:center;gap:8px}
+header.top h1 i{font-style:normal;display:inline-grid;place-items:center;width:26px;height:26px;border-radius:8px;
+  background:linear-gradient(140deg,var(--acc),var(--acc2));color:#fff;font-size:13px;font-weight:900}
+main{padding-top:16px;padding-bottom:60px}
+.card{background:var(--panel);border:1px solid var(--edge);border-radius:16px;padding:18px;margin-bottom:14px;box-shadow:var(--shadow)}
+/* 老师 / 学生切换 */
+.seg{display:inline-flex;gap:4px;padding:4px;border-radius:12px;background:var(--panel2);border:1px solid var(--edge);margin-bottom:14px}
+.seg button{border:0;background:none;font-size:13.5px;font-weight:700;color:var(--dim);padding:7px 16px;border-radius:9px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:linear-gradient(140deg,var(--acc),var(--acc2));color:#fff}
+/* 分色块说明 */
+.hx-doc p{margin:0 0 8px;font-size:14px;line-height:1.65;color:var(--dim)}
+.hx-doc b{color:var(--ink);font-weight:600}
+.hx-doc kbd{padding:1px 6px;border-radius:5px;background:var(--fill);font-size:12.5px;font-family:inherit;color:var(--ink)}
+.hd{position:relative;margin:0 0 12px;padding:13px 16px 12px 18px;border-radius:14px;
+  background:color-mix(in srgb,var(--hc,var(--acc)) 8%,transparent);
+  border:1px solid color-mix(in srgb,var(--hc,var(--acc)) 22%,transparent)}
+.hd::before{content:"";position:absolute;left:0;top:14px;bottom:14px;width:3px;border-radius:3px;background:var(--hc,var(--acc))}
+.hd .hdt{display:block;margin-bottom:6px;font-size:14.5px;font-weight:700;color:var(--hc,var(--acc))}
+.hd ul{margin:0;padding-left:17px;font-size:14px;line-height:1.75;color:var(--dim)}
+.hd li{margin:3px 0}
+.hd .iso{margin:8px 0 0;padding-top:7px;border-top:1px dashed color-mix(in srgb,var(--hc,var(--acc)) 34%,transparent);
+  font-size:12.5px;line-height:1.55;color:var(--dim)}
+@media (max-width:620px){ .wrap{padding:0 14px} .card{padding:14px} }
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <a class="back" href="../" target="_top">← 回首页</a>
+  <h1><i>?</i>使用说明</h1>
+</div></header>
+
+<main class="wrap">
+  <div class="seg" id="seg">
+    <button type="button" data-h="teacher" aria-pressed="true">我是老师</button>
+    <button type="button" data-h="student" aria-pressed="false">我是学生</button>
+  </div>
+  <div class="card hx-doc" id="doc"></div>
+</main>
+
+<script>
+(function () {
+  'use strict';
+  function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+  function hd(c,title,body,iso){
+    return '<div class="hd" style="--hc:'+c+'"><b class="hdt">'+title+'</b>'+body+(iso?'<p class="iso">'+iso+'</p>':'')+'</div>';
+  }
+
+  function helpDocTeacher(){
+    return '<p style="margin:0 0 12px;color:var(--dim)">这份说明按现在的功能写，<b>会持续更新</b>；发现哪一步对不上，用工具「关于」里的「提建议」告诉我们。每个工具的数据各自独立、互不通用。</p>'
+      + hd('#4f8ce8','账号与登录','<ul>'
+      + '<li>教师账号要<b>邀请码</b>才能注册：首页「登录 / 注册」→ 注册 → 填邀请码 → 账号名填工号、设密码。管理员 / 开发者也能发教师码。</li>'
+      + '<li>也可以用 <b>GitHub 登录</b>；同一个账号可以再设一个账号名和密码，几种方式进的是同一份数据。</li>'
+      + '<li><b>学生不用注册</b>：你导入考勤表的时候就批量开好了，<b>账号是学号、密码也是学号</b>。已经自己注册过的学生不受影响。</li>'
+      + '<li>右上角头像 → 账号面板：改头像（含像素头像库）、改资料、切换这台设备上登录过的账号、退出登录。</li>'
+      + '</ul>')
+      + hd('#8a6fd0','首页：分组、班级、外观','<ul>'
+      + '<li>卡片按<b>学习 / 教学 / 维护</b>三组排。点卡片进入工具，左上角「返回」回首页；手机返回键同样是「上一步」。</li>'
+      + '<li>右上角那颗<b>外观</b>按钮：深浅色、主色、背景图、透明度、校徽水印开关，设置跟着账号走。</li>'
+      + '<li>首页下方的<b>班级</b>卡片管名单和课堂码：导入考勤表（<kbd>.xls</kbd> / <kbd>.xlsx</kbd> / <kbd>.csv</kbd>，要有<b>学号、姓名</b>两列）、一个文件一个班、可一次选多个。</li>'
+      + '<li>导入完账号就有了（提示里写「新开号 N 个」）；老班可以点<b>一键开号 N</b>。每个班四个开关（接线仿真 / 单片机 / 考试 / 小组加分），点亮哪个，这个班才在哪个工具里出现。</li>'
+      + '<li>带完的班点<b>收起</b>，数据一条不删，随时「恢复使用」；带完的班不要删。</li>'
+      + '<li><b>课堂码</b>一般不用发了（学生直接学号登录）。需要时在班级卡片那行点「发课堂码」，<b>4 小时有效</b>，可以分享或撤销；学生忘了密码用首页的重置功能按学号重置。</li>'
+      + '</ul>')
+      + hd('#43a06e','接线仿真','<ul>'
+      + '<li>顶部 <kbd>2.1</kbd>～<kbd>2.6</kbd> 是主电路，<b>按住题号条左右拖</b>可以滑到最后；右边箭头能把整排收起，把高度让给电路。</li>'
+      + '<li>顶栏还有：<b>排位</b>、<b>本节内容</b>、<b>教学视频</b>、<b>元器件</b>、<b>符号</b>、<b>扩展练习</b>、<b>更新日志</b>、<b>关于</b>、<b>全屏</b>。窄屏只显示图标，长按有文字提示。</li>'
+      + '<li>点两个端子连一根线；工具栏有<b>提示</b>（关 / 自由 / 顺序）、撤销、清空、检查、答案。顺序提示会按教材顺序逐根指出下一根接哪里。</li>'
+      + '<li><b>排位</b>：选电路和学生开始，计时接线，全对自动停表，成绩进排行榜；教师在里面还能<b>随机抽人</b>（按当前班级抽，不重复），抽到谁由你决定怎么用。</li>'
+      + '<li><b>教学视频</b>：按节播放（2.1～2.6 已陆续做完），关窗口自动暂停。</li>'
+      + '<li><b>扩展练习</b>：电工证类题（E1 双重联锁正反转启动能耗制动、E2 C6140T 车床），从「扩展练习」窗口打开；<b>并联专项</b>（P）是独立一套小题，专练「并到哪个点」。</li>'
+      + '<li>手机支持双指放大（最多 4 倍），放大后照样点端子、按按钮；「超级排位」（先摆元件再连线）还在做，入口做好后会写在这里。</li>'
+      + '</ul>','本工具成绩与排位独立，和刷题、考试、单片机互不通用。')
+      + hd('#d68a4a','刷题','<ul>'
+      + '<li>顶部切换<b>科目</b>：内置电气接线原理、教育心理学、教育学，加上你发布的科目；也能建自己的科目。</li>'
+      + '<li>按<b>题型 × 范围</b>（待掌握 / 错题 / 未做 / 已做 / 已记住）× 顺序或随机刷；单选、判断点一下就判，多选选完提交。题卡还能左滑「记住了」、右滑「再练」。</li>'
+      + '<li><b>概览</b>看掌握度、各题型进度、正确率和错题列表；<b>排行</b>按答对的不同题数记分，可切「我的班」。</li>'
+      + '<li><b>导入题库</b>走 AI：识题（PDF / Word / TXT / Markdown 里拆题）或出题两套提示词，图片走视觉模型。没有文件模板。</li>'
+      + '<li>题库页最下面可以「说人话让 AI 帮你写学习卡」，不用手写 JSON；写好把科目<b>发布给学生</b>。</li>'
+      + '</ul>','题库和刷题记录独立，与考试、接线仿真的数据不互通。')
+      + hd('#2fa8b8','进制转换','<ul>'
+      + '<li>课堂演示用：进制学习、实操教程、8421 拼数小花园三个入口。纯本地，不登录也能用，不记成绩。</li>'
+      + '</ul>','纯本地演示、不记成绩，和别的工具零数据往来。')
+      + hd('#3aa8d8','单片机上机','<ul>'
+      + '<li>名单<b>不在这里导入</b>：全部来自首页「班级」的共享名单，首页加人、改名这里自动跟上。</li>'
+      + '<li>老师菜单只有<b>班级名单</b>和<b>导入书上代码</b>；在班级名单页勾「上课的班级」（只记这台电脑），并把<b>查看答案密码</b>设好——<b>4 小时自动失效</b>，也可以立刻撤销。</li>'
+      + '<li>学生做「平时练习」和「考试」取题；网页版有练习记录和耗时榜，用时由服务器计算，学生只报做的是哪道题、得了多少分。</li>'
+      + '</ul>','名单来自首页班级（共享），练习/考试成绩只记在本工具。')
+      + hd('#7d7aff','考试','<ul>'
+      + '<li>三页：<b>组卷与组卷码</b>、<b>理论试卷</b>、<b>批改成绩</b>（教师账号登录后自动进，学生看不到）。</li>'
+      + '<li>组卷码可以自动生成，也可以起名字（如「期末A」）；发布时选科目 / 组卷码 / 哪几个班，再把考试码公布给学生，学生输码 + 学号取题。</li>'
+      + '<li>理论试卷是 A3 双面排版，可以点题换题、按题型搜索；四档缩放（适应宽度 / 100% / 75% / 50%）。</li>'
+      + '<li><b>试卷库</b>走云端，换电脑登录同一账号还在；批改在本机浏览器里编译模拟。</li>'
+      + '</ul>','组卷码与试卷库独立，学生只凭码取题、看不到批改。')
+      + hd('#e06a6a','排课','<ul>'
+      + '<li>月课表一列一个周一、一行一间教室；可切列表视图，整月或单周重排、换人、互换、锁定、停课、冲突提示。</li>'
+      + '<li>右侧是「第 N 轮还没排」的待分配名单；名片可以直接拖进课表、课表里互拖 = 互换（触屏长按 0.3 秒再拖）。</li>'
+      + '<li><b>老师与分配</b>、<b>班级与教室</b>、<b>统计</b>三个页签管规则和课时；导出有正式版 Excel、含轮次课时版、课表 / 列表 PNG。按 Ctrl+Alt+P 是排课偏好（只有排课人看得到）。</li>'
+      + '<li>改动 1.2 秒后自动上云，多台设备用版本号核对，不会互相覆盖；冲突时选「用本机 / 用云端」，不会静默覆盖。</li>'
+      + '</ul>','一个账号一份课表，老师之间互相看不见，和别的工具不互通。')
+      + hd('#d97ea3','小组加分','<ul>'
+      + '<li>班级和名单同样来自首页「班级」（点亮「小组加分」的班才出现）。先确认分组 → <b>新开一课</b>（日期、本节任务、值日组）→ 上课记分。</li>'
+      + '<li>课堂小组合计 = <b>首个正确 + 小组分 + 值日分 − 手机未入袋次数</b>；点错了可以撤销（最多 60 步），右键 / 长按返还个人扣分。</li>'
+      + '<li><b>组内个人评分</b>：10 个自定义项目，每项 0～5 分，独立小计 + 签名；项目分自动计入个人总分。</li>'
+      + '<li><b>学期总分</b>把项目完成率和考勤（学期 9 分）合并算平时分，再折算总评；<b>成绩登分册</b>可导出 Excel / PDF。</li>'
+      + '<li>学生打开是只读的「我的分数」，看不到别人的明细，也进不了记分台。</li>'
+      + '</ul>','分数只在本工具，学生端只读，和别的工具不互通。')
+      + hd('#c99a3a','课程进度','<ul>'
+      + '<li>首页是本周课表；另有按日期查课、进度总览、实际记录（可导出 CSV / 打印）、调课管理。</li>'
+      + '<li>课表和教学进度可以用 Excel / CSV / Markdown / DOCX / PDF 统一导入，四步走完，提交前自动下载备份。</li>'
+      + '<li>一个账号一份数据，老师之间互相看不见；学生用不了。</li>'
+      + '</ul>','一个账号一份数据，学生用不了，和别的工具不互通。')
+      + hd('#0891b2','AI 设置','<ul>'
+      + '<li><b>AI 设置</b>（维护组）：全站填一次 Key，刷题、考试、单片机、接线仿真、排课、课程进度都从这里读。可以存多套配置、按能力（文本 / 图片识别 / 推理）分派、按工具单独指定，点「测试连接」确认通不通。</li>'
+      + '<li>导出 JSON 永远不含 Key；没配 Key 时工具会提示「到 AI 设置里加一套」，不会静默失败。</li>'
+      + '<li>页面下半是<b>「AI 注册渠道与工具建议」</b>：列了几个注册门槛低的 AI 平台（以后会继续加），注册拿到自己的 Key 后回到上面配好就能用。这些是第三方平台，不用也不影响华夏工具。</li>'
+      + '</ul>','这是全站共用的一套配置：填一次，各工具从这里读，不需要每个工具单独配。')
+      + hd('#9aa0a8','常见问题','<ul>'
+      + '<li>学生登不进：先确认学号在名单里、且这个班点亮了对应工具的开关；再看是不是已经自己注册过（密码就不是学号了）。</li>'
+      + '<li>课堂码别发大群，过期或被用满就重新发一个。</li>'
+      + '<li>换电脑看不到数据：先确认登录的是同一个账号；排课的「上课的班级」、单片机的「上课的班级」这类设置只记本机，需要重勾。</li>'
+      + '</ul>');
+  }
+
+  function helpDocStudent(){
+    return '<p style="margin:0 0 12px;color:var(--dim)">这份说明按现在的功能写，<b>会持续更新</b>；哪里看不懂就问老师。每个工具的数据各自独立、互不通用。</p>'
+      + hd('#4f8ce8','账号：不用注册，学号就是账号','<ul>'
+      + '<li>老师导入考勤表时已经把你的账号开好了：<b>账号是学号，密码也是学号</b>，直接登录。</li>'
+      + '<li>如果你以前自己注册过，就还用原来的密码，新规则不影响你。</li>'
+      + '<li>登不进去或提示「账号或密码不对」，先找老师确认学号在不在名单里，别自己反复试；忘了密码也让老师重置。</li>'
+      + '</ul>')
+      + hd('#8a6fd0','首页能看到什么','<ul>'
+      + '<li>登录后按<b>学习 / 教学 / 维护</b>分组列出你能用的工具，点卡片进入，左上角「返回」回首页。</li>'
+      + '<li>「小组加分」你打开是只读的「我的分数」；「使用说明」这张卡登录后就能看。</li>'
+      + '<li><b>看不到</b>排课、课程进度、AI 设置、反馈这些老师 / 开发者用的后台，也看不到老师的批改过程。</li>'
+      + '<li>右上角调色按钮可以换深浅色、主色和背景，只影响你自己。</li>'
+      + '</ul>')
+      + hd('#43a06e','接线仿真','<ul>'
+      + '<li>顶部 <kbd>2.1</kbd>～<kbd>2.6</kbd> 是题目，<b>按住题号条左右拖</b>可以滑到最后；右边箭头能把整排收起，把地方让给电路。</li>'
+      + '<li>点两个端子连一根线；工具栏有提示（关 / 自由 / 顺序）、撤销、清空、检查、答案。<b>顺序</b>会按教材顺序告诉你下一根接哪里。</li>'
+      + '<li><b>排位</b>：选电路开始，计时接线，全对自动停表，成绩进排行榜，换电脑登录也看得到自己的记录。</li>'
+      + '<li><b>教学视频</b>、<b>本节内容</b>、<b>元器件</b>、<b>符号</b>都在顶栏；<b>扩展练习</b>里是电工证类题和并联专项。</li>'
+      + '<li>手机上双指可以放大（最多 4 倍），放大后照样点端子、按按钮。</li>'
+      + '</ul>','本工具成绩与排位独立，和刷题、考试、单片机互不通用。')
+      + hd('#d68a4a','刷题','<ul>'
+      + '<li>顶部选科目，按题型和范围（待掌握 / 错题 / 未做 / 已做 / 已记住）练；答错有解析，答完会看到学习卡。</li>'
+      + '<li>概览能看自己的掌握度和错题；排行是全校榜，可以切到本班。<b>登录后才计分</b>，老师不上榜。</li>'
+      + '</ul>','题库和刷题记录独立，与考试、接线仿真的数据不互通。')
+      + hd('#2fa8b8','进制转换','<ul>'
+      + '<li>进制学习、实操教程、8421 拼数小花园，用来练二 / 八 / 十 / 十六进制的换算。这段不记成绩。</li>'
+      + '</ul>','纯本地演示、不记成绩，和别的工具零数据往来。')
+      + hd('#3aa8d8','单片机上机','<ul>'
+      + '<li>平时练习：选母题和题型后「换一题」，在网页里作答或下载 .c 到 Keil 做完再拖回来，即时判分（只指出哪里错，不给正确写法）；「查看答案」要问老师要密码。</li>'
+      + '<li>考试：输<b>学号 + 老师公布的组卷码</b>取题，学号要在老师勾的「上课的班级」里；做完把 .c 拖进来生成 .hex。</li>'
+      + '<li>练习记录和耗时榜在网页版里，用时由服务器算，改电脑时间没用。</li>'
+      + '</ul>','名单来自首页班级（共享），练习/考试成绩只记在本工具。')
+      + hd('#7d7aff','考试','<ul>'
+      + '<li>老师公布考试码后，打开「考试」输码（和学号）就能取到自己的题，按页面提示作答 / 交卷。</li>'
+      + '</ul>','组卷码与试卷库独立，你只凭码取题、看不到批改。')
+      + hd('#d97ea3','小组加分（我的分数）','<ul>'
+      + '<li>能看上课记分、组内个人评分、本学期总分；从「去选桌组队」进分组页。</li>'
+      + '<li>只读：分数由老师记，你改不了；个人扣分和组内评分也由老师确认。</li>'
+      + '</ul>','分数只在本工具，你只能看自己的，和别的工具不互通。')
+      + hd('#e06a6a','不要做这些','<ul>'
+      + '<li>不要把账号密码给别人，也不要用别人的学号登录——成绩会记到那个学号上。</li>'
+      + '<li>不要重复注册：一个学号只能有一个账号。</li>'
+      + '<li>排位是计时的，开始以后别刷新、别关页面。</li>'
+      + '</ul>');
+  }
+
+  function render(t){
+    var doc = document.getElementById('doc');
+    doc.innerHTML = (t === 'student' ? helpDocStudent() : helpDocTeacher());
+    document.getElementById('seg').querySelectorAll('button').forEach(function(b){
+      b.setAttribute('aria-pressed', String(b.dataset.h === t));
+    });
+  }
+  document.getElementById('seg').querySelectorAll('button').forEach(function(b){
+    b.onclick = function(){ window.scrollTo(0,0); render(b.dataset.h); };
+  });
+  render('teacher');
+})();
+</script>
+</body>
+</html>

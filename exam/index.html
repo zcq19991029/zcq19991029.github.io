@@ -6765,7 +6765,6 @@ function teacherShell() {
       <div class="ex-nav-h">考试</div>
       <div class="ex-nav-sub" id="exSub"></div>
       ${T_PAGES.map(([k, n, s]) => `<button class="ex-nav-i" data-t="${k}"><b>${n}</b><span>${s}</span></button>`).join('')}
-      <a class="ex-nav-i ex-nav-go" id="exZiliao" href="${ZL_URL}" target="_top"><b>资料库 ↗</b><span>传资料、AI 出题、题池</span></a>
     </nav>
     <div class="ex-main" id="appMain"></div></div>`;
   drawSubNav();

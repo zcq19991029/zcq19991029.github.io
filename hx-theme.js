@@ -375,9 +375,6 @@
   var HASH_TOOL = /^[A-Za-z0-9_-]{2,32}$/;
   function paneSurf() {
     if (tool || window.top !== window) return SURF;   // 工具页自己（顶层 / 被嵌）
-    // 「AI 设置」是总入口的弹层（不写 hash 路由），开着它时外观面板要改的是 ai 键。
-    // 总入口通过 window.__hxSurface 临时把面板指向 ai（见 总入口/index.html 的 togglePop/closePops）。
-    if (window.__hxSurface && HASH_TOOL.test(window.__hxSurface)) return window.__hxSurface;
     var h = (location.hash || '').replace(/^#/, '');
     return HASH_TOOL.test(h) ? h : 'home';
   }
