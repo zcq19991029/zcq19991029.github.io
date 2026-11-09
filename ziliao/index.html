@@ -40,6 +40,9 @@ pre { white-space: pre-wrap; word-break: break-word; margin: 0; }
 /* 外壳：左侧导航（页面 + 科目）+ 右侧主区；900 以下上下排 */
 .zl-shell { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 18px; width: min(1600px, 100%); margin: 0 auto; }
 .zl-nav { position: sticky; top: 16px; align-self: start; max-height: calc(100vh - 32px); overflow: auto; padding: 14px 10px; background: var(--card, #fff); border: 1px solid var(--edge, rgba(0, 0, 0, .08)); border-radius: 18px; min-width: 0; }
+.zl-subtabs{display:flex;gap:4px;flex-wrap:wrap;padding:6px;border:1px solid var(--edge,rgba(0,0,0,.08));border-radius:14px;background:color-mix(in srgb,var(--card,#fff) 75%,transparent);backdrop-filter:blur(16px)}
+.zl-subtab{position:relative;border:0;background:transparent;color:var(--dim,#6e6e73);padding:8px 11px;border-radius:10px;cursor:pointer;font:600 12px/1.2 inherit;white-space:nowrap}.zl-subtab.on{background:var(--accbg,rgba(47,107,255,.12));color:var(--ink,#0b1220)}.zl-subtab.on::after{content:"";position:absolute;left:12px;right:12px;bottom:3px;height:2px;background:var(--acc,#2f6bff);border-radius:4px}
+.zl-subtabs .zl-subadd{width:auto;margin:0;padding:7px 10px}
 .zl-nav-h { font-size: 11px; font-weight: 600; letter-spacing: .1em; color: var(--dim, #6e6e73); padding: 4px 8px 6px; }
 .zl-pages { display: grid; gap: 4px; margin-bottom: 14px; }
 .zl-page { justify-content: flex-start; border: 0; background: transparent; }
@@ -63,6 +66,7 @@ pre { white-space: pre-wrap; word-break: break-word; margin: 0; }
 @media (max-width: 900px) {
   .zl-shell { grid-template-columns: minmax(0, 1fr); gap: 12px; }
   .zl-nav { position: static; max-height: none; }
+  .zl-subtabs{flex-wrap:nowrap;overflow:auto}
   .zl-pages { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .zl-subs { grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr)); }
   .zl-h h1 { font-size: 22px; }
@@ -542,7 +546,7 @@ async function readMaterial(file) {
       pages.push(c.items.map(it => it.str).join(' '));
     }
     const text = pages.join('\n');
-    if (text.trim().length < 50) throw new Error('这份 PDF 没有可提取的文字（扫描件）。把每页截图存成 JPG/PNG 再传，让 AI 看着读。');
+    if (text.trim().length < 50) throw new Error('这份 PDF 是扫描件，没有文字层；不要手动逐页截图。请在资料库里启用 AI 逐页识图，并为当前科目配置支持图片的视觉模型后重试。');
     return { text };
   }
   throw new Error('支持 PDF、DOCX、TXT、MD，以及 jpg／png 图片；旧版 .doc 请另存为 .docx');
@@ -880,12 +884,7 @@ function navClick(e) {
 }
 function drawSubs() {
   const box = $('zlSubs'); if (!box) return;
-  box.innerHTML = SUBJ.map(s => `<div class="zl-subrow${s.id === CUR_SUB ? ' on' : ''}">
-      <button class="zl-sub" data-sub="${s.id}" title="${esc(s.name)}"><b>${esc(s.name)}</b><span>${s.quiz_bank ? '→ ' + esc(s.quiz_bank) : '未接刷题'} · 资料 ${s.mats} · 题 ${s.banks}</span></button>
-      <button class="zl-subx" data-subed="${s.id}" aria-label="编辑「${esc(s.name)}」">改</button>
-      <button class="zl-subx" data-subdel="${s.id}" aria-label="删除「${esc(s.name)}」">删</button>
-    </div>`).join('')
-    + `<button class="zl-subadd" id="zlSubAdd">+ 科目</button>`
+  box.innerHTML = `<div class="zl-subtabs" role="tablist">${SUBJ.map(s => `<button class="zl-subtab${s.id === CUR_SUB ? ' on' : ''}" data-sub="${s.id}" title="${esc(s.name)}" role="tab" aria-selected="${s.id === CUR_SUB}">${esc(s.name)}</button>`).join('')}<button class="zl-subadd" id="zlSubAdd" title="新建科目">＋</button></div>`
     + (SUBJ_ERR ? `<p class="zl-subnote">${esc(SUBJ_ERR)}</p>` : '');
 }
 async function loadSubjects() {
