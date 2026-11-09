@@ -31,13 +31,53 @@ const HX = (() => {
     if (!r.ok) throw Object.assign(new Error(zh(j && (j.msg || j.message || j.error_description || j.error) || 'HTTP ' + r.status)), { status: r.status });
     return j;
   }
-  // 续期：排课/刷题那边可能刚续过，先读一遍再决定要不要续（同一个 access_token 全站共用）
+  // ---------- 这台设备上登录过的账号（和总入口共用 paike-accounts） ----------
+  // 谁续期谁把新 refresh_token 写回去：否则账号列表里留着已经轮换作废的旧 rt，
+  // 总入口点「切到这个账号」必然 400（用户报的「切不回去」）。
+  const AKEY = 'paike-accounts';
+  const accounts = () => { try { return JSON.parse(localStorage.getItem(AKEY)) || []; } catch (e) { return []; } };
+  const keepAccounts = L => { try { localStorage.setItem(AKEY, JSON.stringify(L)); } catch (e) { } };
+  function saveAccount(usedRt) {
+    if (!s || !s.refresh_token) return;
+    let L = accounts();
+    if (usedRt) {
+      const i = L.findIndex(x => x.rt === usedRt);
+      if (i >= 0) {
+        L[i].rt = s.refresh_token; L[i].at = now();
+        if (s.user && s.user.id) { L[i].uid = s.user.id; L[i].mail = s.user.email || L[i].mail || ''; L[i].name = (s.user.user_metadata && s.user.user_metadata.name) || L[i].name || ''; }
+        keepAccounts(L); return;
+      }
+    }
+    const u = s.user;
+    if (!u || !u.id) return;
+    L = L.filter(x => x.uid !== u.id);
+    L.unshift({ uid: u.id, mail: u.email || '', name: (u.user_metadata && u.user_metadata.name) || '', rt: s.refresh_token, at: now() });
+    keepAccounts(L.slice(0, 6));
+  }
+  // 续期单飞：refresh_token 一次性轮换，同一页并发续期 = 后发的那次 400 把前一次换好的会话抹掉
+  let refreshing = null;
   async function fresh() {
     load(); if (!s || now() < s.expires_at - 60) return;
-    try { take(await api('/auth/v1/token?grant_type=refresh_token', { method: 'POST', body: { refresh_token: s.refresh_token }, auth: false })); }
-    catch (e) { if (e.status) keep(null); throw e; }
+    if (!s.refresh_token) return;
+    if (refreshing) return refreshing;
+    const usedRt = s.refresh_token, prevUser = s.user || null;
+    refreshing = (async () => {
+      try {
+        take(await api('/auth/v1/token?grant_type=refresh_token', { method: 'POST', body: { refresh_token: usedRt }, auth: false }), usedRt, prevUser);
+      } catch (e) {
+        const cur = load();
+        if (cur && cur.access_token && now() < cur.expires_at - 60) return; // 别的页面刚换好
+        if (!e.status) throw e;                                            // 网络错误不清会话
+        if (cur && cur.refresh_token === usedRt) keep(null);                // 只有自己那把旧 rt 真失效才清
+        throw e;
+      } finally { refreshing = null; }
+    })();
+    return refreshing;
   }
-  const take = j => keep({ access_token: j.access_token, refresh_token: j.refresh_token, expires_at: j.expires_at || now() + (j.expires_in || 3600), user: j.user || (s && s.user) || null });
+  const take = (j, usedRt, prevUser) => {
+    keep({ access_token: j.access_token, refresh_token: j.refresh_token, expires_at: j.expires_at || now() + (j.expires_in || 3600), user: j.user || prevUser || (s && s.user) || null });
+    saveAccount(usedRt);
+  };
   const rpc = (f, body = {}, auth = true) => api('/rest/v1/rpc/' + f, { method: 'POST', body, auth });
   return {
     online: () => /^https?:$/.test(location.protocol),

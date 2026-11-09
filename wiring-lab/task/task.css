@@ -88,8 +88,10 @@ em { font-style: normal; }
 .err { margin: 10px 0 0; font-size: 13px; color: var(--bad); }
 
 /* 表单 */
-/* 发布表单铺满整行以后字段横向排：5～6 个一行，比原来两列竖排短一半（老师在教室只有几十秒） */
-.form { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+/* 发布表单铺满整行以后字段横向排：班级 / 电路 / 课次 / 上课日期 正好四列，一行放完（老师在教室只有几十秒）。
+   这里写死 repeat(4) 而不是 auto-fit：auto-fit 在宽屏会把空轨道收掉、剩余空间不还给已有轨道，
+   结果四个字段只占面板左半边，右边空一大片，课次下拉也被压到只能显示「第 3 次课 · 2026-11-09 · 2…」。 */
+.form { display: grid; gap: 12px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .form .full { grid-column: 1 / -1; }
 .field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .field > label { font-size: 12.5px; color: var(--dim); font-weight: 700; }
@@ -98,6 +100,9 @@ em { font-style: normal; }
   border: 1px solid var(--edge); outline: none; font-size: 14px;
 }
 .field textarea { resize: vertical; min-height: 62px; }
+/* 课次那句「写进哪一课、哪一列」自己占一行：塞在 190px 窄格里会折成三行，
+   老师根本读不完就点了发布。给它整行宽，一句话读完 */
+.form > #fNoInfo { margin-top: -4px; line-height: 1.6; }
 .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--acc); box-shadow: 0 0 0 3px color-mix(in srgb, var(--acc) 18%, transparent); }
 .field select option { background: #0b1020; }
 
@@ -279,6 +284,7 @@ body.no-anim .done-chip:not(.fresh) { animation: none; }
   .ring .val { transition: none; }
 }
 /* 窄屏（手机竖屏看教师端）：大屏页本来就不给手机用，这里只把教师端收成一列 */
+@media (max-width: 980px) { .form { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 720px) {
   .form { grid-template-columns: minmax(0, 1fr); }
   .pg-main { grid-template-columns: minmax(0, 1fr); }
@@ -351,3 +357,12 @@ td.rate.r-none { color: var(--dim); font-weight: 500; }
 /* 通报条最多一行半：再多就换行会顶掉名单，这里直接裁掉（JS 已经把条数限到 4 条） */
 .bd-moves { max-height: 9vmin; overflow: hidden; }
 .bd-moves .mv.more { background: transparent; color: var(--dim); box-shadow: inset 0 0 0 1px var(--edge); font-weight: 600; }
+
+/* ---------------- 教师端：课次下拉下面那两行（2026-11-09） ----------------
+   选完课次立刻显示「日期 · 主题」和写进哪一列；
+   这一课已经有同名接线列（黄）、表单日期和这一课日期对不上（红）当场提醒，
+   比原来「发布后横幅才提示」早得多 —— 发之前就能发现选错课次。 */
+#fNoInfo { display: block; }
+#fNoInfo:empty { display: none; }   /* 没话说的时候别在表单里留一条空行 */
+#fNoInfo .warnl { color: var(--warn); font-weight: 700; }
+#fNoInfo .badl { color: var(--bad); font-weight: 700; }

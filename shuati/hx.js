@@ -8,12 +8,51 @@ function keep(v) { s = v; try { if (v) localStorage.setItem(SKEY, JSON.stringify
 const ZH = [[/Invalid login credentials/i, '账号或密码不对'], [/rate limit|too many/i, '操作太频繁，请过一会儿再试'], [/JWT expired|invalid JWT/i, '登录过期了，请重新登录'], [/Failed to fetch|NetworkError/i, '连不上服务器，请检查网络']];
 const zh = m => { m = String(m || ''); for (const [re, t] of ZH) if (re.test(m)) return t; return m; };
 
+// ---------- 这台设备上登录过的账号（和总入口共用 paike-accounts：续期后必须把新 rt 写回，
+// 否则账号列表里留着已经作废的旧 rt，点「切到这个账号」必然 400） ----------
+const AKEY = 'paike-accounts';
+const accounts = () => { try { return JSON.parse(localStorage.getItem(AKEY)) || []; } catch { return []; } };
+const keepAccounts = L => { try { localStorage.setItem(AKEY, JSON.stringify(L)); } catch { /* 无痕模式 */ } };
+function saveAccount(usedRt) {
+  if (!s || !s.refresh_token) return;
+  let L = accounts();
+  if (usedRt) {
+    const i = L.findIndex(x => x.rt === usedRt);
+    if (i >= 0) {
+      L[i].rt = s.refresh_token; L[i].at = now();
+      if (s.user && s.user.id) { L[i].uid = s.user.id; L[i].mail = s.user.email || L[i].mail || ''; L[i].name = (s.user.user_metadata && s.user.user_metadata.name) || L[i].name || ''; }
+      keepAccounts(L); return;
+    }
+  }
+  const u = s.user;
+  if (!u || !u.id) return;
+  L = L.filter(x => x.uid !== u.id);
+  L.unshift({ uid: u.id, mail: u.email || '', name: (u.user_metadata && u.user_metadata.name) || '', rt: s.refresh_token, at: now() });
+  keepAccounts(L.slice(0, 6));
+}
+const take = (j, usedRt, prevUser) => {
+  keep({ access_token: j.access_token, refresh_token: j.refresh_token, expires_at: j.expires_at || now() + (j.expires_in || 3600), user: j.user || prevUser || (s && s.user) || null });
+  saveAccount(usedRt);
+};
+// 续期单飞：refresh_token 一次性轮换，同一页并发续期 = 后发的那次拿 400 把前一次换好的会话抹掉
+let refreshing = null;
 async function fresh() {
   load(); if (!s || now() < s.expires_at - 60) return;
-  try {
-    const j = await api('/auth/v1/token?grant_type=refresh_token', { method: 'POST', body: { refresh_token: s.refresh_token }, auth: false });
-    keep({ access_token: j.access_token, refresh_token: j.refresh_token, expires_at: j.expires_at || now() + (j.expires_in || 3600), user: j.user || s.user || null });
-  } catch (e) { if (e.status) keep(null); throw e; }
+  if (!s.refresh_token) return;
+  if (refreshing) return refreshing;
+  const usedRt = s.refresh_token, prevUser = s.user || null;
+  refreshing = (async () => {
+    try {
+      take(await api('/auth/v1/token?grant_type=refresh_token', { method: 'POST', body: { refresh_token: usedRt }, auth: false }), usedRt, prevUser);
+    } catch (e) {
+      const cur = load();
+      if (cur && cur.access_token && now() < cur.expires_at - 60) return; // 别的页面刚换好
+      if (!e.status) throw e;                                            // 网络错误不清会话
+      if (cur && cur.refresh_token === usedRt) keep(null);                // 只有自己那把旧 rt 真的失效才清
+      throw e;
+    } finally { refreshing = null; }
+  })();
+  return refreshing;
 }
 export async function api(path, o = {}) {
   const auth = o.auth !== false;

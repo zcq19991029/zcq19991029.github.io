@@ -29,6 +29,7 @@
 
   var native = global.localStorage;         // 真正的浏览器 localStorage（备份/迁移要用）
   var session = null, teacher = null;
+  var refreshing = null;                    // 续期单飞：refresh_token 一次性轮换，同页并发续期会互相踩死
   var values = {}, revision = 0, stale = false;
   var timer = null, writing = null, dirty = false, blocked = false;
   var statusEl = null, gateState = null;
@@ -96,14 +97,16 @@
     var shared = readShared();
     if (shared && shared.access_token !== session.access_token) session = shared;
     if (!expired(session)) return Promise.resolve(session);
+    if (refreshing) return refreshing;      // 单飞：本页已经在续了，跟着它走
     var used = session.refresh_token;
-    return request(AUTH + '/token?grant_type=refresh_token', {
+    refreshing = request(AUTH + '/token?grant_type=refresh_token', {
       method: 'POST', token: false, body: JSON.stringify({ refresh_token: used })
     }).then(function (s) { remember(s); return session; }, function (err) {
       var now = readShared();
       if (now && now.refresh_token !== used && !expired(now)) { session = now; return session; }
       throw err;
-    });
+    }).finally(function () { refreshing = null; });
+    return refreshing;
   }
 
   function rpc(name, args) {

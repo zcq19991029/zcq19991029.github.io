@@ -23,6 +23,7 @@ const ST = {
   board: null,       // wire_task_board(cur.id)
   mine: null,        // 学生端 wire_task_my_result()
   busy: false,
+  lessons: [],       // 本班在「小组加分」里已有的课次（发布表单的下拉，见 task-lessons.js）
   stop: null,        // 轮询停止函数
   err: '',           // 最近一次读取失败的一句话（显示在当前任务卡顶部，轮询成功就自动清掉）
   tip: '',           // 结束任务后那句「分数已自动进小组加分」（结束即停轮询，所以它不会被下一轮冲掉）
@@ -112,10 +113,6 @@ async function refreshBoard() {
 
 function renderTeacher() {
   const cls = ST.classes;
-  const def = cls[0];
-  // 课次默认值：这个班历史上最大课次 + 1（老师一般按顺序上课，省得每次手填）
-  const maxNo = ST.tasks.filter(t => t.class_id === def.id && t.lesson_no).reduce((a, t) => Math.max(a, t.lesson_no), 0);
-  const cur = ST.cur;
   $('#main').innerHTML = `
   <section class="panel span2">
     <h2>发布本节课任务 <span class="tag">发布即新增一个 5 分项目</span></h2>
@@ -127,9 +124,11 @@ function renderTeacher() {
         <div class="field"><label for="fCir">电路</label>
           <select id="fCir">${CIRCUITS.map(c => `<option value="${c.id}">${esc(c.id)} ${esc(c.short)}</option>`).join('')}</select>
         </div>
-        <div class="field"><label for="fNo">课次（第几次课）· 必填</label><input id="fNo" type="number" min="1" max="99" value="${maxNo + 1}">
-          <small class="hint">课次 = 小组加分里的第几次课；结束任务后成绩自动进那一课的「接线2.3」列，不用导出</small></div>
+        <div class="field"><label for="fNo">课次（第几次课）· 必填</label>
+          <div id="fNoBox"></div>
+        </div>
         <div class="field"><label for="fDate">上课日期</label><input id="fDate" type="date" value="${todayStr()}"></div>
+        <small class="hint full" id="fNoInfo"></small>
         <div class="field full"><label for="fTitle">任务名（可改）</label><input id="fTitle" maxlength="60" placeholder="2.3 双重互锁正反转 · 排位"></div>
         <div class="field full"><label for="fNote">任务说明（可选）</label><textarea id="fNote" maxlength="200" placeholder="每人接完并仿真成功，按排位用时给分"></textarea></div>
       </div>
@@ -137,7 +136,7 @@ function renderTeacher() {
         <button class="btn primary big" id="fGo" type="button">发布任务</button>
         <span class="hint" id="fMsg"></span>
       </div>
-      <p class="hint">课次 = 「小组加分」里的第几次课，是两边唯一对接口：<b>填错课次，分数会记到别的课上</b>。<br>
+      <p class="hint">课次直接选「小组加分」里已有的课次，会显示那节课的日期和主题；日期对不上会红字提醒。<b>填错课次，分数会记到别的课上</b>。<br>
         一个班同时只能有一个进行中的任务；换题请先结束上一个（结束那一刻才入账）。<br>
         学生「完成」= 在任务发布之后，把这道电路点排位并仿真成功（不用另外点签到）。</p>
     </div>
@@ -150,17 +149,114 @@ function renderTeacher() {
   // 电路一变，任务名跟着变（老师多半直接用默认名，别让他手打）
   const fCir = $('#fCir'), fTitle = $('#fTitle');
   const syncTitle = () => { if (!fTitle.dataset.touched) fTitle.value = cname(fCir.value) + ' · 排位'; };
-  fCir.onchange = syncTitle; syncTitle();
+  // 电路变了，落点列名（接线2.3）跟着变，下面的提示要重画
+  fCir.onchange = () => { syncTitle(); paintLessonInfo(); };
+  syncTitle();
   fTitle.oninput = () => { fTitle.dataset.touched = '1'; };
-  // 切班：课次默认值跟着这个班走
-  $('#fCls').onchange = () => {
-    const id = +$('#fCls').value;
-    const mx = ST.tasks.filter(t => t.class_id === id && t.lesson_no).reduce((a, t) => Math.max(a, t.lesson_no), 0);
-    $('#fNo').value = mx + 1;
-  };
+  // 切班：每个班的课次不一样，整个下拉重建（默认选中这个班最后一节）
+  $('#fCls').onchange = buildLessonPicker;
+  // 日期改了要重新比对「课次日期」是否一致
+  $('#fDate').oninput = paintLessonInfo;
+  $('#fDate').onchange = paintLessonInfo;
+  buildLessonPicker();
   $('#fGo').onclick = publish;
   paintLive();
   paintHist();
+}
+
+/* ============================================================================
+   课次：从「小组加分」已有课次里选（2026-11-09）
+   ----------------------------------------------------------------------------
+   原来是裸数字框，老师得自己记住「第几次课是哪天、什么主题」，填错就把分记到别的课上。
+   现在给下拉：数据 = 同一源下 localStorage 的 jfdt.v1（解析在 task-lessons.js）。
+   ⚠️ 读不到就退回数字框：换设备、清缓存、还没打开过「小组加分」都会出现，
+      不能因为读不到课次清单就让老师发不了任务。
+   ========================================================================== */
+const NEW_LESSON = '__new';
+
+const maxTaskNo = classId => ST.tasks
+  .filter(t => Number(t.class_id) === Number(classId) && t.lesson_no)
+  .reduce((a, t) => Math.max(a, +t.lesson_no), 0);
+
+function buildLessonPicker() {
+  const box = $('#fNoBox'); if (!box) return;
+  const cls = +$('#fCls').value;
+  const L = window.HX_LESSONS;
+  ST.lessons = (L && typeof L.list === 'function') ? L.list(L.read(), cls) : [];
+
+  if (!ST.lessons.length) {
+    // 读不到课的清单：保留原来的行为（数字框，默认本班历史最大课次 + 1）
+    box.dataset.mode = 'input';
+    box.innerHTML = `<input id="fNo" type="number" min="1" max="99" value="${maxTaskNo(cls) + 1}">`;
+    $('#fNo').oninput = paintLessonInfo;
+    paintLessonInfo();
+    return;
+  }
+
+  box.dataset.mode = 'select';
+  /* 默认选中谁？—— 只认「日期正好是今天」的那一节，否则默认「新建」。
+     为什么不用「最后一节」：小组加分的课次常常还没建到这一节（接线任务本来就会自动建课次），
+     这时候「最后一节」其实是**上一周**的课，默认选中它 = 一声不响把今天的分记到上周去，
+     正好是这次要消灭的那种错误。日期对上今天才自动选，对不上就让老师自己选（或新建），
+     宁可多一次点击，也不要默默记错课。 */
+  const today = todayStr();
+  const sameDay = ST.lessons.filter(l => l.date === today);
+  const def = sameDay.length ? sameDay[sameDay.length - 1] : null;
+  const last = ST.lessons[ST.lessons.length - 1];
+  const next = Math.max(last.seq, maxTaskNo(cls)) + 1;
+  box.innerHTML = `<select id="fNo">${ST.lessons.map(l => {
+    const v = l.id || 'seq:' + l.seq;
+    return `<option value="${esc(v)}"${l === def ? ' selected' : ''}>${esc(lessonLabel(l))}${l.date === today ? '（今天）' : ''}</option>`;
+  }).join('')}<option value="${NEW_LESSON}"${def ? '' : ' selected'}>＋ 新建第 ${next} 次课（没上过的课）</option></select>`;
+  $('#fNo').onchange = paintLessonInfo;
+  paintLessonInfo();
+}
+
+function lessonLabel(l) {
+  return ['第 ' + l.seq + ' 次课', l.date || '日期未填', l.topic || '未填主题'].join(' · ');
+}
+// 选中的课次对象；null = 选了「新建」（或当前是数字框）
+function pickedLesson() {
+  const box = $('#fNoBox');
+  if (!box || box.dataset.mode !== 'select') return null;
+  const v = $('#fNo').value;
+  if (v === NEW_LESSON) return null;
+  return ST.lessons.find(l => (l.id || 'seq:' + l.seq) === v) || null;
+}
+function nextLessonNo() {
+  const last = ST.lessons[ST.lessons.length - 1];
+  return Math.max(last ? last.seq : 0, maxTaskNo(+$('#fCls').value)) + 1;
+}
+
+// 选完立刻说清楚「写进哪一课、哪一列」，日期对不上/列已存在当场提醒（别等发布后的横幅）
+function paintLessonInfo() {
+  const info = $('#fNoInfo'), box = $('#fNoBox');
+  if (!info || !box) return;
+  const col = jfCol($('#fCir').value);
+  const date = $('#fDate').value || '';
+  const lines = [];
+
+  if (box.dataset.mode === 'select') {
+    const l = pickedLesson();
+    if (l) {
+      lines.push(`会写进「小组加分」第 <b>${l.seq}</b> 次课（${esc(l.date || '日期未填')} · ${esc(l.topic || '未填主题')}）的「${esc(col)}」列`);
+      if (l.wireCols.indexOf(col) >= 0) {
+        lines.push(`<span class="warnl">这一课已经有「${esc(col)}」列了，新的成绩会并进去/覆盖</span>`);
+      }
+      if (date && l.date && date !== l.date) {
+        lines.push(`<span class="badl">任务日期 ${esc(date)} 和这一课的日期 ${esc(l.date)} 不一致，可能记错课次</span>`);
+      }
+    } else {
+      const n = nextLessonNo();
+      lines.push(`会新建「小组加分」第 <b>${n}</b> 次课（日期取上面的上课日期${date ? '：' + esc(date) : ''}），结束后写入「${esc(col)}」列`);
+    }
+  } else {
+    const n = $('#fNo').value ? +$('#fNo').value : 0;
+    lines.push(n
+      ? `会写进「小组加分」第 <b>${n}</b> 次课的「${esc(col)}」列（读不到课次清单，结束时会按号码对上，没有就新建）`
+      : '<span class="badl">请填课次</span>');
+  }
+  info.innerHTML = lines.join('<br>');
 }
 
 async function publish() {
@@ -168,26 +264,32 @@ async function publish() {
   const cls = +$('#fCls').value, cir = $('#fCir').value;
   const title = $('#fTitle').value.trim() || (cname(cir) + ' · 排位');
   const note = $('#fNote').value.trim();
-  const no = $('#fNo').value ? +$('#fNo').value : null;
+  // 课次：选了已有课次 → 用它的 seq 和日期（避免两边日期错位）；选了「新建」→ 按最大+1
+  const box = $('#fNoBox');
+  const picked = pickedLesson();
+  const isNew = !!(box && box.dataset.mode === 'select' && !picked);
+  const no = picked ? picked.seq : (box && box.dataset.mode === 'select' ? nextLessonNo() : ($('#fNo').value ? +$('#fNo').value : null));
   if (!no || no < 1) {
-    $('#fMsg').innerHTML = '<span style="color:var(--bad)">请填课次：接线成绩按课次进「小组加分」，填错会记到别的课上。</span>';
+    $('#fMsg').innerHTML = '<span style="color:var(--bad)">请选课次：接线成绩按课次进「小组加分」，选错会记到别的课上。</span>';
     return;
   }
   const date = $('#fDate').value || null;
+  // 日期优先用所选课次自己的：两边不一致时以「小组加分」那一课为准，分数不会落到别的时间轴上
+  const lessonDate = (picked && picked.date) || date;
   ST.busy = true; $('#fGo').disabled = true; $('#fMsg').textContent = '发布中…';
   try {
     const r = await HX.rpc('wire_task_open', {
-      p_class: cls, p_circuit: cir, p_title: title, p_note: note, p_lesson_no: no, p_lesson_date: date,
+      p_class: cls, p_circuit: cir, p_title: title, p_note: note, p_lesson_no: no, p_lesson_date: lessonDate,
     });
-    // 发布成功就在按钮旁边说清楚「现在开始学生去排位就算完成」，别让人再猜
+    // 发布成功就把「成绩会落到哪一课、哪一列」说清楚，别让人再猜
     ST.tasks = await HX.rpc('wire_task_list');
     await pickCurrent();
     if (ST.stop) ST.stop();
     if (ST.cur && ST.cur.status === 'open') ST.stop = every(4000, async () => { await refreshBoard(); paintLive(); });
     // 表单值保留（连着发两个班时省事），只把提示和进度刷新
     paintLive(); paintHist();
-    $('#fMsg').innerHTML = '<span style="color:var(--ok)">已发布（任务 #' + (r && r.id) + ' · 第 ' + no + ' 次课）：学生去排位、接对仿真成功就算完成；结束后分数自动进「小组加分」第 ' + no + ' 次课。</span>';
-    const box = $('#live'); if (box) box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    $('#fMsg').innerHTML = `<span style="color:var(--ok)">已发布（任务 #${(r && r.id) || '—'} · 第 ${no} 次课）：学生去排位、接对仿真成功就算完成；结束后分数自动进「小组加分」第 ${no} 次课「${esc(jfCol(cir))}」列${isNew ? '（这一课结束时会自动建）' : ''}。</span>`;
+    const live = $('#live'); if (live) live.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   } catch (e) {
     $('#fMsg').innerHTML = '<span style="color:var(--bad)">' + esc(e.message) + '</span>';
   } finally { ST.busy = false; $('#fGo').disabled = false; }

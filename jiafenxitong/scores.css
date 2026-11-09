@@ -171,6 +171,9 @@ table.book td b { font-size: 15px; }
 }
 .peer-badge { padding: 1px 7px; border-radius: 999px; font-size: 10.5px; font-weight: 700; font-style: normal; }
 .peer-badge.is-pending { background: var(--warn-soft); color: var(--warn); }
+/* 2026-11-09 取消「教师确认」：学生提交即计入，所以默认这一档改成绿的「已计入」，
+   再也不是黄色的「待确认」；is-pending 留给旧数据/兼容 */
+.peer-badge.is-counted { background: var(--ok-soft); color: var(--ok); }
 .peer-badge.is-confirmed { background: var(--ok-soft); color: var(--ok); }
 .peer-badge.is-rejected { background: var(--danger-soft); color: var(--danger); }
 

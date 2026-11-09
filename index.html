@@ -14,23 +14,23 @@
      要登录时调 window.HXPortal.login()；被单独打开时 hx-theme.js 会跳回这里（见 hx-theme.js 的 data-tool）。
      账号：Supabase 华夏工具项目，localStorage paike-session 和各工具共用；身份由数据库 hx_me() 决定。
      脚本里不用反引号模板字符串（本机测试时整页当字符串注入到线上同源页面里）。 -->
-<link rel="stylesheet" href="hx-theme.css?v=df58ad4">
-<script src="hx-theme.js?v=df58ad4"></script>
+<link rel="stylesheet" href="hx-theme.css?v=98ebd61">
+<script src="hx-theme.js?v=98ebd61"></script>
 <!-- 首页卡片上的像素小生物：pixelfx 的 12 个 critters（MIT），打包成一个 91 KB 的独立脚本。
      加载失败不影响首页——hx-critters.js 开头就有 window.PixelFX 存在性检查，没有就整段跳过。 -->
-<script src="fx/pixelfx-critters.js?v=df58ad4" defer></script>
-<script src="fx/hx-critters.js?v=df58ad4" defer></script>
+<script src="fx/pixelfx-critters.js?v=98ebd61" defer></script>
+<script src="fx/hx-critters.js?v=98ebd61" defer></script>
 <!-- 像素头像库（2026-11-04）：账号面板里除了传照片，还能从 200 多个像素动效里挑一个当头像。
      和上面 critters 同一套路：库（pixelfx-avatars.js）+ 渲染器（hx-avatar.js），都是 defer、
      不进首屏关键路径；不点「像素头像库」就一个动画都不跑。 -->
-<script src="fx/pixelfx-avatars.js?v=df58ad4" defer></script>
-<script src="fx/hx-avatar.js?v=df58ad4" defer></script>
+<script src="fx/pixelfx-avatars.js?v=98ebd61" defer></script>
+<script src="fx/hx-avatar.js?v=98ebd61" defer></script>
 <!-- 背景动效（2026-11-03）：12 种天气氛围特效铺在背景层，外观面板里选；加载失败或没选就完全不加载渲染器 -->
-<script src="fx/pixelfx-weather.js?v=df58ad4" defer></script>
-<script src="fx/hx-weather.js?v=df58ad4" defer></script>
+<script src="fx/pixelfx-weather.js?v=98ebd61" defer></script>
+<script src="fx/hx-weather.js?v=98ebd61" defer></script>
 <!-- 课堂码大屏二维码：离线 QR 编码器（qrcode 1.5.4 core 打包，MIT，见 fx/NOTICE-qr.md）。延迟加载即可：只有老师点「大屏二维码」时才用 -->
-<script src="fx/hx-qr.js?v=df58ad4" defer></script>
-<script src="hx-scan.js?v=df58ad4" defer></script><!-- 全站扫一扫（2026-11-08 K5）：摄像头 + BarcodeDetector / 本地 jsQR -->
+<script src="fx/hx-qr.js?v=98ebd61" defer></script>
+<script src="hx-scan.js?v=98ebd61" defer></script><!-- 全站扫一扫（2026-11-08 K5）：摄像头 + BarcodeDetector / 本地 jsQR -->
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; width: 100%; overflow: hidden; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -1095,28 +1095,63 @@ var HX = (function () {
     if (!r.ok) { var err = new Error(zh(j && (j.msg || j.message || j.error_description || j.error) || 'HTTP ' + r.status)); err.status = r.status; throw err; }
     return j;
   }
+  // 续期单飞：Supabase 的 refresh_token 是一次性轮换的（换一次旧的立刻作废），
+  // 本页同时发两次 = 后发的那次拿 400 invalid_grant，把前一次刚换好的会话一起抹掉 → 全站掉登录。
+  var refreshing = null;
   async function fresh() { // 先重读：嵌在下面的工具可能刚续过期（续期后旧凭证作废）
     load(); if (!s || now() < s.expires_at - 60) return;
-    try { take(await api('/auth/v1/token?grant_type=refresh_token', { method: 'POST', body: { refresh_token: s.refresh_token }, auth: false })); }
-    catch (e) { if (e.status) keep(null); throw e; }
+    if (!s.refresh_token) return;
+    if (refreshing) return refreshing; // 本页已经在续了，跟着它走
+    var usedRt = s.refresh_token, prevUser = s.user || null;
+    refreshing = (async function () {
+      try {
+        take(await api('/auth/v1/token?grant_type=refresh_token', { method: 'POST', body: { refresh_token: usedRt }, auth: false }), usedRt, prevUser);
+      } catch (e) {
+        // 续期失败 ≠ 掉登录：先看别的页面是不是已经换好了
+        var cur = load();
+        if (cur && cur.access_token && now() < cur.expires_at - 60) return; // 别人刚换好：直接用它的
+        if (!e.status) throw e;                                          // 断网 / 无响应：什么都不清
+        if (cur && cur.refresh_token === usedRt) keep(null);              // 只有「还是我这次用掉的旧令牌」才算真失效
+        throw e;
+      } finally { refreshing = null; }
+    })();
+    return refreshing;
   }
-  function take(j) { keep({ access_token: j.access_token, refresh_token: j.refresh_token, expires_at: j.expires_at || now() + (j.expires_in || 3600), user: j.user || (s && s.user) || null }); saveAccount(); }
+  function take(j, usedRt, prevUser) { keep({ access_token: j.access_token, refresh_token: j.refresh_token, expires_at: j.expires_at || now() + (j.expires_in || 3600), user: j.user || prevUser || (s && s.user) || null }); saveAccount(usedRt); }
   // ---------- 这台设备上登录过的账号 ----------
   // 切换账号不该让人重新输密码：登录成功后把 refresh_token 记在这台设备上，切回来时拿它换新的 access_token。
   // 「退出登录」才把这个账号从本地列表里删掉，下次要重新输密码——两者的区别就是删不删这份记录。
   var AKEY = 'paike-accounts';
   function accounts() { try { return JSON.parse(localStorage.getItem(AKEY)) || []; } catch (e) { return []; } }
   function keepAccounts(L) { try { localStorage.setItem(AKEY, JSON.stringify(L)); } catch (e) { } }
-  function saveAccount() {
-    if (!s || !s.refresh_token || !s.user || !s.user.id) return;
-    var u = s.user, L = accounts().filter(function (x) { return x.uid !== u.id; });
+  function saveAccount(usedRt) {
+    if (!s || !s.refresh_token) return;
+    var L = accounts(), i;
+    // ① 续期回来的会话通常没有 user（Supabase 只回凭证），所以先按「这次用掉的旧 refresh_token」反查那条记录。
+    //    只更新 rt / at，不因为 s.user 为空就 return —— 否则账号列表里的 rt 永远停在登录时那一个，
+    //    真身早被轮换作废，点「切到这个账号」必然 400（用户报的「切不回去」）。
+    if (usedRt) {
+      for (i = 0; i < L.length; i++) {
+        if (L[i].rt !== usedRt) continue;
+        L[i].rt = s.refresh_token; L[i].at = now();
+        if (s.user && s.user.id) { L[i].uid = s.user.id; L[i].mail = s.user.email || L[i].mail || ''; L[i].name = (s.user.user_metadata && s.user.user_metadata.name) || L[i].name || ''; }
+        keepAccounts(L); return;
+      }
+    }
+    // ② 找不到（新登录 / 这台设备第一次见）：按 user.id 插入并置顶
+    var u = s.user;
+    if (!u || !u.id) return;
+    L = L.filter(function (x) { return x.uid !== u.id; });
     L.unshift({ uid: u.id, mail: u.email || '', name: (u.user_metadata && u.user_metadata.name) || '', rt: s.refresh_token, at: now() });
     keepAccounts(L.slice(0, 6));
   }
+  var beforeSwitch = null; // 切换前的会话：切不过去要能退回来，别把用户直接踢成未登录
   function useAccount(uid) { // 切到这台设备上记过的某个账号：access_token 清空、标成已过期，下一次 api() 会自己用 refresh_token 换新的
     var a = accounts().filter(function (x) { return x.uid === uid; })[0]; if (!a) return false;
+    beforeSwitch = load() ? JSON.parse(JSON.stringify(s)) : null;
     keep({ access_token: '', refresh_token: a.rt, expires_at: 0, user: null }); return true;
   }
+  function undoSwitch() { if (!beforeSwitch) return false; keep(beforeSwitch); beforeSwitch = null; return true; }
   function forgetAccount(uid) { keepAccounts(accounts().filter(function (x) { return x.uid !== uid; })); }
   function rpc(f, body, auth) { return api('/rest/v1/rpc/' + f, { method: 'POST', body: body || {}, auth: auth }); }
   function back() { return location.origin + location.pathname; }
@@ -1161,9 +1196,10 @@ var HX = (function () {
       }
     },
     synthetic: function (email) { return /@hx\.invalid$/i.test(email || ''); },
-    accounts: accounts, useAccount: useAccount, forgetAccount: forgetAccount,
+    accounts: accounts, useAccount: useAccount, undoSwitch: undoSwitch, forgetAccount: forgetAccount,
     me: function () { return (load() && s.user) || null; },
-    out: async function () { try { await api('/auth/v1/logout', { method: 'POST' }); } catch (e) { } keep(null); }
+    out: async function () { try { await api('/auth/v1/logout', { method: 'POST' }); } catch (e) { } keep(null); },
+    _fresh: fresh // 只给 总入口/test-session.mjs 直接驱动续期用（浏览器里没有调用者）
   };
 })();
 function $(id) { return document.getElementById(id); }
@@ -1608,9 +1644,19 @@ function openAccounts() {
   if (!$('sheet').open) $('sheet').showModal();
   $('shB').querySelectorAll('[data-acc]').forEach(function (b) {
     b.onclick = async function () {
-      if (!HX.useAccount(b.dataset.acc)) return;
+      if (!HX.useAccount(b.dataset.acc)) { toast('这个账号在本机的登录记录已经没了，请重新输一次密码'); return; }
       $('sheet').close(); toast('正在切换…');
-      try { await refresh(); reloadTools(); toast('已切换账号'); } catch (e) { toast('切换失败：' + e.message); }
+      try {
+        await HX.user();          // 主动用这个账号的 refresh_token 换一次凭证：换不到当场就知道，不用等 iframe
+        await refresh(); reloadTools(); toast('已切换账号');
+      } catch (e) {
+        HX.undoSwitch();          // 切不过去就退回原来的账号，别把人踢成未登录
+        var why = e && (e.status === 400 || e.status === 401)
+          ? '这个账号在这台设备上的登录已过期，需要重新输一次密码'
+          : '切换失败：' + ((e && e.message) || '网络不通，请稍后再试');
+        try { await refresh(); } catch (_) { }
+        toast(why);
+      }
     };
   });
   $('shB').querySelectorAll('[data-forget]').forEach(function (b) {

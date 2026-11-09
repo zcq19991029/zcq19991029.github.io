@@ -5,10 +5,38 @@
   /* 自己触发的重画（加列/改项目名/一键满分/开关）要不要保住滚动位置：2026-11-08 全组展开后一屏很长，
      重画回顶部等于把老师滑到的位置弄丢，所以这些动作自己把 preserveScroll 置 true 再调渲染。 */
   var preserveScroll = false;
-  /* 开关 / 确认操作后的提示句：重绘一次表格还要把它显示出来，所以放在渲染函数外面 */
+  /* 开关 / 清空本列等操作后的提示句：重绘一次表格还要把它显示出来，所以放在渲染函数外面 */
   var peerMsg = '';
   /* 上次画的是哪个班哪节课：换课次时把上节课的提示句清掉（2026-11-08 全组展开后提示条更显眼了） */
   var lastLessonTag = '';
+  /* 自动刷新（2026-11-10）：本节开着「组长打分」时每 10 秒拉一次看板；只在页面可见时跑，
+     切走/离开评分页就停。定时器只留一个，重画时先清旧的，别泄漏。 */
+  var PEER_POLL_MS = 10000;
+  var poll = { timer: 0, alive: null, run: null };
+  function pollStop() { if (poll.timer) { clearTimeout(poll.timer); poll.timer = 0; } }
+  function pollSchedule() {
+    pollStop();
+    try { if (!poll.alive || !poll.alive()) return; } catch (e) { return; }
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+    poll.timer = setTimeout(function () {
+      poll.timer = 0;
+      try { if (!poll.alive || !poll.alive()) return; } catch (e) { return; }
+      /* 页面切走这一次就跳过，别在后台空转；切回来由 visibilitychange 重新起 */
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      var p;
+      /* 清空本列那一下会让定时器有机会跑到一半：把 run 的异常全部吞掉，绝不影响老师手改 */
+      try { p = poll.run(); } catch (e) { p = null; }
+      Promise.resolve(p).then(pollSchedule, pollSchedule);
+    }, PEER_POLL_MS);
+  }
+  if (typeof window !== 'undefined' && window.addEventListener) {
+    window.addEventListener('visibilitychange', function () {
+      try {
+        if (!poll.alive || !poll.alive()) { pollStop(); return; }
+        if (document.visibilityState === 'visible') pollSchedule(); else pollStop();
+      } catch (e) { pollStop(); }
+    });
+  }
   function esc(value) { return String(value == null ? '' : value).replace(/[&<>"']/g,function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
   function key(member) { return member.sid ? 'sid:'+member.sid : 'id:'+member.id; }
   function csvCell(value) { var s=String(value == null ? '' : value); if (/^[=+\-@]/.test(s)) s="'"+s; return '"'+s.replace(/"/g,'""')+'"'; }
@@ -24,26 +52,22 @@
   window.JFDT_LEADER_PAGE_RANGES=parsePageRanges;
   document.querySelector('#leaderPrintScope').onchange=function(){fillPageRanges(true);};document.querySelector('#leaderPrintPageCount').onchange=function(){fillPageRanges(false);};
   printDialog.addEventListener('close',function(){if(printDialog.returnValue!=='ok'||!printSelection)return;var c=printSelection,groups=selectedPrintGroups(),pages;try{pages=parsePageRanges(groups,Array.from(document.querySelectorAll('[data-print-page]')).map(function(el){return el.value;}));}catch(e){document.querySelector('#leaderPrintError').textContent=e.message;printDialog.showModal();return;}var html=printSheets(c.cls,c.lesson,groups,pages);document.querySelector('#printArea').innerHTML=html;if(exportMode){var bytes=window.JFDT_GROUP_EXCEL(html),url=URL.createObjectURL(new Blob([bytes],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'})),a=document.createElement('a');a.href=url;a.download=c.cls.name+'_组内评分打印版.xlsx';a.click();setTimeout(function(){URL.revokeObjectURL(url);},1000);}else printIsolated(html);});
-  /* ==================== 组内个人评分 · 全组展开版（2026-11-08） ====================
-     用户原话：「成员给组长打分 组长给成员打分 这个还不够清晰 尤其教师给学生打分（最高权限，
+  /* ==================== 组内个人评分 · 全组展开版（2026-11-08，2026-11-10 改直连计分） ====================
+     用户原话（2026-11-08）：「成员给组长打分 组长给成员打分 这个还不够清晰 尤其教师给学生打分（最高权限，
      就是防止有的学生懒得打分）确认打分环节不清晰 上面写了有人待确认 也没说哪个组 要不就全组
      展开 不要选卡了 我直接下滑全看清然后点击确认 确认按钮和否按钮都在该表格项目列上面或者下面」
 
-     按这 6 条重写这一屏（不再有「选一个组」的下拉）：
-     ① 所有组的表格从上到下连续铺开，一屏一屏往下滑，一次看全；
-     ② 每组独立一块，块头固定写「第 N 组 · 组长 某某 · 共 M 人」，不用再猜是哪一组；
-     ③ 待确认说清到「组 + 项目 + 条数」：页顶汇总条逐条列「第 2 组·「协作」3 条」，
-        点组号直接滚到那一组；每组块头也写本组待确认，具体格子加黄圈；
-     ④ 确认 / 否决不挤在角落：做成一条按项目列排开的「逐列确认」条，一列一格，
-        两颗按钮就贴在该项目列正下方（表格项目列上面），滑到哪都粘在页顶；
-     ⑤ 教师可以直接点任意格子的 1~5 分，这种分带金色描边 +「师」角标，
-        与「学生提交后教师确认」的互评 / 平均分分开（教师即确认人，直接计分）；
-     ⑥ 不弹窗、不分页、不选项卡，一页滑到底逐列点确认。
+     用户原话（2026-11-10）：「取消教师确认环节 反正教师可以关闭开放加分按钮再去修改更方便」
 
-     为什么「确认」只做一条全班共用的：服务端 jf_peer_confirm 是按【项目列】确认的，
-     一次确认 / 否决会影响本班所有组的同一列（见 supabase/2026-11-04-组内互评打分.sql）。
-     所以按钮放在「全页唯一一条逐列确认条」里，并写明「对本班所有组生效」，
-     不在每个组里重复摆一遍，免得老师以为只作用在某一个组。 */
+     所以这一屏的规矩是：
+     ① 所有组的表格从上到下连续铺开，一屏一屏往下滑，一次看全；
+     ② 每组独立一块，块头固定写「第 N 组 · 组长 某某 · 共 M 人」；
+     ③ **学生提交直接计分**，没有「待确认 / 逐列确认」这一整套了：看板一拉回来，
+        peer-apply.js 就把原始提交写进 leaderScores（组员给组长的分取平均，组长换人后旧组长的平均行作废）；
+     ④ 老师要改分：直接点格子 1~5（带金色描边 +「师」角标），或关掉「组长打分」开关再改；
+        每一列仍留一颗「清空本列」= 这一列本轮作废（服务器删掉原始提交，学生要重新打）；
+     ⑤ 本节开着「组长打分」且页面可见时，每 10 秒自动拉一次看板（学生一交就有分）；
+        页面切走/关掉开关就停，不留后台上定时器。 */
   window.JFDT_LEADER_RENDER = function (context) {
     var root = context.root, state = context.state;
     /* 班级只能来 app.js 传进来的「可见班级」（首页点亮了小组加分的班）。
@@ -63,7 +87,7 @@
     if (lessonTag !== lastLessonTag) { lastLessonTag = lessonTag; peerMsg = ''; }
 
     root.innerHTML = '<h2 class="sec-title">组内个人评分</h2>' +
-      '<p class="note">所有小组都在这一页往下连续排开，不用再选组。学生（组员给组长 / 组长给组员）提交后，页顶「教师逐列确认」会写明是哪一组、哪个项目、几条待确认——确认后才计分，否决会清掉这一列本轮提交。老师也可以直接点任意格子的 1–5 分（带「师」角标），这种分不用等学生提交、也不用再确认。</p>' +
+      '<p class="note">所有小组都在这一页往下连续排开，不用再选组。学生（组员给组长 / 组长给组员）一提交就<b>直接计分</b>，不用老师再逐列确认：组长给组员的分原样计入，组员给组长的分取平均（打几次除几次）。<b>要改分直接点格子</b>的 1–5 分（带「师」角标），或者关掉上面的「组长打分」开关再慢慢改；每列右下角的「清空本列」= 这一列本轮作废，学生要重新打才有分。<b>注意</b>：某一列历史上被标记过「已确认」时，学生那边会收到「这一列老师已经确认」——想让他们重打，先点该列「清空本列」。</p>' +
       '<div class="card lesson-bar"><label class="field"><span>班级</span><select id="leaderClassSel">' + pool.map(function (c) { return '<option value="' + esc(c.id) + '"' + (cls && c.id === cls.id ? ' selected' : '') + '>' + esc(c.name) + '</option>'; }).join('') + '</select></label>' +
       '<label class="field"><span>课次</span><select id="leaderLessonSel"' + (!lessons.length ? ' disabled' : '') + '>' + lessons.map(function (l) { return '<option value="' + esc(l.id) + '"' + (lesson && l.id === lesson.id ? ' selected' : '') + '>第' + l.seq + '次 · ' + esc(l.date) + '</option>'; }).join('') + '</select></label></div><div id="leaderSheet"></div>';
     root.querySelector('#leaderClassSel').onchange = function () { context.select(this.value, null); };
@@ -111,38 +135,43 @@
     var byGno = {};
     states.forEach(function (st) { byGno[String(st.group.no)] = st; });
     var blockFb = {};
+    /* 老师最后一次动格子的时间：自动刷新拉到新数据时，如果刚点过格子就先别重画，
+       免得把老师正要点的按钮抽掉（2026-11-10 改成自动计分后每 10 秒会拉一次） */
+    var lastEditAt = 0;
 
     var peer = context.peer || null;
     var peerReady = !!(peer && peer.ready && peer.ready(cls));
     var peerReason = peer && peer.reason ? String(peer.reason(cls) || '') : '';
     var board = null;
-    var pendingCell = Object.create(null);      // 「组号|项目|成员key」 → 学生的提交条数（还没确认的）
-    var pendingByProject = Object.create(null); // 项目 → { total, groups:{组号:条数} }（只算还没确认的）
-    var submittedByProject = Object.create(null); // 项目 → 全部提交条数（含已确认），确认条上要如实写「共几条」
-    var statusOfProject = Object.create(null);  // 项目 → confirmed / rejected / pending
+    var submittedByProject = Object.create(null); // 项目 → 全部提交条数（学生提交直接计分，这里只用于如实显示收了多少条）
+    var statusOfProject = Object.create(null);  // 项目 → confirmed / rejected（历史状态，只用于提示）
 
     function indexBoard(b) {
       board = b || null;
       statusOfProject = Object.create(null);
       ((b && b.confirms) || []).forEach(function (c) { if (c && c.project) statusOfProject[c.project] = c.status; });
-      reindexPending();
+      reindexSubmitted();
     }
-    /* 只统计「还没确认」的提交：确认 / 否决之后这一列不再算待确认，避免老师看到清不掉的黄圈 */
-    function reindexPending() {
-      pendingCell = Object.create(null);
-      pendingByProject = Object.create(null);
+    /* 当前每组组长：组员给组长的行只在「这个人还是组长」时才算数（和 peer-apply.js 的口径一致） */
+    function currentLeaderKeys() {
+      var map = Object.create(null);
+      ((board && board.payload && board.payload.groups) || []).forEach(function (g) {
+        if (!g) return;
+        var no = Number(g.no), lead = g.leader == null ? '' : String(g.leader);
+        if (no && lead) map[String(no)] = lead;
+      });
+      return map;
+    }
+    /* 只统计「这一列现在真的会落格」的提交：组长换人后旧组长名下的 avg 行不计 */
+    function reindexSubmitted() {
       submittedByProject = Object.create(null);
+      var leads = currentLeaderKeys();
       ((board && board.cells) || []).forEach(function (c) {
         if (!c || !c.project || !c.target) return;
+        if (c.role === 'member' && leads[String(c.gno)] !== String(c.target)) return;
         var all = submittedByProject[c.project] || (submittedByProject[c.project] = { total: 0, groups: {} });
         all.total++;
         all.groups[c.gno] = (all.groups[c.gno] || 0) + 1;
-        if ((statusOfProject[c.project] || 'pending') !== 'pending') return;
-        var cellKey = c.gno + '|' + c.project + '|' + c.target;
-        pendingCell[cellKey] = (pendingCell[cellKey] || 0) + 1;
-        var info = pendingByProject[c.project] || (pendingByProject[c.project] = { total: 0, groups: {} });
-        info.total++;
-        info.groups[c.gno] = (info.groups[c.gno] || 0) + 1;
       });
     }
     if (peerReady) indexBoard(peer.cached ? peer.cached(lesson) : null);
@@ -154,10 +183,6 @@
     function memberOf(st, mk) { var hit = st.members.find(function (e) { return key(e.m) === mk; }); return hit ? hit.m : null; }
     function cellValue(st, mk, col) { var v = (st.rec.members[mk] || [])[col]; return v == null || v === '' ? null : Number(v); }
     function cellMeta(st, mk, col) { return (lesson.peerMeta && lesson.peerMeta[st.group.no + '|' + mk + '|' + col]) || ''; }
-    function pendCount(st, mk, col) {
-      var name = String(sharedProjects[col] || '').trim();
-      return name ? (pendingCell[st.group.no + '|' + name + '|' + mk] || 0) : 0;
-    }
     function persist(st) { if (!lesson.leaderScores) lesson.leaderScores = {}; lesson.leaderScores[String(st.group.no)] = st.rec; context.save(); }
     function logFor(st, detail) { if (context.log) context.log(cls.name + ' · 第' + lesson.seq + '次课 · 第' + st.group.no + '组 · ' + detail); }
     function logClass(detail) { if (context.log) context.log(cls.name + ' · 第' + lesson.seq + '次课 · ' + detail); }
@@ -178,37 +203,39 @@
       }).join('');
     }
     function cellInner(st, mk, col) {
-      var v = cellValue(st, mk, col), meta = cellMeta(st, mk, col), pend = pendCount(st, mk, col);
-      return (v == null ? picksHtml(st, mk, col) : '<span class="peer-score">' + numText(v) + '</span>' + srcHtml(meta)) +
-        /* 空着的格子不点小黄点（会压在第 5 颗按钮上，看着像按钮状态）；空格的待确认靠黄框 + 列表头「待确认 N」 */
-        (pend && v != null ? '<span class="peer-pend-dot" aria-hidden="true"></span>' : '');
+      var v = cellValue(st, mk, col), meta = cellMeta(st, mk, col);
+      return v == null ? picksHtml(st, mk, col) : '<span class="peer-score">' + numText(v) + '</span>' + srcHtml(meta);
     }
     function cellTitle(st, mk, col) {
-      var v = cellValue(st, mk, col), pend = pendCount(st, mk, col);
-      if (pend) return '学生已提交 ' + pend + ' 条，等你到页顶「教师逐列确认」点确认';
-      return v != null ? '双击撤销这一格的加分' : '教师可直接给 1–5 分（不用等学生提交）';
+      var v = cellValue(st, mk, col), meta = cellMeta(st, mk, col);
+      if (v == null) return '教师可直接给 1–5 分（不用等学生提交）';
+      if (meta === 'teacher') return '教师直接填的分，已计入；双击撤销这一格的加分';
+      var from = meta === 'avg' ? '组员给组长的平均分' : (meta === 'wire' ? '接线任务入账的分' : '组长给组员的分');
+      return '学生提交后直接计分（' + from + '）；双击撤销这一格的加分';
     }
     function cellHtml(st, mk, col) {
-      var v = cellValue(st, mk, col), meta = cellMeta(st, mk, col), pend = pendCount(st, mk, col);
+      var v = cellValue(st, mk, col), meta = cellMeta(st, mk, col);
       var m = memberOf(st, mk);
-      var cls = 'peer-cell' + (v != null ? ' is-set score-' + toneOf(v) : '') + (meta === 'teacher' ? ' is-teacher' : '') + (pend ? ' is-pending' : '');
+      var cls = 'peer-cell' + (v != null ? ' is-set score-' + toneOf(v) : '') + (meta === 'teacher' ? ' is-teacher' : '');
       return '<div class="' + cls + '" data-gno="' + st.group.no + '" data-peer-cell="' + col + '" data-member="' + esc(mk) + '"' +
         (v != null ? ' data-score="' + v + '" role="button" tabindex="0"' : ' role="group"') +
         ' title="' + esc(cellTitle(st, mk, col)) + '" aria-label="' + esc(m ? m.name : '') + ' ' + esc(String(sharedProjects[col] || '').trim() || ('项目' + (col + 1))) + '">' +
         cellInner(st, mk, col) + '</div>';
     }
     function paintCell(el, st, mk, col) {
-      var v = cellValue(st, mk, col), meta = cellMeta(st, mk, col), pend = pendCount(st, mk, col);
+      var v = cellValue(st, mk, col), meta = cellMeta(st, mk, col);
       el.classList.toggle('is-set', v != null);
       el.classList.toggle('is-teacher', meta === 'teacher');
-      el.classList.toggle('is-pending', pend > 0);
+      el.classList.remove('is-pending');
       for (var i = 1; i <= 5; i++) el.classList.toggle('score-' + i, v != null && toneOf(v) === i);
       if (v == null) { el.removeAttribute('data-score'); el.setAttribute('role', 'group'); el.removeAttribute('tabindex'); }
       else { el.setAttribute('data-score', v); el.setAttribute('role', 'button'); el.setAttribute('tabindex', '0'); }
       el.title = cellTitle(st, mk, col);
       el.innerHTML = cellInner(st, mk, col);
     }
-    /* 老师点 1–5 / 双击撤销：都算「教师直接填」，打上「师」标记 —— 教师即确认人，不用再走学生确认 */
+    /* 老师点 1–5 / 双击撤销：都算「教师直接填」，打上「师」标记。
+       同时把这一格的 peerSync 顶到现在 —— 比这次手改更旧的学生提交（自动刷新拉回来的）
+       就不会把老师改的分冲掉；学生之后重新提交（更新的时间）照样能计分。 */
     function setCell(st, mk, col, value) {
       var m = memberOf(st, mk);
       if (!m) return;
@@ -221,31 +248,24 @@
       var metaKey = st.group.no + '|' + mk + '|' + col;
       if (value == null) delete lesson.peerMeta[metaKey];
       else lesson.peerMeta[metaKey] = 'teacher';
+      lastEditAt = Date.now();
+      try {
+        if (!lesson.peerSync) lesson.peerSync = {};
+        lesson.peerSync[metaKey] = new Date().toISOString();
+      } catch (e) { /* 记不上时间也不影响这次手改，只是旧的自动刷新可能盖回来，下一轮手改再顶 */ }
       logFor(st, m.name + ' · ' + (sharedProjects[col] || ('项目' + (col + 1))) + '：' + (old == null ? '未填' : numText(old)) + ' → ' + (value == null ? '未填' : numText(value)) + '（教师直接填）');
       persist(st);
-      setBlockFb(st.group.no, value == null ? '已撤销这一格的加分。' : '教师直接记 ' + value + ' 分（不用学生提交，已计入）。');
+      setBlockFb(st.group.no, value == null ? '已撤销这一格的加分。' : '教师直接记 ' + value + ' 分（学生再提交更新的分才会覆盖它）。');
     }
 
-    /* ---------- 顶部：待确认汇总 ---------- */
+    /* ---------- 顶部：本节提交汇总（只报收了多少条，不再有待确认） ---------- */
     function summaryHtml() {
-      if (!peerReady) return '<span class="peer-sum-off">互评确认不可用：' + esc(peerReason || '需要登录教师账号并绑定班级') + '</span>';
-      /* 按组号排：老师是从上往下看组的，汇总也按组号从上往下写，别一会儿第 2 组一会儿第 5 组来回跳 */
-      var rows = [];
-      Object.keys(pendingByProject).forEach(function (p) {
-        var info = pendingByProject[p];
-        Object.keys(info.groups).forEach(function (no) {
-          rows.push({ gno: Number(no), project: p, n: info.groups[no] });
-        });
-      });
-      rows.sort(function (a, b) { return a.gno - b.gno || String(a.project).localeCompare(String(b.project), 'zh'); });
-      if (!rows.length) return '<span class="peer-sum-ok">这一节没有待确认的提交。</span>';
+      if (!peerReady) return '<span class="peer-sum-off">互评不可用：' + esc(peerReason || '需要登录教师账号并绑定班级') + '</span>';
       var total = 0;
-      var items = rows.map(function (r) {
-        total += r.n;
-        return '<button type="button" class="peer-jump" data-jump-gno="' + r.gno + '" title="跳到第 ' + r.gno + ' 组">第 ' + r.gno + ' 组</button>·「' + esc(r.project) + '」' + r.n + ' 条';
-      });
-      return '<b class="peer-sum-title">待确认 ' + total + ' 条：</b><span class="peer-sum-items">' +
-        items.join('<span class="peer-sum-sep">；</span>') + '</span><span class="peer-sum-hint">点组号跳到那一组</span>';
+      Object.keys(submittedByProject).forEach(function (p) { total += submittedByProject[p].total; });
+      if (!total) return '<span class="peer-sum-ok">这一节还没有学生提交；学生一提交就直接计分。</span>';
+      return '<b class="peer-sum-title">本节已收 ' + total + ' 条学生提交</b>' +
+        '<span class="peer-sum-hint">已直接计入下面的表格；要改就直接点格子（带「师」），或关掉上面的开关再改。</span>';
     }
 
     /* ---------- 顶部：项目列（全班共用，只在这里改名字，各组表格共用一份） ---------- */
@@ -254,82 +274,60 @@
     }
     function colCardHtml() {
       return '<div class="card peer-colcard" id="leaderColCard"><div class="peer-colcard-head"><b>项目列（全班共用）</b>' +
-        '<span class="peer-colcard-hint">改这里所有组一起改；空白列只占位，不进确认条。</span>' +
+        '<span class="peer-colcard-hint">改这里所有组一起改；空白列只占位，不发布给学生打分。</span>' +
         '<button type="button" class="btn tiny" id="leaderAddProject">新增项目列</button></div>' +
         '<div class="tablewrap peer-tablewrap peer-colwrap" style="--peer-cols:' + sharedProjects.length + '"><table class="leader-table peer-col-table"><thead>' +
         /* 前两格必须分开写（不能用 colspan=2）：colspan 会让浏览器把「序号」那一列的 55px 宽算给合并格，
-           下面逐列确认条的按钮就和组表格的项目列错位 —— 2026-11-08 首次自测截图里就是这个毛病。 */
+           下面逐列操作条的按钮就和组表格的项目列错位 —— 2026-11-08 首次自测截图里就是这个毛病。 */
         '<tr><th class="peer-dock-corner" aria-hidden="true"></th><th class="peer-dock-lead">项目列</th>' + sharedProjects.map(function (_, i) { return projectInputTh(i); }).join('') + '</tr>' +
         '</thead></table></div></div>';
     }
 
-    /* ---------- 顶部：逐列确认条（一列一格，两颗按钮贴在该项目列正下方） ---------- */
+    /* ---------- 顶部：逐列操作条（一列一格，只剩「清空本列」） ---------- */
     function dockCellHtml(i) {
       var name = String(sharedProjects[i] || '').trim();
       if (!name) return '<span class="peer-cmd-none">先填项目名</span>';
-      var stt = statusOfProject[name] || 'pending';
-      var pend = pendingByProject[name] || { total: 0, groups: {} };
+      var stt = statusOfProject[name] || '';
       var all = submittedByProject[name] || { total: 0, groups: {} };
-      var who = Object.keys(pend.groups).sort(function (a, b) { return a - b; }).map(function (no) { return '第' + no + '组 ' + pend.groups[no] + ' 条'; }).join('、');
-      var label = stt === 'confirmed' ? '已确认计分' : stt === 'rejected' ? '已否决 · 本轮作废' : '待确认';
-      /* 确认后 board.cells 还在（服务端保留原始提交），所以条数要照实写「共几条」，
-         不然老师会以为刚才那 4 条提交被吞了 */
-      var countText = stt === 'confirmed'
-        ? (all.total ? '已计入 · 共 ' + all.total + ' 条提交' : '已确认计分')
-        : stt === 'rejected'
-          ? '本轮提交已清空，等组长重新提交'
-          : (pend.total ? who + '（共 ' + pend.total + ' 条）' : '还没有学生提交');
-      return '<div class="peer-cmd is-' + stt + '">' +
-        '<span class="peer-status is-' + stt + '">' + label + '</span>' +
+      var label = stt === 'confirmed' ? '历史标记：已确认' : stt === 'rejected' ? '已清空 · 等学生重打' : '';
+      var countText = all.total ? '已收 ' + all.total + ' 条提交（直接计分）' : '还没有学生提交';
+      return '<div class="peer-cmd' + (stt ? ' is-' + stt : '') + '">' +
+        (label ? '<span class="peer-status is-' + stt + '">' + label + '</span>' : '') +
         '<span class="peer-cmd-count">' + countText + '</span>' +
-        '<span class="peer-cmd-btns"><button type="button" class="btn tiny peer-ok" data-peer-ok="' + esc(name) + '"' + ((!all.total || stt === 'rejected') ? ' disabled' : '') + '>确认加分</button>' +
-        '<button type="button" class="btn tiny peer-no" data-peer-no="' + esc(name) + '"' + ((!all.total && stt !== 'confirmed') ? ' disabled' : '') + '>否决清除</button></span></div>';
+        '<span class="peer-cmd-btns"><button type="button" class="btn tiny peer-no" data-peer-clear="' + esc(name) + '"' + ((!all.total && stt !== 'confirmed') ? ' disabled' : '') + '>清空本列</button></span>' +
+        '<span class="peer-cmd-hint">清空 = 这一列本轮作废，学生要重新打才有分</span></div>';
     }
     function dockHtml() {
-      return '<div class="peer-dock' + (peerReady && hasAnySubmission() ? '' : ' peer-dock-off') + '" id="leaderPeerDock">' + dockInnerHtml() + '</div>';
+      return '<div class="peer-dock' + (peerReady && hasAnyActivity() ? '' : ' peer-dock-off') + '" id="leaderPeerDock">' + dockInnerHtml() + '</div>';
     }
-    function hasAnySubmission() {
+    function hasAnyActivity() {
+      if (Object.keys(statusOfProject).length) return true;   // 有历史「已确认」也要能把这一列清掉
       return Object.keys(submittedByProject).some(function (p) { return submittedByProject[p].total > 0; });
     }
     function dockInnerHtml() {
-      /* 没登录教师账号时没有「学生提交」可确认，别摆一条空表占半屏：只留一句原因 + 教师直接给分的说明 */
+      /* 没登录教师账号时没有「学生提交」可处理，别摆一条空表占半屏：只留一句原因 + 教师直接给分的说明 */
       if (!peerReady) {
         return '<div class="peer-summary" id="leaderPeerSummary">' + summaryHtml() + '</div>' +
           '<p class="peer-dock-msg" id="leaderPeerMsg" role="status">' + esc(peerMsg || '下面每一格都可以直接点 1–5 给分（带「师」角标），不用等学生提交。') + '</p>';
       }
-      /* 这一节一条学生提交都还没有时，确认条上没有可点的东西（按钮全灰），收起来别白占 80px */
-      if (!hasAnySubmission()) {
+      /* 这一节既没有学生提交、也没有历史「已确认」时，清空条上没有可点的东西，收起来别白占 80px */
+      if (!hasAnyActivity()) {
         return '<div class="peer-summary" id="leaderPeerSummary">' + summaryHtml() + '</div>' +
-          '<p class="peer-dock-msg" id="leaderPeerMsg" role="status">' + esc(peerMsg || '还没有学生提交。学生提交后，这里会出现每个项目列的「确认加分 / 否决清除」；老师也可以直接点格子给分。') + '</p>';
+          '<p class="peer-dock-msg" id="leaderPeerMsg" role="status">' + esc(peerMsg || '点任意格子 1–5 可以直接给分（带「师」角标）；学生一提交也会直接计入。') + '</p>';
       }
-      var cmdRow = '<tr class="peer-cmd-row"><th class="peer-dock-corner" aria-hidden="true"></th><th class="peer-dock-lead"><b>教师逐列确认</b><small>对本班所有组生效</small></th>' +
+      var cmdRow = '<tr class="peer-cmd-row"><th class="peer-dock-corner" aria-hidden="true"></th><th class="peer-dock-lead"><b>逐列清空</b><small>对本班所有组生效</small></th>' +
         sharedProjects.map(function (_, i) { return '<td class="peer-cmd-cell" data-dock-col="' + i + '">' + dockCellHtml(i) + '</td>'; }).join('') + '</tr>';
       return '<div class="peer-summary" id="leaderPeerSummary">' + summaryHtml() + '</div>' +
         '<div class="tablewrap peer-tablewrap peer-dock-wrap" style="--peer-cols:' + sharedProjects.length + '"><table class="leader-table peer-dock-table"><thead>' + cmdRow + '</thead></table></div>' +
-        '<p class="peer-dock-msg" id="leaderPeerMsg" role="status">' + esc(peerMsg || '黄圈＝学生已提交、等你确认；「师」＝你直接填的分，已经计入；否决要连点两次才生效。') + '</p>';
+        '<p class="peer-dock-msg" id="leaderPeerMsg" role="status">' + esc(peerMsg || '学生提交的分已经直接计入（格子右上角写「互评」或「平均」）；「师」＝你直接填的分；要作废一整列就点「清空本列」，连点两次才生效。') + '</p>';
     }
 
     /* ---------- 每一组一块 ---------- */
-    function blockPendHtml(st) {
-      if (!peerReady) return '<span class="peer-block-pend-none">互评未启用</span>';
-      var items = [];
-      Object.keys(pendingByProject).forEach(function (p) {
-        var n = pendingByProject[p].groups[st.group.no];
-        if (n) items.push('「' + p + '」' + n + ' 条');
-      });
-      if (!items.length) return '<span class="peer-block-pend-none">本组没有待确认</span>';
-      return '<span class="peer-block-pend-on">待确认：' + esc(items.join('、')) + '</span>';
-    }
-    /* 组表格的项目列表头：本项目本组有几条待确认就写在这里，滑到哪一组都知道该看哪一列 */
+    /* 组表格的项目列表头：只写项目名（2026-11-10 取消逐列确认后不再挂「待确认 N」） */
     function colThHtml(st, i) {
       var name = String(sharedProjects[i] || '').trim();
-      var n = 0;
-      if (name && peerReady && (statusOfProject[name] || 'pending') === 'pending') {
-        var info = pendingByProject[name];
-        n = (info && info.groups[st.group.no]) || 0;
-      }
-      return '<th class="peer-col-name' + (n ? ' is-pending' : '') + '" data-th-col="' + i + '" data-gno="' + st.group.no + '">' +
-        esc(name || ('项目' + (i + 1))) + (n ? '<small class="peer-th-pend">待确认 ' + n + '</small>' : '') + '</th>';
+      return '<th class="peer-col-name" data-th-col="' + i + '" data-gno="' + st.group.no + '">' +
+        esc(name || ('项目' + (i + 1))) + '</th>';
     }
     function blockHtml(st) {
       var g = st.group, no = g.no;
@@ -352,7 +350,6 @@
       return '<section class="card peer-block" id="leaderGroup-' + no + '" data-gno="' + no + '">' +
         '<div class="peer-block-head">' +
         '<div class="peer-block-title"><span class="peer-block-no">第 ' + no + ' 组</span><span class="peer-block-meta">组长 ' + esc(leadName) + ' · 共 ' + st.members.length + ' 人</span></div>' +
-        '<div class="peer-block-pend" data-block-pend="' + no + '">' + blockPendHtml(st) + '</div>' +
         '<div class="peer-block-acts">' +
         '<button type="button" class="btn tiny" data-print-gno="' + no + '">打印本组</button>' +
         '<button type="button" class="btn tiny" data-excel-gno="' + no + '">下载 Excel</button>' +
@@ -361,7 +358,7 @@
         '<div class="peer-block-foot">' +
         '<label class="field col"><span>组长 / 复核人</span><input data-signed="' + no + '" maxlength="100" value="' + esc(st.rec.signedBy || '') + '"></label>' +
         '<label class="field col"><span>备注</span><textarea data-note="' + no + '" maxlength="500" rows="2">' + esc(st.rec.note || '') + '</textarea></label>' +
-        '<p class="peer-block-fb" data-fb="' + no + '">' + esc(blockFb[no] || '点 1–5 直接记分（教师直接填，不用等学生、也不用再确认）；双击分数撤销。') + '</p>' +
+        '<p class="peer-block-fb" data-fb="' + no + '">' + esc(blockFb[no] || '点 1–5 直接记分（带「师」角标，改完就是最终分）；双击分数撤销。学生提交的分已经直接计入。') + '</p>' +
         '</div></section>';
     }
 
@@ -370,26 +367,21 @@
     sheet.innerHTML = '<div class="peer-gate' + (gateOpen ? ' is-open' : '') + '" id="leaderPeerBar"><span class="peer-gate-ico" aria-hidden="true">' + (gateOpen ? '●' : '○') + '</span>' +
       '<button type="button" class="btn peer-gate-btn" id="leaderPeerToggle" aria-pressed="' + (gateOpen ? 'true' : 'false') + '"' + (peerReady ? '' : ' title="' + esc(peerReason) + '"') + '>' + esc(gateText) + '</button>' +
       '<button type="button" class="btn tiny" id="leaderPeerRefresh"' + (!peerReady ? ' disabled' : '') + '>刷新提交</button>' +
-      '<span class="peer-gate-note" id="leaderPeerNote">' + (peerReady ? '开放后组长只能打本节课；组员给组长打分取平均；每一列教师确认后才计入成绩。' : '互评需要：' + esc(peerReason)) + '</span></div>' +
+      '<span class="peer-gate-note" id="leaderPeerNote">' + (peerReady ? '开放后组长只能打本节课；组员给组长打分取平均；学生提交直接计分，要改直接点格子或关掉开关。' : '互评需要：' + esc(peerReason)) + '</span></div>' +
       colCardHtml() + dockHtml() +
       '<div class="peer-blocks" id="leaderBlocks">' + states.map(blockHtml).join('') + '</div>';
 
-    /* 初次进来就把缓存里的看板铺上，别等异步回来才有黄圈 */
+    /* 初次进来就把缓存里的看板铺上，别等异步回来才有分（缓存里的看板在 app.js 拉取时已计分） */
     if (peerReady && board) repaintPeer();
 
     /* ---------- 重画（不重建 DOM，保持滚动位置和输入焦点） ---------- */
     function repaintPeer() {
-      /* 确认条的按钮 / 状态 / 是否要整条收起来，都可能变，所以整块重画（里面没有输入框，不会抢焦点） */
+      /* 清空条的按钮 / 状态 / 是否要整条收起来，都可能变，所以整块重画（里面没有输入框，不会抢焦点） */
       var dock = sheet.querySelector('#leaderPeerDock');
       if (dock) {
-        dock.className = 'peer-dock' + (peerReady && hasAnySubmission() ? '' : ' peer-dock-off');
+        dock.className = 'peer-dock' + (peerReady && hasAnyActivity() ? '' : ' peer-dock-off');
         dock.innerHTML = dockInnerHtml();
       }
-      states.forEach(function (st) {
-        var el = sheet.querySelector('[data-block-pend="' + st.group.no + '"]');
-        if (el) el.innerHTML = blockPendHtml(st);
-      });
-      /* 表头的「待确认 N」也要跟着变，否则确认完还挂着旧数字 */
       sheet.querySelectorAll('th[data-th-col]').forEach(function (th) {
         var st = byGno[String(th.dataset.gno)];
         if (st) th.outerHTML = colThHtml(st, +th.dataset.thCol);
@@ -400,41 +392,38 @@
       });
     }
 
-    /* ---------- 确认 / 否决 ---------- */
-    function runConfirm(name, ok, btn) {
-      /* 用户原话「不要开弹窗，我直接下滑全看清然后点击确认」：
-         否决这种会清数据的动作不用 window.confirm 拦，改成按钮自己变「确定否决？」——
-         第一次点只是上膛，3 秒内再点一次才真的执行，全程不离开页面。 */
-      if (!ok) {
-        if (!btn.dataset.armed) {
-          btn.dataset.armed = '1';
-          btn.textContent = '确定否决？';
-          btn.classList.add('is-armed');
-          setMsg('再点一次「确定否决？」就会清掉「' + name + '」这一列本轮所有提交（本班所有组）。');
-          setTimeout(function () {
-            if (btn.isConnected && btn.dataset.armed) {
-              delete btn.dataset.armed;
-              btn.classList.remove('is-armed');
-              btn.textContent = '否决清除';
-            }
-          }, 3000);
-          return;
-        }
-        delete btn.dataset.armed;
-        btn.classList.remove('is-armed');
+    /* ---------- 清空本列（原来的「否决」） ---------- */
+    function runClear(name, btn) {
+      /* 用户原话「不要开弹窗，我直接下滑全看清」：清空会删学生提交，不用 window.confirm 拦，
+         改成按钮自己变「确定清空？」——第一次点只是上膛，3 秒内再点一次才真的执行。 */
+      if (!btn.dataset.armed) {
+        btn.dataset.armed = '1';
+        btn.textContent = '确定清空？';
+        btn.classList.add('is-armed');
+        setMsg('再点一次「确定清空？」就会删掉「' + name + '」这一列本轮所有学生提交（本班所有组），学生要重新打才有分。');
+        setTimeout(function () {
+          if (btn.isConnected && btn.dataset.armed) {
+            delete btn.dataset.armed;
+            btn.classList.remove('is-armed');
+            btn.textContent = '清空本列';
+          }
+        }, 3000);
+        return;
       }
+      delete btn.dataset.armed;
+      btn.classList.remove('is-armed');
       if (btn) btn.disabled = true;
-      setMsg((ok ? '正在确认「' : '正在否决「') + name + '」…');
-      peer.confirm(cls, lesson, name, ok).then(function (res) {
+      setMsg('正在清空「' + name + '」…');
+      peer.confirm(cls, lesson, name, false).then(function (res) {
         /* 本地先改状态再只重画相关区块：不整页重绘，老师滑到第几组就停在第几组 */
-        statusOfProject[name] = ok ? 'confirmed' : 'rejected';
-        reindexPending();
+        statusOfProject[name] = 'rejected';
+        reindexSubmitted();
         repaintPeer();
         var changed = res && res.changed ? '（' + res.changed + ' 格）' : '';
-        setMsg('「' + name + '」' + (ok ? '已确认加分' : '已否决并清除') + changed);
+        setMsg('「' + name + '」本轮提交已清空' + changed + '，学生重新提交才会再计分。');
       }, function (err) {
         if (btn) btn.disabled = false;
-        setMsg((err && err.message) || '确认失败，检查网络后重试。');
+        setMsg((err && err.message) || '清空失败，检查网络后重试。');
       });
     }
 
@@ -542,14 +531,8 @@
         }
         return;
       }
-      var ok = t.closest('[data-peer-ok]'), no = t.closest('[data-peer-no]');
-      if (ok || no) { runConfirm(ok ? ok.dataset.peerOk : no.dataset.peerNo, !!ok, ok || no); return; }
-      var jump = t.closest('[data-jump-gno]');
-      if (jump) {
-        var block = sheet.querySelector('#leaderGroup-' + jump.dataset.jumpGno);
-        if (block) block.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        return;
-      }
+      var no = t.closest('[data-peer-clear]');
+      if (no) { runClear(no.dataset.peerClear, no); return; }
       var add = t.closest('#leaderAddProject');
       if (add) { addProject(); return; }
       var del = t.closest('[data-remove-project]');
@@ -626,21 +609,27 @@
         peer.fetchBoard(cls, lesson).then(function (b) {
           if (!document.body.contains(sheet)) return;
           indexBoard(b); setGateUI(!!b.open); repaintPeer(); refresh.disabled = false;
-          setMsg('已刷新：' + (((b && b.cells) || []).length) + ' 条提交。');
+          setMsg('已刷新：' + (((b && b.cells) || []).length) + ' 条提交（已直接计分）。');
         }, function (err) { refresh.disabled = false; setMsg((err && err.message) || '刷新失败。'); });
       };
-      /* 打开本节课后每 8 秒自动刷新待确认数，老师不用一直点；只重画黄圈和确认条，不动正在填的格子 */
-      (function poll() {
-        clearTimeout(window.__leaderPeerTimer);
-        if (!lesson.peerGate || !document.body.contains(sheet) || root.hidden) return;
-        window.__leaderPeerTimer = setTimeout(function () {
-          if (!document.body.contains(sheet) || root.hidden) return;
-          peer.fetchBoard(cls, lesson).then(function (b) {
-            if (!document.body.contains(sheet) || root.hidden) return;
-            indexBoard(b); setGateUI(!!b.open); repaintPeer(); poll();
-          }, function () { poll(); });
-        }, 8000);
-      })();
+      /* 自动刷新（2026-11-10）：本节课开着「组长打分」时每 10 秒拉一次看板。
+         学生提交直接计分，所以这一拉就是「分自己出现」；只在页面可见时跑，切走就停。
+         刚点过格子（3 秒内）先不重画，免得把老师正要点的按钮抽掉（数据已经落盘，下一轮再画）。 */
+      poll.alive = function () {
+        return peerReady && !!lesson.peerGate && document.body.contains(sheet) && !root.hidden;
+      };
+      poll.run = function () {
+        return peer.fetchBoard(cls, lesson).then(function (b) {
+          if (!poll.alive()) return;
+          if (Date.now() - lastEditAt < 3000) return;
+          /* 老师正在填「组长 / 复核人」或「备注」时别重画：值虽然每次输入都存过（不会丢），
+             但重画会把输入框抽走，光标和正在打的字一下就没了。这一轮跳过，下一轮再画。 */
+          var act = document.activeElement;
+          if (act && sheet.contains(act) && /^(INPUT|TEXTAREA|SELECT)$/.test(act.tagName)) return;
+          indexBoard(b); setGateUI(!!b.open); repaintPeer();
+        }, function () { /* 网络抖一下，下一轮再来 */ });
+      };
+      pollSchedule();
       peer.fetchBoard(cls, lesson).then(function (b) {
         if (!document.body.contains(sheet)) return;
         indexBoard(b); setGateUI(!!b.open); repaintPeer();
@@ -649,6 +638,7 @@
       refresh.disabled = true;
       toggle.title = peerReason;
       toggle.classList.add('is-blocked');
+      pollStop();
     }
 
     /* 重画之后把滚动位置放回去（只有自己触发的重画才带 keepY） */

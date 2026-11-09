@@ -834,15 +834,53 @@ const fxLoad = t => '<div class="hx-loadwrap sm" data-fxload="' + esc(t) + '" da
 let sess = null;
 const load = () => { try { sess = JSON.parse(localStorage.getItem(SKEY)); } catch (e) { sess = null; } return sess; };
 const keep = v => { sess = v; try { v ? localStorage.setItem(SKEY, JSON.stringify(v)) : localStorage.removeItem(SKEY); } catch (e) { } };
-async function api(p, o) {
-  o = o || {};
-  if (o.auth !== false) {
-    load();
-    if (sess && sess.expires_at && now() > sess.expires_at - 60) {
-      const j = await api('/auth/v1/token?grant_type=refresh_token', { method: 'POST', body: { refresh_token: sess.refresh_token }, auth: false }).catch(e => { if (e.status) keep(null); throw e; });
-      keep({ access_token: j.access_token, refresh_token: j.refresh_token, expires_at: j.expires_at || now() + (j.expires_in || 3600), user: j.user || sess.user || null });
+/* 这台设备上登录过的账号（和总入口共用 paike-accounts）：谁续期谁把新 refresh_token 写回去，
+   否则账号列表里留着已经被轮换作废的旧 rt，点「切到这个账号」必然 400。 */
+const AKEY = 'paike-accounts';
+const accounts = () => { try { return JSON.parse(localStorage.getItem(AKEY)) || []; } catch (e) { return []; } };
+const keepAccounts = L => { try { localStorage.setItem(AKEY, JSON.stringify(L)); } catch (e) { } };
+function saveAccount(usedRt) {
+  if (!sess || !sess.refresh_token) return;
+  let L = accounts();
+  if (usedRt) {
+    const i = L.findIndex(x => x.rt === usedRt);
+    if (i >= 0) {
+      L[i].rt = sess.refresh_token; L[i].at = now();
+      if (sess.user && sess.user.id) { L[i].uid = sess.user.id; L[i].mail = sess.user.email || L[i].mail || ''; L[i].name = (sess.user.user_metadata && sess.user.user_metadata.name) || L[i].name || ''; }
+      keepAccounts(L); return;
     }
   }
+  const u = sess.user;
+  if (!u || !u.id) return;
+  L = L.filter(x => x.uid !== u.id);
+  L.unshift({ uid: u.id, mail: u.email || '', name: (u.user_metadata && u.user_metadata.name) || '', rt: sess.refresh_token, at: now() });
+  keepAccounts(L.slice(0, 6));
+}
+/* 续期单飞：refresh_token 一次性轮换，同一页并发续期 = 后发的那次 400 把前一次换好的会话抹掉（全站掉登录） */
+let refreshing = null;
+async function fresh() {
+  load(); if (!sess || !sess.expires_at || now() < sess.expires_at - 60) return;
+  if (!sess.refresh_token) return;
+  if (refreshing) return refreshing;
+  const usedRt = sess.refresh_token, prevUser = sess.user || null;
+  refreshing = (async () => {
+    try {
+      const j = await api('/auth/v1/token?grant_type=refresh_token', { method: 'POST', body: { refresh_token: usedRt }, auth: false });
+      keep({ access_token: j.access_token, refresh_token: j.refresh_token, expires_at: j.expires_at || now() + (j.expires_in || 3600), user: j.user || prevUser || null });
+      saveAccount(usedRt);
+    } catch (e) {
+      const cur = load();
+      if (cur && cur.access_token && now() < cur.expires_at - 60) return; // 别的页面刚换好
+      if (!e.status) throw e;                                            // 网络错误不清会话
+      if (cur && cur.refresh_token === usedRt) keep(null);
+      throw e;
+    } finally { refreshing = null; }
+  })();
+  return refreshing;
+}
+async function api(p, o) {
+  o = o || {};
+  if (o.auth !== false) await fresh();
   const h = { apikey: HXK, 'Content-Type': 'application/json' };
   if (o.auth !== false && sess) h.Authorization = 'Bearer ' + sess.access_token;
   let r;

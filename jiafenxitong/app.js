@@ -330,6 +330,8 @@ function setGroupLeader(cls, g, member) {
   save();
   renderGroups(cls, curLesson(cls));
   if (view === 'leader') renderLeader();
+  /* 本节课若已经开放了互评，立刻把新组长重发上去 —— 否则学生端还按旧组长收分 */
+  peerSyncGroups(cls, true);
   flash(restoredDefault ? '已恢复第1位成员为第' + g.no + '组组长' : member.name + '已设为第' + g.no + '组组长');
   return true;
 }
@@ -1206,8 +1208,10 @@ function restoreDroppedToHome(cls) {
 
   /* ================= 组内互评（2026-11-04） =================
      老师在「项目评分表」里按本节课开「组长打分」→ 组长给组员打分、组员给组长打分（取平均）
-     → 老师逐列「确认加分 / 否决清除」。原始提交存在云端 jf_peer_scores，
-     确认后才写回本节 leaderScores —— 总分、排名、登分册、打印、学生快照全部沿用旧口径。
+     → **学生提交直接计分**（2026-11-10 用户要求取消教师逐列确认）：拉看板时由
+     peer-apply.js 把原始提交归成「落哪一格、落多少分」写回本节 leaderScores。
+     要改分走两条老路：① 直接点格子手改（「师」角标）；② 关掉「组长打分」开关再改。
+     原始提交仍存在云端 jf_peer_scores，老师「清空本列」才会删掉它。
      数据库脚本：supabase/2026-11-04-组内互评打分.sql。 */
   var peerCache = Object.create(null);      // lessonId -> 最近一次看板
 
@@ -1252,8 +1256,10 @@ function restoreDroppedToHome(cls) {
     };
   }
 
-  /** 开 / 关本节课的组长打分。开的时候顺带把最新分组、项目、组长发布上去 */
-  function peerSetGate(cls, lesson, open) {
+  /** 开 / 关本节课的组长打分。开的时候顺带把最新分组、项目、组长发布上去。
+      silent = 老师没动手，是 peerSyncGroups() 在后台补发最新分组：
+      这时候不记操作日志（换一次组长就多一条「开放组长打分」会让撤销看不懂），也不整页重绘。 */
+  function peerSetGate(cls, lesson, open, silent) {
     if (!peerReady(cls)) return Promise.reject(new Error(peerReason(cls)));
     var args = { p_class: peerClassId(cls), p_lesson: peerLessonKey(lesson), p_open: !!open };
     if (open) args.p_payload = peerPayload(cls, lesson);
@@ -1261,11 +1267,47 @@ function restoreDroppedToHome(cls) {
       lesson.peerGate = !!open;
       lesson.peerGateAt = new Date().toISOString();
       delete peerCache[peerLessonKey(lesson)];
-      addOperationLog('组内互评', cls.name + ' · 第' + lesson.seq + '次课 · ' +
-        (open ? '开放组长打分（仅本节）' : '关闭组长打分'));
-      save();
+      if (!silent) {
+        addOperationLog('组内互评', cls.name + ' · 第' + lesson.seq + '次课 · ' +
+          (open ? '开放组长打分（仅本节）' : '关闭组长打分'));
+        save();
+      }
       return res || { open: !!open };
     });
+  }
+
+  /* 分组 / 组长 / 名单的指纹。用来判断「服务器上那份 payload 还跟不跟得上本机」 */
+  function peerGroupsHash(cls, lesson) {
+    try { return JSON.stringify(peerPayload(cls, lesson).groups); } catch (e) { return ''; }
+  }
+
+  /* 组长（或名单、分组）在本机变了，就把最新的一份悄悄重发上去。
+     2026-11-09 用户报：「更新组长（首页双击）但是小组给组长加分的时候组长名字却还是旧的不会变」。
+     根因：payload（含每组 leader 键和成员名）只在「开放组长打分」那一瞬间发到服务器
+     （jf_peer_gate 只在 p_open 时写 jf_peer_boards），之后在首页双击换组长，
+     服务器上还是开课时那份旧名单 —— 学生端 jf_peer_mine 拿到的 leader 自然还是旧人，
+     组员给组长打分就打到旧组长头上了。
+     所以：课次开着互评 + 指纹变了，就重发一次。force 用于「刚改完，别管指纹」的场合。
+     重发只覆盖分组/项目/组长，不碰 jf_peer_scores，已经打出去的分不会丢。 */
+  function peerSyncGroups(cls, force) {
+    try {
+      if (!cls || !peerReady(cls)) return;
+      /* 这里故意不复用 curLesson()：那个函数会顺手改写 S.ui.lessonId，
+         而同步可能发生在「不是当前在看的那个班」上，不该动界面状态。 */
+      var lesson = getLesson(S.ui.lessonId);
+      if (!lesson || lesson.classId !== cls.id) {
+        var ls = lessonsOf(cls.id);
+        lesson = ls.length ? ls[ls.length - 1] : null;
+      }
+      if (!lesson || !lesson.peerGate) return;
+      var hash = peerGroupsHash(cls, lesson);
+      if (!hash) return;
+      if (!force && lesson.peerHash === hash) return;
+      peerSetGate(cls, lesson, true, true).then(function () {
+        lesson.peerHash = hash;
+        save(false);
+      }).catch(function () { /* 网络抖一下不打扰老师；下次进评分页还会再同步 */ });
+    } catch (e) { }
   }
 
   function peerFetchBoard(cls, lesson) {
@@ -1277,6 +1319,8 @@ function restoreDroppedToHome(cls) {
       board.at = Date.now();
       peerCache[peerLessonKey(lesson)] = board;
       lesson.peerGate = !!board.open;
+      /* 拿到看板就直接计分（学生提交不再需要老师逐列确认） */
+      peerApplyBoard(cls, lesson, board);
       return board;
     });
   }
@@ -1302,6 +1346,18 @@ function restoreDroppedToHome(cls) {
     return hit ? hit.col : -1;
   }
 
+  /** 学生提交直接计分：把看板里的原始提交归成「落哪一格、落多少分」，写进本节 leaderScores。
+      （真正的归并/平均/时间戳护栏在 peer-apply.js，这里只负责接上 colOf 和保存） */
+  function peerApplyBoard(cls, lesson, board) {
+    try {
+      var A = window.JFDT_PEER_APPLY;
+      if (!A || !lesson || !board) return 0;
+      var n = A.applyInto(lesson, A.rows(board), function (p) { return peerColumnOf(lesson, p); });
+      if (n > 0) save(false);   // 保存但不重绘：调用方拿到 board 之后自己会重画
+      return n;
+    } catch (e) { return 0; }
+  }
+
   /** 把服务端算好的确认结果写回本节 leaderScores（成员=组长给的原始分，组长=组员平均分） */
   function peerApplyRows(lesson, project, rows) {
     var col = peerColumnOf(lesson, project);
@@ -1320,7 +1376,7 @@ function restoreDroppedToHome(cls) {
     return n;
   }
 
-  /** 老师点「否」：这一列本轮加分全部清掉（含互评标记） */
+  /** 老师点「清空本列」：这一列本轮加分全部清掉（含互评标记），学生重新提交才会再计分 */
   function peerClearColumn(cls, lesson, project) {
     var col = peerColumnOf(lesson, project);
     if (col < 0) return 0;
@@ -1332,12 +1388,17 @@ function restoreDroppedToHome(cls) {
         var values = rec.members[k];
         if (Array.isArray(values) && values[col] != null) { values[col] = null; n++; }
         if (lesson.peerMeta) delete lesson.peerMeta[g.no + '|' + k + '|' + col];
+        /* 清空后这一格归零，护栏也一起清掉：学生重新提交就该能进分，
+           否则老师电脑时钟偏快时，新的提交会被判成「比已记录的旧」而永远进不来 */
+        if (lesson.peerSync) delete lesson.peerSync[g.no + '|' + k + '|' + col];
       });
     });
     return n;
   }
 
-  /** 老师逐列确认：ok = true 采纳加分，false 否决并清除本轮提交 */
+  /** 2026-11-09 取消「逐列确认」后，这里只剩「清空本列」一个用途（ok=false）：
+      服务器删掉这一列本轮所有原始提交、状态记 rejected，学生要重新打才有分。
+      ok=true 这条分支留着是为了兼容老数据（历史已确认的列）。 */
   function peerConfirm(cls, lesson, project, ok) {
     if (!peerReady(cls)) return Promise.reject(new Error(peerReason(cls)));
     return CLOUD.rpc('jf_peer_confirm', {
@@ -1348,7 +1409,7 @@ function restoreDroppedToHome(cls) {
       var changed = ok ? peerApplyRows(lesson, project, rows) : peerClearColumn(cls, lesson, project);
       delete peerCache[peerLessonKey(lesson)];
       addOperationLog('组内互评', cls.name + ' · 第' + lesson.seq + '次课 · 项目「' + project + '」' +
-        (ok ? '教师确认加分' + (changed ? '（' + changed + ' 格）' : '（无提交）') : '教师否决，清除本轮加分'));
+        (ok ? '采纳这一列提交' + (changed ? '（' + changed + ' 格）' : '（无提交）') : '清空本列，清除本轮加分' + (changed ? '（' + changed + ' 格）' : '')));
       save();
       return { ok: !!ok, changed: changed, rows: rows };
     });
@@ -1360,6 +1421,8 @@ function restoreDroppedToHome(cls) {
       section.id = 'view-leader'; section.className = 'view';
       $('#main').appendChild(section);
     }
+    /* 进评分页先兜一次同步：分组/名单/组长在首页改过、指纹对不上就把最新一份重发上去 */
+    peerSyncGroups(curClass());
     if (window.JFDT_LEADER_RENDER) window.JFDT_LEADER_RENDER({
       root: $('#view-leader'), state: S,
       /* 2026-11-04 用户报「组内个人评分的班级下拉出现不属于我的班」（26机电11班、26机电15/16/17班 等）：
@@ -1369,7 +1432,9 @@ function restoreDroppedToHome(cls) {
       save: function () { save(); var cls=curClass(),lesson=curLesson(cls);if(lesson)renderGroups(cls,lesson); },
       log: function(detail) { addOperationLog('个人项目评分',detail); },
       fullMarks:function(lesson,groups,columns,names){var cls=getClass(lesson.classId),changed=0;if(!lesson.leaderScores)lesson.leaderScores={};groups.forEach(function(g){var r=lesson.leaderScores[String(g.no)]||(lesson.leaderScores[String(g.no)]={projects:names.slice(),members:{},signedBy:'',note:''}),effect=[];g.members.filter(function(m){return m.name;}).forEach(function(m){var key=m.sid?'sid:'+m.sid:'id:'+m.id,values=r.members[key]||(r.members[key]=[]);columns.forEach(function(i){var old=values[i];if(old===5)return;effect.push({path:'leader:'+key+'|'+i,delta:5-(Number(old)||0),wasBlank:old==null});values[i]=5;changed++;});});
-      if(lesson.peerMeta){g.members.filter(function(m){return m.name;}).forEach(function(m){var k=m.sid?'sid:'+m.sid:'id:'+m.id;columns.forEach(function(i){delete lesson.peerMeta[g.no+'|'+k+'|'+i];});});}
+      /* 一键满分是老师的明确动作：除了清掉「互评」角标，还要把这一格的 peerSync 顶到现在，
+         否则 10 秒自动刷新拉回来的旧提交会把 5 分改回去（学生之后重新提交的更新的分照常覆盖） */
+      if(!lesson.peerMeta)lesson.peerMeta={};if(!lesson.peerSync)lesson.peerSync={};g.members.filter(function(m){return m.name;}).forEach(function(m){var k=m.sid?'sid:'+m.sid:'id:'+m.id,now=new Date().toISOString();columns.forEach(function(i){delete lesson.peerMeta[g.no+'|'+k+'|'+i];lesson.peerSync[g.no+'|'+k+'|'+i]=now;});});
       if(!effect.length)return;var totals=memberTotals(cls);pushUndo({lessonId:lesson.id,gno:g.no,projectBatch:true,projectNames:names.slice(),effect:effect,audit:{source:'项目批量满分',lesson:cls.name+' · 第'+lesson.seq+'次课 · '+lesson.date+' · '+(lesson.topic||''),student:'第'+g.no+'组全员，'+columns.length+'项各5分',sid:'全组操作',delta:'+'+effect.reduce(function(a,e){return a+e.delta;},0)+'（全组合计）',after:g.members.filter(function(m){return m.name;}).map(function(m){var t=totals.find(function(t){return m.sid?t.sid===m.sid:t.gno===g.no&&t.name===m.name;});return t?t.total:'—';}).join(' / ')}});});save();renderGroups(cls,lesson);flash(changed?'已将'+changed+'个项目成绩填为5分':'所选项目已全部满分，无需修改');},
 
       select: function (classId, lessonId) {
@@ -1379,13 +1444,14 @@ function restoreDroppedToHome(cls) {
       toggleLeader: function (cls, group, member) { return setGroupLeader(cls, group, member); },
       memberEntries: function (group) { return groupMemberEntries(group); },
       isLeader: function (group, member) { return isGroupLeader(group, member); },
-      /* 组内互评（2026-11-04）：开关、看板、逐列确认都走这里，界面在 leader-scoring.js */
+      /* 组内互评（2026-11-04）：开关、看板、清空本列都走这里，界面在 leader-scoring.js */
       peer: {
         ready: peerReady,
         reason: peerReason,
         payload: peerPayload,
         projectList: peerProjectList,
         setGate: peerSetGate,
+        syncGroups: peerSyncGroups,
         fetchBoard: peerFetchBoard,
         cached: peerCached,
         confirm: peerConfirm,

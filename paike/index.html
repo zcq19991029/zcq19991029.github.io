@@ -900,7 +900,7 @@ HXLoadFx.boot('paike', 'hxBoot');
 <div id="toast" class="toast" role="status"></div>
 <script id="saved-data" type="application/json">null</script>
 <script>
-const BUILD={"time":"2026-11-09T07:18:52.804Z","sha":"df58ad4"};
+const BUILD={"time":"2026-11-09T08:08:24.023Z","sha":"98ebd61"};
 /* ---- engine.js ---- */
 /* ================= 排课引擎：数据模型、次数/轮次、自动排课、固定老师同步、校验 =================
    纯逻辑，不碰页面；浏览器里是全局 Engine，node 里 require 进来测试。
@@ -1721,14 +1721,49 @@ async function api(path,{method='GET',body,auth=true,headers={}}={}){
   if(!r.ok){const raw=j&&(j.msg||j.message||j.error_description||j.error)||('HTTP '+r.status);throw Object.assign(new Error(zh(raw)),{status:r.status,raw});}
   return j;
 }
+/* 这台设备上登录过的账号（和总入口共用 paike-accounts）：谁续期谁把新 refresh_token 写回去，
+   否则账号列表里留着已经轮换作废的旧 rt，总入口点「切到这个账号」必然 400 */
+const AKEY='paike-accounts';
+const accounts=()=>{try{return JSON.parse(ls.get(AKEY))||[];}catch(e){return[];}};
+const keepAccounts=L=>ls.set(AKEY,JSON.stringify(L));
+function saveAccount(usedRt){
+  if(!session||!session.refresh_token)return;
+  let L=accounts(),i=-1;
+  if(usedRt){for(let k=0;k<L.length;k++){if(L[k].rt===usedRt){i=k;break;}}}
+  if(i>=0){ // 续期回来的会话通常没有 user：按旧 rt 反查得到就只改 rt/at，不因为 user 为空跳过
+    L[i].rt=session.refresh_token;L[i].at=now();
+    const u=session.user;
+    if(u&&u.id){L[i].uid=u.id;L[i].mail=u.email||L[i].mail||'';L[i].name=(u.user_metadata&&u.user_metadata.name)||L[i].name||'';}
+    keepAccounts(L);return;
+  }
+  const u=session.user;
+  if(!u||!u.id)return;
+  L=L.filter(x=>x.uid!==u.id);
+  L.unshift({uid:u.id,mail:u.email||'',name:(u.user_metadata&&u.user_metadata.name)||'',rt:session.refresh_token,at:now()});
+  keepAccounts(L.slice(0,6));
+}
+/* 续期单飞：refresh_token 一次性轮换，同一页并发续期 = 后发的那次 400 把前一次换好的会话抹掉（全站掉登录） */
+let refreshing=null;
 async function fresh(){
   /* 先读一遍浏览器里的登录：同一网站的接线仿真、华夏工具总入口共用这份登录，可能刚续过期（续期后旧凭证作废，拿旧的再续会被踢下线） */
   try{const v=JSON.parse(ls.get(SKEY));if(v&&v.access_token)session=Object.assign({},v,{user:v.user||(session&&session.user)||null});}catch(e){}
   if(!session||now()<session.expires_at-60)return;
-  try{take(await api('/auth/v1/token?grant_type=refresh_token',{method:'POST',body:{refresh_token:session.refresh_token},auth:false}));}
-  catch(e){if(!e.offline)keep(null);throw e;}
+  if(!session.refresh_token)return;
+  if(refreshing)return refreshing;
+  const usedRt=session.refresh_token,prevUser=session.user||null;
+  refreshing=(async()=>{
+    try{take(await api('/auth/v1/token?grant_type=refresh_token',{method:'POST',body:{refresh_token:usedRt},auth:false}),usedRt,prevUser);}
+    catch(e){
+      let cur=null;try{cur=JSON.parse(ls.get(SKEY));}catch(_){}
+      if(cur&&cur.access_token&&cur.expires_at&&now()<cur.expires_at-60)return; // 别的页面刚换好
+      if(e.offline)throw e;                                        // 断网（云端自己标的 offline）不清会话
+      if(cur&&cur.refresh_token===usedRt)keep(null);                // 只有自己那把旧 rt 真失效才清
+      throw e;
+    }finally{refreshing=null;}
+  })();
+  return refreshing;
 }
-function take(j){keep({access_token:j.access_token,refresh_token:j.refresh_token,expires_at:j.expires_at||now()+(j.expires_in||3600),user:j.user||(session&&session.user)||null});}
+function take(j,usedRt,prevUser){keep({access_token:j.access_token,refresh_token:j.refresh_token,expires_at:j.expires_at||now()+(j.expires_in||3600),user:j.user||prevUser||(session&&session.user)||null});saveAccount(usedRt);}
 
 /* 从 GitHub / 确认邮件 / 重设密码邮件跳回来时，地址栏 # 后面带着登录凭证 */
 async function handleRedirect(){

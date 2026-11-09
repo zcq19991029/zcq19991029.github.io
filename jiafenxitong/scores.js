@@ -206,7 +206,9 @@
   /* ---------- 组内互评（2026-11-04） ----------
      只对「老师当节点了开放」的那一节课生效；其他课次仍只看自己快照，改不了。
      数据全在云端：jf_peer_open 列出开放的课，jf_peer_mine 拉本节我这一组，
-     jf_peer_submit / jf_peer_clear 打分和撤分。老师逐列确认后才计入成绩。 */
+     jf_peer_submit / jf_peer_clear 打分和撤分。
+     2026-11-09 起取消了「教师逐列确认」：学生提交直接计入成绩（老师随时可以手改）。
+     历史上被标成 confirmed 的列仍然锁定，学生改不了（老师那边可以「清空本列」重新来）。 */
 
   function peerMineMap() {
     var map = Object.create(null);
@@ -216,8 +218,9 @@
   function peerScore(project, target) {
     return peerMineMap()[project + '\u0000' + target];
   }
-  function peerStatusText(s) { return s === 'confirmed' ? '已确认' : s === 'rejected' ? '已否决' : '待确认'; }
-  function peerStatusClass(s) { return 'peer-badge is-' + (s || 'pending'); }
+  /* 没有「待确认」这一档了：提交了就计入。confirmed = 历史确认过的锁定列，rejected = 老师作废的列 */
+  function peerStatusText(s) { return s === 'confirmed' ? '已锁定' : s === 'rejected' ? '已作废' : '已计入'; }
+  function peerStatusClass(s) { return 'peer-badge is-' + (s === 'confirmed' ? 'confirmed' : s === 'rejected' ? 'rejected' : 'counted'); }
 
   function refreshPeer(reset) {
     return rpc('jf_peer_open', {}).then(function (res) {
@@ -256,7 +259,7 @@
     peerRun(function () {
       return rpc('jf_peer_submit', { p_lesson: lessonKey, p_project: project, p_target: target, p_score: score });
     }).then(function () {
-      peer.msg = '已提交 ' + score + ' 分，等老师确认后计入成绩。';
+      peer.msg = '已提交 ' + score + ' 分，已计入成绩。';
     }, function (e) {
       upsertMine(project, target, prev);
       peer.msg = (e && e.message) || '提交失败，检查网络后重试。';
@@ -321,7 +324,7 @@
       return '<div class="card peer-card"><div class="peer-card-head"><h3>组内互评</h3>' +
         '<span class="peer-pill is-closed">未开放 · 只读</span></div>' +
         '<p class="note">老师还没开放本节课的「组长打分」。开放后：组长给本组组员打分，组员给组长打分（取平均），' +
-        '每一列老师确认后才计入成绩。其他课次一律只读。</p></div>';
+        '提交后直接计入成绩。其他课次一律只读。</p></div>';
     }
     var d = peer.data;
     if (!d) {
@@ -348,7 +351,7 @@
       '<p class="note">' + (d.me.is_leader
         ? '你是 <b>第 ' + d.me.group_no + ' 组组长</b>：给本组组员逐项打分（5 分制）。'
         : '你是 <b>第 ' + d.me.group_no + ' 组组员</b>：给组长 <b>' + esc((d.leader && d.leader.name) || '') + '</b> 打分（5 分制）。') +
-      '点 1–5 直接记分，双击分数撤销。老师逐列确认后计入成绩；确认过的列会锁定。' +
+      '点 1–5 直接记分，双击分数撤销。提交后直接计入成绩（老师可以随时手改）。' +
       (peer.msg ? '<br><b class="peer-msg">' + esc(peer.msg) + '</b>' : '') + '</p>';
 
     if (!projects.length) {
@@ -377,7 +380,7 @@
     html += '<div class="peer-got"><span class="peer-got-label">我收到的分</span>' +
       (got || '<span class="note">还没有人给我打分。</span>') + '</div>' +
       '<p class="note">组长分数 = 收到的分数求平均（打几次除几次，不除组员总数）。例如两个组员分别打 3 和 5 → 组长 4 分。' +
-      '老师确认前只显示在这里，不计入总分。</p></div>';
+      '提交后直接计入总分，老师可以随时手改。</p></div>';
     return html;
   }
 
