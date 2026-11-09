@@ -14,23 +14,24 @@
      要登录时调 window.HXPortal.login()；被单独打开时 hx-theme.js 会跳回这里（见 hx-theme.js 的 data-tool）。
      账号：Supabase 华夏工具项目，localStorage paike-session 和各工具共用；身份由数据库 hx_me() 决定。
      脚本里不用反引号模板字符串（本机测试时整页当字符串注入到线上同源页面里）。 -->
-<link rel="stylesheet" href="hx-theme.css?v=b554b3f">
-<script src="hx-theme.js?v=b554b3f"></script>
+<link rel="stylesheet" href="hx-theme.css?v=6bca0c9">
+<script src="hx-theme.js?v=6bca0c9"></script>
 <!-- 首页卡片上的像素小生物：pixelfx 的 12 个 critters（MIT），打包成一个 91 KB 的独立脚本。
      加载失败不影响首页——hx-critters.js 开头就有 window.PixelFX 存在性检查，没有就整段跳过。 -->
-<script src="fx/pixelfx-critters.js?v=b554b3f" defer></script>
-<script src="fx/hx-critters.js?v=b554b3f" defer></script>
+<script src="fx/pixelfx-critters.js?v=6bca0c9" defer></script>
+<script src="fx/hx-critters.js?v=6bca0c9" defer></script>
 <!-- 像素头像库（2026-11-04）：账号面板里除了传照片，还能从 200 多个像素动效里挑一个当头像。
-     和上面 critters 同一套路：库（pixelfx-avatars.js）+ 渲染器（hx-avatar.js），都是 defer、
-     不进首屏关键路径；不点「像素头像库」就一个动画都不跑。 -->
-<script src="fx/pixelfx-avatars.js?v=b554b3f" defer></script>
-<script src="fx/hx-avatar.js?v=b554b3f" defer></script>
+     2026-11-09 改按需加载（用户报「打不开、登录不了」）：这个库 pixelfx-avatars.js 有 1.0 MB，
+     而它只在「账号面板 → 像素头像库」这一个子视图里用得到。原来用 defer 挂在每一页上，
+     等于全班每开一次页面都要多下 1 MB 纯装饰 —— 首屏 1.67 MB 里 6 成是它。
+     现在是：不点「像素头像库」一个字节都不下；点了才 loadAvatarLib() 拉（见下面的函数）。
+     两个脚本的先后顺序不能反：hx-avatar.js 依赖 window.PixelFXAvatar。 -->
 <!-- 背景动效（2026-11-03）：12 种天气氛围特效铺在背景层，外观面板里选；加载失败或没选就完全不加载渲染器 -->
-<script src="fx/pixelfx-weather.js?v=b554b3f" defer></script>
-<script src="fx/hx-weather.js?v=b554b3f" defer></script>
+<script src="fx/pixelfx-weather.js?v=6bca0c9" defer></script>
+<script src="fx/hx-weather.js?v=6bca0c9" defer></script>
 <!-- 课堂码大屏二维码：离线 QR 编码器（qrcode 1.5.4 core 打包，MIT，见 fx/NOTICE-qr.md）。延迟加载即可：只有老师点「大屏二维码」时才用 -->
-<script src="fx/hx-qr.js?v=b554b3f" defer></script>
-<script src="hx-scan.js?v=b554b3f" defer></script><!-- 全站扫一扫（2026-11-08 K5）：摄像头 + BarcodeDetector / 本地 jsQR -->
+<script src="fx/hx-qr.js?v=6bca0c9" defer></script>
+<script src="hx-scan.js?v=6bca0c9" defer></script><!-- 全站扫一扫（2026-11-08 K5）：摄像头 + BarcodeDetector / 本地 jsQR -->
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; width: 100%; overflow: hidden; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -1086,11 +1087,25 @@ var HX = (function () {
     [/Identity is already linked/i, '这个 GitHub 已经绑定了别的账号'],
     [/already registered|user_already_exists/i, '这个学号已经注册过账号了。请切到「登录」，用学号和你当时设的密码登录；忘了密码找老师重置。']];
   function zh(m) { m = String(m || ''); for (var i = 0; i < ZH.length; i++) if (ZH[i][0].test(m)) return ZH[i][1] + (ZH[i][2] ? '（' + m + '）' : ''); return m; }
+  // 2026-11-09：后端偶尔会「几十秒不回」（实测同一个接口在 1.2 秒 ↔ 40 秒之间反复横跳），
+  // 而前端原来没有超时 —— 一条请求卡住，登录按钮就一直转圈、整页像崩了。
+  // 现在每条请求最多等 12 秒，超时明确报一句「再试一次」，绝不无限等。
+  var TIMEOUT = 12000;
   async function api(path, o) {
     o = o || {}; var auth = o.auth !== false;
     if (auth) await fresh();
-    var h = { apikey: KEY, 'Content-Type': 'application/json' }; if (auth && s) h.Authorization = 'Bearer ' + s.access_token;
-    var r; try { r = await fetch(BASE + path, { method: o.method || 'GET', headers: h, body: o.body === undefined ? undefined : JSON.stringify(o.body) }); } catch (e) { throw new Error('连不上服务器，请检查网络'); }
+    var h = { apikey: KEY, 'Content-Type': 'application/json' };
+    // 只有真拿到 access_token 才带 Authorization。原来写的是 `if (auth && s)`，
+    // 而切账号时 s.access_token 是空串 → 会发出 `Authorization: Bearer `（空令牌），
+    // 边缘层对这种畸形令牌的处理异常慢（实测 90 秒不返回），登录就卡死在这一步。
+    if (auth && s && s.access_token) h.Authorization = 'Bearer ' + s.access_token;
+    var r, ctl = typeof AbortController === 'function' ? new AbortController() : null;
+    var tm = ctl ? setTimeout(function () { try { ctl.abort(); } catch (e) { } }, TIMEOUT) : 0;
+    try {
+      r = await fetch(BASE + path, { method: o.method || 'GET', headers: h, body: o.body === undefined ? undefined : JSON.stringify(o.body), signal: ctl ? ctl.signal : undefined });
+    } catch (e) {
+      throw new Error(e && e.name === 'AbortError' ? '服务器 12 秒没回应（网络慢，或后端正忙），请再点一次' : '连不上服务器，请检查网络');
+    } finally { if (tm) clearTimeout(tm); }
     var t = await r.text(), j = null; try { j = t ? JSON.parse(t) : null; } catch (e) { j = t; }
     if (!r.ok) { var err = new Error(zh(j && (j.msg || j.message || j.error_description || j.error) || 'HTTP ' + r.status)); err.status = r.status; throw err; }
     return j;
@@ -1541,6 +1556,27 @@ function togglePop(k) {
   }
   syncExp();
 }
+/* 像素头像库按需加载（2026-11-09）：库 1.0 MB + 渲染器 45 KB，只有「账号面板 → 像素头像库」用得到。
+   返回 Promise：加载好 / 已经在加载中（同一个 Promise，不会重复插标签）/ 某一步失败。
+   失败不抛给调用方致命错误——renderPop 里会退回到「头像库没加载出来」那句话，页面照常用。 */
+var avLibP = null;
+function loadAvatarLib() {
+  if (window.HXAvatar) return Promise.resolve(true);
+  if (avLibP) return avLibP;
+  function one(src) {
+    return new Promise(function (res, rej) {
+      var s = document.createElement('script');
+      s.src = src; s.async = false;   // async=false：两个文件严格按插入顺序执行（hx-avatar 依赖库）
+      s.onload = function () { res(); };
+      s.onerror = function () { rej(new Error('加载失败：' + src)); };
+      document.head.appendChild(s);
+    });
+  }
+  avLibP = one('fx/pixelfx-avatars.js').then(function () { return one('fx/hx-avatar.js'); })
+    .then(function () { return !!window.HXAvatar; })
+    .catch(function () { avLibP = null; return false; });   // 失败清掉缓存，下次点还能重试
+  return avLibP;
+}
 function renderPop() {
   var i = info(), r = role() || '', m = ST.me || {}, E = ST.edit, html, form = function (inner) { return '<div class="f">' + inner + '<p class="msg" id="pmsg"></p><button class="btn" id="psave">保存</button><button class="btn link" id="pcancel">取消</button></div>'; };
   html = '<div class="who-top"><label class="avl" title="点击换头像">' + avatar(i, 'lg') + '<input type="file" id="pav" accept="image/*" hidden></label><b>' + esc(i.name) + '</b><small>' + (HX.synthetic(i.email) ? '' : esc(i.email)) + '</small><span class="pill acc">' + r + (m.student ? ' · ' + esc(m.student.class) : '') + '</span></div>';
@@ -1551,7 +1587,17 @@ function renderPop() {
     $('pop').innerHTML = html;
     ensurePopX('pop'); // 头像库子视图同样是整体重写，关闭钮要补回来
     var grid = $('avGrid'), AV = window.HXAvatar;
-    if (!AV || !AV.panel) grid.innerHTML = '<p class="msg">头像库脚本没加载出来，刷新页面再试（或者直接用上面那张照片头像）。</p>';
+    if (!AV || !AV.panel) {
+      // 库是点了才下的（见上面的 loadAvatarLib），所以这里第一次进来一定是「还没好」。
+      // 先把「正在取」显示出来，下完自动重画一次；真失败才说那句「没加载出来」。
+      grid.innerHTML = '<p class="msg" id="avwait">正在取像素头像库（第一次点要多等一会儿，约 1 MB）…</p>';
+      loadAvatarLib().then(function (ok) {
+        if (!ST.avlib) return;                       // 等的过程中用户返回了 / 关掉了
+        if (ok) { renderPop(); return; }
+        var w = $('avwait');
+        if (w) w.textContent = '头像库没加载出来（网络可能不稳），再点一次「像素头像库」试试，或者直接用上面那张照片头像。';
+      });
+    }
     else {
       if (ST.avPanel && ST.avPanel.destroy) { try { ST.avPanel.destroy(); } catch (e) { } }
       ST.avPanel = AV.panel(grid, {

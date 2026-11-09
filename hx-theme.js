@@ -593,6 +593,27 @@
     bgVids = []; bgCur = 0; bgFading = false; bgLoopEnd = 0;
   }
   var bgWrap = null;
+  /* ── 620 KB 极光视频不再抢首屏（2026-11-09）──
+     用户报「打不开了 / 登录都登录不了」时量的账：首页下行 1668 KB，其中 bg/aurora.mp4 占 620 KB
+     （桌面端唯一的大件）。它和登录、名单、分数一毛钱关系都没有，却和它们抢同一条带宽 ——
+     教室几十台机器一起开，视频把线吃满，app.js / hx_me 就排在后面慢慢等。
+     做法：首屏先只出海报帧（bg/aurora.jpg，30 KB，本来就已经由 apply() 写进 --hx-img 了，
+     视觉上就是同一帧画面），等 window.load 之后浏览器空闲了再把视频建出来续上。
+     用户看到的差别只有：开头零点几秒背景是静的，然后自然动起来 —— 慢网上反而是「先有画面」。
+     已经建过视频的不受影响（bgVids.length 非 0 就走原来的路），反复切主题也不会重建。
+     requestIdleCallback 不存在（Safari 老版）就退回 1.2 秒定时；再兜一个 10 秒硬上限，
+     防某个资源卡住导致 load 永远不来、背景一辈子是静图（10 秒是「慢网也基本 load 完了」的量级）。 */
+  var bgVidReady = false;
+  (function () {
+    function go() { if (bgVidReady) return; bgVidReady = true; try { apply(); } catch (e) { } }
+    function later() {
+      if (window.requestIdleCallback) requestIdleCallback(go, { timeout: 2500 });
+      else setTimeout(go, 1200);
+    }
+    setTimeout(go, 10000);                                 // 硬上限：load 不来也放行
+    if (document.readyState === 'complete') later();
+    else addEventListener('load', later);
+  })();
   function bgMake() {
     // 防御：万一还有旧的空 wrap（bgDrop 之前的代码路径），先摘掉再建
     if (bgWrap && bgWrap.parentNode) bgWrap.parentNode.removeChild(bgWrap);
@@ -723,6 +744,8 @@
     // 已经建好的绝不销毁 —— 见 bgNarrow() 上面那段：销毁/重建正是跨断点时背景跳变的来源。
     if (!bgVids.length) {
       if (bgNarrow()) { bgDrop(); return; }
+      // 首屏阶段先不建：只留海报帧，等 load + 空闲再建（见上面 bgVidReady 那段）
+      if (!bgVidReady) { bgDrop(); return; }
       bgMake();
     }
     if (wasSrc === src) {

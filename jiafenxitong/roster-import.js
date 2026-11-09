@@ -82,7 +82,9 @@
     return { state: next, students: added, classes: Object.keys(byClass).length };
   }
   function workbook(data) {
-    if (!global.XLSX) throw new Error('Excel 组件未加载，请刷新网页。');
+    // 2026-11-09：xlsx.full.min.js 改成了 defer（不再阻塞页面启动），刚打开页面就点「导入名单」
+    // 有可能它还没下完。这时候刷新页面是没用的（刷新等于从头再下），等几秒重选一次就对。
+    if (!global.XLSX) throw new Error('Excel 组件还在下载（约 0.9 MB），请等几秒再选一次这个文件。');
     var book = global.XLSX.read(data, { type: 'array', cellText: true });
     var all = [], skipped = [];
     book.SheetNames.forEach(function (name) {
