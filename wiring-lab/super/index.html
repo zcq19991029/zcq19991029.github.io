@@ -2,12 +2,15 @@
 <!-- 超级排位 · 摆放 + 连线两阶段（2026-11-07 第十二批 T1/T2/T3/T4 + Q1～Q6；P4 连线；
      2026-11-08 加题目切换：2.1～2.6 / E1 / E2 八条都能玩，P 只练摆放）
      第一步「摆放」：学生自己按原理图把元器件拖到画布上，摆对了才放开连线。
-     第二步「连线」：点两个端子接一根线；点已画的线两次删掉；检查只说还差多少，不说答案。
+     第二步「连线」（交互与练习页同一套，2026-11-09 对齐）：点一个端子再点另一个接一根线（也可直接拖过去）；
+     点已画的线 = 选中（拖手柄调整走线），删除走工具栏「删除」；工具圆盘 + 展开工具栏照 practice-ui.js，
+     提示 / 检查 / 答案三颗在排位里不建，查错只报红；检查只说还差多少，不说答案。
      顶栏的题目下拉 + 上一题/下一题：切题会清空画布和导线（清单来自 SUPER_CIRCUITS）。
-     左侧元器件库 = 顶部浮动工具栏同款卡片（玻璃底、圆角、缩略图在上小字在下），可缩成一颗可拖的圆点；
+     2026-11-09 排版重做：元器件库不再占左栏一整列，改成**左侧竖条 + 悬浮抽屉**（点竖条滑出，
+     覆盖在画布之上，Esc / 点画布空白 / 再点竖条收起；从库里拖卡片期间抽屉锁住不收）；
+     原理图像练习页一样放**左侧一列**（可点标题折叠），右侧整块都给待布置/连线画布。
      库里放**全量**元件（12 种器件、21 种外形，含复合按钮 / 三种时间继电器 / 竖放二极管…），
      不按题过滤 —— 「挑对元件」本身就是要考的一半；挑错形态由摆放校验明确提示。
-     右侧上半部是电气原理图（2.2 是这里自绘的示意图，其他题提示对照教材），下半部是待布置/连线画布。
      摆放判定只看种类 + 个数，位置不算；连线判定只看「哪些端子连成了一片」，和摆在哪无关。
      版权和 guard.js 同其它页。 -->
 <html lang="zh-CN">
@@ -61,13 +64,19 @@
   .top .tag.back { font: inherit; font-size: 11.5px; font-weight: 700; color: var(--dim); cursor: pointer;
     border-style: solid; background: transparent; }
   .top .tag.back:hover { color: var(--ink); border-color: var(--acc); }
-  /* 主区：左元器件库 + 右（原理图 / 待布置画布） */
+  /* 主区：左列 = 电气原理图（同练习页），右侧整块 = 待布置/连线画布；元器件库不在这里 —— 它是悬浮抽屉 */
   .wrap { flex: 1; min-height: 0; display: flex; gap: 12px; padding: 12px; }
-  /* ── 元器件库：和顶部浮动工具栏同一套观感（玻璃底、圆角 16、图标在上小字在下） ── */
-  .tb { flex: none; width: 250px; min-height: 0; display: flex; flex-direction: column; border-radius: 16px;
+  /* ── 元器件库：悬浮抽屉（position:fixed，不占布局宽度）──
+     抽屉从左缘竖条右侧滑出、覆盖在画布之上（z-index 50 > 画布/原理图），带投影 + 毛玻璃。
+     收起（body.lib-min）= 平移到屏幕外 + pointer-events:none —— 不用 display:none，
+     因为 overLib() 删元件判定靠 lib-min 类先短路，矩形永远算得出，行为和旧版一致。 */
+  .tb { position: fixed; z-index: 50; left: 58px; top: 54px; bottom: 12px; width: 250px;
+    display: flex; flex-direction: column; border-radius: 16px;
     background: linear-gradient(180deg, var(--tbbg), var(--tbbg2)); border: 1px solid var(--edge); color: var(--ink);
-    box-shadow: 0 18px 40px -16px var(--tbsh), 0 0 0 1px color-mix(in srgb, var(--ink) 4%, transparent) inset;
-    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+    box-shadow: 0 24px 48px -18px var(--tbsh), 0 0 0 1px color-mix(in srgb, var(--ink) 4%, transparent) inset;
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    transform: translateX(0); transition: transform .24s ease, visibility .24s; }
+  body.lib-min .tb { transform: translateX(calc(-100% - 80px)); pointer-events: none; visibility: hidden; }
   .tb-hd { flex: none; display: flex; align-items: center; gap: 8px; padding: 10px 10px 8px 14px; border-bottom: 1px solid var(--edge); }
   .tb-hd b { font-size: 14px; font-weight: 800; letter-spacing: .02em; }
   .tb-hd .tb-note { flex: 1; font-size: 11px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -75,7 +84,7 @@
     border: 1px solid var(--edge); background: transparent; color: var(--ink); cursor: pointer; touch-action: manipulation; }
   .tb-min:hover { background: var(--tbhov); }
   .tb-min svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-  /* 把画布上的元件拖到左栏上时，整块库亮红边 = 「松手就删」 */
+  /* 把画布上的元件拖到抽屉上时，整块库亮红边 = 「松手就删」（overLib 用的是抽屉的实际矩形） */
   .tb.del { border-color: color-mix(in srgb, var(--bad) 75%, transparent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--bad) 35%, transparent), 0 18px 40px -16px var(--tbsh); }
   .tb-list { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 1fr; align-content: start; gap: 8px;
     padding: 8px 10px 12px; overflow-y: auto; overflow-x: hidden; }
@@ -93,37 +102,50 @@
   .card .thumb img { display: block; width: 100%; height: auto; }
   .card b { font-size: 12.5px; font-weight: 800; line-height: 1.1; letter-spacing: .02em; }
   .card small { font-size: 10.5px; color: var(--dim); line-height: 1.2; text-align: center; }
-  /* 工具栏收成圆钮（照 parallel.html 的 .tb-orb）。
-     注意：这三个 body 状态类叫 lib-min，不能叫 tb-min —— 折叠按钮自己的类名就是 .tb-min，
-     加到 body 上会让整页套上「28px 方按钮」那套样式（实测整页被压成 28×28、背景变白）。 */
-  body.lib-min .tb { display: none; }
-  .tb-orb { position: fixed; z-index: 40; left: 0; top: 0; display: none; place-items: center; width: 46px; height: 46px;
-    border-radius: 50%; cursor: grab; touch-action: none; opacity: .9; padding: 0;
-    background: radial-gradient(circle at 35% 30%, var(--tbbg), var(--tbbg2)); border: 1px solid var(--edge); color: var(--ink);
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--acc) 22%, transparent), 0 10px 22px -10px var(--tbsh), 0 0 18px -6px var(--acc);
+  /* 元器件库的开关竖条：**常驻**屏幕左缘（z-index 55，抽屉打开时也露在最上层、随时能点收起），
+     图标 + 竖排「元器件库」；按住可拖到任意位置，位置记在 localStorage（沿用原 .tb-orb 逻辑）。
+     点一下开抽屉、再点一下收起；从库里拖卡片期间抽屉锁住不收（super.js 的 libHold）。 */
+  .tb-orb { position: fixed; z-index: 55; left: 0; top: 0; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 7px; width: 46px; height: 138px; padding: 0; border-radius: 0 15px 15px 0;
+    border: 1px solid var(--edge); border-left: 0; cursor: grab; touch-action: none; opacity: .92;
+    background: linear-gradient(180deg, var(--tbbg), var(--tbbg2)); color: var(--ink);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--acc) 20%, transparent), 6px 14px 26px -14px var(--tbsh), 4px 0 16px -8px var(--acc);
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
     transition: opacity .2s, transform .3s cubic-bezier(.34,1.56,.64,1); -webkit-tap-highlight-color: transparent; }
   .tb-orb:hover { opacity: 1; }
-  .tb-orb.dragging { transition: none; transform: scale(1.08); cursor: grabbing; }
-  .tb-orb svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-  .tb-orb i { position: absolute; right: -2px; top: -2px; width: 12px; height: 12px; border-radius: 50%; background: var(--acc);
-    box-shadow: 0 0 0 2px var(--bg), 0 0 10px var(--acc); }
-  body.lib-min .tb-orb { display: grid; }
+  .tb-orb.dragging { transition: none; transform: scale(1.06); cursor: grabbing; }
+  .tb-orb svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .tb-orb em { font-style: normal; writing-mode: vertical-rl; letter-spacing: .24em; font-size: 12px;
+    font-weight: 800; color: var(--ink); white-space: nowrap; }
+  body:not(.lib-min) .tb-orb em { color: var(--acc); }
+  /* 拖元件时竖条变「回收站」：库收着也删得掉 —— 微放大泛红提示可删（.want），
+     拖到竖条正上方时明确红框（.del，和抽屉的 .tb.del 同一套配色） */
+  .tb-orb.want { transform: scale(1.1);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--bad) 32%, transparent), 6px 14px 26px -14px var(--tbsh); }
+  .tb-orb.del { transform: scale(1.16); color: var(--bad); border-color: color-mix(in srgb, var(--bad) 75%, transparent);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--bad) 45%, transparent), 6px 14px 26px -14px var(--tbsh); }
+  .tb-orb.del em { color: var(--bad); }
   /* 拖拽时跟着手指/鼠标走的那张小图（底图自带，边框和投影用主题令牌） */
   .ghost { position: fixed; z-index: 60; width: 96px; padding: 3px; border-radius: 10px; pointer-events: none;
     background: var(--card); border: 1px solid color-mix(in srgb, var(--acc) 60%, transparent);
     box-shadow: 0 14px 28px -12px var(--tbsh), 0 0 0 3px color-mix(in srgb, var(--acc) 22%, transparent); opacity: .95; }
   .ghost img { display: block; width: 100%; height: auto; }
-  /* ── 右列 ── */
-  /* ⚠️ min-height:0 必需（2026-11-08 手机排位溢出的真凶）：
-     flex 子项的 min-height 默认是 auto = 内容高度，右列里有原理图 + 画布两张卡，
-     内容一高就顶到屏幕外面去（overflow:hidden 再把「我摆好了」整颗裁掉）。 */
-  .right { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 12px; }
-  /* 原理图卡片整块由 schview.html 用练习页的 glass() 自己画（同一张卡片、同一套主题），这里只是容器 */
-  .sch-card { flex: none; height: min(44vh, 430px); display: flex; flex-direction: column; min-height: 210px;
+  /* ── 左列：电气原理图（练习页同款「左边对照图」，宽度约 30%，点标题可折叠成一条） ── */
+  .sch-col { flex: 0 0 clamp(250px, 30vw, 400px); min-width: 0; min-height: 0; display: flex; }
+  /* 原理图卡片整块由 schview.html 用练习页的 glass() 自己画（同一张卡片、同一套主题），这里只是容器。
+     折叠（body.sch-min）：卡片缩成 42px 一条横杆，只剩标题 + 折叠箭头。 */
+  .sch-card { flex: 1; min-height: 0; display: flex; flex-direction: column;
     border-radius: 16px; overflow: hidden; background: transparent; }
-  .sch-hd { flex: none; display: flex; align-items: baseline; gap: 10px; padding: 8px 14px 6px; border-bottom: 1px solid var(--edge); }
+  body.sch-min .sch-card { flex: 0 0 auto; height: 42px; min-height: 42px; }
+  body.sch-min .sch-card .sch { display: none; }
+  .sch-hd { flex: none; display: flex; align-items: center; gap: 10px; padding: 8px 14px 6px; border-bottom: 1px solid var(--edge);
+    cursor: pointer; user-select: none; }
   .sch-hd b { font-size: 13.5px; font-weight: 800; color: var(--ink); letter-spacing: .04em; }
   .sch-hd span { font-size: 12px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sch-hd .chev { margin-left: auto; flex: none; width: 0; height: 0;
+    border-left: 5px solid transparent; border-right: 5px solid transparent;
+    border-top: 6px solid color-mix(in srgb, var(--acc) 70%, transparent); transition: transform .2s; }
+  body.sch-min .sch-hd .chev { transform: rotate(180deg); }
   .sch { flex: 1; min-height: 0; padding: 2px 8px 8px; }
   .sch iframe { display: block; width: 100%; height: 100%; border: 0; background: transparent; }
   /* 不是 2.2 的那些题：原理图在教材上，这里只说清楚（不泄露元件清单） */
@@ -131,8 +153,8 @@
     gap: 8px; padding: 8px 20px 14px; text-align: center; }
   .sch-ph b { font-size: 15px; color: var(--ink); letter-spacing: .04em; }
   .sch-ph em { font-style: normal; font-size: 12.5px; line-height: 1.6; color: var(--dim); max-width: 560px; }
-  /* 待布置画布 */
-  .stage { position: relative; flex: 1; min-height: 200px; border-radius: 16px; overflow: hidden;
+  /* 待布置画布：右侧主区吃满剩余空间（flex:1，桌面约 65%+ 宽、整列高；min-width:0 防 flex 溢出） */
+  .stage { position: relative; flex: 1; min-width: 0; min-height: 200px; border-radius: 16px; overflow: hidden;
     background: var(--bg); border: 1px solid var(--edge); }
   canvas { display: block; width: 100%; height: 100%; touch-action: none; }
   .stage-hd { position: absolute; left: 14px; top: 10px; z-index: 2; display: flex; align-items: baseline; gap: 10px; pointer-events: none; }
@@ -145,20 +167,14 @@
   .go:hover { filter: brightness(1.08); }
   .go:active { transform: scale(.96); }
   .go.done { background: linear-gradient(135deg, var(--ok), var(--acc)); box-shadow: 0 12px 26px -10px color-mix(in srgb, var(--ok) 70%, transparent); }
-  /* 连线阶段才出现的小工具条（撤销 / 清空），放在画布右上角：不压左上的标题，也不压右下的按钮 */
-  .tools { position: absolute; right: 16px; top: 10px; z-index: 3; display: none; gap: 8px; }
-  .tools.on { display: flex; }
-  .tools button { height: 32px; padding: 0 12px; border-radius: 16px; font: inherit; font-size: 12.5px; font-weight: 700;
-    color: var(--ink); background: var(--tbbg2); border: 1px solid var(--edge); cursor: pointer; touch-action: manipulation; }
-  .tools button:hover { background: var(--tbhov); }
-  .tools button.warn { border-color: color-mix(in srgb, var(--bad) 50%, transparent); color: var(--bad); }
-  /* 状态条：已摆 / 已接 / 接通（数字口径见 super.js 的 updateStat） */
+  /* 连线阶段的工具栏 / 圆钮（撤销 / 删除 / 清空 / 查错 / 线色 / 主题 / 全屏 / 收起）由 super.js §8.9
+     动态建（.ftb / .ftb-orb），照练习页 practice-ui.js 那套；提示 / 检查 / 答案在排位里不建。
+     光标由 super.js 按手底下的东西动态换（端子 pointer / 手柄 resize / 拖动 grabbing）。 */
+  /* 状态条：已接线 N/总数（练习页 panelCount 同口径）/ 接通（数字口径见 super.js 的 updateStat） */
   .stat { position: absolute; left: 14px; bottom: 12px; z-index: 2; max-width: calc(100% - 150px); padding: 5px 10px;
     border-radius: 10px; background: var(--tbbg2); border: 1px solid var(--edge);
     color: var(--dim); font-size: 12px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     pointer-events: none; }
-  /* 连线阶段把光标换成十字，暗示「点端子」 */
-  #c.wire { cursor: crosshair; }
   /* 提示条贴在「我摆好了」上方、靠右对齐：学生刚点完就在眼皮底下看到结果，
      又不挡住画布中间那一大块摆放区（放中间会压住底排的元件）。 */
   .toast { position: absolute; right: 16px; bottom: 72px; z-index: 3; max-width: min(460px, 66%); padding: 10px 16px;
@@ -168,40 +184,37 @@
   .toast.on { opacity: 1; transform: translateY(0); }
   .toast.bad { border-color: color-mix(in srgb, var(--bad) 60%, transparent); color: var(--bad); }
   .toast.ok { border-color: color-mix(in srgb, var(--ok) 60%, transparent); color: var(--ok); }
-  /* 窄屏 / 手机：库变成顶上一条横向工具条，原理图和画布上下叠（画布仍然占最大的一块）
-     ── 2026-11-08 晚：三块改成能收缩的弹性基准 ──
-     用户报「连线时候工具包丢失 排位也没有工具栏」。实测手机 390×844：库 150 + 原理图 287 + 画布 461
-     加起来比视口高 70 多像素，而 body 是 overflow:hidden，多出来的部分直接被裁掉——
-     元器件库的顶部被顶到 y=-23（半截在屏幕外），底部那颗「我摆好了」落在 y=867（整颗在屏幕外）。
-     现在三块各自带一个可收缩的 flex 基准（库 178→96、原理图 34vh→120、画布吃剩下的），
-     空间不够时一起让，谁也不会被裁出去。 */
+  /* 窄屏 / 手机（≤900px）：竖着排 —— 原理图默认折叠成一条可点开的横杆（启动时 JS 加 body.sch-min），
+     画布占满剩下的全部高度；元器件库改成**底部抽屉**（46vh，从下滑出），左缘竖条点一下开关。
+     画布永远 flex:1 吃剩余空间，body overflow:hidden + 无横向滚动（scrollWidth == innerWidth）。 */
   @media (max-width: 900px) {
     .wrap { flex-direction: column; gap: 8px; padding: 8px; overflow: hidden; }
-    /* 手机上元器件库改成**横向滑动的一条**。
-       原来这里是个两列网格（minmax(92px,1fr)），390 屏上要 178px 高才放得下两行，
-       压得画布只剩 300 多，所以上一版干脆把库压成 89px —— 结果连一张卡都露不出来，
-       看起来就是「元器件库是空的」（2026-11-08 用户报「连线时候工具包丢失」的截图正是这样）。
-       现在：卡片横着排、固定 78px 宽、左右滑看全，库总高 130 上下，画布还能留 400。 */
-    .tb { width: auto; flex: 0 0 auto; min-height: 0; max-height: none; }
-    .tb-list { display: flex; flex-wrap: nowrap; gap: 8px; padding: 8px 10px 10px;
-      overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; }
-    .tb-list .grp { display: none; }                  /* 横条里放不下分组标题，卡片自己的名字够认 */
-    .tb-list .card { flex: 0 0 auto; width: 78px; }
-    .sch-card { flex: 0 1 26vh; height: auto; min-height: 110px; max-height: 26vh; }
+    .sch-col { flex: 0 0 auto; width: auto; }
+    .sch-card { flex: 0 0 auto; height: 42px; min-height: 42px; }
+    body:not(.sch-min) .sch-card { height: min(40vh, 300px); }
+    .sch-hd { padding: 6px 10px; }
+    .sch-hd b { font-size: 12.5px; }
+    .sch-hd span { font-size: 11px; }
     .stage { flex: 1 1 auto; min-height: 150px; }
+    /* 元器件库 = 底部抽屉：宽满屏、高 46vh、圆角只在顶上；收起 = 往下滑出屏幕 */
+    .tb { left: 0; right: 0; top: auto; bottom: 0; width: auto; height: 46vh; max-height: 46vh;
+      border-radius: 16px 16px 0 0; transform: translateY(0); }
+    body.lib-min .tb { transform: translateY(105%); }
+    .tb-list { grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 10px 12px 14px;
+      overflow-y: auto; overflow-x: hidden; }
+    .tb-orb { width: 42px; height: 116px; }
+    .tb-orb em { font-size: 11px; letter-spacing: .18em; }
     .top .sub, .top .tag:not(.back) { display: none; }
     .top .tsk { display: none; }
     .tsel select { max-width: 136px; font-size: 11.5px; }
-    /* 手机竖屏：画布本来就不高，连线工具条 / 状态条 / 提示条都要收一号，别把绘图区挤没了 */
-    .tools { right: 8px; top: 8px; gap: 6px; }
-    .tools button { height: 28px; padding: 0 9px; font-size: 11.5px; border-radius: 14px; }
+    /* 手机竖屏：画布本来就不高，状态条 / 提示条都要收一号，别把绘图区挤没了 */
     .stat { left: 8px; bottom: 8px; padding: 4px 8px; font-size: 10.5px; max-width: calc(100% - 100px); }
     .go { right: 10px; bottom: 10px; height: 38px; padding: 0 16px; font-size: 13.5px; }
     .toast { right: 8px; bottom: 52px; max-width: 72%; padding: 6px 10px; font-size: 11.5px; line-height: 1.35; }
   }
-  /* 再窄一点（手机竖屏）：原理图让一让，把高度留给连线画布 —— 第二步真正要操作的是画布 */
+  /* 再窄一点（手机竖屏）：顶栏逐个数着缩，把高度留给画布 —— 第二步真正要操作的是画布 */
   @media (max-width: 520px) {
-    .sch-card { flex: 0 1 22vh; min-height: 96px; max-height: 22vh; }
+    .tb-list { grid-template-columns: repeat(3, 1fr); }
     /* 手机竖屏顶栏一共要给「标题 + 题目下拉 + 阶段徽章」留位置，这里逐个数着缩 */
     .top { gap: 6px; padding: 8px 10px 6px; }
     .top h1 { font-size: 14px; letter-spacing: .03em; }
@@ -224,7 +237,7 @@
   </div>
   <b class="tsk" id="tsk">2.2 电气互锁正反转</b>
   <b class="step" id="step">第一步：摆放</b>
-  <span class="sub" id="sub">照着右边的电气原理图，把元器件拖到下面的画布上摆好</span>
+  <span class="sub" id="sub">照着左边的电气原理图摆元器件：点左缘「元器件库」竖条挑元件，拖到右边画布</span>
   <span class="grow"></span>
   <!-- 2026-11-08 发布时补的出口：这是独立页（/wiring-lab/super/），从练习页的「排位」旁边点进来，
        在 iframe 里直接换页；没有返回入口就出不去（iframe 里的浏览器后退不可靠）。回到练习页 /wiring-lab/。 -->
@@ -232,40 +245,42 @@
   <span class="tag">不提示位置和数量</span>
 </header>
 <main class="wrap">
-  <!-- 左侧：元器件库（本学期用到的元件；和顶部浮动工具栏同款，可收成圆点） -->
-  <aside class="tb" id="tb" role="toolbar" aria-label="元器件库">
-    <div class="tb-hd">
-      <b>元器件库</b>
-      <span class="tb-note">按住卡片拖到右边画布</span>
-      <button class="tb-min" id="tbMin" type="button" title="收起元器件库：缩成一个可以拖动的圆钮" aria-label="收起元器件库">
-        <svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg>
-      </button>
-    </div>
-    <div class="tb-list" id="lib"></div>
-  </aside>
-  <!-- 收起后留下的圆钮：可拖到任意位置，位置记在浏览器里；点一下展开 -->
-  <button class="tb-orb" id="tbOrb" type="button" aria-expanded="false" title="展开元器件库（按住可拖到任意位置）">
-    <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/><path d="M9 4v6M15 14v6"/></svg><i></i>
-  </button>
-  <section class="right">
+  <!-- 左列：电气原理图（练习页同款「左边对照图」，点标题折叠成一条；只有 2.2 等有画法，
+       其他题由 super.js 的 schBody() 塞一句说明） -->
+  <section class="sch-col">
     <div class="sch-card">
-      <div class="sch-hd"><b>电气原理图</b><span id="schT">2.2 三相异步电动机 电气互锁正反转</span></div>
+      <div class="sch-hd" id="schHd" title="点一下折叠 / 展开原理图">
+        <b>电气原理图</b><span id="schT">2.2 三相异步电动机 电气互锁正反转</span><i class="chev" aria-hidden="true"></i>
+      </div>
       <div class="sch" id="sch"></div>
     </div>
-    <div class="stage" id="stage">
-      <canvas id="c"></canvas>
-      <div class="stage-hd"><b>待布置区</b><span id="cnt">已摆 0 个元件</span></div>
-      <!-- 连线阶段的小工具（摆放阶段隐藏，见 .tools.on） -->
-      <div class="tools" id="tools">
-        <button id="undo" type="button" title="撤销最后接的一根线">撤销上一根</button>
-        <button id="clearWires" class="warn" type="button" title="清空所有导线（要点两次）">清空导线</button>
-      </div>
-      <div class="stat" id="stat">已摆 0 个元件 · 已接 0 根线 · 接通 0/0 个点</div>
-      <button class="go" id="go" type="button">我摆好了</button>
-      <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    </div>
   </section>
+  <!-- 右侧整块：待布置 / 连线画布（元器件库不再占布局 —— 它在下面的悬浮抽屉里） -->
+  <div class="stage" id="stage">
+    <canvas id="c"></canvas>
+    <div class="stage-hd"><b>待布置区</b><span id="cnt">已摆 0 个元件</span></div>
+    <!-- 连线阶段的工具圆盘 + 展开工具栏由 super.js §8.9 动态建（.ftb / .ftb-orb），照练习页那套 -->
+    <div class="stat" id="stat">已接线 0 根 · 接通 0/0 个点</div>
+    <button class="go" id="go" type="button">我摆好了</button>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </div>
 </main>
+<!-- 悬浮元器件库：position:fixed 抽屉（覆盖在画布之上，不占布局宽度）；收起 = 平移到屏幕外。
+     从库里拖卡片期间抽屉锁住不收（super.js §9 的 libHold）。 -->
+<aside class="tb" id="tb" role="toolbar" aria-label="元器件库">
+  <div class="tb-hd">
+    <b>元器件库</b>
+    <span class="tb-note">按住卡片拖到画布上摆放</span>
+    <button class="tb-min" id="tbMin" type="button" title="收起元器件库（Esc / 点画布空白 / 点左缘竖条也能收）" aria-label="收起元器件库">
+      <svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg>
+    </button>
+  </div>
+  <div class="tb-list" id="lib"></div>
+</aside>
+<!-- 常驻左缘的开关竖条：点一下开抽屉、再点收起；按住可拖到任意位置（位置记 localStorage） -->
+<button class="tb-orb" id="tbOrb" type="button" aria-expanded="false" title="元器件库：点一下开 / 收（按住可拖到任意位置）">
+  <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/><path d="M9 4v6M15 14v6"/></svg><em>元器件库</em>
+</button>
 <script>window.SCRIPT = [{ text: '超级排位' }];</script>
 <script src="guard.js"></script>
 <script src="core.js"></script>

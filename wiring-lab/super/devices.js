@@ -18,6 +18,7 @@
      按钮帽绿 = board.js 的 BTN 表；辅助触点常开绿 / 常闭橙 = circuitE2.js 原来写在调用处的那两个值。
      放在这里是为了让 super.js 一个色值都不用写（两边传的都是这几个常量）。 */
   D.CAP_GREEN = '#22c55e';
+  D.CAP_RED = '#ef4444';     // 停止按钮的红色帽：board.js 的 BTN 表里 SB1 全用这个值（红=停止）
   D.NO_COL = '#4ade80';
   D.NC_COL = '#fb923c';
   const S = (o, k, d) => (o && o[k] !== undefined ? o[k] : d);

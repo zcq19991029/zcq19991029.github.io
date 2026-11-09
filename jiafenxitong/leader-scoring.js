@@ -1,4 +1,4 @@
-/* 组长评分表：每课、每组十个自定义项目，个人每项0–5分，独立于课堂小组分。 */
+/* 组长评分表：每课、每组十个自定义项目，个人每项存储 1–5 分（界面按 20%–100% 显示），独立于课堂小组分。 */
 (function () {
   'use strict';
   var printing = false;
@@ -41,7 +41,7 @@
   function key(member) { return member.sid ? 'sid:'+member.sid : 'id:'+member.id; }
   function csvCell(value) { var s=String(value == null ? '' : value); if (/^[=+\-@]/.test(s)) s="'"+s; return '"'+s.replace(/"/g,'""')+'"'; }
   window.addEventListener('afterprint',function () { if(printing) { document.body.classList.remove('print-rank','print-leader'); printing=false; } });
-  function printableGroup(cls,lesson,g){var r=lesson.leaderScores&&lesson.leaderScores[String(g.no)]||{projects:Array(4).fill(''),members:{},signedBy:'',note:''};var projects=window.JFDT_ASSESSMENT.projectNames(lesson),members=(g.members||[]).filter(function(m){return m.name;}),leadKey=g.leaderKey&&members.some(function(m){return key(m)===g.leaderKey;})?g.leaderKey:(members[0]?key(members[0]):'');if(leadKey){var li=members.findIndex(function(m){return key(m)===leadKey;});if(li>0)members=[members[li]].concat(members.slice(0,li),members.slice(li+1));}return '<section class="leader-slip"><h2>组长课堂评分表</h2><p class="slip-meta">'+esc(cls.name)+' · 第'+g.no+'组 · 第'+lesson.seq+'次课 · '+esc(lesson.date||'')+'</p><p class="slip-rule">每项0–5分；空白项目由组长手写，教师复核。</p><table class="leader-table"><colgroup><col style="width:6%"><col style="width:22%">'+projects.map(function(){return '<col style="width:'+(72/projects.length)+'%">';}).join('')+'</colgroup><thead><tr><th>序号</th><th>成员 / 学号</th>'+projects.map(function(v){return '<th>'+esc(v)+'</th>';}).join('')+'</tr></thead><tbody>'+members.map(function(m,i){var scores=r.members[key(m)]||Array(projects.length).fill(null),lead=key(m)===leadKey;return '<tr><td>'+(i+1)+'</td><td class="slip-member">'+(lead?'👑 ':'')+esc(m.name)+'<small>'+esc(m.sid||'')+'</small></td>'+projects.map(function(_,j){return '<td>'+(scores[j]==null||scores[j]===0?'':scores[j])+'</td>';}).join('')+'</tr>';}).join('')+'</tbody></table><p class="slip-sign">组长：'+esc(r.signedBy||'________________')+'</p><p class="slip-note">备注：'+esc(r.note||'')+'</p></section>';}
+  function printableGroup(cls,lesson,g){var r=lesson.leaderScores&&lesson.leaderScores[String(g.no)]||{projects:Array(4).fill(''),members:{},signedBy:'',note:''};var projects=window.JFDT_ASSESSMENT.projectNames(lesson),members=(g.members||[]).filter(function(m){return m.name;}),leadKey=g.leaderKey&&members.some(function(m){return key(m)===g.leaderKey;})?g.leaderKey:(members[0]?key(members[0]):'');if(leadKey){var li=members.findIndex(function(m){return key(m)===leadKey;});if(li>0)members=[members[li]].concat(members.slice(0,li),members.slice(li+1));}return '<section class="leader-slip"><h2>组长课堂评分表</h2><p class="slip-meta">'+esc(cls.name)+' · 第'+g.no+'组 · 第'+lesson.seq+'次课 · '+esc(lesson.date||'')+'</p><p class="slip-rule">每项满分 100%（20%、40%、60%、80%、100% 五档）；空白项目由组长手写，教师复核。</p><table class="leader-table"><colgroup><col style="width:6%"><col style="width:22%">'+projects.map(function(){return '<col style="width:'+(72/projects.length)+'%">';}).join('')+'</colgroup><thead><tr><th>序号</th><th>成员 / 学号</th>'+projects.map(function(v){return '<th>'+esc(v)+'</th>';}).join('')+'</tr></thead><tbody>'+members.map(function(m,i){var scores=r.members[key(m)]||Array(projects.length).fill(null),lead=key(m)===leadKey;return '<tr><td>'+(i+1)+'</td><td class="slip-member">'+(lead?'👑 ':'')+esc(m.name)+'<small>'+esc(m.sid||'')+'</small></td>'+projects.map(function(_,j){return '<td>'+(scores[j]==null||scores[j]===0?'':numPctText(scores[j]))+'</td>';}).join('')+'</tr>';}).join('')+'</tbody></table><p class="slip-sign">组长：'+esc(r.signedBy||'________________')+'</p><p class="slip-note">备注：'+esc(r.note||'')+'</p></section>';}
   function printSheets(cls,lesson,groups,perPage){var pages=[],offset=0,counts=Array.isArray(perPage)?perPage:[];if(!counts.length){var limit=Number(perPage)||4,pageCount=Math.ceil(groups.length/limit),base=Math.floor(groups.length/pageCount),extra=groups.length%pageCount;counts=Array.from({length:pageCount},function(_,i){return base+(i<extra?1:0);});}counts.forEach(function(count){var selected=Array.isArray(count)?count:groups.slice(offset,offset+count);offset+=Array.isArray(count)?count.length:count;count=selected.length;if(!selected.length)return;pages.push('<div class="leader-paper slips-'+count+' '+(count>=3?'compact-slips ':'')+(count>=6?'dense-slips ':'')+'" style="grid-template-rows:repeat('+count+',minmax(0,1fr))">'+selected.map(function(g){return printableGroup(cls,lesson,g);}).join('')+'</div>');});return '<div class="leader-print-batch">'+pages.join('')+'</div>';}
   function printIsolated(html){var old=document.getElementById('leaderPrintFrame');if(old)old.remove();var frame=document.createElement('iframe');frame.id='leaderPrintFrame';frame.style.cssText='position:fixed;left:-10000px;top:0;width:800px;height:1100px;border:0';var styles=Array.from(document.querySelectorAll('link[rel="stylesheet"],style')).map(function(el){return el.outerHTML;}).join('');frame.srcdoc='<!doctype html><html><head><meta charset="utf-8">'+styles+'<style>@media print{html,body{margin:0!important;padding:0!important;min-height:0!important;height:auto!important}body::before,body::after{display:none!important}.leader-paper{height:272mm!important;break-after:auto!important;page-break-after:auto!important}.leader-paper+.leader-paper{break-before:page;page-break-before:always}.leader-print-batch{margin:0!important;padding:0!important}}</style></head><body class="print-leader"><div id="printArea">'+html+'</div></body></html>';frame.onload=function(){frame.contentWindow.focus();frame.contentWindow.print();};document.body.appendChild(frame);}
   window.JFDT_LEADER_PRINT_HTML=printSheets;
@@ -87,7 +87,7 @@
     if (lessonTag !== lastLessonTag) { lastLessonTag = lessonTag; peerMsg = ''; }
 
     root.innerHTML = '<h2 class="sec-title">组内个人评分</h2>' +
-      '<p class="note">所有小组都在这一页往下连续排开，不用再选组。学生（组员给组长 / 组长给组员）一提交就<b>直接计分</b>，不用老师再逐列确认：组长给组员的分原样计入，组员给组长的分取平均（打几次除几次）。<b>要改分直接点格子</b>的 1–5 分（带「师」角标），或者关掉上面的「组长打分」开关再慢慢改；每列右下角的「清空本列」= 这一列本轮作废，学生要重新打才有分。<b>注意</b>：某一列历史上被标记过「已确认」时，学生那边会收到「这一列老师已经确认」——想让他们重打，先点该列「清空本列」。</p>' +
+      '<p class="note">所有小组都在这一页往下连续排开，不用再选组。学生一提交就<b>直接计分</b>，不用老师再逐列确认。角标一眼看来源：<b>「组员平均」</b>＝组员们给组长打的平均完成率（至少 2 人打才计入，标在组长那一行；组长换过人的，前任组长行上留下的「曾任组长」是他当组长时组员打的平均分）；<b>「互评」</b>＝组长给这一位组员打的完成率；<b>「师」</b>＝老师直接填的分。<b>要改分直接点格子</b>的 20%–100%（带「师」角标），或者关掉上面的「组长打分」开关再慢慢改；每列右下角的「清空本列」= 这一列本轮作废，学生要重新打才有分。<b>注意</b>：某一列历史上被标记过「已确认」时，学生那边会收到「这一列老师已经确认」——想让他们重打，先点该列「清空本列」。</p>' +
       '<div class="card lesson-bar"><label class="field"><span>班级</span><select id="leaderClassSel">' + pool.map(function (c) { return '<option value="' + esc(c.id) + '"' + (cls && c.id === cls.id ? ' selected' : '') + '>' + esc(c.name) + '</option>'; }).join('') + '</select></label>' +
       '<label class="field"><span>课次</span><select id="leaderLessonSel"' + (!lessons.length ? ' disabled' : '') + '>' + lessons.map(function (l) { return '<option value="' + esc(l.id) + '"' + (lesson && l.id === lesson.id ? ' selected' : '') + '>第' + l.seq + '次 · ' + esc(l.date) + '</option>'; }).join('') + '</select></label></div><div id="leaderSheet"></div>';
     root.querySelector('#leaderClassSel').onchange = function () { context.select(this.value, null); };
@@ -103,11 +103,37 @@
       sheet.querySelector('button').onclick = context.openScore;
       return;
     }
-    /* 用户要「全组展开」：有组号的组一个不漏地铺出来（没排人的组也会留一块，写着「本组暂无成员」，
-       这样组长一看就知道哪一组还没排人；以前是下拉里选到才发现） */
-    var groups = (cls.groups || []).filter(function (g) { return !!g; });
-    if (!groups.length) {
+    /* 用户要「全组展开」（2026-11-08），但 2026-11-09 又报「这里就不需要显示空组 除非有人在第八组等等」：
+       0 人的空组不再铺出来白占一屏。口径跟「上课记分」首页的 visibleGroups 一致——组里
+       「有名字的人」一个都没有就不画（app.js 的 visibleGroups 没有导出，这里按同一条规则实现）；
+       唯一例外是用户点名的「除非有人在第八组」：这一课的 leaderScores 里还留着个人分
+       （人转走了、分还在）的空组照常画出来，并写明原因——不然历史分就凭空看不见了。 */
+    var allGroups = (cls.groups || []).filter(function (g) { return !!g; });
+    if (!allGroups.length) {
       sheet.innerHTML = '<div class="card empty-hint">该班还没有小组，请先导入名单或安排分组。<p><button class="btn" id="leaderGoGroups">去名单与分组</button></p></div>';
+      sheet.querySelector('button').onclick = context.openGroups;
+      return;
+    }
+    /* 这一组在当前这课的 leaderScores 里有没有真的分数（null/空串不算，0 分算） */
+    function scoreCountOf(gno) {
+      try {
+        var rec = lesson.leaderScores && lesson.leaderScores[String(gno)];
+        if (!rec || !rec.members) return 0;
+        var n = 0;
+        Object.keys(rec.members).forEach(function (mk) {
+          var vals = rec.members[mk];
+          if (!Array.isArray(vals)) return;
+          vals.forEach(function (v) { if (v != null && v !== '') n++; });
+        });
+        return n;
+      } catch (e) { return 0; }
+    }
+    var groups = allGroups.filter(function (g) {
+      var members = context.memberEntries ? context.memberEntries(g) : (g.members || []).filter(function (m) { return m && m.name; });
+      return members.length > 0 || scoreCountOf(g.no) > 0;
+    });
+    if (!groups.length) {
+      sheet.innerHTML = '<div class="card empty-hint">这个班的小组现在都是 0 人，也没留过个人评分，就先不铺出来了。到「名单与分组」安排好人，这里会自动出现。<p><button class="btn" id="leaderGoGroups">去名单与分组</button></p></div>';
       sheet.querySelector('button').onclick = context.openGroups;
       return;
     }
@@ -125,10 +151,12 @@
     }
     var states = groups.map(function (g) {
       var members = (context.memberEntries ? context.memberEntries(g) : g.members.map(function (m, i) { return { m: m, i: i }; }).filter(function (x) { return !!x.m.name; }));
-      /* 空组不给它落一条空记录到 leaderScores 里（会白占存储、登分册里也多出空组） */
+      /* 空组不给它落一条空记录到 leaderScores 里（会白占存储、登分册里也多出空组）；
+         但「有历史分而保留显示」的空组要用回真实记录——它已经在 leaderScores 里了，
+         recordOf 只是取出来，不会新建。 */
       return {
         group: g,
-        rec: members.length ? recordOf(g) : { projects: sharedProjects.slice(), members: {}, signedBy: '', note: '' },
+        rec: (members.length || scoreCountOf(g.no)) ? recordOf(g) : { projects: sharedProjects.slice(), members: {}, signedBy: '', note: '' },
         members: members
       };
     });
@@ -178,6 +206,8 @@
 
     /* ---------- 小工具 ---------- */
     function numText(v) { var n = Math.round((Number(v) + Number.EPSILON) * 10) / 10; return n % 1 === 0 ? String(n) : n.toFixed(1); }
+    /* 显示层（2026-11-09）：项目分按完成率百分比显示，data-score 与存储仍是 1–5 */
+    function numPctText(v) { var n = Math.round((Math.max(0, Math.min(5, Number(v) || 0)) / 5) * 1000) / 10; return (n % 1 === 0 ? String(Math.round(n)) : n.toFixed(1)) + '%'; }
     /* 4.5 这种平均分按最近的整数取色调，别掉回默认灰色 */
     function toneOf(v) { return Math.max(1, Math.min(5, Math.round(Number(v) || 0))); }
     function memberOf(st, mk) { var hit = st.members.find(function (e) { return key(e.m) === mk; }); return hit ? hit.m : null; }
@@ -189,49 +219,74 @@
     function setMsg(text) { peerMsg = text || ''; var el = sheet.querySelector('#leaderPeerMsg'); if (el) el.textContent = peerMsg; }
     function setBlockFb(gno, text) { blockFb[gno] = text; var el = sheet.querySelector('[data-fb="' + gno + '"]'); if (el) el.textContent = text; }
 
-    /* 「互评」「平均」「师」三种来源角标：师 = 教师直接填，不经学生提交 */
-    function srcHtml(meta) {
+    /* 「组员平均」「互评」「师」「接」四种来源角标（2026-11-09 用户问「互评和平均啥意思 为什么组员也有平均」）：
+       师 = 教师直接填，接 = 接线任务自动入账；
+       「组员平均」只该出现在组长行（组员给组长的分取平均）——组员行上如果还留着平均分，
+       说明这个人当过组长、后来被换掉了：分数是他任组长时组员打的，照样计入，
+       角标写成「曾任组长」（格子的悬浮提示里有完整解释），别让人误以为组员之间也在互相取平均。 */
+    function isLeadKey(st, mk) {
+      var m = memberOf(st, mk);
+      return !!(m && context.isLeader && context.isLeader(st.group, m));
+    }
+    function srcHtml(meta, isLead) {
       if (!meta) return '';
-      var text = meta === 'avg' ? '平均' : (meta === 'teacher' ? '师' : (meta === 'wire' ? '接' : '互评'));
-      return '<span class="peer-src peer-src-' + meta + '">' + text + '</span>';
+      var text = meta === 'avg' ? (isLead ? '组员平均' : '曾任组长') : (meta === 'teacher' ? '师' : (meta === 'wire' ? '接' : '互评'));
+      /* 白色空格不折行：格子窄的时候角标宁可挤出一条直线，也别一个字一行地叠起来 */
+      return '<span class="peer-src peer-src-' + meta + '" style="white-space:nowrap">' + text + '</span>';
     }
     function picksHtml(st, mk, col) {
       var m = memberOf(st, mk);
       var label = esc(m ? m.name : '') + ' · ' + esc(sharedProjects[col] || ('项目' + (col + 1)));
+      /* 2026-11-09 显示层改革：按钮显示 20%~100%；data-score 仍是 1–5，一格满分=100% */
       return [1, 2, 3, 4, 5].map(function (s) {
-        return '<button type="button" class="peer-pick p' + s + '" data-score="' + s + '" title="给 ' + s + ' 分" aria-label="' + label + ' 给 ' + s + ' 分">' + s + '</button>';
+        return '<button type="button" class="peer-pick p' + s + '" data-score="' + s + '" title="给 ' + numPctText(s) + '" aria-label="' + label + ' 给 ' + numPctText(s) + '">' + numPctText(s) + '</button>';
       }).join('');
     }
-    function cellInner(st, mk, col) {
+    function cellInner(st, mk, col, gone) {
       var v = cellValue(st, mk, col), meta = cellMeta(st, mk, col);
-      return v == null ? picksHtml(st, mk, col) : '<span class="peer-score">' + numText(v) + '</span>' + srcHtml(meta);
+      /* 已转走/移出名单的历史分行：空格不摆打分按钮（点了也不会有反应），只放个占位 */
+      if (v == null) return gone ? '<span class="peer-score" style="opacity:.3">—</span>' : picksHtml(st, mk, col);
+      return '<span class="peer-score">' + numPctText(v) + '</span>' + srcHtml(meta, isLeadKey(st, mk));
     }
     function cellTitle(st, mk, col) {
       var v = cellValue(st, mk, col), meta = cellMeta(st, mk, col);
-      if (v == null) return '教师可直接给 1–5 分（不用等学生提交）';
-      if (meta === 'teacher') return '教师直接填的分，已计入；双击撤销这一格的加分';
-      var from = meta === 'avg' ? '组员给组长的平均分' : (meta === 'wire' ? '接线任务入账的分' : '组长给组员的分');
-      return '学生提交后直接计分（' + from + '）；双击撤销这一格的加分';
+      /* 接线任务列（2026-11-09 用户定：「这一列的分不能人为控制」）：
+         分数 = 任务完成率 × 5，由任务成绩自动写入，老师不能在这里手改、也不能撤销。
+         想改这格 → 去接线那边重跑/重开任务，下一轮同步会自动更新。 */
+      if (meta === 'wire') return '接线任务自动入账的完成率（任务完成率 × 100%），不能手改；任务重跑后下一轮同步会自动更新这一格';
+      if (v == null) return '教师可直接给 20%–100%（不用等学生提交）';
+      if (meta === 'teacher') return '教师直接填的完成率，已计入；双击撤销这一格的加分';
+      if (meta === 'avg') return isLeadKey(st, mk)
+        ? '组员们给组长打的平均完成率（至少 2 人打才计入）；双击撤销这一格的加分'
+        : '此人当时是组长：这是他任组长时组员们打的平均完成率，组长换人后新的组员打分只计入现任组长；双击撤销这一格的加分';
+      return '学生提交后直接计分（组长给组员的完成率）；双击撤销这一格的加分';
     }
-    function cellHtml(st, mk, col) {
+    function cellHtml(st, mk, col, gone) {
       var v = cellValue(st, mk, col), meta = cellMeta(st, mk, col);
       var m = memberOf(st, mk);
-      var cls = 'peer-cell' + (v != null ? ' is-set score-' + toneOf(v) : '') + (meta === 'teacher' ? ' is-teacher' : '');
-      return '<div class="' + cls + '" data-gno="' + st.group.no + '" data-peer-cell="' + col + '" data-member="' + esc(mk) + '"' +
-        (v != null ? ' data-score="' + v + '" role="button" tabindex="0"' : ' role="group"') +
+      var lock = meta === 'wire';
+      var cls = 'peer-cell' + (v != null ? ' is-set score-' + toneOf(v) : '') +
+        (meta === 'teacher' ? ' is-teacher' : '') + (lock ? ' is-wire' : '') + (gone ? ' is-gone' : '');
+      return '<div class="' + cls + '" data-gno="' + st.group.no + '" data-peer-cell="' + col + '" data-member="' + esc(mk) + '"' + (gone ? ' data-gone="1"' : '') +
+        (lock || gone ? '' : (v != null ? ' data-score="' + v + '" role="button" tabindex="0"' : ' role="group"')) +
         ' title="' + esc(cellTitle(st, mk, col)) + '" aria-label="' + esc(m ? m.name : '') + ' ' + esc(String(sharedProjects[col] || '').trim() || ('项目' + (col + 1))) + '">' +
-        cellInner(st, mk, col) + '</div>';
+        cellInner(st, mk, col, gone) + '</div>';
     }
     function paintCell(el, st, mk, col) {
       var v = cellValue(st, mk, col), meta = cellMeta(st, mk, col);
+      var lock = meta === 'wire';
+      var gone = !!(el.dataset && el.dataset.gone === '1');
       el.classList.toggle('is-set', v != null);
       el.classList.toggle('is-teacher', meta === 'teacher');
+      el.classList.toggle('is-wire', lock);
       el.classList.remove('is-pending');
       for (var i = 1; i <= 5; i++) el.classList.toggle('score-' + i, v != null && toneOf(v) === i);
-      if (v == null) { el.removeAttribute('data-score'); el.setAttribute('role', 'group'); el.removeAttribute('tabindex'); }
+      // 接线任务列锁死：不给 data-score / role=button / tabindex，键盘和双击都进不来
+      if (lock || gone) { el.removeAttribute('data-score'); el.removeAttribute('role'); el.removeAttribute('tabindex'); }
+      else if (v == null) { el.removeAttribute('data-score'); el.setAttribute('role', 'group'); el.removeAttribute('tabindex'); }
       else { el.setAttribute('data-score', v); el.setAttribute('role', 'button'); el.setAttribute('tabindex', '0'); }
       el.title = cellTitle(st, mk, col);
-      el.innerHTML = cellInner(st, mk, col);
+      el.innerHTML = cellInner(st, mk, col, gone);
     }
     /* 老师点 1–5 / 双击撤销：都算「教师直接填」，打上「师」标记。
        同时把这一格的 peerSync 顶到现在 —— 比这次手改更旧的学生提交（自动刷新拉回来的）
@@ -239,6 +294,14 @@
     function setCell(st, mk, col, value) {
       var m = memberOf(st, mk);
       if (!m) return;
+      /* 接线任务列锁死（2026-11-09 用户：「这一列的分不能人为控制」）：
+         分数是任务完成率 × 5，来源是任务成绩，不是老师手上的 1–5 颗星。
+         老师想改 → 去接线那边重跑/重开任务，同步会自己更新这一格。
+         这里必须挡在写入之前，否则一次误点就把任务分改掉，下一轮同步又会把它改回去（老师会以为见鬼）。 */
+      if (cellMeta(st, mk, col) === 'wire') {
+        setBlockFb(st.group.no, '这一列是接线课堂任务自动入账的完成率（任务完成率 × 100%），不能手改；要改请重跑任务。');
+        return;
+      }
       if (!st.rec.members[mk]) st.rec.members[mk] = [];
       var old = st.rec.members[mk][col];
       old = (old == null || old === '') ? null : Number(old);
@@ -253,9 +316,9 @@
         if (!lesson.peerSync) lesson.peerSync = {};
         lesson.peerSync[metaKey] = new Date().toISOString();
       } catch (e) { /* 记不上时间也不影响这次手改，只是旧的自动刷新可能盖回来，下一轮手改再顶 */ }
-      logFor(st, m.name + ' · ' + (sharedProjects[col] || ('项目' + (col + 1))) + '：' + (old == null ? '未填' : numText(old)) + ' → ' + (value == null ? '未填' : numText(value)) + '（教师直接填）');
+      logFor(st, m.name + ' · ' + (sharedProjects[col] || ('项目' + (col + 1))) + '：' + (old == null ? '未填' : numPctText(old)) + ' → ' + (value == null ? '未填' : numPctText(value)) + '（教师直接填）');
       persist(st);
-      setBlockFb(st.group.no, value == null ? '已撤销这一格的加分。' : '教师直接记 ' + value + ' 分（学生再提交更新的分才会覆盖它）。');
+      setBlockFb(st.group.no, value == null ? '已撤销这一格的加分。' : '教师直接记 ' + numPctText(value) + '（学生再提交更新的分才会覆盖它）。');
     }
 
     /* ---------- 顶部：本节提交汇总（只报收了多少条，不再有待确认） ---------- */
@@ -308,18 +371,18 @@
       /* 没登录教师账号时没有「学生提交」可处理，别摆一条空表占半屏：只留一句原因 + 教师直接给分的说明 */
       if (!peerReady) {
         return '<div class="peer-summary" id="leaderPeerSummary">' + summaryHtml() + '</div>' +
-          '<p class="peer-dock-msg" id="leaderPeerMsg" role="status">' + esc(peerMsg || '下面每一格都可以直接点 1–5 给分（带「师」角标），不用等学生提交。') + '</p>';
+          '<p class="peer-dock-msg" id="leaderPeerMsg" role="status">' + esc(peerMsg || '下面每一格都可以直接点 20%–100% 给分（带「师」角标），不用等学生提交。') + '</p>';
       }
       /* 这一节既没有学生提交、也没有历史「已确认」时，清空条上没有可点的东西，收起来别白占 80px */
       if (!hasAnyActivity()) {
         return '<div class="peer-summary" id="leaderPeerSummary">' + summaryHtml() + '</div>' +
-          '<p class="peer-dock-msg" id="leaderPeerMsg" role="status">' + esc(peerMsg || '点任意格子 1–5 可以直接给分（带「师」角标）；学生一提交也会直接计入。') + '</p>';
+          '<p class="peer-dock-msg" id="leaderPeerMsg" role="status">' + esc(peerMsg || '点任意格子 20%–100% 可以直接给分（带「师」角标）；学生一提交也会直接计入。') + '</p>';
       }
       var cmdRow = '<tr class="peer-cmd-row"><th class="peer-dock-corner" aria-hidden="true"></th><th class="peer-dock-lead"><b>逐列清空</b><small>对本班所有组生效</small></th>' +
         sharedProjects.map(function (_, i) { return '<td class="peer-cmd-cell" data-dock-col="' + i + '">' + dockCellHtml(i) + '</td>'; }).join('') + '</tr>';
       return '<div class="peer-summary" id="leaderPeerSummary">' + summaryHtml() + '</div>' +
         '<div class="tablewrap peer-tablewrap peer-dock-wrap" style="--peer-cols:' + sharedProjects.length + '"><table class="leader-table peer-dock-table"><thead>' + cmdRow + '</thead></table></div>' +
-        '<p class="peer-dock-msg" id="leaderPeerMsg" role="status">' + esc(peerMsg || '学生提交的分已经直接计入（格子右上角写「互评」或「平均」）；「师」＝你直接填的分；要作废一整列就点「清空本列」，连点两次才生效。') + '</p>';
+        '<p class="peer-dock-msg" id="leaderPeerMsg" role="status">' + esc(peerMsg || '学生提交的分已经直接计入：「组员平均」＝组员们给组长打的平均分（只在组长那行；前任组长行上的「曾任组长」是他当组长时打的），「互评」＝组长给组员的分，「师」＝你直接填的分；要作废一整列就点「清空本列」，连点两次才生效。') + '</p>';
     }
 
     /* ---------- 每一组一块 ---------- */
@@ -329,11 +392,34 @@
       return '<th class="peer-col-name" data-th-col="' + i + '" data-gno="' + st.group.no + '">' +
         esc(name || ('项目' + (i + 1))) + '</th>';
     }
+    /* 0 人的组如果因为「这一课留有历史分」而保留显示：把已经转走/移出名单的成员
+       也排成分数行（不然只画一个组头，历史分还是看不见）。这些行只读——
+       人已经不在组里，1–5 按钮和双击撤销都进不来（setCell 找不到人自然不动）。 */
+    function goneLabel(mk) {
+      var hit = null, gno = 0;
+      (cls.groups || []).forEach(function (g) {
+        (g.members || []).forEach(function (m) {
+          if (m && m.name && key(m) === mk) { hit = m; gno = g.no; }
+        });
+      });
+      if (hit) return esc(hit.name) + '<small>已转第 ' + gno + ' 组</small>';
+      var mm = /^sid:(.+)$/.exec(mk);
+      return esc(mm ? '学号 ' + mm[1] : '已移出名单');
+    }
     function blockHtml(st) {
       var g = st.group, no = g.no;
       var leadEntry = null;
       st.members.forEach(function (e) { if (!leadEntry && context.isLeader && context.isLeader(g, e.m)) leadEntry = e; });
       var leadName = leadEntry ? leadEntry.m.name : '未设置';
+      var gone = [];
+      if (!st.members.length) {
+        Object.keys(st.rec.members || {}).forEach(function (mk) {
+          var vals = st.rec.members[mk];
+          if (!Array.isArray(vals)) return;
+          if (!vals.some(function (v) { return v != null && v !== ''; })) return;
+          gone.push(mk);
+        });
+      }
       var rows = st.members.map(function (entry, row) {
         var m = entry.m, lead = context.isLeader && context.isLeader(g, m), mk = key(m);
         return '<tr><td>' + (row + 1) + '</td>' +
@@ -341,15 +427,22 @@
           (lead ? '<span class="leader-crown" aria-label="组长">👑</span> ' : '') + esc(m.name) +
           '<small>' + esc(m.sid || '未填写学号') + '</small></td>' +
           sharedProjects.map(function (_, col) { return '<td class="peer-td">' + cellHtml(st, mk, col) + '</td>'; }).join('') + '</tr>';
+      }).join('') + gone.map(function (mk, gi) {
+        return '<tr><td>' + (st.members.length + gi + 1) + '</td>' +
+          '<td class="leader-member" style="color:var(--muted)" title="此人已不在这组，这一课留有他的历史评分，所以本组照常显示">' + goneLabel(mk) + '</td>' +
+          sharedProjects.map(function (_, col) { return '<td class="peer-td">' + cellHtml(st, mk, col, true) + '</td>'; }).join('') + '</tr>';
       }).join('');
-      var table = st.members.length
+      var table = (st.members.length || gone.length)
         ? '<div class="tablewrap peer-tablewrap" style="--peer-cols:' + sharedProjects.length + '"><table class="leader-table"><thead><tr><th>序号</th><th>成员 / 完整学号</th>' +
           sharedProjects.map(function (_, i) { return colThHtml(st, i); }).join('') +
           '</tr></thead><tbody>' + rows + '</tbody></table></div>'
         : '<p class="note">本组暂无成员。已确定名单和分组后，成员会出现在这里。</p>';
+      var fbDefault = gone.length
+        ? '本组现在 0 人，但这一课留有 ' + gone.length + ' 人的历史评分（人员已转组或移出名单），所以照常显示；这些分照常计入成绩。'
+        : '点 20%–100% 直接记分（带「师」角标，改完就是最终分）；双击分数撤销。学生提交的分已经直接计入。';
       return '<section class="card peer-block" id="leaderGroup-' + no + '" data-gno="' + no + '">' +
         '<div class="peer-block-head">' +
-        '<div class="peer-block-title"><span class="peer-block-no">第 ' + no + ' 组</span><span class="peer-block-meta">组长 ' + esc(leadName) + ' · 共 ' + st.members.length + ' 人</span></div>' +
+        '<div class="peer-block-title"><span class="peer-block-no">第 ' + no + ' 组</span><span class="peer-block-meta">组长 ' + esc(leadName) + ' · 共 ' + st.members.length + ' 人' + (gone.length ? ' · 留有历史评分' : '') + '</span></div>' +
         '<div class="peer-block-acts">' +
         '<button type="button" class="btn tiny" data-print-gno="' + no + '">打印本组</button>' +
         '<button type="button" class="btn tiny" data-excel-gno="' + no + '">下载 Excel</button>' +
@@ -358,7 +451,7 @@
         '<div class="peer-block-foot">' +
         '<label class="field col"><span>组长 / 复核人</span><input data-signed="' + no + '" maxlength="100" value="' + esc(st.rec.signedBy || '') + '"></label>' +
         '<label class="field col"><span>备注</span><textarea data-note="' + no + '" maxlength="500" rows="2">' + esc(st.rec.note || '') + '</textarea></label>' +
-        '<p class="peer-block-fb" data-fb="' + no + '">' + esc(blockFb[no] || '点 1–5 直接记分（带「师」角标，改完就是最终分）；双击分数撤销。学生提交的分已经直接计入。') + '</p>' +
+        '<p class="peer-block-fb" data-fb="' + no + '">' + esc(blockFb[no] || fbDefault) + '</p>' +
         '</div></section>';
     }
 
@@ -498,12 +591,12 @@
     function openFullMarks(gno) {
       var st = byGno[String(gno)];
       var named = sharedProjects.map(function (p, i) { return String(p).trim() ? i : -1; }).filter(function (i) { return i >= 0; });
-      if (!named.length) { setBlockFb(gno, '请先在页顶填项目名称；每个项目满分 5 分。'); return; }
+      if (!named.length) { setBlockFb(gno, '请先在页顶填项目名称；每个项目满分 100%。'); return; }
       var dlg = document.createElement('dialog');
       dlg.id = 'dlgLeaderFullMarks';
-      dlg.innerHTML = '<form method="dialog"><h2>一键全员满分</h2><p>每人每个已命名项目填为 5 分，共 ' + named.length + ' 项；空白预留列不变。已有较低分会被改为 5 分，可在操作日志按组撤销。</p>' +
+      dlg.innerHTML = '<form method="dialog"><h2>一键全员满分</h2><p>每人每个已命名项目填为 100%，共 ' + named.length + ' 项；空白预留列不变。已有较低分会被改为 100%，可在操作日志按组撤销。</p>' +
         '<label class="field col">范围<select id="leaderFullScope"><option value="current">只填第 ' + st.group.no + ' 组</option><option value="all">本课全部小组</option></select></label>' +
-        '<div class="btnrow"><button class="btn" value="cancel">取消</button><button class="btn primary" value="ok">确认填满 5 分</button></div></form>';
+        '<div class="btnrow"><button class="btn" value="cancel">取消</button><button class="btn primary" value="ok">确认填满 100%</button></div></form>';
       document.body.appendChild(dlg);
       dlg.addEventListener('close', function () {
         if (dlg.returnValue === 'ok') {

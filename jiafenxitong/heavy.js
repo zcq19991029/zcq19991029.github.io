@@ -23,8 +23,7 @@
     btnPrintRank: ['xlsx'],      // 打印 / 导出 PDF（app.js:4811 → printRank）
     gbExport: ['xlsx'],          // 成绩登分册 · 导出所选 Excel
     gbPdf: ['jspdf'],            // 成绩登分册 · 导出所选 PDF
-    btnPrintLesson: ['xlsx', 'jspdf'], // 打印本课（app.js:1569 → openLessonPrint / downloadLessonPdf）
-    specialExport: ['xlsx']      // 特殊表现 · 导出参考 Excel
+    btnPrintLesson: ['xlsx', 'jspdf'] // 打印本课（app.js:1569 → openLessonPrint / downloadLessonPdf）
   };
   function ready(k) {
     return k === 'xlsx' ? !!window.XLSX : !!(window.jspdf && window.jspdf.jsPDF);

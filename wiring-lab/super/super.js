@@ -1,18 +1,21 @@
 /* 超级排位 · 摆放 + 连线（第十二批 T1～T4 / Q1～Q6；P4 连线阶段）
    ─────────────────────────────────────────────────────────────────────────────
-   第一步「摆放」：左侧元器件库拖进右侧画布 → 点「我摆好了」按【种类 + 个数】判对
-   （位置不算，放哪都行）→ 摆对了给一次「元件摆放完成，可以开始连线」，按钮变「开始连线」。
-   第二步「连线」：点它进入连线阶段 —— 点一个端子起一根线，再点另一个端子接上；
-   点已画的线两次删掉；「检查」只说还差多少（Q2：不报网名、不报端子名、不指哪根线错）。
+   第一步「摆放」：点左缘竖条打开**悬浮元器件库**（fixed 抽屉，不占布局宽度），拖元件进画布 →
+   点「我摆好了」按【种类 + 个数】判对（位置不算，放哪都行）→ 摆对了给一次「元件摆放完成，可以开始连线」，按钮变「开始连线」。
+   第二步「连线」（交互与练习页 practice.js 同一套手感，2026-11-09 按用户要求对齐）：
+   点一个端子选中（或直接按住拖过去，线缆跟手、松手磁吸附上）→ 再点另一个端子连一根线；
+   点已画的线 = **选中**（出白色编辑手柄，拖横线段上下移、竖线段左右移、方块挪拐点），删除走工具栏「删除」；
+   工具圆盘 + 展开工具栏常驻（提示 / 检查 / 答案三颗在排位里不建，查错只报红不报绿）；
+   「检查」只说还差多少（Q2：不报网名、不报端子名、不指哪根线错）。
 
    题目清单（2026-11-08 改成「8 条都能玩 + P 只练摆放」）：
      · 元器件 / 电路构成 / 摆放判对 = src/super-data.js 的 SUPER_PARTS / SUPER_CIRCUITS / SUPER.check
      · 标准网表（判连线）= src/super-nets.js 的 SUPER_NETS；有网表的是 2.1~2.6、E1、E2 共 8 条，
        P（并联专项）没有单一标准答案 → 只练摆放，按钮标「暂不判连线」
      · 每道题要摆什么、各几个**一律取 SUPER_CIRCUITS[id].parts**，页面不再手写 need
-     · 库里的卡片 = **全量**（12 种器件、21 种外形，见 §8）：不按当前题过滤。
-       「拿着原理图在工具箱里挑对元件」本身就是这道题要考的一半；按题过滤等于把「挑种类」
-       白送了，只剩「数个数」。挑错形态（比如 2.3 把单触点按钮当复合按钮）由摆放校验说清楚。
+     · 库里的卡片 = **按题过滤**（2026-11-09 起，见 §8）：只上架这道题 planOf() 真正要的外形，
+       红色停止按钮（SBr / SBQr）随绿帽版一起上架；KINDS 仍是 12 种器件 23 种外形的全量定义。
+       挑错形态（比如 2.3 把单触点按钮当复合按钮）由摆放校验说清楚，数错个数也拦得住。
 
    连线阶段用到的外部模块（都当「可能不存在」处理，缺了就退化成只摆放）：
      · window.SUPER_WIRE（src/super-wire.js）—— 连线模型 addWire/removeWire/termUse/netsOf + judge
@@ -240,11 +243,27 @@
         DEV.kmauxb(0, 262, { t6: p.t6, b6: p.b6 }, 'NO', '43', '44', null, '辅助');
       }
     },
+    /* ---- SBr 停止按钮（红色帽、单触点 i/o、常闭）：端子和 SB 完全一样，只是帽色红 ----
+       ★ 定义在 SB **前面**：KIND_BY[dev+'|'+form] 后写的会覆盖先写的，
+         让 SB 留作 (SB, 默认外形) 的「正主」，SBr 只是同一器件换了个帽色；
+         摆放判对按端子集签名（sigOf），红绿两卡签名相同、随便摆哪个都算对。 */
+    SBr: {
+      dev: 'SB', form: '', code: 'SB', unit: '按钮',
+      box: { x: -10, y: -32, w: 116, h: 176 },
+      draw: lab => partButton(48, 0, DEV.CAP_RED, false, lab)     // 帽色照 board.js 的 BTN（红=停止）
+    },
     /* ---- SB 按钮（单触点 i/o）：partButton 的第一个参数是中心 x，外框宽 96 → +48 ---- */
     SB: {
       dev: 'SB', form: '', code: 'SB', unit: '按钮',
       box: { x: -10, y: -32, w: 116, h: 176 },
       draw: lab => partButton(48, 0, DEV.CAP_GREEN, false, lab)   // 帽色照 board.js 的 BTN（绿=起动）
+    },
+    /* ---- SBQr 停止用复合按钮（红色帽、QUAD 四端子）：E1 的 SB1 就是红帽复合 ----
+       定义在 SBQ 前面，理由同 SBr（kindOf 的正主留 SBQ）。 */
+    SBQr: {
+      dev: 'SB', form: 'QUAD', code: 'SB', unit: '复合按钮',
+      box: { x: -12, y: -32, w: 144, h: 190 },
+      draw: lab => partButton(60, 0, DEV.CAP_RED, false, lab, null, false, true)
     },
     /* ---- SBQ 复合按钮（常闭 ci/co + 常开 ai/ao 机械联动）：quad=true，外框宽 120 → +60 ---- */
     SBQ: {
@@ -359,7 +378,7 @@
   const body = document.body, stage = $('stage'), cv = document.getElementById('c');
   const ctx = g;   // core.js 里的画布上下文（parts.js 内部也用同一个 g，ctx 只是本地别名）
   const tb = $('tb'), lib = $('lib'), orb = $('tbOrb'), go = $('go'), toast = $('toast'), cnt = $('cnt');
-  const step = $('step'), sub = $('sub'), stat = $('stat'), tools = $('tools');
+  const step = $('step'), sub = $('sub'), stat = $('stat');
 
   /* ═══════════════ 4. 画布坐标 ═══════════════ */
   // 画布坐标系 = 像素（1:1）。BW/BH 就是画布的实际大小，不做整体缩放、不留黑边；
@@ -474,9 +493,9 @@
           hxRgba(TH.acc, .10), hxRgba(TH.acc, .55), 2);
       }
     }
-    /* 导线层画在最上面（压在元件上）：学生要能看见自己接的线，也方便点线删除。
-       画序照 practice.js 的实物板：导线 → 拉线中的线缆 → 端子点 → 光效，越靠手越在上。 */
-    if (phase !== 'place') { drawWireLayer(t); drawPinDots(t); drawFX(t); }
+    /* 导线层画在最上面（压在元件上）：学生要能看见自己接的线，也方便点线选中调整。
+       画序照 practice.js 的实物板：导线 → 拉线中的线缆 → 选中端子的光点 → 光效，越靠手越在上。 */
+    if (phase !== 'place') { drawWireLayer(t); drawPins(t); drawFX(t); ftbSync(); }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
   }
 
@@ -508,14 +527,16 @@
     ctx.clearRect(0, 0, cv.width, cv.height);
   }
 
-  /* ═══════════════ 8. 元器件库（全量） ═══════════════
-     ★ 库里放**全部 12 种器件**，每种按外形各出一张卡（共 21 张）：
-       断路器四极/三极、按钮/复合按钮、接触器/带辅助常闭/下排辅助、电动机三种接线盒、
-       时间继电器三种接法、VD 正放/竖放……
-     ★ 为什么不按当前题过滤（2026-11-08 定稿）：摆放判对只看「种类 + 个数」，
-       库一按题过滤，「挑种类」这半边就白送了，学生只剩「数个数」。难度要留在挑，
-       挑错了由摆放校验（§10 第二道关）明确说「还差 1 只复合按钮」，而不是靠藏卡片防错。
-     ★ 哪种题要哪些 (器件, 外形)、各几个，仍由 FORM_PLAN + planOf() 精确算（只用于校验，不用于过滤）。
+  /* ═══════════════ 8. 元器件库（按题过滤） ═══════════════
+     ★ 2026-11-09 起库里只摆**当前题真正要的卡片**（libOf 按 planOf(id) 过滤，见下面那条 ★）；
+       12 种器件、23 种外形仍是全量定义（KINDS 一张不删），只是不上架。
+     ★ 为什么改（原来是全量 21 张一起上、2026-11-08 还专门写过「不按题过滤」的理由）：
+       用户实际用下来的反馈是——2.2 的库里同时摆着「交流接触器 / 接触器+辅助常闭 /
+       接触器+下排辅助」三张几乎一样的卡，外加红绿不分的一堆按钮，光认卡就把人认晕了，
+       「挑种类」的难度变成了「认卡片」的负担。现在只上架本题要的外形（E1 仍会同时摆
+       「带辅助常闭」和「普通」两张，那才是真要挑的）；卡片上也不写「要几个」，
+       数错个数仍由摆放校验（§10）拦住，「数个数」这半边的难度一点没少。
+     ★ 哪种题要哪些 (器件, 外形)、各几个，由 FORM_PLAN + planOf() 精确算（校验和过滤同一份口径）。
        P 没有网表 → 按 parts 的默认外形算（那题只练摆放）。 */
 
   /* 每道题「哪个教材代号用哪一档外形」——super-data.js 的 forms / formNotes 那几句话的机器可读版
@@ -578,15 +599,31 @@
     });
     return out;
   }
-  // 卡片上的名字（比 unit 细：要能分出「按钮」和「复合按钮」）
+  /* 卡片上的名字（比 unit 细：要能分出「带不带辅助触头」「红帽绿帽」「几个端子」）。
+     ★ 2026-11-09 改版：用户反馈「接触器+辅助常闭」「接触器+下排辅助」这种说法看不懂、
+       两张几乎一样的接触器卡分不清 —— 名字一律带全称，差别写到 CARD_NOTE 那行小字里。 */
   const CARD_NAME = {
-    QF: '低压断路器', QF3P: '三极空开', FU: '熔断器', FR: '热继电器',
-    KM: '交流接触器', KMAUX: '接触器+辅助常闭', KMAUXB: '接触器+下排辅助',
-    SB: '按钮', SBQ: '复合按钮',
-    M: '电动机接线盒', MBOX6B: '双速电动机接线盒', MBOX3: '电动机接线盒',
-    KT: '时间继电器', KT4: '时间继电器（4 端）', KT2R: '时间继电器（两排）',
-    SQ: '位置开关', TC: '控制变压器', R: '制动电阻', VD: '整流二极管', VDV2: '整流二极管（竖放）',
-    XT: '端子排'
+    QF: '低压断路器（3P+N）', QF3P: '三极断路器（3P）', FU: '熔断器', FR: '热继电器',
+    KM: '交流接触器', KMAUX: '交流接触器·带辅助常闭', KMAUXB: '交流接触器·带下排辅助',
+    SB: '起动按钮（绿）', SBr: '停止按钮（红）', SBQ: '复合按钮（绿）', SBQr: '复合停止按钮（红）',
+    M: '电动机接线盒（6 孔）', MBOX6B: '双速电动机接线盒', MBOX3: '电动机接线盒（3 孔）',
+    KT: '时间继电器（通电延时）', KT4: '时间继电器（4 端）', KT2R: '时间继电器（断电延时）',
+    SQ: '位置开关', TC: '控制变压器', R: '制动电阻', VD: '整流二极管（横放）', VDV2: '整流二极管（竖放）',
+    XT: '端子排（N 格）'
+  };
+  /* 卡片名字下面那行小字：只说「这张卡和长得像的那张差在哪」，不说题、不说个数 */
+  const CARD_NOTE = {
+    QF: '三相 + N 共 8 端', QF3P: '无 N 极，共 6 端',
+    FU: '单极一进一出 2 端',
+    FR: '3 对主触点 + 常闭 95/96',
+    KM: '上 6 下 6；自带常开 13/14、常闭 21/22',
+    KMAUX: '右侧多一块常闭 21/22', KMAUXB: '下方多一排辅助触头',
+    SB: '常开，2 端子（i/o）', SBr: '常闭，2 端子（i/o）',
+    SBQ: '常闭+常开联动，4 端子', SBQr: '常闭+常开联动，4 端子',
+    M: '6 端，已拆连接片', MBOX6B: '6 端，间距密', MBOX3: '3 端',
+    KT: '一排 6 端', KT4: '一排 4 端', KT2R: '上下两排 6 端',
+    SQ: '常闭 + 常开各一对', TC: '380 V → 127 V',
+    VD: '左阳右阴', VDV2: '上阳下阴', XT: '一格两螺丝'
   };
   const GRP_OF = {
     QF: '配电与保护', FU: '配电与保护', FR: '配电与保护',
@@ -594,21 +631,40 @@
     R: '其他', VD: '其他', M: '负载与端子', XT: '负载与端子'
   };
   // 卡片顺序（同一组里按这个排；没列到的排最后）
-  const CARD_ORDER = ['QF', 'QF3P', 'FU', 'FR', 'KM', 'KMAUX', 'KMAUXB', 'SB', 'SBQ',
+  const CARD_ORDER = ['QF', 'QF3P', 'FU', 'FR', 'KM', 'KMAUX', 'KMAUXB', 'SB', 'SBr', 'SBQ', 'SBQr',
     'KT', 'KT4', 'KT2R', 'SQ', 'TC', 'R', 'VD', 'VDV2', 'M', 'MBOX6B', 'MBOX3', 'XT'];
 
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
-  let LIB = [];   // 全量卡片（KINDS 的 key 数组，21 项）；切题时仍重算一次（同一份）
+  let LIB = [];   // 当前题的卡片（KINDS 的 key 数组）；切题时按 planOf(id) 重算一次
 
   function libOf(id) {
-    /* 全量库：id 只是签名占位（切题时照样重算一次，方便以后加「按题限制」时改回来）。
-       顺序按 CARD_ORDER，同组的卡片连着排（buildLib 按首现顺序建组）。 */
-    void id;
-    return Object.keys(KINDS).sort((a, b) => {
+    /* ★ 2026-11-09 改成**按题过滤**（原来是全量 21 张一起上）：
+       用户拿着 2.2 的原理图面对三张几乎一样的接触器卡（普通 / +辅助常闭 / +下排辅助），
+       文案再怎么写也分不清 —— 库里只摆这道题 planOf() 真正要的外形（E1 才会同时摆
+       「带辅助常闭」和「普通」两张，那正是它要考的）；器件种类这半边的难度还在：
+       卡片上不写「要几个」，数错了摆放校验照样拦。
+       红色停止按钮（SBr / SBQr）不是任何题的「必需外形」，但实训台上停止键就是红的
+       （board.js 的 BTN：SB1 一律红帽）—— 只要这题要按钮（SB / SBQ），就随绿帽那版一起上架，
+       判对按端子集签名，红绿随便摆哪个都算对。
+       planOf 算不出东西（数据没到 / parts 空）时退回全量，别让学生没卡可拖。 */
+    const plan = planOf(id);
+    const keys = Object.keys(plan).filter(k => KINDS[k]);
+    if (keys.indexOf('SB') >= 0 && keys.indexOf('SBr') < 0) keys.push('SBr');
+    if (keys.indexOf('SBQ') >= 0 && keys.indexOf('SBQr') < 0) keys.push('SBQr');
+    const src = keys.length ? keys : Object.keys(KINDS);
+    return src.sort((a, b) => {
       const ia = CARD_ORDER.indexOf(a), ib = CARD_ORDER.indexOf(b);
       return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
     });
   }
+
+  /* 卡片小字那行（CARD_NOTE）的样式：super.html 不在本次改动范围，样式从 JS 注入一次 */
+  (function injectCardNoteCss() {
+    const s = document.createElement('style');
+    s.textContent = '.card .note{font-style:normal;font-size:9.5px;line-height:1.25;color:var(--dim);' +
+      'text-align:center;opacity:.88;margin-top:-1px}';
+    document.head.appendChild(s);
+  })();
 
   function buildLib() {
     const groups = [];
@@ -620,9 +676,10 @@
     });
     lib.innerHTML = groups.map(g0 =>
       '<div class="grp">' + esc(g0.name) + '</div>' + g0.items.map(key =>
-        '<button class="card" type="button" data-k="' + esc(key) + '" title="按住拖到右边画布：' + esc(CARD_NAME[key] || KINDS[key].unit) + '">' +
+        '<button class="card" type="button" data-k="' + esc(key) + '" title="按住拖到画布上：' + esc(CARD_NAME[key] || KINDS[key].unit) + '">' +
         '<span class="thumb">' + (THUMB[key] ? '<img src="' + THUMB[key] + '" alt="">' : '') + '</span>' +
-        '<b>' + esc(KINDS[key].code) + '</b><small>' + esc(CARD_NAME[key] || KINDS[key].unit) + '</small></button>'
+        '<b>' + esc(KINDS[key].code) + '</b><small>' + esc(CARD_NAME[key] || KINDS[key].unit) + '</small>' +
+        (CARD_NOTE[key] ? '<em class="note">' + esc(CARD_NOTE[key]) + '</em>' : '') + '</button>'
       ).join('')
     ).join('');
     lib.scrollTop = 0;
@@ -639,11 +696,28 @@
   // 标准网表 NETS 在 §1 里按当前题目定义（切题时跟着换），这里不再取一次
   const wires = [];                                     // 学生接的线
   let phase = 'place';                                  // 'place' 摆放 / 'wire' 连线 / 'done' 连线判对通过
-  let arm = null;                                       // 拉线中：{ id, x, y } = 起点端子
-  let hover = null;                                     // 手指/鼠标当前位置（画布坐标），画虚线用
-  let hotPin = null;                                    // 光标最近的那个端子（高亮 + 吸附提示）
-  let pendDel = null;                                   // 删线连点两次：{ key, t }
-  let pendClr = 0;                                      // 清空导线连点两次的时间戳
+  /* ── 连线阶段的交互状态（口径全部对齐 practice.js 的 PS）──
+     arm      已选中的端子 { id, x, y }（practice.js:381 的 PS.sel；点第一个端子后的状态，可再点第二个端子成线）
+     armDrag  拉线中 { sx, sy, px, py, moved, snap, snapT, ex, ey }（practice.js:1208 的 PS.drag；拖出 10px 以后线缆跟手、磁吸）
+     selWire  选中的导线（wkey）：出白色编辑手柄、可拖段 / 拐点调整走线（practice.js:1220 的 PS.selWire）
+     edit     正在拖的走线调整（practice.js:1128 的 PS.edit）；EDIT_HIST 记调整前的走线供「撤销」恢复（practice.js:1112）
+     errKeys  查错只报红：被标红的线的 wkey 集合；接线一变就失效（练习页是 PS.checked = null，同口径） */
+  let arm = null;
+  let armDrag = null;
+  let hover = null;                                     // 手指/鼠标当前位置（画布坐标），画线缆用
+  let hotPin = null;                                    // 光标最近的那个端子（拉线时它就是磁吸目标）
+  let selWire = null;
+  let edit = null;
+  const EDIT_HIST = [];
+  let errKeys = null;
+  /* 线宽 / 线色：练习页工具栏那两块设置（practice.js:392 WIRE_SIZES / :201 PALETTE）。
+     排位存自己的键 zfz-super-pen（不读写练习页的键），默认标准 3.5 / 自动配色。 */
+  const PEN_KEY = 'zfz-super-pen';
+  const WIRE_SIZES = [[2.5, '细'], [3.5, '标准'], [5, '粗'], [7, '特粗']];
+  const PALETTE = [['auto', '自动'], ['U', '黄'], ['V', '绿'], ['W', '红'], ['1', '控制'], ['N', '零线']];
+  let wireW = 3.5, penColor = 'auto';
+  try { const v = JSON.parse(localStorage.getItem(PEN_KEY) || '{}'); if (v && v.w) wireW = v.w; if (v && v.c) penColor = v.c; } catch (e) { }
+  function savePen() { try { localStorage.setItem(PEN_KEY, JSON.stringify({ w: wireW, c: penColor })); } catch (e) { } }
   let aliasSlow = false, aliasBroken = false;            // SUPER_ALIAS 的降级开关（见 judgeNow）
   let quiet = false;                                     // 批量灌线时暂停判对（只给测试钩子用）
   let statCache = '';
@@ -663,24 +737,47 @@
     return netColor(n || '1');
   }
 
-  /* ── 命中半径（单位 = CSS px，因为画布坐标就是 1:1 的 CSS px） ──
-     端子 14px：手指按下去的实际接触面大约 20～24px 宽，取半径 14（直径 28）能一次点中；
-               端子间距最小的是 KM 的 40×PS ≈ 18px，14 会略微互相压到，所以**取最近的那个**（不是先到先得），
-               并且 14 是「屏幕像素」，手机 375 宽时不会跟着 PS 一起缩成点不中。
-     线 10px：线本身画 3px 宽，10px 的容错≈「手指在线旁边也算点到」，又不至于把附近两根线混起来。
-     空白：以上都不命中就当空白（取消拉线 / 取消待删高亮）。 */
-  const PIN_R = () => Math.max(14, 26 * PS);
-  const WIRE_R = 10;
-
-  function pinHit(lx, ly) {
-    const r = PIN_R();
-    let best = null, bd = r;
+  /* ── 命中半径（2026-11-09 对齐 practice.js 的 termAt 口径） ──
+     练习页 termAt(p, e, 18)（practice.js:1186-1188）：18 是**板坐标**半径，画到屏幕上要乘版式缩放 BD.k；
+     排位画布坐标就是屏幕像素、元件按 PS 缩放，所以等价换算 = 18 × PS（PS 就是排位的「板缩放」）。
+     触屏在 practice.js 里再乘 max(HITK, 1.6 / VIEW.k)（排位 VIEW.k 恒 1）→ 1.6，手指才点得准。
+     下限 11：PS 压到 0.26 的窄屏上端子间距约 10px，再小就永远点不中。 */
+  const PIN_HIT = () => Math.max(11, 18 * PS);
+  const PIN_R = e => { const r = PIN_HIT(); return e && e.pointerType && e.pointerType !== 'mouse' ? r * 1.6 : r; };
+  const SNAP_R = e => { const r = Math.max(20, 34 * PS); return e && e.pointerType && e.pointerType !== 'mouse' ? r * 1.6 : r; };  // 拖线松手时的磁吸半径（practice.js:1231 termAt(p,e,34)）
+  /* 可以接线的端子（对齐 practice.js:203 的 WIREABLE / :147 的 noWire 语义）：
+     · 端子 id 出现在标准网表里 → 可接（和练习页「TP 里除 noWire 外全部可接」一样，网表就是这道题要接的全部）；
+     · 实例的端子一枚都不在网表里 → 整只实例的端子都可接。这是**拆装类器件**：4 只单极熔断器的实例名
+       FU1～FU4 和网表里「三极 FU1 + 控制 FU2」对不上，要靠 super-alias 的置换映射判对，
+       端子名永远查不到，逐端子判会把熔断器全判成「不用接线」；
+     · 实例有端子在网表里、但这枚不在（QF 进线 t0～t3、FR 出线 b0～b2）→ 不可接 ——
+       练习页就是这两类被 noWire 排除（空开进线由实训台供电、FR 出线接电动机）。
+     P 没有网表 → 全部可点（那一题进不了连线阶段，只是兜底）。 */
+  function wireableSet() {
+    const s = new Set();
+    if (!NETS) { PINLIST_ALL().forEach(p => s.add(p.id)); return s; }
+    const inNets = new Set();
+    Object.keys(NETS).forEach(n => (NETS[n] || []).forEach(t => inNets.add(t)));
+    for (const it of insts) {
+      const pins = PINLIST(it);
+      const mapped = pins.some(p => inNets.has(p.id));
+      pins.forEach(p => { if (!mapped || inNets.has(p.id)) s.add(p.id); });
+    }
+    return s;
+  }
+  function pinHit(lx, ly, e, except, r) {
+    const R = r != null ? r : PIN_R(e);
+    const ok = wireableSet();
+    let best = null, bd = R;
     for (const it of insts) {
       const raw = KINDS[it.type].pins();
       for (const k in raw) {
+        const id = it.name + '.' + k;
+        if (ok.size && !ok.has(id)) continue;             // 本电路不用接线的端子：不给点（练习页同口径）
+        if (except && id === except) continue;
         const px = it.x + raw[k][0] * PS, py = it.y + raw[k][1] * PS;
         const d = Math.hypot(lx - px, ly - py);
-        if (d <= bd) { bd = d; best = { id: it.name + '.' + k, pin: k, inst: it, x: px, y: py }; }
+        if (d <= bd) { bd = d; best = { id: id, pin: k, inst: it, x: px, y: py }; }
       }
     }
     return best;
@@ -753,7 +850,13 @@
 
   let routeSig = '', routePts = [];
   /* 折线缓存：端子坐标是现算的（元件一动就变），所以用「所有端点坐标 + 线数 + 画布尺寸」当签名，
-     签名不变就直接复用上一帧的折线，拖动元件时逐帧重算也扛得住。 */
+     签名不变就直接复用上一帧的折线，拖动元件时逐帧重算也扛得住。
+     ★ 手动调过的走线（w.fixedPts，学生拖过手柄）优先保留：只要两端的端子没动，就一直用学生摆的走线，
+       不被自动走线覆盖；两端动了（元件被挪）才重算 —— practice.js 的板子是固定的不存在这件事，
+       排位元件可以搬，所以补了这条「端点签名」判据（endSigOf）。 */
+  function endSigOf(p, q) {
+    return (p ? Math.round(p.x) + ',' + Math.round(p.y) : '?') + '>' + (q ? Math.round(q.x) + ',' + Math.round(q.y) : '?');
+  }
   function syncRoutes() {
     const m = pinMap(), dm = dirMap();
     let sig = Math.round(BW) + 'x' + Math.round(BH) + '|' + wires.length;
@@ -762,14 +865,25 @@
       sig += '|' + w.a + (p ? Math.round(p.x) + ',' + Math.round(p.y) : '?') + '>' +
         w.b + (q ? Math.round(q.x) + ',' + Math.round(q.y) : '?');
     }
-    if (sig === routeSig && routePts.length === wires.length) return routePts;
+    if (sig === routeSig && routePts.length === wires.length) {
+      // 签名没变也可能有人正在拖手柄改走线（startEdit/moveEdit 直接改 w.pts，不改签名）：
+      // 把缓存对齐到 w.pts，避让与绘制读到的都是当前这一帧的真实走线
+      wires.forEach((w, i) => { if (w.pts) routePts[i] = w.pts; });
+      return routePts;
+    }
     routeSig = sig;
     routePts = [];
     wires.forEach((w, i) => {
       const p = m[w.a], q = m[w.b];
       if (!p || !q) { routePts.push(null); return; }
+      if (w.fixedPts && w.fixedSig === endSigOf(p, q)) {
+        w.pts = w.fixedPts;
+        routePts.push(w.fixedPts);
+        return;
+      }
       const pts = routePins([p.x, p.y], [q.x, q.y], dm[w.a] || [0, 1], dm[w.b] || [0, -1], i, p.inst, q.inst);
       w.pts = pts;                     // 只给命中测试和测试钩子用，判对不读它
+      w.fixedPts = null;
       routePts.push(pts);
     });
     return routePts;
@@ -980,11 +1094,12 @@
     }
   }
 
+  const WIRE_R = 10;                                    // 线的命中容错（手指在线旁边也算点到）
   function wireHit(lx, ly) {
-    const ptsAll = syncRoutes();
+    syncRoutes();
     let best = null, bd = WIRE_R;
     for (let i = wires.length - 1; i >= 0; i--) {
-      const pts = ptsAll[i];
+      const pts = wires[i].pts;
       if (!pts) continue;
       const d = polyDist(lx, ly, pts);
       if (d <= bd) { bd = d; best = wires[i]; }
@@ -992,6 +1107,89 @@
     return best;
   }
   const wkey = w => W ? W.key(w.a, w.b) : (w.a < w.b ? w.a + '|' + w.b : w.b + '|' + w.a);
+
+  /* ── 调整走线（像 Proteus）——practice.js:1111-1176 原样口径 ──
+     选中导线后：拖横线段上下移、拖竖线段左右移、拖拐点移动转角；两端始终连在端子上。
+     「撤销」先撤走线调整、再撤最后一根线（practice.js:1159 undoLast 同一个口径）。 */
+  const nearPt = (p, q, d) => Math.hypot(p.x - q[0], p.y - q[1]) <= d;
+  const isH = (a, b) => a[1] === b[1];
+  function editHit(w, p, tol) {
+    const pts = w.pts;
+    if (!pts || pts.length < 2) return null;
+    for (let i = 1; i < pts.length - 1; i++) if (nearPt(p, pts[i], tol + 3)) return { mode: 'corner', i };
+    for (let i = 1; i < pts.length; i++) if (distSeg(p.x, p.y, pts[i - 1][0], pts[i - 1][1], pts[i][0], pts[i][1]) < tol) return { mode: 'seg', i };
+    return null;
+  }
+  function startEdit(w, h, p) {
+    const pts = w.pts.map(q => q.slice()); let a, b, i = h.i;
+    // 要动的点挨着端子时，先在端子处补一个点，端子本身不动，拉出来的那一小段自动和它垂直（practice.js:1123 lead）
+    const lead = end => {
+      const L = pts.length - 1, T = end ? pts[L] : pts[0], N = end ? pts[L - 1] : pts[1];
+      if (T[0] !== N[0] || Math.abs(N[1] - T[1]) <= 18) { if (end) pts.push(T.slice()); else pts.unshift(T.slice()); return 1; }
+      const S = [T[0], T[1] + Math.sign(N[1] - T[1]) * 14];
+      if (end) pts.splice(L, 0, S.slice(), S.slice()); else pts.splice(1, 0, S.slice(), S.slice());
+      return 2;
+    };
+    if (h.mode === 'seg') { a = i - 1; b = i; if (a === 0) { const k = lead(false); a += k; b += k; } if (b === pts.length - 1) lead(true); }
+    else { if (i - 1 === 0) i += lead(false); if (i + 1 === pts.length - 1) lead(true); }
+    edit = {
+      key: wkey(w), mode: h.mode, a: a, b: b, i: i, p0: { x: p.x, y: p.y },
+      before: w.pts.map(q => q.slice()), moved: false,
+      horiz: h.mode === 'seg' ? isH(w.pts[h.i - 1], w.pts[h.i]) : null,
+      prevH: h.mode === 'corner' ? isH(w.pts[h.i - 1], w.pts[h.i]) : null,
+      nextH: h.mode === 'corner' ? isH(w.pts[h.i], w.pts[h.i + 1]) : null
+    };
+    w.pts = pts;
+    need();
+  }
+  function moveEdit(p) {
+    const w = wires.find(x => wkey(x) === edit.key); if (!w) { edit = null; return; }
+    // 拖动范围 clamp 在画布内（practice.js:1135 是板坐标 812~1888 / 104~956，排位就是画布边界）
+    const dx = Math.round(clamp(p.x, 6, BW - 6) - edit.p0.x), dy = Math.round(clamp(p.y, TOP, BH - 6) - edit.p0.y);
+    if (!edit.moved && Math.hypot(dx, dy) < 4) return;
+    edit.moved = true;
+    const o = edit.orig || (edit.orig = w.pts.map(q => q.slice()));
+    const q = o.map(v => v.slice());
+    if (edit.mode === 'seg') { if (edit.horiz) q[edit.a][1] = q[edit.b][1] = o[edit.a][1] + dy; else q[edit.a][0] = q[edit.b][0] = o[edit.a][0] + dx; }
+    else {
+      const i = edit.i, nx = o[i][0] + dx, ny = o[i][1] + dy; q[i] = [nx, ny];
+      if (edit.prevH) q[i - 1][1] = ny; else q[i - 1][0] = nx;
+      if (edit.nextH) q[i + 1][1] = ny; else q[i + 1][0] = nx;
+    }
+    w.pts = q;
+    need();
+  }
+  // 松手后整理：去掉重合的点和一条直线上多余的拐点（practice.js:1147 tidy）
+  function tidyPts(pts) {
+    let out = pts.filter((q, i) => i === 0 || q[0] !== pts[i - 1][0] || q[1] !== pts[i - 1][1]);
+    out = out.filter((q, i) => i === 0 || i === out.length - 1 || !((q[0] === out[i - 1][0] && q[0] === out[i + 1][0]) || (q[1] === out[i - 1][1] && q[1] === out[i + 1][1])));
+    return out;
+  }
+  function endEdit() {
+    const e = edit; edit = null;
+    const w = wires.find(x => wkey(x) === e.key); if (!w) return;
+    if (!e.moved) { w.pts = e.before; need(); return; }
+    w.pts = tidyPts(w.pts);
+    EDIT_HIST.push({ key: e.key, pts: e.before, n: wires.length });
+    w.fixedPts = w.pts;                                 // 学生调过的走线：端点不动就一直用它
+    w.fixedSig = endSigOf(pinMap()[w.a], pinMap()[w.b]);
+    say('走线已调整（撤销可恢复）', '');
+    need();
+  }
+  /* 选中导线上的把手（practice.js:1165 drawEditHandles）：拐点是小方块，每段中间一道短杠 */
+  function drawEditHandles() {
+    if (!selWire) return;
+    const w = wires.find(x => wkey(x) === selWire); if (!w || !w.pts) return;
+    const col = ACC(), act = edit && edit.key === selWire;
+    g.save(); g.shadowColor = col; g.shadowBlur = 10 * (TH.glow || 1);
+    for (let i = 1; i < w.pts.length; i++) {
+      const A = w.pts[i - 1], B = w.pts[i]; if (Math.hypot(B[0] - A[0], B[1] - A[1]) < 22) continue;
+      const mx = (A[0] + B[0]) / 2, my = (A[1] + B[1]) / 2, h = isH(A, B);
+      rrect(mx - (h ? 4 : 11), my - (h ? 11 : 4), h ? 8 : 22, h ? 22 : 8, 4, '#fff', col, 2);
+    }
+    for (let i = 1; i < w.pts.length - 1; i++) rrect(w.pts[i][0] - 6, w.pts[i][1] - 6, 12, 12, 3, act ? col : '#fff', col, 2);
+    g.restore();
+  }
 
   /* ── 判对：优先 SUPER_ALIAS（同型号置换），没有就 SUPER_WIRE.judge 兜底 ── */
   /* 传给判对组件的实例表：SUPER_ALIAS 读的是 it.type（器件类型）、it.form（外形）。
@@ -1048,6 +1246,14 @@
     return Object.assign({ via: 'wire' }, W.judge(wires, null, { nets: NETS || {} }));
   }
   const netTotal = () => (NETS ? Object.keys(NETS).length : 0);
+  /* 这道题一共要接几根线（练习页「已接线 N/30」的分母，practice.js:670 的 BW.length）：
+     每个点上 k 个端子串成一条链要 k−1 根，加起来 = BW.length（网表就是从 BW 生成的，口径一致）。 */
+  const wireTotal = () => {
+    if (!NETS) return 0;
+    let n = 0;
+    Object.keys(NETS).forEach(k => { n += Math.max(0, (NETS[k] || []).length - 1); });
+    return n;
+  };
   /* 进度口径（任务书 Q2 的延伸）：接通点数 = 标准网里「全部端子已经在同一个连通块」的个数。
      优先用判对结果反推（total − missing），这样 ALIAS 映射过的实例也能算对；
      判对组件不存在时才退回自己比 netsOf（那种情况下 FU 名字对不上，数字会偏低，见文件头）。 */
@@ -1077,12 +1283,14 @@
   }
   function updateStat() {
     const p = progress();
+    const tot = wireTotal();
     let t;
     if (window.innerWidth <= 520) {
-      // 手机竖屏放不下全称，缩写成「11 元件 · 30 线 · 接通 17/17 点」，口径完全一样
-      t = insts.length + ' 元件 · ' + wires.length + ' 线 · 接通 ' + (p.total ? p.got + '/' + p.total : '—') + ' 点';
+      // 手机竖屏放不下全称，缩写成「30 线 · 接通 17/17 点」，口径完全一样
+      t = wires.length + ' 线' + (tot ? '/' + tot : '') + ' · 接通 ' + (p.total ? p.got + '/' + p.total : '—') + ' 点';
     } else {
-      t = '已摆 ' + insts.length + ' 个元件 · 已接 ' + wires.length + ' 根线 · ' +
+      // 「已接线 N/30」：和练习页 panelCount（practice.js:663）同一个分母口径；接通点数是排位自己的进度
+      t = '已接线 ' + wires.length + (tot ? '/' + tot : ' 根') + ' · ' +
         (p.total ? ('接通 ' + p.got + '/' + p.total + ' 个点') : '无标准网表');
     }
     if (t !== statCache) { statCache = t; stat.textContent = t; }
@@ -1095,11 +1303,11 @@
     step.textContent = on ? '第二步：连线' : '第一步：摆放';
     step.classList.toggle('two', on);
     sub.textContent = on
-      ? '照着上方的原理图点两个端子接线；点已画的线两次删掉'
-      : '照着右边的电气原理图，把元器件拖到下面的画布上摆好';
-    tools.classList.toggle('on', on);
+      ? '点一个端子，再点另一个端子连一根线（也可以按住直接拖过去）；点已画的线选中，拖手柄调整走线'
+      : '照着左边的电气原理图摆元器件：点左缘竖条开元器件库，拖到右边画布上';
     cv.classList.toggle('wire', on);
-    arm = null; hotPin = null; pendDel = null; pendClr = 0;
+    arm = null; armDrag = null; hotPin = null; selWire = null; edit = null; errKeys = null;
+    wireToolsShow(on);                 // 练习页那套工具圆盘 + 展开工具栏（提示/检查/答案三颗不建，见 §8.9）
     if (next === 'wire') { go.textContent = '检查'; go.classList.remove('done'); }
     if (next === 'place') { go.textContent = '我摆好了'; go.classList.remove('done'); }
     if (msg) say(msg, 'ok');
@@ -1117,35 +1325,39 @@
     say('元件摆好了。按原理图把线接起来，接好点「检查」', 'ok');
   }
 
-  /* ── 接 / 删 / 撤销 / 清空 ── */
+  /* ── 接 / 删 / 撤销 / 清空（交互口径 = practice.js）── */
   function touchWires() {
     if (phase === 'done') { phase = 'wire'; go.textContent = '检查'; go.classList.remove('done'); }
+    errKeys = null;                        // 接线一变，查错的红标就失效（练习页是 PS.checked = null，同口径）
+    if (selWire && !wires.some(w => wkey(w) === selWire)) selWire = null;
     updateStat();
     need();
   }
+  /* 点第一个端子（practice.js:1207）：选中的端子一圈光点绕着转，同时进入「可拖 / 可再点」两种接法 */
   function startArm(pin) {
-    const use = W ? W.termUse(wires) : {};
-    if ((use[pin.id] || 0) >= 2) { say('这个端子已经接满两根线了', 'bad'); return; }
-    arm = { id: pin.id, x: pin.x, y: pin.y, ex: pin.x, ey: pin.y };
-    pendDel = null;
-    say('再点一个端子就接上（点空白取消）', '');
+    arm = { id: pin.id, x: pin.x, y: pin.y };
+    armDrag = { sx: pin.x, sy: pin.y, px: pin.x, py: pin.y, ex: pin.x, ey: pin.y, moved: false, snap: null, snapT: 0 };
+    hotPin = null;
+    say('已选 ' + pin.id + '，再点另一个端子连线（也可以直接拖过去）', '');
     fx('ripple', { x: pin.x, y: pin.y, col: ACC() });   // 起线的那一下：一圈涟漪（practice.js 的 ripple）
     startLoop();
     need();
   }
   function cancelArm(msg) {
-    if (!arm) return;
-    arm = null; hotPin = null;
+    if (!arm && !armDrag) return;
+    arm = null; armDrag = null; hotPin = null;
     if (msg) say(msg, '');
     need();
   }
+  function penColOf(term) { return penColor === 'auto' ? wireColor(term) : netColor(penColor); }
   function connectTo(pin) {
     if (!arm) return;
+    if (pin.id === arm.id) { cancelArm(null); return; }   // 再点自己 = 取消选中（practice.js:1206）
     if (!W) { cancelArm('连线组件没加载，先不能接线'); return; }
-    const col = wireColor(arm.id);
+    const col = penColOf(arm.id);
     const r = W.addWire(wires, { a: arm.id, b: pin.id, color: col });
     if (r.ok) {
-      arm = null; hotPin = null; pendDel = null;
+      arm = null; armDrag = null; hotPin = null; selWire = null; errKeys = null;
       syncRoutes();                       // 先把这根线的折线算出来（判对不看它，只用来画）
       const w = r.wire;
       if (w && w.pts) {
@@ -1155,64 +1367,82 @@
         if (q) fx('burst', { x: q.x, y: q.y, col: col });
         fx('sweep', { pts: w.pts, col: col });              // 亮光沿线跑一遍
       }
-      say('接上 1 根线', 'ok');
+      say('已连线：' + r.wire.a + ' → ' + r.wire.b, 'ok');  // practice.js:463 的提示口径
       touchWires();
       return;
     }
-    /* 失败时**不清掉起点**：学生点错了端子可以直接再点一个，不用从头开始 */
-    if (r.reason === 'dup') say('这两个端子已经接过了', 'bad');
-    else if (r.reason === 'full') say(r.term + ' 已经接满两根线', 'bad');
+    /* 失败时**不清掉起点**：学生点错了端子可以直接再点一个，不用从头开始（原行为保留）。
+       文案照 practice.js:454-455。 */
+    if (r.reason === 'dup') say('这两个端子之间已经有线了', 'bad');
+    else if (r.reason === 'full') say(r.term + ' 已经接满两根线，换到同一个点的其他端子上接', 'bad');
     else if (r.reason === 'self') say('不能接自己', 'bad');
     else say('这两个端子接不了', 'bad');
     need();
   }
-  /* 两次点击删线。第二下判「是不是同一根」时**不能只看命中的那一根**：
-     两根线在像素上交叉（或完全共线）时，手指抖 1px 就会让 wireHit 改判到另一根上，
-     于是两次都只是换高亮、永远删不掉（super-alias 在 2.2 上实测到过）。
-     所以第二下先看「点是否还落在那根待删的高亮线上」，是就按高亮的那根删。 */
-  function tapWire(w, lx, ly) {
-    const k = wkey(w), t = Date.now();
-    if (pendDel && t - pendDel.t <= 1500) {
-      let target = w;
-      if (pendDel.key !== k) {
-        // 高亮根和这次命中根不是同一根：只有「点确实压在高亮那根上」才改成删高亮那根
-        const pw = wires.find(x => wkey(x) === pendDel.key);
-        syncRoutes();
-        const pts = pw && pw.pts;
-        if (pts && polyDist(lx, ly, pts) <= WIRE_R) target = pw;
-        else target = null;                        // 点其实在高亮线外 → 只把高亮换到新的这根
-      }
-      if (target) {
-        if (W) W.removeWire(wires, { a: target.a, b: target.b });
-        pendDel = null;
-        say('删掉 1 根线', '');
-        touchWires();
-        return;
-      }
-    }
-    /* 手机上「点线」很容易误触，所以第一下只高亮（白线），1.5 秒内点第二下才真删 */
-    pendDel = { key: k, t: t };
-    say('再点一次这根线就删掉', 'bad');
+  /* 点已画的线 = **选中**（practice.js:1219-1221）：出白色编辑手柄可调整走线；删除走工具栏「删除」。
+     —— 2026-11-09 用户原话「还变成再点一次就删除该线条」，已按练习页改回选中。 */
+  function selectWire(w) {
+    selWire = wkey(w);
+    arm = null; armDrag = null; hotPin = null;
+    say('已选中导线：拖横线段上下移、拖竖线段左右移、拖方块移动拐点；点「删除」可删除', '');
     need();
   }
-  function undoWire() {
-    if (!wires.length) { say('还没接过线', 'bad'); return; }
-    wires.pop();
-    pendDel = null;
-    say('撤销了 1 根线', '');
+  function delSelected() {
+    if (!selWire) { say('先在板上点一下要删的线', 'bad'); return; }
+    const w = wires.find(x => wkey(x) === selWire);
+    if (!w) { selWire = null; return; }
+    const p = pinById(w.a), q = pinById(w.b);
+    if (p) fx('burst', { x: p.x, y: p.y, col: BADC() });
+    if (q) fx('burst', { x: q.x, y: q.y, col: BADC() });
+    if (W) W.removeWire(wires, { a: w.a, b: w.b });
+    selWire = null;
+    say('已删除选中的导线', '');
     touchWires();
   }
-  function clearWires() {
-    if (!wires.length) { say('还没接过线', 'bad'); return; }
-    const t = Date.now();
-    if (pendClr && t - pendClr <= 2500) {
-      wires.length = 0; pendClr = 0; pendDel = null;
-      say('导线已清空', '');
-      touchWires();
+  /* 撤销（practice.js:1159 undoLast 同口径）：上一步是调整走线就恢复走线，否则撤掉最后一根线 */
+  function undoWire() {
+    const h = EDIT_HIST[EDIT_HIST.length - 1], w = h && wires.find(x => wkey(x) === h.key);
+    if (h && w && h.n === wires.length) {
+      EDIT_HIST.pop();
+      w.pts = h.pts; w.fixedPts = h.pts;
+      w.fixedSig = endSigOf(pinMap()[w.a], pinMap()[w.b]);
+      say('已撤销走线调整', '');
+      need();
       return;
     }
-    pendClr = t;
-    say('再点一次「清空导线」，所有线都会删掉', 'bad');
+    EDIT_HIST.length = 0;
+    if (!wires.length) return;            // practice.js:1162：没接过线时静默返回
+    wires.pop();
+    selWire = null;
+    say('已撤销上一根线', '');
+    touchWires();
+  }
+  /* 清空（practice-ui.js:317 长按确认的同一件事）：长按逻辑在工具栏按钮上，这里只做真清 */
+  function clearWires() {
+    if (!wires.length) return;
+    wires.length = 0;
+    selWire = null; errKeys = null; EDIT_HIST.length = 0;
+    say('已清空全部导线，可以重新接线', '');
+    touchWires();
+  }
+  /* 查错（排位口径：**只报红**，绝不给绿虚线 / 该连哪里的提示）。
+     红线 = 判对结果里 wrong 的那几根（把两个不同电位连在一起的线）——和练习页 check.js
+     「排位只报要删的线」同一个语义；练习页能给的「绿虚线该连哪」在排位里一律不给。 */
+  function runErr() {
+    if (!wires.length) { say('还没有接过线', 'bad'); return; }
+    aliasSlow = false;
+    const r = judgeNow();
+    if (!r || r.reason === 'count' || r.reason === 'form') { say('还没法判：画布上的元件和这道题对不上', 'bad'); return; }
+    const bad = (r.wrong || []);
+    errKeys = new Set(bad);
+    if (bad.length) {
+      fx('flash', { col: BADC() });
+      say('查错：有 ' + bad.length + ' 根线需要删除（红色高亮；其余的线都没接错）', 'bad');
+    } else {
+      errKeys = null;
+      say('没有需要删除的线：已接的线都没有接错', 'ok');
+    }
+    need(); startLoop();
   }
   /* 元件被删 / 被重新摆过 → 端点已经不存在的线一起清掉（避免画出「半根线」） */
   function pruneWires() {
@@ -1224,34 +1454,47 @@
     updateStat();
   }
 
-  /* ── 导线层（practice.js 的实物板画法） ── */
-  function drawPinDots(t) {
-    const use = W ? W.termUse(wires) : {};
-    // 端子点只表示「这里能点」，真正的命中半径是 PIN_R（14 起）——所以小屏上点可以画小一点，别糊成一片
-    const r = Math.max(3.4, 8.5 * PS);
-    for (const it of insts) {
-      PINLIST(it).forEach(p => {
-        const n = use[p.id] || 0;
-        const col = n >= 2 ? BADC() : n ? OKC() : ACC();
-        g.beginPath(); g.arc(p.x, p.y, r + 1.8, 0, 7);
-        g.fillStyle = hxRgba(C.paper, .8); g.fill();       // 端子点的底：主题的「纸」色，压住下面的导线
-        g.save(); g.shadowColor = col; g.shadowBlur = n ? 10 : 6;
-        g.beginPath(); g.arc(p.x, p.y, r, 0, 7); g.fillStyle = col; g.fill(); g.restore();
+  /* ── 端子层：练习页不画「额外的端子圆点」——端子就是元件上画出来的螺丝（partKM / partButton 自己画）。
+     2026-11-09 用户原话「这触点全变了：每个端子都变成一个亮蓝色圆点」——那圈彩点是排位自己加的，
+     已删掉。这里只剩选中端子的一圈光点（practice.js:775 halo(TP[PS.sel], TH.acc, t)）。 ── */
+  function drawPins(t) {
+    if (!arm) return;
+    const p = pinById(arm.id);
+    if (!p) return;
+    halo([p.x, p.y], ACC(), t, 22, 10);
+  }
+
+  /* 段级连通微光（practice.js:725 wireLit）：这根线两端都接上了，就沿导线铺一圈静态底光，
+     颜色跟这根线自己的线号走——接上就亮、删掉就灭，不判对错。 */
+  function wireLit(pts, col) {
+    g.save(); g.globalAlpha = 0.5; g.shadowColor = col; g.shadowBlur = 12 * Math.max(TH.glow || 1, 0.4);
+    poly(pts, col, wireW + 5); g.restore();
+  }
+  /* 查错视图里的一根导线（practice.js:673 reviewWire 的「只报红」版）：
+     错线红色高亮 + 白色流动虚线 + 两端红圈；其余的线压暗，绝不画绿虚线。 */
+  function reviewWire(w, t) {
+    const pts = w.pts, bad = errKeys && errKeys.has(wkey(w)), pz = 0.5 + 0.5 * Math.sin(t * 5);
+    if (bad) {
+      g.save(); g.shadowColor = BADC(); g.shadowBlur = (22 + 12 * pz) * Math.max(TH.glow || 1, 0.5);
+      poly(pts, hxRgba(C.bad, 0.28 + 0.22 * pz), wireW + 12); poly(pts, C.bad, wireW + 2); g.restore();
+      g.save(); g.strokeStyle = '#fff'; g.lineWidth = 2; g.setLineDash([10, 14]); g.lineDashOffset = -t * 40;
+      g.beginPath(); pts.forEach((p, i) => i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); g.stroke(); g.restore();
+      [pts[0], pts[pts.length - 1]].forEach(p => {
+        g.save(); g.strokeStyle = BADC(); g.lineWidth = 3; g.shadowColor = BADC(); g.shadowBlur = 14;
+        g.beginPath(); g.arc(p[0], p[1], 14 + 4 * pz, 0, 7); g.stroke(); g.restore();
       });
-    }
-    // 悬停的端子：点阵呼吸圈（拉线时它就是要吸附的目标）
-    if (hotPin && phase !== 'place') {
-      const full = (use[hotPin.id] || 0) >= 2;
-      ring([hotPin.x, hotPin.y], full ? BADC() : C.ink, t, 1);
+    } else {
+      g.save(); g.globalAlpha = 0.16;
+      poly(pts, WEDGE(), wireW + 2); poly(pts, w.color || wireColor(w.a), wireW); g.restore();
     }
   }
 
-  /* 一根线：落位中按弧线画（发光大一点），落完就是朴素折线（和 practice.js 的「接完的线是实线」一致） */
+  /* 一根线：落位中按弧线画（发光大一点），落完是朴素折线 + 段级连通底光（practice.js:747-766 同一套） */
   function drawWireLayer(t) {
-    const ptsAll = syncRoutes();
-    const lw = 3.2;
-    wires.forEach((w, i) => {
-      const pts = ptsAll[i];
+    syncRoutes();
+    const rv = errKeys && errKeys.size;
+    wires.forEach(w => {
+      const pts = w.pts;
       if (!pts) return;
       const col = w.color || wireColor(w.a);
       if (w.born != null) {
@@ -1263,61 +1506,56 @@
             p[1] + (w.toS[j][1] - p[1]) * e
           ]);
           g.save(); g.shadowColor = col; g.shadowBlur = 16;
-          poly(p2, WEDGE(), lw + 2); poly(p2, col, lw + 1); g.restore();
+          poly(p2, WEDGE(), wireW + 2); poly(p2, col, wireW + 1); g.restore();
           return;
         }
         w.born = null;                       // 落完了，以后按普通折线画
       }
-      /* 待删的那一根（第二次点就删）：主题的「错」色高亮 + 两端脉冲圈（practice.js:670 reviewWire 的画法），
-         只画学生自己选中的那根，不指认任何「错线」——检查仍然只说数量。 */
-      if (pendDel && pendDel.key === wkey(w)) {
-        const pz = 0.5 + 0.5 * Math.sin(t * 5);
-        g.save(); g.shadowColor = BADC(); g.shadowBlur = 18 + 10 * pz;
-        poly(pts, hxRgba(C.bad, 0.22 + 0.18 * pz), lw + 10);
-        poly(pts, C.bad, lw + 2); g.restore();
-        [pts[0], pts[pts.length - 1]].forEach(p => {
-          g.save(); g.strokeStyle = BADC(); g.lineWidth = 2.6;
-          g.shadowColor = BADC(); g.shadowBlur = 14;
-          g.beginPath(); g.arc(p[0], p[1], 12 + 3 * pz, 0, 7); g.stroke(); g.restore();
-        });
-        return;
-      }
-      poly(pts, WEDGE(), lw + 2);            // 导线描边：主题的 C.wireEdge（parts.js:179 同一枚令牌）
-      poly(pts, col, lw);
+      if (rv) { reviewWire(w, t); return; }  // 查错只报红：错线红闪、其余压暗（不泄答案、不画绿）
+      wireLit(pts, col);                     // 底光画在导线下面（practice.js:763 的画序）
+      poly(pts, WEDGE(), wireW + 2);         // 导线描边：主题的 C.wireEdge（parts.js:179 同一枚令牌）
+      poly(pts, col, wireW);
     });
     if (arm) drawCable(t);
+    drawEditHandles();
   }
 
-  /* 拉线中：从端子拉出一条下垂的弹性线缆，末端追着手指走（practice.js:789 drawCable）
-     —— 这是「点一个端子 → 再点另一个」这一步最要紧的手感，直线会显得很死。 */
+  /* 拉线中：从端子拉出一条下垂的弹性线缆，末端追着手指走、靠近端子磁吸（practice.js:796 drawCable）。
+     只有真的拖起来（移动超 10px）才画——「点一下选中、再点一下连上」时不画线缆，和练习页一致。 */
   function drawCable(t) {
+    const d = armDrag;
+    if (!d || !d.moved) return;
     const p = pinById(arm.id);
-    if (!p) { arm = null; return; }
+    if (!p) { arm = null; armDrag = null; return; }
     const dm = dirMap(), da = dm[arm.id] || [0, 1];
-    const tgt = hotPin ? [hotPin.x, hotPin.y] : (hover ? [hover.x, hover.y] : [p.x, p.y]);
-    if (arm.ex == null) { arm.ex = p.x; arm.ey = p.y; }
-    arm.ex += (tgt[0] - arm.ex) * 0.38;      // 末端追着目标走，吸附时有「被拉过去」的感觉
-    arm.ey += (tgt[1] - arm.ey) * 0.38;
-    const sag = 26 + Math.min(40, Math.hypot(arm.ex - p.x, arm.ey - p.y) * 0.18);
-    const db = hotPin ? (dm[hotPin.id] || [0, 1]) : [0, 1];
-    const col = wireColor(arm.id);           // 拉的中途就按起点的线号取色，接上以后颜色不变
-    const pts = cablePts([p.x, p.y], [arm.ex, arm.ey],
+    const tgt = d.snap ? [d.snap.x, d.snap.y] : [d.px, d.py];
+    d.ex += (tgt[0] - d.ex) * 0.38;          // 末端追着目标走，吸附时有「被拉过去」的感觉（practice.js:799）
+    d.ey += (tgt[1] - d.ey) * 0.38;
+    const sag = 60 + Math.min(80, Math.hypot(d.ex - p.x, d.ey - p.y) * 0.18);   // practice.js:800 的下垂量
+    const col = penColOf(arm.id);            // 拉的中途就按起点的线号取色，接上以后颜色不变
+    const db = d.snap ? (dm[d.snap.id] || [0, 1]) : [0, 1];
+    const pts = cablePts([p.x, p.y], [d.ex, d.ey],
       [p.x + da[0] * sag, p.y + da[1] * sag],
-      [arm.ex + db[0] * sag * 0.7, arm.ey + db[1] * sag * 0.7]);
-    g.save(); g.shadowColor = col; g.shadowBlur = 18;
-    poly(pts, WEDGE(), 5.2); poly(pts, col, 4.2); g.restore();
+      d.snap ? [d.snap.x + db[0] * sag, d.snap.y + db[1] * sag] : [d.ex, d.ey + sag * 0.6]);
+    g.save(); g.shadowColor = col; g.shadowBlur = 18 * Math.max(TH.glow || 1, 0.4);
+    poly(pts, WEDGE(), wireW + 3); poly(pts, col, wireW + 1); g.restore();
     const hp = partial(pts, (t * 0.9) % 1), head = hp[hp.length - 1];
-    g.save(); g.shadowColor = col; g.shadowBlur = 12; dot(head[0], head[1], 4, TH.sweep); g.restore(); // 线缆上跑动光点
+    g.save(); g.shadowColor = col; g.shadowBlur = 12; dot(head[0], head[1], 4, '#fff'); g.restore(); // 线缆上跑动的光点
     halo([p.x, p.y], col, t, 20, 8);
-    if (!hotPin) dot(arm.ex, arm.ey, 5, col);
+    if (d.snap) {
+      // 磁吸目标：圆环收紧弹一下（practice.js:805-808）。排位提示是关着的，所以一律主题色、不出 √/×
+      const k2 = clamp((t - d.snapT) / 0.3);
+      g.save(); g.strokeStyle = ACC(); g.lineWidth = 3; g.shadowColor = ACC(); g.shadowBlur = 16 * Math.max(TH.glow || 1, 0.4);
+      g.beginPath(); g.arc(d.snap.x, d.snap.y, 30 - 12 * backOut(k2), 0, 7); g.stroke(); g.restore();
+    } else dot(d.ex, d.ey, 6, col);
   }
-
-  // 工具条按钮（先把手里的半根线收掉，免得之后点端子被当成「接上」）
-  $('undo').addEventListener('click', () => { cancelArm(null); undoWire(); });
-  $('clearWires').addEventListener('click', () => { cancelArm(null); clearWires(); });
 
   /* ═══════════════ 9. 拖拽：库 → 画布（pointer 事件，鼠标 / 触摸同一套） ═══════════════ */
   let dragIt = null, ghost = null, ghostKey = null;
+  /* 拖库卡片期间锁住抽屉：抽屉是「点画布空白自动收起」的，不锁的话卡片刚按住、
+     手指一进画布空白就把抽屉收了 —— 用户就没法把元件拖出来了（2026-11-09 排版重做的关键约束）。
+     锁到 pointerup（= HTML5 dragstart/dragend 的等价物）才解开。 */
+  let libHold = false;
 
   function startGhost(key, ev) {
     ghostKey = key;
@@ -1335,7 +1573,14 @@
     return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
   };
   const overLib = (x, y) => {
-    if (body.classList.contains('lib-min')) return false;
+    if (body.classList.contains('lib-min')) {
+      /* 抽屉收着时整个被平移出屏幕，rect 永远不命中。之前直接 return false ——
+         但抽屉在「点画布空白」时会顺手收起（下面 pointerdown 里的 setLib(false)），
+         学生放多了想删的时候库往往已经收着，元件拖回去怎么都删不掉（2026-11-09 用户报）。
+         收起时改认常驻竖条（orb，含老师把它拖到别处后的位置）：元件拖到竖条上 = 拖回库删除。 */
+      const o = orb.getBoundingClientRect();
+      return x >= o.left && x <= o.right && y >= o.top && y <= o.bottom;
+    }
     const r = tb.getBoundingClientRect();
     return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
   };
@@ -1347,6 +1592,7 @@
     e.preventDefault();
     const key = card.dataset.k;
     card.classList.add('drag');
+    libHold = true;                       // 拖卡片期间抽屉不自动收（见上面的说明）
     startGhost(key, e);
     let moved = false, last = { x: e.clientX, y: e.clientY };
     const move = ev => {
@@ -1359,6 +1605,7 @@
       window.removeEventListener('pointerup', up);
       window.removeEventListener('pointercancel', up);
       card.classList.remove('drag');
+      libHold = false;                    // 拖完了，允许自动收（不主动收：松手落元件的地方看得见）
       endGhost();
       const x = ev.clientX === undefined ? last.x : ev.clientX, y = ev.clientY === undefined ? last.y : ev.clientY;
       if (!moved || !overStage(x, y)) return;
@@ -1370,21 +1617,39 @@
     window.addEventListener('pointercancel', up);
   });
 
-  // 画布：摆放阶段按住元件拖动（松手在左栏上 = 删掉）；连线阶段先点端子、长按才拖元件
+  // 画布：摆放阶段按住元件拖动（松手在抽屉上 = 删掉）；连线阶段先点端子、长按才拖元件
   cv.addEventListener('pointerdown', e => {
     if (e.button !== undefined && e.button !== 0) return;
     const p = toLocal(e.clientX, e.clientY);
     hover = p;
 
+    /* 抽屉开着时点画布空白（没点在元件上）= 顺手把抽屉收了（拖卡片期间 libHold 锁住不收）。
+       元件本体上不收 —— 学生可能正要搬它，收抽屉会闪一下。 */
+    if (!body.classList.contains('lib-min') && !libHold && !hitTest(p.x, p.y)) setLib(false);
+
     if (phase !== 'place') {
-      /* 连线阶段命中顺序：端子 → 已画的线 → 元件本体（长按才给拖）。
-         端子排在最前面，因为端子在元件边框上，先判元件的话永远点不到端子。 */
-      const pin = pinHit(p.x, p.y);
-      if (pin) { e.preventDefault(); if (arm) connectTo(pin); else startArm(pin); return; }
-      if (arm) { e.preventDefault(); cancelArm('取消这根线'); return; }   // 点空白 = 取消拉线
+      /* 连线阶段命中顺序（practice.js:1191-1221 同一套）：
+         ① 选中的导线上按到手柄 → 开始拖走线（端子 12px 内仍归端子，practice.js:1197）
+         ② 端子 → 选中 / 连线 / 再点自己取消（practice.js:1201-1209）
+         ③ 手里还拉着线时点空白 → 取消（practice.js:1394 的点空白取消）
+         ④ 已画的线 → **选中**（出编辑手柄），不是删除（practice.js:1219）
+         ⑤ 点空白 → 取消选中 */
+      if (selWire && edit) { e.preventDefault(); return; }   // 拖手柄的按下被 pointermove/up 接管
+      const pin = pinHit(p.x, p.y, e);
+      if (!pin && selWire) {
+        const w = wires.find(x => wkey(x) === selWire);
+        const h = w && editHit(w, p, e.pointerType === 'mouse' ? 8 : 16);
+        if (h) { e.preventDefault(); startEdit(w, h, p); return; }
+      }
+      if (pin) {
+        e.preventDefault();
+        if (arm) connectTo(pin); else startArm(pin);
+        return;
+      }
+      if (arm) { e.preventDefault(); cancelArm('取消这根线'); return; }
       const w = wireHit(p.x, p.y);
-      if (w) { e.preventDefault(); tapWire(w, p.x, p.y); return; }
-      if (pendDel) { pendDel = null; need(); }                            // 点空白 = 取消待删高亮
+      if (w) { e.preventDefault(); selectWire(w); return; }
+      if (selWire) { selWire = null; need(); }
     }
 
     const it = hitTest(p.x, p.y);
@@ -1413,13 +1678,18 @@
   function beginDrag(it, p, e, fromWire) {
     dragIt = it;
     const dx = it.x - p.x, dy = it.y - p.y;
-    let moved = false;
+    let moved = false, want = false;
     try { cv.setPointerCapture(e.pointerId); } catch (err) { }
     const move = ev => {
       const q = toLocal(ev.clientX, ev.clientY);
       if (!moved && (Math.abs(q.x - p.x) > 1 || Math.abs(q.y - p.y) > 1)) moved = true;
+      /* 真正开始拖动的那一刻，如果库收着，给常驻竖条加个「回收」提示：
+         竖条微放大泛红，学生才知道删元件是拖回这里（发现性问题，光有逻辑没用）。 */
+      if (moved && !want) { want = true; if (body.classList.contains('lib-min')) orb.classList.add('want'); }
       it.x = q.x + dx; it.y = q.y + dy; clampInst(it);
-      tb.classList.toggle('del', overLib(ev.clientX, ev.clientY));
+      const del = overLib(ev.clientX, ev.clientY);
+      tb.classList.toggle('del', del);
+      orb.classList.toggle('del', del && body.classList.contains('lib-min'));
       need();
     };
     const up = ev => {
@@ -1427,7 +1697,7 @@
       cv.removeEventListener('pointerup', up);
       cv.removeEventListener('pointercancel', up);
       try { cv.releasePointerCapture(e.pointerId); } catch (err) { }
-      dragIt = null; tb.classList.remove('del');
+      dragIt = null; tb.classList.remove('del'); orb.classList.remove('del', 'want');
       if (overLib(ev.clientX, ev.clientY)) {
         const i = insts.indexOf(it);
         if (i >= 0) insts.splice(i, 1);
@@ -1448,20 +1718,307 @@
     cv.addEventListener('pointercancel', up);
   }
 
-  /* 连线阶段跟随光标：画虚线的终点 + 高亮离光标最近的端子（没变化就不重绘） */
+  /* 连线阶段跟随光标（practice.js:1223-1237 同一套）：
+     · 拖手柄 → 改走线；· 拉线 → 线缆末端跟手、进磁吸圈就吸端子；
+     · 鼠标的光标随手底下的东西换（端子 pointer、手柄 ns/ew-resize、拖动 grabbing）。 */
   cv.addEventListener('pointermove', e => {
     if (phase === 'place') return;
     const p = toLocal(e.clientX, e.clientY);
     hover = p;
+    if (edit) { moveEdit(p); if (e.pointerType === 'mouse') cv.style.cursor = 'grabbing'; return; }
     const before = hotPin ? hotPin.id : null;
-    hotPin = pinHit(p.x, p.y);
-    if (arm || before !== (hotPin ? hotPin.id : null)) need();
+    hotPin = pinHit(p.x, p.y, e);
+    if (arm && armDrag) {
+      armDrag.px = p.x; armDrag.py = p.y;
+      if (!armDrag.moved && Math.hypot(p.x - armDrag.sx, p.y - armDrag.sy) > 10) armDrag.moved = true;
+      const sn = armDrag.moved ? pinHit(p.x, p.y, e, arm.id, SNAP_R(e)) : null;
+      if (sn !== armDrag.snap) { armDrag.snap = sn; armDrag.snapT = nowSec(); }
+    }
+    if (arm && armDrag || before !== (hotPin ? hotPin.id : null)) need();
+    if (e.pointerType === 'mouse') {
+      const wsel = selWire && wires.find(x => wkey(x) === selWire);
+      const h = wsel && !hotPin && editHit(wsel, p, 8);
+      cv.style.cursor = armDrag && armDrag.moved ? 'grabbing'
+        : h ? (h.mode === 'corner' ? 'move' : isH(wsel.pts[h.i - 1], wsel.pts[h.i]) ? 'ns-resize' : 'ew-resize')
+        : hotPin ? 'pointer' : '';
+    }
   });
   cv.addEventListener('pointerleave', () => {
     if (phase === 'place') return;
     hotPin = null;
     if (arm) need();
   });
+  /* 松手（practice.js:1239-1250 endPress 同一套）：
+     · 拖手柄松手 → 走线落定；· 拉线松手 → 吸在端子上就接上，没吸上就取消这半根线。 */
+  function endPress(e) {
+    if (phase === 'place') return;
+    if (edit) { endEdit(); cv.style.cursor = ''; return; }
+    const d = armDrag;
+    if (!d) return;
+    armDrag = null;
+    if (d.moved) {
+      if (d.snap && arm && e.type === 'pointerup') { connectTo(d.snap); return; }
+      arm = null; hotPin = null;
+      if (e.type === 'pointerup') say('没有接到端子上，已取消', '');
+      need();
+    }
+  }
+  cv.addEventListener('pointerup', endPress);
+  cv.addEventListener('pointercancel', endPress);
+
+  /* ═══════════════ 8.9 工具圆盘 + 展开工具栏 ═══════════════
+     照 practice-ui.js 重排（用户原话「我的工具圆圈和展开后工具栏呢」）。差异只有一条：
+     排位里「提示 / 检查 / 答案」三颗**一律不建**（practice-ui.js:309 的 __rankUI 在排位里也是藏这三颗），
+     「查错」保留且只报红（见 runErr）。清空 = 长按 1 秒确认（practice-ui.js:317 同款），不再点两次。 */
+  const FTB_KEY = 'zfz-super-ftb';
+  let FTB = { x: null, y: null, collapsed: false, ox: null, oy: null };
+  try { Object.assign(FTB, JSON.parse(localStorage.getItem(FTB_KEY) || '{}')); } catch (e) { }
+  const ftbKeep = () => { try { localStorage.setItem(FTB_KEY, JSON.stringify(FTB)); } catch (e) { } };
+  (function buildWireTools() {
+    const css = `
+  .ftb, .ftb-orb { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  .ftb { position: fixed; z-index: 20; display: none; align-items: center; gap: 2px; padding: 4px; border-radius: 16px;
+    background: linear-gradient(180deg, var(--tbbg), var(--tbbg2)); border: 1px solid var(--edge); color: var(--ink);
+    box-shadow: 0 18px 40px -16px var(--tbsh), 0 0 0 1px rgba(255,255,255,.03) inset;
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); max-width: calc(100vw - 24px); }
+  .ftb.on { display: flex; }
+  .ftb.dragging { transition: none; transform: scale(1.03); cursor: grabbing; }
+  .ftb-grip { width: 16px; height: 34px; display: grid; place-items: center; cursor: grab; color: var(--dim); touch-action: none; border-radius: 10px; }
+  .ftb-grip:hover { color: var(--ink); background: var(--tbhov); }
+  .ftb-sep { width: 1px; height: 26px; background: var(--edge); margin: 0 2px; }
+  .ftb-b { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    width: 42px; height: 42px; padding: 0; flex: 0 0 42px; min-width: 42px; border: 0; border-radius: 12px; background: transparent;
+    color: var(--ink); font-weight: 600; font-size: 10px; line-height: 1; font-family: inherit; cursor: pointer;
+    touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+    transition: background .16s, color .16s, transform .34s cubic-bezier(.34,1.56,.64,1), opacity .2s, box-shadow .2s; }
+  .ftb-b svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  @media (hover: hover) { .ftb-b:hover:not(:disabled) { background: var(--tbhov); } }
+  .ftb-b:active:not(:disabled) { transform: scale(.88); background: var(--tbhov); }
+  .ftb-b:disabled { opacity: .38; filter: saturate(.2); cursor: not-allowed; }
+  .ftb-b.holding { background: color-mix(in srgb, var(--bad) 14%, transparent); color: var(--bad); }
+  .ftb-b .hold { position: absolute; inset: -3px; width: 48px; height: 48px; pointer-events: none; transform: rotate(-90deg); }
+  .ftb-b .hold circle { fill: none; stroke: var(--bad); stroke-width: 3.5; stroke-linecap: round; stroke-dasharray: 176; stroke-dashoffset: 176; transition: stroke-dashoffset .3s ease-out; }
+  .ftb-b.holding .hold circle { stroke-dashoffset: 0; transition: stroke-dashoffset 1s linear; }
+  .ftb-b .pdot { position: absolute; right: 9px; bottom: 19px; width: 11px; height: 11px; border-radius: 50%; border: 2px solid var(--tbbg); }
+  /* 圆球（收起后）：22px 小点 + 44px 热区 + 4 秒「工具」小标签（practice-ui.js:148-162 同款） */
+  .ftb-orb { position: fixed; z-index: 20; width: 22px; height: 22px; opacity: .82; border-radius: 50%; display: none; place-items: center;
+    cursor: pointer; touch-action: none; background: radial-gradient(circle at 35% 30%, var(--tbbg), var(--tbbg2));
+    border: 1px solid var(--edge); color: var(--ink);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--acc) 20%, transparent), 0 8px 18px -8px var(--tbsh), 0 0 14px -6px var(--acc);
+    transition: transform .35s cubic-bezier(.34,1.56,.64,1), opacity .25s; animation: ftbPulse 2.6s ease-in-out infinite; }
+  .ftb-orb.on { display: grid; }
+  .ftb-orb.hide { opacity: 0; transform: scale(.3); pointer-events: none; }
+  .ftb-orb.dragging { transition: none; animation: none; transform: scale(1.08); }
+  .ftb-orb svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .ftb-orb::before { content: ''; position: absolute; inset: -11px; border-radius: 50%; }
+  .ftb-orb::after { content: '工具'; position: absolute; left: 50%; top: calc(100% + 5px); transform: translateX(-50%);
+    padding: 2px 7px; border-radius: 7px; font-size: 10px; font-weight: 800; letter-spacing: .5px; white-space: nowrap;
+    color: var(--tbbg); background: var(--acc); opacity: 0; transition: opacity .3s; pointer-events: none; }
+  .ftb-orb.hint::after { opacity: 1; }
+  @keyframes ftbPulse { 50% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--acc) 20%, transparent), 0 12px 30px -10px var(--tbsh), 0 0 34px -2px var(--acc); } }
+  /* 弹出面板（线色 / 主题） */
+  .ftb-pop { position: fixed; z-index: 30; padding: 14px; border-radius: 20px; min-width: 240px; color: var(--ink);
+    background: linear-gradient(180deg, var(--tbbg), var(--tbbg2)); border: 1px solid var(--edge);
+    box-shadow: 0 24px 50px -18px var(--tbsh); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    font-family: "Microsoft YaHei", "PingFang SC", sans-serif; animation: ftbPop .32s cubic-bezier(.34,1.56,.64,1); }
+  @keyframes ftbPop { from { opacity: 0; transform: scale(.85); } }
+  .ftb-pop h4 { margin: 4px 2px 10px; font-size: 13px; color: var(--dim); font-weight: 700; letter-spacing: .5px; }
+  .ftb-pop .row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+  .ftb-pop .row:last-child { margin-bottom: 2px; }
+  .fchip { display: flex; flex-direction: column; align-items: center; gap: 5px; width: 54px; padding: 8px 0 6px; border-radius: 14px;
+    border: 1px solid transparent; background: transparent; color: var(--ink); font-weight: 600; font-size: 12px; font-family: inherit;
+    cursor: pointer; transition: background .16s, transform .3s cubic-bezier(.34,1.56,.64,1), border-color .16s; touch-action: manipulation; }
+  .fchip:hover { background: var(--tbhov); } .fchip:active { transform: scale(.9); }
+  .fchip.sel { border-color: var(--acc); background: var(--tbhov); }
+  .fchip .c { width: 26px; height: 26px; border-radius: 50%; box-shadow: 0 0 0 2px var(--tbbg), 0 0 0 3px var(--edge); }
+  .fchip .ln { width: 40px; border-radius: 9px; }
+  .fchip .th { width: 44px; height: 30px; border-radius: 9px; border: 1px solid var(--edge); }
+  @media (max-width: 560px) {
+    .ftb { gap: 2px; } .ftb-b { width: 40px; height: 40px; flex-basis: 40px; min-width: 40px; border-radius: 11px; font-size: 9.5px; }
+    .ftb-b svg { width: 18px; height: 18px; }
+  }
+  @media (prefers-reduced-motion: reduce) { .ftb, .ftb-orb, .ftb-b, .ftb-pop, .fchip { transition: none !important; animation: none !important; } }
+  `;
+    document.head.appendChild(Object.assign(document.createElement('style'), { textContent: css }));
+
+    const I = {
+      grip: '<svg viewBox="0 0 24 24" style="fill:currentColor;stroke:none"><circle cx="9" cy="6" r="1.7"/><circle cx="15" cy="6" r="1.7"/><circle cx="9" cy="12" r="1.7"/><circle cx="15" cy="12" r="1.7"/><circle cx="9" cy="18" r="1.7"/><circle cx="15" cy="18" r="1.7"/></svg>',
+      undo: '<svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>',
+      del: '<svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>',
+      clear: '<svg viewBox="0 0 24 24"><path d="M16 3l5 5-11 11H5v-5z"/><path d="M13.5 5.5l5 5"/><path d="M4 21h16"/></svg>',
+      err: '<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.8-4.8"/><path d="M8 11h6"/></svg>',
+      pen: '<svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>',
+      theme: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18z" style="fill:currentColor"/></svg>',
+      full: '<svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>',
+      min: '<svg viewBox="0 0 24 24"><path d="M6 12h12"/></svg>',
+      tools: '<svg viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/><circle cx="9" cy="7" r="2.1" style="fill:currentColor;stroke:none"/><circle cx="15" cy="12" r="2.1" style="fill:currentColor;stroke:none"/><circle cx="9" cy="17" r="2.1" style="fill:currentColor;stroke:none"/></svg>'
+    };
+    const el = (tag, cls, html) => Object.assign(document.createElement(tag), { className: cls || '', innerHTML: html || '' });
+    const tb = el('div', 'ftb'), orb = el('div', 'ftb-orb', I.tools);
+    orb.title = '工具栏收起来了，点一下展开（按住可以拖到别处）';
+    orb.setAttribute('role', 'button'); orb.setAttribute('aria-label', '展开工具栏');
+    document.body.append(tb, orb);
+
+    const grip = el('div', 'ftb-grip', I.grip); grip.title = '按住拖动，松手停在原地';
+    const B = {};
+    const btn = (k, icon, label, tip) => {
+      const b = el('button', 'ftb-b', `<span class="ic">${icon}</span><span class="lb">${label}</span>`);
+      b.type = 'button'; b.setAttribute('aria-label', tip || label); b.title = tip || label; B[k] = b; return b;
+    };
+    btn('undo', I.undo, '撤销', '撤销上一根线（或上一次走线调整）');
+    btn('del', I.del, '删除', '删除选中的那根线（先在板上点一下线）');
+    btn('clear', I.clear, '清空', '长按 1 秒清空全部导线');
+    B.clear.insertAdjacentHTML('beforeend', '<svg class="hold" viewBox="0 0 62 62"><circle cx="31" cy="31" r="28"/></svg>');
+    btn('err', I.err, '查错', '查错：只指出哪根线要删（红色高亮），不给该连哪里的提示');
+    btn('pen', I.pen, '线色', '线色与线宽');
+    btn('theme', I.theme, '主题', '切换主题（适应不同光线）');
+    btn('full', I.full, '全屏', '全屏');
+    btn('min', I.min, '收起', '收成一个圆球');
+    const pdot = el('span', 'pdot'); B.pen.appendChild(pdot);
+    tb.append(grip, B.undo, B.del, B.clear, B.err, el('div', 'ftb-sep'), B.pen, B.theme, B.full, el('div', 'ftb-sep'), B.min);
+
+    B.undo.onclick = () => { closePop(); cancelArm(null); undoWire(); };
+    B.del.onclick = () => { closePop(); cancelArm(null); delSelected(); };
+    /* 清空：长按确认（practice-ui.js:317-328 同款），外圈走满 1 秒才真清 */
+    let holdT = 0;
+    const holdStart = e => {
+      if (!wires.length) return; e.preventDefault();
+      B.clear.classList.add('holding'); say('按住不放，外圈走满就清空；中途松手取消', 'bad');
+      holdT = setTimeout(() => {
+        B.clear.classList.remove('holding');
+        cancelArm(null); clearWires();
+        B.clear.style.transform = 'scale(.88)';
+        setTimeout(() => B.clear.style.transform = '', 180);
+      }, 1000);
+    };
+    const holdEnd = () => { if (holdT) clearTimeout(holdT); holdT = 0; B.clear.classList.remove('holding'); };
+    B.clear.addEventListener('pointerdown', holdStart);
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach(t => B.clear.addEventListener(t, holdEnd));
+    B.clear.addEventListener('touchstart', e => e.preventDefault(), { passive: false });
+    B.clear.style.touchAction = 'none';
+    B.err.onclick = () => { closePop(); cancelArm(null); runErr(); };
+    B.full.onclick = () => {
+      const req = document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen;
+      try {
+        document.fullscreenElement || document.webkitFullscreenElement
+          ? (document.exitFullscreen || document.webkitExitFullscreen).call(document)
+          : req.call(document.documentElement);
+      } catch (e) { }
+    };
+    /* 收起瞬间给圆钮挂 4 秒「工具」标签（practice-ui.js:368-375 同款） */
+    let orbHintT = 0;
+    const orbHint = () => { orb.classList.add('hint'); clearTimeout(orbHintT); orbHintT = setTimeout(() => orb.classList.remove('hint'), 4200); };
+    B.min.onclick = () => { closePop(); FTB.collapsed = true; ftbKeep(); wireToolsShow(true); orbHint(); };
+
+    /* 弹出面板：线色线宽 / 主题（practice-ui.js:407-428 的精简版，样式统一走主题令牌） */
+    let pop = null;
+    function closePop() { if (!pop) return; const p = pop; pop = null; p.remove(); B.pen.classList.remove('sel'); B.theme.classList.remove('sel'); }
+    function openPop(anchor, build) {
+      const was = pop && pop.anchor === anchor; closePop(); if (was) return;
+      pop = el('div', 'ftb-pop'); pop.anchor = anchor; build(pop); document.body.appendChild(pop); anchor.classList.add('sel');
+      const a = anchor.getBoundingClientRect(), p = pop.getBoundingClientRect(), m = 12;
+      let x = a.left + a.width / 2 - p.width / 2, y = a.bottom + m;
+      x = Math.max(8, Math.min(innerWidth - p.width - 8, x));
+      y = Math.max(8, Math.min(innerHeight - p.height - 8, y));
+      Object.assign(pop.style, { left: x + 'px', top: y + 'px' });
+    }
+    addEventListener('pointerdown', e => { if (pop && !pop.contains(e.target) && !e.target.closest('.ftb-b')) closePop(); }, true);
+    const chip = (cls, inner, label, sel, act) => {
+      const c = el('button', 'fchip ' + cls + (sel ? ' sel' : ''), inner + `<span>${label}</span>`);
+      c.type = 'button';
+      c.onclick = () => { act(); c.parentNode.querySelectorAll('.fchip').forEach(x => x.classList.remove('sel')); c.classList.add('sel'); };
+      return c;
+    };
+    B.pen.onclick = () => openPop(B.pen, p => {
+      p.append(el('h4', '', '线色（接下一根线用）'));
+      const r1 = el('div', 'row');
+      PALETTE.forEach(([k, name]) => r1.append(chip('', `<span class="c" style="background:${k === 'auto' ? 'conic-gradient(' + C.L1 + ' 0 25%,' + C.L2 + ' 0 50%,' + C.L3 + ' 0 75%,' + C.N + ' 0)' : netColor(k)}"></span>`, name, penColor === k, () => { penColor = k; savePen(); })));
+      p.append(r1);
+      p.append(el('h4', '', '线宽（坐得远看不清就调粗）'));
+      const r3 = el('div', 'row');
+      WIRE_SIZES.forEach(([v, name]) => r3.append(chip('', `<span class="ln" style="height:${v}px;background:var(--ink)"></span>`, name, wireW === v, () => { wireW = v; savePen(); })));
+      p.append(r3);
+    });
+    B.theme.onclick = () => openPop(B.theme, p => {
+      p.append(el('h4', '', '主题（按教室光线选）'));
+      const r = el('div', 'row');
+      Object.keys(THEMES).forEach(k => {
+        const t = THEMES[k];
+        r.append(chip('', `<span class="th" style="background:linear-gradient(135deg, ${t.TH.bg} 55%, ${t.TH.acc})"></span>`, t.name, themeName === k, () => {
+          applyTheme(k); syncCss(); makeThumbs(); buildLib(); need();
+          say('已切换到「' + t.name + '」主题', 'ok');
+        }));
+      });
+      p.append(r);
+    });
+
+    /* 摆放 / 收起：位置自由（不吸边），存 localStorage（排位自己的键） */
+    function placeTb() {
+      const w = tb.offsetWidth, h = tb.offsetHeight;
+      let x = FTB.x != null ? FTB.x : innerWidth - w - 16;
+      let y = FTB.y != null ? FTB.y : 54;
+      x = Math.max(6, Math.min(innerWidth - w - 6, x));
+      y = Math.max(6, Math.min(innerHeight - h - 6, y));
+      tb.style.left = x + 'px'; tb.style.top = y + 'px';
+    }
+    function placeOrb() {
+      const w = orb.offsetWidth, h = orb.offsetHeight;
+      let x = FTB.ox != null ? FTB.ox : innerWidth - w - 14;
+      let y = FTB.oy != null ? FTB.oy : 60;
+      x = Math.max(4, Math.min(innerWidth - w - 4, x));
+      y = Math.max(4, Math.min(innerHeight - h - 4, y));
+      orb.style.left = x + 'px'; orb.style.top = y + 'px';
+    }
+    function draggable(node, handle, onTap) {
+      handle.addEventListener('pointerdown', e => {
+        if (e.button !== undefined && e.button !== 0) return;
+        e.preventDefault(); closePop();
+        try { handle.setPointerCapture(e.pointerId); } catch (err) { }
+        const r = node.getBoundingClientRect(), dx = e.clientX - r.left, dy = e.clientY - r.top, sx = e.clientX, sy = e.clientY;
+        let moved = false;
+        const mv = ev => {
+          if (!moved && Math.hypot(ev.clientX - sx, ev.clientY - sy) < 6) return;
+          moved = true; node.classList.add('dragging');
+          node.style.left = (ev.clientX - dx) + 'px'; node.style.top = (ev.clientY - dy) + 'px';
+        };
+        const up = () => {
+          handle.removeEventListener('pointermove', mv); handle.removeEventListener('pointerup', up); handle.removeEventListener('pointercancel', up);
+          node.classList.remove('dragging');
+          const b = node.getBoundingClientRect();
+          if (!moved) { if (onTap) onTap(); return; }
+          if (node === orb) { FTB.ox = Math.round(b.left); FTB.oy = Math.round(b.top); }
+          else { FTB.x = Math.round(b.left); FTB.y = Math.round(b.top); }
+          ftbKeep();
+        };
+        handle.addEventListener('pointermove', mv); handle.addEventListener('pointerup', up); handle.addEventListener('pointercancel', up);
+      });
+    }
+    draggable(tb, grip);
+    draggable(orb, orb, () => { FTB.collapsed = false; ftbKeep(); wireToolsShow(true); });
+    addEventListener('resize', () => { placeTb(); placeOrb(); });
+
+    /* 阶段开关：只有连线阶段出现（setPhase 调 wireToolsShow） */
+    function show(on) {
+      closePop();
+      tb.classList.toggle('on', !!(on && !FTB.collapsed));
+      orb.classList.toggle('on', !!(on && FTB.collapsed));
+      if (on) { placeTb(); placeOrb(); }
+    }
+    /* 按钮可用态跟着接线走（practice-ui.js:559 sync 的精简版），连线阶段每帧刷一次 */
+    function sync() {
+      B.undo.disabled = !wires.length;
+      B.del.disabled = !selWire;
+      B.clear.disabled = !wires.length && !B.clear.classList.contains('holding');
+      B.err.disabled = !wires.length;
+      pdot.style.background = penColor === 'auto' ? C.ink : netColor(penColor);
+    }
+    window.__wireToolsShow = show;
+    window.__ftbSync = sync;
+    window.__wireTools = tb;                        // 调试 / 验收钩子
+  })();
+  const wireToolsShowRef = on => { try { window.__wireToolsShow(!!on); } catch (e) { } };
+  function wireToolsShow(on) { wireToolsShowRef(on); }
+  function ftbSync() { try { window.__ftbSync(); } catch (e) { } }
 
   /* ═══════════════ 10. 摆放校验（种类 + 个数；不说位置、不给正确答案） ═══════════════ */
   /* 两道关，顺序不能反：
@@ -1491,8 +2048,8 @@
      只影响提示文案，不影响判对。 */
   const HINT_NAME = {
     QF: '低压断路器（四极）', QF3P: '三极断路器',
-    KM: '交流接触器（不带辅助）', KMAUX: '接触器（带辅助常闭）', KMAUXB: '接触器（带下排辅助）',
-    SB: '按钮（单触点）', SBQ: '复合按钮',
+    KM: '交流接触器（不带辅助）', KMAUX: '交流接触器（带辅助常闭 21/22）', KMAUXB: '交流接触器（带下排辅助触头）',
+    SB: '按钮（单触点）', SBr: '停止按钮（红色单触点）', SBQ: '复合按钮', SBQr: '复合停止按钮（红色）',
     KT: '时间继电器（6 端）', KT4: '时间继电器（4 端）', KT2R: '时间继电器（两排）',
     M: '电动机接线盒（6 孔）', MBOX6B: '双速电动机接线盒', MBOX3: '电动机接线盒（3 孔）',
     VD: '整流二极管', VDV2: '整流二极管（竖放）'
@@ -1531,7 +2088,7 @@
     }
   }
   function check() {
-    if (!insts.length) { say('画布上还没有元件：从左边元器件库把元件拖到待布置区', 'bad'); return; }
+    if (!insts.length) { say('画布上还没有元件：点左缘竖条打开元器件库，把元件拖到待布置区', 'bad'); return; }
     const gotDev = {}, gotKind = {};
     insts.forEach(it => {
       gotDev[it.dev] = (gotDev[it.dev] || 0) + 1;
@@ -1635,18 +2192,24 @@
     updateStat();
   }
 
-  /* ═══════════════ 11. 收起成圆点（位置记在 localStorage，照 .tb-orb 的交互） ═══════════════ */
+  /* ═══════════════ 11. 元器件库抽屉的开关（左缘常驻竖条；位置记 localStorage，照 .tb-orb 的交互） ═══════════════ */
   const ORB_KEY = 'zfz-super-tb-orb';
+  /* 开/收抽屉的唯一入口：body.lib-min = 收起（CSS 把抽屉平移出屏幕 + pointer-events:none）。
+     页面默认收起（boot 里 setLib(false)），点竖条 / 点抽屉标题的关闭钮开。 */
+  function setLib(open) {
+    body.classList.toggle('lib-min', !open);
+    orb.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
   function placeOrb(x, y) {
-    x = clamp(x, 4, Math.max(4, window.innerWidth - 50));
-    y = clamp(y, 4, Math.max(4, window.innerHeight - 50));
+    x = clamp(x, 0, Math.max(0, window.innerWidth - 52));
+    y = clamp(y, 4, Math.max(4, window.innerHeight - 146));
     orb.style.left = x + 'px'; orb.style.top = y + 'px';
   }
   function loadOrb() {
     let p = null;
     try { p = JSON.parse(localStorage.getItem(ORB_KEY) || 'null'); } catch (e) { p = null; }
     if (p && isFinite(p.x) && isFinite(p.y)) placeOrb(p.x, p.y);
-    else placeOrb(14, Math.round(window.innerHeight * 0.5) - 23);
+    else placeOrb(0, Math.round(window.innerHeight * 0.34) - 70);   // 默认贴左缘、偏上一点
   }
   function saveOrb() {
     try {
@@ -1655,10 +2218,10 @@
       }));
     } catch (e) { }
   }
-  $('tbMin').addEventListener('click', () => {
-    body.classList.add('lib-min');
-    orb.setAttribute('aria-expanded', 'false');
-    need();
+  $('tbMin').addEventListener('click', () => { setLib(false); need(); });
+  // Esc 收抽屉（连线阶段 Esc 不抢「取消拉线」：这里只收抽屉，拉线的取消仍靠点空白）
+  window.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !body.classList.contains('lib-min')) setLib(false);
   });
   (function orbDrag() {
     let st = null;
@@ -1681,8 +2244,7 @@
       orb.classList.remove('dragging');
       try { orb.releasePointerCapture(e.pointerId); } catch (err) { }
       if (!s.moved) {
-        body.classList.remove('lib-min');
-        orb.setAttribute('aria-expanded', 'true');
+        setLib(body.classList.contains('lib-min'));   // 点一下 = 开关抽屉（原来是只能展开）
         need();
         return;
       }
@@ -1690,6 +2252,17 @@
     };
     orb.addEventListener('pointerup', up);
     orb.addEventListener('pointercancel', up);
+  })();
+  /* 原理图左列的折叠：点卡片标题整列缩成一条横杆（body.sch-min）。
+     手机（≤900px）默认折叠 —— 竖屏要先把高度全给画布；桌面默认展开。 */
+  (function schFold() {
+    const hd = $('schHd');
+    if (!hd) return;
+    hd.addEventListener('click', () => {
+      body.classList.toggle('sch-min');
+      fit();          // 手机上原理图条高度变了 → 画布 flex:1 高度跟着变，要重算画布尺寸
+    });
+    if (window.matchMedia && window.matchMedia('(max-width: 900px)').matches) body.classList.add('sch-min');
   })();
 
   /* ═══════════════ 12. 电气原理图：直接调用各题练习页的原画法 ═══════════════
@@ -1725,7 +2298,8 @@
     LIB = libOf(id);
     insts.length = 0; wires.length = 0; uid = 0;
     solved = false; aliasSlow = false; aliasBroken = false; quiet = false;
-    arm = null; hover = null; hotPin = null; pendDel = null; pendClr = 0; statCache = '';
+    arm = null; armDrag = null; hover = null; hotPin = null; selWire = null; edit = null; errKeys = null; statCache = '';
+    EDIT_HIST.length = 0;
     $('tsk').textContent = TASK.title || id;
     $('schT').textContent = TASK.sch || TASK.title;
     $('sch').innerHTML = schBody();
@@ -1769,12 +2343,13 @@
     makeThumbs();
     buildLib();
     syncLabels();
+    setLib(false);        // 抽屉默认收起：左缘竖条常驻，点一下滑出（2026-11-09 排版重做）
     loadOrb();
     window.addEventListener('resize', () => { fit(); loadOrbIfDefault(); });
-    // 窄屏旋转 / 缩放后圆点可能跑到屏幕外，收回来
+    // 窄屏旋转 / 缩放后竖条可能跑到屏幕外，收回来（竖条 46×138，右/下各留它的宽度）
     function loadOrbIfDefault() {
       const x = parseFloat(orb.style.left) || 0, y = parseFloat(orb.style.top) || 0;
-      if (x > window.innerWidth - 20 || y > window.innerHeight - 20) placeOrb(Math.min(x, window.innerWidth - 50), Math.min(y, window.innerHeight - 50));
+      if (x > window.innerWidth - 24 || y > window.innerHeight - 160) placeOrb(Math.min(x, window.innerWidth - 52), Math.min(y, window.innerHeight - 146));
     }
     // 调试用只读入口（不含答案）。用 Object.assign 合并，别把 super-data.js 挂的 check/termPos 冲掉
     window.SUPER = Object.assign(window.SUPER || {}, {
@@ -1803,6 +2378,12 @@
         return it ? { id: it.id, type: it.type, dev: it.dev, form: it.form, name: it.name } : null;
       },
       arm: () => (arm ? arm.id : null),
+      selWire: () => selWire,
+      pinR: () => PIN_HIT(),
+      wireTotal: () => wireTotal(),
+      err: () => runErr(),
+      del: () => delSelected(),
+      wireable: () => [...wireableSet()],
       pins: () => PINLIST_ALL().map(p => ({ id: p.id, x: p.x, y: p.y })),
       pinXY: id => {
         const p = pinById(id); if (!p) return null;

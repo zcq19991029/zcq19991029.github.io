@@ -43,6 +43,7 @@
   var lastAt = 0;            // 上次拉取时间（节流用）
   var inflight = null;       // 正在拉的 promise
   var lastError = '';        // 拉取失败原因（横幅要如实显示，别装作没任务）
+  var lastWhy = '';          // 上一轮「为什么没入账」的提示指纹（只在变化时记一次日志，见 maybeSync）
   var THROTTLE = 45000;      // 45 秒内不重复拉，切页面/切班都不会打爆接口
   var LIVE_THROTTLE = 10000; // 当前班有「进行中」任务时用这个：完成率和名次随时会变，要跟得上
   var prevRates = null;      // 上一轮进行中任务的 { 任务号: { 学生键: {name, rate} } }，用来比「被超了/反超」
@@ -99,13 +100,32 @@
   function lessonFor(state, cls, task, out) {
     var seq = Number(task.lesson_no);
     var hit = null;
-    (state.lessons || []).forEach(function (l) {
-      if (l && l.classId === cls.id && Number(l.seq) === seq) hit = l;
-    });
-    if (hit) return hit;
+    if (isFinite(seq) && seq > 0) {
+      (state.lessons || []).forEach(function (l) {
+        if (l && l.classId === cls.id && Number(l.seq) === seq) hit = l;
+      });
+      if (hit) return hit;
+    } else {
+      /* 没填课次（2026-11-09 用户报「课堂任务的分为什么没加到上课计分」）：
+         原来这里直接拒绝 + 一条没人看得见的 notes，等于分数静悄悄没了。
+         现在按任务日期兜底 —— 这个班同一天已经有课次就落在那节课上（最常见的情形：
+         这节课本来就在记分表里，只是发布任务时忘了选课次）；同一天没有课次，就按
+         「本班最大课次 + 1」补一节。用户要的是「发布即自动多一列 5 分」，
+         不该因为漏填一个下拉就让整条链断掉。 */
+      var d = dayOf(task.lesson_date);
+      if (!d) return null;
+      var byDate = null;
+      (state.lessons || []).forEach(function (l) {
+        if (l && l.classId === cls.id && dayOf(l.date) === d) byDate = l;
+      });
+      if (byDate) { out.notes.push({ kind: 'byDate', taskId: task.task_id, text: '接线' + task.circuit + '：任务没填课次，已按日期 ' + d + ' 记到第 ' + byDate.seq + ' 次课' }); return byDate; }
+      seq = 1;
+      (state.lessons || []).forEach(function (l) { if (l && l.classId === cls.id) seq = Math.max(seq, Number(l.seq) || 0); });
+      seq += 1;
+      out.notes.push({ kind: 'byDate', taskId: task.task_id, text: '接线' + task.circuit + '：任务没填课次，已按日期 ' + d + ' 新开第 ' + seq + ' 次课记账' });
+    }
     /* 课次不存在就自动建一个：用户要的是「每节课发布即新增 5 分项目」，
-       课次不存在 → 分数无处可去 → 等于又要老师手工补一节课，那就白做了。
-       建之前已经确认 lesson_no 是有效数字（调用方先判过）。 */
+       课次不存在 → 分数无处可去 → 等于又要老师手工补一节课，那就白做了。 */
     var l = {
       id: uid('l'), classId: cls.id, seq: seq,
       date: dayOf(task.lesson_date) || todayStr(),
@@ -116,7 +136,7 @@
       autoCreatedBy: 'wire-task'   // 留个记号：这节是接线任务自动建的，不是老师手建的
     };
     (cls.groups || []).forEach(function (g) {
-      if (g && g.no) l.scores[String(g.no)] = { first: 0, group: 5, phone: 0, duty: 0, personal: {} };
+      if (g && g.no) l.scores[String(g.no)] = { first: 0, group: 5, phone: 0, personal: {} };
     });
     state.lessons.push(l);
     out.created.push({ classId: cls.id, seq: seq, date: l.date, topic: l.topic });
@@ -199,12 +219,16 @@
         out.notes.push({ kind: 'noclass', taskId: task.task_id, text: '接线' + task.circuit + '：这个班还没和「小组加分」里的班对应上（去名单页点「导入/对应班级」），分数暂时进不来' });
         return;
       }
-      if (!task.lesson_no) {
-        out.notes.push({ kind: 'nocourse', taskId: task.task_id, text: '接线' + task.circuit + '：任务没填课次，分数没法定位到哪一节课（下次发布记得填课次）' });
+      if (!task.lesson_no && !task.lesson_date) {
+        out.notes.push({ kind: 'nocourse', taskId: task.task_id, text: '接线' + task.circuit + '：任务没填课次、也没有日期，分数没法定位到哪一节课（下次发布记得选课次）' });
         return;
       }
 
       var lesson = lessonFor(state, cls, task, out);
+      if (!lesson) {
+        out.notes.push({ kind: 'nocourse', taskId: task.task_id, text: '接线' + task.circuit + '：任务没有课次，也没法按日期定位（任务记录里没有日期）' });
+        return;
+      }
       var col = columnFor(lesson, task, out);
       if (col < 0) return;
 
@@ -326,10 +350,23 @@
         }
         if (res.added.length) {
           hooks.log('接线任务入账', res.added.map(function (x) {
-            return '第 ' + x.lessonSeq + ' 次课新增项目列「' + x.name + '」（5 分项目）';
+            return '第 ' + x.lessonSeq + ' 次课新增项目列「' + x.name + '」（满分 100% 的任务列）';
           }).join('；'));
         }
         if (res.logs.length) hooks.log('接线任务入账', res.logs.join('；'));
+        /* 2026-11-09：把「为什么没入账」说出来。
+           以前 notes（班级没对应 / 没填课次 / 列被删过）和 unmatched（认不出的人）只写进返回值，
+           谁都不显示 —— 用户看到的就是「课堂任务的分没加到上课计分」，而且完全无从下手。
+           现在拼成一条顶到操作日志里；同一批提示只在**变化时**记一次，
+           免得 10 秒一次的心跳把日志刷成一片。 */
+        var why = [];
+        (res.notes || []).forEach(function (n) { if (n && n.text) why.push(n.text); });
+        (res.unmatched || []).forEach(function (u) {
+          why.push('第 ' + u.gno + ' 组「' + u.name + '」认不出是哪位同学（名单里没有这个学号/姓名，接线成绩记不进来）');
+        });
+        var whyKey = why.join('｜');
+        if (whyKey && whyKey !== lastWhy) { lastWhy = whyKey; hooks.log('接线任务入账', why.join('；')); }
+        else if (!whyKey) lastWhy = '';
         if (res.changed) {
           hooks.save();
           if (hooks.rerender) hooks.rerender();

@@ -115,6 +115,12 @@
     return m ? (Number(m[2]) + '-' + m[3]) : String(date || '');
   }
   function pct(v) { return v === null || v === undefined ? '—' : num(v) + '%'; }
+  /* 显示层（2026-11-09 完成率改革）：5 分制单位 → 百分比（1–5 → 20%–100%），
+     提交与存储仍是 1–5 分，一个字段都不改 */
+  function scorePct(v) {
+    var n = Math.round(Math.max(0, Math.min(5, Number(v) || 0)) / 5 * 1000) / 10;
+    return (n % 1 === 0 ? String(Math.round(n)) : n.toFixed(1)) + '%';
+  }
 
   function notice(html, cls) {
     var box = $('notice');
@@ -172,12 +178,17 @@
     if (!d) return '';
     var ls = d.lessons || [];
     var recorded = ls.filter(function (l) { return l.pct !== null; }).length;
+    /* 显示层（2026-11-09 完成率改革）：累计与每课数字一律按百分比显示；
+       快照里的原始分值一个字段不改，这里只做显示换算 */
+    var taskMax = Number(d.total.taskMax) || 0;
+    var namedMax = Math.max(0, taskMax - 5 * (d.lessons || []).length);   // 命名项目的满分 = taskMax − 每课5
+    var totalRate = taskMax ? Math.round(Math.max(0, d.total.total) / taskMax * 1000) / 10 : null;
+    var projectRate = namedMax ? Math.round(Math.max(0, d.total.project) / namedMax * 1000) / 10 : null;
     var html = '<div class="card"><h3>累计到现在</h3><div class="big">' +
-      '<div class="n"><em>' + num(d.total.total) + '</em><span>当前累计总分</span></div>' +
-      '<div class="n good"><em>' + num(d.total.project) + '</em><span>个人项目累计</span></div>' +
-      '</div><p class="note">当前累计 = 全组累计 ' + num(d.total.groupScore) +
-      ' + 个人项目 ' + num(d.total.project) +
-      ' − 本人扣分 ' + num(d.total.personal) + '。已登记 ' + recorded + ' / ' + ls.length + ' 次课。</p></div>';
+      '<div class="n"><em>' + (totalRate == null ? '—' : num(totalRate) + '%') + '</em><span>当前累计完成率</span></div>' +
+      '<div class="n good"><em>' + (projectRate == null ? '—' : num(projectRate) + '%') + '</em><span>个人项目累计</span></div>' +
+      '</div><p class="note">当前累计完成率 ＝（全组累计 ＋ 个人项目 − 本人扣分）÷ 项目满分，内部按分值计算、显示按百分比。' +
+      '已登记 ' + recorded + ' / ' + ls.length + ' 次课。</p></div>';
 
     html += '<div class="card"><h3>每次课的分数（新的在上面）</h3>';
     if (!ls.length) {
@@ -185,16 +196,15 @@
     } else {
       ls.slice().reverse().forEach(function (l) {
         var minus = [];
-        if (l.phone) minus.push('<span class="minus">−' + num(l.phone) + '</span> 全组扣分');
-        if (l.personal) minus.push('<span class="minus">−' + num(l.personal) + '</span> 我的个人扣分');
+        if (l.phone) minus.push('<span class="minus">−' + (num(l.phone) * 20) + '%</span> 全组扣分');
+        if (l.personal) minus.push('<span class="minus">−' + (num(l.personal) * 20) + '%</span> 我的个人扣分');
         html += '<div class="lesson">' +
           '<div class="lesson-head"><b>' + lessonLabel(l) + '</b>' +
           '<span class="pct">' + (l.pct === null ? '<span class="pill warn">还没录分</span>' : pct(l.pct)) + '</span></div>' +
           '<div class="kv">' +
-          '<div>小组分 <i>' + num(l.group) + ' / 5</i>' + (minus.length ? '　' + minus.join('　') : '') + '</div>' +
-          '<div>本课净得 <i>' + num(l.net) + ' / 5</i>' +
-          (l.duty ? '　值日 <i>' + num(l.duty) + ' / 5</i>' : '') +
-          (l.projects.length ? '　个人项目 <i>' + num(l.earned) + ' / ' + l.projects.length * 5 + '</i>' : '') +
+          '<div>干净又卫生 <i>' + scorePct(l.group) + '</i>' + (minus.length ? '　' + minus.join('　') : '') + '</div>' +
+          '<div>本课净得 <i>' + scorePct(l.net) + '</i>' +
+          (l.projects.length ? '　个人项目 <i>' + num(Math.round(Math.max(0, l.earned) / (l.projects.length * 5) * 1000) / 10) + '%</i>' : '') +
           '</div>' +
           '</div></div>';
       });
@@ -259,7 +269,7 @@
     peerRun(function () {
       return rpc('jf_peer_submit', { p_lesson: lessonKey, p_project: project, p_target: target, p_score: score });
     }).then(function () {
-      peer.msg = '已提交 ' + score + ' 分，已计入成绩。';
+      peer.msg = '已提交 ' + scorePct(score) + '，已计入成绩。';
     }, function (e) {
       upsertMine(project, target, prev);
       peer.msg = (e && e.message) || '提交失败，检查网络后重试。';
@@ -304,14 +314,15 @@
     if (value != null) {
       return '<div class="peer-cell is-set" data-score="' + value + '" data-project="' + esc(project.name) +
         '" data-target="' + esc(target.key) + '" role="button" tabindex="0" title="双击撤销这一格的加分">' +
-        '<span class="peer-score">' + num(value) + '</span></div>';
+        '<span class="peer-score">' + scorePct(value) + '</span></div>';
     }
     if (locked) {
       return '<div class="peer-cell is-locked" title="老师已确认这一列，不能再改"><span>已锁定</span></div>';
     }
     return '<div class="peer-cell" data-project="' + esc(project.name) + '" data-target="' + esc(target.key) + '" role="group" aria-label="' + label + '">' +
       [1, 2, 3, 4, 5].map(function (s) {
-        return '<button type="button" class="peer-pick p' + s + '" data-peer-pick="' + s + '" aria-label="' + label + ' 给 ' + s + ' 分" title="给 ' + s + ' 分">' + s + '</button>';
+        /* 2026-11-09 显示层改革：按钮显示 20%~100%；data-peer-pick 仍是 1–5 */
+        return '<button type="button" class="peer-pick p' + s + '" data-peer-pick="' + s + '" aria-label="' + label + ' 给 ' + scorePct(s) + '" title="给 ' + scorePct(s) + '">' + scorePct(s) + '</button>';
       }).join('') + '</div>';
   }
 
@@ -349,9 +360,9 @@
         }).join('') + '</select>' : '') +
       '</div>' +
       '<p class="note">' + (d.me.is_leader
-        ? '你是 <b>第 ' + d.me.group_no + ' 组组长</b>：给本组组员逐项打分（5 分制）。'
-        : '你是 <b>第 ' + d.me.group_no + ' 组组员</b>：给组长 <b>' + esc((d.leader && d.leader.name) || '') + '</b> 打分（5 分制）。') +
-      '点 1–5 直接记分，双击分数撤销。提交后直接计入成绩（老师可以随时手改）。' +
+        ? '你是 <b>第 ' + d.me.group_no + ' 组组长</b>：给本组组员逐项打分（每项满分 100%，按 20% 一档）。'
+        : '你是 <b>第 ' + d.me.group_no + ' 组组员</b>：给组长 <b>' + esc((d.leader && d.leader.name) || '') + '</b> 打分（每项满分 100%，按 20% 一档）。') +
+      '点 20%–100% 直接记分，双击分数撤销。提交后直接计入成绩（老师可以随时手改）。' +
       (peer.msg ? '<br><b class="peer-msg">' + esc(peer.msg) + '</b>' : '') + '</p>';
 
     if (!projects.length) {
@@ -379,7 +390,7 @@
       if (g.avg && g.count < 2) {
         body = '<span class="peer-wait">还差 ' + (2 - g.count) + ' 人（至少 2 人打分才取平均）</span>';
       } else {
-        body = g.avg ? num(g.score) + '<small>（' + g.count + ' 人平均）</small>' : num(g.score);
+        body = g.avg ? scorePct(g.score) + '<small>（' + g.count + ' 人平均）</small>' : scorePct(g.score);
       }
       return '<span class="peer-got-item"><b>' + esc(g.project) + '</b> ' + body +
         ' <em class="' + peerStatusClass(st) + '">' + (g.avg && g.count < 2 ? '暂不计入' : peerStatusText(st)) + '</em></span>';
@@ -387,7 +398,7 @@
     html += '<div class="peer-got"><span class="peer-got-label">我收到的分</span>' +
       (got || '<span class="note">还没有人给我打分。</span>') + '</div>' +
       '<p class="note">组长分数 = 组员给的分求平均，<b>至少 2 个人打分才算</b>（打几次除几次，不除组员总数）。' +
-      '例如两个组员分别打 3 和 5 → 组长 4 分；只有 1 个人打的时候先不计入，等第二个组员打完就自动算上。' +
+      '例如两个组员分别打 60% 和 100% → 组长 80%；只有 1 个人打的时候先不计入，等第二个组员打完就自动算上。' +
       '提交后直接计入总分，老师可以随时手改。</p></div>';
     return html;
   }
@@ -396,12 +407,14 @@
     var d = D;
     if (!d) return '';
     var ls = (d.lessons || []).filter(function (l) { return l.projects.length; });
+    var namedMax = Math.max(0, (Number(d.total.taskMax) || 0) - 5 * (d.lessons || []).length);
+    var projectRate = namedMax ? num(Math.round(Math.max(0, d.total.project) / namedMax * 1000) / 10) + '%' : '—';
     var html = renderPeerCard() + '<div class="card"><h3>组内个人评分</h3><div class="big">' +
-      '<div class="n good"><em>' + num(d.total.project) + '</em><span>个人项目累计</span></div>' +
+      '<div class="n good"><em>' + projectRate + '</em><span>个人项目累计</span></div>' +
       '<div class="n"><em>' + (d.group && d.group.size ? d.group.rank + ' / ' + d.group.size : '—') +
       '</em><span>组内名次（按累计）</span></div>' +
       '</div><p class="note">' + esc(d.me.gname || '') + '，共 ' + (d.group ? d.group.size : 0) + ' 人。' +
-      '个人项目由组长在课上逐项打分，每项满分 5 分；「待评」表示还没录，不是 0 分。</p></div>';
+      '个人项目由组长在课上逐项打分，每项满分 100%（20% 一档）；「待评」表示还没录，不是 0 分。</p></div>';
 
     html += '<div class="card"><h3>每节课我的项目分</h3>';
     if (!ls.length) {
@@ -409,10 +422,10 @@
     } else {
       ls.slice().reverse().forEach(function (l) {
         html += '<div class="lesson"><div class="lesson-head"><b>' + lessonLabel(l) + '</b>' +
-          '<span class="pct">' + num(l.earned) + ' / ' + l.projects.length * 5 + '</span></div>' +
+          '<span class="pct">' + num(Math.round(Math.max(0, l.earned) / (l.projects.length * 5) * 1000) / 10) + '%</span></div>' +
           '<div class="proj">' + l.projects.map(function (p) {
             return '<span><span class="nm">' + esc(p.n) + '</span>' +
-              (p.s === null ? '<span class="sc wait">待评</span>' : '<span class="sc">' + num(p.s) + ' / 5</span>') +
+              (p.s === null ? '<span class="sc wait">待评</span>' : '<span class="sc">' + scorePct(p.s) + '</span>') +
               '</span>';
           }).join('') + '</div></div>';
       });
@@ -438,9 +451,9 @@
 
     html += '<div class="card"><h3>明细</h3><div class="kv">' +
       '<div>班级名次　<i>' + t.rank + ' / ' + t.count + '</i></div>' +
-      '<div>项目完成率　<i>' + num(t.taskEarned) + ' / ' + num(t.taskMax) + '（' + num(t.taskRate) + '%）</i>' +
+      '<div>项目完成率　<i>' + num(t.taskRate) + '%</i>' +
       (t.pending ? '　<span class="pill warn">' + t.pending + ' 项待评</span>' : '') + '</div>' +
-      '<div>考勤项目　<i>' + num(t.att) + ' / ' + num(t.attMax) + '（' + num(t.attRate) + '%）</i></div>' +
+      '<div>考勤完成率　<i>' + num(t.attRate) + '%</i></div>' +
       '<div>迟到 ' + t.late + ' 次 · 早退 ' + t.early + ' 次 · 旷课 ' + t.truant + ' 次 · 折算 ' + t.converted +
       ' 次 · 合计 <i>' + t.effective + '</i> 次</div>' +
       '<div>实际期末　<i>' + (t.exam === null ? '还没录' : num(t.exam)) + '</i></div>' +
@@ -448,8 +461,8 @@
       '</div></div>';
 
     html += '<div class="card"><h3>怎么算的</h3><p class="note">' +
-      '合并完成率＝(项目净得分＋考勤分)÷(项目满分＋9)。考勤是学期固定 9 分：' +
-      '扣到 0 或者实际加折算旷课达到门槛，就算考勤挂科。<br>' +
+      '合并完成率＝(项目净得分＋考勤分)÷(项目满分＋9)，内部按分值计算、显示按百分比；' +
+      '考勤是学期固定项目，满分折 100%，扣到 0 或者实际加折算旷课达到门槛就算考勤挂科。<br>' +
       '平时分＝100×合并完成率；计入总评＝平时分×40%。<br>' +
       '期末至少需考＝(及格线 − 平时分×0.4)÷0.6，向上取 0.1 分。<br>' +
       '这一页只能看，改不了。分数有疑问直接找老师。</p></div>';

@@ -1383,11 +1383,6 @@ table.sheet td.c-sum .c { font-size: 13px; color: var(--text); }
 @media print{.assessment-actions,.assessment-settings {display:none;}.rank-columns{display:block;}}
 @media(min-width:1600px){.rank-groups{position:sticky;top:16px;}.rank-members .assessment-scroll{max-height:70dvh;}.assessment-table thead th{position:sticky;top:0;z-index:1;background:var(--panel);}}
 
-.duty-ratio {display:flex;flex-direction:column;align-items:center;gap:3px;}
-.duty-people {display:flex;align-items:center;justify-content:center;gap:3px;}
-.duty-people input {width:42px;min-width:0;min-height:36px;padding:3px 1px;text-align:center;font:inherit;font-size:16px;font-weight:600;color:var(--xl-ink);border:1px solid var(--xl-line);border-radius:6px;background:var(--panel);}
-.duty-earned {font-size:16px;font-weight:700;color:var(--good);}
-.duty-ratio small {font-size:11px;line-height:1.2;color:var(--text);}
 
 /* Ranking: prominent results, quieter evidence, separate optional review. */
 .assessment-table .grade-regular {background:#edf5ee;color:#236442;}
@@ -1423,9 +1418,6 @@ table.sheet td.c-sum .c { font-size: 13px; color: var(--text); }
  .duty-score:focus-visible,.toggle:focus-visible {outline:2px solid #256b3e;outline-offset:2px;}
  button.toggle[data-act=first] {min-width:44px;min-height:44px;width:100%;font-size:25px;line-height:1;color:#8fa58c;background:#f5f8f2;border:1px solid #ccd8c5;}
  button.toggle.on[data-act=first] {color:#fff;background:#2f8550;border-color:#2f8550;box-shadow:0 0 0 2px #2f855022;}
- #dlgDutyPeople {width:min(380px,calc(100vw - 32px));}
- #dlgDutyPeople select {min-height:44px;font-size:18px;}
- #dlgDutyPeople details {margin:16px 0;}
  table.sheet th.c-duty {font-size:14px;}
  table.sheet .c-mem {white-space:nowrap;}
  table.sheet .step {min-width:0;}
@@ -1441,7 +1433,6 @@ table.sheet td.c-sum .c { font-size: 13px; color: var(--text); }
  body.sidebar-layout #scoreMetrics {grid-template-columns:repeat(2,minmax(0,1fr));}
 }
 
-@media screen {.sheetwrap{max-width:100%;overflow:auto;scrollbar-width:auto;padding-bottom:8px}.sheetwrap::-webkit-scrollbar{height:12px}.sheetwrap::-webkit-scrollbar-thumb{background:#a99b8d;border-radius:8px}#dlgDutyPeople button{min-height:44px}.duty-score{font-family:inherit;font-size:18px;font-weight:700;}}
 
 @media screen and (min-width:1000px){body.sidebar-layout .brandtext h1{white-space:nowrap;font-size:14px}body.sidebar-layout .brandtext{min-width:100px}body.sidebar-layout .topbar-main{flex-wrap:wrap}body.sidebar-layout #userBox{flex-wrap:wrap;gap:6px}body.sidebar-layout .brand{min-width:0}body.sidebar-layout .brandtext .sub{font-size:11px}}
 
@@ -1548,7 +1539,6 @@ table.sheet th.c-phone{word-break:keep-all;overflow-wrap:normal;line-height:1.45
 /* Shared original project score is retained only for compatibility. */
 table.sheet col.w-grp,table.sheet th.c-grp,table.sheet td.c-grp,#printArea col.w-grp,#printArea th.c-grp,#printArea td.c-grp{display:none!important}.gctl>div:has(.legacy-group-control){display:none!important}.legacy-group-total[hidden]{display:none!important}.c-sum [data-member-lesson-totals]{min-width:65px}.c-sum .home-grade-person{min-height:34px}
 
-#dlgSpecialRecords{width:min(760px,calc(100vw - 24px));max-height:90dvh;overflow:auto}.special-members{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));max-height:220px;overflow:auto;border:1px solid var(--line);padding:10px;gap:8px}.special-members label{display:flex;gap:6px;align-items:center}.special-members label[hidden]{display:none}.special-history article{padding:12px 0;border-top:1px solid var(--line)}.special-history p{margin:5px 0}
 /* 二级分组选人，默认锁定，不占用记分按钮。 */
 .group-pick-lock{display:block;margin:4px auto;font-size:11px;white-space:normal;line-height:1.3;padding:4px}
 .group-pick-box{position:relative;min-width:0;margin-top:4px}
@@ -2062,6 +2052,16 @@ html.hx-bg body::before { display: none; }
 .peer-cell.is-pending { box-shadow: inset 0 0 0 2px rgba(226, 161, 48, .55); }
 .peer-cell.is-teacher { box-shadow: inset 0 0 0 2px rgba(212, 164, 58, .8), inset 0 1px 0 rgba(255, 255, 255, .95); }
 .peer-cell.is-pending.is-teacher { box-shadow: inset 0 0 0 2px rgba(226, 161, 48, .55), inset 0 1px 0 rgba(255, 255, 255, .95); }
+/* 接线课堂任务列（2026-11-09 用户：「这一列的分不能人为控制 只显示在这个小组加分表上」）：
+   分值 = 任务完成率 × 5，由任务成绩自动写入，老师不能点、不能双击撤销。
+   样式上要和「能点」的格子明确区分：虚线框 + 不可点光标 + 去 hover 反馈，一眼就知道这格锁着。 */
+.peer-cell.is-wire {
+  cursor: default;
+  box-shadow: inset 0 0 0 1.5px rgba(58, 85, 196, .45);
+  background-image: repeating-linear-gradient(135deg, rgba(58, 85, 196, .05) 0 6px, transparent 6px 12px);
+}
+.peer-cell.is-wire:hover { box-shadow: inset 0 0 0 1.5px rgba(58, 85, 196, .45); }
+.peer-cell.is-wire .peer-src-wire { background: #e6ebff; border-color: #9db0f5; color: #2f47a8; }
 .peer-pend-dot { position: absolute; top: 3px; right: 3px; width: 8px; height: 8px; border-radius: 50%; background: #e2a130; box-shadow: 0 0 0 2px rgba(255, 255, 255, .85); pointer-events: none; }
 /* 空着的格子（还要点 1–5 的那种）不用小圆点：会压在第 5 颗按钮上，看着像按钮状态。
    改成黄底黄框，配合表头「待确认 N」——哪一格有人提交了，一眼就看见。 */
@@ -2365,7 +2365,6 @@ html.hx-bg[data-hx-mode="dark"] body::after,
 :root[data-hx-mode="dark"] .assessment-exam { background: rgba(9, 16, 36, .88); color: var(--text); }
 
 /* 夜览：纸质记分表（table.sheet）随之变暗底彩色玻璃；打印时变量不生效（打印样式自带纸白） */
-:root[data-hx-mode="dark"] .duty-people input { background: var(--xl-input-bg); color: var(--xl-ink); }
 :root[data-hx-mode="dark"] .home-grade { background: rgba(61, 220, 151, .1) !important; color: #7ef0bd !important; }
 :root[data-hx-mode="dark"] .home-grade.contribution { background: rgba(96, 150, 255, .12) !important; color: #a7c4ff !important; }
 :root[data-hx-mode="dark"] .home-grade.needed { background: rgba(251, 146, 60, .12) !important; color: #ffc48f !important; }

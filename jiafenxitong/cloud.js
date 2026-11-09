@@ -96,7 +96,7 @@
       if(equal(l,r)&&(l===null||typeof l!=='object')){if(!alreadyApplied&&/^\/lessons\/[^/]+\/(scores|leaderScores|attendance)\//.test(path)&&l!==null&&typeof l!=='object')fail(path);return copy(l);}
       if(l===undefined||r===undefined){fail(path);return copy(l);}
       if(Array.isArray(l)&&Array.isArray(r)){
-        var field=path.split('/').pop(),history=['undo','redo','operationLog'].includes(field),idField=['classes','lessons','specialRecords','specialRecordsTrash'].includes(field)?'id':field==='groups'?'no':null;
+        var field=path.split('/').pop(),history=['undo','redo','operationLog'].includes(field),idField=['classes','lessons'].includes(field)?'id':field==='groups'?'no':null;
         if(history||idField){var key=function(v){return history?(v.id||(v.op&&v.op.id)||JSON.stringify(v)):String(v[idField]);},bm=new Map((b||[]).map(function(v){return [key(v),v];})),lm=new Map(l.map(function(v){return [key(v),v];})),rm=new Map(r.map(function(v){return [key(v),v];}));if(lm.size!==l.length||rm.size!==r.length){fail(path);return copy(l);}var out=[];new Set([].concat(Array.from(bm.keys()),Array.from(lm.keys()),Array.from(rm.keys()))).forEach(function(k){var v=merge(bm.get(k),lm.get(k),rm.get(k),path+'/'+k);if(v!==undefined)out.push(v);});if(history){out.sort(function(a,b){return String(a.at||a.op&&a.op.at||'').localeCompare(String(b.at||b.op&&b.op.at||''));});out=out.slice(field==='operationLog'?-500:-60);}return out;}
         if(field==='members'||field==='roster'){if(!equal(l,r))fail(path);return copy(l);}
         if((b||[]).length>Math.min(l.length,r.length)){fail(path);return copy(l);}var values=[];for(var i=0;i<Math.max(l.length,r.length);i++)values[i]=merge((b||[])[i],l[i],r[i],path+'/'+i);return values;
