@@ -1,0 +1,26 @@
+<!doctype html>
+<!-- 电气原理图预览（超级排位右上角那块用）：把**原练习页**的原理图画法（circuitXX.js 的 drawSchematic）
+     搬到一个独立小页面里，按练习页同一条缩放规则铺满这块面板。
+     为什么不重画：用户明确要求「电路图完全不能变」——只有调原函数，才谈得上一个像素都不变。
+     用法：schview.html?id=2.5 ；主题读 zfz-practice-theme（和练习页同一个键）。 -->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>电气原理图</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: transparent; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>window.SCRIPT = [{ text: '电气原理图' }];</script>
+<script src="guard.js"></script>
+<script src="core.js"></script>
+<script src="parts.js"></script>
+<script src="devices.js"></script>
+<script src="theme.js"></script>
+<script src="schview.js"></script>
+</body>
+</html>
