@@ -1171,7 +1171,25 @@
     imgs: imgs, useImg: useImg, delImg: delImg,
     // 像素方块「正在载入」药丸（2026-11-04）：见文件上方 loadPill 那段注释。
     // HXTheme.loadPill(host, '正在载入…') / loadPill('正在载入…')（铺满整页）；返回 { el, text(), done() }
-    loadPill: loadPill, bgPause: bgPause };
+    loadPill: loadPill, bgPause: bgPause,
+    // 省电模式开关（2026-11-09 用户要的按钮）：不传参 = 读当前是否省电；
+    // 传 '1' / '0' = 强制开 / 关（写进 localStorage，以后每台机器每次打开都记住）；
+    // 传 'auto' = 清掉手工选择，回到「按机器自动判定」（一体机、国产盒子等弱机自动省电）。
+    // 设置完**当场生效**：html.hx-lite 一变，像素小生物 / 头像 / 天气动效的动画循环下一帧就停
+    // （它们每一帧都查这个类，不是只在加载时查一次），再跑一次 apply() 把背景视频摘掉、
+    // 只留海报帧，CSS 合成动画层（hx-bg-mo）也一起摘。
+    lite: function (v) {
+      if (v === undefined) return liteOn();
+      try {
+        if (v === 'auto') localStorage.removeItem('hx-lite');
+        else localStorage.setItem('hx-lite', v === '1' ? '1' : '0');
+      } catch (e) { }
+      var on = liteOn();
+      document.documentElement.classList.toggle('hx-lite', on);
+      try { apply(); } catch (e) { }
+      return on;
+    } };
+
   // ---------- 导航栏交互动效：滑块跟着当前项走（不用每项自己高亮） ----------
   // 用法：HXNav.slide(容器) —— 容器里放 [data-v] 或 [aria-current] 的按钮，当前项加 aria-current="true"。
   // 滑块自己量位置，所以文字长短不同也对得准；换项时用弹簧曲线滑过去，不是闪一下。
