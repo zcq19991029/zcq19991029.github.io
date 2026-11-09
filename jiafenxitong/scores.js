@@ -373,13 +373,21 @@
 
     var got = (d.got || []).map(function (g) {
       var st = (projects.filter(function (p) { return p.name === g.project; })[0] || {}).status || 'pending';
-      return '<span class="peer-got-item"><b>' + esc(g.project) + '</b> ' +
-        (g.avg ? num(g.score) + '<small>（' + g.count + ' 人平均）</small>' : num(g.score)) +
-        ' <em class="' + peerStatusClass(st) + '">' + peerStatusText(st) + '</em></span>';
+      /* 组长分至少 2 人打分才算（2026-11-09 用户要求）：只有 1 人打的时候如实说「还差 1 人」，
+         别把一个人的分当成全组的评价展示出来，组长自己也会以为已经定了。 */
+      var body;
+      if (g.avg && g.count < 2) {
+        body = '<span class="peer-wait">还差 ' + (2 - g.count) + ' 人（至少 2 人打分才取平均）</span>';
+      } else {
+        body = g.avg ? num(g.score) + '<small>（' + g.count + ' 人平均）</small>' : num(g.score);
+      }
+      return '<span class="peer-got-item"><b>' + esc(g.project) + '</b> ' + body +
+        ' <em class="' + peerStatusClass(st) + '">' + (g.avg && g.count < 2 ? '暂不计入' : peerStatusText(st)) + '</em></span>';
     }).join('');
     html += '<div class="peer-got"><span class="peer-got-label">我收到的分</span>' +
       (got || '<span class="note">还没有人给我打分。</span>') + '</div>' +
-      '<p class="note">组长分数 = 收到的分数求平均（打几次除几次，不除组员总数）。例如两个组员分别打 3 和 5 → 组长 4 分。' +
+      '<p class="note">组长分数 = 组员给的分求平均，<b>至少 2 个人打分才算</b>（打几次除几次，不除组员总数）。' +
+      '例如两个组员分别打 3 和 5 → 组长 4 分；只有 1 个人打的时候先不计入，等第二个组员打完就自动算上。' +
       '提交后直接计入总分，老师可以随时手改。</p></div>';
     return html;
   }

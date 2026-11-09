@@ -13,8 +13,9 @@
    学生快照全读它，云端只是提交通道）。
 
    ── 两条规矩（改之前先读）──
-   ① **组员给组长的分取平均**，打几次除几次（不除组员总数）；而且 target 必须等于
-      当前这一组的组长 —— 组长换人以后，旧组长名下的「平均」行不能再落到被降级的人头上。
+   ① **组员给组长的分取平均**，至少 2 个人打过才算（2026-11-09 用户要求「组长必须最低两个人打分」），
+      打几次除几次（不除组员总数）；而且 target 必须等于当前这一组的组长 ——
+      组长换人以后，旧组长名下的「平均」行不能再落到被降级的人头上。
    ② **时间戳护栏**：lesson.peerSync[组号|成员|列] 记住已经落过的最新 at。
       比它旧的提交一律跳过，这样「旧提交冲掉新分」「自动刷新冲掉老师手改」都不会发生。
 
@@ -123,8 +124,16 @@
       });
       Object.keys(memberAcc).forEach(function (k) {
         var a = memberAcc[k];
-        if (!a.n) return;
-        out.push({ gno: a.gno, target: a.target, project: a.project, score: clamp5(a.sum / a.n), kind: 'avg', at: a.at });
+        /* 组长分：**至少 2 个人打分才算**（2026-11-09 用户要求）。
+           只有 1 个人打就取平均，等于一个人说了算，容易被打招呼/赌气分左右；
+           凑够 2 人再平均，才叫「组员评价」。
+           不够 2 人时也发一条 clear 行：万一先前已经凑够 2 人落了格、后来又撤掉一个，
+           那一格必须跟着撤回，不能留个旧平均分在成绩里。 */
+        if (a.n < 2) {
+          out.push({ gno: a.gno, target: a.target, project: a.project, score: null, kind: 'avg', at: a.at, count: a.n, clear: true });
+          return;
+        }
+        out.push({ gno: a.gno, target: a.target, project: a.project, score: clamp5(a.sum / a.n), kind: 'avg', at: a.at, count: a.n });
       });
     } catch (e) {
       return [];
@@ -155,8 +164,6 @@
           var target = clean(r.target);
           var project = clean(r.project);
           if (!gno || !target || !project) return;
-          var score = scoreOf(r.score);
-          if (score == null) return;
           var col = Number(colOf(project));
           if (!isFinite(col) || col < 0) return;
 
@@ -168,6 +175,25 @@
             if (!at) return;
             if (isOlderOrSame(at, prev)) return;
           }
+
+          /* 撤销行：组员撤分后不够 2 人 → 把先前算出来的平均分收回去。
+             只撤「互评算出来的」那一格（peerMeta === 'avg'），老师手改过的（'teacher'）绝不动。 */
+          if (r.clear) {
+            var rec0 = lesson.leaderScores[String(gno)];
+            var vals0 = rec0 && rec0.members && rec0.members[target];
+            if (!Array.isArray(vals0) || vals0[col] == null || vals0[col] === '' || lesson.peerMeta[key] !== 'avg') {
+              lesson.peerSync[key] = at;
+              return;
+            }
+            vals0[col] = null;
+            delete lesson.peerMeta[key];
+            lesson.peerSync[key] = at;
+            n++;
+            return;
+          }
+
+          var score = scoreOf(r.score);
+          if (score == null) return;
 
           var rec = lesson.leaderScores[String(gno)];
           if (!rec || typeof rec !== 'object') {

@@ -944,6 +944,29 @@ function restoreDroppedToHome(cls) {
       ? record.members[id].reduce(function(a,n){ return a + (+n || 0); },0) : 0;
   }
 
+  /* 本节「课堂任务」分：只数「接线2.x」这类列（接线课堂任务自动入账的列），
+     手工项目列（协作 / 安全 / 5S…）不算在内。
+     2026-11-09 用户要求「课堂任务积分直接丢进上课计分首页总表内」——
+     以前这部分只在侧栏「组内个人评分」里看得到，总表只体现成一个变大的「本节合计」，
+     老师上课时看不出这分是哪来的。null = 本节这个人没有课堂任务分。 */
+  function taskScore(lesson, gno, member) {
+    var rec = lesson.leaderScores && lesson.leaderScores[String(gno)];
+    if (!rec || !rec.members || !member) return null;
+    var id = member.sid ? 'sid:' + member.sid : 'id:' + member.id;
+    var values = rec.members[id];
+    if (!Array.isArray(values)) return null;
+    var A = window.JFDT_ASSESSMENT;
+    var names = (A && A.projectNames && A.projectNames(lesson)) || [];
+    var sum = 0, hit = 0;
+    names.forEach(function (n, i) {
+      if (!/^接线/.test(String(n == null ? '' : n).trim())) return;
+      var v = values[i];
+      if (v == null || v === '') return;
+      hit++; sum += Number(v) || 0;
+    });
+    return hit ? Math.round(sum * 100) / 100 : null;
+  }
+
   function memberTotals(cls) {
     var ls = lessonsOf(cls.id);
     var out = [];
@@ -1784,14 +1807,14 @@ function restoreDroppedToHome(cls) {
   function verticalColumns(cls){
     // CJK text needs one em; Latin letters and digits need roughly half an em.
     function width(text){return Array.from(String(text)).reduce(function(n,ch){return n+(/[^\x00-\xff]/.test(ch)?15:8);},0);}
-    var labels=['组号','成员','本节参与分','考勤分 /9','全组扣分','值日分','本节合计','（至今完成率）','计入总评 /40','期末至少需考 /100'];
-    var minima=[52,124,124,94,100,80,100,164,132,172];
+    var labels=['组号','成员','本节参与分','课堂任务','考勤分 /9','全组扣分','值日分','本节合计','（至今完成率）','计入总评 /40','期末至少需考 /100'];
+    var minima=[52,124,124,76,94,100,80,100,164,132,172];
     var widths=labels.map(function(t,i){return Math.max(minima[i],width(t)+28);});
     (cls.groups||[]).forEach(function(g){(g.members||[]).forEach(function(m){if(m.name)widths[1]=Math.max(widths[1],width(m.name+' '+(m.no||''))+36);});});
     var total=widths.reduce(function(a,b){return a+b;},0),names=['no','mem','project','attendance','phone','duty','sum','grade','grade','grade'];
     return widths.map(function(w,i){return '<col class="w-'+names[i]+'" data-content-width="'+w+'" style="width:'+(100*w/total).toFixed(4)+'%!important">';}).join('');
   }
-  function verticalHead(){return '<thead><tr><th class="c-no">组号</th><th class="c-mem">成员</th><th class="c-ded">本节参与分</th><th class="home-attendance">考勤分 /9</th><th class="c-phone">全组扣分</th><th class="c-duty">值日分</th><th class="c-sum">本节合计</th><th class="home-grade regular">平时分<br>（至今完成率）</th><th class="home-grade contribution">计入总评 /40</th><th class="home-grade needed">期末至少需考 /100</th></tr></thead>';}
+  function verticalHead(){return '<thead><tr><th class="c-no">组号</th><th class="c-mem">成员</th><th class="c-ded">本节参与分</th><th class="c-task" title="本节接线课堂任务（排位用时）折算的分；名次到大屏看">课堂任务</th><th class="home-attendance">考勤分 /9</th><th class="c-phone">全组扣分</th><th class="c-duty">值日分</th><th class="c-sum">本节合计</th><th class="home-grade regular">平时分<br>（至今完成率）</th><th class="home-grade contribution">计入总评 /40</th><th class="home-grade needed">期末至少需考 /100</th></tr></thead>';}
   function verticalGroup(cls,lesson,g,printing){
     var A=window.JFDT_ASSESSMENT,allLessons=lessonsOf(cls.id),gradeLessons=lessonsThrough(cls,lesson),grades=A.rows(cls,gradeLessons,memberTotals(cls)),scored=sc(lesson,g.no),net=A.groupNet(lesson,g.no,allLessons),base=Math.max(0,Math.min(5,(+scored.group||0)+(scored.first?1:0))-(+scored.phone||0)),duty=net-base;
     var entries=groupMemberEntries(g),editing=!printing&&groupPicking&&groupPicking.classId===cls.id&&groupPicking.lessonId===lesson.id&&groupPicking.no===g.no;
@@ -1800,13 +1823,15 @@ function restoreDroppedToHome(cls) {
       if(!j)out+='<td class="c-no" rowspan="'+span+'">'+g.no+' <small class="gcount" title="本组人数 / 上限（双击组号可加人减人）">'+entries.length+'/'+groupCap(g,cls)+'</small></td>';
       out+='<td class="c-mem member-name-cell'+(m?attendanceNameClass(cls,m,lesson):'')+(m&&isGroupLeader(g,m)?' group-leader-name':'')+'"'+(m?' data-leader-toggle data-g="'+g.no+'" data-member-index="'+i+'"':'')+' title="'+esc(m?(m.name+' '+(m.sid||'')+' · 双击设置或退出组长'):'双击组号添加成员')+'">'+(m?(isGroupLeader(g,m)?'<span class="leader-crown" aria-label="组长">👑</span> ':'')+esc(m.name)+(m.no==null?'':' <small>'+two(m.no)+'</small>'):'未分配成员')+'</td>';
       out+='<td class="c-ded">'+(m?(printing?remaining(lesson,g.no,i):ctlPersonal(g.no,m,i,0)):'')+'</td>';
+      var task=m?taskScore(lesson,g.no,m):null;
+      out+='<td class="c-task"'+(task!=null?' title="'+esc(m.name)+' 本节课堂任务 '+fmt(task)+' 分（已包含在「本节合计」里）"':'')+'>'+(task!=null?'<b>'+fmt(task)+'</b>':'<span class="c-task-none">—</span>')+'</td>';
       out+='<td class="home-attendance">'+(grade?(printing?'<strong>'+grade.attendance+'</strong>':'<button type="button" class="attendance-score" data-attendance-open="'+esc(key)+'" aria-label="'+esc(m.name)+' 考勤'+grade.attendance+'分，点击修改">'+grade.attendance+'</button>'):'')+'</td>';
       if(!j)out+='<td class="c-phone" rowspan="'+span+'">'+(printing?'':ctlBatch(g.no))+'</td><td class="c-duty" rowspan="'+span+'">'+(printing?(scored.duty||''):ctlDuty(g.no,scored,entries.length))+'</td>';
       out+='<td class="c-sum" title="'+esc(m?m.name:'')+'"><div class="home-grade-person" data-member-lesson-totals="'+g.no+'" data-lesson-member="'+i+'"><strong>'+total+'</strong></div></td>';
       ['regular','contribution','needed'].forEach(function(field){var value=grade?(field==='needed'?(grade.attendanceFailed?'不适用':grade.needed>100?'无法达到':grade.needed):grade[field]):'';out+='<td class="home-grade '+field+'" data-home-grade="'+field+'" title="'+esc(m?m.name:'')+'">'+(grade?'<div class="home-grade-person" data-grade-student="'+esc(key)+'"><strong>'+value+(field==='regular'?' <span class="completion-rate">（'+(grade.totalMaximum?Math.round(grade.performanceRate*1000)/10+'%':'—')+'）</span>':'')+'</strong>'+(grade.attendanceFailed?'<small>考勤挂科</small>':'')+'</div>':'')+'</td>';});
       return out+'</tr>';
     }).join('');
-    if(editing)rows+='<tr class="group-pick-row"><td colspan="3" data-group-picker-slot></td><td colspan="4"></td></tr>';
+    if(editing)rows+='<tr class="group-pick-row"><td colspan="4" data-group-picker-slot></td><td colspan="4"></td></tr>';
     return '<tbody '+(printing?'data-pg':'data-card')+'="'+g.no+'" class="'+(dutyGroups(lesson).includes(g.no)?'is-duty ':'')+(touched(lesson,g.no)?'touched':'')+'">'+rows+'</tbody>';
   }
   function groupsTable(cls,lesson){var gs=visibleGroups(cls);if(!gs.length)return '<p class="empty-hint">这个班还没有分好组（或者组里一个人都没有）。到「待分配名单」点「分组…」分一下，分好组这里就有记分表。</p>';return '<div class="sheetwrap"><table class="sheet sheet-vertical"><colgroup>'+verticalColumns(cls)+'</colgroup>'+verticalHead()+gs.map(function(g){return verticalGroup(cls,lesson,g,false);}).join('')+'</table></div>';}
