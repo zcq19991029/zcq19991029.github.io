@@ -3758,11 +3758,24 @@ function drwFxMount(holder, startAt) {
     ctx, img: ctx.createImageData(W, H), fr: P.createFrame(W, H),
     mod: M, opts, loop, dur: Math.max(.6, mod.meta.duration || 1), acc: 0,
     fx: P.createFx(M, opts),
+    host: holder,   // 记住挂在哪：翻牌时要只清「卡片上」的，别把顶栏那条常驻装饰一起停掉（见 drwFxStopCards）
   };
   // startAt 是发牌的错峰偏移：按周期取余，别让先发的卡一上来就撞到「该重建」的边界
   if (startAt) { try { it.fx.update(startAt); it.acc = startAt % it.dur; } catch (e) { } }
   DRW_FX.items.push(it);
   return it;
+}
+/* 只清「卡片上」的动效，顶栏 #drwFxl 那条留着。
+   2026-11-08 用户：「像素动效翻牌那里不要重复」——原来每次翻牌都 drwFxStop() 全停，
+   顶栏那条跟着黑掉、再 drwFxMount 重挂一次，看起来就像同一个特效演了两遍。
+   现在翻牌只处理卡片的，顶栏一直连着播，视觉上只有一处"新出现"的动效。 */
+function drwFxStopCards() {
+  for (let i = DRW_FX.items.length - 1; i >= 0; i--) {
+    const h = DRW_FX.items[i].host;
+    if (!h || h.id !== 'drwFxl') DRW_FX.items.splice(i, 1);
+  }
+  if (!DRW_FX.items.length) drwFxStop();
+  else { DRW_FX.last = 0; drwFxRun(); }   // 还有顶栏那条：接着跑，别停在原地
 }
 function drwFxPaint(it, dt) {
   const P = drwFxPack(); if (!P) return;
@@ -3794,10 +3807,11 @@ function drwFxStop() { if (DRW_FX.raf) cancelAnimationFrame(DRW_FX.raf); DRW_FX.
 
 /* 头像 / 点券：同一个人每次一样（用 id 做种子），不闪 */
 function drwHueOf(p) { let d = 0; const s = String(p.id) + p.name; for (let i = 0; i < s.length; i++) d = (d * 33 + s.charCodeAt(i)) % 360; return d; }
-/* 2026-11-05 用户：「抽卡幸运分是1-10分 没有11分」。
-   原来是 5+(d%7) —— 取到的是 5~11，最大 11 分，跟课堂上说的「幸运分 1~10」对不上。
-   改成 1+(d%10)：范围 1~10，头尾都取得到，同一个学生每次抽到同一个数（还是用 id 做种子，不闪）。 */
-function drwScoreOf(p) { let d = 0; const s = String(p.id); for (let i = 0; i < s.length; i++) { const c = s.charCodeAt(i) - 48; if (c >= 0 && c <= 9) d = (d * 31 + c) % 997; } return 1 + (d % 10); }
+/* 卡片上的「课堂幸运分」。历史：原来 5+(d%7) → 5~11 分，用户 2026-11-05 说「没有 11 分」，
+   我改成了 1+(d%10) → 1~10；2026-11-08 用户又说「是 5-10 分」（课堂口径一直是 5 到 10）。
+   现在 5+(d%6)：正好 6 个数、头尾都取得到、不可能出现 11。
+   仍然用 id 做种子：同一个学生每次抽到同一个数，牌面不闪。 */
+function drwScoreOf(p) { let d = 0; const s = String(p.id); for (let i = 0; i < s.length; i++) { const c = s.charCodeAt(i) - 48; if (c >= 0 && c <= 9) d = (d * 31 + c) % 997; } return 5 + (d % 6); }
 function drwAvatar(p) { return `<b class="drw-av" style="--h:${drwHueOf(p)}">${esc(p.name.slice(0, 1))}</b>`; }
 
 function drwBarHTML() {
@@ -3924,7 +3938,7 @@ function drwFlip(box) {
   const pending = [...box.querySelectorAll('.drw-card:not(.is-flip)')];
   if (!pending.length) return;
   DRW.busy = true; DRW.gen += 1; const gen = DRW.gen;
-  drwClearTimers(); drwFxStop();
+  drwClearTimers(); drwFxStopCards();   // 只清上一轮卡片上的；顶栏 #drwFxl 留着（drwSettle 不再重挂它）
   DRW.phase = 'dealing';
   const stage = box.querySelector('#drwStage'); if (stage) stage.setAttribute('data-phase', 'dealing');
   drwChrome(box);
@@ -3951,16 +3965,16 @@ function drwSettle(box) {
   DRW.busy = false; DRW.phase = 'revealed';
   const stage = box.querySelector('#drwStage'); if (stage) stage.setAttribute('data-phase', 'revealed');
   drwChrome(box);
-  drwFxStop();
+  // 只换掉卡片的动效：顶栏那条从打开窗口起就一直挂着，这里再 mount 一次等于同一个特效演两遍。
+  drwFxStopCards();
   box.querySelectorAll('.drw-card.is-flip .drw-fx').forEach(h => drwFxMount(h, .2 + Math.random() * 1.4));
-  drwFxMount(box.querySelector('#drwFxl'), .2);
   drwFxRun();
 }
 /* ── 刷新下一组：清空本轮结果、重新发一组牌 ── */
 function drwRefresh(box) {
   if (DRW.busy) return;
   DRW.busy = true; DRW.phase = 'refreshing'; DRW.gen += 1; const gen = DRW.gen;
-  drwClearTimers(); drwFxStop();
+  drwClearTimers(); drwFxStopCards();   // 同上：洗牌只换卡片的动效
   const stage = box.querySelector('#drwStage'); if (stage) stage.setAttribute('data-phase', 'refreshing');
   const grid = box.querySelector('#drwGrid'); if (grid) grid.classList.add('is-washing');
   const live = box.querySelector('#drwLive'); if (live) live.textContent = '';
@@ -3969,7 +3983,7 @@ function drwRefresh(box) {
     DRW.busy = false;
     if (grid) grid.classList.remove('is-washing');
     drwDeal(box);
-    drwFxMount(box.querySelector('#drwFxl'), .2); drwFxRun();
+    drwFxRun();   // 顶栏那条一直挂着，不用重挂（重挂就是同一个特效演两遍）
   }, 220);
 }
 /* 抽中的人设为当前选手 —— 2026-11-08 用户：「我还以为选题抽人 抽到人后直接确定开始排位 就不要跳转回那个选人抽人页面了」。
