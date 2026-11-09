@@ -184,6 +184,26 @@
     if (window.JFDT_FEED) window.JFDT_FEED.touch(S, memberTotals);
   }
 
+  /* ================= 认不到人的历史分修复（2026-11-09） =================
+     用户报「历史加分都没了 项目记录也没了」。线上实测：分一条没删，是**认不到人**——
+     组长打分存成 leaderScores[组号].members[成员键]，换组后组号变了，记录还挂在旧组号下，
+     取分却按「人现在所在的组号」查，于是变成孤儿（26工器1 班 289 格）。
+     修法见 score-repair.js：能按学号/成员 ID 认出人就把记录搬到他现在那一组，认不出原样留着。
+     这里只负责「什么时候修 + 怎么记账」。 */
+  function repairOrphanScores(silent) {
+    var R = window.JFDT_SCORE_REPAIR;
+    if (!R || !S) return 0;
+    var res = R.repairAll(S);
+    var n = res.moved + res.merged;
+    if (!n) return 0;
+    addOperationLog('修复', '把 ' + n + ' 条「换组后认不到人」的历史分接回本人（' +
+      res.byClass.map(function (x) { return x.name + ' ' + (x.moved + x.merged) + ' 条'; }).join('；') + '）' +
+      (res.stranded ? '；另有 ' + res.stranded + ' 条找不到人，原样保留' : ''));
+    save();
+    if (!silent) { renderScore(); renderPool(); }
+    return n;
+  }
+
   function save(flash) {
     S.updatedAt = new Date().toISOString();
     try {
@@ -569,6 +589,15 @@ function realignLeaderScores(cls, snap) {
       });
     });
   });
+  /* 2026-11-09 追加：上面是按「成员键精确匹配」搬的，键一变（比如后来才补学号）就搬不动，
+     记录留在旧组号下变成孤儿 —— 线上 26工器1 班就是这样丢了 289 格。这里再按「学号/成员ID
+     认人」兜一次：认出人在哪一组就把记录搬过去，认不出的原样留着。只搬不删、幂等。 */
+  var REPAIR = window.JFDT_SCORE_REPAIR;
+  if (REPAIR && REPAIR.repairClass) {
+    var fixed = REPAIR.repairClass(S, cls);
+    moved += fixed.moved;
+    stranded += fixed.stranded;
+  }
   return { moved: moved, stranded: stranded };
 }
 
@@ -5371,8 +5400,12 @@ function restoreDroppedToHome(cls) {
         CLOUD.reportConflict(startupConflictDetails);
       }
     }
+    /* 2026-11-09：先把「换组后认不到人」的历史分接回本人，再画第一屏，
+       否则老师一进来看到的还是「分全没了」。只搬不删、幂等，跑一百次结果一样。 */
+    var repairedScores = repairOrphanScores(true);
     renderPoolBanner(curClass());
     switchView('score');
+    if (repairedScores) flash('已把 ' + repairedScores + ' 条「换组后认不到人」的历史分接回本人');
     /* 2026-11-10 接线课堂任务 → 小组加分自动入账（实现见 wire-task-link.js 顶部说明） */
     if (window.JFDT_WIRE) {
       window.JFDT_WIRE.boot({
@@ -5397,6 +5430,8 @@ function restoreDroppedToHome(cls) {
   if ($('#btnCheckAppVersion')) $('#btnCheckAppVersion').addEventListener('click',function(){checkAppVersion(true);});
   checkAppVersion(false);
   var checkCloudButton=document.createElement('button');checkCloudButton.id='btnCheckCloudLatest';checkCloudButton.className='btn';checkCloudButton.textContent='核对云端最新版';checkCloudButton.onclick=function(){checkCloudButton.disabled=true;checkCloudButton.setAttribute('aria-busy','true');refreshCloud().then(function(ok){flash(ok?'核对完成：本机已是云端最新版':'核对未完成：请查看同步冲突详情');}).finally(function(){checkCloudButton.disabled=false;checkCloudButton.removeAttribute('aria-busy');});};$('#btnSyncNow').parentElement.appendChild(checkCloudButton);
+  /* 2026-11-09：手动修「换组后认不到人的历史分」。启动时会自动修一次，这里给老师一个可重复执行的入口。 */
+  var repairScoresButton=document.createElement('button');repairScoresButton.id='btnRepairScores';repairScoresButton.className='btn';repairScoresButton.textContent='修复认不到人的历史分';repairScoresButton.onclick=function(){var R=window.JFDT_SCORE_REPAIR;if(!R){flash('修复模块没加载，请刷新页面');return;}var n=0;visibleClasses().forEach(function(c){n+=R.countOrphans(S,c);});if(!n){flash('没有认不到人的历史分，不用修');return;}var ok=window.confirm('检测到 '+n+' 条分数「换组后认不到人」：分还在库里，只是显示不出来。\n\n现在把它们接回本人？只搬不删，认不出人的原样保留。');if(!ok)return;var fixed=repairOrphanScores(false);flash(fixed?'已接回 '+fixed+' 条历史分':'没有可接回的分数');};$('#btnSyncNow').parentElement.appendChild(repairScoresButton);
 
   /* 闸门上的按钮 */
   $('#btnAccountLogin').addEventListener('click', doLogin);
