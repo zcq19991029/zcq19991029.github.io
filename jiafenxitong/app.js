@@ -2163,6 +2163,9 @@ function restoreDroppedToHome(cls) {
 
   /* ================= 排行视图 ================= */
 
+  /* 个人详细分排序（2026-11-10 #14）：'group' 按组号、'regular' 按平时分 */
+  var rankSort = 'group';
+
   function renderRank() {
     var cls = getClass($('#rankClassSel').value) || curClass();
     if (!cls) return;
@@ -2189,12 +2192,13 @@ function restoreDroppedToHome(cls) {
         '<p class="rank-note">共 ' + ls.length + ' 次课记录。柱长为组间相对值，数值为小组累计完成率。</p>'
       : '<p class="rank-note">还没有课次记录。</p>';
 
-    /* 个人排行 */
+    /* 个人详细分（平铺版，2026-11-10 #14）：每个学生一张卡片，往下滑看全部；
+       rankSort 控制排序：'group' 按组号升序（组内按平时分）、'regular' 按平时分降序 */
     var ms = memberTotals(cls);
     /* 显示层：全班共用一个分母（每课 5 + 5×已命名项目数，逐课累加），学期汇总按完成率口径 */
     var semesterMax = semesterProjectMax(ls);
     $('#semesterSummary').textContent = cls.name+' · '+ls.length+'次课 · '+ms.length+'名已分组学生 · '+(ms.length&&semesterMax?'全班平均完成率 '+pctNum(ms.reduce(function(a,m){return a+Math.max(0,m.total);},0)/ms.length/semesterMax*100)+'%':'暂无课次')+'。包含当前班全部已录入课次，随记分实时更新。';
-    if(window.JFDT_ASSESSMENT) window.JFDT_ASSESSMENT.renderRank({root:$('#memberRank'),cls:cls,lessons:ls,raw:ms,save:function(){save();},log:addOperationLog,message:flash,openAttendance:function(){switchView('attendance');},export:function(name,rows){download(name,toCsv(rows),'text/csv');}});
+    if(window.JFDT_ASSESSMENT) window.JFDT_ASSESSMENT.renderDetail({root:$('#memberRank'),cls:cls,lessons:ls,raw:ms,sort:rankSort,save:function(){save();},log:addOperationLog,message:flash,openAttendance:function(){switchView('attendance');},export:function(name,rows){download(name,toCsv(rows),'text/csv');}});
 
     /* 逐节明细（显示层：每课 ÷5、累计 ÷(5×课次数)，折完成率） */
     $('#lessonMatrix').innerHTML = ls.length
@@ -4876,6 +4880,17 @@ function restoreDroppedToHome(cls) {
     S.ui.classId = this.value; save(); renderRank();
   });
   $('#btnPrintRank').addEventListener('click', printRank);
+  /* 个人详细分排序切换（2026-11-10 #14） */
+  var rankSortSeg = $('#rankSortSeg');
+  if (rankSortSeg) {
+    rankSortSeg.addEventListener('click', function (e) {
+      var b = e.target.closest && e.target.closest('[data-sort]');
+      if (!b || b.dataset.sort === rankSort) return;
+      rankSort = b.dataset.sort;
+      rankSortSeg.querySelectorAll('[data-sort]').forEach(function (x) { x.classList.toggle('on', x === b); });
+      renderRank();
+    });
+  }
 
   /* 撤销：按钮 + Ctrl/Cmd+Z */
   $('#btnUndo').addEventListener('click', function () {

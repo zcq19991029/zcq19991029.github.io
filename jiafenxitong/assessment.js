@@ -108,6 +108,101 @@
     ctx.root.querySelectorAll('[data-exam-key]').forEach(function(input){input.onchange=function(){var v=input.value===''?null:Number(input.value);if(v!==null&&(!Number.isFinite(v)||v<0||v>100)){ctx.message('期末成绩须为0–100分。');return;}var old=cls.examScores&&cls.examScores[input.dataset.examKey];if((old==null?null:old)===v)return;var member=ms.find(function(m){return m.key===input.dataset.examKey;});if(!cls.examScores)cls.examScores={};if(v===null)delete cls.examScores[input.dataset.examKey];else cls.examScores[input.dataset.examKey]=v;ctx.log('期末成绩',cls.name+' · '+member.name+'：'+(old==null?'未填':old)+' → '+(v===null?'未填':v));member.exam=v===null?'':v;member.final=v===null?null:round(member.regular*.4+v*.6);var cell=input.closest('td').nextElementSibling;cell.innerHTML=(member.attendanceFailed?'考勤挂科'+(member.final==null?'':'<small>数值参考 '+member.final+'</small>'):member.final==null?'—':member.final)+(!member.ready&&member.final!==null?'<small>待复核</small>':'');ctx.save();};});
     ctx.root.querySelector('#assessmentExport').onclick=function(){ctx.export(cls.name+'_综合成绩.csv',[['展示名次','姓名','学号','小组','当前累计完成率','项目净得分','项目满分','待批改数','项目完成率','考勤得分','考勤满分','考勤完成率','合并完成率','小组项目净分（%）','平时分/100','折合/40','期末需考','实际期末','综合/100','资料齐全','考勤判定','迟到次数','早退次数','实际旷课次数','折算旷课次数','合计旷课次数']].concat(ms.map(function(m){return [m.rank,m.name,m.sid||m.no||'',m.gno||'待分配',semesterMax?memberRate(m)+'%':'—',m.task.earned,m.task.maximum,m.task.pending,round(m.task.rate*100)+'%',m.attendance,m.attendanceMaximum,round(m.attendanceRate*100)+'%',m.totalMaximum?round(m.performanceRate*100)+'%':'—',semesterMax?round(Math.max(0,m.bonus)/semesterMax*100)+'%':'—',m.regular,m.contribution,neededText(m),m.exam,m.attendanceFailed?'考勤挂科（数值参考：'+(m.final==null?'待考':m.final)+'）':m.final==null?'':m.final,m.ready?'是':'否，预估待复核',m.attendanceFailed?'考勤挂科':'未触发',m.lateCount,m.earlyCount,m.truantCount,m.convertedTruants,m.effectiveTruants];})));};
   }
+
+  /* 个人详细分 · 平铺版（2026-11-10 #14）：
+     把原来横向滚动的成绩表改成「每个学生一张卡片」纵向平铺，网页整体下滑，不用内部翻页。
+     每张卡：名次 + 姓名/学号 + 组号（含组员名单）→ 平时分/折合/期末需考/综合 四个大数字 →
+     每节课的项目完成率小标签 → 实际期末输入 + 记录状态。
+     保留期末成绩输入（data-exam-key）和 CSV 导出，和 renderRank 同一套数据口径。 */
+  function renderDetail(ctx) {
+    var cls=ctx.cls,cfg=settings(cls),ms=rows(cls,ctx.lessons,ctx.raw);
+    /* 排序（2026-11-10 #14）：rows() 内部已按平时分降序排好（rank 即平时分名次）。
+       ctx.sort==='group' 时改为按组号升序、组内按平时分降序；'regular' 保持平时分降序不变。 */
+    if(ctx.sort==='group'){
+      ms=ms.slice().sort(function(a,b){
+        var ga=a.gno?Number(a.gno):Infinity,gb=b.gno?Number(b.gno):Infinity;
+        return ga-gb || b.regular-a.regular || a.rawRank-b.rawRank;
+      });
+    } else {
+      ms=ms.slice().sort(function(a,b){return b.regular-a.regular||a.rawRank-b.rawRank;});
+    }
+    var semesterMax=ctx.lessons.reduce(function(a,l){var named=projectNames(l).filter(function(n){return String(n||'').trim();}).length;return a+5+5*named;},0);
+    function memberRate(m){return semesterMax?round(Math.max(0,m.total)/semesterMax*100):0;}
+    /* 每课的项目完成率：这课「净得分 + 命名项目得分」÷（5 + 5×命名项目数），没记分返回 null */
+    function lessonRate(m,l){
+      var sc=(l.scores||{})[String(m.gno)]||{};
+      var recorded=Object.keys(l.scores||{}).length||Object.keys(l.leaderScores||{}).length;
+      if(!recorded)return null;
+      var names=projectNames(l).filter(function(n){return String(n||'').trim();});
+      var values=(l.leaderScores||{})[String(m.gno)]&&(l.leaderScores||{})[String(m.gno)].members&&(l.leaderScores||{})[String(m.gno)].members[m.key];
+      var net=Math.max(0,Math.min(5,(Number(sc.group)||0)+(sc.first?1:0))-(Number(sc.phone)||0));
+      var earned=net;
+      names.forEach(function(n,i){var v=values&&values[i];if(v!==null&&v!==undefined)earned+=Math.max(0,Math.min(5,Number(v)||0));});
+      var max=5+5*names.length;
+      return round(Math.max(0,Math.min(100,earned/max*100)));
+    }
+    /* 组员名单（只名字），组内按顺序 */
+    function groupMates(gno){
+      var g=(cls.groups||[]).filter(function(x){return x.no===gno;})[0];
+      if(!g)return '';
+      return (g.members||[]).filter(function(x){return x.name;}).map(function(x){return x.name;}).join('、');
+    }
+
+    var cards = ms.map(function(m){
+      var lessonTags = ctx.lessons.map(function(l){
+        var r = lessonRate(m,l);
+        return '<span class="dt-lesson'+(r==null?' none':'')+'" title="第 '+l.seq+' 课'+(l.date?' · '+l.date:'')+(r==null?'：还没记分':('：完成率 '+r+'%'))+'">第'+l.seq+'课'+(r==null?'<em>—</em>':'<em>'+r+'%</em>')+'</span>';
+      }).join('');
+      var mates = groupMates(m.gno);
+      return '<div class="dt-card">' +
+        '<div class="dt-head">' +
+          '<span class="dt-rank">'+(m.rank)+'</span>' +
+          '<span class="dt-name'+(m.attendanceFailed?' attendance-failed':'')+'">'+esc(m.name)+'<small>'+esc(m.sid||m.no||'')+'</small></span>' +
+          '<span class="dt-group">'+(m.gno?'第 '+m.gno+' 组':'待分配')+(mates?'<small title="'+esc(mates)+'">'+esc(mates)+'</small>':'')+'</span>' +
+        '</div>' +
+        '<div class="dt-grades">' +
+          '<div class="dt-grade g-regular"><em>'+numGrade(m.regular)+'</em><span>平时分 /100</span></div>' +
+          '<div class="dt-grade g-contribution"><em>'+numGrade(m.contribution)+'</em><span>计入总评 /40</span></div>' +
+          '<div class="dt-grade g-needed"><em>'+(m.attendanceFailed?'挂科':(m.needed==null?'—':(m.needed>100?'&gt;100':numGrade(m.needed))))+'</em><span>期末至少需考</span></div>' +
+          '<div class="dt-grade g-final'+(m.final!=null&&m.final>=cfg.passScore?' good':(m.final!=null?' bad':''))+'"><em>'+(m.attendanceFailed?'挂科':(m.final==null?'—':numGrade(m.final)))+'</em><span>综合 /100</span></div>' +
+        '</div>' +
+        '<div class="dt-lessons">'+lessonTags+'</div>' +
+        '<div class="dt-foot">' +
+          '<span class="dt-exam">实际期末 <input data-exam-key="'+esc(m.key)+'" inputmode="decimal" placeholder="未录" value="'+(m.exam===''?'':esc(m.exam))+'"></span>' +
+          '<span class="dt-status">'+esc(confirmationText(m))+(m.ready?' · 已齐':' · 预估')+'</span>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+
+    ctx.root.innerHTML =
+      '<div class="assessment-actions"><button class="btn" id="assessmentGoAttendance">考勤与规则</button>' +
+      '<button class="btn" id="assessmentExport">导出综合成绩CSV</button></div>' +
+      '<p class="note">个人详细分：每个学生一张卡片，往下滑看全部。每一课的小标签是该课的项目完成率（没记分显示 —）。' +
+      '平时分＝100×合并完成率，期末至少需考＝(及格线−平时分×0.4)÷0.6，综合＝平时折合＋期末折合。</p>' +
+      '<div class="dt-list">'+cards+'</div>' +
+      (ms.length?'':'<p class="note">还没有分好组的学生。</p>');
+
+    ctx.root.querySelector('#assessmentGoAttendance').onclick=ctx.openAttendance;
+    /* 期末成绩输入：和 renderRank 同一套逻辑，改完即存、即算综合 */
+    ctx.root.querySelectorAll('[data-exam-key]').forEach(function(input){input.onchange=function(){
+      var v=input.value===''?null:Number(input.value);
+      if(v!==null&&(!Number.isFinite(v)||v<0||v>100)){ctx.message('期末成绩须为0–100分。');input.value=memoExam(cls,input.dataset.examKey);return;}
+      var old=cls.examScores&&cls.examScores[input.dataset.examKey];
+      if((old==null?null:old)===v)return;
+      var member=ms.find(function(m){return m.key===input.dataset.examKey;});
+      if(!cls.examScores)cls.examScores={};
+      if(v===null)delete cls.examScores[input.dataset.examKey];else cls.examScores[input.dataset.examKey]=v;
+      ctx.log('期末成绩',cls.name+' · '+member.name+'：'+(old==null?'未填':old)+' → '+(v===null?'未填':v));
+      member.exam=v===null?'':v;member.final=v===null?null:round(member.regular*.4+v*.6);
+      var card=input.closest('.dt-card'),finalEl=card&&card.querySelector('.g-final em');
+      if(finalEl)finalEl.textContent=member.attendanceFailed?'挂科':(member.final==null?'—':numGrade(member.final));
+      ctx.save();
+    };});
+    ctx.root.querySelector('#assessmentExport').onclick=function(){ctx.export(cls.name+'_综合成绩.csv',[['展示名次','姓名','学号','小组','当前累计完成率','项目净得分','项目满分','待批改数','项目完成率','考勤得分','考勤满分','考勤完成率','合并完成率','小组项目净分（%）','平时分/100','折合/40','期末需考','实际期末','综合/100','资料齐全','考勤判定','迟到次数','早退次数','实际旷课次数','折算旷课次数','合计旷课次数']].concat(ms.map(function(m){return [m.rank,m.name,m.sid||m.no||'',m.gno||'待分配',semesterMax?memberRate(m)+'%':'—',m.task.earned,m.task.maximum,m.task.pending,round(m.task.rate*100)+'%',m.attendance,m.attendanceMaximum,round(m.attendanceRate*100)+'%',m.totalMaximum?round(m.performanceRate*100)+'%':'—',semesterMax?round(Math.max(0,m.bonus)/semesterMax*100)+'%':'—',m.regular,m.contribution,neededText(m),m.exam,m.attendanceFailed?'考勤挂科（数值参考：'+(m.final==null?'待考':m.final)+'）':m.final==null?'':m.final,m.ready?'是':'否，预估待复核',m.attendanceFailed?'考勤挂科':'未触发',m.lateCount,m.earlyCount,m.truantCount,m.convertedTruants,m.effectiveTruants];})));};
+  }
+  /* 数字显示：整数不带小数点，其余留一位；NaN/空显示 — */
+  function numGrade(n){ if(n==null||n===''||!isFinite(n))return '—'; var v=round(n); return v%1===0?String(v):v.toFixed(1); }
+  function memoExam(cls,key){ var v=cls.examScores&&cls.examScores[key]; return v==null?'':String(v); }
   /* 从考勤工具导入本课（K9）：只往页面下拉里填，标成未保存，老师点「保存本课考勤」才写入 */
   var attMap={present:'present',late:'late',early:'early',absent:'truant',personal:'leave',sick:'leave'};
   function importBlock(ctx){if(!ctx.cloud)return '登录教师账号后才能从考勤工具导入';if(!Number(ctx.cls&&ctx.cls.hxClassId))return '本班没有对应首页班级，不能从考勤工具导入';return '';}
@@ -185,5 +280,5 @@
     function attPct(v){return round(Math.max(0,Math.min(9,Number(v)||0))/9*100)+'%';}
     return '<h2>平时赋分与期末测算</h2><p>项目与考勤合并为0–100完成率；考勤是学期固定项目，满分折 100%（9 分制扣分）。迟到/早退合计3次折旷课1次，实际旷课＋折算旷课合计3次考勤挂科，折算不重复扣分；平时40%＋期末60%。名次只展示，未批改/考勤未齐为预估。</p><table><thead><tr><th>名次</th><th>姓名</th><th>学号</th><th>当前累计</th><th>项目完成率</th><th>考勤完成率</th><th>平时/100</th><th>折合/40</th><th>期末需考</th><th>实际期末</th><th>综合</th><th>记录状态</th></tr></thead><tbody>'+ms.map(function(m){return '<tr><td>'+m.rank+'</td><td>'+esc(m.name)+'</td><td>'+esc(m.sid||m.no||'')+'</td><td>'+memberRate(m)+'</td><td>'+round(m.task.rate*100)+'%<small>'+m.task.earned+'/'+m.task.maximum+'</small></td><td>'+attPct(m.attendance)+'<small>'+round(m.attendanceRate*100)+'%</small></td><td>'+m.regular+'<small>'+round(m.performanceRate*100)+'%</small></td><td>'+m.contribution+'</td><td>'+(neededText(m))+'</td><td>'+m.exam+'</td><td>'+(m.attendanceFailed?'考勤挂科'+(m.final==null?'':'<small>数值参考 '+m.final+'</small>'):m.final==null?'—':m.final)+'</td><td>'+esc(confirmationText(m))+(m.ready?' · 已齐':' · 预估')+'<br>'+esc(attendanceText(m))+'</td></tr>';}).join('')+'</tbody></table>';
   }
-  root.JFDT_ASSESSMENT={groupNet:groupNet,projectNames:projectNames,printHtml:printHtml,taskEvidence:taskEvidence,key:key,ident:ident,settings:settings,roster:roster,rows:rows,deduction:deduction,renderRank:renderRank,renderAttendance:renderAttendance,importPlan:importPlan,importFind:importFind,importStatus:importStatus};
+  root.JFDT_ASSESSMENT={groupNet:groupNet,projectNames:projectNames,printHtml:printHtml,taskEvidence:taskEvidence,key:key,ident:ident,settings:settings,roster:roster,rows:rows,deduction:deduction,renderRank:renderRank,renderDetail:renderDetail,renderAttendance:renderAttendance,importPlan:importPlan,importFind:importFind,importStatus:importStatus};
 })(typeof window==='undefined'?globalThis:window);

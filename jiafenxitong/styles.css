@@ -204,6 +204,7 @@ input[readonly] { background: var(--panel-soft); color: var(--muted); }
 .sec-title .hint { font-weight: 400; font-size: 12px; color: var(--muted); margin-left: 6px; }
 
 .note { font-size: 12.5px; color: var(--muted); margin: 10px 0 0; }
+.feed-hint { display: inline-block; padding: 6px 12px; margin: 12px 0 4px; border: 1px dashed var(--line); border-radius: 8px; background: var(--panel-soft); color: var(--muted); font-size: 12px; }
 .prose ol { margin: 0 0 10px; padding-left: 20px; }
 .prose ul { margin: 4px 0 0; padding-left: 18px; }
 .prose li { margin-bottom: 4px; font-size: 13.5px; }
@@ -1382,6 +1383,60 @@ table.sheet td.c-sum .c { font-size: 13px; color: var(--text); }
 @media(min-width:1600px){.rank-columns {grid-template-columns:240px minmax(0,1fr);}.rank-groups .bar-row {grid-template-columns:75px minmax(30px,1fr) 40px;gap:8px;}.rank-groups .who {font-size:13px;}}
 @media print{.assessment-actions,.assessment-settings {display:none;}.rank-columns{display:block;}}
 @media(min-width:1600px){.rank-groups{position:sticky;top:16px;}.rank-members .assessment-scroll{max-height:70dvh;}.assessment-table thead th{position:sticky;top:0;z-index:1;background:var(--panel);}}
+
+
+/* 个人详细分 · 平铺卡片版（2026-11-10 #14）：
+   每个学生一张卡片纵向平铺，网页整体下滑，不用内部翻页。
+   排序切换（按组 / 按平时分）+ 次要信息（小组排行、逐节明细）收进折叠区。 */
+.rank-primary { margin-bottom: 16px; }
+.rank-primary-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 4px 0 10px; }
+.rank-primary-head .sec-title { margin: 0; }
+.rank-secondary { border: 1px solid var(--line); border-radius: 12px; background: var(--panel); margin-bottom: 16px; }
+.rank-secondary > summary { cursor: pointer; padding: 12px 16px; font-weight: 650; color: var(--muted); list-style: none; }
+.rank-secondary > summary::-webkit-details-marker { display: none; }
+.rank-secondary > summary::before { content: "▸"; display: inline-block; margin-right: 8px; transition: transform .15s; color: var(--muted); }
+.rank-secondary[open] > summary::before { transform: rotate(90deg); }
+.rank-secondary .rank-columns { padding: 0 16px 16px; }
+
+.dt-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+.dt-card { display: flex; flex-direction: column; gap: 12px; padding: 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); box-shadow: var(--shadow); }
+.dt-card:hover { border-color: var(--accent-line); }
+.dt-head { display: flex; align-items: flex-start; gap: 10px; }
+.dt-rank { flex: 0 0 auto; min-width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; background: var(--accent); color: #fff; font-weight: 750; font-size: 14px; font-variant-numeric: tabular-nums; }
+.dt-name { flex: 1 1 auto; min-width: 0; font-size: 16px; font-weight: 700; line-height: 1.25; }
+.dt-name small { display: block; font-size: 12px; color: var(--muted); font-weight: 400; margin-top: 2px; }
+.dt-group { flex: 0 0 auto; max-width: 46%; text-align: right; font-size: 13px; color: var(--muted); }
+.dt-group small { display: block; font-size: 11.5px; margin-top: 2px; line-height: 1.4; color: var(--muted); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.dt-grades { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.dt-grade { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 6px; border-radius: 10px; text-align: center; }
+.dt-grade em { font-size: 22px; font-weight: 750; font-style: normal; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.dt-grade span { font-size: 11px; color: var(--muted); line-height: 1.3; }
+.dt-grade.g-regular { background: #edf5ee; color: #236442; }
+.dt-grade.g-contribution { background: #edf2fa; color: #2f527a; }
+.dt-grade.g-needed { background: #fcf0e9; color: #a7472e; }
+.dt-grade.g-final { background: var(--raise); color: var(--text); }
+.dt-grade.g-final.good { background: #edf5ee; color: #236442; }
+.dt-grade.g-final.bad { background: #fdf0ef; color: #b91c1c; }
+.dt-lessons { display: flex; flex-wrap: wrap; gap: 6px; }
+.dt-lesson { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 20px; background: var(--raise); font-size: 12px; color: var(--text); white-space: nowrap; }
+.dt-lesson em { font-style: normal; font-weight: 700; }
+.dt-lesson.none { color: var(--muted); opacity: .8; }
+.dt-lesson.none em { font-weight: 400; }
+.dt-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: auto; padding-top: 10px; border-top: 1px dashed var(--line); }
+.dt-exam { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); }
+.dt-exam input { width: 64px; min-height: 32px; font: inherit; font-size: 13px; padding: 3px 6px; text-align: center; }
+.dt-status { font-size: 12px; color: var(--muted); text-align: right; }
+.dt-name.attendance-failed { color: #b91c1c; }
+@media print { .dt-card { break-inside: avoid; } }
+
+/* 深色模式：平铺卡片四色数字对齐 assessment-table 的深色配比 */
+:root[data-hx-mode="dark"] .dt-grade.g-regular { background: rgba(61, 220, 151, .1); color: #7ef0bd; }
+:root[data-hx-mode="dark"] .dt-grade.g-contribution { background: rgba(96, 150, 255, .12); color: #a7c4ff; }
+:root[data-hx-mode="dark"] .dt-grade.g-needed { background: rgba(251, 146, 60, .12); color: #ffc48f; }
+:root[data-hx-mode="dark"] .dt-grade.g-final.good { background: rgba(61, 220, 151, .1); color: #7ef0bd; }
+:root[data-hx-mode="dark"] .dt-grade.g-final.bad { background: rgba(251, 113, 133, .14); color: #ff9aa9; }
+:root[data-hx-mode="dark"] .dt-name.attendance-failed { color: #ff9aa9; }
+@media (max-width: 720px) { .dt-grades { grid-template-columns: repeat(2, 1fr); } }
 
 
 /* Ranking: prominent results, quieter evidence, separate optional review. */
