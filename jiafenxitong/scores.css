@@ -123,6 +123,14 @@ table.book th, table.book td {
 table.book th { background: #f2f4f9; color: var(--muted); font-weight: 600; }
 table.book td.nm, table.book th.nm { text-align: left; }
 table.book td b { font-size: 15px; }
+/* 我的小组表格：高亮「我」这一行，组员名旁标个小徽章（2026-11-10 B 方案） */
+table.book.group td.nm b { font-size: 13px; }
+table.book tr.me-row { background: var(--ok-soft, #e8f6ef); }
+table.book tr.me-row td { border-color: var(--ok, #2f845a); }
+.me-tag {
+  display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 999px;
+  font-size: 11px; font-weight: 700; color: #fff; background: var(--ok, #2f845a);
+}
 
 /* ---------- 其他 ---------- */
 .pill {

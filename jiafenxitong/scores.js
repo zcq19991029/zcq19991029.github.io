@@ -417,7 +417,8 @@
     var ls = (d.lessons || []).filter(function (l) { return l.projects.length; });
     var namedMax = Math.max(0, (Number(d.total.taskMax) || 0) - 5 * (d.lessons || []).length);
     var projectRate = namedMax ? num(Math.round(Math.max(0, d.total.project) / namedMax * 1000) / 10) + '%' : '—';
-    var html = renderPeerCard() + '<div class="card"><h3>组内个人评分</h3><div class="big">' +
+    var html = renderPeerCard() + renderGroupCard() +
+      '<div class="card"><h3>组内个人评分</h3><div class="big">' +
       '<div class="n good"><em>' + projectRate + '</em><span>个人项目累计</span></div>' +
       '<div class="n"><em>' + (d.group && d.group.size ? d.group.rank + ' / ' + d.group.size : '—') +
       '</em><span>组内名次（按累计）</span></div>' +
@@ -440,6 +441,35 @@
     }
     html += '</div>';
     return html;
+  }
+
+  /* 我的小组（2026-11-10，用户拍板 B 方案）：自己这一组的组员名单 + 各自项目分，看不到别组。
+     组员名单来自快照里的 d.group.members（发布时只塞了本组成员，别组一个字节都没下发），
+     前端不做任何分数计算，只把姓名/学号/个人项目累计/平时分平铺出来。 */
+  function renderGroupCard() {
+    var d = D;
+    if (!d || !d.group || !Array.isArray(d.group.members) || !d.group.members.length) {
+      return '';
+    }
+    var members = d.group.members.slice().sort(function (a, b) {
+      return (Number(b.project) || 0) - (Number(a.project) || 0);
+    });
+    var rows = members.map(function (m, i) {
+      var isMe = (m.sid && d.me.sid && m.sid === d.me.sid) || (!m.sid && !d.me.sid && m.name === d.me.name);
+      return '<tr' + (isMe ? ' class="me-row"' : '') + '>' +
+        '<td>' + (i + 1) + '</td>' +
+        '<td class="nm"><b>' + esc(m.name) + '</b>' + (isMe ? '<span class="me-tag">我</span>' : '') + '</td>' +
+        '<td>' + esc(m.sid || '') + '</td>' +
+        '<td>' + (m.project == null ? '—' : num(m.project)) + '</td>' +
+        '<td>' + (m.regular == null ? '—' : num(m.regular)) + '</td>' +
+        '</tr>';
+    }).join('');
+    return '<div class="card"><h3>我的小组</h3>' +
+      '<div class="scroll"><table class="book group"><thead><tr>' +
+      '<th>#</th><th>组员</th><th>学号</th><th>个人项目累计</th><th>平时分</th>' +
+      '</tr></thead><tbody>' + rows + '</tbody></table></div>' +
+      '<p class="note">这里只显示你自己的小组（' + esc(d.me.gname || '') + '，共 ' + d.group.size +
+      ' 人），别的小组看不到。「个人项目累计」是组长在课上逐项打分后的合计，仅供参考，有疑问直接找老师。</p></div>';
   }
 
   function renderTotal() {

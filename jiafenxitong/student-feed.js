@@ -81,6 +81,19 @@
     var gRank = 1 + mates.filter(function (x) { return x.total > m.total; }).length;
     var cfg = A.settings ? A.settings(cls) : { passScore: 60 };
 
+    /* 2026-11-10（用户拍板 B 方案）：学生端开放「本组组员名单 + 各自项目分」，但看不到别组。
+       mates 已经是 filter(x.gno === m.gno) 的结果，天然只含本组；每个组员只带姓名、学号、
+       个人项目累计、平时分四项，不下发别组的任何数据，也不带考勤/期末等更敏感字段。 */
+    var groupMembers = mates.map(function (x) {
+      return {
+        name: x.name,
+        sid: x.sid || '',
+        no: x.no == null ? '' : String(x.no),
+        project: round(x.project),
+        regular: round(x.regular)
+      };
+    });
+
     return {
       v: 1,
       cls: { name: cls.name },
@@ -122,7 +135,7 @@
         recorded: m.recorded,
         lessonCount: lessons.length
       },
-      group: { size: mates.length, rank: gRank }
+      group: { size: mates.length, rank: gRank, members: groupMembers }
     };
   }
 
