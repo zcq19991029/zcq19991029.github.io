@@ -203,10 +203,18 @@
           '<span class="pct">' + (l.pct === null ? '<span class="pill warn">还没录分</span>' : pct(l.pct)) + '</span></div>' +
           '<div class="kv">' +
           '<div>干净又卫生 <i>' + scorePct(l.group) + '</i>' + (minus.length ? '　' + minus.join('　') : '') + '</div>' +
-          '<div>本课净得 <i>' + scorePct(l.net) + '</i>' +
-          (l.projects.length ? '　个人项目 <i>' + num(Math.round(Math.max(0, l.earned) / (l.projects.length * 5) * 1000) / 10) + '%</i>' : '') +
+          '<div>本课净得 <i>' + scorePct(l.net) + '</i></div>' +
           '</div>' +
-          '</div></div>';
+          /* 2026-11-10 用户要求：学生端要看到「项目详细分」，不能只有一个笼统的「个人项目 X%」。
+             把每节课的每个命名项目逐项列出来（项目名 + 该项得分），没录的标「待评」。 */
+          (l.projects && l.projects.length
+            ? '<div class="proj">' + l.projects.map(function (p) {
+                return '<span><span class="nm">' + esc(p.n) + '</span>' +
+                  (p.s === null ? '<span class="sc wait">待评</span>' : '<span class="sc">' + scorePct(p.s) + '</span>') +
+                  '</span>';
+              }).join('') + '</div>'
+            : '') +
+          '</div>';
       });
     }
     html += '</div>';
