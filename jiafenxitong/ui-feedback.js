@@ -58,8 +58,17 @@
   function pill() {
     var seg = document.getElementById('layoutSeg'), on = seg && seg.querySelector('button.on');
     if (!on || !on.offsetWidth) return;
-    seg.style.setProperty('--layout-pill-x',on.offsetLeft + 'px');
-    seg.style.setProperty('--layout-pill-width',on.offsetWidth + 'px');
+    /* 2026-11-09 修手机竖屏被撑宽：原来用 on.offsetLeft，那是「相对最近定位祖先」的坐标。
+       首次执行时 #layoutSeg 还不是定位元素（position:relative 要等 motion-ready 才加上），
+       按钮的 offsetParent 因此是外层容器，算出的位移偏大（实测 256px，实际按钮在 2px 处），
+       指示块被推到 314px 处 —— 容器只有 122px 宽，整页就被撑到 568px。
+       宽屏内容列 1148px，这点偏移看不出来，只有手机竖屏会炸。
+       改成两个 getBoundingClientRect 相减：不受 offsetParent 是谁影响，首帧就是对的。
+       减 borderLeftWidth 是因为 ::before 的 left:0 对齐的是 padding box，不是 border 外沿。 */
+    var bl = parseFloat(getComputedStyle(seg).borderLeftWidth) || 0;
+    var sr = seg.getBoundingClientRect(), or = on.getBoundingClientRect();
+    seg.style.setProperty('--layout-pill-x', Math.round(or.left - sr.left - bl) + 'px');
+    seg.style.setProperty('--layout-pill-width', Math.round(or.width) + 'px');
     seg.classList.add('motion-ready');
     seg.querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-pressed',String(b === on)); });
   }
