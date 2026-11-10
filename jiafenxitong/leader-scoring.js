@@ -545,6 +545,21 @@
       });
       logClass('全班统一项目' + (index + 1) + '名称：' + (old || '空') + ' → ' + (next || '空') + '（所有小组同步）');
       context.save(); rerenderKeepScroll();
+      /* 2026-11-10 用户报：「填了项目名称但学生说教室没发布任务」。
+         根因：填项目名只存本地，必须再点「组长打分」开关才会发布到云端（jf_peer_gate），
+         老师往往填完名就以为发出去了。改成「项目名确定即发布」：某个项目名从空变非空
+         （第一次命名）且本节课还没开放组长打分时，自动把它开起来（即发布），
+         学生端立刻能看到这一节要打什么。改已有名字不重复触发。 */
+      if (next && !old && context.peer && typeof context.peer.setGate === 'function' &&
+          context.peer.ready && context.peer.ready(cls) && !lesson.peerGate) {
+        context.peer.setGate(cls, lesson, true).then(function () {
+          peerMsg = '已自动开放本节课的组长打分（刚填了项目名「' + next + '」，学生现在就能打了）。';
+          rerenderKeepScroll();
+        }, function (err) {
+          /* 自动发布失败不打断老师填名，只提示一句，让他手动点开关 */
+          peerMsg = '项目名已存，但自动发布没成功：' + ((err && err.message) || '网络问题') + '。请点上面的「组长打分」开关手动发布。';
+        });
+      }
     }
     function removeProject(index) {
       if (sharedProjects.length <= 1) { setMsg('至少保留 1 列。'); return; }
