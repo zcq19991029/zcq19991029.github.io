@@ -333,6 +333,7 @@ function paintLive() {
       <div class="acts">
         <button class="btn" id="lvBoard" type="button">打开大屏（投影）</button>
         ${canAct ? '<button class="btn primary" id="lvClose" type="button">结束任务并冻结得分</button><button class="btn danger" id="lvVoid" type="button">作废</button>' : ''}
+        <button class="btn ghost" id="lvLesson" type="button" title="课次填错了就改这里，分数会跟着落到正确的课次">改课次</button>
         ${t.status === 'closed' ? '<button class="btn" id="lvJf" type="button">打开小组加分</button>' : ''}
         <button class="btn ghost" id="lvCsv" type="button">导出名单 CSV</button>
       </div>
@@ -372,6 +373,7 @@ function paintLive() {
 
   $('#lvBoard').onclick = () => window.open('board.html?t=' + t.id, '_blank');
   $('#lvCsv').onclick = () => exportCsv(b);
+  const lvLesson = $('#lvLesson'); if (lvLesson) lvLesson.onclick = () => editLesson(t);
   const jfBtn = $('#lvJf'); if (jfBtn) jfBtn.onclick = () => window.open(JF_URL, '_blank', 'noopener');
   const c1 = $('#lvClose'), c2 = $('#lvVoid');
   if (c1) c1.onclick = async () => {
@@ -402,6 +404,27 @@ function paintLive() {
       paintLive(); paintHist();
     } catch (e) { alert('作废失败：' + e.message); c2.disabled = false; }
   };
+}
+
+/* 改课次（2026-11-10）：课次下拉上线前的历史任务走了旧数字框默认 1，分数记错课次。
+   老师在这里改课次号（和日期），改完 wire-task-link.js 下次同步会按新课次把分数落对。
+   旧的错课次列老师自己到「小组加分」记分页删掉即可（尊重老师手动删列）。 */
+async function editLesson(t) {
+  const cur = t.lesson_no || '';
+  const curDate = t.lesson_date || todayStr();
+  const no = prompt('把「' + (t.title || cname(t.circuit)) + '」的课次改到第几次课？\n\n现在：第 ' + (cur || '—') + ' 次课（' + curDate + '）\n改错课次，分数会记到别的课上，务必和「小组加分」里的课次对上。', cur);
+  if (no == null) return;
+  const n = parseInt(no, 10);
+  if (!n || n < 1) { alert('课次号要填 ≥1 的整数'); return; }
+  const date = prompt('上课日期（不填保持原样）', curDate);
+  try {
+    await HX.rpc('wire_task_update_lesson', { p_task: t.id, p_lesson_no: n, p_lesson_date: (date && date.trim()) || null });
+    ST.tasks = await HX.rpc('wire_task_list');
+    ST.cur = ST.tasks.find(x => x.id === t.id) || ST.cur;
+    ST.tip = '课次已改为第 ' + n + ' 次课，分数会跟着落到正确的课次（旧的错课次列到「小组加分」记分页删掉）。';
+    await refreshBoard();
+    paintLive(); paintHist();
+  } catch (e) { alert('改课次失败：' + e.message); }
 }
 
 function paintHist() {
