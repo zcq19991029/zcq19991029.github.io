@@ -2495,9 +2495,11 @@ function restoreDroppedToHome(cls) {
       '<div class="metric"><div class="k">未分组</div><div class="v ' + (nPending ? 'neg' : '') + '">' +
         nPending + ' <small>人</small></div></div>';
 
-    /* 筛选：圆桌上的人还没写进分组，仍然归在「待分配」这一栏里等人点确认 */
+    /* 筛选：圆桌上的人还没写进分组，但按统一口径（已分组 + 已选座待确认 + 未分组 = 全班）
+       「已选座待确认」不算「未分组」。所以「仅未分组」栏只列真正没着落的人（没进组也没坐桌），
+       已选座待确认的人在「全部」栏里看，pill 标「已选座·第 N 桌（待确认）」。 */
     var list = rows;
-    if (poolFilter === 'pending') list = rows.filter(function (x) { return x.g === null; });
+    if (poolFilter === 'pending') list = rows.filter(function (x) { return x.g === null && !x.table; });
     else if (poolFilter === 'assigned') list = rows.filter(function (x) { return x.g !== null; });
     var q = poolSearch.trim().toLowerCase();
     if (q) {
@@ -2529,7 +2531,7 @@ function restoreDroppedToHome(cls) {
           var status = x.g !== null
             ? '<span class="pill done">第 ' + x.g + ' 组</span>'
             : x.table
-              ? '<span class="pill pending" title="学生自助选桌时坐了第 ' + x.table + ' 桌，但还没写进分组；拖进组或点「按选座确认分组」才进记分表">已选座 · 第 ' + x.table + ' 桌（未分组）</span>'
+              ? '<span class="pill pending" title="学生自助选桌时坐了第 ' + x.table + ' 桌，但还没写进分组；拖进组或点「按选座确认分组」才进记分表">已选座 · 第 ' + x.table + ' 桌（待确认）</span>'
               : '<span class="pill pending">未分组</span>';
           return '<tr' + (x.g === null ? ' class="row-pending"' : '') + '>' +
             '<td>' + (r.no == null ? '' : r.no) + '</td>' +
@@ -2548,7 +2550,9 @@ function restoreDroppedToHome(cls) {
         '<p class="rank-note">当前显示 ' + list.length + ' 条' +
           (poolFilter === 'pending' ? '（仅未分组）' : poolFilter === 'assigned' ? '（仅已分组）' : '（全部）') +
           (q ? '，搜索「' + esc(poolSearch) + '」' : '') + '。</p>'
-      : '<p class="rank-note">' + (poolFilter === 'pending' ? '没有未分组的学生，全班都分好组了。' : '没有记录。') + '</p>';
+      : '<p class="rank-note">' + (poolFilter === 'pending'
+          ? (nSeated ? '没有未分组的学生（' + nSeated + ' 人已选座待确认，在「全部」栏里确认分组）。' : '没有未分组的学生，全班都分好组了。')
+          : '没有记录。') + '</p>';
 
     gbRows = rows;
     renderGroupBoard(cls);
@@ -3284,6 +3288,7 @@ function restoreDroppedToHome(cls) {
         tmSeatSig = sig;
         if (view === 'pool') renderPool();
         else if (view === 'score') renderPoolBanner(curClass());
+        updatePoolBadge();   /* 选座数据到位后，页签「未分组 N 人」角标也要重算，否则停在旧数字 */
       }
       tmPaint();
     }).catch(function (e) {
