@@ -30,6 +30,15 @@
   var LSS = 'hx-music-state';                   // {id, t, vol, muted, mode}
   var EXT = /\.(mp3|m4a|aac|ogg|oga|opus|wav|flac|weba|webm)$/i;
 
+  /* ---------------- 云端（Supabase 音乐云歌库，2026-11-09）----------------
+     换电脑歌跟着走：登录后歌单从云上拉（表 hx_music_track 只存元信息 + path，音频本体在 Storage 桶
+     hx-music 公开可读）。身份、权限、学生 1 首限额全部在数据库函数里挡（hx_music_list/save/del/
+     publish_default/quota），前端只负责「拉歌单 → 拼公开 URL 播放 → 上传登记」。
+     未登录时整段退化为纯本地 IndexedDB（现有行为一字不改）。 */
+  var SUPA = 'https://eiqgyrjrwdaunhxjmdyr.supabase.co',
+    SKEY_PUB = 'sb_publishable_FcVnLx3TNrj6HnbgarYnRw_DW4-yFzd',
+    SKEY_SESS = 'paike-session';
+
   var A = null;                                 // 唯一的 <audio>
   /* mode：'list' 列表循环（默认，播完自动下一首、到底回开头）/ 'one' 单曲循环 / 'shuffle' 随机 */
   var S = { list: [], i: -1, playing: false, cur: 0, dur: 0, vol: 0.8, muted: false, mode: 'list', ready: false, err: '' };
@@ -86,6 +95,78 @@
   }
   function curId() { var t = S.list[S.i]; return t ? t.id : null; }
 
+  /* ---------------- 云端 API ---------------- */
+  function tok() {
+    try { var s = JSON.parse(localStorage.getItem(SKEY_SESS) || 'null'); return (s && s.access_token) || ''; } catch (e) { return ''; }
+  }
+  function cloudOn() { return !!tok(); }
+  /* 云端曲目公开 URL：Storage 桶 hx-music 是 public，直接拼公开地址，不用签名 */
+  function cloudURL(path) {
+    if (!path) return '';
+    if (/^https?:\/\//i.test(path)) return path;
+    return SUPA + '/storage/v1/object/public/hx-music/' + encodeURI(path);
+  }
+  function rpc(name, body) {
+    var t = tok(); if (!t) return Promise.reject(new Error('没登录'));
+    return fetch(SUPA + '/rest/v1/rpc/' + name, {
+      method: 'POST',
+      headers: { apikey: SKEY_PUB, Authorization: 'Bearer ' + t, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body || {})
+    }).then(function (r) {
+      return r.text().then(function (x) {
+        var j = null; try { j = x ? JSON.parse(x) : null; } catch (e) { j = x; }
+        if (!r.ok) {
+          var m = String(j && (j.message || j.msg) || ('HTTP ' + r.status)).replace(/JWT expired/i, '登录过期了');
+          throw new Error(m);
+        }
+        return j;
+      });
+    });
+  }
+  /* 拉云端歌单：返回数组，每项 {id,title,artist,cover,duration,scope,group_name,path,owner,created_at} */
+  function cloudList() {
+    if (!cloudOn()) return Promise.resolve([]);
+    return rpc('hx_music_list').then(function (rows) {
+      if (!rows || !rows.length) return [];
+      return rows.map(function (r) {
+        return {
+          id: 'c' + r.id,                       // 云端 id 前缀 c，和本地 't...' 区分，绝不撞
+          cid: r.id,
+          name: r.title || '未命名',
+          artist: r.artist || '',
+          cover: r.cover || '',
+          dur: Math.round((+r.duration || 0) * 10) / 10,
+          scope: r.scope,
+          group: r.group_name || '',
+          path: r.path,
+          url: cloudURL(r.path),
+          owner: r.owner,
+          addedAt: Date.parse(r.created_at) || Date.now(),
+          cloud: true
+        };
+      });
+    }).catch(function () { return []; });        // 拉不到就退回本地歌单，不报错
+  }
+  /* 我能不能传歌 / 还剩几首额度：学生限 1 首，教师/管理员不限 */
+  function cloudQuota() {
+    if (!cloudOn()) return Promise.resolve(null);
+    return rpc('hx_music_quota').catch(function () { return null; });
+  }
+  /* 我是谁（teacher/admin/dev）：发布 / 撤回按钮据此显示 */
+  var whoCache = null;
+  function cloudWho() {
+    if (!cloudOn()) return Promise.resolve(null);
+    if (whoCache) return Promise.resolve(whoCache);
+    return rpc('hx_me').then(function (m) { whoCache = m || {}; return whoCache; }).catch(function () { return null; });
+  }
+  function isStaff(m) { return !!(m && (m.teacher || m.admin || m.dev)); }
+  function isAdmin(m) { return !!(m && (m.admin || m.dev)); }
+  /* 我名下的班级（教师发布到班级时选） */
+  function cloudClasses() {
+    if (!cloudOn()) return Promise.resolve([]);
+    return rpc('hx_my_classes').then(function (r) { return r || []; }).catch(function () { return []; });
+  }
+
   /* ---------------- audio ---------------- */
   function audio() {
     if (A) return A;
@@ -122,21 +203,29 @@
 
   /* ---------------- 歌单 ---------------- */
   function loadList() {
-    return openDB().then(function (db) {
+    /* 本地（IndexedDB）那份永远先读出来当底子 */
+    var localP = openDB().then(function (db) {
       return tx(db, [META], 'readonly', function (t) { return wrap(t.objectStore(META).getAll()); });
-    }).then(function (out) {
-      var rows = out || [];
-      rows.sort(function (a, b) { return (a.addedAt || 0) - (b.addedAt || 0); });
-      S.list = rows;
-      var st = lsGet(), i = -1;
-      if (st.id) { for (var k = 0; k < rows.length; k++) if (rows[k].id === st.id) { i = k; break; } }
-      if (i < 0 && rows.length) i = 0;
-      S.i = i;
-      if (st.vol != null) S.vol = st.vol;
-      if (st.muted != null) S.muted = st.muted;
-      if (st.mode) S.mode = st.mode;
-      paint();
-      return rows;
+    }).then(function (out) { return out || []; }).catch(function () { return []; });
+
+    return localP.then(function (local) {
+      /* 登录了就把云端歌单并进来（默认 BGM / 全员 / 班级 / 群体 / 自己的 mine）。
+         云端曲目走公开 URL 播放，不进 IndexedDB（没必要把 111MB 再下到本地存一份）。 */
+      var cloudP = cloudList();
+      return cloudP.then(function (cloud) {
+        var rows = local.concat(cloud);
+        rows.sort(function (a, b) { return (a.addedAt || 0) - (b.addedAt || 0); });
+        S.list = rows;
+        var st = lsGet(), i = -1;
+        if (st.id) { for (var k = 0; k < rows.length; k++) if (rows[k].id === st.id) { i = k; break; } }
+        if (i < 0 && rows.length) i = 0;
+        S.i = i;
+        if (st.vol != null) S.vol = st.vol;
+        if (st.muted != null) S.muted = st.muted;
+        if (st.mode) S.mode = st.mode;
+        paint();
+        return rows;
+      });
     }).catch(function () { S.list = []; paint(); return []; });
   }
 
@@ -169,10 +258,59 @@
     return String(n || '').replace(EXT, '').replace(/^\d{1,3}[\s._-]+/, '').trim().slice(0, 120) || '未命名';
   }
 
+  /* 上传一个文件到 Storage 桶 hx-music，返回桶内 path。文件名用随机 id 避免中文/特殊字符撞 URL。 */
+  function uploadCloud(file) {
+    var t = tok(); if (!t) return Promise.reject(new Error('没登录'));
+    var ext = (file.name.match(/\.([a-z0-9]+)$/i) || [0, 'mp3'])[1].toLowerCase();
+    var path = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8) + '.' + ext;
+    return fetch(SUPA + '/storage/v1/object/hx-music/' + path, {
+      method: 'POST',
+      headers: { apikey: SKEY_PUB, Authorization: 'Bearer ' + t, 'Content-Type': file.type || 'audio/mpeg' },
+      body: file
+    }).then(function (r) {
+      if (!r.ok) return r.text().then(function (x) { throw new Error((x || '').slice(0, 140) || ('HTTP ' + r.status)); });
+      return path;
+    });
+  }
+
+  /* 登录：传云端（Storage 上传 → hx_music_save 登记）；未登录：传本地 IndexedDB。 */
   function add(files) {
     var arr = Array.prototype.slice.call(files || []);
     var ok = arr.filter(function (f) { return EXT.test(f.name) || /^audio\//.test(f.type || ''); });
     if (!ok.length) return Promise.resolve(0);
+
+    if (cloudOn()) {
+      return cloudQuota().then(function (q) {
+        /* 学生限 1 首：额度用完了直接挡，一句说清，不静默失败 */
+        if (q && q.can_upload === false) {
+          S.err = '学生账号只能上传一首歌（' + (q.used || 0) + '/' + (q.limit || 1) + '）';
+          paint();
+          return 0;
+        }
+        var n = 0;
+        return ok.reduce(function (p, f) {
+          return p.then(function () {
+            return probe(f).then(function (dur) {
+              return uploadCloud(f).then(function (path) {
+                return rpc('hx_music_save', {
+                  p_title: cleanName(f.name), p_artist: '', p_path: path, p_cover: '',
+                  p_duration: Math.round(dur * 10) / 10, p_scope: 'mine'
+                }).then(function () { n++; });
+              });
+            });
+          });
+        }, Promise.resolve()).then(function () {
+          S.err = n ? '' : S.err;
+          return loadList().then(function () { return n; });
+        });
+      }).catch(function (e) {
+        S.err = e.message || '上传失败';
+        paint();
+        return 0;
+      });
+    }
+
+    /* 未登录：本地 IndexedDB（现有行为） */
     return openDB().then(function (db) {
       var n = 0;
       return ok.reduce(function (p, f) {
@@ -191,8 +329,17 @@
 
   function remove(id) {
     if (!id) return Promise.resolve();
+    var tr = null;
+    for (var k = 0; k < S.list.length; k++) if (S.list[k].id === id) { tr = S.list[k]; break; }
     var wasCur = id === curId();
     if (wasCur) { try { audio().pause(); } catch (e) { } }
+    /* 云端曲目：调 hx_music_del（owner 或管理员能删），并删 Storage 里的对象 */
+    if (tr && tr.cloud) {
+      return rpc('hx_music_del', { p_id: tr.cid }).then(function () {
+        if (wasCur) { S.playing = false; curURL = ''; A && (A.removeAttribute('src')); }
+        return loadList();
+      }).catch(function (e) { S.err = e.message || '删除失败'; paint(); return loadList(); });
+    }
     return openDB().then(function (db) {
       return tx(db, [META, BLOB], 'readwrite', function (t) {
         t.objectStore(META).delete(id);
@@ -207,6 +354,8 @@
   function clear() {
     try { audio().pause(); } catch (e) { }
     S.playing = false; S.i = -1; curURL = '';
+    /* 只清本地的（IndexedDB）。云端歌单（默认 BGM / 班级 / 群体 / 自己发布的）不能从这里清掉，
+       它们归数据库管，要删走「删除」按钮（hx_music_del）。 */
     return openDB().then(function (db) {
       return tx(db, [META, BLOB], 'readwrite', function (t) {
         t.objectStore(META).clear(); t.objectStore(BLOB).clear();
@@ -220,6 +369,17 @@
     if (!tr) return Promise.resolve(false);
     S.i = i; S.err = ''; S.cur = seekTo || 0; S.dur = tr.dur || 0;
     paint();
+    /* 云端曲目：直接用公开 URL，不碰 IndexedDB */
+    if (tr.cloud && tr.url) {
+      var a0 = audio();
+      if (curURL) { URL.revokeObjectURL(curURL); curURL = ''; }
+      curURL = tr.url;
+      a0.src = tr.url;
+      if (seekTo) { try { a0.currentTime = seekTo; } catch (e) { } }
+      a0.volume = S.muted ? 0 : S.vol;
+      return Promise.resolve(true);
+    }
+    /* 本地曲目：从 IndexedDB 读 blob */
     return openDB().then(function (db) {
       return tx(db, [BLOB], 'readonly', function (t) { return wrap(t.objectStore(BLOB).get(tr.id)); });
     }).then(function (out) {
@@ -486,10 +646,13 @@
       '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">' +
         '<button class="hxp-btn" data-a="import" style="display:inline-flex;align-items:center;gap:6px;width:auto;padding:0 14px;height:36px;border-radius:99px;border:1px solid var(--edge);font-size:13px">' +
           '<span style="display:inline-flex">' + IC.note + '</span><span>导入音乐</span></button>' +
+        '<button class="hxp-btn" data-a="publish" style="display:none;align-items:center;gap:6px;width:auto;padding:0 14px;height:36px;border-radius:99px;border:1px solid var(--edge);font-size:13px">' +
+          '<span style="display:inline-flex">' + IC.note + '</span><span>发布</span></button>' +
         '<span class="hxp-sub" data-t="count" style="font-size:12px;color:var(--dim)">0 首</span>' +
         '<span style="flex:1"></span>' +
-        '<button class="hxp-x" data-a="clearlist" title="清空歌单">清空</button>' +
+        '<button class="hxp-x" data-a="clearlist" title="清空本地歌单">清空</button>' +
       '</div>' +
+      '<div data-t="publish" style="display:none"></div>' +
       '<div class="hxp-list" data-t="list"></div>';
     host.appendChild(card);
 
@@ -505,7 +668,8 @@
         else if (a === 'mute') mute();
         else if (a === 'mode') cycleMode();
         else if (a === 'import') fileIn.click();
-        else if (a === 'clearlist') { if (confirm('清空整个歌单？音频文件会从本机删掉，不能恢复。')) clear(); }
+        else if (a === 'publish') openPublish(card);
+        else if (a === 'clearlist') { if (confirm('清空本地歌单？云端发布的歌不受影响，本机导入的音频会删掉。')) clear(); }
       };
     });
     fileIn.onchange = function () { add(fileIn.files).then(function (n) { if (n) resumeIfIdle(); fileIn.value = ''; }); };
@@ -518,6 +682,14 @@
     card.addEventListener('drop', function (e) {
       e.preventDefault();
       if (e.dataTransfer && e.dataTransfer.files) add(e.dataTransfer.files).then(function (n) { if (n) resumeIfIdle(); });
+    });
+
+    /* 教师/管理员：显示「发布」按钮（学生看不到） */
+    cloudWho().then(function (m) {
+      if (isStaff(m)) {
+        var pb = card.querySelector('[data-a="publish"]');
+        if (pb) pb.style.display = 'inline-flex';
+      }
     });
 
     var row = { host: host, wrap: card, list: card.querySelector('[data-t="list"]') };
@@ -533,6 +705,95 @@
     load(S.i < 0 ? 0 : S.i, 0).then(function () { S.ready = true; paint(); });
   }
 
+  /* ---------------- 发布表单（教师/管理员）----------------
+     教师能发：全员（all）+ 自己名下的班级（class）
+     管理员额外能发：群体（group，指定 member_ids）+ 默认 BGM（default）
+     学生/第三方看不到「发布」按钮，走不到这里。 */
+  function openPublish(card) {
+    var box = card.querySelector('[data-t="publish"]');
+    if (!box) return;
+    if (box.style.display !== 'none') { box.style.display = 'none'; box.innerHTML = ''; return; }
+    box.innerHTML = '<div class="hxp-empty">正在加载发布选项…</div>';
+    box.style.display = 'block';
+    Promise.all([cloudWho(), cloudClasses()]).then(function (r) {
+      var me = r[0], cls = r[1];
+      var admin = isAdmin(me), staff = isStaff(me);
+      if (!staff) { box.innerHTML = '<div class="hxp-empty">只有老师或管理员能发布。</div>'; return; }
+      var scopeOpts =
+        '<label style="display:flex;align-items:center;gap:8px;margin:6px 0;font-size:13px"><input type="radio" name="pscope" value="all" checked> 全员可见（所有登录用户）</label>' +
+        '<label style="display:flex;align-items:center;gap:8px;margin:6px 0;font-size:13px"><input type="radio" name="pscope" value="class"> 发布到我的班级</label>' +
+        (admin ? '<label style="display:flex;align-items:center;gap:8px;margin:6px 0;font-size:13px"><input type="radio" name="pscope" value="group"> 发布到群体（指定人）</label>' +
+                 '<label style="display:flex;align-items:center;gap:8px;margin:6px 0;font-size:13px"><input type="radio" name="pscope" value="default"> 设为默认背景音乐（所有人）</label>' : '');
+      var clsBox = cls.length
+        ? '<div data-pcls style="display:none;margin:6px 0 4px">' + cls.map(function (c) {
+            return '<label style="display:flex;align-items:center;gap:8px;margin:4px 0;font-size:13px"><input type="checkbox" name="pcls" value="' + c.id + '"> ' + esc(c.name || ('班级' + c.id)) + '</label>';
+          }).join('') + '</div>'
+        : '<div data-pcls style="display:none;margin:6px 0 4px;font-size:12px;color:var(--dim)">还没有班级，先去首页「班级」建一个。</div>';
+      var groupBox = admin
+        ? '<div data-pgroup style="display:none;margin:6px 0 4px"><input type="text" name="pgroup" placeholder="群体名（备注用，不参与过滤）" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--edge);background:var(--bg);color:var(--ink);font-size:13px"></div>'
+        : '';
+      box.innerHTML =
+        '<div style="padding:12px;border:1px solid var(--edge);border-radius:14px;background:var(--fill)">' +
+          '<div style="font-size:13px;font-weight:500;margin-bottom:4px">发布一首歌</div>' +
+          '<input type="file" name="pfile" accept="audio/*,.mp3,.m4a,.aac,.ogg,.opus,.wav,.flac" style="font-size:12px;margin:6px 0">' +
+          '<div>' + scopeOpts + '</div>' + clsBox + groupBox +
+          '<div style="display:flex;gap:8px;margin-top:10px">' +
+            '<button data-ppub style="flex:1;padding:9px;border:0;border-radius:10px;background:var(--ink);color:var(--bg);font-size:13px;cursor:pointer">发布</button>' +
+            '<button data-pcancel style="padding:9px 16px;border:1px solid var(--edge);border-radius:10px;background:transparent;color:var(--ink);font-size:13px;cursor:pointer">取消</button>' +
+          '</div>' +
+          '<div data-pmsg style="font-size:12px;color:var(--dim);margin-top:8px"></div>' +
+        '</div>';
+      var scopes = box.querySelectorAll('[name="pscope"]');
+      var pcls = box.querySelector('[data-pcls]'), pgroup = box.querySelector('[data-pgroup]');
+      function syncScope() {
+        var v = box.querySelector('[name="pscope"]:checked').value;
+        if (pcls) pcls.style.display = v === 'class' ? 'block' : 'none';
+        if (pgroup) pgroup.style.display = v === 'group' ? 'block' : 'none';
+      }
+      scopes.forEach(function (s) { s.onchange = syncScope; });
+      syncScope();
+      box.querySelector('[data-pcancel]').onclick = function () { box.style.display = 'none'; box.innerHTML = ''; };
+      box.querySelector('[data-ppub]').onclick = function () {
+        var msg = box.querySelector('[data-pmsg]');
+        var f = box.querySelector('[name="pfile"]').files[0];
+        var scope = box.querySelector('[name="pscope"]:checked').value;
+        if (!f) { msg.textContent = '先选一个音频文件'; return; }
+        msg.textContent = '正在上传…';
+        var class_ids = [], group_name = '', member_ids = [];
+        if (scope === 'class') {
+          box.querySelectorAll('[name="pcls"]:checked').forEach(function (c) { class_ids.push(+c.value); });
+          if (!class_ids.length) { msg.textContent = '至少选一个班级'; return; }
+        }
+        if (scope === 'group') { group_name = (box.querySelector('[name="pgroup"]') || {}).value || ''; }
+        var doSave = function (path, dur) {
+          var body = { p_title: cleanName(f.name), p_artist: '', p_path: path, p_cover: '', p_duration: Math.round(dur * 10) / 10, p_scope: scope, p_class_ids: class_ids, p_member_ids: member_ids, p_group: group_name };
+          var p = scope === 'default' ? rpc('hx_music_publish_default', { p_title: body.p_title, p_artist: '', p_path: path, p_cover: '', p_duration: body.p_duration }) : rpc('hx_music_save', body);
+          return p;
+        };
+        probe(f).then(function (dur) {
+          return uploadCloud(f).then(function (path) { return doSave(path, dur); });
+        }).then(function () {
+          msg.textContent = '已发布'; box.style.display = 'none'; box.innerHTML = '';
+          loadList();
+        }).catch(function (e) { msg.textContent = '发布失败：' + (e.message || '未知错误'); });
+      };
+    });
+  }
+
+  /* scope → 歌单里的小标签（云端曲目显示来源，本地不显示） */
+  var SCOPE_TAG = {
+    'default': ['默认', '--acc'],
+    'all': ['全员', 'var(--ok)'],
+    'class': ['班级', 'var(--ok)'],
+    'group': ['群体', 'var(--ok)'],
+    'mine': ['我的', 'var(--dim)']
+  };
+  function scopeTag(t) {
+    if (!t || !t.cloud) return '';
+    var st = SCOPE_TAG[t.scope] || ['', 'var(--dim)'];
+    return '<span style="font-size:10px;padding:1px 7px;border-radius:99px;background:color-mix(in srgb,' + st[1] + ' 18%,transparent);color:' + st[1] + ';flex:none">' + st[0] + '</span>';
+  }
+
   function renderList(row) {
     if (!row || !row.list) return;
     var L = S.list;
@@ -541,10 +802,17 @@
       return;
     }
     row.list.innerHTML = L.map(function (t, i) {
+      /* 云端曲目：显示 scope 标签 +（有封面就显示封面）；本地曲目：显示文件大小 */
+      var sub = t.cloud
+        ? (scopeTag(t) + (t.artist ? '<span class="hxp-sub" style="display:block">' + esc(t.artist) + '</span>' : ''))
+        : '<span class="hxp-sub" style="display:block">' + (t.size ? (t.size < 1048576 ? Math.max(1, Math.round(t.size / 1024)) + ' KB' : (t.size / 1048576).toFixed(1) + ' MB') : '') + '</span>';
+      var cover = t.cloud && t.cover
+        ? '<span class="hxp-cover" style="flex:none"><img src="' + esc(cloudURL(t.cover)) + '" alt=""></span>'
+        : '';
       return '<div class="hxp-row' + (i === S.i ? ' on' : '') + '" data-i="' + i + '">' +
         '<span class="hxp-n">' + (i === S.i && S.playing ? '▶' : (i + 1)) + '</span>' +
-        '<span class="hxp-info"><span class="hxp-name" style="display:block">' + esc(t.name) + '</span>' +
-        '<span class="hxp-sub" style="display:block">' + (t.size ? (t.size < 1048576 ? Math.max(1, Math.round(t.size / 1024)) + ' KB' : (t.size / 1048576).toFixed(1) + ' MB') : '') + '</span></span>' +
+        cover +
+        '<span class="hxp-info"><span class="hxp-name" style="display:block">' + esc(t.name) + '</span>' + sub + '</span>' +
         '<span class="hxp-dur">' + fmt(t.dur) + '</span>' +
         '<button class="hxp-x" data-del="' + esc(t.id) + '" title="从歌单删除">×</button></div>';
     }).join('');
@@ -593,6 +861,18 @@
       var h1 = w.querySelector('.hxp-h1'), h2 = w.querySelector('.hxp-h2');
       if (h1) h1.textContent = t ? t.name : '还没选歌';
       if (h2) h2.textContent = S.err ? S.err : (t ? (S.playing ? '正在播放' : (wantResume && !S.playing ? '点播放继续' : '已暂停')) : '导入 mp3 就能开始');
+      /* 封面：当前曲是云端且有 cover 时显示图，否则回音符图标（hero 大封面 + bar 小封面都刷） */
+      var coverURL = (t && t.cloud && t.cover) ? cloudURL(t.cover) : '';
+      var art = w.querySelector('.hxp-art');
+      if (art) {
+        if (coverURL) { art.innerHTML = '<img src="' + esc(coverURL) + '" alt="" style="width:100%;height:100%;object-fit:cover">'; }
+        else { art.innerHTML = IC.note; }
+      }
+      var cv = w.querySelector('.hxp-cover');
+      if (cv && !r.list) {
+        if (coverURL) { cv.innerHTML = '<img src="' + esc(coverURL) + '" alt="">'; }
+        else { cv.innerHTML = IC.note; }
+      }
       var cnt = w.querySelector('[data-t="count"]');
       if (cnt) cnt.textContent = S.list.length + ' 首' + (S.err ? '　' + S.err : '');
       if (r.list) renderList(r);
@@ -639,7 +919,16 @@
         var st = {}; try { st = JSON.parse(e.newValue) || {}; } catch (x) { }
         if (st.vol != null && st.vol !== S.vol) { S.vol = st.vol; if (A) A.volume = S.muted ? 0 : S.vol; }
       }
+      /* 登录 / 登出（paike-session 变了）→ 重拉歌单：登录后要把云端默认 BGM / 全员 / 班级 / 群体并进来，
+         登出后要把它们撤掉（只留本地）。跨标签页登录在这页也能跟上。 */
+      if (e.key === SKEY_SESS) { loadList(); }
     });
+    /* 同页登录/登出（不跨标签页时 storage 事件不触发）：盯 paike-session 的变化 */
+    var lastTok = tok();
+    setInterval(function () {
+      var now = tok();
+      if (now !== lastTok) { lastTok = now; loadList(); }
+    }, 2000);
   }
 
   W.HXPlayer = {
@@ -650,7 +939,15 @@
     seek: seek, volume: volume, mute: mute,
     setMode: setMode, cycleMode: cycleMode,
     on: on, bar: bar, panel: panel, topBar: topBar,
-    fmt: fmt, ready: function () { return loadList(); }
+    fmt: fmt, ready: function () { return loadList(); },
+    /* 云（2026-11-09）：登录后重拉歌单（默认 BGM/全员/班级/群体/自己的），换设备登进来就能看到 */
+    cloud: cloudOn,
+    cloudQuota: cloudQuota,
+    refresh: function () { return loadList(); },
+    /* 发布 / 撤回 / 默认 BGM（教师/管理员专用，见 hx_music_save/publish_default/del） */
+    publish: function (o) { return rpc('hx_music_save', o); },
+    publishDefault: function (o) { return rpc('hx_music_publish_default', o); },
+    delCloud: function (cid) { return rpc('hx_music_del', { p_id: cid }); }
   };
 
   if (D.readyState === 'loading') D.addEventListener('DOMContentLoaded', boot);
