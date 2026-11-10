@@ -87,14 +87,10 @@
     if (lessonTag !== lastLessonTag) { lastLessonTag = lessonTag; peerMsg = ''; }
 
     root.innerHTML = '<h2 class="sec-title">组内个人评分</h2>' +
-      '<p class="note">所有小组都在这一页往下连续排开，不用再选组。学生一提交就<b>直接计分</b>，不用老师再逐列确认。角标一眼看来源：<b>「组员平均」</b>＝组员们给组长打的平均完成率（至少 2 人打才计入，标在组长那一行；组长换过人的，前任组长行上留下的「曾任组长」是他当组长时组员打的平均分）；<b>「互评」</b>＝组长给这一位组员打的完成率；<b>「师」</b>＝老师直接填的分。<b>要改分直接点格子</b>的 20%–100%（带「师」角标），或者关掉上面的「组长打分」开关再慢慢改；每列右下角的「清空本列」= 这一列本轮作废，学生要重新打才有分。<b>注意</b>：某一列历史上被标记过「已确认」时，学生那边会收到「这一列老师已经确认」——想让他们重打，先点该列「清空本列」。</p>' +
+      '<p class="note">所有小组都在这一页往下连续排开，不用再选组。学生一提交就<b>直接计分</b>，不用老师再逐列确认。角标一眼看来源：<b>「组员平均」</b>＝组员们给组长打的平均完成率（至少 2 人打才计入，标在组长那一行；组长换过人的，前任组长行上留下的「曾任组长」是他当组长时组员打的平均分）；<b>「互评」</b>＝组长给这一位组员打的完成率；<b>「师」</b>＝老师直接填的分。<b>要改分直接点格子</b>的 20%–100%（带「师」角标），或者关掉上面的「互评」开关再慢慢改。</p>' +
       '<div class="card lesson-bar"><label class="field"><span>班级</span><select id="leaderClassSel">' + pool.map(function (c) { return '<option value="' + esc(c.id) + '"' + (cls && c.id === cls.id ? ' selected' : '') + '>' + esc(c.name) + '</option>'; }).join('') + '</select></label>' +
       '<label class="field"><span>课次</span><select id="leaderLessonSel"' + (!lessons.length ? ' disabled' : '') + '>' + lessons.map(function (l) { return '<option value="' + esc(l.id) + '"' + (lesson && l.id === lesson.id ? ' selected' : '') + '>第' + l.seq + '次 · ' + esc(l.date) + '</option>'; }).join('') + '</select></label></div><div id="leaderSheet"></div>';
     root.querySelector('#leaderClassSel').onchange = function () { context.select(this.value, null); };
-    var manage = document.createElement('button');
-    manage.className = 'btn'; manage.id = 'leaderManageGroups'; manage.textContent = '名单与分组';
-    manage.onclick = function () { context.openGroups(); };
-    root.querySelector('.lesson-bar').appendChild(manage);
     root.querySelector('#leaderLessonSel').onchange = function () { context.select(cls.id, this.value); };
 
     var sheet = root.querySelector('#leaderSheet');
@@ -346,25 +342,11 @@
         '</thead></table></div></div>';
     }
 
-    /* ---------- 顶部：逐列操作条（一列一格，只剩「清空本列」） ---------- */
-    function dockCellHtml(i) {
-      var name = String(sharedProjects[i] || '').trim();
-      if (!name) return '<span class="peer-cmd-none">先填项目名</span>';
-      var stt = statusOfProject[name] || '';
-      var all = submittedByProject[name] || { total: 0, groups: {} };
-      var label = stt === 'confirmed' ? '历史标记：已确认' : stt === 'rejected' ? '已清空 · 等学生重打' : '';
-      var countText = all.total ? '已收 ' + all.total + ' 条提交（直接计分）' : '还没有学生提交';
-      return '<div class="peer-cmd' + (stt ? ' is-' + stt : '') + '">' +
-        (label ? '<span class="peer-status is-' + stt + '">' + label + '</span>' : '') +
-        '<span class="peer-cmd-count">' + countText + '</span>' +
-        '<span class="peer-cmd-btns"><button type="button" class="btn tiny peer-no" data-peer-clear="' + esc(name) + '"' + ((!all.total && stt !== 'confirmed') ? ' disabled' : '') + '>清空本列</button></span>' +
-        '<span class="peer-cmd-hint">清空 = 这一列本轮作废，学生要重新打才有分</span></div>';
-    }
+    /* ---------- 顶部：提交汇总条（2026-11-10 删掉「清空本列」，只保留提交计数和说明） ---------- */
     function dockHtml() {
       return '<div class="peer-dock' + (peerReady && hasAnyActivity() ? '' : ' peer-dock-off') + '" id="leaderPeerDock">' + dockInnerHtml() + '</div>';
     }
     function hasAnyActivity() {
-      if (Object.keys(statusOfProject).length) return true;   // 有历史「已确认」也要能把这一列清掉
       return Object.keys(submittedByProject).some(function (p) { return submittedByProject[p].total > 0; });
     }
     function dockInnerHtml() {
@@ -373,16 +355,13 @@
         return '<div class="peer-summary" id="leaderPeerSummary">' + summaryHtml() + '</div>' +
           '<p class="peer-dock-msg" id="leaderPeerMsg" role="status">' + esc(peerMsg || '下面每一格都可以直接点 20%–100% 给分（带「师」角标），不用等学生提交。') + '</p>';
       }
-      /* 这一节既没有学生提交、也没有历史「已确认」时，清空条上没有可点的东西，收起来别白占 80px */
+      /* 这一节还没有学生提交时，收起来别白占空间 */
       if (!hasAnyActivity()) {
         return '<div class="peer-summary" id="leaderPeerSummary">' + summaryHtml() + '</div>' +
           '<p class="peer-dock-msg" id="leaderPeerMsg" role="status">' + esc(peerMsg || '点任意格子 20%–100% 可以直接给分（带「师」角标）；学生一提交也会直接计入。') + '</p>';
       }
-      var cmdRow = '<tr class="peer-cmd-row"><th class="peer-dock-corner" aria-hidden="true"></th><th class="peer-dock-lead"><b>逐列清空</b><small>对本班所有组生效</small></th>' +
-        sharedProjects.map(function (_, i) { return '<td class="peer-cmd-cell" data-dock-col="' + i + '">' + dockCellHtml(i) + '</td>'; }).join('') + '</tr>';
       return '<div class="peer-summary" id="leaderPeerSummary">' + summaryHtml() + '</div>' +
-        '<div class="tablewrap peer-tablewrap peer-dock-wrap" style="--peer-cols:' + sharedProjects.length + '"><table class="leader-table peer-dock-table"><thead>' + cmdRow + '</thead></table></div>' +
-        '<p class="peer-dock-msg" id="leaderPeerMsg" role="status">' + esc(peerMsg || '学生提交的分已经直接计入：「组员平均」＝组员们给组长打的平均分（只在组长那行；前任组长行上的「曾任组长」是他当组长时打的），「互评」＝组长给组员的分，「师」＝你直接填的分；要作废一整列就点「清空本列」，连点两次才生效。') + '</p>';
+        '<p class="peer-dock-msg" id="leaderPeerMsg" role="status">' + esc(peerMsg || '学生提交的分已经直接计入：「组员平均」＝组员们给组长打的平均分（只在组长那行；前任组长行上的「曾任组长」是他当组长时打的），「互评」＝组长给组员的分，「师」＝你直接填的分。要改分直接点格子。') + '</p>';
     }
 
     /* ---------- 每一组一块 ---------- */
@@ -456,11 +435,11 @@
     }
 
     var gateOpen = !!lesson.peerGate;
-    var gateText = !peerReady ? '组长打分 · 需要登录教师账号' : (gateOpen ? '组长打分：本节课已开放' : '组长打分：未开放');
+    var gateText = !peerReady ? '互评 · 需要登录教师账号' : (gateOpen ? '互评：本节课已开放' : '互评：未开放');
     sheet.innerHTML = '<div class="peer-gate' + (gateOpen ? ' is-open' : '') + '" id="leaderPeerBar"><span class="peer-gate-ico" aria-hidden="true">' + (gateOpen ? '●' : '○') + '</span>' +
       '<button type="button" class="btn peer-gate-btn" id="leaderPeerToggle" aria-pressed="' + (gateOpen ? 'true' : 'false') + '"' + (peerReady ? '' : ' title="' + esc(peerReason) + '"') + '>' + esc(gateText) + '</button>' +
       '<button type="button" class="btn tiny" id="leaderPeerRefresh"' + (!peerReady ? ' disabled' : '') + '>刷新提交</button>' +
-      '<span class="peer-gate-note" id="leaderPeerNote">' + (peerReady ? '开放后组长只能打本节课；组员给组长打分取平均；学生提交直接计分，要改直接点格子或关掉开关。' : '互评需要：' + esc(peerReason)) + '</span></div>' +
+      '<span class="peer-gate-note" id="leaderPeerNote">' + (peerReady ? '开放后本组互相打分：组长给组员打分、组员给组长打分取平均；学生提交直接计分，要改直接点格子或关掉开关。' : '互评需要：' + esc(peerReason)) + '</span></div>' +
       colCardHtml() + dockHtml() +
       '<div class="peer-blocks" id="leaderBlocks">' + states.map(blockHtml).join('') + '</div>';
 
@@ -482,41 +461,6 @@
       sheet.querySelectorAll('.peer-cell').forEach(function (el) {
         var st = byGno[String(el.dataset.gno)];
         if (st) paintCell(el, st, el.dataset.member, +el.dataset.peerCell);
-      });
-    }
-
-    /* ---------- 清空本列（原来的「否决」） ---------- */
-    function runClear(name, btn) {
-      /* 用户原话「不要开弹窗，我直接下滑全看清」：清空会删学生提交，不用 window.confirm 拦，
-         改成按钮自己变「确定清空？」——第一次点只是上膛，3 秒内再点一次才真的执行。 */
-      if (!btn.dataset.armed) {
-        btn.dataset.armed = '1';
-        btn.textContent = '确定清空？';
-        btn.classList.add('is-armed');
-        setMsg('再点一次「确定清空？」就会删掉「' + name + '」这一列本轮所有学生提交（本班所有组），学生要重新打才有分。');
-        setTimeout(function () {
-          if (btn.isConnected && btn.dataset.armed) {
-            delete btn.dataset.armed;
-            btn.classList.remove('is-armed');
-            btn.textContent = '清空本列';
-          }
-        }, 3000);
-        return;
-      }
-      delete btn.dataset.armed;
-      btn.classList.remove('is-armed');
-      if (btn) btn.disabled = true;
-      setMsg('正在清空「' + name + '」…');
-      peer.confirm(cls, lesson, name, false).then(function (res) {
-        /* 本地先改状态再只重画相关区块：不整页重绘，老师滑到第几组就停在第几组 */
-        statusOfProject[name] = 'rejected';
-        reindexSubmitted();
-        repaintPeer();
-        var changed = res && res.changed ? '（' + res.changed + ' 格）' : '';
-        setMsg('「' + name + '」本轮提交已清空' + changed + '，学生重新提交才会再计分。');
-      }, function (err) {
-        if (btn) btn.disabled = false;
-        setMsg((err && err.message) || '清空失败，检查网络后重试。');
       });
     }
 
@@ -553,11 +497,11 @@
       if (next && !old && context.peer && typeof context.peer.setGate === 'function' &&
           context.peer.ready && context.peer.ready(cls) && !lesson.peerGate) {
         context.peer.setGate(cls, lesson, true).then(function () {
-          peerMsg = '已自动开放本节课的组长打分（刚填了项目名「' + next + '」，学生现在就能打了）。';
+          peerMsg = '已自动开放本节课的互评（刚填了项目名「' + next + '」，学生现在就能打了）。';
           rerenderKeepScroll();
         }, function (err) {
           /* 自动发布失败不打断老师填名，只提示一句，让他手动点开关 */
-          peerMsg = '项目名已存，但自动发布没成功：' + ((err && err.message) || '网络问题') + '。请点上面的「组长打分」开关手动发布。';
+          peerMsg = '项目名已存，但自动发布没成功：' + ((err && err.message) || '网络问题') + '。请点上面的「互评」开关手动发布。';
         });
       }
     }
@@ -639,8 +583,6 @@
         }
         return;
       }
-      var no = t.closest('[data-peer-clear]');
-      if (no) { runClear(no.dataset.peerClear, no); return; }
       var add = t.closest('#leaderAddProject');
       if (add) { addProject(); return; }
       var del = t.closest('[data-remove-project]');
@@ -690,14 +632,14 @@
       if (t.matches('[data-note]')) { var st2 = byGno[String(t.dataset.note)]; if (st2) { st2.rec.note = t.value; persist(st2); } }
     });
 
-    /* ---------- 本节课「组长打分」开关 + 刷新提交 ---------- */
+    /* ---------- 本节课「互评」开关 + 刷新提交 ---------- */
     var bar = sheet.querySelector('#leaderPeerBar'), toggle = sheet.querySelector('#leaderPeerToggle'), refresh = sheet.querySelector('#leaderPeerRefresh');
     function setGateUI(open) {
       lesson.peerGate = !!open;
       bar.classList.toggle('is-open', !!open);
       bar.querySelector('.peer-gate-ico').textContent = open ? '●' : '○';
       toggle.setAttribute('aria-pressed', open ? 'true' : 'false');
-      toggle.textContent = open ? '组长打分：本节课已开放' : '组长打分：未开放';
+      toggle.textContent = open ? '互评：本节课已开放' : '互评：未开放';
     }
     if (peerReady) {
       toggle.onclick = function () {
@@ -705,7 +647,7 @@
         toggle.disabled = true;
         toggle.textContent = going ? '正在开放…' : '正在关闭…';
         peer.setGate(cls, lesson, going).then(function () {
-          peerMsg = going ? '已开放本节课的组长打分（组长只能打这一节，其他课次只读）。' : '已关闭：组长现在只能看，不能改分。';
+          peerMsg = going ? '已开放本节课互评（组长给组员、组员给组长打分取平均，只能打这一节）。' : '已关闭：学生现在只能看，不能改分。';
           rerenderKeepScroll();
         }, function (err) {
           toggle.disabled = false; setGateUI(lesson.peerGate);

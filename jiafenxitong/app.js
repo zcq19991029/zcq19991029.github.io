@@ -4664,7 +4664,6 @@ function restoreDroppedToHome(cls) {
 
   $('#btnRestore').addEventListener('click', function () { $('#fileRestore').click(); });
   $('#btnRosterSetup').addEventListener('click', function () { switchView('data'); });
-  $('#btnRosterGroups').addEventListener('click',function(){switchView('pool');});
   function rosterDownload(rows, name) {
     var format = $('#rosterFormat').value;
     if(format==='csv'){download(name+'.csv',toCsv(rows),'text/csv;charset=utf-8');return;}

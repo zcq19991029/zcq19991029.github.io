@@ -1,0 +1,459 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#f6f9f7" />
+  <title>全站备份 · 华夏工具</title>
+  <!-- 单独打开时回总入口（和进制转换同一套守卫）：嵌在总入口里不跳，本地双击 file:// 不跳，?solo 不跳。 -->
+  <script>
+    (function () {
+      if (window.top === window && /^https?:$/.test(location.protocol) && !/[?&]solo\b/.test(location.search))
+        location.replace('../#backup');
+    })();
+  </script>
+  <style>
+    :root {
+      --ink:#1c2321; --muted:#6b7a74; --bg:#f2f6f3; --card:#ffffff; --line:#e3ebe6;
+      --green:#16a34a; --green-deep:#15803d; --green-soft:#e7f6ec;
+      --blue:#2563eb; --blue-soft:#eaf1ff; --amber:#b45309; --amber-soft:#fef3e2;
+      --red:#dc2626; --red-soft:#fdeaea; --shadow:0 12px 32px rgba(23,43,32,.08);
+    }
+    * { box-sizing:border-box; }
+    body {
+      margin:0; color:var(--ink);
+      font-family: ui-rounded, "SF Pro Rounded", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background:
+        radial-gradient(circle at 6% 2%, #dcf3e4 0 10%, transparent 26%),
+        radial-gradient(circle at 94% 10%, #e2edf8 0 8%, transparent 22%),
+        var(--bg);
+      min-height:100vh; overflow-x:hidden;
+    }
+    button, input, select { font:inherit; }
+    button { border:0; cursor:pointer; }
+    .app { position:relative; z-index:1; width:min(860px, calc(100% - 32px)); margin:0 auto; padding:26px 0 46px; }
+    header { margin-bottom:20px; }
+    .brand { display:flex; align-items:center; gap:13px; }
+    .mark { width:52px; height:52px; display:grid; place-items:center; border-radius:16px 16px 20px 15px;
+      background:linear-gradient(135deg,var(--green),var(--green-deep)); color:#fff; box-shadow:inset 0 -5px 0 rgba(0,0,0,.14); }
+    .mark svg { width:28px; height:28px; }
+    h1 { font-size:24px; margin:0; letter-spacing:.01em; }
+    header p { margin:6px 0 0; color:var(--muted); font-size:14px; font-weight:600; line-height:1.6; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:22px; box-shadow:var(--shadow);
+      padding:22px 24px; margin-top:16px; }
+    .card h2 { margin:0 0 4px; font-size:18px; }
+    .card .sub { margin:0 0 16px; color:var(--muted); font-size:13px; font-weight:600; line-height:1.55; }
+    .row { display:flex; flex-wrap:wrap; gap:12px; align-items:center; }
+    .btn { display:inline-flex; align-items:center; gap:8px; padding:12px 18px; border-radius:13px;
+      font-weight:800; font-size:15px; transition:.15s; }
+    .btn:disabled { opacity:.5; cursor:not-allowed; }
+    .btn.green { background:var(--green); color:#fff; box-shadow:0 8px 18px rgba(22,163,74,.25); }
+    .btn.green:hover:not(:disabled) { background:var(--green-deep); }
+    .btn.blue { background:var(--blue); color:#fff; box-shadow:0 8px 18px rgba(37,99,235,.22); }
+    .btn.blue:hover:not(:disabled) { background:#1d4ed8; }
+    .btn.ghost { background:#fff; border:1px solid var(--line); color:var(--ink); }
+    .btn.ghost:hover:not(:disabled) { border-color:#c8d6cd; background:#f7faf8; }
+    label.chk { display:inline-flex; align-items:center; gap:8px; padding:10px 14px; border:1px solid var(--line);
+      border-radius:12px; background:#fafcfa; font-size:14px; font-weight:700; cursor:pointer; user-select:none; }
+    label.chk input { width:17px; height:17px; accent-color:var(--green); }
+    label.chk.warn { background:var(--amber-soft); border-color:#f1d9b0; color:#8a5a13; }
+    .stat { margin-top:16px; padding:14px 16px; border-radius:14px; background:var(--green-soft); border:1px solid #cde9d7;
+      font-size:13px; font-weight:700; color:#1d6b3a; line-height:1.7; display:none; }
+    .stat.warn { background:var(--amber-soft); border-color:#f1d9b0; color:#8a5a13; }
+    .stat b { font-variant-numeric:tabular-nums; }
+    .scope { display:flex; flex-wrap:wrap; gap:8px; }
+    .chip { padding:7px 11px; border-radius:10px; background:#f3f7f4; border:1px solid var(--line);
+      font-size:12px; font-weight:700; color:#3f4f47; }
+    .chip.music { background:#eef4ff; border-color:#d7e3fb; color:#2b4c9e; }
+    .chip.warn { background:var(--red-soft); border-color:#f5cdcd; color:#a12828; }
+    .hint { margin-top:12px; font-size:12px; color:var(--muted); line-height:1.6; }
+    .hint b { color:#8a5a13; }
+    .file-drop { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
+      padding:14px 16px; border:1.5px dashed #cbd9cf; border-radius:14px; background:#fafcfa; margin-bottom:14px; }
+    .file-drop .fname { font-size:14px; font-weight:700; color:#2f3f36; word-break:break-all; }
+    .file-drop .fname.empty { color:#9aa8a0; font-weight:600; }
+    /* 确认弹层 */
+    .modal { position:fixed; inset:0; background:rgba(20,30,24,.42); display:none; align-items:center;
+      justify-content:center; padding:20px; z-index:50; }
+    .modal.open { display:flex; }
+    .modal-box { width:min(480px,100%); background:#fff; border-radius:20px; box-shadow:0 24px 60px rgba(0,0,0,.28);
+      padding:24px; max-height:86vh; overflow:auto; }
+    .modal-box h3 { margin:0 0 10px; font-size:19px; }
+    .modal-box .mbody { font-size:14px; line-height:1.7; color:#3c4a42; }
+    .modal-box .mbody b { color:var(--red); }
+    .modal-box .mrow { display:flex; gap:10px; margin-top:20px; justify-content:flex-end; }
+    .toast { position:fixed; left:50%; bottom:24px; transform:translate(-50%,18px); opacity:0; pointer-events:none;
+      padding:12px 18px; border-radius:13px; background:var(--ink); color:#fff; font-size:13px; font-weight:800;
+      transition:.25s; box-shadow:0 12px 30px rgba(0,0,0,.2); z-index:60; max-width:90vw; }
+    .toast.show { opacity:1; transform:translate(-50%,0); }
+    @media (max-width:560px){ .app{padding:18px 0 30px} .card{padding:18px} .row{gap:8px} .btn{font-size:14px;padding:11px 14px} }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="brand">
+        <div class="mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 12a8 8 0 0 1 13.7-5.6L20 8"/><path d="M20 4v4h-4"/>
+            <path d="M20 12a8 8 0 0 1-13.7 5.6L4 16"/><path d="M4 20v-4h4"/>
+          </svg>
+        </div>
+        <div>
+          <h1>全站备份</h1>
+          <p>一键导出 / 恢复整个华夏工具在本机的全部本地数据（localStorage + 音乐库 IndexedDB）。换电脑、换浏览器或担心数据丢失时用。</p>
+        </div>
+      </div>
+    </header>
+
+    <!-- 导出 -->
+    <section class="card">
+      <h2>导出备份</h2>
+      <p class="sub">把下面列出的所有工具的本地数据打包成一个 JSON 文件下载到本机。建议定期导出保存。</p>
+      <div class="row">
+        <button class="btn green" id="btnExport" type="button">导出备份</button>
+        <label class="chk" title="默认不包含：API 密钥敏感，会随备份文件一起离开本机"><input type="checkbox" id="optAI">包含 AI 密钥</label>
+        <label class="chk warn" id="optMusicWrap" title="音频可能很大，导出成 JSON 会再膨胀约 1/3"><input type="checkbox" id="optMusic" checked>包含音乐音频</label>
+      </div>
+      <div class="stat" id="exportStat"></div>
+    </section>
+
+    <!-- 导入 -->
+    <section class="card">
+      <h2>导入备份</h2>
+      <p class="sub">选一个之前导出的备份 JSON 文件，解析后写回本机。<b style="color:var(--red)">导入会覆盖当前本地数据</b>，请先确认。</p>
+      <div class="file-drop">
+        <span class="fname empty" id="fileName">尚未选择文件</span>
+        <button class="btn ghost" id="btnPick" type="button">选择文件</button>
+      </div>
+      <div class="row">
+        <button class="btn blue" id="btnImport" type="button" disabled>导入并覆盖</button>
+      </div>
+      <div class="stat" id="importStat"></div>
+      <p class="hint">导入范围与导出一致：localStorage 按 key 逐条覆盖写入（不清除备份里没有的 key）；音乐库先清空再整份恢复。<b>备份含登录会话（paike-session），导入后可能需要重新登录。</b></p>
+    </section>
+
+    <!-- 范围说明 -->
+    <section class="card">
+      <h2>备份范围</h2>
+      <p class="sub">以下工具/模块的本地数据会被包含：</p>
+      <div class="scope" id="scopeList"></div>
+      <p class="hint">默认<b>不包含</b> AI 密钥（<code>hx-ai-key:*</code>）和纯同步标记类缓存（小组加分的 base/supabase/session 标记）。这两类可在导出时按需勾选「包含 AI 密钥」或始终排除。</p>
+    </section>
+  </div>
+
+  <div class="modal" id="modal">
+    <div class="modal-box">
+      <h3 id="mTitle">确认导入</h3>
+      <div class="mbody" id="mBody"></div>
+      <div class="mrow">
+        <button class="btn ghost" id="mCancel" type="button">取消</button>
+        <button class="btn blue" id="mOk" type="button">确认导入</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+  (function () {
+    'use strict';
+
+    /* ---------------- 备份范围清单 ----------------
+       精确 key（exact）+ 前缀 key（prefix）。和用户调研的权威清单一一对应。 */
+    var LS_SCOPE = [
+      { label:'共享层 · 登录/主题/AI配置', exact:['paike-session','paike-accounts','hx-theme','hx-theme-img','hx-theme-imgs','hx-lite','hx-ai-v1'], prefix:['hx-theme:'] },
+      { label:'小组加分', exact:['jfdt.v1','jfdt.gb','jfdt-draw-cls','jfdt.accounts.v1','jfdt.owner.v1'], prefix:['jfdt.account.','jfdt.legacy.'] },
+      { label:'排课', exact:['wanxiu-paike-v1','wanxiu-paike-view','wanxiu-paike-theme','paike-device'], prefix:['wanxiu-paike-v1-'] },
+      { label:'单片机上机', exact:['mcu.active','practice.imports','bank.custom','teacher.exam','paper.cfg','answer.pw','ui.page','ui.tpage','ui.theme','player.speedx','take.sid','practice.sel','practice.last','roster.cur'], prefix:[] },
+      { label:'考试', exact:['exam.lib','exam.build','exam.paper','exam.code'], prefix:[] },
+      { label:'刷题', exact:[], prefix:['hx-quiz:'] },
+      { label:'课程进度', exact:['mcu_course_actual_v2','mcu_course_schedule_overrides_v1','mcu_multi_courses_v1','mcu_active_course_v1','mcu_course_term_config','mcu_appearance_v1','mcu_teacher_profile_v1'], prefix:[] },
+      { label:'进制转换', exact:['bitgarden-flowers-v1'], prefix:['夜夜班-'] },
+      { label:'接线仿真', exact:['zfz-parallel','zfz-practice-wire','zfz-practice-sch','zfz-practice-answin','zfz-practice-ctrl','zfz-practice-theme','zfz-practice-toolbar','zfp-par-fold','zfz-draw-cls','zfz-rk-hud','hx-rank-pick'], prefix:['zfz-practice-','zfz-drill-','zfz-fw-'] },
+      { label:'音乐', exact:['hx-music-state'], prefix:[] },
+      { label:'考勤', exact:['hx-att-device'], prefix:[] }
+    ];
+    // 始终排除（缓存/同步标记）
+    var LS_EXCLUDE = { exact:['jfdt.supabase.sync.v1','jfdt.session.v2','jfdt.supabase.session.v1'], prefix:['jfdt.base.v2.'] };
+    var AI_KEY_PREFIX = 'hx-ai-key:';           // 默认排除，勾选才包含
+    var IDB_NAME = 'hx-music', META = 'meta', BLOB = 'blob';
+
+    function $(id){ return document.getElementById(id); }
+    function fmtSize(n){
+      if (n == null || isNaN(n)) return '—';
+      var u = ['B','KB','MB','GB','TB'], i = 0;
+      n = Number(n);
+      while (n >= 1024 && i < u.length - 1){ n /= 1024; i++; }
+      return (i === 0 ? n : n.toFixed(2)) + ' ' + u[i];
+    }
+    function toast(msg){ var t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(function(){ t.classList.remove('show'); }, 3200); }
+
+    /* 判断某个 localStorage key 是否在备份范围内 */
+    function inScope(key, includeAI){
+      if (LS_EXCLUDE.exact.indexOf(key) >= 0) return false;
+      for (var i = 0; i < LS_EXCLUDE.prefix.length; i++) if (key.indexOf(LS_EXCLUDE.prefix[i]) === 0) return false;
+      if (!includeAI && key.indexOf(AI_KEY_PREFIX) === 0) return false;
+      for (var g = 0; g < LS_SCOPE.length; g++){
+        var s = LS_SCOPE[g];
+        if (s.exact.indexOf(key) >= 0) return true;
+        for (var j = 0; j < s.prefix.length; j++) if (key.indexOf(s.prefix[j]) === 0) return true;
+      }
+      return false;
+    }
+
+    /* 读 localStorage：返回命中的 { key: value } */
+    function collectLS(includeAI){
+      var out = {};
+      for (var i = 0; i < localStorage.length; i++){
+        var k = localStorage.key(i);
+        if (!k || !inScope(k, includeAI)) continue;
+        var v = localStorage.getItem(k);
+        if (v == null) continue;
+        out[k] = v;
+      }
+      return out;
+    }
+
+    /* 读 IndexedDB hx-music：meta 全量 + blob 全量（逐条 get，控制内存峰值） */
+    function openIDB(){
+      return new Promise(function (res, rej){
+        if (!('indexedDB' in window)){ rej(new Error('本浏览器不支持 IndexedDB')); return; }
+        var r = indexedDB.open(IDB_NAME);
+        r.onsuccess = function(){ res(r.result); };
+        r.onerror = function(){ rej(r.error); };
+        r.onblocked = function(){ rej(new Error('音乐库正被占用，请先关闭音乐页再试')); };
+      });
+    }
+    function getAll(db, store){
+      return new Promise(function (res, rej){
+        var t = db.transaction(store, 'readonly'), rq = t.objectStore(store).getAll();
+        rq.onsuccess = function(){ res(rq.result || []); };
+        rq.onerror = function(){ rej(rq.error); };
+      });
+    }
+    function getOne(db, store, id){
+      return new Promise(function (res, rej){
+        var t = db.transaction(store, 'readonly'), rq = t.objectStore(store).get(id);
+        rq.onsuccess = function(){ res(rq.result || null); };
+        rq.onerror = function(){ rej(rq.error); };
+      });
+    }
+    function blobToDataUrl(blob){
+      return new Promise(function (res, rej){
+        var fr = new FileReader();
+        fr.onload = function(){ res(fr.result); };
+        fr.onerror = function(){ rej(fr.error); };
+        fr.readAsDataURL(blob);
+      });
+    }
+    function dataUrlToBlob(dataUrl){
+      return new Promise(function (res){
+        // 主方案：fetch dataURL（异步，不卡主线程，能扛大文件）
+        fetch(dataUrl).then(function (r){ return r.blob(); }).then(res, function (){ res(fallback(dataUrl)); });
+      });
+      function fallback(dataUrl){
+        var m = /^data:([^;]+)?(;base64)?,(.*)$/.exec(dataUrl);
+        var mime = (m && m[1]) || 'application/octet-stream';
+        var b64 = m ? m[3] : '';
+        var bin = atob(b64), len = bin.length, ab = new Uint8Array(len);
+        for (var i = 0; i < len; i++) ab[i] = bin.charCodeAt(i);
+        return new Blob([ab], { type: mime });
+      }
+    }
+
+    /* ---------------- 导出 ---------------- */
+    function readIDB(includeMusic){
+      if (!includeMusic) return Promise.resolve(null);
+      return openIDB().then(function (db){
+        return getAll(db, META).then(function (meta){
+          if (!meta.length) return { meta:[], blob:[] };
+          // 逐条读 blob，读一条转一条，避免 getAll 一次把所有音频塞进内存
+          var out = { meta:meta, blob:[] }, p = Promise.resolve();
+          meta.forEach(function (rec){
+            p = p.then(function (){ return getOne(db, BLOB, rec.id); }).then(function (row){
+              if (!row || !row.data) return;
+              return blobToDataUrl(row.data).then(function (du){ out.blob.push({ id: rec.id, dataUrl: du }); });
+            });
+          });
+          return p.then(function (){ return out; });
+        });
+      });
+    }
+
+    $('btnExport').addEventListener('click', function () {
+      var includeAI = $('optAI').checked, includeMusic = $('optMusic').checked;
+      var stat = $('exportStat'); stat.className = 'stat'; stat.style.display = 'block';
+      stat.textContent = '正在读取本地数据…';
+      var btn = $('btnExport'); btn.disabled = true; btn.textContent = '导出中…';
+
+      var lsData;
+      try { lsData = collectLS(includeAI); } catch (e){ finish('读取 localStorage 失败：' + e.message); return; }
+      var lsCount = Object.keys(lsData).length;
+
+      readIDB(includeMusic).then(function (idb){
+        var payload = {
+          version: 1,
+          type: 'huaxia-full-backup',
+          exportedAt: new Date().toISOString(),
+          localStorage: lsData,
+          indexedDB: idb ? { 'hx-music': { meta: idb.meta, blob: idb.blob } } : null
+        };
+        var json;
+        try { json = JSON.stringify(payload); } catch (e){ finish('数据太大，打包失败：' + e.message); return; }
+        var blobRecs = (idb && idb.blob) || [];
+        var metaBytes = 0;
+        (idb && idb.meta || []).forEach(function (m){ if (m && m.size) metaBytes += Number(m.size) || 0; });
+        var fname = '华夏工具全站备份-' + new Date().toISOString().slice(0, 10) + '.json';
+        var a = document.createElement('a');
+        var url = URL.createObjectURL(new Blob([json], { type:'application/json' }));
+        a.href = url; a.download = fname; document.body.appendChild(a); a.click();
+        setTimeout(function (){ URL.revokeObjectURL(url); a.remove(); }, 1500);
+
+        var lines = ['已导出 ' + fname];
+        lines.push('· localStorage：<b>' + lsCount + '</b> 个 key');
+        if (includeMusic){
+          lines.push('· 音乐：<b>' + idb.meta.length + '</b> 首' + (metaBytes ? '，音频约 <b>' + fmtSize(metaBytes) + '</b>' : '') + (blobRecs.length ? '' : '（未读到音频数据）'));
+          if (metaBytes > 50 * 1024 * 1024) { stat.className = 'stat warn'; lines.push('音频较大，JSON 体积约为音频总和的 1.33 倍，导入时也需较大内存。'); }
+        } else {
+          lines.push('· 音乐音频已跳过（未勾选）');
+        }
+        lines.push('· 文件大小约 <b>' + fmtSize(json.length) + '</b>');
+        stat.innerHTML = lines.join('<br>');
+        toast('导出完成');
+        finish();
+      }, function (e){ finish('读音乐库失败（若从未用过音乐属正常）：' + e.message); });
+
+      function finish(msg){
+        btn.disabled = false; btn.textContent = '导出备份';
+        if (msg) { stat.className = 'stat warn'; stat.textContent = msg; }
+      }
+    });
+
+    /* ---------------- 导入 ---------------- */
+    var pending = null;
+    function resetImport(){ pending = null; $('btnImport').disabled = true; $('fileName').textContent = '尚未选择文件'; $('fileName').className = 'fname empty'; }
+
+    $('btnPick').addEventListener('click', function () {
+      var inp = document.createElement('input');
+      inp.type = 'file'; inp.accept = '.json,application/json';
+      inp.onchange = function () {
+        var f = inp.files && inp.files[0];
+        if (!f) return;
+        $('fileName').textContent = f.name + '（' + fmtSize(f.size) + '）';
+        $('fileName').className = 'fname';
+        $('btnImport').disabled = false;
+        pending = f;
+      };
+      inp.click();
+    });
+
+    $('btnImport').addEventListener('click', function () {
+      if (!pending) return;
+      var f = pending;
+      $('btnImport').disabled = true;
+      var stat = $('importStat'); stat.className = 'stat'; stat.style.display = 'block'; stat.textContent = '正在读取文件…';
+      var fr = new FileReader();
+      fr.onload = function () {
+        var data;
+        try { data = JSON.parse(fr.result); } catch (e){ stat.className = 'stat warn'; stat.textContent = '文件不是有效的备份 JSON：' + e.message; $('btnImport').disabled = false; return; }
+        if (data.type !== 'huaxia-full-backup' && data.version == null){ stat.className = 'stat warn'; stat.textContent = '这不是华夏工具的备份文件（缺少标识字段）。'; $('btnImport').disabled = false; return; }
+        pending = data; // 存解析后的对象
+        var ls = data.localStorage || {}, lsCount = Object.keys(ls).length;
+        var idb = data.indexedDB && data.indexedDB['hx-music'];
+        var metaCount = (idb && idb.meta || []).length, blobCount = (idb && idb.blob || []).length;
+        $('mTitle').textContent = '确认导入';
+        $('mBody').innerHTML =
+          '备份时间：<b>' + (data.exportedAt || '未知') + '</b><br>' +
+          '即将写入 <b>' + lsCount + '</b> 个 localStorage key' +
+          (metaCount ? '、<b>' + metaCount + '</b> 首音乐' : '') + '。<br>' +
+          '当前本地的同名数据会被覆盖（音乐库先清空再恢复）。<br>' +
+          '<b>确认继续吗？</b>';
+        $('modal').classList.add('open');
+      };
+      fr.onerror = function (){ stat.className = 'stat warn'; stat.textContent = '读取文件失败。'; $('btnImport').disabled = false; };
+      fr.readAsText(f);
+    });
+
+    $('mCancel').addEventListener('click', function (){ $('modal').classList.remove('open'); $('btnImport').disabled = false; });
+    $('mOk').addEventListener('click', function () {
+      $('modal').classList.remove('open');
+      var data = pending;
+      var stat = $('importStat'); stat.className = 'stat'; stat.style.display = 'block'; stat.textContent = '正在写入本地数据…';
+      var btn = $('btnImport'); btn.disabled = true; btn.textContent = '导入中…';
+      doImport(data).then(function (r){
+        stat.innerHTML = r;
+        toast('导入完成');
+        btn.disabled = false; btn.textContent = '导入并覆盖'; resetImport();
+      }, function (e){
+        stat.className = 'stat warn'; stat.textContent = '导入失败：' + e.message;
+        btn.disabled = false; btn.textContent = '导入并覆盖';
+      });
+    });
+
+    function doImport(data){
+      var ls = data.localStorage || {};
+      var idb = data.indexedDB && data.indexedDB['hx-music'];
+      var lsCount = Object.keys(ls).length;
+      return Promise.resolve().then(function () {
+        // 1) localStorage 逐 key 覆盖写入
+        var keys = Object.keys(ls);
+        for (var i = 0; i < keys.length; i++){
+          try { localStorage.setItem(keys[i], ls[keys[i]]); }
+          catch (e){ throw new Error('写入 localStorage「' + keys[i] + '」失败：' + e.message); }
+        }
+        if (!idb) return '· localStorage：已写入 <b>' + lsCount + '</b> 个 key<br>· 音乐：此备份不含音乐数据';
+        // 2) IndexedDB 先清空再写回
+        return openIDB().then(function (db){
+          return new Promise(function (res, rej){
+            var t = db.transaction([META, BLOB], 'readwrite');
+            t.objectStore(META).clear(); t.objectStore(BLOB).clear();
+            t.oncomplete = res; t.onerror = function(){ rej(t.error); };
+          }).then(function () {
+            // 写 meta
+            var metas = idb.meta || [], blobs = idb.blob || [];
+            var byId = {};
+            blobs.forEach(function (b){ byId[b.id] = b.dataUrl; });
+            var p = Promise.resolve();
+            metas.forEach(function (rec){
+              p = p.then(function (){ return putMeta(db, rec); });
+            });
+            // 写 blob
+            blobs.forEach(function (rec){
+              p = p.then(function (){ return dataUrlToBlob(rec.dataUrl).then(function (b){ return putBlob(db, rec.id, b); }); });
+            });
+            return p.then(function (){
+              return '· localStorage：已写入 <b>' + lsCount + '</b> 个 key<br>· 音乐：恢复 <b>' + metas.length + '</b> 首（含音频 ' + blobs.length + ' 个）';
+            });
+          });
+        });
+      });
+    }
+    function putMeta(db, rec){
+      return new Promise(function (res, rej){
+        var t = db.transaction(META, 'readwrite');
+        t.objectStore(META).put(rec);
+        t.oncomplete = res; t.onerror = function(){ rej(t.error); };
+      });
+    }
+    function putBlob(db, id, blob){
+      return new Promise(function (res, rej){
+        var t = db.transaction(BLOB, 'readwrite');
+        t.objectStore(BLOB).put({ id:id, data:blob });
+        t.oncomplete = res; t.onerror = function(){ rej(t.error); };
+      });
+    }
+
+    /* ---------------- 初始化：范围说明 ---------------- */
+    (function renderScope(){
+      var el = $('scopeList');
+      var html = '';
+      LS_SCOPE.forEach(function (s){ html += '<span class="chip">' + s.label + '</span>'; });
+      html += '<span class="chip music">音乐库（IndexedDB · hx-music 音频）</span>';
+      html += '<span class="chip warn">默认排除：AI 密钥、同步标记</span>';
+      el.innerHTML = html;
+    })();
+  })();
+  </script>
+</body>
+</html>

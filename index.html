@@ -14,12 +14,12 @@
      要登录时调 window.HXPortal.login()；被单独打开时 hx-theme.js 会跳回这里（见 hx-theme.js 的 data-tool）。
      账号：Supabase 华夏工具项目，localStorage paike-session 和各工具共用；身份由数据库 hx_me() 决定。
      脚本里不用反引号模板字符串（本机测试时整页当字符串注入到线上同源页面里）。 -->
-<link rel="stylesheet" href="hx-theme.css?v=dc92fc5">
-<script src="hx-theme.js?v=dc92fc5"></script>
+<link rel="stylesheet" href="hx-theme.css?v=eb35e39">
+<script src="hx-theme.js?v=eb35e39"></script>
 <!-- 首页卡片上的像素小生物：pixelfx 的 12 个 critters（MIT），打包成一个 91 KB 的独立脚本。
      加载失败不影响首页——hx-critters.js 开头就有 window.PixelFX 存在性检查，没有就整段跳过。 -->
-<script src="fx/pixelfx-critters.js?v=dc92fc5" defer></script>
-<script src="fx/hx-critters.js?v=dc92fc5" defer></script>
+<script src="fx/pixelfx-critters.js?v=eb35e39" defer></script>
+<script src="fx/hx-critters.js?v=eb35e39" defer></script>
 <!-- 像素头像库（2026-11-04）：账号面板里除了传照片，还能从 200 多个像素动效里挑一个当头像。
      2026-11-09 改按需加载（用户报「打不开、登录不了」）：这个库 pixelfx-avatars.js 有 1.0 MB，
      而它只在「账号面板 → 像素头像库」这一个子视图里用得到。原来用 defer 挂在每一页上，
@@ -27,11 +27,11 @@
      现在是：不点「像素头像库」一个字节都不下；点了才 loadAvatarLib() 拉（见下面的函数）。
      两个脚本的先后顺序不能反：hx-avatar.js 依赖 window.PixelFXAvatar。 -->
 <!-- 背景动效（2026-11-03）：12 种天气氛围特效铺在背景层，外观面板里选；加载失败或没选就完全不加载渲染器 -->
-<script src="fx/pixelfx-weather.js?v=dc92fc5" defer></script>
-<script src="fx/hx-weather.js?v=dc92fc5" defer></script>
+<script src="fx/pixelfx-weather.js?v=eb35e39" defer></script>
+<script src="fx/hx-weather.js?v=eb35e39" defer></script>
 <!-- 课堂码大屏二维码：离线 QR 编码器（qrcode 1.5.4 core 打包，MIT，见 fx/NOTICE-qr.md）。延迟加载即可：只有老师点「大屏二维码」时才用 -->
-<script src="fx/hx-qr.js?v=dc92fc5" defer></script>
-<script src="hx-scan.js?v=dc92fc5" defer></script><!-- 全站扫一扫（2026-11-08 K5）：摄像头 + BarcodeDetector / 本地 jsQR -->
+<script src="fx/hx-qr.js?v=eb35e39" defer></script>
+<script src="hx-scan.js?v=eb35e39" defer></script><!-- 全站扫一扫（2026-11-08 K5）：摄像头 + BarcodeDetector / 本地 jsQR -->
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; width: 100%; overflow: hidden; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -1028,7 +1028,7 @@ var SITE = location.protocol === 'file:' ? 'https://zcq19991029.github.io' : '';
 // stu 是「学生点开时去哪个页面」：不给就照 who:'all' 用 url。给 who:'all' + stu 就是「老师进完整工具、
 // 学生只进一个页面」——2026-11-03 用户要「单独开放小组加分里面的分组模块给学生」，先用这个机制开一个模块。
 // pop 是「不挂工具页、点开直接弹层」的卡片（2026-11-08 用户要求把顶栏的 ? 和 AI 两颗圆钮挪成卡片）。
-var GROUPS = [['学习', ['wiring', 'quiz', 'base', 'mcu', 'exam']], ['教学', ['kaoqin', 'ziliao', 'paike', 'jiafen', 'course']], ['维护', ['help', 'ai', 'feedback']]]; // 首页按使用场景分组
+var GROUPS = [['学习', ['wiring', 'quiz', 'base', 'mcu', 'exam']], ['教学', ['kaoqin', 'ziliao', 'paike', 'jiafen', 'course']], ['维护', ['help', 'ai', 'backup', 'feedback']]]; // 首页按使用场景分组
 /* 音乐不塞进上面三个组：它是「背景音乐」性质的常驻卡片，和工具并列但不属于「学习/教学/维护」。
    所以单独在 render() 里当一张 tile 追加（见 render 里的 musicTile 处理），仍走同一套 .tile 样式。 */
 var TOOLS = [
@@ -1071,7 +1071,10 @@ var TOOLS = [
   // （2026-11-08 用户新要求：使用说明只在登录后出现，未登录首页只留「登录 / 注册」一张卡，
   //  保持干净空白）。登录后老师和学生都看得到；AI 设置卡本来就是 who:'teacher'，未登录同样看不到。
   { id: 'help', name: '使用说明', url: SITE + '/help/', who: 'all', anon: 0, c: ['#7c9cff', '#4f46e5'], icon: '<circle cx="12" cy="12" r="9"/><path d="M9.6 9.2A2.6 2.6 0 0 1 14.6 10c0 1.7-2.6 2-2.6 3.7"/><circle cx="12" cy="17" r=".9" fill="currentColor" stroke="none"/>' },
-  { id: 'feedback', name: '反馈', url: SITE + '/feedback/', splash: 1, who: 'dev', c: ['#c084fc', '#7c3aed'], icon: '<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 8.5l9 6 9-6"/>' } // 开发者专用：看各工具收到的建议和问题
+  { id: 'feedback', name: '反馈', url: SITE + '/feedback/', splash: 1, who: 'dev', c: ['#c084fc', '#7c3aed'], icon: '<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 8.5l9 6 9-6"/>' }, // 开发者专用：看各工具收到的建议和问题
+  // 全站备份（2026-11-10）：一键导出/导入全站工具的本地数据（localStorage + 音乐库 IndexedDB），换电脑/换浏览器时用。
+  // 纯本地单页（/backup/），不挂 splash；who:'teacher'：涉及全站数据（含 AI 密钥、登录会话），只给教师/管理员。
+  { id: 'backup', name: '全站备份', url: SITE + '/backup/', who: 'teacher', c: ['#4ade80', '#16a34a'], icon: '<path d="M4 12a8 8 0 0 1 13.7-5.6L20 8"/><path d="M20 4v4h-4"/><path d="M20 12a8 8 0 0 1-13.7 5.6L4 16"/><path d="M4 20v-4h4"/>' }
 ];
 // 班级给哪些工具用（数据库 hx_classes.tools 里的 id）。
 // 2026-11-08 用户截图：「这里的按钮块好像也不够 能给学生开放的不止这些了」——
@@ -2001,12 +2004,11 @@ addEventListener('DOMContentLoaded', function () {
 
 // ---------- 首页下面的管理卡片：班级（教师）、教师邀请码、学生课堂码（管理员）、管理员（开发者）；卡片上一行概要，点开是面板 ----------
 var MG = {
-  cls: { name: '班级', c: ['#ffd60a', '#f4a700'], icon: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6.5 6.5 0 0 1 3.5 6"/>' },
-  pw: { name: '重置密码', c: ['#0a84ff', '#5ac8fa'], icon: '<path d="M15 7a4 4 0 1 0-3.5 5.9L5 19.4V22h2.6l1.5-1.5V18h1.9l1.5-1.5V15h1.2"/><path d="M17.5 7h.01"/>' },
+  // 2026-11-10 合并：班级 / 科目 / 重置密码 三个卡并成一张「教务管理」卡，点开面板里用 tab 切换。
+  manage: { name: '教务管理', c: ['#6d8dff', '#4a5cf0'], icon: '<circle cx="12" cy="12" r="3.5"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>' },
   tcode: { name: '教师邀请码', c: ['#c38cff', '#9b51e0'], icon: '<rect x="3" y="6" width="18" height="12" rx="2.5"/><path d="M15 6v12" stroke-dasharray="1.5 2.5"/><path d="M7 10.5h4M7 13.5h3"/>' },
   gcode: { name: '好友邀请码', c: ['#ff9f0a', '#ff6b00'], icon: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M19 8v6M16 11h6"/>' },
   scode: { name: '学生课堂码', c: ['#64d2c8', '#0fa3a0'], icon: '<rect x="4" y="4" width="6" height="6" rx="1.2"/><rect x="14" y="4" width="6" height="6" rx="1.2"/><rect x="4" y="14" width="6" height="6" rx="1.2"/><path d="M14 14h2.5v2.5H14zM17.5 17.5H20V20h-2.5zM20 14v1M14 20v-1"/>' },
-  subj: { name: '科目', c: ['#5ad16f', '#24a148'], icon: '<rect x="4.5" y="3" width="15" height="18" rx="3.5"/><path d="M8.5 12l2.5 2.5 4.5-5"/>' },
   adm: { name: '管理员', c: ['#a1a1a6', '#636366'], icon: '<path d="M12 3l7.5 3v5.5c0 4.5-3.2 8.2-7.5 9.5-4.3-1.3-7.5-5-7.5-9.5V6z"/><path d="M9 12l2 2 4-4"/>' }
 };
 // 2026-11-04 课堂码并入班级面板：cls 面板现在也画码了，codes 变了要跟着重画。
@@ -2014,7 +2016,7 @@ var MG = {
 /* 2026-11-08 补 subj：科目面板加进来时漏登记这一项，导致 loadSubjects() → renderMgmt('subj')
    在「面板正开着」时走 NEED['subj'].indexOf 直接抛 TypeError（保存完科目就报「失败：Cannot read
    properties of undefined (reading 'indexOf')」，rpc 其实已经成功了）。 */
-var NEED = { cls: ['cls', 'codes'], subj: ['subj'], pw: ['cls'], gcode: ['codes'], tcode: ['codes'], scode: ['codes', 'cls'], adm: ['adm'] }; // 哪份数据变了，要重画哪张面板
+var NEED = { manage: ['cls', 'subj', 'codes'], gcode: ['codes'], tcode: ['codes'], scode: ['codes', 'cls'], adm: ['adm'] }; // 哪份数据变了，要重画哪张面板
 // 2026-11-02 用户要求：学生忘密码时，管理员 / 任课教师 / 开发者都能重置。
 // 判断用 isTeacher() || m.admin || m.dev —— 不能只写 isTeacher()：
 // 管理员和开发者不一定带教师身份，只判 isTeacher() 会让他们连这张卡都看不到。
@@ -2022,10 +2024,9 @@ var NEED = { cls: ['cls', 'codes'], subj: ['subj'], pw: ['cls'], gcode: ['codes'
 // 前端这层只负责别让人点进一个注定报错的窗口。
 function mgList() {
   var m = ST.me || {}, L = [], staff = isTeacher() || m.admin || m.dev;
-  if (isTeacher()) L.push('cls');
-  // 2026-11-08 科目管理上收首页：和班级并列，教师统一在这里建/改/删科目，子工具只读。
-  if (isTeacher()) L.push('subj');
-  if (staff) L.push('pw');
+  // 2026-11-10 用户要求：班级、科目、重置密码三个卡合并成一张「教务管理」卡。
+  // 只要需要其中任意一个（教师三者都要；管理员/开发者只为重置密码）就显示这张卡。
+  if (staff) L.push('manage');
   // 2026-11-04 用户要求：「课堂码和班级功能重复甚至跳转多此一举，合并到班级」。
   // 原来「班级」面板里每行有个「课堂码」按钮跳到独立的「学生课堂码」面板，两个入口看同一套数据。
   // 现在本班课堂码直接画在班级面板里（码、已注册/人数、生成/分享/撤销都在那一行），
@@ -2044,14 +2045,16 @@ function liveN(role) {
   var n = L.length; return n ? '有效 ' + n + ' 个' : '没有有效的码';
 }
 function mgSum(k) {
-  if (k === 'cls') { var C = ST.classes || []; return !ST.clsOk ? '…' : C.length ? C.length + ' 个班 · ' + C.reduce(function (s, c) { return s + (c.total || 0); }, 0) + ' 人' : '还没有班级'; }
-  if (k === 'subj') { var S2 = ST.subjects || []; return !ST.subjOk ? '…' : S2.length ? S2.length + ' 个科目' : '还没有科目'; }
-  // 重置密码这张卡的摘要显示「可以重置多少人的密码」= 所有班已开通人数之和，比「几个码」有用
-  if (k === 'pw') {
-    var C2 = ST.classes || [];
-    if (!ST.clsOk) return '…';
-    var n = C2.reduce(function (s, c) { return s + (c.bound || 0); }, 0);
-    return n ? '可重置 ' + n + ' 人' : '还没有已注册的学生';
+  // 教务管理：合并了班级/科目/重置密码，摘要按身份拼（管理员/开发者只看得到重置密码那段）
+  if (k === 'manage') {
+    var C = ST.classes || [], S = ST.subjects || [], p = [];
+    if (isTeacher()) {
+      p.push(!ST.clsOk ? '班级…' : C.length ? C.length + ' 个班' : '还没有班级');
+      p.push(!ST.subjOk ? '科目…' : S.length ? S.length + ' 个科目' : '还没有科目');
+    }
+    var n = C.reduce(function (s, c) { return s + (c.bound || 0); }, 0);
+    p.push(!ST.clsOk ? '重置…' : n ? '可重置 ' + n + ' 人' : '还没有已注册的学生');
+    return p.join(' · ');
   }
   if (k !== 'adm') return liveN(k === 'tcode' ? 'teacher' : k === 'gcode' ? 'guest' : 'student');
   var T = ST.teachers; return !T ? '…' : T.err ? '读取失败' : T.filter(function (t) { return t.is_admin && !t.is_dev; }).length + ' 位管理员';
@@ -2087,11 +2090,36 @@ function renderMgmt(part) {
 function openSheet(k) { ST.sheet = k; $('shT').textContent = MG[k].name; renderSheet(); if (!$('sheet').open) $('sheet').showModal(); $('shB').scrollTop = 0; }
 function renderSheet() {
   var k = ST.sheet; $('shA').innerHTML = '';
-  if (k === 'cls') sheetCls();
-  else if (k === 'subj') sheetSubj();
-  else if (k === 'pw') sheetPw();
+  if (k === 'manage') sheetManage();
   else if (k === 'adm') sheetAdm();
   else sheetCode(k === 'tcode' ? 'teacher' : k === 'gcode' ? 'guest' : 'student');
+}
+// 合并面板（2026-11-10）：班级/科目/重置密码并进一张「教务管理」卡。
+// 三个原面板函数 sheetCls / sheetSubj / sheetPw 原来都直接往 $('shB') 写 innerHTML，
+// 这里用 shBody() 让它们改写到整合面板内部的 #mgBody 容器，tab 条就保留在 shB 顶部不被冲掉。
+// 没有 #mgBody 时（比如面板没开、或别的面板正在用）自动退回 shB，不影响任何原有调用。
+function shBody() { var b = $('mgBody'); return b || $('shB'); }
+// tab 按身份给：班级、科目只有教师看得到；重置密码教师/管理员/开发者都有
+function mgTabs() {
+  var m = ST.me || {}, T = [], staff = isTeacher() || m.admin || m.dev;
+  if (isTeacher()) T.push(['cls', '班级']);
+  if (isTeacher()) T.push(['subj', '科目']);
+  if (staff) T.push(['pw', '重置密码']);
+  return T;
+}
+function sheetManage() {
+  var box = $('shB'), T = mgTabs();
+  var cur = ST.mgTab;
+  if (!T.some(function (t) { return t[0] === cur; })) cur = T[0][0]; // 身份变了，落回第一个可见 tab
+  ST.mgTab = cur;
+  $('shA').innerHTML = ''; // 各 tab 的渲染函数会自己往 shA 放操作按钮（导入考勤表 / 新建科目）
+  box.innerHTML = '<div class="seg" id="mgTabs" style="margin-bottom:14px">' + T.map(function (t) {
+    return '<button type="button" data-mgtab="' + t[0] + '" aria-pressed="' + (t[0] === cur) + '">' + t[1] + '</button>';
+  }).join('') + '</div><div id="mgBody"></div>';
+  box.querySelectorAll('[data-mgtab]').forEach(function (b) {
+    b.onclick = function () { if (b.dataset.mgtab === ST.mgTab) return; ST.mgTab = b.dataset.mgtab; sheetManage(); };
+  });
+  if (cur === 'cls') sheetCls(); else if (cur === 'subj') sheetSubj(); else sheetPw();
 }
 $('sheet').addEventListener('close', function () { ST.sheet = null; });
 $('sheet').onclick = function (e) { if (e.target === $('sheet')) $('sheet').close(); }; // 点面板外面关
@@ -2192,7 +2220,7 @@ function grpWire(box) {
   };
 }
 function sheetCls() {
-  var box = $('shB'), R = ST.rosters, html = '';
+  var box = shBody(), R = ST.rosters, html = '';
   $('shA').innerHTML = '<label class="btn sm">导入考勤表<input type="file" id="rFile" accept=".xls,.xlsx,.csv" multiple hidden></label>';
   // 课堂码不再在这个面板里直接生成/展示：班级旁的「课堂码」按钮跳到「学生课堂码」面板（同一套数据，入口合并成一个）。
   if (R) html += '<div class="panel f">' + R.map(function (x, k) { // 一次选多个考勤表：每个文件一个班，班级、学期可改；读不出来或导入失败的写原因
@@ -2596,7 +2624,7 @@ function sheetCode(role) {
 // 前端这层只负责收集参数。班级下拉来自 hx_my_classes，2026-11-03 起只返回自己教的班。
 // 故意做成「新密码输两次」：重置是不可逆的，输错了学生就登不进，还得再重置一次。
 function sheetPw() {
-  var box = $('shB'), cls = ST.classes || [], pick = ST.pwCls, list = pick ? ST.studs[pick] : null;
+  var box = shBody(), cls = ST.classes || [], pick = ST.pwCls, list = pick ? ST.studs[pick] : null;
   var html = '<p class="msg" style="margin:0 0 12px;color:var(--dim,#8a8f98)">只给已经注册过账号的学生重置。没注册过的学生会提示「直接让他注册」。改完把新密码当面告诉他，系统不会发短信。</p>';
   html += '<div class="f"><div class="line"><select id="pwCls" style="flex:1">' +
     (cls.length ? cls.map(function (c) { return '<option value="' + c.id + '"' + (c.id === pick ? ' selected' : '') + '>' + esc(c.name) + '</option>'; }).join('')
@@ -2605,13 +2633,18 @@ function sheetPw() {
   if (list) {
     var bound = list.filter(function (s) { return s.bound && !s.left_school; });
     html += '<p class="msg" style="color:var(--dim,#8a8f98);margin:8px 0">这个班已开通 ' + bound.length + ' 人（只列这些）。' + (bound.length ? '' : '还没人注册，去「学生课堂码」发码让学生先注册。') + '</p>';
-    if (bound.length) html += '<div class="line"><select id="pwStu" style="flex:1">' + bound.map(function (s) {
-      return '<option value="' + esc(s.student_no) + '">' + esc(s.student_no) + ' · ' + esc(s.name) + '</option>';
-    }).join('') + '</select></div>';
+    if (bound.length) {
+      // 2026-11-10 用户要求「批量重置」：把原来的单个下拉 pwStu 换成可勾选名单，默认全选
+      html += '<div class="line" style="align-items:center"><label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="pwAll" checked> 全选</label><span class="muted" id="pwCnt"></span></div>' +
+        '<div id="pwList" style="max-height:210px;overflow:auto;border:1px solid var(--line,#e5e7eb);border-radius:8px;padding:6px 8px">' +
+        bound.map(function (s) {
+          return '<label style="display:flex;align-items:center;gap:6px;padding:3px 0;cursor:pointer"><input type="checkbox" class="pwChk" value="' + esc(s.student_no) + '" checked> <span>' + esc(s.student_no) + ' · ' + esc(s.name) + '</span></label>';
+        }).join('') + '</div>';
+    }
   } else if (pick) html += '<p class="empty">名单加载中…</p>';
   html += '<label style="display:block;margin-top:12px">新密码（至少 6 位）</label><input id="pwNew" type="text" autocomplete="off" placeholder="例如 123456">' +
     '<label style="display:block;margin-top:8px">再输一次</label><input id="pwNew2" type="text" autocomplete="off" placeholder="再输一遍确认">' +
-    '<div class="line" style="margin-top:14px"><button class="btn" id="pwGo">重置密码</button><span class="muted" id="pwMsg"></span></div></div>';
+    '<div class="line" style="margin-top:14px"><button class="btn" id="pwGo">批量重置</button><span class="muted" id="pwMsg"></span></div></div>';
   html += '<div class="f" style="margin-top:14px"><b>或直接按学号重置</b>' +
     '<p class="msg" style="color:var(--dim,#8a8f98);margin:6px 0">开发者常用：知道学号、不知道在哪个班时走这里。老师只能填自己班里的学号。</p>' +
     '<div class="line"><input id="pwNo" placeholder="学号" inputmode="numeric" maxlength="20" style="flex:1"><input id="pwNewNo" type="text" autocomplete="off" placeholder="新密码（至少 6 位）" style="flex:1"></div>' +
@@ -2639,10 +2672,44 @@ function sheetPw() {
       .then(function (r) { msgEl.textContent = ''; toast(typeof r === 'string' ? r : '已重置'); btn.disabled = false; })
       .catch(function (e) { msgEl.textContent = e.message; btn.disabled = false; });
   };
+  // 批量重置：数据库函数 hx_reset_pw_by_no 一次只能重置一个学号（p_no 是 text，不是数组），
+  // 所以这里前端按顺序循环调用，一次一个学号，界面上显示进度，全部跑完再报结果。
+  // 如需更高效，可在数据库加一个 hx_reset_pw_batch(学号数组) 批量函数，前端一次 RPC 传数组即可。
+  var doResetBatch = function (nos, pw, msgEl, btn) {
+    var total = nos.length, ok = 0, fail = 0, bad = [];
+    btn.disabled = true;
+    (function next(i) {
+      if (i >= total) {
+        btn.disabled = false;
+        msgEl.textContent = '';
+        var tail = fail ? '，失败 ' + fail + ' 个' : '';
+        if (bad.length) tail += '（' + bad.slice(0, 3).join('；') + (bad.length > 3 ? ' 等' : '') + '）';
+        toast('批量重置完成：成功 ' + ok + ' 个' + tail);
+        return;
+      }
+      msgEl.textContent = '正在重置 ' + (i + 1) + '/' + total + '…';
+      HX.rpc('hx_reset_pw_by_no', { p_no: nos[i], p_newpw: pw })
+        .then(function () { ok++; next(i + 1); })
+        .catch(function (e) { fail++; bad.push(nos[i] + ': ' + e.message); next(i + 1); });
+    })(0);
+  };
+  var pwChecked = function () { return box.querySelectorAll('.pwChk:checked'); };
+  var pwUpdCnt = function () {
+    if ($('pwCnt')) $('pwCnt').textContent = '已选 ' + pwChecked().length + ' 人';
+  };
+  if ($('pwAll')) $('pwAll').onchange = function () {
+    box.querySelectorAll('.pwChk').forEach(function (c) { c.checked = $('pwAll').checked; });
+    pwUpdCnt();
+  };
+  box.querySelectorAll('.pwChk').forEach(function (c) { c.onchange = pwUpdCnt; });
+  pwUpdCnt();
   if ($('pwGo')) $('pwGo').onclick = function () {
-    var stu = $('pwStu');
-    if (!stu) { $('pwMsg').textContent = '这个班还没有已注册的学生'; return; }
-    doReset(stu.value, $('pwNew').value.trim(), $('pwNew2').value.trim(), $('pwMsg'), $('pwGo'));
+    var chks = pwChecked();
+    if (!chks.length) { $('pwMsg').textContent = '请先勾选要重置的学生'; return; }
+    var pw = $('pwNew').value.trim(), pw2 = $('pwNew2').value.trim();
+    if (!pw || pw.length < 6) { $('pwMsg').textContent = '新密码至少 6 位'; return; }
+    if (pw !== pw2) { $('pwMsg').textContent = '两次输入不一致，请重新输'; return; }
+    doResetBatch(Array.prototype.map.call(chks, function (c) { return c.value; }), pw, $('pwMsg'), $('pwGo'));
   };
   if ($('pwGoNo')) $('pwGoNo').onclick = function () {
     doReset($('pwNo').value.trim(), $('pwNewNo').value.trim(), undefined, $('pwMsgNo'), $('pwGoNo'));
@@ -2744,7 +2811,7 @@ function subjKey(name) {
    新建 = 建 hx_exam_subject + 同步建同名刷题空题库（quiz_publish，id=科目代号），
    这样刷题里立刻出现这个科目；老师之后在资料库出题「发布到刷题」填充它。 */
 function sheetSubj() {
-  var box = $('shB'), S = ST.subjects || [];
+  var box = shBody(), S = ST.subjects || [];
   $('shA').innerHTML = '<button class="btn sm" id="sjAdd">＋ 新建科目</button>';
   box.innerHTML =
     '<p class="msg" style="margin:0 0 12px;color:var(--dim,#8a8f98)">科目给资料库、考试、考勤、刷题共用：在这里建一个，各处都能选到；建完会顺手在刷题里也建一个同名空题库。</p>' +
@@ -2763,7 +2830,7 @@ function subjEdit(id) {
   var s = id == null ? null : (ST.subjects || []).filter(function (x) { return +x.id === id; })[0];
   if (id != null && !s) return;
   // 用 sheet 面板里的确认弹窗风格：直接内联一个编辑表单
-  var box = $('shB');
+  var box = shBody();
   box.innerHTML = '<div class="panel f">' +
     '<label class="f">科目名字<input id="sjName" maxlength="30" autocomplete="off" value="' + esc(s ? s.name : '') + '" placeholder="例如：电子技术基础"></label>' +
     '<p class="msg" style="margin:0;color:var(--dim,#8a8f98);font-size:12px">' + (s ? '改名不影响资料和题。' : '建好会自动在刷题里加一个同名空题库；之后到「资料库」出题再发布进刷题。') + '</p>' +
