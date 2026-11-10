@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>音乐 · 华夏工具</title>
+<link rel="stylesheet" href="../hx-theme.css">
+<!-- 不带 data-tool：这一页不做「单独打开跳回总入口」的闸门（它本来就是能直接打开的页面），
+     只借主题的配色/背景。播放器逻辑全在 /hx-player.js 里，和首页卡片、工具页顶部条同一份。 -->
+<script src="../hx-theme.js"></script>
+<link rel="icon" href="../logo-256.png">
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;min-height:100%}
+  body{
+    background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    padding:0 18px 48px;
+  }
+  .top{
+    max-width:760px;margin:0 auto;padding:16px 0 10px;
+    display:flex;align-items:center;gap:12px;
+  }
+  .top a{
+    display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--dim);
+    font-size:13px;padding:7px 13px;border-radius:99px;border:1px solid var(--edge);background:var(--card-solid);
+  }
+  .top a:hover{color:var(--ink)}
+  .top h1{font-size:15px;font-weight:500;margin:0}
+  .top .sp{flex:1}
+  #app{max-width:760px;margin:0 auto}
+  .tip{
+    max-width:760px;margin:16px auto 0;font-size:12px;line-height:1.7;color:var(--faint);
+  }
+  .tip b{color:var(--dim);font-weight:500}
+</style>
+</head>
+<body data-hxp-page="1">
+
+<div class="top">
+  <a href="../">← 总入口</a>
+  <h1>音乐</h1>
+  <span class="sp"></span>
+</div>
+
+<main id="app"></main>
+
+<p class="tip">
+  支持 <b>mp3</b>（最稳）、m4a / aac，部分浏览器支持 ogg / opus / wav / flac。<br>
+  歌单存在本机浏览器里（IndexedDB），不上传服务器，换电脑不会跟着走。<br>
+  从总入口进音乐是弹层，切工具音乐不断；直接打开这一页时换页面会重头加载。
+</p>
+
+<script src="../hx-player.js"></script>
+<script>
+(function(){
+  var host = document.getElementById('app');
+  HXPlayer.ready().then(function(){
+    HXPlayer.panel(host);
+    document.title = '音乐 · 华夏工具';
+  });
+})();
+</script>
+</body>
+</html>

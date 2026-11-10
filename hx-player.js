@@ -1,0 +1,658 @@
+/* 华夏工具 · 音乐播放器（2026-11-09 初稿）
+   ── 为什么单独一个文件放站点根 ──
+   总入口、/music/ 独立页都要用同一份逻辑：歌单、当前曲、音量只能有一份状态，
+   否则首页调了音量、换个页面又变回去。所以和 hx-theme.js / hx-ai.js 一样放站点根，谁需要谁引。
+   ── 音频挂在哪（这是整个设计的支点）──
+   总入口切工具是 iframe 显示/隐藏，不是整页跳转，所以 <audio> 放在 **top window** 就不会断：
+   从单片机切到考试、从考试切到刷题，音乐一直放着，顶部那条控制条跟着走。
+   工具页被 iframe 嵌着时（window.top !== window）**不渲染任何 UI** —— 顶部那条由总入口负责，
+   否则每个 iframe 里各长一条，页面上会出现两三条一样的控制条。
+   ── 歌单存哪 ──
+   IndexedDB（库 'hx-music'）：meta 只存元信息、blob 存音频本体，分两个 store。
+   列出歌单时不去碰 blob —— 20 首 5MB 的歌不会一次性读进内存（那是 100MB）。
+   当前曲 / 进度 / 音量存 localStorage，换页面回来能接着放（浏览器不允许无手势自动播，见 resume()）。
+   ── 支持什么格式 ──
+   只认浏览器自己能解的：**mp3 最稳**（全平台、老 Safari 也行）；m4a/aac 次之；ogg/opus 在 Safari 不保险；
+   wav/flac 体积太大、解码吃内存。导入时按扩展名+type 挡一道，真正能不能放以 <audio> 的 error 为准。
+   ── 对外接口（给总入口卡片、/music/ 页面用）──
+   HXPlayer.list() / add(files) / remove(id) / clear()
+   HXPlayer.play(i) / toggle() / next() / prev() / seek(秒) / volume(0~1) / mute(bool)
+   HXPlayer.state() / on(fn)
+   HXPlayer.bar(el)     往 el 里渲染一条紧凑控制条（首页卡、顶部条）
+   HXPlayer.panel(el)   往 el 里渲染完整面板（封面 + 进度 + 歌单）
+   HXPlayer.topBar()    工具页顶部那条（自己挂到 body，可重复调用）
+*/
+(function (W, D) {
+  'use strict';
+  if (W.HXPlayer) return;                       // 重复引入只认第一份
+
+  var DB = 'hx-music', META = 'meta', BLOB = 'blob', VER = 2;
+  var LSS = 'hx-music-state';                   // {id, t, vol, muted, mode}
+  var EXT = /\.(mp3|m4a|aac|ogg|oga|opus|wav|flac|weba|webm)$/i;
+
+  var A = null;                                 // 唯一的 <audio>
+  /* mode：'list' 列表循环（默认，播完自动下一首、到底回开头）/ 'one' 单曲循环 / 'shuffle' 随机 */
+  var S = { list: [], i: -1, playing: false, cur: 0, dur: 0, vol: 0.8, muted: false, mode: 'list', ready: false, err: '' };
+  var subs = [], hosts = [], curURL = '', wantResume = false, dbp = null;
+
+  /* ---------------- 存储 ---------------- */
+  function openDB() {
+    if (dbp) return dbp;
+    dbp = new Promise(function (res, rej) {
+      var r = indexedDB.open(DB, VER);
+      r.onupgradeneeded = function () {
+        var d = r.result;
+        if (!d.objectStoreNames.contains(META)) d.createObjectStore(META, { keyPath: 'id' });
+        if (!d.objectStoreNames.contains(BLOB)) d.createObjectStore(BLOB, { keyPath: 'id' });
+      };
+      r.onsuccess = function () { res(r.result); };
+      r.onerror = function () { rej(r.error); };
+    });
+    return dbp;
+  }
+  /* 把整个事务交给 fn（fn 里自己 t.objectStore('meta')），等事务真正提交后再把 fn 的返回值交出去。
+     注意 fn 可能返回 Promise（读 blob 的 get 要等 onsuccess），所以这里要等它落定 ——
+     直接 resolve 原 Promise 的话调用方拿到的是 Promise 不是数据。 */
+  function tx(db, stores, mode, fn) {
+    return new Promise(function (res, rej) {
+      var t = db.transaction(stores, mode), ret;
+      var settled = false, failed = null;
+      t.oncomplete = function () {
+        if (failed) return;
+        if (ret && typeof ret.then === 'function') {
+          ret.then(function (v) { res(v); }, function (e) { rej(e); });
+        } else { res(ret); }
+      };
+      t.onerror = function () { if (!settled) { settled = true; rej(t.error); } };
+      t.onabort = function () { if (!settled) { settled = true; rej(failed || t.error); } };
+      try { ret = fn(t); } catch (e) { failed = e; try { t.abort(); } catch (x) { } if (!settled) { settled = true; rej(e); } }
+    });
+  }
+  function wrap(req) {
+    return new Promise(function (res, rej) {
+      req.onsuccess = function () { res(req.result); };
+      req.onerror = function () { rej(req.error); };
+    });
+  }
+
+  function lsGet() {
+    try { return JSON.parse(localStorage.getItem(LSS) || 'null') || {}; } catch (e) { return {}; }
+  }
+  function lsSet(o) {
+    try { localStorage.setItem(LSS, JSON.stringify(o)); } catch (e) { }
+  }
+  function saveState() {
+    lsSet({ id: curId(), t: Math.round(S.cur * 10) / 10, vol: S.vol, muted: S.muted, mode: S.mode });
+  }
+  function curId() { var t = S.list[S.i]; return t ? t.id : null; }
+
+  /* ---------------- audio ---------------- */
+  function audio() {
+    if (A) return A;
+    A = new Audio();
+    A.preload = 'metadata';
+    A.volume = S.vol;
+    /* 挂进 DOM（但不显示）：没挂上去的 <audio> 在部分浏览器/无音频设备的机器上会被当成「不可见媒体」，
+       时间不推进、timeupdate 也不来 —— 挂在 body 里行为最确定，也省得被 GC 收走。 */
+    A.setAttribute('playsinline', '');
+    A.style.display = 'none';
+    if (D.body) D.body.appendChild(A);
+    A.addEventListener('timeupdate', function () {
+      S.cur = A.currentTime || 0;
+      if (A.duration && isFinite(A.duration)) S.dur = A.duration;
+      paint();
+      if (Math.floor(S.cur) % 5 === 0) saveState();   // 别每帧都写 localStorage
+    });
+    A.addEventListener('loadedmetadata', function () {
+      if (A.duration && isFinite(A.duration)) {
+        S.dur = A.duration;
+        var rec = S.list[S.i];
+        if (rec && Math.abs((rec.dur || 0) - S.dur) > 0.5) { rec.dur = S.dur; patchDur(rec); }
+      }
+      S.err = ''; paint();
+    });
+    A.addEventListener('play', function () { S.playing = true; paint(); });
+    A.addEventListener('pause', function () { S.playing = false; paint(); saveState(); });
+    A.addEventListener('ended', function () { onEnded(); });
+    A.addEventListener('error', function () {
+      S.playing = false; S.err = '这个文件浏览器放不了（换 mp3 试试）'; paint();
+    });
+    return A;
+  }
+
+  /* ---------------- 歌单 ---------------- */
+  function loadList() {
+    return openDB().then(function (db) {
+      return tx(db, [META], 'readonly', function (t) { return wrap(t.objectStore(META).getAll()); });
+    }).then(function (out) {
+      var rows = out || [];
+      rows.sort(function (a, b) { return (a.addedAt || 0) - (b.addedAt || 0); });
+      S.list = rows;
+      var st = lsGet(), i = -1;
+      if (st.id) { for (var k = 0; k < rows.length; k++) if (rows[k].id === st.id) { i = k; break; } }
+      if (i < 0 && rows.length) i = 0;
+      S.i = i;
+      if (st.vol != null) S.vol = st.vol;
+      if (st.muted != null) S.muted = st.muted;
+      if (st.mode) S.mode = st.mode;
+      paint();
+      return rows;
+    }).catch(function () { S.list = []; paint(); return []; });
+  }
+
+  function probe(file) {
+    return new Promise(function (res) {
+      var a = new Audio(), u = URL.createObjectURL(file);
+      /* 和主播放器同一个坑：没挂进 DOM 的 <audio> 在部分环境里不触发 loadedmetadata，
+         那样探出来的时长永远是 0，歌单里全是 0:00、进度条也永远 0%。挂上再拆。 */
+      a.preload = 'metadata';
+      a.style.display = 'none';
+      if (D.body) D.body.appendChild(a);
+      var done = function (v) { URL.revokeObjectURL(u); try { a.remove(); } catch (e) { } res(v); };
+      a.onloadedmetadata = function () { done(isFinite(a.duration) ? a.duration : 0); };
+      a.onerror = function () { done(0); };
+      a.src = u;
+      setTimeout(function () { done(0); }, 8000);   // 卡住就别等了，先按未知时长存进去
+    });
+  }
+
+  /* 时长补写：probe 拿不到就等真播一次，从 <audio>.duration 补回来并存进 meta，
+     下次进歌单就显示正确时长了（不靠一次就猜准）。 */
+  function patchDur(rec) {
+    if (!rec) return;
+    openDB().then(function (db) {
+      return tx(db, [META], 'readwrite', function (t) { t.objectStore(META).put(rec); });
+    }).catch(function () { });
+  }
+
+  function cleanName(n) {
+    return String(n || '').replace(EXT, '').replace(/^\d{1,3}[\s._-]+/, '').trim().slice(0, 120) || '未命名';
+  }
+
+  function add(files) {
+    var arr = Array.prototype.slice.call(files || []);
+    var ok = arr.filter(function (f) { return EXT.test(f.name) || /^audio\//.test(f.type || ''); });
+    if (!ok.length) return Promise.resolve(0);
+    return openDB().then(function (db) {
+      var n = 0;
+      return ok.reduce(function (p, f) {
+        return p.then(function () {
+          return probe(f).then(function (dur) {
+            var id = 't' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+            return tx(db, [META, BLOB], 'readwrite', function (t) {
+              t.objectStore(BLOB).put({ id: id, data: f });
+              return t.objectStore(META).put({ id: id, name: cleanName(f.name), dur: dur, size: f.size || 0, addedAt: Date.now() });
+            }).then(function () { n++; });
+          });
+        });
+      }, Promise.resolve()).then(function () { return loadList().then(function () { return n; }); });
+    });
+  }
+
+  function remove(id) {
+    if (!id) return Promise.resolve();
+    var wasCur = id === curId();
+    if (wasCur) { try { audio().pause(); } catch (e) { } }
+    return openDB().then(function (db) {
+      return tx(db, [META, BLOB], 'readwrite', function (t) {
+        t.objectStore(META).delete(id);
+        t.objectStore(BLOB).delete(id);
+      });
+    }).then(function () {
+      if (wasCur) { S.playing = false; curURL = ''; A && (A.removeAttribute('src')); }
+      return loadList();
+    });
+  }
+
+  function clear() {
+    try { audio().pause(); } catch (e) { }
+    S.playing = false; S.i = -1; curURL = '';
+    return openDB().then(function (db) {
+      return tx(db, [META, BLOB], 'readwrite', function (t) {
+        t.objectStore(META).clear(); t.objectStore(BLOB).clear();
+      });
+    }).then(function () { lsSet({}); return loadList(); });
+  }
+
+  /* ---------------- 播放控制 ---------------- */
+  function load(i, seekTo) {
+    var tr = S.list[i];                       /* 别用 t：下面事务回调的参数也叫 t，内层会把它盖掉 */
+    if (!tr) return Promise.resolve(false);
+    S.i = i; S.err = ''; S.cur = seekTo || 0; S.dur = tr.dur || 0;
+    paint();
+    return openDB().then(function (db) {
+      return tx(db, [BLOB], 'readonly', function (t) { return wrap(t.objectStore(BLOB).get(tr.id)); });
+    }).then(function (out) {
+      var rec = out;
+      if (!rec || !rec.data) { S.err = '这个文件不见了（可能被清过缓存）'; paint(); return false; }
+      var a = audio();
+      if (curURL) { URL.revokeObjectURL(curURL); curURL = ''; }
+      curURL = URL.createObjectURL(rec.data);
+      a.src = curURL;
+      if (seekTo) { try { a.currentTime = seekTo; } catch (e) { } }
+      a.volume = S.muted ? 0 : S.vol;
+      return true;
+    });
+  }
+
+  function play(i) {
+    /* 三种情况都要先装 src：换了一首、还没造过 <audio>、或者 <audio> 上根本没有源。
+       第三种最隐蔽 —— 刷新后歌单还在，但没走过 load()，点播放会「静悄悄地什么都不响」。 */
+    var need = (i != null && i !== S.i) || !A || !A.getAttribute('src');
+    var go = need ? load(i == null ? S.i : i) : Promise.resolve(true);
+    return go.then(function (ok) {
+      if (!ok) return false;
+      var a = audio();
+      return a.play().then(function () { S.playing = true; paint(); saveState(); return true; })
+        .catch(function () { S.playing = false; paint(); return false; });
+    });
+  }
+  function pause() { if (A) { A.pause(); saveState(); } }
+  function toggle() { return S.playing ? (pause(), Promise.resolve(false)) : play(); }
+  /* 一首放完：按 mode 决定下一步。one 单曲循环 = 回开头重放；shuffle 随机 = 抽一首不同的；
+     list 列表循环（默认）= 下一首，到底回开头。 */
+  function onEnded() {
+    if (!S.list.length) return;
+    if (S.mode === 'one') { seek(0); play(S.i); return; }
+    if (S.mode === 'shuffle') {
+      if (S.list.length === 1) { seek(0); play(S.i); return; }
+      var i = S.i;
+      while (i === S.i) i = Math.floor(Math.random() * S.list.length);
+      play(i); return;
+    }
+    next(true);
+  }
+  function setMode(m) {
+    if (m !== 'list' && m !== 'one' && m !== 'shuffle') return;
+    S.mode = m; saveState(); paint();
+  }
+  /* 点一下模式按钮：list → one → shuffle → list 循环切换 */
+  function cycleMode() {
+    setMode(S.mode === 'list' ? 'one' : S.mode === 'one' ? 'shuffle' : 'list');
+  }
+  function next(auto) {
+    if (!S.list.length) return Promise.resolve(false);
+    var i = S.i + 1;
+    if (i >= S.list.length) i = 0;
+    if (!auto && i === S.i) return Promise.resolve(false);
+    return play(i);
+  }
+  function prev() {
+    if (!S.list.length) return Promise.resolve(false);
+    if (S.cur > 3) { seek(0); return Promise.resolve(true); }   // 放过 3 秒的，「上一首」先回开头
+    var i = S.i - 1; if (i < 0) i = S.list.length - 1;
+    return play(i);
+  }
+  function seek(sec) {
+    if (!A || !isFinite(sec)) return;
+    try { A.currentTime = Math.max(0, Math.min(sec, S.dur || sec)); } catch (e) { }
+    S.cur = A.currentTime; paint(); saveState();
+  }
+  function volume(v) {
+    S.vol = Math.max(0, Math.min(1, v));
+    S.muted = S.vol === 0;
+    if (A) { A.volume = S.muted ? 0 : S.vol; }
+    paint(); saveState();
+  }
+  function mute(on) {
+    S.muted = on == null ? !S.muted : !!on;
+    if (A) A.volume = S.muted ? 0 : S.vol;
+    paint(); saveState();
+  }
+
+  /* 换页面回来：浏览器不允许没有用户手势就 autoPlay，所以只把 src 和时间装好，等用户点一下。
+     这里刻意**不**自动 play() —— 用户明确说「默认不播放」。 */
+  function resume() {
+    var st = lsGet();
+    if (!st.id || !S.list.length) return;
+    var i = -1;
+    for (var k = 0; k < S.list.length; k++) if (S.list[k].id === st.id) { i = k; break; }
+    if (i < 0) return;
+    S.i = i; wantResume = true;
+    load(i, st.t || 0).then(function () { S.ready = true; paint(); });
+  }
+
+  /* ---------------- 状态广播 ---------------- */
+  function on(fn) { subs.push(fn); return function () { var k = subs.indexOf(fn); if (k >= 0) subs.splice(k, 1); }; }
+  function paint() {
+    for (var k = 0; k < subs.length; k++) { try { subs[k](S); } catch (e) { } }
+  }
+
+  function fmt(s) {
+    if (!s || !isFinite(s) || s < 0) return '0:00';
+    s = Math.floor(s);
+    var m = Math.floor(s / 60), r = s % 60;
+    return m + ':' + (r < 10 ? '0' : '') + r;
+  }
+  function cur() { return S.list[S.i] || null; }
+
+  /* ---------------- UI ---------------- */
+  var CSS = [
+    '.hxp{--hxpa:var(--acc, #2f845a);font:inherit;color:var(--ink);-webkit-tap-highlight-color:transparent}',
+    '.hxp *{box-sizing:border-box}',
+    '.hxp-bar{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:14px;background:var(--card-solid);border:1px solid var(--edge);min-width:0}',
+    '.hxp-cover{width:34px;height:34px;border-radius:10px;flex:none;display:grid;place-items:center;background:var(--fill);overflow:hidden}',
+    '.hxp-cover img{width:100%;height:100%;object-fit:cover}',
+    '.hxp-info{min-width:0;flex:1;line-height:1.25}',
+    '.hxp-name{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
+    '.hxp-sub{font-size:11px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
+    '.hxp-line{height:4px;border-radius:99px;background:var(--fill);overflow:hidden;cursor:pointer;position:relative}',
+    '.hxp-line>i{display:block;height:100%;width:0;background:currentColor;border-radius:99px;transition:width .15s linear}',
+    '.hxp-btn{appearance:none;border:0;background:transparent;color:inherit;padding:0;width:36px;height:36px;border-radius:50%;display:grid;place-items:center;cursor:pointer;flex:none;transition:background .15s}',
+    '.hxp-btn:hover{background:var(--fill)}',
+    '.hxp-btn:active{transform:scale(.94)}',
+    '.hxp-btn svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}',
+    '.hxp-btn.main{width:46px;height:46px;background:var(--ink);color:var(--bg)}',
+    '.hxp-btn.main:hover{opacity:.88;background:var(--ink)}',
+    '.hxp-btn.main svg{fill:currentColor;stroke:none;width:20px;height:20px}',
+    '.hxp-vol{display:flex;align-items:center;gap:6px;flex:none}',
+    '.hxp-vol input{width:76px;accent-color:var(--ink)}',
+    '.hxp-panel{display:grid;gap:18px;padding:22px;border-radius:24px;background:var(--card-solid);border:1px solid var(--edge)}',
+    '.hxp-hero{display:flex;gap:20px;align-items:center}',
+    '.hxp-art{width:132px;height:132px;border-radius:20px;flex:none;background:var(--fill);display:grid;place-items:center;overflow:hidden;box-shadow:0 8px 28px -14px rgba(0,0,0,.5)}',
+    '.hxp-art svg{width:44px;height:44px;stroke:var(--faint);fill:none;stroke-width:1.5}',
+    '.hxp-h1{font-size:20px;font-weight:500;margin:0 0 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
+    '.hxp-h2{font-size:13px;color:var(--dim);margin:0}',
+    '.hxp-time{display:flex;justify-content:space-between;font-size:11px;color:var(--faint);margin-top:6px}',
+    '.hxp-rows{display:flex;align-items:center;gap:10px;justify-content:center;flex-wrap:wrap}',
+    '.hxp-list{display:grid;gap:2px;max-height:340px;overflow:auto}',
+    '.hxp-row{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:10px;cursor:pointer;border:0;background:transparent;color:inherit;text-align:left;width:100%;font:inherit}',
+    '.hxp-row:hover{background:var(--fill)}',
+    '.hxp-row.on{background:var(--fill)}',
+    '.hxp-row.on .hxp-name{font-weight:500}',
+    '.hxp-n{width:20px;flex:none;font-size:11px;color:var(--faint);text-align:right}',
+    '.hxp-dur{font-size:11px;color:var(--faint);flex:none}',
+    '.hxp-x{appearance:none;border:0;background:transparent;color:var(--faint);cursor:pointer;padding:2px 6px;border-radius:6px;flex:none;font-size:15px;line-height:1}',
+    '.hxp-x:hover{background:var(--fill);color:var(--ink)}',
+    '.hxp-empty{padding:26px 10px;text-align:center;font-size:13px;color:var(--dim)}',
+    '.hxp-top{position:fixed;left:0;right:0;top:0;z-index:2147483000;padding:6px 10px;display:flex;justify-content:center;pointer-events:none}',
+    '.hxp-top>.hxp-bar{pointer-events:auto;max-width:720px;width:100%;box-shadow:0 6px 24px -12px rgba(0,0,0,.45);backdrop-filter:blur(14px);background:var(--card)}',
+    '@media(max-width:560px){.hxp-hero{flex-direction:column;text-align:center}.hxp-vol input{width:60px}}',
+    /* 顶部条竖屏适配（2026-11-09）：手机 390px 宽放不下「封面+歌名+四键+音量滑杆」七样，
+       会挤爆/换行。竖屏下顶部条只留最核心的：歌名（flex 占满）+ 上一首 + 播放 + 下一首 + 静音，
+       音量和封面藏起来（封面本来没图，音量进歌单面板还能调）。 */
+    '@media(max-width:560px){.hxp-top>.hxp-bar{gap:6px;padding:6px 8px;border-radius:12px}.hxp-top>.hxp-bar .hxp-cover,.hxp-top>.hxp-bar .hxp-vol input{display:none}.hxp-top>.hxp-bar .hxp-info{min-width:0}.hxp-top>.hxp-bar .hxp-btn{width:34px;height:34px}.hxp-top>.hxp-bar .hxp-btn.main{width:40px;height:40px}}',
+    '@media(prefers-reduced-motion:reduce){.hxp *{transition:none!important}}'
+  ].join('\n');
+
+  function injectCSS() {
+    if (D.getElementById('hxp-css')) return;
+    var s = D.createElement('style'); s.id = 'hxp-css'; s.textContent = CSS;
+    D.head.appendChild(s);
+  }
+
+  var IC = {
+    play: '<svg viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z"/></svg>',
+    pause: '<svg viewBox="0 0 24 24"><rect x="7" y="5" width="3.6" height="14" rx="1.2"/><rect x="13.4" y="5" width="3.6" height="14" rx="1.2"/></svg>',
+    prev: '<svg viewBox="0 0 24 24"><path d="M18 6v12L9 12z" fill="currentColor" stroke="none"/><path d="M6 5v14"/></svg>',
+    next: '<svg viewBox="0 0 24 24"><path d="M6 6v12l9-6z" fill="currentColor" stroke="none"/><path d="M18 5v14"/></svg>',
+    vol: '<svg viewBox="0 0 24 24"><path d="M4 9.5v5h3.2L12 19V5L7.2 9.5z"/><path d="M15.5 9a4 4 0 0 1 0 6"/></svg>',
+    mute: '<svg viewBox="0 0 24 24"><path d="M4 9.5v5h3.2L12 19V5L7.2 9.5z"/><path d="M16 9.5l5 5M21 9.5l-5 5"/></svg>',
+    note: '<svg viewBox="0 0 24 24"><path d="M9 18V6l10-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/></svg>',
+    /* 三种播放模式图标：列表循环 / 单曲循环 / 随机 */
+    mlist: '<svg viewBox="0 0 24 24"><path d="M4 6h11M4 12h11M4 18h8"/><path d="M17 4l3 2-3 2V4zM17 15l3 2-3 2v-4z"/></svg>',
+    mone: '<svg viewBox="0 0 24 24"><path d="M4 6h11M4 12h11M4 18h8"/><path d="M17 15l3 2-3 2v-4z"/><path d="M16 4l1.2 1.2L16 6.4V4z"/></svg>',
+    mshuffle: '<svg viewBox="0 0 24 24"><path d="M4 6h3l3 6-3 6H4"/><path d="M20 6h-3l-2 4M20 18h-3l-2-4M16 6l2-2 2 2M16 18l2 2 2-2"/></svg>'
+  };
+
+  function el(tag, cls, html) {
+    var e = D.createElement(tag);
+    if (cls) e.className = cls;
+    if (html != null) e.innerHTML = html;
+    return e;
+  }
+
+  /* 投影片：拖进度条 / 点进度条都能跳 */
+  function bindSeek(line) {
+    var drag = false;
+    var at = function (e) {
+      var r = line.getBoundingClientRect();
+      var x = (e.touches ? e.touches[0].clientX : e.clientX) - r.left;
+      var ratio = Math.max(0, Math.min(1, x / Math.max(1, r.width)));
+      seek(ratio * (S.dur || 0));
+    };
+    line.addEventListener('pointerdown', function (e) { drag = true; line.setPointerCapture && line.setPointerCapture(e.pointerId); at(e); });
+    line.addEventListener('pointermove', function (e) { if (drag) at(e); });
+    line.addEventListener('pointerup', function () { drag = false; });
+    line.addEventListener('pointercancel', function () { drag = false; });
+  }
+
+  /* 紧凑条：首页卡片、顶部条都用它 */
+  function bar(host, opt) {
+    if (!host) return null;
+    opt = opt || {};
+    injectCSS();
+    host.classList.add('hxp');
+    host.innerHTML = '';
+    var wrap = el('div', 'hxp-bar');
+    wrap.innerHTML =
+      '<div class="hxp-cover">' + IC.note + '</div>' +
+      '<div class="hxp-info"><div class="hxp-name">还没选歌</div><div class="hxp-sub">导入音乐开始</div></div>' +
+      '<button class="hxp-btn" data-a="prev" aria-label="上一首">' + IC.prev + '</button>' +
+      '<button class="hxp-btn main" data-a="toggle" aria-label="播放">' + IC.play + '</button>' +
+      '<button class="hxp-btn" data-a="next" aria-label="下一首">' + IC.next + '</button>' +
+      '<div class="hxp-vol"><button class="hxp-btn" data-a="mute" aria-label="静音">' + IC.vol + '</button>' +
+      '<input type="range" min="0" max="100" value="' + Math.round(S.vol * 100) + '" aria-label="音量"></div>';
+    if (opt.cover === false) wrap.querySelector('.hxp-cover').style.display = 'none';
+    host.appendChild(wrap);
+    if (opt.progress !== false) {
+      var line = el('div', 'hxp-line', '<i></i>');
+      line.style.marginTop = '8px';
+      host.appendChild(line);
+      bindSeek(line);
+      wrap._line = line;
+    }
+    wrap.querySelectorAll('[data-a]').forEach(function (b) {
+      b.onclick = function () {
+        var a = b.dataset.a;
+        if (a === 'toggle') toggle();
+        else if (a === 'next') next();
+        else if (a === 'prev') prev();
+        else if (a === 'mute') mute();
+      };
+    });
+    var rng = wrap.querySelector('input[type=range]');
+    rng.oninput = function () { volume(+rng.value / 100); };
+    var row = { host: host, wrap: wrap };
+    hosts.push(row);
+    paint();
+    return row;
+  }
+
+  /* 完整面板：/music/ 页面和首页弹层用 */
+  function panel(host) {
+    if (!host) return null;
+    injectCSS();
+    host.classList.add('hxp');
+    host.innerHTML = '';
+    var card = el('div', 'hxp-panel');
+    card.innerHTML =
+      '<div class="hxp-hero">' +
+        '<div class="hxp-art">' + IC.note + '</div>' +
+        '<div style="min-width:0;flex:1">' +
+          '<h1 class="hxp-h1">还没选歌</h1><p class="hxp-h2">导入 mp3 就能开始</p>' +
+          '<div class="hxp-time"><span data-t="cur">0:00</span><span data-t="dur">0:00</span></div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="hxp-line" style="height:6px"><i></i></div>' +
+      '<div class="hxp-rows">' +
+        '<button class="hxp-btn" data-a="prev" aria-label="上一首">' + IC.prev + '</button>' +
+        '<button class="hxp-btn main" data-a="toggle" aria-label="播放">' + IC.play + '</button>' +
+        '<button class="hxp-btn" data-a="next" aria-label="下一首">' + IC.next + '</button>' +
+        '<button class="hxp-btn" data-a="mode" aria-label="播放模式">' + IC.mlist + '</button>' +
+        '<div class="hxp-vol"><button class="hxp-btn" data-a="mute" aria-label="静音">' + IC.vol + '</button>' +
+        '<input type="range" min="0" max="100" value="' + Math.round(S.vol * 100) + '" aria-label="音量"></div>' +
+      '</div>' +
+      '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">' +
+        '<button class="hxp-btn" data-a="import" style="display:inline-flex;align-items:center;gap:6px;width:auto;padding:0 14px;height:36px;border-radius:99px;border:1px solid var(--edge);font-size:13px">' +
+          '<span style="display:inline-flex">' + IC.note + '</span><span>导入音乐</span></button>' +
+        '<span class="hxp-sub" data-t="count" style="font-size:12px;color:var(--dim)">0 首</span>' +
+        '<span style="flex:1"></span>' +
+        '<button class="hxp-x" data-a="clearlist" title="清空歌单">清空</button>' +
+      '</div>' +
+      '<div class="hxp-list" data-t="list"></div>';
+    host.appendChild(card);
+
+    var fileIn = el('input'); fileIn.type = 'file'; fileIn.accept = 'audio/*,.mp3,.m4a,.aac,.ogg,.opus,.wav,.flac'; fileIn.multiple = true;
+    fileIn.style.display = 'none'; card.appendChild(fileIn);
+
+    card.querySelectorAll('[data-a]').forEach(function (b) {
+      b.onclick = function () {
+        var a = b.dataset.a;
+        if (a === 'toggle') toggle();
+        else if (a === 'next') next();
+        else if (a === 'prev') prev();
+        else if (a === 'mute') mute();
+        else if (a === 'mode') cycleMode();
+        else if (a === 'import') fileIn.click();
+        else if (a === 'clearlist') { if (confirm('清空整个歌单？音频文件会从本机删掉，不能恢复。')) clear(); }
+      };
+    });
+    fileIn.onchange = function () { add(fileIn.files).then(function (n) { if (n) resumeIfIdle(); fileIn.value = ''; }); };
+    var rng = card.querySelector('input[type=range]');
+    rng.oninput = function () { volume(+rng.value / 100); };
+    bindSeek(card.querySelector('.hxp-line'));
+
+    /* 拖一堆文件进来也能导入（桌面上比点按钮快） */
+    card.addEventListener('dragover', function (e) { e.preventDefault(); });
+    card.addEventListener('drop', function (e) {
+      e.preventDefault();
+      if (e.dataTransfer && e.dataTransfer.files) add(e.dataTransfer.files).then(function (n) { if (n) resumeIfIdle(); });
+    });
+
+    var row = { host: host, wrap: card, list: card.querySelector('[data-t="list"]') };
+    hosts.push(row);
+    renderList(row);
+    paint();
+    return row;
+  }
+
+  /* 刚导入第一批歌时，把第一首装进 <audio>（不 autoplay），这样点播放就有声 */
+  function resumeIfIdle() {
+    if (!S.list.length || A) return;
+    load(S.i < 0 ? 0 : S.i, 0).then(function () { S.ready = true; paint(); });
+  }
+
+  function renderList(row) {
+    if (!row || !row.list) return;
+    var L = S.list;
+    if (!L.length) {
+      row.list.innerHTML = '<div class="hxp-empty">歌单是空的。点上面「导入音乐」，选 mp3 文件（可以多选，也可以直接拖进来）。</div>';
+      return;
+    }
+    row.list.innerHTML = L.map(function (t, i) {
+      return '<div class="hxp-row' + (i === S.i ? ' on' : '') + '" data-i="' + i + '">' +
+        '<span class="hxp-n">' + (i === S.i && S.playing ? '▶' : (i + 1)) + '</span>' +
+        '<span class="hxp-info"><span class="hxp-name" style="display:block">' + esc(t.name) + '</span>' +
+        '<span class="hxp-sub" style="display:block">' + (t.size ? (t.size < 1048576 ? Math.max(1, Math.round(t.size / 1024)) + ' KB' : (t.size / 1048576).toFixed(1) + ' MB') : '') + '</span></span>' +
+        '<span class="hxp-dur">' + fmt(t.dur) + '</span>' +
+        '<button class="hxp-x" data-del="' + esc(t.id) + '" title="从歌单删除">×</button></div>';
+    }).join('');
+    row.list.querySelectorAll('.hxp-row').forEach(function (r) {
+      r.onclick = function (e) {
+        if (e.target.closest('[data-del]')) return;
+        var i = +r.dataset.i;
+        if (i === S.i) toggle(); else play(i);
+      };
+    });
+    row.list.querySelectorAll('[data-del]').forEach(function (b) {
+      b.onclick = function (e) { e.stopPropagation(); remove(b.dataset.del); };
+    });
+  }
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  /* 每次状态变化，把所有已挂载的 UI 刷一遍（不重建 DOM，免得拖进度条时节点被换掉） */
+  function repaint() {
+    var t = cur();
+    hosts.forEach(function (r) {
+      var w = r.wrap;
+      if (!w || !w.parentNode) return;
+      var nm = w.querySelector('.hxp-name');
+      var sub = w.querySelector('.hxp-sub');
+      if (nm) nm.textContent = t ? t.name : '还没选歌';
+      if (sub && !r.list) sub.textContent = t ? (S.playing ? '正在播放' : '已暂停') : '导入音乐开始';
+      var tg = w.querySelector('[data-a="toggle"]');
+      if (tg) tg.innerHTML = S.playing ? IC.pause : IC.play;
+      var mu = w.querySelector('[data-a="mute"]');
+      if (mu) mu.innerHTML = S.muted ? IC.mute : IC.vol;
+      var md = w.querySelector('[data-a="mode"]');
+      if (md) {
+        md.innerHTML = S.mode === 'one' ? IC.mone : S.mode === 'shuffle' ? IC.mshuffle : IC.mlist;
+        md.setAttribute('title', S.mode === 'one' ? '单曲循环' : S.mode === 'shuffle' ? '随机播放' : '列表循环');
+      }
+      var ln = w.querySelector('.hxp-line>i') || (w._line && w._line.querySelector('i'));
+      if (ln) ln.style.width = (S.dur ? (S.cur / S.dur * 100) : 0).toFixed(2) + '%';
+      var cue = w.querySelector('[data-t="cur"]'), due = w.querySelector('[data-t="dur"]');
+      if (cue) cue.textContent = fmt(S.cur);
+      if (due) due.textContent = fmt(S.dur || (t && t.dur) || 0);
+      var h1 = w.querySelector('.hxp-h1'), h2 = w.querySelector('.hxp-h2');
+      if (h1) h1.textContent = t ? t.name : '还没选歌';
+      if (h2) h2.textContent = S.err ? S.err : (t ? (S.playing ? '正在播放' : (wantResume && !S.playing ? '点播放继续' : '已暂停')) : '导入 mp3 就能开始');
+      var cnt = w.querySelector('[data-t="count"]');
+      if (cnt) cnt.textContent = S.list.length + ' 首' + (S.err ? '　' + S.err : '');
+      if (r.list) renderList(r);
+    });
+  }
+  var _paint = paint;
+  paint = function () { _paint(); try { repaint(); } catch (e) { } };
+
+  /* ---------------- 工具页顶部那条 ---------------- */
+  /* force=true 给总入口用：总入口自己有 #tiles（首页有音乐卡），但工具是 iframe 全屏盖上去的，
+     首页那张卡就看不见了 —— 所以工具打开时要在 top 层再挂一条，浮在 iframe 上方。 */
+  function topBar(force) {
+    if (!W.top || W.top !== W) return null;                      // 在 iframe 里：交给父页
+    if (D.body && D.body.dataset.hxpPage) return null;            // /music/ 整页已经是播放器，不用再挂一条
+    if (!force && D.getElementById('tiles')) return null;
+    if (D.getElementById('hxp-top')) return null;
+    injectCSS();
+    var inHome = !!D.getElementById('tiles');
+    var host = el('div', 'hxp-top'); host.id = 'hxp-top';
+    D.body.appendChild(host);
+    var row = bar(host);
+    var sync = function () {
+      var has = !!(S.playing || S.cur > 0 || S.list.length);
+      var inTool = !inHome || D.body.classList.contains('tool');   // 总入口里只在工具全屏时出现
+      host.style.display = (has && inTool) ? 'flex' : 'none';
+    };
+    on(sync);
+    /* body 的 class 由总入口的 show() 切换，不在播放器状态里，所以盯一眼 class 变化 */
+    try { new MutationObserver(sync).observe(D.body, { attributes: true, attributeFilter: ['class'] }); } catch (e) { }
+    sync();
+    return row;
+  }
+
+  /* ---------------- 启动 ---------------- */
+  function boot() {
+    loadList().then(function () {
+      if (lsGet().id) resume();
+      // 已在总入口（top）且不是首页 → 挂顶部条
+      topBar();
+    });
+    // 别的标签页改了歌单/音量，这边跟上（同一浏览器多窗口时别打架）
+    W.addEventListener('storage', function (e) {
+      if (e.key === LSS && e.newValue) {
+        var st = {}; try { st = JSON.parse(e.newValue) || {}; } catch (x) { }
+        if (st.vol != null && st.vol !== S.vol) { S.vol = st.vol; if (A) A.volume = S.muted ? 0 : S.vol; }
+      }
+    });
+  }
+
+  W.HXPlayer = {
+    list: function () { return S.list.slice(); },
+    state: function () { return S; },
+    add: add, remove: remove, clear: clear,
+    play: play, toggle: toggle, next: next, prev: prev, pause: pause,
+    seek: seek, volume: volume, mute: mute,
+    setMode: setMode, cycleMode: cycleMode,
+    on: on, bar: bar, panel: panel, topBar: topBar,
+    fmt: fmt, ready: function () { return loadList(); }
+  };
+
+  if (D.readyState === 'loading') D.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})(window, document);

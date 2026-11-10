@@ -1439,5 +1439,17 @@
     window.HXCrumbs = { sweep: sweep };
     if (document.readyState === 'loading') addEventListener('DOMContentLoaded', boot); else boot();
   })();
+  /* 2026-11-09 音乐播放器：全站只用站点根的一份 /hx-player.js（歌单、当前曲、音量只能有一份状态）。
+     只在 top window 引 —— 工具页被 iframe 嵌着时，顶部那条由总入口统一挂；
+     每个 iframe 各挂一条的话，页面上会同时出现三四个一模一样的控制条。 */
+  (function () {
+    try {
+      if (window.top !== window) return;
+      if (document.getElementById('hxp-js')) return;
+      var s = document.createElement('script');
+      s.id = 'hxp-js'; s.async = true; s.src = root + 'hx-player.js';
+      document.head.appendChild(s);
+    } catch (e) { }
+  })();
   apply();
 })();
