@@ -525,8 +525,22 @@
     '.hxp-x{appearance:none;border:0;background:transparent;color:var(--faint);cursor:pointer;padding:2px 6px;border-radius:6px;flex:none;font-size:15px;line-height:1}',
     '.hxp-x:hover{background:var(--fill);color:var(--ink)}',
     '.hxp-empty{padding:26px 10px;text-align:center;font-size:13px;color:var(--dim)}',
-    '.hxp-top{position:fixed;left:0;right:0;top:0;z-index:2147483000;padding:6px 10px;display:flex;justify-content:center;pointer-events:none}',
-    '.hxp-top>.hxp-bar{pointer-events:auto;max-width:720px;width:100%;box-shadow:0 6px 24px -12px rgba(0,0,0,.45);backdrop-filter:blur(14px);background:var(--card)}',
+    '.hxp-top{position:fixed;z-index:2147483000;display:flex;pointer-events:none}',
+    '.hxp-top>.hxp-bar{pointer-events:auto;max-width:min(720px,calc(100vw - 24px));width:auto;box-shadow:0 6px 24px -12px rgba(0,0,0,.45);backdrop-filter:blur(14px);background:var(--card);position:relative}',
+    /* 2026-11-10 播放器悬浮窗：可拖拽、可缩小。拖拽手柄（⋮⋮）按住拖动整条；「收起」按钮缩成小圆钮，点开恢复。
+       默认停右上角、不横跨全屏，避开工具页顶栏左侧的返回/首页按钮，不再遮挡。 */
+    '.hxp-top .hxp-grip{flex:none;width:22px;align-self:stretch;display:grid;place-items:center;cursor:grab;color:var(--faint);margin-left:-4px;border-radius:10px 0 0 10px;user-select:none;touch-action:none}',
+    '.hxp-top .hxp-grip:hover{background:var(--fill);color:var(--ink)}',
+    '.hxp-top .hxp-grip svg{width:14px;height:14px;fill:currentColor;stroke:none}',
+    '.hxp-top .hxp-mini{flex:none;width:30px;align-self:stretch;display:grid;place-items:center;cursor:pointer;color:var(--faint);margin-right:-4px;border-radius:0 10px 10px 0;user-select:none}',
+    '.hxp-top .hxp-mini:hover{background:var(--fill);color:var(--ink)}',
+    '.hxp-top .hxp-mini svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round}',
+    /* 收起后的小圆钮：一个可拖动的音符球 */
+    '.hxp-top.hxp-min .hxp-bar{display:none}',
+    '.hxp-orb{pointer-events:auto;width:44px;height:44px;border-radius:50%;display:none;place-items:center;background:var(--card);border:1px solid var(--edge);box-shadow:0 6px 20px -10px rgba(0,0,0,.5);cursor:grab;color:var(--ink);touch-action:none;user-select:none}',
+    '.hxp-top.hxp-min .hxp-orb{display:grid}',
+    '.hxp-orb svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}',
+    '.hxp-orb.on{color:var(--acc,#2f845a)}',
     '@media(max-width:560px){.hxp-hero{flex-direction:column;text-align:center}.hxp-vol input{width:60px}}',
     /* 顶部条竖屏适配（2026-11-09）：手机 390px 宽放不下「封面+歌名+四键+音量滑杆」七样，
        会挤爆/换行。竖屏下顶部条只留最核心的：歌名（flex 占满）+ 上一首 + 播放 + 下一首 + 静音，
@@ -894,6 +908,83 @@
     var host = el('div', 'hxp-top'); host.id = 'hxp-top';
     D.body.appendChild(host);
     var row = bar(host);
+    /* 2026-11-10 用户报「播放器对别的界面有遮挡」：
+       原来 .hxp-top 是 left:0;right:0 横跨整屏、居中一条 bar，会盖住工具页顶栏的返回/首页按钮。
+       改成右上角悬浮的小条：默认贴右上角，可按住左侧 ⋮⋮ 手柄拖动到任意位置，
+       点右侧「收起」缩成一颗音符圆钮（也能拖），点圆钮再展开 —— 不挡内容，随用随收。 */
+    var grip = el('div', 'hxp-grip'); grip.innerHTML = '<svg viewBox="0 0 24 24"><circle cx="8" cy="6" r="1.6"/><circle cx="16" cy="6" r="1.6"/><circle cx="8" cy="12" r="1.6"/><circle cx="16" cy="12" r="1.6"/><circle cx="8" cy="18" r="1.6"/><circle cx="16" cy="18" r="1.6"/></svg>';
+    grip.title = '拖动播放条';
+    grip.setAttribute('aria-label', '拖动播放条');
+    var mini = el('div', 'hxp-mini'); mini.innerHTML = '<svg viewBox="0 0 24 24"><path d="M6 12h12"/></svg>';
+    mini.title = '收起成小圆钮';
+    mini.setAttribute('aria-label', '收起播放条');
+    row.wrap.insertBefore(grip, row.wrap.firstChild);
+    row.wrap.appendChild(mini);
+    /* 收起后的小圆钮 */
+    var orb = el('div', 'hxp-orb'); orb.innerHTML = IC.note;
+    orb.title = '播放器（点开展开）';
+    orb.setAttribute('aria-label', '展开播放器');
+    host.appendChild(orb);
+
+    /* 位置记忆：拖到哪、收不收，刷新后还在 */
+    var POS_KEY = 'hxp-top-pos';
+    var pos = null; try { pos = JSON.parse(localStorage.getItem(POS_KEY) || 'null'); } catch (e) { }
+    var applyPos = function () {
+      if (pos && typeof pos.x === 'number' && typeof pos.y === 'number') {
+        host.style.left = pos.x + 'px'; host.style.top = pos.y + 'px';
+        host.style.right = 'auto'; host.style.bottom = 'auto';
+      } else {
+        host.style.left = 'auto'; host.style.right = '10px'; host.style.top = '10px';
+      }
+      if (pos && pos.min) setMin(true, true);
+    };
+    var savePos = function () {
+      var r = host.getBoundingClientRect();
+      pos = { x: r.left, y: r.top, min: !!host.classList.contains('hxp-min') };
+      try { localStorage.setItem(POS_KEY, JSON.stringify(pos)); } catch (e) { }
+    };
+
+    /* 拖拽：手柄拖 bar，圆钮拖 orb，都按 pointer 事件（鼠标+触屏通用）。
+       用位移判断是「点击」还是「拖拽」：动超过 4px 算拖，否则算点（点圆钮才展开）。 */
+    function bindDrag(target, onTap) {
+      var sx = 0, sy = 0, moved = false, r = null, dx = 0, dy = 0;
+      target.addEventListener('pointerdown', function (e) {
+        if (e.button != null && e.button !== 0) return;
+        e.preventDefault();
+        r = host.getBoundingClientRect();
+        dx = e.clientX - r.left; dy = e.clientY - r.top;
+        sx = e.clientX; sy = e.clientY; moved = false;
+        W.addEventListener('pointermove', onMove);
+        W.addEventListener('pointerup', onUp);
+      });
+      function onMove(ev) {
+        if (Math.abs(ev.clientX - sx) + Math.abs(ev.clientY - sy) > 4) moved = true;
+        if (!moved) return;
+        var x = ev.clientX - dx, y = ev.clientY - dy;
+        x = Math.max(-r.width + 40, Math.min(x, innerWidth - 40));
+        y = Math.max(0, Math.min(y, innerHeight - 40));
+        host.style.left = x + 'px'; host.style.top = y + 'px';
+        host.style.right = 'auto'; host.style.bottom = 'auto';
+      }
+      function onUp() {
+        W.removeEventListener('pointermove', onMove);
+        W.removeEventListener('pointerup', onUp);
+        savePos();
+        if (!moved && onTap) onTap();
+      }
+    }
+    bindDrag(grip);
+    bindDrag(orb, function () { setMin(false); });
+
+    /* 收起/展开 */
+    function setMin(m, silent) {
+      host.classList.toggle('hxp-min', m);
+      if (!silent) savePos();
+      paint();
+    }
+    mini.onclick = function () { setMin(true); };
+    applyPos();   // 恢复上次的位置和收起状态
+
     var sync = function () {
       var has = !!(S.playing || S.cur > 0 || S.list.length);
       var inTool = !inHome || D.body.classList.contains('tool');   // 总入口里只在工具全屏时出现
