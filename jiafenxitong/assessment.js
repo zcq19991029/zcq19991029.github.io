@@ -81,8 +81,12 @@
       // unified semester completion score as the actual regular grade.
       m.learning=round(100*m.task.rate);
       m.ready=m.task.pending===0&&m.task.maximum>0&&m.recorded===lessons.length&&lessons.length>0;
-      m.regular=round(100*m.performanceRate);m.contribution=round(m.regular*.4);
-      m.needed=m.attendanceFailed?null:Math.max(0,Math.ceil(((cfg.passScore-m.regular*.4)/.6-1e-9)*10)/10);
+      /* 2026-11-10 完全移除考勤分（用户拍板）：考勤已由独立「考勤工具」接管、自动同步扣分，
+         小组加分这里不再把考勤分计入平时分。平时分 = 100 × 项目完成率（纯项目，不再合并考勤）。
+         考勤字段（loss/attendance/attendanceFailed 等）仍保留计算但不再参与 regular，
+         供历史数据与后续可能恢复用；挂科也不再影响「期末需考」。 */
+      m.regular=round(100*m.task.rate);m.contribution=round(m.regular*.4);
+      m.needed=Math.max(0,Math.ceil(((cfg.passScore-m.regular*.4)/.6-1e-9)*10)/10);
       var exam=cls.examScores&&cls.examScores[m.key];m.exam=exam==null?'':exam;m.final=m.exam===''?null:round(m.regular*.4+m.exam*.6);
     });
     sorted.sort(function(a,b){return b.regular-a.regular||a.rawRank-b.rawRank||String(a.sid||a.name).localeCompare(String(b.sid||b.name));});
@@ -94,7 +98,7 @@
   }
   function confirmationText(m) {return m.ready?'记录已齐':'项目或考勤记录未齐';}
   function attendanceText(m){return '迟到'+m.lateCount+'次 · 早退'+m.earlyCount+'次 · 实际旷课'+m.truantCount+'次 · 折算'+m.convertedTruants+'次 · 合计'+m.effectiveTruants+'次旷课（含折算）'+(m.attendanceFailed?'；考勤挂科':'');}
-  function neededText(m){return m.attendanceFailed?'考勤挂科，不适用':m.needed>100?'超过100，无法达到':String(m.needed);}
+  function neededText(m){return m.needed>100?'超过100，无法达到':String(m.needed);}
   function renderRank(ctx) {
     var cls=ctx.cls,cfg=settings(cls),ms=rows(cls,ctx.lessons,ctx.raw);
     /* 显示层（2026-11-09 完成率改革）：当前累计与考勤按百分比显示；存储与公式不动 */
@@ -118,13 +122,24 @@
     var cls=ctx.cls,cfg=settings(cls),ms=rows(cls,ctx.lessons,ctx.raw);
     /* 排序（2026-11-10 #14）：rows() 内部已按平时分降序排好（rank 即平时分名次）。
        ctx.sort==='group' 时改为按组号升序、组内按平时分降序；'regular' 保持平时分降序不变。 */
+    var dispRank;  // 每张卡左上角展示的「名次」：按组 = 组内名次；按平时分 = 全班名次
     if(ctx.sort==='group'){
       ms=ms.slice().sort(function(a,b){
         var ga=a.gno?Number(a.gno):Infinity,gb=b.gno?Number(b.gno):Infinity;
         return ga-gb || b.regular-a.regular || a.rawRank-b.rawRank;
       });
+      /* 组内名次：同一组内按平时分降序编号（并列同名次），待分配组放在最末、按平时分编号 */
+      var lastGno=null, lastRank=0, lastReg=null;
+      ms.forEach(function(m){
+        var g=m.gno?Number(m.gno):Infinity;
+        if(g!==lastGno){ lastGno=g; lastRank=0; lastReg=null; }
+        if(m.regular===lastReg){ m.dispRank=lastRank; }
+        else { lastRank++; m.dispRank=lastRank; lastReg=m.regular; }
+      });
+      dispRank=function(m){ return m.dispRank; };
     } else {
       ms=ms.slice().sort(function(a,b){return b.regular-a.regular||a.rawRank-b.rawRank;});
+      dispRank=function(m){ return m.rank; };
     }
     var semesterMax=ctx.lessons.reduce(function(a,l){var named=projectNames(l).filter(function(n){return String(n||'').trim();}).length;return a+5+5*named;},0);
     function memberRate(m){return semesterMax?round(Math.max(0,m.total)/semesterMax*100):0;}
@@ -154,9 +169,11 @@
         return '<span class="dt-lesson'+(r==null?' none':'')+'" title="第 '+l.seq+' 课'+(l.date?' · '+l.date:'')+(r==null?'：还没记分':('：完成率 '+r+'%'))+'">第'+l.seq+'课'+(r==null?'<em>—</em>':'<em>'+r+'%</em>')+'</span>';
       }).join('');
       var mates = groupMates(m.gno);
+      var rk = dispRank(m);
+      var rkTitle = (ctx.sort==='group' ? '组内第 ' : '全班第 ') + rk + ' 名（平时分 ' + numGrade(m.regular) + '）';
       return '<div class="dt-card">' +
         '<div class="dt-head">' +
-          '<span class="dt-rank">'+(m.rank)+'</span>' +
+          '<span class="dt-rank" title="'+esc(rkTitle)+'">'+rk+'</span>' +
           '<span class="dt-name'+(m.attendanceFailed?' attendance-failed':'')+'">'+esc(m.name)+'<small>'+esc(m.sid||m.no||'')+'</small></span>' +
           '<span class="dt-group">'+(m.gno?'第 '+m.gno+' 组':'待分配')+(mates?'<small title="'+esc(mates)+'">'+esc(mates)+'</small>':'')+'</span>' +
         '</div>' +

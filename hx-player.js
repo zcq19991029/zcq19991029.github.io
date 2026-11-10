@@ -41,7 +41,7 @@
 
   var A = null;                                 // 唯一的 <audio>
   /* mode：'list' 列表循环（默认，播完自动下一首、到底回开头）/ 'one' 单曲循环 / 'shuffle' 随机 */
-  var S = { list: [], i: -1, playing: false, cur: 0, dur: 0, vol: 0.8, muted: false, mode: 'list', ready: false, err: '' };
+  var S = { list: [], i: -1, playing: false, cur: 0, dur: 0, vol: 0.8, muted: false, mode: 'list', ready: false, err: '', exited: false };
   var subs = [], hosts = [], curURL = '', wantResume = false, dbp = null;
 
   /* ---------------- 存储 ---------------- */
@@ -403,12 +403,19 @@
     return go.then(function (ok) {
       if (!ok) return false;
       var a = audio();
-      return a.play().then(function () { S.playing = true; paint(); saveState(); return true; })
+      return a.play().then(function () { S.playing = true; S.exited = false; paint(); saveState(); return true; })
         .catch(function () { S.playing = false; paint(); return false; });
     });
   }
   function pause() { if (A) { A.pause(); saveState(); } }
-  function toggle() { return S.playing ? (pause(), Promise.resolve(false)) : play(); }
+  /* 退出（2026-11-10）：点顶部条的 × 后，真正停掉播放并标记「本次已退出」，
+     顶部条不再显示（哪怕歌单还在），直到用户再去首页点音乐重新打开才恢复。 */
+  function stop() {
+    if (A) { try { A.pause(); } catch (e) { } }
+    S.playing = false; S.exited = true; S.cur = 0;
+    paint(); saveState();
+  }
+  function toggle() { S.exited = false; return S.playing ? (pause(), Promise.resolve(false)) : play(); }
   /* 一首放完：按 mode 决定下一步。one 单曲循环 = 回开头重放；shuffle 随机 = 抽一首不同的；
      list 列表循环（默认）= 下一首，到底回开头。 */
   function onEnded() {
@@ -535,6 +542,19 @@
     '.hxp-top .hxp-mini{flex:none;width:30px;align-self:stretch;display:grid;place-items:center;cursor:pointer;color:var(--faint);margin-right:-4px;border-radius:0 10px 10px 0;user-select:none}',
     '.hxp-top .hxp-mini:hover{background:var(--fill);color:var(--ink)}',
     '.hxp-top .hxp-mini svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round}',
+    /* 退出按钮（2026-11-10）：点 × 停播放并隐藏顶部条，本次不再占用 */
+    '.hxp-exit{appearance:none;border:0;background:transparent;color:var(--faint);padding:0;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;cursor:pointer;flex:none;transition:background .15s}',
+    '.hxp-exit:hover{background:var(--fill);color:var(--ink)}',
+    '.hxp-exit svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round}',
+    /* 嵌入顶栏（#hxpSlot）时的紧凑形态：去阴影、去圆角背景，融进 header，别像一块悬浮卡片 */
+    '#hxpSlot .hxp-top{display:flex}',
+    '#hxpSlot .hxp-top>.hxp-bar{max-width:none;box-shadow:none;backdrop-filter:none;background:transparent;border:0;padding:4px 6px;gap:6px;border-radius:12px}',
+    '#hxpSlot .hxp-bar .hxp-info{max-width:150px}',
+    '#hxpSlot .hxp-bar .hxp-name{font-size:13px}',
+    '#hxpSlot .hxp-bar .hxp-sub{display:none}',
+    '#hxpSlot .hxp-bar .hxp-btn{width:32px;height:32px}',
+    '#hxpSlot .hxp-bar .hxp-btn.main{width:36px;height:36px}',
+    '#hxpSlot .hxp-bar .hxp-vol input{width:56px}',
     /* 收起后的小圆钮：一个可拖动的音符球 */
     '.hxp-top.hxp-min .hxp-bar{display:none}',
     '.hxp-orb{pointer-events:auto;width:44px;height:44px;border-radius:50%;display:none;place-items:center;background:var(--card);border:1px solid var(--edge);box-shadow:0 6px 20px -10px rgba(0,0,0,.5);cursor:grab;color:var(--ink);touch-action:none;user-select:none}',
@@ -889,7 +909,23 @@
       }
       var cnt = w.querySelector('[data-t="count"]');
       if (cnt) cnt.textContent = S.list.length + ' 首' + (S.err ? '　' + S.err : '');
-      if (r.list) renderList(r);
+      /* 2026-11-10 性能：原来每次 timeupdate 都 renderList(r) 整单重建 DOM（歌单越长越卡，手机尤其明显）。
+         改成只在「当前曲目」或「播放/暂停状态」变化时才重建列表；纯进度走动只轻量更新 ▶ 高亮，
+         不再整单 innerHTML 重写。 */
+      if (r.list) {
+        if (r._li !== S.i || r._lp !== S.playing) {
+          r._li = S.i; r._lp = S.playing;
+          renderList(r);
+        } else {
+          var rows = r.list.querySelectorAll('.hxp-row');
+          rows.forEach(function (rowEl) {
+            var i = +rowEl.dataset.i;
+            var n = rowEl.querySelector('.hxp-n');
+            if (n) n.textContent = (i === S.i && S.playing ? '▶' : (i + 1));
+            rowEl.classList.toggle('on', i === S.i);
+          });
+        }
+      }
     });
   }
   var _paint = paint;
@@ -905,13 +941,18 @@
     if (D.getElementById('hxp-top')) return null;
     injectCSS();
     var inHome = !!D.getElementById('tiles');
+    /* 2026-11-10 播放器嵌入顶栏：总入口在 header 里预留了 #hxpSlot（「扫一扫」左边），
+       优先挂到那里面、变成顶栏里的普通元素，不再 fixed 悬浮遮挡文字。
+       没有 #hxpSlot（比如 /music/ 之外的其它页面）才退回挂 body 悬浮。 */
+    var slot = D.getElementById('hxpSlot');
     var host = el('div', 'hxp-top'); host.id = 'hxp-top';
-    D.body.appendChild(host);
+    (slot || D.body).appendChild(host);
     var row = bar(host);
     /* 2026-11-10 用户报「播放器对别的界面有遮挡」：
        原来 .hxp-top 是 left:0;right:0 横跨整屏、居中一条 bar，会盖住工具页顶栏的返回/首页按钮。
        改成右上角悬浮的小条：默认贴右上角，可按住左侧 ⋮⋮ 手柄拖动到任意位置，
-       点右侧「收起」缩成一颗音符圆钮（也能拖），点圆钮再展开 —— 不挡内容，随用随收。 */
+       点右侧「收起」缩成一颗音符圆钮（也能拖），点圆钮再展开 —— 不挡内容，随用随收。
+       （若已嵌入 #hxpSlot 则不再可拖、不再收起成圆钮，就是顶栏里一条常驻条。） */
     var grip = el('div', 'hxp-grip'); grip.innerHTML = '<svg viewBox="0 0 24 24"><circle cx="8" cy="6" r="1.6"/><circle cx="16" cy="6" r="1.6"/><circle cx="8" cy="12" r="1.6"/><circle cx="16" cy="12" r="1.6"/><circle cx="8" cy="18" r="1.6"/><circle cx="16" cy="18" r="1.6"/></svg>';
     grip.title = '拖动播放条';
     grip.setAttribute('aria-label', '拖动播放条');
@@ -920,16 +961,26 @@
     mini.setAttribute('aria-label', '收起播放条');
     row.wrap.insertBefore(grip, row.wrap.firstChild);
     row.wrap.appendChild(mini);
+    /* 退出按钮（2026-11-10）：点 × 停掉播放并隐藏顶部条，本次不再占用，除非再回首页点音乐。 */
+    var exit = el('button', 'hxp-exit'); exit.type = 'button'; exit.innerHTML = '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+    exit.title = '退出音乐';
+    exit.setAttribute('aria-label', '退出音乐');
+    row.wrap.appendChild(exit);
+    exit.onclick = function () { stop(); };
     /* 收起后的小圆钮 */
     var orb = el('div', 'hxp-orb'); orb.innerHTML = IC.note;
     orb.title = '播放器（点开展开）';
     orb.setAttribute('aria-label', '展开播放器');
     host.appendChild(orb);
 
-    /* 位置记忆：拖到哪、收不收，刷新后还在 */
+    /* 位置记忆：拖到哪、收不收，刷新后还在（嵌入 #hxpSlot 时不可拖，这段不会用到） */
     var POS_KEY = 'hxp-top-pos';
     var pos = null; try { pos = JSON.parse(localStorage.getItem(POS_KEY) || 'null'); } catch (e) { }
     var applyPos = function () {
+      if (slot) { /* 嵌入顶栏：清掉定位，交给 header flex 布局 */
+        host.style.left = 'auto'; host.style.right = 'auto'; host.style.top = 'auto'; host.style.bottom = 'auto';
+        return;
+      }
       if (pos && typeof pos.x === 'number' && typeof pos.y === 'number') {
         host.style.left = pos.x + 'px'; host.style.top = pos.y + 'px';
         host.style.right = 'auto'; host.style.bottom = 'auto';
@@ -939,6 +990,7 @@
       if (pos && pos.min) setMin(true, true);
     };
     var savePos = function () {
+      if (slot) return;
       var r = host.getBoundingClientRect();
       pos = { x: r.left, y: r.top, min: !!host.classList.contains('hxp-min') };
       try { localStorage.setItem(POS_KEY, JSON.stringify(pos)); } catch (e) { }
@@ -947,6 +999,7 @@
     /* 拖拽：手柄拖 bar，圆钮拖 orb，都按 pointer 事件（鼠标+触屏通用）。
        用位移判断是「点击」还是「拖拽」：动超过 4px 算拖，否则算点（点圆钮才展开）。 */
     function bindDrag(target, onTap) {
+      if (slot) return;                                       // 嵌入顶栏不可拖
       var sx = 0, sy = 0, moved = false, r = null, dx = 0, dy = 0;
       target.addEventListener('pointerdown', function (e) {
         if (e.button != null && e.button !== 0) return;
@@ -983,12 +1036,16 @@
       paint();
     }
     mini.onclick = function () { setMin(true); };
+    if (slot) { mini.style.display = 'none'; grip.style.display = 'none'; }
     applyPos();   // 恢复上次的位置和收起状态
 
     var sync = function () {
-      var has = !!(S.playing || S.cur > 0 || S.list.length);
+      /* 2026-11-10：嵌入顶栏后，只在「真的在放歌」（playing）时显示；
+         暂停/退出/没歌单都不占顶栏位置。 */
+      var has = !!(S.playing && !S.exited);
       var inTool = !inHome || D.body.classList.contains('tool');   // 总入口里只在工具全屏时出现
       host.style.display = (has && inTool) ? 'flex' : 'none';
+      host.style.visibility = (has && inTool) ? 'visible' : 'hidden';
     };
     on(sync);
     /* body 的 class 由总入口的 show() 切换，不在播放器状态里，所以盯一眼 class 变化 */
@@ -1026,10 +1083,12 @@
     list: function () { return S.list.slice(); },
     state: function () { return S; },
     add: add, remove: remove, clear: clear,
-    play: play, toggle: toggle, next: next, prev: prev, pause: pause,
+    play: play, toggle: toggle, next: next, prev: prev, pause: pause, stop: stop,
     seek: seek, volume: volume, mute: mute,
     setMode: setMode, cycleMode: cycleMode,
     on: on, bar: bar, panel: panel, topBar: topBar,
+    /* 重新打开音乐（点首页音乐卡）：清除「已退出」标记，让顶部条重新可见 */
+    unexit: function () { S.exited = false; paint(); },
     fmt: fmt, ready: function () { return loadList(); },
     /* 云（2026-11-09）：登录后重拉歌单（默认 BGM/全员/班级/群体/自己的），换设备登进来就能看到 */
     cloud: cloudOn,
