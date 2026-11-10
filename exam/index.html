@@ -6,6 +6,7 @@
 <title>考试 · 华夏工具</title>
 <link rel="icon" href="../logo.jpg">
 <script src="../hx-theme.js" data-tool="exam"></script>
+<script src="../ui-dialog.js"></script>
 <style>
 /* 版式：左侧玻璃侧栏 + 右侧主区；背景是缓慢漂移的蓝紫微光叠一层点阵（取自 LED 点阵），卡片是磨砂玻璃 */
 :root{
@@ -7178,7 +7179,7 @@ function room(code, r, back) {
   app().querySelectorAll('[data-hex]').forEach(b => b.onclick = () => { const i = +b.dataset.hex, name = `${no}_Q${i + 1}.hex`; app().querySelector(`[data-out="${i}"]`).innerHTML = hexResultHTML(name, makeHexFile(name, val(i))); });
   $('btnBack').onclick = () => { boards.forEach(x => x && x.stop()); back ? back() : studentHome(); };
   if ($('btnSub')) $('btnSub').onclick = async () => {
-    if (!confirm('交卷？收卷前还可以改了再交。')) return;
+    if (!await hxConfirm('交卷？收卷前还可以改了再交。')) return;
     const ans = {}; paper.forEach((v, i) => { ans[i + 1] = val(i); });
     $('btnSub').disabled = true;
     try { const t = await rpc('hx_exam_submit', { p_code: code, p_answers: ans }); $('subState').textContent = '已交卷：' + when(t) + '，收卷前可以重交'; toast('已交卷'); }
@@ -7264,7 +7265,7 @@ function electronicRoom(code, r, back) {
   const read = () => { const ans = {}; paper.forEach((q, i) => { if (q.t === 'single' || q.t === 'judgment') ans[i + 1] = (app().querySelector(`input[name="e_${i}"]:checked`) || {}).value || ''; else if (q.t === 'multiple') ans[i + 1] = [...app().querySelectorAll(`input[name="e_${i}"]:checked`)].map(x => x.value).join(','); else ans[i + 1] = (app().querySelector(`[data-ea="${i}"]`) || {}).value || ''; }); return ans; };
   app().querySelectorAll('input,textarea').forEach(el => el.oninput = () => store.set(draftKey, read()));
   $('btnBack').onclick = () => back ? back() : electronicStudentHome();
-  if ($('btnSub')) $('btnSub').onclick = async () => { if (!confirm('确定交卷？收卷前仍可重新交卷。')) return; const ans = read(); $('btnSub').disabled = true; try { const t = await rpc('hx_exam_submit', { p_code: code, p_answers: ans }); $('subState').textContent = '已交卷：' + when(t) + '，收卷前可重交'; toast('已交卷'); } catch (e) { toast(e.message); } finally { $('btnSub').disabled = false; } };
+  if ($('btnSub')) $('btnSub').onclick = async () => { if (!await hxConfirm('确定交卷？收卷前仍可重新交卷。')) return; const ans = read(); $('btnSub').disabled = true; try { const t = await rpc('hx_exam_submit', { p_code: code, p_answers: ans }); $('subState').textContent = '已交卷：' + when(t) + '，收卷前可重交'; toast('已交卷'); } catch (e) { toast(e.message); } finally { $('btnSub').disabled = false; } };
 }
 async function electronicTeacherHome(msg) {
   app().innerHTML = `<header class="ex-h"><div class="eyebrow">教师</div><h1>考试</h1><p>从资料库题池组一套电子卷，发布考试码给学生</p></header>${msg ? `<div class="errs">${E_ESC(msg)}</div>` : ''}<div class="row" style="margin-bottom:14px"><button class="pri" id="btnNew">发布电子试卷</button></div><div id="list">${fxLoad('加载中…')}</div>`;
@@ -7283,7 +7284,7 @@ async function electronicEditExam() {
   const drawQ = rows => { qs = rows.slice(0, 30).map((q, i) => ({ ...q, pts: 10 })); $('efQ').innerHTML = qs.length ? `<h2>题目（已选 ${qs.length}）</h2>${qs.map((q, i) => `<label class="e-pick"><input type="checkbox" data-eq="${i}" checked> <b>${i + 1}. ${E_ESC(eType(eNormType(q)))}</b> ${E_ESC(q.q || q.stem || '')}<input data-pts="${i}" type="number" min="1" max="100" value="10" aria-label="第${i + 1}题分值"></label>`).join('')}` : '<p class="note">这个科目的题池为空，请先去资料库 AI 出题并审核入池。</p>'; };
   let rows = []; try { rows = await rpc('hx_exam_qbank_list', { p_subject_id: s.id }); drawQ(rows || []); } catch (e) { $('efQ').innerHTML = `<div class="errs">${E_ESC(e.message)}</div>`; }
   const own = (CLASSES || []).filter(c => (c.tools || []).includes('exam')); $('efCls').innerHTML = own.length ? `<h2>考试班级</h2>${own.map(c => `<label><input type="checkbox" data-ec="${c.id}"> ${E_ESC(c.name)}${c.term ? ' · ' + E_ESC(c.term) : ''}</label>`).join('')}` : '<p class="note">还没有班级，请先在首页开通考试。</p>';
-  $('efBack').onclick = electronicTeacherHome; $('efSave').onclick = async () => { const fail = m => { $('efMsg').textContent = m; $('efMsg').hidden = false; }; const title = $('efTitle').value.trim(); if (!title) return fail('请填写标题'); const picked = qs.filter((q, i) => (app().querySelector(`[data-eq="${i}"]`) || {}).checked).map((q, i) => ({ ...q, pts: Math.max(1, Math.min(100, +(app().querySelector(`[data-pts="${i}"]`) || {}).value || 10)) })); if (!picked.length) return fail('至少选择一道题'); const classes = [...app().querySelectorAll('[data-ec]:checked')].map(x => +x.dataset.ec); if (!classes.length && !confirm('没有选择班级，学生将无法取题。仍要发布吗？')) return; $('efSave').disabled = true; try { const r = await rpc('hx_exam_save', { p_id: null, p_subject: $('efSub').value, p_title: title, p_paper: ePaperEncode(picked.map(eNormQ)), p_classes: classes, p_code: $('efCode').value.trim() || null }); toast('已发布，学生考试码：' + r.code); electronicTeacherHome(); } catch (e) { fail(e.message); $('efSave').disabled = false; } };
+  $('efBack').onclick = electronicTeacherHome; $('efSave').onclick = async () => { const fail = m => { $('efMsg').textContent = m; $('efMsg').hidden = false; }; const title = $('efTitle').value.trim(); if (!title) return fail('请填写标题'); const picked = qs.filter((q, i) => (app().querySelector(`[data-eq="${i}"]`) || {}).checked).map((q, i) => ({ ...q, pts: Math.max(1, Math.min(100, +(app().querySelector(`[data-pts="${i}"]`) || {}).value || 10)) })); if (!picked.length) return fail('至少选择一道题'); const classes = [...app().querySelectorAll('[data-ec]:checked')].map(x => +x.dataset.ec); if (!classes.length && !await hxConfirm('没有选择班级，学生将无法取题。仍要发布吗？')) return; $('efSave').disabled = true; try { const r = await rpc('hx_exam_save', { p_id: null, p_subject: $('efSub').value, p_title: title, p_paper: ePaperEncode(picked.map(eNormQ)), p_classes: classes, p_code: $('efCode').value.trim() || null }); toast('已发布，学生考试码：' + r.code); electronicTeacherHome(); } catch (e) { fail(e.message); $('efSave').disabled = false; } };
 }
 async function subsElectronic(x) {
   const paper = (ePaperDecode(x.paper) || []).map(eNormQ); app().innerHTML = `<header class="ex-h"><div class="eyebrow">交卷与批改 · ${E_ESC(x.code)}</div><h1>${E_ESC(x.title)}</h1></header><div class="row" style="margin-bottom:12px"><button class="pri" id="eGrade">全部批改</button><button id="eCsv">导出成绩 CSV</button><button id="eBack">返回</button><span class="note" id="eState"></span></div><div class="card" id="eTbl">${fxLoad('加载中…')}</div>`; let rows = []; try { rows = await rpc('hx_exam_subs_of', { p_id: x.id }); } catch (e) { $('eTbl').innerHTML = `<div class="errs">${E_ESC(e.message)}</div>`; return; } const grade = r => { r.res = paper.map((q, i) => { const got = eAnswer(q, (r.answers || {})[i + 1]); return { got: got * (+q.pts || 0), pts: +q.pts || 0 }; }); r.total = r.res.reduce((a, z) => a + z.got, 0); }; const draw = () => { $('eTbl').innerHTML = rows.length ? `<table class="mini"><thead><tr><th>班级</th><th>学号</th><th>姓名</th><th>交卷时间</th>${paper.map((_, i) => `<th>第${i + 1}题</th>`).join('')}<th>总分</th></tr></thead><tbody>${rows.map((r, k) => `<tr><td>${E_ESC(r.class_name)}</td><td>${E_ESC(r.student_no)}</td><td>${E_ESC(r.name)}</td><td>${when(r.at)}</td>${paper.map((_, i) => `<td>${r.res ? r.res[i].got + '/' + r.res[i].pts : '—'}</td>`).join('')}<td><b>${r.res ? r.total : '—'}</b></td></tr>`).join('')}</tbody></table>` : '<p class="note">还没有人交卷。</p>'; }; draw(); $('eBack').onclick = electronicTeacherHome; $('eGrade').onclick = () => { rows.forEach(grade); draw(); $('eState').textContent = '已批改 ' + rows.length + ' 份；简答题需老师复核'; }; $('eCsv').onclick = () => { if (rows.some(r => !r.res)) return toast('先点“全部批改”'); const q = s => '"' + String(s).replace(/"/g, '""') + '"'; downloadText(x.title + '_成绩.csv', [['班级', '学号', '姓名', '交卷时间', ...paper.map((_, i) => '第' + (i + 1) + '题'), '总分'], ...rows.map(r => [r.class_name, '\t' + r.student_no, r.name, when(r.at), ...r.res.map(z => z.got), r.total])].map(a => a.map(q).join(',')).join('\r\n'), 'text/csv'); };
@@ -7303,13 +7304,13 @@ async function teacherHome(msg) {
      2026-11-08 用户把「组卷与组卷码」页刚生成的组卷码粘进来，得到一句「没有这个组卷码」，
      完全不知道下一步该干什么 —— 现在把两条路的区别讲清楚，并直接把他送到发布表单、码也带过去。 */
   $('btnTake').onclick = async () => {
-    const c = prompt('输入组卷码或学生短码（预览自己发布的考试）'); if (!c) return;
+    const c = await hxPrompt('输入组卷码或学生短码（预览自己发布的考试）'); if (!c) return;
     const code = c.trim();
     try { const r = await rpc('hx_exam_take', { p_code: code }); room(code, r, teacherHome); }
     catch (e) {
       const unpublished = /没有这个组卷码|不存在|not found|invalid/i.test(e.message || '');
       if (!unpublished) return toast(e.message);
-      const go = confirm(`「${code}」还没发布成考试，所以取不到题。\n\n`
+      const go = await hxConfirm(`「${code}」还没发布成考试，所以取不到题。\n\n`
         + `说明：「组卷与组卷码」页生成的是组卷码（稿子），只有用它发布成考试之后，学生才取得到题。\n\n`
         + `现在去发布？点「确定」跳到发布表单，这个码已经替你填好，你只要选班级、点发布。`);
       if (go) editExam(null, { paper: code });
@@ -7328,7 +7329,7 @@ async function teacherHome(msg) {
   $('list').querySelectorAll('[data-open]').forEach(b => b.onclick = async () => { const x = byId(b.dataset.open); try { await rpc('hx_exam_open', { p_id: x.id, p_open: !x.open }); toast(x.open ? '已收卷：学生交不了了' : '已重新开放'); teacherHome(); } catch (e) { toast(e.message); } });
   $('list').querySelectorAll('[data-edit]').forEach(b => b.onclick = () => editExam(byId(b.dataset.edit)));
   $('list').querySelectorAll('[data-pre]').forEach(b => b.onclick = () => rpc('hx_exam_take', { p_code: b.dataset.pre }).then(r => room(b.dataset.pre, r, teacherHome)).catch(e => toast(e.message)));
-  $('list').querySelectorAll('[data-del]').forEach(b => b.onclick = async () => { const x = byId(b.dataset.del); if (!confirm(`删除“${x.title}”和 ${x.subs} 份交卷？删了找不回来。`)) return; try { await rpc('hx_exam_delete', { p_id: x.id }); toast('已删除'); teacherHome(); } catch (e) { toast(e.message); } });
+  $('list').querySelectorAll('[data-del]').forEach(b => b.onclick = async () => { const x = byId(b.dataset.del); if (!await hxConfirm(`删除“${x.title}”和 ${x.subs} 份交卷？删了找不回来。`)) return; try { await rpc('hx_exam_delete', { p_id: x.id }); toast('已删除'); teacherHome(); } catch (e) { toast(e.message); } });
 }
 // 发布 / 修改：标题、题目（母题、题型、分值、全班同一题）或直接粘贴单片机里生成的组卷码、班级、可选的好记名字
 function editExam(x, pre) {
@@ -7378,7 +7379,7 @@ function editExam(x, pre) {
         paper = makeExamCode(k, rows.map(q => ({ mid: +q.mid ? 'M' + q.mid : null, type: ({ t: 'fill', g: 'modify', c: 'fix' })[q.type], pts: Math.max(1, Math.min(100, +q.pts || 0)), draw: q.same && q.pin == null ? 1 : null, pin: q.same && q.pin != null ? q.pin : null })));
       }
       if (parseExamCode(paper).fp) return fail('这套卷用到了单片机里导入的书上代码，网页考试还不支持；请只用 M1～M6 母题');
-      if (!sel.size && !confirm('没选班级，学生取不到题。先保存？')) return;
+      if (!sel.size && !await hxConfirm('没选班级，学生取不到题。先保存？')) return;
       $('fSave').disabled = true;
       try { const r = await rpc('hx_exam_save', { p_id: x ? x.id : null, p_subject: $('fSub').value, p_title: title, p_paper: paper, p_classes: [...sel], p_code: $('fCode').value.trim() || null }); toast((x ? '已保存' : '已发布') + '，学生输：' + r.code); teacherHome(); }
       catch (e) { fail(e.message); $('fSave').disabled = false; }

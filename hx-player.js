@@ -683,7 +683,7 @@
         else if (a === 'mode') cycleMode();
         else if (a === 'import') fileIn.click();
         else if (a === 'publish') openPublish(card);
-        else if (a === 'clearlist') { if (confirm('清空本地歌单？云端发布的歌不受影响，本机导入的音频会删掉。')) clear(); }
+        else if (a === 'clearlist') { var _m = '清空本地歌单？云端发布的歌不受影响，本机导入的音频会删掉。'; if (window.hxConfirm) { hxConfirm(_m).then(function (ok) { if (ok) clear(); }); } else if (confirm(_m)) clear(); }
       };
     });
     fileIn.onchange = function () { add(fileIn.files).then(function (n) { if (n) resumeIfIdle(); fileIn.value = ''; }); };

@@ -2,6 +2,7 @@
 <html lang="zh-CN">
 <head>
 <script src="../hx-theme.js" data-tool="paike"></script>
+<script src="../ui-dialog.js"></script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>华夏教研室排课系统</title>
@@ -900,7 +901,7 @@ HXLoadFx.boot('paike', 'hxBoot');
 <div id="toast" class="toast" role="status"></div>
 <script id="saved-data" type="application/json">null</script>
 <script>
-const BUILD={"time":"2026-11-10T08:12:50.643Z","sha":"ada61a5"};
+const BUILD={"time":"2026-11-10T08:38:26.050Z","sha":"7ce5611"};
 /* ---- engine.js ---- */
 /* ================= 排课引擎：数据模型、次数/轮次、自动排课、固定老师同步、校验 =================
    纯逻辑，不碰页面；浏览器里是全局 Engine，node 里 require 进来测试。
@@ -2586,7 +2587,7 @@ function genWeeks(dates){
   toast(rep.length?rep.join('；'):'已排好 '+dates.length+' 周');
 }
 /* 老师改班：选的组已被别的固定老师占着时问一下“互换 / 让对方待分配” */
-function changeAssign(name,kind,ids){
+async function changeAssign(name,kind,ids){
   ids=ids.filter(Boolean);
   const same=ids.length&&st.groups.find(g=>g.classIds.length===ids.length&&ids.every(id=>g.classIds.includes(id)));
   const holder=same&&kind==='fixed'&&Object.keys(st.fixed).find(n=>n!==name&&st.fixed[n]===same.id);
@@ -2600,7 +2601,7 @@ function changeAssign(name,kind,ids){
     const mine=kind==='fixed'?st.fixed[name]:(st.designate||{})[name];
     const hit=st.groups.filter(g=>g.id!==mine&&g.classIds.some(id=>ids.includes(id)));
     const others=[...new Set(hit.flatMap(g=>holdersOf(g.id)).filter(n=>n!==name))];
-    if(others.length&&!confirm(ids.map(id=>E.cls(st,id).name).join('、')+' 里有 '+others.join('、')+' 正在带的班。继续会把他们原来的组拆开，他们进“待分配”。继续吗？'))return render();
+    if(others.length&&!await hxConfirm(ids.map(id=>E.cls(st,id).name).join('、')+' 里有 '+others.join('、')+' 正在带的班。继续会把他们原来的组拆开，他们进“待分配”。继续吗？'))return render();
   }
   let cleared=[];
   commit(()=>{cleared=E.assignClasses(st,name,ids,kind);afterConfig();});
@@ -2685,17 +2686,17 @@ const ACT={
   'clear-do':el=>{doneThenClose(el,'已清空');const all=!!el.dataset.later;
     const n=st.weeks.filter(w=>all?w.date>=view.month+'-01':w.date.startsWith(view.month)).length;
     commit(()=>{E.clearMonths(st,view.month,all);},'已清空 '+n+' 周'+(all?'（本月及以后）':'')+'，点“自动排本月”重新排');},
-  'gen-month':()=>{
+  'gen-month':async()=>{
     const ds=genDatesOf(monthDates());
     if(!ds.length)return;
-    if(ds.some(d=>E.weekOf(st,d))&&!confirm('整月重排？锁定的格子和固定老师保持不动，其他都会重新排。'))return;
+    if(ds.some(d=>E.weekOf(st,d))&&!await hxConfirm('整月重排？锁定的格子和固定老师保持不动，其他都会重新排。'))return;
     genWeeks(ds);
     if(st.weeks.some(w=>w.date>ds[ds.length-1]&&!w.history))setTimeout(()=>toast('注意：后面的月份已经排过，可能需要一并重排'),2700);
   },
   'gen-week':el=>genWeeks([el.dataset.d]),
   'lock-week':el=>commit(()=>{const w=E.weekOf(st,el.dataset.d);const all=w.rows.every(r=>r.locked);w.rows.forEach(r=>r.locked=!all);}),
-  skip:el=>{const w=E.weekOf(st,el.dataset.d);
-    if(!w.skip){const note=prompt('停课原因（可不填）','');if(note===null)return;commit(()=>{w.skip=true;w.note=note;},'已设为停课，之后的周可点“重排”补位');}
+  skip:async el=>{const w=E.weekOf(st,el.dataset.d);
+    if(!w.skip){const note=await hxPrompt('停课原因（可不填）','');if(note===null)return;commit(()=>{w.skip=true;w.note=note;},'已设为停课，之后的周可点“重排”补位');}
     else commit(()=>{w.skip=false;w.note='';E.syncWeekRows(st,w);E.applyFixed(st,w);E.generate(st,[w.date],{fillOnly:true});},'已恢复上课');},
   cell:el=>onCell(el.dataset.d,+el.dataset.i),
   'swap-cancel':()=>{swapFrom=null;render();},
@@ -2728,13 +2729,13 @@ const ACT={
     commit(()=>{const {cnt}=E.tally(st,null);const base=minOr(st.teachers.filter(t=>t.status==='rotate').map(t=>cnt[t.name]));
       for(const x of neu){st.teachers.push({name:x.name,status:x.status,reason:x.reason,base:x.status==='rotate'?base:0});if(x.status==='fixed')st.fixed[x.name]=null;}
       E.assignColors(st);},'已添加 '+neu.length+' 位老师'+(neu.some(x=>x.status==='fixed')?'，固定老师记得到上面选班':''));},
-  't-del':el=>{const t=st.teachers[+el.dataset.k];if(!confirm('从名单删除 '+t.name+'？已排的课不会被删，但会提示“不在名单”。'))return;
+  't-del':async el=>{const t=st.teachers[+el.dataset.k];if(!await hxConfirm('从名单删除 '+t.name+'？已排的课不会被删，但会提示“不在名单”。'))return;
     commit(()=>{st.teachers.splice(+el.dataset.k,1);delete st.fixed[t.name];delete st.designate[t.name];});},
   'g-add':()=>commit(()=>{st.groups.push({id:'g'+Date.now().toString(36),room:'',classIds:[]});afterConfig();},'已新建，选一下班级和教室'),
-  'g-del':el=>{const g=st.groups[+el.dataset.k];if(!confirm('删除教室 '+(g.room||'')+' 这一行？里面的班会变成“没放进教室”。'))return;
+  'g-del':async el=>{const g=st.groups[+el.dataset.k];if(!await hxConfirm('删除教室 '+(g.room||'')+' 这一行？里面的班会变成“没放进教室”。'))return;
     commit(()=>{st.groups.splice(+el.dataset.k,1);for(const n in st.fixed)if(st.fixed[n]===g.id)st.fixed[n]=null;for(const n in st.designate)if(st.designate[n]===g.id)delete st.designate[n];afterConfig();});},
   'c-add':()=>{const n=$('#newC').value.trim();if(!n)return;commit(()=>st.classes.push({id:'c'+Date.now().toString(36),name:n,size:'',note:''}),'已添加，记得把它放进一间教室');},
-  'c-del':el=>{const c=st.classes[+el.dataset.k];if(!confirm('删除 '+c.name+'？'))return;
+  'c-del':async el=>{const c=st.classes[+el.dataset.k];if(!await hxConfirm('删除 '+c.name+'？'))return;
     commit(()=>{st.classes.splice(+el.dataset.k,1);st.groups.forEach(g=>g.classIds=g.classIds.filter(id=>id!==c.id));afterConfig();});},
   'x-official':el=>busy(el,exportOfficial,'已导出').catch(e=>toast(e.message)),
   'tpl-in':()=>$('#tplFile').click(),
@@ -2752,7 +2753,7 @@ const ACT={
     download('华夏教研室排课系统-'+st.savedAt.slice(0,10)+'.html',new Blob([html],{type:'text/html'}));},
   'json-out':()=>download('晚修排课备份-'+new Date().toISOString().slice(0,10)+'.json',new Blob([JSON.stringify(Object.assign({},st,{templateXlsx:st.templateXlsx||builtinTpl()||undefined}),null,1)],{type:'application/json'})),
   'json-in':()=>$('#jsonFile').click(),
-  reset:()=>{if(!confirm(ONLINE?'清空成空白？这个账号的全部排课和设置都会删掉（可先下载备份）。':'恢复成最初的数据？现在所有排课和设置都会丢失（可先下载备份）。'))return;commit(()=>{st=startData();},ONLINE?'已清空成空白':'已恢复初始数据');},
+  reset:async()=>{if(!await hxConfirm(ONLINE?'清空成空白？这个账号的全部排课和设置都会删掉（可先下载备份）。':'恢复成最初的数据？现在所有排课和设置都会丢失（可先下载备份）。'))return;commit(()=>{st=startData();},ONLINE?'已清空成空白':'已恢复初始数据');},
   'cf-cloud':()=>{closeModal();applyRemote(conflict.row,'已换成云端的版本（本机那份可以点“撤销”找回）');},
   'cf-mine':()=>{closeModal();Object.assign(Sync,{rev:conflict.row.rev,conflicted:false});Sync.push();},
   'cf-backup':()=>ACT['json-out'](),

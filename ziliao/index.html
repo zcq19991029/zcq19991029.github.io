@@ -7,6 +7,7 @@
 <link rel="icon" href="../logo.jpg">
 <link rel="stylesheet" href="../hx-theme.css">
 <script src="../hx-theme.js" data-tool="ziliao"></script>
+<script src="../ui-dialog.js"></script>
 <script src="../hx-ai.js"></script>
 <style>/* 资料库工具样式。颜色全部来自 ../hx-theme.css（--bg/--ink/--dim/--card/--edge/--acc…，深浅色由 hx-theme.js 切）；
    这里只放布局和控件。排版规矩（华夏工具 2026-11-08）：主容器 width:min(1600px,100%)，不写 min-width 硬下限，
@@ -1162,7 +1163,7 @@ async function matView(id) {
 
 async function matDel(id) {
   const m = MAT_LIST.find(x => +x.id === id) || {};
-  if (!confirm('删除资料「' + (m.name || '') + '」？\n\n它的切段会一起删掉；已经出好的题留在题池里。')) return;
+  if (!await hxConfirm('删除资料「' + (m.name || '') + '」？\n\n它的切段会一起删掉；已经出好的题留在题池里。')) return;
   const r = await MAT_call('hx_exam_mat_del', { p_id: id });
   if (!r.ok) return MAT_banner('删除失败：' + r.err);
   await MAT_rm(typeof r.data === 'string' ? r.data : (r.data && r.data.path));
@@ -1422,7 +1423,7 @@ function qbDraw() {
 }
 
 async function qbDel(id) {
-  if (!confirm('删掉这道题？只删这一道。')) return;
+  if (!await hxConfirm('删掉这道题？只删这一道。')) return;
   const r = await MAT_call('hx_exam_qbank_del', { p_id: +id });
   if (!r.ok) return MAT_banner('删除失败：' + r.err);
   QB_ALL = QB_ALL.filter(x => String(x.id) !== String(id)); QB_SEL.delete(String(id));
@@ -1432,7 +1433,7 @@ async function qbDel(id) {
 async function qbClear() {
   const s = curSub(); if (!s) return;
   if (!QB_ALL.length) return toast('题池是空的');
-  if (!confirm(`清空「${s.name}」题池里全部 ${QB_ALL.length} 道题？\n\n删了找不回来；资料和已经发布到刷题的题不受影响。`)) return;
+  if (!await hxConfirm(`清空「${s.name}」题池里全部 ${QB_ALL.length} 道题？\n\n删了找不回来；资料和已经发布到刷题的题不受影响。`)) return;
   const r = await MAT_call('hx_exam_qbank_clear', { p_subject_id: s.id });
   if (!r.ok) return MAT_banner('清空失败：' + r.err);
   QB_ALL = []; QB_SEL.clear(); qbDrawStat(); qbDraw();

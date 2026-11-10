@@ -8,6 +8,7 @@
 <script>(function(){var m=/(?:^#|&)c=(\d+)\.([A-Za-z0-9]+)/.exec(location.hash||'');if(m){try{sessionStorage.setItem('hx-att-c',JSON.stringify({s:+m[1],t:m[2],at:Date.now()}))}catch(e){}}})();</script>
 <link rel="stylesheet" href="../hx-theme.css">
 <script src="../hx-theme.js" data-tool="kaoqin"></script>
+<script src="../ui-dialog.js"></script>
 <script src="../hx-scan.js" defer></script><!-- 全站扫一扫（K5，站点根），没加载到时签到页给微信/相机扫码的退路 -->
 <style>/* 考勤工具样式。颜色全部来自 ../hx-theme.css（--bg/--ink/--dim/--card/--edge/--acc…，深浅色由 hx-theme.js 切）；
    这里只放布局和控件。排版规矩（华夏工具 2026-11-08）：主容器 width:min(1600px,100%)，不写 min-width 硬下限，
@@ -1321,13 +1322,13 @@ function drawCourse() {
   else $('coPub').onclick = () => publishDlg();
   $('coEdit').onclick = () => courseEdit(T.cur);
   $('coDel').onclick = async () => {
-    if (!confirm('删除课程「' + c.name + '」？\n\n它的 ' + list.length + ' 次考勤记录会一起删掉，删了找不回来。')) return;
+    if (!await hxConfirm('删除课程「' + c.name + '」？\n\n它的 ' + list.length + ' 次考勤记录会一起删掉，删了找不回来。')) return;
     try { await rpc('hx_att_course_del', { p_id: T.cur }); toast('已删除课程'); teacherHome(); } catch (e) { toast('删不了：' + e.message); }
   };
   $('coBody').querySelectorAll('[data-big]').forEach(b => b.onclick = () => bigOpen(+b.dataset.big));
   $('coBody').querySelectorAll('[data-sdel]').forEach(b => b.onclick = async () => {
     const x = list.find(s => s.id === +b.dataset.sdel);
-    if (!confirm('删除第 ' + x.seq + ' 次考勤（' + md(x.started_at) + '）？这次的签到和手改记录会一起删掉。')) return;
+    if (!await hxConfirm('删除第 ' + x.seq + ' 次考勤（' + md(x.started_at) + '）？这次的签到和手改记录会一起删掉。')) return;
     try { await rpc('hx_att_session_del', { p_session: x.id }); toast('已删除'); courseOpen(T.cur); } catch (e) { toast('删不了：' + e.message); }
   });
   const xs = { xPrev: 'prev', xXlsx: 'xlsx', xPdf: 'pdf' };

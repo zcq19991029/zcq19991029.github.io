@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>单片机上机练习与考试</title>
 <script src="../hx-theme.js" data-tool="mcu"></script>
+<script src="../ui-dialog.js"></script>
 <style>
 /* 版式：左侧玻璃侧栏 + 右侧主区；背景是缓慢漂移的蓝紫微光叠一层点阵（取自 LED 点阵），卡片是磨砂玻璃 */
 :root{
@@ -5585,7 +5586,7 @@ function importWidget(el,opt){
     }
     if(a==='del'){
       const i=+b.dataset.i,L=opt.list();
-      if(!confirm(`从题库删掉“${L[i].name}”？${opt.who==='teacher'?'\n注意：后面导入的代码编号会往前挪，已经公布的、用到导入题的组卷码都会失效。':''}`))return;
+      if(!await hxConfirm(`从题库删掉“${L[i].name}”？${opt.who==='teacher'?'\n注意：后面导入的代码编号会往前挪，已经公布的、用到导入题的组卷码都会失效。':''}`))return;
       opt.save(L.filter((_,j)=>j!==i));render();
       if(opt.onChange)opt.onChange('del');
     }
@@ -6622,7 +6623,7 @@ MODE_INIT.practice=function(){
       if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();check();}
       if(e.key==='Tab'){e.preventDefault();const t=e.target,s=t.selectionStart;t.setRangeText('    ',s,t.selectionEnd,'end');}
     });
-    $('btnReset').onclick=()=>{if(confirm('恢复成原题？你写的内容会丢失。'))$('editor').value=S.code;};
+    $('btnReset').onclick=()=>{hxConfirm('恢复成原题？你写的内容会丢失。').then(ok=>{if(ok)$('editor').value=S.code;});};
     $('btnDown').onclick=()=>{if(S.v)downloadC(`练习_${$('pcode').value}.c`,$('editor').value);};
     $('btnHex').onclick=()=>{
       if(!S.v)return;
@@ -6904,7 +6905,7 @@ MODE_INIT.teacher=function(){
   on1('btnFolder',()=>{const f=$('folderPick');if(f)f.click();});
   on('gFilePick','change',e=>{addFiles([...e.target.files]);e.target.value='';});
   on('folderPick','change',e=>{addFiles([...e.target.files]);e.target.value='';});
-  on1('btnClear',()=>{if(confirm('清空所有已读入的提交？名单保留。')){subs.clear();render();}});
+  on1('btnClear',()=>{hxConfirm('清空所有已读入的提交？名单保留。').then(ok=>{if(ok){subs.clear();render();}});});
   on1('btnPaste',pasteGrade);
   on('tbody','change',e=>{const t=e.target;if(t.dataset.adj!=null){stu(t.dataset.adj).adj=parseFloat(t.value)||0;const b=document.querySelector(`[data-tot="${t.dataset.adj}"]`);if(b)b.textContent=scoreOf(t.dataset.adj).total;}});
   /* 参考答案 / 学生代码 → HEX */
