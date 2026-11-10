@@ -2592,3 +2592,8 @@ html.hx-bg[data-hx-mode="dark"] body::after,
 /* 夜览下 KPI 竖条保持彩色（不随深色压暗） */
 :root[data-hx-mode="dark"] #scoreMetrics .metric::before { opacity: .9; }
 
+/* 分组页「已选座 · 待确认」统计卡：内嵌一键确认按钮（2026-11-10） */
+.metric.metric-seated { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.metric.metric-seated .v { font-size: 20px; }
+.metric.metric-seated #btnConfirmSeating { margin-top: 2px; white-space: normal; width: 100%; }
+

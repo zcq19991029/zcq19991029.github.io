@@ -2463,6 +2463,9 @@ function restoreDroppedToHome(cls) {
     $('#btnGoPool').addEventListener('click', function () {
       $('#poolClassSel').value = cls.id;
       switchView('pool');
+      /* 2026-11-10：横幅写着「去确认分组 →」，但点进去折叠区还收着，老师找不到
+         「按选座确认分组」按钮。有已选座待确认的人时，直接展开「学生自助选桌」折叠区。 */
+      if (seated.length) openTeamMore();
     });
   }
 
@@ -2503,8 +2506,9 @@ function restoreDroppedToHome(cls) {
       '<div class="metric"><div class="k">已分组</div><div class="v good">' + nGrouped +
         ' <small>人</small></div></div>' +
       (nSeated
-        ? '<div class="metric"><div class="k">已选座 · 待确认</div><div class="v">' + nSeated +
-          ' <small>人</small></div></div>'
+        ? '<div class="metric metric-seated"><div class="k">已选座 · 待确认</div><div class="v">' + nSeated +
+          ' <small>人</small></div>' +
+          '<button class="btn tiny primary" id="btnConfirmSeating" type="button">一键按选座确认分组</button></div>'
         : '') +
       '<div class="metric"><div class="k">未分组</div><div class="v ' + (nPending ? 'neg' : '') + '">' +
         nPending + ' <small>人</small></div></div>';
@@ -3328,11 +3332,14 @@ function restoreDroppedToHome(cls) {
        把「开放组队」放回来，老师随时能再开一轮（jf_team_open 会先把旧房间作废）。 */
     open.hidden = !!room && st !== 'closed';
     lock.hidden = !room || st === 'closed';
-    fin.hidden = !room || st === 'closed';
+    /* 2026-11-10 修「待确认却点不到确认」：房间 closed 后 jf_team_state 仍能拉到 seats，
+       tmApplySeating 也只看 tmState 不看 room.status。所以房间结束但还有人坐桌（待确认）时，
+       fin 必须继续显示，否则老师只能一个个拖。房间开着时保持原逻辑（有房间就显示，哪怕还没人坐）。 */
+    fin.hidden = !room || (st === 'closed' && !(tmState && (tmState.seats || []).length));
     close.hidden = !room || st === 'closed';
     link.hidden = !room || st === 'closed';
     lock.textContent = st === 'locked' ? '继续组队' : '停止组队';
-    fin.disabled = !room || !tmState || !(tmState.seats || []).length;
+    fin.disabled = !tmState || !(tmState.seats || []).length;
     if (room && room.room) {
       link.href = 'team.html?r=' + room.room;
       link.hidden = false;
@@ -3660,6 +3667,16 @@ function restoreDroppedToHome(cls) {
   }
 
   $('#btnTeamFinish').addEventListener('click', tmApplySeating);
+
+  /* 分组页「已选座 · 待确认」统计卡上的一键确认按钮（2026-11-10）：
+     和折叠区里的「按选座确认分组」同一个动作，只是把入口提到分组页顶部，老师一眼能看到。
+     动态渲染进 #poolMetrics，用事件委托接住。 */
+  $('#poolMetrics').addEventListener('click', function (e) {
+    var b = e.target.closest ? e.target.closest('#btnConfirmSeating') : null;
+    if (!b) return;
+    if (b.disabled) return;
+    tmApplySeating();
+  });
 
   /* 看板上的两个小操作：移出某人 / 把没账号的人放到某桌 */
   $('#teamBoard').addEventListener('click', function (e) {
