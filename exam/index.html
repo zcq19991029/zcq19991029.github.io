@@ -199,6 +199,10 @@ th{font:600 11px/1.4 var(--mono);letter-spacing:.08em;color:var(--mute);text-tra
 .mini th,.mini td{padding:8px 8px;font-size:13px}
 .mini tr.bad td{background:var(--badbg)}
 .mini tr{transition:background-color .2s}
+/* 老师端「练习记录」：整行可点，选中行用主题的浅蓝底（和下拉框聚焦同一个变量），不另造一套颜色 */
+.mini tbody tr[data-sel]{cursor:pointer}
+.mini tbody tr[data-sel]:hover td{background:var(--field2)}
+.mini tbody tr.sel td{background:var(--accbg)}
 #tbody td:nth-child(2),th{white-space:nowrap}
 a.jump{color:var(--acc);text-decoration:none;font-weight:600}
 a.jump:hover{text-decoration:underline}
@@ -5108,6 +5112,10 @@ th{font:600 11px/1.4 var(--mono);letter-spacing:.08em;color:var(--mute);text-tra
 .mini th,.mini td{padding:8px 8px;font-size:13px}
 .mini tr.bad td{background:var(--badbg)}
 .mini tr{transition:background-color .2s}
+/* 老师端「练习记录」：整行可点，选中行用主题的浅蓝底（和下拉框聚焦同一个变量），不另造一套颜色 */
+.mini tbody tr[data-sel]{cursor:pointer}
+.mini tbody tr[data-sel]:hover td{background:var(--field2)}
+.mini tbody tr.sel td{background:var(--accbg)}
 #tbody td:nth-child(2),th{white-space:nowrap}
 a.jump{color:var(--acc);text-decoration:none;font-weight:600}
 a.jump:hover{text-decoration:underline}

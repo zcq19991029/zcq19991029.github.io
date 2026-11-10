@@ -26,8 +26,9 @@ const TYPES = [['single', '单选'], ['multiple', '多选'], ['judgment', '判�
 const SELF = new Set(['term', 'short', 'prog']); // 主观题：看参考答案自己判对错
 // 出题要求（导入区“根据资料出题”）：默认只出选择题；填空/简答要用户自己勾，
 // 因为它们在刷题页只能「看参考答案自评」，不参与排行榜计分，默认勾上会让人误会。
+// scope（2026-11-09）：从「一段手写文字」改成「勾选的章节数组」，空数组 = 整份资料（和以前 scope:'' 一样）。
 const GEN_DEF = {
-  scope: '', level: '中等', extra: '',
+  scope: [], level: '中等', extra: '',
   count: { single: 5, multiple: 3, judgment: 5, fill: 5, short: 3, prog: 3 },
   on: { single: true, multiple: true, judgment: true, fill: false, short: false, prog: false }
 };
@@ -647,11 +648,36 @@ async function renderRank() {
 }
 
 // ---------- 导入区的小零件（说明、模板、出题要求、识别报告） ----------
+/* 出题「范围」的选项 = 当前题库里已有的章节。
+   ── 为什么取 source / sourceTitle ──
+   题库的数据结构里没有单独的 chapter 字段（normalizeQuestions 也不产生），能当章节用的只有
+   source：内置题库就是「项目3 并行 I/O 端口与 C51 语言」「电气控制技术实训 第3版 项目1」这种，
+   老师自己导入时也会写在 source／出处里。所以从题目里收集、去重，不在代码里写死章节名单 ——
+   换一门课、换一本教材，选项自动跟着变。
+   空串跳过（教育心理学有 460 题没写来源），别生成一个空白选项。 */
+function bankChapters() {
+  const out = [], seen = new Set();
+  for (const q of S.questions || []) {
+    const raw = String(q.source || q.sourceTitle || '').trim();
+    if (!raw || seen.has(raw)) continue;
+    seen.add(raw); out.push(raw);
+  }
+  // 项目2 / 项目10 这种按数字排，别让「项目10」排到「项目2」前面
+  return out.sort((a, b) => a.localeCompare(b, 'zh-Hans-CN', { numeric: true }));
+}
 // 出题要求存在本机：老师这次勾了「只出单选 10 道」，下次打开还是这套，不用重填
 function genState() {
   if (!S.gen) S.gen = { ...GEN_DEF, count: { ...GEN_DEF.count }, on: { ...GEN_DEF.on }, ...(store.getLocal('importGen', null) || {}) };
   S.gen.count = { ...GEN_DEF.count, ...(S.gen.count || {}) };
   S.gen.on = { ...GEN_DEF.on, ...(S.gen.on || {}) };
+  /* 老存档迁移：2026-11-09 以前 scope 是一段手写文字（如「第 5 章」），现在是章节数组。
+     能对上现有章节的就勾上；对不上的直接丢掉 —— 留着一句界面上看不见的话，
+     用户会以为范围还在生效，实际却悄悄按整份资料出题，比丢掉更坏。 */
+  if (typeof S.gen.scope === 'string') {
+    const old = S.gen.scope.trim();
+    S.gen.scope = old ? bankChapters().filter(c => c === old) : [];
+  }
+  if (!Array.isArray(S.gen.scope)) S.gen.scope = [];
   return S.gen;
 }
 const saveGen = () => store.setLocal('importGen', genState());
@@ -692,9 +718,16 @@ const TPL = [
 ];
 function genHtml() {
   const g = genState();
+  /* 章节选项来自当前题库；顺手把「已经不在题库里的旧勾选」剔掉，
+     否则界面上看不到那一项，提示词里却还带着它（切科目后最容易出现）。 */
+  const chs = bankChapters();
+  g.scope = g.scope.filter(c => chs.includes(c));
   return `<div class="gen" id="gen" ${S.imode === 'gen' ? '' : 'hidden'}>
-        <label for="genScope">出题范围</label>
-        <input id="genScope" maxlength="120" value="${esc(g.scope)}" placeholder="例如：项目3 并行 I/O 端口；或第 5 章；留空 = 整份资料">
+        <div class="genfield">
+          <span class="gt">出题范围</span>
+          ${chs.length ? `<div class="chgrid" id="genScope">${chs.map(c => `<label class="${g.scope.includes(c) ? 'on' : ''}"><input type="checkbox" data-ch="${esc(c)}" ${g.scope.includes(c) ? 'checked' : ''}><span>${esc(c)}</span></label>`).join('')}</div>` : '<p class="muted" style="margin:0">这个题库还没有章节信息（题目里没写「来源」）。不勾就是整份资料。</p>'}
+          <p class="muted" style="margin:0">勾哪几章就只出这几章的题；一个都不勾 = 整份资料。选项来自当前题库已有的章节。</p>
+        </div>
         <div class="gt">题型和数量（整份资料一共要几道）</div>
         ${GEN_TYPES.map(([t, n]) => `<div class="genrow"><label><input type="checkbox" data-tp="${t}" ${g.on[t] ? 'checked' : ''}>${n}</label><input type="number" min="0" max="50" step="1" data-n="${t}" value="${esc(g.count[t])}"><span class="muted">道</span>${t === 'fill' || t === 'short' || t === 'prog' ? '<span class="muted">· 只能自评，不计分</span>' : ''}</div>`).join('')}
         <label for="genLevel">难度</label>
@@ -707,7 +740,14 @@ function genHtml() {
 function bindGen() {
   const g = genState();
   const box = $('v-bank');
-  if ($('genScope')) $('genScope').oninput = e => { g.scope = e.target.value; saveGen(); };
+  // 章节多选：勾一下改数组，同时给 label 加 .on（不用 :has，老内核也稳）
+  for (const c of box.querySelectorAll('#genScope [data-ch]')) c.onchange = () => {
+    const set = new Set(g.scope);
+    if (c.checked) set.add(c.dataset.ch); else set.delete(c.dataset.ch);
+    g.scope = [...set];
+    const lab = c.closest('label'); if (lab) lab.classList.toggle('on', c.checked);
+    saveGen();
+  };
   if ($('genLevel')) $('genLevel').onchange = e => { g.level = e.target.value; saveGen(); };
   if ($('genExtra')) $('genExtra').oninput = e => { g.extra = e.target.value; saveGen(); };
   for (const c of box.querySelectorAll('[data-tp]')) c.onchange = () => { g.on[c.dataset.tp] = c.checked; saveGen(); };
@@ -1069,7 +1109,8 @@ async function startImport() {
     if (!text.trim() && !pics.length) throw new Error('这个文件里没有读到文字。PDF 请确认不是扫描件；扫描件可以拍成图片再选图片导入。');
     const gen = S.imode === 'gen';
     const g = genState();
-    const opts = { scope: (g.scope || '').trim(), level: g.level, extra: (g.extra || '').trim(), types: genTypes() };
+    // 章节数组 → 提示词里的「范围」一句；没勾任何章节 = 空串，genPrompt 会照旧写「整份资料」
+    const opts = { scope: g.scope.length ? g.scope.join('；') : '', level: g.level, extra: (g.extra || '').trim(), types: genTypes() };
     let got = { questions: [], rejected: [] };
     const tick = t => { if ($('imMsg')) $('imMsg').textContent = t; };
     if (text.trim()) {

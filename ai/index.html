@@ -119,6 +119,16 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
 .rmain .u{margin:0;font-size:12px;color:var(--dim);line-height:1.55}
 .rmain .u b{color:var(--ink);font-weight:700}
 .tl-chip{font-size:11px;font-weight:800;padding:2px 8px;border-radius:7px;background:color-mix(in srgb,var(--acc) 12%,transparent);color:var(--acc)}
+/* ---- 工具总览（只读） ----
+   复用上面配置列表的 .row / .rmain / .chips（同一套卡片语言），只补「分组标题」和
+   两条虚线分隔：一块说「单独指定」，一块说「跟随默认」，别让人以为是两套不同的东西。 */
+.ovg + .ovg{margin-top:12px;padding-top:12px;border-top:1px dashed var(--edge)}
+.ovt{margin:0 0 2px;font-size:13px;font-weight:800;color:var(--ink)}
+.ovt small{margin-left:6px;font-size:11.5px;font-weight:700;color:var(--faint)}
+.ovnote{margin:0;font-size:12px;line-height:1.6;color:var(--dim)}
+.ovg .row:first-of-type{border-top:0;padding-top:6px}
+/* 手机上分组标题和说明别挤成一坨 */
+@media (max-width:620px){ .ovt{margin-top:2px} }
 /* ---- 默认 / 工具 / 导入导出 ---- */
 .dl{display:grid;grid-template-columns:150px 1fr;gap:9px 14px;align-items:center}
 .dl > b{font-size:13.5px;font-weight:700}
@@ -207,6 +217,15 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
     <h2>按工具指定（可选）</h2>
     <p class="sub">留空就跟随上面的默认。需要读图的工具（比如刷题导入照片）要选勾了「图片识别」的那套。</p>
     <div class="dl" id="tools"></div>
+  </section>
+
+  <!-- 总览（只读）：上面两个卡片都是下拉，工具多了要一个个展开才看得出「刷题现在到底走哪套」。
+       这里按同一份 HXAI.settings() 把 7 个工具摊平，分「单独指定 / 跟随默认」两组。
+       不在这里改配置 —— 改动仍走上面的下拉，避免同一件事有两个入口、两套校验。 -->
+  <section class="card">
+    <h2>每个工具用哪套（总览）</h2>
+    <p class="sub">一屏看清每个工具实际调哪套模型。这里只是展示，要改还是用上面的下拉。</p>
+    <div id="overview"></div>
   </section>
 
   <section class="card">
@@ -367,6 +386,7 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
       sel.onchange = function () {
         HXAI.setActive(sel.dataset.cap, sel.value);
         renderDefaults(); renderTools();
+        renderOverview(); // 改默认会影响「跟随默认」那一组，总览得同时刷
         toast('已更新默认模型');
       };
     });
@@ -396,9 +416,88 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
       sel.onchange = function () {
         HXAI.setTool(sel.dataset.tool, sel.value);
         renderTools();
+        renderOverview(); // 总览跟着变：改了指定却要刷新才看到，会让人以为没生效
         toast(sel.value ? '已指定' : '已改回跟随默认');
       };
     });
+  }
+
+  // ---------- 画「每个工具用哪套」总览（只读，2026-11-09 加） ----------
+  /* 为什么另起一块，而不是在下拉旁边写说明：
+     7 个工具 × 6 种能力，谁在用哪套只有一个个展开下拉才看得出来，「刷题用 A、考试用 B、
+     其余走默认」这种全局判断根本做不了。这里不发明数据，直接摊开 HXAI.settings()：
+       · 分组只认一个事实 —— s.tools[工具] 有没有值：有 = 单独指定，没有 = 跟随默认；
+       · 「跟随默认」组头把每项能力的默认写出来（文本、识图可能不是同一套），
+         组里的每行再给出这个工具实际会落到的那套（forTool 的口径，和真正调用一致）。 */
+  function ovRow(t, p, tag) {
+    if (!p) {
+      return '<div class="row" data-tool="' + esc(t.id) + '">' +
+        '<div class="rmain"><div class="t"><b>' + esc(t.name) + '</b>' + tag + '</div>' +
+          '<p class="m">还没有可用的模型</p>' +
+          '<div class="chips"><span class="chip">没配模型</span></div></div>' +
+      '</div>';
+    }
+    var ks = HXAI.hasKey(p.id);
+    return '<div class="row" data-tool="' + esc(t.id) + '">' +
+      '<div class="rmain">' +
+        '<div class="t"><b>' + esc(t.name) + '</b>' + tag +
+          '<span class="pv">' + esc(provName(p.provider)) + '</span>' +
+          '<span class="tl-chip">' + esc(thinkName(p.thinkLevel)) + '</span></div>' +
+        '<p class="m">' + esc(p.name || p.model) + ' · ' + esc(p.model) + '</p>' +
+        '<div class="chips">' +
+          '<span class="kst' + (ks ? ' ok' : '') + '">' + (ks ? 'Key 已填' : '没填 Key') + '</span>' +
+          (p.caps || []).map(function (c) {
+            return '<span class="chip on">' + esc(capName(c)) + '</span>';
+          }).join('') +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }
+
+  function renderOverview() {
+    var s = HXAI.settings();
+    var byId = {};
+    s.profiles.forEach(function (p) { byId[p.id] = p; });
+    var explicit = [], follow = [];
+    HXAI.toolList.forEach(function (t) {
+      var id = s.tools[t.id];
+      // 读存储时已经把指向已删配置的死引用清掉了；这里再兜一次，
+      // 免得有人手改 localStorage 后，总览里出现一套根本不存在的模型
+      (id && byId[id] ? explicit : follow).push({ t: t, id: id });
+    });
+
+    var box = $('overview');
+    if (!s.profiles.length) {
+      box.innerHTML = '<p class="hint" style="margin:0">还没有配置。上面加一套之后，这里会列出每个工具实际用的模型。</p>';
+      return;
+    }
+
+    // 「跟随默认」用到哪些默认：按能力逐项说，因为读图和问答本来就可能落在两套上
+    var defs = HXAI.caps.map(function (c) {
+      var p = byId[s.active[c.id]];
+      return p ? capName(c.id) + '「' + (p.name || p.model) + '」' : '';
+    }).filter(Boolean);
+    var defLine = defs.length
+      ? '默认按能力选：' + defs.join('；')
+      : '还没设默认：这些工具现在没有可用模型，先去上面「按能力设默认」里选一套。';
+
+    var tagFollow = '<span class="chip">跟随默认</span>';
+    var tagOwn = '<span class="chip">单独指定</span>';
+    box.innerHTML =
+      '<div class="ovg" data-grp="explicit">' +
+        '<p class="ovt">单独指定<small>' + explicit.length + ' 个工具</small></p>' +
+        (explicit.length
+          ? explicit.map(function (x) { return ovRow(x.t, byId[x.id], tagOwn); }).join('')
+          : '<p class="ovnote">没有工具单独指定，全部走下面的默认。</p>') +
+      '</div>' +
+      '<div class="ovg" data-grp="follow">' +
+        '<p class="ovt">跟随默认<small>' + follow.length + ' 个工具</small></p>' +
+        '<p class="ovnote">' + esc(defLine) + '</p>' +
+        (follow.length
+          // forTool 的口径和真正调用一致：没指定 → 文本默认；有指定但那套干不了这件事时也退到默认
+          ? follow.map(function (x) { return ovRow(x.t, HXAI.forTool(x.t.id), tagFollow); }).join('')
+          : '<p class="ovnote">所有工具都单独指定了。</p>') +
+      '</div>';
   }
 
   // ---------- 注册渠道（从首页 AI 弹层搬来） ----------
@@ -424,7 +523,7 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
     });
   }
 
-  function renderAll() { renderList(); renderDefaults(); renderTools(); renderChannels(); }
+  function renderAll() { renderList(); renderDefaults(); renderTools(); renderOverview(); renderChannels(); }
   // ---------- 表单 ----------
   // 供应商那句提醒（能不能读图、地址要不要改、额度怎么算）
   function setProvNote(prov) {
