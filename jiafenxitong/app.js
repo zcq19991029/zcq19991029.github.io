@@ -2495,11 +2495,12 @@ function restoreDroppedToHome(cls) {
       '<div class="metric"><div class="k">未分组</div><div class="v ' + (nPending ? 'neg' : '') + '">' +
         nPending + ' <small>人</small></div></div>';
 
-    /* 筛选：圆桌上的人还没写进分组，但按统一口径（已分组 + 已选座待确认 + 未分组 = 全班）
-       「已选座待确认」不算「未分组」。所以「仅未分组」栏只列真正没着落的人（没进组也没坐桌），
-       已选座待确认的人在「全部」栏里看，pill 标「已选座·第 N 桌（待确认）」。 */
+    /* 筛选：圆桌上的人还没写进分组，仍然归在「待分配」这一栏里等人点确认。
+       状态列里如实写「已选座 · 第 N 桌（待确认）」，和顶部「已选座待确认」那一栏对得上；
+       顶部「未分组」只数「没进组也没坐桌」的人，所以「未分组 0」和列表里挂着「已选座待确认」
+       的几行不矛盾——前者是统计口径，后者是等人点确认的待办。 */
     var list = rows;
-    if (poolFilter === 'pending') list = rows.filter(function (x) { return x.g === null && !x.table; });
+    if (poolFilter === 'pending') list = rows.filter(function (x) { return x.g === null; });
     else if (poolFilter === 'assigned') list = rows.filter(function (x) { return x.g !== null; });
     var q = poolSearch.trim().toLowerCase();
     if (q) {
@@ -2550,9 +2551,7 @@ function restoreDroppedToHome(cls) {
         '<p class="rank-note">当前显示 ' + list.length + ' 条' +
           (poolFilter === 'pending' ? '（仅未分组）' : poolFilter === 'assigned' ? '（仅已分组）' : '（全部）') +
           (q ? '，搜索「' + esc(poolSearch) + '」' : '') + '。</p>'
-      : '<p class="rank-note">' + (poolFilter === 'pending'
-          ? (nSeated ? '没有未分组的学生（' + nSeated + ' 人已选座待确认，在「全部」栏里确认分组）。' : '没有未分组的学生，全班都分好组了。')
-          : '没有记录。') + '</p>';
+      : '<p class="rank-note">' + (poolFilter === 'pending' ? '没有未分组的学生，全班都分好组了。' : '没有记录。') + '</p>';
 
     gbRows = rows;
     renderGroupBoard(cls);
@@ -5597,15 +5596,34 @@ function restoreDroppedToHome(cls) {
       });
       window.JFDT_WIRE.syncAll();
       /* 2026-11-09：接线任务结束以后，成绩要自己走进「上课记分」总表的「课堂任务」列。
-         这里一个 10 秒心跳，只做一件事：maybeSync() 拉一次只读 RPC，把**已结束**的任务入账。
-         刹车：① 页面在后台不拉；② wire-task-link.js 内部 LIVE_THROTTLE=10s 节流。
-         注意：它不改进行中的任务 —— plan() 只处理已结束的；进行中的完成率/名次在大屏看。
-         （横幅 2026-11-09 已按用户要求撤掉，所以这里不再判断 wireBanner 是否存在。） */
+         这里一个 10 秒心跳，做两件事：
+           ① maybeSync() 拉一次只读 RPC，把**已结束**的任务入账；
+           ② 当前班当前课开着「组长打分」时，拉一次互评看板 —— 学生提交互评后，
+              分要自己走进「上课记分」首页和「个人项目分」，不用老师手动切到评分页才刷新。
+              （2026-11-10 用户报「互评完首页分数没实时更新 / 八班孩子个人项目分没分」，
+                根因就是心跳只入账接线任务、没拉互评看板，学生提交的分一直躺在云端没下来。）
+         刹车：① 页面在后台不拉；② wire-task-link.js 内部 LIVE_THROTTLE=10s 节流；
+               ③ 互评看板只在开着 gate 的当前课拉，每课一个 in-flight，不重复拉。 */
+      var peerPollInflight = false;
       setInterval(function () {
         try {
           if (document.hidden) return;
-          if (!S || !window.JFDT_WIRE) return;
-          window.JFDT_WIRE.maybeSync(curClass());
+          if (!S) return;
+          if (window.JFDT_WIRE) window.JFDT_WIRE.maybeSync(curClass());
+          /* 互评看板：只拉「当前在看的班 + 当前课 + 开着组长打分」这一份 */
+          var cls = curClass();
+          var lesson = cls ? curLesson(cls) : null;
+          if (!cls || !lesson || !lesson.peerGate || !peerReady(cls) || peerPollInflight) return;
+          peerPollInflight = true;
+          peerFetchBoard(cls, lesson).then(function () {
+            peerPollInflight = false;
+            /* 拉回来的新提交已经 peerApplyBoard 计分进 leaderScores 并 save 了；
+               这里补一次重画，让首页「个人项目分 / 本节完成率」和评分页立刻跟上。 */
+            try {
+              if (view === 'score') renderScore();
+              else if (view === 'leader') renderLeader();
+            } catch (e) { /* 重画失败绝不影响记分 */ }
+          }, function () { peerPollInflight = false; });
         } catch (e) { /* 心跳失败绝不影响记分 */ }
       }, 10000);
     }
