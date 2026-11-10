@@ -251,3 +251,35 @@ table.book tr.me-row td { border-color: var(--ok, #2f845a); }
 @media (max-width: 520px) {
   .peer-swipe-hint { display: block; }
 }
+
+/* ============================================================
+   我的小组卡片 · 科技风增强（2026-11-10）：深蓝渐变玻璃 + KPI 数字块 + 组内排名徽章。
+   只加不改，随时可整段删除回滚。
+   ============================================================ */
+.group-card {
+  background: linear-gradient(150deg, #0e2a4f, #173b68);
+  border: 1px solid rgba(96, 165, 250, .25);
+  color: #eaf1fb;
+}
+.group-card > h3 { color: #fff; }
+.group-card-head { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+.group-card-head h3 { margin: 0; font-size: 15px; color: #fff; font-weight: 700; }
+.group-rank-badge {
+  margin-left: auto; padding: 3px 10px; border-radius: 999px;
+  font-size: 12px; font-weight: 600; color: #fff;
+  background: rgba(255, 255, 255, .14); border: 1px solid rgba(255, 255, 255, .18);
+}
+.group-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px; }
+.group-kpi {
+  padding: 12px; border-radius: 12px;
+  background: rgba(255, 255, 255, .08); border: 1px solid rgba(255, 255, 255, .12);
+}
+.group-kpi span { display: block; font-size: 11px; color: #9fc0ea; }
+.group-kpi b { display: block; font-size: 20px; font-weight: 700; margin-top: 3px; color: #fff; }
+/* 深蓝玻璃卡里的表格：表头、边框、文字都换成透亮色，组员名亮色 */
+.group-card .scroll table.book th { background: rgba(255, 255, 255, .08); color: #9fc0ea; border-color: rgba(255, 255, 255, .14); }
+.group-card .scroll table.book td { color: #dbe7f8; border-color: rgba(255, 255, 255, .14); }
+.group-card .scroll table.book td.nm b { color: #fff; }
+.group-card .scroll table.book tr.me-row { background: rgba(16, 185, 129, .16); }
+.group-card .scroll table.book tr.me-row td { border-color: rgba(16, 185, 129, .4); }
+.group-card .note { color: #7fa6d9; }

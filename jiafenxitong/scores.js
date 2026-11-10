@@ -464,7 +464,20 @@
         '<td>' + (m.regular == null ? '—' : num(m.regular)) + '</td>' +
         '</tr>';
     }).join('');
-    return '<div class="card"><h3>我的小组</h3>' +
+    var myRank = 0;
+    members.forEach(function (m, i) {
+      var isMe = (m.sid && d.me.sid && m.sid === d.me.sid) || (!m.sid && !d.me.sid && m.name === d.me.name);
+      if (isMe) myRank = i + 1;
+    });
+    return '<div class="card group-card"><div class="group-card-head">' +
+      '<h3>我的小组</h3>' +
+      '<span class="group-rank-badge">组内排名 第 ' + myRank + ' 名</span>' +
+      '</div>' +
+      '<div class="group-kpis">' +
+      '<div class="group-kpi"><span>我的平时分</span><b>' + num(d.total ? d.total.regular : 0) + '</b></div>' +
+      '<div class="group-kpi"><span>小组人数</span><b>' + d.group.size + ' 人</b></div>' +
+      '<div class="group-kpi"><span>组内第 1</span><b>' + esc(members[0] ? members[0].name : '—') + '</b></div>' +
+      '</div>' +
       '<div class="scroll"><table class="book group"><thead><tr>' +
       '<th>#</th><th>组员</th><th>学号</th><th>个人项目累计</th><th>平时分</th>' +
       '</tr></thead><tbody>' + rows + '</tbody></table></div>' +

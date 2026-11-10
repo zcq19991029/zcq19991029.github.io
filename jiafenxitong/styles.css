@@ -2531,3 +2531,64 @@ html.hx-bg[data-hx-mode="dark"] body::after,
 /* 夜览：80% 那档的浅蓝底要压暗，否则在深色横幅上刺眼（仍是同一支蓝） */
 :root[data-hx-mode="dark"] .wire-banner .wire-chip.r80 { background: rgba(58, 85, 196, .22); border-color: rgba(174, 191, 255, .42); color: #b9c8ff; }
 
+/* ============================================================
+   科技风增强（2026-11-10）：参考「课堂综合评价系统」做组件级增强。
+   只加不改：这一整段是追加的覆盖层，不动上面任何一行，随时可整段删除回滚。
+   · 侧栏保持白色（现有浅色模式本来就是白侧栏，这里不动）
+   · 主题透明 / 通透度照旧（--panel 半透明机制原样保留）
+   · 表格颜色不变（不碰 --xl-* 纸质记录表和 .sheet）
+   · 小组（组号徽章彩色圆角块 + 红绿分数药丸）照着参考图抄
+   ============================================================ */
+
+/* 组号徽章：从单一主题色圆形，改成按组号轮换的彩色圆角方块（1蓝/2绿/3橙/4紫/5粉/6青/7红，循环） */
+.gnum {
+  width: auto; min-width: 26px; height: 26px; padding: 0 7px;
+  border-radius: 8px;
+  background: #3b82f6; color: #fff;
+  box-shadow: none;
+  font-weight: 700; font-size: 12.5px;
+}
+.groups .gcard:nth-child(8n+2) .gnum { background: #10b981; }
+.groups .gcard:nth-child(8n+3) .gnum { background: #f59e0b; }
+.groups .gcard:nth-child(8n+4) .gnum { background: #8b5cf6; }
+.groups .gcard:nth-child(8n+5) .gnum { background: #ec4899; }
+.groups .gcard:nth-child(8n+6) .gnum { background: #06b6d4; }
+.groups .gcard:nth-child(8n+7) .gnum { background: #ef4444; }
+.groups .gcard:nth-child(8n)   .gnum { background: #6366f1; }
+/* 表格式（sheet-vertical）里的组号也同步彩色圆角块：.c-no 单元格里的组号数字 */
+.sheet-vertical .c-no { color: #3b82f6; font-weight: 700; }
+.sheet-vertical tbody[data-card="2"] .c-no, .sheet-vertical tbody:nth-of-type(2) .c-no { color: #10b981; }
+.sheet-vertical tbody:nth-of-type(3) .c-no { color: #f59e0b; }
+.sheet-vertical tbody:nth-of-type(4) .c-no { color: #8b5cf6; }
+.sheet-vertical tbody:nth-of-type(5) .c-no { color: #ec4899; }
+.sheet-vertical tbody:nth-of-type(6) .c-no { color: #06b6d4; }
+.sheet-vertical tbody:nth-of-type(7) .c-no { color: #ef4444; }
+.sheet-vertical tbody:nth-of-type(8) .c-no { color: #6366f1; }
+
+/* 红绿分数标签：加分绿 / 扣分红，做成彩色药丸 */
+.gsum .v.pos, .metric .v.pos { color: #10b981; }
+.gsum .v.neg, .metric .v.neg { color: #ef4444; }
+.metric .v.good { color: #10b981; }
+
+/* 主按钮：渐变大圆角胶囊（保留主题主色语义，色相仍由 --accent 驱动，只加渐变与胶囊化） */
+.btn.primary {
+  border-radius: var(--pill);
+  background: linear-gradient(135deg, var(--accent-hi), var(--accent-strong));
+  border: 0;
+  box-shadow: 0 4px 14px var(--accent-glow);
+  font-weight: 600;
+}
+.btn.primary:hover { filter: brightness(1.06); }
+
+/* KPI 指标卡：加左侧彩色竖条，强化「数字块」观感 */
+#scoreMetrics .metric { position: relative; overflow: hidden; }
+#scoreMetrics .metric::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+  background: var(--accent);
+}
+#scoreMetrics .metric:nth-child(2)::before { background: #10b981; }
+#scoreMetrics .metric:nth-child(3)::before { background: #f59e0b; }
+#scoreMetrics .metric:nth-child(4)::before { background: #8b5cf6; }
+/* 夜览下 KPI 竖条保持彩色（不随深色压暗） */
+:root[data-hx-mode="dark"] #scoreMetrics .metric::before { opacity: .9; }
+
