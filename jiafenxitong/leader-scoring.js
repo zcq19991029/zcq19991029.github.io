@@ -13,6 +13,15 @@
      切走/离开评分页就停。定时器只留一个，重画时先清旧的，别泄漏。 */
   var PEER_POLL_MS = 10000;
   var poll = { timer: 0, alive: null, run: null };
+  /* 线上排位列（2026-11-11 修互评刷分漏洞）：列名带「接线 / 线上连线排位」前缀的列是
+     课堂任务（wire-task-link.js）自动入账的成绩，只有学生真实完成线上排位才能得分，
+     老师在这里不能手改、不能撤销、不能一键满分 —— 互评分档（scores.js）和提交侧
+     （peer-apply.js）也同样锁死，三处同一个正则。
+     原来这里只认 peerMeta === 'wire'：列在而 meta 丢失（加前缀之前的老数据、
+     互评先落过格再被任务接管）就会漏锁，学生照样能互相刷分 —— 所以改成按列名统一判断。
+     ⚠ 前缀口径与 app.js 的 taskScore()、wire-task-link.js 的 NAME_PREFIX 保持一致。 */
+  var TASK_COL = /^(?:接线|线上连线排位)/;
+  function isTaskCol(name) { return TASK_COL.test(String(name == null ? '' : name).trim()); }
   function pollStop() { if (poll.timer) { clearTimeout(poll.timer); poll.timer = 0; } }
   function pollSchedule() {
     pollStop();
@@ -209,6 +218,10 @@
     function memberOf(st, mk) { var hit = st.members.find(function (e) { return key(e.m) === mk; }); return hit ? hit.m : null; }
     function cellValue(st, mk, col) { var v = (st.rec.members[mk] || [])[col]; return v == null || v === '' ? null : Number(v); }
     function cellMeta(st, mk, col) { return (lesson.peerMeta && lesson.peerMeta[st.group.no + '|' + mk + '|' + col]) || ''; }
+    /* 排位列锁（2026-11-11）：列名命中 TASK_COL 就锁死（peerMeta==='wire' 只是兜底加一层，
+       名字才是硬标准 —— 老数据/丢 meta 的列不能漏）。锁住之后：不摆打分按钮、不给
+       data-score（点击/双击/键盘都进不来）、一键满分跳过这一列。 */
+    function isWireCol(col) { return isTaskCol(sharedProjects[col]); }
     function persist(st) { if (!lesson.leaderScores) lesson.leaderScores = {}; lesson.leaderScores[String(st.group.no)] = st.rec; context.save(); }
     function logFor(st, detail) { if (context.log) context.log(cls.name + ' · 第' + lesson.seq + '次课 · 第' + st.group.no + '组 · ' + detail); }
     function logClass(detail) { if (context.log) context.log(cls.name + ' · 第' + lesson.seq + '次课 · ' + detail); }
@@ -240,16 +253,17 @@
     }
     function cellInner(st, mk, col, gone) {
       var v = cellValue(st, mk, col), meta = cellMeta(st, mk, col);
-      /* 已转走/移出名单的历史分行：空格不摆打分按钮（点了也不会有反应），只放个占位 */
-      if (v == null) return gone ? '<span class="peer-score" style="opacity:.3">—</span>' : picksHtml(st, mk, col);
+      /* 已转走/移出名单的历史分行：空格不摆打分按钮（点了也不会有反应），只放个占位；
+         线上排位列也一样：空格只读，绝不摆 20%–100% 按钮（老师不能给这一列打分） */
+      if (v == null) return (gone || isWireCol(col)) ? '<span class="peer-score" style="opacity:.3">—</span>' : picksHtml(st, mk, col);
       return '<span class="peer-score">' + numPctText(v) + '</span>' + srcHtml(meta, isLeadKey(st, mk));
     }
     function cellTitle(st, mk, col) {
       var v = cellValue(st, mk, col), meta = cellMeta(st, mk, col);
-      /* 接线任务列（2026-11-09 用户定：「这一列的分不能人为控制」）：
-         分数 = 任务完成率 × 5，由任务成绩自动写入，老师不能在这里手改、也不能撤销。
-         想改这格 → 去接线那边重跑/重开任务，下一轮同步会自动更新。 */
-      if (meta === 'wire') return '接线任务自动入账的完成率（任务完成率 × 100%），不能手改；任务重跑后下一轮同步会自动更新这一格';
+      /* 排位列（2026-11-09 用户定：「这一列的分不能人为控制」；2026-11-11 起按列名判断，
+         不再只依赖 peerMeta）：分数 = 任务完成率 × 5，由任务成绩自动写入，老师不能在这里
+         手改、也不能撤销。想改这格 → 去接线那边重跑/重开任务，下一轮同步会自动更新。 */
+      if (meta === 'wire' || isWireCol(col)) return '线上排位列：分是课堂任务自动入账的（任务完成率 × 100%），只有真实完成排位才能得分，不能手改；任务重跑后下一轮同步会自动更新这一格';
       if (v == null) return '教师可直接给 20%–100%（不用等学生提交）';
       if (meta === 'teacher') return '教师直接填的完成率，已计入；双击撤销这一格的加分';
       if (meta === 'avg') return isLeadKey(st, mk)
@@ -260,7 +274,7 @@
     function cellHtml(st, mk, col, gone) {
       var v = cellValue(st, mk, col), meta = cellMeta(st, mk, col);
       var m = memberOf(st, mk);
-      var lock = meta === 'wire';
+      var lock = meta === 'wire' || isWireCol(col);
       var cls = 'peer-cell' + (v != null ? ' is-set score-' + toneOf(v) : '') +
         (meta === 'teacher' ? ' is-teacher' : '') + (lock ? ' is-wire' : '') + (gone ? ' is-gone' : '');
       return '<div class="' + cls + '" data-gno="' + st.group.no + '" data-peer-cell="' + col + '" data-member="' + esc(mk) + '"' + (gone ? ' data-gone="1"' : '') +
@@ -270,7 +284,7 @@
     }
     function paintCell(el, st, mk, col) {
       var v = cellValue(st, mk, col), meta = cellMeta(st, mk, col);
-      var lock = meta === 'wire';
+      var lock = meta === 'wire' || isWireCol(col);
       var gone = !!(el.dataset && el.dataset.gone === '1');
       el.classList.toggle('is-set', v != null);
       el.classList.toggle('is-teacher', meta === 'teacher');
@@ -290,12 +304,12 @@
     function setCell(st, mk, col, value) {
       var m = memberOf(st, mk);
       if (!m) return;
-      /* 接线任务列锁死（2026-11-09 用户：「这一列的分不能人为控制」）：
-         分数是任务完成率 × 5，来源是任务成绩，不是老师手上的 1–5 颗星。
+      /* 排位列锁死（2026-11-09 用户：「这一列的分不能人为控制」；2026-11-11 起按列名判断）：
+         分数是任务完成率 × 5，来源是任务成绩，不是老师手上的 1–5 颗星，也不是学生的互评分。
          老师想改 → 去接线那边重跑/重开任务，同步会自己更新这一格。
          这里必须挡在写入之前，否则一次误点就把任务分改掉，下一轮同步又会把它改回去（老师会以为见鬼）。 */
-      if (cellMeta(st, mk, col) === 'wire') {
-        setBlockFb(st.group.no, '这一列是接线课堂任务自动入账的完成率（任务完成率 × 100%），不能手改；要改请重跑任务。');
+      if (cellMeta(st, mk, col) === 'wire' || isWireCol(col)) {
+        setBlockFb(st.group.no, '这一列是线上排位列（课堂任务自动入账），只有真实完成排位才能得分，不能手改；要改请重跑任务。');
         return;
       }
       if (!st.rec.members[mk]) st.rec.members[mk] = [];
@@ -549,11 +563,21 @@
     }
     function openFullMarks(gno) {
       var st = byGno[String(gno)];
-      var named = sharedProjects.map(function (p, i) { return String(p).trim() ? i : -1; }).filter(function (i) { return i >= 0; });
-      if (!named.length) { setBlockFb(gno, '请先在页顶填项目名称；每个项目满分 100%。'); return; }
+      /* 线上排位列只有真实完成排位才能得分：一键满分绝不能给它填 100%，
+         所以「已命名项目」先剔除排位列（新旧前缀都剔），剩下 0 项就明说 */
+      var named = sharedProjects.map(function (p, i) { return String(p).trim() && !isTaskCol(p) ? i : -1; }).filter(function (i) { return i >= 0; });
+      var wireNamed = sharedProjects.filter(function (p) { return isTaskCol(p); }).length;
+      if (!named.length) {
+        setBlockFb(gno, wireNamed
+          ? '本课的项目列都是线上排位列：只有真实完成排位才能得分，不能一键满分。'
+          : '请先在页顶填项目名称；每个项目满分 100%。');
+        return;
+      }
       var dlg = document.createElement('dialog');
       dlg.id = 'dlgLeaderFullMarks';
-      dlg.innerHTML = '<form method="dialog"><h2>一键全员满分</h2><p>每人每个已命名项目填为 100%，共 ' + named.length + ' 项；空白预留列不变。已有较低分会被改为 100%，可在操作日志按组撤销。</p>' +
+      dlg.innerHTML = '<form method="dialog"><h2>一键全员满分</h2><p>每人每个已命名项目填为 100%，共 ' + named.length + ' 项' +
+        (wireNamed ? '（线上排位列不参与，那几列只有真实完成排位才能得分）' : '') +
+        '；空白预留列不变。已有较低分会被改为 100%，可在操作日志按组撤销。</p>' +
         '<label class="field col">范围<select id="leaderFullScope"><option value="current">只填第 ' + st.group.no + ' 组</option><option value="all">本课全部小组</option></select></label>' +
         '<div class="btnrow"><button class="btn" value="cancel">取消</button><button class="btn primary" value="ok">确认填满 100%</button></div></form>';
       document.body.appendChild(dlg);

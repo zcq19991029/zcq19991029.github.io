@@ -1483,6 +1483,12 @@ function restoreDroppedToHome(cls) {
 
   /** 把服务端算好的确认结果写回本节 leaderScores（成员=组长给的原始分，组长=组员平均分） */
   function peerApplyRows(lesson, project, rows) {
+    /* 线上排位列：只有真实完成排位才能得分 —— 老数据里若曾有这一列的「已确认」提交，
+       也绝不再从互评链路写回来 */
+    if (TASK_COL.test(String(project == null ? '' : project).trim())) {
+      console.warn('[peer] 拒绝把线上排位列「' + project + '」的互评确认结果写回成绩');
+      return 0;
+    }
     var col = peerColumnOf(lesson, project);
     if (col < 0) return 0;
     var n = 0;
@@ -1501,6 +1507,11 @@ function restoreDroppedToHome(cls) {
 
   /** 老师点「清空本列」：这一列本轮加分全部清掉（含互评标记），学生重新提交才会再计分 */
   function peerClearColumn(cls, lesson, project) {
+    /* 线上排位列：分是课堂任务自动入账的，清空本列会把任务分一起抹掉 —— 坚决拒绝 */
+    if (TASK_COL.test(String(project == null ? '' : project).trim())) {
+      console.warn('[peer] 拒绝清空线上排位列「' + project + '」：这一列的分来自课堂任务，不能清空');
+      return 0;
+    }
     var col = peerColumnOf(lesson, project);
     if (col < 0) return 0;
     var n = 0;
@@ -1554,7 +1565,12 @@ function restoreDroppedToHome(cls) {
       classes: visibleClasses(),
       save: function () { save(); var cls=curClass(),lesson=curLesson(cls);if(lesson)renderGroups(cls,lesson); },
       log: function(detail) { addOperationLog('个人项目评分',detail); },
-      fullMarks:function(lesson,groups,columns,names){var cls=getClass(lesson.classId),changed=0;if(!lesson.leaderScores)lesson.leaderScores={};groups.forEach(function(g){var r=lesson.leaderScores[String(g.no)]||(lesson.leaderScores[String(g.no)]={projects:names.slice(),members:{},signedBy:'',note:''}),effect=[];g.members.filter(function(m){return m.name;}).forEach(function(m){var key=m.sid?'sid:'+m.sid:'id:'+m.id,values=r.members[key]||(r.members[key]=[]);columns.forEach(function(i){var old=values[i];if(old===5)return;effect.push({path:'leader:'+key+'|'+i,delta:5-(Number(old)||0),wasBlank:old==null});values[i]=5;changed++;});});
+      fullMarks:function(lesson,groups,columns,names){var cls=getClass(lesson.classId),changed=0;
+      /* 线上排位列（TASK_COL 与 taskScore() 同一个正则）：只有真实完成排位才能得分，
+         一键满分绝不能给它填 100%——即使调用方漏过滤，这里再挡一道 */
+      columns=(columns||[]).filter(function(i){return !TASK_COL.test(String((names&&names[i])==null?'':names[i]).trim());});
+      if(!columns.length){flash('本课的项目列都是线上排位列：只有真实完成排位才能得分，不能一键满分。');return;}
+      if(!lesson.leaderScores)lesson.leaderScores={};groups.forEach(function(g){var r=lesson.leaderScores[String(g.no)]||(lesson.leaderScores[String(g.no)]={projects:names.slice(),members:{},signedBy:'',note:''}),effect=[];g.members.filter(function(m){return m.name;}).forEach(function(m){var key=m.sid?'sid:'+m.sid:'id:'+m.id,values=r.members[key]||(r.members[key]=[]);columns.forEach(function(i){var old=values[i];if(old===5)return;effect.push({path:'leader:'+key+'|'+i,delta:5-(Number(old)||0),wasBlank:old==null});values[i]=5;changed++;});});
       /* 一键满分是老师的明确动作：除了清掉「互评」角标，还要把这一格的 peerSync 顶到现在，
          否则 10 秒自动刷新拉回来的旧提交会把 5 分改回去（学生之后重新提交的更新的分照常覆盖） */
       if(!lesson.peerMeta)lesson.peerMeta={};if(!lesson.peerSync)lesson.peerSync={};g.members.filter(function(m){return m.name;}).forEach(function(m){var k=m.sid?'sid:'+m.sid:'id:'+m.id,now=new Date().toISOString();columns.forEach(function(i){delete lesson.peerMeta[g.no+'|'+k+'|'+i];lesson.peerSync[g.no+'|'+k+'|'+i]=now;});});
@@ -1669,6 +1685,72 @@ function restoreDroppedToHome(cls) {
     $('#btnPrintLesson').addEventListener('click', function () { openLessonPrint(cls, lesson); });
     var excelButton=document.createElement('button');excelButton.className='btn';excelButton.textContent='下载本课Excel';excelButton.onclick=function(){downloadLessonExcel(cls,lesson);};$('#lessonMeta .btnrow').appendChild(excelButton);
     var pdfButton=document.createElement('button');pdfButton.className='btn';pdfButton.textContent='下载打印版PDF';pdfButton.onclick=function(){openLessonPrint(cls,lesson,true);};$('#lessonMeta .btnrow').prepend(pdfButton);
+    /* 2026-11-11 发布线上排位任务：用户原话「小组评分表那里增加发布项目名的按钮 按下立马刷新
+       学生立马就能看到任务 成绩完成率也是立马更新」。一键把当前班+当前课次发布成接线仿真的
+       线上排位任务（wire_task_open），学生端任务榜/大屏 15 秒内可见；这里强制 maybeSync，
+       任务列当场建出来、完成率实时更新（open 任务实时入账，见 wire-task-link.js 约定①）。 */
+    var wirePubButton=document.createElement('button');wirePubButton.className='btn primary';wirePubButton.id='btnWirePub';wirePubButton.textContent='发布线上排位任务';wirePubButton.onclick=function(){openWirePublish(cls,lesson);};$('#lessonMeta .btnrow').prepend(wirePubButton);
+  }
+
+  /* ---- 发布线上排位任务（2026-11-11）：小组加分 → 接线仿真课堂任务 ----
+     电路清单和接线仿真 task-hx.js 的 CIRCUITS 同一套 id（2.1～2.6 / E1 / E2，
+     专项 P 不进课堂任务）。列名「线上连线排位 接线X.X」由 wire-task-link.js 的
+     taskColumnName() 生成，这里的任务名只是学生端看到的活动名。 */
+  var JF_WIRE_CIRCUITS = [
+    { id: '2.1', short: '单向起动' }, { id: '2.2', short: '电气互锁正反转' },
+    { id: '2.3', short: '双重互锁正反转' }, { id: '2.4', short: '按钮切换星-三角' },
+    { id: '2.5', short: '时间继电器星-三角' }, { id: '2.6', short: '双速电动机' },
+    { id: 'E1', short: '联锁正反转能耗制动' }, { id: 'E2', short: 'C6140T 卧式车床' }
+  ];
+  var wirePubDialog=document.createElement('dialog');wirePubDialog.id='dlgWirePub';wirePubDialog.setAttribute('aria-labelledby','wirePubTitle');
+  wirePubDialog.innerHTML='<form id="wirePubForm"><h2 id="wirePubTitle">发布线上排位任务</h2>'+
+    '<p class="note">给本节课发一个接线仿真的线上排位任务：学生去「接线仿真」点排位、接对并仿真成功就算完成，分数按名次（前 10 名 100%、11–20 名 80%、其余 70%）实时写进本课的「线上连线排位」项目列。</p>'+
+    '<label class="field col">电路<select id="wirePubCir">'+JF_WIRE_CIRCUITS.map(function(c){return '<option value="'+c.id+'">'+esc(c.id+' '+c.short)+'</option>';}).join('')+'</select></label>'+
+    '<label class="field col">任务名（可改）<input id="wirePubName" maxlength="60"></label>'+
+    '<label class="field col">任务说明（可选）<textarea id="wirePubNote" maxlength="200" placeholder="每人接完并仿真成功，按排位用时给分"></textarea></label>'+
+    '<p class="note" id="wirePubInfo"></p>'+
+    '<p id="wirePubError" role="alert" class="note"></p>'+
+    '<div class="btnrow"><button type="button" class="btn" id="cancelWirePub">取消</button><button type="submit" class="btn primary" id="wirePubGo">发布任务</button></div></form>';
+  document.body.appendChild(wirePubDialog);wireDialog(wirePubDialog);
+  function openWirePublish(cls, lesson) {
+    if (!cls || !lesson) return;
+    if (!cls.hxClassId) { flash('这个班还没和首页班级对应上（去名单页点「导入/对应班级」），发布不了线上任务'); return; }
+    if (!(CLOUD_ON && CLOUD && typeof CLOUD.rpc === 'function' && CLOUD.profile && CLOUD.profile())) {
+      flash('请先登录教师账号，才能发布线上排位任务'); return;
+    }
+    var cir = $('#wirePubCir'), name = $('#wirePubName'), note = $('#wirePubNote');
+    var syncName = function () { if (!name.dataset.touched) name.value = '线上连线排位 · ' + cir.value + ' ' + (JF_WIRE_CIRCUITS.find(function (c) { return c.id === cir.value; }) || {}).short; };
+    cir.onchange = syncName; name.oninput = function () { name.dataset.touched = '1'; };
+    delete name.dataset.touched; syncName(); note.value = '';
+    $('#wirePubInfo').innerHTML = '会写进 <b>第 ' + lesson.seq + ' 次课</b>（' + esc(lesson.date || '日期未填') + ' · ' + esc(lesson.topic || '未填主题') +
+      '）的「线上连线排位 接线' + esc(cir.value) + '」列，本课总分满分随之 +5。<br>一个班同时只能有一个进行中的任务；学生端任务榜和大屏最多 15 秒就能看到。';
+    $('#wirePubError').textContent = '';
+    var go = $('#wirePubGo');
+    go.disabled = false; go.textContent = '发布任务';
+    $('#cancelWirePub').onclick = function () { wirePubDialog.close(); };
+    $('#wirePubForm').onsubmit = function (e) {
+      e.preventDefault();
+      if (go.disabled) return;
+      go.disabled = true; go.textContent = '发布中…';
+      CLOUD.rpc('wire_task_open', {
+        p_class: Number(cls.hxClassId), p_circuit: cir.value,
+        p_title: name.value.trim() || ('线上连线排位 · ' + cir.value),
+        p_note: note.value.trim(),
+        p_lesson_no: Number(lesson.seq), p_lesson_date: lesson.date || null
+      }).then(function (r) {
+        wirePubDialog.close();
+        var tname = name.value.trim() || ('线上连线排位 · ' + cir.value);
+        addOperationLog('发布线上排位任务', cls.name + ' · 第' + lesson.seq + '次课 · ' + tname + '（任务 #' + ((r && r.id) || '—') + '）');
+        save();   /* 日志要落盘：maybeSync 没有变化时不会替我们保存 */
+        flash('已发布：学生去接线仿真排位就自动记上，完成率会实时更新到第 ' + lesson.seq + ' 次课「线上连线排位 接线' + cir.value + '」列');
+        /* 发布即入账：强制拉一次（绕过 45s 节流），列当场建出来，老师不用等心跳 */
+        if (window.JFDT_WIRE) window.JFDT_WIRE.maybeSync(cls, true);
+      }).catch(function (err) {
+        $('#wirePubError').textContent = (err && err.message) || '发布失败，请检查网络';
+        go.disabled = false; go.textContent = '发布任务';
+      });
+    };
+    openDlg(wirePubDialog);
   }
 
   var lessonEditor=document.createElement('dialog');lessonEditor.id='dlgEditLesson';lessonEditor.setAttribute('aria-labelledby','editLessonTitle');

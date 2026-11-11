@@ -270,6 +270,12 @@
 
   function submitPeer(project, target, score) {
     if (!peer.data) return;
+    /* 排位列兜底：正常界面点不到（按钮不渲染），这条挡旧缓存页 / 控制台直调 */
+    if (isTaskCol(project)) {
+      peer.msg = '「' + project + '」是线上排位列：只有真实完成排位才能得分，不能互评打分。';
+      paint();
+      return;
+    }
     var lessonKey = peer.data.lesson, prev = peerScore(project, target);
     upsertMine(project, target, score);
     peer.busy = true;
@@ -289,6 +295,7 @@
 
   function clearPeer(project, target) {
     if (!peer.data) return;
+    if (isTaskCol(project)) return;   // 排位列从来不打分，也就没有可撤销的分
     var lessonKey = peer.data.lesson, prev = peerScore(project, target);
     if (prev == null) return;
     upsertMine(project, target, null);
@@ -316,12 +323,27 @@
     else peer.data.mine.push({ project: project, target: target, score: score });
   }
 
+  /* 线上排位列（2026-11-11 修互评刷分漏洞）：列名带「线上连线排位 / 接线」前缀的是
+     课堂任务自动入账的成绩列，只有学生真实完成线上排位才能得分。
+     互评（组长给组员 / 组员给组长）对这一列一律只读：不渲染 20%–100% 打分按钮，
+     也不能撤销 —— 互相刷分就行、没人真去做排位，这条口子必须堵死。
+     ⚠ 前缀口径与 app.js 的 taskScore()、wire-task-link.js 的 NAME_PREFIX 保持一致，
+       三处必须一起改，否则老数据的旧列名「接线2.3」会漏判。 */
+  var TASK_COL = /^(?:接线|线上连线排位)/;
+  function isTaskCol(name) { return TASK_COL.test(String(name == null ? '' : name).trim()); }
+
   function peerCellHtml(project, target) {
     var value = peerScore(project.name, target.key), locked = project.status === 'confirmed';
     var label = esc(target.name) + ' · ' + esc(project.name);
     /* 2026-11-11 手机适配：窄屏下整张表会被拆成「一人一张卡」，表头（项目名）看不见了，
        所以每个格子自带一份项目名；宽屏由 CSS 隐藏，桌面端外观不变。 */
     var projTag = '<span class="peer-cell-proj">' + esc(project.name) + '</span>';
+    /* 线上排位列：只读占位（不带 data-project / data-target，点击和双击都进不来），
+       配一行小字说明「只有真实完成排位才能得分」，避免学生以为这一列坏了 */
+    if (isTaskCol(project.name)) {
+      return '<div class="peer-cell is-locked" title="线上排位列：只有真实完成线上排位才能自动得分，互评打不了分">' +
+        projTag + '<span>线上排位列 · 只有真实完成排位才能得分</span></div>';
+    }
     if (value != null) {
       return '<div class="peer-cell is-set" data-score="' + value + '" data-project="' + esc(project.name) +
         '" data-target="' + esc(target.key) + '" role="button" tabindex="0" title="双击撤销这一格的加分">' +

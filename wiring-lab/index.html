@@ -3,7 +3,7 @@
 <html lang="zh-CN">
 <head>
 <script src="../hx-theme.js" data-tool="wiring"></script>
-<script>window.HX_BUILD = "2026-11-11T08:58:06Z 2c98454";</script>
+<script>window.HX_BUILD = "2026-11-11T13:27:45Z 28519c5";</script>
 <meta charset="utf-8">
 <meta name="copyright" content="© 2026 zcq 版权所有，未经许可禁止复制、修改、转载">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
@@ -4855,6 +4855,7 @@ async function rkTaskBList(body) {
   if (!list.length) {
     body.innerHTML = `<div class="tb"><div class="tb-none"><b>老师还没发布课堂任务</b>
       <span>发布了这里会显示：谁完成了、用时、名次，自己有没有被记上。</span></div></div>`;
+    tbListPoll();
     return;
   }
   const st = s => s === 'open' ? '<em class="tb-st open">进行中</em>' : '<em class="tb-st closed">已结束</em>';
@@ -4866,6 +4867,22 @@ async function rkTaskBList(body) {
       ${st(t.status)}${t.mine ? '<em class="tb-mine ok">我已完成</em>' : (t.status === 'open' ? '<em class="tb-mine todo">未完成</em>' : '')}
     </button>`).join('')}</div></div>`;
   body.querySelectorAll('.tb-item').forEach(b => b.onclick = () => rkTaskBDetail(tbBody(), +b.dataset.id));
+  tbListPoll();
+}
+/* 列表页 15 秒轻轮询（2026-11-11 用户要求「老师一发布学生立马就能看到」＋轮询统一降到 15 秒）：
+   老师中途发布/结束任务，开着这个列表的学生最多 15 秒就能看到（新任务排最上面）；
+   窗口关掉（.show 摘掉）或已经点进某个任务的详情页就停 —— 详情页有自己的轮询。 */
+function tbListPoll() {
+  tbStopPoll();
+  TB.stop = setInterval(async () => {
+    if (!document.getElementById('fw-taskb') || !document.getElementById('fw-taskb').classList.contains('show')) return tbStopPoll();
+    if (document.hidden) return;
+    try {
+      const list = await HX.rpc('wire_task_student_list');
+      if (TB.id !== null || !tbBody()) return tbStopPoll();   // 已在详情页：交给详情页的轮询
+      if (JSON.stringify(list) !== JSON.stringify(TB.tasks)) rkTaskBList(tbBody());
+    } catch (e) { /* 轮询失败不打断画面，下一轮再试 */ }
+  }, 15000);
 }
 async function rkTaskBDetail(body, id) {
   TB.id = id; tbStopPoll();
@@ -4875,8 +4892,8 @@ async function rkTaskBDetail(body, id) {
   try { b = TB.board = await HX.rpc('wire_task_student_board', { p_task: id }); }
   catch (e) { TB.id = null; body.querySelector('.rk-wait').outerHTML = `<p class="rk-err">${esc(e.message)}</p>`; return; }
   tbPaint(body, b);
-  // 进行中的任务 5 秒刷一次（比大屏 3 秒慢一点，学生端人手一份别打爆服务器）；
-  // 窗口关掉（.show 摘掉）或页面隐藏时这一轮跳过，连续两轮看不见就停 —— 重开窗口会重新拉。
+  // 进行中的任务 15 秒刷一次（2026-11-11 用户批准：学生端人手一份，5 秒太频繁，统一降到 15 秒）；
+  // 窗口关掉（.show 摘掉）或页面隐藏时这一轮跳过 —— 重开窗口会重新拉。
   if (b.task && b.task.status === 'open') {
     let hidden = 0;
     TB.stop = setInterval(async () => {
@@ -4885,7 +4902,7 @@ async function rkTaskBDetail(body, id) {
       hidden = 0;
       try { TB.board = await HX.rpc('wire_task_student_board', { p_task: id }); if (TB.id === id && tbBody()) tbPaint(tbBody(), TB.board); }
       catch (e) { /* 轮询失败不打断画面，下一轮再试 */ }
-    }, 5000);
+    }, 15000);
   }
 }
 function tbStopPoll() { if (TB.stop) { clearInterval(TB.stop); TB.stop = null; } }

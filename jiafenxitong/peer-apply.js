@@ -26,6 +26,16 @@
 
   var W = {};
 
+  /* 线上排位列（2026-11-11 修互评刷分漏洞）：列名带「接线 / 线上连线排位」前缀的列是
+     课堂任务（wire-task-link.js）自动入账的成绩，只有学生真实完成线上排位才能得分。
+     互评提交（jf_peer_scores 的 board.cells）里出现这一列的分数一律**丢弃** ——
+     前端按钮不渲染只是第一道锁；这里是兜底：旧缓存页 / 控制台直接调 jf_peer_submit
+     刷上来的分，到不了 leaderScores（成绩的唯一口径）。
+     ⚠ 前缀口径与 app.js 的 taskScore()、wire-task-link.js 的 NAME_PREFIX 保持一致，
+       三处必须一起改，否则老数据的旧列名「接线2.3」会漏判。 */
+  var TASK_COL = /^(?:接线|线上连线排位)/;
+  function isTaskCol(name) { return TASK_COL.test(String(name == null ? '' : name).trim()); }
+
   /* 分数夹到 0–5，保留 1 位小数（平均分要 4.5 这种，不能取整） */
   function clamp5(v) {
     var n = Math.round((Number(v) + Number.EPSILON) * 10) / 10;
@@ -98,6 +108,12 @@
         var project = clean(c.project);
         var target = clean(c.target);
         if (!gno || !project || !target) return;
+        /* 排位列的互评分：丢弃并 console.warn（界面早就不渲染按钮，这里防的是
+           旧缓存页 / 控制台直调 jf_peer_submit 的脏数据） */
+        if (isTaskCol(project)) {
+          try { console.warn('[peer-apply] 丢弃线上排位列「' + project + '」的互评分：这一列只有真实完成排位才能得分'); } catch (e0) {}
+          return;
+        }
         var score = scoreOf(c.score);
         if (score == null) return;
         var at = atOf(c.at);
@@ -164,6 +180,11 @@
           var target = clean(r.target);
           var project = clean(r.project);
           if (!gno || !target || !project) return;
+          /* 排位列兜底的第二层：rows() 已丢弃，这里挡的是绕过 rows 直接调 applyInto 的调用方 */
+          if (isTaskCol(project)) {
+            try { console.warn('[peer-apply] applyInto 拒绝写入线上排位列「' + project + '」的互评分'); } catch (e0) {}
+            return;
+          }
           var col = Number(colOf(project));
           if (!isFinite(col) || col < 0) return;
 

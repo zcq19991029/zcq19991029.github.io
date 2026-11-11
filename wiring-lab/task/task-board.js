@@ -2,7 +2,7 @@
    课堂任务 · 大屏（2026-11-09）
    ----------------------------------------------------------------------------
    只做三件事：
-     1) 每 3 秒拉一次 wire_task_board，把「未完成名单 / 已完成人数 / 完成率」画出来；
+     1) 每 15 秒拉一次 wire_task_board，把「未完成名单 / 已完成人数 / 完成率」画出来；
      2) 和上一轮比较，谁是新完成的，就给他一个小金块高亮（1.6 秒后自动熄），旁边飘一句「刚刚完成」；
      3) 任务结束/作废后停止轮询，右下角压一个印章（不弹窗，不打断老师讲课）。
 
@@ -47,8 +47,8 @@ const root = $('#bdRoot');
   } catch (e) { return gate('读取任务失败', e.message, true); }
 
   await load(true);
-  // 3 秒一轮：用户要求「每完成一个人就自动刷新」，3 秒足够快，又不会让一体机一直发请求
-  B.stop = every(3000, () => load(false));
+  // 15 秒一轮（2026-11-11 用户批准：轮询统一降到 15 秒，别让一体机一直发请求）
+  B.stop = every(15000, () => load(false));
 })();
 
 function gate(title, msg, login) {
@@ -87,7 +87,7 @@ async function load(first) {
   const changed = JSON.stringify(b) !== JSON.stringify(B.board);
   B.board = b;
   if (changed || first) paint(b);
-  // 任务结束/作废：停轮询 + 加印章（这里只停一次，避免每 3 秒重复判断）
+  // 任务结束/作废：停轮询 + 加印章（这里只停一次，避免每轮重复判断）
   if (b.task.status !== 'open' && B.stop) { B.stop(); B.stop = null; }
   const d = new Date(), p = n => String(n).padStart(2, '0');
   B.lastAt = p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
@@ -166,7 +166,7 @@ function paint(b) {
   ${B.moves.length ? `<div class="bd-moves">${movesHTML()}</div>` : ''}
 
   <footer class="bd-foot">
-    <span class="dot"></span><span>每 3 秒刷新 · 最后更新 <b id="bdLast">${B.lastAt || '—'}</b></span>
+    <span class="dot"></span><span>每 15 秒刷新 · 最后更新 <b id="bdLast">${B.lastAt || '—'}</b></span>
     <span class="grow"></span>
     <span>基准用时（前 10 名平均）<b>${b.base_sec == null ? '—' : fmtSec(b.base_sec)}</b></span>
     <span>赋分：前 10 名 100% · 11–20 名 80% · 其余已完成 70%</span>

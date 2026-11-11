@@ -35,6 +35,14 @@ const statusText = s => s === 'open' ? '进行中' : s === 'closed' ? '已结束
 // 这是两边约定的死规则：结束任务时按课次写进那一课，列名就用这个；同一课里已被同名占用时
 // 对方会自动加「#任务号」（接线2.3#12），所以这里只显示老师最可能看到的那一个名字。
 const jfCol = circuit => '接线' + circuit;
+/* 任务列表排序（2026-11-11 用户要求「按班级课次隔离，新课任务在最上面」）：
+   进行中的排最前（一个班同时只有一个 open），其余按发布时间倒序 —— 和学生榜 SQL
+   （wire_task_student_list 的 (status='open') desc, opened_at desc）同一套口径，
+   教师端/学生端/大屏看到的顺序一致。wire_task_list 本身只按 opened_at desc 排，
+   open 最前这一档在这里补。 */
+const sortTasks = list => (list || []).slice().sort((a, b) =>
+  ((b.status === 'open') ? 1 : 0) - ((a.status === 'open') ? 1 : 0) ||
+  String(b.opened_at || '').localeCompare(String(a.opened_at || '')));
 // 小组加分入口：站点根下的 /jiafenxitong/。HOME 已经按「线上 /wiring-lab/task/ → ../../」算好了。
 const JF_URL = HOME + 'jiafenxitong/';
 
@@ -86,7 +94,7 @@ async function teacherView() {
   if (!ST.classes.length) {
     return gate('还没有点亮「接线仿真」的班', '去华夏工具首页的「班级」里导入考勤表，并勾上「接线仿真」，再回来发布任务。');
   }
-  try { ST.tasks = await HX.rpc('wire_task_list'); }
+  try { ST.tasks = sortTasks(await HX.rpc('wire_task_list')); }
   catch (e) { ST.tasks = []; ST.err = '任务列表读取失败：' + e.message; }
 
   await pickCurrent();
@@ -282,7 +290,7 @@ async function publish() {
       p_class: cls, p_circuit: cir, p_title: title, p_note: note, p_lesson_no: no, p_lesson_date: lessonDate,
     });
     // 发布成功就把「成绩会落到哪一课、哪一列」说清楚，别让人再猜
-    ST.tasks = await HX.rpc('wire_task_list');
+    ST.tasks = sortTasks(await HX.rpc('wire_task_list'));
     await pickCurrent();
     if (ST.stop) ST.stop();
     if (ST.cur && ST.cur.status === 'open') ST.stop = every(4000, async () => { await refreshBoard(); paintLive(); });
@@ -335,6 +343,7 @@ function paintLive() {
         ${canAct ? '<button class="btn primary" id="lvClose" type="button">结束任务并冻结得分</button><button class="btn danger" id="lvVoid" type="button">作废</button>' : ''}
         <button class="btn ghost" id="lvLesson" type="button" title="课次填错了就改这里，分数会跟着落到正确的课次">改课次</button>
         ${t.status === 'closed' ? '<button class="btn" id="lvJf" type="button">打开小组加分</button>' : ''}
+        ${t.status === 'closed' ? '<button class="btn primary" id="lvReopen" type="button" title="让没完成的学生补做：任务回到进行中，再次结束时按最新名次重新冻结得分">重新拉起（补做）</button>' : ''}
         <button class="btn ghost" id="lvCsv" type="button">导出名单 CSV</button>
       </div>
       <p class="hint">赋分：第 1–10 名 <b>100%</b>（5 分）· 第 11–20 名 <b>80%</b>（4 分）· 其余已完成 <b>70%</b>（3.5 分）· 未完成 <b>0 分</b>。<br>
@@ -381,7 +390,7 @@ function paintLive() {
     c1.disabled = true;
     try {
       ST.board = await HX.rpc('wire_task_close', { p_task: t.id });
-      ST.tasks = await HX.rpc('wire_task_list');
+      ST.tasks = sortTasks(await HX.rpc('wire_task_list'));
       ST.cur = ST.tasks.find(x => x.id === t.id) || ST.cur;
       if (ST.stop) { ST.stop(); ST.stop = null; }
       // 结束即入账：把「分数已冻结 + 自动写入小组加分第几次课」说清楚，并给一个直接去看的入口
@@ -397,12 +406,31 @@ function paintLive() {
     c2.disabled = true;
     try {
       await HX.rpc('wire_task_void', { p_task: t.id });
-      ST.tasks = await HX.rpc('wire_task_list');
+      ST.tasks = sortTasks(await HX.rpc('wire_task_list'));
       ST.cur = ST.tasks.find(x => x.id === t.id) || ST.cur;
       await refreshBoard();
       if (ST.stop) { ST.stop(); ST.stop = null; }
       paintLive(); paintHist();
     } catch (e) { alert('作废失败：' + e.message); c2.disabled = false; }
+  };
+  /* 重新拉起（2026-11-11 用户要求「让没刷的人补刷，再关闭」）：closed → open，
+     已完成的旧成绩保留（不删数据），没做的学生补排位自动记上；
+     再次结束时 wire_task_close 按全部记录重算冻结 —— 补做的同学更快会让前面的人掉档，
+     这是排位规则本身，确认弹窗里要说清楚。 */
+  const c3 = $('#lvReopen');
+  if (c3) c3.onclick = async () => {
+    if (!confirm('重新拉起这个任务？\n\n重开后任务回到「进行中」，没完成的学生可以补做（已完成的旧成绩保留）。\n再次「结束任务」时会按最新名次重新冻结得分：如果补做的同学用时更短，\n前面的人完成率可能掉档（100%→80%），这是排位规则本身。')) return;
+    c3.disabled = true;
+    try {
+      await HX.rpc('wire_task_reopen', { p_task: t.id });
+      ST.tasks = sortTasks(await HX.rpc('wire_task_list'));
+      ST.cur = ST.tasks.find(x => x.id === t.id) || ST.cur;
+      await refreshBoard();
+      if (ST.stop) { ST.stop(); ST.stop = null; }
+      if (ST.cur && ST.cur.status === 'open') ST.stop = every(4000, async () => { await refreshBoard(); paintLive(); });
+      ST.tip = '任务已重新拉起：没完成的学生去排位就自动补记，都补完了再点「结束任务」重新冻结得分。';
+      paintLive(); paintHist();
+    } catch (e) { alert('重新拉起失败：' + e.message); c3.disabled = false; }
   };
 }
 
@@ -419,7 +447,7 @@ async function editLesson(t) {
   const date = prompt('上课日期（不填保持原样）', curDate);
   try {
     await HX.rpc('wire_task_update_lesson', { p_task: t.id, p_lesson_no: n, p_lesson_date: (date && date.trim()) || null });
-    ST.tasks = await HX.rpc('wire_task_list');
+    ST.tasks = sortTasks(await HX.rpc('wire_task_list'));
     ST.cur = ST.tasks.find(x => x.id === t.id) || ST.cur;
     ST.tip = '课次已改为第 ' + n + ' 次课，分数会跟着落到正确的课次（旧的错课次列到「小组加分」记分页删掉）。';
     await refreshBoard();
@@ -441,7 +469,8 @@ function paintHist() {
         <td class="num">${t.done}/${t.total}</td><td class="num">${t.avg_sec == null ? '—' : fmtSec(t.avg_sec)}</td>
         <td><span class="state ${t.status}"${t.status === 'closed' && !t.lesson_no ? ' title="没填课次，无法入账"' : ''}>${
           t.status === 'closed' ? '已结束 · 已入账' : statusText(t.status)}</span></td>
-        <td><button class="btn ghost" data-look="${t.id}" type="button">看这份</button></td></tr>`).join('')
+        <td>${t.status === 'closed' ? '<button class="btn ghost" data-reopen="' + t.id + '" type="button" title="让没完成的学生补做：任务回到进行中，再次结束时按最新名次重新冻结">重新拉起</button>' : ''}
+            <button class="btn ghost" data-look="${t.id}" type="button">看这份</button></td></tr>`).join('')
         : '<tr><td colspan="8" class="muted" style="text-align:center;padding:22px">没有更早的任务</td></tr>'}
       </tbody></table></div></div>`;
   box.querySelectorAll('[data-look]').forEach(btn => btn.onclick = async () => {
@@ -452,6 +481,23 @@ function paintHist() {
     if (ST.cur && ST.cur.status === 'open') ST.stop = every(4000, async () => { await refreshBoard(); paintLive(); });
     paintLive(); paintHist();
     $('#live').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+  /* 历史列表里的「重新拉起」（2026-11-11）：closed 任务让没刷的人补做，逻辑同 paintLive 的 lvReopen */
+  box.querySelectorAll('[data-reopen]').forEach(btn => btn.onclick = async () => {
+    const id = +btn.dataset.reopen;
+    if (!confirm('重新拉起这个任务？\n\n重开后任务回到「进行中」，没完成的学生可以补做（已完成的旧成绩保留）。\n再次「结束任务」时会按最新名次重新冻结得分：如果补做的同学用时更短，\n前面的人完成率可能掉档（100%→80%），这是排位规则本身。')) return;
+    btn.disabled = true;
+    try {
+      await HX.rpc('wire_task_reopen', { p_task: id });
+      ST.tasks = sortTasks(await HX.rpc('wire_task_list'));
+      ST.cur = ST.tasks.find(x => x.id === id) || ST.cur;
+      ST.tip = '';
+      await refreshBoard();
+      if (ST.stop) { ST.stop(); ST.stop = null; }
+      if (ST.cur && ST.cur.status === 'open') ST.stop = every(4000, async () => { await refreshBoard(); paintLive(); });
+      paintLive(); paintHist();
+      $('#live').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch (e) { alert('重新拉起失败：' + e.message); btn.disabled = false; }
   });
 }
 
