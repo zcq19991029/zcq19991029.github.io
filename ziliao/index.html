@@ -910,6 +910,20 @@ const PAGES = [['mat', '资料与出题'], ['bank', '题池']];
 let SUBJ = [], SUBJ_ERR = '', CUR_SUB = null, CUR_P = 'mat';
 const curSub = () => SUBJ.find(s => s.id === CUR_SUB) || null;
 
+/* ---------- 静态数据短缓存（2026-11-11 降载） ----------
+   科目目录 / 每个科目的资料清单只有老师自己偶尔改一次；每次切科目、每次打开都重拉一遍纯属白烧。
+   · 口径和总入口完全一样（key 字面相同：hx-cache-v1-<名字>-<uid>）—— 科目那份在总入口「管理 → 科目」
+     改完会 cacheDrop('subjects')，这边立刻跟上，不会各存各的；
+   · 任何异常（无痕模式 / 脏数据 / 存满）一律当未命中，直接走网络；
+   · 写操作（传资料 / 删资料 / 发布到刷题 / 改科目）之后自己 cacheDrop，别让老师改完还看旧的。
+   ⚠️ 题池（hx_exam_qbank_list）不缓存：AI 出题会一直往里加，那是随时在变的东西。 */
+const CACHE_V = 'v1', CACHE_TTL = 300000;
+const cacheUid = () => (sess && sess.user && sess.user.id) || 'anon';
+const cacheKey = n => 'hx-cache-' + CACHE_V + '-' + n + '-' + cacheUid();
+function cacheGet(n) { try { const o = JSON.parse(localStorage.getItem(cacheKey(n))); return o && o.t && Date.now() - o.t < CACHE_TTL ? o.v : null; } catch (e) { return null; } }
+function cacheSet(n, v) { try { localStorage.setItem(cacheKey(n), JSON.stringify({ t: Date.now(), v: v })); } catch (e) { } }
+function cacheDrop(n) { try { localStorage.removeItem(cacheKey(n)); } catch (e) { } }
+
 function shell() {
   $('app').innerHTML = `<div class="zl-shell">
     <nav class="zl-nav" id="zlNav" aria-label="资料库">
@@ -933,10 +947,16 @@ function drawSubs() {
   box.innerHTML = `<div class="zl-subtabs" role="tablist">${SUBJ.map(s => `<button class="zl-subtab${s.id === CUR_SUB ? ' on' : ''}" data-sub="${s.id}" title="${esc(s.name)}" role="tab" aria-selected="${s.id === CUR_SUB}">${esc(s.name)}</button>`).join('')}</div>`
     + (SUBJ_ERR ? `<p class="zl-subnote">${esc(SUBJ_ERR)}</p>` : '');
 }
-async function loadSubjects() {
-  let list;
-  try { list = await rpc('hx_exam_subject_list'); SUBJ_ERR = ''; }
-  catch (e) { SUBJ_ERR = '读不到科目：' + (e.message || ''); list = null; }
+/* fresh=true：刚改过科目（或老师手动点刷新），绕过缓存并让缓存失效。
+   命中时 0 请求；缓存里存的是 rpc 原样返回的数组（和总入口那份同一个 key，两边共用一个值）。 */
+async function loadSubjects(fresh) {
+  if (fresh) cacheDrop('subjects');
+  let list = fresh ? null : cacheGet('subjects');
+  if (list) SUBJ_ERR = '';
+  else {
+    try { list = await rpc('hx_exam_subject_list'); SUBJ_ERR = ''; if (Array.isArray(list)) cacheSet('subjects', list); }
+    catch (e) { SUBJ_ERR = '读不到科目：' + (e.message || ''); list = null; }
+  }
   if (Array.isArray(list)) {
     SUBJ = list.map(x => ({
       id: +x.id, key: String(x.key || ''), name: String(x.name || x.key || ''), kind: x.kind || 'theory',
@@ -1116,13 +1136,20 @@ function matBind() {
   ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('on'); }));
   drop.addEventListener('drop', e => { const fs = [...((e.dataTransfer || {}).files || [])]; if (fs.length) matUpload(fs); });
   $('mgGo').onclick = matGenRun;
-  $('matRefresh').onclick = matReload;
+  // 手动点「刷新」= 老师不信缓存了：必须绕过缓存（onclick 直接把事件当参数传进去会永远 fresh，所以用箭头函数）
+  $('matRefresh').onclick = () => matReload(true);
 }
 
 const MAT_kb = n => { n = +n || 0; return n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : n >= 1024 ? Math.round(n / 1024) + ' KB' : n + ' B'; };
 
-async function matReload() {
+/* 资料清单（hx_exam_mat_list）是「老师偶尔传一份」的静态数据 → 缓存 5 分钟。
+   fresh=true 绕过并作废：老师手动点刷新、传完、删完之后都走这条，改完立刻能看到。
+   读失败不写缓存（宁可下次再拉，也别把空列表钉 5 分钟）。 */
+async function matReload(fresh) {
   const sid = MAT_sid(); if (sid == null) return;
+  if (fresh) cacheDrop('mat:' + sid);
+  const hit = fresh ? null : cacheGet('mat:' + sid);
+  if (hit) { MAT_LIST = hit; matDrawList(); return; }
   const r = await MAT_call('hx_exam_mat_list', { p_subject_id: sid });
   if (MAT_sid() !== sid) return;   // 读的过程中切了科目
   if (!r.ok) {
@@ -1130,6 +1157,7 @@ async function matReload() {
     MAT_LIST = []; matDrawMats(); return;
   }
   MAT_LIST = Array.isArray(r.data) ? r.data : [];
+  if (MAT_LIST.length) cacheSet('mat:' + sid, MAT_LIST);
   matDrawList();
 }
 function matDrawList() {
@@ -1169,7 +1197,7 @@ async function matDel(id) {
   await MAT_rm(typeof r.data === 'string' ? r.data : (r.data && r.data.path));
   toast('已删除');
   const v = $('matView'); if (v) v.innerHTML = '';
-  matReload(); loadSubjects();
+  matReload(true); loadSubjects(true);   // 删完同样要绕过缓存
 }
 
 /* 上传：解析 → 传文件 → 登记 → 写切段。每一步失败都点名是哪一步。 */
@@ -1216,8 +1244,8 @@ async function matUpload(files) {
   prog.textContent = (okN ? `传好 ${okN} 份，切成 ${segN} 段。` : '') + (warn.length ? ' ' + warn.join('；') + '。' : '')
     + (bad.length ? ' 有 ' + bad.length + ' 份没传成：' + bad.join('；') : '');
   if (!bad.length) toast('上传完成');
-  await matReload();
-  loadSubjects();
+  await matReload(true);   // 刚传完：绕过缓存，新资料立刻出现在列表里
+  loadSubjects(true);      // 科目卡片上的「N 份资料」也跟着变
 }
 
 /* ---------------- AI 出题 ---------------- */
@@ -1322,7 +1350,7 @@ async function matGenAdd() {
   toast('已加入题池 ' + n + ' 道' + dmsg);
   MAT_GEN = null; matGenDraw();
   $('mgState').textContent = '已进题池 ' + n + ' 道' + dmsg;
-  loadSubjects();
+  loadSubjects(true);   // 题数变了：科目卡的计数要重算
 }
 
 ;
@@ -1428,7 +1456,7 @@ async function qbDel(id) {
   if (!r.ok) return MAT_banner('删除失败：' + r.err);
   QB_ALL = QB_ALL.filter(x => String(x.id) !== String(id)); QB_SEL.delete(String(id));
   qbDrawStat(); qbDraw(); toast('已删除');
-  loadSubjects();
+  loadSubjects(true);   // 题数变了：科目卡的计数要重算，别拿缓存
 }
 async function qbClear() {
   const s = curSub(); if (!s) return;
@@ -1438,7 +1466,7 @@ async function qbClear() {
   if (!r.ok) return MAT_banner('清空失败：' + r.err);
   QB_ALL = []; QB_SEL.clear(); qbDrawStat(); qbDraw();
   toast('已清空 ' + ((r.data && +r.data) || 0) + ' 道');
-  loadSubjects();
+  loadSubjects(true);   // 题数变了：科目卡的计数要重算，别拿缓存
 }
 
 /* ---------------- AI 查重 ----------------
@@ -1513,7 +1541,7 @@ function qbDedupDraw(pairs) {
     }
     zlModalClose();
     toast('删了 ' + n + ' 道重复题');
-    qbLoad(); loadSubjects();
+    qbLoad(); loadSubjects(true);
   };
 }
 
@@ -1708,13 +1736,21 @@ async function pubGo() {
   let note = '';
   if (s && !s.quiz_bank) {
     /* 新 id 发布成功后再记到科目上（先记后发，发失败了科目会白白挂一个不存在的题库） */
-    try { await rpc('hx_exam_subject_save', { p_key: s.key, p_name: s.name, p_kind: s.kind, p_quiz_bank: P.bank }); await loadSubjects(); }
+    try { await rpc('hx_exam_subject_save', { p_key: s.key, p_name: s.name, p_kind: s.kind, p_quiz_bank: P.bank }); await loadSubjects(true); }
     catch (e) { note = '（题已发布，但没能把题库 id 记到科目上：' + e.message + '）'; }
   }
   $('pbInfo').innerHTML = `<p class="ok" id="pbDone">已发布：「${esc(P.name)}」现在 ${total} 题（原 ${nOld} + 新增 ${P.merged.added.length}）${esc(note)}</p>`;
   PUB = null;
   $('pbGo').hidden = true; $('pbCancel').textContent = '关闭';
   if (total !== nOld + P.merged.added.length) MAT_banner('发布后题数对不上：云端 ' + total + '，预期 ' + (nOld + P.merged.added.length));
+  cacheDrop('subjects');   // 科目卡上的题数跟着变了，下次读科目别再拿缓存
+  /* 顺手把刷题那边同一份题库的缓存也作废：老师发完通常立刻去刷题看题到没到，
+     不作废就要等最多 5 分钟（两边 key 各管各的，这里只做「尽力而为」，删不到也没关系）。 */
+  try {
+    var u = (sess && sess.user && sess.user.id) || 'guest';
+    localStorage.removeItem('hx-quiz-cache-v1:' + u + ':publist');
+    localStorage.removeItem('hx-quiz-cache-v1:' + u + ':pub:' + P.bank);
+  } catch (e) { }
   toast('已发布到刷题');
 }
 

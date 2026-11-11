@@ -697,10 +697,51 @@
 
   /* ---------------- 启动 ---------------- */
 
-  /* 只读调用华夏工具的数据库函数（首页班级名单 hx_my_classes / hx_class_students） */
+  /* 只读调用华夏工具的数据库函数（首页班级名单 hx_my_classes / hx_class_students）
+     ---------- 班级名单短缓存（2026-11-11 降载） ----------
+     每次页面切回前台都会重读一遍「首页班级 + 每个班的名单」，是 N+1 次请求（8 个班 = 9 次）；
+     而这两样东西只有老师在首页偶尔改一次 → 5 分钟内直接吃缓存，命中时 0 请求。
+     · key 带 userId：同一台电脑换账号绝不串号；带版本号：结构变了把 RC_V 升一位整体作废；
+     · 只缓存这两个只读函数（白名单）。成绩 / 课次 / 快照 / 互评一律不缓存 —— 那些随时在变；
+     · 总入口改名单（加人 / 删人 / 导入 / 改班级工具）会写一个 hx-roster-bust 时间戳，
+       这里比缓存时间新就整份作废，老师改完回加分立刻能看到；
+     · 任何异常一律当未命中，直接走网络；读失败也不写缓存（别把「空名单」钉 5 分钟）。 */
+  var RC_V = 'v1', RC_TTL = 300000;
+  var RC_NAMES = { hx_my_classes: 1, hx_class_students: 1 };
+  var RC_BUST = 'hx-roster-bust';
+  function rcUid() {
+    try { return (session && session.user && session.user.id) || 'anon'; } catch (e) { return 'anon'; }
+  }
+  function rcKey(name, args) {
+    var k = (args && args.p_class != null) ? String(args.p_class) : 'all';
+    return 'hx-cache-' + RC_V + '-jf-' + name + '-' + rcUid() + '-' + k;
+  }
+  function rcGet(key) {
+    try {
+      var o = JSON.parse(localStorage.getItem(key));
+      if (!o || !o.t || Date.now() - o.t >= RC_TTL) return null;
+      var bust = +(localStorage.getItem(RC_BUST) || 0);   // 总入口刚改过名单 → 整份作废
+      if (bust && bust > o.t) return null;
+      return o.v;
+    } catch (e) { return null; }
+  }
+  function rcSet(key, v) {
+    try { localStorage.setItem(key, JSON.stringify({ t: Date.now(), v: v })); } catch (e) { }
+  }
   function rpc(name, args) {
+    /* 先 ensureFresh 再查缓存：它会重读共用登录（别的工具刚切过账号 / 续过期），
+       缓存 key 里的 userId 必须按「现在是谁」算，否则刚切账号的第一次读会拿到上一个人的名单。
+       会话有效时这一步不发请求，命中缓存仍然 0 请求。 */
     return ensureFresh().then(function () {
-      return request(REST + '/rpc/' + name, { method: 'POST', body: JSON.stringify(args || {}) });
+      var ck = RC_NAMES[name] ? rcKey(name, args) : null;
+      if (ck) {
+        var hit = rcGet(ck);
+        if (hit !== null) return hit;
+      }
+      return request(REST + '/rpc/' + name, { method: 'POST', body: JSON.stringify(args || {}) }).then(function (v) {
+        if (ck && v != null && (!Array.isArray(v) || v.length)) rcSet(ck, v);
+        return v;
+      });
     });
   }
 

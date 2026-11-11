@@ -154,10 +154,17 @@
   }
   /* 我是谁（teacher/admin/dev）：发布 / 撤回按钮据此显示 */
   var whoCache = null;
+  /* 2026-11-11：缓存「是不是管理员/开发者」。歌单里的删除按钮只对这两种身份渲染，
+     renderList 是同步的，拿不到 Promise，所以身份回来时顺手记一份。 */
+  var permAdmin = false;
   function cloudWho() {
     if (!cloudOn()) return Promise.resolve(null);
     if (whoCache) return Promise.resolve(whoCache);
-    return rpc('hx_me').then(function (m) { whoCache = m || {}; return whoCache; }).catch(function () { return null; });
+    return rpc('hx_me').then(function (m) {
+      whoCache = m || {};
+      permAdmin = isAdmin(whoCache);
+      return whoCache;
+    }).catch(function () { return null; });
   }
   function isStaff(m) { return !!(m && (m.teacher || m.admin || m.dev)); }
   function isAdmin(m) { return !!(m && (m.admin || m.dev)); }
@@ -230,6 +237,9 @@
         if (st.muted != null) S.muted = st.muted;
         if (st.mode) S.mode = st.mode;
         paint();
+        /* 歌单结构变了（导入 / 删除 / 换账号）必须强制重建列表 DOM：
+           repaint 只在「当前曲目 or 播放态」变化时才重建，删掉一首后索引没变就会留着旧行（2026-11-11 修）。 */
+        hosts.forEach(function (r) { if (r && r.list) { r._li = -9; r._lp = null; renderList(r); } });
         return rows;
       });
     }).catch(function () { S.list = []; paint(); return []; });
@@ -537,6 +547,12 @@
     '.hxp-dur{font-size:11px;color:var(--faint);flex:none}',
     '.hxp-x{appearance:none;border:0;background:transparent;color:var(--faint);cursor:pointer;padding:2px 6px;border-radius:6px;flex:none;font-size:15px;line-height:1}',
     '.hxp-x:hover{background:var(--fill);color:var(--ink)}',
+    /* 歌单删除按钮（2026-11-11）：管理员/开发者才渲染的明确文字按钮，替掉原来那个不起眼的 × */
+    '.hxp-del{appearance:none;border:1px solid var(--edge);background:transparent;color:var(--dim);cursor:pointer;padding:4px 11px;border-radius:8px;flex:none;font:inherit;font-size:12px;line-height:1.4}',
+    '.hxp-del:hover{border-color:var(--edge);background:color-mix(in srgb,#e5484d 14%,transparent);color:#e5484d}',
+    /* 轻提示（删除成功后给个反馈，不弹窗打断） */
+    '.hxp-toast{position:fixed;left:50%;bottom:36px;transform:translateX(-50%);z-index:2147483000;padding:10px 20px;border-radius:99px;background:var(--ink);color:var(--bg);font-size:13px;box-shadow:0 10px 28px -10px rgba(0,0,0,.5);animation:hxp-toast-in .18s ease}',
+    '@keyframes hxp-toast-in{from{opacity:0;transform:translate(-50%,8px)}to{opacity:1;transform:translate(-50%,0)}}',
     '.hxp-empty{padding:26px 10px;text-align:center;font-size:13px;color:var(--dim)}',
     '.hxp-top{position:fixed;z-index:2147483000;display:flex;pointer-events:none}',
     '.hxp-top>.hxp-bar{pointer-events:auto;max-width:min(720px,calc(100vw - 24px));width:auto;box-shadow:0 6px 24px -12px rgba(0,0,0,.45);backdrop-filter:blur(14px);background:var(--card);position:relative}',
@@ -725,17 +741,18 @@
     });
 
     /* 教师/管理员：显示「发布」按钮（学生看不到） */
+    /* 身份回来后再刷一遍歌单：行里的「删除」按钮只对管理员/开发者渲染（2026-11-11） */
+    var row = { host: host, wrap: card, list: card.querySelector('[data-t="list"]') };
+    hosts.push(row);
+    renderList(row);
+    paint();
     cloudWho().then(function (m) {
       if (isStaff(m)) {
         var pb = card.querySelector('[data-a="publish"]');
         if (pb) pb.style.display = 'inline-flex';
       }
+      renderList(row);
     });
-
-    var row = { host: host, wrap: card, list: card.querySelector('[data-t="list"]') };
-    hosts.push(row);
-    renderList(row);
-    paint();
     return row;
   }
 
@@ -849,12 +866,17 @@
       var cover = t.cloud && t.cover
         ? '<span class="hxp-cover" style="flex:none"><img src="' + esc(cloudURL(t.cover)) + '" alt=""></span>'
         : '';
+      /* 删除按钮：只有管理员 / 开发者渲染（2026-11-11，用户反馈「找不到在哪删」）。
+         走的还是 remove() → hx_music_del，没新开接口。 */
+      var del = permAdmin
+        ? '<button class="hxp-del" data-del="' + esc(t.id) + '" data-name="' + esc(t.name) + '" title="删除这首歌">删除</button>'
+        : '';
       return '<div class="hxp-row' + (i === S.i ? ' on' : '') + '" data-i="' + i + '">' +
         '<span class="hxp-n">' + (i === S.i && S.playing ? '▶' : (i + 1)) + '</span>' +
         cover +
         '<span class="hxp-info"><span class="hxp-name" style="display:block">' + esc(t.name) + '</span>' + sub + '</span>' +
         '<span class="hxp-dur">' + fmt(t.dur) + '</span>' +
-        '<button class="hxp-x" data-del="' + esc(t.id) + '" title="从歌单删除">×</button></div>';
+        del + '</div>';
     }).join('');
     row.list.querySelectorAll('.hxp-row').forEach(function (r) {
       r.onclick = function (e) {
@@ -864,8 +886,29 @@
       };
     });
     row.list.querySelectorAll('[data-del]').forEach(function (b) {
-      b.onclick = function (e) { e.stopPropagation(); remove(b.dataset.del); };
+      b.onclick = function (e) {
+        e.stopPropagation();
+        var id = b.dataset.del;
+        var nm = b.getAttribute('data-name') || '';
+        var msg = '删除《' + nm + '》？';
+        var go = function (yes) {
+          if (!yes) return;
+          remove(id).then(function () { toast('已删除'); });
+        };
+        /* 和「清空」同一个套路：有统一弹窗就用它，没有就退回浏览器原生 confirm */
+        if (W.hxConfirm) W.hxConfirm(msg, { okText: '删除' }).then(go);
+        else go(W.confirm(msg));
+      };
     });
+  }
+
+  /* 轻提示：删除后的反馈（2 秒自己消失，不拦操作） */
+  function toast(msg) {
+    if (!D.body) return;
+    var t = el('div', 'hxp-toast');
+    t.textContent = msg;
+    D.body.appendChild(t);
+    setTimeout(function () { try { t.remove(); } catch (e) { } }, 2000);
   }
 
   function esc(s) {
@@ -1062,6 +1105,10 @@
 
   /* ---------------- 启动 ---------------- */
   function boot() {
+    /* 2026-11-11：/音乐/ 页要先验明身份再决定要不要加载歌单（非管理员整页空白、零请求），
+       由页面在引脚本前设 window.HX_PLAYER_NO_BOOT=1 自己接管启动。
+       这里直接 return：不自动拉歌单（否则未通过闸门也会打一次 hx_music_list）、不挂顶部条。 */
+    if (W.HX_PLAYER_NO_BOOT) return;
     loadList().then(function () {
       if (lsGet().id) resume();
       // 已在总入口（top）且不是首页 → 挂顶部条

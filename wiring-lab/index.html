@@ -3,7 +3,7 @@
 <html lang="zh-CN">
 <head>
 <script src="../hx-theme.js" data-tool="wiring"></script>
-<script>window.HX_BUILD = "2026-11-11T16:40:17Z 1da9139";</script>
+<script>window.HX_BUILD = "2026-11-11T17:14:14Z 70be0e3";</script>
 <meta charset="utf-8">
 <meta name="copyright" content="© 2026 zcq 版权所有，未经许可禁止复制、修改、转载">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
@@ -3460,6 +3460,38 @@ const HX = (() => {
   };
 })();
 const RK = { me: null, view: 'rank', circuit: null, lock: null, pick: null, classes: null, cls: null, studs: {}, run: null, signup: false, code: null, newCode: null, roster: null, parOpen: null };
+/* ---------- 静态数据短缓存（2026-11-11 降载，和总入口/刷题同一口径） ----------
+   只缓存「老师偶尔才改一次」的东西：我教的班（hx_my_classes）。
+   **绝不缓存**排位榜 / 排位记录 / 任务完成状态（rank_board、wire_task_*）—— 那些随时在变。
+   · key 带 userId（换账号不串号）+ 版本号（结构变了把 RK_CACHE_V 升一位整体作废）；
+   · 任何异常（无痕模式 / 脏数据 / 存满）一律当未命中，直接走网络；
+   · 读失败不写缓存：一次网络抖动别把「没有班级」钉在缓存里 5 分钟。
+   名字里带 wiring 前缀，和总入口那份 'classes'（存的是 [班级, 好友] 二元组）刻意分开，不会互相踩。 */
+const RK_CACHE_V = 'v1', RK_CACHE_TTL = 300000;
+function rkCKey(n) {
+  var uid = 'anon';
+  try { var s = JSON.parse(localStorage.getItem('paike-session')); if (s && s.user && s.user.id) uid = s.user.id; } catch (e) { }
+  return 'hx-cache-' + RK_CACHE_V + '-wiring-' + n + '-' + uid;
+}
+function rkCGet(n) {
+  try {
+    var o = JSON.parse(localStorage.getItem(rkCKey(n)));
+    if (!o || !o.t || Date.now() - o.t >= RK_CACHE_TTL) return null;
+    // 总入口刚改过名单（加人 / 删人 / 导入 / 改班级工具）→ 整份作废，排位里立刻能选到新班
+    var bust = +(localStorage.getItem('hx-roster-bust') || 0);
+    if (bust && bust > o.t) return null;
+    return o.v;
+  } catch (e) { return null; }
+}
+function rkCSet(n, v) { try { localStorage.setItem(rkCKey(n), JSON.stringify({ t: Date.now(), v: v })); } catch (e) { } }
+/* 我教的、点亮了「接线仿真」的班（老师偶尔改一次 → 5 分钟内不再请求） */
+async function rkMyClasses() {
+  var hit = rkCGet('classes');
+  if (hit) return hit;
+  var list = (await HX.rpc('hx_my_classes')).filter(function (c) { return (c.tools || []).indexOf('wiring') >= 0; });
+  if (list.length) rkCSet('classes', list);
+  return list;
+}
 try { RK.pick = JSON.parse(ls.get('hx-rank-pick')); } catch (e) { }
 const fmtMs = ms => { const cs = Math.floor(ms / 10), m = Math.floor(cs / 6000), sec = Math.floor(cs / 100) % 60; return `${m}:${String(sec).padStart(2, '0')}.${String(cs % 100).padStart(2, '0')}`; };
 // ---------- 像素动效（pixelfx，MIT）：排位里只剩「成绩页破纪录撒彩纸」这一处 ----------
@@ -3776,7 +3808,7 @@ async function rkMain(body) {
 async function rkPicker(el, body) {
   // 只列首页“班级”里勾了“接线仿真”的班；一个工具都没勾的班（旧班级）各工具都显示
   // 班级要不要出现在接线仿真：首页「班级名单」里点亮「接线仿真」才算开通（以前是空数组=全开，太反直觉，改成点亮才算）
-  try { if (!RK.classes) RK.classes = (await HX.rpc('hx_my_classes')).filter(c => (c.tools || []).includes('wiring')); } catch (e) { el.innerHTML = `<p class="rk-err">${esc(e.message)}</p>`; return; }
+  try { if (!RK.classes) RK.classes = await rkMyClasses(); } catch (e) { el.innerHTML = `<p class="rk-err">${esc(e.message)}</p>`; return; }
   if (!RK.classes.length) { el.innerHTML = '<p class="rk-wait">还没有班级：在首页“班级”里导入考勤表，勾上“接线仿真”</p>'; return; }
   if (!RK.classes.some(c => c.id === RK.cls)) RK.cls = (RK.pick && (RK.classes.find(c => c.name === RK.pick.cls) || {}).id) || RK.classes[0].id;
   let list = RK.studs[RK.cls];
@@ -3818,7 +3850,7 @@ function rkProxyPick() {
 async function rkProxyPickList(body) {
   PK.q = '';
   if (!RK.classes) {
-    try { RK.classes = (await HX.rpc('hx_my_classes')).filter(c => (c.tools || []).includes('wiring')); }
+    try { RK.classes = await rkMyClasses(); }
     catch (e) { body.innerHTML = `<div class="pk"><p class="rk-err">${esc(e.message)}</p></div>`; return; }
   }
   if (!RK.classes.length) {
@@ -3912,7 +3944,7 @@ function drwSwitch(id, box) {
 async function rkDrawWin() {
   if (!isT()) return toast('只有教师账号能随机抽人');
   if (!RK.classes) {
-    try { RK.classes = (await HX.rpc('hx_my_classes')).filter(c => (c.tools || []).includes('wiring')); }
+    try { RK.classes = await rkMyClasses(); }
     catch (e) { return toast('加载班级失败：' + e.message); }
   }
   if (!RK.classes.length) return toast('还没有班级：在首页“班级”里导入考勤表，勾上“接线仿真”');
