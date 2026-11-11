@@ -901,7 +901,7 @@ HXLoadFx.boot('paike', 'hxBoot');
 <div id="toast" class="toast" role="status"></div>
 <script id="saved-data" type="application/json">null</script>
 <script>
-const BUILD={"time":"2026-11-11T13:27:43.158Z","sha":"28519c5"};
+const BUILD={"time":"2026-11-11T16:25:30.367Z","sha":"fff1e9f"};
 /* ---- engine.js ---- */
 /* ================= 排课引擎：数据模型、次数/轮次、自动排课、固定老师同步、校验 =================
    纯逻辑，不碰页面；浏览器里是全局 Engine，node 里 require 进来测试。
@@ -1711,13 +1711,22 @@ function zh(m){
   for(const [re,t] of T)if(re.test(m))return t;
   return m;
 }
+/* 12 秒超时（2026-11-11 降载）：免费版 Nano 卡住时 fetch 会一直挂着，页面就「转圈不动」。
+   AbortController 到点掐断，抛一句人话；调用方已有的 catch 不用改。 */
+const TIMEOUT=12000;
 async function api(path,{method='GET',body,auth=true,headers={}}={}){
   if(auth)await fresh();
   const h=Object.assign({apikey:KEY,'Content-Type':'application/json'},headers);
   if(auth&&session)h.Authorization='Bearer '+session.access_token;
+  const ctl=typeof AbortController==='function'?new AbortController():null;
+  const tm=ctl?setTimeout(()=>{try{ctl.abort();}catch(e){}},TIMEOUT):0;
   let r;
-  try{r=await fetch(BASE+path,{method,headers:h,body:body!==undefined?JSON.stringify(body):undefined});}
-  catch(e){throw Object.assign(new Error(zh('Failed to fetch')),{offline:true});}
+  try{r=await fetch(BASE+path,{method,headers:h,body:body!==undefined?JSON.stringify(body):undefined,signal:ctl?ctl.signal:undefined});}
+  catch(e){
+    const to=e&&e.name==='AbortError';
+    throw Object.assign(new Error(to?'服务器 12 秒没回应（网络慢，或后端正忙），请再点一次':zh('Failed to fetch')),{offline:true,timeout:to});
+  }
+  finally{if(tm)clearTimeout(tm);}
   const txt=await r.text();let j=null;try{j=txt?JSON.parse(txt):null;}catch(e){j=txt;}
   if(!r.ok){const raw=j&&(j.msg||j.message||j.error_description||j.error)||('HTTP '+r.status);throw Object.assign(new Error(zh(raw)),{status:r.status,raw});}
   return j;
@@ -1794,7 +1803,31 @@ async function emailOf(id){
   if(!em)throw new Error('没有这个账号名');
   return em;
 }
-async function signIn(id,password){const email=await emailOf(id);take(await api('/auth/v1/token?grant_type=password',{method:'POST',body:{email,password},auth:false}));}
+/* ---------- 登录降载（2026-11-11）：抖动 + 自动重试 ----------
+   免费版 Nano 只有 0.5GB 内存 / 共享 CPU，上课铃一响几十个人同时点登录，bcrypt 校验会把小机器压死。
+   ① 发请求前随机等 0~2.5 秒，把同一秒的峰值摊开；② 只对可恢复错误重试 2 次（1.2s、3s）。 */
+const JITTER=2500,RETRY_WAIT=[1200,3000];
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+/* 可重试 = 断网 / 12 秒超时（offline）/ 429 / 5xx。密码错是 400/401 —— 绝不重试，否则会误锁账号。 */
+const retriable=e=>{if(!e)return false;if(e.offline)return true;if(e.status===429)return true;return !!(e.status>=500&&e.status<=599);};
+async function retry(fn,onRetry){
+  for(let i=0;;i++){
+    try{return await fn();}
+    catch(e){if(i>=RETRY_WAIT.length||!retriable(e))throw e;if(onRetry)onRetry(i+1);await sleep(RETRY_WAIT[i]);}
+  }
+}
+async function signIn(id,password){
+  await sleep(Math.floor(Math.random()*(JITTER+1)));
+  let j;
+  try{
+    // emailOf 也放进重试里：账号名→邮箱那一步同样会被小机器的 5xx 打回来
+    j=await retry(async()=>{const email=await emailOf(id);return api('/auth/v1/token?grant_type=password',{method:'POST',body:{email,password},auth:false});});
+  }catch(e){
+    if(retriable(e))throw new Error('服务器繁忙，请再点一次'); // 不把英文原文丢给老师
+    throw e;
+  }
+  take(j);
+}
 const recover=async id=>api('/auth/v1/recover?redirect_to='+encodeURIComponent(back()),{method:'POST',body:{email:await emailOf(id)},auth:false});
 /* 设密码：GitHub 登录的账号也能设，设完就能用“邮箱或账号名 + 密码”登录 */
 async function setPassword(password){

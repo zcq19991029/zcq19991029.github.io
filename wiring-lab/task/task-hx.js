@@ -22,11 +22,18 @@ const HX = (() => {
     [/JWT expired|invalid JWT/i, '登录过期了，请重新登录'], [/permission denied/i, '没有权限'],
     [/连不上服务器/i, '连不上服务器，请检查网络']];
   const zh = m => { m = String(m || ''); for (const [re, t] of ZH) if (re.test(m)) return t; return m; };
+  /* 12 秒超时（2026-11-11 降载）：Nano 卡住时 fetch 会一直挂着，任务页/大屏就「转圈不动」。
+     和 rank.js、总入口同一套口径，超时抛一句人话，调用方的 catch 不用改。 */
+  const TIMEOUT = 12000;
   async function api(path, { method = 'GET', body, auth = true } = {}) {
     if (auth) await fresh();
     const h = { apikey: KEY, 'Content-Type': 'application/json' }; if (auth && s) h.Authorization = 'Bearer ' + s.access_token;
-    let r; try { r = await fetch(BASE + path, { method, headers: h, body: body === undefined ? undefined : JSON.stringify(body) }); }
-    catch (e) { throw new Error('连不上服务器，请检查网络'); }
+    const ctl = typeof AbortController === 'function' ? new AbortController() : null;
+    const tm = ctl ? setTimeout(() => { try { ctl.abort(); } catch (e) { } }, TIMEOUT) : 0;
+    let r;
+    try { r = await fetch(BASE + path, { method, headers: h, body: body === undefined ? undefined : JSON.stringify(body), signal: ctl ? ctl.signal : undefined }); }
+    catch (e) { throw new Error(e && e.name === 'AbortError' ? '服务器 12 秒没回应（网络慢，或后端正忙），请再点一次' : '连不上服务器，请检查网络'); }
+    finally { if (tm) clearTimeout(tm); }
     const txt = await r.text(); let j = null; try { j = txt ? JSON.parse(txt) : null; } catch (e) { j = txt; }
     if (!r.ok) throw Object.assign(new Error(zh(j && (j.msg || j.message || j.error_description || j.error) || 'HTTP ' + r.status)), { status: r.status });
     return j;
@@ -138,14 +145,17 @@ const fmtClock = t => {
   return p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
 };
 // 轮询：返回停止函数。页面隐藏时跳过请求（投影时浏览器在后台也不该一直打服务器），回来立刻补一次
-function every(ms, fn) {
+// jit：每轮把间隔随机缩放 ±jit（0~1）。全班设备都固定 15 秒会在同一秒一起到期，
+//      形成周期性尖峰；抖动后自然错开（2026-11-11 降载）。不传 = 原来那样固定间隔。
+function every(ms, fn, jit) {
   let dead = false, t = 0;
+  const gap = () => jit ? Math.round(ms * (1 - jit + Math.random() * jit * 2)) : ms;
   const tick = async () => {
     if (dead) return;
     if (!document.hidden) { try { await fn(); } catch (e) { /* 轮询失败不弹窗，下一轮再试 */ } }
-    if (!dead) t = setTimeout(tick, ms);
+    if (!dead) t = setTimeout(tick, gap());
   };
-  t = setTimeout(tick, ms);
+  t = setTimeout(tick, gap());
   const vis = () => { if (!document.hidden && !dead) { clearTimeout(t); tick(); } };
   document.addEventListener('visibilitychange', vis);
   return () => { dead = true; clearTimeout(t); document.removeEventListener('visibilitychange', vis); };

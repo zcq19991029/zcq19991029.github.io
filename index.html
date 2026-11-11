@@ -14,12 +14,12 @@
      要登录时调 window.HXPortal.login()；被单独打开时 hx-theme.js 会跳回这里（见 hx-theme.js 的 data-tool）。
      账号：Supabase 华夏工具项目，localStorage paike-session 和各工具共用；身份由数据库 hx_me() 决定。
      脚本里不用反引号模板字符串（本机测试时整页当字符串注入到线上同源页面里）。 -->
-<link rel="stylesheet" href="hx-theme.css?v=28519c5">
-<script src="hx-theme.js?v=28519c5"></script>
+<link rel="stylesheet" href="hx-theme.css?v=fff1e9f">
+<script src="hx-theme.js?v=fff1e9f"></script>
 <!-- 首页卡片上的像素小生物：pixelfx 的 12 个 critters（MIT），打包成一个 91 KB 的独立脚本。
      加载失败不影响首页——hx-critters.js 开头就有 window.PixelFX 存在性检查，没有就整段跳过。 -->
-<script src="fx/pixelfx-critters.js?v=28519c5" defer></script>
-<script src="fx/hx-critters.js?v=28519c5" defer></script>
+<script src="fx/pixelfx-critters.js?v=fff1e9f" defer></script>
+<script src="fx/hx-critters.js?v=fff1e9f" defer></script>
 <!-- 像素头像库（2026-11-04）：账号面板里除了传照片，还能从 200 多个像素动效里挑一个当头像。
      2026-11-09 改按需加载（用户报「打不开、登录不了」）：这个库 pixelfx-avatars.js 有 1.0 MB，
      而它只在「账号面板 → 像素头像库」这一个子视图里用得到。原来用 defer 挂在每一页上，
@@ -27,11 +27,11 @@
      现在是：不点「像素头像库」一个字节都不下；点了才 loadAvatarLib() 拉（见下面的函数）。
      两个脚本的先后顺序不能反：hx-avatar.js 依赖 window.PixelFXAvatar。 -->
 <!-- 背景动效（2026-11-03）：12 种天气氛围特效铺在背景层，外观面板里选；加载失败或没选就完全不加载渲染器 -->
-<script src="fx/pixelfx-weather.js?v=28519c5" defer></script>
-<script src="fx/hx-weather.js?v=28519c5" defer></script>
+<script src="fx/pixelfx-weather.js?v=fff1e9f" defer></script>
+<script src="fx/hx-weather.js?v=fff1e9f" defer></script>
 <!-- 课堂码大屏二维码：离线 QR 编码器（qrcode 1.5.4 core 打包，MIT，见 fx/NOTICE-qr.md）。延迟加载即可：只有老师点「大屏二维码」时才用 -->
-<script src="fx/hx-qr.js?v=28519c5" defer></script>
-<script src="hx-scan.js?v=28519c5" defer></script><!-- 全站扫一扫（2026-11-08 K5）：摄像头 + BarcodeDetector / 本地 jsQR -->
+<script src="fx/hx-qr.js?v=fff1e9f" defer></script>
+<script src="hx-scan.js?v=fff1e9f" defer></script><!-- 全站扫一扫（2026-11-08 K5）：摄像头 + BarcodeDetector / 本地 jsQR -->
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; width: 100%; overflow: hidden; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -1128,6 +1128,31 @@ var HX = (function () {
     if (!r.ok) { var err = new Error(zh(j && (j.msg || j.message || j.error_description || j.error) || 'HTTP ' + r.status)); err.status = r.status; throw err; }
     return j;
   }
+  /* ---------- 登录降载：抖动 + 自动重试（2026-11-11） ----------
+     免费版 Nano 只有 0.5GB 内存、共享 CPU。上课铃一响全班 40 人同一秒点登录 = 40 个 bcrypt
+     校验同时压到小机器上，直接 resource_exhaustion（整站宕机的根因，Auth 一天报 183 个错误）。
+     对策两条：
+       ① 发请求前随机等 0~2.5 秒 —— 把「同一秒 40 个」摊到 2.5 秒窗口里（约 16 个/秒）；
+       ② 只对可恢复错误自动重试 2 次（1.2s、3s 退避）—— 小机器偶尔 502/504，学生不用自己再点。 */
+  var JITTER = 2500, RETRY_WAIT = [1200, 3000];
+  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  /* 可重试 = 断网 / 12 秒超时（api 抛的没有 status）/ 429 / 5xx。
+     密码错是 400/401 —— **绝不重试**：重试只会把「手滑输错」放大成连续失败，真把账号锁了。 */
+  function retriable(e) {
+    if (!e) return false;
+    if (!e.status) return true;
+    return e.status === 429 || (e.status >= 500 && e.status <= 599);
+  }
+  async function retry(fn, onRetry) {
+    for (var i = 0; ; i++) {
+      try { return await fn(); }
+      catch (e) {
+        if (i >= RETRY_WAIT.length || !retriable(e)) throw e;
+        if (onRetry) onRetry(i + 1);
+        await sleep(RETRY_WAIT[i]);
+      }
+    }
+  }
   // 续期单飞：Supabase 的 refresh_token 是一次性轮换的（换一次旧的立刻作废），
   // 本页同时发两次 = 后发的那次拿 400 invalid_grant，把前一次刚换好的会话一起抹掉 → 全站掉登录。
   var refreshing = null;
@@ -1206,10 +1231,27 @@ var HX = (function () {
     uid: function () { load(); return s && s.user && s.user.id; },
     github: function () { location.href = BASE + '/auth/v1/authorize?provider=github&redirect_to=' + encodeURIComponent(back()); },
     linkGitHub: async function () { var j = await api('/auth/v1/user/identities/authorize?provider=github&skip_http_redirect=true&redirect_to=' + encodeURIComponent(back())); location.href = j.url; },
-    signIn: async function (id, pw) {
-      id = id.trim(); var email = id;
-      if (id.indexOf('@') < 0) email = await rpc('paike_login_email', { p_name: id }, false) || mailOf(id); // 账号名没登记上（如学号被占）也能用注册时的合成邮箱登录
-      take(await api('/auth/v1/token?grant_type=password', { method: 'POST', body: { email: email, password: pw }, auth: false }));
+    // say(text)：登录过程中的状态回显（「正在连接…」/「正在自动重试（第 N 次）」）。
+    // 抖动在**所有请求之前**：账号名→邮箱那一步也是打数据库，全班同一秒点登录会一起压上去；
+    // 等完 0~2.5 秒再查邮箱 + 登录，峰值约 40/秒 → 16/秒。
+    signIn: async function (id, pw, say) {
+      say = typeof say === 'function' ? say : function () { };
+      id = id.trim();
+      say('正在连接…');
+      await sleep(Math.floor(Math.random() * (JITTER + 1)));
+      var j;
+      try {
+        j = await retry(async function () {
+          var email = id;
+          if (id.indexOf('@') < 0) email = await rpc('paike_login_email', { p_name: id }, false) || mailOf(id); // 账号名没登记上（如学号被占）也能用注册时的合成邮箱登录
+          return api('/auth/v1/token?grant_type=password', { method: 'POST', body: { email: email, password: pw }, auth: false });
+        }, function (n) { say('服务器繁忙，正在自动重试（第 ' + n + ' 次）…'); });
+      } catch (e) {
+        // 重试也没成：给学生一句人话，不把英文原文/状态码丢到脸上
+        if (retriable(e)) throw new Error('服务器繁忙，请再点一次');
+        throw e;
+      }
+      take(j);
     },
     // 注册：账号名 → 合成邮箱。signUp 返回 'new'（新账号）或 'existing'（这个账号名早就建过）。
     // 「早就建过」是学生注册最常见的情况：上次账号建好了、但开通那一步没走完（网络断、邀请码正好用完、页面关掉），
@@ -1328,6 +1370,19 @@ function planets() {
   }).join('') + '</span></span>';
 }
 var ST = { me: null, user: null, tab: null, lm: 'in', reg: null, actFor: null, uname: null, edit: null, classes: null, open: null, studs: {}, rosters: null, subjects: null, subjOk: false };
+/* ---------- 静态数据短缓存（2026-11-11 降载） ----------
+   科目表 / 班级名单只有老师在改，平时不变；每次打开首页都重新拉一遍纯属白烧 Nano 的 CPU。
+   命中（5 分钟内）就直接用上次结果、**不再发请求**；过期或换账号才重新拉。
+   老师自己改完（增删班/学生/科目）走 fresh=true 强制刷新，立刻能看到新结果。
+   · key 带 userId —— 同一台电脑换账号登录绝不串号；
+   · key 带版本号 —— 以后数据结构变了，把 CACHE_V 升一位，旧缓存整体作废。
+   ⚠️ 只缓存「静态」数据。成绩 / 排位 / 任务完成名单 / 成员名单（老师的编辑面）一律不缓存：
+      那些必须实时，缓存了会让学生看到过期分数、让老师删掉的学生又冒出来。 */
+var CACHE_V = 'v1', CACHE_TTL = 300000;
+function cacheKey(n) { return 'hx-cache-' + CACHE_V + '-' + n + '-' + (HX.uid() || 'anon'); }
+function cacheGet(n) { try { var o = JSON.parse(localStorage.getItem(cacheKey(n))); return o && o.t && Date.now() - o.t < CACHE_TTL ? o.v : null; } catch (e) { return null; } }
+function cacheSet(n, v) { try { localStorage.setItem(cacheKey(n), JSON.stringify({ t: Date.now(), v: v })); } catch (e) { } }
+function cacheDrop(n) { try { localStorage.removeItem(cacheKey(n)); } catch (e) { } }
 var frames = {};
 function isTeacher() { return !!(ST.me && (ST.me.teacher || ST.me.admin || ST.me.dev)); }
 function isDev() { return !!(ST.me && ST.me.dev); }
@@ -2277,7 +2332,7 @@ function sheetCls() {
   box.querySelectorAll('[data-gdel]').forEach(function (b) {
     b.onclick = async function () {
       if (!sure(b, '确认删除？')) return;
-      try { var r = await HX.rpc('hx_student_remove', { p_id: +b.dataset.gdel }); toast(r === 'deleted' ? '已删除' : '已删除，账号停用'); await loadClasses(); } catch (e) { toast(e.message); }
+      try { var r = await HX.rpc('hx_student_remove', { p_id: +b.dataset.gdel }); toast(r === 'deleted' ? '已删除' : '已删除，账号停用'); await loadClasses(true); } catch (e) { toast(e.message); }
     };
   });
   if (ST.open) renderStu(ST.open);
@@ -2313,7 +2368,7 @@ function sheetCls() {
         + (made0 ? '，新开号 ' + made0 + ' 个（密码就是学号）' : '')
         + (madeFail ? '，' + madeFail + ' 个开号失败' : '')
         + (left.length ? '；' + left.length + ' 个文件失败，原因见下面' : ''));
-      await loadClasses();
+      await loadClasses(true);
     };
   }
   box.querySelectorAll('[data-tool]').forEach(function (b) {
@@ -2322,7 +2377,7 @@ function sheetCls() {
       var c = ST.classes.filter(function (x) { return x.id === +b.dataset.cls; })[0], t = b.dataset.tool, tools = (c.tools || []).slice(), i = tools.indexOf(t);
       if (i >= 0) tools.splice(i, 1); else tools.push(t);
       c.tools = tools; b.setAttribute('aria-pressed', i < 0);
-      try { await HX.rpc('hx_class_tools', { p_class: c.id, p_tools: tools }); } catch (e) { toast(e.message); loadClasses(); }
+      try { await HX.rpc('hx_class_tools', { p_class: c.id, p_tools: tools }); } catch (e) { toast(e.message); loadClasses(true); }
     };
   });
   box.querySelectorAll('[data-open]').forEach(function (b) {
@@ -2339,7 +2394,7 @@ function sheetCls() {
       if (!c) return;
       if (!await ask('收起 ' + c.name + '？', '收起后这个班在接线仿真、刷题、单片机、考试、考勤、小组加分里都不再出现，像上学期带完的班。名单和成绩都还在，随时点「恢复使用」能回来。', '收起')) return;
       b.disabled = true;
-      try { await HX.rpc('hx_class_tools', { p_class: c.id, p_tools: [] }); c.tools = []; await loadClasses(); toast('已收起 ' + c.name); }
+      try { await HX.rpc('hx_class_tools', { p_class: c.id, p_tools: [] }); c.tools = []; await loadClasses(true); toast('已收起 ' + c.name); }
       catch (e) { toast(e.message); b.disabled = false; }
     };
   });
@@ -2348,7 +2403,7 @@ function sheetCls() {
       var c = ST.classes.filter(function (x) { return x.id === +b.dataset.clsresume; })[0];
       if (!c) return;
       b.disabled = true;
-      try { await HX.rpc('hx_class_tools', { p_class: c.id, p_tools: ['jiafen'] }); c.tools = ['jiafen']; await loadClasses(); toast('已恢复 ' + c.name + '（只点亮了小组加分，其他工具按需再点）'); }
+      try { await HX.rpc('hx_class_tools', { p_class: c.id, p_tools: ['jiafen'] }); c.tools = ['jiafen']; await loadClasses(true); toast('已恢复 ' + c.name + '（只点亮了小组加分，其他工具按需再点）'); }
       catch (e) { toast(e.message); b.disabled = false; }
     };
   });
@@ -2398,7 +2453,7 @@ function sheetCls() {
         if (r.failed && r.errors && r.errors.length) errs.push(L[i].c.name + ' ' + (r.created || 0) + '/' + L[i].lack + '：' + r.errors.slice(0, 2).join('；'));
       } catch (e) { failed += L[i].lack; errs.push(L[i].c.name + '：' + e.message); }
     }
-    await loadClasses();
+    await loadClasses(true);
     toast('共开 ' + made + ' 个账号' + (claimed ? '，认领已有 ' + claimed + ' 个' : '')
       + (failed ? '，失败 ' + failed + ' 个' : '')
       + (errs.length ? '（' + errs.slice(0, 3).join('；') + (errs.length > 3 ? '…' : '') + '）' : ''));
@@ -2464,7 +2519,7 @@ function sheetCls() {
         toast('新建 ' + (r.created || 0) + ' 个，认领已有邮箱 ' + (r.bound || 0) + ' 个'
           + (r.failed ? '，失败 ' + r.failed + ' 个' : '')
           + (r.created ? '。学生现在可以用「' + rule + '」直接登录' : ''));
-        delete ST.studs[c.id]; await loadClasses();
+        delete ST.studs[c.id]; await loadClasses(true);
       } catch (e) { toast(e.message); b.disabled = false; b.textContent = old; }
     };
   });
@@ -2791,13 +2846,31 @@ function renderStu(cid) {
   });
   el.querySelectorAll('[data-back]').forEach(function (b) { b.onclick = async function () { try { await HX.rpc('hx_student_restore', { p_id: +b.dataset.back }); await done('已恢复'); } catch (e) { toast(e.message); } }; });
 }
-async function loadClasses() {
-  try { var r = await Promise.all([HX.rpc('hx_my_classes'), HX.rpc('hx_my_guests').catch(function () { return []; })]); ST.classes = r[0] || []; ST.guests = r[1] || []; } catch (e) { ST.classes = []; toast('班级名单读取失败：' + e.message); }
+// fresh=true：刚做过增删改，绕过缓存并让缓存失效（否则老师删完学生，缓存里又把他「变回来」）
+async function loadClasses(fresh) {
+  if (fresh) cacheDrop('classes');
+  var hit = fresh ? null : cacheGet('classes');
+  if (hit) { // 5 分钟内：直接用上次结果，**不再打服务器**（这才是真降载；后台再刷一次等于没省）
+    ST.classes = hit[0] || []; ST.guests = hit[1] || []; ST.clsOk = true; renderMgmt('cls'); return;
+  }
+  try {
+    var r = await Promise.all([HX.rpc('hx_my_classes'), HX.rpc('hx_my_guests').catch(function () { return []; })]);
+    ST.classes = r[0] || []; ST.guests = r[1] || [];
+    cacheSet('classes', [ST.classes, ST.guests]);
+  } catch (e) {
+    ST.classes = []; toast('班级名单读取失败：' + e.message);
+  }
   ST.clsOk = true; renderMgmt('cls');
 }
 // 科目（hx_exam_subject）：教师统一在首页管理，资料库/考试/考勤只读。教师首次进来不再自动插「单片机」。
-async function loadSubjects() {
-  try { ST.subjects = await HX.rpc('hx_exam_subject_list') || []; }
+async function loadSubjects(fresh) {
+  if (fresh) cacheDrop('subjects');
+  var hit = fresh ? null : cacheGet('subjects');
+  if (hit) { ST.subjects = hit; ST.subjOk = true; renderMgmt('subj'); return; }
+  try {
+    ST.subjects = await HX.rpc('hx_exam_subject_list') || [];
+    cacheSet('subjects', ST.subjects);
+  }
   catch (e) { ST.subjects = []; toast('科目读取失败：' + e.message); }
   ST.subjOk = true; renderMgmt('subj');
 }
@@ -2850,7 +2923,7 @@ function subjEdit(id) {
         try { await HX.rpc('quiz_publish', { p_id: key, p_name: name, p_questions: [], p_owner_name: '', p_classes: [] }); }
         catch (e2) { toast('科目已建，但刷题空题库没建成：' + e2.message); }
       }
-      await loadSubjects();
+      await loadSubjects(true);
       sheetSubj();
       toast(s ? '已保存' : '已建科目「' + name + '」');
     } catch (e) { $('sjSave').disabled = false; $('sjErr').textContent = '失败：' + e.message; $('sjErr').style.display = ''; }
@@ -2864,7 +2937,7 @@ function subjDel(id) {
     return HX.rpc('hx_exam_subject_del', { p_id: id }).then(function (r) {
       ((r && r.paths) || []).forEach(function (p) { try { HX.api('/storage/v1/object/exam-material/' + String(p).replace(/^\/+/, ''), { method: 'DELETE' }); } catch (e) { } });
       toast('已删除科目');
-      loadSubjects();
+      loadSubjects(true);
     });
   }).catch(function (e) { toast('删不了：' + e.message); });
 }
@@ -2922,9 +2995,16 @@ window.HXPortal = {
 };
 
 $('lf').onsubmit = async function (e) {
-  e.preventDefault(); $('lmsg').textContent = '';
-  try { await HX.signIn($('lid').value, $('lpw').value); $('login').close(); $('lpw').value = ''; was = true; reloadTools(); refresh(); }
-  catch (err) { $('lmsg').textContent = err.message; }
+  e.preventDefault();
+  var f = $('lf'), btn = f.querySelector('button[type="submit"]'), msg = $('lmsg');
+  if (btn.disabled) return; // 抖动期间重复点：不再发第二个请求
+  msg.textContent = ''; btn.disabled = true; btn.textContent = '正在连接…';
+  try {
+    await HX.signIn($('lid').value, $('lpw').value, function (t) { msg.textContent = t; });
+    $('login').close(); $('lpw').value = ''; was = true; reloadTools(); refresh();
+  }
+  catch (err) { msg.textContent = err.message; }
+  finally { btn.disabled = false; btn.textContent = '登录'; }
 };
 $('lgh').onclick = function () { HX.github(); };
 $('shareC').onclick = function () { $('shareT').select(); (navigator.clipboard ? navigator.clipboard.writeText($('shareT').value) : Promise.reject()).then(function () { toast('已复制'); }, function () { try { document.execCommand('copy'); toast('已复制'); } catch (e) { } }); };

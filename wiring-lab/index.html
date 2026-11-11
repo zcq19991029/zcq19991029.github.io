@@ -3,7 +3,7 @@
 <html lang="zh-CN">
 <head>
 <script src="../hx-theme.js" data-tool="wiring"></script>
-<script>window.HX_BUILD = "2026-11-11T13:27:45Z 28519c5";</script>
+<script>window.HX_BUILD = "2026-11-11T16:25:32Z fff1e9f";</script>
 <meta charset="utf-8">
 <meta name="copyright" content="© 2026 zcq 版权所有，未经许可禁止复制、修改、转载">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
@@ -3388,10 +3388,29 @@ const HX = (() => {
     [/Password should be at least/i, '密码至少要 6 位'], [/rate limit|too many/i, '操作太频繁，请过一会儿再试'], [/Unable to validate email|invalid format/i, '邮箱格式不对'],
     [/JWT expired|invalid JWT/i, '登录过期了，请重新登录'], [/permission denied/i, '没有权限']];
   const zh = m => { m = String(m || ''); for (const [re, t] of ZH) if (re.test(m)) return t; return m; };
+  /* ---------- 登录降载 / 请求超时（2026-11-11） ----------
+     免费版 Nano 只有 0.5GB 内存 / 共享 CPU：几十个人同一秒点登录，bcrypt 校验会把小机器压死。
+     ① 发请求前随机等 0~2.5 秒，把同一秒的峰值摊到 2.5 秒窗口里；
+     ② 只对可恢复错误重试 2 次（1.2s、3s），密码错（400/401）绝不重试；
+     ③ 每条请求最多等 12 秒 —— 后端卡住时不能让页面一直「转圈不动」。 */
+  const JITTER = 2500, RETRY_WAIT = [1200, 3000], TIMEOUT = 12000;
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const retriable = e => { if (!e) return false; if (!e.status) return true; if (e.status === 429) return true; return e.status >= 500 && e.status <= 599; };
+  async function retry(fn, onRetry) {
+    for (let i = 0; ; i++) {
+      try { return await fn(); }
+      catch (e) { if (i >= RETRY_WAIT.length || !retriable(e)) throw e; if (onRetry) onRetry(i + 1); await sleep(RETRY_WAIT[i]); }
+    }
+  }
   async function api(path, { method = 'GET', body, auth = true } = {}) {
     if (auth) await fresh();
     const h = { apikey: KEY, 'Content-Type': 'application/json' }; if (auth && s) h.Authorization = 'Bearer ' + s.access_token;
-    let r; try { r = await fetch(BASE + path, { method, headers: h, body: body === undefined ? undefined : JSON.stringify(body) }); } catch (e) { throw new Error('连不上服务器，请检查网络'); }
+    const ctl = typeof AbortController === 'function' ? new AbortController() : null;
+    const tm = ctl ? setTimeout(() => { try { ctl.abort(); } catch (e) { } }, TIMEOUT) : 0;
+    let r;
+    try { r = await fetch(BASE + path, { method, headers: h, body: body === undefined ? undefined : JSON.stringify(body), signal: ctl ? ctl.signal : undefined }); }
+    catch (e) { throw new Error(e && e.name === 'AbortError' ? '服务器 12 秒没回应（网络慢，或后端正忙），请再点一次' : '连不上服务器，请检查网络'); }
+    finally { if (tm) clearTimeout(tm); }
     const txt = await r.text(); let j = null; try { j = txt ? JSON.parse(txt) : null; } catch (e) { j = txt; }
     if (!r.ok) throw Object.assign(new Error(zh(j && (j.msg || j.message || j.error_description || j.error) || 'HTTP ' + r.status)), { status: r.status });
     return j;
@@ -3419,7 +3438,18 @@ const HX = (() => {
     },
     async user() { load(); if (!s.user) { const u = await api('/auth/v1/user'); load(); s.user = u; keep(s); } return s.user; }, // api 里会重读登录，先拿到再写回
     github() { const w = topWin(); w.location.href = BASE + '/auth/v1/authorize?provider=github&redirect_to=' + encodeURIComponent(w.location.origin + w.location.pathname); },
-    async signIn(id, pw) { take(await api('/auth/v1/token?grant_type=password', { method: 'POST', body: { email: await emailOf(id), password: pw }, auth: false })); },
+    // 抖动 + 重试：和总入口同一套（见文件顶部注释），登录峰值摊到 2.5 秒窗口里
+    async signIn(id, pw) {
+      await sleep(Math.floor(Math.random() * (JITTER + 1)));
+      let j;
+      try {
+        j = await retry(async () => api('/auth/v1/token?grant_type=password', { method: 'POST', body: { email: await emailOf(id), password: pw }, auth: false }));
+      } catch (e) {
+        if (retriable(e)) throw new Error('服务器繁忙，请再点一次');
+        throw e;
+      }
+      take(j);
+    },
     async signUp(email, pw) {
       const j = await api('/auth/v1/signup?redirect_to=' + encodeURIComponent(back()), { method: 'POST', body: { email, password: pw }, auth: false });
       if (j && j.access_token) { take(j); return 'in'; }
@@ -4869,12 +4899,28 @@ async function rkTaskBList(body) {
   body.querySelectorAll('.tb-item').forEach(b => b.onclick = () => rkTaskBDetail(tbBody(), +b.dataset.id));
   tbListPoll();
 }
+/* 轮询间隔：15 秒中枢 ±20%（12~18 秒），**每次调度重新算**。
+   为什么不能固定 15 秒：全班 40 台设备同一秒开始轮询，之后每 15 秒都同一秒一起到期，
+   周期性尖峰照样能把 Nano 顶住；抖动之后自然错开，中枢仍维持用户批准的 15 秒。 */
+const tbGap = () => Math.round(15000 * (0.8 + Math.random() * 0.4));
+/* 用递归 setTimeout 代替 setInterval —— setInterval 的间隔是死的，没法每轮重算。
+   返回停止函数，由 tbStopPoll 统一收口（窗口关掉 / 页面隐藏即停的原有逻辑不变）。 */
+function tbLoop(step) {
+  let dead = false, t = 0;
+  const tick = async () => {
+    if (dead) return;
+    try { await step(); } catch (e) { /* 轮询失败不打断画面，下一轮再试 */ }
+    if (!dead) t = setTimeout(tick, tbGap());
+  };
+  t = setTimeout(tick, tbGap());
+  return () => { dead = true; clearTimeout(t); };
+}
 /* 列表页 15 秒轻轮询（2026-11-11 用户要求「老师一发布学生立马就能看到」＋轮询统一降到 15 秒）：
    老师中途发布/结束任务，开着这个列表的学生最多 15 秒就能看到（新任务排最上面）；
    窗口关掉（.show 摘掉）或已经点进某个任务的详情页就停 —— 详情页有自己的轮询。 */
 function tbListPoll() {
   tbStopPoll();
-  TB.stop = setInterval(async () => {
+  TB.stop = tbLoop(async () => {
     if (!document.getElementById('fw-taskb') || !document.getElementById('fw-taskb').classList.contains('show')) return tbStopPoll();
     if (document.hidden) return;
     try {
@@ -4882,7 +4928,7 @@ function tbListPoll() {
       if (TB.id !== null || !tbBody()) return tbStopPoll();   // 已在详情页：交给详情页的轮询
       if (JSON.stringify(list) !== JSON.stringify(TB.tasks)) rkTaskBList(tbBody());
     } catch (e) { /* 轮询失败不打断画面，下一轮再试 */ }
-  }, 15000);
+  });
 }
 async function rkTaskBDetail(body, id) {
   TB.id = id; tbStopPoll();
@@ -4893,19 +4939,23 @@ async function rkTaskBDetail(body, id) {
   catch (e) { TB.id = null; body.querySelector('.rk-wait').outerHTML = `<p class="rk-err">${esc(e.message)}</p>`; return; }
   tbPaint(body, b);
   // 进行中的任务 15 秒刷一次（2026-11-11 用户批准：学生端人手一份，5 秒太频繁，统一降到 15 秒）；
-  // 窗口关掉（.show 摘掉）或页面隐藏时这一轮跳过 —— 重开窗口会重新拉。
+  // 每次调度 ±20% 抖动（12~18 秒），全班设备不会同相位；窗口关掉（.show 摘掉）或页面隐藏时这一轮跳过 —— 重开窗口会重新拉。
   if (b.task && b.task.status === 'open') {
     let hidden = 0;
-    TB.stop = setInterval(async () => {
+    TB.stop = tbLoop(async () => {
       if (!document.getElementById('fw-taskb') || !document.getElementById('fw-taskb').classList.contains('show')) return tbStopPoll();
       if (document.hidden) { if (++hidden >= 3) return tbStopPoll(); return; }
       hidden = 0;
       try { TB.board = await HX.rpc('wire_task_student_board', { p_task: id }); if (TB.id === id && tbBody()) tbPaint(tbBody(), TB.board); }
       catch (e) { /* 轮询失败不打断画面，下一轮再试 */ }
-    }, 15000);
+    });
   }
 }
-function tbStopPoll() { if (TB.stop) { clearInterval(TB.stop); TB.stop = null; } }
+function tbStopPoll() {
+  if (!TB.stop) return;
+  if (typeof TB.stop === 'function') TB.stop(); else clearInterval(TB.stop);
+  TB.stop = null;
+}
 // 画名单：表头 + 我的卡片（没完成时给出「去排位就自动记上」的提示）+ 完成名单表（自己那行 .me 高亮）
 function tbPaint(body, b) {
   const t = b.task, m = b.mine || {}, rows = b.done_rows || [], me = RK.me && RK.me.student;

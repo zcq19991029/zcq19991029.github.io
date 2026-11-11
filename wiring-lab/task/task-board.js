@@ -48,7 +48,8 @@ const root = $('#bdRoot');
 
   await load(true);
   // 15 秒一轮（2026-11-11 用户批准：轮询统一降到 15 秒，别让一体机一直发请求）
-  B.stop = every(15000, () => load(false));
+  // 第三个参数 = ±20% 抖动（12~18 秒）：多台大屏/老师笔记本同开时不会永远同相位一起到期
+  B.stop = every(15000, () => load(false), 0.2);
 })();
 
 function gate(title, msg, login) {
@@ -166,7 +167,7 @@ function paint(b) {
   ${B.moves.length ? `<div class="bd-moves">${movesHTML()}</div>` : ''}
 
   <footer class="bd-foot">
-    <span class="dot"></span><span>每 15 秒刷新 · 最后更新 <b id="bdLast">${B.lastAt || '—'}</b></span>
+    <span class="dot"></span><span>每 15 秒左右刷新 · 最后更新 <b id="bdLast">${B.lastAt || '—'}</b></span>
     <span class="grow"></span>
     <span>基准用时（前 10 名平均）<b>${b.base_sec == null ? '—' : fmtSec(b.base_sec)}</b></span>
     <span>赋分：前 10 名 100% · 11–20 名 80% · 其余已完成 70%</span>
