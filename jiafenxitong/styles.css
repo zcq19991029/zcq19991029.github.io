@@ -8,10 +8,11 @@
    ============================================================ */
 :root {
   --bg: #fdf7f7;
-  --panel: #ffffff;
-  --panel-soft: #fef5f5;
-  --panel-tint: #fdecec;
-  --line: #f2e4e4;
+  /* 毛玻璃：面板半透明白（真 blur 由 @supports 追加，低配设备自动降级为纯半透明） */
+  --panel: rgba(255, 255, 255, .66);
+  --panel-soft: rgba(255, 250, 249, .55);
+  --panel-tint: rgba(253, 236, 236, .58);
+  --line: rgba(236, 220, 220, .72);
   --line-strong: #e6d2d2;
   --text: #1c1c1e;
   --muted: #83848a;
@@ -41,7 +42,7 @@
   --pill: 999px;
   /* 比面板"再抬一层"的表面色：浅色下就是纯白，深色下要比面板亮，不能用 --panel */
   --raise: #ffffff;
-  --shadow: 0 1px 2px rgba(150, 90, 90, .06), 0 6px 18px rgba(150, 90, 90, .07);
+  --shadow: 0 1px 2px rgba(150, 90, 90, .08), 0 8px 24px rgba(150, 90, 90, .12);
   --shadow-lift: 0 4px 10px rgba(150, 90, 90, .10), 0 16px 34px rgba(150, 90, 90, .13);
 
   /* 纸质记录表的七个配色（取自 Excel：BDD7EE / EAF2FB / FCE4D6 / FDF3E3 / FBE5E5 / E2EFDA / FFF2CC） */
@@ -1063,9 +1064,10 @@ dialog::backdrop {
     --cds-clay-soft: #fbf3ef;
     --cds-ease-swift: cubic-bezier(.16,1,.3,1);
     --bg: var(--cds-bg-surface-0);
-    --panel: var(--cds-bg-surface-1);
-    --panel-soft: var(--cds-bg-surface-2);
-    --panel-tint: var(--cds-clay-soft);
+    /* 毛玻璃：CDS 这一层会在屏幕上覆盖文件头 :root，面板色也统一改半透明 */
+    --panel: rgba(251, 251, 250, .66);
+    --panel-soft: rgba(247, 247, 245, .55);
+    --panel-tint: rgba(251, 243, 239, .6);
     --raise: var(--cds-bg-input);
     --text: var(--cds-text-primary);
     --muted: var(--cds-text-secondary);
@@ -1081,8 +1083,8 @@ dialog::backdrop {
     --radius: 10px;
     --radius-lg: 16px;
     --radius-sm: 8px;
-    --shadow: 0 1px 2px rgba(0,0,0,.025);
-    --shadow-lift: 0 4px 16px rgba(0,0,0,.06);
+    --shadow: 0 1px 2px rgba(20, 25, 40, .06), 0 8px 24px rgba(20, 25, 40, .10);
+    --shadow-lift: 0 4px 16px rgba(20, 25, 40, .08), 0 18px 40px rgba(20, 25, 40, .14);
   }
   body::before, body::after { display: none; }
   body { font-family: system-ui,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif; }
@@ -2596,4 +2598,40 @@ html.hx-bg[data-hx-mode="dark"] body::after,
 .metric.metric-seated { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
 .metric.metric-seated .v { font-size: 20px; }
 .metric.metric-seated #btnConfirmSeating { margin-top: 2px; white-space: normal; width: 100%; }
+
+/* ============================================================
+   全站毛玻璃质感（2026-11-10）：参考「希沃课堂评价系统」浅色毛玻璃。
+   · 卡片半透明白 + backdrop-filter blur(16px) saturate(1.2)
+   · 用 @supports 包真 blur，低配/不支持设备自动降级为纯半透明（无 blur）
+   · 浅色变量见文件头 :root 与 CDS 块；深色 :root[data-hx-mode="dark"] 本就是 rgba 玻璃，这里只补 blur
+   ============================================================ */
+
+/* 浅色页面底纹：CDS 在 screen 下把 body::before/after 关了，这里重新打开 body::after
+   并加几团淡彩光，让毛玻璃卡片背后有东西可糊；深色模式有自己的底纹，不受影响 */
+:root:not([data-hx-mode="dark"]) body::after {
+  display: block;
+  background-image:
+    radial-gradient(56vmin 44vmin at 50% 24%, rgba(232, 35, 46, .10), rgba(232, 35, 46, 0) 72%),
+    radial-gradient(46vmin 38vmin at 84% 8%, rgba(120, 150, 220, .10), rgba(120, 150, 220, 0) 70%),
+    radial-gradient(42vmin 36vmin at 10% 32%, rgba(240, 180, 90, .09), rgba(240, 180, 90, 0) 68%);
+}
+
+/* 卡片类统一毛玻璃：真 blur 只在支持 backdrop-filter 的设备上生效 */
+@supports (backdrop-filter: blur(1px)) {
+  .card, .gcard, .metric, .gate-card, .dt-card, .rank-secondary, .remembered-account {
+    -webkit-backdrop-filter: blur(16px) saturate(1.2);
+    backdrop-filter: blur(16px) saturate(1.2);
+  }
+}
+
+/* 浮层 / 输入 / 表头必须实底：--panel 半透明后这些地方再透会糊字、透出滚动行。
+   统一用 --raise（浅色纯白 #fdfdfc，深色近实 rgba(26,38,74,.88)）兜住。
+   深色下 dialog 已有 :root[data-hx-mode="dark"] dialog 的实底覆盖，特异性更高，不受这里影响 */
+dialog { background: var(--raise); }
+.toast { background: var(--raise); }
+input[type="password"], input:not([type]),
+.log-toolbar select, .log-toolbar input { background: var(--raise); }
+table.data th, .dt-body th, .assessment-table thead th,
+.log-table-head, .sync-conflict-head, .bubble-audit-table th { background: var(--raise); }
+
 

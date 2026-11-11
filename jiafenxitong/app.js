@@ -2673,14 +2673,18 @@ function restoreDroppedToHome(cls) {
         var overLimit = seen > cap;                // 搜索把人滤掉时序号也要照算，标红才不会跳来跳去
         if (!match(m.name, m.sid, m.no)) return;   // 搜索只滤「人」，组卡片本身留着，免得老师找不到组
         var on = gbPick && gbPick.kind === 'member' && gbPick.gi === gi && gbPick.mi === mi;
+        var isLead = isGroupLeader(g, m);
+        var sub = m.sid ? String(m.sid) : (m.no == null ? '' : String(m.no));
         mem += '<div class="gb-chip' + (on ? ' on' : '') + (overLimit ? ' gb-over-limit' : '') +
           '" role="button" tabindex="0"' +
           ' data-gi="' + gi + '" data-mi="' + mi + '"' +
           ' title="' + (overLimit ? '超出本组上限 ' + cap + ' 人，但不会被自动移出：拖走 / 留下 / 单独建一组都可以。' : '') +
             '拖到别的组就换组，拖到左边的「未分组」就移出">' +
           '<span class="gb-av" aria-hidden="true">' + esc(String(m.name).slice(0, 1)) + '</span>' +
-          '<span class="gb-nm">' + esc(m.name) + '</span>' +
-          (m.no == null || m.no === '' ? '' : '<span class="gb-no">' + esc(m.no) + '</span>') +
+          '<div class="gb-nm"><b>' + esc(m.name) + '</b>' +
+            (sub === '' ? '' : '<small>' + esc(sub) + '</small>') +
+          '</div>' +
+          '<span class="gb-role' + (isLead ? ' lead' : ' member') + '">' + (isLead ? '组长' : '组员') + '</span>' +
           (overLimit ? '<span class="gb-over-tag">超出</span>' : '') +
           '<button type="button" class="gb-x" data-gi="' + gi + '" data-mi="' + mi + '"' +
             ' title="移出到未分组" aria-label="把' + esc(m.name) + '移出到未分组">×</button>' +
@@ -2723,11 +2727,13 @@ function restoreDroppedToHome(cls) {
     var pChips = pend.map(function (x) {
       var r = x.r, key = gbRowKey(r);
       var on = gbPick && gbPick.kind === 'pending' && gbPick.key === key;
+      var psub = r.sid ? String(r.sid) : (r.no == null ? '' : String(r.no));
       return '<div class="gb-chip gb-pend-chip' + (on ? ' on' : '') + '" role="button" tabindex="0"' +
         ' data-pkey="' + esc(key) + '" title="拖到右边任意一组就加进去">' +
         '<span class="gb-av" aria-hidden="true">' + esc(String(r.name || '?').slice(0, 1)) + '</span>' +
-        '<span class="gb-nm">' + esc(r.name || '（未命名）') + '</span>' +
-        (r.no == null || r.no === '' ? '' : '<span class="gb-no">' + esc(r.no) + '</span>') +
+        '<div class="gb-nm"><b>' + esc(r.name || '（未命名）') + '</b>' +
+          (psub === '' ? '' : '<small>' + esc(psub) + '</small>') +
+        '</div>' +
         (x.table ? '<span class="gb-tag">已选座 · 第 ' + x.table + ' 桌</span>' : '') +
         '</div>';
     }).join('');
@@ -2811,6 +2817,18 @@ function restoreDroppedToHome(cls) {
     if (msg) flash(msg);
   }
 
+  /** 换组/加人后的即时反馈：目标组卡片闪一下，让老师看见「落到这一组了」。
+      满员拒绝闪红边（gb-rejected），成功闪绿边（gb-just-dropped）。
+      注意时序：gbCommit 里会 renderPool → renderGroupBoard 整块重画，DOM 是全新的，
+      所以 class 必须在 gbCommit 之后再加（加到新节点上），否则会被重画冲掉。
+      1.2 秒后移除；移除前若又发生重画，旧的 el 已脱离文档，remove 也是无害的。 */
+  function gbFlashGroup(gi, clsName) {
+    var el = $('.gb-group[data-gi="' + gi + '"]');
+    if (!el) return;
+    el.classList.add(clsName);
+    setTimeout(function () { el.classList.remove(clsName); }, 1200);
+  }
+
   /** 待分配的人 → 第 gi 组（gi 是 cls.groups 的下标，不是组号） */
   function gbJoin(cls, r, gi) {
     var g = cls.groups[gi];
@@ -2819,6 +2837,7 @@ function restoreDroppedToHome(cls) {
     /* 满了要说一句，不能静默失败：老师拖过去没反应会以为程序坏了 */
     if (memberCount(g) >= cap) {
       flash('第 ' + g.no + ' 组已经满 ' + cap + ' 人（本班每组上限 ' + cap + ' 人），先移出一个再放进去');
+      gbFlashGroup(gi, 'gb-rejected');
       return false;
     }
     gbSnapshot(cls, '把「' + r.name + '」加进第 ' + g.no + ' 组');
@@ -2827,6 +2846,7 @@ function restoreDroppedToHome(cls) {
     var reback = repairOrphansAfterAssign(cls);
     gbCommit(cls, '已把「' + r.name + '」加进第 ' + g.no + ' 组' +
       (reback ? '，已接回他名下 ' + reback + ' 条历史分' : ''));
+    gbFlashGroup(gi, 'gb-just-dropped');
     return true;
   }
 
@@ -2839,6 +2859,7 @@ function restoreDroppedToHome(cls) {
     var cap = groupTargetCap(cls, to);
     if (memberCount(to) >= cap) {
       flash('第 ' + to.no + ' 组已经满 ' + cap + ' 人（本班每组上限 ' + cap + ' 人），先移出一个再换过去');
+      gbFlashGroup(toGi, 'gb-rejected');
       return false;
     }
     gbSnapshot(cls, '把「' + m.name + '」从第 ' + from.no + ' 组换到第 ' + to.no + ' 组');
@@ -2854,6 +2875,7 @@ function restoreDroppedToHome(cls) {
     putLeaderOf(cls, to.no, memberKey(m), leader);
     addOperationLog('分组', cls.name + ' · ' + m.name + '：第' + from.no + '组 → 第' + to.no + '组（待分配页拖拽）');
     gbCommit(cls, '已把「' + m.name + '」从第 ' + from.no + ' 组换到第 ' + to.no + ' 组');
+    gbFlashGroup(toGi, 'gb-just-dropped');
     return true;
   }
 
@@ -3599,79 +3621,94 @@ function restoreDroppedToHome(cls) {
       return false;
     }
 
-    if (!confirm('按选座确认分组？\n\n' +
-      '· 第 ' + tables.join('、') + ' 桌共 ' + seats.length + ' 人，写成 ' + tables.length + ' 组（组号＝桌号）\n' +
-      '· 这几个组会按选座重建：原来在这几个组、但这节课没来选座的人，会回到未分组\n' +
-      '· 没坐人的桌（组）一律不动\n' +
-      '· 记过的分按学生身份跟着人走（个人扣分不再清空）\n' +
-      '\n确认前建议先到「数据与备份」下载一份备份。继续？')) return;
+    /* 原来这里是原生 confirm，但 iframe 里 confirm 可能被吞（用户报过「按选座确认分组没反应」）。
+       改成页面内 <dialog>：把「确认后执行」的整段逻辑收进 doSeatApply 回调，点「确认分组」才跑，
+       取消只关窗。整段逻辑原样搬进来，snap / beforeSeat / keep / moved 这些变量一个都没动。 */
+    function doSeatApply() {
+      /* 2026-11-08 分数迁移：拍一张「组号 → 第几个人是谁」的快照，重建完再按身份写回。
+         原来这里会把整组 personal 清空（上面那句提示就是证据），用户说的
+         「分完组之后我之前弄的加分全部丢失了基本上」有一半是这个操作造成的。 */
+      var snap = scoreLayoutSnapshot(cls);
+      /* 这个动作最容易「人掉出去」：没来选座的人会回到待分配。所以动手前留一份完整快照，
+         动完再拿「分之前几个人/几个组」对一次账，少了人立刻红字拦住（团队在 26工器1 班
+         看到的 49 人只剩 29 人，就是从这类操作开始的）。 */
+      var beforeSeat = JSON.parse(JSON.stringify(cls.groups));
+      pushGroupSnapshot(cls, '按选座确认分组：第 ' + tables.join('、') + ' 桌');
 
-    /* 2026-11-08 分数迁移：拍一张「组号 → 第几个人是谁」的快照，重建完再按身份写回。
-       原来这里会把整组 personal 清空（上面那句提示就是证据），用户说的
-       「分完组之后我之前弄的加分全部丢失了基本上」有一半是这个操作造成的。 */
-    var snap = scoreLayoutSnapshot(cls);
-    /* 这个动作最容易「人掉出去」：没来选座的人会回到待分配。所以动手前留一份完整快照，
-       动完再拿「分之前几个人/几个组」对一次账，少了人立刻红字拦住（团队在 26工器1 班
-       看到的 49 人只剩 29 人，就是从这类操作开始的）。 */
-    var beforeSeat = JSON.parse(JSON.stringify(cls.groups));
-    pushGroupSnapshot(cls, '按选座确认分组：第 ' + tables.join('、') + ' 桌');
-
-    /* 保住原来的成员对象，好让组长标记（leaderKey）和按 id 记的个人项目分不失联 */
-    var keep = Object.create(null), keepByName = Object.create(null);
-    cls.groups.forEach(function (g) {
-      g.members.forEach(function (m) {
-        if (!m.name) return;
-        var k = studentKeyOf(m);
-        if (!keep[k]) keep[k] = m;
-        /* 只有全班唯一同名时才敢用姓名回查（同名学生绝不靠名字配对） */
-        keepByName[m.name] = keepByName[m.name] ? 'DUP' : m;
-      });
-    });
-
-    var moved = 0;
-    cls.groups.forEach(function (g) {
-      for (var i = g.members.length - 1; i >= 0; i--) {
-        if (isSeated(g.members[i])) { removeMemberAt(cls, g, i); moved++; }
-      }
-    });
-
-    var made = 0, filled = 0, toPending = 0;
-    tables.forEach(function (t) {
-      var g = groupOf(cls, t);
-      if (!g) { g = { id: uid('g'), no: t, members: [] }; cls.groups.push(g); made++; }
-      toPending += g.members.filter(function (m) { return !!m.name; }).length;
-      while (g.members.length) removeMemberAt(cls, g, g.members.length - 1);
-      byTable[t].forEach(function (s) {
-        var old = (s.no && keep['s:' + s.no]) || (seatName[s.name] === 1 ? keepByName[s.name] : null);
-        if (old === 'DUP') old = null;
-        pushMember(g, {
-          id: (old && old.id) || uid('m'),
-          name: s.name,
-          sid: (old && old.sid) || (s.no ? String(s.no) : ''),
-          no: old && old.no != null ? old.no : studentNo(cls, s.name, s.no ? String(s.no) : '')
+      /* 保住原来的成员对象，好让组长标记（leaderKey）和按 id 记的个人项目分不失联 */
+      var keep = Object.create(null), keepByName = Object.create(null);
+      cls.groups.forEach(function (g) {
+        g.members.forEach(function (m) {
+          if (!m.name) return;
+          var k = studentKeyOf(m);
+          if (!keep[k]) keep[k] = m;
+          /* 只有全班唯一同名时才敢用姓名回查（同名学生绝不靠名字配对） */
+          keepByName[m.name] = keepByName[m.name] ? 'DUP' : m;
         });
-        filled++;
       });
-      if (g.leaderKey && !g.members.some(function (m) { return memberKey(m) === g.leaderKey; })) delete g.leaderKey;
-    });
 
-    /* 重建完按身份把个人扣分迁回去；对不上的（比如人已经从名单里删掉）会报数，不清零。
-       个人项目分（leaderScores）同理，按成员键搬到现在所在的组号下面。 */
-    var unmatched = realignPersonalScores(cls, snap);
-    var leaderOut = realignLeaderScores(cls, snap);
-    var seatSize = Number((tmState && tmState.size) || (tmRoom && tmRoom.room && tmRoom.size) || 0);
-    if (seatSize >= 2) cls.groupLimit = Math.min(40, seatSize);
+      var moved = 0;
+      cls.groups.forEach(function (g) {
+        for (var i = g.members.length - 1; i >= 0; i--) {
+          if (isSeated(g.members[i])) { removeMemberAt(cls, g, i); moved++; }
+        }
+      });
 
-    addOperationLog('分组', cls.name + ' · 按选座确认分组：第 ' + tables.join('、') + ' 桌 ' + filled +
-      ' 人写成 ' + tables.length + ' 组' + (made ? '（新建 ' + made + ' 组）' : '') +
-      (toPending ? '，' + toPending + ' 人回到未分组' : ''));
-    save(); renderPool(); renderScore(); renderPoolBanner(cls);
+      var made = 0, filled = 0, toPending = 0;
+      tables.forEach(function (t) {
+        var g = groupOf(cls, t);
+        if (!g) { g = { id: uid('g'), no: t, members: [] }; cls.groups.push(g); made++; }
+        toPending += g.members.filter(function (m) { return !!m.name; }).length;
+        while (g.members.length) removeMemberAt(cls, g, g.members.length - 1);
+        byTable[t].forEach(function (s) {
+          var old = (s.no && keep['s:' + s.no]) || (seatName[s.name] === 1 ? keepByName[s.name] : null);
+          if (old === 'DUP') old = null;
+          pushMember(g, {
+            id: (old && old.id) || uid('m'),
+            name: s.name,
+            sid: (old && old.sid) || (s.no ? String(s.no) : ''),
+            no: old && old.no != null ? old.no : studentNo(cls, s.name, s.no ? String(s.no) : '')
+          });
+          filled++;
+        });
+        if (g.leaderKey && !g.members.some(function (m) { return memberKey(m) === g.leaderKey; })) delete g.leaderKey;
+      });
 
-    var rest = pendingList(cls).length;
-    flash('已按选座写成 ' + tables.length + ' 组（' + filled + ' 人）' +
-      (rest ? '，还剩 ' + rest + ' 人未分组，拖进组就行' : '，全班都分好了'));
-    reportScoreMigration({ personal: unmatched, leader: leaderOut });
-    reportGroupChange(cls, beforeSeat, '按选座确认分组');
+      /* 重建完按身份把个人扣分迁回去；对不上的（比如人已经从名单里删掉）会报数，不清零。
+         个人项目分（leaderScores）同理，按成员键搬到现在所在的组号下面。 */
+      var unmatched = realignPersonalScores(cls, snap);
+      var leaderOut = realignLeaderScores(cls, snap);
+      var seatSize = Number((tmState && tmState.size) || (tmRoom && tmRoom.room && tmRoom.size) || 0);
+      if (seatSize >= 2) cls.groupLimit = Math.min(40, seatSize);
+
+      addOperationLog('分组', cls.name + ' · 按选座确认分组：第 ' + tables.join('、') + ' 桌 ' + filled +
+        ' 人写成 ' + tables.length + ' 组' + (made ? '（新建 ' + made + ' 组）' : '') +
+        (toPending ? '，' + toPending + ' 人回到未分组' : ''));
+      save(); renderPool(); renderScore(); renderPoolBanner(cls);
+
+      var rest = pendingList(cls).length;
+      flash('已按选座写成 ' + tables.length + ' 组（' + filled + ' 人）' +
+        (rest ? '，还剩 ' + rest + ' 人未分组，拖进组就行' : '，全班都分好了'));
+      reportScoreMigration({ personal: unmatched, leader: leaderOut });
+      reportGroupChange(cls, beforeSeat, '按选座确认分组');
+    }
+
+    var dlg = $('#dlgSeatConfirm');
+    if (!dlg) { doSeatApply(); return; }   // 兜底：弹窗骨架万一没渲染，直接执行，别把老师晾在原地
+    $('#scBody').innerHTML =
+      '<p class="sc-lead">把 <b>第 ' + tables.join('、') + '</b> 桌共 <b>' + seats.length + '</b> 人，写成 <b>' +
+        tables.length + '</b> 组（组号＝桌号）。</p>' +
+      '<ul class="sc-list">' +
+      '<li>这几个组会按选座重建：原来在这几个组、但这节课没来选座的人，会回到未分组</li>' +
+      '<li>没坐人的桌（组）一律不动</li>' +
+      '<li>记过的分按学生身份跟着人走（个人扣分不再清空）</li>' +
+      '</ul>' +
+      '<p class="note">确认前建议先到「数据与备份」下载一份备份。</p>';
+    $('#scOk').onclick = function () { dlg.close(); doSeatApply(); };
+    $('#scCancel').onclick = function () { dlg.close(); };
+    var scClose = $('#scClose');
+    if (scClose) scClose.onclick = function () { dlg.close(); };
+    if (!dlg.open) openDlg(dlg);
   }
 
   $('#btnTeamFinish').addEventListener('click', tmApplySeating);
