@@ -171,9 +171,13 @@
       var mates = groupMates(m.gno);
       var rk = dispRank(m);
       var rkTitle = (ctx.sort==='group' ? '组内第 ' : '全班第 ') + rk + ' 名（平时分 ' + numGrade(m.regular) + '）';
+      /* 名次徽章（2026-11-11 #15）：原来是光秃秃一个绿色方块数字，老师看不出它是排位序号。
+         改成「第 N 名」胶囊；前三名金银铜，其余中性灰。按组排序时写「组内第 N 名」，免得和全班名次混。 */
+      var rkText = (ctx.sort==='group' ? '组内第' : '第') + rk + '名';
+      var rkClass = 'dt-rank' + (rk<=3 ? ' rk-'+rk : '');
       return '<div class="dt-card">' +
         '<div class="dt-head">' +
-          '<span class="dt-rank" title="'+esc(rkTitle)+'">'+rk+'</span>' +
+          '<span class="'+rkClass+'" title="'+esc(rkTitle)+'">'+esc(rkText)+'</span>' +
           '<span class="dt-name'+(m.attendanceFailed?' attendance-failed':'')+'">'+esc(m.name)+'<small>'+esc(m.sid||m.no||'')+'</small></span>' +
           '<span class="dt-group">'+(m.gno?'第 '+m.gno+' 组':'待分配')+(mates?'<small title="'+esc(mates)+'">'+esc(mates)+'</small>':'')+'</span>' +
         '</div>' +
@@ -191,15 +195,18 @@
       '</div>';
     }).join('');
 
+    /* 结构（2026-11-11 #15）：单列从上往下，.dt-list 一行一张卡，顺序就是上面的 ms 顺序（第 1 名→最后一名）。
+       顶部两个操作按钮（考勤与规则 / 导出 CSV）已挪到 index.html 的 .rank-primary-head 里和排序按钮同一行，
+       这里只负责找到它们绑事件；万一页面结构不同（预览/测试）拿不到就跳过，不报错。 */
     ctx.root.innerHTML =
-      '<div class="assessment-actions"><button class="btn" id="assessmentGoAttendance">考勤与规则</button>' +
-      '<button class="btn" id="assessmentExport">导出综合成绩CSV</button></div>' +
-      '<p class="note">个人详细分：每个学生一张卡片，往下滑看全部。每一课的小标签是该课的项目完成率（没记分显示 —）。' +
+      '<p class="note">个人详细分：从上往下就是名次，第 1 名在最上面。每一课的小标签是该课的项目完成率（没记分显示 —）。' +
       '平时分＝100×合并完成率，期末至少需考＝(及格线−平时分×0.4)÷0.6，综合＝平时折合＋期末折合。</p>' +
       '<div class="dt-list">'+cards+'</div>' +
       (ms.length?'':'<p class="note">还没有分好组的学生。</p>');
 
-    ctx.root.querySelector('#assessmentGoAttendance').onclick=ctx.openAttendance;
+    var actionHost = (ctx.root.closest && ctx.root.closest('.rank-primary')) || ctx.root;
+    var goBtn = actionHost.querySelector('#assessmentGoAttendance');
+    if (goBtn) goBtn.onclick = ctx.openAttendance;
     /* 期末成绩输入：和 renderRank 同一套逻辑，改完即存、即算综合 */
     ctx.root.querySelectorAll('[data-exam-key]').forEach(function(input){input.onchange=function(){
       var v=input.value===''?null:Number(input.value);
@@ -215,7 +222,8 @@
       if(finalEl)finalEl.textContent=member.attendanceFailed?'挂科':(member.final==null?'—':numGrade(member.final));
       ctx.save();
     };});
-    ctx.root.querySelector('#assessmentExport').onclick=function(){ctx.export(cls.name+'_综合成绩.csv',[['展示名次','姓名','学号','小组','当前累计完成率','项目净得分','项目满分','待批改数','项目完成率','考勤得分','考勤满分','考勤完成率','合并完成率','小组项目净分（%）','平时分/100','折合/40','期末需考','实际期末','综合/100','资料齐全','考勤判定','迟到次数','早退次数','实际旷课次数','折算旷课次数','合计旷课次数']].concat(ms.map(function(m){return [m.rank,m.name,m.sid||m.no||'',m.gno||'待分配',semesterMax?memberRate(m)+'%':'—',m.task.earned,m.task.maximum,m.task.pending,round(m.task.rate*100)+'%',m.attendance,m.attendanceMaximum,round(m.attendanceRate*100)+'%',m.totalMaximum?round(m.performanceRate*100)+'%':'—',semesterMax?round(Math.max(0,m.bonus)/semesterMax*100)+'%':'—',m.regular,m.contribution,neededText(m),m.exam,m.attendanceFailed?'考勤挂科（数值参考：'+(m.final==null?'待考':m.final)+'）':m.final==null?'':m.final,m.ready?'是':'否，预估待复核',m.attendanceFailed?'考勤挂科':'未触发',m.lateCount,m.earlyCount,m.truantCount,m.convertedTruants,m.effectiveTruants];})));};
+    var exportBtn = actionHost.querySelector('#assessmentExport');
+    if (exportBtn) exportBtn.onclick=function(){ctx.export(cls.name+'_综合成绩.csv',[['展示名次','姓名','学号','小组','当前累计完成率','项目净得分','项目满分','待批改数','项目完成率','考勤得分','考勤满分','考勤完成率','合并完成率','小组项目净分（%）','平时分/100','折合/40','期末需考','实际期末','综合/100','资料齐全','考勤判定','迟到次数','早退次数','实际旷课次数','折算旷课次数','合计旷课次数']].concat(ms.map(function(m){return [m.rank,m.name,m.sid||m.no||'',m.gno||'待分配',semesterMax?memberRate(m)+'%':'—',m.task.earned,m.task.maximum,m.task.pending,round(m.task.rate*100)+'%',m.attendance,m.attendanceMaximum,round(m.attendanceRate*100)+'%',m.totalMaximum?round(m.performanceRate*100)+'%':'—',semesterMax?round(Math.max(0,m.bonus)/semesterMax*100)+'%':'—',m.regular,m.contribution,neededText(m),m.exam,m.attendanceFailed?'考勤挂科（数值参考：'+(m.final==null?'待考':m.final)+'）':m.final==null?'':m.final,m.ready?'是':'否，预估待复核',m.attendanceFailed?'考勤挂科':'未触发',m.lateCount,m.earlyCount,m.truantCount,m.convertedTruants,m.effectiveTruants];})));};
   }
   /* 数字显示：整数不带小数点，其余留一位；NaN/空显示 — */
   function numGrade(n){ if(n==null||n===''||!isFinite(n))return '—'; var v=round(n); return v%1===0?String(v):v.toFixed(1); }

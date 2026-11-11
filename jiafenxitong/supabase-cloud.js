@@ -376,7 +376,7 @@
             { path: '/本机概况', local: '班级 ' + ((snapshot.classes || []).length) + ' 个，课次 ' + ((snapshot.lessons || []).length) + ' 个', remote: row.data ? '云端数据已返回但无可展开字段' : '云端数据未返回（请点击核对重试）' }
           ];
           emit('conflict', '同步冲突：云端已被另一台设备更新');
-          var err = new Error('云端有更新的版本（v' + remote + '），已暂停上传以免覆盖。请到「数据与备份」核对。');
+          var err = new Error('云端有更新的版本（v' + remote + '），已暂停上传以免覆盖。请到「数据与同步」核对。');
           err.code = 'version_conflict';
           throw err;
         }

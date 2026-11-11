@@ -1043,11 +1043,13 @@ function restoreDroppedToHome(cls) {
       ? record.members[id].reduce(function(a,n){ return a + (+n || 0); },0) : 0;
   }
 
-  /* 本节「课堂任务」分：只数「接线2.x」这类列（接线课堂任务自动入账的列），
-     手工项目列（协作 / 安全 / 5S…）不算在内。
+  /* 本节「课堂任务」分：只数接线课堂任务自动入账的列（新列名「线上连线排位 接线2.3」，
+     2026-11-11 加前缀之前的旧列名「接线2.3」照旧认），手工项目列（协作 / 安全 / 5S…）不算在内。
      2026-11-09 用户要求「课堂任务积分直接丢进上课计分首页总表内」——
      以前这部分只在侧栏「组内个人评分」里看得到，总表只体现成一个变大的「本节合计」，
-     老师上课时看不出这分是哪来的。null = 本节这个人没有课堂任务分。 */
+     老师上课时看不出这分是哪来的。null = 本节这个人没有课堂任务分。
+     ⚠ 前缀常量在 wire-task-link.js 的 NAME_PREFIX，两处必须一起改。 */
+  var TASK_COL = /^(?:接线|线上连线排位)/;
   function taskScore(lesson, gno, member) {
     var rec = lesson.leaderScores && lesson.leaderScores[String(gno)];
     if (!rec || !rec.members || !member) return null;
@@ -1058,7 +1060,7 @@ function restoreDroppedToHome(cls) {
     var names = (A && A.projectNames && A.projectNames(lesson)) || [];
     var sum = 0, hit = 0;
     names.forEach(function (n, i) {
-      if (!/^接线/.test(String(n == null ? '' : n).trim())) return;
+      if (!TASK_COL.test(String(n == null ? '' : n).trim())) return;
       var v = values[i];
       if (v == null || v === '') return;
       hit++; sum += Number(v) || 0;
@@ -1304,9 +1306,8 @@ function restoreDroppedToHome(cls) {
   function switchView(v) {
     groupPicking=null;
     if(view==='attendance' && v!=='attendance' && attendanceContext && attendanceContext.isDirty && attendanceContext.isDirty()){flash('请先保存本课考勤，再切换页面。');return;}
-    if (v === 'admin' && !(CLOUD && CLOUD.profile() && CLOUD.profile().isAdmin)) v = 'score';
     view = v;
-    ['score', 'leader', 'rank', 'gradebook', 'attendance', 'pool', 'data', 'admin'].forEach(function (k) {
+    ['score', 'leader', 'rank', 'gradebook', 'attendance', 'pool', 'data'].forEach(function (k) {
       var el = $('#view-' + k);
       if (el) el.hidden = (k !== v);
     });
@@ -1316,7 +1317,6 @@ function restoreDroppedToHome(cls) {
     if (v === 'gradebook') renderGradebook();
     if (v === 'pool') { renderPool(); renderTeamCard(); } else { tmStop(); }
     if (v === 'data') renderData();
-    if (v === 'admin') renderAdmin();
     if (v === 'score') { renderScore(); if (window.JFDT_WIRE) window.JFDT_WIRE.maybeSync(curClass()); }
     if (v === 'leader') renderLeader();
     if (v === 'attendance') renderAttendance();
@@ -2213,7 +2213,9 @@ function restoreDroppedToHome(cls) {
     var ms = memberTotals(cls);
     /* 显示层：全班共用一个分母（每课 5 + 5×已命名项目数，逐课累加），学期汇总按完成率口径 */
     var semesterMax = semesterProjectMax(ls);
-    $('#semesterSummary').textContent = cls.name+' · '+ls.length+'次课 · '+ms.length+'名已分组学生 · '+(ms.length&&semesterMax?'全班平均完成率 '+pctNum(ms.reduce(function(a,m){return a+Math.max(0,m.total);},0)/ms.length/semesterMax*100)+'%':'暂无课次')+'。包含当前班全部已录入课次，随记分实时更新。';
+    /* 顶部统计（2026-11-11 #15）：原来是一整条独立横幅 + 一句「包含当前班全部已录入课次，随记分实时更新」，
+       现在缩成一句话跟在班级下拉后面同一行，尾巴压短一点，宽屏一屏能放下不换行 */
+    $('#semesterSummary').textContent = cls.name+' · '+ls.length+'次课 · '+ms.length+'名已分组学生 · '+(ms.length&&semesterMax?'全班平均完成率 '+pctNum(ms.reduce(function(a,m){return a+Math.max(0,m.total);},0)/ms.length/semesterMax*100)+'%':'暂无课次')+'。随记分实时更新。';
     if(window.JFDT_ASSESSMENT) window.JFDT_ASSESSMENT.renderDetail({root:$('#memberRank'),cls:cls,lessons:ls,raw:ms,sort:rankSort,save:function(){save();},log:addOperationLog,message:flash,openAttendance:function(){switchView('attendance');},export:function(name,rows){download(name,toCsv(rows),'text/csv');}});
 
     /* 逐节明细（显示层：每课 ÷5、累计 ÷(5×课次数)，折完成率） */
@@ -3750,7 +3752,7 @@ function restoreDroppedToHome(cls) {
       return;
     }
     if (!tmClassId(cls)) {
-      box.innerHTML = '<p class="note">这个班还没对应首页班级，组队用不了。先到「数据与备份」页把本班对应到' +
+      box.innerHTML = '<p class="note">这个班还没对应首页班级，组队用不了。先到「数据与同步」页把本班对应到' +
         '首页同名的班 —— 学生账号就是从那份名单来的。</p>';
       tmButtons(null);
       return;
@@ -3850,7 +3852,7 @@ function restoreDroppedToHome(cls) {
     var cls = curClass();
     if (cls && cls.groupLocked) { flash('分组已锁定：先点「🔓 解锁分组」再开放组队'); return; }
     if (!cls || !tmOn()) { alert('先登录再来开放组队。'); return; }
-    if (!tmClassId(cls)) { alert('这个班还没对应首页班级，先在「数据与备份」页对应。'); return; }
+    if (!tmClassId(cls)) { alert('这个班还没对应首页班级，先在「数据与同步」页对应。'); return; }
     /* 2026-11-08：桌数 / 每桌人数不再偷偷用 10 / 6 兜底。用户说得很清楚：
        「默认好像是10组6人 我一旦不小心点错了 就会抹除我部分同学」——所以没填就是没填，
        这里直接把老师拉回「更多 · 学生自助选桌」去填，而不是替他决定一个数字。 */
@@ -3968,7 +3970,7 @@ function restoreDroppedToHome(cls) {
        老师点了确认却什么提示都没有。改用 flash（toast）给出页面内可见的原因，并把
        「没对应首页班级」「没开过组队」两种最常踩的坑分开说清。 */
     if (!cls) { flash('先选一个班级。'); return; }
-    if (!tmClassId(cls)) { flash('这个班还没对应首页班级：先到「数据与备份」页把本班对应到首页同名的班，学生选座才拉得回来。'); return; }
+    if (!tmClassId(cls)) { flash('这个班还没对应首页班级：先到「数据与同步」页把本班对应到首页同名的班，学生选座才拉得回来。'); return; }
     if (!st || !(st.seats || []).length) {
       flash('这个班还没有学生选桌（或选座数据没拉回来）：先展开「学生自助选桌」点「开放组队」，把「学生入口」链接发群里让学生选桌。');
       return;
@@ -4084,7 +4086,7 @@ function restoreDroppedToHome(cls) {
       '· 这几个组会按选座重建：原来在这几个组、但这节课没来选座的人，会回到未分组\n' +
       '· 没坐人的桌（组）一律不动\n' +
       '· 记过的分按学生身份跟着人走（个人扣分不再清空）\n\n' +
-      '确认前建议先到「数据与备份」下载一份备份。';
+      '确认前建议先到华夏工具首页「全站备份」导出一份。';
     askConfirm(dlgTxt, { title: '按选座确认分组', okText: '确认分组', cancelText: '取消' })
       .then(function (ok) { if (ok) doSeatApply(); });
   }
@@ -4258,7 +4260,7 @@ function restoreDroppedToHome(cls) {
     if (imp.emptied.length) lines.push('· 会空出来：' + imp.emptied.join('、') + '（有历史记分的组只清空、不删除，分数还挂在原组号上）');
     lines.push('· 一个学生都不会被删掉；记过的分按学生身份跟着人走。');
     lines.push('');
-    lines.push('建议先到「数据与备份」页下载一份备份。继续吗？');
+    lines.push('建议先到华夏工具首页「全站备份」导出一份。继续吗？');
     return confirm(lines.join('\n'));
   }
 
@@ -4384,7 +4386,7 @@ function restoreDroppedToHome(cls) {
     var grouped = cls.groups.filter(function (g) { return memberCount(g) > 0; }).length;
     if (grouped && pending.length >= rosterOf(cls).length) {
       return { error: '全班 ' + pending.length + ' 人都被当成「未分组」，但班里已经有 ' + grouped +
-        ' 个组是有人的——分组名单和全班名单的学号对不上。\n先到「数据与备份」页核对这个班对应的首页班级，' +
+        ' 个组是有人的——分组名单和全班名单的学号对不上。\n先到「数据与同步」页核对这个班对应的首页班级，' +
         '别在这里重新分组，否则会在旧组旁边再叠一套新组。' };
     }
     pending.sort(function (a, b) {
@@ -4783,7 +4785,7 @@ function restoreDroppedToHome(cls) {
     $('#dlgGroupReport').addEventListener('close', function () { renderGroupSummary(); });
   }
 
-  /* ================= 数据与备份视图 ================= */
+  /* ================= 数据与同步视图 ================= */
 
   var rosterClassId = null;
 
@@ -5063,7 +5065,7 @@ function restoreDroppedToHome(cls) {
     $$('#rosterCard button[data-rgdel]').forEach(function (b) {
       b.addEventListener('click', function () {
         var no = +b.dataset.rgdel;
-        var dialog=document.createElement('dialog');dialog.id='dlgDeleteGroup';dialog.innerHTML='<form method="dialog"><h2>删除第'+no+'组？</h2><p>该组成员会回到未分组，该组历史记分将删除。请先保留完整备份。</p><div class="btnrow"><button class="btn" value="cancel">取消</button><button class="btn danger" value="ok">确认删除</button></div></form>';document.body.appendChild(dialog);dialog.addEventListener('close',function(){var accepted=dialog.returnValue==='ok';dialog.remove();if(!accepted)return;
+        var dialog=document.createElement('dialog');dialog.id='dlgDeleteGroup';dialog.innerHTML='<form method="dialog"><h2>删除第'+no+'组？</h2><p>该组成员会回到未分组，该组历史记分将删除。要留退路请先到华夏工具首页「全站备份」导出一份。</p><div class="btnrow"><button class="btn" value="cancel">取消</button><button class="btn danger" value="ok">确认删除</button></div></form>';document.body.appendChild(dialog);dialog.addEventListener('close',function(){var accepted=dialog.returnValue==='ok';dialog.remove();if(!accepted)return;
         cls.groups = cls.groups.filter(function (g) { return g.no !== no; });
         S.lessons.forEach(function (l) { if (l.classId === cls.id) delete l.scores[String(no)]; });
         save(); renderRoster();
@@ -5188,12 +5190,13 @@ function restoreDroppedToHome(cls) {
     if (b.dataset.export === 'member') exportMember();
   });
 
-  $('#btnBackup').addEventListener('click', function () {
-    download('夜夜小组制加分助手_备份_' + stamp() + '.json',
+  /** 把本机整份存档存成 JSON。只给「两台设备的记录不同」冲突弹窗当保险绳用；
+      日常备份统一走华夏工具首页「全站备份」，本工具不再单设备份 / 恢复 / 清空入口。 */
+  function downloadLocalSnapshot() {
+    download('夜夜小组制加分助手_本机存档_' + stamp() + '.json',
       JSON.stringify(S, null, 2), 'application/json');
-  });
+  }
 
-  $('#btnRestore').addEventListener('click', function () { $('#fileRestore').click(); });
   $('#btnRosterSetup').addEventListener('click', function () { switchView('data'); });
   function rosterDownload(rows, name) {
     var format = $('#rosterFormat').value;
@@ -5215,36 +5218,6 @@ function restoreDroppedToHome(cls) {
       });
     });
     rosterDownload(rows,'全部班级名单_'+stamp());
-  });
-
-  $('#fileRestore').addEventListener('change', function () {
-    var f = this.files && this.files[0];
-    if (!f) return;
-    var fr = new FileReader();
-    fr.onload = function () {
-      try {
-        var data = JSON.parse(fr.result);
-        if (!data.classes || !data.lessons) throw new Error('格式不对');
-        if (!confirm('导入将覆盖本机现有数据（' + S.lessons.length + ' 条课次记录）。继续？')) return;
-        S = migrate(data);
-        if (!S.ui) S.ui = {};
-        if (!S.undo) S.undo = [];
-        save(); fillClassSelects(); initLayout(); renderUndoBtn(); switchView('score'); renderScore();
-        alert('导入完成。');
-      } catch (err) {
-        alert('导入失败：' + err.message);
-      }
-    };
-    fr.readAsText(f);
-    this.value = '';
-  });
-
-  $('#btnWipe').addEventListener('click', function () {
-    if (!confirm('清空全部数据，恢复成初始名单？所有课次记录都会消失。')) return;
-    if (!confirm('再确认一次：此操作不可撤销，建议先下载备份 JSON。')) return;
-    try { localStorage.removeItem(LS_KEY); } catch (e) {}
-    S = defaultState();
-    save(); fillClassSelects(); initLayout(); renderUndoBtn(); switchView('score'); renderScore();
   });
 
   /* ================= 打印 ================= */
@@ -5786,7 +5759,7 @@ function restoreDroppedToHome(cls) {
   function renderUserBox(p) {
     var box = $('#userBox');
     box.hidden = true; /* 个人信息、切换账号、改密码只在华夏工具首页 */
-    if (!p) { $('#tabAdmin').hidden = true; return; }
+    if (!p) return;
     var nm = p.displayName || p.name || '未命名老师';
     $('#userName').textContent = nm;
     var av = $('#userAvatar');
@@ -5797,11 +5770,10 @@ function restoreDroppedToHome(cls) {
       av.textContent = nm.slice(0, 1);
       av.classList.remove('has-img');
     }
-    /* 管理员在名字后面挂一块 VIP 金牌 —— 和「管理」页一致的身份提示 */
+    /* 管理员在名字后面挂一块 VIP 金牌（列表页已随「管理」模块一起删除，只留这枚身份标记） */
     box.classList.toggle('is-admin', !!p.isAdmin);
     var vip = $('#userVip');
     if (vip) vip.hidden = !p.isAdmin;
-    $('#tabAdmin').hidden = !p.isAdmin;
   }
 
   /* ---------------- 个人信息 ---------------- */
@@ -5899,9 +5871,9 @@ function restoreDroppedToHome(cls) {
   };
 
   var syncEditBlocked=true;
-  function setSyncEditGate(blocked,message){syncEditBlocked=blocked;if(!S)return;['#view-score','#view-leader','#view-attendance','#view-pool','#scoreTools','#rosterCard','#lessonListCard','#hxRosterBox'].forEach(function(selector){var el=$(selector);if(el)el.toggleAttribute('inert',blocked);});['#btnRestore','#btnWipe'].forEach(function(selector){var b=$(selector);if(b)b.disabled=blocked;});var gate=$('#syncEditGate');if(!gate){gate=document.createElement('div');gate.id='syncEditGate';gate.className='sync-edit-gate';gate.setAttribute('role','status');$('#main').prepend(gate);}gate.hidden=!blocked;gate.textContent=message||'正在核对云端，确认后开放编辑';if(!blocked)hxAfterGate();}
-  var conflictNotice=document.createElement('dialog');conflictNotice.id='dlgSyncConflict';conflictNotice.innerHTML='<div class="dlg"><div class="dlg-head"><h3>两台设备的记录不同</h3><button type="button" class="dlg-x" id="closeSyncConflict" aria-label="关闭同步冲突提示">✕</button></div><div class="dlg-body"><p>系统已暂停上传，请先查看下面的业务数据差异，再选择保留哪一边。</p><p class="note">关闭窗口不会解决冲突；完成一次处理后才会恢复编辑和自动同步。</p><div id="syncConflictDetails" aria-live="polite"></div><div class="btnrow conflict-actions"><button class="btn" id="backupConflictLocal">先下载本机备份</button><button class="btn" id="keepCloudConflict">保留云端记录</button><button class="btn primary" id="keepLocalConflict">保留本机记录</button></div><button class="linkbtn" id="openSyncConflictTools">打开数据与备份页面</button></div></div>';document.body.appendChild(conflictNotice);wireDialog(conflictNotice);var conflictNoticeShown=false;
-  $('#closeSyncConflict').onclick=function(){conflictNotice.close();};$('#backupConflictLocal').onclick=function(){$('#btnBackup').click();};$('#openSyncConflictTools').onclick=function(){conflictNotice.close();switchView('data');$('.sync-row').scrollIntoView({block:'center',behavior:'smooth'});};$('#keepCloudConflict').onclick=function(){conflictNotice.close();$('#btnPullCloud').click();};$('#keepLocalConflict').onclick=function(){conflictNotice.close();$('#btnPushCloud').click();};
+  function setSyncEditGate(blocked,message){syncEditBlocked=blocked;if(!S)return;['#view-score','#view-leader','#view-attendance','#view-pool','#scoreTools','#rosterCard','#lessonListCard','#hxRosterBox'].forEach(function(selector){var el=$(selector);if(el)el.toggleAttribute('inert',blocked);});var gate=$('#syncEditGate');if(!gate){gate=document.createElement('div');gate.id='syncEditGate';gate.className='sync-edit-gate';gate.setAttribute('role','status');$('#main').prepend(gate);}gate.hidden=!blocked;gate.textContent=message||'正在核对云端，确认后开放编辑';if(!blocked)hxAfterGate();}
+  var conflictNotice=document.createElement('dialog');conflictNotice.id='dlgSyncConflict';conflictNotice.innerHTML='<div class="dlg"><div class="dlg-head"><h3>两台设备的记录不同</h3><button type="button" class="dlg-x" id="closeSyncConflict" aria-label="关闭同步冲突提示">✕</button></div><div class="dlg-body"><p>系统已暂停上传，请先查看下面的业务数据差异，再选择保留哪一边。</p><p class="note">关闭窗口不会解决冲突；完成一次处理后才会恢复编辑和自动同步。</p><div id="syncConflictDetails" aria-live="polite"></div><div class="btnrow conflict-actions"><button class="btn" id="backupConflictLocal">先下载本机存档</button><button class="btn" id="keepCloudConflict">保留云端记录</button><button class="btn primary" id="keepLocalConflict">保留本机记录</button></div><button class="linkbtn" id="openSyncConflictTools">打开数据与同步页面</button></div></div>';document.body.appendChild(conflictNotice);wireDialog(conflictNotice);var conflictNoticeShown=false;
+  $('#closeSyncConflict').onclick=function(){conflictNotice.close();};$('#backupConflictLocal').onclick=function(){downloadLocalSnapshot();};$('#openSyncConflictTools').onclick=function(){conflictNotice.close();switchView('data');$('.sync-row').scrollIntoView({block:'center',behavior:'smooth'});};$('#keepCloudConflict').onclick=function(){conflictNotice.close();$('#btnPullCloud').click();};$('#keepLocalConflict').onclick=function(){conflictNotice.close();$('#btnPushCloud').click();};
   var cloudChip = $('#cloudChip');
   if (cloudChip) {
     cloudChip.onclick = function () { if (CLOUD && CLOUD.status().mode === 'conflict') openDlg(conflictNotice); };
@@ -5916,7 +5888,7 @@ function restoreDroppedToHome(cls) {
       function conflictValue(value){if(value===undefined)return '未设置';if(value===null)return '空值';if(typeof value==='object'){try{return JSON.stringify(value);}catch(e){return '[复杂数据]';}}return String(value);}
       function conflictLabel(path){var raw=String(path||'');if(raw==='/本机记录')return '本机记录概况';if(raw==='/处理范围')return '冲突处理范围';var parts=raw.split('/'),lesson=parts[1]==='lessons'&&getLesson(parts[2]),c=lesson&&getClass(lesson.classId);if(parts[1]==='classes')return '班级与分组';if(!lesson)return parts[1]==='lessons'?'课次记录':'业务数据';var prefix=(c?c.name:'当前班级')+' · 第'+lesson.seq+'次课';if(parts[3]==='scores'){var g=groupOf(c,+parts[4]),m=g&&g.members[+parts[6]],field=parts[5];return prefix+' · 第'+parts[4]+'组 · '+(field==='personal'?(m?m.name:'成员')+'干净又卫生个人扣分':field==='duty'||field==='dutyParticipation'?'值日分（旧制，已废弃）':field==='group'?'干净又卫生送分（默认 100%）':field==='phone'?'手机未入袋扣分':field==='first'?'首次分':'小组记分');}if(parts[3]==='leaderScores')return prefix+' · 第'+parts[4]+'组 · 个人项目评分';if(parts[3]==='attendance')return prefix+' · 考勤';return prefix+' · 课次或项目设置';}
       var rawDetails=Array.isArray(st.conflictDetails)?st.conflictDetails:[],details=rawDetails.filter(function(item,index){return rawDetails.findIndex(function(other){return String(other.path||'')===String(item.path||'')&&String(other.local)===String(item.local)&&String(other.remote)===String(item.remote);})===index;}),shown=details.slice(0,12),conflictCount=details.length||st.conflicts&&st.conflicts.length||0,detailHtml='<div class="sync-conflict-intro"><b>'+(conflictCount?'检测到 '+conflictCount+' 处差异':'检测到云端版本冲突')+'</b>'+(conflictCount?'：下面分别列出本机和云端的值。':'，但当前接口没有返回可展开的字段差异。');
-      if(shown.length){detailHtml+='<div class="sync-conflict-table" role="table"><div class="sync-conflict-row sync-conflict-head" role="row"><span>位置</span><span>本机</span><span>云端</span></div>';shown.forEach(function(item){detailHtml+='<div class="sync-conflict-row" role="row"><span class="sync-conflict-path">'+esc(conflictLabel(item.path))+'</span><code>'+esc(conflictValue(item.local))+'</code><code>'+esc(conflictValue(item.remote))+'</code></div>';});detailHtml+='</div>'+(details.length>shown.length?'<p class="note">还有 '+(details.length-shown.length)+' 处差异，请先下载备份后到“数据与备份”继续核对。</p>':'');}else{detailHtml+='<p class="note">当前版本只拿到了差异位置，未能读取两端的具体值。请刷新后重试；系统仍会暂停上传，不会自动覆盖。</p>';}$('#syncConflictDetails').innerHTML=detailHtml;
+      if(shown.length){detailHtml+='<div class="sync-conflict-table" role="table"><div class="sync-conflict-row sync-conflict-head" role="row"><span>位置</span><span>本机</span><span>云端</span></div>';shown.forEach(function(item){detailHtml+='<div class="sync-conflict-row" role="row"><span class="sync-conflict-path">'+esc(conflictLabel(item.path))+'</span><code>'+esc(conflictValue(item.local))+'</code><code>'+esc(conflictValue(item.remote))+'</code></div>';});detailHtml+='</div>'+(details.length>shown.length?'<p class="note">还有 '+(details.length-shown.length)+' 处差异，请先到首页「全站备份」导出本机存档，再到「数据与同步」继续核对。</p>':'');}else{detailHtml+='<p class="note">当前版本只拿到了差异位置，未能读取两端的具体值。请刷新后重试；系统仍会暂停上传，不会自动覆盖。</p>';}$('#syncConflictDetails').innerHTML=detailHtml;
     }
 
     if(CLOUD_ON&&S){if(st.mode==='ok')setSyncEditGate(false);else if(['checking','connecting','offline','error','conflict'].includes(st.mode))setSyncEditGate(true,st.mode==='conflict'?'记录存在冲突，请先处理后再编辑':st.mode==='offline'||st.mode==='error'?'同步未完成，已暂停编辑；恢复连接并核对成功后开放':'正在核对云端，确认后开放编辑');}
@@ -5943,7 +5915,7 @@ function restoreDroppedToHome(cls) {
       var bad = !!S && (!CLOUD_ON || /^(offline|error|conflict)$/.test(st.mode)) && st.mode !== 'connecting';
       warn.hidden = !bad;
       if (bad) {
-        warn.innerHTML = (st.mode === 'conflict' ? '<b>同步冲突，本机记录已保留</b> —— 请先下载备份，再选择从云端覆盖本机或把本机覆盖云端。' :
+        warn.innerHTML = (st.mode === 'conflict' ? '<b>同步冲突，本机记录已保留</b> —— 请先到华夏工具首页「全站备份」导出本机记录，再选择从云端覆盖本机或把本机覆盖云端。' :
           '<b>记录尚未同步</b> —— 这节课的改动保存在当前浏览器；请检查连接与账号状态。') +
           (offlineWhy ? '<span class="why">（' + esc(offlineWhy) + '）</span>' : '') +
           ' <button class="linkbtn" id="btnRetryCloud">重试连接</button>';
@@ -5967,76 +5939,6 @@ function restoreDroppedToHome(cls) {
     var b = $('#poolBanner');
     if (!b) return;
     renderPoolBanner(curClass());
-  }
-
-  /* ---- 管理页 ---- */
-
-  function renderAdmin() {
-    var p = CLOUD && CLOUD.profile();
-    if (!CLOUD_ON || !p || !p.isAdmin) return;
-
-    var tl = $('#teacherList');
-    tl.innerHTML = '<p class="note">正在加载…</p>';
-    CLOUD.admin.listTeachers().then(function (rows) {
-      rows = rows || [];
-      if (!rows.length) { tl.innerHTML = '<p class="note">还没有老师激活过账号。</p>'; return; }
-      tl.innerHTML = '<table class="data"><thead><tr><th>老师</th><th>角色</th><th>班级</th>' +
-        '<th>课次</th><th>最近同步</th><th></th></tr></thead><tbody>' +
-        rows.map(function (t) {
-          return '<tr><td>' + esc(t.display_name || t.real_name || '未命名老师') +
-            '</td><td>' + (t.is_admin ? '管理员' : '老师') +
-            '</td><td>' + (t.class_count || 0) + '</td><td>' + (t.lesson_count || 0) +
-            '</td><td>' + fmtTime(t.synced_at) + '</td>' +
-            '<td><button class="btn tiny" data-look="' + esc(t.uid) + '" data-name="' +
-            esc(t.display_name || t.real_name || '未命名老师') + '">查看数据</button></td></tr>';
-        }).join('') + '</tbody></table>';
-    }).catch(function (e) {
-      tl.innerHTML = '<p class="note">加载失败：' + esc(e && e.message ? e.message : e) + '</p>';
-    });
-  }
-
-  function showTeacherData(uid, name) {
-    $('#dtTitle').textContent = name + ' 的数据';
-    $('#dtBody').innerHTML = '<p class="note">正在加载…</p>';
-    openDlg($('#dlgTeacher'));
-    CLOUD.admin.getState(uid).then(function (r) {
-      if (!r || r.ok === false) { $('#dtBody').innerHTML = '<p class="note">没有权限查看，或该老师还没同步过数据。</p>'; return; }
-      var d = r.data;
-      if (!d || !d.classes || !d.classes.length) {
-        $('#dtBody').innerHTML = '<p class="note">这位老师还没有班级数据。</p>';
-        return;
-      }
-      var rows = d.classes.map(function (c) {
-        var mem = 0;
-        (c.groups || []).forEach(function (g) { mem += memberCount(g); });
-        var ls = (d.lessons || []).filter(function (l) { return l.classId === c.id; });
-        var top = 0, topNo = 0;
-        (c.groups || []).forEach(function (g) {
-          var v = 0;
-          ls.forEach(function (l) { v += groupTotal(l, g.no); });
-          if (v > top) { top = v; topNo = g.no; }
-        });
-        return '<tr><td>' + esc(c.name) + '</td><td class="n">' + (c.groups || []).length +
-          '</td><td class="n">' + mem + '</td><td class="n">' + ls.length +
-          '</td><td class="n">' + (topNo ? ('第 ' + topNo + ' 组 ' + fmt(top)) : '—') + '</td></tr>';
-      }).join('');
-      $('#dtBody').innerHTML =
-        '<p class="note dt-meta">最近同步：' + fmtTime(r.updated_at) +
-        '　共 ' + d.classes.length + ' 个班、' + (d.lessons || []).length + ' 节课</p>' +
-        '<table><thead><tr><th>班级</th><th class="n">小组</th><th class="n">学生</th>' +
-        '<th class="n">课次</th><th class="n">累计最高</th></tr></thead><tbody>' +
-        rows + '</tbody></table>' +
-        '<div class="btnrow dt-foot"><button class="btn tiny" id="btnDlTeacher">' +
-        '下载这位老师的完整数据 JSON</button></div>';
-      var dl = $('#btnDlTeacher');
-      if (dl) dl.addEventListener('click', function () {
-        download('夜夜小组制加分助手_' + name + '_' + stamp() + '.json',
-          JSON.stringify({ source: 'admin-export', name: name, uid: uid, data: d }, null, 2),
-          'application/json');
-      });
-    }).catch(function (e) {
-      $('#dtBody').innerHTML = '<p class="note">加载失败：' + esc(e && e.message ? e.message : e) + '</p>';
-    });
   }
 
   /* ---- 进应用 ---- */
@@ -6064,7 +5966,7 @@ function restoreDroppedToHome(cls) {
         }
         localStorage.setItem(ownerKey, profile.uid);
       } catch (e) {
-        gateShow('login', '无法安全切换账号：浏览器存储不可用，请先备份原账号记录。');
+        gateShow('login', '无法安全切换账号：浏览器存储不可用，请先到首页「全站备份」导出原账号记录。');
         return;
       }
     }
@@ -6275,7 +6177,7 @@ function restoreDroppedToHome(cls) {
     });
   });
   $('#btnSignOut').addEventListener('click', function () {
-    if (!confirm('退出登录？\n\n未同步的记录仅保存在当前浏览器，建议先确认同步成功或下载备份。下次用同一教师账号登录可继续。')) return;
+    if (!confirm('退出登录？\n\n未同步的记录仅保存在当前浏览器，建议先确认同步成功，或在华夏工具首页「全站备份」导出一份。下次用同一教师账号登录可继续。')) return;
     CLOUD.signOut();
   });
   $('#btnMe').addEventListener('click', openMe);
@@ -6290,12 +6192,6 @@ function restoreDroppedToHome(cls) {
     curClass: curClass,
     toast: flash
   };
-
-  /* 管理页 */
-  $('#teacherList').addEventListener('click', function (e) {
-    var b = e.target.closest('button[data-look]');
-    if (b) showTeacherData(b.dataset.look, b.dataset.name);
-  });
 
   /* 进入应用：有云端就走云端，没有就降级成本机模式（页面顶部会写明） */
   function bootCloud() {

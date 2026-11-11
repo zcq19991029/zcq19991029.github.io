@@ -747,15 +747,6 @@ body.gated .topbar, body.gated main { display: none !important; }
 .sync-row.offline .sync-dot, .sync-row.error .sync-dot { background: var(--warn); }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
 
-/* ---------- 管理页 ---------- */
-/* 只有管理员看得到，所以给一层金色底，和顶上的 VIP 金牌呼应 */
-.card.admin-hero {
-  background: linear-gradient(135deg, #fffaf0, var(--panel) 46%);
-  border-color: var(--vip-line);
-}
-
-.admin-hero .sec-title { display: flex; align-items: center; gap: 7px; }
-.admin-hero .btnrow { margin-top: 6px; }
 .inv-fresh {
   margin-top: 14px; padding: 14px 16px; border-radius: var(--radius-sm);
   background: var(--good-bg); border: 1px solid var(--good);
@@ -858,15 +849,6 @@ dialog::backdrop {
 .dlg .field.col span { font-size: 12.5px; }
 .dlg-body > .note { margin: 0; }
 .dlg-btns { display: flex; justify-content: flex-end; gap: 9px; flex: none; margin-top: 2px; }
-
-.dt-body { font-size: 13px; }
-.dt-body table { width: 100%; border-collapse: collapse; }
-.dt-body th, .dt-body td { border-bottom: 1px solid var(--line); padding: 6px 8px; text-align: left; }
-.dt-body th { color: var(--muted); font-weight: 500; font-size: 12px; position: sticky; top: 0; background: var(--panel); }
-.dt-body td.n, .dt-body th.n { text-align: right; font-variant-numeric: tabular-nums; }
-/* 这两块要"钉"在滚动区里：说明在顶上、下载按钮在最后一行 */
-.dt-body .dt-meta { margin: 0; flex: none; }
-.dt-body .dt-foot { margin: 0; padding-top: 12px; flex: none; }
 
 /* ---------- 保存成功的动态提示 ---------- */
 /* flash() 每次都会挂一条；动画纯 CSS，不依赖 JS 动画 API */
@@ -1349,7 +1331,13 @@ table.sheet td.c-sum .c { font-size: 13px; color: var(--text); }
 .semester-score {display:block;font-size:13px;font-weight:400;line-height:1.5;color:var(--text);white-space:nowrap;}
 .semester-score b {font-size:16px;font-variant-numeric:tabular-nums;}
 .member-name .semester-score {display:inline-block;margin-left:6px;}
-.semester-summary {font-size:16px;font-weight:600;padding:14px;}
+/* 顶部合并行（2026-11-11 #15）：班级下拉 + 一句话统计 + 打印/导出 同一行。
+   .semester-summary 原来是独立的一整条 .card 横幅（16px 粗体 + 14px 内边距），
+   现在降为行内小字灰字，宽度弹性占据中间，空间不够才换行。 */
+#view-rank .rank-topbar { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; }
+#view-rank .rank-topbar .field { flex: 0 0 auto; }
+#view-rank .rank-topbar .btn { flex: 0 0 auto; min-height: 38px; }
+.semester-summary { flex: 1 1 320px; min-width: 0; margin: 0; padding: 0; font-size: 13.5px; font-weight: 500; line-height: 1.5; color: var(--muted); }
 
 .operation-row {display:flex;align-items:center;justify-content:space-between;gap:16px;}
 .operation-row > div {min-width:0;flex:1;}
@@ -1367,7 +1355,7 @@ table.sheet td.c-sum .c { font-size: 13px; color: var(--text); }
 .rank-columns {display:grid;grid-template-columns:minmax(0,1fr);gap:20px;align-items:start;}
 .rank-columns section {min-width:0;}
 .rank-columns .sec-title {margin-top:0;}
-.rank-members #memberRank {padding:16px;}
+.rank-members #memberRank {padding:0;}   /* 2026-11-11 #15：卡片自己就是一张卡，外层不再套 .card 再垫 16px */
 .assessment-scroll {overflow:auto;max-width:100%;}
 .assessment-table {width:100%;min-width:1320px;table-layout:fixed;}
 .assessment-table th,.assessment-table td {padding:10px 8px;vertical-align:middle;font-size:14px;white-space:nowrap;}
@@ -1393,12 +1381,14 @@ table.sheet td.c-sum .c { font-size: 13px; color: var(--text); }
 @media(min-width:1600px){.rank-groups{position:sticky;top:16px;}.rank-members .assessment-scroll{max-height:70dvh;}.assessment-table thead th{position:sticky;top:0;z-index:1;background:var(--panel);}}
 
 
-/* 个人详细分 · 平铺卡片版（2026-11-10 #14）：
-   每个学生一张卡片纵向平铺，网页整体下滑，不用内部翻页。
-   排序切换（按组 / 按平时分）+ 次要信息（小组排行、逐节明细）收进折叠区。 */
-.rank-primary { margin-bottom: 16px; }
-.rank-primary-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 4px 0 10px; }
-.rank-primary-head .sec-title { margin: 0; }
+/* 个人详细分 · 单列名次版（2026-11-11 #15）：
+   用户原话「这个一定要是从上往下的形式 才能看出来排名前后感」——
+   一个学生一张卡片、一张接一张竖着排，第 1 名在最上面，网页往下滚就是名次往后。
+   卡片内部仍横向铺开：左边是名次徽章 / 姓名 / 组号 / 期末输入，右边是四大数字 + 每课完成率。
+   顶部只留「按组排序 / 按平时分」和操作按钮，标题「个人详细分」已删；次要信息收进折叠区。 */
+.rank-primary { margin-bottom: 16px; min-width: 0; }
+.rank-primary-head { display: flex; align-items: center; justify-content: flex-start; gap: 10px 14px; flex-wrap: wrap; margin: 0 0 10px; }
+.rank-primary-head .assessment-actions { margin: 0; }
 .rank-secondary { border: 1px solid var(--line); border-radius: 12px; background: var(--panel); margin-bottom: 16px; }
 .rank-secondary > summary { cursor: pointer; padding: 12px 16px; font-weight: 650; color: var(--muted); list-style: none; }
 .rank-secondary > summary::-webkit-details-marker { display: none; }
@@ -1406,11 +1396,27 @@ table.sheet td.c-sum .c { font-size: 13px; color: var(--text); }
 .rank-secondary[open] > summary::before { transform: rotate(90deg); }
 .rank-secondary .rank-columns { padding: 0 16px 16px; }
 
-.dt-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
-.dt-card { display: flex; flex-direction: column; gap: 12px; padding: 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); box-shadow: var(--shadow); }
+/* 宽屏右侧被裁自查（2026-11-11 #15）：main 在宽屏是 width:auto + padding，盒模型 border-box 不溢出；
+   这里再把名次区每一层都允许收缩到 0，防止长姓名/长组员名单/11 个课次标签把卡片顶宽、右边界冲出视口 */
+#view-rank, .rank-primary, .dt-list, .dt-card, .dt-head, .dt-grades { min-width: 0; }
+
+/* 单列：无论宽窄都只有一列，顺序 = 数据顺序（第 1 名 → 最后一名） */
+.dt-list { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.dt-card { display: flex; flex-direction: column; gap: 12px; min-width: 0; padding: 14px 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); box-shadow: var(--shadow); }
 .dt-card:hover { border-color: var(--accent-line); }
-.dt-head { display: flex; align-items: flex-start; gap: 10px; }
-.dt-rank { flex: 0 0 auto; min-width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; background: var(--accent); color: #fff; font-weight: 750; font-size: 14px; font-variant-numeric: tabular-nums; }
+.dt-head { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
+/* 名次徽章（2026-11-11 #15）：原来是绿色方块里一个光秃秃的数字，看不出是排位，
+   现在写成「第 N 名」胶囊；前三名金/银/铜，其余中性灰。按组排序时写「组内第 N 名」。 */
+.dt-rank {
+  flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
+  min-width: 56px; height: 26px; padding: 0 10px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--raise); color: var(--muted);
+  font-size: 12.5px; font-weight: 750; letter-spacing: .02em; white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.dt-rank.rk-1 { background: linear-gradient(180deg, #fdf6dd, #f6e2a8); color: #7a4b00; border-color: #e3bf62; }
+.dt-rank.rk-2 { background: linear-gradient(180deg, #f6f8fa, #e3e9ef); color: #47525f; border-color: #c2ccd6; }
+.dt-rank.rk-3 { background: linear-gradient(180deg, #fcefe3, #f0d9c2); color: #8a4a17; border-color: #dcae87; }
 .dt-name { flex: 1 1 auto; min-width: 0; font-size: 16px; font-weight: 700; line-height: 1.25; }
 .dt-name small { display: block; font-size: 12px; color: var(--muted); font-weight: 400; margin-top: 2px; }
 .dt-group { flex: 0 0 auto; max-width: 46%; text-align: right; font-size: 13px; color: var(--muted); }
@@ -1437,7 +1443,28 @@ table.sheet td.c-sum .c { font-size: 13px; color: var(--text); }
 .dt-name.attendance-failed { color: #b91c1c; }
 @media print { .dt-card { break-inside: avoid; } }
 
+/* 宽屏（希沃大屏/横屏电脑）：卡片还是一列，但内部改成左右两块，
+   左窄右宽——左边认人（名次/姓名/组/期末输入），右边看数（四大数字 + 每课完成率），
+   把原来横向空着的宽度用起来，一屏能多看几个名次。窄屏不套这一层，保持竖直堆叠。 */
+@media (min-width: 900px) {
+  .dt-card {
+    display: grid;
+    grid-template-columns: minmax(220px, 320px) minmax(0, 1fr);
+    grid-template-areas: "head grades" "foot lessons";
+    column-gap: 18px; row-gap: 10px; align-items: start;
+  }
+  .dt-head { grid-area: head; }
+  .dt-foot { grid-area: foot; margin-top: 0; justify-content: flex-start; flex-wrap: wrap; }
+  .dt-grades { grid-area: grades; }
+  .dt-lessons { grid-area: lessons; align-content: start; }
+  .dt-grade em { font-size: 24px; }
+}
+
 /* 深色模式：平铺卡片四色数字对齐 assessment-table 的深色配比 */
+:root[data-hx-mode="dark"] .dt-rank { background: rgba(255, 255, 255, .06); color: var(--muted); border-color: var(--line); }
+:root[data-hx-mode="dark"] .dt-rank.rk-1 { background: rgba(212, 168, 58, .18); color: #f3d489; border-color: rgba(212, 168, 58, .45); }
+:root[data-hx-mode="dark"] .dt-rank.rk-2 { background: rgba(190, 200, 212, .16); color: #d7dee6; border-color: rgba(190, 200, 212, .4); }
+:root[data-hx-mode="dark"] .dt-rank.rk-3 { background: rgba(196, 124, 74, .18); color: #eebd97; border-color: rgba(196, 124, 74, .45); }
 :root[data-hx-mode="dark"] .dt-grade.g-regular { background: rgba(61, 220, 151, .1); color: #7ef0bd; }
 :root[data-hx-mode="dark"] .dt-grade.g-contribution { background: rgba(96, 150, 255, .12); color: #a7c4ff; }
 :root[data-hx-mode="dark"] .dt-grade.g-needed { background: rgba(251, 146, 60, .12); color: #ffc48f; }
@@ -2386,9 +2413,6 @@ html.hx-bg[data-hx-mode="dark"] body::after,
   -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
 }
-:root[data-hx-mode="dark"] .card.admin-hero {
-  background: linear-gradient(135deg, rgba(242, 199, 107, .10), rgba(13, 22, 46, .72) 46%);
-}
 :root[data-hx-mode="dark"] .formula { background: rgba(6, 11, 24, .6); }
 :root[data-hx-mode="dark"] .profile-save-feedback {
   background: rgba(10, 20, 40, .96); color: #7ef0bd; border-color: rgba(61, 220, 151, .4);
@@ -2628,7 +2652,7 @@ dialog { background: var(--raise); }
 .toast { background: var(--raise); }
 input[type="password"], input:not([type]),
 .log-toolbar select, .log-toolbar input { background: var(--raise); }
-table.data th, .dt-body th, .assessment-table thead th,
+table.data th, .assessment-table thead th,
 .log-table-head, .sync-conflict-head, .bubble-audit-table th { background: var(--raise); }
 
 /* ============================================================
@@ -2670,10 +2694,13 @@ table.data th, .dt-body th, .assessment-table thead th,
     gap: 6px; margin: 10px 0 0; padding: 0 0 10px;
   }
   body.sidebar-layout .tabs .nav-group { flex-direction: row; align-items: center; gap: 4px; }
-  body.sidebar-layout .tabs .nav-group-t {
-    padding: 0 6px 0 2px; font-size: 10.5px; letter-spacing: .08em; color: var(--faint);
-    white-space: nowrap; font-weight: 600;
-  }
+  /* 2026-11-11 #15：横排胶囊里的分组标题（当前课堂 / 评分与成绩 / 数据）是竖向侧栏时代的残留，
+     横着排只会占地方，隐藏。只隐藏标题本身，分组容器还在，
+     所以下面 .nav-group:not(:has(button:not([hidden]))) 的「空组整体隐藏」规则照常生效。 */
+  body.sidebar-layout .tabs .nav-group-t { display: none; }
+  /* 组标题没了以后，用一点额外间距把「当前课堂 / 评分与成绩 / 数据」分开，不靠标题也看得出分组。
+     被 :has 隐藏的空组是 display:none，不会多留一段空隙。 */
+  body.sidebar-layout .tabs .nav-group + .nav-group { margin-left: 10px; }
   /* 胶囊按钮：半透明白玻璃，圆角胶囊，未选中低对比 */
   body.sidebar-layout .tabs button {
     text-align: center; padding: 7px 16px; min-height: 34px;

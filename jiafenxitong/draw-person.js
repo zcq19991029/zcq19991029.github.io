@@ -608,7 +608,7 @@
   function open() {
     if (!SRC) return toast('抽人还没准备好，请刷新页面重试');
     var list = classes();
-    if (!list.length) return toast('还没有班级：先在「数据与备份」里导入班级和名单');
+    if (!list.length) return toast('还没有班级：先在「数据与同步」里导入班级和名单');
 
     DRW.cls = pickCls();
     DRW.gen += 1;

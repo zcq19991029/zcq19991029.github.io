@@ -201,12 +201,12 @@
   setTimeout(function () { clearInterval(timer); finish(); }, MAX_WAIT);
 
   // ── 内部面板的加载态（2026-11-06 用户：「覆盖各个子模块……不许有子模块还是裸文字或没动效」）
-  // 管理页「正在加载…」/「查看某位老师的数据」这类面板，业务代码只写一行
-  // <p class="note">正在加载…</p>（见 app.js 的 renderAdmin / showTeacherData）。这里不改业务代码，
+  // 业务代码在等数据时只写一行占位 <p class="note">正在加载…</p>。这里不改业务代码，
   // 用 MutationObserver 把这类**只在加载中**的占位就地升级成同一套「canvas 像素动效 + 药丸」：
   //   · 只认文本以「正在加载」开头且没有任何子元素的 .note —— 正常文案、加载失败提示都不动；
   //   · 面板拿到数据后 innerHTML 被整体替换，canvas 一并移除，循环下一帧发现脱离文档就自停；
   //   · 特效包缺失 / 省电 / 关动画：不建 canvas，只补一条像素方块药丸（回落不空屏）。
+  // 注：2026-11-11 删掉「管理」模块后，现有页面暂时没有「正在加载…」占位，这段留着给以后新面板用。
   (function panelFx() {
     var st = document.createElement('style');
     st.id = 'hx-jf-panelfx-style';

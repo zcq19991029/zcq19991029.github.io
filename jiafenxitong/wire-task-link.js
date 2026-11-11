@@ -5,7 +5,8 @@
 
    ── 怎么进分的（一句话）──
    老师点「结束任务」→ 服务端把名次/完成率/得分冻结 → 这个文件把每个学生的得分
-   写成「小组加分」里**对应课次的一个 5 分项目列**（列名「接线2.3」），
+   写成「小组加分」里**对应课次的一个 5 分项目列**（列名「线上连线排位 接线2.3」，
+   2026-11-11 起带「线上连线排位」前缀，用来和线下连线任务区分），
    走的是原本就有的「命名个人项目」机制：assessment.js 的 taskEvidence() 会给每个
    有名字的项目列加 5 分满分并把学生得分计入 earned，所以总分自动 +5，不需要任何二次核算。
 
@@ -56,6 +57,14 @@
   var prevRates = null;      // 上一轮进行中任务的 { 任务号: { 学生键: {name, rate} } }，用来比「被超了/反超」
   var moves = {};            // 本轮比出来的变化 { 任务号: {down:[], up:[]} }，只由 fetch 时算一次
   var BOARD_MAX = 20;        // 横幅上最多铺多少个完成 chip（一个班 49 人，全铺会撑爆）
+  /* 列名前缀（2026-11-11 用户要求）：「课堂任务生成后项目名要加上标识 比如叫线上连线排位xxxx
+     用来区分线下连线任务」。线上接线任务生成的记分列一律叫「线上连线排位 接线2.3」，
+     记分表列头、互评列头、学生端项目名看到的是同一个名字。
+     ⚠ 改这里必须同步两处，否则「课堂任务」列会变成「—」（分还在，只是不再汇总）：
+       ① app.js 的 taskScore()（约 1051 行）用正则 /^(?:接线|线上连线排位)/ 认这一列；
+       ② 本文件 columnFor() 的**旧列兼容**：加前缀之前建的「接线2.3」不迁移、不重命名，
+          照旧认、照旧写（改名会让老师已经排好的列/分数对不上，等于丢分）。 */
+  var NAME_PREFIX = '线上连线排位';
 
   /* ---------------- 小工具 ---------------- */
 
@@ -82,7 +91,7 @@
     var A = root.JFDT_ASSESSMENT;
     var names = A && A.projectNames ? A.projectNames(lesson).slice() : [];
     /* 没有 leaderProjectNames 的老课次，projectNames() 会给出 4 个空占位列（留给组长手写）。
-       如果这一课压根没有一条组长记录带过列名，就把占位列丢掉，别让「接线2.3」排到第 5 格去。
+       如果这一课压根没有一条组长记录带过列名，就把占位列丢掉，别让「线上连线排位 接线2.3」排到第 5 格去。
        老师真的写了列名（哪怕只是留下了数组）就不动它。 */
     var hasNamed = Object.keys(lesson.leaderScores || {}).some(function (k) {
       var r = lesson.leaderScores[k];
@@ -101,6 +110,11 @@
       if (!Array.isArray(r.projects) || r.projects.length !== names.length) r.projects = names.slice();
     });
   }
+
+  /* 列名 = 前缀 + 原名：「线上连线排位 接线2.3」。
+     前缀和原名之间留一个空格，是为了让列头在窄表头里还能折行，也方便一眼分辨
+     「线上连线排位」是标识、「接线2.3」是题目。重名时的 #任务号 后缀加在最后（见 columnFor）。 */
+  function taskColumnName(circuit) { return NAME_PREFIX + ' 接线' + circuit; }
 
   /* ---------------- 找课次（没有就建）---------------- */
 
@@ -157,7 +171,8 @@
     if (!lesson.wireTasks) lesson.wireTasks = {};
     var key = String(task.task_id);
     var entry = lesson.wireTasks[key];
-    var want = '接线' + task.circuit;
+    var want = taskColumnName(task.circuit);   // 新列名：「线上连线排位 接线2.3」
+    var legacy = '接线' + task.circuit;        // 加前缀之前的旧列名：「接线2.3」
 
     if (entry && entry.name) {
       var at = names.indexOf(entry.name);
@@ -175,6 +190,32 @@
         }
         return -1;
       }
+    }
+
+    /* ── 旧列兼容（2026-11-11 加前缀时补的，别删）──
+       wireTasks 里记着名字的正常情况走上面那个分支，到不了这里。这里兜两种「这一列其实已经在表里」的情况：
+         ① 老数据：加前缀之前建的列叫「接线2.3」，没有前缀 —— **不改名、不迁移**，
+            直接沿用（列名一改，老师排好的列、已填的分、互评里的同名项就全对不上了）；
+         ② wireTasks 丢了/被清过，但列还在 —— 按新名字、再按老名字各找一次，认领回来。
+       两种情况都绝不新建列：同一道题多一列 = 项目满分多 5 分，直接给全班送分。
+       别人（同一课另一个任务）已经占了这一列就不认领，避免两个任务抢同一格分数。 */
+    var takenByOther = function (nm) {
+      return Object.keys(lesson.wireTasks).some(function (k) {
+        var e = lesson.wireTasks[k];
+        return k !== key && e && e.name === nm && !e.dismissed;
+      });
+    };
+    var adopt = -1;
+    if (names.indexOf(want) >= 0 && !takenByOther(want)) adopt = names.indexOf(want);
+    else if (names.indexOf(legacy) >= 0 && !takenByOther(legacy)) adopt = names.indexOf(legacy);
+    if (adopt >= 0) {
+      lesson.wireTasks[key] = {
+        name: names[adopt], col: adopt, applied: true,
+        circuit: task.circuit || '', title: task.title || '',
+        at: new Date().toISOString()
+      };
+      out.notes.push({ kind: 'adopt', taskId: task.task_id, text: '接线' + task.circuit + '：这节课已经有「' + names[adopt] + '」这一列，沿用旧列记账（没有重复建列）' });
+      return adopt;
     }
 
     /* 新加一列。同名已经被别的任务占了就加 #任务号 区分 */

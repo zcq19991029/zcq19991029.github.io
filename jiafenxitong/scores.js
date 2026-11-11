@@ -319,15 +319,20 @@
   function peerCellHtml(project, target) {
     var value = peerScore(project.name, target.key), locked = project.status === 'confirmed';
     var label = esc(target.name) + ' · ' + esc(project.name);
+    /* 2026-11-11 手机适配：窄屏下整张表会被拆成「一人一张卡」，表头（项目名）看不见了，
+       所以每个格子自带一份项目名；宽屏由 CSS 隐藏，桌面端外观不变。 */
+    var projTag = '<span class="peer-cell-proj">' + esc(project.name) + '</span>';
     if (value != null) {
       return '<div class="peer-cell is-set" data-score="' + value + '" data-project="' + esc(project.name) +
         '" data-target="' + esc(target.key) + '" role="button" tabindex="0" title="双击撤销这一格的加分">' +
-        '<span class="peer-score">' + scorePct(value) + '</span></div>';
+        projTag + '<span class="peer-score">' + scorePct(value) + '</span></div>';
     }
     if (locked) {
-      return '<div class="peer-cell is-locked" title="老师已确认这一列，不能再改"><span>已锁定</span></div>';
+      return '<div class="peer-cell is-locked" title="老师已确认这一列，不能再改">' +
+        projTag + '<span>已锁定</span></div>';
     }
     return '<div class="peer-cell" data-project="' + esc(project.name) + '" data-target="' + esc(target.key) + '" role="group" aria-label="' + label + '">' +
+      projTag +
       [1, 2, 3, 4, 5].map(function (s) {
         /* 2026-11-09 显示层改革：按钮显示 20%~100%；data-peer-pick 仍是 1–5 */
         return '<button type="button" class="peer-pick p' + s + '" data-peer-pick="' + s + '" aria-label="' + label + ' 给 ' + scorePct(s) + '" title="给 ' + scorePct(s) + '">' + scorePct(s) + '</button>';
