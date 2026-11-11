@@ -3565,7 +3565,15 @@ function restoreDroppedToHome(cls) {
   function tmApplySeating() {
     var cls = curClass();
     var st = tmState;
-    if (!cls || !st || !(st.seats || []).length) { alert('还没有学生选桌，先把「学生入口」链接发到班级群。'); return; }
+    /* 2026-11-10 修「按选座确认分组后没反应」：原来这里 alert，iframe 里原生弹窗可能被吞，
+       老师点了确认却什么提示都没有。改用 flash（toast）给出页面内可见的原因，并把
+       「没对应首页班级」「没开过组队」两种最常踩的坑分开说清。 */
+    if (!cls) { flash('先选一个班级。'); return; }
+    if (!tmClassId(cls)) { flash('这个班还没对应首页班级：先到「数据与备份」页把本班对应到首页同名的班，学生选座才拉得回来。'); return; }
+    if (!st || !(st.seats || []).length) {
+      flash('这个班还没有学生选桌（或选座数据没拉回来）：先展开「学生自助选桌」点「开放组队」，把「学生入口」链接发群里让学生选桌。');
+      return;
+    }
     var seats = st.seats.slice();
     var byTable = {};
     seats.forEach(function (s) {
