@@ -1606,7 +1606,7 @@ function restoreDroppedToHome(cls) {
 
   function fillClassSelects() {
     var cur = curClass();
-    ['#classSel', '#rankClassSel', '#poolClassSel', '#topClassSel'].forEach(function (sel) {
+    ['#classSel', '#rankClassSel', '#poolClassSel'].forEach(function (sel) {
       var e = $(sel);
       e.innerHTML = visibleClasses().map(function (c) {
         return '<option value="' + c.id + '">' + esc(c.name) + '</option>';
@@ -1623,7 +1623,6 @@ function restoreDroppedToHome(cls) {
     $('#classSel').value = cls.id;
     $('#rankClassSel').value = cls.id;
     $('#poolClassSel').value = cls.id;
-    if ($('#topClassSel')) $('#topClassSel').value = cls.id;
     renderPoolBanner(cls);
     renderGroupSummary();   /* 待分配页顶部那句「N 个组 · 已分 x/y 人」也顺手刷一下 */
     tmMaybePull(cls);   /* 记分页也要知道「谁已经坐在圆桌上」，否则横幅和待分配页是两套数字 */
@@ -1638,15 +1637,6 @@ function restoreDroppedToHome(cls) {
     var lesson = curLesson(cls);
     if (lesson) sel.value = lesson.id;
     sel.disabled = !ls.length;
-    /* 顶部常驻课次选择器同步同一份数据 */
-    var tls = $('#topLessonSel');
-    if (tls) {
-      tls.innerHTML = ls.map(function (l) {
-        return '<option value="' + l.id + '">第 ' + l.seq + ' 次课 · ' + esc(l.date || '') + '</option>';
-      }).join('') || '<option value="">暂无课次</option>';
-      if (lesson) tls.value = lesson.id;
-      tls.disabled = !ls.length;
-    }
     renderUndoBtn();
 
     $('#noLessonHint').hidden = !!lesson;
@@ -5426,23 +5416,8 @@ function restoreDroppedToHome(cls) {
   $('#lessonSel').addEventListener('change', function () {
     S.ui.lessonId = this.value; save(); renderScore();
   });
-  /* 顶部常驻班级/课次选择器（2026-11-10）：和记分页的选择器同一份数据，切了立即同步到当前视图 */
-  var topClassSel = $('#topClassSel'), topLessonSel = $('#topLessonSel');
-  if (topClassSel) topClassSel.addEventListener('change', function () {
-    S.ui.classId = this.value; S.ui.lessonId = null; save();
-    $('#classSel').value = this.value; $('#rankClassSel').value = this.value; $('#poolClassSel').value = this.value;
-    /* 当前视图是哪个就刷新哪个 */
-    if (view === 'score') renderScore();
-    else if (view === 'rank') renderRank();
-    else if (view === 'pool') renderPool();
-    else if (view === 'leader') renderLeader();
-    else renderScore();
-  });
-  if (topLessonSel) topLessonSel.addEventListener('change', function () {
-    S.ui.lessonId = this.value; save();
-    $('#lessonSel').value = this.value;
-    if (view === 'score') renderScore();
-  });
+  /* 2026-11-11：顶部常驻班级/课次选择器（#topClassSel / #topLessonSel）已并入记分工具条，
+     这里对应的两个 change 监听一并删除——顶栏上已经不存在这两个下拉，留着只是死代码。 */
   $('#rankClassSel').addEventListener('change', function () {
     S.ui.classId = this.value; save(); renderRank();
   });
