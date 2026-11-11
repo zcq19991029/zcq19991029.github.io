@@ -3,6 +3,7 @@
 <html lang="zh-CN">
 <head>
 <script src="../hx-theme.js" data-tool="wiring"></script>
+<script>window.HX_BUILD = "2026-11-11T08:58:06Z 2c98454";</script>
 <meta charset="utf-8">
 <meta name="copyright" content="© 2026 zcq 版权所有，未经许可禁止复制、修改、转载">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
@@ -1426,6 +1427,35 @@
   #fw-rank .rk-super:active { transform: scale(.96); }
   @media (max-width: 720px) { #fw-rank .rk-super { height: 34px; padding: 0 11px; font-size: 12px; } }
   @keyframes rkStartBreath { 0%, 100% { filter: drop-shadow(0 12px 22px rgba(255, 90, 40, .4)); } 50% { filter: drop-shadow(0 14px 30px rgba(255, 150, 40, .8)); } }
+
+  /* ── 教师代做（2026-11-11）────────────────────────────────────────────────
+     用户原话：「用教师账号的名单排位也算完成课堂任务 因为有的学生登录不上要用希沃或者我的电脑
+               自然是我们老师的账号」。
+     两样东西：① 老师点「开始排位」但还没选人时弹的选人浮窗（#fw-rankpick）；
+     ② 一节课上到处要能看出「这局是谁的、谁在动手」的角标（选手卡 / 准备页 / 计时条）。
+     角标用冷蓝→绿（和「通过、完成」同色系），不跟红色的警告混淆；四套主题都走 var()。 */
+  #fw-rankpick .fw-body { display: flex; overflow: hidden; }
+  #fw-rankpick .pk { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 10px; padding: 14px 16px 16px; overflow: hidden; }
+  #fw-rankpick .pk-h { font-size: 14px; font-weight: 800; }
+  #fw-rankpick .pk-h small { display: block; margin-top: 4px; color: var(--dim); font-size: 12px; font-weight: 600; line-height: 1.7; }
+  #fw-rankpick .pk-chips { display: flex; flex-wrap: wrap; gap: 7px; }
+  #fw-rankpick .pk-chips button { padding: 5px 11px; border-radius: 10px; border: 1px solid var(--edge); background: var(--card); color: var(--dim); font: 700 12.5px/1.2 inherit; cursor: pointer; }
+  #fw-rankpick .pk-chips button.on { color: #06283d; background: linear-gradient(90deg, #7dd3fc, #34d399); border-color: transparent; }
+  #fw-rankpick .pk-q { flex: none; width: 100%; padding: 9px 12px; border-radius: 11px; border: 1px solid var(--edge); background: var(--card); color: var(--ink); font: inherit; font-size: 13px; }
+  #fw-rankpick .pk-q:focus { outline: none; border-color: var(--acc); }
+  #fw-rankpick .pk-list { flex: 1; min-height: 0; overflow: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(134px, 1fr)); gap: 8px; align-content: start; scrollbar-width: thin; }
+  #fw-rankpick .pk-s { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 7px; padding: 9px 11px; border-radius: 12px;
+    background: var(--card); border: 1px solid var(--edge); font: inherit; color: inherit; text-align: left; cursor: pointer; transition: border-color .16s, transform .12s; }
+  #fw-rankpick .pk-s:hover { border-color: var(--acc); } #fw-rankpick .pk-s:active { transform: scale(.97); }
+  #fw-rankpick .pk-s i { font-style: normal; font-size: 11px; font-weight: 800; color: var(--dim); }
+  #fw-rankpick .pk-s b { font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #fw-rankpick .pk-s small { color: var(--dim); font-size: 11px; font-weight: 700; }
+  .rk-proxytag { font-style: normal; margin-left: 8px; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 7px;
+    color: #06283d; background: linear-gradient(90deg, #7dd3fc, #34d399); white-space: nowrap; vertical-align: middle; }
+  .rk-ready .rk-whoami > .rk-proxyflag { font-style: normal; font-size: clamp(13px, 1.4vw, 17px); font-weight: 800; letter-spacing: .06em;
+    padding: 3px 13px; border-radius: 999px; color: #06283d; background: linear-gradient(90deg, #7dd3fc, #34d399); }
+  .rk-hud .rk-proxyhud { font-style: normal; font-size: 12px; font-weight: 800; color: #7dd3fc; max-width: 9em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  @media (max-width: 520px) { .rk-hud .rk-proxyhud { max-width: 5.5em; font-size: 11px; } }
 
   /* ── 任务榜（学生端，2026-11-11）：只读浮窗，给学生看大屏那份课堂任务完成名单。
      排位窗顶栏的入口按钮复用 .rk-super 的胶囊样式（HTML 在 rank.js 的 TASKBOARD）；
@@ -3698,10 +3728,11 @@ async function rkMain(body) {
   // （超级排位入口在模块级 SUP 里定义，挂在窗口顶栏 rk-top 上，不放这张卡 —— 卡是 overflow:hidden 的）
   const calm = body.dataset.rkInit ? ' calm' : ''; body.dataset.rkInit = '1';
   const av = RK.pick && RK.pick.name ? String(RK.pick.name).trim().slice(0, 1) : '选';
+  const proxy = rkProxy();
   body.innerHTML = `<div class="rk-main${calm}"><div class="rk-left">
-    <div class="rk-player"><div class="rk-pav" aria-hidden="true"><i>${esc(av)}</i></div>
-      <div class="rk-pinfo"><small>${T ? '当前选手' : '我'} · <i class="rk-qpill" title="${esc(cName(lock))}">${esc(cName(lock))}</i></small><b>${RK.pick ? esc(RK.pick.name) : '还没选学生'}</b><span>${RK.pick ? esc(RK.pick.cls || '') : T ? '在下面选一个学生' : ''}</span></div>
-      <button class="rk-start" id="rkStart" ${RK.pick ? '' : 'disabled'}><span>开始排位</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg></button></div>
+    <div class="rk-player${proxy ? ' proxy' : ''}"><div class="rk-pav" aria-hidden="true"><i>${esc(av)}</i></div>
+      <div class="rk-pinfo"><small>${T ? '当前选手' : '我'} · <i class="rk-qpill" title="${esc(cName(lock))}">${esc(cName(lock))}</i></small><b>${RK.pick ? esc(RK.pick.name) : '还没选学生'}</b><span>${RK.pick ? esc(RK.pick.cls || '') : T ? '点「开始排位」从名单里选一个学生' : ''}</span>${proxy ? '<em class="rk-proxytag">教师代做</em>' : ''}</div>
+      <button class="rk-start" id="rkStart" ${(RK.pick || isT()) ? '' : 'disabled'}><span>开始排位</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg></button></div>
     ${T ? `<div class="rk-students"><div class="rk-stin">
       <div class="rk-sh"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M4 19a5 5 0 0 1 10 0"/><circle cx="17" cy="9" r="2.4"/><path d="M14.6 19a4.2 4.2 0 0 1 5.8-3.9"/></svg><b>学生</b></div>
       <div id="rkPick"><p class="rk-wait">加载班级…</p></div></div></div>` : ''}</div>
@@ -3743,6 +3774,72 @@ async function rkPicker(el, body) {
     if (card && !drwNoAnim()) { card.classList.add('rk-switching'); setTimeout(() => rkMain(body), 190); }
     else rkMain(body);
   }));
+}
+// ---------- 教师代做：选人窗口（2026-11-11）----------
+// 登录的是教师账号、成绩要记到某个学生头上时，这一问就是「记给谁」。
+// 什么时候弹：教师点「开始排位」但手头还没有当前选手（刚打开排位，或浏览器里存着上一次的学生）。
+// 已经有当前选手（左侧名单点过、抽人抽中、或者刚在这个窗口里选过）就不再拦一道 ——
+// 一节课四十个人，多四十次确认没必要；那名学生的名字在选手卡 / 准备页 / 计时条上一直写着「代做」。
+const PK = { cls: null, q: '' };
+function rkProxyPick() {
+  floatWin('rankpick', { title: '选学生', sub: '教师账号代做 · 成绩记到选中的学生头上', w: 540, h: 600, minH: 400, a1: '#0ea5e9', a2: '#22c55e',
+    render: body => rkProxyPickList(body) });
+}
+async function rkProxyPickList(body) {
+  PK.q = '';
+  if (!RK.classes) {
+    try { RK.classes = (await HX.rpc('hx_my_classes')).filter(c => (c.tools || []).includes('wiring')); }
+    catch (e) { body.innerHTML = `<div class="pk"><p class="rk-err">${esc(e.message)}</p></div>`; return; }
+  }
+  if (!RK.classes.length) {
+    body.innerHTML = `<div class="pk"><p class="rk-wait">还没有班级：先到首页「班级」导入考勤表、勾上「接线仿真」</p></div>`; return;
+  }
+  if (!RK.classes.some(c => c.id === PK.cls)) PK.cls = (RK.classes.find(c => c.name === (RK.pick && RK.pick.cls)) || {}).id || RK.cls || RK.classes[0].id;
+  let list = RK.studs[PK.cls];
+  if (!list) {
+    try { list = RK.studs[PK.cls] = await HX.rpc('hx_class_students', { p_class: PK.cls }); }
+    catch (e) { body.innerHTML = `<div class="pk"><p class="rk-err">${esc(e.message)}</p></div>`; return; }
+  }
+  body.innerHTML = `<div class="pk">
+    <div class="pk-h">这局算谁？ <small>选中的学生会记到他的排行榜和课堂任务上；现在动手的是教师账号</small></div>
+    <div class="pk-chips">${RK.classes.map(c => `<button type="button" data-k="${c.id}" class="${c.id === PK.cls ? 'on' : ''}">${esc(c.name)}</button>`).join('')}</div>
+    <input class="pk-q" id="pkQ" type="search" placeholder="输入姓名或学号后几位过滤" autocomplete="off">
+    <div class="pk-list" id="pkList">${rkProxyNames()}</div>
+  </div>`;
+  const shown = () => (RK.studs[PK.cls] || []).filter(s => !s.left_school);
+  const bind = () => body.querySelectorAll('[data-s]').forEach(b => (b.onclick = () => rkProxyUse(shown().find(x => String(x.id) === b.dataset.s))));
+  const redraw = () => { const el = body.querySelector('#pkList'); if (el) { el.innerHTML = rkProxyNames(); bind(); } };
+  const q = body.querySelector('#pkQ');
+  if (q) q.oninput = () => { PK.q = q.value; redraw(); };
+  body.querySelectorAll('[data-k]').forEach(b => (b.onclick = () => {
+    if (+b.dataset.k === PK.cls) return;
+    PK.cls = +b.dataset.k;
+    body.querySelectorAll('[data-k]').forEach(x => x.classList.toggle('on', +x.dataset.k === PK.cls));
+    redraw();
+  }));
+  bind();
+  if (q) try { q.focus(); } catch (e) { }
+}
+// 名单：姓名 + 学号后四位（同名同姓时靠这个认）。退学的不列 —— 他们的成绩不上榜，选了也是白接一局。
+function rkProxyNames() {
+  const q = PK.q.trim().toLowerCase();
+  const all = (RK.studs[PK.cls] || []).filter(s => !s.left_school);
+  const hit = q ? all.filter(s => (rkStuName(s) + ' ' + (s.student_no || '')).toLowerCase().includes(q)) : all;
+  if (!hit.length) return '<p class="rk-wait">没有匹配的学生</p>';
+  return hit.map(s => `<button type="button" class="pk-s" data-s="${s.id}">
+      <i>${s.seq < 1000 ? s.seq : '+'}</i><b>${esc(rkStuName(s))}</b><small>${esc(String(s.student_no || '').slice(-4))}</small></button>`).join('');
+}
+// 选中 → 当作当前选手 → 关窗 → 直接开局（和抽人「抽中即开局」同一条链路，不多一次点击）
+function rkProxyUse(s) {
+  if (!s) return;
+  const cls = RK.classes.find(c => c.id === PK.cls);
+  RK.pick = { id: s.id, name: rkStuName(s), cls: cls ? cls.name : '' };
+  ls.set('hx-rank-pick', JSON.stringify(RK.pick));
+  const w = document.getElementById('fw-rankpick'); if (w) w.classList.remove('show');
+  if (RK.body) rkMain(RK.body);
+  toast('代做：' + RK.pick.name);
+  if (!RK.lock) RK.lock = RK.circuit;
+  Promise.resolve().then(rkStartRun).catch(e => toast('开始排位失败：' + ((e && e.message) || e)));
 }
 // ---------- 随机抽人（教师）：夜市翻牌（2026-11-06 完整迁移自 .tmp-ref/night-market-draw-prototype.html） ----------
 // 呈现整体换成原型：顶栏（NIGHT MARKET / 点券 / ✕）→ 工具条（班级 / 开始翻牌 / 刷新下一组）→
@@ -4143,6 +4240,18 @@ const rkWin = () => { try { return frames.get(cur).contentWindow; } catch (e) { 
 // 一节课连着刷几道电路不用退回排位主页重新点。
 // 老师在一体机上代学生点的时候（RK.me.student 为空，靠选名字/抽人决定选手）「换人」必须保留，这里不能删。
 function rkSelfRun() { return !!(RK.me && RK.me.student && RK.pick && RK.me.student.id === RK.pick.id); }
+/* ── 教师代做（2026-11-11）───────────────────────────────────────────────────────
+   用户原话：「用教师账号的名单排位也算完成课堂任务 因为有的学生登录不上要用希沃或者我的电脑
+             自然是我们老师的账号」。
+   判据：登录的是教师/管理员/开发者，但这一局算在名单里某个学生头上（学生本人排位不算代做，
+   那种情况 rkSelfRun() 为真）。代做时成绩、排行榜、课堂任务记录都记到这个学生身上
+   （服务端 attempt.student_id 就是学生，见 supabase/2026-11-11-教师代做排位.sql），
+   界面上必须写清楚「这局是谁的、谁在动手」，免得全班搞混。 */
+function rkProxy(pick) {
+  pick = pick || RK.pick;
+  if (!isT() || !pick) return false;
+  return !(RK.me && RK.me.student && RK.me.student.id === pick.id);
+}
 // 「下一个电路」按排位里显示的电路清单顺序走（项目二 → 扩展 → 专项 P1…P10），最后一道回到第一道
 function rkNextCircuit(id) {
   const ids = rkCircuits().map(c => c.id), i = ids.indexOf(id);
@@ -4161,7 +4270,12 @@ function rkGoNext() {
   return Promise.resolve().then(rkStartRun).catch(e => toast('换下一题失败：' + ((e && e.message) || e)));
 }
 async function rkStartRun() {
-  if (!RK.pick) return;
+  if (!RK.pick) {
+    // 教师代做（2026-11-11）：老师还没选人时点「开始排位」，先问「这局算谁」再开局。
+    // 学生账号永远有 RK.pick（= 他自己那一行），走不到这里，老路径零改动。
+    if (isT()) return rkProxyPick();
+    return;
+  }
   if (!RK.circuit) return toast('先在练习页选好要排的题');
   // 2026-11-11：和 openRank 同一道闸。这里是所有开局路径的共同出口（开始排位按钮、抽人确认、
   // 下一题、换人），双开/重复调用都会走到 → 一律拒绝，且**绝不能**在 RK.run 已经存在时重开：
@@ -4242,7 +4356,7 @@ function rkReady(msg) {
   // ── 2026-11-04 用户：321GO 会盖住学生名字 —— 名字块单独包一层 .rk-whoami，
   //    倒数期间它浮到屏幕最上面（样式见 project2.html 的 .rk-veil.counting .rk-whoami），
   //    并且名字 / 班级整体放大，最后一排学生也看得清。
-  const v = rkOverlay(`<div class="rk-ready"><div class="rk-whoami"><small>${esc(cName(R.circuit))}</small><b class="rk-bigname">${esc(R.pick.name)}</b><span>${esc(R.pick.cls || '')}</span></div>
+  const v = rkOverlay(`<div class="rk-ready"><div class="rk-whoami"><small>${esc(cName(R.circuit))}</small><b class="rk-bigname">${esc(R.pick.name)}</b><span>${esc(R.pick.cls || '')}</span>${rkProxy(R.pick) ? '<em class="rk-proxyflag">教师代做</em>' : ''}</div>
     <div class="rk-dots"><i></i><i></i><i></i></div>
     <div class="rk-gowrap"><i class="rk-halo"></i><i class="rk-halo d2"></i><i class="rk-dash"></i><button class="rk-go" id="rkGoBtn"><i>开始</i></button></div>
     <p>提示、检查、答案都已关闭 · 查错只告诉你哪根线要删 · 全部接对自动停表</p>${msg ? `<p class="rk-err">${esc(msg)}</p>` : ''}
@@ -4561,7 +4675,7 @@ function rkHud() {
   const R = RK.run; let h = document.getElementById('rkHud');
   if (!h) { h = document.createElement('div'); h.id = 'rkHud'; h.className = 'rk-hud'; document.body.appendChild(h); rkHudLoad(h); rkHudDrag(h); }
   // 计时开始后只留计时数字和一个很小的“放弃”：一整条“名字 · 电路 + 按钮”太占地方，还挡着接线
-  h.innerHTML = `<i class="rk-rec"></i><b id="rkClock">0:00.00</b><button class="rk-ghost rk-mini" id="rkGiveUp">放弃</button><button class="rk-ghost rk-mini rk-exitfull" id="rkFull">退出全屏</button>`;
+  h.innerHTML = `<i class="rk-rec"></i>${rkProxy(R.pick) ? `<em class="rk-proxyhud" title="教师代做：这一局的成绩记在 ${esc(R.pick.name)} 头上">代做 · ${esc(R.pick.name)}</em>` : ''}<b id="rkClock">0:00.00</b><button class="rk-ghost rk-mini" id="rkGiveUp">放弃</button><button class="rk-ghost rk-mini rk-exitfull" id="rkFull">退出全屏</button>`;
   h.classList.add('show'); h.classList.remove('stop'); h.querySelector('#rkGiveUp').onclick = rkQuit;
   requestAnimationFrame(() => rkHudClamp(h)); // 填完内容才知道多宽，夹一次别让它露在屏外
   // 全屏时计时条缩到右上角、整条不吃点击（见 project2.html），所以必须留一个自己的“退出全屏”：
@@ -4598,7 +4712,10 @@ async function rkFinish() {
   //   它同样是 position:fixed + z=47，比遮罩(40)还高，停表瞬间正好压在练习页上。
   //   计时条变绿、时间滚动的反馈都还在（.rkHud.stop 的样式 + rkTime），只是不再有像素特效。
   let res;
-  try { res = await HX.rpc('rank_finish', { p_attempt: R.aid }); }
+  // 教师代做：把「这局算谁」显式告诉服务器（p_for_student）。服务端会核对它必须等于开局时那个
+  // 学生，学生账号拿它替别人刷会被直接拒；不带这个参数的老路径（学生自己排位）行为一字不变。
+  const rb = rkProxy(R.pick) ? { p_attempt: R.aid, p_for_student: R.pick.id } : { p_attempt: R.aid };
+  try { res = await HX.rpc('rank_finish', rb); }
   catch (e) { return rkResult(null, rkErrZh(e.message)); }
   // 用时以**服务器**算出来的为准（上榜的也是它）。停表那一刻计时条上写的是本地表，两者本来会差
   // 几十毫秒的往返时间；这里拿到 res.ms 就把它改回来，学生最后看到的那一眼和成绩卡上的数字一致。
@@ -4612,7 +4729,7 @@ async function rkResult(res, err) {
   let rows = [];
   if (res && res.improved) { try { rows = await HX.rpc('rank_board', { p_circuit: R.circuit, p_limit: 200 }, true); } catch (e) { } }
   const head = !res ? '这次没有计入' : res.first ? '首次上榜！' : res.improved ? '刷新纪录！' : '未破纪录';
-  const v = rkOverlay(`<div class="rk-result ${res && res.improved ? 'win' : 'lose'}"><small>${esc(R.pick.name)} · ${esc(cName(R.circuit))}</small><h2>${head}</h2>
+  const v = rkOverlay(`<div class="rk-result ${res && res.improved ? 'win' : 'lose'}"><small>${esc(R.pick.name)} · ${esc(cName(R.circuit))}${rkProxy(R.pick) ? ' · 教师代做' : ''}</small><h2>${head}</h2>
     ${res ? `<div class="rk-time" id="rkTime">0:00.00</div>` : ''}
     ${res && res.improved ? `<div class="rk-place">第 <b id="rkPl">${res.before || res.total}</b> 名${res.before && res.before > res.after ? `<em>↑ ${res.before - res.after}</em>` : ''}<span>共 ${res.total} 人</span></div><ol class="rk-board rk-ladder" id="rkLad"></ol>`
       : res ? `<p class="rk-nope">本次 ${fmtMs(res.ms)}，没有超过最好成绩 ${fmtMs(res.best)}，不计入排行（仍是第 ${res.after} 名）</p>` : `<p class="rk-err">${esc(err || '')}</p>`}
@@ -4903,6 +5020,88 @@ if (document.fonts) document.fonts.ready.then(() => { if (cur && SEG.some(x => x
 // 页面打开完再来问身份（HX / RK 到这里才初始化好）：开发者或贡献者就强制弹「关于」，普通人不弹。
 // 放 setTimeout 里是为了让电路页先 select 出来 —— 弹窗晚一两帧不影响 3 秒计时，但能避免跟首屏动画抢帧。
 setTimeout(() => { aboutWho().then(me => aboutForce(me)).catch(() => { }); }, 120);
+</script>
+<script>
+/* ── 版本哨兵（2026-11-11）：让已打开的旧页面自己发现新版本 ──
+   事故：排位假记录的修复前一天就上线了，但学生课上一直开着旧页面、从不刷新 ——
+   GitHub Pages 对 HTML 只缓存 10 分钟，可一直开着的页面根本不会再发请求，修复永远
+   到不了学生那台机器（又刷出 2.8s 假记录）。从本次发布起，以后每次更新：
+   已打开的旧页面会在轮询 / 切回前台时发现 version.json 里的指纹变了，弹顶部横幅，
+   非排位态还倒计时自动强刷。注意：现在开着的更旧页面没有这段代码，救不了。
+   规则（探针：test/_probe-version-sentinel.cjs）：
+     · 加载 30 秒后开始，每 120 秒拉一次同目录 version.json（no-store + 时间戳防缓存）；
+     · 页面从后台切回前台（hidden→visible）立即拉一次；
+     · 指纹不一致 → 排位中（RK.run，见 rank.js：开局置 {phase:'load'}、退出置 null）只弹
+       横幅提醒「Ctrl+F5 强制刷新」，绝不打断；非排位态横幅 + 10 秒倒计时 location.reload(true)，
+       倒计时里可点「稍后」取消；到点时若已进排位，自动改为只留横幅；
+     · 自动刷新一个会话只做一次（sessionStorage 记账）：强刷后拿到的还是旧页面（CDN 还没过期）
+       不会无限循环刷，只留横幅等人手动 Ctrl+F5；
+     · 离线 / file:// / 404 / 坏 JSON 一律静默，绝不影响正常使用；
+     · window.HX_BUILD 由根目录 publish.cjs 生成在线版时注入；离线单文件版没有它，
+       哨兵直接不启用 —— 本地版永远不需要查新。 */
+(function () {
+  var MY = window.HX_BUILD;
+  if (!MY || typeof fetch !== 'function') return;
+  var st = { seen: false, pending: false, dismissed: false, cdT: null, cdEnd: 0, reloaded: false };
+  try { st.reloaded = sessionStorage.getItem('hxv-reloaded') === '1'; } catch (e) { }
+  var H = window.__hxVer = { DELAY: 30000, TICK: 120000, CD_MS: 10000, state: st }; // __hxVer 仅供探针/排障
+  function rankOn() { try { return !!(typeof RK !== 'undefined' && RK && RK.run); } catch (e) { return false; } }
+  H.check = function () {
+    if (st.seen || st.pending || document.hidden) return;
+    st.pending = true;
+    fetch('version.json?t=' + Date.now(), { cache: 'no-store' })
+      .then(function (r) { if (!r.ok) throw 0; return r.json(); })
+      .then(function (v) { if (v && typeof v.build === 'string' && v.build !== MY) { st.seen = true; show(); } })
+      .catch(function () { })            // 离线 / 404 / 坏 JSON：静默，上课不能被打扰
+      .then(function () { st.pending = false; });
+  };
+  setTimeout(H.check, H.DELAY);
+  setInterval(H.check, H.TICK);
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) H.check(); });
+
+  var box = null, cdEl = null, cdBtn = null, waitT = null;
+  function stopCd() { if (st.cdT) { clearInterval(st.cdT); st.cdT = null; } if (cdEl) cdEl.textContent = ''; }
+  function arm() {                        // 非排位态才倒计时；排位一结束再补上（waitT 轮询）
+    if (st.dismissed || st.reloaded || st.cdT || rankOn()) return;
+    cdBtn.hidden = false;
+    st.cdEnd = Date.now() + H.CD_MS;
+    st.cdT = setInterval(function () {
+      var left = Math.max(0, Math.ceil((st.cdEnd - Date.now()) / 1000));
+      cdEl.textContent = left + ' 秒后自动刷新';
+      if (left > 0) return;
+      stopCd();
+      if (rankOn()) return;               // 到点时已进排位：撤掉自动刷新，只留横幅
+      try { sessionStorage.setItem('hxv-reloaded', '1'); } catch (e) { }
+      try { location.reload(true); } catch (e) { location.reload(); }
+    }, 250);
+  }
+  function show() {
+    if (box) return;
+    var css = document.createElement('style');
+    css.textContent = '#hxv{flex:none;display:flex;align-items:center;gap:9px;padding:6px 12px;font-size:13.5px;font-weight:600;'
+      + 'color:var(--ink);background:color-mix(in srgb,var(--acc) 16%,var(--bar));'
+      + 'border-bottom:1px solid color-mix(in srgb,var(--acc) 55%,transparent);z-index:60}'
+      + '#hxv .dot{width:9px;height:9px;border-radius:50%;background:var(--acc);flex:none;animation:hxvBlink 1.3s infinite}'
+      + '#hxv b{color:var(--acc)}#hxv .cd{margin-left:auto;flex:none;font-variant-numeric:tabular-nums}'
+      + '#hxv button{flex:none;margin-left:8px;font:inherit;font-weight:700;font-size:13px;color:var(--acc);background:none;'
+      + 'border:1px solid color-mix(in srgb,var(--acc) 45%,transparent);border-radius:9px;padding:3px 12px;cursor:pointer}'
+      + '#hxv button:hover{background:color-mix(in srgb,var(--acc) 18%,transparent)}'
+      + 'html.is-lite #hxv{background:var(--bar)}@keyframes hxvBlink{50%{opacity:.35}}';
+    document.head.appendChild(css);
+    box = document.createElement('div'); box.id = 'hxv'; box.setAttribute('role', 'status');
+    box.innerHTML = '<span class="dot"></span><span>有新版本，本页是旧版：请按 <b>Ctrl+F5</b> 强制刷新</span>';
+    cdEl = document.createElement('span'); cdEl.className = 'cd'; box.appendChild(cdEl);
+    cdBtn = document.createElement('button'); cdBtn.type = 'button'; cdBtn.textContent = '稍后'; cdBtn.hidden = true;
+    cdBtn.onclick = function () { st.dismissed = true; stopCd(); cdBtn.hidden = true; };
+    box.appendChild(cdBtn);
+    document.body.insertBefore(box, document.body.firstChild);  // body 是 flex 列：占一行往下推，不挡任何操作
+    arm();
+    waitT = setInterval(function () {         // 排位还没结束时每 5 秒看一眼：一退出排位就开始倒计时
+      if (st.dismissed || st.reloaded || st.cdT || !box) { if (waitT) clearInterval(waitT); waitT = null; return; }
+      arm();
+    }, 5000);
+  }
+})();
 </script>
 </body>
 </html>
