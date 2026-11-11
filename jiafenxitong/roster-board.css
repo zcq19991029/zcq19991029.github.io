@@ -570,8 +570,3 @@ body.gb-dragging .gb-chip { cursor: grabbing; }
   50% { transform: translateX(3px); }
   75% { transform: translateX(-2px); }
 }
-
-/* 按选座确认分组的确认弹窗（2026-11-10）：正文由 tmApplySeating 填进 #scBody */
-.sc-lead { margin: 0; font-size: 13px; line-height: 1.7; color: var(--gb-ink); }
-.sc-lead b { font-size: 14px; }
-.sc-list { margin: 0; padding-left: 18px; font-size: 12.5px; line-height: 1.9; color: var(--gb-ink); }

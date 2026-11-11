@@ -3622,8 +3622,9 @@ function restoreDroppedToHome(cls) {
     }
 
     /* 原来这里是原生 confirm，但 iframe 里 confirm 可能被吞（用户报过「按选座确认分组没反应」）。
-       改成页面内 <dialog>：把「确认后执行」的整段逻辑收进 doSeatApply 回调，点「确认分组」才跑，
-       取消只关窗。整段逻辑原样搬进来，snap / beforeSeat / keep / moved 这些变量一个都没动。 */
+       改用全站统一弹窗 hxConfirm（ui-dialog.js，可拖拽/缩放，按钮跟主题色走）：把「确认后执行」
+       的整段逻辑收进 doSeatApply，点「确认分组」才跑，取消只关窗。整段逻辑原样搬进来，
+       snap / beforeSeat / keep / moved 这些变量一个都没动。 */
     function doSeatApply() {
       /* 2026-11-08 分数迁移：拍一张「组号 → 第几个人是谁」的快照，重建完再按身份写回。
          原来这里会把整组 personal 清空（上面那句提示就是证据），用户说的
@@ -3693,22 +3694,14 @@ function restoreDroppedToHome(cls) {
       reportGroupChange(cls, beforeSeat, '按选座确认分组');
     }
 
-    var dlg = $('#dlgSeatConfirm');
-    if (!dlg) { doSeatApply(); return; }   // 兜底：弹窗骨架万一没渲染，直接执行，别把老师晾在原地
-    $('#scBody').innerHTML =
-      '<p class="sc-lead">把 <b>第 ' + tables.join('、') + '</b> 桌共 <b>' + seats.length + '</b> 人，写成 <b>' +
-        tables.length + '</b> 组（组号＝桌号）。</p>' +
-      '<ul class="sc-list">' +
-      '<li>这几个组会按选座重建：原来在这几个组、但这节课没来选座的人，会回到未分组</li>' +
-      '<li>没坐人的桌（组）一律不动</li>' +
-      '<li>记过的分按学生身份跟着人走（个人扣分不再清空）</li>' +
-      '</ul>' +
-      '<p class="note">确认前建议先到「数据与备份」下载一份备份。</p>';
-    $('#scOk').onclick = function () { dlg.close(); doSeatApply(); };
-    $('#scCancel').onclick = function () { dlg.close(); };
-    var scClose = $('#scClose');
-    if (scClose) scClose.onclick = function () { dlg.close(); };
-    if (!dlg.open) openDlg(dlg);
+    var dlgTxt =
+      '把第 ' + tables.join('、') + ' 桌共 ' + seats.length + ' 人，写成 ' + tables.length + ' 组（组号＝桌号）。\n\n' +
+      '· 这几个组会按选座重建：原来在这几个组、但这节课没来选座的人，会回到未分组\n' +
+      '· 没坐人的桌（组）一律不动\n' +
+      '· 记过的分按学生身份跟着人走（个人扣分不再清空）\n\n' +
+      '确认前建议先到「数据与备份」下载一份备份。';
+    hxConfirm(dlgTxt, { title: '按选座确认分组', okText: '确认分组', cancelText: '取消' })
+      .then(function (ok) { if (ok) doSeatApply(); });
   }
 
   $('#btnTeamFinish').addEventListener('click', tmApplySeating);
