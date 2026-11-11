@@ -3027,19 +3027,21 @@ function restoreDroppedToHome(cls) {
   /** 组号重排时，把每节课按【组号】存的那几行一起搬到新组号：
       lesson.scores（四个小组列 + personal）/ lesson.leaderScores（个人项目分）/ lesson.peerMeta（元数据键）。
       · 留下来的组：整行跟着组走（map：旧组号 → 新组号）；
-      · 空组被删掉了：这一行如果还有内容，改挂到 '~旧组号' 这种非数字键上归档 ——
-        所有算分代码都按 cls.groups 遍历，看不见它，但数据还在存档/备份里，绝不会被抹掉。
+      · 空组被删掉了：这一行**一律**改挂到 '~旧组号' 这种非数字键上归档（不管那个号码有没有被别的组占），
+        因为「被删的组」在界面上已经不存在了，任何数字键迟早会被以后新建的组读到 ——
+        比如删掉第 5 组以后又加组，maxNo+1 正好又排到 5，新组会凭空继承旧组的历史分，
+        groupHasHistory 也会把新组判成「有历史分、删不掉」。
+        归档后所有算分代码（都按 cls.groups 遍历）看不见它，但数据还在存档/备份里，绝不抹掉。
       返回 { moved, parked } 供操作日志用。 */
   function remapScoreRows(cls, map) {
     var moved = 0, parked = 0;
-    var targets = {};
-    Object.keys(map).forEach(function (k) { targets[String(map[k])] = true; });
 
-    /* 旧键 k 该落到哪个新键：留下来的组按 map 搬；被删的组只在「号码被别人占了」时归档 */
+    /* 旧键 k 该落到哪个新键：留下来的组按 map 搬；其余（被删的组 / 早先归档过的）一律 '~k'。
+       已经带 '~' 的键原样保留，避免二次归档成 '~~3'。 */
     function pick(k) {
       if (map[k] != null) return String(map[k]);
-      if (targets[k]) return '~' + k;
-      return k;
+      if (k.charAt(0) === '~') return k;
+      return '~' + k;
     }
 
     (S.lessons || []).forEach(function (l) {
@@ -3085,21 +3087,42 @@ function restoreDroppedToHome(cls) {
     return { moved: moved, parked: parked };
   }
 
+  /** 组号有没有重复（历史数据里真出现过两组都叫第 3 组）。
+      有重复就没有唯一的「组号 → 分数行」映射，硬重排只会把分记到别的组名下 —— 所以压缩必须中止。
+      list 不传就按「本班有人的组」判断：压缩真正要留下的就是这些（空组本来就要删掉）。 */
+  function compressBlockedByDup(cls, list) {
+    var gs = list || ((cls.groups || []).filter(function (g) { return memberCount(g) > 0; }));
+    var seen = {};
+    for (var i = 0; i < gs.length; i++) {
+      var k = String(Number(gs[i].no) || 0);
+      if (seen[k]) return true;
+      seen[k] = 1;
+    }
+    return false;
+  }
+
+  /** 中止时给老师看的那句话（applyCompress 和两处按钮入口共用，别各写一份） */
+  function dupCompressMsg() {
+    return '这个班有两组组号重复（历史数据问题）：先把重复的组删到不重复（空组上点「删除本组」，或改「分几组」），再来压缩。这次什么都没改。';
+  }
+
   /** 压缩/删除的统一内核：keep 是「要留下的组」（已按旧组号升序），dropCount 是删掉的组数。
       顺序严格固定，一步都不能换：
       ① scoreLayoutSnapshot —— 拍下「旧组号 → 旧组内顺序是谁」，realign 靠它认人；
       ② gbSnapshot + remapScoreRows + 重排组号 —— 动结构，把按组号存的分行一起搬走；
       ③ realignPersonalScores / realignLeaderScores —— 按学生身份把分写回到人现在的位置。
       第 ① 步的表是按旧组号记的，重排后要用 snapNew 翻成「新组号 → 旧组内顺序」再交给 realign，
-      否则 realign 会拿新组号去查旧表，一个人都认不出来。 */
+      否则 realign 会拿新组号去查旧表，一个人都认不出来。
+      组号重复时整个动作中止（连快照都不拍），返回 false —— 沿用「false = 一个字都没改」的约定。 */
   function applyCompress(cls, keep, dropCount, label) {
+    if (compressBlockedByDup(cls, keep)) {
+      flash(dupCompressMsg());
+      addOperationLog('分组', cls.name + ' · 压缩取消：存在重复组号，未做任何改动');
+      return false;
+    }
     var snapOld = scoreLayoutSnapshot(cls);
-    var map = {}, dup = false;
-    keep.forEach(function (g, i) {
-      var k = String(Number(g.no) || 0);
-      if (map[k] != null) { dup = true; return; }   // 历史数据里出现过两组同号：宁可不搬行，也不搬错
-      map[k] = i + 1;
-    });
+    var map = {};
+    keep.forEach(function (g, i) { map[String(Number(g.no) || 0)] = i + 1; });
     var snapNew = { layout: {}, keys: {} };
     keep.forEach(function (g, i) {
       var k = String(Number(g.no) || 0);
@@ -3108,7 +3131,7 @@ function restoreDroppedToHome(cls) {
     });
 
     gbSnapshot(cls, label);                                              // ① 快照（结构 + 全部课次分数）
-    var rows = dup ? { moved: 0, parked: 0 } : remapScoreRows(cls, map); // ② 行号跟着组走
+    var rows = remapScoreRows(cls, map);                                 // ② 行号跟着组走
     cls.groups = keep;
     keep.forEach(function (g, i) { g.no = i + 1; });                     // 组号连续：1,2,…,N
     var unmatched = realignPersonalScores(cls, snapNew);                 // ③ 按身份写回
@@ -3120,9 +3143,8 @@ function restoreDroppedToHome(cls) {
       keep.length + ' 组重排为 1–' + keep.length +
       (rows.moved ? '，' + rows.moved + ' 行小组分跟着组号搬了家' : '') +
       (rows.parked ? '，' + rows.parked + ' 行历史分归档（界面不再显示，数据仍在）' : '') +
-      (dup ? '，组号有重复，按组号存的分行没有搬动' : '') +
       (unmatched ? '；' + unmatched + ' 条个人扣分没对上人，留在原处未清零' : ''));
-    return { groups: keep.length, removed: dropCount, unmatched: unmatched, leader: leader, rows: rows, dup: dup };
+    return { groups: keep.length, removed: dropCount, unmatched: unmatched, leader: leader, rows: rows };
   }
 
   /** 清掉所有一个人都没有的组，剩下的组按组号升序重排成 1..N（连续无空号）。
@@ -3197,7 +3219,11 @@ function restoreDroppedToHome(cls) {
       .then(function (ok) {
         if (!ok) return;
         var info = deleteOneGroup(cls, g);
-        if (!info) { flash('没能删：这一组现在还有人，或者只剩这一组了'); return; }
+        if (!info) {
+          /* 组号重复时 applyCompress 已经 flash 过原因了，别再用「没能删」把它盖掉 */
+          if (!compressBlockedByDup(cls)) flash('没能删：这一组现在还有人，或者只剩这一组了');
+          return;
+        }
         gbCommit(cls, '已删除第 ' + g.no + ' 组，剩 ' + info.groups + ' 组（组号已重排 1–' + info.groups + '）' +
           (hist ? '；历史分已归档' : ''));
         reportScoreMigration({ personal: info.unmatched, leader: info.leader });
@@ -3220,6 +3246,8 @@ function restoreDroppedToHome(cls) {
         : '这个班还没有组：先在上面「分几组」里填个数字');
       return;
     }
+    /* 组号重复：压缩一定中止，别让老师点完确认才被告知，直接说清原因 */
+    if (compressBlockedByDup(cls)) { flash(dupCompressMsg()); return; }
     askConfirm('确认分组？\n\n' +
       '· 有 ' + empties.length + ' 个组一个人都没有，会先删掉\n' +
       '· 剩下的组按组号重排成 1、2、3…（连续没有空号）\n' +
@@ -4044,16 +4072,18 @@ function restoreDroppedToHome(cls) {
       addOperationLog('分组', cls.name + ' · 按选座确认分组：第 ' + tables.join('、') + ' 桌 ' + filled +
         ' 人写成 ' + tables.length + ' 组' + (made ? '（新建 ' + made + ' 组）' : '') +
         (toPending ? '，' + toPending + ' 人回到未分组' : ''));
-      /* 2026-11-11：按桌号重建完顺手清掉空组、把组号重排成 1..N —— 否则首页一直挂着
-         「第 10–13 组全空」的占位（老师反馈的老问题）。compressEmptyGroups 内部自带
-         「快照 → 动结构 → 按身份 realign」，上面那份 snap 已经写回过了，这里再走一遍是幂等的。
-         必须放在 save() 之前，不然压缩结果要等下一次手动保存才落地。 */
-      var squeezed = compressEmptyGroups(cls, '按选座确认分组后清理空组');
+      /* 按桌号重建完顺手清掉空组、把组号重排成 1..N —— 否则首页一直挂着「第 10–13 组全空」的占位。
+         必须在 save() 之前，不然压缩结果要等下一次手动保存才落地。
+         组号重复时压缩会整体中止（见 applyCompress）：这里先看一眼，好在下面那句提示里把原因说清楚 ——
+         否则 applyCompress 的 flash 会被这句顶掉，老师只看到「已确认分组」。 */
+      var dupNo = compressBlockedByDup(cls);
+      var squeezed = dupNo ? false : compressEmptyGroups(cls, '按选座确认分组后清理空组');
       save(); renderPool(); renderScore(); renderPoolBanner(cls);
 
       var rest = pendingList(cls).length;
       flash('已按选座写成 ' + tables.length + ' 组（' + filled + ' 人）' +
         (squeezed ? '，清掉 ' + squeezed.removed + ' 个空组、组号已重排' : '') +
+        (dupNo ? '；这个班有重复组号，空组没自动清理，先到分组页把重复的组删掉' : '') +
         (rest ? '，还剩 ' + rest + ' 人未分组，拖进组就行' : '，全班都分好了'));
       reportScoreMigration({ personal: unmatched, leader: leaderOut });
       reportGroupChange(cls, beforeSeat, '按选座确认分组');
@@ -4721,6 +4751,8 @@ function restoreDroppedToHome(cls) {
         if (!cls) return;
         var empties = (cls.groups || []).filter(function (g) { return memberCount(g) === 0; });
         if (!empties.length) { flash('没有空组，组号已经是连续的 ' + groupCountOf(cls) + ' 组'); return; }
+        /* 组号重复时压缩会整体中止，先说清原因，别让老师点完确认才被退回来 */
+        if (compressBlockedByDup(cls)) { flash(dupCompressMsg()); return; }
         var hist = empties.filter(function (g) { return groupHasHistory(cls, g.no); }).length;
         askConfirm('压缩空组并重排组号？\n\n' +
           '· 删掉 ' + empties.length + ' 个一个人都没有的组\n' +
