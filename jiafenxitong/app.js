@@ -2785,14 +2785,17 @@ function restoreDroppedToHome(cls) {
     /* 常驻的「✓ 确认分组」（2026-11-11）：老师不用再翻到底下的折叠区去找。
        有待确认的选座就先按桌号写进记分表；没有就直接清空组、把组号排成 1..N。 */
     var emptyN = groups.filter(function (g) { return memberCount(g) === 0; }).length;
+    var liveN = groups.length - emptyN;          // 有人的组数：压缩以后就剩这么多组
     var confirmBar = '<div class="gb-confirmbar">' +
       '<button type="button" class="btn primary gb-confirmbtn" data-confirm-group="1"' +
         ' title="有已选座的先按桌号写进记分表；没有就直接清掉空组、把组号重排成 1、2、3…">' +
         '✓ 确认分组</button>' +
       '<span class="gb-confirmtip">' +
         (nSeat ? '有 <b>' + nSeat + '</b> 人已选座待确认 · 点这里按桌号写进记分表'
-               : (emptyN ? '有 <b>' + emptyN + '</b> 个空组 · 点这里清掉，组号排成 1–' + (groups.length - emptyN)
-                         : '现在是连续的 ' + groups.length + ' 组，没有空组')) +
+               : (!groups.length ? '还没有组 · 先在上面「分几组」里填个数字'
+                 : (!liveN ? '所有组都还空着 · 先把左边的学生拖进组，再点这里确认'
+                   : (emptyN ? '有 <b>' + emptyN + '</b> 个空组 · 点这里清掉，组号排成 1–' + liveN
+                             : '现在是连续的 ' + groups.length + ' 组，没有空组')))) +
       '</span>' +
       (cls.groupLocked
         ? '<span class="gb-lockbadge" title="分组已锁定：学生不能换组/换座；老师仍可拖动调整">🔒 分组已锁定</span>'
@@ -3212,7 +3215,9 @@ function restoreDroppedToHome(cls) {
     if (pend.length) { tmApplySeating(); return; }
     var empties = (cls.groups || []).filter(function (g) { return memberCount(g) === 0; });
     if (!empties.length) {
-      flash('现在没有空组，组号已经是连续的 1–' + groupCountOf(cls) + '，不用再整理');
+      flash((cls.groups || []).length
+        ? '现在没有空组，组号已经是连续的 1–' + groupCountOf(cls) + '，不用再整理'
+        : '这个班还没有组：先在上面「分几组」里填个数字');
       return;
     }
     askConfirm('确认分组？\n\n' +

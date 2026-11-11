@@ -1000,3 +1000,97 @@ body.gb-dragging .gb-group.gb-over { transition: none; }
   .gb-confirmbtn { width: 100%; }
   .gb-lockbadge { margin-left: 0; }
 }
+
+
+/* ============================================================
+   十、第九节新增控件的玻璃化（2026-11-11，承接第八节）
+   ------------------------------------------------------------
+   第九节的「－/＋ 单组上限」「删除本组」「✓ 确认分组」条「🔒 分组已锁定」是照旧扁平变量
+   （--gb-panel / --gb-soft / --gb-accent-bg）画的，放在第八节的霓虹玻璃看板上像贴纸。
+   这一节只补外观，不改结构、不改交互：同一套玻璃配方 + 同一套 --hx-a 通透度乘数。
+   权重与写法跟第八节一致（:root 前缀、深色单独覆盖），整段删掉即回滚到第九节的扁平样式。
+   ============================================================ */
+
+/* ---- 10.1 组头「－ / ＋」：玻璃小方块，hover 泛主题色霓虹光 ---- */
+:root .gb-cap {
+  width: 20px; height: 20px; border-radius: 7px;
+  border: 1px solid color-mix(in srgb, var(--gb-ink) calc(var(--hx-a, 1) * 14%), transparent);
+  background: color-mix(in srgb, var(--gb-panel) calc(var(--hx-a, 1) * 80%), transparent);
+  color: var(--gb-muted);
+  transition: border-color .15s, color .15s, background-color .15s, box-shadow .2s, transform .12s;
+}
+:root[data-hx-mode="dark"] .gb-cap {
+  border-color: rgba(150, 180, 245, calc(var(--hx-a, 1) * .26));
+  background: rgba(206, 220, 250, calc(var(--hx-a, 1) * .09));
+  color: #b8c8e8;
+}
+:root .gb-cap:hover {
+  border-color: var(--gb-accent);
+  color: var(--gb-accent);
+  background: color-mix(in srgb, var(--gb-accent) calc(var(--hx-a, 1) * 16%), transparent);
+  box-shadow: 0 0 14px -4px color-mix(in srgb, var(--gb-accent) calc(var(--hx-a, 1) * 55%), transparent);
+}
+
+/* ---- 10.2 「特许」小标：嵌在组号胶囊里的实心色块，用实底才在一层淡色里认得出 ---- */
+:root .gb-cap-tag {
+  margin-left: 5px; padding: 0 6px; border-radius: 999px;
+  font-size: 10px; line-height: 16px; font-style: normal; font-weight: 700;
+  background: var(--gb-accent);
+  color: var(--on-acc, #fff);
+  box-shadow: 0 0 12px -4px color-mix(in srgb, var(--gb-accent) calc(var(--hx-a, 1) * 70%), transparent);
+}
+
+/* ---- 10.3 「删除本组」：虚线红玻璃，比「＋ 加人」更轻但一眼是危险动作 ---- */
+:root .gb-del {
+  border: 1px dashed color-mix(in srgb, var(--gb-bad) calc(var(--hx-a, 1) * 32%), transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--gb-bad) calc(var(--hx-a, 1) * 6%), transparent);
+  color: var(--gb-muted);
+  transition: border-color .15s, background-color .15s, color .15s, box-shadow .2s;
+}
+:root .gb-del:hover {
+  border-style: solid;
+  border-color: var(--gb-bad);
+  background: color-mix(in srgb, var(--gb-bad) calc(var(--hx-a, 1) * 18%), transparent);
+  color: var(--gb-bad);
+  box-shadow: 0 0 16px -8px color-mix(in srgb, var(--gb-bad) calc(var(--hx-a, 1) * 55%), transparent);
+}
+
+/* ---- 10.4 「✓ 确认分组」条：和待分配面板同一块面板玻璃，主按钮加一圈主题色光 ---- */
+:root .gb-confirmbar {
+  border: 1px solid rgba(255, 255, 255, calc(var(--hx-a, 1) * .75));
+  border-radius: 18px;
+  background: linear-gradient(180deg,
+    rgba(255, 255, 255, calc(var(--hx-a, 1) * .58)),
+    rgba(255, 255, 255, calc(var(--hx-a, 1) * .30)));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, calc(var(--hx-a, 1) * .5)),
+    0 14px 32px -26px rgba(60, 40, 60, calc(var(--hx-a, 1) * .5));
+  -webkit-backdrop-filter: blur(16px) saturate(1.35);
+  backdrop-filter: blur(16px) saturate(1.35);
+}
+:root[data-hx-mode="dark"] .gb-confirmbar {
+  border-color: rgba(146, 176, 248, calc(var(--hx-a, 1) * .17));
+  background: linear-gradient(180deg,
+    rgba(24, 36, 68, calc(var(--hx-a, 1) * .5)),
+    rgba(11, 18, 38, calc(var(--hx-a, 1) * .34)));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, calc(var(--hx-a, 1) * .06)),
+    0 16px 36px -28px rgba(0, 0, 0, calc(var(--hx-a, 1) * .85));
+}
+:root .gb-confirmbtn {
+  border-radius: 999px;
+  box-shadow: 0 8px 22px -10px color-mix(in srgb, var(--gb-accent) calc(var(--hx-a, 1) * 72%), transparent);
+}
+:root[data-hx-mode="dark"] .gb-confirmtip { color: #9fb0d4; }
+:root[data-hx-mode="dark"] .gb-confirmtip b { color: #eef3ff; }
+
+/* ---- 10.5 「🔒 分组已锁定」：琥珀玻璃胶囊 + 一圈暖光，和主题色控件区分开 ---- */
+:root .gb-lockbadge {
+  padding: 3px 10px; border-radius: 999px;
+  background: color-mix(in srgb, var(--gb-warn) calc(var(--hx-a, 1) * 18%), transparent);
+  color: var(--gb-warn);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--gb-warn) calc(var(--hx-a, 1) * 34%), transparent),
+    0 0 16px -8px color-mix(in srgb, var(--gb-warn) calc(var(--hx-a, 1) * 55%), transparent);
+}
