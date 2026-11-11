@@ -586,3 +586,417 @@ body.gb-dragging .gb-chip { cursor: grabbing; }
   50% { transform: translateX(3px); }
   75% { transform: translateX(-2px); }
 }
+
+/* ============================================================
+   八、照搬「排课」ncard 霓虹玻璃质感（2026-11-11）
+   ------------------------------------------------------------
+   用户原话：「完全不一样 不管是卡片还是ui还是透明度……你照搬都不会吗」。
+   参考 排课/src/app.css 的 .ncard 与 .drag-ghost，原文关键三行：
+     :root[data-theme="dark"] .ncard{--bg:hsl(h 55% 60% / .12);--bd:hsl(h 60% 65% / .24);--tx:hsl(h 85% 82%)}
+     .ncard:hover{transform:translateY(-2px);box-shadow:0 10px 22px -12px hsl(h 50% 40% / .6)}
+     .ncard .rd{background:hsl(h 70% 50% / .14);border-radius:99px}     ← 彩色小胶囊
+   也就是说排课的卡不是「实色卡片」，而是：同色系低 alpha 玻璃底 + 同色系 1px 描边 + 同色系外发光，
+   再配一级更深的面板玻璃（排课用的是 .card：rgba(20,25,36,.72) + blur(20px) + 1px 白 7% 描边）。
+
+   本段的配方（每一项的 alpha 都乘 --hx-a，主题「通透度」滑杆 1=最透 / 2=最实 直接管到这些卡）：
+     · 成员卡 .gb-chip   = ncard：同色渐变玻璃 10%～20% / 描边 ~34% / 外发光 ~30%～80%
+     · 组卡   .gb-group  = 排课 .card：中性深玻璃 + 18px blur，颜色留给里面的彩色卡去跳
+     · 组号   .gb-gno    = ncard 的 .rd 小胶囊：主题色 16% 底 + 同色描边
+     · 未分组 .gb-pend-chip = 中性白/灰玻璃，不发彩光（保持「还没归属」的语义）
+     · ghost 拖动残影 = 近实底 + 同色光晕（fixed 元素不开 blur，拖起来才跟手）
+   旧规则（第二、六节，以及 553 行那段毛玻璃）一个字都没删 —— 本段靠「同权重 + 写在最后」覆盖，
+   要回滚把整段删掉即可。
+   ============================================================ */
+
+/* ---- 8.1 组卡：面板级玻璃（照搬排课 .card 的深玻璃，不开彩色，让组员的彩色卡做主角） ---- */
+:root .gb-group {
+  position: relative;
+  padding: 10px 12px 12px;
+  border: 1px solid rgba(255, 255, 255, calc(var(--hx-a, 1) * .72));
+  border-radius: 20px;
+  background: linear-gradient(180deg,
+    rgba(255, 255, 255, calc(var(--hx-a, 1) * .62)),
+    rgba(255, 255, 255, calc(var(--hx-a, 1) * .34)));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, calc(var(--hx-a, 1) * .5)),
+    0 16px 38px -26px rgba(60, 40, 60, calc(var(--hx-a, 1) * .5));
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  backdrop-filter: blur(18px) saturate(1.4);
+  transition: border-color .15s, background-color .15s, box-shadow .15s, transform .15s;
+}
+/* 深色（参考图那一版）：深蓝黑玻璃 + 一层青白高光边，透出后面的壁纸/极光 */
+:root[data-hx-mode="dark"] .gb-group {
+  border-color: rgba(146, 176, 248, calc(var(--hx-a, 1) * .17));
+  background: linear-gradient(180deg,
+    rgba(24, 36, 68, calc(var(--hx-a, 1) * .56)),
+    rgba(11, 18, 38, calc(var(--hx-a, 1) * .42)));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, calc(var(--hx-a, 1) * .07)),
+    0 20px 48px -30px rgba(0, 0, 0, calc(var(--hx-a, 1) * .85));
+}
+
+/* 空组：虚线边 + 更透的底，还是一眼看出「这是等着放人的格子」 */
+:root .gb-group.is-empty {
+  border-style: dashed;
+  border-color: rgba(255, 255, 255, calc(var(--hx-a, 1) * .8));
+  background: linear-gradient(180deg,
+    rgba(255, 255, 255, calc(var(--hx-a, 1) * .30)),
+    rgba(255, 255, 255, calc(var(--hx-a, 1) * .16)));
+}
+:root[data-hx-mode="dark"] .gb-group.is-empty {
+  border-color: rgba(146, 176, 248, calc(var(--hx-a, 1) * .2));
+  background: linear-gradient(180deg,
+    rgba(24, 36, 68, calc(var(--hx-a, 1) * .24)),
+    rgba(11, 18, 38, calc(var(--hx-a, 1) * .14)));
+}
+/* 满组：底色不再提亮（排课那边满不满都是同一块玻璃），只在标题右侧留「满」小旗，见上文 */
+
+/* 超员：红光描边 + 红光晕 */
+:root .gb-group.is-over {
+  border-color: var(--gb-bad);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--gb-bad) calc(var(--hx-a, 1) * 34%), transparent),
+    0 0 26px -8px color-mix(in srgb, var(--gb-bad) calc(var(--hx-a, 1) * 45%), transparent);
+}
+/* 拖动经过的落点：主题色霓虹边 + 一圈光晕，和排课 .lesson.drop-on 同一套语言 */
+:root .gb-group.gb-over {
+  border-color: var(--gb-accent);
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--gb-accent) calc(var(--hx-a, 1) * 18%), transparent),
+    color-mix(in srgb, var(--gb-accent) calc(var(--hx-a, 1) * 8%), transparent));
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--gb-accent) calc(var(--hx-a, 1) * 26%), transparent),
+    0 0 34px -6px color-mix(in srgb, var(--gb-accent) calc(var(--hx-a, 1) * 45%), transparent);
+  transform: translateY(-2px);
+}
+/* 落点/超员两种状态在深色下同样成立：上面的规则都写在深色基础规则之后，权重相同即覆盖 */
+
+/* ---- 8.2 组头：组号做成 ncard .rd 那种彩色小胶囊，人数走大字号 ---- */
+:root .gb-ghead { align-items: center; }
+:root .gb-gno {
+  display: inline-flex; align-items: center;
+  padding: 1px 9px; border-radius: 999px;
+  font-size: 12.5px; font-weight: 700; line-height: 20px; letter-spacing: .02em;
+  color: var(--gb-accent);
+  background: color-mix(in srgb, var(--gb-accent) calc(var(--hx-a, 1) * 15%), transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gb-accent) calc(var(--hx-a, 1) * 28%), transparent);
+  text-shadow: 0 0 12px color-mix(in srgb, var(--gb-accent) calc(var(--hx-a, 1) * 40%), transparent);
+}
+:root .gb-group.is-empty .gb-gno {
+  color: var(--gb-muted);
+  background: color-mix(in srgb, var(--gb-muted) calc(var(--hx-a, 1) * 12%), transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gb-muted) calc(var(--hx-a, 1) * 20%), transparent);
+  text-shadow: none;
+}
+:root .gb-gcnt { color: var(--gb-muted); }
+:root .gb-gcnt b { color: var(--gb-ink); font-weight: 800; }
+:root[data-hx-mode="dark"] .gb-gcnt b { color: #eef3ff; }
+
+/* ---- 8.3 成员卡：排课 ncard 完全体（同组同色 + 同色描边 + 同色外发光 + 玻璃 blur） ---- */
+:root .gb-chip {
+  --gb-h: var(--h, 220);
+  --gb-s: var(--s, 70%);
+  --gb-lb: var(--lb, 88%);
+  padding: 7px 9px;
+  border: 1px solid hsl(var(--gb-h) calc(var(--gb-s) + 6%) calc(var(--gb-lb) - 22%) / calc(var(--hx-a, 1) * .55));
+  border-radius: 16px;
+  background: linear-gradient(180deg,
+    hsl(var(--gb-h) var(--gb-s) calc(var(--gb-lb) - 2%) / calc(var(--hx-a, 1) * .50)),
+    hsl(var(--gb-h) calc(var(--gb-s) - 6%) calc(var(--gb-lb) - 12%) / calc(var(--hx-a, 1) * .28)));
+  color: var(--gb-ink);
+  box-shadow:
+    inset 0 1px 0 hsl(0 0% 100% / calc(var(--hx-a, 1) * .42)),
+    0 8px 18px -14px hsl(var(--gb-h) calc(var(--gb-s) - 20%) 45% / calc(var(--hx-a, 1) * .70));
+  -webkit-backdrop-filter: blur(10px) saturate(1.4);
+  backdrop-filter: blur(10px) saturate(1.4);
+  transition: transform .2s ease, border-color .15s, box-shadow .2s, background-color .15s, opacity .12s;
+}
+/* 深色：低 alpha 的同色玻璃 + 同色霓虹外发光（这一版最接近老师给的参考图） */
+:root[data-hx-mode="dark"] .gb-chip {
+  border-color: hsl(var(--gb-h) calc(var(--gb-s) + 14%) 72% / calc(var(--hx-a, 1) * .36));
+  background: linear-gradient(180deg,
+    hsl(var(--gb-h) var(--gb-s) 66% / calc(var(--hx-a, 1) * .21)),
+    hsl(var(--gb-h) calc(var(--gb-s) - 4%) 50% / calc(var(--hx-a, 1) * .10)));
+  color: hsl(var(--gb-h) 88% 91%);
+  box-shadow:
+    inset 0 1px 0 hsl(0 0% 100% / calc(var(--hx-a, 1) * .09)),
+    0 0 18px -2px hsl(var(--gb-h) 92% 60% / calc(var(--hx-a, 1) * .30)),
+    0 10px 24px -16px hsl(var(--gb-h) 85% 32% / calc(var(--hx-a, 1) * .85));
+}
+:root[data-hx-mode="dark"] .gb-nm small { color: hsl(var(--gb-h) 45% 84% / .66); }
+:root .gb-nm small { font-variant-numeric: tabular-nums; }
+
+/* hover：抬起 2px + 光晕变浓（排课 .ncard:hover 就是这一手）。
+   拖动中不响应 hover —— 否则鼠标划过每一张卡都要重算阴影，正是「拖起来卡卡的」来源之一 */
+:root body:not(.gb-dragging) .gb-chip:hover {
+  border-color: hsl(var(--gb-h) calc(var(--gb-s) + 10%) calc(var(--gb-lb) - 18%) / calc(var(--hx-a, 1) * .8));
+  box-shadow:
+    inset 0 1px 0 hsl(0 0% 100% / calc(var(--hx-a, 1) * .5)),
+    0 12px 26px -16px hsl(var(--gb-h) calc(var(--gb-s) - 20%) 42% / calc(var(--hx-a, 1) * .85));
+  transform: translateY(-2px);
+}
+:root[data-hx-mode="dark"] body:not(.gb-dragging) .gb-chip:hover {
+  border-color: hsl(var(--gb-h) calc(var(--gb-s) + 20%) 78% / calc(var(--hx-a, 1) * .55));
+  box-shadow:
+    inset 0 1px 0 hsl(0 0% 100% / calc(var(--hx-a, 1) * .14)),
+    0 0 26px -2px hsl(var(--gb-h) 95% 62% / calc(var(--hx-a, 1) * .42)),
+    0 14px 30px -18px hsl(var(--gb-h) 85% 30% / calc(var(--hx-a, 1) * .9));
+}
+
+/* 点选中的那张：主题色双环，和拖拽的 .gb-over 区分开（一个在卡上、一个在组上） */
+:root .gb-chip.on {
+  border-color: var(--gb-accent);
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--gb-accent) calc(var(--hx-a, 1) * 24%), transparent),
+    0 0 22px -4px color-mix(in srgb, var(--gb-accent) calc(var(--hx-a, 1) * 45%), transparent);
+}
+/* 超出上限的人：红色玻璃 + 红光，位置不动（用户定的规矩：标红但绝不自动移出） */
+:root .gb-chip.gb-over-limit {
+  border-color: color-mix(in srgb, var(--gb-bad) calc(var(--hx-a, 1) * 85%), transparent);
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--gb-bad) calc(var(--hx-a, 1) * 24%), transparent),
+    color-mix(in srgb, var(--gb-bad) calc(var(--hx-a, 1) * 12%), transparent));
+  color: var(--gb-bad);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--gb-bad) calc(var(--hx-a, 1) * 26%), transparent),
+    0 0 18px -6px color-mix(in srgb, var(--gb-bad) calc(var(--hx-a, 1) * 45%), transparent);
+}
+
+/* ---- 8.4 头像：这张卡的颜色锚点 —— 同色系高浓玻璃小球 + 同色微光 ---- */
+:root .gb-av {
+  width: 30px; height: 30px;
+  background: linear-gradient(180deg,
+    hsl(var(--gb-h) var(--gb-s) calc(var(--gb-lb) - 14%) / calc(var(--hx-a, 1) * .92)),
+    hsl(var(--gb-h) var(--gb-s) calc(var(--gb-lb) - 26%) / calc(var(--hx-a, 1) * .7)));
+  color: hsl(var(--gb-h) 60% 22%);
+  box-shadow: inset 0 1px 0 hsl(0 0% 100% / calc(var(--hx-a, 1) * .5));
+}
+:root[data-hx-mode="dark"] .gb-av {
+  background: linear-gradient(180deg,
+    hsl(var(--gb-h) var(--gb-s) 62% / calc(var(--hx-a, 1) * .55)),
+    hsl(var(--gb-h) var(--gb-s) 46% / calc(var(--hx-a, 1) * .34)));
+  color: hsl(var(--gb-h) 92% 94%);
+  box-shadow:
+    inset 0 0 0 1px hsl(0 0% 100% / calc(var(--hx-a, 1) * .14)),
+    0 0 12px -2px hsl(var(--gb-h) 92% 60% / calc(var(--hx-a, 1) * .5));
+}
+
+/* ---- 8.5 角色 / 标签小胶囊：跟 ncard .rd 同一比例（20px 高、99px 圆角） ---- */
+:root .gb-role {
+  line-height: 18px; padding: 0 8px; border-radius: 999px;
+  background: color-mix(in srgb, var(--gb-accent) calc(var(--hx-a, 1) * 18%), transparent);
+  color: var(--gb-accent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gb-accent) calc(var(--hx-a, 1) * 26%), transparent);
+}
+:root .gb-role.member {
+  background: color-mix(in srgb, var(--gb-ink) calc(var(--hx-a, 1) * 7%), transparent);
+  color: var(--gb-muted);
+  border: 0;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gb-ink) calc(var(--hx-a, 1) * 12%), transparent);
+}
+:root[data-hx-mode="dark"] .gb-role.member { color: #b9c8e8; }
+:root .gb-flag, :root .gb-tag {
+  border-radius: 999px; padding: 0 7px; line-height: 17px;
+  background: color-mix(in srgb, var(--gb-warn) calc(var(--hx-a, 1) * 20%), transparent);
+  color: var(--gb-warn);
+}
+:root .gb-over-tag,
+:root .gb-flag-over {
+  border-radius: 999px; padding: 0 7px; line-height: 17px;
+  background: color-mix(in srgb, var(--gb-bad) calc(var(--hx-a, 1) * 88%), transparent);
+  color: #fff;
+}
+/* 移出按钮：玻璃小圆角，hover 才泛红 */
+:root .gb-x { border-radius: 8px; color: var(--gb-muted); }
+:root .gb-x:hover {
+  background: color-mix(in srgb, var(--gb-bad) calc(var(--hx-a, 1) * 18%), transparent);
+  color: var(--gb-bad);
+}
+
+/* ---- 8.6 未分组：中性玻璃白/灰，不发彩光（没有归属就不该有归属色） ---- */
+:root .gb-chip.gb-pend-chip {
+  border-color: rgba(255, 255, 255, calc(var(--hx-a, 1) * .82));
+  background: linear-gradient(180deg,
+    rgba(255, 255, 255, calc(var(--hx-a, 1) * .70)),
+    rgba(255, 255, 255, calc(var(--hx-a, 1) * .42)));
+  color: var(--gb-ink);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, calc(var(--hx-a, 1) * .6)),
+    0 6px 16px -14px rgba(60, 40, 60, calc(var(--hx-a, 1) * .5));
+}
+:root[data-hx-mode="dark"] .gb-chip.gb-pend-chip {
+  border-color: rgba(178, 198, 240, calc(var(--hx-a, 1) * .18));
+  background: linear-gradient(180deg,
+    rgba(206, 220, 250, calc(var(--hx-a, 1) * .11)),
+    rgba(206, 220, 250, calc(var(--hx-a, 1) * .05)));
+  color: #dfe7f7;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, calc(var(--hx-a, 1) * .10)),
+    0 8px 20px -16px rgba(0, 0, 0, calc(var(--hx-a, 1) * .9));
+}
+:root .gb-chip.gb-pend-chip .gb-av {
+  background: linear-gradient(180deg,
+    rgba(255, 255, 255, calc(var(--hx-a, 1) * .8)),
+    rgba(233, 236, 244, calc(var(--hx-a, 1) * .6)));
+  color: var(--gb-muted);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gb-ink) calc(var(--hx-a, 1) * 10%), transparent);
+}
+:root[data-hx-mode="dark"] .gb-chip.gb-pend-chip .gb-av {
+  background: linear-gradient(180deg,
+    rgba(206, 220, 250, calc(var(--hx-a, 1) * .18)),
+    rgba(206, 220, 250, calc(var(--hx-a, 1) * .08)));
+  color: #c3d2ef;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, calc(var(--hx-a, 1) * .10));
+}
+
+/* ---- 8.7 待分配面板 / 加人按钮 / 撤销条：同一套中性玻璃，虚线语义保留 ---- */
+:root .gb-pending {
+  border: 1.5px dashed rgba(255, 255, 255, calc(var(--hx-a, 1) * .85));
+  border-radius: 20px;
+  background: linear-gradient(180deg,
+    rgba(255, 255, 255, calc(var(--hx-a, 1) * .5)),
+    rgba(255, 255, 255, calc(var(--hx-a, 1) * .26)));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, calc(var(--hx-a, 1) * .45));
+  -webkit-backdrop-filter: blur(18px) saturate(1.35);
+  backdrop-filter: blur(18px) saturate(1.35);
+}
+:root[data-hx-mode="dark"] .gb-pending {
+  border-color: rgba(146, 176, 248, calc(var(--hx-a, 1) * .22));
+  background: linear-gradient(180deg,
+    rgba(24, 36, 68, calc(var(--hx-a, 1) * .40)),
+    rgba(11, 18, 38, calc(var(--hx-a, 1) * .26)));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, calc(var(--hx-a, 1) * .06));
+}
+:root .gb-pending.gb-over {
+  border-style: solid;
+  border-color: var(--gb-accent);
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--gb-accent) calc(var(--hx-a, 1) * 18%), transparent),
+    color-mix(in srgb, var(--gb-accent) calc(var(--hx-a, 1) * 8%), transparent));
+  box-shadow: 0 0 30px -10px color-mix(in srgb, var(--gb-accent) calc(var(--hx-a, 1) * 40%), transparent);
+}
+:root .gb-add {
+  border: 1px dashed rgba(120, 130, 150, calc(var(--hx-a, 1) * .45));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--gb-ink) calc(var(--hx-a, 1) * 3%), transparent);
+  color: var(--gb-muted);
+}
+:root[data-hx-mode="dark"] .gb-add {
+  border-color: rgba(146, 176, 248, calc(var(--hx-a, 1) * .22));
+  background: rgba(206, 220, 250, calc(var(--hx-a, 1) * .05));
+  color: #9fb0d4;
+}
+:root .gb-add:hover {
+  border-color: var(--gb-accent);
+  color: var(--gb-accent);
+  background: color-mix(in srgb, var(--gb-accent) calc(var(--hx-a, 1) * 14%), transparent);
+  box-shadow: 0 0 18px -8px color-mix(in srgb, var(--gb-accent) calc(var(--hx-a, 1) * 45%), transparent);
+}
+:root .gb-undo {
+  border: 1px dashed rgba(120, 130, 150, calc(var(--hx-a, 1) * .45));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--gb-panel) calc(var(--hx-a, 1) * 70%), transparent);
+}
+:root[data-hx-mode="dark"] .gb-undo {
+  border-color: rgba(146, 176, 248, calc(var(--hx-a, 1) * .2));
+}
+:root .gb-undo-snap {
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--gb-accent) calc(var(--hx-a, 1) * 40%), transparent);
+  background: color-mix(in srgb, var(--gb-accent) calc(var(--hx-a, 1) * 12%), transparent);
+}
+/* 左边面板的标题 / 计数在深色下提亮一档 */
+:root[data-hx-mode="dark"] .gb-ptitle { color: #eef3ff; }
+
+/* ---- 8.8 拖动残影 ghost：近实底 + 同色光晕。fixed 元素不开 backdrop-filter，
+         blurred backdrop 跟着 pointer 每帧重算，正是拖动卡顿的老大难 ---- */
+:root .gb-chip.gb-ghost {
+  border-color: hsl(var(--gb-h) calc(var(--gb-s) + 16%) 70% / .85);
+  background: hsl(var(--gb-h) 90% 97% / .97);
+  color: hsl(var(--gb-h) 60% 22%);
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+  box-shadow:
+    0 0 0 1px hsl(var(--gb-h) 92% 60% / .35),
+    0 0 34px -6px hsl(var(--gb-h) 92% 58% / .5),
+    0 26px 48px -20px hsl(var(--gb-h) 70% 25% / .6);
+  transition: none;
+}
+:root[data-hx-mode="dark"] .gb-chip.gb-ghost {
+  background: hsl(var(--gb-h) 42% 13% / .97);
+  color: hsl(var(--gb-h) 92% 92%);
+  box-shadow:
+    0 0 0 1px hsl(var(--gb-h) 92% 62% / .5),
+    0 0 40px -4px hsl(var(--gb-h) 95% 60% / .55),
+    0 28px 52px -22px rgba(0, 0, 0, .85);
+}
+:root[data-hx-mode="dark"] .gb-chip.gb-ghost .gb-nm small { color: hsl(var(--gb-h) 45% 84% / .7); }
+
+/* ---- 8.9 拖动期间：关掉过渡和 hover 动画，别让 CSS 动画跟 rAF 抢主线程 ---- */
+body.gb-dragging .gb-chip,
+body.gb-dragging .gb-group,
+body.gb-dragging .gb-pend-chip { transition: none; }
+body.gb-dragging .gb-chip.gb-lift { opacity: .28; filter: saturate(.5); }
+body.gb-dragging .gb-group.gb-over { transition: none; }
+
+
+/* ============================================================
+   九、分组结构整理（2026-11-11）
+   老师实测反馈：1–13 组里只有第 9 组有人、10–13 全空占位；改组数后组号不重排，
+   空组赖着不走；没法只给某一个组单独加人；担心学生随时能换组。
+   对应的四样东西：组卡片头部的「－/＋」单组上限、空组上的「删除本组」、
+   看板顶部常驻的「✓ 确认分组」、以及「🔒 分组已锁定」徽标。
+   ============================================================ */
+
+/* 组头右侧：人数 + 单组上限两个小按钮，和左边「第 N 组」对着排。
+   窄卡片上宁可让按钮换到第二行，也不要顶出卡片边界。 */
+.gb-ghead { flex-wrap: wrap; }
+.gb-gright { display: flex; align-items: center; gap: 4px; flex: 0 1 auto; min-width: 0; }
+.gb-cap {
+  flex: none; width: 20px; height: 20px; padding: 0;
+  display: grid; place-items: center;
+  border: 1px solid var(--gb-line); border-radius: 6px;
+  background: var(--gb-panel); color: var(--gb-muted);
+  font: inherit; font-size: 13px; line-height: 1; font-weight: 700;
+  cursor: pointer;
+  transition: border-color .12s, color .12s, background-color .12s;
+}
+.gb-cap:hover { border-color: var(--gb-accent); color: var(--gb-accent); background: var(--gb-accent-bg); }
+.gb-cap:active { transform: scale(.94); }
+
+/* 「特许」小标签：这一组的上限被老师单独调过，和全班默认不一样 */
+.gb-cap-tag {
+  margin-left: 5px; padding: 0 5px; border-radius: 6px;
+  background: var(--gb-accent-bg); color: var(--gb-accent);
+  font-size: 10px; font-style: normal; font-weight: 700;
+}
+
+/* 空组上的「删除本组」：比「＋ 加人」更轻，红字提醒它真的会删结构 */
+.gb-del {
+  width: 100%; padding: 4px 8px; margin-top: 4px;
+  border: 0; border-radius: 10px;
+  background: transparent; color: var(--gb-muted);
+  font: inherit; font-size: 11.5px; cursor: pointer;
+}
+.gb-del:hover { background: var(--gb-bad-bg); color: var(--gb-bad); }
+
+/* 看板顶部常驻的「✓ 确认分组」条：主按钮 + 一句现状 + 锁定徽标 */
+.gb-confirmbar {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin: 0 0 10px; padding: 10px 12px;
+  border: 1px solid var(--gb-line); border-radius: 14px;
+  background: var(--gb-soft);
+}
+.gb-confirmbtn { flex: none; font-weight: 700; }
+.gb-confirmtip { font-size: 12px; line-height: 1.5; color: var(--gb-muted); }
+.gb-confirmtip b { color: var(--gb-ink); font-size: 13px; }
+.gb-lockbadge {
+  margin-left: auto; padding: 3px 9px; border-radius: 999px;
+  background: var(--gb-warn-bg); color: var(--gb-warn);
+  font-size: 11.5px; font-weight: 700; white-space: nowrap;
+}
+
+@media (max-width: 560px) {
+  .gb-confirmbar { gap: 8px; }
+  .gb-confirmbtn { width: 100%; }
+  .gb-lockbadge { margin-left: 0; }
+}

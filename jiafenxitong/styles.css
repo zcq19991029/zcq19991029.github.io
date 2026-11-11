@@ -2634,4 +2634,97 @@ input[type="password"], input:not([type]),
 table.data th, .dt-body th, .assessment-table thead th,
 .log-table-head, .sync-conflict-head, .bubble-audit-table th { background: var(--raise); }
 
+/* ============================================================
+   希沃式顶部胶囊选项卡（2026-11-11）：把宽屏侧栏导航改成顶部横排毛玻璃胶囊。
+   · 顶栏回到顶部横条（撤销 sidebar-layout 的左侧固定侧栏），sticky 吸顶
+   · 选项卡 = 半透明白玻璃胶囊（alpha 乘 --hx-a 通透度滑杆），选中项吃主题色 --accent
+   · 背景穿透：顶栏自身半透明 + backdrop-filter blur，透出主题设置的背景（--hx-img 极光/自定义图）
+   · 这一整段是追加覆盖层，不动上面任何一行，随时可整段删除回滚
+   ============================================================ */
+@media screen and (min-width: 1100px) {
+  /* 撤销侧栏：顶栏回到顶部横条，横向铺满，随内容滚动吸顶 */
+  body.sidebar-layout .topbar {
+    position: sticky; left: auto; top: 0; bottom: auto; width: auto;
+    padding: 10px 18px 0;
+    border: 0; border-bottom: 1px solid var(--line);
+    border-radius: 0;
+    overflow-y: visible;
+    box-shadow: none;
+  }
+  /* 顶部玻璃条：半透明白玻璃（alpha 乘 --hx-a），背后主题背景透出来 */
+  body.sidebar-layout .topbar {
+    background: color-mix(in srgb, var(--panel) calc(var(--hx-a, 1) * 78%), transparent);
+    -webkit-backdrop-filter: blur(18px) saturate(160%);
+    backdrop-filter: blur(18px) saturate(160%);
+  }
+  body.sidebar-layout .topbar-main { gap: 10px; flex-wrap: nowrap; }
+  body.sidebar-layout .brandtext { flex: 0 1 auto; min-width: 0; }
+  body.sidebar-layout .topbar-main > .spacer { display: block; flex: 1; }
+
+  /* 主内容：不再给左侧让位，回到顶部下方全宽 */
+  body.sidebar-layout main { margin: 0; width: auto; padding: 18px 20px 44px; }
+  body.sidebar-layout .local-warn { margin: 10px 16px 0; }
+
+  /* 选项卡横排胶囊：nav-group 竖排分组标题在顶部布局下横着放，按钮并排成胶囊 */
+  body.sidebar-layout .tabs {
+    flex-direction: row; flex-wrap: wrap; align-items: center;
+    gap: 6px; margin: 10px 0 0; padding: 0 0 10px;
+  }
+  body.sidebar-layout .tabs .nav-group { flex-direction: row; align-items: center; gap: 4px; }
+  body.sidebar-layout .tabs .nav-group-t {
+    padding: 0 6px 0 2px; font-size: 10.5px; letter-spacing: .08em; color: var(--faint);
+    white-space: nowrap; font-weight: 600;
+  }
+  /* 胶囊按钮：半透明白玻璃，圆角胶囊，未选中低对比 */
+  body.sidebar-layout .tabs button {
+    text-align: center; padding: 7px 16px; min-height: 34px;
+    border-radius: var(--pill);
+    font-size: 13px; font-weight: 500; color: var(--muted);
+    background: color-mix(in srgb, var(--panel) calc(var(--hx-a, 1) * 60%), transparent);
+    -webkit-backdrop-filter: blur(10px) saturate(140%);
+    backdrop-filter: blur(10px) saturate(140%);
+    border: 1px solid var(--line);
+    box-shadow: none;
+    transition: background .18s, color .18s, border-color .18s, box-shadow .18s;
+  }
+  body.sidebar-layout .tabs button::before { display: none; }  /* 去掉侧栏左侧指示条 */
+  body.sidebar-layout .tabs button:hover {
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+    color: var(--text); border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+  }
+  /* 选中胶囊：主题色玻璃实底（比未选中更实、更浓），文字反白或深字随主题 */
+  body.sidebar-layout .tabs button.on {
+    background: color-mix(in srgb, var(--accent) calc(var(--hx-a, 1) * 92%), transparent);
+    color: #fff; font-weight: 700;
+    border-color: transparent;
+    box-shadow: 0 4px 14px -4px var(--accent-glow);
+  }
+  /* 选中胶囊里的徽标数字反白 */
+  body.sidebar-layout .tabs button.on em { color: #fff; }
+
+  /* 班级/课次工具条回到顶部横排（ui-feedback.js 宽屏时把 #scoreTools 挪进顶栏） */
+  body.sidebar-layout #scoreTools {
+    margin: 0 0 10px; padding: 0; border-top: 0;
+  }
+  body.sidebar-layout #scoreTools .lesson-bar {
+    flex-direction: row; align-items: center; flex-wrap: wrap; gap: 8px;
+  }
+  body.sidebar-layout #scoreTools .lesson-bar .field {
+    flex: none; padding: 5px 8px 5px 12px;
+  }
+}
+
+/* 深色模式：顶部玻璃条换成深色玻璃，选中胶囊保持主题色（青色那支由 --accent 驱动） */
+:root[data-hx-mode="dark"] body.sidebar-layout .topbar {
+  background: color-mix(in srgb, var(--panel) calc(var(--hx-a, 1) * 82%), transparent);
+}
+:root[data-hx-mode="dark"] body.sidebar-layout .tabs button {
+  background: color-mix(in srgb, var(--panel) calc(var(--hx-a, 1) * 60%), transparent);
+  border-color: rgba(126, 156, 235, .16);
+}
+:root[data-hx-mode="dark"] body.sidebar-layout .tabs button.on {
+  background: color-mix(in srgb, var(--accent) calc(var(--hx-a, 1) * 90%), transparent);
+  color: #04211d;
+}
+
 

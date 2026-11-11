@@ -2727,14 +2727,26 @@ function restoreDroppedToHome(cls) {
       return '<section class="gb-group' + (n ? '' : ' is-empty') + (full ? ' is-full' : '') +
           (over ? ' is-over' : '') + (gbAddTo === gi ? ' is-target' : '') + '" data-gi="' + gi + '">' +
         '<header class="gb-ghead">' +
-          '<span class="gb-gno">第 ' + esc(g.no) + ' 组</span>' +
-          '<span class="gb-gcnt"><b>' + n + '</b>/' + cap + ' 人' +
-            (over ? '<i class="gb-flag gb-flag-over">超 ' + over + '</i>'
-                  : (full ? '<i class="gb-flag">满</i>' : '')) + '</span>' +
+          '<span class="gb-gno">第 ' + esc(g.no) + ' 组' +
+            (Number(g.cap) ? '<i class="gb-cap-tag" title="本组按特许上限 ' + Number(g.cap) + ' 人放行">特许</i>' : '') +
+          '</span>' +
+          '<span class="gb-gright">' +
+            '<span class="gb-gcnt"><b>' + n + '</b>/' + cap + ' 人' +
+              (over ? '<i class="gb-flag gb-flag-over">超 ' + over + '</i>'
+                    : (full ? '<i class="gb-flag">满</i>' : '')) + '</span>' +
+            /* 单组上限 ±1：只改这一组，不动全班默认，也不删人（超了只标红） */
+            '<button type="button" class="gb-cap" data-gcap-down="' + gi + '"' +
+              ' title="把第 ' + esc(g.no) + ' 组的上限减 1 人：只改本组，不影响其它组；减回全班默认就取消本组特许。超了只标红不删人" aria-label="第 ' + esc(g.no) + ' 组上限减 1">－</button>' +
+            '<button type="button" class="gb-cap" data-gcap-up="' + gi + '"' +
+              ' title="把第 ' + esc(g.no) + ' 组的上限加 1 人：只改本组，不影响其它组；超了只标红不删人" aria-label="第 ' + esc(g.no) + ' 组上限加 1">＋</button>' +
+          '</span>' +
         '</header>' +
         bar +
         '<div class="gb-members">' + mem + '</div>' +
         '<button type="button" class="gb-add" data-add="' + gi + '">＋ 加人</button>' +
+        (n ? '' :
+          '<button type="button" class="gb-del" data-gdel="' + gi + '"' +
+            ' title="这个组一个人都没有：删掉它，并把剩下的组按组号重排成 1、2、3…">删除本组</button>') +
         '</section>';
     }).join('');
 
@@ -2770,7 +2782,24 @@ function restoreDroppedToHome(cls) {
         '<button type="button" class="gb-mini" data-gb-snapundo="1">撤回上一次分组</button></div>';
     }
 
-    box.innerHTML = undoBar +
+    /* 常驻的「✓ 确认分组」（2026-11-11）：老师不用再翻到底下的折叠区去找。
+       有待确认的选座就先按桌号写进记分表；没有就直接清空组、把组号排成 1..N。 */
+    var emptyN = groups.filter(function (g) { return memberCount(g) === 0; }).length;
+    var confirmBar = '<div class="gb-confirmbar">' +
+      '<button type="button" class="btn primary gb-confirmbtn" data-confirm-group="1"' +
+        ' title="有已选座的先按桌号写进记分表；没有就直接清掉空组、把组号重排成 1、2、3…">' +
+        '✓ 确认分组</button>' +
+      '<span class="gb-confirmtip">' +
+        (nSeat ? '有 <b>' + nSeat + '</b> 人已选座待确认 · 点这里按桌号写进记分表'
+               : (emptyN ? '有 <b>' + emptyN + '</b> 个空组 · 点这里清掉，组号排成 1–' + (groups.length - emptyN)
+                         : '现在是连续的 ' + groups.length + ' 组，没有空组')) +
+      '</span>' +
+      (cls.groupLocked
+        ? '<span class="gb-lockbadge" title="分组已锁定：学生不能换组/换座；老师仍可拖动调整">🔒 分组已锁定</span>'
+        : '') +
+      '</div>';
+
+    box.innerHTML = confirmBar + undoBar +
       '<div class="gb-board">' +
         '<section class="gb-pending" data-drop="pending">' +
           '<header class="gb-phead">' +
@@ -2967,6 +2996,242 @@ function restoreDroppedToHome(cls) {
     return true;
   }
 
+  /* ================= 分组结构整理：压缩空组 / 删组 / 单组上限 / 锁定（2026-11-11） =================
+     老师实测反馈：1–13 组里只有第 9 组有人，10–13 全空占位；改组数后组号不重排，空组赖着不走；
+     确认分组后空组也不清理；没法只给某一个组单独加人；担心学生随时能换组没法管理。
+
+     这里补的每个动作都守同一条铁律 —— 动结构必须「① 拍快照 → ② 动结构 → ③ 按身份 realign」，
+     顺序颠倒就会把个人扣分 / 个人项目分错记到别人头上（用户原话：「我之前弄的加分全部丢失了」）。
+
+     还有一条容易被忽略的：小组四列分（首个正确 / 小组分 / 手机）是按【组号】存的一整行，
+     不按人存。所以组号一重排，这一整行必须跟着组一起搬家（remapScoreRows）；
+     否则第 4 组的历史分会挂在第 3 组名下 —— 那也是「错位」，只是更难发现。 */
+
+  /** 统一确认弹窗：正常页面用全站 hxConfirm（ui-dialog.js）；单独打开、没引那个文件时退回原生 confirm。
+      新增的确认一律走这里，别再写裸 confirm。 */
+  function askConfirm(msg, opts) {
+    if (typeof window.hxConfirm === 'function') return window.hxConfirm(msg, opts || {});
+    return Promise.resolve(window.confirm(msg));
+  }
+
+  /** 按旧组号升序排（组号相同就按原来的先后），压缩/重排都用它，保证顺序可预期 */
+  function sortGroupsByNo(list) {
+    return list.map(function (g, i) { return { g: g, i: i }; })
+      .sort(function (a, b) { return (Number(a.g.no) || 0) - (Number(b.g.no) || 0) || a.i - b.i; })
+      .map(function (x) { return x.g; });
+  }
+
+  /** 组号重排时，把每节课按【组号】存的那几行一起搬到新组号：
+      lesson.scores（四个小组列 + personal）/ lesson.leaderScores（个人项目分）/ lesson.peerMeta（元数据键）。
+      · 留下来的组：整行跟着组走（map：旧组号 → 新组号）；
+      · 空组被删掉了：这一行如果还有内容，改挂到 '~旧组号' 这种非数字键上归档 ——
+        所有算分代码都按 cls.groups 遍历，看不见它，但数据还在存档/备份里，绝不会被抹掉。
+      返回 { moved, parked } 供操作日志用。 */
+  function remapScoreRows(cls, map) {
+    var moved = 0, parked = 0;
+    var targets = {};
+    Object.keys(map).forEach(function (k) { targets[String(map[k])] = true; });
+
+    /* 旧键 k 该落到哪个新键：留下来的组按 map 搬；被删的组只在「号码被别人占了」时归档 */
+    function pick(k) {
+      if (map[k] != null) return String(map[k]);
+      if (targets[k]) return '~' + k;
+      return k;
+    }
+
+    (S.lessons || []).forEach(function (l) {
+      if (l.classId !== cls.id) return;
+      ['scores', 'leaderScores'].forEach(function (field) {
+        var src = l[field];
+        if (!src) return;
+        var out = {};
+        Object.keys(src).forEach(function (k) {
+          var target = pick(k);
+          if (out[target] != null) {          // 理论上不会撞（map 一一对应）；真撞了就归档，绝不覆盖
+            parked++;
+            target = '~' + k + '_' + Object.keys(out).length;
+          }
+          out[target] = src[k];
+          if (target === k) return;
+          if (target.charAt(0) === '~') parked++; else moved++;
+        });
+        l[field] = out;
+      });
+      /* 组长评分表的元数据键是「组号|成员键|列」，跟着组号一起改前缀 */
+      if (l.peerMeta) {
+        var pm = {};
+        Object.keys(l.peerMeta).forEach(function (mk) {
+          var p = mk.split('|');
+          pm[pick(p[0]) + '|' + p[1] + '|' + p[2]] = l.peerMeta[mk];
+        });
+        l.peerMeta = pm;
+      }
+      /* 值日组同样按组号记：组号重排后要跟着组走，被删掉的空组从值日里去掉 */
+      var dgs = Array.isArray(l.dutyGroups) ? l.dutyGroups : (l.dutyGroup ? [Number(l.dutyGroup)] : []);
+      if (dgs.length) {
+        var nd = [];
+        dgs.forEach(function (n) {
+          var t = map[String(Number(n) || 0)];
+          if (t == null) return;
+          if (nd.indexOf(t) < 0) nd.push(t);
+        });
+        l.dutyGroups = nd;
+        l.dutyGroup = nd.length ? nd[0] : null;
+      }
+    });
+    return { moved: moved, parked: parked };
+  }
+
+  /** 压缩/删除的统一内核：keep 是「要留下的组」（已按旧组号升序），dropCount 是删掉的组数。
+      顺序严格固定，一步都不能换：
+      ① scoreLayoutSnapshot —— 拍下「旧组号 → 旧组内顺序是谁」，realign 靠它认人；
+      ② gbSnapshot + remapScoreRows + 重排组号 —— 动结构，把按组号存的分行一起搬走；
+      ③ realignPersonalScores / realignLeaderScores —— 按学生身份把分写回到人现在的位置。
+      第 ① 步的表是按旧组号记的，重排后要用 snapNew 翻成「新组号 → 旧组内顺序」再交给 realign，
+      否则 realign 会拿新组号去查旧表，一个人都认不出来。 */
+  function applyCompress(cls, keep, dropCount, label) {
+    var snapOld = scoreLayoutSnapshot(cls);
+    var map = {}, dup = false;
+    keep.forEach(function (g, i) {
+      var k = String(Number(g.no) || 0);
+      if (map[k] != null) { dup = true; return; }   // 历史数据里出现过两组同号：宁可不搬行，也不搬错
+      map[k] = i + 1;
+    });
+    var snapNew = { layout: {}, keys: {} };
+    keep.forEach(function (g, i) {
+      var k = String(Number(g.no) || 0);
+      snapNew.layout[i + 1] = (snapOld.layout || {})[k] || [];
+      snapNew.keys[i + 1] = (snapOld.keys || {})[k] || [];
+    });
+
+    gbSnapshot(cls, label);                                              // ① 快照（结构 + 全部课次分数）
+    var rows = dup ? { moved: 0, parked: 0 } : remapScoreRows(cls, map); // ② 行号跟着组走
+    cls.groups = keep;
+    keep.forEach(function (g, i) { g.no = i + 1; });                     // 组号连续：1,2,…,N
+    var unmatched = realignPersonalScores(cls, snapNew);                 // ③ 按身份写回
+    var leader = realignLeaderScores(cls, snapNew);
+    /* 组号整体变了：正在开放的互评要把新组结构重发一遍，否则学生端还按旧组号收分 */
+    peerSyncGroups(cls, true);
+
+    addOperationLog('分组', cls.name + ' · ' + label + '：删掉 ' + dropCount + ' 个空组，剩 ' +
+      keep.length + ' 组重排为 1–' + keep.length +
+      (rows.moved ? '，' + rows.moved + ' 行小组分跟着组号搬了家' : '') +
+      (rows.parked ? '，' + rows.parked + ' 行历史分归档（界面不再显示，数据仍在）' : '') +
+      (dup ? '，组号有重复，按组号存的分行没有搬动' : '') +
+      (unmatched ? '；' + unmatched + ' 条个人扣分没对上人，留在原处未清零' : ''));
+    return { groups: keep.length, removed: dropCount, unmatched: unmatched, leader: leader, rows: rows, dup: dup };
+  }
+
+  /** 清掉所有一个人都没有的组，剩下的组按组号升序重排成 1..N（连续无空号）。
+      没有空组就什么都不做：不拍快照、不记日志，直接返回 false。 */
+  function compressEmptyGroups(cls, label) {
+    if (!cls) return false;
+    var gs = cls.groups || [];
+    var empties = gs.filter(function (g) { return memberCount(g) === 0; });
+    if (!empties.length) return false;
+    var keep = sortGroupsByNo(gs.filter(function (g) { return memberCount(g) > 0; }));
+    if (!keep.length) return false;      // 一个组都不剩就别动：这种情况留给老师自己看
+    return applyCompress(cls, keep, empties.length, label || '压缩空组并重排组号');
+  }
+
+  /** 删掉指定的一个空组，剩下的组照常重排 1..N。有人的组一律不删。 */
+  function deleteOneGroup(cls, g) {
+    if (!cls || !g || memberCount(g) > 0) return false;
+    var keep = sortGroupsByNo((cls.groups || []).filter(function (x) { return x !== g; }));
+    if (!keep.length) return false;
+    return applyCompress(cls, keep, 1, '删除空的第 ' + g.no + ' 组');
+  }
+
+  /** 组数改完以后如果冒出一堆空组，提示去压缩（不然首页还是「一堆空占位」） */
+  function emptyGroupsHint(cls) {
+    var n = (cls.groups || []).filter(function (g) { return memberCount(g) === 0; }).length;
+    return n ? '；其中有 ' + n + ' 个空组，点「压缩空组并重排组号」清理' : '';
+  }
+
+  /** 单组上限 ±1：只改这一组的特许上限（g.cap），不动全班默认，也不删人。
+      用户原话：「没法只给某一个组加人数上限」。 */
+  function gbCapStep(cls, gi, dir) {
+    var g = (cls.groups || [])[gi];
+    if (!g) return false;
+    var base = classGroupLimit(cls) || GROUP_CAP;    // 全班默认上限
+    var cur = groupTargetCap(cls, g);
+    var next = cur + (dir > 0 ? 1 : -1);
+    if (dir < 0 && cur <= base) {
+      flash(!classGroupLimit(cls)
+        ? '这个班还没定过「每组上限」：先在页面上填一个数（比如 6），再来单独调某一组'
+        : '第 ' + g.no + ' 组已经是全班默认上限 ' + base + ' 人；要全班一起改就改上面的「每组上限」');
+      return false;
+    }
+    if (next > 40) { flash('每组最多 40 人'); return false; }
+    if (next < 2) { flash('每组最少 2 人'); return false; }
+    gbSnapshot(cls, '第 ' + g.no + ' 组人数上限改为 ' + next + ' 人');
+    if (next <= base) delete g.cap;                  // 减回全班默认：把本组特许去掉
+    else g.cap = next;                               // 只影响这一组
+    var cap = groupTargetCap(cls, g), n = memberCount(g), over = Math.max(0, n - cap);
+    addOperationLog('分组', cls.name + ' · 第' + g.no + '组人数上限改为 ' + cap + ' 人（只改本组）' +
+      (over ? '，超出 ' + over + ' 人只标红不移出' : ''));
+    gbCommit(cls, '第 ' + g.no + ' 组上限改为 ' + cap + ' 人' +
+      (over ? '：超出 ' + over + ' 人只标红，不会把人移出' : '') +
+      (cap !== next ? '（本组现在 ' + n + ' 人，先移出人才会真正低于上限）' : ''));
+    return true;
+  }
+
+  /** 空组卡片上的「删除本组」：有历史分的先说清归档，删完重排组号、分数跟着人走。 */
+  function gbDeleteGroup(cls, gi) {
+    var g = (cls.groups || [])[gi];
+    if (!g) return false;
+    var n = memberCount(g);
+    if (n > 0) { flash('第 ' + g.no + ' 组还有 ' + n + ' 人，先把人拖出去再删组'); return false; }
+    var hist = groupHasHistory(cls, g.no);
+    askConfirm('删除第 ' + g.no + ' 组？\n\n' +
+      (hist
+        ? '· 这一组在历史课次里留过分数：删除后这些分数随组一起归档（界面不再显示，数据仍留在存档里）\n'
+        : '· 这一组现在一个人都没有，删掉不影响任何人\n') +
+      '· 剩下的组按组号重排成 1、2、3…（连续没有空号）\n' +
+      '· 记过的个人扣分、个人项目分按学生身份跟着人走，不会丢\n\n' +
+      '想反悔可以点看板上的「撤回上一次分组」。',
+      { title: '删除空组', okText: '删除本组', cancelText: '取消' })
+      .then(function (ok) {
+        if (!ok) return;
+        var info = deleteOneGroup(cls, g);
+        if (!info) { flash('没能删：这一组现在还有人，或者只剩这一组了'); return; }
+        gbCommit(cls, '已删除第 ' + g.no + ' 组，剩 ' + info.groups + ' 组（组号已重排 1–' + info.groups + '）' +
+          (hist ? '；历史分已归档' : ''));
+        reportScoreMigration({ personal: info.unmatched, leader: info.leader });
+        renderGroupSetup();
+        renderPoolBanner(cls);
+      });
+    return true;
+  }
+
+  /** 看板顶部那颗常驻的「✓ 确认分组」：
+      有已选座待确认的人 → 走「按选座确认分组」；没有 → 直接清空组、重排组号。 */
+  function gbConfirmGroups(cls) {
+    if (!cls) return;
+    var pend = (gbRows || []).filter(function (x) { return x.g === null && !!x.table; });
+    if (pend.length) { tmApplySeating(); return; }
+    var empties = (cls.groups || []).filter(function (g) { return memberCount(g) === 0; });
+    if (!empties.length) {
+      flash('现在没有空组，组号已经是连续的 1–' + groupCountOf(cls) + '，不用再整理');
+      return;
+    }
+    askConfirm('确认分组？\n\n' +
+      '· 有 ' + empties.length + ' 个组一个人都没有，会先删掉\n' +
+      '· 剩下的组按组号重排成 1、2、3…（连续没有空号）\n' +
+      '· 记过的分按学生身份跟着人走，不会丢；小组四列分跟着它那一组一起搬家\n\n' +
+      '想反悔可以点看板上的「撤回上一次分组」。',
+      { title: '确认分组', okText: '确认分组', cancelText: '取消' })
+      .then(function (ok) {
+        if (!ok) return;
+        var info = compressEmptyGroups(cls, '手动确认分组');
+        if (!info) { flash('没有可清理的空组'); return; }
+        gbCommit(cls, '已确认分组：清掉 ' + info.removed + ' 个空组，剩 ' + info.groups + ' 组');
+        reportScoreMigration({ personal: info.unmatched, leader: info.leader });
+        renderGroupSetup();
+        renderPoolBanner(cls);
+      });
+  }
+
   function gbRowByKey(key) {
     var rows = gbRows || [];
     for (var i = 0; i < rows.length; i++) {
@@ -3005,31 +3270,73 @@ function restoreDroppedToHome(cls) {
       : '已选中未分组的「' + ((gbRowByKey(src.key) || {}).name || '') + '」：点任意一组就加进去');
   }
 
-  /* ---- 拖动：pointer 事件，鼠标和触摸同一套（HTML5 draggable 在手机上不工作） ---- */
+  /* ---- 拖动：pointer 事件，鼠标和触摸同一套（HTML5 draggable 在手机上不工作） ----
+     2026-11-11 提速（用户：「你这个分组拖动还卡卡的」）。原来每个 pointermove 都当场干三件事：
+     写 ghost 的 transform、document.elementFromPoint、$$('.gb-over') 全板扫一遍清高亮。
+     鼠标一快，一帧里能触发好几次，主线程被这些同步 DOM 操作塞满，卡片就掉队。
+     现在改成「只认最后一帧」：
+       · pointermove 只记坐标（px/py），多余的 move 直接被下一帧覆盖，不排队；
+       · requestAnimationFrame 里才写一次 transform + 做一次命中检测 + 换高亮；
+       · 命中结果连同矩形一起缓存 —— 指针还在上一张卡的范围里，就跳过 elementFromPoint；
+       · gb-over 高亮只在落点变了的时候才动 class（gbMark 里比对 gbMarkLast）；
+       · ghost 只写 transform（translate3d 走合成层，不重排），起手量一次 getBoundingClientRect 就够；
+       · 拖动期间 renderGroupBoard 有 gbDrag.active 早退（见上面），整板不会重画。 */
+
+  var gbRaf = 0;             // 排着的动画帧 id，0 = 当前没有待执行的帧
+  var gbMarkLast = null;     // 上一帧高亮的落点元素，用来「没变就不碰 DOM」
 
   function gbGhostOf(chip, x, y) {
-    var r = chip.getBoundingClientRect();
+    var r = chip.getBoundingClientRect();      // 整场拖动只量这一次，之后全靠缓存的手心偏移
     var el = chip.cloneNode(true);
     el.classList.add('gb-ghost');
     el.classList.remove('on');
     var xb = el.querySelector('.gb-x');
     if (xb) xb.parentNode.removeChild(xb);
     el.style.width = r.width + 'px';
-    el.style.left = '0px'; el.style.top = '0px';
+    /* left/top 由 .gb-ghost 的 CSS 固定在 0,0，这里只写 transform，避免每帧触发布局 */
     el.style.transform = 'translate3d(' + r.left + 'px,' + r.top + 'px,0) rotate(-1.5deg) scale(1.03)';
     document.body.appendChild(el);
     return { el: el, ox: x - r.left, oy: y - r.top };
   }
 
+  /* 命中检测（带缓存）：指针还在上一帧命中的那张卡矩形里，就不再调 elementFromPoint。
+     缓存矩形向外放 2px —— 命中后 .gb-over 会把整张卡抬起 2px，矩形会有细微位移。 */
   function gbDropOn(x, y) {
+    var d = gbDrag, hit = d && d.hit;
+    if (hit && hit.el && hit.el.isConnected !== false &&
+        x >= hit.left - 2 && x <= hit.right + 2 && y >= hit.top - 2 && y <= hit.bottom + 2) {
+      return hit.el;                            // 还在同一张卡上，省掉这次调用
+    }
     var el = document.elementFromPoint(x, y);
-    if (!el || !el.closest) return null;
-    return el.closest('.gb-group') || el.closest('.gb-pending');
+    var t = el && el.closest ? (el.closest('.gb-group') || el.closest('.gb-pending')) : null;
+    if (d) {
+      if (t) {
+        var r = t.getBoundingClientRect();      // 只在「换了一张卡」时量一次
+        d.hit = { el: t, left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+      } else {
+        d.hit = null;
+      }
+    }
+    return t;
   }
 
+  /* 高亮切换：只有落点真的变了才碰 classList（原来每次 move 都全板 querySelectorAll） */
   function gbMark(el) {
-    $$('.gb-over').forEach(function (n) { n.classList.remove('gb-over'); });
+    if (el === gbMarkLast) return;
+    if (gbMarkLast) gbMarkLast.classList.remove('gb-over');
+    gbMarkLast = el;
     if (el) el.classList.add('gb-over');
+  }
+
+  /* 一帧只跑一次：先把 ghost 挪到位，再做命中和高亮 */
+  function gbFrame() {
+    gbRaf = 0;
+    var d = gbDrag;
+    if (!d || !d.active || !d.ghost) return;
+    var x = d.px, y = d.py;
+    d.ghost.el.style.transform = 'translate3d(' + (x - d.ghost.ox) + 'px,' + (y - d.ghost.oy) + 'px,0) rotate(-1.5deg) scale(1.03)';
+    d.target = gbDropOn(x, y);
+    gbMark(d.target);
   }
 
   (function () {
@@ -3043,7 +3350,9 @@ function restoreDroppedToHome(cls) {
       if (e.target.closest('.gb-x')) return;                 // × 有它自己的点击
       var src = gbChipSource(chip);
       if (!src) return;
-      gbDrag = { chip: chip, src: src, x0: e.clientX, y0: e.clientY, id: e.pointerId, active: false, target: null, ghost: null };
+      gbDrag = { chip: chip, src: src, x0: e.clientX, y0: e.clientY, id: e.pointerId, active: false,
+                 target: null, ghost: null, px: e.clientX, py: e.clientY, hit: null };
+      gbMarkLast = null;                                     // 新的这一下从头开始记高亮
     });
 
     window.addEventListener('pointermove', function (e) {
@@ -3062,15 +3371,21 @@ function restoreDroppedToHome(cls) {
         $$('.gb-group.is-target').forEach(function (n) { n.classList.remove('is-target'); });
       }
       if (e.cancelable) e.preventDefault();
-      var g = gbDrag.ghost;
-      g.el.style.transform = 'translate3d(' + (e.clientX - g.ox) + 'px,' + (e.clientY - g.oy) + 'px,0) rotate(-1.5deg) scale(1.03)';
-      gbDrag.target = gbDropOn(e.clientX, e.clientY);
-      gbMark(gbDrag.target);
+      /* 只记最新坐标；同一帧里后续的 move 覆盖它，不再各干一遍 DOM */
+      gbDrag.px = e.clientX; gbDrag.py = e.clientY;
+      if (!gbRaf) gbRaf = requestAnimationFrame(gbFrame);
     }, { passive: false });
 
     function endDrag(e, cancelled) {
       if (!gbDrag || e.pointerId !== gbDrag.id) return;
-      var d = gbDrag; gbDrag = null;
+      var d = gbDrag;
+      if (gbRaf) { cancelAnimationFrame(gbRaf); gbRaf = 0; }
+      /* 抬手这一下还没跑到帧上：用抬起时的坐标补最后一帧，落点才是老师真正松手的位置 */
+      if (d.active && d.ghost && !cancelled) {
+        d.px = e.clientX; d.py = e.clientY;
+        gbFrame();
+      }
+      gbDrag = null;
       if (d.ghost && d.ghost.el.parentNode) d.ghost.el.parentNode.removeChild(d.ghost.el);
       document.body.classList.remove('gb-dragging');
       d.chip.classList.remove('gb-lift');
@@ -3097,6 +3412,16 @@ function restoreDroppedToHome(cls) {
       if (gbSwallowClick) return;
       var cls = curClass();
       if (!cls) return;
+      /* 顶部常驻的「✓ 确认分组」 */
+      if (e.target.closest('[data-confirm-group]')) { gbConfirmGroups(cls); return; }
+      /* 组卡片头部的单组上限 ±（只改这一组） */
+      var capUp = e.target.closest('[data-gcap-up]');
+      if (capUp) { gbCapStep(cls, +capUp.dataset.gcapUp, 1); return; }
+      var capDown = e.target.closest('[data-gcap-down]');
+      if (capDown) { gbCapStep(cls, +capDown.dataset.gcapDown, -1); return; }
+      /* 空组卡片上的「删除本组」 */
+      var delG = e.target.closest('[data-gdel]');
+      if (delG) { gbDeleteGroup(cls, +delG.dataset.gdel); return; }
       /* 看板顶部那条「撤销」：拖完人以后一键退回（结构和分数一起还原） */
       if (e.target.closest('[data-gb-undo]')) { gbUndoLast(); return; }
       /* 「撤回上一次分组」：整份快照还原（连成员顺序和个人扣分下标一起回去） */
@@ -3366,6 +3691,10 @@ function restoreDroppedToHome(cls) {
     var open = $('#btnTeamOpen'), lock = $('#btnTeamLock'),
         fin = $('#btnTeamFinish'), close = $('#btnTeamClose'), link = $('#teamLink');
     var st = room ? room.status : 'none';
+    /* 2026-11-11 锁定分组：锁上以后不给开新房间（开了就等于放学生进来换座） */
+    var lockNow = !!(curClass() && curClass().groupLocked);
+    open.disabled = lockNow;
+    open.title = lockNow ? '分组已锁定：先点上面的「🔓 解锁分组」' : '';
     /* 云端 jf_team_room 只按 created_at 取最新一间，房间「结束」后也照样返回它。
        所以这里不能只判断「有没有房间」：不然老师点一次「结束」，这个班四个按钮全被藏光，
        再也点不到「开放组队」，表现为「确认分组后就打不开分组了」。房间结束=这一轮收工，
@@ -3496,6 +3825,7 @@ function restoreDroppedToHome(cls) {
   $('#btnTeamOpen').addEventListener('click', function () {
     if (tmBusy) return;
     var cls = curClass();
+    if (cls && cls.groupLocked) { flash('分组已锁定：先点「🔓 解锁分组」再开放组队'); return; }
     if (!cls || !tmOn()) { alert('先登录再来开放组队。'); return; }
     if (!tmClassId(cls)) { alert('这个班还没对应首页班级，先在「数据与备份」页对应。'); return; }
     /* 2026-11-08：桌数 / 每桌人数不再偷偷用 10 / 6 兜底。用户说得很清楚：
@@ -3577,6 +3907,12 @@ function restoreDroppedToHome(cls) {
   $('#btnTeamLock').addEventListener('click', function () {
     if (!tmRoom || !tmRoom.room) return;
     var lock = tmRoom.status === 'open';
+    /* 分组锁定时不许「继续组队」：那等于绕过锁定直接把学生放回来换座 */
+    var cs = curClass();
+    if (!lock && cs && cs.groupLocked) {
+      flash('分组已锁定：先点「🔓 解锁分组」，再继续组队');
+      return;
+    }
     tmBusy = true;
     CLOUD.rpc('jf_team_lock', { p_room: Number(tmRoom.room), p_locked: lock })
       .then(function () {
@@ -3703,10 +4039,16 @@ function restoreDroppedToHome(cls) {
       addOperationLog('分组', cls.name + ' · 按选座确认分组：第 ' + tables.join('、') + ' 桌 ' + filled +
         ' 人写成 ' + tables.length + ' 组' + (made ? '（新建 ' + made + ' 组）' : '') +
         (toPending ? '，' + toPending + ' 人回到未分组' : ''));
+      /* 2026-11-11：按桌号重建完顺手清掉空组、把组号重排成 1..N —— 否则首页一直挂着
+         「第 10–13 组全空」的占位（老师反馈的老问题）。compressEmptyGroups 内部自带
+         「快照 → 动结构 → 按身份 realign」，上面那份 snap 已经写回过了，这里再走一遍是幂等的。
+         必须放在 save() 之前，不然压缩结果要等下一次手动保存才落地。 */
+      var squeezed = compressEmptyGroups(cls, '按选座确认分组后清理空组');
       save(); renderPool(); renderScore(); renderPoolBanner(cls);
 
       var rest = pendingList(cls).length;
       flash('已按选座写成 ' + tables.length + ' 组（' + filled + ' 人）' +
+        (squeezed ? '，清掉 ' + squeezed.removed + ' 个空组、组号已重排' : '') +
         (rest ? '，还剩 ' + rest + ' 人未分组，拖进组就行' : '，全班都分好了'));
       reportScoreMigration({ personal: unmatched, leader: leaderOut });
       reportGroupChange(cls, beforeSeat, '按选座确认分组');
@@ -3738,6 +4080,8 @@ function restoreDroppedToHome(cls) {
   $('#teamBoard').addEventListener('click', function (e) {
     var b = e.target.closest ? e.target.closest('[data-unseat]') : null;
     if (!b || !tmRoom || !tmRoom.room || tmBusy) return;
+    var cs = curClass();
+    if (cs && cs.groupLocked) { flash('分组已锁定：先点「🔓 解锁分组」才能改座'); return; }
     var sid = Number(b.dataset.unseat);
     if (!sid) return;
     tmBusy = true;
@@ -3749,6 +4093,13 @@ function restoreDroppedToHome(cls) {
   $('#teamBoard').addEventListener('change', function (e) {
     var sel = e.target.closest ? e.target.closest('select[data-seat]') : null;
     if (!sel || !sel.value || !tmRoom || !tmRoom.room || tmBusy) return;
+    var cs2 = curClass();
+    if (cs2 && cs2.groupLocked) {
+      tmSig = '';      /* 清掉内容指纹，逼 tmPaint 真的重画一遍，把下拉框刷回原值 */
+      tmPaint();
+      flash('分组已锁定：先点「🔓 解锁分组」才能改座');
+      return;
+    }
     var sid = Number(sel.dataset.seat), table = Number(sel.value);
     if (!sid || !table) return;
     tmBusy = true;
@@ -4165,10 +4516,24 @@ function restoreDroppedToHome(cls) {
     if (tIn) tIn.placeholder = lastTables ? '上次 ' + lastTables + ' 桌' : '先填桌数，例如 8';
     if (sIn) sIn.placeholder = cap ? '上次每桌 ' + cap + ' 人' : '先填人数，例如 6';
 
-    /* 圆桌数和每桌人数都填了才让点「开放组队」（房间已经开着时由 tmButtons 管） */
+    /* 圆桌数和每桌人数都填了才让点「开放组队」（房间已经开着时由 tmButtons 管）。
+       分组锁定时一律不让开：锁定的意思就是「学生别再动了」，新开一场组队等于放学生进来换座。 */
     var openBtn = $('#btnTeamOpen');
     if (openBtn && !(tmRoom && tmRoom.room && tmRoom.status !== 'closed')) {
-      openBtn.disabled = !(Number(tIn && tIn.value) >= 1 && clampLimit(sIn && sIn.value));
+      openBtn.disabled = !!cls.groupLocked ||
+        !(Number(tIn && tIn.value) >= 1 && clampLimit(sIn && sIn.value));
+      openBtn.title = cls.groupLocked ? '分组已锁定：先点上面的「🔓 解锁分组」' : '';
+    }
+
+    /* 锁定分组开关（2026-11-11）：老师怕学生随时能换组，锁上以后学生端就不能换组/换座。
+       按钮文案 + 高亮跟着 cls.groupLocked 走；真正拦住学生的是「顺手把云端组队房间锁掉」。 */
+    var lockBtn = $('#btnGroupLock');
+    if (lockBtn) {
+      lockBtn.textContent = cls.groupLocked ? '🔓 解锁分组' : '🔒 锁定分组';
+      lockBtn.className = 'btn small ' + (cls.groupLocked ? 'primary' : 'ghost');
+      lockBtn.title = cls.groupLocked
+        ? '现在学生不能换组/换座；点这里解锁'
+        : '锁上以后学生不能再换组/换座（已开着的组队房间也会一起停），你仍可以拖动调整';
     }
     var seatState = $('#gpSeatState');
     if (seatState) {
@@ -4195,7 +4560,7 @@ function restoreDroppedToHome(cls) {
         gs.push({ id: uid('g'), no: maxNo, members: [] });
       }
       addOperationLog('分组', cls.name + ' · 组数改为 ' + want + ' 组（新增 ' + add + ' 个空组）');
-      gbCommit(cls, '现在是 ' + want + ' 个组');
+      gbCommit(cls, '现在是 ' + want + ' 个组' + emptyGroupsHint(cls));
       return true;
     }
 
@@ -4216,7 +4581,7 @@ function restoreDroppedToHome(cls) {
     });
     addOperationLog('分组', cls.name + ' · 组数改为 ' + (cls.groups.length) + ' 组（删掉 ' + cut.length + ' 个空组）');
     var left = want - cls.groups.length;
-    gbCommit(cls, '现在是 ' + cls.groups.length + ' 个组' +
+    gbCommit(cls, '现在是 ' + cls.groups.length + ' 个组' + emptyGroupsHint(cls) +
       (left ? '：还有 ' + left + ' 个组里有人，减不掉，先把人拖出来' : ''));
     return true;
   }
@@ -4233,6 +4598,37 @@ function restoreDroppedToHome(cls) {
     addOperationLog('分组', cls.name + ' · 每组上限改为 ' + cap + ' 人' + (over ? '（' + over + ' 人超出，标红）' : ''));
     gbCommit(cls, '每组上限改为 ' + cap + ' 人' + (over ? '，有 ' + over + ' 人超出（标红，未移出）' : ''));
     return true;
+  }
+
+  /** 锁定分组 / 解锁（2026-11-11）：老师原话「担心学生随时能换组没法管理」。
+      锁上以后：
+      · 分页上的「开放组队」直接禁用（不开新房间，学生就没地方换座）；
+      · 已经开着的组队房间顺手锁掉 —— 真正拦住学生的是云端房间状态，
+        team.js 只在 status==='open' 时允许点桌（见 小组加分/team.js:186、:326、:344）；
+      · 看板顶部挂一个「🔒 分组已锁定」徽标。
+      老师自己不受影响：拖拽换组、加人、设例外照旧能用（锁是给学生看的）。 */
+  function toggleGroupLock(cls) {
+    if (!cls) return;
+    var on = !cls.groupLocked;
+    function apply() {
+      cls.groupLocked = on;
+      addOperationLog('分组', cls.name + ' · ' + (on ? '锁定分组（学生不能再换组/换座）' : '解除分组锁定'));
+      if (on && tmRoom && tmRoom.room && tmRoom.status === 'open' && CLOUD && CLOUD.rpc) {
+        CLOUD.rpc('jf_team_lock', { p_room: Number(tmRoom.room), p_locked: true })
+          .then(function () { return tmPull(); })
+          .catch(function () { flash('本机已锁定，但云端组队房间没锁上：请点「停止组队」再确认一次'); });
+      }
+      save();
+      renderPool();
+      renderGroupSetup();
+      flash(on ? '分组已锁定：学生不能再换组/换座；你要调整随时可以点「🔓 解锁分组」'
+               : '已解锁：学生可以继续换组/换座');
+    }
+    if (on) { apply(); return; }
+    /* 解锁等于重新放开给学生，先问一句 */
+    askConfirm('解锁分组？\n\n解锁后学生（以及已开着的组队房间）又能自己换组/换座了。',
+      { title: '解锁分组', okText: '解锁', cancelText: '取消' })
+      .then(function (ok) { if (ok) apply(); });
   }
 
   /** 展开最底下「学生自助选桌」那一块（原来弹窗里「③ 按选座确认」的位置） */
@@ -4311,6 +4707,41 @@ function restoreDroppedToHome(cls) {
       if (e.key === 'Enter') { e.preventDefault(); this.blur(); }
     });
     $('#btnGroupFill').addEventListener('click', runFillExisting);
+
+    /* 「压缩空组并重排组号」（2026-11-11）：随时手动触发，先确认再动结构。
+       和「✓ 确认分组」是同一套内核，只是这里不做选座确认，直接整理组号。 */
+    if ($('#btnGroupCompress')) {
+      $('#btnGroupCompress').addEventListener('click', function () {
+        var cls = curClass();
+        if (!cls) return;
+        var empties = (cls.groups || []).filter(function (g) { return memberCount(g) === 0; });
+        if (!empties.length) { flash('没有空组，组号已经是连续的 ' + groupCountOf(cls) + ' 组'); return; }
+        var hist = empties.filter(function (g) { return groupHasHistory(cls, g.no); }).length;
+        askConfirm('压缩空组并重排组号？\n\n' +
+          '· 删掉 ' + empties.length + ' 个一个人都没有的组\n' +
+          (hist ? '· 其中 ' + hist + ' 个组在历史课次里留过分数，会随组一起归档（界面不再显示，数据仍在存档里）\n' : '') +
+          '· 剩下的组按组号重排成 1、2、3…（连续没有空号）\n' +
+          '· 个人扣分 / 个人项目分按学生身份跟着人走，小组四列分跟着它那一组一起搬家\n\n' +
+          '想反悔可以点看板上的「撤回上一次分组」。',
+          { title: '压缩空组', okText: '压缩并重排', cancelText: '取消' })
+          .then(function (ok) {
+            if (!ok) return;
+            var info = compressEmptyGroups(cls, '压缩空组并重排组号');
+            if (!info) { flash('没有可清理的空组'); return; }
+            gbCommit(cls, '已清掉 ' + info.removed + ' 个空组，剩 ' + info.groups +
+              ' 组（组号已重排 1–' + info.groups + '）');
+            reportScoreMigration({ personal: info.unmatched, leader: info.leader });
+            renderPoolBanner(cls);
+          });
+      });
+    }
+    /* 「🔒 锁定分组 / 解锁」 */
+    if ($('#btnGroupLock')) {
+      $('#btnGroupLock').addEventListener('click', function () {
+        var cls = curClass();
+        if (cls) toggleGroupLock(cls);
+      });
+    }
     ['#teamTables', '#teamSize'].forEach(function (sel) {
       var el = $(sel);
       if (el) el.addEventListener('input', renderGroupSetup);
