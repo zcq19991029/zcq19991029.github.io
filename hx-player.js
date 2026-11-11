@@ -161,6 +161,12 @@
   }
   function isStaff(m) { return !!(m && (m.teacher || m.admin || m.dev)); }
   function isAdmin(m) { return !!(m && (m.admin || m.dev)); }
+  /* 2026-11-11 音乐工具权限收敛：只对管理员 / 开发者开放。
+     为什么：音频存 Supabase Storage，免费版 5GB/月出口流量，默认 BGM 一首 40MB，
+     每播一次就要从 Storage 拉一整份 —— 全班一起听会把额度吃光、连带整站 API 异常。
+     入口在总入口首页卡和 /音乐/ 页都关了，服务端写操作也锁成管理员（见
+     音乐/supabase/2026-11-11-音乐限管理员.sql）。这里只提供判定，不改任何播放行为。 */
+  function allowed() { return cloudWho().then(function (m) { return isAdmin(m); }); }
   /* 我名下的班级（教师发布到班级时选） */
   function cloudClasses() {
     if (!cloudOn()) return Promise.resolve([]);
@@ -1093,6 +1099,8 @@
     /* 云（2026-11-09）：登录后重拉歌单（默认 BGM/全员/班级/群体/自己的），换设备登进来就能看到 */
     cloud: cloudOn,
     cloudQuota: cloudQuota,
+    /* 2026-11-11 权限：who() 返回 hx_me，allowed() 返回「是不是管理员/开发者」（入口闸门用） */
+    who: cloudWho, allowed: allowed,
     refresh: function () { return loadList(); },
     /* 发布 / 撤回 / 默认 BGM（教师/管理员专用，见 hx_music_save/publish_default/del） */
     publish: function (o) { return rpc('hx_music_save', o); },
