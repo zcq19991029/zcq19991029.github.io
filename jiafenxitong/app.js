@@ -3603,7 +3603,7 @@ function restoreDroppedToHome(cls) {
       if (t) (byTable[t] = byTable[t] || []).push(s);
     });
     var tables = Object.keys(byTable).map(Number).sort(function (a, b) { return a - b; });
-    if (!tables.length) { alert('还没有学生选桌。'); return; }
+    if (!tables.length) { flash('还没有学生选桌（选座数据里没有有效的桌号）。'); return; }
 
     var seatNo = Object.create(null), seatName = Object.create(null), seatByName = Object.create(null);
     seats.forEach(function (s) {
