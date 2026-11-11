@@ -15,8 +15,15 @@
    wire_task_scores()，写 blob 的事全走前端自己的保存链路（本机缓存/云端/冲突检测都不绕开）。
 
    ── 三条设计约定（改动前先读）──
-   ① **只入账已结束（closed）的任务**。进行中名次还在实时变（前十名池会被人挤掉），
-      这时候写分等于给错分；进行中只在大屏和横幅上展示，用来督促。
+   ① **进行中也入账（2026-11-11 用户拍板改的，原先是「只入账已结束」）**。
+      用户原话：「按理说应该显示 20% 为什么课堂加分任务没被拿过来同步计算呢 没结束不算？
+      我必须展示实时动态 给学生及时反馈」。
+      现在 open（进行中）和 closed（已结束）走**同一段入账代码**：rate × 100% 直接落进这一列，
+      未完成写 0，所以结束那一刻用冻结值覆盖同一格时口径完全一样 —— 进行中期间入的账不会被冲掉，
+      也不会出现「结束前后两套算法」。任务进行中名次被人挤掉 → 完成率 100%→80% 当场跟着降，
+      这正是用户要的「动态变化」。
+      —— 已结束必须用冻结值（hx_wire_task_run 里落库的 place/rate/score）：给出去的平时分
+         不能因为以后有人刷新纪录又变。冻结那一句在 wire_task_close 里，别删。
    ② **收敛式合并**：每次 sync 都重算整张目标矩阵再逐格比对，不靠「签名没变就跳过」。
       因为换组逻辑（takeLeaderOf / putLeaderOf / realignLeaderScores）会把学生整条记录
       搬到新组号下、新进组的学生那格是空的；只做一次性写入的话，这些格子永远是 null，
@@ -31,7 +38,7 @@
       多的收成「还有 N 人」；没完成的人只报人数+前 8 个名字，不铺满。
       rate 直接用服务端算的（前 10 名 100%、11–20 名 80%、其余 70%），不在这里自己算。
    ② 有 open 任务时拉取节流 45s → 10s（LIVE_THROTTLE），靠 app.js 切到「记分」时调 maybeSync 来触发，
-      不另开 setInterval。**拉取只读**：plan() 只处理 closed，所以拉得再勤也不会写数据/触发保存。
+      不另开 setInterval。
    ③ 记上一轮的 rate，本轮变小 = 被超了，变大 = 反超，各说一句话（第一次拉取不报）。
    ========================================================================== */
 (function (root) {
@@ -206,10 +213,17 @@
 
     tasks.forEach(function (task) {
       if (!task) return;
-      if (task.status !== 'closed') {          // 进行中的只用于横幅展示，绝不计分
-        if (task.status === 'open') out.live.push(task);
-        return;
-      }
+      /* 2026-11-11：进行中（open）也入账，不再等结束。
+         用户原话「我没结束不算？我必须展示实时动态 给学生及时反馈」——学生做到哪，
+         这一列就实时是多少（rate × 100%），本节完成率和平时分跟着一起动。
+         口径和 closed 完全一致（未完成 = 0），所以结束时 plan 用冻结值覆盖同一格，不会出现
+         「进行中的分被冲掉」或「两套算法打架」。void（作废）= 一分不写，也一条不显示。 */
+      var live = task.status === 'open';
+      if (!live && task.status !== 'closed') return;
+      if (live) out.live.push(task);
+      /* 进行中的格子是任务自己在变（被超了 100%→80%），不是老师手改的，
+         所以**不写「5 → 4」这种审计日志**，否则一节 45 人课能把操作日志刷爆。 */
+      var keepLog = !!opts.log && !live;
       /* 班级：接线任务挂在 hx_classes 上，小组加分这边靠 cls.hxClassId 认亲 */
       var cls = null;
       state.classes.forEach(function (c) {
@@ -293,7 +307,7 @@
             out.changed = true;
             /* 老师手改过的格子会被改回任务给的分：这是对的（任务是权威来源），
                但要让老师知道，别让他以为自己填的分「自己跳回去了」 */
-            if (old != null && Number(old) !== Number(value) && opts.log) {
+            if (old != null && Number(old) !== Number(value) && keepLog) {
               out.logs.push(cls.name + ' · 第' + lesson.seq + '次课 · ' + m.name + '「' + names[col] + '」' + num1(old) + ' → ' + num1(value));
             }
           }
@@ -321,11 +335,30 @@
     });
   }
 
+  /* 自动重画：进行中的任务现在会真改分数（以前只读），可能每 10 秒就有一格变化。
+     老师此刻也许正在输入框里填东西、或者刚点开课次下拉 —— 整块重画会把焦点/输入打断。
+     所以焦点在可编辑控件上时先记一笔，下一轮心跳（10 秒）再补画：
+     分已经写进数据并 save 了，只是界面晚一两秒变，绝不会丢分。 */
+  var needsRender = false;
+  function editableFocused() {
+    if (typeof document === 'undefined' || !document.activeElement) return false;
+    var el = document.activeElement;
+    var tag = String(el.tagName || '').toUpperCase();
+    return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable === true;
+  }
+  function flushRender() {
+    if (!needsRender) return;
+    if (!hooks || !hooks.rerender) { needsRender = false; return; }
+    if (editableFocused()) return;         // 老师在操作，下一轮再来
+    needsRender = false;
+    try { hooks.rerender(); } catch (e) { /* 重画失败不影响已经写好的分 */ }
+  }
+
   W.maybeSync = function (cls, force) {
     if (!hooks || !hooks.hasRpc || !hooks.hasRpc()) return Promise.resolve(null);
     var now = Date.now();
     var wait = hasLive(cls) ? LIVE_THROTTLE : THROTTLE;
-    if (!force && now - lastAt < wait) { W.renderBanner(cls); return Promise.resolve(null); }
+    if (!force && now - lastAt < wait) { flushRender(); W.renderBanner(cls); return Promise.resolve(null); }
     if (inflight) return inflight;
     lastAt = now;
     /* 只拉当前班（省流量）；没有 hxClassId 的本地班拉全部，plan 里会按班各自归位 */
@@ -369,8 +402,9 @@
         else if (!whyKey) lastWhy = '';
         if (res.changed) {
           hooks.save();
-          if (hooks.rerender) hooks.rerender();
+          needsRender = true;            // 真正变了才重画（稳态下 10 秒心跳一次都不会重画）
         }
+        flushRender();
         W.renderBanner(hooks.curClass ? hooks.curClass() : cls);
         return res;
       } catch (e2) {

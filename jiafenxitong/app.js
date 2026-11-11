@@ -4095,7 +4095,7 @@ function restoreDroppedToHome(cls) {
       '· 没坐人的桌（组）一律不动\n' +
       '· 记过的分按学生身份跟着人走（个人扣分不再清空）\n\n' +
       '确认前建议先到「数据与备份」下载一份备份。';
-    hxConfirm(dlgTxt, { title: '按选座确认分组', okText: '确认分组', cancelText: '取消' })
+    askConfirm(dlgTxt, { title: '按选座确认分组', okText: '确认分组', cancelText: '取消' })
       .then(function (ok) { if (ok) doSeatApply(); });
   }
 
