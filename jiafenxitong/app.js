@@ -25,6 +25,22 @@
     return Math.max(lo, Math.min(hi, v));
   }
 
+  /* 分组卡片配色（2026-11-10 用户定：同组同色 + 组内深浅轮换）。
+     色系 = 组号定（组号 mod 24 取色相，组1 蓝、组2 绿、组3 橙…24 色环轮换）；
+     组内深浅 = 组内第 i 个成员在同色相下取不同亮度（浅→深阶梯），
+     所以同一组的人看起来是「浅蓝 / 淡蓝 / 深蓝」一类的同色系不同深浅，一眼是同一伙人。
+     未分组的人不传（走毛玻璃半透明白，roster-board.css 里 .gb-pend-chip 单独处理）。
+     返回内联 style 的 --h/--s/--lb 三段，浅深色由 roster-board.css 里 .gb-av / .gb-chip 决定。 */
+  function gbTone(gno, idx) {
+    var n = Number(gno) || 1;
+    var slot = ((n - 1) * 7) % 24;                    // 黄金角跳步：相邻组色相差 7×15°=105°，一眼分得开
+    var h = slot * 15;                                 // 24 槽 × 15° = 360° 全色环
+    var k = idx % 6;                                   // 组内第 1~6 人循环
+    var sat = 58 + k * 6;                              // 58 → 88：越靠后颜色越浓
+    var lb = 90 - k * 4;                               // 90 → 70：越靠后底色越深
+    return '--h:' + h + ';--s:' + sat + '%;--lb:' + lb + '%';
+  }
+
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
@@ -2675,9 +2691,11 @@ function restoreDroppedToHome(cls) {
         var on = gbPick && gbPick.kind === 'member' && gbPick.gi === gi && gbPick.mi === mi;
         var isLead = isGroupLeader(g, m);
         var sub = m.sid ? String(m.sid) : (m.no == null ? '' : String(m.no));
+        var tone = gbTone(g.no, seen - 1);   // 同组同色，组内按顺序加深（第1人最浅）
         mem += '<div class="gb-chip' + (on ? ' on' : '') + (overLimit ? ' gb-over-limit' : '') +
           '" role="button" tabindex="0"' +
           ' data-gi="' + gi + '" data-mi="' + mi + '"' +
+          ' style="' + tone + '"' +
           ' title="' + (overLimit ? '超出本组上限 ' + cap + ' 人，但不会被自动移出：拖走 / 留下 / 单独建一组都可以。' : '') +
             '拖到别的组就换组，拖到左边的「未分组」就移出">' +
           '<span class="gb-av" aria-hidden="true">' + esc(String(m.name).slice(0, 1)) + '</span>' +

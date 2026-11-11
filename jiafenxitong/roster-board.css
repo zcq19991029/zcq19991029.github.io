@@ -80,19 +80,26 @@
 .gb-members { display: flex; flex-direction: column; gap: 4px; }
 
 /* 一张人卡：头像 + 姓名 + 班内序号 + 移出。整块是拖动把手，所以 touch-action 必须关掉，
-   不然手机上手指一按就先滚页面，拖不动（页面还能从卡片空白处和卡片间距滚）。 */
+   不然手机上手指一按就先滚页面，拖不动（页面还能从卡片空白处和卡片间距滚）。
+   配色（2026-11-10 用户定）：同组同色 + 组内深浅轮换 —— --h/--s/--lb 由 app.js 的 gbTone(组号,组内序号)
+   内联注入，色相归组、亮度/饱和度在组内逐人变化，所以同组看着是「浅蓝/淡蓝/深蓝」一类，一眼是同一伙。
+   未分组的人（.gb-pend-chip）没有这三个变量，走下面 .gb-pend-chip 的毛玻璃半透明白。 */
 .gb-chip {
   display: flex; align-items: center; gap: 10px;
   padding: 8px 10px;
-  border: 1px solid var(--gb-line);
+  border: 1px solid hsl(var(--h, 0) var(--s, 0%) calc(var(--lb, 90%) - 14%));
   border-radius: 14px;
-  background: var(--gb-soft);
+  background: hsl(var(--h, 0) var(--s, 0%) var(--lb, 90%) / .55);
   color: var(--gb-ink);
   font-size: 13px; line-height: 1.35;
   cursor: grab;
   touch-action: none;
   -webkit-user-select: none; user-select: none;
   transition: transform .25s, border-color .12s, box-shadow .25s, background-color .12s, opacity .12s;
+}
+:root[data-hx-mode="dark"] .gb-chip {
+  background: hsl(var(--h, 0) var(--s, 0%) var(--lb, 60%) / .16);
+  border-color: hsl(var(--h, 0) var(--s, 0%) var(--lb, 70%) / .30);
 }
 .gb-chip:hover { border-color: var(--gb-accent-line); transform: translateY(-2px); box-shadow: var(--gb-shadow); }
 .gb-chip:focus-visible { outline: 2px solid var(--gb-accent); outline-offset: 1px; }
@@ -103,11 +110,17 @@
 /* 正在被拖走的那一张原地留个淡影，老师知道它从哪儿出来的 */
 .gb-chip.gb-lift { opacity: .32; }
 
+/* 头像：和所在组同色系，但更浓、实底，作为这张卡的颜色锚点 */
 .gb-av {
   flex: none; width: 30px; height: 30px; border-radius: 50%;
   display: grid; place-items: center;
-  background: var(--gb-accent-bg); color: var(--gb-accent);
+  background: hsl(var(--h, 0) var(--s, 0%) calc(var(--lb, 90%) - 16%));
+  color: hsl(var(--h, 0) var(--s, 0%) 24%);
   font-size: 13px; font-weight: 700;
+}
+:root[data-hx-mode="dark"] .gb-av {
+  background: hsl(var(--h, 0) var(--s, 0%) var(--lb, 70%) / .34);
+  color: hsl(var(--h, 0) 85% 84%);
 }
 .gb-nm { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
 .gb-nm b { font-weight: 700; font-size: 15px; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -161,6 +174,9 @@
 .gb-pseat b { color: var(--gb-warn); }
 .gb-pending .gb-members { flex-direction: row; flex-wrap: wrap; gap: 6px; }
 .gb-pend-chip { background: var(--gb-panel); border-color: var(--gb-line); }
+/* 未分组的人：卡片是毛玻璃半透明白，头像给一个柔和的中性灰（没有归属色），跟毛玻璃协调 */
+.gb-pend-chip .gb-av { background: var(--gb-accent-bg); color: var(--gb-muted); }
+:root[data-hx-mode="dark"] .gb-pend-chip .gb-av { background: rgba(255,255,255,.1); color: var(--gb-muted); }
 
 .gb-empty { margin: 2px 0; font-size: 12px; color: var(--gb-muted); }
 
