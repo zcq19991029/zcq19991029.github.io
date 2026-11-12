@@ -331,3 +331,10 @@ table.book tr.me-row td { border-color: var(--ok, #2f845a); }
 .group-card .scroll table.book tr.me-row { background: rgba(16, 185, 129, .16); }
 .group-card .scroll table.book tr.me-row td { border-color: rgba(16, 185, 129, .4); }
 .group-card .note { color: #7fa6d9; }
+/* 值日提醒（2026-11-12 R1）：学生一进来就知道自己组本节课要值日 */
+.duty-callout { border-left: 4px solid #d9822b; background: #fff8ee; }
+.duty-callout > h3 { color: #9a5b12; }
+.duty-callout-main { margin: 4px 0 6px; font-size: 16px; line-height: 1.5; }
+.duty-callout-main b { color: #9a5b12; }
+.duty-callout .duty-missed { color: #b42318; }
+.lesson-head .pill { margin-left: 6px; }

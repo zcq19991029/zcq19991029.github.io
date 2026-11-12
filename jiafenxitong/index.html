@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#fcfcfb">
 <title>夜夜小组制加分助手 · 《电气接线原理》</title>
-<link rel="stylesheet" href="styles.css?v=860728f">
-<link rel="stylesheet" href="draw-person.css?v=860728f">
+<link rel="stylesheet" href="styles.css?v=37d9f25-dirty">
+<link rel="stylesheet" href="draw-person.css?v=37d9f25-dirty">
 <!-- 分组看板 + 学生端桌卡（2026-11-06）：新样式一律写这个文件，不去动 styles.css / team.css
      里已有的行（那几个文件正有人在改深浅色变量）。-->
 <link rel="stylesheet" href="roster-board.css">
@@ -50,8 +50,8 @@
      这里把药丸钉回 1em，跟着卡片字号一起长大，不再自己写一套 clamp 互相打架。 */
   #hxSplash .hx-loadpill { font-size: 1em; box-shadow: none; }
 </style>
-<meta name="build-commit" content="860728f">
-<meta name="build-published-at" content="2026-11-12T05:50:45.291Z">
+<meta name="build-commit" content="37d9f25-dirty">
+<meta name="build-published-at" content="2026-11-12T06:49:43.750Z">
 </head>
 <body>
 
@@ -80,8 +80,8 @@
     </div>
   </div>
 </div>
-<script src="fx/pixelfx-loader.js?v=860728f"></script>
-<script src="fx/hx-jf-load.js?v=860728f"></script>
+<script src="fx/pixelfx-loader.js?v=37d9f25-dirty"></script>
+<script src="fx/hx-jf-load.js?v=37d9f25-dirty"></script>
 
 <header class="topbar" id="topbar">
   <div class="topbar-main">
@@ -244,7 +244,7 @@
         <button data-l="table" class="on" title="和纸质记录表一样的表格">表格式</button>
         <button data-l="card" title="手机上点起来更舒服">卡片式</button>
       </div>
-      <button id="btnRestoreFive" class="btn" title="恢复干净又卫生送分 100%，不产生逐人加分日志">一键恢复100%</button>
+      <button id="btnRestoreFive" class="btn" title="清空所选范围的值日缺勤扣分，把整学期值日缺勤恢复成 100%">恢复值日缺勤100%</button>
       <button id="btnOperationLog" class="btn" title="查看记分操作及撤销、重做">操作日志</button>
     </div>
 
@@ -525,11 +525,12 @@
     <h2 class="sec-title">使用说明</h2>
     <div class="card prose">
       <ol>
-        <li><b>上课前</b>：在「上课记分」页选好班级 → 点「新开一课」，填日期、本节任务、本节值日组。</li>
+        <li><b>上课前</b>：在「上课记分」页选好班级 → 点「新开一课」，填日期、本节任务、本节值日组；值日组可以在「课次设置」里填一句值日提醒，学生端会显示自己组本节课要值日。</li>
         <li><b>上课中</b>：哪个小组达标就点对应的加减按钮，本节完成率和累计完成率会自动重算。</li>
         <li><b>记错了要改</b>：
           <ul>
-            <li>数字框可以直接点进去改成任意值（干净又卫生送分 0-5、手机未入袋 0-本组人数）；值日是扣分制：值日组每少一人到，点一次「值日缺勤」，全组每人干净又卫生送分 −20%；</li>
+            <li>「值日缺勤」是整学期一个 5 分项目（原「干净又卫生」已并入此列）：一学期没缺勤就是 100%，每节课都显示同一个学期值；值日组每少一人到，点一次「每人 −20%」，全组每人同扣一档，按次叠加（第二次轮到值日再缺勤还能再扣）；</li>
+            <li>手机未入袋、个人扣分从<b>本节项目分</b>里扣（每次 −20%，扣完为止，不跨课），不再有每课白送的 5 分；</li>
             <li>按「↶ 撤销」（或 <b>Ctrl+Z</b>）可以逐步退回，最多 60 步，跨课次也能退；</li>
             <li>某一组整节课记乱了，点该组的「↺ 清零」重来（也能撤销）；</li>
             <li>个人扣分：点姓名扣 20%，点“＋”返还 20%，点「清零」清空扣分；不再双击清零。</li>
@@ -541,8 +542,9 @@
           要清浏览器数据或迁移应用，先到华夏工具首页「全站备份」导出一份；本工具不再单独留备份按钮。</li>
       </ol>
       <p class="formula">
-        本节完成率 ＝（剩余干净又卫生送分 ＋ Σ个人项目分）÷（5 ＋ 5×已命名项目数）；值日缺勤、手机未入袋、个人/全组扣分都从送分里扣，每次 −20%，扣完为止<br>
-        学期完成率 ＝ 累计完成率百分比（分母同项目满分）；平时分 ＝ 合并完成率×100
+        本节完成率 ＝（Σ本节个人项目分 − 本节扣分）÷（5 × 已命名项目数）；扣分每次 −20%，扣完为止、不跨课<br>
+        学期完成率 ＝（值日缺勤 5 分 ＋ Σ每节项目分 − 扣分）÷（5 ＋ Σ每节 5×已命名项目数）；值日缺勤整学期只算一次<br>
+        平时分 ＝ 项目完成率×100
       </p>
     </div>
   </section>
@@ -655,20 +657,20 @@
   </form>
 </dialog>
 
-<script src="data.js?v=860728f"></script>
-<script src="config.js?v=860728f"></script>
+<script src="data.js?v=37d9f25-dirty"></script>
+<script src="config.js?v=37d9f25-dirty"></script>
 <!-- 导出用的两个大库（xlsx 930 KB + jspdf 409 KB = 1.3 MB）。
      2026-11-09 加 defer：它们是普通脚本时按文档顺序阻塞执行，必须下完才轮到下面的 app.js，
      而 app.js 才是绑登录、画界面、读本机数据的那一个 —— 网一慢整页就像死了（用户报的「打不开、登录不了」）。
      加了 defer 之后 app.js 立刻跑，这两个在解析结束后自己下自己执行，点导出时通常早就好了；
      万一手快、库还没到，由 heavy.js 在捕获阶段把这**一次**点击接住，等库到了替他重发。 -->
-<script src="vendor/jspdf.umd.min.js?v=860728f" defer></script>
-<script src="vendor/xlsx.full.min.js?v=860728f" defer></script>
-<script src="heavy.js?v=860728f"></script>
-<script src="roster-import.js?v=860728f"></script>
-<script src="hx-roster.js?v=860728f"></script>
-<script src="cloud.js?v=860728f"></script>
-<script src="supabase-cloud.js?v=860728f"></script>
+<script src="vendor/jspdf.umd.min.js?v=37d9f25-dirty" defer></script>
+<script src="vendor/xlsx.full.min.js?v=37d9f25-dirty" defer></script>
+<script src="heavy.js?v=37d9f25-dirty"></script>
+<script src="roster-import.js?v=37d9f25-dirty"></script>
+<script src="hx-roster.js?v=37d9f25-dirty"></script>
+<script src="cloud.js?v=37d9f25-dirty"></script>
+<script src="supabase-cloud.js?v=37d9f25-dirty"></script>
 <dialog id="dlgPassword">
   <form method="dialog" class="dlg" id="passwordForm">
     <div class="dlg-head"><h3>修改密码</h3><button type="button" class="dlg-x" id="btnPasswordClose" aria-label="关闭">✕</button></div>
@@ -694,20 +696,20 @@
   </div>
 </dialog>
 <!-- 组内互评直接计分：把学生提交归成「落哪一格、落多少分」，leader-scoring.js / app.js 都用它（2026-11-10） -->
-<script src="peer-apply.js?v=860728f"></script>
-<script src="leader-scoring.js?v=860728f"></script>
-<script src="assessment.js?v=860728f"></script>
-<script src="ui-feedback.js?v=860728f"></script>
-<dialog id="dlgOperationLog"><div class="dlg"><div class="dlg-head"><div><h3>操作日志</h3><span class="note">选择任意一条撤销，其他记录继续保留</span></div><button type="button" id="closeOperationLog" class="dlg-x" aria-label="关闭操作日志">✕</button></div><div class="dlg-body"><div class="log-toolbar"><label>班级<select id="logClassFilter"><option value="">全部班级</option></select></label><label>课次<select id="logLessonFilter"><option value="">全部课次</option></select></label><label class="log-search">查找<input type="search" id="logSearch" placeholder="姓名、组号、课次或项目"></label><button id="btnRedo" class="btn" disabled title="恢复最近撤销的一项（Ctrl+Shift+Z）">↷ 恢复最近一项</button></div><button id="btnUndo" hidden disabled></button><p id="undoDetail" hidden></p><p id="redoDetail" hidden></p><div id="operationLogList"></div><details class="log-help"><summary>记录与撤销说明</summary><p>点击某条右侧“撤销”，仅抵消该次操作的实际效果；已撤销的记录可单独恢复。平板支持左划，松手前拉回即可取消。个人项目的核对流水请到原评分表修改。干净又卫生送分（默认 100%）不记作加分操作；相邻等量反向调整合并抵消。旧记录未记载时间时显示“历史记录”。</p></details></div></div></dialog>
-<script src="print-excel.js?v=860728f"></script>
-<script src="gradebook.js?v=860728f"></script>
+<script src="peer-apply.js?v=37d9f25-dirty"></script>
+<script src="leader-scoring.js?v=37d9f25-dirty"></script>
+<script src="assessment.js?v=37d9f25-dirty"></script>
+<script src="ui-feedback.js?v=37d9f25-dirty"></script>
+<dialog id="dlgOperationLog"><div class="dlg"><div class="dlg-head"><div><h3>操作日志</h3><span class="note">选择任意一条撤销，其他记录继续保留</span></div><button type="button" id="closeOperationLog" class="dlg-x" aria-label="关闭操作日志">✕</button></div><div class="dlg-body"><div class="log-toolbar"><label>班级<select id="logClassFilter"><option value="">全部班级</option></select></label><label>课次<select id="logLessonFilter"><option value="">全部课次</option></select></label><label class="log-search">查找<input type="search" id="logSearch" placeholder="姓名、组号、课次或项目"></label><button id="btnRedo" class="btn" disabled title="恢复最近撤销的一项（Ctrl+Shift+Z）">↷ 恢复最近一项</button></div><button id="btnUndo" hidden disabled></button><p id="undoDetail" hidden></p><p id="redoDetail" hidden></p><div id="operationLogList"></div><details class="log-help"><summary>记录与撤销说明</summary><p>点击某条右侧“撤销”，仅抵消该次操作的实际效果；已撤销的记录可单独恢复。平板支持左划，松手前拉回即可取消。个人项目的核对流水请到原评分表修改。值日缺勤（整学期 5 分，只算一次）不记作加分操作；相邻等量反向调整合并抵消。旧记录未记载时间时显示“历史记录”。</p></details></div></div></dialog>
+<script src="print-excel.js?v=37d9f25-dirty"></script>
+<script src="gradebook.js?v=37d9f25-dirty"></script>
 <!-- 学生只读查分：把「每人一份」的分数快照发布到云端，app.js 每次 save() 会叫它（2026-11-04） -->
-<script src="student-feed.js?v=860728f"></script>
-<script src="score-repair.js?v=860728f"></script>
-<script src="wire-task-link.js?v=860728f"></script>
+<script src="student-feed.js?v=37d9f25-dirty"></script>
+<script src="score-repair.js?v=37d9f25-dirty"></script>
+<script src="wire-task-link.js?v=37d9f25-dirty"></script>
 <script src="../ui-dialog.js"></script>
-<script src="app.js?v=860728f"></script>
-<script src="draw-person.js?v=860728f"></script>
-<script src="password-ui.js?v=860728f"></script>
+<script src="app.js?v=37d9f25-dirty"></script>
+<script src="draw-person.js?v=37d9f25-dirty"></script>
+<script src="password-ui.js?v=37d9f25-dirty"></script>
 </body>
 </html>

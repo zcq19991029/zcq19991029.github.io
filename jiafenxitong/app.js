@@ -55,11 +55,12 @@
     return n > 0 ? 'pos' : (n < 0 ? 'neg' : '');
   }
 
-  /* ================= 完成率百分比显示（2026-11-09 显示层改革） =================
-     硬约束：内部存储与计算公式一个字都不动——scores 的 group/phone/personal 仍是 5 分制、
+  /* ================= 完成率百分比显示（2026-11-09 显示层改革 / 2026-11-12 值日缺勤改革） =================
+     硬约束：内部存储与计算公式一个字都不动——scores 的 phone/personal 仍按 5 分制记账、
      leaderScores 项目分仍是 1–5、考勤仍是 9 分制。下面这组工具只负责「显示的时候」换算：
-       · 5 分制单位 → 百分比：值 ÷ 5 × 100（项目分 1–5 → 20%~100%；干净又卫生送分 5→0 → 100%~0%）
-       · 每课总完成率 = (remaining + Σ个人项目分) ÷ (5 + 5×已命名项目数)，可达 100%
+       · 5 分制单位 → 百分比：值 ÷ 5 × 100（项目分 1–5 → 20%~100%；值日缺勤 5→0 → 100%~0%）
+       · 每课完成率 = 本节项目净得分 ÷ (5 × 已命名项目数)
+       · 整学期分母 = 5（值日缺勤，整学期只算一次）+ Σ每课 5 × 已命名项目数
        · 考勤 → (9 − 累计扣分)/9 百分比，保留 1 位小数（照 performanceRate 的 round(x×1000)/10 口径）
      数值口径保持不变的位置（用户明确只要这些保持数值）：平时分三列、实际期末/综合、考试分数输入框。 */
   function pctNum(v) {           // 入参已经是百分数（80 表示 80%），保留 1 位小数
@@ -69,7 +70,7 @@
     var n = pctNum(v);
     return (n % 1 === 0 ? String(Math.round(n)) : n.toFixed(1)) + '%';
   }
-  /** 5 分制单位 → 百分比文本（干净又卫生送分、个人项目分共用） */
+  /** 5 分制单位 → 百分比文本（值日缺勤、个人项目分共用） */
   function scorePctText(v) {
     return pctText(Math.max(0, Math.min(5, Number(v) || 0)) / 5 * 100);
   }
@@ -83,19 +84,24 @@
     var names = (A && A.projectNames && A.projectNames(lesson)) || [];
     return names.filter(function (n) { return String(n == null ? '' : n).trim(); }).length;
   }
-  /** 每课完成率分母 = 5（干净又卫生送分）+ 5 × 已命名项目数 */
+  /** 每课完成率分母 = 5 × 已命名项目数（2026-11-12：每课那 5 分送分已取消） */
   function lessonMaxOf(lesson) {
-    return 5 + 5 * namedProjectCount(lesson);
+    return 5 * namedProjectCount(lesson);
   }
-  /** 某成员某课的总完成率文本：(remaining + Σ个人项目分) ÷ (5 + 5×已命名项目数) */
+  /** 某成员某课的项目完成率文本：本节项目净得分 ÷ (5 × 已命名项目数)；没命名项目返回 '—' */
   function memberLessonRateText(lesson, gno, member, i) {
-    var val = remaining(lesson, gno, i) + projectScore(lesson, gno, member);
-    return pctText(Math.max(0, val) / lessonMaxOf(lesson) * 100);
+    var A = window.JFDT_ASSESSMENT;
+    if (!A || !A.lessonNet) return '—';
+    var rec = A.lessonNet(lesson, gno, i, memberKey(member));
+    if (!rec.max) return '—';
+    return pctText(Math.max(0, rec.earned) / rec.max * 100);
   }
   /** 学期层面的完成率分母（与 assessment.js taskEvidence 的 maximum 同口径）：
-      每课 5 + 5×该课已命名项目数，逐课累加；再算上考勤 9 分由调用方自行决定加不加。 */
+      值日缺勤 5 分整学期只算一次 + 每课 5 × 该课已命名项目数，逐课累加。 */
   function semesterProjectMax(lessons) {
-    return (lessons || []).reduce(function (a, l) { return a + lessonMaxOf(l); }, 0);
+    return (lessons || []).length
+      ? 5 + (lessons || []).reduce(function (a, l) { return a + lessonMaxOf(l); }, 0)
+      : 0;
   }
   /** 审计「加减分」列：±分值文本 → ±百分比（如 −1 → −20%、+1/人 → +20%/人） */
   function auditDeltaPct(text) {
@@ -208,8 +214,9 @@
   /* ================= 值日改制迁移（2026-11-09） =================
      旧制：值日是「学期一次 5 分」的加分项目（sc.duty / sc.dutyParticipation），另有特殊表现记录
            （cls.specialRecords / specialRecordsTrash）。
-     新制：值日改扣分——不值日少一人，教师点一下「值日缺勤」，全组每人本节参与分 −1；
-           特殊表现功能整体删除。旧分值一律作废，所有人重新规划。
+     新制：值日缺勤（2026-11-12 再改）——整学期一个 5 分项目，缺勤教师点一次「每人 −20%」，
+           全组每人同扣一档（记在 sc.dutyAbsent，按课累计）；特殊表现功能整体删除。
+           旧分值一律作废，所有人重新规划。
      迁移只做删除，全部幂等：跑多少次结果都一样；旧数据经此处理后项目总分自动不含值日分。 */
   function migrateDutyReform(state){
     function strip(score){if(score&&typeof score==='object'){delete score.duty;delete score.dutyParticipation;}}
@@ -344,6 +351,9 @@
     return null;
   }
 
+  /* 每节课一组的记分记录。2026-11-12 起 `group` / `first` 只是老数据的残留字段（不再参与计分）：
+     手机未入袋记 `phone`（次数）、本人扣分记 `personal[成员下标]`（分，5 分制）、
+     值日缺勤记 `dutyAbsent`（本课该组缺勤几档，1 档 = 20%，全组每人同扣）。 */
   function sc(lesson, gno) {
     var k = String(gno);
     if (!lesson.scores[k]) lesson.scores[k] = { first: 0, group: lesson.memberProjectBase===5?5:0, phone: 0, personal: {} };
@@ -1005,18 +1015,33 @@ function restoreDroppedToHome(cls) {
 
   /* ================= 计算 ================= */
 
-  /** 单个小组某节课的「本节合计」：首个正确 + 小组分 − 手机未入袋人数
-      （个人扣分不计入小组，单独记在个人头上；值日缺勤的扣分也落在个人参与分里） */
+  /** 单个小组某节课的「本节」得分（0–5 标尺 = 本组本节项目的成员平均完成）
+      2026-11-12：每课不再送 5 分，本节只看本课命名项目；
+      手机未入袋 / 个人扣分从本节项目分里扣，不跨课。值日缺勤是整学期项目，不在本节里。 */
   function dutyGroups(lesson){return Array.isArray(lesson.dutyGroups)?lesson.dutyGroups:(lesson.dutyGroup?[Number(lesson.dutyGroup)]:[]);}
   function groupTotal(lesson, gno) {
-    var s = lesson.scores[String(gno)];
-    if (!s) return 0;
-    return Math.round(window.JFDT_ASSESSMENT.groupNet(lesson,gno,lessonsOf(lesson.classId))*100)/100;
+    var A = window.JFDT_ASSESSMENT, cls = getClass(lesson.classId), g = cls && groupOf(cls, gno);
+    if (!A || !g) return 0;
+    var n = namedProjectCount(lesson);
+    if (!n) return 0;
+    var sum = 0, cnt = 0;
+    g.members.forEach(function (m, i) {
+      if (!m.name) return;
+      sum += A.lessonNet(lesson, gno, i, memberKey(m)).earned;
+      cnt++;
+    });
+    return cnt ? Math.round(sum / cnt / n * 100) / 100 : 0;
   }
 
   /** 小组累计（该班全部课次） */
   function groupCum(cls, gno) {
     return Math.round(lessonsOf(cls.id).reduce(function (a, l) { return a + groupTotal(l, gno); }, 0)*100)/100;
+  }
+
+  /** 有命名项目的课次数量（小组累计完成率的分母：每课 5 分） */
+  function groupLessonSpan(ls) {
+    var n = (ls || []).filter(function (l) { return namedProjectCount(l) > 0; }).length;
+    return n || 1;
   }
 
   function groupCumThrough(cls,gno,lesson) { return Math.round(lessonsOf(cls.id).filter(function(l){return Number(l.seq)<=Number(lesson.seq);}).reduce(function(total,l){return total+groupTotal(l,gno);},0)*100)/100; }
@@ -1025,7 +1050,7 @@ function restoreDroppedToHome(cls) {
   function touched(lesson, gno) {
     var s = lesson.scores[String(gno)];
     if (!s) return false;
-    if (s.first || s.group || s.phone) return true;
+    if (s.first || s.group || s.phone || s.dutyAbsent) return true;
     return Object.keys(s.personal || {}).some(function (k) { return s.personal[k]; });
   }
 
@@ -1068,20 +1093,26 @@ function restoreDroppedToHome(cls) {
     return hit ? Math.round(sum * 100) / 100 : null;
   }
 
+  /** 每人的学期合计（2026-11-12 值日缺勤改革后口径）：
+      total = 值日缺勤（整学期 5 分，按组扣）＋ Σ本节个人项目得分 − Σ本节实际抵扣的扣分 */
   function memberTotals(cls) {
-    var ls = lessonsOf(cls.id);
+    var ls = lessonsOf(cls.id), A = window.JFDT_ASSESSMENT;
     var out = [];
     cls.groups.forEach(function (g) {
-      var gs = groupCum(cls,g.no);
+      var duty = A ? A.dutyScore(ls, g.no) : 5;
       g.members.forEach(function (m, idx) {
         if (!m.name) return;
-        var p = ls.reduce(function (a, l) {
-          var s = l.scores[String(g.no)];
-          return a + (s ? Math.min(Math.max(0,Math.min(5,(+s.group||0)+(s.first?1:0))-(+s.phone||0)),+(s.personal||{})[String(idx)]||0) : 0);
-        }, 0);
+        var project = 0, ded = 0;
+        ls.forEach(function (l) {
+          if (!A || !A.lessonNet) return;
+          var rec = A.lessonNet(l, g.no, idx, memberKey(m));
+          project += rec.raw;
+          ded += rec.raw - rec.earned;   // 实际抵扣掉的扣分（最多扣完本节项目分）
+        });
         out.push({
           name: m.name, sid: m.sid, no: m.no, gno: g.no,
-          groupScore: gs, project: ls.reduce(function(a,l){return a+projectScore(l,g.no,m);},0), personal: p, total: Math.round((gs + ls.reduce(function(a,l){return a+projectScore(l,g.no,m);},0) - p)*100)/100
+          groupScore: duty, project: project, personal: ded, duty: duty,
+          total: Math.round((duty + project - ded) * 100) / 100
         });
       });
     });
@@ -1092,23 +1123,23 @@ function restoreDroppedToHome(cls) {
   /* ================= 撤销 ================= */
 
   var UNDO_MAX = 60;
-  /* 显示口径 2026-11-09：group 那格是「干净又卫生」送分；文案改口径，字段名/存储不动 */
-  var FIELD_NAME = { first: '首个正确', group: '干净又卫生送分', phone: '全组扣分' };
+  /* 显示口径 2026-11-12：group/first 是老数据残留（不再计分）；值日缺勤单独记 dutyAbsent */
+  var FIELD_NAME = { first: '首个正确', group: '值日缺勤送分', phone: '全组扣分', dutyAbsent: '值日缺勤' };
 
   /** 记一笔可撤销的改动。只存"反做"需要的信息，很轻。
       op 三种形态：
         {lessonId, gno, f, old, neu}          标量（first / group / phone）
         {lessonId, gno, i, old, neu, name}    个人扣分（第 i 个成员）
         {lessonId, gno, reset:true, old}      整组清零（old 是该组原 scores 的副本） */
-  function operationEffect(op){if(op.effect)return op.effect;var l=getLesson(op.lessonId),cls=l&&getClass(l.classId),g=cls&&groupOf(cls,op.gno),now=l&&l.scores[String(op.gno)];if(op.reset&&op.old&&now&&g){function points(sc,i){return Math.max(0,Math.min(5,(+sc.group||0)+(sc.first?1:0))-(+sc.phone||0)-(+((sc.personal||{})[String(i)])||0));}var patch=g.members.map(function(m,i){return {path:'point:'+i,delta:points(now,i)-points(op.old,i)};}).filter(function(x){return x.delta;});return patch;}return [{path:op.i!=null?'point:'+op.i:op.f,delta:op.i!=null?(+op.old||0)-(+op.neu||0):(+op.neu||0)-(+op.old||0)}].filter(function(x){return x.delta;});}
+  function operationEffect(op){if(op.effect)return op.effect;var l=getLesson(op.lessonId),cls=l&&getClass(l.classId),g=cls&&groupOf(cls,op.gno),now=l&&l.scores[String(op.gno)];if(op.reset&&op.old&&now&&g){function points(sc,i){return Math.max(0,5-(+sc.phone||0)-(+((sc.personal||{})[String(i)])||0));}var patch=g.members.map(function(m,i){return {path:'point:'+i,delta:points(now,i)-points(op.old,i)};}).filter(function(x){return x.delta;});return patch;}return [{path:op.i!=null?'point:'+op.i:op.f,delta:op.i!=null?(+op.old||0)-(+op.neu||0):(+op.neu||0)-(+op.old||0)}].filter(function(x){return x.delta;});}
   function inverseEffects(a,b){return a.length===b.length&&a.every(function(x){return b.some(function(y){return x.path===y.path&&Math.abs(x.delta+y.delta)<1e-8;});});}
-  function applyEffect(op,effect,direction){var l=getLesson(op.lessonId),cls=getClass(l.classId),g=groupOf(cls,op.gno),scored=sc(l,op.gno),actual=[];effect.forEach(function(e){var old,next;if(e.path.startsWith('leader:')){var token=e.path.slice(7),cut=token.lastIndexOf('|'),mk=token.slice(0,cut),col=+token.slice(cut+1),r=l.leaderScores&&l.leaderScores[String(op.gno)];if(!r)return;var values=r.members[mk]||(r.members[mk]=[]);old=Number(values[col])||0;next=Math.max(0,Math.min(5,old+direction*e.delta));values[col]=next===0&&direction<0&&e.wasBlank?null:next;}else if(e.path.startsWith('point:')){var i=e.path.slice(6),values=g.members.map(function(_,j){return remaining(l,g.no,j);});var base=Math.min(5,(+scored.group||0)+(scored.first?1:0));old=values[+i];next=Math.max(0,Math.min(base,old+direction*e.delta));scored.phone=0;scored.group=base;scored.first=0;g.members.forEach(function(_,j){scored.personal[String(j)]=base-(String(j)===i?next:values[j]);});}else if(e.path.startsWith('personal:')){var i=e.path.slice(9);old=+scored.personal[i]||0;next=Math.max(0,Math.min(5,old+direction*e.delta));scored.personal[i]=next;}else{old=+scored[e.path]||0;next=Math.max(0,Math.min(e.path==='phone'?1000000:5,old+direction*e.delta));scored[e.path]=next;}if(next!==old)actual.push({path:e.path,delta:next-old,wasBlank:e.wasBlank});});return actual;}
+  function applyEffect(op,effect,direction){var l=getLesson(op.lessonId),cls=getClass(l.classId),g=groupOf(cls,op.gno),scored=sc(l,op.gno),actual=[];effect.forEach(function(e){var old,next;if(e.path.startsWith('leader:')){var token=e.path.slice(7),cut=token.lastIndexOf('|'),mk=token.slice(0,cut),col=+token.slice(cut+1),r=l.leaderScores&&l.leaderScores[String(op.gno)];if(!r)return;var values=r.members[mk]||(r.members[mk]=[]);old=Number(values[col])||0;next=Math.max(0,Math.min(5,old+direction*e.delta));values[col]=next===0&&direction<0&&e.wasBlank?null:next;}else if(e.path.startsWith('point:')){var i=e.path.slice(6),values=g.members.map(function(_,j){return remaining(l,g.no,j);});var base=5;old=values[+i];next=Math.max(0,Math.min(base,old+direction*e.delta));scored.phone=0;scored.group=base;scored.first=0;g.members.forEach(function(_,j){scored.personal[String(j)]=base-(String(j)===i?next:values[j]);});}else if(e.path.startsWith('personal:')){var i=e.path.slice(9);old=+scored.personal[i]||0;next=Math.max(0,Math.min(5,old+direction*e.delta));scored.personal[i]=next;}else{old=+scored[e.path]||0;next=Math.max(0,Math.min(e.path==='phone'?1000000:(e.path==='dutyAbsent'?20:5),old+direction*e.delta));scored[e.path]=next;}if(next!==old)actual.push({path:e.path,delta:next-old,wasBlank:e.wasBlank});});return actual;}
   function pushUndo(op) {
     if (!S.undo) S.undo = [];
     op.id=op.id||uid('op');
     op.effect=operationEffect(op);
     var auditLesson=getLesson(op.lessonId),auditClass=auditLesson&&getClass(auditLesson.classId),auditGroup=auditClass&&groupOf(auditClass,op.gno);
-    if(auditGroup&&!op.audit){var totals=memberTotals(auditClass),effects=op.effect,points=effects.filter(function(e){return /^(point:|personal:)/.test(e.path);}),targets=(points.length?points.map(function(e){return +e.path.split(':')[1];}):auditGroup.members.map(function(_,i){return i;})).filter(function(i,p,a){return a.indexOf(i)===p&&auditGroup.members[i]&&auditGroup.members[i].name;});var deltas=targets.map(function(i){return effects.reduce(function(sum,e){return sum+(e.path==='point:'+i?e.delta:e.path==='personal:'+i?-e.delta:['group','first'].includes(e.path)?e.delta:e.path==='phone'?-e.delta:0);},0);});op.audit={source:(op.label&&String(op.label).indexOf('值日缺勤')===0)?'值日缺勤':'上课记分',lesson:auditClass.name+' · 第'+auditLesson.seq+'次课 · '+auditLesson.date+' · '+(auditLesson.topic||''),student:targets.length===1?auditGroup.members[targets[0]].name:'第'+op.gno+'组 · '+targets.map(function(i){return auditGroup.members[i].name;}).join('、'),sid:targets.length===1?auditGroup.members[targets[0]].sid||'':'全组操作',delta:deltas.length&&deltas.every(function(d){return d===deltas[0];})?(deltas[0]>0?'+':'')+deltas[0]+(targets.length>1?'/人':''):'—',after:targets.map(function(i){var m=auditGroup.members[i],row=totals.find(function(t){return m.sid?t.sid===m.sid:t.gno===op.gno&&t.name===m.name;});return row?row.total:'—';}).join(' / '),afterPct:targets.map(function(i){var m=auditGroup.members[i],row=totals.find(function(t){return m.sid?t.sid===m.sid:t.gno===op.gno&&t.name===m.name;});if(!row)return '—';var semesterMax=semesterProjectMax(lessonsOf(auditClass.id));if(!semesterMax)return '0%';return pctText(Math.max(0,row.total)/semesterMax*100);}).join(' / ')};}
+    if(auditGroup&&!op.audit){var totals=memberTotals(auditClass),effects=op.effect,points=effects.filter(function(e){return /^(point:|personal:)/.test(e.path);}),targets=(points.length?points.map(function(e){return +e.path.split(':')[1];}):auditGroup.members.map(function(_,i){return i;})).filter(function(i,p,a){return a.indexOf(i)===p&&auditGroup.members[i]&&auditGroup.members[i].name;});var deltas=targets.map(function(i){return effects.reduce(function(sum,e){return sum+(e.path==='point:'+i?e.delta:e.path==='personal:'+i?-e.delta:['group','first'].includes(e.path)?e.delta:e.path==='phone'||e.path==='dutyAbsent'?-e.delta:0);},0);});op.audit={source:(op.label&&String(op.label).indexOf('值日缺勤')===0)?'值日缺勤':'上课记分',lesson:auditClass.name+' · 第'+auditLesson.seq+'次课 · '+auditLesson.date+' · '+(auditLesson.topic||''),student:targets.length===1?auditGroup.members[targets[0]].name:'第'+op.gno+'组 · '+targets.map(function(i){return auditGroup.members[i].name;}).join('、'),sid:targets.length===1?auditGroup.members[targets[0]].sid||'':'全组操作',delta:deltas.length&&deltas.every(function(d){return d===deltas[0];})?(deltas[0]>0?'+':'')+deltas[0]+(targets.length>1?'/人':''):'—',after:targets.map(function(i){var m=auditGroup.members[i],row=totals.find(function(t){return m.sid?t.sid===m.sid:t.gno===op.gno&&t.name===m.name;});return row?row.total:'—';}).join(' / '),afterPct:targets.map(function(i){var m=auditGroup.members[i],row=totals.find(function(t){return m.sid?t.sid===m.sid:t.gno===op.gno&&t.name===m.name;});if(!row)return '—';var semesterMax=semesterProjectMax(lessonsOf(auditClass.id));if(!semesterMax)return '0%';return pctText(Math.max(0,row.total)/semesterMax*100);}).join(' / ')};}
 
     op.at = new Date().toISOString();
     addOperationLog('记分', undoLabel(reverseOp(op)),op);
@@ -1132,7 +1163,7 @@ function restoreDroppedToHome(cls) {
     if(op.projectBatch)return g+' 已命名项目全员满分（每项100%）';
     if (op.reset) return g + ' '+(op.label||'本节清零');
     if (op.i != null) {
-      return g + ' ' + (op.name || '成员') + ' 干净又卫生扣分 ' + scorePctText(op.neu) + ' → ' + scorePctText(op.old);
+      return g + ' ' + (op.name || '成员') + ' 个人扣分 ' + scorePctText(op.neu) + ' → ' + scorePctText(op.old);
     }
     return g + ' ' + (FIELD_NAME[op.f] || op.f) + ' ' + showVal(op.f, op.neu) +
       ' → ' + showVal(op.f, op.old);
@@ -1142,7 +1173,8 @@ function restoreDroppedToHome(cls) {
 
   function showVal(f, v) {
     if (f === 'first') return v ? '已加' : '未加';
-    /* 干净又卫生送分按百分比显示；全组扣分存的是「次数」，保持计数 */
+    /* 值日缺勤 / 老送分字段按百分比显示；全组扣分存的是「次数」，保持计数 */
+    if (f === 'dutyAbsent') return pctText(Math.max(0, Math.min(5, +v || 0)) * 20) + ' 扣';
     if (f === 'group') return scorePctText(v);
     return String(v);
   }
@@ -1680,7 +1712,7 @@ function restoreDroppedToHome(cls) {
       return '<option value="' + g.no + '"' + (+lesson.dutyGroup === g.no ? ' selected' : '') +
         '>第 ' + g.no + ' 组</option>';
     }).join('');
-    $('#lessonMeta').innerHTML='<div class="lesson-topic-summary" title="'+esc(lesson.topic||'未填写任务')+'">'+esc(lesson.topic||'未填写任务')+'</div>'+(dutyGroups(lesson).length?'<small class="lesson-duty-summary">值日：'+dutyGroups(lesson).map(function(n){return '第'+n+'组';}).join('、')+'</small>':'')+'<div class="btnrow"><button class="btn" id="btnEditLesson">课次设置</button><button class="btn" id="btnPrintLesson">打印本课</button></div>';
+    $('#lessonMeta').innerHTML='<div class="lesson-topic-summary" title="'+esc(lesson.topic||'未填写任务')+'">'+esc(lesson.topic||'未填写任务')+'</div>'+(dutyGroups(lesson).length?'<small class="lesson-duty-summary">值日：'+dutyGroups(lesson).map(function(n){return '第'+n+'组';}).join('、')+(lesson.dutyNote?' · '+esc(lesson.dutyNote):'')+'</small>':'')+'<div class="btnrow"><button class="btn" id="btnEditLesson">课次设置</button><button class="btn" id="btnPrintLesson">打印本课</button></div>';
     $('#btnEditLesson').addEventListener('click',function(){openLessonEditor(cls,lesson);});
     $('#btnPrintLesson').addEventListener('click', function () { openLessonPrint(cls, lesson); });
     var excelButton=document.createElement('button');excelButton.className='btn';excelButton.textContent='下载本课Excel';excelButton.onclick=function(){downloadLessonExcel(cls,lesson);};$('#lessonMeta .btnrow').appendChild(excelButton);
@@ -1754,11 +1786,11 @@ function restoreDroppedToHome(cls) {
   }
 
   var lessonEditor=document.createElement('dialog');lessonEditor.id='dlgEditLesson';lessonEditor.setAttribute('aria-labelledby','editLessonTitle');
-  lessonEditor.innerHTML='<form id="editLessonForm"><h2 id="editLessonTitle">修改课次</h2><p class="note">更正课次资料，保留本课分数、项目评价和考勤。日期不参与计分。</p><label class="field col">课次序号<input id="editLessonSeq" type="number" min="1" step="1" required></label><label class="field col">上课日期<input id="editLessonDate" type="date" required></label><label class="field col">本节任务<input id="editLessonTopic" maxlength="300"></label><label class="field col">值日组<select id="editLessonDuty" multiple size="4"></select></label><p id="editLessonError" role="alert" class="note"></p><div class="btnrow"><button type="button" class="btn" id="cancelEditLesson">取消</button><button type="submit" class="btn primary">保存修改</button></div></form>';
+  lessonEditor.innerHTML='<form id="editLessonForm"><h2 id="editLessonTitle">修改课次</h2><p class="note">更正课次资料，保留本课分数、项目评价和考勤。日期不参与计分。</p><label class="field col">课次序号<input id="editLessonSeq" type="number" min="1" step="1" required></label><label class="field col">上课日期<input id="editLessonDate" type="date" required></label><label class="field col">本节任务<input id="editLessonTopic" maxlength="300"></label><label class="field col">值日组<select id="editLessonDuty" multiple size="4"></select></label><label class="field col">值日提醒（学生端会显示自己组本节课要值日）<input id="editLessonDutyNote" maxlength="60" placeholder="留空则用默认提示"></label><p id="editLessonError" role="alert" class="note"></p><div class="btnrow"><button type="button" class="btn" id="cancelEditLesson">取消</button><button type="submit" class="btn primary">保存修改</button></div></form>';
   document.body.appendChild(lessonEditor);wireDialog(lessonEditor);var editingLessonId=null;
-  function openLessonEditor(cls,lesson){editingLessonId=lesson.id;$('#editLessonTitle').textContent=cls.name+' · 修改课次';$('#editLessonSeq').value=lesson.seq;$('#editLessonDate').value=lesson.date||'';$('#editLessonTopic').value=lesson.topic||'';$('#editLessonDuty').innerHTML='<option value="">无</option>'+visibleGroups(cls).map(function(g){return '<option value="'+g.no+'"'+(dutyGroups(lesson).includes(g.no)?' selected':'')+'>第'+g.no+'组</option>';}).join('');$('#editLessonError').textContent='';openDlg(lessonEditor);}
+  function openLessonEditor(cls,lesson){editingLessonId=lesson.id;$('#editLessonTitle').textContent=cls.name+' · 修改课次';$('#editLessonSeq').value=lesson.seq;$('#editLessonDate').value=lesson.date||'';$('#editLessonTopic').value=lesson.topic||'';$('#editLessonDutyNote').value=lesson.dutyNote||'';$('#editLessonDuty').innerHTML='<option value="">无</option>'+visibleGroups(cls).map(function(g){return '<option value="'+g.no+'"'+(dutyGroups(lesson).includes(g.no)?' selected':'')+'>第'+g.no+'组</option>';}).join('');$('#editLessonError').textContent='';openDlg(lessonEditor);}
   $('#cancelEditLesson').addEventListener('click',function(){lessonEditor.close();});
-  $('#editLessonForm').addEventListener('submit',function(e){e.preventDefault();var lesson=getLesson(editingLessonId);if(!lesson)return;var seq=Number($('#editLessonSeq').value),date=$('#editLessonDate').value,topic=$('#editLessonTopic').value.trim(),duties=Array.from($('#editLessonDuty').selectedOptions).map(function(o){return Number(o.value);}).filter(Boolean),duty=duties[0]||null;if(!Number.isInteger(seq)||seq<1||!/^\d{4}-\d{2}-\d{2}$/.test(date)){$('#editLessonError').textContent='请填写有效的课次序号和日期。';return;}if(S.lessons.some(function(l){return l.classId===lesson.classId&&l.id!==lesson.id&&l.seq===seq;})){$('#editLessonError').textContent='本班已有第 '+seq+' 次课，请使用其他序号。';return;}var before='第'+lesson.seq+'次 · '+lesson.date+' · '+(lesson.topic||'未填任务');if(lesson.seq===seq&&lesson.date===date&&(lesson.topic||'')===topic&&JSON.stringify(dutyGroups(lesson))===JSON.stringify(duties)){lessonEditor.close();return;}lesson.seq=seq;lesson.date=date;lesson.topic=topic;lesson.dutyGroup=duty;lesson.dutyGroups=duties;var cls=S.classes.find(function(c){return c.id===lesson.classId;});addOperationLog('修改课次',cls.name+' · '+before+' → 第'+seq+'次 · '+date+' · '+(topic||'未填任务'));save();lessonEditor.close();renderScore();flash('课次资料已修改，分数和考勤已保留');});
+  $('#editLessonForm').addEventListener('submit',function(e){e.preventDefault();var lesson=getLesson(editingLessonId);if(!lesson)return;var seq=Number($('#editLessonSeq').value),date=$('#editLessonDate').value,topic=$('#editLessonTopic').value.trim(),dutyNote=$('#editLessonDutyNote').value.trim(),duties=Array.from($('#editLessonDuty').selectedOptions).map(function(o){return Number(o.value);}).filter(Boolean),duty=duties[0]||null;if(!Number.isInteger(seq)||seq<1||!/^\d{4}-\d{2}-\d{2}$/.test(date)){$('#editLessonError').textContent='请填写有效的课次序号和日期。';return;}if(S.lessons.some(function(l){return l.classId===lesson.classId&&l.id!==lesson.id&&l.seq===seq;})){$('#editLessonError').textContent='本班已有第 '+seq+' 次课，请使用其他序号。';return;}var before='第'+lesson.seq+'次 · '+lesson.date+' · '+(lesson.topic||'未填任务');if(lesson.seq===seq&&lesson.date===date&&(lesson.topic||'')===topic&&(lesson.dutyNote||'')===dutyNote&&JSON.stringify(dutyGroups(lesson))===JSON.stringify(duties)){lessonEditor.close();return;}lesson.seq=seq;lesson.date=date;lesson.topic=topic;lesson.dutyNote=dutyNote;lesson.dutyGroup=duty;lesson.dutyGroups=duties;var cls=S.classes.find(function(c){return c.id===lesson.classId;});addOperationLog('修改课次',cls.name+' · '+before+' → 第'+seq+'次 · '+date+' · '+(topic||'未填任务'));save();lessonEditor.close();renderScore();flash('课次资料已修改，分数和考勤已保留');});
 
   /* ---- 记分控件（卡片视图与表格视图共用，保证两边的操作完全一致） ---- */
 
@@ -1767,39 +1799,32 @@ function restoreDroppedToHome(cls) {
     return f === 'group' ? 5 : f === 'phone' ? maxPhone : 99;
   }
 
-  function ctlFirst(gno, s) {
-    return '<button class="toggle' + (s.first ? ' on' : '') + '" data-g="' + gno + '" data-act="first" aria-label="第'+gno+'组首个正确，干净又卫生送分 +20%" aria-pressed="'+!!s.first+'">' +
-      '✓</button>';
+  /** 值日缺勤（2026-11-12 R1 合并口径）：
+      这一格就是原来「干净又卫生」那一列改名而来 —— 整学期只有一个 5 分项目（=100%），
+      每节课都显示这个学期值；值日组缺勤时点一下「每人 −20%」，全组每人同扣一档（团队绑定），
+      扣分按次叠加（第二次轮到值日再缺勤还能再扣），最低 0%（5 档）。
+      非值日组照样显示学期值，只是没有扣分按钮（用户：老师只需考察当天该值日的组）。 */
+  function dutyPctText(lessons, gno) {
+    var A = window.JFDT_ASSESSMENT;
+    return pctText((A ? A.dutyScore(lessons, gno) : 5) / 5 * 100);
   }
-
-  /** ± 步进 + 可直接输入的数字框 */
-  function ctlStep(gno, f, s, max, hint) {
-    var v = +s[f] || 0;
-    var neg = (f === 'phone' || f === 'personal') && v > 0;
-    return '<div class="step">' +
-      '<button data-g="' + gno + '" data-act="d" data-f="' + f + '" data-max="' + max + '" title="' + (f === 'phone' ? '减少扣分次数，返还 20%' : '减 1') + '">−</button>' +
-      '<input class="num' + (neg ? ' neg' : '') + '" data-g="' + gno + '" data-f="' + f + '" data-max="' + max +
-        '" size="1" inputmode="numeric" value="' + v + '" title="' + hint + '：可以直接点进来输数字（0-' + max + '）">' +
-      '<button data-g="' + gno + '" data-act="i" data-f="' + f + '" data-max="' + max + '" title="' + (f === 'phone' ? '增加扣分次数，扣 20%' : '加 1') + '">+</button>' +
-    '</div>';
-  }
-
-  /** 值日缺勤（2026-11-09 改制）：值日组这一格放一个按钮，点一下 = 全组每人本节参与分 −1
-      （走 changeMemberPoints，自带撤销/审计/封顶/反馈）。非值日组显示 '—'。
-      2026-11-09 显示层改革：文案改成完成率口径（−1 分 = −20%），内部仍扣 1 分。 */
   function ctlDuty(gno, isDuty) {
-    if (!isDuty) return '<span class="note" title="本组本节不值日">—</span>';
-    return '<button type="button" class="duty-score" data-duty-deduct="'+gno+'" '+
-      'title="不值日少一人点一下：全组每人干净又卫生送分 −20%；来了就不点。误点多了用「撤销」退回" '+
-      'aria-label="第'+gno+'组值日缺勤：每点一次全组每人干净又卫生送分减20%">每人 −20%</button>';
+    var cls = curClass(), lesson = curLesson(cls);
+    var pct = dutyPctText(lessonsOf(cls.id), gno);
+    var btn = isDuty
+      ? '<button type="button" class="duty-score" data-duty-deduct="' + gno + '" ' +
+        'title="不值日少一人点一下：全组每人值日缺勤 −20%（按次叠加，第二次值日再缺勤还能再扣）；误点多了用「撤销」退回" ' +
+        'aria-label="第' + gno + '组值日缺勤：每点一次全组每人值日缺勤减20%">每人 −20%</button>'
+      : '<span class="duty-off" title="本组本节不值日（值日缺勤只考察当天该值日的组）">—</span>';
+    return '<div class="duty-cell"><b class="duty-pct" title="整学期值日缺勤：一学期没缺勤就是 100%，缺勤每次 −20%">' + pct + '</b>' + btn + '</div>';
   }
 
   function semesterBadge(cls,gno,index) {
     return '';
   }
 
-  /* 本节合计（2026-11-09 显示层改革）：改按完成率百分比显示 = (remaining + Σ个人项目分) ÷ (5 + 5×已命名项目数)；
-     存储与计算仍走原来的 remaining/projectScore，一格不动 */
+  /* 本节合计（2026-11-12 R1）：按完成率百分比显示 =（Σ个人项目分 − 本节扣分）÷（5×已命名项目数）；
+     不再有「每节课送 5 分」，值日缺勤是整学期一次的项目，不摊进单节课 */
   function lessonMemberTotals(cls,lesson,g){return '<div data-member-lesson-totals="'+g.no+'">'+g.members.map(function(m,i){if(!m.name)return '';return '<div class="home-grade-person" data-lesson-member="'+i+'" title="'+esc(m.name)+'"><strong>'+memberLessonRateText(lesson,g.no,m,i)+'</strong></div>';}).join('')+'</div>';}
   function ctlSum(gno, total, cumVal) {
     return '<div hidden class="legacy-group-total v '+signClass(total)+'" data-total="'+gno+'">'+fmt(total)+'</div>'+lessonMemberTotals(curClass(),curLesson(curClass()),groupOf(curClass(),gno));
@@ -1825,15 +1850,15 @@ function restoreDroppedToHome(cls) {
     return ['regular','contribution','needed'].map(function(field){return '<td rowspan="2" class="home-grade '+field+'" data-home-grade="'+field+'">'+members.map(function(item){var m=item.member,r=item.row;if(!r)return '';var value=field==='needed'?(r.attendanceFailed?'不适用':r.needed>100?'无法达到':r.needed):r[field];return '<div class="home-grade-person" data-grade-student="'+esc(r.key)+'" title="'+esc(m.name)+'：'+(r.ready?'记录已齐':'预估，项目或考勤记录未齐')+'"><strong>'+value+(field==='regular'?' <span class="completion-rate">（'+(r.totalMaximum?Math.round(r.performanceRate*1000)/10+'%':'—')+'）</span>':'')+'</strong>'+(r.attendanceFailed?'<small>考勤挂科</small>':'')+'</div>';}).join('')+'</td>';}).join('');
   }
 
-  /** 个人扣分格（2026-11-09 显示层改革）：芯片显示 remaining 的百分比（100%、80%…0%），
-      点击仍扣 1 分（= 20%）；hit 判定、存储逻辑不动 */
-  function remaining(lesson,gno,i){var s=sc(lesson,gno);return Math.max(0,Math.min(5,(+s.group||0)+(s.first?1:0))-(+s.phone||0)-(+s.personal[String(i)]||0));}
+  /** 个人扣分芯片（2026-11-12 值日缺勤改革）：芯片显示「本人本节被扣了多少」
+      —— 0% 表示没扣，20% 表示扣了一档；点击仍扣 1 分（= 20%），最多扣满 100%。 */
+  function remaining(lesson,gno,i){var s=sc(lesson,gno);return Math.max(0,5-(+s.phone||0)-(+s.personal[String(i)]||0));}
   function ctlBatch(gno){return '<button class="btn" data-g="'+gno+'" data-act="batch-deduct">全组 −20%</button>';}
   function ctlPersonal(gno, m, i, n, fullName) {
-    n=remaining(curLesson(curClass()),gno,i);
+    var lost = 5 - remaining(curLesson(curClass()),gno,i);
     var attrs = ' data-g="' + gno + '" data-i="' + i + '"';
-    return '<span class="personal-control"><button class="pchip' + (n<5 ? ' hit' : '') + '"' + attrs + ' data-act="p" title="' + esc(m.name) + '：点击扣 20%">' +
-      (fullName ? '<span class="pname">' + esc(m.name) + '</span>' : '') + '<span class="n">' + scorePctText(n) + '</span><span class="deduct-action" aria-hidden="true">−</span></button>' +
+    return '<span class="personal-control"><button class="pchip' + (lost>0 ? ' hit' : '') + '"' + attrs + ' data-act="p" title="' + esc(m.name) + '：点击扣 20%" aria-label="' + esc(m.name) + ' 个人扣分 ' + pctText(lost*20) + '，点击再扣 20%">' +
+      (fullName ? '<span class="pname">' + esc(m.name) + '</span>' : '') + '<span class="n">' + (lost ? '−' + pctText(lost*20) : '0%') + '</span><span class="deduct-action" aria-hidden="true">−</span></button>' +
       '<button class="personal-refund"' + attrs + ' data-act="pr" title="' + esc(m.name) + '：返还 20%">' +
       '+</button>' +
       '<button class="personal-reset"' + attrs + ' data-act="pz" title="' + esc(m.name) + '：清空个人扣分">清零</button></span>';
@@ -1936,10 +1961,11 @@ function restoreDroppedToHome(cls) {
   function showStudentGrade(cls,key,throughLesson){
     var A=window.JFDT_ASSESSMENT,ls=(throughLesson?lessonsThrough(cls,throughLesson):lessonsOf(cls.id)).slice().sort(function(a,b){return a.seq-b.seq;}),student=A.rows(cls,ls,memberTotals(cls)).find(function(m){return m.key===key;});if(!student)return;
     var dialog=$('#studentGradeDialog');if(!dialog){dialog=document.createElement('dialog');dialog.id='studentGradeDialog';dialog.className='student-grade-dialog';document.body.appendChild(dialog);}
-    var detail=ls.map(function(l){var s=sc(l,student.gno),personal=remaining(l,student.gno,student.memberIndex),myLoss=+((s.personal||{})[String(student.memberIndex)])||0,a=l.attendance&&l.attendance[key],names=A.projectNames(l),record=l.leaderScores&&l.leaderScores[String(student.gno)],values=record&&record.members&&record.members[key],projects=names.map(function(n,i){return String(n||'').trim()?esc(n)+'：'+(values&&values[i]!=null?scorePctText(values[i]):'未填'):'';}).filter(Boolean),earned=personal+projectScore(l,student.gno,student);
-      return '<tr><td>第'+l.seq+'次<br>'+esc(l.date||'')+'<br>'+esc(l.topic||'')+'</td><td>初始100%<br>全组扣 −'+(Number(s.phone||0)*20)+'%<br>本人扣 −'+(myLoss*20)+'%<br><b>剩余 '+scorePctText(personal)+'</b></td><td>'+ (projects.join('<br>')||'无命名项目')+'</td><td>'+esc(a?a.label||a.status:'正常到课')+'<br>−'+pctText((a?Number(a.loss)||0:0)/9*100)+'%</td><td><b>'+pctText(Math.max(0,earned)/lessonMaxOf(l)*100)+'</b></td></tr>';
+    var dutyPct=dutyPctText(ls,student.gno);
+    var detail=ls.map(function(l){var s=sc(l,student.gno),net=A.lessonNet(l,student.gno,student.memberIndex,key),myLoss=+((s.personal||{})[String(student.memberIndex)])||0,a=l.attendance&&l.attendance[key],names=A.projectNames(l),record=l.leaderScores&&l.leaderScores[String(student.gno)],values=record&&record.members&&record.members[key],projects=names.map(function(n,i){return String(n||'').trim()?esc(n)+'：'+(values&&values[i]!=null?scorePctText(values[i]):'未填'):'';}).filter(Boolean);
+      return '<tr><td>第'+l.seq+'次<br>'+esc(l.date||'')+'<br>'+esc(l.topic||'')+'</td><td>'+ (projects.length?'满分 '+(net.max/5*100)+'%<br>':'无命名项目<br>')+'全组扣 −'+(Number(s.phone||0)*20)+'%<br>本人扣 −'+(myLoss*20)+'%<br><b>实得 '+pctText(net.max?net.earned/net.max*100:0)+'</b></td><td>'+ (projects.join('<br>')||'无命名项目')+'</td><td>'+esc(a?a.label||a.status:'正常到课')+'<br>−'+pctText((a?Number(a.loss)||0:0)/9*100)+'%</td><td><b>'+(net.max?pctText(Math.max(0,net.earned)/net.max*100):'—')+'</b></td></tr>';
     }).join('');
-    dialog.innerHTML='<div class="student-grade-heading"><h2>'+esc(student.name)+' · 截至第'+throughLesson.seq+'次课分数由来</h2><button type="button" class="btn" data-close-grade>关闭</button></div><p>'+esc(cls.name)+' · '+esc(student.sid||'')+'</p><p>项目完成率 <b>'+Math.round(student.task.earned*100)/100+' / '+student.task.maximum+'</b>（'+Math.round(student.task.rate*1000)/10+'%）；考勤完成率 <b>'+attPctText(student.attendance)+'</b>（'+student.attendance+'/9）；合计 <b>'+student.totalEarned+'</b> / '+student.totalMaximum+'，合并完成率 '+Math.round(student.performanceRate*1000)/10+'%；平时分 <b>'+student.regular+'</b>/100；计入总评 '+student.contribution+'/40。</p><p class="note">每课默认 100%（干净又卫生送分）不是加分日志。下表仅显示截至当前课次的记录；扣分最多扣完本课送分，不跨课。值日是扣分制：不值日每少一人，老师点一次「值日缺勤」，全组每人干净又卫生送分 −20%；正常值日不扣不加。可拖动右下角调整窗口大小。</p><div class="student-grade-scroll"><table class="data"><thead><tr><th>课次</th><th>干净又卫生送分</th><th>个人项目（每项 100%）</th><th>考勤</th><th>本节净得分（完成率）</th></tr></thead><tbody>'+detail+'</tbody></table></div>';
+    dialog.innerHTML='<div class="student-grade-heading"><h2>'+esc(student.name)+' · 截至第'+throughLesson.seq+'次课分数由来</h2><button type="button" class="btn" data-close-grade>关闭</button></div><p>'+esc(cls.name)+' · '+esc(student.sid||'')+'</p><p>项目完成率 <b>'+Math.round(student.task.earned*100)/100+' / '+student.task.maximum+'</b>（'+Math.round(student.task.rate*1000)/10+'%）；其中值日缺勤 <b>'+dutyPct+'</b>（整学期 5 分，只算一次）；考勤完成率 <b>'+attPctText(student.attendance)+'</b>（'+student.attendance+'/9）；平时分 <b>'+student.regular+'</b>/100；计入总评 '+student.contribution+'/40。</p><p class="note">「值日缺勤」是整学期一个 5 分项目（原「干净又卫生」），每节课都显示同一个学期值：一学期没缺勤就是 100%，值日组缺勤时老师点一次「每人 −20%」，全组每人同扣一档，第二次值日再缺勤还能再扣，最低 0%。手机未入袋和个人扣分从本节项目分里扣，扣完为止、不跨课。可拖动右下角调整窗口大小。</p><div class="student-grade-scroll"><table class="data"><thead><tr><th>课次</th><th>本节项目与扣分</th><th>个人项目（每项 100%）</th><th>考勤</th><th>本节完成率</th></tr></thead><tbody>'+detail+'</tbody></table></div>';
     $('[data-close-grade]',dialog).onclick=function(){dialog.close();};if(!dialog.open)openDlg(dialog);
   }
 
@@ -1958,7 +1984,7 @@ function restoreDroppedToHome(cls) {
         : '<span style="color:var(--muted);font-weight:400">（未录入名单）</span>';
 
       var personal = cnt
-        ? '<div class="personals"><span class="plabel">干净又卫生 <small>0–100%</small></span>' +
+        ? '<div class="personals"><span class="plabel">个人扣分 <small>每次 20%</small></span>' +
           memberEntries.map(function (entry) {
             var m=entry.m,i=entry.i;
             return ctlPersonal(g.no, m, i, +s.personal[String(i)] || 0, true);
@@ -1978,16 +2004,12 @@ function restoreDroppedToHome(cls) {
         '<div class="gcard-secondary"><span class="card-feedback-space" aria-hidden="true"></span>' + ctlClear(g.no, false) + '</div>' +
         '<div class="gctl">' +
           '<div>' +
-            '<div class="lbl legacy-group-control">干净又卫生送分</div>' +
-            ctlStep(g.no, 'group', s, maxOf('group', maxPhone), '干净又卫生送分') +
-          '</div>' +
-          '<div>' +
-            '<div class="lbl" title="手机未入袋：增加次数即扣分，每次扣 20%">全组扣分</div><div class="deduction-note">每次 −20%</div>' +
-            ctlBatch(g.no) +
-          '</div>' +
-          '<div>' +
-            '<div class="lbl" title="不值日少一人点一下：全组每人干净又卫生送分 −20%；来了就不点">值日缺勤</div>' +
+            '<div class="lbl" title="整学期值日缺勤（一个 5 分项目）：没缺勤就是 100%，缺勤每次 −20%，全组每人同扣">值日缺勤</div>' +
             ctlDuty(g.no, duty) +
+          '</div>' +
+          '<div>' +
+            '<div class="lbl" title="手机未入袋：增加次数即扣分，每次扣 20%（从本节项目分里扣）">全组扣分</div><div class="deduction-note">每次 −20%</div>' +
+            ctlBatch(g.no) +
           '</div>' +
         '</div>' +
         personal +
@@ -1995,35 +2017,36 @@ function restoreDroppedToHome(cls) {
     }).join('') + '</div>';
   }
 
-  /** 表格式：照着纸质记录表的 11 列版式（组号 + 成员 + 干净又卫生 + 课堂任务 + 考勤完成率 + 全组扣分 + 值日缺勤 + 本节完成率 + 三列成绩） */
+  /** 表格式（2026-11-12 值日缺勤改革）：10 列版式
+      组号 + 成员（含个人扣分）+ 值日缺勤（整学期 5 分，原「干净又卫生」并入这里 + 本节课堂任务 + 考勤完成率 + 全组扣分 + 本节完成率 + 三列成绩 */
   function verticalColumns(cls){
     // CJK text needs one em; Latin letters and digits need roughly half an em.
     function width(text){return Array.from(String(text)).reduce(function(n,ch){return n+(/[^\x00-\xff]/.test(ch)?15:8);},0);}
-    var labels=['组号','成员','干净又卫生','课堂任务','考勤完成率','全组扣分','值日缺勤','本节完成率','（至今完成率）','计入总评 /40','期末至少需考 /100'];
-    var minima=[52,124,124,76,94,100,80,100,164,132,172];
+    var labels=['组号','成员','值日缺勤','课堂任务','考勤完成率','全组扣分','本节完成率','（至今完成率）','计入总评 /40','期末至少需考 /100'];
+    var minima=[52,150,100,76,94,100,100,164,132,172];
     var widths=labels.map(function(t,i){return Math.max(minima[i],width(t)+28);});
     (cls.groups||[]).forEach(function(g){(g.members||[]).forEach(function(m){if(m.name)widths[1]=Math.max(widths[1],width(m.name+' '+(m.no||''))+36);});});
-    var total=widths.reduce(function(a,b){return a+b;},0),names=['no','mem','project','attendance','phone','duty','sum','grade','grade','grade'];
+    var total=widths.reduce(function(a,b){return a+b;},0),names=['no','mem','duty','task','attendance','phone','sum','grade','grade','grade'];
     return widths.map(function(w,i){return '<col class="w-'+names[i]+'" data-content-width="'+w+'" style="width:'+(100*w/total).toFixed(4)+'%!important">';}).join('');
   }
-  function verticalHead(){return '<thead><tr><th class="c-no">组号</th><th class="c-mem">成员</th><th class="c-ded" title="保持整洁的送分：默认 100%；不值日缺勤、手机未入袋、个人/全组扣分从这里扣，扣完为止">干净又卫生</th><th class="c-task" title="本节接线课堂任务（排位用时）折算的完成率；名次到大屏看">课堂任务</th><th class="home-attendance">考勤完成率</th><th class="c-phone">全组扣分</th><th class="c-duty" title="不值日少一人点一下：全组每人干净又卫生送分 −20%；来了就不点">值日缺勤</th><th class="c-sum">本节完成率</th><th class="home-grade regular">平时分<br>（至今完成率）</th><th class="home-grade contribution">计入总评 /40</th><th class="home-grade needed">期末至少需考 /100</th></tr></thead>';}
+  function verticalHead(){return '<thead><tr><th class="c-no">组号</th><th class="c-mem">成员</th><th class="c-duty" title="值日缺勤（整学期一个 5 分项目，原「干净又卫生」并入此列）：一学期没缺勤就是 100%，每节课都显示同一个学期值；值日组缺勤时点一次「每人 −20%」，全组每人同扣一档，按次叠加">值日缺勤</th><th class="c-task" title="本节接线课堂任务（排位用时）折算的完成率；名次到大屏看">课堂任务</th><th class="home-attendance">考勤完成率</th><th class="c-phone">全组扣分</th><th class="c-sum">本节完成率</th><th class="home-grade regular">平时分<br>（至今完成率）</th><th class="home-grade contribution">计入总评 /40</th><th class="home-grade needed">期末至少需考 /100</th></tr></thead>';}
   function verticalGroup(cls,lesson,g,printing){
     var A=window.JFDT_ASSESSMENT,gradeLessons=lessonsThrough(cls,lesson),grades=A.rows(cls,gradeLessons,memberTotals(cls)),isDuty=dutyGroups(lesson).includes(g.no);
     var entries=groupMemberEntries(g),editing=!printing&&groupPicking&&groupPicking.classId===cls.id&&groupPicking.lessonId===lesson.id&&groupPicking.no===g.no;
     var display=entries.length?entries:[{m:null,i:-1}],span=display.length+(editing?1:0),rows=display.map(function(x,j){var m=x.m,i=x.i,key=m&&A.key(m),grade=m&&grades.find(function(r){return r.key===key;}),total=m?memberLessonRateText(lesson,g.no,m,i):'';
       var out='<tr class="vertical-member-row"'+(m?' data-member-index="'+i+'" data-member-key="'+esc(key)+'"':'')+'>';
       if(!j)out+='<td class="c-no" rowspan="'+span+'">'+g.no+' <small class="gcount" title="本组人数 / 上限（双击组号可加人减人）">'+entries.length+'/'+groupCap(g,cls)+'</small></td>';
-      out+='<td class="c-mem member-name-cell'+(m?attendanceNameClass(cls,m,lesson):'')+(m&&isGroupLeader(g,m)?' group-leader-name':'')+'"'+(m?' data-leader-toggle data-g="'+g.no+'" data-member-index="'+i+'"':'')+' title="'+esc(m?(m.name+' '+(m.sid||'')+' · 双击设置或退出组长'):'双击组号添加成员')+'">'+(m?(isGroupLeader(g,m)?'<span class="leader-crown" aria-label="组长">👑</span> ':'')+esc(m.name)+(m.no==null?'':' <small>'+two(m.no)+'</small>'):'未分配成员')+'</td>';
-      out+='<td class="c-ded">'+(m?(printing?scorePctText(remaining(lesson,g.no,i)):ctlPersonal(g.no,m,i,0)):'')+'</td>';
+      out+='<td class="c-mem member-name-cell'+(m?attendanceNameClass(cls,m,lesson):'')+(m&&isGroupLeader(g,m)?' group-leader-name':'')+'"'+(m?' data-leader-toggle data-g="'+g.no+'" data-member-index="'+i+'"':'')+' title="'+esc(m?(m.name+' '+(m.sid||'')+' · 双击设置或退出组长'):'双击组号添加成员')+'">'+(m?(isGroupLeader(g,m)?'<span class="leader-crown" aria-label="组长">👑</span> ':'')+esc(m.name)+(m.no==null?'':' <small>'+two(m.no)+'</small>'):'未分配成员')+(m&&!printing?'<span class="mem-deduct">'+ctlPersonal(g.no,m,i,0)+'</span>':'')+'</td>';
+      if(!j)out+='<td class="c-duty" rowspan="'+span+'">'+(printing?'<b class="duty-pct">'+dutyPctText(lessonsOf(cls.id),g.no)+'</b>':ctlDuty(g.no,isDuty))+'</td>';
       var task=m?taskScore(lesson,g.no,m):null;
       out+='<td class="c-task"'+(task!=null?' title="'+esc(m.name)+' 本节课堂任务 '+pctText(Math.max(0,task)/5*100)+'（已包含在「本节完成率」里）"':'')+'>'+(task!=null?'<b>'+pctText(Math.max(0,task)/5*100)+'</b>':'<span class="c-task-none">—</span>')+'</td>';
       out+='<td class="home-attendance">'+(grade?(printing?'<strong>'+attPctText(grade.attendance)+'</strong>':'<button type="button" class="attendance-score" data-attendance-open="'+esc(key)+'" aria-label="'+esc(m.name)+' 考勤完成率 '+attPctText(grade.attendance)+'，点击修改">'+attPctText(grade.attendance)+'</button>'):'')+'</td>';
-      if(!j)out+='<td class="c-phone" rowspan="'+span+'">'+(printing?'':ctlBatch(g.no))+'</td><td class="c-duty" rowspan="'+span+'">'+(printing?'—':ctlDuty(g.no,isDuty))+'</td>';
+      if(!j)out+='<td class="c-phone" rowspan="'+span+'">'+(printing?'':ctlBatch(g.no))+'</td>';
       out+='<td class="c-sum" title="'+esc(m?m.name:'')+'"><div class="home-grade-person" data-member-lesson-totals="'+g.no+'" data-lesson-member="'+i+'"><strong>'+total+'</strong></div></td>';
       ['regular','contribution','needed'].forEach(function(field){var value=grade?(field==='needed'?(grade.attendanceFailed?'不适用':grade.needed>100?'无法达到':grade.needed):grade[field]):'';out+='<td class="home-grade '+field+'" data-home-grade="'+field+'" title="'+esc(m?m.name:'')+'">'+(grade?'<div class="home-grade-person" data-grade-student="'+esc(key)+'"><strong>'+value+(field==='regular'?' <span class="completion-rate">（'+(grade.totalMaximum?Math.round(grade.performanceRate*1000)/10+'%':'—')+'）</span>':'')+'</strong>'+(grade.attendanceFailed?'<small>考勤挂科</small>':'')+'</div>':'')+'</td>';});
       return out+'</tr>';
     }).join('');
-    if(editing)rows+='<tr class="group-pick-row"><td colspan="4" data-group-picker-slot></td><td colspan="4"></td></tr>';
+    if(editing)rows+='<tr class="group-pick-row"><td colspan="2" data-group-picker-slot></td><td colspan="8"></td></tr>';
     return '<tbody '+(printing?'data-pg':'data-card')+'="'+g.no+'" class="'+(dutyGroups(lesson).includes(g.no)?'is-duty ':'')+(touched(lesson,g.no)?'touched':'')+'">'+rows+'</tbody>';
   }
   function groupsTable(cls,lesson){var gs=visibleGroups(cls);if(!gs.length)return '<p class="empty-hint">这个班还没有分好组（或者组里一个人都没有）。到「待分配名单」点「分组…」分一下，分好组这里就有记分表。</p>';return '<div class="sheetwrap"><table class="sheet sheet-vertical"><colgroup>'+verticalColumns(cls)+'</colgroup>'+verticalHead()+gs.map(function(g){return verticalGroup(cls,lesson,g,false);}).join('')+'</table></div>';}
@@ -2045,9 +2068,9 @@ function restoreDroppedToHome(cls) {
     var leaders = ranked.filter(function (r) { return r.t === lead.t; });
     var allZero = ranked.every(function (r) { return r.t === 0; });
     var bestCount = best ? gs.filter(function(g){ return groupTotal(lesson,g.no) === best.t; }).length : 0;
-    /* 显示层（2026-11-09）：小组口径按送分净值折完成率——本节 ÷5，累计 ÷(5×课次数) */
+    /* 显示层（2026-11-12）：小组口径按成员项目净分的平均折完成率——本节 ÷5，累计 ÷(5×有项目的课次数) */
     var lessonGroupMax = 5;
-    var cumGroupMax = 5 * (ls.length || 1);
+    var cumGroupMax = 5 * groupLessonSpan(ls);
     var leadPct = pctText(Math.max(0, lead.t) / cumGroupMax * 100);
     var leadText = allZero ? '暂无领先' : leaders.length > 1
       ? '并列领先 <small>' + (leaders.length <= 3 ? leaders.map(function(r){return '第' + r.no + '组';}).join('、') : leaders.length + '个小组') + ' · ' + leadPct + '</small>'
@@ -2074,7 +2097,7 @@ function restoreDroppedToHome(cls) {
     
     var totals=memberTotals(cls);
     $$('[data-semester-group]',card).forEach(function(el){var member=cls.groups.find(function(g){return g.no===gno;}).members[+el.dataset.semesterIndex];var total=totals.find(function(m){return m.gno===gno && m.name===member.name && m.sid===member.sid;});el.querySelector('b').textContent=fmt(total?total.total:0);});
-    var dutyBtn=$('[data-duty-deduct]',card);if(dutyBtn)dutyBtn.outerHTML=ctlDuty(gno,dutyGroups(lesson).includes(gno));
+    var dutyCell=$('.duty-cell',card);if(dutyCell)dutyCell.outerHTML=ctlDuty(gno,dutyGroups(lesson).includes(gno));
     card.classList.toggle('touched', touched(lesson, gno));
     $$('.num', card).forEach(function (inp) {
       var f = inp.dataset.f;
@@ -2084,15 +2107,26 @@ function restoreDroppedToHome(cls) {
     var tg = $('[data-act="first"]', card);
     if(tg){tg.classList.toggle('on', !!s.first);tg.textContent='✓';tg.setAttribute('aria-pressed',String(!!s.first));}
     $$('.pchip', card).forEach(function (c) {
-      var n = remaining(lesson,gno,c.dataset.i);
-      c.classList.toggle('hit', n<5);
-      $('.n', c).textContent = scorePctText(n);
+      var lost = 5 - remaining(lesson,gno,c.dataset.i);
+      c.classList.toggle('hit', lost>0);
+      var txt = $('.n', c);
+      if (txt) txt.textContent = lost ? '−' + pctText(lost*20) : '0%';
     });
   }
 
-  /* 值日缺勤：值日组点一下 = 全组每人本节参与分 −1（2026-11-09 改制，旧「值日人数」弹窗已删）。
-     走 changeMemberPoints：可撤销、进操作日志、按剩余分封顶（扣到 0 为止）。 */
-  $('#groupList').addEventListener('click',function(e){var button=e.target.closest('[data-duty-deduct]');if(!button)return;var cls=curClass(),lesson=curLesson(cls);if(!lesson)return;var gno=Number(button.dataset.dutyDeduct);changeMemberPoints(cls,lesson,gno,null,-1,'值日缺勤：全组每人干净又卫生送分 −20%');});
+  /* 值日缺勤（2026-11-12 R1）：值日组这一格点一下 = 全组每人值日缺勤 −20%（整学期 5 分项目，1 档 = 1 分）。
+     记在本课 scores[组].dutyAbsent 上（按次叠加、可撤销、可跨课累计），学期值 = 5 − 累计档数。
+     扣分落在个人分数：全组每人同扣（团队绑定，要扣都扣）。 */
+  function deductDuty(cls,lesson,gno){
+    var s=sc(lesson,gno), old=Number(s.dutyAbsent)||0, neu=Math.min(20,old+1);
+    if(neu===old){flash('这一组本课的缺勤已经记满，不用再点了');return;}
+    s.dutyAbsent=neu;
+    pushUndo({lessonId:lesson.id,gno:gno,f:'dutyAbsent',old:old,neu:neu,label:'值日缺勤：全组每人值日缺勤 −20%'});
+    save();refreshCard(cls,lesson,gno);renderMetrics(cls,lesson);
+    var A=window.JFDT_ASSESSMENT, pct=pctText((A?A.dutyScore(lessonsOf(cls.id),gno):5)/5*100);
+    flash('第'+gno+'组已记值日缺勤：全组每人 −20%，本学期值日缺勤剩 '+pct);
+  }
+  $('#groupList').addEventListener('click',function(e){var button=e.target.closest('[data-duty-deduct]');if(!button)return;var cls=curClass(),lesson=curLesson(cls);if(!lesson)return;deductDuty(cls,lesson,Number(button.dataset.dutyDeduct));});
 
   /* ================= 记分交互（事件委托） ================= */
 
@@ -2140,13 +2174,13 @@ function restoreDroppedToHome(cls) {
   /** 个人扣分走这里，±1 和归零都记录、都可撤销。
       纸质表上「犯几次写几次」，所以不封 5，只封 99 防手滑。
       label 可由调用方指定（比如「值日缺勤」按钮），只影响撤销/日志的显示文案。 */
-  function changeMemberPoints(cls,lesson,gno,index,delta,label){var s=sc(lesson,gno),old=JSON.parse(JSON.stringify(s)),g=groupOf(cls,gno),base=Math.min(5,(+s.group||0)+(s.first?1:0)),values=g.members.map(function(_,i){return remaining(lesson,gno,i);});s.phone=0;g.members.forEach(function(m,i){if(!m.name)return;var value=values[i];if(index===null||String(i)===String(index))value=Math.max(0,Math.min(base,value+delta));s.personal[String(i)]=base-value;});if(JSON.stringify(old)===JSON.stringify(s))return;pushUndo({lessonId:lesson.id,gno:gno,reset:true,old:old,label:label||(index===null?'全组干净又卫生送分各扣 20%':'成员'+(+index+1)+'干净又卫生送分调整')});save();refreshCard(cls,lesson,gno);renderMetrics(cls,lesson);}
+  function changeMemberPoints(cls,lesson,gno,index,delta,label){var s=sc(lesson,gno),old=JSON.parse(JSON.stringify(s)),g=groupOf(cls,gno),base=5,values=g.members.map(function(_,i){return remaining(lesson,gno,i);});s.phone=0;g.members.forEach(function(m,i){if(!m.name)return;var value=values[i];if(index===null||String(i)===String(index))value=Math.max(0,Math.min(base,value+delta));s.personal[String(i)]=base-value;});if(JSON.stringify(old)===JSON.stringify(s))return;pushUndo({lessonId:lesson.id,gno:gno,reset:true,old:old,label:label||(index===null?'全组扣分：全组每人本节项目分 −20%':'成员'+(+index+1)+'本节项目分调整')});save();refreshCard(cls,lesson,gno);renderMetrics(cls,lesson);}
   function bumpPersonal(cls, lesson, chip, delta) {
     var gno = +chip.dataset.g, i = String(chip.dataset.i);
     var s = sc(lesson, gno);
     if(+s.phone>0){changeMemberPoints(cls,lesson,gno,i,-delta);return;}
     var old = +s.personal[i] || 0;
-    var neu = clamp(old + delta, 0, Math.min(5,(+s.group||0)+(s.first?1:0)));
+    var neu = clamp(old + delta, 0, 5);
     if (neu === old) return;
     s.personal[i] = neu;
     pushUndo({
@@ -2272,12 +2306,12 @@ function restoreDroppedToHome(cls) {
 
     var ls = lessonsOf(cls.id);
 
-    /* 小组排行（2026-11-09 显示层：送分净值折完成率，分母 = 5×课次数） */
+    /* 小组排行（2026-11-12 显示层：成员项目净分平均折完成率，分母 = 5×有命名项目的课次数） */
     var rows = cls.groups.map(function (g) {
       return { no: g.no, t: groupCum(cls, g.no), n: memberCount(g) };
     }).sort(function (a, b) { return b.t - a.t; });
     var maxAbs = Math.max(1, Math.max.apply(null, rows.map(function (r) { return Math.abs(r.t); })));
-    var groupCumMax = 5 * (ls.length || 1);
+    var groupCumMax = 5 * groupLessonSpan(ls);
     $('#groupRank').innerHTML = rows.length
       ? '<div class="bars">' + rows.map(function (r, i) {
           var w = r.t === 0 ? 0 : Math.max(2, Math.round(Math.abs(r.t) / maxAbs * 100));
@@ -2293,14 +2327,14 @@ function restoreDroppedToHome(cls) {
     /* 个人详细分（平铺版，2026-11-10 #14）：每个学生一张卡片，往下滑看全部；
        rankSort 控制排序：'group' 按组号升序（组内按平时分）、'regular' 按平时分降序 */
     var ms = memberTotals(cls);
-    /* 显示层：全班共用一个分母（每课 5 + 5×已命名项目数，逐课累加），学期汇总按完成率口径 */
+    /* 显示层：全班共用一个分母（Σ每课 5×已命名项目数 + 值日缺勤 5 分，只算一次），学期汇总按完成率口径 */
     var semesterMax = semesterProjectMax(ls);
     /* 顶部统计（2026-11-11 #15）：原来是一整条独立横幅 + 一句「包含当前班全部已录入课次，随记分实时更新」，
        现在缩成一句话跟在班级下拉后面同一行，尾巴压短一点，宽屏一屏能放下不换行 */
     $('#semesterSummary').textContent = cls.name+' · '+ls.length+'次课 · '+ms.length+'名已分组学生 · '+(ms.length&&semesterMax?'全班平均完成率 '+pctNum(ms.reduce(function(a,m){return a+Math.max(0,m.total);},0)/ms.length/semesterMax*100)+'%':'暂无课次')+'。随记分实时更新。';
     if(window.JFDT_ASSESSMENT) window.JFDT_ASSESSMENT.renderDetail({root:$('#memberRank'),cls:cls,lessons:ls,raw:ms,sort:rankSort,save:function(){save();},log:addOperationLog,message:flash,openAttendance:function(){switchView('attendance');},export:function(name,rows){download(name,toCsv(rows),'text/csv');}});
 
-    /* 逐节明细（显示层：每课 ÷5、累计 ÷(5×课次数)，折完成率） */
+    /* 逐节明细（显示层：每课按「成员平均项目分 ÷ 5」折完成率，累计分母 = 5×有命名项目的课次数） */
     $('#lessonMatrix').innerHTML = ls.length
       ? '<table class="data fit"><thead><tr><th>组号</th>' +
           ls.map(function (l) { return '<th class="n">第' + l.seq + '课</th>'; }).join('') +
@@ -5222,14 +5256,14 @@ function restoreDroppedToHome(cls) {
     var rows = [['班级', cls.name, '第 ' + lesson.seq + ' 次课', '日期', lesson.date || '',
                  '本节任务', lesson.topic || '', '值日组', lesson.dutyGroup || '']];
     rows.push([]);
-    rows.push(['组号', '成员', '干净又卫生送分', '手机未入袋（次数，每次 −20%）', '个人扣分合计（%）', '本节完成率', '小组累计完成率']);
+    rows.push(['组号', '成员', '值日缺勤（整学期，每次缺勤 −20%）', '手机未入袋（次数，每次 −20%）', '个人扣分合计（%）', '本节完成率', '小组累计完成率']);
     cls.groups.forEach(function (g) {
       var s = sc(lesson, g.no);
       var ls = lessonsOf(cls.id);
       rows.push([g.no,
         g.members.map(function (m) { return m.name; }).join('、'),
-        scorePctText(Math.min(5,(+s.group||0)+(s.first?1:0))), +s.phone || 0,
-        '−' + (personalSum(lesson, g.no) * 20) + '%', pctText(Math.max(0, groupTotal(lesson, g.no)) / 5 * 100), pctText(Math.max(0, groupCum(cls, g.no)) / (5 * (ls.length || 1)) * 100)]);
+        dutyPctText(ls, g.no), +s.phone || 0,
+        '−' + (personalSum(lesson, g.no) * 20) + '%', pctText(Math.max(0, groupTotal(lesson, g.no)) / 5 * 100), pctText(Math.max(0, groupCum(cls, g.no)) / (5 * groupLessonSpan(ls)) * 100)]);
     });
     download(cls.name + '_第' + lesson.seq + '次课_' + stamp() + '.csv', toCsv(rows), 'text/csv');
   }
@@ -5244,7 +5278,7 @@ function restoreDroppedToHome(cls) {
     cls.groups.forEach(function (g) {
       rows.push([g.no, g.members.map(function (m) { return m.name; }).join('、')]
         .concat(ls.map(function (l) { return touched(l, g.no) ? pctText(Math.max(0, groupTotal(l, g.no)) / 5 * 100) : ''; }))
-        .concat([pctText(Math.max(0, groupCum(cls, g.no)) / (5 * (ls.length || 1)) * 100)]));
+        .concat([pctText(Math.max(0, groupCum(cls, g.no)) / (5 * groupLessonSpan(ls)) * 100)]));
     });
     download(cls.name + '_累计总表_' + stamp() + '.csv', toCsv(rows), 'text/csv');
   }
@@ -5324,7 +5358,7 @@ function restoreDroppedToHome(cls) {
     frame.onload=function(){frame.contentWindow.focus();frame.contentWindow.print();};document.body.appendChild(frame);
   }
 
-  var XL_RULE = "每课「干净又卫生」送分默认 100%：不值日缺勤、手机未入袋、个人或全组扣分都从这里扣，每次 −20%，扣完为止（不跨课）。每个命名个人项目满分 100%，按 20%、40%、60%、80%、100% 五档打分（如 4 个项目打 3 个 100%、1 个 0%，项目完成率＝300%÷400%＝75%）。每课总完成率＝（剩余送分＋Σ个人项目分）÷（5＋5×已命名项目数），可达 100%。考勤是学期固定项目，满分折 100%（9 分制扣分，如扣 1 分 → 约 88.9%）。合并完成率＝（项目净得分＋考勤分）÷（项目满分＋9），内部计算口径不变，界面与导出一律按百分比显示。平时分＝合并完成率×100，计入总评＝平时分×40%，满分40。迟到早退每3次折1次旷课，不重复扣分；考勤归零或旷课达到门槛时按教师设置标红挂科。";
+  var XL_RULE = "「值日缺勤」是整学期一个 5 分项目（只算一次，每节课都显示同一个学期值）：一学期没缺勤就是 100%，值日组缺勤时教师点一次「值日缺勤」，全组每人 −20%（团队绑定，要扣都扣），第二次轮到值日再缺勤还能再扣，最低 0%。手机未入袋、个人或全组扣分从本节项目分里扣，每次 −20%，扣完为止（不跨课）。每个命名个人项目满分 100%，按 20%、40%、60%、80%、100% 五档打分（如 4 个项目打 3 个 100%、1 个 0%，项目完成率＝300%÷400%＝75%）。每课完成率＝本节项目净得分÷（5×已命名项目数）。整学期分母＝5（值日缺勤，只算一次）＋Σ每课 5×已命名项目数，项目再多也不会被每课白送的 5 分稀释。考勤是学期固定项目，满分折 100%（9 分制扣分，如扣 1 分 → 约 88.9%）。平时分＝项目完成率×100，计入总评＝平时分×40%，满分40。迟到早退每3次折1次旷课，不重复扣分；考勤归零或旷课达到门槛时按教师设置标红挂科。";
 
 
   /** 班内序号补两位，跟纸质表的「张三 05」一致 */
@@ -5402,7 +5436,7 @@ function restoreDroppedToHome(cls) {
     var foot='<tfoot><tr><td class="c-note" colspan="'+10+'">'+note+'</td></tr><tr><td class="c-note" colspan="'+10+'">右侧三列为本学期当前个人成绩，与排名页相同；按姓名逐行对应。成绩按已登记的项目和考勤计算，考勤挂科时考试目标不适用。打印后不会自动更新。</td></tr></tfoot>';
 
     var cfg=window.JFDT_ASSESSMENT.settings(cls);
-    var reverse='<section class="lesson-duplex-page lesson-rules-back"><h1>小组制课堂 · 加分与成绩换算说明</h1><p>'+esc(cls.name)+' · 第'+lesson.seq+'次课 · '+esc(lesson.date||'')+'</p><h2>1. 项目与扣分</h2><p>每新开一课，「干净又卫生」送分默认 100%；每个命名个人项目满分 100%（20%、40%、60%、80%、100% 五档）。同课任一组修改个人项目名，全班同步。不值日缺勤、手机未入袋、个人或全组扣分都从送分里扣，每次 −20%，扣完为止；全组扣分从每个人身上扣，个人扣分只扣本人，合计仅扣本课送分，最低 0%，不跨课。</p><h2>2. 值日与完成率换算</h2><p>值日是扣分制：不值日每少一人，教师点一下「值日缺勤」，全组每人干净又卫生送分 −20%；正常值日不扣不加，不占项目分母。每课总完成率＝（剩余送分＋Σ个人项目分）÷（5＋5×已命名项目数），可达 100%。例如 4 个任务打 3 个 100%、1 个 0%：300%÷400%＝75%。考勤是学期固定项目，满分折 100%（9 分制扣分，如扣 1 分 → 约 88.9%）。合并完成率＝（项目净得分＋考勤分）÷（项目满分＋9），内部计算口径不变，界面与打印一律按百分比显示；平时分＝合并完成率×100；计入总评＝平时分×40%，满分40。迟到早退每3次折1次旷课，不重复扣分；考勤归零或旷课达到门槛时按教师设置标红挂科。</p><h2>3. 考勤与挂科标记</h2><p>本班默认扣分：迟到'+cfg.late+'、早退'+cfg.early+'、旷课'+cfg.truant+'、请假'+cfg.leave+'（9 分制分值，教师可随时更正）；每次可由教师更正。迟到＋早退每'+cfg.lateEarlyConversion+'次折算1次旷课，只用于挂科计数，不重复扣分。实际＋折算旷课合计'+cfg.truantFailure+'次触发标红；当前考勤挂科标记'+(cfg.attendanceFailureEnabled?'开启':'关闭')+'。门槛与开关由教师在二级设置调整，更正后自动重算。</p><h2>4. 期末还需考多少分</h2><p>平时占40%，期末占60%，本班及格线'+cfg.passScore+'。期末需考=max(0,(及格线−平时成绩×0.4)÷0.6)，向上取0.1分。折合列仅显示一位小数，计算使用未提前舍入的数值。超过100表示无法达到；考勤挂科时目标不适用，考试高分不能解除标记。</p><h2>5. 阅读与使用</h2><p>每名学生独占一行，姓名与干净又卫生送分、课堂任务、考勤完成率及右侧三列直接对应；右侧为打印时本学期当前个人成绩，与排名页相同，不是小组平均分。未编辑考勤默认到课，只登记请假、旷课、迟到或早退等异常。资料未齐时供参考。纸上填写不会自动识别，教师需回网页补录；以网页最新记录为准。</p><p class="duplex-note">双面打印：A4竖向，长边翻转；关闭浏览器页眉页脚。每张加分表正面后紧跟这份规则背面。</p></section>';
+    var reverse='<section class="lesson-duplex-page lesson-rules-back"><h1>小组制课堂 · 加分与成绩换算说明</h1><p>'+esc(cls.name)+' · 第'+lesson.seq+'次课 · '+esc(lesson.date||'')+'</p><h2>1. 项目与扣分</h2><p>每个命名个人项目满分 100%（20%、40%、60%、80%、100% 五档）。同课任一组修改个人项目名，全班同步。手机未入袋、个人或全组扣分都从本节项目分里扣，每次 −20%，扣完为止；全组扣分从每个人身上扣，个人扣分只扣本人，最低 0%，不跨课。</p><h2>2. 值日与完成率换算</h2><p>「值日缺勤」是整学期一个 5 分项目（只算一次，每节课都显示同一个学期值）：一学期没缺勤就是 100%，值日组缺勤时教师点一下「值日缺勤」，全组每人 −20%（团队绑定，要扣都扣），第二次轮到值日再缺勤还能再扣，最低 0%。每节课的满分只有 5×已命名项目数，本节完成率＝本节项目净得分÷（5×已命名项目数）。整学期分母＝5（值日缺勤，只算一次）＋Σ每课 5×已命名项目数，所以项目再多也不会被每课白送的 5 分稀释。例如 4 个任务打 3 个 100%、1 个 0%：300%÷400%＝75%。考勤是学期固定项目，满分折 100%（9 分制扣分，如扣 1 分 → 约 88.9%）。平时分＝项目完成率×100；计入总评＝平时分×40%，满分40。迟到早退每3次折1次旷课，不重复扣分；考勤归零或旷课达到门槛时按教师设置标红挂科。</p><h2>3. 考勤与挂科标记</h2><p>本班默认扣分：迟到'+cfg.late+'、早退'+cfg.early+'、旷课'+cfg.truant+'、请假'+cfg.leave+'（9 分制分值，教师可随时更正）；每次可由教师更正。迟到＋早退每'+cfg.lateEarlyConversion+'次折算1次旷课，只用于挂科计数，不重复扣分。实际＋折算旷课合计'+cfg.truantFailure+'次触发标红；当前考勤挂科标记'+(cfg.attendanceFailureEnabled?'开启':'关闭')+'。门槛与开关由教师在二级设置调整，更正后自动重算。</p><h2>4. 期末还需考多少分</h2><p>平时占40%，期末占60%，本班及格线'+cfg.passScore+'。期末需考=max(0,(及格线−平时成绩×0.4)÷0.6)，向上取0.1分。折合列仅显示一位小数，计算使用未提前舍入的数值。超过100表示无法达到；考勤挂科时目标不适用，考试高分不能解除标记。</p><h2>5. 阅读与使用</h2><p>每名学生独占一行，姓名与值日缺勤、课堂任务、考勤完成率及右侧三列直接对应；右侧为打印时本学期当前个人成绩，与排名页相同，不是小组平均分。未编辑考勤默认到课，只登记请假、旷课、迟到或早退等异常。资料未齐时供参考。纸上填写不会自动识别，教师需回网页补录；以网页最新记录为准。</p><p class="duplex-note">双面打印：A4竖向，长边翻转；关闭浏览器页眉页脚。每张加分表正面后紧跟这份规则背面。</p></section>';
     var groupsPerPage=pageGroups&&pageGroups.length?pageGroups:[printGroups],pages=[];
     groupsPerPage.forEach(function(part,pageIndex){var body=part.map(function(g){return verticalGroup(cls,lesson,g,true);}).join('');pages.push('<section class="lesson-duplex-page lesson-duplex-front"><div class="sheet-title">课堂分组与加分记录表</div><div class="sheet-info">'+esc(cls.name)+' · 第'+lesson.seq+'次 · '+esc(lesson.date||'')+' · '+esc(lesson.topic||'')+'</div><div class="sheet-duty">值日：'+(dg?'第'+dg+'组':'未指定')+' · 第'+(pageIndex+1)+'张 · '+(part.length===1?'第'+part[0].no+'组':'第'+part[0].no+'—'+part[part.length-1].no+'组')+'</div><table class="sheet-tb sheet-vertical"><colgroup>'+cols+'</colgroup>'+head+body+foot+'</table></section>');pages.push(reverse);});
     var holder=document.createElement('div');holder.innerHTML=pages.join('');
@@ -5432,7 +5466,7 @@ function restoreDroppedToHome(cls) {
       '<h2>一、小组累计排行</h2><table><thead><tr><th>名次</th><th>组号</th><th>人数</th><th>累计完成率</th></tr></thead><tbody>' +
       gr.map(function (r, i) {
         return '<tr><td>' + (i + 1) + '</td><td>第 ' + r.no + ' 组</td><td>' +
-          (memberCount(groupOf(cls, r.no)) || '') + '</td><td><b>' + pctText(Math.max(0, r.t) / (5 * (ls.length || 1)) * 100) + '</b></td></tr>';
+          (memberCount(groupOf(cls, r.no)) || '') + '</td><td><b>' + pctText(Math.max(0, r.t) / (5 * groupLessonSpan(ls)) * 100) + '</b></td></tr>';
       }).join('') + '</tbody></table>';
 
     if (ms.length) {
@@ -5454,7 +5488,7 @@ function restoreDroppedToHome(cls) {
         cls.groups.map(function (g) {
           return '<tr><td>第 ' + g.no + ' 组</td>' +
             ls.map(function (l) { return '<td>' + (touched(l, g.no) ? pctText(Math.max(0, groupTotal(l, g.no)) / 5 * 100) : '') + '</td>'; }).join('') +
-            '<td><b>' + pctText(Math.max(0, groupCum(cls, g.no)) / (5 * ls.length) * 100) + '</b></td></tr>';
+            '<td><b>' + pctText(Math.max(0, groupCum(cls, g.no)) / (5 * groupLessonSpan(ls)) * 100) + '</b></td></tr>';
         }).join('') + '</tbody></table>';
     }
 
@@ -5499,9 +5533,10 @@ function restoreDroppedToHome(cls) {
   });
   function redo(index) {if(typeof index!=='number')index=(S.redo||[]).length-1;var entry=(S.redo||[]).splice(index,1)[0];if(!entry)return false;var l=getLesson(entry.op.lessonId);if(!l)return false;var effect=entry.redoEffect||operationEffect(entry.op),actual=applyEffect(entry.op,effect,1);entry.op.effect=actual;S.undo.push(entry.op);S.ui.classId=l.classId;S.ui.lessonId=l.id;addOperationLog('重做',undoLabel(reverseOp(entry.op)));save(false);renderScore();if(entry.op.projectBatch)renderLeader();renderUndoBtn();flash('已恢复所选操作');return true;}
   $('#btnRedo').addEventListener('click', redo);
-  var restoreFiveDialog=document.createElement('dialog');restoreFiveDialog.id='dlgRestoreFive';restoreFiveDialog.innerHTML='<form method="dialog"><h2>恢复干净又卫生送分 100%</h2><label class="field col">恢复范围<select id="restoreFiveScope"><option value="lesson">当前课次</option><option value="class">当前班级全部课次</option><option value="all">所有班级全部课次</option></select></label><p class="note">直接恢复每人的干净又卫生送分 100%，不生成逐人加分日志。相关扣分及撤销项移入备份归档，避免再次撤掉默认送分。个人评分表项目和考勤保留。</p><div class="btnrow"><button class="btn" value="cancel">取消</button><button class="btn primary" value="ok">恢复 100%</button></div></form>';document.body.appendChild(restoreFiveDialog);wireDialog(restoreFiveDialog);
-  $('#btnRestoreFive').onclick=function(){openDlg(restoreFiveDialog);};restoreFiveDialog.addEventListener('close',function(){if(restoreFiveDialog.returnValue!=='ok')return;var cls=curClass(),current=curLesson(cls),scope=$('#restoreFiveScope').value,lessons=S.lessons.filter(function(l){return scope==='all'||scope==='class'&&l.classId===cls.id||scope==='lesson'&&current&&l.id===current.id;}),ids=new Set(lessons.map(function(l){return l.id;}));if(!lessons.length){flash('所选范围没有课次');return;}var archived={at:new Date().toISOString(),scope:scope,records:[],undo:[],redo:[],logs:[]};lessons.forEach(function(l){var c=getClass(l.classId);if(!c)return;l.memberProjectBase=5;c.groups.forEach(function(g){var old=sc(l,g.no);archived.records.push({lessonId:l.id,gno:g.no,group:old.group,first:old.first,phone:old.phone,personal:JSON.parse(JSON.stringify(old.personal||{}))});old.group=5;old.first=0;old.phone=0;old.personal={};});});function projectOp(op){return ids.has(op.lessonId)&&(op.i!=null||op.reset||['group','first','phone'].includes(op.f));}S.undo=(S.undo||[]).filter(function(op){if(projectOp(op)){archived.undo.push(op);return false;}return true;});S.redo=(S.redo||[]).filter(function(e){if(projectOp(e.op)){archived.redo.push(e);return false;}return true;});var classNames=new Set(lessons.map(function(l){return getClass(l.classId).name;}));S.operationLog=(S.operationLog||[]).filter(function(e){if(/个人扣分|项目分调整|全组项目|小组分|首个正确|全组扣分/.test(e.detail||'')&&(scope==='all'||Array.from(classNames).some(function(name){return (e.detail||'').includes(name);} ))){archived.logs.push(e);return false;}return true;});S.baselineRecoveryArchive=(S.baselineRecoveryArchive||[]).concat([archived]).slice(-3);save();renderScore();renderUndoBtn();flash('已直接恢复'+lessons.length+'课干净又卫生送分 100%，无逐人加分日志');});
-  $('#logClassFilter').addEventListener('change',function(){$('#logLessonFilter').value='';renderOperationLog();});$('#logLessonFilter').addEventListener('change',renderOperationLog);$('#logSearch').addEventListener('input',renderOperationLog);
+  /* 一键恢复：2026-11-12 起「干净又卫生」并入「值日缺勤」并改成整学期一次 5 分，
+     所以这个按钮现在只做一件事：清空所选范围的值日缺勤扣分，把学期值日缺勤恢复成 100%。 */
+  var restoreFiveDialog=document.createElement('dialog');restoreFiveDialog.id='dlgRestoreFive';restoreFiveDialog.innerHTML='<form method="dialog"><h2>恢复值日缺勤 100%</h2><label class="field col">恢复范围<select id="restoreFiveScope"><option value="lesson">当前课次</option><option value="class">当前班级全部课次</option><option value="all">所有班级全部课次</option></select></label><p class="note">清空所选范围的「值日缺勤」扣分，让整学期值日缺勤回到 100%（5 分，只算一次）。个人项目、手机扣分与考勤保留。</p><div class="btnrow"><button class="btn" value="cancel">取消</button><button class="btn primary" value="ok">恢复 100%</button></div></form>';document.body.appendChild(restoreFiveDialog);wireDialog(restoreFiveDialog);
+  $('#btnRestoreFive').onclick=function(){openDlg(restoreFiveDialog);};restoreFiveDialog.addEventListener('close',function(){if(restoreFiveDialog.returnValue!=='ok')return;var cls=curClass(),current=curLesson(cls),scope=$('#restoreFiveScope').value,lessons=S.lessons.filter(function(l){return scope==='all'||scope==='class'&&l.classId===cls.id||scope==='lesson'&&current&&l.id===current.id;}),ids=new Set(lessons.map(function(l){return l.id;}));if(!lessons.length){flash('所选范围没有课次');return;}var cleared=0;lessons.forEach(function(l){var c=getClass(l.classId);if(!c)return;c.groups.forEach(function(g){var s=(l.scores||{})[String(g.no)];if(s&&Number(s.dutyAbsent)){cleared+=Number(s.dutyAbsent)||0;s.dutyAbsent=0;}});});S.undo=(S.undo||[]).filter(function(op){return !(ids.has(op.lessonId)&&op.f==='dutyAbsent');});S.redo=(S.redo||[]).filter(function(e){return !(e.op&&ids.has(e.op.lessonId)&&e.op.f==='dutyAbsent');});save();renderScore();renderUndoBtn();flash(cleared?'已清空 '+cleared+' 档值日缺勤，学期值日缺勤恢复 100%':'所选范围本来就没有值日缺勤扣分');});
   $('#btnOperationLog').addEventListener('click',function(){renderUndoBtn();openDlg($('#dlgOperationLog'));});
   $('#closeOperationLog').addEventListener('click',function(){$('#dlgOperationLog').close();});
   (function wireLogSwipe(){
@@ -5972,7 +6007,7 @@ function restoreDroppedToHome(cls) {
     var cls = map[st.mode] || '';
     if(st.mode==='conflict'&&S){
       function conflictValue(value){if(value===undefined)return '未设置';if(value===null)return '空值';if(typeof value==='object'){try{return JSON.stringify(value);}catch(e){return '[复杂数据]';}}return String(value);}
-      function conflictLabel(path){var raw=String(path||'');if(raw==='/本机记录')return '本机记录概况';if(raw==='/处理范围')return '冲突处理范围';var parts=raw.split('/'),lesson=parts[1]==='lessons'&&getLesson(parts[2]),c=lesson&&getClass(lesson.classId);if(parts[1]==='classes')return '班级与分组';if(!lesson)return parts[1]==='lessons'?'课次记录':'业务数据';var prefix=(c?c.name:'当前班级')+' · 第'+lesson.seq+'次课';if(parts[3]==='scores'){var g=groupOf(c,+parts[4]),m=g&&g.members[+parts[6]],field=parts[5];return prefix+' · 第'+parts[4]+'组 · '+(field==='personal'?(m?m.name:'成员')+'干净又卫生个人扣分':field==='duty'||field==='dutyParticipation'?'值日分（旧制，已废弃）':field==='group'?'干净又卫生送分（默认 100%）':field==='phone'?'手机未入袋扣分':field==='first'?'首次分':'小组记分');}if(parts[3]==='leaderScores')return prefix+' · 第'+parts[4]+'组 · 个人项目评分';if(parts[3]==='attendance')return prefix+' · 考勤';return prefix+' · 课次或项目设置';}
+      function conflictLabel(path){var raw=String(path||'');if(raw==='/本机记录')return '本机记录概况';if(raw==='/处理范围')return '冲突处理范围';var parts=raw.split('/'),lesson=parts[1]==='lessons'&&getLesson(parts[2]),c=lesson&&getClass(lesson.classId);if(parts[1]==='classes')return '班级与分组';if(!lesson)return parts[1]==='lessons'?'课次记录':'业务数据';var prefix=(c?c.name:'当前班级')+' · 第'+lesson.seq+'次课';if(parts[3]==='scores'){var g=groupOf(c,+parts[4]),m=g&&g.members[+parts[6]],field=parts[5];return prefix+' · 第'+parts[4]+'组 · '+(field==='personal'?(m?m.name:'成员')+'个人扣分':field==='duty'||field==='dutyParticipation'?'值日分（旧制，已废弃）':field==='group'?'值日缺勤（整学期 5 分）':field==='phone'?'手机未入袋扣分':field==='first'?'首次分':'小组记分');}if(parts[3]==='leaderScores')return prefix+' · 第'+parts[4]+'组 · 个人项目评分';if(parts[3]==='attendance')return prefix+' · 考勤';return prefix+' · 课次或项目设置';}
       var rawDetails=Array.isArray(st.conflictDetails)?st.conflictDetails:[],details=rawDetails.filter(function(item,index){return rawDetails.findIndex(function(other){return String(other.path||'')===String(item.path||'')&&String(other.local)===String(item.local)&&String(other.remote)===String(item.remote);})===index;}),shown=details.slice(0,12),conflictCount=details.length||st.conflicts&&st.conflicts.length||0,detailHtml='<div class="sync-conflict-intro"><b>'+(conflictCount?'检测到 '+conflictCount+' 处差异':'检测到云端版本冲突')+'</b>'+(conflictCount?'：下面分别列出本机和云端的值。':'，但当前接口没有返回可展开的字段差异。');
       if(shown.length){detailHtml+='<div class="sync-conflict-table" role="table"><div class="sync-conflict-row sync-conflict-head" role="row"><span>位置</span><span>本机</span><span>云端</span></div>';shown.forEach(function(item){detailHtml+='<div class="sync-conflict-row" role="row"><span class="sync-conflict-path">'+esc(conflictLabel(item.path))+'</span><code>'+esc(conflictValue(item.local))+'</code><code>'+esc(conflictValue(item.remote))+'</code></div>';});detailHtml+='</div>'+(details.length>shown.length?'<p class="note">还有 '+(details.length-shown.length)+' 处差异，请先到首页「全站备份」导出本机存档，再到「数据与同步」继续核对。</p>':'');}else{detailHtml+='<p class="note">当前版本只拿到了差异位置，未能读取两端的具体值。请刷新后重试；系统仍会暂停上传，不会自动覆盖。</p>';}$('#syncConflictDetails').innerHTML=detailHtml;
     }

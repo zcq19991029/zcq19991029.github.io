@@ -8,8 +8,8 @@
  * 日期列写满 11 个就另起一张同款表（同名加 -1、-2），学生不动。
  *
  * 口径（与「本学期总分」页一致）：
- *   每列 = 该次课的课堂项目完成率（小组项目净分 + 个人项目得分）÷（5 + 5×命名项目数）
- *   O 作业成绩 = 本学期项目完成率（不含值日，值日是扣分制），P 考勤 = 考勤得分÷9，Q 平时成绩合计 = 平时分
+ *   每列 = 该次课的课堂项目完成率 =（Σ个人项目得分 − 全组扣分 − 本人扣分）÷（5×命名项目数）
+ *   O 作业成绩 = 本学期项目完成率（分母含「值日缺勤」5 分，整学期只算一次），P 考勤 = 考勤得分÷9，Q 平时成绩合计 = 平时分
  *   R 考试成绩 = 实际期末，S 总评 = 平时×40% + 期末×60%
  * 这个文件不碰任何数据，只读 state 算出来的行，生成预览 / 打印页 / Excel。
  */
@@ -52,22 +52,12 @@
     if (!A || !m.gno) return '';
     var recorded = Object.keys(lesson.scores || {}).length || Object.keys(lesson.leaderScores || {}).length;
     if (!recorded) return '';
-    var sc = (lesson.scores || {})[String(m.gno)] || {};
-    var groupPart = Math.min(5, (Number(sc.group) || 0) + (sc.first ? 1 : 0));
-    var phone = Number(sc.phone) || 0;
-    var personalLoss = Number((sc.personal || {})[String(m.memberIndex)]) || 0;
-    var net = Math.max(0, groupPart - phone - personalLoss);
-    var values = ((lesson.leaderScores || {})[String(m.gno)] || {}).members || {};
-    var mine = values[m.key];
-    var earned = 0, max = 5;
-    A.projectNames(lesson).forEach(function (name, i) {
-      if (!String(name || '').trim()) return;
-      max += 5;
-      var v = mine && mine[i];
-      if (v == null) return;
-      earned += Math.max(0, Math.min(5, Number(v) || 0));
-    });
-    return num(Math.max(0, Math.min(100, (net + earned) / max * 100)));
+    /* 2026-11-12 R1：本节满分只剩「命名项目 × 5」，不再每课送 5 分。
+       值日缺勤是整学期只算一次的项目，不摊回每节课的完成率。 */
+    if (!A.lessonNet) return '';
+    var net = A.lessonNet(lesson, m.gno, m.memberIndex, m.key);
+    if (!net || !net.max) return '';
+    return num(Math.max(0, Math.min(100, net.earned / net.max * 100)));
   }
 
   /** 一名学生在一张表上的整行数据 */

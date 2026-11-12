@@ -37,25 +37,88 @@
     if(shared)include(shared);Object.values(records).forEach(function(r){include(r.projects);Object.values(r.members||{}).forEach(include);});
     return Array.from({length:Math.min(30,length)},function(_,i){if(shared)return shared[i]||'';for(var g of Object.keys(records).sort(function(a,b){return Number(a)-Number(b);})){var name=records[g].projects&&records[g].projects[i];if(String(name||'').trim())return name;}return '';});
   }
-  // Duty is now a deduction system (2026-11-09): no semester credit, no duty field.
-  // A missing duty participant costs each member one lesson point via app.js changeMemberPoints.
-  function groupNet(lesson,gno,lessons) {
-    var sc=(lesson.scores||{})[String(gno)]||{};
-    return Math.max(0,Math.min(5,(Number(sc.group)||0)+(sc.first?1:0))-(Number(sc.phone)||0));
+  /* ---------- 2026-11-12 R1：值日缺勤 = 整学期一次 5 分项目 ----------
+     旧口径（本版作废）：每节课都送 5 分（叫「干净又卫生」），13 节课白送 65 分，
+     项目越加越多、项目分的比重被稀释。用户要求「清理之前每节课都送的 5 分，改为仅第一个加一次整学期存在」。
+     新口径：
+       · 值日缺勤（原「干净又卫生」）：整学期一个 5 分项目，一次都没缺勤就是 5/5 = 100%，
+         每节课都显示这个学期值，不再逐课累加；
+       · 值日缺勤按 20% 一档扣（= 1 分），按组累计、全组每人同扣（团队绑定），
+         第二次轮到值日再缺勤还能再扣一次（扣分叠加），最终落到个人分数上；
+       · 每节课的满分只剩「5 × 已命名项目数」；手机未入袋 / 个人扣分从本节项目分里扣，
+         扣完为止、不跨课（旧口径是从每课那 5 分送分里扣）。 */
+  function namedCount(lesson) {
+    return projectNames(lesson).filter(function (n) { return String(n || '').trim(); }).length;
+  }
+  /** 每节课的项目满分（不含整学期那 5 分值日缺勤） */
+  function lessonMax(lesson) { return 5 * namedCount(lesson); }
+  /** 整学期值日缺勤扣了几档（1 档 = 20% = 1 分）；按组累计，封顶 5 档 */
+  function dutyLoss(lessons, gno) {
+    var n = 0, key = String(gno);
+    (lessons || []).forEach(function (l) {
+      var s = (l.scores || {})[key] || {};
+      n += Number(s.dutyAbsent) || 0;
+    });
+    return Math.max(0, Math.min(5, n));
+  }
+  /** 值日缺勤得分（0–5）：一学期没缺勤就是 5（100%） */
+  function dutyScore(lessons, gno) { return Math.max(0, 5 - dutyLoss(lessons, gno)); }
+  /** 某成员某节课的项目净得分：Σ项目得分 − 手机未入袋 − 本人扣分，最多扣完本课项目分 */
+  function lessonNet(lesson, gno, memberIndex, key) {
+    var n = 0, raw = 0;
+    var rec = (lesson.leaderScores || {})[String(gno)] || {};
+    var values = (rec.members || {})[key];
+    projectNames(lesson).forEach(function (name, i) {
+      if (!String(name || '').trim()) return;
+      n++;
+      var v = values ? values[i] : null;
+      if (v === null || v === undefined) return;
+      raw += Math.max(0, Math.min(5, Number(v) || 0));
+    });
+    if (!n) return { earned: 0, max: 0, raw: 0, ded: 0 };
+    var sc = (lesson.scores || {})[String(gno)] || {};
+    var phone = Math.max(0, Number(sc.phone) || 0);
+    var mine = Math.max(0, Number((sc.personal || {})[String(memberIndex)]) || 0);
+    var ded = Math.min(5 * n, phone + mine);
+    return { earned: Math.max(0, raw - ded), max: 5 * n, raw: raw, ded: ded };
+  }
+  /** 本组本节的项目完成（0–5）：按已记分的成员平均，兼容老调用（组级没有成员下标，个人扣分不计） */
+  function groupNet(lesson, gno, lessons) {
+    var n = namedCount(lesson);
+    if (!n) return 0;
+    var rec = (lesson.leaderScores || {})[String(gno)] || {}, meter = (lesson.scores || {})[String(gno)] || {};
+    var keys = Object.keys(rec.members || {});
+    if (!keys.length) return 0;
+    var phone = Math.max(0, Number(meter.phone) || 0), sum = 0;
+    keys.forEach(function (k) {
+      var values = rec.members[k] || [], raw = 0;
+      projectNames(lesson).forEach(function (name, i) {
+        if (!String(name || '').trim()) return;
+        var v = values[i];
+        if (v === null || v === undefined) return;
+        raw += Math.max(0, Math.min(5, Number(v) || 0));
+      });
+      sum += Math.max(0, raw - phone);
+    });
+    return Math.round(sum / keys.length / n * 100) / 100;
   }
   function taskEvidence(lessons,m,cfg) {
-    var earned=0,maximum=lessons.length?5*lessons.length:0,pending=0,planned=maximum,personal=0;
+    var earned=0,maximum=0,pending=0;
+    /* 值日缺勤：整学期一次，5 分；没缺勤就是满分，缺勤按 20% 一档从这 5 分里扣 */
+    var duty=lessons.length?dutyScore(lessons,m.gno):0;
+    earned+=duty;maximum+=lessons.length?5:0;
     lessons.forEach(function(l){
-      var records=l.leaderScores||{},projects=projectNames(l),sc=(l.scores||{})[String(m.gno)]||{};
-      var values=records[String(m.gno)]&&records[String(m.gno)].members&&records[String(m.gno)].members[m.key];
-      var base=Math.min(5,(Number(sc.group)||0)+(sc.first?1:0)),phone=Number(sc.phone)||0,memberIndex=Number.isInteger(m.memberIndex)?m.memberIndex:-1,personalLoss=Number((sc.personal||{})[String(memberIndex)])||0;earned+=groupNet(l,m.gno,lessons)-Math.min(Math.max(0,base-phone),personalLoss);
-      projects.forEach(function(name,index){if(!String(name||'').trim())return;planned+=5;maximum+=5;
-        var n=values&&values[index];if(n===null||n===undefined){pending++;return;}earned+=Math.max(0,Math.min(5,Number(n)||0));
+      var projects=projectNames(l),values=((l.leaderScores||{})[String(m.gno)]||{}).members;
+      var mine=values&&values[m.key];
+      if(!namedCount(l))return;
+      maximum+=5*namedCount(l);
+      earned+=lessonNet(l,m.gno,Number.isInteger(m.memberIndex)?m.memberIndex:-1,m.key).earned;
+      projects.forEach(function(name,index){if(!String(name||'').trim())return;
+        var n=mine&&mine[index];if(n===null||n===undefined)pending++;
       });
     });
-    // Raw member deductions are supplied by the common roster calculation.
-    // Both deduction types are capped within each lesson group project.
-    return {earned:Math.round(earned*100)/100,maximum:maximum,pending:pending,planned:planned,rate:maximum>0?Math.max(0,Math.min(1,earned/maximum)):0};
+    // 扣分只在本节项目分里抵扣（旧口径是从每课 5 分送分里扣），不跨课留债。
+    return {earned:Math.round(earned*100)/100,maximum:maximum,pending:pending,planned:maximum,duty:duty,rate:maximum>0?Math.max(0,Math.min(1,earned/maximum)):0};
   }
   function rows(cls,lessons,raw) {
     var cfg=settings(cls),students=roster(cls,raw),sorted=students.slice().sort(function(a,b){return b.total-a.total||String(a.sid||a.no||a.name).localeCompare(String(b.sid||b.no||b.name),undefined,{numeric:true});});
@@ -102,10 +165,10 @@
   function renderRank(ctx) {
     var cls=ctx.cls,cfg=settings(cls),ms=rows(cls,ctx.lessons,ctx.raw);
     /* 显示层（2026-11-09 完成率改革）：当前累计与考勤按百分比显示；存储与公式不动 */
-    var semesterMax=ctx.lessons.reduce(function(a,l){var named=projectNames(l).filter(function(n){return String(n||'').trim();}).length;return a+5+5*named;},0);
+    var semesterMax=ctx.lessons.reduce(function(a,l){return a+5*namedCount(l);},0)+(ctx.lessons.length?5:0);
     function memberRate(m){return semesterMax?round(Math.max(0,m.total)/semesterMax*100):0;}
     function attPct(v){return round(Math.max(0,Math.min(9,Number(v)||0))/9*100);}
-    ctx.root.innerHTML='<details class="rank-note"><summary>平时分说明：项目与考勤合并完成率，无基础赠分</summary><p>项目与考勤统一按完成率计算。每新开一课，「干净又卫生」送分默认 100%（不值日缺勤、手机未入袋、个人或全组扣分从这里扣，每次 −20%，扣完为止）；任一组新增命名个人项目，全班分母再增加一档满分（每项 100%，按 20% 一档）。未得分按 0，空白项目名不增加满分。</p><p>合并完成率＝max(0,min(1,(项目净得分＋考勤分)÷(项目满分＋9)))。值日是扣分制：不值日每少一人，教师点一下「值日缺勤」，全组每人送分 −20%，正常值日不扣不加、不占项目分母。全组扣分从每位成员身上扣，个人扣分只扣本人；两类扣分合计只扣本课送分，最低 0%，不跨课留债。</p><p>考勤是学期固定项目，满分折 100%（9 分制扣分，如扣 1 分 ≈ 88.9%）：考勤分＝max(0,9−个人累计考勤扣分)，扣完后标记考勤挂科。迟到、早退、旷课和自定义原因按本班设置直接扣考勤分；请假默认不扣。折算的旷课次数只用于挂科标记，不再次扣分。迟到＋早退按设置次数折算旷课；实际旷课＋折算旷课达到设置门槛，姓名标红并标记考勤挂科。</p><p>平时分＝100×合并完成率；总评贡献＝平时分×40%，满分40。期末至少需考＝max(0,(及格线−平时分×0.4)÷0.6)，向上取0.1分。例如项目净得50%且考勤满分时，合并完成率=(50%×10+9)÷(10+9)≈73.7%，平时分73.7；项目和考勤均满分时平时分100。考勤挂科时目标不适用。</p><p>未编辑考勤默认到课。考勤归零或实际加折算旷课达到门槛，开启判定时姓名标红。</p></details><div class="assessment-actions"><button class="btn" id="assessmentGoAttendance">考勤与规则</button><button class="btn" id="assessmentExport">导出综合成绩CSV</button></div><p class="note">窄屏可左右滑动表格查看实际期末与综合成绩。</p><div class="assessment-scroll" tabindex="0" role="region" aria-label="成绩表，可左右滚动"><table class="data assessment-table"><thead><tr><th>展示名次</th><th>姓名 / 学号</th><th>小组</th><th>当前累计</th><th>项目完成率</th><th>考勤完成率</th><th class="grade-regular">平时分（合并完成率）</th><th class="grade-contribution">计入总评 /40</th><th class="grade-needed">期末至少需考 /100</th><th>实际期末</th><th>综合/100</th></tr></thead><tbody>'+ms.map(function(m){return '<tr><td>'+m.rank+'</td><td><b class="'+(m.attendanceFailed?'attendance-failed':'')+'">'+esc(m.name)+'</b><small>'+esc(m.sid||m.no||'')+'</small></td><td>'+(m.gno?'第'+m.gno+'组':'待分配')+'</td><td><b>'+(semesterMax?memberRate(m)+'%':'—')+'</b><small>全组 '+(semesterMax?round(Math.max(0,m.groupScore)/semesterMax*100)+'%':'—')+' · 个人项目 '+(semesterMax?round(Math.max(0,m.project)/semesterMax*100)+'%':'—')+' · 扣 '+(semesterMax?round(Math.max(0,m.personal)/semesterMax*100)+'%':'—')+'</small></td><td>'+round(m.task.rate*100)+'%<small>项目 '+m.task.earned+'/'+m.task.maximum+'<br>考勤完成率 '+attPct(m.attendance)+'%<br>合并完成率 '+round(m.performanceRate*100)+'%'+(m.task.pending?' · '+m.task.pending+'项待批改':'')+(!m.task.maximum?' · 未设置有效任务':'')+'</small></td><td>'+attPct(m.attendance)+'%<small>'+m.recorded+'/'+ctx.lessons.length+'课已登记 · 扣'+m.loss+'分（9分制）<br>'+esc(attendanceText(m))+'</small></td><td class="grade-regular"><strong class="grade-value">'+m.regular+' <span class="completion-rate">（'+(m.totalMaximum?Math.round(m.performanceRate*1000)/10+'%':'—')+'）</span></strong><small>达到及格线所需</small>'+(!m.ready?'<small>预估</small>':'')+'</td><td class="grade-contribution">'+m.contribution+'</td><td class="grade-needed">'+neededText(m)+'</td><td><input class="assessment-exam" aria-label="'+esc(m.name)+' 实际期末成绩" data-exam-key="'+esc(m.key)+'" type="number" min="0" max="100" step="0.1" value="'+m.exam+'" placeholder="待考"></td><td>'+(m.attendanceFailed?'考勤挂科'+(m.final==null?'':'<small>数值参考 '+m.final+'</small>'):m.final==null?'—':m.final)+(!m.ready&&m.final!==null?'<small>待复核</small>':'')+'</td></tr>';}).join('')+'</tbody></table></div><p class="rank-note">项目与考勤合并为0–100分，无60分保底。按本班设置的实际＋折算旷课门槛判定考勤挂科，不以数值总分代替资格判定。排名仅展示，不改变他人分数。及格线'+cfg.passScore+'，期末需考向上取到0.1分。共'+ms.length+'人（含待分配），计划'+cfg.totalLessons+'课。</p>';
+    ctx.root.innerHTML='<details class="rank-note"><summary>平时分说明：项目与考勤合并完成率，无基础赠分</summary><p>项目与考勤统一按完成率计算。「值日缺勤」是整学期一次 5 分项目：一学期没缺勤就是 100%，每节课都显示同一个学期值；值日组缺勤时老师点一次「值日缺勤」，全组每人 −20%（团队绑定，要扣都扣），第二次轮到值日再缺勤还能再扣，按组累计、最低 0%。每节课的满分只有「5 × 已命名项目数」（任一组新增命名个人项目，全班分母同步增加一档满分）；手机未入袋和个人扣分从本节项目分里扣，每次 −20%，扣完为止、不跨课。</p><p>项目完成率＝max(0,min(1,项目净得分÷项目满分))。整学期分母＝5（值日缺勤，只算一次）＋Σ每课 5×已命名项目数；所以项目越多分母越大，但不会再因为每节课白送 5 分把项目分的比重稀释掉。全组扣分从每位成员身上扣，个人扣分只扣本人。</p><p>考勤是学期固定项目，满分折 100%（9 分制扣分，如扣 1 分 ≈ 88.9%）：考勤分＝max(0,9−个人累计考勤扣分)，扣完后标记考勤挂科。迟到、早退、旷课和自定义原因按本班设置直接扣考勤分；请假默认不扣。折算的旷课次数只用于挂科标记，不再次扣分。迟到＋早退按设置次数折算旷课；实际旷课＋折算旷课达到设置门槛，姓名标红并标记考勤挂科。</p><p>平时分＝100×合并完成率；总评贡献＝平时分×40%，满分40。期末至少需考＝max(0,(及格线−平时分×0.4)÷0.6)，向上取0.1分。例如项目净得50%且考勤满分时，合并完成率=(50%×10+9)÷(10+9)≈73.7%，平时分73.7；项目和考勤均满分时平时分100。考勤挂科时目标不适用。</p><p>未编辑考勤默认到课。考勤归零或实际加折算旷课达到门槛，开启判定时姓名标红。</p></details><div class="assessment-actions"><button class="btn" id="assessmentGoAttendance">考勤与规则</button><button class="btn" id="assessmentExport">导出综合成绩CSV</button></div><p class="note">窄屏可左右滑动表格查看实际期末与综合成绩。</p><div class="assessment-scroll" tabindex="0" role="region" aria-label="成绩表，可左右滚动"><table class="data assessment-table"><thead><tr><th>展示名次</th><th>姓名 / 学号</th><th>小组</th><th>当前累计</th><th>项目完成率</th><th>考勤完成率</th><th class="grade-regular">平时分（合并完成率）</th><th class="grade-contribution">计入总评 /40</th><th class="grade-needed">期末至少需考 /100</th><th>实际期末</th><th>综合/100</th></tr></thead><tbody>'+ms.map(function(m){return '<tr><td>'+m.rank+'</td><td><b class="'+(m.attendanceFailed?'attendance-failed':'')+'">'+esc(m.name)+'</b><small>'+esc(m.sid||m.no||'')+'</small></td><td>'+(m.gno?'第'+m.gno+'组':'待分配')+'</td><td><b>'+(semesterMax?memberRate(m)+'%':'—')+'</b><small>全组 '+(semesterMax?round(Math.max(0,m.groupScore)/semesterMax*100)+'%':'—')+' · 个人项目 '+(semesterMax?round(Math.max(0,m.project)/semesterMax*100)+'%':'—')+' · 扣 '+(semesterMax?round(Math.max(0,m.personal)/semesterMax*100)+'%':'—')+'</small></td><td>'+round(m.task.rate*100)+'%<small>项目 '+m.task.earned+'/'+m.task.maximum+'<br>考勤完成率 '+attPct(m.attendance)+'%<br>合并完成率 '+round(m.performanceRate*100)+'%'+(m.task.pending?' · '+m.task.pending+'项待批改':'')+(!m.task.maximum?' · 未设置有效任务':'')+'</small></td><td>'+attPct(m.attendance)+'%<small>'+m.recorded+'/'+ctx.lessons.length+'课已登记 · 扣'+m.loss+'分（9分制）<br>'+esc(attendanceText(m))+'</small></td><td class="grade-regular"><strong class="grade-value">'+m.regular+' <span class="completion-rate">（'+(m.totalMaximum?Math.round(m.performanceRate*1000)/10+'%':'—')+'）</span></strong><small>达到及格线所需</small>'+(!m.ready?'<small>预估</small>':'')+'</td><td class="grade-contribution">'+m.contribution+'</td><td class="grade-needed">'+neededText(m)+'</td><td><input class="assessment-exam" aria-label="'+esc(m.name)+' 实际期末成绩" data-exam-key="'+esc(m.key)+'" type="number" min="0" max="100" step="0.1" value="'+m.exam+'" placeholder="待考"></td><td>'+(m.attendanceFailed?'考勤挂科'+(m.final==null?'':'<small>数值参考 '+m.final+'</small>'):m.final==null?'—':m.final)+(!m.ready&&m.final!==null?'<small>待复核</small>':'')+'</td></tr>';}).join('')+'</tbody></table></div><p class="rank-note">项目与考勤合并为0–100分，无60分保底。按本班设置的实际＋折算旷课门槛判定考勤挂科，不以数值总分代替资格判定。排名仅展示，不改变他人分数。及格线'+cfg.passScore+'，期末需考向上取到0.1分。共'+ms.length+'人（含待分配），计划'+cfg.totalLessons+'课。</p>';
     // Keep the three student-facing outcomes beside the name; evidence follows.
     ctx.root.querySelectorAll('.assessment-table tr').forEach(function(row){var cells=Array.from(row.children);[0,1,6,7,8,2,3,4,5,9,10].forEach(function(i){row.appendChild(cells[i]);});});
     ctx.root.querySelector('#assessmentGoAttendance').onclick=ctx.openAttendance;
@@ -141,20 +204,14 @@
       ms=ms.slice().sort(function(a,b){return b.regular-a.regular||a.rawRank-b.rawRank;});
       dispRank=function(m){ return m.rank; };
     }
-    var semesterMax=ctx.lessons.reduce(function(a,l){var named=projectNames(l).filter(function(n){return String(n||'').trim();}).length;return a+5+5*named;},0);
+    var semesterMax=ctx.lessons.reduce(function(a,l){return a+5*namedCount(l);},0)+(ctx.lessons.length?5:0);
     function memberRate(m){return semesterMax?round(Math.max(0,m.total)/semesterMax*100):0;}
-    /* 每课的项目完成率：这课「净得分 + 命名项目得分」÷（5 + 5×命名项目数），没记分返回 null */
+    /* 每课的项目完成率：本节项目净得分 ÷（5 × 已命名项目数）；没记分或没命名项目返回 null */
     function lessonRate(m,l){
-      var sc=(l.scores||{})[String(m.gno)]||{};
       var recorded=Object.keys(l.scores||{}).length||Object.keys(l.leaderScores||{}).length;
-      if(!recorded)return null;
-      var names=projectNames(l).filter(function(n){return String(n||'').trim();});
-      var values=(l.leaderScores||{})[String(m.gno)]&&(l.leaderScores||{})[String(m.gno)].members&&(l.leaderScores||{})[String(m.gno)].members[m.key];
-      var net=Math.max(0,Math.min(5,(Number(sc.group)||0)+(sc.first?1:0))-(Number(sc.phone)||0));
-      var earned=net;
-      names.forEach(function(n,i){var v=values&&values[i];if(v!==null&&v!==undefined)earned+=Math.max(0,Math.min(5,Number(v)||0));});
-      var max=5+5*names.length;
-      return round(Math.max(0,Math.min(100,earned/max*100)));
+      if(!recorded||!namedCount(l))return null;
+      var rec=lessonNet(l,m.gno,Number.isInteger(m.memberIndex)?m.memberIndex:-1,m.key);
+      return round(Math.max(0,Math.min(100,rec.earned/rec.max*100)));
     }
     /* 组员名单（只名字），组内按顺序 */
     function groupMates(gno){
@@ -263,7 +320,7 @@
   }
   function renderAttendance(ctx) {
     var cls=ctx.cls,cfg=settings(cls),students=roster(cls,ctx.raw),lesson=ctx.lesson;
-    ctx.root.innerHTML='<h2 class="sec-title">考勤与扣分设置</h2><div class="card lesson-bar"><label class="field">班级<select id="attendanceClassSel">'+ctx.classes.map(function(c){return '<option value="'+esc(c.id)+'"'+(c.id===cls.id?' selected':'')+'>'+esc(c.name)+'</option>';}).join('')+'</select></label><label class="field">课次<select id="attendanceLessonSel"'+(!ctx.lessons.length?' disabled':'')+'>'+(!ctx.lessons.length?'<option>暂无课次</option>':ctx.lessons.map(function(l){return '<option value="'+esc(l.id)+'"'+(lesson&&l.id===lesson.id?' selected':'')+'>第'+l.seq+'次 · '+esc(l.date)+'</option>';}).join(''))+'</select></label></div><details class="card assessment-settings"><summary>本班赋分与考勤规则</summary><form id="assessmentSettingsForm"><div class="assessment-settings-grid">'+[['totalLessons','计划大节课数（每节80分钟）',1,1000],['late','迟到扣分（9分中）',0,100],['truant','旷课扣分（9分中）',0,100],['leave','请假扣分（9分中）',0,100],['early','早退扣分（9分中）',0,100],['passScore','综合及格线',0,100],['lateEarlyConversion','迟到早退几次折1次旷课（仅用于挂科）',1,100],['truantFailure','合计旷课几次标记挂科',1,100]].map(function(f){return '<label class="field col">'+f[1]+'<input name="'+f[0]+'" type="number" step="1" min="'+f[2]+'" max="'+f[3]+'" value="'+cfg[f[0]]+'" required></label>';}).join('')+'</div><p class="note">考勤是学期固定项目，满分折 100%（9 分制扣分，如扣 1 分 ≈ 88.9%），与所有项目一起计算完成率。当前折算门槛'+cfg.lateEarlyConversion+'次、挂科门槛'+cfg.truantFailure+'次，标记'+(cfg.attendanceFailureEnabled?'开启':'关闭')+'。默认24大节＝48课时；迟到、早退、旷课和自定义原因按设置直接扣考勤分，请假默认不扣。迟到＋早退按设置次数折旷课，只用于挂科门槛，不重复扣分；实际＋折算旷课达到设置门槛时标红。分母为每课「干净又卫生」送分（默认 100%）＋命名个人项目每项 100%，再加考勤满分折 100%；分子为扣分后的项目净得分与考勤分按完成率折算。值日是扣分制：不值日每少一人，教师点一下「值日缺勤」，全组每人送分 −20%；正常值日不扣不加，不占项目分母。所有扣分进入完成率，两类扣分合计仅扣本课送分，最低 0% 且不跨课。合并完成率=(项目净得分＋考勤分)÷(项目满分＋9)，平时分=合并完成率×100，折合分=平时分×40%，期末目标=(及格线−折合分)÷60%，向上取0.1。新命名项目立即计入全组每名学生当前完成率；尚未录入的项目分按 0% 显示预测，后续录入即重算。</p><label><input type="checkbox" id="attendanceFailureEnabled"'+(cfg.attendanceFailureEnabled?' checked':'')+'>启用考勤挂科标记</label><button type="submit" class="btn primary">保存本班规则</button></form><h4>自定义原因</h4><div id="attendanceCustomRules">'+(cfg.customRules||[]).map(function(r){return '<span class="attendance-rule">'+esc(r.name)+' · 扣'+r.loss+'分 <button class="btn tiny" data-remove-rule="'+esc(r.id)+'" title="停用规则，历史记录保留">停用</button></span>';}).join('')+'</div><form id="attendanceCustomForm" class="btnrow"><input id="attendanceCustomName" aria-label="自定义考勤原因" maxlength="40" placeholder="例如：未到原因" required><input id="attendanceCustomLoss" aria-label="自定义扣分" type="number" min="0" max="100" step="1" value="1" required><button class="btn" type="submit">添加原因</button></form></details><p class="note">按课次保存，包含未分组人员。默认到课不伪造出勤记录；修改此表只影响考勤模块，不重复扣课堂积分。</p>'+(lesson?'<div class="card"><div class="assessment-actions"><input id="attendanceSearch" aria-label="搜索考勤学生" placeholder="姓名 / 学号"><label><input id="attendanceSelectAll" type="checkbox">全选可见</label><select id="attendanceBatchStatus" aria-label="批量考勤状态">'+options(cfg,'')+'</select><button id="attendanceApplyBatch" class="btn">应用到所选</button><button id="attendanceImport" class="btn" type="button"'+(importBlock(ctx)?' disabled title="'+esc(importBlock(ctx))+'"':'')+'>从考勤工具导入本课</button><button id="attendanceSave" class="btn primary">保存本课考勤</button></div><p id="attendanceDirty" class="note" role="status">没有未保存的考勤改动。</p><p id="attendanceImportNote" class="note" role="status"'+(importBlock(ctx)?'>'+esc(importBlock(ctx)):' hidden>')+'</p><div class="assessment-scroll"><table class="data attendance-table"><thead><tr><th>选择</th><th>姓名</th><th>学号</th><th>小组</th><th>本课状态</th><th>已保存扣分</th></tr></thead><tbody>'+students.map(function(m){var a=lesson.attendance&&lesson.attendance[m.key];return '<tr data-att-row><td><input type="checkbox" data-att-check="'+esc(m.key)+'" aria-label="选择'+esc(m.name)+'"></td><td>'+esc(m.name)+'</td><td>'+esc(m.sid||m.no||'')+'</td><td>'+(m.gno?'第'+m.gno+'组':'待分配')+'</td><td><select data-att-key="'+esc(m.key)+'" aria-label="'+esc(m.name)+' 考勤">'+options(cfg,a&&a.status)+'</select>'+(a&&!labels[a.status]&&!(cfg.customRules||[]).some(function(r){return r.id===a.status;})?'<small>历史原因：'+esc(a.label)+'（保留）</small>':'')+'</td><td>'+(a?a.loss:0)+'</td></tr>';}).join('')+'</tbody></table></div></div>':'<p class="card">请先在上课记分中新开一课，再登记考勤。</p>');
+    ctx.root.innerHTML='<h2 class="sec-title">考勤与扣分设置</h2><div class="card lesson-bar"><label class="field">班级<select id="attendanceClassSel">'+ctx.classes.map(function(c){return '<option value="'+esc(c.id)+'"'+(c.id===cls.id?' selected':'')+'>'+esc(c.name)+'</option>';}).join('')+'</select></label><label class="field">课次<select id="attendanceLessonSel"'+(!ctx.lessons.length?' disabled':'')+'>'+(!ctx.lessons.length?'<option>暂无课次</option>':ctx.lessons.map(function(l){return '<option value="'+esc(l.id)+'"'+(lesson&&l.id===lesson.id?' selected':'')+'>第'+l.seq+'次 · '+esc(l.date)+'</option>';}).join(''))+'</select></label></div><details class="card assessment-settings"><summary>本班赋分与考勤规则</summary><form id="assessmentSettingsForm"><div class="assessment-settings-grid">'+[['totalLessons','计划大节课数（每节80分钟）',1,1000],['late','迟到扣分（9分中）',0,100],['truant','旷课扣分（9分中）',0,100],['leave','请假扣分（9分中）',0,100],['early','早退扣分（9分中）',0,100],['passScore','综合及格线',0,100],['lateEarlyConversion','迟到早退几次折1次旷课（仅用于挂科）',1,100],['truantFailure','合计旷课几次标记挂科',1,100]].map(function(f){return '<label class="field col">'+f[1]+'<input name="'+f[0]+'" type="number" step="1" min="'+f[2]+'" max="'+f[3]+'" value="'+cfg[f[0]]+'" required></label>';}).join('')+'</div><p class="note">考勤按 9 分制单独记录（如扣 1 分 ≈ 88.9%），2026-11-10 起不再计入平时分，只用于挂科标记。当前折算门槛'+cfg.lateEarlyConversion+'次、挂科门槛'+cfg.truantFailure+'次，标记'+(cfg.attendanceFailureEnabled?'开启':'关闭')+'。默认24大节＝48课时；迟到、早退、旷课和自定义原因按设置直接扣考勤分，请假默认不扣。迟到＋早退按设置次数折旷课，只用于挂科门槛，不重复扣分；实际＋折算旷课达到设置门槛时标红。分母为每节「5×已命名项目数」＋整学期值日缺勤 5 分（只算一次）；分子为扣分后的项目净得分。值日缺勤已合并原「干净又卫生」：整学期一个 5 分项目，一学期没缺勤就是 100%；值日组缺勤由老师点「每人 −20%」，全组每人同扣（20% 一档、按次叠加、封顶 5 档），只扣这整学期的 5 分，不摊回单节课。全组扣分与个人扣分从本节项目分里扣，扣完为止、不跨课。平时分=100×项目完成率，折合分=平时分×40%，期末目标=(及格线−折合分)÷60%，向上取0.1。考勤单独记录（2026-11-10 起不再计入平时分），只用于挂科标记。新命名项目立即计入全组每名学生当前完成率；尚未录入的项目分按 0% 显示预测，后续录入即重算。</p><label><input type="checkbox" id="attendanceFailureEnabled"'+(cfg.attendanceFailureEnabled?' checked':'')+'>启用考勤挂科标记</label><button type="submit" class="btn primary">保存本班规则</button></form><h4>自定义原因</h4><div id="attendanceCustomRules">'+(cfg.customRules||[]).map(function(r){return '<span class="attendance-rule">'+esc(r.name)+' · 扣'+r.loss+'分 <button class="btn tiny" data-remove-rule="'+esc(r.id)+'" title="停用规则，历史记录保留">停用</button></span>';}).join('')+'</div><form id="attendanceCustomForm" class="btnrow"><input id="attendanceCustomName" aria-label="自定义考勤原因" maxlength="40" placeholder="例如：未到原因" required><input id="attendanceCustomLoss" aria-label="自定义扣分" type="number" min="0" max="100" step="1" value="1" required><button class="btn" type="submit">添加原因</button></form></details><p class="note">按课次保存，包含未分组人员。默认到课不伪造出勤记录；修改此表只影响考勤模块，不重复扣课堂积分。</p>'+(lesson?'<div class="card"><div class="assessment-actions"><input id="attendanceSearch" aria-label="搜索考勤学生" placeholder="姓名 / 学号"><label><input id="attendanceSelectAll" type="checkbox">全选可见</label><select id="attendanceBatchStatus" aria-label="批量考勤状态">'+options(cfg,'')+'</select><button id="attendanceApplyBatch" class="btn">应用到所选</button><button id="attendanceImport" class="btn" type="button"'+(importBlock(ctx)?' disabled title="'+esc(importBlock(ctx))+'"':'')+'>从考勤工具导入本课</button><button id="attendanceSave" class="btn primary">保存本课考勤</button></div><p id="attendanceDirty" class="note" role="status">没有未保存的考勤改动。</p><p id="attendanceImportNote" class="note" role="status"'+(importBlock(ctx)?'>'+esc(importBlock(ctx)):' hidden>')+'</p><div class="assessment-scroll"><table class="data attendance-table"><thead><tr><th>选择</th><th>姓名</th><th>学号</th><th>小组</th><th>本课状态</th><th>已保存扣分</th></tr></thead><tbody>'+students.map(function(m){var a=lesson.attendance&&lesson.attendance[m.key];return '<tr data-att-row><td><input type="checkbox" data-att-check="'+esc(m.key)+'" aria-label="选择'+esc(m.name)+'"></td><td>'+esc(m.name)+'</td><td>'+esc(m.sid||m.no||'')+'</td><td>'+(m.gno?'第'+m.gno+'组':'待分配')+'</td><td><select data-att-key="'+esc(m.key)+'" aria-label="'+esc(m.name)+' 考勤">'+options(cfg,a&&a.status)+'</select>'+(a&&!labels[a.status]&&!(cfg.customRules||[]).some(function(r){return r.id===a.status;})?'<small>历史原因：'+esc(a.label)+'（保留）</small>':'')+'</td><td>'+(a?a.loss:0)+'</td></tr>';}).join('')+'</tbody></table></div></div>':'<p class="card">请先在上课记分中新开一课，再登记考勤。</p>');
     var dirty=false,changed=new Set();
     function mark(){dirty=true;var el=ctx.root.querySelector('#attendanceDirty');if(el)el.textContent='有未保存的考勤改动，请点击保存本课考勤。';}
     function guard(){if(dirty){ctx.message('请先保存本课考勤，再切换班级或课次。');return false;}return true;}
@@ -300,10 +357,10 @@
   function printHtml(cls,lessons,raw) {
     var ms=rows(cls,lessons,raw);
     /* 显示层（2026-11-09 完成率改革）：当前累计与考勤按百分比显示，存储与公式不动 */
-    var semesterMax=lessons.reduce(function(a,l){var named=projectNames(l).filter(function(n){return String(n||'').trim();}).length;return a+5+5*named;},0);
+    var semesterMax=lessons.reduce(function(a,l){return a+5*namedCount(l);},0)+(lessons.length?5:0);
     function memberRate(m){return semesterMax?round(Math.max(0,m.total)/semesterMax*100)+'%':'—';}
     function attPct(v){return round(Math.max(0,Math.min(9,Number(v)||0))/9*100)+'%';}
     return '<h2>平时赋分与期末测算</h2><p>项目与考勤合并为0–100完成率；考勤是学期固定项目，满分折 100%（9 分制扣分）。迟到/早退合计3次折旷课1次，实际旷课＋折算旷课合计3次考勤挂科，折算不重复扣分；平时40%＋期末60%。名次只展示，未批改/考勤未齐为预估。</p><table><thead><tr><th>名次</th><th>姓名</th><th>学号</th><th>当前累计</th><th>项目完成率</th><th>考勤完成率</th><th>平时/100</th><th>折合/40</th><th>期末需考</th><th>实际期末</th><th>综合</th><th>记录状态</th></tr></thead><tbody>'+ms.map(function(m){return '<tr><td>'+m.rank+'</td><td>'+esc(m.name)+'</td><td>'+esc(m.sid||m.no||'')+'</td><td>'+memberRate(m)+'</td><td>'+round(m.task.rate*100)+'%<small>'+m.task.earned+'/'+m.task.maximum+'</small></td><td>'+attPct(m.attendance)+'<small>'+round(m.attendanceRate*100)+'%</small></td><td>'+m.regular+'<small>'+round(m.performanceRate*100)+'%</small></td><td>'+m.contribution+'</td><td>'+(neededText(m))+'</td><td>'+m.exam+'</td><td>'+(m.attendanceFailed?'考勤挂科'+(m.final==null?'':'<small>数值参考 '+m.final+'</small>'):m.final==null?'—':m.final)+'</td><td>'+esc(confirmationText(m))+(m.ready?' · 已齐':' · 预估')+'<br>'+esc(attendanceText(m))+'</td></tr>';}).join('')+'</tbody></table>';
   }
-  root.JFDT_ASSESSMENT={groupNet:groupNet,projectNames:projectNames,printHtml:printHtml,taskEvidence:taskEvidence,key:key,ident:ident,settings:settings,roster:roster,rows:rows,deduction:deduction,renderRank:renderRank,renderDetail:renderDetail,renderAttendance:renderAttendance,importPlan:importPlan,importFind:importFind,importStatus:importStatus};
+  root.JFDT_ASSESSMENT={groupNet:groupNet,namedCount:namedCount,lessonMax:lessonMax,dutyLoss:dutyLoss,dutyScore:dutyScore,lessonNet:lessonNet,projectNames:projectNames,printHtml:printHtml,taskEvidence:taskEvidence,key:key,ident:ident,settings:settings,roster:roster,rows:rows,deduction:deduction,renderRank:renderRank,renderDetail:renderDetail,renderAttendance:renderAttendance,importPlan:importPlan,importFind:importFind,importStatus:importStatus};
 })(typeof window==='undefined'?globalThis:window);

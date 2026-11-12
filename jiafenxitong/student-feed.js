@@ -11,7 +11,7 @@
  *       学生页每 4 秒轮询一次，因此「老师一存，学生几秒后看到」。
  *
  * 一份快照里放什么（四个模块全靠它，学生页不再做任何分数计算）：
- *   上课记分   每课：小组分、首答、全组扣分、我的个人扣分、净得分（值日缺勤的扣分已并入个人扣分）
+ *   上课记分   每课：全组扣分、我的个人扣分、本节项目原始分/扣分/净得分、本节是否需要值日 + 值日提醒
  *   组内个人评分 每课：每个命名项目我的得分（没录是 null）、组内累计排名
  *   本学期总分  项目/考勤完成率、平时分、折合、期末需考、实际期末、综合、班级名次
  *   成绩登分册  每课完成率％ + 学号/姓名/班级 + 平时/考勤/考试/总评（就自己那一行）
@@ -39,38 +39,49 @@
   /** 一个学生在一节课里的全部数字。没有记分记录的课也保留（seq/date 要显示），用 recorded 标记 */
   function lessonRow(A, l, m) {
     var sc = (l.scores || {})[String(m.gno)] || {};
-    var base = Math.min(5, clampNum(sc.group, 0, 5) + (sc.first ? 1 : 0));
     var phone = Number(sc.phone) || 0;
     var mineLoss = Number((sc.personal || {})[String(m.memberIndex)]) || 0;
-    var net = Math.max(0, base - phone - mineLoss);
 
     var rec = (l.leaderScores || {})[String(m.gno)] || {};
     var mine = (rec.members || {})[m.key];
-    var max = 5, earned = 0;
-    var projects = [];
+    var projects = [], projectEarned = 0;
     A.projectNames(l).forEach(function (name, i) {
       if (!String(name || '').trim()) return;
-      max += 5;
       var v = mine ? mine[i] : null;
       var score = (v === null || v === undefined) ? null : clampNum(v, 0, 5);
-      if (score !== null) earned += score;
+      if (score !== null) projectEarned += score;
       projects.push({ n: name, s: score });
     });
+
+    /* 2026-11-12 R1：本节满分 = 命名项目数 × 5，没有「每课送 5 分」了。
+       值日缺勤是整学期只算一次的项目，只在 total 里体现，不摊回每节课。 */
+    var net = (A.lessonNet ? A.lessonNet(l, m.gno, m.memberIndex, m.key) : null) ||
+      { earned: 0, max: 0, raw: 0, ded: 0 };
+
+    /* 值日提醒（第 5 条需求）：只下发「我自己这组本节要不要值日」，别组的安排不下发 */
+    var dgs = Array.isArray(l.dutyGroups) ? l.dutyGroups : (l.dutyGroup ? [Number(l.dutyGroup)] : []);
+    var isDuty = dgs.indexOf(Number(m.gno)) >= 0;
 
     var recorded = !!(Object.keys(l.scores || {}).length || Object.keys(l.leaderScores || {}).length);
     return {
       seq: Number(l.seq) || 0,
       date: l.date || '',
       gno: Number(m.gno) || 0,
-      group: round(base),
       phone: round(phone),
       personal: round(mineLoss),
-      net: round(net),
+      raw: round(net.raw),              // Σ本节个人项目分（没扣之前）
+      ded: round(net.ded),              // 本节扣掉的分（全组扣 + 我的个人扣，扣完为止）
+      net: round(net.earned),           // 本节实际得分（不跨课）
       projects: projects,
-      earned: round(earned),
-      max: max,
-      pct: recorded ? round(Math.max(0, Math.min(100, (net + earned) / max * 100))) : null,
-      recorded: recorded
+      earned: round(projectEarned),
+      max: net.max,
+      pct: (recorded && net.max) ? round(Math.max(0, Math.min(100, net.earned / net.max * 100))) : null,
+      recorded: recorded,
+      duty: {
+        is: isDuty,                                   // 本组本节是否需要值日
+        note: isDuty ? String(l.dutyNote || '') : '',  // 老师在课次设置里填的提醒
+        absent: Math.max(0, Number(sc.dutyAbsent) || 0) // 本节记了几档缺勤（1 档 = 全组每人 −20%）
+      }
     };
   }
 
@@ -109,6 +120,8 @@
       total: {
         total: round(m.total),
         groupScore: round(m.groupScore),
+        duty: round(m.groupScore),                       // 整学期值日缺勤得分（0–5，一学期没缺勤就是 5）
+        dutyLoss: round(5 - m.groupScore),               // 整学期值日缺勤扣了几档（1 档 = 20%）
         project: round(m.project),
         personal: round(m.personal),
         regular: round(m.regular),

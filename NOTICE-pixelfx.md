@@ -27,7 +27,6 @@ Copyright (c) 2026 Hugo Duprez，MIT License。
 | 排位 · 开场倒数（2026-11-03） | `ui/countdown` | 3-2-1 引线圆环 + GO!，替换文字倒数（准备页符文环同日已删） |
 | 排位 · 接入题目转场（2026-11-03） | `transitions/` 下 pixel-dissolve、iris、star-iris、crt-off、slash-wipe | 随机一个全屏转场：盖满时收准备页、揭幕时起表（见 rank.js 的 RK_FX_IN） |
 | 排位 · 完成横幅（2026-11-03） | `ui/quest-complete` | 成绩出来前、排名展示前，屏幕正中放大播一遍 |
-| 首页背景动效（2026-11-03） | `weather/` 下全部 12 个（aurora、blizzard、cherry-blossoms、clouds、falling-leaves、fireflies、fog、god-rays、rain、shooting-stars、snow、storm） | 外观面板可选的背景氛围层，见 fx/hx-weather.js |
 | 排位 · 停表 | `lightning/zap-hit` | 全部接对自动停表时，一道电弧打进计时条 |
 | 排位 · 破纪录 | `ui/confetti` | 名次牌上炸两把彩纸（和原来的烟花叠着放） |
 
@@ -38,9 +37,8 @@ Copyright (c) 2026 Hugo Duprez，MIT License。
 - `总入口/fx/pixelfx-critters.js` — 12 只小生物 + 17 个循环特效 + 核心运行时，约 156 KB，暴露 `window.PixelFX`（2026-11-03 扩池：29 个，首页 15 张卡张张不同）
 - `接线仿真/vendor/pixelfx-rank.js` — 14 个特效（`zap-hit`、`confetti`、`level-up`、`collect-burst`、`hit-spark`、`rune-circle`、`countdown`、`quest-complete`、`glitch-wipe`、`pixel-dissolve`、`iris`、`crt-off`、`slash-wipe`、`star-iris`），
   约 97 KB，暴露 `window.PixelFXRank`。实际调用 6 个，其余打包进去是为了以后换特效不用重新构建。
-- `总入口/fx/pixelfx-weather.js` — 12 个天气氛围特效，约 83 KB，暴露 `window.PixelFXWeather`（2026-11-03 新增）。
 
-三者都是从 pixelfx 仓库的 `demo/critters-entry.js` / `demo/rank-entry.js` / `demo/weather-entry.js` 这三个入口打的。
+两者都是从 pixelfx 仓库的 `demo/critters-entry.js` / `demo/rank-entry.js` 这两个入口打的。
 要改特效（换一只生物、换成别的特效）时，回到 pixelfx 仓库执行：
 
 ```bash

@@ -414,6 +414,18 @@ table.sheet td.c-first { background: var(--xl-first); padding: 3px; }
 table.sheet td.c-grp { background: var(--xl-first); padding: 3px; }
 table.sheet td.c-phone { background: var(--xl-phone); padding: 3px; }
 table.sheet td.c-duty { background: var(--xl-duty); padding: 3px; }
+
+/* 值日缺勤格（2026-11-12 把「干净又卫生」并进这一列）：
+   上面是整学期的值（每节课都显示同一个数），下面是值日组才有的「每人 −20%」按钮 */
+.duty-cell { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; }
+.duty-cell .duty-pct { font-size: 15px; font-weight: 700; color: #256b3e; font-variant-numeric: tabular-nums; }
+.duty-cell .duty-off { color: var(--faint); font-size: 12px; }
+table.sheet .duty-cell .duty-score { min-height: 26px; width: 100%; font-size: 12px; font-weight: 700; }
+
+/* 成员格里的小号个人扣分控件（本节扣了多少） */
+.mem-deduct { display: block; margin-top: 2px; }
+.mem-deduct .personal-refund, .mem-deduct .personal-reset { font-size: 10px; padding: 0 4px; min-height: 18px; }
+.mem-deduct .pchip { min-height: 18px; }
 table.sheet td.c-sum { background: var(--xl-sum); }
 table.sheet td.c-sum .v { font-size: 17px; font-weight: 700; line-height: 1.15; font-variant-numeric: tabular-nums; }
 table.sheet td.c-sum .v.pos { color: var(--accent); }

@@ -121,6 +121,17 @@
     var n = Math.round(Math.max(0, Math.min(5, Number(v) || 0)) / 5 * 1000) / 10;
     return (n % 1 === 0 ? String(Math.round(n)) : n.toFixed(1)) + '%';
   }
+  /* 2026-11-12 R1：一节可有多个项目（满分 = 项目数 × 5），不能再按 5 分封顶 */
+  /* 老快照（没有 raw 字段）的分子 = 旧 net + 旧 earned；新快照直接用 raw */
+  function rawOf(l) {
+    if (l.raw != null) return l.raw;
+    return (Number(l.earned) || 0) + (Number(l.net) || 0);
+  }
+  function ratioPct(v, max) {
+    if (!max) return '—';
+    var n = Math.round(Math.max(0, Math.min(max, Number(v) || 0)) / max * 1000) / 10;
+    return (n % 1 === 0 ? String(Math.round(n)) : n.toFixed(1)) + '%';
+  }
 
   function notice(html, cls) {
     var box = $('notice');
@@ -181,14 +192,37 @@
     /* 显示层（2026-11-09 完成率改革）：累计与每课数字一律按百分比显示；
        快照里的原始分值一个字段不改，这里只做显示换算 */
     var taskMax = Number(d.total.taskMax) || 0;
-    var namedMax = Math.max(0, taskMax - 5 * (d.lessons || []).length);   // 命名项目的满分 = taskMax − 每课5
+    /* 2026-11-12 R1：整学期只有一个额外的 5 分值日缺勤项目，只算一次；每节课的分母只有「项目数×5」 */
+    var namedMax = Math.max(0, taskMax - 5);
     var totalRate = taskMax ? Math.round(Math.max(0, d.total.total) / taskMax * 1000) / 10 : null;
     var projectRate = namedMax ? Math.round(Math.max(0, d.total.project) / namedMax * 1000) / 10 : null;
-    var html = '<div class="card"><h3>累计到现在</h3><div class="big">' +
+    var dutyScore = Number(d.total.duty != null ? d.total.duty : d.total.groupScore) || 0;
+    var dutyPct = Math.round(Math.max(0, Math.min(5, dutyScore)) / 5 * 1000) / 10;
+
+    var html = '';
+
+    /* 值日提醒（第 5 条需求）：学生一进来看得到自己组要不要值日、老师留的提醒 */
+    var dutyLesson = null;
+    ls.forEach(function (l) {
+      if (l.duty && l.duty.is && (!dutyLesson || (Number(l.seq) || 0) > (Number(dutyLesson.seq) || 0))) dutyLesson = l;
+    });
+    if (dutyLesson) {
+      var missed = Math.max(0, Number(dutyLesson.duty.absent) || 0);
+      html += '<div class="card duty-callout"><h3>' + (dutyLesson.recorded ? '最近一次值日安排' : '本组本节课要值日') + '</h3>' +
+        '<p class="duty-callout-main"><b>' + esc(d.me.gname || ('第 ' + d.me.gno + ' 组')) + '</b> · ' +
+        esc(lessonLabel(dutyLesson)) + (dutyLesson.recorded ? ' 轮到你们组值日。' : ' 轮到你们组值日，别忘了。') + '</p>' +
+        '<p class="note">' + (dutyLesson.duty.note ? esc(dutyLesson.duty.note)
+          : '值日组下课后留下把教室打扫干净，别提前走；值日缺勤全组每人扣 20%，一学期只算一次 5 分。') +
+        (missed ? '<br><b class="duty-missed">本节已记值日缺勤 ' + missed + ' 次，全组每人 −' + (missed * 20) + '%。</b>' : '') +
+        '</p></div>';
+    }
+
+    html += '<div class="card"><h3>累计到现在</h3><div class="big">' +
       '<div class="n"><em>' + (totalRate == null ? '—' : num(totalRate) + '%') + '</em><span>当前累计完成率</span></div>' +
       '<div class="n good"><em>' + (projectRate == null ? '—' : num(projectRate) + '%') + '</em><span>个人项目累计</span></div>' +
-      '</div><p class="note">当前累计完成率 ＝（全组累计 ＋ 个人项目 − 本人扣分）÷ 项目满分，内部按分值计算、显示按百分比。' +
-      '已登记 ' + recorded + ' / ' + ls.length + ' 次课。</p></div>';
+      '<div class="n"><em>' + num(dutyPct) + '%</em><span>值日缺勤（整学期）</span></div>' +
+      '</div><p class="note">当前累计完成率 ＝（值日缺勤 ＋ 各节项目分 − 扣分）÷（5 ＋ 各节项目满分），内部按分值计算、显示按百分比。' +
+      '值日缺勤整学期只算一次 5 分，没缺勤就是 100%。已登记 ' + recorded + ' / ' + ls.length + ' 次课。</p></div>';
 
     html += '<div class="card"><h3>每次课的分数（新的在上面）</h3>';
     if (!ls.length) {
@@ -198,12 +232,18 @@
         var minus = [];
         if (l.phone) minus.push('<span class="minus">−' + (num(l.phone) * 20) + '%</span> 全组扣分');
         if (l.personal) minus.push('<span class="minus">−' + (num(l.personal) * 20) + '%</span> 我的个人扣分');
+        var dutyTag = l.duty && l.duty.is
+          ? '<span class="pill' + (l.duty.absent ? ' bad' : '') + '">本组值日' +
+            (l.duty.absent ? ' · 缺勤 −' + (l.duty.absent * 20) + '%' : '') + '</span>'
+          : '';
         html += '<div class="lesson">' +
-          '<div class="lesson-head"><b>' + lessonLabel(l) + '</b>' +
+          '<div class="lesson-head"><b>' + lessonLabel(l) + '</b>' + dutyTag +
           '<span class="pct">' + (l.pct === null ? '<span class="pill warn">还没录分</span>' : pct(l.pct)) + '</span></div>' +
           '<div class="kv">' +
-          '<div>干净又卫生 <i>' + scorePct(l.group) + '</i>' + (minus.length ? '　' + minus.join('　') : '') + '</div>' +
-          '<div>本课净得 <i>' + scorePct(l.net) + '</i></div>' +
+          /* 兼容老师还没重新发布的老快照：老快照没有 raw/ded，用 earned + net 还原当时的分子，
+             下一个保存周期老师端会自动补发新口径，不会有 0% 的假数字 */
+          '<div>本节项目 <i>' + ratioPct(rawOf(l), l.max) + '</i>' + (l.max ? ' <small>' + num(rawOf(l)) + ' / ' + l.max + ' 分</small>' : '') + '</div>' +
+          '<div>本节实得 <i>' + ratioPct(l.raw == null ? rawOf(l) : l.net, l.max) + '</i>' + (minus.length ? '　' + minus.join('　') : '') + '</div>' +
           '</div>' +
           /* 2026-11-10 用户要求：学生端要看到「项目详细分」，不能只有一个笼统的「个人项目 X%」。
              把每节课的每个命名项目逐项列出来（项目名 + 该项得分），没录的标「待评」。 */
@@ -442,7 +482,7 @@
     var d = D;
     if (!d) return '';
     var ls = (d.lessons || []).filter(function (l) { return l.projects.length; });
-    var namedMax = Math.max(0, (Number(d.total.taskMax) || 0) - 5 * (d.lessons || []).length);
+    var namedMax = Math.max(0, (Number(d.total.taskMax) || 0) - 5);   // 整学期只减一次值日缺勤的 5 分
     var projectRate = namedMax ? num(Math.round(Math.max(0, d.total.project) / namedMax * 1000) / 10) + '%' : '—';
     var html = renderPeerCard() + renderGroupCard() +
       '<div class="card"><h3>组内个人评分</h3><div class="big">' +
@@ -514,6 +554,8 @@
 
   function renderTotal() {
     var d = D, t = d.total;
+    var dutyScore = Number(t.duty != null ? t.duty : t.groupScore) || 0;
+    var dutyPct = Math.round(Math.max(0, Math.min(5, dutyScore)) / 5 * 1000) / 10;
     var need = t.failed ? '<span class="pill bad">考勤挂科</span>'
       : t.needed === null ? '—'
       : t.needed > 100 ? '<span class="pill warn">已超 100</span>'
@@ -531,6 +573,7 @@
       '<div>班级名次　<i>' + t.rank + ' / ' + t.count + '</i></div>' +
       '<div>项目完成率　<i>' + num(t.taskRate) + '%</i>' +
       (t.pending ? '　<span class="pill warn">' + t.pending + ' 项待评</span>' : '') + '</div>' +
+      '<div>值日缺勤　<i>' + num(dutyPct) + '%</i>（整学期 5 分，只算一次；扣 ' + num(t.dutyLoss || 0) + ' 档 × 20%）</div>' +
       '<div>考勤完成率　<i>' + num(t.attRate) + '%</i></div>' +
       '<div>迟到 ' + t.late + ' 次 · 早退 ' + t.early + ' 次 · 旷课 ' + t.truant + ' 次 · 折算 ' + t.converted +
       ' 次 · 合计 <i>' + t.effective + '</i> 次</div>' +
@@ -539,7 +582,9 @@
       '</div></div>';
 
     html += '<div class="card"><h3>怎么算的</h3><p class="note">' +
-      '合并完成率＝(项目净得分＋考勤分)÷(项目满分＋9)，内部按分值计算、显示按百分比；' +
+      '项目完成率＝(值日缺勤 5 分＋各节项目净得分)÷(5＋各节项目满分)，内部按分值计算、显示按百分比；' +
+      '值日缺勤是整学期只算一次的项目，一学期没缺勤就是 100%，缺勤按 20% 一档扣、全组每人一起扣。<br>' +
+      '每节课的项目满分＝那节课的命名项目数×5，不再单独送分，所以项目越加越多时不会把项目分的比重冲淡。<br>' +
       '考勤是学期固定项目，满分折 100%，扣到 0 或者实际加折算旷课达到门槛就算考勤挂科。<br>' +
       '平时分＝100×合并完成率；计入总评＝平时分×40%。<br>' +
       '期末至少需考＝(及格线 − 平时分×0.4)÷0.6，向上取 0.1 分。<br>' +
