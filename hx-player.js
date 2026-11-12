@@ -167,12 +167,12 @@
     }).catch(function () { return null; });
   }
   function isStaff(m) { return !!(m && (m.teacher || m.admin || m.dev)); }
-  function isAdmin(m) { return !!(m && (m.admin || m.dev)); }
+  function isAdmin(m) { return !!(m && m.dev); } // 2026-11-11 收紧：只认 is_dev，管理员也不再放行（与 hx_is_dev 同口径）
   /* 2026-11-11 音乐工具权限收敛：只对管理员 / 开发者开放。
      为什么：音频存 Supabase Storage，免费版 5GB/月出口流量，默认 BGM 一首 40MB，
      每播一次就要从 Storage 拉一整份 —— 全班一起听会把额度吃光、连带整站 API 异常。
-     入口在总入口首页卡和 /音乐/ 页都关了，服务端写操作也锁成管理员（见
-     音乐/supabase/2026-11-11-音乐限管理员.sql）。这里只提供判定，不改任何播放行为。 */
+     入口在总入口首页卡和 /音乐/ 页都关了，服务端写操作与读取全部锁成 hx_is_dev()（见
+     音乐/supabase/2026-11-11-音乐只给开发者.sql）。这里只提供判定，不改任何播放行为。 */
   function allowed() { return cloudWho().then(function (m) { return isAdmin(m); }); }
   /* 我名下的班级（教师发布到班级时选） */
   function cloudClasses() {
@@ -299,7 +299,10 @@
       return cloudQuota().then(function (q) {
         /* 学生限 1 首：额度用完了直接挡，一句说清，不静默失败 */
         if (q && q.can_upload === false) {
-          S.err = '学生账号只能上传一首歌（' + (q.used || 0) + '/' + (q.limit || 1) + '）';
+          /* limit 0 = 这个账号压根没有上传权限（2026-11-11 起只有开发者有）；否则是学生 1 首额度用完 */
+          S.err = (q.limit === 0)
+            ? '当前账号没有上传权限（音乐工具仅开发者可用）'
+            : '学生账号只能上传一首歌（' + (q.used || 0) + '/' + (q.limit || 1) + '）';
           paint();
           return 0;
         }

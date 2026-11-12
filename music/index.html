@@ -93,8 +93,9 @@
   if (!window.HXPlayer || !HXPlayer.who || !HXPlayer.allowed) return purge();
 
   HXPlayer.who().then(function(me){
-    /* 第一道：前端身份。口径与数据库 hx_is_admin() 一致（is_admin 或 is_dev） */
-    if (!(me && (me.admin || me.dev))) return purge();
+    /* 第一道：前端身份。2026-11-11 用户明确「非开发者管理员压根没有音乐这个工具，不是访问的问题，
+       压根不给门」—— 所以这里只认 is_dev，管理员也不再放行。口径同数据库 hx_is_dev() */
+    if (!(me && me.dev)) return purge();
     /* 第二道：播放器自己的 allowed()（同一份 hx_me，命中缓存，不会多发请求） */
     return HXPlayer.allowed().then(function(ok){
       if (!ok) return purge();

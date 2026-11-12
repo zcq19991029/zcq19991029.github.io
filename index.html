@@ -14,12 +14,12 @@
      要登录时调 window.HXPortal.login()；被单独打开时 hx-theme.js 会跳回这里（见 hx-theme.js 的 data-tool）。
      账号：Supabase 华夏工具项目，localStorage paike-session 和各工具共用；身份由数据库 hx_me() 决定。
      脚本里不用反引号模板字符串（本机测试时整页当字符串注入到线上同源页面里）。 -->
-<link rel="stylesheet" href="hx-theme.css?v=70be0e3">
-<script src="hx-theme.js?v=70be0e3"></script>
+<link rel="stylesheet" href="hx-theme.css?v=da3c602">
+<script src="hx-theme.js?v=da3c602"></script>
 <!-- 首页卡片上的像素小生物：pixelfx 的 12 个 critters（MIT），打包成一个 91 KB 的独立脚本。
      加载失败不影响首页——hx-critters.js 开头就有 window.PixelFX 存在性检查，没有就整段跳过。 -->
-<script src="fx/pixelfx-critters.js?v=70be0e3" defer></script>
-<script src="fx/hx-critters.js?v=70be0e3" defer></script>
+<script src="fx/pixelfx-critters.js?v=da3c602" defer></script>
+<script src="fx/hx-critters.js?v=da3c602" defer></script>
 <!-- 像素头像库（2026-11-04）：账号面板里除了传照片，还能从 200 多个像素动效里挑一个当头像。
      2026-11-09 改按需加载（用户报「打不开、登录不了」）：这个库 pixelfx-avatars.js 有 1.0 MB，
      而它只在「账号面板 → 像素头像库」这一个子视图里用得到。原来用 defer 挂在每一页上，
@@ -27,11 +27,11 @@
      现在是：不点「像素头像库」一个字节都不下；点了才 loadAvatarLib() 拉（见下面的函数）。
      两个脚本的先后顺序不能反：hx-avatar.js 依赖 window.PixelFXAvatar。 -->
 <!-- 背景动效（2026-11-03）：12 种天气氛围特效铺在背景层，外观面板里选；加载失败或没选就完全不加载渲染器 -->
-<script src="fx/pixelfx-weather.js?v=70be0e3" defer></script>
-<script src="fx/hx-weather.js?v=70be0e3" defer></script>
+<script src="fx/pixelfx-weather.js?v=da3c602" defer></script>
+<script src="fx/hx-weather.js?v=da3c602" defer></script>
 <!-- 课堂码大屏二维码：离线 QR 编码器（qrcode 1.5.4 core 打包，MIT，见 fx/NOTICE-qr.md）。延迟加载即可：只有老师点「大屏二维码」时才用 -->
-<script src="fx/hx-qr.js?v=70be0e3" defer></script>
-<script src="hx-scan.js?v=70be0e3" defer></script><!-- 全站扫一扫（2026-11-08 K5）：摄像头 + BarcodeDetector / 本地 jsQR -->
+<script src="fx/hx-qr.js?v=da3c602" defer></script>
+<script src="hx-scan.js?v=da3c602" defer></script><!-- 全站扫一扫（2026-11-08 K5）：摄像头 + BarcodeDetector / 本地 jsQR -->
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; width: 100%; overflow: hidden; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -1047,7 +1047,7 @@ var TOOLS = [
   { id: 'kaoqin', name: '考勤', url: SITE + '/kaoqin/', splash: 1, who: 'all', c: ['#34d399', '#059669'], icon: '<rect x="4" y="4" width="16" height="17" rx="3"/><path d="M8 2v4M16 2v4M4 9h16M8.5 14.5l2.2 2.2 4.8-4.8"/>' },
   // 2026-11-08 资料库独立成工具（任务清单 Z6）：教材上传、AI 出题、题池 → 发布到刷题 / 给考试组卷。只给教师。
   { id: 'ziliao', name: '资料库', url: SITE + '/ziliao/', splash: 1, who: 'teacher', c: ['#a3e635', '#65a30d'], icon: '<path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H10l2 2h6.5A1.5 1.5 0 0 1 20 7.5v11a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18.5z"/><path d="M8 11h8M8 15h5"/>' },
-  { id: 'paike', name: '排课', url: SITE + '/paike/', splash: 1, who: 'teacher', c: ['#ff6b6b', '#ff3b30'], icon: '<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4M8 14h3M13 14h3M8 17h3"/>' },
+  { id: 'paike', name: '排课', url: SITE + '/paike/', splash: 1, who: 'admin', c: ['#ff6b6b', '#ff3b30'], icon: '<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4M8 14h3M13 14h3M8 17h3"/>' },
   // 小组加分：老师进完整记分台，学生进「我的分数」只读页（studentUrl）。
   // 为什么不是 who:'teacher'：学生要自己分组、也要能看自己的分，进不去就什么也干不了。
   // 学生页是一个总页面：上课记分 / 组内个人评分 / 本学期总分 / 成绩登分册 四个只读模块，
@@ -1391,17 +1391,39 @@ var frames = {};
 function isTeacher() { return !!(ST.me && (ST.me.teacher || ST.me.admin || ST.me.dev)); }
 function isDev() { return !!(ST.me && ST.me.dev); }
 /* 管理员 + 开发者 —— 和数据库 hx_is_admin()（is_admin or is_dev）同一口径。
-   2026-11-11 音乐工具权限收敛用：只有这两类账号能看见音乐入口、能上传/发布。 */
+   2026-11-11 起音乐卡不再用它：用户明确「非开发者管理员压根没有音乐这个工具，不是访问的问题，
+   压根不给门」，所以音乐入口改成 isDev()（只有开发者）。这个函数留给其它需要「管理员级」判定的地方。 */
 function isAdmin() { return !!(ST.me && (ST.me.admin || ST.me.dev)); }
 function locked() { return HX.in() && role() === '未开通'; } // 登录了没开通（GitHub 新账号等）：什么工具都不给，只能填邀请码
-function can(t) { // who：all 登录的人都有、teacher 教师、dev 只有开发者
+function can(t) { // who：all 登录的人都有、teacher 教师、admin 只管排课那位（开发者 GitHub 账号）、dev 只有开发者
   // 2026-11-02 用户定：「没账号不允许使用任何工具」。注册已经彻底修好（删掉了 auth.users 上的废弃触发器），
   // 所以 2026-11-01 那个「注册坏了先解锁接线仿真和刷题」的 open 后门已经拆掉，这里不再有免登录分支。
   if (t.anon) return true; // anon:1 的卡片（当前没有）未登录也放行；「使用说明」已改成 anon:0，随登录闸门一起收
   if (!HX.in() || locked()) return false;
   if (t.who === 'dev') return isDev();
+  if (t.who === 'admin') return isOwner(); // 2026-11-11 用户：「排课功能只给管理员开放……收回权限」
   if (t.who === 'teacher') return isTeacher();
   return true;
+}
+/* 排课的「管理员」口径：和 排课/src/cloud.js 里 ADMIN_GITHUB 保持一致（同一个 GitHub 账号），
+   不是 hx_profiles.is_admin —— 排课是独立库、独立登录那一套，两边必须同一个人才不会出现
+   「卡片有、点进去被拦」或者反过来的错位。 */
+function isOwner() {
+  try {
+    var u = ST.user || {}, ids = u.identities || [], gh = '';
+    for (var i = 0; i < ids.length; i++) {
+      if (ids[i] && ids[i].provider === 'github') {
+        var d = ids[i].identity_data || {};
+        gh = d.user_name || d.preferred_username || '';
+        if (gh) break;
+      }
+    }
+    if (!gh) {
+      var m = u.user_metadata || {};
+      gh = m.user_name || m.preferred_username || '';
+    }
+    return String(gh).toLowerCase() === 'zcq19991029';
+  } catch (e) { return false; }
 }
 function role() {
   var m = ST.me; if (!m) return null;
@@ -1576,11 +1598,12 @@ function render() {
   /* 音乐卡（2026-11-09）：和其它工具卡**完全同款**的一张 .tile，单独成一组「Yeye Toys」追加在网格末尾。
      不进 GROUPS（它不是「学习/教学/维护」任何一类，是「夜夜的玩具」——个人化的小功能），
      也不进 TOOLS（点它不 mount iframe，是弹歌单面板）。
-     可见性（2026-11-11 收敛）：**只有管理员 / 开发者**看得到。
+     可见性（2026-11-11 收敛，用户原话「非开发者管理员压根没有音乐这个工具，不是访问的问题，压根不给门」）：
+     **只有开发者 isDev() 看得到**，管理员、教师、学生一律连卡片都不渲染。
      原因：音乐存在 Supabase Storage，免费版每月 5GB 出口流量，一首默认 BGM 就 40MB，每播一次拉一整份。
-     全班两百人一起用很容易把额度吃光，连带整站 API 异常 —— 所以教师、学生一律不显示这个入口。
-     服务端同步上锁（音乐/supabase/2026-11-11-音乐限管理员.sql），不是只藏卡片。 */
-  if (isAdmin()) {
+     全班两百人一起用很容易把额度吃光，连带整站 API 异常。
+     服务端同步上锁到 hx_is_dev()（音乐/supabase/2026-11-11-音乐只给开发者.sql），连读都锁，不是只藏卡片。 */
+  if (isDev()) {
     $('tiles').innerHTML += '<div class="sec"><h2>Yeye Toys</h2></div><div class="tiles"><button class="tile" type="button" data-id="music" style="--c1:#ff9eb3;--c2:#e11d63;animation-delay:' + (n++ * 50) + 'ms">' +
       '<span class="ic">' + svg('<path d="M9 18V6l10-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/>') + '</span>' + planets() + '<b>音乐</b>' + go + '</button></div>';
   }
@@ -1623,7 +1646,7 @@ function render() {
    点首页「音乐」卡（和其它工具卡同款的一张 tile）打开。面板来自站点根的 /hx-player.js，
    和 /music/ 独立页是同一个 HXPlayer.panel，共用一份状态。点遮罩或右上角 × 关闭，不影响正在放的歌。 */
 function openMusicSheet() {
-  if (!isAdmin()) return;         // 2026-11-11 权限收敛：非管理员/开发者连弹层都不给开（防御性第二道）
+  if (!isDev()) return;           // 2026-11-11 权限收敛：非开发者（含管理员）连弹层都不给开（防御性第二道）
   if (!window.HXPlayer) return;   // 播放器还没加载好（async），点卡先没反应，下次就有了
   /* 2026-11-10：点首页「音乐」卡 = 重新进入音乐工具，清除之前的「已退出」标记，顶部条恢复可见 */
   if (window.HXPlayer.unexit) window.HXPlayer.unexit();

@@ -901,7 +901,7 @@ HXLoadFx.boot('paike', 'hxBoot');
 <div id="toast" class="toast" role="status"></div>
 <script id="saved-data" type="application/json">null</script>
 <script>
-const BUILD={"time":"2026-11-11T17:14:13.055Z","sha":"70be0e3"};
+const BUILD={"time":"2026-11-12T02:19:54.127Z","sha":"da3c602"};
 /* ---- engine.js ---- */
 /* ================= 排课引擎：数据模型、次数/轮次、自动排课、固定老师同步、校验 =================
    纯逻辑，不碰页面；浏览器里是全局 Engine，node 里 require 进来测试。
@@ -1860,21 +1860,46 @@ const ids=()=>(user()&&user().identities)||[];
 const providers=()=>[...new Set(ids().map(i=>i.provider))];
 const githubName=()=>{const i=ids().find(x=>x.provider==='github');const d=i&&i.identity_data||{};return d.user_name||d.preferred_username||'';};
 const isAdmin=()=>githubName().toLowerCase()===ADMIN_GITHUB;
+/* 2026-11-11 用户：「排课功能只给管理员开放……收回权限」。
+   判定不只看 GitHub 用户名（那只认 GitHub 登录），还问一次全站的 hx_me ——
+   这样邮箱登录的开发者也认，口径与数据库 hx_is_dev() 一致，不会出现「同一个人换个登录方式就被关在门外」。
+   任一为真即放行；网络异常时按 GitHub 判定兜底，避免断网把人挡在外面。 */
+async function isDevUser(){
+  try{const m=await api('/rest/v1/rpc/hx_me',{method:'POST',body:{}});return !!(m&&m.dev);}
+  catch(e){return false;}
+}
 const meta=()=>(user()&&user().user_metadata)||{};
 const name=()=>meta().full_name||meta().name||meta().user_name||githubName()||(user()&&user().email)||'';
 const avatar=()=>meta().avatar_url||'';
 
 /* 数据：一个账号一行；rev 对不上说明另一台设备先改过 */
-async function load(){const rows=await api('/rest/v1/paike_data?select=data,rev,updated_at&user_id=eq.'+user().id);return rows[0]||null;}
-/* 只取版本号和保存时间（核对云端有没有新版本时用，不下载整份数据） */
+/* 2026-11-11 用户批准：「整份课表也加 5 分钟缓存」。前提是排课只给管理员一个人用（不是共享数据），
+   不存在多人同时改。安全边界（重要，别乱改）：
+   · 缓存只作用于**读**；load(true) 强制穿透，永远拿云端真身；
+   · check() 发现云端 rev 比本机新时用 load(true) 重新拉，绝不把旧课表当新版本应用上去；
+   · 写成功（create/update）立刻作废缓存，避免下一次开机读到旧版。
+   rev 是「有没有别人改过」的判定依据，所以缓存绝不能喂给判定那一侧（head 永远不吃缓存）。 */
+const DKEY='paike-data-cache-v1', DTTL=5*60*1000;
+const dk=()=>DKEY+'::'+((user()&&user().id)||'');
+function dget(){try{const o=JSON.parse(ls.get(dk())||'null');if(o&&o.v&&Date.now()-(o.t||0)<DTTL)return o.v;}catch(e){}return null;}
+function dset(v){try{ls.set(dk(),JSON.stringify({t:Date.now(),v:v}));}catch(e){}}
+function ddrop(){try{ls.set(dk(),null);}catch(e){}}
+async function load(fresh){
+  if(!fresh){const c=dget();if(c)return c;}
+  const rows=await api('/rest/v1/paike_data?select=data,rev,updated_at&user_id=eq.'+user().id);
+  const r=rows[0]||null;if(r)dset(r);return r;
+}
+/* 只取版本号和保存时间（核对云端有没有新版本时用，不下载整份数据）——**绝不缓存** */
 async function head(){const rows=await api('/rest/v1/paike_data?select=rev,updated_at&user_id=eq.'+user().id);return rows[0]||null;}
-async function create(data){const rows=await api('/rest/v1/paike_data',{method:'POST',body:{user_id:user().id,data,rev:1},headers:{Prefer:'return=representation'}});return rows[0];}
+async function create(data){ddrop();const rows=await api('/rest/v1/paike_data',{method:'POST',body:{user_id:user().id,data,rev:1},headers:{Prefer:'return=representation'}});ddrop();return rows[0];}
 async function update(data,rev){
+  ddrop();
   const rows=await api('/rest/v1/paike_data?user_id=eq.'+user().id+'&rev=eq.'+rev,{method:'PATCH',body:{data,rev:rev+1,updated_at:new Date().toISOString()},headers:{Prefer:'return=representation'}});
+  ddrop();
   return rows[0]||null;
 }
 return {enabled:()=>/^https?:$/.test(location.protocol),loggedIn:()=>!!(session&&session.access_token),handleRedirect,reloadUser,
-  signInGitHub,signUp,signIn,recover,setPassword,hasPassword,getUsername,setUsername,linkGitHub,signOut,user,providers,githubName,isAdmin,name,avatar,load,head,create,update,ADMIN_GITHUB};
+  signInGitHub,signUp,signIn,recover,setPassword,hasPassword,getUsername,setUsername,linkGitHub,signOut,user,providers,githubName,isAdmin,isDevUser,name,avatar,load,head,create,update,ADMIN_GITHUB};
 })();
 
 
@@ -1964,7 +1989,7 @@ const Sync={rev:0,ready:false,timer:0,busy:false,again:false,dirty:false,checkin
       else if(hd.rev===this.rev){this.cloudAt=hd.updated_at;this.ok();if(manual)toast('已是云端最新版（v'+this.rev+'）');}
       else if(this.dirty){this.push();}
       else if(!safeNow()){this.pendingApply=true;setStatus('云端有新版本，等你操作完自动换上',false);}
-      else{const row=await Cloud.load();applyRemote(row,'已换成 '+(row.data.savedBy||'另一台设备')+' 在 '+stamp(row.updated_at,false)+' 保存的版本（v'+row.rev+'）');}
+      else{const row=await Cloud.load(true);applyRemote(row,'已换成 '+(row.data.savedBy||'另一台设备')+' 在 '+stamp(row.updated_at,false)+' 保存的版本（v'+row.rev+'）');}
     }catch(e){setStatus(e.offline?'连不上网：暂时无法核对云端，改动先存在本机':'核对云端没成功：'+e.message,true);}
     this.checking=false;
   }};
@@ -3003,6 +3028,8 @@ let PX7=(function(){let s='',i;for(i=0;i<7;i++)s+='<i style="--i:'+i+'"></i>';re
 function gateMsg(t,ok){const el=$('#lgMsg');if(el){el.textContent=t;el.className='lg-msg'+(ok?' ok':'');}}
 function showGate(state,err){
   document.body.classList.add('gated');
+  /* 2026-11-11：deny = 这个账号没有权限（排课只对管理员开放）。不给登录按钮，免得点来点去还是进不去 */
+  if(state==='deny'){$('#main').innerHTML='<div class="gate"><div class="card gate-card"><h1 class="gate-t">晚修排课系统</h1><p class="note">这个工具只对管理员开放。</p></div></div>';return;}
   /* 登录、注册、找回密码都在华夏工具首页；这里只剩加载中和“登录教师账号”（打开首页的登录） */
   $('#main').innerHTML=state==='loading'?'<div class="gate"><div class="hx-loadpill" role="status" aria-live="polite"><span class="hx-px" aria-hidden="true">'+PX7+'</span><b>正在载入…</b></div></div>':
   `<div class="gate"><div class="card gate-card">
@@ -3075,6 +3102,9 @@ async function bootOnline(){
   try{r=await Cloud.handleRedirect();}catch(e){return showGate(null,e.message);}
   if(!Cloud.loggedIn())return showGate(null,r&&r.error);
   try{await Cloud.reloadUser();}catch(e){if(!e.offline){await Cloud.signOut();return showGate(null,'登录过期了，请重新登录');}}
+  /* 2026-11-11 用户：「排课功能只给管理员开放……收回权限」。卡片那头已经收回，这里是第二道：
+     直接开 /paike/ 也不给进。判定 = GitHub 账号是管理员，或者全站 hx_me.dev，任一即可。 */
+  if(!Cloud.isAdmin()&&!await Cloud.isDevUser())return showGate('deny');
   let row=null,first=false,offline=false,then=null;
   const cache=store.get(cacheKey());let meta=null;try{meta=JSON.parse(store.get(metaKey()));}catch(e){}
   try{row=await Cloud.load();}
