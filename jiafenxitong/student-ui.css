@@ -9,7 +9,7 @@
    深色主题下仍是白底黑字，跟整站对不上；卡片也是死白实心，壁纸一点都透不出来。
    所以这一层做三件事，全部写成「后加载的覆盖」，随时可以整份删掉回滚：
      ① 深色主题：把两页的 token 整体换成站点的深色值（hx-theme.js 的 data-hx-mode）；
-     ② 毛玻璃：有壁纸（html.hx-layer）时卡片半透明 + 细亮边 + 柔影，和首页工具卡同一套语言；
+     ② 毛玻璃：有壁纸（html.hx-bg）时卡片半透明 + 细亮边 + 柔影，和首页工具卡同一套语言；
         没壁纸（极简模式）时退回实色，不额外吃性能；
      ③ 细节：圆角/层级/数字排版/页签、表格在深色下的底色，逐条改到「像同一个产品」。
 
@@ -35,8 +35,8 @@
   --danger-soft: rgba(255, 69, 58, .16);
   color-scheme: dark;
 }
-/* 有壁纸时页面底色交给 hx-theme.js 铺的那层（html.hx-layer），这里只把 body 让出来 */
-html.hx-layer body { background: transparent; }
+/* 有壁纸时页面底色交给 hx-theme.js 铺的那层（html.hx-bg），这里只把 body 让出来 */
+html.hx-bg body { background: transparent; }
 
 /* ---------- ② 卡片：细边 + 柔影 + 有壁纸时半透明 ---------- */
 .card,
@@ -54,20 +54,28 @@ html.hx-layer body { background: transparent; }
 }
 /* 有壁纸 → 换成玻璃（和首页 .tile 同一套：半透明底 + 1px 亮边 + 顶部亮唇 + 方向性落影）。
    不给每张卡加 backdrop-filter：整页已经在 body::before 糊过一次，再叠 N 个实时模糊层老设备会卡。 */
-html.hx-layer .card,
-html.hx-layer .notice,
-html.hx-layer .peer-card {
+html.hx-bg .card,
+html.hx-bg .notice,
+html.hx-bg .peer-card {
   background-color: rgba(255, 255, 255, .72);
   border-color: rgba(18, 22, 30, .12);
   box-shadow: 0 24px 48px -30px rgba(15, 22, 35, .38), inset 0 .8px 0 rgba(255, 255, 255, .92);
+  /* 2026-11-12 用户要求：标准模式允许逐卡实时模糊（性能好的机器 + 要换服务器了）。
+     极简模式下面那条会把它关掉。 */
+  -webkit-backdrop-filter: saturate(180%) blur(18px);
+  backdrop-filter: saturate(180%) blur(18px);
 }
-html.hx-layer[data-hx-mode="dark"] .card,
-html.hx-layer[data-hx-mode="dark"] .notice,
-html.hx-layer[data-hx-mode="dark"] .peer-card {
+html.hx-bg[data-hx-mode="dark"] .card,
+html.hx-bg[data-hx-mode="dark"] .notice,
+html.hx-bg[data-hx-mode="dark"] .peer-card {
   background-color: rgba(12, 15, 20, .62);
   border-color: rgba(255, 255, 255, .12);
   box-shadow: 0 24px 54px -30px rgba(0, 0, 0, .9), inset 0 .8px 0 rgba(255, 255, 255, .12);
 }
+/* 极简模式：留半透明，不留实时模糊 */
+html.hx-lite.hx-bg .card,
+html.hx-lite.hx-bg .notice,
+html.hx-lite.hx-bg .peer-card { -webkit-backdrop-filter: none; backdrop-filter: none; }
 
 /* ---------- ③ 顶部条与页签：玻璃 + 更清楚的层级 ---------- */
 .top,
@@ -157,8 +165,8 @@ table.book tr.me-row td { border-color: color-mix(in srgb, var(--ok) 45%, transp
   border-left-color: #e08a35;
 }
 /* 上面那条通用玻璃规则会把 duty-callout 的暖色底盖掉，这里按主题补回来 */
-html.hx-layer .duty-callout { background-color: rgba(255, 248, 238, .82); border-left: 4px solid #d9822b; }
-html.hx-layer[data-hx-mode="dark"] .duty-callout { background-color: rgba(48, 32, 14, .55); border-left-color: #e08a35; }
+html.hx-bg .duty-callout { background-color: rgba(255, 248, 238, .82); border-left: 4px solid #d9822b; }
+html.hx-bg[data-hx-mode="dark"] .duty-callout { background-color: rgba(48, 32, 14, .55); border-left-color: #e08a35; }
 :root[data-hx-mode="dark"] .duty-callout > h3,
 :root[data-hx-mode="dark"] .duty-callout-main b { color: #f0aa5c; }
 
@@ -184,7 +192,7 @@ html.hx-layer[data-hx-mode="dark"] .duty-callout { background-color: rgba(48, 32
 :root[data-hx-mode="dark"] .seat-dot { background: rgba(255, 255, 255, .18); }
 :root[data-hx-mode="dark"] .seat-dot.on { background: var(--brand); }
 :root[data-hx-mode="dark"] .desk.mine .seat-dot.on { background: var(--ok); }
-html.hx-layer[data-hx-mode="dark"] .bar { background: rgba(14, 16, 20, .82); }
+html.hx-bg[data-hx-mode="dark"] .bar { background: rgba(14, 16, 20, .82); }
 :root[data-hx-mode="dark"] .btn-stand { background: var(--panel); color: var(--ink); border-color: var(--line-strong); }
 :root[data-hx-mode="dark"] .top-state { background: var(--brand-soft); }
 :root[data-hx-mode="dark"] .top-state.closed { background: rgba(255, 255, 255, .08); }

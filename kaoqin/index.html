@@ -29,14 +29,21 @@ h2 { font-size: 17px; margin: 0 0 12px; }
      ① 底色乘界面透明度 --hx-a：深色 rgb(9 16 29 / .52×α)、浅色 rgb(255 255 255 / .70×α)；
      ② 一圈 1px 亮边 + 顶上 0.8px 亮唇（内阴影），玻璃才有厚度；
      ③ 方向性柔影 --glass-drop，卡片才「放得住」在壁纸上。
-   **绝不逐卡加 backdrop-filter**：首页也是在 body::before 上整页糊一次，14 张卡各开一个实时模糊层
-   在希沃一体机上会直接卡死（hx-theme.css 里记过这个坑）。这里只是「半透明 + 亮边 + 影」。
-   极简模式没有背景图（hx-bg 不挂），这几条自然不生效，卡片退回实色 —— 正好符合「极简不要特效」。
+   ★ 2026-11-12 用户纠正：「没给每张卡加实时模糊这个不对　在标准模式允许啊　有的性能好　而且我们也要换服务器了」
+     → 原先那条「绝不逐卡 backdrop-filter」的结论**作废**。现在：标准模式逐卡真糊（blur 18px），
+       极简模式（html.hx-lite）一条都不留。性能差的老机器用户在总入口把模式切极简即可。
+   闸门用 html.hx-bg（= 有壁纸），不用 .hx-layer：考勤是嵌在总入口 iframe 里的，嵌入时 hx-theme.js
+   故意不挂 .hx-layer（背景由 body::before 自己铺一遍）。背景是「无」时不挂 —— 纯色底上没有东西可糊，
+   卡片退回实色反而更清楚。
    弹窗 .att-mcard 要保证字读得清，用 :not() 排除掉，仍走 --card-solid 实底。 */
 html.hx-bg .card:not(.att-mcard) {
   background-color: rgb(9 16 29 / calc(var(--hx-a, 1) * .52));
   border-color: rgba(255, 255, 255, .14);
   box-shadow: var(--glass-drop), inset 0 .8px 0 rgba(255, 255, 255, .14);
+  /* 2026-11-12 用户原话：「没给每张卡加实时模糊这个不对　在标准模式允许啊　有的性能好　而且我们也要换服务器了」
+     → **标准模式给真的 backdrop-filter**，极简模式（html.hx-lite）一律关掉（见下面那条）。 */
+  -webkit-backdrop-filter: saturate(180%) blur(18px);
+  backdrop-filter: saturate(180%) blur(18px);
 }
 html:not([data-hx-mode="dark"]).hx-bg .card:not(.att-mcard) {
   background-color: rgb(255 255 255 / calc(var(--hx-a, 1) * .70));
@@ -47,6 +54,8 @@ html:not([data-hx-mode="dark"]).hx-bg .card:not(.att-mcard) {
    --dim 是给不透明底准备的，压在深色玻璃上对比度不够，小字（课程号、已考勤 0 次）会发虚。 */
 html.hx-bg .card:not(.att-mcard) .note,
 html.hx-bg .card:not(.att-mcard) .att-cls i { color: var(--g-dim, #6e6e73); }
+/* 极简模式：玻璃可以有，实时模糊一层都不留（老一体机逐卡重算会卡死） */
+html.hx-lite.hx-bg .card:not(.att-mcard) { -webkit-backdrop-filter: none; backdrop-filter: none; }
 .errs { background: var(--badbg, rgba(215, 0, 21, .08)); color: var(--bad, #d70015); border-radius: 12px; padding: 10px 12px; margin: 0 0 12px; font-size: 13.5px; word-break: break-word; }
 .errs[hidden] { display: none; }
 button, .btn { font: inherit; font-size: 14px; padding: 8px 14px; border-radius: 10px; border: 1px solid var(--line2, rgba(0, 0, 0, .12)); background: var(--fill, rgba(0, 0, 0, .04)); color: var(--ink, #1d1d1f); cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px; max-width: 100%; }

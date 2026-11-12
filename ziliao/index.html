@@ -556,7 +556,9 @@ async function readMaterial(file) {
       pages.push(c.items.map(it => it.str).join(' '));
     }
     const text = pages.join('\n');
-    if (text.trim().length < 50) throw new Error('这份 PDF 是扫描件，没有文字层；不要手动逐页截图。请在资料库里启用 AI 逐页识图，并为当前科目配置支持图片的视觉模型后重试。');
+    // 扫描件没有文字层：不再抛错，而是把「这需要逐页识图」这件事交回调用方（带上原文件，
+    // 让 ui-mat.js 走 ocrScannedPdf 逐页 AI 识图）。纯图片扫描 PDF 走这条，有文字层的不受影响。
+    if (text.trim().length < 50) return { text: '', scannedPdf: file };
     return { text };
   }
   throw new Error('支持 PDF、DOCX、TXT、MD，以及 jpg／png 图片；旧版 .doc 请另存为 .docx');
@@ -571,6 +573,52 @@ async function ocrImages(images) {
   });
   return String(txt || '');
 }
+
+/* ── 扫描 PDF 逐页识图（Z7 / B12，2026-11-12）────────────────────────────
+   扫描件没有文字层，`readMaterial` 读到空文本后不再直接抛「请用 AI 识图」，
+   而是把每页渲染成一张图，交给视觉模型逐页抄字 —— 一次传一页，逐页报进度，
+   断在哪一页一眼能看出来。约 350 页会花用户 AI 额度，这是用户拍板同意的。 */
+
+// 把 PDF 每一页渲染成 JPEG dataURL（最长边 1600px，和 fileToDataUrl 同一口径，省 token）
+async function renderPdfPages(file, onPage) {
+  let pdfjs;
+  try { pdfjs = await import(HXIMP_V('pdf.js')); }
+  catch (e) { throw new Error(HXIMP_LIB_MISS); }
+  pdfjs = pdfjs.default && pdfjs.default.getDocument ? pdfjs.default : pdfjs;
+  pdfjs.GlobalWorkerOptions.workerSrc = HXIMP_V('pdf.worker.js');
+  const pdf = await pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+  const pages = [];
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const vp = page.getViewport({ scale: 1 });
+    const scale = Math.min(1.8, 1600 / Math.max(vp.width, vp.height));
+    const vp2 = page.getViewport({ scale });
+    const cv = document.createElement('canvas');
+    cv.width = Math.round(vp2.width); cv.height = Math.round(vp2.height);
+    const ctx = cv.getContext('2d');
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cv.width, cv.height); // 透明底铺白，转 JPEG 不会发黑
+    await page.render({ canvasContext: ctx, viewport: vp2 }).promise;
+    pages.push(cv.toDataURL('image/jpeg', 0.82));
+    if (onPage) onPage(i, pdf.numPages);
+  }
+  return { pages, pageCount: pdf.numPages };
+}
+
+// 逐页识图：一次传一页，onProgress(i, total, text) 报进度；整本拼成一段文字返回
+async function ocrScannedPdf(file, onProgress) {
+  const { pages, pageCount } = await renderPdfPages(file, (i, n) => onProgress && onProgress(i, n, null));
+  const out = [];
+  for (let i = 0; i < pages.length; i++) {
+    const txt = String(await hximpVision({
+      prompt: '把这张教材页里的文字逐字抄下来：保留段落、小标题和序号，公式、电路图用文字描述，表格逐行抄。看不清的写（看不清），不要总结、不要编、不要加自己的解释。',
+      images: [pages[i]]
+    }) || '').trim();
+    out.push(txt);
+    if (onProgress) onProgress(i + 1, pageCount, txt);
+  }
+  return out.join('\n\n');
+}
+
 
 function parseJson(text) {
   const cleaned = String(text || '').trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '');
@@ -798,7 +846,7 @@ async function aiImport(text, subject, onProgress) {
 }
 
 window.HXImp = {
-  isImageFile, fileToDataUrl, readMaterial, ocrImages,
+  isImageFile, fileToDataUrl, readMaterial, ocrImages, ocrScannedPdf, renderPdfPages,
   normalizeQuestions, chunks, genPrompt, aiGenerate, aiImport,
   parseJson, TYPE_LABEL, SUPPORTED, HXIMP_AI_MISS, HXIMP_VISION_MISS, HXIMP_LIB_MISS
 };
@@ -1217,6 +1265,14 @@ async function matUpload(files) {
       const got = await HXImp.readMaterial(f);
       let text = String(got.text || '');
       if (got.image) { say('AI 识图'); text = await HXImp.ocrImages([got.image]); }
+      if (got.scannedPdf) {
+        // 扫描 PDF：逐页 AI 识图（Z7/B12，花用户 AI 额度）。每页报一次进度，断在哪页一眼可见。
+        say('逐页 AI 识图（第 1 页）');
+        text = await HXImp.ocrScannedPdf(got.scannedPdf, (i, total, t) => {
+          const done = t ? `（第 ${i} 页已识出 ${t.length} 字）` : `（第 ${i}/${total} 页渲染中）`;
+          prog.textContent = `（${i}/${files.length}）${f.name}：逐页 AI 识图 ${i}/${total}${done}`;
+        });
+      }
       text = text.replace(/\r/g, '').trim();
       if (!text) throw new Error('没读到任何文字（可能是空白页或加密文件）');
 

@@ -3,7 +3,7 @@
 <html lang="zh-CN">
 <head>
 <script src="../hx-theme.js" data-tool="wiring"></script>
-<script>window.HX_BUILD = "2026-11-12T14:53:05Z d6b38b9";</script>
+<script>window.HX_BUILD = "2026-11-12T16:35:41Z 84a14c1";</script>
 <meta charset="utf-8">
 <meta name="copyright" content="© 2026 zcq 版权所有，未经许可禁止复制、修改、转载">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
@@ -1942,6 +1942,26 @@
     padding: 1px 2px; min-height: 0; flex: 1; }
   #fw-rank .rk-board::-webkit-scrollbar { width: 8px; }
   #fw-rank .rk-board::-webkit-scrollbar-thumb { background: rgba(90, 132, 224, .35); border-radius: 4px; }
+  /* ── 排行榜两列分页（2026-11-12 用户：「一列最多十个 id 卡…改成 2 列这样就是前 20 名展示」）──
+     一页 20 名拆左右两列（左列 1/3/5…、右列 2/4/6…），每张卡因此更宽更大；窄屏下网格会退成单列，
+     卡片不再被横向压成细线。滚动区在 .rk-board2 上，翻页脚 .rk-pager 常驻底部不跟着滚。 */
+  #fw-rank .rk-board2 { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 7px 9px;
+    align-content: start; overflow-y: auto; padding: 1px 2px; }
+  #fw-rank .rk-col { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+  #fw-rank .rk-board2::-webkit-scrollbar { width: 8px; }
+  #fw-rank .rk-board2::-webkit-scrollbar-thumb { background: rgba(90, 132, 224, .35); border-radius: 4px; }
+  #fw-rank .rk-pager { flex: none; display: flex; align-items: center; justify-content: center; gap: 12px;
+    padding: 8px 4px 2px; }
+  #fw-rank .rk-pager span { font-size: 12px; font-weight: 600; color: #93a7c9; }
+  #fw-rank .rk-pg { font: inherit; font-size: 13px; font-weight: 700; color: #cfe0ff; cursor: pointer;
+    padding: 6px 12px; border-radius: 9px; border: 1px solid rgba(90, 132, 224, .35);
+    background: rgba(24, 36, 66, calc(var(--hx-a, 1) * .6)); }
+  #fw-rank .rk-pg:hover:not(:disabled) { border-color: rgba(0, 207, 255, .6); color: #fff; }
+  #fw-rank .rk-pg:disabled { opacity: .38; cursor: default; }
+  /* 窄屏：两列退成单列，卡片保持完整宽度，绝不压扁（用户原话「网页缩小卡片会变形到看不到这不对的」） */
+  @media (max-width: 720px) {
+    #fw-rank .rk-board2 { grid-template-columns: 1fr; }
+  }
   #fw-rank .rk-lb { position: relative; flex: none; display: grid; grid-template-columns: 34px minmax(0, 1fr) auto;
     align-items: center; gap: 10px; height: 42px; padding: 0 14px 0 8px; border-radius: 11px; overflow: hidden;
     border: 1px solid rgba(90, 132, 224, .22); background: rgb(12 19 37 / calc(var(--hx-a, 1) * .62));
@@ -4336,7 +4356,7 @@ const HX = (() => {
     async out() { try { await api('/auth/v1/logout', { method: 'POST' }); } catch (e) { } keep(null); },
   };
 })();
-const RK = { me: null, view: 'rank', circuit: null, lock: null, pick: null, classes: null, cls: null, studs: {}, run: null, signup: false, code: null, newCode: null, roster: null, parOpen: null };
+const RK = { me: null, view: 'rank', circuit: null, lock: null, pick: null, classes: null, cls: null, studs: {}, run: null, signup: false, code: null, newCode: null, roster: null, parOpen: null, boardPage: 0 };
 /* ---------- 静态数据短缓存（2026-11-11 降载，和总入口/刷题同一口径） ----------
    只缓存「老师偶尔才改一次」的东西：我教的班（hx_my_classes）。
    **绝不缓存**排位榜 / 排位记录 / 任务完成状态（rank_board、wire_task_*）—— 那些随时在变。
@@ -4594,6 +4614,7 @@ async function openRank(lockTo) {
   // 兜底：算不出入口题就锁练习页当前这一题，绝不留 null（null = 完全不锁，这是上一版的洞）
   if (!RK.lock && typeof cur === 'string' && cur) RK.lock = cur;
   if (RK.lock) RK.circuit = RK.lock; // 本次入口覆盖上一次的 circuit（localStorage / 内存里的旧值）
+  RK.boardPage = 0; // 换题/重进排位：榜单翻页回到第一页（分页 2026-11-12）
   floatWin('rank', { title: '排位', sub: '计时接线 · 全对自动停表', w: 1040, h: 700, a1: '#f59e0b', a2: '#ef4444', full: true, html: '<div class="rk" id="rk"><p class="rk-wait">加载中…</p></div>' });
   if (!RK.circuit || !rkCircuits().some(c => c.id === RK.circuit)) RK.circuit = rkCircuits()[0].id;
   // 强制对齐：练习页必须停在锁定的那一题上。用户 2026-11-06 的原话是
@@ -5512,20 +5533,33 @@ function rkMedal(p) {
     + '<text x="24" y="32.4" text-anchor="middle" font-size="12.5" font-weight="900" fill="#fff" font-family="system-ui,sans-serif">' + p + '</text>'
     + crown + '</svg>';
 }
-async function rkBoard(el, hl) {
-  let rows; try { rows = await HX.rpc('rank_board', { p_circuit: RK.circuit, p_limit: 50 }, HX.in()); } catch (e) { el.innerHTML = `<p class="rk-err">${esc(e.message)}</p>`; return; }
+async function rkBoard(el, hl, page) {
+  // 分页（2026-11-12 用户：「一列最多十个 id 卡 这样画面大一点 可以改成 2 列 这样就是前 20 名展示
+  //   然后点击下一页就是 21-40 名这样下去 不然随着网页缩小卡片会变形到看不到」）。
+  // 一页 20 名、左右两列（左列 1/3/5…、右列 2/4/6…，蛇形阅读序），底下「上一页 / 下一页」翻页。
+  // 卡片变两列后每张更宽更大，窄屏不会再被压成细线。
+  const PER = 20;
+  if (page != null) RK.boardPage = Math.max(0, page);
+  let rows; try { rows = await HX.rpc('rank_board', { p_circuit: RK.circuit, p_limit: 200 }, HX.in()); } catch (e) { el.innerHTML = `<p class="rk-err">${esc(e.message)}</p>`; return; }
   // 后端口径可能返回对象（老函数 / 代理层包了一层），一律归一成数组，别让整块榜单崩掉
   if (!Array.isArray(rows)) rows = (rows && Array.isArray(rows.data)) ? rows.data : [];
+  const pages = Math.max(1, Math.ceil(rows.length / PER));
+  if (RK.boardPage >= pages) RK.boardPage = pages - 1;           // 数据变少（比如删了人）页码别越界
   // 个人身份卡背景：新表 hx_rank_bg，按 student_id 关联（绝不按名次）。
   // 这一步失败（函数还没建 / 网络抖）只影响背景，不影响成绩与排序 —— 所以单独 try，不拖垮榜单。
   let bgs = [];
-  if (rows.length) { try { bgs = (await HX.rpc('hx_rank_bgs', { p_circuit: RK.circuit, p_limit: 50 }, HX.in())) || []; } catch (e) { bgs = []; } }
+  if (rows.length) { try { bgs = (await HX.rpc('hx_rank_bgs', { p_circuit: RK.circuit, p_limit: 200 }, HX.in())) || []; } catch (e) { bgs = []; } }
   if (!Array.isArray(bgs)) bgs = (bgs && Array.isArray(bgs.data)) ? bgs.data : [];
   const BG = {}; bgs.forEach(b => { if (b && b.student_id != null) BG[b.student_id] = b; });
   const nEl = document.getElementById('rkBoardN');
   if (nEl) nEl.textContent = rows.length ? '共 ' + rows.length + ' 人 · 按用时升序' : '';
   // 空榜单只放提示语，绝不放假成绩
   if (!rows.length) { el.innerHTML = `<div class="rk-empty"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10v4a5 5 0 0 1-10 0z"/><path d="M7 5H4v1.5A3.5 3.5 0 0 0 7.5 10M17 5h3v1.5A3.5 3.5 0 0 1 16.5 10M12 13v4M8.5 20h7"/></svg><b>暂无排位成绩</b><span>完成首次接线挑战后，成绩将在此展示</span></div>`; return; }
+  // 当前页的 20 名
+  const pageRows = rows.slice(RK.boardPage * PER, RK.boardPage * PER + PER);
+  // 两列：左列取奇数位（名次 1、3、5…），右列取偶数位（2、4、6…），蛇形阅读序
+  const left = [], right = [];
+  pageRows.forEach((r, i) => (i % 2 === 0 ? left : right).push(r));
   // FLIP（2026-11-08，纯视觉）：重绘前记下旧行位置（按 姓名|班级 找），重绘后把位置变化过的行
   // 从旧位置平移到新位置 —— 数据更新时行是“滑过去”的，新上榜的行短暂高亮一下。
   // 数值、排序、me/highlight 判定全部原样；首绘（没有旧行）走错峰入场，不做 FLIP。
@@ -5543,7 +5577,19 @@ async function rkBoard(el, hl) {
       + `<span class="rk-lb-who"><b>${esc(r.name)}</b><span class="rk-lb-sub"><small class="rk-lb-cls">${esc(r.class_name)}</small>${top ? `<span class="rk-lb-tag">${RK_TAG[p]}</span>` : ''}</span></span>`
       + `<em>${fmtMs(r.ms)}</em></li>`;
   };
-  el.innerHTML = `<ol class="rk-board${steady}">${rows.map(rowHTML).join('')}</ol>`;
+  const col = arr => `<ol class="rk-col${steady}">${arr.map(rowHTML).join('')}</ol>`;
+  // 分页脚：只在超过一页时出现；「第 N–M 名」说清楚当前这段
+  const from = RK.boardPage * PER + 1, to = Math.min((RK.boardPage + 1) * PER, rows.length);
+  const foot = pages > 1
+    ? `<div class="rk-pager"><button type="button" class="rk-pg" data-pg="-1"${RK.boardPage === 0 ? ' disabled' : ''}>‹ 上一页</button>`
+      + `<span>第 ${from}–${to} 名 · 共 ${rows.length} 人</span>`
+      + `<button type="button" class="rk-pg" data-pg="1"${RK.boardPage >= pages - 1 ? ' disabled' : ''}>下一页 ›</button></div>`
+    : '';
+  el.innerHTML = `<div class="rk-board2">${col(left)}${col(right)}</div>${foot}`;
+  // 翻页：重取当前数据后切页（不重新拉接口也行，但 rows 就在闭包里，直接重画最省）
+  el.querySelectorAll('.rk-pg').forEach(btn => {
+    btn.onclick = () => { rkBoard(el, hl, RK.boardPage + Number(btn.getAttribute('data-pg'))); };
+  });
   if (steady) el.querySelectorAll('.rk-lb').forEach(li => {
     const o = prev[li.getAttribute('data-k')];
     if (o == null) { li.classList.add('rk-new'); return; }              // 新上榜：短暂高亮

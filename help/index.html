@@ -26,18 +26,68 @@
 html,body{margin:0}
 body{background:var(--bg);color:var(--ink);font:15px/1.62 "Microsoft YaHei",system-ui,-apple-system,"Segoe UI",sans-serif;
   -webkit-font-smoothing:antialiased}
-.wrap{max-width:860px;margin:0 auto;padding:0 18px}
+.wrap{max-width:1480px;margin:0 auto;padding:0 18px}
 header.top{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 90%,transparent);backdrop-filter:blur(10px);
   border-bottom:1px solid var(--edge)}
 header.top .wrap{display:flex;align-items:center;gap:12px;min-height:62px;flex-wrap:wrap;padding-top:9px;padding-bottom:9px}
-.back{flex:none;text-decoration:none;font-size:13.5px;font-weight:700;color:var(--dim);padding:7px 12px;border-radius:10px;
-  border:1px solid var(--edge);background:var(--panel)}
-.back:hover{color:var(--ink);border-color:var(--acc)}
 header.top h1{margin:0;font-size:17px;font-weight:800;display:flex;align-items:center;gap:8px}
 header.top h1 i{font-style:normal;display:inline-grid;place-items:center;width:26px;height:26px;border-radius:8px;
   background:linear-gradient(140deg,var(--acc),var(--acc2));color:#fff;font-size:13px;font-weight:900}
 main{padding-top:16px;padding-bottom:60px}
 .card{background:var(--panel);border:1px solid var(--edge);border-radius:16px;padding:18px;margin-bottom:14px;box-shadow:var(--shadow)}
+/* ── 有壁纸时卡片换玻璃 + 实时模糊（2026-11-12 用户原话：
+      「没给每张卡加实时模糊这个不对　在标准模式允许啊　有的性能好　而且我们也要换服务器了」）──
+   规则：**标准模式给真的 backdrop-filter**（底下的壁纸被实时糊掉，玻璃才有厚度）；
+   **极简模式（html.hx-lite）一律关掉** —— 那一档本来就是给老一体机兜底的，逐卡实时模糊会烧 GPU。
+   这也是全站统一口径：标准=允许重特效，极简=只求跑得动。
+   ★ 选 `html.hx-bg` 而不是 `html.hx-layer`：本页在总入口里是 iframe，嵌入时 hx-theme.js 故意不挂
+     .hx-layer（背景由 body::before 自己铺一遍），只看 hx-layer 的话玻璃和模糊永远不生效。
+     hx-bg = 「有壁纸」，嵌入/独立两种情形都在，是这里唯一正确的闸门。背景是「无」时不挂 —— 纯色底上
+     本来就没有东西可糊，卡片回到实色反而更清楚。 */
+html.hx-bg .card,
+html.hx-bg .docmain{
+  background-color: rgba(255,255,255,.62);
+  border-color: rgba(18,22,30,.14);
+  box-shadow: var(--glass-drop, 0 24px 48px -26px rgba(15,22,35,.38)), inset 0 .8px 0 rgba(255,255,255,.8);
+}
+html.hx-bg[data-hx-mode="dark"] .card,
+html.hx-bg[data-hx-mode="dark"] .docmain{
+  background-color: rgba(12,15,20,.56);
+  border-color: rgba(255,255,255,.12);
+  box-shadow: var(--glass-drop, 0 22px 54px -28px rgba(0,0,0,.9)), inset 0 .8px 0 rgba(255,255,255,.12);
+}
+html.hx-bg .card,
+html.hx-bg .docmain,
+html.hx-bg .side{
+  -webkit-backdrop-filter: saturate(180%) blur(18px);
+  backdrop-filter: saturate(180%) blur(18px);
+}
+/* 极简模式：玻璃可以有，模糊一层都不留 */
+html.hx-lite.hx-bg .card,
+html.hx-lite.hx-bg .docmain,
+html.hx-lite.hx-bg .side{ -webkit-backdrop-filter: none; backdrop-filter: none; }
+/* ── 二级「卡」也要真糊（2026-11-12 第二遍）────────────────────────────
+   本页其实一张 .card 都没有：用户眼里的「每张卡」是正文里那 18 个分区（.hd）、
+   目录条目（.toc a）和底部标签（.got span）。它们的底原本是 --card/--panel 实色，
+   压在玻璃正文上就是一块块硬边黑板 —— 上一版只给 .docmain 加了模糊，所以用户看
+   「没给每张卡加实时模糊」是对的。
+   blur 从 18px 收到 12px：卡片面积小，18px 会让边缘糊出一圈光晕。 */
+
+html.hx-bg .hd{ background: color-mix(in srgb, var(--hc, var(--acc)) 9%, rgba(255,255,255,.14)); }
+html.hx-bg[data-hx-mode="dark"] .hd{ background: color-mix(in srgb, var(--hc, var(--acc)) 13%, rgba(12,15,20,.42)); }
+html.hx-bg .toc a{ background: rgba(255,255,255,.12); }
+html.hx-bg[data-hx-mode="dark"] .toc a{ background: rgba(12,15,20,.34); }
+html.hx-bg .got span{ background: rgba(255,255,255,.16); }
+html.hx-bg[data-hx-mode="dark"] .got span{ background: rgba(255,255,255,.07); }
+html.hx-bg .hd,
+html.hx-bg .toc a,
+html.hx-bg .got span{
+  -webkit-backdrop-filter: saturate(170%) blur(12px);
+  backdrop-filter: saturate(170%) blur(12px);
+}
+html.hx-lite.hx-bg .hd,
+html.hx-lite.hx-bg .toc a,
+html.hx-lite.hx-bg .got span{ -webkit-backdrop-filter: none; backdrop-filter: none; }
 /* 分色块说明（.hd 也是卡片：底色跟「卡片通透度」走，用 --card 而不是死透明度） */
 .hx-doc p{margin:0 0 8px;font-size:14px;line-height:1.65;color:var(--dim)}
 .hx-doc b{color:var(--ink);font-weight:600}
@@ -83,11 +133,45 @@ main{padding-top:16px;padding-bottom:60px}
 .got{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
 .got span{padding:3px 9px;border-radius:999px;font-size:12px;font-weight:600;
   background:var(--panel2);border:1px solid var(--edge);color:var(--dim)}
+
+/* ── 宽屏左右布局（2026-11-12 用户截图反馈：「没利用上网页左右两边 很突兀在中间」）──
+   原来正文是 max-width:860 的一根竖条，1920 屏上两边各空 500 多像素。
+   现在 ≥1080px 改成「左侧目录常驻栏 + 右侧正文」：目录 sticky 跟着滚，正文吃满剩余宽度；
+   窄屏退回单列（目录在正文上方），手机观感跟以前一样。 */
+#doc{display:block}
+.side{display:none}
+@media (min-width:1080px){
+  #doc{
+    display:grid; grid-template-columns:264px minmax(0,1fr); gap:26px; align-items:start;
+    /* 这一层只是布局容器，本身不该再画成一张卡 */
+    background:none; border:0; box-shadow:none; padding:0;
+  }
+  .side{
+    display:block; position:sticky; top:76px; max-height:calc(100dvh - 96px); overflow:auto;
+    padding:14px; border-radius:16px; background:var(--panel); border:1px solid var(--edge);
+    box-shadow:var(--shadow); scrollbar-width:thin;
+  }
+  .side .toc{grid-template-columns:1fr;gap:5px}
+  .side .toc a{padding:8px 10px;font-size:13px}
+  /* 侧栏也走玻璃（只在宽屏露出，窄屏那条媒体查询会把它退回透明/无边框） */
+  html.hx-bg .side{ background-color: rgba(255,255,255,.62); border-color: rgba(18,22,30,.14); }
+  html.hx-bg[data-hx-mode="dark"] .side{ background-color: rgba(12,15,20,.56); border-color: rgba(255,255,255,.12); }
+  .docmain{padding:22px 26px 26px;border-radius:16px;background:var(--panel);border:1px solid var(--edge);box-shadow:var(--shadow)}
+  .docmain .lead{max-width:96ch}
+  .docmain .hd ul{max-width:104ch}
+}
+@media (max-width:1079px){
+  /* 窄屏：目录不能消失，退回「正文顶部的网格」，和改版前一样 */
+  .side{display:block;position:static;max-height:none;padding:0;border:0;background:none;box-shadow:none;margin-bottom:4px}
+  .side .toc{grid-template-columns:repeat(auto-fill,minmax(min(230px,100%),1fr));gap:8px}
+  .side .toc a{padding:9px 12px;font-size:13.5px}
+  .docmain{display:block}
+}
+@media (max-width:620px){ .wrap{padding:0 14px} .card{padding:14px} }
 </style>
 </head>
 <body>
 <header class="top"><div class="wrap">
-  <a class="back" href="../" target="_top">← 回首页</a>
   <h1><i>?</i>使用说明</h1>
 </div></header>
 
@@ -140,7 +224,6 @@ main{padding-top:16px;padding-bottom:60px}
     return '<div class="doc-h"><h2>华夏工具 · 教师使用说明</h2><span>2026-11-12 全量更新 · 覆盖 14 个模块</span></div>'
       + '<p class="lead">华夏工具是一套给中职电气课用的网页工具集：<b>接线仿真、刷题、进制转换、单片机上机、考试、考勤、资料库、排课、小组加分、课程进度</b>十件事各占一个工具，数据各自独立、互不通用。<b>账号、班级、科目、外观是全站共用的</b>。下面按「先共用的四块，再逐个工具」讲，每个模块都写了面向谁、怎么用、要注意什么。</p>'
       + '<div class="got"><span>共 10 个教学工具</span><span>4 块全站共用设置</span><span>教师 / 管理员 / 开发者三档权限</span><span>深浅色 + 极简/标准模式</span></div>'
-      + sec('目录 · 点击直达','共 18 节')
       + TOC
 
       + sec('一、全站共用','账号 / 首页 / 班级 / 科目')
@@ -348,7 +431,6 @@ main{padding-top:16px;padding-bottom:60px}
     return '<div class="doc-h"><h2>华夏工具 · 学生使用说明</h2><span>2026-11-12 全量更新</span></div>'
       + '<p class="lead">这份说明讲<b>你能用到的每一个功能</b>。老师用的那些后台（资料库、排课、课程进度、AI 设置）你看不到，这里也不写。每个工具的数据各自独立，<b>分数和记录都绑在你的学号上</b>，换电脑登录还在。</p>'
       + '<div class="got"><span>不用注册</span><span>学号即账号</span><span>手机也能用</span></div>'
-      + sec('目录 · 点击直达','共 11 节')
       + TOC
 
       + hd('#4f8ce8','A · 账号：不用注册，学号就是账号',
@@ -442,7 +524,19 @@ main{padding-top:16px;padding-bottom:60px}
 
   function render(t){
     var doc = document.getElementById('doc');
-    doc.innerHTML = (t === 'student' ? helpDocStudent() : helpDocTeacher());
+    /* 2026-11-12：宽屏改成「左侧目录 + 右侧正文」，所以目录从正文里搬出来单独放 aside。
+       目录仍然是同一份 .toc（窄屏自动退回正文顶部的网格），只是位置换了。 */
+    doc.innerHTML = '<div class="docmain">' + (t === 'student' ? helpDocStudent() : helpDocTeacher()) + '</div>';
+    var toc = doc.querySelector('.toc');
+    if (toc) {
+      var n = toc.children.length;
+      var aside = document.createElement('aside');
+      aside.className = 'side';
+      aside.id = 'docSide';
+      aside.innerHTML = '<div class="sec"><b>目录</b><i></i><em>共 ' + n + ' 节</em></div>';
+      aside.appendChild(toc);
+      doc.insertBefore(aside, doc.firstChild);
+    }
     /* 目录是页内锚点：默认跳转会被 sticky 顶栏盖住一截，这里补一次滚动偏移 */
     doc.addEventListener('click', function (e) {
       var a = e.target.closest && e.target.closest('a[href^="#"]');

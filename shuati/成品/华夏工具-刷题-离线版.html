@@ -304,12 +304,12 @@ html.hx-lite .hx-crumb:active::after { animation: none; }
 <script>
 // 华夏工具外观（网站根目录 /hx-theme.js + /hx-theme.css）。全部工具在 <head> 里同步引用，打开就是选好的外观、不闪。
 // ── 分层（2026-11-08 定稿 VER 6：每个界面完全独立）──
-//   · 首页（键 hx-theme + hx-theme:s:home）：背景图/视频、背景动效、校徽水印沿用旧全局键 hx-theme
-//     （fx/hx-weather.js 写死只认它，动效渲染器只挂在首页）；主题色、深浅、通透度两根滑杆在 hx-theme:s:home；
-//   · 每个工具页（键 hx-theme:s:<tool>）：主题色、深色/浅色/自动、卡片通透度、背景清晰度、
-//     **背景图、背景动效、校徽水印**全部存自己的一份，和首页、和别的工具互不干扰。
+//   · 首页（键 hx-theme + hx-theme:s:home）：背景图/视频、校徽水印沿用旧全局键 hx-theme；
+//     主题色、深浅、通透度两根滑杆在 hx-theme:s:home；
+//   · 每个工具页（键 hx-theme:s:<tool>）：主题色、深色/浅色、卡片通透度、背景清晰度、
+//     **背景图、校徽水印**全部存自己的一份，和首页、和别的工具互不干扰。
 //   · 一次性迁移：工具页第一次打开、还没有自己的存档时，继承旧全局键 hx-theme 里的
-//     背景/动效/水印/主题色/深浅（老用户观感不变）；用户在哪个页面改，就只写哪个页面的键。
+//     背景/水印/主题色/深浅（老用户观感不变）；用户在哪个页面改，就只写哪个页面的键。
 //     旧全局键不删（首页还在用它），工具页一旦有了自己的存档就再也不看它。
 // 外观只在总入口右上角改：主题色（沿用旧刷题站的 7 套）、深色 / 浅色 / 自动、背景图、通透度两根滑杆。
 // 自己上传的背景图压缩后存 hx-theme-img；同一网站的页面（包括嵌在总入口里的工具）通过 storage 事件一起变。
@@ -347,26 +347,26 @@ html.hx-lite .hx-crumb:active::after { animation: none; }
   // 老存档里凡是选了已下架背景（bear/chiikawa/cat/mist/bay/dusk/旧极光渐变）的，统一迁到新默认；
   // 自己上传过图的（custom 且本地还有图）保留不动 —— 那是用户自己的东西，不能因为改默认就没了。
   // VER 5（2026-11-05）：主题色、深浅模式、卡片通透度、背景清晰度改成按界面分键。
-  // VER 6（2026-11-08）：背景图 / 背景动效 / 校徽水印也按界面分键（用户原话「各个工具下主题独立控制
-  //   在本工具下 压根不生效」）。首页的这三样继续存旧全局键 hx-theme（fx/hx-weather.js 写死只认它，
-  // 顺带当所有工具页的迁移来源）；每个工具页存 hx-theme:s:<tool>，七个字段全在自己键里。
+  // VER 6（2026-11-08）：背景图 / 校徽水印也按界面分键（用户原话「各个工具下主题独立控制
+  //   在本工具下 压根不生效」）。首页的这两样继续存旧全局键 hx-theme（顺带当所有工具页的
+  //   迁移来源）；每个工具页存 hx-theme:s:<tool>，所有字段都在自己键里。
   // 滑杆语义 2026-11-05 翻转：原来的 op「卡片透明度」100 = 最实；现在叫 clr「卡片通透度」，100 = 最透
   // （也就是用户定下的默认观感：深色玻璃底、背景透出来），往下调卡片变实、文字更清楚。
   // 老存档里的 op 不再折算：旧 100 = 新 100（同一观感），旧值更小的本意是「更透」——新体系 100 已经是最透，
   // 一律落回默认 100，保证老用户刷新后看到的就是这版定稿的玻璃观感。
-  var KEY = 'hx-theme', SKEY = 'hx-theme:s:', IMG = 'hx-theme-img', DEV = 'hx-dev', VER = 6,
+  var KEY = 'hx-theme', SKEY = 'hx-theme:s:', IMG = 'hx-theme-img', DEV = 'hx-dev', VER = 7,
     // 2026-11-05 用户定：默认进来 = 深色主题 + 两个滑杆都 100%（通透度 100 = 深色清透玻璃，背景最透出）。
     // 之前默认 mode:'auto'，Mac 浅色系统打开就是浅色 + 旧白玻璃配方，用户原话「玻璃质感不高级 仅仅只是白色雾蒙蒙」。
-    DEF = { acc: 'green', mode: 'dark', bg: 'aurora', clr: 100, bgo: 100, wx: 'none' };
-  // 背景动效（2026-11-03）：和背景主题平行的「动效模块」，由 fx/hx-weather.js 渲染在背景层。
-  // 白名单写死在这里（而不是由渲染器自己认）：将来下架某个特效，老存档里选着它也会安全回落到「无」。
-  var WX = {
-    none: { name: '无' },
-    aurora: { name: '极光' }, fireflies: { name: '萤火虫' }, 'shooting-stars': { name: '流星' },
-    snow: { name: '雪' }, rain: { name: '雨' }, storm: { name: '雷雨' }, blizzard: { name: '暴风雪' },
-    clouds: { name: '云' }, fog: { name: '雾' }, 'god-rays': { name: '神光' },
-    'cherry-blossoms': { name: '樱花' }, 'falling-leaves': { name: '落叶' }
-  };
+    // 2026-11-11 用户定（第二次）：「主题自动…不需要给用户切换，默认深色主题」。深浅**不再有 auto 档**，
+    //   只留 浅色 / 深色 两个按钮，默认深色；老存档里 mode:'auto' 的按当时实际显示落成 light/dark（见 get()）。
+    DEF = { acc: 'green', mode: 'dark', bg: 'none', clr: 100, bgo: 100 };
+  // 2026-11-11 用户定（第二次改默认背景）：「极光背景改 … 使用默认静态背景？比如就用深色总默认 无背景
+  //   可以选极光 加入选择不强制」。所以全站默认背景从 `aurora`（动态视频壁纸）改成 `none`
+  //   （纯深色底，最省电、最不抢内容）；想要极光的人在外观面板里自己点，不再是默认。
+  //   迁移见下面 VER 7 段：老存档里「从没主动挑过背景」的一律落到 none；
+  //   自己上传过图（custom）或显式选过别的背景的，保留不动。
+  // 2026-11-12：像素氛围动效（原 wx 字段 + 旧的独立渲染器）整个功能删除。
+  //   老存档里残留的 wx 字段不再读取，留着无害、忽略即可（get() 返回的对象里没有 wx）。
   // VER：外观配置版本。加了全局默认背景后，老存档里没有 ver 字段 = 还没主动挑过背景，
   // 补成新默认（小熊）；自己上传过图的（custom）与显式选过「无」的不覆盖。
   var OLD = { day: { acc: 'blue', mode: 'light' }, sea: { acc: 'green', mode: 'light' }, sakura: { acc: 'pink', mode: 'light' }, night: { acc: 'purple', mode: 'dark' }, forest: { acc: 'green', mode: 'dark' }, mist: { acc: 'mono', mode: 'dark' } };
@@ -376,7 +376,8 @@ html.hx-lite .hx-crumb:active::after { animation: none; }
   // 在网站上被单独打开的子工具：回到总入口（登录、账号、外观都在那里）。离线单文件不跳；地址加 ?solo 也不跳（调试用）。
   
 
-  // 嵌在总入口里的子工具：选了背景图时页面底色透明，透出首页的背景图（以前单片机、考试、排课、加分是整页纯色铺满）
+  // 嵌在总入口里的子工具：背景层自己铺一遍（以前是「透明让首页壁纸透上来」，2026-11-09 证明
+  // Chrome 会把显式透明的根背景画成白画布，深色工具页整片发白 —— 详见下面那段注释）
   // hx-embedded：告诉工具「你被嵌在框里了」。自带校徽水印的工具（目前只有排课 .wm）见到它就收起自己那一份，
   // 由总入口统一画一层，免得同一个校徽画两遍还错位。
   // 2026-11-06 修「点浅色页面还是深色」：透明只给深色用。浅色时让工具页铺自己的浅色底
@@ -385,13 +386,24 @@ html.hx-lite .hx-crumb:active::after { animation: none; }
   if (tool && window.top !== window) {
     document.documentElement.classList.add('hx-embedded');
     var st = document.createElement('style');
-    // 嵌入时背景由总入口统一画：这里把自己画背景的每一层都关掉（html/body 底色与背景图、
-    // body::before 背景层、视频层、极光层），深色只留透明让总入口壁纸从 iframe 底下透上来 ——
-    // 否则同一张图会在 iframe 里再画一遍，和总入口叠成双重背景（用户报「透明度拉低出现双重背景重叠」）。
-    // 浅色仍铺自己的浅色底（见 apply 里那段注释），所以只对深色关。
-    st.textContent = 'html.hx-embedded[data-hx-mode="dark"],html.hx-embedded[data-hx-mode="dark"] body{background-color:transparent!important;background-image:none!important}'
-      + 'html.hx-embedded[data-hx-mode="dark"] body::before{background-image:none!important}'
-      + 'html.hx-embedded[data-hx-mode="dark"] .hx-bgvid-wrap,html.hx-embedded[data-hx-mode="dark"] .hx-bgmo{display:none!important}';
+    // 2026-11-09 修用户报障「选极光背景后工具页整体发灰、题目文字发白看不清、画布一整块灰白」。
+    // 原因查清了，不是配色也不是壁纸丢了：
+    //   原来这里把 html（根元素）的底色**显式**设成 transparent，想让总入口壁纸从 iframe 底下透上来。
+    //   但 Chrome 对「显式 transparent 的根背景」不会去透父页面，而是退回 iframe 自己的**白色画布**；
+    //   #hx-layer-style 里那些铺壁纸的规则又都挂在 .hx-layer 上，而嵌入时故意不挂 .hx-layer
+    //   （见 apply 里那段注释），视频层也被下面这条 display:none 关掉 —— 于是工具页里没有任何一层
+    //   在画背景，白色画布就直接露出来了。接线仿真的画布/卡片是半透明的（深色 .56），压在这层白上
+    //   就成了灰色，而深色主题的字是浅色，浅字压灰底 = 看不清。实测把根底色刷成不透明色，灰底立刻消失。
+    // 现在改成：根元素铺主题底色（--hx-page，深色 = #000，不是白），body 保持透明，
+    //   壁纸由 body::before 自己铺一遍（嵌入时不建视频层，用海报帧；总入口开着工具时那边视频本来就
+    //   暂停了，观感一致）。代价是「壁纸在 iframe 里又画了一遍」，但这幅画和总入口是同一张、同位置，
+    //   肉眼看不出来；不这么做的话深色工具页就只有一片白。
+    // 浅色仍铺自己的浅色底（见下面注释），所以只对深色生效。
+    st.textContent = 'html.hx-embedded[data-hx-mode="dark"]{background-color:var(--hx-page,#000)!important;background-image:none!important}'
+      + 'html.hx-embedded[data-hx-mode="dark"] body{background-color:transparent!important;background-image:none!important}'
+      + 'html.hx-embedded[data-hx-mode="dark"] body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;'
+      + 'background:var(--hx-img) center / cover no-repeat;opacity:var(--hx-bgo,1)}'
+      + 'html.hx-embedded .hx-bgvid-wrap,html.hx-embedded .hx-bgmo{display:none!important}';
     (document.head || document.documentElement).appendChild(st);
   }
 
@@ -426,16 +438,16 @@ html.hx-lite .hx-crumb:active::after { animation: none; }
   })();
 
   // ── 页面层基础样式（2026-11-08 修「工具页选背景没东西」）──────────────────
-  // 背景图 / 背景动效要看得见，前提是页面自己别先铺一层不透明底色把它们全盖住。
+  // 背景图要看得见，前提是页面自己别先铺一层不透明底色把它全盖住。
   // 这几条规则原来写在 hx-theme.css 里，但全站只有总入口和刷题引了那份 CSS ——
   // 接线仿真、排课、单片机、考试、加分、课程进度都只引 hx-theme.js，
   // 于是背景层（body::before）根本没铺、视频层（z-index:-2）又被工具页 body 的底色压住，
   // 用户选什么都看不见（「点了没反应」）。所以跟着 JS 注入，全站每个页面都生效。
   //
-  // 只在「有东西可看」时才挂（apply() 会按 bg / wx 给 <html> 加 .hx-layer）：
-  //   · 背景 = 无 且 动效 = 无 → 不挂，页面保持自己原来的底色（用户要的「干净纯色背景」）；
+  // 只在「有东西可看」时才挂（apply() 会按 bg 给 <html> 加 .hx-layer）：
+  //   · 背景 = 无 → 不挂，页面保持自己原来的底色（用户要的「干净纯色背景」）；
   //   · 挂上之后：html 铺一层纯色底（--hx-page，跟深浅主题走），body 放透明，
-  //     body::before 铺背景图（--hx-img，透明度跟 --hx-bgo），动效画布垫在内容之下。
+  //     body::before 铺背景图（--hx-img，透明度跟 --hx-bgo）。
   // !important 是必须的：接线仿真外壳会用行内 style 给 body 写背景图，只有 !important 压得住行内样式。
   (function () {
     var ls2 = document.createElement('style');
@@ -679,9 +691,6 @@ html.hx-lite .hx-crumb:active::after { animation: none; }
   var HASH_TOOL = /^[A-Za-z0-9_-]{2,32}$/;
   function paneSurf() {
     if (tool || window.top !== window) return SURF;   // 工具页自己（顶层 / 被嵌）
-    // 「AI 设置」是总入口的弹层（不写 hash 路由），开着它时外观面板要改的是 ai 键。
-    // 总入口通过 window.__hxSurface 临时把面板指向 ai（见 总入口/index.html 的 togglePop/closePops）。
-    if (window.__hxSurface && HASH_TOOL.test(window.__hxSurface)) return window.__hxSurface;
     var h = (location.hash || '').replace(/^#/, '');
     return HASH_TOOL.test(h) ? h : 'home';
   }
@@ -693,9 +702,15 @@ html.hx-lite .hx-crumb:active::after { animation: none; }
     // ── 旧全局键（hx-theme）：首页的「背景 / 动效 / 水印」存档，也是各工具页的迁移来源 ──
     var raw = ls(KEY), lg = raw && OLD[raw] ? OLD[raw] : jparse(raw);
     lg = lg || {};
-    // 老存档（没有 ver）＝ 上这一版之前就存过外观的。统一换成新默认（极光），做到「全体人员默认」；
-    // 只有自己上传过图的例外——那是明确主动的行为，别覆盖掉。想关掉背景在外观面板点「无」即可。
+    // 老存档（没有 ver）＝ 上这一版之前就存过外观的。统一换成新默认，做到「全体人员默认」；
+    // 只有自己上传过图的例外——那是明确主动的行为，别覆盖掉。想换背景在外观面板点即可。
     if (raw && !lg.ver && lg.bg !== 'custom') lg.bg = DEF.bg;
+    // VER 7 迁移（2026-11-11）：默认背景从 aurora（动态极光视频）改成 none（纯深色底）。
+    // 用户原话「极光背景改…用深色总默认 无背景 可以选极光 加入选择不强制」。
+    // 只管「还停在上一版默认 aurora、自己从没主动改过背景」的存档 —— 也就是 ver 是 6 或更早、
+    // 且 bg 正好是 aurora 的那批（那批人的 aurora 多半是 VER 4 迁移替他们选的，不是本人点的）。
+    // 显式选过 none / custom / 别的背景的一律不动；已经升到 VER 7 之后自己选的 aurora 也不动。
+    if ((+lg.ver || 0) < 7 && lg.bg === 'aurora') lg.bg = 'none';
     // VER 4 迁移（2026-11-04 深夜）：背景项只剩 无/极光动态/自己的图。
     if (!BG[lg.bg]) lg.bg = DEF.bg;
     // ── 本界面自己的存档（hx-theme:s:<界面>）────────────────────────────
@@ -710,7 +725,6 @@ html.hx-lite .hx-crumb:active::after { animation: none; }
     function src(k) { return own && sv[k] !== undefined ? sv[k] : lg[k]; }
     var s = {
       bg: BG[src('bg')] ? src('bg') : DEF.bg,
-      wx: WX[src('wx')] ? src('wx') : DEF.wx,
       // 校徽水印：只认显式写过的 0/1（老存档里可能没有这个字段）。没写过的：
       // 首页默认开、工具页默认关 —— 用户的定稿是「首页有校徽，工具页干净」。
       wm: (function () {
@@ -720,7 +734,9 @@ html.hx-lite .hx-crumb:active::after { animation: none; }
         return home ? 1 : 0;
       })(),
       acc: ACC[src('acc')] ? src('acc') : DEF.acc,
-      mode: /^(light|dark|auto)$/.test(src('mode')) ? src('mode') : DEF.mode,
+      // 深浅（2026-11-11 起没有 auto 档）：老存档里存的 'auto' 不再跟系统跑，一律落成默认深色
+      //   （用户原话「主题自动…不需要给用户切换，默认深色主题」）；非法值同样落默认。
+      mode: /^(light|dark)$/.test(src('mode')) ? src('mode') : DEF.mode,
       // 卡片通透度（2026-11-05 翻转语义）：100 = 最透（清透玻璃、背景透出来，默认），0 = 最实。
       clr: clamp01(+src('clr'), DEF.clr),
       // 背景清晰度：100 = 原样显示（最清楚），0 = 背景几乎看不见、只剩页面底色。
@@ -732,7 +748,8 @@ html.hx-lite .hx-crumb:active::after { animation: none; }
   }
   function isDev() { return ls(DEV) === '1'; } // 总入口查到 hx_me().dev 后记下（见 setDev），各工具打开时据此决定能不能用专属背景
   function setDev(on) { if (isDev() === !!on) return; ls(DEV, on ? '1' : null); apply(); }
-  function modeOf(s) { return s.mode === 'auto' ? (dark && dark.matches ? 'dark' : 'light') : s.mode; }
+  // 深浅：2026-11-11 起没有 auto 档，get() 已经保证只可能是 light / dark，这里只做兜底透传。
+  function modeOf(s) { return s.mode === 'light' ? 'light' : 'dark'; }
   // ── 省电模式（hx-lite）─────────────────────────────────────────────────────
   // 2026-11-02：教室里的希沃一体机点工具会弹「重新加载站点」。查下来是渲染进程崩了：
   // 首页十几张卡 + 刷题一屏五六张卡，每张各自 backdrop-filter: blur(26px)，外加背景图，
@@ -743,18 +760,12 @@ html.hx-lite .hx-crumb:active::after { animation: none; }
     var q = location.search;
     if (/[?&]full\b/.test(q)) return false;
     if (/[?&]lite\b/.test(q)) return true;
+    /* 2026-11-11 用户定：**极简模式是默认**。
+       原话「省电模式改名叫极简模式并作为默认，然后想看特效就选择隔壁的标准模式」。
+       所以读不到偏好时不再按机器猜、也不再把 4 核机误伤成省电 —— 一律先给极简（稳、不烫），
+       谁想要特效去外观面板点「标准模式」，那台机器就记住 '0'，以后每次打开都是标准。 */
     try { if (ls('hx-lite') === '1') return true; if (ls('hx-lite') === '0') return false; } catch (e) { }
-    var ua = navigator.userAgent || '';
-    // ── 2026-11-04 改：判定收紧，别再误伤机房电脑 ──
-    // 用户报「我机房的浏览器打开画面不会动像素特效」。查下来是这里把 4 核机也算成省电模式：
-    // 机房那批机器 hardwareConcurrency 正好 4，命中 hc <= 4 → hx-lite → hx-critters.js 的 still()
-    // 只画第一帧、永远不动，看起来就像「特效坏了」。而这批机器其实跑得动（真正的开销是当年的
-    // 每卡 backdrop-filter blur(26px)，2026-11-02 已经改成全局只糊一次了，现在没有任何实时模糊）。
-    // 所以：只有明确的一体机 / 国产盒子主板才进省电模式；核心数只认 ≤2（真的老掉牙那种），
-    // deviceMemory 只认 ≤2。4 核 / 4G 的机房机正常跑动效。
-    if (/seewo|hisense|cvte|amlogic|rk3\d{3}|allwinner/i.test(ua)) return true; // 一体机 / 会议大屏 / 国产盒子主板
-    var hc = navigator.hardwareConcurrency || 8, dm = navigator.deviceMemory || 8;
-    return hc <= 2 || dm <= 2;
+    return true;   // ← 默认极简（2026-11-11）
   }
   try { document.documentElement.classList.toggle('hx-lite', liteOn()); } catch (e) { }
   // ── 背景图：原图直出，不再预模糊（2026-11-04 用户要求）──────────────────
@@ -900,6 +911,27 @@ html.hx-lite .hx-crumb:active::after { animation: none; }
     bgVids = []; bgCur = 0; bgFading = false; bgLoopEnd = 0;
   }
   var bgWrap = null;
+  /* ── 620 KB 极光视频不再抢首屏（2026-11-09）──
+     用户报「打不开了 / 登录都登录不了」时量的账：首页下行 1668 KB，其中 bg/aurora.mp4 占 620 KB
+     （桌面端唯一的大件）。它和登录、名单、分数一毛钱关系都没有，却和它们抢同一条带宽 ——
+     教室几十台机器一起开，视频把线吃满，app.js / hx_me 就排在后面慢慢等。
+     做法：首屏先只出海报帧（bg/aurora.jpg，30 KB，本来就已经由 apply() 写进 --hx-img 了，
+     视觉上就是同一帧画面），等 window.load 之后浏览器空闲了再把视频建出来续上。
+     用户看到的差别只有：开头零点几秒背景是静的，然后自然动起来 —— 慢网上反而是「先有画面」。
+     已经建过视频的不受影响（bgVids.length 非 0 就走原来的路），反复切主题也不会重建。
+     requestIdleCallback 不存在（Safari 老版）就退回 1.2 秒定时；再兜一个 10 秒硬上限，
+     防某个资源卡住导致 load 永远不来、背景一辈子是静图（10 秒是「慢网也基本 load 完了」的量级）。 */
+  var bgVidReady = false;
+  (function () {
+    function go() { if (bgVidReady) return; bgVidReady = true; try { apply(); } catch (e) { } }
+    function later() {
+      if (window.requestIdleCallback) requestIdleCallback(go, { timeout: 2500 });
+      else setTimeout(go, 1200);
+    }
+    setTimeout(go, 10000);                                 // 硬上限：load 不来也放行
+    if (document.readyState === 'complete') later();
+    else addEventListener('load', later);
+  })();
   function bgMake() {
     // 防御：万一还有旧的空 wrap（bgDrop 之前的代码路径），先摘掉再建
     if (bgWrap && bgWrap.parentNode) bgWrap.parentNode.removeChild(bgWrap);
@@ -1030,6 +1062,8 @@ html.hx-lite .hx-crumb:active::after { animation: none; }
     // 已经建好的绝不销毁 —— 见 bgNarrow() 上面那段：销毁/重建正是跨断点时背景跳变的来源。
     if (!bgVids.length) {
       if (bgNarrow()) { bgDrop(); return; }
+      // 首屏阶段先不建：只留海报帧，等 load + 空闲再建（见上面 bgVidReady 那段）
+      if (!bgVidReady) { bgDrop(); return; }
       bgMake();
     }
     if (wasSrc === src) {
@@ -1077,166 +1111,6 @@ html.hx-lite .hx-crumb:active::after { animation: none; }
     if (mq.addEventListener) mq.addEventListener('change', on); else if (mq.addListener) mq.addListener(on);
   })();
 
-  // ── 背景动效：工具页这一侧（2026-11-08）────────────────────────────────
-  // 用户原话「背景没东西…动效 点了没反应」。查下来动效从来没在工具页生效过：
-  // 渲染器 fx/hx-weather.js 只有总入口的 index.html 引了，而且它写死读旧全局键 hx-theme。
-  // 这里给工具页补一份同款渲染（首页不进来，那边继续走 hx-weather.js，零回归）：
-  //   · 用到才懒加载特效库 fx/pixelfx-weather.js（失败就安静放弃，不影响页面）；
-  //   · 挂一块 z-index:-1 的像素画布，摆位和 hx-weather.js 一致：背景层之上、内容之下；
-  //   · 省电（hx-lite）/ 减少动效：只画静态一帧；页签切后台停循环。
-  // 和 hx-weather.js 的差别只有一条：动效的值来自本工具自己的键（get() 已经算好传进来）。
-  var wxLib = false, wxRaf = 0, wxCur = null, wxCvs = null, wxG = null, wxImgD = null, wxFrame = null, wxFx = null, wxMod = null, wxLast = 0, wxW = 0, wxH = 0;
-  function wxStill() { return document.documentElement.classList.contains('hx-lite') || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches); }
-  function wxRemove() {
-    if (wxRaf) { cancelAnimationFrame(wxRaf); wxRaf = 0; }
-    if (wxCvs && wxCvs.parentNode) wxCvs.parentNode.removeChild(wxCvs);
-    wxCvs = null; wxG = null; wxImgD = null; wxFrame = null; wxFx = null; wxMod = null; wxCur = null;
-    wxMirrorDrop();
-  }
-  // ── 镜像画布（2026-11-08）──接线仿真这类「整页被同源 iframe 盖满」的工具，外壳层的
-  // 动效画布（z-index:-1）会被 iframe 里的练习画布整个挡住，用户选了动效照样「点了没反应」。
-  // iframe 和外壳同源（srcdoc / 同站），所以把同一帧再画一份塞进每个 iframe 文档里：
-  // 镜像也是 z-index:-1，垫在练习画布下面、壁纸上面 —— 练习画布本身是半透明的
-  //（theme.js 选了背景时把底色调成 rgba），粒子就从它底下透出来。
-  // 全部帧由外壳这一个 rAF 循环驱动，镜像只多一次 putImageData，不另起循环（红线不破）。
-  var wxMirrors = [];
-  function wxMirrorDrop() {
-    for (var i = 0; i < wxMirrors.length; i++) {
-      var m = wxMirrors[i];
-      try { if (m.cvs && m.cvs.parentNode) m.cvs.parentNode.removeChild(m.cvs); } catch (e) { }
-    }
-    wxMirrors = [];
-  }
-  function wxMirrorScan() {
-    if (!tool || !wxCvs || !document.body) return;
-    var fr = document.querySelectorAll('iframe');
-    for (var i = 0; i < fr.length; i++) {
-      (function (f) {
-        if (f.__hxWxMirror) return;
-        var d = null;
-        try { d = f.contentDocument; } catch (e) { }
-        if (!d || !d.body) return;               // 跨域 / 还没就绪：下一次 apply 或 load 再试
-        f.__hxWxMirror = true;
-        var c = d.createElement('canvas');
-        c.width = wxW; c.height = wxH;
-        c.setAttribute('aria-hidden', 'true');
-        // 摆位与外壳画布一致：居中 cover、垫到内容下面；iframe 文档自己的 CSS 管不着它
-        c.style.cssText = 'position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:-1;pointer-events:none;'
-          + 'image-rendering:pixelated;image-rendering:crisp-edges;opacity:.85';
-        d.body.appendChild(c);
-        var g = null; try { g = c.getContext('2d'); } catch (e) { }
-        wxMirrors.push({ fr: f, cvs: c, g: g });
-        wxMirrorSize();
-      })(fr[i]);
-    }
-  }
-  function wxMirrorSize() {
-    for (var i = 0; i < wxMirrors.length; i++) {
-      var m = wxMirrors[i], w = 0, h = 0;
-      try { w = m.fr.contentWindow.innerWidth; h = m.fr.contentWindow.innerHeight; } catch (e) { }
-      if (!w || !h) continue;
-      var sc = Math.max(1, Math.ceil(Math.max(w / wxW, h / wxH)));
-      m.cvs.style.width = wxW * sc + 'px';
-      m.cvs.style.height = wxH * sc + 'px';
-    }
-  }
-  function wxMirrorDraw() {
-    for (var i = 0; i < wxMirrors.length; i++) {
-      var m = wxMirrors[i];
-      if (!m.g) continue;
-      try {
-        // 藏起来的 iframe（visibility:hidden）不画，省一截合成开销；显示时下一帧自动跟上
-        if (getComputedStyle(m.fr).visibility === 'hidden') continue;
-        if (!m.img) m.img = m.g.createImageData(wxW, wxH);
-        m.img.data.set(wxImgD.data);
-        m.g.clearRect(0, 0, wxW, wxH);
-        m.g.putImageData(m.img, 0, 0);
-      } catch (e) { }
-    }
-  }
-  function wxMount(id) {
-    wxRemove();
-    var P = window.PixelFXWeather;
-    var m2 = P && P.effects && P.effects[id] && P.effects[id].meta;
-    if (!m2 || !m2.size || !document.body) return;
-    wxMod = P.effects[id]; wxW = m2.size[0]; wxH = m2.size[1];
-    wxCvs = document.createElement('canvas');
-    wxCvs.id = 'hxWxTool';
-    wxCvs.setAttribute('aria-hidden', 'true');
-    wxCvs.width = wxW; wxCvs.height = wxH;
-    // 摆位照抄 hx-weather.js：320×180 像素帧整数倍放大、居中 cover、垫在内容下面
-    wxCvs.style.cssText = 'position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:-1;pointer-events:none;'
-      + 'image-rendering:pixelated;image-rendering:crisp-edges;opacity:.9';
-    document.body.appendChild(wxCvs);
-    wxG = wxCvs.getContext('2d');
-    if (!wxG) return wxRemove();
-    wxImgD = wxG.createImageData(wxW, wxH);
-    wxFrame = P.createFrame(wxW, wxH);
-    var o = m2.origin || [wxW / 2, wxH / 2];
-    wxFx = P.createFx(wxMod, { x: o[0], y: o[1], seed: Math.floor(Math.random() * 997) });
-    wxSize();
-    wxMirrorScan();
-    wxDraw(0); // 先出一帧，别空白等下一帧
-    if (!wxStill()) wxKick();
-    wxCur = id;
-  }
-  function wxSize() {
-    if (!wxCvs) return;
-    var sc = Math.max(1, Math.ceil(Math.max(innerWidth / wxW, innerHeight / wxH)));
-    wxCvs.style.width = wxW * sc + 'px';
-    wxCvs.style.height = wxH * sc + 'px';
-  }
-  function wxDraw(dt) {
-    if (!wxFx || !wxG) return;
-    if (dt) wxFx.update(dt);
-    var P = window.PixelFXWeather;
-    P.clearFrame(wxFrame); wxFx.draw(wxFrame, 'back'); wxFx.draw(wxFrame, 'front');
-    P.composite(wxFrame, wxImgD.data, null);
-    wxG.clearRect(0, 0, wxW, wxH);
-    wxG.putImageData(wxImgD, 0, 0);
-    wxMirrorDraw(); // 同源 iframe 里的镜像同步这一帧（接线仿真这类被 iframe 盖满的工具就靠它看见动效）
-  }
-  function wxKick() {
-    if (wxStill() || document.hidden || !wxFx || wxRaf) return;
-    wxRaf = requestAnimationFrame(wxStep);
-  }
-  function wxStep(now) {
-    wxRaf = 0;
-    if (document.hidden || !wxFx) return;
-    var gap = 1000 / (document.documentElement.classList.contains('hx-lite') ? 18 : 24); // 氛围动画，24fps 封顶（省电 18）
-    if (wxLast && now - wxLast < gap - 1) { wxRaf = requestAnimationFrame(wxStep); return; }
-    var dt = wxLast ? Math.min((now - wxLast) / 1000, 0.12) : 0;
-    wxLast = now;
-    wxDraw(dt);
-    wxRaf = requestAnimationFrame(wxStep);
-  }
-  function wxApply(id) {
-    if (!tool) return;                      // 首页交给 fx/hx-weather.js（它读旧全局键 = 首页自己的存档）
-    if (id === wxCur) return;
-    wxCur = id;
-    if (!id) return wxRemove();
-    var P = window.PixelFXWeather;
-    if (!P || !P.effects) {                 // 特效库还没到：懒加载一次，到了再挂
-      if (wxLib) return;
-      wxLib = true;
-      var sc2 = document.createElement('script');
-      sc2.src = root + 'fx/pixelfx-weather.js';
-      sc2.onerror = function () { };
-      sc2.onload = function () { if (wxCur) { var c = wxCur; wxCur = null; wxApply(c); } };
-      (document.head || document.documentElement).appendChild(sc2);
-      return;
-    }
-    if (!document.body) { addEventListener('DOMContentLoaded', function () { if (wxCur) { var c2 = wxCur; wxCur = null; wxApply(c2); } }); return; }
-    wxMount(id);
-  }
-  addEventListener('visibilitychange', function () { if (!tool) return; if (document.hidden) { if (wxRaf) { cancelAnimationFrame(wxRaf); wxRaf = 0; } } else wxKick(); });
-  var wxRzT = 0;
-  addEventListener('resize', function () { if (!wxCvs || wxRzT) return; wxRzT = setTimeout(function () { wxRzT = 0; wxSize(); wxMirrorSize(); }, 180); });
-  // 接线仿真按需创建电路 iframe：它的 load 事件不冒泡，但捕获阶段能到达 window（srcdoc 页面
-  // 的 target 是那份 Document，不是 iframe 元素），所以不判 tagName、来了就补扫一遍 ——
-  // 扫描本身带去重（挂过的 iframe 有标记）和 try/catch，跑空也几乎零开销。
-  addEventListener('load', function () { if (tool && wxCvs) { wxMirrorScan(); wxMirrorSize(); } }, true);
-
   function apply() {
     // get() 不带参数 = 取「屏幕上正在显示的那一层」：总入口开着工具时就是那个工具，
     // 于是顶栏/地址栏主题色和工具页同一套，不会出现「上面深色条、下面浅色页」的拼接感。
@@ -1246,15 +1120,12 @@ html.hx-lite .hx-crumb:active::after { animation: none; }
     var embedded = !!(tool && window.top !== window);
     var c = m === 'dark' ? a.d : a.l, c2 = m === 'dark' ? a.d2 : a.l2;
     r.setAttribute('data-hx-mode', m); r.setAttribute('data-theme', m); r.setAttribute('data-hx-acc', s.acc);
-    r.classList.toggle('hx-bg', s.bg !== 'none' || (tool && s.wx !== 'none'));
-    // ↑ 工具页只开了动效、没开背景时也要挂 hx-bg：接线仿真这类工具靠 hx-bg + --hx-img 判断
-    //   「要不要把自己的画布调成半透明」（见下面透明哨兵图那段）。hx-theme.css 里 html.hx-bg 的
-    //   几条规则此时铺的是透明哨兵图，肉眼无感，不会多出一层画面。
+    r.classList.toggle('hx-bg', s.bg !== 'none');
     r.classList.toggle('hx-wm-off', !s.wm);   // 校徽水印开关（每界面独立：首页默认开、工具页默认关）
-    // 页面层开关（VER 6）：有背景或动效可看时才把 body 放透明、铺页面底色；
-    // 两个都是「无」时不挂 —— 页面保持自己原来的底色，就是用户要的干净纯色背景。
+    // 页面层开关（VER 6）：有背景可看时才把 body 放透明、铺页面底色；
+    // 背景是「无」时不挂 —— 页面保持自己原来的底色，就是用户要的干净纯色背景。
     // 嵌入时不挂：body::before 这一层背景由总入口透上来，挂了自己又画一遍 = 双重背景。
-    r.classList.toggle('hx-layer', !embedded && (s.bg !== 'none' || s.wx !== 'none'));
+    r.classList.toggle('hx-layer', !embedded && s.bg !== 'none');
     // 视频壁纸：图层面自己播。--hx-img 给海报帧而不是 'none'：
     //   · 视频解码好之前 body::before 先铺海报，避免黑屏闪一下；
     //   · 接线仿真这类「画布不透明的工具」靠读 --hx-img 拿到背景图地址（theme.js 的 hxLook 通道），
@@ -1271,14 +1142,10 @@ html.hx-lite .hx-crumb:active::after { animation: none; }
     if (vidStill && b.poster) img = 'url("' + root + b.poster + '")';
     // 视频真的在播：把 body::before 的海报帧整层藏起来 —— 它在 z-index:-1、视频层(-2)之上，
     // 不藏会把视频整个盖住。视频停了/降级了（手机、省电）再放回来当静图。
-    r.classList.toggle('hx-vidlive', isVid && !vidStill);
-    // 透明哨兵图（2026-11-08）：工具页选了「背景=无 + 动效≠无」时，动效画布要能被看见，
-    // 前提是接线仿真这类「自带不透明画布的工具」肯把自己的底色调成半透明 —— 它们只认
-    // hxLook 传过去的 --hx-img（有图才肯透）。所以这里放一张 1px 的透明 GIF 冒充「有背景」：
-    // 练习页把画布调成半透明、把一张透明图铺在自己 html 底上（等于透明），
-    // 真正的画面由外壳的动效画布 + iframe 里的镜像画布透上来。背景选了真图时不走这条。
-    var wxOn = !!tool && s.wx !== 'none';
-    if (wxOn && s.bg === 'none') img = 'url("data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7")';
+    // 嵌入时不挂：iframe 里根本不建视频（见 apply 末尾 embedded 分支），挂了只会把上面那条
+    // 嵌入专用的海报规则一起点名灭掉（html.hx-vidlive body::before{background-image:none!important}），
+    // 工具页就又回到白底了。
+    r.classList.toggle('hx-vidlive', isVid && !vidStill && !embedded);
     // --hx-a：玻璃浓度乘数（各条玻璃配方的 alpha 都乘它）。
     // 2026-11-05 随通透度滑杆翻转语义：100（最透）= 1，正好是 2026-11-04 定稿的那套清透玻璃；
     // 往下调卡片变实：0 = 2，各配方 alpha × 2 后被浏览器钳到 1，整卡变成实色（保可读的兜底端）。
@@ -1304,22 +1171,20 @@ html.hx-lite .hx-crumb:active::after { animation: none; }
       // 只认「视频壁纸被降级」这一种：普通图片壁纸、纯色背景保持原样，不动用户选好的画面。
       bgMotion(vidStill && !!b.video);
     }
-    // 背景动效（每界面独立）：工具页在这里挂/摘自己的那一层；首页由 fx/hx-weather.js 负责（见 wxApply 注释）
-    wxApply(s.wx !== 'none' ? s.wx : null);
     var meta = document.querySelector('meta[name="theme-color"]'); if (meta) meta.setAttribute('content', m === 'dark' ? '#000000' : '#f5f5f7');
     try { ls('zfz-practice-theme', m); ls('wanxiu-paike-theme', m); ls('ui.theme', JSON.stringify(m)); } catch (e) { }
     for (var i = 0; i < subs.length; i++) try { subs[i](s, m); } catch (e) { }
   }
   // set(patch)：按字段落键（VER 6）。acc / mode / clr / bgo → 界面上正在显示的那一层；
-  // bg / wx / wm：工具页 → 写进它自己的键；首页 → 仍写旧全局键 hx-theme
-  //（fx/hx-weather.js 只认它；它也是别的工具页第一次打开时的继承来源）。
+  // bg / wm：工具页 → 写进它自己的键；首页 → 仍写旧全局键 hx-theme
+  //（它也是别的工具页第一次打开时的继承来源）。
   // 换背景时不再自动改卡片透明度（老版会把 op 拉到该背景的「推荐值」）：通透度是界面自己的设置，不该被背景顺手改掉。
   function set(patch) {
     var surf = paneSurf(), home = surf === 'home';
     var g = jparse(ls(KEY)) || {}, o = jparse(ls(SKEY + surf)) || {}, hitG = false, hitO = false;
     for (var k in patch) {
-      if (k === 'bg' || k === 'wx' || k === 'wm') {
-        if (home) { g[k] = patch[k]; hitG = true; }   // 首页：背景三件套继续住在旧全局键里
+      if (k === 'bg' || k === 'wm') {
+        if (home) { g[k] = patch[k]; hitG = true; }   // 首页：背景/水印继续住在旧全局键里
         else { o[k] = patch[k]; hitO = true; }        // 工具页：写自己的键，从此和首页、和别的工具脱钩
       }
       else if (k === 'acc' || k === 'mode' || k === 'clr' || k === 'bgo') { o[k] = patch[k]; hitO = true; }
@@ -1329,6 +1194,7 @@ html.hx-lite .hx-crumb:active::after { animation: none; }
     // 本页的 apply() 只是把面板重画一遍（get() 读的也是那一层，按钮高亮才对得上）。
     if (hitO) { o.ver = VER; try { ls(SKEY + surf, JSON.stringify(o)); } catch (e) { } }
     apply();
+    prefPush();   // 外观改了 → 防抖推一份到账号（没登录时它是空操作）
   }
   // 自己上传的图：缩到长边 1920、转 JPEG，免得撑爆浏览器存储（旧站是原图、限 3MB）
   // ── 上传过的背景：留一本历史（2026-11-04）──
@@ -1361,6 +1227,7 @@ html.hx-lite .hx-crumb:active::after { animation: none; }
     saveImgs(list);
     // 删掉的正好是当前这张：别留一个指向不存在图片的 custom，回落到默认背景
     if (gone && ls(IMG) === gone.data) { ls(IMG, null); set({ bg: DEF.bg }); }
+    cloudDel(id);              // 云端那一行也删掉，否则换台设备又冒出来
     return list;
   }
   function useImg(id) {
@@ -1369,7 +1236,253 @@ html.hx-lite .hx-crumb:active::after { animation: none; }
     if (!hit) return false;
     ls(IMG, hit.data);
     set({ bg: 'custom' });
+    cloudPick(id);
     return true;
+  }
+  /* ── 上传背景的云端同步（2026-11-09 用户要求「上传的背景需要支持跨设备通用」）──────────
+     原来相册只住在 localStorage（hx-theme-imgs / hx-theme-img），换设备、换浏览器、清一次缓存就全没了。
+     现在登录后云端也存一份（表 public.hx_bg，RLS 只认本人，一人最多 6 张）：
+       · 传新图 → 立刻插一行；插完把本地那条的 id 换成云端 id（以后删除/切换才认得上）；
+       · 删一张 → 删云端那一行；
+       · 换当前 → 把 cur 标到那一行（先把别人的 cur 清掉），新设备一登进来就是这张；
+       · 打开页面（idle 后）、打开外观面板 → 拉一次目录（只取 id/cur/时间，几十字节），
+         和本地指纹对不上才去下载图片本体，正常情况一个请求都不多。
+     本地那份不删：离线、慢网、没登录时照旧能用，它降级成「缓存」。
+     失败一律安静（.catch 吞掉）：这是锦上添花的功能，不该因为它让上传/切背景失败。 */
+  var SUPA = 'https://eiqgyrjrwdaunhxjmdyr.supabase.co',
+    SKEY_PUB = 'sb_publishable_FcVnLx3TNrj6HnbgarYnRw_DW4-yFzd',
+    BG_TBL = '/rest/v1/hx_bg', BG_SIG = 'hx-bg-sig', cloudRun = null;
+  function bgTok() { try { var s = JSON.parse(ls(SKEY_SESS) || 'null'); return (s && s.access_token) || ''; } catch (e) { return ''; } }
+  function isUuid(s) { return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(s || '')); }
+  function bgApi(path, o) {
+    o = o || {};
+    var t = bgTok(); if (!t) return Promise.reject(new Error('没登录'));
+    var h = { apikey: SKEY_PUB, Authorization: 'Bearer ' + t, 'Content-Type': 'application/json' };
+    if (o.prefer) h.Prefer = o.prefer;
+    return fetch(SUPA + BG_TBL + path, { method: o.method || 'GET', headers: h, cache: 'no-store', body: o.body ? JSON.stringify(o.body) : undefined })
+      .then(function (r) {
+        if (!r.ok) return r.text().then(function (x) { throw new Error((x || '').slice(0, 140) || ('HTTP ' + r.status)); });
+        return r.status === 204 ? null : r.json().catch(function () { return null; });
+      });
+  }
+  // 拉云端目录 → 只补本地缺的那几张 → 清掉别处删过的 → 重画一次（面板靠 onChange 自己刷新）
+  // 增量而不是「整本重下」：相册最多 6 张、每张几十万字符，全量拉一次就是好几 MB，
+  // 每次切个背景都重下完全没必要（2026-11-09 第一版就是这么亏的，实测同一页发了 3 次全量 GET）。
+  var BG_SEED = 'hx-bg-seed';
+  function cloudSync() {
+    if (!bgTok()) return Promise.resolve(false);
+    if (cloudRun) return cloudRun;            // 同一时刻只跑一趟，排队的一起等它
+    cloudRun = bgApi('?select=id,cur,created_at&order=created_at.desc&limit=6')
+      .then(function (rows) {
+        rows = rows || [];
+        var local = imgs(), have = {}, keep = {}, ord = {}, curId = '';
+        for (var i = 0; i < local.length; i++) have[local[i].id] = 1;
+        for (var j = 0; j < rows.length; j++) {
+          keep[rows[j].id] = 1; ord[rows[j].id] = j;
+          if (rows[j].cur) curId = rows[j].id;
+        }
+        // 云端一张都没有，本地却有旧图（这版之前传的）：先把本地的推上去，老用户换设备也能看到。
+        // 只做一次（BG_SEED 记住），失败下次进来再试。
+        if (!rows.length && local.length && !ls(BG_SEED)) {
+          return seedLocal(local).then(function () { cloudRun = null; return cloudSync(); });
+        }
+        var sig = rows.map(function (x) { return x.id + (x.cur ? '*' : ''); }).join('|');
+        if (sig === ls(BG_SIG)) return false;
+        // 本地清单：云端没有的（在别的设备删了）去掉；id 还是 m... 的（没同步过的）留着
+        var list = local.filter(function (x) { return !isUuid(x.id) || keep[x.id]; });
+        var miss = [];
+        for (var k = 0; k < rows.length; k++) if (!have[rows[k].id]) miss.push(rows[k].id);
+        var done = function () {
+          saveImgs(list);
+          ls(BG_SIG, sig);
+          // 云端标记的「当前这张」：本地有就铺上 —— 换设备第一次登录就是同一张背景
+          for (var n = 0; n < list.length; n++) if (curId && list[n].id === curId) { try { ls(IMG, list[n].data); } catch (e) { } }
+          try { apply(); } catch (e) { }
+          return true;
+        };
+        if (!miss.length) return done();
+        return bgApi('?select=id,data,created_at&id=in.(' + miss.join(',') + ')').then(function (full) {
+          (full || []).forEach(function (x) { if (x && x.data) list.push({ id: x.id, data: x.data, at: Date.parse(x.created_at) || Date.now() }); });
+          list.sort(function (a, b) { return (ord[a.id] == null ? 99 : ord[a.id]) - (ord[b.id] == null ? 99 : ord[b.id]); });
+          return done();
+        });
+      })
+      .catch(function () { return false; })
+      .then(function (v) { cloudRun = null; return v; });
+    return cloudRun;
+  }
+  // 把本地以前传的图逐张推上云（这版之前只有一个本地格子，用户手里可能已经攒了几张）
+  function seedLocal(local) {
+    var q = Promise.resolve();
+    for (var i = 0; i < local.length; i++) {
+      (function (it, idx) {
+        if (isUuid(it.id)) return;
+        q = q.then(function () {
+          return bgApi('', { method: 'POST', prefer: 'return=representation', body: [{ data: it.data, cur: idx === 0 }] })
+            .then(function (r) {
+              var row = r && r[0];
+              if (!row || !row.id) return null;
+              var list = imgs();
+              for (var j = 0; j < list.length; j++) if (list[j].data === it.data) list[j].id = row.id;
+              saveImgs(list);
+              return null;
+            }).catch(function () { return null; });
+        });
+      })(local[i], i);
+    }
+    return q.then(function () { try { ls(BG_SEED, '1'); } catch (e) { } return true; });
+  }
+  function cloudAdd(data) {
+    if (!bgTok()) return;
+    // cur 直接给 true：新传的图一定是要用的那张
+    bgApi('', { method: 'POST', prefer: 'return=representation', body: [{ data: data, cur: true }] })
+      .then(function (r) {
+        var row = r && r[0]; if (!row || !row.id) return;
+        var list = imgs(), hit = null;
+        for (var i = 0; i < list.length; i++) if (list[i].data === data) hit = list[i];
+        if (hit && hit.id !== row.id) { hit.id = row.id; saveImgs(list); }
+        cloudPick(row.id);       // 先清掉别人的 cur，再置这张
+      })
+      .catch(function () { });
+  }
+  // PostgREST 的 PATCH 走 URL 过滤：先把所有 cur=true 的清掉，再置这一张
+  function cloudPick(id) {
+    if (!bgTok() || !isUuid(id)) return;
+    bgApi('?cur=is.true', { method: 'PATCH', body: { cur: false } })
+      .then(function () { return bgApi('?id=eq.' + id, { method: 'PATCH', body: { cur: true } }); })
+      .then(function () { setTimeout(cloudSync, 400); })
+      .catch(function () { });
+  }
+  function cloudDel(id) {
+    if (!bgTok() || !isUuid(id)) return;
+    bgApi('?id=eq.' + id, { method: 'DELETE' })
+      .then(function () { setTimeout(cloudSync, 400); })
+      .catch(function () { });
+  }
+  /* ── 外观设置跟账号走（2026-11-11 用户要求）─────────────────────────────────
+     用户原话：「用户更改设置一定是跟着用户账号绑定到带走的，包括主题背景，不能被别人账号覆盖」。
+     要做到三件事：
+       ① 换设备 / 换浏览器，只要登同一个账号，外观（主题色 / 深浅 / 背景 / 动效 / 水印 /
+          两根滑杆 / 极简-标准模式，以及每个工具页各自那一份）都得跟着回来；
+       ② 同一台机器上换个人登录，看到的必须是**他自己**的外观，不能是上一个人改的；
+       ③ 谁的设置都改不到别人头上 —— 这条由数据库兜底（表 public.hx_pref 的 RLS 只认本人，
+          行主键 owner = auth.uid()，A 在物理上就写不到 B 那一行）。
+
+     云端存什么：**只存设置快照**（键值对，几百字节 ~ 几 KB），键名就是 localStorage 的键名。
+     背景图片本体**不进快照**（一张几 MB，进 jsonb 会把行撑爆）：图仍由 public.hx_bg 按张存，
+     快照里只留 bg:'custom' 这个指向，cloudSync 会按 cur 把图补下来（上面那段逻辑）。
+
+     本地怎么隔离两个账号：另外记一个「这套外观现在属于谁」的记号 hx-pref-owner（存 user id）。
+     记号一变（登录 / 换人 / 退出）就先把本地这份归档到 hx-pref-bak:<旧owner>，再换上新的那份：
+       · 新账号在本机有归档 → 先铺上归档，随后云端那份会覆盖它（云端才是权威）；
+       · 新账号本机从没登录过 → 先清成默认，随后云端那份覆盖它（没有云端行就把默认推上去当初始）；
+       · 退出登录 → 回到本机「匿名」那份（没有就默认），登录页不残留上一个人的样子。 */
+  var PREF_TBL = '/rest/v1/hx_pref', POWN = 'hx-pref-owner', PBAK = 'hx-pref-bak:', PDIRTY = 'hx-pref-dirty';
+  function prefApi(path, o) {
+    o = o || {};
+    var t = bgTok(); if (!t) return Promise.reject(new Error('没登录'));
+    var h = { apikey: SKEY_PUB, Authorization: 'Bearer ' + t, 'Content-Type': 'application/json' };
+    if (o.prefer) h.Prefer = o.prefer;
+    return fetch(SUPA + PREF_TBL + path, { method: o.method || 'GET', headers: h, cache: 'no-store', body: o.body ? JSON.stringify(o.body) : undefined })
+      .then(function (r) {
+        if (!r.ok) return r.text().then(function (x) { throw new Error((x || '').slice(0, 140) || ('HTTP ' + r.status)); });
+        return r.status === 204 ? null : r.json().catch(function () { return null; });
+      });
+  }
+  // 从登录态里取 user id：优先 user.id；续期回来的会话通常只有 access_token，那就解 JWT 的 sub
+  function jwtSub(t) {
+    try {
+      var p = String(t).split('.')[1]; if (!p) return '';
+      p = p.replace(/-/g, '+').replace(/_/g, '/'); while (p.length % 4) p += '=';
+      return JSON.parse(decodeURIComponent(escape(atob(p)))).sub || '';
+    } catch (e) { return ''; }
+  }
+  function prefUid() {
+    try {
+      var s = JSON.parse(ls(SKEY_SESS) || 'null'); if (!s) return '';
+      if (s.user && s.user.id) return String(s.user.id);
+      return s.access_token ? String(jwtSub(s.access_token) || '') : '';
+    } catch (e) { return ''; }
+  }
+  // 快照要收哪些键：首页的全局外观键、各界面自己的键、极简模式开关。
+  // 不收 hx-theme-img / hx-theme-imgs（图片本体走 hx_bg）、不收 hx-dev（服务端算出来的身份）。
+  function prefKeys() {
+    var out = [];
+    try {
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i);
+        if (k === KEY || k === 'hx-lite' || k.indexOf(SKEY) === 0) out.push(k);
+      }
+    } catch (e) { }
+    return out;
+  }
+  function prefSnapData() {
+    var d = {};
+    try { prefKeys().forEach(function (k) { var v = localStorage.getItem(k); if (v != null) d[k] = v; }); } catch (e) { }
+    return d;
+  }
+  function prefApplyData(d) {
+    try { prefKeys().forEach(function (k) { localStorage.removeItem(k); }); } catch (e) { }
+    if (d) for (var k in d) if (Object.prototype.hasOwnProperty.call(d, k)) { try { localStorage.setItem(k, d[k]); } catch (e) { } }
+  }
+  function prefOwner() { try { return localStorage.getItem(POWN) || ''; } catch (e) { return ''; } }
+  function setPrefOwner(u) { try { if (u) localStorage.setItem(POWN, u); else localStorage.removeItem(POWN); } catch (e) { } }
+  function saveBak(u, data) { try { if (u) localStorage.setItem(PBAK + u, JSON.stringify(data)); } catch (e) { } }
+  function loadBak(u) { try { var r = u ? localStorage.getItem(PBAK + u) : null; return r ? JSON.parse(r) : null; } catch (e) { return null; } }
+  function markDirty() { try { localStorage.setItem(PDIRTY, '1'); } catch (e) { } }
+  function clearDirty() { try { localStorage.removeItem(PDIRTY); } catch (e) { } }
+  function prefPushNow(uid) {
+    uid = uid || prefUid(); if (!uid) return Promise.resolve(false);
+    return prefApi('?on_conflict=owner', {
+      method: 'POST', prefer: 'resolution=merge-duplicates,return=minimal',
+      body: [{ owner: uid, data: prefSnapData() }]
+    }).then(function () { clearDirty(); return true; }).catch(function () { return false; });
+  }
+  var prefT = 0, prefRun = null;
+  // 改设置后调用：防抖 1.5 秒推一次（滑杆拖动会连着调几十次，不能每一下都发请求）。
+  // 同时打一个「有没推上去的改动」标记：下次打开页面若还带着它，就以本地为准补推，别被云端旧值盖掉。
+  function prefPush() { markDirty(); if (prefT) clearTimeout(prefT); prefT = setTimeout(function () { prefT = 0; prefPushNow(); }, 1500); }
+  /* 打开页面 / 登录 / 换账号时调一次：先按 owner 隔离本地，再和云端对齐。 */
+  function prefSync() {
+    var uid = prefUid(), own = prefOwner();
+    if (uid !== own) {
+      /* 账号变了。这里有两种情况，处理**必须分开**（2026-11-11 修用户报的「首次登录后背景没了」）：
+         · own 有值 = 从某个账号换到另一个账号（或退出登录）→ 本地这份属于旧 owner：
+           先归档给他，再清干净 —— 绝不能把上一个人的外观留给下一个人；
+         · own 为空 = 这台设备还没归属过任何账号（第一次登录，或一直是未登录状态）→
+           本机这份就是这个人自己之前调好的（他先用了网站，后来才登录），**必须先留着**，
+           等下面第③步问过云端再说：云端有 → 以云端为准铺下来；云端是空的 → 拿本地这份当初始快照推上去。
+         上一版在这里一律 prefApplyData(null)，把「首次登录」也当成「换账号」清了一遍 ——
+         于是老用户新登录的那一下，他挑好的背景/主题色当场消失，还被当成空快照推上云端（云端也一起空了）。 */
+      var hadOwner = !!own;
+      if (hadOwner) saveBak(own, prefSnapData());
+      var next = uid ? loadBak(uid) : null;
+      if (next) prefApplyData(next);              // 本机有他这份归档 → 铺回来
+      else if (hadOwner) prefApplyData(null);     // 换账号/退出：清成默认，不留上一个人的
+      // hadOwner === false 且没有归档：**什么都不清**，保留本机这份，交给第③步定夺
+      setPrefOwner(uid); clearDirty();
+      try { apply(); } catch (e) { }
+    }
+    if (!uid) return Promise.resolve(false);
+    // ② 本地还有没推上去的改动 → 以本地为准补推（刚改完就刷新，别把改动丢了）
+    if (ls(PDIRTY) === '1') return prefPushNow(uid);
+    // ③ 正常：拉云端那份下来铺上
+    if (prefRun) return prefRun;
+    prefRun = prefApi('?select=data&owner=eq.' + uid + '&limit=1')
+      .then(function (rows) {
+        var row = rows && rows[0], d = row && row.data;
+        if (d && typeof d === 'object' && Object.keys(d).length) prefApplyData(d);
+        else return prefPushNow(uid);     // 云端还没有：把这台机器上这份当成初始快照推上去
+        return false;
+      })
+      .then(function (seeded) {
+        if (seeded) { try { apply(); } catch (e) { } return true; }
+        try { apply(); } catch (e) { }
+        return true;
+      })
+      .catch(function () { return false; })
+      .then(function (v) { prefRun = null; return v; });
+    return prefRun;
   }
   function upload(file) {
     return new Promise(function (ok, no) {
@@ -1385,6 +1498,7 @@ html.hx-lite .hx-crumb:active::after { animation: none; }
         // 先存当前、再进相册：相册写失败（配额满）不该让这次上传本身失败
         try { addImg(data); } catch (e) { }
         set({ bg: 'custom' }); ok();
+        cloudAdd(data);          // 云端存一份（没登录/断网就安静跳过，本地照样可用）
       };
       im.onerror = function () { URL.revokeObjectURL(url); no(new Error('这张图片打不开')); };
       im.src = url;
@@ -1398,7 +1512,7 @@ html.hx-lite .hx-crumb:active::after { animation: none; }
   function reset() {
     var surf = paneSurf();
     if (surf === 'home') { ls(KEY, null); ls(IMG, null); ls(SKEY + surf, null); }
-    else { try { ls(SKEY + surf, JSON.stringify({ ver: VER, acc: DEF.acc, mode: DEF.mode, clr: DEF.clr, bgo: 100, bg: DEF.bg, wx: DEF.wx, wm: 0 })); } catch (e) { } }
+    else { try { ls(SKEY + surf, JSON.stringify({ ver: VER, acc: DEF.acc, mode: DEF.mode, clr: DEF.clr, bgo: 100, bg: DEF.bg, wm: 0 })); } catch (e) { } }
     apply();
   }
   // storage 事件（VER 6）：
@@ -1447,15 +1561,71 @@ html.hx-lite .hx-crumb:active::after { animation: none; }
     return true;
   }
   var gated = gate();
-  window.HXTheme = { acc: ACC, bg: BG, wx: WX, root: root, surface: SURF, get: get, mode: function () { return modeOf(get()); }, set: set, upload: upload, reset: reset, isDev: isDev, setDev: setDev, onChange: function (fn) { subs.push(fn); },
+  // 云端相册：登录了就在页面空下来之后拉一次（别和首屏抢带宽）。
+  // 换了台设备（选了自定义背景、本地却没这张图）时它会顺手把图和「当前这张」补回来。
+  (function () {
+    if (!signedIn()) return;
+    function go() { try { cloudSync(); } catch (e) { } }
+    if (window.requestIdleCallback) requestIdleCallback(go, { timeout: 4000 });
+    else setTimeout(go, 2500);
+  })();
+  // 外观设置跟账号走（2026-11-11）：
+  //   · 打开页面（idle 后）→ 按 owner 隔离本地 + 和云端对齐一次；
+  //   · 之后盯着 paike-session 变化（登录 / 换账号 / 退出）→ 再对齐一次，把账号那份换上来。
+  // 顺序上放在 cloudSync 之后：prefSync 会 apply()，而 apply() 里若 bg='custom' 要靠 cloudSync 补图，
+  // 两个都在 idle 里跑，谁先谁后都行 —— 它们各自 apply 一次，最终态一致。
+  (function () {
+    function go() { try { prefSync(); } catch (e) { } }
+    if (window.requestIdleCallback) requestIdleCallback(go, { timeout: 4000 });
+    else setTimeout(go, 2600);
+    addEventListener('storage', function (e) {
+      // 同一网站的别的页面登录 / 换账号 / 退出 → 本页跟着换外观（SKEY_SESS 在 hx-theme.js 里叫 SKEY_SESS）
+      if (e.key === SKEY_SESS || e.key === null) { try { prefSync(); } catch (er) { } }
+    });
+  })();
+  window.HXTheme = { acc: ACC, bg: BG, root: root, surface: SURF, get: get, mode: function () { return modeOf(get()); }, set: set, upload: upload, reset: reset, isDev: isDev, setDev: setDev, onChange: function (fn) { subs.push(fn); },
     portal: portal, login: function () { var p = portal(); if (p) p.login(); else location.href = root + (tool ? '#' + tool : ''); },
     // 未登录闸门结果：工具页拿到 true 就该立刻停下（别先画界面再被跳走）
     gated: gated, signedIn: signedIn,
     // 上传过的背景相册（2026-11-04）：imgs() 取列表、useImg(id) 切回、delImg(id) 删一张
     imgs: imgs, useImg: useImg, delImg: delImg,
+    // 云端同步（2026-11-09）：打开外观面板时调一次，把别的设备上传的图拉下来。
+    // 先发一个只取目录的小请求，指纹一样就到此为止；不一致才按 id 补下载缺的那几张。
+    sync: cloudSync,
+    // 外观设置跟账号（2026-11-11）：登录后调一次，把账号里存的外观拉下来铺上；
+    // 换账号 / 退出登录也调它（内部按 owner 隔离，绝不把上一个人的设置留给下一个人）。
+    prefSync: prefSync,
     // 像素方块「正在载入」药丸（2026-11-04）：见文件上方 loadPill 那段注释。
     // HXTheme.loadPill(host, '正在载入…') / loadPill('正在载入…')（铺满整页）；返回 { el, text(), done() }
-    loadPill: loadPill, bgPause: bgPause };
+    loadPill: loadPill, bgPause: bgPause,
+    // 极简 / 标准开关（2026-11-09 用户要的按钮，2026-11-11 改名 + 定默认）：
+    // 不传参 = 读当前是不是极简；传 '1' / '0' = 标准模式 / 极简模式（写进本地，这台机器记住）。
+    // 2026-11-11 用户定：「模式自动不需要给用户切换，默认极简」——不再有 'auto' 档，
+    //   传 'auto' 当没传处理（只读）。历史上 'auto' 是「清掉手工选择回到按机器猜」，
+    //   现在默认就是极简、也不必猜机器，那条分支去掉了。
+    // 设置完**当场生效**：html.hx-lite 一变，像素小生物 / 头像 / 天气动效的动画循环下一帧就停
+    // （它们每一帧都查这个类，不是只在加载时查一次），再跑一次 apply() 把背景视频摘掉、
+    // 只留海报帧，CSS 合成动画层（hx-bg-mo）也一起摘。
+    lite: function (v) {
+      if (v === undefined || v === 'auto') return liteOn();
+      try { localStorage.setItem('hx-lite', v === '1' ? '1' : '0'); } catch (e) { }
+      var on = liteOn();
+      document.documentElement.classList.toggle('hx-lite', on);
+      try { apply(); } catch (e) { }
+      /* 2026-11-11：把「现在是极简还是标准」广播出去，让同页面的 canvas 工具（接线仿真等）
+         当场换档，不用刷新。用 storage 事件够不到同页面，所以两条腿都走：
+         ① 立刻派发自定义事件（同页监听）；② 写 localStorage 让别的标签页/iframe 收到 storage 事件。 */
+      try { dispatchEvent(new CustomEvent('hx-lite-change', { detail: { lite: on } })); } catch (e) { }
+      prefPush();   // 模式也是外观的一部分 → 一起存进账号
+      return on;
+    },
+    /* 2026-11-11：给接线仿真这类 canvas 页读「现在是不是极简」。不传参 = 读；
+       独立打开工具页（没有总入口 iframe）时也能用：读 localStorage + html.hx-lite 类，两条任一命中即极简。 */
+    isLite: function () {
+      try { if (document.documentElement.classList.contains('hx-lite')) return true; } catch (e) { }
+      return liteOn();
+    } };
+
   // ---------- 导航栏交互动效：滑块跟着当前项走（不用每项自己高亮） ----------
   // 用法：HXNav.slide(容器) —— 容器里放 [data-v] 或 [aria-current] 的按钮，当前项加 aria-current="true"。
   // 滑块自己量位置，所以文字长短不同也对得准；换项时用弹簧曲线滑过去，不是闪一下。
@@ -1556,8 +1726,313 @@ html.hx-lite .hx-crumb:active::after { animation: none; }
     window.HXCrumbs = { sweep: sweep };
     if (document.readyState === 'loading') addEventListener('DOMContentLoaded', boot); else boot();
   })();
+  /* 2026-11-09 音乐播放器：全站只用站点根的一份 /hx-player.js（歌单、当前曲、音量只能有一份状态）。
+     只在 top window 引 —— 工具页被 iframe 嵌着时，顶部那条由总入口统一挂；
+     每个 iframe 各挂一条的话，页面上会同时出现三四个一模一样的控制条。 */
+  (function () {
+    try {
+      if (window.top !== window) return;
+      if (document.getElementById('hxp-js')) return;
+      var s = document.createElement('script');
+      s.id = 'hxp-js'; s.async = true; s.src = root + 'hx-player.js';
+      document.head.appendChild(s);
+    } catch (e) { }
+  })();
   apply();
 })();
+
+</script>
+<!-- 统一弹窗组件：hxAlert / hxConfirm / hxPrompt（必须在业务脚本之前加载） -->
+<script>
+/*!
+ * 华夏工具 · 统一网页弹窗组件（ui-dialog.js）
+ * 零依赖、可直接被 <script src> 引用，全局暴露三个函数（都返回 Promise）：
+ *   hxAlert(msg, opts?)        → 确定后 resolve（单一「确定」按钮）
+ *   hxConfirm(msg, opts?)      → Promise<boolean>：确定 true；取消 / Esc / 点遮罩 false
+ *   hxPrompt(msg, def?, opts?) → Promise<string|null>：输入值 / 取消、Esc、点遮罩为 null
+ *
+ * opts 可选字段：{ title: 标题, okText: 确定按钮文字, cancelText: 取消按钮文字 }
+ *
+ * 特性：标题栏拖拽、右下角缩放、双击标题栏最大化/还原、Esc/点遮罩取消、焦点圈定、
+ *       同屏只一个弹窗（后开的排队）。深浅色跟随站点 hx-theme.js 的 data-hx-mode 与 --acc。
+ * 兼容性：纯 var/function 写法，无 import/export、无 ES 模块，用普通 <script src> 加载即可。
+ */
+(function (win, doc) {
+  'use strict';
+
+  var chain = Promise.resolve(); // 弹窗队列：同一时刻只显示一个，后开的排队
+  var focusBack = null;          // 关闭后要还给焦点的元素
+
+  /* 样式只注入一次。浅色用内置值，深色跟 data-hx-mode；主色按钮跟 --acc（hx-theme.js 行内设置）。 */
+  function ensureStyle() {
+    if (doc.getElementById('hx-dlg-style')) return;
+    var css = [
+      '.hx-dlg-mask{position:fixed;inset:0;z-index:2147483000;background:rgba(7,10,18,.52);display:flex;align-items:center;justify-content:center;padding:16px;animation:hxdlg-fade .16s ease}',
+      '@keyframes hxdlg-fade{from{opacity:0}to{opacity:1}}',
+      '.hx-dlg{position:relative;display:flex;flex-direction:column;width:min(440px,calc(100vw - 32px));max-height:calc(100vh - 48px);background:#fff;color:#1d1d1f;border:1px solid rgba(0,0,0,.1);border-radius:16px;box-shadow:0 24px 64px -14px rgba(0,0,0,.5);overflow:hidden;animation:hxdlg-pop .2s cubic-bezier(.16,1,.3,1)}',
+      '@keyframes hxdlg-pop{from{transform:scale(.94);opacity:0}to{transform:scale(1);opacity:1}}',
+      '.hx-dlg-title{display:flex;align-items:center;gap:8px;padding:13px 16px;cursor:move;user-select:none;-webkit-user-select:none;border-bottom:1px solid rgba(0,0,0,.08);font-size:15px;font-weight:600;touch-action:none}',
+      '.hx-dlg-body{padding:18px 16px;overflow:auto;font-size:14px;line-height:1.65;white-space:pre-wrap;word-break:break-word;color:inherit}',
+      '.hx-dlg-input{display:block;width:100%;box-sizing:border-box;margin-top:12px;padding:9px 12px;border:1px solid rgba(0,0,0,.16);border-radius:9px;font:inherit;font-size:14px;color:inherit;background:#f5f5f7}',
+      '.hx-dlg-input:focus{outline:none;border-color:var(--accent,var(--acc,#2f845a))}',
+      '.hx-dlg-foot{display:flex;justify-content:flex-end;gap:10px;padding:12px 16px;border-top:1px solid rgba(0,0,0,.08)}',
+      '.hx-dlg-btn{flex:0 0 auto;border:none;cursor:pointer;padding:8px 16px;border-radius:9px;font:inherit;font-size:14px;background:rgba(0,0,0,.06);color:inherit}',
+      '.hx-dlg-btn:hover{background:rgba(0,0,0,.1)}',
+      '.hx-dlg-btn:focus-visible{outline:2px solid var(--accent,var(--acc,#2f845a));outline-offset:2px}',
+      '.hx-dlg-btn.pri{background:var(--accent,var(--acc,#2f845a));color:var(--on-acc,#fff);font-weight:600}',
+      '.hx-dlg-btn.pri:hover{filter:brightness(1.06)}',
+      '.hx-dlg-resize{position:absolute;right:0;bottom:0;width:20px;height:20px;cursor:nwse-resize;touch-action:none;background:linear-gradient(135deg,transparent 52%,rgba(127,127,127,.5) 52%)}',
+      ':root[data-hx-mode="dark"] .hx-dlg{background:#1c1c1e;color:#f5f5f7;border-color:rgba(255,255,255,.12)}',
+      ':root[data-hx-mode="dark"] .hx-dlg-title{border-bottom-color:rgba(255,255,255,.1)}',
+      ':root[data-hx-mode="dark"] .hx-dlg-foot{border-top-color:rgba(255,255,255,.1)}',
+      ':root[data-hx-mode="dark"] .hx-dlg-btn{background:rgba(255,255,255,.1)}',
+      ':root[data-hx-mode="dark"] .hx-dlg-btn:hover{background:rgba(255,255,255,.16)}',
+      ':root[data-hx-mode="dark"] .hx-dlg-btn.pri{background:var(--accent,var(--acc,#3ec383));color:var(--on-acc,#fff)}',
+      ':root[data-hx-mode="dark"] .hx-dlg-btn.pri:hover{filter:brightness(1.08)}',
+      ':root[data-hx-mode="dark"] .hx-dlg-input{background:#000;border-color:rgba(255,255,255,.2)}'
+    ].join('\n');
+    var st = doc.createElement('style');
+    st.id = 'hx-dlg-style';
+    st.textContent = css;
+    doc.head.appendChild(st);
+  }
+
+  function enqueue(task) {
+    var run = chain.then(task);
+    chain = run.catch(function () {});
+    return run;
+  }
+
+  function dialog(kind, msg, def, opts) {
+    return new Promise(function (resolve) {
+      opts = opts || {};
+      ensureStyle();
+
+      var mask = doc.createElement('div');
+      mask.className = 'hx-dlg-mask';
+      var dlg = doc.createElement('div');
+      dlg.className = 'hx-dlg';
+      dlg.setAttribute('role', 'dialog');
+      dlg.setAttribute('aria-modal', 'true');
+
+      var title = doc.createElement('div');
+      title.className = 'hx-dlg-title';
+      var tspan = doc.createElement('span');
+      tspan.textContent = opts.title || (kind === 'alert' ? '提示' : kind === 'confirm' ? '确认' : '请输入');
+      title.appendChild(tspan);
+
+      var body = doc.createElement('div');
+      body.className = 'hx-dlg-body';
+      body.textContent = (msg == null ? '' : String(msg));
+
+      var input = null;
+      if (kind === 'prompt') {
+        input = doc.createElement('input');
+        input.className = 'hx-dlg-input';
+        input.type = 'text';
+        input.value = (def == null ? '' : String(def));
+        body.appendChild(input);
+      }
+
+      var foot = doc.createElement('div');
+      foot.className = 'hx-dlg-foot';
+      var okBtn = doc.createElement('button');
+      okBtn.type = 'button';
+      okBtn.className = 'hx-dlg-btn pri';
+      okBtn.textContent = opts.okText || '确定';
+      foot.appendChild(okBtn);
+      var cancelBtn = null;
+      if (kind !== 'alert') {
+        cancelBtn = doc.createElement('button');
+        cancelBtn.type = 'button';
+        cancelBtn.className = 'hx-dlg-btn';
+        cancelBtn.textContent = opts.cancelText || '取消';
+        foot.appendChild(cancelBtn);
+      }
+
+      var rz = doc.createElement('div');
+      rz.className = 'hx-dlg-resize';
+
+      dlg.appendChild(title);
+      dlg.appendChild(body);
+      dlg.appendChild(foot);
+      dlg.appendChild(rz);
+      mask.appendChild(dlg);
+      doc.body.appendChild(mask);
+
+      focusBack = doc.activeElement;
+
+      var settled = false;
+      function close(value) {
+        if (settled) return;
+        settled = true;
+        doc.removeEventListener('keydown', onKey, true);
+        mask.remove();
+        if (focusBack && focusBack.focus) { try { focusBack.focus(); } catch (e) {} }
+        resolve(value);
+      }
+
+      okBtn.onclick = function () {
+        if (kind === 'prompt') close(input.value);
+        else if (kind === 'confirm') close(true);
+        else close(undefined);
+      };
+      if (cancelBtn) cancelBtn.onclick = function () {
+        close(kind === 'confirm' ? false : null);
+      };
+
+      function onKey(e) {
+        if (e.key === 'Escape' || e.keyCode === 27) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (kind === 'alert') close(undefined);
+          else close(kind === 'confirm' ? false : null);
+        } else if (e.key === 'Tab') {
+          cycleFocus(e, dlg);
+        }
+      }
+      doc.addEventListener('keydown', onKey, true);
+
+      /* 点遮罩取消（alert 也一并关闭）。用 mousedown 判断，避免“标题栏拖拽松开落在遮罩上”误关。 */
+      mask.addEventListener('mousedown', function (e) {
+        if (e.target !== mask) return;
+        if (kind === 'alert') close(undefined);
+        else close(kind === 'confirm' ? false : null);
+      });
+
+      if (input) {
+        input.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter') { e.preventDefault(); okBtn.click(); }
+        });
+        input.focus();
+        try { input.select(); } catch (e) {}
+      } else {
+        okBtn.focus();
+      }
+
+      enableDrag(title, dlg);
+      enableResize(rz, dlg);
+      title.addEventListener('dblclick', function () { toggleMax(dlg); });
+    });
+  }
+
+  /* Tab 在弹窗内循环，焦点不逃出去 */
+  function cycleFocus(e, root) {
+    var els = [];
+    var all = root.querySelectorAll('button,input,textarea,select,a[href],[tabindex]');
+    for (var i = 0; i < all.length; i++) {
+      var el = all[i];
+      if (el.disabled) continue;
+      if (el.tabIndex < 0) continue;
+      els.push(el);
+    }
+    if (!els.length) return;
+    var first = els[0], last = els[els.length - 1];
+    if (e.shiftKey) {
+      if (doc.activeElement === first) { e.preventDefault(); last.focus(); }
+    } else if (doc.activeElement === last) {
+      e.preventDefault(); first.focus();
+    }
+  }
+
+  function enableDrag(handle, dlg) {
+    function down(e) {
+      if (e.type === 'mousedown' && e.button !== 0) return;
+      var p = e.touches && e.touches[0] ? e.touches[0] : e;
+      e.preventDefault();
+      var r = dlg.getBoundingClientRect();
+      var sx = p.clientX, sy = p.clientY;
+      var ol = r.left, ot = r.top;
+      dlg.style.position = 'fixed';
+      dlg.style.left = ol + 'px';
+      dlg.style.top = ot + 'px';
+      dlg.style.margin = '0';
+      function move(ev) {
+        var q = ev.touches && ev.touches[0] ? ev.touches[0] : ev;
+        if (ev.cancelable) ev.preventDefault();
+        var nx = ol + (q.clientX - sx), ny = ot + (q.clientY - sy);
+        nx = Math.max(-r.width + 40, Math.min(nx, win.innerWidth - 40));
+        ny = Math.max(0, Math.min(ny, win.innerHeight - 40));
+        dlg.style.left = nx + 'px';
+        dlg.style.top = ny + 'px';
+      }
+      function up() {
+        doc.removeEventListener('mousemove', move);
+        doc.removeEventListener('mouseup', up);
+        doc.removeEventListener('touchmove', move);
+        doc.removeEventListener('touchend', up);
+      }
+      doc.addEventListener('mousemove', move);
+      doc.addEventListener('mouseup', up);
+      doc.addEventListener('touchmove', move, { passive: false });
+      doc.addEventListener('touchend', up);
+    }
+    handle.addEventListener('mousedown', down);
+    handle.addEventListener('touchstart', down, { passive: false });
+  }
+
+  function enableResize(handle, dlg) {
+    function down(e) {
+      if (e.type === 'mousedown' && e.button !== 0) return;
+      var p = e.touches && e.touches[0] ? e.touches[0] : e;
+      e.preventDefault();
+      e.stopPropagation();
+      var r = dlg.getBoundingClientRect();
+      var sx = p.clientX, sy = p.clientY;
+      var w0 = r.width, h0 = r.height;
+      function move(ev) {
+        var q = ev.touches && ev.touches[0] ? ev.touches[0] : ev;
+        if (ev.cancelable) ev.preventDefault();
+        var w = Math.max(240, Math.min(w0 + (q.clientX - sx), win.innerWidth - 16));
+        var h = Math.max(140, Math.min(h0 + (q.clientY - sy), win.innerHeight - 16));
+        dlg.style.width = w + 'px';
+        dlg.style.height = h + 'px';
+      }
+      function up() {
+        doc.removeEventListener('mousemove', move);
+        doc.removeEventListener('mouseup', up);
+        doc.removeEventListener('touchmove', move);
+        doc.removeEventListener('touchend', up);
+      }
+      doc.addEventListener('mousemove', move);
+      doc.addEventListener('mouseup', up);
+      doc.addEventListener('touchmove', move, { passive: false });
+      doc.addEventListener('touchend', up);
+    }
+    handle.addEventListener('mousedown', down);
+    handle.addEventListener('touchstart', down, { passive: false });
+  }
+
+  function toggleMax(dlg) {
+    if (dlg.getAttribute('data-max')) {
+      dlg.removeAttribute('data-max');
+      dlg.style.position = dlg.getAttribute('data-pos') || '';
+      dlg.style.left = dlg.getAttribute('data-left') || '';
+      dlg.style.top = dlg.getAttribute('data-top') || '';
+      dlg.style.width = dlg.getAttribute('data-w') || '';
+      dlg.style.height = dlg.getAttribute('data-h') || '';
+      dlg.style.margin = dlg.getAttribute('data-margin') || '';
+    } else {
+      dlg.setAttribute('data-pos', dlg.style.position);
+      dlg.setAttribute('data-left', dlg.style.left);
+      dlg.setAttribute('data-top', dlg.style.top);
+      dlg.setAttribute('data-w', dlg.style.width);
+      dlg.setAttribute('data-h', dlg.style.height);
+      dlg.setAttribute('data-margin', dlg.style.margin);
+      dlg.setAttribute('data-max', '1');
+      dlg.style.position = 'fixed';
+      dlg.style.left = '16px';
+      dlg.style.top = '16px';
+      dlg.style.width = 'calc(100vw - 32px)';
+      dlg.style.height = 'calc(100vh - 32px)';
+      dlg.style.margin = '0';
+    }
+  }
+
+  win.hxAlert = function (msg, opts) { return enqueue(function () { return dialog('alert', msg, null, opts); }); };
+  win.hxConfirm = function (msg, opts) { return enqueue(function () { return dialog('confirm', msg, null, opts); }); };
+  win.hxPrompt = function (msg, def, opts) { return enqueue(function () { return dialog('prompt', msg, def, opts); }); };
+})(window, document);
 
 </script>
 <!-- 题库分享码的二维码（离线生成，不发请求；和总入口共用一份，见 fx/NOTICE-qr.md） -->
@@ -1972,6 +2447,17 @@ body.focus .unfocus { display: block; }
 .gen input, .gen select, .gen textarea { width: 100%; min-height: 44px; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--line2); background: var(--card-solid); color: var(--ink); outline: none; }
 .gen input:focus, .gen select:focus, .gen textarea:focus { border-color: var(--acc); box-shadow: 0 0 0 4px var(--ring, var(--fill)); }
 .gen textarea { resize: vertical; line-height: 1.6; }
+/* 出题范围：按章节多选（2026-11-09 从文本框改过来）。
+   一章一个药丸，整块可点：手机上拇指点得中（44px 高是苹果的最小触控尺寸），
+   不用瞄准小方框。勾中的用主题强调色描边 + 浅底，和下面题型勾选是同一套视觉。
+   注意：.gen input 那条 100% 宽 / 44px 高会把复选框撑成大方块，必须在这里按 id 更具体地压回去。 */
+.genfield { display: grid; gap: 8px; }
+.chgrid { display: flex; flex-wrap: wrap; gap: 8px; }
+.chgrid label { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 12px; border: 1px solid var(--line2); border-radius: 12px; background: var(--card-solid); font-size: 14px; line-height: 1.35; cursor: pointer; }
+.chgrid label.on { border-color: var(--acc); background: var(--accbg, var(--fill)); }
+.chgrid label > span { min-width: 0; overflow-wrap: anywhere; }
+.chgrid input[type=checkbox] { flex: none; width: 20px; height: 20px; min-height: 0; margin: 0; padding: 0; border: 0; background: none; box-shadow: none; accent-color: var(--acc); }
+.chgrid input[type=checkbox]:focus { box-shadow: none; }
 .genrow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .genrow label { display: flex; align-items: center; gap: 6px; min-height: 34px; font-size: 14px; }
 .genrow input[type=number] { width: 5.2em; min-height: 36px; padding: 6px 10px; text-align: center; }
@@ -2466,12 +2952,51 @@ function keep(v) { s = v; try { if (v) localStorage.setItem(SKEY, JSON.stringify
 const ZH = [[/Invalid login credentials/i, '账号或密码不对'], [/rate limit|too many/i, '操作太频繁，请过一会儿再试'], [/JWT expired|invalid JWT/i, '登录过期了，请重新登录'], [/Failed to fetch|NetworkError/i, '连不上服务器，请检查网络']];
 const zh = m => { m = String(m || ''); for (const [re, t] of ZH) if (re.test(m)) return t; return m; };
 
+// ---------- 这台设备上登录过的账号（和总入口共用 paike-accounts：续期后必须把新 rt 写回，
+// 否则账号列表里留着已经作废的旧 rt，点「切到这个账号」必然 400） ----------
+const AKEY = 'paike-accounts';
+const accounts = () => { try { return JSON.parse(localStorage.getItem(AKEY)) || []; } catch { return []; } };
+const keepAccounts = L => { try { localStorage.setItem(AKEY, JSON.stringify(L)); } catch { /* 无痕模式 */ } };
+function saveAccount(usedRt) {
+  if (!s || !s.refresh_token) return;
+  let L = accounts();
+  if (usedRt) {
+    const i = L.findIndex(x => x.rt === usedRt);
+    if (i >= 0) {
+      L[i].rt = s.refresh_token; L[i].at = now();
+      if (s.user && s.user.id) { L[i].uid = s.user.id; L[i].mail = s.user.email || L[i].mail || ''; L[i].name = (s.user.user_metadata && s.user.user_metadata.name) || L[i].name || ''; }
+      keepAccounts(L); return;
+    }
+  }
+  const u = s.user;
+  if (!u || !u.id) return;
+  L = L.filter(x => x.uid !== u.id);
+  L.unshift({ uid: u.id, mail: u.email || '', name: (u.user_metadata && u.user_metadata.name) || '', rt: s.refresh_token, at: now() });
+  keepAccounts(L.slice(0, 6));
+}
+const take = (j, usedRt, prevUser) => {
+  keep({ access_token: j.access_token, refresh_token: j.refresh_token, expires_at: j.expires_at || now() + (j.expires_in || 3600), user: j.user || prevUser || (s && s.user) || null });
+  saveAccount(usedRt);
+};
+// 续期单飞：refresh_token 一次性轮换，同一页并发续期 = 后发的那次拿 400 把前一次换好的会话抹掉
+let refreshing = null;
 async function fresh() {
   load(); if (!s || now() < s.expires_at - 60) return;
-  try {
-    const j = await api('/auth/v1/token?grant_type=refresh_token', { method: 'POST', body: { refresh_token: s.refresh_token }, auth: false });
-    keep({ access_token: j.access_token, refresh_token: j.refresh_token, expires_at: j.expires_at || now() + (j.expires_in || 3600), user: j.user || s.user || null });
-  } catch (e) { if (e.status) keep(null); throw e; }
+  if (!s.refresh_token) return;
+  if (refreshing) return refreshing;
+  const usedRt = s.refresh_token, prevUser = s.user || null;
+  refreshing = (async () => {
+    try {
+      take(await api('/auth/v1/token?grant_type=refresh_token', { method: 'POST', body: { refresh_token: usedRt }, auth: false }), usedRt, prevUser);
+    } catch (e) {
+      const cur = load();
+      if (cur && cur.access_token && now() < cur.expires_at - 60) return; // 别的页面刚换好
+      if (!e.status) throw e;                                            // 网络错误不清会话
+      if (cur && cur.refresh_token === usedRt) keep(null);                // 只有自己那把旧 rt 真的失效才清
+      throw e;
+    } finally { refreshing = null; }
+  })();
+  return refreshing;
 }
 async function api(path, o = {}) {
   const auth = o.auth !== false;
@@ -2509,6 +3034,35 @@ const owner = () => uid() || 'guest';
 const lkey = key => `hx-quiz:${owner()}:${key}`;
 function getLocal(key, fallback) { try { const v = JSON.parse(localStorage.getItem(lkey(key))); return v ?? fallback; } catch { return fallback; } }
 function setLocal(key, value) { try { localStorage.setItem(lkey(key), JSON.stringify(value)); return true; } catch { return false; } }
+
+/* ---------- 静态数据短缓存（2026-11-11 降载，和总入口同一口径） ----------
+   只缓存「老师偶尔才改一次」的东西：题库列表、题库内容、老师名单、我教的班。
+   **绝不缓存**答题进度（progress:）、错题、排位（rankBoard）—— 那些随时在变，缓存了就是错分。
+   · key 带 userId：同一台电脑换账号绝不串号；带版本号：结构一变就把 CACHE_V 升一位整体作废；
+   · 任何异常（无痕模式 / 存满 / 脏数据）一律当未命中，直接走网络，不能因为缓存把刷题弄白屏；
+   · 写操作（发布 / 改下发范围 / 撤销下发 / 转发）之后必须 cdrop，否则老师改完自己还看旧的。 */
+const CACHE_V = 'v1', CACHE_TTL = 300000;
+const ckey = n => `hx-quiz-cache-${CACHE_V}:${owner()}:${n}`;
+/* 总入口改名单（加人/删人/导入/改班级工具）会写 hx-roster-bust 时间戳：
+   比缓存新就整份作废 —— 老师刚加的班，刷题的下发范围里要立刻能选到。 */
+function cget(n) {
+  try {
+    const o = JSON.parse(localStorage.getItem(ckey(n)));
+    if (!o || !o.t || Date.now() - o.t >= CACHE_TTL) return null;
+    const bust = +(localStorage.getItem('hx-roster-bust') || 0);
+    if (bust && bust > o.t) return null;
+    return o.v;
+  } catch { return null; }
+}
+function cset(n, v) { try { localStorage.setItem(ckey(n), JSON.stringify({ t: Date.now(), v })); } catch { /* 存不下就算了 */ } }
+function cdrop(n) { try { localStorage.removeItem(ckey(n)); } catch { /* 同上 */ } }
+/* 只有「真拿到东西」才写缓存：请求失败时上游都 .catch(() => []) 兜成空数组，
+   要是把空数组也存下来，一次网络抖动就会让老师 5 分钟看不到自己的班/题库 —— 空结果一律不缓存。 */
+const cwrap = (n, run) => {
+  const hit = cget(n);
+  if (hit !== null) return Promise.resolve(hit);
+  return run().then(v => { if (Array.isArray(v) ? v.length : v != null) cset(n, v); return v; });
+};
 const cloud = { ok: null, error: '' }; // ok: null 没登录 / true 已同步 / false 同步失败
 async function cloudGet(key) {
   const rows = await api(`/rest/v1/quiz_mine?select=data&key=eq.${encodeURIComponent(key)}`);
@@ -2563,8 +3117,13 @@ function mergeSubjects(a = [], b = []) {
 
 // 公共题库（老师发布，所有人能刷）
 // 下发范围（2026-11-02 加）：classes = null → 全部学生；[] → 只自己刷；[班级id...] → 只这些班
-const publicList = () => rpc('quiz_public_list', {}, signedIn()).catch(() => []);
-const publicGet = id => rpc('quiz_public_get', { p_id: id }, signedIn());
+/* 题库列表 / 题库内容都是「老师偶尔改一次」的静态数据，缓存 5 分钟：
+   一个班 40 人同时开同一套题，原来就是 40 次 quiz_public_get 全量下载；
+   缓存后同一台电脑重复打开 0 请求（换账号 / 过期 / 老师改过才重拉）。 */
+const publicList = () => cwrap('publist', () => rpc('quiz_public_list', {}, signedIn()).catch(() => []));
+const publicGet = id => cwrap('pub:' + id, () => rpc('quiz_public_get', { p_id: id }, signedIn()));
+// 发布 / 改范围 / 撤销 / 转发之后：列表和这份题库的缓存都得作废，否则老师自己看到的是旧的
+const dropPub = id => { cdrop('publist'); if (id) cdrop('pub:' + id); };
 const publish = (id, name, questions, ownerName, classes, teachers) => rpc('quiz_publish', {
   p_id: id, p_name: name, p_questions: questions, p_owner_name: ownerName,
   // 不传就是 null（全部学生），保持旧行为
@@ -2572,20 +3131,20 @@ const publish = (id, name, questions, ownerName, classes, teachers) => rpc('quiz
   // 发给哪些老师（2026-11-08 加）：不传 = null = 不按老师下发，行为和以前一样。
   // ⚠️ 只发老师时 classes 必须传 []：数据库里传 null（= 全部学生可见）会直接报错，不允许悄悄发全校。
   p_teachers: teachers === undefined ? null : teachers,
-});
+}).then(r => { dropPub(id); return r; });
 // 只改下发范围，不重传题库（撤销下发传 []）
-const setClasses = (id, classes) => rpc('quiz_set_classes', { p_id: id, p_classes: classes });
+const setClasses = (id, classes) => rpc('quiz_set_classes', { p_id: id, p_classes: classes }).then(r => { dropPub(id); return r; });
 // 只改「发给哪些老师」，不重传题库
-const setTeachers = (id, teachers) => rpc('quiz_set_teachers', { p_id: id, p_teachers: teachers });
+const setTeachers = (id, teachers) => rpc('quiz_set_teachers', { p_id: id, p_teachers: teachers }).then(r => { dropPub(id); return r; });
 /* 转发：老师把看到的题复制成自己名下的一份，之后能随便改、按自己的班下发。
    是复制不是授权 —— 几个老师各改一份互不干扰，排位也算在各自那份上。见 2026-11-08-题库发给老师.sql。 */
 const forward = (id, newName, ownerName, classes) => rpc('quiz_forward', {
   p_id: id, p_new_name: newName || '', p_owner_name: ownerName || '',
   p_classes: classes === undefined ? null : classes,
-});
+}).then(r => { cdrop('publist'); return r; });
 // 发题时能选哪些老师（不返回邮箱；管理员/开发者也在里面）
-const teacherList = () => signedIn() ? rpc('quiz_teacher_list', {}).catch(() => []) : Promise.resolve([]);
-const unpublish = id => rpc('quiz_unpublish', { p_id: id });
+const teacherList = () => signedIn() ? cwrap('teachers', () => rpc('quiz_teacher_list', {}).catch(() => [])) : Promise.resolve([]);
+const unpublish = id => rpc('quiz_unpublish', { p_id: id }).then(r => { dropPub(id); return r; });
 
 /* 题库分享码（2026-11-08）：用户要求「用户自己上传的也可以通过分享码（二维码加6位分享码）发给他的朋友去刷题」。
    和发布不是一回事 —— 发布是「按班级下发」，分享码是「谁拿到码谁能刷」，不占班级、不进公共题库列表。
@@ -2600,8 +3159,9 @@ const shareDel = code => rpc('quiz_share_del', { p_code: code }, true);
 // 我教的班（老师选下发对象用）。走 rank-schema.sql 的 hx_my_classes。
 // 2026-11-03 起只返回「自己教的班」：管理员/开发者也不再看到别人的班（见 supabase/2026-11-03-班级权限收回.sql）。
 // 非老师返回空数组，不抛错（学生打开刷题不该看到报错）。
+// 班级名单是「老师偶尔改一次」的静态数据 → 缓存 5 分钟（老师改班级在总入口，那边改完最多 5 分钟这里跟上）。
 const myClasses = () => signedIn()
-  ? rpc('hx_my_classes', {}).catch(() => [])
+  ? cwrap('classes', () => rpc('hx_my_classes', {}).catch(() => []))
   : Promise.resolve([]);
 
 // 理论题排位（supabase/quiz-schema.sql 第 3 节）：答对的选择、判断题先进本机待交队列，1 秒后交给服务器判对（断网留着，下次再交）。
@@ -3464,8 +4024,9 @@ const TYPES = [['single', '单选'], ['multiple', '多选'], ['judgment', '判�
 const SELF = new Set(['term', 'short', 'prog']); // 主观题：看参考答案自己判对错
 // 出题要求（导入区“根据资料出题”）：默认只出选择题；填空/简答要用户自己勾，
 // 因为它们在刷题页只能「看参考答案自评」，不参与排行榜计分，默认勾上会让人误会。
+// scope（2026-11-09）：从「一段手写文字」改成「勾选的章节数组」，空数组 = 整份资料（和以前 scope:'' 一样）。
 const GEN_DEF = {
-  scope: '', level: '中等', extra: '',
+  scope: [], level: '中等', extra: '',
   count: { single: 5, multiple: 3, judgment: 5, fill: 5, short: 3, prog: 3 },
   on: { single: true, multiple: true, judgment: true, fill: false, short: false, prog: false }
 };
@@ -4085,11 +4646,36 @@ async function renderRank() {
 }
 
 // ---------- 导入区的小零件（说明、模板、出题要求、识别报告） ----------
+/* 出题「范围」的选项 = 当前题库里已有的章节。
+   ── 为什么取 source / sourceTitle ──
+   题库的数据结构里没有单独的 chapter 字段（normalizeQuestions 也不产生），能当章节用的只有
+   source：内置题库就是「项目3 并行 I/O 端口与 C51 语言」「电气控制技术实训 第3版 项目1」这种，
+   老师自己导入时也会写在 source／出处里。所以从题目里收集、去重，不在代码里写死章节名单 ——
+   换一门课、换一本教材，选项自动跟着变。
+   空串跳过（教育心理学有 460 题没写来源），别生成一个空白选项。 */
+function bankChapters() {
+  const out = [], seen = new Set();
+  for (const q of S.questions || []) {
+    const raw = String(q.source || q.sourceTitle || '').trim();
+    if (!raw || seen.has(raw)) continue;
+    seen.add(raw); out.push(raw);
+  }
+  // 项目2 / 项目10 这种按数字排，别让「项目10」排到「项目2」前面
+  return out.sort((a, b) => a.localeCompare(b, 'zh-Hans-CN', { numeric: true }));
+}
 // 出题要求存在本机：老师这次勾了「只出单选 10 道」，下次打开还是这套，不用重填
 function genState() {
   if (!S.gen) S.gen = { ...GEN_DEF, count: { ...GEN_DEF.count }, on: { ...GEN_DEF.on }, ...(store.getLocal('importGen', null) || {}) };
   S.gen.count = { ...GEN_DEF.count, ...(S.gen.count || {}) };
   S.gen.on = { ...GEN_DEF.on, ...(S.gen.on || {}) };
+  /* 老存档迁移：2026-11-09 以前 scope 是一段手写文字（如「第 5 章」），现在是章节数组。
+     能对上现有章节的就勾上；对不上的直接丢掉 —— 留着一句界面上看不见的话，
+     用户会以为范围还在生效，实际却悄悄按整份资料出题，比丢掉更坏。 */
+  if (typeof S.gen.scope === 'string') {
+    const old = S.gen.scope.trim();
+    S.gen.scope = old ? bankChapters().filter(c => c === old) : [];
+  }
+  if (!Array.isArray(S.gen.scope)) S.gen.scope = [];
   return S.gen;
 }
 const saveGen = () => store.setLocal('importGen', genState());
@@ -4130,9 +4716,16 @@ const TPL = [
 ];
 function genHtml() {
   const g = genState();
+  /* 章节选项来自当前题库；顺手把「已经不在题库里的旧勾选」剔掉，
+     否则界面上看不到那一项，提示词里却还带着它（切科目后最容易出现）。 */
+  const chs = bankChapters();
+  g.scope = g.scope.filter(c => chs.includes(c));
   return `<div class="gen" id="gen" ${S.imode === 'gen' ? '' : 'hidden'}>
-        <label for="genScope">出题范围</label>
-        <input id="genScope" maxlength="120" value="${esc(g.scope)}" placeholder="例如：项目3 并行 I/O 端口；或第 5 章；留空 = 整份资料">
+        <div class="genfield">
+          <span class="gt">出题范围</span>
+          ${chs.length ? `<div class="chgrid" id="genScope">${chs.map(c => `<label class="${g.scope.includes(c) ? 'on' : ''}"><input type="checkbox" data-ch="${esc(c)}" ${g.scope.includes(c) ? 'checked' : ''}><span>${esc(c)}</span></label>`).join('')}</div>` : '<p class="muted" style="margin:0">这个题库还没有章节信息（题目里没写「来源」）。不勾就是整份资料。</p>'}
+          <p class="muted" style="margin:0">勾哪几章就只出这几章的题；一个都不勾 = 整份资料。选项来自当前题库已有的章节。</p>
+        </div>
         <div class="gt">题型和数量（整份资料一共要几道）</div>
         ${GEN_TYPES.map(([t, n]) => `<div class="genrow"><label><input type="checkbox" data-tp="${t}" ${g.on[t] ? 'checked' : ''}>${n}</label><input type="number" min="0" max="50" step="1" data-n="${t}" value="${esc(g.count[t])}"><span class="muted">道</span>${t === 'fill' || t === 'short' || t === 'prog' ? '<span class="muted">· 只能自评，不计分</span>' : ''}</div>`).join('')}
         <label for="genLevel">难度</label>
@@ -4145,7 +4738,14 @@ function genHtml() {
 function bindGen() {
   const g = genState();
   const box = $('v-bank');
-  if ($('genScope')) $('genScope').oninput = e => { g.scope = e.target.value; saveGen(); };
+  // 章节多选：勾一下改数组，同时给 label 加 .on（不用 :has，老内核也稳）
+  for (const c of box.querySelectorAll('#genScope [data-ch]')) c.onchange = () => {
+    const set = new Set(g.scope);
+    if (c.checked) set.add(c.dataset.ch); else set.delete(c.dataset.ch);
+    g.scope = [...set];
+    const lab = c.closest('label'); if (lab) lab.classList.toggle('on', c.checked);
+    saveGen();
+  };
   if ($('genLevel')) $('genLevel').onchange = e => { g.level = e.target.value; saveGen(); };
   if ($('genExtra')) $('genExtra').oninput = e => { g.extra = e.target.value; saveGen(); };
   for (const c of box.querySelectorAll('[data-tp]')) c.onchange = () => { g.on[c.dataset.tp] = c.checked; saveGen(); };
@@ -4362,7 +4962,7 @@ function renderBank() {
     });
   });
   on('clrBtn', e => sure(e.currentTarget, `确认清空 ${S.bank.length} 题？`, () => setBank([])));
-  on('renBtn', async () => { const n = prompt('科目新名字', sub.name)?.trim(); if (!n) return; await saveMine(m => m.map(s => s.id === sub.id ? { ...s, name: n.slice(0, 30) } : s)); S.view = 'bank'; await openSubject(sub.id); });
+  on('renBtn', async () => { const n = (await hxPrompt('科目新名字', sub.name))?.trim(); if (!n) return; await saveMine(m => m.map(s => s.id === sub.id ? { ...s, name: n.slice(0, 30) } : s)); S.view = 'bank'; await openSubject(sub.id); });
   on('delBtn', e => sure(e.currentTarget, sub.kind === 'shared' ? '确认移出列表？' : '确认删除科目？', async () => {
     if (sub.kind === 'shared') { // 分享来的：只动本机这份清单，不碰对方的码
       await dropShared(sub);
@@ -4507,7 +5107,8 @@ async function startImport() {
     if (!text.trim() && !pics.length) throw new Error('这个文件里没有读到文字。PDF 请确认不是扫描件；扫描件可以拍成图片再选图片导入。');
     const gen = S.imode === 'gen';
     const g = genState();
-    const opts = { scope: (g.scope || '').trim(), level: g.level, extra: (g.extra || '').trim(), types: genTypes() };
+    // 章节数组 → 提示词里的「范围」一句；没勾任何章节 = 空串，genPrompt 会照旧写「整份资料」
+    const opts = { scope: g.scope.length ? g.scope.join('；') : '', level: g.level, extra: (g.extra || '').trim(), types: genTypes() };
     let got = { questions: [], rejected: [] };
     const tick = t => { if ($('imMsg')) $('imMsg').textContent = t; };
     if (text.trim()) {
@@ -4601,10 +5202,18 @@ function openPublishSheet(onDone) {
     const loadCls = async () => {
       if (classes) return;
       const r = await store.myClasses();
-      classes = (r || []).filter(c => c && c.name);
+      // 首页 → 班级 里点亮了「刷题」的班才列出来（和接线仿真 / 考试 / 考勤 / 小组加分同一套 hx_classes.tools）。
+      // 两种空要分开说：一个班都没有，vs 有班但都没开刷题 —— 后者是老师忘了点开关，不能提示成「去建班」。
+      const all = (r || []).filter(c => c && c.name);
+      classes = all.filter(c => (c.tools || []).includes('quiz'));
       const box = $('clsList');
       if (!box) return;
-      if (!classes.length) { box.innerHTML = '<div class="muted" style="padding:10px">你还没有班级。到首页「班级」新建一个、导入名单后再来发布。</div>'; return; }
+      if (!classes.length) {
+        box.innerHTML = all.length
+          ? `<div class="muted" style="padding:10px">你有 ${all.length} 个班，但首页「班级」里都还没点亮「刷题」。去首页点一下刷题开关，这些班才会出现在这里。</div>`
+          : '<div class="muted" style="padding:10px">你还没有班级。到首页「班级」新建一个、导入名单后再来发布。</div>';
+        return;
+      }
       const sel = new Set(cur || []);
       box.innerHTML = classes.map(c =>
         `<label class="sitem" style="justify-content:flex-start;gap:10px;cursor:pointer">
