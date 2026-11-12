@@ -50,10 +50,15 @@
   // （也就是用户定下的默认观感：深色玻璃底、背景透出来），往下调卡片变实、文字更清楚。
   // 老存档里的 op 不再折算：旧 100 = 新 100（同一观感），旧值更小的本意是「更透」——新体系 100 已经是最透，
   // 一律落回默认 100，保证老用户刷新后看到的就是这版定稿的玻璃观感。
-  var KEY = 'hx-theme', SKEY = 'hx-theme:s:', IMG = 'hx-theme-img', DEV = 'hx-dev', VER = 6,
+  var KEY = 'hx-theme', SKEY = 'hx-theme:s:', IMG = 'hx-theme-img', DEV = 'hx-dev', VER = 7,
     // 2026-11-05 用户定：默认进来 = 深色主题 + 两个滑杆都 100%（通透度 100 = 深色清透玻璃，背景最透出）。
     // 之前默认 mode:'auto'，Mac 浅色系统打开就是浅色 + 旧白玻璃配方，用户原话「玻璃质感不高级 仅仅只是白色雾蒙蒙」。
-    DEF = { acc: 'green', mode: 'dark', bg: 'aurora', clr: 100, bgo: 100, wx: 'none' };
+    DEF = { acc: 'green', mode: 'dark', bg: 'none', clr: 100, bgo: 100, wx: 'none' };
+  // 2026-11-11 用户定（第二次改默认背景）：「极光背景改 … 使用默认静态背景？比如就用深色总默认 无背景
+  //   可以选极光 加入选择不强制」。所以全站默认背景从 `aurora`（动态视频壁纸）改成 `none`
+  //   （纯深色底，最省电、最不抢内容）；想要极光的人在外观面板里自己点，不再是默认。
+  //   迁移见下面 VER 7 段：老存档里「从没主动挑过背景」的一律落到 none；
+  //   自己上传过图（custom）或显式选过别的背景的，保留不动。
   // 背景动效（2026-11-03）：和背景主题平行的「动效模块」，由 fx/hx-weather.js 渲染在背景层。
   // 白名单写死在这里（而不是由渲染器自己认）：将来下架某个特效，老存档里选着它也会安全回落到「无」。
   var WX = {
@@ -398,9 +403,15 @@
     // ── 旧全局键（hx-theme）：首页的「背景 / 动效 / 水印」存档，也是各工具页的迁移来源 ──
     var raw = ls(KEY), lg = raw && OLD[raw] ? OLD[raw] : jparse(raw);
     lg = lg || {};
-    // 老存档（没有 ver）＝ 上这一版之前就存过外观的。统一换成新默认（极光），做到「全体人员默认」；
-    // 只有自己上传过图的例外——那是明确主动的行为，别覆盖掉。想关掉背景在外观面板点「无」即可。
+    // 老存档（没有 ver）＝ 上这一版之前就存过外观的。统一换成新默认，做到「全体人员默认」；
+    // 只有自己上传过图的例外——那是明确主动的行为，别覆盖掉。想换背景在外观面板点即可。
     if (raw && !lg.ver && lg.bg !== 'custom') lg.bg = DEF.bg;
+    // VER 7 迁移（2026-11-11）：默认背景从 aurora（动态极光视频）改成 none（纯深色底）。
+    // 用户原话「极光背景改…用深色总默认 无背景 可以选极光 加入选择不强制」。
+    // 只管「还停在上一版默认 aurora、自己从没主动改过背景」的存档 —— 也就是 ver 是 6 或更早、
+    // 且 bg 正好是 aurora 的那批（那批人的 aurora 多半是 VER 4 迁移替他们选的，不是本人点的）。
+    // 显式选过 none / custom / 别的背景的一律不动；已经升到 VER 7 之后自己选的 aurora 也不动。
+    if ((+lg.ver || 0) < 7 && lg.bg === 'aurora') lg.bg = 'none';
     // VER 4 迁移（2026-11-04 深夜）：背景项只剩 无/极光动态/自己的图。
     if (!BG[lg.bg]) lg.bg = DEF.bg;
     // ── 本界面自己的存档（hx-theme:s:<界面>）────────────────────────────
@@ -448,18 +459,12 @@
     var q = location.search;
     if (/[?&]full\b/.test(q)) return false;
     if (/[?&]lite\b/.test(q)) return true;
+    /* 2026-11-11 用户定：**极简模式是默认**。
+       原话「省电模式改名叫极简模式并作为默认，然后想看特效就选择隔壁的标准模式」。
+       所以读不到偏好时不再按机器猜、也不再把 4 核机误伤成省电 —— 一律先给极简（稳、不烫），
+       谁想要特效去外观面板点「标准模式」，那台机器就记住 '0'，以后每次打开都是标准。 */
     try { if (ls('hx-lite') === '1') return true; if (ls('hx-lite') === '0') return false; } catch (e) { }
-    var ua = navigator.userAgent || '';
-    // ── 2026-11-04 改：判定收紧，别再误伤机房电脑 ──
-    // 用户报「我机房的浏览器打开画面不会动像素特效」。查下来是这里把 4 核机也算成省电模式：
-    // 机房那批机器 hardwareConcurrency 正好 4，命中 hc <= 4 → hx-lite → hx-critters.js 的 still()
-    // 只画第一帧、永远不动，看起来就像「特效坏了」。而这批机器其实跑得动（真正的开销是当年的
-    // 每卡 backdrop-filter blur(26px)，2026-11-02 已经改成全局只糊一次了，现在没有任何实时模糊）。
-    // 所以：只有明确的一体机 / 国产盒子主板才进省电模式；核心数只认 ≤2（真的老掉牙那种），
-    // deviceMemory 只认 ≤2。4 核 / 4G 的机房机正常跑动效。
-    if (/seewo|hisense|cvte|amlogic|rk3\d{3}|allwinner/i.test(ua)) return true; // 一体机 / 会议大屏 / 国产盒子主板
-    var hc = navigator.hardwareConcurrency || 8, dm = navigator.deviceMemory || 8;
-    return hc <= 2 || dm <= 2;
+    return true;   // ← 默认极简（2026-11-11）
   }
   try { document.documentElement.classList.toggle('hx-lite', liteOn()); } catch (e) { }
   // ── 背景图：原图直出，不再预模糊（2026-11-04 用户要求）──────────────────
@@ -1336,7 +1341,17 @@
       var on = liteOn();
       document.documentElement.classList.toggle('hx-lite', on);
       try { apply(); } catch (e) { }
+      /* 2026-11-11：把「现在是极简还是标准」广播出去，让同页面的 canvas 工具（接线仿真等）
+         当场换档，不用刷新。用 storage 事件够不到同页面，所以两条腿都走：
+         ① 立刻派发自定义事件（同页监听）；② 写 localStorage 让别的标签页/iframe 收到 storage 事件。 */
+      try { dispatchEvent(new CustomEvent('hx-lite-change', { detail: { lite: on } })); } catch (e) { }
       return on;
+    },
+    /* 2026-11-11：给接线仿真这类 canvas 页读「现在是不是极简」。不传参 = 读；
+       独立打开工具页（没有总入口 iframe）时也能用：读 localStorage + html.hx-lite 类，两条任一命中即极简。 */
+    isLite: function () {
+      try { if (document.documentElement.classList.contains('hx-lite')) return true; } catch (e) { }
+      return liteOn();
     } };
 
   // ---------- 导航栏交互动效：滑块跟着当前项走（不用每项自己高亮） ----------

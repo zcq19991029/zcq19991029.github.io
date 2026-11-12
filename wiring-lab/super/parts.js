@@ -7,7 +7,7 @@ function screw(x, y, r = 8) {
 }
 function lin(x0, y0, x1, y1, stops) { const gr = g.createLinearGradient(x0, y0, x1, y1); stops.forEach(([k, c]) => gr.addColorStop(k, c)); return gr; }
 function shadowBox(x, y, w, h, r, fill, stroke = '#94a3b8') {
-  g.save(); g.shadowColor = 'rgba(15,23,42,.25)'; g.shadowBlur = 10; g.shadowOffsetY = 4; rrect(x, y, w, h, r, fill); g.restore();
+  g.save(); if (!hxIsLite()) { g.shadowColor = 'rgba(15,23,42,.25)'; g.shadowBlur = 10; g.shadowOffsetY = 4; } rrect(x, y, w, h, r, fill); g.restore();
   rrect(x, y, w, h, r, null, stroke, 1.5);
 }
 function plate(name, x, y, sub) { // 元件铭牌
@@ -45,7 +45,7 @@ function partFuse(cx, y, name) {
 // 按钮：黑色底座 + 彩色按钮帽，下方两个接线端子（左入口、右出口）
 // quad：复合按钮（一对常闭 + 一对常开，机械联动），端子座 4 个端子：左两个 NC、右两个 NO
 function partButton(cx, y, color, pressed, name, desc, hi, quad) {
-  if (hi) { g.save(); g.shadowColor = C.trace; g.shadowBlur = 22; rrect(cx - 54, y - 6, 108, 146, 14, null, C.trace, 4); g.restore(); }
+  if (hi) { g.save(); if (!hxIsLite()) { g.shadowColor = C.trace; g.shadowBlur = 22; } rrect(cx - 54, y - 6, 108, 146, 14, null, C.trace, 4); g.restore(); }
   shadowBox(cx - 48, y, 96, 96, 12, lin(cx, y, cx, y + 96, [[0, '#374151'], [1, '#111827']]), '#0f172a');
   const r = pressed ? 27 : 31;
   g.beginPath(); g.arc(cx, y + 48, 38, 0, 7); g.fillStyle = lin(cx, y + 10, cx, y + 86, [[0, '#f1f5f9'], [1, '#94a3b8']]); g.fill();
@@ -77,7 +77,7 @@ function partKM(x, y, arm, name, hi) {
   rrect(x + 78, y + 58, 104, 50, 6, '#0f172a');
   rrect(x + 86, y + 64 + arm * 22, 88, 16, 3, arm > 0.5 ? '#f8fafc' : '#94a3b8'); // 衔铁指示：吸合时下移
   text(name, x + 50, y + 122, 20, '#fff', 'center', 'bold'); text('CJX2', x + 200, y + 122, 13, '#bfdbfe', 'center', 'bold');
-  if (arm > 0.5) { g.save(); g.shadowColor = C.bad; g.shadowBlur = 14; tag('吸合', x + 210, y + 80, C.bad, 20); g.restore(); }
+  if (arm > 0.5) { g.save(); if (!hxIsLite()) { g.shadowColor = C.bad; g.shadowBlur = 14; } tag('吸合', x + 210, y + 80, C.bad, 20); g.restore(); }
 }
 // 热继电器
 function partFR(x, y, trip, hi) {
@@ -175,8 +175,8 @@ function sleeve(pts, label) {
 // 画导线；active 表示“正在接的这一根”，外面加一圈发光
 function drawWire(x, prog, active, t) {
   const pts = partial(x.pts, prog), col = netColor(x.net), lw = C.wireW || 5; // 线宽：视频固定 5，练习页可调
-  if (active) { g.save(); g.shadowColor = C.trace; g.shadowBlur = 24; poly(pts, 'rgba(14,165,233,.55)', lw + 11); g.restore(); }
+  if (active) { g.save(); if (!hxIsLite()) { g.shadowColor = C.trace; g.shadowBlur = 24; } poly(pts, 'rgba(14,165,233,.55)', lw + 11); g.restore(); }
   poly(pts, C.wireEdge || 'rgba(15,23,42,.35)', lw + 2); // 导线描边：深色底上用浅色描边，黑色线也看得见
   poly(pts, col, lw);
-  if (prog < 1) { const e = pts[pts.length - 1]; g.save(); g.shadowColor = C.trace; g.shadowBlur = 18; dot(e[0], e[1], 8, C.trace); g.restore(); }
+  if (prog < 1) { const e = pts[pts.length - 1]; g.save(); if (!hxIsLite()) { g.shadowColor = C.trace; g.shadowBlur = 18; } dot(e[0], e[1], 8, C.trace); g.restore(); }
 }

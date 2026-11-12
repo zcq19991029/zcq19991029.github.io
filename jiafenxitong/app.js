@@ -4883,13 +4883,17 @@ function restoreDroppedToHome(cls) {
   var hxRoster = { classes: null, all: null, students: {}, loading: null, error: '', review: null };
   var hxShown = null; // 上次按首页名单画出来的班级（变了才重画）
   function visibleClasses() { return HXR.visible(S, hxRoster.all); }
-  function loadHxRoster() {
+  function loadHxRoster(fresh) {
     if (!CLOUD_ON || !CLOUD.rpc) return Promise.resolve();
     if (hxRoster.loading) return hxRoster.loading;
-    hxRoster.loading = CLOUD.rpc('hx_my_classes').then(function (classes) {
+    /* fresh=true（点「刷新」按钮、对应完成后）：跳过 5 分钟缓存，直接读云端真身。
+       2026-11-11 修 CI/线上 bug：缓存上线后点刷新不再发请求，老师「取消点亮」后回来
+       看到的还是旧名单，点了像没反应。用户主动要新数据时缓存必须让路。 */
+    var opt = fresh ? { fresh: true } : null;
+    hxRoster.loading = CLOUD.rpc('hx_my_classes', {}, opt).then(function (classes) {
       var mine = (classes || []).filter(HXR.lit);
       return Promise.all((classes || []).map(function (c) { // 没勾的也读：原有班对应时首页全部班都能选
-        return CLOUD.rpc('hx_class_students', { p_class: c.id }).then(function (rows) { return [c.id, rows || []]; });
+        return CLOUD.rpc('hx_class_students', { p_class: c.id }, opt).then(function (rows) { return [c.id, rows || []]; });
       })).then(function (pairs) {
         hxRoster.students = {}; pairs.forEach(function (p) { hxRoster.students[p[0]] = p[1]; });
         hxRoster.classes = mine; hxRoster.all = classes || []; hxRoster.error = '';
@@ -5043,7 +5047,7 @@ function restoreDroppedToHome(cls) {
       renderHxRoster();
     } catch (er) { hxRoster.review = { classId: (hxRoster.review || {}).classId, msg: '没做成：' + er.message }; renderHxRoster(); }
   });
-  $('#btnHxRefresh').addEventListener('click', function () { renderHxRoster(); loadHxRoster(); });
+  $('#btnHxRefresh').addEventListener('click', function () { renderHxRoster(); loadHxRoster(true); });
 
   function renderLessonList() {
     var rows = S.lessons.slice().sort(function (a, b) {

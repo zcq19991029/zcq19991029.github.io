@@ -41,6 +41,34 @@ const hxRgba = (hex, a) => { const m = /^#([0-9a-f]{6})$/i.exec(hex); if (!m) re
 // 所以清掉的是上一帧的残影，不会误伤本帧内容；条件卡得很死（宽高都盖满画布才触发），
 // 局部 fillRect（卡片压暗那类）不受影响。开关跟 HXL 走：没选背景时关闭，行为和原来一模一样。
 let hxBgClear = false;
+/* ── 2026-11-11 极简模式（hx-lite）：把画布上最贵的两笔开销关掉 ──
+   用户报「放大电路图整个网页卡顿、连线掉帧、连退出浏览器的动画都掉帧，平板也卡」。
+   查证根因有两层：
+     ① 光效全靠 canvas `shadowBlur`（模糊阴影，浏览器要逐像素算）——整个练习页有 27 处，
+        原理图上的「接线辉光」每次重画整段折线都带着 blur；
+     ② 放大时 setRes() 把画布物理分辨率提到最高 2.5 倍（4800×2700 = 1296 万像素），
+        面积平方级暴涨；而 CSS transform 放大又让每一条带 shadowBlur 的线在**屏幕上看更宽**，
+        等于让浏览器在 6.25 倍的画布面积上算更大的模糊 —— 两笔叠一起，平板必卡。
+   修法（极简模式）：
+     · TH.glow 归 0：代码里所有 `shadowBlur = N * TH.glow` 自动变 0，光晕/辉光全停（接线本身的
+       线条、颜色、粗细一个字都不改，判断对错、能不能接、连没连通全都不受影响，只是不再发光）；
+     · 少数写死 shadowBlur 的地方（不带 * TH.glow 的）在 core/parts 里各补一道 hxLite 判断。
+   标准模式（用户主动选）→ 全部照旧，一个像素都不改。 */
+let hxLite = false;
+try {
+  hxLite = document.documentElement.classList.contains('hx-lite');
+  if (!hxLite) { try { var _lv = localStorage.getItem('hx-lite'); hxLite = (_lv === null || _lv === '1'); } catch (e2) { hxLite = true; } }
+} catch (e) { hxLite = false; }
+function hxSetLite(on) {
+  hxLite = !!on;
+  try { applyTheme(themeName); } catch (e) { }
+}
+/* 总入口里换模式：同一个页面用自定义事件，别的标签页/iframe 靠 storage 事件，
+   两条都收，当场换档不用刷新（2026-11-11）。 */
+try {
+  addEventListener('hx-lite-change', function (e) { try { hxSetLite(!!(e && e.detail && e.detail.lite)); } catch (er) { } });
+  addEventListener('storage', function (e) { if (e && e.key === 'hx-lite') { try { hxSetLite(e.newValue !== '0'); } catch (er) { } } });
+} catch (e) { }
 if (typeof CanvasRenderingContext2D !== 'undefined' && !CanvasRenderingContext2D.prototype.__hxBgClear) {
   CanvasRenderingContext2D.prototype.__hxBgClear = true;
   const rawFill = CanvasRenderingContext2D.prototype.fillRect;
@@ -55,6 +83,10 @@ if (typeof CanvasRenderingContext2D !== 'undefined' && !CanvasRenderingContext2D
 function applyTheme(n) {
   if (!THEMES[n]) n = 'dark';
   themeName = n; Object.assign(C, THEMES[n].C); Object.assign(TH, THEMES[n].TH, { dark: THEMES[n].dark });
+  /* 2026-11-11 极简模式：把发光强度压到 0。
+     这样所有 `shadowBlur = N * TH.glow` 的地方自动不发光（详见文件上方 hxLite 那段注释），
+     一处改动覆盖 27 处光效，接线本身的线条/颜色/判定一点不变。 */
+  if (hxLite) TH.glow = 0;
   // 控制线的显示颜色可以自定义（讲解用；实训中控制线一般用黑色），没设就用主题默认的粉色
   let cc = null; try { cc = localStorage.getItem(CTRL_KEY); } catch (e) { } if (cc) C.ctrl = cc;
   // 华夏工具外观（2026-11-08 修「选了背景没东西」）：hx-theme 那边给了背景图地址（--hx-img，含视频壁纸的海报帧）时，

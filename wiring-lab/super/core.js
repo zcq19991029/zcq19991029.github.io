@@ -66,9 +66,20 @@ function currentFX(pts, t, color, amp, w) {
   g.globalAlpha = 1; g.strokeStyle = gr; g.lineWidth = 3.5 * w; g.beginPath(); g.moveTo(A[0], A[1]); for (const p of strip.slice(1)) g.lineTo(p[0], p[1]); g.stroke();
   g.restore();
 }
+/* 2026-11-11 极简模式（hx-lite）：core.js 比 theme.js 先加载，那时 hxLite 还没定义，
+   所以这里用一个「每次调用时才判断」的读取器，不用顶层变量（否则会 ReferenceError）。
+   theme.js 里也定义了同名的 hxLite（用 let），这里用 typeof 守卫避免重复声明。 */
+if (typeof hxIsLite !== 'function') {
+  // eslint-disable-next-line no-var
+  var hxIsLite = function () {
+    try { return !!(typeof hxLite !== 'undefined' && hxLite); } catch (e) { return false; }
+  };
+}
 function flow(pts, w, t, color = C.cur) {
   if (SCHK.on) w *= SCHK.line;
-  g.save(); g.shadowColor = color; g.shadowBlur = 12; poly(pts, color, w + 3); g.restore();
+  /* 2026-11-11 极简模式：shadowBlur 是画布上最贵的一笔（逐像素模糊），电流动效每帧都要算一次。
+     极简下不发光，但**流动的虚线亮条照画**——「电流在走」这个现象还在，只是不再有光晕。 */
+  g.save(); if (!hxIsLite()) { g.shadowColor = color; g.shadowBlur = 12; } poly(pts, color, w + 3); g.restore();
   g.save(); g.strokeStyle = '#fff7c2'; g.lineWidth = Math.max(2, w - 1); g.lineCap = 'round';
   g.setLineDash([5, 18]); g.lineDashOffset = -t * 110;
   g.beginPath(); g.moveTo(pts[0][0], pts[0][1]); for (const p of pts.slice(1)) g.lineTo(p[0], p[1]); g.stroke(); g.restore();
@@ -76,11 +87,11 @@ function flow(pts, w, t, color = C.cur) {
 }
 // 实物板上的电流：细的流动亮点，不盖住导线颜色
 function flowLight(pts, t) {
-  g.save(); g.strokeStyle = '#fb923c'; g.lineWidth = 3; g.lineCap = 'round'; g.shadowColor = '#f97316'; g.shadowBlur = 6;
+  g.save(); g.strokeStyle = '#fb923c'; g.lineWidth = 3; g.lineCap = 'round'; if (!hxIsLite()) { g.shadowColor = '#f97316'; g.shadowBlur = 6; }
   g.setLineDash([4, 14]); g.lineDashOffset = -t * 90;
   g.beginPath(); g.moveTo(pts[0][0], pts[0][1]); for (const p of pts.slice(1)) g.lineTo(p[0], p[1]); g.stroke(); g.restore();
 }
-function glowPoly(pts, color, w) { if (SCHK.on) w *= SCHK.line; g.save(); g.shadowColor = color; g.shadowBlur = 16; poly(pts, color, w); g.restore(); }
+function glowPoly(pts, color, w) { if (SCHK.on) w *= SCHK.line; if (hxIsLite()) { poly(pts, color, w); return; } g.save(); g.shadowColor = color; g.shadowBlur = 16; poly(pts, color, w); g.restore(); }
 // 截取折线的前 f 部分（画线动画）
 function partial(pts, f) {
   if (f >= 1) return pts; if (f <= 0) return [pts[0]];

@@ -728,18 +728,25 @@
   function rcSet(key, v) {
     try { localStorage.setItem(key, JSON.stringify({ t: Date.now(), v: v })); } catch (e) { }
   }
-  function rpc(name, args) {
+  function rpc(name, args, opts) {
     /* 先 ensureFresh 再查缓存：它会重读共用登录（别的工具刚切过账号 / 续过期），
        缓存 key 里的 userId 必须按「现在是谁」算，否则刚切账号的第一次读会拿到上一个人的名单。
-       会话有效时这一步不发请求，命中缓存仍然 0 请求。 */
+       会话有效时这一步不发请求，命中缓存仍然 0 请求。
+       opts.fresh = true → 跳过缓存直接打网络（2026-11-11 修：老师点「刷新」按钮必须看到云端真身，
+       否则点了没反应；缓存只服务于「没在操作时的自动读取」，绝不能挡用户主动要新数据）。 */
+    var fresh = !!(opts && opts.fresh);
     return ensureFresh().then(function () {
-      var ck = RC_NAMES[name] ? rcKey(name, args) : null;
+      var ck = (RC_NAMES[name] && !fresh) ? rcKey(name, args) : null;
       if (ck) {
         var hit = rcGet(ck);
         if (hit !== null) return hit;
       }
       return request(REST + '/rpc/' + name, { method: 'POST', body: JSON.stringify(args || {}) }).then(function (v) {
-        if (ck && v != null && (!Array.isArray(v) || v.length)) rcSet(ck, v);
+        /* fresh 读回来的也要写缓存：老师刷新一次，接下来 5 分钟的自动读就能省掉 */
+        if (v != null && (!Array.isArray(v) || v.length)) {
+          var wk = RC_NAMES[name] ? rcKey(name, args) : null;
+          if (wk) rcSet(wk, v);
+        }
         return v;
       });
     });
