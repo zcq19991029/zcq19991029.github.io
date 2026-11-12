@@ -133,13 +133,8 @@
   }
 
   function avatarHTML(p) {
-    var HX = window.HXAvatar;
-    if (HX && typeof HX.frame === 'function' && p.pix) {
-      try {
-        var u = HX.frame(p.pix, 96);
-        if (u) return '<b class="drw-av has-img"><img alt="" src="' + esc(u) + '"></b>';
-      } catch (e) { }
-    }
+    // 2026-11-11：原来这里会先用 window.HXAvatar.frame(p.pix, 96) 取一帧像素头像。
+    // 像素头像库已删（用户要求），HXAvatar 不再存在，这段永远走不到 —— 清掉，直接出首字母头像。
     return '<b class="drw-av" style="--h:' + hueOf(p) + '">' + esc(String(p.name || '?').slice(0, 1)) + '</b>';
   }
 

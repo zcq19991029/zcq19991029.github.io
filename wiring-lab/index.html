@@ -3,7 +3,7 @@
 <html lang="zh-CN">
 <head>
 <script src="../hx-theme.js" data-tool="wiring"></script>
-<script>window.HX_BUILD = "2026-11-12T04:10:29Z 08f0b23";</script>
+<script>window.HX_BUILD = "2026-11-12T05:24:37Z 2046f4d";</script>
 <meta charset="utf-8">
 <meta name="copyright" content="© 2026 zcq 版权所有，未经许可禁止复制、修改、转载">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
@@ -2297,8 +2297,8 @@ const TAB_KEY = 'zfz-project2-tab', THEME_KEY = 'zfz-practice-theme';
 // 低端设备 / 手机降级（2026-11-02）：顶栏那条毛玻璃横在逐帧重绘的画布上，合成器每帧都得重算一遍模糊，
 // GPU 一直满载 —— 这是「手机越用越卡、手机发烫」的头号开销。触屏设备、4 核以下、4G 内存以下、
 // 或者希沃这类教学一体机，任一命中就先加一道 .is-lite（进页面前先降，避免首帧闪一下模糊）。
-// 2026-11-11 起：下面 hxLiteNow()/applyHxLite() 会按总入口「极简/标准」整体覆盖这两道预判
-// —— 极简=加 is-lite+fx-lite，标准=两个都不加（用户：标准模式下所有都不冻结）。
+// 2026-11-11 起：下面 hxLiteNow()/applyHxLite() 会按总入口「极简/标准」整体覆盖 is-lite 这道预判
+// —— 极简=加 is-lite（视觉降级），标准=不加；fx-lite 不动，仍按真·弱机判定（见下面 2026-11-11 二次修正）。
 {
   const ua = navigator.userAgent || '';
   const lite = matchMedia('(hover: none) and (pointer: coarse)').matches
@@ -2326,10 +2326,23 @@ const TAB_KEY = 'zfz-project2-tab', THEME_KEY = 'zfz-practice-theme';
    用户原话：「标准模式下所有都不冻结；极简模式下所有发热卡顿耗电等内容都可以被舍弃，不影响核心功能」。
    接线仿真原来有自己的一套 is-lite（按设备自动判定）+ fx-lite（按机器性能），
    和总入口的「极简/标准」完全脱节 —— 用户在总入口选了标准，接线页照样按自己的判定跑。
-   现在统一：**总入口的「极简」= 这里加 is-lite + fx-lite（视觉降级 + 动效全停）**；
-   「标准」= 两个类都不加（全部特效照跑，只有真·弱机才保留它自己的 fx-lite 兜底）。
+   现在统一：**总入口的「极简」= 这里加 is-lite（视觉降级：去模糊/阴影）**；
+   「标准」= 不加（全部特效照跑，只有真·弱机才保留它自己的 fx-lite 兜底）。
    判定优先级：① URL ?full/?lite（调试）② localStorage hx-lite（总入口写的）
-   ③ 没有偏好 → 默认极简（跟总入口的默认一致）。 */
+   ③ 没有偏好 → 默认极简（跟总入口的默认一致）。
+
+   ★ 2026-11-11 二次修正（用户原话：「像素动效在极简模式都不显示是不是更好？除了排位模式的
+     开头结尾必须留下，因为那是重要的体验感，不是氛围组件」）：
+     上一版这里把 fx-lite 也一起挂到极简上 —— 而 rank.js 里**所有**排位像素动效的门控都读
+     fx-lite（321GO 倒数、切班过场、翻牌面板、结束的 QUEST COMPLETE 横幅），
+     于是极简一开，这些「仪式感」全被跳过，只剩文字倒数。用户要的恰恰相反：
+     排位开头结尾那种**一次性的、有仪式感的**必须留，要关的是**常驻氛围**（首页卡片小生物、
+     背景天气动效、画布光晕）。所以这里拆开：
+       · is-lite（极简加）→ 只做视觉降级（顶栏毛玻璃、重阴影），并让画布光晕归零（伤害最大的一项）；
+       · fx-lite（极简**不加**）→ 只留给真·弱机（≤2G 内存 / ≤2 核 / 老国产盒子），
+         它在 rank.js 里管的是「一次性仪式感动效播不播」，不该由用户的模式开关决定。
+     常驻氛围（首页小生物 / 背景动效）由它们各自的模块直接读 hx-lite 停循环，不走 fx-lite —— 见
+     hx-critters.js / hx-weather.js 的 still()：那边一进 hx-lite 就停，与这里无关。 */
 function hxLiteNow() {
   try {
     const q = location.search;
@@ -2345,7 +2358,7 @@ function ls_get(k) { try { return localStorage.getItem(k); } catch (e) { return 
 function applyHxLite() {
   const on = hxLiteNow(), r = document.documentElement;
   r.classList.toggle('is-lite', on);
-  r.classList.toggle('fx-lite', on);
+  // fx-lite 保持上面那套「真·弱机」的独立判定，不被模式开关覆盖（见注释里 2026-11-11 二次修正）。
 }
 applyHxLite();
 /* 总入口里换模式：同页面自定义事件 + 跨标签 storage 事件，两条都收，当场换档不用刷新。 */

@@ -14,24 +14,18 @@
      要登录时调 window.HXPortal.login()；被单独打开时 hx-theme.js 会跳回这里（见 hx-theme.js 的 data-tool）。
      账号：Supabase 华夏工具项目，localStorage paike-session 和各工具共用；身份由数据库 hx_me() 决定。
      脚本里不用反引号模板字符串（本机测试时整页当字符串注入到线上同源页面里）。 -->
-<link rel="stylesheet" href="hx-theme.css?v=08f0b23">
-<script src="hx-theme.js?v=08f0b23"></script>
+<link rel="stylesheet" href="hx-theme.css?v=2046f4d">
+<script src="hx-theme.js?v=2046f4d"></script>
 <!-- 首页卡片上的像素小生物：pixelfx 的 12 个 critters（MIT），打包成一个 91 KB 的独立脚本。
      加载失败不影响首页——hx-critters.js 开头就有 window.PixelFX 存在性检查，没有就整段跳过。 -->
-<script src="fx/pixelfx-critters.js?v=08f0b23" defer></script>
-<script src="fx/hx-critters.js?v=08f0b23" defer></script>
-<!-- 像素头像库（2026-11-04）：账号面板里除了传照片，还能从 200 多个像素动效里挑一个当头像。
-     2026-11-09 改按需加载（用户报「打不开、登录不了」）：这个库 pixelfx-avatars.js 有 1.0 MB，
-     而它只在「账号面板 → 像素头像库」这一个子视图里用得到。原来用 defer 挂在每一页上，
-     等于全班每开一次页面都要多下 1 MB 纯装饰 —— 首屏 1.67 MB 里 6 成是它。
-     现在是：不点「像素头像库」一个字节都不下；点了才 loadAvatarLib() 拉（见下面的函数）。
-     两个脚本的先后顺序不能反：hx-avatar.js 依赖 window.PixelFXAvatar。 -->
+<script src="fx/pixelfx-critters.js?v=2046f4d" defer></script>
+<script src="fx/hx-critters.js?v=2046f4d" defer></script>
 <!-- 背景动效（2026-11-03）：12 种天气氛围特效铺在背景层，外观面板里选；加载失败或没选就完全不加载渲染器 -->
-<script src="fx/pixelfx-weather.js?v=08f0b23" defer></script>
-<script src="fx/hx-weather.js?v=08f0b23" defer></script>
+<script src="fx/pixelfx-weather.js?v=2046f4d" defer></script>
+<script src="fx/hx-weather.js?v=2046f4d" defer></script>
 <!-- 课堂码大屏二维码：离线 QR 编码器（qrcode 1.5.4 core 打包，MIT，见 fx/NOTICE-qr.md）。延迟加载即可：只有老师点「大屏二维码」时才用 -->
-<script src="fx/hx-qr.js?v=08f0b23" defer></script>
-<script src="hx-scan.js?v=08f0b23" defer></script><!-- 全站扫一扫（2026-11-08 K5）：摄像头 + BarcodeDetector / 本地 jsQR -->
+<script src="fx/hx-qr.js?v=2046f4d" defer></script>
+<script src="hx-scan.js?v=2046f4d" defer></script><!-- 全站扫一扫（2026-11-08 K5）：摄像头 + BarcodeDetector / 本地 jsQR -->
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; width: 100%; overflow: hidden; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -716,11 +710,8 @@
   .who-top { display: grid; justify-items: center; gap: 6px; text-align: center; padding-bottom: 16px; margin-bottom: 8px; border-bottom: 1px solid var(--edge); }
   .who-top b { font-size: 21px; } .who-top small { color: var(--dim); word-break: break-all; font-size: 14px; }
   .rows { display: grid; margin-bottom: 14px; }
-  /* 像素头像库（2026-11-04）：账号面板里的一个子视图，不另开弹层，
-     窄面板里再叠一层很容易点穿；这里用「← 返回」回到账号信息。 */
-  .avlib-bar { display: flex; align-items: center; gap: 10px; margin: 2px 0 10px; }
-  .avlib-bar b { font-size: 15px; }
-  .avlib { max-height: min(48vh, 420px); overflow-y: auto; margin-bottom: 8px; -webkit-overflow-scrolling: touch; }
+/* 像素头像库已于 2026-11-11 删除（用户要求）：原来的 .avlib-bar / .avlib 样式（账号面板里那个
+   208 格像素头像子视图）随之清掉；头像现在只有「点左上角那张图 → 传照片」这一条路。 */
   .rows > * { display: flex; align-items: center; gap: 10px; min-height: 46px; padding: 0 4px; border: 0; border-bottom: 1px solid var(--edge); background: none; text-align: left; font-size: 15px; }
   .rows > * > span:first-child { color: var(--dim); min-width: 4.5em; } .rows > * > :nth-child(2) { flex: 1; text-align: right; word-break: break-all; }
   .rows > button:hover { color: var(--acc); }
@@ -1698,9 +1689,7 @@ function ensurePopX(k) {
   x.title = '关闭（Esc）';
   x.onclick = function (e) { e.stopPropagation(); closePops(); };
 }
-function closePops() { ['pop', 'look'].forEach(function (k) { if ($(k)) $(k).classList.remove('show'); }); $('scrim').classList.remove('show'); ST.edit = null; ST.avlib = false;
-  // 关面板时把头像库的循环也停掉：不停的话那个 rAF 会一直空转
-  if (ST.avPanel && ST.avPanel.destroy) { try { ST.avPanel.destroy(); } catch (e) { } ST.avPanel = null; }
+function closePops() { ['pop', 'look'].forEach(function (k) { if ($(k)) $(k).classList.remove('show'); }); $('scrim').classList.remove('show'); ST.edit = null;
   syncExp(); }
 function syncExp() { if ($('acct')) $('acct').setAttribute('aria-expanded', $('pop').classList.contains('show')); $('lookBtn').setAttribute('aria-expanded', $('look').classList.contains('show')); }
 function smallPic(file) { // 头像缩成 128 像素的方图，存成小图片地址放在账号资料里
@@ -1715,7 +1704,7 @@ function smallPic(file) { // 头像缩成 128 像素的方图，存成小图片�
 }
 /* 头像上传到 Storage（2026-11-09）：头像不再存 base64 到 user_metadata（18KB 会把 access_token 撑到 26KB，
    导致 Storage 上传 400），改成上传到桶 hx-avatars、avatar_url 只存公开 URL（几十字符）。
-   入参是 dataURL（smallPic 或像素头像 AV.frame 产出的），内部转 blob 上传，返回公开 URL。 */
+   入参是 dataURL（smallPic 产出的），内部转 blob 上传，返回公开 URL。 */
 function avatarUpload(dataUrl) {
   return new Promise(function (ok, no) {
     try {
@@ -1785,71 +1774,15 @@ function togglePop(k) {
   }
   syncExp();
 }
-/* 像素头像库按需加载（2026-11-09）：库 1.0 MB + 渲染器 45 KB，只有「账号面板 → 像素头像库」用得到。
-   返回 Promise：加载好 / 已经在加载中（同一个 Promise，不会重复插标签）/ 某一步失败。
-   失败不抛给调用方致命错误——renderPop 里会退回到「头像库没加载出来」那句话，页面照常用。 */
-var avLibP = null;
-function loadAvatarLib() {
-  if (window.HXAvatar) return Promise.resolve(true);
-  if (avLibP) return avLibP;
-  function one(src) {
-    return new Promise(function (res, rej) {
-      var s = document.createElement('script');
-      s.src = src; s.async = false;   // async=false：两个文件严格按插入顺序执行（hx-avatar 依赖库）
-      s.onload = function () { res(); };
-      s.onerror = function () { rej(new Error('加载失败：' + src)); };
-      document.head.appendChild(s);
-    });
-  }
-  avLibP = one('fx/pixelfx-avatars.js').then(function () { return one('fx/hx-avatar.js'); })
-    .then(function () { return !!window.HXAvatar; })
-    .catch(function () { avLibP = null; return false; });   // 失败清掉缓存，下次点还能重试
-  return avLibP;
-}
+/* 像素头像库已于 2026-11-11 删除（用户要求「删除像素头像库」）：原来的 loadAvatarLib() 在这里，
+   它按需加载 fx/pixelfx-avatars.js（1.0 MB）+ fx/hx-avatar.js；两个文件、NOTICE 与调用点都一并清掉了。
+   头像仍可在账号面板点左上角那张图上传照片（见 renderPop 里的 #pav）。 */
 function renderPop() {
   var i = info(), r = role() || '', m = ST.me || {}, E = ST.edit, html, form = function (inner) { return '<div class="f">' + inner + '<p class="msg" id="pmsg"></p><button class="btn" id="psave">保存</button><button class="btn link" id="pcancel">取消</button></div>'; };
   html = '<div class="who-top"><label class="avl" title="点击换头像">' + avatar(i, 'lg') + '<input type="file" id="pav" accept="image/*" hidden></label><b>' + esc(i.name) + '</b><small>' + (HX.synthetic(i.email) ? '' : esc(i.email)) + '</small><span class="pill acc">' + r + (m.student ? ' · ' + esc(m.student.class) : '') + '</span></div>';
-  // 像素头像库（2026-11-04）：除了上传照片，还能从 200 多个像素动效里挑一个当头像。
-  // 是一个子视图而不是新弹层：账号面板本来就窄，再叠一层容易点穿，返回键一按就回来。
-  if (ST.avlib) {
-    html += '<div class="avlib-bar"><button class="btn link" type="button" id="avback">← 返回</button><b>选一个像素头像</b></div><div class="avlib" id="avGrid"></div><p class="msg" id="avmsg"></p>';
-    $('pop').innerHTML = html;
-    ensurePopX('pop'); // 头像库子视图同样是整体重写，关闭钮要补回来
-    var grid = $('avGrid'), AV = window.HXAvatar;
-    if (!AV || !AV.panel) {
-      // 库是点了才下的（见上面的 loadAvatarLib），所以这里第一次进来一定是「还没好」。
-      // 先把「正在取」显示出来，下完自动重画一次；真失败才说那句「没加载出来」。
-      grid.innerHTML = '<p class="msg" id="avwait">正在取像素头像库（第一次点要多等一会儿，约 1 MB）…</p>';
-      loadAvatarLib().then(function (ok) {
-        if (!ST.avlib) return;                       // 等的过程中用户返回了 / 关掉了
-        if (ok) { renderPop(); return; }
-        var w = $('avwait');
-        if (w) w.textContent = '头像库没加载出来（网络可能不稳），再点一次「像素头像库」试试，或者直接用上面那张照片头像。';
-      });
-    }
-    else {
-      if (ST.avPanel && ST.avPanel.destroy) { try { ST.avPanel.destroy(); } catch (e) { } }
-      ST.avPanel = AV.panel(grid, {
-        size: 56,
-        onPick: function (id) {
-          var url = AV.frame ? AV.frame(id, 160) : '';
-          if (!url) { if ($('avmsg')) $('avmsg').textContent = '这个特效取不到画面，换一个试试。'; return; }
-          if ($('avmsg')) $('avmsg').textContent = '正在保存…';
-          slimToken().then(function () { return avatarUpload(url); }).then(function (pubUrl) {
-            return HX.setUser({ data: { avatar_url: pubUrl } }).then(function (u) {
-              ST.user = u; ST.avlib = false; toast('头像已换成像素头像'); render(); renderPop();
-            });
-          }).catch(function (er) { if ($('avmsg')) $('avmsg').textContent = er.message; });
-        }
-      });
-    }
-    $('avback').onclick = function () {
-      ST.avlib = false;
-      if (ST.avPanel && ST.avPanel.destroy) { try { ST.avPanel.destroy(); } catch (e) { } ST.avPanel = null; }
-      renderPop();
-    };
-    return;
-  }
+  // 像素头像库已于 2026-11-11 删除（用户要求）：它是 1.0 MB 的库 + 渲染器，做得再省也得按需下，
+  // 账号面板里那个入口一并去掉；头像仍可用「点左上角那张图 → 传照片」。相关文件 fx/pixelfx-avatars.js /
+  // fx/hx-avatar.js / NOTICE-avatars.md 与 loadAvatarLib() 都随之清掉。
   if (E === 'name') html += form('<input id="pname1" maxlength="20" value="' + esc(i.full || i.name) + '" placeholder="名字">');
   else if (E === 'uname') html += form('<input id="puname" maxlength="32" value="' + esc(ST.uname || '') + '" placeholder="如 11445" autocapitalize="none">');
   else if (E === 'claim') html += form('<input id="pcc" maxlength="16" placeholder="老师给的课堂码" autocapitalize="characters" autocomplete="off"><input id="pcno" inputmode="numeric" maxlength="20" placeholder="学号""><input id="pcnm" maxlength="20" placeholder="姓名（和班级名单一致）" value="' + esc(m.student ? m.student.name : '') + '">');
@@ -1859,7 +1792,6 @@ function renderPop() {
       '<button type="button" data-e="name"><span>名字</span><span>' + esc(i.full || i.name) + '</span></button>' +
       '<button type="button" data-e="uname"><span>账号名</span><span>' + (ST.uname === null ? '…' : esc(ST.uname || '未设置')) + '</span></button>' +
       '<button type="button" data-e="pw"><span>密码</span><span>修改</span></button>' +
-      '<button type="button" id="pavlib"><span>头像</span><span>像素头像库</span></button>' +
       (i.gh ? '<div><span>GitHub</span><span>' + esc(i.gh) + '</span></div>' : '<button type="button" id="plink"><span>GitHub</span><span>绑定</span></button>') + '</div>';
     if (r === '访客') html += '<div class="f" style="margin-bottom:14px"><button class="btn" type="button" data-e="claim">认证入班</button></div>'; // 好友码注册、老师后来才建班的学生，用课堂码补认证
     if (r === '未开通') html += '<div class="f" style="margin-bottom:14px"><button class="btn" id="pgo">填写邀请码开通</button></div>'; // 登录后会自动弹出；关掉了从这里再打开
@@ -1876,8 +1808,6 @@ function renderPop() {
       ST.user = await HX.setUser({ data: { avatar_url: await avatarUpload(await smallPic(f)) } }); toast('头像已更新'); render(); renderPop();
     } catch (er) { toast(er.message); }
   };
-  // 进像素头像库（子视图，见 renderPop 开头）
-  if ($('pavlib')) $('pavlib').onclick = function () { ST.avlib = true; renderPop(); };
   if ($('pcancel')) $('pcancel').onclick = function () { ST.edit = null; renderPop(); };
   if ($('psave')) $('psave').onclick = async function () {
     var b = $('psave'), msg = $('pmsg'); b.disabled = true; msg.textContent = '';
@@ -1981,7 +1911,10 @@ function renderLookBody() {
   var HSH = (location.hash || '').replace(/^#/, ''), PANE = /^[A-Za-z0-9_-]{2,32}$/.test(HSH) ? HSH : 'home';
   var PTOOL = null; for (var pi = 0; pi < TOOLS.length; pi++) if (TOOLS[pi].id === PANE) PTOOL = TOOLS[pi];
   var PNAME = PANE === 'home' ? '首页' : (PTOOL ? PTOOL.name : PANE);
-  var html = '<h3>外观</h3><p class="msg" style="margin:0 0 8px;color:var(--dim)">正在设置：<b style="color:var(--acc)">' + esc(PNAME) + '</b>' + (PANE === 'home' ? '' : '（只影响' + esc(PNAME) + '，首页和其它工具不变）') + '</p><div class="seg">' + [['light', '浅色'], ['dark', '深色'], ['auto', '自动']].map(function (x) { return '<button type="button" data-mode="' + x[0] + '" aria-pressed="' + (s.mode === x[0]) + '">' + x[1] + '</button>'; }).join('') + '</div>' +
+  var html = '<h3>外观</h3><p class="msg" style="margin:0 0 8px;color:var(--dim)">正在设置：<b style="color:var(--acc)">' + esc(PNAME) + '</b>' + (PANE === 'home' ? '' : '（只影响' + esc(PNAME) + '，首页和其它工具不变）') + '</p>' +
+    // 深浅（2026-11-11 用户定）：去掉「自动」（跟随系统）档 —— 用户原话「主题自动…不需要给用户切换，
+    // 默认深色主题」。只留 浅色 / 深色 两档，默认深色；老存档里存过 'auto' 的由 hx-theme.js 落成默认深色。
+    '<div class="seg">' + [['light', '浅色'], ['dark', '深色']].map(function (x) { return '<button type="button" data-mode="' + x[0] + '" aria-pressed="' + (s.mode === x[0]) + '">' + x[1] + '</button>'; }).join('') + '</div>' +
     '<h3>主题色</h3><div class="sw">' + Object.keys(A).map(function (k) { return '<button type="button" data-acc="' + k + '" title="' + A[k].name + '" aria-label="' + A[k].name + '" aria-pressed="' + (s.acc === k) + '" style="--c:' + (m === 'dark' ? A[k].d : A[k].l) + '"></button>'; }).join('') + '</div>' +
     '<h3>背景</h3><div class="bgs">' + Object.keys(B).filter(function (k) { return k !== 'custom' && (!B[k].dev || HXTheme.isDev()); }).map(function (k) {
       // 极光是视频壁纸，没有 img 只有 poster：缩略图用海报帧，否则格子里只剩灰底＋字，看不出是哪个
@@ -2001,7 +1934,7 @@ function renderLookBody() {
       return '<button type="button" data-wx="' + k + '" aria-pressed="' + (s.wx === k) + '">'
         + (k === 'none' ? '' : '<canvas data-wxp="' + k + '" aria-hidden="true"></canvas>')
         + '<span>' + WX[k].name + '</span></button>';
-    }).join('') + '</div><p class="msg" style="margin:6px 0 0;color:var(--dim)">铺在背景上的一层像素氛围动画，和背景主题互不覆盖；鼠标移上去能预览动态，一体机（省电模式）只显示静态一帧。</p>' +
+    }).join('') + '</div><p class="msg" style="margin:6px 0 0;color:var(--dim)">铺在背景上的一层像素氛围动画，和背景主题互不覆盖；鼠标移上去能预览动态。<b>极简模式下这一层整块不显示</b>（连画布都不建，2026-11-11 起），切到标准模式才会出现；系统开了「减少动态效果」时只显示静态一帧。</p>' +
     // 校徽水印（2026-11-04）：全站铺一层华夏校徽，卡片半透明时透出来。默认开，给个开关方便看不顺眼时关掉
     '<h3>校徽水印</h3><div class="seg">' + [['1', '显示'], ['0', '隐藏']].map(function (x) {
       return '<button type="button" data-wm="' + x[0] + '" aria-pressed="' + (String(s.wm) === x[0]) + '">' + x[1] + '</button>';
@@ -2084,7 +2017,10 @@ $('lookBtn').onclick = function (e) { e.stopPropagation(); togglePop('look');
   // 打开面板时顺手把云端相册拉一次（跨设备）：别的设备上传的图会自己补进「上传过的背景」，
   // 指纹一样（本机就是最新的）时它一个请求都不发。失败安静跳过，本地那份照旧用。
   // 拉回来会触发 onChange → renderLook，面板自己刷新。
-  if (HXTheme.sync) HXTheme.sync(); };
+  // 顺带对一次「外观设置跟账号」（2026-11-11）：正常加载时 idle 已经拉过一次，这里再调是幂等的，
+  // 只兜「先开了面板、idle 那次却还没跑」的边角；有未推上去的改动时它以本地为准补推，不会反向覆盖。
+  if (HXTheme.sync) HXTheme.sync();
+  if (HXTheme.prefSync) HXTheme.prefSync(); };
 // 2026-11-08：使用说明 / AI 额度改由首页卡片触发（见 render 里的 data-pop 卡片），顶栏两颗圆钮已撤
 $('scrim').onclick = closePops;
 document.addEventListener('click', function (e) {
@@ -3036,6 +2972,9 @@ async function refresh() {
     catch (e) { if (e.status === 401) { await HX.out(); HXTheme.setDev(false); } }
     migrateAvatar();
   } else HXTheme.setDev(false);
+  // 外观设置跟账号（2026-11-11）：登录 / 换账号 / 退出后都对齐一次 —— 把当前账号那份外观换上来。
+  // 内部按 owner 隔离本地，绝不会把上一个人的设置留给下一个人；换设备登同一个账号这里就把它带回来了。
+  try { if (HXTheme.prefSync) HXTheme.prefSync(); } catch (e) { }
   show(ST.tab || location.hash.slice(1), 'replace');
   if (role() === '未开通' && ST.actFor !== HX.uid() && !$('login').open) { ST.actFor = HX.uid(); openLogin('', 'act'); } // 每个账号每次打开网页只自动弹一次
 }

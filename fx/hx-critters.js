@@ -9,7 +9,7 @@
 //      · 帧率封顶：触屏/低端 18fps、桌面 50fps（像素画本来就 8～12fps 的观感，看不出差别）
 //      · IntersectionObserver：滚出视野的卡不画
 //      · 全局单循环（红线，永不改成每卡一个）
-//   3) hx-lite（教室一体机 / 省电）和 prefers-reduced-motion 下只画静态一帧，永不跑循环。
+//   3) hx-lite（极简模式）下**整只藏起来**，连一帧都不画（2026-11-11 用户定，见下面 hideInLite）；
 //   4) 标签页切到后台（document.hidden）立刻停；切回来重新起循环。
 //
 // 生物是随机挑的：2026-11-04 起每次刷新或新开网页都重新洗牌（用户要求「不要一成不变」），
@@ -51,7 +51,14 @@
   // 于是手机上首页 14 张卡的像素生物一张都不动。现在拆两级：
   //   · 硬停只有 hx-lite（真的硬件吃力）和页签切后台；
   //   · 减动效只是把帧率从 18/50 压到 6fps（见 fpsNow），画面还在动，但明显更缓。
+  /* 2026-11-11 用户定：「像素动效在极简模式都不显示是不是更好」—— 采纳。
+     原来极简下只是「停住」（留一张静图占着卡片右上角），现在**整只藏起来**：
+     卡片照常显示，只是不再有那只生物。理由：它纯装饰、不传达任何信息，
+     极简模式的目标就是「发热卡顿耗电全部让路」，留着静图既没用、还占一块 canvas。
+     注意：这条只管**首页卡片上的常驻氛围**；排位 321GO / 转场 / 结束横幅那些
+     一次性仪式感动效走 rank.js 自己的门控（那边现在不看 hx-lite，见 project2.html 的说明）。 */
   function still() { return lite(); }
+  function hideInLite() { return lite(); }
 
   // ── 2026-11-03 第二次改：从「按牌堆去重」升级到「按排位去重 + 色相变体」 ──
   // 上一版是「洗一副牌按顺序发，发完再洗」。它只保证**同一副牌内**不重复：
@@ -281,7 +288,7 @@
   // still()（希沃 / 省电 / 用户关了动画）时不进 kick，但要保证画面上有第一帧，
   // 否则卡片上端会留一块空白。所以这里补一次静态绘制。
   // 只在 attach 里调用一次；没有 stop() 了 —— 卡片一旦挂上就一直动，
-  // 停止的唯一途径是 still()（hx-lite / reduced-motion）、滚出视野、或页签切后台。
+  // 停止的唯一途径是 still()（hx-lite）、滚出视野、或页签切后台。
   function start(e) {
     e.active = true;
     if (still()) { if (!e.drawn) paint(e, 0); return; }
@@ -291,6 +298,13 @@
   // 给一张卡挂上生物。tile 是 .tile 按钮，id 是工具 id（决定配哪只）
   function attach(tile, toolId) {
     if (!tile || tile.querySelector('.fxc')) return;
+    // 2026-11-11：把发牌用的 key 记在卡片自己身上。原本这个 key 只在调用点（index.html）知道，
+    // 一旦极简下不建生物、退出极简又没人逐个重挂，卡片就会一直空着。记下来之后
+    // MutationObserver 里的 reattachAll() 能自己把卡找齐、按原 key 重发（保证生物不跳变）。
+    tile.__hxCritKey = toolId;
+    // 极简模式：整只不建（连 canvas 都不插）。用户原话「像素动效在极简模式都不显示是不是更好」。
+    // 放在最前面 return，省掉建 canvas / 建特效实例 / 观察器这一整串开销 —— 它纯装饰、不承载信息。
+    if (hideInLite()) return;
     sweep(); // 先清掉上一轮重建留下的死记录，不然每切一次工具就多攒 9 条（每条攥着 ImageData）
     var wrap = document.createElement('span');
     wrap.className = 'fxc';
@@ -392,24 +406,50 @@
     }
   });
   /* 2026-11-08 补一个省电缺口：原来只有 visibilitychange 一条，`html.hx-lite` 是**运行中**变出来的
-     （用户在总入口切省电、或窗口跨 820 断点重新判档），但这里没人监听它 ——
-     entry 还是 active、循环还在跑，省电开关等于对像素生物无效，这是真实的白烧电。
-     现在挂 MutationObserver 看 html 的 class：一进 hx-lite 立刻停循环（并补一帧静图），
-     退出来再踢起来。这是「手机容易发烫」里能直接修掉的一条。 */
+     （用户在总入口切极简、或窗口跨 820 断点重新判档），但这里没人监听它 ——
+     entry 还是 active、循环还在跑，极简开关等于对像素生物无效，这是真实的白烧电。
+     2026-11-11 二次修正（用户原话「像素动效在极简模式都不显示是不是更好」）：
+     上一版进极简只是「停循环 + 补一帧静图」，安静是安静了，但 17 张 canvas 还挂在卡片上，
+     仍占内存、仍要合成。现在改成**真移除**：进极简把每只 .fxc 从卡片上摘掉，
+     退出极简再逐个重挂（key 存在卡片的 __hxCritKey 上，所以重挂还是原来那只，不会跳变）。
+     崩溃时的兜底：就算 MutationObserver 一次都没触发，attach() 开头的 hideInLite() 也拦得住 ——
+     两道闸是给两条不同路径用的（attach = 初次挂载，observer = 运行中切档）。 */
+
+  // 进极简：整只摘掉（连同 wrap 里的 canvas），并清空 entries —— 不留静图、不留死记录。
+  function detachAll() {
+    if (raf) { cancelAnimationFrame(raf); raf = 0; }
+    lastPaint = 0;
+    for (var i = 0; i < entries.length; i++) {
+      var e = entries[i];
+      if (io && e.wrap && e.wrap.__hxCrit === e) { try { io.unobserve(e.wrap); } catch (x) { } }
+      if (e.wrap) { try { e.wrap.remove(); } catch (x2) { } }
+    }
+    entries = [];
+  }
+
+  // 退出极简：把现存的卡片按记录下来的 key 重新挂上（不碰已经挂在卡上的）。
+  // 用 querySelectorAll('.tile') 而不是 '.tile[data-id]'：管理区那批卡（index.html 里
+  // HXCritters.attach(b, 'mg-' + b.dataset.k)）带的是 data-k 不是 data-id，漏掉它们的话
+  // 退出极简后管理面板的卡就永远空着了。统一认 __hxCritKey 这个我们自己写的标记。
+  function reattachAll() {
+    var tiles = document.querySelectorAll('.tile'), n = 0;
+    for (var i = 0; i < tiles.length; i++) {
+      var b = tiles[i], k = b.__hxCritKey;
+      if (!k || b.querySelector('.fxc')) continue;
+      attach(b, k);
+      n++;
+    }
+    if (n) kick();
+  }
+
   if (typeof MutationObserver === 'function' && document.documentElement) {
     var wasLite = lite();
     new MutationObserver(function () {
       var now = lite();
       if (now === wasLite) return;
       wasLite = now;
-      if (now) {
-        if (raf) { cancelAnimationFrame(raf); raf = 0; }
-        lastPaint = 0;
-        for (var i = 0; i < entries.length; i++) if (!entries[i].drawn) paint(entries[i], 0);
-      } else {
-        lastPaint = 0;
-        kick();
-      }
+      if (now) detachAll();   // 进极简：连 canvas 一起撤走
+      else reattachAll();     // 退出极简：原样挂回来
     }).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
   }
 
@@ -418,6 +458,8 @@
   window.HXCritters = {
     attach: attach, sweep: sweep, ids: IDS, pool: POOL,
     _pick: pickFor,
+    // 给离线回归脚本用的两个门（_lite-switch.cjs 直接调，不必靠改 html class 间接触发）
+    _detachAll: detachAll, _reattachAll: reattachAll,
     info: function () {
       var out = [];
       for (var i = 0; i < entries.length; i++) {

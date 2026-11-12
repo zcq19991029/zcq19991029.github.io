@@ -4,8 +4,8 @@
 // 设计（对照 fx/hx-critters.js 的三条红线，这里是第四个消费者，规矩一致）：
 //   1) 全局只有一个 rAF 循环，一整页就一张画布（320×180 的像素帧整数倍放大铺满，不是每特效一个循环）；
 //   2) 帧率封顶 24fps（氛围动画，30 和 24 看不出差别，省下三分之一的合成开销）；
-//   3) hx-lite（希沃一体机 / 省电）和 prefers-reduced-motion 下只画静态一帧，永不跑循环；
-//      页签切到后台立刻停。
+//   3) prefers-reduced-motion 下只画静态一帧；**hx-lite（极简模式）下整块画布不建**（2026-11-11 用户定，
+//      同 hx-critters：氛围像素动效在极简下不显示，连 canvas 都不留）；页签切到后台立刻停。
 // 和背景主题的关系：画布 z-index:-1、插在 body 最后 —— 画在背景层 body::before 之上、
 // 所有卡片之下，卡片玻璃本来就是半透明的，动效透出来正好；两层互不覆盖（一个选背景、一个选动效）。
 // 默认「无」：不选就一个字节都不画，和以前完全一样。
@@ -18,7 +18,7 @@
     try { var v = JSON.parse(localStorage.getItem(KEY)); return v && P.effects[v.wx] ? v.wx : null; } catch (e) { return null; }
   }
   function lite() { return document.documentElement.classList.contains('hx-lite'); }
-  function still() { return lite() || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches); }
+  function still() { return (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches); }
 
   var cvs = null, g = null, img = null, frame = null, fx = null, mod = null, W = 0, H = 0;
   var raf = 0, lastPaint = 0, cur = null;
@@ -72,7 +72,7 @@
     g.clearRect(0, 0, W, H);
     g.putImageData(img, 0, 0);
   }
-  function fpsCap() { return lite() ? 18 : 24; }
+  function fpsCap() { return 24; }
   function kick() {
     if (still() || document.hidden || !fx || raf) return;
     raf = requestAnimationFrame(step);
@@ -90,14 +90,33 @@
   }
 
   // ── 接线：跟随外观设置（wx 字段），换选项即时生效；storage 事件让同站其它页一起变 ──
+  // 2026-11-11：极简模式下**整块不建**（连 canvas 都不挂）—— 用户原话「像素动效在极简模式都不显示」。
+  // 和 hx-critters 的区别：那边是摘掉已有的 .fxc；这边本来就是在 mount 里建 canvas，
+  // 只要在 wxOn() 里把极简这一档直接判成「没有动效」，两条路径（首次进页 / 运行中切档）就都堵死了。
+  function wxOn() { return !lite(); }
   function sync() {
     var wx = wxOf();
+    // 极简：视同「无动效」。cur 记成 null 而不是 wx，这样退出极简时 wx!==cur 会自然重挂。
+    if (!wxOn()) {
+      if (cur !== null) { cur = null; remove(); }
+      return;
+    }
     if (wx === cur) return;
     cur = wx;
     if (!wx) return remove();
     mount(wx);
   }
-  addEventListener('storage', function (e) { if (e.key === KEY || e.key === null) sync(); });
+  addEventListener('storage', function (e) { if (e.key === KEY || e.key === null || e.key === 'hx-lite') sync(); });
+  // 运行中在同一页切极简/标准：html.hx-lite 一变就重新 sync（storage 只在别的标签页触发）
+  if (typeof MutationObserver === 'function' && document.documentElement) {
+    var wasLite = lite();
+    new MutationObserver(function () {
+      var now = lite();
+      if (now === wasLite) return;
+      wasLite = now;
+      sync();
+    }).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+  }
   if (window.HXTheme && HXTheme.onChange) HXTheme.onChange(sync);
   document.addEventListener('visibilitychange', function () {
     if (document.hidden) stop(); else kick();

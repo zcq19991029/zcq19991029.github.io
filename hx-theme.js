@@ -53,6 +53,8 @@
   var KEY = 'hx-theme', SKEY = 'hx-theme:s:', IMG = 'hx-theme-img', DEV = 'hx-dev', VER = 7,
     // 2026-11-05 用户定：默认进来 = 深色主题 + 两个滑杆都 100%（通透度 100 = 深色清透玻璃，背景最透出）。
     // 之前默认 mode:'auto'，Mac 浅色系统打开就是浅色 + 旧白玻璃配方，用户原话「玻璃质感不高级 仅仅只是白色雾蒙蒙」。
+    // 2026-11-11 用户定（第二次）：「主题自动…不需要给用户切换，默认深色主题」。深浅**不再有 auto 档**，
+    //   只留 浅色 / 深色 两个按钮，默认深色；老存档里 mode:'auto' 的按当时实际显示落成 light/dark（见 get()）。
     DEF = { acc: 'green', mode: 'dark', bg: 'none', clr: 100, bgo: 100, wx: 'none' };
   // 2026-11-11 用户定（第二次改默认背景）：「极光背景改 … 使用默认静态背景？比如就用深色总默认 无背景
   //   可以选极光 加入选择不强制」。所以全站默认背景从 `aurora`（动态视频壁纸）改成 `none`
@@ -436,7 +438,9 @@
         return home ? 1 : 0;
       })(),
       acc: ACC[src('acc')] ? src('acc') : DEF.acc,
-      mode: /^(light|dark|auto)$/.test(src('mode')) ? src('mode') : DEF.mode,
+      // 深浅（2026-11-11 起没有 auto 档）：老存档里存的 'auto' 不再跟系统跑，一律落成默认深色
+      //   （用户原话「主题自动…不需要给用户切换，默认深色主题」）；非法值同样落默认。
+      mode: /^(light|dark)$/.test(src('mode')) ? src('mode') : DEF.mode,
       // 卡片通透度（2026-11-05 翻转语义）：100 = 最透（清透玻璃、背景透出来，默认），0 = 最实。
       clr: clamp01(+src('clr'), DEF.clr),
       // 背景清晰度：100 = 原样显示（最清楚），0 = 背景几乎看不见、只剩页面底色。
@@ -448,7 +452,8 @@
   }
   function isDev() { return ls(DEV) === '1'; } // 总入口查到 hx_me().dev 后记下（见 setDev），各工具打开时据此决定能不能用专属背景
   function setDev(on) { if (isDev() === !!on) return; ls(DEV, on ? '1' : null); apply(); }
-  function modeOf(s) { return s.mode === 'auto' ? (dark && dark.matches ? 'dark' : 'light') : s.mode; }
+  // 深浅：2026-11-11 起没有 auto 档，get() 已经保证只可能是 light / dark，这里只做兜底透传。
+  function modeOf(s) { return s.mode === 'light' ? 'light' : 'dark'; }
   // ── 省电模式（hx-lite）─────────────────────────────────────────────────────
   // 2026-11-02：教室里的希沃一体机点工具会弹「重新加载站点」。查下来是渲染进程崩了：
   // 首页十几张卡 + 刷题一屏五六张卡，每张各自 backdrop-filter: blur(26px)，外加背景图，
@@ -945,6 +950,12 @@
   }
   function wxApply(id) {
     if (!tool) return;                      // 首页交给 fx/hx-weather.js（它读旧全局键 = 首页自己的存档）
+    /* 2026-11-11：极简模式下工具页这一层的**整块不建**（连 canvas 都不挂）—— 与首页 hx-weather.js 同规。
+       用户原话「像素动效在极简模式都不显示」。这里把请求的 id 先判成「无」，
+       于是下面的 id===wxCur 短路依然成立（切到极简：wxCur 从原值变 null → 走 wxRemove；
+       切回标准：wxCur 从 null 变原值 → 走 wxMount），不用额外加分支。
+       注意不要只看「相册里的 wx 值」就决定建不建：apply() 在切极简时会再调一次本函数，靠的就是这条。 */
+    if (document.documentElement.classList.contains('hx-lite')) id = null;
     if (id === wxCur) return;
     wxCur = id;
     if (!id) return wxRemove();
@@ -979,7 +990,13 @@
     var embedded = !!(tool && window.top !== window);
     var c = m === 'dark' ? a.d : a.l, c2 = m === 'dark' ? a.d2 : a.l2;
     r.setAttribute('data-hx-mode', m); r.setAttribute('data-theme', m); r.setAttribute('data-hx-acc', s.acc);
-    r.classList.toggle('hx-bg', s.bg !== 'none' || (tool && s.wx !== 'none'));
+    /* 2026-11-11：极简模式下背景动效整块不建（见 wxApply 注释），所以这里算「有没有动效可看」时
+       也得把 wx 那一条去掉 —— 否则背景=无、只选了动效的页面会挂着一个 hx-bg / hx-layer，
+       但画布根本没建：对用户是一层多出来的空底色，对接线仿真这类工具是「画布莫名变半透明」。
+       读两条：liteOn()（存档）+ html.hx-lite 类（当前实际生效态，切换那一刻两者可能差一拍）。 */
+    var liteNow = liteOn() || r.classList.contains('hx-lite');
+    var hasWx = !liteNow && s.wx !== 'none';
+    r.classList.toggle('hx-bg', s.bg !== 'none' || (tool && hasWx));
     // ↑ 工具页只开了动效、没开背景时也要挂 hx-bg：接线仿真这类工具靠 hx-bg + --hx-img 判断
     //   「要不要把自己的画布调成半透明」（见下面透明哨兵图那段）。hx-theme.css 里 html.hx-bg 的
     //   几条规则此时铺的是透明哨兵图，肉眼无感，不会多出一层画面。
@@ -987,7 +1004,7 @@
     // 页面层开关（VER 6）：有背景或动效可看时才把 body 放透明、铺页面底色；
     // 两个都是「无」时不挂 —— 页面保持自己原来的底色，就是用户要的干净纯色背景。
     // 嵌入时不挂：body::before 这一层背景由总入口透上来，挂了自己又画一遍 = 双重背景。
-    r.classList.toggle('hx-layer', !embedded && (s.bg !== 'none' || s.wx !== 'none'));
+    r.classList.toggle('hx-layer', !embedded && (s.bg !== 'none' || hasWx));
     // 视频壁纸：图层面自己播。--hx-img 给海报帧而不是 'none'：
     //   · 视频解码好之前 body::before 先铺海报，避免黑屏闪一下；
     //   · 接线仿真这类「画布不透明的工具」靠读 --hx-img 拿到背景图地址（theme.js 的 hxLook 通道），
@@ -1013,7 +1030,7 @@
     // hxLook 传过去的 --hx-img（有图才肯透）。所以这里放一张 1px 的透明 GIF 冒充「有背景」：
     // 练习页把画布调成半透明、把一张透明图铺在自己 html 底上（等于透明），
     // 真正的画面由外壳的动效画布 + iframe 里的镜像画布透上来。背景选了真图时不走这条。
-    var wxOn = !!tool && s.wx !== 'none';
+    var wxOn = !!tool && hasWx;   // 极简下 hasWx 恒 false：那时动效画布压根不建，哨兵也没意义
     if (wxOn && s.bg === 'none') img = 'url("data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7")';
     // --hx-a：玻璃浓度乘数（各条玻璃配方的 alpha 都乘它）。
     // 2026-11-05 随通透度滑杆翻转语义：100（最透）= 1，正好是 2026-11-04 定稿的那套清透玻璃；
@@ -1065,6 +1082,7 @@
     // 本页的 apply() 只是把面板重画一遍（get() 读的也是那一层，按钮高亮才对得上）。
     if (hitO) { o.ver = VER; try { ls(SKEY + surf, JSON.stringify(o)); } catch (e) { } }
     apply();
+    prefPush();   // 外观改了 → 防抖推一份到账号（没登录时它是空操作）
   }
   // 自己上传的图：缩到长边 1920、转 JPEG，免得撑爆浏览器存储（旧站是原图、限 3MB）
   // ── 上传过的背景：留一本历史（2026-11-04）──
@@ -1229,6 +1247,131 @@
       .then(function () { setTimeout(cloudSync, 400); })
       .catch(function () { });
   }
+  /* ── 外观设置跟账号走（2026-11-11 用户要求）─────────────────────────────────
+     用户原话：「用户更改设置一定是跟着用户账号绑定到带走的，包括主题背景，不能被别人账号覆盖」。
+     要做到三件事：
+       ① 换设备 / 换浏览器，只要登同一个账号，外观（主题色 / 深浅 / 背景 / 动效 / 水印 /
+          两根滑杆 / 极简-标准模式，以及每个工具页各自那一份）都得跟着回来；
+       ② 同一台机器上换个人登录，看到的必须是**他自己**的外观，不能是上一个人改的；
+       ③ 谁的设置都改不到别人头上 —— 这条由数据库兜底（表 public.hx_pref 的 RLS 只认本人，
+          行主键 owner = auth.uid()，A 在物理上就写不到 B 那一行）。
+
+     云端存什么：**只存设置快照**（键值对，几百字节 ~ 几 KB），键名就是 localStorage 的键名。
+     背景图片本体**不进快照**（一张几 MB，进 jsonb 会把行撑爆）：图仍由 public.hx_bg 按张存，
+     快照里只留 bg:'custom' 这个指向，cloudSync 会按 cur 把图补下来（上面那段逻辑）。
+
+     本地怎么隔离两个账号：另外记一个「这套外观现在属于谁」的记号 hx-pref-owner（存 user id）。
+     记号一变（登录 / 换人 / 退出）就先把本地这份归档到 hx-pref-bak:<旧owner>，再换上新的那份：
+       · 新账号在本机有归档 → 先铺上归档，随后云端那份会覆盖它（云端才是权威）；
+       · 新账号本机从没登录过 → 先清成默认，随后云端那份覆盖它（没有云端行就把默认推上去当初始）；
+       · 退出登录 → 回到本机「匿名」那份（没有就默认），登录页不残留上一个人的样子。 */
+  var PREF_TBL = '/rest/v1/hx_pref', POWN = 'hx-pref-owner', PBAK = 'hx-pref-bak:', PDIRTY = 'hx-pref-dirty';
+  function prefApi(path, o) {
+    o = o || {};
+    var t = bgTok(); if (!t) return Promise.reject(new Error('没登录'));
+    var h = { apikey: SKEY_PUB, Authorization: 'Bearer ' + t, 'Content-Type': 'application/json' };
+    if (o.prefer) h.Prefer = o.prefer;
+    return fetch(SUPA + PREF_TBL + path, { method: o.method || 'GET', headers: h, cache: 'no-store', body: o.body ? JSON.stringify(o.body) : undefined })
+      .then(function (r) {
+        if (!r.ok) return r.text().then(function (x) { throw new Error((x || '').slice(0, 140) || ('HTTP ' + r.status)); });
+        return r.status === 204 ? null : r.json().catch(function () { return null; });
+      });
+  }
+  // 从登录态里取 user id：优先 user.id；续期回来的会话通常只有 access_token，那就解 JWT 的 sub
+  function jwtSub(t) {
+    try {
+      var p = String(t).split('.')[1]; if (!p) return '';
+      p = p.replace(/-/g, '+').replace(/_/g, '/'); while (p.length % 4) p += '=';
+      return JSON.parse(decodeURIComponent(escape(atob(p)))).sub || '';
+    } catch (e) { return ''; }
+  }
+  function prefUid() {
+    try {
+      var s = JSON.parse(ls(SKEY_SESS) || 'null'); if (!s) return '';
+      if (s.user && s.user.id) return String(s.user.id);
+      return s.access_token ? String(jwtSub(s.access_token) || '') : '';
+    } catch (e) { return ''; }
+  }
+  // 快照要收哪些键：首页的全局外观键、各界面自己的键、极简模式开关。
+  // 不收 hx-theme-img / hx-theme-imgs（图片本体走 hx_bg）、不收 hx-dev（服务端算出来的身份）。
+  function prefKeys() {
+    var out = [];
+    try {
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i);
+        if (k === KEY || k === 'hx-lite' || k.indexOf(SKEY) === 0) out.push(k);
+      }
+    } catch (e) { }
+    return out;
+  }
+  function prefSnapData() {
+    var d = {};
+    try { prefKeys().forEach(function (k) { var v = localStorage.getItem(k); if (v != null) d[k] = v; }); } catch (e) { }
+    return d;
+  }
+  function prefApplyData(d) {
+    try { prefKeys().forEach(function (k) { localStorage.removeItem(k); }); } catch (e) { }
+    if (d) for (var k in d) if (Object.prototype.hasOwnProperty.call(d, k)) { try { localStorage.setItem(k, d[k]); } catch (e) { } }
+  }
+  function prefOwner() { try { return localStorage.getItem(POWN) || ''; } catch (e) { return ''; } }
+  function setPrefOwner(u) { try { if (u) localStorage.setItem(POWN, u); else localStorage.removeItem(POWN); } catch (e) { } }
+  function saveBak(u, data) { try { if (u) localStorage.setItem(PBAK + u, JSON.stringify(data)); } catch (e) { } }
+  function loadBak(u) { try { var r = u ? localStorage.getItem(PBAK + u) : null; return r ? JSON.parse(r) : null; } catch (e) { return null; } }
+  function markDirty() { try { localStorage.setItem(PDIRTY, '1'); } catch (e) { } }
+  function clearDirty() { try { localStorage.removeItem(PDIRTY); } catch (e) { } }
+  function prefPushNow(uid) {
+    uid = uid || prefUid(); if (!uid) return Promise.resolve(false);
+    return prefApi('?on_conflict=owner', {
+      method: 'POST', prefer: 'resolution=merge-duplicates,return=minimal',
+      body: [{ owner: uid, data: prefSnapData() }]
+    }).then(function () { clearDirty(); return true; }).catch(function () { return false; });
+  }
+  var prefT = 0, prefRun = null;
+  // 改设置后调用：防抖 1.5 秒推一次（滑杆拖动会连着调几十次，不能每一下都发请求）。
+  // 同时打一个「有没推上去的改动」标记：下次打开页面若还带着它，就以本地为准补推，别被云端旧值盖掉。
+  function prefPush() { markDirty(); if (prefT) clearTimeout(prefT); prefT = setTimeout(function () { prefT = 0; prefPushNow(); }, 1500); }
+  /* 打开页面 / 登录 / 换账号时调一次：先按 owner 隔离本地，再和云端对齐。 */
+  function prefSync() {
+    var uid = prefUid(), own = prefOwner();
+    if (uid !== own) {
+      /* 账号变了。这里有两种情况，处理**必须分开**（2026-11-11 修用户报的「首次登录后背景没了」）：
+         · own 有值 = 从某个账号换到另一个账号（或退出登录）→ 本地这份属于旧 owner：
+           先归档给他，再清干净 —— 绝不能把上一个人的外观留给下一个人；
+         · own 为空 = 这台设备还没归属过任何账号（第一次登录，或一直是未登录状态）→
+           本机这份就是这个人自己之前调好的（他先用了网站，后来才登录），**必须先留着**，
+           等下面第③步问过云端再说：云端有 → 以云端为准铺下来；云端是空的 → 拿本地这份当初始快照推上去。
+         上一版在这里一律 prefApplyData(null)，把「首次登录」也当成「换账号」清了一遍 ——
+         于是老用户新登录的那一下，他挑好的背景/主题色当场消失，还被当成空快照推上云端（云端也一起空了）。 */
+      var hadOwner = !!own;
+      if (hadOwner) saveBak(own, prefSnapData());
+      var next = uid ? loadBak(uid) : null;
+      if (next) prefApplyData(next);              // 本机有他这份归档 → 铺回来
+      else if (hadOwner) prefApplyData(null);     // 换账号/退出：清成默认，不留上一个人的
+      // hadOwner === false 且没有归档：**什么都不清**，保留本机这份，交给第③步定夺
+      setPrefOwner(uid); clearDirty();
+      try { apply(); } catch (e) { }
+    }
+    if (!uid) return Promise.resolve(false);
+    // ② 本地还有没推上去的改动 → 以本地为准补推（刚改完就刷新，别把改动丢了）
+    if (ls(PDIRTY) === '1') return prefPushNow(uid);
+    // ③ 正常：拉云端那份下来铺上
+    if (prefRun) return prefRun;
+    prefRun = prefApi('?select=data&owner=eq.' + uid + '&limit=1')
+      .then(function (rows) {
+        var row = rows && rows[0], d = row && row.data;
+        if (d && typeof d === 'object' && Object.keys(d).length) prefApplyData(d);
+        else return prefPushNow(uid);     // 云端还没有：把这台机器上这份当成初始快照推上去
+        return false;
+      })
+      .then(function (seeded) {
+        if (seeded) { try { apply(); } catch (e) { } return true; }
+        try { apply(); } catch (e) { }
+        return true;
+      })
+      .catch(function () { return false; })
+      .then(function (v) { prefRun = null; return v; });
+    return prefRun;
+  }
   function upload(file) {
     return new Promise(function (ok, no) {
       if (!/^image\//.test(file.type)) return no(new Error('请选一张图片'));
@@ -1314,6 +1457,20 @@
     if (window.requestIdleCallback) requestIdleCallback(go, { timeout: 4000 });
     else setTimeout(go, 2500);
   })();
+  // 外观设置跟账号走（2026-11-11）：
+  //   · 打开页面（idle 后）→ 按 owner 隔离本地 + 和云端对齐一次；
+  //   · 之后盯着 paike-session 变化（登录 / 换账号 / 退出）→ 再对齐一次，把账号那份换上来。
+  // 顺序上放在 cloudSync 之后：prefSync 会 apply()，而 apply() 里若 bg='custom' 要靠 cloudSync 补图，
+  // 两个都在 idle 里跑，谁先谁后都行 —— 它们各自 apply 一次，最终态一致。
+  (function () {
+    function go() { try { prefSync(); } catch (e) { } }
+    if (window.requestIdleCallback) requestIdleCallback(go, { timeout: 4000 });
+    else setTimeout(go, 2600);
+    addEventListener('storage', function (e) {
+      // 同一网站的别的页面登录 / 换账号 / 退出 → 本页跟着换外观（SKEY_SESS 在 hx-theme.js 里叫 SKEY_SESS）
+      if (e.key === SKEY_SESS || e.key === null) { try { prefSync(); } catch (er) { } }
+    });
+  })();
   window.HXTheme = { acc: ACC, bg: BG, wx: WX, root: root, surface: SURF, get: get, mode: function () { return modeOf(get()); }, set: set, upload: upload, reset: reset, isDev: isDev, setDev: setDev, onChange: function (fn) { subs.push(fn); },
     portal: portal, login: function () { var p = portal(); if (p) p.login(); else location.href = root + (tool ? '#' + tool : ''); },
     // 未登录闸门结果：工具页拿到 true 就该立刻停下（别先画界面再被跳走）
@@ -1323,21 +1480,23 @@
     // 云端同步（2026-11-09）：打开外观面板时调一次，把别的设备上传的图拉下来。
     // 先发一个只取目录的小请求，指纹一样就到此为止；不一致才按 id 补下载缺的那几张。
     sync: cloudSync,
+    // 外观设置跟账号（2026-11-11）：登录后调一次，把账号里存的外观拉下来铺上；
+    // 换账号 / 退出登录也调它（内部按 owner 隔离，绝不把上一个人的设置留给下一个人）。
+    prefSync: prefSync,
     // 像素方块「正在载入」药丸（2026-11-04）：见文件上方 loadPill 那段注释。
     // HXTheme.loadPill(host, '正在载入…') / loadPill('正在载入…')（铺满整页）；返回 { el, text(), done() }
     loadPill: loadPill, bgPause: bgPause,
-    // 省电模式开关（2026-11-09 用户要的按钮）：不传参 = 读当前是否省电；
-    // 传 '1' / '0' = 强制开 / 关（写进 localStorage，以后每台机器每次打开都记住）；
-    // 传 'auto' = 清掉手工选择，回到「按机器自动判定」（一体机、国产盒子等弱机自动省电）。
+    // 极简 / 标准开关（2026-11-09 用户要的按钮，2026-11-11 改名 + 定默认）：
+    // 不传参 = 读当前是不是极简；传 '1' / '0' = 标准模式 / 极简模式（写进本地，这台机器记住）。
+    // 2026-11-11 用户定：「模式自动不需要给用户切换，默认极简」——不再有 'auto' 档，
+    //   传 'auto' 当没传处理（只读）。历史上 'auto' 是「清掉手工选择回到按机器猜」，
+    //   现在默认就是极简、也不必猜机器，那条分支去掉了。
     // 设置完**当场生效**：html.hx-lite 一变，像素小生物 / 头像 / 天气动效的动画循环下一帧就停
     // （它们每一帧都查这个类，不是只在加载时查一次），再跑一次 apply() 把背景视频摘掉、
     // 只留海报帧，CSS 合成动画层（hx-bg-mo）也一起摘。
     lite: function (v) {
-      if (v === undefined) return liteOn();
-      try {
-        if (v === 'auto') localStorage.removeItem('hx-lite');
-        else localStorage.setItem('hx-lite', v === '1' ? '1' : '0');
-      } catch (e) { }
+      if (v === undefined || v === 'auto') return liteOn();
+      try { localStorage.setItem('hx-lite', v === '1' ? '1' : '0'); } catch (e) { }
       var on = liteOn();
       document.documentElement.classList.toggle('hx-lite', on);
       try { apply(); } catch (e) { }
@@ -1345,6 +1504,7 @@
          当场换档，不用刷新。用 storage 事件够不到同页面，所以两条腿都走：
          ① 立刻派发自定义事件（同页监听）；② 写 localStorage 让别的标签页/iframe 收到 storage 事件。 */
       try { dispatchEvent(new CustomEvent('hx-lite-change', { detail: { lite: on } })); } catch (e) { }
+      prefPush();   // 模式也是外观的一部分 → 一起存进账号
       return on;
     },
     /* 2026-11-11：给接线仿真这类 canvas 页读「现在是不是极简」。不传参 = 读；
