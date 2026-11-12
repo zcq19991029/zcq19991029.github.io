@@ -1,0 +1,198 @@
+/* ============================================================================
+   学生端共用外观层（2026-11-12）
+   ----------------------------------------------------------------------------
+   用户原话：「学生端的小组加分 ui 和查看成绩界面 ui 还不好看 可以优化」
+
+   为什么单独一份文件、而不是直接改 scores.css / team.css：
+   两页（scores.html 查分、team.html 选桌组队）本来就是照同一套 token 写的
+   （--bg/--panel/--ink/--muted/--brand…），但都**只写了浅色**：
+   深色主题下仍是白底黑字，跟整站对不上；卡片也是死白实心，壁纸一点都透不出来。
+   所以这一层做三件事，全部写成「后加载的覆盖」，随时可以整份删掉回滚：
+     ① 深色主题：把两页的 token 整体换成站点的深色值（hx-theme.js 的 data-hx-mode）；
+     ② 毛玻璃：有壁纸（html.hx-layer）时卡片半透明 + 细亮边 + 柔影，和首页工具卡同一套语言；
+        没壁纸（极简模式）时退回实色，不额外吃性能；
+     ③ 细节：圆角/层级/数字排版/页签、表格在深色下的底色，逐条改到「像同一个产品」。
+
+   只碰颜色与几何，**不动任何 class 名**——scores.js / team.js 生成的 DOM 一个字节都不用改。
+   ========================================================================== */
+
+/* ---------- ① 深色主题：整体换 token ---------- */
+:root[data-hx-mode="dark"] {
+  --bg: #0b0b0c;
+  --panel: #1c1c1e;
+  --panel-soft: rgba(255, 255, 255, .06);
+  --line: rgba(255, 255, 255, .10);
+  --line-strong: rgba(255, 255, 255, .20);
+  --ink: #f5f5f7;
+  --muted: #a1a1a6;
+  --brand: #5b8cff;
+  --brand-soft: rgba(91, 140, 255, .16);
+  --ok: #30d158;
+  --ok-soft: rgba(48, 209, 88, .14);
+  --warn: #ff9f0a;
+  --warn-soft: rgba(255, 159, 10, .16);
+  --danger: #ff453a;
+  --danger-soft: rgba(255, 69, 58, .16);
+  color-scheme: dark;
+}
+/* 有壁纸时页面底色交给 hx-theme.js 铺的那层（html.hx-layer），这里只把 body 让出来 */
+html.hx-layer body { background: transparent; }
+
+/* ---------- ② 卡片：细边 + 柔影 + 有壁纸时半透明 ---------- */
+.card,
+.notice,
+.peer-card {
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  box-shadow: 0 12px 28px -22px rgba(16, 24, 40, .45);
+  transition: box-shadow .25s cubic-bezier(.28, .11, .32, 1), transform .25s cubic-bezier(.28, .11, .32, 1);
+}
+:root[data-hx-mode="dark"] .card,
+:root[data-hx-mode="dark"] .notice,
+:root[data-hx-mode="dark"] .peer-card {
+  box-shadow: 0 14px 34px -24px rgba(0, 0, 0, .95);
+}
+/* 有壁纸 → 换成玻璃（和首页 .tile 同一套：半透明底 + 1px 亮边 + 顶部亮唇 + 方向性落影）。
+   不给每张卡加 backdrop-filter：整页已经在 body::before 糊过一次，再叠 N 个实时模糊层老设备会卡。 */
+html.hx-layer .card,
+html.hx-layer .notice,
+html.hx-layer .peer-card {
+  background-color: rgba(255, 255, 255, .72);
+  border-color: rgba(18, 22, 30, .12);
+  box-shadow: 0 24px 48px -30px rgba(15, 22, 35, .38), inset 0 .8px 0 rgba(255, 255, 255, .92);
+}
+html.hx-layer[data-hx-mode="dark"] .card,
+html.hx-layer[data-hx-mode="dark"] .notice,
+html.hx-layer[data-hx-mode="dark"] .peer-card {
+  background-color: rgba(12, 15, 20, .62);
+  border-color: rgba(255, 255, 255, .12);
+  box-shadow: 0 24px 54px -30px rgba(0, 0, 0, .9), inset 0 .8px 0 rgba(255, 255, 255, .12);
+}
+
+/* ---------- ③ 顶部条与页签：玻璃 + 更清楚的层级 ---------- */
+.top,
+.tabs {
+  background: rgba(255, 255, 255, .82);
+  -webkit-backdrop-filter: saturate(180%) blur(18px);
+  backdrop-filter: saturate(180%) blur(18px);
+  border-bottom: 1px solid var(--line);
+}
+:root[data-hx-mode="dark"] .top,
+:root[data-hx-mode="dark"] .tabs {
+  background: rgba(14, 16, 20, .78);
+}
+.top-main b { font-size: 17px; letter-spacing: -.01em; }
+.readonly { background: var(--panel-soft, #eef0f5); }
+.readonly.live { background: var(--ok-soft); }
+
+/* 页签：选中态给品牌色渐变 + 一点点落影，扫一眼就知道在哪一页 */
+.tabs { gap: 8px; padding: 9px 12px; }
+.tabs button {
+  padding: 8px 8px; border-radius: 12px; font-size: 13.5px;
+  background: transparent; border-color: transparent; color: var(--muted);
+  transition: background .18s ease, color .18s ease, box-shadow .18s ease;
+}
+.tabs button:hover { background: var(--panel-soft, rgba(0, 0, 0, .04)); color: var(--ink); }
+.tabs button.on {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--brand) 88%, #fff), var(--brand));
+  border-color: color-mix(in srgb, var(--brand) 70%, transparent);
+  color: #fff;
+  box-shadow: 0 8px 18px -12px color-mix(in srgb, var(--brand) 80%, transparent);
+}
+
+/* ---------- ④ 大数字块：从「纯色方块」改成有层次的玻璃胶囊 ---------- */
+.big { gap: 12px; }
+.big .n {
+  border-radius: 14px; padding: 14px 12px;
+  background: color-mix(in srgb, var(--brand) 9%, transparent);
+  border: 1px solid color-mix(in srgb, var(--brand) 16%, transparent);
+}
+.big .n em { font-size: 28px; letter-spacing: -.02em; }
+.big .n span { font-size: 12.5px; }
+.big .n.good { background: color-mix(in srgb, var(--ok) 11%, transparent); border-color: color-mix(in srgb, var(--ok) 20%, transparent); }
+.big .n.warn { background: color-mix(in srgb, var(--warn) 13%, transparent); border-color: color-mix(in srgb, var(--warn) 22%, transparent); }
+.big .n.bad  { background: color-mix(in srgb, var(--danger) 12%, transparent); border-color: color-mix(in srgb, var(--danger) 22%, transparent); }
+
+/* ---------- ⑤ 每课一条 / 项目行：分隔线更轻，分数更醒目 ---------- */
+.lesson { border-top: 1px solid var(--line); padding: 12px 0; }
+.lesson-head b { font-size: 14.5px; }
+.lesson-head .pct { font-variant-numeric: tabular-nums; }
+.proj span { padding: 2px 0; }
+.proj .sc { font-variant-numeric: tabular-nums; }
+
+/* ---------- ⑥ 表格（登分册 / 我的小组）：深色下的底色与高亮 ---------- */
+table.book th { background: color-mix(in srgb, var(--ink) 5%, transparent); }
+:root[data-hx-mode="dark"] table.book th { background: rgba(255, 255, 255, .07); }
+table.book td, table.book th { border-color: var(--line); }
+table.book tr.me-row { background: color-mix(in srgb, var(--ok) 14%, transparent); }
+table.book tr.me-row td { border-color: color-mix(in srgb, var(--ok) 45%, transparent); }
+
+/* ---------- ⑦ 互评表：深色下的表头/占位/已打分格 ---------- */
+:root[data-hx-mode="dark"] .peer-grid thead th { background: rgba(91, 140, 255, .14); color: var(--ink); }
+:root[data-hx-mode="dark"] .peer-grid th.peer-who { background: rgba(255, 255, 255, .05); }
+:root[data-hx-mode="dark"] .peer-grid tbody tr { background: rgba(255, 255, 255, .03); border-color: var(--line); }
+:root[data-hx-mode="dark"] .peer-cell.is-locked { background: rgba(255, 255, 255, .05); border-color: var(--line-strong); }
+:root[data-hx-mode="dark"] .peer-cell.is-set {
+  background: linear-gradient(180deg, rgba(255, 255, 255, .14), rgba(255, 255, 255, .06));
+  border-color: rgba(255, 255, 255, .16);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .16), 0 2px 10px rgba(0, 0, 0, .5);
+}
+:root[data-hx-mode="dark"] .peer-cell.is-set.score-1 { --tc: #ff9d94; }
+:root[data-hx-mode="dark"] .peer-cell.is-set.score-2 { --tc: #ffc27a; }
+:root[data-hx-mode="dark"] .peer-cell.is-set.score-3 { --tc: #a8e07a; }
+:root[data-hx-mode="dark"] .peer-cell.is-set.score-4 { --tc: #7cc9ee; }
+:root[data-hx-mode="dark"] .peer-cell.is-set.score-5 { --tc: #b9aefa; }
+:root[data-hx-mode="dark"] .peer-pick { border-color: rgba(255, 255, 255, .14); box-shadow: none; }
+:root[data-hx-mode="dark"] .peer-pick.p1 { background: rgba(226, 114, 107, .22); color: #ffb3ac; }
+:root[data-hx-mode="dark"] .peer-pick.p2 { background: rgba(224, 161, 90, .22); color: #ffcd91; }
+:root[data-hx-mode="dark"] .peer-pick.p3 { background: rgba(143, 185, 106, .22); color: #b8e392; }
+:root[data-hx-mode="dark"] .peer-pick.p4 { background: rgba(95, 168, 201, .22); color: #8fd3f0; }
+:root[data-hx-mode="dark"] .peer-pick.p5 { background: rgba(138, 127, 214, .24); color: #c3b8ff; }
+:root[data-hx-mode="dark"] .peer-got-item { background: rgba(255, 255, 255, .07); }
+:root[data-hx-mode="dark"] .peer-card-head select { background: var(--panel); color: var(--ink); }
+
+/* 值日提醒（R1）在深色下不要刺眼的白底 */
+:root[data-hx-mode="dark"] .duty-callout {
+  background: rgba(217, 130, 43, .12);
+  border-left-color: #e08a35;
+}
+/* 上面那条通用玻璃规则会把 duty-callout 的暖色底盖掉，这里按主题补回来 */
+html.hx-layer .duty-callout { background-color: rgba(255, 248, 238, .82); border-left: 4px solid #d9822b; }
+html.hx-layer[data-hx-mode="dark"] .duty-callout { background-color: rgba(48, 32, 14, .55); border-left-color: #e08a35; }
+:root[data-hx-mode="dark"] .duty-callout > h3,
+:root[data-hx-mode="dark"] .duty-callout-main b { color: #f0aa5c; }
+
+/* ---------- ⑧ 我的小组深蓝卡：保留科技感，深色下更深一档 ---------- */
+:root[data-hx-mode="dark"] .group-card {
+  background: linear-gradient(150deg, #0a1c34, #10294a 60%, #0d2138);
+  border-color: rgba(96, 165, 250, .22);
+}
+
+/* ---------- ⑨ 选桌组队页：圆桌在深色下要跟着换皮 ---------- */
+:root[data-hx-mode="dark"] .desk-round {
+  background: radial-gradient(circle at 50% 38%, #23262c 0%, #1a1d22 62%, #121418 100%);
+  border-color: rgba(255, 255, 255, .14);
+}
+:root[data-hx-mode="dark"] .desk.mine .desk-round {
+  background: radial-gradient(circle at 50% 38%, #24304a 0%, #1b2740 60%, #131c2e 100%);
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px rgba(91, 140, 255, .18), 0 10px 22px -12px rgba(91, 140, 255, .6);
+}
+:root[data-hx-mode="dark"] .desk.full .desk-round {
+  background: radial-gradient(circle at 50% 38%, #1b1d21 0%, #15171a 60%, #0f1013 100%);
+}
+:root[data-hx-mode="dark"] .seat-dot { background: rgba(255, 255, 255, .18); }
+:root[data-hx-mode="dark"] .seat-dot.on { background: var(--brand); }
+:root[data-hx-mode="dark"] .desk.mine .seat-dot.on { background: var(--ok); }
+html.hx-layer[data-hx-mode="dark"] .bar { background: rgba(14, 16, 20, .82); }
+:root[data-hx-mode="dark"] .btn-stand { background: var(--panel); color: var(--ink); border-color: var(--line-strong); }
+:root[data-hx-mode="dark"] .top-state { background: var(--brand-soft); }
+:root[data-hx-mode="dark"] .top-state.closed { background: rgba(255, 255, 255, .08); }
+
+/* ---------- ⑩ 手机端收口：卡片贴边一点、字号别小到看不清 ---------- */
+@media (max-width: 480px) {
+  main { padding: 0 12px; }
+  .card { padding: 13px; }
+  .big .n em { font-size: 25px; }
+  .tabs button { font-size: 12.5px; padding: 8px 4px; }
+}

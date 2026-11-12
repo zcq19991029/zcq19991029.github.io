@@ -24,6 +24,29 @@ h2 { font-size: 17px; margin: 0 0 12px; }
 .note.bad, .bad { color: var(--bad, #d70015); }
 .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .card { background: var(--card, #fff); border: 1px solid var(--edge, rgba(0, 0, 0, .08)); border-radius: 18px; padding: 18px; margin-bottom: 14px; min-width: 0; box-shadow: var(--glass-drop, 0 10px 30px -18px rgba(0, 0, 0, .25)); }
+/* ── 毛玻璃卡（2026-11-12 用户反馈：「这个 ui 卡片不透明全黑不好看 毛玻璃半透明类似主页卡片」）──
+   配方直接照抄首页工具卡（总入口/index.html 里 .tile 那几条 html.hx-bg 分支），三件事：
+     ① 底色乘界面透明度 --hx-a：深色 rgb(9 16 29 / .52×α)、浅色 rgb(255 255 255 / .70×α)；
+     ② 一圈 1px 亮边 + 顶上 0.8px 亮唇（内阴影），玻璃才有厚度；
+     ③ 方向性柔影 --glass-drop，卡片才「放得住」在壁纸上。
+   **绝不逐卡加 backdrop-filter**：首页也是在 body::before 上整页糊一次，14 张卡各开一个实时模糊层
+   在希沃一体机上会直接卡死（hx-theme.css 里记过这个坑）。这里只是「半透明 + 亮边 + 影」。
+   极简模式没有背景图（hx-bg 不挂），这几条自然不生效，卡片退回实色 —— 正好符合「极简不要特效」。
+   弹窗 .att-mcard 要保证字读得清，用 :not() 排除掉，仍走 --card-solid 实底。 */
+html.hx-bg .card:not(.att-mcard) {
+  background-color: rgb(9 16 29 / calc(var(--hx-a, 1) * .52));
+  border-color: rgba(255, 255, 255, .14);
+  box-shadow: var(--glass-drop), inset 0 .8px 0 rgba(255, 255, 255, .14);
+}
+html:not([data-hx-mode="dark"]).hx-bg .card:not(.att-mcard) {
+  background-color: rgb(255 255 255 / calc(var(--hx-a, 1) * .70));
+  border-color: var(--glass-edge, rgba(18, 22, 30, .16));
+  box-shadow: var(--glass-drop), inset 0 .8px 0 rgba(255, 255, 255, .95);
+}
+/* 玻璃上的次级文字换 --g-dim（hx-theme.css 里专为玻璃配的那一档）：
+   --dim 是给不透明底准备的，压在深色玻璃上对比度不够，小字（课程号、已考勤 0 次）会发虚。 */
+html.hx-bg .card:not(.att-mcard) .note,
+html.hx-bg .card:not(.att-mcard) .att-cls i { color: var(--g-dim, #6e6e73); }
 .errs { background: var(--badbg, rgba(215, 0, 21, .08)); color: var(--bad, #d70015); border-radius: 12px; padding: 10px 12px; margin: 0 0 12px; font-size: 13.5px; word-break: break-word; }
 .errs[hidden] { display: none; }
 button, .btn { font: inherit; font-size: 14px; padding: 8px 14px; border-radius: 10px; border: 1px solid var(--line2, rgba(0, 0, 0, .12)); background: var(--fill, rgba(0, 0, 0, .04)); color: var(--ink, #1d1d1f); cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px; max-width: 100%; }
@@ -49,7 +72,10 @@ table { width: 100%; table-layout: fixed; border-collapse: collapse; word-break:
 
 /* 课程卡片 */
 .att-courses { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); gap: 14px; }
-.att-course { display: grid; gap: 6px; justify-items: start; text-align: left; margin: 0; padding: 16px 18px; border-radius: 18px; }
+.att-course { display: grid; gap: 6px; justify-items: start; text-align: left; margin: 0; padding: 16px 18px; border-radius: 18px; transition: transform .25s var(--hx-ease), box-shadow .25s var(--hx-ease), border-color .25s var(--hx-ease); }
+/* 悬停上浮 2px（照首页工具卡的 .tile:hover，但不做 scale —— 缩放会把 1px 亮边拉成 2px 显得糊） */
+.att-course:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--acc, #2f845a) 45%, var(--edge, rgba(0, 0, 0, .08))); }
+.att-course:active { transform: translateY(0); }
 .att-ch { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .att-ch b { font-size: 17px; }
 .att-live { font-style: normal; font-size: 12px; font-weight: 600; padding: 1px 8px; border-radius: 99px; background: var(--accbg, rgba(47, 132, 90, .14)); color: var(--acc, #2f845a); }
