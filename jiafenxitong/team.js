@@ -23,6 +23,13 @@
   var busy = false;
   var fatal = null;      // 致命状态：no_login / no_room / not_student / error
 
+  /* 座位风格（2026-11-12 U4）：round 圆桌 / grid 行列，纯显示层切换，不动数据。
+     记住学生上次选的那个，下次进来还是它。 */
+  var seatStyle = 'round';
+  try { seatStyle = localStorage.getItem('jf-team-style') || 'round'; } catch (e) {}
+  if (seatStyle !== 'grid') seatStyle = 'round';
+  var drag = null;       // 正在拖「我」这张卡：{el, moved}
+
   var $ = function (id) { return document.getElementById(id); };
 
   /* ---------- 登录态（和华夏工具共用 paike-session） ---------- */
@@ -131,6 +138,7 @@
   function showFatal(kind, extra) {
     fatal = kind;
     $('desks').innerHTML = '';
+    $('seatToolbar').hidden = true;
     $('bar').hidden = true;
     $('statePill').textContent = '';
     $('statePill').className = 'top-state';
@@ -176,8 +184,51 @@
      点一张卡就坐这桌。座位点（seatDots）连同那条圆周计算一起删掉——卡片上的
      「空位」占位格就是座位，不另外画点了。 */
 
+  /* 座位风格切换（圆桌 / 行列）：只改 #desks 的布局 class，数据一个字节都不动 */
+  function applyStyle() {
+    var desks = $('desks');
+    desks.classList.toggle('style-grid', seatStyle === 'grid');
+    desks.classList.toggle('style-round', seatStyle === 'round');
+    document.querySelectorAll('#styleSeg button').forEach(function (b) {
+      b.classList.toggle('on', b.dataset.style === seatStyle);
+    });
+  }
+
+  /* 顶部工具栏：风格胶囊 + 一张可拖的「我」卡。拖到某桌 = 坐那桌（drag 见文末交互区） */
+  function renderToolbar() {
+    var tb = $('seatToolbar');
+    if (!S) { tb.hidden = true; return; }
+    tb.hidden = false;
+    applyStyle();
+    var mine = S.me && S.me.table ? Number(S.me.table) : 0;
+    var open = S.status === 'open';
+    var chip = $('meChip');
+    chip.hidden = false;
+    chip.className = 'me-chip' + (mine ? ' seated' : '') + (open ? '' : ' locked');
+    chip.textContent = mine ? ('我 · 第 ' + mine + ' 桌') : '我 · 还没选桌';
+    chip.dataset.seated = mine ? '1' : '0';
+  }
+
+  /* 坐下 / 换桌：请求全走 jf_team_sit，满没满、能不能坐都由云端判，前端不越权 */
+  function sit(n) {
+    if (busy || !S || S.status !== 'open') return;
+    if (S.me && Number(S.me.table) === n) { toast('你已经在第 ' + n + ' 桌了'); return; }
+    var filled = (S.seats || []).filter(function (s) { return Number(s.table) === n; }).length;
+    if (filled >= S.size) { toast('第 ' + n + ' 桌坐满了，换一张吧'); return; }
+    busy = true;
+    rpc('jf_team_sit', { p_room: S.room, p_table: n }).then(function () {
+      return loadState(S.room);
+    }).then(function () {
+      toast('坐好了：第 ' + n + ' 桌');
+    }).catch(function (err) {
+      toast(err.message || '没坐进去，再试一次');
+      return loadState(S.room).catch(function () {});
+    }).then(function () { busy = false; });
+  }
+
   function render() {
     if (!S || fatal) return;
+    if (drag) return;   // 拖动中别重画，免得把手里这张「我」卡换掉（拖完 loadState 会再画一次）
     var byTable = {};
     (S.seats || []).forEach(function (s) {
       (byTable[s.table] = byTable[s.table] || []).push(s);
@@ -218,6 +269,7 @@
         '</button>';
     }
     $('desks').innerHTML = html;
+    renderToolbar();
 
     var pill = $('statePill');
     pill.className = 'top-state' + (S.status === 'open' ? '' : S.status === 'locked' ? ' locked' : ' closed');
@@ -248,7 +300,7 @@
     $('tip').textContent = S.status === 'open'
       ? '全班 ' + (S.roster || []).length + ' 人，已选 ' + (S.seats || []).length + ' 人' +
         (left > 0 ? '，还有 ' + left + ' 人没选。' : '，全班都选好了。') +
-        ' 这个页面每 2~3 秒自动刷新，能看到别人刚坐下的位置。'
+        ' 把上面的「我」拖到某桌，或直接点某桌坐下；点别的桌就是换桌。每 2~3 秒自动刷新，能看到别人刚坐下的位置。'
       : '';
   }
 
@@ -320,24 +372,65 @@
 
   /* ---------- 交互 ---------- */
 
+  /* 点桌卡 = 坐下/换桌（手机上点比拖更稳，两条路都通到 sit()） */
   document.addEventListener('click', function (e) {
     var desk = e.target.closest ? e.target.closest('.desk') : null;
     if (!desk) return;
-    if (busy || !S || S.status !== 'open') return;
     var n = Number(desk.dataset.table);
     if (!n) return;
-    if (S.me && Number(S.me.table) === n) { toast('你已经在第 ' + n + ' 桌了'); return; }
-    var filled = (S.seats || []).filter(function (s) { return s.table === n; }).length;
-    if (filled >= S.size) { toast('第 ' + n + ' 桌坐满了，换一张吧'); return; }
-    busy = true;
-    rpc('jf_team_sit', { p_room: S.room, p_table: n }).then(function () {
-      return loadState(S.room);
-    }).then(function () {
-      toast('坐好了：第 ' + n + ' 桌');
-    }).catch(function (err) {
-      toast(err.message || '没坐进去，再试一次');
-      return loadState(S.room).catch(function () {});
-    }).then(function () { busy = false; });
+    sit(n);
+  });
+
+  /* 拖动选位：把「我」这张卡拖到某桌坐下。鼠标/触摸同一套 pointer 事件 */
+  function meDragStart(e) {
+    var chip = e.target.closest ? e.target.closest('#meChip') : null;
+    if (!chip || chip.hidden || !S || S.status !== 'open' || busy) return;
+    if (e.button != null && e.button !== 0) return;   // 只认左键 / 单指
+    e.preventDefault();
+    var r = chip.getBoundingClientRect();
+    var el = document.createElement('div');
+    el.className = 'me-ghost';
+    el.textContent = chip.textContent;
+    el.style.width = r.width + 'px';
+    document.body.appendChild(el);
+    el.style.transform = 'translate3d(' + r.left + 'px,' + r.top + 'px,0)';
+    drag = { el: el, moved: false };
+    document.body.classList.add('me-dragging');
+  }
+  function meDragMove(e) {
+    if (!drag) return;
+    drag.moved = true;
+    drag.el.style.transform = 'translate3d(' + e.clientX + 'px,' + e.clientY + 'px,0)';
+    var t = document.elementFromPoint(e.clientX, e.clientY);
+    var desk = t && t.closest ? t.closest('.desk') : null;
+    document.querySelectorAll('.desk').forEach(function (d) {
+      d.classList.toggle('drag-over', d === desk);
+    });
+  }
+  function meDragEnd(e) {
+    if (!drag) return;
+    document.body.classList.remove('me-dragging');
+    var t = document.elementFromPoint(e.clientX, e.clientY);
+    var desk = t && t.closest ? t.closest('.desk') : null;
+    var table = desk ? Number(desk.dataset.table) : 0;
+    document.querySelectorAll('.desk').forEach(function (d) { d.classList.remove('drag-over'); });
+    if (drag.el && drag.el.parentNode) drag.el.remove();
+    drag = null;
+    if (!table || !S || S.status !== 'open') return;
+    sit(table);
+  }
+  document.addEventListener('pointerdown', meDragStart);
+  document.addEventListener('pointermove', meDragMove);
+  document.addEventListener('pointerup', meDragEnd);
+  document.addEventListener('pointercancel', meDragEnd);
+
+  /* 座位风格切换：记进 localStorage，下次进来还是这个 */
+  document.querySelectorAll('#styleSeg button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      seatStyle = b.dataset.style;
+      try { localStorage.setItem('jf-team-style', seatStyle); } catch (e) {}
+      applyStyle();
+    });
   });
 
   $('btnStand').addEventListener('click', function () {

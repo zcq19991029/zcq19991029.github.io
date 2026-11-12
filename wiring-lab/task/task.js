@@ -56,14 +56,14 @@ const JF_URL = HOME + 'jiafenxitong/';
   HX.grab(); // GitHub 登录回来时先收凭证
   // 左上角那颗「← 接线仿真」已按用户要求删除（和总入口的「返回」重复）：
   // 页面现在靠浏览器 / 总入口的返回栏回去，不再自带一颗跳首页的按钮。
-  $('#outBtn').onclick = async () => { await HX.out(); location.reload(); };
+  // 右上角那颗「退出」也一并删除（U1）：退出应该走总入口左上角「返回」，不在这里单开一颗。
 
   if (!HX.online()) return gate('课堂任务需要在线版', '成绩和进度存在云端，本机离线文件不能用。<br>请打开在线版（zcq19991029.github.io/wiring-lab/）里的「课堂任务」。');
   if (!HX.in()) return gate('先登录再用课堂任务', '课堂任务和排位共用华夏工具账号。<br>点下面的按钮去登录，登录后回到这一页。', true);
 
   try { ST.me = await HX.me(); }
   catch (e) { return gate('读取身份失败', esc(e.message), true); }
-  paintWho();
+  await paintWho();
   if (ST.me.teacher) return teacherView();
   if (ST.me.student) return studentView();
   return gate('账号还没开通', '教师用教师码、学生用课堂码开通后就能用。（在华夏工具首页填邀请码）', true);
@@ -77,12 +77,21 @@ function gate(title, msg, login) {
   </div></div>`;
   const b = $('#gateLogin'); if (b) b.onclick = () => HX.login();
 }
-function paintWho() {
+async function paintWho() {
   const m = ST.me; if (!m) return;
-  const role = m.dev ? '开发者' : m.admin ? '管理员' : m.teacher ? '教师' : m.student ? '学生' : '未开通';
+  // 学生端显示学号姓名；教师/开发者/管理员没有「学生姓名」，从登录账号取一个名字，右上角不空着
   const nm = (m.student && (m.student.name || m.student.no)) || '';
-  $('#who').innerHTML = `<span class="role${m.teacher ? '' : ' s'}">${role}</span><span>${esc(nm)}</span>`;
-  $('#outBtn').hidden = false;
+  let who = nm;
+  if (!who) {
+    try {
+      const u = await HX.user();
+      const gh = (u.identities || []).find(i => i.provider === 'github');
+      who = (u.user_metadata && u.user_metadata.name)
+        || (gh && gh.identity_data && gh.identity_data.user_name)
+        || (u.email || '').split('@')[0] || '';
+    } catch (e) { who = ''; }
+  }
+  $('#who').innerHTML = who ? `<span>${esc(who)}</span>` : '';
 }
 
 /* ============================================================================
@@ -385,16 +394,10 @@ function paintLive() {
       : ST.err ? `<p class="fold-note bad">${esc(ST.err)}</p>` : '';
     const inner = histN
       ? `<div class="empty">这个班现在<b>没有进行中的任务</b>。<br>
-         已经结束 / 作废的 <b>${histN}</b> 个都在下面的「历史任务」里，点进去能看名次和得分，也能「重新拉起」让没做完的学生补做。
-         <div style="margin-top:14px"><button class="btn primary" id="lvGoHist" type="button">展开历史任务（${histN}）↓</button></div></div>`
+         已经结束 / 作废的 <b>${histN}</b> 个都在下面的「历史任务」里，点标题就能展开，进去能看名次和得分，也能「重新拉起」让没做完的学生补做。</div>`
       : `<div class="empty">这个班还没有任务。在上面发布一个吧。</div>`;
     foldInto(box, '当前任务', `<span class="tag">${esc(className(ST.cls))} · 无进行中</span>`, true,
       tip + `<div class="body">${inner}</div>`, () => { });
-    const go = $('#lvGoHist');
-    if (go) go.onclick = () => {
-      ST.histOpen = true; paintHist();
-      const h = $('#hist'); if (h && h.scrollIntoView) h.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    };
     return;
   }
   /* 有任务、但进度没读到（网络抖动 / 权限变更）：别假装没有任务，也别让下面的 b.xxx 抛错。 */

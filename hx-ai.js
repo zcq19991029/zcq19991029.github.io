@@ -537,6 +537,12 @@
         }
         throw new Error('请求超时（' + Math.round(TIMEOUT / 1000) + ' 秒）。检查网络、余额，或换一个模型。');
       }
+      // fetch 在拿到 HTTP 响应前就抛异常（浏览器里是 TypeError: Failed to fetch），属于「网络不通/被拦截」，
+      // 不是「Key 错」也不是「接口地址错」。把它转成可操作的排查提示，别让用户对着浏览器原生报错发懵。
+      // 注意：非 2xx 的 HTTP 错误上面已经带了 .status 属性，这里用 !e.status 排除，别把那些准确分支盖掉。
+      if (e && !e.status && (e.name === 'TypeError' || /failed to fetch|network/i.test(String(e && e.message)))) {
+        throw new Error('连不上「' + (providers[profile.provider] ? providers[profile.provider].label : profile.provider) + '」的接口。可能原因：① 本地代理/防火墙拦了这个域名（试试关代理、换网络，或用手机热点）；② 学校网络屏蔽；③ 服务商临时故障。接口地址是对的，Key 问题会单独提示。');
+      }
       throw e;
     } finally {
       clearTimeout(timer);
@@ -686,11 +692,20 @@
     if (!p) throw new Error('还没有可用的模型配置，先加一套再读。');
     var k = str(profileLike && (profileLike.key || profileLike.apiKey)) || key(p.id);
     if (!k) throw new Error('这套「' + (p.name || p.model) + '」还没填 API Key，读不了模型列表。');
+    // 给「读模型列表」单独设一个 12 秒超时：这个接口轻量、秒回，12 秒还没响应基本是被拦了/网络不通。
+    var ctl = new AbortController();
+    var timer = setTimeout(function () { ctl.abort(); }, 12000);
     var res;
     try {
-      res = await fetch(endpoint(p.baseUrl, '/models'), { headers: { Authorization: 'Bearer ' + k } });
+      res = await fetch(endpoint(p.baseUrl, '/models'), { headers: { Authorization: 'Bearer ' + k }, signal: ctl.signal });
     } catch (e) {
-      throw new Error('连不上「' + (providers[p.provider] ? providers[p.provider].label : p.provider) + '」的模型列表接口（网络不通，或接口地址不对）。');
+      // 主动 abort 触发的是 AbortError → 判定为「连接超时」；其它异常是 fetch 在拿到响应前就抛了 → 网络不通/被拦截。
+      if (e && e.name === 'AbortError') {
+        throw new Error('读模型列表连接超时（12 秒没响应）。可能原因：① 本地代理/防火墙拦了这个域名（试试关代理、换网络，或用手机热点）；② 学校网络屏蔽；③ 服务商临时故障。接口地址是对的，Key 问题会单独提示。');
+      }
+      throw new Error('连不上「' + (providers[p.provider] ? providers[p.provider].label : p.provider) + '」的模型列表接口。可能原因：① 本地代理/防火墙拦了这个域名（试试关代理、换网络，或用手机热点）；② 学校网络屏蔽；③ 服务商临时故障。接口地址是对的，Key 问题会单独提示。');
+    } finally {
+      clearTimeout(timer);
     }
     if (res.status === 401) throw new Error('读模型列表失败：接口返回 401，说明 API Key 无效或已过期，请检查 Key 是否正确。');
     if (res.status === 403) throw new Error('读模型列表失败：接口返回 403，这个 Key 没有权限（可能没开通、或额度用完了）。');

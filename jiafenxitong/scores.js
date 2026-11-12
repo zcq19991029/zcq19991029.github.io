@@ -127,11 +127,6 @@
     if (l.raw != null) return l.raw;
     return (Number(l.earned) || 0) + (Number(l.net) || 0);
   }
-  function ratioPct(v, max) {
-    if (!max) return '—';
-    var n = Math.round(Math.max(0, Math.min(max, Number(v) || 0)) / max * 1000) / 10;
-    return (n % 1 === 0 ? String(Math.round(n)) : n.toFixed(1)) + '%';
-  }
 
   function notice(html, cls) {
     var box = $('notice');
@@ -143,7 +138,7 @@
 
   function showFatal(kind, extra) {
     fatal = kind;
-    ['view-score', 'view-leader', 'view-total', 'view-book'].forEach(function (id) { $(id).innerHTML = ''; });
+    ['view-score', 'view-total'].forEach(function (id) { $(id).innerHTML = ''; });
     $('sync').textContent = '';
     if (kind === 'no_login') {
       $('clsName').textContent = '还没登录';
@@ -182,6 +177,52 @@
 
   function lessonLabel(l) {
     return '第 ' + (l.seq || '?') + ' 次' + (l.date ? ' · ' + md(l.date) : '');
+  }
+
+  /* 每节课得分详情（2026-11-12 U4）：原来「每次课的分数」是一串纯文字行，项目名和分数
+     挤在 .lesson/.proj 里，用户觉得不直观。改成一张「课次 × 项目」矩阵表：
+     行 = 课次（新的在上面），列 = 各评分项目（跨课次取并集、按第一次出现顺序排），
+     单元格显示完成率 20%–100%；「待评」= 还没录，「—」= 那节课没这个项目。
+     最后几列把「本节项目原始分 / 完成率 / 扣分·值日」集中起来，不再散在文字里。 */
+  function renderLessonDetail(ls) {
+    if (!ls.length) {
+      return '<div class="card"><h3>每节课得分详情</h3>' +
+        '<p class="note">还没有课次。老师上完第一次课记分后就会出现在这里。</p></div>';
+    }
+    var names = [];
+    ls.forEach(function (l) {
+      (l.projects || []).forEach(function (p) {
+        if (p && p.n != null && names.indexOf(p.n) < 0) names.push(p.n);
+      });
+    });
+    var rows = ls.slice().reverse().map(function (l) {
+      var byName = Object.create(null);
+      (l.projects || []).forEach(function (p) { byName[p.n] = p.s; });
+      var cells = names.map(function (nm) {
+        var s = byName[nm];
+        if (s === undefined) return '<td class="na">—</td>';
+        if (s === null) return '<td class="wait">待评</td>';
+        return '<td>' + scorePct(s) + '</td>';
+      }).join('');
+      var note = [];
+      if (l.phone) note.push('<span class="minus">全组 −' + (num(l.phone) * 20) + '%</span>');
+      if (l.personal) note.push('<span class="minus">个人 −' + (num(l.personal) * 20) + '%</span>');
+      if (l.duty && l.duty.is) note.push('<span class="pill' + (l.duty.absent ? ' bad' : '') + '">值日' + (l.duty.absent ? ' · 缺勤 −' + (l.duty.absent * 20) + '%' : '') + '</span>');
+      return '<tr>' +
+        '<th class="dl-seq">' + lessonLabel(l) + '</th>' +
+        cells +
+        '<td class="dl-raw">' + (l.max ? num(rawOf(l)) + ' / ' + l.max : '—') + '</td>' +
+        '<td class="dl-pct">' + (l.pct === null ? '<span class="pill warn">还没录</span>' : pct(l.pct)) + '</td>' +
+        '<td class="dl-note">' + (note.join('') || '<span class="na">—</span>') + '</td>' +
+        '</tr>';
+    }).join('');
+    var head = '<tr><th>课次</th>' +
+      names.map(function (nm) { return '<th>' + esc(nm) + '</th>'; }).join('') +
+      '<th>本节项目</th><th>完成率</th><th>扣分 / 值日</th></tr>';
+    return '<div class="card"><h3>每节课得分详情</h3>' +
+      '<div class="scroll"><table class="book detail"><thead>' + head + '</thead><tbody>' + rows + '</tbody></table></div>' +
+      '<p class="note">每格是那节课该项目的完成率（20%–100%），「待评」表示还没录、不是 0 分；「—」表示那节课没有这个项目。' +
+      '「本节项目」= 原始项目分（分子 / 满分），「完成率」= 扣分后的最终完成率。项目多时左右滑动可看全。</p></div>';
   }
 
   function renderScore() {
@@ -224,40 +265,8 @@
       '</div><p class="note">当前累计完成率 ＝（值日缺勤 ＋ 各节项目分 − 扣分）÷（5 ＋ 各节项目满分），内部按分值计算、显示按百分比。' +
       '值日缺勤整学期只算一次 5 分，没缺勤就是 100%。已登记 ' + recorded + ' / ' + ls.length + ' 次课。</p></div>';
 
-    html += '<div class="card"><h3>每次课的分数（新的在上面）</h3>';
-    if (!ls.length) {
-      html += '<p class="note">还没有课次。老师上完第一次课记分后就会出现在这里。</p>';
-    } else {
-      ls.slice().reverse().forEach(function (l) {
-        var minus = [];
-        if (l.phone) minus.push('<span class="minus">−' + (num(l.phone) * 20) + '%</span> 全组扣分');
-        if (l.personal) minus.push('<span class="minus">−' + (num(l.personal) * 20) + '%</span> 我的个人扣分');
-        var dutyTag = l.duty && l.duty.is
-          ? '<span class="pill' + (l.duty.absent ? ' bad' : '') + '">本组值日' +
-            (l.duty.absent ? ' · 缺勤 −' + (l.duty.absent * 20) + '%' : '') + '</span>'
-          : '';
-        html += '<div class="lesson">' +
-          '<div class="lesson-head"><b>' + lessonLabel(l) + '</b>' + dutyTag +
-          '<span class="pct">' + (l.pct === null ? '<span class="pill warn">还没录分</span>' : pct(l.pct)) + '</span></div>' +
-          '<div class="kv">' +
-          /* 兼容老师还没重新发布的老快照：老快照没有 raw/ded，用 earned + net 还原当时的分子，
-             下一个保存周期老师端会自动补发新口径，不会有 0% 的假数字 */
-          '<div>本节项目 <i>' + ratioPct(rawOf(l), l.max) + '</i>' + (l.max ? ' <small>' + num(rawOf(l)) + ' / ' + l.max + ' 分</small>' : '') + '</div>' +
-          '<div>本节实得 <i>' + ratioPct(l.raw == null ? rawOf(l) : l.net, l.max) + '</i>' + (minus.length ? '　' + minus.join('　') : '') + '</div>' +
-          '</div>' +
-          /* 2026-11-10 用户要求：学生端要看到「项目详细分」，不能只有一个笼统的「个人项目 X%」。
-             把每节课的每个命名项目逐项列出来（项目名 + 该项得分），没录的标「待评」。 */
-          (l.projects && l.projects.length
-            ? '<div class="proj">' + l.projects.map(function (p) {
-                return '<span><span class="nm">' + esc(p.n) + '</span>' +
-                  (p.s === null ? '<span class="sc wait">待评</span>' : '<span class="sc">' + scorePct(p.s) + '</span>') +
-                  '</span>';
-              }).join('') + '</div>'
-            : '') +
-          '</div>';
-      });
-    }
-    html += '</div>';
+    html += renderLessonDetail(ls);
+    html += renderPeerCard() + renderGroupCard();
     return html;
   }
 
@@ -497,38 +506,6 @@
     return html;
   }
 
-  function renderLeader() {
-    var d = D;
-    if (!d) return '';
-    var ls = (d.lessons || []).filter(function (l) { return l.projects.length; });
-    var namedMax = Math.max(0, (Number(d.total.taskMax) || 0) - 5);   // 整学期只减一次值日缺勤的 5 分
-    var projectRate = namedMax ? num(Math.round(Math.max(0, d.total.project) / namedMax * 1000) / 10) + '%' : '—';
-    var html = renderPeerCard() + renderGroupCard() +
-      '<div class="card"><h3>组内个人评分</h3><div class="big">' +
-      '<div class="n good"><em>' + projectRate + '</em><span>个人项目累计</span></div>' +
-      '<div class="n"><em>' + (d.group && d.group.size ? d.group.rank + ' / ' + d.group.size : '—') +
-      '</em><span>组内名次（按累计）</span></div>' +
-      '</div><p class="note">' + esc(d.me.gname || '') + '，共 ' + (d.group ? d.group.size : 0) + ' 人。' +
-      '个人项目由组长在课上逐项打分，每项满分 100%（20% 一档）；「待评」表示还没录，不是 0 分。</p></div>';
-
-    html += '<div class="card"><h3>每节课我的项目分</h3>';
-    if (!ls.length) {
-      html += '<p class="note">还没有录入个人项目。组长在「组内个人评分」里打分后就会出现在这里。</p>';
-    } else {
-      ls.slice().reverse().forEach(function (l) {
-        html += '<div class="lesson"><div class="lesson-head"><b>' + lessonLabel(l) + '</b>' +
-          '<span class="pct">' + num(Math.round(Math.max(0, l.earned) / (l.projects.length * 5) * 1000) / 10) + '%</span></div>' +
-          '<div class="proj">' + l.projects.map(function (p) {
-            return '<span><span class="nm">' + esc(p.n) + '</span>' +
-              (p.s === null ? '<span class="sc wait">待评</span>' : '<span class="sc">' + scorePct(p.s) + '</span>') +
-              '</span>';
-          }).join('') + '</div></div>';
-      });
-    }
-    html += '</div>';
-    return html;
-  }
-
   /* 我的小组（2026-11-10，用户拍板 B 方案）：自己这一组的组员名单 + 各自项目分，看不到别组。
      组员名单来自快照里的 d.group.members（发布时只塞了本组成员，别组一个字节都没下发），
      前端不做任何分数计算，只把姓名/学号/个人项目累计/平时分平铺出来。 */
@@ -642,10 +619,8 @@
   function paint() {
     if (!D || fatal) return;
     $('view-score').innerHTML = renderScore();
-    $('view-leader').innerHTML = renderLeader();
-    $('view-total').innerHTML = renderTotal();
-    $('view-book').innerHTML = renderBook();
-    ['score', 'leader', 'total', 'book'].forEach(function (k) {
+    $('view-total').innerHTML = renderTotal() + renderBook();
+    ['score', 'total'].forEach(function (k) {
       $('view-' + k).classList.toggle('hide', k !== tab);
     });
     document.querySelectorAll('#tabs button').forEach(function (b) {
@@ -728,7 +703,6 @@
     b.addEventListener('click', function () {
       tab = b.dataset.tab;
       paint();
-      if (tab === 'leader') refreshPeer(true).then(function () { paint(); }).catch(function () {});
     });
   });
 
@@ -737,12 +711,12 @@
     var pick = e.target.closest && e.target.closest('[data-peer-pick]');
     if (!pick) return;
     var cell = pick.closest('.peer-cell');
-    if (!cell || !cell.closest('#view-leader')) return;
+    if (!cell || !cell.closest('#view-score')) return;
     submitPeer(cell.dataset.project, cell.dataset.target, Number(pick.dataset.peerPick));
   });
   document.addEventListener('dblclick', function (e) {
     var cell = e.target.closest && e.target.closest('.peer-cell.is-set');
-    if (!cell || !cell.closest('#view-leader')) return;
+    if (!cell || !cell.closest('#view-score')) return;
     e.preventDefault();
     clearPeer(cell.dataset.project, cell.dataset.target);
   });

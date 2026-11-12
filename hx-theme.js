@@ -1320,6 +1320,18 @@
     isLite: function () {
       try { if (document.documentElement.classList.contains('hx-lite')) return true; } catch (e) { }
       return liteOn();
+    },
+    /* 身份卡背景设置入口（2026-11-12 U3）：多工具共享的 id 卡背景，入口放在总入口「外观」面板。
+       数据层仍是 public.hx_rank_bg（hx_rank_bg_get / hx_rank_bg_put），预设复用接线仿真 rank-bg.js
+       的 RANK_BG_PRESETS —— 真正的设置窗在接线仿真 rank.js 的 rkCardWin 里，这里只负责把入口指过去：
+         · 总入口（顶层）→ window.HXPortal.rankCard（打开接线仿真并唤起 rkCardWin）；
+         · 工具 iframe（被外壳嵌着）→ window.top.HXPortal.rankCard（同一件事）；
+         · 单独打开接线仿真（没有外壳）→ 它自己暴露的 window.hxOpenRankCard。 */
+    rankCard: function () {
+      var p = portal();
+      if (p && p.rankCard) { p.rankCard(); return; }
+      try { if (window.HXPortal && window.HXPortal.rankCard) { window.HXPortal.rankCard(); return; } } catch (e) { }
+      if (window.hxOpenRankCard) { window.hxOpenRankCard(); }
     } };
 
   // ---------- 导航栏交互动效：滑块跟着当前项走（不用每项自己高亮） ----------

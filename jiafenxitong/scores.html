@@ -9,12 +9,15 @@
      带 data-tool="jiafen" 而不是 "scores"：这一页被单独打开时会被送回总入口的小组加分卡
      （学生这时候本来也要先登录），嵌在总入口框里则照常不跳。 -->
 <script src="../hx-theme.js" data-tool="jiafen"></script>
-<link rel="stylesheet" href="scores.css?v=84a14c1">
+<link rel="stylesheet" href="scores.css?v=69807ef">
 <!-- 学生端共用外观层（2026-11-12）：深色主题 + 毛玻璃 + 细节统一。必须排在 scores.css 之后覆盖 -->
-<link rel="stylesheet" href="student-ui.css?v=84a14c1">
+<link rel="stylesheet" href="student-ui.css?v=69807ef">
 </head>
 <body>
 <header class="top">
+  <div class="top-cta-row">
+    <a class="top-cta" href="team.html">去选桌组队 →</a>
+  </div>
   <div class="top-main">
     <b id="clsName">正在读取…</b>
     <span id="who" class="who"></span>
@@ -22,26 +25,21 @@
   </div>
   <div class="sync-line">
     <span class="sync" id="sync"></span>
-    <a class="top-link" href="team.html">去选桌组队 →</a>
   </div>
 </header>
 
 <nav class="tabs" id="tabs">
   <button data-tab="score" class="on">上课记分</button>
-  <button data-tab="leader">组内评分</button>
-  <button data-tab="total">本学期总分</button>
-  <button data-tab="book">登分册</button>
+  <button data-tab="total">总分与登分册</button>
 </nav>
 
 <main>
   <section id="notice" class="notice" hidden></section>
   <div id="view-score" class="view"></div>
-  <div id="view-leader" class="view hide"></div>
   <div id="view-total" class="view hide"></div>
-  <div id="view-book" class="view hide"></div>
 </main>
 
-<script src="config.js?v=84a14c1"></script>
-<script src="scores.js?v=84a14c1"></script>
+<script src="config.js?v=69807ef"></script>
+<script src="scores.js?v=69807ef"></script>
 </body>
 </html>

@@ -338,3 +338,37 @@ table.book tr.me-row td { border-color: var(--ok, #2f845a); }
 .duty-callout-main b { color: #9a5b12; }
 .duty-callout .duty-missed { color: #b42318; }
 .lesson-head .pill { margin-left: 6px; }
+
+/* ============================================================
+   左上角主按钮「去选桌组队」（2026-11-12 U4）
+   用户反馈：原来这只是一个 12.5px 的小文字链接，学生经常看不见。
+   改成明显的品牌色按钮放到页头最左上角，一眼就是「下一步去哪」。
+   ============================================================ */
+.top-cta-row { margin-bottom: 8px; }
+.top-cta {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 9px 16px; border-radius: 12px;
+  background: var(--brand); color: #fff;
+  font: inherit; font-size: 14px; font-weight: 700;
+  text-decoration: none;
+  box-shadow: 0 6px 16px -8px rgba(47, 109, 246, .6);
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.top-cta:hover { box-shadow: 0 8px 20px -8px rgba(47, 109, 246, .75); }
+.top-cta:active { transform: scale(.97); }
+
+/* ============================================================
+   每节课得分详情表（2026-11-12 U4）
+   原来「每次课的分数」是一串纯文字行，现在改成「课次 × 项目」矩阵表。
+   复用 table.book 的边框/字号，这里只补本表特有的单元格语义色。
+   ============================================================ */
+table.book.detail { font-size: 12px; }
+table.book.detail th.dl-seq,
+table.book.detail td.dl-seq { text-align: left; white-space: nowrap; }
+table.book.detail td.wait { color: var(--muted); }
+table.book.detail td.na { color: var(--muted); opacity: .45; }
+table.book.detail td.dl-raw { white-space: nowrap; font-variant-numeric: tabular-nums; }
+table.book.detail td.dl-pct { font-weight: 700; font-variant-numeric: tabular-nums; }
+table.book.detail td.dl-note { text-align: left; white-space: normal; min-width: 120px; }
+table.book.detail td.dl-note .minus { color: var(--danger); font-weight: 600; margin-right: 6px; }
+table.book.detail td.dl-note .pill { margin-right: 6px; }

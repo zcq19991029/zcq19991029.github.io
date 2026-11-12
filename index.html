@@ -14,15 +14,15 @@
      要登录时调 window.HXPortal.login()；被单独打开时 hx-theme.js 会跳回这里（见 hx-theme.js 的 data-tool）。
      账号：Supabase 华夏工具项目，localStorage paike-session 和各工具共用；身份由数据库 hx_me() 决定。
      脚本里不用反引号模板字符串（本机测试时整页当字符串注入到线上同源页面里）。 -->
-<link rel="stylesheet" href="hx-theme.css?v=84a14c1">
-<script src="hx-theme.js?v=84a14c1"></script>
+<link rel="stylesheet" href="hx-theme.css?v=69807ef">
+<script src="hx-theme.js?v=69807ef"></script>
 <!-- 首页卡片上的像素小生物：pixelfx 的 12 个 critters（MIT），打包成一个 91 KB 的独立脚本。
      加载失败不影响首页——hx-critters.js 开头就有 window.PixelFX 存在性检查，没有就整段跳过。 -->
-<script src="fx/pixelfx-critters.js?v=84a14c1" defer></script>
-<script src="fx/hx-critters.js?v=84a14c1" defer></script>
+<script src="fx/pixelfx-critters.js?v=69807ef" defer></script>
+<script src="fx/hx-critters.js?v=69807ef" defer></script>
 <!-- 课堂码大屏二维码：离线 QR 编码器（qrcode 1.5.4 core 打包，MIT，见 fx/NOTICE-qr.md）。延迟加载即可：只有老师点「大屏二维码」时才用 -->
-<script src="fx/hx-qr.js?v=84a14c1" defer></script>
-<script src="hx-scan.js?v=84a14c1" defer></script><!-- 全站扫一扫（2026-11-08 K5）：摄像头 + BarcodeDetector / 本地 jsQR -->
+<script src="fx/hx-qr.js?v=69807ef" defer></script>
+<script src="hx-scan.js?v=69807ef" defer></script><!-- 全站扫一扫（2026-11-08 K5）：摄像头 + BarcodeDetector / 本地 jsQR -->
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; width: 100%; overflow: hidden; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -1574,6 +1574,9 @@ function show(id, how) { // how：不写 = 新开一页（进浏览器历史，�
   var t = TOOLS.filter(function (x) { return x.id === id; })[0];
   if (t && !can(t)) t = null;
   var prevTab = ST.tab; ST.tab = t ? t.id : null;
+  // 2026-11-12 U5：回到首页时清掉「本会话进过接线仿真」的标记 —— 下次从首页再进接线仿真，
+  // 「关于」照常弹一次；从别的工具切回则不弹（见 project2.html 里的 hx-wiring-entered）。
+  if (!t) { try { sessionStorage.removeItem('hx-wiring-entered'); } catch (e) { } }
   var url = t ? '#' + t.id : location.pathname + location.search, st = history.state && history.state.hx || 0;
   if (how === 'replace' || (!how && (t ? t.id : null) === (prevTab || null))) history.replaceState({ hx: st }, '', url);
   else if (how !== 'pop') history.pushState({ hx: st + 1 }, '', url);
@@ -1945,6 +1948,10 @@ function renderLookBody() {
     '接线画布的光晕和辉光也关掉。核心功能一个不少（接线、检查、排位、看题全都正常）。<br>' +
     '<b>标准</b>：全部特效都开，画面最好看，代价是手机/平板会热、会费电。<br>' +
     '点了立刻生效，这台机器记住；想换回极简再点回来即可。</p>' +
+    // 身份卡背景（2026-11-12 U3）：多工具共享的 id 卡背景设置，入口从排位页迁到这里。
+    // 点按钮 → 打开接线仿真里的身份卡设置窗（数据/预设都在那边，这里不复制一份）。
+    '<h3>身份卡背景</h3><p class="msg" style="margin:6px 0 8px;color:var(--dim)">给排行榜身份卡和选人面板里的学生卡换背景（跟账号走，多个工具共用）。点下面按钮去设置。</p>' +
+    '<button class="btn link" id="lookRankCardBtn" type="button">设置我的身份卡背景</button>' +
     '<button class="btn link" id="lookReset" type="button">恢复默认</button>';
   $('look').innerHTML = html;
   $('look').querySelectorAll('[data-mode]').forEach(function (b) { b.onclick = function () { HXTheme.set({ mode: b.dataset.mode }); }; });
@@ -1992,6 +1999,8 @@ function renderLookBody() {
   if ($('op')) $('op').oninput = function () { opAt = Date.now(); $('opv').textContent = $('op').value + '%'; HXTheme.set({ clr: +$('op').value }); };
   if ($('bgo')) $('bgo').oninput = function () { opAt = Date.now(); $('bgov').textContent = $('bgo').value + '%'; HXTheme.set({ bgo: +$('bgo').value }); };
   $('lookReset').onclick = function () { HXTheme.reset(); };
+  // 身份卡背景设置入口：关掉外观面板 → 打开接线仿真里的设置窗（HXTheme.rankCard 见 hx-theme.js）
+  if ($('lookRankCardBtn')) $('lookRankCardBtn').onclick = function () { closePops(); HXTheme.rankCard(); };
 }
 // 拖透明度时不重画面板：手机上拖动滑块不会获得焦点，一重画滑块就被换掉、只能点不能拖
 var opAt = 0;
@@ -3086,11 +3095,22 @@ async function refresh() {
   show(ST.tab || location.hash.slice(1), 'replace');
   if (role() === '未开通' && ST.actFor !== HX.uid() && !$('login').open) { ST.actFor = HX.uid(); openLogin('', 'act'); } // 每个账号每次打开网页只自动弹一次
 }
+// 身份卡背景设置入口（2026-11-12 U3）：入口从排位页迁到「外观」面板。设置窗本身在接线仿真的
+// rank.js（rkCardWin）里 —— 数据/预设都不复制，这里只负责打开接线仿真并 postMessage 唤起它。
+function openRankCard() {
+  if (!HX.in()) { openLogin(); return; } // 背景跟账号走，没登录先去登录
+  show('wiring'); // 打开（或切到）接线仿真
+  var f = frames['wiring'];
+  var send = function () { try { f.contentWindow.postMessage({ hx: 'rankcard' }, location.origin); } catch (e) { } };
+  if (f && f.dataset && f.dataset.ready) send();           // 已加载：直接唤起
+  else if (f) f.addEventListener('load', send, { once: true }); // 还在加载：等 load（那时 rkCardWin 的监听已挂好）
+}
 // 给嵌在框里的工具用：要登录时弹登录窗口、问身份、回首页
 window.HXPortal = {
   login: function () { openLogin(); },
   me: function () { return ST.me; },
   home: function () { show(null); },
+  rankCard: openRankCard,
   toast: toast
 };
 

@@ -378,15 +378,20 @@ function classGroupLimit(cls) {
   return v >= 2 ? Math.min(40, v) : 0;
 }
 
-/** 某个组实际适用的上限 = 班级上限 与本组特许（g.cap）取大。
+/** 某个组实际适用的上限：本组特许（g.cap）优先，没特许才用班级上限。
     老版本把 memberCount(g) 也塞进 max() 里，于是 7 人组的上限永远显示 7、永远看不出超员，
-    正是用户说的「老师完全无法恢复正确」。现在人数只用来判断超没超，不参与算上限。 */
+    正是用户说的「老师完全无法恢复正确」。现在人数只用来判断超没超，不参与算上限。
+    2026-11-12 修「无法降低本组上限」：原来 return Math.max(班级上限, 本组特许) 永远取大，
+    老师想把 7 人组单独改成 5/6 人，Math.max 只会把它顶回 7，根本降不下去。
+    改成 g.cap 优先——高于或低于全班默认都可以，只影响这一组；没特许才落到班级上限。 */
 function groupTargetCap(cls, g) {
   var limit = classGroupLimit(cls), own = Number(g && g.cap) || 0;
-  /* 老师还没在向导里定过人数：完全沿用旧行为（上限 = max(7, 本组特许, 现有人数)），
-     老班级里那些 8 人组不会被升级后突然标红。一旦定过，就按定的数严格算。 */
-  if (!limit) return Math.max(GROUP_CAP, own, memberCount(g));
-  return Math.max(limit, own);
+  /* 本组特许 g.cap 优先（高于或低于全班默认都算数） */
+  if (own) return own;
+  if (limit) return limit;
+  /* 老师还没在向导里定过人数：完全沿用旧行为（上限 = max(7, 现有人数)），
+     老班级里那些 8 人组不会被升级后突然标红。 */
+  return Math.max(GROUP_CAP, memberCount(g));
 }
 
 /** 原来到处调用的 groupCap(g)：签名保持不变，不传 cls 就按当前班级算。 */
@@ -1906,7 +1911,6 @@ function restoreDroppedToHome(cls) {
       if(!slot){target.title='这里放不下加人控件，请到「待分配名单」页调整';return;}
       var box=document.createElement('div');box.className='group-pick-box';
       box.innerHTML='<span class="group-pick-count">本组 <b>'+memberCount(g)+'</b>/'+groupCap(g,cls)+' 人'+(Number(g.cap)?'（特许）':'')+'</span>'+
-        '<button type="button" class="btn tiny" data-pick-add aria-label="第'+g.no+'组新增成员">＋ 加人</button>'+
         '<button type="button" class="btn tiny" data-pick-minus aria-label="第'+g.no+'组移出成员">－ 减人</button>'+
         '<div data-pick-editor hidden><input type="search" autocomplete="off" aria-label="第'+g.no+'组检索学号" placeholder="学号或后两位"><div class="group-pick-results" role="list"></div><button type="button" class="btn tiny" data-pick-exit>退出选人</button></div>'+
         '<div data-pick-members hidden></div>';
@@ -1959,7 +1963,6 @@ function restoreDroppedToHome(cls) {
       }
 
       box.onclick=function(e){e.stopPropagation();};
-      box.querySelector('[data-pick-add]').onclick=function(){members.hidden=true;editor.hidden=false;this.hidden=true;matches();input.focus();};
       box.querySelector('[data-pick-minus]').onclick=function(){showRemoval();};
       input.oninput=matches;
       box.querySelector('[data-pick-exit]').onclick=function(){groupPicking=null;renderGroups(cls,lesson);};
@@ -1996,6 +1999,7 @@ function restoreDroppedToHome(cls) {
       var total = groupTotal(lesson, g.no);
       var duty = dutyGroups(lesson).includes(g.no);
       var cnt = memberCount(g);
+      var cap = groupCap(g, cls), over = cnt > cap;   // 超载：人数超过上限，整张卡片标红提示老师去拖动换组
       var maxPhone = 1000000;
       var memberEntries = groupMemberEntries(g);
       var names = cnt
@@ -2011,10 +2015,10 @@ function restoreDroppedToHome(cls) {
         : '';
 
       return '' +
-      '<div class="gcard' + (duty ? ' is-duty' : '') + (touched(lesson, g.no) ? ' touched' : '') + '" data-card="' + g.no + '">' +
+      '<div class="gcard' + (duty ? ' is-duty' : '') + (touched(lesson, g.no) ? ' touched' : '') + (over ? ' is-over' : '') + '" data-card="' + g.no + '">' +
         '<div class="gcard-head">' +
           '<div class="group-identity"><span class="gnum">第 ' + g.no + ' 组</span>' +
-            '<span class="gcount" title="本组人数 / 上限（双击组号可加人减人）">' + cnt + '/' + groupCap(g,cls) + '</span>' +
+            '<span class="gcount' + (over ? ' over' : '') + '" title="' + (over ? '本组 ' + cnt + ' 人，超过上限 ' + cap + ' 人：到「分组」页把超出的 ' + (cnt - cap) + ' 人拖到别的组（不会被自动移出）' : '本组人数 / 上限（双击组号可加人减人）') + '">' + cnt + '/' + cap + '</span>' +
             (duty ? '<span class="dutytag">值日</span>' : '') + '</div>' +
           '<div class="gsum"><span class="k">本节</span>' +
             '<div class="v ' + signClass(total) + '" data-total="' + g.no + '">' + fmt(total) + '</div></div>' +
@@ -2052,9 +2056,10 @@ function restoreDroppedToHome(cls) {
   function verticalGroup(cls,lesson,g,printing){
     var A=window.JFDT_ASSESSMENT,gradeLessons=lessonsThrough(cls,lesson),grades=A.rows(cls,gradeLessons,memberTotals(cls)),isDuty=dutyGroups(lesson).includes(g.no);
     var entries=groupMemberEntries(g),editing=!printing&&groupPicking&&groupPicking.classId===cls.id&&groupPicking.lessonId===lesson.id&&groupPicking.no===g.no;
+    var gcap=groupCap(g,cls),over=entries.length>gcap;   // 超载：人数超过上限，整组标红提示老师去拖动换组
     var display=entries.length?entries:[{m:null,i:-1}],span=display.length+(editing?1:0),rows=display.map(function(x,j){var m=x.m,i=x.i,key=m&&A.key(m),grade=m&&grades.find(function(r){return r.key===key;}),total=m?memberLessonRateText(lesson,g.no,m,i):'';
       var out='<tr class="vertical-member-row"'+(m?' data-member-index="'+i+'" data-member-key="'+esc(key)+'"':'')+'>';
-      if(!j)out+='<td class="c-no" rowspan="'+span+'">'+g.no+' <small class="gcount" title="本组人数 / 上限（双击组号可加人减人）">'+entries.length+'/'+groupCap(g,cls)+'</small></td>';
+      if(!j)out+='<td class="c-no" rowspan="'+span+'">'+g.no+' <small class="gcount'+(over?' over':'')+'" title="'+(over?'本组 '+entries.length+' 人，超过上限 '+gcap+' 人：到「分组」页把超出的 '+(entries.length-gcap)+' 人拖到别的组（不会被自动移出）':'本组人数 / 上限（双击组号可加人减人）')+'">'+entries.length+'/'+gcap+'</small></td>';
       out+='<td class="c-mem member-name-cell'+(m?attendanceNameClass(cls,m,lesson):'')+(m&&isGroupLeader(g,m)?' group-leader-name':'')+'"'+(m?' data-leader-toggle data-g="'+g.no+'" data-member-index="'+i+'"':'')+' title="'+esc(m?(m.name+' '+(m.sid||'')+' · 双击设置或退出组长'):'双击组号添加成员')+'">'+(m?(isGroupLeader(g,m)?'<span class="leader-crown" aria-label="组长">👑</span> ':'')+esc(m.name)+(m.no==null?'':' <small>'+two(m.no)+'</small>'):'未分配成员')+(m&&!printing?'<span class="mem-deduct">'+ctlPersonal(g.no,m,i,0)+'</span>':'')+'</td>';
       if(!j)out+='<td class="c-duty" rowspan="'+span+'">'+(printing?'<b class="duty-pct">'+dutyPctText(lessonsOf(cls.id),g.no)+'</b>':ctlDuty(g.no,isDuty))+'</td>';
       var task=m?taskScore(lesson,g.no,m):null;
@@ -2066,7 +2071,7 @@ function restoreDroppedToHome(cls) {
       return out+'</tr>';
     }).join('');
     if(editing)rows+='<tr class="group-pick-row"><td colspan="2" data-group-picker-slot></td><td colspan="8"></td></tr>';
-    return '<tbody '+(printing?'data-pg':'data-card')+'="'+g.no+'" class="'+(dutyGroups(lesson).includes(g.no)?'is-duty ':'')+(touched(lesson,g.no)?'touched':'')+'">'+rows+'</tbody>';
+    return '<tbody '+(printing?'data-pg':'data-card')+'="'+g.no+'" class="'+(dutyGroups(lesson).includes(g.no)?'is-duty ':'')+(touched(lesson,g.no)?'touched ':'')+(over?'is-over':'')+'">'+rows+'</tbody>';
   }
   function groupsTable(cls,lesson){var gs=visibleGroups(cls);if(!gs.length)return '<p class="empty-hint">这个班还没有分好组（或者组里一个人都没有）。到「待分配名单」点「分组…」分一下，分好组这里就有记分表。</p>';return '<div class="sheetwrap"><table class="sheet sheet-vertical"><colgroup>'+verticalColumns(cls)+'</colgroup>'+verticalHead()+gs.map(function(g){return verticalGroup(cls,lesson,g,false);}).join('')+'</table></div>';}
 
@@ -3305,26 +3310,23 @@ function restoreDroppedToHome(cls) {
   function gbCapStep(cls, gi, dir) {
     var g = (cls.groups || [])[gi];
     if (!g) return false;
-    var base = classGroupLimit(cls) || GROUP_CAP;    // 全班默认上限
-    var cur = groupTargetCap(cls, g);
+    var base = classGroupLimit(cls) || GROUP_CAP;    // 全班默认上限（没定过就是老默认 7）
+    var cur = groupTargetCap(cls, g);                // 本组特许优先，没特许用全班默认
     var next = cur + (dir > 0 ? 1 : -1);
-    if (dir < 0 && cur <= base) {
-      flash(!classGroupLimit(cls)
-        ? '这个班还没定过「每组上限」：先在页面上填一个数（比如 6），再来单独调某一组'
-        : '第 ' + g.no + ' 组已经是全班默认上限 ' + base + ' 人；要全班一起改就改上面的「每组上限」');
-      return false;
-    }
     if (next > 40) { flash('每组最多 40 人'); return false; }
     if (next < 2) { flash('每组最少 2 人'); return false; }
     gbSnapshot(cls, '第 ' + g.no + ' 组人数上限改为 ' + next + ' 人');
-    if (next <= base) delete g.cap;                  // 减回全班默认：把本组特许去掉
-    else g.cap = next;                               // 只影响这一组
+    /* 2026-11-12 修「改不了 6 人/5 人」：以前 dir<0 且 cur<=base 就直接拦下，
+       组的上限永远只能 >= 全班默认，降不到默认以下。现在允许高也允许低：
+       回到全班默认就去掉特许，高于或低于默认都记为本组特许（只影响这一组）。 */
+    if (next === base) delete g.cap;                 // 减回全班默认：把本组特许去掉
+    else g.cap = next;                               // 高于/低于默认都只影响这一组
     var cap = groupTargetCap(cls, g), n = memberCount(g), over = Math.max(0, n - cap);
     addOperationLog('分组', cls.name + ' · 第' + g.no + '组人数上限改为 ' + cap + ' 人（只改本组）' +
       (over ? '，超出 ' + over + ' 人只标红不移出' : ''));
     gbCommit(cls, '第 ' + g.no + ' 组上限改为 ' + cap + ' 人' +
       (over ? '：超出 ' + over + ' 人只标红，不会把人移出' : '') +
-      (cap !== next ? '（本组现在 ' + n + ' 人，先移出人才会真正低于上限）' : ''));
+      (over ? '（本组现在 ' + n + ' 人，请把超出的 ' + over + ' 人拖到别的组）' : ''));
     return true;
   }
 
@@ -3875,6 +3877,13 @@ function restoreDroppedToHome(cls) {
     var lockNow = !!(curClass() && curClass().groupLocked);
     open.disabled = lockNow;
     open.title = lockNow ? '分组已锁定：先点上面的「🔓 解锁分组」' : '';
+    /* 2026-11-12 修「确认分组后按钮不消失」：fin（按选座确认分组）只在「有还没确认的选座」时显示。
+       确认成功后把当前座位指纹记进 cls.seatAppliedSig，下一轮 tmButtons 一比对，
+       发现没有新座位就把按钮藏起来，给老师一个「已经确认过了」的反馈；
+       学生之后又改座（指纹变了）按钮会重新出现，提醒老师再确认一次。 */
+    var csNow = curClass();
+    var seatCnt = tmState && (tmState.seats || []).length;
+    var pendingSeats = seatCnt > 0 && tmSeatSig !== (csNow && csNow.seatAppliedSig);
     /* 云端 jf_team_room 只按 created_at 取最新一间，房间「结束」后也照样返回它。
        所以这里不能只判断「有没有房间」：不然老师点一次「结束」，这个班四个按钮全被藏光，
        再也点不到「开放组队」，表现为「确认分组后就打不开分组了」。房间结束=这一轮收工，
@@ -3883,12 +3892,14 @@ function restoreDroppedToHome(cls) {
     lock.hidden = !room || st === 'closed';
     /* 2026-11-10 修「待确认却点不到确认」：房间 closed 后 jf_team_state 仍能拉到 seats，
        tmApplySeating 也只看 tmState 不看 room.status。所以房间结束但还有人坐桌（待确认）时，
-       fin 必须继续显示，否则老师只能一个个拖。房间开着时保持原逻辑（有房间就显示，哪怕还没人坐）。 */
-    fin.hidden = !room || (st === 'closed' && !(tmState && (tmState.seats || []).length));
+       fin 必须继续显示，否则老师只能一个个拖。
+       2026-11-12 起进一步收紧：fin 只在「有还没确认的选座」时显示（见上面 pendingSeats），
+       确认过就消失——这正是用户要的「确认分组后按钮消失」的反馈。 */
+    fin.hidden = !room || !pendingSeats;
     close.hidden = !room || st === 'closed';
     link.hidden = !room || st === 'closed';
     lock.textContent = st === 'locked' ? '继续组队' : '停止组队';
-    fin.disabled = !tmState || !(tmState.seats || []).length;
+    fin.disabled = false;
     if (room && room.room) {
       link.href = 'team.html?r=' + room.room;
       link.hidden = false;
@@ -4033,9 +4044,12 @@ function restoreDroppedToHome(cls) {
         所以从 openTeamMore() 换成直接 focus，少一次滚动。） */
     var tRaw = String($('#teamTables').value).trim(), sRaw = String($('#teamSize').value).trim();
     if (!tRaw || !sRaw) {
+      /* 2026-11-12：圆桌数/每桌最多收进「设置」折叠条了，没填时先把它展开，光标才点得到输入框 */
+      var setupD = $('#teamTables') && $('#teamTables').closest('details');
+      if (setupD) setupD.open = true;
       var miss = !tRaw ? $('#teamTables') : $('#teamSize');
       if (miss) { miss.focus(); if (miss.scrollIntoView) miss.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
-      alert('先在上面填「圆桌数」和「每桌最多几人」。\n（这两项故意不预填，避免手一滑就按默认值分掉全班。）');
+      alert('先在上面「设置」里填「圆桌数」和「每桌最多几人」。\n（这两项故意不预填，避免手一滑就按默认值分掉全班。）');
       return;
     }
     var tables = Math.max(1, Math.min(40, Math.round(Number(tRaw) || 0)));
@@ -4087,6 +4101,31 @@ function restoreDroppedToHome(cls) {
       })
       .catch(function (e) { tmBusy = false; alert('没开成：' + ((e && e.message) || '未知错误')); });
   });
+
+  /* ---- 圆桌数 / 每桌最多：收进「设置」折叠条后的改动反馈（2026-11-12） ----
+     用户反馈：「这个应该归于单独设置按钮 然后提供反馈 这样设置完下面就会变」。
+     原来这两个框常驻在「开放组队」旁边，改了没任何反应，老师不知道设没设上。
+     现在：改「每桌最多」＝改本班每组默认上限（初始状态定义，不动已单独调过上限的组），
+     下面分组实时跟着变、超载的组标红；改「圆桌数」只更新下方说明文字。 */
+  if ($('#teamTables')) {
+    $('#teamTables').addEventListener('change', function () {
+      var cls = curClass();
+      var tables = Math.round(Number(this.value) || 0);
+      if (!(tables >= 1 && tables <= 40)) { flash('圆桌数要填 1–40 之间的整数'); renderGroupSetup(); this.value = cls && cls.teamTables ? String(cls.teamTables) : ''; return; }
+      if (cls) cls.teamTables = tables;
+      flash('圆桌数已设为 ' + tables + ' 桌（开放组队时生效）');
+      renderGroupSetup();
+    });
+    $('#teamSize').addEventListener('change', function () {
+      var cls = curClass();
+      var size = clampLimit(this.value);
+      if (!size) { flash('每桌最多要填 2–40 之间的整数'); renderGroupSetup(); return; }
+      /* 每桌最多 = 本班每组默认上限：改完让下面分组立刻跟着变（超载标红），
+         但这是「初始状态定义」，已经单独调过上限（g.cap）的组不受影响。 */
+      applyGroupLimit(cls, size);
+      renderGroupSetup();
+    });
+  }
 
   /** 把上一场已选好的座位搬到新房间：桌号不变，桌数/每桌人数不够的人留在待选。
       走的是老师专用的 jf_team_place，所以不必等云端加新函数也能生效。 */
@@ -4247,7 +4286,12 @@ function restoreDroppedToHome(cls) {
          否则 applyCompress 的 flash 会被这句顶掉，老师只看到「已确认分组」。 */
       var dupNo = compressBlockedByDup(cls);
       var squeezed = dupNo ? false : compressEmptyGroups(cls, '按选座确认分组后清理空组');
+      /* 2026-11-12 修「确认分组后按钮不消失」：把这批刚消化掉的座位指纹记下来，
+         tmButtons 下次比对发现「没有新座位」，就把「按选座确认分组」按钮藏起来。
+         顺手 tmPaint() 一次，让按钮当场消失，不用等下一次 2 秒轮询。 */
+      cls.seatAppliedSig = tmSeatSig;
       save(); renderPool(); renderScore(); renderPoolBanner(cls);
+      if (typeof tmPaint === 'function') tmPaint();
 
       var rest = pendingList(cls).length;
       flash('已按选座写成 ' + tables.length + ' 组（' + filled + ' 人）' +

@@ -275,6 +275,8 @@ input[readonly] { background: var(--panel-soft); color: var(--muted); }
 .gcard:hover { box-shadow: var(--shadow-lift); }
 .gcard.is-duty { border-color: var(--vip-line); box-shadow: 0 0 0 1px var(--vip-line), var(--shadow); }
 .gcard.touched { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), var(--shadow); }
+/* 超载标红（2026-11-12）：调整上限后本组人数超过上限，整张卡片红边提示老师去拖动换组 */
+.gcard.is-over { border-color: var(--bad, #c0392b); box-shadow: 0 0 0 1px var(--bad, #c0392b), var(--shadow); }
 
 .gcard-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
 .gcard-head > * { min-width: 0; }
@@ -402,6 +404,9 @@ table.sheet td.c-no {
 }
 table.sheet tbody.touched td.c-no { box-shadow: inset 3px 0 0 var(--accent); }
 table.sheet tbody.is-duty td.c-no { box-shadow: inset 3px 0 0 var(--warn); }
+/* 超载标红（2026-11-12）：本组人数超过上限，组号列左侧压一道红条，和「值日」的橙条分开 */
+table.sheet tbody.is-over td.c-no { box-shadow: inset 3px 0 0 var(--bad, #c0392b); }
+table.sheet tbody.is-over td.c-no .gcount { color: var(--bad, #c0392b); }
 table.sheet tbody.is-duty td.c-no::after {
   content: '值日'; display: block; font-size: 9px; font-weight: 600; color: var(--warn);
 }
@@ -578,6 +583,25 @@ table.data input { padding: 2px 6px; font-size: 12.5px; }
 }
 .pool-team-bar .note { margin: 8px 0 0; }
 .pool-team-bar .note:empty { display: none; }
+
+/* 圆桌数/每桌最多收进「设置」折叠条（2026-11-12）：默认收起，点开才填，不挡「开放组队」 */
+.pool-team-setup { margin: 0; }
+.pool-team-setup > summary {
+  cursor: pointer; list-style: none; user-select: none;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 12px; border: 1px dashed var(--line-strong); border-radius: var(--r-md, 10px);
+  font-size: 13px; font-weight: 600; color: var(--text);
+}
+.pool-team-setup > summary::-webkit-details-marker { display: none; }
+.pool-team-setup > summary::before { content: '⚙'; opacity: .8; }
+.pool-team-setup[open] > summary { border-style: solid; border-color: var(--accent, #6b7cff); color: var(--accent, #6b7cff); }
+.pool-team-setup-body {
+  display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px;
+  margin-top: 10px; padding: 10px 12px;
+  border: 1px solid var(--line); border-radius: var(--r-md, 10px);
+  background: var(--panel, #fff);
+}
+.pool-team-setup-body .note { flex: 1 1 100%; margin: 0; }
 
 /* 圆桌数 / 每桌人数还没填时，「开放组队」点了也白点：用空心描边提示，不直接禁用
    （禁用会让人以为是坏了；这里的禁用已经在 renderGroupSetup 里按填值情况控制）。 */
@@ -1717,6 +1741,8 @@ table.sheet col.w-grp,table.sheet th.c-grp,table.sheet td.c-grp,#printArea col.w
 .group-pick-results button{white-space:normal;text-align:left}
 /* 组卡片上常显「人数/上限」，打开分组后是「本组 5/7 人 + 加人/减人」 */
 .gcount{display:inline-block;margin-left:6px;font-size:11px;font-weight:600;color:var(--muted, #667);letter-spacing:0}
+/* 超载标红（2026-11-12）：人数/上限 这一格变红，配合 .gcard.is-over 的整卡红边 */
+.gcount.over{color:var(--bad, #c0392b);font-weight:700}
 .sheet-vertical .c-no .gcount{display:block;margin:2px 0 0}
 .group-pick-count{display:inline-block;margin-right:6px;font-size:12px;color:var(--muted, #667)}
 [data-pick-members]{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}

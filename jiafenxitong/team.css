@@ -139,3 +139,75 @@ body {
   background: rgba(27, 33, 48, .92); color: #fff; padding: 9px 16px;
   border-radius: 999px; font-size: 13px; z-index: 20; max-width: 82vw;
 }
+
+/* ============================================================
+   选座页顶部工具栏 + 拖动选位（2026-11-12 U4）
+   用户原话：「选座位风格 完全对应教师端 ui 照抄 支持拖动选位」。
+   所以这里照搬教师端分组看板那套：顶部一条风格切换（圆桌 / 行列），
+   旁边一张可拖的「我」卡，拖到某桌就坐下 —— 和教师端「拖人进组」同一套手势。
+   ============================================================ */
+.seat-toolbar {
+  position: sticky; top: 0; z-index: 9;
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 9px 12px;
+  background: rgba(255, 255, 255, .92);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+}
+.seat-toolbar[hidden] { display: none; }
+
+/* 风格胶囊：圆桌 / 行列，和分数页 .tabs 同一套语言 */
+.style-seg {
+  display: inline-flex; gap: 4px; padding: 3px;
+  border: 1px solid var(--line-strong); border-radius: 999px; background: var(--panel);
+}
+.style-seg button {
+  appearance: none; border: 0; background: transparent;
+  padding: 6px 14px; border-radius: 999px;
+  font: inherit; font-size: 13px; font-weight: 600; color: var(--muted); cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.style-seg button.on { background: var(--brand); color: #fff; }
+
+/* 可拖的「我」卡：跟着手指走的那张原卡要一眼认得是「我」 */
+.me-chip {
+  margin-left: auto; padding: 7px 14px; border-radius: 999px;
+  background: var(--brand); color: #fff;
+  font: inherit; font-size: 13.5px; font-weight: 700; line-height: 1.4;
+  cursor: grab; touch-action: none;
+  -webkit-user-select: none; user-select: none;
+  box-shadow: 0 6px 16px -8px rgba(47, 109, 246, .7);
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.me-chip.seated { background: var(--ok); box-shadow: 0 6px 16px -8px rgba(16, 136, 79, .7); }
+.me-chip.locked { background: #9aa3b5; box-shadow: none; cursor: default; }
+.me-chip:active { transform: scale(.96); }
+body.me-dragging .me-chip { opacity: .3; }
+
+/* 拖动时跟着鼠标/手指走的那张残影（fixed + transform，不碰 left/top，跟手不卡） */
+.me-ghost {
+  position: fixed; left: 0; top: 0; z-index: 4000;
+  padding: 7px 14px; border-radius: 999px;
+  background: var(--brand); color: #fff;
+  font-size: 13.5px; font-weight: 700; line-height: 1.4;
+  pointer-events: none;
+  box-shadow: 0 12px 30px -10px rgba(47, 109, 246, .8);
+  will-change: transform;
+}
+body.me-dragging { cursor: grabbing; -webkit-user-select: none; user-select: none; }
+
+/* 拖动经过的桌卡：描一圈主题色边，像教师端 .gb-over 一样给个明确落点 */
+.desk.drag-over {
+  border-color: var(--brand) !important;
+  box-shadow: 0 0 0 3px var(--brand-soft), 0 0 24px -8px rgba(47, 109, 246, .5) !important;
+  transform: translateY(-2px);
+}
+
+/* 行列风格：比「圆桌」更紧凑的均匀方格，像教室座位表；数据不变，只换排布 */
+.desks.style-grid {
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  gap: 8px;
+}
+@media (min-width: 900px) { .desks.style-grid { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); } }
+.desks.style-grid .tcard { padding: 8px 9px; gap: 5px; border-radius: 14px; }
+.desks.style-grid .tc-seat { font-size: 10.5px; padding: 0 6px; }

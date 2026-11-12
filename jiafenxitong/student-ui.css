@@ -196,6 +196,14 @@ html.hx-bg[data-hx-mode="dark"] .bar { background: rgba(14, 16, 20, .82); }
 :root[data-hx-mode="dark"] .btn-stand { background: var(--panel); color: var(--ink); border-color: var(--line-strong); }
 :root[data-hx-mode="dark"] .top-state { background: var(--brand-soft); }
 :root[data-hx-mode="dark"] .top-state.closed { background: rgba(255, 255, 255, .08); }
+/* ⑨ 追加（2026-11-12 U4）：选座页工具栏 / 拖选卡片在深色下跟着换皮 */
+:root[data-hx-mode="dark"] .seat-toolbar { background: rgba(14, 16, 20, .78); }
+:root[data-hx-mode="dark"] .style-seg { background: var(--panel); border-color: var(--line-strong); }
+:root[data-hx-mode="dark"] .style-seg button { color: var(--muted); }
+:root[data-hx-mode="dark"] .style-seg button.on { background: var(--brand); color: #fff; }
+:root[data-hx-mode="dark"] .me-chip { box-shadow: 0 6px 16px -8px rgba(0, 0, 0, .6); }
+:root[data-hx-mode="dark"] .me-chip.seated { background: var(--ok); }
+:root[data-hx-mode="dark"] .me-ghost { box-shadow: 0 12px 30px -10px rgba(0, 0, 0, .7); }
 
 /* ---------- ⑩ 手机端收口：卡片贴边一点、字号别小到看不清 ---------- */
 @media (max-width: 480px) {

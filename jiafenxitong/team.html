@@ -7,12 +7,12 @@
 <meta name="theme-color" content="#f6f7fb">
 <!-- 全站外观/校徽水印，和 scores.html 同一套（见那边的注释）。 -->
 <script src="../hx-theme.js" data-tool="jiafen"></script>
-<link rel="stylesheet" href="team.css?v=84a14c1">
+<link rel="stylesheet" href="team.css?v=69807ef">
 <!-- 桌卡样式（2026-11-06）：圆桌改成排课那套卡片。新规则全写在这一个文件里，
      不覆盖 team.css 已有的行（那边正有人在改深浅色变量）。 -->
 <link rel="stylesheet" href="roster-board.css">
 <!-- 学生端共用外观层（2026-11-12）：深色主题 + 毛玻璃 + 细节统一。必须排在最后覆盖 -->
-<link rel="stylesheet" href="student-ui.css?v=84a14c1">
+<link rel="stylesheet" href="student-ui.css?v=69807ef">
 </head>
 <body>
 <header class="top">
@@ -26,6 +26,15 @@
 
 <main id="main">
   <section id="notice" class="notice" hidden></section>
+
+  <div class="seat-toolbar" id="seatToolbar" hidden>
+    <div class="style-seg" id="styleSeg" role="tablist" aria-label="座位风格">
+      <button type="button" data-style="round" class="on">圆桌</button>
+      <button type="button" data-style="grid">行列</button>
+    </div>
+    <div class="me-chip" id="meChip" hidden title="拖到某桌坐下">我</div>
+  </div>
+
   <div id="desks" class="desks"></div>
   <p class="tip" id="tip"></p>
 </main>
@@ -35,7 +44,7 @@
   <button class="btn-stand" id="btnStand" hidden>起身换桌</button>
 </footer>
 
-<script src="config.js?v=84a14c1"></script>
-<script src="team.js?v=84a14c1"></script>
+<script src="config.js?v=69807ef"></script>
+<script src="team.js?v=69807ef"></script>
 </body>
 </html>
