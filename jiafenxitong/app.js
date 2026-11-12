@@ -3786,6 +3786,16 @@ function restoreDroppedToHome(cls) {
     }, 2000);
   }
 
+  /* 2026-11-12 实时性补强：切回标签页 / 窗口重新拿到焦点时立刻拉一次，
+     别让老师干等那 2 秒，也别出现「学生明明已经选了、老师这边还停在旧数字」的错觉。
+     （浏览器会把后台标签页的 setInterval 节流到 1 分钟以上，回来时的第一次刷新必须主动补。） */
+  function tmKick() {
+    if (view === 'pool' && tmOn() && tmClassId(curClass())) tmPull();
+  }
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) tmKick(); });
+  window.addEventListener('focus', tmKick);
+  window.addEventListener('pageshow', function (e) { if (e.persisted) tmKick(); });
+
   /** 记分页每次加减分都会重画，这里每班只静默拉一次座位：拉到了统计和横幅才和看板同一个口径 */
   function tmMaybePull(cls) {
     if (!cls || !tmOn() || !tmClassId(cls) || tmTried[cls.id]) return;
@@ -3827,6 +3837,16 @@ function restoreDroppedToHome(cls) {
     });
   }
 
+  /** 常驻状态条（#tmStatus）中央写入：分组页标题下面那行「学生自助选桌 · 当前状态」 */
+  function tmSt(txt, tone) {
+    var el = $('#tmStatus');
+    if (!el) return;
+    el.textContent = txt;
+    el.setAttribute('data-st', tone || 'none');
+    var more = $('#teamMore'), sm = more && more.querySelector('summary');
+    if (sm) sm.textContent = '选座实况 · ' + txt + '（每 2 秒自动刷新）';
+  }
+
   /** 四个按钮的显隐与文案跟着房间状态走 */
   function tmButtons(room) {
     var open = $('#btnTeamOpen'), lock = $('#btnTeamLock'),
@@ -3854,6 +3874,22 @@ function restoreDroppedToHome(cls) {
       link.href = 'team.html?r=' + room.room;
       link.hidden = false;
     }
+
+    /* 常驻状态条（2026-11-12）：老师最想问的两件事在这里一次说清 —— 现在到底开没开、
+       已经坐了几个人。顺带在开房时把折叠的「选座实况」自动展开，免得学生都在选座了，
+       老师还盯着一块折叠条以为没反应。 */
+    var seatN = (tmState && (tmState.seats || []).length) || 0;
+    var rostN = (tmState && (tmState.roster || []).length) || 0;
+    var seg = st === 'open' ? '组队中'
+      : st === 'locked' ? '已停止 · 学生不能换座'
+      : st === 'closed' ? '已结束' : '未开放';
+    var txt = seg;
+    if (room && rostN) txt += ' · 已坐 ' + seatN + '/' + rostN + ' 人';
+    else if (room) txt += ' · 第 ' + room.room + ' 号房间';
+    if (lockNow) txt += ' · 分组已锁定';
+    tmSt(txt, st || 'none');
+    var more = $('#teamMore');
+    if (more && room && st !== 'closed' && !more.open) more.open = true;
   }
 
   function tmPaint() {
@@ -3865,12 +3901,14 @@ function restoreDroppedToHome(cls) {
       box.innerHTML = '<p class="note">登录后（右上角账号）才能用学生选桌组队：房间和选座结果都存在云端，' +
         '学生用自己的学号账号打开「学生入口」就能连上。</p>';
       tmButtons(null);
+      tmSt('需要登录后才能开放组队', 'warn');
       return;
     }
     if (!tmClassId(cls)) {
       box.innerHTML = '<p class="note">这个班还没对应首页班级，组队用不了。先到「数据与同步」页把本班对应到' +
         '首页同名的班 —— 学生账号就是从那份名单来的。</p>';
       tmButtons(null);
+      tmSt('本班还没对应首页班级，开放不了', 'warn');
       return;
     }
 
@@ -3971,17 +4009,21 @@ function restoreDroppedToHome(cls) {
     if (!tmClassId(cls)) { alert('这个班还没对应首页班级，先在「数据与同步」页对应。'); return; }
     /* 2026-11-08：桌数 / 每桌人数不再偷偷用 10 / 6 兜底。用户说得很清楚：
        「默认好像是10组6人 我一旦不小心点错了 就会抹除我部分同学」——所以没填就是没填，
-       这里直接把老师拉回「更多 · 学生自助选桌」去填，而不是替他决定一个数字。 */
+       这里只把光标推到那两个输入框上，不替老师决定任何数字。
+       （2026-11-12：控件已经搬到「开放组队」按钮旁边，不再需要展开折叠区，
+        所以从 openTeamMore() 换成直接 focus，少一次滚动。） */
     var tRaw = String($('#teamTables').value).trim(), sRaw = String($('#teamSize').value).trim();
     if (!tRaw || !sRaw) {
-      openTeamMore();
-      alert('先在「学生自助选桌」里填圆桌数和每桌人数。\n（这两项故意不预填，避免手一滑就按默认值分掉全班。）');
+      var miss = !tRaw ? $('#teamTables') : $('#teamSize');
+      if (miss) { miss.focus(); if (miss.scrollIntoView) miss.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+      alert('先在上面填「圆桌数」和「每桌最多几人」。\n（这两项故意不预填，避免手一滑就按默认值分掉全班。）');
       return;
     }
     var tables = Math.max(1, Math.min(40, Math.round(Number(tRaw) || 0)));
     var size = clampLimit(sRaw);
     if (!tables || !size) {
-      openTeamMore();
+      var bad = (!tables ? $('#teamTables') : $('#teamSize'));
+      if (bad) bad.focus();
       alert('圆桌数要是 1–40，每桌人数要是 2–40。');
       return;
     }
@@ -4663,9 +4705,15 @@ function restoreDroppedToHome(cls) {
        分组锁定时一律不让开：锁定的意思就是「学生别再动了」，新开一场组队等于放学生进来换座。 */
     var openBtn = $('#btnTeamOpen');
     if (openBtn && !(tmRoom && tmRoom.room && tmRoom.status !== 'closed')) {
-      openBtn.disabled = !!cls.groupLocked ||
-        !(Number(tIn && tIn.value) >= 1 && clampLimit(sIn && sIn.value));
-      openBtn.title = cls.groupLocked ? '分组已锁定：先点上面的「🔓 解锁分组」' : '';
+      /* 2026-11-12 修「点了没反应」：圆桌数 / 每桌人数没填时**不再把按钮置灰**。
+         置灰的观感就是功能坏了（这轮反馈的「没有开放分组按钮」有一半来自这里：
+         按钮确实在，但是灰的，点了没任何反应）。现在按钮一直可点，
+         点下去由 click 处理明确告诉老师「先填圆桌数和每桌人数」，而不是默默失效。 */
+      openBtn.disabled = !!cls.groupLocked;
+      openBtn.title = cls.groupLocked
+        ? '分组已锁定：先点上面的「🔓 解锁分组」'
+        : (tIn && sIn && !(Number(tIn.value) >= 1 && clampLimit(sIn.value))
+            ? '点一下会提示先填圆桌数和每桌人数' : '');
     }
 
     /* 锁定分组开关（2026-11-11）：老师怕学生随时能换组，锁上以后学生端就不能换组/换座。
@@ -4774,13 +4822,15 @@ function restoreDroppedToHome(cls) {
       .then(function (ok) { if (ok) apply(); });
   }
 
-  /** 展开最底下「学生自助选桌」那一块（原来弹窗里「③ 按选座确认」的位置） */
+  /** 滚到「学生自助选桌」常驻条（并展开选座实况）
+      2026-11-12：控件从折叠区搬到了 #tmBar，这里改成把老师带到能点到
+      「按选座确认分组」的位置；旧的 openTeamMore 名字保留，调用点一个都没改。 */
   function openTeamMore() {
     var d = $('#teamMore');
-    if (!d) return;
-    d.open = true;
+    if (d) d.open = true;
     renderGroupSetup();
-    if (d.scrollIntoView) d.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    var bar = $('#tmBar') || d;
+    if (bar && bar.scrollIntoView) bar.scrollIntoView({ block: 'center', behavior: 'smooth' });
   }
 
   /** 均匀分配：把待分配的人轮流塞进现有组，填到该组上限为止（不新建组） */

@@ -3,7 +3,7 @@
 <html lang="zh-CN">
 <head>
 <script src="../hx-theme.js" data-tool="wiring"></script>
-<script>window.HX_BUILD = "2026-11-12T06:49:45Z 37d9f25";</script>
+<script>window.HX_BUILD = "2026-11-12T12:12:16Z fd13bb8";</script>
 <meta charset="utf-8">
 <meta name="copyright" content="© 2026 zcq 版权所有，未经许可禁止复制、修改、转载">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
@@ -1735,6 +1735,479 @@
     #fw-rank .rk-board li { grid-template-columns: 38px 1.4fr auto; }
     #fw-rank .rk-board li span { display: none; }
   }
+
+  /* ══════════════════════════════════════════════════════════════════════
+     R6 · 排位 UI 全面重构（2026-11-12，规格：排位UI重构规格.md 16 节）
+     只覆盖「排位主页」这一屏的结构与皮肤：顶栏导航、Hero 任务横幅、
+     班级胶囊、学生身份卡、排行榜身份卡。
+     下面这些**一行都不碰**：.rk-veil 一族（准备页/倒数/转场/成绩页）、
+     #fw-draw（夜市抽人）、#fw-acct、练习页本身。
+
+     透明度口径：面板底色一律 `rgb(... / calc(var(--hx-a,1) * X))`，
+     跟着 11-11 定的「外观 → 界面透明度」走（--hx-a 由 hx-theme.js 写在 :root，
+     这里只是消费它）。没有整页 opacity，排行榜里的个人背景图不受它影响。
+     ══════════════════════════════════════════════════════════════════════ */
+  #fw-rank {
+    /* 外层是「毛玻璃挡板」，不是实色墙：颜色跟着 --hx-a（外观 → 界面透明度）走，
+       1 = 最透（默认）、2 = 实色。排位是整屏遮罩，底下的练习页会透出来 —— 加 backdrop blur
+       把它糊成色块（看得出有背景、看不清元件和文字），既有玻璃质感又不干扰读榜。
+       这是**叠加层**，没有替换网站背景，也没有对任何父容器用 opacity。 */
+    background: rgb(4 8 20 / calc(.72 + (var(--hx-a, 1) - 1) * .26));
+    backdrop-filter: blur(16px) saturate(1.15);
+    -webkit-backdrop-filter: blur(16px) saturate(1.15);
+    --rkx-line: rgba(90, 132, 224, .28);
+    --rkx-line-hi: rgba(0, 207, 255, .38);
+  }
+  /* 极简模式：不做实时毛玻璃（大屏上最费 GPU 的一件事），改成更实的底 */
+  html.is-lite #fw-rank { backdrop-filter: none; -webkit-backdrop-filter: none;
+    background: rgb(4 8 20 / calc(.90 + (var(--hx-a, 1) - 1) * .08)); }
+  /* 科技网格压得更淡：它只是面板的一层纹理，不该盖掉背景视频 */
+  #fw-rank .rk::before { opacity: calc(var(--hx-a, 1) * .8); }
+
+  /* ── 顶栏：一条紧凑控制台，导航塞进标题栏里（不另起第二条标题栏）── */
+  #fw-rank .fw-head {
+    height: 56px; gap: 12px; padding: 0 14px 0 14px;
+    background: linear-gradient(90deg, rgba(255, 155, 18, .16), rgba(80, 48, 140, .14) 38%, rgba(8, 13, 30, calc(var(--hx-a, 1) * .52)) 66%, rgba(54, 140, 255, .14)),
+      rgb(6 11 26 / calc(var(--hx-a, 1) * .74));
+  }
+  #fw-rank .fw-dot { width: 32px; height: 32px; }
+  #fw-rank .fw-t { gap: 10px; flex: none; }
+  #fw-rank .fw-t b { font-size: 21px; letter-spacing: 5px; }
+  #fw-rank .fw-t b::after { height: 20px; }
+  #fw-rank .fw-t small { font-size: 12px; letter-spacing: 1.2px; }
+  #fw-rank .rkx-nav { display: flex; align-items: center; gap: 4px; margin-left: 6px; padding: 3px;
+    border-radius: 12px; border: 1px solid rgba(54, 140, 255, .24); background: rgba(10, 17, 36, .55);
+    overflow-x: auto; scrollbar-width: none; min-width: 0; }
+  #fw-rank .rkx-nav::-webkit-scrollbar { display: none; }
+  #fw-rank .rkx-nb { flex: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    height: 36px; padding: 0 15px; border: 0; border-radius: 9px; background: none; cursor: pointer;
+    color: #9db2d8; font: 700 14px/1 inherit; letter-spacing: 1px; white-space: nowrap; text-decoration: none;
+    transition: color .18s, background-color .18s, box-shadow .18s, transform .12s; }
+  #fw-rank .rkx-nb:hover { color: #e9f4ff; background: rgba(54, 140, 255, .14); }
+  #fw-rank .rkx-nb:active { transform: scale(.96); }
+  #fw-rank .rkx-nb.on { color: #fff; background: linear-gradient(135deg, rgba(0, 207, 255, .26), rgba(37, 140, 255, .22));
+    box-shadow: inset 0 0 0 1px rgba(0, 207, 255, .5), 0 0 16px -4px rgba(0, 207, 255, .8); }
+  /* 「随机选人」是唯一的橙色强项：原设计里那条橙红渐变保留，只收小一圈塞进导航 */
+  #fw-rank .rkx-nb.rkx-hot { color: #fff; background: linear-gradient(120deg, #FF9B12, #FF453A);
+    box-shadow: 0 0 16px -5px rgba(255, 90, 50, .75), inset 0 1px 0 rgba(255, 255, 255, .3); }
+  #fw-rank .rkx-nb.rkx-hot:hover { filter: brightness(1.07); }
+  #fw-rank .rkx-who { display: flex; align-items: center; gap: 8px; margin-left: auto; flex: none;
+    max-width: 30%; padding: 4px 10px 4px 6px; border-radius: 999px;
+    border: 1px solid rgba(124, 156, 255, .26); background: rgba(12, 20, 40, .5); }
+  #fw-rank .rkx-who > span { color: #CFE0FF; font-weight: 700; font-size: 13px; max-width: 12em;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #fw-rank .rkx-ico { flex: none; width: 34px; height: 34px; display: grid; place-items: center; padding: 0;
+    border: 1px solid rgba(124, 156, 255, .3); border-radius: 10px; background: rgba(20, 32, 60, .6);
+    color: #cfe0ff; cursor: pointer; transition: background .18s, color .18s, transform .12s; }
+  #fw-rank .rkx-ico svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+  #fw-rank .rkx-ico:hover { background: rgba(0, 207, 255, .16); color: #fff; }
+  #fw-rank .rkx-ico:active { transform: scale(.94); }
+
+  /* ── 主区：左 56 / 右 44，两栏各自独立滚动，整页不出纵向滚动条 ── */
+  #fw-rank .rk { padding: 12px 16px 14px; }
+  /* 高度链：.rk(flex列) → #rkBody(要显式设成**列**方向，否则 .rk-main 在行方向里按内容撑高，
+     下半屏会露出练习页) → .rk-main(1fr 行) → 左右两栏。这是本屏不复现「下方大片空白」的关键。 */
+  #fw-rank #rkBody { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+  #fw-rank .rk-main { flex: 1; min-height: 0; display: grid; grid-template-columns: 56fr 44fr;
+    grid-template-rows: minmax(0, 1fr); gap: 14px; align-items: stretch; overflow: hidden; }
+  #fw-rank .rk-left { display: flex; flex-direction: column; gap: 12px; min-width: 0; min-height: 0; }
+  #fw-rank .rk-right { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+
+  /* ── Hero 任务横幅：六边形「选」+ 专题 + 当前选手 + 说明 + 橙色开始 ── */
+  #fw-rank .rk-hero { position: relative; flex: none; display: flex; align-items: center; gap: 15px;
+    padding: 14px 18px; min-height: 112px; border-radius: 16px; overflow: hidden;
+    border: 1px solid rgba(255, 185, 52, .30);
+    background: linear-gradient(100deg, rgba(255, 155, 18, .16), rgba(18, 28, 54, calc(var(--hx-a, 1) * .58)) 46%, rgba(9, 15, 32, calc(var(--hx-a, 1) * .62)));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), 0 18px 40px -26px rgba(0, 0, 0, .9); }
+  /* 装饰全在面板内部：星际轨道 + 远景城市剪影 + 星光，低透明度，不替代网页背景 */
+  #fw-rank .rk-hero::before { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .85;
+    background:
+      radial-gradient(circle 1.6px at 62% 18%, rgba(255, 220, 150, .8), transparent 60%),
+      radial-gradient(circle 1.2px at 74% 66%, rgba(140, 220, 255, .7), transparent 60%),
+      radial-gradient(circle 1px at 84% 34%, rgba(255, 255, 255, .65), transparent 60%),
+      radial-gradient(120% 90% at 72% 120%, rgba(88, 66, 150, .5), transparent 70%),
+      radial-gradient(60% 100% at 100% 0%, rgba(255, 155, 18, .18), transparent 70%); }
+  #fw-rank .rk-hero::after { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 2px; transform-origin: left;
+    background: linear-gradient(90deg, transparent, rgba(255, 185, 52, .9), rgba(0, 207, 255, .85), transparent);
+    animation: rkSweep .5s .05s var(--rk-ease) both; }
+  #fw-rank .rk-hero .rkx-trophy { position: absolute; right: 168px; top: 50%; width: 92px; height: 92px;
+    transform: translateY(-50%); opacity: .13; pointer-events: none; color: #ffd68a; }
+  #fw-rank .rk-pav { flex: none; width: 58px; height: 64px; }
+  #fw-rank .rk-pav i { width: 44px; height: 48px; font-size: 20px; }
+  #fw-rank .rk-hero .rk-pinfo { flex: 1; min-width: 0; position: relative; z-index: 1; }
+  #fw-rank .rk-hero .rk-pinfo > small { display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
+    color: #9fb3d8; font-size: 12px; font-weight: 700; letter-spacing: 1.4px; }
+  #fw-rank .rk-hero .rk-pinfo > b { display: block; margin: 3px 0 2px; font-size: clamp(24px, 2.1vw, 31px); font-weight: 900;
+    line-height: 1.15; color: #fff; letter-spacing: .5px; text-shadow: 0 2px 16px rgba(0, 0, 0, .6);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #fw-rank .rk-hero .rk-pinfo > span { display: block; color: #a9bcdd; font-size: 13px; font-weight: 600;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #fw-rank .rk-hero .rk-qpill { font-style: normal; font-size: 12px; font-weight: 800; padding: 2px 8px;
+    border-radius: 999px; color: #ffd9a0; background: rgba(255, 155, 18, .16); border: 1px solid rgba(255, 155, 18, .32); }
+  #fw-rank .rk-hero .rk-start { height: 52px; padding: 0 24px; font-size: 17px; letter-spacing: 2px; }
+  #fw-rank .rk-hero .rk-proxytag { margin-top: 4px; display: inline-block; }
+  /* 换人动画：整张 Hero 的姓名淡出一次（旧版是 .rk-player.rk-switching） */
+  #fw-rank .rk-hero.rk-switching .rk-pinfo > b, #fw-rank .rk-hero.rk-switching .rk-pinfo > span, #fw-rank .rk-hero.rk-switching .rk-pinfo > small { animation: rkNameOut .18s ease both; }
+
+  /* ── 学生面板：标题行 + 班级胶囊 + 身份卡网格 ── */
+  #fw-rank .rk-students { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px;
+    padding: 12px 14px 14px; border-radius: 16px;
+    border: 1px solid var(--rkx-line);
+    background: linear-gradient(180deg, rgba(14, 23, 46, calc(var(--hx-a, 1) * .64)), rgba(8, 14, 30, calc(var(--hx-a, 1) * .70)));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .04); }
+  #fw-rank .rk-sh { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-height: 20px; }
+  #fw-rank .rk-sh svg { width: 17px; height: 17px; fill: none; stroke: #7fd7ff; stroke-width: 1.8; stroke-linecap: round; }
+  #fw-rank .rk-sh b { font-size: 15px; font-weight: 800; letter-spacing: 1px; color: #e8f1ff; }
+  #fw-rank .rk-sh em { font-style: normal; font-size: 12px; font-weight: 700; color: #93a7c9;
+    padding: 2px 8px; border-radius: 999px; background: rgba(90, 132, 224, .14); }
+  #fw-rank .rk-sh .rkx-hint { margin-left: auto; display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; font-weight: 600; color: #8fa6c9; }
+  #fw-rank .rk-sh .rkx-hint button { display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 10px;
+    border-radius: 8px; border: 1px solid rgba(0, 207, 255, .3); background: rgba(0, 207, 255, .1);
+    color: #9fe6ff; font: 700 12px/1 inherit; cursor: pointer; transition: background .18s, color .18s; }
+  #fw-rank .rk-sh .rkx-hint button:hover { background: rgba(0, 207, 255, .2); color: #fff; }
+
+  /* 班级选择：整行横向胶囊（可横滚，滚轮/触控都行） */
+  #fw-rank .rkx-clsbar { flex: none; display: flex; align-items: center; gap: 8px; padding: 3px;
+    overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; scroll-behavior: smooth;
+    border-radius: 13px; border: 1px solid rgba(54, 140, 255, .18); background: rgba(6, 12, 26, .42); }
+  #fw-rank .rkx-clsbar::-webkit-scrollbar { height: 6px; }
+  #fw-rank .rkx-clsbar::-webkit-scrollbar-thumb { background: rgba(90, 132, 224, .35); border-radius: 3px; }
+  #fw-rank .rkx-pill { flex: none; display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 15px;
+    border-radius: 11px; border: 1px solid rgba(90, 132, 224, .30); background: rgba(18, 29, 56, .55);
+    color: #c9d8f6; font: 700 15px/1 inherit; white-space: nowrap; cursor: pointer;
+    transition: background-color .18s, border-color .18s, color .18s, box-shadow .18s, transform .12s; }
+  #fw-rank .rkx-pill svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.7; opacity: .8; }
+  #fw-rank .rkx-pill em { font-style: normal; min-width: 22px; padding: 2px 7px; border-radius: 999px;
+    font-size: 12px; font-weight: 800; text-align: center;
+    background: rgba(0, 207, 255, .16); color: #8fe3ff; }
+  #fw-rank .rkx-pill:hover { border-color: rgba(0, 207, 255, .55); color: #fff; background: rgba(20, 40, 74, .7); }
+  #fw-rank .rkx-pill:active { transform: scale(.97); }
+  #fw-rank .rkx-pill.on { border-color: transparent; color: #2a1702;
+    background: linear-gradient(120deg, #ffc247, #ff8a3d);
+    box-shadow: 0 8px 20px -10px rgba(255, 150, 50, .95), inset 0 1px 0 rgba(255, 255, 255, .45); }
+  #fw-rank .rkx-pill.on em { background: rgba(60, 26, 0, .2); color: #3a1c00; }
+
+  /* 学生身份卡：auto-fill 网格，卡片高度由 JS 按可用空间算（--rowh） */
+  #fw-rank #rkPick { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
+  #fw-rank #rkPick > .rkx-grid { flex: 1; min-height: 0; }
+  #fw-rank .rkx-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(138px, 1fr));
+    grid-auto-rows: var(--rowh, 84px); gap: 9px; overflow-y: auto; overflow-x: hidden;
+    align-content: start; padding: 2px; min-height: 0; }
+  #fw-rank .rkx-grid::-webkit-scrollbar { width: 8px; }
+  #fw-rank .rkx-grid::-webkit-scrollbar-thumb { background: rgba(90, 132, 224, .35); border-radius: 4px; }
+  #fw-rank .rkx-stu { position: relative; display: flex; flex-direction: column; justify-content: center; gap: 2px;
+    padding: 8px 12px; border-radius: 12px; overflow: hidden; text-align: left; cursor: pointer;
+    border: 1px solid rgba(90, 132, 224, .30);
+    background: linear-gradient(150deg, rgba(26, 42, 78, calc(var(--hx-a, 1) * .58)), rgba(10, 17, 36, calc(var(--hx-a, 1) * .66)));
+    color: #eaf2ff; transition: border-color .18s, background-color .18s, box-shadow .18s, transform .12s; }
+  /* 卡面一层极淡的主题纹（不是背景图，不挡字） */
+  #fw-rank .rkx-stu::before { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .5;
+    background: radial-gradient(90% 120% at 100% 0%, rgba(0, 207, 255, .18), transparent 62%); }
+  #fw-rank .rkx-stu > * { position: relative; z-index: 1; }
+  #fw-rank .rkx-stu i { font-style: normal; font-size: 12px; font-weight: 800; letter-spacing: .08em; color: #7fd7ff; }
+  #fw-rank .rkx-stu b { font-size: 17px; font-weight: 800; line-height: 1.18; letter-spacing: .3px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #fw-rank .rkx-stu small { display: flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600;
+    color: #93a7c9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #fw-rank .rkx-stu small svg { flex: none; width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.9; }
+  #fw-rank .rkx-stu:hover { border-color: rgba(0, 207, 255, .6); transform: translateY(-1px);
+    box-shadow: 0 10px 24px -18px rgba(0, 207, 255, .9); }
+  #fw-rank .rkx-stu:active { transform: scale(.985); }
+  #fw-rank .rkx-stu.self i { color: #ffb934; }
+  /* 选中：金色描边 + 光晕 + 左上角标（颜色之外的第二重标识） */
+  #fw-rank .rkx-stu.on { border-color: #ffb934; background: linear-gradient(150deg, rgba(255, 176, 52, .24), rgba(24, 24, 40, .72));
+    box-shadow: inset 0 0 0 1px #ffb934, 0 12px 26px -16px rgba(255, 176, 52, .95); }
+  #fw-rank .rkx-stu.on::after { content: ""; position: absolute; right: 8px; top: 8px; width: 7px; height: 7px; border-radius: 50%;
+    background: #ffb934; box-shadow: 0 0 10px #ffb934; }
+  /* 切班：旧网格淡出 140ms（rank.js 加 .rk-fading 后重绘） */
+  #fw-rank .rkx-grid.rk-fading, #fw-rank .rkx-clsbar.rk-fading { opacity: 0; transition: opacity .14s ease; }
+
+  /* ── 排行榜：右栏整块，标题常驻，列表独立滚动 ── */
+  #fw-rank .rk-right > .rk-bh { flex: none; display: flex; align-items: center; gap: 9px; padding: 12px 16px;
+    border-radius: 16px 16px 0 0; border: 1px solid var(--rkx-line); border-bottom: 1px solid rgba(0, 207, 255, .22);
+    background: linear-gradient(100deg, rgba(255, 185, 52, .12), rgba(14, 23, 46, calc(var(--hx-a, 1) * .66)) 42%, rgba(8, 14, 30, calc(var(--hx-a, 1) * .7)));
+    backdrop-filter: blur(8px); }
+  #fw-rank .rk-right > .rk-bh svg { flex: none; width: 20px; height: 20px; fill: none; stroke: #ffd68a; stroke-width: 1.6; }
+  #fw-rank .rk-right > .rk-bh b { font-size: 15px; font-weight: 800; letter-spacing: .6px; color: #f2f7ff;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #fw-rank .rk-right > .rk-bh small { margin-left: auto; flex: none; font-size: 12px; font-weight: 600; color: #93a7c9; }
+  #fw-rank .rk-boardwrap { flex: 1; min-height: 0; display: flex; flex-direction: column;
+    padding: 10px 10px 12px; border-radius: 0 0 16px 16px; border: 1px solid var(--rkx-line); border-top: 0;
+    background: linear-gradient(180deg, rgba(8, 14, 30, calc(var(--hx-a, 1) * .58)), rgba(6, 11, 24, calc(var(--hx-a, 1) * .68))); }
+  #fw-rank .rk-boardwrap > ol, #fw-rank .rk-boardwrap > div { min-height: 0; }
+
+  /* 排行榜身份卡：背景图 → 渐变遮罩 → 玻璃层 → 文字（四层，文字永远最上） */
+  #fw-rank .rk-board { display: flex; flex-direction: column; gap: 7px; max-height: none; overflow-y: auto;
+    padding: 1px 2px; min-height: 0; flex: 1; }
+  #fw-rank .rk-board::-webkit-scrollbar { width: 8px; }
+  #fw-rank .rk-board::-webkit-scrollbar-thumb { background: rgba(90, 132, 224, .35); border-radius: 4px; }
+  #fw-rank .rk-lb { position: relative; flex: none; display: grid; grid-template-columns: 34px minmax(0, 1fr) auto;
+    align-items: center; gap: 10px; height: 42px; padding: 0 14px 0 8px; border-radius: 11px; overflow: hidden;
+    border: 1px solid rgba(90, 132, 224, .22); background: rgb(12 19 37 / calc(var(--hx-a, 1) * .62));
+    font-weight: 700; color: #e9f1ff; }
+  #fw-rank .rk-lb-bg { position: absolute; inset: 0; z-index: 0; background-size: cover; background-repeat: no-repeat;
+    background-position: 50% 50%; transform: scale(1.02); }
+  #fw-rank .rk-lb-veil { position: absolute; inset: 0; z-index: 1; pointer-events: none;
+    background: linear-gradient(90deg, rgba(4, 8, 18, .84) 0%, rgba(4, 8, 18, .52) 38%, rgba(4, 8, 18, .38) 62%, rgba(4, 8, 18, .78) 100%); }
+  #fw-rank .rk-lb > *:not(.rk-lb-bg):not(.rk-lb-veil) { position: relative; z-index: 2; }
+  #fw-rank .rk-lb .rk-lb-place { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 8px;
+    font-style: normal; font-size: 13px; font-weight: 900; font-variant-numeric: tabular-nums;
+    color: #cfe0ff; background: rgba(90, 132, 224, .18); }
+  #fw-rank .rk-lb b { font-size: 15px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #fw-rank .rk-lb .rk-lb-cls { font-size: 12px; font-weight: 600; color: #a9bcdd; white-space: nowrap; }
+  #fw-rank .rk-lb em { font-style: normal; font-weight: 900; font-variant-numeric: tabular-nums; font-size: 15px;
+    color: #eaf3ff; text-shadow: 0 1px 8px rgba(0, 0, 0, .8); }
+  #fw-rank .rk-lb .rk-lb-tag { display: none; }
+  #fw-rank .rk-lb .rk-lb-medal { display: none; }
+
+  /* 前三名：更高、有奖牌/桂冠/称号；背景仍由学生自己决定（装饰属于名次，不属于背景） */
+  #fw-rank .rk-lb.p1, #fw-rank .rk-lb.p2, #fw-rank .rk-lb.p3 { grid-template-columns: 52px minmax(0, 1fr) auto; height: 66px; padding-right: 16px; }
+  #fw-rank .rk-lb.p2 { height: 60px; } #fw-rank .rk-lb.p3 { height: 57px; }
+  #fw-rank .rk-lb.p1 .rk-lb-medal, #fw-rank .rk-lb.p2 .rk-lb-medal, #fw-rank .rk-lb.p3 .rk-lb-medal {
+    display: grid; place-items: center; width: 46px; height: 46px; position: relative; }
+  #fw-rank .rk-lb.p1 .rk-lb-medal svg, #fw-rank .rk-lb.p2 .rk-lb-medal svg, #fw-rank .rk-lb.p3 .rk-lb-medal svg {
+    width: 40px; height: 40px; overflow: visible; }
+  #fw-rank .rk-lb.p1 .rk-lb-place, #fw-rank .rk-lb.p2 .rk-lb-place, #fw-rank .rk-lb.p3 .rk-lb-place { display: none; }
+  #fw-rank .rk-lb.p1 b { font-size: 17px; } #fw-rank .rk-lb.p2 b, #fw-rank .rk-lb.p3 b { font-size: 16px; }
+  #fw-rank .rk-lb.p1 { border-color: rgba(255, 196, 72, .8);
+    background: linear-gradient(100deg, rgba(255, 178, 46, .22), rgba(24, 20, 14, calc(var(--hx-a, 1) * .5)) 55%, rgba(12, 14, 26, calc(var(--hx-a, 1) * .6)));
+    box-shadow: 0 0 0 1px rgba(255, 196, 72, .5) inset, 0 14px 30px -18px rgba(255, 176, 52, .9); }
+  #fw-rank .rk-lb.p2 { border-color: rgba(186, 208, 236, .7);
+    background: linear-gradient(100deg, rgba(176, 202, 235, .16), rgba(18, 24, 38, calc(var(--hx-a, 1) * .54)) 55%, rgba(10, 14, 26, calc(var(--hx-a, 1) * .62)));
+    box-shadow: 0 0 14px -6px rgba(180, 210, 255, .7); }
+  #fw-rank .rk-lb.p3 { border-color: rgba(214, 138, 84, .72);
+    background: linear-gradient(100deg, rgba(196, 118, 62, .18), rgba(24, 20, 18, calc(var(--hx-a, 1) * .54)) 55%, rgba(10, 13, 24, calc(var(--hx-a, 1) * .62)));
+    box-shadow: 0 0 14px -6px rgba(214, 138, 84, .7); }
+  /* 第一名：金色流光沿边框扫过 + 极轻的呼吸光（只一条，不给几十行同时跑） */
+  #fw-rank .rk-lb.p1::after { content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none; border-radius: inherit;
+    background: linear-gradient(105deg, transparent 30%, rgba(255, 226, 160, .22) 46%, transparent 62%);
+    background-size: 220% 100%; animation: rkGoldFlow 5.5s ease-in-out infinite; }
+  @keyframes rkGoldFlow { 0%, 100% { background-position: 160% 0; } 50% { background-position: -60% 0; } }
+  #fw-rank .rk-lb.p1 .rk-lb-tag, #fw-rank .rk-lb.p2 .rk-lb-tag, #fw-rank .rk-lb.p3 .rk-lb-tag {
+    display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 999px;
+    font-size: 11px; font-weight: 800; letter-spacing: .5px; white-space: nowrap; }
+  #fw-rank .rk-lb.p1 .rk-lb-tag { color: #3a2400; background: linear-gradient(100deg, #ffd977, #ffb934); box-shadow: 0 0 12px -3px rgba(255, 185, 52, .9); }
+  #fw-rank .rk-lb.p2 .rk-lb-tag { color: #0f1a2c; background: linear-gradient(100deg, #e6f0ff, #b9cbe4); }
+  #fw-rank .rk-lb.p3 .rk-lb-tag { color: #2c1405; background: linear-gradient(100deg, #f0b183, #cc8352); }
+  /* 名字 + 班级竖排一列，称号挂在班级那一行右边 */
+  #fw-rank .rk-lb .rk-lb-who { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; min-width: 0; }
+  #fw-rank .rk-lb .rk-lb-who > b { min-width: 0; max-width: 100%; }
+  #fw-rank .rk-lb .rk-lb-sub { display: flex; align-items: center; gap: 7px; min-width: 0; max-width: 100%; }
+  /* 我 / 高亮行：金色左竖条，不用整行变色（免得盖掉个人背景） */
+  #fw-rank .rk-lb.me { border-color: rgba(255, 185, 52, .85); }
+  #fw-rank .rk-lb.me::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; z-index: 2;
+    background: linear-gradient(180deg, #ffd977, #ff9b12); box-shadow: 0 0 12px rgba(255, 185, 52, .8); }
+  /* 新上榜：一次性的高亮，不循环 */
+  #fw-rank .rk-lb.rk-new { animation: rkNewIn .9s ease both; }
+  @keyframes rkNewIn { 0% { box-shadow: 0 0 0 0 rgba(0, 207, 255, .8); } 100% { box-shadow: 0 0 0 12px rgba(0, 207, 255, 0); } }
+  /* 没有背景的学生：默认深蓝底 + 极淡网格，保证整列看起来是一套 */
+  #fw-rank .rk-lb[data-nobg="1"] .rk-lb-bg { background-image:
+      radial-gradient(120% 140% at 86% 0%, rgba(0, 207, 255, .14), transparent 60%),
+      radial-gradient(100% 130% at 10% 100%, rgba(120, 90, 220, .16), transparent 66%); }
+  #fw-rank .rk-empty { display: grid; place-items: center; gap: 6px; flex: 1; min-height: 180px; text-align: center; color: #93a7c9; }
+  #fw-rank .rk-empty svg { width: 46px; height: 46px; fill: none; stroke: rgba(140, 170, 220, .55); stroke-width: 1.2; }
+  #fw-rank .rk-empty b { font-size: 15px; color: #cfdcf5; }
+  #fw-rank .rk-empty span { font-size: 12.5px; }
+
+  /* 身份卡设置弹窗（#fw-rankcard）：四种卡型预览 + 12 套预设 + 上传 + 位置/缩放 + 恢复
+     预览是**等比缩小**的真实卡：真实卡宽 805，--s = 预览宽 / 805，高度 ≤66×--s（见 data-card），
+     字号/奖牌/圆角/内边距全部乘 --s —— 所以预览里看到的取景就是榜单上看到的那一块。 */
+  #fw-rankcard { --rkc-line: rgba(90, 132, 224, .3); }
+  #fw-rankcard .rkc { display: flex; flex-direction: column; gap: 13px; padding: 16px 20px 18px; }
+  /* 四种卡型：2×2，每格 = 名称 + 一张 mini 卡（真实比例缩到底宽）。
+     用户要的是「一屏看到四种卡把同一张图裁成什么样」，所以 mini 必须和主预览同源，
+     不能另画一张示意图 —— 否则调完发现榜单上不是这个样子。 */
+  #fw-rankcard .rkc-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+  #fw-rankcard .rkc-ct { display: block; padding: 7px 8px 8px; border-radius: 10px; cursor: pointer; text-align: left;
+    border: 1px solid var(--rkc-line); background: rgba(12, 20, 40, .7); color: #cfdcff;
+    font: 800 12.5px/1.1 inherit; transition: border-color .16s, background .16s, color .16s; }
+  #fw-rankcard .rkc-ct-t { display: flex; align-items: baseline; gap: 6px; margin-bottom: 5px; }
+  #fw-rankcard .rkc-ct-t small { margin-left: auto; font-size: 11px; font-weight: 600; color: #8fa6c9; }
+  #fw-rankcard .rkc-ct:hover { border-color: rgba(124, 156, 255, .6); color: #fff; }
+  #fw-rankcard .rkc-ct.on { border-color: #ffb934; background: linear-gradient(120deg, rgba(255, 185, 52, .18), rgba(255, 112, 46, .12));
+    color: #fff; box-shadow: 0 0 0 1px rgba(255, 185, 52, .45) inset; }
+  #fw-rankcard .rkc-ct.on small { color: #ffd895; }
+  /* mini 卡：高度按真实卡比例（--ms = 格宽/805），字号固定 9.5px 不跟着缩，否则一个字都看不见 */
+  #fw-rankcard .rkc-mini { --ms: .41; position: relative; display: block; width: 100%; border-radius: 7px; overflow: hidden;
+    background: #0a1022; border: 1px solid rgba(90, 132, 224, .22);
+    display: flex; align-items: center; gap: 6px; padding: 0 7px 0 5px; }
+  #fw-rankcard .rkc-mini[data-c="p1"] { height: calc(66px * var(--ms)); border-color: rgba(255, 196, 72, .5); }
+  #fw-rankcard .rkc-mini[data-c="p2"] { height: calc(60px * var(--ms)); border-color: rgba(186, 208, 236, .45); }
+  #fw-rankcard .rkc-mini[data-c="p3"] { height: calc(57px * var(--ms)); border-color: rgba(214, 138, 84, .45); }
+  #fw-rankcard .rkc-mini[data-c="p4"] { height: calc(42px * var(--ms)); }
+  #fw-rankcard .rkc-mini .rk-lb-bg { position: absolute; inset: 0; background-size: cover; background-position: 50% 50%; }
+  #fw-rankcard .rkc-mini .rk-lb-veil { position: absolute; inset: 0;
+    background: linear-gradient(90deg, rgba(4, 8, 18, .84) 0%, rgba(4, 8, 18, .52) 38%, rgba(4, 8, 18, .38) 62%, rgba(4, 8, 18, .78) 100%); }
+  #fw-rankcard .rkc-mini > *:not(.rk-lb-bg):not(.rk-lb-veil) { position: relative; z-index: 2; }
+  #fw-rankcard .rkc-mini b { font-size: 9.5px; font-weight: 800; color: #f2f7ff; line-height: 1;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #fw-rankcard .rkc-mini-m { display: grid; place-items: center; width: 16px; height: 16px; flex: none; }
+  #fw-rankcard .rkc-mini-m svg { width: 15px; height: 15px; overflow: visible; }
+  #fw-rankcard .rkc-mini-p { display: grid; place-items: center; width: 13px; height: 13px; border-radius: 4px;
+    background: rgba(90, 132, 224, .26); color: #cfe0ff; font: 900 8px/1 inherit; }
+  #fw-rankcard .rkc-prev { --s: .87; position: relative; border-radius: calc(11px * var(--s)); overflow: hidden;
+    border: 1px solid rgba(255, 185, 52, .45); background: #0a1022;
+    display: flex; align-items: center; gap: calc(10px * var(--s));
+    padding: 0 calc(14px * var(--s)) 0 calc(8px * var(--s)); }
+  #fw-rankcard .rkc-prev[data-card="p1"] { height: calc(66px * var(--s)); border-color: rgba(255, 196, 72, .8); }
+  #fw-rankcard .rkc-prev[data-card="p2"] { height: calc(60px * var(--s)); border-color: rgba(186, 208, 236, .7); }
+  #fw-rankcard .rkc-prev[data-card="p3"] { height: calc(57px * var(--s)); border-color: rgba(214, 138, 84, .72); }
+  #fw-rankcard .rkc-prev[data-card="p4"] { height: calc(42px * var(--s)); border-color: rgba(90, 132, 224, .35); }
+  #fw-rankcard .rkc-prev .rk-lb-bg { position: absolute; inset: 0; background-size: cover; background-position: 50% 50%; }
+  #fw-rankcard .rkc-prev .rk-lb-veil { position: absolute; inset: 0;
+    background: linear-gradient(90deg, rgba(4, 8, 18, .84) 0%, rgba(4, 8, 18, .52) 38%, rgba(4, 8, 18, .38) 62%, rgba(4, 8, 18, .78) 100%); }
+  #fw-rankcard .rkc-prev > *:not(.rk-lb-bg):not(.rk-lb-veil) { position: relative; z-index: 2; }
+  #fw-rankcard .rkc-medal { width: calc(46px * var(--s)); height: calc(46px * var(--s)); display: grid; place-items: center; flex: none; }
+  #fw-rankcard .rkc-medal svg { width: calc(40px * var(--s)); height: calc(40px * var(--s)); overflow: visible; }
+  #fw-rankcard .rkc-place { display: grid; place-items: center; width: calc(26px * var(--s)); height: calc(26px * var(--s));
+    border-radius: calc(8px * var(--s)); background: rgba(90, 132, 224, .2); color: #cfe0ff;
+    font: 900 calc(13px * var(--s))/1 inherit; font-variant-numeric: tabular-nums; }
+  #fw-rankcard .rkc-name { font-size: calc(17px * var(--s)); font-weight: 900; color: #fff; line-height: 1.06;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #fw-rankcard .rkc-name small { display: block; margin-top: calc(2px * var(--s)); font-size: calc(12px * var(--s));
+    font-weight: 600; color: #b9cbe4; }
+  #fw-rankcard .rkc-name small em { font-style: normal; color: #ffd895; }
+  #fw-rankcard .rkc-ms { margin-left: auto; padding-right: calc(6px * var(--s)); font-size: calc(15px * var(--s));
+    font-weight: 900; font-variant-numeric: tabular-nums; color: #fff; }
+  #fw-rankcard .rkc-h { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 800; color: #dfe9ff; }
+  #fw-rankcard .rkc-h small { margin-left: auto; font-weight: 600; color: #8fa6c9; font-size: 12px; }
+  #fw-rankcard .rkc-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; }
+  #fw-rankcard .rkc-sw { position: relative; height: 56px; border-radius: 10px; overflow: hidden; cursor: pointer;
+    border: 1px solid var(--rkc-line); background: #0a1022; padding: 0; }
+  #fw-rankcard .rkc-sw i { position: absolute; inset: 0; }
+  #fw-rankcard .rkc-sw span { position: absolute; left: 0; right: 0; bottom: 0; padding: 3px 6px; font-size: 11px; font-weight: 700;
+    color: #eaf2ff; background: linear-gradient(0deg, rgba(4, 8, 18, .9), transparent); text-align: left; }
+  #fw-rankcard .rkc-sw.on { border-color: #ffb934; box-shadow: 0 0 0 1px #ffb934 inset, 0 8px 18px -12px #ffb934; }
+  #fw-rankcard .rkc-sw.on::after { content: ""; position: absolute; right: 6px; top: 6px; width: 8px; height: 8px; border-radius: 50%;
+    background: #ffb934; box-shadow: 0 0 8px #ffb934; }
+  #fw-rankcard .rkc-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  #fw-rankcard .rkc-num { min-width: 46px; font: 800 12.5px/1 inherit; font-variant-numeric: tabular-nums; color: #ffd895; text-align: right; }
+  #fw-rankcard .rkc-row label { font-size: 12.5px; font-weight: 700; color: #a9bcdd; }
+  #fw-rankcard input[type=range] { flex: 1; min-width: 120px; accent-color: #ffb934; }
+  #fw-rankcard .rkc-act { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  #fw-rankcard .rkc-act .grow { flex: 1; }
+  #fw-rankcard .rkc-msg { min-height: 18px; font-size: 12.5px; font-weight: 600; color: #8fa6c9; }
+  #fw-rankcard .rkc-msg.bad { color: #ff9a8f; } #fw-rankcard .rkc-msg.ok { color: #7ee0a5; }
+  #fw-rankcard .rkc-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 38px; padding: 0 16px;
+    border-radius: 10px; border: 1px solid rgba(124, 156, 255, .4); background: rgba(124, 156, 255, .12);
+    color: #cfdcff; font: 700 13px/1 inherit; cursor: pointer; transition: background .18s, color .18s, transform .12s; }
+  #fw-rankcard .rkc-btn:hover { background: rgba(124, 156, 255, .24); color: #fff; }
+  #fw-rankcard .rkc-btn:active { transform: scale(.97); }
+  #fw-rankcard .rkc-btn.pri { border: 0; background: linear-gradient(120deg, #ffb934, #ff702e); color: #2a1702;
+    box-shadow: 0 10px 22px -14px rgba(255, 150, 50, .95); }
+  #fw-rankcard .rkc-btn:disabled { opacity: .5; cursor: default; }
+
+  /* ── 排行榜身份卡：覆盖层（2026-11-12）────────────────────────────────
+     旧排行榜那套是 2026-11-08 写的，选择器是 `#fw-rank .rk-board li` / `li.p1 i` 这一档
+     （特异性 1,2,1 / 1,2,2）。新结构如果只写 `#fw-rank .rk-lb`（1,1,0）会被压住 ——
+     实测背景层被旧的「名次徽章」规则染成金色、行高被旧 padding 顶到 82px。
+     所以这一节统一用 `#fw-rank .rk-board li.rk-lb ...`（同等或更高特异性 + 更靠后）来定稿；
+     背景层也从 <i> 改成 <span>，彻底绕开 `li i` 那条徽章规则。
+     ──────────────────────────────────────────────────────────────────── */
+  #fw-rank .rk-board li.rk-lb { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto;
+    align-items: center; gap: 10px; height: 42px; box-sizing: border-box; padding: 0 14px 0 8px; border-radius: 11px;
+    overflow: hidden;   /* 背景层要按「缩放」放大，放大后必须裁在卡片圆角里 */
+    border: 1px solid rgba(90, 132, 224, .22); background: rgb(12 19 37 / calc(var(--hx-a, 1) * .62));
+    color: #e9f1ff; font-weight: 700; }
+  #fw-rank .rk-board li.rk-lb > .rk-lb-bg { position: absolute; inset: 0; z-index: 0; border-radius: 0;
+    background-size: cover; background-repeat: no-repeat; background-position: 50% 50%; filter: none; }
+  #fw-rank .rk-board li.rk-lb > .rk-lb-veil { position: absolute; inset: 0; z-index: 1; border-radius: 0;
+    background: linear-gradient(90deg, rgba(4, 8, 18, .84) 0%, rgba(4, 8, 18, .52) 38%, rgba(4, 8, 18, .38) 62%, rgba(4, 8, 18, .78) 100%); }
+  #fw-rank .rk-board li.rk-lb > :not(.rk-lb-bg):not(.rk-lb-veil) { position: relative; z-index: 2; }
+  #fw-rank .rk-board li.rk-lb > .rk-lb-place { display: grid; place-items: center; width: 26px; height: 26px;
+    border-radius: 8px; background: rgba(90, 132, 224, .18); color: #cfe0ff; filter: none;
+    font-style: normal; font-size: 13px; font-weight: 900; font-variant-numeric: tabular-nums; }
+  #fw-rank .rk-board li.rk-lb > .rk-lb-who { display: flex; flex-direction: column; align-items: flex-start;
+    gap: 1px; min-width: 0; color: #e9f1ff; font-size: inherit; overflow: visible; }
+  #fw-rank .rk-board li.rk-lb > .rk-lb-who > b { font-size: 15px; font-weight: 800; color: #eef4ff;
+    max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #fw-rank .rk-board li.rk-lb > .rk-lb-who > .rk-lb-sub { display: flex; align-items: center; gap: 7px;
+    min-width: 0; max-width: 100%; color: #a9bcdd; font-size: 12px; font-weight: 600; overflow: visible; }
+  #fw-rank .rk-board li.rk-lb > .rk-lb-who > .rk-lb-sub > .rk-lb-cls { color: #a9bcdd; font-size: 12px; font-weight: 600; }
+  #fw-rank .rk-board li.rk-lb > em { color: #eaf3ff; font-size: 15px; font-weight: 900; text-align: right;
+    justify-self: end; text-shadow: 0 1px 8px rgba(0, 0, 0, .8); }
+  #fw-rank .rk-board li.rk-lb > .rk-lb-medal { display: none; }
+  #fw-rank .rk-board li.rk-lb > .rk-lb-tag { display: none; }
+  /* 前三名：金 / 银 / 铜 */
+  #fw-rank .rk-board li.rk-lb.p1, #fw-rank .rk-board li.rk-lb.p2, #fw-rank .rk-board li.rk-lb.p3 {
+    grid-template-columns: 52px minmax(0, 1fr) auto; padding-right: 16px; }
+  #fw-rank .rk-board li.rk-lb.p1 { height: 66px; border-color: rgba(255, 196, 72, .8);
+    background: linear-gradient(100deg, rgba(255, 178, 46, .22), rgba(24, 20, 14, calc(var(--hx-a, 1) * .5)) 55%, rgba(12, 14, 26, calc(var(--hx-a, 1) * .6)));
+    box-shadow: 0 0 0 1px rgba(255, 196, 72, .5) inset, 0 14px 30px -18px rgba(255, 176, 52, .9); }
+  #fw-rank .rk-board li.rk-lb.p2 { height: 60px; border-color: rgba(186, 208, 236, .7);
+    background: linear-gradient(100deg, rgba(176, 202, 235, .16), rgba(18, 24, 38, calc(var(--hx-a, 1) * .54)) 55%, rgba(10, 14, 26, calc(var(--hx-a, 1) * .62)));
+    box-shadow: 0 14px 30px -22px rgba(180, 210, 255, .8); }
+  #fw-rank .rk-board li.rk-lb.p3 { height: 57px; border-color: rgba(214, 138, 84, .72);
+    background: linear-gradient(100deg, rgba(196, 118, 62, .18), rgba(24, 20, 18, calc(var(--hx-a, 1) * .54)) 55%, rgba(10, 13, 24, calc(var(--hx-a, 1) * .62)));
+    box-shadow: 0 14px 30px -22px rgba(214, 138, 84, .75); }
+  /* 本人那一行：旧样式 li.me 会把整行刷成金色，跟前三名的荣耀金撞在一起。
+     这里只留左侧 3px 金条 + 一圈极淡的金边，名次装饰完全不受影响。 */
+  #fw-rank .rk-board li.rk-lb.me { background: rgb(12 19 37 / calc(var(--hx-a, 1) * .62)); border-color: rgba(255, 178, 46, .34);
+    box-shadow: inset 3px 0 0 #ffb934, inset 0 0 0 1px rgba(255, 178, 46, .16); }
+  #fw-rank .rk-board li.rk-lb.me.p1 { background: linear-gradient(100deg, rgba(255, 178, 46, .22), rgba(24, 20, 14, calc(var(--hx-a, 1) * .5)) 55%, rgba(12, 14, 26, calc(var(--hx-a, 1) * .6))); }
+  #fw-rank .rk-board li.rk-lb.me.p2 { background: linear-gradient(100deg, rgba(176, 202, 235, .16), rgba(18, 24, 38, calc(var(--hx-a, 1) * .54)) 55%, rgba(10, 14, 26, calc(var(--hx-a, 1) * .62))); }
+  #fw-rank .rk-board li.rk-lb.me.p3 { background: linear-gradient(100deg, rgba(196, 118, 62, .18), rgba(24, 20, 18, calc(var(--hx-a, 1) * .54)) 55%, rgba(10, 13, 24, calc(var(--hx-a, 1) * .62))); }
+  #fw-rank .rk-board li.rk-lb.p1::before, #fw-rank .rk-board li.rk-lb.p2::before, #fw-rank .rk-board li.rk-lb.p3::before { content: none; }
+  #fw-rank .rk-board li.rk-lb.p1::after, #fw-rank .rk-board li.rk-lb.p2::after, #fw-rank .rk-board li.rk-lb.p3::after {
+    content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none; border-radius: inherit; }
+  #fw-rank .rk-board li.rk-lb.p1::after { background: linear-gradient(105deg, transparent 30%, rgba(255, 226, 160, .22) 46%, transparent 62%);
+    background-size: 220% 100%; animation: rkGoldFlow 5.5s ease-in-out infinite; }
+  #fw-rank .rk-board li.rk-lb.p2::after, #fw-rank .rk-board li.rk-lb.p3::after { background: none; }
+  #fw-rank .rk-board li.rk-lb.p1 > .rk-lb-medal, #fw-rank .rk-board li.rk-lb.p2 > .rk-lb-medal, #fw-rank .rk-board li.rk-lb.p3 > .rk-lb-medal {
+    display: grid; place-items: center; width: 46px; height: 46px; }
+  #fw-rank .rk-board li.rk-lb.p1 > .rk-lb-medal svg, #fw-rank .rk-board li.rk-lb.p2 > .rk-lb-medal svg, #fw-rank .rk-board li.rk-lb.p3 > .rk-lb-medal svg { width: 40px; height: 40px; overflow: visible; }
+  #fw-rank .rk-board li.rk-lb.p1 > .rk-lb-place, #fw-rank .rk-board li.rk-lb.p2 > .rk-lb-place, #fw-rank .rk-board li.rk-lb.p3 > .rk-lb-place { display: none; }
+  #fw-rank .rk-board li.rk-lb.p1 > .rk-lb-who > b { font-size: 17px; }
+  #fw-rank .rk-board li.rk-lb.p2 > .rk-lb-who > b, #fw-rank .rk-board li.rk-lb.p3 > .rk-lb-who > b { font-size: 16px; }
+  #fw-rank .rk-board li.rk-lb.p1 > .rk-lb-who > .rk-lb-sub > .rk-lb-tag,
+  #fw-rank .rk-board li.rk-lb.p2 > .rk-lb-who > .rk-lb-sub > .rk-lb-tag,
+  #fw-rank .rk-board li.rk-lb.p3 > .rk-lb-who > .rk-lb-sub > .rk-lb-tag {
+    display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 999px;
+    font-size: 11px; font-weight: 800; letter-spacing: .5px; white-space: nowrap; }
+  #fw-rank .rk-board li.rk-lb.p1 > .rk-lb-who > .rk-lb-sub > .rk-lb-tag { color: #3a2400; background: linear-gradient(100deg, #ffd977, #ffb934); box-shadow: 0 0 12px -3px rgba(255, 185, 52, .9); }
+  #fw-rank .rk-board li.rk-lb.p2 > .rk-lb-who > .rk-lb-sub > .rk-lb-tag { color: #0f1a2c; background: linear-gradient(100deg, #e6f0ff, #b9cbe4); }
+  #fw-rank .rk-board li.rk-lb.p3 > .rk-lb-who > .rk-lb-sub > .rk-lb-tag { color: #2c1405; background: linear-gradient(100deg, #f0b183, #cc8352); }
+  /* 我 / 高亮行 */
+  #fw-rank .rk-board li.rk-lb.me { border-color: rgba(255, 185, 52, .85); }
+  #fw-rank .rk-board li.rk-lb.me::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; z-index: 2;
+    border-radius: 11px 0 0 11px; background: linear-gradient(180deg, #ffd977, #ff9b12); box-shadow: 0 0 12px rgba(255, 185, 52, .8); }
+  #fw-rank .rk-board li.rk-lb[data-nobg="1"] > .rk-lb-bg { background-image:
+      radial-gradient(120% 140% at 86% 0%, rgba(0, 207, 255, .14), transparent 60%),
+      radial-gradient(100% 130% at 10% 100%, rgba(120, 90, 220, .16), transparent 66%); }
+
+  /* 窄屏（笔记本小窗 / 平板竖屏）：左右改上下，卡片仍保持可读字号 */
+  @media (max-width: 1180px) {
+    #fw-rank .rk-main { grid-template-columns: 52fr 48fr; }
+    #fw-rank .fw-t small { display: none; }
+    #fw-rank .rkx-nb { padding: 0 11px; font-size: 13px; }
+  }
+  @media (max-width: 980px) {
+    #fw-rank .rkx-nav { margin-left: 0; }
+    #fw-rank .rkx-who > span { display: none; }
+    #fw-rank .rk-hero .rkx-trophy { display: none; }
+  }
+  @media (max-width: 880px) {
+    /* 单列：整页纵向滚动（沿用原手机断点的那套思路，只是阈值提前到 880 免得右栏被压扁） */
+    #fw-rank .fw-body { display: block; overflow: auto; }
+    #fw-rank .rk { height: auto; }
+    #fw-rank #rkBody { display: block; }
+    #fw-rank .rk-main { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; overflow: visible; }
+    #fw-rank .rk-left, #fw-rank .rk-right { width: 100%; }
+    #fw-rank .rk-students { flex: none; }
+    #fw-rank .rkx-grid { max-height: 46vh; }
+    #fw-rank .rk-boardwrap { min-height: 320px; }
+    #fw-rank .rk-board { max-height: 52vh; }
+    #fw-rank .rk-hero { min-height: 96px; padding: 12px 14px; }
+    #fw-rank .rk-hero .rk-pinfo > b { font-size: 22px; }
+    #fw-rank .rk-hero .rk-start { height: 46px; padding: 0 16px; font-size: 15px; }
+  }
+  @media (max-width: 640px) {
+    #fw-rank .rkx-pill { height: 40px; padding: 0 11px; font-size: 14px; }
+    #fw-rank .rkx-grid { grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); }
+    #fw-rank .rk-hero { flex-wrap: wrap; }
+    #fw-rank .rk-hero .rk-start { flex: 1 1 100%; }
+  }
 </style>
 </head>
 <body>
@@ -3430,6 +3903,352 @@ function openLog() {
     } });
 }
 document.getElementById('logBtn').onclick = openLog;
+/*!
+ * 华夏工具 · 排位身份卡「预设背景」（rank-bg.js）
+ * ------------------------------------------------------------------
+ * 12 套原创 CSS/SVG 背景，全部由渐变 + 内联 SVG 拼出，不引用任何网络图片、
+ * 不依赖外部字体，单套 < 6KB。主程序给每名学生渲染一张横向身份卡
+ * （约 16:5 ~ 20:9），背景在下、文字在上，另有一层深色遮罩由主程序叠。
+ *
+ * 提供的 API：
+ *   window.RANK_BG_PRESETS  数组，每项 { k, name, css }
+ *   window.rankBgCss(k)     预设键 → 可直接赋给 background 的字符串；
+ *                           'none' / 空 / 未知键 → ''（调用方走默认底）
+ *
+ * 构图约定（12 套统一遵守）：
+ *   · 场景画布按 1600×500（3.2:1）设计、铺满整卡；正圆主体（行星/太阳/月亮/
+ *     奖杯/齿轮/能量核）单独一层按高度等比缩放，窄屏 20:9 也不会变成椭圆；
+ *   · x < 40% 是姓名区、x > 75% 是成绩区 —— 这两个带里不放高对比主体，
+ *     并统一盖一层左右压暗（V），实测叠白字可读；
+ *   · 主体集中在 44%~74% 的中右带，靠大色块与轮廓，缩到 320×80 仍可辨；
+ *   · 明度偏低到中，不出现大面积纯白/高亮；冷暖、几何与自然分开，避免 12 套同质。
+ * ------------------------------------------------------------------
+ */
+(function () {
+  'use strict';
+
+  // 内联 SVG → 一个 background 层。
+  // F：场景层，铺满整卡（山峦/楼群/树线这类拉伸 1.4 倍也看不出来）。
+  // P：主体层，按「高度等比例」缩放并靠右定位 —— 行星、月亮、奖杯这些正圆
+  //    在 20:9 窄屏里不会变成椭圆。透明底所以宽屏也不会露边。
+  function enc(svg) { return 'url("data:image/svg+xml,' + encodeURIComponent(svg.replace(/\s+/g, ' ').trim()) + '")'; }
+  function F(svg) { return enc(svg) + ' 0 0 / 100% 100% no-repeat'; }
+  function P(svg, x) { return enc(svg) + ' ' + (x || 80) + '% 50% / auto 100% no-repeat'; }
+
+  var HEAD = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 500" preserveAspectRatio="none">';
+  // 主体层用各自的视窗（同一套 1600×500 坐标，只裁窗口，尺寸与铺满时一致）
+  function V2(vb) { return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="' + vb + '">'; }
+  // 统一 520×500 的主体窗口（以主体中心 cx 对齐），这样同一个定位百分数对各套都合适
+  function PB(cx) { return V2((cx - 260) + ' -40 520 500'); }
+
+  // 左右压暗：左 0~40%（姓名）+ 右 88~100%（成绩），中间留亮。
+  // 全部 12 套共用，保证任何主题下文字都能读。
+  var V = 'linear-gradient(90deg, rgba(3,6,16,.86) 0%, rgba(3,6,16,.56) 20%, rgba(3,6,16,.12) 38%, rgba(3,6,16,0) 52%, rgba(3,6,16,0) 73%, rgba(3,6,16,.52) 89%, rgba(3,6,16,.86) 100%)';
+
+  // ---------------------------------------------------------------- 1 星河征途
+  var GALAXY_S = HEAD
+    + '<g fill="#fff" opacity=".6"><circle cx="620" cy="72" r="2.6"/><circle cx="712" cy="128" r="1.8"/><circle cx="800" cy="52" r="2.2"/><circle cx="892" cy="152" r="1.6"/><circle cx="962" cy="70" r="2.4"/><circle cx="1006" cy="330" r="1.8"/><circle cx="1186" cy="96" r="2"/><circle cx="700" cy="302" r="1.6"/><circle cx="862" cy="392" r="2.2"/><circle cx="1246" cy="300" r="1.6"/><circle cx="760" cy="200" r="1.4"/></g>'
+    + '</svg>';
+  var GALAXY_P = PB(1090)
+    + '<defs><radialGradient id="g1" cx=".34" cy=".28" r=".86"><stop offset="0" stop-color="#d8cdff"/><stop offset=".48" stop-color="#7a5ff0"/><stop offset="1" stop-color="#231a52"/></radialGradient>'
+    + '<linearGradient id="g2" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8e7bff" stop-opacity="0"/><stop offset=".5" stop-color="#d9ceff" stop-opacity=".9"/><stop offset="1" stop-color="#8e7bff" stop-opacity="0"/></linearGradient></defs>'
+    + '<g fill="none" stroke="#c3b2ff" transform="rotate(-16 1090 210)"><ellipse cx="1090" cy="210" rx="206" ry="52" stroke-width="13" opacity=".5"/><ellipse cx="1090" cy="210" rx="152" ry="35" stroke-width="4" opacity=".34"/></g>'
+    + '<circle cx="1090" cy="210" r="104" fill="url(#g1)"/>'
+    + '<ellipse cx="1090" cy="188" rx="74" ry="14" fill="url(#g2)" opacity=".35"/>'
+    + '</svg>';
+
+  // ---------------------------------------------------------------- 2 赛博都市
+  // 楼体压暗、只让「楼顶轮廓 + 霓虹竖条 + 窗口」发亮，避免成为一坨黑块。
+  var CYBER = HEAD
+    + '<g fill="#05060f">'
+    + '<rect x="600" y="306" width="88" height="194"/><rect x="696" y="238" width="74" height="262"/>'
+    + '<rect x="778" y="286" width="96" height="214"/><rect x="882" y="196" width="80" height="304"/>'
+    + '<rect x="970" y="256" width="92" height="244"/><rect x="1070" y="214" width="78" height="286"/>'
+    + '<rect x="1156" y="300" width="88" height="200"/></g>'
+    + '<g fill="#2ff0ff" opacity=".85"><rect x="600" y="306" width="88" height="4"/><rect x="778" y="286" width="96" height="3"/>'
+    + '<rect x="882" y="196" width="80" height="5"/><rect x="1070" y="214" width="78" height="4"/>'
+    + '<rect x="606" y="306" width="4" height="140"/><rect x="886" y="200" width="3" height="170"/><rect x="1074" y="218" width="3" height="140"/></g>'
+    + '<g fill="#ff2d95" opacity=".85"><rect x="696" y="238" width="74" height="4"/><rect x="970" y="256" width="92" height="5"/>'
+    + '<rect x="1156" y="300" width="88" height="3"/><rect x="700" y="242" width="3" height="150"/>'
+    + '<rect x="1058" y="256" width="3" height="150"/><rect x="1160" y="304" width="3" height="110"/></g>'
+    + '<g fill="#a8f8ff" opacity=".55"><rect x="626" y="348" width="26" height="7"/><rect x="626" y="370" width="26" height="7"/>'
+    + '<rect x="626" y="392" width="26" height="7"/><rect x="902" y="232" width="22" height="7"/><rect x="902" y="254" width="22" height="7"/>'
+    + '<rect x="902" y="276" width="22" height="7"/><rect x="1090" y="250" width="22" height="7"/><rect x="1090" y="272" width="22" height="7"/>'
+    + '<rect x="990" y="292" width="24" height="7"/><rect x="990" y="314" width="24" height="7"/></g>'
+    + '<g fill="#ffb3d6" opacity=".42"><rect x="722" y="282" width="20" height="7"/><rect x="722" y="304" width="20" height="7"/>'
+    + '<rect x="1180" y="348" width="20" height="7"/><rect x="1180" y="370" width="20" height="7"/>'
+    + '<rect x="1000" y="340" width="20" height="7"/></g>'
+    + '<g stroke="#7ef7ff" stroke-width="2" opacity=".5"><path d="M924 196 V150 M1110 214 V166"/></g>'
+    + '<g fill="#ff4fae" opacity=".8"><circle cx="924" cy="148" r="4"/><circle cx="1110" cy="164" r="3"/></g>'
+    + '</svg>';
+
+  // ---------------------------------------------------------------- 3 量子矩阵
+  var QUANTUM = HEAD
+    + '<g fill="none" stroke="#3fe6e0" stroke-width="3" opacity=".42">'
+    + '<path d="M616 118 H772 V206 H902"/><path d="M636 336 H818 V268 H958 V184"/>'
+    + '<path d="M690 76 H700 V196 H840 V262"/><path d="M1010 120 V232 H1120 V330"/>'
+    + '<path d="M860 388 H960 V300"/><path d="M1150 96 V180 H1190"/></g>'
+    + '<g fill="#7ff8f2" opacity=".62"><rect x="766" y="200" width="13" height="13"/><rect x="896" y="112" width="13" height="13"/><rect x="812" y="262" width="13" height="13"/><rect x="952" y="178" width="13" height="13"/><rect x="1114" y="324" width="13" height="13"/><rect x="954" y="294" width="13" height="13"/></g>'
+    + '</svg>';
+  var QUANTUM_P = PB(1096)
+    + '<circle cx="1096" cy="216" r="60" fill="none" stroke="#69fff6" stroke-width="2" opacity=".3"/>'
+    + '<circle cx="1096" cy="216" r="26" fill="none" stroke="#69fff6" stroke-width="2" opacity=".45"/>'
+    + '<circle cx="1096" cy="216" r="6" fill="#9dfffa" opacity=".7"/>'
+    + '</svg>';
+
+  // ---------------------------------------------------------------- 4 日出云海
+  var SUNRISE = HEAD
+    + '<g fill="#ffe3ad" opacity=".18"><ellipse cx="720" cy="250" rx="200" ry="26"/><ellipse cx="1150" cy="290" rx="230" ry="30"/><ellipse cx="900" cy="300" rx="160" ry="20"/></g>'
+    + '<path d="M0 500 V352 L250 322 L470 356 L700 300 L880 342 L1090 288 L1300 336 L1600 296 V500 Z" fill="#4a2b2c" opacity=".82"/>'
+    + '<path d="M0 500 V404 L280 372 L520 404 L760 360 L980 396 L1200 356 L1600 392 V500 Z" fill="#251a20" opacity=".92"/>'
+    + '</svg>';
+  var SUNRISE_P = PB(1030)
+    + '<defs><radialGradient id="s1" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fff2c4"/><stop offset=".45" stop-color="#ffc86a"/><stop offset=".8" stop-color="#e88a3c"/><stop offset="1" stop-color="#e8843c" stop-opacity="0"/></radialGradient></defs>'
+    + '<circle cx="1030" cy="210" r="150" fill="url(#s1)" opacity=".95"/>'
+    + '</svg>';
+
+  // ---------------------------------------------------------------- 5 极地之巅
+  var ARCTIC = HEAD
+    + '<defs><linearGradient id="a1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f2fbff"/><stop offset="1" stop-color="#8fb6c9"/></linearGradient><linearGradient id="a2" x1="0" y1="0" x2=".4" y2="1"><stop offset="0" stop-color="#a8c9d8"/><stop offset="1" stop-color="#5c7f96"/></linearGradient></defs>'
+    + '<path d="M600 500 L742 246 L838 372 L944 196 L1046 366 L1142 268 L1250 500 Z" fill="url(#a1)" opacity=".92"/>'
+    + '<path d="M944 196 L1046 366 L992 366 L944 322 Z" fill="#547c96" opacity=".5"/>'
+    + '<path d="M742 246 L838 372 L796 372 L742 326 Z" fill="#547c96" opacity=".42"/>'
+    + '<path d="M1142 268 L1214 500 L1250 500 L1180 306 Z" fill="#547c96" opacity=".38"/>'
+    + '<g fill="#ffffff" opacity=".55"><circle cx="912" cy="240" r="3"/><circle cx="726" cy="286" r="2.2"/><circle cx="1168" cy="316" r="2.4"/><circle cx="1006" cy="228" r="2"/></g>'
+    + '<path d="M944 196 L1006 306 L944 288 L904 320 Z" fill="#ffffff" opacity=".55"/>'
+    + '<path d="M742 246 L796 348 L742 332 L706 356 Z" fill="#ffffff" opacity=".4"/>'
+    + '<path d="M600 500 L700 380 L780 420 L860 396 L960 440 L1040 410 L1250 500 Z" fill="url(#a2)" opacity=".7"/>'
+    + '<path d="M0 500 V430 L220 400 L420 428 L600 396 V500 Z" fill="#25415a" opacity=".55"/>'
+    + '<path d="M1120 500 V424 L1320 396 L1600 430 V500 Z" fill="#25415a" opacity=".55"/>'
+    + '</svg>';
+
+  // ---------------------------------------------------------------- 6 樱花物语
+  // 五瓣花用 <use> 复用同一个花瓣组，避免重复圆点把体积撑大。
+  var SAKURA = HEAD
+    + '<defs><g id="fl"><circle cx="11" cy="0" r="10"/><circle cx="3.4" cy="10.5" r="10"/><circle cx="-8.9" cy="6.5" r="10"/><circle cx="-8.9" cy="-6.5" r="10"/><circle cx="3.4" cy="-10.5" r="10"/><circle cx="0" cy="0" r="4.6" fill="#ff8db4"/></g></defs>'
+    + '<g fill="#ffe8f1" opacity=".06"><circle cx="884" cy="176" r="126"/><circle cx="1146" cy="336" r="92"/><circle cx="770" cy="386" r="74"/></g>'
+    + '<g fill="none" stroke="#2b1822" stroke-linecap="round" opacity=".85">'
+    + '<path d="M1256 24 C1160 108 1078 132 998 126 C926 120 872 92 818 52" stroke-width="12"/>'
+    + '<path d="M1090 130 C1062 196 1018 238 962 264" stroke-width="7"/>'
+    + '<path d="M1148 104 C1126 166 1098 196 1058 214" stroke-width="6"/>'
+    + '<path d="M950 118 C930 168 900 196 866 210" stroke-width="5"/></g>'
+    + '<g fill="#ffe1ec">'
+    + '<use href="#fl" transform="translate(1000 124) scale(1.32) rotate(8)"/>'
+    + '<use href="#fl" transform="translate(958 264) scale(1.14) rotate(-16)"/>'
+    + '<use href="#fl" transform="translate(1058 214) scale(.98) rotate(22)"/>'
+    + '<use href="#fl" transform="translate(866 210) scale(1.02) rotate(-8)"/>'
+    + '<use href="#fl" transform="translate(1148 100) scale(.94) rotate(30)"/>'
+    + '<use href="#fl" transform="translate(1090 130) scale(.9) rotate(-24)"/>'
+    + '<use href="#fl" transform="translate(926 150) scale(.84) rotate(14)"/>'
+    + '<use href="#fl" transform="translate(1150 178) scale(.78) rotate(-4)"/>'
+    + '<use href="#fl" transform="translate(1014 188) scale(.72) rotate(18)"/>'
+    + '</g>'
+    + '<g fill="#ffc9db"><use href="#fl" transform="translate(902 254) scale(.66) rotate(-30)"/><use href="#fl" transform="translate(1186 226) scale(.6) rotate(10)"/></g>'
+    + '<g fill="#ffd3e2" opacity=".55"><ellipse cx="760" cy="316" rx="7" ry="4" transform="rotate(-24 760 316)"/><ellipse cx="812" cy="356" rx="6" ry="3.5" transform="rotate(16 812 356)"/><ellipse cx="700" cy="252" rx="5" ry="3" transform="rotate(-10 700 252)"/><ellipse cx="684" cy="392" rx="6" ry="3.5" transform="rotate(28 684 392)"/><ellipse cx="880" cy="300" rx="5" ry="3" transform="rotate(-40 880 300)"/></g>'
+    + '</svg>';
+
+  // ---------------------------------------------------------------- 7 深海鲸歌
+  var WHALE = HEAD
+    + '<defs><linearGradient id="w1" x1="0" y1="0" x2=".2" y2="1"><stop offset="0" stop-color="#63bad3"/><stop offset=".5" stop-color="#2b7691"/><stop offset="1" stop-color="#123a4b"/></linearGradient></defs>'
+    + '<g fill="#cdf6ff" opacity=".07"><polygon points="700,0 780,0 940,500 800,500"/><polygon points="860,0 912,0 1080,500 970,500"/><polygon points="1030,0 1070,0 1220,500 1150,500"/></g>'
+    + '<path d="M800 332 C858 250 992 232 1082 282 C1122 304 1166 312 1198 294 L1226 262 L1214 312 L1244 352 L1200 340 C1156 370 1076 380 992 364 C896 346 816 368 800 332 Z" fill="url(#w1)"/>'
+    + '<path d="M800 332 C858 250 992 232 1082 282" fill="none" stroke="#a7e6f7" stroke-width="4" opacity=".6"/>'
+    + '<path d="M980 338 C1002 384 1042 402 1082 398 C1046 380 1016 358 1002 334 Z" fill="#1a5670" opacity=".95"/>'
+    + '<path d="M852 352 C930 372 1030 376 1110 358 C1040 380 930 384 852 352 Z" fill="#8dd4e6" opacity=".35"/>'
+    + '<circle cx="848" cy="308" r="4.5" fill="#d9fbff"/>'
+    + '<g fill="none" stroke="#9ee4f6" opacity=".38"><circle cx="1150" cy="196" r="10"/><circle cx="1186" cy="158" r="6"/><circle cx="1216" cy="122" r="4"/><circle cx="890" cy="196" r="7"/><circle cx="846" cy="156" r="4"/></g>'
+    + '</svg>';
+
+  // ---------------------------------------------------------------- 8 像素冒险
+  // 阶梯状方块山丘（每一层都是 32px 网格的整数倍），缩到 320 宽仍是清楚的色阶。
+  var PIXEL = HEAD
+    + '<g fill="#ffffff" opacity=".24"><rect x="660" y="86" width="96" height="24"/><rect x="700" y="62" width="56" height="24"/>'
+    + '<rect x="1060" y="118" width="80" height="24"/><rect x="1100" y="94" width="40" height="24"/></g>'
+    + '<g fill="#ffe9a3" opacity=".8"><rect x="1156" y="52" width="56" height="56"/></g>'
+    + '<g fill="#1f5330"><rect x="600" y="436" width="700" height="64"/><rect x="660" y="404" width="580" height="32"/>'
+    + '<rect x="720" y="372" width="460" height="32"/><rect x="800" y="340" width="300" height="32"/><rect x="880" y="308" width="160" height="32"/></g>'
+    + '<g fill="#3f9a52"><rect x="600" y="436" width="700" height="10"/><rect x="660" y="404" width="580" height="10"/>'
+    + '<rect x="720" y="372" width="460" height="10"/><rect x="800" y="340" width="300" height="10"/><rect x="880" y="308" width="160" height="10"/></g>'
+    + '<g fill="#163b22"><rect x="720" y="472" width="32" height="28"/><rect x="800" y="472" width="32" height="28"/>'
+    + '<rect x="960" y="472" width="32" height="28"/><rect x="1080" y="472" width="32" height="28"/>'
+    + '<rect x="1180" y="440" width="32" height="28"/><rect x="680" y="440" width="32" height="28"/>'
+    + '<rect x="880" y="372" width="32" height="32"/></g>'
+    + '<g fill="#6b4a2a"><rect x="772" y="404" width="14" height="32"/><rect x="1032" y="436" width="14" height="32"/></g>'
+    + '<g fill="#2b6b3a"><rect x="748" y="372" width="62" height="32"/><rect x="760" y="340" width="38" height="32"/>'
+    + '<rect x="1008" y="404" width="62" height="32"/><rect x="1020" y="372" width="38" height="32"/></g>'
+    + '</svg>';
+
+  // ---------------------------------------------------------------- 9 月夜旅人
+  // 月牙用 mask(白圆 - 偏移黑圆) 扣出来，比双弧 path 稳。
+  var MOONNIGHT = HEAD
+    + '<g fill="#fff" opacity=".55"><circle cx="700" cy="110" r="2.2"/><circle cx="790" cy="70" r="1.6"/><circle cx="880" cy="150" r="2"/><circle cx="960" cy="86" r="1.6"/><circle cx="1210" cy="120" r="2"/><circle cx="1250" cy="70" r="1.4"/><circle cx="660" cy="230" r="1.6"/><circle cx="1220" cy="250" r="1.6"/></g>'
+    + '<path d="M1150 52 L1224 116" stroke="#fff8e0" stroke-width="3" opacity=".65" stroke-linecap="round"/>'
+    + '<path d="M1140 40 L1158 58" stroke="#fff8e0" stroke-width="2" opacity=".3" stroke-linecap="round"/>'
+    + '<g fill="#ffffff" opacity=".05"><ellipse cx="960" cy="236" rx="150" ry="16"/><ellipse cx="1160" cy="290" rx="120" ry="12"/></g>'
+    + '<path d="M0 500 V402 L240 356 L470 396 L700 352 L910 390 L1130 344 L1360 388 L1600 350 V500 Z" fill="#0d1430" opacity=".92"/>'
+    + '<path d="M0 500 V444 L300 414 L560 446 L820 410 L1080 444 L1360 412 L1600 440 V500 Z" fill="#070b1c" opacity=".95"/>'
+    + '</svg>';
+  // 月牙用 mask(白圆 - 偏移黑圆) 扣出来，比双弧 path 稳。
+  var MOONNIGHT_P = PB(1074)
+    + '<defs><linearGradient id="m1" x1="0" y1="0" x2=".7" y2="1"><stop offset="0" stop-color="#fffdf0"/><stop offset="1" stop-color="#ffe6a0"/></linearGradient>'
+    + '<mask id="mk"><rect x="800" y="-60" width="560" height="620" fill="#000"/><circle cx="1074" cy="178" r="86" fill="#fff"/><circle cx="1112" cy="160" r="76" fill="#000"/></mask></defs>'
+    + '<circle cx="1066" cy="186" r="132" fill="#ffeeb8" opacity=".07"/>'
+    + '<circle cx="1074" cy="178" r="86" fill="url(#m1)" mask="url(#mk)"/>'
+    + '</svg>';
+
+  // ---------------------------------------------------------------- 10 极光秘境
+  var AURORA = HEAD
+    + '<defs><linearGradient id="u1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6bffc8" stop-opacity=".0"/><stop offset=".35" stop-color="#6bffc8" stop-opacity=".55"/><stop offset="1" stop-color="#2bb6ff" stop-opacity="0"/></linearGradient><linearGradient id="u2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9d7bff" stop-opacity="0"/><stop offset=".4" stop-color="#7b6bff" stop-opacity=".45"/><stop offset="1" stop-color="#2bb6ff" stop-opacity="0"/></linearGradient></defs>'
+    + '<g fill="#fff" opacity=".4"><circle cx="720" cy="70" r="2"/><circle cx="860" cy="110" r="1.6"/><circle cx="1000" cy="56" r="2"/><circle cx="1160" cy="96" r="1.6"/><circle cx="1240" cy="40" r="1.4"/></g>'
+    + '<path d="M628 6 C702 96 700 218 646 342 L704 342 C758 214 754 96 688 6 Z" fill="url(#u1)"/>'
+    + '<path d="M764 0 C842 106 826 238 772 358 L836 358 C892 234 900 102 822 0 Z" fill="url(#u1)" opacity=".7"/>'
+    + '<path d="M900 28 C978 132 960 246 910 354 L970 354 C1022 246 1026 130 956 28 Z" fill="url(#u2)" opacity=".85"/>'
+    + '<path d="M1014 14 C1066 122 1058 242 1026 332 L1058 332 C1094 238 1096 118 1046 14 Z" fill="url(#u2)" opacity=".45"/>'
+    + '<g fill="#04140f"><path d="M600 500 L620 356 L640 500 Z"/><path d="M660 500 L690 320 L720 500 Z"/><path d="M740 500 L770 372 L800 500 Z"/><path d="M830 500 L868 300 L906 500 Z"/><path d="M940 500 L970 348 L1000 500 Z"/><path d="M1030 500 L1062 322 L1094 500 Z"/><path d="M1120 500 L1150 366 L1180 500 Z"/><path d="M1200 500 L1236 336 L1272 500 Z"/></g>'
+    + '<rect x="0" y="474" width="1600" height="26" fill="#03100c" opacity=".9"/>'
+    + '</svg>';
+
+  // ---------------------------------------------------------------- 11 熔金荣耀
+  var GOLD = HEAD
+    + '<g fill="#ffce6b" opacity=".16"><polygon points="1064,26 1040,240 1090,240"/><polygon points="934,54 1000,238 1030,222"/><polygon points="1194,54 1128,238 1098,222"/></g>'
+    + '<g fill="none" stroke="#ffd98a" stroke-width="5" opacity=".38" stroke-linecap="round">'
+    + '<path d="M960 300 C988 356 1032 384 1090 388"/><path d="M1220 300 C1192 356 1148 384 1090 388"/></g>'
+    + '<g fill="#ffdf9a" opacity=".5"><circle cx="972" cy="330" r="7"/><circle cx="1180" cy="330" r="7"/><circle cx="1006" cy="368" r="6"/><circle cx="1148" cy="368" r="6"/><circle cx="1048" cy="386" r="5"/><circle cx="1112" cy="386" r="5"/></g>'
+    + '<g fill="#ffeab4" opacity=".45"><circle cx="900" cy="150" r="3"/><circle cx="1250" cy="150" r="2.6"/><circle cx="820" cy="260" r="2.2"/><circle cx="1300" cy="250" r="2.6"/><circle cx="960" cy="90" r="2"/></g>'
+    + '</svg>';
+  // 奖杯单独一层，避免窄屏把杯身拉长
+  var GOLD_P = PB(1090)
+    + '<defs><linearGradient id="gld" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe7a8"/><stop offset=".5" stop-color="#e0a53c"/><stop offset="1" stop-color="#9a6a1d"/></linearGradient></defs>'
+    + '<path d="M1024 176 H1156 V220 C1156 268 1124 296 1090 296 C1056 296 1024 268 1024 220 Z" fill="url(#gld)" opacity=".92"/>'
+    + '<g fill="none" stroke="#e8b45c" stroke-width="7" opacity=".7"><path d="M1024 192 C994 192 988 236 1024 244"/><path d="M1156 192 C1186 192 1192 236 1156 244"/></g>'
+    + '<rect x="1080" y="296" width="20" height="42" fill="#c8952f" opacity=".9"/>'
+    + '<rect x="1046" y="338" width="88" height="18" rx="6" fill="#d9a441" opacity=".9"/>'
+    + '</svg>';
+
+  // ---------------------------------------------------------------- 12 机械核心
+  var MECH = HEAD
+    + '<g fill="#233238" opacity=".8"><rect x="700" y="392" width="120" height="18"/><rect x="700" y="418" width="80" height="12"/>'
+    + '<rect x="1240" y="392" width="120" height="18"/><rect x="1280" y="418" width="80" height="12"/></g>'
+    + '</svg>';
+  var MECH_P = PB(1080)
+    + '<defs><radialGradient id="mc" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#b9fff6"/><stop offset=".55" stop-color="#38b4c9"/><stop offset="1" stop-color="#123c4a"/></radialGradient></defs>'
+    + '<g transform="rotate(14 1080 240)" fill="none" stroke="#5f7d88" stroke-linecap="butt">'
+    + '<circle cx="1080" cy="240" r="118" stroke-width="26" stroke-dasharray="20 15" opacity=".55"/>'
+    + '<circle cx="1080" cy="240" r="86" stroke-width="4" opacity=".5"/></g>'
+    + '<g transform="rotate(-22 1080 240)" fill="none" stroke="#41616d"><circle cx="1080" cy="240" r="150" stroke-width="14" stroke-dasharray="26 22" opacity=".35"/></g>'
+    + '<circle cx="1080" cy="240" r="62" fill="#0a1a20" stroke="#7fd6e2" stroke-width="3" opacity=".9"/>'
+    + '<circle cx="1080" cy="240" r="34" fill="url(#mc)" opacity=".95"/>'
+    + '<g stroke="#6fe0ef" stroke-width="2" opacity=".45" fill="none"><path d="M880 240 H940"/><path d="M1220 240 H1280"/><path d="M1080 100 V150"/><path d="M1080 330 V382"/></g>'
+    + '<g fill="#8ff2ff" opacity=".55"><rect x="936" y="234" width="12" height="12"/><rect x="1212" y="234" width="12" height="12"/><rect x="1074" y="146" width="12" height="12"/><rect x="1074" y="326" width="12" height="12"/></g>'
+    + '</svg>';
+
+  // ---------------------------------------------------------------- 12 套清单
+  // 顺序即主程序选择面板里的顺序，k 只用英文小写。
+  window.RANK_BG_PRESETS = [
+    {
+      k: 'galaxy', name: '星河征途',
+      css: V + ', ' + P(GALAXY_P) + ', ' + F(GALAXY_S) + ', '
+        + 'radial-gradient(70% 96% at 66% 42%, rgba(118,86,255,.44) 0%, rgba(118,86,255,0) 62%), '
+        + 'radial-gradient(42% 62% at 50% 84%, rgba(255,116,214,.16) 0%, rgba(255,116,214,0) 70%), '
+        + 'linear-gradient(158deg, #0a0d2c 0%, #141c4e 44%, #06091d 100%)'
+    },
+    {
+      k: 'cyber', name: '赛博都市',
+      css: V + ', ' + F(CYBER) + ', '
+        + 'radial-gradient(34% 60% at 56% 88%, rgba(255,45,149,.34) 0%, rgba(255,45,149,0) 68%), '
+        + 'radial-gradient(34% 62% at 66% 84%, rgba(38,224,255,.30) 0%, rgba(38,224,255,0) 66%), '
+        + 'linear-gradient(178deg, #0a0b1c 0%, #141232 46%, #04050d 100%)'
+    },
+    {
+      k: 'quantum', name: '量子矩阵',
+      css: V + ', ' + P(QUANTUM_P) + ', ' + F(QUANTUM) + ', '
+        + 'repeating-linear-gradient(90deg, rgba(53,227,224,.10) 0 1px, rgba(53,227,224,0) 1px 48px), '
+        + 'repeating-linear-gradient(0deg, rgba(53,227,224,.09) 0 1px, rgba(53,227,224,0) 1px 48px), '
+        + 'radial-gradient(48% 80% at 66% 46%, rgba(40,214,206,.28) 0%, rgba(40,214,206,0) 70%), '
+        + 'linear-gradient(150deg, #04181d 0%, #073039 52%, #031117 100%)'
+    },
+    {
+      k: 'sunrise', name: '日出云海',
+      // 太阳压在远山之后（先画太阳再画山），才是「日出」
+      css: V + ', ' + F(SUNRISE) + ', ' + P(SUNRISE_P) + ', '
+        + 'radial-gradient(36% 68% at 64% 40%, rgba(255,206,124,.55) 0%, rgba(255,206,124,0) 72%), '
+        + 'linear-gradient(178deg, #2b1732 0%, #6d3145 24%, #c2683f 46%, #eda94f 68%, #f6d08d 88%, #f3c684 100%)'
+    },
+    {
+      k: 'arctic', name: '极地之巅',
+      css: V + ', ' + F(ARCTIC) + ', '
+        + 'radial-gradient(40% 70% at 64% 44%, rgba(216,244,255,.42) 0%, rgba(216,244,255,0) 70%), '
+        + 'linear-gradient(172deg, #0d2133 0%, #1b3f56 36%, #4e7891 66%, #93b3c3 100%)'
+    },
+    {
+      k: 'sakura', name: '樱花物语',
+      css: V + ', ' + F(SAKURA) + ', '
+        + 'radial-gradient(40% 68% at 66% 26%, rgba(255,220,234,.40) 0%, rgba(255,220,234,0) 72%), '
+        + 'radial-gradient(46% 60% at 62% 100%, rgba(58,26,40,.42) 0%, rgba(58,26,40,0) 72%), '
+        + 'linear-gradient(196deg, #3a1f2e 0%, #6b384d 26%, #95546b 52%, #b9768b 76%, #8c4d62 100%)'
+    },
+    {
+      k: 'whale', name: '深海鲸歌',
+      css: V + ', ' + F(WHALE) + ', '
+        + 'radial-gradient(46% 80% at 64% 34%, rgba(120,220,255,.26) 0%, rgba(120,220,255,0) 70%), '
+        + 'radial-gradient(50% 60% at 40% 100%, rgba(10,80,110,.55) 0%, rgba(10,80,110,0) 72%), '
+        + 'linear-gradient(180deg, #052331 0%, #0a3746 48%, #03141d 100%)'
+    },
+    {
+      k: 'pixel', name: '像素冒险',
+      css: V + ', ' + F(PIXEL) + ', '
+        + 'linear-gradient(180deg, #2c5cb8 0%, #4d80d2 34%, #7fb2e6 56%, #9cc4ea 74%, #4f7f45 88%, #2c5b34 100%)'
+    },
+    {
+      k: 'moon', name: '月夜旅人',
+      css: V + ', ' + P(MOONNIGHT_P) + ', ' + F(MOONNIGHT) + ', '
+        + 'radial-gradient(30% 56% at 66% 38%, rgba(255,236,168,.30) 0%, rgba(255,236,168,0) 72%), '
+        + 'linear-gradient(172deg, #070c24 0%, #111a42 40%, #1a2450 68%, #0a1028 100%)'
+    },
+    {
+      k: 'aurora', name: '极光秘境',
+      css: V + ', ' + F(AURORA) + ', '
+        + 'linear-gradient(104deg, rgba(80,255,196,0) 30%, rgba(80,255,196,.22) 40%, rgba(80,255,196,0) 50%), '
+        + 'linear-gradient(96deg, rgba(120,120,255,0) 46%, rgba(130,110,255,.20) 56%, rgba(120,120,255,0) 66%), '
+        + 'radial-gradient(44% 70% at 62% 30%, rgba(52,206,190,.22) 0%, rgba(52,206,190,0) 70%), '
+        + 'linear-gradient(178deg, #04121c 0%, #072430 46%, #051a18 76%, #020c09 100%)'
+    },
+    {
+      k: 'gold', name: '熔金荣耀',
+      css: V + ', ' + P(GOLD_P) + ', ' + F(GOLD) + ', '
+        + 'radial-gradient(38% 70% at 66% 42%, rgba(255,196,88,.40) 0%, rgba(255,196,88,0) 72%), '
+        + 'linear-gradient(118deg, rgba(255,214,140,.10) 0 14%, rgba(255,214,140,0) 14% 100%), '
+        + 'linear-gradient(160deg, #150d05 0%, #2a1b0b 46%, #120a04 100%)'
+    },
+    {
+      k: 'mech', name: '机械核心',
+      css: V + ', ' + P(MECH_P) + ', ' + F(MECH) + ', '
+        + 'repeating-linear-gradient(60deg, rgba(120,190,205,.07) 0 1px, rgba(120,190,205,0) 1px 38px), '
+        + 'repeating-linear-gradient(-60deg, rgba(120,190,205,.06) 0 1px, rgba(120,190,205,0) 1px 38px), '
+        + 'radial-gradient(34% 62% at 66% 48%, rgba(96,226,240,.30) 0%, rgba(96,226,240,0) 68%), '
+        + 'linear-gradient(150deg, #11151a 0%, #1d262c 48%, #0b0e12 100%)'
+    }
+  ];
+
+  // ---------------------------------------------------------------- 取样式
+  var MAP = {};
+  for (var i = 0; i < window.RANK_BG_PRESETS.length; i++) {
+    MAP[window.RANK_BG_PRESETS[i].k] = window.RANK_BG_PRESETS[i].css;
+  }
+
+  /**
+   * 预设键 → 可直接赋给 background 的样式串。
+   * 'none' / '' / 未知键 → ''（调用方走默认底）。
+   * 顺手容忍调用方误传的 'p:<k>'（后端存的是带前缀的键）。
+   */
+  window.rankBgCss = function (k) {
+    if (!k || typeof k !== 'string') return '';
+    var key = k.indexOf('p:') === 0 ? k.slice(2) : k;
+    if (key === 'none') return '';
+    return MAP[key] || '';
+  };
+})();
+
 // ---------- 排位：华夏工具账号（和排课同一个 Supabase、同一份登录）。希沃上老师登录、学生选自己的名字；学生也能用课堂码在手机上注册自己练 ----------
 // 由 build-practice.cjs 放进外壳脚本里（和外壳一起混淆）。成绩、名次都在服务器上算，网页只负责计时显示和动画。
 const HX = (() => {
@@ -3802,23 +4621,62 @@ const TASKLINK = /^https?:$/.test(location.protocol)
 // 离线单文件没有云端名单，同样只在 http(s) 给。点开是只读浮窗（rkTaskBWin），绝不写任何数据。
 const TASKBOARD = /^https?:$/.test(location.protocol)
   ? '<button class="rk-super" id="rkTaskB" type="button" title="本班课堂任务的完成名单：谁完成了、用时、名次（实时）">任务榜</button>' : '';
+// ── R6 顶栏图标（2026-11-12）：身份卡 / 全屏。内联 SVG，跟站里其它按钮同一套线条风格 ──
+const RK_ICO = {
+  card: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 15l4.5-4 4 3.5 3-2.5L21 17"/><circle cx="8" cy="9.5" r="1.4"/></svg>',
+  fs: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>',
+  users: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M4 19a5 5 0 0 1 10 0"/><circle cx="17" cy="9" r="2.4"/><path d="M14.6 19a4.2 4.2 0 0 1 5.8-3.9"/></svg>',
+  cap: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8.5 12 5l9 3.5-9 3.5z"/><path d="M7 11v4.2c0 1.2 2.2 2.3 5 2.3s5-1.1 5-2.3V11"/></svg>',
+};
 async function rkRender() {
   const box = rkEl(); if (!box) return;
   if (!HX.online()) { box.innerHTML = `<div class="soon-hero"><b>排位需要在线版</b><span>成绩和排行榜存在云端，本机离线文件不能排位。</span></div><a class="rk-link" href="https://zcq19991029.github.io/wiring-lab/" target="_blank">打开在线版</a>`; return; }
   if (!HX.in()) return rkLogin(box);
   try { RK.me = await HX.rpc('hx_me'); } catch (e) { if (!HX.in()) return rkLogin(box); box.innerHTML = `<p class="rk-err">${esc(e.message)}</p>`; return; }
   if (!RK.me.teacher && !RK.me.student) return rkRedeem(box);
-  if (RK.me.student) RK.pick = { id: RK.me.student.id, name: rkStuName(RK.me.student), cls: RK.me.student.class };
+  if (RK.me.student) RK.pick = { id: RK.me.student.id, name: rkStuName(RK.me.student), cls: RK.me.student.class, no: RK.me.student.student_no || '' };
   // 账号只有一套：班级名单、课堂码在首页“班级”，管理员任命在首页“管理”，这里只排位
   let name = ''; try { const u = await HX.user(); const gh = (u.identities || []).find(i => i.provider === 'github'); name = (RK.me.student && rkStuName(RK.me.student)) || (gh && gh.identity_data && gh.identity_data.user_name) || u.email || ''; } catch (e) { }
   // 老库的 hx_me 不带学号时，再用登录邮箱兜一层；总之学生这一侧绝不显示空名字
   if (RK.me.student && RK.pick && !RK.pick.name) RK.pick.name = name;
-  box.innerHTML = `<div class="rk-top"><div class="rk-tabs"><button class="on">排位</button></div>${SUP}${isT() ? TASKLINK : ''}${RK.me.student ? TASKBOARD : ''}
-    ${isT() ? '<button class="rk-drawbtn" id="rkDrawBtn"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8.5" cy="8.5" r="1.3"/><circle cx="15.5" cy="15.5" r="1.3"/><circle cx="12" cy="12" r="1.3"/></svg>随机抽人</button>' : ''}
-    <div class="rk-who"><em class="rk-role r-${RK.me.dev ? 'dev' : RK.me.admin ? 'admin' : RK.me.teacher ? 't' : 's'}">${roleOf(RK.me)}</em><span>${esc(name)}</span></div></div><div class="rk-body" id="rkBody"></div>`;
+  // ── R6（2026-11-12）顶栏重构 ──
+  // 规格第三节要「一条紧凑顶栏 + 不许出现两个重复标题栏」。原来这里另起一条 .rk-top（第二个标题栏），
+  // 现在把导航直接塞进窗口标题栏 .fw-head：左边 ⚡排位/副标题（浮窗自带），中间功能导航，右边身份卡/全屏/关闭。
+  // 因此这里不再渲染 .rk-top，只留内容区。
+  rkTopBar(box.closest('.fw') || document.getElementById('fw-rank'), name);
+  box.innerHTML = `<div class="rk-body" id="rkBody"></div>`;
   rkMain(box.querySelector('#rkBody'));
-  const db = box.querySelector('#rkDrawBtn'); if (db) db.onclick = rkDrawWin;
-  const tb = box.querySelector('#rkTaskB'); if (tb) tb.onclick = rkTaskBWin;
+}
+// 顶栏：导航 + 账号胶囊。学生没有「课堂任务」（那是教师发布任务用的），教师没有「任务榜」。
+function rkTopBar(fw, name) {
+  if (!fw) return;
+  const head = fw.querySelector('.fw-head'); if (!head) return;
+  head.querySelectorAll('.rkx-nav,.rkx-who').forEach(n => n.remove());
+  const x = head.querySelector('.fw-x');
+  const nav = document.createElement('nav');
+  nav.className = 'rkx-nav'; nav.setAttribute('aria-label', '排位功能');
+  nav.innerHTML = '<button type="button" class="rkx-nb on" aria-current="page">排位</button>'
+    + SUP.replace('class="rk-super"', 'class="rkx-nb"')
+    + (isT() ? TASKLINK.replace('class="rk-super"', 'class="rkx-nb"') : '')
+    + (isT() ? '<button type="button" class="rkx-nb rkx-hot" id="rkDrawBtn">随机选人</button>' : '')
+    + (RK.me && RK.me.student ? TASKBOARD.replace('class="rk-super"', 'class="rkx-nb"') : '');
+  head.insertBefore(nav, x);
+  const who = document.createElement('div');
+  who.className = 'rkx-who';
+  who.innerHTML = `<em class="rk-role r-${roleCls(RK.me)}">${roleOf(RK.me)}</em><span title="${esc(name || '')}">${esc(name || '')}</span>`
+    + `<button type="button" class="rkx-ico" id="rkCardBtn" title="我的排位身份卡：给排行榜上的自己换一张背景" aria-label="我的排位身份卡">${RK_ICO.card}</button>`
+    + `<button type="button" class="rkx-ico" id="rkFsBtn" title="全屏（希沃 / 投影时用）" aria-label="全屏">${RK_ICO.fs}</button>`;
+  head.insertBefore(who, x);
+  const db = nav.querySelector('#rkDrawBtn'); if (db) db.onclick = rkDrawWin;
+  const tb = nav.querySelector('#rkTaskB'); if (tb) tb.onclick = rkTaskBWin;
+  const cb = who.querySelector('#rkCardBtn'); if (cb) cb.onclick = rkCardWin;
+  const fb = who.querySelector('#rkFsBtn');
+  if (fb) fb.onclick = () => {
+    const b = document.getElementById('fsBtn');
+    if (b) return b.click();
+    // 离线单文件没有外壳顶栏的全屏钮：直接调 API 兜底
+    try { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen(); } catch (e) { }
+  };
 }
 // 没登录、没开通：登录和填邀请码都在华夏工具首页
 function rkLogin(box) {
@@ -3849,17 +4707,31 @@ async function rkMain(body) {
   const calm = body.dataset.rkInit ? ' calm' : ''; body.dataset.rkInit = '1';
   const av = RK.pick && RK.pick.name ? String(RK.pick.name).trim().slice(0, 1) : '选';
   const proxy = rkProxy();
+  const sid = RK.pick && RK.pick.no ? String(RK.pick.no) : '';
+  // R6 布局（2026-11-12）：左 56%（Hero 任务横幅 + 班级胶囊 + 学生身份卡）／右 44%（排行榜身份卡）。
+  // 所有数据仍取自原来的来源（RK.pick / RK.classes / RK.studs / rank_board），只是换了排版。
   body.innerHTML = `<div class="rk-main${calm}"><div class="rk-left">
-    <div class="rk-player${proxy ? ' proxy' : ''}"><div class="rk-pav" aria-hidden="true"><i>${esc(av)}</i></div>
-      <div class="rk-pinfo"><small>${T ? '当前选手' : '我'} · <i class="rk-qpill" title="${esc(cName(lock))}">${esc(cName(lock))}</i></small><b>${RK.pick ? esc(RK.pick.name) : '还没选学生'}</b><span>${RK.pick ? esc(RK.pick.cls || '') : T ? '点「开始排位」从名单里选一个学生' : ''}</span>${proxy ? '<em class="rk-proxytag">教师代做</em>' : ''}</div>
-      <button class="rk-start" id="rkStart" ${(RK.pick || isT()) ? '' : 'disabled'}><span>开始排位</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg></button></div>
-    ${T ? `<div class="rk-students"><div class="rk-stin">
-      <div class="rk-sh"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M4 19a5 5 0 0 1 10 0"/><circle cx="17" cy="9" r="2.4"/><path d="M14.6 19a4.2 4.2 0 0 1 5.8-3.9"/></svg><b>学生</b></div>
-      <div id="rkPick"><p class="rk-wait">加载班级…</p></div></div></div>` : ''}</div>
-    <div class="rk-right"><div class="rk-rin">
-      <div class="rk-bh"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10v4a5 5 0 0 1-10 0z"/><path d="M7 5H4v1.5A3.5 3.5 0 0 0 7.5 10M17 5h3v1.5A3.5 3.5 0 0 1 16.5 10M12 13v4M8.5 20h7M10 17h4l1 3H9z"/></svg><b>${esc(cName(lock))} 排行榜</b></div>
-      <div id="rkBoard"><p class="rk-wait">加载中…</p></div></div></div></div>`;
+    <div class="rk-hero${proxy ? ' proxy' : ''}">
+      <div class="rk-pav" aria-hidden="true"><i>${esc(av)}</i></div>
+      <div class="rk-pinfo">
+        <small>当前专题 · <i class="rk-qpill" title="${esc(cName(lock))}">${esc(cName(lock))}</i></small>
+        <b>${RK.pick ? esc(RK.pick.name) : '还没选学生'}</b>
+        <span>${RK.pick ? esc(RK.pick.cls || '') + (sid ? ' · 学号 ' + esc(sid) : '') : T ? '点击「开始排位」从名单里选一个学生；接完全部线自动停表' : '点击「开始排位」开始计时'}</span>
+        ${proxy ? '<em class="rk-proxytag">教师代做</em>' : ''}
+      </div>
+      <svg class="rkx-trophy" viewBox="0 0 64 64" aria-hidden="true"><path fill="currentColor" d="M18 8h28v6h8v6c0 8-5.6 14.4-13 15.6A14 14 0 0 1 34 42v6h8a2 2 0 0 1 0 4H22a2 2 0 0 1 0-4h8v-6a14 14 0 0 1-7-6.4C15.6 34.4 10 28 10 20v-6h8zm-4 10v2c0 5.3 3.3 9.7 8 11.5V18zm36 0h-8v13.5c4.7-1.8 8-6.2 8-11.5z"/></svg>
+      <button class="rk-start" id="rkStart" ${(RK.pick || isT()) ? '' : 'disabled'}><span>开始排位</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg></button>
+    </div>
+    ${T ? `<div class="rk-students">
+      <div class="rk-sh">${RK_ICO.users}<b>学生</b><em id="rkStuN">— 人</em>
+        <span class="rkx-hint">学生可给自己的排行榜身份卡设背景<button type="button" id="rkCardMine">我的身份卡</button></span>
+      </div>
+      <div id="rkPick"><p class="rk-wait">加载班级…</p></div></div>` : ''}</div>
+    <div class="rk-right">
+      <div class="rk-bh"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10v4a5 5 0 0 1-10 0z"/><path d="M7 5H4v1.5A3.5 3.5 0 0 0 7.5 10M17 5h3v1.5A3.5 3.5 0 0 1 16.5 10M12 13v4M8.5 20h7M10 17h4l1 3H9z"/></svg><b>${esc(cName(lock))} 排行榜</b><small id="rkBoardN">按用时升序</small></div>
+      <div class="rk-boardwrap" id="rkBoard"><p class="rk-wait">加载中…</p></div></div></div>`;
   body.querySelector('#rkStart').onclick = () => rkStartRun();
+  const cm = body.querySelector('#rkCardMine'); if (cm) cm.onclick = rkCardWin;
   rkBoard(body.querySelector('#rkBoard'));
   if (T) rkPicker(body.querySelector('#rkPick'), body);
 }
@@ -3872,28 +4744,291 @@ async function rkPicker(el, body) {
   let list = RK.studs[RK.cls];
   try { if (!list) list = RK.studs[RK.cls] = await HX.rpc('hx_class_students', { p_class: RK.cls }); } catch (e) { el.innerHTML = `<p class="rk-err">${esc(e.message)}</p>`; return; }
   const cls = RK.classes.find(c => c.id === RK.cls);
-  // UI 重构（2026-11-08）：只换皮肤和过场，数据与选中逻辑一字未动。
-  // aria-pressed + 角标 = 颜色之外的第二/三重选中标识；--i 供 CSS 做网格错峰入场。
-  el.innerHTML = `<div class="rk-chips sm">${RK.classes.map(c => `<button data-k="${c.id}" class="${c.id === RK.cls ? 'on' : ''}" aria-pressed="${c.id === RK.cls ? 'true' : 'false'}">${esc(c.name)}</button>`).join('')}</div>
-    <div class="rk-names">${list.map((s, i) => `<button data-s="${s.id}" class="${RK.pick && RK.pick.id === s.id ? 'on' : ''}${s.self_reg ? ' self' : ''}" aria-pressed="${RK.pick && RK.pick.id === s.id ? 'true' : 'false'}" style="--i:${Math.min(i, 12)}"><i>${s.seq < 1000 ? s.seq : '+'}</i>${esc(rkStuName(s))}</button>`).join('')}</div>`;
+  // ── R6 班级胶囊 + 学生身份卡（2026-11-12）──
+  // 数据与选中逻辑一字未动：RK.cls 依旧是当前班，点名字写 RK.pick；改的只是排版与字号。
+  // 人数从名单实时算（不算已退学的），不写死、不取缓存里的旧值。
+  const live = list.filter(s => !s.left_school);
+  const nEl = document.getElementById('rkStuN'); if (nEl) nEl.textContent = live.length + ' 人';
+  const clsIco = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8.5 12 5l9 3.5-9 3.5z"/><path d="M7 11v4.2c0 1.2 2.2 2.3 5 2.3s5-1.1 5-2.3V11"/></svg>';
+  const pills = RK.classes.map(c => {
+    const n = c.id === RK.cls ? live.length : (typeof c.total === 'number' ? c.total : '');
+    return `<button type="button" class="rkx-pill${c.id === RK.cls ? ' on' : ''}" data-k="${c.id}" aria-pressed="${c.id === RK.cls ? 'true' : 'false'}" title="${esc(c.name)}${c.term ? ' · ' + esc(c.term) : ''}">${clsIco}<span>${esc(c.name)}</span><em>${n}</em></button>`;
+  }).join('');
+  const cards = list.map((s, i) => {
+    const on = !!(RK.pick && RK.pick.id === s.id);
+    const seq = s.seq < 1000 ? String(s.seq).padStart(2, '0') : '+';
+    return `<button type="button" class="rkx-stu${on ? ' on' : ''}${s.self_reg ? ' self' : ''}" data-s="${s.id}" aria-pressed="${on ? 'true' : 'false'}" style="--i:${Math.min(i, 12)}" title="${esc(rkStuName(s))}${s.student_no ? ' · 学号 ' + esc(String(s.student_no)) : ''}"><i>${seq}</i><b>${esc(rkStuName(s))}</b><small>${clsIco}${esc(cls ? cls.name : '')}</small></button>`;
+  }).join('');
+  el.innerHTML = `<div class="rkx-clsbar">${pills}</div><div class="rkx-grid">${cards}</div>`;
+  rkFitGrid(el.querySelector('.rkx-grid'));
   el.querySelectorAll('[data-k]').forEach(b => (b.onclick = () => {
     if (+b.dataset.k === RK.cls) return; // 点的就是当前班：状态没变，不再重绘（原逻辑重绘结果等价）
     RK.cls = +b.dataset.k;
-    // 切班过场：名单先淡出 140ms 再重绘（新名单挂载时自带淡入，见 .rk-names 的 rkNamesIn）。
+    // 切班过场：名单先淡出 140ms 再重绘（新名单挂载时自带淡入，见 .rkx-grid 的 rkNamesIn）。
     // RK.cls 已即时写好，重绘拿的一定是新班 —— 纯视觉延迟，不碰数据；弱机/减动画直接重绘。
-    const g = el.querySelector('.rk-names');
-    if (g && !drwNoAnim()) { g.classList.add('rk-fading'); setTimeout(() => rkPicker(el, body), 140); }
+    const g = el.querySelector('.rkx-grid'), bar = el.querySelector('.rkx-clsbar');
+    if (g && !drwNoAnim()) { g.classList.add('rk-fading'); if (bar) bar.classList.add('rk-fading'); setTimeout(() => rkPicker(el, body), 140); }
     else rkPicker(el, body);
   }));
   el.querySelectorAll('[data-s]').forEach(b => (b.onclick = () => {
     const s = list.find(x => x.id === +b.dataset.s);
-    RK.pick = { id: s.id, name: rkStuName(s), cls: cls.name }; ls.set('hx-rank-pick', JSON.stringify(RK.pick));
+    RK.pick = { id: s.id, name: rkStuName(s), cls: cls.name, no: s.student_no || '' }; ls.set('hx-rank-pick', JSON.stringify(RK.pick));
     // 选手身份切换动画：旧名字淡出（.rk-switching，180ms）→ 重绘（新卡自带扫描线掠过 + 新名淡入 +
     // 徽章增亮 + 网格里对应学生的橙色角标同步亮起）。RK.pick 已即时写好，纯视觉延迟。
-    const card = body.querySelector('.rk-player');
+    const card = body.querySelector('.rk-hero');
     if (card && !drwNoAnim()) { card.classList.add('rk-switching'); setTimeout(() => rkMain(body), 190); }
     else rkMain(body);
   }));
+}
+// 学生卡高度自适应：把「这一屏剩下的高度」除以行数，夹在 78~118px 之间。
+// 为什么不 pure CSS：26 人 6 列只有 5 行，8 人 6 列只有 2 行 —— 固定 84px 会让小班留一大片空白，
+// 而 `1fr` 又会让 2 行撑到 300px 高、姓名孤零零吊在中间。两种都不好看，所以按实际行数量一次。
+function rkFitGrid(grid) {
+  if (!grid) return;
+  const n = grid.children.length; if (!n) return;
+  const cs = getComputedStyle(grid);
+  const cols = (cs.gridTemplateColumns || '').split(' ').filter(Boolean).length || 1;
+  const rows = Math.ceil(n / cols);
+  const gap = parseFloat(cs.rowGap) || 9;
+  const avail = grid.clientHeight - (rows - 1) * gap;
+  const h = Math.max(78, Math.min(132, Math.floor(avail / rows)));
+  if (h > 0) grid.style.setProperty('--rowh', h + 'px');
+}
+addEventListener('resize', () => {
+  const g = document.querySelector('#rkPick .rkx-grid');
+  if (g) rkFitGrid(g);
+});
+/* ---------- 我的排位身份卡（R6 P1，2026-11-12）----------
+   规格第八节要求「真正的账户 → 背景绑定，不许拿 localStorage 冒充」：
+   · 存：public.hx_rank_bg（owner = auth.uid()，RLS 四条只认本人）；
+   · 读自己的：hx_rank_bg_get()；写入：hx_rank_bg_put(bg, tune, pos)；
+   · 排行榜读别人的：hx_rank_bgs(circuit, limit)（只返回这一题榜上的人）。
+   所以换设备、换浏览器，只要登录同一个账号，背景就跟着走。
+
+   2026-11-12 深夜加「四种卡型 × 每型独立取景」（用户原话）：
+   「有几种身份卡？上传一个背景是否统一赋予不同尺寸身份卡？是否可以上传完照片预览不同身份卡效果？
+     每一个身份卡必须可以微调背景位置和缩放 自由度很高 然后保存到云端与自己的账号绑定」。
+   → 一张背景统一喂给四种尺寸（冠军 66 / 亚军 60 / 季军 57 / 常规 42），
+     但**每种卡型各存一组 {pos, zoom}**（tune jsonb），因为同一张图在 66px 和 42px 高里
+     能看到的画面不一样，一刀切的取景必然有一边难看。 */
+const RK_CARDS = [
+  { k: 'p1', name: '冠军卡', real: 66, tag: '排位之星', ms: '0:16.56' },
+  { k: 'p2', name: '亚军卡', real: 60, tag: '卓越表现', ms: '0:22.41' },
+  { k: 'p3', name: '季军卡', real: 57, tag: '实力先锋', ms: '0:24.99' },
+  { k: 'p4', name: '常规卡', real: 42, tag: '', ms: '0:31.11' },
+];
+// 榜单真实卡宽：**运行时量**（1920×1080 实测约 1026，1300 宽屏下更窄），量不到才用 805 兜底。
+// 预览按 clientWidth/真实行宽 等比缩，做到「预览即所见」（写死 805 会让预览比榜单胖 28%）。
+const RK_CARD_W = 805;
+const RKC = { bg: '', pos: 50, cur: 'p1', tune: {} };
+const rkcDef = () => ({ pos: 50, zoom: 100 });
+function rkcTune(k) { const t = RKC.tune[k]; return { pos: t && t.pos != null ? t.pos : 50, zoom: t && t.zoom != null ? t.zoom : 100 }; }
+function rkcSet(k, patch) { RKC.tune[k] = Object.assign(rkcTune(k), patch); }
+// 榜单侧：按名次取该卡型的取景；没有 tune 的老数据退回行里的 pos + 100%
+function rkTuneOf(b, place) {
+  const k = 'p' + Math.min(place, 4);
+  const t = (b && b.tune && b.tune[k]) || null;
+  return {
+    pos: t && t.pos != null ? t.pos : (b && b.pos != null ? b.pos : 50),
+    zoom: t && t.zoom != null ? t.zoom : 100,
+  };
+}
+function rkCardWin() {
+  if (!RK.me || (!RK.me.student && !isT())) { toast('登录后才能设置身份卡'); return; }
+  const el = floatWin('rankcard', {
+    title: '我的排位身份卡', sub: '背景跟账号走 · 四种卡型各自微调', w: 800, h: 780, minH: 600,
+    a1: '#00cfff', a2: '#ff702e', render: body => rkCardBody(body),
+  });
+  el.classList.add('show');
+}
+async function rkCardBody(body) {
+  body.innerHTML = '<div class="rkc"><p class="rk-wait">读取你的身份卡…</p></div>';
+  RKC.cur = 'p1';
+  try {
+    const rows = await HX.rpc('hx_rank_bg_get');
+    const r = rows && rows[0];
+    RKC.bg = r ? r.bg : ''; RKC.pos = r && r.pos != null ? r.pos : 50;
+    RKC.tune = (r && r.tune && typeof r.tune === 'object') ? r.tune : {};
+  } catch (e) {
+    // 表还没建 / 网络抖：仍然允许预览与选图，保存时会把服务端的真实报错显示出来
+    RKC.bg = ''; RKC.pos = 50; RKC.tune = {};
+  }
+  rkCardPaint(body);
+}
+function rkCardPaint(body) {
+  const me = RK.me || {}, stu = me.student || null;
+  const name = (stu && rkStuName(stu)) || (RK.pick && RK.pick.name) || '我';
+  const cls = (stu && stu.class) || (RK.pick && RK.pick.cls) || '';
+  const ps = (window.RANK_BG_PRESETS || []);
+  body.innerHTML = `<div class="rkc">
+    <div class="rkc-h">身份卡型<small>四种尺寸同时出现在排行榜上 · 每型单独调取景 · 点哪张调哪张</small></div>
+    <div class="rkc-cards">${RK_CARDS.map(c => `<button type="button" class="rkc-ct${RKC.cur === c.k ? ' on' : ''}" data-card="${c.k}" title="${esc(c.name)}：榜单上 ${c.real}px 高">
+      <span class="rkc-ct-t">${esc(c.name)}<small>${c.real}px 高</small></span>
+      <span class="rkc-mini" data-c="${c.k}"><span class="rk-lb-bg" aria-hidden="true"></span><span class="rk-lb-veil" aria-hidden="true"></span><span class="rkc-mini-m" aria-hidden="true"></span><b>${esc(name)}</b></span>
+    </button>`).join('')}</div>
+    <div class="rkc-prev" data-card="${esc(RKC.cur)}">
+      <span class="rk-lb-bg" aria-hidden="true"></span><span class="rk-lb-veil" aria-hidden="true"></span>
+      <span class="rkc-medal" id="rkcMedal"></span>
+      <span class="rkc-name">${esc(name)}<small>${esc(cls)}<em id="rkcTag"></em></small></span>
+      <em class="rkc-ms" id="rkcMs"></em>
+    </div>
+    <div class="rkc-row">
+      <label for="rkcPos">上下位置</label>
+      <input type="range" id="rkcPos" min="0" max="100" step="1" value="50">
+      <span class="rkc-num" id="rkcPosV">50</span>
+      <label for="rkcZoom">缩放</label>
+      <input type="range" id="rkcZoom" min="60" max="300" step="5" value="100">
+      <span class="rkc-num" id="rkcZoomV">100%</span>
+    </div>
+    <div class="rkc-h">系统预设<small>${ps.length} 套 · 选中即预览，保存后全站可见</small></div>
+    <div class="rkc-grid">${ps.map(p => `<button type="button" class="rkc-sw${RKC.bg === 'p:' + p.k ? ' on' : ''}" data-p="p:${esc(p.k)}" title="${esc(p.name)}"><i style="background:${esc(p.css)};background-size:cover;background-position:50% 50%"></i><span>${esc(p.name)}</span></button>`).join('') || '<p class="rkc-msg">预设素材没加载出来（rank-bg.js 未打包）</p>'}</div>
+    <div class="rkc-row">
+      <button type="button" class="rkc-btn" id="rkcUp">上传自己的图片</button>
+      <input type="file" id="rkcFile" accept="image/jpeg,image/png,image/webp" hidden>
+      <span class="rkc-msg">JPG / PNG / WebP，自动压到 600KB 以内；一张图统一作用于四种卡型</span>
+    </div>
+    <div class="rkc-act">
+      <button type="button" class="rkc-btn" id="rkcReset">恢复默认</button>
+      <span class="grow"></span>
+      <button type="button" class="rkc-btn pri" id="rkcSave">保存并应用</button>
+    </div>
+    <p class="rkc-msg" id="rkcMsg">背景只属于你的账号（跟着登录账号走，换设备也在）：排行榜按学生账号显示，名次上升或下降都不会换掉它。</p>
+  </div>`;
+  const msg = body.querySelector('#rkcMsg');
+  const setMsg = (t, k) => { if (!msg) return; msg.className = 'rkc-msg' + (k ? ' ' + k : ''); msg.textContent = t; };
+  const prevBox = body.querySelector('.rkc-prev');
+  const prevBg = body.querySelector('.rkc-prev .rk-lb-bg');
+  const elMedal = body.querySelector('#rkcMedal');
+  const elTag = body.querySelector('#rkcTag');
+  const elMs = body.querySelector('#rkcMs');
+  const pos = body.querySelector('#rkcPos'), posV = body.querySelector('#rkcPosV');
+  const zoom = body.querySelector('#rkcZoom'), zoomV = body.querySelector('#rkcZoomV');
+  const minis = Array.from(body.querySelectorAll('.rkc-mini'));
+  /* 榜单里的真实卡宽（2026-11-12 修「预览比榜单胖」）：
+     原来写死 805，但 1920×1080 实测排行榜行宽是 1026，预览按 805 算 → 高度偏大 28%，
+     老师调好的取景一上榜单就变样。这里直接量一根真行的宽度，量不到才退回 805。 */
+  const rkRealW = () => {
+    const row = document.querySelector('#rkBoard li.rk-lb');
+    const w = row && row.clientWidth;
+    return (w && w > 200) ? w : RK_CARD_W;
+  };
+  // 预览宽度 → 缩放系数：按**真实行宽**等比缩，字号/奖牌/圆角一起缩，做到「预览即所见」
+  const fitPrev = () => {
+    const s = Math.max(.35, Math.min(1.6, (prevBox.clientWidth || RK_CARD_W) / rkRealW()));
+    prevBox.style.setProperty('--s', s.toFixed(3));
+  };
+  // 四型同屏对照：每格一张 mini 卡，背景与主预览**同源**（都过 rkBgStyle + 各自的 tune），
+  // 只是容器小。这样老师不用一个个点也知道「同一张图在 66px 和 42px 的卡里被裁成什么样」。
+  const paintMinis = () => {
+    const realW = rkRealW();
+    minis.forEach(m => {
+      const k = m.dataset.c;
+      const st = rkBgStyle(RKC.bg, rkcTune(k));
+      const bgel = m.querySelector('.rk-lb-bg');
+      if (bgel) bgel.setAttribute('style', st || '');
+      m.setAttribute('data-nobg', st ? '0' : '1');
+      const mm = m.querySelector('.rkc-mini-m');
+      if (mm) mm.innerHTML = k === 'p4' ? '<i class="rkc-mini-p">4</i>' : rkMedal(+k.slice(1));
+      // --ms 只用来算 mini 的高度（与榜单同样比例），不参与字号，字号固定 9.5px 保证看得清
+      m.style.setProperty('--ms', (Math.max(.2, (m.clientWidth || 330) / realW)).toFixed(3));
+    });
+  };
+  const paintPrev = () => {
+    const c = RK_CARDS.find(x => x.k === RKC.cur) || RK_CARDS[0];
+    const t = rkcTune(c.k);
+    fitPrev();
+    prevBox.setAttribute('data-card', c.k);
+    const st = rkBgStyle(RKC.bg, t);
+    if (prevBg) prevBg.setAttribute('style', st || '');
+    prevBox.setAttribute('data-nobg', st ? '0' : '1');
+    if (elMedal) elMedal.innerHTML = c.k === 'p4' ? '<i class="rkc-place">4</i>' : rkMedal(+c.k.slice(1));
+    if (elTag) elTag.textContent = c.tag ? ' · ' + c.tag : '';
+    if (elMs) elMs.textContent = c.ms;
+    if (pos) pos.value = t.pos;
+    if (posV) posV.textContent = t.pos;
+    if (zoom) zoom.value = t.zoom;
+    if (zoomV) zoomV.textContent = t.zoom + '%';
+    paintMinis();
+  };
+  // 卡型切换：只换预览尺寸与滑杆值，背景本身不动（一张图喂四种卡）
+  body.querySelectorAll('[data-card]').forEach(b => (b.onclick = () => {
+    RKC.cur = b.dataset.card;
+    body.querySelectorAll('[data-card]').forEach(x => x.classList.toggle('on', x === b));
+    paintPrev();
+    const c = RK_CARDS.find(x => x.k === RKC.cur) || RK_CARDS[0];
+    setMsg('正在调「' + c.name + '」的取景，四种卡型各自记住');
+  }));
+  // 预设：只改本地状态 + 重绘预览，不写库（点「保存并应用」才落库）
+  body.querySelectorAll('[data-p]').forEach(b => (b.onclick = () => {
+    RKC.bg = b.dataset.p;
+    body.querySelectorAll('[data-p]').forEach(x => x.classList.toggle('on', x === b));
+    paintPrev(); setMsg('已选「' + b.title + '」，点「保存并应用」生效');
+  }));
+  // 位置 / 缩放：改的是「当前卡型」那一组，别的卡型不受影响
+  if (pos) pos.oninput = () => { rkcSet(RKC.cur, { pos: +pos.value }); if (posV) posV.textContent = pos.value; paintPrev(); };
+  if (zoom) zoom.oninput = () => { rkcSet(RKC.cur, { zoom: +zoom.value }); if (zoomV) zoomV.textContent = zoom.value + '%'; paintPrev(); };
+  // 恢复默认：清空选择；保存时传 'none'，服务端删掉自己那一行
+  body.querySelector('#rkcReset').onclick = () => {
+    RKC.bg = ''; RKC.pos = 50; RKC.tune = {};
+    body.querySelectorAll('[data-p]').forEach(x => x.classList.remove('on'));
+    paintPrev(); setMsg('已恢复默认背景（四种卡型取景也一起归零），点「保存并应用」生效');
+  };
+  // 上传：类型/大小先校验，再用 canvas 压到 1280 宽、JPEG 质量递减到 620KB 以内
+  const file = body.querySelector('#rkcFile');
+  body.querySelector('#rkcUp').onclick = () => file && file.click();
+  if (file) file.onchange = async () => {
+    const f = file.files && file.files[0]; file.value = ''; if (!f) return;
+    if (!/^image\/(jpeg|png|webp)$/.test(f.type)) return setMsg('只支持 JPG / PNG / WebP', 'bad');
+    if (f.size > 8 * 1024 * 1024) return setMsg('这张图超过 8MB，请先裁小一点', 'bad');
+    setMsg('正在压缩…');
+    try {
+      RKC.bg = await rkCompressImg(f);
+      // 换了新图，旧的四组取景对新图没意义（构图完全不同）→ 一起归零，再逐型微调
+      RKC.tune = {};
+      body.querySelectorAll('[data-p]').forEach(x => x.classList.remove('on'));
+      paintPrev();
+      setMsg('图片已载入（' + Math.round(RKC.bg.length / 1024) + 'KB）· 四种卡型取景已归零，逐个切过去调好再保存', 'ok');
+    } catch (e) { setMsg('这张图用不了：' + (e.message || e), 'bad'); }
+  };
+  // 保存：服务端校验 + upsert（本人那一行）；成功后立刻重画右侧榜单，自己那张卡当场变
+  const save = body.querySelector('#rkcSave');
+  if (save) save.onclick = async () => {
+    if (save.disabled) return;
+    save.disabled = true; setMsg('保存中…');
+    try {
+      const tune = {};
+      RK_CARDS.forEach(c => { const t = rkcTune(c.k); tune[c.k] = { pos: +t.pos, zoom: +t.zoom }; });
+      await HX.rpc('hx_rank_bg_put', { p_bg: RKC.bg || 'none', p_pos: rkcTune('p1').pos, p_tune: tune });
+      setMsg('已保存：排行榜上的你会换成这张背景（四种卡型取景都记住了）', 'ok');
+      const b = document.getElementById('rkBoard'); if (b) rkBoard(b);
+      toast('身份卡已保存');
+    } catch (e) { setMsg('保存失败：' + (e.message || e), 'bad'); }
+    save.disabled = false;
+  };
+  paintPrev();
+  // 弹窗被拖动 / 窗口缩放：预览宽度变了，--s 要跟着重算，否则高度和字号对不上
+  addEventListener('resize', paintPrev);
+}
+// 图片压缩：最长边 1280、JPEG、质量从 .82 递减到 .38；压到 620KB 内即可跨设备传。
+// 超过 880KB 直接拒绝（服务端上限 900KB），不把行撑爆。
+function rkCompressImg(file) {
+  return new Promise((res, rej) => {
+    const u = URL.createObjectURL(file), im = new Image();
+    im.onload = () => {
+      try {
+        const W = Math.min(1280, im.naturalWidth || im.width), H = Math.round((im.naturalHeight || im.height) * W / (im.naturalWidth || im.width));
+        const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+        cv.getContext('2d').drawImage(im, 0, 0, W, H);
+        let q = .82, data = cv.toDataURL('image/jpeg', q);
+        while (data.length > 620000 && q > .38) { q -= .1; data = cv.toDataURL('image/jpeg', q); }
+        URL.revokeObjectURL(u);
+        if (data.length > 880000) return rej(new Error('压缩后仍然太大，请换一张'));
+        res(data);
+      } catch (e) { URL.revokeObjectURL(u); rej(e); }
+    };
+    im.onerror = () => { URL.revokeObjectURL(u); rej(new Error('这张图读不出来')); };
+    im.src = u;
+  });
 }
 // ---------- 教师代做：选人窗口（2026-11-11）----------
 // 登录的是教师账号、成绩要记到某个学生头上时，这一问就是「记给谁」。
@@ -3953,7 +5088,7 @@ function rkProxyNames() {
 function rkProxyUse(s) {
   if (!s) return;
   const cls = RK.classes.find(c => c.id === PK.cls);
-  RK.pick = { id: s.id, name: rkStuName(s), cls: cls ? cls.name : '' };
+  RK.pick = { id: s.id, name: rkStuName(s), cls: cls ? cls.name : '', no: s.student_no || '' };
   ls.set('hx-rank-pick', JSON.stringify(RK.pick));
   const w = document.getElementById('fw-rankpick'); if (w) w.classList.remove('show');
   if (RK.body) rkMain(RK.body);
@@ -4028,7 +5163,7 @@ async function rkDrawWin() {
 function drwCls() { return RK.classes.find(c => c.id === DRW.cls) || RK.classes[0]; }
 function drwPool() {
   const c = drwCls(); if (!c) return [];
-  return (RK.studs[c.id] || []).map(s => ({ id: s.id, name: rkStuName(s), seq: s.seq, cls: c.name }));
+  return (RK.studs[c.id] || []).map(s => ({ id: s.id, name: rkStuName(s), seq: s.seq, cls: c.name, no: s.student_no || '' }));
 }
 /* ── 像素动效（PixelFXRank，MIT，见 NOTICE-pixelfx.md）：一条 rAF，12fps 封顶 ──
    窗口关掉 / 重画立刻停；fx-lite、关动画偏好只画一帧。 */
@@ -4309,7 +5444,7 @@ function drwRefresh(box) {
    从成绩页「抽取下一个人」回来时 rkQuit 会清 RK.lock 但保留 circuit（见 rkQuit），所以这里再兜一层。 */
 function drwUse() {
   const p = DRW.picked; if (!p) return;
-  RK.pick = { id: p.id, name: p.name, cls: p.cls };
+  RK.pick = { id: p.id, name: p.name, cls: p.cls, no: p.no || '' };
   ls.set('hx-rank-pick', JSON.stringify(RK.pick));
   drwCloseWin();
   if (RK.body) rkMain(RK.body); // 排位主页仍更新一次：万一开局失败（页面还在加载 / 断网），老师看到的是新选手
@@ -4331,18 +5466,85 @@ function drwHalt() { drwClearTimers(); drwFxStop(); DRW.busy = false; DRW.gen +=
    这些过场很轻（transform/opacity），手机完全跑得动；只有真正跑不动的老设备才降级。 */
 const drwNoAnim = () => document.documentElement.classList.contains('fx-lite')
   || matchMedia('(prefers-reduced-motion: reduce)').matches;
+/* ---------- 排行榜身份卡（R6，2026-11-12）----------
+   规格第七、八、九节：每名学生一张横向身份卡 = 个人背景图 → 渐变遮罩 → 玻璃蒙层 → 文字；
+   前三名金/银/铜荣耀（奖牌 + 称号 + 边框流光），**名次装饰与背景完全分离** ——
+   背景只认 student_id，学生换名次不掉装饰，换背景也不掉奖牌。
+   背景取不到 / 没设过 / 加载失败 → 退回默认深蓝底，整列仍然整齐，不塌版。 */
+// 只认两种背景串（服务端也只存这两种）：预设键 p:<k>、压缩后的图片 data URL。
+// 第三种一律当没设：绝不把用户串直接拼进 CSS（否则 `");background-image:url(x` 就是注入）。
+function rkBgStyle(bg, tune) {
+  const s = String(bg || ''); if (!s) return '';
+  // tune = { pos: 0~100 上下位置, zoom: 80~260 百分比 }；传数字时按老签名（只有 pos）兜底
+  const t = (tune && typeof tune === 'object') ? tune : { pos: Number(tune) };
+  const rawPos = Number(t.pos);
+  const p = Math.max(0, Math.min(100, Number.isFinite(rawPos) ? Math.round(rawPos) : 50));
+  const z = Math.max(60, Math.min(300, Math.round(Number(t.zoom)) || 100)) / 100;
+  const sc = z === 1 ? '' : `;transform:scale(${z})`;
+  if (/^p:[a-z0-9_-]{1,24}$/.test(s)) {
+    // 预设的 css 是「层列表 + 每层自己的 position/size」，只能喂给 background 简写；
+    // 写 background-image 会整条声明作废（实测 computed 变成 none，排行榜一片黑）。
+    const css = (window.rankBgCss && window.rankBgCss(s.slice(2))) || '';
+    // 预设按 3.2:1 画，排行榜一行却有 19:1（805×42）—— 场景层若照 100% 100% 会被横向压成
+    // 一条糊带（山压平、楼压扁）。改成「等比放大 + 居中裁切」：只露中间那一条，构图不变形。
+    // 正圆主体层本来就是 auto 100%，不受影响。
+    // 位移用 transform 的 translateY（-25% ~ +25%），等比放大后仍有富余，不会露底。
+    const ty = (50 - p) * 0.5;
+    const tf = `translateY(${ty}%)` + (z === 1 ? '' : ` scale(${z})`);
+    return `background:${css.replace(/0 0\s*\/\s*100% 100%/g, '50% 50% / cover')};transform:${tf}`;
+  }
+  if (/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(s))
+    return `background-image:url("${s}");background-size:cover;background-repeat:no-repeat;background-position:50% ${p}%${sc}`;
+  return '';
+}
+const RK_TAG = { 1: '排位之星', 2: '卓越表现', 3: '实力先锋' };
+function rkMedal(p) {
+  const G = p === 1 ? ['#ffeeb8', '#ffb934', '#d98a0c'] : p === 2 ? ['#f7fbff', '#c3d3e8', '#7d8ea6'] : ['#ffd9bd', '#d98a52', '#9a5a2c'];
+  const id = 'rkMedal' + p;
+  // 第一名加一顶小皇冠（桂冠意象靠两片弧线，不用外部图片）
+  const crown = p === 1
+    ? '<path d="M14.5 12.5l3.4 4.1L24 9.4l6.1 7.2 3.4-4.1-1.7 7.4H16.2z" fill="' + G[1] + '" stroke="rgba(255,255,255,.6)" stroke-width=".8"/>'
+    : '';
+  return '<svg viewBox="0 0 48 48" aria-hidden="true"><defs><linearGradient id="' + id + '" x1="0" y1="0" x2=".9" y2="1">'
+    + '<stop offset="0" stop-color="' + G[0] + '"/><stop offset=".55" stop-color="' + G[1] + '"/><stop offset="1" stop-color="' + G[2] + '"/></linearGradient></defs>'
+    + '<circle cx="24" cy="27.5" r="13" fill="url(#' + id + ')" stroke="rgba(255,255,255,.72)" stroke-width="1.2"/>'
+    + '<circle cx="24" cy="27.5" r="9.4" fill="rgba(0,0,0,.18)"/>'
+    + '<text x="24" y="32.4" text-anchor="middle" font-size="12.5" font-weight="900" fill="#fff" font-family="system-ui,sans-serif">' + p + '</text>'
+    + crown + '</svg>';
+}
 async function rkBoard(el, hl) {
   let rows; try { rows = await HX.rpc('rank_board', { p_circuit: RK.circuit, p_limit: 50 }, HX.in()); } catch (e) { el.innerHTML = `<p class="rk-err">${esc(e.message)}</p>`; return; }
-  // 空榜单只放提示语，绝不放假成绩（2026-11-08 UI 重构：文案换成两句引导）
-  if (!rows.length) { el.innerHTML = `<div class="rk-emptybox"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10v4a5 5 0 0 1-10 0z"/><path d="M7 5H4v1.5A3.5 3.5 0 0 0 7.5 10M17 5h3v1.5A3.5 3.5 0 0 1 16.5 10M12 13v4M8.5 20h7"/></svg><b>暂无排位成绩</b><span>完成首次接线挑战后，成绩将在此展示</span></div>`; return; }
+  // 后端口径可能返回对象（老函数 / 代理层包了一层），一律归一成数组，别让整块榜单崩掉
+  if (!Array.isArray(rows)) rows = (rows && Array.isArray(rows.data)) ? rows.data : [];
+  // 个人身份卡背景：新表 hx_rank_bg，按 student_id 关联（绝不按名次）。
+  // 这一步失败（函数还没建 / 网络抖）只影响背景，不影响成绩与排序 —— 所以单独 try，不拖垮榜单。
+  let bgs = [];
+  if (rows.length) { try { bgs = (await HX.rpc('hx_rank_bgs', { p_circuit: RK.circuit, p_limit: 50 }, HX.in())) || []; } catch (e) { bgs = []; } }
+  if (!Array.isArray(bgs)) bgs = (bgs && Array.isArray(bgs.data)) ? bgs.data : [];
+  const BG = {}; bgs.forEach(b => { if (b && b.student_id != null) BG[b.student_id] = b; });
+  const nEl = document.getElementById('rkBoardN');
+  if (nEl) nEl.textContent = rows.length ? '共 ' + rows.length + ' 人 · 按用时升序' : '';
+  // 空榜单只放提示语，绝不放假成绩
+  if (!rows.length) { el.innerHTML = `<div class="rk-empty"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10v4a5 5 0 0 1-10 0z"/><path d="M7 5H4v1.5A3.5 3.5 0 0 0 7.5 10M17 5h3v1.5A3.5 3.5 0 0 1 16.5 10M12 13v4M8.5 20h7"/></svg><b>暂无排位成绩</b><span>完成首次接线挑战后，成绩将在此展示</span></div>`; return; }
   // FLIP（2026-11-08，纯视觉）：重绘前记下旧行位置（按 姓名|班级 找），重绘后把位置变化过的行
   // 从旧位置平移到新位置 —— 数据更新时行是“滑过去”的，新上榜的行短暂高亮一下。
   // 数值、排序、me/highlight 判定全部原样；首绘（没有旧行）走错峰入场，不做 FLIP。
   const prev = {};
-  if (!drwNoAnim()) el.querySelectorAll('.rk-board li').forEach(li => { const k = li.getAttribute('data-k'); if (k != null) prev[k] = li.offsetTop; });
+  if (!drwNoAnim()) el.querySelectorAll('.rk-lb').forEach(li => { const k = li.getAttribute('data-k'); if (k != null) prev[k] = li.offsetTop; });
   const steady = Object.keys(prev).length ? ' steady' : '';
-  el.innerHTML = `<ol class="rk-board${steady}">${rows.map((r, i) => `<li data-k="${esc(r.name + '|' + r.class_name)}" style="--i:${Math.min(i, 12)}" class="${r.me || r.place === hl ? 'me' : ''} p${Math.min(r.place, 4)}"><i>${r.place}</i><b>${esc(r.name)}</b><span>${esc(r.class_name)}</span><em>${fmtMs(r.ms)}</em></li>`).join('')}</ol>`;
-  if (steady) el.querySelectorAll('.rk-board li').forEach(li => {
+  const rowHTML = (r, i) => {
+    const p = Math.min(r.place, 4), top = p <= 3;
+    const b = BG[r.student_id];
+    // 取景按「名次卡片型」来：同一张背景，冠军卡和常规卡各自有一组 pos/zoom
+    const st = rkBgStyle(b && b.bg, rkTuneOf(b, r.place));
+    return `<li class="rk-lb p${p}${r.me || r.place === hl ? ' me' : ''}" data-k="${esc(r.name + '|' + r.class_name)}" data-nobg="${st ? '0' : '1'}" style="--i:${Math.min(i, 12)}">`
+      + `<span class="rk-lb-bg" aria-hidden="true"${st ? ` style="${esc(st)}"` : ''}></span><span class="rk-lb-veil" aria-hidden="true"></span>`
+      + (top ? `<span class="rk-lb-medal">${rkMedal(p)}</span>` : `<i class="rk-lb-place">${r.place}</i>`)
+      + `<span class="rk-lb-who"><b>${esc(r.name)}</b><span class="rk-lb-sub"><small class="rk-lb-cls">${esc(r.class_name)}</small>${top ? `<span class="rk-lb-tag">${RK_TAG[p]}</span>` : ''}</span></span>`
+      + `<em>${fmtMs(r.ms)}</em></li>`;
+  };
+  el.innerHTML = `<ol class="rk-board${steady}">${rows.map(rowHTML).join('')}</ol>`;
+  if (steady) el.querySelectorAll('.rk-lb').forEach(li => {
     const o = prev[li.getAttribute('data-k')];
     if (o == null) { li.classList.add('rk-new'); return; }              // 新上榜：短暂高亮
     const dy = o - li.offsetTop;

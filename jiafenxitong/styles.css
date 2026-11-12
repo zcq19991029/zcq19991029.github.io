@@ -536,6 +536,52 @@ table.data input { padding: 2px 6px; font-size: 12.5px; }
 .pool-team .note { margin: 8px 0 0; }
 .pool-team #teamHint { margin: 0 8px 0 0; }
 
+/* ---- 分组页常驻条：学生自助选桌（2026-11-12）
+   原来这一排控件藏在页面最底下折叠的 <details id="teamMore"> 里，老师根本找不到
+   「开放组队」，还以为是功能没有。搬到分组标题下面以后，左边给一条深色斜纹作视觉锚点，
+   状态徽标（未开放 / 组队中 已坐 x/y / 已停止 / 已结束）用颜色区分。 ---- */
+.pool-team-bar {
+  margin: 4px 0 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--line-strong);
+  border-left: 3px solid var(--accent, #6b7cff);
+  border-radius: var(--r-md, 10px);
+  background: var(--panel-2, rgba(127, 127, 127, .06));
+}
+.pool-team-bar-h {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px;
+}
+.pool-team-bar-h b { font-size: 14px; }
+.pool-team-bar-h .hint { font-size: 12px; color: var(--muted); }
+.pool-team-bar-st {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 2px 10px; border-radius: var(--pill, 999px);
+  font-size: 12px; font-weight: 700; white-space: nowrap;
+  border: 1px solid var(--line-strong); color: var(--muted); background: transparent;
+}
+.pool-team-bar-st::before {
+  content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: .75;
+}
+.pool-team-bar-st[data-st="open"] {
+  color: var(--ok, #22a06b); border-color: currentColor;
+  background: color-mix(in srgb, var(--ok, #22a06b) 12%, transparent);
+}
+.pool-team-bar-st[data-st="locked"],
+.pool-team-bar-st[data-st="warn"] {
+  color: var(--warn, #c98a00); border-color: currentColor;
+  background: color-mix(in srgb, var(--warn, #c98a00) 12%, transparent);
+}
+.pool-team-bar-st[data-st="closed"] { color: var(--muted); }
+.pool-team-bar .btnrow { align-items: center; gap: 10px; margin-bottom: 0; }
+.pool-team-bar #teamTables, .pool-team-bar #teamSize {
+  width: 72px; text-align: center; font-variant-numeric: tabular-nums;
+}
+.pool-team-bar .note { margin: 8px 0 0; }
+.pool-team-bar .note:empty { display: none; }
+
+/* 圆桌数 / 每桌人数还没填时，「开放组队」点了也白点：用空心描边提示，不直接禁用
+   （禁用会让人以为是坏了；这里的禁用已经在 renderGroupSetup 里按填值情况控制）。 */
+
 .tm-bar {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
   margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--line-strong);

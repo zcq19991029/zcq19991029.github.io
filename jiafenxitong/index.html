@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#fcfcfb">
 <title>夜夜小组制加分助手 · 《电气接线原理》</title>
-<link rel="stylesheet" href="styles.css?v=37d9f25-dirty">
-<link rel="stylesheet" href="draw-person.css?v=37d9f25-dirty">
+<link rel="stylesheet" href="styles.css?v=fd13bb8-dirty">
+<link rel="stylesheet" href="draw-person.css?v=fd13bb8-dirty">
 <!-- 分组看板 + 学生端桌卡（2026-11-06）：新样式一律写这个文件，不去动 styles.css / team.css
      里已有的行（那几个文件正有人在改深浅色变量）。-->
 <link rel="stylesheet" href="roster-board.css">
@@ -50,8 +50,8 @@
      这里把药丸钉回 1em，跟着卡片字号一起长大，不再自己写一套 clamp 互相打架。 */
   #hxSplash .hx-loadpill { font-size: 1em; box-shadow: none; }
 </style>
-<meta name="build-commit" content="37d9f25-dirty">
-<meta name="build-published-at" content="2026-11-12T06:49:43.750Z">
+<meta name="build-commit" content="fd13bb8-dirty">
+<meta name="build-published-at" content="2026-11-12T12:12:14.653Z">
 </head>
 <body>
 
@@ -80,8 +80,8 @@
     </div>
   </div>
 </div>
-<script src="fx/pixelfx-loader.js?v=37d9f25-dirty"></script>
-<script src="fx/hx-jf-load.js?v=37d9f25-dirty"></script>
+<script src="fx/pixelfx-loader.js?v=fd13bb8-dirty"></script>
+<script src="fx/hx-jf-load.js?v=fd13bb8-dirty"></script>
 
 <header class="topbar" id="topbar">
   <div class="topbar-main">
@@ -364,6 +364,44 @@
     <!-- 分组主体：左边未分组，右边各组卡片。内容是 app.js 的 renderGroupBoard 画的。 -->
     <div class="card gb-card">
       <h2 class="sec-title">分组<span class="hint">左边是还没进组的人 · 拖到右边的组卡片上就分好 · 手机上先点人再点组</span></h2>
+
+      <!-- 学生自助选桌 · 常驻操作条（2026-11-12 修「找不到开放分组按钮」）
+           老师反馈：「分组功能咋没有开放分组按钮？学生反映老师没有开放分组」。
+           根因不是功能缺失：真正干这活的「开放组队」按钮一直藏在页面最底下那个默认折叠的
+           <details id="teamMore"> 里，summary 还写着「另一套流程，和上面的分组不是一回事」，
+           于是没人会想到去点开它。这里把那一排控件整体搬出来，常驻在分组标题下面，
+           按钮的 id 一个都没改（btnTeamOpen / btnTeamLock / btnTeamFinish / btnTeamClose /
+           teamLink / teamTables / teamSize / gpSeatState / openNote 全部照旧），
+           team.js、tmPaint、tmButtons 那套代码一个字都不用动。 -->
+      <div class="pool-team-bar" id="tmBar">
+        <div class="pool-team-bar-h">
+          <b>学生自助选桌</b>
+          <span class="pool-team-bar-st" id="tmStatus">未开放</span>
+          <span class="hint">学生用自己的学号账号点一张圆桌就坐下，你这边每 2 秒自动刷新</span>
+        </div>
+        <div class="btnrow">
+          <label class="field"><span>圆桌数</span>
+            <span class="gp-num"><input id="teamTables" type="number" min="1" max="40" step="1" inputmode="numeric"><em>桌</em></span>
+          </label>
+          <label class="field"><span>每桌最多</span>
+            <span class="gp-num"><input id="teamSize" type="number" min="2" max="40" step="1" inputmode="numeric"><em>人</em></span>
+          </label>
+          <button id="btnTeamOpen" class="btn primary" type="button">开放组队</button>
+          <button id="btnTeamLock" class="btn" type="button" hidden>停止组队</button>
+          <button id="btnTeamFinish" class="btn primary" type="button" hidden>按选座确认分组</button>
+          <button id="btnTeamClose" class="btn danger" type="button" hidden>结束</button>
+          <span class="spacer"></span>
+          <a id="teamLink" class="btn ghost small" target="_blank" rel="noopener" href="team.html" hidden>学生入口 ↗</a>
+        </div>
+        <p class="note" id="gpSeatState"></p>
+        <!-- 用户最怕的一件事：点「开放组队」把已经分好的组冲掉。代码里确认过它只操作云端的
+             组队房间（jf_team_open / jf_team_place），一个字都不碰 cls.groups。 -->
+        <p class="note gb-open-note" id="openNote">
+          开放组队只是让学生自己选座，<b>不会清空你已有的分组</b>，记分表里的组一个都不会动。
+          只有你点了「按选座确认分组」，才会按桌号把这几个组重写一遍。
+        </p>
+      </div>
+
       <div id="groupBoard"></div>
     </div>
 
@@ -389,39 +427,14 @@
       </details>
     </div>
 
-    <!-- 学生自助选桌（另一套流程）：默认折叠，避免「已坐 0/48」和上面的分组数字并排出现。
-         里面的 id 一个都没改，team.js / tmPaint / tmButtons 那套代码照旧能用。 -->
+    <!-- 选座实况：控件已经搬到上面那根常驻条（#tmBar）里了，这里只留「谁坐了哪桌」的实时看板。
+           内容还是 tmPaint 画的 #teamBoard，id 没变；老师一点「开放组队」这块会自动展开。 -->
     <details class="gb-more" id="teamMore">
-      <summary>更多 · 学生自助选桌（另一套流程，和上面的分组不是一回事）</summary>
+      <summary>选座实况（学生每选一张桌，这里 2 秒内自动刷新）</summary>
       <div class="card pool-team" id="teamCard">
-        <p class="note gb-more-note">
-          上面那套是<b>老师拖拽分组</b>，数据直接写进记分表；这里这套是<b>学生自己点圆桌选座</b>，
-          座位先存在云端，只有你点「按选座确认分组」才会按桌号写进记分表。两套可以只用一套。
-        </p>
-        <div class="btnrow">
-          <label class="field"><span>圆桌数</span>
-            <span class="gp-num"><input id="teamTables" type="number" min="1" max="40" step="1" inputmode="numeric"><em>桌</em></span>
-          </label>
-          <label class="field"><span>每桌最多</span>
-            <span class="gp-num"><input id="teamSize" type="number" min="2" max="40" step="1" inputmode="numeric"><em>人</em></span>
-          </label>
-          <button id="btnTeamOpen" class="btn primary" type="button">开放组队</button>
-          <button id="btnTeamLock" class="btn" type="button" hidden>停止组队</button>
-          <button id="btnTeamFinish" class="btn primary" type="button" hidden>按选座确认分组</button>
-          <button id="btnTeamClose" class="btn danger" type="button" hidden>结束</button>
-          <span class="spacer"></span>
-          <a id="teamLink" class="btn ghost small" target="_blank" rel="noopener" href="team.html" hidden>学生入口 ↗</a>
-        </div>
-        <p class="note" id="gpSeatState"></p>
-        <!-- 用户最怕的一件事：点「开放组队」把已经分好的组冲掉。代码里确认过它只操作云端的
-             组队房间（jf_team_open / jf_team_place），一个字都不碰 cls.groups。 -->
-        <p class="note gb-open-note" id="openNote">
-          开放组队只是让学生自己选座，<b>不会清空你已有的分组</b>，记分表里的组一个都不会动。
-          只有你点了「按选座确认分组」，才会按桌号把这几个组重写一遍。
-        </p>
         <p class="note" id="teamNote">
-          学生用<b>学号账号</b>登录后打开「学生入口」（或直接把链接发群里），就会看到这些圆桌；点一张桌就坐下，可以换桌。
-          你这边每 2 秒自动刷新，能看到谁坐了哪桌、还有谁没选。
+          学生用<b>学号账号</b>登录后打开「学生入口」（或直接把链接发群里），就会看到上面设好的圆桌；
+          点一张桌就坐下，可以换桌。你这边每 2 秒自动刷新，能看到谁坐了哪桌、还有谁没选。
         </p>
         <div id="teamBoard"></div>
       </div>
@@ -657,20 +670,20 @@
   </form>
 </dialog>
 
-<script src="data.js?v=37d9f25-dirty"></script>
-<script src="config.js?v=37d9f25-dirty"></script>
+<script src="data.js?v=fd13bb8-dirty"></script>
+<script src="config.js?v=fd13bb8-dirty"></script>
 <!-- 导出用的两个大库（xlsx 930 KB + jspdf 409 KB = 1.3 MB）。
      2026-11-09 加 defer：它们是普通脚本时按文档顺序阻塞执行，必须下完才轮到下面的 app.js，
      而 app.js 才是绑登录、画界面、读本机数据的那一个 —— 网一慢整页就像死了（用户报的「打不开、登录不了」）。
      加了 defer 之后 app.js 立刻跑，这两个在解析结束后自己下自己执行，点导出时通常早就好了；
      万一手快、库还没到，由 heavy.js 在捕获阶段把这**一次**点击接住，等库到了替他重发。 -->
-<script src="vendor/jspdf.umd.min.js?v=37d9f25-dirty" defer></script>
-<script src="vendor/xlsx.full.min.js?v=37d9f25-dirty" defer></script>
-<script src="heavy.js?v=37d9f25-dirty"></script>
-<script src="roster-import.js?v=37d9f25-dirty"></script>
-<script src="hx-roster.js?v=37d9f25-dirty"></script>
-<script src="cloud.js?v=37d9f25-dirty"></script>
-<script src="supabase-cloud.js?v=37d9f25-dirty"></script>
+<script src="vendor/jspdf.umd.min.js?v=fd13bb8-dirty" defer></script>
+<script src="vendor/xlsx.full.min.js?v=fd13bb8-dirty" defer></script>
+<script src="heavy.js?v=fd13bb8-dirty"></script>
+<script src="roster-import.js?v=fd13bb8-dirty"></script>
+<script src="hx-roster.js?v=fd13bb8-dirty"></script>
+<script src="cloud.js?v=fd13bb8-dirty"></script>
+<script src="supabase-cloud.js?v=fd13bb8-dirty"></script>
 <dialog id="dlgPassword">
   <form method="dialog" class="dlg" id="passwordForm">
     <div class="dlg-head"><h3>修改密码</h3><button type="button" class="dlg-x" id="btnPasswordClose" aria-label="关闭">✕</button></div>
@@ -696,20 +709,20 @@
   </div>
 </dialog>
 <!-- 组内互评直接计分：把学生提交归成「落哪一格、落多少分」，leader-scoring.js / app.js 都用它（2026-11-10） -->
-<script src="peer-apply.js?v=37d9f25-dirty"></script>
-<script src="leader-scoring.js?v=37d9f25-dirty"></script>
-<script src="assessment.js?v=37d9f25-dirty"></script>
-<script src="ui-feedback.js?v=37d9f25-dirty"></script>
+<script src="peer-apply.js?v=fd13bb8-dirty"></script>
+<script src="leader-scoring.js?v=fd13bb8-dirty"></script>
+<script src="assessment.js?v=fd13bb8-dirty"></script>
+<script src="ui-feedback.js?v=fd13bb8-dirty"></script>
 <dialog id="dlgOperationLog"><div class="dlg"><div class="dlg-head"><div><h3>操作日志</h3><span class="note">选择任意一条撤销，其他记录继续保留</span></div><button type="button" id="closeOperationLog" class="dlg-x" aria-label="关闭操作日志">✕</button></div><div class="dlg-body"><div class="log-toolbar"><label>班级<select id="logClassFilter"><option value="">全部班级</option></select></label><label>课次<select id="logLessonFilter"><option value="">全部课次</option></select></label><label class="log-search">查找<input type="search" id="logSearch" placeholder="姓名、组号、课次或项目"></label><button id="btnRedo" class="btn" disabled title="恢复最近撤销的一项（Ctrl+Shift+Z）">↷ 恢复最近一项</button></div><button id="btnUndo" hidden disabled></button><p id="undoDetail" hidden></p><p id="redoDetail" hidden></p><div id="operationLogList"></div><details class="log-help"><summary>记录与撤销说明</summary><p>点击某条右侧“撤销”，仅抵消该次操作的实际效果；已撤销的记录可单独恢复。平板支持左划，松手前拉回即可取消。个人项目的核对流水请到原评分表修改。值日缺勤（整学期 5 分，只算一次）不记作加分操作；相邻等量反向调整合并抵消。旧记录未记载时间时显示“历史记录”。</p></details></div></div></dialog>
-<script src="print-excel.js?v=37d9f25-dirty"></script>
-<script src="gradebook.js?v=37d9f25-dirty"></script>
+<script src="print-excel.js?v=fd13bb8-dirty"></script>
+<script src="gradebook.js?v=fd13bb8-dirty"></script>
 <!-- 学生只读查分：把「每人一份」的分数快照发布到云端，app.js 每次 save() 会叫它（2026-11-04） -->
-<script src="student-feed.js?v=37d9f25-dirty"></script>
-<script src="score-repair.js?v=37d9f25-dirty"></script>
-<script src="wire-task-link.js?v=37d9f25-dirty"></script>
+<script src="student-feed.js?v=fd13bb8-dirty"></script>
+<script src="score-repair.js?v=fd13bb8-dirty"></script>
+<script src="wire-task-link.js?v=fd13bb8-dirty"></script>
 <script src="../ui-dialog.js"></script>
-<script src="app.js?v=37d9f25-dirty"></script>
-<script src="draw-person.js?v=37d9f25-dirty"></script>
-<script src="password-ui.js?v=37d9f25-dirty"></script>
+<script src="app.js?v=fd13bb8-dirty"></script>
+<script src="draw-person.js?v=fd13bb8-dirty"></script>
+<script src="password-ui.js?v=fd13bb8-dirty"></script>
 </body>
 </html>
