@@ -75,6 +75,29 @@ if (typeof hxIsLite !== 'function') {
     try { return !!(typeof hxLite !== 'undefined' && hxLite); } catch (e) { return false; }
   };
 }
+/* ── 2026-11-11 极简模式：光效总闸门（兜底）─────────────────────────────
+   上面 TH.glow=0 能覆盖所有 `shadowBlur = N * TH.glow` 的写法，但实测（真 Chrome 进练习页、
+   给 shadowBlur 打桩点）发现极简下仍有近 4000 次/几秒的非 0 shadowBlur 残留，来自两类写法：
+     ① `Math.max(TH.glow, 0.4)` / `Math.max(TH.glow || 1, 0.5)` —— 「最低亮度兜底」把 0 救回来；
+     ② 写死数字的（`shadowBlur = 14`、`= 40`、`= 12` …），散在 circuit2x/E1/E2、check、devices 等。
+   这些点分布 15 个文件、约 60 处，逐处补 if 既啰嗦又容易再漏。所以这里在 2d 上下文原型上装一道闸：
+   **极简模式下任何人赋值 shadowBlur 都归 0**，一处覆盖全部（和 theme.js 里 fillRect 的清屏补丁同一套路）。
+   shadowBlur 是逐像素模糊，不管阴影颜色深浅、是发光还是投影，代价一样 —— 极简下全停，
+   线条/文字/填色一个像素都不改（东西照看得见，只是不再有模糊光晕和投影），接线判定完全不受影响。
+   标准模式原样透传，一位都不改。补丁只装一次（__hxGlowGate）。 */
+if (typeof CanvasRenderingContext2D !== 'undefined' && !CanvasRenderingContext2D.prototype.__hxGlowGate) {
+  CanvasRenderingContext2D.prototype.__hxGlowGate = true;
+  const proto = CanvasRenderingContext2D.prototype;
+  const d = Object.getOwnPropertyDescriptor(proto, 'shadowBlur');
+  const rawGet = d && d.get, rawSet = d && d.set;
+  if (rawSet) {
+    Object.defineProperty(proto, 'shadowBlur', {
+      configurable: true, enumerable: d.enumerable,
+      get: function () { return rawGet ? rawGet.call(this) : 0; },
+      set: function (v) { rawSet.call(this, hxIsLite() ? 0 : v); },
+    });
+  }
+}
 function flow(pts, w, t, color = C.cur) {
   if (SCHK.on) w *= SCHK.line;
   /* 2026-11-11 极简模式：shadowBlur 是画布上最贵的一笔（逐像素模糊），电流动效每帧都要算一次。
