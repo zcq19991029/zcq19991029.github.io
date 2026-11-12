@@ -1676,6 +1676,28 @@ table.sheet th.c-phone{word-break:keep-all;overflow-wrap:normal;line-height:1.45
 @media print{.leader-paper.four-slips{grid-template-rows:repeat(4,1fr)}.four-slips .leader-slip{padding:1mm 0}.four-slips .leader-slip:not(:last-child){border-bottom:.3mm dashed #999}.four-slips .leader-slip h2{font-size:10pt;margin:0}.four-slips .leader-slip p{font-size:7pt;margin:.5mm 0}.four-slips .leader-slip .leader-table{font-size:8pt;margin:.8mm 0}.four-slips .leader-slip .leader-table thead th{height:7mm}.four-slips .leader-slip .leader-table tbody td{height:6mm;padding:.3mm}.four-slips .leader-slip .slip-note{min-height:0}.four-slips .leader-slip .leader-table small{font-size:6pt}}
 
 .leader-table th{position:relative}.project-remove{border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:16px;padding:2px 5px}.leader-project{width:calc(100% - 24px)}
+/* ============================================================
+   逐列「仅教师可评」开关（2026-11-12 用户规则：
+   「收拾板子归位工具的分只能老师给予」）
+   锁上 → 这一列不再发布给学生（学生端整列消失），老师照旧点格子给分。
+   列的名单存在 lesson.teacherOnly，**按列名存**，改名/删列会同步维护。
+   ============================================================ */
+.peer-col-in { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.peer-col-in .leader-project { width: 100%; }
+.peer-col-acts { display: flex; align-items: center; justify-content: center; gap: 2px; }
+.project-lock {
+  border: 1px solid var(--line-strong); background: #fff; color: var(--muted);
+  border-radius: 999px; padding: 2px 8px; font-size: 11px; line-height: 1.6;
+  cursor: pointer; white-space: nowrap; font-family: inherit;
+}
+.project-lock:hover { border-color: var(--accent); color: var(--accent); }
+.project-lock.on { background: var(--vip-bg); border-color: var(--vip-line); color: var(--vip); font-weight: 700; }
+.peer-col-th.is-teacher-only { background: var(--vip-bg); }
+.peer-col-th.is-teacher-only .leader-project { background: #fffdf5; }
+.leader-table th.peer-col-name.is-teacher-only { background: var(--vip-bg); }
+.peer-col-tag { display: inline-block; margin-left: 4px; padding: 0 4px; border-radius: 6px; background: var(--vip-line); color: #6b4a09; font-size: 10px; font-style: normal; font-weight: 700; vertical-align: 1px; }
+@media print { .project-lock { display: none !important; } }
+
 @media print{.project-remove{display:none!important}.leader-paper.slips-3{grid-template-rows:repeat(3,1fr)}.leader-paper.slips-6{grid-template-rows:repeat(6,1fr)}.compact-slips .leader-slip{padding:1mm 0}.compact-slips .leader-slip:not(:last-child){border-bottom:.3mm dashed #999}.compact-slips .leader-slip h2{font-size:9pt;margin:0}.compact-slips .leader-slip p{font-size:6.5pt;margin:.4mm 0;line-height:1.1}.compact-slips .leader-slip .slip-rule,.compact-slips .leader-slip .slip-note{display:none}.compact-slips .leader-slip .leader-table{margin:.6mm 0;font-size:8pt}.compact-slips .leader-slip .leader-table thead th{height:5mm;padding:.3mm}.compact-slips .leader-slip .leader-table tbody td{height:4.8mm;padding:.2mm}.compact-slips .leader-slip .leader-table small{display:inline;font-size:6pt;margin-left:1mm}.compact-slips .leader-slip .slip-sign{font-size:6pt;margin:.3mm 0}}
 
 @media print{.slips-6 .leader-slip h2{font-size:8pt}.slips-6 .leader-slip .leader-table tbody td{height:4mm;font-size:7pt}.slips-6 .leader-slip .leader-table small{font-size:5.5pt}.slips-6 .leader-slip .leader-table thead th{font-size:7pt;height:4mm}.slips-6 .leader-slip{padding:.5mm 0}}

@@ -316,6 +316,11 @@
       paint();
       return;
     }
+    if (isTeacherOnly(project)) {
+      peer.msg = '「' + project + '」只有老师能给分，学生端不用打。';
+      paint();
+      return;
+    }
     var lessonKey = peer.data.lesson, prev = peerScore(project, target);
     upsertMine(project, target, score);
     peer.busy = true;
@@ -335,7 +340,7 @@
 
   function clearPeer(project, target) {
     if (!peer.data) return;
-    if (isTaskCol(project)) return;   // 排位列从来不打分，也就没有可撤销的分
+    if (isTaskCol(project) || isTeacherOnly(project)) return;   // 这两种列学生从来没打过，也就没有可撤销的分
     var lessonKey = peer.data.lesson, prev = peerScore(project, target);
     if (prev == null) return;
     upsertMine(project, target, null);
@@ -372,6 +377,15 @@
   var TASK_COL = /^(?:接线|线上连线排位)/;
   function isTaskCol(name) { return TASK_COL.test(String(name == null ? '' : name).trim()); }
 
+  /* 逐列「仅教师可评」（2026-11-12 用户规则：收拾板子 / 归位工具的分只能老师给）。
+     正常路径上这一列压根不会出现在 d.projects 里 —— app.js 的 peerProjectList() 发布时就滤掉了；
+     这里挡的是旧缓存页和「云端 payload 还是上一版」的窗口期。老师锁列的开关在 leader-scoring.js。 */
+  function isTeacherOnly(name) {
+    var list = (peer.data && peer.data.teacherOnly) || [];
+    var n = String(name == null ? '' : name).trim();
+    return !!n && list.indexOf(n) >= 0;
+  }
+
   function peerCellHtml(project, target) {
     var value = peerScore(project.name, target.key), locked = project.status === 'confirmed';
     var label = esc(target.name) + ' · ' + esc(project.name);
@@ -383,6 +397,11 @@
     if (isTaskCol(project.name)) {
       return '<div class="peer-cell is-locked" title="线上排位列：只有真实完成线上排位才能自动得分，互评打不了分">' +
         projTag + '<span>线上排位列 · 只有真实完成排位才能得分</span></div>';
+    }
+    /* 仅教师列：只读占位，同样不带 data-project / data-target */
+    if (isTeacherOnly(project.name)) {
+      return '<div class="peer-cell is-locked" title="这一列只有老师能给分（收拾板子 / 归位工具这类），学生不用打">' +
+        projTag + '<span>仅教师评分 · 这一列你不用打</span></div>';
     }
     if (value != null) {
       return '<div class="peer-cell is-set" data-score="' + value + '" data-project="' + esc(project.name) +

@@ -222,6 +222,16 @@
        名字才是硬标准 —— 老数据/丢 meta 的列不能漏）。锁住之后：不摆打分按钮、不给
        data-score（点击/双击/键盘都进不来）、一键满分跳过这一列。 */
     function isWireCol(col) { return isTaskCol(sharedProjects[col]); }
+    /* 「仅教师可评」列（2026-11-12 用户规则：「收拾板子归位工具的分只能老师给予」）。
+       名单存在 lesson.teacherOnly（**列名**数组，不是列号）—— 删列/改名时同步维护，不用管错位。
+       生效用的是「不推进学生端」这条路：这些列不出现在 payload.projects 里，
+       学生页压根看不到、也提交不上来；peer-apply 再兜一层（旧缓存页 / 控制台直调）。
+       老师这边照旧可以点格子给分（「师」角标），这就是「只能老师给」。 */
+    function teacherOnlyList() { return Array.isArray(lesson.teacherOnly) ? lesson.teacherOnly : []; }
+    function isTeacherOnlyCol(col) {
+      var n = String(sharedProjects[col] == null ? '' : sharedProjects[col]).trim();
+      return !!n && teacherOnlyList().indexOf(n) >= 0;
+    }
     function persist(st) { if (!lesson.leaderScores) lesson.leaderScores = {}; lesson.leaderScores[String(st.group.no)] = st.rec; context.save(); }
     function logFor(st, detail) { if (context.log) context.log(cls.name + ' · 第' + lesson.seq + '次课 · 第' + st.group.no + '组 · ' + detail); }
     function logClass(detail) { if (context.log) context.log(cls.name + ' · 第' + lesson.seq + '次课 · ' + detail); }
@@ -343,7 +353,16 @@
 
     /* ---------- 顶部：项目列（全班共用，只在这里改名字，各组表格共用一份） ---------- */
     function projectInputTh(i) {
-      return '<th class="peer-col-th"><input class="leader-project" data-project="' + i + '" aria-label="评分项目' + (i + 1) + '" maxlength="80" placeholder="项目' + (i + 1) + '" value="' + esc(sharedProjects[i]) + '"><button type="button" class="project-remove" data-remove-project="' + i + '" aria-label="删除项目' + (i + 1) + '" title="删除本课全班此项目列">×</button></th>';
+      var only = isTeacherOnlyCol(i);
+      return '<th class="peer-col-th' + (only ? ' is-teacher-only' : '') + '">' +
+        '<div class="peer-col-in"><input class="leader-project" data-project="' + i + '" aria-label="评分项目' + (i + 1) + '" maxlength="80" placeholder="项目' + (i + 1) + '" value="' + esc(sharedProjects[i]) + '">' +
+        '<div class="peer-col-acts">' +
+        '<button type="button" class="project-lock' + (only ? ' on' : '') + '" data-teach-only="' + i + '" aria-pressed="' + (only ? 'true' : 'false') + '" title="' +
+        (only ? '这一列现在只有你能给分（学生端看不到它）。点一下放开给学生打分'
+          : '点一下锁成「仅教师可评」：学生端不再显示这一列，只有你能给分（收拾板子 / 归位工具这类）') + '">' +
+        (only ? '仅教师' : '学生可打') + '</button>' +
+        '<button type="button" class="project-remove" data-remove-project="' + i + '" aria-label="删除项目' + (i + 1) + '" title="删除本课全班此项目列">×</button>' +
+        '</div></div></th>';
     }
     function colCardHtml() {
       return '<div class="card peer-colcard" id="leaderColCard"><div class="peer-colcard-head"><b>项目列（全班共用）</b>' +
@@ -379,11 +398,14 @@
     }
 
     /* ---------- 每一组一块 ---------- */
-    /* 组表格的项目列表头：只写项目名（2026-11-10 取消逐列确认后不再挂「待确认 N」） */
+    /* 组表格的项目列表头：只写项目名（2026-11-10 取消逐列确认后不再挂「待确认 N」）
+       2026-11-12：仅教师列加一个「仅师」小角标 —— 组长看这张表时要一眼知道
+       这一列他不用打（学生端根本不显示它）。 */
     function colThHtml(st, i) {
       var name = String(sharedProjects[i] || '').trim();
-      return '<th class="peer-col-name" data-th-col="' + i + '" data-gno="' + st.group.no + '">' +
-        esc(name || ('项目' + (i + 1))) + '</th>';
+      var only = isTeacherOnlyCol(i);
+      return '<th class="peer-col-name' + (only ? ' is-teacher-only' : '') + '" data-th-col="' + i + '" data-gno="' + st.group.no + '">' +
+        esc(name || ('项目' + (i + 1))) + (only ? '<em class="peer-col-tag">仅师</em>' : '') + '</th>';
     }
     /* 0 人的组如果因为「这一课留有历史分」而保留显示：把已经转走/移出名单的成员
        也排成分数行（不然只画一个组头，历史分还是看不见）。这些行只读——
@@ -493,6 +515,14 @@
       var old = String(sharedProjects[index] || '');
       if (old === next) return;
       sharedProjects[index] = next;
+      /* 「仅教师」名单按**列名**存，改名时必须跟着换，否则老师改个错别字锁就丢了 */
+      if (Array.isArray(lesson.teacherOnly)) {
+        var li = lesson.teacherOnly.indexOf(old.trim());
+        if (li >= 0) {
+          if (next) lesson.teacherOnly[li] = next;
+          else lesson.teacherOnly.splice(li, 1);   // 名字清空 = 这一列不复存在，锁也一并撤
+        }
+      }
       lesson.leaderProjectNames = sharedProjects.slice();
       lesson.leaderProjectCount = sharedProjects.length;
       if (!lesson.leaderScores) lesson.leaderScores = {};
@@ -519,6 +549,36 @@
         });
       }
     }
+    /* 逐列「仅教师可评」开关（2026-11-12 用户规则：收拾板子 / 归位工具的分只能老师给）。
+       改完如果本节课已经在开放互评，必须**立刻重发 payload** —— 否则学生端手里那份旧名单
+       还留着这一列，学生照样能打分（payload 只在 open 那一刻发一次）。 */
+    function toggleTeacherOnly(index) {
+      var name = String(sharedProjects[index] == null ? '' : sharedProjects[index]).trim();
+      if (!name) { setMsg('先给这一列起个名字，再设「仅教师可评」。'); return; }
+      var list = teacherOnlyList().slice();
+      var at = list.indexOf(name);
+      var on = at < 0;
+      if (on) list.push(name); else list.splice(at, 1);
+      lesson.teacherOnly = list;
+      logClass('项目列「' + name + '」' + (on ? '设为仅教师可评（学生端不再显示）' : '放开给学生打分'));
+      context.save(); rerenderKeepScroll();
+      if (lesson.peerGate && context.peer && typeof context.peer.setGate === 'function') {
+        context.peer.setGate(cls, lesson, true, true).then(function () {
+          setMsg(on
+            ? '已锁成「仅教师」：「' + name + '」已经从学生端撤掉，只有你能给分。'
+            : '已放开：「' + name + '」学生刷新页面就能给这一列打分。');
+          rerenderKeepScroll();
+        }, function (err) {
+          setMsg('设置已存本机，但同步给学生没成功：' + ((err && err.message) || '网络问题') +
+            '。点上面的「互评」开关重开一次即可。');
+        });
+      } else {
+        setMsg(on
+          ? '已锁成「仅教师」：下次发布给学生的名单里不会再有「' + name + '」。'
+          : '已放开：下次发布时学生就能给「' + name + '」打分。');
+      }
+    }
+
     function removeProject(index) {
       if (sharedProjects.length <= 1) { setMsg('至少保留 1 列。'); return; }
       var records = lesson.leaderScores || {};
@@ -526,9 +586,15 @@
         return Object.keys(records[k].members || {}).some(function (mk) { var v = records[k].members[mk]; return v && v[index] !== null && v[index] !== undefined; });
       });
       if (hasData && !window.confirm('删除此项目会同步删除本课所有组这一列的名称和分数，并重新计算完成率。确定删除？')) return;
+      var removedName = String(sharedProjects[index] == null ? '' : sharedProjects[index]).trim();
       sharedProjects.splice(index, 1);
       lesson.leaderProjectNames = sharedProjects.slice();
       lesson.leaderProjectCount = sharedProjects.length;
+      /* 这一列没了，「仅教师」名单里那条也要跟着删，否则以后新建同名列会被莫名锁住 */
+      if (Array.isArray(lesson.teacherOnly) && removedName) {
+        var di = lesson.teacherOnly.indexOf(removedName);
+        if (di >= 0) lesson.teacherOnly.splice(di, 1);
+      }
       Object.keys(records).forEach(function (k) {
         var r = records[k];
         r.projects = sharedProjects.slice();
@@ -609,6 +675,8 @@
       }
       var add = t.closest('#leaderAddProject');
       if (add) { addProject(); return; }
+      var lockCol = t.closest('[data-teach-only]');
+      if (lockCol) { toggleTeacherOnly(+lockCol.dataset.teachOnly); return; }
       var del = t.closest('[data-remove-project]');
       if (del) { removeProject(+del.dataset.removeProject); return; }
       var pr = t.closest('[data-print-gno]');

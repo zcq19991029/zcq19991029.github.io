@@ -1385,13 +1385,30 @@ function restoreDroppedToHome(cls) {
     return '';
   }
 
-  /** 本节课要发布的项目列（只发有名字的列，col 保持与 leaderScores 下标一致） */
+  /** 本节课「仅教师可评」的列名（收拾板子 / 归位工具这类，用户 2026-11-12 定的规则） */
+  function teacherOnlyCols(lesson) {
+    var l = lesson && lesson.teacherOnly;
+    if (!Array.isArray(l)) return [];
+    var out = [];
+    l.forEach(function (n) {
+      var s = String(n == null ? '' : n).trim();
+      if (s && out.indexOf(s) < 0) out.push(s);
+    });
+    return out;
+  }
+
+  /** 本节课要发布的项目列（只发有名字的列，col 保持与 leaderScores 下标一致）
+      2026-11-12：「仅教师」列**不发给学生** —— 学生端根本看不到这一列，
+      自然也就点不了；老师那边照旧可以点格子给分。 */
   function peerProjectList(lesson) {
     var names = (window.JFDT_ASSESSMENT && window.JFDT_ASSESSMENT.projectNames(lesson)) || [];
+    var skip = teacherOnlyCols(lesson);
     var out = [];
     names.forEach(function (n, i) {
       var name = String(n == null ? '' : n).trim();
-      if (name) out.push({ name: name, col: i });
+      if (!name) return;
+      if (skip.indexOf(name) >= 0) return;
+      out.push({ name: name, col: i });
     });
     return out;
   }
@@ -1403,6 +1420,8 @@ function restoreDroppedToHome(cls) {
       date: lesson.date || '',
       topic: lesson.topic || '',
       projects: peerProjectList(lesson),
+      /* 名单也一起发下去：学生端拿它做二次过滤（防旧缓存页），peer-apply 拿它做兜底丢弃 */
+      teacherOnly: teacherOnlyCols(lesson),
       groups: (cls.groups || []).map(function (g) {
         var members = g.members.filter(function (m) { return !!m.name; })
           .map(function (m) { return { key: memberKey(m), name: m.name }; });

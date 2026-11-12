@@ -36,6 +36,24 @@
   var TASK_COL = /^(?:接线|线上连线排位)/;
   function isTaskCol(name) { return TASK_COL.test(String(name == null ? '' : name).trim()); }
 
+  /* 逐列「仅教师可评」（2026-11-12 用户规则：收拾板子 / 归位工具的分只能老师给）。
+     老师锁列的名单随 payload 一起发下去（payload.teacherOnly 是**列名**数组）。
+     这里是最后一道锁：就算旧缓存页 / 控制台直接调 jf_peer_submit 给这一列刷了分，
+     到不了 leaderScores（成绩的唯一口径）。前端不渲染按钮只是第一道。 */
+  function teacherList(board) {
+    var out = [];
+    try {
+      var l = board && board.payload && board.payload.teacherOnly;
+      if (!Array.isArray(l)) return out;
+      l.forEach(function (n) { var s = clean(n); if (s && out.indexOf(s) < 0) out.push(s); });
+    } catch (e) { return []; }
+    return out;
+  }
+  function isTeacherOnly(name, list) {
+    var n = clean(name);
+    return !!n && Array.isArray(list) && list.indexOf(n) >= 0;
+  }
+
   /* 分数夹到 0–5，保留 1 位小数（平均分要 4.5 这种，不能取整） */
   function clamp5(v) {
     var n = Math.round((Number(v) + Number.EPSILON) * 10) / 10;
@@ -99,6 +117,7 @@
       var cells = board && board.cells;
       if (!Array.isArray(cells)) return out;
       var leads = leaderMap(board);
+      var tOnly = teacherList(board);
       var leaderPick = Object.create(null);   // 组号|成员|项目 → 最新组长原始分
       var memberAcc = Object.create(null);    // 组号|成员|项目 → 累加求平均
 
@@ -112,6 +131,11 @@
            旧缓存页 / 控制台直调 jf_peer_submit 的脏数据） */
         if (isTaskCol(project)) {
           try { console.warn('[peer-apply] 丢弃线上排位列「' + project + '」的互评分：这一列只有真实完成排位才能得分'); } catch (e0) {}
+          return;
+        }
+        /* 仅教师列（收拾板子 / 归位工具）：老师锁成只有自己能给分，学生提交一律丢弃 */
+        if (isTeacherOnly(project, tOnly)) {
+          try { console.warn('[peer-apply] 丢弃仅教师列「' + project + '」的互评分：这一列只有老师能给分'); } catch (e0) {}
           return;
         }
         var score = scoreOf(c.score);
