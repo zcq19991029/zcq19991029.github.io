@@ -146,6 +146,15 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .topbar h1 { font-size: 15.5px; font-weight: 700; letter-spacing: .2px; }
 .topbar .sub { font-size: 11.5px; color: var(--muted); }
 .topbar .sub.flash { color: var(--good); }
+/* 2026-11-13：自动保存状态从左上角单独一行挪到右侧工具条，做成极小状态字。
+   flash() 会把提示语写进这里，所以给一个上限宽度，长句省略号收尾（title 里能看全）。 */
+.topbar-state {
+  flex: none; max-width: 34ch; min-width: 0;
+  font-size: 11px; line-height: 1.2; color: var(--faint);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  transition: color .16s;
+}
+.topbar-state.flash { color: var(--good); }
 
 .tabs {
   display: flex; gap: 6px; margin-top: 9px; padding-bottom: 9px;
@@ -252,6 +261,17 @@ input[readonly] { background: var(--panel-soft); color: var(--muted); }
 
 /* ---------- 课次信息条 ---------- */
 .lesson-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+/* 2026-11-13 用户：「班级/课次下拉一弹开就是一道窄缝，26工器1班 几乎贴着边」。
+   Chrome / Edge 的原生下拉列表宽度跟着 select 本体走，select 被压窄（宽屏顶栏那条
+   `flex:1; width:0`）时列表就只有一条缝，所以给这两个 select 兜一个最小宽度。
+   注意别写成 min(200px,100%)：父级 .field 的宽度是内容撑出来的（flex:none），
+   百分比在这种循环依赖下会被解析成 0，等于没设。 */
+#classSel, #lessonSel { min-width: 200px; }
+@media (max-width: 480px) {
+  /* 手机上一行放不下 200px，交回整行铺满（手机的原生下拉本来就是全屏面板） */
+  #classSel, #lessonSel { min-width: 0; width: 100%; }
+}
 
 /* 参考项目里课次信息是一条淡粉底的通栏，这里保持同样观感 */
 .lesson-meta {
@@ -446,12 +466,26 @@ table.sheet td.c-grp { background: var(--xl-first); padding: 3px; }
 table.sheet td.c-phone { background: var(--xl-phone); padding: 3px; }
 table.sheet td.c-duty { background: var(--xl-duty); padding: 3px; }
 
-/* 值日缺勤格（2026-11-12 把「干净又卫生」并进这一列）：
-   上面是整学期的值（每节课都显示同一个数），下面是值日组才有的「每人 −20%」按钮 */
-.duty-cell { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; }
-.duty-cell .duty-pct { font-size: 15px; font-weight: 700; color: #256b3e; font-variant-numeric: tabular-nums; }
+/* 值日缺勤格（2026-11-12 把「干净又卫生」并进这一列；2026-11-13 三次返修）：
+   上面是整学期的值（一学期一次，默认 100%，扣到 0% 为止），下面是每一组都有的「缺勤」按钮。
+   值日组只多一枚「值日」小角标 —— 它只做提醒，不影响能不能扣分。 */
+.duty-cell { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; }
+.duty-cell .duty-pct { font-size: 15px; font-weight: 700; color: var(--good); font-variant-numeric: tabular-nums; }
 .duty-cell .duty-off { color: var(--faint); font-size: 12px; }
+.duty-cell .duty-flag {
+  font-style: normal; font-size: 9px; font-weight: 700; line-height: 1.4;
+  color: var(--vip); background: var(--vip-bg); border: 1px solid var(--vip-line);
+  border-radius: 999px; padding: 0 5px;
+}
 table.sheet .duty-cell .duty-score { min-height: 26px; width: 100%; font-size: 12px; font-weight: 700; }
+/* 2026-11-13：现在每一组都有这一格，按钮收成小胶囊，别让每一行都顶着一大块按钮 */
+table.sheet.sheet-vertical .duty-cell .duty-score {
+  width: auto; min-height: 22px; padding: 0 9px;
+  border: 1px solid var(--xl-line); border-radius: 999px;
+  background: transparent; color: var(--xl-ink);
+  font-size: 11.5px; font-weight: 700;
+}
+table.sheet.sheet-vertical .duty-cell .duty-score:hover { background: var(--good-bg); border-color: var(--good); color: var(--good); }
 
 /* 成员格里的小号个人扣分控件（本节扣了多少） */
 .mem-deduct { display: block; margin-top: 2px; }
@@ -1677,7 +1711,7 @@ table.sheet col.w-attendance{width:165px}.home-attendance{background:#f6eff1;pad
 
 @media screen{body.sidebar-layout table.sheet td.c-mem{font-size:14px;white-space:normal;overflow:visible;text-overflow:clip;word-break:keep-all}}
 
-.home-attendance-person.compact{grid-template-columns:14px 1fr}.attendance-score{width:100%;min-height:32px;border:0;background:transparent;font:700 16px inherit;color:#374151;cursor:pointer}.attendance-score:hover{background:#e8e0e5;border-radius:6px}.attendance-failed{color:#b91c1c!important;font-weight:750!important}table.sheet col.w-attendance{width:80px}#dlgHomeAttendance{width:min(420px,calc(100vw - 32px))}#dlgHomeAttendance .field{margin-bottom:14px}#dlgHomeAttendance select,#dlgHomeAttendance input{min-height:44px}
+.home-attendance-person.compact{grid-template-columns:14px 1fr}.attendance-score{width:100%;min-height:32px;border:0;background:transparent;font:700 16px inherit;color:var(--xl-ink);cursor:pointer}.attendance-score:hover{background:#e8e0e5;border-radius:6px}.attendance-failed{color:#b91c1c!important;font-weight:750!important}table.sheet col.w-attendance{width:80px}#dlgHomeAttendance{width:min(420px,calc(100vw - 32px))}#dlgHomeAttendance .field{margin-bottom:14px}#dlgHomeAttendance select,#dlgHomeAttendance input{min-height:44px}
 
 #dlgLeaderPrint{width:min(420px,calc(100vw - 32px))}#dlgLeaderPrint .field{margin-bottom:14px}#dlgLeaderPrint select{min-height:44px}
 @page leaderPaper{size:A4 portrait;margin:10mm}
@@ -2654,7 +2688,18 @@ html.hx-bg[data-hx-mode="dark"] body::after,
 :root[data-hx-mode="dark"] .home-grade { background: rgba(61, 220, 151, .1) !important; color: #7ef0bd !important; }
 :root[data-hx-mode="dark"] .home-grade.contribution { background: rgba(96, 150, 255, .12) !important; color: #a7c4ff !important; }
 :root[data-hx-mode="dark"] .home-grade.needed { background: rgba(251, 146, 60, .12) !important; color: #ffc48f !important; }
-:root[data-hx-mode="dark"] .home-attendance { background: rgba(58, 86, 152, .22); }
+/* 2026-11-13 用户：「深色模式下值日缺勤、考勤完成率两列是一整片灰绿/深绿底块，中间只有一个小字，很空很难看」
+   → 这两列不再整块铺色，回到和别的列一致的表格式观感：深底 + 浅字 + 细分隔线，值本身用文字标签呈现。 */
+:root[data-hx-mode="dark"] .home-attendance { background: rgba(146, 170, 224, .06); color: var(--xl-ink); }
+:root[data-hx-mode="dark"] table.sheet thead th.c-duty,
+:root[data-hx-mode="dark"] table.sheet thead th.home-attendance { background: rgba(24, 38, 76, .92); color: var(--muted); }
+:root[data-hx-mode="dark"] table.sheet td.c-duty,
+:root[data-hx-mode="dark"] table.sheet td.home-attendance { background: rgba(146, 170, 224, .05); }
+:root[data-hx-mode="dark"] table.sheet tbody.is-duty td.c-duty { background: rgba(251, 188, 85, .08); }
+:root[data-hx-mode="dark"] .duty-cell .duty-pct { color: var(--good); }
+:root[data-hx-mode="dark"] .duty-cell .duty-flag { color: var(--vip); background: var(--vip-bg); border-color: var(--vip-line); }
+:root[data-hx-mode="dark"] table.sheet .attendance-score { color: var(--xl-ink); }
+:root[data-hx-mode="dark"] table.sheet .attendance-score:hover { background: rgba(67, 214, 196, .14); border-radius: 6px; }
 :root[data-hx-mode="dark"] .home-grade-person { border-bottom-color: rgba(146, 170, 224, .16); }
 :root[data-hx-mode="dark"] .peer-pick { color: var(--text); border-color: var(--line-strong); }
 :root[data-hx-mode="dark"] .peer-pick.p1 { color: #ff9aa9; }
