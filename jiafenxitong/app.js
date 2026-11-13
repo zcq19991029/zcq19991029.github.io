@@ -142,21 +142,75 @@
 
   Array.prototype.forEach.call(document.querySelectorAll('dialog'), wireDialog);
 
-  /* ================= 侧栏抽屉（窄屏 <1100px） =================
-     纯 UI：☰ 打开、点遮罩或选中任一菜单收起；宽屏侧栏常驻时这条逻辑不生效。 */
+  /* ================= 侧栏（宽屏常驻可折叠 / 窄屏抽屉） =================
+     2026-11-13 用户：「把顶部导航栏整理好放左边侧栏，做成可展开可回缩样式」。
+     · 宽屏（body.sidebar-layout，≥1100px）：侧栏本来就在左边常驻，☰ 只负责「收起 / 展开」。
+       收起时给 body 加 nav-collapsed，侧栏收成 64px 图标条、main 的 margin-left 跟着变小 ——
+       内容区真的宽出来，不是只把菜单藏掉。
+     · 窄屏：还是原来那套抽屉（body.nav-open + 遮罩），行为一个字都没改。
+     两条逻辑靠 sidebar-layout 这个类分流，不会互相打架。 */
   (function () {
     var body = document.body;
     var toggle = document.getElementById('navToggle');
     var scrim = document.getElementById('navScrim');
+    var NAV_KEY = 'hx-jf-nav-collapsed';   // 键名按用户要求固定，刷新后保持
+
+    function wide() { return body.classList.contains('sidebar-layout'); }
+    /* localStorage 在无痕/被策略禁掉时读写都会抛异常，两边都兜住：
+       存不下只是「刷新后不保持」，不影响当前这次折叠 */
+    function stored() {
+      try { return localStorage.getItem(NAV_KEY) === '1'; } catch (e) { return false; }
+    }
+
+    /* ☰ 在两种模式下说法不一样：宽屏是「展开 / 收起菜单」，窄屏是「打开菜单」。
+       aria-expanded 也各按各的状态写，不能只改 class（读屏只认 aria）。 */
+    function syncToggle() {
+      if (!toggle) return;
+      if (wide()) {
+        var collapsed = body.classList.contains('nav-collapsed');
+        toggle.setAttribute('aria-expanded', String(!collapsed));
+        toggle.setAttribute('aria-label', collapsed ? '展开菜单' : '收起菜单');
+        toggle.title = collapsed
+          ? '展开菜单（左侧栏现在收成一列图标）'
+          : '收起菜单（把左侧栏收成一列图标，内容区变宽）';
+      } else {
+        var open = body.classList.contains('nav-open');
+        toggle.setAttribute('aria-expanded', String(open));
+        toggle.setAttribute('aria-label', '打开菜单');
+        toggle.title = '打开菜单';
+      }
+    }
+
     function setNav(open) {
       body.classList.toggle('nav-open', open);
       if (scrim) scrim.hidden = !open;
-      if (toggle) toggle.setAttribute('aria-expanded', String(open));
+      syncToggle();
     }
-    if (toggle) toggle.addEventListener('click', function () { setNav(!body.classList.contains('nav-open')); });
+
+    function setCollapsed(collapsed) {
+      body.classList.toggle('nav-collapsed', !!collapsed);
+      try { localStorage.setItem(NAV_KEY, collapsed ? '1' : '0'); } catch (e) { }
+      syncToggle();
+    }
+
+    if (toggle) toggle.addEventListener('click', function () {
+      if (wide()) setCollapsed(!body.classList.contains('nav-collapsed'));
+      else setNav(!body.classList.contains('nav-open'));
+    });
     if (scrim) scrim.addEventListener('click', function () { setNav(false); });
     var tabs = document.getElementById('tabs');
-    if (tabs) tabs.addEventListener('click', function (e) { if (e.target.closest('button[data-view]')) setNav(false); });
+    /* 宽屏侧栏常驻：点菜单只是切页，不要顺手把侧栏关掉（窄屏才收抽屉） */
+    if (tabs) tabs.addEventListener('click', function (e) {
+      if (e.target.closest('button[data-view]') && !wide()) setNav(false);
+    });
+
+    /* 刷新后保持：ui-feedback.js 排在 app.js 前面，跑到这里 body.sidebar-layout 已经就位，
+       所以直接恢复折叠态。窄屏也多挂一个 nav-collapsed —— 无害，CSS 只在宽屏认它。 */
+    body.classList.toggle('nav-collapsed', stored());
+    syncToggle();
+    /* 窗口跨过 1100px 时 ui-feedback.js 会重算 sidebar-layout（它先注册、先执行），
+       这里跟着换回 ☰ 的文案与 aria；顺手把窄屏抽屉收起来，免得回宽屏时残留 nav-open */
+    window.addEventListener('resize', function () { if (wide()) setNav(false); syncToggle(); });
   })();
 
   /* ================= 状态 ================= */
@@ -2075,9 +2129,21 @@ function restoreDroppedToHome(cls) {
   function verticalColumns(cls){
     // CJK text needs one em; Latin letters and digits need roughly half an em.
     function width(text){return Array.from(String(text)).reduce(function(n,ch){return n+(/[^\x00-\xff]/.test(ch)?15:8);},0);}
+    /* 2026-11-13 用户：「表格单元格很宽不需要这么宽」。
+       表头是允许折行的（th 是 white-space:normal），所以最小列宽应该按「最长的一段」算，
+       不能按整串字宽算：原来「期末至少需考 /100」按一行 130px 算，再叠 28px 内边距，
+       单这一列就分走 18% 的表格宽度，屏幕上量到 245px。
+       现在把「空格 / 斜杠 / 顿号 / 括号」都当折行点，一段一段取最大值，再留 16px 内边距
+       （真实 th 内边距 2×3px + 边框 2px，留 16 已经很宽）。 */
+    function headWidth(text){
+      return String(text).split(/[\s/（）()、，,]+/).reduce(function(n,part){return Math.max(n,width(part));},0);
+    }
     var labels=['组号','成员','值日缺勤','考勤完成率','本节完成率','（至今完成率）','计入总评 /40','期末至少需考 /100'];
-    var minima=[52,150,100,94,100,164,132,172];
-    var widths=labels.map(function(t,i){return Math.max(minima[i],width(t)+28);});
+    /* 列的顺序：组号 / 成员 / 值日缺勤 / 考勤完成率 / 本节完成率 / 平时分 / 计入总评 / 期末至少需考。
+       后六列原来各留 94~172 的「保底宽度」，加起来把表格顶到 1400px 以上；
+       这里按内容（表头最长一段 + 内边距）重定保底，记分表才收得回来。 */
+    var minima=[46,126,72,80,80,84,78,92];
+    var widths=labels.map(function(t,i){return Math.max(minima[i],headWidth(t)+16);});
     (cls.groups||[]).forEach(function(g){(g.members||[]).forEach(function(m){if(m.name)widths[1]=Math.max(widths[1],width(m.name+' '+(m.no||''))+36);});});
     var total=widths.reduce(function(a,b){return a+b;},0),names=['no','mem','duty','attendance','sum','grade','grade','grade'];
     return widths.map(function(w,i){return '<col class="w-'+names[i]+'" data-content-width="'+w+'" style="width:'+(100*w/total).toFixed(4)+'%!important">';}).join('');

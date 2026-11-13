@@ -3264,3 +3264,158 @@ table.data th, .assessment-table thead th,
 #view-leader .tablewrap.peer-tablewrap .leader-table {
   min-width: max(900px, calc(245px + var(--peer-cols, 4) * 190px)) !important;
 }
+
+/* ============================================================
+   2026-11-13 用户：「最后要重构 UI 布局：表格单元格很宽不需要这么宽，
+   把顶部导航栏整理好放左边侧栏，做成可展开可回缩样式」
+
+   这一段是追加覆盖层，不动上面任何一行（上面 2927 那段「希沃式顶部胶囊」把侧栏改回了
+   顶部横条，这里按用户新要求改回左侧竖栏，并补上「可收起」的那一半）：
+   · ≥1100px：.topbar 变成左侧固定竖栏，宽度走 --hx-nav-w；
+     body.nav-collapsed 时 --hx-nav-w 从 248px 变 64px，main 的 margin-left 跟着变，
+     内容区真的宽出来（不是只把菜单藏掉）。
+   · 收起态只留「记 / 评 / 总 / 册 / 组」一个字（index.html 上的 data-rail），☰ 永远在侧栏顶端同一个位置。
+   · <1100px 一行都不管：窄屏照旧是 body.nav-open 抽屉 + 遮罩（见 2503 那段）。
+   ============================================================ */
+@media screen and (min-width: 1100px) {
+  body.sidebar-layout { --hx-nav-w: 248px; }
+  body.sidebar-layout.nav-collapsed { --hx-nav-w: 64px; }
+
+  /* ---------- 左侧竖栏本体 ---------- */
+  body.sidebar-layout .topbar {
+    position: fixed; inset: 0 auto 0 0;
+    width: var(--hx-nav-w);
+    display: flex; flex-direction: column; align-items: stretch;
+    padding: 12px 10px 14px;
+    border: 0; border-right: 1px solid var(--line); border-radius: 0;
+    overflow-x: hidden; overflow-y: auto;
+    box-shadow: none;
+    transition: width .22s cubic-bezier(.16, 1, .3, 1), padding .22s cubic-bezier(.16, 1, .3, 1);
+  }
+  body.sidebar-layout main {
+    margin: 0 0 0 var(--hx-nav-w);
+    width: auto; max-width: none;
+    padding: 16px 20px 44px;
+    transition: margin-left .22s cubic-bezier(.16, 1, .3, 1);
+  }
+  body.sidebar-layout .local-warn { margin: 10px 16px 0 var(--hx-nav-w); }
+
+  /* ---------- 侧栏顶部：☰ 永远第一个、位置不变 ---------- */
+  body.sidebar-layout .topbar-main { flex-wrap: wrap; align-items: center; gap: 8px; }
+  body.sidebar-layout .topbar-main > .spacer { display: none; }
+  body.sidebar-layout .nav-toggle {
+    display: inline-flex; order: -1; flex: 0 0 34px;
+    align-items: center; justify-content: center;
+    width: 34px; height: 34px; padding: 0; font-size: 16px; line-height: 1;
+    border-radius: 10px; border: 1px solid var(--line);
+    background: color-mix(in srgb, var(--panel-soft) 72%, transparent);
+    color: var(--text); cursor: pointer;
+  }
+  body.sidebar-layout .nav-toggle:hover {
+    border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+    color: var(--accent); background: var(--accent-bg);
+  }
+  body.sidebar-layout .draw-entry { order: 0; }
+  body.sidebar-layout .topbar-state { order: 2; }
+  body.sidebar-layout .userbox { order: 3; width: 100%; margin: 4px 0 0; }
+
+  /* ---------- 竖向菜单（覆盖 2927 那段横排胶囊） ---------- */
+  body.sidebar-layout .tabs {
+    position: static; inset: auto;
+    width: auto; transform: none; visibility: visible;
+    flex-direction: column; flex-wrap: nowrap; align-items: stretch;
+    gap: 12px; margin: 12px 0 0; padding: 0 0 4px; overflow: visible;
+    border: 0; border-radius: 0; box-shadow: none;
+    background: transparent;
+    -webkit-backdrop-filter: none; backdrop-filter: none;
+    transition: none; scrollbar-width: auto;
+  }
+  body.sidebar-layout .tabs .nav-group { flex-direction: column; align-items: stretch; gap: 3px; }
+  body.sidebar-layout .tabs .nav-group + .nav-group { margin-left: 0; }
+  body.sidebar-layout .tabs .nav-group-t { display: block; padding: 2px 10px 4px; }
+  body.sidebar-layout .tabs button {
+    display: flex; align-items: center; gap: 8px;
+    width: 100%; min-height: 38px; padding: 9px 12px;
+    text-align: left; border-radius: 12px;
+    font-size: 13.5px; font-weight: 500; color: var(--muted);
+    background: transparent; border: 1px solid transparent; box-shadow: none;
+    -webkit-backdrop-filter: none; backdrop-filter: none;
+    white-space: nowrap;
+  }
+  body.sidebar-layout .tabs button:hover {
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+    border-color: color-mix(in srgb, var(--accent) 26%, transparent);
+    color: var(--text);
+  }
+  body.sidebar-layout .tabs button.on {
+    background: linear-gradient(90deg,
+      color-mix(in srgb, var(--accent) 22%, transparent),
+      color-mix(in srgb, #8b7cff 12%, transparent) 88%);
+    border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+    color: var(--text); font-weight: 700;
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent);
+  }
+  body.sidebar-layout .tabs button em { margin-left: auto; }
+
+  /* ---------- 班级 / 课次工具条（ui-feedback.js 宽屏会把 #scoreTools 挪进侧栏） ---------- */
+  body.sidebar-layout #scoreTools { margin: 12px 0 0; padding: 12px 0 0; border-top: 1px dashed var(--line); }
+  body.sidebar-layout #scoreTools .lesson-bar {
+    flex-direction: column; align-items: stretch; flex-wrap: nowrap; gap: 8px;
+  }
+  body.sidebar-layout #scoreTools .lesson-bar .field {
+    flex: none; width: 100%; min-width: 0;
+    padding: 5px 8px 5px 12px; border-radius: 999px;
+    background: color-mix(in srgb, var(--panel-soft) 78%, transparent);
+    border: 1px solid var(--line);
+  }
+  body.sidebar-layout #scoreTools .lesson-bar .field > span { font-size: 11.5px; white-space: nowrap; }
+  body.sidebar-layout #scoreTools .lesson-bar .field > select {
+    flex: 1; width: 0; min-width: 0;
+    background: transparent; border-color: transparent; padding: 4px 2px;
+  }
+  body.sidebar-layout #scoreTools .lesson-bar .field > select:focus { background: var(--panel); border-color: var(--accent); }
+  body.sidebar-layout #scoreTools .lesson-bar .spacer { display: none; }
+  body.sidebar-layout #scoreTools .lesson-bar .btn { width: 100%; min-height: 36px; }
+  body.sidebar-layout #scoreTools #layoutSeg { margin: 0; width: 100%; }
+  body.sidebar-layout #scoreTools .lesson-meta { display: block; padding: 0; }
+  body.sidebar-layout #scoreTools .lesson-topic-summary { font-size: 12px; }
+  body.sidebar-layout #scoreTools .lesson-duty-picker { gap: 4px; }
+  body.sidebar-layout #scoreTools .lesson-duty-picker .duty-swatch { width: 24px; height: 24px; font-size: 12px; }
+  body.sidebar-layout #scoreTools .lesson-meta .btnrow.lesson-actions { margin: 8px 0 0; }
+
+  /* ---------- 收起态：窄图标条（只留一个字 + ☰） ---------- */
+  body.sidebar-layout.nav-collapsed .topbar { padding: 12px 8px; align-items: center; }
+  body.sidebar-layout.nav-collapsed .topbar-main { flex-wrap: nowrap; justify-content: center; gap: 0; }
+  /* 收起后侧栏只剩导航：自动保存点、随机抽人、账号都收起来（展开一次就回来了） */
+  body.sidebar-layout.nav-collapsed .topbar-main > :not(.nav-toggle) { display: none !important; }
+  body.sidebar-layout.nav-collapsed .nav-toggle { order: 0; margin: 0; }
+  body.sidebar-layout.nav-collapsed .tabs { align-items: center; gap: 10px; margin-top: 14px; }
+  body.sidebar-layout.nav-collapsed .tabs .nav-group { align-items: center; gap: 6px; width: 100%; }
+  body.sidebar-layout.nav-collapsed .tabs .nav-group-t { display: none; }
+  body.sidebar-layout.nav-collapsed .tabs button {
+    justify-content: center; gap: 0; width: 40px; min-height: 40px; padding: 0;
+    font-size: 0; letter-spacing: 0;
+  }
+  body.sidebar-layout.nav-collapsed .tabs button::after {
+    content: attr(data-rail); font-size: 14px; font-weight: 700; line-height: 1;
+  }
+  body.sidebar-layout.nav-collapsed .tabs button em { display: none; }
+  body.sidebar-layout.nav-collapsed #scoreTools { display: none; }
+
+  /* ---------- 记分表：列宽按内容收窄，1440 下不横向滚动 ---------- */
+  /* 上面 1954 给竖表写了 min-width:1100px!important、1703/1709 还叠了 1400/1560，
+     那些是按「没有侧栏、内容区 1400px」定的底宽；现在内容区被侧栏让掉 248px，
+     底宽必须降下来，否则表格固定 1100+ 会把 .sheetwrap 撑出横向滚动条。 */
+  body.sidebar-layout table.sheet.sheet-vertical {
+    min-width: 980px !important;
+    font-size: 13.5px;
+  }
+  body.sidebar-layout table.sheet.sheet-vertical thead th {
+    padding: 5px 2px; font-size: 10.5px; line-height: 1.25;
+    overflow-wrap: anywhere;
+  }
+  body.sidebar-layout table.sheet.sheet-vertical td { padding: 1px 2px; }
+  body.sidebar-layout table.sheet.sheet-vertical td.c-mem { padding: 1px 6px; }
+  /* 表格本身不留白边：让腾出来的宽度全给列 */
+  body.sidebar-layout .sheetwrap { margin: 0; }
+}
