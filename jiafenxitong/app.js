@@ -1224,21 +1224,9 @@ function restoreDroppedToHome(cls) {
   }
 
   function renderUndoBtn() {
-    var b = $('#btnUndo');
-    if (!b) return;
-    var n = (S.undo || []).length;
-    b.disabled = !n;
-    b.textContent = n ? '↶ 撤销' + (n > 1 ? '（' + n + '）' : '') : '↶ 撤销';
-    var lastLesson = n && getLesson(S.undo[n - 1].lessonId);
-    var lastClass = lastLesson && getClass(lastLesson.classId);
-    if (lastClass && lastClass.id !== S.ui.classId) b.textContent = '↶ 撤销其他班操作';
-    var detail = $('#undoDetail');
-    if (detail) detail.textContent = n ? '下一步撤销：' + undoLabel(S.undo[n-1]) : '暂无可撤销操作';
-    var rb = $('#btnRedo'); if(rb) rb.disabled = !(S.redo || []).length;
-    renderOperationLog();
-    b.title = n
-      ? '撤销：' + undoLabel(S.undo[n - 1]) + '　（快捷键 Ctrl+Z）'
-      : '还没有可撤销的改动';
+    /* V10（2026-11-12）：操作日志与撤销 UI 已整体移除，这里不再更新任何按钮。
+       数据层 S.undo/S.redo 保留（pushUndo 调用不变，内存栈自然增长，不再有入口读取）。 */
+    return;
   }
 
   /** 撤销一步。返回是否真的撤了 */
@@ -1344,7 +1332,7 @@ function restoreDroppedToHome(cls) {
     groupPicking=null;
     if(view==='attendance' && v!=='attendance' && attendanceContext && attendanceContext.isDirty && attendanceContext.isDirty()){flash('请先保存本课考勤，再切换页面。');return;}
     view = v;
-    ['score', 'leader', 'rank', 'gradebook', 'attendance', 'pool', 'data'].forEach(function (k) {
+    ['score', 'leader', 'rank', 'gradebook', 'attendance', 'pool'].forEach(function (k) {
       var el = $('#view-' + k);
       if (el) el.hidden = (k !== v);
     });
@@ -1353,7 +1341,6 @@ function restoreDroppedToHome(cls) {
     if (v === 'rank') renderRank();
     if (v === 'gradebook') renderGradebook();
     if (v === 'pool') { renderPool(); renderTeamCard(); } else { tmStop(); }
-    if (v === 'data') renderData();
     if (v === 'score') { renderScore(); if (window.JFDT_WIRE) window.JFDT_WIRE.maybeSync(curClass()); }
     if (v === 'leader') renderLeader();
     if (v === 'attendance') renderAttendance();
@@ -1741,11 +1728,9 @@ function restoreDroppedToHome(cls) {
     $('#btnPrintLesson').addEventListener('click', function () { openLessonPrint(cls, lesson); });
     var excelButton=document.createElement('button');excelButton.className='btn';excelButton.textContent='下载本课Excel';excelButton.onclick=function(){downloadLessonExcel(cls,lesson);};$('#lessonMeta .btnrow').appendChild(excelButton);
     var pdfButton=document.createElement('button');pdfButton.className='btn';pdfButton.textContent='下载打印版PDF';pdfButton.onclick=function(){openLessonPrint(cls,lesson,true);};$('#lessonMeta .btnrow').prepend(pdfButton);
-    /* 2026-11-11 发布线上排位任务：用户原话「小组评分表那里增加发布项目名的按钮 按下立马刷新
-       学生立马就能看到任务 成绩完成率也是立马更新」。一键把当前班+当前课次发布成接线仿真的
-       线上排位任务（wire_task_open），学生端任务榜/大屏 15 秒内可见；这里强制 maybeSync，
-       任务列当场建出来、完成率实时更新（open 任务实时入账，见 wire-task-link.js 约定①）。 */
-    var wirePubButton=document.createElement('button');wirePubButton.className='btn primary';wirePubButton.id='btnWirePub';wirePubButton.textContent='发布线上排位任务';wirePubButton.onclick=function(){openWirePublish(cls,lesson);};$('#lessonMeta .btnrow').prepend(wirePubButton);
+    /* V10（2026-11-12）：发布线上排位任务按钮移走。排位任务改在「接线仿真」课堂任务那边发布
+       （task.html 已支持），小组加分这里不再提供发布入口；接线仿真发布的任务仍会自动在
+       本课生成「线上连线排位」项目列（wire-task-link.js 自动入账机制不变）。 */
   }
 
   /* ---- 发布线上排位任务（2026-11-11）：小组加分 → 接线仿真课堂任务 ----
@@ -1837,8 +1822,8 @@ function restoreDroppedToHome(cls) {
     var pct = dutyPctText(lessonsOf(cls.id), gno);
     var btn = isDuty
       ? '<button type="button" class="duty-score" data-duty-deduct="' + gno + '" ' +
-        'title="不值日少一人点一下：全组每人值日缺勤 −20%（按次叠加，第二次值日再缺勤还能再扣）；误点多了用「撤销」退回" ' +
-        'aria-label="第' + gno + '组值日缺勤：每点一次全组每人值日缺勤减20%">每人 −20%</button>'
+        'title="不值日少一人点一下：全组每人值日缺勤 −20%（单击扣一档、双击加回一档，按次叠加，第二次值日再缺勤还能再扣）" ' +
+        'aria-label="第' + gno + '组值日缺勤：单击全组每人减20%，双击加回20%">每人 −20%</button>'
       : '<span class="duty-off" title="本组本节不值日（值日缺勤只考察当天该值日的组）">—</span>';
     return '<div class="duty-cell"><b class="duty-pct" title="整学期值日缺勤：一学期没缺勤就是 100%，缺勤每次 −20%">' + pct + '</b>' + btn + '</div>';
   }
@@ -1877,7 +1862,6 @@ function restoreDroppedToHome(cls) {
   /** 个人扣分芯片（2026-11-12 值日缺勤改革）：芯片显示「本人本节被扣了多少」
       —— 0% 表示没扣，20% 表示扣了一档；点击仍扣 1 分（= 20%），最多扣满 100%。 */
   function remaining(lesson,gno,i){var s=sc(lesson,gno);return Math.max(0,5-(+s.phone||0)-(+s.personal[String(i)]||0));}
-  function ctlBatch(gno){return '<button class="btn" data-g="'+gno+'" data-act="batch-deduct">全组 −20%</button>';}
   function ctlPersonal(gno, m, i, n, fullName) {
     var lost = 5 - remaining(curLesson(curClass()),gno,i);
     var attrs = ' data-g="' + gno + '" data-i="' + i + '"';
@@ -1977,7 +1961,7 @@ function restoreDroppedToHome(cls) {
     $$('[data-leader-toggle]',host).forEach(function (el) {
       el.ondblclick=function(e){e.preventDefault();e.stopPropagation();var g=groupOf(cls,+el.dataset.g),m=g&&g.members[+el.dataset.memberIndex];if(g&&m)setGroupLeader(cls,g,m);};
     });
-    $$('td.regular[data-home-grade]',host).forEach(function(cell){var person=$('[data-grade-student]',cell);if(!person)return;cell.tabIndex=0;cell.setAttribute('role','button');cell.setAttribute('aria-label',cell.title+'：查看截至第'+lesson.seq+'次课的分数明细');cell.onclick=function(){showStudentGrade(cls,person.dataset.gradeStudent,lesson);};cell.onkeydown=function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();cell.click();}};});
+    $$('td[data-home-grade]',host).forEach(function(cell){var person=$('[data-grade-student]',cell);if(!person)return;cell.tabIndex=0;cell.setAttribute('role','button');cell.setAttribute('aria-label',(cell.title||'')+'：查看分数明细');cell.onclick=function(){showStudentGrade(cls,person.dataset.gradeStudent,lesson);};cell.onkeydown=function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();cell.click();}};});
   }
 
   function showStudentGrade(cls,key,throughLesson){
@@ -1985,9 +1969,9 @@ function restoreDroppedToHome(cls) {
     var dialog=$('#studentGradeDialog');if(!dialog){dialog=document.createElement('dialog');dialog.id='studentGradeDialog';dialog.className='student-grade-dialog';document.body.appendChild(dialog);}
     var dutyPct=dutyPctText(ls,student.gno);
     var detail=ls.map(function(l){var s=sc(l,student.gno),net=A.lessonNet(l,student.gno,student.memberIndex,key),myLoss=+((s.personal||{})[String(student.memberIndex)])||0,a=l.attendance&&l.attendance[key],names=A.projectNames(l),record=l.leaderScores&&l.leaderScores[String(student.gno)],values=record&&record.members&&record.members[key],projects=names.map(function(n,i){return String(n||'').trim()?esc(n)+'：'+(values&&values[i]!=null?scorePctText(values[i]):'未填'):'';}).filter(Boolean);
-      return '<tr><td>第'+l.seq+'次<br>'+esc(l.date||'')+'<br>'+esc(l.topic||'')+'</td><td>'+ (projects.length?'满分 '+(net.max/5*100)+'%<br>':'无命名项目<br>')+'全组扣 −'+(Number(s.phone||0)*20)+'%<br>本人扣 −'+(myLoss*20)+'%<br><b>实得 '+pctText(net.max?net.earned/net.max*100:0)+'</b></td><td>'+ (projects.join('<br>')||'无命名项目')+'</td><td>'+esc(a?a.label||a.status:'正常到课')+'<br>−'+pctText((a?Number(a.loss)||0:0)/9*100)+'%</td><td><b>'+(net.max?pctText(Math.max(0,net.earned)/net.max*100):'—')+'</b></td></tr>';
+      return '<tr><td>第'+l.seq+'次<br>'+esc(l.date||'')+'<br>'+esc(l.topic||'')+'</td><td>'+ (projects.length?'满分 '+(net.max/5*100)+'%<br>':'无命名项目<br>')+'本人扣 −'+(myLoss*20)+'%<br><b>实得 '+pctText(net.max?net.earned/net.max*100:0)+'</b></td><td>'+ (projects.join('<br>')||'无命名项目')+'</td><td>'+esc(a?a.label||a.status:'正常到课')+'<br>−'+pctText((a?Number(a.loss)||0:0)/9*100)+'%</td><td><b>'+(net.max?pctText(Math.max(0,net.earned)/net.max*100):'—')+'</b></td></tr>';
     }).join('');
-    dialog.innerHTML='<div class="student-grade-heading"><h2>'+esc(student.name)+' · 截至第'+throughLesson.seq+'次课分数由来</h2><button type="button" class="btn" data-close-grade>关闭</button></div><p>'+esc(cls.name)+' · '+esc(student.sid||'')+'</p><p>项目完成率 <b>'+Math.round(student.task.earned*100)/100+' / '+student.task.maximum+'</b>（'+Math.round(student.task.rate*1000)/10+'%）；其中值日缺勤 <b>'+dutyPct+'</b>（整学期 5 分，只算一次）；考勤完成率 <b>'+attPctText(student.attendance)+'</b>（'+student.attendance+'/9）；平时分 <b>'+student.regular+'</b>/100；计入总评 '+student.contribution+'/40。</p><p class="note">「值日缺勤」是整学期一个 5 分项目（原「干净又卫生」），每节课都显示同一个学期值：一学期没缺勤就是 100%，值日组缺勤时老师点一次「每人 −20%」，全组每人同扣一档，第二次值日再缺勤还能再扣，最低 0%。手机未入袋和个人扣分从本节项目分里扣，扣完为止、不跨课。可拖动右下角调整窗口大小。</p><div class="student-grade-scroll"><table class="data"><thead><tr><th>课次</th><th>本节项目与扣分</th><th>个人项目（每项 100%）</th><th>考勤</th><th>本节完成率</th></tr></thead><tbody>'+detail+'</tbody></table></div>';
+    dialog.innerHTML='<div class="student-grade-heading"><h2>'+esc(student.name)+' · 截至第'+throughLesson.seq+'次课分数由来</h2><button type="button" class="btn" data-close-grade>关闭</button></div><p>'+esc(cls.name)+' · '+esc(student.sid||'')+'</p><p>项目完成率 <b>'+Math.round(student.task.earned*100)/100+' / '+student.task.maximum+'</b>（'+Math.round(student.task.rate*1000)/10+'%）；其中值日缺勤 <b>'+dutyPct+'</b>（整学期 5 分，只算一次）；考勤完成率 <b>'+attPctText(student.attendance)+'</b>（'+student.attendance+'/9）；平时分 <b>'+student.regular+'</b>/100；计入总评 '+student.contribution+'/40。</p><p class="note">「值日缺勤」是整学期一个 5 分项目（原「干净又卫生」），每节课都显示同一个学期值：一学期没缺勤就是 100%，值日组缺勤时老师点一次「每人 −20%」，全组每人同扣一档，第二次值日再缺勤还能再扣，最低 0%。个人扣分从本节项目分里扣，扣完为止、不跨课。可拖动右下角调整窗口大小。</p><div class="student-grade-scroll"><table class="data"><thead><tr><th>课次</th><th>本节项目与扣分</th><th>个人项目（每项 100%）</th><th>考勤</th><th>本节完成率</th></tr></thead><tbody>'+detail+'</tbody></table></div>';
     $('[data-close-grade]',dialog).onclick=function(){dialog.close();};if(!dialog.open)openDlg(dialog);
   }
 
@@ -2027,12 +2011,8 @@ function restoreDroppedToHome(cls) {
         '<div class="gcard-secondary"><span class="card-feedback-space" aria-hidden="true"></span>' + ctlClear(g.no, false) + '</div>' +
         '<div class="gctl">' +
           '<div>' +
-            '<div class="lbl" title="整学期值日缺勤（一个 5 分项目）：没缺勤就是 100%，缺勤每次 −20%，全组每人同扣">值日缺勤</div>' +
+            '<div class="lbl" title="整学期值日缺勤（一个 5 分项目）：没缺勤就是 100%，缺勤每次 −20%，全组每人同扣；单击扣一档、双击加回一档">值日缺勤</div>' +
             ctlDuty(g.no, duty) +
-          '</div>' +
-          '<div>' +
-            '<div class="lbl" title="手机未入袋：增加次数即扣分，每次扣 20%（从本节项目分里扣）">全组扣分</div><div class="deduction-note">每次 −20%</div>' +
-            ctlBatch(g.no) +
           '</div>' +
         '</div>' +
         personal +
@@ -2040,37 +2020,36 @@ function restoreDroppedToHome(cls) {
     }).join('') + '</div>';
   }
 
-  /** 表格式（2026-11-12 值日缺勤改革）：10 列版式
-      组号 + 成员（含个人扣分）+ 值日缺勤（整学期 5 分，原「干净又卫生」并入这里 + 本节课堂任务 + 考勤完成率 + 全组扣分 + 本节完成率 + 三列成绩 */
+  /** 表格式（2026-11-12 值日缺勤改革 + V4/V8 列精简）：8 列版式
+      组号 + 成员（含个人扣分）+ 值日缺勤（整学期 5 分，原「干净又卫生」并入这里 + 考勤完成率 + 本节完成率 + 三列成绩
+      V4：删「课堂任务」列（课堂任务分已包含在「本节完成率」里，用户：课堂任务列和本节完成率列是包含关系）；
+      V8：删「全组扣分」列（用户已确认，手机未入袋全组扣分功能整体移除）。 */
   function verticalColumns(cls){
     // CJK text needs one em; Latin letters and digits need roughly half an em.
     function width(text){return Array.from(String(text)).reduce(function(n,ch){return n+(/[^\x00-\xff]/.test(ch)?15:8);},0);}
-    var labels=['组号','成员','值日缺勤','课堂任务','考勤完成率','全组扣分','本节完成率','（至今完成率）','计入总评 /40','期末至少需考 /100'];
-    var minima=[52,150,100,76,94,100,100,164,132,172];
+    var labels=['组号','成员','值日缺勤','考勤完成率','本节完成率','（至今完成率）','计入总评 /40','期末至少需考 /100'];
+    var minima=[52,150,100,94,100,164,132,172];
     var widths=labels.map(function(t,i){return Math.max(minima[i],width(t)+28);});
     (cls.groups||[]).forEach(function(g){(g.members||[]).forEach(function(m){if(m.name)widths[1]=Math.max(widths[1],width(m.name+' '+(m.no||''))+36);});});
-    var total=widths.reduce(function(a,b){return a+b;},0),names=['no','mem','duty','task','attendance','phone','sum','grade','grade','grade'];
+    var total=widths.reduce(function(a,b){return a+b;},0),names=['no','mem','duty','attendance','sum','grade','grade','grade'];
     return widths.map(function(w,i){return '<col class="w-'+names[i]+'" data-content-width="'+w+'" style="width:'+(100*w/total).toFixed(4)+'%!important">';}).join('');
   }
-  function verticalHead(){return '<thead><tr><th class="c-no">组号</th><th class="c-mem">成员</th><th class="c-duty" title="值日缺勤（整学期一个 5 分项目，原「干净又卫生」并入此列）：一学期没缺勤就是 100%，每节课都显示同一个学期值；值日组缺勤时点一次「每人 −20%」，全组每人同扣一档，按次叠加">值日缺勤</th><th class="c-task" title="本节接线课堂任务（排位用时）折算的完成率；名次到大屏看">课堂任务</th><th class="home-attendance">考勤完成率</th><th class="c-phone">全组扣分</th><th class="c-sum">本节完成率</th><th class="home-grade regular">平时分<br>（至今完成率）</th><th class="home-grade contribution">计入总评 /40</th><th class="home-grade needed">期末至少需考 /100</th></tr></thead>';}
+  function verticalHead(){return '<thead><tr><th class="c-no">组号</th><th class="c-mem">成员</th><th class="c-duty" title="值日缺勤（整学期一个 5 分项目，原「干净又卫生」并入此列）：一学期没缺勤就是 100%，每节课都显示同一个学期值；值日组缺勤时点一次「每人 −20%」，全组每人同扣一档，按次叠加">值日缺勤</th><th class="home-attendance">考勤完成率</th><th class="c-sum">本节完成率</th><th class="home-grade regular">平时分<br>（至今完成率）</th><th class="home-grade contribution">计入总评 /40</th><th class="home-grade needed">期末至少需考 /100</th></tr></thead>';}
   function verticalGroup(cls,lesson,g,printing){
     var A=window.JFDT_ASSESSMENT,gradeLessons=lessonsThrough(cls,lesson),grades=A.rows(cls,gradeLessons,memberTotals(cls)),isDuty=dutyGroups(lesson).includes(g.no);
     var entries=groupMemberEntries(g),editing=!printing&&groupPicking&&groupPicking.classId===cls.id&&groupPicking.lessonId===lesson.id&&groupPicking.no===g.no;
     var gcap=groupCap(g,cls),over=entries.length>gcap;   // 超载：人数超过上限，整组标红提示老师去拖动换组
     var display=entries.length?entries:[{m:null,i:-1}],span=display.length+(editing?1:0),rows=display.map(function(x,j){var m=x.m,i=x.i,key=m&&A.key(m),grade=m&&grades.find(function(r){return r.key===key;}),total=m?memberLessonRateText(lesson,g.no,m,i):'';
       var out='<tr class="vertical-member-row"'+(m?' data-member-index="'+i+'" data-member-key="'+esc(key)+'"':'')+'>';
-      if(!j)out+='<td class="c-no" rowspan="'+span+'">'+g.no+' <small class="gcount'+(over?' over':'')+'" title="'+(over?'本组 '+entries.length+' 人，超过上限 '+gcap+' 人：到「分组」页把超出的 '+(entries.length-gcap)+' 人拖到别的组（不会被自动移出）':'本组人数 / 上限（双击组号可加人减人）')+'">'+entries.length+'/'+gcap+'</small></td>';
+      if(!j)out+='<td class="c-no" rowspan="'+span+'"><span class="gno-swatch" style="'+gbTone(g.no,0)+'">'+g.no+'</span> <small class="gcount'+(over?' over':'')+'" title="'+(over?'本组 '+entries.length+' 人，超过上限 '+gcap+' 人：到「分组」页把超出的 '+(entries.length-gcap)+' 人拖到别的组（不会被自动移出）':'本组人数 / 上限（双击组号可加人减人）')+'">'+entries.length+'/'+gcap+'</small></td>';
       out+='<td class="c-mem member-name-cell'+(m?attendanceNameClass(cls,m,lesson):'')+(m&&isGroupLeader(g,m)?' group-leader-name':'')+'"'+(m?' data-leader-toggle data-g="'+g.no+'" data-member-index="'+i+'"':'')+' title="'+esc(m?(m.name+' '+(m.sid||'')+' · 双击设置或退出组长'):'双击组号添加成员')+'">'+(m?(isGroupLeader(g,m)?'<span class="leader-crown" aria-label="组长">👑</span> ':'')+esc(m.name)+(m.no==null?'':' <small>'+two(m.no)+'</small>'):'未分配成员')+(m&&!printing?'<span class="mem-deduct">'+ctlPersonal(g.no,m,i,0)+'</span>':'')+'</td>';
       if(!j)out+='<td class="c-duty" rowspan="'+span+'">'+(printing?'<b class="duty-pct">'+dutyPctText(lessonsOf(cls.id),g.no)+'</b>':ctlDuty(g.no,isDuty))+'</td>';
-      var task=m?taskScore(lesson,g.no,m):null;
-      out+='<td class="c-task"'+(task!=null?' title="'+esc(m.name)+' 本节课堂任务 '+pctText(Math.max(0,task)/5*100)+'（已包含在「本节完成率」里）"':'')+'>'+(task!=null?'<b>'+pctText(Math.max(0,task)/5*100)+'</b>':'<span class="c-task-none">—</span>')+'</td>';
       out+='<td class="home-attendance">'+(grade?(printing?'<strong>'+attPctText(grade.attendance)+'</strong>':'<button type="button" class="attendance-score" data-attendance-open="'+esc(key)+'" aria-label="'+esc(m.name)+' 考勤完成率 '+attPctText(grade.attendance)+'，点击修改">'+attPctText(grade.attendance)+'</button>'):'')+'</td>';
-      if(!j)out+='<td class="c-phone" rowspan="'+span+'">'+(printing?'':ctlBatch(g.no))+'</td>';
-      out+='<td class="c-sum" title="'+esc(m?m.name:'')+'"><div class="home-grade-person" data-member-lesson-totals="'+g.no+'" data-lesson-member="'+i+'"><strong>'+total+'</strong></div></td>';
+      out+='<td class="c-sum" data-home-grade="sum"'+(m?' data-grade-student="'+esc(key)+'"':'')+' title="'+esc(m?m.name+' · 点击看本节各项目完成率明细':'')+'"><div class="home-grade-person" data-member-lesson-totals="'+g.no+'" data-lesson-member="'+i+'"><strong>'+total+'</strong></div></td>';
       ['regular','contribution','needed'].forEach(function(field){var value=grade?(field==='needed'?(grade.attendanceFailed?'不适用':grade.needed>100?'无法达到':grade.needed):grade[field]):'';out+='<td class="home-grade '+field+'" data-home-grade="'+field+'" title="'+esc(m?m.name:'')+'">'+(grade?'<div class="home-grade-person" data-grade-student="'+esc(key)+'"><strong>'+value+(field==='regular'?' <span class="completion-rate">（'+(grade.totalMaximum?Math.round(grade.performanceRate*1000)/10+'%':'—')+'）</span>':'')+'</strong>'+(grade.attendanceFailed?'<small>考勤挂科</small>':'')+'</div>':'')+'</td>';});
       return out+'</tr>';
     }).join('');
-    if(editing)rows+='<tr class="group-pick-row"><td colspan="2" data-group-picker-slot></td><td colspan="8"></td></tr>';
+    if(editing)rows+='<tr class="group-pick-row"><td colspan="2" data-group-picker-slot></td><td colspan="6"></td></tr>';
     return '<tbody '+(printing?'data-pg':'data-card')+'="'+g.no+'" class="'+(dutyGroups(lesson).includes(g.no)?'is-duty ':'')+(touched(lesson,g.no)?'touched ':'')+(over?'is-over':'')+'">'+rows+'</tbody>';
   }
   function groupsTable(cls,lesson){var gs=visibleGroups(cls);if(!gs.length)return '<p class="empty-hint">这个班还没有分好组（或者组里一个人都没有）。到「待分配名单」点「分组…」分一下，分好组这里就有记分表。</p>';return '<div class="sheetwrap"><table class="sheet sheet-vertical"><colgroup>'+verticalColumns(cls)+'</colgroup>'+verticalHead()+gs.map(function(g){return verticalGroup(cls,lesson,g,false);}).join('')+'</table></div>';}
@@ -2141,16 +2120,18 @@ function restoreDroppedToHome(cls) {
   /* 值日缺勤（2026-11-12 R1）：值日组这一格点一下 = 全组每人值日缺勤 −20%（整学期 5 分项目，1 档 = 1 分）。
      记在本课 scores[组].dutyAbsent 上（按次叠加、可撤销、可跨课累计），学期值 = 5 − 累计档数。
      扣分落在个人分数：全组每人同扣（团队绑定，要扣都扣）。 */
-  function deductDuty(cls,lesson,gno){
-    var s=sc(lesson,gno), old=Number(s.dutyAbsent)||0, neu=Math.min(20,old+1);
-    if(neu===old){flash('这一组本课的缺勤已经记满，不用再点了');return;}
+  function deductDuty(cls,lesson,gno,dir){
+    var s=sc(lesson,gno), old=Number(s.dutyAbsent)||0, neu=(dir<0?Math.max(0,old-1):Math.min(20,old+1));
+    if(neu===old){flash(dir<0?'这一组本课已经没扣值日缺勤了，不用再加回':'这一组本课的缺勤已经记满，不用再点了');return;}
     s.dutyAbsent=neu;
-    pushUndo({lessonId:lesson.id,gno:gno,f:'dutyAbsent',old:old,neu:neu,label:'值日缺勤：全组每人值日缺勤 −20%'});
+    pushUndo({lessonId:lesson.id,gno:gno,f:'dutyAbsent',old:old,neu:neu,label:dir<0?'值日缺勤：加回一档（全组每人 +20%）':'值日缺勤：全组每人值日缺勤 −20%'});
     save();refreshCard(cls,lesson,gno);renderMetrics(cls,lesson);
     var A=window.JFDT_ASSESSMENT, pct=pctText((A?A.dutyScore(lessonsOf(cls.id),gno):5)/5*100);
-    flash('第'+gno+'组已记值日缺勤：全组每人 −20%，本学期值日缺勤剩 '+pct);
+    flash(dir<0?'第'+gno+'组已加回一档：全组每人 +20%，本学期值日缺勤回到 '+pct:'第'+gno+'组已记值日缺勤：全组每人 −20%，本学期值日缺勤剩 '+pct);
   }
-  $('#groupList').addEventListener('click',function(e){var button=e.target.closest('[data-duty-deduct]');if(!button)return;var cls=curClass(),lesson=curLesson(cls);if(!lesson)return;deductDuty(cls,lesson,Number(button.dataset.dutyDeduct));});
+  // V4：值日缺勤「单击扣一档、双击加回一档」。单击扣分、双击加回，都在同一个 duty-score 按钮上。
+  $('#groupList').addEventListener('click',function(e){var button=e.target.closest('[data-duty-deduct]');if(!button)return;var cls=curClass(),lesson=curLesson(cls);if(!lesson)return;deductDuty(cls,lesson,Number(button.dataset.dutyDeduct),1);});
+  $('#groupList').addEventListener('dblclick',function(e){var button=e.target.closest('[data-duty-deduct]');if(!button)return;e.preventDefault();e.stopPropagation();var cls=curClass(),lesson=curLesson(cls);if(!lesson)return;deductDuty(cls,lesson,Number(button.dataset.dutyDeduct),-1);});
 
   /* ================= 记分交互（事件委托） ================= */
 
@@ -2162,7 +2143,6 @@ function restoreDroppedToHome(cls) {
     var gno = +btn.dataset.g;
     var s = sc(lesson, gno);
     var act = btn.dataset.act;
-    if(act==='batch-deduct'){changeMemberPoints(cls,lesson,gno,null,-1);return;}
     if (act === 'pr' || act === 'pz') {
       var chip = btn.parentElement.querySelector('.pchip');
       if (act === 'pr') bumpPersonal(cls, lesson, chip, -1);
@@ -2726,6 +2706,7 @@ function restoreDroppedToHome(cls) {
     updatePoolBadge();
     renderGroupSetup();    // 「分几组 / 每组上限」两个框 + 下面那句说明
     renderGroupSummary();  // 主界面那句「N 个组 · 已分 x/y 人」
+    renderHxRoster();      // 「首页班级对应」卡（2026-11-12 从数据与同步页搬到分组页）
   }
 
   /** 待分配区顶上那条「掉队归位」（2026-11-08 追加）：
@@ -3868,37 +3849,47 @@ function restoreDroppedToHome(cls) {
     if (sm) sm.textContent = '选座实况 · ' + txt + '（每 2 秒自动刷新）';
   }
 
-  /** 四个按钮的显隐与文案跟着房间状态走 */
+  /** 两个按钮的显隐与文案跟着房间状态走（2026-11-12 V1：四按钮精简成两按钮） */
   function tmButtons(room) {
-    var open = $('#btnTeamOpen'), lock = $('#btnTeamLock'),
-        fin = $('#btnTeamFinish'), close = $('#btnTeamClose'), link = $('#teamLink');
+    var open = $('#btnTeamOpen'),
+        fin = $('#btnTeamFinish'), link = $('#teamLink');
     var st = room ? room.status : 'none';
     /* 2026-11-11 锁定分组：锁上以后不给开新房间（开了就等于放学生进来换座） */
     var lockNow = !!(curClass() && curClass().groupLocked);
-    open.disabled = lockNow;
-    open.title = lockNow ? '分组已锁定：先点上面的「🔓 解锁分组」' : '';
-    /* 2026-11-12 修「确认分组后按钮不消失」：fin（按选座确认分组）只在「有还没确认的选座」时显示。
+    /* 2026-11-12 修「确认分组后按钮不消失」：fin（确认分组）只在「有还没确认的选座」时显示。
        确认成功后把当前座位指纹记进 cls.seatAppliedSig，下一轮 tmButtons 一比对，
        发现没有新座位就把按钮藏起来，给老师一个「已经确认过了」的反馈；
        学生之后又改座（指纹变了）按钮会重新出现，提醒老师再确认一次。 */
     var csNow = curClass();
     var seatCnt = tmState && (tmState.seats || []).length;
     var pendingSeats = seatCnt > 0 && tmSeatSig !== (csNow && csNow.seatAppliedSig);
-    /* 云端 jf_team_room 只按 created_at 取最新一间，房间「结束」后也照样返回它。
-       所以这里不能只判断「有没有房间」：不然老师点一次「结束」，这个班四个按钮全被藏光，
-       再也点不到「开放组队」，表现为「确认分组后就打不开分组了」。房间结束=这一轮收工，
-       把「开放组队」放回来，老师随时能再开一轮（jf_team_open 会先把旧房间作废）。 */
-    open.hidden = !!room && st !== 'closed';
-    lock.hidden = !room || st === 'closed';
-    /* 2026-11-10 修「待确认却点不到确认」：房间 closed 后 jf_team_state 仍能拉到 seats，
-       tmApplySeating 也只看 tmState 不看 room.status。所以房间结束但还有人坐桌（待确认）时，
-       fin 必须继续显示，否则老师只能一个个拖。
-       2026-11-12 起进一步收紧：fin 只在「有还没确认的选座」时显示（见上面 pendingSeats），
-       确认过就消失——这正是用户要的「确认分组后按钮消失」的反馈。 */
+
+    /* V1 精简：原来「开放组队 / 停止组队 / 继续组队 / 结束」四个按钮，合并成 open 一个切换按钮：
+       - 没房间（st=none）或已结束（closed）→ 显示「开放组队」（主按钮，点它开新房间）
+       - 组队中（open）→ 显示「停止组队」（点它停止，再点一次「继续组队」恢复）
+       - 已停止（locked）→ 显示「继续组队」
+       原「结束」动作并进「停止组队」的二次确认（见 btnTeamOpen 的 click 处理）。 */
+    open.hidden = false;
+    if (st === 'open') {
+      open.textContent = '停止组队';
+      open.classList.remove('primary');
+      open.classList.add('danger');
+    } else if (st === 'locked') {
+      open.textContent = '继续组队';
+      open.classList.remove('danger');
+      open.classList.add('primary');
+    } else {
+      open.textContent = '开放组队';
+      open.classList.remove('danger');
+      open.classList.add('primary');
+    }
+    open.disabled = lockNow && st !== 'open' && st !== 'locked';
+    open.title = lockNow && st !== 'open' && st !== 'locked'
+      ? '分组已锁定：先点上面的「🔓 解锁分组」' : '';
+
+    /* fin（确认分组）只在「有还没确认的选座」时显示（见上面 pendingSeats），确认过就消失。 */
     fin.hidden = !room || !pendingSeats;
-    close.hidden = !room || st === 'closed';
     link.hidden = !room || st === 'closed';
-    lock.textContent = st === 'locked' ? '继续组队' : '停止组队';
     fin.disabled = false;
     if (room && room.room) {
       link.href = 'team.html?r=' + room.room;
@@ -4034,6 +4025,10 @@ function restoreDroppedToHome(cls) {
   $('#btnTeamOpen').addEventListener('click', function () {
     if (tmBusy) return;
     var cls = curClass();
+    /* V1 精简：open 按钮是个切换开关。房间开着（open）点它=停止；已停止（locked）点它=继续；
+       没房间或已结束点它=开放。原来的「结束」动作并进「停止」的二次确认里。 */
+    if (tmRoom && tmRoom.room && tmRoom.status === 'open') { tmStopOrClose(); return; }
+    if (tmRoom && tmRoom.room && tmRoom.status === 'locked') { tmResumeTeam(); return; }
     if (cls && cls.groupLocked) { flash('分组已锁定：先点「🔓 解锁分组」再开放组队'); return; }
     if (!cls || !tmOn()) { alert('先登录再来开放组队。'); return; }
     if (!tmClassId(cls)) { alert('这个班还没对应首页班级，先在「数据与同步」页对应。'); return; }
@@ -4145,38 +4140,64 @@ function restoreDroppedToHome(cls) {
     }, Promise.resolve()).then(function () { return { moved: moved, lost: lost }; });
   }
 
-  $('#btnTeamLock').addEventListener('click', function () {
+  /* V1 精简：把「停止组队」和「结束」合并成一个动作。点「停止组队」时弹确认，
+     让老师选「只是暂停（可继续）」还是「彻底结束（学生端只读、这轮收工）」。
+     原来两个按钮分别调 jf_team_lock / jf_team_close，这里按选择分派。 */
+  function tmStopOrClose() {
     if (!tmRoom || !tmRoom.room) return;
-    var lock = tmRoom.status === 'open';
-    /* 分组锁定时不许「继续组队」：那等于绕过锁定直接把学生放回来换座 */
     var cs = curClass();
-    if (!lock && cs && cs.groupLocked) {
-      flash('分组已锁定：先点「🔓 解锁分组」，再继续组队');
-      return;
-    }
+    if (cs && cs.groupLocked) { flash('分组已锁定：先点「🔓 解锁分组」，再停止组队'); return; }
+    askConfirm('停止组队后学生就不能再换桌。\n\n' +
+      '· 「暂停」＝ 先停一下，之后还能点「继续组队」让学生接着选\n' +
+      '· 「结束」＝ 这一轮收工，学生端变只读；已选的座位会留着，等你点「确认分组」才写进记分表', {
+        title: '停止组队', okText: '结束这一轮', cancelText: '只是暂停'
+      }).then(function (ok) {
+        if (ok) { tmCloseTeam(); } else { tmLockTeam(); }
+      });
+  }
+
+  /** 停止组队（暂停，学生不能换桌，之后可继续） */
+  function tmLockTeam() {
+    if (!tmRoom || !tmRoom.room) return;
     tmBusy = true;
-    CLOUD.rpc('jf_team_lock', { p_room: Number(tmRoom.room), p_locked: lock })
+    CLOUD.rpc('jf_team_lock', { p_room: Number(tmRoom.room), p_locked: true })
       .then(function () {
         tmBusy = false;
-        flash(lock ? '已停止组队：学生现在只能看，不能再换桌' : '已恢复组队：学生可以继续选桌');
+        flash('已停止组队：学生现在只能看，不能再换桌（点「继续组队」可恢复）');
         return tmPull();
       })
       .catch(function (e) { tmBusy = false; alert('操作失败：' + ((e && e.message) || '未知错误')); });
-  });
+  }
 
-  $('#btnTeamClose').addEventListener('click', function () {
+  /** 恢复组队（继续，学生可继续选桌） */
+  function tmResumeTeam() {
+    if (!tmRoom || !tmRoom.room) return;
+    var cs = curClass();
+    if (cs && cs.groupLocked) { flash('分组已锁定：先点「🔓 解锁分组」，再继续组队'); return; }
+    tmBusy = true;
+    CLOUD.rpc('jf_team_lock', { p_room: Number(tmRoom.room), p_locked: false })
+      .then(function () {
+        tmBusy = false;
+        flash('已恢复组队：学生可以继续选桌');
+        return tmPull();
+      })
+      .catch(function (e) { tmBusy = false; alert('操作失败：' + ((e && e.message) || '未知错误')); });
+  }
+
+  /** 结束组队（这一轮收工） */
+  function tmCloseTeam() {
     if (!tmRoom || !tmRoom.room) return;
     /* 结束只改房间状态，座位原样留着——那是学生自己商量出来的结果，不能替他们抹掉。
        所以文案要说清「座位还在、等你确认」；再开一场时看板只显示最新房间的座位，
        上一场没确认的就看不到了（不是被删，是跟着旧房间一起归档）。 */
     if (!confirm('结束这次组队？学生端变成只读。\n\n' +
-      '结束只是停止学生改座，已选的座位会留着，等你点「按选座确认分组」才写进记分表。\n' +
+      '结束只是停止学生改座，已选的座位会留着，等你点「确认分组」才写进记分表。\n' +
       '想整班重来就再开一次组队——上一场还没确认的座位会被新房间顶掉，看板上就看不到了。')) return;
     tmBusy = true;
     CLOUD.rpc('jf_team_close', { p_room: Number(tmRoom.room) })
       .then(function () { tmBusy = false; flash('这次组队已结束，座位保留着，确认分组后才会写进记分表'); return tmPull(); })
       .catch(function (e) { tmBusy = false; alert('操作失败：' + ((e && e.message) || '未知错误')); });
-  });
+  }
 
   /* 把选座结果写回本班分组：桌号 = 组号，桌上的人 = 这组的人 */
   function tmApplySeating() {
@@ -5019,10 +5040,13 @@ function restoreDroppedToHome(cls) {
   var rosterClassId = null;
 
   function renderData() {
+    /* 2026-11-12 删「数据与同步」页：renderData 保留作死代码，但页面 DOM 已删。
+       renderHxRoster（首页班级对应）已搬到分组页，其余（导出/课次/名单）整页删掉了。
+       这里只剩 renderHxRoster 还有真实容器（#hxRosterCard 已搬到 view-pool），
+       其余两块 DOM 没了，直接跳过，避免 null.innerHTML 报错。 */
     renderHxRoster();
-    renderLessonList();
-    if (!rosterClassId) rosterClassId = (curClass() || {}).id || null;
-    renderRoster();
+    if ($('#lessonListCard')) renderLessonList();
+    if ($('#rosterCard')) { if (!rosterClassId) rosterClassId = (curClass() || {}).id || null; renderRoster(); }
   }
 
   /* 班级名单来自首页“班级”（点亮“小组加分”的班），规则见 hx-roster.js：只读首页名单，不删加分里的任何数据 */
@@ -5065,7 +5089,7 @@ function restoreDroppedToHome(cls) {
     }
     var now = shownKey();
     if (changed || now !== hxShown) { hxShown = now; hxRedraw(); }
-    else if (view === 'data') renderHxRoster();
+    else if (view === 'pool') renderHxRoster();
   }
   function shownKey() { return visibleClasses().map(function (c) { return c.id; }).join(); }
   function hxRedraw() {
@@ -5430,9 +5454,11 @@ function restoreDroppedToHome(cls) {
       JSON.stringify(S, null, 2), 'application/json');
   }
 
-  $('#btnRosterSetup').addEventListener('click', function () { switchView('data'); });
+  /* 2026-11-12 删「数据与同步」页：「首页班级」入口跳到分组页（首页班级对应已搬到那里） */
+  $('#btnRosterSetup').addEventListener('click', function () { switchView('pool'); });
   function rosterDownload(rows, name) {
-    var format = $('#rosterFormat').value;
+    var formatEl = $('#rosterFormat');
+    var format = formatEl ? formatEl.value : 'xlsx';
     if(format==='csv'){download(name+'.csv',toCsv(rows),'text/csv;charset=utf-8');return;}
     var wb = XLSX.utils.book_new();
     var ws = XLSX.utils.aoa_to_sheet(rows);
@@ -5441,7 +5467,7 @@ function restoreDroppedToHome(cls) {
     var bytes=XLSX.write(wb,{bookType:format,type:'array'});
     download(name+'.'+format,bytes,'application/octet-stream');
   }
-  $('#btnExportRoster').addEventListener('click',function(){
+  if ($('#btnExportRoster')) $('#btnExportRoster').addEventListener('click',function(){
     var rows=[['班级','姓名','学号','小组','班内序号']];
     /* 只导可见班级（首页点亮小组加分的），别把历史旧班一起导出去（2026-11-04） */
     visibleClasses().forEach(function(c){
@@ -5641,69 +5667,14 @@ function restoreDroppedToHome(cls) {
   }
 
   /* 撤销：按钮 + Ctrl/Cmd+Z */
-  $('#btnUndo').addEventListener('click', function () {
-    undo();
-  });
   function redo(index) {if(typeof index!=='number')index=(S.redo||[]).length-1;var entry=(S.redo||[]).splice(index,1)[0];if(!entry)return false;var l=getLesson(entry.op.lessonId);if(!l)return false;var effect=entry.redoEffect||operationEffect(entry.op),actual=applyEffect(entry.op,effect,1);entry.op.effect=actual;S.undo.push(entry.op);S.ui.classId=l.classId;S.ui.lessonId=l.id;addOperationLog('重做',undoLabel(reverseOp(entry.op)));save(false);renderScore();if(entry.op.projectBatch)renderLeader();renderUndoBtn();flash('已恢复所选操作');return true;}
-  $('#btnRedo').addEventListener('click', redo);
   /* 一键恢复：2026-11-12 起「干净又卫生」并入「值日缺勤」并改成整学期一次 5 分，
      所以这个按钮现在只做一件事：清空所选范围的值日缺勤扣分，把学期值日缺勤恢复成 100%。 */
   var restoreFiveDialog=document.createElement('dialog');restoreFiveDialog.id='dlgRestoreFive';restoreFiveDialog.innerHTML='<form method="dialog"><h2>恢复值日缺勤 100%</h2><label class="field col">恢复范围<select id="restoreFiveScope"><option value="lesson">当前课次</option><option value="class">当前班级全部课次</option><option value="all">所有班级全部课次</option></select></label><p class="note">清空所选范围的「值日缺勤」扣分，让整学期值日缺勤回到 100%（5 分，只算一次）。个人项目、手机扣分与考勤保留。</p><div class="btnrow"><button class="btn" value="cancel">取消</button><button class="btn primary" value="ok">恢复 100%</button></div></form>';document.body.appendChild(restoreFiveDialog);wireDialog(restoreFiveDialog);
   $('#btnRestoreFive').onclick=function(){openDlg(restoreFiveDialog);};restoreFiveDialog.addEventListener('close',function(){if(restoreFiveDialog.returnValue!=='ok')return;var cls=curClass(),current=curLesson(cls),scope=$('#restoreFiveScope').value,lessons=S.lessons.filter(function(l){return scope==='all'||scope==='class'&&l.classId===cls.id||scope==='lesson'&&current&&l.id===current.id;}),ids=new Set(lessons.map(function(l){return l.id;}));if(!lessons.length){flash('所选范围没有课次');return;}var cleared=0;lessons.forEach(function(l){var c=getClass(l.classId);if(!c)return;c.groups.forEach(function(g){var s=(l.scores||{})[String(g.no)];if(s&&Number(s.dutyAbsent)){cleared+=Number(s.dutyAbsent)||0;s.dutyAbsent=0;}});});S.undo=(S.undo||[]).filter(function(op){return !(ids.has(op.lessonId)&&op.f==='dutyAbsent');});S.redo=(S.redo||[]).filter(function(e){return !(e.op&&ids.has(e.op.lessonId)&&e.op.f==='dutyAbsent');});save();renderScore();renderUndoBtn();flash(cleared?'已清空 '+cleared+' 档值日缺勤，学期值日缺勤恢复 100%':'所选范围本来就没有值日缺勤扣分');});
-  $('#btnOperationLog').addEventListener('click',function(){renderUndoBtn();openDlg($('#dlgOperationLog'));});
-  $('#closeOperationLog').addEventListener('click',function(){$('#dlgOperationLog').close();});
-  (function wireLogSwipe(){
-    var list=$('#operationLogList'), gesture=null, suppressClick=false;
-    list.addEventListener('pointerdown',function(e){
-      if(e.pointerType!=='touch' && e.pointerType!=='pen')return;
-      if(e.target.closest('button'))return;
-      var row=e.target.closest('.operation-row'), button=row&&row.querySelector('[data-undo-index]:not([disabled])');
-      if(!button)return;
-      gesture={row:row,button:button,id:e.pointerId,x:e.clientX,y:e.clientY,dx:0,locked:false};
-    });
-    list.addEventListener('pointermove',function(e){
-      if(!gesture || gesture.id!==e.pointerId)return;
-      var dx=e.clientX-gesture.x,dy=e.clientY-gesture.y;
-      if(!gesture.locked && Math.abs(dy)>10 && Math.abs(dy)>Math.abs(dx)){gesture=null;return;}
-      if(!gesture.locked && dx < -10 && Math.abs(dx)>Math.abs(dy)*1.2){
-        gesture.locked=true;gesture.row.setPointerCapture(e.pointerId);gesture.row.classList.add('log-swiping');
-      }
-      if(!gesture.locked)return;
-      gesture.dx=Math.max(-150,Math.min(0,dx));
-      gesture.row.style.transform='translateX('+gesture.dx+'px)';
-      gesture.row.classList.toggle('swipe-ready',gesture.dx<=-96);
-    });
-    function finish(e,cancel){
-      if(!gesture || gesture.id!==e.pointerId)return;
-      var g=gesture;gesture=null;
-      g.row.classList.remove('log-swiping','swipe-ready');g.row.style.transform='';
-      if(!cancel && g.locked && g.dx<=-96){suppressClick=true;g.button.click();setTimeout(function(){suppressClick=false;},350);}
-    }
-    list.addEventListener('pointerup',function(e){finish(e,false);});
-    list.addEventListener('pointercancel',function(e){finish(e,true);});
-    list.addEventListener('click',function(e){if(suppressClick && e.isTrusted){e.preventDefault();e.stopPropagation();}},true);
-  })();
-  $('#operationLogList').addEventListener('click',function(event){
-    var button=event.target.closest('button[data-undo-index],button[data-redo-index]');
-    if(!button || button.disabled)return;
-    if(button.dataset.undoIndex!=null){
-      var index=+button.dataset.undoIndex; if(!canUndoAt(index))return;
-      fadeLogRow(button.closest('.operation-row'));
-      var op=S.undo.splice(index,1)[0]; S.undo.push(op); undo();
-    } else {fadeLogRow(button.closest('.operation-row'));redo(+button.dataset.redoIndex);}
-  });
 
-
-  document.addEventListener('keydown', function (e) {
-    if (!(e.ctrlKey || e.metaKey)) return;
-    var k = (e.key || '').toLowerCase();
-    if (k !== 'z') return;
-    var ae = document.activeElement;
-    var tag = ae ? ae.tagName : '';
-    /* 在输入框里按 Ctrl+Z 交给浏览器自己的文本撤销，别抢 */
-    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-    if (e.shiftKey ? redo() : undo()) e.preventDefault();
-  });
+  /* V10（2026-11-12）：操作日志与撤销已整体移除（用户确认），Ctrl+Z 撤销快捷键一并停用。
+     数据层 pushUndo/undo/redo 保留（不暴露 UI），将来若要恢复撤销只需加回入口。 */
 
   /* 表格式 / 卡片式 切换 */
   $('#layoutSeg').addEventListener('click', function (e) {
@@ -6107,7 +6078,7 @@ function restoreDroppedToHome(cls) {
   var syncEditBlocked=true;
   function setSyncEditGate(blocked,message){syncEditBlocked=blocked;if(!S)return;['#view-score','#view-leader','#view-attendance','#view-pool','#scoreTools','#rosterCard','#lessonListCard','#hxRosterBox'].forEach(function(selector){var el=$(selector);if(el)el.toggleAttribute('inert',blocked);});var gate=$('#syncEditGate');if(!gate){gate=document.createElement('div');gate.id='syncEditGate';gate.className='sync-edit-gate';gate.setAttribute('role','status');$('#main').prepend(gate);}gate.hidden=!blocked;gate.textContent=message||'正在核对云端，确认后开放编辑';if(!blocked)hxAfterGate();}
   var conflictNotice=document.createElement('dialog');conflictNotice.id='dlgSyncConflict';conflictNotice.innerHTML='<div class="dlg"><div class="dlg-head"><h3>两台设备的记录不同</h3><button type="button" class="dlg-x" id="closeSyncConflict" aria-label="关闭同步冲突提示">✕</button></div><div class="dlg-body"><p>系统已暂停上传，请先查看下面的业务数据差异，再选择保留哪一边。</p><p class="note">关闭窗口不会解决冲突；完成一次处理后才会恢复编辑和自动同步。</p><div id="syncConflictDetails" aria-live="polite"></div><div class="btnrow conflict-actions"><button class="btn" id="backupConflictLocal">先下载本机存档</button><button class="btn" id="keepCloudConflict">保留云端记录</button><button class="btn primary" id="keepLocalConflict">保留本机记录</button></div><button class="linkbtn" id="openSyncConflictTools">打开数据与同步页面</button></div></div>';document.body.appendChild(conflictNotice);wireDialog(conflictNotice);var conflictNoticeShown=false;
-  $('#closeSyncConflict').onclick=function(){conflictNotice.close();};$('#backupConflictLocal').onclick=function(){downloadLocalSnapshot();};$('#openSyncConflictTools').onclick=function(){conflictNotice.close();switchView('data');$('.sync-row').scrollIntoView({block:'center',behavior:'smooth'});};$('#keepCloudConflict').onclick=function(){conflictNotice.close();$('#btnPullCloud').click();};$('#keepLocalConflict').onclick=function(){conflictNotice.close();$('#btnPushCloud').click();};
+  $('#closeSyncConflict').onclick=function(){conflictNotice.close();};$('#backupConflictLocal').onclick=function(){downloadLocalSnapshot();};$('#openSyncConflictTools').onclick=function(){conflictNotice.close();flash('同步已经自动进行：数据库自带同步，这里没有单独的同步页了。冲突请用下面「保留云端 / 保留本机」解决。');};$('#keepCloudConflict').onclick=function(){conflictNotice.close();if(!CLOUD_ON||!CLOUD||!CLOUD.profile()){flash('请先登录。');return;}if(CLOUD.cancelPending&&!CLOUD.cancelPending()){flash('正在上传，稍后再试。');return;}var st=S.updatedAt;CLOUD.pull().then(function(rec){if(S.updatedAt!==st){flash('拉取期间记录已变，未覆盖。');return;}if(!rec||!rec.data||!rec.data.classes){flash('云端还没有这个账号的记录。');return;}S=migrate(JSON.parse(JSON.stringify(rec.data)));if(CLOUD.acceptRemote)CLOUD.acceptRemote(rec);if(!S.ui)S.ui={};if(!S.ui.classId&&S.classes[0])S.ui.classId=S.classes[0].id;S.updatedAt=new Date().toISOString();writeLocal();initLayout();fillClassSelects();flash('已用云端记录覆盖本机');}).catch(function(e){flash('拉取失败：'+(e&&e.message?e.message:e));});};$('#keepLocalConflict').onclick=function(){conflictNotice.close();if(!CLOUD_ON||!CLOUD||!CLOUD.profile()){flash('请先登录。');return;}var upload=CLOUD.forcePush?CLOUD.forcePush(function(){return S;}):(CLOUD.touch(function(){return S;}),CLOUD.flush());upload.then(function(){flash('已用本机记录覆盖云端。');}).catch(function(e){flash('上传失败，记录仍保存在当前设备：'+(e&&e.message?e.message:e));});};
   var cloudChip = $('#cloudChip');
   if (cloudChip) {
     cloudChip.onclick = function () { if (CLOUD && CLOUD.status().mode === 'conflict') openDlg(conflictNotice); };
@@ -6329,9 +6300,14 @@ function restoreDroppedToHome(cls) {
   if (CLOUD) CLOUD.onStatus(renderCloudStatus);
   if ($('#btnCheckAppVersion')) $('#btnCheckAppVersion').addEventListener('click',function(){checkAppVersion(true);});
   checkAppVersion(false);
-  var checkCloudButton=document.createElement('button');checkCloudButton.id='btnCheckCloudLatest';checkCloudButton.className='btn';checkCloudButton.textContent='核对云端最新版';checkCloudButton.onclick=function(){checkCloudButton.disabled=true;checkCloudButton.setAttribute('aria-busy','true');refreshCloud().then(function(ok){flash(ok?'核对完成：本机已是云端最新版':'核对未完成：请查看同步冲突详情');}).finally(function(){checkCloudButton.disabled=false;checkCloudButton.removeAttribute('aria-busy');});};$('#btnSyncNow').parentElement.appendChild(checkCloudButton);
-  /* 2026-11-09：手动修「换组后认不到人的历史分」。启动时会自动修一次，这里给老师一个可重复执行的入口。 */
-  var repairScoresButton=document.createElement('button');repairScoresButton.id='btnRepairScores';repairScoresButton.className='btn';repairScoresButton.textContent='修复认不到人的历史分';repairScoresButton.onclick=function(){var R=window.JFDT_SCORE_REPAIR;if(!R){flash('修复模块没加载，请刷新页面');return;}var n=0;visibleClasses().forEach(function(c){n+=R.countOrphans(S,c);});if(!n){flash('没有认不到人的历史分，不用修');return;}var ok=window.confirm('检测到 '+n+' 条分数「换组后认不到人」：分还在库里，只是显示不出来。\n\n现在把它们接回本人？只搬不删，认不出人的原样保留。');if(!ok)return;var fixed=repairOrphanScores(false);flash(fixed?'已接回 '+fixed+' 条历史分':'没有可接回的分数');};$('#btnSyncNow').parentElement.appendChild(repairScoresButton);
+  /* 2026-11-12 删「数据与同步」页：同步条上的两个按钮（核对云端/修复历史分）挂载点已删。
+     逻辑保留（refreshCloud / repairOrphanScores 仍在），等有新的挂载点再放回来。 */
+  if ($('#btnSyncNow')) {
+    var checkCloudButton=document.createElement('button');checkCloudButton.id='btnCheckCloudLatest';checkCloudButton.className='btn';checkCloudButton.textContent='核对云端最新版';checkCloudButton.onclick=function(){checkCloudButton.disabled=true;checkCloudButton.setAttribute('aria-busy','true');refreshCloud().then(function(ok){flash(ok?'核对完成：本机已是云端最新版':'核对未完成：请查看同步冲突详情');}).finally(function(){checkCloudButton.disabled=false;checkCloudButton.removeAttribute('aria-busy');});};$('#btnSyncNow').parentElement.appendChild(checkCloudButton);
+  }
+  if ($('#btnSyncNow')) {
+    var repairScoresButton=document.createElement('button');repairScoresButton.id='btnRepairScores';repairScoresButton.className='btn';repairScoresButton.textContent='修复认不到人的历史分';repairScoresButton.onclick=function(){var R=window.JFDT_SCORE_REPAIR;if(!R){flash('修复模块没加载，请刷新页面');return;}var n=0;visibleClasses().forEach(function(c){n+=R.countOrphans(S,c);});if(!n){flash('没有认不到人的历史分，不用修');return;}var ok=window.confirm('检测到 '+n+' 条分数「换组后认不到人」：分还在库里，只是显示不出来。\n\n现在把它们接回本人？只搬不删，认不出人的原样保留。');if(!ok)return;var fixed=repairOrphanScores(false);flash(fixed?'已接回 '+fixed+' 条历史分':'没有可接回的分数');};$('#btnSyncNow').parentElement.appendChild(repairScoresButton);
+  }
 
   /* 闸门上的按钮 */
   $('#btnAccountLogin').addEventListener('click', doLogin);
@@ -6368,14 +6344,15 @@ function restoreDroppedToHome(cls) {
   loadAuthOptions();
   showInviteField();
 
-  /* 数据页的同步按钮 */
-  $('#btnSyncNow').addEventListener('click', function () {
+  /* 数据页的同步按钮（2026-11-12 删「数据与同步」页：这些按钮 DOM 已删，逻辑保留作死代码。
+     用 if 保护，避免 null.addEventListener 报错；手动同步/覆盖/退出仍由自动同步和 openMe 覆盖。 */
+  if ($('#btnSyncNow')) $('#btnSyncNow').addEventListener('click', function () {
     if (!CLOUD || !CLOUD.available()) { alert('云端组件没加载出来，请检查网络后刷新页面。'); return; }
     refreshCloud().then(function (verified) { if(verified)return CLOUD.flush(); }).catch(function (e) {
       alert('同步失败：' + (e && e.message ? e.message : e));
     });
   });
-  $('#btnPullCloud').addEventListener('click', function () {
+  if ($('#btnPullCloud')) $('#btnPullCloud').addEventListener('click', function () {
     if (!CLOUD_ON || !CLOUD || !CLOUD.profile()) { alert('请先登录后再拉取。'); return; }
     if (!confirm('用云端的记录覆盖这台设备上的记录？\n\n本机现在的分数会被替换掉（云端记录是同一账号在别的设备上存的那份）。')) return;
     if (CLOUD.cancelPending && !CLOUD.cancelPending()) {
@@ -6396,13 +6373,12 @@ function restoreDroppedToHome(cls) {
       initLayout();
       fillClassSelects();
       renderUndoBtn();
-      renderData();
       flash('已用云端记录覆盖本机');
     }).catch(function (e) {
       alert('拉取失败：' + (e && e.message ? e.message : e));
     });
   });
-  $('#btnPushCloud').addEventListener('click', function () {
+  if ($('#btnPushCloud')) $('#btnPushCloud').addEventListener('click', function () {
     if (!CLOUD_ON || !CLOUD || !CLOUD.profile()) { alert('请先登录后再上传。'); return; }
     if (!confirm('把这台设备上的记录传到云端，覆盖云端那一份？')) return;
     var upload = CLOUD.forcePush ? CLOUD.forcePush(function () { return S; }) : (CLOUD.touch(function () { return S; }), CLOUD.flush());
@@ -6410,12 +6386,13 @@ function restoreDroppedToHome(cls) {
       alert('上传失败，记录仍保存在当前设备：' + (e && e.message ? e.message : e));
     });
   });
-  $('#btnSignOut').addEventListener('click', function () {
+  if ($('#btnSignOut')) $('#btnSignOut').addEventListener('click', function () {
     if (!confirm('退出登录？\n\n未同步的记录仅保存在当前浏览器，建议先确认同步成功，或在华夏工具首页「全站备份」导出一份。下次用同一教师账号登录可继续。')) return;
     CLOUD.signOut();
   });
   $('#btnMe').addEventListener('click', openMe);
-  $('#btnUserMenu').addEventListener('click', function () { switchView('data'); });
+  /* 2026-11-12 删「数据与同步」页：⚙ 不再跳那个页，直接开账号弹窗（openMe 里已有退出登录） */
+  $('#btnUserMenu').addEventListener('click', openMe);
 
   /* 随机抽人（draw-person.js）：本文件闭包里的 S / rosterOf / curClass 拿不出去，
      所以只在这里交一个「读取器」出去，抽人模块每次要数据时现读，不缓存，

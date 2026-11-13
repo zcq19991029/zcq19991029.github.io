@@ -95,8 +95,9 @@
     var lessonTag = (cls ? cls.id : '') + '#' + (lesson ? lesson.id : '');
     if (lessonTag !== lastLessonTag) { lastLessonTag = lessonTag; peerMsg = ''; }
 
-    root.innerHTML = '<h2 class="sec-title">组内个人评分</h2>' +
-      '<p class="note">所有小组都在这一页往下连续排开，不用再选组。学生一提交就<b>直接计分</b>，不用老师再逐列确认。角标一眼看来源：<b>「组员平均」</b>＝组员们给组长打的平均完成率（至少 2 人打才计入，标在组长那一行；组长换过人的，前任组长行上留下的「曾任组长」是他当组长时组员打的平均分）；<b>「互评」</b>＝组长给这一位组员打的完成率；<b>「师」</b>＝老师直接填的分。<b>要改分直接点格子</b>的 20%–100%（带「师」角标），或者关掉上面的「互评」开关再慢慢改。</p>' +
+    root.innerHTML = '<div class="sec-title-row"><h2 class="sec-title">组内个人评分</h2>' +
+      '<span class="hint-help" tabindex="0" role="button" aria-label="评分说明">?' +
+      '<span class="hint-pop">所有小组都在这一页往下连续排开，不用再选组。学生一提交就<b>直接计分</b>，不用老师再逐列确认。角标一眼看来源：<b>「组员平均」</b>＝组员们给组长打的平均完成率（至少 2 人打才计入，标在组长那一行；组长换过人的，前任组长行上留下的「曾任组长」是他当组长时组员打的平均分）；<b>「互评」</b>＝组长给这一位组员打的完成率；<b>「师」</b>＝老师直接填的分。<b>要改分直接点格子</b>的 20%–100%（带「师」角标），或者关掉上面的「互评」开关再慢慢改。</span></span></div>' +
       '<div class="card lesson-bar"><label class="field"><span>班级</span><select id="leaderClassSel">' + pool.map(function (c) { return '<option value="' + esc(c.id) + '"' + (cls && c.id === cls.id ? ' selected' : '') + '>' + esc(c.name) + '</option>'; }).join('') + '</select></label>' +
       '<label class="field"><span>课次</span><select id="leaderLessonSel"' + (!lessons.length ? ' disabled' : '') + '>' + lessons.map(function (l) { return '<option value="' + esc(l.id) + '"' + (lesson && l.id === lesson.id ? ' selected' : '') + '>第' + l.seq + '次 · ' + esc(l.date) + '</option>'; }).join('') + '</select></label></div><div id="leaderSheet"></div>';
     root.querySelector('#leaderClassSel').onchange = function () { context.select(this.value, null); };

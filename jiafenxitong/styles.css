@@ -209,6 +209,21 @@ input[readonly] { background: var(--panel-soft); color: var(--muted); }
 
 .sec-title { font-size: 14.5px; margin-top: 6px; }
 .sec-title .hint { font-weight: 400; font-size: 12px; color: var(--muted); margin-left: 6px; }
+/* 组内评分页标题行：标题 + 问号说明（2026-11-12 V7，说明书从一大段 note 改成 hover 悬浮窗） */
+.sec-title-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.sec-title-row .sec-title { margin-top: 0; }
+.hint-help { position: relative; display: inline-grid; place-items: center; width: 20px; height: 20px;
+  border-radius: 50%; border: 1px solid var(--line-strong); color: var(--muted); font: 700 12px/1 inherit;
+  cursor: help; user-select: none; }
+.hint-help:hover, .hint-help:focus { color: var(--accent-strong); border-color: var(--accent-line); }
+.hint-help .hint-pop { position: absolute; top: calc(100% + 8px); left: 50%; transform: translateX(-50%);
+  width: 340px; max-width: 82vw; padding: 12px 14px; border-radius: 12px; text-align: left;
+  font-size: 12.5px; line-height: 1.6; color: var(--text); background: var(--card-solid);
+  border: 1px solid var(--line); box-shadow: 0 12px 32px -12px var(--shade, rgba(0,0,0,.25));
+  opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .16s ease, visibility .16s ease; z-index: 60; }
+.hint-help:hover .hint-pop, .hint-help:focus .hint-pop { opacity: 1; visibility: visible; }
+.hint-help .hint-pop b { color: var(--text); }
+
 
 .note { font-size: 12.5px; color: var(--muted); margin: 10px 0 0; }
 .feed-hint { display: inline-block; padding: 6px 12px; margin: 12px 0 4px; border: 1px dashed var(--line); border-radius: 8px; background: var(--panel-soft); color: var(--muted); font-size: 12px; }
@@ -1695,7 +1710,7 @@ table.sheet col.w-attendance{width:165px}.home-attendance{background:#f6eff1;pad
 .leader-project{text-align:center!important}.leader-table th{text-align:center!important}
 
 /* Keep the shorter deduction heading readable at browser zoom. */
-table.sheet th.c-phone{word-break:keep-all;overflow-wrap:normal;line-height:1.45}table.sheet col.w-phone{width:8%}.gctl{grid-template-columns:repeat(3,minmax(0,1fr))}
+table.sheet th.c-phone{word-break:keep-all;overflow-wrap:normal;line-height:1.45}table.sheet col.w-phone{width:8%}.gctl{grid-template-columns:1fr}
 
 @media print{.leader-paper.four-slips{grid-template-rows:repeat(4,1fr)}.four-slips .leader-slip{padding:1mm 0}.four-slips .leader-slip:not(:last-child){border-bottom:.3mm dashed #999}.four-slips .leader-slip h2{font-size:10pt;margin:0}.four-slips .leader-slip p{font-size:7pt;margin:.5mm 0}.four-slips .leader-slip .leader-table{font-size:8pt;margin:.8mm 0}.four-slips .leader-slip .leader-table thead th{height:7mm}.four-slips .leader-slip .leader-table tbody td{height:6mm;padding:.3mm}.four-slips .leader-slip .slip-note{min-height:0}.four-slips .leader-slip .leader-table small{font-size:6pt}}
 
@@ -2086,7 +2101,7 @@ html.hx-bg body::before { display: none; }
 #view-leader .peer-gate-note,
 #view-leader .peer-panel-head span { color: var(--hint-ink); }
 
-/* 已记分：一颗玻璃胶囊占住整格 */
+/* 已记分：一颗玻璃胶囊占住整格（2026-11-12 V5：数字+来源角标整体居中，别再靠左上角） */
 .peer-cell.is-set {
   cursor: pointer;
   border: 1px solid rgba(255, 255, 255, .7);
@@ -2095,6 +2110,8 @@ html.hx-bg body::before { display: none; }
   backdrop-filter: blur(8px) saturate(170%);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .95), 0 2px 7px rgba(70, 50, 50, .12);
   --tc: var(--xl-ink); --tcbg: rgba(255, 255, 255, .55);
+  /* 已记分时格子里只有「分数 + 来源角标」两样：居中排成一行 */
+  justify-content: center; align-items: center;
 }
 .peer-cell.is-set.score-1 { --tc: #a5332b; --tcbg: rgba(226, 114, 107, .16); }
 .peer-cell.is-set.score-2 { --tc: #8a5310; --tcbg: rgba(224, 161, 90, .16); }
@@ -2104,8 +2121,9 @@ html.hx-bg body::before { display: none; }
 .peer-cell.is-set:hover { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .95), 0 4px 12px rgba(70, 50, 50, .18); }
 .peer-score { font: 800 clamp(17px, .6vw + 10px, 22px)/1 'Segoe UI', 'Microsoft YaHei', sans-serif; color: var(--tc); letter-spacing: .02em; }
 .peer-src {
-  margin-left: 3px; padding: 1px 4px; border-radius: 999px;
-  font: 600 9px/1.4 'Segoe UI', 'Microsoft YaHei', sans-serif;
+  margin-left: 4px; padding: 2px 7px; border-radius: 999px;
+  font: 700 11px/1.5 'Segoe UI', 'Microsoft YaHei', sans-serif;
+  letter-spacing: .02em; white-space: nowrap;
   color: var(--tc); background: var(--tcbg); border: 1px solid rgba(255, 255, 255, .5);
 }
 
@@ -2264,6 +2282,14 @@ html.hx-bg body::before { display: none; }
 .peer-cell.is-pending:not(.is-set) { background: rgba(255, 246, 224, .6); box-shadow: inset 0 0 0 2px rgba(226, 161, 48, .68); }
 .peer-th-pend { display: block; margin-top: 2px; font-size: 10.5px; font-weight: 700; color: var(--warn); }
 .peer-col-name.is-pending { background: #fdf2dd !important; }
+/* 2026-11-12 V5：组表格项目列表头要一眼看清 —— 居中、加粗、字号抬到 13px、长名折行不裁切 */
+.leader-table th.peer-col-name {
+  text-align: center !important; vertical-align: middle;
+  font-size: 13px; font-weight: 700; line-height: 1.35;
+  color: var(--text); padding: 8px 6px;
+  overflow-wrap: anywhere; word-break: break-word;
+}
+.leader-table th.peer-col-name .peer-col-tag { vertical-align: 1px; }
 .peer-src-teacher { background: #fff3d2; border-color: #e6c27c; color: #8a5a00; }
 
 @media (max-width: 1099px) {
@@ -2684,15 +2710,18 @@ html.hx-bg[data-hx-mode="dark"] body::after,
 .groups .gcard:nth-child(8n+6) .gnum { background: #06b6d4; }
 .groups .gcard:nth-child(8n+7) .gnum { background: #ef4444; }
 .groups .gcard:nth-child(8n)   .gnum { background: #6366f1; }
-/* 表格式（sheet-vertical）里的组号也同步彩色圆角块：.c-no 单元格里的组号数字 */
-.sheet-vertical .c-no { color: #3b82f6; font-weight: 700; }
-.sheet-vertical tbody[data-card="2"] .c-no, .sheet-vertical tbody:nth-of-type(2) .c-no { color: #10b981; }
-.sheet-vertical tbody:nth-of-type(3) .c-no { color: #f59e0b; }
-.sheet-vertical tbody:nth-of-type(4) .c-no { color: #8b5cf6; }
-.sheet-vertical tbody:nth-of-type(5) .c-no { color: #ec4899; }
-.sheet-vertical tbody:nth-of-type(6) .c-no { color: #06b6d4; }
-.sheet-vertical tbody:nth-of-type(7) .c-no { color: #ef4444; }
-.sheet-vertical tbody:nth-of-type(8) .c-no { color: #6366f1; }
+/* 表格式（sheet-vertical）组号色块（2026-11-12 V10）：和分组卡片同一套 gbTone 配色
+   （组号定色相 + 组内深浅），做成圆角色块，不再只是给数字上色。--h/--s/--lb 由 app.js 的
+   gbTone(g.no,0) 内联注入，色相 24 色环轮换（组1蓝、组2绿…），和「分组」页卡片一眼对得上。 */
+.sheet-vertical td.c-no { color: var(--text); font-weight: 700; }
+.sheet-vertical .gno-swatch {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 26px; height: 26px; padding: 0 7px; border-radius: 8px;
+  font-size: 14px; font-weight: 800; color: hsl(var(--h, 220) 70% 96%);
+  background: hsl(var(--h, 220) var(--s, 70%) var(--lb, 45%));
+  box-shadow: inset 0 -2px 0 rgba(0,0,0,.18);
+  vertical-align: middle;
+}
 
 /* 红绿分数标签：加分绿 / 扣分红，做成彩色药丸 */
 .gsum .v.pos, .metric .v.pos { color: #10b981; }

@@ -218,7 +218,11 @@
       return adopt;
     }
 
-    /* 新加一列。同名已经被别的任务占了就加 #任务号 区分 */
+    /* 新加一列，排到**第一位**（2026-11-12 V6 用户：「课堂任务生成的项目列排第一列」）。
+       同名已经被别的任务占了就加 #任务号 区分。
+       ⚠ 排第一列要平移：leaderProjectNames 头部插一个，每个组的 rec.projects、
+       rec.members[mk]（分数数组）、peerMeta（键里带列号）都要整体右移一位，
+       否则新列的分会写到旧列上、旧列互相错位。下面 shiftColsRight 统一做这件事。 */
     var name = want;
     Object.keys(lesson.wireTasks).forEach(function (k) {
       var e = lesson.wireTasks[k];
@@ -226,15 +230,46 @@
     });
     if (names.indexOf(name) >= 0) name = want + '#' + task.task_id;
 
-    names.push(name);
+    names.unshift(name);
+    shiftColsRight(lesson, names);
     applyNames(lesson, names);
     lesson.wireTasks[key] = {
-      name: name, col: names.length - 1, applied: true,
+      name: name, col: 0, applied: true,
       circuit: task.circuit || '', title: task.title || '',
       at: new Date().toISOString()
     };
     out.added.push({ taskId: task.task_id, lessonSeq: lesson.seq, name: name });
-    return names.length - 1;
+    return 0;
+  }
+
+  /* 排第一列时把「旧列数据整体右移一位」：分数数组与 peerMeta 键里的列号一起 +1。
+     为什么不能只改 names：rec.members[mk] 是按列号对齐的分数数组，names 头部插一列后
+     旧分数若还停在原列号，就会和新列错开一列（新列 0 号拿到旧第 0 列的分数）。 */
+  function shiftColsRight(lesson, names) {
+    Object.keys(lesson.leaderScores || {}).forEach(function (k) {
+      var r = lesson.leaderScores[k];
+      if (!r) return;
+      var members = r.members;
+      if (!members || typeof members !== 'object' || Array.isArray(members)) return; // members 是「键→分数数组」的对象
+      Object.keys(members).forEach(function (mk) {
+        var arr = members[mk];
+        if (!Array.isArray(arr)) return;
+        // 长度和 names 对齐后，头部插一个 null 占新第 0 列，旧的顺势右移
+        while (arr.length < names.length - 1) arr.push(null);
+        arr.unshift(null);
+      });
+    });
+    if (lesson.peerMeta) {
+      var next = {};
+      Object.keys(lesson.peerMeta).forEach(function (mk) {
+        var parts = mk.split('|');
+        if (parts.length !== 3) { next[mk] = lesson.peerMeta[mk]; return; }
+        var c = Number(parts[2]);
+        if (!isFinite(c)) { next[mk] = lesson.peerMeta[mk]; return; }
+        next[parts[0] + '|' + parts[1] + '|' + (c + 1)] = lesson.peerMeta[mk];
+      });
+      lesson.peerMeta = next;
+    }
   }
 
   /* ---------------- 核心：把任务成绩摊成「组号 → 成员键 → 分数」 ---------------- */

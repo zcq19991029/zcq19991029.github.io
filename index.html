@@ -14,15 +14,16 @@
      要登录时调 window.HXPortal.login()；被单独打开时 hx-theme.js 会跳回这里（见 hx-theme.js 的 data-tool）。
      账号：Supabase 华夏工具项目，localStorage paike-session 和各工具共用；身份由数据库 hx_me() 决定。
      脚本里不用反引号模板字符串（本机测试时整页当字符串注入到线上同源页面里）。 -->
-<link rel="stylesheet" href="hx-theme.css?v=69807ef">
-<script src="hx-theme.js?v=69807ef"></script>
+<link rel="stylesheet" href="hx-theme.css?v=5d1568a">
+<script src="hx-theme.js?v=5d1568a"></script>
+<script src="rank-bg.js" defer></script><!-- 排位身份卡预设（2026-11-12）：总入口外观面板当场弹窗设置身份卡背景，预设数据在总入口也能用 -->
 <!-- 首页卡片上的像素小生物：pixelfx 的 12 个 critters（MIT），打包成一个 91 KB 的独立脚本。
      加载失败不影响首页——hx-critters.js 开头就有 window.PixelFX 存在性检查，没有就整段跳过。 -->
-<script src="fx/pixelfx-critters.js?v=69807ef" defer></script>
-<script src="fx/hx-critters.js?v=69807ef" defer></script>
+<script src="fx/pixelfx-critters.js?v=5d1568a" defer></script>
+<script src="fx/hx-critters.js?v=5d1568a" defer></script>
 <!-- 课堂码大屏二维码：离线 QR 编码器（qrcode 1.5.4 core 打包，MIT，见 fx/NOTICE-qr.md）。延迟加载即可：只有老师点「大屏二维码」时才用 -->
-<script src="fx/hx-qr.js?v=69807ef" defer></script>
-<script src="hx-scan.js?v=69807ef" defer></script><!-- 全站扫一扫（2026-11-08 K5）：摄像头 + BarcodeDetector / 本地 jsQR -->
+<script src="fx/hx-qr.js?v=5d1568a" defer></script>
+<script src="hx-scan.js?v=5d1568a" defer></script><!-- 全站扫一扫（2026-11-08 K5）：摄像头 + BarcodeDetector / 本地 jsQR -->
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; width: 100%; overflow: hidden; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -938,6 +939,119 @@
     #syncPop { top: auto; bottom: 0; left: 0; right: 0; width: auto; border-radius: 26px 26px 0 0; transform: translateY(100%); transform-origin: bottom; padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px)); }
     #syncPop.show { transform: none; }
   }
+
+  /* ── 身份卡背景设置（2026-11-12）：总入口当场弹窗，不再跳转接线仿真 ──
+     整套样式移植自接线仿真 #fw-rankcard 的 .rkc-*（深色全息浮窗），
+     作为独立 dialog 在总入口用 —— 身份卡背景本来就设计成深色底，深浅主题都协调。 */
+  #rankCardDlg { --rkc-line: rgba(90, 132, 224, .3); padding: 0; border: 0; border-radius: 18px; background: transparent;
+    width: min(800px, 94vw); max-width: 800px; color: #dfe9ff; overflow: hidden;
+    box-shadow: 0 30px 80px -20px rgba(0, 0, 0, .7); }
+  #rankCardDlg::backdrop { background: rgba(4, 8, 18, .55); backdrop-filter: blur(4px); }
+  #rankCardDlg .rkd-shell { position: relative; display: flex; flex-direction: column; max-height: 86vh;
+    background: linear-gradient(160deg, #0c1428, #080d1c); border: 1px solid rgba(90, 132, 224, .35); border-radius: 18px; overflow: hidden; }
+  #rankCardDlg .rkd-head { display: flex; align-items: center; gap: 10px; padding: 14px 18px 12px;
+    border-bottom: 1px solid rgba(90, 132, 224, .22); background: linear-gradient(180deg, rgba(0, 207, 255, .08), transparent); }
+  #rankCardDlg .rkd-head h2 { margin: 0; font-size: 16px; font-weight: 800; color: #f2f7ff; letter-spacing: .5px; }
+  #rankCardDlg .rkd-head small { margin-left: auto; font-size: 12px; font-weight: 600; color: #8fa6c9; }
+  #rankCardDlg .rkd-head .rkd-x { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 9px;
+    border: 1px solid rgba(124, 156, 255, .3); background: transparent; color: #9fb3d8; font-size: 16px; cursor: pointer; }
+  #rankCardDlg .rkd-head .rkd-x:hover { background: rgba(124, 156, 255, .18); color: #fff; }
+  #rankCardDlg .rkd-body { overflow: auto; padding: 2px 2px 0; }
+  #rankCardDlg .rkc { display: flex; flex-direction: column; gap: 13px; padding: 16px 20px 18px; }
+  #rankCardDlg .rkc-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+  #rankCardDlg .rkc-ct { display: block; padding: 7px 8px 8px; border-radius: 10px; cursor: pointer; text-align: left;
+    border: 1px solid var(--rkc-line); background: rgba(12, 20, 40, .7); color: #cfdcff;
+    font: 800 12.5px/1.1 inherit; transition: border-color .16s, background .16s, color .16s; }
+  #rankCardDlg .rkc-ct-t { display: flex; align-items: baseline; gap: 6px; margin-bottom: 5px; }
+  #rankCardDlg .rkc-ct-t small { margin-left: auto; font-size: 11px; font-weight: 600; color: #8fa6c9; }
+  #rankCardDlg .rkc-ct:hover { border-color: rgba(124, 156, 255, .6); color: #fff; }
+  #rankCardDlg .rkc-ct.on { border-color: #ffb934; background: linear-gradient(120deg, rgba(255, 185, 52, .18), rgba(255, 112, 46, .12));
+    color: #fff; box-shadow: 0 0 0 1px rgba(255, 185, 52, .45) inset; }
+  #rankCardDlg .rkc-ct.on small { color: #ffd895; }
+  #rankCardDlg .rkc-mini { --ms: .41; position: relative; display: block; width: 100%; border-radius: 7px; overflow: hidden;
+    background: #0a1022; border: 1px solid rgba(90, 132, 224, .22);
+    display: flex; align-items: center; gap: 6px; padding: 0 7px 0 5px; }
+  #rankCardDlg .rkc-mini[data-c="p1"] { height: calc(66px * var(--ms)); border-color: rgba(255, 196, 72, .5); }
+  #rankCardDlg .rkc-mini[data-c="p2"] { height: calc(60px * var(--ms)); border-color: rgba(186, 208, 236, .45); }
+  #rankCardDlg .rkc-mini[data-c="p3"] { height: calc(57px * var(--ms)); border-color: rgba(214, 138, 84, .45); }
+  #rankCardDlg .rkc-mini[data-c="p4"] { height: calc(42px * var(--ms)); }
+  #rankCardDlg .rkc-mini .rk-lb-bg { position: absolute; inset: 0; background-size: cover; background-position: 50% 50%; }
+  #rankCardDlg .rkc-mini .rk-lb-veil { position: absolute; inset: 0;
+    background: linear-gradient(90deg, rgba(4, 8, 18, .84) 0%, rgba(4, 8, 18, .52) 38%, rgba(4, 8, 18, .38) 62%, rgba(4, 8, 18, .78) 100%); }
+  #rankCardDlg .rkc-mini > *:not(.rk-lb-bg):not(.rk-lb-veil) { position: relative; z-index: 2; }
+  #rankCardDlg .rkc-mini b { font-size: 9.5px; font-weight: 800; color: #f2f7ff; line-height: 1;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #rankCardDlg .rkc-mini-m { display: grid; place-items: center; width: 16px; height: 16px; flex: none; }
+  #rankCardDlg .rkc-mini-m svg { width: 15px; height: 15px; overflow: visible; }
+  #rankCardDlg .rkc-mini-p { display: grid; place-items: center; width: 13px; height: 13px; border-radius: 4px;
+    background: rgba(90, 132, 224, .26); color: #cfe0ff; font: 900 8px/1 inherit; }
+  #rankCardDlg .rkc-prev { --s: .87; position: relative; border-radius: calc(11px * var(--s)); overflow: hidden;
+    border: 1px solid rgba(255, 185, 52, .45); background: #0a1022;
+    display: flex; align-items: center; gap: calc(10px * var(--s));
+    padding: 0 calc(14px * var(--s)) 0 calc(8px * var(--s)); }
+  #rankCardDlg .rkc-prev[data-card="p1"] { height: calc(66px * var(--s)); border-color: rgba(255, 196, 72, .8); }
+  #rankCardDlg .rkc-prev[data-card="p2"] { height: calc(60px * var(--s)); border-color: rgba(186, 208, 236, .7); }
+  #rankCardDlg .rkc-prev[data-card="p3"] { height: calc(57px * var(--s)); border-color: rgba(214, 138, 84, .72); }
+  #rankCardDlg .rkc-prev[data-card="p4"] { height: calc(42px * var(--s)); border-color: rgba(90, 132, 224, .35); }
+  #rankCardDlg .rkc-prev .rk-lb-bg { position: absolute; inset: 0; background-size: cover; background-position: 50% 50%; }
+  #rankCardDlg .rkc-prev .rk-lb-veil { position: absolute; inset: 0;
+    background: linear-gradient(90deg, rgba(4, 8, 18, .84) 0%, rgba(4, 8, 18, .52) 38%, rgba(4, 8, 18, .38) 62%, rgba(4, 8, 18, .78) 100%); }
+  #rankCardDlg .rkc-prev > *:not(.rk-lb-bg):not(.rk-lb-veil) { position: relative; z-index: 2; }
+  #rankCardDlg .rkc-medal { width: calc(46px * var(--s)); height: calc(46px * var(--s)); display: grid; place-items: center; flex: none; }
+  #rankCardDlg .rkc-medal svg { width: calc(40px * var(--s)); height: calc(40px * var(--s)); overflow: visible; }
+  #rankCardDlg .rkc-place { display: grid; place-items: center; width: calc(26px * var(--s)); height: calc(26px * var(--s));
+    border-radius: calc(8px * var(--s)); background: rgba(90, 132, 224, .2); color: #cfe0ff;
+    font: 900 calc(13px * var(--s))/1 inherit; font-variant-numeric: tabular-nums; }
+  #rankCardDlg .rkc-name { font-size: calc(17px * var(--s)); font-weight: 900; color: #fff; line-height: 1.06;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #rankCardDlg .rkc-name small { display: block; margin-top: calc(2px * var(--s)); font-size: calc(12px * var(--s));
+    font-weight: 600; color: #b9cbe4; }
+  #rankCardDlg .rkc-name small em { font-style: normal; color: #ffd895; }
+  #rankCardDlg .rkc-ms { margin-left: auto; padding-right: calc(6px * var(--s)); font-size: calc(15px * var(--s));
+    font-weight: 900; font-variant-numeric: tabular-nums; color: #fff; }
+  #rankCardDlg .rkc-stu-prev { position: relative; display: flex; flex-direction: column; justify-content: center; gap: 3px;
+    height: 84px; padding: 8px 14px; border-radius: 12px; overflow: hidden; text-align: left;
+    border: 1px solid rgba(90, 132, 224, .35); background: rgb(12 19 37 / .6); }
+  #rankCardDlg .rkc-stu-prev .rk-lb-bg { position: absolute; inset: 0; z-index: 0; background-size: cover; background-position: 50% 50%; }
+  #rankCardDlg .rkc-stu-prev .rk-lb-veil { position: absolute; inset: 0; z-index: 1;
+    background: linear-gradient(180deg, rgba(6, 12, 26, .46), rgba(4, 8, 18, .70)); }
+  #rankCardDlg .rkc-stu-prev > *:not(.rk-lb-bg):not(.rk-lb-veil) { position: relative; z-index: 2; }
+  #rankCardDlg .rkc-stu-prev i { font-style: normal; font-size: 12px; font-weight: 800; letter-spacing: .08em; color: #7fd7ff; }
+  #rankCardDlg .rkc-stu-prev b { font-size: 17px; font-weight: 800; color: #fff; line-height: 1.18; }
+  #rankCardDlg .rkc-stu-prev small { font-size: 12px; font-weight: 600; color: #a9bcdd; }
+  #rankCardDlg .rkc-h { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 800; color: #dfe9ff; }
+  #rankCardDlg .rkc-h small { margin-left: auto; font-weight: 600; color: #8fa6c9; font-size: 12px; }
+  #rankCardDlg .rkc-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; }
+  #rankCardDlg .rkc-sw { position: relative; height: 56px; border-radius: 10px; overflow: hidden; cursor: pointer;
+    border: 1px solid var(--rkc-line); background: #0a1022; padding: 0; }
+  #rankCardDlg .rkc-sw i { position: absolute; inset: 0; }
+  #rankCardDlg .rkc-sw span { position: absolute; left: 0; right: 0; bottom: 0; padding: 3px 6px; font-size: 11px; font-weight: 700;
+    color: #eaf2ff; background: linear-gradient(0deg, rgba(4, 8, 18, .9), transparent); text-align: left; }
+  #rankCardDlg .rkc-sw.on { border-color: #ffb934; box-shadow: 0 0 0 1px #ffb934 inset, 0 8px 18px -12px #ffb934; }
+  #rankCardDlg .rkc-sw.on::after { content: ""; position: absolute; right: 6px; top: 6px; width: 8px; height: 8px; border-radius: 50%;
+    background: #ffb934; box-shadow: 0 0 8px #ffb934; }
+  #rankCardDlg .rkc-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  #rankCardDlg .rkc-num { min-width: 46px; font: 800 12.5px/1 inherit; font-variant-numeric: tabular-nums; color: #ffd895; text-align: right; }
+  #rankCardDlg .rkc-row label { font-size: 12.5px; font-weight: 700; color: #a9bcdd; }
+  #rankCardDlg input[type=range] { flex: 1; min-width: 120px; accent-color: #ffb934; }
+  #rankCardDlg .rkc-act { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  #rankCardDlg .rkc-act .grow { flex: 1; }
+  #rankCardDlg .rkc-msg { min-height: 18px; font-size: 12.5px; font-weight: 600; color: #8fa6c9; }
+  #rankCardDlg .rkc-msg.bad { color: #ff9a8f; } #rankCardDlg .rkc-msg.ok { color: #7ee0a5; }
+  #rankCardDlg .rkc-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 38px; padding: 0 16px;
+    border-radius: 10px; border: 1px solid rgba(124, 156, 255, .4); background: rgba(124, 156, 255, .12);
+    color: #cfdcff; font: 700 13px/1 inherit; cursor: pointer; transition: background .18s, color .18s, transform .12s; }
+  #rankCardDlg .rkc-btn:hover { background: rgba(124, 156, 255, .24); color: #fff; }
+  #rankCardDlg .rkc-btn:active { transform: scale(.97); }
+  #rankCardDlg .rkc-btn.pri { border: 0; background: linear-gradient(120deg, #ffb934, #ff702e); color: #2a1702;
+    box-shadow: 0 10px 22px -14px rgba(255, 150, 50, .95); }
+  #rankCardDlg .rkc-btn:disabled { opacity: .5; cursor: default; }
+  #rankCardDlg .rkd-wait { padding: 40px 20px; text-align: center; color: #8fa6c9; }
+  @media (max-width: 640px) {
+    #rankCardDlg { width: 96vw; }
+    #rankCardDlg .rkc-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    #rankCardDlg .rkc-cards { grid-template-columns: 1fr; }
+  }
 </style>
 </head>
 <body>
@@ -1007,6 +1121,8 @@
   <h2 id="cfT"></h2>
   <div class="f"><p id="cfB" style="margin:0 0 6px;text-align:center;color:var(--dim)"></p><button class="btn bad-solid" type="button" id="cfOk"></button><button class="btn sub" type="button" id="cfNo">取消</button></div>
 </dialog>
+<!-- 身份卡背景设置（2026-11-12）：总入口当场弹窗，不再跳转接线仿真。内容由 openRankCardDialog() 渲染。 -->
+<dialog id="rankCardDlg" class="rkd"></dialog>
 <dialog id="share">
   <h2>发给对方</h2>
   <div class="f">
@@ -1999,8 +2115,8 @@ function renderLookBody() {
   if ($('op')) $('op').oninput = function () { opAt = Date.now(); $('opv').textContent = $('op').value + '%'; HXTheme.set({ clr: +$('op').value }); };
   if ($('bgo')) $('bgo').oninput = function () { opAt = Date.now(); $('bgov').textContent = $('bgo').value + '%'; HXTheme.set({ bgo: +$('bgo').value }); };
   $('lookReset').onclick = function () { HXTheme.reset(); };
-  // 身份卡背景设置入口：关掉外观面板 → 打开接线仿真里的设置窗（HXTheme.rankCard 见 hx-theme.js）
-  if ($('lookRankCardBtn')) $('lookRankCardBtn').onclick = function () { closePops(); HXTheme.rankCard(); };
+  // 身份卡背景设置入口（2026-11-12）：关掉外观面板 → 总入口当场弹窗设置（不再跳转接线仿真）
+  if ($('lookRankCardBtn')) $('lookRankCardBtn').onclick = function () { closePops(); openRankCardDialog(); };
 }
 // 拖透明度时不重画面板：手机上拖动滑块不会获得焦点，一重画滑块就被换掉、只能点不能拖
 var opAt = 0;
@@ -3104,6 +3220,206 @@ function openRankCard() {
   var send = function () { try { f.contentWindow.postMessage({ hx: 'rankcard' }, location.origin); } catch (e) { } };
   if (f && f.dataset && f.dataset.ready) send();           // 已加载：直接唤起
   else if (f) f.addEventListener('load', send, { once: true }); // 还在加载：等 load（那时 rkCardWin 的监听已挂好）
+}
+
+/* ── 身份卡背景设置：总入口当场弹窗（2026-11-12）────────────────────────
+   用户反馈：「我在主题点身份背景设置，应该是当场弹窗，而不是必须跳转到接线仿真去设置」。
+   所以不再 show('wiring') 跳过去，而是在总入口直接弹 dialog。
+   数据层仍是 public.hx_rank_bg（hx_rank_bg_get / hx_rank_bg_put，RLS 只认本人），
+   预设复用总入口引的 rank-bg.js（window.RANK_BG_PRESETS / window.rankBgCss）。
+   这里只搬了 rkBgStyle / rkMedal / rkCompressImg / RK_CARDS 几个纯函数 + 精简 UI，
+   逻辑与接线仿真 rkCardWin 对齐（四种卡型各自取景、一张图统一作用、保存走本人账号）。 */
+var RKD = { bg: '', cur: 'p1', tune: {}, cards: [
+  { k: 'p1', name: '冠军卡', real: 66, tag: '排位之星', ms: '0:16.56' },
+  { k: 'p2', name: '亚军卡', real: 60, tag: '卓越表现', ms: '0:22.41' },
+  { k: 'p3', name: '季军卡', real: 57, tag: '实力先锋', ms: '0:24.99' },
+  { k: 'p4', name: '常规卡', real: 42, tag: '', ms: '0:31.11' },
+] };
+function rkdTune(k) { var t = RKD.tune[k]; return { pos: t && t.pos != null ? t.pos : 50, zoom: t && t.zoom != null ? t.zoom : 100 }; }
+function rkdSet(k, p) { RKD.tune[k] = Object.assign(rkdTune(k), p); }
+function rkdBgStyle(bg, tune) {
+  var s = String(bg || ''); if (!s) return '';
+  var t = (tune && typeof tune === 'object') ? tune : { pos: Number(tune) };
+  var rp = Number(t.pos);
+  var p = Math.max(0, Math.min(100, Number.isFinite(rp) ? Math.round(rp) : 50));
+  var z = Math.max(60, Math.min(300, Math.round(Number(t.zoom)) || 100)) / 100;
+  var sc = z === 1 ? '' : ';transform:scale(' + z + ')';
+  if (/^p:[a-z0-9_-]{1,24}$/.test(s)) {
+    var css = (window.rankBgCss && window.rankBgCss(s.slice(2))) || '';
+    var ty = (50 - p) * 0.5;
+    var tf = 'translateY(' + ty + '%)' + (z === 1 ? '' : ' scale(' + z + ')');
+    return 'background:' + css.replace(/0 0\s*\/\s*100% 100%/g, '50% 50% / cover') + ';transform:' + tf;
+  }
+  if (/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(s))
+    return 'background-image:url("' + s + '");background-size:cover;background-repeat:no-repeat;background-position:50% ' + p + '%' + sc;
+  return '';
+}
+function rkdMedal(p) {
+  var G = p === 1 ? ['#ffeeb8', '#ffb934', '#d98a0c'] : p === 2 ? ['#f7fbff', '#c3d3e8', '#7d8ea6'] : ['#ffd9bd', '#d98a52', '#9a5a2c'];
+  var id = 'rkdMedal' + p;
+  var crown = p === 1 ? '<path d="M14.5 12.5l3.4 4.1L24 9.4l6.1 7.2 3.4-4.1-1.7 7.4H16.2z" fill="' + G[1] + '" stroke="rgba(255,255,255,.6)" stroke-width=".8"/>' : '';
+  return '<svg viewBox="0 0 48 48" aria-hidden="true"><defs><linearGradient id="' + id + '" x1="0" y1="0" x2=".9" y2="1">'
+    + '<stop offset="0" stop-color="' + G[0] + '"/><stop offset=".55" stop-color="' + G[1] + '"/><stop offset="1" stop-color="' + G[2] + '"/></linearGradient></defs>'
+    + '<circle cx="24" cy="27.5" r="13" fill="url(#' + id + ')" stroke="rgba(255,255,255,.72)" stroke-width="1.2"/>'
+    + '<circle cx="24" cy="27.5" r="9.4" fill="rgba(0,0,0,.18)"/>'
+    + '<text x="24" y="32.4" text-anchor="middle" font-size="12.5" font-weight="900" fill="#fff" font-family="system-ui,sans-serif">' + p + '</text>'
+    + crown + '</svg>';
+}
+function rkdCompressImg(file) {
+  return new Promise(function (res, rej) {
+    var u = URL.createObjectURL(file), im = new Image();
+    im.onload = function () {
+      try {
+        var W = Math.min(1280, im.naturalWidth || im.width), H = Math.round((im.naturalHeight || im.height) * W / (im.naturalWidth || im.width));
+        var cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+        cv.getContext('2d').drawImage(im, 0, 0, W, H);
+        var q = .82, data = cv.toDataURL('image/jpeg', q);
+        while (data.length > 620000 && q > .38) { q -= .1; data = cv.toDataURL('image/jpeg', q); }
+        URL.revokeObjectURL(u);
+        if (data.length > 880000) return rej(new Error('压缩后仍然太大，请换一张'));
+        res(data);
+      } catch (e) { URL.revokeObjectURL(u); rej(e); }
+    };
+    im.onerror = function () { URL.revokeObjectURL(u); rej(new Error('这张图读不出来')); };
+    im.src = u;
+  });
+}
+function openRankCardDialog() {
+  if (!HX.in()) { openLogin(); return; }
+  var dlg = $('rankCardDlg');
+  if (!dlg) return;
+  var info0 = info(), stu = (ST.me && ST.me.student) || null;
+  var name = (stu && stu.name) || info0.name || '我';
+  var cls = (stu && stu.class) || '';
+  RKD.cur = 'p1';
+  // 头部骨架
+  dlg.innerHTML = '<div class="rkd-shell">'
+    + '<div class="rkd-head"><h2>我的身份卡</h2><small>背景跟账号走 · 四种卡型各自微调</small>'
+    + '<button type="button" class="rkd-x" id="rkdClose" aria-label="关闭">✕</button></div>'
+    + '<div class="rkd-body"><div class="rkd-wait">读取你的身份卡…</div></div></div>';
+  var body = dlg.querySelector('.rkd-body');
+  dlg.querySelector('#rkdClose').onclick = function () { dlg.close(); };
+  if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
+  // 读自己那份背景
+  HX.rpc('hx_rank_bg_get').then(function (rows) {
+    var r = rows && rows[0];
+    RKD.bg = r ? r.bg : ''; RKD.tune = (r && r.tune && typeof r.tune === 'object') ? r.tune : {};
+    rkdPaint(body, name, cls);
+  }).catch(function () {
+    RKD.bg = ''; RKD.tune = {};
+    rkdPaint(body, name, cls);
+  });
+}
+function rkdPaint(body, name, cls) {
+  var ps = (window.RANK_BG_PRESETS || []);
+  body.innerHTML = '<div class="rkc">'
+    + '<div class="rkc-h">身份卡型<small>四种尺寸同时出现在排行榜上 · 每型单独调取景 · 点哪张调哪张</small></div>'
+    + '<div class="rkc-cards">' + RKD.cards.map(function (c) {
+      return '<button type="button" class="rkc-ct' + (RKD.cur === c.k ? ' on' : '') + '" data-card="' + c.k + '" title="' + esc(c.name) + '：榜单上 ' + c.real + 'px 高">'
+        + '<span class="rkc-ct-t">' + esc(c.name) + '<small>' + c.real + 'px 高</small></span>'
+        + '<span class="rkc-mini" data-c="' + c.k + '"><span class="rk-lb-bg" aria-hidden="true"></span><span class="rk-lb-veil" aria-hidden="true"></span><span class="rkc-mini-m" aria-hidden="true"></span><b>' + esc(name) + '</b></span>'
+        + '</button>';
+    }).join('') + '</div>'
+    + '<div class="rkc-prev" data-card="' + esc(RKD.cur) + '">'
+    + '<span class="rk-lb-bg" aria-hidden="true"></span><span class="rk-lb-veil" aria-hidden="true"></span>'
+    + '<span class="rkc-medal" id="rkdMedal"></span>'
+    + '<span class="rkc-name">' + esc(name) + '<small>' + esc(cls) + '<em id="rkdTag"></em></small></span>'
+    + '<em class="rkc-ms" id="rkdMs"></em></div>'
+    + '<div class="rkc-h">学生卡<small>选人面板里学生身份卡的样子 · 和排行榜共用同一张背景（取景跟常规卡）</small></div>'
+    + '<div class="rkc-stu-prev" id="rkdStuPrev"><span class="rk-lb-bg" aria-hidden="true"></span><span class="rk-lb-veil" aria-hidden="true"></span><i>01</i><b>' + esc(name) + '</b><small>' + esc(cls) + '</small></div>'
+    + '<div class="rkc-row"><label for="rkdPos">上下位置</label><input type="range" id="rkdPos" min="0" max="100" step="1" value="50"><span class="rkc-num" id="rkdPosV">50</span>'
+    + '<label for="rkdZoom">缩放</label><input type="range" id="rkdZoom" min="60" max="300" step="5" value="100"><span class="rkc-num" id="rkdZoomV">100%</span></div>'
+    + '<div class="rkc-h">系统预设<small>' + ps.length + ' 套 · 选中即预览，保存后全站可见</small></div>'
+    + '<div class="rkc-grid">' + ps.map(function (p) {
+      return '<button type="button" class="rkc-sw' + (RKD.bg === 'p:' + p.k ? ' on' : '') + '" data-p="p:' + esc(p.k) + '" title="' + esc(p.name) + '"><i style="background:' + esc(p.css) + ';background-size:cover;background-position:50% 50%"></i><span>' + esc(p.name) + '</span></button>';
+    }).join('') + '</div>'
+    + '<div class="rkc-row"><button type="button" class="rkc-btn" id="rkdUp">上传自己的图片</button>'
+    + '<input type="file" id="rkdFile" accept="image/jpeg,image/png,image/webp" hidden>'
+    + '<span class="rkc-msg">JPG / PNG / WebP，自动压到 600KB 以内；一张图统一作用于四种卡型</span></div>'
+    + '<div class="rkc-act"><button type="button" class="rkc-btn" id="rkdReset">恢复默认</button><span class="grow"></span>'
+    + '<button type="button" class="rkc-btn pri" id="rkdSave">保存并应用</button></div>'
+    + '<p class="rkc-msg" id="rkdMsg">背景只属于你的账号（跟着登录账号走，换设备也在）：排行榜身份卡和选人面板里的学生卡都用它。</p></div>';
+
+  var msg = body.querySelector('#rkdMsg');
+  var setMsg = function (t, k) { if (!msg) return; msg.className = 'rkc-msg' + (k ? ' ' + k : ''); msg.textContent = t; };
+  var prevBox = body.querySelector('.rkc-prev');
+  var elMedal = body.querySelector('#rkdMedal'), elTag = body.querySelector('#rkdTag'), elMs = body.querySelector('#rkdMs');
+  var pos = body.querySelector('#rkdPos'), posV = body.querySelector('#rkdPosV');
+  var zoom = body.querySelector('#rkdZoom'), zoomV = body.querySelector('#rkdZoomV');
+  var minis = Array.from(body.querySelectorAll('.rkc-mini'));
+
+  var paintPrev = function () {
+    var c = RKD.cards.find(function (x) { return x.k === RKD.cur; }) || RKD.cards[0];
+    var t = rkdTune(c.k);
+    var s = Math.max(.35, Math.min(1.6, (prevBox.clientWidth || 805) / 805));
+    prevBox.style.setProperty('--s', s.toFixed(3));
+    prevBox.setAttribute('data-card', c.k);
+    var st = rkdBgStyle(RKD.bg, t);
+    var prevBg = prevBox.querySelector('.rk-lb-bg');
+    if (prevBg) prevBg.setAttribute('style', st || '');
+    prevBox.setAttribute('data-nobg', st ? '0' : '1');
+    if (elMedal) elMedal.innerHTML = c.k === 'p4' ? '<i class="rkc-place">4</i>' : rkdMedal(+c.k.slice(1));
+    if (elTag) elTag.textContent = c.tag ? ' · ' + c.tag : '';
+    if (elMs) elMs.textContent = c.ms;
+    if (pos) pos.value = t.pos; if (posV) posV.textContent = t.pos;
+    if (zoom) zoom.value = t.zoom; if (zoomV) zoomV.textContent = t.zoom + '%';
+    var stuPrev = body.querySelector('#rkdStuPrev'), stuBg = stuPrev && stuPrev.querySelector('.rk-lb-bg');
+    if (stuBg) { var stStu = rkdBgStyle(RKD.bg, rkdTune('p4')); stuBg.setAttribute('style', stStu || ''); stuPrev.setAttribute('data-nobg', stStu ? '0' : '1'); }
+    minis.forEach(function (m) {
+      var k = m.dataset.c, stm = rkdBgStyle(RKD.bg, rkdTune(k));
+      var bgel = m.querySelector('.rk-lb-bg'); if (bgel) bgel.setAttribute('style', stm || '');
+      m.setAttribute('data-nobg', stm ? '0' : '1');
+      var mm = m.querySelector('.rkc-mini-m');
+      if (mm) mm.innerHTML = k === 'p4' ? '<i class="rkc-mini-p">4</i>' : rkdMedal(+k.slice(1));
+    });
+  };
+
+  body.querySelectorAll('[data-card]').forEach(function (b) { b.onclick = function () {
+    RKD.cur = b.dataset.card;
+    body.querySelectorAll('[data-card]').forEach(function (x) { x.classList.toggle('on', x === b); });
+    paintPrev();
+    var c = RKD.cards.find(function (x) { return x.k === RKD.cur; }) || RKD.cards[0];
+    setMsg('正在调「' + c.name + '」的取景，四种卡型各自记住');
+  }; });
+  body.querySelectorAll('[data-p]').forEach(function (b) { b.onclick = function () {
+    RKD.bg = b.dataset.p;
+    body.querySelectorAll('[data-p]').forEach(function (x) { x.classList.toggle('on', x === b); });
+    paintPrev(); setMsg('已选「' + b.title + '」，点「保存并应用」生效');
+  }; });
+  if (pos) pos.oninput = function () { rkdSet(RKD.cur, { pos: +pos.value }); if (posV) posV.textContent = pos.value; paintPrev(); };
+  if (zoom) zoom.oninput = function () { rkdSet(RKD.cur, { zoom: +zoom.value }); if (zoomV) zoomV.textContent = zoom.value + '%'; paintPrev(); };
+  body.querySelector('#rkdReset').onclick = function () {
+    RKD.bg = ''; RKD.tune = {};
+    body.querySelectorAll('[data-p]').forEach(function (x) { x.classList.remove('on'); });
+    paintPrev(); setMsg('已恢复默认背景（四种卡型取景也一起归零），点「保存并应用」生效');
+  };
+  var file = body.querySelector('#rkdFile');
+  body.querySelector('#rkdUp').onclick = function () { file && file.click(); };
+  if (file) file.onchange = async function () {
+    var f = file.files && file.files[0]; file.value = ''; if (!f) return;
+    if (!/^image\/(jpeg|png|webp)$/.test(f.type)) return setMsg('只支持 JPG / PNG / WebP', 'bad');
+    if (f.size > 8 * 1024 * 1024) return setMsg('这张图超过 8MB，请先裁小一点', 'bad');
+    setMsg('正在压缩…');
+    try {
+      RKD.bg = await rkdCompressImg(f);
+      RKD.tune = {};
+      body.querySelectorAll('[data-p]').forEach(function (x) { x.classList.remove('on'); });
+      paintPrev();
+      setMsg('图片已载入（' + Math.round(RKD.bg.length / 1024) + 'KB）· 四种卡型取景已归零，逐个切过去调好再保存', 'ok');
+    } catch (e) { setMsg('这张图用不了：' + (e.message || e), 'bad'); }
+  };
+  var save = body.querySelector('#rkdSave');
+  if (save) save.onclick = async function () {
+    if (save.disabled) return; save.disabled = true; setMsg('保存中…');
+    try {
+      var tune = {}; RKD.cards.forEach(function (c) { var t = rkdTune(c.k); tune[c.k] = { pos: +t.pos, zoom: +t.zoom }; });
+      await HX.rpc('hx_rank_bg_put', { p_bg: RKD.bg || 'none', p_pos: rkdTune('p1').pos, p_tune: tune });
+      setMsg('已保存：排行榜身份卡和学生卡都会换成这张背景（四种卡型取景都记住了）', 'ok');
+      toast('身份卡已保存');
+    } catch (e) { setMsg('保存失败：' + (e.message || e), 'bad'); }
+    save.disabled = false;
+  };
+  paintPrev();
 }
 // 给嵌在框里的工具用：要登录时弹登录窗口、问身份、回首页
 window.HXPortal = {
