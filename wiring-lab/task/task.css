@@ -43,6 +43,14 @@ em { font-style: normal; }
 .pg-top h1 { margin: 0; font-size: clamp(16px, 1.6vw, 21px); letter-spacing: .06em; }
 .pg-top h1 small { display: block; font-size: 11.5px; font-weight: 400; color: var(--dim); letter-spacing: 0; margin-top: 2px; }
 .pg-top .grow { flex: 1; }
+/* 返回按钮：回「上一级」= 接线仿真主页（不是浏览器上一页、也不是首页） */
+.pg-top .back {
+  flex: none; display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 14px; border-radius: 10px; cursor: pointer; font-size: 13.5px; font-weight: 700;
+  border: 1px solid var(--edge2); background: color-mix(in srgb, var(--acc) 12%, transparent); color: var(--ink);
+  transition: background .15s, border-color .15s;
+}
+.pg-top .back:hover { background: color-mix(in srgb, var(--acc) 22%, transparent); border-color: var(--acc); }
 .who { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--dim); }
 .who .role { font-size: 11.5px; font-weight: 800; padding: 3px 8px; border-radius: 8px; border: 1px solid var(--edge2); color: var(--acc); }
 .who .role.s { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 40%, transparent); }
@@ -195,14 +203,39 @@ body.board::before {
 .bd-title small { display: block; font-size: 1.9vmin; color: var(--dim); font-weight: 700; letter-spacing: .06em; }
 .bd-title b { display: block; font-size: 3.6vmin; line-height: 1.15; margin-top: .4vmin; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bd-title .sub { margin-top: .5vmin; font-size: 1.7vmin; color: var(--dim); }
+/* 大屏顶栏返回：回「上一级」= 接线仿真主页。投影上要低调，别抢标题 */
+.bd-back {
+  flex: none; display: inline-flex; align-items: center; gap: .6vmin;
+  padding: .8vmin 1.4vmin; border-radius: 1vmin; cursor: pointer;
+  font-size: 1.7vmin; font-weight: 700; color: var(--dim); white-space: nowrap;
+  border: 1px solid var(--edge2); background: rgba(12, 16, 30, .6);
+  transition: color .15s, border-color .15s;
+}
+.bd-back:hover { color: var(--ink); border-color: var(--acc); }
 .bd-stat { flex: none; display: flex; align-items: center; gap: 2vmin; }
 .ring { position: relative; width: 15vmin; height: 15vmin; flex: none; }
 .ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
 .ring .trk { stroke: rgba(130, 150, 210, .3); }
 .ring .val { stroke: var(--ok); stroke-linecap: round; transition: stroke-dashoffset .7s cubic-bezier(.22, .8, .3, 1); }
-.ring .txt { position: absolute; inset: 0; display: grid; place-items: center; align-content: center; gap: .5vmin; text-align: center; line-height: 1; }
+.ring .txt { position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; align-content: center; gap: .5vmin; text-align: center; line-height: 1; }
 .ring .txt b { font-size: 2.7vmin; font-variant-numeric: tabular-nums; }
 .ring .txt em { display: block; font-size: 1.4vmin; color: var(--dim); font-weight: 700; }
+/* 完成率圆盘流光：标准模式下进度环外圈有一道旋转的高光（conic-gradient 光晕扫过），
+   用径向 mask 扣成和轨道同心的一条细带，只落在进度环上、不盖中间的数字。
+   极简模式（body.board.lite）不叠这层光晕、不播动画 —— 由 task-board.js 的 applyLite 切 class。 */
+.ring::after {
+  content: ''; position: absolute; inset: -6%; z-index: 1; pointer-events: none; border-radius: 50%;
+  background: conic-gradient(from 0deg,
+    transparent 0deg, transparent 64deg,
+    rgba(120, 255, 205, .0) 76deg, rgba(150, 255, 215, .6) 92deg, rgba(120, 255, 205, 0) 108deg,
+    transparent 122deg, transparent 360deg);
+  -webkit-mask: radial-gradient(closest-side, transparent 0 78%, #000 79% 96%, transparent 97%);
+  mask: radial-gradient(closest-side, transparent 0 78%, #000 79% 96%, transparent 97%);
+  filter: blur(1px);
+  opacity: 0;
+}
+body.board:not(.lite) .ring::after { opacity: 1; animation: ringFlow 2.6s linear infinite; }
+@keyframes ringFlow { to { transform: rotate(360deg); } }
 .bd-count { text-align: right; }
 .bd-count b { font-size: 5.4vmin; line-height: 1; font-variant-numeric: tabular-nums; }
 .bd-count b small { font-size: 2.4vmin; color: var(--dim); font-weight: 700; }
@@ -221,11 +254,17 @@ body.board::before {
   grid-auto-rows: min-content;
 }
 .pend {
+  position: relative; overflow: hidden;  /* 身份卡背景层要裁在圆角里 */
   display: flex; align-items: center; gap: 1.1vmin; padding: 1.1vmin 1.3vmin; min-width: 0;
   border: 1px solid color-mix(in srgb, var(--bad) 30%, transparent); border-radius: 1.3vmin;
-  background: linear-gradient(135deg, rgba(40, 22, 34, .82), rgba(16, 16, 30, .7));
   animation: pendIn .35s ease both;
 }
+/* 身份卡背景：背景 span → 遮罩 span → 文字（照排位 .rk-lb 的结构）。
+   背景拿不到时退回原来的深色红底（data-nobg="1"），不塌版。 */
+.pend .pend-bg { position: absolute; inset: 0; z-index: 0; background-size: cover; background-repeat: no-repeat; background-position: 50% 50%; }
+.pend[data-nobg="1"] .pend-bg { background: linear-gradient(135deg, rgba(40, 22, 34, .82), rgba(16, 16, 30, .7)); }
+.pend .pend-veil { position: absolute; inset: 0; z-index: 1; background: linear-gradient(90deg, rgba(4, 8, 18, .82) 0%, rgba(4, 8, 18, .48) 40%, rgba(4, 8, 18, .34) 62%, rgba(4, 8, 18, .76) 100%); }
+.pend > *:not(.pend-bg):not(.pend-veil) { position: relative; z-index: 2; }
 .pend:nth-child(n+13) { animation-delay: .04s; }
 .pend i {
   flex: none; width: 4.4vmin; height: 4.4vmin; border-radius: 50%; display: grid; place-items: center;
@@ -252,12 +291,17 @@ body.no-anim .done-chip:not(.fresh) { animation: none; }
 }
 .done-list { flex: 1; min-height: 0; overflow: hidden; display: grid; align-content: start; gap: .7vmin; }
 .done-chip {
+  position: relative; overflow: hidden;  /* 身份卡背景层要裁在圆角里 */
   display: inline-flex; align-items: center; gap: .6vmin; max-width: 100%; min-width: 0;
   padding: .45vmin .8vmin .45vmin .45vmin; border-radius: 99px;
   border: 1px solid color-mix(in srgb, var(--ok) 26%, transparent);
-  background: color-mix(in srgb, var(--ok) 10%, rgba(10, 14, 26, .7));
   animation: chipIn .3s ease both;
 }
+/* 身份卡背景：背景 span → 遮罩 span → 文字；拿不到背景退回原来的深色绿底 */
+.done-chip .chip-bg { position: absolute; inset: 0; z-index: 0; background-size: cover; background-repeat: no-repeat; background-position: 50% 50%; }
+.done-chip[data-nobg="1"] .chip-bg { background: color-mix(in srgb, var(--ok) 10%, rgba(10, 14, 26, .7)); }
+.done-chip .chip-veil { position: absolute; inset: 0; z-index: 1; background: linear-gradient(90deg, rgba(4, 8, 18, .72) 0%, rgba(4, 8, 18, .38) 45%, rgba(4, 8, 18, .62) 100%); }
+.done-chip > *:not(.chip-bg):not(.chip-veil) { position: relative; z-index: 2; }
 .done-chip i {
   flex: none; width: var(--dcs, 2.6vmin); height: var(--dcs, 2.6vmin); border-radius: 50%; display: grid; place-items: center;
   font-size: calc(var(--dcs, 2.6vmin) * .58); font-weight: 800; font-style: normal; background: var(--ok); color: #05210f;
@@ -303,6 +347,7 @@ body.no-anim .done-chip:not(.fresh) { animation: none; }
 @media (prefers-reduced-motion: reduce) {
   .pend, .done-chip, .done-chip.fresh, .bd-foot .dot { animation: none; }
   .ring .val { transition: none; }
+  .ring::after { animation: none; opacity: 0; }
 }
 /* 窄屏（手机竖屏看教师端）：大屏页本来就不给手机用，这里只把教师端收成一列 */
 @media (max-width: 980px) { .form { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

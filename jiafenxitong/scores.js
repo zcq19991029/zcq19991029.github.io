@@ -22,6 +22,8 @@
   var POLL_MS = 4000;
 
   var D = null;            // 最近一次快照
+  var CLASS = null;        // 全班考核表（jf_class_scores 返回的摘要，含别人汇总数字）
+  var boardOpen = '';      // 考核表里当前展开「每课完成率」的那一行（只可能是自己）
   var timer = null;
   var fatal = null;        // no_login / not_student / no_data / error
 
@@ -618,6 +620,71 @@
       ' 人），别的小组看不到。「个人项目累计」是组长在课上逐项打分后的合计，仅供参考，有疑问直接找老师。</p></div>';
   }
 
+  /* 全班考核表（2026-11-13）：把老师端那张「上课记分」考核表开放给学生端**只读**查看。
+     数据源 jf_class_scores() 只下发每人摘要字段（不下发每课每项目明细），所以别人的行只有汇总；
+     「我」这一行可以点开「每节课完成率」明细（复用 jf_my_scores 的 D.lessons）。
+     列对齐老师端 verticalHead：组号/姓名/学号/平时分/计入总评/期末至少需考/项目完成率。
+     注意：项目完成率（taskRate）和平时分（regular）是同一个完成率——一个折成 /100、一个显示 %，
+     这里保留「完成率」一列是为了和老师端考核表对得上一眼，不是新增一个数。 */
+  function classBoardDetail() {
+    var ls = (D && D.lessons) || [];
+    if (!ls.length) return '<p class="note">还没有课次，老师记分后这里会出现每节课的完成率。</p>';
+    var items = ls.slice().reverse().map(function (l) {
+      return '<span class="cb-d-item"><b>' + esc(lessonLabel(l)) + '</b>' +
+        (l.pct === null ? '<span class="wait">—</span>' : '<b>' + pct(l.pct) + '</b>') + '</span>';
+    }).join('');
+    return '<div class="cb-d-head">我的每节课完成率</div><div class="cb-d-list">' + items + '</div>';
+  }
+
+  function renderClassBoard() {
+    if (!CLASS || !Array.isArray(CLASS.students) || !CLASS.students.length) return '';
+    var meKey = CLASS.me && CLASS.me.key;
+    var groups = [];
+    CLASS.students.forEach(function (s) {
+      var gno = Number(s.gno) || 0;
+      var g = groups[gno];
+      if (!g) { g = groups[gno] = []; }
+      g.push(s);
+    });
+    var rows = '';
+    Object.keys(groups).map(Number).sort(function (a, b) { return a - b; }).forEach(function (gno) {
+      var list = groups[gno];
+      var hue = ((gno || 0) * 67) % 360;
+      list.forEach(function (s) {
+        var isMe = !!(meKey && s.key === meKey);
+        var need = s.failed ? '<span class="pill bad">考勤挂科</span>'
+          : s.needed === null || s.needed === undefined ? '—'
+          : s.needed > 100 ? '<span class="pill warn">已超 100</span>'
+          : num(s.needed);
+        rows += '<tr class="cb-row' + (isMe ? ' is-me' : '') + '" data-board-key="' + esc(s.key || '') + '"' +
+          (isMe ? ' title="点我展开每节课完成率"' : '') + '>' +
+          '<td class="cb-gno"><span class="cb-swatch" style="background:hsl(' + hue + ',70%,92%);color:hsl(' + hue + ',62%,38%)">' + esc(gno) + '</span></td>' +
+          '<td class="nm cb-name"><b>' + esc(s.name) + '</b>' + (isMe ? '<span class="me-tag">我</span>' : '') + '</td>' +
+          '<td class="cb-no">' + esc(s.no || '') + '</td>' +
+          '<td><b>' + num(s.regular) + '</b></td>' +
+          '<td>' + num(s.contribution) + '</td>' +
+          '<td>' + need + '</td>' +
+          '<td class="cb-rate">' + (s.task_rate === null || s.task_rate === undefined ? '—' : num(s.task_rate) + '%') + '</td>' +
+          '</tr>';
+        if (isMe) {
+          rows += '<tr class="cb-detail' + (boardOpen === s.key ? ' is-open' : '') + '" data-board-detail="' + esc(s.key || '') + '">' +
+            '<td colspan="7"><div class="cb-detail-inner">' + classBoardDetail() + '</div></td></tr>';
+        }
+      });
+    });
+    return '<div class="card class-board"><div class="cb-head">' +
+      '<h3>全班考核表</h3>' +
+      '<span class="cb-ro">只读</span>' +
+      '<button type="button" class="cb-refresh" id="cbRefresh" aria-label="刷新全班考核表">刷新</button>' +
+      '</div>' +
+      '<div class="scroll"><table class="book class-board"><thead><tr>' +
+      '<th>组</th><th class="nm">姓名</th><th>学号</th><th>平时分</th><th>计入总评</th><th>期末至少需考</th><th>项目完成率</th>' +
+      '</tr></thead><tbody>' + rows + '</tbody></table></div>' +
+      '<p class="note">全班各组的平时分 / 计入总评 / 期末至少需考 / 项目完成率，只读、不能加减分。' +
+      '点<b>你自己</b>那一行可以展开「每节课完成率」明细；别人的行只显示汇总（每课明细只有本人和老师看得到）。' +
+      '老师那边一存分，点右上角「刷新」就能看到最新。</p></div>';
+  }
+
   /* 本学期总分（2026-11-13 合并页签后成了整页的第一张卡）：
      四个数字全是登分册口径，彼此不重复 —— 平时分是完成率折成百分制，
      计入总评是它×40%，期末至少需考是反推出来的目标分，综合是期末录完后的总评。
@@ -725,7 +792,7 @@
     if (!D || fatal) return;
     $('view').innerHTML = renderDuty(D.lessons || []) +
       renderTotal() + renderBreakdown() +
-      renderScore() +
+      renderScore() + renderClassBoard() +
       renderHow() + renderBook();
     clearNotice();
     /* 页头小标签：本节开了互评就写「本节可互评」，否则老实写「只读」 */
@@ -772,9 +839,20 @@
     showFatal('error', { message: e && e.message });
   }
 
+  /* 全班考核表：单独拉一次 + 手动刷新，不塞进 4 秒轮询（考核表变化不频繁，别给轮询加压）。
+     失败静默降级成 CLASS=null——这张卡不显示，不影响其它卡片。 */
+  function loadClassBoard() {
+    return rpc('jf_class_scores', {}).then(function (res) {
+      if (!res || res.reason) { CLASS = null; paint(); return; }
+      CLASS = res;
+      paint();
+    }).catch(function () { CLASS = null; });
+  }
+
   function boot() {
     if (!token()) { showFatal('no_login'); return; }
     rpc('jf_my_scores', {}).then(apply).catch(fail);
+    loadClassBoard();
   }
 
   function watchLogin() {
@@ -831,10 +909,24 @@
     });
   });
 
+  /* 全班考核表（只读）：点「刷新」重拉一次；点「我」那一行展开/收起每节课完成率。
+     别人的行没有 .is-me，也就没有明细可点。 */
+  document.addEventListener('click', function (e) {
+    if (e.target.closest && e.target.closest('#cbRefresh')) { loadClassBoard(); return; }
+    var row = e.target.closest && e.target.closest('tr.cb-row.is-me');
+    if (!row || !row.closest('#view')) return;
+    var key = row.dataset.boardKey;
+    boardOpen = (boardOpen === key) ? '' : key;
+    paint();
+  });
+
   document.addEventListener('visibilitychange', function () {
     if (document.hidden) return;
     if (fatal === 'no_login' && token()) return boot();
-    if (D) { rpc('jf_my_scores', {}).then(apply).catch(function () {}); }
+    if (D) {
+      rpc('jf_my_scores', {}).then(apply).catch(function () {});
+      loadClassBoard();
+    }
   });
 
   boot();

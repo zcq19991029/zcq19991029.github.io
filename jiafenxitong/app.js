@@ -38,7 +38,7 @@
     var k = idx % 6;                                   // 组内第 1~6 人循环
     var sat = 58 + k * 6;                              // 58 → 88：越靠后颜色越浓
     var lb = 90 - k * 4;                               // 90 → 70：越靠后底色越深
-    return '--h:' + h + ';--s:' + sat + '%;--lb:' + lb + '%';
+    return '--h:' + h + ';--s:' + sat + '%;--lb:' + lb + '%;';
   }
 
   function esc(s) {
@@ -1024,6 +1024,14 @@ function restoreDroppedToHome(cls) {
       2026-11-12：每课不再送 5 分，本节只看本课命名项目；
       手机未入袋 / 个人扣分从本节项目分里扣，不跨课。值日缺勤是整学期项目，不在本节里。 */
   function dutyGroups(lesson){return Array.isArray(lesson.dutyGroups)?lesson.dutyGroups:(lesson.dutyGroup?[Number(lesson.dutyGroup)]:[]);}
+  /** 值日组统一写入：dutyGroups(数组) 与 dutyGroup(首组) 一起改，口径只此一处。
+      课次设置弹窗和记分页主界面的值日点选都调它；落盘/记日志/重画由调用方各自处理。
+      cls 参数为签名保留（与调用点统一），当前写入不需要用到它。 */
+  function setLessonDuty(cls, lesson, duties) {
+    duties = (duties || []).map(function (n) { return Number(n); }).filter(Boolean);
+    lesson.dutyGroups = duties;
+    lesson.dutyGroup = duties.length ? duties[0] : null;
+  }
   function groupTotal(lesson, gno) {
     var A = window.JFDT_ASSESSMENT, cls = getClass(lesson.classId), g = cls && groupOf(cls, gno);
     if (!A || !g) return 0;
@@ -1721,16 +1729,45 @@ function restoreDroppedToHome(cls) {
   }
 
   function renderLessonMeta(cls, lesson) {
-    var dutyOpts = '<option value="">无</option>' + visibleGroups(cls).map(function (g) {
-      return '<option value="' + g.no + '"' + (+lesson.dutyGroup === g.no ? ' selected' : '') +
-        '>第 ' + g.no + ' 组</option>';
-    }).join('');
     /* 2026-11-13 精简：原来这里一排四个文字按钮（课次设置/打印本课/下载Excel/下载PDF），
        又长又挤。改成两个图标按钮，功能文字放到 title 悬浮提示里；打印三合一（本课加分表 / PDF / Excel）
-       收进同一个「打印 / 导出」对话框，点开再选。 */
-    $('#lessonMeta').innerHTML='<div class="lesson-topic-summary" title="'+esc(lesson.topic||'未填写任务')+'">'+esc(lesson.topic||'未填写任务')+'</div>'+(dutyGroups(lesson).length?'<small class="lesson-duty-summary">值日：'+dutyGroups(lesson).map(function(n){return '第'+n+'组';}).join('、')+(lesson.dutyNote?' · '+esc(lesson.dutyNote):'')+'</small>':'')+'<div class="btnrow lesson-actions"><button class="btn icon-btn" id="btnEditLesson" title="课次设置（任务名 / 值日组 / 日期）">⚙</button><button class="btn icon-btn" id="btnPrintLesson" title="打印 / 导出（本课加分表 · 打印版 PDF · Excel）">🖨</button></div>';
+       收进同一个「打印 / 导出」对话框，点开再选。
+       2026-11-13 值日组点选：值日组不再只能进课次设置弹窗的多选下拉里改，这里直接摆一排
+       组号胶囊，点一下设为值日组、再点取消（可多选），与 lesson.dutyGroups 数组口径一致。 */
+    var dutyList = dutyGroups(lesson);
+    var picker = '<div class="lesson-duty-picker" role="group" aria-label="值日组选择">' +
+      '<span class="lesson-duty-label" title="点选组号设为值日组，再点取消；可多选">值日</span>' +
+      visibleGroups(cls).map(function (g) {
+        var on = dutyList.indexOf(g.no) >= 0;
+        return '<button type="button" class="duty-swatch' + (on ? ' on' : '') + '" data-duty-no="' + g.no + '"' +
+          ' aria-pressed="' + (on ? 'true' : 'false') + '"' +
+          ' title="' + (on ? '取消第 ' + g.no + ' 组值日' : '设为第 ' + g.no + ' 组值日') + '">' + g.no + '</button>';
+      }).join('') +
+      (lesson.dutyNote ? '<span class="lesson-duty-note">' + esc(lesson.dutyNote) + '</span>' : '') +
+      '</div>';
+    $('#lessonMeta').innerHTML =
+      '<div class="lesson-topic-summary" title="' + esc(lesson.topic || '未填写任务') + '">' + esc(lesson.topic || '未填写任务') + '</div>' +
+      picker +
+      '<div class="btnrow lesson-actions">' +
+        '<button class="btn icon-btn" id="btnEditLesson" title="课次设置（任务名 / 值日组 / 日期）">⚙</button>' +
+        '<button class="btn icon-btn" id="btnPrintLesson" title="打印 / 导出（本课加分表 · 打印版 PDF · Excel）">🖨</button>' +
+      '</div>';
     $('#btnEditLesson').addEventListener('click',function(){openLessonEditor(cls,lesson);});
     $('#btnPrintLesson').addEventListener('click', function () { openLessonPrint(cls, lesson); });
+    $$('.lesson-duty-picker .duty-swatch', $('#lessonMeta')).forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var no = Number(btn.dataset.dutyNo);
+        var cur = dutyGroups(lesson).slice();
+        var i = cur.indexOf(no);
+        if (i >= 0) cur.splice(i, 1);
+        else { cur.push(no); cur.sort(function (a, b) { return a - b; }); }
+        setLessonDuty(cls, lesson, cur);
+        addOperationLog('值日组', cls.name + ' · 第' + lesson.seq + '次课值日组 → ' +
+          (cur.length ? cur.map(function (n) { return '第' + n + '组'; }).join('、') : '未设'));
+        save();
+        renderScore();
+      });
+    });
     /* V10（2026-11-12）：发布线上排位任务按钮移走。排位任务改在「接线仿真」课堂任务那边发布
        （task.html 已支持），小组加分这里不再提供发布入口；接线仿真发布的任务仍会自动在
        本课生成「线上连线排位」项目列（wire-task-link.js 自动入账机制不变）。 */
@@ -1802,7 +1839,7 @@ function restoreDroppedToHome(cls) {
   document.body.appendChild(lessonEditor);wireDialog(lessonEditor);var editingLessonId=null;
   function openLessonEditor(cls,lesson){editingLessonId=lesson.id;$('#editLessonTitle').textContent=cls.name+' · 修改课次';$('#editLessonSeq').value=lesson.seq;$('#editLessonDate').value=lesson.date||'';$('#editLessonTopic').value=lesson.topic||'';$('#editLessonDutyNote').value=lesson.dutyNote||'';$('#editLessonDuty').innerHTML='<option value="">无</option>'+visibleGroups(cls).map(function(g){return '<option value="'+g.no+'"'+(dutyGroups(lesson).includes(g.no)?' selected':'')+'>第'+g.no+'组</option>';}).join('');$('#editLessonError').textContent='';openDlg(lessonEditor);}
   $('#cancelEditLesson').addEventListener('click',function(){lessonEditor.close();});
-  $('#editLessonForm').addEventListener('submit',function(e){e.preventDefault();var lesson=getLesson(editingLessonId);if(!lesson)return;var seq=Number($('#editLessonSeq').value),date=$('#editLessonDate').value,topic=$('#editLessonTopic').value.trim(),dutyNote=$('#editLessonDutyNote').value.trim(),duties=Array.from($('#editLessonDuty').selectedOptions).map(function(o){return Number(o.value);}).filter(Boolean),duty=duties[0]||null;if(!Number.isInteger(seq)||seq<1||!/^\d{4}-\d{2}-\d{2}$/.test(date)){$('#editLessonError').textContent='请填写有效的课次序号和日期。';return;}if(S.lessons.some(function(l){return l.classId===lesson.classId&&l.id!==lesson.id&&l.seq===seq;})){$('#editLessonError').textContent='本班已有第 '+seq+' 次课，请使用其他序号。';return;}var before='第'+lesson.seq+'次 · '+lesson.date+' · '+(lesson.topic||'未填任务');if(lesson.seq===seq&&lesson.date===date&&(lesson.topic||'')===topic&&(lesson.dutyNote||'')===dutyNote&&JSON.stringify(dutyGroups(lesson))===JSON.stringify(duties)){lessonEditor.close();return;}lesson.seq=seq;lesson.date=date;lesson.topic=topic;lesson.dutyNote=dutyNote;lesson.dutyGroup=duty;lesson.dutyGroups=duties;var cls=S.classes.find(function(c){return c.id===lesson.classId;});addOperationLog('修改课次',cls.name+' · '+before+' → 第'+seq+'次 · '+date+' · '+(topic||'未填任务'));save();lessonEditor.close();renderScore();flash('课次资料已修改，分数和考勤已保留');});
+  $('#editLessonForm').addEventListener('submit',function(e){e.preventDefault();var lesson=getLesson(editingLessonId);if(!lesson)return;var seq=Number($('#editLessonSeq').value),date=$('#editLessonDate').value,topic=$('#editLessonTopic').value.trim(),dutyNote=$('#editLessonDutyNote').value.trim(),duties=Array.from($('#editLessonDuty').selectedOptions).map(function(o){return Number(o.value);}).filter(Boolean);if(!Number.isInteger(seq)||seq<1||!/^\d{4}-\d{2}-\d{2}$/.test(date)){$('#editLessonError').textContent='请填写有效的课次序号和日期。';return;}if(S.lessons.some(function(l){return l.classId===lesson.classId&&l.id!==lesson.id&&l.seq===seq;})){$('#editLessonError').textContent='本班已有第 '+seq+' 次课，请使用其他序号。';return;}var before='第'+lesson.seq+'次 · '+lesson.date+' · '+(lesson.topic||'未填任务');if(lesson.seq===seq&&lesson.date===date&&(lesson.topic||'')===topic&&(lesson.dutyNote||'')===dutyNote&&JSON.stringify(dutyGroups(lesson))===JSON.stringify(duties)){lessonEditor.close();return;}lesson.seq=seq;lesson.date=date;lesson.topic=topic;lesson.dutyNote=dutyNote;var cls=S.classes.find(function(c){return c.id===lesson.classId;});setLessonDuty(cls,lesson,duties);addOperationLog('修改课次',cls.name+' · '+before+' → 第'+seq+'次 · '+date+' · '+(topic||'未填任务'));save();lessonEditor.close();renderScore();flash('课次资料已修改，分数和考勤已保留');});
 
   /* ---- 记分控件（卡片视图与表格视图共用，保证两边的操作完全一致） ---- */
 
@@ -1976,6 +2013,7 @@ function restoreDroppedToHome(cls) {
   }
 
   function showStudentGrade(cls,key,throughLesson){
+    closeSumDetail();   // 悬浮窗互斥（2026-11-13）：先收起「本节详情」浮层，同一时刻只留一个
     var A=window.JFDT_ASSESSMENT,ls=(throughLesson?lessonsThrough(cls,throughLesson):lessonsOf(cls.id)).slice().sort(function(a,b){return a.seq-b.seq;}),student=A.rows(cls,ls,memberTotals(cls)).find(function(m){return m.key===key;});if(!student)return;
     var dialog=$('#studentGradeDialog');if(!dialog){dialog=document.createElement('dialog');dialog.id='studentGradeDialog';dialog.className='student-grade-dialog';document.body.appendChild(dialog);}
     var dutyPct=dutyPctText(ls,student.gno);
@@ -2053,7 +2091,7 @@ function restoreDroppedToHome(cls) {
     var gcap=groupCap(g,cls),over=entries.length>gcap;   // 超载：人数超过上限，整组标红提示老师去拖动换组
     var display=entries.length?entries:[{m:null,i:-1}],span=display.length+(editing?1:0),rows=display.map(function(x,j){var m=x.m,i=x.i,key=m&&A.key(m),grade=m&&grades.find(function(r){return r.key===key;}),total=m?memberLessonRateText(lesson,g.no,m,i):'';
       var out='<tr class="vertical-member-row"'+(m?' data-member-index="'+i+'" data-member-key="'+esc(key)+'"':'')+'>';
-      if(!j)out+='<td class="c-no" rowspan="'+span+'"><span class="gno-swatch" style="'+gbTone(g.no,0)+'">'+g.no+'</span> <small class="gcount'+(over?' over':'')+'" title="'+(over?'本组 '+entries.length+' 人，超过上限 '+gcap+' 人：到「分组」页把超出的 '+(entries.length-gcap)+' 人拖到别的组（不会被自动移出）':'本组人数 / 上限（双击组号可加人减人）')+'">'+entries.length+'/'+gcap+'</small></td>';
+      if(!j)out+='<td class="c-no" rowspan="'+span+'"><span class="gno-swatch" style="'+gbTone(g.no,0)+'">'+g.no+'</span></td>';
       out+='<td class="c-mem member-name-cell'+(m?attendanceNameClass(cls,m,lesson):'')+(m&&isGroupLeader(g,m)?' group-leader-name':'')+'"'+(m?' data-leader-toggle data-g="'+g.no+'" data-member-index="'+i+'"':'')+' title="'+esc(m?(m.name+' '+(m.sid||'')+' · 双击设置或退出组长'):'双击组号添加成员')+'">'+(m?(isGroupLeader(g,m)?'<span class="leader-crown" aria-label="组长">👑</span> ':'')+esc(m.name)+(m.no==null?'':' <small>'+two(m.no)+'</small>'):'未分配成员')+'</td>';
       /* 这一格永远保留 <td>（rowspan 列数不能动），只是非值日组里面什么都不放：
          不放百分比、不放按钮、也不放「—」占位（用户明确讨厌那个横杠）。
@@ -2244,6 +2282,8 @@ function restoreDroppedToHome(cls) {
   }
 
   function showSumDetail(td) {
+    var gd = $('#studentGradeDialog');   // 悬浮窗互斥（2026-11-13）：先关「平时分详情」弹窗，再弹「本节详情」
+    if (gd && typeof gd.close === 'function' && gd.open) gd.close();
     var host = $('#sumdHost');
     if (!host) return;
     var gno = Number(td.dataset.sumG), i = Number(td.dataset.sumI);
@@ -4182,7 +4222,7 @@ function restoreDroppedToHome(cls) {
        组队中(open) 点它 = 确认分组（原来 #btnTeamFinish 的活）；
        其它状态     点它 = 开放组队（下面那段原有逻辑）。
      「停止组队 / 继续组队 / 结束」三个动作已经在第二轮删掉了。 */
-  $('#btnTeamOpen').addEventListener('click', async function () {
+  $('#btnTeamOpen').addEventListener('click', function () {
     if (tmBusy) return;
     var cls0 = curClass();
     if (tmRoom && tmRoom.room && tmRoom.status === 'open' && cls0) {
@@ -4210,34 +4250,15 @@ function restoreDroppedToHome(cls) {
       return;
     }
     cls.teamTables = tables;
-    var pending = truePendingList(cls).length;
     /* 「每桌人数」只是上限：重开房间时，上一场已经选好的座位必须原样搬过来。
        以前 jf_team_open 只新建房间，座位按 room_id 挂在旧房间上，看板只读最新一间，
-       于是老师把 6 改成 7 再点「开放组队」，全班座位一夜之间全看不见了（数据还在旧房间里）。 */
+       于是老师把 6 改成 7 再点「开放组队」，全班座位一夜之间全看不见了（数据还在旧房间里）。
+       2026-11-13：用户要「一键开放，保留现有分组」——不弹任何确认，默认沿用上一场座位
+       （桌号不变只改上限），不清空任何已分组的学生。 */
     var old = (tmRoom && tmRoom.room && tmState && tmSeatClass === cls.id && (tmState.seats || []).length)
       ? tmState.seats.map(function (s) { return { student: Number(s.student), name: s.name, table: Number(s.table) || 0 }; })
       : [];
     var keep = old;
-    if (old.length && tmRoom.status === 'closed') {
-      keep = (await askConfirm({
-        title: '沿用上一场的座位？',
-        body: '上一场（已结束）还留着 ' + old.length + ' 个座位。\n' +
-          '沿用 = 桌号不变，只改每桌上限；不沿用 = 从空桌子重新选座。',
-        ok: '沿用座位',
-        cancel: '重新选座'
-      })) ? old : [];
-    }
-    var openIt = await askConfirm({
-      title: '开放组队？',
-      body: '开放组队：' + tables + ' 张圆桌，每桌最多 ' + size + ' 人。\n' +
-        '学生用学号账号打开「学生入口」，点一张圆桌就坐下，可以自己换桌。\n' +
-        '本班现在还有 ' + pending + ' 人没分组。' +
-        (keep.length ? '\n\n已经选好的 ' + keep.length + ' 个座位会原样保留（改每桌人数只改上限，不会重新分座）。' : '') +
-        (tmRoom && tmRoom.room && tmRoom.status !== 'closed'
-          ? '\n\n注意：本班上一次的组队房间会被作废，没确认的座位靠这里搬过来。' : ''),
-      ok: '开放'
-    });
-    if (!openIt) return;
     cls.groupLimit = size;    // 确认之后才记上限：每桌人数同时作为本班「每组上限」，两处口径一致
     tmBusy = true;
     if (keep.length) flash('正在沿用上一场 ' + keep.length + ' 个座位…');

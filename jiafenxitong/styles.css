@@ -426,9 +426,15 @@ table.sheet tbody.touched td.c-no { box-shadow: inset 3px 0 0 var(--accent); }
 table.sheet tbody.is-duty td.c-no { box-shadow: inset 3px 0 0 var(--warn); }
 /* 超载标红（2026-11-12）：本组人数超过上限，组号列左侧压一道红条，和「值日」的橙条分开 */
 table.sheet tbody.is-over td.c-no { box-shadow: inset 3px 0 0 var(--bad, #c0392b); }
-table.sheet tbody.is-over td.c-no .gcount { color: var(--bad, #c0392b); }
+/* 2026-11-13 组号色块铺满整格后，左侧的 touched/is-duty/is-over 竖条会被色块盖住，
+   改压到 .gno-swatch 上（td 的 box-shadow 留给旧横表 .sheet-tb，竖向表看这里）。 */
+.sheet-vertical tbody.touched td.c-no .gno-swatch { box-shadow: inset 3px 0 0 var(--accent); }
+.sheet-vertical tbody.is-duty td.c-no .gno-swatch { box-shadow: inset 3px 0 0 var(--warn); }
+.sheet-vertical tbody.is-over td.c-no .gno-swatch { box-shadow: inset 3px 0 0 var(--bad, #c0392b); }
 table.sheet tbody.is-duty td.c-no::after {
-  content: '值日'; display: block; font-size: 9px; font-weight: 600; color: var(--warn);
+  content: '值日'; position: absolute; left: 50%; bottom: 2px; transform: translateX(-50%);
+  font-size: 9px; font-weight: 700; line-height: 1.3; color: #fff;
+  background: var(--warn); border-radius: 5px; padding: 0 4px; z-index: 2;
 }
 table.sheet td.c-mem {
   background: var(--xl-mem); font-size: 12.5px; font-weight: 600;
@@ -1701,6 +1707,14 @@ table.sheet col.w-attendance{width:165px}.home-attendance{background:#f6eff1;pad
 /* 2026-11-13：课次操作按钮改图标 + 悬浮提示（打印三合一），图标钮紧凑、不 flex 撑满 */
 .lesson-meta .btnrow.lesson-actions{flex:0 0 auto;margin-left:auto;gap:6px}
 .lesson-meta .btn.icon-btn{flex:0 0 auto;width:34px;height:34px;padding:0;font-size:15px;line-height:1;border-radius:9px}
+/* 值日组点选（2026-11-13）：记分页主界面直接点选今天第几组值日，不用再进课次设置弹窗 */
+.lesson-duty-picker{display:flex;align-items:center;gap:5px;flex-wrap:wrap;min-width:0}
+.lesson-duty-picker .lesson-duty-label{font-size:12px;color:var(--muted);margin-right:1px;white-space:nowrap}
+.lesson-duty-picker .duty-swatch{width:28px;height:28px;border-radius:8px;border:1px solid var(--line-strong);background:var(--panel);color:var(--muted);font-weight:700;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;transition:transform .08s,box-shadow .12s,background .12s,color .12s,border-color .12s}
+.lesson-duty-picker .duty-swatch:hover{border-color:var(--warn);color:var(--warn)}
+.lesson-duty-picker .duty-swatch.on{background:var(--warn);border-color:var(--warn);color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.18)}
+.lesson-duty-picker .duty-swatch:active{transform:translateY(1px)}
+.lesson-duty-picker .lesson-duty-note{font-size:12px;color:var(--muted)}
 @media screen and (min-width:1000px){body.sidebar-layout .lesson-meta{display:block;padding:10px}body.sidebar-layout .lesson-bar{gap:6px}body.sidebar-layout #layoutSeg{margin-left:0}body.sidebar-layout #btnOperationLog{padding:8px 10px}}
 @media print{body.print-lesson:has(.lesson-duplex){margin:0!important;padding:0!important;min-height:0!important;height:auto!important;page:leaderPaper}body.print-lesson:has(.lesson-duplex)>*:not(#printArea){display:none!important}body.print-lesson:has(.lesson-duplex) #printArea{position:static!important;margin:0!important;padding:0!important;width:100%!important}.lesson-duplex-page{page:leaderPaper;width:100%;height:276mm;box-sizing:border-box;break-after:page;break-inside:avoid;padding:0;overflow:hidden}.lesson-duplex-page:last-child{break-after:auto}.lesson-duplex-front .sheet-tb{font-size:6pt!important}.lesson-duplex-front .sheet-tb td,.lesson-duplex-front .sheet-tb th{padding:1mm .4mm!important}.lesson-duplex-front .home-grade-person,.lesson-duplex-front .home-attendance-person{min-height:4mm!important}.lesson-duplex-front .home-grade-person strong{font-size:8pt!important}.lesson-rules-back{font-family:Arial,'Microsoft YaHei',sans-serif;font-size:10pt;line-height:1.55}.lesson-rules-back h1{font-size:17pt;text-align:center;margin:4mm 0}.lesson-rules-back h2{font-size:12pt;margin:5mm 0 2mm}.lesson-rules-back p{margin:2mm 0}.duplex-note{border-top:.2mm solid #aaa;padding-top:4mm;font-size:9pt}}
 
@@ -2773,14 +2787,22 @@ html.hx-bg[data-hx-mode="dark"] body::after,
 /* 表格式（sheet-vertical）组号色块（2026-11-12 V10）：和分组卡片同一套 gbTone 配色
    （组号定色相 + 组内深浅），做成圆角色块，不再只是给数字上色。--h/--s/--lb 由 app.js 的
    gbTone(g.no,0) 内联注入，色相 24 色环轮换（组1蓝、组2绿…），和「分组」页卡片一眼对得上。 */
-.sheet-vertical td.c-no { color: var(--text); font-weight: 700; }
+/* 2026-11-13 组号色块填充整格 + 艺术字：不再显示人数，色块铺满整个 td.c-no，
+   组号数字居中放大，用同组色相 --h 描边 + 发光做立体感。td 去内边距让色块贴满整格；
+   td.c-no 已有 position:relative（见 table.sheet td.c-no）。 */
+.sheet-vertical td.c-no { color: var(--text); font-weight: 700; padding: 0; }
 .sheet-vertical .gno-swatch {
-  display: inline-flex; align-items: center; justify-content: center;
-  min-width: 26px; height: 26px; padding: 0 7px; border-radius: 8px;
-  font-size: 14px; font-weight: 800; color: hsl(var(--h, 220) 70% 96%);
-  background: hsl(var(--h, 220) var(--s, 70%) var(--lb, 45%));
-  box-shadow: inset 0 -2px 0 rgba(0,0,0,.18);
-  vertical-align: middle;
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; height: 100%;
+  font-size: 24px; font-weight: 900; line-height: 1; letter-spacing: 0;
+  background: linear-gradient(160deg,
+    hsl(var(--h, 220) calc(var(--s, 58%) + 10%) 62%),
+    hsl(var(--h, 220) var(--s, 58%) 44%));
+  color: hsl(var(--h, 220) var(--s, 58%) 96%);
+  -webkit-text-stroke: 1px hsl(var(--h, 220) var(--s, 58%) 24%);
+  text-shadow: 0 2px 0 hsl(var(--h, 220) var(--s, 58%) 18% / .9),
+               0 0 16px hsl(var(--h, 220) 90% 58% / .45);
 }
 
 /* 红绿分数标签：加分绿 / 扣分红，做成彩色药丸 */

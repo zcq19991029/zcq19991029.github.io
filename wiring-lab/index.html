@@ -3,7 +3,7 @@
 <html lang="zh-CN">
 <head>
 <script src="../hx-theme.js" data-tool="wiring"></script>
-<script>window.HX_BUILD = "2026-11-13T16:17:25Z 6ab43b2";</script>
+<script>window.HX_BUILD = "2026-11-13T16:51:49Z bc6c4c4";</script>
 <meta charset="utf-8">
 <meta name="copyright" content="© 2026 zcq 版权所有，未经许可禁止复制、修改、转载">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
@@ -1834,6 +1834,12 @@
     animation: rkSweep .5s .05s var(--rk-ease) both; }
   #fw-rank .rk-hero .rkx-trophy { position: absolute; right: 168px; top: 50%; width: 92px; height: 92px;
     transform: translateY(-50%); opacity: .13; pointer-events: none; color: #ffd68a; }
+  /* Hero 身份卡背景（2026-11-13）：当前选手账号背景，背景图 → 压暗遮罩 → 文字，和排行榜/学生卡同一份 hx_rank_bg */
+  #fw-rank .rk-hero-bg { position: absolute; inset: 0; z-index: 0; background-size: cover; background-repeat: no-repeat;
+    background-position: 50% 50%; transform: scale(1.02); }
+  #fw-rank .rk-hero-veil { position: absolute; inset: 0; z-index: 1; pointer-events: none;
+    background: linear-gradient(100deg, rgba(5, 11, 24, .72), rgba(8, 16, 34, .40) 52%, rgba(4, 8, 18, .62)); }
+  #fw-rank .rk-hero .rk-pav, #fw-rank .rk-hero .rk-pinfo, #fw-rank .rk-hero .rk-start { position: relative; z-index: 2; }
   #fw-rank .rk-pav { flex: none; width: 58px; height: 64px; }
   #fw-rank .rk-pav i { width: 44px; height: 48px; font-size: 20px; }
   #fw-rank .rk-hero .rk-pinfo { flex: 1; min-width: 0; position: relative; z-index: 1; }
@@ -4752,6 +4758,7 @@ async function rkMain(body) {
   // 所有数据仍取自原来的来源（RK.pick / RK.classes / RK.studs / rank_board），只是换了排版。
   body.innerHTML = `<div class="rk-main${calm}"><div class="rk-left">
     <div class="rk-hero${proxy ? ' proxy' : ''}">
+      <span class="rk-hero-bg" aria-hidden="true"></span><span class="rk-hero-veil" aria-hidden="true"></span>
       <div class="rk-pav" aria-hidden="true"><i>${esc(av)}</i></div>
       <div class="rk-pinfo">
         <small>当前专题 · <i class="rk-qpill" title="${esc(cName(lock))}">${esc(cName(lock))}</i></small>
@@ -4769,6 +4776,7 @@ async function rkMain(body) {
       <div class="rk-bh"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10v4a5 5 0 0 1-10 0z"/><path d="M7 5H4v1.5A3.5 3.5 0 0 0 7.5 10M17 5h3v1.5A3.5 3.5 0 0 1 16.5 10M12 13v4M8.5 20h7M10 17h4l1 3H9z"/></svg><b>${esc(cName(lock))} 排行榜</b><small id="rkBoardN">按用时升序</small></div>
       <div class="rk-boardwrap" id="rkBoard"><p class="rk-wait">加载中…</p></div></div></div>`;
   body.querySelector('#rkStart').onclick = () => rkStartRun();
+  rkHeroBg(body.querySelector('.rk-hero'));
   rkBoard(body.querySelector('#rkBoard'));
   if (T) rkPicker(body.querySelector('#rkPick'), body);
 }
@@ -4782,6 +4790,24 @@ async function rkClassBgs() {
     arr.forEach(b => { if (b && b.student_id != null) m[b.student_id] = b; });
     return m;
   } catch (e) { return {}; }
+}
+// Hero 身份卡背景（2026-11-13）：当前选手（RK.pick）用自己的账号身份卡背景，和排行榜/学生卡同一份 hx_rank_bg。
+// 学生端 RK.pick 就是自己、教师端是抽中的学生 —— 都按 student_id 取；取不到/没上过榜就退回深蓝渐变底，不塌版。
+async function rkHeroBg(hero) {
+  if (!hero) return;
+  if (!RK.pick || !RK.pick.id) { hero.dataset.nobg = '1'; return; }
+  let bg;
+  try { bg = (await rkClassBgs())[RK.pick.id]; } catch (e) { bg = null; }
+  const st = bg ? rkBgStyle(bg.bg, rkTuneOf(bg, 4)) : '';
+  const span = hero.querySelector('.rk-hero-bg');
+  if (st && span) {
+    span.setAttribute('style', st);
+    hero.dataset.nobg = '0';
+  } else {
+    // 没设过 / 加载失败：连遮罩一起撤掉，整卡退回 .rk-hero 默认深蓝渐变，视觉一字不动
+    hero.querySelectorAll('.rk-hero-bg,.rk-hero-veil').forEach(n => n.remove());
+    hero.dataset.nobg = '1';
+  }
 }
 async function rkPicker(el, body) {
   // 只列首页“班级”里勾了“接线仿真”的班；一个工具都没勾的班（旧班级）各工具都显示

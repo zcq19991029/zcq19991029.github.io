@@ -54,9 +54,12 @@ const JF_URL = HOME + 'jiafenxitong/';
 /* ---------------- 启动 ---------------- */
 (async function boot() {
   HX.grab(); // GitHub 登录回来时先收凭证
-  // 左上角那颗「← 接线仿真」已按用户要求删除（和总入口的「返回」重复）：
-  // 页面现在靠浏览器 / 总入口的返回栏回去，不再自带一颗跳首页的按钮。
-  // 右上角那颗「退出」也一并删除（U1）：退出应该走总入口左上角「返回」，不在这里单开一颗。
+  // 返回按钮（2026-11-13）：点「← 接线仿真」回到上一级 = 接线仿真主页（/wiring-lab/）。
+  // 是跳 HOME，不是浏览器 history.back、也不是首页；页面嵌在总入口 iframe 里时，
+  // HOME 已按「线上 /wiring-lab/task/ → ../../，本机 → ./」算好（见 task-hx.js）。
+  const backBtn = $('#lvBack');
+  if (backBtn) backBtn.onclick = () => location.href = HOME;
+  // 右上角那颗「退出」已删除（U1）：退出应该走总入口左上角「返回」，不在这里单开一颗。
 
   if (!HX.online()) return gate('课堂任务需要在线版', '成绩和进度存在云端，本机离线文件不能用。<br>请打开在线版（zcq19991029.github.io/wiring-lab/）里的「课堂任务」。');
   if (!HX.in()) return gate('先登录再用课堂任务', '课堂任务和排位共用华夏工具账号。<br>点下面的按钮去登录，登录后回到这一页。', true);

@@ -17,6 +17,8 @@ const B = {
   fresh: new Set(),// 本轮要高亮的
   timer: null,
   lastAt: '',
+  bg: {},          // 身份卡背景：student_id → { bg, pos }（hx_rank_bgs，按电路缓存）
+  bgCircuit: null, // 已拉过背景的那道电路（换题才重拉）
   /* 完成率变化（2026-11-09 用户要求）：
      「课堂任务实时计分 被别人超了就会变 这是很正常的竞争学习 我们鼓励动态变化 当场就学习刷题反超」
      名次按用时从短到长排，后来的人更快就把前面的人挤下去 → 完成率 100% 掉到 80%。
@@ -26,6 +28,48 @@ const B = {
 };
 const $ = s => document.querySelector(s);
 const root = $('#bdRoot');
+
+/* 极简模式（hx-lite）：进度环流光只在标准模式下播，极简时静态显示。
+   判定和 theme.js / parallel.js 同一套：html 上挂 hx-lite class，或 localStorage hx-lite === '1'。
+   模式可能在总入口里随时切，这里顺带监听 hx-lite-change / storage 事件兜底。 */
+const isLite = () => {
+  try {
+    if (document.documentElement.classList.contains('hx-lite')) return true;
+    return localStorage.getItem('hx-lite') === '1';
+  } catch (e) { return false; }
+};
+const applyLite = () => document.body.classList.toggle('lite', isLite());
+applyLite();
+addEventListener('hx-lite-change', applyLite);
+addEventListener('storage', e => { if (e && e.key === 'hx-lite') applyLite(); });
+
+/* 身份卡背景（照 rank.js 的 rkBgStyle 独立复制一份，避免 task-board.js 依赖 rank.js）：
+   只认两种背景串：预设键 p:<k>、压缩图片 data URL；其余返回 ''（调用方走默认深色底）。
+   预设键的 css 是「层列表 + 每层自己的 position/size」，只能喂给 background 简写；
+   这里把「0 0 / 100% 100%」换成「50% 50% / cover」，窄卡等比裁切不糊、不变形。 */
+function rkBgStyle(bg, tune) {
+  const s = String(bg || ''); if (!s) return '';
+  const t = (tune && typeof tune === 'object') ? tune : { pos: Number(tune) };
+  const rawPos = Number(t.pos);
+  const p = Math.max(0, Math.min(100, Number.isFinite(rawPos) ? Math.round(rawPos) : 50));
+  const z = Math.max(60, Math.min(300, Math.round(Number(t.zoom)) || 100)) / 100;
+  const sc = z === 1 ? '' : `;transform:scale(${z})`;
+  if (/^p:[a-z0-9_-]{1,24}$/.test(s)) {
+    const css = (window.rankBgCss && window.rankBgCss(s.slice(2))) || '';
+    const ty = (50 - p) * 0.5;
+    const tf = `translateY(${ty}%)` + (z === 1 ? '' : ` scale(${z})`);
+    return `background:${css.replace(/0 0\s*\/\s*100% 100%/g, '50% 50% / cover')};transform:${tf}`;
+  }
+  if (/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(s))
+    return `background-image:url("${s}");background-size:cover;background-repeat:no-repeat;background-position:50% ${p}%${sc}`;
+  return '';
+}
+// 某个学生 → 背景 style 串（拿不到 / 没设过 / 不在榜上 → ''）
+function bgStyleOf(sid) {
+  const b = B.bg && B.bg[sid];
+  if (!b || !b.bg) return '';
+  return rkBgStyle(b.bg, { pos: b.pos != null ? b.pos : 50, zoom: 100 });
+}
 
 (async function boot() {
   HX.grab();
@@ -85,6 +129,17 @@ async function load(first) {
     });
   }
   B.ratePrev = rateNow;
+  // 身份卡背景：按电路缓存，只拉一次；hx_rank_bgs 失败（函数没建 / 网络抖）只降级为无背景，不拖垮看板
+  const cir = b.task && b.task.circuit;
+  if (cir && cir !== B.bgCircuit) {
+    B.bgCircuit = cir;
+    B.bg = {};
+    try {
+      let bgs = await HX.rpc('hx_rank_bgs', { p_circuit: cir, p_limit: 200 }) || [];
+      if (!Array.isArray(bgs)) bgs = (bgs && Array.isArray(bgs.data)) ? bgs.data : [];
+      bgs.forEach(x => { if (x && x.student_id != null) B.bg[x.student_id] = x; });
+    } catch (e) { /* 降级：保持无背景 */ }
+  }
   const changed = JSON.stringify(b) !== JSON.stringify(B.board);
   B.board = b;
   if (changed || first) paint(b);
@@ -116,6 +171,7 @@ function paint(b) {
 
   root.innerHTML = `
   <header class="bd-top">
+    <button class="bd-back" id="bdBack" type="button" title="返回接线仿真">← 接线仿真</button>
     <div class="bd-title">
       <small>${esc(t.class_name)} · 第 ${t.lesson_no || '—'} 次课${t.lesson_date ? ' · ' + esc(t.lesson_date) : ''}</small>
       <b>${esc(t.title || cname(t.circuit))}</b>
@@ -143,10 +199,15 @@ function paint(b) {
     <section class="bd-pending">
       <h2>还没完成的同学 <em>${pend.length}</em> 人</h2>
       <div class="pend-grid" style="grid-template-columns:repeat(auto-fill,minmax(${col},1fr));align-content:${n <= 32 ? 'center' : 'start'}">
-        ${pend.length ? pend.map(p => `<div class="pend">
+        ${pend.length ? pend.map(p => {
+            const st = bgStyleOf(p.student_id);
+            return `<div class="pend" data-nobg="${st ? '0' : '1'}">
+            <span class="pend-bg" aria-hidden="true"${st ? ` style="${esc(st)}"` : ''}></span>
+            <span class="pend-veil" aria-hidden="true"></span>
             <i>${esc((p.name || p.no || '?').trim().slice(0, 1))}</i>
             <div class="nm"><b>${esc(p.name || p.no)}</b><span>${esc(p.no)}</span></div>
-          </div>`).join('')
+          </div>`;
+          }).join('')
         : '<div class="pend-empty">全部完成 ✔<small>这一节课没有人掉队</small></div>'}
       </div>
     </section>
@@ -154,12 +215,17 @@ function paint(b) {
     <aside class="bd-done">
       <h3>已完成 <em>${done.length}</em> 人</h3>
       <div class="done-list" style="grid-template-columns:repeat(${dCols},minmax(0,1fr))">
-        ${done.map(r => `<span class="done-chip${B.fresh.has(r.student_id) ? ' fresh' : ''}" data-sid="${r.student_id}">
+        ${done.map(r => {
+            const st = bgStyleOf(r.student_id);
+            return `<span class="done-chip${B.fresh.has(r.student_id) ? ' fresh' : ''}" data-sid="${r.student_id}" data-nobg="${st ? '0' : '1'}">
+            <span class="chip-bg" aria-hidden="true"${st ? ` style="${esc(st)}"` : ''}></span>
+            <span class="chip-veil" aria-hidden="true"></span>
             <i>${esc((r.name || '').trim().slice(0, 1))}</i>
             <span>${esc(r.name)}</span>
             <b class="dc-rate ${rateTier(r.rate)}" title="当前完成率（被更快的同学超了会掉档）">${rateText(r.rate)}</b>
             <em>${r.place == null ? '' : '#' + r.place} ${Math.round(r.sec)}s</em>
-          </span>`).join('')}
+          </span>`;
+          }).join('')}
       </div>
     </aside>
   </main>
@@ -173,6 +239,9 @@ function paint(b) {
     <span>赋分：前 10 名 100% · 11–20 名 80% · 其余已完成 70%</span>
   </footer>
 `;
+
+  // 返回「上一级」= 接线仿真主页（/wiring-lab/），不是浏览器上一页、也不是首页
+  const bdBack = $('#bdBack'); if (bdBack) bdBack.onclick = () => location.href = HOME;
 
   // 第一屏之后关掉入场动画（否则每完成一个人，整块名单都重新 fade 一次，投影上看着像闪）
   document.body.classList.toggle('no-anim', !firstPaint);
