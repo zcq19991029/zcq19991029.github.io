@@ -135,7 +135,6 @@
   function showFatal(kind, extra) {
     fatal = kind;
     $('groupBoard').innerHTML = '';
-    $('seatToolbar').hidden = true;
     $('statePill').textContent = '';
     $('statePill').className = 'top-state';
     if (kind === 'no_login') {
@@ -191,39 +190,30 @@
     return '';
   }
 
-  /* 顶部那张「我的身份卡」（可拖进组的原卡）。背景读 hx_rank_bg，跟着账号走。 */
-  function renderMeCard() {
-    var card = $('meCard');
-    var tb = $('seatToolbar');
-    if (!S || !card) { tb.hidden = true; return; }
-    tb.hidden = false;
-    var me = S.me || {};
-    var mine = me.table ? Number(me.table) : 0;
-    var open = S.status === 'open';
-    card.hidden = false;
-    card.className = 'id-card draggable' + (mine ? ' seated' : '') + (open ? '' : ' locked');
+  /* 确保我的身份牌背景已拉到（只拉一次，背景跟账号走 hx_rank_bg） */
+  function ensureMyBg(done) {
+    if (MY_BG.loaded) { done(); return; }
+    MY_BG.loaded = true;
+    rpc('hx_rank_bg_get', {}).then(function (rows) {
+      var r = rows && rows[0];
+      MY_BG.bg = r ? r.bg : ''; MY_BG.pos = r ? r.pos : 50;
+      done();
+    }).catch(function () { MY_BG.bg = ''; MY_BG.pos = 50; done(); });
+  }
+
+  /* 生成「我自己」那条 chip（带身份牌背景，和排位身份卡同一套）。放在组内或未分组池子里。
+     别的同学只显示姓氏圆标（他们的背景学生端拿不到，只有自己那份能读）。 */
+  function meChipHtml(me) {
     var avatar = esc(String(me.name || '我').slice(0, 1));
-    var sub = me.no ? '学号 ' + esc(me.no) : '本班';
-    card.innerHTML =
-      '<span class="idc-bg" aria-hidden="true"></span><span class="idc-veil" aria-hidden="true"></span>' +
-      '<span class="idc-av" aria-hidden="true">' + avatar + '</span>' +
-      '<span class="idc-nm">' + esc(me.name || '我') + '<small>' + sub + '</small></span>' +
-      '<span class="idc-g">' + (mine ? '第 ' + mine + ' 组' : '还没分组') + '</span>';
-    var bg = card.querySelector('.idc-bg');
+    var sub = me.no ? esc(me.no) : '学号';
     var st = cardBgStyle(MY_BG.bg, MY_BG.pos);
-    bg.setAttribute('style', st || '');
-    card.setAttribute('data-nobg', st ? '0' : '1');
-    if (!MY_BG.loaded) {
-      MY_BG.loaded = true;
-      rpc('hx_rank_bg_get', {}).then(function (rows) {
-        var r = rows && rows[0];
-        MY_BG.bg = r ? r.bg : ''; MY_BG.pos = r ? r.pos : 50;
-        var bg2 = card.querySelector('.idc-bg');
-        var st2 = cardBgStyle(MY_BG.bg, MY_BG.pos);
-        if (bg2) bg2.setAttribute('style', st2 || '');
-        card.setAttribute('data-nobg', st2 ? '0' : '1');
-      }).catch(function () { MY_BG.bg = ''; MY_BG.pos = 50; });
-    }
+    return '<div class="gb-chip me gb-me-card' + (st ? '' : ' no-bg') + '" data-me-bg="1" title="拖到别的组换组，拖回未分组起身">' +
+      '<span class="gb-me-bg" aria-hidden="true" style="' + st + '"></span>' +
+      '<span class="gb-me-veil" aria-hidden="true"></span>' +
+      '<span class="gb-av" aria-hidden="true">' + avatar + '</span>' +
+      '<div class="gb-nm"><b>' + esc(me.name) + '</b><small>' + sub + '</small></div>' +
+      '<span class="gb-me-tag">我</span>' +
+      '</div>';
   }
 
   /* 坐下 / 换组：请求全走 jf_team_sit，满没满、能不能坐都由云端判，前端不越权 */
@@ -264,7 +254,8 @@
     var mine = S.me && S.me.table ? Number(S.me.table) : 0;
     var locked = S.status !== 'open';
 
-    /* 组卡片：和教师端「分组看板」同一套视觉 —— 组号 + 已坐/上限 + 组员列表 */
+    /* 组卡片：和教师端「分组看板」同一套视觉 —— 组号 + 已坐/上限 + 组员列表。
+       「自己」那条用身份牌背景（gb-me-card），别人只显示姓氏圆标（拿不到他们的背景）。 */
     var cards = '';
     for (var n = 1; n <= S.tables; n++) {
       var list = byTable[n] || [];
@@ -273,13 +264,17 @@
       var mem = '';
       list.forEach(function (s, i) {
         var me = S.me && s.student === S.me.id;
-        mem += '<div class="gb-chip' + (me ? ' me' : '') + '" title="' + esc(s.name) + '">' +
-          '<span class="gb-av" aria-hidden="true">' + esc(String(s.name || '?').slice(0, 1)) + '</span>' +
-          '<div class="gb-nm"><b>' + esc(s.name) + '</b>' + (s.no ? '<small>' + esc(s.no) + '</small>' : '') + '</div>' +
-          '</div>';
+        if (me) {
+          mem += meChipHtml(S.me);
+        } else {
+          mem += '<div class="gb-chip" title="' + esc(s.name) + '">' +
+            '<span class="gb-av" aria-hidden="true">' + esc(String(s.name || '?').slice(0, 1)) + '</span>' +
+            '<div class="gb-nm"><b>' + esc(s.name) + '</b>' + (s.no ? '<small>' + esc(s.no) + '</small>' : '') + '</div>' +
+            '</div>';
+        }
       });
       for (var i = list.length; i < S.size; i++) mem += '<div class="gb-chip empty">空位</div>';
-      if (!mem) mem = '<p class="gb-empty">还没人，把你的身份卡拖进来</p>';
+      if (!mem) mem = '<p class="gb-empty">还没人</p>';
       cards += '<section class="gb-group' + (isMine ? ' is-mine' : '') + (full && !isMine ? ' is-full' : '') +
         '" data-table="' + n + '"' + (locked && !isMine ? ' data-locked="1"' : '') + '>' +
         '<header class="gb-ghead">' +
@@ -297,7 +292,8 @@
     var pend = (S.roster || []).filter(function (r) { return !seatedIds[r.id]; });
     var pChips = pend.map(function (r) {
       var me = S.me && r.id === S.me.id;
-      return '<div class="gb-chip gb-pend-chip' + (me ? ' me' : '') + '" title="' + esc(r.name) + '">' +
+      if (me) return meChipHtml(S.me);
+      return '<div class="gb-chip gb-pend-chip" title="' + esc(r.name) + '">' +
         '<span class="gb-av" aria-hidden="true">' + esc(String(r.name || '?').slice(0, 1)) + '</span>' +
         '<div class="gb-nm"><b>' + esc(r.name) + '</b>' + (r.no ? '<small>' + esc(r.no) + '</small>' : '') + '</div>' +
         '</div>';
@@ -312,10 +308,18 @@
         '</section>' +
         '<div class="gb-groups">' + cards + '</div>' +
       '</div>' +
-      '<p class="gb-hint">把你的<b>身份卡</b>拖到右边某组就加入；拖到别的组就换组，拖回「未分组」就起身。' +
+      '<p class="gb-hint">把「我」那条卡拖到右边某组就加入；拖到别的组就换组，拖回「未分组」就起身。' +
         (S.status === 'open' ? '点组卡片也能直接进。' : '') + '每 2~3 秒自动刷新。</p>';
 
-    renderMeCard();
+    /* 背景是异步拿的：先把「我」那条画出来，背景到位后再补上去（不用整页重画） */
+    ensureMyBg(function () {
+      var el = document.querySelector('[data-me-bg]');
+      if (!el) return;
+      var st = cardBgStyle(MY_BG.bg, MY_BG.pos);
+      var bgEl = el.querySelector('.gb-me-bg');
+      if (bgEl) bgEl.setAttribute('style', st || '');
+      el.classList.toggle('no-bg', !st);
+    });
 
     var pill = $('statePill');
     pill.className = 'top-state' + (S.status === 'open' ? '' : S.status === 'locked' ? ' locked' : ' closed');
@@ -413,22 +417,22 @@
     sit(n);
   });
 
-  /* 拖动选位：把「我的身份卡」拖到某组加入、拖回未分组起身。鼠标/触摸同一套 pointer 事件 */
+  /* 拖动选位：把「我自己」那条身份卡拖到某组加入、拖回未分组起身。鼠标/触摸同一套 pointer 事件 */
   function meDragStart(e) {
-    var card = e.target.closest ? e.target.closest('#meCard') : null;
-    if (!card || card.hidden || !S || S.status !== 'open' || busy) return;
+    var card = e.target.closest ? e.target.closest('.gb-me-card') : null;
+    if (!card || !S || S.status !== 'open' || busy) return;
     if (e.button != null && e.button !== 0) return;   // 只认左键 / 单指
     e.preventDefault();
     var r = card.getBoundingClientRect();
     var el = card.cloneNode(true);
-    el.removeAttribute('id');
-    el.className = 'id-card me-ghost';
+    el.classList.add('me-ghost');
     el.style.width = r.width + 'px';
     el.style.height = r.height + 'px';
     document.body.appendChild(el);
     el.style.transform = 'translate3d(' + r.left + 'px,' + r.top + 'px,0)';
     drag = { el: el, moved: false };
     document.body.classList.add('me-dragging');
+    card.classList.add('is-lifting');   // 原卡半透明，提示「这张被拎起来了」
   }
   function meDragMove(e) {
     if (!drag) return;
@@ -449,6 +453,7 @@
     var p = t && t.closest ? t.closest('.gb-pending') : null;
     var table = g ? Number(g.dataset.table) : 0;
     document.querySelectorAll('.gb-group, .gb-pending').forEach(function (d) { d.classList.remove('drag-over'); });
+    document.querySelectorAll('.gb-me-card.is-lifting').forEach(function (d) { d.classList.remove('is-lifting'); });
     if (drag.el && drag.el.parentNode) drag.el.remove();
     drag = null;
     if (!S || S.status !== 'open') return;
