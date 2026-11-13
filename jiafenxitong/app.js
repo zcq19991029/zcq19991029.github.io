@@ -1073,13 +1073,16 @@ function restoreDroppedToHome(cls) {
       ? record.members[id].reduce(function(a,n){ return a + (+n || 0); },0) : 0;
   }
 
-  /* 本节「课堂任务」分：只数接线课堂任务自动入账的列（新列名「线上连线排位 接线2.3」，
-     2026-11-11 加前缀之前的旧列名「接线2.3」照旧认），手工项目列（协作 / 安全 / 5S…）不算在内。
+  /* 本节「课堂任务」分：只数接线课堂任务自动入账的列（新列名「线上接线仿真 接线2.3」，
+     2026-11-13 改前缀之前的「线上连线排位 接线2.3」、以及最早无前缀的「接线2.3」照旧认），
+     手工项目列（协作 / 安全 / 5S…）不算在内。
      2026-11-09 用户要求「课堂任务积分直接丢进上课计分首页总表内」——
-     以前这部分只在侧栏「组内个人评分」里看得到，总表只体现成一个变大的「本节合计」，
+     以前这部分只在侧栏「组内个人评分」里看得到，总表只体现成一个变大的「本节完成率」，
      老师上课时看不出这分是哪来的。null = 本节这个人没有课堂任务分。
-     ⚠ 前缀常量在 wire-task-link.js 的 NAME_PREFIX，两处必须一起改。 */
-  var TASK_COL = /^(?:接线|线上连线排位)/;
+     ⚠ 前缀常量在 wire-task-link.js 的 NAME_PREFIX，两处必须一起改。
+     2026-11-13 起这条正则还兼任「排位列只读」的判定（见 leader-scoring.js 与本节说明）：
+     命中它的列是接线仿真课堂任务自动生成的，老师/学生都不能手改。 */
+  var TASK_COL = /^(?:接线|线上连线排位|线上接线仿真)/;
   function taskScore(lesson, gno, member) {
     var rec = lesson.leaderScores && lesson.leaderScores[String(gno)];
     if (!rec || !rec.members || !member) return null;
@@ -1723,11 +1726,12 @@ function restoreDroppedToHome(cls) {
       return '<option value="' + g.no + '"' + (+lesson.dutyGroup === g.no ? ' selected' : '') +
         '>第 ' + g.no + ' 组</option>';
     }).join('');
-    $('#lessonMeta').innerHTML='<div class="lesson-topic-summary" title="'+esc(lesson.topic||'未填写任务')+'">'+esc(lesson.topic||'未填写任务')+'</div>'+(dutyGroups(lesson).length?'<small class="lesson-duty-summary">值日：'+dutyGroups(lesson).map(function(n){return '第'+n+'组';}).join('、')+(lesson.dutyNote?' · '+esc(lesson.dutyNote):'')+'</small>':'')+'<div class="btnrow"><button class="btn" id="btnEditLesson">课次设置</button><button class="btn" id="btnPrintLesson">打印本课</button></div>';
+    /* 2026-11-13 精简：原来这里一排四个文字按钮（课次设置/打印本课/下载Excel/下载PDF），
+       又长又挤。改成两个图标按钮，功能文字放到 title 悬浮提示里；打印三合一（本课加分表 / PDF / Excel）
+       收进同一个「打印 / 导出」对话框，点开再选。 */
+    $('#lessonMeta').innerHTML='<div class="lesson-topic-summary" title="'+esc(lesson.topic||'未填写任务')+'">'+esc(lesson.topic||'未填写任务')+'</div>'+(dutyGroups(lesson).length?'<small class="lesson-duty-summary">值日：'+dutyGroups(lesson).map(function(n){return '第'+n+'组';}).join('、')+(lesson.dutyNote?' · '+esc(lesson.dutyNote):'')+'</small>':'')+'<div class="btnrow lesson-actions"><button class="btn icon-btn" id="btnEditLesson" title="课次设置（任务名 / 值日组 / 日期）">⚙</button><button class="btn icon-btn" id="btnPrintLesson" title="打印 / 导出（本课加分表 · 打印版 PDF · Excel）">🖨</button></div>';
     $('#btnEditLesson').addEventListener('click',function(){openLessonEditor(cls,lesson);});
     $('#btnPrintLesson').addEventListener('click', function () { openLessonPrint(cls, lesson); });
-    var excelButton=document.createElement('button');excelButton.className='btn';excelButton.textContent='下载本课Excel';excelButton.onclick=function(){downloadLessonExcel(cls,lesson);};$('#lessonMeta .btnrow').appendChild(excelButton);
-    var pdfButton=document.createElement('button');pdfButton.className='btn';pdfButton.textContent='下载打印版PDF';pdfButton.onclick=function(){openLessonPrint(cls,lesson,true);};$('#lessonMeta .btnrow').prepend(pdfButton);
     /* V10（2026-11-12）：发布线上排位任务按钮移走。排位任务改在「接线仿真」课堂任务那边发布
        （task.html 已支持），小组加分这里不再提供发布入口；接线仿真发布的任务仍会自动在
        本课生成「线上连线排位」项目列（wire-task-link.js 自动入账机制不变）。 */
@@ -1817,15 +1821,28 @@ function restoreDroppedToHome(cls) {
     var A = window.JFDT_ASSESSMENT;
     return pctText((A ? A.dutyScore(lessons, gno) : 5) / 5 * 100);
   }
+  /* 值日缺勤格子（2026-11-13 返修，用户原话：
+       「值日缺勤无法单机扣分双击加分，值日分是整个学期的分，非本节课，
+         那个值日完成率 100% 下面还有个 - 没有删除」）
+     三处改动：
+       ① 原来只有「本节值日组」才有按钮，其它组是一个「—」占位 —— 那个横杠就是用户说的没删掉的「-」。
+          现在删掉占位，**所有组都给按钮**：值日缺勤是整学期一个 5 分项目，不是本节课的分，
+          补录哪一组、在哪一节课补，都该允许（老师经常事后才发现某组缺勤）。
+       ② 值日组（isDuty）的按钮加 `.is-duty` 高亮，视觉上仍然能一眼看出「今天轮到谁」。
+       ③ 单击 / 双击的冲突在事件层修（见下面 #groupList 的两个监听）：
+          浏览器双击 = click→click→dblclick，旧代码因此「双击净扣一档」，看起来就是「双击加不了分」。 */
   function ctlDuty(gno, isDuty) {
-    var cls = curClass(), lesson = curLesson(cls);
+    var cls = curClass();
     var pct = dutyPctText(lessonsOf(cls.id), gno);
-    var btn = isDuty
-      ? '<button type="button" class="duty-score" data-duty-deduct="' + gno + '" ' +
-        'title="不值日少一人点一下：全组每人值日缺勤 −20%（单击扣一档、双击加回一档，按次叠加，第二次值日再缺勤还能再扣）" ' +
-        'aria-label="第' + gno + '组值日缺勤：单击全组每人减20%，双击加回20%">每人 −20%</button>'
-      : '<span class="duty-off" title="本组本节不值日（值日缺勤只考察当天该值日的组）">—</span>';
-    return '<div class="duty-cell"><b class="duty-pct" title="整学期值日缺勤：一学期没缺勤就是 100%，缺勤每次 −20%">' + pct + '</b>' + btn + '</div>';
+    var A = window.JFDT_ASSESSMENT;
+    var lost = A && A.dutyLoss ? A.dutyLoss(lessonsOf(cls.id), gno) : 0;
+    var btn = '<button type="button" class="duty-score' + (isDuty ? ' is-duty' : '') + '" ' +
+      'data-duty-deduct="' + gno + '" ' +
+      'title="' + (isDuty ? '本节值日组：' : '') + '单击 = 全组每人值日缺勤 −20%（一档），双击 = 加回一档；按次叠加' + (lost ? '（本组整学期已扣 ' + lost + ' 档）' : '') + '" ' +
+      'aria-label="第' + gno + '组值日缺勤：单击全组每人减 20%，双击加回 20%">每人 −20%</button>';
+    return '<div class="duty-cell">' +
+      '<b class="duty-pct" title="整学期值日缺勤：一学期没缺勤就是 100%，每缺一次 −20%（按次叠加）">' + pct + '</b>' +
+      btn + '</div>';
   }
 
   function semesterBadge(cls,gno,index) {
@@ -1859,18 +1876,9 @@ function restoreDroppedToHome(cls) {
     return ['regular','contribution','needed'].map(function(field){return '<td rowspan="2" class="home-grade '+field+'" data-home-grade="'+field+'">'+members.map(function(item){var m=item.member,r=item.row;if(!r)return '';var value=field==='needed'?(r.attendanceFailed?'不适用':r.needed>100?'无法达到':r.needed):r[field];return '<div class="home-grade-person" data-grade-student="'+esc(r.key)+'" title="'+esc(m.name)+'：'+(r.ready?'记录已齐':'预估，项目或考勤记录未齐')+'"><strong>'+value+(field==='regular'?' <span class="completion-rate">（'+(r.totalMaximum?Math.round(r.performanceRate*1000)/10+'%':'—')+'）</span>':'')+'</strong>'+(r.attendanceFailed?'<small>考勤挂科</small>':'')+'</div>';}).join('')+'</td>';}).join('');
   }
 
-  /** 个人扣分芯片（2026-11-12 值日缺勤改革）：芯片显示「本人本节被扣了多少」
-      —— 0% 表示没扣，20% 表示扣了一档；点击仍扣 1 分（= 20%），最多扣满 100%。 */
+  /** 某成员本节剩余可扣的项目分（5 分制）：5 − 手机未入袋次数 − 本人已扣分。
+      底层数据函数：undo/redo（applyEffect 的 point: 分支）、全组扣分（changeMemberPoints）都依赖它。 */
   function remaining(lesson,gno,i){var s=sc(lesson,gno);return Math.max(0,5-(+s.phone||0)-(+s.personal[String(i)]||0));}
-  function ctlPersonal(gno, m, i, n, fullName) {
-    var lost = 5 - remaining(curLesson(curClass()),gno,i);
-    var attrs = ' data-g="' + gno + '" data-i="' + i + '"';
-    return '<span class="personal-control"><button class="pchip' + (lost>0 ? ' hit' : '') + '"' + attrs + ' data-act="p" title="' + esc(m.name) + '：点击扣 20%" aria-label="' + esc(m.name) + ' 个人扣分 ' + pctText(lost*20) + '，点击再扣 20%">' +
-      (fullName ? '<span class="pname">' + esc(m.name) + '</span>' : '') + '<span class="n">' + (lost ? '−' + pctText(lost*20) : '0%') + '</span><span class="deduct-action" aria-hidden="true">−</span></button>' +
-      '<button class="personal-refund"' + attrs + ' data-act="pr" title="' + esc(m.name) + '：返还 20%">' +
-      '+</button>' +
-      '<button class="personal-reset"' + attrs + ' data-act="pz" title="' + esc(m.name) + '：清空个人扣分">清零</button></span>';
-  }
 
   function ctlClear(gno, compact) {
     return '<button class="mini" data-cleargroup="' + gno + '" type="button" title="把本组这节课的分数全部归零">' +
@@ -1990,14 +1998,6 @@ function restoreDroppedToHome(cls) {
         ? memberEntries.map(function (entry) { var m=entry.m,i=entry.i;return '<span class="member-name'+attendanceNameClass(cls,m,lesson)+(isGroupLeader(g,m)?' group-leader-name':'')+'" data-leader-toggle data-g="'+g.no+'" data-member-index="'+i+'" title="双击设置或退出组长">' + (isGroupLeader(g,m)?'<span class="leader-crown" aria-label="组长">👑</span> ':'') + esc(m.name) + semesterBadge(cls,g.no,i) + '</span>'; }).join('')
         : '<span style="color:var(--muted);font-weight:400">（未录入名单）</span>';
 
-      var personal = cnt
-        ? '<div class="personals"><span class="plabel">个人扣分 <small>每次 20%</small></span>' +
-          memberEntries.map(function (entry) {
-            var m=entry.m,i=entry.i;
-            return ctlPersonal(g.no, m, i, +s.personal[String(i)] || 0, true);
-          }).join('') + '</div>'
-        : '';
-
       return '' +
       '<div class="gcard' + (duty ? ' is-duty' : '') + (touched(lesson, g.no) ? ' touched' : '') + (over ? ' is-over' : '') + '" data-card="' + g.no + '">' +
         '<div class="gcard-head">' +
@@ -2015,7 +2015,6 @@ function restoreDroppedToHome(cls) {
             ctlDuty(g.no, duty) +
           '</div>' +
         '</div>' +
-        personal +
       '</div>';
     }).join('') + '</div>';
   }
@@ -2042,10 +2041,10 @@ function restoreDroppedToHome(cls) {
     var display=entries.length?entries:[{m:null,i:-1}],span=display.length+(editing?1:0),rows=display.map(function(x,j){var m=x.m,i=x.i,key=m&&A.key(m),grade=m&&grades.find(function(r){return r.key===key;}),total=m?memberLessonRateText(lesson,g.no,m,i):'';
       var out='<tr class="vertical-member-row"'+(m?' data-member-index="'+i+'" data-member-key="'+esc(key)+'"':'')+'>';
       if(!j)out+='<td class="c-no" rowspan="'+span+'"><span class="gno-swatch" style="'+gbTone(g.no,0)+'">'+g.no+'</span> <small class="gcount'+(over?' over':'')+'" title="'+(over?'本组 '+entries.length+' 人，超过上限 '+gcap+' 人：到「分组」页把超出的 '+(entries.length-gcap)+' 人拖到别的组（不会被自动移出）':'本组人数 / 上限（双击组号可加人减人）')+'">'+entries.length+'/'+gcap+'</small></td>';
-      out+='<td class="c-mem member-name-cell'+(m?attendanceNameClass(cls,m,lesson):'')+(m&&isGroupLeader(g,m)?' group-leader-name':'')+'"'+(m?' data-leader-toggle data-g="'+g.no+'" data-member-index="'+i+'"':'')+' title="'+esc(m?(m.name+' '+(m.sid||'')+' · 双击设置或退出组长'):'双击组号添加成员')+'">'+(m?(isGroupLeader(g,m)?'<span class="leader-crown" aria-label="组长">👑</span> ':'')+esc(m.name)+(m.no==null?'':' <small>'+two(m.no)+'</small>'):'未分配成员')+(m&&!printing?'<span class="mem-deduct">'+ctlPersonal(g.no,m,i,0)+'</span>':'')+'</td>';
+      out+='<td class="c-mem member-name-cell'+(m?attendanceNameClass(cls,m,lesson):'')+(m&&isGroupLeader(g,m)?' group-leader-name':'')+'"'+(m?' data-leader-toggle data-g="'+g.no+'" data-member-index="'+i+'"':'')+' title="'+esc(m?(m.name+' '+(m.sid||'')+' · 双击设置或退出组长'):'双击组号添加成员')+'">'+(m?(isGroupLeader(g,m)?'<span class="leader-crown" aria-label="组长">👑</span> ':'')+esc(m.name)+(m.no==null?'':' <small>'+two(m.no)+'</small>'):'未分配成员')+'</td>';
       if(!j)out+='<td class="c-duty" rowspan="'+span+'">'+(printing?'<b class="duty-pct">'+dutyPctText(lessonsOf(cls.id),g.no)+'</b>':ctlDuty(g.no,isDuty))+'</td>';
       out+='<td class="home-attendance">'+(grade?(printing?'<strong>'+attPctText(grade.attendance)+'</strong>':'<button type="button" class="attendance-score" data-attendance-open="'+esc(key)+'" aria-label="'+esc(m.name)+' 考勤完成率 '+attPctText(grade.attendance)+'，点击修改">'+attPctText(grade.attendance)+'</button>'):'')+'</td>';
-      out+='<td class="c-sum" data-home-grade="sum"'+(m?' data-grade-student="'+esc(key)+'"':'')+' title="'+esc(m?m.name+' · 点击看本节各项目完成率明细':'')+'"><div class="home-grade-person" data-member-lesson-totals="'+g.no+'" data-lesson-member="'+i+'"><strong>'+total+'</strong></div></td>';
+      out+='<td class="c-sum" data-home-grade="sum" data-sum-g="'+g.no+'" data-sum-i="'+i+'"'+(m?' data-grade-student="'+esc(key)+'"':'')+' title="'+esc(m?m.name+' · 点击展开本节各项目完成率明细':'')+'"><div class="home-grade-person" data-member-lesson-totals="'+g.no+'" data-lesson-member="'+i+'"><strong>'+total+'</strong><span class="sumd-cue" aria-hidden="true">▾</span></div></td>';
       ['regular','contribution','needed'].forEach(function(field){var value=grade?(field==='needed'?(grade.attendanceFailed?'不适用':grade.needed>100?'无法达到':grade.needed):grade[field]):'';out+='<td class="home-grade '+field+'" data-home-grade="'+field+'" title="'+esc(m?m.name:'')+'">'+(grade?'<div class="home-grade-person" data-grade-student="'+esc(key)+'"><strong>'+value+(field==='regular'?' <span class="completion-rate">（'+(grade.totalMaximum?Math.round(grade.performanceRate*1000)/10+'%':'—')+'）</span>':'')+'</strong>'+(grade.attendanceFailed?'<small>考勤挂科</small>':'')+'</div>':'')+'</td>';});
       return out+'</tr>';
     }).join('');
@@ -2109,12 +2108,6 @@ function restoreDroppedToHome(cls) {
     });
     var tg = $('[data-act="first"]', card);
     if(tg){tg.classList.toggle('on', !!s.first);tg.textContent='✓';tg.setAttribute('aria-pressed',String(!!s.first));}
-    $$('.pchip', card).forEach(function (c) {
-      var lost = 5 - remaining(lesson,gno,c.dataset.i);
-      c.classList.toggle('hit', lost>0);
-      var txt = $('.n', c);
-      if (txt) txt.textContent = lost ? '−' + pctText(lost*20) : '0%';
-    });
   }
 
   /* 值日缺勤（2026-11-12 R1）：值日组这一格点一下 = 全组每人值日缺勤 −20%（整学期 5 分项目，1 档 = 1 分）。
@@ -2129,9 +2122,158 @@ function restoreDroppedToHome(cls) {
     var A=window.JFDT_ASSESSMENT, pct=pctText((A?A.dutyScore(lessonsOf(cls.id),gno):5)/5*100);
     flash(dir<0?'第'+gno+'组已加回一档：全组每人 +20%，本学期值日缺勤回到 '+pct:'第'+gno+'组已记值日缺勤：全组每人 −20%，本学期值日缺勤剩 '+pct);
   }
-  // V4：值日缺勤「单击扣一档、双击加回一档」。单击扣分、双击加回，都在同一个 duty-score 按钮上。
-  $('#groupList').addEventListener('click',function(e){var button=e.target.closest('[data-duty-deduct]');if(!button)return;var cls=curClass(),lesson=curLesson(cls);if(!lesson)return;deductDuty(cls,lesson,Number(button.dataset.dutyDeduct),1);});
-  $('#groupList').addEventListener('dblclick',function(e){var button=e.target.closest('[data-duty-deduct]');if(!button)return;e.preventDefault();e.stopPropagation();var cls=curClass(),lesson=curLesson(cls);if(!lesson)return;deductDuty(cls,lesson,Number(button.dataset.dutyDeduct),-1);});
+  // V4：值日缺勤「单击扣一档、双击加回一档」。
+  /* 2026-11-13 修「双击加不了分」：浏览器的一次双击会依次派发 click → click → dblclick，
+     旧代码三个事件各干各的，双击的净效果是「扣两档 + 加回一档 = 净扣一档」，老师看到的就是
+     「双击没加回来」。现在单击延迟 260ms 再执行（人不会在 260ms 内连点两次单机），
+     双击一到就把定时器清掉，只走「加回一档」。 */
+  var dutyClickTimer = 0;
+  $('#groupList').addEventListener('click', function (e) {
+    var button = e.target.closest('[data-duty-deduct]');
+    if (!button) return;
+    if (dutyClickTimer) return;                     // 双击的第二下 click：交给 dblclick 处理
+    var gno = Number(button.dataset.dutyDeduct);
+    dutyClickTimer = setTimeout(function () {
+      dutyClickTimer = 0;
+      var cls = curClass(), lesson = curLesson(cls);
+      if (cls && lesson) deductDuty(cls, lesson, gno, 1);
+    }, 260);
+  });
+  $('#groupList').addEventListener('dblclick', function (e) {
+    var button = e.target.closest('[data-duty-deduct]');
+    if (!button) return;
+    e.preventDefault(); e.stopPropagation();
+    if (dutyClickTimer) { clearTimeout(dutyClickTimer); dutyClickTimer = 0; }
+    var cls = curClass(), lesson = curLesson(cls);
+    if (cls && lesson) deductDuty(cls, lesson, Number(button.dataset.dutyDeduct), -1);
+  });
+
+  /* ── 本节各项目完成率明细（2026-11-13）────────────────────────────────
+     用户原话：「课堂任务列和本节完成率列是包含关系 所以删除课堂任务列 仅保留本节任务完成率
+     需要显示完整几个项目 各多少完成率 然后转换成本节完成率 为了防止太多不好显示
+     我们把详细完成各个项目完成率做成点击弹悬浮窗的形式，展示小组加分的效果ui」
+     「仅展示各自的 不要有遮挡」，最后又补一句
+     「还是无法点击显示详情实在不喜欢可以全部展开铺在整个表格显示啊」。
+     做法：点「本节完成率」那一格，在记分表格上方展开一条明细面板 —— 表格整体被往下推，
+     不会盖住任何一格；面板里按项目逐条列「项目名 · 得分/5 · 完成率」，底部写合计和扣分来源。
+     再点同一格、点 ✕、或按 Esc 收起；点别人的格子直接换成那个人的。 */
+  function sumDetailHtml(cls, lesson, gno, member, i) {
+    var A = window.JFDT_ASSESSMENT;
+    var names = (A && A.projectNames && A.projectNames(lesson)) || [];
+    var rec = (lesson.leaderScores || {})[String(gno)] || {};
+    var key = memberKey(member);
+    var values = (rec.members || {})[key] || [];
+    var net = (A && A.lessonNet) ? A.lessonNet(lesson, gno, i, key) : { raw: 0, earned: 0, max: 0 };
+    var items = [], sumRaw = 0, sumMax = 0;
+    names.forEach(function (name, idx) {
+      var label = String(name == null ? '' : name).trim();
+      if (!label) return;
+      var v = values[idx];
+      var blank = (v == null || v === '');
+      var num = blank ? 0 : (Number(v) || 0);
+      sumRaw += num; sumMax += 5;
+      var isTask = TASK_COL.test(label);
+      items.push('<span class="sumd-item' + (blank ? ' is-blank' : '') + (isTask ? ' is-task' : '') + '">' +
+        '<b class="sumd-name">' + esc(label) + '</b>' +
+        '<span class="sumd-score">' + (blank ? '—' : fmt(num) + '/5') + '</span>' +
+        '<span class="sumd-pct">' + (blank ? '—' : pctText(num / 5 * 100)) + '</span>' +
+        '</span>');
+    });
+    var ded = Math.max(0, Math.round((net.raw - net.earned) * 100) / 100);
+    var foot = '合计 ' + fmt(sumRaw) + '/' + fmt(sumMax) + ' · 本节完成率 ' +
+      (net.max ? pctText(Math.max(0, net.earned) / net.max * 100) : '—') +
+      (ded > 0 ? ' · 实际扣分 ' + fmt(ded) + '（手机未入袋 / 个人扣分，扣完本节为止）' : '');
+    return '<div class="sumd-panel" role="region" aria-label="本节各项目完成率明细">' +
+      '<div class="sumd-head">' +
+        '<b class="sumd-who">第 ' + gno + ' 组 · ' + esc(member.name) + '</b>' +
+        '<span class="sumd-lesson">第 ' + lesson.seq + ' 次课 · ' + esc(lesson.date || '') + '</span>' +
+        '<span class="sumd-total">本节完成率 <b>' + (net.max ? pctText(Math.max(0, net.earned) / net.max * 100) : '—') + '</b></span>' +
+        '<span class="spacer"></span>' +
+        '<button type="button" class="sumd-x" data-sumd-close="1" aria-label="关闭明细">✕</button>' +
+      '</div>' +
+      (items.length
+        ? '<div class="sumd-items">' + items.join('') + '</div>'
+        : '<p class="sumd-empty">本课还没有项目列。到「组内个人评分」里加项目，这里就会逐项列出来。</p>') +
+      '<div class="sumd-foot">' + foot + '</div>' +
+      '</div>';
+  }
+
+  function closeSumDetail() {
+    var host = $('#sumdHost');
+    if (!host) return;
+    host.hidden = true;
+    host.innerHTML = '';
+    host.dataset.open = '';
+  }
+
+  /* 悬浮窗定位（2026-11-13 用户：「需要悬浮窗形式 不然下面同学不方便直接看」）：
+     原来是「在表格上方插一条面板、表格整体往下推」——投影时表格被挤走，坐在下面的同学就看不到表了。
+     现在改成真正浮在页面上的一张小卡片：贴着点中的那一格下方弹出，空间不够就翻到上方，
+     并且夹在可视区内。表格一动不动，全班都能同时看到分数和明细。 */
+  function placeSumPanel(host, td) {
+    var r = td.getBoundingClientRect();
+    var w = host.offsetWidth || 380, h = host.offsetHeight || 220;
+    var vw = window.innerWidth, vh = window.innerHeight, pad = 10;
+    var left = Math.min(Math.max(pad, r.right - w), Math.max(pad, vw - w - pad));
+    var top = r.bottom + 8;
+    if (top + h > vh - pad) top = r.top - h - 8;       // 下方放不下就翻到上方
+    if (top < pad) top = pad;
+    host.style.left = Math.round(left) + 'px';
+    host.style.top = Math.round(top) + 'px';
+  }
+
+  function showSumDetail(td) {
+    var host = $('#sumdHost');
+    if (!host) return;
+    var gno = Number(td.dataset.sumG), i = Number(td.dataset.sumI);
+    if (!(gno >= 1) || !(i >= 0)) return;
+    var cls = curClass(), lesson = curLesson(cls);
+    if (!cls || !lesson) return;
+    var g = groupOf(cls, gno);
+    var member = g && g.members && g.members[i];
+    if (!member || !member.name) return;
+    /* 点同一格 = 收起 */
+    var sig = lesson.id + '|' + gno + '|' + i;
+    if (host.dataset.open === sig && !host.hidden) { closeSumDetail(); return; }
+    host.innerHTML = sumDetailHtml(cls, lesson, gno, member, i);
+    host.hidden = false;
+    host.dataset.open = sig;
+    placeSumPanel(host, td);
+    $$('.c-sum.is-sumd-on').forEach(function (el) { el.classList.remove('is-sumd-on'); });
+    td.classList.add('is-sumd-on');
+  }
+
+  $('#groupList').addEventListener('click', function (e) {
+    if (e.target.closest('[data-sumd-close]')) { closeSumDetail(); return; }
+    var td = e.target.closest('td[data-home-grade="sum"]');
+    if (!td) return;
+    /* 不带 data-sum-g 的是空成员占位行，没有明细可看 */
+    if (!td.dataset.sumG) return;
+    /* 正在选组/拖拽/点加减分时不抢：只处理单元格本体的点击 */
+    if (e.target.closest('button, input, select, a')) return;
+    showSumDetail(td);
+  });
+  if ($('#sumdHost')) {
+    $('#sumdHost').addEventListener('click', function (e) {
+      if (e.target.closest('[data-sumd-close]') || e.target === this) closeSumDetail();
+    });
+  }
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      var host = $('#sumdHost');
+      if (host && !host.hidden) closeSumDetail();
+    }
+  });
+  /* 悬浮窗是 fixed 定位：页面一滚动 / 窗口一变尺寸，它就和原来那一格错开了。
+     与其跟着算，直接收起 —— 老师再点一下就有新的，成本最低。 */
+  window.addEventListener('scroll', function () {
+    var host = $('#sumdHost');
+    if (host && !host.hidden) closeSumDetail();
+  }, { passive: true });
+  window.addEventListener('resize', function () {
+    var host = $('#sumdHost');
+    if (host && !host.hidden) closeSumDetail();
+  });
 
   /* ================= 记分交互（事件委托） ================= */
 
@@ -2895,19 +3037,20 @@ function restoreDroppedToHome(cls) {
         '<button type="button" class="gb-mini" data-gb-snapundo="1">撤回上一次分组</button></div>';
     }
 
-    /* 常驻的「✓ 确认分组」（2026-11-11）：老师不用再翻到底下的折叠区去找。
-       有待确认的选座就先按桌号写进记分表；没有就直接清空组、把组号排成 1..N。 */
+    /* 2026-11-13 合并（用户原话：「本质上停止组队和结束是冗余吧 还有我点确认分组不也是结束吗
+       三冗余 应该就是开始组队和确认两个切换按钮才对吧」「这个按钮功能就是集成到上面我说的
+       开始组队后显示的确认分组按钮上就行 他不就是清理空组并递进的功能吗」）：
+       看板顶部那颗常驻的「✓ 确认分组」删掉 —— 按钮统一收到上面「学生自助选桌」那一行
+       （#btnTeamFinish，文案随状态在「确认分组 / 按选座确认分组」之间切换）。
+       这里只留一行状态提示：现在几个组、有没有空组、有没有待确认的座位。 */
     var emptyN = groups.filter(function (g) { return memberCount(g) === 0; }).length;
     var liveN = groups.length - emptyN;          // 有人的组数：压缩以后就剩这么多组
-    var confirmBar = '<div class="gb-confirmbar">' +
-      '<button type="button" class="btn primary gb-confirmbtn" data-confirm-group="1"' +
-        ' title="有已选座的先按桌号写进记分表；没有就直接清掉空组、把组号重排成 1、2、3…">' +
-        '✓ 确认分组</button>' +
+    var confirmBar = '<div class="gb-confirmbar gb-confirmbar-tip">' +
       '<span class="gb-confirmtip">' +
-        (nSeat ? '有 <b>' + nSeat + '</b> 人已选座待确认 · 点这里按桌号写进记分表'
+        (nSeat ? '有 <b>' + nSeat + '</b> 人已选座待确认 · 点上面的「按选座确认分组」按桌号写进记分表'
                : (!groups.length ? '还没有组 · 先在上面「分几组」里填个数字'
-                 : (!liveN ? '所有组都还空着 · 先把左边的学生拖进组，再点这里确认'
-                   : (emptyN ? '有 <b>' + emptyN + '</b> 个空组 · 点这里清掉，组号排成 1–' + liveN
+                 : (!liveN ? '所有组都还空着 · 先把左边的学生拖进组，再点上面的「确认分组」'
+                   : (emptyN ? '有 <b>' + emptyN + '</b> 个空组 · 点上面的「确认分组」清掉，组号排成 1–' + liveN
                              : '现在是连续的 ' + groups.length + ' 组，没有空组')))) +
       '</span>' +
       (cls.groupLocked
@@ -3130,6 +3273,49 @@ function restoreDroppedToHome(cls) {
     return Promise.resolve(window.confirm(msg));
   }
 
+  /* ── 修复排位误加分（2026-11-13）────────────────────────────────────
+     用户原话：「这种项目是排位仿真课堂任务生成的项目列 老师无权改为学生打分还是教师自己打分
+     是无法编辑的才对 … 修复老师或者学生互评的这一列误加的分 因为这是由课堂任务生成的项目列」。
+     判定和清洗全在 score-clean.js（那个模块只算数据、不碰 DOM），这里只负责一条流程：
+       扫描 → 把「会清哪些列、各多少格」摆给老师看 → 他确认 → 先下载备份 → 再清 → 落盘重画。
+     ⚠ 为什么先把备份做完才清：这一步是真的把分抹成 null，界面级没有撤销，只能拿备份文件恢复。 */
+  function wireCleanRun() {
+    var M = window.JFDT_SCORECLEAN;
+    if (!M) { flash('清洗模块没加载（score-clean.js 缺失），刷新页面再试'); return; }
+    var r;
+    try { r = M.scan(S); } catch (e) { flash('扫描失败：' + ((e && e.message) || '未知错误')); return; }
+    if (!r || !r.total) { flash('没有发现排位项目列上的误加分，不用清洗'); return; }
+    var byCol = {}, order = [];
+    (r.lessons || []).forEach(function (L) {
+      (L.cells || []).forEach(function (c) {
+        var k = (L.className || '班级') + ' · 第' + L.seq + ' 次 · ' + (c.colName || '（未命名列）');
+        if (!byCol[k]) { byCol[k] = 0; order.push(k); }
+        byCol[k]++;
+      });
+    });
+    var lines = order.slice(0, 10).map(function (k) { return '· ' + k + '：' + byCol[k] + ' 格'; });
+    if (order.length > 10) lines.push('· …还有 ' + (order.length - 10) + ' 处');
+    askConfirm(
+      '排位项目列上发现被手填 / 互评混进去的分数，共 ' + r.total + ' 格：\n\n' +
+      lines.join('\n') +
+      '\n\n排位列只该由接线仿真的排位结果写入。这些格子的来源标记不是「排位」，所以判为误加。\n\n' +
+      '会先把整份数据下载成备份文件，再清除。',
+      { title: '修复排位误加分', okText: '备份并清洗', cancelText: '取消' }
+    ).then(function (ok) {
+      if (!ok) return;
+      var backed = false;
+      try { M.backup(S); backed = true; } catch (e) { flash('备份下载失败，已中止：' + ((e && e.message) || '浏览器拦截了下载')); return; }
+      if (!backed) return;
+      var out;
+      try { out = M.clean(S); } catch (e) { flash('清洗失败：' + ((e && e.message) || '未知错误')); return; }
+      save();
+      renderScore();
+      try { renderRank(); } catch (e) { }
+      flash('已清除 ' + out.removed + ' 格误加分；备份文件已下载，要恢复就用它');
+    });
+  }
+  if ($('#btnScoreClean')) $('#btnScoreClean').addEventListener('click', wireCleanRun);
+
   /** 按旧组号升序排（组号相同就按原来的先后），压缩/重排都用它，保证顺序可预期 */
   function sortGroupsByNo(list) {
     return list.map(function (g, i) { return { g: g, i: i }; })
@@ -3283,7 +3469,7 @@ function restoreDroppedToHome(cls) {
   /** 组数改完以后如果冒出一堆空组，提示去压缩（不然首页还是「一堆空占位」） */
   function emptyGroupsHint(cls) {
     var n = (cls.groups || []).filter(function (g) { return memberCount(g) === 0; }).length;
-    return n ? '；其中有 ' + n + ' 个空组，点「压缩空组并重排组号」清理' : '';
+    return n ? '；其中有 ' + n + ' 个空组，点「确认分组」清理' : '';
   }
 
   /** 单组上限 ±1：只改这一组的特许上限（g.cap），不动全班默认，也不删人。
@@ -3344,32 +3530,76 @@ function restoreDroppedToHome(cls) {
   }
 
   /** 看板顶部那颗常驻的「✓ 确认分组」：
-      有已选座待确认的人 → 走「按选座确认分组」；没有 → 直接清空组、重排组号。 */
+      有已选座待确认的人 → 走「按选座确认分组」；
+      没有 → 压缩空组 + 重排组号 + 把未分组的人平均填进去（2026-11-13 三合一：
+      原来的「压缩空组并重排组号」「把未分组的人平均填进去」两个独立按钮删掉，都并进这里）。 */
   function gbConfirmGroups(cls) {
     if (!cls) return;
     var pend = (gbRows || []).filter(function (x) { return x.g === null && !!x.table; });
     if (pend.length) { tmApplySeating(); return; }
     var empties = (cls.groups || []).filter(function (g) { return memberCount(g) === 0; });
-    if (!empties.length) {
+    var pending = truePendingList(cls);
+    if (!empties.length && !pending.length) {
       flash((cls.groups || []).length
-        ? '现在没有空组，组号已经是连续的 1–' + groupCountOf(cls) + '，不用再整理'
+        ? '现在没有空组、也没有未分组的人，组号已经是连续的 1–' + groupCountOf(cls) + '，不用再整理'
         : '这个班还没有组：先在上面「分几组」里填个数字');
       return;
     }
     /* 组号重复：压缩一定中止，别让老师点完确认才被告知，直接说清原因 */
     if (compressBlockedByDup(cls)) { flash(dupCompressMsg()); return; }
+
+    /* 平均填：先算现有组还能塞多少人，塞不下就别让老师白点确认 */
+    var fillOk = true, room = null;
+    if (pending.length) {
+      room = cls.groups.map(function (g) {
+        return { g: g, left: groupTargetCap(cls, g) - memberCount(g) };
+      });
+      var totalRoom = room.reduce(function (a, x) { return a + Math.max(0, x.left); }, 0);
+      if (totalRoom < pending.length) {
+        flash('现有小组空位不够：空位 ' + totalRoom + ' 个，未分组 ' + pending.length +
+          ' 人。请先把每组上限调大，再点「确认分组」。');
+        return;
+      }
+    }
+
+    var limit = classGroupLimit(cls) || GROUP_CAP;
     askConfirm('确认分组？\n\n' +
-      '· 有 ' + empties.length + ' 个组一个人都没有，会先删掉\n' +
+      (empties.length ? '· 有 ' + empties.length + ' 个组一个人都没有，会先删掉\n' : '') +
       '· 剩下的组按组号重排成 1、2、3…（连续没有空号）\n' +
+      (pending.length ? '· ' + pending.length + ' 名未分组的人按班内序号轮流填进各组（每组不超过 ' + limit + ' 人）\n' : '') +
       '· 记过的分按学生身份跟着人走，不会丢；小组四列分跟着它那一组一起搬家\n\n' +
       '想反悔可以点看板上的「撤回上一次分组」。',
       { title: '确认分组', okText: '确认分组', cancelText: '取消' })
       .then(function (ok) {
         if (!ok) return;
-        var info = compressEmptyGroups(cls, '手动确认分组');
-        if (!info) { flash('没有可清理的空组'); return; }
-        gbCommit(cls, '已确认分组：清掉 ' + info.removed + ' 个空组，剩 ' + info.groups + ' 组');
-        reportScoreMigration({ personal: info.unmatched, leader: info.leader });
+        var beforeF = JSON.parse(JSON.stringify(cls.groups));
+        pushGroupSnapshot(cls, '确认分组（压缩空组 + 重排 + 平均填）');
+        var info = empties.length ? compressEmptyGroups(cls, '手动确认分组') : null;
+        if (info === false) { flash('没有可清理的空组'); return; }
+        /* 压缩空组之后，把未分组的人平均填进现有组的空位（不新建组） */
+        if (pending.length && room) {
+          var i = 0, done = 0;
+          pending.forEach(function (r) {
+            for (var k = 0; k < room.length; k++) {
+              var idx = (i + k) % room.length;
+              if (room[idx].left > 0) {
+                pushMember(room[idx].g, { id: uid('m'), name: r.name, sid: r.sid || '', no: r.no });
+                room[idx].left--;
+                i = idx + 1;
+                done++;
+                return;
+              }
+            }
+          });
+          var reback = repairOrphansAfterAssign(cls);
+          addOperationLog('分组', cls.name + ' · 确认分组：平均填 ' + done + ' 人' + (reback ? '（接回历史分 ' + reback + ' 条）' : ''));
+        }
+        var removed = info ? info.removed : 0;
+        gbCommit(cls, '已确认分组' + (removed ? '：清掉 ' + removed + ' 个空组' : '') +
+          (pending.length ? '，平均填 ' + pending.length + ' 人' : '') +
+          '，剩 ' + groupCountOf(cls) + ' 组');
+        if (info) reportScoreMigration({ personal: info.unmatched, leader: info.leader });
+        reportGroupChange(cls, beforeF, '确认分组');
         renderGroupSetup();
         renderPoolBanner(cls);
       });
@@ -3555,8 +3785,8 @@ function restoreDroppedToHome(cls) {
       if (gbSwallowClick) return;
       var cls = curClass();
       if (!cls) return;
-      /* 顶部常驻的「✓ 确认分组」 */
-      if (e.target.closest('[data-confirm-group]')) { gbConfirmGroups(cls); return; }
+      /* 顶部那颗常驻「✓ 确认分组」2026-11-13 已并入 #btnTeamFinish（在「学生自助选桌」那一行），
+         看板上不再有按钮，这里的分支保留成空壳只为兼容旧缓存里的 DOM，不再需要就删。 */
       /* 组卡片头部的单组上限 ±（只改这一组） */
       var capUp = e.target.closest('[data-gcap-up]');
       if (capUp) { gbCapStep(cls, +capUp.dataset.gcapUp, 1); return; }
@@ -3885,12 +4115,22 @@ function restoreDroppedToHome(cls) {
     }
     open.disabled = lockNow && st !== 'open' && st !== 'locked';
     open.title = lockNow && st !== 'open' && st !== 'locked'
-      ? '分组已锁定：先点上面的「🔓 解锁分组」' : '';
+      ? '分组已锁定：先到「⚙ 设置」里点「🔓 解锁分组」' : '';
 
-    /* fin（确认分组）只在「有还没确认的选座」时显示（见上面 pendingSeats），确认过就消失。 */
-    fin.hidden = !room || !pendingSeats;
-    link.hidden = !room || st === 'closed';
+    /* 2026-11-13：fin 改成常驻的第二颗切换按钮（用户：「应该就是开始组队和确认两个切换按钮才对」）。
+       文案随状态变：
+         · 有还没确认的选座 → 「按选座确认分组」（按桌号写进记分表）
+         · 没有 → 「✓ 确认分组」（清空组 + 组号重排 1..N + 把未分组的人平均填进去）
+       两个动作都由 gbConfirmGroups 统一分发，老师不用再分辨该点哪个。 */
+    fin.hidden = false;
+    fin.textContent = pendingSeats ? '按选座确认分组' : '✓ 确认分组';
+    fin.classList.toggle('primary', !!pendingSeats);
+    fin.classList.toggle('ghost', !pendingSeats);
     fin.disabled = false;
+    fin.title = pendingSeats
+      ? '把这 ' + (seatCnt || 0) + ' 人的选座按桌号写进记分表（组号＝桌号）'
+      : '清掉空组、把组号重排成 1、2、3…，并把未分组的人平均填进去';
+    link.hidden = !room || st === 'closed';
     if (room && room.room) {
       link.href = 'team.html?r=' + room.room;
       link.hidden = false;
@@ -4029,7 +4269,7 @@ function restoreDroppedToHome(cls) {
        没房间或已结束点它=开放。原来的「结束」动作并进「停止」的二次确认里。 */
     if (tmRoom && tmRoom.room && tmRoom.status === 'open') { tmStopOrClose(); return; }
     if (tmRoom && tmRoom.room && tmRoom.status === 'locked') { tmResumeTeam(); return; }
-    if (cls && cls.groupLocked) { flash('分组已锁定：先点「🔓 解锁分组」再开放组队'); return; }
+    if (cls && cls.groupLocked) { flash('分组已锁定：先到「⚙ 设置」里点「🔓 解锁分组」再开放组队'); return; }
     if (!cls || !tmOn()) { alert('先登录再来开放组队。'); return; }
     if (!tmClassId(cls)) { alert('这个班还没对应首页班级，先在「数据与同步」页对应。'); return; }
     /* 2026-11-08：桌数 / 每桌人数不再偷偷用 10 / 6 兜底。用户说得很清楚：
@@ -4146,7 +4386,7 @@ function restoreDroppedToHome(cls) {
   function tmStopOrClose() {
     if (!tmRoom || !tmRoom.room) return;
     var cs = curClass();
-    if (cs && cs.groupLocked) { flash('分组已锁定：先点「🔓 解锁分组」，再停止组队'); return; }
+    if (cs && cs.groupLocked) { flash('分组已锁定：先到「⚙ 设置」里点「🔓 解锁分组」，再停止组队'); return; }
     askConfirm('停止组队后学生就不能再换桌。\n\n' +
       '· 「暂停」＝ 先停一下，之后还能点「继续组队」让学生接着选\n' +
       '· 「结束」＝ 这一轮收工，学生端变只读；已选的座位会留着，等你点「确认分组」才写进记分表', {
@@ -4173,7 +4413,7 @@ function restoreDroppedToHome(cls) {
   function tmResumeTeam() {
     if (!tmRoom || !tmRoom.room) return;
     var cs = curClass();
-    if (cs && cs.groupLocked) { flash('分组已锁定：先点「🔓 解锁分组」，再继续组队'); return; }
+    if (cs && cs.groupLocked) { flash('分组已锁定：先到「⚙ 设置」里点「🔓 解锁分组」，再继续组队'); return; }
     tmBusy = true;
     CLOUD.rpc('jf_team_lock', { p_room: Number(tmRoom.room), p_locked: false })
       .then(function () {
@@ -4333,7 +4573,19 @@ function restoreDroppedToHome(cls) {
       .then(function (ok) { if (ok) doSeatApply(); });
   }
 
-  $('#btnTeamFinish').addEventListener('click', tmApplySeating);
+  /* 2026-11-13：这颗按钮现在是「确认分组」的唯一入口（另一颗是上面的「开始组队」），按状态分发：
+       · 有还没确认的选座 → tmApplySeating（按桌号写进记分表）
+       · 没有 → gbConfirmGroups（清空组 + 组号重排 1..N + 把未分组的人平均填进去）
+     判断口径和 tmButtons 里给按钮换文案的那段完全一致，避免「按钮写着按选座确认、
+     点下去却在整理空组」这种错位。 */
+  $('#btnTeamFinish').addEventListener('click', function () {
+    var cs = curClass();
+    if (!cs) return;
+    var seatCnt = tmState && (tmState.seats || []).length;
+    var pendingSeats = seatCnt > 0 && tmSeatSig !== cs.seatAppliedSig;
+    if (pendingSeats) tmApplySeating();
+    else gbConfirmGroups(cs);
+  });
 
   /* 分组页「已选座 · 待确认」统计卡上的一键确认按钮（2026-11-10）：
      和折叠区里的「按选座确认分组」同一个动作，只是把入口提到分组页顶部，老师一眼能看到。
@@ -4350,7 +4602,7 @@ function restoreDroppedToHome(cls) {
     var b = e.target.closest ? e.target.closest('[data-unseat]') : null;
     if (!b || !tmRoom || !tmRoom.room || tmBusy) return;
     var cs = curClass();
-    if (cs && cs.groupLocked) { flash('分组已锁定：先点「🔓 解锁分组」才能改座'); return; }
+    if (cs && cs.groupLocked) { flash('分组已锁定：先到「⚙ 设置」里点「🔓 解锁分组」才能改座'); return; }
     var sid = Number(b.dataset.unseat);
     if (!sid) return;
     tmBusy = true;
@@ -4366,7 +4618,7 @@ function restoreDroppedToHome(cls) {
     if (cs2 && cs2.groupLocked) {
       tmSig = '';      /* 清掉内容指纹，逼 tmPaint 真的重画一遍，把下拉框刷回原值 */
       tmPaint();
-      flash('分组已锁定：先点「🔓 解锁分组」才能改座');
+      flash('分组已锁定：先到「⚙ 设置」里点「🔓 解锁分组」才能改座');
       return;
     }
     var sid = Number(sel.dataset.seat), table = Number(sel.value);
@@ -4795,7 +5047,7 @@ function restoreDroppedToHome(cls) {
          点下去由 click 处理明确告诉老师「先填圆桌数和每桌人数」，而不是默默失效。 */
       openBtn.disabled = !!cls.groupLocked;
       openBtn.title = cls.groupLocked
-        ? '分组已锁定：先点上面的「🔓 解锁分组」'
+        ? '分组已锁定：先到「⚙ 设置」里点「🔓 解锁分组」'
         : (tIn && sIn && !(Number(tIn.value) >= 1 && clampLimit(sIn.value))
             ? '点一下会提示先填圆桌数和每桌人数' : '');
     }
@@ -4917,49 +5169,6 @@ function restoreDroppedToHome(cls) {
     if (bar && bar.scrollIntoView) bar.scrollIntoView({ block: 'center', behavior: 'smooth' });
   }
 
-  /** 均匀分配：把待分配的人轮流塞进现有组，填到该组上限为止（不新建组） */
-  function runFillExisting() {
-    var cls = curClass();
-    if (!cls) return;
-    var pending = truePendingList(cls);
-    if (!pending.length) { alert('这个班没有未分组的学生。'); return; }
-    var room = cls.groups.map(function (g) {
-      return { g: g, left: groupTargetCap(cls, g) - memberCount(g) };
-    });
-    var totalRoom = room.reduce(function (a, x) { return a + Math.max(0, x.left); }, 0);
-    if (totalRoom < pending.length) {
-      alert('现有小组空位不够：空位 ' + totalRoom + ' 个，未分组 ' + pending.length + ' 人。\n' +
-            '请先把每组人数调大，或用 ① 按组数重新分。');
-      return;
-    }
-    var limit = classGroupLimit(cls) || GROUP_CAP;
-    if (!confirm('把 ' + pending.length + ' 名待分配学生，按班内序号顺序轮流填进现有各组（每组不超过 ' + limit + ' 人）。\n\n' +
-      '不新建组、不挪动已经在组里的人。继续吗？')) return;
-    var beforeF = JSON.parse(JSON.stringify(cls.groups));
-    pushGroupSnapshot(cls, '均匀填充：待分配 ' + pending.length + ' 人填进现有组');
-    var i = 0, done = 0;
-    pending.forEach(function (r) {
-      for (var k = 0; k < room.length; k++) {
-        var idx = (i + k) % room.length;
-        if (room[idx].left > 0) {
-          pushMember(room[idx].g, {
-            id: uid('m'), name: r.name, sid: r.sid || '', no: r.no
-          });
-          room[idx].left--;
-          i = idx + 1;
-          done++;
-          return;
-        }
-      }
-    });
-    var reback = repairOrphansAfterAssign(cls);
-    addOperationLog('分组', cls.name + ' · 均匀填充：待分配 ' + done + ' 人填进现有组');
-    save(); renderPool(); renderScore(); renderPoolBanner(cls);
-    flash('已均匀分配 ' + done + ' 人，可到「上课记分」页核对' +
-      (reback ? '（接回历史分 ' + reback + ' 条）' : ''));
-    reportGroupChange(cls, beforeF, '均匀填充');
-  }
-
   /* ---- 分组设置栏的交互（2026-11-09：原来的四页签弹窗已删，控件都在页面上） ---- */
   if ($('#groupCount')) {
     var countIn = $('#groupCount'), capIn = $('#groupLimit');
@@ -4983,42 +5192,37 @@ function restoreDroppedToHome(cls) {
     capIn.addEventListener('keydown', function (e) {
       if (e.key === 'Enter') { e.preventDefault(); this.blur(); }
     });
-    $('#btnGroupFill').addEventListener('click', runFillExisting);
 
-    /* 「压缩空组并重排组号」（2026-11-11）：随时手动触发，先确认再动结构。
-       和「✓ 确认分组」是同一套内核，只是这里不做选座确认，直接整理组号。 */
-    if ($('#btnGroupCompress')) {
-      $('#btnGroupCompress').addEventListener('click', function () {
-        var cls = curClass();
-        if (!cls) return;
-        var empties = (cls.groups || []).filter(function (g) { return memberCount(g) === 0; });
-        if (!empties.length) { flash('没有空组，组号已经是连续的 ' + groupCountOf(cls) + ' 组'); return; }
-        /* 组号重复时压缩会整体中止，先说清原因，别让老师点完确认才被退回来 */
-        if (compressBlockedByDup(cls)) { flash(dupCompressMsg()); return; }
-        var hist = empties.filter(function (g) { return groupHasHistory(cls, g.no); }).length;
-        askConfirm('压缩空组并重排组号？\n\n' +
-          '· 删掉 ' + empties.length + ' 个一个人都没有的组\n' +
-          (hist ? '· 其中 ' + hist + ' 个组在历史课次里留过分数，会随组一起归档（界面不再显示，数据仍在存档里）\n' : '') +
-          '· 剩下的组按组号重排成 1、2、3…（连续没有空号）\n' +
-          '· 个人扣分 / 个人项目分按学生身份跟着人走，小组四列分跟着它那一组一起搬家\n\n' +
-          '想反悔可以点看板上的「撤回上一次分组」。',
-          { title: '压缩空组', okText: '压缩并重排', cancelText: '取消' })
-          .then(function (ok) {
-            if (!ok) return;
-            var info = compressEmptyGroups(cls, '压缩空组并重排组号');
-            if (!info) { flash('没有可清理的空组'); return; }
-            gbCommit(cls, '已清掉 ' + info.removed + ' 个空组，剩 ' + info.groups +
-              ' 组（组号已重排 1–' + info.groups + '）');
-            reportScoreMigration({ personal: info.unmatched, leader: info.leader });
-            renderPoolBanner(cls);
-          });
-      });
-    }
-    /* 「🔒 锁定分组 / 解锁」 */
+    /* 2026-11-13 精简：「把未分组的人平均填进去」「压缩空组并重排组号」两个独立按钮已删，
+       功能并进「确认分组」（gbConfirmGroups）；「锁定分组」按钮仍在顶部一行。 */
+
+    /* 「🔒 锁定分组 / 解锁」——2026-11-13 从顶栏搬进「⚙ 设置」面板里（用户：这个属于设置） */
     if ($('#btnGroupLock')) {
       $('#btnGroupLock').addEventListener('click', function () {
         var cls = curClass();
         if (cls) toggleGroupLock(cls);
+      });
+    }
+    /* 「✓ 确认设置」（2026-11-13）：把圆桌数 / 每桌最多 / 锁定状态一起确认并落盘。
+       两个数字框各自有 change 校验（见上面 #teamTables / #teamSize 的绑定），这里统一再跑一遍，
+       让老师改完不用逐个失焦，点一次就把整块设置生效，并且收起面板、明确回一句「已确认」。 */
+    if ($('#btnConfirmSetup')) {
+      $('#btnConfirmSetup').addEventListener('click', function () {
+        var cls = curClass();
+        if (!cls) return;
+        ['#teamTables', '#teamSize'].forEach(function (sel) {
+          var el = $(sel);
+          if (el) el.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+        save();
+        renderGroupSetup();
+        renderGroupSummary();
+        var box = $('#teamSetup');
+        if (box && box.open) box.open = false;
+        var tN = Number(cls.teamTables) || 0;
+        flash('设置已确认：' + (tN ? tN + ' 张圆桌' : '圆桌数未填（开放组队时会提示）') +
+          ' · 每桌最多 ' + (classGroupLimit(cls) || GROUP_CAP) + ' 人' +
+          (cls.groupLocked ? ' · 分组已锁定' : ''));
       });
     }
     ['#teamTables', '#teamSize'].forEach(function (sel) {
@@ -5513,8 +5717,8 @@ function restoreDroppedToHome(cls) {
   function parseLessonPageRanges(groups,texts){var seen=new Set();var pages=texts.map(function(text,i){var nums=[];String(text).trim().split(/[,，、\s]+/).forEach(function(token){var m=/^(\d+)(?:[-—–~～至](\d+))?$/.exec(token);if(!m)throw Error('第'+(i+1)+'页请输入组号或范围，如1-6。');var a=Number(m[1]),b=m[2]?Number(m[2]):a;if(a>b||b-a>1000)throw Error('第'+(i+1)+'页组号范围无效。');for(var no=a;no<=b;no++)nums.push(no);});if(nums.length>8)throw Error('第'+(i+1)+'页超过8组，请增加页数。');return nums.map(function(no){var g=groups.find(function(x){return x.no===no;});if(!g)throw Error('第'+no+'组不在本次打印范围内。');if(seen.has(no))throw Error('第'+no+'组重复，请只安排一次。');seen.add(no);return g;});});var missing=groups.filter(function(g){return !seen.has(g.no);});if(missing.length)throw Error('尚未安排：第'+missing.map(function(g){return g.no;}).join('、')+'组。');return pages;}
   function openLessonPrint(cls,lesson,asPdf){
     var dlg=$('#dlgLessonPrint');
-    if(!dlg){dlg=document.createElement('dialog');dlg.id='dlgLessonPrint';dlg.innerHTML='<form method="dialog"><h2>打印本课</h2><label class="field col">打印范围<select id="lessonPrintRange"><option value="both">加分表＋背面说明</option><option value="front">仅加分表</option><option value="rules">仅规则说明</option></select></label><label class="field col">打印对象<select id="lessonPrintScope"><option value="all">本课全部小组</option><option value="groups">按组切割打印</option></select></label><label class="field col">打印页数<select id="lessonPrintPageCount"></select></label><div id="lessonPrintRanges"></div><label class="field col">纸张方向<select id="lessonPrintOrientation"><option value="portrait">A4 竖向</option><option value="landscape">A4 横向</option></select></label><p class="note">选择“按组切割打印”后，可按每页组别范围安排，例如1-6、7-13；每页最多8组。双面打印选择长边翻转；建议关闭页眉页脚。</p><div class="btnrow"><button class="btn" value="cancel">取消</button><button class="btn primary" value="ok">开始打印</button></div></form>';document.body.appendChild(dlg);dlg.querySelector('#lessonPrintScope').onchange=function(){fillLessonPrintRanges(true);};dlg.querySelector('#lessonPrintPageCount').onchange=function(){fillLessonPrintRanges(false);};}
-    dlg.querySelector('h2').textContent=asPdf?'下载打印版 PDF':'打印本课';dlg.querySelector('[value="ok"]').textContent=asPdf?'下载 PDF':'开始打印';
+    if(!dlg){dlg=document.createElement('dialog');dlg.id='dlgLessonPrint';dlg.innerHTML='<form method="dialog"><h2>打印 / 导出本课</h2><label class="field col">打印范围<select id="lessonPrintRange"><option value="both">加分表＋背面说明</option><option value="front">仅加分表</option><option value="rules">仅规则说明</option></select></label><label class="field col">打印对象<select id="lessonPrintScope"><option value="all">本课全部小组</option><option value="groups">按组切割打印</option></select></label><label class="field col">打印页数<select id="lessonPrintPageCount"></select></label><div id="lessonPrintRanges"></div><label class="field col">纸张方向<select id="lessonPrintOrientation"><option value="portrait">A4 竖向</option><option value="landscape">A4 横向</option></select></label><p class="note">选择“按组切割打印”后，可按每页组别范围安排，例如1-6、7-13；每页最多8组。双面打印选择长边翻转；建议关闭页眉页脚。</p><div class="btnrow"><button class="btn" type="button" id="lessonPrintExcel">下载 Excel</button><span class="spacer"></span><button class="btn" value="cancel">取消</button><button class="btn primary" value="ok">开始打印</button></div></form>';document.body.appendChild(dlg);dlg.querySelector('#lessonPrintScope').onchange=function(){fillLessonPrintRanges(true);};dlg.querySelector('#lessonPrintPageCount').onchange=function(){fillLessonPrintRanges(false);};dlg.querySelector('#lessonPrintExcel').onclick=function(){dlg.close();downloadLessonExcel(curClass(),curLesson(curClass()));};}
+    dlg.querySelector('h2').textContent=asPdf?'下载打印版 PDF':'打印 / 导出本课';dlg.querySelector('[value="ok"]').textContent=asPdf?'下载 PDF':'开始打印';
     $('#lessonPrintScope').value='all';fillLessonPrintRanges(true);dlg.onclose=function(){if(dlg.returnValue!=='ok')return;var scope=$('#lessonPrintScope').value,pageGroups=null;try{if(scope==='groups')pageGroups=parseLessonPageRanges(lessonPrintGroupCandidates(cls),Array.from(dlg.querySelectorAll('[data-lesson-print-page]')).map(function(el){return el.value;}));}catch(e){dlg.querySelector('#lessonPrintError')?.remove();var err=document.createElement('p');err.id='lessonPrintError';err.className='note';err.textContent=e.message;dlg.querySelector('form').insertBefore(err,dlg.querySelector('.btnrow'));openDlg(dlg);return;}lessonPrintOptions={range:$('#lessonPrintRange').value,orientation:$('#lessonPrintOrientation').value,scope:scope,pageGroups:pageGroups};if(asPdf)downloadLessonPdf(cls,lesson);else printLesson(cls,lesson,pageGroups);};dlg.returnValue='';openDlg(dlg);
   }
   var pdfExportBusy=false;
@@ -5644,10 +5848,33 @@ function restoreDroppedToHome(cls) {
 
   $('#classSel').addEventListener('change', function () {
     S.ui.classId = this.value; S.ui.lessonId = null; save(); renderScore();
+    /* 切班通知考勤自动同步（2026-11-13）：新班的课次签到要重新拉一遍，
+       不能等 5 分钟那一轮定时器。attendance-sync.js 监听这个自定义事件。 */
+    try { document.dispatchEvent(new CustomEvent('hx-class-change', { detail: { classId: this.value } })); } catch (e) { }
   });
   $('#lessonSel').addEventListener('change', function () {
     S.ui.lessonId = this.value; save(); renderScore();
   });
+
+  /* ── 考勤自动同步挂载（2026-11-13）──────────────────────────────────
+     用户原话：「考勤完成率和考勤工具卡实行同步切记」。
+     同步逻辑全在 attendance-sync.js（那个模块不直接访问本文件的闭包），这里把它的依赖按约定传进去：
+     当前班级、整份 state、落盘函数 save、云端 rpc、以及「已登录才给 cloud」。
+     模块内部：首次 6 秒后跑一次，之后每 5 分钟 / 切回前台（60 秒节流）/ 切班时各跑一次；
+     只写「考勤工具明确签到过」且「本工具没被老师手改过」的格子，安静的失败不打扰上课。 */
+  if (window.JFDT_ATT_SYNC && typeof window.JFDT_ATT_SYNC.boot === 'function') {
+    try {
+      window.JFDT_ATT_SYNC.boot(function () {
+        return {
+          cls: curClass(),
+          state: S,
+          save: save,
+          rpc: function (name, args) { return CLOUD.rpc(name, args); },
+          cloud: (CLOUD_ON && CLOUD && CLOUD.profile && CLOUD.profile()) ? CLOUD : null
+        };
+      });
+    } catch (e) { /* 同步是后台功能，挂了也不能影响上课 */ }
+  }
   /* 2026-11-11：顶部常驻班级/课次选择器（#topClassSel / #topLessonSel）已并入记分工具条，
      这里对应的两个 change 监听一并删除——顶栏上已经不存在这两个下拉，留着只是死代码。 */
   $('#rankClassSel').addEventListener('change', function () {

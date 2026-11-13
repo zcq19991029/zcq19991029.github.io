@@ -1242,7 +1242,9 @@ dialog::backdrop {
 }
 .leader-table { width: 100%; min-width: 1080px; border-collapse: collapse; margin: 14px 0; color: var(--xl-ink); }
 .leader-table th, .leader-table td { border: 1px solid var(--xl-line); padding: 8px 5px; text-align: center; }
-.leader-table th { background: #d9e2f3; font-size: 12px; }
+/* 2026-11-13 修「表头文字看不清」：原来 background:#d9e2f3 写死浅蓝，深色主题下还是浅底，
+   和亮色 --xl-ink 文字叠在一起完全看不清。改用 --xl-mem（深浅各有一份）+ 字号提到 13px、加粗。 */
+.leader-table th { background: var(--xl-mem); font-size: 13px; font-weight: 700; color: var(--xl-ink); }
 .leader-table td { background: var(--xl-duty); }
 .leader-table td:first-child, .leader-table .leader-member { background: var(--xl-mem); }
 .leader-table .leader-member { min-width: 130px; font-weight: 700; }
@@ -1669,6 +1671,9 @@ table.sheet col.w-attendance{width:165px}.home-attendance{background:#f6eff1;pad
 }
 
 #scoreMetrics{display:none!important}.lesson-topic-summary{font-size:13px;line-height:1.5;overflow-wrap:anywhere}.lesson-duty-summary{color:var(--muted);font-size:12px}.lesson-meta .btnrow{display:flex;gap:6px;margin-top:8px}.lesson-meta .btn{flex:1;padding:8px;font-size:12px}
+/* 2026-11-13：课次操作按钮改图标 + 悬浮提示（打印三合一），图标钮紧凑、不 flex 撑满 */
+.lesson-meta .btnrow.lesson-actions{flex:0 0 auto;margin-left:auto;gap:6px}
+.lesson-meta .btn.icon-btn{flex:0 0 auto;width:34px;height:34px;padding:0;font-size:15px;line-height:1;border-radius:9px}
 @media screen and (min-width:1000px){body.sidebar-layout .lesson-meta{display:block;padding:10px}body.sidebar-layout .lesson-bar{gap:6px}body.sidebar-layout #layoutSeg{margin-left:0}body.sidebar-layout #btnOperationLog{padding:8px 10px}}
 @media print{body.print-lesson:has(.lesson-duplex){margin:0!important;padding:0!important;min-height:0!important;height:auto!important;page:leaderPaper}body.print-lesson:has(.lesson-duplex)>*:not(#printArea){display:none!important}body.print-lesson:has(.lesson-duplex) #printArea{position:static!important;margin:0!important;padding:0!important;width:100%!important}.lesson-duplex-page{page:leaderPaper;width:100%;height:276mm;box-sizing:border-box;break-after:page;break-inside:avoid;padding:0;overflow:hidden}.lesson-duplex-page:last-child{break-after:auto}.lesson-duplex-front .sheet-tb{font-size:6pt!important}.lesson-duplex-front .sheet-tb td,.lesson-duplex-front .sheet-tb th{padding:1mm .4mm!important}.lesson-duplex-front .home-grade-person,.lesson-duplex-front .home-attendance-person{min-height:4mm!important}.lesson-duplex-front .home-grade-person strong{font-size:8pt!important}.lesson-rules-back{font-family:Arial,'Microsoft YaHei',sans-serif;font-size:10pt;line-height:1.55}.lesson-rules-back h1{font-size:17pt;text-align:center;margin:4mm 0}.lesson-rules-back h2{font-size:12pt;margin:5mm 0 2mm}.lesson-rules-back p{margin:2mm 0}.duplex-note{border-top:.2mm solid #aaa;padding-top:4mm;font-size:9pt}}
 
@@ -2121,10 +2126,10 @@ html.hx-bg body::before { display: none; }
 .peer-cell.is-set:hover { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .95), 0 4px 12px rgba(70, 50, 50, .18); }
 .peer-score { font: 800 clamp(17px, .6vw + 10px, 22px)/1 'Segoe UI', 'Microsoft YaHei', sans-serif; color: var(--tc); letter-spacing: .02em; }
 .peer-src {
-  margin-left: 4px; padding: 2px 7px; border-radius: 999px;
-  font: 700 11px/1.5 'Segoe UI', 'Microsoft YaHei', sans-serif;
+  margin-left: 5px; padding: 3px 8px; border-radius: 999px;
+  font: 700 11.5px/1.4 'Segoe UI', 'Microsoft YaHei', sans-serif;
   letter-spacing: .02em; white-space: nowrap;
-  color: var(--tc); background: var(--tcbg); border: 1px solid rgba(255, 255, 255, .5);
+  color: var(--tc); background: var(--tcbg); border: 1px solid rgba(255, 255, 255, .55);
 }
 
 /* 本节课「组长打分」开关条 */
@@ -2142,6 +2147,19 @@ html.hx-bg body::before { display: none; }
 .peer-gate.is-open .peer-gate-btn { border-color: #9fd4b4; color: #127242; background: #fff; }
 .peer-gate-note { flex: 1 1 260px; font-size: 12px; color: var(--muted); line-height: 1.5; }
 .peer-gate-btn.is-blocked { color: var(--muted); }
+
+/* 2026-11-13：互评开关并到顶部「班级/课次」那一行（.peer-topbar），
+   原来的独立条样式在这里要收成内联、去掉自带 margin/padding */
+.lesson-bar.peer-topbar { align-items: center; }
+.lesson-bar.peer-topbar .peer-gate {
+  margin: 0; padding: 0; border: 0; border-radius: 0;
+  background: none; box-shadow: none;
+  display: inline-flex; align-items: center; gap: 8px; flex-wrap: nowrap;
+}
+/* 问号放在顶部行首（标题已去掉，问号就是第一个元素） */
+.lesson-bar.peer-topbar .hint-help-left { flex: none; }
+/* sheet 里那句互评说明：从「开关条里的一行」改成独立一段，收紧上下留白 */
+#leaderSheet .peer-gate-note { margin: 4px 0 10px; flex: none; }
 
 /* 教师逐列确认面板 */
 .peer-panel {
@@ -2595,7 +2613,14 @@ html.hx-bg[data-hx-mode="dark"] body::after,
 :root[data-hx-mode="dark"] .peer-pick.p3 { color: #8ef0c0; }
 :root[data-hx-mode="dark"] .peer-pick.p4 { color: #7cd0ff; }
 :root[data-hx-mode="dark"] .peer-pick.p5 { color: #b9aaff; }
-:root[data-hx-mode="dark"] .peer-cell.is-set { --tcbg: rgba(255, 255, 255, .08); }
+:root[data-hx-mode="dark"] .peer-cell.is-set {
+  --tcbg: rgba(255, 255, 255, .08);
+  /* 2026-11-13 修「打分数字看不清」：浅色渐变底在深色主题下刺眼、和亮色数字叠一起对比不足。
+     深色下改回暗玻璃底，数字五档亮色才压得住。 */
+  background: linear-gradient(180deg, rgba(42, 60, 108, .55), rgba(24, 36, 70, .5));
+  border-color: rgba(126, 156, 235, .22);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), 0 2px 7px rgba(0, 0, 0, .28);
+}
 :root[data-hx-mode="dark"] .peer-cell.is-set.score-1 { --tc: #ff9aa9; }
 :root[data-hx-mode="dark"] .peer-cell.is-set.score-2 { --tc: #ffc48f; }
 :root[data-hx-mode="dark"] .peer-cell.is-set.score-3 { --tc: #8ef0c0; }
@@ -2889,3 +2914,251 @@ table.data th, .assessment-table thead th,
 }
 
 
+
+/* ============================================================
+   组内个人评分 · V8 可读性与排版重做（2026-11-13）
+   用户原话：「表头文字看不清 打分数字文本看不清 显示组员平均或者互评或者师
+   首先看不清 其次不规则 不居中且紧缩着文本很拥挤不圆润 可以换一种ui优化」
+   以及「说明书放问号悬浮窗」「班级课次放最上面」。
+   ⚠ 这一整段只做覆盖，上面任何旧规则都没动（styles.css 全站共用）。
+   全部选择器都挂在 #view-leader 下，别的页面不受影响。
+   ============================================================ */
+
+/* ---------- 0. 顶栏：班级 / 课次在最前，问号贴右上角，整条收紧 ---------- */
+#view-leader .lesson-bar.peer-topbar {
+  /* 自己的层级要高于下面的表格：问号气泡是绝对定位的，不抬高层级会被下一张卡片盖住 */
+  position: relative;
+  z-index: 90;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 14px;
+  margin-bottom: 10px;
+}
+#view-leader .lesson-bar.peer-topbar .field { gap: 6px; }
+#view-leader .lesson-bar.peer-topbar .field > span { font-size: 12.5px; font-weight: 600; }
+#view-leader .lesson-bar.peer-topbar .field select { height: 32px; font-size: 13px; }
+#view-leader .lesson-bar.peer-topbar .spacer { min-width: 8px; }
+
+/* ---------- 1. 表头：浅色=浅蓝底深字，深色=深蓝底亮字；13px / 700，看得清 ---------- */
+#view-leader .leader-table th {
+  background: #dbe6f5;
+  color: #16202e;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.45;
+  letter-spacing: .01em;
+  padding: 8px 6px;
+  border-color: #a9b8cd;
+  text-shadow: none;
+}
+/* 「仅教师」那一列的淡金底要保住：上面这条 th 底色会盖掉旧的 --vip-bg */
+#view-leader .leader-table th.is-teacher-only { background: #fdf1d5; color: #4a3606; }
+:root[data-hx-mode="dark"] #view-leader .leader-table th {
+  background: #17264a;
+  color: #f2f6ff;
+  border-color: rgba(150, 175, 235, .45);
+}
+:root[data-hx-mode="dark"] #view-leader .leader-table th.is-teacher-only {
+  background: rgba(242, 199, 107, .18);
+  color: #ffe4ac;
+}
+/* 项目列卡片里那张表：表头格子垂直居中，输入框和下面那排小按钮各占一行（沿用 .peer-col-in 的列向布局） */
+#view-leader .peer-col-table th { vertical-align: middle; }
+#view-leader .leader-table th.peer-col-name,
+#view-leader .leader-table th.peer-col-th { padding-right: 24px; }
+#view-leader .leader-table th.peer-col-name { padding-right: 6px; }
+
+/* ---------- 2. 打分按钮 20%–100%：实色淡彩 + 深色实字，深色模式换亮字 ---------- */
+#view-leader .peer-cell { gap: 4px; border-radius: 12px; }
+#view-leader .peer-pick {
+  min-height: 42px;
+  /* min-width 归零：原来 30px 的硬底 + 字撑出来的宽度会把 200px 的项目列顶宽，
+     5 颗按钮一挤就横向溢出、右边那颗被裁掉（自测截图里 100% 直接被切） */
+  min-width: 0;
+  padding: 0 1px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  font: 800 clamp(12px, .4vw + 8px, 14px)/1 'Segoe UI', 'Microsoft YaHei', system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  text-shadow: none;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .65), 0 1px 2px rgba(30, 40, 60, .06);
+}
+#view-leader .peer-pick.p1 { background: #f9dcd8; border-color: #dda79f; color: #8c2019; }
+#view-leader .peer-pick.p2 { background: #fbe7cd; border-color: #e0bb85; color: #7a4400; }
+#view-leader .peer-pick.p3 { background: #e2f0d3; border-color: #a6c886; color: #33571a; }
+#view-leader .peer-pick.p4 { background: #d9ecf5; border-color: #8bbed4; color: #104c63; }
+#view-leader .peer-pick.p5 { background: #e4e1f8; border-color: #a7a0dc; color: #342a72; }
+#view-leader .peer-pick:hover { border-color: currentColor; }
+:root[data-hx-mode="dark"] #view-leader .peer-pick {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .10), 0 1px 2px rgba(0, 0, 0, .30);
+}
+:root[data-hx-mode="dark"] #view-leader .peer-pick.p1 { background: rgba(228, 116, 108, .28); border-color: rgba(255, 158, 148, .55); color: #ffc6bf; }
+:root[data-hx-mode="dark"] #view-leader .peer-pick.p2 { background: rgba(228, 168, 92, .28); border-color: rgba(255, 198, 130, .55); color: #ffd9a6; }
+:root[data-hx-mode="dark"] #view-leader .peer-pick.p3 { background: rgba(140, 190, 105, .28); border-color: rgba(176, 226, 138, .55); color: #cdf2ac; }
+:root[data-hx-mode="dark"] #view-leader .peer-pick.p4 { background: rgba(95, 168, 201, .30); border-color: rgba(146, 214, 242, .55); color: #b3e6fb; }
+:root[data-hx-mode="dark"] #view-leader .peer-pick.p5 { background: rgba(150, 138, 225, .30); border-color: rgba(186, 178, 245, .55); color: #d8d2ff; }
+
+/* ---------- 3. 已记分格：分数 + 角标一行居中；选中态用整圈描边 + 实色淡底区分 ---------- */
+#view-leader .peer-cell.is-set {
+  min-height: 44px;
+  gap: 6px;
+  justify-content: center;
+  align-items: center;
+  border: 1.5px solid var(--tc);
+  border-radius: 12px;
+  background: var(--tcbg);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .6), 0 1px 3px rgba(30, 40, 60, .08);
+  padding: 2px 4px;
+}
+#view-leader .peer-cell.is-set.score-1 { --tc: #a5332b; --tcbg: rgba(226, 114, 107, .14); }
+#view-leader .peer-cell.is-set.score-2 { --tc: #8a5310; --tcbg: rgba(224, 161, 90, .15); }
+#view-leader .peer-cell.is-set.score-3 { --tc: #3f6a1f; --tcbg: rgba(143, 185, 106, .16); }
+#view-leader .peer-cell.is-set.score-4 { --tc: #17566e; --tcbg: rgba(95, 168, 201, .16); }
+#view-leader .peer-cell.is-set.score-5 { --tc: #3d3279; --tcbg: rgba(138, 127, 214, .17); }
+/* 教师直接填的那一格：再加一圈很淡的金边，和「学生提交 / 组员平均」分开 */
+#view-leader .peer-cell.is-set.is-teacher {
+  box-shadow: inset 0 0 0 2px rgba(212, 164, 58, .5), inset 0 1px 0 rgba(255, 255, 255, .6);
+}
+/* 排位列的斜纹底要保住（is-set 的 background 简写会把背景图冲掉） */
+#view-leader .peer-cell.is-wire {
+  background-image: repeating-linear-gradient(135deg, rgba(58, 85, 196, .06) 0 6px, transparent 6px 12px);
+}
+#view-leader .peer-score {
+  font: 800 clamp(17px, .55vw + 9px, 21px)/1 'Segoe UI', 'Microsoft YaHei', system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  color: var(--tc);
+}
+:root[data-hx-mode="dark"] #view-leader .peer-cell.is-set {
+  background: rgba(255, 255, 255, .05);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), 0 1px 3px rgba(0, 0, 0, .35);
+}
+:root[data-hx-mode="dark"] #view-leader .peer-cell.is-set.score-1 { --tc: #ffb6ae; --tcbg: rgba(226, 114, 107, .14); }
+:root[data-hx-mode="dark"] #view-leader .peer-cell.is-set.score-2 { --tc: #ffd39b; --tcbg: rgba(224, 161, 90, .14); }
+:root[data-hx-mode="dark"] #view-leader .peer-cell.is-set.score-3 { --tc: #c8f0a6; --tcbg: rgba(143, 185, 106, .14); }
+:root[data-hx-mode="dark"] #view-leader .peer-cell.is-set.score-4 { --tc: #a6e0f8; --tcbg: rgba(95, 168, 201, .14); }
+:root[data-hx-mode="dark"] #view-leader .peer-cell.is-set.score-5 { --tc: #cfc7ff; --tcbg: rgba(138, 127, 214, .16); }
+:root[data-hx-mode="dark"] #view-leader .peer-cell.is-set.is-teacher {
+  box-shadow: inset 0 0 0 2px rgba(242, 199, 107, .45), inset 0 1px 0 rgba(255, 255, 255, .08);
+}
+
+/* ---------- 4. 来源角标「组员平均 / 互评 / 师 / 接」：规整小胶囊，居中、不换行、不挤 ---------- */
+#view-leader .peer-src {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  min-width: 44px;
+  height: 21px;
+  margin: 0;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font: 700 11px/1 'Segoe UI', 'Microsoft YaHei', system-ui, sans-serif;
+  letter-spacing: .02em;
+  text-align: center;
+  white-space: nowrap;
+  word-break: keep-all;
+  overflow-wrap: normal;
+  text-shadow: none;
+}
+#view-leader .peer-src-avg { background: #e8ecff; border-color: #b9c2ef; color: #2f3b8f; }
+#view-leader .peer-src-peer { background: #e3f5e9; border-color: #a9d6bc; color: #1d6b40; }
+#view-leader .peer-src-teacher { background: #fff3d2; border-color: #e6c27c; color: #7a4c00; }
+#view-leader .peer-src-wire { background: #e6ebff; border-color: #9db0f5; color: #2f47a8; }
+:root[data-hx-mode="dark"] #view-leader .peer-src-avg { background: rgba(120, 140, 240, .24); border-color: rgba(160, 176, 255, .55); color: #ccd4ff; }
+:root[data-hx-mode="dark"] #view-leader .peer-src-peer { background: rgba(61, 220, 151, .18); border-color: rgba(61, 220, 151, .45); color: #93f2c6; }
+:root[data-hx-mode="dark"] #view-leader .peer-src-teacher { background: rgba(242, 199, 107, .18); border-color: rgba(242, 199, 107, .5); color: #ffdf9e; }
+:root[data-hx-mode="dark"] #view-leader .peer-src-wire { background: rgba(96, 150, 255, .22); border-color: rgba(120, 165, 255, .55); color: #b4ccff; }
+
+/* ---------- 5. 右上角「?」：圆形按钮 + 悬浮气泡（hover 显示 / 点击开合 / 点空白关闭） ---------- */
+#view-leader .leader-help { position: relative; display: inline-flex; flex: none; align-self: center; }
+#view-leader .leader-help-btn {
+  appearance: none; -webkit-appearance: none;
+  width: 26px; height: 26px; padding: 0;
+  display: inline-grid; place-items: center;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  background: var(--panel);
+  color: var(--muted);
+  font: 800 13px/1 'Segoe UI', 'Microsoft YaHei', system-ui, sans-serif;
+  cursor: help;
+}
+#view-leader .leader-help-btn:hover,
+#view-leader .leader-help-btn:focus-visible {
+  color: var(--accent-strong);
+  border-color: var(--accent-line);
+  background: var(--accent-bg);
+  outline: none;
+}
+/* 气泡：旧 .hint-pop 用的 --card-solid 全站没定义（等于没底色），这里换 --raise 实底 */
+#view-leader .leader-help-pop {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  left: auto;
+  width: 380px;
+  max-width: min(86vw, 380px);
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--raise);
+  border: 1px solid var(--line);
+  box-shadow: 0 14px 34px -14px rgba(20, 30, 50, .45);
+  text-align: left;
+  font-size: 12.5px;
+  line-height: 1.65;
+  color: var(--text);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-4px);
+  transition: opacity .16s ease, transform .16s ease, visibility .16s ease;
+  z-index: 80;
+}
+#view-leader .leader-help:hover .leader-help-pop,
+#view-leader .leader-help:focus-within .leader-help-pop,
+#view-leader .leader-help.is-open .leader-help-pop {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: none;
+}
+#view-leader .leader-help-pop .lp-title {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text);
+}
+#view-leader .leader-help-pop ul { margin: 0; padding-left: 16px; }
+#view-leader .leader-help-pop li {
+  margin: 0 0 5px;
+  padding: 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text);
+}
+#view-leader .leader-help-pop li:last-child { margin-bottom: 0; }
+#view-leader .leader-help-pop b { color: var(--accent-strong); font-weight: 700; }
+:root[data-hx-mode="dark"] #view-leader .leader-help-pop b { color: var(--accent-hi); }
+
+/* ---------- 6. 收紧上方留白：项目列卡片 + 粘顶条，第一屏就能看到分 ---------- */
+#view-leader .peer-colcard { padding: 8px 10px 0; border-radius: 14px; }
+#view-leader .peer-colcard-head { margin-bottom: 4px; }
+#view-leader .peer-colcard-head b { font-size: 13px; }
+#view-leader .peer-dock { margin: 8px 0 4px; padding: 7px 12px 5px; border-radius: 14px; }
+#view-leader .peer-blocks { gap: 14px; }
+#view-leader .peer-block { border-radius: 16px; }
+
+/* 手机：气泡别顶出屏幕，按钮占满一行时仍贴右 */
+@media (max-width: 720px) {
+  #view-leader .leader-help-pop { width: min(92vw, 340px); }
+  #view-leader .lesson-bar.peer-topbar { gap: 8px; padding: 8px 10px; }
+}
+
+/* 4 列项目时表格不该横向出滚动条：旧的 1100px 底宽是按 6 列留的，
+   这里按实际列数算（55 + 190 前缀 + 每列 190），列少时表格刚好铺满卡片。 */
+#view-leader .tablewrap.peer-tablewrap .leader-table {
+  min-width: max(900px, calc(245px + var(--peer-cols, 4) * 190px)) !important;
+}

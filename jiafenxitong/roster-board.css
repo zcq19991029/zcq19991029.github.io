@@ -504,7 +504,6 @@ body.gb-dragging .gb-chip { cursor: grabbing; }
   .gp-setup-row .spacer { display: none; }
   .gp-setup-sum { flex: 1 1 100%; }
   .gp-num input { width: 64px; }
-  #btnGroupFill { flex: 1 1 auto; }
 }
 
 /* ---- 「更多 · 学生自助选桌」折叠区 ---- */
@@ -1093,4 +1092,62 @@ body.gb-dragging .gb-group.gb-over { transition: none; }
   box-shadow:
     inset 0 0 0 1px color-mix(in srgb, var(--gb-warn) calc(var(--hx-a, 1) * 34%), transparent),
     0 0 16px -8px color-mix(in srgb, var(--gb-warn) calc(var(--hx-a, 1) * 55%), transparent);
+}
+
+/* ============================================================
+   十一、学生端「选桌组队」的组号色块（2026-11-13 统一配色）
+   ------------------------------------------------------------
+   用户诉求：学生端分组看板里每个组的「组号」色块，要和「分组」页（教师端）那套
+   组色板一致，别一边彩色、一边全是一个蓝。
+
+   色板来源就是教师端 app.js 第 34 行的 gbTone(组号, 组内序号)：
+     色相 = ((组号 − 1) × 7 mod 24) × 15°，黄金角跳步，相邻组差 105°，一眼分得开；
+     组内再按人序提饱和、压亮度，所以同组是「浅一档 / 深一档」的同一色系。
+   那份逻辑在 app.js 里，这一轮不能改 app.js，所以在 team.js 里复算同一个色相
+   （groupTone(组号) 返回 --h/--s/--lb 三段内联变量），挂到组卡片 <section> 上，
+   这里只负责「认这三个变量」：
+     · 组号胶囊 .gb-gno  → 本组色相（教师端那里是主题色，因为老师要扫的是「组里几个人」；
+       学生端这边要的是「我在第几组、这组什么颜色」，所以让它跟组色走）
+     · 组员 chip .gb-chip → roster-board.css 前面第 8.3 节已经在读 --h/--s/--lb，
+       变量从组卡片继承下来，所以整组自动同色，不用再写一遍
+   没带 has-tone 的（未分组池子 .gb-pending）保持中性毛玻璃，语义是「还没归属」。
+   ============================================================ */
+
+/* ---- 11.1 组号胶囊：浅色主题 = 本组色相压深当字色、淡色当底；描边同色系 ---- */
+:root .gb-group.has-tone .gb-gno {
+  color: hsl(var(--h, 220) var(--s, 58%) 30%);
+  background: hsl(var(--h, 220) var(--s, 58%) calc(var(--lb, 90%) - 2%) / calc(var(--hx-a, 1) * .70));
+  box-shadow: inset 0 0 0 1px hsl(var(--h, 220) calc(var(--s, 58%) + 6%) calc(var(--lb, 90%) - 18%) / calc(var(--hx-a, 1) * .50));
+  text-shadow: none;
+}
+/* ---- 11.2 深色主题：低 alpha 同色玻璃底 + 同色发光字，和组员卡同一套霓虹语言 ---- */
+:root[data-hx-mode="dark"] .gb-group.has-tone .gb-gno {
+  color: hsl(var(--h, 220) calc(var(--s, 58%) + 22%) 84%);
+  background: hsl(var(--h, 220) var(--s, 58%) 60% / calc(var(--hx-a, 1) * .22));
+  box-shadow: inset 0 0 0 1px hsl(var(--h, 220) calc(var(--s, 58%) + 10%) 70% / calc(var(--hx-a, 1) * .36));
+  text-shadow: 0 0 12px hsl(var(--h, 220) 90% 62% / calc(var(--hx-a, 1) * .55));
+}
+/* 空位（还没坐人的格子）不跟着上色：它是「位置」不是「人」，颜色会让人误以为坐满了 */
+:root .gb-group.has-tone .gb-chip.empty {
+  --h: 220; --s: 8%; --lb: 92%;
+}
+:root[data-hx-mode="dark"] .gb-group.has-tone .gb-chip.empty { --lb: 55%; }
+
+/* ---- 11.3 「我」那张卡：不管组色、不管深浅主题，一律绿边 + 绿头像 ----
+   组色现在从组卡片继承下来（见 11.1），所以第 1 组的人卡是红的、第 2 组是绿的……
+   但「我自己」必须永远是同一种绿 —— 学生一眼要在整屏里找到自己。
+   team.css 里那几条同款规则写在 roster-board.css 之前、权重又低于这里的
+   :root[data-hx-mode="dark"] .gb-av（0,4,0），所以深色下会被组色盖掉，这里补回来。 */
+:root .gb-chip.gb-me-card { border-color: rgba(48, 209, 88, .62); }
+:root[data-hx-mode="dark"] .gb-chip.gb-me-card { border-color: rgba(48, 209, 88, .55); }
+:root[data-hx-mode="dark"] .gb-chip.gb-me-card .gb-av {
+  background: linear-gradient(160deg, #30d158, #1e9c46);
+  color: #fff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35), 0 0 12px -2px rgba(48, 209, 88, .5);
+}
+/* 没背景（没设身份牌背景图）时给一层很淡的绿玻璃，别跟同组人一个色 */
+:root[data-hx-mode="dark"] .gb-chip.gb-me-card.no-bg { background: rgba(48, 209, 88, .14); }
+/* 没设背景图（no-bg）时，压暗层换成深绿玻璃 —— 浅色主题下别变成一块死黑的条 */
+:root .gb-chip.gb-me-card.no-bg .gb-me-veil {
+  background: linear-gradient(90deg, rgba(9, 34, 21, .90) 0%, rgba(12, 44, 27, .70) 45%, rgba(9, 34, 21, .86) 100%);
 }

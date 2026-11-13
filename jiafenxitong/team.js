@@ -137,9 +137,9 @@
     $('groupBoard').innerHTML = '';
     $('statePill').textContent = '';
     $('statePill').className = 'top-state';
+    /* 顶部身份卡统一用 setIdentity 填：没有姓名时卡片自动收成一行（只剩「还没登录」这类说明） */
     if (kind === 'no_login') {
-      $('clsName').textContent = '还没登录';
-      $('who').textContent = '';
+      setIdentity('还没登录', '', '');
       /* 2026-11-03 紧急修：这段是学生进不来的第一道坎。
          ① .notice a 的蓝色会把 .btn-primary 的白字染成和底色一样 → 按钮只剩一坨蓝、看不见「去登录」
             （已在 team.css 里用 .notice a.btn-primary 压住，这里再显式写一遍颜色兜底）；
@@ -155,18 +155,17 @@
         '<br><br><small>忘了密码就在登录页点「忘记密码」。没登录过的话，问老师要课堂码注册。</small>');
       watchLogin();
     } else if (kind === 'not_student') {
-      $('clsName').textContent = '账号没绑定班级';
-      $('who').textContent = '';
+      setIdentity('账号没绑定班级', '', '');
       notice('<b>这个账号还没有绑到班级名单上。</b><br>' +
         '要么你用的是老师账号，要么老师还没把这份名单开通到你的学号。' +
         '先问老师确认名单里有你，再回首页重新登录一次。');
     } else if (kind === 'no_room') {
-      $('clsName').textContent = (extra && extra.class) || '本班';
-      $('who').textContent = extra && extra.me ? extra.me.name + ' · ' + extra.me.no : '';
+      setIdentity((extra && extra.class) || '本班',
+        extra && extra.me ? extra.me.name : '',
+        extra && extra.me ? extra.me.no : '');
       notice('<b>老师还没开放组队。</b><br>等老师在加分助手里点「开放组队」，这个页面会自动出现圆桌，不用刷新。');
     } else {
-      $('clsName').textContent = '打不开';
-      $('who').textContent = '';
+      setIdentity('打不开', '', '');
       notice('<b>读取失败：</b>' + esc(extra && extra.message || '未知错误') +
         '<br>检查一下网络，或者退出重新登录再试。');
     }
@@ -183,6 +182,9 @@
     var p = Math.max(0, Math.min(100, Number(pos) || 50));
     if (/^p:[a-z0-9_-]{1,24}$/.test(s)) {
       var css = (window.rankBgCss && window.rankBgCss(s.slice(2))) || '';
+      /* rank-bg.js 没加载出来时 rankBgCss 是空的：这时必须返回空串走默认底，
+         否则会拼出「background:;」这种空声明，卡片以为有背景、其实什么都没铺 */
+      if (!css) return '';
       return 'background:' + css.replace(/0 0\s*\/\s*100% 100%/g, '50% 50% / cover') + ';';
     }
     if (/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(s))
@@ -197,8 +199,36 @@
     rpc('hx_rank_bg_get', {}).then(function (rows) {
       var r = rows && rows[0];
       MY_BG.bg = r ? r.bg : ''; MY_BG.pos = r ? r.pos : 50;
+      paintCardBg();          // 顶部那张身份卡同步换背景
       done();
-    }).catch(function () { MY_BG.bg = ''; MY_BG.pos = 50; done(); });
+    }).catch(function () { MY_BG.bg = ''; MY_BG.pos = 50; paintCardBg(); done(); });
+  }
+
+  /* ---------- 顶部身份卡（2026-11-13 重做） ----------
+     用户原话：「这里的是自己名字 id 卡 当然带背景自定义的那种 右边是教师端这样子的样子
+     看我的分数这个跳转太丑了 重做」。
+     结构写在 team.html 的 #myCard 里（和 scores.html 那张一模一样，样式统一在
+     student-ui.css 末尾的「⑪ 身份卡」），这里只做两件事：填字、铺背景。 */
+
+  /* 填「班级 / 姓名 / 学号」三格 + 头像首字。没有姓名时（没登录 / 没绑班级）卡片自动收成一行。 */
+  function setIdentity(cls, name, no) {
+    var box = $('myCard');
+    var c = $('clsName'), nm = $('who'), sno = $('whoNo'), av = $('idcAv');
+    if (c) c.textContent = cls || '本班';
+    if (nm) nm.textContent = name || '';
+    if (sno) sno.textContent = no || '';
+    if (av) av.textContent = name ? String(name).slice(0, 1) : '我';
+    if (box) box.classList.toggle('is-anon', !name);
+  }
+
+  /* 把 hx_rank_bg 铺到卡片背景层；没有背景就留空，露出卡片自带的深蓝渐变 */
+  function paintCardBg() {
+    var box = $('myCard');
+    if (!box) return;
+    var bg = $('idcBg') || box.querySelector('.idc-bg');
+    var st = cardBgStyle(MY_BG.bg, MY_BG.pos);
+    if (bg) bg.setAttribute('style', st || '');
+    box.setAttribute('data-nobg', st ? '0' : '1');
   }
 
   /* 生成「我自己」那条 chip（带身份牌背景，和排位身份卡同一套）。放在组内或未分组池子里。
@@ -244,6 +274,21 @@
       .then(function () { busy = false; });
   }
 
+  /* 组号配色（2026-11-13 统一）：和教师端「分组」页 app.js 的 gbTone(组号, 组内序号) 同一套算法 ——
+     色相 = ((组号−1)×7 mod 24)×15°，黄金角跳步，相邻两组差 105°，一眼分得开；
+     组内第 1~6 人再按序提饱和、压亮度（浅→深），所以同组看着是「浅一档 / 深一档」的同一色系。
+     教师端那份由 app.js 内联注入到每个人的 chip 上；学生端不能改 app.js，
+     所以这边复算同一套值：组卡片注入 idx 0（组号胶囊用它），组内每人再注入自己的 idx，
+     于是「第 N 组」在教师端和学生端是同一个色相、同一种深浅顺序。 */
+  function groupTone(gno, idx) {
+    var n = Number(gno) || 1;
+    var h = (((n - 1) * 7) % 24) * 15;   // 第 1 组 0°(红) → 第 2 组 105°(绿) → … 24 组走完一圈
+    var k = (Number(idx) || 0) % 6;      // 组内第 1~6 人循环
+    var sat = 58 + k * 6;                // 58 → 88：越靠后颜色越浓
+    var lb = 90 - k * 4;                 // 90 → 70：越靠后底色越深
+    return '--h:' + h + ';--s:' + sat + '%;--lb:' + lb + '%;';
+  }
+
   function render() {
     if (!S || fatal) return;
     if (drag) return;   // 拖动中别重画，免得把手里这张「我」卡换掉（拖完 loadState 会再画一次）
@@ -265,9 +310,10 @@
       list.forEach(function (s, i) {
         var me = S.me && s.student === S.me.id;
         if (me) {
-          mem += meChipHtml(S.me);
+          mem += meChipHtml(S.me);   // 「我」这张固定绿卡，不吃组色（见 roster-board.css 11.3）
         } else {
-          mem += '<div class="gb-chip" title="' + esc(s.name) + '">' +
+          /* 每人一份 groupTone(组号, 组内序号)：和教师端 chip 的深浅顺序完全一致 */
+          mem += '<div class="gb-chip" style="' + groupTone(n, i) + '" title="' + esc(s.name) + '">' +
             '<span class="gb-av" aria-hidden="true">' + esc(String(s.name || '?').slice(0, 1)) + '</span>' +
             '<div class="gb-nm"><b>' + esc(s.name) + '</b>' + (s.no ? '<small>' + esc(s.no) + '</small>' : '') + '</div>' +
             '</div>';
@@ -275,8 +321,10 @@
       });
       for (var i = list.length; i < S.size; i++) mem += '<div class="gb-chip empty">空位</div>';
       if (!mem) mem = '<p class="gb-empty">还没人</p>';
-      cards += '<section class="gb-group' + (isMine ? ' is-mine' : '') + (full && !isMine ? ' is-full' : '') +
-        '" data-table="' + n + '"' + (locked && !isMine ? ' data-locked="1"' : '') + '>' +
+      /* has-tone + 内联 --h/--s/--lb：组号胶囊和组内 chip 都按本组色相上色（见 groupTone） */
+      cards += '<section class="gb-group has-tone' + (isMine ? ' is-mine' : '') + (full && !isMine ? ' is-full' : '') +
+        '" data-table="' + n + '" style="' + groupTone(n) + '"' +
+        (locked && !isMine ? ' data-locked="1"' : '') + '>' +
         '<header class="gb-ghead">' +
           '<span class="gb-gno">第 ' + n + ' 组' + (isMine ? ' · 我在这' : '') + '</span>' +
           '<span class="gb-gcnt"><b>' + list.length + '</b>/' + S.size + ' 人' +
@@ -344,8 +392,12 @@
   function apply(payload) {
     fatal = null;            // 之前“老师还没开房间”之类的提示要先撤掉，否则画不出圆桌
     S = payload;
-    $('clsName').textContent = payload.class || '本班';
-    $('who').textContent = payload.me ? payload.me.name + ' · ' + payload.me.no : '';
+    var me = payload.me || {};
+    /* 顶部身份卡：班级 / 姓名 / 学号 三格分开填（以前是「姓名 · 学号」拼成一行纯文本） */
+    setIdentity(payload.class || '本班', me.name, me.no);
+    /* 背景异步：先把卡画出来，hx_rank_bg 回来再补背景层，不用整页重画 */
+    paintCardBg();
+    ensureMyBg(paintCardBg);
     render();
   }
 

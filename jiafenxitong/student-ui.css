@@ -92,6 +92,8 @@ html.hx-lite.hx-bg .peer-card { -webkit-backdrop-filter: none; backdrop-filter: 
 .top-main b { font-size: 17px; letter-spacing: -.01em; }
 .readonly { background: var(--panel-soft, #eef0f5); }
 .readonly.live { background: var(--ok-soft); }
+/* 身份卡（两页顶部的 #myCard）整段写在文件最末尾「⑪ 身份卡」一节 ——
+   它要盖掉本文件里 .top-state / .readonly 的旧底色，所以必须排在最后。 */
 
 /* 页签：选中态给品牌色渐变 + 一点点落影，扫一眼就知道在哪一页 */
 .tabs { gap: 8px; padding: 9px 12px; }
@@ -194,7 +196,9 @@ html.hx-bg[data-hx-mode="dark"] .duty-callout { background-color: rgba(48, 32, 1
 :root[data-hx-mode="dark"] .desk.mine .seat-dot.on { background: var(--ok); }
 html.hx-bg[data-hx-mode="dark"] .bar { background: rgba(14, 16, 20, .82); }
 :root[data-hx-mode="dark"] .btn-stand { background: var(--panel); color: var(--ink); border-color: var(--line-strong); }
-:root[data-hx-mode="dark"] .top-state { background: var(--brand-soft); }
+/* 「组队中」状态胶囊不再需要深色版底色：2026-11-13 起它挂在身份卡（深底）里，
+   卡片自带一套浅色描边样式（见文件末尾 ⑪ 身份卡里的 .id-card .top-state），
+   那条会把它盖掉，所以这里的旧底色移除。 */
 :root[data-hx-mode="dark"] .top-state.closed { background: rgba(255, 255, 255, .08); }
 /* ⑨ 追加（2026-11-12 U4）：选座页工具栏 / 拖选卡片在深色下跟着换皮 */
 :root[data-hx-mode="dark"] .seat-toolbar { background: rgba(14, 16, 20, .78); }
@@ -211,4 +215,135 @@ html.hx-bg[data-hx-mode="dark"] .bar { background: rgba(14, 16, 20, .82); }
   .card { padding: 13px; }
   .big .n em { font-size: 25px; }
   .tabs button { font-size: 12.5px; padding: 8px 4px; }
+}
+
+/* ============================================================================
+   ⑪ 身份卡（2026-11-13 重做：team.html 与 scores.html 共用同一张）
+   ----------------------------------------------------------------------------
+   用户原话：「这里的是自己名字 id 卡 当然带背景自定义的那种 右边是教师端这样子的样子
+   看我的分数这个跳转太丑了 重做」。
+   之前顶部是「班级 / 姓名·学号」两行纯文本 + 一个裸文字链接，学生看不出那是「我的卡」，
+   跳转也像随手贴上去的。现在整块做成一张横向 ID 卡：
+     左边 = 首字母头像
+     中间 = 班级（小字）+ 状态小标签 → 姓名（大字）+ 学号（小字）
+     右边 = 一颗「看我的分数 / 去选桌组队」玻璃胶囊按钮（原来是裸链接）
+   背景走 hx_rank_bg（预设 p:xxx 或 base64 图），由 JS 铺在 .idc-bg 这一层；
+   没有背景时露出卡片自带的深蓝渐变。卡片刻意做成「深底浅字」的自包含组件，
+   不跟页面主题反色 —— 和教师端排位身份卡同一套语言，深浅两套主题下文字都是白字。
+   为什么放共用层而不放 scores.css：team.html 不引 scores.css，两页要一模一样，
+   只能写在两页都引的这一层（scores.css 里那份旧的同款样式已删，避免两处漂移）。
+   为什么排在文件最末：卡片里的 .readonly / .top-state 小标签要盖掉 ③、⑨ 两节给它们
+   定的浅色底（那些是给浅底页头用的），同权重下靠「写在最后」压过去。
+   ============================================================================ */
+.id-card {
+  position: relative; isolation: isolate;
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; min-height: 62px;
+  padding: 9px 10px 9px 9px;
+  border-radius: 16px; overflow: hidden;
+  color: #fff;
+  border: 1px solid rgba(140, 178, 255, .30);
+  background: linear-gradient(120deg, #0c1730 0%, #16264c 56%, #0a1530 100%);
+  box-shadow: 0 10px 26px -18px rgba(8, 16, 38, .9), inset 0 1px 0 rgba(255, 255, 255, .10);
+}
+.id-card[hidden] { display: none; }
+/* 背景层 / 压暗层：都是绝对定位的纯色层，不占布局，也不接指针事件 */
+.id-card .idc-bg { position: absolute; inset: 0; z-index: 0; background-size: cover; background-position: 50% 50%; background-repeat: no-repeat; }
+.id-card .idc-veil { position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background: linear-gradient(94deg, rgba(4, 8, 18, .78) 0%, rgba(4, 8, 18, .34) 46%, rgba(4, 8, 18, .66) 100%); }
+.id-card > *:not(.idc-bg):not(.idc-veil) { position: relative; z-index: 2; }
+
+/* 头像：和排位身份卡同一颗圆形首字母徽章 */
+.id-card .idc-av {
+  flex: none; width: 38px; height: 38px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: linear-gradient(160deg, #6f9bff, #2f6df6);
+  color: #fff; font-size: 17px; font-weight: 800; line-height: 1;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, .22), 0 6px 14px -6px rgba(0, 0, 0, .7);
+}
+/* 中间文字列：班级一行（小）+ 姓名学号一行（大），窄屏只许省略号，不许把按钮挤出去 */
+.id-card .idc-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.id-card .idc-top { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.id-card .idc-cls {
+  min-width: 0; font-size: 11.5px; font-weight: 600; letter-spacing: .02em; color: #b9cbe4;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.id-card .idc-nm { display: flex; align-items: baseline; gap: 7px; min-width: 0; }
+.id-card .idc-nm b {
+  min-width: 0; font-size: 17px; font-weight: 800; line-height: 1.2; letter-spacing: -.01em; color: #fff;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.id-card .idc-no {
+  flex: none; font-size: 11.5px; font-weight: 600; color: #a9bfdd;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+/* 空值不留空行（没登录 / 还没读到名单时） */
+.id-card .idc-nm b:empty, .id-card .idc-no:empty, .id-card .idc-g:empty { display: none; }
+
+/* 组别小胶囊（查分页有、选桌页没有） */
+.id-card .idc-g {
+  flex: none; padding: 1px 8px; border-radius: 999px;
+  background: rgba(255, 214, 140, .18); color: #ffd895;
+  font-size: 10.5px; font-weight: 700; line-height: 18px; white-space: nowrap;
+}
+/* 卡片里的「只读 / 组队中」小标签：统一改成浅色描边胶囊，深卡上不用主题浅蓝底（会糊） */
+.id-card .readonly,
+.id-card .top-state {
+  flex: none; padding: 1px 8px; border-radius: 999px;
+  background: rgba(255, 255, 255, .14); color: #dce8ff;
+  font-size: 10.5px; font-weight: 700; line-height: 18px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .16);
+}
+.id-card .readonly.live { background: rgba(48, 209, 88, .22); color: #8ef0ac; box-shadow: inset 0 0 0 1px rgba(48, 209, 88, .30); }
+.id-card .top-state { background: rgba(91, 140, 255, .26); color: #cfe0ff; box-shadow: inset 0 0 0 1px rgba(140, 178, 255, .32); }
+.id-card .top-state.locked { background: rgba(255, 159, 10, .22); color: #ffd08a; box-shadow: inset 0 0 0 1px rgba(255, 159, 10, .30); }
+.id-card .top-state.closed { background: rgba(255, 255, 255, .12); color: #c8d3e4; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .14); }
+/* 标签文字为空时别留一个空胶囊 */
+.top-state:empty { display: none; }
+
+/* 「看我的分数 / 去选桌组队」：卡片里的玻璃胶囊按钮。
+   以前是一行裸文字链接（用户原话「这个跳转太丑了」），现在是带描边、有按压反馈的按钮，
+   压在背景图上仍然清楚：半透明白底 + 1px 亮边 + 顶部高光。 */
+.id-card .idc-go {
+  flex: none; display: inline-flex; align-items: center; gap: 4px;
+  padding: 8px 11px; border-radius: 11px;
+  background: rgba(255, 255, 255, .16);
+  border: 1px solid rgba(255, 255, 255, .34);
+  color: #fff; font-size: 12.5px; font-weight: 700; line-height: 1.1;
+  text-decoration: none; white-space: nowrap;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .24), 0 4px 12px -8px rgba(0, 0, 0, .8);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  transition: background .15s ease, border-color .15s ease, transform .12s ease;
+}
+.id-card .idc-go i { font-style: normal; font-size: 11px; opacity: .85; transition: transform .15s ease; }
+.id-card .idc-go:hover { background: rgba(255, 255, 255, .26); border-color: rgba(255, 255, 255, .48); }
+.id-card .idc-go:hover i { transform: translateX(2px); }
+.id-card .idc-go:active { transform: scale(.96); }
+.id-card .idc-go:focus-visible { outline: 2px solid #9dc0ff; outline-offset: 2px; }
+/* 极简模式：卡片里的实时模糊和重阴影一律收掉（老设备滚动时不卡） */
+html.hx-lite .id-card .idc-go { -webkit-backdrop-filter: none; backdrop-filter: none; }
+html.hx-lite .id-card { box-shadow: 0 0 0 1px rgba(140, 178, 255, .22); }
+
+/* 顶部条里这张卡要吃满整行（team.css 的 .top 是 flex，scores.css 的是 block，两种都成立） */
+.top > .id-card { flex: 1 1 auto; min-width: 0; width: 100%; }
+
+/* 收口（窄屏）：身份卡内边距收紧一点、姓名降半档，保证右边那颗按钮不换行、不被挤掉 */
+@media (max-width: 480px) {
+  .id-card { gap: 8px; padding: 8px 8px 8px 8px; min-height: 58px; }
+  .id-card .idc-av { width: 34px; height: 34px; font-size: 15px; }
+  .id-card .idc-nm b { font-size: 16px; }
+  .id-card .idc-go { padding: 7px 9px; font-size: 12px; }
+}
+/* 320~400px（老机型 / 分屏）：再不收，姓名会被按钮挤成「何…」。
+   这里把按钮的箭头去掉、内边距压到最小，字号降一档 —— 保证「姓名 + 学号」整行完整。 */
+@media (max-width: 400px) {
+  .id-card { gap: 7px; padding: 7px; }
+  .id-card .idc-av { width: 30px; height: 30px; font-size: 14px; }
+  .id-card .idc-cls { font-size: 10.5px; }
+  .id-card .idc-nm { gap: 5px; }
+  .id-card .idc-nm b { font-size: 15px; }
+  .id-card .idc-no { font-size: 10.5px; }
+  .id-card .idc-go { padding: 6px 8px; font-size: 11.5px; }
+  .id-card .idc-go i { display: none; }
 }

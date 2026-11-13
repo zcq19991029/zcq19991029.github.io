@@ -57,14 +57,17 @@
   var prevRates = null;      // 上一轮进行中任务的 { 任务号: { 学生键: {name, rate} } }，用来比「被超了/反超」
   var moves = {};            // 本轮比出来的变化 { 任务号: {down:[], up:[]} }，只由 fetch 时算一次
   var BOARD_MAX = 20;        // 横幅上最多铺多少个完成 chip（一个班 49 人，全铺会撑爆）
-  /* 列名前缀（2026-11-11 用户要求）：「课堂任务生成后项目名要加上标识 比如叫线上连线排位xxxx
-     用来区分线下连线任务」。线上接线任务生成的记分列一律叫「线上连线排位 接线2.3」，
-     记分表列头、互评列头、学生端项目名看到的是同一个名字。
-     ⚠ 改这里必须同步两处，否则「课堂任务」列会变成「—」（分还在，只是不再汇总）：
-       ① app.js 的 taskScore()（约 1051 行）用正则 /^(?:接线|线上连线排位)/ 认这一列；
-       ② 本文件 columnFor() 的**旧列兼容**：加前缀之前建的「接线2.3」不迁移、不重命名，
-          照旧认、照旧写（改名会让老师已经排好的列/分数对不上，等于丢分）。 */
-  var NAME_PREFIX = '线上连线排位';
+  /* 列名前缀。
+     2026-11-11 加前缀时叫「线上连线排位」；2026-11-13 用户要求改成带「线上接线仿真」字样
+     （原话：「为什么课堂任务生成的列名还没更新特殊标记：线上接线仿真的类似字眼？」），
+     现在统一叫「线上接线仿真 接线2.3」——一眼能看出这列是接线仿真那边自动生成的、不是老师手加的。
+     ⚠ 改这里必须同步三处，否则「本节完成率」会把这列算漏（分还在，只是不再汇总）：
+       ① app.js 的 taskScore() 用正则 /^(?:接线|线上连线排位|线上接线仿真)/ 认这一列；
+       ② 本文件 columnFor() 的**旧列兼容**：加前缀之前建的「接线2.3」、
+          以及 11-11 那一版「线上连线排位 接线2.3」都不迁移、不重命名，
+          照旧认、照旧写（改名会让老师排好的列/已填的分对不上，等于丢分）；
+       ③ leader-scoring.js 里排位列只读不可编辑的那段判断，用的是同一个 TASK_COL 口径。 */
+  var NAME_PREFIX = '线上接线仿真';
 
   /* ---------------- 小工具 ---------------- */
 
@@ -171,8 +174,12 @@
     if (!lesson.wireTasks) lesson.wireTasks = {};
     var key = String(task.task_id);
     var entry = lesson.wireTasks[key];
-    var want = taskColumnName(task.circuit);   // 新列名：「线上连线排位 接线2.3」
-    var legacy = '接线' + task.circuit;        // 加前缀之前的旧列名：「接线2.3」
+    var want = taskColumnName(task.circuit);   // 新列名：「线上接线仿真 接线2.3」
+    /* 两个旧列名，只用来「认领已有列」，绝不拿它们新建列（见下面兜底段）：
+       · 2026-11-11 那一版前缀：「线上连线排位 接线2.3」
+       · 最早没有前缀的：「接线2.3」 */
+    var legacyPrev = '线上连线排位 接线' + task.circuit;
+    var legacy = '接线' + task.circuit;
 
     if (entry && entry.name) {
       var at = names.indexOf(entry.name);
@@ -207,6 +214,7 @@
     };
     var adopt = -1;
     if (names.indexOf(want) >= 0 && !takenByOther(want)) adopt = names.indexOf(want);
+    else if (names.indexOf(legacyPrev) >= 0 && !takenByOther(legacyPrev)) adopt = names.indexOf(legacyPrev);
     else if (names.indexOf(legacy) >= 0 && !takenByOther(legacy)) adopt = names.indexOf(legacy);
     if (adopt >= 0) {
       lesson.wireTasks[key] = {

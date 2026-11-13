@@ -26,14 +26,15 @@
 
   var W = {};
 
-  /* 线上排位列（2026-11-11 修互评刷分漏洞）：列名带「接线 / 线上连线排位」前缀的列是
-     课堂任务（wire-task-link.js）自动入账的成绩，只有学生真实完成线上排位才能得分。
+  /* 线上排位列（2026-11-11 修互评刷分漏洞）：列名带「接线 / 线上连线排位 / 线上接线仿真」
+     前缀的列是课堂任务（wire-task-link.js）自动入账的成绩，只有学生真实完成线上排位才能得分。
      互评提交（jf_peer_scores 的 board.cells）里出现这一列的分数一律**丢弃** ——
      前端按钮不渲染只是第一道锁；这里是兜底：旧缓存页 / 控制台直接调 jf_peer_submit
      刷上来的分，到不了 leaderScores（成绩的唯一口径）。
+     2026-11-13 加上「线上接线仿真」（NAME_PREFIX 的新值），三处正则必须同步。
      ⚠ 前缀口径与 app.js 的 taskScore()、wire-task-link.js 的 NAME_PREFIX 保持一致，
        三处必须一起改，否则老数据的旧列名「接线2.3」会漏判。 */
-  var TASK_COL = /^(?:接线|线上连线排位)/;
+  var TASK_COL = /^(?:接线|线上连线排位|线上接线仿真)/;
   function isTaskCol(name) { return TASK_COL.test(String(name == null ? '' : name).trim()); }
 
   /* 逐列「仅教师可评」（2026-11-12 用户规则：收拾板子 / 归位工具的分只能老师给）。

@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#fcfcfb">
 <title>夜夜小组制加分助手 · 《电气接线原理》</title>
-<link rel="stylesheet" href="styles.css?v=dfd123a">
-<link rel="stylesheet" href="draw-person.css?v=dfd123a">
+<link rel="stylesheet" href="styles.css?v=ef54701">
+<link rel="stylesheet" href="draw-person.css?v=ef54701">
 <!-- 分组看板 + 学生端桌卡（2026-11-06）：新样式一律写这个文件，不去动 styles.css / team.css
      里已有的行（那几个文件正有人在改深浅色变量）。-->
 <link rel="stylesheet" href="roster-board.css">
@@ -49,9 +49,111 @@
      字号规矩不变：**只在一处父元素（.hx-splash-card）写 clamp，闪屏内部全用 em**。
      这里把药丸钉回 1em，跟着卡片字号一起长大，不再自己写一套 clamp 互相打架。 */
   #hxSplash .hx-loadpill { font-size: 1em; box-shadow: none; }
+
+  /* ── 分组设置面板（2026-11-13）：锁定分组从顶栏搬进「⚙ 设置」里，配一颗「✓ 确认设置」 ── */
+  .pool-setup-lock {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    margin: 10px 0 4px; padding: 9px 11px;
+    border: 1px solid var(--line, rgba(128, 144, 176, .28)); border-radius: 10px;
+    background: var(--field-bg, rgba(128, 144, 176, .07));
+  }
+  .pool-setup-lock .note { margin: 0; font-size: 12.5px; }
+  .pool-setup-ok { margin-top: 10px; }
+  .pool-setup-ok .btn { min-width: 104px; }
+
+  /* 看板顶部的状态提示条（原来这里还有一颗「✓ 确认分组」，2026-11-13 按钮收到上面那一行） */
+  .gb-confirmbar-tip { justify-content: flex-start; }
+  .gb-confirmbar-tip .gb-confirmtip { margin-left: 0; }
+
+  /* ── 本节各项目完成率明细（2026-11-13）──
+     用户原话：「需要悬浮窗形式 不然下面同学不方便直接看」——
+     不再往表格上方插面板（那会把表格往下推、投影时下面看不到表），
+     改成 fixed 悬浮卡：贴着点中那一格弹出，表格一动不动。定位由 app.js 的 placeSumPanel() 算。
+     深色/浅色都靠 hx-theme 的变量走，极简模式下不用重阴影。 */
+  .sumd-host {
+    position: fixed; z-index: 9000; margin: 0;
+    width: 380px; max-width: calc(100vw - 20px);
+  }
+  .sumd-panel {
+    border: 1px solid var(--hx-line, rgba(128, 145, 180, .3));
+    border-radius: 12px;
+    background: var(--hx-panel, rgba(22, 28, 44, .95));
+    padding: 12px 14px 10px;
+    backdrop-filter: blur(14px);
+    box-shadow: 0 18px 48px rgba(0, 0, 0, .46), 0 2px 8px rgba(0, 0, 0, .3);
+  }
+  .sumd-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 9px; }
+  .sumd-who { font-size: 14.5px; font-weight: 700; }
+  .sumd-lesson { font-size: 12.5px; opacity: .7; }
+  .sumd-total { font-size: 13px; opacity: .9; }
+  .sumd-total b { font-size: 15px; }
+  .sumd-x {
+    border: 0; background: transparent; cursor: pointer; font-size: 15px;
+    line-height: 1; padding: 4px 7px; border-radius: 8px; color: inherit; opacity: .65;
+  }
+  .sumd-x:hover { opacity: 1; background: rgba(128, 145, 180, .18); }
+  .sumd-items { display: flex; flex-wrap: wrap; gap: 7px; }
+  .sumd-item {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 6px 10px; border-radius: 9px;
+    border: 1px solid rgba(128, 145, 180, .26);
+    background: rgba(128, 145, 180, .09);
+    font-size: 12.5px; line-height: 1.25;
+  }
+  .sumd-item .sumd-name { font-weight: 650; max-width: 22em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sumd-item .sumd-score { font-variant-numeric: tabular-nums; opacity: .8; }
+  .sumd-item .sumd-pct {
+    font-variant-numeric: tabular-nums; font-weight: 700;
+    padding: 1px 6px; border-radius: 6px; background: rgba(89, 190, 148, .18); color: #58c795;
+  }
+  .sumd-item.is-task { border-color: rgba(96, 165, 250, .42); background: rgba(96, 165, 250, .12); }
+  .sumd-item.is-task .sumd-name::before { content: "排位 · "; font-weight: 500; opacity: .75; }
+  .sumd-item.is-blank { opacity: .55; }
+  .sumd-item.is-blank .sumd-pct { background: rgba(128, 145, 180, .16); color: inherit; font-weight: 600; }
+  .sumd-foot { margin-top: 9px; font-size: 12.5px; opacity: .78; }
+  .sumd-empty { margin: 2px 0 0; font-size: 12.5px; opacity: .7; }
+  /* 「本节完成率」格子里的小箭头：提示这一格可以点开 */
+  .c-sum { cursor: pointer; }
+  .c-sum .sumd-cue { display: inline-block; margin-left: 3px; font-size: 9px; opacity: .42; transform: translateY(-1px); }
+  .c-sum:hover .sumd-cue { opacity: .85; }
+  .c-sum.is-sumd-on { box-shadow: inset 0 0 0 2px rgba(89, 190, 148, .55); }
+  /* 浅色模式：面板不要深底深字 */
+  :root[data-hx-mode="light"] .sumd-panel { background: rgba(255, 255, 255, .92); }
+  :root[data-hx-mode="light"] .sumd-item .sumd-pct { color: #1f7a55; background: rgba(47, 132, 90, .14); }
+  html.hx-lite .sumd-panel { backdrop-filter: none; }
+
+  /* ── 组号色块（2026-11-13 用户：「不同组的组号色块没做」「可以按照分组那边的色块重做 ui 颜色」）──
+     原来 .sheet-vertical .gno-swatch 用 --lb:90%（极浅底）+ 96% 的近白字 —— 白字压浅底，
+     数字基本看不见。这里照分组页组号胶囊（roster-board.css 11.1 / 11.2）那套重做：
+     同色相淡底 + 同色相深字（浅色主题）／低 alpha 同色玻璃底 + 同色发光亮字（深色主题）。 */
+  .sheet-vertical .gno-swatch {
+    color: hsl(var(--h, 220) var(--s, 58%) 28%);
+    background: hsl(var(--h, 220) var(--s, 62%) 60% / .26);
+    box-shadow: inset 0 0 0 1px hsl(var(--h, 220) calc(var(--s, 58%) + 6%) 52% / .45);
+    text-shadow: none;
+  }
+  :root[data-hx-mode="dark"] .sheet-vertical .gno-swatch {
+    color: hsl(var(--h, 220) calc(var(--s, 58%) + 24%) 87%);
+    background: hsl(var(--h, 220) var(--s, 58%) 60% / .26);
+    box-shadow: inset 0 0 0 1px hsl(var(--h, 220) calc(var(--s, 58%) + 10%) 72% / .42);
+    text-shadow: 0 0 10px hsl(var(--h, 220) 90% 62% / .5);
+  }
+
+  /* 值日缺勤按钮（2026-11-13）：现在每个组都能点（值日缺勤是整学期的 5 分项目，
+     不只限于本节值日的组，老师事后补录也该允许）；真正轮到值日的那一组加高亮，
+     让人一眼看出「今天该谁」和「这只是补录」的区别。 */
+  .sheet-vertical .duty-cell .duty-score.is-duty {
+    background: rgba(76, 175, 130, .20);
+    box-shadow: inset 0 0 0 1.5px rgba(76, 175, 130, .55);
+  }
+  :root[data-hx-mode="dark"] .sheet-vertical .duty-cell .duty-score.is-duty {
+    background: rgba(76, 200, 148, .16);
+    box-shadow: inset 0 0 0 1.5px rgba(96, 210, 160, .50);
+  }
+  .sheet-vertical .duty-cell .duty-score:active { transform: translateY(1px); }
 </style>
-<meta name="build-commit" content="dfd123a">
-<meta name="build-published-at" content="2026-11-13T05:56:18.292Z">
+<meta name="build-commit" content="ef54701">
+<meta name="build-published-at" content="2026-11-13T12:16:38.207Z">
 </head>
 <body>
 
@@ -80,14 +182,13 @@
     </div>
   </div>
 </div>
-<script src="fx/pixelfx-loader.js?v=dfd123a"></script>
-<script src="fx/hx-jf-load.js?v=dfd123a"></script>
+<script src="fx/pixelfx-loader.js?v=ef54701"></script>
+<script src="fx/hx-jf-load.js?v=ef54701"></script>
 
 <header class="topbar" id="topbar">
   <div class="topbar-main">
-    <span class="brandmark" aria-hidden="true">⚡</span>
+    <!-- 2026-11-13 用户：⚡ logo 和「小组加分」标题都冗余，左上角放空，只留「已自动保存到本机」副标题 -->
     <div class="brandtext">
-      <h1>小组加分</h1>
       <span class="sub" id="saveState">已自动保存到本机</span>
     </div>
     <!-- 2026-11-11 用户：顶栏三行太挤，班级/课次在顶栏和记分工具条里各出现一次，重复。
@@ -261,6 +362,10 @@
 
     </div>
 
+    <!-- 本节各项目完成率明细（2026-11-13）：点「本节完成率」那一格，在这里弹一张 fixed 悬浮卡
+         （贴着那一格出现，表格不动、不遮挡其它行）。内容由 app.js 的 sumDetailHtml() 画。 -->
+    <div id="sumdHost" class="sumd-host" hidden></div>
+
     <div id="groupList"></div>
 
     <p class="empty-hint" id="noLessonHint" hidden>
@@ -292,6 +397,11 @@
         <div class="assessment-actions">
           <button class="btn" id="assessmentGoAttendance" type="button">考勤与规则</button>
           <button class="btn" id="assessmentExport" type="button">导出综合成绩CSV</button>
+          <!-- 2026-11-13 用户要求：「修复老师或者学生互评的这一列误加的分」。
+               排位列（接线仿真课堂任务自动生成）本该只由排位结果写入，
+               判据是 peerMeta 标记：不是 'wire' 就是手填/互评混进去的。点这个先备份再清。 -->
+          <button class="btn" id="btnScoreClean" type="button"
+                  title="检查接线仿真排位列上被手填或互评误加的分：先下载备份，再清除">修复排位误加分</button>
         </div>
       </div>
       <div id="memberRank"></div>
@@ -313,10 +423,26 @@
        这一页只留一条流程 —— 上面定「分几组 / 每组上限」，下面左边未分组、右边各组卡片，拖过去就进组。
        学生自助选桌是另一套数据，收进最底下的折叠区，不再和分组数字并排出现在第一屏。 -->
   <section id="view-pool" class="view" hidden>
-    <div class="lesson-bar">
+    <!-- 顶部一行（2026-11-13 精简）：班级 + 分几组 + 每组上限 + 添加学生，全部并排。
+         「把未分组的人平均填进去」「压缩空组并重排组号」两个按钮删掉，功能并进「确认分组」；
+         「锁定分组」2026-11-13 移进「学生自助选桌 → ⚙ 设置」（用户：这个属于设置，
+         需要单独一个确认设置按钮）。 -->
+    <div class="lesson-bar pool-topbar">
       <label class="field">
         <span>班级</span>
         <select id="poolClassSel"></select>
+      </label>
+      <label class="field"><span>分几组</span>
+        <span class="gp-num">
+          <input id="groupCount" type="number" min="1" max="40" step="1" inputmode="numeric" aria-label="分几组">
+          <em>组</em>
+        </span>
+      </label>
+      <label class="field"><span>每组上限</span>
+        <span class="gp-num">
+          <input id="groupLimit" type="number" min="2" max="40" step="1" inputmode="numeric" aria-label="每组上限">
+          <em>人</em>
+        </span>
       </label>
       <div class="spacer"></div>
       <button id="btnPoolAdd" class="btn primary">＋ 添加学生</button>
@@ -324,27 +450,6 @@
 
     <div class="card gp-setup">
       <div class="gp-setup-row">
-        <label class="field"><span>分几组</span>
-          <span class="gp-num">
-            <input id="groupCount" type="number" min="1" max="40" step="1" inputmode="numeric" aria-label="分几组">
-            <em>组</em>
-          </span>
-        </label>
-        <label class="field"><span>每组上限</span>
-          <span class="gp-num">
-            <input id="groupLimit" type="number" min="2" max="40" step="1" inputmode="numeric" aria-label="每组上限">
-            <em>人</em>
-          </span>
-        </label>
-        <button id="btnGroupFill" class="btn ghost small" type="button">把未分组的人平均填进去</button>
-        <!-- 2026-11-11 分组管理（老师反馈：改完组数、确认分组以后空组赖着不走，组号也不重排）：
-             ① 压缩空组：删掉一个人都没有的组，剩下的组按组号重排成 1、2、3…，分数按身份跟着人走；
-             ② 锁定分组：锁上以后学生不能再换组/换座（已开着的组队房间也会一起停）。 -->
-        <button id="btnGroupCompress" class="btn ghost small" type="button"
-                title="删掉一个人都没有的组，剩下的组按组号重排成 1、2、3…（连续无空号）；记过的分按学生身份跟着人走">压缩空组并重排组号</button>
-        <button id="btnGroupLock" class="btn ghost small" type="button"
-                title="锁上以后学生不能再换组/换座（已开着的组队房间也会一起停），你仍可以拖动调整">🔒 锁定分组</button>
-        <span class="spacer"></span>
         <p class="gp-setup-sum" id="groupSummary">还没有分组</p>
       </div>
       <p class="note gp-setup-note" id="groupSetupNote"></p>
@@ -377,7 +482,7 @@
         </div>
         <div class="btnrow">
           <details class="pool-team-setup" id="teamSetup">
-            <summary>设置（圆桌数 / 每桌最多）</summary>
+            <summary>⚙ 设置（圆桌数 / 每桌最多 / 锁定分组）</summary>
             <div class="pool-team-setup-body">
               <label class="field"><span>圆桌数</span>
                 <span class="gp-num"><input id="teamTables" type="number" min="1" max="40" step="1" inputmode="numeric"><em>桌</em></span>
@@ -385,11 +490,26 @@
               <label class="field"><span>每桌最多</span>
                 <span class="gp-num"><input id="teamSize" type="number" min="2" max="40" step="1" inputmode="numeric"><em>人</em></span>
               </label>
+              <!-- 锁定分组（2026-11-13 从顶栏搬进来）：用户说「这个属于设置 需要单独一个确认设置按钮」。
+                   锁上以后学生不能换组/换座（云端组队房间一起停），老师仍可拖动调整。 -->
+              <div class="pool-setup-lock">
+                <button id="btnGroupLock" class="btn ghost small" type="button"
+                        title="锁上以后学生不能再换组/换座（已开着的组队房间也会一起停），你仍可以拖动调整">🔒 锁定分组</button>
+                <span class="note">锁上以后学生端不能换组/换座，你仍可以拖动调整。</span>
+              </div>
               <p class="note">这两项是「初始状态定义」：每桌最多会同时作为本班每组默认上限，改完下面分组会跟着变；已经单独调过上限的组不受影响。</p>
+              <div class="btnrow pool-setup-ok">
+                <span class="spacer"></span>
+                <button id="btnConfirmSetup" class="btn primary" type="button"
+                        title="把上面的圆桌数 / 每桌最多 / 锁定状态一起确认并保存">✓ 确认设置</button>
+              </div>
             </div>
           </details>
           <button id="btnTeamOpen" class="btn primary" type="button">开放组队</button>
-          <button id="btnTeamFinish" class="btn primary" type="button" hidden>确认分组</button>
+          <!-- 2026-11-13：确认分组常驻（不再按需显隐）。文案由 app.js 的 tmButtons 切换：
+               有待确认的选座 → 「按选座确认分组」；没有 → 「✓ 确认分组」（清空组+重排+平均填）。 -->
+          <button id="btnTeamFinish" class="btn ghost" type="button"
+                  title="清掉空组、把组号重排成 1、2、3…，并把未分组的人平均填进去">✓ 确认分组</button>
           <span class="spacer"></span>
           <a id="teamLink" class="btn ghost small" target="_blank" rel="noopener" href="team.html" hidden>学生入口 ↗</a>
         </div>
@@ -596,20 +716,20 @@
   </form>
 </dialog>
 
-<script src="data.js?v=dfd123a"></script>
-<script src="config.js?v=dfd123a"></script>
+<script src="data.js?v=ef54701"></script>
+<script src="config.js?v=ef54701"></script>
 <!-- 导出用的两个大库（xlsx 930 KB + jspdf 409 KB = 1.3 MB）。
      2026-11-09 加 defer：它们是普通脚本时按文档顺序阻塞执行，必须下完才轮到下面的 app.js，
      而 app.js 才是绑登录、画界面、读本机数据的那一个 —— 网一慢整页就像死了（用户报的「打不开、登录不了」）。
      加了 defer 之后 app.js 立刻跑，这两个在解析结束后自己下自己执行，点导出时通常早就好了；
      万一手快、库还没到，由 heavy.js 在捕获阶段把这**一次**点击接住，等库到了替他重发。 -->
-<script src="vendor/jspdf.umd.min.js?v=dfd123a" defer></script>
-<script src="vendor/xlsx.full.min.js?v=dfd123a" defer></script>
-<script src="heavy.js?v=dfd123a"></script>
-<script src="roster-import.js?v=dfd123a"></script>
-<script src="hx-roster.js?v=dfd123a"></script>
-<script src="cloud.js?v=dfd123a"></script>
-<script src="supabase-cloud.js?v=dfd123a"></script>
+<script src="vendor/jspdf.umd.min.js?v=ef54701" defer></script>
+<script src="vendor/xlsx.full.min.js?v=ef54701" defer></script>
+<script src="heavy.js?v=ef54701"></script>
+<script src="roster-import.js?v=ef54701"></script>
+<script src="hx-roster.js?v=ef54701"></script>
+<script src="cloud.js?v=ef54701"></script>
+<script src="supabase-cloud.js?v=ef54701"></script>
 <dialog id="dlgPassword">
   <form method="dialog" class="dlg" id="passwordForm">
     <div class="dlg-head"><h3>修改密码</h3><button type="button" class="dlg-x" id="btnPasswordClose" aria-label="关闭">✕</button></div>
@@ -635,20 +755,28 @@
   </div>
 </dialog>
 <!-- 组内互评直接计分：把学生提交归成「落哪一格、落多少分」，leader-scoring.js / app.js 都用它（2026-11-10） -->
-<script src="peer-apply.js?v=dfd123a"></script>
-<script src="leader-scoring.js?v=dfd123a"></script>
-<script src="assessment.js?v=dfd123a"></script>
-<script src="ui-feedback.js?v=dfd123a"></script>
+<script src="peer-apply.js?v=ef54701"></script>
+<script src="leader-scoring.js?v=ef54701"></script>
+<script src="assessment.js?v=ef54701"></script>
+<script src="ui-feedback.js?v=ef54701"></script>
 <dialog id="dlgOperationLog" hidden></dialog>
-<script src="print-excel.js?v=dfd123a"></script>
-<script src="gradebook.js?v=dfd123a"></script>
+<script src="print-excel.js?v=ef54701"></script>
+<script src="gradebook.js?v=ef54701"></script>
 <!-- 学生只读查分：把「每人一份」的分数快照发布到云端，app.js 每次 save() 会叫它（2026-11-04） -->
-<script src="student-feed.js?v=dfd123a"></script>
-<script src="score-repair.js?v=dfd123a"></script>
-<script src="wire-task-link.js?v=dfd123a"></script>
+<script src="student-feed.js?v=ef54701"></script>
+<script src="score-repair.js?v=ef54701"></script>
+<!-- 排位误加分清洗（2026-11-13）：用户要求「修复老师或者学生互评的这一列误加的分」。
+     判据是逐格来源标记 lesson.peerMeta[...]：排位列上标记不是 'wire' 的就是手填/互评混进来的。
+     模块只算数据、不碰 DOM，入口在「本学期总分」页的「修复排位误加分」按钮上。 -->
+<script src="score-clean.js"></script>
+<!-- 考勤自动同步（2026-11-13）：用户要求「考勤完成率和考勤工具卡实行同步切记」。
+     后台每 5 分钟 / 切回前台时，把考勤工具已签到的记录写进本工具的课次考勤（只写 auto 标记的格子，
+     不覆盖老师手改的）。 -->
+<script src="attendance-sync.js"></script>
+<script src="wire-task-link.js?v=ef54701"></script>
 <script src="../ui-dialog.js"></script>
-<script src="app.js?v=dfd123a"></script>
-<script src="draw-person.js?v=dfd123a"></script>
-<script src="password-ui.js?v=dfd123a"></script>
+<script src="app.js?v=ef54701"></script>
+<script src="draw-person.js?v=ef54701"></script>
+<script src="password-ui.js?v=ef54701"></script>
 </body>
 </html>

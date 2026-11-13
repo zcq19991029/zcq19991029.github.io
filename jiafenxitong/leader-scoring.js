@@ -13,14 +13,16 @@
      切走/离开评分页就停。定时器只留一个，重画时先清旧的，别泄漏。 */
   var PEER_POLL_MS = 10000;
   var poll = { timer: 0, alive: null, run: null };
-  /* 线上排位列（2026-11-11 修互评刷分漏洞）：列名带「接线 / 线上连线排位」前缀的列是
-     课堂任务（wire-task-link.js）自动入账的成绩，只有学生真实完成线上排位才能得分，
+  /* 线上排位列（2026-11-11 修互评刷分漏洞）：列名带「接线 / 线上连线排位 / 线上接线仿真」
+     前缀的列是课堂任务（wire-task-link.js）自动入账的成绩，只有学生真实完成线上排位才能得分，
      老师在这里不能手改、不能撤销、不能一键满分 —— 互评分档（scores.js）和提交侧
      （peer-apply.js）也同样锁死，三处同一个正则。
      原来这里只认 peerMeta === 'wire'：列在而 meta 丢失（加前缀之前的老数据、
      互评先落过格再被任务接管）就会漏锁，学生照样能互相刷分 —— 所以改成按列名统一判断。
+     2026-11-13 加上「线上接线仿真」：wire-task-link.js 的 NAME_PREFIX 改成这一版，
+     漏了这条新列名就锁不上，学生又能给排位列刷分。
      ⚠ 前缀口径与 app.js 的 taskScore()、wire-task-link.js 的 NAME_PREFIX 保持一致。 */
-  var TASK_COL = /^(?:接线|线上连线排位)/;
+  var TASK_COL = /^(?:接线|线上连线排位|线上接线仿真)/;
   function isTaskCol(name) { return TASK_COL.test(String(name == null ? '' : name).trim()); }
   function pollStop() { if (poll.timer) { clearTimeout(poll.timer); poll.timer = 0; } }
   function pollSchedule() {
@@ -49,6 +51,34 @@
   function esc(value) { return String(value == null ? '' : value).replace(/[&<>"']/g,function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
   function key(member) { return member.sid ? 'sid:'+member.sid : 'id:'+member.id; }
   function csvCell(value) { var s=String(value == null ? '' : value); if (/^[=+\-@]/.test(s)) s="'"+s; return '"'+s.replace(/"/g,'""')+'"'; }
+  /* 评分说明（2026-11-13 V8）：原来铺在页面顶部的一大段解释文字，收进右上角「?」的悬浮窗里。
+     内容一条都不丢，只是拆成短句，老师扫一眼就懂；正文不再被这段说明占掉半屏。 */
+  function helpPopHtml() {
+    return '<div class="leader-help-pop" role="tooltip">' +
+      '<b class="lp-title">这一页怎么用</b>' +
+      '<ul>' +
+      '<li>所有小组从上往下连续排开，<b>不用再选组</b>，直接往下滑就能看全。</li>' +
+      '<li>学生一提交就<b>直接计分</b>，不用老师再逐列确认。</li>' +
+      '<li><b>组员平均</b>：组员们给组长打的平均完成率（至少 2 人打才计入，标在组长那一行）。</li>' +
+      '<li><b>曾任组长</b>：这个人当过组长，分是他任组长时组员打的平均分。</li>' +
+      '<li><b>互评</b>：组长给这位组员打的完成率。<b>师</b>：老师直接填的分。<b>接</b>：线上排位任务自动入账。</li>' +
+      '<li>要改分，直接点格子里的 20%–100%（带「师」角标）；双击分数撤销这一格。</li>' +
+      '</ul></div>';
+  }
+  /* 「?」说明窗：点击是给触屏用的开合，点页面空白或按 Esc 关掉。
+     这两个监听只在这里挂一次（不是每次重画都挂），否则切几次视图会叠加一堆。 */
+  function closeHelp() {
+    var wrap = document.getElementById('leaderHelpWrap');
+    if (!wrap || !wrap.classList.contains('is-open')) return;
+    wrap.classList.remove('is-open');
+    var btn = document.getElementById('leaderHelpBtn');
+    if (btn) btn.setAttribute('aria-expanded', 'false');
+  }
+  document.addEventListener('click', function (e) {
+    if (e.target && e.target.closest && e.target.closest('#leaderHelpWrap')) return;
+    closeHelp();
+  });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeHelp(); });
   window.addEventListener('afterprint',function () { if(printing) { document.body.classList.remove('print-rank','print-leader'); printing=false; } });
   function printableGroup(cls,lesson,g){var r=lesson.leaderScores&&lesson.leaderScores[String(g.no)]||{projects:Array(4).fill(''),members:{},signedBy:'',note:''};var projects=window.JFDT_ASSESSMENT.projectNames(lesson),members=(g.members||[]).filter(function(m){return m.name;}),leadKey=g.leaderKey&&members.some(function(m){return key(m)===g.leaderKey;})?g.leaderKey:(members[0]?key(members[0]):'');if(leadKey){var li=members.findIndex(function(m){return key(m)===leadKey;});if(li>0)members=[members[li]].concat(members.slice(0,li),members.slice(li+1));}return '<section class="leader-slip"><h2>组长课堂评分表</h2><p class="slip-meta">'+esc(cls.name)+' · 第'+g.no+'组 · 第'+lesson.seq+'次课 · '+esc(lesson.date||'')+'</p><p class="slip-rule">每项满分 100%（20%、40%、60%、80%、100% 五档）；空白项目由组长手写，教师复核。</p><table class="leader-table"><colgroup><col style="width:6%"><col style="width:22%">'+projects.map(function(){return '<col style="width:'+(72/projects.length)+'%">';}).join('')+'</colgroup><thead><tr><th>序号</th><th>成员 / 学号</th>'+projects.map(function(v){return '<th>'+esc(v)+'</th>';}).join('')+'</tr></thead><tbody>'+members.map(function(m,i){var scores=r.members[key(m)]||Array(projects.length).fill(null),lead=key(m)===leadKey;return '<tr><td>'+(i+1)+'</td><td class="slip-member">'+(lead?'👑 ':'')+esc(m.name)+'<small>'+esc(m.sid||'')+'</small></td>'+projects.map(function(_,j){return '<td>'+(scores[j]==null||scores[j]===0?'':numPctText(scores[j]))+'</td>';}).join('')+'</tr>';}).join('')+'</tbody></table><p class="slip-sign">组长：'+esc(r.signedBy||'________________')+'</p><p class="slip-note">备注：'+esc(r.note||'')+'</p></section>';}
   function printSheets(cls,lesson,groups,perPage){var pages=[],offset=0,counts=Array.isArray(perPage)?perPage:[];if(!counts.length){var limit=Number(perPage)||4,pageCount=Math.ceil(groups.length/limit),base=Math.floor(groups.length/pageCount),extra=groups.length%pageCount;counts=Array.from({length:pageCount},function(_,i){return base+(i<extra?1:0);});}counts.forEach(function(count){var selected=Array.isArray(count)?count:groups.slice(offset,offset+count);offset+=Array.isArray(count)?count.length:count;count=selected.length;if(!selected.length)return;pages.push('<div class="leader-paper slips-'+count+' '+(count>=3?'compact-slips ':'')+(count>=6?'dense-slips ':'')+'" style="grid-template-rows:repeat('+count+',minmax(0,1fr))">'+selected.map(function(g){return printableGroup(cls,lesson,g);}).join('')+'</div>');});return '<div class="leader-print-batch">'+pages.join('')+'</div>';}
@@ -95,13 +125,34 @@
     var lessonTag = (cls ? cls.id : '') + '#' + (lesson ? lesson.id : '');
     if (lessonTag !== lastLessonTag) { lastLessonTag = lessonTag; peerMsg = ''; }
 
-    root.innerHTML = '<div class="sec-title-row"><h2 class="sec-title">组内个人评分</h2>' +
-      '<span class="hint-help" tabindex="0" role="button" aria-label="评分说明">?' +
-      '<span class="hint-pop">所有小组都在这一页往下连续排开，不用再选组。学生一提交就<b>直接计分</b>，不用老师再逐列确认。角标一眼看来源：<b>「组员平均」</b>＝组员们给组长打的平均完成率（至少 2 人打才计入，标在组长那一行；组长换过人的，前任组长行上留下的「曾任组长」是他当组长时组员打的平均分）；<b>「互评」</b>＝组长给这一位组员打的完成率；<b>「师」</b>＝老师直接填的分。<b>要改分直接点格子</b>的 20%–100%（带「师」角标），或者关掉上面的「互评」开关再慢慢改。</span></span></div>' +
-      '<div class="card lesson-bar"><label class="field"><span>班级</span><select id="leaderClassSel">' + pool.map(function (c) { return '<option value="' + esc(c.id) + '"' + (cls && c.id === cls.id ? ' selected' : '') + '>' + esc(c.name) + '</option>'; }).join('') + '</select></label>' +
-      '<label class="field"><span>课次</span><select id="leaderLessonSel"' + (!lessons.length ? ' disabled' : '') + '>' + lessons.map(function (l) { return '<option value="' + esc(l.id) + '"' + (lesson && l.id === lesson.id ? ' selected' : '') + '>第' + l.seq + '次 · ' + esc(l.date) + '</option>'; }).join('') + '</select></label></div><div id="leaderSheet"></div>';
+    /* 顶栏（2026-11-13 V8）：班级 / 课次放在第一行最前面，老师一进来就能选；
+       原来正文里那一大段说明书收进右上角「?」的悬浮窗（hover 显示 / 点击也能开 / 点空白关闭），
+       正文不再铺说明文字，省下来的竖向空间全留给表格。
+       ⚠ 下面这些 id 一个都不能改：#leaderClassSel / #leaderLessonSel / #leaderPeerBar /
+       #leaderPeerToggle / #leaderPeerRefresh 都被 app.js 的回调和本文件的开关逻辑按 id 找。 */
+    root.innerHTML = '<div class="card lesson-bar peer-topbar" id="leaderTopbar">' +
+      '<label class="field"><span>班级</span><select id="leaderClassSel">' + pool.map(function (c) { return '<option value="' + esc(c.id) + '"' + (cls && c.id === cls.id ? ' selected' : '') + '>' + esc(c.name) + '</option>'; }).join('') + '</select></label>' +
+      '<label class="field"><span>课次</span><select id="leaderLessonSel"' + (!lessons.length ? ' disabled' : '') + '>' + lessons.map(function (l) { return '<option value="' + esc(l.id) + '"' + (lesson && l.id === lesson.id ? ' selected' : '') + '>第' + l.seq + '次 · ' + esc(l.date) + '</option>'; }).join('') + '</select></label>' +
+      '<span class="spacer"></span>' +
+      '<span class="peer-gate" id="leaderPeerBar"><span class="peer-gate-ico" aria-hidden="true">○</span>' +
+      '<button type="button" class="btn peer-gate-btn" id="leaderPeerToggle" aria-pressed="false">互评：未开放</button>' +
+      '<button type="button" class="btn tiny" id="leaderPeerRefresh" disabled>刷新提交</button></span>' +
+      '<div class="leader-help" id="leaderHelpWrap">' +
+      '<button type="button" class="leader-help-btn" id="leaderHelpBtn" aria-expanded="false" aria-label="评分说明" title="评分说明">?</button>' +
+      helpPopHtml() +
+      '</div>' +
+      '</div><div id="leaderSheet"></div>';
     root.querySelector('#leaderClassSel').onchange = function () { context.select(this.value, null); };
     root.querySelector('#leaderLessonSel').onchange = function () { context.select(cls.id, this.value); };
+    /* 问号：hover 由 CSS 管；点击开合给触屏用（点空白 / Esc 关，见文件顶部那两个 document 监听） */
+    var helpWrap = root.querySelector('#leaderHelpWrap'), helpBtn = root.querySelector('#leaderHelpBtn');
+    if (helpWrap && helpBtn) {
+      helpBtn.onclick = function () {
+        var open = !helpWrap.classList.contains('is-open');
+        helpWrap.classList.toggle('is-open', open);
+        helpBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      };
+    }
 
     var sheet = root.querySelector('#leaderSheet');
     if (!cls || !lesson) {
@@ -473,10 +524,11 @@
 
     var gateOpen = !!lesson.peerGate;
     var gateText = !peerReady ? '互评 · 需要登录教师账号' : (gateOpen ? '互评：本节课已开放' : '互评：未开放');
-    sheet.innerHTML = '<div class="peer-gate' + (gateOpen ? ' is-open' : '') + '" id="leaderPeerBar"><span class="peer-gate-ico" aria-hidden="true">' + (gateOpen ? '●' : '○') + '</span>' +
-      '<button type="button" class="btn peer-gate-btn" id="leaderPeerToggle" aria-pressed="' + (gateOpen ? 'true' : 'false') + '"' + (peerReady ? '' : ' title="' + esc(peerReason) + '"') + '>' + esc(gateText) + '</button>' +
-      '<button type="button" class="btn tiny" id="leaderPeerRefresh"' + (!peerReady ? ' disabled' : '') + '>刷新提交</button>' +
-      '<span class="peer-gate-note" id="leaderPeerNote">' + (peerReady ? '开放后本组互相打分：组长给组员打分、组员给组长打分取平均；学生提交直接计分，要改直接点格子或关掉开关。' : '互评需要：' + esc(peerReason)) + '</span></div>' +
+    /* 互评开关、班级课次都在顶部那一行；说明已经搬进右上角「?」，
+       所以正文这里只在互评真的不可用时留一句原因（老师要据此去登录 / 绑班），
+       可用时这一行整段不再画 —— 省掉页面顶部一整行说明（2026-11-13 V8）。 */
+    sheet.innerHTML =
+      (peerReady ? '' : '<p class="peer-gate-note" id="leaderPeerNote">互评暂不可用：' + esc(peerReason || '需要登录教师账号并绑定班级') + '。下面每个格子仍可直接点 20%–100% 给分。</p>') +
       colCardHtml() + dockHtml() +
       '<div class="peer-blocks" id="leaderBlocks">' + states.map(blockHtml).join('') + '</div>';
 
@@ -725,8 +777,8 @@
       if (t.matches('[data-note]')) { var st2 = byGno[String(t.dataset.note)]; if (st2) { st2.rec.note = t.value; persist(st2); } }
     });
 
-    /* ---------- 本节课「互评」开关 + 刷新提交 ---------- */
-    var bar = sheet.querySelector('#leaderPeerBar'), toggle = sheet.querySelector('#leaderPeerToggle'), refresh = sheet.querySelector('#leaderPeerRefresh');
+    /* ---------- 本节课「互评」开关 + 刷新提交（2026-11-13 已上移到顶部「班级/课次」行，从 root 查） ---------- */
+    var bar = root.querySelector('#leaderPeerBar'), toggle = root.querySelector('#leaderPeerToggle'), refresh = root.querySelector('#leaderPeerRefresh');
     function setGateUI(open) {
       lesson.peerGate = !!open;
       bar.classList.toggle('is-open', !!open);

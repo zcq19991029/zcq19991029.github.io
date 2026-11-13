@@ -22,6 +22,11 @@ body {
 }
 
 /* ---------- 顶部 ---------- */
+/* 顶部只剩一张身份卡（2026-11-13 重做）。
+   原来的 .top-main（班级 + 姓名·学号两行纯文本）和 .top-btn（裸「看我的分数」按钮）
+   已经并进这张卡里，样式统一在 student-ui.css 的「⑪ 身份卡」一节，
+   team.html / scores.html 两页共用同一份，所以这里不再定义那几个类。
+   .top 保持 flex 是为了让卡能吃满整行（.top > .id-card 那条在 student-ui.css）。 */
 .top {
   position: sticky; top: 0; z-index: 10;
   display: flex; align-items: center; gap: 10px;
@@ -30,21 +35,6 @@ body {
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--line);
 }
-.top-main { flex: 1; min-width: 0; }
-.top-main b { display: block; font-size: 16px; }
-.who { color: var(--muted); font-size: 12.5px; }
-/* 学生端两个页面互相串门：这里回「我的分数」，那边去「选桌组队」。
-   「看我的分数」从裸文字链接改成主题按钮（2026-11-12）：配色跟 --brand 走，全工具统一 */
-.top-btn {
-  display: inline-flex; align-items: center; margin-top: 3px;
-  padding: 5px 12px; border-radius: 999px;
-  background: var(--brand); color: #fff;
-  font-size: 12.5px; font-weight: 700; text-decoration: none;
-  box-shadow: 0 4px 10px -6px rgba(47, 109, 246, .6);
-  transition: transform .12s ease, box-shadow .12s ease;
-}
-.top-btn:hover { box-shadow: 0 6px 14px -6px rgba(47, 109, 246, .75); }
-.top-btn:active { transform: scale(.96); }
 .top-state {
   flex: none; padding: 5px 10px; border-radius: 999px;
   background: var(--brand-soft); color: var(--brand);

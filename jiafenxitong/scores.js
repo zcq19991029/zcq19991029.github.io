@@ -128,9 +128,11 @@
     return (Number(l.earned) || 0) + (Number(l.net) || 0);
   }
 
-  /* 身份卡（2026-11-12）：顶部那张「我自己的 id 卡」，背景跟账号走（hx_rank_bg）。
-     数据层 public.hx_rank_bg（hx_rank_bg_get 一人一行 {bg,pos}），预设复用根目录 rank-bg.js
-     的 window.rankBgCss —— 和排位排行榜 / 总入口身份卡弹窗是同一套背景，改一处全站跟着变。 */
+  /* 身份卡（2026-11-12 起用；2026-11-13 和选桌页统一成同一张）：顶部那张「我自己的 id 卡」，
+     背景跟账号走（hx_rank_bg）。数据层 public.hx_rank_bg（hx_rank_bg_get 一人一行 {bg,pos}），
+     预设复用根目录 rank-bg.js 的 window.rankBgCss —— 和排位排行榜 / 总入口身份卡弹窗是同一套背景。
+     结构写在 scores.html 的 #myCard 里（team.html 顶部那张一模一样，样式统一在 student-ui.css），
+     这里只负责填字 + 铺背景，不再自己拼 innerHTML。 */
   var MY_CARD = { bg: '', pos: 50, loaded: false };
 
   /* 预设键 p:<k> 或 base64 图 → 可直接赋给 background 的样式串（精简自总入口 rkdBgStyle） */
@@ -140,6 +142,9 @@
     var p = Math.max(0, Math.min(100, Number(pos) || 50));
     if (/^p:[a-z0-9_-]{1,24}$/.test(s)) {
       var css = (window.rankBgCss && window.rankBgCss(s.slice(2))) || '';
+      /* rank-bg.js 没加载出来时 rankBgCss 是空的：必须返回空串走卡片默认底，
+         否则拼出「background:;」会让人以为背景铺上了 */
+      if (!css) return '';
       return 'background:' + css.replace(/0 0\s*\/\s*100% 100%/g, '50% 50% / cover') + ';';
     }
     if (/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(s))
@@ -147,39 +152,39 @@
     return '';
   }
 
-  function renderMyCard(me) {
+  /* 把 hx_rank_bg 铺到卡片的背景层；没有背景就留空，露出卡片自带的深蓝渐变 */
+  function paintMyCardBg() {
     var box = $('myCard');
-    if (!box || !me || !me.name) { if (box) box.hidden = true; return; }
-    box.hidden = false;
-    /* 名字首字母当头像；信息 = 班级 · 学号 · 组别 */
-    var avatar = esc(String(me.name).slice(0, 1));
-    var sub = [];
-    if (me.gname) sub.push(me.gname);
-    else if (me.group_no) sub.push('第 ' + me.group_no + ' 组');
-    if (me.sid) sub.push(me.sid);
-    else if (me.no) sub.push(me.no);
-    var subHtml = sub.length ? '<small>' + esc(sub.join(' · ')) + '</small>' : '';
-    box.innerHTML =
-      '<span class="idc-bg" aria-hidden="true"></span><span class="idc-veil" aria-hidden="true"></span>' +
-      '<span class="idc-av" aria-hidden="true">' + avatar + '</span>' +
-      '<span class="idc-nm">' + esc(me.name) + subHtml + '</span>' +
-      (me.group_no ? '<span class="idc-g">第 ' + esc(me.group_no) + ' 组</span>' : '');
-    /* 背景：优先用已拉到的；还没拉到就先空着，等 hx_rank_bg_get 回来再补 */
-    var bg = box.querySelector('.idc-bg');
+    if (!box) return;
+    var bg = $('idcBg') || box.querySelector('.idc-bg');
     var st = cardBgStyle(MY_CARD.bg, MY_CARD.pos);
-    bg.setAttribute('style', st || '');
+    if (bg) bg.setAttribute('style', st || '');
     box.setAttribute('data-nobg', st ? '0' : '1');
-    if (!MY_CARD.loaded) {
-      MY_CARD.loaded = true;
-      rpc('hx_rank_bg_get', {}).then(function (rows) {
-        var r = rows && rows[0];
-        MY_CARD.bg = r ? r.bg : ''; MY_CARD.pos = r ? r.pos : 50;
-        var bg2 = box.querySelector('.idc-bg');
-        var st2 = cardBgStyle(MY_CARD.bg, MY_CARD.pos);
-        if (bg2) bg2.setAttribute('style', st2 || '');
-        box.setAttribute('data-nobg', st2 ? '0' : '1');
-      }).catch(function () { MY_CARD.bg = ''; MY_CARD.pos = 50; });
-    }
+    if (MY_CARD.loaded) return;
+    MY_CARD.loaded = true;
+    rpc('hx_rank_bg_get', {}).then(function (rows) {
+      var r = rows && rows[0];
+      MY_CARD.bg = r ? r.bg : ''; MY_CARD.pos = r ? r.pos : 50;
+      paintMyCardBg();          // loaded 已置 true，这一轮只重画、不再请求
+    }).catch(function () { MY_CARD.bg = ''; MY_CARD.pos = 50; });
+  }
+
+  /* 填身份卡：班级（小字）/ 姓名（大字）/ 学号 / 组别胶囊 + 头像首字。
+     me 为空（没登录 / 没绑班级 / 读不到）时只留第一行的说明文字，卡片自动收成一行。 */
+  function renderMyCard(me, cls) {
+    var box = $('myCard');
+    if (!box) return;
+    var name = (me && me.name) || '';
+    var no = (me && (me.no || me.sid)) || '';
+    var g = me ? (me.gname || (me.group_no ? '第 ' + me.group_no + ' 组' : '')) : '';
+    var c = $('clsName'), nm = $('who'), sno = $('whoNo'), av = $('idcAv'), gp = $('idcG');
+    if (c) c.textContent = cls || (name ? '本班' : '还没登录');
+    if (nm) nm.textContent = name;
+    if (sno) sno.textContent = no;
+    if (av) av.textContent = name ? String(name).slice(0, 1) : '我';
+    if (gp) { gp.textContent = g; gp.hidden = !g; }
+    box.classList.toggle('is-anon', !name);
+    paintMyCardBg();
   }
 
   function notice(html, cls) {
@@ -194,9 +199,10 @@
     fatal = kind;
     ['view-score', 'view-total'].forEach(function (id) { $(id).innerHTML = ''; });
     $('sync').textContent = '';
+    /* 身份卡统一走 renderMyCard（第二个参数是卡片第一行的说明字）：
+       没有姓名时卡片自动收成一行，不会留一片空白 */
     if (kind === 'no_login') {
-      $('clsName').textContent = '还没登录';
-      $('who').textContent = '';
+      renderMyCard(null, '还没登录');
       notice('<b>请先用学号登录华夏工具，再回来看分数。</b>' +
         '<div class="steps">' +
         '<span>1. 点下面的按钮去登录（账号是<b>学号</b>，密码是第一次登录时自己设的）</span>' +
@@ -206,21 +212,18 @@
         '<br><br><small>忘了密码就在登录页点「忘记密码」。没登录过的话，问老师要课堂码注册。</small>');
       watchLogin();
     } else if (kind === 'not_student') {
-      $('clsName').textContent = '账号没绑定班级';
-      $('who').textContent = '';
+      renderMyCard(null, '账号没绑定班级');
       notice('<b>这个账号还没有绑到班级名单上。</b><br>' +
         '要么你用的是老师账号，要么老师还没把这份名单开通到你的学号。' +
         '先问老师确认名单里有你，再回首页重新登录一次。');
     } else if (kind === 'no_data') {
-      $('clsName').textContent = (extra && extra.class) || '本班';
-      $('who').textContent = extra && extra.me ? (extra.me.name || '') + (extra.me.no ? ' · ' + extra.me.no : '') : '';
+      renderMyCard(extra && extra.me, (extra && extra.class) || '本班');
       notice('<b>老师还没发布分数。</b><br>' +
         '老师在加分助手里一记分，这里会自动出现你的分数，不用刷新。' +
         '<br><br>先把这一页留着，等上课记完分再回来看。');
       schedule(5000);
     } else {
-      $('clsName').textContent = '打不开';
-      $('who').textContent = '';
+      renderMyCard(null, '打不开');
       notice('<b>读取失败：</b>' + esc(extra && extra.message || '未知错误') +
         '<br>检查一下网络，或者退出重新登录再试。');
       schedule(5000);
@@ -233,50 +236,42 @@
     return '第 ' + (l.seq || '?') + ' 次' + (l.date ? ' · ' + md(l.date) : '');
   }
 
-  /* 每节课得分详情（2026-11-12 U4）：原来「每次课的分数」是一串纯文字行，项目名和分数
-     挤在 .lesson/.proj 里，用户觉得不直观。改成一张「课次 × 项目」矩阵表：
-     行 = 课次（新的在上面），列 = 各评分项目（跨课次取并集、按第一次出现顺序排），
-     单元格显示完成率 20%–100%；「待评」= 还没录，「—」= 那节课没这个项目。
-     最后几列把「本节项目原始分 / 完成率 / 扣分·值日」集中起来，不再散在文字里。 */
+  /* 每节课得分详情（2026-11-13 改纵向堆叠）：原来的「课次 × 项目」横向矩阵表
+     列名每次都不一样（各课项目不同，跨课取并集），一屏放不下还得左右滑，用户嫌烦。
+     改成「每节课一个块、从上往下叠」：块头是课次，块里把这一课的每个项目竖着列一行
+     （项目名 + 完成率），最后跟「本节原始分 / 完成率 / 扣分·值日」三行小结。 */
   function renderLessonDetail(ls) {
     if (!ls.length) {
       return '<div class="card"><h3>每节课得分详情</h3>' +
         '<p class="note">还没有课次。老师上完第一次课记分后就会出现在这里。</p></div>';
     }
-    var names = [];
-    ls.forEach(function (l) {
-      (l.projects || []).forEach(function (p) {
-        if (p && p.n != null && names.indexOf(p.n) < 0) names.push(p.n);
-      });
-    });
-    var rows = ls.slice().reverse().map(function (l) {
-      var byName = Object.create(null);
-      (l.projects || []).forEach(function (p) { byName[p.n] = p.s; });
-      var cells = names.map(function (nm) {
-        var s = byName[nm];
-        if (s === undefined) return '<td class="na">—</td>';
-        if (s === null) return '<td class="wait">待评</td>';
-        return '<td>' + scorePct(s) + '</td>';
+    var blocks = ls.slice().reverse().map(function (l) {
+      var projRows = (l.projects || []).map(function (p) {
+        var txt;
+        if (p.s === undefined) txt = '<span class="na">—</span>';
+        else if (p.s === null) txt = '<span class="wait">待评</span>';
+        else txt = '<b>' + scorePct(p.s) + '</b>';
+        return '<div class="dl-row"><span class="dl-proj">' + esc(p.n) + '</span><span class="dl-val">' + txt + '</span></div>';
       }).join('');
       var note = [];
       if (l.phone) note.push('<span class="minus">全组 −' + (num(l.phone) * 20) + '%</span>');
       if (l.personal) note.push('<span class="minus">个人 −' + (num(l.personal) * 20) + '%</span>');
       if (l.duty && l.duty.is) note.push('<span class="pill' + (l.duty.absent ? ' bad' : '') + '">值日' + (l.duty.absent ? ' · 缺勤 −' + (l.duty.absent * 20) + '%' : '') + '</span>');
-      return '<tr>' +
-        '<th class="dl-seq">' + lessonLabel(l) + '</th>' +
-        cells +
-        '<td class="dl-raw">' + (l.max ? num(rawOf(l)) + ' / ' + l.max : '—') + '</td>' +
-        '<td class="dl-pct">' + (l.pct === null ? '<span class="pill warn">还没录</span>' : pct(l.pct)) + '</td>' +
-        '<td class="dl-note">' + (note.join('') || '<span class="na">—</span>') + '</td>' +
-        '</tr>';
+      var summary = '<div class="dl-sum">' +
+        '<span>本节项目 <b>' + (l.max ? num(rawOf(l)) + ' / ' + l.max : '—') + '</b></span>' +
+        '<span>完成率 <b>' + (l.pct === null ? '还没录' : pct(l.pct)) + '</b></span>' +
+        (note.length ? '<span class="dl-note">' + note.join('') + '</span>' : '') +
+        '</div>';
+      return '<div class="dl-block">' +
+        '<div class="dl-head">' + lessonLabel(l) + '</div>' +
+        (projRows || '<p class="note">这节课还没有项目分。</p>') +
+        summary +
+        '</div>';
     }).join('');
-    var head = '<tr><th>课次</th>' +
-      names.map(function (nm) { return '<th>' + esc(nm) + '</th>'; }).join('') +
-      '<th>本节项目</th><th>完成率</th><th>扣分 / 值日</th></tr>';
     return '<div class="card"><h3>每节课得分详情</h3>' +
-      '<div class="scroll"><table class="book detail"><thead>' + head + '</thead><tbody>' + rows + '</tbody></table></div>' +
+      '<div class="dl-list">' + blocks + '</div>' +
       '<p class="note">每格是那节课该项目的完成率（20%–100%），「待评」表示还没录、不是 0 分；「—」表示那节课没有这个项目。' +
-      '「本节项目」= 原始项目分（分子 / 满分），「完成率」= 扣分后的最终完成率。项目多时左右滑动可看全。</p></div>';
+      '「本节项目」= 原始项目分（分子 / 满分），「完成率」= 扣分后的最终完成率。每节课一块，从上往下排。</p></div>';
   }
 
   function renderScore() {
@@ -437,7 +432,7 @@
      也不能撤销 —— 互相刷分就行、没人真去做排位，这条口子必须堵死。
      ⚠ 前缀口径与 app.js 的 taskScore()、wire-task-link.js 的 NAME_PREFIX 保持一致，
        三处必须一起改，否则老数据的旧列名「接线2.3」会漏判。 */
-  var TASK_COL = /^(?:接线|线上连线排位)/;
+  var TASK_COL = /^(?:接线|线上连线排位|线上接线仿真)/;
   function isTaskCol(name) { return TASK_COL.test(String(name == null ? '' : name).trim()); }
 
   /* 逐列「仅教师可评」（2026-11-12 用户规则：收拾板子 / 归位工具的分只能老师给）。
@@ -710,10 +705,9 @@
     }
     fatal = null;
     D = payload;
-    $('clsName').textContent = (payload.cls && payload.cls.name) || '本班';
-    $('who').textContent = (payload.me.name || '') + (payload.me.no ? ' · ' + payload.me.no : '') +
-      (payload.me.gname ? ' · ' + payload.me.gname : '');
-    renderMyCard(payload.me);
+    /* 顶部身份卡：班级 + 姓名 + 学号 + 组别一次填完（原来班级/姓名是拆在 .top-main 里的纯文本，
+       2026-11-13 起和选桌页统一成同一张卡，都走 renderMyCard） */
+    renderMyCard(payload.me, (payload.cls && payload.cls.name) || '本班');
     paint();
     paintSync();
     /* 只读页也带上本节互评：没开放时这里只多一次查询，不会挡住看分 */

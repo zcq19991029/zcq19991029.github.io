@@ -340,71 +340,59 @@ table.book tr.me-row td { border-color: var(--ok, #2f845a); }
 .lesson-head .pill { margin-left: 6px; }
 
 /* ============================================================
-   左上角主按钮「去选桌组队」（2026-11-12 U4）
-   用户反馈：原来这只是一个 12.5px 的小文字链接，学生经常看不见。
-   改成明显的品牌色按钮放到页头最左上角，一眼就是「下一步去哪」。
+   左上角主按钮「去选桌组队」（2026-11-12 U4；2026-11-13 收进身份卡）
+   ------------------------------------------------------------
+   原来是一个单独的品牌色按钮，摆在页头左上、和身份卡并排。
+   2026-11-13 用户要求把页头统一成一张 ID 卡，这个跳转就变成卡里右侧那颗
+   玻璃胶囊（.idc-go，样式在 student-ui.css），所以这里不再需要独立按钮。
+   留着这一段只是为了说明去向：scores.html 里已经没有 .top-cta-row / .top-cta。
    ============================================================ */
-.top-cta-row { margin-bottom: 8px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.top-cta {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 9px 16px; border-radius: 12px;
-  background: var(--brand); color: #fff;
-  font: inherit; font-size: 14px; font-weight: 700;
-  text-decoration: none;
-  box-shadow: 0 6px 16px -8px rgba(47, 109, 246, .6);
-  transition: transform .12s ease, box-shadow .12s ease;
-}
-.top-cta:hover { box-shadow: 0 8px 20px -8px rgba(47, 109, 246, .75); }
-.top-cta:active { transform: scale(.97); }
 
 /* ============================================================
-   身份卡（2026-11-12）：顶部那张「我自己的 id 卡」。
-   和排位排行榜身份卡同一套视觉语言：横向卡片 + 背景层 + 压暗遮罩 +
-   首字母头像 + 姓名 + 班级·学号·组别，背景跟账号走（hx_rank_bg）。
+   身份卡（2026-11-12 起用；2026-11-13 挪进 student-ui.css 统一维护）
+   ------------------------------------------------------------
+   这张卡的样式现在写在 student-ui.css 的「⑪ 身份卡」一节 ——
+   因为 team.html 不引 scores.css，而选桌页顶部也要同一张卡，
+   两边共用只能落在两页都引的外观层里。这里不再重复定义，
+   免得改一处、另一处还是旧样子（同一套视觉语言 = 同一份 CSS）。
+   结构见 scores.html 的 #myCard，内容由 scores.js 的 renderMyCard() 填。
    ============================================================ */
-.id-card {
-  position: relative; flex: 1 1 220px; min-width: 180px; max-width: 340px;
-  display: flex; align-items: center; gap: 9px;
-  height: 54px; padding: 0 12px 0 8px;
-  border-radius: 13px; overflow: hidden;
-  border: 1px solid rgba(90, 132, 224, .32);
-  background: linear-gradient(120deg, #0c1730 0%, #12234a 60%, #0a1530 100%);
-  box-shadow: 0 8px 20px -12px rgba(20, 40, 90, .7);
-}
-.id-card[hidden] { display: none; }
-.id-card .idc-bg { position: absolute; inset: 0; z-index: 0; background-size: cover; background-position: 50% 50%; }
-.id-card .idc-veil { position: absolute; inset: 0; z-index: 1;
-  background: linear-gradient(90deg, rgba(4, 8, 18, .78) 0%, rgba(4, 8, 18, .42) 42%, rgba(4, 8, 18, .66) 100%); }
-.id-card > *:not(.idc-bg):not(.idc-veil) { position: relative; z-index: 2; }
-.id-card .idc-av {
-  flex: none; width: 36px; height: 36px; border-radius: 50%;
-  display: grid; place-items: center;
-  background: linear-gradient(160deg, #5b8cff, #2f6df6);
-  color: #fff; font-size: 17px; font-weight: 800;
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, .25), 0 4px 10px -4px rgba(0, 0, 0, .6);
-}
-.id-card .idc-nm {
-  flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center;
-  color: #fff; font-size: 15px; font-weight: 800; line-height: 1.15;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.id-card .idc-nm small {
-  display: block; margin-top: 2px; font-size: 11px; font-weight: 600;
-  color: #b9cbe4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.id-card .idc-g {
-  flex: none; padding: 3px 9px; border-radius: 999px;
-  background: rgba(255, 214, 140, .18); color: #ffd895;
-  font-size: 11px; font-weight: 700; white-space: nowrap;
-}
-/* 没背景时给一层默认渐变（有背景时 .idc-bg 盖在上面） */
-.id-card[data-nobg="1"] .idc-av { box-shadow: 0 0 0 2px rgba(255, 255, 255, .18), 0 4px 10px -4px rgba(0, 0, 0, .5); }
 
 /* ============================================================
-   每节课得分详情表（2026-11-12 U4）
-   原来「每次课的分数」是一串纯文字行，现在改成「课次 × 项目」矩阵表。
-   复用 table.book 的边框/字号，这里只补本表特有的单元格语义色。
+   每节课得分详情（2026-11-13 改纵向堆叠）
+   原来的「课次 × 项目」横向矩阵表列名每次不一样、一屏放不下要左右滑，
+   改成每节课一个块、从上往下叠：块头课次，块里每项目一行，末尾三行小结。
    ============================================================ */
+.dl-list { display: flex; flex-direction: column; gap: 10px; }
+.dl-block {
+  border: 1px solid var(--line); border-radius: 12px; overflow: hidden;
+  background: var(--panel-soft, rgba(0,0,0,.02));
+}
+.dl-block .dl-head {
+  padding: 8px 12px; font-size: 13.5px; font-weight: 700; color: var(--ink);
+  background: var(--brand-soft, #e8efff); border-bottom: 1px solid var(--line);
+}
+.dl-block .dl-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 7px 12px; border-bottom: 1px solid var(--line); font-size: 13px;
+}
+.dl-block .dl-row:last-of-type { border-bottom: 0; }
+.dl-block .dl-proj { color: var(--ink); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dl-block .dl-val { flex: none; font-variant-numeric: tabular-nums; }
+.dl-block .dl-val b { color: var(--brand); font-weight: 700; }
+.dl-block .dl-val .wait { color: var(--muted); }
+.dl-block .dl-val .na { color: var(--muted); opacity: .45; }
+.dl-block .dl-sum {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px;
+  padding: 8px 12px; font-size: 12.5px; color: var(--muted);
+  background: var(--panel, #fff); border-top: 1px solid var(--line);
+}
+.dl-block .dl-sum b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.dl-block .dl-note { display: inline-flex; align-items: center; gap: 6px; }
+.dl-block .dl-note .minus { color: var(--danger); font-weight: 600; }
+.dl-block .dl-note .pill { font-weight: 600; }
+
+/* 旧矩阵表样式保留（已被纵向堆叠取代，不再引用，防老缓存） */
 table.book.detail { font-size: 12px; }
 table.book.detail th.dl-seq,
 table.book.detail td.dl-seq { text-align: left; white-space: nowrap; }
