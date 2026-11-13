@@ -4958,53 +4958,11 @@ function restoreDroppedToHome(cls) {
     if (hidden.length) html += '<p class="note">首页没勾“小组加分”，暂不显示（记录都在）：' + esc(hidden.map(function (c) { return c.name; }).join('、')) + '</p>';
     box.innerHTML = html;
   }
-  $('#hxRosterBox').addEventListener('change', function (e) {
-    var sel = e.target.closest('[data-hxpick]');
-    if (sel && hxRoster.review && hxRoster.review.classId === sel.dataset.hxpick) { hxRoster.review = null; renderHxRoster(); }
-  });
-  $('#hxRosterBox').addEventListener('click', function (e) {
-    var b = e.target.closest('button');
-    if (!b) return;
-    try {
-      if (b.dataset.hxreview) {
-        var id = $('[data-hxpick="' + b.dataset.hxreview + '"]').value;
-        hxRoster.review = id ? { classId: b.dataset.hxreview, hxId: +id } : { classId: b.dataset.hxreview, msg: '先选对应首页的哪个班。' };
-      } else if (b.dataset.hxlocal) {
-        hxRoster.review = { classId: b.dataset.hxlocal, local: true };
-      } else if (b.dataset.hxcancel) {
-        hxRoster.review = null;
-      } else if (b.dataset.hxdel) {
-        /* 删除待对应班：权限放宽窗口期误导入的他人班用这个清掉。
-           已录课次的班不许删（先删课次），确认后才动 S.classes。 */
-        var dc = S.classes.filter(function (x) { return x.id === b.dataset.hxdel; })[0];
-        if (!dc) return;
-        var nL = S.lessons.filter(function (l) { return l.classId === dc.id; }).length;
-        if (nL) { hxRoster.review = { classId: dc.id, msg: '「' + dc.name + '」已录 ' + nL + ' 次课，先删掉对应课次再删班。' }; }
-        else if (!confirm('删除「' + dc.name + '」？这是清掉一条待对应记录，该班没有对应过首页名单。')) {
-          return;
-        } else {
-          S.classes = S.classes.filter(function (x) { return x.id !== dc.id; });
-          if (hxRoster.review && hxRoster.review.classId === dc.id) hxRoster.review = null;
-          addOperationLog('首页班级', '删除待对应班 ' + dc.name);
-          save(); flash('已删除 ' + dc.name);
-        }
-      } else if (b.dataset.hxlink) {
-        var rv = hxRoster.review, hx = rv && rv.hxId && hxRoster.all.filter(function (h) { return h.id === rv.hxId; })[0];
-        if (!hx) return;
-        var r = HXR.link(S, rv.classId, hx, hxRoster.students[hx.id] || []);
-        S = r.state; hxRoster.review = null;
-        addOperationLog('首页班级', r.cls.name + ' 对应首页 ' + hx.name + hxCounts(r));
-        save(); flash(r.cls.name + ' 已对应首页名单');
-        hxApply(); hxRedraw();
-        return;
-      } else if (b.dataset.hxlocalok) {
-        S = HXR.keepLocal(S, b.dataset.hxlocalok); hxRoster.review = null;
-        save(); hxApply(); hxRedraw();
-        return;
-      } else return;
-      renderHxRoster();
-    } catch (er) { hxRoster.review = { classId: (hxRoster.review || {}).classId, msg: '没做成：' + er.message }; renderHxRoster(); }
-  });
+  /* 2026-11-13：这块事件委托原本挂在「首页班级」卡（#hxRosterBox）上，卡按用户要求删掉了。
+     注意：当时只删了卡、留着这两行 addEventListener，结果 $('#hxRosterBox') 是 null，
+     .addEventListener 直接抛 TypeError —— 脚本从这里中断，后面所有初始化（填班级/填课次/画名单）
+     全部没执行，整个记分页一片空白（2026-11-13 线上事故）。所以整块一起删干净。
+     自动对应仍由 loadHxRoster 在后台维护，只是不再有可见卡片和交互。 */
   /* 2026-11-13：「首页班级」那张卡连同刷新按钮一起删了（用户：这个也没用）。
      自动对应仍由 loadHxRoster 在后台维护，只是不再有可见卡片。 */
   if ($('#btnHxRefresh')) $('#btnHxRefresh').addEventListener('click', function () { renderHxRoster(); loadHxRoster(true); });
