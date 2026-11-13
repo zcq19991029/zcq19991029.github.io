@@ -6555,6 +6555,22 @@ function buildSave(sub, B) {
 }
 const buildCode = B => makeExamCode(B.key, B.qs);
 
+/* 反查：这个组卷码发布成考试了吗（2026-11-13）
+   用户原话「组卷码没有已发布卷反查，改组不提示会影响哪场考试」。
+   把当前组卷码拿去 hx_exam_find_by_paper 精确匹配 paper 字段，列出已经发布成考试的记录；
+   class_names / subs 由 SQL 现算好（组卷页没有班级列表，这里只负责拼出来），不用再发请求。 */
+function findHTML(list) {
+  if (!Array.isArray(list) || !list.length) return '<p class="note">这个组卷码还没有发布成考试，怎么改都不影响已发布的考试。</p>';
+  return list.map(x => {
+    const cls = (Array.isArray(x.class_names) ? x.class_names : []).map(esc).join('、') || '没选班';
+    const t = x.created_at ? when(x.created_at) : '';
+    return `<div style="padding:8px 0;border-top:1px solid rgba(127,127,127,.18)">
+      <div><b>${esc(x.title || '未命名')}</b> <span class="note mono">学生短码 ${esc(x.code || '')}</span></div>
+      <div class="note">${cls}${t ? ' · ' + t : ''}${x.subs ? ' · ' + x.subs + ' 人交卷' : ''}${x.open ? '' : ' · 已收卷'}</div>
+    </div>`;
+  }).join('');
+}
+
 /* 用到导入书上代码的题改回随机：网页版没有自定义母题库，留着会让组卷码解不开。
    顺带把没有 pin 的题补成 pin:null，让下面所有判断都能直接写 q.pin != null */
 function buildFixMids(B) {
@@ -6654,7 +6670,10 @@ function mountBuilder(sub) {
           <div class="codebox"><div class="cb-l"><div class="note">组卷码（自动生成 = 换题种子 + 每道题的设置；学生直接输这个）</div><div class="cb-code mono" id="bdCode"></div><div class="note" id="bdLen"></div></div>
             <button id="bdCopy">复制</button></div>
           <p class="note" style="margin-top:10px">拿到码之后去「考试」页：<b>发布考试 → 粘贴组卷码 → 选班级</b>，网页会再给你一个学生输的短码。</p>
-          <div class="card band" style="margin-top:12px"><b>这套卷还没有发布</b><p class="note" style="margin:0">组卷只在这里调；真正的考试记录（谁交了、多少分）在「考试」页。</p></div>
+          <div class="card band" style="margin-top:12px">
+            <div class="row" style="justify-content:space-between;align-items:center"><b>发布过吗</b><button class="sm" id="bdFind">查这个码</button></div>
+            <div id="bdFindOut" style="margin-top:6px"></div>
+          </div>
         </div>
         <div class="card">
           <h2>试卷库</h2>
@@ -6779,6 +6798,18 @@ function mountBuilder(sub) {
     if (b.id === 'bdCopy') {
       const code = buildCode(B);
       (navigator.clipboard ? navigator.clipboard.writeText(code) : Promise.reject()).then(() => toast('组卷码已复制')).catch(() => toast('复制失败，请手动选中复制'));
+      return;
+    }
+    if (b.id === 'bdFind') {
+      /* 反查：拿当前组卷码去 hx_exam_find_by_paper 查有没有已经发布成考试。
+         结果区先出「正在查…」，回来再替换；查不到也说明白（可能是真没发布，也可能是 SQL 还没建）。 */
+      const out = $('bdFindOut');
+      if (!out) return;
+      const code = buildCode(B);
+      out.innerHTML = '<p class="note">正在查这个组卷码有没有发布成考试…</p>';
+      rpc('hx_exam_find_by_paper', { p_paper: code })
+        .then(list => { out.innerHTML = findHTML(list); })
+        .catch(e => { out.innerHTML = '<p class="note">没查到：' + esc(e && e.message ? e.message : e) + '</p>'; });
       return;
     }
     if (b.id === 'bdLoad') {
@@ -7126,7 +7157,7 @@ async function bootOnce() {
   lastUid = sess && sess.user ? sess.user.id : null;
   if (!sess || !sess.access_token) return gate('登录后考试', '老师在这里发布考试，学生输老师公布的码取题', '登录', login);
   try { ME.me = await rpc('hx_me'); } catch (e) { if (e.status === 401) return gate('登录过期了', '请在首页重新登录', '登录', login); return gate('出错了', e.message); }
-  if (ME.me.teacher) { teacherShell(); return; }
+  if (ME.me.teacher || ME.me.admin || ME.me.dev) { teacherShell(); return; }
   if (ME.me.student) return electronicStudentHome();
   gate('账号还没开通', '在首页右上角的账号里填邀请码', '去首页', () => { const p = window.HXTheme && HXTheme.portal(); p ? p.home() : (location.href = '../'); });
 }

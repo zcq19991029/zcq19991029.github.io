@@ -1077,7 +1077,7 @@ async function bootOnce() {
   if (!sess || !sess.access_token) return gate('请先登录');
   try { ME.me = await rpc('hx_me'); }
   catch (e) { return gate(e.status === 401 ? '请先登录' : '出错了', e.status === 401 ? '登录过期了' : e.message); }
-  if (ME.me && ME.me.teacher) return teacherHome();
+  if (ME.me && (ME.me.teacher || ME.me.admin || ME.me.dev)) return teacherHome();
   if (ME.me && ME.me.student) { const l = LINK; LINK = null; return studentHome(l); }
   gate('这个账号还没加入班级', '用班级课堂码开通后再来签到');
 }

@@ -504,7 +504,7 @@
       .then(function (u) {
         session.user = u;
         return rpc('hx_me').then(function (who) {
-          if (!who || !who.teacher) {
+          if (!who || !(who.teacher || who.admin || who.dev)) {
             var e = new Error((who && who.student)
               ? '这是学生账号。课程进度只给老师用。'
               : '这个华夏工具账号还没开通教师身份，请到总入口用教师邀请码开通后再来。');

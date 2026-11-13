@@ -5894,7 +5894,7 @@ function mountLock(){
       $('lockGo').disabled=true;
       try{
         const me=await hxMe();
-        if(!me||!me.teacher)throw new Error('这个账号不是教师账号');
+        if(!me||!(me.teacher||me.admin||me.dev))throw new Error('这个账号不是教师账号');
         const pw=await hxSecret();
         if(!pw)throw new Error('服务器没给口令，请联系管理员');
         DEFAULT_TEACHER_PW=pw;__defLock=null;if(!(await unlockTeacher(pw)))throw new Error('口令对不上，请联系管理员');showPage(store.get('ui.tpage','t-roster'));}
@@ -5997,7 +5997,7 @@ async function autoTeacher(){
        me===undefined 表示没问成（断网/服务器错误）：复位标志，下次打开或联网后再试一遍。 */
     const me=await hxMe();
     if(me===undefined){__autoTeacherTried=false;return;}
-    if(!me||!me.teacher)return;
+    if(!me||!(me.teacher||me.admin||me.dev))return;
     /* 第二关：口令本身。服务器对学生返回 null，这里再挡一次兜底。 */
     const pw=await hxSecret();
     if(!pw)return;

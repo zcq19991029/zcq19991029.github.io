@@ -1068,7 +1068,7 @@ async function bootOnce() {
   if (!sess || !sess.access_token) return gate('请先用教师账号登录');
   try { ME.me = await rpc('hx_me'); }
   catch (e) { return gate(e.status === 401 ? '请先用教师账号登录' : '出错了', e.status === 401 ? '登录过期了' : e.message); }
-  if (!ME.me || !ME.me.teacher) return gate('请先用教师账号登录', '资料库只给教师用');
+  if (!ME.me || !(ME.me.teacher || ME.me.admin || ME.me.dev)) return gate('请先用教师账号登录', '资料库只给教师用');
   shell();
 }
 addEventListener('storage', e => {
