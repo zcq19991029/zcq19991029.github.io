@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#fcfcfb">
 <title>夜夜小组制加分助手 · 《电气接线原理》</title>
-<link rel="stylesheet" href="styles.css?v=ef54701">
-<link rel="stylesheet" href="draw-person.css?v=ef54701">
+<link rel="stylesheet" href="styles.css?v=a1adeb9">
+<link rel="stylesheet" href="draw-person.css?v=a1adeb9">
 <!-- 分组看板 + 学生端桌卡（2026-11-06）：新样式一律写这个文件，不去动 styles.css / team.css
      里已有的行（那几个文件正有人在改深浅色变量）。-->
 <link rel="stylesheet" href="roster-board.css">
@@ -152,8 +152,8 @@
   }
   .sheet-vertical .duty-cell .duty-score:active { transform: translateY(1px); }
 </style>
-<meta name="build-commit" content="ef54701">
-<meta name="build-published-at" content="2026-11-13T12:16:38.207Z">
+<meta name="build-commit" content="a1adeb9">
+<meta name="build-published-at" content="2026-11-13T13:11:46.174Z">
 </head>
 <body>
 
@@ -182,8 +182,8 @@
     </div>
   </div>
 </div>
-<script src="fx/pixelfx-loader.js?v=ef54701"></script>
-<script src="fx/hx-jf-load.js?v=ef54701"></script>
+<script src="fx/pixelfx-loader.js?v=a1adeb9"></script>
+<script src="fx/hx-jf-load.js?v=a1adeb9"></script>
 
 <header class="topbar" id="topbar">
   <div class="topbar-main">
@@ -341,22 +341,11 @@
         <button data-l="table" class="on" title="和纸质记录表一样的表格">表格式</button>
         <button data-l="card" title="手机上点起来更舒服">卡片式</button>
       </div>
-      <button id="btnRestoreFive" class="btn" title="清空所选范围的值日缺勤扣分，把整学期值日缺勤恢复成 100%">恢复值日缺勤100%</button>
     </div>
 
     <div class="lesson-meta" id="lessonMeta"></div>
 
     <div class="metrics" id="scoreMetrics"></div>
-
-    <details class="hint-line score-help" id="scoreHint">
-      <summary>操作说明 <span>加减分 · 个人扣分 · 值日缺勤</span></summary>
-      <p>
-      <b>＋ / −</b> 记分 · 数字框<b>可以直接点进去改成任意值</b> ·
-      该组卡片的<b>「↺ 清零」</b>可以把本组本节课分数归零 ·
-      个人扣分：点姓名<b>扣 20%</b>，点<b>＋</b>返还 20%，点<b>清零</b>清空该成员扣分。连续点击会连续扣分 ·
-      值日缺勤：值日组点「每人 −20%」<b>单击扣一档、双击加回一档</b>。
-      </p>
-    </details>
 
     <p class="note feed-hint" id="feedHint">学生端「我的小组」卡片随记分快照下发：记一次分（或页面开着等几秒），学生刷新即可见。没变化不会重复下发。</p>
 
@@ -445,15 +434,15 @@
         </span>
       </label>
       <div class="spacer"></div>
-      <button id="btnPoolAdd" class="btn primary">＋ 添加学生</button>
     </div>
 
+    <!-- 2026-11-13 再精简（用户：「这部分太大占位了 可以简约点 缩小点」）：
+         原来这里是 gp-setup 大卡 + 三个 metrics 大数字格（全班/已分组/未分组），
+         现在压成一行小字，信息一个不少，占的高度从 ~150px 降到一行。 -->
     <div class="card gp-setup">
-      <div class="gp-setup-row">
-        <p class="gp-setup-sum" id="groupSummary">还没有分组</p>
-      </div>
+      <p class="gp-setup-sum" id="groupSummary">还没有分组</p>
       <p class="note gp-setup-note" id="groupSetupNote"></p>
-      <div class="metrics metrics-slim" id="poolMetrics"></div>
+      <p class="pool-stats" id="poolMetrics"></p>
     </div>
 
     <!-- 掉队归位（2026-11-08 追加）
@@ -481,30 +470,10 @@
           <span class="hint">学生用自己的学号账号点一张圆桌就坐下，你这边每 2 秒自动刷新</span>
         </div>
         <div class="btnrow">
-          <details class="pool-team-setup" id="teamSetup">
-            <summary>⚙ 设置（圆桌数 / 每桌最多 / 锁定分组）</summary>
-            <div class="pool-team-setup-body">
-              <label class="field"><span>圆桌数</span>
-                <span class="gp-num"><input id="teamTables" type="number" min="1" max="40" step="1" inputmode="numeric"><em>桌</em></span>
-              </label>
-              <label class="field"><span>每桌最多</span>
-                <span class="gp-num"><input id="teamSize" type="number" min="2" max="40" step="1" inputmode="numeric"><em>人</em></span>
-              </label>
-              <!-- 锁定分组（2026-11-13 从顶栏搬进来）：用户说「这个属于设置 需要单独一个确认设置按钮」。
-                   锁上以后学生不能换组/换座（云端组队房间一起停），老师仍可拖动调整。 -->
-              <div class="pool-setup-lock">
-                <button id="btnGroupLock" class="btn ghost small" type="button"
-                        title="锁上以后学生不能再换组/换座（已开着的组队房间也会一起停），你仍可以拖动调整">🔒 锁定分组</button>
-                <span class="note">锁上以后学生端不能换组/换座，你仍可以拖动调整。</span>
-              </div>
-              <p class="note">这两项是「初始状态定义」：每桌最多会同时作为本班每组默认上限，改完下面分组会跟着变；已经单独调过上限的组不受影响。</p>
-              <div class="btnrow pool-setup-ok">
-                <span class="spacer"></span>
-                <button id="btnConfirmSetup" class="btn primary" type="button"
-                        title="把上面的圆桌数 / 每桌最多 / 锁定状态一起确认并保存">✓ 确认设置</button>
-              </div>
-            </div>
-          </details>
+          <!-- 2026-11-13：把「圆桌数 / 每桌最多」这两个和上面「分几组 / 每组上限」重复的输入框整块删掉
+               （用户：「这两处完全冗余了」）。开放组队直接用上面的组数和每组上限：
+               8 组就是 8 张圆桌，每组上限 7 人就是每桌最多 7 人 —— 一处口径，不会两处不一致。
+               顺手也把「两个齿轮」和「锁定分组」一起带走了。 -->
           <button id="btnTeamOpen" class="btn primary" type="button">开放组队</button>
           <!-- 2026-11-13：确认分组常驻（不再按需显隐）。文案由 app.js 的 tmButtons 切换：
                有待确认的选座 → 「按选座确认分组」；没有 → 「✓ 确认分组」（清空组+重排+平均填）。 -->
@@ -523,48 +492,6 @@
       </div>
 
       <div id="groupBoard"></div>
-    </div>
-
-    <div class="card">
-      <div class="pool-toolbar">
-        <span class="note pool-toolbar-t">明细</span>
-        <div class="seg" id="poolFilter">
-          <button data-f="pending" class="on">仅未分组</button>
-          <button data-f="all">全部</button>
-          <button data-f="assigned">仅已分组</button>
-        </div>
-        <input type="text" id="poolSearch" placeholder="搜索姓名 / 学号 / 序号（分组区也跟着筛）">
-      </div>
-      <!-- 名单表默认收起：分组区才是主视图，这张表留下来做「下拉分配 / 移出 / 删除学生」这些
-           成批操作用的备用入口（原来的行结构一个字没改，老流程照旧）。 -->
-      <details class="gb-details">
-        <summary>名单明细（批量操作备用：下拉分配 / 移出小组 / 删除学生）</summary>
-        <div class="tablewrap" id="poolList"></div>
-        <p class="rank-note">
-          「班内序号」来自考勤表，和纸质记录表上的短号一致；「学号」是教务系统的完整学号。
-          把未分组的学生分到小组后，他/她就会出现在「上课记分」页对应的组里。
-        </p>
-      </details>
-    </div>
-
-    <!-- 选座实况：控件已经搬到上面那根常驻条（#tmBar）里了，这里只留「谁坐了哪桌」的实时看板。
-           内容还是 tmPaint 画的 #teamBoard，id 没变；老师一点「开放组队」这块会自动展开。 -->
-    <details class="gb-more" id="teamMore">
-      <summary>选座实况（学生每选一张桌，这里 2 秒内自动刷新）</summary>
-      <div class="card pool-team" id="teamCard">
-        <p class="note" id="teamNote">
-          学生用<b>学号账号</b>登录后打开「学生入口」（或直接把链接发群里），就会看到上面设好的圆桌；
-          点一张桌就坐下，可以换桌。你这边每 2 秒自动刷新，能看到谁坐了哪桌、还有谁没选。
-        </p>
-        <div id="teamBoard"></div>
-      </div>
-    </details>
-
-    <!-- 首页班级对应（2026-11-12 从「数据与同步」页搬来）：组队要认首页班级（tmClassId 读 cls.hxClassId），
-         所以这块「对应首页班级」的操作挪到分组页，老师改分组时顺手就能对上。 -->
-    <div id="hxRosterCard" hidden>
-      <h2 class="sec-title">首页班级 <button class="btn tiny" id="btnHxRefresh">刷新</button></h2>
-      <div class="card tablewrap" id="hxRosterBox"></div>
     </div>
   </section>
 
@@ -634,24 +561,8 @@
   </form>
 </dialog>
 
-<!-- 添加学生弹窗 -->
-<dialog id="dlgStudent">
-  <form method="dialog" class="dlg">
-    <div class="dlg-head">
-      <h3>添加学生</h3>
-      <button class="dlg-x" value="cancel" formnovalidate title="关闭（Esc）" aria-label="关闭">✕</button>
-    </div>
-    <div class="dlg-body">
-      <label class="field col"><span>姓名</span><input id="stName" placeholder="例如：张三"></label>
-      <label class="field col"><span>班内序号</span><input id="stNo" size="1" inputmode="numeric" placeholder="可留空"></label>
-      <label class="field col"><span>完整学号</span><input id="stSid" placeholder="可留空，例如 2630300xxxx"></label>
-    </div>
-    <div class="dlg-btns">
-      <button value="cancel" class="btn">取消</button>
-      <button value="ok" class="btn primary">加入全班名单</button>
-    </div>
-  </form>
-</dialog>
+<!-- 2026-11-13 删除「添加学生」弹窗：用户说「添加学生不需要 这个需要去班级工具卡添加操作」。
+     名单的唯一来源是华夏工具首页「班级」面板，这里不再开第二个入口。 -->
 
 <!-- 分组结果核对 / 一键归位（2026-11-08 追加）
      用户原话：「我一旦不小心点错了 就会抹除我部分同学 强制变为6人 那老师完全无法恢复正确靠自己」。
@@ -716,20 +627,23 @@
   </form>
 </dialog>
 
-<script src="data.js?v=ef54701"></script>
-<script src="config.js?v=ef54701"></script>
+<script src="data.js?v=a1adeb9"></script>
+<!-- 2026-11-13：学生身份卡背景要显示在分组卡片的头像圈上，预设背景（p:xxx）由 rank-bg.js 转 CSS。
+     和 team.html / scores.html 一样引用站点根的那一份（发布时 publish.cjs 把它放到站点根）。 -->
+<script src="../rank-bg.js"></script>
+<script src="config.js?v=a1adeb9"></script>
 <!-- 导出用的两个大库（xlsx 930 KB + jspdf 409 KB = 1.3 MB）。
      2026-11-09 加 defer：它们是普通脚本时按文档顺序阻塞执行，必须下完才轮到下面的 app.js，
      而 app.js 才是绑登录、画界面、读本机数据的那一个 —— 网一慢整页就像死了（用户报的「打不开、登录不了」）。
      加了 defer 之后 app.js 立刻跑，这两个在解析结束后自己下自己执行，点导出时通常早就好了；
      万一手快、库还没到，由 heavy.js 在捕获阶段把这**一次**点击接住，等库到了替他重发。 -->
-<script src="vendor/jspdf.umd.min.js?v=ef54701" defer></script>
-<script src="vendor/xlsx.full.min.js?v=ef54701" defer></script>
-<script src="heavy.js?v=ef54701"></script>
-<script src="roster-import.js?v=ef54701"></script>
-<script src="hx-roster.js?v=ef54701"></script>
-<script src="cloud.js?v=ef54701"></script>
-<script src="supabase-cloud.js?v=ef54701"></script>
+<script src="vendor/jspdf.umd.min.js?v=a1adeb9" defer></script>
+<script src="vendor/xlsx.full.min.js?v=a1adeb9" defer></script>
+<script src="heavy.js?v=a1adeb9"></script>
+<script src="roster-import.js?v=a1adeb9"></script>
+<script src="hx-roster.js?v=a1adeb9"></script>
+<script src="cloud.js?v=a1adeb9"></script>
+<script src="supabase-cloud.js?v=a1adeb9"></script>
 <dialog id="dlgPassword">
   <form method="dialog" class="dlg" id="passwordForm">
     <div class="dlg-head"><h3>修改密码</h3><button type="button" class="dlg-x" id="btnPasswordClose" aria-label="关闭">✕</button></div>
@@ -755,16 +669,16 @@
   </div>
 </dialog>
 <!-- 组内互评直接计分：把学生提交归成「落哪一格、落多少分」，leader-scoring.js / app.js 都用它（2026-11-10） -->
-<script src="peer-apply.js?v=ef54701"></script>
-<script src="leader-scoring.js?v=ef54701"></script>
-<script src="assessment.js?v=ef54701"></script>
-<script src="ui-feedback.js?v=ef54701"></script>
+<script src="peer-apply.js?v=a1adeb9"></script>
+<script src="leader-scoring.js?v=a1adeb9"></script>
+<script src="assessment.js?v=a1adeb9"></script>
+<script src="ui-feedback.js?v=a1adeb9"></script>
 <dialog id="dlgOperationLog" hidden></dialog>
-<script src="print-excel.js?v=ef54701"></script>
-<script src="gradebook.js?v=ef54701"></script>
+<script src="print-excel.js?v=a1adeb9"></script>
+<script src="gradebook.js?v=a1adeb9"></script>
 <!-- 学生只读查分：把「每人一份」的分数快照发布到云端，app.js 每次 save() 会叫它（2026-11-04） -->
-<script src="student-feed.js?v=ef54701"></script>
-<script src="score-repair.js?v=ef54701"></script>
+<script src="student-feed.js?v=a1adeb9"></script>
+<script src="score-repair.js?v=a1adeb9"></script>
 <!-- 排位误加分清洗（2026-11-13）：用户要求「修复老师或者学生互评的这一列误加的分」。
      判据是逐格来源标记 lesson.peerMeta[...]：排位列上标记不是 'wire' 的就是手填/互评混进来的。
      模块只算数据、不碰 DOM，入口在「本学期总分」页的「修复排位误加分」按钮上。 -->
@@ -773,10 +687,10 @@
      后台每 5 分钟 / 切回前台时，把考勤工具已签到的记录写进本工具的课次考勤（只写 auto 标记的格子，
      不覆盖老师手改的）。 -->
 <script src="attendance-sync.js"></script>
-<script src="wire-task-link.js?v=ef54701"></script>
+<script src="wire-task-link.js?v=a1adeb9"></script>
 <script src="../ui-dialog.js"></script>
-<script src="app.js?v=ef54701"></script>
-<script src="draw-person.js?v=ef54701"></script>
-<script src="password-ui.js?v=ef54701"></script>
+<script src="app.js?v=a1adeb9"></script>
+<script src="draw-person.js?v=a1adeb9"></script>
+<script src="password-ui.js?v=a1adeb9"></script>
 </body>
 </html>

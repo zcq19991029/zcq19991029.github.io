@@ -466,6 +466,16 @@ body.gb-dragging .gb-chip { cursor: grabbing; }
   font-variant-numeric: tabular-nums; line-height: 1.6;
 }
 .gp-setup-note { margin: 8px 0 0; font-size: 12px; line-height: 1.7; color: var(--gb-muted); }
+/* 2026-11-13：全班 / 已分组 / 未分组 从三个大数字格压成一行小字（用户：「这部分太大占位了 可以简约点 缩小点」） */
+.pool-stats {
+  margin: 6px 0 0; display: flex; flex-wrap: wrap; gap: 2px 14px;
+  font-size: 12.5px; color: var(--gb-muted); font-variant-numeric: tabular-nums;
+}
+.pool-stats span { white-space: nowrap; }
+.pool-stats b { color: var(--gb-text, inherit); font-weight: 700; }
+.pool-stats .neg b { color: #c0392b; }
+/* 成员头像圈铺学生自己的身份卡背景（app.js 的 chipBgStyle 给 background） */
+.gb-av.has-bg { color: transparent; background-size: cover; background-repeat: no-repeat; background-position: 50% 50%; }
 .metrics-slim { margin-top: 12px; }
 .metrics-slim .metric { padding: 8px 12px; }
 

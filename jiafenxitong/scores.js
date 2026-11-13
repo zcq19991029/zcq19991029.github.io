@@ -310,7 +310,7 @@
     html += '<div class="card"><h3>累计到现在</h3><div class="big">' +
       '<div class="n"><em>' + (totalRate == null ? '—' : num(totalRate) + '%') + '</em><span>当前累计完成率</span></div>' +
       '<div class="n good"><em>' + (projectRate == null ? '—' : num(projectRate) + '%') + '</em><span>个人项目累计</span></div>' +
-      '<div class="n"><em>' + num(dutyPct) + '%</em><span>值日缺勤（整学期）</span></div>' +
+      '<div class="n"><em>' + num(dutyPct) + '%</em><span>值日完成率</span></div>' +
       '</div><p class="note">当前累计完成率 ＝（值日缺勤 ＋ 各节项目分 − 扣分）÷（5 ＋ 各节项目满分），内部按分值计算、显示按百分比。' +
       '值日缺勤整学期只算一次 5 分，没缺勤就是 100%。已登记 ' + recorded + ' / ' + ls.length + ' 次课。</p></div>';
 
@@ -618,7 +618,7 @@
       '<div>班级名次　<i>' + t.rank + ' / ' + t.count + '</i></div>' +
       '<div>项目完成率　<i>' + num(t.taskRate) + '%</i>' +
       (t.pending ? '　<span class="pill warn">' + t.pending + ' 项待评</span>' : '') + '</div>' +
-      '<div>值日缺勤　<i>' + num(dutyPct) + '%</i>（整学期 5 分，只算一次；扣 ' + num(t.dutyLoss || 0) + ' 档 × 20%）</div>' +
+      '<div>值日完成率　<i>' + num(dutyPct) + '%</i>' + (Number(t.dutyLoss) ? '（已扣 ' + num(t.dutyLoss) + ' 档）' : '') + '</div>' +
       '<div>考勤完成率　<i>' + num(t.attRate) + '%</i></div>' +
       '<div>迟到 ' + t.late + ' 次 · 早退 ' + t.early + ' 次 · 旷课 ' + t.truant + ' 次 · 折算 ' + t.converted +
       ' 次 · 合计 <i>' + t.effective + '</i> 次</div>' +
