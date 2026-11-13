@@ -14,16 +14,16 @@
      要登录时调 window.HXPortal.login()；被单独打开时 hx-theme.js 会跳回这里（见 hx-theme.js 的 data-tool）。
      账号：Supabase 华夏工具项目，localStorage paike-session 和各工具共用；身份由数据库 hx_me() 决定。
      脚本里不用反引号模板字符串（本机测试时整页当字符串注入到线上同源页面里）。 -->
-<link rel="stylesheet" href="hx-theme.css?v=99096cc">
-<script src="hx-theme.js?v=99096cc"></script>
+<link rel="stylesheet" href="hx-theme.css?v=bcb210b">
+<script src="hx-theme.js?v=bcb210b"></script>
 <script src="rank-bg.js" defer></script><!-- 排位身份卡预设（2026-11-12）：总入口外观面板当场弹窗设置身份卡背景，预设数据在总入口也能用 -->
 <!-- 首页卡片上的像素小生物：pixelfx 的 12 个 critters（MIT），打包成一个 91 KB 的独立脚本。
      加载失败不影响首页——hx-critters.js 开头就有 window.PixelFX 存在性检查，没有就整段跳过。 -->
-<script src="fx/pixelfx-critters.js?v=99096cc" defer></script>
-<script src="fx/hx-critters.js?v=99096cc" defer></script>
+<script src="fx/pixelfx-critters.js?v=bcb210b" defer></script>
+<script src="fx/hx-critters.js?v=bcb210b" defer></script>
 <!-- 课堂码大屏二维码：离线 QR 编码器（qrcode 1.5.4 core 打包，MIT，见 fx/NOTICE-qr.md）。延迟加载即可：只有老师点「大屏二维码」时才用 -->
-<script src="fx/hx-qr.js?v=99096cc" defer></script>
-<script src="hx-scan.js?v=99096cc" defer></script><!-- 全站扫一扫（2026-11-08 K5）：摄像头 + BarcodeDetector / 本地 jsQR -->
+<script src="fx/hx-qr.js?v=bcb210b" defer></script>
+<script src="hx-scan.js?v=bcb210b" defer></script><!-- 全站扫一扫（2026-11-08 K5）：摄像头 + BarcodeDetector / 本地 jsQR -->
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; width: 100%; overflow: hidden; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -707,6 +707,53 @@
   .bgs.imgs button:hover .del, .bgs.imgs button:focus-within .del, .bgs.imgs .del.armed { opacity: 1; }
   @media (hover: none) { .bgs.imgs .del { opacity: .92; } }
   .rng { display: flex; align-items: center; gap: 12px; } .rng input { flex: 1; accent-color: var(--acc); } .rng output { min-width: 3em; text-align: right; font-weight: 600; font-size: 14px; }
+  /* ── 外观面板改成分节小卡（2026-11-13）───────────────────────────────
+     用户原话「各个模块隔离度不够，全部连在一起，标题和开关和使用说明怎么混在一块」。
+     以前是 <h3>+控件+一段说明 平铺，全靠字号分档，说明归谁看不出来。
+     现在每项一张独立卡（底 + 描边 + 圆角 + 节间距），卡内三层：头／控件／说明。
+     颜色一律走主题变量（--fill / --edge / --ink / --dim / --acc），深浅两套都不写死。 */
+  .lk-sec { margin: 0 0 10px; padding: 11px 12px 12px; border-radius: 15px; background: var(--fill); box-shadow: inset 0 0 0 1px var(--edge); }
+  .lk-hd { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 9px; }
+  .lk-hd h4 { margin: 0; font-size: 13px; font-weight: 650; letter-spacing: .01em; color: var(--ink); }
+  .lk-val { flex: none; font-size: 12px; font-weight: 600; color: var(--acc); font-variant-numeric: tabular-nums; }
+  /* 说明：比标题小一档、颜色更淡、和控件之间留白，让人一眼看出「这句解释的是上面那个控件」 */
+  .lk-tip { margin: 9px 0 0; font-size: 11.5px; line-height: 1.65; color: var(--dim); }
+  .lk-note { margin: 0 0 14px; font-size: 12px; line-height: 1.6; color: var(--dim); }
+  .pop h3 + .lk-note { margin-bottom: 14px; } /* 压掉 .pop h3 + * 的 20px */
+  /* 分节卡里的分段控件：默认的 --fill 底在 --fill 卡上会糊成一片，改成实心卡底 + 描边 */
+  .lk-sec .seg { background: var(--card-solid); box-shadow: inset 0 0 0 1px var(--edge); }
+  .lk-sec .seg button[aria-pressed="true"] { background: color-mix(in srgb, var(--acc) 18%, var(--card-solid)); color: var(--ink); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--acc) 45%, transparent); }
+  /* 面板底部：恢复默认外观（只管 hx-theme，不碰账号数据） */
+  .lk-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--edge); }
+  .lk-foot span { font-size: 11.5px; line-height: 1.5; color: var(--dim); }
+  /* ── 身份卡模块（2026-11-13）──────────────────────────────────────
+     用户嫌原来「就一个文字链接跳转打开，太草率」，要求提到「外观」标题上面一层。
+     它不是主题色体系里的一项：用强调色描边 + 更亮的实心底 + 渐变角光，
+     跟下面一排 --fill 小卡拉开材质差，一眼看出「这是我的名片」。 */
+  .lk-id { display: grid; grid-template-columns: 132px 1fr; gap: 12px; align-items: center;
+    margin: 2px 0 16px; padding: 11px; border-radius: 18px; cursor: pointer;
+    background: linear-gradient(135deg, color-mix(in srgb, var(--acc) 16%, transparent) 0%, transparent 62%), var(--card-solid);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--acc) 38%, var(--edge)), 0 10px 26px -18px var(--shade);
+    transition: box-shadow .2s, transform .2s; }
+  .lk-id:hover { box-shadow: inset 0 0 0 1px var(--acc), 0 12px 30px -16px var(--shade); }
+  .lk-id:active { transform: scale(.995); }
+  /* 预览按身份卡真实比例 3.2:1（rank-bg.js 就是按 1600×500 画的），取景/裁切全部交给 rkdBgStyle */
+  .lk-id-prev { position: relative; display: flex; flex-direction: column; justify-content: flex-end; gap: 1px;
+    aspect-ratio: 3.2 / 1; padding: 5px 6px; border: 0; border-radius: 9px; overflow: hidden;
+    background: linear-gradient(135deg, rgba(90, 104, 140, .55), rgba(30, 38, 58, .92));
+    text-align: left; font: inherit; cursor: pointer; }
+  .lk-id-bg { position: absolute; inset: 0; background-size: cover; background-repeat: no-repeat; background-position: 50% 50%; }
+  .lk-id-veil { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(4, 8, 18, .62) 0%, rgba(4, 8, 18, .12) 82%); }
+  .lk-id-prev b, .lk-id-prev small { position: relative; z-index: 1; color: #fff; text-shadow: 0 1px 3px rgba(0, 0, 0, .6); }
+  .lk-id-prev b { font-size: 9.5px; font-weight: 700; letter-spacing: .02em; }
+  .lk-id-prev small { font-size: 8.5px; opacity: .82; }
+  /* 没设背景时盖一层斜纹：读起来是「空位」，不会像图没加载出来 */
+  .lk-id[data-nobg="1"] .lk-id-bg { background-image: repeating-linear-gradient(45deg, rgba(255, 255, 255, .07) 0 6px, transparent 6px 12px); }
+  .lk-id-t { display: flex; align-items: baseline; gap: 6px; font-size: 13px; font-weight: 650; color: var(--ink); }
+  .lk-id-t em { font-style: normal; font-size: 10.5px; font-weight: 600; color: var(--acc); }
+  .lk-id-s { margin: 3px 0 8px; font-size: 11px; line-height: 1.55; color: var(--dim); }
+  .lk-id-act { display: flex; gap: 6px; }
+  .lk-id-act .btn { height: 28px; padding: 0 12px; font-size: 12.5px; }
   .who-top { display: grid; justify-items: center; gap: 6px; text-align: center; padding-bottom: 16px; margin-bottom: 8px; border-bottom: 1px solid var(--edge); }
   .who-top b { font-size: 21px; } .who-top small { color: var(--dim); word-break: break-all; font-size: 14px; }
   .rows { display: grid; margin-bottom: 14px; }
@@ -2019,61 +2066,153 @@ function renderLook() {
   // 关闭钮就没了。所以每次画完都补回去（幂等，有就复用）。这是「调完颜色关不掉」的根因。
   ensurePopX('look');
 }
+/* ── 身份卡预览（2026-11-13）─────────────────────────────────────────────
+   用户嫌底部那行「设置我的身份卡背景」的文字链太草率，要求提到面板最上层、
+   做成带预览的模块。预览必须显示「当前那张背景」，所以先把数据来源查清楚：
+   grep 全仓（index.html / hx-theme.js / rank-bg.js / 小组加分/*）确认——
+   身份卡背景**没有** localStorage 缓存键，唯一权威来源是服务端表 public.hx_rank_bg
+   （rpc: hx_rank_bg_get，一人一行 { bg, pos, tune }；bg 是 'p:预设键' 或 data:image/...）。
+   所以这里异步拉一次、缓存在 LKID 里；没登录或拉失败就按「还没设置」画占位。
+   预设图直接复用 rankBgCss()（rank-bg.js 本页已加载），取景复用 rkdBgStyle()，
+   保证面板里的预览和排行榜上的卡长得一模一样。 */
+var LKID = { bg: '', tune: {}, got: false };
+function lkIdCss() {
+  return (LKID.bg && LKID.bg !== 'none') ? rkdBgStyle(LKID.bg, LKID.tune && LKID.tune.p1) : '';
+}
+function lkIdPaint() {
+  var el = $('lkIdBg'); if (!el) return;
+  var css = lkIdCss();
+  el.setAttribute('style', css || '');
+  // data-nobg 给 CSS 一个钩子：没背景时盖一层斜纹，看起来是「空位」而不是加载失败
+  var box = $('lkIdCard'); if (box) box.setAttribute('data-nobg', css ? '0' : '1');
+  var st = $('lkIdState'); if (st) st.textContent = css ? '已设置' : '还没设置';
+}
+function lkIdLoad() {
+  if (LKID.got) { lkIdPaint(); return; }
+  lkIdPaint();
+  if (!HX.in()) return; // 没登录：背景跟账号走，本来就没有，不打扰
+  HX.rpc('hx_rank_bg_get').then(function (rows) {
+    var r = rows && rows[0];
+    LKID.bg = (r && r.bg) || '';
+    LKID.tune = (r && r.tune && typeof r.tune === 'object') ? r.tune : {};
+    LKID.got = true; lkIdPaint();
+  }).catch(function () { LKID.got = true; lkIdPaint(); });
+}
 function renderLookBody() {
   var s = HXTheme.get(), A = HXTheme.acc, B = HXTheme.bg, m = HXTheme.mode();
-  // 省电模式当前是哪一档：null = 还没手工选过（自动）；'1' = 强制省电；'0' = 强制完整
+  // 省电模式当前是哪一档：null = 还没手工选过（默认极简）；'1' = 极简；'0' = 标准
   var LITE = null; try { LITE = localStorage.getItem('hx-lite'); } catch (e) { }
   // 上传过的背景相册 + 当前这张（只是给缩略图打「正在用」的高亮，拿不到就当空）
   var MYIMGS = HXTheme.imgs ? HXTheme.imgs() : [], CURIMG = '';
   try { CURIMG = localStorage.getItem('hx-theme-img') || ''; } catch (e) { }
-  // 2026-11-08 每个界面独立一套外观：面板顶部标明「现在改的是谁」——
-  // 没开工具时是首页自己；地址栏带 #wiring（或点了某张工具卡）时改的就是那个工具，
-  // 首页和别的工具都不会跟着变。用户怀疑的「首页和工具卡牵一发而动全身」从这版起不存在了。
-  var HSH = (location.hash || '').replace(/^#/, ''), PANE = /^[A-Za-z0-9_-]{2,32}$/.test(HSH) ? HSH : 'home';
-  var PTOOL = null; for (var pi = 0; pi < TOOLS.length; pi++) if (TOOLS[pi].id === PANE) PTOOL = TOOLS[pi];
-  var PNAME = PANE === 'home' ? '首页' : (PTOOL ? PTOOL.name : PANE);
-  var html = '<h3>外观</h3><p class="msg" style="margin:0 0 8px;color:var(--dim)">正在设置：<b style="color:var(--acc)">' + esc(PNAME) + '</b>' + (PANE === 'home' ? '' : '（只影响' + esc(PNAME) + '，首页和其它工具不变）') + '</p>' +
-    // 深浅（2026-11-11 用户定）：去掉「自动」（跟随系统）档 —— 用户原话「主题自动…不需要给用户切换，
-    // 默认深色主题」。只留 浅色 / 深色 两档，默认深色；老存档里存过 'auto' 的由 hx-theme.js 落成默认深色。
-    '<div class="seg">' + [['light', '浅色'], ['dark', '深色']].map(function (x) { return '<button type="button" data-mode="' + x[0] + '" aria-pressed="' + (s.mode === x[0]) + '">' + x[1] + '</button>'; }).join('') + '</div>' +
-    '<h3>主题色</h3><div class="sw">' + Object.keys(A).map(function (k) { return '<button type="button" data-acc="' + k + '" title="' + A[k].name + '" aria-label="' + A[k].name + '" aria-pressed="' + (s.acc === k) + '" style="--c:' + (m === 'dark' ? A[k].d : A[k].l) + '"></button>'; }).join('') + '</div>' +
-    '<h3>背景</h3><div class="bgs">' + Object.keys(B).filter(function (k) { return k !== 'custom' && (!B[k].dev || HXTheme.isDev()); }).map(function (k) {
-      // 极光是视频壁纸，没有 img 只有 poster：缩略图用海报帧，否则格子里只剩灰底＋字，看不出是哪个
-      var b = B[k], bsrc = b.img || b.poster, bg = bsrc ? 'url(' + HXTheme.root + bsrc + ')' : b.css || '';
-      return '<button type="button" data-bg="' + k + '" aria-pressed="' + (s.bg === k) + '"' + (bg ? ' style="--b:' + esc(bg) + '"' : '') + '><span>' + b.name + '</span></button>';
-    }).join('') + '<label aria-pressed="' + (s.bg === 'custom') + '"' + (s.bg === 'custom' ? ' style="--b:var(--hx-img)"' : '') + '><input type="file" id="bgFile" accept="image/*" hidden><span>' + (s.bg === 'custom' ? '换一张' : '＋ 上传') + '</span></label></div>' +
-    // 上传过的背景（2026-11-04）：原来换一张就把上一张冲掉了，用户报「切成别的之前上传的就没了，还得重新上传」。
-    // 现在留着相册，点一下就切回去。缩略图的图由下面 JS 塞（dataURL 动辄几十万字符，拼进 innerHTML 会卡）。
-    (MYIMGS.length ? '<h3>上传过的背景</h3><div class="bgs imgs">' + MYIMGS.map(function (x) {
-      return '<button type="button" data-img="' + x.id + '" aria-pressed="' + (s.bg === 'custom' && CURIMG === x.data) + '"><i class="del" data-del="' + x.id + '" title="删掉这张">×</i></button>';
-    }).join('') + '</div><p class="msg" style="margin:6px 0 0;color:var(--dim)">点一下就换回这张；鼠标移到上面，右上角会浮出 ×，点两下才真删。最多留 6 张，再传新的会挤掉最旧的那张。登录后这些图会一起存在账号里，换电脑、换浏览器登同一个账号照样在。</p>' : '') +
-    (s.bg !== 'none' ? '<h3>卡片通透度</h3><div class="rng"><input type="range" id="op" min="0" max="100" value="' + s.clr + '"><output id="opv">' + s.clr + '%</output></div><p class="msg" style="margin:6px 0 0;color:var(--dim)">管的是玻璃透不透：100% = 最透（默认，深浅两套都是清透玻璃、背景从卡里透出来）；往下调卡片变实、文字更清楚；0% = 实色卡。这是「兜底可读」的方向，不再是越调越透。</p>' +
-    '<h3>背景清晰度</h3><div class="rng"><input type="range" id="bgo" min="0" max="100" value="' + (s.bgo == null ? 100 : s.bgo) + '"><output id="bgov">' + (s.bgo == null ? 100 : s.bgo) + '%</output></div><p class="msg" style="margin:6px 0 0;color:var(--dim)">管的是背景：100% = 原样显示（最清楚），0% = 背景几乎看不见、只剩页面底色。想让背景淡一点、别抢文字，就把这根调低。</p>' : '') +
-    // 校徽水印（2026-11-04）：全站铺一层华夏校徽，卡片半透明时透出来。默认开，给个开关方便看不顺眼时关掉
-    '<h3>校徽水印</h3><div class="seg">' + [['1', '显示'], ['0', '隐藏']].map(function (x) {
-      return '<button type="button" data-wm="' + x[0] + '" aria-pressed="' + (String(s.wm) === x[0]) + '">' + x[1] + '</button>';
-    }).join('') + '</div><p class="msg" style="margin:6px 0 0;color:var(--dim)">压在内容后面的一层华夏校徽，卡片半透明时从卡片里透出来；打印不印。按界面独立：首页默认显示，工具页默认隐藏（2026-11-08 起，各自记住各自的选择）。</p>' +
-    // 模式（2026-11-11 用户定）：原「省电模式」改名「极简模式」并**作为默认**，
-    // 隔壁「标准模式」= 想要全部特效的人主动选。两档，不再有「自动」（默认就是极简，不用猜机器）。
-    // 选中状态读 localStorage：null = 还没手工选过 = 极简（默认）；'1' = 极简；'0' = 标准。
-    '<h3>模式</h3><div class="seg">' + [['1', '极简'], ['0', '标准']].map(function (x) {
-      var on = (LITE === null ? x[0] === '1' : LITE === x[0]);
-      return '<button type="button" data-lite="' + x[0] + '" aria-pressed="' + on + '">' + x[1] + '</button>';
-    }).join('') + '</div><p class="msg" style="margin:6px 0 0;color:var(--dim)">' +
-    '<b>极简（默认）</b>：发热、卡顿、耗电的东西全部让路 —— 背景只留静帧、卡片动画和九处氛围动画停住、' +
-    '接线画布的光晕和辉光也关掉。核心功能一个不少（接线、检查、排位、看题全都正常）。<br>' +
-    '<b>标准</b>：全部特效都开，画面最好看，代价是手机/平板会热、会费电。<br>' +
-    '点了立刻生效，这台机器记住；想换回极简再点回来即可。</p>' +
-    // 身份卡背景（2026-11-12 U3）：多工具共享的 id 卡背景设置，入口从排位页迁到这里。
-    // 点按钮 → 打开接线仿真里的身份卡设置窗（数据/预设都在那边，这里不复制一份）。
-    '<h3>身份卡背景</h3><p class="msg" style="margin:6px 0 8px;color:var(--dim)">给排行榜身份卡和选人面板里的学生卡换背景（跟账号走，多个工具共用）。点下面按钮去设置。</p>' +
-    '<button class="btn link" id="lookRankCardBtn" type="button">设置我的身份卡背景</button>' +
-    '<button class="btn link" id="lookReset" type="button">恢复默认</button>';
+  var LITE_ON = (LITE === null ? true : LITE === '1');
+  // 滑杆两端各扩 50%（2026-11-13 用户拍板）：-50 ~ 150，100 是默认。
+  // 显示直接 "数字 + %"：负数自带「-」，0 / 100 / 150 照原样，正是用户给的样子。
+  var pct = function (v) { return Math.round(+v || 0) + '%'; };
+  // 一节 = 一张独立小卡：「头部（标题 + 当前值）／控件／说明」三层。
+  // 为什么抽成函数：七节的骨架完全一样，手写七遍字符串最容易漏掉某一层的 class，
+  // 漏一个就又回到「标题、开关、说明糊成一片」的老样子。
+  // more 是补充细节，收进 title=（鼠标悬停才看，不占版面）。
+  function sec(o) {
+    return '<section class="lk-sec">'
+      + '<div class="lk-hd"><h4>' + o.t + '</h4>' + (o.v || '') + '</div>'
+      + '<div class="lk-ctl">' + o.c + '</div>'
+      + '<p class="lk-tip"' + (o.more ? ' title="' + esc(o.more) + '"' : '') + '>' + o.tip + '</p>'
+      + '</section>';
+  }
+  function val(t) { return '<span class="lk-val">' + t + '</span>'; }
+
+  var html =
+    // ① 身份卡模块：放在「外观」标题**上面**一层（2026-11-13 用户要求「重构 ui」）。
+    //    它不是主题色体系里的一项，所以样式上带强调色描边 + 更亮的底，跟下面七节区分开：
+    //    一眼看出「这是我的名片」，不是「又一个设置项」。
+    '<div class="lk-id" id="lkIdCard">'
+    + '<button type="button" class="lk-id-prev" id="lkIdPrev" aria-label="设置我的身份卡背景">'
+    + '<span class="lk-id-bg" id="lkIdBg" aria-hidden="true"></span>'
+    + '<span class="lk-id-veil" aria-hidden="true"></span>'
+    + '<b>我的身份卡</b><small>排行榜 · 学生卡</small>'
+    + '</button>'
+    + '<div class="lk-id-main">'
+    + '<div class="lk-id-t">我的身份卡<em id="lkIdState">还没设置</em></div>'
+    + '<p class="lk-id-s">排行榜和学生卡共用一张背景，跟着账号走。</p>'
+    + '<div class="lk-id-act">'
+    + '<button type="button" class="btn sm" id="lkIdSet">设置</button>'
+    + '<button type="button" class="btn sm sub" id="lkIdReset">恢复默认</button>'
+    + '</div></div></div>'
+    + '<h3>外观</h3>'
+    // 2026-11-13 全局化：外观设置收成全站唯一一份（hx-theme.js 同步在改），
+    // 原来那句「正在设置：某某工具（只影响 XX，首页和其它工具不变）」已经不成立，必须撤掉。
+    + '<p class="lk-note">全站统一：这里改一次，首页和所有工具都一样。</p>'
+    // 深浅（2026-11-11 用户定）：去掉「自动」，只留 浅色 / 深色，默认深色
+    + sec({
+      t: '深浅', v: val(s.mode === 'light' ? '浅色' : '深色'),
+      c: '<div class="seg">' + [['light', '浅色'], ['dark', '深色']].map(function (x) { return '<button type="button" data-mode="' + x[0] + '" aria-pressed="' + (s.mode === x[0]) + '">' + x[1] + '</button>'; }).join('') + '</div>',
+      tip: '深色适合教室投影和晚上，浅色在强光下更清楚。'
+    })
+    + sec({
+      t: '主题色', v: val(esc((A[s.acc] && A[s.acc].name) || s.acc)),
+      c: '<div class="sw">' + Object.keys(A).map(function (k) { return '<button type="button" data-acc="' + k + '" title="' + A[k].name + '" aria-label="' + A[k].name + '" aria-pressed="' + (s.acc === k) + '" style="--c:' + (m === 'dark' ? A[k].d : A[k].l) + '"></button>'; }).join('') + '</div>',
+      tip: '点一个圆点，全站的按钮、链接、强调色一起换。'
+    })
+    + sec({
+      t: '背景', v: val(esc(s.bg === 'custom' ? '自己的图' : ((B[s.bg] && B[s.bg].name) || '无'))),
+      c: '<div class="bgs">' + Object.keys(B).filter(function (k) { return k !== 'custom' && (!B[k].dev || HXTheme.isDev()); }).map(function (k) {
+        // 极光是视频壁纸，没有 img 只有 poster：缩略图用海报帧，否则格子里只剩灰底＋字，看不出是哪个
+        var b = B[k], bsrc = b.img || b.poster, bg = bsrc ? 'url(' + HXTheme.root + bsrc + ')' : b.css || '';
+        return '<button type="button" data-bg="' + k + '" aria-pressed="' + (s.bg === k) + '"' + (bg ? ' style="--b:' + esc(bg) + '"' : '') + '><span>' + b.name + '</span></button>';
+      }).join('') + '<label aria-pressed="' + (s.bg === 'custom') + '"' + (s.bg === 'custom' ? ' style="--b:var(--hx-img)"' : '') + '><input type="file" id="bgFile" accept="image/*" hidden><span>' + (s.bg === 'custom' ? '换一张' : '＋ 上传') + '</span></label></div>',
+      tip: '选一张铺在页面后面；「＋ 上传」用自己的图。',
+      more: '极光是动态壁纸：极简模式下只显示静帧，标准模式才播。'
+    })
+    // 上传过的背景（2026-11-04）：原来换一张就把上一张冲掉了，用户报「切成别的之前上传的就没了」。
+    // 缩略图的图由下面 JS 塞（dataURL 动辄几十万字符，拼进 innerHTML 会卡）。
+    + (MYIMGS.length ? sec({
+      t: '上传过的背景', v: val(MYIMGS.length + ' 张'),
+      c: '<div class="bgs imgs">' + MYIMGS.map(function (x) {
+        return '<button type="button" data-img="' + x.id + '" aria-pressed="' + (s.bg === 'custom' && CURIMG === x.data) + '"><i class="del" data-del="' + x.id + '" title="删掉这张">×</i></button>';
+      }).join('') + '</div>',
+      tip: '点缩略图就换回这张；右上角 × 连点两下才删。',
+      more: '最多留 6 张，再传新的会挤掉最旧的那张。登录后这些图一起存在账号里，换电脑、换浏览器登同一个账号照样在。'
+    }) : '')
+    // 两根滑杆（2026-11-13 用户拍板两端各扩 50%）：min -50 / max 150，100 是默认，
+    // 滑杆取值照旧传数字，超界换算（-50 → 更实、150 → 更透）由 hx-theme.js 负责。
+    + (s.bg !== 'none' ? sec({
+      t: '卡片通透度',
+      v: '<output class="lk-val" id="opv" for="op">' + pct(s.clr) + '</output>',
+      c: '<div class="rng"><input type="range" id="op" min="-50" max="150" step="1" value="' + s.clr + '"></div>',
+      tip: '100% = 默认的清透玻璃。往右更透，背景从卡里透出来更多；往左卡片变实、文字更清楚。0% 是实色卡，-50% 最实。'
+    }) : '')
+    + (s.bg !== 'none' ? sec({
+      t: '背景清晰度',
+      v: '<output class="lk-val" id="bgov" for="bgo">' + pct(s.bgo == null ? 100 : s.bgo) + '</output>',
+      c: '<div class="rng"><input type="range" id="bgo" min="-50" max="150" step="1" value="' + (s.bgo == null ? 100 : s.bgo) + '"></div>',
+      tip: '100% = 背景原样。往右更锐更亮、压过那层蒙灰；往左变淡。0% 几乎看不见，-50% 只剩底色。'
+    }) : '')
+    // 校徽水印（2026-11-04）：全站铺一层华夏校徽，卡片半透明时透出来
+    + sec({
+      t: '校徽水印', v: val(String(s.wm) === '1' ? '显示' : '隐藏'),
+      c: '<div class="seg">' + [['1', '显示'], ['0', '隐藏']].map(function (x) {
+        return '<button type="button" data-wm="' + x[0] + '" aria-pressed="' + (String(s.wm) === x[0]) + '">' + x[1] + '</button>';
+      }).join('') + '</div>',
+      tip: '压在内容后面的一层华夏校徽，卡片半透明时从卡片里透出来；打印不印。'
+    })
+    // 模式（2026-11-11 用户定）：极简是默认，标准给想要全部特效的人主动选
+    + sec({
+      t: '模式', v: val(LITE_ON ? '极简' : '标准'),
+      c: '<div class="seg">' + [['1', '极简'], ['0', '标准']].map(function (x) {
+        var on = (LITE === null ? x[0] === '1' : LITE === x[0]);
+        return '<button type="button" data-lite="' + x[0] + '" aria-pressed="' + on + '">' + x[1] + '</button>';
+      }).join('') + '</div>',
+      tip: '极简 = 省电、不发热，核心功能一个不少；标准 = 特效全开，更好看但更耗电。',
+      more: '极简：背景只留静帧，卡片动画、九处氛围动画、接线画布的光晕全部停住。标准：全部特效打开。点了立刻生效，这台机器记住。'
+    })
+    // 「恢复默认」只归位外观（hx-theme），身份卡的「恢复默认」在顶上那个模块里，两件事不要混
+    + '<div class="lk-foot"><span>只把外观改回默认，不动账号和工具数据。</span>'
+    + '<button class="btn link" id="lookReset" type="button">恢复默认外观</button></div>';
   $('look').innerHTML = html;
   $('look').querySelectorAll('[data-mode]').forEach(function (b) { b.onclick = function () { HXTheme.set({ mode: b.dataset.mode }); }; });
   $('look').querySelectorAll('[data-acc]').forEach(function (b) { b.onclick = function () { HXTheme.set({ acc: b.dataset.acc }); }; });
   // 2026-11-13 加即时反馈：原来点背景没有任何提示，背景变化不明显时用户会觉得「点了没反应」。
-  // 现在点一下就 toast 报一句「已切换背景」，同时 HXTheme.set 会触发 apply 当场换背景。
   $('look').querySelectorAll('[data-bg]').forEach(function (b) {
     b.onclick = function () {
       HXTheme.set({ bg: b.dataset.bg });
@@ -2119,12 +2258,42 @@ function renderLookBody() {
       renderLook();
     };
   });
-  $('bgFile').onchange = function (e) { var f = e.target.files[0]; if (f) HXTheme.upload(f).catch(function (er) { toast(er.message); }); };
-  if ($('op')) $('op').oninput = function () { opAt = Date.now(); $('opv').textContent = $('op').value + '%'; HXTheme.set({ clr: +$('op').value }); };
-  if ($('bgo')) $('bgo').oninput = function () { opAt = Date.now(); $('bgov').textContent = $('bgo').value + '%'; HXTheme.set({ bgo: +$('bgo').value }); };
-  $('lookReset').onclick = function () { HXTheme.reset(); };
-  // 身份卡背景设置入口（2026-11-12）：关掉外观面板 → 总入口当场弹窗设置（不再跳转接线仿真）
-  if ($('lookRankCardBtn')) $('lookRankCardBtn').onclick = function () { closePops(); openRankCardDialog(); };
+  if ($('bgFile')) $('bgFile').onchange = function (e) { var f = e.target.files[0]; if (f) HXTheme.upload(f).catch(function (er) { toast(er.message); }); };
+  // 滑块与数值：opAt 记时间戳，HXTheme.onChange 那边据此在拖动过程中不重画面板，
+  // 否则手机上拖一下滑块就被 new 出来的新滑块换掉，只能点不能拖。
+  if ($('op')) $('op').oninput = function () { opAt = Date.now(); $('opv').textContent = pct($('op').value); HXTheme.set({ clr: +$('op').value }); };
+  if ($('bgo')) $('bgo').oninput = function () { opAt = Date.now(); $('bgov').textContent = pct($('bgo').value); HXTheme.set({ bgo: +$('bgo').value }); };
+  if ($('lookReset')) $('lookReset').onclick = function () { HXTheme.reset(); };
+  // 身份卡模块（2026-11-13）：整块可点（预览 + 「设置」），点了关掉外观面板、当场弹身份卡设置窗。
+  // 「恢复默认」要 stopPropagation，不然会顺带把设置窗也弹出来。
+  var openId = function () { closePops(); openRankCardDialog(); };
+  if ($('lkIdPrev')) $('lkIdPrev').onclick = openId;
+  if ($('lkIdSet')) $('lkIdSet').onclick = openId;
+  if ($('lkIdCard')) $('lkIdCard').onclick = function (e) {
+    if (e.target && e.target.closest && e.target.closest('#lkIdReset')) return;
+    if (e.target && e.target.closest && e.target.closest('#lkIdSet')) return; // 已由上面的 onclick 处理，别开两次
+    openId();
+  };
+  if ($('lkIdReset')) $('lkIdReset').onclick = function (e) {
+    e.stopPropagation();
+    var rb = $('lkIdReset');
+    // 清掉账号上的背景不可撤销，和删图一样要点两下
+    if (!rb.dataset.arm) {
+      rb.dataset.arm = '1'; rb.textContent = '再点一次';
+      setTimeout(function () { if (rb.dataset.arm) { delete rb.dataset.arm; rb.textContent = '恢复默认'; } }, 3000);
+      return;
+    }
+    delete rb.dataset.arm; rb.textContent = '恢复默认';
+    if (!HX.in()) { openLogin(); return; }
+    rb.disabled = true;
+    HX.rpc('hx_rank_bg_put', { p_bg: 'none', p_pos: 50, p_tune: {} }).then(function () {
+      LKID.bg = ''; LKID.tune = {}; LKID.got = true; lkIdPaint();
+      toast('身份卡背景已恢复默认');
+    }).catch(function (er) {
+      toast('没恢复成功：' + ((er && er.message) || '网络不通'));
+    }).then(function () { rb.disabled = false; });
+  };
+  lkIdLoad();
 }
 // 拖透明度时不重画面板：手机上拖动滑块不会获得焦点，一重画滑块就被换掉、只能点不能拖
 var opAt = 0;
@@ -3300,6 +3469,9 @@ function openRankCardDialog() {
   var name = (stu && stu.name) || info0.name || '我';
   var cls = (stu && stu.class) || '';
   RKD.cur = 'p1';
+  // 设置窗关掉后外观面板里的预览要跟着变：这里把缓存标记打成「未取」，
+  // 下次画外观面板会重新拉一次 hx_rank_bg（见 lkIdLoad），不用猜用户到底保存没保存。
+  LKID.got = false;
   // 头部骨架
   dlg.innerHTML = '<div class="rkd-shell">'
     + '<div class="rkd-head"><h2>我的身份卡</h2><small>背景跟账号走 · 四种卡型各自微调</small>'

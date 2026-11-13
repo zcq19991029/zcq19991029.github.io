@@ -144,7 +144,7 @@ a.nav-i{text-decoration:none}
 /* 网页版概览第 3 步指向「考试」工具，是 <a> 不是 <button>：去掉链接默认下划线，跟其他步骤长一样 */
 a.step{text-decoration:none;color:var(--ink);cursor:pointer}
 a.step:hover{text-decoration:none}
-.step .n{width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,var(--acc),var(--acc2));color:#fff;font:700 13px/1 var(--mono);display:inline-flex;align-items:center;justify-content:center;box-shadow:0 4px 12px -2px var(--ring)}
+.step .n{width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,var(--acc),var(--acc2));color:var(--on-acc,#fff);font:700 13px/1 var(--mono);display:inline-flex;align-items:center;justify-content:center;box-shadow:0 4px 12px -2px var(--ring)}
 @media(max-width:900px){.flow{grid-template-columns:repeat(2,minmax(0,1fr))}}
 /* 进考场 */
 .gate{padding:32px 34px}
@@ -172,7 +172,7 @@ button{position:relative;font:inherit;font-size:14px;font-weight:500;padding:8px
 button:hover{background:var(--field3);transform:translateY(-1px)}
 button:active{transform:scale(.96);transition-duration:.08s}
 button:focus-visible{outline:none;box-shadow:0 0 0 4px var(--ring)}
-button.pri{border-color:transparent;color:#fff;background:linear-gradient(180deg,var(--acc-h),var(--acc));box-shadow:0 1px 0 rgba(255,255,255,.25) inset,0 6px 18px -6px var(--ring);overflow:hidden}
+button.pri{border-color:transparent;color:var(--on-acc,#fff);background:linear-gradient(180deg,var(--acc-h),var(--acc));box-shadow:0 1px 0 rgba(255,255,255,.25) inset,0 6px 18px -6px var(--ring);overflow:hidden}
 button.pri::after{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.35) 50%,transparent 70%);transform:translateX(-120%);transition:transform .7s var(--spring)}
 button.pri:hover{background:linear-gradient(180deg,var(--acc-h),var(--acc));box-shadow:0 1px 0 rgba(255,255,255,.3) inset,0 10px 26px -8px var(--ring)}
 button.pri:hover::after{transform:translateX(120%)}
@@ -5223,7 +5223,7 @@ a.nav-i{text-decoration:none}
 /* 网页版概览第 3 步指向「考试」工具，是 <a> 不是 <button>：去掉链接默认下划线，跟其他步骤长一样 */
 a.step{text-decoration:none;color:var(--ink);cursor:pointer}
 a.step:hover{text-decoration:none}
-.step .n{width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,var(--acc),var(--acc2));color:#fff;font:700 13px/1 var(--mono);display:inline-flex;align-items:center;justify-content:center;box-shadow:0 4px 12px -2px var(--ring)}
+.step .n{width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,var(--acc),var(--acc2));color:var(--on-acc,#fff);font:700 13px/1 var(--mono);display:inline-flex;align-items:center;justify-content:center;box-shadow:0 4px 12px -2px var(--ring)}
 @media(max-width:900px){.flow{grid-template-columns:repeat(2,minmax(0,1fr))}}
 /* 进考场 */
 .gate{padding:32px 34px}
@@ -5251,7 +5251,7 @@ button{position:relative;font:inherit;font-size:14px;font-weight:500;padding:8px
 button:hover{background:var(--field3);transform:translateY(-1px)}
 button:active{transform:scale(.96);transition-duration:.08s}
 button:focus-visible{outline:none;box-shadow:0 0 0 4px var(--ring)}
-button.pri{border-color:transparent;color:#fff;background:linear-gradient(180deg,var(--acc-h),var(--acc));box-shadow:0 1px 0 rgba(255,255,255,.25) inset,0 6px 18px -6px var(--ring);overflow:hidden}
+button.pri{border-color:transparent;color:var(--on-acc,#fff);background:linear-gradient(180deg,var(--acc-h),var(--acc));box-shadow:0 1px 0 rgba(255,255,255,.25) inset,0 6px 18px -6px var(--ring);overflow:hidden}
 button.pri::after{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.35) 50%,transparent 70%);transform:translateX(-120%);transition:transform .7s var(--spring)}
 button.pri:hover{background:linear-gradient(180deg,var(--acc-h),var(--acc));box-shadow:0 1px 0 rgba(255,255,255,.3) inset,0 10px 26px -8px var(--ring)}
 button.pri:hover::after{transform:translateX(120%)}

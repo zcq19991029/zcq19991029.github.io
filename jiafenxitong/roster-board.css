@@ -493,14 +493,25 @@ body.gb-dragging .gb-chip { cursor: grabbing; }
 }
 .gb-chip.has-face > * { position: relative; z-index: 1; }
 
-/* 头像圈：有照片就铺照片，并把姓氏首字变透明（以前首字压在照片上，用户说「头像被姓氏遮挡」） */
-.gb-av.has-img {
-  color: transparent;
-  background: var(--hxav);
-  background-size: cover; background-repeat: no-repeat; background-position: 50% 50%;
+/* 头像圈：有照片就铺照片，并把姓氏首字变透明（以前首字压在照片上，用户说「头像被姓氏遮挡」）
+   ★ 必须 !important：下面第 8 节（8.4 / 8.5 / me-card）还有一批
+     `:root .gb-av`（0,2,0）、`:root[data-hx-mode="dark"] .gb-av`（0,3,0）、
+     `:root .gb-chip.gb-pend-chip .gb-av`（0,4,0）、
+     `:root[data-hx-mode="dark"] .gb-chip.gb-me-card .gb-av`（0,5,0）
+     都在往后写、而且都是本色系渐变底 —— 它们会把这里的照片整个盖住。
+     2026-11-13 的「一个只显示姓氏、一个有头像没背景」就是被这批规则压掉的。
+     语义上「有照片就必须看见照片」是硬规则，用 !important 一劳永逸，别再靠权重对抗。 */
+.gb-av.has-img,
+.gb-chip .gb-av.has-img,
+.gb-chip.gb-over-limit .gb-av.has-img,
+.gb-chip.gb-pend-chip .gb-av.has-img,
+.gb-chip.gb-me-card .gb-av.has-img {
+  color: transparent !important;
+  background: var(--hxav) !important;
+  background-size: cover !important;
+  background-repeat: no-repeat !important;
+  background-position: 50% 50% !important;
 }
-/* 超员红标是画在头像圈底色上的，别让它盖掉学生的头像照片；红边和「超出」标签还在 */
-.gb-chip.gb-over-limit .gb-av.has-img { background: var(--hxav); }
 .gb-av.has-img * { display: none; }
 .metrics-slim { margin-top: 12px; }
 .metrics-slim .metric { padding: 8px 12px; }

@@ -1,8 +1,11 @@
-/* 学生端：只读查自己的分数（上课记分 / 组内个人评分 / 本学期总分 / 成绩登分册）。
+/* 学生端：只读查自己的分数（本学期总分 / 平时分分解 / 每节课明细 / 组内互评 / 我的小组 / 登分册）。
  *
  * 数据只有一个来源：jf_my_scores()。这个函数在数据库里用 auth.uid() 反查我是谁，
  * 只把「我自己那一行」还给我 —— 同学的分数不会下发到我的浏览器。
- * 页面自己不做任何分数计算，也不允许任何输入：四个模块全是只读展示。
+ * 页面自己不做任何分数计算，也不允许任何输入：所有模块全是只读展示。
+ *
+ * 2026-11-13 合并页签：原来「上课记分 / 总分与登分册」两个 tab 讲的是同一个平时分
+ * （88.6% 当前累计完成率 = 88.6 平时分/100），合成单页纵向排，一个数字只出现一次。
  *
  * 实时性：老师那边一存分，客户端会把新的快照发布上去；这里每 4 秒拉一次，
  * 所以最慢几秒就能看到新分数，不用刷新。
@@ -19,13 +22,14 @@
   var POLL_MS = 4000;
 
   var D = null;            // 最近一次快照
-  var tab = 'score';
   var timer = null;
   var fatal = null;        // no_login / not_student / no_data / error
 
   /* 组内互评（2026-11-04）：老师按「本节课」开放后，组长才能给组员打分、组员才能给组长打分。
-     其他课次一律只读；这里只存「本节」的看板，换课要重新拉。 */
-  var peer = { lessons: [], lesson: '', data: null, msg: '', busy: false, loaded: false, queue: Promise.resolve() };
+     其他课次一律只读；这里只存「本节」的看板，换课要重新拉。
+     ok（2026-11-13）：jf_peer_open 至少成功读回过一次才算「知道哪些课开着互评」——
+     没读到之前（或一直失败）不能把没录分的项目当 0%，见 peerGateOf()。 */
+  var peer = { lessons: [], lesson: '', data: null, msg: '', busy: false, loaded: false, ok: false, queue: Promise.resolve() };
 
   var $ = function (id) { return document.getElementById(id); };
 
@@ -121,12 +125,6 @@
     var n = Math.round(Math.max(0, Math.min(5, Number(v) || 0)) / 5 * 1000) / 10;
     return (n % 1 === 0 ? String(Math.round(n)) : n.toFixed(1)) + '%';
   }
-  /* 2026-11-12 R1：一节可有多个项目（满分 = 项目数 × 5），不能再按 5 分封顶 */
-  /* 老快照（没有 raw 字段）的分子 = 旧 net + 旧 earned；新快照直接用 raw */
-  function rawOf(l) {
-    if (l.raw != null) return l.raw;
-    return (Number(l.earned) || 0) + (Number(l.net) || 0);
-  }
 
   /* 身份卡（2026-11-12 起用；2026-11-13 和选桌页统一成同一张）：顶部那张「我自己的 id 卡」，
      背景跟账号走（hx_rank_bg）。数据层 public.hx_rank_bg（hx_rank_bg_get 一人一行 {bg,pos}），
@@ -197,7 +195,7 @@
 
   function showFatal(kind, extra) {
     fatal = kind;
-    ['view-score', 'view-total'].forEach(function (id) { $(id).innerHTML = ''; });
+    $('view').innerHTML = '';
     $('sync').textContent = '';
     /* 身份卡统一走 renderMyCard（第二个参数是卡片第一行的说明字）：
        没有姓名时卡片自动收成一行，不会留一片空白 */
@@ -236,20 +234,44 @@
     return '第 ' + (l.seq || '?') + ' 次' + (l.date ? ' · ' + md(l.date) : '');
   }
 
+  /* 这一课的互评是开着还是关着？（决定「没录分的项目」算 0% 还是显示「待评」）
+     学生端快照里没有 peerGate 字段（student-feed.js 的 lessonRow 没下发），唯一可靠来源是
+     jf_peer_open 返回的「当前开放组长打分的课次」列表，按「第几次课 + 日期」对号。
+     三个返回值含义不同，别混：
+       true  = 老师开着这一课的互评 → 没录分显示「待评」，学生要补分就现在补
+       false = 互评是关的 → 没打分就是 0 分，直接显示 0%（这是本页口径的核心）
+       null  = 开放列表还没读回来、或 jf_peer_open 失败 → 不确定，按「待评」保守显示，
+               不能让一次网络抖动把全班学生的格子刷成 0%
+     peerGate 的语义是「true = 已开放」（见 app.js:1436 lesson.peerGate = !!open），这里保持一致。 */
+  function peerGateOf(l) {
+    if (!peer.ok) return null;
+    var seq = Number(l.seq) || 0, date = String(l.date || '');
+    return (peer.lessons || []).some(function (o) {
+      return (Number(o.seq) || 0) === seq && String(o.date || '') === date;
+    });
+  }
+
   /* 每节课得分详情（2026-11-13 改纵向堆叠）：原来的「课次 × 项目」横向矩阵表
      列名每次都不一样（各课项目不同，跨课取并集），一屏放不下还得左右滑，用户嫌烦。
      改成「每节课一个块、从上往下叠」：块头是课次，块里把这一课的每个项目竖着列一行
-     （项目名 + 完成率），最后跟「本节原始分 / 完成率 / 扣分·值日」三行小结。 */
+     （项目名 + 完成率），最后一行小结只讲完成率 + 扣分/值日。
+     2026-11-13 二次改：小结里原来那句「本节项目 4 / 15」是用户已经放弃的分母方案，
+     学生端不再出现任何「分子 / 满分」形式，只留完成率一个数。 */
   function renderLessonDetail(ls) {
     if (!ls.length) {
       return '<div class="card"><h3>每节课得分详情</h3>' +
         '<p class="note">还没有课次。老师上完第一次课记分后就会出现在这里。</p></div>';
     }
     var blocks = ls.slice().reverse().map(function (l) {
+      var gate = peerGateOf(l);
       var projRows = (l.projects || []).map(function (p) {
+        /* 一格三态：undefined = 那节课没这个项目（— ，不参与计算）；
+           null = 有项目没录分 —— 互评关着就是 0 分（红字），开着才叫「待评」 */
         var txt;
         if (p.s === undefined) txt = '<span class="na">—</span>';
-        else if (p.s === null) txt = '<span class="wait">待评</span>';
+        else if (p.s === null) txt = gate === false
+          ? '<b class="zero">0%</b>'
+          : '<span class="wait">待评</span>';
         else txt = '<b>' + scorePct(p.s) + '</b>';
         return '<div class="dl-row"><span class="dl-proj">' + esc(p.n) + '</span><span class="dl-val">' + txt + '</span></div>';
       }).join('');
@@ -257,9 +279,16 @@
       if (l.phone) note.push('<span class="minus">全组 −' + (num(l.phone) * 20) + '%</span>');
       if (l.personal) note.push('<span class="minus">个人 −' + (num(l.personal) * 20) + '%</span>');
       if (l.duty && l.duty.is) note.push('<span class="pill' + (l.duty.absent ? ' bad' : '') + '">值日' + (l.duty.absent ? ' · 缺勤 −' + (l.duty.absent * 20) + '%' : '') + '</span>');
+      /* 本节小结（2026-11-13）：只留完成率，且它是这一行的主角。
+         l.pct = 本节净得分 ÷ 本节满分；没录的项目本来就已经在分母里按 0 计，
+         所以互评关着时不用额外折算，36.7% 这样的数直接就是「没打分算 0」的结果。 */
+      var sum;
+      if (!(l.projects && l.projects.length)) sum = '<span class="wait">—</span>';  // 这节课压根没设项目，不能算成 0%
+      else if (l.pct !== null) sum = '<b>' + pct(l.pct) + '</b>';
+      else if (gate === false) sum = '<b class="zero">0%</b>';
+      else sum = '<span class="wait">待评</span>';
       var summary = '<div class="dl-sum">' +
-        '<span>本节项目 <b>' + (l.max ? num(rawOf(l)) + ' / ' + l.max : '—') + '</b></span>' +
-        '<span>完成率 <b>' + (l.pct === null ? '还没录' : pct(l.pct)) + '</b></span>' +
+        '<span class="dl-pct">完成率 ' + sum + '</span>' +
         (note.length ? '<span class="dl-note">' + note.join('') + '</span>' : '') +
         '</div>';
       return '<div class="dl-block">' +
@@ -270,53 +299,41 @@
     }).join('');
     return '<div class="card"><h3>每节课得分详情</h3>' +
       '<div class="dl-list">' + blocks + '</div>' +
-      '<p class="note">每格是那节课该项目的完成率（20%–100%），「待评」表示还没录、不是 0 分；「—」表示那节课没有这个项目。' +
-      '「本节项目」= 原始项目分（分子 / 满分），「完成率」= 扣分后的最终完成率。每节课一块，从上往下排。</p></div>';
+      '<p class="note">每格是那节课该项目的完成率。没录分的项目，老师关闭这一课互评后按 <b>0%</b> 计；' +
+      '老师重新打开这一课的互评，才会变回「待评」让你去补分（补上就按新分算）。' +
+      '「—」表示那节课没有这个项目，不参与计算。每节课一块，从上往下排。</p></div>';
   }
 
-  function renderScore() {
-    var d = D;
-    if (!d) return '';
-    var ls = d.lessons || [];
-    var recorded = ls.filter(function (l) { return l.pct !== null; }).length;
-    /* 显示层（2026-11-09 完成率改革）：累计与每课数字一律按百分比显示；
-       快照里的原始分值一个字段不改，这里只做显示换算 */
-    var taskMax = Number(d.total.taskMax) || 0;
-    /* 2026-11-12 R1：整学期只有一个额外的 5 分值日缺勤项目，只算一次；每节课的分母只有「项目数×5」 */
-    var namedMax = Math.max(0, taskMax - 5);
-    var totalRate = taskMax ? Math.round(Math.max(0, d.total.total) / taskMax * 1000) / 10 : null;
-    var projectRate = namedMax ? Math.round(Math.max(0, d.total.project) / namedMax * 1000) / 10 : null;
-    var dutyScore = Number(d.total.duty != null ? d.total.duty : d.total.groupScore) || 0;
-    var dutyPct = Math.round(Math.max(0, Math.min(5, dutyScore)) / 5 * 1000) / 10;
-
-    var html = '';
-
-    /* 值日提醒（第 5 条需求）：学生一进来看得到自己组要不要值日、老师留的提醒 */
+  /* 值日提示（2026-11-13 精简）：老师都是上课当场设值日组，学生只需要知道「本轮谁值日」。
+     原来这张卡常驻一段整学期规则（下课后留下打扫 / 缺勤扣 20% / 一学期只算一次 5 分），
+     和页面下方的「怎么算的」完全重复，还占掉首屏一整块，用户嫌啰嗦。
+     现在只剩一行事实 + 规则小问号（title 悬浮），有值日缺勤才多一行提醒。 */
+  function renderDuty(ls) {
     var dutyLesson = null;
     ls.forEach(function (l) {
       if (l.duty && l.duty.is && (!dutyLesson || (Number(l.seq) || 0) > (Number(dutyLesson.seq) || 0))) dutyLesson = l;
     });
-    if (dutyLesson) {
-      var missed = Math.max(0, Number(dutyLesson.duty.absent) || 0);
-      html += '<div class="card duty-callout"><h3>' + (dutyLesson.recorded ? '最近一次值日安排' : '本组本节课要值日') + '</h3>' +
-        '<p class="duty-callout-main"><b>' + esc(d.me.gname || ('第 ' + d.me.gno + ' 组')) + '</b> · ' +
-        esc(lessonLabel(dutyLesson)) + (dutyLesson.recorded ? ' 轮到你们组值日。' : ' 轮到你们组值日，别忘了。') + '</p>' +
-        '<p class="note">' + (dutyLesson.duty.note ? esc(dutyLesson.duty.note)
-          : '值日组下课后留下把教室打扫干净，别提前走；值日缺勤全组每人扣 20%，一学期只算一次 5 分。') +
-        (missed ? '<br><b class="duty-missed">本节已记值日缺勤 ' + missed + ' 次，全组每人 −' + (missed * 20) + '%。</b>' : '') +
-        '</p></div>';
-    }
+    if (!dutyLesson) return '';
+    var missed = Math.max(0, Number(dutyLesson.duty.absent) || 0);
+    /* 老师能在值日上自己写提醒（duty.note），有就优先显示老师的原话，没有才用通用规则 */
+    var rule = dutyLesson.duty.note ||
+      '值日组下课后留下把教室打扫干净，别提前走；值日缺勤全组每人扣 20%，一学期只算一次 5 分。';
+    return '<div class="card duty-callout">' +
+      '<p class="duty-callout-main"><b>' + esc(D.me.gname || ('第 ' + D.me.gno + ' 组')) + '</b>' +
+      '<span>本轮值日</span>' +
+      '<span class="duty-callout-when">' + esc(lessonLabel(dutyLesson)) + '</span>' +
+      '<span class="duty-help" aria-label="值日规则" title="' + esc(rule) + '">?</span></p>' +
+      (missed ? '<p class="duty-missed-line">本节已记值日缺勤 ' + missed + ' 次，全组每人 −' + (missed * 20) + '%</p>' : '') +
+      '</div>';
+  }
 
-    html += '<div class="card"><h3>累计到现在</h3><div class="big">' +
-      '<div class="n"><em>' + (totalRate == null ? '—' : num(totalRate) + '%') + '</em><span>当前累计完成率</span></div>' +
-      '<div class="n good"><em>' + (projectRate == null ? '—' : num(projectRate) + '%') + '</em><span>个人项目累计</span></div>' +
-      '<div class="n"><em>' + num(dutyPct) + '%</em><span>值日完成率</span></div>' +
-      '</div><p class="note">当前累计完成率 ＝（值日缺勤 ＋ 各节项目分 − 扣分）÷（5 ＋ 各节项目满分），内部按分值计算、显示按百分比。' +
-      '值日缺勤整学期只算一次 5 分，没缺勤就是 100%。已登记 ' + recorded + ' / ' + ls.length + ' 次课。</p></div>';
-
-    html += renderLessonDetail(ls);
-    html += renderPeerCard() + renderGroupCard();
-    return html;
+  /* 合并页签（2026-11-13）后，原来「上课记分」那张「累计到现在」卡不再单独存在：
+     它的「当前累计完成率」就是平时分（同一个数，只留在总分卡里显示一次），
+     「个人项目累计」「值日完成率」降级成平时分的分解项，挪进 renderBreakdown()。
+     这里只剩课次明细 + 互评 + 小组三块，顺序沿用原来的上下关系，避免学生找不着。 */
+  function renderScore() {
+    var ls = (D && D.lessons) || [];
+    return renderLessonDetail(ls) + renderPeerCard() + renderGroupCard();
   }
 
   /* ---------- 组内互评（2026-11-04） ----------
@@ -342,6 +359,7 @@
     return rpc('jf_peer_open', {}).then(function (res) {
       peer.lessons = (res && res.lessons) || [];
       peer.loaded = true;
+      peer.ok = true;                     // 读到过开放列表，才敢按「互评关着 = 0%」判定
       if (!peer.lessons.length) { peer.lesson = ''; peer.data = null; return null; }
       var keep = !reset && peer.lessons.some(function (l) { return l.lesson === peer.lesson; });
       if (!keep) peer.lesson = peer.lessons[0].lesson;
@@ -353,6 +371,9 @@
       peer.loaded = true;
       /* 云端没装这套函数时不该把整页打挂：静默降级成只读 */
       if (e && e.status === 401) throw e;
+      /* 读不到开放列表就退回「不知道」（ok=false → 明细里继续显示待评）：
+         宁可少判一次 0%，也不能因为一次网络抖动把学生格子全刷成 0% */
+      peer.ok = false;
       peer.lessons = [];
       peer.data = null;
       return null;
@@ -597,36 +618,69 @@
       ' 人），别的小组看不到。「个人项目累计」是组长在课上逐项打分后的合计，仅供参考，有疑问直接找老师。</p></div>';
   }
 
+  /* 本学期总分（2026-11-13 合并页签后成了整页的第一张卡）：
+     四个数字全是登分册口径，彼此不重复 —— 平时分是完成率折成百分制，
+     计入总评是它×40%，期末至少需考是反推出来的目标分，综合是期末录完后的总评。
+     原来的「当前累计完成率 88.6%」就是这张卡里的「平时分 88.6」，
+     同一个数只保留这里这一份，不再在别的卡里换个标签再写一遍。 */
   function renderTotal() {
     var d = D, t = d.total;
-    var dutyScore = Number(t.duty != null ? t.duty : t.groupScore) || 0;
-    var dutyPct = Math.round(Math.max(0, Math.min(5, dutyScore)) / 5 * 1000) / 10;
     var need = t.failed ? '<span class="pill bad">考勤挂科</span>'
       : t.needed === null ? '—'
       : t.needed > 100 ? '<span class="pill warn">已超 100</span>'
       : num(t.needed);
-    var html = '<div class="card"><h3>本学期总分</h3><div class="big">' +
+    return '<div class="card"><h3>本学期总分</h3><div class="big">' +
       '<div class="n"><em>' + num(t.regular) + '</em><span>平时分 / 100</span></div>' +
       '<div class="n"><em>' + num(t.contribution) + '</em><span>计入总评 / 40</span></div>' +
       '<div class="n' + (t.failed ? ' bad' : '') + '"><em>' + need + '</em><span>期末至少需考</span></div>' +
       '<div class="n ' + (t.final === null ? '' : (t.final >= d.passScore ? 'good' : 'bad')) + '">' +
       '<em>' + (t.final === null ? '—' : num(t.final)) + '</em><span>综合 / 100</span></div>' +
-      '</div><p class="note">平时分 40% ＋ 期末 60%。及格线 ' + num(d.passScore) + ' 分。' +
+      '</div><p class="note">平时分就是累计完成率（项目＋考勤合并算出来的那个百分比，折成 100 分制），只在这里显示一次。' +
+      '平时分 40% ＋ 期末 60%，及格线 ' + num(d.passScore) + ' 分。' +
       (t.final === null ? '期末还没录入，所以综合成绩先空着。' : '') + '</p></div>';
+  }
 
-    html += '<div class="card"><h3>明细</h3><div class="kv">' +
+  /* 平时分怎么来的（2026-11-13 新增，替代原来「上课记分」页的「累计到现在」卡）：
+     个人项目累计 / 值日完成率 / 考勤完成率 这三项是平时分的组成部分，不是并列的其他成绩，
+     所以收成一条小分解条挂在总分卡下面，字号比大数字小一号，层级上一眼看出从属关系。
+     下面那截 kv 是原「明细」卡剩下的、没有别处重复的内容（名次 / 考勤次数 / 记录状态）。 */
+  function renderBreakdown() {
+    var d = D, t = d.total;
+    var ls = d.lessons || [];
+    var recorded = ls.filter(function (l) { return l.pct !== null; }).length;
+    /* 显示层（2026-11-09 完成率改革）：累计与每课数字一律按百分比显示；
+       快照里的原始分值一个字段不改，这里只做显示换算 */
+    var taskMax = Number(t.taskMax) || 0;
+    /* 2026-11-12 R1：整学期只有一个额外的 5 分值日缺勤项目，只算一次；每节课的分母只有「项目数×5」 */
+    var namedMax = Math.max(0, taskMax - 5);
+    var projectRate = namedMax ? Math.round(Math.max(0, t.project) / namedMax * 1000) / 10 : null;
+    var dutyScore = Number(t.duty != null ? t.duty : t.groupScore) || 0;
+    var dutyPct = Math.round(Math.max(0, Math.min(5, dutyScore)) / 5 * 1000) / 10;
+
+    return '<div class="card"><h3>平时分怎么来的</h3>' +
+      '<div class="sub-stats">' +
+      '<div class="s"><b>' + (projectRate == null ? '—' : num(projectRate) + '%') + '</b><span>个人项目累计</span></div>' +
+      '<div class="s"><b>' + num(dutyPct) + '%</b><span>值日完成率</span></div>' +
+      '<div class="s"><b>' + num(t.attRate) + '%</b><span>考勤完成率</span></div>' +
+      '</div>' +
+      '<p class="note">这三项按分值加权后合并成上面的平时分，不是简单平均。' +
+      '「个人项目累计」只算各节课的项目分，值日单独按整学期一次 5 分算（没缺勤就是 100%，缺勤按 20% 一档扣、全组每人一起扣），' +
+      '考勤是学期固定项目、满分折 100%。已登记 ' + recorded + ' / ' + ls.length + ' 次课。' +
+      (t.pending ? '还有 <b>' + t.pending + '</b> 项没评分，现在的分是暂时的。' : '') + '</p>' +
+      '<div class="kv">' +
       '<div>班级名次　<i>' + t.rank + ' / ' + t.count + '</i></div>' +
-      '<div>项目完成率　<i>' + num(t.taskRate) + '%</i>' +
-      (t.pending ? '　<span class="pill warn">' + t.pending + ' 项待评</span>' : '') + '</div>' +
-      '<div>值日完成率　<i>' + num(dutyPct) + '%</i>' + (Number(t.dutyLoss) ? '（已扣 ' + num(t.dutyLoss) + ' 档）' : '') + '</div>' +
-      '<div>考勤完成率　<i>' + num(t.attRate) + '%</i></div>' +
-      '<div>迟到 ' + t.late + ' 次 · 早退 ' + t.early + ' 次 · 旷课 ' + t.truant + ' 次 · 折算 ' + t.converted +
+      '<div>值日扣分　' + (Number(t.dutyLoss) ? '<i class="minus">已扣 ' + num(t.dutyLoss) + ' 档</i>' : '<i>没扣</i>') + '</div>' +
+      '<div>考勤　迟到 ' + t.late + ' 次 · 早退 ' + t.early + ' 次 · 旷课 ' + t.truant + ' 次 · 折算 ' + t.converted +
       ' 次 · 合计 <i>' + t.effective + '</i> 次</div>' +
       '<div>实际期末　<i>' + (t.exam === null ? '还没录' : num(t.exam)) + '</i></div>' +
       '<div>记录状态　' + (t.ready ? '<span class="pill">已齐</span>' : '<span class="pill warn">还有没录完的项</span>') + '</div>' +
       '</div></div>';
+  }
 
-    html += '<div class="card"><h3>怎么算的</h3><p class="note">' +
+  /* 规则说明（2026-11-13）：合并后只在页面末尾留一份，别再往上面的卡片里塞同样的公式，
+     否则又是「同一句话说两遍」的老问题。 */
+  function renderHow() {
+    return '<div class="card"><h3>怎么算的</h3><p class="note">' +
       '项目完成率＝(值日缺勤 5 分＋各节项目净得分)÷(5＋各节项目满分)，内部按分值计算、显示按百分比；' +
       '值日缺勤是整学期只算一次的项目，一学期没缺勤就是 100%，缺勤按 20% 一档扣、全组每人一起扣。<br>' +
       '每节课的项目满分＝那节课的命名项目数×5，不再单独送分，所以项目越加越多时不会把项目分的比重冲淡。<br>' +
@@ -634,7 +688,6 @@
       '平时分＝100×合并完成率；计入总评＝平时分×40%。<br>' +
       '期末至少需考＝(及格线 − 平时分×0.4)÷0.6，向上取 0.1 分。<br>' +
       '这一页只能看，改不了。分数有疑问直接找老师。</p></div>';
-    return html;
   }
 
   function renderBook() {
@@ -665,16 +718,15 @@
       '「总评」＝平时折合＋期末折合。格子空着表示那次课还没录分，期末没录时折合和总评都空着。往右滑可以看到后面的课。</p></div>';
   }
 
+  /* 单页渲染（2026-11-13 合并页签）：顺序按「先结论、后细节」排 ——
+     本轮值日（一句话）→ 本学期总分 → 平时分怎么来的 → 每节课明细 → 互评 → 我的小组 → 规则 → 登分册。
+     两块原来分属两个 tab 的内容现在同一个容器里纵向排，缺一块也不会把另一块顶掉。 */
   function paint() {
     if (!D || fatal) return;
-    $('view-score').innerHTML = renderScore();
-    $('view-total').innerHTML = renderTotal() + renderBook();
-    ['score', 'total'].forEach(function (k) {
-      $('view-' + k).classList.toggle('hide', k !== tab);
-    });
-    document.querySelectorAll('#tabs button').forEach(function (b) {
-      b.classList.toggle('on', b.dataset.tab === tab);
-    });
+    $('view').innerHTML = renderDuty(D.lessons || []) +
+      renderTotal() + renderBreakdown() +
+      renderScore() +
+      renderHow() + renderBook();
     clearNotice();
     /* 页头小标签：本节开了互评就写「本节可互评」，否则老实写「只读」 */
     var ro = document.querySelector('.readonly');
@@ -746,26 +798,21 @@
     }, ms);
   }
 
-  /* ---------- 交互：切页签 + 本节互评打分（其他课次仍然只读） ---------- */
+  /* ---------- 交互：本节互评打分（整页只读，只有互评这一段能点） ---------- */
 
-  document.querySelectorAll('#tabs button').forEach(function (b) {
-    b.addEventListener('click', function () {
-      tab = b.dataset.tab;
-      paint();
-    });
-  });
-
-  /* 点 1–5：记这一格；双击已有分数：撤销 */
+  /* 点 1–5：记这一格；双击已有分数：撤销。
+     2026-11-13 合并页签后整页只有一个 #view，把原来的 #view-score 判断换成它，
+     否则老选择器匹配不到、互评按钮点了没反应。 */
   document.addEventListener('click', function (e) {
     var pick = e.target.closest && e.target.closest('[data-peer-pick]');
     if (!pick) return;
     var cell = pick.closest('.peer-cell');
-    if (!cell || !cell.closest('#view-score')) return;
+    if (!cell || !cell.closest('#view')) return;
     submitPeer(cell.dataset.project, cell.dataset.target, Number(pick.dataset.peerPick));
   });
   document.addEventListener('dblclick', function (e) {
     var cell = e.target.closest && e.target.closest('.peer-cell.is-set');
-    if (!cell || !cell.closest('#view-score')) return;
+    if (!cell || !cell.closest('#view')) return;
     e.preventDefault();
     clearPeer(cell.dataset.project, cell.dataset.target);
   });

@@ -1,12 +1,13 @@
 // 华夏工具外观（网站根目录 /hx-theme.js + /hx-theme.css）。全部工具在 <head> 里同步引用，打开就是选好的外观、不闪。
-// ── 分层（2026-11-08 定稿 VER 6：每个界面完全独立）──
-//   · 首页（键 hx-theme + hx-theme:s:home）：背景图/视频、校徽水印沿用旧全局键 hx-theme；
-//     主题色、深浅、通透度两根滑杆在 hx-theme:s:home；
-//   · 每个工具页（键 hx-theme:s:<tool>）：主题色、深色/浅色、卡片通透度、背景清晰度、
-//     **背景图、校徽水印**全部存自己的一份，和首页、和别的工具互不干扰。
-//   · 一次性迁移：工具页第一次打开、还没有自己的存档时，继承旧全局键 hx-theme 里的
-//     背景/水印/主题色/深浅（老用户观感不变）；用户在哪个页面改，就只写哪个页面的键。
-//     旧全局键不删（首页还在用它），工具页一旦有了自己的存档就再也不看它。
+// ── 分层（2026-11-13 定稿 VER 8：**全站只有一份外观**）──
+//   · 全部页面共用同一把键 hx-theme：主题色 / 深色浅色 / 卡片通透度 / 背景清晰度 / 背景 / 校徽水印
+//     全存在这里。在哪个页面改，首页、总入口顶栏、每个工具页、嵌在总入口里的工具**一起变**。
+//   · 为什么从「按界面分键」改回全局唯一：用户原话「各个工具分开打开再点主题是否各管各的而不是统一调配？
+//     按理说我们现在要求只存在一个主题控制 全局控制」。VER 5/6 那套 hx-theme:s:<tool> 已下线：
+//     只保留「迁移时读一次」，不再写新值（合并规则见下面 VER 8 迁移那段）。
+//   · hx-lite（极简 / 标准）本来就是全局键，仍单独存；它管的是「要不要特效」，不是外观长相。
+//   · 三个例外仍不进这把键，因为它们不是「外观长相」：上传的背景图本体（hx-theme-img / hx-theme-imgs）、
+//     开发者身份（hx-dev，服务端算出来的）、极简开关（hx-lite）。
 // 外观只在总入口右上角改：主题色（沿用旧刷题站的 7 套）、深色 / 浅色 / 自动、背景图、通透度两根滑杆。
 // 自己上传的背景图压缩后存 hx-theme-img；同一网站的页面（包括嵌在总入口里的工具）通过 storage 事件一起变。
 // 子工具只适配：<html data-theme="light|dark">（排课、单片机上机原有的深浅色写法）+ 行内 CSS 变量 --acc 等；接线仿真、排课、单片机的旧主题键顺带改好。
@@ -42,20 +43,24 @@
   // VER 4（2026-11-04 深夜）：背景项合并成上面三档，默认改成极光视频。
   // 老存档里凡是选了已下架背景（bear/chiikawa/cat/mist/bay/dusk/旧极光渐变）的，统一迁到新默认；
   // 自己上传过图的（custom 且本地还有图）保留不动 —— 那是用户自己的东西，不能因为改默认就没了。
-  // VER 5（2026-11-05）：主题色、深浅模式、卡片通透度、背景清晰度改成按界面分键。
-  // VER 6（2026-11-08）：背景图 / 校徽水印也按界面分键（用户原话「各个工具下主题独立控制
-  //   在本工具下 压根不生效」）。首页的这两样继续存旧全局键 hx-theme（顺带当所有工具页的
-  //   迁移来源）；每个工具页存 hx-theme:s:<tool>，所有字段都在自己键里。
+  // VER 5（2026-11-05）：主题色、深浅模式、卡片通透度、背景清晰度曾改成按界面分键。
+  // VER 6（2026-11-08）：背景图 / 校徽水印也曾按界面分键（当时的原话是「各个工具下主题独立控制」）。
+  // VER 8（2026-11-13）：**分键整个收回全局一把**（用户原话「只存在一个主题控制 全局控制」）。
+  //   这两个版本留下的 hx-theme:s:<界面> 存档只用于一次性迁移，之后不再读、也不再写。
   // 滑杆语义 2026-11-05 翻转：原来的 op「卡片透明度」100 = 最实；现在叫 clr「卡片通透度」，100 = 最透
   // （也就是用户定下的默认观感：深色玻璃底、背景透出来），往下调卡片变实、文字更清楚。
   // 老存档里的 op 不再折算：旧 100 = 新 100（同一观感），旧值更小的本意是「更透」——新体系 100 已经是最透，
   // 一律落回默认 100，保证老用户刷新后看到的就是这版定稿的玻璃观感。
-  var KEY = 'hx-theme', SKEY = 'hx-theme:s:', IMG = 'hx-theme-img', DEV = 'hx-dev', VER = 7,
+  var KEY = 'hx-theme', SKEY = 'hx-theme:s:', IMG = 'hx-theme-img', DEV = 'hx-dev', VER = 8,
     // 2026-11-05 用户定：默认进来 = 深色主题 + 两个滑杆都 100%（通透度 100 = 深色清透玻璃，背景最透出）。
     // 之前默认 mode:'auto'，Mac 浅色系统打开就是浅色 + 旧白玻璃配方，用户原话「玻璃质感不高级 仅仅只是白色雾蒙蒙」。
     // 2026-11-11 用户定（第二次）：「主题自动…不需要给用户切换，默认深色主题」。深浅**不再有 auto 档**，
     //   只留 浅色 / 深色 两个按钮，默认深色；老存档里 mode:'auto' 的按当时实际显示落成 light/dark（见 get()）。
-    DEF = { acc: 'green', mode: 'dark', bg: 'none', clr: 100, bgo: 100 };
+    // 2026-11-13 用户定（VER 8）：「默认背景给全部用户使用深色主题 白色主题色 通透度和清晰度都是拉满
+    //   校徽水印显示 模式极简」。所以主题色默认从 'green' 换成 'mono'（色板里叫「黑白」，深色下
+    //   d 色 = #f5f5f7，就是用户要的白），水印默认从「首页开 / 工具页关」统一成「全站开」。
+    //   迁移只把**值还等于旧默认**的字段换成新默认，用户显式选过的颜色一律保留（见 migrateGlobal）。
+    DEF = { acc: 'mono', mode: 'dark', bg: 'none', clr: 100, bgo: 100, wm: 1 };
   // 2026-11-11 用户定（第二次改默认背景）：「极光背景改 … 使用默认静态背景？比如就用深色总默认 无背景
   //   可以选极光 加入选择不强制」。所以全站默认背景从 `aurora`（动态视频壁纸）改成 `none`
   //   （纯深色底，最省电、最不抢内容）；想要极光的人在外观面板里自己点，不再是默认。
@@ -99,8 +104,47 @@
       + 'html.hx-embedded[data-hx-mode="dark"] body{background-color:transparent!important;background-image:none!important}'
       + 'html.hx-embedded[data-hx-mode="dark"] body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;'
       + 'background:var(--hx-img) center / cover no-repeat;opacity:var(--hx-bgo,1)}'
-      + 'html.hx-embedded .hx-bgvid-wrap,html.hx-embedded .hx-bgmo{display:none!important}';
+      // 视频层照旧挡掉（iframe 里一个 video 都不建，这条是防「旧缓存脚本 + 新样式」混搭时漏出来）。
+      // 2026-11-13：**动效层 .hx-bgmo 从这里移出去了**。原来它和视频一起被 display:none 关掉，
+      // 于是标准模式下的极光背景在子工具里是一张死图 —— 用户报的「打开标准模式，子工具里背景也不动」
+      // 一半是这条、另一半是 apply() 里根本没调 bgMotion()（两处一起修，缺一个都不动）。
+      + 'html.hx-embedded .hx-bgvid-wrap{display:none!important}';
     (document.head || document.documentElement).appendChild(st);
+
+    // ── 嵌入时的背景动效层样式（2026-11-13）─────────────────────────────
+    // 为什么要在 JS 里再写一份：.hx-bgmo / hx-bgmo-zoom 这几条规则住在 hx-theme.css，
+    // 而全站只有总入口和刷题引了那份 CSS —— 小组加分、排课、考试、单片机这些 iframe 里
+    // 拿不到它们，bgMotion() 把元素建出来也是个「没有样式、不占位、看不见」的空 div。
+    // 值必须和 hx-theme.css 里那一份逐字一致（同一套极光柔光、同一组周期），
+    // 否则同一个背景在 iframe 内外会是两种观感。两份同时存在时值相同，谁生效都一样。
+    var moSt = document.createElement('style');
+    moSt.id = 'hx-bgmo-style';
+    moSt.textContent =
+      '@keyframes hx-bgmo-zoom{from{transform:scale(1.06) translate3d(-.9%,.6%,0)}to{transform:scale(1.18) translate3d(1.1%,-.9%,0)}}'
+      // 只加 backface-visibility、**不写 transform**：写了 transform 会把 @keyframes 里的 transform
+      // 整个盖掉，动画当场压死（CSS 动画最常见的自杀写法，hx-theme.css 那边也是这么避开的）。
+      + 'html.hx-bg-mo body::before{animation:hx-bgmo-zoom 34s ease-in-out infinite alternate;'
+      + 'transform-origin:52% 46%;will-change:transform;-webkit-backface-visibility:hidden;backface-visibility:hidden}'
+      // z-index:-1 和 body::before 同层，靠 DOM 顺序压在壁纸之上、内容之下
+      + '.hx-bgmo{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden;opacity:var(--hx-bgo,1)}'
+      + '.hx-bgmo i{position:absolute;display:block;border-radius:50%;will-change:transform,opacity}'
+      + '.hx-bgmo i:first-child{width:84vmax;height:84vmax;left:-32vmax;top:-26vmax;'
+      + 'background:radial-gradient(closest-side,rgba(126,196,255,.34),rgba(96,156,240,.15) 56%,transparent 74%);'
+      + 'animation:hx-bgmo-a 24s ease-in-out infinite}'
+      + '.hx-bgmo i:last-child{width:70vmax;height:70vmax;right:-26vmax;bottom:-22vmax;'
+      + 'background:radial-gradient(closest-side,rgba(146,255,226,.26),rgba(108,220,196,.11) 56%,transparent 74%);'
+      + 'animation:hx-bgmo-b 32s ease-in-out infinite}'
+      + '@keyframes hx-bgmo-a{0%,100%{transform:translate3d(0,0,0) scale(1);opacity:.8}50%{transform:translate3d(17vmax,11vmax,0) scale(1.18);opacity:1}}'
+      + '@keyframes hx-bgmo-b{0%,100%{transform:translate3d(0,0,0) scale(1.1);opacity:.65}50%{transform:translate3d(-15vmax,-10vmax,0) scale(.92);opacity:1}}'
+      // 系统「减少动态效果」：不压成死图，只把周期拉长 3 倍，画面还在缓缓呼吸（和 hx-theme.css 一致）
+      + '@media (prefers-reduced-motion:reduce){html.hx-bg-mo body::before{animation-duration:102s}'
+      + '.hx-bgmo i:first-child{animation-duration:72s}.hx-bgmo i:last-child{animation-duration:96s}}';
+    (document.head || document.documentElement).appendChild(moSt);
+
+    // 脚本在 <head> 里跑，此刻 <body> 还没解析出来，bgMotion() 建不了动效层（它要 insertBefore 到 body）。
+    // 不补这一下也能成（load + 空闲后 bgVidReady 会再 apply 一次），但那之前首屏几秒是静的 ——
+    // 干脆 body 一出来就补，用户几乎看不到静的那一段。
+    if (document.readyState === 'loading') addEventListener('DOMContentLoaded', function () { try { apply(); } catch (e) { } });
   }
 
   // 动态背景（视频壁纸）那一层：样式必须全局注入 —— 全站只有总入口和刷题引了 hx-theme.css，
@@ -369,74 +413,109 @@
 
   function ls(k, v) { try { if (v === undefined) return localStorage.getItem(k); if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { if (v !== undefined && v !== null) throw e; } return null; }
   function jparse(raw) { try { var v = JSON.parse(raw); return v && typeof v === 'object' ? v : null; } catch (e) { return null; } }
-  function clamp01(n, d) { return Math.min(100, Math.max(0, isFinite(n) ? n : d)); }
-  // 当前界面的名字：总入口（没有 data-tool）= home，各工具 = data-tool 的值。
-  // 界面层设置（主题色 / 深浅 / 卡片通透度 / 背景清晰度）都存自己的键，互不干扰。
+  // 滑杆区间（2026-11-13 用户拍板「两端各扩 50%」）：两根滑杆都从 0~100 扩到 -50~150。
+  // 所以取值钳制范围同步扩到 -50~150；原来钳 0~100 会把 -50 和 150 都拍回 0/100，
+  // 用户拖到 120% / -30% 写进去又被读回来钳掉，表现为「上下限不够、拖了没反应」。
+  function clampRange(n, d) { return Math.min(150, Math.max(-50, isFinite(n) ? n : d)); }
+  // 当前界面的名字。VER 8 之后它只是对外的标识（HXTheme.surface / 日志用），
+  // 读设置时不再区分界面 —— 全站就一份外观（见下面 migrateGlobal）。
   var SURF = tool || 'home';
-  // ── 外观面板到底管哪一层（2026-11-06 修「点浅色/深色页面都不变」）──────────────
-  // 面板画在总入口上，可用户点它的时候，眼睛盯着的是 iframe 里的那个工具。
-  // 老写法里 set() 永远写 SKEY + SURF，而总入口的 SURF 恒为 'home' ——
-  // 于是点「浅色」只把 52px 顶栏换了颜色，下面整块工具页（自己的 hx-theme:s:jiafen）纹丝不动，
-  // 用户看到的就是「点了没反应」。所以：**面板跟着屏幕上真正显示的那一层走**。
-  //   · 工具自己的页面（含被嵌在首页 iframe 里的）：就是它自己，SURF；
-  //   · 总入口 + 地址栏带 #jiafen 这种工具路由：写那个工具的界面键（iframe 收到 storage 事件会自己刷）；
-  //   · 总入口 + 没开工具：home，和以前一模一样。
-  // 分层隔离不受影响，反而更准确：没开工具时改的仍然是 home，之后打开工具不会跟着变。
-  // 为什么要校验 hash 形状：总入口也会把 #signup=xxxx / #error_description=... 短暂写在地址栏，
-  // 那些不是工具名，落到它们头上就会写出一个永远不会被读到的设置键。
-  var HASH_TOOL = /^[A-Za-z0-9_-]{2,32}$/;
-  function paneSurf() {
-    if (tool || window.top !== window) return SURF;   // 工具页自己（顶层 / 被嵌）
-    var h = (location.hash || '').replace(/^#/, '');
-    return HASH_TOOL.test(h) ? h : 'home';
+  // ── 有哪些字段属于「外观」──────────────────────────────────────────────
+  // 只列这六个：acc 主题色 / mode 深浅 / bg 背景 / clr 卡片通透度 / bgo 背景清晰度 / wm 校徽水印。
+  // 为什么要有这么一张表：迁移和写入都只认这六个，老存档里的 wx（已删的像素动效）、op（旧滑杆语义）
+  // 之类不会再被抄进新存档，以后也不会因为「顺手 for in」把不相干的字段带进云端快照。
+  var GKEYS = ['acc', 'mode', 'bg', 'clr', 'bgo', 'wm'];
+
+  // ── VER 8 全局化迁移（2026-11-13）────────────────────────────────────
+  // 背景：VER 5/6 把外观拆成了「首页一把（hx-theme）+ 每个工具一把（hx-theme:s:<tool>）」，
+  // 用户现在要求「只存在一个主题控制 全局控制」，所以这六个字段全部收回 hx-theme 一把键。
+  // 于是升级时要做的唯一一件事：把散在各处的老存档合成一份。合并规则（顺序 = 优先级）：
+  //
+  //   ① 基准 = 旧全局键 hx-theme（首页那份）。字段最全，也最可能是用户最近一次动过的地方。
+  //   ② 基准里**没有**的字段，才去各 hx-theme:s:* 里补，取第一个有这个字段的值；
+  //      home 的界面键（hx-theme:s:home）排在最前 —— 那是外观面板在首页改出来的那一份，
+  //      比某个工具页的存档更接近「用户总的口味」，顺序也就固定下来（不随浏览器存储顺序漂）。
+  //      为什么一定要补：老首页存档里可能根本没有 clr / bgo（这两项一直只存在界面键里），
+  //      不补的话用户调过的通透度会在升级那一瞬间跳回默认，「他的设置被我弄丢了」。
+  //   ③ 水印 wm 是例外，**不从工具键继承**：工具页的 wm 旧默认就是 0（隐藏），
+  //      继承过来等于把「当年没开过」当成用户主动选了「关」，正好和这一版「水印默认显示」相反。
+  //      所以 wm 只认首页那份，首页没写过就落新默认 1。
+  //   ④ 「值还等于旧默认」的字段换成新默认（用户要「默认给全部用户使用」）：
+  //        acc 'green'（旧默认绿）→ 'mono'（用户要的白色主题色，深色下就是 #f5f5f7）
+  //      只迁这一条，而且**只在值等于旧默认时**迁。用户显式选过别颜色的原样保留 ——
+  //      无差别覆盖会把老师辛苦挑的配色和背景一起冲掉，那比「默认不统一」糟得多。
+  //   ⑤ 写回 hx-theme 并标 ver = 8。旧的 hx-theme:s:* **不删**（万一要回滚），但此后不再读。
+  //
+  // 幂等：迁完 ver = 8；下次进来在预检那一步就返回存档，不再合并、不再改值、也不再写盘。
+  // 内存缓存 migDone 在 prefApplyData（云端快照铺下来）和 storage 事件之后清掉 ——
+  // 云端存的可能是旧结构（hx-theme + hx-theme:s:* + hx-lite），不清缓存就吃不到那份合并。
+  var migDone = false, migVal = null;
+  function resetMig() { migDone = false; migVal = null; }
+  // 收集所有旧界面键（hx-theme:s:*），home 排最前，见规则 ②
+  function toolSnaps() {
+    var home = null, out = [];
+    try {
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i);
+        if (!k || k.indexOf(SKEY) !== 0) continue;
+        var v = jparse(localStorage.getItem(k));
+        if (!v) continue;
+        if (k === SKEY + 'home') home = v; else out.push(v);
+      }
+    } catch (e) { }
+    if (home) out.unshift(home);
+    return out;
   }
-  // surf 不传 = 屏幕上正在显示的那一层（面板画按钮高亮、apply 上色都用它）。
-  // 传值只在"要读别的界面"时用，目前没有这种调用点。
-  function get(surf) {
-    surf = surf || paneSurf();
-    var home = surf === 'home';
-    // ── 旧全局键（hx-theme）：首页的「背景 / 动效 / 水印」存档，也是各工具页的迁移来源 ──
-    var raw = ls(KEY), lg = raw && OLD[raw] ? OLD[raw] : jparse(raw);
-    lg = lg || {};
-    // 老存档（没有 ver）＝ 上这一版之前就存过外观的。统一换成新默认，做到「全体人员默认」；
-    // 只有自己上传过图的例外——那是明确主动的行为，别覆盖掉。想换背景在外观面板点即可。
-    if (raw && !lg.ver && lg.bg !== 'custom') lg.bg = DEF.bg;
-    // VER 7 迁移（2026-11-11）：默认背景从 aurora（动态极光视频）改成 none（纯深色底）。
-    // 用户原话「极光背景改…用深色总默认 无背景 可以选极光 加入选择不强制」。
-    // 只管「还停在上一版默认 aurora、自己从没主动改过背景」的存档 —— 也就是 ver 是 6 或更早、
-    // 且 bg 正好是 aurora 的那批（那批人的 aurora 多半是 VER 4 迁移替他们选的，不是本人点的）。
-    // 显式选过 none / custom / 别的背景的一律不动；已经升到 VER 7 之后自己选的 aurora 也不动。
-    if ((+lg.ver || 0) < 7 && lg.bg === 'aurora') lg.bg = 'none';
-    // VER 4 迁移（2026-11-04 深夜）：背景项只剩 无/极光动态/自己的图。
-    if (!BG[lg.bg]) lg.bg = DEF.bg;
-    // ── 本界面自己的存档（hx-theme:s:<界面>）────────────────────────────
-    // 键存在即权威：七个字段（主题色/深浅/通透度/清晰度/背景/动效/水印）里**有的**一律用自己的；
-    // 没有的字段继承旧全局键 —— 工具页第一次打开观感和从前一致，之后改哪个页面就只写哪个页面的键。
-    var sv = jparse(ls(SKEY + surf)), own = !!sv;
-    if (!own) sv = {};
-    // 字段来源：自己的存档优先；没有就翻旧全局键（首页本来就用它，工具页第一次打开继承它）。
-    // 七个字段统一走 src()：**存了哪个字段就看哪个，没存的字段继承旧值**——
-    // 不能因为「这个界面已经有过一次改动」（比如只改过背景）就把没改过的字段打成默认值，
-    // 那样改背景的一瞬间主题色/深浅会突兀地跳回默认（2026-11-08 修）。
-    function src(k) { return own && sv[k] !== undefined ? sv[k] : lg[k]; }
+  // 只补「基准没有的」字段：不能覆盖基准已有的值，否则基准就白当了
+  function fill(dst, src, skipWm) {
+    for (var i = 0; i < GKEYS.length; i++) {
+      var k = GKEYS[i];
+      if (skipWm && k === 'wm') continue;
+      if (dst[k] === undefined && src[k] !== undefined) dst[k] = src[k];
+    }
+    return dst;
+  }
+  function migrateGlobal() {
+    if (migDone) return migVal;
+    migDone = true; migVal = null;
+    var raw = ls(KEY), base = null, snaps = toolSnaps();
+    // 极老的存档是 'day' / 'night' 这样的主题名（见 OLD 表），不是 JSON
+    if (raw && OLD[raw]) base = { acc: OLD[raw].acc, mode: OLD[raw].mode };
+    else if (raw) base = jparse(raw);
+    // 已经是 VER 8 的结构：原样用，一个字节都不改（这就是幂等的落点）
+    if (base && (+base.ver || 0) >= VER) { migVal = base; return base; }
+    // 全新用户（既没有全局键也没有任何界面键）：什么都不写，get() 直接落默认值。
+    // 不写盘的好处是「没动过外观的人」localStorage 里干干净净，以后改默认也不会被旧快照挡住。
+    if (!base && !snaps.length) return null;
+    if (!base) base = {};
+    // 下面两条是 VER 7 之前写在 get() 里的老迁移，现在一次性落进存档，省得每次读都算
+    if (raw && !base.ver && base.bg !== 'custom') base.bg = DEF.bg;
+    if ((+base.ver || 0) < 7 && base.bg === 'aurora') base.bg = 'none';
+    if (!BG[base.bg]) delete base.bg;          // 已下架的背景（bear/cat/…）：让工具键有机会补一个合法值
+    for (var i = 0; i < snaps.length; i++) fill(base, snaps[i], true);
+    if (base.acc === 'green') base.acc = DEF.acc; // 规则 ④：只迁「还是旧默认绿」的
+    if (base.wm === undefined) base.wm = DEF.wm;  // 规则 ③：没关过 = 显示
+    var out = { ver: VER }, j;
+    for (j = 0; j < GKEYS.length; j++) if (base[GKEYS[j]] !== undefined) out[GKEYS[j]] = base[GKEYS[j]];
+    try { ls(KEY, JSON.stringify(out)); } catch (e) { }   // 无痕模式 / 配额满：迁不动也不该让页面崩
+    migVal = out;
+    return out;
+  }
+  // 外观就一份：get() 不再分界面，谁调、在哪个页面调，拿到的都是同一套。
+  function get() {
+    var g = migrateGlobal() || {};
     var s = {
-      bg: BG[src('bg')] ? src('bg') : DEF.bg,
-      // 校徽水印：只认显式写过的 0/1（老存档里可能没有这个字段）。没写过的：
-      // 首页默认开、工具页默认关 —— 用户的定稿是「首页有校徽，工具页干净」。
-      wm: (function () {
-        var w = src('wm');
-        if (w === 0 || w === '0' || w === false) return 0;
-        if (w === 1 || w === '1' || w === true) return 1;
-        return home ? 1 : 0;
-      })(),
-      acc: ACC[src('acc')] ? src('acc') : DEF.acc,
+      bg: BG[g.bg] ? g.bg : DEF.bg,
+      // 校徽水印：只认显式写过的「关」，其余一律开（本版默认显示，用户要水印显示）。
+      wm: (g.wm === 0 || g.wm === '0' || g.wm === false) ? 0 : 1,
+      acc: ACC[g.acc] ? g.acc : DEF.acc,
       // 深浅（2026-11-11 起没有 auto 档）：老存档里存的 'auto' 不再跟系统跑，一律落成默认深色
       //   （用户原话「主题自动…不需要给用户切换，默认深色主题」）；非法值同样落默认。
-      mode: /^(light|dark)$/.test(src('mode')) ? src('mode') : DEF.mode,
+      mode: /^(light|dark)$/.test(g.mode) ? g.mode : DEF.mode,
       // 卡片通透度（2026-11-05 翻转语义）：100 = 最透（清透玻璃、背景透出来，默认），0 = 最实。
-      clr: clamp01(+src('clr'), DEF.clr),
+      clr: clampRange(+g.clr, DEF.clr),
       // 背景清晰度：100 = 原样显示（最清楚），0 = 背景几乎看不见、只剩页面底色。
-      bgo: clamp01(+src('bgo'), 100)
+      bgo: clampRange(+g.bgo, DEF.bgo)
     };
     if (s.bg === 'custom' && !ls(IMG)) s.bg = DEF.bg;
     if (BG[s.bg].dev && !isDev()) s.bg = 'none'; // 开发者专属背景：别的账号（或没登录）回落到无背景
@@ -808,19 +887,19 @@
   })();
 
   function apply() {
-    // get() 不带参数 = 取「屏幕上正在显示的那一层」：总入口开着工具时就是那个工具，
-    // 于是顶栏/地址栏主题色和工具页同一套，不会出现「上面深色条、下面浅色页」的拼接感。
-    // 关掉工具回首页时 paneRefresh() 会再 apply 一次，顶栏自动换回首页自己的设置。
+    // get() 现在读的是全站唯一一份外观（VER 8）：顶栏、首页、工具页、工具 iframe 天生同一套，
+    // 不会再有「上面深色条、下面浅色页」或者「首页换了颜色、工具里还是老的」这种拼接感。
     var s = get(), m = modeOf(s), a = ACC[s.acc], r = document.documentElement, b = BG[s.bg];
-    // 嵌在总入口 iframe 里的工具：背景由总入口统一画，自己不再画背景层（见文件开头 hx-embedded 那段）。
+    // 嵌在总入口 iframe 里的工具：不建视频层（见下面分支），背景靠 body::before 自己铺一遍。
     var embedded = !!(tool && window.top !== window);
     var c = m === 'dark' ? a.d : a.l, c2 = m === 'dark' ? a.d2 : a.l2;
     r.setAttribute('data-hx-mode', m); r.setAttribute('data-theme', m); r.setAttribute('data-hx-acc', s.acc);
     r.classList.toggle('hx-bg', s.bg !== 'none');
-    r.classList.toggle('hx-wm-off', !s.wm);   // 校徽水印开关（每界面独立：首页默认开、工具页默认关）
-    // 页面层开关（VER 6）：有背景可看时才把 body 放透明、铺页面底色；
+    r.classList.toggle('hx-wm-off', !s.wm);   // 校徽水印开关（VER 8：全站一份，默认显示）
+    // 页面层开关：有背景可看时才把 body 放透明、铺页面底色；
     // 背景是「无」时不挂 —— 页面保持自己原来的底色，就是用户要的干净纯色背景。
-    // 嵌入时不挂：body::before 这一层背景由总入口透上来，挂了自己又画一遍 = 双重背景。
+    // 嵌入时不挂：iframe 里的背景由 hx-embedded 那套规则自己铺（见文件上方），
+    // 两边都铺就是双背景，而且 .hx-layer 的 scrim 会和嵌入那条叠成两层灰。
     r.classList.toggle('hx-layer', !embedded && s.bg !== 'none');
     // 视频壁纸：图层面自己播。--hx-img 给海报帧而不是 'none'：
     //   · 视频解码好之前 body::before 先铺海报，避免黑屏闪一下；
@@ -845,13 +924,19 @@
     // --hx-a：玻璃浓度乘数（各条玻璃配方的 alpha 都乘它）。
     // 2026-11-05 随通透度滑杆翻转语义：100（最透）= 1，正好是 2026-11-04 定稿的那套清透玻璃；
     // 往下调卡片变实：0 = 2，各配方 alpha × 2 后被浏览器钳到 1，整卡变成实色（保可读的兜底端）。
+    // 2026-11-13 滑杆扩到 -50~150：这个线性式自然覆盖两端 —— 150 → 0.5（更透），-50 → 2.5（更实）。
+    // 不必再单独钳 hx_a：极透端 alpha 变小本就无害，极实端被浏览器钳到 1 正是「实色卡」兜底。
     var hx_a = s.bg === 'none' ? 1 : 1 + (100 - s.clr) / 100;
-    // ── 背景清晰度（bgo）滑杆：0～100 直映到 0～1 的不透明度，两端真实可到 ──
+    // ── 背景清晰度（bgo）滑杆：直映到背景层不透明度 ──
     // 2026-11-08 修用户报障「拉满还是浅浅雾蒙蒙 / 透明度没有真实到 0-100」：
     // 原来浅色整体压到 14%，滑杆拉满也只有 14% —— 现在两个模式都是 100% = 原样、0% = 几乎全无。
-    var bgo = s.bgo / 100;
+    // 2026-11-13 滑杆扩到 -50~150：150% 再往上没有意义（「原样」就是 1.0，封顶），
+    // 所以这里 clamp 到 0~1，别让 150% 变成 1.5 的不透明度。清晰度往右到 150 只是「把 scrim 压到 0 之外
+    // 还稍微提亮」，观感靠 scrim 那支体现（见下），bgo 本体封顶 1.0。
+    var bgo = Math.min(1, Math.max(0, s.bgo / 100));
     // 深色 scrim（壁纸太亮时压暗）随 bgo 一起收：bgo=100 时 scrim=0，背景原图直出、不再蒙灰。
-    var scrim = m === 'dark' ? (1 - bgo) * 0.38 : 0;
+    // 150% 时 (1-bgo) 已经是负值，clamp 到 0 —— 清晰度拉满就是「一点灰都不蒙」，不会出现负 scrim 反白。
+    var scrim = m === 'dark' ? Math.max(0, (1 - bgo) * 0.38) : 0;
     var vars = { '--acc': c, '--acc2': c2, '--acc3': c2, '--acc-h': c2, '--on-acc': s.acc === 'mono' && m === 'dark' ? '#1d1d1f' : '#fff',
       '--accbg': 'color-mix(in srgb, ' + c + ' 14%, transparent)', '--ring': 'color-mix(in srgb, ' + c + ' 40%, transparent)',
       '--hov': 'color-mix(in srgb, ' + c + ' 10%, transparent)', '--hx-a': hx_a, '--hx-img': img, '--hx-bgo': bgo, '--hx-scrim': scrim,
@@ -860,35 +945,40 @@
       '--hx-page': m === 'dark' ? '#000' : '#f5f5f7' };
     for (var k in vars) r.style.setProperty(k, vars[k]);
     r.classList.remove('hx-bgblur'); // 旧版挂的「预糊图」标记，现在没有任何样式依赖它，清掉防止老缓存残留
-    // 嵌入的工具不建自己的视频/极光层（背景由总入口透上来），只把 --hx-img 传下去供工具判断画布是否半透明。
+    // 嵌入的工具不建自己的视频（一个 iframe 一份 mp4，几个工具同时开就炸）。
+    // 但**背景得动**（2026-11-13 修用户报障「标准模式下，极光背景在子工具里不动」）：
+    // 用同一套 CSS 合成动画（bgMotion → .hx-bgmo 两层柔光 + body::before 的 ken burns）顶上，
+    // 成本只有 transform / opacity 两个合成器属性，比视频便宜一个数量级。
     if (!embedded) {
       bgVideo(isVid ? b.video : null, isVid ? b.poster : null, isVid && b.mirror);
       // 海报帧兜底时（手机 / 窄屏）补一层 CSS 合成动画，不然手机上的背景是一张不动的静图。
       // 只认「视频壁纸被降级」这一种：普通图片壁纸、纯色背景保持原样，不动用户选好的画面。
       bgMotion(vidStill && !!b.video);
+    } else {
+      // 嵌入时只有两个条件同时成立才挂动效：
+      //   · 选的是动态壁纸（有 video 的那档，目前就是极光）；
+      //   · 深色。浅色嵌入页本来就不铺壁纸（见文件上方 hx-embedded 那段：浅色让工具铺自己的浅底），
+      //     忽然多出两团极光等于改了它原本的样子 —— 不做没被要求的改动。
+      // 极简模式（hx-lite）照旧一票否决，判在 bgMotion 里面：极简下所有发热耗电的内容都舍弃。
+      bgMotion(m === 'dark' && isVid && !!b.video);
     }
     var meta = document.querySelector('meta[name="theme-color"]'); if (meta) meta.setAttribute('content', m === 'dark' ? '#000000' : '#f5f5f7');
     try { ls('zfz-practice-theme', m); ls('wanxiu-paike-theme', m); ls('ui.theme', JSON.stringify(m)); } catch (e) { }
     for (var i = 0; i < subs.length; i++) try { subs[i](s, m); } catch (e) { }
   }
-  // set(patch)：按字段落键（VER 6）。acc / mode / clr / bgo → 界面上正在显示的那一层；
-  // bg / wm：工具页 → 写进它自己的键；首页 → 仍写旧全局键 hx-theme
-  //（它也是别的工具页第一次打开时的继承来源）。
-  // 换背景时不再自动改卡片透明度（老版会把 op 拉到该背景的「推荐值」）：通透度是界面自己的设置，不该被背景顺手改掉。
+  // set(patch)：改外观 = 改**那唯一一份**全局设置（VER 8）。
+  // 起点必须是「迁移之后的当前值」而不是原始存档：用户第一次改设置的这一下，顺手就把散在
+  // hx-theme:s:* 里的老设置合并进来了，不会出现「在首页改了个主题色，工具页里那份又被丢下没迁」。
+  // 换背景时不再自动改卡片通透度（老版会把 op 拉到该背景的「推荐值」）：通透度是用户自己的设置。
   function set(patch) {
-    var surf = paneSurf(), home = surf === 'home';
-    var g = jparse(ls(KEY)) || {}, o = jparse(ls(SKEY + surf)) || {}, hitG = false, hitO = false;
-    for (var k in patch) {
-      if (k === 'bg' || k === 'wm') {
-        if (home) { g[k] = patch[k]; hitG = true; }   // 首页：背景/水印继续住在旧全局键里
-        else { o[k] = patch[k]; hitO = true; }        // 工具页：写自己的键，从此和首页、和别的工具脱钩
-      }
-      else if (k === 'acc' || k === 'mode' || k === 'clr' || k === 'bgo') { o[k] = patch[k]; hitO = true; }
-    }
-    if (hitG) { g.ver = VER; try { ls(KEY, JSON.stringify(g)); } catch (e) { } }
-    // 写到别的界面（总入口开着工具）时，那一页是**另一个文档**：它靠 storage 事件自己刷，
-    // 本页的 apply() 只是把面板重画一遍（get() 读的也是那一层，按钮高亮才对得上）。
-    if (hitO) { o.ver = VER; try { ls(SKEY + surf, JSON.stringify(o)); } catch (e) { } }
+    var g = migrateGlobal() || {}, n = {}, i, k;
+    for (i = 0; i < GKEYS.length; i++) { k = GKEYS[i]; if (g[k] !== undefined) n[k] = g[k]; }
+    // 只收 GKEYS 里的字段：老调用点万一还传了 wx / op 这类字段，别让它们再进存档
+    for (k in patch) if (Object.prototype.hasOwnProperty.call(patch, k) && GKEYS.indexOf(k) >= 0) n[k] = patch[k];
+    n.ver = VER;
+    try { ls(KEY, JSON.stringify(n)); } catch (e) { }
+    // 缓存必须作废：下一次 get() 要读刚写下去的这份（否则同一次会话里读到的是改之前的值）
+    resetMig();
     apply();
     prefPush();   // 外观改了 → 防抖推一份到账号（没登录时它是空操作）
   }
@@ -1058,8 +1148,9 @@
   /* ── 外观设置跟账号走（2026-11-11 用户要求）─────────────────────────────────
      用户原话：「用户更改设置一定是跟着用户账号绑定到带走的，包括主题背景，不能被别人账号覆盖」。
      要做到三件事：
-       ① 换设备 / 换浏览器，只要登同一个账号，外观（主题色 / 深浅 / 背景 / 动效 / 水印 /
-          两根滑杆 / 极简-标准模式，以及每个工具页各自那一份）都得跟着回来；
+       ① 换设备 / 换浏览器，只要登同一个账号，外观（主题色 / 深浅 / 背景 / 水印 /
+          两根滑杆 / 极简-标准模式）都得跟着回来。VER 8 起外观只有一份，所以这里存的
+          就是那一份；老的「每个工具页各自一份」只在铺下来时被迁移读一次（见 prefApplyData）；
        ② 同一台机器上换个人登录，看到的必须是**他自己**的外观，不能是上一个人改的；
        ③ 谁的设置都改不到别人头上 —— 这条由数据库兜底（表 public.hx_pref 的 RLS 只认本人，
           行主键 owner = auth.uid()，A 在物理上就写不到 B 那一行）。
@@ -1100,7 +1191,11 @@
       return s.access_token ? String(jwtSub(s.access_token) || '') : '';
     } catch (e) { return ''; }
   }
-  // 快照要收哪些键：首页的全局外观键、各界面自己的键、极简模式开关。
+  // 快照要收哪些键：全局外观键 hx-theme、极简模式开关 hx-lite。
+  // 还收旧的 hx-theme:s:* —— 两个原因：
+  //   ① 云端老用户的快照里存的就是那套结构，铺下来之后要能被 VER 8 的迁移吃一遍（见下面 prefApplyData）；
+  //   ② 铺快照前要把这些旧键清干净，不然「换个账号」时上一个人的分键存档会留在机器上，
+  //      被迁移当成基准去补字段。
   // 不收 hx-theme-img / hx-theme-imgs（图片本体走 hx_bg）、不收 hx-dev（服务端算出来的身份）。
   function prefKeys() {
     var out = [];
@@ -1120,6 +1215,11 @@
   function prefApplyData(d) {
     try { prefKeys().forEach(function (k) { localStorage.removeItem(k); }); } catch (e) { }
     if (d) for (var k in d) if (Object.prototype.hasOwnProperty.call(d, k)) { try { localStorage.setItem(k, d[k]); } catch (e) { } }
+    // 云端存的可能是**旧结构**（hx-theme + hx-theme:s:* + hx-lite，VER 7 及以前推上去的）。
+    // 铺下来之后必须让迁移重跑一遍：否则老用户一登录，hx-theme 里还是分键时代的残缺存档
+    // （常常只有 bg / wm / ver），主题色和两根滑杆会当场落回默认 —— 用户看到的就是「一登录外观全没了」。
+    // 迁移是幂等的，这里多调一次没有任何副作用；新结构的快照（ver=8）进迁移会直接原样返回。
+    resetMig();
   }
   function prefOwner() { try { return localStorage.getItem(POWN) || ''; } catch (e) { return ''; } }
   function setPrefOwner(u) { try { if (u) localStorage.setItem(POWN, u); else localStorage.removeItem(POWN); } catch (e) { } }
@@ -1200,31 +1300,38 @@
       im.src = url;
     });
   }
-  // 恢复默认：清**本界面**的设置，不动相册 —— 用户点「恢复默认」是想回到出厂样子，
-  // 不是想把辛苦攒的几张背景一起删了。要删单张去相册里点 ×。
-  // 首页：连旧全局键一起清（背景/动效/水印住在那把键里），上传的当前图也一并清；
-  // 工具页：**只写一份全默认的存档覆盖自己**（并且从此不再继承首页的任何值），
-  // 旧全局键和首页的图都别碰 —— 在工具页点恢复默认把首页的背景一起抹掉是事故（2026-11-08 修）。
+  // 恢复默认：外观是全站一份（VER 8），所以「恢复默认」= 把这一份写成出厂值，全站一起回到默认。
+  // 为什么不直接删 hx-theme：删掉之后迁移会认为「这把键从没存在过」，转头又把旧的 hx-theme:s:*
+  // 合并进来 —— 用户会看到「点了恢复默认，过了一会儿又是原来那套」。写一份 ver=VER 的完整出厂值，
+  // 迁移就地认为「已经迁过」，旧界面键再也进不来。
+  // 相册（hx-theme-imgs）和当前这张（hx-theme-img）都不动：用户攒的/传的背景图是资产，不是设置；
+  // 要删去相册里点 ×。2026-11-13 用户拍板「恢复默认不能删上传的背景图」—— 所以这里只把 bg 置回
+  // none（DEF.bg），绝不清 IMG / IMGS，恢复默认后想切回来，图还在。
   function reset() {
-    var surf = paneSurf();
-    if (surf === 'home') { ls(KEY, null); ls(IMG, null); ls(SKEY + surf, null); }
-    else { try { ls(SKEY + surf, JSON.stringify({ ver: VER, acc: DEF.acc, mode: DEF.mode, clr: DEF.clr, bgo: 100, bg: DEF.bg, wm: 0 })); } catch (e) { } }
+    var d = { ver: VER, acc: DEF.acc, mode: DEF.mode, bg: DEF.bg, clr: DEF.clr, bgo: DEF.bgo, wm: DEF.wm };
+    try { ls(KEY, JSON.stringify(d)); } catch (e) { }
+    resetMig();
     apply();
   }
-  // storage 事件（VER 6）：
-  //   · 本界面的键（自己的存档）变了 → 刷；总入口正开着的那个工具的键变了也刷（顶栏要跟着 iframe 一致）；
-  //   · 旧全局键变了：首页跟着刷（背景/动效/水印就住在那把键里）；工具页**只有还没有自己的存档**
-  //     （正在继承旧值）时才跟——一旦有了自己的存档就再也不看它，这才是「相互独立」的根；
-  //   · 上传图 / 开发者标变了照旧刷。
+  // storage 事件（VER 8）：外观只剩一把键 hx-theme，谁改了都刷 —— 包括嵌在总入口 iframe 里的工具，
+  // 于是「在总入口改主题，工具里当场跟着变」，这才是用户要的「全局控制」。
+  // 还听三类：上传的图（IMG）、开发者标（DEV）、以及 clear()（key === null，迁移动缓存要作废）；
+  // 外加旧的 hx-theme:s:* —— 同网站还开着别的标签页跑旧版脚本、或者云端把老快照铺下来时，
+  // 这里要跟着重新迁一次，不能让老键悄悄失效。
   addEventListener('storage', function (e) {
-    if (e.key === SKEY + SURF || e.key === SKEY + paneSurf() || e.key === IMG || e.key === DEV || e.key === null) { apply(); return; }
-    if (e.key === KEY && (SURF === 'home' || !jparse(ls(SKEY + SURF)))) apply();
+    // 极简 / 标准开关（hx-lite）在别的页面被改：本页（含 iframe）必须当场换档。
+    // 不换的话总入口点了「标准模式」，iframe 里还挂着 html.hx-lite，背景动效被一票否决 ——
+    // 用户看到的就是「我开了标准模式，子工具里背景还是不动」。
+    if (e.key === 'hx-lite') {
+      try { document.documentElement.classList.toggle('hx-lite', liteOn()); } catch (er) { }
+      apply(); return;
+    }
+    if (e.key === KEY || e.key === IMG || e.key === DEV || e.key === null
+        || (e.key && e.key.indexOf(SKEY) === 0)) { resetMig(); apply(); }
   });
-  // 总入口换工具（#jiafen ↔ 首页）时，面板要改的那一层跟着换：重画面板（get() 读 paneSurf）。
-  // popstate 和 hashchange 都挂：Safari 上前进/后退不一定两个都发，宁可多调一次 —— apply() 是幂等的。
-  var lastPane = paneSurf();
-  function paneRefresh() { var n = paneSurf(); if (n === lastPane) return; lastPane = n; apply(); }
-  addEventListener('hashchange', paneRefresh); addEventListener('popstate', paneRefresh);
+  // 换工具（#jiafen ↔ 首页）时不用再重算了：外观是全局一份，顶栏和 iframe 本来就同一套颜色。
+  // 保留 apply() 这两条监听只是为了让「地址栏变化后重新量一次」这种幂等动作有个落点，不会改观感。
+  addEventListener('hashchange', function () { apply(); }); addEventListener('popstate', function () { apply(); });
   if (dark) (dark.addEventListener ? dark.addEventListener('change', apply) : dark.addListener(apply));
   // 总入口（同源的上层页面）：子工具要登录时请它弹登录窗口；不在框里就跳回首页
   function portal() { try { return window.top !== window && window.top.HXPortal ? window.top.HXPortal : null; } catch (e) { return null; } }

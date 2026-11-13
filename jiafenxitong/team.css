@@ -266,3 +266,26 @@ body.me-dragging { cursor: grabbing; -webkit-user-select: none; user-select: non
 @media (min-width: 900px) { .desks.style-grid { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); } }
 .desks.style-grid .tcard { padding: 8px 9px; gap: 5px; border-radius: 14px; }
 .desks.style-grid .tc-seat { font-size: 10.5px; padding: 0 6px; }
+
+/* ============================================================
+   只读态（2026-11-13）：老师点了「确认分组」→ 这一屏是最终结果，不能再动
+   body.gb-readonly 由 team.js 的 render() 按状态挂上/摘掉（open 时没有这个类）。
+   为什么用 body 级的一个开关：能点的暗示散落在 .gb-group（点组）、.gb-pending（拖回）、
+   .gb-me-card（拖我）好几处，逐个加类容易漏；一个开关统一压掉最稳。
+   touch-action 尤其关键 —— .gb-me-card 本来是 touch-action:none（为了拖动），
+   只读时若不还原，手指按在「我」那张卡上往下划会划不动整页。
+   ============================================================ */
+body.gb-readonly .gb-group,
+body.gb-readonly .gb-pending,
+body.gb-readonly .gb-chip,
+body.gb-readonly .gb-me-card { cursor: default; }
+/* roster-board.css 给所有 .gb-chip 都写了 cursor:grab + touch-action:none（教师端拖人要用），
+   学生端只读时必须还原，否则手指按在任何人那张卡上都划不动页面 */
+body.gb-readonly .gb-chip { touch-action: auto; }
+/* 组卡片不再有 hover 抬起（那是「点我」的暗示，点下去又没反应，最恼人） */
+body.gb-readonly .gb-group:hover { transform: none; }
+/* 空位在只读态只是占位，压暗一档别抢眼 */
+body.gb-readonly .gb-chip.empty { opacity: .4; }
+
+/* 只读提示条：左边一条绿边，和「读取失败」那类提示区分开（内容是定稿，不是错误） */
+.notice.final { border-left: 3px solid var(--ok); }

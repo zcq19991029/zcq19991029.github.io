@@ -1682,8 +1682,8 @@ function lock(on) {
   if (!el) { el = document.createElement('div'); el.id = 'hxLock'; document.body.appendChild(el); }
   el.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center;background:var(--card,#f5f5f7);color:var(--ink,#1d1d1f);font-size:16px';
   el.innerHTML = hx.signedIn()
-    ? '<b style="font-size:20px">这个账号还没开通</b><a href="https://zcq19991029.github.io/" target="_top" style="padding:10px 22px;border-radius:999px;background:#0a84ff;color:#fff;text-decoration:none">填写邀请码开通</a>'
-    : '<b style="font-size:20px">先登录才能刷题</b><span style="color:#666">没登录的人不能用任何工具</span><a href="https://zcq19991029.github.io/" target="_top" style="padding:10px 22px;border-radius:999px;background:#0a84ff;color:#fff;text-decoration:none">去首页登录</a>';
+    ? '<b style="font-size:20px">这个账号还没开通</b><a href="https://zcq19991029.github.io/" target="_top" style="padding:10px 22px;border-radius:999px;background:var(--acc,#0a84ff);color:var(--on-acc,#fff);text-decoration:none">填写邀请码开通</a>'
+    : '<b style="font-size:20px">先登录才能刷题</b><span style="color:var(--dim,#6e6e73)">没登录的人不能用任何工具</span><a href="https://zcq19991029.github.io/" target="_top" style="padding:10px 22px;border-radius:999px;background:var(--acc,#0a84ff);color:var(--on-acc,#fff);text-decoration:none">去首页登录</a>';
   return true;
 }
 async function boot() {

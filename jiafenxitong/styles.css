@@ -18,12 +18,17 @@
   --muted: #83848a;
   --faint: #abacb3;
 
-  --accent: #e8232e;
-  --accent-hi: #ef3b45;
-  --accent-strong: #c81d27;
-  --accent-bg: #fdecec;
-  --accent-line: #f6c9cb;
-  --accent-glow: rgba(232, 35, 46, .22);
+  /* 主题色系（2026-11-13 收口）：不再写死品牌红，全部由 hx-theme.js 写在 :root 的 --acc 派生。
+     文件最末尾还有一段「主题色收口」，那一段权重更高、位置更后，屏幕上真正生效的是它；
+     这里保留一份同样的派生式，是为了「hx-theme.js 没加载（打印 / 离线单文件）」时也不至于变成无主色。
+     为什么不在各处直接写 var(--acc)：全文件 130+ 处都在用 --accent 这一套命名，
+     在 token 层派生成一整套，等于一次改全站，也避免每处都要记得配 --on-acc。 */
+  --accent: var(--acc, #2f845a);
+  --accent-hi: color-mix(in srgb, var(--acc, #2f845a) 78%, #fff);
+  --accent-strong: color-mix(in srgb, var(--acc, #2f845a) 82%, #000);
+  --accent-bg: var(--accbg, color-mix(in srgb, var(--acc, #2f845a) 14%, transparent));
+  --accent-line: color-mix(in srgb, var(--acc, #2f845a) 36%, transparent);
+  --accent-glow: var(--ring, color-mix(in srgb, var(--acc, #2f845a) 40%, transparent));
 
   --vip: #b6811f;
   --vip-bg: #fff3d6;
@@ -1170,12 +1175,14 @@ dialog::backdrop {
     --faint: #999793;
     --line: var(--cds-border-subtle);
     --line-strong: var(--cds-border-card);
+    /* 品牌色一律走 --cds-clay，而 --cds-clay 已在末尾「主题色收口」里指向 --accent；
+       原来这三行把浅色/描边/光晕按陶土橙写死，导致 CDS 层一覆盖就跟主题色脱钩。 */
     --accent: var(--cds-clay);
-    --accent-hi: var(--cds-clay);
+    --accent-hi: color-mix(in srgb, var(--cds-clay) 78%, #fff);
     --accent-strong: var(--cds-clay-hover);
     --accent-bg: var(--cds-clay-soft);
-    --accent-line: rgba(217,119,87,.24);
-    --accent-glow: rgba(217,119,87,.12);
+    --accent-line: color-mix(in srgb, var(--cds-clay) 36%, transparent);
+    --accent-glow: color-mix(in srgb, var(--cds-clay) 40%, transparent);
     --radius: 10px;
     --radius-lg: 16px;
     --radius-sm: 8px;
@@ -1956,8 +1963,13 @@ table.sheet.sheet-vertical thead th {vertical-align:middle!important;padding:6px
 /* ---------- 华夏工具外观：主色、背景图跟首页“外观”走（hx-theme.js 设置 html 上的变量）。
    记分表是纸质表的颜色，保持浅色，不跟深色模式。 ---------- */
 html[data-hx-acc] {
-  --bg: #f5f5f7; --accent: var(--acc); --accent-hi: var(--acc-h); --accent-strong: var(--acc-h); --accent-bg: var(--accbg); --accent-line: var(--ring); --accent-glow: var(--ring);
-  --cds-clay: var(--acc); --cds-clay-hover: var(--acc-h); --cds-clay-soft: var(--accbg);
+  --bg: #f5f5f7;
+  /* --acc-h 是「次要色」，跟 --acc 几乎同色，直接拿它当渐变顶会让按钮压成一个平色；
+     所以改成用 color-mix 提亮/压深，保住主按钮的层次。 */
+  --accent: var(--acc); --accent-hi: color-mix(in srgb, var(--acc) 78%, #fff);
+  --accent-strong: color-mix(in srgb, var(--acc) 82%, #000);
+  --accent-bg: var(--accbg); --accent-line: var(--ring); --accent-glow: var(--ring);
+  --cds-clay: var(--acc); --cds-clay-hover: var(--accent-strong); --cds-clay-soft: var(--accbg);
 }
 html[data-hx-acc] body::after { background-image: none; }
 html.hx-bg body::after { background: linear-gradient(rgb(245 245 247 / calc(var(--hx-a, .9) * .7)), rgb(245 245 247 / calc(var(--hx-a, .9) * .7))), var(--hx-img) center / cover no-repeat; }
@@ -2510,12 +2522,15 @@ html.hx-bg body::before { display: none; }
   --muted: #9fb0d4;
   --faint: #7183a8;
 
-  --accent: #43d6c4;
-  --accent-hi: #74e8d8;
-  --accent-strong: #2fb7a7;
-  --accent-bg: rgba(67, 214, 196, .13);
-  --accent-line: rgba(67, 214, 196, .34);
-  --accent-glow: rgba(67, 214, 196, .25);
+  /* 深色下品牌色同样由 --acc 派生（深色用的是 hx-theme 的 d 档亮色，天然更亮，不用再手动调）。
+     原来这六行写死青绿 #43d6c4：这条选择器权重 0,2,0，会压掉上面 html[data-hx-acc]（0,1,1）
+     的「跟随 --acc」，于是夜览下不管选什么主题色，按钮永远青绿 —— 用户反馈的一半就在这。 */
+  --accent: var(--acc, #3ec383);
+  --accent-hi: color-mix(in srgb, var(--acc, #3ec383) 78%, #fff);
+  --accent-strong: color-mix(in srgb, var(--acc, #3ec383) 82%, #000);
+  --accent-bg: var(--accbg, color-mix(in srgb, var(--acc, #3ec383) 14%, transparent));
+  --accent-line: color-mix(in srgb, var(--acc, #3ec383) 36%, transparent);
+  --accent-glow: var(--ring, color-mix(in srgb, var(--acc, #3ec383) 40%, transparent));
 
   --vip: #f2c76b;
   --vip-bg: rgba(242, 199, 107, .13);

@@ -1813,35 +1813,34 @@ function restoreDroppedToHome(cls) {
 
   /** 值日缺勤（2026-11-12 R1 合并口径）：
       这一格就是原来「干净又卫生」那一列改名而来 —— 整学期只有一个 5 分项目（=100%），
-      每节课都显示这个学期值；值日组缺勤时点一下「每人 −20%」，全组每人同扣一档（团队绑定），
+      值日组缺勤时点一下「每人 −20%」，全组每人同扣一档（团队绑定），
       扣分按次叠加（第二次轮到值日再缺勤还能再扣），最低 0%（5 档）。
-      非值日组照样显示学期值，只是没有扣分按钮（用户：老师只需考察当天该值日的组）。 */
+      2026-11-13：显示层只给本节值日组，学期值仍由这里算（登分册、成绩明细、打印都还在用）。 */
   function dutyPctText(lessons, gno) {
     var A = window.JFDT_ASSESSMENT;
     return pctText((A ? A.dutyScore(lessons, gno) : 5) / 5 * 100);
   }
-  /* 值日缺勤格子（2026-11-13 返修，用户原话：
-       「值日缺勤无法单机扣分双击加分，值日分是整个学期的分，非本节课，
-         那个值日完成率 100% 下面还有个 - 没有删除」）
-     三处改动：
-       ① 原来只有「本节值日组」才有按钮，其它组是一个「—」占位 —— 那个横杠就是用户说的没删掉的「-」。
-          现在删掉占位，**所有组都给按钮**：值日缺勤是整学期一个 5 分项目，不是本节课的分，
-          补录哪一组、在哪一节课补，都该允许（老师经常事后才发现某组缺勤）。
-       ② 值日组（isDuty）的按钮加 `.is-duty` 高亮，视觉上仍然能一眼看出「今天轮到谁」。
-       ③ 单击 / 双击的冲突在事件层修（见下面 #groupList 的两个监听）：
-          浏览器双击 = click→click→dblclick，旧代码因此「双击净扣一档」，看起来就是「双击加不了分」。 */
+  /* 值日缺勤格子（2026-11-13 二次返修，用户原话：
+       「另外我上课都是当场设置值日组，不需要这样显示，只需要显示当天值日组即可」）
+     → 老师当场在课次设置里定值日组、当场扣，事后补录不是他的用法，所以：
+       ① 只有 isDuty（本节值日组）才渲染这一格：学期值日完成率 + 一个「缺勤」按钮；
+       ② 非值日组返回空字符串，那一格就是纯留白 —— 不再放百分比、按钮，也不放「—」横杠
+          （用户此前明确抱怨过那个横杠「没有删除」，这次连占位符都不要）；
+       ③ 规则说明不再挂在 title 上反复出现（用户：「无需显示出来 我知道规则 写进使用说明即可」），
+          title 只留一句操作提示，规则本身写在打印版背面与使用说明里；
+       ④ 单击扣一档 / 双击加回一档的交互保留（事件层见下面 #groupList 的两个监听）。 */
   function ctlDuty(gno, isDuty) {
+    if (!isDuty) return '';
     var cls = curClass();
     var pct = dutyPctText(lessonsOf(cls.id), gno);
     var A = window.JFDT_ASSESSMENT;
     var lost = A && A.dutyLoss ? A.dutyLoss(lessonsOf(cls.id), gno) : 0;
-    var btn = '<button type="button" class="duty-score' + (isDuty ? ' is-duty' : '') + '" ' +
-      'data-duty-deduct="' + gno + '" ' +
-      'title="' + (isDuty ? '本节值日组：' : '') + '单击 = 全组每人值日缺勤 −20%（一档），双击 = 加回一档；按次叠加' + (lost ? '（本组整学期已扣 ' + lost + ' 档）' : '') + '" ' +
-      'aria-label="第' + gno + '组值日缺勤：单击记一次缺勤，双击撤销一次">缺勤</button>';
     return '<div class="duty-cell">' +
-      '<b class="duty-pct" title="整学期值日缺勤：一学期没缺勤就是 100%，每缺一次 −20%（按次叠加）">' + pct + '</b>' +
-      btn + '</div>';
+      '<b class="duty-pct" title="整学期值日完成率' + (lost ? '：本组已扣 ' + lost + ' 档' : '') + '">' + pct + '</b>' +
+      '<button type="button" class="duty-score is-duty" data-duty-deduct="' + gno + '" ' +
+      'title="单击：全组每人值日缺勤 −20%；双击：加回一档" ' +
+      'aria-label="第' + gno + '组值日缺勤：单击记一次缺勤，双击撤销一次">缺勤</button>' +
+      '</div>';
   }
 
   function semesterBadge(cls,gno,index) {
@@ -1993,10 +1992,13 @@ function restoreDroppedToHome(cls) {
   function groupsCards(cls, lesson) {
     var gs = visibleGroups(cls);
     if (!gs.length) return '<p class="empty-hint">这个班还没有分好组（或者组里一个人都没有）。到「待分配名单」点「分组…」分一下，分好组这里就能记分了。</p>';
+    /* 2026-11-13：值日块只给本节值日组画。整节课一个值日组都没设时，
+       只在第一张卡片上留一句提示——否则表格里没有任何可点的地方，老师会以为功能坏了。 */
+    var dutyList = dutyGroups(lesson), firstNo = gs[0].no;
     return '<div class="groups">' + gs.map(function (g) {
       var s = sc(lesson, g.no);
       var total = groupTotal(lesson, g.no);
-      var duty = dutyGroups(lesson).includes(g.no);
+      var duty = dutyList.includes(g.no);
       var cnt = memberCount(g);
       var cap = groupCap(g, cls), over = cnt > cap;   // 超载：人数超过上限，整张卡片标红提示老师去拖动换组
       var maxPhone = 1000000;
@@ -2016,12 +2018,12 @@ function restoreDroppedToHome(cls) {
         '</div>' +
         '<div class="gnames">' + names + '</div>' +
         '<div class="gcard-secondary"><span class="card-feedback-space" aria-hidden="true"></span>' + ctlClear(g.no, false) + '</div>' +
-        '<div class="gctl">' +
-          '<div>' +
-            '<div class="lbl" title="整学期值日缺勤（一个 5 分项目）：没缺勤就是 100%，缺勤每次 −20%，全组每人同扣；单击扣一档、双击加回一档">值日缺勤</div>' +
-            ctlDuty(g.no, duty) +
-          '</div>' +
-        '</div>' +
+        /* 非值日组整块省掉：留一个空标签和空白的格子只会让老师以为漏了什么 */
+        (duty
+          ? '<div class="gctl"><div><div class="lbl">值日缺勤</div>' + ctlDuty(g.no, true) + '</div></div>'
+          : (!dutyList.length && g.no === firstNo
+            ? '<div class="gctl"><div><div class="lbl">值日缺勤</div><div class="duty-cell"><span class="duty-off" title="点右上角 ⚙ 课次设置选本节值日组">未设值日组</span></div></div></div>'
+            : '')) +
       '</div>';
     }).join('') + '</div>';
   }
@@ -2040,16 +2042,27 @@ function restoreDroppedToHome(cls) {
     var total=widths.reduce(function(a,b){return a+b;},0),names=['no','mem','duty','attendance','sum','grade','grade','grade'];
     return widths.map(function(w,i){return '<col class="w-'+names[i]+'" data-content-width="'+w+'" style="width:'+(100*w/total).toFixed(4)+'%!important">';}).join('');
   }
-  function verticalHead(){return '<thead><tr><th class="c-no">组号</th><th class="c-mem">成员</th><th class="c-duty" title="值日缺勤（整学期一个 5 分项目，原「干净又卫生」并入此列）：一学期没缺勤就是 100%，每节课都显示同一个学期值；值日组缺勤时点一次「缺勤」，全组每人同扣一档，按次叠加，双击撤销一档">值日缺勤</th><th class="home-attendance">考勤完成率</th><th class="c-sum">本节完成率</th><th class="home-grade regular">平时分<br>（至今完成率）</th><th class="home-grade contribution">计入总评 /40</th><th class="home-grade needed">期末至少需考 /100</th></tr></thead>';}
+  /* 表头 title 只留一句操作提示：整段规则说明不挂在表格上反复出现（用户：「无需显示出来 我知道规则」） */
+  function verticalHead(){return '<thead><tr><th class="c-no">组号</th><th class="c-mem">成员</th><th class="c-duty" title="本节值日组点一次 −20%，双击加回一档">值日缺勤</th><th class="home-attendance">考勤完成率</th><th class="c-sum">本节完成率</th><th class="home-grade regular">平时分<br>（至今完成率）</th><th class="home-grade contribution">计入总评 /40</th><th class="home-grade needed">期末至少需考 /100</th></tr></thead>';}
   function verticalGroup(cls,lesson,g,printing){
-    var A=window.JFDT_ASSESSMENT,gradeLessons=lessonsThrough(cls,lesson),grades=A.rows(cls,gradeLessons,memberTotals(cls)),isDuty=dutyGroups(lesson).includes(g.no);
+    var A=window.JFDT_ASSESSMENT,gradeLessons=lessonsThrough(cls,lesson),grades=A.rows(cls,gradeLessons,memberTotals(cls)),dutyList=dutyGroups(lesson),isDuty=dutyList.includes(g.no);
+    /* 2026-11-13：值日格子只给本节值日组。整节课没设值日组时，第一组那格留一句提示，
+       不然整列全空、连一个能点的地方都没有，老师会以为扣分功能没了。 */
+    var dutyFirstNo=(visibleGroups(cls)[0]||{}).no;
     var entries=groupMemberEntries(g),editing=!printing&&groupPicking&&groupPicking.classId===cls.id&&groupPicking.lessonId===lesson.id&&groupPicking.no===g.no;
     var gcap=groupCap(g,cls),over=entries.length>gcap;   // 超载：人数超过上限，整组标红提示老师去拖动换组
     var display=entries.length?entries:[{m:null,i:-1}],span=display.length+(editing?1:0),rows=display.map(function(x,j){var m=x.m,i=x.i,key=m&&A.key(m),grade=m&&grades.find(function(r){return r.key===key;}),total=m?memberLessonRateText(lesson,g.no,m,i):'';
       var out='<tr class="vertical-member-row"'+(m?' data-member-index="'+i+'" data-member-key="'+esc(key)+'"':'')+'>';
       if(!j)out+='<td class="c-no" rowspan="'+span+'"><span class="gno-swatch" style="'+gbTone(g.no,0)+'">'+g.no+'</span> <small class="gcount'+(over?' over':'')+'" title="'+(over?'本组 '+entries.length+' 人，超过上限 '+gcap+' 人：到「分组」页把超出的 '+(entries.length-gcap)+' 人拖到别的组（不会被自动移出）':'本组人数 / 上限（双击组号可加人减人）')+'">'+entries.length+'/'+gcap+'</small></td>';
       out+='<td class="c-mem member-name-cell'+(m?attendanceNameClass(cls,m,lesson):'')+(m&&isGroupLeader(g,m)?' group-leader-name':'')+'"'+(m?' data-leader-toggle data-g="'+g.no+'" data-member-index="'+i+'"':'')+' title="'+esc(m?(m.name+' '+(m.sid||'')+' · 双击设置或退出组长'):'双击组号添加成员')+'">'+(m?(isGroupLeader(g,m)?'<span class="leader-crown" aria-label="组长">👑</span> ':'')+esc(m.name)+(m.no==null?'':' <small>'+two(m.no)+'</small>'):'未分配成员')+'</td>';
-      if(!j)out+='<td class="c-duty" rowspan="'+span+'">'+(printing?'<b class="duty-pct">'+dutyPctText(lessonsOf(cls.id),g.no)+'</b>':ctlDuty(g.no,isDuty))+'</td>';
+      /* 这一格永远保留 <td>（rowspan 列数不能动），只是非值日组里面什么都不放：
+         不放百分比、不放按钮、也不放「—」占位（用户明确讨厌那个横杠）。
+         打印版同理，只给当天值日组印学期值，别的组留白。 */
+      if(!j){
+        var dutyHtml=printing?(isDuty?'<b class="duty-pct">'+dutyPctText(lessonsOf(cls.id),g.no)+'</b>':''):ctlDuty(g.no,isDuty);
+        if(!dutyHtml&&!printing&&!dutyList.length&&g.no===dutyFirstNo)dutyHtml='<div class="duty-cell"><span class="duty-off" title="点右上角 ⚙ 课次设置选本节值日组">未设值日组</span></div>';
+        out+='<td class="c-duty" rowspan="'+span+'">'+dutyHtml+'</td>';
+      }
       out+='<td class="home-attendance">'+(grade?(printing?'<strong>'+attPctText(grade.attendance)+'</strong>':'<button type="button" class="attendance-score" data-attendance-open="'+esc(key)+'" aria-label="'+esc(m.name)+' 考勤完成率 '+attPctText(grade.attendance)+'，点击修改">'+attPctText(grade.attendance)+'</button>'):'')+'</td>';
       out+='<td class="c-sum" data-home-grade="sum" data-sum-g="'+g.no+'" data-sum-i="'+i+'"'+(m?' data-grade-student="'+esc(key)+'"':'')+' title="'+esc(m?m.name+' · 点击展开本节各项目完成率明细':'')+'"><div class="home-grade-person" data-member-lesson-totals="'+g.no+'" data-lesson-member="'+i+'"><strong>'+total+'</strong><span class="sumd-cue" aria-hidden="true">▾</span></div></td>';
       ['regular','contribution','needed'].forEach(function(field){var value=grade?(field==='needed'?(grade.attendanceFailed?'不适用':grade.needed>100?'无法达到':grade.needed):grade[field]):'';out+='<td class="home-grade '+field+'" data-home-grade="'+field+'" title="'+esc(m?m.name:'')+'">'+(grade?'<div class="home-grade-person" data-grade-student="'+esc(key)+'"><strong>'+value+(field==='regular'?' <span class="completion-rate">（'+(grade.totalMaximum?Math.round(grade.performanceRate*1000)/10+'%':'—')+'）</span>':'')+'</strong>'+(grade.attendanceFailed?'<small>考勤挂科</small>':'')+'</div>':'')+'</td>';});
@@ -2106,7 +2119,8 @@ function restoreDroppedToHome(cls) {
     
     var totals=memberTotals(cls);
     $$('[data-semester-group]',card).forEach(function(el){var member=cls.groups.find(function(g){return g.no===gno;}).members[+el.dataset.semesterIndex];var total=totals.find(function(m){return m.gno===gno && m.name===member.name && m.sid===member.sid;});el.querySelector('b').textContent=fmt(total?total.total:0);});
-    var dutyCell=$('.duty-cell',card);if(dutyCell)dutyCell.outerHTML=ctlDuty(gno,dutyGroups(lesson).includes(gno));
+    /* 非值日组 ctlDuty 返回空：只有真有内容才替换，别把「未设值日组」的提示擦掉 */
+    var dutyCell=$('.duty-cell',card),dutyHtml=ctlDuty(gno,dutyGroups(lesson).includes(gno));if(dutyCell&&dutyHtml)dutyCell.outerHTML=dutyHtml;
     card.classList.toggle('touched', touched(lesson, gno));
     $$('.num', card).forEach(function (inp) {
       var f = inp.dataset.f;

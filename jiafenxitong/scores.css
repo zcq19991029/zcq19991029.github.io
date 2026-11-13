@@ -39,23 +39,6 @@ body {
 .top-link { margin-left: auto; flex: none; color: var(--brand); font-size: 12.5px; text-decoration: none; }
 .top-link:hover { text-decoration: underline; }
 
-/* ---------- 页签 ---------- */
-.tabs {
-  position: sticky; top: 0; z-index: 9;
-  display: flex; gap: 6px; overflow-x: auto;
-  padding: 8px 12px; background: rgba(255, 255, 255, .94);
-  backdrop-filter: blur(10px); border-bottom: 1px solid var(--line);
-  scrollbar-width: none;
-}
-.tabs::-webkit-scrollbar { display: none; }
-.tabs button {
-  flex: 1 1 0; min-width: 0; padding: 7px 6px; border-radius: 999px;
-  border: 1px solid var(--line-strong); background: var(--panel);
-  color: var(--muted); font: inherit; font-size: 13px; font-weight: 600;
-  cursor: pointer; white-space: nowrap;
-}
-.tabs button.on { background: var(--brand); border-color: var(--brand); color: #fff; }
-
 /* ---------- 提示 ---------- */
 .notice {
   margin: 14px; padding: 14px; border-radius: var(--r);
@@ -331,13 +314,47 @@ table.book tr.me-row td { border-color: var(--ok, #2f845a); }
 .group-card .scroll table.book tr.me-row { background: rgba(16, 185, 129, .16); }
 .group-card .scroll table.book tr.me-row td { border-color: rgba(16, 185, 129, .4); }
 .group-card .note { color: #7fa6d9; }
-/* 值日提醒（2026-11-12 R1）：学生一进来就知道自己组本节课要值日 */
-.duty-callout { border-left: 4px solid #d9822b; background: #fff8ee; }
-.duty-callout > h3 { color: #9a5b12; }
-.duty-callout-main { margin: 4px 0 6px; font-size: 16px; line-height: 1.5; }
+/* 值日提醒（2026-11-12 R1；2026-11-13 精简成一行）
+   老师都是上课当场设值日组，学生只需要知道「本轮哪组值日」，不需要常驻整学期规则，
+   所以这里只排一行：组名 + 课次 + 规则小问号；有值日缺勤才多一行红字。 */
+.duty-callout { border-left: 4px solid #d9822b; background: #fff8ee; padding: 11px 14px; }
+.duty-callout-main {
+  display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 8px;
+  margin: 0; font-size: 15.5px; line-height: 1.5;
+}
 .duty-callout-main b { color: #9a5b12; }
-.duty-callout .duty-missed { color: #b42318; }
+.duty-callout-when { color: var(--muted); font-size: 12.5px; }
+.duty-callout-when::before { content: "· "; }
+/* 小问号：规则原文收进 title，鼠标悬浮 / 手机长按才展开，不占版面 */
+.duty-help {
+  align-self: center; display: inline-flex; align-items: center; justify-content: center;
+  width: 17px; height: 17px; border-radius: 50%; cursor: help;
+  font-size: 11px; font-weight: 700; color: #9a5b12; background: rgba(217, 130, 43, .18);
+}
+.duty-missed-line { margin: 6px 0 0; font-size: 13px; font-weight: 700; color: var(--danger); }
 .lesson-head .pill { margin-left: 6px; }
+
+/* ============================================================
+   平时分分解条（2026-11-13 合并页签）
+   ------------------------------------------------------------
+   个人项目累计 / 值日完成率 / 考勤完成率 是平时分的组成部分，
+   不是并列的大成绩，所以用小一号的三列条挂在总分卡下面，
+   视觉上从属于上面那个「平时分 / 100」，避免又变成三张平级大卡。
+   ============================================================ */
+.sub-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.sub-stats .s {
+  padding: 9px 6px; border-radius: 10px; text-align: center;
+  background: var(--panel-soft, rgba(0, 0, 0, .035));
+}
+.sub-stats .s b {
+  display: block; font-size: 17px; font-weight: 800; line-height: 1.35;
+  color: var(--ink); font-variant-numeric: tabular-nums;
+}
+.sub-stats .s span { font-size: 11.5px; color: var(--muted); }
+@media (max-width: 360px) {
+  .sub-stats { grid-template-columns: 1fr 1fr; }
+  .sub-stats .s b { font-size: 16px; }
+}
 
 /* ============================================================
    左上角主按钮「去选桌组队」（2026-11-12 U4；2026-11-13 收进身份卡）
@@ -382,6 +399,10 @@ table.book tr.me-row td { border-color: var(--ok, #2f845a); }
 .dl-block .dl-val b { color: var(--brand); font-weight: 700; }
 .dl-block .dl-val .wait { color: var(--muted); }
 .dl-block .dl-val .na { color: var(--muted); opacity: .45; }
+/* 0%（互评关着没打分）：用危险色标红。这是「没完成、记 0 分」，不是品牌蓝（满分），
+   所以不能走上面 .dl-val b 的蓝，得单独用 --danger 盖掉；dl-sum 里的 b 默认墨色同理 */
+.dl-block .dl-val .zero,
+.dl-block .dl-sum .zero { color: var(--danger); font-weight: 700; }
 .dl-block .dl-sum {
   display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px;
   padding: 8px 12px; font-size: 12.5px; color: var(--muted);

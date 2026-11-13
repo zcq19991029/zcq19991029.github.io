@@ -143,6 +143,8 @@
     $('groupBoard').innerHTML = '';
     $('statePill').textContent = '';
     $('statePill').className = 'top-state';
+    /* 没房间 / 没登录时要把只读态一起摘掉，否则老师重新开放组队后光标还是默认箭头 */
+    document.body.classList.remove('gb-readonly');
     /* 顶部身份卡统一用 setIdentity 填：没有姓名时卡片自动收成一行（只剩「还没登录」这类说明） */
     if (kind === 'no_login') {
       setIdentity('还没登录', '', '');
@@ -296,13 +298,23 @@
     box.setAttribute('data-nobg', st ? '0' : '1');
   }
 
+  /* ---------- 房间状态 ----------
+     教师端现在只发两种状态：open（组队中）/ closed（老师点了「确认分组」，结果是最终的）。
+     jf_team_mine 会在没有 open 房间时回最近一期 closed 房间，就是为了让学生确认完还能看到
+     最终分组；所以 closed 不是「没有房间」，必须照常渲染，只是全部只读。
+     历史数据里还有 locked（旧版「锁定分组」，教师端已删），一律按「已结束」只读处理。 */
+  function isOpen() { return !!S && S.status === 'open'; }
+  function isFinal() { return !!S && S.status === 'closed'; }
+
   /* 生成「我自己」那条 chip（带身份牌背景，和排位身份卡同一套）。放在组内或未分组池子里。
      别人的身份卡背景学生端拿不到，但头像是整班的（hx_class_faces），所以头像圈都带 data-av-no。 */
   function meChipHtml(me) {
     var avatar = esc(avInitial(me.name, '我'));
     var sub = me.no ? esc(me.no) : '学号';
     var st = cardBgStyle(MY_BG.bg, MY_BG.pos);
-    return '<div class="gb-chip me gb-me-card' + (st ? '' : ' no-bg') + '" data-me-bg="1" title="拖到别的组换组，拖回未分组起身">' +
+    /* 只读态（分组已确认）里这张卡不能再拖，提示语也要换成「结果已定」，否则学生会一直试着拖它 */
+    var tipTxt = isOpen() ? '拖到别的组换组，拖回未分组起身' : '分组已确认，这一页只读';
+    return '<div class="gb-chip me gb-me-card' + (st ? '' : ' no-bg') + '" data-me-bg="1" title="' + tipTxt + '">' +
       '<span class="gb-me-bg" aria-hidden="true" style="' + st + '"></span>' +
       '<span class="gb-me-veil" aria-hidden="true"></span>' +
       '<span class="gb-av" data-av-no="' + esc(me.no || '') + '" aria-hidden="true">' + avatar + '</span>' +
@@ -311,9 +323,10 @@
       '</div>';
   }
 
-  /* 坐下 / 换组：请求全走 jf_team_sit，满没满、能不能坐都由云端判，前端不越权 */
+  /* 坐下 / 换组：请求全走 jf_team_sit，满没满、能不能坐都由云端判，前端不越权。
+     只读态一律不发请求（云端 sql 也会挡，但别让学生白等一次失败提示）。 */
   function sit(n) {
-    if (busy || !S || S.status !== 'open') return;
+    if (busy || !isOpen()) return;
     if (S.me && Number(S.me.table) === n) { toast('你已经在这个组了'); return; }
     var filled = (S.seats || []).filter(function (s) { return Number(s.table) === n; }).length;
     if (filled >= S.size) { toast('第 ' + n + ' 组坐满了，换一个吧'); return; }
@@ -330,7 +343,7 @@
 
   /* 起身（拖回未分组） */
   function stand() {
-    if (busy || !S || S.status !== 'open' || !S.me || !S.me.table) return;
+    if (busy || !isOpen() || !S.me || !S.me.table) return;
     busy = true;
     rpc('jf_team_stand', { p_room: S.room }).then(function () {
       return loadState(S.room);
@@ -362,7 +375,11 @@
       (byTable[s.table] = byTable[s.table] || []).push(s);
     });
     var mine = S.me && S.me.table ? Number(S.me.table) : 0;
-    var locked = S.status !== 'open';
+    var locked = !isOpen();
+    /* 只读态挂到 body 上：光标、touch-action、hover 抬起这些「看着能点」的暗示全靠它关掉
+       （team.css 里的 body.gb-readonly）。只靠 JS 拦事件不够——手指划过卡片的滚动也会被
+       .gb-me-card 的 touch-action:none 吃掉。 */
+    document.body.classList.toggle('gb-readonly', locked);
 
     /* 组卡片：和教师端「分组看板」同一套视觉 —— 组号 + 已坐/上限 + 组员列表。
        「自己」那条用身份牌背景（gb-me-card）；别人的头像圈由 faces.js 按学号补照片。 */
@@ -421,8 +438,10 @@
         '</section>' +
         '<div class="gb-groups">' + cards + '</div>' +
       '</div>' +
-      '<p class="gb-hint">把「我」那条卡拖到右边某组就加入；拖到别的组就换组，拖回「未分组」就起身。' +
-        (S.status === 'open' ? '点组卡片也能直接进。' : '') + '每 2~3 秒自动刷新。</p>';
+      /* 只在 open 时讲拖拽怎么用；closed 讲这一段纯属误导（拖不动） */
+      '<p class="gb-hint">' + (isOpen()
+        ? '把「我」那条卡拖到右边某组就加入；拖到别的组就换组，拖回「未分组」就起身。点组卡片也能直接进。每 2~3 秒自动刷新。'
+        : '这一页只读：组内成员不能再调。老师重新开放组队后，这里会自动变回可选座。') + '</p>';
 
     /* 背景是异步拿的：先把「我」那条画出来，背景到位后再补上去（不用整页重画） */
     ensureMyBg(function () {
@@ -437,22 +456,27 @@
     /* 头像同理：卡片上已经是首字，整班头像回来后按 data-av-no 补照片 */
     ensureFaces();
 
-    /* 状态胶囊：2026-11-13 教师端删掉了「锁定分组」，房间只可能是 open / closed；
-       老数据里的 locked 一律按「已结束」显示，不再对学生说「老师已锁定」。 */
+    /* 状态胶囊：open = 组队中；closed = 最终分组（老师已点「确认分组」，这就是最终结果）；
+       老数据 locked 用灰胶囊写「已结束」，不再对学生说「老师已锁定」。 */
     var pill = $('statePill');
-    pill.className = 'top-state' + (S.status === 'open' ? '' : ' closed');
-    pill.textContent = S.status === 'open' ? '组队中' : '已结束';
+    pill.className = 'top-state' + (isOpen() ? '' : (isFinal() ? ' final' : ' closed'));
+    pill.textContent = isOpen() ? '组队中' : (isFinal() ? '最终分组' : '已结束');
 
     clearNotice();
-    if (S.status !== 'open') {
-      notice('<b>这次组队已经结束。</b><br>分组结果已交给老师，下面就是最终结果。');
+    if (isFinal()) {
+      /* 学生刷新后能走到这里，说明 jf_team_mine 把最近一期 closed 房间给了他 —— 这一屏就是
+         老师确认过的最终结果，必须说清楚「已定稿 / 只读 / 下一轮等老师重开」，别让人以为还能改。 */
+      notice('<b>分组已确认。</b><br>这是老师定下的最终分组，只读。下一轮组队等老师重新开放，这一页会自动跟上。', 'final');
+    } else if (!isOpen()) {
+      notice('<b>老师暂停了选座。</b><br>分组暂时锁住，只能看不能改；老师重新开放后这里会自动恢复可选。', 'final');
     }
 
-    var left = (S.roster || []).length - (S.seats || []).length;
-    $('tip').textContent = S.status === 'open'
-      ? '全班 ' + (S.roster || []).length + ' 人，已分组 ' + (S.seats || []).length + ' 人' +
+    var rosterN = (S.roster || []).length, seatedN = (S.seats || []).length;
+    var left = rosterN - seatedN;
+    $('tip').textContent = isOpen()
+      ? '全班 ' + rosterN + ' 人，已分组 ' + seatedN + ' 人' +
         (left > 0 ? '，还有 ' + left + ' 人没选。' : '，全班都分好了。')
-      : '';
+      : '全班 ' + rosterN + ' 人 · 已分组 ' + seatedN + ' 人 · 共 ' + (S.tables || 0) + ' 组';
   }
 
   /* ---------- 数据 ---------- */
@@ -511,9 +535,11 @@
       if (document.hidden) { schedule(2000); return; }
       if (fatal === 'no_room') { boot(); return; }
       if (!S) { boot(); return; }
-      if (S.status !== 'open') {
-        /* 已经结束了（含老数据的 locked）：保留最终结果给他看，但老师要是重开了新房间就跟过去。
-           慢速轮询就够，不用 2.5 秒打一次。 */
+      if (!isOpen()) {
+        /* 已结束（closed = 老师确认的最终分组；老数据的 locked 同样处理）：保留最终结果给他看，
+           只慢速问「老师有没有重开新房间」，有就跟过去。
+           jf_team_mine 现在会把最近一期 closed 房间也回给我们，所以 res.room 通常等于 S.room，
+           这时什么都不做，屏幕上的最终分组不会闪。 */
         rpc('jf_team_mine').then(function (res) {
           if (res && res.room && Number(res.room) !== Number(S.room)) return loadState(res.room);
         }).then(function () { schedule(5000); }).catch(function () { schedule(5000); });
@@ -534,19 +560,17 @@
     if (!g) return;
     var n = Number(g.dataset.table);
     if (!n) return;
-    /* 结束后只读：dataset.locked 是老版本留下的标记（教师端已删「锁定分组」，只有历史数据会有），
-       和 status 不是 open 一起按「已结束」处理，给一句人话，别让老数据点下去没反应。 */
-    if (!S || S.status !== 'open' || g.dataset.locked === '1') {
-      toast('这次选座已经结束，只有老师能再开放');
-      return;
-    }
+    /* 只读态（已确认 / 已结束 / 老数据的 locked）：组卡片根本不是交互元素，直接不响应。
+       以前这里弹一句「这次选座已经结束」，学生会当成「等会儿还能点」一直戳；
+       现在完全静默，光标也换成默认箭头（team.css 的 body.gb-readonly），一眼看出不能点。 */
+    if (!isOpen() || g.dataset.locked === '1') return;
     sit(n);
   });
 
   /* 拖动选位：把「我自己」那条身份卡拖到某组加入、拖回未分组起身。鼠标/触摸同一套 pointer 事件 */
   function meDragStart(e) {
     var card = e.target.closest ? e.target.closest('.gb-me-card') : null;
-    if (!card || !S || S.status !== 'open' || busy) return;
+    if (!card || !isOpen() || busy) return;
     if (e.button != null && e.button !== 0) return;   // 只认左键 / 单指
     e.preventDefault();
     var r = card.getBoundingClientRect();
@@ -582,7 +606,7 @@
     document.querySelectorAll('.gb-me-card.is-lifting').forEach(function (d) { d.classList.remove('is-lifting'); });
     if (drag.el && drag.el.parentNode) drag.el.remove();
     drag = null;
-    if (!S || S.status !== 'open') return;
+    if (!isOpen()) return;   // 松手瞬间房间刚被老师确认：这次拖动直接作废，不发请求
     if (p && !g) { stand(); return; }   // 拖回未分组 = 起身
     if (!table) return;
     sit(table);

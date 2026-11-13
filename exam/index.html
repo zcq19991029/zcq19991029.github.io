@@ -145,7 +145,7 @@ a.nav-i{text-decoration:none}
 /* 网页版概览第 3 步指向「考试」工具，是 <a> 不是 <button>：去掉链接默认下划线，跟其他步骤长一样 */
 a.step{text-decoration:none;color:var(--ink);cursor:pointer}
 a.step:hover{text-decoration:none}
-.step .n{width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,var(--acc),var(--acc2));color:#fff;font:700 13px/1 var(--mono);display:inline-flex;align-items:center;justify-content:center;box-shadow:0 4px 12px -2px var(--ring)}
+.step .n{width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,var(--acc),var(--acc2));color:var(--on-acc,#fff);font:700 13px/1 var(--mono);display:inline-flex;align-items:center;justify-content:center;box-shadow:0 4px 12px -2px var(--ring)}
 @media(max-width:900px){.flow{grid-template-columns:repeat(2,minmax(0,1fr))}}
 /* 进考场 */
 .gate{padding:32px 34px}
@@ -173,7 +173,7 @@ button{position:relative;font:inherit;font-size:14px;font-weight:500;padding:8px
 button:hover{background:var(--field3);transform:translateY(-1px)}
 button:active{transform:scale(.96);transition-duration:.08s}
 button:focus-visible{outline:none;box-shadow:0 0 0 4px var(--ring)}
-button.pri{border-color:transparent;color:#fff;background:linear-gradient(180deg,var(--acc-h),var(--acc));box-shadow:0 1px 0 rgba(255,255,255,.25) inset,0 6px 18px -6px var(--ring);overflow:hidden}
+button.pri{border-color:transparent;color:var(--on-acc,#fff);background:linear-gradient(180deg,var(--acc-h),var(--acc));box-shadow:0 1px 0 rgba(255,255,255,.25) inset,0 6px 18px -6px var(--ring);overflow:hidden}
 button.pri::after{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.35) 50%,transparent 70%);transform:translateX(-120%);transition:transform .7s var(--spring)}
 button.pri:hover{background:linear-gradient(180deg,var(--acc-h),var(--acc));box-shadow:0 1px 0 rgba(255,255,255,.3) inset,0 10px 26px -8px var(--ring)}
 button.pri:hover::after{transform:translateX(120%)}
@@ -678,7 +678,7 @@ html.hx-lite #hxBootCv{display:none}
 .ex-help{margin:10px 0 0;border:1px solid var(--line,rgba(148,163,184,.35));border-radius:12px;padding:8px 12px;background:rgba(148,163,184,.06);max-width:920px}
 .ex-help>summary{cursor:pointer;font-weight:600;font-size:14px;list-style:none;display:flex;align-items:center;gap:6px;outline:none}
 .ex-help>summary::-webkit-details-marker{display:none}
-.ex-help>summary::before{content:'?';display:inline-grid;place-items:center;width:18px;height:18px;border-radius:50%;background:#2f6bff;color:#fff;font-size:12px;font-weight:700}
+.ex-help>summary::before{content:'?';display:inline-grid;place-items:center;width:18px;height:18px;border-radius:50%;background:var(--acc,#2f6bff);color:var(--on-acc,#fff);font-size:12px;font-weight:700}
 .ex-help[open]>summary{margin-bottom:6px}
 .ex-help ol{margin:4px 0 6px;padding-left:20px;font-size:13.5px;line-height:1.75}
 .ex-help ol li{margin:2px 0}
@@ -714,7 +714,8 @@ html.hx-lite #hxBootCv{display:none}
    ============================================================ */
 a.ex-nav-i { text-decoration: none; box-sizing: border-box; }
 .ex-nav-go b { color: var(--acc, #2f6bff); }
-a.ex-btn { display: inline-block; font-size: 14px; font-weight: 500; padding: 8px 18px; border-radius: 980px; text-decoration: none; background: var(--acc, #2f6bff); color: #fff; border: 1px solid transparent; }
+/* 底色跟主题色走，字色必须用 --on-acc：黑白主题的 --acc 接近 #f5f5f7，写死 #fff 会变成白底白字 */
+a.ex-btn { display: inline-block; font-size: 14px; font-weight: 500; padding: 8px 18px; border-radius: 980px; text-decoration: none; background: var(--acc, #2f6bff); color: var(--on-acc, #fff); border: 1px solid transparent; }
 a.ex-btn:hover { filter: brightness(1.06); }
 
 /* 电子档考试：题池快照 + 顶部科目毛玻璃选项卡 */
@@ -5060,7 +5061,7 @@ a.nav-i{text-decoration:none}
 /* 网页版概览第 3 步指向「考试」工具，是 <a> 不是 <button>：去掉链接默认下划线，跟其他步骤长一样 */
 a.step{text-decoration:none;color:var(--ink);cursor:pointer}
 a.step:hover{text-decoration:none}
-.step .n{width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,var(--acc),var(--acc2));color:#fff;font:700 13px/1 var(--mono);display:inline-flex;align-items:center;justify-content:center;box-shadow:0 4px 12px -2px var(--ring)}
+.step .n{width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,var(--acc),var(--acc2));color:var(--on-acc,#fff);font:700 13px/1 var(--mono);display:inline-flex;align-items:center;justify-content:center;box-shadow:0 4px 12px -2px var(--ring)}
 @media(max-width:900px){.flow{grid-template-columns:repeat(2,minmax(0,1fr))}}
 /* 进考场 */
 .gate{padding:32px 34px}
@@ -5088,7 +5089,7 @@ button{position:relative;font:inherit;font-size:14px;font-weight:500;padding:8px
 button:hover{background:var(--field3);transform:translateY(-1px)}
 button:active{transform:scale(.96);transition-duration:.08s}
 button:focus-visible{outline:none;box-shadow:0 0 0 4px var(--ring)}
-button.pri{border-color:transparent;color:#fff;background:linear-gradient(180deg,var(--acc-h),var(--acc));box-shadow:0 1px 0 rgba(255,255,255,.25) inset,0 6px 18px -6px var(--ring);overflow:hidden}
+button.pri{border-color:transparent;color:var(--on-acc,#fff);background:linear-gradient(180deg,var(--acc-h),var(--acc));box-shadow:0 1px 0 rgba(255,255,255,.25) inset,0 6px 18px -6px var(--ring);overflow:hidden}
 button.pri::after{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.35) 50%,transparent 70%);transform:translateX(-120%);transition:transform .7s var(--spring)}
 button.pri:hover{background:linear-gradient(180deg,var(--acc-h),var(--acc));box-shadow:0 1px 0 rgba(255,255,255,.3) inset,0 10px 26px -8px var(--ring)}
 button.pri:hover::after{transform:translateX(120%)}
