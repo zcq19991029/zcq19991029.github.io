@@ -1908,17 +1908,22 @@ function restoreDroppedToHome(cls) {
       slot.appendChild(box);
       var editor=box.querySelector('[data-pick-editor]'),input=box.querySelector('input'),results=box.querySelector('.group-pick-results'),members=box.querySelector('[data-pick-members]');
 
-      function addMember(r){
+      async function addMember(r){
         if(!groupPicking||groupPicking.no!==g.no||curClass().id!==cls.id)return;
         if(!pendingList(cls).some(function(p){return p===r;})){matches();return;}
         var capBefore=groupCap(g,cls);
         /* 老师点「＋加人」把人塞进已经满员的组：以前是悄悄把 g.cap 改成实际人数，
            等于替他做了「这组特例」的决定。2026-11-08 起改成先问一句 ——
            用户要求「是否允许该组特殊情况设置7人这样的情况」必须由老师自己确认。 */
-        if(memberCount(g)>=capBefore&&!confirm('第'+g.no+'组现在是 '+memberCount(g)+'/'+capBefore+' 人，已经到每组上限。\n\n'+
-          '再放一个就超员了。要把第'+g.no+'组设为例外（'+(memberCount(g)+1)+' 人）吗？\\n'+
-          '· 确定 = 这一组特例放行，不再标红\\n· 取消 = 不放人，先移出一个再放')){
-          matches();return;
+        if(memberCount(g)>=capBefore){
+          var allowOver = await askConfirm({
+            title:'第'+g.no+'组已经满员',
+            body:'现在是 '+memberCount(g)+'/'+capBefore+' 人，已经到每组上限。\n'+
+              '再放一个就超员了。要把第'+g.no+'组设为例外（'+(memberCount(g)+1)+' 人）吗？',
+            note:'确定 = 这一组特例放行，不再标红；取消 = 不放人，先移出一个再放',
+            ok:'设为例外'
+          });
+          if(!allowOver){ matches();return; }
         }
         pushMember(g,{id:uid('m'),name:r.name,sid:r.sid||'',no:studentNo(cls,r.name,r.sid)});
         var reback=repairOrphansAfterAssign(cls);
@@ -2364,11 +2369,18 @@ function restoreDroppedToHome(cls) {
     return m ? m.name : '';
   }
 
-  /** 整组清零（含个人扣分），可撤销 */
-  function clearGroup(cls, lesson, gno) {
+  /** 整组清零（含个人扣分），可撤销。异步了：确认走悬浮弹窗 */
+  async function clearGroup(cls, lesson, gno) {
     var key = String(gno);
     if (!touched(lesson, gno)) { flash('第 ' + gno + ' 组这节课还没记过分'); return; }
-    if (!confirm('把第 ' + gno + ' 组这节课的分数全部归零？（其它组不受影响，清错了可以撤销）')) return;
+    var ok = await askConfirm({
+      title: '把第 ' + gno + ' 组这节课清零？',
+      body: '这个组的首个正确 / 小组分 / 手机 / 个人扣分全部归零，其它组不受影响。',
+      note: '清错了可以点「撤销」。',
+      ok: '清零',
+      danger: true
+    });
+    if (!ok) return;
     var old = JSON.parse(JSON.stringify(lesson.scores[key] ||
       { first: 0, group: 0, phone: 0, personal: {} }));
     lesson.scores[key] = { first: 0, group: lesson.memberProjectBase===5?5:0, phone: 0, personal: {} };
@@ -2782,7 +2794,7 @@ function restoreDroppedToHome(cls) {
 
     gbRows = rows;
     renderGroupBoard(cls);
-    loadMemberBgs(cls);    // 学生的身份卡背景（拉回来后会自己重画一次看板）
+    loadFaces(cls);    // 学生的头像 + 身份卡背景（拉回来后会自己重画一次看板）
     renderPoolFix(cls);    // 「掉队归位 / 撤回上一次分组」那条（有人掉出原组时才出现）
 
     updatePoolBadge();
@@ -2838,48 +2850,38 @@ function restoreDroppedToHome(cls) {
   var gbAddTo = -1;         // 「＋ 加人」模式：接下来点待分配区的人就加进这个下标的组
   var gbRows = null;        // 上一次 renderPool 算出来的名单行（含 g / table），看板直接复用
 
-  /* ===== 学生身份卡背景（2026-11-13）=====
-     用户原话：「分组界面 我学生的身份卡设置过背景的 为什么我没显示？修复」。
-     背景本来就在云端表 hx_rank_bg 里（跟学生账号走，排位身份卡用的就是它），
-     但 RLS 只让本人读自己那一行，老师端拿不到 → 分组卡片永远是彩色药丸。
-     现在走老师专用的 hx_rank_bg_class(p_class)（security definer，只放本班），
-     一次拉回本班所有人，按学号（student_no）建索引，铺在成员头像那一圈上。
-     拉不到 / 没装函数时静默降级成首字母，不影响分组。 */
-  var memberBg = {};        // student_no -> 可直接赋给 background 的样式串
-  var memberBgFor = 0;      // 已经为哪个首页班级拉过（0 = 还没拉）
+  /* ===== 学生头像 + 身份卡背景（2026-11-13 第二轮）=====
+     用户原话三句：「怎么没有背景？只有头像啊？」「头像被姓氏遮挡」「学生端头像没显示，
+     应该统一这个圆圈换成头像」。所以规则改成：
+       · 学生设的身份卡背景 = 铺满**整张分组卡片**（上一版错铺在头像圈上，看着像只有头像）
+       · 头像圈里显示**学生头像照片**；没传过头像的学生才显示姓氏首字，不再叠在一起
+     规则只在 小组加分/faces.js 里定义一份，教师端（这里）和学生端（team.js）共用。
+     数据由 security definer 函数 hx_class_faces(p_class) 一次拉回（背景 + 头像 URL），
+     老师只放自己的班、学生只放自己所在的班。拉不到就静默降级成首字 + 彩色药丸，不影响分组。 */
+  var facesFor = 0;         // 已经为哪个班级拉过（0 = 还没拉）
 
-  /** 把 hx_rank_bg 的 bg 值（p:预设键 或 data:image/...）转成头像圈能用的 background 样式 */
-  function chipBgStyle(bg, pos) {
-    var t = String(bg || '');
-    if (!t) return '';
-    var p = Math.max(0, Math.min(100, Number(pos) || 50));
-    if (/^p:[a-z0-9_-]{1,24}$/.test(t)) {
-      var css = (window.rankBgCss && window.rankBgCss(t.slice(2))) || '';
-      if (!css) return '';
-      return 'background:' + css.replace(/0 0\s*\/\s*100% 100%/g, '50% 50% / cover') + ';';
-    }
-    if (/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(t))
-      return 'background-image:url("' + t + '");background-size:cover;background-repeat:no-repeat;background-position:50% ' + p + '%;';
-    return '';
+  /** 拉本班头像/背景（每个班只拉一次；换班自动重拉；回来后重画看板） */
+  function loadFaces(cls) {
+    var cid = tmClassId(cls);
+    if (!cid || !window.HXFaces || facesFor === cid) return;
+    facesFor = cid;
+    window.HXFaces.load(cid, function (name, params) { return CLOUD.rpc(name, params); })
+      .then(function () { if (view === 'pool') renderGroupBoard(curClass()); })
+      .catch(function () { facesFor = 0; });   // 没装函数 / 没网：下次再试
   }
 
-  /** 拉本班学生的身份卡背景（每个班只拉一次；换班自动重拉） */
-  function loadMemberBgs(cls) {
+  /** 取某个学生的样式（{card, av, hasAv}；都是能直接塞进 style="…" 的串） */
+  function faceOf(cls, sid) {
     var cid = tmClassId(cls);
-    if (!cid || !tmOn()) return;
-    if (memberBgFor === cid) return;
-    memberBgFor = cid;
-    CLOUD.rpc('hx_rank_bg_class', { p_class: cid }).then(function (rows) {
-      var map = {};
-      (rows || []).forEach(function (r) {
-        var st = chipBgStyle(r.bg, r.pos);
-        /* 要拼进 style="…" 属性里，所以把双引号换成单引号（CSS 的 url('…') 一样有效），
-           否则 data URL 自带的双引号会把属性截断、整张卡片渲染坏。 */
-        if (st && r.student_no) map[String(r.student_no)] = st.replace(/"/g, "'");
-      });
-      memberBg = map;
-      if (view === 'pool') renderGroupBoard(curClass());
-    }).catch(function () { memberBgFor = 0; });
+    if (!cid || !window.HXFaces || !sid) return { card: '', av: '', hasAv: false };
+    return window.HXFaces.of(cid, sid);
+  }
+
+  /** 分组已确认收工（云端房间 status = closed）→ 看板只读。
+      用户原话：「老师确认分组也支持显示分组，看看全班分组情况，只是改为只读而已」
+      「确认了学生端就是只读状态」。老师想再调整，点「开放组队」重新开一场即可。 */
+  function gbReadOnly() {
+    return !!(tmRoom && tmRoom.room && tmRoom.status === 'closed');
   }
   var gbDrag = null;        // 当前这一下拖动
   var gbSwallowClick = false;   // 拖完松手浏览器还会补一个 click，别让它被当成「点选」
@@ -2902,6 +2904,9 @@ function restoreDroppedToHome(cls) {
     /* 正在拖的时候别重画：看板每 2 秒会跟一次云端座位，重画会把手里那张卡换掉，拖到一半就断了 */
     if (gbDrag && gbDrag.active) return;
     var q = poolSearch.trim().toLowerCase();
+    /* 已确认收工（房间 closed）→ 整块看板只读：能看全班分组，不能拖 / 加人 / 移出 / 改上限。
+       用户原话：「老师确认分组也支持显示分组，看看全班分组情况，只是改为只读而已」。 */
+    var ro = gbReadOnly();
     function match(name, sid, no) {
       if (!q) return true;
       return String(name || '').toLowerCase().indexOf(q) >= 0 ||
@@ -2930,22 +2935,25 @@ function restoreDroppedToHome(cls) {
         var isLead = isGroupLeader(g, m);
         var sub = m.sid ? String(m.sid) : (m.no == null ? '' : String(m.no));
         var tone = gbTone(g.no, seen - 1);   // 同组同色，组内按顺序加深（第1人最浅）
+        var face = faceOf(cls, m.sid);       // 学生自己的身份卡背景 + 头像（见 faces.js）
         mem += '<div class="gb-chip' + (on ? ' on' : '') + (overLimit ? ' gb-over-limit' : '') +
+          (face.card ? ' has-face' : '') +
           '" role="button" tabindex="0"' +
           ' data-gi="' + gi + '" data-mi="' + mi + '"' +
-          ' style="' + tone + '"' +
+          ' style="' + tone + face.card + '"' +
           ' title="' + (overLimit ? '超出本组上限 ' + cap + ' 人，但不会被自动移出：拖走 / 留下 / 单独建一组都可以。' : '') +
             '拖到别的组就换组，拖到左边的「未分组」就移出">' +
-          '<span class="gb-av' + (memberBg[m.sid] ? ' has-bg' : '') + '" aria-hidden="true"' +
-            (memberBg[m.sid] ? ' style="' + memberBg[m.sid] + '"' : '') + '>' +
+          '<span class="gb-av' + (face.hasAv ? ' has-img' : '') + '" aria-hidden="true"' +
+            (face.av ? ' style="' + face.av + '"' : '') + '>' +
             esc(String(m.name).slice(0, 1)) + '</span>' +
           '<div class="gb-nm"><b>' + esc(m.name) + '</b>' +
             (sub === '' ? '' : '<small>' + esc(sub) + '</small>') +
           '</div>' +
           '<span class="gb-role' + (isLead ? ' lead' : ' member') + '">' + (isLead ? '组长' : '组员') + '</span>' +
           (overLimit ? '<span class="gb-over-tag">超出</span>' : '') +
-          '<button type="button" class="gb-x" data-gi="' + gi + '" data-mi="' + mi + '"' +
-            ' title="移出到未分组" aria-label="把' + esc(m.name) + '移出到未分组">×</button>' +
+          (ro ? '' :
+            '<button type="button" class="gb-x" data-gi="' + gi + '" data-mi="' + mi + '"' +
+              ' title="移出到未分组" aria-label="把' + esc(m.name) + '移出到未分组">×</button>') +
           '</div>';
       });
       if (!mem) {
@@ -2974,17 +2982,20 @@ function restoreDroppedToHome(cls) {
             '<span class="gb-gcnt"><b>' + n + '</b>/' + cap + ' 人' +
               (over ? '<i class="gb-flag gb-flag-over">超 ' + over + '</i>'
                     : (full ? '<i class="gb-flag">满</i>' : '')) + '</span>' +
-            /* 单组上限 ±1：只改这一组，不动全班默认，也不删人（超了只标红） */
+            /* 单组上限 ±1：只改这一组，不动全班默认，也不删人（超了只标红）
+               2026-11-13：已确认只读（ro）时这两颗小按钮不出现，免得老师以为还能改 */
+            (ro ? '' :
             '<button type="button" class="gb-cap" data-gcap-down="' + gi + '"' +
               ' title="把第 ' + esc(g.no) + ' 组的上限减 1 人：只改本组，不影响其它组；减回全班默认就取消本组特许。超了只标红不删人" aria-label="第 ' + esc(g.no) + ' 组上限减 1">－</button>' +
             '<button type="button" class="gb-cap" data-gcap-up="' + gi + '"' +
-              ' title="把第 ' + esc(g.no) + ' 组的上限加 1 人：只改本组，不影响其它组；超了只标红不删人" aria-label="第 ' + esc(g.no) + ' 组上限加 1">＋</button>' +
+              ' title="把第 ' + esc(g.no) + ' 组的上限加 1 人：只改本组，不影响其它组；超了只标红不删人" aria-label="第 ' + esc(g.no) + ' 组上限加 1">＋</button>'
+            ) +
           '</span>' +
         '</header>' +
         bar +
         '<div class="gb-members">' + mem + '</div>' +
-        '<button type="button" class="gb-add" data-add="' + gi + '">＋ 加人</button>' +
-        (n ? '' :
+        (ro ? '' : '<button type="button" class="gb-add" data-add="' + gi + '">＋ 加人</button>') +
+        (n || ro ? '' :
           '<button type="button" class="gb-del" data-gdel="' + gi + '"' +
             ' title="这个组一个人都没有：删掉它，并把剩下的组按组号重排成 1、2、3…">删除本组</button>') +
         '</section>';
@@ -2998,9 +3009,14 @@ function restoreDroppedToHome(cls) {
       var r = x.r, key = gbRowKey(r);
       var on = gbPick && gbPick.kind === 'pending' && gbPick.key === key;
       var psub = r.sid ? String(r.sid) : (r.no == null ? '' : String(r.no));
-      return '<div class="gb-chip gb-pend-chip' + (on ? ' on' : '') + '" role="button" tabindex="0"' +
-        ' data-pkey="' + esc(key) + '" title="拖到右边任意一组就加进去">' +
-        '<span class="gb-av" aria-hidden="true">' + esc(String(r.name || '?').slice(0, 1)) + '</span>' +
+      var pface = faceOf(cls, r.sid);
+      return '<div class="gb-chip gb-pend-chip' + (on ? ' on' : '') + (pface.card ? ' has-face' : '') +
+        '" role="button" tabindex="0"' +
+        ' data-pkey="' + esc(key) + '" title="拖到右边任意一组就加进去"' +
+        (pface.card ? ' style="' + pface.card + '"' : '') + '>' +
+        '<span class="gb-av' + (pface.hasAv ? ' has-img' : '') + '" aria-hidden="true"' +
+          (pface.av ? ' style="' + pface.av + '"' : '') + '>' +
+          esc(String(r.name || '?').slice(0, 1)) + '</span>' +
         '<div class="gb-nm"><b>' + esc(r.name || '（未命名）') + '</b>' +
           (psub === '' ? '' : '<small>' + esc(psub) + '</small>') +
         '</div>' +
@@ -3011,11 +3027,11 @@ function restoreDroppedToHome(cls) {
     /* 撤销条：拖完人以后原地显示「撤销」，不用去操作日志里翻。
        另一条「撤回上一次分组」读跨操作的分组快照，整份还原（连成员顺序一起，
        因为个人扣分是按组内下标存的）。 */
-    var undoBar = (gbUndo && gbUndo.clsId === cls.id)
+    var undoBar = (!ro && gbUndo && gbUndo.clsId === cls.id)
       ? '<div class="gb-undo"><span>' + esc(gbUndo.label) + '</span>' +
         '<button type="button" class="gb-mini" data-gb-undo="1">撤销</button></div>'
       : '';
-    var lastSnap = lastGroupSnapshot(cls);
+    var lastSnap = ro ? null : lastGroupSnapshot(cls);
     if (lastSnap) {
       undoBar += '<div class="gb-undo gb-undo-snap"><span>上一次分组：' + esc(lastSnap.label) +
         '（' + esc(String(lastSnap.at || '').slice(5, 16).replace('T', ' ')) + '）</span>' +
@@ -3030,7 +3046,12 @@ function restoreDroppedToHome(cls) {
        这里只留一行状态提示：现在几个组、有没有空组、有没有待确认的座位。 */
     var emptyN = groups.filter(function (g) { return memberCount(g) === 0; }).length;
     var liveN = groups.length - emptyN;          // 有人的组数：压缩以后就剩这么多组
-    var confirmBar = '<div class="gb-confirmbar gb-confirmbar-tip">' +
+    var confirmBar = ro
+      ? '<div class="gb-confirmbar gb-confirmbar-ro">' +
+          '<span class="gb-confirmtip">🔒 <b>已确认分组 · 只读</b>：下面是这次确认后的全班分组，学生端也是只读。' +
+            '要再调整就点上面的「开放组队」重新开一场。</span>' +
+        '</div>'
+      : '<div class="gb-confirmbar gb-confirmbar-tip">' +
       '<span class="gb-confirmtip">' +
         (nSeat ? '有 <b>' + nSeat + '</b> 人已选座待确认 · 点上面的「按选座确认分组」按桌号写进记分表'
                : (!groups.length ? '还没有组 · 先在上面「分几组」里填个数字'
@@ -3056,8 +3077,10 @@ function restoreDroppedToHome(cls) {
           (cards || '<p class="gb-empty">这个班还没有组。在上面「分几组」里填个数字，就会出现对应数量的空组。</p>') +
         '</div>' +
       '</div>' +
-      '<p class="gb-hint">拖动就是分组：把左边的学生拖到右边的组卡片上松手就进组；组里的人数满了会拒绝，并提示先移出一个。' +
-        '手机上先点一个人再点目标组，效果一样。超员的人会标红但不会被移出，你可以拖走、留着，或给那一组点「设为例外」。</p>';
+      (ro
+        ? '<p class="gb-hint">现在是只读状态，看的就是这次确认后的全班分组。要调整请点上面的「开放组队」，学生重新选座后再确认一次。</p>'
+        : '<p class="gb-hint">拖动就是分组：把左边的学生拖到右边的组卡片上松手就进组；组里的人数满了会拒绝，并提示先移出一个。' +
+          '手机上先点一个人再点目标组，效果一样。超员的人会标红但不会被移出，你可以拖走、留着，或给那一组点「设为例外」。</p>');
   }
 
   /** 重画看板（只刷新卡片，不动整页） */
@@ -3248,11 +3271,99 @@ function restoreDroppedToHome(cls) {
      不按人存。所以组号一重排，这一整行必须跟着组一起搬家（remapScoreRows）；
      否则第 4 组的历史分会挂在第 3 组名下 —— 那也是「错位」，只是更难发现。 */
 
-  /** 统一确认弹窗：正常页面用全站 hxConfirm（ui-dialog.js）；单独打开、没引那个文件时退回原生 confirm。
-      新增的确认一律走这里，别再写裸 confirm。 */
+  /* ================= 统一悬浮确认框（2026-11-13） =================
+     用户原话：「这种弹窗我们不是说别用吗 用悬浮弹窗统一」——说的是浏览器原生 confirm()。
+     原生 confirm 是系统灰框，跟站内玻璃风格两回事，也没法把「会动到哪几个组、影响几个人」写清楚。
+
+     现在本文件只有一个确认入口 askConfirm()，两种调用法都认：
+       askConfirm({ title:'删除这节课？', body:'第一段\n第二段', ok:'删除', cancel:'再想想', danger:true, note:'不可撤销' })
+       askConfirm('正文', { title:'标题', okText:'确定', cancelText:'取消' })   ← 兼容旧调用点
+     返回 Promise<boolean>：确定 true；取消 / ✕ / Esc / 点旁边空白 一律 false。
+
+     实现要点（三个坑都在这几行里）：
+     1) 只造一个 <dialog>（#dlgAskConfirm）挂在 body 上，反复开合，不每次 createElement；
+     2) 关窗兜底：Esc / 浏览器 UI / 点空白 都不会走按钮的 onclick，所以统一听 dialog 的 close 事件
+        settle 一次 —— 否则弹窗关了、Promise 永远 pending，调用方后面全卡住；
+     3) 上一个还开着又被调用：先把旧 Promise 结掉（false）再覆盖内容，绝不留孤儿。
+     正文默认「纯文本 + 转义」，只放行 <b>/<strong>/<i>/<em> 四个强调标签；真要插 HTML 传 html:'…'。 */
+  var askDlgEl = null, askSettle = null;
+
+  /** 纯文本 → 段落 HTML：空行分段、单换行 <br>，其余全部转义（白名单只留强调标签） */
+  function askBodyHTML(text) {
+    if (text == null || text === '') return '';
+    return String(text).split(/\n{2,}/).map(function (para) {
+      var s = esc(para).replace(/&lt;(\/?)(b|strong|i|em)&gt;/g, '<$1$2>');
+      return '<p>' + s.replace(/\n/g, '<br>') + '</p>';
+    }).join('');
+  }
+
+  function askDialogEl() {
+    if (askDlgEl) return askDlgEl;
+    var d = document.createElement('dialog');
+    d.id = 'dlgAskConfirm';
+    d.className = 'dlg-ask';
+    d.setAttribute('aria-labelledby', 'askConfirmTitle');
+    d.innerHTML = '<div class="dlg">' +
+        '<div class="dlg-head"><h3 id="askConfirmTitle">请确认</h3>' +
+          '<button type="button" class="dlg-x" data-ask="0" aria-label="关闭">✕</button></div>' +
+        '<div class="dlg-body" id="askConfirmBody"></div>' +
+        '<div class="btnrow"><button type="button" class="btn" data-ask="0">取消</button>' +
+          '<button type="button" class="btn primary" data-ask="1">确定</button></div>' +
+      '</div>';
+    document.body.appendChild(d);
+    wireDialog(d);                    // 点旁边空白同样关掉（close 事件里会 settle false）
+    Array.prototype.forEach.call(d.querySelectorAll('[data-ask]'), function (b) {
+      b.onclick = function () { askClose(b.getAttribute('data-ask') === '1'); };
+    });
+    d.addEventListener('close', function () { askSettleOnce(false); });
+    askDlgEl = d;
+    return d;
+  }
+
+  /** 结掉当前这一次的 Promise（幂等：已经结过就什么也不做） */
+  function askSettleOnce(ok) {
+    var done = askSettle;
+    askSettle = null;
+    if (done) done(!!ok);
+  }
+
+  function askClose(ok) {
+    var d = askDialogEl();
+    askSettleOnce(ok);                              // 先结 Promise 再关；关窗还会触发 close，幂等所以无副作用
+    if (!d.hasAttribute('open')) return;
+    if (typeof d.close === 'function') d.close();
+    else d.removeAttribute('open');
+  }
+
   function askConfirm(msg, opts) {
-    if (typeof window.hxConfirm === 'function') return window.hxConfirm(msg, opts || {});
-    return Promise.resolve(window.confirm(msg));
+    var o = opts || {};
+    if (typeof msg === 'string') {                  // 旧写法：正文在前、选项在后
+      o = { title: o.title, body: msg, ok: o.okText, cancel: o.cancelText, danger: o.danger, note: o.note, html: o.html };
+    } else {
+      o = msg || {};
+    }
+    var d = askDialogEl();
+    askSettleOnce(false);                           // 上一张还没关就被顶掉：先把它的 Promise 结掉，不留孤儿
+    d.querySelector('#askConfirmTitle').textContent = o.title || '请确认';
+    var body = d.querySelector('#askConfirmBody');
+    body.innerHTML = (typeof o.html === 'string') ? o.html : askBodyHTML(o.body);
+    if (o.note) {
+      var note = document.createElement('p');
+      note.className = 'note';
+      note.textContent = o.note;
+      body.appendChild(note);
+    }
+    var btnOk = d.querySelector('.btnrow [data-ask="1"]');
+    var btnNo = d.querySelector('.btnrow [data-ask="0"]');
+    btnOk.textContent = o.ok || '确定';
+    btnNo.textContent = o.cancel || '取消';
+    btnOk.className = 'btn ' + (o.danger ? 'danger' : 'primary');
+    btnNo.className = 'btn';
+    var p = new Promise(function (resolve) { askSettle = resolve; });
+    if (!d.hasAttribute('open')) openDlg(d);
+    /* 焦点：普通确认落在「确定」上（回车即确认）；危险操作落在「取消」上，误按回车也不会删东西 */
+    setTimeout(function () { try { (o.danger ? btnNo : btnOk).focus(); } catch (e) {} }, 30);
+    return p;
   }
 
   /* ── 修复排位误加分（2026-11-13）────────────────────────────────────
@@ -3699,6 +3810,7 @@ function restoreDroppedToHome(cls) {
     if (!board) return;
 
     board.addEventListener('pointerdown', function (e) {
+      if (gbReadOnly()) return;                              // 已确认只读：不许拖
       if (e.button) return;                                  // 只认左键 / 触摸
       var chip = e.target.closest ? e.target.closest('.gb-chip') : null;
       if (!chip) return;
@@ -3839,16 +3951,21 @@ function restoreDroppedToHome(cls) {
   /* 掉队归位 / 撤回上一次分组（2026-11-08）。容器里的按钮是 renderPoolFix 每次重画的，
      所以用事件委托，不在每次重画后重新绑。 */
   if ($('#poolFixRow')) {
-    $('#poolFixRow').addEventListener('click', function (e) {
+    $('#poolFixRow').addEventListener('click', async function (e) {
       var cls = curClass();
       if (!cls) return;
       if (e.target.closest('#btnRestoreDropped')) {
         var rows = droppedWithHome(cls);
         if (!rows.length) return;
-        if (!confirm('把这 ' + rows.length + ' 人按记分表里原来所在的组放回去？\n\n' +
-          '· 一个学生都不会被删；原组号没了的会自动补一个空组，那一组的历史小组分照样挂在原组号上\n' +
-          '· 他们的个人扣分、个人项目分原样留着，不会被清掉\n' +
-          '· 放回去以后还能照常拖动调整，也可以撤回')) return;
+        var back = await askConfirm({
+          title: '把这 ' + rows.length + ' 人放回原来的组？',
+          body: '按记分表里原来所在的组放回去。\n' +
+            '· 一个学生都不会被删；原组号没了的会自动补一个空组，那一组的历史小组分照样挂在原组号上\n' +
+            '· 他们的个人扣分、个人项目分原样留着，不会被清掉\n' +
+            '· 放回去以后还能照常拖动调整，也可以撤回',
+          ok: '放回去'
+        });
+        if (!back) return;
         var res = restoreDroppedToHome(cls);
         flash('已把 ' + res.moved + ' 人放回原来的组');
         renderPoolBanner(cls);
@@ -3858,8 +3975,13 @@ function restoreDroppedToHome(cls) {
       if (e.target.closest('#btnRollbackGroup')) {
         var snap = lastGroupSnapshot(cls);
         if (!snap) return;
-        if (!confirm('撤回上一次分组？\n\n「' + snap.label + '」\n\n' +
-          '组结构、每组顺序、个人扣分和个人项目分都会整份还原到这次分组之前。')) return;
+        var undo = await askConfirm({
+          title: '撤回上一次分组？',
+          body: '「' + snap.label + '」\n' +
+            '组结构、每组顺序、个人扣分和个人项目分都会整份还原到这次分组之前。',
+          ok: '撤回'
+        });
+        if (!undo) return;
         restoreGroupSnapshot(cls, snap);
         renderPoolBanner(cls);
       }
@@ -3967,8 +4089,7 @@ function restoreDroppedToHome(cls) {
 
   /** 两个按钮的显隐与文案跟着房间状态走（2026-11-12 V1：四按钮精简成两按钮） */
   function tmButtons(room) {
-    var open = $('#btnTeamOpen'),
-        fin = $('#btnTeamFinish'), link = $('#teamLink');
+    var open = $('#btnTeamOpen'), link = $('#teamLink');
     var st = room ? room.status : 'none';
     /* 2026-11-12 修「确认分组后按钮不消失」：fin（确认分组）只在「有还没确认的选座」时显示。
        确认成功后把当前座位指纹记进 cls.seatAppliedSig，下一轮 tmButtons 一比对，
@@ -3987,28 +4108,24 @@ function restoreDroppedToHome(cls) {
        这颗按钮只剩一个动作 —— 开放组队（开一场新房间，学生就能选座 / 换座）。
        「停止组队 / 继续组队 / 结束」三个状态连同锁定分组一起删掉了；
        确认分组时会把这一场自动收掉，学生就不能再动了，想再动就再点一次开放组队。 */
+    /* 2026-11-13 第三轮：两颗按钮合体成一颗（用户原话：「这两个按钮本组合体为一个按钮转换
+       比如按下开放后变成确认按钮 颜色区分不一样 然后确认后又变成开放，这样一目了然是开放还是确认了。
+       确认了学生端就是只读状态」）。
+         · 没开放 / 已确认收工（none / closed）→ 青绿主色「开放组队」
+         · 正在组队（open）               → 橙色「✓ 确认分组」
+       点确认做的事没变（按桌号写进记分表 + 把这一场收掉），只是不再需要老师分辨该点哪颗。 */
+    var canConfirm = st === 'open';
     open.hidden = false;
-    open.textContent = '开放组队';
-    open.classList.remove('danger');
-    open.classList.add('primary');
     open.disabled = false;
-    open.title = st === 'open'
-      ? '现在正在组队：再点一次会重开一场（桌数 / 每桌人数按设置走，已选的座位会沿用）'
+    open.classList.toggle('primary', !canConfirm);
+    open.classList.toggle('confirm', canConfirm);
+    open.textContent = canConfirm ? (pendingSeats ? '✓ 按选座确认分组' : '✓ 确认分组') : '开放组队';
+    open.title = canConfirm
+      ? (pendingSeats
+        ? '把这 ' + (seatCnt || 0) + ' 人的选座按桌号写进记分表；确认后这一场收工、学生端转只读'
+        : '清掉空组、把组号重排成 1、2、3…，并把未分组的人平均填进去；确认后学生端转只读')
       : '开放一场新的选座房间，学生用学号账号进来就能选座、换座';
 
-    /* 2026-11-13：fin 改成常驻的第二颗切换按钮（用户：「应该就是开始组队和确认两个切换按钮才对」）。
-       文案随状态变：
-         · 有还没确认的选座 → 「按选座确认分组」（按桌号写进记分表）
-         · 没有 → 「✓ 确认分组」（清空组 + 组号重排 1..N + 把未分组的人平均填进去）
-       两个动作都由 gbConfirmGroups 统一分发，老师不用再分辨该点哪个。 */
-    fin.hidden = false;
-    fin.textContent = pendingSeats ? '按选座确认分组' : '✓ 确认分组';
-    fin.classList.toggle('primary', !!pendingSeats);
-    fin.classList.toggle('ghost', !pendingSeats);
-    fin.disabled = false;
-    fin.title = pendingSeats
-      ? '把这 ' + (seatCnt || 0) + ' 人的选座按桌号写进记分表（组号＝桌号）'
-      : '清掉空组、把组号重排成 1、2、3…，并把未分组的人平均填进去';
     link.hidden = !room || st === 'closed';
     if (room && room.room) {
       link.href = 'team.html?r=' + room.room;
@@ -4020,9 +4137,8 @@ function restoreDroppedToHome(cls) {
        老师还盯着一块折叠条以为没反应。 */
     var seatN = (tmState && (tmState.seats || []).length) || 0;
     var rostN = (tmState && (tmState.roster || []).length) || 0;
-    var seg = st === 'open' ? '组队中 · 学生可以选座'
-      : st === 'locked' ? '已停止 · 学生不能换座'
-      : st === 'closed' ? '已收工（确认过分组了，想再调就再点开放组队）' : '未开放';
+    var seg = st === 'open' ? '组队中 · 学生可以选座；要收工就点右边那颗橙色的「确认分组」'
+      : st === 'closed' ? '已确认 · 学生端只读（想再调整就点「开放组队」重新开一场）' : '未开放';
     var txt = seg;
     if (room && rostN) txt += ' · 已坐 ' + seatN + '/' + rostN + ' 人';
     else if (room) txt += ' · 第 ' + room.room + ' 号房间';
@@ -4048,11 +4164,21 @@ function restoreDroppedToHome(cls) {
 
   /* ---- 教师端组队按钮 ---- */
 
-  $('#btnTeamOpen').addEventListener('click', function () {
+  /* 2026-11-13 第三轮：这一颗按钮按房间状态切换两种动作 ——
+       组队中(open) 点它 = 确认分组（原来 #btnTeamFinish 的活）；
+       其它状态     点它 = 开放组队（下面那段原有逻辑）。
+     「停止组队 / 继续组队 / 结束」三个动作已经在第二轮删掉了。 */
+  $('#btnTeamOpen').addEventListener('click', async function () {
     if (tmBusy) return;
+    var cls0 = curClass();
+    if (tmRoom && tmRoom.room && tmRoom.status === 'open' && cls0) {
+      var seatCnt0 = tmState && (tmState.seats || []).length;
+      var pending0 = seatCnt0 > 0 && tmSeatSig !== cls0.seatAppliedSig;
+      if (pending0) tmApplySeating();       // 有还没确认的选座 → 按桌号写进记分表
+      else gbConfirmGroups(cls0);           // 没选座 → 清空组 + 组号重排 + 平均填人
+      return;
+    }
     var cls = curClass();
-    /* 2026-11-13：不再有「停止组队 / 继续组队 / 结束」。这颗按钮只会开放（必要时重开），
-       学生一进来就能选座换座；确认分组时那一场自动收掉。 */
     if (!cls || !tmOn()) { alert('先登录再来开放组队。'); return; }
     if (!tmClassId(cls)) { alert('这个班还没对应首页班级，先在「数据与同步」页对应。'); return; }
     /* 2026-11-08：桌数 / 每桌人数不再偷偷用 10 / 6 兜底。用户说得很清楚：
@@ -4079,15 +4205,25 @@ function restoreDroppedToHome(cls) {
       : [];
     var keep = old;
     if (old.length && tmRoom.status === 'closed') {
-      keep = confirm('上一场（已结束）还留着 ' + old.length + ' 个座位。\n\n要沿用到这次的圆桌上吗？\n' +
-        '· 确定 = 沿用（桌号不变，只改每桌上限）\n· 取消 = 从空桌子重新选座') ? old : [];
+      keep = (await askConfirm({
+        title: '沿用上一场的座位？',
+        body: '上一场（已结束）还留着 ' + old.length + ' 个座位。\n' +
+          '沿用 = 桌号不变，只改每桌上限；不沿用 = 从空桌子重新选座。',
+        ok: '沿用座位',
+        cancel: '重新选座'
+      })) ? old : [];
     }
-    if (!confirm('开放组队：' + tables + ' 张圆桌，每桌最多 ' + size + ' 人。\n\n' +
-      '学生用学号账号打开「学生入口」，点一张圆桌就坐下，可以自己换桌。\n' +
-      '本班现在还有 ' + pending + ' 人没分组。\n\n' +
-      (keep.length ? '已经选好的 ' + keep.length + ' 个座位会原样保留（改每桌人数只改上限，不会重新分座）。\n\n' : '') +
-      (tmRoom && tmRoom.room && tmRoom.status !== 'closed'
-        ? '注意：本班上一次的组队房间会被作废，没确认的座位靠这里搬过来。\n\n' : '') + '确定开放？')) return;
+    var openIt = await askConfirm({
+      title: '开放组队？',
+      body: '开放组队：' + tables + ' 张圆桌，每桌最多 ' + size + ' 人。\n' +
+        '学生用学号账号打开「学生入口」，点一张圆桌就坐下，可以自己换桌。\n' +
+        '本班现在还有 ' + pending + ' 人没分组。' +
+        (keep.length ? '\n\n已经选好的 ' + keep.length + ' 个座位会原样保留（改每桌人数只改上限，不会重新分座）。' : '') +
+        (tmRoom && tmRoom.room && tmRoom.status !== 'closed'
+          ? '\n\n注意：本班上一次的组队房间会被作废，没确认的座位靠这里搬过来。' : ''),
+      ok: '开放'
+    });
+    if (!openIt) return;
     cls.groupLimit = size;    // 确认之后才记上限：每桌人数同时作为本班「每组上限」，两处口径一致
     tmBusy = true;
     if (keep.length) flash('正在沿用上一场 ' + keep.length + ' 个座位…');
@@ -4286,14 +4422,10 @@ function restoreDroppedToHome(cls) {
        · 没有 → gbConfirmGroups（清空组 + 组号重排 1..N + 把未分组的人平均填进去）
      判断口径和 tmButtons 里给按钮换文案的那段完全一致，避免「按钮写着按选座确认、
      点下去却在整理空组」这种错位。 */
-  $('#btnTeamFinish').addEventListener('click', function () {
-    var cs = curClass();
-    if (!cs) return;
-    var seatCnt = tmState && (tmState.seats || []).length;
-    var pendingSeats = seatCnt > 0 && tmSeatSig !== cs.seatAppliedSig;
-    if (pendingSeats) tmApplySeating();
-    else gbConfirmGroups(cs);
-  });
+  /* 2026-11-13 第三轮：#btnTeamFinish 这颗按钮已经并进 #btnTeamOpen（那颗按钮按状态变身），
+     HTML 里的节点也删了 —— 所以这里原来那条 addEventListener 必须一起删掉，
+     否则 $('#btnTeamFinish') 取到 null、addEventListener 抛异常，整页初始化全废
+     （今天已经因为同类问题出过一次线上空白，别再犯）。 */
 
   /* 2026-11-13：看板（#teamBoard）连同「移出某人 / 帮他放桌」两个操作一起删掉了 ——
      用户说那块「完全冗余 被上面卡片式完全替代」。座位在分组看板上拖一下就行。 */
@@ -4414,17 +4546,22 @@ function restoreDroppedToHome(cls) {
     };
   }
 
-  /** 整班重排的二次确认。返回 true 才允许动手，一个字都不改。 */
+  /** 整班重排的二次确认。resolve true 才允许动手，一个字都不改。
+      注意（2026-11-13）：改成悬浮确认框后返回的是 Promise<boolean>，调用方要 await / .then，
+      不能再当同步 boolean 用。当前本文件已没有调用点（重排改走分组向导）。 */
   function confirmRegroup(cls, planArr) {
     var imp = regroupImpact(cls, planArr), lo = Math.min.apply(null, planArr), hi = Math.max.apply(null, planArr);
+    var first = '要把 ' + imp.people + ' 人重新分成 ' + imp.groups + ' 组（每组 ' + (lo === hi ? lo : lo + '–' + hi) + ' 人）。';
     var lines = [];
-    lines.push('要把 ' + imp.people + ' 人重新分成 ' + imp.groups + ' 组（每组 ' + (lo === hi ? lo : lo + '–' + hi) + ' 人）。');
     if (imp.affected.length) lines.push('· 会重排：' + imp.affected.join('、') + '（组里的人会被打散）');
     if (imp.emptied.length) lines.push('· 会空出来：' + imp.emptied.join('、') + '（有历史记分的组只清空、不删除，分数还挂在原组号上）');
     lines.push('· 一个学生都不会被删掉；记过的分按学生身份跟着人走。');
-    lines.push('');
-    lines.push('建议先到华夏工具首页「全站备份」导出一份。继续吗？');
-    return confirm(lines.join('\n'));
+    return askConfirm({
+      title: '重新分成 ' + imp.groups + ' 组？',
+      body: first + '\n\n' + lines.join('\n'),
+      note: '建议先到华夏工具首页「全站备份」导出一份。',
+      ok: '重新分组'
+    });
   }
 
   /* ---- 分组结果核对（2026-11-08 追加） ----
@@ -5078,7 +5215,7 @@ function restoreDroppedToHome(cls) {
     });
   }
 
-  document.addEventListener('click', function (e) {
+  document.addEventListener('click', async function (e) {
     var b = e.target.closest('button');
     if (!b) return;
 
@@ -5089,7 +5226,15 @@ function restoreDroppedToHome(cls) {
     }
     if (b.dataset.lclear) {
       var l2 = getLesson(b.dataset.lclear);
-      if (l2 && confirm('把第 ' + l2.seq + ' 次课的分数全部清零？（课次本身保留）')) {
+      if (!l2) return;
+      var clearOk = await askConfirm({
+        title: '第 ' + l2.seq + ' 次课的分数清零？',
+        body: '这节课记过的分全部清空（课次本身保留）。',
+        note: '可以撤销。',
+        ok: '清零',
+        danger: true
+      });
+      if (clearOk) {
         l2.scores = {};
         dropUndoForLesson(l2.id);
         save(); renderData();
@@ -5098,7 +5243,15 @@ function restoreDroppedToHome(cls) {
     }
     if (b.dataset.ldel) {
       var l3 = getLesson(b.dataset.ldel);
-      if (l3 && confirm('删除第 ' + l3.seq + ' 次课的全部记录？此操作不可撤销。')) {
+      if (!l3) return;
+      var delOk = await askConfirm({
+        title: '删除第 ' + l3.seq + ' 次课？',
+        body: '这节课的全部记录都会删除，包括所有小组的分数。',
+        note: '此操作不可撤销，要留退路请先到华夏工具首页「全站备份」导出一份。',
+        ok: '删除',
+        danger: true
+      });
+      if (delOk) {
         S.lessons = S.lessons.filter(function (x) { return x.id !== l3.id; });
         if (S.ui.lessonId === l3.id) S.ui.lessonId = null;
         dropUndoForLesson(l3.id);
@@ -5699,8 +5852,14 @@ function restoreDroppedToHome(cls) {
     }
   }
 
-  function doGuestLogin() {
-    if (!confirm('用访客身份进入？\n\n访客记录同样保存到云端，但换设备或清缓存后就找不回来了。需要长期使用请注册邮箱账号。')) return;
+  async function doGuestLogin() {
+    var go = await askConfirm({
+      title: '用访客身份进入？',
+      body: '访客记录同样保存到云端，但换设备或清缓存后就找不回来了。',
+      note: '需要长期使用，请注册邮箱账号。',
+      ok: '访客进入'
+    });
+    if (!go) return;
     setGateBusy(true);
     gateShow('login', null);
     CLOUD.signInAnonymously().then(function () {
@@ -5834,8 +5993,14 @@ function restoreDroppedToHome(cls) {
   $('#btnSwitchAccount').onclick = function () { dlgMe.close(); openAccountSwitch(); };
   $('#btnAccountSwitchClose').onclick = function () { dlgAccountSwitch.close(); };
   $('#btnSwitchSubmit').onclick = switchAccountNow;
-  $('#btnSwitchOther').onclick = function () {
-    if (!confirm('退出当前账号并打开登录页？当前记录会先尝试同步。')) return;
+  $('#btnSwitchOther').onclick = async function () {
+    var out = await askConfirm({
+      title: '退出当前账号？',
+      body: '退出后会打开登录页。当前记录会先尝试同步。',
+      ok: '退出',
+      danger: true
+    });
+    if (!out) return;
     var ready = CLOUD && CLOUD.flush ? CLOUD.flush() : Promise.resolve();
     ready.then(function () { return CLOUD.signOut(); });
   };
@@ -6071,7 +6236,7 @@ function restoreDroppedToHome(cls) {
     var checkCloudButton=document.createElement('button');checkCloudButton.id='btnCheckCloudLatest';checkCloudButton.className='btn';checkCloudButton.textContent='核对云端最新版';checkCloudButton.onclick=function(){checkCloudButton.disabled=true;checkCloudButton.setAttribute('aria-busy','true');refreshCloud().then(function(ok){flash(ok?'核对完成：本机已是云端最新版':'核对未完成：请查看同步冲突详情');}).finally(function(){checkCloudButton.disabled=false;checkCloudButton.removeAttribute('aria-busy');});};$('#btnSyncNow').parentElement.appendChild(checkCloudButton);
   }
   if ($('#btnSyncNow')) {
-    var repairScoresButton=document.createElement('button');repairScoresButton.id='btnRepairScores';repairScoresButton.className='btn';repairScoresButton.textContent='修复认不到人的历史分';repairScoresButton.onclick=function(){var R=window.JFDT_SCORE_REPAIR;if(!R){flash('修复模块没加载，请刷新页面');return;}var n=0;visibleClasses().forEach(function(c){n+=R.countOrphans(S,c);});if(!n){flash('没有认不到人的历史分，不用修');return;}var ok=window.confirm('检测到 '+n+' 条分数「换组后认不到人」：分还在库里，只是显示不出来。\n\n现在把它们接回本人？只搬不删，认不出人的原样保留。');if(!ok)return;var fixed=repairOrphanScores(false);flash(fixed?'已接回 '+fixed+' 条历史分':'没有可接回的分数');};$('#btnSyncNow').parentElement.appendChild(repairScoresButton);
+    var repairScoresButton=document.createElement('button');repairScoresButton.id='btnRepairScores';repairScoresButton.className='btn';repairScoresButton.textContent='修复认不到人的历史分';repairScoresButton.onclick=async function(){var R=window.JFDT_SCORE_REPAIR;if(!R){flash('修复模块没加载，请刷新页面');return;}var n=0;visibleClasses().forEach(function(c){n+=R.countOrphans(S,c);});if(!n){flash('没有认不到人的历史分，不用修');return;}var ok=await askConfirm({title:'接回 '+n+' 条历史分？',body:'检测到 '+n+' 条分数「换组后认不到人」：分还在库里，只是显示不出来。',note:'只搬不删，认不出人的原样保留。',ok:'接回'});if(!ok)return;var fixed=repairOrphanScores(false);flash(fixed?'已接回 '+fixed+' 条历史分':'没有可接回的分数');};$('#btnSyncNow').parentElement.appendChild(repairScoresButton);
   }
 
   /* 闸门上的按钮 */
@@ -6117,9 +6282,16 @@ function restoreDroppedToHome(cls) {
       alert('同步失败：' + (e && e.message ? e.message : e));
     });
   });
-  if ($('#btnPullCloud')) $('#btnPullCloud').addEventListener('click', function () {
+  if ($('#btnPullCloud')) $('#btnPullCloud').addEventListener('click', async function () {
     if (!CLOUD_ON || !CLOUD || !CLOUD.profile()) { alert('请先登录后再拉取。'); return; }
-    if (!confirm('用云端的记录覆盖这台设备上的记录？\n\n本机现在的分数会被替换掉（云端记录是同一账号在别的设备上存的那份）。')) return;
+    var cover = await askConfirm({
+      title: '用云端记录覆盖这台设备？',
+      body: '本机现在的分数会被替换掉（云端记录是同一账号在别的设备上存的那份）。',
+      note: '要留退路请先到华夏工具首页「全站备份」导出一份。',
+      ok: '用云端覆盖',
+      danger: true
+    });
+    if (!cover) return;
     if (CLOUD.cancelPending && !CLOUD.cancelPending()) {
       alert('正在上传记录，请等待同步结束后再拉取。'); return;
     }
@@ -6143,16 +6315,29 @@ function restoreDroppedToHome(cls) {
       alert('拉取失败：' + (e && e.message ? e.message : e));
     });
   });
-  if ($('#btnPushCloud')) $('#btnPushCloud').addEventListener('click', function () {
+  if ($('#btnPushCloud')) $('#btnPushCloud').addEventListener('click', async function () {
     if (!CLOUD_ON || !CLOUD || !CLOUD.profile()) { alert('请先登录后再上传。'); return; }
-    if (!confirm('把这台设备上的记录传到云端，覆盖云端那一份？')) return;
+    var push = await askConfirm({
+      title: '把这台设备的记录传到云端？',
+      body: '会覆盖云端那一份记录（同一账号在别的设备上看到的就是这一份）。',
+      ok: '上传覆盖',
+      danger: true
+    });
+    if (!push) return;
     var upload = CLOUD.forcePush ? CLOUD.forcePush(function () { return S; }) : (CLOUD.touch(function () { return S; }), CLOUD.flush());
     upload.then(function () { alert('已经上传到云端。'); }).catch(function (e) {
       alert('上传失败，记录仍保存在当前设备：' + (e && e.message ? e.message : e));
     });
   });
-  if ($('#btnSignOut')) $('#btnSignOut').addEventListener('click', function () {
-    if (!confirm('退出登录？\n\n未同步的记录仅保存在当前浏览器，建议先确认同步成功，或在华夏工具首页「全站备份」导出一份。下次用同一教师账号登录可继续。')) return;
+  if ($('#btnSignOut')) $('#btnSignOut').addEventListener('click', async function () {
+    var out = await askConfirm({
+      title: '退出登录？',
+      body: '未同步的记录仅保存在当前浏览器，下次用同一教师账号登录可以继续。',
+      note: '建议先确认同步成功，或在华夏工具首页「全站备份」导出一份。',
+      ok: '退出',
+      danger: true
+    });
+    if (!out) return;
     CLOUD.signOut();
   });
   $('#btnMe').addEventListener('click', openMe);
@@ -6168,6 +6353,11 @@ function restoreDroppedToHome(cls) {
     curClass: curClass,
     toast: flash
   };
+
+  /* 自检入口：askConfirm 在闭包里，无头浏览器从外面够不到，交一个只读引用出去，
+     供 tools/_check-ask-confirm.mjs 验证「取消 → false / 确定 → true / Esc 也能结掉 Promise」。
+     不参与任何业务逻辑。 */
+  window.JFDT_ASK_CONFIRM = askConfirm;
 
   /* 进入应用：有云端就走云端，没有就降级成本机模式（页面顶部会写明） */
   function bootCloud() {

@@ -947,6 +947,26 @@ dialog::backdrop {
 .dlg-body > .note { margin: 0; }
 .dlg-btns { display: flex; justify-content: flex-end; gap: 9px; flex: none; margin-top: 2px; }
 
+/* ---------- 统一确认框（app.js 的 askConfirm，2026-11-13） ---------- */
+/* 只写「跟别的 .dlg 不一样」的几条：底色/标题/按钮全部沿用上面的 dialog / .dlg / .btn，
+   深浅色跟着 :root[data-hx-mode="dark"] 里的变量自动走，这里不写死任何白底黑字。 */
+#dlgAskConfirm { width: 420px; }
+/* .dlg-body 是 flex 栏（gap 管段落间距），p 自带的外边距要清掉，否则段距会翻倍 */
+#dlgAskConfirm .dlg-body p { margin: 0; }
+/* 调用方在正文里用 <b> 强调重点（只放行 b/strong/i/em，见 askBodyHTML） */
+#dlgAskConfirm .dlg-body b,
+#dlgAskConfirm .dlg-body strong { color: var(--accent-strong); }
+#dlgAskConfirm .btnrow { justify-content: flex-end; align-items: center; margin-bottom: 0; }
+#dlgAskConfirm .btnrow .btn { min-width: 88px; text-align: center; }
+:root[data-hx-mode="dark"] #dlgAskConfirm .btn.danger { border-color: rgba(255, 133, 152, .45); }
+
+/* 窄屏（手机 / 分屏半宽）：两颗按钮竖着铺满，别挤成一坨；确定在下，拇指够得着 */
+@media (max-width: 420px) {
+  #dlgAskConfirm { width: 100%; }
+  #dlgAskConfirm .btnrow { flex-direction: column; align-items: stretch; gap: 8px; }
+  #dlgAskConfirm .btnrow .btn { width: 100%; }
+}
+
 /* ---------- 保存成功的动态提示 ---------- */
 /* flash() 每次都会挂一条；动画纯 CSS，不依赖 JS 动画 API */
 .toast {

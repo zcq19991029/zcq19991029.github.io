@@ -7,12 +7,12 @@
 <meta name="theme-color" content="#f6f7fb">
 <!-- 全站外观/校徽水印，和 scores.html 同一套（见那边的注释）。 -->
 <script src="../hx-theme.js" data-tool="jiafen"></script>
-<link rel="stylesheet" href="team.css?v=02870ec">
+<link rel="stylesheet" href="team.css?v=99096cc">
 <!-- 桌卡样式（2026-11-06）：圆桌改成排课那套卡片。新规则全写在这一个文件里，
      不覆盖 team.css 已有的行（那边正有人在改深浅色变量）。 -->
 <link rel="stylesheet" href="roster-board.css">
 <!-- 学生端共用外观层（2026-11-12）：深色主题 + 毛玻璃 + 细节统一。必须排在最后覆盖 -->
-<link rel="stylesheet" href="student-ui.css?v=02870ec">
+<link rel="stylesheet" href="student-ui.css?v=99096cc">
 </head>
 <body>
 <header class="top">
@@ -21,7 +21,7 @@
        原来顶部是「班名 / 姓名·学号」两行纯文本 + 一个裸文字「看我的分数 →」，
        现在整块是一张 ID 卡，和查分页（scores.html）那张同一套结构、同一份样式：
          · 左  首字母头像
-         · 中  班级（小字，带「组队中 / 已锁定」状态胶囊）+ 姓名（大字）+ 学号（小字）
+         · 中  班级（小字，带「组队中 / 已结束」状态胶囊）+ 姓名（大字）+ 学号（小字）
          · 右  「看我的分数」玻璃胶囊按钮（不再是裸链接）
        背景由 team.js 读 hx_rank_bg 铺在 #idcBg 上（和教师端排位身份卡同一套预设）。 -->
   <div class="id-card" id="myCard">
@@ -49,9 +49,11 @@
   <p class="tip" id="tip"></p>
 </main>
 
-<script src="config.js?v=02870ec"></script>
+<script src="config.js?v=99096cc"></script>
 <!-- 排位身份卡预设背景（2026-11-12）：拖「我的身份卡」时读自己的 hx_rank_bg 背景 -->
 <script src="../rank-bg.js"></script>
-<script src="team.js?v=02870ec"></script>
+<!-- 班级头像/背景（2026-11-13）：整班头像 + 身份卡背景只在这一处定义，教师端分组看板共用 -->
+<script src="faces.js"></script>
+<script src="team.js?v=99096cc"></script>
 </body>
 </html>

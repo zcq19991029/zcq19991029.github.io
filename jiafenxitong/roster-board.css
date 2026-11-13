@@ -474,8 +474,34 @@ body.gb-dragging .gb-chip { cursor: grabbing; }
 .pool-stats span { white-space: nowrap; }
 .pool-stats b { color: var(--gb-text, inherit); font-weight: 700; }
 .pool-stats .neg b { color: #c0392b; }
-/* 成员头像圈铺学生自己的身份卡背景（app.js 的 chipBgStyle 给 background） */
-.gb-av.has-bg { color: transparent; background-size: cover; background-repeat: no-repeat; background-position: 50% 50%; }
+/* ===== 学生头像 + 身份卡背景（2026-11-13 第二轮）=====
+   上一版把背景铺在头像圈上，用户的原话是「怎么没有背景？只有头像啊？」——
+   他要的是**整张分组卡片**都铺上学生自己设的身份卡背景。
+   现在：卡片铺背景（.has-face），圆圈里放头像照片（.has-img），两者互不干扰。
+   变量名统一是 --hxface / --hxav，由 小组加分/faces.js 产出，教师端和学生端同一套。 */
+.gb-chip.has-face { position: relative; overflow: hidden; }
+.gb-chip.has-face::before {
+  content: ''; position: absolute; inset: 0; z-index: 0;
+  background: var(--hxface);
+  border-radius: inherit;
+}
+/* 压一层从左到右的暗色：任何背景图上姓名/学号都要读得清（左侧是姓名区） */
+.gb-chip.has-face::after {
+  content: ''; position: absolute; inset: 0; z-index: 0;
+  background: linear-gradient(90deg, rgba(6,14,26,.86) 0%, rgba(6,14,26,.60) 48%, rgba(6,14,26,.26) 100%);
+  border-radius: inherit;
+}
+.gb-chip.has-face > * { position: relative; z-index: 1; }
+
+/* 头像圈：有照片就铺照片，并把姓氏首字变透明（以前首字压在照片上，用户说「头像被姓氏遮挡」） */
+.gb-av.has-img {
+  color: transparent;
+  background: var(--hxav);
+  background-size: cover; background-repeat: no-repeat; background-position: 50% 50%;
+}
+/* 超员红标是画在头像圈底色上的，别让它盖掉学生的头像照片；红边和「超出」标签还在 */
+.gb-chip.gb-over-limit .gb-av.has-img { background: var(--hxav); }
+.gb-av.has-img * { display: none; }
 .metrics-slim { margin-top: 12px; }
 .metrics-slim .metric { padding: 8px 12px; }
 
@@ -998,6 +1024,18 @@ body.gb-dragging .gb-group.gb-over { transition: none; }
 .gb-confirmbtn { flex: none; font-weight: 700; }
 .gb-confirmtip { font-size: 12px; line-height: 1.5; color: var(--gb-muted); }
 .gb-confirmtip b { color: var(--gb-ink); font-size: 13px; }
+/* 2026-11-13：已确认分组后的只读提示条（看板仍然显示全班分组，只是不能改） */
+.gb-confirmbar-ro { border-color: var(--gb-accent-line); background: var(--gb-accent-bg); }
+.gb-confirmbar-ro .gb-confirmtip { color: var(--gb-ink); }
+/* 2026-11-13：合体按钮的「确认」态 —— 和「开放组队」的青绿主色明显区分开（橙色，一眼看出是收工动作）。
+   两个状态共用 #btnTeamOpen 一个节点，靠 .primary / .confirm 切换。 */
+.btn.confirm {
+  background: linear-gradient(180deg, #f3ab45 0%, #e0891f 100%);
+  border-color: #c47714; color: #2b1a00; font-weight: 700;
+  box-shadow: 0 2px 8px rgba(224, 137, 31, .28);
+}
+.btn.confirm:hover { background: linear-gradient(180deg, #ffbc5c 0%, #ee9629 100%); border-color: #b06a10; }
+.btn.confirm:focus-visible { outline: 2px solid #c47714; outline-offset: 2px; }
 .gb-lockbadge {
   margin-left: auto; padding: 3px 9px; border-radius: 999px;
   background: var(--gb-warn-bg); color: var(--gb-warn);

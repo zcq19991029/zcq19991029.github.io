@@ -27,6 +27,12 @@
   var MY_BG = { bg: '', pos: 50, loaded: false };
   var drag = null;       // 正在拖「我」这张卡：{el, moved}
 
+  /* 本班头像（2026-11-13，见 faces.js）：一次拉整班 {学号 → 头像}，卡片先画首字、回来再补样式 */
+  var FACES_CLS = 0;       // 本班 id；0 = 还没问到
+  var FACES_READY = false; // 整班头像已经落到 HXFaces 缓存里
+  var facesAsked = false;  // 正在问 jf_team_who，别叠请求
+  var facesTry = 0;        // 失败的次数（只重试几次，别每 2.5 秒打一次接口）
+
   var $ = function (id) { return document.getElementById(id); };
 
   /* ---------- 登录态（和华夏工具共用 paike-session） ---------- */
@@ -164,6 +170,7 @@
         extra && extra.me ? extra.me.name : '',
         extra && extra.me ? extra.me.no : '');
       notice('<b>老师还没开放组队。</b><br>等老师在加分助手里点「开放组队」，这个页面会自动出现圆桌，不用刷新。');
+      ensureFaces();   // 还没开房间也先把顶部身份卡的头像补上
     } else {
       setIdentity('打不开', '', '');
       notice('<b>读取失败：</b>' + esc(extra && extra.message || '未知错误') +
@@ -204,20 +211,78 @@
     }).catch(function () { MY_BG.bg = ''; MY_BG.pos = 50; paintCardBg(); done(); });
   }
 
+  /* ---------- 本班头像（faces.js，2026-11-13） ----------
+     学生端读不到「别人的」hx_rank_bg，但 hx_class_faces 一次给整班（学号 → 头像 + 背景），
+     所以样式统一交给 faces.js 算。班级 id 要单独问 jf_team_who：
+     jf_team_state 只回班名，而 hx_class_faces 的入参是班级 id。
+     和身份卡背景同一套做法：先把卡片画出来（首字），数据回来只给对应的头像圈补 style，
+     不整页重画，也不挡首屏。 */
+
+  function avInitial(name, dft) {
+    var n = String(name || '');
+    if (!n) return dft || '?';
+    return window.HXFaces ? window.HXFaces.initial(n) : n.slice(0, 1);
+  }
+
+  /* 给已经画在页上的头像圈补照片：没有照片的保持首字，不动 */
+  function paintFaces() {
+    var F = window.HXFaces;
+    if (!F || !FACES_CLS || !FACES_READY) return;
+    var mark = function (el, no) {
+      if (!el || !no) return;
+      var f = F.of(FACES_CLS, no);
+      if (!f.hasAv) return;
+      el.classList.add('has-img');
+      el.setAttribute('style', f.av);   // f.av 本身是「--hxav:…;」，不要再包引号
+    };
+    document.querySelectorAll('.gb-av[data-av-no]').forEach(function (el) {
+      mark(el, el.getAttribute('data-av-no'));
+    });
+    var ida = $('idcAv');
+    if (ida) mark(ida, ida.getAttribute('data-av-no'));
+  }
+
+  /* 拉一次整班头像（幂等）：拉到就补样式，拉不到就只显示首字，不影响选座 */
+  function ensureFaces() {
+    var F = window.HXFaces;
+    if (!F) return;                       // faces.js 没加载（老缓存页面）→ 保持首字，不报错
+    if (FACES_READY) { paintFaces(); return; }
+    if (facesAsked) return;
+    facesAsked = true;
+    var get = FACES_CLS ? Promise.resolve(FACES_CLS)
+      : rpc('jf_team_who', {}).then(function (rows) {
+          var r = rows && rows[0];
+          return r && r.class_id ? Number(r.class_id) : 0;
+        });
+    get.then(function (id) {
+      FACES_CLS = Number(id) || 0;
+      if (!FACES_CLS) return null;
+      return F.load(FACES_CLS, rpc).then(function () { FACES_READY = true; });
+    }).then(paintFaces).catch(function () {
+      if (facesTry++ < 2) facesAsked = false;   // 网络抖一下允许重试，别一直打
+    });
+  }
+
   /* ---------- 顶部身份卡（2026-11-13 重做） ----------
      用户原话：「这里的是自己名字 id 卡 当然带背景自定义的那种 右边是教师端这样子的样子
      看我的分数这个跳转太丑了 重做」。
      结构写在 team.html 的 #myCard 里（和 scores.html 那张一模一样，样式统一在
      student-ui.css 末尾的「⑪ 身份卡」），这里只做两件事：填字、铺背景。 */
 
-  /* 填「班级 / 姓名 / 学号」三格 + 头像首字。没有姓名时（没登录 / 没绑班级）卡片自动收成一行。 */
+  /* 填「班级 / 姓名 / 学号」三格 + 头像首字。没有姓名时（没登录 / 没绑班级）卡片自动收成一行。
+     头像圈带上 data-av-no（学号）：faces.js 拉到照片后按学号补 style，首字自动藏掉。 */
   function setIdentity(cls, name, no) {
     var box = $('myCard');
     var c = $('clsName'), nm = $('who'), sno = $('whoNo'), av = $('idcAv');
     if (c) c.textContent = cls || '本班';
     if (nm) nm.textContent = name || '';
     if (sno) sno.textContent = no || '';
-    if (av) av.textContent = name ? String(name).slice(0, 1) : '我';
+    if (av) {
+      av.textContent = name ? String(name).slice(0, 1) : '我';
+      if (name && no) av.setAttribute('data-av-no', no);
+      else av.removeAttribute('data-av-no');
+      if (!name) { av.classList.remove('has-img'); av.removeAttribute('style'); }
+    }
     if (box) box.classList.toggle('is-anon', !name);
   }
 
@@ -232,15 +297,15 @@
   }
 
   /* 生成「我自己」那条 chip（带身份牌背景，和排位身份卡同一套）。放在组内或未分组池子里。
-     别的同学只显示姓氏圆标（他们的背景学生端拿不到，只有自己那份能读）。 */
+     别人的身份卡背景学生端拿不到，但头像是整班的（hx_class_faces），所以头像圈都带 data-av-no。 */
   function meChipHtml(me) {
-    var avatar = esc(String(me.name || '我').slice(0, 1));
+    var avatar = esc(avInitial(me.name, '我'));
     var sub = me.no ? esc(me.no) : '学号';
     var st = cardBgStyle(MY_BG.bg, MY_BG.pos);
     return '<div class="gb-chip me gb-me-card' + (st ? '' : ' no-bg') + '" data-me-bg="1" title="拖到别的组换组，拖回未分组起身">' +
       '<span class="gb-me-bg" aria-hidden="true" style="' + st + '"></span>' +
       '<span class="gb-me-veil" aria-hidden="true"></span>' +
-      '<span class="gb-av" aria-hidden="true">' + avatar + '</span>' +
+      '<span class="gb-av" data-av-no="' + esc(me.no || '') + '" aria-hidden="true">' + avatar + '</span>' +
       '<div class="gb-nm"><b>' + esc(me.name) + '</b><small>' + sub + '</small></div>' +
       '<span class="gb-me-tag">我</span>' +
       '</div>';
@@ -300,7 +365,7 @@
     var locked = S.status !== 'open';
 
     /* 组卡片：和教师端「分组看板」同一套视觉 —— 组号 + 已坐/上限 + 组员列表。
-       「自己」那条用身份牌背景（gb-me-card），别人只显示姓氏圆标（拿不到他们的背景）。 */
+       「自己」那条用身份牌背景（gb-me-card）；别人的头像圈由 faces.js 按学号补照片。 */
     var cards = '';
     for (var n = 1; n <= S.tables; n++) {
       var list = byTable[n] || [];
@@ -314,7 +379,7 @@
         } else {
           /* 每人一份 groupTone(组号, 组内序号)：和教师端 chip 的深浅顺序完全一致 */
           mem += '<div class="gb-chip" style="' + groupTone(n, i) + '" title="' + esc(s.name) + '">' +
-            '<span class="gb-av" aria-hidden="true">' + esc(String(s.name || '?').slice(0, 1)) + '</span>' +
+            '<span class="gb-av" data-av-no="' + esc(s.no || '') + '" aria-hidden="true">' + esc(avInitial(s.name)) + '</span>' +
             '<div class="gb-nm"><b>' + esc(s.name) + '</b>' + (s.no ? '<small>' + esc(s.no) + '</small>' : '') + '</div>' +
             '</div>';
         }
@@ -342,7 +407,7 @@
       var me = S.me && r.id === S.me.id;
       if (me) return meChipHtml(S.me);
       return '<div class="gb-chip gb-pend-chip" title="' + esc(r.name) + '">' +
-        '<span class="gb-av" aria-hidden="true">' + esc(String(r.name || '?').slice(0, 1)) + '</span>' +
+        '<span class="gb-av" data-av-no="' + esc(r.no || '') + '" aria-hidden="true">' + esc(avInitial(r.name)) + '</span>' +
         '<div class="gb-nm"><b>' + esc(r.name) + '</b>' + (r.no ? '<small>' + esc(r.no) + '</small>' : '') + '</div>' +
         '</div>';
     }).join('');
@@ -369,14 +434,17 @@
       el.classList.toggle('no-bg', !st);
     });
 
+    /* 头像同理：卡片上已经是首字，整班头像回来后按 data-av-no 补照片 */
+    ensureFaces();
+
+    /* 状态胶囊：2026-11-13 教师端删掉了「锁定分组」，房间只可能是 open / closed；
+       老数据里的 locked 一律按「已结束」显示，不再对学生说「老师已锁定」。 */
     var pill = $('statePill');
-    pill.className = 'top-state' + (S.status === 'open' ? '' : S.status === 'locked' ? ' locked' : ' closed');
-    pill.textContent = S.status === 'open' ? '组队中' : S.status === 'locked' ? '老师已锁定' : '已结束';
+    pill.className = 'top-state' + (S.status === 'open' ? '' : ' closed');
+    pill.textContent = S.status === 'open' ? '组队中' : '已结束';
 
     clearNotice();
-    if (S.status === 'locked') {
-      notice('<b>老师已经锁定分组了。</b><br>现在只能看，不能改。有意见直接跟老师说。');
-    } else if (S.status === 'closed') {
+    if (S.status !== 'open') {
       notice('<b>这次组队已经结束。</b><br>分组结果已交给老师，下面就是最终结果。');
     }
 
@@ -443,8 +511,9 @@
       if (document.hidden) { schedule(2000); return; }
       if (fatal === 'no_room') { boot(); return; }
       if (!S) { boot(); return; }
-      if (S.status === 'closed') {
-        /* 已经结束了：保留最终结果给他看，但老师要是重开了新房间就跟过去 */
+      if (S.status !== 'open') {
+        /* 已经结束了（含老数据的 locked）：保留最终结果给他看，但老师要是重开了新房间就跟过去。
+           慢速轮询就够，不用 2.5 秒打一次。 */
         rpc('jf_team_mine').then(function (res) {
           if (res && res.room && Number(res.room) !== Number(S.room)) return loadState(res.room);
         }).then(function () { schedule(5000); }).catch(function () { schedule(5000); });
@@ -463,9 +532,14 @@
   document.addEventListener('click', function (e) {
     var g = e.target.closest ? e.target.closest('.gb-group') : null;
     if (!g) return;
-    if (g.dataset.locked === '1') { toast('老师已锁定，不能改'); return; }
     var n = Number(g.dataset.table);
     if (!n) return;
+    /* 结束后只读：dataset.locked 是老版本留下的标记（教师端已删「锁定分组」，只有历史数据会有），
+       和 status 不是 open 一起按「已结束」处理，给一句人话，别让老数据点下去没反应。 */
+    if (!S || S.status !== 'open' || g.dataset.locked === '1') {
+      toast('这次选座已经结束，只有老师能再开放');
+      return;
+    }
     sit(n);
   });
 

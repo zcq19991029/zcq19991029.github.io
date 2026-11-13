@@ -261,6 +261,13 @@ html.hx-bg[data-hx-mode="dark"] .bar { background: rgba(14, 16, 20, .82); }
   color: #fff; font-size: 17px; font-weight: 800; line-height: 1;
   box-shadow: 0 0 0 2px rgba(255, 255, 255, .22), 0 6px 14px -6px rgba(0, 0, 0, .7);
 }
+/* 有头像照片时（faces.js 用 --hxav 给 background-image）：铺满圆、藏掉首字，别让字压在脸上。
+   放在默认规则后面，同权重靠「后写」压过上面的蓝色渐变底。 */
+.id-card .idc-av.has-img {
+  background-image: var(--hxav);
+  background-size: cover; background-position: 50% 50%; background-repeat: no-repeat;
+  color: transparent;
+}
 /* 中间文字列：班级一行（小）+ 姓名学号一行（大），窄屏只许省略号，不许把按钮挤出去 */
 .id-card .idc-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .id-card .idc-top { display: flex; align-items: center; gap: 6px; min-width: 0; }
@@ -296,7 +303,6 @@ html.hx-bg[data-hx-mode="dark"] .bar { background: rgba(14, 16, 20, .82); }
 }
 .id-card .readonly.live { background: rgba(48, 209, 88, .22); color: #8ef0ac; box-shadow: inset 0 0 0 1px rgba(48, 209, 88, .30); }
 .id-card .top-state { background: rgba(91, 140, 255, .26); color: #cfe0ff; box-shadow: inset 0 0 0 1px rgba(140, 178, 255, .32); }
-.id-card .top-state.locked { background: rgba(255, 159, 10, .22); color: #ffd08a; box-shadow: inset 0 0 0 1px rgba(255, 159, 10, .30); }
 .id-card .top-state.closed { background: rgba(255, 255, 255, .12); color: #c8d3e4; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .14); }
 /* 标签文字为空时别留一个空胶囊 */
 .top-state:empty { display: none; }
