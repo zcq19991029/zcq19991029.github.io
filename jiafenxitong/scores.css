@@ -344,7 +344,7 @@ table.book tr.me-row td { border-color: var(--ok, #2f845a); }
    用户反馈：原来这只是一个 12.5px 的小文字链接，学生经常看不见。
    改成明显的品牌色按钮放到页头最左上角，一眼就是「下一步去哪」。
    ============================================================ */
-.top-cta-row { margin-bottom: 8px; }
+.top-cta-row { margin-bottom: 8px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .top-cta {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 9px 16px; border-radius: 12px;
@@ -356,6 +356,49 @@ table.book tr.me-row td { border-color: var(--ok, #2f845a); }
 }
 .top-cta:hover { box-shadow: 0 8px 20px -8px rgba(47, 109, 246, .75); }
 .top-cta:active { transform: scale(.97); }
+
+/* ============================================================
+   身份卡（2026-11-12）：顶部那张「我自己的 id 卡」。
+   和排位排行榜身份卡同一套视觉语言：横向卡片 + 背景层 + 压暗遮罩 +
+   首字母头像 + 姓名 + 班级·学号·组别，背景跟账号走（hx_rank_bg）。
+   ============================================================ */
+.id-card {
+  position: relative; flex: 1 1 220px; min-width: 180px; max-width: 340px;
+  display: flex; align-items: center; gap: 9px;
+  height: 54px; padding: 0 12px 0 8px;
+  border-radius: 13px; overflow: hidden;
+  border: 1px solid rgba(90, 132, 224, .32);
+  background: linear-gradient(120deg, #0c1730 0%, #12234a 60%, #0a1530 100%);
+  box-shadow: 0 8px 20px -12px rgba(20, 40, 90, .7);
+}
+.id-card[hidden] { display: none; }
+.id-card .idc-bg { position: absolute; inset: 0; z-index: 0; background-size: cover; background-position: 50% 50%; }
+.id-card .idc-veil { position: absolute; inset: 0; z-index: 1;
+  background: linear-gradient(90deg, rgba(4, 8, 18, .78) 0%, rgba(4, 8, 18, .42) 42%, rgba(4, 8, 18, .66) 100%); }
+.id-card > *:not(.idc-bg):not(.idc-veil) { position: relative; z-index: 2; }
+.id-card .idc-av {
+  flex: none; width: 36px; height: 36px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: linear-gradient(160deg, #5b8cff, #2f6df6);
+  color: #fff; font-size: 17px; font-weight: 800;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, .25), 0 4px 10px -4px rgba(0, 0, 0, .6);
+}
+.id-card .idc-nm {
+  flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center;
+  color: #fff; font-size: 15px; font-weight: 800; line-height: 1.15;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.id-card .idc-nm small {
+  display: block; margin-top: 2px; font-size: 11px; font-weight: 600;
+  color: #b9cbe4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.id-card .idc-g {
+  flex: none; padding: 3px 9px; border-radius: 999px;
+  background: rgba(255, 214, 140, .18); color: #ffd895;
+  font-size: 11px; font-weight: 700; white-space: nowrap;
+}
+/* 没背景时给一层默认渐变（有背景时 .idc-bg 盖在上面） */
+.id-card[data-nobg="1"] .idc-av { box-shadow: 0 0 0 2px rgba(255, 255, 255, .18), 0 4px 10px -4px rgba(0, 0, 0, .5); }
 
 /* ============================================================
    每节课得分详情表（2026-11-12 U4）

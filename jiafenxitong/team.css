@@ -33,9 +33,18 @@ body {
 .top-main { flex: 1; min-width: 0; }
 .top-main b { display: block; font-size: 16px; }
 .who { color: var(--muted); font-size: 12.5px; }
-/* 学生端两个页面互相串门：这里回「我的分数」，那边去「选桌组队」 */
-.top-link { display: inline-block; margin-top: 3px; color: var(--brand); font-size: 12.5px; text-decoration: none; }
-.top-link:hover { text-decoration: underline; }
+/* 学生端两个页面互相串门：这里回「我的分数」，那边去「选桌组队」。
+   「看我的分数」从裸文字链接改成主题按钮（2026-11-12）：配色跟 --brand 走，全工具统一 */
+.top-btn {
+  display: inline-flex; align-items: center; margin-top: 3px;
+  padding: 5px 12px; border-radius: 999px;
+  background: var(--brand); color: #fff;
+  font-size: 12.5px; font-weight: 700; text-decoration: none;
+  box-shadow: 0 4px 10px -6px rgba(47, 109, 246, .6);
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.top-btn:hover { box-shadow: 0 6px 14px -6px rgba(47, 109, 246, .75); }
+.top-btn:active { transform: scale(.96); }
 .top-state {
   flex: none; padding: 5px 10px; border-radius: 999px;
   background: var(--brand-soft); color: var(--brand);
@@ -156,6 +165,9 @@ body {
 }
 .seat-toolbar[hidden] { display: none; }
 
+/* 学生端分组看板容器（2026-11-12）：和教师端 .gb-board 同一套，这里只给外留白 */
+.group-board { padding: 14px; }
+
 /* 风格胶囊：圆桌 / 行列，和分数页 .tabs 同一套语言 */
 .style-seg {
   display: inline-flex; gap: 4px; padding: 3px;
@@ -195,6 +207,74 @@ body.me-dragging .me-chip { opacity: .3; }
   will-change: transform;
 }
 body.me-dragging { cursor: grabbing; -webkit-user-select: none; user-select: none; }
+
+/* ============================================================
+   身份卡（2026-11-12）：学生端顶部那张「我的身份卡」，可拖进组。
+   和 scores.html 顶部、排位排行榜身份卡同一套视觉：背景层 + 压暗 +
+   首字母头像 + 姓名 + 组别徽章；背景读 hx_rank_bg 跟着账号走。
+   ============================================================ */
+.id-card {
+  position: relative; display: flex; align-items: center; gap: 9px;
+  width: 100%; max-width: 320px; height: 54px; padding: 0 12px 0 8px;
+  border-radius: 13px; overflow: hidden;
+  border: 1px solid rgba(90, 132, 224, .32);
+  background: linear-gradient(120deg, #0c1730 0%, #12234a 60%, #0a1530 100%);
+  box-shadow: 0 8px 20px -12px rgba(20, 40, 90, .7);
+}
+.id-card[hidden] { display: none; }
+.id-card .idc-bg { position: absolute; inset: 0; z-index: 0; background-size: cover; background-position: 50% 50%; }
+.id-card .idc-veil { position: absolute; inset: 0; z-index: 1;
+  background: linear-gradient(90deg, rgba(4, 8, 18, .78) 0%, rgba(4, 8, 18, .42) 42%, rgba(4, 8, 18, .66) 100%); }
+.id-card > *:not(.idc-bg):not(.idc-veil) { position: relative; z-index: 2; }
+.id-card .idc-av {
+  flex: none; width: 36px; height: 36px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: linear-gradient(160deg, #5b8cff, #2f6df6);
+  color: #fff; font-size: 17px; font-weight: 800;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, .25), 0 4px 10px -4px rgba(0, 0, 0, .6);
+}
+.id-card .idc-nm {
+  flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center;
+  color: #fff; font-size: 15px; font-weight: 800; line-height: 1.15;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.id-card .idc-nm small {
+  display: block; margin-top: 2px; font-size: 11px; font-weight: 600;
+  color: #b9cbe4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.id-card .idc-g {
+  flex: none; padding: 3px 9px; border-radius: 999px;
+  background: rgba(255, 214, 140, .18); color: #ffd895;
+  font-size: 11px; font-weight: 700; white-space: nowrap;
+}
+.id-card.draggable { cursor: grab; touch-action: none; -webkit-user-select: none; user-select: none; }
+.id-card.draggable:active { cursor: grabbing; }
+.id-card.seated { border-color: rgba(48, 209, 88, .5); }
+.id-card.seated .idc-g { background: rgba(48, 209, 88, .18); color: #7ee2a0; }
+.id-card.locked { opacity: .66; cursor: default; }
+body.me-dragging .id-card#meCard { opacity: .3; }
+
+/* 拖动时跟着鼠标/手指走的那张残影（clone 的身份卡，fixed + transform 跟手不卡） */
+.me-ghost {
+  position: fixed; left: 0; top: 0; z-index: 4000;
+  pointer-events: none;
+  box-shadow: 0 14px 34px -12px rgba(0, 0, 0, .8);
+  will-change: transform;
+}
+
+/* 学生端分组看板：拖「我的身份卡」经过的组卡片 / 未分组池子，描一圈主题色边当落点 */
+.gb-group.drag-over,
+.gb-pending.drag-over {
+  outline: 2px solid var(--brand) !important;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px var(--brand-soft), 0 0 28px -8px rgba(47, 109, 246, .5) !important;
+  transform: translateY(-2px);
+}
+/* 我所在组高亮 + 我那条 chip 高亮，一眼认出自己 */
+.gb-group.is-mine { border-color: rgba(48, 209, 88, .6); }
+.gb-chip.me { border-color: rgba(48, 209, 88, .55); }
+.gb-chip.me .gb-av { background: linear-gradient(160deg, #30d158, #1e9c46); color: #fff; }
+.gb-chip.empty { opacity: .5; border-style: dashed; }
 
 /* 拖动经过的桌卡：描一圈主题色边，像教师端 .gb-over 一样给个明确落点 */
 .desk.drag-over {

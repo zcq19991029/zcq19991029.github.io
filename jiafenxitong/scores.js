@@ -128,6 +128,60 @@
     return (Number(l.earned) || 0) + (Number(l.net) || 0);
   }
 
+  /* 身份卡（2026-11-12）：顶部那张「我自己的 id 卡」，背景跟账号走（hx_rank_bg）。
+     数据层 public.hx_rank_bg（hx_rank_bg_get 一人一行 {bg,pos}），预设复用根目录 rank-bg.js
+     的 window.rankBgCss —— 和排位排行榜 / 总入口身份卡弹窗是同一套背景，改一处全站跟着变。 */
+  var MY_CARD = { bg: '', pos: 50, loaded: false };
+
+  /* 预设键 p:<k> 或 base64 图 → 可直接赋给 background 的样式串（精简自总入口 rkdBgStyle） */
+  function cardBgStyle(bg, pos) {
+    var s = String(bg || '');
+    if (!s) return '';
+    var p = Math.max(0, Math.min(100, Number(pos) || 50));
+    if (/^p:[a-z0-9_-]{1,24}$/.test(s)) {
+      var css = (window.rankBgCss && window.rankBgCss(s.slice(2))) || '';
+      return 'background:' + css.replace(/0 0\s*\/\s*100% 100%/g, '50% 50% / cover') + ';';
+    }
+    if (/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(s))
+      return 'background-image:url("' + s + '");background-size:cover;background-repeat:no-repeat;background-position:50% ' + p + '%;';
+    return '';
+  }
+
+  function renderMyCard(me) {
+    var box = $('myCard');
+    if (!box || !me || !me.name) { if (box) box.hidden = true; return; }
+    box.hidden = false;
+    /* 名字首字母当头像；信息 = 班级 · 学号 · 组别 */
+    var avatar = esc(String(me.name).slice(0, 1));
+    var sub = [];
+    if (me.gname) sub.push(me.gname);
+    else if (me.group_no) sub.push('第 ' + me.group_no + ' 组');
+    if (me.sid) sub.push(me.sid);
+    else if (me.no) sub.push(me.no);
+    var subHtml = sub.length ? '<small>' + esc(sub.join(' · ')) + '</small>' : '';
+    box.innerHTML =
+      '<span class="idc-bg" aria-hidden="true"></span><span class="idc-veil" aria-hidden="true"></span>' +
+      '<span class="idc-av" aria-hidden="true">' + avatar + '</span>' +
+      '<span class="idc-nm">' + esc(me.name) + subHtml + '</span>' +
+      (me.group_no ? '<span class="idc-g">第 ' + esc(me.group_no) + ' 组</span>' : '');
+    /* 背景：优先用已拉到的；还没拉到就先空着，等 hx_rank_bg_get 回来再补 */
+    var bg = box.querySelector('.idc-bg');
+    var st = cardBgStyle(MY_CARD.bg, MY_CARD.pos);
+    bg.setAttribute('style', st || '');
+    box.setAttribute('data-nobg', st ? '0' : '1');
+    if (!MY_CARD.loaded) {
+      MY_CARD.loaded = true;
+      rpc('hx_rank_bg_get', {}).then(function (rows) {
+        var r = rows && rows[0];
+        MY_CARD.bg = r ? r.bg : ''; MY_CARD.pos = r ? r.pos : 50;
+        var bg2 = box.querySelector('.idc-bg');
+        var st2 = cardBgStyle(MY_CARD.bg, MY_CARD.pos);
+        if (bg2) bg2.setAttribute('style', st2 || '');
+        box.setAttribute('data-nobg', st2 ? '0' : '1');
+      }).catch(function () { MY_CARD.bg = ''; MY_CARD.pos = 50; });
+    }
+  }
+
   function notice(html, cls) {
     var box = $('notice');
     box.innerHTML = html;
@@ -659,6 +713,7 @@
     $('clsName').textContent = (payload.cls && payload.cls.name) || '本班';
     $('who').textContent = (payload.me.name || '') + (payload.me.no ? ' · ' + payload.me.no : '') +
       (payload.me.gname ? ' · ' + payload.me.gname : '');
+    renderMyCard(payload.me);
     paint();
     paintSync();
     /* 只读页也带上本节互评：没开放时这里只多一次查询，不会挡住看分 */
