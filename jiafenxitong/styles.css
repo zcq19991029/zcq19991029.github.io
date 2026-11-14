@@ -2842,25 +2842,23 @@ html.hx-bg[data-hx-mode="dark"] body::after,
 .groups .gcard:nth-child(8n+6) .gnum { background: #06b6d4; }
 .groups .gcard:nth-child(8n+7) .gnum { background: #ef4444; }
 .groups .gcard:nth-child(8n)   .gnum { background: #6366f1; }
-/* 表格式（sheet-vertical）组号色块（2026-11-12 V10）：和分组卡片同一套 gbTone 配色
-   （组号定色相 + 组内深浅），做成圆角色块，不再只是给数字上色。--h/--s/--lb 由 app.js 的
-   gbTone(g.no,0) 内联注入，色相 24 色环轮换（组1蓝、组2绿…），和「分组」页卡片一眼对得上。 */
+/* 表格式（sheet-vertical）组号色块（2026-11-12 V10，2026-11-14 改统一主题色）：
+   原来用 gbTone 按组号定色相（组1蓝、组2绿…红绿蓝品红黄），用户反馈「组号色块丑丑的」，
+   要求「统一用主题色」。现在色相来源从 --h/--s/--lb 换成全站主题色 --accent / --acc，
+   所有组号块同一种颜色（跟页面主题色走），立体渐变 + 艺术字观感保留。 */
 /* 2026-11-13 组号色块填充整格 + 艺术字：不再显示人数，色块铺满整个 td.c-no，
-   组号数字居中放大，用同组色相 --h 描边 + 发光做立体感。td 去内边距让色块贴满整格；
-   td.c-no 已有 position:relative（见 table.sheet td.c-no）。 */
+   组号数字居中放大。td 去内边距让色块贴满整格；td.c-no 已有 position:relative。 */
 .sheet-vertical td.c-no { color: var(--text); font-weight: 700; padding: 0; }
 .sheet-vertical .gno-swatch {
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;
   width: 100%; height: 100%;
   font-size: 24px; font-weight: 900; line-height: 1; letter-spacing: 0;
-  background: linear-gradient(160deg,
-    hsl(var(--h, 220) calc(var(--s, 58%) + 10%) 62%),
-    hsl(var(--h, 220) var(--s, 58%) 44%));
-  color: hsl(var(--h, 220) var(--s, 58%) 96%);
-  -webkit-text-stroke: 1px hsl(var(--h, 220) var(--s, 58%) 24%);
-  text-shadow: 0 2px 0 hsl(var(--h, 220) var(--s, 58%) 18% / .9),
-               0 0 16px hsl(var(--h, 220) 90% 58% / .45);
+  background: linear-gradient(160deg, var(--accent-hi), var(--accent-strong));
+  color: #fff;
+  -webkit-text-stroke: 1px color-mix(in srgb, var(--accent-strong) 55%, #000);
+  text-shadow: 0 2px 0 color-mix(in srgb, var(--accent-strong) 40%, #000 / .9),
+               0 0 16px var(--accent-glow);
 }
 
 /* 红绿分数标签：加分绿 / 扣分红，做成彩色药丸 */
