@@ -455,15 +455,9 @@ table.sheet td.c-no {
   background: var(--xl-no); font-size: 14px; font-weight: 700;
   position: relative;
 }
-table.sheet tbody.touched td.c-no { box-shadow: inset 3px 0 0 var(--accent); }
-table.sheet tbody.is-duty td.c-no { box-shadow: inset 3px 0 0 var(--warn); }
-/* 超载标红（2026-11-12）：本组人数超过上限，组号列左侧压一道红条，和「值日」的橙条分开 */
-table.sheet tbody.is-over td.c-no { box-shadow: inset 3px 0 0 var(--bad, #c0392b); }
-/* 2026-11-13 组号色块铺满整格后，左侧的 touched/is-duty/is-over 竖条会被色块盖住，
-   改压到 .gno-swatch 上（td 的 box-shadow 留给旧横表 .sheet-tb，竖向表看这里）。 */
-.sheet-vertical tbody.touched td.c-no .gno-swatch { box-shadow: inset 3px 0 0 var(--accent); }
-.sheet-vertical tbody.is-duty td.c-no .gno-swatch { box-shadow: inset 3px 0 0 var(--warn); }
-.sheet-vertical tbody.is-over td.c-no .gno-swatch { box-shadow: inset 3px 0 0 var(--bad, #c0392b); }
+/* 2026-11-14 用户「竖纹条也删掉」：组号列改成纯数字后，不再压 touched/is-duty/is-over
+   的左侧 3px 竖条（值日橙条 / 超载红条 / 有记录主题色条）。这些竖条原来是铺在色块上的，
+   色块去掉后露出来变成一条贯穿整列的细竖纹。值日的「值日」角标（td.c-no::after）保留。 */
 table.sheet tbody.is-duty td.c-no::after {
   content: '值日'; position: absolute; left: 50%; bottom: 2px; transform: translateX(-50%);
   font-size: 9px; font-weight: 700; line-height: 1.3; color: #fff;
@@ -2848,7 +2842,8 @@ html.hx-bg[data-hx-mode="dark"] body::after,
    描边 + 发光做艺术字，不再铺满整格。 */
 /* 2026-11-13 组号数字居中放大（不再显示人数）。td 去内边距让数字贴满整格；
    td.c-no 已有 position:relative。 */
-.sheet-vertical td.c-no { color: var(--text); font-weight: 700; padding: 0; background: transparent; }
+.sheet-vertical td.c-no { color: var(--text); font-weight: 700; padding: 0; background: transparent; border-left: 0; border-right: 0; }
+.sheet-vertical thead th.c-no { border-left: 0; border-right: 0; }
 .sheet-vertical .gno-swatch {
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;

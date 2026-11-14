@@ -483,7 +483,7 @@
     if (raw && OLD[raw]) base = { acc: OLD[raw].acc, mode: OLD[raw].mode };
     else if (raw) base = jparse(raw);
     // 已经是 VER 8 的结构：原样用，一个字节都不改（这就是幂等的落点）
-    if (base && (+base.ver || 0) >= VER) { migVal = base; return base; }
+    if (base && (+base.ver || 0) >= VER) { pruneOldSnaps(); migVal = base; return base; }
     // 全新用户（既没有全局键也没有任何界面键）：什么都不写，get() 直接落默认值。
     // 不写盘的好处是「没动过外观的人」localStorage 里干干净净，以后改默认也不会被旧快照挡住。
     if (!base && !snaps.length) return null;
@@ -498,6 +498,9 @@
     var out = { ver: VER }, j;
     for (j = 0; j < GKEYS.length; j++) if (base[GKEYS[j]] !== undefined) out[GKEYS[j]] = base[GKEYS[j]];
     try { ls(KEY, JSON.stringify(out)); } catch (e) { }   // 无痕模式 / 配额满：迁不动也不该让页面崩
+    // 迁移定稿（ver=8）后，旧分键 hx-theme:s:* 不再被读取，就地清除 —— 否则它们会一直残留在本机，
+    // 在后续任何「主键短暂缺失」的竞态窗口里把旧默认色（mono/green）污染回主键（2026-11-14 根治）。
+    pruneOldSnaps();
     migVal = out;
     return out;
   }
@@ -1220,6 +1223,22 @@
     // （常常只有 bg / wm / ver），主题色和两根滑杆会当场落回默认 —— 用户看到的就是「一登录外观全没了」。
     // 迁移是幂等的，这里多调一次没有任何副作用；新结构的快照（ver=8）进迁移会直接原样返回。
     resetMig();
+    // 2026-11-14 修「主题色刷新变白」根治：主键 hx-theme 一旦是 ver=8 的完整结构，旧分键
+    // hx-theme:s:* 就完成了历史使命（一次性迁移），必须**当场清除**。否则它们会一直残留在本机，
+    // 在「主键短暂缺失 / 换账号清空 / 云端快照恰好缺主键」的任何一个竞态窗口里，被 migrateGlobal
+    // 当成迁移基准 —— toolSnaps() 里 hx-theme:s:home（acc 还是旧默认 mono/green）排最前，
+    // 会把用户辛苦挑的主题色（blue 等）顶掉，写回 mono 主键。用户看到的就是「选了蓝色、刷新变白」。
+    migrateGlobal();   // 触发迁移：主键 ver8 会原样返回；残缺主键会就地合并成 ver8 并写回
+    pruneOldSnaps();   // 迁移定稿后清掉旧分键，杜绝后续污染
+  }
+  // 清除所有旧界面分键 hx-theme:s:*（迁移定稿后它们不再被读取，留着只会埋竞态地雷）。
+  function pruneOldSnaps() {
+    try {
+      for (var i = localStorage.length - 1; i >= 0; i--) {
+        var k = localStorage.key(i);
+        if (k && k.indexOf(SKEY) === 0) localStorage.removeItem(k);
+      }
+    } catch (e) { }
   }
   function prefOwner() { try { return localStorage.getItem(POWN) || ''; } catch (e) { return ''; } }
   function setPrefOwner(u) { try { if (u) localStorage.setItem(POWN, u); else localStorage.removeItem(POWN); } catch (e) { } }
