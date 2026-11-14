@@ -14,16 +14,16 @@
      要登录时调 window.HXPortal.login()；被单独打开时 hx-theme.js 会跳回这里（见 hx-theme.js 的 data-tool）。
      账号：Supabase 华夏工具项目，localStorage paike-session 和各工具共用；身份由数据库 hx_me() 决定。
      脚本里不用反引号模板字符串（本机测试时整页当字符串注入到线上同源页面里）。 -->
-<link rel="stylesheet" href="hx-theme.css?v=a7f5ba9">
-<script src="hx-theme.js?v=a7f5ba9"></script>
+<link rel="stylesheet" href="hx-theme.css?v=998becc">
+<script src="hx-theme.js?v=998becc"></script>
 <script src="rank-bg.js" defer></script><!-- 排位身份卡预设（2026-11-12）：总入口外观面板当场弹窗设置身份卡背景，预设数据在总入口也能用 -->
 <!-- 首页卡片上的像素小生物：pixelfx 的 12 个 critters（MIT），打包成一个 91 KB 的独立脚本。
      加载失败不影响首页——hx-critters.js 开头就有 window.PixelFX 存在性检查，没有就整段跳过。 -->
-<script src="fx/pixelfx-critters.js?v=a7f5ba9" defer></script>
-<script src="fx/hx-critters.js?v=a7f5ba9" defer></script>
+<script src="fx/pixelfx-critters.js?v=998becc" defer></script>
+<script src="fx/hx-critters.js?v=998becc" defer></script>
 <!-- 课堂码大屏二维码：离线 QR 编码器（qrcode 1.5.4 core 打包，MIT，见 fx/NOTICE-qr.md）。延迟加载即可：只有老师点「大屏二维码」时才用 -->
-<script src="fx/hx-qr.js?v=a7f5ba9" defer></script>
-<script src="hx-scan.js?v=a7f5ba9" defer></script><!-- 全站扫一扫（2026-11-08 K5）：摄像头 + BarcodeDetector / 本地 jsQR -->
+<script src="fx/hx-qr.js?v=998becc" defer></script>
+<script src="hx-scan.js?v=998becc" defer></script><!-- 全站扫一扫（2026-11-08 K5）：摄像头 + BarcodeDetector / 本地 jsQR -->
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; width: 100%; overflow: hidden; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -95,6 +95,7 @@
   .avl { cursor: pointer; border-radius: 50%; } .avl:hover { filter: brightness(.9); }
   .pill { display: inline-flex; align-items: center; height: 22px; padding: 0 9px; border-radius: 99px; font-size: 12px; font-weight: 600; background: var(--fill); color: var(--dim); }
   .pill.acc { background: var(--accbg); color: var(--acc); }
+  .pill.ok { background: rgba(34, 197, 94, .14); color: #16a34a; }
   .pill.dev { color: #fff; background: linear-gradient(120deg, #f59e0b, #ec4899); box-shadow: 0 4px 14px -6px #ec4899; }
   .pill.admin { color: #fff; background: linear-gradient(120deg, #2563eb, #06b6d4); box-shadow: 0 4px 14px -6px #2563eb; }
   .acct .pill { margin: 0 4px 0 -2px; } .hero p .pill { vertical-align: middle; margin-left: 6px; }
@@ -1982,7 +1983,7 @@ function renderPop() {
       (i.gh ? '<div><span>GitHub</span><span>' + esc(i.gh) + '</span></div>' : '<button type="button" id="plink"><span>GitHub</span><span>绑定</span></button>') + '</div>';
     if (r === '访客') html += '<div class="f" style="margin-bottom:14px"><button class="btn" type="button" data-e="claim">认证入班</button></div>'; // 好友码注册、老师后来才建班的学生，用课堂码补认证
     if (r === '未开通') html += '<div class="f" style="margin-bottom:14px"><button class="btn" id="pgo">填写邀请码开通</button></div>'; // 登录后会自动弹出；关掉了从这里再打开
-    html += '<div class="f"><button class="btn sub" id="pswitch">切换账号</button><button class="btn link bad" id="pout">退出登录</button></div>';
+    html += '<div class="f"><button class="btn sub" id="pswitch">切换账号</button><button class="btn sub" id="pdev">登录设备</button><button class="btn link bad" id="pout">退出登录</button></div>';
   }
   $('pop').innerHTML = html;
   ensurePopX('pop'); // 账号面板内部有多个子视图（资料编辑 / 头像库 / 认证入班）都走 renderPop 重画，每次都补回关闭钮
@@ -2014,6 +2015,7 @@ function renderPop() {
   };
   if ($('plink')) $('plink').onclick = function () { HX.linkGitHub().catch(function (e) { toast(e.message); }); };
   if ($('pswitch')) $('pswitch').onclick = function () { closePops(); openAccounts(); };
+  if ($('pdev')) $('pdev').onclick = function () { closePops(); openDevices(); };
   // 退出登录：把这个账号从这台设备上删掉，下次要重新输密码（和「切换账号」的区别就在这一步）
   if ($('pout')) $('pout').onclick = async function () { var me = HX.me(); if (me && me.id) HX.forgetAccount(me.id); await HX.out(); closePops(); reloadTools(); refresh(); };
   if ($('pgo')) $('pgo').onclick = function () { openLogin('', 'act'); };
@@ -2059,6 +2061,59 @@ function openAccounts() {
     };
   });
   if ($('accNew')) $('accNew').onclick = function () { $('sheet').close(); openLogin('', 'in'); };
+}
+// 登录设备：列出这个账号现在登录着的所有设备（auth.sessions），能踢掉其它设备。
+// 设备名从 UA 里解析个大概（浏览器 / 系统），别给用户看一整串 UA。
+function openDevices() {
+  $('shT').textContent = '登录设备';
+  $('shA').innerHTML = '';
+  $('shB').innerHTML = '<p class="msg" style="margin:0 0 14px">正在读取登录设备…</p>';
+  if (!$('sheet').open) $('sheet').showModal();
+  HX.rpc('hx_sessions').then(function (list) {
+    list = Array.isArray(list) ? list : (list && list.sessions) || [];
+    var nowT = Date.now();
+    var rows = list.map(function (d, i) {
+      var ua = d.ua || '';
+      var dev = uaName(ua), ip = d.ip || '—', cur = d.current;
+      var last = d.last_active || d.created_at || null;
+      var ago = last ? agoText(nowT - new Date(last).getTime()) : '—';
+      return '<div class="cl" style="--i:' + i + '"><div><h3>' + esc(dev) + (cur ? ' · 本机' : '') + '</h3><small>' + esc(ip) + ' · 最后活跃 ' + ago + '</small></div>' +
+        '<div class="acts">' + (cur ? '<span class="pill ok">当前登录</span>' : '<button class="btn link bad sm" type="button" data-kill="' + esc(d.id) + '">退出这台设备</button>') + '</div></div>';
+    }).join('');
+    $('shB').innerHTML = '<p class="msg" style="margin:0 0 14px">同一个账号可以在多台设备上同时登录，下面是你现在登录着的设备；点「退出这台设备」就把那台踢下线。</p>' +
+      (rows ? '<div class="cls">' + rows + '</div>' : '<p class="empty">只有这一台设备在登录</p>');
+    $('shB').querySelectorAll('[data-kill]').forEach(function (b) {
+      b.onclick = async function () {
+        b.disabled = true; b.textContent = '正在退出…';
+        try {
+          await HX.rpc('hx_session_kill', { p_id: b.dataset.kill });
+          toast('已退出那台设备');
+          openDevices(); // 重新拉一遍列表
+        } catch (e) { toast(e.message || '退出失败'); b.disabled = false; b.textContent = '退出这台设备'; }
+      };
+    });
+  }).catch(function (e) {
+    $('shB').innerHTML = '<p class="msg">读不到登录设备：' + esc(e && e.message || e) + '</p>';
+  });
+}
+// 把 UA 字符串念成「浏览器 / 系统」这种能看懂的设备名
+function uaName(ua) {
+  var u = String(ua || '');
+  var os = /Windows/i.test(u) ? 'Windows' : /iPhone|iPad/i.test(u) ? 'iOS' : /Android/i.test(u) ? 'Android' : /Mac OS|Macintosh/i.test(u) ? 'macOS' : /Linux/i.test(u) ? 'Linux' : '';
+  var br = /Edg\//i.test(u) ? 'Edge' : /Chrome\//i.test(u) ? 'Chrome' : /Firefox\//i.test(u) ? 'Firefox' : /Safari\//i.test(u) ? 'Safari' : /MicroMessenger/i.test(u) ? '微信' : /QQBrowser/i.test(u) ? 'QQ浏览器' : '浏览器';
+  return br + (os ? ' · ' + os : '');
+}
+// 距现在多久，念成人话（「3 分钟前」「昨天」）
+function agoText(ms) {
+  if (isNaN(ms) || ms < 0) return '刚刚';
+  var m = Math.floor(ms / 60000);
+  if (m < 1) return '刚刚';
+  if (m < 60) return m + ' 分钟前';
+  var h = Math.floor(m / 60);
+  if (h < 24) return h + ' 小时前';
+  var d = Math.floor(h / 24);
+  if (d < 30) return d + ' 天前';
+  return Math.floor(d / 30) + ' 个月前';
 }
 // 外观：主题色、深色 / 浅色 / 自动、背景图、通透度（全局键管背景/动效/水印；主题色、深浅、两根滑杆按界面分键，只影响本页）
 // 外面这层 try/catch 是保命的：renderLook 里任何一句抛异常，togglePop 那边 .show 还没加上，
