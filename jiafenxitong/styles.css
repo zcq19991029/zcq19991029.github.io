@@ -305,12 +305,20 @@ input[readonly] { background: var(--panel-soft); color: var(--muted); }
 /* ---------- 小组卡片 ---------- */
 .groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(292px, 1fr)); gap: 14px; }
 
+/* 组卡玻璃质感（2026-11-14 用户：「组块颜色就算没有 id 卡设置，也和分组样式一致」）：
+   --h/--s/--lb 由 app.js 的 gbTone(组号,0) 内联注入（和 .gb-chip 成员卡同一套「同组同色 + 半透明玻璃」），
+   组长设了 id 卡背景才走 .gcard.has-face 铺背景。浅色 = 同色相半透明白玻璃 + 描边；深色 = 同色相半透明暗玻璃。 */
 .gcard {
-  background: var(--panel); border: 1px solid var(--line);
+  background: hsl(var(--h, 0) var(--s, 0%) var(--lb, 90%) / .55);
+  border: 1px solid hsl(var(--h, 0) var(--s, 0%) calc(var(--lb, 90%) - 14%));
   border-radius: var(--radius); padding: 14px 16px;
   display: flex; flex-direction: column; gap: 12px;
   box-shadow: var(--shadow);
   transition: border-color .18s, box-shadow .18s;
+}
+:root[data-hx-mode="dark"] .gcard {
+  background: hsl(var(--h, 0) var(--s, 0%) var(--lb, 60%) / .16);
+  border-color: hsl(var(--h, 0) var(--s, 0%) var(--lb, 70%) / .30);
 }
 .gcard:hover { box-shadow: var(--shadow-lift); }
 .gcard.is-duty { border-color: var(--vip-line); box-shadow: 0 0 0 1px var(--vip-line), var(--shadow); }
@@ -320,12 +328,17 @@ input[readonly] { background: var(--panel-soft); color: var(--muted); }
 
 .gcard-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
 .gcard-head > * { min-width: 0; }
+/* 组号徽章：和组卡同色系，但更浓实底（和 .gb-av 同一颗颜色锚点），不再用全局主题色 accent */
 .gnum {
   flex: none; width: 24px; height: 24px; border-radius: 50%;
-  background: linear-gradient(160deg, var(--accent-hi), var(--accent));
-  color: #fff; font-size: 12.5px; font-weight: 700;
+  background: hsl(var(--h, 0) var(--s, 0%) calc(var(--lb, 90%) - 16%));
+  color: hsl(var(--h, 0) var(--s, 0%) 24%);
+  font-size: 12.5px; font-weight: 700;
   display: inline-flex; align-items: center; justify-content: center;
-  box-shadow: 0 2px 6px var(--accent-glow);
+}
+:root[data-hx-mode="dark"] .gnum {
+  background: hsl(var(--h, 0) var(--s, 0%) var(--lb, 70%) / .34);
+  color: hsl(var(--h, 0) 85% 84%);
 }
 .gnames { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 13px; font-weight: 700; }
 .gnames .dutytag {
@@ -1277,7 +1290,7 @@ dialog::backdrop {
   .seg button { border: 0; color: var(--muted); }
   .seg button.on { background: var(--raise); color: var(--text); box-shadow: 0 1px 3px var(--cds-border-card); }
   .lesson-meta { background: var(--panel-soft); border-color: var(--line); box-shadow: none; }
-  .gnum { background: var(--accent-bg); color: var(--accent-strong); box-shadow: none; }
+  .gnum { background: hsl(var(--h, 0) var(--s, 0%) calc(var(--lb, 90%) - 16%)); color: hsl(var(--h, 0) var(--s, 0%) 24%); box-shadow: none; }
   .gate { background: var(--bg); }
   .gate-card { background: var(--panel); border-radius: 16px; box-shadow: var(--shadow-lift); }
   table.data th { background: var(--panel-soft); font-weight: 500; }

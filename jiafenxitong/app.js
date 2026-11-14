@@ -2083,12 +2083,11 @@ function restoreDroppedToHome(cls) {
 
       /* 2026-11-13 组卡身份卡背景：组长（没有组长退回本组第一位成员）的身份卡背景铺满整张卡。
          faceOf 返回的 card/av 是可直接塞进 style= 的串（faces.js 内部已把引号转成单引号），
-         取不到（没设过 / 没网）就是空串 → 按组号稳定分配一套预设背景兜底（见 gcardBgFallback），
-         保证每一组都有一张好看的代表背景，绝不退回光秃秃的蓝色面板。 */
+         取不到（没设过 / 没网）就是空串 → 组卡退回「组号配色 + 玻璃质感」（gbTone，见 .gcard 的
+         --h/--s/--lb），和 .gb-chip 成员卡同一套颜色语言，绝不退回光秃秃的主题色面板。 */
       var leader = g.members.find(function (m) { return m.name && isGroupLeader(g, m); })
                 || g.members.find(function (m) { return m.name; });
       var leadFace = leader ? faceOf(cls, leader.sid) : { card: '', av: '', hasAv: false };
-      if (!leadFace.card) leadFace.card = gcardBgFallback(g.no);
       var leadAv = leader
         ? '<span class="gb-av gcard-lead-av' + (leadFace.hasAv ? ' has-img' : '') + '" aria-hidden="true"' +
             ' style="' + (leadFace.hasAv ? leadFace.av : gbTone(g.no, 0)) + '">' +
@@ -2096,7 +2095,7 @@ function restoreDroppedToHome(cls) {
         : '';
 
       return '' +
-      '<div class="gcard' + (duty ? ' is-duty' : '') + (touched(lesson, g.no) ? ' touched' : '') + (over ? ' is-over' : '') + (leadFace.card ? ' has-face' : '') + '" data-card="' + g.no + '">' +
+      '<div class="gcard' + (duty ? ' is-duty' : '') + (touched(lesson, g.no) ? ' touched' : '') + (over ? ' is-over' : '') + (leadFace.card ? ' has-face' : '') + '" data-card="' + g.no + '" style="' + gbTone(g.no, 0) + '">' +
         (leadFace.card ? '<div class="gcard-bg" aria-hidden="true" style="' + leadFace.card + '"></div><div class="gcard-veil" aria-hidden="true"></div>' : '') +
         '<div class="gcard-head">' +
           '<div class="group-identity">' + leadAv + '<span class="gnum">第 ' + g.no + ' 组</span>' +
@@ -2960,21 +2959,6 @@ function restoreDroppedToHome(cls) {
     var cid = tmClassId(cls);
     if (!cid || !window.HXFaces || !sid) return { card: '', av: '', hasAv: false };
     return window.HXFaces.of(cid, sid);
-  }
-
-  /* 组卡背景兜底（2026-11-13 用户：「把蓝色色块删掉，用组长的 id 卡代替，要个背景好看代表他们组」）：
-     组长自己设过身份卡背景 → 用它（faceOf 返回的 card 非空，不走到这里）；
-     组长没设过 / 没网 → 按组号稳定分配 12 套预设背景之一（站点根 rank-bg.js 的 RANK_BG_PRESETS），
-     组号不变背景就不变，换课、刷新、重登录都保持同一套，代表这个组。 */
-  var GCARD_PRESETS = ['galaxy', 'cyber', 'quantum', 'sunrise', 'arctic', 'sakura', 'whale', 'pixel', 'moon', 'aurora', 'gold', 'mech'];
-  function gcardBgFallback(gno) {
-    var n = Number(gno) || 1;
-    var key = GCARD_PRESETS[(n - 1) % GCARD_PRESETS.length];
-    var css = (window.rankBgCss && window.rankBgCss('p:' + key)) || '';
-    if (!css) return '';
-    // 预设按 3.2:1 身份卡设计，铺小卡片时把「100% 100% 拉伸」换成 cover，别压扁
-    css = css.replace(/0 0\s*\/\s*100% 100%/g, '50% 50% / cover');
-    return '--hxface:' + String(css).replace(/"/g, "'") + ';';
   }
 
   /** 分组已确认收工（云端房间 status = closed）→ 看板只读。

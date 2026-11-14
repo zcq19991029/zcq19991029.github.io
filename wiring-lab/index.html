@@ -3,7 +3,7 @@
 <html lang="zh-CN">
 <head>
 <script src="../hx-theme.js" data-tool="wiring"></script>
-<script>window.HX_BUILD = "2026-11-14T09:08:06Z a4b332e";</script>
+<script>window.HX_BUILD = "2026-11-14T09:48:38Z a7f5ba9";</script>
 <meta charset="utf-8">
 <meta name="copyright" content="© 2026 zcq 版权所有，未经许可禁止复制、修改、转载">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
@@ -4846,7 +4846,20 @@ async function rkPicker(el, body) {
   }).join('');
   // 学生身份卡背景（2026-11-12 U3）：和排行榜身份卡用同一份 hx_rank_bg（跟学生账号走）。
   // 没上过榜的学生在 hx_rank_bgs 里查不到背景，退回默认底，不影响名单渲染。
-  const bgs = await rkClassBgs();
+  // 2026-11-14 优化「加载慢」：背景 rpc 不再阻塞名单首屏 —— 先用缓存/空背景画出名单，
+  // rkClassBgs() 异步回来后再给对应的学生卡补背景（只补一次，不整块重绘、不打断选中态）。
+  const bgs = RK._bgs || {};
+  const paintCards = (bgMap) => {
+    const cur = el.querySelectorAll('.rkx-stu');
+    if (!cur.length) return;
+    cur.forEach(btn => {
+      const sid = +btn.dataset.s;
+      const bg = bgMap[sid];
+      const st = bg ? rkBgStyle(bg.bg, rkTuneOf(bg, 4)) : '';
+      const span = btn.querySelector('.rkx-stu-bg');
+      if (st) { span.setAttribute('style', st); btn.dataset.nobg = '0'; }
+    });
+  };
   const cards = list.map((s, i) => {
     const on = !!(RK.pick && RK.pick.id === s.id);
     const seq = s.seq < 1000 ? String(s.seq).padStart(2, '0') : '+';
@@ -4856,6 +4869,11 @@ async function rkPicker(el, body) {
   }).join('');
   el.innerHTML = `<div class="rkx-clsbar">${pills}</div><div class="rkx-grid">${cards}</div>`;
   rkFitGrid(el.querySelector('.rkx-grid'));
+  // 背景异步补：不阻塞首屏；回来后若名单还是这个班就原地补背景
+  rkClassBgs().then(fresh => {
+    RK._bgs = fresh;
+    if (RK.cls === cls.id) paintCards(fresh);
+  }).catch(() => {});
   el.querySelectorAll('[data-k]').forEach(b => (b.onclick = () => {
     if (+b.dataset.k === RK.cls) return; // 点的就是当前班：状态没变，不再重绘（原逻辑重绘结果等价）
     RK.cls = +b.dataset.k;
@@ -5726,13 +5744,16 @@ async function rkBoard(el, hl, page) {
   // 每页人数不再写死 20：按容器高度现算，两列列优先（左列 1…K、右列 K+1…），底下「上一页/下一页」翻页。
   const isPageFlip = page != null;              // 翻页 = 全新一页，不做 FLIP；只有同页数据刷新才做
   if (isPageFlip) RK.boardPage = Math.max(0, page);
-  let rows; try { rows = await HX.rpc('rank_board', { p_circuit: RK.circuit, p_limit: 200 }, HX.in()); } catch (e) { el.innerHTML = `<p class="rk-err">${esc(e.message)}</p>`; return; }
+  // 2026-11-14 优化「加载慢」：rank_board 与 hx_rank_bgs 两个 rpc 并行发出（背景失败不影响榜单）。
+  const boardP = HX.rpc('rank_board', { p_circuit: RK.circuit, p_limit: 200 }, HX.in());
+  const bgP = HX.rpc('hx_rank_bgs', { p_circuit: RK.circuit, p_limit: 200 }, HX.in()).catch(() => []);
+  let rows; try { rows = await boardP; } catch (e) { el.innerHTML = `<p class="rk-err">${esc(e.message)}</p>`; return; }
   // 后端口径可能返回对象（老函数 / 代理层包了一层），一律归一成数组，别让整块榜单崩掉
   if (!Array.isArray(rows)) rows = (rows && Array.isArray(rows.data)) ? rows.data : [];
   // 个人身份卡背景：新表 hx_rank_bg，按 student_id 关联（绝不按名次）。
-  // 这一步失败（函数还没建 / 网络抖）只影响背景，不影响成绩与排序 —— 所以单独 try，不拖垮榜单。
+  // 背景已并行发出，这里只等它落地；失败/没建函数只影响背景，不影响成绩与排序。
   let bgs = [];
-  if (rows.length) { try { bgs = (await HX.rpc('hx_rank_bgs', { p_circuit: RK.circuit, p_limit: 200 }, HX.in())) || []; } catch (e) { bgs = []; } }
+  if (rows.length) { try { bgs = (await bgP) || []; } catch (e) { bgs = []; } }
   if (!Array.isArray(bgs)) bgs = (bgs && Array.isArray(bgs.data)) ? bgs.data : [];
   const BG = {}; bgs.forEach(b => { if (b && b.student_id != null) BG[b.student_id] = b; });
   const nEl = document.getElementById('rkBoardN');
