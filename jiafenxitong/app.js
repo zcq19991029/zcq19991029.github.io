@@ -2318,21 +2318,37 @@ function restoreDroppedToHome(cls) {
   /* ── 「至今完成率」明细（2026-11-14）────────────────────────────────
      用户：「我的至今为止的详情呢」「按照这个来（指本节完成率的浮动卡）」。
      点「平时分（至今完成率）」这一列，弹同一张浮动卡（跟随单元格），内容换成
-     截至当前课的累计：项目完成率 / 值日 / 考勤 / 平时分，以及逐课次的完成率明细。
-     只显示完成率，不显示 5 分制得分（延续上一轮「只需要完成率」）。 */
+     截至当前课的累计，且**每节课都展开它的具体项目完成率**（项目名 → 完成率），
+     和「本节完成率」那张卡一样逐项列出，让人看到每节完成率是怎么来的。
+     只显示完成率，不显示 5 分制得分（延续「只需要完成率」）。 */
   function cumDetailHtml(cls, lesson, gno, member, i) {
     var A = window.JFDT_ASSESSMENT, key = A.key(member);
     var ls = lessonsThrough(cls, lesson).slice().sort(function (a, b) { return a.seq - b.seq; });
     var student = A.rows(cls, ls, memberTotals(cls)).find(function (m) { return m.key === key; });
     if (!student) return '';
     var dutyPct = dutyPctText(ls, student.gno);
-    /* 逐课次一行：第 N 次 · 日期 · 本节完成率（只留完成率，不列得分/扣分） */
+    /* 每节课一个分组：组头「第 N 次 · 日期 · 本节完成率」，下面缩进列出各项目完成率 */
     var detail = ls.map(function (l) {
       var net = A.lessonNet(l, student.gno, student.memberIndex, key);
-      return '<span class="sumd-item">' +
-        '<b class="sumd-name">第 ' + l.seq + ' 次 · ' + esc(l.date || '') + '</b>' +
-        '<span class="sumd-pct">' + (net.max ? pctText(Math.max(0, net.earned) / net.max * 100) : '—') + '</span>' +
-        '</span>';
+      var names = (A.projectNames && A.projectNames(l)) || [];
+      var rec = (l.leaderScores || {})[String(student.gno)] || {};
+      var values = (rec.members || {})[key] || [];
+      var projects = names.map(function (n, idx) {
+        var label = String(n == null ? '' : n).trim();
+        if (!label) return '';
+        var v = values[idx];
+        var blank = (v == null || v === '');
+        var num = blank ? 0 : (Number(v) || 0);
+        return '<span class="sumd-project' + (blank ? ' is-blank' : '') + '">' +
+          '<b class="sumd-name">' + esc(label) + '</b>' +
+          '<span class="sumd-pct">' + (blank ? '—' : pctText(num / 5 * 100)) + '</span>' +
+          '</span>';
+      }).filter(Boolean).join('');
+      return '<div class="sumd-lesson-group">' +
+        '<div class="sumd-lesson-head"><b>第 ' + l.seq + ' 次 · ' + esc(l.date || '') + '</b>' +
+        '<span class="sumd-pct">' + (net.max ? pctText(Math.max(0, net.earned) / net.max * 100) : '—') + '</span></div>' +
+        (projects ? '<div class="sumd-projects">' + projects + '</div>' : '<div class="sumd-noproj">本课无项目</div>') +
+        '</div>';
     }).join('');
     var foot = '项目完成率 ' + pctText(student.task.rate * 100) + ' · 值日完成率 ' + dutyPct +
       ' · 考勤完成率 ' + attPctText(student.attendance) + ' · 平时分 ' + student.regular + '/100 · 计入总评 ' + student.contribution + '/40';
@@ -2344,7 +2360,7 @@ function restoreDroppedToHome(cls) {
         '<span class="spacer"></span>' +
         '<button type="button" class="sumd-x" data-sumd-close="1" aria-label="关闭明细">✕</button>' +
       '</div>' +
-      '<div class="sumd-items">' + detail + '</div>' +
+      '<div class="sumd-lessons">' + detail + '</div>' +
       '<div class="sumd-foot">' + foot + '</div>' +
       '</div>';
   }
