@@ -273,10 +273,12 @@
     // 方块尺寸用 em 跟着字号走：全屏那版字号大、药丸里那版字号小，一套规则两个尺寸
     '.hx-px{display:inline-flex;align-items:flex-end;gap:.28em;height:2.2em}'
     + '.hx-px i{width:1em;height:1em;border-radius:.16em;display:block;'
-    + 'background:linear-gradient(180deg,var(--acc,#2f845a),var(--acc2,#5aa77c));'
+    + 'background:var(--acc,#2f845a);'
     + 'box-shadow:0 .5em 1.2em -.6em var(--acc,#2f845a);'
     + 'animation:hxPx 1.15s var(--hx-ease,cubic-bezier(.32,.72,0,1)) infinite;animation-delay:calc(var(--i) * 90ms)}'
-    + '.hx-px i:nth-child(2n){background:linear-gradient(180deg,var(--acc2,#5aa77c),var(--acc3,#5aa77c))}'
+    // 2026-11-14 用户「统一颜色」：原 .hx-px i:nth-child(2n) 用 --acc2 让偶数方块比奇数更浅，
+    // 一排方块明暗交替，深色下被看成「颜色不一致」。这里去掉，全排方块统一用主题色 --acc，
+    // 深浅/明暗只由动画的 opacity（0.55~1）驱动，是同一色的呼吸，不再有色相/明度跳变。
     // 起始透明度 .55：太淡在浅灰底上会糊成一片（总入口那边踩过），位移用百分比，大小方块通用
     + '@keyframes hxPx{0%,100%{transform:translateY(0);opacity:.55}35%{transform:translateY(-110%);opacity:1}60%{transform:translateY(0);opacity:.7}}'
     // 药丸本体
@@ -287,10 +289,12 @@
     //   · 一体机 1920 → 22.3px
     //   · 4K 屏开了 100% 缩放（CSS 宽 3840）→ 封顶 30px，不会退化成一条细线
     // 方块和文字都用 em 挂在药丸字号上，所以一处改动整条药丸等比放大，不会出现「字大了方块没大」。
-    + '.hx-loadpill{display:inline-flex;align-items:center;gap:.7em;padding:.75em 1.15em;border-radius:99px;'
-    + 'background:var(--card-solid,rgba(255,255,255,.86));color:var(--ink,#1d1d1f);'
+    // 药丸本体（2026-11-14 用户「去掉外围封闭椭圆方框」：不再画胶囊底/描边/圆角/阴影，
+    // 只留方块 + 文字裸排在背景上，和期望图一致。文字色用 --hx-ink 跟深浅主题走，深色下浅字、
+    // 浅色下深字，不再出现「深色模式还顶着黑字」或各工具 --ink 各写各的色差）。
+    + '.hx-loadpill{display:inline-flex;align-items:center;gap:.7em;'
+    + 'color:var(--hx-ink,#1d1d1f);'
     + 'font-size:clamp(15px,.85vw + 6px,30px);line-height:1;'
-    + 'border:1px solid var(--edge,rgba(0,0,0,.07));box-shadow:0 18px 40px -18px rgba(0,0,0,.35);'
     + 'animation:hxPillIn .28s var(--hx-ease,cubic-bezier(.32,.72,0,1)) both}'
     // 方块 = 药丸字号的 54%（原来是写死的 8px / 15px ≈ .53，比例不变，但从此跟着字号一起长）
     + '.hx-loadpill .hx-px{font-size:.54em}'
@@ -945,7 +949,10 @@
       '--hov': 'color-mix(in srgb, ' + c + ' 10%, transparent)', '--hx-a': hx_a, '--hx-img': img, '--hx-bgo': bgo, '--hx-scrim': scrim,
       // --hx-page：挂 .hx-layer 时 html 铺的纯色底（跟深浅主题走）。工具页各有各的底色调子，
       // 这里统一成主题的标准底色 —— 只在「有背景/动效可看」时才露出来，无 + 无 时页面还是自己的底色。
-      '--hx-page': m === 'dark' ? '#000' : '#f5f5f7' };
+      '--hx-page': m === 'dark' ? '#000' : '#f5f5f7',
+      // --hx-ink：全站统一正文色（跟深浅主题走）。加载药丸等跨页元素用它做文字色，
+      // 不再依赖各工具页自己定义的 --ink/--text（有的深色有的浅色，导致「深色下颜色不一致」）。
+      '--hx-ink': m === 'dark' ? '#f5f5f7' : '#1d1d1f' };
     for (var k in vars) r.style.setProperty(k, vars[k]);
     r.classList.remove('hx-bgblur'); // 旧版挂的「预糊图」标记，现在没有任何样式依赖它，清掉防止老缓存残留
     // 嵌入的工具不建自己的视频（一个 iframe 一份 mp4，几个工具同时开就炸）。
