@@ -723,6 +723,7 @@ function normalizeQuestions(raw, subject) {
     const arr = v => (Array.isArray(v) ? v : v ? [v] : []).map(x => String(x == null ? '' : x).trim()).filter(Boolean);
     const code = String((item && (item.code || item.代码 || item.程序)) || '').trim();
     const sub = arr(item && (item.sub || item.小问 || item.问题));
+    const knowledge = String((item && (item.knowledge || item.知识点)) || '').trim();
     questions.push({
       id: subject + '-ai-' + hximpUid(),
       number: (item && item.number) || questions.length + 1,
@@ -730,6 +731,7 @@ function normalizeQuestions(raw, subject) {
       explanation: String((item && (item.explanation || item.解析)) || '').trim(),
       ...(code ? { code } : {}),
       ...(sub.length ? { sub } : {}),
+      ...(knowledge ? { knowledge } : {}),
       source: (item && (item.source || item.出处)) || 'AI'
     });
   });
@@ -759,13 +761,13 @@ const TYPE_RULE = {
   prog: '程序分析题：stem 写清背景和要求（哪个口接了什么、要读哪段程序），code 里放这段完整可读的程序（保留换行和缩进，不要用 Markdown 代码块、不要加 ```），sub 里放 2～4 个具体小问，answer 里按小问顺序（1）（2）（3）写参考答案；'
 };
 const TYPE_SAMPLE = {
-  single: '{"type":"single","stem":"题干","options":[{"key":"A","text":"选项"}],"answer":["A"],"explanation":"原文依据"}',
-  multiple: '{"type":"multiple","stem":"题干","options":[{"key":"A","text":"选项"}],"answer":["A","C"],"explanation":"原文依据"}',
-  judgment: '{"type":"judgment","stem":"题干","options":[{"key":"T","text":"正确"},{"key":"F","text":"错误"}],"answer":["T"],"explanation":"原文依据"}',
-  fill: '{"type":"fill","stem":"并行口方向寄存器决定端口是输入还是 ____","answer":["输出"],"explanation":"原文依据"}',
-  short: '{"type":"short","stem":"简述……的步骤","answer":["参考答案那一段话"],"explanation":"原文依据"}',
-  term: '{"type":"term","stem":"解释：中断优先级","answer":["几句话的解释"],"explanation":"原文依据"}',
-  prog: '{"type":"prog","stem":"阅读下面的程序，P1 口接 8 个 LED（低电平点亮），回答问题。","code":"#include <reg51.h>\\nvoid main()\\n{\\n    P1 = 0xFE;\\n    while(1);\\n}","sub":["哪个灯先亮？","程序会不会停下来？"],"answer":["（1）D1 先亮（0xFE 最低位为 0）。（2）不会，while(1) 是死循环。"],"explanation":"原文依据"}'
+  single: '{"type":"single","stem":"题干","options":[{"key":"A","text":"选项"}],"answer":["A"],"knowledge":"一句话知识点","explanation":"原文依据"}',
+  multiple: '{"type":"multiple","stem":"题干","options":[{"key":"A","text":"选项"}],"answer":["A","C"],"knowledge":"一句话知识点","explanation":"原文依据"}',
+  judgment: '{"type":"judgment","stem":"题干","options":[{"key":"T","text":"正确"},{"key":"F","text":"错误"}],"answer":["T"],"knowledge":"一句话知识点","explanation":"原文依据"}',
+  fill: '{"type":"fill","stem":"并行口方向寄存器决定端口是输入还是 ____","answer":["输出"],"knowledge":"并行 I/O 端口方向寄存器","explanation":"原文依据"}',
+  short: '{"type":"short","stem":"简述……的步骤","answer":["参考答案那一段话"],"knowledge":"一句话知识点","explanation":"原文依据"}',
+  term: '{"type":"term","stem":"解释：中断优先级","answer":["几句话的解释"],"knowledge":"中断优先级","explanation":"原文依据"}',
+  prog: '{"type":"prog","stem":"阅读下面的程序，P1 口接 8 个 LED（低电平点亮），回答问题。","code":"#include <reg51.h>\\nvoid main()\\n{\\n    P1 = 0xFE;\\n    while(1);\\n}","sub":["哪个灯先亮？","程序会不会停下来？"],"answer":["（1）D1 先亮（0xFE 最低位为 0）。（2）不会，while(1) 是死循环。"],"knowledge":"一句话知识点","explanation":"原文依据"}'
 };
 
 function genPrompt(o) {
@@ -782,7 +784,8 @@ function genPrompt(o) {
     + '1. 每道题都必须能在原文找到依据；原文没写的不出，不编型号、参数、页码。\n'
     + '2. ' + rules + '\n'
     + '3. 答案唯一、没有歧义；explanation 写一句依据（引用原文要点）。\n'
-    + '4. 只输出 JSON 对象，不要任何解释文字：\n'
+    + '4. 每道题都要输出一个 knowledge 字段：一句话知识点（不超过 20 个字），能当筛选标签用，必须是原文里讲到的考点（例如「定时器工作方式 2 的选择」「并行 I/O 端口方向寄存器」）。\n'
+    + '5. 只输出 JSON 对象，不要任何解释文字：\n'
     + '{"questions":[\n  ' + samples + '\n]}' + (o.note ? '\n' + o.note : '')
     + '\n资料原文：\n' + o.piece;
 }
@@ -1381,7 +1384,7 @@ function MAT_toDb(q, src) {
     t, ch: null, q: q.stem,
     o: t === 'choice' || t === 'judge' ? q.options.map(o => ({ key: o.key, text: o.text })) : null,
     a, code: q.code || null, sub: q.sub && q.sub.length ? q.sub : null,
-    explanation: q.explanation || '', src
+    explanation: q.explanation || '', knowledge: q.knowledge || null, src
   };
 }
 async function matGenAdd() {
@@ -1428,10 +1431,10 @@ async function matGenAdd() {
 
 const QB_CN = { choice: '选择', fill: '填空', judge: '判断', term: '名词解释', short: '简答', prog: '程序分析' };
 const QB_ORDER = ['choice', 'fill', 'judge', 'term', 'short', 'prog'];
-let QB_ALL = [], QB_T = '', QB_SEL = new Set();
+let QB_ALL = [], QB_T = '', QB_K = '', QB_KN = [], QB_SEL = new Set();
 
 function qbHome() {
-  QB_T = ''; QB_ALL = []; QB_SEL = new Set();
+  QB_T = ''; QB_K = ''; QB_KN = []; QB_ALL = []; QB_SEL = new Set();
   const s = curSub();
   app().innerHTML = `<header class="zl-h"><h1>${esc(s.name)} · 题池</h1></header>
     <div class="errs" id="qbBanner" hidden></div>
@@ -1441,6 +1444,7 @@ function qbHome() {
         <div class="qb-f">
           <label><input type="checkbox" id="qbAll">全选</label>
           <label>题型<select id="qbType"><option value="">全部</option>${QB_ORDER.map(t => `<option value="${t}">${QB_CN[t]}</option>`).join('')}</select></label>
+          <label>知识点<select id="qbKn"><option value="">全部</option></select></label>
           <button class="sm" id="qbRefresh">刷新</button>
           <button class="sm" id="qbDedup">AI 查重</button>
           <button class="sm danger" id="qbClear">清空题池</button>
@@ -1451,6 +1455,7 @@ function qbHome() {
     </section>`;
   if (window.HXLoadFx) HXLoadFx.auto($('qbList'));
   $('qbType').onchange = () => { QB_T = $('qbType').value; qbDraw(); };
+  $('qbKn').onchange = () => { QB_K = $('qbKn').value; qbLoad(); };
   $('qbAll').onchange = () => { const on = $('qbAll').checked; qbShown().forEach(q => on ? QB_SEL.add(String(q.id)) : QB_SEL.delete(String(q.id))); qbDraw(); };
   $('qbRefresh').onclick = qbLoad;
   $('qbDedup').onclick = qbDedup;
@@ -1462,14 +1467,26 @@ const qbShown = () => QB_T ? QB_ALL.filter(x => x.t === QB_T) : QB_ALL;
 
 async function qbLoad() {
   const sid = MAT_sid(); if (sid == null) return;
-  const r = await MAT_call('hx_exam_qbank_list', { p_subject_id: sid });
+  const body = { p_subject_id: sid };
+  if (QB_K) body.p_knowledge = QB_K;
+  const r = await MAT_call('hx_exam_qbank_list', body);
   if (MAT_sid() !== sid) return;
   const box = $('qbList'); if (!box) return;
   if (!r.ok) { box.innerHTML = `<div class="errs">${esc(r.err)}</div>`; QB_ALL = []; qbDrawStat(); return; }
   QB_ALL = Array.isArray(r.data) ? r.data : [];
+  if (!QB_K) qbKnBuild(QB_ALL);   // 只在未按知识点筛选时重建下拉，避免筛选后把选项刷没
   const ids = new Set(QB_ALL.map(q => String(q.id)));
   QB_SEL = new Set([...QB_SEL].filter(id => ids.has(id)));
   qbDrawStat(); qbDraw();
+}
+/* 从题池里收集去重后的知识点，填进 qbKn 下拉（空的不显示），保留当前选中项 */
+function qbKnBuild(list) {
+  QB_KN = [...new Set(list.map(q => String(q.knowledge || '').trim()).filter(Boolean))].sort();
+  const sel = $('qbKn'); if (!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">全部</option>' + QB_KN.map(k => `<option value="${esc(k)}">${esc(k)}</option>`).join('');
+  sel.value = QB_KN.includes(cur) ? cur : '';
+  QB_K = sel.value;
 }
 function qbDrawStat() {
   const box = $('qbStat'); if (!box) return;
@@ -1497,7 +1514,7 @@ function qbDraw() {
         <div class="qb-q"><span class="qb-t">${esc(QB_CN[q.t] || q.t)}</span>${esc(q.q)}</div>
         ${Array.isArray(q.o) && q.o.length && q.t === 'choice' ? `<div class="qb-o">${q.o.map(o => `<span>${esc(o.key)}. ${esc(o.text)}</span>`).join('')}</div>` : ''}
         ${q.code ? `<pre class="qb-code">${esc(q.code)}</pre>` : ''}
-        <div class="qb-a">答案：${esc(String(QB_ans(q)).slice(0, 300))}${q.src ? ' ｜ ' + esc(q.src) : ''}</div>
+        <div class="qb-a">${q.knowledge ? `<span class="qb-t">知识点</span>${esc(q.knowledge)} · ` : ''}答案：${esc(String(QB_ans(q)).slice(0, 300))}${q.src ? ' ｜ ' + esc(q.src) : ''}</div>
       </div>
       <div class="qb-act"><button class="sm" data-qed="${q.id}">改</button><button class="sm danger" data-qdel="${q.id}">删</button></div>
     </div>`).join('');
@@ -1619,7 +1636,7 @@ function qbEdit(id) {
   $('qeCancel').onclick = zlModalClose;
   $('qeSave').onclick = async () => {
     const fail = m => { $('qeErr').textContent = m; $('qeErr').hidden = false; };
-    const it = { t: q.t, ch: q.ch, q: $('qeQ').value.trim(), o: null, a: null, code: q.code || null, sub: q.sub || null, explanation: $('qeE').value.trim(), src: q.src || '' };
+    const it = { t: q.t, ch: q.ch, q: $('qeQ').value.trim(), o: null, a: null, code: q.code || null, sub: q.sub || null, explanation: $('qeE').value.trim(), knowledge: q.knowledge || null, src: q.src || '' };
     if (!it.q) return fail('题干不能空');
     if (q.t === 'choice') {
       it.o = $('qeO').value.split('\n').map(s => s.trim()).filter(Boolean).map((s, i) => {

@@ -604,6 +604,9 @@ button.danger { color: var(--bad, #d70015); }
 .ppb-f { position: sticky; top: 34px; z-index: 2; display: grid; gap: 8px; padding: 8px 0; background: var(--card-solid); border-bottom: 1px solid var(--hair); }
 .ppb-ch { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 12.5px; color: var(--ink2); }
 .ppb-ch label { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+/* 知识点筛选（2026-11-13）：和题库抽屉的章节筛选同一套换行勾选样式 */
+.ppkn { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 12.5px; color: var(--ink2); }
+.ppkn label { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
 .ppb-l { display: grid; gap: 2px; align-content: start; }
 .bkq { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto auto; gap: 8px; align-items: center; padding: 8px 8px;
   border: 1px solid transparent; border-radius: 10px; cursor: pointer; }
@@ -5458,14 +5461,23 @@ function hxSubs(v) {
    非 mcu 科目的题来自云端 hx_exam_qbank（AI 题库页 / 资料库页出的题），
    app.js 的理论试卷入口拉完题后调 __examSetPool 挂进来；mcu 永远走内置 THEORY，行为零变化。
    POOL_CH 按题库里实际出现的章节建：ch 为 null 的题归 0（「未分章」）。 */
-let POOL=null, POOL_CH=null;
+let POOL=null, POOL_CH=null, POOL_KN=null;
 const curPool=()=>POOL||THEORY;
 const curCH=()=>POOL_CH||THEORY_CH;
+const curKN=()=>POOL_KN||null;
 /* 章节显示名：mcu 保持「项目1」（和试卷库老存档一致），AI 题库用建池时给的名字（「第1章」「未分章」） */
 const chLabel=c=>POOL?(curCH()[c]||('第'+c+'章')):('项目'+c);
+/* 知识点维度（2026-11-13）：题库 hx_exam_qbank 多了 knowledge 可空列，非 mcu 科目抽题时可按知识点筛。
+   建池时把每题 knowledge 去重成 POOL_KN 列表；mcu 走内置 THEORY，没有这个维度，POOL_KN 恒 null，行为零变化。 */
+const knVal=q=>String(q&&q.knowledge==null?'':q.knowledge).trim();
 window.__examSetPool=(items,ch)=>{
   POOL=items||null;POOL_CH=ch||null;
-  if(items)items.forEach((q,i)=>{q._k='Q'+q.id;q._i=i;});
+  if(items){
+    items.forEach((q,i)=>{q._k='Q'+q.id;q._i=i;});
+    const kn=new Set();
+    items.forEach(q=>{const v=knVal(q);if(v)kn.add(v);});
+    POOL_KN=kn.size?[...kn]:null;
+  } else POOL_KN=null;
 };
 /* 稳定键：内置题 'T'+下标（懒赋）；AI 题 'Q'+表 id（挂池时赋）。
    以前是 THEORY.indexOf(q) —— 题库顺序一变、增删一道，设置里存的点名就全错位。 */
@@ -5498,6 +5510,8 @@ function pickQ(v){
    整张卷子除了那一道全变样。按题型拆种子后，换哪一大题就只动那一大题。 */
 function pickSections(cfg,seed,used,picks){
   const W=Object.keys(curCH()).reduce((a,c)=>a+(+cfg.weights[c]||0),0)||1;
+  /* 知识点筛选题池：只在非 mcu（POOL 存在）且设置里勾了知识点时生效；mcu 的题没有 knowledge，永远不过这道筛。 */
+  const knSel=POOL&&Array.isArray(cfg.kn)&&cfg.kn.length?new Set(cfg.kn.map(String)):null;
   const secs=cfg.sections.filter(s=>s.n>0&&PAPER_TYPES[s.t]).map(s=>({...s,items:[]}));
   const order=secs.slice().sort((a,b)=>b.pts*(b.t==='fill'?2:1)-a.pts*(a.t==='fill'?2:1));
   const hasPicks=!!picks&&typeof picks==='object';
@@ -5531,7 +5545,7 @@ function pickSections(cfg,seed,used,picks){
       have+=cnt(x.q);used.add(x.k);           // 同一套卷里不能再出现第二遍
       const p=cnt(x.q)*sec.pts;acc[x.q.ch]=(acc[x.q.ch]||0)+p;tot+=p;
     });
-    const pool=curPool().filter(q=>q.t===sec.t&&(+cfg.weights[q.ch]||0)>0&&!pinK.has(qid(q)));
+    const pool=curPool().filter(q=>q.t===sec.t&&(+cfg.weights[q.ch]||0)>0&&!pinK.has(qid(q))&&(!knSel||knSel.has(knVal(q))));
     const need=sec.t==='fill'?Math.ceil(sec.n/2):sec.n;
     const fresh=pool.filter(q=>!used.has(qid(q)));
     const src=fresh.length>=need?fresh:pool;
@@ -6139,6 +6153,8 @@ function paperLoad(sub) {
   /* picks：老师点名要的题。旧存档里没有这一项、或者被手改坏了，都归零 —— 抽题那边也会
      自己挡掉越界/题型不符的下标，这里只保证类型是对的。 */
   C.picks = C.picks && typeof C.picks === 'object' && !Array.isArray(C.picks) ? Object.assign({}, C.picks) : {};
+  /* kn：勾选的知识点（抽题时只从这些知识点里抽）。旧存档没有这项、或存坏了都归空 = 不过滤。 */
+  C.kn = Array.isArray(C.kn) ? C.kn.map(String).filter(x => x) : [];
   if (!C.key) C.key = 'T' + Math.random().toString(36).slice(2, 6).toUpperCase();
   return C;
 }
@@ -6186,6 +6202,17 @@ function mountPaper(sub) {
         <td><input type="number" min="0" max="30" step="0.5" value="${s.pts}" data-i="${i}" data-f="pts" aria-label="${T.name}${T.unit}分值"> 分</td></tr>`;
     }).join('');
     $('ppW').innerHTML = Object.keys(curCH()).map(c => `<label class="ppw"><span>${esc(chLabel(c))}</span><input type="number" min="0" max="100" value="${C.weights[c]}" data-ch="${c}" aria-label="${esc(curCH()[c])}权重"></label>`).join('');
+  }
+
+  /* 知识点筛选（2026-11-13）：只在非 mcu 的题池科目出现（app.js 有题池时才渲染 #ppKn 这张卡）。
+     mcu 走内置 THEORY，ppKn 不存在，这里直接返回，零影响。 */
+  function renderKn() {
+    const box = $('ppKn');
+    if (!box) return;
+    const kn = curKN();
+    if (!kn || !kn.length) { box.innerHTML = '<p class="note">这个科目的题库还没有知识点。</p>'; return; }
+    const sel = new Set(C.kn || []);
+    box.innerHTML = `<div class="ppkn">${kn.map(k => `<label><input type="checkbox" data-kn="${esc(k)}" ${sel.has(k) ? 'checked' : ''}> ${esc(k)}</label>`).join('')}</div>`;
   }
 
   const picksCount = () => Object.keys(C.picks || {}).length;
@@ -6414,6 +6441,15 @@ function mountPaper(sub) {
     C.weights[c] = Math.max(0, +e.target.value || 0);
     changed();
   });
+  /* 知识点勾选（2026-11-13）：mcu 时 #ppKn 不存在，这里不挂监听，抽题也不受 kn 影响。 */
+  if ($('ppKn')) $('ppKn').addEventListener('change', e => {
+    const b = e.target.closest('[data-kn]');
+    if (!b) return;
+    const set = new Set(C.kn || []);
+    b.checked ? set.add(b.dataset.kn) : set.delete(b.dataset.kn);
+    C.kn = [...set];
+    changed();
+  });
   /* 换种子：**手动选过的题保留** —— 老师挑的就是要它，换种子只是想换掉那些随机补的。
      这一点要明说（toast 里报数量），否则老师会以为又得重挑一遍。 */
   $('ppNew').onclick = () => {
@@ -6479,6 +6515,7 @@ function mountPaper(sub) {
   drawLib();
 
   renderTypes();
+  renderKn();
   preview();
 }
 
@@ -7056,7 +7093,7 @@ async function paperHome() {
     }
     rows = rows || [];
     /* ch 为 null 的题归 0（「未分章」）；章节名先用「第N章」——src 里带的是资料名，不是章节名 */
-    const items = rows.map(q => ({ id: q.id, t: q.t, ch: q.ch == null ? 0 : +q.ch, q: q.q, o: q.o || undefined, a: q.a, code: q.code, sub: q.sub, src: q.src }));
+    const items = rows.map(q => ({ id: q.id, t: q.t, ch: q.ch == null ? 0 : +q.ch, q: q.q, o: q.o || undefined, a: q.a, code: q.code, sub: q.sub, src: q.src, knowledge: q.knowledge }));
     const chs = {};
     items.forEach(q => { chs[q.ch] = q.ch === 0 ? '未分章' : '第' + q.ch + '章'; });
     window.__examSetPool(items, chs);
@@ -7118,6 +7155,9 @@ async function paperHome() {
           <div class="ppws" id="ppW"></div>
           <p class="note">数字是相对比重，默认项目 1～4 为主、项目 5 少一些；填 0 表示不出这一项目的题（你手动点的题不受这条限制）。下面是这套卷实际的分值分布：</p>
           <div id="ppStat"></div></div>
+        ${POOL_KN && POOL_KN.length ? `<div class="card"><h2>知识点</h2>
+          <div id="ppKn"></div>
+          <p class="note">勾选后只从这些知识点的题里抽；不勾 = 全部知识点都抽（不影响各项目比重平衡）。</p></div>` : ''}
         <p class="note">导出 PDF：在打印窗口里选「另存为 PDF」，纸张 A3、横向、边距「无」。Word 版方便人工核对和修改（装订线以 PDF 版为准）。</p>
       </aside>
       <aside class="ppdrawer ppdbank" id="ppBank" aria-hidden="true" aria-label="题库">

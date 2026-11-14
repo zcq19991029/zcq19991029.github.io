@@ -2,7 +2,6 @@
 import * as hx from './hx.js';
 import * as store from './store.js';
 import { AI_PAGE, aiState, aiReady, aiProfiles, aiThinkLevels, ensureHxAi, streamChat, explainQuestion, parseStudySpec } from './ai.js';
-import { readMaterial, readImages, normalizeQuestions, aiImport, aiGenerate, aiVision, isImageFile } from './imports.js';
 import { figSvg, figName } from './symbols.js';
 
 // 内置课程题库（data/ 下的 JSON）；第一个是默认科目
@@ -24,16 +23,8 @@ const BUILTIN = [
 const BUILTIN_IDS = new Set(BUILTIN.map(s => s.id));
 const TYPES = [['single', '单选'], ['multiple', '多选'], ['judgment', '判断'], ['fill', '填空'], ['term', '名词解释'], ['short', '简答'], ['prog', '程序分析']];
 const SELF = new Set(['term', 'short', 'prog']); // 主观题：看参考答案自己判对错
-// 出题要求（导入区“根据资料出题”）：默认只出选择题；填空/简答要用户自己勾，
-// 因为它们在刷题页只能「看参考答案自评」，不参与排行榜计分，默认勾上会让人误会。
-// scope（2026-11-09）：从「一段手写文字」改成「勾选的章节数组」，空数组 = 整份资料（和以前 scope:'' 一样）。
-const GEN_DEF = {
-  scope: [], level: '中等', extra: '',
-  count: { single: 5, multiple: 3, judgment: 5, fill: 5, short: 3, prog: 3 },
-  on: { single: true, multiple: true, judgment: true, fill: false, short: false, prog: false }
-};
-// 程序分析（prog）2026-11-08 加：单片机、C 语言资料里最常见的题型，以前导入这条路没开
-const GEN_TYPES = [['single', '单选'], ['multiple', '多选'], ['judgment', '判断'], ['fill', '填空'], ['short', '简答'], ['prog', '程序分析']];
+// 题池（hx_exam_qbank）的题型名和刷题引擎不是一套：choice 单选/多选，judge 判断，其余同名
+const QPOOL_TYPES = [['choice', '选择'], ['judge', '判断'], ['fill', '填空'], ['term', '名词解释'], ['short', '简答'], ['prog', '程序分析']];
 const SCOPES = [['todo', '待掌握'], ['wrong', '错题'], ['new', '未做'], ['done', '已做'], ['known', '已记住']];
 // 出题顺序：题库顺序、刷题顺序（按上次作答时间，没做过的排在后面）各有正序倒序，再加随机
 const ORDERS = [['seq', '题库正序', '按题库里的编号从前往后'], ['seqR', '题库倒序', '按题库里的编号从后往前'], ['time', '刷题正序', '先出很久以前做的，没做过的在最后'], ['timeR', '刷题倒序', '先出最近做的，没做过的在最后'], ['rand', '随机', '打乱顺序']];
@@ -101,16 +92,17 @@ const S = {
   bank: [], // 当前科目里自己导入的题
   questions: [], records: {},
   type: 'single', scope: 'todo', mode: 'seq',
+  unit: '', kn: '', // 附加筛选：单元（章节，来自 source）+ 知识点（来自 knowledge），空 = 不筛
   queue: [], i: 0, picked: {}, // picked：题 id → 本轮选的选项（作答过）
-  sel: new Set(), ai: {}, draft: null, imode: 'pick', gen: null, pending: [], typed: {}, shown: {}, // typed：填空填的字；shown：主观题已看参考答案
+  sel: new Set(), ai: {}, typed: {}, shown: {}, // typed：填空填的字；shown：主观题已看参考答案
   undo: {}, lastId: null, chat: [], // undo：题 id → 标记前的状态（误点“记住”能撤销）
   askDraft: '', // “问 AI”打了一半的字：关掉抽屉、切到别的抽屉都不丢，发出去才清
   hsel: new Set(), hf: 'all', // 概览“刷题记录”：勾选的题、筛选
-  rmine: false, // 排行：只看本班
+  rrows: null, rpage: { mine: 0, all: 0 }, // 排行：双列数据缓存 + 本班/全校各自页码
   study: null, // 题库页「给这道题提要求」：{ qid, text, busy, err, spec:{read,items}, ask }
 };
 const prefs = () => store.getLocal('prefs', {});
-const savePrefs = () => store.setLocal('prefs', { subject: S.subject?.id, type: S.type, scope: S.scope, mode: S.mode });
+const savePrefs = () => store.setLocal('prefs', { subject: S.subject?.id, type: S.type, scope: S.scope, mode: S.mode, unit: S.unit, kn: S.kn });
 const inPortal = () => { try { return window.top !== window && window.top.location.pathname === '/'; } catch { return false; } };
 const isTeacher = () => !!(S.me && (S.me.teacher || S.me.admin || S.me.dev));
 // 开发者最高权限（2026-11-08 用户明确：「开发者拥有以上全部功能 管理员开发者都属于教师账号 只不过开发者最高权限」）。
@@ -118,6 +110,24 @@ const isTeacher = () => !!(S.me && (S.me.teacher || S.me.admin || S.me.dev));
 const isDev = () => !!(S.me && S.me.dev);
 const rec = id => S.records[id] || { status: 'new', attempts: 0, wrong: 0 };
 const inScope = (r, s) => s === 'todo' ? r.status !== 'known' : s === 'wrong' ? r.wrong > 0 && r.status !== 'known' : s === 'new' ? !r.attempts : s === 'done' ? r.attempts > 0 : r.status === 'known';
+/* 附加筛选（2026-11-14 用户：刷题加「单元/章节 + 知识点」组合筛选）：
+   单元 = 题目的 source（如「项目1 熟悉单片机操作环境」），知识点 = 题目的 knowledge（题池导入的题才有）。
+   两个都不选（空串）= 不过滤；选了就只从命中的题里抽。 */
+const qUnit = q => String(q.source || '').trim();
+const qKn = q => String(q.knowledge || '').trim();
+const matchUnit = q => !S.unit || qUnit(q) === S.unit;
+const matchKn = q => !S.kn || qKn(q) === S.kn;
+/* 收集当前题型下可选的下拉项（去重、按数字/中文排序） */
+function unitList() {
+  const out = new Map();
+  for (const q of S.questions) if (q.type === S.type) { const u = qUnit(q); if (u) out.set(u, (out.get(u) || 0) + 1); }
+  return [...out.entries()].sort((a, b) => a[0].localeCompare(b[0], 'zh-Hans-CN', { numeric: true }));
+}
+function knList() {
+  const out = new Map();
+  for (const q of S.questions) if (q.type === S.type) { const k = qKn(q); if (k) out.set(k, (out.get(k) || 0) + 1); }
+  return [...out.entries()].sort((a, b) => a[0].localeCompare(b[0], 'zh-Hans-CN', { numeric: true }));
+}
 
 // ---------- 科目和题库 ----------
 async function loadSubjects(withPublic = true) { // withPublic=false：先不等老师发布的题库（联网慢），内置科目马上能刷
@@ -200,7 +210,7 @@ function pxBlocks() {
 }
 async function openSubject(id) {
   const sub = S.subjects.find(s => s.id === id) || S.subjects[0];
-  S.subject = sub; S.ai = {}; S.draft = null; S.pending = []; S.imText = ''; S.study = null; // 换了科目，先说的一半话不带过去
+  S.subject = sub; S.ai = {}; S.study = null; // 换了科目，先说的一半话不带过去
   paintSubj();
   // 加载提示统一规则（2026-11-04，用户：「加载动效呢 像素动效没有随机使用啊」）：
   // 首选像素动效——HXLoadFx 从特效包随机挑一个画 canvas（会话内固定，见 loadfx.js 头注释），
@@ -240,9 +250,13 @@ function paintSubj() {
 const saveRecords = () => store.write('progress:' + S.subject.id, S.records);
 
 // ---------- 出题队列 ----------
-const sessKey = () => `sess:${S.subject.id}:${S.type}:${S.scope}:${S.mode}`;
+const sessKey = () => `sess:${S.subject.id}:${S.type}:${S.scope}:${S.mode}:${S.unit}:${S.kn}`;
 function buildQueue(resume) {
-  const ids = S.questions.filter(q => q.type === S.type && inScope(rec(q.id), S.scope)).map(q => q.id);
+  // 附加筛选有效性自检：换题型后，之前选的单元/知识点在新题型下可能不存在，先退回「全部」，
+  // 否则队列被筛空（renderFilters 的重置在 buildQueue 之后才跑，来不及）。
+  if (S.unit && !S.questions.some(q => q.type === S.type && qUnit(q) === S.unit)) S.unit = '';
+  if (S.kn && !S.questions.some(q => q.type === S.type && qKn(q) === S.kn)) S.kn = '';
+  const ids = S.questions.filter(q => q.type === S.type && inScope(rec(q.id), S.scope) && matchUnit(q) && matchKn(q)).map(q => q.id);
   const saved = resume && store.getLocal(sessKey(), null);
   const known = new Set(S.questions.map(q => q.id));
   if (saved && Array.isArray(saved.ids) && saved.ids.length && saved.ids.every(id => known.has(id))) {
@@ -358,12 +372,34 @@ function renderScopes() {
   $('scopes').innerHTML = SCOPES.map(([s, n]) => `<button type="button" class="chip" data-s="${s}" aria-pressed="${S.scope === s}">${n}<small>${ofType.filter(q => inScope(rec(q.id), s)).length}</small></button>`).join('');
   for (const b of $('scopes').children) b.onclick = () => { S.scope = b.dataset.s; savePrefs(); buildQueue(true); renderPractice(); };
 }
+/* 单元/知识点组合筛选下拉（2026-11-14）：只在当前题型下有可筛项时才显示；不选 = 全部。
+   单元用 source、知识点用 knowledge；改了筛选要重置进度（条件变了，队列作废）。 */
+function renderFilters() {
+  const row = $('filterRow'), us = $('unitSel'), ks = $('knSel');
+  if (!row || !us || !ks) return;
+  const units = unitList(), kns = knList();
+  row.hidden = !units.length && !kns.length;
+  if (!units.length) { S.unit = ''; us.innerHTML = '<option value="">全部单元</option>'; us.disabled = true; }
+  else {
+    us.disabled = false;
+    if (S.unit && !units.some(([u]) => u === S.unit)) S.unit = ''; // 换题型后原单元不存在了，退回全部
+    us.innerHTML = '<option value="">全部单元</option>' + units.map(([u, n]) => `<option value="${esc(u)}" ${S.unit === u ? 'selected' : ''}>${esc(u)}（${n}）</option>`).join('');
+  }
+  if (!kns.length) { S.kn = ''; ks.innerHTML = '<option value="">全部知识点</option>'; ks.disabled = true; }
+  else {
+    ks.disabled = false;
+    if (S.kn && !kns.some(([k]) => k === S.kn)) S.kn = '';
+    ks.innerHTML = '<option value="">全部知识点</option>' + kns.map(([k, n]) => `<option value="${esc(k)}" ${S.kn === k ? 'selected' : ''}>${esc(k)}（${n}）</option>`).join('');
+  }
+}
+
 function renderPractice() {
   renderHero();
   $('types').innerHTML = TYPES.map(([t, n]) => { const k = S.questions.filter(q => q.type === t).length; return k ? `<button type="button" data-t="${t}" aria-pressed="${S.type === t}">${n}<small>${k}</small></button>` : ''; }).join('');
   const nt = $('types').children.length || 1; $('types').style.gridTemplateColumns = `repeat(${nt > 4 ? Math.ceil(nt / 2) : nt}, 1fr)`; // 题型多（单片机 6 种）分两行
   for (const b of $('types').children) b.onclick = () => { S.type = b.dataset.t; savePrefs(); buildQueue(true); renderPractice(); };
   renderScopes();
+  renderFilters();
   const o = ORDERS.find(x => x[0] === S.mode) || ORDERS[0];
   $('modeBtn').textContent = (S.mode === 'rand' ? '⚄ ' : /R$/.test(S.mode) ? '↑ ' : '↓ ') + o[1];
   $('modeBtn').onclick = openOrderSheet;
@@ -412,7 +448,7 @@ function renderCard() {
   card.classList.remove('drag', 'dragging', 'back', 'fly'); card.style.transform = card.style.opacity = '';
   if (q && q.id !== S.lastId) { card.classList.remove('enter'); void card.offsetWidth; card.classList.add('enter'); }
   S.lastId = q && q.id; delete card.dataset.hxq;
-  if (!S.questions.length) { card.innerHTML = '<div class="empty"><h2>这个科目还没有题</h2><p class="muted">到“题库”里导入资料，或让 AI 根据资料出题。</p><button class="btn" type="button" id="toBank">去导入</button></div>'; $('toBank').onclick = () => show('bank'); return; }
+  if (!S.questions.length) { card.innerHTML = '<div class="empty"><h2>这个科目还没有题</h2><p class="muted">到“题库”里从题池导入。</p><button class="btn" type="button" id="toBank">去导入</button></div>'; $('toBank').onclick = () => show('bank'); return; }
   if (!S.queue.length) { card.innerHTML = `<div class="empty"><h2>${S.scope === 'wrong' ? '没有错题' : '这里没有题'}</h2><p class="muted">换个题型或范围试试。</p></div>`; return; }
   if (!q) { // 一轮做完
     const ids = S.queue, done = ids.filter(id => S.picked[id]), right = done.filter(id => isRight(S.questions.find(x => x.id === id) || { answer: [] }, S.picked[id]));
@@ -561,6 +597,9 @@ function openSubjectSheet() {
   });
 }
 $('subjBtn').onclick = openSubjectSheet;
+// 单元/知识点组合筛选：改了条件就重排队列（条件变了，本轮进度作废，回到第 1 题）
+if ($('unitSel')) $('unitSel').onchange = () => { S.unit = $('unitSel').value; savePrefs(); buildQueue(false); renderPractice(); };
+if ($('knSel')) $('knSel').onchange = () => { S.kn = $('knSel').value; savePrefs(); buildQueue(false); renderPractice(); };
 
 // ---------- 概览 ----------
 function renderOverview() {
@@ -613,84 +652,131 @@ function rankAdd(q, sel) { // 只交课程题库里的原题（自己导入到�
   if (!isStudent() || !rankable(S.subject) || !RANKED.has(q.type) || !(S.base[S.subject.id] || []).some(x => x.id === q.id)) return;
   store.rankPush(S.subject.id, q.id, sel, rankDone);
 }
-async function renderRank() {
-  const sub = S.subject, el = $('v-rank'), n = (S.base[sub.id] || []).filter(q => RANKED.has(q.type)).length;
+const RPAGE = 20; // 排行：一页 20 人
+// 身份卡：头像/背景。核心逻辑内联自 小组加分/faces.js（bgValue/avValue/of），
+// 预设背景（p:xxx）走站点根 rank-bg.js 的 window.rankBgCss；取不到就退回首字 + 默认底，绝不报错、不空白。
+const rankFaces = (() => {
+  const cache = {}, pending = {};
+  const clampPos = v => { const n = Number(v); return isFinite(n) ? Math.max(0, Math.min(100, Math.round(n))) : 50; };
+  const bgValue = (bg, pos) => {
+    const t = String(bg || '');
+    if (!t) return '';
+    if (/^p:[a-z0-9_-]{1,24}$/i.test(t)) {
+      const css = (window.rankBgCss && window.rankBgCss(t)) || '';
+      if (!css) return '';
+      return css.replace(/0 0\s*\/\s*100% 100%/g, '50% 50% / cover');
+    }
+    if (/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(t)) return "url('" + t + "') 50% " + clampPos(pos) + '% / cover no-repeat';
+    return '';
+  };
+  const avValue = url => {
+    const t = String(url || '').trim();
+    if (!t || (!/^https?:\/\//i.test(t) && !/^data:image\//i.test(t))) return '';
+    return "url('" + t.replace(/['"\\]/g, '') + "') 50% 50% / cover no-repeat";
+  };
+  const safeAttr = s => String(s || '').replace(/"/g, "'");
+  return {
+    load(clsId) {
+      const id = String(clsId || '');
+      if (!id) return Promise.resolve();
+      if (cache[id]) return Promise.resolve();
+      if (pending[id]) return pending[id];
+      pending[id] = hx.rpc('hx_class_faces', { p_class: Number(id) }, hx.signedIn()).then(rows => {
+        const map = {};
+        (rows || []).forEach(r => { const k = String(r.student_no || ''); if (k) map[k] = { bg: r.bg || '', pos: r.pos, avatar: r.avatar || '' }; });
+        cache[id] = map;
+      }).catch(() => {}).finally(() => { pending[id] = null; });
+      return pending[id];
+    },
+    of(clsId, studentNo) {
+      const rec = (cache[String(clsId || '')] || {})[String(studentNo || '')];
+      let card = '', av = '';
+      if (rec) {
+        const b = bgValue(rec.bg, rec.pos); if (b) card = '--hxface:' + safeAttr(b) + ';';
+        const a = avValue(rec.avatar); if (a) av = '--hxav:' + safeAttr(a) + ';';
+      }
+      return { card, av, hasAv: !!av };
+    }
+  };
+})();
+const rInitial = name => String(name || '?').slice(0, 1);
+
+function rankCol(rows, key, title) {
+  const pages = Math.max(1, Math.ceil(rows.length / RPAGE));
+  const page = Math.min(S.rpage[key] || 0, pages - 1);
+  S.rpage[key] = page;
+  const slice = rows.slice(page * RPAGE, page * RPAGE + RPAGE);
+  const list = slice.map(r => {
+    const f = rankFaces.of(r.class_id, r.student_no);
+    const cls = 'r-rc p' + Math.min(r.place, 4) + (r.me ? ' me' : '') + (f.card ? ' has-face' : '');
+    return `<li class="${cls}"${f.card ? ' style="' + f.card + '"' : ''}>
+      <i class="r-badge">${r.place}</i>
+      <span class="r-av${f.hasAv ? ' has-img' : ''}"${f.av ? ' style="' + f.av + '"' : ''}>${esc(rInitial(r.name))}</span>
+      <span class="r-nm"><b>${esc(r.name)}${r.me ? '<i class="r-metag">我</i>' : ''}</b><small>${esc(r.class_name)}</small></span>
+      <em class="r-sc">${r.score}<small>题</small></em>
+    </li>`;
+  }).join('');
+  const pager = rows.length > RPAGE
+    ? `<div class="rpager"><button type="button" data-rp="${key}" data-d="-1"${page === 0 ? ' disabled' : ''}>上一页</button><span>${page + 1} / ${pages}</span><button type="button" data-rp="${key}" data-d="1"${page === pages - 1 ? ' disabled' : ''}>下一页</button></div>`
+    : '';
+  return `<div class="rcol"><div class="rcol-h"><b>${esc(title)}</b><small>${rows.length} 人</small></div>${rows.length ? `<ol class="rb">${list}</ol>` : `<p class="muted">${key === 'mine' ? '本班还没有人上榜。' : '还没有人上榜。'}</p>`}${pager}</div>`;
+}
+
+function renderRankBody() {
+  const sub = S.subject, el = $('v-rank');
+  if (!sub || S.view !== 'rank') return;
   const head = body => `<div class="hero glow"><h1>${esc(sub.name)}</h1>${body}</div>`, note = t => `<p class="muted" style="margin:10px 0 0">${t}</p>`;
   if (!rankable(sub)) { delete el.dataset.for; el.innerHTML = head(note('自建科目不排位，换到课程题库看排行。')); return; }
-  const who = isStudent() || isTeacher(), mineOnly = who && S.rmine;
-  const seg = who ? `<div class="seg" id="rseg" style="grid-template-columns:1fr 1fr"><button type="button" data-m="0" aria-pressed="${!mineOnly}">全校</button><button type="button" data-m="1" aria-pressed="${mineOnly}">${isStudent() ? '本班' : '我的班'}</button></div>` : '';
-  const bind = () => { for (const b of el.querySelectorAll('#rseg button')) b.onclick = () => { S.rmine = b.dataset.m === '1'; renderRank(); }; };
+  const n = (S.base[sub.id] || []).filter(q => RANKED.has(q.type)).length;
+  const who = isStudent() || isTeacher();
+  const { all, mine } = S.rrows || { all: [], mine: [] };
+  const me = all.find(r => r.me), total = all.length ? all[0].total : 0;
+  const mineStat = isStudent()
+    ? (me ? `<div class="meter"><i style="width:${n ? me.score / n * 100 : 0}%"></i></div><div class="stats"><span><b>${me.score}</b>/ ${n} 题答对</span><span>第 <b>${me.place}</b>名</span><span><b>${total}</b>人上榜</span></div>`
+          : note('答对一道单选、多选或判断就上榜'))
+    : note(hx.signedIn() ? (isTeacher() ? '教师不上榜' : '开通学生账号后上榜') : '登录学生账号后，答对的题计入排行');
+  const cols = who
+    ? `<div class="rcols">${rankCol(mine, 'mine', isStudent() ? '本班' : '我的班')}${rankCol(all, 'all', '全校')}</div>`
+    : `<div class="rcols one">${rankCol(all, 'all', '全校')}</div>`;
+  el.innerHTML = head(mineStat) + `<div class="panel">${cols}<p class="muted rrule">单选、多选、判断答对过的题，每题只算一次</p></div>`;
+  for (const b of el.querySelectorAll('.rpager button')) b.onclick = () => {
+    const key = b.dataset.rp, d = +b.dataset.d;
+    S.rpage[key] = (S.rpage[key] || 0) + d;
+    renderRankBody();
+  };
+}
+
+async function renderRank() {
+  const sub = S.subject, el = $('v-rank');
+  if (!sub || S.view !== 'rank') return;
+  if (!rankable(sub)) { renderRankBody(); return; }
   // 2026-11-06：子模块（排行）的加载态也换成「canvas 像素动效 + 药丸」结合体，
   // 不再是一行裸文字「正在加载排行…」。占位节点交给 HXLoadFx.auto() 就地升级；
   // 播不了（省电 / 关动画 / 特效包缺失）时 auto() 会填回落药丸，不会空屏。
   if (el.dataset.for !== sub.id) {
     el.dataset.for = sub.id;
-    el.innerHTML = head('<div class="hx-loadwrap sm" data-fxload="正在加载排行…" data-fxtool="quiz"></div>') + seg;
+    S.rpage = { mine: 0, all: 0 }; // 换科目回到第 1 页
+    el.innerHTML = `<div class="hero glow"><h1>${esc(sub.name)}</h1><div class="hx-loadwrap sm" data-fxload="正在加载排行…" data-fxtool="quiz"></div></div>`;
     if (window.HXLoadFx) HXLoadFx.auto(el);
-    bind();
   }
-  let rows;
-  try { rows = await store.rankBoard(sub.id, mineOnly); }
-  catch (e) { if (S.subject === sub && S.view === 'rank') { el.innerHTML = head(note('排行榜暂时打不开：' + esc(e.message))) + seg; bind(); } return; }
+  const who = isStudent() || isTeacher();
+  let all, mine = [];
+  try {
+    all = await store.rankBoard(sub.id, false);
+    if (who) mine = await store.rankBoard(sub.id, true);
+  } catch (e) {
+    if (S.subject === sub && S.view === 'rank') el.innerHTML = `<div class="hero glow"><h1>${esc(sub.name)}</h1><p class="muted" style="margin:10px 0 0">排行榜暂时打不开：${esc(e.message)}</p></div>`;
+    return;
+  }
   if (S.subject !== sub || S.view !== 'rank') return; // 加载期间换了科目或页面
-  const me = rows.find(r => r.me), total = rows.length ? rows[0].total : 0;
-  const mine = isStudent()
-    ? (me ? `<div class="meter"><i style="width:${n ? me.score / n * 100 : 0}%"></i></div><div class="stats"><span><b>${me.score}</b>/ ${n} 题答对</span><span>第 <b>${me.place}</b>名</span><span><b>${total}</b>人上榜</span></div>`
-          : note('答对一道单选、多选或判断就上榜'))
-    : note(hx.signedIn() ? (isTeacher() ? '教师不上榜' : '开通学生账号后上榜') : '登录学生账号后，答对的题计入排行');
-  let prev = 0;
-  const list = rows.map(r => {
-    const gap = prev && r.place > prev + 1 ? '<li class="gap">⋯</li>' : ''; prev = r.place;
-    return `${gap}<li class="${r.me ? 'me ' : ''}p${Math.min(r.place, 4)}"><i>${r.place}</i><div><b>${esc(r.name)}</b><span>${esc(r.class_name)}</span></div><em>${r.score}<small>题</small></em></li>`;
-  }).join('');
-  el.innerHTML = head(mine) + seg + `<div class="panel">${rows.length ? `<ol class="rb">${list}</ol>` : '<p class="muted">还没有人上榜。</p>'}<p class="muted rrule">单选、多选、判断答对过的题，每题只算一次</p></div>`;
-  bind();
+  S.rrows = { all, mine };
+  const cids = new Set();
+  [...all, ...mine].forEach(r => { if (r.student_no && r.class_id) cids.add(r.class_id); });
+  if (cids.size) await Promise.all([...cids].map(cid => rankFaces.load(cid)));
+  if (S.subject !== sub || S.view !== 'rank') return;
+  renderRankBody();
 }
 
-// ---------- 导入区的小零件（说明、模板、出题要求、识别报告） ----------
-/* 出题「范围」的选项 = 当前题库里已有的章节。
-   ── 为什么取 source / sourceTitle ──
-   题库的数据结构里没有单独的 chapter 字段（normalizeQuestions 也不产生），能当章节用的只有
-   source：内置题库就是「项目3 并行 I/O 端口与 C51 语言」「电气控制技术实训 第3版 项目1」这种，
-   老师自己导入时也会写在 source／出处里。所以从题目里收集、去重，不在代码里写死章节名单 ——
-   换一门课、换一本教材，选项自动跟着变。
-   空串跳过（教育心理学有 460 题没写来源），别生成一个空白选项。 */
-function bankChapters() {
-  const out = [], seen = new Set();
-  for (const q of S.questions || []) {
-    const raw = String(q.source || q.sourceTitle || '').trim();
-    if (!raw || seen.has(raw)) continue;
-    seen.add(raw); out.push(raw);
-  }
-  // 项目2 / 项目10 这种按数字排，别让「项目10」排到「项目2」前面
-  return out.sort((a, b) => a.localeCompare(b, 'zh-Hans-CN', { numeric: true }));
-}
-// 出题要求存在本机：老师这次勾了「只出单选 10 道」，下次打开还是这套，不用重填
-function genState() {
-  if (!S.gen) S.gen = { ...GEN_DEF, count: { ...GEN_DEF.count }, on: { ...GEN_DEF.on }, ...(store.getLocal('importGen', null) || {}) };
-  S.gen.count = { ...GEN_DEF.count, ...(S.gen.count || {}) };
-  S.gen.on = { ...GEN_DEF.on, ...(S.gen.on || {}) };
-  /* 老存档迁移：2026-11-09 以前 scope 是一段手写文字（如「第 5 章」），现在是章节数组。
-     能对上现有章节的就勾上；对不上的直接丢掉 —— 留着一句界面上看不见的话，
-     用户会以为范围还在生效，实际却悄悄按整份资料出题，比丢掉更坏。 */
-  if (typeof S.gen.scope === 'string') {
-    const old = S.gen.scope.trim();
-    S.gen.scope = old ? bankChapters().filter(c => c === old) : [];
-  }
-  if (!Array.isArray(S.gen.scope)) S.gen.scope = [];
-  return S.gen;
-}
-const saveGen = () => store.setLocal('importGen', genState());
-// 真正交给 AI 的题型和数量：勾了且数量大于 0 才算
-function genTypes() {
-  const g = genState(), out = {};
-  for (const [t] of GEN_TYPES) {
-    if (!g.on[t]) continue;
-    const n = Math.max(0, Math.min(50, Math.round(+g.count[t] || 0)));
-    if (n) out[t] = n;
-  }
-  return out;
-}
 // 没配 AI 时的统一提示（2026-11-08 Z5：AI 只在首页「AI 设置」配，刷题不再自存 Key）。
 // 链接用站点根的 /ai/（线上 /shuati/ 的上一层就是根）；target=_top：刷题嵌在首页 iframe 里时整页跳过去。
 // 离线单文件没有 AI，也没有首页可去，只说一句。
@@ -707,70 +793,6 @@ function downloadText(name, text, type = 'application/json') {
   a.download = name; a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
-// 下载的模板：4 种题型各一道，老师照着改就行（不用 AI，直接拖回来导入）
-const TPL = [
-  { type: 'single', stem: '并行 I/O 端口工作在输入方式时，要先向端口写（　）。', options: [{ key: 'A', text: '0' }, { key: 'B', text: '1' }, { key: 'C', text: '0xFF' }, { key: 'D', text: '任意值' }], answer: ['B'], explanation: '写 1 关掉端口内部的场效应管，引脚才能被外部电路拉低。' },
-  { type: 'multiple', stem: '下面属于单片机最小系统组成部分的有（　）。', options: [{ key: 'A', text: '时钟电路' }, { key: 'B', text: '复位电路' }, { key: 'C', text: '电源' }, { key: 'D', text: '打印机' }], answer: ['A', 'B', 'C'], explanation: '最小系统 = 单片机 + 时钟 + 复位 + 电源。' },
-  { type: 'judgment', stem: '定时器工作在方式 2 时是 8 位自动重装。', options: [{ key: 'T', text: '正确' }, { key: 'F', text: '错误' }], answer: ['T'], explanation: '方式 2 为 8 位自动重装载定时/计数。' },
-  { type: 'fill', stem: '8051 单片机的 P0 口作为通用 I/O 使用时，需要外接 ____。', answer: ['上拉电阻'], explanation: 'P0 是开漏输出，没有内部上拉。' },
-  // 程序分析题（2026-11-08）：代码放 code、小问放 sub、参考答案放 answer，跟内置单片机题库同一个形状
-  { type: 'prog', stem: '阅读下面的程序，P1 口接 8 个 LED（D1 接 P1.0，低电平点亮），回答问题。', code: '#include <reg51.h>\nvoid main()\n{\n    P1 = 0xFE;\n    while(1);\n}', sub: ['上电后哪个灯先亮？', '程序会不会自己停下来？'], answer: ['（1）D1 先亮（0xFE 只有最低位为 0）。（2）不会，while(1) 是死循环。'], explanation: '最低位为 0，P1.0 输出低电平。' }
-];
-function genHtml() {
-  const g = genState();
-  /* 章节选项来自当前题库；顺手把「已经不在题库里的旧勾选」剔掉，
-     否则界面上看不到那一项，提示词里却还带着它（切科目后最容易出现）。 */
-  const chs = bankChapters();
-  g.scope = g.scope.filter(c => chs.includes(c));
-  return `<div class="gen" id="gen" ${S.imode === 'gen' ? '' : 'hidden'}>
-        <div class="genfield">
-          <span class="gt">出题范围</span>
-          ${chs.length ? `<div class="chgrid" id="genScope">${chs.map(c => `<label class="${g.scope.includes(c) ? 'on' : ''}"><input type="checkbox" data-ch="${esc(c)}" ${g.scope.includes(c) ? 'checked' : ''}><span>${esc(c)}</span></label>`).join('')}</div>` : '<p class="muted" style="margin:0">这个题库还没有章节信息（题目里没写「来源」）。不勾就是整份资料。</p>'}
-          <p class="muted" style="margin:0">勾哪几章就只出这几章的题；一个都不勾 = 整份资料。选项来自当前题库已有的章节。</p>
-        </div>
-        <div class="gt">题型和数量（整份资料一共要几道）</div>
-        ${GEN_TYPES.map(([t, n]) => `<div class="genrow"><label><input type="checkbox" data-tp="${t}" ${g.on[t] ? 'checked' : ''}>${n}</label><input type="number" min="0" max="50" step="1" data-n="${t}" value="${esc(g.count[t])}"><span class="muted">道</span>${t === 'fill' || t === 'short' || t === 'prog' ? '<span class="muted">· 只能自评，不计分</span>' : ''}</div>`).join('')}
-        <label for="genLevel">难度</label>
-        <select id="genLevel">${['基础', '中等', '综合'].map(v => `<option ${v === g.level ? 'selected' : ''}>${v}</option>`).join('')}</select>
-        <label for="genExtra">额外要求</label>
-        <textarea id="genExtra" rows="3" placeholder="例如：多考电路图和端口地址；不要出计算量太大的；答案要能在原文找到依据">${esc(g.extra)}</textarea>
-        <p class="muted" style="margin:0">填空、简答、程序分析也会存进题库：填空能自动判分（题干里的 ____ 就是填空框）；简答、程序分析只能「看参考答案」自己判，不参与排行榜（排行榜只算单选、多选、判断）。程序分析会把代码和几个小问分开摆，跟内置单片机题库里那 11 道一个样子。</p>
-      </div>`;
-}
-function bindGen() {
-  const g = genState();
-  const box = $('v-bank');
-  // 章节多选：勾一下改数组，同时给 label 加 .on（不用 :has，老内核也稳）
-  for (const c of box.querySelectorAll('#genScope [data-ch]')) c.onchange = () => {
-    const set = new Set(g.scope);
-    if (c.checked) set.add(c.dataset.ch); else set.delete(c.dataset.ch);
-    g.scope = [...set];
-    const lab = c.closest('label'); if (lab) lab.classList.toggle('on', c.checked);
-    saveGen();
-  };
-  if ($('genLevel')) $('genLevel').onchange = e => { g.level = e.target.value; saveGen(); };
-  if ($('genExtra')) $('genExtra').oninput = e => { g.extra = e.target.value; saveGen(); };
-  for (const c of box.querySelectorAll('[data-tp]')) c.onchange = () => { g.on[c.dataset.tp] = c.checked; saveGen(); };
-  for (const n of box.querySelectorAll('[data-n]')) n.oninput = () => { g.count[n.dataset.n] = Math.max(0, Math.min(50, Math.round(+n.value || 0))); saveGen(); };
-}
-// 识别报告：先给人看“认出来多少、为什么有没认出来的”，再决定要不要入库
-function draftHtml(d) {
-  if (!d) return '';
-  const cnt = GEN_TYPES.map(([t, n]) => { const k = d.qs.filter(q => q.type === t).length; return k ? `${n} ${k}` : ''; }).filter(Boolean).join(' · ');
-  const keep = d.pick.size;
-  return `<div class="imp-rep" id="impRep">
-        <h4>识别报告</h4>
-        <p style="margin:0">识别到 <b>${d.qs.length}</b> 题${cnt ? `（${cnt}）` : ''}${d.rej.length ? `，有 <b>${d.rej.length}</b> 条没认出来` : ''}${d.dup ? `，<b>${d.dup}</b> 题和已有的重复，已自动去掉` : ''}</p>
-        ${d.rej.length ? `<details class="rejbox" open><summary>没认出来的 ${d.rej.length} 条：</summary><ul class="rej">${d.rej.slice(0, 10).map(r => `<li>第 ${r.index} 条${r.stem ? `「${esc(r.stem)}」` : ''}：${esc(r.reason)}</li>`).join('')}${d.rej.length > 10 ? `<li>……还有 ${d.rej.length - 10} 条，多半是同一类问题（缺答案、选项不够、题型不支持），按上面的原因改原文再导一次。</li>` : ''}</ul></details>` : ''}
-        <div class="line" style="margin-top:10px;flex-wrap:wrap">
-          <button class="btn sm" type="button" id="okImport" ${keep ? '' : 'disabled'}>全部添加${keep ? `（${keep}）` : ''}</button>
-          <button class="btn sm ghost" type="button" id="dtlBtn">${d.open ? '收起明细' : '看逐条明细'}</button>
-          <button class="btn sm ghost" type="button" id="noImport">放弃</button>
-        </div>
-        ${d.open ? `<div class="hl" style="margin-top:10px">${d.qs.length ? d.qs.map((q, i) => `<label><input type="checkbox" data-pick="${i}" ${d.pick.has(i) ? 'checked' : ''}><span title="${esc(q.stem)}">${esc(q.stem)}</span><small>${typeName(q.type)} · ${q.type === 'short' ? '看参考答案自评' : esc(String(q.answer.join('、')).slice(0, 14))}</small></label>`).join('') : '<p class="muted" style="margin:0">一道都没认出来，换个格式或换份资料再试。</p>'}</div>` : ''}
-      </div>`;
-}
-
 /* ---------- 给这道题提要求，AI 按它解析（2026-11-08 改方向） ----------
    用户原话两段，第二段把方向拧过来了：
      「手写 json 谁会写？我只会写人话，需要 ai 理解和询问确认」
@@ -790,7 +812,7 @@ const studyHas = q => !!(q && q.study && (q.study.tip || q.study.lead || (q.stud
 function studyPanel() {
   const list = S.bank || [];
   if (!list.length) return `<div class="panel" id="stPanel"><h3>给这道题提要求</h3>
-      <p class="muted" style="margin:0">这条只对<b>你自己导入的题</b>有用。先把题目导进来（上面那块），再回来写。</p></div>`;
+      <p class="muted" style="margin:0">这条只对<b>你自己导入的题</b>有用。先从上图「从题池导入」把题导进来，再回来写。</p></div>`;
   const st = S.study || (S.study = { qid: '', text: '', busy: false, err: '', spec: null, ask: [] });
   // 换过科目、或者选中的题被删掉了：回落到第一题，别让下拉框显示成空的
   if (!st.qid || !list.some(q => q.id === st.qid)) { st.qid = list[0].id; st.spec = null; st.ask = []; st.err = ''; }
@@ -875,9 +897,9 @@ async function saveStudyCard() {
   toast(`已存进第 ${n} 题，以后点 AI 解析就按这几条讲`);
 }
 
-// ---------- 题库：新建科目、导入资料、AI 出题、导出、发布 ----------
+// ---------- 题库：新建科目、从题池导入、导出、发布 ----------
 function renderBank() {
-  const sub = S.subject, base = S.base[sub.id] || [], d = S.draft;
+  const sub = S.subject, base = S.base[sub.id] || [];
   /* 这套题是不是「我自己名下的」：决定能不能发布/撤销。
      builtin 的本地只读那份、别人发来的 public、别人搬的 builtin，都不是自己的 ——
      点「更新发布」数据库会直接报「这是别的老师发布的题库」，那种按钮不该出现。
@@ -919,30 +941,7 @@ function renderBank() {
       ${sentToMe}
       <div class="f" style="margin-top:12px"><div class="line"><button class="btn sm ghost" type="button" id="expBtn">导出 JSON</button>${S.questions.length ? '<button class="btn sm ghost" type="button" id="shareBtn">生成分享码</button>' : ''}${S.bank.length ? '<button class="btn sm ghost" type="button" id="clrBtn">清空我导入的</button>' : ''}${sub.kind === 'mine' ? '<button class="btn sm ghost" type="button" id="renBtn">改名</button><button class="btn sm danger" type="button" id="delBtn">删除科目</button>' : sub.kind === 'shared' ? '<button class="btn sm danger" type="button" id="delBtn">移出我的列表</button>' : ''}${fwdBtn}${pubBtns2}</div></div></div>
     <div class="panel"><h3>新建科目</h3><div class="f"><div class="line"><input id="newName" maxlength="30" placeholder="科目名称" style="flex:1"><button class="btn sm" type="button" id="newBtn">新建</button></div></div></div>
-    <div class="panel" id="impPanel"><h3>导入资料 · ${esc(sub.name)}</h3>
-      ${aiReady() ? '' : noAiWarn()}
-      <div class="imp-note">
-        <b>两种导入方式</b>
-        <ul>
-          <li><b>我这份资料里本来就有题目</b> —— 网页会把资料里的文字发给 AI，让它把题干、选项、答案原样抠出来。<b>不会替你编题</b>。</li>
-          <li><b>我这份资料是教材／讲义，没有题目</b> —— 网页会让 AI 照着你圈定的范围出题。</li>
-        </ul>
-        <p class="muted" style="margin:6px 0 0">两种都要用 AI，都要先配好模型（首页「AI 设置」）。扫描件（拍照／图片 PDF）读不出文字——可以拍下来或用截图，直接在下面选图片，让支持看图的模型来读。手上有整理好的 JSON 题库？拖进来就行，纯本地导入，不用 AI、不花钱。</p>
-      </div>
-      <div class="f" style="margin-top:12px">
-        <div class="radio"><label><input type="radio" name="im" value="pick" ${S.imode === 'pick' ? 'checked' : ''}>资料里有现成的题</label><label><input type="radio" name="im" value="gen" ${S.imode === 'gen' ? 'checked' : ''}>根据资料出题（AI）</label></div>
-        ${genHtml()}
-        <input id="mFile" type="file" multiple accept=".pdf,.docx,.txt,.md,.json,image/*">
-        <textarea id="mText" rows="5" placeholder="或者把资料文字粘贴在这里（也可以直接粘贴题库 JSON、粘贴截图）">${esc(S.imText || '')}</textarea>
-        <div class="line"><button class="btn" type="button" id="goImport">预览</button><span class="muted" id="imMsg">JSON 题库不用 AI，直接导入；文字／图片资料要先配好 AI 模型</span></div>
-        <div class="muted" id="imFiles">${S.pending.length ? `已选 ${S.pending.length} 个文件（点「预览」开始）` : ''}</div>
-      </div>
-      <details class="imp-tpl"><summary>题库格式说明 · 下载模板</summary>
-        <p style="margin:8px 0">一题一条，字段：<code>stem</code> 题干 / <code>type</code> 题型（single 单选、multiple 多选、judgment 判断、fill 填空、short 简答、prog 程序分析）/ <code>options</code> 选项 / <code>answer</code> 答案 / <code>explanation</code> 解析。判断题选项写 T（正确）、F（错误）；填空题在题干里用 <code>____</code> 表示空。程序分析题再多两个字段：<code>code</code> 放代码、<code>sub</code> 放几个小问（数组），参考答案照旧写在 <code>answer</code>。</p>
-        <div class="line"><button class="btn sm ghost" type="button" id="tplBtn">下载模板</button><span class="muted">照着填，填好直接拖进来</span></div>
-      </details>
-      ${draftHtml(d)}
-    </div>
+    ${qpoolPanel()}
     ${studyPanel()}`;
   const on = (id, fn) => { if ($(id)) $(id).onclick = fn; };
   on('expBtn', () => downloadText(sub.name + '.json', JSON.stringify(S.questions, null, 1)));
@@ -977,50 +976,8 @@ function renderBank() {
   on('newBtn', async () => {
     const n = $('newName').value.trim(); if (!n) return $('newName').focus();
     const id = 'c-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
-    await saveMine(m => [...m, { id, name: n.slice(0, 30) }]); S.view = 'bank'; await openSubject(id); toast('已新建，接着导入资料');
+    await saveMine(m => [...m, { id, name: n.slice(0, 30) }]); S.view = 'bank'; await openSubject(id); toast('已新建，接着从题池导入');
   });
-  // 导入区：两种方式只切“出题要求”的显隐，不整块重画（重画会丢刚粘贴的资料和已选的文件）
-  for (const r of document.querySelectorAll('input[name=im]')) r.onchange = () => {
-    S.imode = r.value; store.setLocal('importMode', S.imode);
-    if ($('gen')) $('gen').hidden = r.value !== 'gen';
-  };
-  bindGen();
-  on('tplBtn', () => {
-    downloadText('题库模板.json', JSON.stringify({ 说明: '一题一条；type 可写 single/multiple/judgment/fill/short/prog；判断题选项写 T（正确）、F（错误）；填空题题干用 ____ 表示空；程序分析题把代码写在 code、小问写在 sub、参考答案写在 answer。填好直接拖进导入区即可，不用 AI。', questions: TPL }, null, 2));
-    toast('模板已下载，照着填，填完拖进来');
-  });
-  if ($('mFile')) $('mFile').onchange = () => {
-    const files = [...$('mFile').files];
-    if (!files.length) return;
-    $('imFiles').textContent = `已选 ${files.length} 个文件：${files.map(f => f.name).join('、').slice(0, 60)}`;
-  };
-  if ($('mText')) {
-    $('mText').oninput = e => { S.imText = e.target.value; };
-    // 手机和电脑都能直接粘贴截图（老师最常用的一步：截图 → Ctrl+V）
-    $('mText').onpaste = e => {
-      const items = [...((e.clipboardData || {}).items || [])].filter(i => /^image\//.test(i.type));
-      if (!items.length) return;
-      e.preventDefault();
-      const pics = items.map(i => i.getAsFile()).filter(Boolean);
-      if (!pics.length) return;
-      S.pending = [...S.pending, ...pics];
-      $('imFiles').textContent = `已粘贴 ${S.pending.length} 张截图（点「预览」开始）`;
-    };
-  }
-  if ($('impPanel')) {
-    const panel = $('impPanel');
-    panel.ondragover = e => { e.preventDefault(); panel.classList.add('drop'); };
-    panel.ondragleave = () => panel.classList.remove('drop');
-    panel.ondrop = e => {
-      e.preventDefault(); panel.classList.remove('drop');
-      const files = [...((e.dataTransfer || {}).files || [])];
-      if (!files.length) return;
-      S.pending = files;
-      $('imFiles').textContent = `已选 ${files.length} 个文件：${files.map(f => f.name).join('、').slice(0, 60)}`;
-      if (files.every(f => /\.json$/i.test(f.name))) startImport(); // JSON 纯本地解析，直接给报告
-    };
-  }
-  on('goImport', startImport);
   // 给这道题提要求：换题就清掉上一题的整理结果（不然会把给甲的要求存到乙身上）
   if ($('stQ')) $('stQ').onchange = e => {
     const st = S.study; if (!st) return;
@@ -1030,17 +987,7 @@ function renderBank() {
   if ($('stText')) $('stText').oninput = e => { if (S.study) S.study.text = e.target.value; };
   on('stGo', runStudyCard);
   bindStudyBtns();
-  on('okImport', confirmImport);
-  on('dtlBtn', () => { if (S.draft) { S.draft.open = !S.draft.open; renderBank(); } });
-  on('noImport', () => { S.draft = null; renderBank(); });
-  // 逐条明细里勾掉不要的题：只改按钮上的数字，不重画整块（重画会跳到面板顶部）
-  for (const c of document.querySelectorAll('[data-pick]')) c.onchange = () => {
-    if (!S.draft) return;
-    const i = +c.dataset.pick;
-    c.checked ? S.draft.pick.add(i) : S.draft.pick.delete(i);
-    const b = $('okImport'), n = S.draft.pick.size;
-    if (b) { b.disabled = !n; b.textContent = '全部添加' + (n ? `（${n}）` : ''); }
-  };
+  bindQpool();
   on('pubBtn', () => openPublishSheet(() => { renderBank(); loadSubjects().then(paintSubj); }));
   /* 把内置的那套搬到开发者账号（只有开发者看得到这个按钮）。
      用户原话：「内置的转换成开发者的权限 算我上传的 搬我那里 这个我同意」。
@@ -1081,80 +1028,174 @@ async function setBank(list) {
   if (store.cloud.ok === false) toast('题已存在本机，云端同步失败：' + store.cloud.error);
   S.view = 'bank'; await openSubject(S.subject.id);
 }
-async function startImport() {
-  const sub = S.subject;
-  // 文件来源三种：文件框、拖进面板、粘贴截图。拖/粘的放在 S.pending 里
-  const files = S.pending.length ? S.pending : [...($('mFile').files || [])];
-  S.pending = [];
-  const pics = files.filter(f => isImageFile(f.name));
-  const docs = files.filter(f => !isImageFile(f.name));
-  const pasted = ($('mText').value || '').trim();
-  if (!files.length && !pasted) return toast('先选一个文件、粘贴资料，或粘一段题库 JSON');
-  const btn = $('goImport'); if (btn) btn.disabled = true;
-  if ($('imMsg')) $('imMsg').textContent = '正在读取资料…';
-  try {
-    let text = pasted, json = null;
-    for (const f of docs) {
-      const m = await readMaterial(f);
-      if (m.json) { json = m.json; continue; } // 一个 JSON 就够，别的文档不再读
-      if (m.text) text = text ? text + '\n\n' + m.text : m.text;
+// ---------- 从题池导入（2026-11-14）----------
+// 题池 = 资料库工具的 hx_exam_qbank（全站唯一权威题库总站）。刷题不再自己导入资料，
+// 改从题池按科目/题型/章节/知识点筛出题，勾选后转成刷题格式写进当前科目的「我导入的题」。
+let qpoolKwT = 0; // 知识点搜索的防抖计时器
+const qpoolTypeName = t => (QPOOL_TYPES.find(x => x[0] === t) || [, t])[1];
+// 题池一行 → 刷题格式（字段映射和资料库工具 ZL_toQuiz 一致）。转不了的返回 { skip: 原因 }。
+function poolToQuiz(r, bank) {
+  const stem = String((r && r.q) || '').trim();
+  if (!stem) return { skip: '题干是空的' };
+  const q = { id: bank + '-zl-' + r.id, number: 0, type: '', stem, options: [], answer: [], explanation: String(r.explanation || ''), source: String(r.src || '题池'), knowledge: String(r.knowledge || '').trim() || null, chapter: r.ch != null ? +r.ch : null };
+  const a = r.a;
+  switch (r.t) {
+    case 'choice': {
+      q.options = (Array.isArray(r.o) ? r.o : []).map((o, i) => ({ key: String((o && o.key) || String.fromCharCode(65 + i)).toUpperCase(), text: String(o && o.text != null ? o.text : '') }));
+      if (q.options.length < 2) return { skip: '选择题选项少于 2 个' };
+      const keys = new Set(q.options.map(o => o.key));
+      const raw = Array.isArray(a) ? a.join('') : String(a == null ? '' : a);
+      q.answer = [...new Set(raw.toUpperCase().replace(/[^A-Z]/g, '').split('').filter(Boolean))];
+      if (!q.answer.length) return { skip: '选择题没有答案' };
+      if (q.answer.some(k => !keys.has(k))) return { skip: '答案不在选项里' };
+      q.type = q.answer.length > 1 ? 'multiple' : 'single';
+      break;
     }
-    // 粘贴／拖进来的 JSON 题库：纯本地解析，不用 AI、不花钱
-    if (!json && /^[[{]/.test(text)) { try { json = JSON.parse(text); text = ''; } catch { /* 不是 JSON，当文字资料 */ } }
-    if (json) {
-      showReport(normalizeQuestions(json, sub.id));
-      if ($('imMsg')) $('imMsg').textContent = '这是本地解析的 JSON：不用 AI，也没花钱。核对没问题就点「全部添加」。';
-      return;
+    case 'judge': {
+      const v = a === true || a === 'true' || a === 'T' ? 'T' : a === false || a === 'false' || a === 'F' ? 'F' : '';
+      if (!v) return { skip: '判断题答案不是对/错' };
+      q.type = 'judgment'; q.options = [{ key: 'T', text: '正确' }, { key: 'F', text: '错误' }]; q.answer = [v];
+      break;
     }
-    if (!text.trim() && !pics.length) throw new Error('这个文件里没有读到文字。PDF 请确认不是扫描件；扫描件可以拍成图片再选图片导入。');
-    const gen = S.imode === 'gen';
-    const g = genState();
-    // 章节数组 → 提示词里的「范围」一句；没勾任何章节 = 空串，genPrompt 会照旧写「整份资料」
-    const opts = { scope: g.scope.length ? g.scope.join('；') : '', level: g.level, extra: (g.extra || '').trim(), types: genTypes() };
-    let got = { questions: [], rejected: [] };
-    const tick = t => { if ($('imMsg')) $('imMsg').textContent = t; };
-    if (text.trim()) {
-      got = gen ? await aiGenerate(text, sub.id, sub.name, opts, tick) : await aiImport(text, sub.id, tick);
+    case 'fill': {
+      q.type = 'fill';
+      q.answer = (Array.isArray(a) ? a : String(a == null ? '' : a).split(/[、，,；;|\n]+/)).map(x => String(x == null ? '' : x).trim()).filter(Boolean);
+      if (!q.answer.length) return { skip: '填空题没有答案' };
+      if (!/_{2,}/.test(stem)) return { skip: '填空题题干里没有 ____' };
+      break;
     }
-    if (pics.length) {
-      await ensureHxAi(); // 看图走首页那套（HXAI.vision）；boot 时一般已经加载好了
-      const images = await readImages(pics);
-      const vis = await aiVision(images, { subject: sub.id, subjectName: sub.name, mode: gen ? 'gen' : 'pick', opts, onProgress: tick });
-      got = { questions: [...got.questions, ...vis.questions], rejected: [...got.rejected, ...vis.rejected] };
+    case 'term': case 'short': case 'prog': {
+      q.type = r.t;
+      const s = Array.isArray(a) ? a.join(' ') : String(a == null ? '' : a).trim();
+      if (!s) return { skip: '没有参考答案' };
+      q.answer = [s];
+      if (r.t === 'prog') {
+        if (r.code) q.code = String(r.code);
+        const sub = Array.isArray(r.sub) ? r.sub.map(x => String(x == null ? '' : x).trim()).filter(Boolean) : [];
+        if (sub.length) q.sub = sub;
+      }
+      break;
     }
-    showReport(got);
-  } catch (e) {
-    // 中途出错也要把已经拿到的题交出来，别让老师白等一场
-    if (e.partialQuestions?.length) {
-      showReport({ questions: e.partialQuestions, rejected: e.partialRejected || [] });
-      if ($('imMsg')) $('imMsg').textContent = '出错了，下面是出错前已经认出来的部分：' + e.message;
-      return;
-    }
-    if ($('imMsg')) $('imMsg').textContent = e.message; else toast(e.message);
-  } finally { if ($('goImport')) $('goImport').disabled = false; }
-}
-// 识别结果先出报告、再入库：去掉和已有题库重复的题干，把没认出来的原因一起带出来
-function showReport(got) {
-  const list = Array.isArray(got) ? got : (got.questions || []);
-  const rej = (Array.isArray(got) ? [] : got.rejected) || [];
-  const have = new Set(S.questions.map(q => norm(q.stem)));
-  const qs = []; let dup = 0;
-  for (const q of list) {
-    const k = norm(q.stem);
-    if (!k) continue;
-    if (have.has(k)) { dup++; continue; }
-    have.add(k); qs.push(q);
+    default: return { skip: '题型「' + (r && r.t) + '」刷题里没有' };
   }
-  S.draft = { qs, rej, dup, open: false, pick: new Set(qs.map((_, i) => i)) };
-  renderBank();
-  toast(qs.length ? `识别到 ${qs.length} 题${rej.length ? `，${rej.length} 条没认出来` : ''}` : '一道题都没认出来，看看报告里的原因');
+  return { q };
 }
-async function confirmImport() {
-  const d = S.draft; if (!d) return;
-  const qs = d.qs.filter((q, i) => d.pick.has(i));
-  if (!qs.length) return toast('一道题都没勾，先勾上要留的题');
-  const add = qs.map((q, n) => ({ ...q, number: S.bank.length + n + 1 }));
-  S.draft = null; await setBank([...S.bank, ...add]); toast(`已导入 ${add.length} 题`);
+// 列表里每题一行：题干 + 题型 + 答案 + 知识点标签
+function poolAnswerText(r) {
+  const a = r.a;
+  if (r.t === 'choice') {
+    const raw = Array.isArray(a) ? a.join('') : String(a == null ? '' : a);
+    return raw.toUpperCase().replace(/[^A-Z]/g, '') || '—';
+  }
+  if (Array.isArray(a)) return a.map(x => String(x == null ? '' : x)).join('、').slice(0, 40) || '—';
+  return String(a == null ? '' : a).slice(0, 40) || '—';
+}
+function qpoolRows(P) {
+  if (P.loading) return '<div class="muted" style="padding:10px">正在读取题池…</div>';
+  if (!P.rows.length) return '<div class="muted" style="padding:10px">没有符合条件的题</div>';
+  return P.rows.map(r => {
+    const ck = P.picked.has(String(r.id));
+    const tag = `${qpoolTypeName(r.t)} · ${esc(poolAnswerText(r))}${r.knowledge ? ` · ${esc(String(r.knowledge).slice(0, 12))}` : ''}${r.ch != null ? ` · 第 ${r.ch} 章` : ''}`;
+    return `<label><input type="checkbox" data-qp="${r.id}" ${ck ? 'checked' : ''}><span>${esc(String(r.q || ''))}</span><small>${tag}</small></label>`;
+  }).join('');
+}
+function qpoolPanel() {
+  if (!isTeacher()) return ''; // 题池 RPC 需要教师身份，学生端不显示
+  const P = S.qpool || (S.qpool = { subjects: [], sid: '', t: '', ch: '', kw: '', all: [], rows: [], picked: new Set(), loading: false, err: '', loaded: false });
+  const subOpts = P.subjects.map(s => `<option value="${esc(s.id)}" ${String(s.id) === String(P.sid) ? 'selected' : ''}>${esc(s.name)}${s.banks != null ? `（${s.banks} 题）` : ''}</option>`).join('');
+  const chs = [...new Set(P.all.map(r => r.ch).filter(v => v != null))].sort((a, b) => a - b);
+  const kws = [...new Set(P.all.map(r => (r.knowledge || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'zh-Hans-CN'));
+  const n = P.picked.size;
+  return `<div class="panel" id="qpPanel"><h3>从题池导入 · ${esc(S.subject.name)}</h3>
+    <p class="muted" style="margin:0 0 12px">题在资料库的「题池」里（全站唯一权威题库）。选科目，按题型 / 章节 / 知识点筛出来，勾选要的题导进当前科目。</p>
+    <div class="f">
+      <label for="qpSub">题池科目</label>
+      <select id="qpSub" ${P.loading ? 'disabled' : ''}>${subOpts || '<option value="">没有科目</option>'}</select>
+      <div class="line" style="flex-wrap:wrap">
+        <select id="qpType" ${P.loading ? 'disabled' : ''}><option value="">全部题型</option>${QPOOL_TYPES.map(([v, nm]) => `<option value="${v}" ${P.t === v ? 'selected' : ''}>${nm}</option>`).join('')}</select>
+        <select id="qpCh" ${P.loading ? 'disabled' : ''}><option value="">全部章节</option>${chs.map(c => `<option value="${c}" ${String(P.ch) === String(c) ? 'selected' : ''}>${c ? `第 ${c} 章` : '未分章'}</option>`).join('')}</select>
+        <input id="qpKw" type="text" list="qpKwList" placeholder="知识点筛选（可搜索）" value="${esc(P.kw)}" ${P.loading ? 'disabled' : ''} style="flex:1">
+        <datalist id="qpKwList">${kws.map(k => `<option value="${esc(k)}"></option>`).join('')}</datalist>
+      </div>
+      ${P.err ? `<div class="errs">${esc(P.err)}</div>` : ''}
+      <div class="hl" style="max-height:320px;overflow:auto" id="qpList">${qpoolRows(P)}</div>
+      <div class="line" style="margin-top:10px;flex-wrap:wrap">
+        <button class="btn" type="button" id="qpImport" ${n ? '' : 'disabled'}>导入勾选的题${n ? `（${n}）` : ''}</button>
+        <button class="btn sm ghost" type="button" id="qpAll">全选</button>
+        <button class="btn sm ghost" type="button" id="qpNone">清空勾选</button>
+        <span class="muted">${P.loading ? '正在读取题池…' : P.rows.length ? `共 ${P.rows.length} 题` : ''}</span>
+      </div>
+    </div>
+  </div>`;
+}
+function paintQpool() {
+  const el = $('qpPanel'); if (!el) return;
+  el.outerHTML = qpoolPanel();
+  bindQpool();
+}
+async function qpoolReload() {
+  const P = S.qpool; if (!P) return;
+  if (!P.subjects.length) {
+    P.loading = true; paintQpool();
+    try { P.subjects = await store.examSubjects(); } catch (e) { P.err = e.message || '读不到题池科目'; P.subjects = []; }
+    if (!P.subjects.length) { P.loading = false; P.err = P.err || '没有题池科目（去资料库建科目、出题）'; paintQpool(); return; }
+    if (!P.sid || !P.subjects.some(s => String(s.id) === String(P.sid))) P.sid = P.subjects[0].id;
+  }
+  P.loading = true; paintQpool();
+  try {
+    // 全量拉一遍用于章节/知识点下拉；带筛选参数拉一遍用于展示
+    const [all, rows] = await Promise.all([
+      store.examQbankList(P.sid, '', '', ''),
+      store.examQbankList(P.sid, P.t, P.ch, P.kw),
+    ]);
+    P.all = all || []; P.rows = rows || []; P.err = '';
+    const ids = new Set((rows || []).map(r => String(r.id)));
+    for (const k of [...P.picked]) if (!ids.has(k)) P.picked.delete(k);
+  } catch (e) { P.err = e.message || '读取题池失败'; P.rows = []; P.all = []; }
+  P.loading = false;
+  paintQpool();
+}
+function bindQpool() {
+  const P = S.qpool; if (!P || !$('qpPanel')) return;
+  if (!P.loaded) { P.loaded = true; qpoolReload(); }
+  const sub = $('qpSub');
+  if (sub) sub.onchange = e => {
+    P.sid = +e.target.value; P.t = ''; P.ch = ''; P.kw = ''; P.picked = new Set(); P.all = []; P.rows = [];
+    if ($('qpType')) $('qpType').value = ''; if ($('qpCh')) $('qpCh').value = ''; if ($('qpKw')) $('qpKw').value = '';
+    qpoolReload();
+  };
+  const tp = $('qpType'); if (tp) tp.onchange = e => { P.t = e.target.value; qpoolReload(); };
+  const ch = $('qpCh'); if (ch) ch.onchange = e => { P.ch = e.target.value; qpoolReload(); };
+  const kw = $('qpKw'); if (kw) kw.oninput = e => { P.kw = e.target.value; clearTimeout(qpoolKwT); qpoolKwT = setTimeout(qpoolReload, 350); };
+  const imp = $('qpImport'); if (imp) imp.onclick = confirmPoolImport;
+  const all = $('qpAll'); if (all) all.onclick = () => { (P.rows || []).forEach(r => P.picked.add(String(r.id))); paintQpool(); };
+  const none = $('qpNone'); if (none) none.onclick = () => { P.picked = new Set(); paintQpool(); };
+  for (const c of document.querySelectorAll('#qpPanel [data-qp]')) c.onchange = () => {
+    const id = c.dataset.qp; c.checked ? P.picked.add(id) : P.picked.delete(id);
+    const b = $('qpImport'); if (b) { b.disabled = !P.picked.size; b.textContent = '导入勾选的题' + (P.picked.size ? `（${P.picked.size}）` : ''); }
+  };
+}
+// 勾选的题转成刷题格式写进「我导入的题」，按「题型+题干去空白」和 id 去重
+async function confirmPoolImport() {
+  const P = S.qpool, sub = S.subject; if (!P) return;
+  const rows = (P.rows || []).filter(r => P.picked.has(String(r.id)));
+  if (!rows.length) return toast('先勾选要导入的题');
+  const ids = new Set(S.questions.map(q => String(q.id)));
+  const have = new Set(S.questions.map(q => q.type + '|' + norm(q.stem)));
+  const add = []; let dup = 0, skip = 0, num = S.bank.length;
+  for (const r of rows) {
+    const c = poolToQuiz(r, sub.id);
+    if (c.skip) { skip++; continue; }
+    const k = c.q.type + '|' + norm(c.q.stem);
+    if (ids.has(c.q.id) || have.has(k)) { dup++; continue; }
+    c.q.number = ++num;
+    ids.add(c.q.id); have.add(k); add.push(c.q);
+  }
+  if (!add.length) return toast(dup || skip ? `没有能导入的：${dup} 题重复${skip ? `、${skip} 题转不了` : ''}` : '没有可导入的题');
+  const note = `${dup ? `跳过 ${dup} 题重复` : ''}${skip ? `${dup ? '、' : ''}${skip} 题转不了` : ''}`;
+  P.picked = new Set();
+  await setBank([...S.bank, ...add]);
+  toast(`已导入 ${add.length} 题${note ? `（${note}）` : ''}`);
 }
 
 // ---------- 发布：选下发到哪些班 / 哪些老师（2026-11-02 建，2026-11-08 加老师这一维）----------
@@ -1697,7 +1738,7 @@ async function boot() {
   await Promise.race([ensureHxAi(), new Promise(r => setTimeout(r, 1500))]);
   const p = prefs();
   S.type = p.type || 'single'; S.scope = p.scope || 'todo'; S.mode = ORDERS.some(o => o[0] === p.mode) ? p.mode : 'seq';
-  S.imode = store.getLocal('importMode', 'pick') === 'gen' ? 'gen' : 'pick'; // 上次选的导入方式
+  S.unit = p.unit || ''; S.kn = p.kn || '';
   renderNav(); renderWho();
   const pub = String(p.subject || '').startsWith('pub-');
   await loadSubjects(pub);

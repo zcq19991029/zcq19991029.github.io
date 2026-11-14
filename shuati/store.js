@@ -119,6 +119,17 @@ export const forward = (id, newName, ownerName, classes) => rpc('quiz_forward', 
 export const teacherList = () => signedIn() ? cwrap('teachers', () => rpc('quiz_teacher_list', {}).catch(() => [])) : Promise.resolve([]);
 export const unpublish = id => rpc('quiz_unpublish', { p_id: id }).then(r => { dropPub(id); return r; });
 
+/* 题池（hx_exam_qbank）和题池科目（hx_exam_subject）：资料库工具那边出的题（全站唯一权威题库）。
+   刷题「从题池导入」走这两个 rpc —— 都需要教师身份（服务端 hx_is_teacher 判），学生端不调。
+   ⚠️ 题池不缓存：AI 出题会一直往里加，那是随时在变的东西（和资料库工具同一口径）。 */
+export const examSubjects = () => rpc('hx_exam_subject_list', {}, signedIn());
+export const examQbankList = (sid, t, ch, kw) => rpc('hx_exam_qbank_list', {
+  p_subject_id: sid,
+  p_t: t || null,
+  p_ch: ch === '' || ch == null ? null : +ch,
+  p_knowledge: kw || null,
+}, signedIn());
+
 /* 题库分享码（2026-11-08）：用户要求「用户自己上传的也可以通过分享码（二维码加6位分享码）发给他的朋友去刷题」。
    和发布不是一回事 —— 发布是「按班级下发」，分享码是「谁拿到码谁能刷」，不占班级、不进公共题库列表。
    表见 supabase/2026-11-08-题库分享码.sql；取码那一步对 anon 也开放（朋友可能还没登录）。
@@ -160,4 +171,4 @@ export async function rankFlush(onDone) {
     if (res) { setLocal('ranksent:' + bank, [...new Set([...getLocal('ranksent:' + bank, []), ...ids])]); if (onDone) onDone(bank, res); }
   }
 }
-export const rankBoard = (bank, mine) => rpc('quiz_rank_board', { p_bank: bank, p_mine: !!mine, p_limit: 100 }, signedIn());
+export const rankBoard = (bank, mine) => rpc('quiz_rank_board', { p_bank: bank, p_mine: !!mine, p_limit: 200 }, signedIn());

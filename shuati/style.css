@@ -93,6 +93,12 @@ html[data-hx-mode="light"].hx-bg .seg button[aria-pressed="true"] { background: 
 .chip small { margin-left: 4px; opacity: .6; font-weight: 400; }
 .ibtn { flex: none; height: 32px; padding: 0 12px; border-radius: 99px; border: 0; background: var(--fill); color: var(--ink); font-size: 13px; font-weight: 500; }
 
+/* 单元/知识点组合筛选（2026-11-14）：两个下拉并排，和 scopes 胶囊同一行风格 */
+#filterRow { margin-top: 8px; gap: 8px; }
+#filterRow select { flex: 1; min-width: 0; height: 34px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line2); background: var(--card-solid); color: var(--ink); font-size: 13px; outline: none; transition: border-color .2s, box-shadow .2s; }
+#filterRow select:focus { border-color: var(--acc); box-shadow: 0 0 0 3px var(--ring, var(--fill)); }
+#filterRow select:disabled { color: var(--dim); }
+
 /* 题卡：答完后可以左右拖（鼠标、手指都行），左“记住”、右“再练” */
 .card { padding: 22px 20px 20px; touch-action: pan-y; will-change: transform; }
 .card.drag { cursor: grab; user-select: none; }
@@ -331,19 +337,80 @@ body.focus .unfocus { display: block; }
 .fb.self .row { display: flex; gap: 10px; margin-top: 12px; } .fb.self .row .btn { flex: 1; }
 .extok { margin: 0 0 12px; padding: 10px 12px; border-radius: 12px; background: var(--okbg); color: var(--ink); font-size: 14px; line-height: 1.6; }
 
-/* 理论题排行：名次圆点（前三金银铜）、姓名 + 班级、答对题数；自己那行加底色 */
-.rb { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
-.rb li { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 9px 10px; border-radius: 14px; }
-.rb li.me { background: var(--accbg, var(--fill)); }
-.rb li.gap { display: block; padding: 0; text-align: center; color: var(--dim); line-height: 1.2; }
-.rb i { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; font-style: normal; font-weight: 600; font-size: 13px; color: var(--dim); font-variant-numeric: tabular-nums; }
-.rb .p1 i { background: #f6c84c; color: #4a3500; } .rb .p2 i { background: #d4d7de; color: #3a3d44; } .rb .p3 i { background: #e2ad7e; color: #4a2a10; }
-.rb div { min-width: 0; display: flex; align-items: baseline; gap: 8px; }
-.rb b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
-.rb span { flex: none; color: var(--dim); font-size: 12.5px; }
-.rb em { font-style: normal; font-weight: 700; font-size: 17px; font-variant-numeric: tabular-nums; }
-.rb em small { margin-left: 2px; font-size: 12px; font-weight: 400; color: var(--dim); }
-.rrule { margin: 12px 0 0; text-align: center; }
+/* 理论题排行：左右双列（本班 | 全校）同时显示，身份卡 + 一页 20 人翻页 */
+.rcols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+.rcols.one { grid-template-columns: 1fr; }
+.rcol { min-width: 0; }
+.rcol-h { display: flex; align-items: baseline; gap: 8px; margin: 0 0 10px; padding: 0 2px; }
+.rcol-h b { font: 600 16px/1.3 var(--hx-font-d); letter-spacing: -.01em; }
+.rcol-h small { color: var(--dim); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+
+.rb { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+
+/* 身份卡：背景铺满 + 左右压暗遮罩 + 内容浮在上面（和排位/小组加分的 .gb-chip.has-face 同一套语言） */
+.r-rc {
+  position: relative; overflow: hidden;
+  display: grid; grid-template-columns: 30px 34px minmax(0, 1fr) auto;
+  align-items: center; gap: 10px; padding: 9px 12px;
+  border-radius: 14px; background: var(--fill);
+}
+.r-rc.me { box-shadow: 0 0 0 1.5px var(--acc) inset; background: var(--accbg, var(--fill)); }
+.r-rc.has-face { color: #fff; }
+.r-rc.has-face::before {
+  content: ''; position: absolute; inset: 0; z-index: 0;
+  background: var(--hxface); border-radius: inherit;
+}
+.r-rc.has-face::after {
+  content: ''; position: absolute; inset: 0; z-index: 0;
+  background: linear-gradient(90deg, rgba(6,14,26,.86) 0%, rgba(6,14,26,.58) 46%, rgba(6,14,26,.22) 100%);
+  border-radius: inherit;
+}
+.r-rc > * { position: relative; z-index: 1; }
+
+/* 名次徽章：前三名金银铜，其余名次浅灰数字 */
+.r-badge {
+  display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%;
+  font-style: normal; font-weight: 700; font-size: 13px; color: var(--dim); font-variant-numeric: tabular-nums;
+}
+.r-rc.has-face .r-badge { color: rgba(255,255,255,.85); }
+.r-rc.p1 .r-badge { background: #f6c84c; color: #4a3500; }
+.r-rc.p2 .r-badge { background: #d4d7de; color: #3a3d44; }
+.r-rc.p3 .r-badge { background: #e2ad7e; color: #4a2a10; }
+
+/* 头像：有照片铺照片（首字变透明），否则默认主题色圆底 + 首字 */
+.r-av {
+  display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; flex: none;
+  background: var(--acc); color: var(--on-acc, #fff); font-size: 15px; font-weight: 700;
+}
+.r-av.has-img {
+  color: transparent !important;
+  background: var(--hxav) !important;
+  background-size: cover !important; background-repeat: no-repeat !important; background-position: 50% 50% !important;
+}
+
+/* 姓名 + 班级 */
+.r-nm { min-width: 0; display: flex; flex-direction: column; }
+.r-nm b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; font-size: 14.5px; line-height: 1.25; }
+.r-nm small { color: var(--dim); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.r-metag { font-style: normal; font-weight: 600; font-size: 10px; margin-left: 5px; padding: 1px 5px; border-radius: 99px; background: var(--acc); color: var(--on-acc, #fff); vertical-align: 1px; }
+.r-rc.has-face .r-nm small { color: rgba(255,255,255,.78); }
+
+/* 答对题数 */
+.r-sc { font-style: normal; font-weight: 700; font-size: 17px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.r-sc small { margin-left: 2px; font-size: 12px; font-weight: 400; color: var(--dim); }
+.r-rc.has-face .r-sc small { color: rgba(255,255,255,.78); }
+
+/* 翻页 */
+.rpager { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 12px; }
+.rpager button { height: 30px; padding: 0 12px; border: 0; border-radius: 99px; background: var(--fill); color: var(--ink); font-size: 13px; font-weight: 500; transition: background .2s, opacity .2s; }
+.rpager button:hover:not(:disabled) { background: var(--hov); }
+.rpager button:disabled { opacity: .4; cursor: default; }
+.rpager span { color: var(--dim); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.rrule { margin: 14px 0 0; text-align: center; }
+
+@media (max-width: 720px) {
+  .rcols { grid-template-columns: 1fr; }
+}
 
 /* ---------- 导入资料（2026-11-06 重做）：两种方式说明、出题要求、识别报告 ---------- */
 /* 说明块：用浅底、不抢按钮的注意力，但要把“不会替你编题”讲清楚 */

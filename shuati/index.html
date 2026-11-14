@@ -20,6 +20,9 @@
      module 本身是 deferred 的，顺序天然保证；特效包拷自 小组加分/fx/pixelfx-loader.js（MIT）。 -->
 <script src="vendor/pixelfx-loader.js"></script>
 <script src="loadfx.js"></script>
+<!-- 身份卡预设背景（p:xxx → CSS）：和小组加分/排位共用站点根那一份 rank-bg.js（发布时 publish.cjs 放到站点根）。
+     排行卡片要铺身份卡背景，这里先加载，app.js（module，deferred）里 window.rankBgCss 才取得到。 -->
+<script src="../rank-bg.js"></script>
 </head>
 <body>
 <!-- 首屏加载层（2026-11-06 修时序）：页面解析到这里就由 loadfx.js 的 boot() 接管并在**同一次绘制**里
@@ -52,6 +55,7 @@
     <div class="hero glow" id="hero"></div>
     <div class="seg" id="types"></div>
     <div class="row"><div class="chips" id="scopes"></div><button class="ibtn" id="modeBtn" type="button"></button></div>
+    <div class="row" id="filterRow" hidden><select id="unitSel" aria-label="单元/章节"><option value="">全部单元</option></select><select id="knSel" aria-label="知识点"><option value="">全部知识点</option></select></div>
     <article class="card glow" id="card" aria-live="polite"></article>
   </section>
   <section class="view" id="v-overview" hidden></section>
