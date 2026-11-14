@@ -105,15 +105,43 @@ const HX = (() => {
     // 未登录：优先请总入口弹登录（页面常在 iframe 里），否则跳回总入口首页
     login() {
       try { if (window.top !== window && window.top.HXPortal && window.top.HXPortal.login) return window.top.HXPortal.login(); } catch (e) { }
-      location.href = HOME + '#wiring';
+      goPortalHome('#wiring');
     },
   };
 })();
-// 返回接线仿真 / 总入口的相对路径：线上页面在 /wiring-lab/task/，本机自测时根部就是页面目录
-const HOME = (() => {
+/* 两个路径锚点（2026-11-14 拆开，这就是「冗余首页 + 双返回」的根因）：
+   原来只有一个 HOME = '../../'，同时被当成「接线仿真主页」和「站点根目录」用。
+   可是课堂任务页在线上是 /wiring-lab/task/：
+     · '../'    = /wiring-lab/   ← 接线仿真主页（外壳：2.1～2.6 分段控件）
+     · '../../' = /              ← 站点根 = **总入口首页**
+   于是「← 接线仿真」按钮把整个总入口首页加载进了工具 iframe：用户看到的是一张
+   「又一个首页」（冗余首页），而且总入口顶栏 + 里面那份总入口顶栏 = 左上角两个返回按钮。
+   更糟的是 iframe 的地址被留在站点根，之后从正版首页点「接线仿真」复用的还是这一帧，
+   于是又回到冗余首页。所以从今往后**站内跳转一律分开用下面两个常量**：
+     TOOL = 接线仿真主页（外壳）      SITE = 站点根（总入口）
+   本机自测时根部就是页面目录，两个都退化成 './'。 */
+const SITE = (() => {
   const p = location.pathname;
   return p.indexOf('/wiring-lab/') >= 0 ? '../../' : './';
 })();
+const TOOL = (() => {
+  const p = location.pathname;
+  return p.indexOf('/wiring-lab/') >= 0 ? '../' : './';
+})();
+// 兼容旧引用：task-board.js / task.js 里剩下的 HOME 仍按「站点根」理解（语义不变，值也没变）
+const HOME = SITE;
+
+/* 回「接线仿真」外壳。只是换掉自己这一帧的目标页，绝不把站点根加载进来。 */
+function goTool() { location.href = TOOL; return true; }
+/* 回总入口首页：嵌在 iframe 里必须先请外层换页。直接改 location 会把总入口整页装进 iframe
+   （= 用户说的「冗余首页」），所以这里优先走总入口的接口，够不着才退化成跳转。 */
+function goPortalHome(hash) {
+  try {
+    if (window.top !== window && window.top.HXPortal && window.top.HXPortal.home) { window.top.HXPortal.home(); return true; }
+  } catch (e) { }
+  location.href = SITE + (hash || '');
+  return true;
+}
 
 /* 可排位的 8 条电路（和 src/rank.js 的 rkCircuits() 同一套 id：2.1～2.6 / E1 / E2）。
    专项（P1…P10）不在课堂任务里：一节实训课的任务就是「连这一张图」，
@@ -178,3 +206,11 @@ const scoreText = s => s == null ? '—' : (+s).toFixed(1) + ' 分';
 /* 完成率分档 → 颜色类（100% 金 / 80% 蓝 / 70% 灰）。档位与数据库 hx_wire_task__calc 一字对应。
    2026-11-09 用户要求：完成率要实时可见 ——「被别人超了就会变 这是很正常的竞争学习」。 */
 const rateTier = r => r == null ? 'r-none' : Number(r) >= 100 ? 'r100' : Number(r) >= 80 ? 'r80' : 'r70';
+
+/* ── 「上一步」接口：给总入口左上角那颗「返回」用（2026-11-14）────────────────
+   总入口的返回按钮会先问当前工具：HXBack() 返回 true = 工具自己退了一步，外层什么都不做。
+   课堂任务 / 大屏的「上一步」只有一个去处：接线仿真主页（/wiring-lab/，不是站点根）。
+   以前这里没实现，总入口只能退浏览器历史；一旦历史断了就落回首页，
+   而首页再点进接线仿真复用的又是那一帧 → 用户看到「又跳回冗余首页」。
+   注意：必须**同步**给结果（外层同步取返回值），所以直接改 location 后返回 true。 */
+window.HXBack = function () { return goTool(); };

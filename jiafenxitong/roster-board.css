@@ -516,6 +516,52 @@ body.gb-dragging .gb-chip { cursor: grabbing; }
 .metrics-slim { margin-top: 12px; }
 .metrics-slim .metric { padding: 8px 12px; }
 
+/* ---- 记分卡片铺组长身份卡背景（2026-11-13） ----
+   组卡背景 = 组长（没有组长退回本组第 1 位成员）的身份卡背景铺满整张卡。
+   视觉和排位身份卡 .id-card 同一套语言：背景层 + 压暗层 + 内容浮在上面；深底浅字。
+   --hxface / --hxav 由 faces.js 产出，取不到就是空串（JS 不生成 .gcard-bg），
+   卡片退回默认底，不会出现半透明脏底。 */
+:root { --gcard-veil: 6, 14, 26; }
+:root[data-hx-mode="dark"] { --gcard-veil: 4, 8, 18; }
+
+.gcard.has-face { position: relative; isolation: isolate; overflow: hidden; color: #fff; }
+.gcard.has-face .gcard-bg {
+  position: absolute; inset: 0; z-index: 0;
+  background: var(--hxface);
+  border-radius: inherit;
+  pointer-events: none;
+}
+/* 压一层斜向渐变：靠左 88% 深色 → 靠右 0，保证左侧组号/人名读得清；深浅两套走 --gcard-veil */
+.gcard.has-face .gcard-veil {
+  position: absolute; inset: 0; z-index: 0;
+  background: linear-gradient(94deg,
+    rgba(var(--gcard-veil), .88) 0%,
+    rgba(var(--gcard-veil), .4) 48%,
+    rgba(var(--gcard-veil), 0) 100%);
+  border-radius: inherit;
+  pointer-events: none;
+}
+.gcard.has-face > *:not(.gcard-bg):not(.gcard-veil) { position: relative; z-index: 1; }
+
+/* 深底浅字：正文走浅色；.gsum 的 pos/neg、.dutytag、值日组件保留自己的饱和色（看得清） */
+.gcard.has-face .gnum { color: #fff; }
+.gcard.has-face .gcount { color: rgba(255, 255, 255, .78); }
+.gcard.has-face .gcount.over { color: var(--bad, #c0392b); }
+.gcard.has-face .gsum .k { color: rgba(255, 255, 255, .72); }
+.gcard.has-face .gsum .c { color: rgba(255, 255, 255, .5); }
+.gcard.has-face .gcard-secondary { color: rgba(255, 255, 255, .72); }
+.gcard.has-face .gcard-secondary .mini { color: rgba(255, 255, 255, .8); }
+.gcard.has-face .gctl .lbl { color: #fff; }
+
+/* 卡片头里的组长头像：和 .gb-av 同一颗圆徽章，比看板人卡小一号 */
+.gcard-lead-av { width: 26px; height: 26px; box-shadow: 0 0 0 2px rgba(255, 255, 255, .35); }
+
+/* 极简模式：背景图不铺（保留纯色卡），过渡/阴影关掉 */
+html.hx-lite .gcard.has-face .gcard-bg,
+html.hx-lite .gcard.has-face .gcard-veil { display: none; }
+html.hx-lite .gcard.has-face { transition: none; box-shadow: none; }
+html.hx-lite .gcard.has-face:hover { box-shadow: none; }
+
 /* ---- 分组主体：左未分组 / 右组卡片 ---- */
 .gb-board {
   display: grid;

@@ -74,6 +74,54 @@ function bgStyleOf(sid) {
   return rkBgStyle(b.bg, { pos: b.pos != null ? b.pos : 50, zoom: 100 });
 }
 
+/* ── 左栏（未完成）尺寸档位：和排位/任务页同一套「人多就小」，最大 34vmin 上限不变。
+   抽成函数让 paint 和 doneLayout 共用同一份档位，别在两处各写一遍慢慢跑偏。 */
+function pendSize(n) { return n <= 12 ? 5.2 : n <= 20 ? 4.4 : n <= 32 ? 3.8 : n <= 48 ? 3.2 : 2.7; }
+function pendCol(n) { return n <= 12 ? 34 : n <= 20 ? 28 : n <= 32 ? 24 : n <= 48 ? 20 : 17; }
+
+/* ── 右栏（已完成）排位身份卡求解器（2026-11-13 排位改版）─────────────────────
+   目标：所有已完成的人一屏放下、不翻页、不滚动；左栏人少时右栏自动向左扩。
+   思路：
+     1) 左栏按 --pfs/col 那套算「它至少要占多宽才不溢出」→ pMinW；
+     2) 剩余宽度（MAIN_W - pMinW - 边距）= 右栏宽度预算 dW；
+     3) 在 --dcs 档位里从大到小挑第一档：该档下「列数 × 卡宽」能塞进 dW。
+   卡片尺寸全部是 --dcs 的倍数（卡宽 DC_KW、卡高 DC_KH、间距 DC_KG），
+   列数由「能塞几行」反推：人多自动缩字号/缩卡宽、人少自动放大；
+   左栏人越少 → dW 越大 → 档位越大 → 右栏越向左扩、卡越大。 */
+const DC_KW = 7.5, DC_KH = 1.9, DC_KG = 0.5;
+function doneLayout(pN, dN) {
+  const MAIN_W = 172, LIST_H = 66, MARGIN = 3.2, PGAP = 1.1;
+  const DCS_TIERS = [3.0, 2.7, 2.4, 2.2, 2.0, 1.85, 1.7, 1.55, 1.4, 1.3];
+  // 1) 左栏最小宽度（未完成卡片高度 ≈ pfs*2.55，间距 1.1vmin，都要实测过才敢用）
+  let pMinW = 0;
+  if (pN > 0) {
+    const pfs = pendSize(pN), col = pendCol(pN);
+    const rows = Math.max(1, Math.floor(LIST_H / (pfs * 2.55 + PGAP)));
+    const cols = Math.max(1, Math.ceil(pN / rows));
+    pMinW = cols * col + (cols - 1) * PGAP;
+  } else {
+    // 全部完成：给「全部完成 ✔」留一小条，别把左栏挤成一条缝（2026-11-13）
+    pMinW = 20;
+  }
+  const dW = Math.max(8, MAIN_W - pMinW - MARGIN);
+  // 2) 从大到小挑第一档塞得下的 --dcs
+  let best = null;
+  for (const dcs of DCS_TIERS) {
+    const rows = Math.max(1, Math.floor(LIST_H / (dcs * (DC_KH + DC_KG))));
+    const cols = Math.max(1, Math.ceil(dN / rows));
+    const w = dcs * (cols * DC_KW + (cols - 1) * DC_KG);
+    if (w <= dW) { best = { dcs: dcs, cols: cols }; break; }
+  }
+  if (!best) { // 兜底：最小档（极小班绝不超）
+    const dcs = DCS_TIERS[DCS_TIERS.length - 1];
+    const rows = Math.max(1, Math.floor(LIST_H / (dcs * (DC_KH + DC_KG))));
+    best = { dcs: dcs, cols: Math.max(1, Math.ceil(dN / rows)) };
+  }
+  // 3) 用实际列数反算右栏宽度，直接写进 inline width，跟 CSS 网格宽度严格一致
+  best.w = best.dcs * (best.cols * DC_KW + (best.cols - 1) * DC_KG);
+  return best;
+}
+
 (async function boot() {
   HX.grab();
   if (!HX.online()) return gate('需要在线版', '大屏依赖云端进度，本机离线文件不能用。', false);
@@ -159,13 +207,12 @@ function paint(b) {
   // 人数越多字越小、卡片越窄：保证任何班（20～60 人）都能一屏放下，不出现滚动条；
   // 人少时卡片放大，把整块屏幕铺满（空一大片反而显得没在「督促」）
   const n = pend.length;
-  const fs = n <= 12 ? '5.2' : n <= 20 ? '4.4' : n <= 32 ? '3.8' : n <= 48 ? '3.2' : '2.7';
-  const col = n <= 12 ? '34vmin' : n <= 20 ? '28vmin' : n <= 32 ? '24vmin' : n <= 48 ? '20vmin' : '17vmin';
+  const fs = pendSize(n);
+  const col = pendCol(n);
   document.documentElement.style.setProperty('--pfs', fs + 'vmin');
-  // 已完成头像条：人多就两列 + 缩字号（否则 40 个完成的人一条条堆下来会溢出右栏）
-  const dCols = done.length > 18 ? 2 : 1;
-  const dSize = done.length > 30 ? '1.55' : done.length > 18 ? '1.75' : '2.1';
-  document.documentElement.style.setProperty('--dcs', dSize + 'vmin');
+  // 右栏排位身份卡：人数越多字越小、卡越窄；左栏人少时右栏自动向左扩（宽度/列数由求解器给）。
+  const L = doneLayout(n, done.length);
+  document.documentElement.style.setProperty('--dcs', L.dcs + 'vmin');
   // 是否第一屏：第一屏播入场动画，之后重绘只保留「新完成那一个」的高亮（见 task.css 的 body.no-anim）
   const firstPaint = !B.painted;
   B.painted = true;
@@ -243,17 +290,21 @@ function paint(b) {
 
     <aside class="bd-done">
       <h3>已完成 <em>${done.length}</em> 人</h3>
-      <div class="done-list" style="grid-template-columns:repeat(${dCols},minmax(0,1fr))">
-        ${done.map(r => {
+      <div class="done-list" style="grid-template-columns:repeat(${L.cols}, calc(var(--dcs) * ${DC_KW}));width:${L.w.toFixed(2)}vmin">
+        ${done.map((r, i) => {
             const st = bgStyleOf(r.student_id);
-            return `<span class="done-chip${B.fresh.has(r.student_id) ? ' fresh' : ''}" data-sid="${r.student_id}" data-nobg="${st ? '0' : '1'}">
-            <span class="chip-bg" aria-hidden="true"${st ? ` style="${esc(st)}"` : ''}></span>
-            <span class="chip-veil" aria-hidden="true"></span>
-            <i>${esc((r.name || '').trim().slice(0, 1))}</i>
-            <span>${esc(r.name)}</span>
-            <b class="dc-rate ${rateTier(r.rate)}" title="当前完成率（被更快的同学超了会掉档）">${rateText(r.rate)}</b>
-            <em>${r.place == null ? '' : '#' + r.place} ${Math.round(r.sec)}s</em>
-          </span>`;
+            const place = r.place || (i + 1);
+            const medal = place <= 3 ? ' m' + place : '';
+            return `<div class="dc${medal}${B.fresh.has(r.student_id) ? ' fresh' : ''}" data-sid="${r.student_id}" data-nobg="${st ? '0' : '1'}">
+            <span class="dc-bg" aria-hidden="true"${st ? ` style="${esc(st)}"` : ''}></span>
+            <span class="dc-veil" aria-hidden="true"></span>
+            <span class="dc-medal"><b>${place}</b></span>
+            <div class="dc-who">
+              <b class="dc-name">${esc(r.name || r.no)}</b>
+              <span class="dc-sub">${r.sec != null ? fmtSec(r.sec) : ''}</span>
+            </div>
+            <b class="dc-rate ${rateTier(r.rate)}">${rateText(r.rate)}</b>
+          </div>`;
           }).join('')}
       </div>
     </aside>
@@ -283,8 +334,10 @@ function paint(b) {
   }
   B.pctPrev = pct;
 
-  // 返回「上一级」= 接线仿真主页（/wiring-lab/），不是浏览器上一页、也不是首页
-  const bdBack = $('#bdBack'); if (bdBack) bdBack.onclick = () => location.href = HOME;
+  // 返回「上一级」= 接线仿真主页（/wiring-lab/ 外壳），不是浏览器上一页、也不是站点根首页。
+  // 2026-11-14 修：原来写 location.href = HOME（HOME 现在是站点根 '../../'），把总入口整页
+  // 装进了这一帧 → 冗余首页 + 双返回。改成 goTool()（task-hx.js 里定义，回 ../ 外壳）。
+  const bdBack = $('#bdBack'); if (bdBack) bdBack.onclick = () => goTool();
 
   // 第一屏之后关掉入场动画（否则每完成一个人，整块名单都重新 fade 一次，投影上看着像闪）
   document.body.classList.toggle('no-anim', !firstPaint);
@@ -292,7 +345,7 @@ function paint(b) {
   if (B.fresh.size) {
     clearTimeout(B.timer);
     B.timer = setTimeout(() => {
-      root.querySelectorAll('.done-chip.fresh').forEach(el => el.classList.remove('fresh'));
+      root.querySelectorAll('.dc.fresh').forEach(el => el.classList.remove('fresh'));
     }, 1700);
     // 谁刚完成：在最上面那行副标题里点一下名（老师抬头就能念出来）
     const names = done.filter(r => B.fresh.has(r.student_id)).map(r => r.name).join('、');

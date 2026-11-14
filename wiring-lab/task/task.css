@@ -278,7 +278,7 @@ body.board.lite .ring .capg { transition: none; }
 /* 未完成身份卡（2026-11-13）
    用户原话：「大屏还没完成的身份卡我点头 你加吧」
    上一版 .pend 是个 60px 级的小方块：背景铺上去基本看不见、姓名被裁，看着不像身份卡，
-   跟右侧带背景的 .done-chip 完全不是一个东西。这一版按「小身份卡」重排：
+   跟右侧带背景的 .dc 排位身份卡完全不是一个东西。这一版按「小身份卡」重排：
    背景铺满整卡 + 遮罩只压文字那侧 + 首字母头像 + 姓名 + 学号；
    尺寸跟 --pfs 联动（人少自动大、人多自动缩），列宽仍由 JS 写进 grid-template-columns。 */
 .pend {
@@ -304,7 +304,7 @@ body.board.lite .ring .capg { transition: none; }
 }
 /* 兜底卡再配一条略饱和的描边，让它看起来是「有边框的默认卡面」，而不是一块忘了填色的背景 */
 .pend[data-nobg="1"] { border-color: color-mix(in srgb, var(--bad) 42%, rgba(150, 175, 255, .26)); }
-/* 遮罩浓度和右侧 .done-chip 同一套（.84 / .55 那条线），只是方向改成 96°，因为文字在头像右边；
+/* 遮罩浓度和右侧 .dc 同一套（.84 / .55 那条线），只是方向改成 96°，因为文字在头像右边；
    再压一层底部的暗，保证贴边拍的照片上名字也读得清。浓度调过两次：太浓会把背景压成纯色块，
    用户上一版就是嫌「背景铺上去看不出来」，所以这里刻意留了 30% 的透光。 */
 .pend .pend-veil {
@@ -337,48 +337,79 @@ body.board.lite .ring .capg { transition: none; }
    每完成一个人都会重画一次名单，如果每次都 fade-in，投影上整块名单会一起闪一下，
    看起来像掉帧。所以第一屏播动画，之后只保留「新完成那一个」的高亮（.fresh）。 */
 body.no-anim .pend { animation: none; }
-body.no-anim .done-chip:not(.fresh) { animation: none; }
+body.no-anim .dc:not(.fresh) { animation: none; }
 /* 极简模式：身份卡背景照常显示（背景是内容，不是氛围特效），只不播动画。
    用户上一版最不满意的就是「极简一开，东西就没了」，所以这里只掐 animation，不碰视觉。 */
-body.board.lite .pend, body.board.lite .done-chip { animation: none; }
-.pend-empty { grid-column: 1 / -1; display: grid; place-items: center; min-height: 30vmin; color: var(--ok); font-size: 4vmin; font-weight: 800; letter-spacing: .1em; text-align: center; }
-.pend-empty small { display: block; font-size: 1.9vmin; color: var(--dim); font-weight: 400; margin-top: 1vmin; letter-spacing: 0; }
+body.board.lite .pend, body.board.lite .dc { animation: none; }
+.pend-empty { grid-column: 1 / -1; display: grid; place-items: center; align-content: center; gap: 1vmin; min-height: 22vmin; color: var(--ok); font-size: 3.2vmin; font-weight: 800; letter-spacing: .1em; text-align: center; }
+.pend-empty small { display: block; font-size: 1.8vmin; color: var(--dim); font-weight: 400; letter-spacing: 0; }
 
-/* 已完成：右上角一竖条小头像，不抢未完成的位置。
-   人数一多就自动两列 + 缩字号（JS 给 --dcs 和列数），否则 40 个完成的人会把这一栏撑爆。 */
+/* 已完成：右栏排位身份卡（2026-11-13 排位改版）
+   每个完成者一张卡：背景图铺满 + 遮罩 + 名次奖牌 + 姓名 + 班级·用时 + 完成率档位。
+   前三名金/银/铜奖牌（CSS 渐变圆盘 + 名次数字，不引外部资源）。
+   卡片尺寸由 --dcs 驱动（人多就小），列数由 JS 写进 grid-template-columns；
+   右栏宽度跟卡片自然宽度走（JS 写 inline width），左栏人少时右栏自动向左扩。 */
 .bd-done {
-  flex: none; width: 36vmin; min-width: 0; display: flex; flex-direction: column;
+  flex: 0 0 auto; min-width: 0; max-width: 100%;
+  display: flex; flex-direction: column;
   border-left: 1px solid var(--edge); padding-left: 1.4vmin;
 }
-.done-list { flex: 1; min-height: 0; overflow: hidden; display: grid; align-content: start; gap: .7vmin; }
-.done-chip {
+.done-list {
+  flex: 1; min-height: 0; overflow: hidden;
+  display: grid; align-content: start;
+  grid-auto-rows: calc(var(--dcs, 2vmin) * 1.9);
+  gap: calc(var(--dcs, 2vmin) * .5);
+}
+.dc {
   position: relative; overflow: hidden;  /* 身份卡背景层要裁在圆角里 */
-  display: inline-flex; align-items: center; gap: .6vmin; max-width: 100%; min-width: 0;
-  padding: .45vmin .8vmin .45vmin .45vmin; border-radius: 99px;
-  border: 1px solid color-mix(in srgb, var(--ok) 26%, transparent);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .07), 0 .3vmin .9vmin rgba(0, 0, 0, .28);
+  display: flex; align-items: center;
+  gap: calc(var(--dcs, 2vmin) * .34);
+  padding: calc(var(--dcs, 2vmin) * .22) calc(var(--dcs, 2vmin) * .4);
+  border-radius: 1.2vmin;
+  border: 1px solid color-mix(in srgb, var(--ok) 28%, transparent);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), 0 .3vmin .9vmin rgba(0, 0, 0, .3);
   animation: chipIn .3s ease both;
 }
-/* 身份卡背景：背景 span → 遮罩 span → 文字；拿不到背景退回原来的深色绿底 */
-.done-chip .chip-bg { position: absolute; inset: 0; z-index: 0; background-size: cover; background-repeat: no-repeat; background-position: 50% 50%; }
-.done-chip[data-nobg="1"] .chip-bg { background: color-mix(in srgb, var(--ok) 10%, rgba(10, 14, 26, .7)); }
-/* 遮罩浓度和左侧 .pend 用同一组数（.84 / .55 / .3 / .5）：左右两栏的卡片才像同一套设计 */
-.done-chip .chip-veil { position: absolute; inset: 0; z-index: 1; background: linear-gradient(90deg, rgba(4, 8, 18, .84) 0%, rgba(4, 8, 18, .55) 38%, rgba(4, 8, 18, .3) 72%, rgba(4, 8, 18, .5) 100%); }
-.done-chip > *:not(.chip-bg):not(.chip-veil) { position: relative; z-index: 2; }
-.done-chip i {
-  flex: none; width: var(--dcs, 2.6vmin); height: var(--dcs, 2.6vmin); border-radius: 50%; display: grid; place-items: center;
-  font-size: calc(var(--dcs, 2.6vmin) * .58); font-weight: 800; font-style: normal; background: var(--ok); color: #05210f;
+/* 身份卡背景：背景 span → 遮罩 span → 文字；拿不到背景退回深色绿底 */
+.dc .dc-bg { position: absolute; inset: 0; z-index: 0; background-size: cover; background-repeat: no-repeat; background-position: 50% 50%; }
+.dc[data-nobg="1"] .dc-bg {
+  background:
+    radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--ok) 22%, transparent), transparent 58%),
+    linear-gradient(135deg, #13251f 0%, #17202f 55%, #101326 100%);
 }
-.done-chip span {
-  flex: 1; min-width: 0; font-size: calc(var(--dcs, 2.6vmin) * .64);
+/* 遮罩浓度和左侧 .pend 同一套思路：左浓右淡 + 底部再压一层，保证姓名/用时读得清 */
+.dc .dc-veil {
+  position: absolute; inset: 0; z-index: 1;
+  background: linear-gradient(90deg, rgba(4, 8, 18, .82) 0%, rgba(4, 8, 18, .5) 40%, rgba(4, 8, 18, .22) 72%, rgba(4, 8, 18, .48) 100%);
+}
+.dc > *:not(.dc-bg):not(.dc-veil) { position: relative; z-index: 2; }
+/* 名次奖牌：圆盘，前三金/银/铜渐变，其余低调深色盘，数字永远在正中 */
+.dc-medal {
+  flex: none; width: calc(var(--dcs, 2vmin) * 1.4); height: calc(var(--dcs, 2vmin) * 1.4);
+  border-radius: 50%; display: grid; place-items: center;
+  background: radial-gradient(circle at 34% 30%, rgba(255, 255, 255, .14), rgba(120, 140, 180, .18) 60%, rgba(30, 38, 60, .6) 100%);
+  box-shadow: inset 0 0 0 .12vmin rgba(255, 255, 255, .14);
+  color: var(--dim); font-size: calc(var(--dcs, 2vmin) * .66); font-weight: 900;
+  font-variant-numeric: tabular-nums; line-height: 1;
+}
+.dc-medal b { font-weight: 900; }
+.dc.m1 .dc-medal { background: radial-gradient(circle at 32% 28%, #fff3c4, #ffc94d 48%, #c98a12 100%); color: #3a2503; box-shadow: 0 0 .9vmin rgba(255, 200, 80, .45), inset 0 0 0 .12vmin rgba(255, 255, 255, .5); }
+.dc.m2 .dc-medal { background: radial-gradient(circle at 32% 28%, #ffffff, #d3dcea 48%, #8a97ad 100%); color: #333a47; box-shadow: 0 0 .9vmin rgba(200, 215, 235, .35), inset 0 0 0 .12vmin rgba(255, 255, 255, .6); }
+.dc.m3 .dc-medal { background: radial-gradient(circle at 32% 28%, #ffd9b8, #e09a5f 48%, #a35d2e 100%); color: #3a2010; box-shadow: 0 0 .9vmin rgba(210, 150, 90, .35), inset 0 0 0 .12vmin rgba(255, 255, 255, .4); }
+.dc-who { min-width: 0; flex: 1; }
+.dc-name {
+  display: block; font-size: calc(var(--dcs, 2vmin) * .82); font-weight: 800; line-height: 1.12;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  text-shadow: 0 .1vmin .5vmin rgba(0, 0, 0, .6);
 }
-.done-chip em {
-  flex: none; font-size: calc(var(--dcs, 2.6vmin) * .5); color: var(--dim);
-  font-variant-numeric: tabular-nums; white-space: nowrap;
+.dc-sub {
+  display: block; font-size: calc(var(--dcs, 2vmin) * .42); margin-top: .12vmin;
+  color: color-mix(in srgb, var(--dim) 85%, #fff); opacity: .9;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
 }
 /* 刚完成的人：金边闪一下（1.6 秒后由 JS 摘掉 class） */
-.done-chip.fresh { animation: freshPop 1.6s ease both; }
+.dc.fresh { animation: freshPop 1.6s ease both; }
 @keyframes freshPop {
   0% { transform: scale(1); box-shadow: 0 0 0 0 color-mix(in srgb, var(--warn) 70%, transparent); background: color-mix(in srgb, var(--warn) 40%, transparent); }
   45% { transform: scale(1.14); box-shadow: 0 0 0 1.1vmin transparent; background: color-mix(in srgb, var(--warn) 26%, transparent); }
@@ -409,7 +440,7 @@ body.board.lite .pend, body.board.lite .done-chip { animation: none; }
 /* 减动画偏好 / 弱机：大屏上那两个入场动画关掉（投影时闪一下反而难看）。
    注意只关「动」—— 环的渐变、发光、百分比是静态视觉，减动画下必须照常显示（2026-11-13）。 */
 @media (prefers-reduced-motion: reduce) {
-  .pend, .done-chip, .done-chip.fresh, .bd-foot .dot { animation: none; }
+  .pend, .dc, .dc.fresh, .bd-foot .dot { animation: none; }
   .ring .val, .ring .val-hi, .ring .capg { transition: none; }
 }
 /* 窄屏（手机竖屏看教师端）：大屏页本来就不给手机用，这里只把教师端收成一列 */
@@ -427,16 +458,16 @@ body.board.lite .pend, body.board.lite .done-chip { animation: none; }
    名次按用时排，后来的人更快就把前面的人挤下档：100% → 80% → 70%。
    所以已完成的头像条上必须**直接看到当前完成率**，掉档的人还要被点名，
    学生才知道「再刷一次、把用时压下去」就能超回来，竞争才转得起来。 */
-.done-chip .dc-rate {
+.dc-rate {
   flex: none; font-weight: 800; font-variant-numeric: tabular-nums;
-  font-size: calc(var(--dcs, 2.6vmin) * .46);
-  padding: .12em .5em; border-radius: 999px; line-height: 1.5;
+  font-size: calc(var(--dcs, 2vmin) * .5);
+  padding: .14em .5em; border-radius: 999px; line-height: 1.4;
   background: rgba(255, 255, 255, .08); color: var(--dim);
 }
-.done-chip .dc-rate.r100 { background: rgba(251, 191, 36, .2); color: #fbbf24; }  /* 前十名：金 */
-.done-chip .dc-rate.r80  { background: rgba(124, 156, 255, .2); color: #9db6ff; } /* 11–20：蓝 */
-.done-chip .dc-rate.r70  { background: rgba(255, 255, 255, .08); color: var(--dim); } /* 其余：灰 */
-.done-chip .dc-rate.r-none { display: none; }                                       /* 作废任务不给分，不显示 */
+.dc-rate.r100 { background: rgba(251, 191, 36, .2); color: #fbbf24; }  /* 前十名：金 */
+.dc-rate.r80  { background: rgba(124, 156, 255, .2); color: #9db6ff; } /* 11–20：蓝 */
+.dc-rate.r70  { background: rgba(255, 255, 255, .08); color: var(--dim); } /* 其余：灰 */
+.dc-rate.r-none { display: none; }                                       /* 作废任务不给分，不显示 */
 
 /* 通报条：贴在名单和页脚之间，一排小胶囊，8 秒后由 JS 摘掉 */
 .bd-moves { flex: none; display: flex; flex-wrap: wrap; gap: 1vmin 1.4vmin; padding: 0 2.4vmin 1vmin; }

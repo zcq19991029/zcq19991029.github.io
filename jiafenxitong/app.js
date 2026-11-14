@@ -1776,6 +1776,7 @@ function restoreDroppedToHome(cls) {
 
     renderLessonMeta(cls, lesson);
     renderGroups(cls, lesson);
+    loadFaces(cls);    // 组长身份卡背景（拉回来后会自己重画一次记分卡片）
     /* 一个「有人的组」都没有时（新建班只剩模板空组也一样），记分页会只剩空白；
        说清楚下一步该做什么，别让老师以为「没分完不让进」。这里只提示，不拦人。 */
     if (!groupCountOf(cls)) {
@@ -2000,45 +2001,10 @@ function restoreDroppedToHome(cls) {
       if(!slot){target.title='这里放不下加人控件，请到「待分配名单」页调整';return;}
       var box=document.createElement('div');box.className='group-pick-box';
       box.innerHTML='<span class="group-pick-count">本组 <b>'+memberCount(g)+'</b>/'+groupCap(g,cls)+' 人'+(Number(g.cap)?'（特许）':'')+'</span>'+
-        /* 2026-11-13 修「记分页『＋ 加人』入口点不开」（用户原话：「四个bug完成修复 abce」里的 C）：
-           这一格以前只有「－ 减人」，检索框 [data-pick-editor] 建出来就是 hidden，
-           全文件没有任何地方把它设回可见 —— 所以「＋ 加人」等于永远点不开。
-           现在补一颗「＋ 加人」：点它显示检索框并立刻按当前关键字搜一次。 */
-        '<button type="button" class="btn tiny" data-pick-add aria-label="第'+g.no+'组检索学号加人">＋ 加人</button>'+
         '<button type="button" class="btn tiny" data-pick-minus aria-label="第'+g.no+'组移出成员">－ 减人</button>'+
-        '<div data-pick-editor hidden><input type="search" autocomplete="off" aria-label="第'+g.no+'组检索学号" placeholder="学号或后两位"><div class="group-pick-results" role="list"></div><button type="button" class="btn tiny" data-pick-exit>退出选人</button></div>'+
         '<div data-pick-members hidden></div>';
       slot.appendChild(box);
-      var editor=box.querySelector('[data-pick-editor]'),input=box.querySelector('input'),results=box.querySelector('.group-pick-results'),members=box.querySelector('[data-pick-members]');
-
-      async function addMember(r){
-        if(!groupPicking||groupPicking.no!==g.no||curClass().id!==cls.id)return;
-        if(!pendingList(cls).some(function(p){return p===r;})){matches();return;}
-        var capBefore=groupCap(g,cls);
-        /* 老师点「＋加人」把人塞进已经满员的组：以前是悄悄把 g.cap 改成实际人数，
-           等于替他做了「这组特例」的决定。2026-11-08 起改成先问一句 ——
-           用户要求「是否允许该组特殊情况设置7人这样的情况」必须由老师自己确认。 */
-        if(memberCount(g)>=capBefore){
-          var allowOver = await askConfirm({
-            title:'第'+g.no+'组已经满员',
-            body:'现在是 '+memberCount(g)+'/'+capBefore+' 人，已经到每组上限。\n'+
-              '再放一个就超员了。要把第'+g.no+'组设为例外（'+(memberCount(g)+1)+' 人）吗？',
-            note:'确定 = 这一组特例放行，不再标红；取消 = 不放人，先移出一个再放',
-            ok:'设为例外'
-          });
-          if(!allowOver){ matches();return; }
-        }
-        /* 可撤销：分组改动沿用全站分组快照（分组页「撤回上一次分组」能整份退回），
-           和 gbJoin / gbMoveTo 这些拖拽加人走同一条路；记分栈（pushUndo）只装分数，装不了人员变动。 */
-        gbSnapshot(cls,'把「'+r.name+'」加进第'+g.no+'组（记分页加人）');
-        pushMember(g,{id:uid('m'),name:r.name,sid:r.sid||'',no:studentNo(cls,r.name,r.sid)});
-        var reback=repairOrphansAfterAssign(cls);
-        var over=memberCount(g)>capBefore;
-        if(over)g.cap=memberCount(g);   // 老师刚确认过，这里才写「特许 N 人」
-        addOperationLog('分组',cls.name+' · '+r.name+'加入第'+g.no+'组'+(over?'（特许 '+g.cap+' 人）':''));
-        save();renderScore();renderPoolBanner(cls);
-        flash('已加入第'+g.no+'组'+(over?'，本组特许 '+g.cap+' 人':'')+'，分组已全局同步'+(reback?'，接回他名下历史分 '+reback+' 条':'')+'（可在分组页撤回）');
-      }
+      var members=box.querySelector('[data-pick-members]');
 
       function dropMember(i){
         var m=g.members[i];if(!m||!m.name)return;
@@ -2050,10 +2016,8 @@ function restoreDroppedToHome(cls) {
         flash('已把「'+m.name+'」移出第'+g.no+'组，回到待分配名单');
       }
 
-      function matches(){var query=input.value.trim().toLowerCase(),pending=pendingList(cls),list=pending.filter(function(r){return !query||String(r.sid||'').includes(query)||r.name.toLowerCase().includes(query);});results.innerHTML='';if(!list.length){results.textContent='没有匹配的待分配成员';return;}list.forEach(function(r){var button=document.createElement('button');button.type='button';button.className='btn tiny';button.textContent=r.name+' '+(r.sid||'');button.setAttribute('data-pick-sid',r.sid||'');button.onclick=function(e){e.stopPropagation();addMember(r);};results.appendChild(button);});}
-
       function showRemoval(){
-        editor.hidden=true;results.innerHTML='';members.hidden=false;members.innerHTML='';
+        members.hidden=false;members.innerHTML='';
         var entries=groupMemberEntries(g);
         if(!entries.length){members.textContent='这个组还没有人';return;}
         entries.forEach(function(en){
@@ -2065,17 +2029,7 @@ function restoreDroppedToHome(cls) {
       }
 
       box.onclick=function(e){e.stopPropagation();};
-      /* 「＋ 加人」= 打开检索框（C 的修复点：以前没有任何代码把 editor.hidden 设回 false）。
-         「－ 减人」反过来收起检索框、换成成员列表，两态互斥，同一格不会两个一起堆着。 */
-      box.querySelector('[data-pick-add]').onclick=function(e){
-        e.stopPropagation();
-        members.hidden=true;members.innerHTML='';
-        editor.hidden=false;input.value='';if(input.focus)input.focus();
-        matches();
-      };
       box.querySelector('[data-pick-minus]').onclick=function(){showRemoval();};
-      input.oninput=matches;
-      box.querySelector('[data-pick-exit]').onclick=function(){groupPicking=null;renderGroups(cls,lesson);};
     });
   }
   function renderGroups(cls, lesson) {
@@ -2127,10 +2081,23 @@ function restoreDroppedToHome(cls) {
         ? memberEntries.map(function (entry) { var m=entry.m,i=entry.i;return '<span class="member-name'+attendanceNameClass(cls,m,lesson)+(isGroupLeader(g,m)?' group-leader-name':'')+'" data-leader-toggle data-g="'+g.no+'" data-member-index="'+i+'" title="双击设置或退出组长">' + (isGroupLeader(g,m)?'<span class="leader-crown" aria-label="组长">👑</span> ':'') + esc(m.name) + semesterBadge(cls,g.no,i) + '</span>'; }).join('')
         : '<span style="color:var(--muted);font-weight:400">（未录入名单）</span>';
 
+      /* 2026-11-13 组卡身份卡背景：组长（没有组长退回本组第一位成员）的身份卡背景铺满整张卡。
+         faceOf 返回的 card/av 是可直接塞进 style= 的串（faces.js 内部已把引号转成单引号），
+         取不到（没设过 / 没网）就是空串 → 不铺背景层，卡片退回默认底，绝不出现半透明脏底。 */
+      var leader = g.members.find(function (m) { return m.name && isGroupLeader(g, m); })
+                || g.members.find(function (m) { return m.name; });
+      var leadFace = leader ? faceOf(cls, leader.sid) : { card: '', av: '', hasAv: false };
+      var leadAv = leader
+        ? '<span class="gb-av gcard-lead-av' + (leadFace.hasAv ? ' has-img' : '') + '" aria-hidden="true"' +
+            ' style="' + (leadFace.hasAv ? leadFace.av : gbTone(g.no, 0)) + '">' +
+            esc(String(leader.name).slice(0, 1)) + '</span>'
+        : '';
+
       return '' +
-      '<div class="gcard' + (duty ? ' is-duty' : '') + (touched(lesson, g.no) ? ' touched' : '') + (over ? ' is-over' : '') + '" data-card="' + g.no + '">' +
+      '<div class="gcard' + (duty ? ' is-duty' : '') + (touched(lesson, g.no) ? ' touched' : '') + (over ? ' is-over' : '') + (leadFace.card ? ' has-face' : '') + '" data-card="' + g.no + '">' +
+        (leadFace.card ? '<div class="gcard-bg" aria-hidden="true" style="' + leadFace.card + '"></div><div class="gcard-veil" aria-hidden="true"></div>' : '') +
         '<div class="gcard-head">' +
-          '<div class="group-identity"><span class="gnum">第 ' + g.no + ' 组</span>' +
+          '<div class="group-identity">' + leadAv + '<span class="gnum">第 ' + g.no + ' 组</span>' +
             '<span class="gcount' + (over ? ' over' : '') + '" title="' + (over ? '本组 ' + cnt + ' 人，超过上限 ' + cap + ' 人：到「分组」页把超出的 ' + (cnt - cap) + ' 人拖到别的组（不会被自动移出）' : '本组人数 / 上限（双击组号可加人减人）') + '">' + cnt + '/' + cap + '</span>' +
             (duty ? '<span class="dutytag">值日</span>' : '') + '</div>' +
           '<div class="gsum"><span class="k">本节</span>' +
@@ -2978,7 +2945,11 @@ function restoreDroppedToHome(cls) {
     if (!cid || !window.HXFaces || facesFor === cid) return;
     facesFor = cid;
     window.HXFaces.load(cid, function (name, params) { return CLOUD.rpc(name, params); })
-      .then(function () { if (view === 'pool') renderGroupBoard(curClass()); })
+      .then(function () {
+        var cls = curClass();
+        if (view === 'pool') renderGroupBoard(cls);
+        else if (view === 'score') { var l = curLesson(cls); if (l) renderGroups(cls, l); }   // 卡片式/表格式记分页也要吃组长身份卡背景
+      })
       .catch(function () { facesFor = 0; });   // 没装函数 / 没网：下次再试
   }
 

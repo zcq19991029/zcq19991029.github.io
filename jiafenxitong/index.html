@@ -5,11 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#fcfcfb">
 <title>夜夜小组制加分助手 · 《电气接线原理》</title>
-<link rel="stylesheet" href="styles.css?v=4d33679">
-<link rel="stylesheet" href="draw-person.css?v=4d33679">
+<link rel="stylesheet" href="styles.css?v=4cf67d1">
+<link rel="stylesheet" href="draw-person.css?v=4cf67d1">
 <!-- 分组看板 + 学生端桌卡（2026-11-06）：新样式一律写这个文件，不去动 styles.css / team.css
      里已有的行（那几个文件正有人在改深浅色变量）。-->
-<link rel="stylesheet" href="roster-board.css?v=4d33679">
+<link rel="stylesheet" href="roster-board.css?v=4cf67d1">
 <!-- 华夏工具外观（首页统一设置）：主色、背景图；单独打开会回到首页 /#jiafen。账号只在首页管理 -->
 <script src="../hx-theme.js" data-tool="jiafen"></script>
 <!-- 闪屏「正在载入」的像素方块（2026-11-04）：原来是 正在载入 后面跟三个会闪的句点，干巴巴的。
@@ -158,8 +158,8 @@
   }
   .sheet-vertical .duty-cell .duty-score:active { transform: translateY(1px); }
 </style>
-<meta name="build-commit" content="4d33679">
-<meta name="build-published-at" content="2026-11-14T00:20:45.962Z">
+<meta name="build-commit" content="4cf67d1">
+<meta name="build-published-at" content="2026-11-14T04:44:58.980Z">
 </head>
 <body>
 
@@ -188,8 +188,8 @@
     </div>
   </div>
 </div>
-<script src="fx/pixelfx-loader.js?v=4d33679"></script>
-<script src="fx/hx-jf-load.js?v=4d33679"></script>
+<script src="fx/pixelfx-loader.js?v=4cf67d1"></script>
+<script src="fx/hx-jf-load.js?v=4cf67d1"></script>
 
 <header class="topbar" id="topbar">
   <div class="topbar-main">
@@ -643,25 +643,25 @@
   </form>
 </dialog>
 
-<script src="data.js?v=4d33679"></script>
+<script src="data.js?v=4cf67d1"></script>
 <!-- 2026-11-13：学生身份卡背景（整张分组卡片铺底）+ 头像（头像圈里显示照片），两件事共用 faces.js。
      预设背景（p:xxx）由 rank-bg.js 转 CSS，和 team.html / scores.html 一样引用站点根那一份
      （发布时 publish.cjs 把它放到站点根）。faces.js 必须排在 app.js 前面。 -->
 <script src="../rank-bg.js"></script>
-<script src="faces.js?v=4d33679"></script>
-<script src="config.js?v=4d33679"></script>
+<script src="faces.js?v=4cf67d1"></script>
+<script src="config.js?v=4cf67d1"></script>
 <!-- 导出用的两个大库（xlsx 930 KB + jspdf 409 KB = 1.3 MB）。
      2026-11-09 加 defer：它们是普通脚本时按文档顺序阻塞执行，必须下完才轮到下面的 app.js，
      而 app.js 才是绑登录、画界面、读本机数据的那一个 —— 网一慢整页就像死了（用户报的「打不开、登录不了」）。
      加了 defer 之后 app.js 立刻跑，这两个在解析结束后自己下自己执行，点导出时通常早就好了；
      万一手快、库还没到，由 heavy.js 在捕获阶段把这**一次**点击接住，等库到了替他重发。 -->
-<script src="vendor/jspdf.umd.min.js?v=4d33679" defer></script>
-<script src="vendor/xlsx.full.min.js?v=4d33679" defer></script>
-<script src="heavy.js?v=4d33679"></script>
-<script src="roster-import.js?v=4d33679"></script>
-<script src="hx-roster.js?v=4d33679"></script>
-<script src="cloud.js?v=4d33679"></script>
-<script src="supabase-cloud.js?v=4d33679"></script>
+<script src="vendor/jspdf.umd.min.js?v=4cf67d1" defer></script>
+<script src="vendor/xlsx.full.min.js?v=4cf67d1" defer></script>
+<script src="heavy.js?v=4cf67d1"></script>
+<script src="roster-import.js?v=4cf67d1"></script>
+<script src="hx-roster.js?v=4cf67d1"></script>
+<script src="cloud.js?v=4cf67d1"></script>
+<script src="supabase-cloud.js?v=4cf67d1"></script>
 <dialog id="dlgPassword">
   <form method="dialog" class="dlg" id="passwordForm">
     <div class="dlg-head"><h3>修改密码</h3><button type="button" class="dlg-x" id="btnPasswordClose" aria-label="关闭">✕</button></div>
@@ -687,28 +687,28 @@
   </div>
 </dialog>
 <!-- 组内互评直接计分：把学生提交归成「落哪一格、落多少分」，leader-scoring.js / app.js 都用它（2026-11-10） -->
-<script src="peer-apply.js?v=4d33679"></script>
-<script src="leader-scoring.js?v=4d33679"></script>
-<script src="assessment.js?v=4d33679"></script>
-<script src="ui-feedback.js?v=4d33679"></script>
+<script src="peer-apply.js?v=4cf67d1"></script>
+<script src="leader-scoring.js?v=4cf67d1"></script>
+<script src="assessment.js?v=4cf67d1"></script>
+<script src="ui-feedback.js?v=4cf67d1"></script>
 <dialog id="dlgOperationLog" hidden></dialog>
-<script src="print-excel.js?v=4d33679"></script>
-<script src="gradebook.js?v=4d33679"></script>
+<script src="print-excel.js?v=4cf67d1"></script>
+<script src="gradebook.js?v=4cf67d1"></script>
 <!-- 学生只读查分：把「每人一份」的分数快照发布到云端，app.js 每次 save() 会叫它（2026-11-04） -->
-<script src="student-feed.js?v=4d33679"></script>
-<script src="score-repair.js?v=4d33679"></script>
+<script src="student-feed.js?v=4cf67d1"></script>
+<script src="score-repair.js?v=4cf67d1"></script>
 <!-- 排位误加分清洗（2026-11-13）：用户要求「修复老师或者学生互评的这一列误加的分」。
      判据是逐格来源标记 lesson.peerMeta[...]：排位列上标记不是 'wire' 的就是手填/互评混进来的。
      模块只算数据、不碰 DOM，入口在「本学期总分」页的「修复排位误加分」按钮上。 -->
-<script src="score-clean.js?v=4d33679"></script>
+<script src="score-clean.js?v=4cf67d1"></script>
 <!-- 考勤自动同步（2026-11-13）：用户要求「考勤完成率和考勤工具卡实行同步切记」。
      后台每 5 分钟 / 切回前台时，把考勤工具已签到的记录写进本工具的课次考勤（只写 auto 标记的格子，
      不覆盖老师手改的）。 -->
-<script src="attendance-sync.js?v=4d33679"></script>
-<script src="wire-task-link.js?v=4d33679"></script>
+<script src="attendance-sync.js?v=4cf67d1"></script>
+<script src="wire-task-link.js?v=4cf67d1"></script>
 <script src="../ui-dialog.js"></script>
-<script src="app.js?v=4d33679"></script>
-<script src="draw-person.js?v=4d33679"></script>
-<script src="password-ui.js?v=4d33679"></script>
+<script src="app.js?v=4cf67d1"></script>
+<script src="draw-person.js?v=4cf67d1"></script>
+<script src="password-ui.js?v=4cf67d1"></script>
 </body>
 </html>

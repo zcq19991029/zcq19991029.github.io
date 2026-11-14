@@ -3,7 +3,7 @@
 <html lang="zh-CN">
 <head>
 <script src="../hx-theme.js" data-tool="wiring"></script>
-<script>window.HX_BUILD = "2026-11-14T00:20:47Z 4d33679";</script>
+<script>window.HX_BUILD = "2026-11-14T04:45:01Z 4cf67d1";</script>
 <meta charset="utf-8">
 <meta name="copyright" content="© 2026 zcq 版权所有，未经许可禁止复制、修改、转载">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
@@ -914,9 +914,9 @@
   /* @@RK_CSS@@ */
   /* ===== 随机抽人：夜市卡组（2026-11-06 完整迁移自 .tmp-ref/night-market-draw-prototype.html）=====
      旧「卡包 → 蓄力抖动 → 开包 → 翻牌」整套退役；现在是夜市原型：
-     顶栏（NIGHT MARKET / 点券 / ✕）→ 工具条（班级 / 开始翻牌 / 刷新下一组）→
+     顶栏（NIGHT MARKET / 点券 / ✕）→ 工具条（班级 / 一次抽一个）→
      6 个卡位的卡组（牌背按稀有度上色、3D 翻牌、像素动效、金色票据）。
-     抽取逻辑在 rank.js 的 drwFlip()（一次抽一个、不连抽同一人、可设为当前选手）。
+     抽取逻辑在 rank.js（一次抽一个、不连抽同一人、可设为当前选手）；打开窗口即自动发牌，老师点牌翻面。
      时序和 rank.js 一一对应：发牌 .42s → 翻面单片 .72s。
      所有选择器都收在 #fw-draw 下，不污染练习页和别的浮窗。 */
   #fw-draw { background: #040a12; }
@@ -980,28 +980,22 @@
   #fw-draw .drw-clsname { font-size: 13.5px; font-weight: 800; color: #b8cbe0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #fw-draw .drw-one { flex: none; padding: 7px 12px; border-radius: 10px; border: 1px dashed #2c4a6c;
     color: #8fb2d2; font-size: 12.5px; font-weight: 800; white-space: nowrap; }
-  #fw-draw .drw-go { cursor: pointer; font: inherit; font-size: 15px; font-weight: 900; letter-spacing: .05em;
-    min-width: 148px; height: 44px; padding: 0 22px; border-radius: 11px; color: #1d1306; border: 1px solid #ffc85c;
-    background: linear-gradient(135deg, #f7bd38, #c66712); box-shadow: 0 10px 26px -14px #ffc85c; }
-  #fw-draw .drw-refresh { cursor: pointer; font: inherit; font-size: 14px; font-weight: 800; height: 44px; padding: 0 18px;
-    border-radius: 11px; color: #e8f1ff; border: 1px solid #6b7fff; background: linear-gradient(135deg, #4a54bd, #252d70); }
-  #fw-draw .drw-refresh.sm { height: 38px; padding: 0 14px; font-size: 13px; flex: none; }
   #fw-draw .drw-use { cursor: pointer; font: inherit; font-size: 14px; font-weight: 900; height: 40px; padding: 0 18px;
     border-radius: 11px; color: #062015; border: 1px solid #22e0a8;
     background: linear-gradient(135deg, #2fe6b4, #0b9d77); box-shadow: 0 10px 24px -14px #22e0a8; flex: none; }
-  #fw-draw .drw-go:hover, #fw-draw .drw-refresh:hover, #fw-draw .drw-use:hover { filter: brightness(1.08); }
-  #fw-draw .drw-go:disabled, #fw-draw .drw-refresh:disabled { opacity: .5; cursor: default; filter: none; }
-  /* ---------- 状态行 ---------- */
-  #fw-draw .nm-sel { flex: none; padding: 8px 16px 2px; text-align: center; color: #ffd86d; font-size: 13.5px; font-weight: 700; min-height: 30px; }
+  #fw-draw .drw-use:hover { filter: brightness(1.08); }
   /* ---------- 卡组舞台 ---------- */
   #fw-draw .nm-stage { flex: 1 1 auto; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 8px 16px 4px; scrollbar-width: thin; }
   #fw-draw .nm-stage::-webkit-scrollbar { width: 10px; height: 10px; }
   #fw-draw .nm-stage::-webkit-scrollbar-thumb { background: #24425f; border-radius: 10px; }
-  #fw-draw .nm-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px; align-content: start;
+  #fw-draw .nm-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; align-content: center;
     width: 100%; max-width: 1500px; margin: 0 auto; }
+  /* 竖长舞台 → 2 列×3 行；横宽默认 3 列×2 行（列数/卡高由 rank.js 的 drwFitGrid 写进 data-cols / --cardh） */
+  #fw-draw .nm-stage[data-cols="2"] .nm-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 980px; }
   /* ---------- 一张牌 ---------- */
-  #fw-draw .drw-card { position: relative; height: 400px; perspective: 1100px; cursor: pointer;
-    animation: nmDeal .42s cubic-bezier(.2, .8, .3, 1) both; animation-delay: calc(var(--i, 0) * 55ms); }
+  #fw-draw .drw-card { position: relative; height: var(--cardh, 400px); perspective: 1100px; cursor: pointer;
+    animation: nmDeal .42s cubic-bezier(.2, .8, .3, 1) backwards; animation-delay: calc(var(--i, 0) * 55ms);
+    transition: opacity .45s ease, transform .25s ease; }
   @keyframes nmDeal { 0% { opacity: 0; transform: translateY(22px) scale(.95); } 100% { opacity: 1; transform: none; } }
   #fw-draw .drw-cardin { position: relative; width: 100%; height: 100%; transform-style: preserve-3d;
     transition: transform .72s cubic-bezier(.2, .8, .2, 1); }
@@ -1046,41 +1040,43 @@
   #fw-draw .drw-card[data-r="green"] .drw-cface { background: linear-gradient(160deg, #063a35, #06131a 62%, #052622); }
   #fw-draw .drw-card[data-r="blue"] .drw-cface { background: linear-gradient(160deg, #0a2942, #07131f 62%, #061d2d); }
   #fw-draw .drw-cn { display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; min-height: 16px; }
-  #fw-draw .drw-rar { font-style: normal; font-size: 10.5px; font-weight: 900; letter-spacing: .16em; color: var(--rc, #3fb6ff);
+  #fw-draw .drw-rar { font-style: normal; font-size: clamp(10px, .8vw, 15px); font-weight: 900; letter-spacing: .16em; color: var(--rc, #3fb6ff);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #fw-draw .drw-mid { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
     text-align: center; gap: 2px; }
-  #fw-draw .drw-fx { flex: none; width: clamp(58px, 58%, 100px); aspect-ratio: 1; display: grid; place-items: center; margin: 0 auto 6px;
+  #fw-draw .drw-fx { flex: none; width: clamp(58px, 34%, 130px); aspect-ratio: 1; display: grid; place-items: center; margin: 0 auto 6px;
     filter: drop-shadow(0 0 14px var(--rg, rgba(63, 182, 255, .45))); }
   #fw-draw .drw-fx canvas { display: block; width: 100%; height: auto; image-rendering: pixelated; image-rendering: crisp-edges; }
-  #fw-draw .drw-nm { display: block; font-size: clamp(18px, 1.8vw, 30px); font-weight: 900; line-height: 1.16; letter-spacing: .04em;
+  #fw-draw .drw-nm { display: block; font-size: clamp(16px, 2.2vw, 42px); font-weight: 900; line-height: 1.16; letter-spacing: .04em;
     color: #f2f8ff; overflow-wrap: anywhere; max-height: 2.4em; overflow: hidden;
     text-shadow: 0 0 18px var(--rg, rgba(63, 182, 255, .45)), 0 2px 8px rgba(0, 0, 0, .55); }
   #fw-draw .drw-card[data-r="gold"] .drw-nm { color: #ffe9a8; }
   #fw-draw .drw-no { display: block; margin-top: 4px; font-family: ui-monospace, Consolas, monospace;
-    font-size: clamp(11px, .9vw, 14px); font-weight: 800; letter-spacing: .02em; color: rgba(239, 245, 255, .8); white-space: nowrap; }
+    font-size: clamp(11px, .8vw, 15px); font-weight: 800; letter-spacing: .02em; color: rgba(239, 245, 255, .8); white-space: nowrap; }
   #fw-draw .drw-tag { display: flex; justify-content: center; gap: 6px; min-height: 0; padding: 2px 0 5px; }
-  #fw-draw .drw-tag span { font-size: 10.5px; font-weight: 800; color: rgba(255, 255, 255, .72); padding: 1px 8px; border-radius: 999px;
+  #fw-draw .drw-tag span { font-size: clamp(10px, .8vw, 14px); font-weight: 800; color: rgba(255, 255, 255, .72); padding: 1px 8px; border-radius: 999px;
     background: rgba(255, 255, 255, .09); border: 1px solid rgba(255, 255, 255, .12); white-space: nowrap; max-width: 100%;
     overflow: hidden; text-overflow: ellipsis; }
   /* 票据行（原型 .ticket：课堂幸运卡 | ✦ +N 分） */
   #fw-draw .nm-ticket { border-top: 1px solid rgba(255, 255, 255, .18); padding-top: 8px; display: flex; align-items: center;
-    justify-content: space-between; gap: 6px; color: rgba(255, 255, 255, .6); font-size: 11px; font-weight: 700; }
+    justify-content: space-between; gap: 6px; color: rgba(255, 255, 255, .6); font-size: clamp(10px, .8vw, 14px); font-weight: 700; }
   #fw-draw .nm-ticket > span:first-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #fw-draw .drw-vp { display: inline-flex; align-items: center; gap: 4px; flex: none; }
-  #fw-draw .drw-vp b { font-size: 11.5px; font-weight: 900; color: #ffd86d; letter-spacing: .02em;
+  #fw-draw .drw-vp b { font-size: clamp(11px, .9vw, 15px); font-weight: 900; color: #ffd86d; letter-spacing: .02em;
     text-shadow: 0 0 8px rgba(245, 197, 66, .5); white-space: nowrap; }
-  #fw-draw .drw-vp em { font-style: normal; font-size: 10px; font-weight: 700; color: rgba(255, 255, 255, .55); }
+  #fw-draw .drw-vp em { font-style: normal; font-size: clamp(10px, .7vw, 13px); font-weight: 700; color: rgba(255, 255, 255, .55); }
   @media (hover: hover) { #fw-draw .drw-card:not(.is-flip):hover { filter: brightness(1.22); transform: translateY(-5px); } }
   /* 揭示：牌面亮一下 + 金卡呼吸 */
   #fw-draw .drw-card.is-flip .drw-cface { animation: nmPop .5s cubic-bezier(.2, 1.3, .4, 1) both; }
   @keyframes nmPop { 0% { filter: brightness(1.9) saturate(1.35); } 100% { filter: brightness(1) saturate(1); } }
   #fw-draw .nm-stage[data-phase="revealed"] .drw-card[data-r="gold"] .drw-cface { animation: nmGold 2.6s ease-in-out .35s infinite; }
+  /* 抽中收尾：中奖卡留在原位，其余卡淡出（不演成一片空白） */
+  #fw-draw .nm-stage[data-phase="revealed"] .drw-card:not(.is-flip) { opacity: 0; pointer-events: none; }
   @keyframes nmGold { 50% { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .1), 0 0 34px rgba(245, 197, 66, .7); } }
   /* 空位：这组不发的卡位 */
-  #fw-draw .drw-slot { height: 400px; border-radius: 13px; border: 1px dashed rgba(120, 160, 200, .26);
+  #fw-draw .drw-slot { height: var(--cardh, 400px); border-radius: 13px; border: 1px dashed rgba(120, 160, 200, .26);
     background: rgba(10, 22, 38, .5); display: grid; place-items: center;
-    animation: nmDeal .42s both; animation-delay: calc(var(--i, 0) * 55ms); }
+    animation: nmDeal .42s backwards; animation-delay: calc(var(--i, 0) * 55ms); }
   #fw-draw .drw-slot::after { content: ""; width: 7px; height: 7px; border-radius: 50%; background: rgba(120, 160, 200, .3); }
   /* 刷新：220ms 洗牌过渡（和 rank.js drwRefresh 的 220 对上） */
   #fw-draw .nm-grid.is-washing .drw-card { animation: nmWash .22s cubic-bezier(.4, 0, .6, 1) both; }
@@ -1090,28 +1086,27 @@
   @keyframes nmWashSlot { 0% { opacity: 1; } 100% { opacity: 0; } }
   /* aria-live 播报区：视觉上藏掉 */
   #fw-draw .drw-live { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  /* 无人可抽：整屏给一句可见提示，不留一片空白 */
+  #fw-draw .drw-empty { grid-column: 1 / -1; margin: 0; text-align: center; font-size: 18px; font-weight: 800; color: #a8c0d8; }
+  #fw-draw .drw-empty small { display: block; margin-top: 8px; font-size: 13px; font-weight: 600; color: #6f87a3; }
   /* ---------- 底栏 ---------- */
   #fw-draw .drw-foot { flex: none; min-height: 52px; padding: 6px 16px 12px; display: flex; align-items: center; justify-content: center;
     flex-wrap: wrap; gap: 10px; color: #a9b8cc; text-align: center; border-top: 1px solid #12253c; }
   #fw-draw .drw-tip { font-size: 13px; font-weight: 700; color: #8fb2d2; }
   #fw-draw .drw-tip b { color: #ffd86d; font-weight: 900; font-size: 15px; }
-  #fw-draw .nm-note { font-size: 11.5px; font-weight: 600; color: #6f87a3; }
   /* ---------- 关动画 / 省电 ---------- */
   @media (prefers-reduced-motion: reduce) {
     #fw-draw .drw-card, #fw-draw .drw-slot, #fw-draw .drw-cface,
     #fw-draw .nm-grid.is-washing .drw-card,
     #fw-draw .nm-stage[data-phase="revealed"] .drw-card[data-r="gold"] .drw-cface { animation: none !important; }
-    #fw-draw .drw-cardin { transition-duration: .01s !important; }
+    #fw-draw .drw-cardin, #fw-draw .drw-card { transition-duration: .01s !important; }
   }
   html.is-lite #fw-draw .drw-card, html.is-lite #fw-draw .drw-slot, html.is-lite #fw-draw .drw-cface { animation: none !important; }
-  html.is-lite #fw-draw .drw-cardin { transition-duration: .01s !important; }
-  /* ---------- 窄屏（原型断点：≤900 三列、≤540 两列） ---------- */
-  @media (max-width: 1100px) { #fw-draw .drw-card, #fw-draw .drw-slot { height: 370px; } }
+  html.is-lite #fw-draw .drw-cardin, html.is-lite #fw-draw .drw-card { transition-duration: .01s !important; }
+  /* ---------- 窄屏：卡组列数/卡高已由 rank.js 的 drwFitGrid 按舞台宽高比决定，这里只调顶栏/工具条/牌背字号 ---------- */
   @media (max-width: 900px) {
-    #fw-draw .nm-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     #fw-draw .nm-brand span { display: none; }
     #fw-draw .nm-tool { gap: 8px; padding: 9px 12px; }
-    #fw-draw .drw-go { min-width: 130px; }
   }
   @media (max-width: 560px) {
     #fw-draw .nm-top { height: 50px; padding: 0 12px; gap: 8px; }
@@ -1120,13 +1115,9 @@
     #fw-draw .nm-vp { display: none; }
     #fw-draw .nm-tool { justify-content: stretch; }
     #fw-draw .drw-tabs { flex: 1 1 100%; max-height: 120px; overflow: auto; }
-    #fw-draw .drw-go, #fw-draw .drw-refresh { flex: 1 1 40%; min-width: 0; padding: 0 12px; font-size: 14px; }
-    #fw-draw .nm-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-    #fw-draw .drw-card, #fw-draw .drw-slot { height: 300px; }
+    #fw-draw .nm-grid { gap: 10px; }
     #fw-draw .nm-sig { font-size: 32px; }
     #fw-draw .drw-cface { padding: 11px 10px 10px; }
-    #fw-draw .drw-nm { font-size: 20px; }
-    #fw-draw .drw-fx { width: 62%; max-width: 74px; }
     #fw-draw .drw-foot { flex-wrap: wrap; }
     #fw-draw .drw-tip { flex: 1 1 100%; }
   }
@@ -1976,9 +1967,16 @@
     #fw-rank .rk-board2 { grid-template-columns: 1fr; }
   }
   #fw-rank .rk-lb { position: relative; flex: none; display: grid; grid-template-columns: 34px minmax(0, 1fr) auto;
-    align-items: center; gap: 10px; height: 42px; padding: 0 14px 0 8px; border-radius: 11px; overflow: hidden;
+    align-items: center; gap: 10px; height: var(--lbh, 56px); padding: 0 14px 0 8px; border-radius: 11px; overflow: hidden;
     border: 1px solid rgba(90, 132, 224, .22); background: rgb(12 19 37 / calc(var(--hx-a, 1) * .62));
-    font-weight: 700; color: #e9f1ff; }
+    font-weight: 700; color: #e9f1ff;
+    content-visibility: auto; contain-intrinsic-size: 480px var(--lbh, 56px);   /* 单页几十张卡，屏外不渲染 */
+    transition: transform .38s cubic-bezier(.22, 1, .36, 1); }
+  /* 名次越大卡越小：4 档（前三名最大 → 常规最小）。尺寸只改 --lbh，金/银/铜配色仍走 .p1/.p2/.p3 */
+  #fw-rank .rk-lb[data-tier="1"] { --lbh: 95px; grid-template-columns: 52px minmax(0, 1fr) auto; padding-right: 16px; }
+  #fw-rank .rk-lb[data-tier="2"] { --lbh: 78px; }
+  #fw-rank .rk-lb[data-tier="3"] { --lbh: 64px; }
+  #fw-rank .rk-lb[data-tier="4"] { --lbh: 56px; }
   #fw-rank .rk-lb-bg { position: absolute; inset: 0; z-index: 0; background-size: cover; background-repeat: no-repeat;
     background-position: 50% 50%; transform: scale(1.02); }
   #fw-rank .rk-lb-veil { position: absolute; inset: 0; z-index: 1; pointer-events: none;
@@ -1987,22 +1985,22 @@
   #fw-rank .rk-lb .rk-lb-place { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 8px;
     font-style: normal; font-size: 13px; font-weight: 900; font-variant-numeric: tabular-nums;
     color: #cfe0ff; background: rgba(90, 132, 224, .18); }
-  #fw-rank .rk-lb b { font-size: 15px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #fw-rank .rk-lb b { font-size: 14px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #fw-rank .rk-lb .rk-lb-cls { font-size: 12px; font-weight: 600; color: #a9bcdd; white-space: nowrap; }
   #fw-rank .rk-lb em { font-style: normal; font-weight: 900; font-variant-numeric: tabular-nums; font-size: 15px;
     color: #eaf3ff; text-shadow: 0 1px 8px rgba(0, 0, 0, .8); }
   #fw-rank .rk-lb .rk-lb-tag { display: none; }
   #fw-rank .rk-lb .rk-lb-medal { display: none; }
 
-  /* 前三名：更高、有奖牌/桂冠/称号；背景仍由学生自己决定（装饰属于名次，不属于背景） */
-  #fw-rank .rk-lb.p1, #fw-rank .rk-lb.p2, #fw-rank .rk-lb.p3 { grid-template-columns: 52px minmax(0, 1fr) auto; height: 66px; padding-right: 16px; }
-  #fw-rank .rk-lb.p2 { height: 60px; } #fw-rank .rk-lb.p3 { height: 57px; }
-  #fw-rank .rk-lb.p1 .rk-lb-medal, #fw-rank .rk-lb.p2 .rk-lb-medal, #fw-rank .rk-lb.p3 .rk-lb-medal {
-    display: grid; place-items: center; width: 46px; height: 46px; position: relative; }
-  #fw-rank .rk-lb.p1 .rk-lb-medal svg, #fw-rank .rk-lb.p2 .rk-lb-medal svg, #fw-rank .rk-lb.p3 .rk-lb-medal svg {
-    width: 40px; height: 40px; overflow: visible; }
-  #fw-rank .rk-lb.p1 .rk-lb-place, #fw-rank .rk-lb.p2 .rk-lb-place, #fw-rank .rk-lb.p3 .rk-lb-place { display: none; }
-  #fw-rank .rk-lb.p1 b { font-size: 17px; } #fw-rank .rk-lb.p2 b, #fw-rank .rk-lb.p3 b { font-size: 16px; }
+  /* 前三名：奖牌/桂冠/称号，字号最大；背景仍由学生自己决定（装饰属于名次，不属于背景） */
+  #fw-rank .rk-lb[data-tier="1"] .rk-lb-medal { display: grid; place-items: center; width: 58px; height: 58px; position: relative; }
+  #fw-rank .rk-lb[data-tier="1"] .rk-lb-medal svg { width: 52px; height: 52px; overflow: visible; }
+  #fw-rank .rk-lb[data-tier="1"] .rk-lb-place { display: none; }
+  #fw-rank .rk-lb[data-tier="1"] b { font-size: 20px; }
+  #fw-rank .rk-lb[data-tier="2"] b { font-size: 16px; }
+  #fw-rank .rk-lb[data-tier="3"] b { font-size: 15px; }
+  #fw-rank .rk-lb[data-tier="4"] b { font-size: 14px; }
+  /* 金 / 银 / 铜（.p1/.p2/.p3 类只管颜色，不管尺寸） */
   #fw-rank .rk-lb.p1 { border-color: rgba(255, 196, 72, .8);
     background: linear-gradient(100deg, rgba(255, 178, 46, .22), rgba(24, 20, 14, calc(var(--hx-a, 1) * .5)) 55%, rgba(12, 14, 26, calc(var(--hx-a, 1) * .6)));
     box-shadow: 0 0 0 1px rgba(255, 196, 72, .5) inset, 0 14px 30px -18px rgba(255, 176, 52, .9); }
@@ -2017,7 +2015,7 @@
     background: linear-gradient(105deg, transparent 30%, rgba(255, 226, 160, .22) 46%, transparent 62%);
     background-size: 220% 100%; animation: rkGoldFlow 5.5s ease-in-out infinite; }
   @keyframes rkGoldFlow { 0%, 100% { background-position: 160% 0; } 50% { background-position: -60% 0; } }
-  #fw-rank .rk-lb.p1 .rk-lb-tag, #fw-rank .rk-lb.p2 .rk-lb-tag, #fw-rank .rk-lb.p3 .rk-lb-tag {
+  #fw-rank .rk-lb[data-tier="1"] .rk-lb-tag {
     display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 999px;
     font-size: 11px; font-weight: 800; letter-spacing: .5px; white-space: nowrap; }
   #fw-rank .rk-lb.p1 .rk-lb-tag { color: #3a2400; background: linear-gradient(100deg, #ffd977, #ffb934); box-shadow: 0 0 12px -3px rgba(255, 185, 52, .9); }
@@ -2038,6 +2036,8 @@
   #fw-rank .rk-lb[data-nobg="1"] .rk-lb-bg { background-image:
       radial-gradient(120% 140% at 86% 0%, rgba(0, 207, 255, .14), transparent 60%),
       radial-gradient(100% 130% at 10% 100%, rgba(120, 90, 220, .16), transparent 66%); }
+  /* 极简（hx-lite → is-lite）：卡片滑动过渡关掉（循环动画已由全局 is-lite 规则停掉） */
+  html.is-lite #fw-rank .rk-lb { transition: none !important; }
   #fw-rank .rk-empty { display: grid; place-items: center; gap: 6px; flex: 1; min-height: 180px; text-align: center; color: #93a7c9; }
   #fw-rank .rk-empty svg { width: 46px; height: 46px; fill: none; stroke: rgba(140, 170, 220, .55); stroke-width: 1.2; }
   #fw-rank .rk-empty b { font-size: 15px; color: #cfdcf5; }
@@ -2150,10 +2150,17 @@
      背景层也从 <i> 改成 <span>，彻底绕开 `li i` 那条徽章规则。
      ──────────────────────────────────────────────────────────────────── */
   #fw-rank .rk-board li.rk-lb { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto;
-    align-items: center; gap: 10px; height: 42px; box-sizing: border-box; padding: 0 14px 0 8px; border-radius: 11px;
+    align-items: center; gap: 10px; height: var(--lbh, 56px); box-sizing: border-box; padding: 0 14px 0 8px; border-radius: 11px;
     overflow: hidden;   /* 背景层要按「缩放」放大，放大后必须裁在卡片圆角里 */
     border: 1px solid rgba(90, 132, 224, .22); background: rgb(12 19 37 / calc(var(--hx-a, 1) * .62));
-    color: #e9f1ff; font-weight: 700; }
+    color: #e9f1ff; font-weight: 700;
+    content-visibility: auto; contain-intrinsic-size: 480px var(--lbh, 56px);   /* 单页几十张卡，屏外不渲染 */
+    transition: transform .38s cubic-bezier(.22, 1, .36, 1); }
+  /* 名次越大卡越小：4 档（前三名最大 → 常规最小）。尺寸只在这改 --lbh，金/银/铜配色仍走 .p1/.p2/.p3 */
+  #fw-rank .rk-board li.rk-lb[data-tier="1"] { --lbh: 95px; grid-template-columns: 52px minmax(0, 1fr) auto; padding-right: 16px; }
+  #fw-rank .rk-board li.rk-lb[data-tier="2"] { --lbh: 78px; }
+  #fw-rank .rk-board li.rk-lb[data-tier="3"] { --lbh: 64px; }
+  #fw-rank .rk-board li.rk-lb[data-tier="4"] { --lbh: 56px; }
   #fw-rank .rk-board li.rk-lb > .rk-lb-bg { position: absolute; inset: 0; z-index: 0; border-radius: 0;
     background-size: cover; background-repeat: no-repeat; background-position: 50% 50%; filter: none; }
   #fw-rank .rk-board li.rk-lb > .rk-lb-veil { position: absolute; inset: 0; z-index: 1; border-radius: 0;
@@ -2164,7 +2171,7 @@
     font-style: normal; font-size: 13px; font-weight: 900; font-variant-numeric: tabular-nums; }
   #fw-rank .rk-board li.rk-lb > .rk-lb-who { display: flex; flex-direction: column; align-items: flex-start;
     gap: 1px; min-width: 0; color: #e9f1ff; font-size: inherit; overflow: visible; }
-  #fw-rank .rk-board li.rk-lb > .rk-lb-who > b { font-size: 15px; font-weight: 800; color: #eef4ff;
+  #fw-rank .rk-board li.rk-lb > .rk-lb-who > b { font-size: 14px; font-weight: 800; color: #eef4ff;
     max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #fw-rank .rk-board li.rk-lb > .rk-lb-who > .rk-lb-sub { display: flex; align-items: center; gap: 7px;
     min-width: 0; max-width: 100%; color: #a9bcdd; font-size: 12px; font-weight: 600; overflow: visible; }
@@ -2173,16 +2180,22 @@
     justify-self: end; text-shadow: 0 1px 8px rgba(0, 0, 0, .8); }
   #fw-rank .rk-board li.rk-lb > .rk-lb-medal { display: none; }
   #fw-rank .rk-board li.rk-lb > .rk-lb-tag { display: none; }
-  /* 前三名：金 / 银 / 铜 */
-  #fw-rank .rk-board li.rk-lb.p1, #fw-rank .rk-board li.rk-lb.p2, #fw-rank .rk-board li.rk-lb.p3 {
-    grid-template-columns: 52px minmax(0, 1fr) auto; padding-right: 16px; }
-  #fw-rank .rk-board li.rk-lb.p1 { height: 66px; border-color: rgba(255, 196, 72, .8);
+  /* 前三名：奖牌 + 桂冠 + 称号，字号最大 */
+  #fw-rank .rk-board li.rk-lb[data-tier="1"] > .rk-lb-medal { display: grid; place-items: center; width: 58px; height: 58px; }
+  #fw-rank .rk-board li.rk-lb[data-tier="1"] > .rk-lb-medal svg { width: 52px; height: 52px; overflow: visible; }
+  #fw-rank .rk-board li.rk-lb[data-tier="1"] > .rk-lb-place { display: none; }
+  #fw-rank .rk-board li.rk-lb[data-tier="1"] > .rk-lb-who > b { font-size: 20px; }
+  #fw-rank .rk-board li.rk-lb[data-tier="2"] > .rk-lb-who > b { font-size: 16px; }
+  #fw-rank .rk-board li.rk-lb[data-tier="3"] > .rk-lb-who > b { font-size: 15px; }
+  #fw-rank .rk-board li.rk-lb[data-tier="4"] > .rk-lb-who > b { font-size: 14px; }
+  /* 金 / 银 / 铜（.p1/.p2/.p3 类只管颜色，不管尺寸） */
+  #fw-rank .rk-board li.rk-lb.p1 { border-color: rgba(255, 196, 72, .8);
     background: linear-gradient(100deg, rgba(255, 178, 46, .22), rgba(24, 20, 14, calc(var(--hx-a, 1) * .5)) 55%, rgba(12, 14, 26, calc(var(--hx-a, 1) * .6)));
     box-shadow: 0 0 0 1px rgba(255, 196, 72, .5) inset, 0 14px 30px -18px rgba(255, 176, 52, .9); }
-  #fw-rank .rk-board li.rk-lb.p2 { height: 60px; border-color: rgba(186, 208, 236, .7);
+  #fw-rank .rk-board li.rk-lb.p2 { border-color: rgba(186, 208, 236, .7);
     background: linear-gradient(100deg, rgba(176, 202, 235, .16), rgba(18, 24, 38, calc(var(--hx-a, 1) * .54)) 55%, rgba(10, 14, 26, calc(var(--hx-a, 1) * .62)));
     box-shadow: 0 14px 30px -22px rgba(180, 210, 255, .8); }
-  #fw-rank .rk-board li.rk-lb.p3 { height: 57px; border-color: rgba(214, 138, 84, .72);
+  #fw-rank .rk-board li.rk-lb.p3 { border-color: rgba(214, 138, 84, .72);
     background: linear-gradient(100deg, rgba(196, 118, 62, .18), rgba(24, 20, 18, calc(var(--hx-a, 1) * .54)) 55%, rgba(10, 13, 24, calc(var(--hx-a, 1) * .62)));
     box-shadow: 0 14px 30px -22px rgba(214, 138, 84, .75); }
   /* 本人那一行：旧样式 li.me 会把整行刷成金色，跟前三名的荣耀金撞在一起。
@@ -2198,15 +2211,7 @@
   #fw-rank .rk-board li.rk-lb.p1::after { background: linear-gradient(105deg, transparent 30%, rgba(255, 226, 160, .22) 46%, transparent 62%);
     background-size: 220% 100%; animation: rkGoldFlow 5.5s ease-in-out infinite; }
   #fw-rank .rk-board li.rk-lb.p2::after, #fw-rank .rk-board li.rk-lb.p3::after { background: none; }
-  #fw-rank .rk-board li.rk-lb.p1 > .rk-lb-medal, #fw-rank .rk-board li.rk-lb.p2 > .rk-lb-medal, #fw-rank .rk-board li.rk-lb.p3 > .rk-lb-medal {
-    display: grid; place-items: center; width: 46px; height: 46px; }
-  #fw-rank .rk-board li.rk-lb.p1 > .rk-lb-medal svg, #fw-rank .rk-board li.rk-lb.p2 > .rk-lb-medal svg, #fw-rank .rk-board li.rk-lb.p3 > .rk-lb-medal svg { width: 40px; height: 40px; overflow: visible; }
-  #fw-rank .rk-board li.rk-lb.p1 > .rk-lb-place, #fw-rank .rk-board li.rk-lb.p2 > .rk-lb-place, #fw-rank .rk-board li.rk-lb.p3 > .rk-lb-place { display: none; }
-  #fw-rank .rk-board li.rk-lb.p1 > .rk-lb-who > b { font-size: 17px; }
-  #fw-rank .rk-board li.rk-lb.p2 > .rk-lb-who > b, #fw-rank .rk-board li.rk-lb.p3 > .rk-lb-who > b { font-size: 16px; }
-  #fw-rank .rk-board li.rk-lb.p1 > .rk-lb-who > .rk-lb-sub > .rk-lb-tag,
-  #fw-rank .rk-board li.rk-lb.p2 > .rk-lb-who > .rk-lb-sub > .rk-lb-tag,
-  #fw-rank .rk-board li.rk-lb.p3 > .rk-lb-who > .rk-lb-sub > .rk-lb-tag {
+  #fw-rank .rk-board li.rk-lb[data-tier="1"] > .rk-lb-who > .rk-lb-sub > .rk-lb-tag {
     display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 999px;
     font-size: 11px; font-weight: 800; letter-spacing: .5px; white-space: nowrap; }
   #fw-rank .rk-board li.rk-lb.p1 > .rk-lb-who > .rk-lb-sub > .rk-lb-tag { color: #3a2400; background: linear-gradient(100deg, #ffd977, #ffb934); box-shadow: 0 0 12px -3px rgba(255, 185, 52, .9); }
@@ -2219,6 +2224,8 @@
   #fw-rank .rk-board li.rk-lb[data-nobg="1"] > .rk-lb-bg { background-image:
       radial-gradient(120% 140% at 86% 0%, rgba(0, 207, 255, .14), transparent 60%),
       radial-gradient(100% 130% at 10% 100%, rgba(120, 90, 220, .16), transparent 66%); }
+  /* 极简（hx-lite → is-lite）：卡片滑动过渡关掉（循环动画已由全局 is-lite 规则停掉） */
+  html.is-lite #fw-rank .rk-board li.rk-lb { transition: none !important; }
 
   /* 窄屏（笔记本小窗 / 平板竖屏）：左右改上下，卡片仍保持可读字号 */
   @media (max-width: 1180px) {
@@ -5204,10 +5211,10 @@ function rkProxyUse(s) {
   Promise.resolve().then(rkStartRun).catch(e => toast('开始排位失败：' + ((e && e.message) || e)));
 }
 // ---------- 随机抽人（教师）：夜市翻牌（2026-11-06 完整迁移自 .tmp-ref/night-market-draw-prototype.html） ----------
-// 呈现整体换成原型：顶栏（NIGHT MARKET / 点券 / ✕）→ 工具条（班级 / 开始翻牌 / 刷新下一组）→
+// 呈现整体换成原型：顶栏（NIGHT MARKET / 点券 / ✕）→ 工具条（班级 / 一次抽一个）→
 // 6 个卡位的夜市卡组（牌背按稀有度上色、3D 翻牌、像素动效、金色票据）。
 // 抽取逻辑原样保留：按当前班级抽、一次只抽一个、不与上一次重复（DRW.last）、抽中可「设为当前选手」；
-// 动画期间 DRW.busy + #drwGo disabled 双保险，快速连点不会重复抽取。
+// 打开窗口即自动发牌，老师直接点牌翻面（2026-11-13 用户：「主打手动点击翻牌即可」）。
 // 按当前班级抽：一次课就一个班，卡组里只装这一个班的人，不允许把几个班合在一起混抽（老师明确要求）。
 function isT() { return !!(RK.me && (RK.me.teacher || RK.me.admin || RK.me.dev)); } // 函数声明，提升到顶部：rkRender 里先用到也不会撞上暂时性死区
 // 抽人状态机：idle → dealing（发牌）→ flipping（翻面）→ revealed（抽中静止）；refreshing 是刷新卡组的洗牌过渡
@@ -5389,17 +5396,9 @@ function drwTopHTML() {
 }
 function drwFootHTML() {
   const p = DRW.picked;
-  if (DRW.busy) return '<span class="drw-tip">正在翻牌…</span>';
   if (p) return `<span class="drw-tip">本轮抽中 <b>${esc(p.name)}</b>${p.seq != null && p.seq < 1000 ? ' · 学号 ' + p.seq : ''}</span>` +
-    `<button type="button" class="drw-use" id="drwUse">确定并开始排位</button>` +
-    `<button type="button" class="drw-refresh sm" id="drwAgain">↻ 再抽一张</button>`;
-  return '<span class="drw-tip">翻开一张卡牌，抽出的同学直接开始排位</span><span class="nm-note">一次只抽一个 · 不会和上一位重复</span>';
-}
-function drwSelHTML() {
-  const c = drwCls();
-  if (DRW.busy) return '正在翻牌…';
-  if (DRW.picked) return `本轮抽中：${esc(DRW.picked.name)} · 点「确定并开始排位」直接开这一局，或「再抽一张」`;
-  return `可翻开 1 张卡牌 · 当前班级：${esc(c ? c.name : '—')} · 共 ${(RK.studs[DRW.cls] || []).length} 人`;
+    `<button type="button" class="drw-use" id="drwUse">确定并开始排位</button>`;
+  return '<span class="drw-tip">翻开一张卡牌，抽出的同学直接开始排位</span>';
 }
 /* 牌背：霓虹底面 + 菱形套菱形 + 中央 ◇ + 品牌字（原型 .back） */
 function drwBackHTML() {
@@ -5419,16 +5418,14 @@ function drwRender(box) {
   DRW.box = box; DRW.pool = drwPool(); DRW.picked = null;
   drwHalt();
   box.innerHTML = drwTopHTML() +
-    `<div class="nm-tool" id="drwTool">${drwBarHTML()}<span class="drw-one">一次抽一个</span>` +
-      `<button type="button" class="drw-go" id="drwGo">开始翻牌 ▶</button>` +
-      `<button type="button" class="drw-refresh" id="drwRefresh">↻ 刷新下一组</button></div>` +
-    `<div class="nm-sel" id="drwSel">${drwSelHTML()}</div>` +
+    `<div class="nm-tool" id="drwTool">${drwBarHTML()}<span class="drw-one">一次抽一个</span></div>` +
     `<div class="nm-stage" id="drwStage" data-phase="idle" role="region" aria-label="抽人夜市卡组">` +
       `<div class="nm-grid" id="drwGrid"></div>` +
       `<p class="drw-live" id="drwLive" role="status" aria-live="polite"></p></div>` +
     `<footer class="drw-foot" id="drwFoot">${drwFootHTML()}</footer>`;
   const x = box.querySelector('#drwCloseX'); if (x) x.onclick = drwCloseWin;
   drwDeal(box);
+  drwFitGrid(box);
   drwFxMount(box.querySelector('#drwFxl'), .2); drwFxRun();
 }
 /* 这组发几张：原型固定 6 张，班比 6 人还少时以人数为准 */
@@ -5444,6 +5441,14 @@ function drwSample(n) {
 function drwDeal(box) {
   DRW.pool = drwPool();
   const g = box.querySelector('#drwGrid'); if (!g) return;
+  // 无人可抽：留一行可见提示，别让舞台空成一片
+  if (!DRW.pool.length) {
+    g.innerHTML = '<p class="drw-empty">这个班还没有学生<br><small>请先在首页「班级」里导入名单，并勾上「接线仿真」</small></p>';
+    const stage = box.querySelector('#drwStage'); if (stage) stage.setAttribute('data-phase', 'empty');
+    const live = box.querySelector('#drwLive'); if (live) live.textContent = '';
+    drwChrome(box);
+    return;
+  }
   const n = drwDealCount();
   const picks = drwSample(n);
   DRW.dealt = picks.map(p => ({ p, r: drwRollRarity() }));
@@ -5463,35 +5468,48 @@ function drwDeal(box) {
   drwChrome(box);
   g.querySelectorAll('.drw-card').forEach(el => (el.onclick = () => drwManualFlip(el, box)));
 }
-/* 工具条 / 状态行 / 底栏都跟着状态机重画（和 .drw-card 的 onclick 一起重新绑） */
+/* 工具条 / 底栏都跟着状态机重画（和 .drw-card 的 onclick 一起重新绑） */
 function drwChrome(box) {
   const t = box.querySelector('#drwTool');
-  if (t) t.innerHTML = `${drwBarHTML()}<span class="drw-one">一次抽一个</span>` +
-    `<button type="button" class="drw-go" id="drwGo"${DRW.busy ? ' disabled' : ''}>${DRW.busy ? '翻牌中…' : DRW.picked ? '再抽一张 ▶' : '开始翻牌 ▶'}</button>` +
-    `<button type="button" class="drw-refresh" id="drwRefresh"${DRW.busy ? ' disabled' : ''}>↻ 刷新下一组</button>`;
-  const s = box.querySelector('#drwSel'); if (s) s.innerHTML = drwSelHTML();
+  if (t) t.innerHTML = `${drwBarHTML()}<span class="drw-one">一次抽一个</span>`;
   const f = box.querySelector('#drwFoot'); if (f) f.innerHTML = drwFootHTML();
   box.querySelectorAll('[data-c]').forEach(b => (b.onclick = () => { if (DRW.busy) return; drwSwitch(+b.dataset.c, box); }));
   const g = box.querySelector('#drwGrid'); if (g) g.querySelectorAll('.drw-card').forEach(el => (el.onclick = () => drwManualFlip(el, box)));
-  const go = box.querySelector('#drwGo'); if (go) go.onclick = () => drwFlip(box);
-  const rf = box.querySelector('#drwRefresh'); if (rf) rf.onclick = () => drwRefresh(box);
   const u = box.querySelector('#drwUse'); if (u) u.onclick = drwUse;
-  const ag = box.querySelector('#drwAgain'); if (ag) ag.onclick = () => drwFlip(box);
 }
+/* 卡组自适应（2026-11-13 用户：「抽卡界面应该扩大卡片大小和位置适应」）：
+   按舞台宽高比选 3 列×2 行（横宽）或 2 列×3 行（竖长），卡高算满一屏、不留大空。
+   列数写进 stage 的 data-cols，卡高写进 --cardh，CSS 只认这两个信号，不再写死 400px。 */
+function drwFitGrid(box) {
+  const stage = box.querySelector('#drwStage'); if (!stage) return;
+  const w = stage.clientWidth, h = stage.clientHeight;
+  let cols = 3;
+  if (w > 0 && h > 0 && w / h < 1.15) cols = 2;   // 竖长 → 2 列；横宽 → 3 列
+  const gap = 14, pad = 12;                        // .nm-stage 上下 padding 8+4
+  const rows = Math.ceil(6 / cols);                // 卡组固定 6 个卡位（几张卡 + 空位），列数定行数
+  const cardh = Math.max(120, Math.min(560, Math.floor((h - pad - (rows - 1) * gap) / rows)));
+  stage.dataset.cols = String(cols);
+  stage.style.setProperty('--cardh', cardh + 'px');
+}
+addEventListener('resize', () => {
+  const d = document.getElementById('fw-draw');
+  if (d && d.classList.contains('show')) { const b = d.querySelector('#drw'); if (b) drwFitGrid(b); }
+});
 /* 手动点牌翻面（原型：点牌就翻） */
 function drwManualFlip(card, box) {
   if (DRW.busy || !card || card.classList.contains('is-flip')) return;
-  if (DRW.picked) return;                                  // 一次抽一个：本轮已出结果，先「再抽一张」
+  if (DRW.picked) return;                                  // 一次抽一个：本轮已出结果
   const it = DRW.dealt[+card.getAttribute('data-i')]; if (!it) return;
   card.classList.add('is-flip');
   DRW.picked = it.p; DRW.last = it.p.id;
   drwSettle(box);
 }
-/* ── 一轮抽取：时序 dealing .42s → 翻面（单片 .72s）→ revealed；和 project2.html 的时长一一对应 ── */
+/* ── 随机自动翻牌（2026-11-13 起不再从 UI 触发，老师改为手动点牌；函数留着给可能的扩展）──
+   时序 dealing .42s → 翻面（单片 .72s）→ revealed；和 project2.html 的时长一一对应 */
 function drwFlip(box) {
   if (DRW.busy) return;
   if (!DRW.pool.length) { toast('这个班还没有学生'); return; }
-  if (DRW.picked) return drwRefresh(box);                  // 「再抽一张」：洗一组新牌再翻
+  if (DRW.picked) return drwRefresh(box);                  // 洗一组新牌再翻
   const pending = [...box.querySelectorAll('.drw-card:not(.is-flip)')];
   if (!pending.length) return;
   DRW.busy = true; DRW.gen += 1; const gen = DRW.gen;
@@ -5527,7 +5545,7 @@ function drwSettle(box) {
   box.querySelectorAll('.drw-card.is-flip .drw-fx').forEach(h => drwFxMount(h, .2 + Math.random() * 1.4));
   drwFxRun();
 }
-/* ── 刷新下一组：清空本轮结果、重新发一组牌 ── */
+/* ── 刷新卡组：清空本轮结果、重新发一组牌（2026-11-13 起不在 UI 露出，函数保留）── */
 function drwRefresh(box) {
   if (DRW.busy) return;
   DRW.busy = true; DRW.phase = 'refreshing'; DRW.gen += 1; const gen = DRW.gen;
@@ -5619,18 +5637,56 @@ function rkMedal(p) {
     + '<text x="24" y="32.4" text-anchor="middle" font-size="12.5" font-weight="900" fill="#fff" font-family="system-ui,sans-serif">' + p + '</text>'
     + crown + '</svg>';
 }
+// 背景样式串缓存：base64 正则替换 / 预设 CSS 的 replace 是这块最贵的活，一个学生一次算好就复用，
+// 翻页、同页数据刷新都不重算。键 = student_id + 卡片型（名次 1..4 → 冠军/亚军/季军/常规的取景不同）。
+const RK_BGSTYLE = {};
+// 卡片高度按名次分 4 档：前三名最大（左列最上），名次越大卡越小。
+// 各档是「基准卡高 --lbh」的倍率，和 project2.html 里 [data-tier] 的 --lbh 一一对应；改一处要同步另一处。
+// 倍率拉开一点，让「名次越大卡越小」在榜单上一眼看得出来（前三名带奖牌格外高）。
+const RK_MUL = { 1: 1.7, 2: 1.4, 3: 1.15, 4: 1.0 };
+function rkTier(place) {
+  if (place <= 3) return 1;
+  if (place <= 6) return 2;
+  if (place <= 12) return 3;
+  return 4;
+}
+function rkH(place) { return Math.round(56 * RK_MUL[rkTier(place)]); }   // 基准档高（--lbh=56 时），只用于估容量
+// 一列能装几张：从第 start 名起依次累加「卡高 + 列内 gap」，装到可用高度 H 为止。
+// total 只是循环上限（防死循环）；要算「右列满容量」时传总人数而不是剩余人数，别被剩余人数截短。
+function rkColCap(H, gap, total, start) {
+  let k = 0, h = 0;
+  while (k < total) {
+    const add = rkH(start + k) + (k === 0 ? 0 : gap);
+    if (h + add > H) break;
+    h += add; k++;
+  }
+  return Math.max(1, k);
+}
+// 一列高度：第 start 名起 cnt 张卡的总高（含列内 gap）
+function rkColH(start, cnt, gap) {
+  let h = 0;
+  for (let i = 0; i < cnt; i++) h += rkH(start + i) + (i === 0 ? 0 : gap);
+  return h;
+}
+// 把 cnt 张卡（第 start 名起）按高度分进左右两列，返回左列张数：左右两列高度尽量接近，
+// 这样「第二列接着第一列最后的名次往后」时，右列（名次靠后、卡更小）不会只挂零星几张、底下空一大片。
+function rkBalance(start, cnt, gap) {
+  let best = 1, bestD = Infinity;
+  for (let k = 1; k < cnt; k++) {
+    const d = Math.abs(rkColH(start, k, gap) - rkColH(start + k, cnt - k, gap));
+    if (d < bestD) { bestD = d; best = k; }
+  }
+  return best;
+}
 async function rkBoard(el, hl, page) {
-  // 分页（2026-11-12 用户：「一列最多十个 id 卡 这样画面大一点 可以改成 2 列 这样就是前 20 名展示
-  //   然后点击下一页就是 21-40 名这样下去 不然随着网页缩小卡片会变形到看不到」）。
-  // 一页 20 名、左右两列（左列 1/3/5…、右列 2/4/6…，蛇形阅读序），底下「上一页 / 下一页」翻页。
-  // 卡片变两列后每张更宽更大，窄屏不会再被压成细线。
-  const PER = 20;
-  if (page != null) RK.boardPage = Math.max(0, page);
+  // 分页（2026-11-13 用户：「123 名应该在左边第一列且卡片最大，后续跟着 456 依次往后，
+  //   第二列接着第一列最后的排名往后，不限制一页多少个，只要满足尺寸排满」）。
+  // 每页人数不再写死 20：按容器高度现算，两列列优先（左列 1…K、右列 K+1…），底下「上一页/下一页」翻页。
+  const isPageFlip = page != null;              // 翻页 = 全新一页，不做 FLIP；只有同页数据刷新才做
+  if (isPageFlip) RK.boardPage = Math.max(0, page);
   let rows; try { rows = await HX.rpc('rank_board', { p_circuit: RK.circuit, p_limit: 200 }, HX.in()); } catch (e) { el.innerHTML = `<p class="rk-err">${esc(e.message)}</p>`; return; }
   // 后端口径可能返回对象（老函数 / 代理层包了一层），一律归一成数组，别让整块榜单崩掉
   if (!Array.isArray(rows)) rows = (rows && Array.isArray(rows.data)) ? rows.data : [];
-  const pages = Math.max(1, Math.ceil(rows.length / PER));
-  if (RK.boardPage >= pages) RK.boardPage = pages - 1;           // 数据变少（比如删了人）页码别越界
   // 个人身份卡背景：新表 hx_rank_bg，按 student_id 关联（绝不按名次）。
   // 这一步失败（函数还没建 / 网络抖）只影响背景，不影响成绩与排序 —— 所以单独 try，不拖垮榜单。
   let bgs = [];
@@ -5641,26 +5697,53 @@ async function rkBoard(el, hl, page) {
   if (nEl) nEl.textContent = rows.length ? '共 ' + rows.length + ' 人 · 按用时升序' : '';
   // 空榜单只放提示语，绝不放假成绩
   if (!rows.length) { el.innerHTML = `<div class="rk-empty"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10v4a5 5 0 0 1-10 0z"/><path d="M7 5H4v1.5A3.5 3.5 0 0 0 7.5 10M17 5h3v1.5A3.5 3.5 0 0 1 16.5 10M12 13v4M8.5 20h7"/></svg><b>暂无排位成绩</b><span>完成首次接线挑战后，成绩将在此展示</span></div>`; return; }
-  // 当前页的 20 名
-  const pageRows = rows.slice(RK.boardPage * PER, RK.boardPage * PER + PER);
-  // 两列：左列取奇数位（名次 1、3、5…），右列取偶数位（2、4、6…），蛇形阅读序
-  const left = [], right = [];
-  pageRows.forEach((r, i) => (i % 2 === 0 ? left : right).push(r));
+  // 每页人数按容器现算：一屏排满、底下不留大片空白。.rk-boardwrap 上下 padding 22px，翻页脚常驻约 44px。
+  const gap = 7;                                // .rk-col 列内 gap
+  const H = Math.max(120, (el.clientHeight || 520) - 22);
+  // 满页容量：左列（名次靠前、卡大）Kleft 张 + 右列（名次靠后、卡小）Kright 张，各按实际卡高累加。
+  // 单页没有翻页脚，用全高 H 算；装不下（多页）时每页都有脚，得给脚让出 44px 再算一次。
+  let avail = H;
+  let Kleft = rkColCap(avail, gap, rows.length, 1);
+  let Kright = rkColCap(avail, gap, rows.length, Kleft + 1);
+  if (rows.length > Kleft + Kright) {
+    avail = H - 44;
+    Kleft = rkColCap(avail, gap, rows.length, 1);
+    Kright = rkColCap(avail, gap, rows.length, Kleft + 1);
+  }
+  const PER = Kleft + Kright;
+  let pages = Math.max(1, Math.ceil(rows.length / PER));
+  if (RK.boardPage >= pages) RK.boardPage = pages - 1;           // 数据变少（比如删了人）页码别越界
+  const start = RK.boardPage * PER;
+  const cnt = Math.min(PER, rows.length - start);                 // 本页人数（末页可能不满）
+  const pageRows = rows.slice(start, start + cnt);
+  // 本页两列：满页按左 Kleft / 右 Kright；一页就放得下、或末页人数不足满页时按高度分均，
+  // 让右列（名次靠后、卡更小）不至于只挂零星几张、底下空一大片。列优先连续排（不再蛇形 1/3/5、2/4/6）。
+  const K = cnt === PER ? Kleft : rkBalance(start + 1, cnt, gap);
+  const left = pageRows.slice(0, K), right = pageRows.slice(K);
   // FLIP（2026-11-08，纯视觉）：重绘前记下旧行位置（按 姓名|班级 找），重绘后把位置变化过的行
   // 从旧位置平移到新位置 —— 数据更新时行是“滑过去”的，新上榜的行短暂高亮一下。
-  // 数值、排序、me/highlight 判定全部原样；首绘（没有旧行）走错峰入场，不做 FLIP。
+  // 只在「同页数据更新」时做；翻页是全新一页，不做 FLIP。首绘（没有旧行）也不做。
   const prev = {};
-  if (!drwNoAnim()) el.querySelectorAll('.rk-lb').forEach(li => { const k = li.getAttribute('data-k'); if (k != null) prev[k] = li.offsetTop; });
-  const steady = Object.keys(prev).length ? ' steady' : '';
+  if (!isPageFlip && !drwNoAnim()) {
+    const items = el.querySelectorAll('.rk-lb');
+    for (let i = 0; i < items.length; i++) { const k = items[i].getAttribute('data-k'); if (k != null) prev[k] = items[i].offsetTop; }
+  }
+  const steady = !isPageFlip && Object.keys(prev).length ? ' steady' : '';
   const rowHTML = (r, i) => {
-    const p = Math.min(r.place, 4), top = p <= 3;
-    const b = BG[r.student_id];
-    // 取景按「名次卡片型」来：同一张背景，冠军卡和常规卡各自有一组 pos/zoom
-    const st = rkBgStyle(b && b.bg, rkTuneOf(b, r.place));
-    return `<li class="rk-lb p${p}${r.me || r.place === hl ? ' me' : ''}" data-k="${esc(r.name + '|' + r.class_name)}" data-nobg="${st ? '0' : '1'}" style="--i:${Math.min(i, 12)}">`
+    const tier = rkTier(r.place), top = tier === 1;
+    const ck = Math.min(r.place, 4);
+    let st = RK_BGSTYLE[r.student_id + ':' + ck];
+    if (st === undefined) {
+      const b = BG[r.student_id];
+      // 取景按「名次卡片型」来：同一张背景，冠军卡和常规卡各自有一组 pos/zoom
+      st = rkBgStyle(b && b.bg, rkTuneOf(b, r.place)) || '';
+      RK_BGSTYLE[r.student_id + ':' + ck] = st;
+    }
+    const cls = top ? ' p' + Math.min(r.place, 3) : '';   // p1/p2/p3 只负责金/银/铜配色
+    return `<li class="rk-lb${cls}${r.me || r.place === hl ? ' me' : ''}" data-tier="${tier}" data-k="${esc(r.name + '|' + r.class_name)}" data-nobg="${st ? '0' : '1'}">`
       + `<span class="rk-lb-bg" aria-hidden="true"${st ? ` style="${esc(st)}"` : ''}></span><span class="rk-lb-veil" aria-hidden="true"></span>`
-      + (top ? `<span class="rk-lb-medal">${rkMedal(p)}</span>` : `<i class="rk-lb-place">${r.place}</i>`)
-      + `<span class="rk-lb-who"><b>${esc(r.name)}</b><span class="rk-lb-sub"><small class="rk-lb-cls">${esc(r.class_name)}</small>${top ? `<span class="rk-lb-tag">${RK_TAG[p]}</span>` : ''}</span></span>`
+      + (top ? `<span class="rk-lb-medal">${rkMedal(r.place)}</span>` : `<i class="rk-lb-place">${r.place}</i>`)
+      + `<span class="rk-lb-who"><b>${esc(r.name)}</b><span class="rk-lb-sub"><small class="rk-lb-cls">${esc(r.class_name)}</small>${top ? `<span class="rk-lb-tag">${RK_TAG[Math.min(r.place, 3)]}</span>` : ''}</span></span>`
       + `<em>${fmtMs(r.ms)}</em></li>`;
   };
   const col = arr => `<ol class="rk-col${steady}">${arr.map(rowHTML).join('')}</ol>`;
@@ -5676,15 +5759,21 @@ async function rkBoard(el, hl, page) {
   el.querySelectorAll('.rk-pg').forEach(btn => {
     btn.onclick = () => { rkBoard(el, hl, RK.boardPage + Number(btn.getAttribute('data-pg'))); };
   });
-  if (steady) el.querySelectorAll('.rk-lb').forEach(li => {
-    const o = prev[li.getAttribute('data-k')];
-    if (o == null) { li.classList.add('rk-new'); return; }              // 新上榜：短暂高亮
-    const dy = o - li.offsetTop;
-    if (dy) {                                                             // 位置变了：从旧位置滑过来
-      li.style.transition = 'none'; li.style.transform = `translateY(${dy}px)`;
-      requestAnimationFrame(() => { void li.offsetWidth; li.style.transition = ''; li.style.transform = ''; });
+  if (steady) {
+    const items = el.querySelectorAll('.rk-lb');
+    const nt = new Array(items.length);
+    for (let i = 0; i < items.length; i++) nt[i] = items[i].offsetTop;   // 先批量读一次，别在读里夹写
+    for (let i = 0; i < items.length; i++) {
+      const li = items[i];
+      const o = prev[li.getAttribute('data-k')];
+      if (o == null) { li.classList.add('rk-new'); continue; }           // 新上榜：短暂高亮
+      const dy = o - nt[i];
+      if (dy) { li.style.transition = 'none'; li.style.transform = `translateY(${dy}px)`; }   // 先瞬移到旧位置
     }
-  });
+    if (items.length) requestAnimationFrame(() => {
+      for (let i = 0; i < items.length; i++) { const li = items[i]; li.style.transition = ''; li.style.transform = ''; }   // 下一帧滑到新位置
+    });
+  }
 }
 // ---------- 一局排位：模糊背景 + 中间开始按钮 → 计时（0.01 秒）→ 全对自动停表 → 服务器算成绩和名次 → 祝贺、烟花、名次上升动画 ----------
 const rkWin = () => { try { return frames.get(cur).contentWindow; } catch (e) { return null; } };

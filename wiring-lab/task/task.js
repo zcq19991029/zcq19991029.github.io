@@ -48,17 +48,19 @@ const jfCol = circuit => '接线' + circuit;
 const sortTasks = list => (list || []).slice().sort((a, b) =>
   ((b.status === 'open') ? 1 : 0) - ((a.status === 'open') ? 1 : 0) ||
   String(b.opened_at || '').localeCompare(String(a.opened_at || '')));
-// 小组加分入口：站点根下的 /jiafenxitong/。HOME 已经按「线上 /wiring-lab/task/ → ../../」算好了。
-const JF_URL = HOME + 'jiafenxitong/';
+// 小组加分入口：站点根下的 /jiafenxitong/。SITE 已经按「线上 /wiring-lab/task/ → ../../」算好了。
+const JF_URL = SITE + 'jiafenxitong/';
 
 /* ---------------- 启动 ---------------- */
 (async function boot() {
   HX.grab(); // GitHub 登录回来时先收凭证
-  // 返回按钮（2026-11-13）：点「← 接线仿真」回到上一级 = 接线仿真主页（/wiring-lab/）。
-  // 是跳 HOME，不是浏览器 history.back、也不是首页；页面嵌在总入口 iframe 里时，
-  // HOME 已按「线上 /wiring-lab/task/ → ../../，本机 → ./」算好（见 task-hx.js）。
+  // 返回按钮（2026-11-13 初版 / 2026-11-14 修）：点「← 接线仿真」回到上一级 = 接线仿真主页。
+  // 上一级是 /wiring-lab/（外壳：2.1～2.6 分段控件），**不是站点根**。
+  // 原来这里写的是 HOME（= '../../' = 站点根），结果把整个总入口首页加载进了工具 iframe：
+  // 用户看到「又一个首页」，左上角还多出一个返回按钮；iframe 地址停在站点根之后，
+  // 从正版首页再点接线仿真复用的还是这一帧，又回到那张冗余首页。详见 task-hx.js 的 SITE/TOOL 注释。
   const backBtn = $('#lvBack');
-  if (backBtn) backBtn.onclick = () => location.href = HOME;
+  if (backBtn) backBtn.onclick = () => goTool();
   // 右上角那颗「退出」已删除（U1）：退出应该走总入口左上角「返回」，不在这里单开一颗。
 
   if (!HX.online()) return gate('课堂任务需要在线版', '成绩和进度存在云端，本机离线文件不能用。<br>请打开在线版（zcq19991029.github.io/wiring-lab/）里的「课堂任务」。');
@@ -677,7 +679,7 @@ async function studentView() {
             ? '你已经算完成。名次会随更快的同学完成而实时变化；老师结束任务时冻结最终得分。'
             : '去「接线仿真」里选这道电路，点右上角「排位」，全部接对仿真成功就自动算完成（不用在这里点任何按钮）。'}
             <br>赋分：第 1–10 名 100%（5 分）· 第 11–20 名 80%（4 分）· 其余已完成 70%（3.5 分）。</p>
-          <div class="acts"><a class="btn primary big" href="${HOME}">去排位</a></div>
+          <div class="acts"><a class="btn primary big" href="${TOOL}">去排位</a></div>
         </div>
       </section>`;
   };
