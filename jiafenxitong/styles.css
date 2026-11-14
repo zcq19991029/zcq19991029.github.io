@@ -2842,23 +2842,23 @@ html.hx-bg[data-hx-mode="dark"] body::after,
 .groups .gcard:nth-child(8n+6) .gnum { background: #06b6d4; }
 .groups .gcard:nth-child(8n+7) .gnum { background: #ef4444; }
 .groups .gcard:nth-child(8n)   .gnum { background: #6366f1; }
-/* 表格式（sheet-vertical）组号色块（2026-11-12 V10，2026-11-14 改统一主题色）：
-   原来用 gbTone 按组号定色相（组1蓝、组2绿…红绿蓝品红黄），用户反馈「组号色块丑丑的」，
-   要求「统一用主题色」。现在色相来源从 --h/--s/--lb 换成全站主题色 --accent / --acc，
-   所有组号块同一种颜色（跟页面主题色走），立体渐变 + 艺术字观感保留。 */
-/* 2026-11-13 组号色块填充整格 + 艺术字：不再显示人数，色块铺满整个 td.c-no，
-   组号数字居中放大。td 去内边距让色块贴满整格；td.c-no 已有 position:relative。 */
-.sheet-vertical td.c-no { color: var(--text); font-weight: 700; padding: 0; }
+/* 表格式（sheet-vertical）组号（2026-11-12 V10，2026-11-14 两轮返工）：
+   ①「组号丑」→ 不再按组号给五色（红绿蓝品红黄），统一跟全站主题色走；
+   ②「竖纹条也删掉」→ 去掉整块色块背景，只留放大的组号数字，用主题色 --accent
+   描边 + 发光做艺术字，不再铺满整格。 */
+/* 2026-11-13 组号数字居中放大（不再显示人数）。td 去内边距让数字贴满整格；
+   td.c-no 已有 position:relative。 */
+.sheet-vertical td.c-no { color: var(--text); font-weight: 700; padding: 0; background: transparent; }
 .sheet-vertical .gno-swatch {
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;
   width: 100%; height: 100%;
-  font-size: 24px; font-weight: 900; line-height: 1; letter-spacing: 0;
-  background: linear-gradient(160deg, var(--accent-hi), var(--accent-strong));
-  color: #fff;
-  -webkit-text-stroke: 1px color-mix(in srgb, var(--accent-strong) 55%, #000);
-  text-shadow: 0 2px 0 color-mix(in srgb, var(--accent-strong) 40%, #000 / .9),
-               0 0 16px var(--accent-glow);
+  font-size: 28px; font-weight: 900; line-height: 1; letter-spacing: 0;
+  background: none;
+  color: var(--accent);
+  -webkit-text-stroke: 1px color-mix(in srgb, var(--accent-strong) 45%, transparent);
+  text-shadow: 0 2px 0 color-mix(in srgb, var(--accent-strong) 30%, #000 / .85),
+               0 0 14px var(--accent-glow);
 }
 
 /* 红绿分数标签：加分绿 / 扣分红，做成彩色药丸 */

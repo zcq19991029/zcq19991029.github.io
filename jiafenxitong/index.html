@@ -5,11 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#fcfcfb">
 <title>夜夜小组制加分助手 · 《电气接线原理》</title>
-<link rel="stylesheet" href="styles.css?v=4e47d58">
-<link rel="stylesheet" href="draw-person.css?v=4e47d58">
+<link rel="stylesheet" href="styles.css?v=f205b88">
+<link rel="stylesheet" href="draw-person.css?v=f205b88">
 <!-- 分组看板 + 学生端桌卡（2026-11-06）：新样式一律写这个文件，不去动 styles.css / team.css
      里已有的行（那几个文件正有人在改深浅色变量）。-->
-<link rel="stylesheet" href="roster-board.css?v=4e47d58">
+<link rel="stylesheet" href="roster-board.css?v=f205b88">
 <!-- 华夏工具外观（首页统一设置）：主色、背景图；单独打开会回到首页 /#jiafen。账号只在首页管理 -->
 <script src="../hx-theme.js" data-tool="jiafen"></script>
 <!-- 闪屏「正在载入」的像素方块（2026-11-04）：原来是 正在载入 后面跟三个会闪的句点，干巴巴的。
@@ -122,23 +122,23 @@
   :root[data-hx-mode="light"] .sumd-item .sumd-pct { color: #1f7a55; background: rgba(47, 132, 90, .14); }
   html.hx-lite .sumd-panel { backdrop-filter: none; }
 
-  /* ── 组号色块（2026-11-13 用户：「不同组的组号色块没做」「可以按照分组那边的色块重做 ui 颜色」）──
-     2026-11-13 再改：组号块太小 → 去掉人数、色块铺满整格、数字做艺术字（放大居中 + 描边发光）。
-     2026-11-14 用户反馈「组号还是丑丑的色块」→ 改「统一用主题色」：不再按组号给不同色相（红绿蓝品红黄），
-     所有组号块同一种颜色，跟全站主题色 --accent / --acc 走；立体渐变 + 艺术字观感保留。 */
+  /* ── 组号（2026-11-13 用户：「不同组的组号色块没做」「可以按照分组那边的色块重做 ui 颜色」）──
+     2026-11-13：组号块太小 → 去掉人数、色块铺满整格、数字做艺术字。
+     2026-11-14 两轮返工：①「组号丑」→ 不再按组号给五色；②「竖纹条也删掉」→ 去掉整块色块背景，
+     只留放大的数字，数字用主题色 --accent 描边 + 发光做艺术字，不再铺满整格。 */
   .sheet-vertical .gno-swatch {
-    background: linear-gradient(160deg, var(--accent-hi), var(--accent-strong));
-    color: #fff;
-    -webkit-text-stroke: 1px color-mix(in srgb, var(--accent-strong) 55%, #000);
-    text-shadow: 0 2px 0 color-mix(in srgb, var(--accent-strong) 40%, #000 / .9),
-                 0 0 16px var(--accent-glow);
+    background: none;
+    color: var(--accent);
+    -webkit-text-stroke: 1px color-mix(in srgb, var(--accent-strong) 45%, transparent);
+    text-shadow: 0 2px 0 color-mix(in srgb, var(--accent-strong) 30%, #000 / .85),
+                 0 0 14px var(--accent-glow);
   }
   :root[data-hx-mode="dark"] .sheet-vertical .gno-swatch {
-    background: linear-gradient(160deg, var(--accent-hi), var(--accent-strong));
-    color: #fff;
-    -webkit-text-stroke: 1px color-mix(in srgb, var(--accent-strong) 55%, #000);
-    text-shadow: 0 2px 0 color-mix(in srgb, var(--accent-strong) 40%, #000 / .9),
-                 0 0 16px var(--accent-glow);
+    background: none;
+    color: var(--accent);
+    -webkit-text-stroke: 1px color-mix(in srgb, var(--accent-strong) 45%, transparent);
+    text-shadow: 0 0 12px var(--accent-glow),
+                 0 2px 6px color-mix(in srgb, var(--accent) 40%, transparent);
   }
 
   /* 值日缺勤按钮（2026-11-13）：现在每个组都能点（值日缺勤是整学期的 5 分项目，
@@ -154,8 +154,8 @@
   }
   .sheet-vertical .duty-cell .duty-score:active { transform: translateY(1px); }
 </style>
-<meta name="build-commit" content="4e47d58">
-<meta name="build-published-at" content="2026-11-14T11:42:57.062Z">
+<meta name="build-commit" content="f205b88">
+<meta name="build-published-at" content="2026-11-14T11:46:16.678Z">
 </head>
 <body>
 
@@ -184,8 +184,8 @@
     </div>
   </div>
 </div>
-<script src="fx/pixelfx-loader.js?v=4e47d58"></script>
-<script src="fx/hx-jf-load.js?v=4e47d58"></script>
+<script src="fx/pixelfx-loader.js?v=f205b88"></script>
+<script src="fx/hx-jf-load.js?v=f205b88"></script>
 
 <header class="topbar" id="topbar">
   <div class="topbar-main">
@@ -639,25 +639,25 @@
   </form>
 </dialog>
 
-<script src="data.js?v=4e47d58"></script>
+<script src="data.js?v=f205b88"></script>
 <!-- 2026-11-13：学生身份卡背景（整张分组卡片铺底）+ 头像（头像圈里显示照片），两件事共用 faces.js。
      预设背景（p:xxx）由 rank-bg.js 转 CSS，和 team.html / scores.html 一样引用站点根那一份
      （发布时 publish.cjs 把它放到站点根）。faces.js 必须排在 app.js 前面。 -->
 <script src="../rank-bg.js"></script>
-<script src="faces.js?v=4e47d58"></script>
-<script src="config.js?v=4e47d58"></script>
+<script src="faces.js?v=f205b88"></script>
+<script src="config.js?v=f205b88"></script>
 <!-- 导出用的两个大库（xlsx 930 KB + jspdf 409 KB = 1.3 MB）。
      2026-11-09 加 defer：它们是普通脚本时按文档顺序阻塞执行，必须下完才轮到下面的 app.js，
      而 app.js 才是绑登录、画界面、读本机数据的那一个 —— 网一慢整页就像死了（用户报的「打不开、登录不了」）。
      加了 defer 之后 app.js 立刻跑，这两个在解析结束后自己下自己执行，点导出时通常早就好了；
      万一手快、库还没到，由 heavy.js 在捕获阶段把这**一次**点击接住，等库到了替他重发。 -->
-<script src="vendor/jspdf.umd.min.js?v=4e47d58" defer></script>
-<script src="vendor/xlsx.full.min.js?v=4e47d58" defer></script>
-<script src="heavy.js?v=4e47d58"></script>
-<script src="roster-import.js?v=4e47d58"></script>
-<script src="hx-roster.js?v=4e47d58"></script>
-<script src="cloud.js?v=4e47d58"></script>
-<script src="supabase-cloud.js?v=4e47d58"></script>
+<script src="vendor/jspdf.umd.min.js?v=f205b88" defer></script>
+<script src="vendor/xlsx.full.min.js?v=f205b88" defer></script>
+<script src="heavy.js?v=f205b88"></script>
+<script src="roster-import.js?v=f205b88"></script>
+<script src="hx-roster.js?v=f205b88"></script>
+<script src="cloud.js?v=f205b88"></script>
+<script src="supabase-cloud.js?v=f205b88"></script>
 <dialog id="dlgPassword">
   <form method="dialog" class="dlg" id="passwordForm">
     <div class="dlg-head"><h3>修改密码</h3><button type="button" class="dlg-x" id="btnPasswordClose" aria-label="关闭">✕</button></div>
@@ -683,28 +683,28 @@
   </div>
 </dialog>
 <!-- 组内互评直接计分：把学生提交归成「落哪一格、落多少分」，leader-scoring.js / app.js 都用它（2026-11-10） -->
-<script src="peer-apply.js?v=4e47d58"></script>
-<script src="leader-scoring.js?v=4e47d58"></script>
-<script src="assessment.js?v=4e47d58"></script>
-<script src="ui-feedback.js?v=4e47d58"></script>
+<script src="peer-apply.js?v=f205b88"></script>
+<script src="leader-scoring.js?v=f205b88"></script>
+<script src="assessment.js?v=f205b88"></script>
+<script src="ui-feedback.js?v=f205b88"></script>
 <dialog id="dlgOperationLog" hidden></dialog>
-<script src="print-excel.js?v=4e47d58"></script>
-<script src="gradebook.js?v=4e47d58"></script>
+<script src="print-excel.js?v=f205b88"></script>
+<script src="gradebook.js?v=f205b88"></script>
 <!-- 学生只读查分：把「每人一份」的分数快照发布到云端，app.js 每次 save() 会叫它（2026-11-04） -->
-<script src="student-feed.js?v=4e47d58"></script>
-<script src="score-repair.js?v=4e47d58"></script>
+<script src="student-feed.js?v=f205b88"></script>
+<script src="score-repair.js?v=f205b88"></script>
 <!-- 排位误加分清洗（2026-11-13）：用户要求「修复老师或者学生互评的这一列误加的分」。
      判据是逐格来源标记 lesson.peerMeta[...]：排位列上标记不是 'wire' 的就是手填/互评混进来的。
      模块只算数据、不碰 DOM，入口在「本学期总分」页的「修复排位误加分」按钮上。 -->
-<script src="score-clean.js?v=4e47d58"></script>
+<script src="score-clean.js?v=f205b88"></script>
 <!-- 考勤自动同步（2026-11-13）：用户要求「考勤完成率和考勤工具卡实行同步切记」。
      后台每 5 分钟 / 切回前台时，把考勤工具已签到的记录写进本工具的课次考勤（只写 auto 标记的格子，
      不覆盖老师手改的）。 -->
-<script src="attendance-sync.js?v=4e47d58"></script>
-<script src="wire-task-link.js?v=4e47d58"></script>
+<script src="attendance-sync.js?v=f205b88"></script>
+<script src="wire-task-link.js?v=f205b88"></script>
 <script src="../ui-dialog.js"></script>
-<script src="app.js?v=4e47d58"></script>
-<script src="draw-person.js?v=4e47d58"></script>
-<script src="password-ui.js?v=4e47d58"></script>
+<script src="app.js?v=f205b88"></script>
+<script src="draw-person.js?v=f205b88"></script>
+<script src="password-ui.js?v=f205b88"></script>
 </body>
 </html>
