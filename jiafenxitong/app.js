@@ -2041,10 +2041,9 @@ function restoreDroppedToHome(cls) {
     $$('[data-leader-toggle]',host).forEach(function (el) {
       el.ondblclick=function(e){e.preventDefault();e.stopPropagation();var g=groupOf(cls,+el.dataset.g),m=g&&g.members[+el.dataset.memberIndex];if(g&&m)setGroupLeader(cls,g,m);};
     });
-    /* 2026-11-13 修「点别的列却弹出成绩明细」：本节完成率那一格（data-home-grade="sum"）
-       自己有悬浮明细面板（见 showSumDetail），不能再挂这个「截至第 N 次课完成率明细」弹窗，
-       否则两套明细互相抢、还会让人以为点错了列。这里只给后三列成绩挂弹窗。 */
-    $$('td.home-grade[data-home-grade]:not([data-home-grade="sum"])',host).forEach(function(cell){var person=$('[data-grade-student]',cell);if(!person)return;cell.tabIndex=0;cell.setAttribute('role','button');cell.setAttribute('aria-label',(cell.title||'')+'：查看分数明细');cell.onclick=function(){showStudentGrade(cls,person.dataset.gradeStudent,lesson);};cell.onkeydown=function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();cell.click();}};});
+    /* 2026-11-14 用户：「不用显示分数 只需要完成率」「点这边的区域也会弹窗 肯定不对 我都没要看详情啊」
+       → 后三列成绩（平时分/计入总评/期末需考）一律不再挂「完成率明细」弹窗，纯展示、不可点。 */
+
   }
 
   function showStudentGrade(cls,key,throughLesson){
@@ -2291,9 +2290,9 @@ function restoreDroppedToHome(cls) {
       var num = blank ? 0 : (Number(v) || 0);
       sumRaw += num; sumMax += 5;
       var isTask = TASK_COL.test(label);
+      /* 2026-11-14 用户：「不用显示分数 诸如5分 只需要完成率」→ 去掉「得分/5」那一列，只留完成率 */
       items.push('<span class="sumd-item' + (blank ? ' is-blank' : '') + (isTask ? ' is-task' : '') + '">' +
         '<b class="sumd-name">' + esc(label) + '</b>' +
-        '<span class="sumd-score">' + (blank ? '—' : fmt(num) + '/5') + '</span>' +
         '<span class="sumd-pct">' + (blank ? '—' : pctText(num / 5 * 100)) + '</span>' +
         '</span>');
     });
