@@ -428,7 +428,8 @@ table.book.detail td.dl-note .pill { margin-right: 6px; }
 /* ============================================================
    全班考核表（2026-11-13 学生端只读）：老师端「上课记分」考核表的只读版。
    按组分组、每人一行，列 = 组号/姓名/学号/平时分/计入总评/期末至少需考/项目完成率。
-   「我」那一行高亮且可点开「每节课完成率」明细，别人只读汇总。
+   「我」那一行淡绿高亮；2026-11-13 起**任何一行**都能点开「每节课完成率」明细
+   （用户原话：「学生端需要可查明细包括别的组的」），别人的明细走只读 RPC，标「只读 · 仅供查看」。
    ============================================================ */
 .class-board { border: 1px solid var(--line); }
 .cb-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
@@ -455,17 +456,30 @@ table.book.class-board td.cb-name { text-align: left; }
 table.book.class-board td.cb-no { color: var(--muted); font-variant-numeric: tabular-nums; }
 table.book.class-board td.cb-rate { font-weight: 700; font-variant-numeric: tabular-nums; }
 /* 「我」这一行：淡绿高亮 + 手型提示可点开 */
-table.book.class-board tr.cb-row.is-me { background: var(--ok-soft, #e8f6ef); cursor: pointer; }
+table.book.class-board tr.cb-row { cursor: pointer; }
+table.book.class-board tr.cb-row.is-me { background: var(--ok-soft, #e8f6ef); }
 table.book.class-board tr.cb-row.is-me td { border-color: var(--ok, #2f845a); }
 table.book.class-board tr.cb-row.is-me td.cb-name b { font-size: 13px; }
 table.book.class-board tr.cb-row.is-me .me-tag { margin-left: 6px; }
+/* 正在展开的那一行：淡蓝底，和「我」的淡绿区分开（2026-11-13 起任何人可以展开） */
+table.book.class-board tr.cb-row.is-open { background: #eef4ff; }
 /* 展开的「每节课完成率」明细行：默认收起 */
 table.book.class-board tr.cb-detail { display: none; }
 table.book.class-board tr.cb-detail.is-open { display: table-row; }
 table.book.class-board tr.cb-detail td { text-align: left; background: #f8fafd; }
 .cb-detail-inner { padding: 2px 4px; }
 .cb-d-head { font-size: 12px; font-weight: 700; color: var(--muted); margin-bottom: 6px; }
+.cb-d-head .cb-ro { margin-left: 8px; font-weight: 600; }
 .cb-d-list { display: flex; flex-wrap: wrap; gap: 6px 10px; }
+/* 别人的逐课明细：每节课一块（块头课次+本节完成率，块里逐项列出） */
+.cb-d-lesson { margin: 0 0 8px; }
+.cb-d-lh { font-size: 12px; color: var(--ink); margin-bottom: 4px; }
+.cb-d-lh b { font-variant-numeric: tabular-nums; }
+.cb-d-sum {
+  font-size: 12px; color: var(--muted); margin-top: 6px; padding-top: 8px;
+  border-top: 1px dashed var(--line); line-height: 1.9;
+}
+.cb-d-sum b { color: var(--ink); font-variant-numeric: tabular-nums; }
 .cb-d-item {
   display: inline-flex; align-items: baseline; gap: 6px;
   padding: 4px 10px; border-radius: 999px; background: #f0f4fb;

@@ -116,6 +116,10 @@
   /** 打开 <dialog>。极老的浏览器没有 showModal，退化成 open 属性，
       总比点按钮「什么都不发生」强。 */
   function openDlg(d) {
+    /* 悬浮窗互斥（2026-11-13）：所有弹窗都从这里开，所以清场只要写这一处 ——
+       打开前先把别的浮层全收掉，同一时刻只留一层。
+       #dlgAskConfirm 是模态确认框，要能叠在业务框上面弹，跳过它（见 closeAllFloats 注释）。 */
+    if (d && d.id && d.id !== 'dlgAskConfirm') closeAllFloats(d.id);
     if (typeof d.showModal === 'function') d.showModal();
     else d.setAttribute('open', '');
   }
@@ -1969,7 +1973,8 @@ function restoreDroppedToHome(cls) {
   }
 
   /** 某成员本节剩余可扣的项目分（5 分制）：5 − 手机未入袋次数 − 本人已扣分。
-      底层数据函数：undo/redo（applyEffect 的 point: 分支）、全组扣分（changeMemberPoints）都依赖它。 */
+      底层数据函数：undo/redo（applyEffect 的 point: 分支）依赖它。
+      （2026-11-13：原来还提到「全组扣分 changeMemberPoints」，那个函数随个人扣分入口一起删了。） */
   function remaining(lesson,gno,i){var s=sc(lesson,gno);return Math.max(0,5-(+s.phone||0)-(+s.personal[String(i)]||0));}
 
   function ctlClear(gno, compact) {
@@ -1995,6 +2000,11 @@ function restoreDroppedToHome(cls) {
       if(!slot){target.title='这里放不下加人控件，请到「待分配名单」页调整';return;}
       var box=document.createElement('div');box.className='group-pick-box';
       box.innerHTML='<span class="group-pick-count">本组 <b>'+memberCount(g)+'</b>/'+groupCap(g,cls)+' 人'+(Number(g.cap)?'（特许）':'')+'</span>'+
+        /* 2026-11-13 修「记分页『＋ 加人』入口点不开」（用户原话：「四个bug完成修复 abce」里的 C）：
+           这一格以前只有「－ 减人」，检索框 [data-pick-editor] 建出来就是 hidden，
+           全文件没有任何地方把它设回可见 —— 所以「＋ 加人」等于永远点不开。
+           现在补一颗「＋ 加人」：点它显示检索框并立刻按当前关键字搜一次。 */
+        '<button type="button" class="btn tiny" data-pick-add aria-label="第'+g.no+'组检索学号加人">＋ 加人</button>'+
         '<button type="button" class="btn tiny" data-pick-minus aria-label="第'+g.no+'组移出成员">－ 减人</button>'+
         '<div data-pick-editor hidden><input type="search" autocomplete="off" aria-label="第'+g.no+'组检索学号" placeholder="学号或后两位"><div class="group-pick-results" role="list"></div><button type="button" class="btn tiny" data-pick-exit>退出选人</button></div>'+
         '<div data-pick-members hidden></div>';
@@ -2018,13 +2028,16 @@ function restoreDroppedToHome(cls) {
           });
           if(!allowOver){ matches();return; }
         }
+        /* 可撤销：分组改动沿用全站分组快照（分组页「撤回上一次分组」能整份退回），
+           和 gbJoin / gbMoveTo 这些拖拽加人走同一条路；记分栈（pushUndo）只装分数，装不了人员变动。 */
+        gbSnapshot(cls,'把「'+r.name+'」加进第'+g.no+'组（记分页加人）');
         pushMember(g,{id:uid('m'),name:r.name,sid:r.sid||'',no:studentNo(cls,r.name,r.sid)});
         var reback=repairOrphansAfterAssign(cls);
         var over=memberCount(g)>capBefore;
         if(over)g.cap=memberCount(g);   // 老师刚确认过，这里才写「特许 N 人」
         addOperationLog('分组',cls.name+' · '+r.name+'加入第'+g.no+'组'+(over?'（特许 '+g.cap+' 人）':''));
         save();renderScore();renderPoolBanner(cls);
-        flash('已加入第'+g.no+'组'+(over?'，本组特许 '+g.cap+' 人':'')+'，分组已全局同步'+(reback?'，接回他名下历史分 '+reback+' 条':''));
+        flash('已加入第'+g.no+'组'+(over?'，本组特许 '+g.cap+' 人':'')+'，分组已全局同步'+(reback?'，接回他名下历史分 '+reback+' 条':'')+'（可在分组页撤回）');
       }
 
       function dropMember(i){
@@ -2052,6 +2065,14 @@ function restoreDroppedToHome(cls) {
       }
 
       box.onclick=function(e){e.stopPropagation();};
+      /* 「＋ 加人」= 打开检索框（C 的修复点：以前没有任何代码把 editor.hidden 设回 false）。
+         「－ 减人」反过来收起检索框、换成成员列表，两态互斥，同一格不会两个一起堆着。 */
+      box.querySelector('[data-pick-add]').onclick=function(e){
+        e.stopPropagation();
+        members.hidden=true;members.innerHTML='';
+        editor.hidden=false;input.value='';if(input.focus)input.focus();
+        matches();
+      };
       box.querySelector('[data-pick-minus]').onclick=function(){showRemoval();};
       input.oninput=matches;
       box.querySelector('[data-pick-exit]').onclick=function(){groupPicking=null;renderGroups(cls,lesson);};
@@ -2073,7 +2094,8 @@ function restoreDroppedToHome(cls) {
   }
 
   function showStudentGrade(cls,key,throughLesson){
-    closeSumDetail();   // 悬浮窗互斥（2026-11-13）：先收起「本节详情」浮层，同一时刻只留一个
+    /* 悬浮窗互斥（2026-11-13）：先收起「本节明细」等浮层，同一时刻只留一个 */
+    closeAllFloats('studentGradeDialog');
     var A=window.JFDT_ASSESSMENT,ls=(throughLesson?lessonsThrough(cls,throughLesson):lessonsOf(cls.id)).slice().sort(function(a,b){return a.seq-b.seq;}),student=A.rows(cls,ls,memberTotals(cls)).find(function(m){return m.key===key;});if(!student)return;
     var dialog=$('#studentGradeDialog');if(!dialog){dialog=document.createElement('dialog');dialog.id='studentGradeDialog';dialog.className='student-grade-dialog';document.body.appendChild(dialog);}
     var dutyPct=dutyPctText(ls,student.gno);
@@ -2334,6 +2356,39 @@ function restoreDroppedToHome(cls) {
     host.dataset.open = '';
   }
 
+  /* ================= 悬浮窗互斥（2026-11-13 补完） =================
+     用户原话：「悬浮窗互斥未做完　考勤分数点一下也会同时存在」。
+     上一轮只做了两处（明细 ↔ 学生成绩），漏了考勤框：点「考勤完成率」弹的是原生 <dialog>，
+     会压在「本节明细」浮层上面，两个同时存在。
+
+     统一规则一句话：**这一页同一时刻只允许一层浮层，谁要打开谁先清场**。
+     本页会叠加的浮层清点如下（都是 fixed/浮层，互相能同时看见）：
+       · #sumdHost            —— 记分表「本节完成率」的悬浮明细（div，不是 dialog）
+       · #dlgHomeAttendance   —— 考勤修改框（原生 dialog）
+       · #studentGradeDialog  —— 学生「平时分明细」框（动态创建的原生 dialog）
+       · #dlgMe               —— 我的/账号（侧栏头像）      · #dlgEditLesson —— 课次设置
+       · #dlgLesson / #dlgGroupReport / #dlgOperationLog / #dlgWirePub / #dlgDraw /
+         #dlgLessonPrint / #dlgDeleteGroup / #dlgPassword / #dlgAccountSwitch / #dlgSyncConflict
+     例外（故意不关）：
+       · #dlgAskConfirm —— 模态确认框。它可能从别的框里触发（如「确认分组」），
+         「确认框叠在业务框上」是合理的；它自己也从不调用清场，避免把底下的业务框一起关掉。
+         （它同样不会被别人关掉 —— 下面就跳过这个 id。）
+       · 上下级链路自己管：改密码 / 切换账号是从 #dlgMe 里点出来的，它们的打开点已经
+         显式 close 了 #dlgMe，这里按同一规则处理不会更差。 */
+  function closeAllFloats(exceptId) {
+    closeSumDetail();                       // 唯一不是 dialog 的浮层，单独收
+    var ids = ['dlgHomeAttendance', 'studentGradeDialog', 'dlgMe', 'dlgEditLesson',
+      'dlgLesson', 'dlgGroupReport', 'dlgOperationLog', 'dlgWirePub', 'dlgDraw',
+      'dlgLessonPrint', 'dlgDeleteGroup', 'dlgPassword', 'dlgAccountSwitch', 'dlgSyncConflict'];
+    ids.forEach(function (id) {
+      if (id === exceptId || id === 'dlgAskConfirm') return;
+      var d = document.getElementById(id);
+      if (!d || !d.hasAttribute('open')) return;
+      if (typeof d.close === 'function') d.close();
+      else d.removeAttribute('open');
+    });
+  }
+
   /* 悬浮窗定位（2026-11-13 用户：「需要悬浮窗形式 不然下面同学不方便直接看」）：
      原来是「在表格上方插一条面板、表格整体往下推」——投影时表格被挤走，坐在下面的同学就看不到表了。
      现在改成真正浮在页面上的一张小卡片：贴着点中的那一格下方弹出，空间不够就翻到上方，
@@ -2351,10 +2406,14 @@ function restoreDroppedToHome(cls) {
   }
 
   function showSumDetail(td) {
-    var gd = $('#studentGradeDialog');   // 悬浮窗互斥（2026-11-13）：先关「平时分详情」弹窗，再弹「本节详情」
-    if (gd && typeof gd.close === 'function' && gd.open) gd.close();
     var host = $('#sumdHost');
     if (!host) return;
+    /* 先把「原来开着的是不是这一格」记下来：closeAllFloats() 会清空 host.dataset.open，
+       不先记就会把「点同一格 = 收起」这个习惯弄丢（变成再点一次又重开）。 */
+    var prevSig = host.dataset.open, wasOpen = !host.hidden;
+    /* 悬浮窗互斥（2026-11-13）：本节明细也要「独占」——
+       先收起别的浮层（学生成绩框 / 考勤框 / 我的 / 课次设置…），同一时刻只留这一个。 */
+    closeAllFloats('');
     var gno = Number(td.dataset.sumG), i = Number(td.dataset.sumI);
     if (!(gno >= 1) || !(i >= 0)) return;
     var cls = curClass(), lesson = curLesson(cls);
@@ -2362,9 +2421,9 @@ function restoreDroppedToHome(cls) {
     var g = groupOf(cls, gno);
     var member = g && g.members && g.members[i];
     if (!member || !member.name) return;
-    /* 点同一格 = 收起 */
+    /* 点同一格 = 收起（closeAllFloats 已经把它收掉了，这里直接返回就是「关」） */
     var sig = lesson.id + '|' + gno + '|' + i;
-    if (host.dataset.open === sig && !host.hidden) { closeSumDetail(); return; }
+    if (wasOpen && prevSig === sig) { closeSumDetail(); return; }
     host.innerHTML = sumDetailHtml(cls, lesson, gno, member, i);
     host.hidden = false;
     host.dataset.open = sig;
@@ -2418,13 +2477,10 @@ function restoreDroppedToHome(cls) {
     var gno = +btn.dataset.g;
     var s = sc(lesson, gno);
     var act = btn.dataset.act;
-    if (act === 'pr' || act === 'pz') {
-      var chip = btn.parentElement.querySelector('.pchip');
-      if (act === 'pr') bumpPersonal(cls, lesson, chip, -1);
-      else setPersonal(cls, lesson, chip, 0);
-      return;
-    }
-
+    /* 2026-11-13 清理（用户原话：「四个bug完成修复 abce」里的 E）：
+       记分卡片模板早已不再输出 .pchip（data-act="p" / "pr" / "pz"），
+       这里原来还留着读 .pchip 的三个分支，属于点了也不会发生的死代码，删掉。
+       记分口径现在是「项目完成率（wire-task 项目列）＋ 组内互评」，不恢复个人扣分按钮。 */
     if (act === 'first') {
       var oldF = s.first ? 1 : 0, newF = oldF ? 0 : 1;
       s.first = newF;
@@ -2438,10 +2494,6 @@ function restoreDroppedToHome(cls) {
       if (newV === oldV) { refreshCard(cls, lesson, gno); return; }   // 已经到顶/到底，不必记一笔
       s[f] = newV;
       pushUndo({ lessonId: lesson.id, gno: gno, f: f, old: oldV, neu: newV });
-    } else if (act === 'p') {
-      if (longPressFired) { longPressFired = false; return; }   // 刚长按减过，别再 +1
-      bumpPersonal(cls, lesson, btn, +1);
-      return;
     }
     save();
     refreshCard(cls, lesson, gno);
@@ -2449,45 +2501,6 @@ function restoreDroppedToHome(cls) {
     if (act === 'first') scoreFeedback(gno, 'first', null, newF - oldF);
     else if (act === 'i' || act === 'd') scoreFeedback(gno, f, null, (f === 'phone' ? -1 : 1) * (newV - oldV));
   });
-
-  /** 个人扣分走这里，±1 和归零都记录、都可撤销。
-      纸质表上「犯几次写几次」，所以不封 5，只封 99 防手滑。
-      label 可由调用方指定（比如「值日缺勤」按钮），只影响撤销/日志的显示文案。 */
-  function changeMemberPoints(cls,lesson,gno,index,delta,label){var s=sc(lesson,gno),old=JSON.parse(JSON.stringify(s)),g=groupOf(cls,gno),base=5,values=g.members.map(function(_,i){return remaining(lesson,gno,i);});s.phone=0;g.members.forEach(function(m,i){if(!m.name)return;var value=values[i];if(index===null||String(i)===String(index))value=Math.max(0,Math.min(base,value+delta));s.personal[String(i)]=base-value;});if(JSON.stringify(old)===JSON.stringify(s))return;pushUndo({lessonId:lesson.id,gno:gno,reset:true,old:old,label:label||(index===null?'全组扣分：全组每人本节项目分 −20%':'成员'+(+index+1)+'本节项目分调整')});save();refreshCard(cls,lesson,gno);renderMetrics(cls,lesson);}
-  function bumpPersonal(cls, lesson, chip, delta) {
-    var gno = +chip.dataset.g, i = String(chip.dataset.i);
-    var s = sc(lesson, gno);
-    if(+s.phone>0){changeMemberPoints(cls,lesson,gno,i,-delta);return;}
-    var old = +s.personal[i] || 0;
-    var neu = clamp(old + delta, 0, 5);
-    if (neu === old) return;
-    s.personal[i] = neu;
-    pushUndo({
-      lessonId: lesson.id, gno: gno, i: i, old: old, neu: neu,
-      name: memberName(cls, gno, +i)
-    });
-    save();
-    refreshCard(cls, lesson, gno);
-    renderMetrics(cls, lesson);
-    scoreFeedback(gno, null, i, old - neu);
-  }
-
-  /** 直接把某个成员的个人扣分设成指定值（双击归零用） */
-  function setPersonal(cls, lesson, chip, val) {
-    var gno = +chip.dataset.g, i = String(chip.dataset.i);
-    var s = sc(lesson, gno);
-    var old = +s.personal[i] || 0;
-    if (old === val) return;
-    s.personal[i] = val;
-    pushUndo({
-      lessonId: lesson.id, gno: gno, i: i, old: old, neu: val,
-      name: memberName(cls, gno, +i)
-    });
-    save();
-    refreshCard(cls, lesson, gno);
-    renderMetrics(cls, lesson);
-    scoreFeedback(gno, null, i, old - val);
-  }
 
   function memberName(cls, gno, i) {
     var g = groupOf(cls, gno);
@@ -2525,37 +2538,10 @@ function restoreDroppedToHome(cls) {
     clearGroup(cls, lesson, +b.dataset.cleargroup);
   });
 
-  /* 个人扣分：右键 / 长按 = 往回减 1 */
-  var longPressFired = false, longPressTimer = null;
-
-  function lpStop() { clearTimeout(longPressTimer); longPressTimer = null; }
-
-  $('#groupList').addEventListener('contextmenu', function (e) {
-    var chip = e.target.closest('.pchip');
-    if (!chip) return;
-    e.preventDefault();
-    var cls = curClass(), lesson = curLesson(cls);
-    if (!cls || !lesson) return;
-    bumpPersonal(cls, lesson, chip, -1);
-  });
-
-  $('#groupList').addEventListener('touchstart', function (e) {
-    var chip = e.target.closest('.pchip');
-    if (!chip) return;
-    lpStop();
-    longPressFired = false;
-    longPressTimer = setTimeout(function () {
-      longPressFired = true;
-      var cls = curClass(), lesson = curLesson(cls);
-      if (cls && lesson) bumpPersonal(cls, lesson, chip, -1);
-      /* 长按松手后浏览器还会补一个 click，得吃掉它 */
-      setTimeout(function () { longPressFired = false; }, 900);
-    }, 550);
-  }, { passive: true });
-
-  ['touchend', 'touchmove', 'touchcancel'].forEach(function (t) {
-    $('#groupList').addEventListener(t, lpStop, { passive: true });
-  });
+  /* 2026-11-13 清理（E）：这里原来是「个人扣分：右键 / 长按 = 往回减 1」的监听 +
+     550ms 长按定时器。记分卡片模板已不再渲染 .pchip，这两个监听永远命中不了任何元素，
+     连同 longPressFired / lpStop 一起删掉（bumpPersonal 也一并删除）。
+     同一段里别的点击分支不受影响：清零按钮走上面 data-cleargroup、输入框走下面的 change 委托。 */
 
   /* 清零使用明确按钮，避免连续两次扣分被浏览器dblclick误判为清零。 */
 
@@ -3751,39 +3737,72 @@ function restoreDroppedToHome(cls) {
   /** 看板顶部那颗常驻的「✓ 确认分组」：
       有已选座待确认的人 → 走「按选座确认分组」；
       没有 → 压缩空组 + 重排组号 + 把未分组的人平均填进去（2026-11-13 三合一：
-      原来的「压缩空组并重排组号」「把未分组的人平均填进去」两个独立按钮删掉，都并进这里）。 */
+      原来的「压缩空组并重排组号」「把未分组的人平均填进去」两个独立按钮删掉，都并进这里）。
+
+      2026-11-13 傍晚返修（用户原话：「四个bug完成修复 abce」——A 和 B 是同一个函数）：
+      · A（漏人）：旧代码先按「压缩前」的 cls.groups 算 room，再调 compressEmptyGroups 删空组。
+        压缩会删掉空组对象并把组号重排，room 里存的还是那些已被删掉的 g（孤儿对象），
+        pushMember 写进去等于白写 —— 实测 4 组（2 组各 3 人 + 2 组空）/ 10 人待分配，
+        点完确认只剩 2 组、10 个人一个组都没进。**现在空位一律在压缩之后按 cls.groups 现算**，
+        room 里不缓存任何组对象引用。
+      · B（组全空时罢工）：compressEmptyGroups 在「一个组都不剩」时返回 false，
+        语义是「没有可清理的空组」而不是出错；旧代码把它当错误直接 return，
+        于是「新建班 / 分 9 组 / 47 人全待分配」点确认分组一个学生都不填。
+        现在组全空时**保留全部组、只把组号重排成 1..N**，然后照常平均填人。 */
   function gbConfirmGroups(cls) {
     if (!cls) return;
     var pend = (gbRows || []).filter(function (x) { return x.g === null && !!x.table; });
     if (pend.length) { tmApplySeating(); return; }
-    var empties = (cls.groups || []).filter(function (g) { return memberCount(g) === 0; });
+    var all = cls.groups || [];
+    if (!all.length) { flash('这个班还没有组：先在上面「分几组」里填个数字'); return; }
+    var empties = all.filter(function (g) { return memberCount(g) === 0; });
+    var allEmpty = empties.length === all.length;      // 一个能留的组都没有
     var pending = truePendingList(cls);
     if (!empties.length && !pending.length) {
-      flash((cls.groups || []).length
-        ? '现在没有空组、也没有未分组的人，组号已经是连续的 1–' + groupCountOf(cls) + '，不用再整理'
-        : '这个班还没有组：先在上面「分几组」里填个数字');
+      flash('现在没有空组、也没有未分组的人，组号已经是连续的 1–' + groupCountOf(cls) + '，不用再整理');
       return;
     }
-    /* 组号重复：压缩一定中止，别让老师点完确认才被告知，直接说清原因 */
-    if (compressBlockedByDup(cls)) { flash(dupCompressMsg()); return; }
-
-    /* 平均填：先算现有组还能塞多少人，塞不下就别让老师白点确认 */
-    var fillOk = true, room = null;
-    if (pending.length) {
-      room = cls.groups.map(function (g) {
-        return { g: g, left: groupTargetCap(cls, g) - memberCount(g) };
-      });
-      var totalRoom = room.reduce(function (a, x) { return a + Math.max(0, x.left); }, 0);
-      if (totalRoom < pending.length) {
-        flash('现有小组空位不够：空位 ' + totalRoom + ' 个，未分组 ' + pending.length +
-          ' 人。请先把每组上限调大，再点「确认分组」。');
-        return;
-      }
+    if (allEmpty && !pending.length) {
+      flash('这 ' + all.length + ' 个组都还空着，也没有未分组的人：先把学生名单导进来，或把他们拖进组');
+      return;
     }
+    /* 组号重复：压缩/重排一定中止，别让老师点完确认才被告知。
+       组全空时要拿「全部组」判重（默认只判有人的组，全空时那份是空表，永远判不出重复）。 */
+    if (compressBlockedByDup(cls, allEmpty ? sortGroupsByNo(all) : null)) { flash(dupCompressMsg()); return; }
 
+    /* 「压缩之后还剩哪些组、一共多少空位」先预演一遍（只算，不改任何数据）。
+       注意 roomsOf 每次都现取 memberCount / groupTargetCap，不缓存 g 以外的旧状态。 */
+    function roomsOf(list) {
+      return list.map(function (g) {
+        return { g: g, left: Math.max(0, groupTargetCap(cls, g) - memberCount(g)) };
+      });
+    }
+    function roomSum(list) {
+      return roomsOf(list).reduce(function (a, x) { return a + x.left; }, 0);
+    }
+    var keep = allEmpty
+      ? sortGroupsByNo(all)                                        // 组全空：保留全部组
+      : sortGroupsByNo(all.filter(function (g) { return memberCount(g) > 0; }));
+    var totalRoom = roomSum(keep);
+    /* 空位不够时先别急着删空组：刚才打算删掉的那些空组还能装人，删了就真装不下了。
+       例：2 组各 3 人 + 2 组空 / 每组上限 5 / 10 人待分配 → 压缩后只剩 4 个空位，
+       保留 4 组则有 14 个空位，10 个人全都放得下。 */
+    if (pending.length && totalRoom < pending.length && !allEmpty && empties.length) {
+      keep = sortGroupsByNo(all);
+      totalRoom = roomSum(keep);
+    }
+    if (pending.length && totalRoom < pending.length) {
+      flash('现有小组空位不够：空位 ' + totalRoom + ' 个，未分组 ' + pending.length +
+        ' 人。请先把每组上限调大，再点「确认分组」。');
+      return;
+    }
+    var compressCount = all.length - keep.length;
+    var needRenumber = keep.some(function (g, i) { return Number(g.no) !== i + 1; });
     var limit = classGroupLimit(cls) || GROUP_CAP;
+
     askConfirm('确认分组？\n\n' +
-      (empties.length ? '· 有 ' + empties.length + ' 个组一个人都没有，会先删掉\n' : '') +
+      (compressCount ? '· 有 ' + compressCount + ' 个组一个人都没有，会先删掉\n'
+        : (allEmpty ? '· ' + all.length + ' 个组都还空着，保留组数、组号排成 1–' + all.length + '\n' : '')) +
       '· 剩下的组按组号重排成 1、2、3…（连续没有空号）\n' +
       (pending.length ? '· ' + pending.length + ' 名未分组的人按班内序号轮流填进各组（每组不超过 ' + limit + ' 人）\n' : '') +
       '· 记过的分按学生身份跟着人走，不会丢；小组四列分跟着它那一组一起搬家\n\n' +
@@ -3793,11 +3812,19 @@ function restoreDroppedToHome(cls) {
         if (!ok) return;
         var beforeF = JSON.parse(JSON.stringify(cls.groups));
         pushGroupSnapshot(cls, '确认分组（压缩空组 + 重排 + 平均填）');
-        var info = empties.length ? compressEmptyGroups(cls, '手动确认分组') : null;
-        if (info === false) { flash('没有可清理的空组'); return; }
-        /* 压缩空组之后，把未分组的人平均填进现有组的空位（不新建组） */
-        if (pending.length && room) {
-          var i = 0, done = 0;
+        var info = null;
+        if (compressCount || needRenumber) {
+          /* 走压缩/重排的统一内核：删 compressCount 个空组 + 组号排成 1..N + 分数行跟着组号走。
+             组全空时 compressCount = 0，等于「只重排组号」，不会再被当成错误拦下来。 */
+          info = applyCompress(cls, keep, compressCount, '手动确认分组');
+          if (info === false) { flash('这个班有重复组号，这次什么都没改'); return; }
+        }
+        var done = 0;
+        if (pending.length) {
+          /* A 的根因就在这一行：空位必须**压缩之后**按 cls.groups 现算，
+             不能拿压缩前那份 room（里面存的 g 可能已经被删掉了）。 */
+          var room = roomsOf(cls.groups || []);
+          var i = 0;
           pending.forEach(function (r) {
             for (var k = 0; k < room.length; k++) {
               var idx = (i + k) % room.length;
@@ -3813,9 +3840,8 @@ function restoreDroppedToHome(cls) {
           var reback = repairOrphansAfterAssign(cls);
           addOperationLog('分组', cls.name + ' · 确认分组：平均填 ' + done + ' 人' + (reback ? '（接回历史分 ' + reback + ' 条）' : ''));
         }
-        var removed = info ? info.removed : 0;
-        gbCommit(cls, '已确认分组' + (removed ? '：清掉 ' + removed + ' 个空组' : '') +
-          (pending.length ? '，平均填 ' + pending.length + ' 人' : '') +
+        gbCommit(cls, '已确认分组' + (compressCount ? '：清掉 ' + compressCount + ' 个空组' : '') +
+          (pending.length ? '，平均填 ' + done + ' 人' : '') +
           '，剩 ' + groupCountOf(cls) + ' 组');
         if (info) reportScoreMigration({ personal: info.unmatched, leader: info.leader });
         reportGroupChange(cls, beforeF, '确认分组');
@@ -5317,7 +5343,7 @@ function restoreDroppedToHome(cls) {
         cls.groups = cls.groups.filter(function (g) { return g.no !== no; });
         S.lessons.forEach(function (l) { if (l.classId === cls.id) delete l.scores[String(no)]; });
         save(); renderRoster();
-        });dialog.showModal();
+        });openDlg(dialog);   // 走统一入口：打开前先把别的浮层收掉（悬浮窗互斥）
       });
     });
   }

@@ -25,6 +25,9 @@ const B = {
      这不是 bug，是竞争机制，所以大屏要主动说出来：谁被超了、谁反超了。 */
   ratePrev: {},   // student_id → 上一轮的完成率
   moves: [],      // [{sid,name,from,to,up}] 本轮掉档/升档的人
+  /* 上一轮画出来的完成率（2026-11-13）：Apple 环「长一截」的起点。
+     没有它就只能在 0 → N 之间长，换人完成那种 55% → 64% 的小跳会看不出来。 */
+  pctPrev: null,
 };
 const $ = s => document.querySelector(s);
 const root = $('#bdRoot');
@@ -166,8 +169,14 @@ function paint(b) {
   // 是否第一屏：第一屏播入场动画，之后重绘只保留「新完成那一个」的高亮（见 task.css 的 body.no-anim）
   const firstPaint = !B.painted;
   B.painted = true;
-  // 进度环：周长 = 2πr，r=44 → 276.46
-  const C = 2 * Math.PI * 44, off = C * (1 - pct / 100);
+  /* 进度环（2026-11-13 重构成 Apple 健身环）：
+     r=42、环宽 13 → 周长 = 2πr ≈ 263.89；外沿 48.5 不出 100 的 viewBox，内径 35.5 留给百分比。
+     渐变写在下面 <defs> 里：r=42 用 CSS 的 stroke: url(#ringGrad) 喂给 .val，
+     SVG 没有原生 conic 渐变，这里用「青绿 → 亮绿 → 薄荷」的四段 linearGradient 近似（不彩虹）。 */
+  const C = 2 * Math.PI * 42;
+  const offAt = p => (C * (1 - p / 100)).toFixed(1);
+  // 本轮从上一轮的值起跑：首次进来直接落在目标值，之后每轮长一截（.7s，缓动在 CSS 里）
+  const pctFrom = B.pctPrev == null ? pct : B.pctPrev;
 
   root.innerHTML = `
   <header class="bd-top">
@@ -185,9 +194,29 @@ function paint(b) {
     <div class="bd-stat">
       <div class="ring">
         <svg viewBox="0 0 100 100" aria-hidden="true">
-          <circle class="trk" cx="50" cy="50" r="44" fill="none" stroke-width="9"/>
-          <circle class="val" cx="50" cy="50" r="44" fill="none" stroke-width="9"
-                  stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}"/>
+          <defs>
+            <linearGradient id="ringGrad" x1=".1" y1=".92" x2=".86" y2=".12">
+              <stop offset="0" stop-color="#0fae9e"/>
+              <stop offset=".4" stop-color="#19c98a"/>
+              <stop offset=".75" stop-color="#34d399"/>
+              <stop offset="1" stop-color="#a7f3d0"/>
+            </linearGradient>
+            <linearGradient id="ringGradHi" x1=".1" y1=".92" x2=".86" y2=".12">
+              <stop offset="0" stop-color="#ffffff" stop-opacity="0"/>
+              <stop offset=".55" stop-color="#ffffff" stop-opacity=".5"/>
+              <stop offset="1" stop-color="#ffffff" stop-opacity=".85"/>
+            </linearGradient>
+          </defs>
+          <circle class="trk" cx="50" cy="50" r="42" fill="none"/>
+          <circle class="trk-in" cx="50" cy="50" r="42" fill="none"/>
+          <circle class="val" cx="50" cy="50" r="42" fill="none"
+                  stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${offAt(pctFrom)}"/>
+          <circle class="val-hi" cx="50" cy="50" r="42" fill="none"
+                  stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${offAt(pctFrom)}"/>
+          <g class="capg" style="transform:rotate(${(pctFrom * 3.6).toFixed(1)}deg);opacity:${pctFrom > 0 ? 1 : 0}">
+            <circle class="cap-halo" cx="92" cy="50" r="5.2"/>
+            <circle class="cap" cx="92" cy="50" r="2.7"/>
+          </g>
         </svg>
         <div class="txt"><b>${pct}%</b><em>完成率</em></div>
       </div>
@@ -239,6 +268,20 @@ function paint(b) {
     <span>赋分：前 10 名 100% · 11–20 名 80% · 其余已完成 70%</span>
   </footer>
 `;
+
+  /* 环「长一截」的驱动：新节点插入时还停在上一轮的 dashoffset，下一帧（双 rAF，保证中间真的画过一帧
+     浏览器才会认为「值变了」）再改成本轮的值 —— 这样 CSS 的 .7s 过渡才会真的跑起来。
+     直接一次写成本轮值就没有起始值可比，会变成硬跳（上一版就是这样，换人完成时环是闪一下不是长一截）。 */
+  const ringVals = root.querySelectorAll('.ring .val, .ring .val-hi');
+  const ringCap = root.querySelector('.ring .capg');
+  if (pctFrom !== pct) {
+    const toOff = offAt(pct), toRot = (pct * 3.6).toFixed(1), toOp = pct > 0 ? '1' : '0';
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      ringVals.forEach(el => { el.style.strokeDashoffset = toOff; });
+      if (ringCap) { ringCap.style.transform = `rotate(${toRot}deg)`; ringCap.style.opacity = toOp; }
+    }));
+  }
+  B.pctPrev = pct;
 
   // 返回「上一级」= 接线仿真主页（/wiring-lab/），不是浏览器上一页、也不是首页
   const bdBack = $('#bdBack'); if (bdBack) bdBack.onclick = () => location.href = HOME;

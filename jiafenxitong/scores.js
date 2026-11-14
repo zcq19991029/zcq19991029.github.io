@@ -23,7 +23,11 @@
 
   var D = null;            // 最近一次快照
   var CLASS = null;        // 全班考核表（jf_class_scores 返回的摘要，含别人汇总数字）
-  var boardOpen = '';      // 考核表里当前展开「每课完成率」的那一行（只可能是自己）
+  /* 考核表里当前展开「每节课完成率」的那一行。
+     2026-11-13 用户原话：「学生端需要可查明细包括别的组的」—— 从「只可能是自己」放开成任意一行，
+     别人的明细按需向 jf_class_student_detail(p_key) 拉一次，缓存进 detailCache。 */
+  var boardOpen = '';
+  var detailCache = Object.create(null);   // key -> { state:'loading'|'ok'|'err', data, msg }
   var timer = null;
   var fatal = null;        // no_login / not_student / no_data / error
 
@@ -636,6 +640,71 @@
     return '<div class="cb-d-head">我的每节课完成率</div><div class="cb-d-list">' + items + '</div>';
   }
 
+  /* 别人的明细（2026-11-13 新增，用户原话：「学生端需要可查明细包括别的组的」）：
+     jf_class_scores() 出于体积和隐私考虑不下发别人的 lessons，所以这里按需再调一次
+     jf_class_student_detail(p_key)（迁移文件 supabase/2026-11-13-学生查他人明细.sql）。
+     返回结构和 jf_my_scores 的 lessons 基本一致，但只含这名学生自己的数据，别组/别人的一律不给。
+     ⚠ 这里只渲染，不提供任何点击修改的入口 —— 明细面板明确标「只读 · 仅供查看」。 */
+  function classBoardDetailOf(key) {
+    var c = detailCache[key];
+    if (!c || c.state === 'loading') return '<p class="note">正在读取这位同学的逐课明细…</p>';
+    if (c.state === 'err') {
+      return '<p class="note">读不到这位同学的明细' + (c.msg ? '：' + esc(c.msg) : '') +
+        '。点右上角「刷新」再试；一直不行就找老师。</p>';
+    }
+    var d = c.data || {}, ls = d.lessons || [], t = d.total || {}, stu = d.student || {};
+    var head = '<div class="cb-d-head">' + esc(stu.name || '') + ' · 每节课完成率' +
+      '<span class="cb-ro">只读 · 仅供查看</span></div>';
+    if (!ls.length) return head + '<p class="note">这位同学还没有课次记录。</p>';
+    /* 每节课一块：块头是课次 + 本节完成率，块里把这一课每个项目竖着列出来（项目名 + 完成率）。
+       和「我」那边的明细口径一致，只是数据来自另一个只读函数。 */
+    var blocks = ls.slice().reverse().map(function (l) {
+      var projs = (l.projects || []).map(function (p) {
+        return '<span class="cb-d-item"><b>' + esc(p.n || '') + '</b>' +
+          (p.s === null || p.s === undefined ? '<span class="wait">未填</span>' : '<b>' + pct(Number(p.s) / 5 * 100) + '</b>') +
+          '</span>';
+      }).join('');
+      return '<div class="cb-d-lesson">' +
+        '<div class="cb-d-lh">' + esc(lessonLabel(l)) + ' · 本节完成率 <b>' + pct(l.pct) + '</b></div>' +
+        '<div class="cb-d-list">' + (projs || '<span class="cb-d-item"><span class="wait">本节没有命名项目</span></span>') + '</div>' +
+        '</div>';
+    }).join('');
+    var dutyRate = t.duty === null || t.duty === undefined ? null : Number(t.duty) / 5 * 100;
+    var need = t.failed ? '考勤挂科'
+      : (t.needed === null || t.needed === undefined ? '—' : (t.needed > 100 ? '已超 100' : num(t.needed)));
+    var sum = '<div class="cb-d-sum">' +
+      '项目完成率 <b>' + pct(t.taskRate) + '</b> · ' +
+      '值日完成率 <b>' + pct(dutyRate) + '</b> · ' +
+      '考勤完成率 <b>' + pct(t.attRate) + '</b> · ' +
+      '平时分 <b>' + num(t.regular) + '</b>/100 · ' +
+      '计入总评 <b>' + num(t.contribution) + '</b>/40 · ' +
+      '期末至少需考 <b>' + need + '</b>' +
+      '</div>';
+    return head + blocks + sum;
+  }
+
+  /* 拉某个同学的逐课明细（只读）。失败不弹窗、不打断整页，就在展开处写一句原因。 */
+  function loadStudentDetail(key) {
+    if (!key || detailCache[key]) return;
+    detailCache[key] = { state: 'loading' };
+    rpc('jf_class_student_detail', { p_key: key }).then(function (res) {
+      if (!res || res.reason) {
+        detailCache[key] = {
+          state: 'err',
+          msg: res && res.reason === 'not_found' ? '这位同学已不在本班名单里' :
+            res && res.reason === 'not_student' ? '当前账号不是学生身份' : ''
+        };
+        paint();
+        return;
+      }
+      detailCache[key] = { state: 'ok', data: res };
+      paint();
+    }).catch(function (err) {
+      detailCache[key] = { state: 'err', msg: (err && err.message) || '' };
+      paint();
+    });
+  }
+
   function renderClassBoard() {
     if (!CLASS || !Array.isArray(CLASS.students) || !CLASS.students.length) return '';
     var meKey = CLASS.me && CLASS.me.key;
@@ -656,8 +725,8 @@
           : s.needed === null || s.needed === undefined ? '—'
           : s.needed > 100 ? '<span class="pill warn">已超 100</span>'
           : num(s.needed);
-        rows += '<tr class="cb-row' + (isMe ? ' is-me' : '') + '" data-board-key="' + esc(s.key || '') + '"' +
-          (isMe ? ' title="点我展开每节课完成率"' : '') + '>' +
+        rows += '<tr class="cb-row' + (isMe ? ' is-me' : '') + (boardOpen === s.key ? ' is-open' : '') + '" data-board-key="' + esc(s.key || '') + '"' +
+          ' title="点我展开每节课完成率（只读）">' +
           '<td class="cb-gno"><span class="cb-swatch" style="background:hsl(' + hue + ',70%,92%);color:hsl(' + hue + ',62%,38%)">' + esc(gno) + '</span></td>' +
           '<td class="nm cb-name"><b>' + esc(s.name) + '</b>' + (isMe ? '<span class="me-tag">我</span>' : '') + '</td>' +
           '<td class="cb-no">' + esc(s.no || '') + '</td>' +
@@ -666,9 +735,12 @@
           '<td>' + need + '</td>' +
           '<td class="cb-rate">' + (s.task_rate === null || s.task_rate === undefined ? '—' : num(s.task_rate) + '%') + '</td>' +
           '</tr>';
-        if (isMe) {
-          rows += '<tr class="cb-detail' + (boardOpen === s.key ? ' is-open' : '') + '" data-board-detail="' + esc(s.key || '') + '">' +
-            '<td colspan="7"><div class="cb-detail-inner">' + classBoardDetail() + '</div></td></tr>';
+        /* 任意一行都能展开：自己的用本机已有的 D.lessons，别人的按需拉只读明细 */
+        if (boardOpen === s.key) {
+          rows += '<tr class="cb-detail is-open" data-board-detail="' + esc(s.key || '') + '">' +
+            '<td colspan="7"><div class="cb-detail-inner">' +
+            (isMe ? classBoardDetail() : classBoardDetailOf(s.key)) +
+            '</div></td></tr>';
         }
       });
     });
@@ -681,8 +753,8 @@
       '<th>组</th><th class="nm">姓名</th><th>学号</th><th>平时分</th><th>计入总评</th><th>期末至少需考</th><th>项目完成率</th>' +
       '</tr></thead><tbody>' + rows + '</tbody></table></div>' +
       '<p class="note">全班各组的平时分 / 计入总评 / 期末至少需考 / 项目完成率，只读、不能加减分。' +
-      '点<b>你自己</b>那一行可以展开「每节课完成率」明细；别人的行只显示汇总（每课明细只有本人和老师看得到）。' +
-      '老师那边一存分，点右上角「刷新」就能看到最新。</p></div>';
+      '点任意一行（包括别的组）都能展开「每节课完成率」明细，每节课里再列各项目的完成率；' +
+      '这些明细同样只能看，改不了。老师那边一存分，点右上角「刷新」就能看到最新。</p></div>';
   }
 
   /* 本学期总分（2026-11-13 合并页签后成了整页的第一张卡）：
@@ -845,7 +917,10 @@
     return rpc('jf_class_scores', {}).then(function (res) {
       if (!res || res.reason) { CLASS = null; paint(); return; }
       CLASS = res;
+      /* 明细缓存跟着作废（老师可能刚改过分）：当前展开的那一行重新拉一次 */
+      detailCache = Object.create(null);
       paint();
+      if (boardOpen && boardOpen !== (CLASS.me && CLASS.me.key)) loadStudentDetail(boardOpen);
     }).catch(function () { CLASS = null; });
   }
 
@@ -909,14 +984,18 @@
     });
   });
 
-  /* 全班考核表（只读）：点「刷新」重拉一次；点「我」那一行展开/收起每节课完成率。
-     别人的行没有 .is-me，也就没有明细可点。 */
+  /* 全班考核表（只读）：点「刷新」重拉一次；点任意一行展开/收起「每节课完成率」。
+     2026-11-13 用户原话「学生端需要可查明细包括别的组的」—— 原来只允许点「我」那一行，
+     现在任何一行都能点；别人的明细按需走 loadStudentDetail()（只读 RPC），不会一次全拉下来。 */
   document.addEventListener('click', function (e) {
     if (e.target.closest && e.target.closest('#cbRefresh')) { loadClassBoard(); return; }
-    var row = e.target.closest && e.target.closest('tr.cb-row.is-me');
+    var row = e.target.closest && e.target.closest('tr.cb-row');
     if (!row || !row.closest('#view')) return;
     var key = row.dataset.boardKey;
-    boardOpen = (boardOpen === key) ? '' : key;
+    if (!key) return;
+    if (boardOpen === key) { boardOpen = ''; paint(); return; }   // 点同一行 = 收起
+    boardOpen = key;
+    if (key !== (CLASS && CLASS.me && CLASS.me.key)) loadStudentDetail(key);
     paint();
   });
 

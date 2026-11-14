@@ -190,6 +190,12 @@ table.tbl tr.r2 td { background: color-mix(in srgb, var(--acc) 8%, transparent);
    大屏（投影）：1920×1080 一屏放下，整页不滚动
    ========================================================================== */
 body.board { height: 100dvh; overflow: hidden; display: flex; flex-direction: column; }
+/* 2026-11-13 修「大屏下半屏一片黑」：body.board 是纵向 flex，但真正的直接子元素是 #bdRoot，
+   它高度按内容自适应，于是 .bd-main 的 flex:1 在一个没有确定高度的父容器里等于没生效，
+   名单和页脚只占上半屏、1800 多像素的投影上下面留一大块黑。
+   #bdRoot 补成 flex 纵向 + flex:1 + min-height:0，整页才真正撑满一屏。 */
+#bdRoot { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+#bdRoot > .bd-gate { flex: 1; display: grid; place-items: center; }
 body.board::before {
   background:
     radial-gradient(30vmax 26vmax at 8% -6%, color-mix(in srgb, var(--acc) 26%, transparent), transparent 70%),
@@ -213,29 +219,45 @@ body.board::before {
 }
 .bd-back:hover { color: var(--ink); border-color: var(--acc); }
 .bd-stat { flex: none; display: flex; align-items: center; gap: 2vmin; }
+/* ---------------- 完成率圆盘：Apple 健身环（2026-11-13 重构） ----------------
+   用户原话：「完成率圆盘 → 加了流光光带（conic-gradient 遮罩扣环），极简模式下自动关闭太丑需要重构
+              要跟 apple 健身环一样」
+   上一版的做法是 .ring::after 转一条 conic-gradient 扫光 + mask 扣环。问题是「质感全靠那层光」，
+   极简模式一关，环就退回成一根细灰线 + 一根细绿线，看着像坏了 —— 用户骂的就是这一点。
+   这一版把质感做进**环本身**（粗环 / 青绿→亮绿渐变 / 端点高光 / 柔和外发光 / 凹陷轨道），
+   全是静态视觉，和动画无关。于是「极简 / 减动画」只需要关 transition，环永远完整。
+   尺寸：r=42 + stroke=13 → 外沿 48.5 未出 100 的 viewBox（不裁边），内径 35.5 留白够放百分比。 */
 .ring { position: relative; width: 15vmin; height: 15vmin; flex: none; }
-.ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
-.ring .trk { stroke: rgba(130, 150, 210, .3); }
-.ring .val { stroke: var(--ok); stroke-linecap: round; transition: stroke-dashoffset .7s cubic-bezier(.22, .8, .3, 1); }
-.ring .txt { position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; align-content: center; gap: .5vmin; text-align: center; line-height: 1; }
-.ring .txt b { font-size: 2.7vmin; font-variant-numeric: tabular-nums; }
-.ring .txt em { display: block; font-size: 1.4vmin; color: var(--dim); font-weight: 700; }
-/* 完成率圆盘流光：标准模式下进度环外圈有一道旋转的高光（conic-gradient 光晕扫过），
-   用径向 mask 扣成和轨道同心的一条细带，只落在进度环上、不盖中间的数字。
-   极简模式（body.board.lite）不叠这层光晕、不播动画 —— 由 task-board.js 的 applyLite 切 class。 */
-.ring::after {
-  content: ''; position: absolute; inset: -6%; z-index: 1; pointer-events: none; border-radius: 50%;
-  background: conic-gradient(from 0deg,
-    transparent 0deg, transparent 64deg,
-    rgba(120, 255, 205, .0) 76deg, rgba(150, 255, 215, .6) 92deg, rgba(120, 255, 205, 0) 108deg,
-    transparent 122deg, transparent 360deg);
-  -webkit-mask: radial-gradient(closest-side, transparent 0 78%, #000 79% 96%, transparent 97%);
-  mask: radial-gradient(closest-side, transparent 0 78%, #000 79% 96%, transparent 97%);
-  filter: blur(1px);
-  opacity: 0;
+.ring svg { width: 100%; height: 100%; transform: rotate(-90deg); overflow: visible; }
+/* 轨道凹槽：同半径两圈 —— 宽的一圈深色当槽底，窄的一圈浅色当槽内壁，
+   两侧各留一条暗边，读起来像「刻进去的槽」，而不是一圈均匀的灰环。 */
+.ring .trk { stroke: rgba(3, 6, 14, .92); stroke-width: 14; }
+.ring .trk-in { stroke: rgba(150, 175, 255, .13); stroke-width: 9.5; }
+/* 进度弧：渐变描边 + 圆头 + 外发光。渐变在 task-board.js 的内联 <defs> 里（两页共用不了外部资源）。 */
+.ring .val {
+  stroke: url(#ringGrad); stroke-width: 13; stroke-linecap: round;
+  filter: drop-shadow(0 0 6px rgba(52, 211, 153, .5)) drop-shadow(0 0 16px rgba(16, 185, 129, .24));
+  transition: stroke-dashoffset .7s cubic-bezier(.22, .8, .3, 1);
 }
-body.board:not(.lite) .ring::after { opacity: 1; animation: ringFlow 2.6s linear infinite; }
-@keyframes ringFlow { to { transform: rotate(360deg); } }
+/* 弧内侧一道极细白高光：Apple 环那种「塑料壳上有一道反光」的观感，只加一点点，别糊住渐变 */
+.ring .val-hi {
+  stroke: url(#ringGradHi); stroke-width: 3.2; stroke-linecap: round; opacity: .55;
+  transition: stroke-dashoffset .7s cubic-bezier(.22, .8, .3, 1);
+}
+/* 端点高光：整组绕圆心转（JS 直接写内联 transform: rotate(Ndeg)，N = 百分比 × 3.6），
+   和 stroke-dashoffset 用同一个缓动，所以「换人完成时环长一截」和「端帽跟过去」是同步的，不会脱节。 */
+.ring .capg { transform-origin: 50px 50px; transition: transform .7s cubic-bezier(.22, .8, .3, 1), opacity .25s; }
+.ring .cap-halo { fill: rgba(134, 239, 172, .38); }
+.ring .cap { fill: #f2fffa; }
+.ring .txt { position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; align-content: center; gap: .45vmin; text-align: center; line-height: 1; }
+.ring .txt b { font-size: 3.05vmin; font-weight: 900; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.ring .txt em { display: block; font-size: 1.35vmin; color: var(--dim); font-weight: 700; opacity: .62; letter-spacing: .12em; }
+/* 极简模式：只降发光（省 GPU），**环、渐变、数字一个都不许少**。
+   用户原话「极简模式下自动关闭太丑」—— 上一版就是在这里把整块关掉了，这次刻意反过来。 */
+body.board.lite .ring .val { filter: drop-shadow(0 0 4px rgba(52, 211, 153, .3)); }
+body.board.lite .ring .val,
+body.board.lite .ring .val-hi,
+body.board.lite .ring .capg { transition: none; }
 .bd-count { text-align: right; }
 .bd-count b { font-size: 5.4vmin; line-height: 1; font-variant-numeric: tabular-nums; }
 .bd-count b small { font-size: 2.4vmin; color: var(--dim); font-weight: 700; }
@@ -253,33 +275,72 @@ body.board:not(.lite) .ring::after { opacity: 1; animation: ringFlow 2.6s linear
   display: grid; gap: 1.1vmin; grid-template-columns: repeat(auto-fill, minmax(20vmin, 1fr));
   grid-auto-rows: min-content;
 }
+/* 未完成身份卡（2026-11-13）
+   用户原话：「大屏还没完成的身份卡我点头 你加吧」
+   上一版 .pend 是个 60px 级的小方块：背景铺上去基本看不见、姓名被裁，看着不像身份卡，
+   跟右侧带背景的 .done-chip 完全不是一个东西。这一版按「小身份卡」重排：
+   背景铺满整卡 + 遮罩只压文字那侧 + 首字母头像 + 姓名 + 学号；
+   尺寸跟 --pfs 联动（人少自动大、人多自动缩），列宽仍由 JS 写进 grid-template-columns。 */
 .pend {
-  position: relative; overflow: hidden;  /* 身份卡背景层要裁在圆角里 */
-  display: flex; align-items: center; gap: 1.1vmin; padding: 1.1vmin 1.3vmin; min-width: 0;
-  border: 1px solid color-mix(in srgb, var(--bad) 30%, transparent); border-radius: 1.3vmin;
+  position: relative; overflow: hidden;  /* 身份卡背景要裁在圆角里 */
+  display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center;
+  gap: calc(var(--pfs, 3vmin) * .42);
+  padding: calc(var(--pfs, 3vmin) * .34) calc(var(--pfs, 3vmin) * .44);
+  min-height: calc(var(--pfs, 3vmin) * 1.75); min-width: 0;
+  border-radius: 1.5vmin;
+  border: 1px solid color-mix(in srgb, var(--bad) 34%, transparent);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .07), 0 .35vmin 1vmin rgba(0, 0, 0, .3);
   animation: pendIn .35s ease both;
 }
-/* 身份卡背景：背景 span → 遮罩 span → 文字（照排位 .rk-lb 的结构）。
-   背景拿不到时退回原来的深色红底（data-nobg="1"），不塌版。 */
+/* 身份卡背景：背景 span → 遮罩 span → 文字（照排位 .rk-lb 的结构）。 */
 .pend .pend-bg { position: absolute; inset: 0; z-index: 0; background-size: cover; background-repeat: no-repeat; background-position: 50% 50%; }
-.pend[data-nobg="1"] .pend-bg { background: linear-gradient(135deg, rgba(40, 22, 34, .82), rgba(16, 16, 30, .7)); }
-.pend .pend-veil { position: absolute; inset: 0; z-index: 1; background: linear-gradient(90deg, rgba(4, 8, 18, .82) 0%, rgba(4, 8, 18, .48) 40%, rgba(4, 8, 18, .34) 62%, rgba(4, 8, 18, .76) 100%); }
+/* 没设过背景的人（data-nobg="1"）要有体面的兜底：纯色空块一眼就看得出「这人没设置」。
+   这里给一层斜向暗红 → 深蓝的卡面 + 左上角一团暖光 + 右下角一点冷光，读起来像张默认卡。 */
+.pend[data-nobg="1"] .pend-bg {
+  background:
+    radial-gradient(120% 130% at 0% 0%, color-mix(in srgb, var(--bad) 26%, transparent), transparent 58%),
+    radial-gradient(90% 120% at 100% 100%, rgba(124, 156, 255, .16), transparent 62%),
+    linear-gradient(135deg, #2b1a2a 0%, #171a2e 55%, #101326 100%);
+}
+/* 兜底卡再配一条略饱和的描边，让它看起来是「有边框的默认卡面」，而不是一块忘了填色的背景 */
+.pend[data-nobg="1"] { border-color: color-mix(in srgb, var(--bad) 42%, rgba(150, 175, 255, .26)); }
+/* 遮罩浓度和右侧 .done-chip 同一套（.84 / .55 那条线），只是方向改成 96°，因为文字在头像右边；
+   再压一层底部的暗，保证贴边拍的照片上名字也读得清。浓度调过两次：太浓会把背景压成纯色块，
+   用户上一版就是嫌「背景铺上去看不出来」，所以这里刻意留了 30% 的透光。 */
+.pend .pend-veil {
+  position: absolute; inset: 0; z-index: 1;
+  background:
+    linear-gradient(96deg, rgba(4, 8, 18, .84) 0%, rgba(4, 8, 18, .55) 38%, rgba(4, 8, 18, .3) 72%, rgba(4, 8, 18, .5) 100%),
+    linear-gradient(0deg, rgba(4, 8, 18, .42), transparent 64%);
+}
 .pend > *:not(.pend-bg):not(.pend-veil) { position: relative; z-index: 2; }
 .pend:nth-child(n+13) { animation-delay: .04s; }
 .pend i {
-  flex: none; width: 4.4vmin; height: 4.4vmin; border-radius: 50%; display: grid; place-items: center;
-  font-size: calc(var(--pfs, 3vmin) * .92); font-weight: 800; font-style: normal;
-  background: color-mix(in srgb, var(--bad) 22%, transparent); color: #ffd9df;
+  flex: none; width: calc(var(--pfs, 3vmin) * 1.3); height: calc(var(--pfs, 3vmin) * 1.3);
+  border-radius: 50%; display: grid; place-items: center;
+  font-size: calc(var(--pfs, 3vmin) * .62); font-weight: 900; font-style: normal; color: #ffe4e9;
+  background: linear-gradient(150deg, color-mix(in srgb, var(--bad) 46%, #2a1420), color-mix(in srgb, var(--bad) 16%, #14162a));
+  box-shadow: 0 0 0 .18vmin rgba(255, 255, 255, .1), 0 .2vmin .7vmin rgba(0, 0, 0, .45);
 }
 .pend .nm { min-width: 0; }
-.pend .nm b { display: block; font-size: var(--pfs, 3vmin); line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pend .nm span { display: block; font-size: calc(var(--pfs, 3vmin) * .52); color: var(--dim); font-variant-numeric: tabular-nums; margin-top: .3vmin; }
+.pend .nm b {
+  display: block; font-size: calc(var(--pfs, 3vmin) * .95); font-weight: 800; line-height: 1.15;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 .1vmin .6vmin rgba(0, 0, 0, .65);
+}
+.pend .nm span {
+  display: block; font-size: calc(var(--pfs, 3vmin) * .46); margin-top: .25vmin;
+  color: color-mix(in srgb, var(--dim) 82%, #fff); opacity: .88;
+  font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 @keyframes pendIn { from { opacity: 0; transform: translateY(.8vmin) scale(.97); } to { opacity: 1; transform: none; } }
 /* 第二轮以后的整页重绘不要再播入场：
    每完成一个人都会重画一次名单，如果每次都 fade-in，投影上整块名单会一起闪一下，
    看起来像掉帧。所以第一屏播动画，之后只保留「新完成那一个」的高亮（.fresh）。 */
 body.no-anim .pend { animation: none; }
 body.no-anim .done-chip:not(.fresh) { animation: none; }
+/* 极简模式：身份卡背景照常显示（背景是内容，不是氛围特效），只不播动画。
+   用户上一版最不满意的就是「极简一开，东西就没了」，所以这里只掐 animation，不碰视觉。 */
+body.board.lite .pend, body.board.lite .done-chip { animation: none; }
 .pend-empty { grid-column: 1 / -1; display: grid; place-items: center; min-height: 30vmin; color: var(--ok); font-size: 4vmin; font-weight: 800; letter-spacing: .1em; text-align: center; }
 .pend-empty small { display: block; font-size: 1.9vmin; color: var(--dim); font-weight: 400; margin-top: 1vmin; letter-spacing: 0; }
 
@@ -295,12 +356,14 @@ body.no-anim .done-chip:not(.fresh) { animation: none; }
   display: inline-flex; align-items: center; gap: .6vmin; max-width: 100%; min-width: 0;
   padding: .45vmin .8vmin .45vmin .45vmin; border-radius: 99px;
   border: 1px solid color-mix(in srgb, var(--ok) 26%, transparent);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .07), 0 .3vmin .9vmin rgba(0, 0, 0, .28);
   animation: chipIn .3s ease both;
 }
 /* 身份卡背景：背景 span → 遮罩 span → 文字；拿不到背景退回原来的深色绿底 */
 .done-chip .chip-bg { position: absolute; inset: 0; z-index: 0; background-size: cover; background-repeat: no-repeat; background-position: 50% 50%; }
 .done-chip[data-nobg="1"] .chip-bg { background: color-mix(in srgb, var(--ok) 10%, rgba(10, 14, 26, .7)); }
-.done-chip .chip-veil { position: absolute; inset: 0; z-index: 1; background: linear-gradient(90deg, rgba(4, 8, 18, .72) 0%, rgba(4, 8, 18, .38) 45%, rgba(4, 8, 18, .62) 100%); }
+/* 遮罩浓度和左侧 .pend 用同一组数（.84 / .55 / .3 / .5）：左右两栏的卡片才像同一套设计 */
+.done-chip .chip-veil { position: absolute; inset: 0; z-index: 1; background: linear-gradient(90deg, rgba(4, 8, 18, .84) 0%, rgba(4, 8, 18, .55) 38%, rgba(4, 8, 18, .3) 72%, rgba(4, 8, 18, .5) 100%); }
 .done-chip > *:not(.chip-bg):not(.chip-veil) { position: relative; z-index: 2; }
 .done-chip i {
   flex: none; width: var(--dcs, 2.6vmin); height: var(--dcs, 2.6vmin); border-radius: 50%; display: grid; place-items: center;
@@ -343,11 +406,11 @@ body.no-anim .done-chip:not(.fresh) { animation: none; }
 .bd-gate p { color: var(--dim); font-size: 2vmin; margin: 1.6vmin 0 3vmin; line-height: 1.7; }
 .bd-gate .btn { font-size: 2.1vmin; padding: 1.4vmin 3vmin; border-radius: 1.4vmin; }
 
-/* 减动画偏好 / 弱机：大屏上那两个入场动画关掉（投影时闪一下反而难看） */
+/* 减动画偏好 / 弱机：大屏上那两个入场动画关掉（投影时闪一下反而难看）。
+   注意只关「动」—— 环的渐变、发光、百分比是静态视觉，减动画下必须照常显示（2026-11-13）。 */
 @media (prefers-reduced-motion: reduce) {
   .pend, .done-chip, .done-chip.fresh, .bd-foot .dot { animation: none; }
-  .ring .val { transition: none; }
-  .ring::after { animation: none; opacity: 0; }
+  .ring .val, .ring .val-hi, .ring .capg { transition: none; }
 }
 /* 窄屏（手机竖屏看教师端）：大屏页本来就不给手机用，这里只把教师端收成一列 */
 @media (max-width: 980px) { .form { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
