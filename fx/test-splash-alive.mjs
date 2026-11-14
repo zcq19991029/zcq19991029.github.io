@@ -222,7 +222,7 @@ async function main() {
   });
 
   try {
-    // ══ 场景 1：共享特效包（6 个 loop 特效）══════════════════════════════
+    // ══ 场景 1：共享特效包（84 个 loop 特效）═════════════════════════════
     const page = await browser.newPage();
     await emulate(page);
     await page.goto(base + '/__splash_probe.html', { waitUntil: 'load', timeout: 30000 });

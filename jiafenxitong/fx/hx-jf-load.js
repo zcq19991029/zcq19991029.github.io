@@ -2,8 +2,9 @@
  *
  * 打开页面 → 数据载入完成（进应用或登录闸门出现）这段时间，全屏显示一个
  * 随机挑的 pixelfx loop 特效 + 标题；就绪后淡出并把 canvas 从 DOM 里移除。
- * 动效体系复用总入口的 pixelfx（fx/pixelfx-loader.js，只打包 6 个特效，
- * 构建见 tools/build-loader-fx.mjs），渲染写法对照 总入口/fx/hx-critters.js。
+ * 动效体系复用总入口的 pixelfx（fx/pixelfx-loader.js，打包 84 个特效，
+ * 与 总入口/fx/pixelfx-critters.js 同池；构建见 tools/build-loader-fx.mjs），
+ * 渲染写法对照 总入口/fx/hx-critters.js。
  *
  * 2026-11-05 返修（用户：「点击接线仿真永远是一个像素动效的加载画面且不会动」「需要随机加载动效」）：
  *   1) 抽签从「同一会话内固定」改成**每次打开重新随机**：只把上一次用过的 id 记在
