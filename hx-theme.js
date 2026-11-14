@@ -1267,6 +1267,11 @@
     prefRun = prefApi('?select=data&owner=eq.' + uid + '&limit=1')
       .then(function (rows) {
         var row = rows && rows[0], d = row && row.data;
+        // 2026-11-14 修「主题色刷新变白」：prefSync 是异步的，云端响应回来之前用户可能已经
+        // 改过外观（set() 会 markDirty）。此刻若还带着未推送的改动，绝不能拿云端旧值去覆盖本地新值，
+        // 否则用户刚点的主题色被反向冲掉、又被 prefPush 推回云端，本地+云端一起锁死成旧值。
+        // 见到 dirty 就以本地为准补推，跳过覆盖。
+        if (ls(PDIRTY) === '1') return prefPushNow(uid);
         if (d && typeof d === 'object' && Object.keys(d).length) prefApplyData(d);
         else return prefPushNow(uid);     // 云端还没有：把这台机器上这份当成初始快照推上去
         return false;
