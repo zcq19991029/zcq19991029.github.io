@@ -2156,7 +2156,7 @@ function restoreDroppedToHome(cls) {
       }
       out+='<td class="home-attendance">'+(grade?(printing?'<strong>'+attPctText(grade.attendance)+'</strong>':'<button type="button" class="attendance-score" data-attendance-open="'+esc(key)+'" aria-label="'+esc(m.name)+' 考勤完成率 '+attPctText(grade.attendance)+'，点击修改">'+attPctText(grade.attendance)+'</button>'):'')+'</td>';
       out+='<td class="c-sum" data-home-grade="sum" data-sum-g="'+g.no+'" data-sum-i="'+i+'"'+(m?' data-grade-student="'+esc(key)+'"':'')+' title="'+esc(m?m.name+' · 点击展开本节各项目完成率明细':'')+'"><div class="home-grade-person" data-member-lesson-totals="'+g.no+'" data-lesson-member="'+i+'"><strong>'+total+'</strong><span class="sumd-cue" aria-hidden="true">▾</span></div></td>';
-      ['regular','contribution','needed'].forEach(function(field){var value=grade?(field==='needed'?(grade.attendanceFailed?'不适用':grade.needed>100?'无法达到':grade.needed):grade[field]):'';out+='<td class="home-grade '+field+'" data-home-grade="'+field+'" title="'+esc(m?m.name:'')+'">'+(grade?'<div class="home-grade-person" data-grade-student="'+esc(key)+'"><strong>'+value+(field==='regular'?' <span class="completion-rate">（'+(grade.totalMaximum?Math.round(grade.performanceRate*1000)/10+'%':'—')+'）</span>':'')+'</strong>'+(grade.attendanceFailed?'<small>考勤挂科</small>':'')+'</div>':'')+'</td>';});
+      ['regular','contribution','needed'].forEach(function(field){var value=grade?(field==='needed'?(grade.attendanceFailed?'不适用':grade.needed>100?'无法达到':grade.needed):grade[field]):'';var clickable=field==='regular';out+='<td class="home-grade '+field+'" data-home-grade="'+field+'"'+(clickable?' data-cum-g="'+g.no+'" data-cum-i="'+i+'"':'')+' title="'+esc(m?m.name+(clickable?' · 点击查看至今完成率明细':''):'')+'">'+(grade?'<div class="home-grade-person" data-grade-student="'+esc(key)+'"><strong>'+value+(field==='regular'?' <span class="completion-rate">（'+(grade.totalMaximum?Math.round(grade.performanceRate*1000)/10+'%':'—')+'）</span>':'')+'</strong>'+(grade.attendanceFailed?'<small>考勤挂科</small>':'')+(clickable?'<span class="sumd-cue" aria-hidden="true">▾</span>':'')+'</div>':'')+'</td>';});
       return out+'</tr>';
     }).join('');
     if(editing)rows+='<tr class="group-pick-row"><td colspan="2" data-group-picker-slot></td><td colspan="6"></td></tr>';
@@ -2315,6 +2315,40 @@ function restoreDroppedToHome(cls) {
       '</div>';
   }
 
+  /* ── 「至今完成率」明细（2026-11-14）────────────────────────────────
+     用户：「我的至今为止的详情呢」「按照这个来（指本节完成率的浮动卡）」。
+     点「平时分（至今完成率）」这一列，弹同一张浮动卡（跟随单元格），内容换成
+     截至当前课的累计：项目完成率 / 值日 / 考勤 / 平时分，以及逐课次的完成率明细。
+     只显示完成率，不显示 5 分制得分（延续上一轮「只需要完成率」）。 */
+  function cumDetailHtml(cls, lesson, gno, member, i) {
+    var A = window.JFDT_ASSESSMENT, key = A.key(member);
+    var ls = lessonsThrough(cls, lesson).slice().sort(function (a, b) { return a.seq - b.seq; });
+    var student = A.rows(cls, ls, memberTotals(cls)).find(function (m) { return m.key === key; });
+    if (!student) return '';
+    var dutyPct = dutyPctText(ls, student.gno);
+    /* 逐课次一行：第 N 次 · 日期 · 本节完成率（只留完成率，不列得分/扣分） */
+    var detail = ls.map(function (l) {
+      var net = A.lessonNet(l, student.gno, student.memberIndex, key);
+      return '<span class="sumd-item">' +
+        '<b class="sumd-name">第 ' + l.seq + ' 次 · ' + esc(l.date || '') + '</b>' +
+        '<span class="sumd-pct">' + (net.max ? pctText(Math.max(0, net.earned) / net.max * 100) : '—') + '</span>' +
+        '</span>';
+    }).join('');
+    var foot = '项目完成率 ' + pctText(student.task.rate * 100) + ' · 值日完成率 ' + dutyPct +
+      ' · 考勤完成率 ' + attPctText(student.attendance) + ' · 平时分 ' + student.regular + '/100 · 计入总评 ' + student.contribution + '/40';
+    return '<div class="sumd-panel" role="region" aria-label="至今完成率明细">' +
+      '<div class="sumd-head">' +
+        '<b class="sumd-who">第 ' + gno + ' 组 · ' + esc(member.name) + '</b>' +
+        '<span class="sumd-lesson">截至第 ' + lesson.seq + ' 次课</span>' +
+        '<span class="sumd-total">至今完成率 <b>' + pctText(student.performanceRate * 100) + '</b></span>' +
+        '<span class="spacer"></span>' +
+        '<button type="button" class="sumd-x" data-sumd-close="1" aria-label="关闭明细">✕</button>' +
+      '</div>' +
+      '<div class="sumd-items">' + detail + '</div>' +
+      '<div class="sumd-foot">' + foot + '</div>' +
+      '</div>';
+  }
+
   function closeSumDetail() {
     var host = $('#sumdHost');
     if (!host) return;
@@ -2373,44 +2407,55 @@ function restoreDroppedToHome(cls) {
   }
 
   function showSumDetail(td) {
+    showFloatDetail(td, sumDetailHtml, 'sum');
+  }
+
+  /* 「至今完成率」浮动卡（2026-11-14）：点「平时分（至今完成率）」那一格，弹同一张浮动卡 */
+  function showCumDetail(td) {
+    showFloatDetail(td, cumDetailHtml, 'cum');
+  }
+
+  /* 通用浮动明细（2026-11-14 把 showSumDetail 抽成通用，本节/至今共用一张浮动卡） */
+  function showFloatDetail(td, htmlFn, mode) {
     var host = $('#sumdHost');
     if (!host) return;
-    /* 先把「原来开着的是不是这一格」记下来：closeAllFloats() 会清空 host.dataset.open，
-       不先记就会把「点同一格 = 收起」这个习惯弄丢（变成再点一次又重开）。 */
-    var prevSig = host.dataset.open, wasOpen = !host.hidden;
-    /* 悬浮窗互斥（2026-11-13）：本节明细也要「独占」——
-       先收起别的浮层（学生成绩框 / 考勤框 / 我的 / 课次设置…），同一时刻只留这一个。 */
-    closeAllFloats('');
-    var gno = Number(td.dataset.sumG), i = Number(td.dataset.sumI);
+    var gno = Number(td.dataset[ mode === 'cum' ? 'cumG' : 'sumG' ]);
+    var i = Number(td.dataset[ mode === 'cum' ? 'cumI' : 'sumI' ]);
     if (!(gno >= 1) || !(i >= 0)) return;
     var cls = curClass(), lesson = curLesson(cls);
     if (!cls || !lesson) return;
     var g = groupOf(cls, gno);
     var member = g && g.members && g.members[i];
     if (!member || !member.name) return;
+    /* 先把「原来开着的是不是这一格」记下来：closeAllFloats() 会清空 host.dataset.open，
+       不先记就会把「点同一格 = 收起」这个习惯弄丢（变成再点一次又重开）。 */
+    var prevSig = host.dataset.open, wasOpen = !host.hidden;
+    /* 悬浮窗互斥：本节/至今明细也要「独占」——
+       先收起别的浮层（学生成绩框 / 考勤框 / 我的 / 课次设置…），同一时刻只留这一个。 */
+    closeAllFloats('');
     /* 点同一格 = 收起（closeAllFloats 已经把它收掉了，这里直接返回就是「关」） */
-    var sig = lesson.id + '|' + gno + '|' + i;
+    var sig = mode + '|' + lesson.id + '|' + gno + '|' + i;
     if (wasOpen && prevSig === sig) { closeSumDetail(); return; }
-    host.innerHTML = sumDetailHtml(cls, lesson, gno, member, i);
+    host.innerHTML = htmlFn(cls, lesson, gno, member, i);
+    if (!host.innerHTML) return;
     host.hidden = false;
     host.dataset.open = sig;
     placeSumPanel(host, td);
-    $$('.c-sum.is-sumd-on').forEach(function (el) { el.classList.remove('is-sumd-on'); });
+    $$('.c-sum.is-sumd-on, .home-grade.is-sumd-on').forEach(function (el) { el.classList.remove('is-sumd-on'); });
     td.classList.add('is-sumd-on');
   }
 
   $('#groupList').addEventListener('click', function (e) {
     if (e.target.closest('[data-sumd-close]')) { closeSumDetail(); return; }
-    /* 只有「本节完成率」这一列能开明细（2026-11-13 修「点值日缺勤却弹出成绩明细」）：
-       值日缺勤 / 考勤完成率 / 三列成绩各有各的处理，先挡掉，别让它们抢这一下点击。 */
-    if (e.target.closest('.c-duty, .duty-cell, [data-duty-deduct], .home-attendance, .attendance-score, td.home-grade')) return;
-    var td = e.target.closest('td.c-sum[data-home-grade="sum"]');
-    if (!td) return;
-    /* 不带 data-sum-g 的是空成员占位行，没有明细可看 */
-    if (!td.dataset.sumG) return;
+    /* 只有「本节完成率」和「平时分（至今完成率）」这两列能开明细：
+       值日缺勤 / 考勤完成率 / 计入总评 / 期末需考 各有各的处理，先挡掉，别让它们抢这一下点击。 */
+    if (e.target.closest('.c-duty, .duty-cell, [data-duty-deduct], .home-attendance, .attendance-score, td.home-grade.contribution, td.home-grade.needed')) return;
     /* 正在选组/拖拽/点加减分时不抢：只处理单元格本体的点击 */
     if (e.target.closest('button, input, select, a')) return;
-    showSumDetail(td);
+    var sumTd = e.target.closest('td.c-sum[data-home-grade="sum"]');
+    if (sumTd) { if (sumTd.dataset.sumG) showSumDetail(sumTd); return; }
+    var cumTd = e.target.closest('td.home-grade.regular[data-home-grade="regular"]');
+    if (cumTd) { if (cumTd.dataset.cumG) showCumDetail(cumTd); return; }
   });
   if ($('#sumdHost')) {
     $('#sumdHost').addEventListener('click', function (e) {
