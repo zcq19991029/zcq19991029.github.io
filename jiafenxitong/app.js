@@ -2318,8 +2318,8 @@ function restoreDroppedToHome(cls) {
   /* ── 「至今完成率」明细（2026-11-14）────────────────────────────────
      用户：「我的至今为止的详情呢」「按照这个来（指本节完成率的浮动卡）」。
      点「平时分（至今完成率）」这一列，弹同一张浮动卡（跟随单元格），内容换成
-     截至当前课的累计，且**每节课都展开它的具体项目完成率**（项目名 → 完成率），
-     和「本节完成率」那张卡一样逐项列出，让人看到每节完成率是怎么来的。
+     截至当前课的累计，**每节课默认收起**，点那一行展开具体项目完成率、再点收起，
+     避免一下子拉超长（用户：「点击某一行展开再点一下缩回去」）。
      只显示完成率，不显示 5 分制得分（延续「只需要完成率」）。 */
   function cumDetailHtml(cls, lesson, gno, member, i) {
     var A = window.JFDT_ASSESSMENT, key = A.key(member);
@@ -2327,7 +2327,7 @@ function restoreDroppedToHome(cls) {
     var student = A.rows(cls, ls, memberTotals(cls)).find(function (m) { return m.key === key; });
     if (!student) return '';
     var dutyPct = dutyPctText(ls, student.gno);
-    /* 每节课一个分组：组头「第 N 次 · 日期 · 本节完成率」，下面缩进列出各项目完成率 */
+    /* 每节课一个分组：组头「第 N 次 · 日期 · 本节完成率 + ▾」，点组头展开/收起下面的项目明细 */
     var detail = ls.map(function (l) {
       var net = A.lessonNet(l, student.gno, student.memberIndex, key);
       var names = (A.projectNames && A.projectNames(l)) || [];
@@ -2345,10 +2345,13 @@ function restoreDroppedToHome(cls) {
           '</span>';
       }).filter(Boolean).join('');
       return '<div class="sumd-lesson-group">' +
-        '<div class="sumd-lesson-head"><b>第 ' + l.seq + ' 次 · ' + esc(l.date || '') + '</b>' +
+        '<div class="sumd-lesson-head" data-lesson-toggle="1" role="button" tabindex="0">' +
+        '<span class="sumd-caret" aria-hidden="true">▾</span>' +
+        '<b>第 ' + l.seq + ' 次 · ' + esc(l.date || '') + '</b>' +
         '<span class="sumd-pct">' + (net.max ? pctText(Math.max(0, net.earned) / net.max * 100) : '—') + '</span></div>' +
+        '<div class="sumd-lesson-body" hidden>' +
         (projects ? '<div class="sumd-projects">' + projects + '</div>' : '<div class="sumd-noproj">本课无项目</div>') +
-        '</div>';
+        '</div></div>';
     }).join('');
     var foot = '项目完成率 ' + pctText(student.task.rate * 100) + ' · 值日完成率 ' + dutyPct +
       ' · 考勤完成率 ' + attPctText(student.attendance) + ' · 平时分 ' + student.regular + '/100 · 计入总评 ' + student.contribution + '/40';
@@ -2476,6 +2479,15 @@ function restoreDroppedToHome(cls) {
   if ($('#sumdHost')) {
     $('#sumdHost').addEventListener('click', function (e) {
       if (e.target.closest('[data-sumd-close]') || e.target === this) closeSumDetail();
+      /* 「至今明细」里点某一节课的组头 → 展开/收起该课的项目明细（2026-11-14） */
+      var head = e.target.closest('[data-lesson-toggle]');
+      if (head) {
+        var body = head.parentElement.querySelector('.sumd-lesson-body');
+        if (body) {
+          body.hidden = !body.hidden;
+          head.parentElement.classList.toggle('is-open', !body.hidden);
+        }
+      }
     });
   }
   document.addEventListener('keydown', function (e) {
