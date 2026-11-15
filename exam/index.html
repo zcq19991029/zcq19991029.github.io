@@ -6085,6 +6085,36 @@ function libListHTML(kind, sub) {
   </div>`).join('')}</div>${src}`;
 }
 
+/* ---------- 「这次没成」要留在页面上（2026-11-15） ----------
+   用户：「点了删除没反应，就跟卡了一样，不知道是处理到哪儿了」。
+   删一条要先把云端那份删掉再动本机，断网 / 慢网时这一下能等好几秒；原来按钮外观一点不变，
+   失败了也只有一句 toast 一闪而过，老师回头再看还在，就以为删掉了。
+   下面两个小工具只负责「留痕」：libRowNote 写在卷子那一行里，libErrLine 写在列表顶上，
+   下一次成功操作时自动清掉（列表重画也会清）。 */
+function libRowNote(row, msg) {
+  if (!row) return;
+  let el = row.querySelector('.lib-row-err');
+  if (!el) {
+    el = document.createElement('span');
+    el.className = 'lib-row-err';
+    el.style.cssText = 'display:block;margin:2px 0 0;font-size:12px;color:#dc2626;line-height:1.4';
+    (row.querySelector('.lib-m') || row).appendChild(el);
+  }
+  el.textContent = msg;
+}
+function libErrLine(host, msg) {
+  if (!host) return;
+  let el = host.querySelector('.lib-errline');
+  if (!msg) { if (el) el.remove(); return; }
+  if (!el) {
+    el = document.createElement('p');
+    el.className = 'note lib-errline';
+    el.style.cssText = 'color:#dc2626;margin:6px 0 0';
+    host.insertBefore(el, host.firstChild);
+  }
+  el.textContent = msg;
+}
+
 /* 列表交互：两页共用一份，省得各写一遍还写歪。
    opt = { onUse(id, item), refresh() }；refresh 重新画列表（改名 / 删之后）。
    ── 为什么要 abort 上一次的监听 ──
@@ -6106,22 +6136,46 @@ function libBind(root, kind, sub, opt) {
     const act = b.dataset.lib;
     if (act === 'use') { opt.onUse && opt.onUse(id, it); return; }
     if (act === 'del') {
-      const r = await libDel(id);
-      toast(r.ok ? '已删除' : '没删掉：' + r.err);
-      opt.refresh && opt.refresh();
+      /* 2026-11-15：删除必须先问云端，等一两秒是常态。这里让「删」这颗按钮自己转圈，
+         整行同时压暗（这一行就是这次操作的对象，行内给状态比只动按钮更好认）。
+         失败不 refresh —— 让红字留在这一行上，老师能读到为什么没删掉。 */
+      libRowNote(row, '');
+      const tok = (window.HXBusy && b) ? HXBusy.begin(b, '正在删除…') : null;
+      if (!tok) row.style.opacity = '.55';
+      try {
+        const r = await libDel(id);
+        if (r.ok) { toast('已删除'); opt.refresh && opt.refresh(); }
+        else { libRowNote(row, '没删掉：' + r.err); toast('没删掉：' + r.err); }
+      } catch (err) {
+        const m = err && err.message ? err.message : String(err);
+        libRowNote(row, '没删掉：' + m); toast('没删掉：' + m);
+      } finally {
+        if (tok) HXBusy.end(tok); else row.style.opacity = '';
+      }
       return;
     }
     if (act === 'ren') {
       const nm = typeof prompt === 'function' ? prompt('新的名字', it.name) : null;
       if (nm == null) return;
-      const r = await libRename(id, nm);
-      toast(r.ok ? '已改名为 ' + r.name : '没改成：' + r.err);
-      opt.refresh && opt.refresh();
+      /* 改名同样要问云端（2026-11-15 一并接上反馈，理由同删除） */
+      libRowNote(row, '');
+      const tok = (window.HXBusy && b) ? HXBusy.begin(b, '正在改名…') : null;
+      if (!tok) row.style.opacity = '.55';
+      try {
+        const r = await libRename(id, nm);
+        if (r.ok) { toast('已改名为 ' + r.name); opt.refresh && opt.refresh(); }
+        else { libRowNote(row, '没改成：' + r.err); toast('没改成：' + r.err); }
+      } catch (err) {
+        const m = err && err.message ? err.message : String(err);
+        libRowNote(row, '没改成：' + m); toast('没改成：' + m);
+      } finally {
+        if (tok) HXBusy.end(tok); else row.style.opacity = '';
+      }
     }
   }, { signal: ac.signal });
 }
 
-window.HXLib = { items: libItems, load: libLoad, sync: libSync, add: libAdd, del: libDel, rename: libRename, listHTML: libListHTML, bind: libBind, defaultName: libDefaultName, when: libWhen, code: libCode, err: () => libErr };
+window.HXLib = { items: libItems, load: libLoad, sync: libSync, add: libAdd, del: libDel, rename: libRename, listHTML: libListHTML, bind: libBind, defaultName: libDefaultName, when: libWhen, code: libCode, err: () => libErr, errLine: libErrLine };
 
 ;
 /* ================= 考试 · 理论试卷（2026-11-06 从单片机迁来；2026-11-06 第二轮：点题换题） =================
@@ -6501,7 +6555,11 @@ function mountPaper(sub) {
   if ($('ppLibName')) $('ppLibName').value = libDefaultName('paper', sub);
   if ($('ppLibSave')) $('ppLibSave').onclick = async () => {
     const btn = $('ppLibSave');
-    btn.disabled = true;                       // 存云端要等一下，禁掉免得连点存两份
+    /* 2026-11-15：存一份要等云端（hx_exam_lib_save），慢网下几秒。按钮原来只变灰、字不变，
+       失败只有一句 toast —— 老师很容易以为存上了。现在转圈，并且失败原因留在列表顶上。 */
+    const tok = (window.HXBusy && btn) ? HXBusy.begin(btn, '正在保存…') : null;
+    if (!tok) btn.disabled = true;
+    if (window.HXLib) HXLib.errLine($('ppLibList'), '');
     try {
       const it = await libAdd($('ppLibName') ? $('ppLibName').value : '', 'paper', sub, C);
       if ($('ppLibName')) $('ppLibName').value = libDefaultName('paper', sub);
@@ -6509,8 +6567,12 @@ function mountPaper(sub) {
         ? '已存在这台电脑上（' + it.__err + '），下次连上云端会自动传上去：' + it.name
         : '已存入试卷库（云端）：' + it.name + '（含 ' + picksCount() + ' 道手动选的题）');
       await drawLib();
-    } catch (e) { toast('没存上：' + (e && e.message ? e.message : e)); }
-    btn.disabled = false;
+    } catch (e) {
+      const m = '没存上：' + (e && e.message ? e.message : e);
+      toast(m); if (window.HXLib) HXLib.errLine($('ppLibList'), m);
+    } finally {
+      if (tok) HXBusy.end(tok); else btn.disabled = false;
+    }
   };
   drawLib();
 
@@ -6804,16 +6866,22 @@ function mountBuilder(sub) {
       return;
     }
     if (b.id === 'bdLibSave') {
-      /* 存云端要等一下：先把按钮禁掉，免得连点存出两份 */
-      b.disabled = true;
+      /* 2026-11-15：存云端要等（hx_exam_lib_save），原来只禁按钮不换字，老师看不出在忙；
+         失败也只有 toast。现在转圈，失败原因留在试卷库列表顶上。 */
+      const tok = window.HXBusy ? HXBusy.begin(b, '正在保存…') : null;
+      if (!tok) b.disabled = true;
+      if (window.HXLib) HXLib.errLine($('bdLibList'), '');
       libAdd($('bdLibName') ? $('bdLibName').value : '', 'build', sub, { key: B.key, qs: B.qs.map(q => ({ ...q })), requireHex: !!B.requireHex })
         .then(it => {
           if ($('bdLibName')) $('bdLibName').value = libDefaultName('build', sub);
           toast(it.__offline ? '已存在这台电脑上（' + it.__err + '），下次连上云端会自动传上去：' + it.name : '已存入试卷库（云端）：' + it.name);
           return drawLib();
         })
-        .catch(e => toast('没存上：' + (e && e.message ? e.message : e)))
-        .then(() => { b.disabled = false; });
+        .catch(e => {
+          const m = '没存上：' + (e && e.message ? e.message : e);
+          toast(m); if (window.HXLib) HXLib.errLine($('bdLibList'), m);
+        })
+        .then(() => { if (tok) HXBusy.end(tok); else b.disabled = false; });
       return;
     }
     const row = b.closest('.qrow');
@@ -7325,7 +7393,10 @@ function eQuestionHTML(q, i, answer) {
 function electronicStudentHome(msg) {
   const st = ME.me.student;
   app().innerHTML = `<header class="ex-h e-student-head"><div class="eyebrow">${E_ESC(st.class)} · ${E_ESC(st.name)}</div><h1>考试</h1><p>输入老师公布的考试码开始答题</p></header><div class="card ex-gate e-code-gate"><label class="ex-code">考试码<input id="sCode" autocomplete="off" maxlength="20" placeholder="例如 ABC123"></label><div class="errs" id="sMsg" ${msg ? '' : 'hidden'}>${E_ESC(msg || '')}</div><button class="pri big" id="sGo">开始考试</button></div>`;
-  const go = async () => { const code = $('sCode').value.trim(); if (!code) return $('sCode').focus(); $('sGo').disabled = true; try { const r = await rpc('hx_exam_take', { p_code: code }); store.set('exam.code', code); electronicRoom(code, r); } catch (e) { $('sMsg').textContent = e.message; $('sMsg').hidden = false; $('sGo').disabled = false; } };
+  /* 2026-11-15 用户：「点了没反馈，不知道啥时候跳结果」。取题要等云端（hx_exam_take 现算一份卷子），
+     弱网下能到一两秒。按钮原来只是变灰、字不变，学生连点好几下。统一挂 HXBusy：转圈 + 已等 N 秒。
+     失败原因仍然写进 #sMsg（比 toast 多留一会儿，眯一眼就没了的话学生不知道该重输还是找老师）。 */
+  const go = async () => { const code = $('sCode').value.trim(); if (!code) return $('sCode').focus(); const b = $('sGo'), tok = (window.HXBusy && b) ? HXBusy.begin(b, '正在取题…') : null; if (!tok && b) b.disabled = true; try { const r = await rpc('hx_exam_take', { p_code: code }); store.set('exam.code', code); electronicRoom(code, r); } catch (e) { $('sMsg').textContent = e.message; $('sMsg').hidden = false; } finally { if (tok) HXBusy.end(tok); else if (b) b.disabled = false; } };
   $('sGo').onclick = go; $('sCode').onkeydown = e => { if (e.key === 'Enter') go(); };
 }
 function electronicRoom(code, r, back) {
@@ -7337,7 +7408,9 @@ function electronicRoom(code, r, back) {
   const read = () => { const ans = {}; paper.forEach((q, i) => { if (q.t === 'single' || q.t === 'judgment') ans[i + 1] = (app().querySelector(`input[name="e_${i}"]:checked`) || {}).value || ''; else if (q.t === 'multiple') ans[i + 1] = [...app().querySelectorAll(`input[name="e_${i}"]:checked`)].map(x => x.value).join(','); else ans[i + 1] = (app().querySelector(`[data-ea="${i}"]`) || {}).value || ''; }); return ans; };
   app().querySelectorAll('input,textarea').forEach(el => el.oninput = () => store.set(draftKey, read()));
   $('btnBack').onclick = () => back ? back() : electronicStudentHome();
-  if ($('btnSub')) $('btnSub').onclick = async () => { if (!await hxConfirm('确定交卷？收卷前仍可重新交卷。')) return; const ans = read(); $('btnSub').disabled = true; try { const t = await rpc('hx_exam_submit', { p_code: code, p_answers: ans }); $('subState').textContent = '已交卷：' + when(t) + '，收卷前可重交'; toast('已交卷'); } catch (e) { toast(e.message); } finally { $('btnSub').disabled = false; } };
+  /* 2026-11-15：交卷是一次写入 + 判分起点，老师端等得到的只是一句 toast。现在按钮转圈，
+     失败把原因写在 #subState 旁边那句状态里（学生交不出卷子必须看得见为什么，不能只闪一下）。 */
+  if ($('btnSub')) $('btnSub').onclick = async () => { if (!await hxConfirm('确定交卷？收卷前仍可重新交卷。')) return; const ans = read(); const b = $('btnSub'), tok = (window.HXBusy && b) ? HXBusy.begin(b, '正在交卷…') : null; if (!tok && b) b.disabled = true; try { const t = await rpc('hx_exam_submit', { p_code: code, p_answers: ans }); $('subState').textContent = '已交卷：' + when(t) + '，收卷前可重交'; toast('已交卷'); } catch (e) { if ($('subState')) $('subState').textContent = '交卷没成功：' + (e && e.message ? e.message : e) + '（答案还在本机，可以再点一次）'; toast(e.message); } finally { if (tok) HXBusy.end(tok); else if (b) b.disabled = false; } };
 }
 async function electronicTeacherHome(msg) {
   app().innerHTML = `<header class="ex-h"><div class="eyebrow">教师</div><h1>考试</h1><p>从资料库题池组一套电子卷，发布考试码给学生</p></header>${msg ? `<div class="errs">${E_ESC(msg)}</div>` : ''}<div class="row" style="margin-bottom:14px"><button class="pri" id="btnNew">发布电子试卷</button></div><div id="list">${fxLoad('加载中…')}</div>`;
@@ -7347,8 +7420,10 @@ async function electronicTeacherHome(msg) {
   $('list').innerHTML = list.length ? list.map(x => `<div class="card ex-item${x.open ? '' : ' shut'}"><div class="ex-code-big">${E_ESC(x.code)}</div><div class="ex-meta"><b>${E_ESC(x.title)}</b><span class="note">${E_ESC(SUBJECTS[x.subject] || x.subject)} · ${x.classes.map(cname).map(E_ESC).join('、') || '没选班'} · ${x.subs} 人交卷 · ${x.open ? '考试中' : '已收卷'}</span></div><div class="row"><button class="pri" data-subs="${x.id}">交卷与批改</button><button data-open="${x.id}">${x.open ? '收卷' : '重新开放'}</button><button data-pre="${E_ESC(x.code)}">预览</button></div></div>`).join('') : '<div class="card"><p class="note">还没有电子考试，点“发布电子试卷”开始。</p></div>';
   const byId = id => list.find(x => x.id === +id);
   $('list').querySelectorAll('[data-subs]').forEach(b => { b.onclick = () => subsElectronic(byId(b.dataset.subs)); });
-  $('list').querySelectorAll('[data-open]').forEach(b => { b.onclick = async () => { const x = byId(b.dataset.open); await rpc('hx_exam_open', { p_id: x.id, p_open: !x.open }); electronicTeacherHome(); }; });
-  $('list').querySelectorAll('[data-pre]').forEach(b => { b.onclick = () => { rpc('hx_exam_take', { p_code: b.dataset.pre }).then(r => electronicRoom(b.dataset.pre, r, electronicTeacherHome)).catch(e => toast(e.message)); }; });
+  /* 2026-11-15：收卷 / 重新开放是一次 rpc 写入，原来点完界面毫无变化（要等整页重画才看得出），
+     失败还完全没有提示（没有 catch）。现在按钮转圈，失败把原因写在那一行的卡片里。 */
+  $('list').querySelectorAll('[data-open]').forEach(b => { b.onclick = async () => { const x = byId(b.dataset.open); const tok = window.HXBusy ? HXBusy.begin(b, x.open ? '正在收卷…' : '正在开放…') : null; if (!tok) b.disabled = true; try { await rpc('hx_exam_open', { p_id: x.id, p_open: !x.open }); if (tok) HXBusy.end(tok); electronicTeacherHome(); } catch (e) { toast(e.message); const card = b.closest('.card'); if (card) card.insertAdjacentHTML('beforeend', `<p class="note" style="color:#dc2626">没成功：${E_ESC(e && e.message ? e.message : e)}</p>`); if (tok) HXBusy.end(tok); else b.disabled = false; } }; });
+  $('list').querySelectorAll('[data-pre]').forEach(b => { b.onclick = async () => { const tok = window.HXBusy ? HXBusy.begin(b, '正在取题…') : null; if (!tok) b.disabled = true; try { const r = await rpc('hx_exam_take', { p_code: b.dataset.pre }); if (tok) HXBusy.end(tok); electronicRoom(b.dataset.pre, r, electronicTeacherHome); } catch (e) { toast(e.message); if (tok) HXBusy.end(tok); else b.disabled = false; } }; });
 }
 async function electronicEditExam() {
   const subs = await rpc('hx_exam_subject_list').catch(() => SUBJ); const s = subs.find(x => String(x.key) === String(CUR_SUB)) || subs[0] || SUBJ[0]; let qs = [];
@@ -7356,7 +7431,9 @@ async function electronicEditExam() {
   const drawQ = rows => { qs = rows.slice(0, 30).map((q, i) => ({ ...q, pts: 10 })); $('efQ').innerHTML = qs.length ? `<h2>题目（已选 ${qs.length}）</h2>${qs.map((q, i) => `<label class="e-pick"><input type="checkbox" data-eq="${i}" checked> <b>${i + 1}. ${E_ESC(eType(eNormType(q)))}</b> ${E_ESC(q.q || q.stem || '')}<input data-pts="${i}" type="number" min="1" max="100" value="10" aria-label="第${i + 1}题分值"></label>`).join('')}` : '<p class="note">这个科目的题池为空，请先去资料库 AI 出题并审核入池。</p>'; };
   let rows = []; try { rows = await rpc('hx_exam_qbank_list', { p_subject_id: s.id }); drawQ(rows || []); } catch (e) { $('efQ').innerHTML = `<div class="errs">${E_ESC(e.message)}</div>`; }
   const own = (CLASSES || []).filter(c => (c.tools || []).includes('exam')); $('efCls').innerHTML = own.length ? `<h2>考试班级</h2>${own.map(c => `<label><input type="checkbox" data-ec="${c.id}"> ${E_ESC(c.name)}${c.term ? ' · ' + E_ESC(c.term) : ''}</label>`).join('')}` : '<p class="note">还没有班级，请先在首页开通考试。</p>';
-  $('efBack').onclick = electronicTeacherHome; $('efSave').onclick = async () => { const fail = m => { $('efMsg').textContent = m; $('efMsg').hidden = false; }; const title = $('efTitle').value.trim(); if (!title) return fail('请填写标题'); const picked = qs.filter((q, i) => (app().querySelector(`[data-eq="${i}"]`) || {}).checked).map((q, i) => ({ ...q, pts: Math.max(1, Math.min(100, +(app().querySelector(`[data-pts="${i}"]`) || {}).value || 10)) })); if (!picked.length) return fail('至少选择一道题'); const classes = [...app().querySelectorAll('[data-ec]:checked')].map(x => +x.dataset.ec); if (!classes.length && !await hxConfirm('没有选择班级，学生将无法取题。仍要发布吗？')) return; $('efSave').disabled = true; try { const r = await rpc('hx_exam_save', { p_id: null, p_subject: $('efSub').value, p_title: title, p_paper: ePaperEncode(picked.map(eNormQ)), p_classes: classes, p_code: $('efCode').value.trim() || null }); toast('已发布，学生考试码：' + r.code); electronicTeacherHome(); } catch (e) { fail(e.message); $('efSave').disabled = false; } };
+  /* 2026-11-15：发布要等云端写库（hx_exam_save 还会现算短码），慢的时候一两秒没有任何变化，
+     老师会连点导致发出两场考试。按钮挂 HXBusy；失败仍走 fail() 写到 #efMsg（行内红字，不只是一句 toast）。 */
+  $('efBack').onclick = electronicTeacherHome; $('efSave').onclick = async () => { const fail = m => { $('efMsg').textContent = m; $('efMsg').hidden = false; }; const title = $('efTitle').value.trim(); if (!title) return fail('请填写标题'); const picked = qs.filter((q, i) => (app().querySelector(`[data-eq="${i}"]`) || {}).checked).map((q, i) => ({ ...q, pts: Math.max(1, Math.min(100, +(app().querySelector(`[data-pts="${i}"]`) || {}).value || 10)) })); if (!picked.length) return fail('至少选择一道题'); const classes = [...app().querySelectorAll('[data-ec]:checked')].map(x => +x.dataset.ec); if (!classes.length && !await hxConfirm('没有选择班级，学生将无法取题。仍要发布吗？')) return; const b = $('efSave'), tok = (window.HXBusy && b) ? HXBusy.begin(b, '正在发布…') : null; if (!tok && b) b.disabled = true; try { const r = await rpc('hx_exam_save', { p_id: null, p_subject: $('efSub').value, p_title: title, p_paper: ePaperEncode(picked.map(eNormQ)), p_classes: classes, p_code: $('efCode').value.trim() || null }); toast('已发布，学生考试码：' + r.code); if (tok) HXBusy.end(tok); electronicTeacherHome(); } catch (e) { fail(e.message); if (tok) HXBusy.end(tok); else if (b) b.disabled = false; } };
 }
 async function subsElectronic(x) {
   const paper = (ePaperDecode(x.paper) || []).map(eNormQ); app().innerHTML = `<header class="ex-h"><div class="eyebrow">交卷与批改 · ${E_ESC(x.code)}</div><h1>${E_ESC(x.title)}</h1></header><div class="row" style="margin-bottom:12px"><button class="pri" id="eGrade">全部批改</button><button id="eCsv">导出成绩 CSV</button><button id="eBack">返回</button><span class="note" id="eState"></span></div><div class="card" id="eTbl">${fxLoad('加载中…')}</div>`; let rows = []; try { rows = await rpc('hx_exam_subs_of', { p_id: x.id }); } catch (e) { $('eTbl').innerHTML = `<div class="errs">${E_ESC(e.message)}</div>`; return; } const grade = r => { r.res = paper.map((q, i) => { const got = eAnswer(q, (r.answers || {})[i + 1]); return { got: got * (+q.pts || 0), pts: +q.pts || 0 }; }); r.total = r.res.reduce((a, z) => a + z.got, 0); }; const draw = () => { $('eTbl').innerHTML = rows.length ? `<table class="mini"><thead><tr><th>班级</th><th>学号</th><th>姓名</th><th>交卷时间</th>${paper.map((_, i) => `<th>第${i + 1}题</th>`).join('')}<th>总分</th></tr></thead><tbody>${rows.map((r, k) => `<tr><td>${E_ESC(r.class_name)}</td><td>${E_ESC(r.student_no)}</td><td>${E_ESC(r.name)}</td><td>${when(r.at)}</td>${paper.map((_, i) => `<td>${r.res ? r.res[i].got + '/' + r.res[i].pts : '—'}</td>`).join('')}<td><b>${r.res ? r.total : '—'}</b></td></tr>`).join('')}</tbody></table>` : '<p class="note">还没有人交卷。</p>'; }; draw(); $('eBack').onclick = electronicTeacherHome; $('eGrade').onclick = () => { rows.forEach(grade); draw(); $('eState').textContent = '已批改 ' + rows.length + ' 份；简答题需老师复核'; }; $('eCsv').onclick = () => { if (rows.some(r => !r.res)) return toast('先点“全部批改”'); const q = s => '"' + String(s).replace(/"/g, '""') + '"'; downloadText(x.title + '_成绩.csv', [['班级', '学号', '姓名', '交卷时间', ...paper.map((_, i) => '第' + (i + 1) + '题'), '总分'], ...rows.map(r => [r.class_name, '\t' + r.student_no, r.name, when(r.at), ...r.res.map(z => z.got), r.total])].map(a => a.map(q).join(',')).join('\r\n'), 'text/csv'); };

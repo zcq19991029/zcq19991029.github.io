@@ -8,7 +8,11 @@
      改这里不影响首页、也不影响别的工具。别漏了 data-tool，否则会写进 home 键、和首页互相污染。 -->
 <script src="../hx-theme.js" data-tool="ai"></script>
 <!-- 一个设置型页面，不是聊天工具：在哪儿配模型、在哪儿指定工具用哪套。
-     配置走 hx-ai.js 的存储契约（localStorage hx-ai-v1 + 分开存的 Key），各工具引同一个脚本读同一份数据。 -->
+     配置走 hx-ai.js 的存储契约（localStorage hx-ai-v1 + 分开存的 Key），各工具引同一个脚本读同一份数据。
+     2026-11-15：改成「平台 → 模型」两级。一个平台 = 一个 Key + 一个接口地址，
+     它下面挂任意多个模型；Key 只填一次，模型随你加。
+     为什么这么改（用户原话）：一个 Key 想多用几个模型就得重复配 N 套、填 N 次 Key；
+     而且老界面里任何模型都能被选去干任何事，给 DeepSeek 设成「视频生成」默认，要到真调用才报错。 -->
 <style>
 :root{
   --bg:#f4f6fa; --panel:#fff; --panel2:#f7f9fc; --edge:#e3e8f0; --ink:#1b2333; --dim:#77839a; --faint:#a2adbf;
@@ -28,7 +32,9 @@ html,body{margin:0;padding:0}
 body{background:var(--bg);color:var(--ink);font:15px/1.62 "Microsoft YaHei",system-ui,-apple-system,"Segoe UI",sans-serif;
   -webkit-font-smoothing:antialiased;padding:0 0 70px}
 a{color:inherit}
-.wrap{max-width:900px;margin:0 auto;padding:0 16px}
+/* 2026-11-15：900px 太窄，宽屏上左右两片空白、卡片里内容又挤在一列（用户原话「两边太空了」）。
+   提到 1360：22 寸 1080p（1920）下还有余量，2K 屏也不会拉得太散。 */
+.wrap{max-width:1360px;margin:0 auto;padding:0 20px}
 header.top{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 90%,transparent);backdrop-filter:blur(10px);
   border-bottom:1px solid var(--edge)}
 header.top .wrap{display:flex;align-items:center;gap:12px;min-height:62px;flex-wrap:wrap;padding-top:9px;padding-bottom:9px}
@@ -44,10 +50,20 @@ main{padding-top:16px}
 .lead{margin:0 0 16px;font-size:13.5px;line-height:1.7;color:var(--dim);background:var(--panel);border:1px solid var(--edge);
   border-left:3px solid var(--acc);border-radius:12px;padding:12px 14px}
 .lead b{color:var(--ink)}
-.card{background:var(--panel);border:1px solid var(--edge);border-radius:16px;padding:16px;margin-bottom:14px;box-shadow:var(--shadow)}
+/* ---- 两栏骨架（2026-11-15） ----
+   左 1.4fr：平台与模型、按能力设默认（都是「哪个模型干什么」）
+   右 1fr  ：按工具指定、总览、导入导出（都是「谁在用哪个」）
+   注册渠道横跨两栏放最底下（内容是一排卡片，塞进窄栏会挤成一列长条）。
+   1100px 以下落回单列：.col 用 display:contents 摊平，卡片就按 DOM 顺序排，不用写两套布局。 */
+.cols{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:16px;align-items:start}
+.col{display:flex;flex-direction:column;gap:16px;min-width:0}
+/* 最底一排：导入导出 + 注册渠道。为什么不塞进上面两栏 —— 这两块的量是固定的（不会随用户模型多少变），
+   塞进右栏会让「按工具/总览」那一列一路长到两千多像素，左栏底下留一大片空白（2026-11-15 实测 1524 vs 2180）。 */
+.bottom{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:16px;margin-top:16px;align-items:start}
+.card{background:var(--panel);border:1px solid var(--edge);border-radius:16px;padding:16px;box-shadow:var(--shadow);min-width:0}
 .card > h2{margin:0 0 4px;font-size:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.card > .sub{margin:0 0 12px;font-size:13px;color:var(--dim)}
-.card > h2 .right{margin-left:auto;display:flex;gap:8px}
+.card > .sub{margin:0 0 12px;font-size:13px;color:var(--dim);line-height:1.65}
+.card > h2 .right{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
 button{font:inherit;cursor:pointer}
 .btn{font-size:13.5px;font-weight:700;padding:8px 14px;border-radius:10px;border:1px solid var(--edge);
   background:var(--panel);color:var(--ink);transition:.15s}
@@ -57,41 +73,62 @@ button{font:inherit;cursor:pointer}
 .btn.pri:hover{filter:brightness(1.06);color:#fff}
 .btn.sm{font-size:12.5px;padding:6px 11px;border-radius:9px}
 .btn.bad:hover{border-color:var(--bad);color:var(--bad)}
-/* ---- 配置列表 ---- */
-#list:empty::after{content:'还没有配置。点右上角「+ 新增一套」，先把一个能用的模型加进来。';display:block;
-  font-size:13.5px;color:var(--faint);padding:14px 4px 6px}
-.row{display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;border-top:1px solid var(--edge);padding:12px 0}
-.row:first-child{border-top:0}
-.rmain{flex:1 1 320px;min-width:0}
-.rmain .t{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.rmain .t b{font-size:15px}
-.rmain .t .pv{font-size:11.5px;font-weight:800;padding:2px 8px;border-radius:7px;color:var(--acc);
-  background:color-mix(in srgb,var(--acc) 13%,transparent)}
-.rmain .m{margin:3px 0 6px;font-size:12.5px;color:var(--dim);word-break:break-all}
-.chips{display:flex;gap:6px;flex-wrap:wrap}
-.chip{font-size:11.5px;font-weight:800;padding:3px 9px;border-radius:999px;border:1px solid var(--edge);color:var(--dim);background:var(--panel2)}
-.chip.on{border-color:color-mix(in srgb,var(--acc) 55%,transparent);color:var(--acc)}
-.racts{display:flex;gap:6px;align-items:center;flex-wrap:wrap;flex:none}
-.kst{font-size:11.5px;font-weight:800;padding:3px 9px;border-radius:999px;background:var(--panel2);border:1px solid var(--edge);color:var(--faint)}
-.kst.ok{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 45%,transparent)}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+/* ---- 平台卡片（2026-11-15 新增） ---- */
+#plats:empty::after{content:'还没有平台。点右上角「+ 新增平台」，把 Key 和接口地址加进来 —— 同一个 Key 下的模型都挂在它下面。';
+  display:block;font-size:13.5px;color:var(--faint);padding:12px 2px 4px}
+.plat{border:1px solid var(--edge);border-radius:14px;background:var(--panel2);padding:13px;margin-bottom:12px}
+.plat:last-child{margin-bottom:0}
+.phead{display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap}
+.phead .pt{flex:1 1 240px;min-width:0;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.phead .pt b{font-size:15px}
+.phead .pm{flex:1 1 100%;margin:1px 0 0;font-size:12px;color:var(--dim);word-break:break-all;
+  font-family:ui-monospace,Consolas,monospace}
+.pacts{display:flex;gap:6px;flex-wrap:wrap;flex:none}
+.pmsg{margin:8px 0 0;font-size:12.5px;color:var(--dim)}
+.pmsg.bad{color:var(--bad)} .pmsg.good{color:var(--ok)}
+.mrows{margin-top:11px;border-top:1px dashed var(--edge);padding-top:2px}
+.mempty{margin:9px 0 3px;font-size:12.5px;color:var(--faint);line-height:1.6}
+.mrow{display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap;padding:10px 0;border-top:1px solid var(--edge)}
+.mrow:first-child{border-top:0;padding-top:8px}
+.mmain{flex:1 1 240px;min-width:0}
+.mmain .mt{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.mmain .mt b{font-size:14.5px}
+.mmain .mt code{font-size:11.5px;color:var(--dim);background:var(--panel);border:1px solid var(--edge);
+  border-radius:6px;padding:1px 6px;word-break:break-all;font-family:ui-monospace,Consolas,monospace}
+.mmain .u{margin:4px 0 0;font-size:11.5px;color:var(--dim);line-height:1.55}
+.mmain .u b{color:var(--ink);font-weight:700}
+.macts{display:flex;gap:6px;align-items:center;flex-wrap:wrap;flex:none;padding-top:2px}
 .rmsg{flex:1 1 100%;margin:0;font-size:12.5px;color:var(--dim);min-height:0}
-.rmsg.bad{color:var(--bad)}
-.rmsg.good{color:var(--ok)}
+.rmsg:empty{display:none}
+.rmsg.bad{color:var(--bad)} .rmsg.good{color:var(--ok)}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:5px}
+.chip{font-size:11.5px;font-weight:800;padding:3px 9px;border-radius:999px;border:1px solid var(--edge);color:var(--dim);background:var(--panel)}
+.chip.on{border-color:color-mix(in srgb,var(--acc) 55%,transparent);color:var(--acc)}
+.pv{font-size:11.5px;font-weight:800;padding:2px 8px;border-radius:7px;color:var(--acc);
+  background:color-mix(in srgb,var(--acc) 13%,transparent)}
+.kst{font-size:11.5px;font-weight:800;padding:3px 9px;border-radius:999px;background:var(--panel);border:1px solid var(--edge);color:var(--faint)}
+.kst.ok{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 45%,transparent)}
+.tl-chip{font-size:11px;font-weight:800;padding:2px 8px;border-radius:7px;background:color-mix(in srgb,var(--acc) 12%,transparent);color:var(--acc)}
 /* ---- 表单 ---- */
-form.pf{border-top:1px solid var(--edge);margin-top:10px;padding-top:14px}
-form.pf h3{margin:0 0 10px;font-size:14.5px}
+form.pf,form.mf{border-top:1px solid var(--edge);margin-top:12px;padding-top:14px}
+form.mf{border:1px solid color-mix(in srgb,var(--acc) 45%,var(--edge));border-radius:14px;padding:14px;margin-top:14px;
+  background:color-mix(in srgb,var(--acc) 4%,var(--panel))}
+form.pf h3,form.mf h3{margin:0 0 10px;font-size:14.5px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+form.pf h3 small,form.mf h3 small{font-size:11.5px;font-weight:700;color:var(--faint)}
 label.fld{display:block;margin:0 0 11px;font-size:13px;font-weight:700;color:var(--dim)}
 label.fld > span{display:block;margin-bottom:5px}
 input[type=text],input[type=url],input[type=password],select,textarea{
   width:100%;font:inherit;font-size:14px;font-weight:400;color:var(--ink);background:var(--panel2);
   border:1px solid var(--edge);border-radius:10px;padding:9px 11px}
+select{padding:8px 9px;font-size:13.5px}
 input:focus,select:focus,textarea:focus{outline:none;border-color:var(--acc);background:var(--panel)}
 textarea{resize:vertical;line-height:1.55;font-family:ui-monospace,Consolas,monospace;font-size:12.5px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
 .line{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .line > input,.line > select{flex:1 1 200px;min-width:0}
-.caps{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin:2px 0 12px;font-size:13.5px}
-.caps > span{font-size:13px;font-weight:700;color:var(--dim)}
+.caps{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin:2px 0 10px;font-size:13.5px}
+.caps > span{font-size:13px;font-weight:700;color:var(--dim);flex:1 0 100%}
 .caps label,.chk{display:flex;align-items:center;gap:7px;font-size:13.5px;font-weight:400;color:var(--ink);cursor:pointer}
 .chk{margin:0 0 12px}
 input[type=checkbox]{width:17px;height:17px;accent-color:var(--acc);flex:none}
@@ -116,27 +153,32 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
 .thinkwrap label{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:400;color:var(--ink);cursor:pointer;
   padding:6px 11px;border:1px solid var(--edge);border-radius:999px;background:var(--panel2)}
 .thinkwrap label.on{border-color:color-mix(in srgb,var(--acc) 55%,transparent);color:var(--acc)}
-.rmain .u{margin:0;font-size:12px;color:var(--dim);line-height:1.55}
-.rmain .u b{color:var(--ink);font-weight:700}
-.tl-chip{font-size:11px;font-weight:800;padding:2px 8px;border-radius:7px;background:color-mix(in srgb,var(--acc) 12%,transparent);color:var(--acc)}
+/* ---- 「按能力设默认」/「按工具指定」：一行 = 名字 + 平台下拉 + 模型下拉 + 一句当前状态 ----
+   2026-11-15 改两级：先平台后模型。模型下拉只列这个平台里勾了这项能力的模型，
+   所以「视频生成」里根本不会出现 deepseek —— 这正是用户抱怨的那个错配。 */
+.rowset .row{border-top:1px solid var(--edge);padding:11px 0}
+.rowset .row:first-child{border-top:0;padding-top:2px}
+.rowset .hd{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:7px}
+.rowset .hd b{font-size:13.5px}
+.rowset .hd em{font-style:normal;font-size:11.5px;color:var(--faint)}
+.rowset .sels{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:8px}
+.rowset .eff{margin:7px 0 0;font-size:11.5px;color:var(--dim);line-height:1.6}
+.rowset .eff b{color:var(--ink);font-weight:700}
+.rowset .eff.bad{color:var(--warn)}
 /* ---- 工具总览（只读） ----
-   复用上面配置列表的 .row / .rmain / .chips（同一套卡片语言），只补「分组标题」和
-   两条虚线分隔：一块说「单独指定」，一块说「跟随默认」，别让人以为是两套不同的东西。 */
+   复用配置列表的 .mrow / .mmain / .chips（同一套卡片语言），只补「分组标题」和两条虚线分隔：
+   一块说「单独指定」，一块说「跟随默认」，别让人以为是两套不同的东西。 */
 .ovg + .ovg{margin-top:12px;padding-top:12px;border-top:1px dashed var(--edge)}
 .ovt{margin:0 0 2px;font-size:13px;font-weight:800;color:var(--ink)}
 .ovt small{margin-left:6px;font-size:11.5px;font-weight:700;color:var(--faint)}
 .ovnote{margin:0;font-size:12px;line-height:1.6;color:var(--dim)}
-.ovg .row:first-of-type{border-top:0;padding-top:6px}
-/* 手机上分组标题和说明别挤成一坨 */
-@media (max-width:620px){ .ovt{margin-top:2px} }
-/* ---- 默认 / 工具 / 导入导出 ---- */
-.dl{display:grid;grid-template-columns:150px 1fr;gap:9px 14px;align-items:center}
-.dl > b{font-size:13.5px;font-weight:700}
-.dl > b em{display:block;font-style:normal;font-size:11.5px;font-weight:400;color:var(--faint)}
-.dl .eff{grid-column:2;font-size:11.5px;color:var(--faint);margin-top:-4px}
+.ovg .mrow:first-of-type{border-top:0;padding-top:4px}
+.ovg .mrow{border-top:1px solid var(--edge)}
+/* ---- 导入导出 ---- */
 .ioacts{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
-/* ---- 注册渠道（2026-11-08 从首页 AI 弹层搬进来） ---- */
-.inv{display:flex;flex-direction:column;gap:12px;margin-bottom:18px;padding:16px;border-radius:18px;background:var(--panel2)}
+/* ---- 注册渠道（2026-11-08 从首页 AI 弹层搬进来；2026-11-15 横跨两栏、内部两列，别拉成一条长龙） ---- */
+.invs{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.inv{display:flex;flex-direction:column;gap:12px;padding:16px;border-radius:18px;background:var(--panel2)}
 .inv-top{display:flex;gap:16px;align-items:center}
 .inv-top img{flex:none;width:104px;height:104px;border-radius:12px;background:#fff;padding:6px;object-fit:contain}
 .inv-top .t{min-width:0}
@@ -145,20 +187,27 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
 .inv-url{display:flex;gap:8px;align-items:center}
 .inv-url input{flex:1;min-width:0;height:34px;padding:0 10px;border:1px solid var(--edge);border-radius:9px;background:var(--panel);font-size:12.5px;color:var(--dim)}
 .inv-url button{flex:none;height:34px;padding:0 14px;border:0;border-radius:9px;background:var(--acc);color:#fff;font-size:13px;font-weight:600}
-.inv-tip{margin:0;font-size:12.5px;line-height:1.6;color:var(--dim)}
+.inv-tip{margin:12px 0 0;font-size:12.5px;line-height:1.6;color:var(--dim)}
 #toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,20px);opacity:0;pointer-events:none;
   background:#1b2333;color:#fff;font-size:13.5px;font-weight:700;padding:10px 18px;border-radius:999px;
   box-shadow:0 16px 32px -18px rgba(0,0,0,.7);transition:.2s;z-index:50;max-width:86vw;text-align:center}
 #toast.show{opacity:1;transform:translate(-50%,0)}
 #toast.bad{background:var(--bad)}
+@media (max-width:1100px){
+  /* 单列：.col 摊平，卡片直接按 DOM 顺序排成一列（间距交给 .cols 的 gap） */
+  .cols{grid-template-columns:minmax(0,1fr)}
+  .col{display:contents}
+  .bottom{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:820px){ .invs{grid-template-columns:1fr} }
 @media (max-width:620px){
   .grid2{grid-template-columns:1fr}
-  .dl{grid-template-columns:1fr;gap:5px}
-  .dl .eff{grid-column:1}
+  .rowset .sels{grid-template-columns:1fr}
   header.top .wrap{min-height:auto}
-  .racts{width:100%;justify-content:flex-start;gap:8px}
+  .pacts,.macts{width:100%;justify-content:flex-start;gap:8px}
   /* 手指点的东西别做成 6px 内边距的小药丸：一眼看着像标签、点起来容易点空 */
-  .racts .btn.sm{padding:8px 12px}
+  .pacts .btn.sm,.macts .btn.sm{padding:8px 12px}
+  .inv-top img{width:84px;height:84px}
 }
 </style>
 </head>
@@ -166,86 +215,135 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
 <header class="top"><div class="wrap">
   <a class="back" id="back" href="../" target="_top">← 回首页</a>
   <h1><i>AI</i>AI 设置</h1>
-  <span class="count" id="count">0 套配置</span>
+  <span class="count" id="count">0 个平台 · 0 个模型</span>
 </div></header>
 
 <main class="wrap">
   <p class="lead">这些设置存在这台电脑的浏览器里，不会上传到任何服务器；<b>Key 只在调用时直接发给服务商</b>。
-    同一个浏览器里的各个工具（刷题、单片机、考试……）共用这一份配置。</p>
+    同一个浏览器里的各个工具（刷题、单片机、考试……）共用这一份配置。
+    <br><b>一个平台 = 一个 Key + 一个接口地址</b>；同一个平台下面可以挂任意多个模型（便宜的跑批量、带视觉的读照片），<b>Key 只填一次</b>。</p>
 
-  <section class="card">
-    <h2>模型配置<span class="right"><button class="btn sm pri" type="button" id="add">+ 新增一套</button></span></h2>
-    <p class="sub">一套 = 一家服务商的一个模型。同一个 Key 可以配多套：便宜的跑批量出题，带视觉的专门读照片。</p>
-    <div id="list"></div>
-    <form class="pf" id="pf" hidden>
-      <h3 id="pfT">新增一套</h3>
-      <div class="grid2">
-        <label class="fld"><span>名字（自己认得出就行）</span><input type="text" id="fName" maxlength="24" placeholder="如：DeepSeek 文本 / 通义千问 视觉"></label>
-        <label class="fld"><span>供应商</span><select id="fProv"></select></label>
-      </div>
-      <p class="hint" id="fProvNote" style="margin:-4px 0 12px" hidden></p>
-      <label class="fld"><span>接口地址</span><input type="url" id="fBase" placeholder="https://api.deepseek.com" spellcheck="false"></label>
-      <label class="fld"><span>模型名</span>
-        <div class="combo" id="modelCombo">
-          <div class="line"><input type="text" id="fModel" placeholder="填服务商给的模型 ID，或点「读取模型」" spellcheck="false" autocomplete="off">
-            <button class="btn sm" type="button" id="fFetch">读取模型</button></div>
-          <div class="mdd" id="modelPanel" hidden></div>
-        </div>
-      </label>
-      <label class="fld"><span>API Key</span><input type="password" id="fKey" autocomplete="off" placeholder="sk-..." spellcheck="false"></label>
-      <label class="chk"><input type="checkbox" id="fRemember" checked>记住这把 Key（存到这台电脑，关掉浏览器也还在；<b>机房公共电脑别勾</b>）</label>
-      <div class="caps"><span>能力标签</span><span id="fCaps"></span></div>
-      <div class="caps"><span>思考程度</span><span class="thinkwrap" id="fThink"></span></div>
-      <p class="hint" style="margin:-4px 0 12px">思考程度决定「思考开不开、想多想久」：快速少想回得快，深度多想更准，均衡跟随模型默认。会落到真实请求参数里（reasoning_effort / thinking / temperature，按各家认的字段传）。</p>
-      <p class="hint" style="margin:-4px 0 12px">不勾「记住」时 Key 只在这个标签页里活着：关掉页面就得重填。勾了就存在本机浏览器，下次打开直接能用。</p>
-      <div class="acts">
-        <button class="btn pri" type="submit" id="fSave">保存</button>
-        <button class="btn" type="button" id="fTest">测试连接</button>
-        <button class="btn" type="button" id="fCancel">取消</button>
-        <p class="msg" id="fMsg"></p>
-      </div>
-    </form>
-  </section>
+  <div class="cols">
+    <!-- ============ 左栏 ============ -->
+    <div class="col">
 
-  <section class="card">
-    <h2>按能力设默认</h2>
-    <p class="sub">工具没单独指定时，就按这里找模型。</p>
-    <div class="dl" id="defaults"></div>
-  </section>
+      <section class="card">
+        <h2>平台与模型
+          <span class="right">
+            <button class="btn sm" type="button" id="addModel">+ 加模型</button>
+            <button class="btn sm pri" type="button" id="addPlat">+ 新增平台</button>
+          </span>
+        </h2>
+        <p class="sub">先加平台（服务商 + 接口地址 + Key），再在平台下面加模型。
+          加模型时先选平台，再「读取模型」把它真有的模型列出来 —— 只加这个平台能用的，别硬塞。</p>
 
-  <section class="card">
-    <h2>按工具指定（可选）</h2>
-    <p class="sub">留空就跟随上面的默认。需要读图的工具（比如刷题导入照片）要选勾了「图片识别」的那套。</p>
-    <div class="dl" id="tools"></div>
-  </section>
+        <!-- 平台表单：新增 / 编辑都用这一个，字段少，摊开比弹窗好填 -->
+        <form class="pf" id="pf" hidden>
+          <h3 id="pfT">新增平台</h3>
+          <div class="grid2">
+            <label class="fld"><span>别名（自己认得出就行）</span>
+              <input type="text" id="pfName" maxlength="40" placeholder="如：111 / 学校中转 / 硅基流动"></label>
+            <label class="fld"><span>服务商</span><select id="pfProv"></select></label>
+          </div>
+          <p class="hint" id="pfProvNote" style="margin:-4px 0 12px" hidden></p>
+          <label class="fld"><span>接口地址</span>
+            <input type="url" id="pfBase" placeholder="https://api.siliconflow.cn/v1" spellcheck="false"></label>
+          <label class="fld"><span>API Key</span>
+            <input type="password" id="pfKey" autocomplete="off" placeholder="sk-..." spellcheck="false"></label>
+          <label class="chk"><input type="checkbox" id="pfRemember" checked>记住这把 Key（存到这台电脑，关掉浏览器也还在；<b>机房公共电脑别勾</b>）</label>
+          <p class="hint" style="margin:-4px 0 12px">一个平台只填一次 Key，它下面的所有模型共用。不勾「记住」时 Key 只在这个标签页里活着。</p>
+          <div class="acts">
+            <button class="btn pri" type="submit" id="pfSave">保存平台</button>
+            <button class="btn" type="button" id="pfFetch">读取模型</button>
+            <button class="btn" type="button" id="pfCancel">取消</button>
+            <p class="msg" id="pfMsg"></p>
+          </div>
+        </form>
 
-  <!-- 总览（只读）：上面两个卡片都是下拉，工具多了要一个个展开才看得出「刷题现在到底走哪套」。
-       这里按同一份 HXAI.settings() 把 7 个工具摊平，分「单独指定 / 跟随默认」两组。
-       不在这里改配置 —— 改动仍走上面的下拉，避免同一件事有两个入口、两套校验。 -->
-  <section class="card">
-    <h2>每个工具用哪套（总览）</h2>
-    <p class="sub">一屏看清每个工具实际调哪套模型。这里只是展示，要改还是用上面的下拉。</p>
-    <div id="overview"></div>
-  </section>
+        <div id="plats"></div>
 
-  <section class="card">
-    <h2>导入 / 导出</h2>
-    <p class="sub">换电脑或者给同事复制配置用。<b>导出的 JSON 里没有 Key</b>（Key 只在你自己的浏览器里，本来就不该跟着文件走），
-      导入后要把每套的 Key 补上。</p>
-    <textarea id="io" rows="7" placeholder="点「复制配置」把 JSON 弄出来；或者把别人给的 JSON 粘到这里再点「导入」" spellcheck="false"></textarea>
-    <div class="ioacts">
-      <button class="btn" type="button" id="copyCfg">复制配置 JSON</button>
-      <button class="btn" type="button" id="importCfg">从上面的 JSON 导入</button>
-      <p class="msg" id="ioMsg"></p>
+        <!-- 模型表单：平台下拉 → 读模型 → 选模型 → 勾能力 → 选思考程度 -->
+        <form class="mf" id="mf" hidden>
+          <h3 id="mfT">新增模型</h3>
+          <div class="grid2">
+            <label class="fld"><span>1. 属于哪个平台</span><select id="mfPlat"></select></label>
+            <label class="fld"><span>3. 显示名（可选）</span>
+              <input type="text" id="mfName" maxlength="40" placeholder="留空就用模型名，如：V3 便宜 / Wan 视频"></label>
+          </div>
+          <label class="fld"><span>2. 模型名</span>
+            <div class="combo" id="modelCombo">
+              <div class="line">
+                <input type="text" id="mfModel" placeholder="先选平台，再点「读取模型」，或直接手填模型 ID" spellcheck="false" autocomplete="off">
+                <button class="btn sm" type="button" id="mfFetch">读取模型</button>
+              </div>
+              <div class="mdd" id="modelPanel" hidden></div>
+            </div>
+          </label>
+          <p class="hint" id="mfProvHint" style="margin:-4px 0 12px"></p>
+          <div class="caps"><span>能力标签（这个模型能干什么，全列在这儿；按服务商推荐预勾，不对就自己改）</span><span id="mfCaps"></span></div>
+          <div class="caps"><span>思考程度</span><span class="thinkwrap" id="mfThink"></span></div>
+          <p class="hint" style="margin:-4px 0 12px">思考程度决定「想多想久」：快速少想回得快，深度多想更准，均衡跟随模型默认。
+            会落到真实请求参数里（reasoning_effort / thinking / temperature，按各家认的字段传）。</p>
+          <div class="acts">
+            <button class="btn pri" type="submit" id="mfSave">保存模型</button>
+            <button class="btn" type="button" id="mfTest">测试这个模型</button>
+            <button class="btn" type="button" id="mfCancel">取消</button>
+            <p class="msg" id="mfMsg"></p>
+          </div>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>按能力设默认</h2>
+        <p class="sub">工具没单独指定时，就按这里找模型。<b>先选平台，再选模型</b> ——
+          模型下拉里只有这个平台里勾了这项能力的，选不出「用 deepseek 生成视频」这种错配。</p>
+        <div class="rowset" id="caps"></div>
+      </section>
+
     </div>
-  </section>
 
-  <section class="card">
-    <h2>AI 注册渠道与工具建议</h2>
-    <p class="sub">工具里的 AI 功能要有一把自己的 Key 才能用。下面几个平台注册门槛低，按顺序挑一个先把 Key 配到上面的「模型配置」里。</p>
-    <div id="channels"></div>
-    <p class="inv-tip">提示：这些是第三方平台，注册和使用要遵守它们自己的规则；用不用、用哪个都不影响华夏工具的正常使用。</p>
-  </section>
+    <!-- ============ 右栏 ============ -->
+    <div class="col">
+
+      <section class="card">
+        <h2>按工具指定（可选）</h2>
+        <p class="sub">留空就跟随左边的默认。需要读图的工具（比如刷题导入照片）要选勾了「图片识别」的模型。</p>
+        <div class="rowset" id="tools"></div>
+      </section>
+
+      <!-- 总览（只读）：上面都是下拉，工具多了要一个个展开才看得出「刷题现在到底走哪套」。
+           这里按同一份 HXAI.settings() 把 7 个工具摊平，分「单独指定 / 跟随默认」两组。
+           不在这里改配置 —— 改动仍走上面的下拉，避开同一件事两个入口、两套校验。 -->
+      <section class="card">
+        <h2>每个工具用哪套（总览）</h2>
+        <p class="sub">一屏看清每个工具实际调哪个平台的哪个模型。这里只是展示，要改还是用上面的下拉。</p>
+        <div id="overview"></div>
+      </section>
+
+    </div>
+  </div>
+
+  <div class="bottom">
+    <section class="card">
+      <h2>导入 / 导出</h2>
+      <p class="sub">换电脑或者给同事复制配置用。<b>导出的 JSON 里有平台和模型，没有 Key</b>（Key 只在你自己浏览器里）。
+        导入后每个平台「编辑」补一次 Key 就行，不用每个模型都补。</p>
+      <textarea id="io" rows="7" placeholder="点「复制配置」把 JSON 弄出来；或者把别人给的 JSON 粘到这里再点「导入」" spellcheck="false"></textarea>
+      <div class="ioacts">
+        <button class="btn" type="button" id="copyCfg">复制配置 JSON</button>
+        <button class="btn" type="button" id="importCfg">从上面的 JSON 导入</button>
+        <p class="msg" id="ioMsg"></p>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>AI 注册渠道与工具建议</h2>
+      <p class="sub">工具里的 AI 功能要有一把自己的 Key 才能用。下面几个平台注册门槛低，按顺序挑一个，
+        把 Key 配到上面的「平台与模型」里（<b>硅基流动</b>一个 Key 就有文本 / 读图 / 文生图 / 文生视频 / 语音，最省事）。</p>
+      <div class="invs" id="channels"></div>
+      <p class="inv-tip">提示：这些是第三方平台，注册和使用要遵守它们自己的规则；用不用、用哪个都不影响华夏工具的正常使用。</p>
+    </section>
+  </div>
 </main>
 <div id="toast"></div>
 
@@ -254,9 +352,12 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
 (function () {
   'use strict';
   var $ = function (id) { return document.getElementById(id); };
-  var editing = '';        // '' = 正在新增；有 id = 正在编辑那一套
-  var lastCfg = null;      // 从存储里读出来的完整设置快照，画下拉用
-  var modelList = [];      // 模型名候选（供应商预设 + 读取模型拉回来的），喂自定义下拉
+
+  var snap = null;         // HXAI.settings() 的快照，所有渲染都读它，改存储后重新取
+  var editingPlat = '';    // '' = 正在新增平台；有 id = 正在编辑那个平台
+  var platModels = [];     // 平台表单里「读取模型」读到的候选（保存平台时一起存进去）
+  var editingModel = '';   // '' = 正在新增模型；有 id = 正在编辑那个模型
+  var modelList = [];      // 模型表单当前的候选（平台读到的 + 服务商预设）
 
   // 能力名 / 提示 / 思考程度名都从 hx-ai.js 的 HXAI.caps / HXAI.thinkLevels 现取，改一处两边一致
   function capDef(c) {
@@ -268,6 +369,7 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
     for (var i = 0; i < HXAI.thinkLevels.length; i++) if (HXAI.thinkLevels[i].id === id) return HXAI.thinkLevels[i].name;
     return id || '均衡';
   }
+  function provLabel(k) { var p = HXAI.providers[k]; return p ? p.label : (k || '自定义'); }
 
   function esc(v) {
     return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) {
@@ -284,168 +386,202 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
     toastTimer = setTimeout(function () { t.className = ''; }, bad ? 4200 : 2000);
   }
 
-  // 这套的 Key 到底存在哪儿：localStorage 里 = 勾了「记住」
-  function remembered(id) {
-    try { return !!localStorage.getItem('hx-ai-key:' + id); } catch (e) { return false; }
+  // ---------- 取数小工具（都基于 snap，别直接读 localStorage） ----------
+  function platById(id) {
+    var hit = null;
+    (snap.plats || []).forEach(function (p) { if (p.id === id) hit = p; });
+    return hit;
+  }
+  function profById(id) {
+    if (!id) return null;
+    var hit = null;
+    snap.profiles.forEach(function (p) { if (p.id === id) hit = p; });
+    return hit;
+  }
+  function profsOf(platId) {
+    return snap.profiles.filter(function (p) { return p.platId === platId; });
+  }
+  // 口径和 hx-ai.js 的 supports() 一致：文本能力人人有，别的看勾没勾
+  function supportsCap(p, cap) {
+    if (cap === 'text') return true;
+    return (p.caps || []).indexOf(cap) >= 0;
+  }
+  // 「当前：平台「111」· 模型 xxx · 思考 深度 · 能力 文本/视频」——用户点名要的那句话
+  function effLine(p) {
+    if (!p) return '当前：未设置';
+    var pl = platById(p.platId);
+    var cs = (p.caps || []).map(capName).join('/') || '未勾能力';
+    return '当前：平台「' + esc(pl ? pl.name : '（平台已删）') + '」· 模型 ' + esc(p.name || p.model) +
+      ' · 思考 ' + esc(thinkName(p.thinkLevel)) + ' · 能力 ' + esc(cs);
   }
 
-  function provName(key) {
-    var p = HXAI.providers[key];
-    return p ? p.label : key;
+  // ---------- 画：平台 + 平台下的模型 ----------
+  function modelRow(m) {
+    var usedCaps = [], usedTools = [];
+    Object.keys(snap.active).forEach(function (c) { if (snap.active[c] === m.id) usedCaps.push(capName(c)); });
+    HXAI.toolList.forEach(function (t) { if (snap.tools[t.id] === m.id) usedTools.push(t.name); });
+    var usage = [];
+    if (usedCaps.length) usage.push('<b>默认</b> ' + esc(usedCaps.join('、')));
+    if (usedTools.length) usage.push('<b>工具</b> ' + esc(usedTools.join('、')));
+    var isSame = (m.name || '') === m.model;   // 显示名和模型名一样时只显示一遍，别重复
+    return '<div class="mrow" data-model="' + esc(m.id) + '">' +
+      '<div class="mmain">' +
+        '<div class="mt"><b>' + esc(m.name || m.model) + '</b>' +
+          (isSame ? '' : '<code>' + esc(m.model) + '</code>') +
+          '<span class="tl-chip">思考 ' + esc(thinkName(m.thinkLevel)) + '</span></div>' +
+        '<div class="chips">' + (m.caps || []).map(function (c) {
+          return '<span class="chip on">' + esc(capName(c)) + '</span>';
+        }).join('') + '</div>' +
+        '<p class="u">' + (usage.length ? usage.join('；') : '还没被任何能力 / 工具设为默认') + '</p>' +
+      '</div>' +
+      '<div class="macts">' +
+        '<button class="btn sm" type="button" data-act="test">测试</button>' +
+        '<button class="btn sm" type="button" data-act="edit">编辑</button>' +
+        '<button class="btn sm bad" type="button" data-act="del">删除</button>' +
+      '</div>' +
+      '<p class="rmsg"></p>' +
+    '</div>';
   }
 
-  function capNames(cs) {
-    return (cs || []).map(function (c) { return capName(c); });
-  }
-
-  // ---------- 画列表 ----------
-  function renderList() {
-    var s = HXAI.settings();
-    var rows = s.profiles;
-    $('count').textContent = rows.length + ' 套配置';
-    $('list').innerHTML = rows.map(function (p) {
-      var ks = HXAI.hasKey(p.id);
-      // 这套被哪些能力设为默认、被哪些工具指定（说清「谁在用这套」）
-      var usedCaps = [], usedTools = [];
-      Object.keys(s.active).forEach(function (c) { if (s.active[c] === p.id) usedCaps.push(capName(c)); });
-      HXAI.toolList.forEach(function (t) { if (s.tools[t.id] === p.id) usedTools.push(t.name); });
-      var usage = '';
-      if (usedCaps.length) usage += '<b>默认能力</b>：' + usedCaps.join('、');
-      if (usedTools.length) usage += (usage ? '；' : '') + '<b>工具指定</b>：' + usedTools.join('、');
-      return '<div class="row" data-id="' + esc(p.id) + '">' +
-        '<div class="rmain">' +
-          '<div class="t"><b>' + esc(p.name || p.model) + '</b><span class="pv">' + esc(provName(p.provider)) + '</span><span class="tl-chip">' + esc(thinkName(p.thinkLevel)) + '</span></div>' +
-          '<p class="m">' + esc(p.model || '（没填模型名）') + ' · ' + esc(p.baseUrl || '（没填地址）') + '</p>' +
-          '<div class="chips">' + (p.caps || []).map(function (c) {
-            return '<span class="chip on">' + esc(capName(c)) + '</span>';
-          }).join('') + '</div>' +
-          '<p class="u">' + (usage || '还没被任何能力 / 工具设为默认') + '</p>' +
+  function renderPlats() {
+    var box = $('plats');
+    var s = snap;
+    if (!s.plats.length) { box.innerHTML = ''; return; }
+    box.innerHTML = s.plats.map(function (pl) {
+      var ms = profsOf(pl.id);
+      var rows = ms.length
+        ? ms.map(modelRow).join('')
+        : '<p class="mempty">这个平台还没有模型。点上面的「+ 加模型」，选它，再「读取模型」把它真有的模型列出来。</p>';
+      // 平台被哪些能力当默认用着（模型行里已经写了，这里只在卡片头上给个汇总）
+      var defCaps = (pl.caps || []).map(capName);
+      return '<div class="plat" data-plat="' + esc(pl.id) + '">' +
+        '<div class="phead">' +
+          '<div class="pt"><b>' + esc(pl.name) + '</b>' +
+            '<span class="pv">' + esc(provLabel(pl.provider)) + '</span>' +
+            '<span class="kst' + (pl.hasKey ? ' ok' : '') + '">' + (pl.hasKey ? 'Key 已填' : '没填 Key') + '</span>' +
+            '<span class="chip">' + ms.length + ' 个模型</span>' +
+            (defCaps.length ? '<span class="chip on">默认：' + esc(defCaps.join('/')) + '</span>' : '') +
+          '</div>' +
+          '<div class="pacts">' +
+            '<button class="btn sm" type="button" data-act="fetch">读取模型</button>' +
+            '<button class="btn sm" type="button" data-act="add">+ 加模型</button>' +
+            '<button class="btn sm" type="button" data-act="edit">编辑 / 改 Key</button>' +
+            '<button class="btn sm bad" type="button" data-act="del">删除平台</button>' +
+          '</div>' +
+          '<p class="pm">' + esc(pl.baseUrl || '（没填接口地址）') +
+            (pl.models && pl.models.length ? ' · 已读到 ' + pl.models.length + ' 个候选模型' : '') + '</p>' +
         '</div>' +
-        '<div class="racts">' +
-          '<span class="kst' + (ks ? ' ok' : '') + '">' + (ks ? 'Key 已填' : '没填 Key') + '</span>' +
-          '<button class="btn sm" type="button" data-act="test">测试连接</button>' +
-          '<button class="btn sm" type="button" data-act="edit">编辑</button>' +
-          '<button class="btn sm bad" type="button" data-act="del">删除</button>' +
-        '</div>' +
-        '<p class="rmsg"></p>' +
+        '<div class="mrows">' + rows + '</div>' +
+        '<p class="pmsg"></p>' +
       '</div>';
     }).join('');
-    Array.prototype.forEach.call($('list').querySelectorAll('.row'), function (row) {
-      var id = row.dataset.id;
-      row.querySelectorAll('[data-act]').forEach(function (b) {
-        b.onclick = function () { onRowAct(b.dataset.act, id, row); };
-      });
-    });
   }
 
-  function onRowAct(act, id, row) {
-    var p = HXAI.get(id);
-    if (!p) return renderAll();
-    if (act === 'edit') return openForm(id);
-    if (act === 'del') {
-      if (!confirm('删掉「' + (p.name || p.model) + '」这套配置？\n它的 Key 也会一起清掉，别的工具要是正用着它会退回默认。')) return;
-      HXAI.remove(id);
-      if (editing === id) closeForm();
-      renderAll();
-      toast('已删除');
-      return;
-    }
-    if (act === 'test') {
-      var msg = row.querySelector('.rmsg');
-      msg.className = 'rmsg';
-      msg.textContent = '正在测试…';
-      HXAI.test(Object.assign({}, p, { key: HXAI.key(id) })).then(function (r) {
-        msg.className = 'rmsg good';
-        msg.textContent = '连接成功 · ' + r.ms + ' 毫秒 · 返回「' + r.text + '」';
-      }).catch(function (e) {
-        msg.className = 'rmsg bad';
-        msg.textContent = '连接失败：' + e.message;
+  // ---------- 画：「按能力设默认」（两级：平台 → 模型） ----------
+  function renderCaps() {
+    $('caps').innerHTML = HXAI.caps.map(function (c) {
+      var cur = snap.active[c.id] || '';
+      var curP = profById(cur);
+      var curPlatId = curP ? curP.platId : '';
+      // 平台下拉只列「这个平台里至少有一个能干这件事的模型」，否则选了也是空
+      var platsOk = snap.plats.filter(function (pl) {
+        return profsOf(pl.id).some(function (p) { return supportsCap(p, c.id); });
       });
-    }
-  }
+      var platOpts = '<option value="">' + (platsOk.length ? '未设置' : '还没有能做「' + esc(c.name) + '」的平台') + '</option>' +
+        platsOk.map(function (pl) {
+          return '<option value="' + esc(pl.id) + '"' + (pl.id === curPlatId ? ' selected' : '') + '>' +
+            esc(pl.name) + '（' + esc(provLabel(pl.provider)) + '）</option>';
+        }).join('');
 
-  // ---------- 画「按能力设默认」 ----------
-  function renderDefaults() {
-    lastCfg = HXAI.settings();
-    var all = lastCfg.profiles;
-    $('defaults').innerHTML = HXAI.caps.map(function (c) {
-      var opts = all.filter(function (p) { return c.id === 'text' || (p.caps || []).indexOf(c.id) >= 0; });
-      var cur = lastCfg.active[c.id] || '';
-      var curP = all.filter(function (p) { return p.id === cur; })[0];
-      var eff = curP ? '当前：' + esc(curP.name || curP.model) + '（' + esc(curP.model) + '）· 思考 ' + esc(thinkName(curP.thinkLevel)) : '当前：未设置';
-      return '<b>' + esc(c.name) + '<em>' + esc(c.hint) + '</em></b>' +
-        '<select data-cap="' + c.id + '">' +
-          '<option value="">' + (opts.length ? '未设置' : '还没有勾「' + esc(c.name) + '」的模型') + '</option>' +
-          opts.map(function (p) {
-            return '<option value="' + esc(p.id) + '"' + (p.id === cur ? ' selected' : '') + '>' + esc(p.name || p.model) + '（' + esc(p.model) + '）</option>';
-          }).join('') +
-        '</select>' +
-        '<span class="eff">' + eff + '</span>';
+      // 模型下拉：只列选中平台里勾了这项能力的（文本能力不挑，任何模型都能当文本用）
+      var models = curPlatId ? profsOf(curPlatId).filter(function (p) { return supportsCap(p, c.id); }) : [];
+      var modelOpts;
+      if (!curPlatId) modelOpts = '<option value="">先选平台</option>';
+      else if (!models.length) modelOpts = '<option value="">这个平台没有可用于「' + esc(c.name) + '」的模型</option>';
+      else modelOpts = '<option value="">' + (cur ? '未设置' : '选一个模型') + '</option>' +
+        models.map(function (p) {
+          return '<option value="' + esc(p.id) + '"' + (p.id === cur ? ' selected' : '') + '>' +
+            esc(p.name || p.model) + '（' + esc(p.model) + '）</option>';
+        }).join('');
+
+      // 当前状态那句话：设了但模型没勾这项能力时，要说实话（老存档里才有这种数据）
+      var eff, bad = false;
+      if (!curP) eff = '当前：未设置 · 用到这项能力时会提示「缺哪种能力」';
+      else {
+        eff = effLine(curP);
+        if (!supportsCap(curP, c.id)) { eff += ' · <b>这个模型没勾「' + esc(c.name) + '」，建议重选</b>'; bad = true; }
+      }
+      return '<div class="row" data-cap="' + c.id + '">' +
+        '<div class="hd"><b>' + esc(c.name) + '</b><em>' + esc(c.hint) + '</em></div>' +
+        '<div class="sels">' +
+          '<select data-kind="plat" data-cap="' + c.id + '" aria-label="' + esc(c.name) + '用哪个平台">' + platOpts + '</select>' +
+          '<select data-kind="model" data-cap="' + c.id + '" aria-label="' + esc(c.name) + '用哪个模型">' + modelOpts + '</select>' +
+        '</div>' +
+        '<p class="eff' + (bad ? ' bad' : '') + '">' + eff + '</p>' +
+      '</div>';
     }).join('');
-    $('defaults').querySelectorAll('select[data-cap]').forEach(function (sel) {
-      sel.onchange = function () {
-        HXAI.setActive(sel.dataset.cap, sel.value);
-        renderDefaults(); renderTools();
-        renderOverview(); // 改默认会影响「跟随默认」那一组，总览得同时刷
-        toast('已更新默认模型');
-      };
-    });
   }
 
-  // ---------- 画「按工具指定」 ----------
+  // ---------- 画：「按工具指定」（同样是两级，多一个「跟随默认」） ----------
   function renderTools() {
-    var all = (lastCfg || HXAI.settings()).profiles;
-    var tk = (HXAI.settings().tools) || {};
     $('tools').innerHTML = HXAI.toolList.map(function (t) {
-      var cur = tk[t.id] || '';
+      var cur = snap.tools[t.id] || '';
+      var curP = profById(cur);
+      var curPlatId = curP ? curP.platId : '';
+      var platOpts = '<option value="">跟随默认</option>' + snap.plats.map(function (pl) {
+        var n = profsOf(pl.id).length;
+        return '<option value="' + esc(pl.id) + '"' + (pl.id === curPlatId ? ' selected' : '') + '>' +
+          esc(pl.name) + '（' + n + ' 个模型）</option>';
+      }).join('');
+      var models = curPlatId ? profsOf(curPlatId) : [];
+      var modelOpts;
+      if (!curPlatId) modelOpts = '<option value="">跟随默认</option>';
+      else if (!models.length) modelOpts = '<option value="">这个平台还没有模型</option>';
+      else modelOpts = '<option value="">跟随默认</option>' + models.map(function (p) {
+        return '<option value="' + esc(p.id) + '"' + (p.id === cur ? ' selected' : '') + '>' +
+          esc(p.name || p.model) + '（' + esc(p.model) + '）</option>';
+      }).join('');
+      // 实际会落到哪套：
+      //   指定了 → 就是它；没指定 → forTool 的口径（文本默认），和真正调用完全一致
       var eff = HXAI.forTool(t.id);
-      // 把「这个工具现在用哪套、什么模型、思考程度、能干什么」一次说清
       var effTxt = eff
-        ? '现在会用「' + esc(eff.name || eff.model) + '」(' + esc(eff.model) + ') · 思考 ' + esc(thinkName(eff.thinkLevel)) + ' · ' + capNames(eff.caps).join('/')
-        : '现在没有可用的模型（先加一套勾了「文本问答」的）';
-      return '<b>' + esc(t.name) + '</b>' +
-        '<select data-tool="' + esc(t.id) + '">' +
-          '<option value="">跟随默认</option>' +
-          all.map(function (p) {
-            return '<option value="' + esc(p.id) + '"' + (p.id === cur ? ' selected' : '') + '>' + esc(p.name || p.model) + '（' + esc(p.model) + '）</option>';
-          }).join('') +
-        '</select>' +
-        '<span class="eff">' + (cur ? '指定了单独的一套 · ' : '跟随默认 · ') + effTxt + '</span>';
+        ? (cur ? '单独指定 · ' : '跟随默认 · ') + effLine(eff)
+        : '现在没有可用的模型（先在左边加一个勾了「文本问答」的模型）';
+      return '<div class="row" data-tool="' + esc(t.id) + '">' +
+        '<div class="hd"><b>' + esc(t.name) + '</b></div>' +
+        '<div class="sels">' +
+          '<select data-kind="plat" data-tool="' + esc(t.id) + '" aria-label="' + esc(t.name) + '用哪个平台">' + platOpts + '</select>' +
+          '<select data-kind="model" data-tool="' + esc(t.id) + '" aria-label="' + esc(t.name) + '用哪个模型">' + modelOpts + '</select>' +
+        '</div>' +
+        '<p class="eff">' + effTxt + '</p>' +
+      '</div>';
     }).join('');
-    $('tools').querySelectorAll('select[data-tool]').forEach(function (sel) {
-      sel.onchange = function () {
-        HXAI.setTool(sel.dataset.tool, sel.value);
-        renderTools();
-        renderOverview(); // 总览跟着变：改了指定却要刷新才看到，会让人以为没生效
-        toast(sel.value ? '已指定' : '已改回跟随默认');
-      };
-    });
   }
 
-  // ---------- 画「每个工具用哪套」总览（只读，2026-11-09 加） ----------
+  // ---------- 画：「每个工具用哪套」总览（只读） ----------
   /* 为什么另起一块，而不是在下拉旁边写说明：
-     7 个工具 × 6 种能力，谁在用哪套只有一个个展开下拉才看得出来，「刷题用 A、考试用 B、
+     7 个工具 × 6 种能力，谁在用哪个只有一个个展开下拉才看得出来，「刷题用 A、考试用 B、
      其余走默认」这种全局判断根本做不了。这里不发明数据，直接摊开 HXAI.settings()：
        · 分组只认一个事实 —— s.tools[工具] 有没有值：有 = 单独指定，没有 = 跟随默认；
-       · 「跟随默认」组头把每项能力的默认写出来（文本、识图可能不是同一套），
+       · 「跟随默认」组头把每项能力的默认写出来（文本、识图可能不是同一个模型），
          组里的每行再给出这个工具实际会落到的那套（forTool 的口径，和真正调用一致）。 */
   function ovRow(t, p, tag) {
     if (!p) {
-      return '<div class="row" data-tool="' + esc(t.id) + '">' +
-        '<div class="rmain"><div class="t"><b>' + esc(t.name) + '</b>' + tag + '</div>' +
-          '<p class="m">还没有可用的模型</p>' +
+      return '<div class="mrow" data-tool="' + esc(t.id) + '">' +
+        '<div class="mmain"><div class="mt"><b>' + esc(t.name) + '</b>' + tag + '</div>' +
+          '<p class="u">还没有可用的模型</p>' +
           '<div class="chips"><span class="chip">没配模型</span></div></div>' +
       '</div>';
     }
-    var ks = HXAI.hasKey(p.id);
-    return '<div class="row" data-tool="' + esc(t.id) + '">' +
-      '<div class="rmain">' +
-        '<div class="t"><b>' + esc(t.name) + '</b>' + tag +
-          '<span class="pv">' + esc(provName(p.provider)) + '</span>' +
-          '<span class="tl-chip">' + esc(thinkName(p.thinkLevel)) + '</span></div>' +
-        '<p class="m">' + esc(p.name || p.model) + ' · ' + esc(p.model) + '</p>' +
+    var pl = platById(p.platId);
+    return '<div class="mrow" data-tool="' + esc(t.id) + '">' +
+      '<div class="mmain">' +
+        '<div class="mt"><b>' + esc(t.name) + '</b>' + tag +
+          '<span class="pv">' + esc(pl ? pl.name : '（平台已删）') + '</span>' +
+          '<span class="tl-chip">思考 ' + esc(thinkName(p.thinkLevel)) + '</span></div>' +
+        '<p class="u">' + esc(p.name || p.model) + ' · ' + esc(p.model) + '</p>' +
         '<div class="chips">' +
-          '<span class="kst' + (ks ? ' ok' : '') + '">' + (ks ? 'Key 已填' : '没填 Key') + '</span>' +
+          '<span class="kst' + (HXAI.hasKey(p.id) ? ' ok' : '') + '">' + (HXAI.hasKey(p.id) ? 'Key 已填' : '没填 Key') + '</span>' +
           (p.caps || []).map(function (c) {
             return '<span class="chip on">' + esc(capName(c)) + '</span>';
           }).join('') +
@@ -455,31 +591,33 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
   }
 
   function renderOverview() {
-    var s = HXAI.settings();
+    var s = snap;
     var byId = {};
     s.profiles.forEach(function (p) { byId[p.id] = p; });
     var explicit = [], follow = [];
     HXAI.toolList.forEach(function (t) {
       var id = s.tools[t.id];
-      // 读存储时已经把指向已删配置的死引用清掉了；这里再兜一次，
-      // 免得有人手改 localStorage 后，总览里出现一套根本不存在的模型
-      (id && byId[id] ? explicit : follow).push({ t: t, id: id });
+      // 读存储时已经把指向已删模型的死引用清掉了；这里再兜一次，
+      // 免得有人手改 localStorage 后，总览里出现一个根本不存在的模型
+      (id && byId[id] ? explicit : follow).push({ t: t });
     });
 
     var box = $('overview');
     if (!s.profiles.length) {
-      box.innerHTML = '<p class="hint" style="margin:0">还没有配置。上面加一套之后，这里会列出每个工具实际用的模型。</p>';
+      box.innerHTML = '<p class="hint" style="margin:0">还没有模型。左边加一个平台和模型之后，这里会列出每个工具实际用的模型。</p>';
       return;
     }
 
-    // 「跟随默认」用到哪些默认：按能力逐项说，因为读图和问答本来就可能落在两套上
+    // 「跟随默认」用到哪些默认：按能力逐项说，因为读图和问答本来就可能落在两个模型上
     var defs = HXAI.caps.map(function (c) {
       var p = byId[s.active[c.id]];
-      return p ? capName(c.id) + '「' + (p.name || p.model) + '」' : '';
+      if (!p) return '';
+      var pl = platById(p.platId);
+      return capName(c.id) + '「' + (pl ? pl.name + ' · ' : '') + (p.name || p.model) + '」';
     }).filter(Boolean);
     var defLine = defs.length
       ? '默认按能力选：' + defs.join('；')
-      : '还没设默认：这些工具现在没有可用模型，先去上面「按能力设默认」里选一套。';
+      : '还没设默认：这些工具现在没有可用模型，先去「按能力设默认」里选一个。';
 
     var tagFollow = '<span class="chip">跟随默认</span>';
     var tagOwn = '<span class="chip">单独指定</span>';
@@ -487,14 +625,14 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
       '<div class="ovg" data-grp="explicit">' +
         '<p class="ovt">单独指定<small>' + explicit.length + ' 个工具</small></p>' +
         (explicit.length
-          ? explicit.map(function (x) { return ovRow(x.t, byId[x.id], tagOwn); }).join('')
+          ? explicit.map(function (x) { return ovRow(x.t, byId[s.tools[x.t.id]], tagOwn); }).join('')
           : '<p class="ovnote">没有工具单独指定，全部走下面的默认。</p>') +
       '</div>' +
       '<div class="ovg" data-grp="follow">' +
         '<p class="ovt">跟随默认<small>' + follow.length + ' 个工具</small></p>' +
         '<p class="ovnote">' + esc(defLine) + '</p>' +
         (follow.length
-          // forTool 的口径和真正调用一致：没指定 → 文本默认；有指定但那套干不了这件事时也退到默认
+          // forTool 的口径和真正调用一致：没指定 → 文本默认
           ? follow.map(function (x) { return ovRow(x.t, HXAI.forTool(x.t.id), tagFollow); }).join('')
           : '<p class="ovnote">所有工具都单独指定了。</p>') +
       '</div>';
@@ -502,7 +640,7 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
 
   // ---------- 注册渠道（从首页 AI 弹层搬来） ----------
   var AI_CHANNELS = [
-    { img: '../invite/siliconflow.png', name: '硅基流动（SiliconFlow）', desc: '注册并完成身份认证后就能开通国产模型（DeepSeek、Qwen 等）的 API Key，先用便宜模型练手。', url: 'https://cloud.siliconflow.cn/i/aQ6Tn6dH' },
+    { img: '../invite/siliconflow.png', name: '硅基流动（SiliconFlow）', desc: '注册并完成身份认证后就能开通国产模型（DeepSeek、Qwen 等）的 API Key；一个 Key 还有文生图、文生视频（Wan2.2）、语音。先拿它练手。', url: 'https://cloud.siliconflow.cn/i/aQ6Tn6dH' },
     { img: '../invite/workbuddy.png', name: 'WorkBuddy（腾讯）', desc: '注册后在网页里就能用主流大模型，适合新手第一步；熟悉了再学 Codex / Claude 这类编程助手。', url: 'https://www.workbuddy.cn/events/invite?inviteCode=u1ds11m0hxo1bgw4' }
   ];
   function renderChannels() {
@@ -523,31 +661,230 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
     });
   }
 
-  function renderAll() { renderList(); renderDefaults(); renderTools(); renderOverview(); renderChannels(); }
-  // ---------- 表单 ----------
-  // 供应商那句提醒（能不能读图、地址要不要改、额度怎么算）
-  function setProvNote(prov) {
-    var el = $('fProvNote');
-    if (!el) return;
-    var preset = HXAI.providers[prov];
+  function renderAll() {
+    snap = HXAI.settings();
+    $('count').textContent = snap.plats.length + ' 个平台 · ' + snap.profiles.length + ' 个模型';
+    renderPlats(); renderCaps(); renderTools(); renderOverview(); renderChannels();
+  }
+
+  // ---------- 平台卡片上的按钮（事件委托：卡片是重画的，逐次绑太容易漏） ----------
+  function onPlatAct(act, platEl, rowEl) {
+    var platId = platEl ? platEl.getAttribute('data-plat') : '';
+    var modelId = rowEl ? rowEl.getAttribute('data-model') : '';
+    var pl = platById(platId);
+    if (!pl) { renderAll(); return; }
+
+    if (act === 'fetch' && !rowEl) {
+      var msg = platEl.querySelector('.pmsg');
+      msg.className = 'pmsg';
+      msg.textContent = '正在读取模型列表…';
+      HXAI.models({ platId: platId }).then(function (ms) {
+        renderAll();     // models() 已经把候选存进平台了，重画才能看到「已读到 N 个候选模型」
+        var again = document.querySelector('.plat[data-plat="' + platId + '"] .pmsg');
+        if (again) {
+          again.className = 'pmsg good';
+          again.textContent = '读到 ' + ms.length + ' 个模型，已存进平台；点「+ 加模型」时下拉里就有它们。';
+        }
+      }).catch(function (e) {
+        var m2 = document.querySelector('.plat[data-plat="' + platId + '"] .pmsg');
+        if (m2) { m2.className = 'pmsg bad'; m2.textContent = e.message; }
+      });
+      return;
+    }
+    if (act === 'add') return openModelForm(platId, '');
+    if (act === 'edit') return openPlatForm(platId);
+
+    if (act === 'del' && !rowEl) {
+      // 删平台是不可逆的：先把「连带删掉什么」数清楚给用户看
+      var goneModels = profsOf(platId).length;
+      var goneCaps = (pl.caps || []).map(capName);
+      var goneTools = pl.tools ? HXAI.toolList.filter(function (t) { return pl.tools.indexOf(t.id) >= 0; }).map(function (t) { return t.name; }) : [];
+      var warn = '删掉平台「' + pl.name + '」？\n\n' +
+        '这个平台下还有 ' + goneModels + ' 个模型，会被一起删掉；' +
+        '它的 Key 也会清掉。';
+      if (goneCaps.length) warn += '\n正在当默认的能力：' + goneCaps.join('、') + '（会变回未设置）';
+      if (goneTools.length) warn += '\n正在用它的工具：' + goneTools.join('、') + '（会退回默认）';
+      if (!confirm(warn)) return;
+      HXAI.removePlat(platId);
+      if (editingPlat === platId) closePlatForm();
+      renderAll();
+      toast('已删除平台「' + pl.name + '」');
+      return;
+    }
+
+    var m = modelId ? profById(modelId) : null;
+    if (!m) return;
+    if (act === 'edit') return openModelForm(platId, modelId);
+    if (act === 'del') {
+      if (!confirm('删掉模型「' + (m.name || m.model) + '」？\n平台「' + pl.name + '」和它的 Key 会留着，别的模型不受影响。')) return;
+      HXAI.remove(modelId);
+      if (editingModel === modelId) closeModelForm();
+      renderAll();
+      toast('已删除模型');
+      return;
+    }
+    if (act === 'test') {
+      var rmsg = rowEl.querySelector('.rmsg');
+      rmsg.className = 'rmsg';
+      rmsg.textContent = '正在测试…';
+      HXAI.test({ platId: platId, id: modelId, model: m.model, caps: m.caps, thinkLevel: m.thinkLevel }).then(function (r) {
+        rmsg.className = 'rmsg good';
+        rmsg.textContent = '连接成功 · ' + r.ms + ' 毫秒 · 返回「' + r.text + '」';
+      }).catch(function (e) {
+        rmsg.className = 'rmsg bad';
+        rmsg.textContent = '连接失败：' + e.message;
+      });
+    }
+  }
+
+  $('plats').addEventListener('click', function (e) {
+    var btn = e.target && e.target.closest ? e.target.closest('[data-act]') : null;
+    if (!btn) return;
+    onPlatAct(btn.getAttribute('data-act'), btn.closest('.plat'), btn.closest('.mrow'));
+  });
+
+  // ---------- 「按能力」「按工具」下拉的变化 ----------
+  /* 两级联动，2026-11-15：
+     选平台时如果这个平台只有一个能干这件事的模型，直接选上（少点一次）；
+     有多个就留「选一个模型」，逼用户自己看一遍 —— 别替他猜，猜错了就是当初那种错配。 */
+  function bindTwoLevel(box) {
+    box.addEventListener('change', function (e) {
+      var sel = e.target;
+      if (!sel || !sel.dataset.kind) return;
+      var cap = sel.dataset.cap || '';
+      var tool = sel.dataset.tool || '';
+      if (!cap && !tool) return;
+
+      if (sel.dataset.kind === 'model') {
+        // 选具体模型 = 落库
+        if (cap) { HXAI.setActive(cap, sel.value); toast(sel.value ? '已更新默认模型' : '已清空这项默认'); }
+        else { HXAI.setTool(tool, sel.value); toast(sel.value ? '已指定这个工具用的模型' : '已改回跟随默认'); }
+        renderAll();
+        return;
+      }
+
+      // 选了平台：找出这个平台里能干这件事的模型
+      var platId = sel.value;
+      if (!platId) {
+        if (cap) { HXAI.setActive(cap, ''); toast('已清空这项默认'); }
+        else { HXAI.setTool(tool, ''); toast('已改回跟随默认'); }
+        renderAll();
+        return;
+      }
+      var cands = profsOf(platId).filter(function (p) { return cap ? supportsCap(p, cap) : true; });
+      if (cands.length === 1 && cap) {
+        HXAI.setActive(cap, cands[0].id);
+        toast('已选「' + (cands[0].name || cands[0].model) + '」');
+      }
+      renderAll();   // 平台变了但没定模型：重画出来让用户在模型下拉里挑
+    });
+  }
+  bindTwoLevel($('caps'));
+  bindTwoLevel($('tools'));
+
+  // ---------- 平台表单 ----------
+  function setPlatProvNote() {
+    var el = $('pfProvNote');
+    var preset = HXAI.providers[$('pfProv').value];
     el.textContent = (preset && preset.note) || '';
     el.hidden = !(preset && preset.note);
   }
 
-  function fillProvider(prov) {
-    var preset = HXAI.providers[prov];
-    $('fBase').value = preset.baseUrl || '';
-    $('fModel').value = (preset.models || [])[0] || '';
-    modelList = (preset.models || []).slice();
-    setProvNote(prov);
-    // 能力勾选按供应商推荐值预填：用户改成不支持的组合（比如给 DeepSeek 勾视觉）也只提醒、不拦
-    var want = preset.caps || ['text'];
-    $('fCaps').querySelectorAll('input[type=checkbox]').forEach(function (b) {
-      b.checked = want.indexOf(b.value) >= 0;
-    });
+  function openPlatForm(id, noScroll) {
+    editingPlat = id || '';
+    platModels = [];
+    var pl = id ? HXAI.getPlat(id) : null;
+    $('pf').hidden = false;
+    $('pfT').textContent = pl ? '编辑平台：' + pl.name : '新增平台';
+    $('pfName').value = pl ? pl.name : '';
+    $('pfProv').value = pl ? pl.provider : 'deepseek';
+    // 新平台照服务商预设填地址；编辑时用存下来的（用户可能手改过）
+    $('pfBase').value = pl ? pl.baseUrl : (HXAI.providers[$('pfProv').value].baseUrl || '');
+    setPlatProvNote();
+    // Key 从不回显：留空 = 不动原来那把（一个平台只有一把，改一次全平台生效）
+    $('pfKey').value = '';
+    $('pfKey').placeholder = pl && pl.hasKey ? '已保存（留空表示不改）' : 'sk-...';
+    $('pfRemember').checked = pl ? HXAI.platRemembered(pl.id) : true;
+    $('pfMsg').textContent = '';
+    $('pfMsg').className = 'msg';
+    // 打开页面时（一个平台都没有）不要滚屏：一进来就把顶部说明顶掉会让人不知道自己在哪
+    if (!noScroll) $('pf').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    $('pfName').focus();
   }
 
-  // ---------- 自定义模型下拉（替代原生 datalist：某些内核里点不弹、选中不生效） ----------
+  function closePlatForm() {
+    editingPlat = '';
+    platModels = [];
+    $('pf').hidden = true;
+    $('pfMsg').textContent = '';
+  }
+
+  $('pfProv').onchange = function () {
+    // 换服务商 = 换一家，地址跟着换（已经手填过的地址会被覆盖，这是有意的）
+    $('pfBase').value = HXAI.providers[$('pfProv').value].baseUrl || '';
+    setPlatProvNote();
+  };
+
+  function collectPlat() {
+    var c = {
+      id: editingPlat || undefined,
+      name: $('pfName').value.trim(),
+      provider: $('pfProv').value,
+      baseUrl: $('pfBase').value.trim(),
+      remember: $('pfRemember').checked
+    };
+    var k = $('pfKey').value.trim();
+    if (k) c.key = k;   // 留空 = 不改原来那把
+    else if (editingPlat && HXAI.platKey(editingPlat) && c.remember !== HXAI.platRemembered(editingPlat)) {
+      c.key = HXAI.platKey(editingPlat);   // 只改了「记住」：把 Key 挪到另一个存储里
+    }
+    return c;
+  }
+
+  $('pfFetch').onclick = function () {
+    var c = collectPlat(), msg = $('pfMsg');
+    if (!c.baseUrl) { msg.className = 'msg bad'; msg.textContent = '先填接口地址，才能读模型列表。'; return; }
+    var k = $('pfKey').value.trim() || (editingPlat ? HXAI.platKey(editingPlat) : '');
+    if (!k) { msg.className = 'msg bad'; msg.textContent = '先填 API Key 才能读模型列表（Key 是服务商给的 sk- 开头那一串）。'; return; }
+    msg.className = 'msg'; msg.textContent = '正在读取模型列表…';
+    HXAI.models({ provider: c.provider, baseUrl: c.baseUrl, platId: editingPlat, key: k }).then(function (ms) {
+      if (!ms.length) {
+        msg.className = 'msg bad';
+        msg.textContent = '这个服务商没有返回任何模型（可能不开放 /models 接口）。直接手填模型名也可以。';
+        return;
+      }
+      platModels = ms;
+      msg.className = 'msg good';
+      msg.textContent = '读到 ' + ms.length + ' 个模型。保存平台后，加模型时下拉里就有它们。';
+    }).catch(function (e) {
+      msg.className = 'msg bad';
+      msg.textContent = e.message;   // models() 已经把「缺什么 Key / 什么权限 / 什么地址」说清
+    });
+  };
+
+  $('pf').onsubmit = function (e) {
+    e.preventDefault();
+    var c = collectPlat(), msg = $('pfMsg');
+    var isNew = !editingPlat;
+    if (!c.name) c.name = provLabel(c.provider);   // 别名懒得起就用服务商名，卡片上不至于空白
+    if (!c.baseUrl) { msg.className = 'msg bad'; msg.textContent = '接口地址不能空（不确定就照服务商文档里的 OpenAI 兼容地址填）。'; return; }
+    if (platModels.length) c.models = platModels;
+    var saved;
+    try {
+      saved = HXAI.savePlat(c);
+    } catch (err) {
+      msg.className = 'msg bad'; msg.textContent = err.message; return;
+    }
+    closePlatForm();
+    renderAll();
+    toast('已保存平台「' + saved.name + '」');
+    // 新建平台后直接打开「加模型」：导入 Key 的下一步本来就是选模型，别让人再点一次
+    if (isNew) openModelForm(saved.id, '');
+  };
+
+  $('pfCancel').onclick = closePlatForm;
+
+  // ---------- 模型表单 ----------
   // 按名字猜类型分堆，让下拉不是一长条平铺（vision/图像/音频/视频一眼能认）
   function modelGroup(m) {
     var s = m.toLowerCase();
@@ -558,16 +895,20 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
     if (/embedding|embed|reranker|bge-|rerank/.test(s)) return '嵌入 · 检索';
     return '文本 · 对话';
   }
+
   function renderModelPanel(filterText) {
     var panel = $('modelPanel');
     var q = (filterText === undefined ? '' : String(filterText)).trim().toLowerCase();
     var items = modelList.filter(function (m) { return !q || m.toLowerCase().indexOf(q) >= 0; });
+    var cur = $('mfModel').value;
     if (!items.length) {
-      panel.innerHTML = '<div class="empty">' + (modelList.length ? '没有匹配「' + esc($('fModel').value.trim()) + '」的候选，直接手填模型名即可。' : '还没有候选模型。点「读取模型」拉列表，或直接手填模型名。') + '</div>';
+      panel.innerHTML = '<div class="empty">' + (modelList.length
+        ? '没有匹配「' + esc(cur.trim()) + '」的候选，直接手填模型名即可。'
+        : '还没有候选模型。先选平台再点「读取模型」，或直接手填模型名。') + '</div>';
     } else if (items.length === 1) {
       // 只有一个候选就不分组，直接一行
       panel.innerHTML = items.map(function (m) {
-        return '<button type="button" class="opt' + (m === $('fModel').value ? ' sel' : '') + '" data-m="' + esc(m) + '">' + esc(m) + '</button>';
+        return '<button type="button" class="opt' + (m === cur ? ' sel' : '') + '" data-m="' + esc(m) + '">' + esc(m) + '</button>';
       }).join('');
     } else {
       // 按类型分堆；每组内保持原始顺序
@@ -579,7 +920,7 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
       });
       panel.innerHTML = groups.map(function (g) {
         return '<div class="grp">' + esc(g.name) + '</div>' + g.list.map(function (m) {
-          return '<button type="button" class="opt' + (m === $('fModel').value ? ' sel' : '') + '" data-m="' + esc(m) + '">' + esc(m) + '</button>';
+          return '<button type="button" class="opt' + (m === cur ? ' sel' : '') + '" data-m="' + esc(m) + '">' + esc(m) + '</button>';
         }).join('');
       }).join('');
     }
@@ -587,115 +928,147 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
   }
   function closeModelPanel() { $('modelPanel').hidden = true; }
 
-  function openForm(id) {
-    editing = id || '';
-    var p = id ? HXAI.get(id) : null;
-    $('pf').hidden = false;
-    $('pfT').textContent = p ? '编辑：' + (p.name || p.model) : '新增一套';
-    $('fName').value = p ? (p.name || '') : '';
-    $('fProv').value = p ? p.provider : 'deepseek';
-    if (p) {
-      $('fBase').value = p.baseUrl || '';
-      $('fModel').value = p.model || '';
-      modelList = (HXAI.providers[p.provider].models || []).slice();
-      $('fCaps').querySelectorAll('input[type=checkbox]').forEach(function (b) {
-        b.checked = (p.caps || []).indexOf(b.value) >= 0;
-      });
-      setThink(p.thinkLevel || 'balanced');
-    } else {
-      fillProvider('deepseek');
-      setThink('balanced');
-    }
-    // 编辑已有配置时不会走 fillProvider（怕把用户手填的地址覆盖掉），提醒得单独刷一下
-    setProvNote(p ? p.provider : 'deepseek');
-    closeModelPanel();
-    // Key 从不回显：留空 = 不动原来那把
-    var has = p && HXAI.hasKey(p.id);
-    $('fKey').value = '';
-    $('fKey').placeholder = has ? '已保存（留空表示不改）' : 'sk-...';
-    $('fRemember').checked = p ? remembered(p.id) : true;
-    $('fMsg').textContent = '';
-    $('fMsg').className = 'msg';
-    $('fName').focus();
+  /* 候选模型 = 平台「读取模型」读到的 + 服务商预设里列的几个。
+     为什么两份都要：预设里有些 ID 是作者有把握的（比如 Wan2.2 的视频模型名），
+     读取接口万一被拦/不开放，用户还能从预设里挑；反过来，读到的才是真实可用的全量。 */
+  function platCandidates(pl) {
+    var out = (pl.models || []).slice();
+    var preset = HXAI.providers[pl.provider];
+    ((preset && preset.models) || []).forEach(function (m) { if (out.indexOf(m) < 0) out.push(m); });
+    return out;
   }
 
-  // 思考程度三档的 radio 高亮：点一下选一档，名字段 fThink
+  function setCaps(ids) {
+    var want = ids || null;
+    $('mfCaps').querySelectorAll('input[type=checkbox]').forEach(function (b) {
+      b.checked = want ? want.indexOf(b.value) >= 0 : false;
+    });
+  }
+  function presetCapsOf(pl) {
+    var preset = pl ? HXAI.providers[pl.provider] : null;
+    return (preset && preset.caps) || ['text'];
+  }
+  // 思考程度三档的 radio 高亮：点一下选一档，容器叫 mfThink
   function setThink(id) {
-    $('fThink').querySelectorAll('input[type=radio]').forEach(function (r) {
+    $('mfThink').querySelectorAll('input[type=radio]').forEach(function (r) {
       r.checked = r.value === id;
     });
-    $('fThink').querySelectorAll('label').forEach(function (l) {
+    $('mfThink').querySelectorAll('label').forEach(function (l) {
       l.classList.toggle('on', l.querySelector('input') && l.querySelector('input').checked);
     });
   }
 
-  function closeForm() {
-    editing = '';
-    $('pf').hidden = true;
-    $('fMsg').textContent = '';
+  /* 模型表单依赖平台的三块：平台下拉选项、候选模型、能力预勾。
+     2026-11-15 踩过的坑：这里原来是个「重建下拉 + 读值」的单一函数，被连着调两次，
+     第二次重建 options 会把刚设好的 value 打回第一项 —— 结果给「111」加模型，实际加到了 DeepSeek 下。
+     拆成 renderPlatOptions（只画选项）和 applyPlat（只处理依赖项），谁也别动谁的 value。 */
+  function renderPlatOptions(wantId) {
+    var sel = $('mfPlat');
+    sel.innerHTML = snap.plats.length
+      ? snap.plats.map(function (p) {
+          return '<option value="' + esc(p.id) + '">' + esc(p.name) + '（' + esc(provLabel(p.provider)) + '）</option>';
+        }).join('')
+      : '<option value="">还没有平台，先点「+ 新增平台」</option>';
+    if (wantId) {
+      var ok = Array.prototype.some.call(sel.options, function (o) { return o.value === wantId; });
+      if (ok) sel.value = wantId;
+    }
   }
 
-  function collect() {
-    var capsSel = Array.prototype.filter.call($('fCaps').querySelectorAll('input[type=checkbox]'), function (b) { return b.checked; })
-      .map(function (b) { return b.value; });
-    var tl = '';
-    $('fThink').querySelectorAll('input[type=radio]').forEach(function (r) { if (r.checked) tl = r.value; });
-    return {
-      id: editing || undefined,
-      name: $('fName').value.trim(),
-      provider: $('fProv').value,
-      baseUrl: $('fBase').value.trim(),
-      model: $('fModel').value.trim(),
-      caps: capsSel,
-      thinkLevel: tl || 'balanced',
-      remember: $('fRemember').checked
-    };
+  function applyPlat(model) {
+    var pl = platById($('mfPlat').value);
+    modelList = pl ? platCandidates(pl) : [];
+    var hint = $('mfProvHint');
+    if (!pl) {
+      hint.textContent = '没有平台就先加一个平台（服务商 + 接口地址 + Key）。';
+      setCaps(null);
+      return;
+    }
+    var capTxt = presetCapsOf(pl).map(capName).join(' / ');
+    hint.innerHTML = '这个服务商通常支持：<b>' + esc(capTxt) + '</b>（只是预勾，勾错了不影响保存）' +
+      (pl.models && pl.models.length ? ' · 平台已读到 ' + pl.models.length + ' 个候选模型' : ' · 还没读过模型，点右边「读取模型」');
+    // 新增时按服务商推荐预勾能力；编辑时用模型自己存的
+    setCaps(model ? model.caps : presetCapsOf(pl));
   }
 
-  $('add').onclick = function () {
-    if (!$('pf').hidden && !editing) { closeForm(); return; }
-    openForm('');
-    $('pf').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  };
-  $('fCancel').onclick = closeForm;
+  function openModelForm(platId, modelId) {
+    if (!snap.plats.length) { toast('还没有平台，先点「+ 新增平台」', true); return; }
+    editingModel = modelId || '';
+    var m = modelId ? HXAI.get(modelId) : null;
+    $('mf').hidden = false;
+    $('mfT').innerHTML = (m ? '编辑模型：' + esc(m.name || m.model) : '新增模型') +
+      '<small>下面是「平台 → 模型 → 能力」三步，从上往下填</small>';
+    renderPlatOptions((m ? m.platId : platId) || (snap.plats[0] ? snap.plats[0].id : ''));
+    applyPlat(m);
+    $('mfModel').value = m ? m.model : '';
+    $('mfName').value = m ? (m.name === m.model ? '' : m.name) : '';
+    setThink(m ? m.thinkLevel : 'balanced');
+    closeModelPanel();
+    $('mfMsg').textContent = '';
+    $('mfMsg').className = 'msg';
+    $('mf').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    $('mfModel').focus();
+  }
 
-  $('fProv').onchange = function () {
-    // 换供应商 = 换一家服务，地址和模型建议跟着换（已经手填过的地址会被覆盖，这是有意的）
-    fillProvider($('fProv').value);
-    $('fModel').focus();
+  function closeModelForm() {
+    editingModel = '';
+    $('mf').hidden = true;
+    $('mfMsg').textContent = '';
+    closeModelPanel();
+  }
+
+  $('mfPlat').onchange = function () {
+    // 换平台：候选、能力预勾、提示都跟着换；已填的模型名保留（可能两个平台都有同名模型）
+    applyPlat(editingModel ? HXAI.get(editingModel) : null);
+    closeModelPanel();
   };
 
-  $('fFetch').onclick = function () {
-    var c = collect(), msg = $('fMsg');
-    var k = $('fKey').value.trim() || (editing ? HXAI.key(editing) : '');
-    if (!c.baseUrl) { msg.className = 'msg bad'; msg.textContent = '先填接口地址，才能读模型列表。'; return; }
-    if (!k) { msg.className = 'msg bad'; msg.textContent = '先填 API Key 才能读模型列表（Key 是服务商给的 sk- 开头那一串）。'; return; }
-    msg.className = 'msg'; msg.textContent = '正在读取模型列表…';
-    HXAI.models(Object.assign({}, c, { key: k })).then(function (ms) {
+  $('mfFetch').onclick = function () {
+    var msg = $('mfMsg');
+    var pid = $('mfPlat').value;
+    if (!pid) { msg.className = 'msg bad'; msg.textContent = '先选平台。'; return; }
+    var pl = platById(pid);
+    if (!pl) { msg.className = 'msg bad'; msg.textContent = '这个平台已经不在了，刷新一下。'; return; }
+    if (!pl.hasKey) { msg.className = 'msg bad'; msg.textContent = '平台「' + pl.name + '」还没填 Key，先去「编辑 / 改 Key」补上。'; return; }
+    msg.className = 'msg'; msg.textContent = '正在读取「' + pl.name + '」的模型列表…';
+    HXAI.models({ platId: pid }).then(function (ms) {
       if (!ms.length) {
         msg.className = 'msg bad';
         msg.textContent = '这个服务商没有返回任何模型（可能不开放 /models 接口）。直接手填模型名也可以。';
         return;
       }
-      modelList = ms;
-      // 保持当前已填的模型不变；没填过就默认选第一个
-      if (ms.indexOf($('fModel').value) < 0) $('fModel').value = ms[0];
-      renderModelPanel();  // 读到了直接展开候选，点一下就能选（不再依赖原生 datalist 的不可控弹层）
+      snap = HXAI.settings();          // models() 把候选存进平台了，快照要跟着更新
+      modelList = platCandidates(platById(pid) || pl);
+      if (ms.indexOf($('mfModel').value) < 0 && !$('mfModel').value) $('mfModel').value = ms[0];
+      renderModelPanel();              // 读到了直接展开候选，点一下就能选
       msg.className = 'msg good';
       msg.textContent = '读到 ' + ms.length + ' 个模型，已展开列表，点一下模型名即可选中。';
     }).catch(function (e) {
       msg.className = 'msg bad';
-      msg.textContent = e.message;  // models() 已经把「缺什么 Key / 什么权限 / 什么地址」说清
+      msg.textContent = e.message;
     });
   };
 
-  $('fTest').onclick = function () {
-    var c = collect(), msg = $('fMsg');
-    var k = $('fKey').value.trim() || (editing ? HXAI.key(editing) : '');
+  function collectModel() {
+    var capsSel = Array.prototype.filter.call($('mfCaps').querySelectorAll('input[type=checkbox]'), function (b) { return b.checked; })
+      .map(function (b) { return b.value; });
+    var tl = '';
+    $('mfThink').querySelectorAll('input[type=radio]').forEach(function (r) { if (r.checked) tl = r.value; });
+    return {
+      id: editingModel || undefined,
+      platId: $('mfPlat').value,
+      model: $('mfModel').value.trim(),
+      name: $('mfName').value.trim(),
+      caps: capsSel,
+      thinkLevel: tl || 'balanced'
+    };
+  }
+
+  $('mfTest').onclick = function () {
+    var c = collectModel(), msg = $('mfMsg');
     if (!c.model) { msg.className = 'msg bad'; msg.textContent = '先填模型名。'; return; }
-    if (!k) { msg.className = 'msg bad'; msg.textContent = '先填 API Key。'; return; }
     msg.className = 'msg'; msg.textContent = '正在测试…';
-    HXAI.test(Object.assign({}, c, { key: k })).then(function (r) {
+    HXAI.test(c).then(function (r) {
       msg.className = 'msg good';
       msg.textContent = '连接成功 · ' + r.ms + ' 毫秒 · 返回「' + r.text + '」';
     }).catch(function (e) {
@@ -704,26 +1077,51 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
     });
   };
 
-  $('pf').onsubmit = function (e) {
+  $('mf').onsubmit = function (e) {
     e.preventDefault();
-    var c = collect(), msg = $('fMsg');
+    var c = collectModel(), msg = $('mfMsg');
+    if (!c.platId) { msg.className = 'msg bad'; msg.textContent = '先选一个平台（没有平台就先点「+ 新增平台」）。'; return; }
     if (!c.model) { msg.className = 'msg bad'; msg.textContent = '模型名不能空。'; return; }
-    if (!c.baseUrl) { msg.className = 'msg bad'; msg.textContent = '接口地址不能空。'; return; }
-    var k = $('fKey').value.trim();
-    if (!editing && !k) { msg.className = 'msg bad'; msg.textContent = '新加的这一套要填 API Key。'; return; }
-    if (k) c.key = k;                      // 留空 = 不改原来那把
-    else if (editing && HXAI.hasKey(editing) && c.remember !== remembered(editing)) {
-      c.key = HXAI.key(editing);            // 只改了「记住」：把 Key 挪到另一个存储里
+    if (HXAI.existsModel(c.platId, c.model, editingModel)) {
+      msg.className = 'msg bad';
+      msg.textContent = '这个平台下已经有「' + c.model + '」了 —— 同一个模型加两遍没有意义，直接编辑原来那个改能力就行。';
+      return;
     }
-    try {
-      HXAI.save(c);
-    } catch (err) {
-      msg.className = 'msg bad'; msg.textContent = err.message; return;
-    }
-    closeForm();
+    try { HXAI.save(c); }
+    catch (err) { msg.className = 'msg bad'; msg.textContent = err.message; return; }
+    closeModelForm();
     renderAll();
-    toast('已保存');
+    toast('已保存模型');
   };
+
+  $('mfCancel').onclick = closeModelForm;
+
+  $('addPlat').onclick = function () {
+    if (!$('pf').hidden && !editingPlat) { closePlatForm(); return; }
+    openPlatForm('');
+  };
+  $('addModel').onclick = function () {
+    if (!$('mf').hidden && !editingModel) { closeModelForm(); return; }
+    openModelForm('', '');
+  };
+
+  // 自定义模型下拉：聚焦 / 点击展开全部候选（不过滤），只有真正输入才按关键字过滤；点选项即选中，点外面收起
+  function bindCombo() {
+    $('mfModel').addEventListener('focus', function () { renderModelPanel(''); });
+    $('mfModel').addEventListener('click', function () { renderModelPanel(''); });
+    $('mfModel').addEventListener('input', function () { renderModelPanel($('mfModel').value); });
+    $('modelPanel').addEventListener('click', function (e) {
+      var b = e.target && e.target.closest ? e.target.closest('.opt') : null;
+      if (!b) return;
+      $('mfModel').value = b.getAttribute('data-m');
+      closeModelPanel();
+      $('mfModel').focus();
+    });
+    document.addEventListener('click', function (e) {
+      var combo = $('modelCombo');
+      if (combo && !combo.contains(e.target)) closeModelPanel();
+    });
+  }
 
   // ---------- 导入 / 导出 ----------
   $('copyCfg').onclick = function () {
@@ -731,7 +1129,7 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
     $('io').value = text;
     var done = function () {
       $('ioMsg').className = 'msg good';
-      $('ioMsg').textContent = '已复制（只有模型和地址，没有 Key）。';
+      $('ioMsg').textContent = '已复制（有平台和模型，没有 Key）。';
     };
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text).then(done, function () {
@@ -753,7 +1151,7 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
       var r = HXAI.importJson($('io').value);
       renderAll();
       msg.className = 'msg good';
-      msg.textContent = '导入完成：新增 ' + r.added + ' 套，更新 ' + r.updated + ' 套。Key 需要自己重新填。';
+      msg.textContent = '导入完成：平台 ' + (r.plats || 0) + ' 个、新增模型 ' + r.added + ' 个、更新 ' + r.updated + ' 个。Key 要自己重新填（每个平台补一次）。';
       toast('已导入');
     } catch (e) {
       msg.className = 'msg bad';
@@ -764,7 +1162,7 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
   // ---------- 启动 ----------
   function boot() {
     if (typeof HXAI === 'undefined') {
-      $('list').innerHTML = '<p class="rmsg bad">没加载到 hx-ai.js。确认它在网站根目录（/hx-ai.js），并且这个页面叫 /ai/。</p>';
+      $('plats').innerHTML = '<p class="rmsg bad">没加载到 hx-ai.js。确认它在网站根目录（/hx-ai.js），并且这个页面叫 /ai/。</p>';
       return;
     }
     // 供应商按 group 分堆（国内官方 / 国内聚合 / 海外官方 / 海外聚合 / 自定义），
@@ -775,41 +1173,29 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
       if (!byG[gname]) { byG[gname] = []; order.push(gname); }
       byG[gname].push(k);
     });
-    $('fProv').innerHTML = order.map(function (gname) {
+    $('pfProv').innerHTML = order.map(function (gname) {
       var opts = byG[gname].map(function (k) {
         return '<option value="' + k + '">' + esc(HXAI.providers[k].label) + '</option>';
       }).join('');
       // 只有一堆就不加分组框，省得下拉里多一层没意义的缩进
       return order.length > 1 ? '<optgroup label="' + esc(gname) + '">' + opts + '</optgroup>' : opts;
     }).join('');
-    $('fCaps').innerHTML = HXAI.caps.map(function (c) {
-      return '<label><input type="checkbox" value="' + c.id + '">' + esc(c.name) + '</label>';
+    // 能力标签：6 个全列（用户原话「平台有啥种类就全包含」），不因为服务商不支持就藏起来 ——
+    // 有些中转其实能跑视频/图像，只是预设里没写；该预勾哪些由 syncPlatFields 按平台定。
+    $('mfCaps').innerHTML = HXAI.caps.map(function (c) {
+      return '<label title="' + esc(c.hint) + '"><input type="checkbox" value="' + c.id + '">' + esc(c.name) + '</label>';
     }).join('');
-    // 思考程度三档 radio
-    $('fThink').innerHTML = HXAI.thinkLevels.map(function (t) {
-      return '<label><input type="radio" name="fThink" value="' + t.id + '"><span>' + esc(t.name) + '</span></label>';
+    // 思考程度三档全列
+    $('mfThink').innerHTML = HXAI.thinkLevels.map(function (t) {
+      return '<label title="' + esc(t.hint) + '"><input type="radio" name="mfThink" value="' + t.id + '"><span>' + esc(t.name) + '</span></label>';
     }).join('');
-    $('fThink').querySelectorAll('input[type=radio]').forEach(function (r) {
+    $('mfThink').querySelectorAll('input[type=radio]').forEach(function (r) {
       r.onchange = function () { setThink(r.value); };
     });
-    // 自定义模型下拉：聚焦 / 点击展开全部候选（不过滤），只有真正输入才按关键字过滤；点选项即选中，点外面收起
-    $('fModel').addEventListener('focus', function () { renderModelPanel(''); });
-    $('fModel').addEventListener('click', function () { renderModelPanel(''); });
-    $('fModel').addEventListener('input', function () { renderModelPanel($('fModel').value); });
-    $('modelPanel').addEventListener('click', function (e) {
-      var b = e.target && e.target.closest ? e.target.closest('.opt') : null;
-      if (!b) return;
-      $('fModel').value = b.getAttribute('data-m');
-      closeModelPanel();
-      $('fModel').focus();
-    });
-    document.addEventListener('click', function (e) {
-      var combo = $('modelCombo');
-      if (combo && !combo.contains(e.target)) closeModelPanel();
-    });
+    bindCombo();
     renderAll();
-    // 一套都没有就把表单直接摊开，别让人找「新增」按钮
-    if (!HXAI.list().length) openForm('');
+    // 一个平台都没有就直接把平台表单摊开，别让人满页面找「新增」按钮
+    if (!snap.plats.length) openPlatForm('', true);
   }
 
   boot();

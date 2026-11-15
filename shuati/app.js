@@ -1,7 +1,8 @@
 // 华夏工具 · 刷题：界面和刷题流程。题库解析、AI 解析沿用 imports.js / ai.js；存储见 store.js；账号见 hx.js。
 import * as hx from './hx.js';
 import * as store from './store.js';
-import { AI_PAGE, aiState, aiReady, aiProfiles, aiThinkLevels, ensureHxAi, streamChat, explainQuestion, parseStudySpec } from './ai.js';
+// chat：2026-11-15 加，AI 查重要「一次给全一个 JSON」，不用流式（和 parseStudySpec 同一个用法）
+import { AI_PAGE, aiState, aiReady, aiProfiles, aiThinkLevels, ensureHxAi, chat, streamChat, explainQuestion, parseStudySpec } from './ai.js';
 import { figSvg, figName } from './symbols.js';
 
 // 内置课程题库（data/ 下的 JSON）；第一个是默认科目
@@ -77,6 +78,17 @@ function toast(msg, act, fn) { // act/fn：toast 里带一个按钮（如“撤�
   // 只有显示时能点（class act）：以前用 style 设 pointer-events，提示淡出后透明的“撤销”还挡在题卡上，点选项没反应
   t.classList.toggle('act', !!act); t.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), act ? 4000 : 2200);
 }
+
+/* ---------- 按钮「正在处理」的统一入口（2026-11-15） ----------
+   用户原话：「按钮点了没反馈，不知道啥时候会给我跳出处理结果」「点了删除没反应就跟卡了
+   一样，不知道是处理到哪儿了还是真卡住了」。病根是所有 async 按钮都裸 await：
+   不 disable、不换字，请求慢的时候界面和没点过一模一样。
+   真正实现只有一份，在 hx-theme.js 的 HXBusy（每个工具页都引了它，不用动 build 白名单）：
+   begin 当场把按钮换成「转圈 + 已等 N 秒 + 灰掉 + 锁宽」，end 一定还原，失败原因挂 title。
+   这里只包一层，好处是全局万一没挂上（老页面缓存、极简壳）也不会报错，调用方照样 await。
+   opts {min:0} = 结束时立刻还原（要紧接着改按钮文字的场合用，见生成分享码）。 */
+const busyBegin = (btn, label, opts) => (window.HXBusy ? HXBusy.begin(btn, label, opts) : { skip: true });
+const busyEnd = (tok, errMsg) => { if (window.HXBusy) HXBusy.end(tok, errMsg); };
 
 // 快捷键：每个动作两个键位，可在“设置”里改。答完题时 记住/再练 优先，没答时 上一题/下一题
 const KEY_ACTS = [['know', '记住并下一题'], ['again', '再练（不熟）'], ['prev', '上一题'], ['next', '下一题'], ['submit', '提交 / 看答案'], ['ask', '问 AI']];
@@ -580,21 +592,209 @@ function openOrderSheet() {
     for (const b of $('sheetBody').querySelectorAll('[data-m]')) b.onclick = () => { closeSheet(); S.mode = b.dataset.m; savePrefs(); buildQueue(false); renderPractice(); toast(ORDERS.find(x => x[0] === S.mode)[1]); };
   });
 }
+/* ---------- 选择科目：药板胶囊下拉（2026-11-15 用户要求复刻 LeiBox blister-dropdown） ----------
+   交互外壳整个换成 LeiBox 的 blister-dropdown（`leibox show blister-dropdown --framework vanilla`）：
+     · 顶部一块铝箔触发器，点开下面滑下一板同样的铝箔药板；
+     · 每一行左边一个药槽，槽里躺着一颗双色胶囊 —— 当前科目那颗已经被抠掉，只剩撕开的空槽；
+     · 点某一行 → 那颗胶囊从药槽里弹出来，划一道弧飞进顶部药槽，
+       行里留下空槽（铝箔撕裂 + 锡纸毛边），顶部换上新胶囊再弹一下。
+   **数据流一个字节都没动**：选中之后仍然只调 openSubject(id) —— 和原来那个按钮回调是同一句，
+   切科目、重载题库、写 prefs 全在它内部（见上面 openSubject），这里不碰 store / supabase，
+   也没往 S 里加任何字段。原来弹层里的「＋ 新建科目 / 输入分享码」两条也原样留着，挂在药板底部。
+   两个兜底：
+     · 极简模式（html.hx-lite，省电一体机）或系统「减少动态效果」→ 胶囊不飞，只淡入淡出；
+     · 科目可能有十几个 → 药板限高、列表内部滚动（.bsc-list 的 max-height + overflow:auto），
+       底部两个按钮固定不滚。 */
+let bscCtl = null; // 打开中的药板下拉：{ close }；连点触发器 / Esc / 点遮罩 / 选中都走它
+// 极简模式判定：和站点其他动效同一套开关（hx-theme.js 会往 html 上挂 hx-lite）
+const bscLite = () => document.documentElement.classList.contains('hx-lite')
+  || matchMedia('(prefers-reduced-motion: reduce)').matches;
+// 一个药槽：铝箔圈 + 胶囊 + 玻璃罩光，cavity=true 时再带一个「撕开的空槽」（选中行才显示）
+const bscPocket = cavity => `<span class="bsc-pocket" aria-hidden="true"><span class="bsc-rim"></span><span class="bsc-pill"></span><span class="bsc-dome"></span>${cavity ? '<span class="bsc-cavity"></span>' : ''}</span>`;
+
 function openSubjectSheet() {
-  const item = s => `<button type="button" class="sitem" data-id="${esc(s.id)}" aria-current="${S.subject && S.subject.id === s.id}"><b>${esc(s.name)}</b>${s.tag ? `<span class="tg">${esc(s.tag)}</span>` : ''}${s.total ? `<small>${s.total} 题</small>` : ''}</button>`;
-  const g = k => S.subjects.filter(s => s.kind === k);
-  openSheet(`<h3>选择科目</h3>
-    <div class="sgroup">课程题库</div><div class="slist">${[...g('builtin'), ...g('public')].map(item).join('')}</div>
-    ${g('shared').length ? `<div class="sgroup">分享给我的</div><div class="slist">${g('shared').map(item).join('')}</div>` : ''}
-    <div class="sgroup">我的科目</div><div class="slist">${g('mine').map(item).join('')}
-    <button type="button" class="sitem" id="newSubj" style="justify-content:center;color:var(--acc3)"><b style="flex:none">＋ 新建科目</b></button>
-    <button type="button" class="sitem" id="joinBtn" style="justify-content:center;color:var(--acc3)"><b style="flex:none">输入分享码</b></button></div>`, () => {
-    // 换科目留在当前栏目（在概览就看新科目的概览，在排行就看新科目的排行），不要硬踢回刷题
-    for (const b of $('sheetBody').querySelectorAll('.sitem[data-id]')) b.onclick = async () => { closeSheet(); await openSubject(b.dataset.id); };
-    $('newSubj').onclick = () => { closeSheet(); show('bank'); setTimeout(() => $('newName')?.focus(), 50); };
-    // 2026-11-08：朋友把 6 位分享码发过来，从这里输进去就能刷
-    $('joinBtn').onclick = () => openJoinSheet('');
+  if (bscCtl) return bscCtl.close(); // 已经开着 → 再点触发器就是收起（和组件里的 toggle 一致）
+  const cid = S.subject ? S.subject.id : '';
+  const pick = k => S.subjects.filter(s => s.kind === k);
+  const groups = [
+    ['课程题库', [...pick('builtin'), ...pick('public')]],
+    ['分享给我的', pick('shared')],
+    ['我的科目', pick('mine')],
+  ];
+  const row = s => `<div class="bsc-row" role="option" data-id="${esc(s.id)}" tabindex="-1" aria-selected="${s.id === cid}">${bscPocket(true)}<span class="bsc-name"><b>${esc(s.name)}</b>${s.tag ? `<i class="bsc-tag">${esc(s.tag)}</i>` : ''}</span>${s.total ? `<span class="bsc-total">${s.total} 题</span>` : ''}</div>`;
+  const body = groups.filter(g => g[1].length)
+    .map(([t, l]) => `<div class="bsc-grp" role="group" aria-label="${esc(t)}"><div class="bsc-gt" aria-hidden="true">${esc(t)}</div>${l.map(row).join('')}</div>`).join('')
+    || '<div class="bsc-gt">还没有科目</div>';
+
+  const stage = document.createElement('div');
+  stage.className = 'bsc-stage';
+  stage.id = 'bscStage';
+  stage.innerHTML = `<div class="bsc-scrim"></div>
+    <div class="bsc-wrap">
+      <div class="bsc-assembly">
+        <button type="button" class="bsc-trigger bsc-foil" id="bscTrigger" aria-haspopup="listbox" aria-controls="bscList" aria-expanded="true">
+          ${bscPocket(false)}
+          <span class="bsc-cur">${esc(S.subject ? S.subject.name : '选择科目')}</span>
+          <svg class="bsc-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 15l-6-6-6 6"/></svg>
+        </button>
+        <div class="bsc-clip">
+          <div class="bsc-panel bsc-foil" id="bscPanel">
+            <div class="bsc-list" id="bscList" role="listbox" aria-label="选择科目">${body}</div>
+            <div class="bsc-foot">
+              <button type="button" class="bsc-act" id="bscNew">＋ 新建科目</button>
+              <button type="button" class="bsc-act" id="bscJoin">输入分享码</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <span class="bsc-flight" id="bscFlight" aria-hidden="true" hidden></span>
+    </div>`;
+  document.body.append(stage);
+
+  const wrap = stage.querySelector('.bsc-wrap');
+  const panel = stage.querySelector('#bscPanel');
+  const list = stage.querySelector('#bscList');
+  const trigger = stage.querySelector('#bscTrigger');
+  const curLabel = trigger.querySelector('.bsc-cur');
+  const headPill = trigger.querySelector('.bsc-pill');
+  const flight = stage.querySelector('#bscFlight');
+  const rows = [...list.querySelectorAll('.bsc-row')];
+  const lite = bscLite();
+  let closing = false, fly = null, timer = 0;
+
+  // 键盘焦点：当前科目那一行是 Tab 入口，其余行走「上下键 + roving tabindex」
+  const mark = i => rows.forEach((r, n) => { r.tabIndex = n === i ? 0 : -1; });
+  const at = rows.findIndex(r => r.getAttribute('aria-selected') === 'true');
+  mark(at < 0 ? (rows.length ? 0 : -1) : at);
+
+  const back = t => 1 + 2.70158 * (t - 1) ** 3 + 1.70158 * (t - 1) ** 2; // 胶囊从槽里「弹」出来的回弹曲线
+  const cubic = t => (t < .5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2);   // 后半程飞向顶部用缓入缓出
+
+  // 撕开药槽时铝箔碎屑飞溅（照组件 burst()：一圈细环 + 14 片锡纸）
+  function burst(cx, cy) {
+    const g = document.createElement('span');
+    g.className = 'bsc-burst';
+    g.setAttribute('aria-hidden', 'true');
+    g.style.left = `${cx}px`; g.style.top = `${cy}px`;
+    wrap.append(g);
+    const ring = document.createElement('span');
+    ring.className = 'bsc-ring';
+    g.append(ring);
+    const fx = [ring.animate([{ opacity: .7, transform: 'scale(.8)' }, { opacity: 0, transform: 'scale(3.4)' }], { duration: 280, easing: 'ease-out', fill: 'forwards' })];
+    for (let i = 0; i < 14; i++) {
+      const f = document.createElement('span');
+      const a = i / 14 * Math.PI * 2 + (Math.random() - .5) * .3;
+      const d = 20 + Math.random() * 30;
+      const x = Math.cos(a) * d, y = Math.sin(a) * d;
+      f.style.width = `${3 + i % 4}px`; f.style.height = `${1.5 + i % 3}px`;
+      g.append(f);
+      fx.push(f.animate([
+        { opacity: .92, transform: `translate(${x * .16}px,${y * .12}px) rotate(${i * 26}deg)` },
+        { opacity: .48, transform: `translate(${x * .66}px,${y * .72 - 10}px) rotate(${i * 34 + 45}deg)`, offset: .56 },
+        { opacity: 0, transform: `translate(${x}px,${y + 13}px) rotate(${i * 40 + 95}deg)` },
+      ], { duration: 290 + i % 4 * 32, fill: 'forwards' }));
+    }
+    Promise.allSettled(fx.map(a => a.finished)).then(() => g.remove());
+  }
+
+  function close() {
+    if (closing) return;
+    closing = true;
+    bscCtl = null;
+    clearTimeout(timer);
+    if (fly) { try { fly.cancel(); } catch (e) { } fly = null; }
+    panel.inert = true;                       // 药板滑回触发器背后
+    trigger.setAttribute('aria-expanded', 'false');
+    stage.classList.add('bsc-out');           // 整层淡出
+    const b = $('subjBtn');                   // 焦点还给顶栏那颗「科目」按钮（就是打开它的触发器）
+    if (b) { try { b.focus({ preventScroll: true }); } catch (e) { b.focus(); } }
+    setTimeout(() => stage.remove(), lite ? 200 : 460);
+  }
+  bscCtl = { close };
+
+  // 选中一行：换壳不换数据 —— 仍然是 openSubject(id)，和旧弹层的按钮回调完全同一句
+  function choose(r) {
+    if (closing) return;
+    const id = r.dataset.id;
+    const same = id === cid;                  // 点的是当前科目：不飞（那颗胶囊本来就没了），直接换
+    rows.forEach(x => x.setAttribute('aria-selected', String(x === r)));
+    openSubject(id);
+    if (lite || same) { curLabel.textContent = r.querySelector('.bsc-name b').textContent; close(); return; }
+    const o = wrap.getBoundingClientRect();
+    const src = r.querySelector('.bsc-pocket').getBoundingClientRect();
+    const dst = trigger.querySelector('.bsc-pocket').getBoundingClientRect();
+    headPill.style.visibility = 'hidden';
+    flight.hidden = false;
+    const hw = flight.offsetWidth / 2, hh = flight.offsetHeight / 2;
+    const sx = src.left + src.width / 2 - o.left - hw, sy = src.top + src.height / 2 - o.top - hh;
+    const dx = dst.left + dst.width / 2 - o.left - hw, dy = dst.top + dst.height / 2 - o.top - hh;
+    burst(sx + hw, sy + hh);
+    const cav = r.querySelector('.bsc-cavity'); // 空槽被撕开的那一下
+    if (cav) cav.animate([{ transform: 'scale(.84)', filter: 'brightness(1.35)' }, { transform: 'scale(1.05)', filter: 'brightness(.92)', offset: .45 }, { transform: 'none', filter: 'none' }], { duration: 260, easing: 'cubic-bezier(.22,1,.36,1)' });
+    // 23 帧：前 36% 在槽里弹起放大，后面沿抛物线飞进顶部并缩小（帧数与组件一致）
+    const frames = Array.from({ length: 23 }, (_, i) => {
+      const t = i / 22, pop = t <= .36;
+      const p = pop ? back(t / .36) : cubic((t - .36) / .64);
+      const arc = pop ? 0 : Math.sin(Math.PI * p);
+      const x = pop ? sx : sx + (dx - sx) * p - 6 * arc;
+      const y = pop ? sy - 12 * p : sy - 12 + (dy - sy + 12) * p;
+      const sc = pop ? 1 + .36 * p : 1.36 - .36 * p + .08 * arc;
+      const tilt = -5.5 * (pop ? p : 1 - p);
+      return { transform: `translate3d(${x}px,${y}px,0) rotate(${tilt}deg) scale(${sc})` };
+    });
+    fly = flight.animate(frames, { duration: 430, fill: 'forwards' });
+    fly.finished.then(() => {
+      fly = null;
+      try { for (const a of flight.getAnimations()) a.cancel(); } catch (e) { }
+      flight.hidden = true;
+      if (closing) return;
+      headPill.style.visibility = '';         // 顶部药槽里长出新胶囊
+      headPill.animate([{ transform: 'translateY(-3px) scale(1.24)' }, { transform: 'translateY(1px) scale(.92)', offset: .55 }, { transform: 'none' }], { duration: 340, easing: 'cubic-bezier(.22,1,.36,1)' });
+      curLabel.textContent = r.querySelector('.bsc-name b').textContent;
+      timer = setTimeout(close, 220);
+    }, () => { });
+  }
+
+  // 打开动画：先让药板停在「收起」位，两个 rAF 后再放行，CSS 过渡把它滑下来
+  panel.inert = true;
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    if (closing) return;
+    panel.inert = false;
+    if (!lite) rows.forEach((r, i) => {
+      if (r.getAttribute('aria-selected') === 'true') return;
+      r.querySelector('.bsc-pill').animate([{ transform: 'translateY(-5px) scale(.82)' }, { transform: 'translateY(1px) scale(1.06)', offset: .65 }, { transform: 'none' }], { duration: 380, delay: i * 45, easing: 'cubic-bezier(.22,1,.36,1)', fill: 'backwards' });
+    });
+    if (rows[at]) rows[at].scrollIntoView({ block: 'nearest' }); // 科目多时先滚到当前那颗
+    trigger.focus(); // 焦点进弹层，Tab / 上下键都从这里接
+  }));
+
+  // Esc 关闭：挂在 stage 上，任何内部元素里按都收得到（行/触发器自己的按键会先 stopPropagation）
+  stage.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); }
   });
+  trigger.onclick = () => close();               // 再点触发器 = 收起
+  trigger.onkeydown = e => {
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+    e.preventDefault(); e.stopPropagation();
+    if (!rows.length) return;
+    const i = e.key === 'ArrowDown' ? 0 : rows.length - 1;
+    mark(i); rows[i].focus();
+  };
+  rows.forEach((r, i) => {
+    r.onclick = () => choose(r);
+    r.onkeydown = e => {
+      const k = e.key;
+      if (k === 'Enter' || k === ' ') { e.preventDefault(); e.stopPropagation(); choose(r); return; }
+      if (k !== 'ArrowDown' && k !== 'ArrowUp' && k !== 'Home' && k !== 'End') return;
+      e.preventDefault(); e.stopPropagation();
+      const n = k === 'Home' ? 0 : k === 'End' ? rows.length - 1 : (i + (k === 'ArrowDown' ? 1 : -1) + rows.length) % rows.length;
+      mark(n); rows[n].focus();
+    };
+  });
+  stage.querySelector('.bsc-scrim').onclick = () => close();
+  stage.querySelector('#bscNew').onclick = () => { close(); show('bank'); setTimeout(() => $('newName')?.focus(), 50); };
+  // 2026-11-08：朋友把 6 位分享码发过来，从这里输进去就能刷
+  stage.querySelector('#bscJoin').onclick = () => { close(); openJoinSheet(''); };
 }
 $('subjBtn').onclick = openSubjectSheet;
 // 单元/知识点组合筛选：改了条件就重排队列（条件变了，本轮进度作废，回到第 1 题）
@@ -884,7 +1084,9 @@ async function saveStudyCard() {
   const q = (S.bank || []).find(x => x.id === st.qid); if (!q) return toast('这道题已经不在题库里了');
   const items = (c.items || []).map(x => String(x).trim()).filter(Boolean).slice(0, 5);
   if (!items.length) return toast('还没整理出要求，再补一句');
-  if ($('stSave')) $('stSave').disabled = true;
+  // 2026-11-15：保存要整份题库写云端（几百题几秒），以前只是把按钮灰掉、不换字不报秒。
+  // 置灰交给 HXBusy：写失败时它会原样还原，不会把按钮永久留成灰的。
+  const tok = busyBegin($('stSave'), '正在保存…');
   const spec = {
     items,
     // 原话留一份：以后觉得要求不准，能回头看看当时到底是怎么说的
@@ -893,8 +1095,201 @@ async function saveStudyCard() {
   };
   const n = S.bank.indexOf(q) + 1;
   st.spec = null; st.ask = []; st.err = ''; st.text = '';
-  await setBank(S.bank.map(x => x.id === q.id ? { ...x, spec } : x));
-  toast(`已存进第 ${n} 题，以后点 AI 解析就按这几条讲`);
+  let err = '';
+  try { await setBank(S.bank.map(x => x.id === q.id ? { ...x, spec } : x)); }
+  catch (e) { err = (e && e.message) || String(e); }
+  busyEnd(tok, err);
+  toast(err ? '没存上：' + err : `已存进第 ${n} 题，以后点 AI 解析就按这几条讲`);
+}
+
+/* ---------- AI 查重（2026-11-15）----------
+   用户原话：「刷题那边我也需要一个ai查重功能，我怕那边有重复题冗余，二次查重门槛截杀」。
+   背景：题池那边早有查重，但**已经进了刷题题库的题**没人管。题库一直在追加
+   （老师手动加、从题池导入、AI 出题导入），同考点不同措辞的题越积越多，
+   学生刷的时候等于一直在做已经会了的题。
+
+   两层口径，都不自动删（AI 会看走眼，必须老师确认）：
+     ① 硬去重：同题型 + 题干（去空白/标点/大小写）+ 配图 完全相同 → 直接判重，不花 AI 额度；
+     ② AI 语义：把剩下的题按 40 题一批编号喂给模型，只要考点相同就算重复（措辞不同也算）。
+   AI 挂了不致命：结果里只放硬去重那几组，并明写「语义查重没跑成：原因」。
+
+   ── 为什么只动「我导入的题」(S.bank) ──
+   S.questions = 课程题(S.base：内置 / 别人发布 / 云端那份) + 我导入的(S.bank)。
+   · 课程题不在这份存储里：删一道得拿剩下的重新 publish 整份，会连带把下发范围重写一遍 ——
+     那是「发布」的事，不能藏在查重按钮后面；
+   · 会长的草恰恰在 S.bank（题池导入、AI 出题、老师手加都落这儿）。
+   所以课程题只当「保留方」：硬去重时用来发现「我导入的这道跟课程题撞了」，
+   被删的那一道永远来自 S.bank，走的还是 setBank 那条链（store.write('bank:<科目>')）。 */
+const DUP_BATCH = 40;  // 一批 40 题：再多，提示词和回复都太长，模型容易漏项
+const DUP_CUT = 200;   // 每题只喂前 200 字：判断考点够用，省额度
+
+// 硬去重的比较键。配图要算进去：题干一样但图不一样，是两道不同的题
+const dupKey = q => `${q.type || ''}|${norm(q.stem)}|${q.fig || ''}`;
+const dupShort = (s, n = 64) => { const t = String(s || '').replace(/\s+/g, ' ').trim(); return t.length > n ? t.slice(0, n) + '…' : t; };
+
+/* 第一层：硬去重。按 S.questions 的顺序扫（课程题在前、我导入的在后），
+   同一个键第二次出现就是重复；被删的一定是「我导入的」那道（理由见上面）。 */
+function dupHard() {
+  const bankIds = new Set((S.bank || []).map(q => q.id));
+  const seen = new Map(), pairs = [];
+  for (const q of S.questions) {
+    if (!String(q.stem || '').trim()) continue; // 没题干的题不参与：比出来也是噪音
+    const k = dupKey(q), first = seen.get(k);
+    if (!first) { seen.set(k, q); continue; }
+    if (!bankIds.has(q.id)) continue;           // 课程题删不了，不当重复报（否则勾了也删不掉）
+    pairs.push({ a: first, b: q, by: 'hard', why: '题干完全一样（去空白、标点、大小写后）' });
+  }
+  return pairs;
+}
+
+// 模型常把 JSON 包在 ``` 里、或在前面加一句「好的」：两条都剥掉再解析
+function dupJson(raw) {
+  const t = String(raw || '').trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
+  try { return JSON.parse(t); } catch { /* 下面按大括号截一段再试 */ }
+  const m = t.match(/\{[\s\S]*\}/);
+  if (m) { try { return JSON.parse(m[0]); } catch { /* 确实不是 JSON */ } }
+  return null;
+}
+
+/* 第二层：AI 语义查重。只喂「我导入的题」里第一层没判掉的那些，
+   批内自己编号（1..40），提示词短、模型不容易串号；跨批不会出现同一对。 */
+async function dupAi(list, onBatch) {
+  const victims = new Set(), out = [];
+  const total = Math.ceil(list.length / DUP_BATCH);
+  for (let i = 0; i < total; i++) {
+    const slice = list.slice(i * DUP_BATCH, (i + 1) * DUP_BATCH);
+    if (onBatch) onBatch(i + 1, total);
+    const lines = slice.map((q, n) => `${n + 1}.［${typeName(q.type)}］${String(q.stem || '').replace(/\s+/g, ' ').slice(0, DUP_CUT)}`).join('\n');
+    const raw = await chat([
+      { role: 'system', content: '你是题库去重助手。你的任务不是判对错，是找出「学生做过一道就不用再做另一道」的重复题：考同一个知识点、同一个考法，只是措辞、选项顺序或题型不同也算。拿不准就不要报 —— 宁可漏，不要误删。只输出 JSON。' },
+      { role: 'user', content: `下面是一批编号题目：\n\n${lines}\n\n找出重复的，a 写靠前那道、b 写靠后那道：\n{"pairs":[{"a":1,"b":7,"why":"一句话说明重复在哪"}]}\n没有重复就输出 {"pairs":[]}。不要 Markdown，不要解释。` }
+    ], { json: true });
+    const box = dupJson(raw);
+    const rows = Array.isArray(box) ? box : (box && Array.isArray(box.pairs) ? box.pairs : []);
+    for (const p of rows) {
+      const x = +((p && p.a) || 0), y = +((p && p.b) || 0);
+      if (!(x >= 1 && y >= 1 && x <= slice.length && y <= slice.length) || x === y) continue; // 编号越界/自比：丢掉
+      const [keep, drop] = x < y ? [slice[x - 1], slice[y - 1]] : [slice[y - 1], slice[x - 1]];
+      // 一道题只删一次：a~b、b~c 这种链只保第一对，免得把一组题删到只剩一道
+      if (victims.has(drop.id) || victims.has(keep.id)) continue;
+      victims.add(drop.id);
+      out.push({ a: keep, b: drop, by: 'ai', why: dupShort(String((p && p.why) || '考点相同'), 60) });
+    }
+  }
+  return out;
+}
+
+/* 点「AI 查重」：先把弹层打开并显示进度（硬去重 → 语义分批），跑完在同一个弹层里出结果。
+   全程不删任何东西；确认后才走 applyDup。 */
+async function openDupSheet(btn) {
+  const sub = S.subject;
+  if (!sub || !isTeacher()) return toast('查重是老师用的：删题会影响学生刷的题');
+  // 内置题库（本地只读那份）的课程题改不了，但那门课里「我导入的题」照样能查 —— 只要有一道就放行
+  if (!(S.bank || []).length) return toast('这套题里没有「我导入的题」，没有能删的重复题');
+  const seq = S.dupSeq = (S.dupSeq || 0) + 1;  // 连点两次时，先跑完的那次结果作废
+  const tok = busyBegin(btn, '正在查重…');
+  openSheet(`<h3>AI 查重 <small class="muted">${esc(sub.name)}</small></h3>
+    <p class="muted" style="margin:0 0 12px">先按题干硬去重（不花 AI 额度），再让 AI 比一遍考点。<b>不会自动删</b>：结果里可以逐条取消勾选，你确认了才删。</p>
+    <div class="dp-prog" id="dpProg">正在按题干硬去重…</div>`);
+  const prog = t => { const el = $('dpProg'); if (el) el.textContent = t; };
+  try {
+    const hard = dupHard();
+    const gone = new Set(hard.map(p => p.b.id));
+    // 第一层已经判死的题不再喂给 AI（白花额度）；课程题从头就不喂（删不了，见上面注释）
+    const cand = (S.bank || []).filter(q => !gone.has(q.id));
+    let ai = [], err = '';
+    if (!cand.length) prog('硬去重已经把所有题都判掉了，不需要再问 AI');
+    else if (!aiReady()) err = aiState().msg;
+    else {
+      try {
+        ai = await dupAi(cand, (i, n) => prog(`正在比对第 ${i}/${n} 批…（共 ${cand.length} 题）`));
+      } catch (e) { err = e.message || String(e); } // AI 失败不致命：只给硬去重结果，原因写在结果里
+    }
+    const sum = hard.length + ai.length;
+    // 老师中途关掉弹层：不往已关闭的面板里重画，改成一句话把结果报出来
+    if (S.dupSeq !== seq || !$('sheet').classList.contains('show')) {
+      if (sum) toast(`查重完成：找到 ${sum} 组重复，再点「AI 查重」看结果`);
+      return;
+    }
+    paintDup(hard, ai, err);
+  } catch (e) { toast('查重失败：' + ((e && e.message) || e)); }
+  finally { busyEnd(tok); }
+}
+
+// 结果弹层：一条一组「保留前一道 / 删后一道」，默认勾选
+function paintDup(hard, ai, err) {
+  const host = $('sheetBody');
+  const pairs = [...hard, ...ai];
+  const head = `<h3>查重结果 <small class="muted">${esc(S.subject.name)}</small></h3>`;
+  const stat = `<p class="muted" style="margin:0 0 12px">比了 ${S.questions.length} 题（其中你导入的 ${S.bank.length} 题）：按题干硬去重 ${hard.length} 组，AI 语义 ${ai.length} 组。</p>`;
+  // AI 没跑成就明写原因：不能让人以为「只有这么点重复」是全貌
+  const warn = err ? `<div class="imp-warn"><span>语义查重没跑成：${esc(err)}。下面只有按题干硬去重查出来的 ${hard.length} 组。</span></div>` : '';
+  if (!pairs.length) {
+    host.innerHTML = head + stat + warn + `<p class="muted">没查出重复。</p>
+      <div class="line" style="margin-top:14px"><button class="btn" type="button" id="dpNo">知道了</button></div>`;
+    $('dpNo').onclick = closeSheet;
+    return;
+  }
+  const rows = pairs.map(p => `<label class="dp-item">
+      <input type="checkbox" data-dp="${esc(p.b.id)}" checked>
+      <span class="dp-body">
+        <b class="dp-keep">保留：${esc(dupShort(p.a.stem))}</b>
+        <s class="dp-drop">删除：${esc(dupShort(p.b.stem))}</s>
+        <small>${p.by === 'hard' ? '题干重复' : 'AI 判断'}：${esc(p.why)}</small>
+      </span></label>`).join('');
+  host.innerHTML = head + stat + warn + `<div class="dplist">${rows}</div>
+    <div class="line" style="margin-top:14px;flex-wrap:wrap"><button class="btn danger" type="button" id="dpGo">删除勾选的 ${pairs.length} 道</button><button class="btn sm ghost" type="button" id="dpNo">取消</button></div>
+    <p class="muted" style="margin:10px 0 0">只删「我导入的题」；课程题（内置 / 别人发布的）这里不动。AI 会看走眼，删之前逐条看一眼。</p>`;
+  // 按钮上的数字跟着勾选变：老师得看得见自己到底要删几道
+  const sync = () => {
+    const c = host.querySelectorAll('[data-dp]:checked').length;
+    const go = $('dpGo');
+    if (go) { go.textContent = `删除勾选的 ${c} 道`; go.disabled = !c; }
+  };
+  for (const c of host.querySelectorAll('[data-dp]')) c.onchange = sync;
+  $('dpNo').onclick = closeSheet;
+  $('dpGo').onclick = async ev => {
+    const ids = [...host.querySelectorAll('[data-dp]:checked')].map(c => c.dataset.dp);
+    if (!ids.length) return;
+    await applyDup(ev.currentTarget, host, ids);
+  };
+}
+
+/* 确认删除：逐条从 S.bank 里去掉，每去一条落一次本机（store.write 默认 1.5 秒合并云端，
+   所以不会发 N 次请求），最后 {now:true} 强制同步一次 —— 和 setBank 是同一条链路，
+   只是不每删一道就 openSubject（那会把整份题库重新拉一遍，12 道就是 12 次全量请求）。 */
+async function applyDup(btn, host, ids) {
+  const sub = S.subject;
+  // 按钮上只写「正在删除…」：HXBusy 会在后面跟一个「已等 N 秒」的计时，
+  // 再往里塞「3/12」会连成一串「正在删除 3/120s」，看不懂。具体进度交给下面的行内标签。
+  const tok = busyBegin(btn, '正在删除…');
+  const tag = window.HXBusy ? HXBusy.tag(host.querySelector('.line') || host, `正在删 0/${ids.length}`) : null;
+  let err = '', note = '';
+  try {
+    const list = S.bank.slice();
+    let done = 0;
+    for (const id of ids) {
+      const i = list.findIndex(q => q.id === id);
+      if (i >= 0) list.splice(i, 1);
+      store.write('bank:' + sub.id, list); // 本机立即落盘（进度是真的），云端由 store 那边合并
+      if (tag) tag.text(`正在删 ${++done}/${ids.length}`);
+      // 写 localStorage 是同步的：不主动让出一帧，浏览器要等整个循环跑完才重画，
+      // 「正在删 3/12」就永远只显示最后一格。让一下（每道 ~0ms），进度才看得见。
+      await new Promise(r => setTimeout(r, 0));
+    }
+    S.bank = list;
+    if (tag) tag.text('正在同步到云端…');
+    await store.write('bank:' + sub.id, list, { now: true });
+    // 云端失败不算白删：本机这份已经是删好的，按 setBank 同样的口吻说清楚
+    if (store.cloud.ok === false) note = `已删 ${ids.length} 道（存在本机，云端同步失败：${store.cloud.error}）`;
+  } catch (e) { err = (e && e.message) || String(e); }
+  if (tag) tag.done();
+  busyEnd(tok, err);
+  if (err) return toast('删除失败：' + err);
+  closeSheet();
+  S.view = 'bank';
+  await openSubject(sub.id); // 删完重载一遍：题目数、题型统计、出题队列都跟着变（setBank 也是这么做的）
+  toast(note || `删了 ${ids.length} 道`);
 }
 
 // ---------- 题库：新建科目、从题池导入、导出、发布 ----------
@@ -934,49 +1329,103 @@ function renderBank() {
   // 「这套题是发给我的」提示：老师看到别人发来、还没有自己那份时，说清可以转发
   const sentToMe = canFwd && sub.teacher_ids && sub.teacher_ids.length
     ? '<p class="muted" style="margin:8px 0 0">这套题是发给老师的：你能自己刷。要发给你的学生，点「转发给自己」复制一份，再在那一份里选班级。</p>' : '';
+  /* AI 查重入口（2026-11-15）：只给老师看（删题会影响学生刷的题）。
+     什么时候置灰：
+       · 这套题里没有「我导入的题」—— 能删的那一侧根本不存在（课程题不在这里删，见 dupHard 上面那段）；
+     内置题库（kind=builtin 且还在本地只读那份）**仍然可以查**，但能动的只有「我导入的题」那部分，
+     所以按钮旁边一直写着这句，免得老师以为连课程题一起整理过了。 */
+  const dupCan = isTeacher() && (S.bank || []).length > 0;
+  const builtinOnly = sub.kind === 'builtin' && !sub.cloud;
+  const dupWhy = !dupCan ? (builtinOnly ? '内置题库是随代码发布的，改不了' : '这套题里没有「我导入的题」')
+    : builtinOnly ? '内置课程题改不了，只查你导入的题' : '';
+  const dupBtn = isTeacher()
+    ? `<button class="btn sm ghost" type="button" id="dupBtn"${dupCan ? '' : ' disabled'}${dupWhy ? ` title="${esc(dupWhy)}"` : ''}>AI 查重</button>`
+    : '';
+  // 说明单独占一行：混在按钮排里会把「清空我导入的」挤到下一行，一排按钮就散了
+  const dupNote = dupWhy ? `<p class="muted" style="margin:8px 0 0;font-size:12px">${esc(dupWhy)}</p>` : '';
   $('v-bank').innerHTML = `
     <div class="panel"><h3>${esc(sub.name)}</h3>
       <dl class="kv"><dt>来源</dt><dd>${srcText}</dd>${base.length ? `<dt>课程题</dt><dd>${base.length} 题</dd>` : ''}<dt>我导入的</dt><dd>${S.bank.length} 题</dd>${isTeacher() && (sub.published || sub.kind === 'public') && sub.targets ? `<dt>下发范围</dt><dd>${esc(sub.targets)}</dd>` : ''}</dl>
       ${sub.kind === 'builtin' && !sub.cloud ? '<p class="muted" style="margin:8px 0 0">这套题现在是随代码发布的本地文件，改不了。搬到你的账号之后就能在云端改、也能发布给班级。</p>' : ''}
       ${sentToMe}
-      <div class="f" style="margin-top:12px"><div class="line"><button class="btn sm ghost" type="button" id="expBtn">导出 JSON</button>${S.questions.length ? '<button class="btn sm ghost" type="button" id="shareBtn">生成分享码</button>' : ''}${S.bank.length ? '<button class="btn sm ghost" type="button" id="clrBtn">清空我导入的</button>' : ''}${sub.kind === 'mine' ? '<button class="btn sm ghost" type="button" id="renBtn">改名</button><button class="btn sm danger" type="button" id="delBtn">删除科目</button>' : sub.kind === 'shared' ? '<button class="btn sm danger" type="button" id="delBtn">移出我的列表</button>' : ''}${fwdBtn}${pubBtns2}</div></div></div>
+      <div class="f" style="margin-top:12px"><div class="line"><button class="btn sm ghost" type="button" id="expBtn">导出 JSON</button>${S.questions.length ? '<button class="btn sm ghost" type="button" id="shareBtn">生成分享码</button>' : ''}${dupBtn}${S.bank.length ? '<button class="btn sm ghost" type="button" id="clrBtn">清空我导入的</button>' : ''}${sub.kind === 'mine' ? '<button class="btn sm ghost" type="button" id="renBtn">改名</button><button class="btn sm danger" type="button" id="delBtn">删除科目</button>' : sub.kind === 'shared' ? '<button class="btn sm danger" type="button" id="delBtn">移出我的列表</button>' : ''}${fwdBtn}${pubBtns2}</div>${dupNote}</div></div>
     <div class="panel"><h3>新建科目</h3><div class="f"><div class="line"><input id="newName" maxlength="30" placeholder="科目名称" style="flex:1"><button class="btn sm" type="button" id="newBtn">新建</button></div></div></div>
     ${qpoolPanel()}
     ${studyPanel()}`;
   const on = (id, fn) => { if ($(id)) $(id).onclick = fn; };
   on('expBtn', () => downloadText(sub.name + '.json', JSON.stringify(S.questions, null, 1)));
   on('shareBtn', openShareSheet); // 生成分享码（6 位 + 二维码）
+  on('dupBtn', e => openDupSheet(e.currentTarget)); // AI 查重（2026-11-15）：先查后确认，不自动删
   /* 转发给自己（2026-11-08）：老师收到别人发来的题，复制一份到自己名下。
      复制完默认「只自己刷」，老师再去那一份里选班级发给自己的学生 ——
      这样「老师也能自己刷」和「老师再发给学生」两件事都成立，而且不用原作者的权限。
      题库 id 由服务端生成（f-xxxx），前端不自己编，避免撞车覆盖别人的题库。 */
   on('fwdBtn', e => {
-    const nm = sub.name;
-    sure(e.currentTarget, `把「${nm}」复制一份到你名下？复制后你能改、能发给你自己的班；原来那份不动。`, async () => {
+    const btn = e.currentTarget, nm = sub.name;
+    sure(btn, `把「${nm}」复制一份到你名下？复制后你能改、能发给你自己的班；原来那份不动。`, async () => {
+      // 2026-11-15：复制是「下载整套题 + 再传一份新的」，几秒到十几秒，以前只有一句一闪而过的 toast
+      const tok = busyBegin(btn, '正在复制…');
+      let err = '';
       try {
-        toast('正在复制…');
         const r = await store.forward(sub.pid || sub.id, nm, hx.name(S.user, S.me), []);
         await loadSubjects();
         await openSubject('pub-' + r.id);
         toast(`已复制 ${r.total} 题到你名下（现在只自己刷；选班级就能发给你的学生）`);
-      } catch (err) { toast('转发失败：' + (err.message || err)); }
+      } catch (e2) { err = (e2 && e2.message) || String(e2); }
+      busyEnd(tok, err);
+      if (err) toast('转发失败：' + err);
     });
   });
-  on('clrBtn', e => sure(e.currentTarget, `确认清空 ${S.bank.length} 题？`, () => setBank([])));
-  on('renBtn', async () => { const n = (await hxPrompt('科目新名字', sub.name))?.trim(); if (!n) return; await saveMine(m => m.map(s => s.id === sub.id ? { ...s, name: n.slice(0, 30) } : s)); S.view = 'bank'; await openSubject(sub.id); });
-  on('delBtn', e => sure(e.currentTarget, sub.kind === 'shared' ? '确认移出列表？' : '确认删除科目？', async () => {
-    if (sub.kind === 'shared') { // 分享来的：只动本机这份清单，不碰对方的码
-      await dropShared(sub);
-      S.view = 'practice'; await openSubject(BUILTIN[0].id); toast('已移出，这个码还能再加回来');
-      return;
-    }
-    await saveMine(m => m.filter(s => s.id !== sub.id)); await store.remove('bank:' + sub.id); await store.remove('progress:' + sub.id);
-    S.view = 'practice'; await openSubject(BUILTIN[0].id); toast('已删除');
-  }));
-  on('newBtn', async () => {
+  on('clrBtn', e => {
+    const btn = e.currentTarget;
+    sure(btn, `确认清空 ${S.bank.length} 题？`, async () => {
+      const tok = busyBegin(btn, '正在清空…'); // 清空要写云端再整页重载，慢的时候得让人看见在动
+      let err = '';
+      try { await setBank([]); } catch (e2) { err = (e2 && e2.message) || String(e2); }
+      busyEnd(tok, err);
+      if (err) toast('清空失败：' + err);
+    });
+  });
+  on('renBtn', async e => {
+    const btn = e.currentTarget;
+    const n = (await hxPrompt('科目新名字', sub.name))?.trim(); if (!n) return;
+    // 2026-11-15：改名 = 写 subjects + 重载科目列表 + 重开题库页，中间没有任何反馈
+    const tok = busyBegin(btn, '正在改名…');
+    let err = '';
+    try { await saveMine(m => m.map(s => s.id === sub.id ? { ...s, name: n.slice(0, 30) } : s)); S.view = 'bank'; await openSubject(sub.id); }
+    catch (e2) { err = (e2 && e2.message) || String(e2); }
+    busyEnd(tok, err);
+    if (err) toast('改名失败：' + err);
+  });
+  on('delBtn', e => {
+    const btn = e.currentTarget, shared = sub.kind === 'shared';
+    sure(btn, shared ? '确认移出列表？' : '确认删除科目？', async () => {
+      // 2026-11-15：删科目要清本机 + 删云端两三个键 + 重载科目列表，几秒钟里界面一动不动
+      const tok = busyBegin(btn, shared ? '正在移出…' : '正在删除…');
+      let err = '';
+      try {
+        if (shared) { // 分享来的：只动本机这份清单，不碰对方的码
+          await dropShared(sub);
+        } else {
+          await saveMine(m => m.filter(s => s.id !== sub.id));
+          await store.remove('bank:' + sub.id); await store.remove('progress:' + sub.id);
+        }
+        S.view = 'practice'; await openSubject(BUILTIN[0].id);
+      } catch (e2) { err = (e2 && e2.message) || String(e2); }
+      busyEnd(tok, err);
+      toast(err ? (shared ? '移出失败：' : '删除失败：') + err : shared ? '已移出，这个码还能再加回来' : '已删除');
+    });
+  });
+  on('newBtn', async e => {
+    const btn = e.currentTarget;
     const n = $('newName').value.trim(); if (!n) return $('newName').focus();
     const id = 'c-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
-    await saveMine(m => [...m, { id, name: n.slice(0, 30) }]); S.view = 'bank'; await openSubject(id); toast('已新建，接着从题池导入');
+    const tok = busyBegin(btn, '正在新建…'); // 新建也要写 subjects 再切科目，同样会等一两秒
+    let err = '';
+    try { await saveMine(m => [...m, { id, name: n.slice(0, 30) }]); S.view = 'bank'; await openSubject(id); }
+    catch (e2) { err = (e2 && e2.message) || String(e2); }
+    busyEnd(tok, err);
+    if (err) toast('新建失败：' + err); else toast('已新建，接着从题池导入');
   });
   // 给这道题提要求：换题就清掉上一题的整理结果（不然会把给甲的要求存到乙身上）
   if ($('stQ')) $('stQ').onchange = e => {
@@ -995,28 +1444,38 @@ function renderBank() {
      前端 baseOf 会优先读它，data/*.json 退成没网时的兜底。题目 id 一个不动，
      所以 1896 题的历史排位成绩照样算在这门课头上。 */
   on('moveBtn', e => {
-    const n = S.questions.length;
-    sure(e.currentTarget, `把「${sub.name}」${n} 题搬到你的账号？搬完能在云端改、也能发布给班级。`, async () => {
-      toast(`正在搬 ${n} 题，别关页面…`);
+    const btn = e.currentTarget, n = S.questions.length;
+    sure(btn, `把「${sub.name}」${n} 题搬到你的账号？搬完能在云端改、也能发布给班级。`, async () => {
+      // 2026-11-15：上千题上传，几十秒都正常。以前只有一句 toast 一闪而过，用户以为没点上
+      const tok = busyBegin(btn, `正在搬 ${n} 题`);
+      let err = '';
       try {
         await store.publish(sub.id, sub.name, S.questions, hx.name(S.user, S.me), null);
         S.base = {};
         await loadSubjects();
         await openSubject(sub.id);
         toast(`已搬到你的账号：${n} 题，学生现在刷的就是云端这份`);
-      } catch (err) { toast('搬失败：' + (err.message || err)); }
+      } catch (e2) { err = (e2 && e2.message) || String(e2); }
+      busyEnd(tok, err);
+      if (err) toast('搬失败：' + err);
     });
   });
-  on('unpubBtn', e => sure(e.currentTarget, '确认取消发布？', async () => {
-    try {
-      await store.unpublish(sub.id);
-      if (sub.kind === 'mine') await saveMine(m => m.map(s => s.id === sub.id ? { ...s, published: false } : s));
-      else S.subject.published = false;
-      S.base = {};            // 云端那份没了，内置科目要退回 data/*.json
-      toast('已取消发布');
-      await loadSubjects(); await openSubject(sub.id);
-    } catch (e) { toast(e.message); }
-  }));
+  on('unpubBtn', e => {
+    const btn = e.currentTarget;
+    sure(btn, '确认取消发布？', async () => {
+      const tok = busyBegin(btn, '正在取消发布…'); // 删云端记录 + 重载科目，撤销前也要让人看到在动
+      let err = '';
+      try {
+        await store.unpublish(sub.id);
+        if (sub.kind === 'mine') await saveMine(m => m.map(s => s.id === sub.id ? { ...s, published: false } : s));
+        else S.subject.published = false;
+        S.base = {};            // 云端那份没了，内置科目要退回 data/*.json
+        await loadSubjects(); await openSubject(sub.id);
+      } catch (e2) { err = (e2 && e2.message) || String(e2); }
+      busyEnd(tok, err);
+      if (err) toast(err); else toast('已取消发布');
+    });
+  });
 }
 async function saveMine(fn) {
   const mine = fn(S.subjects.filter(s => s.kind === 'mine').map(({ kind, ...s }) => s));
@@ -1176,8 +1635,9 @@ function bindQpool() {
   };
 }
 // 勾选的题转成刷题格式写进「我导入的题」，按「题型+题干去空白」和 id 去重
-async function confirmPoolImport() {
+async function confirmPoolImport(ev) {
   const P = S.qpool, sub = S.subject; if (!P) return;
+  const btn = ev && ev.currentTarget;
   const rows = (P.rows || []).filter(r => P.picked.has(String(r.id)));
   if (!rows.length) return toast('先勾选要导入的题');
   const ids = new Set(S.questions.map(q => String(q.id)));
@@ -1194,7 +1654,12 @@ async function confirmPoolImport() {
   if (!add.length) return toast(dup || skip ? `没有能导入的：${dup} 题重复${skip ? `、${skip} 题转不了` : ''}` : '没有可导入的题');
   const note = `${dup ? `跳过 ${dup} 题重复` : ''}${skip ? `${dup ? '、' : ''}${skip} 题转不了` : ''}`;
   P.picked = new Set();
-  await setBank([...S.bank, ...add]);
+  // 2026-11-15：导入几十上百题要转格式 + 写云端 + 重载，以前按下按钮整页不动，像没点
+  const tok = busyBegin(btn, `正在导入 ${add.length} 题`);
+  let err = '';
+  try { await setBank([...S.bank, ...add]); } catch (e) { err = (e && e.message) || String(e); }
+  busyEnd(tok, err);
+  if (err) return toast('导入失败：' + err);
   toast(`已导入 ${add.length} 题${note ? `（${note}）` : ''}`);
 }
 
@@ -1289,7 +1754,7 @@ function openPublishSheet(onDone) {
     }
 
     $('pubNo').onclick = closeSheet;
-    $('pubGo').onclick = async () => {
+    $('pubGo').onclick = async ev => {
       const mode = rad();
       let classes2, teachers2 = null;
       if (mode === 'all') classes2 = null;
@@ -1304,7 +1769,9 @@ function openPublishSheet(onDone) {
         if (!picked.length) { toast('至少选一个班；不想发给学生就选“只自己刷”'); return; }
         classes2 = picked;
       }
-      $('pubGo').disabled = true;
+      // 2026-11-15：发布要把整份题重传一遍（几百题几秒到几十秒），以前只把按钮置灰、不换字不报秒
+      const tok = busyBegin(ev.currentTarget, '正在发布…');
+      let err = '';
       try {
         await store.publish(pid, sub.name, S.questions, hx.name(S.user, S.me), classes2, teachers2);
         if (sub.kind === 'mine') { await saveMine(m => m.map(s => s.id === sub.id ? { ...s, published: true } : s)); S.subject.published = true; }
@@ -1318,8 +1785,9 @@ function openPublishSheet(onDone) {
           : mode === 'tea' ? `已发给 ${teachers2.length} 位老师（学生看不到；老师能转发给自己的班）`
           : `已发布给 ${classes2.length} 个班`);
         if (onDone) onDone();
-      } catch (e) { toast(e.message); }
-      finally { if ($('pubGo')) $('pubGo').disabled = false; }
+      } catch (e) { err = (e && e.message) || String(e); }
+      busyEnd(tok, err);
+      if (err) toast(err);
     };
   });
 }
@@ -1354,9 +1822,12 @@ function openShareSheet() {
     <div class="line" style="margin-top:14px"><button class="btn" type="button" id="shGo">生成分享码</button><button class="btn sm ghost" type="button" id="shNo">取消</button></div>
     <div id="shOut"></div>`, () => {
     $('shNo').onclick = closeSheet;
-    $('shGo').onclick = async () => {
-      const days = +$('shDays').value || 30;
-      $('shGo').disabled = true; $('shGo').textContent = '正在生成…';
+    $('shGo').onclick = async ev => {
+      const btn = ev.currentTarget, days = +$('shDays').value || 30;
+      // 2026-11-15：上传整套题再等服务端发码，几百题的科目要等好几秒。
+      // {min:0}：结束立刻还原，好让下面紧接着把按钮改成「再生成一个」不被还原覆盖。
+      const tok = busyBegin(btn, '正在生成分享码…', { min: 0 });
+      let err = '';
       try {
         // 第 4 参是署名：和全站头像/班级列表同一个来源（hx.name），不交给数据库猜
         const code = await store.shareCreate(sub.name, S.questions, days, hx.name(S.user, S.me));
@@ -1377,13 +1848,16 @@ function openShareSheet() {
           } catch { toast('保存失败，长按二维码图片试试'); }
         };
         $('shKill').onclick = e => sure(e.currentTarget, '确认撤销？撤销后这个码立刻失效', async () => {
-          try { await store.shareDel(code); toast('已撤销，这个码不能用了'); } catch (err) { toast(err.message); }
+          const kt = busyBegin(e.currentTarget, '正在撤销…'); // 撤销也是删云端一行，别让人干等着
+          let kerr = '';
+          try { await store.shareDel(code); } catch (e2) { kerr = (e2 && e2.message) || String(e2); }
+          busyEnd(kt, kerr);
+          toast(kerr || '已撤销，这个码不能用了');
         });
-        $('shGo').textContent = '再生成一个';
-      } catch (e) {
-        toast('生成失败：' + (e.message || e));
-        $('shGo').textContent = '生成分享码';
-      } finally { if ($('shGo')) $('shGo').disabled = false; }
+      } catch (e) { err = (e && e.message) || String(e); }
+      busyEnd(tok, err);
+      if (err) return toast('生成失败：' + err);
+      if ($('shGo')) $('shGo').textContent = '再生成一个'; // 成功后的新常态：这是快照，改完题还得再生成
     };
   });
 }
@@ -1397,7 +1871,9 @@ function openJoinSheet(pre) {
     const go = async () => {
       const code = String($('jnCode').value || '').trim().toUpperCase();
       if (!/^[A-Z0-9]{6}$/.test(code)) return toast('分享码是 6 位字母或数字');
-      $('jnGo').disabled = true; $('jnGo').textContent = '正在取题…';
+      // 2026-11-15：取码要等服务器把整套题传下来，科目大时几秒钟没动静，以前只把按钮灰掉
+      const tok = busyBegin($('jnGo'), '正在取题…', { min: 0 });
+      let err = '';
       try {
         const r = await store.shareGet(code);
         const qs = (r && r.questions) || [];
@@ -1411,10 +1887,9 @@ function openJoinSheet(pre) {
         await loadSubjects(); await openSubject(id);
         closeSheet();
         toast(`已加入「${r.name || code}」，${qs.length} 题`);
-      } catch (e) {
-        toast(e.message || String(e));
-        $('jnGo').textContent = '加进来';
-      } finally { if ($('jnGo')) $('jnGo').disabled = false; }
+      } catch (e) { err = (e && e.message) || String(e); }
+      busyEnd(tok, err);
+      if (err) toast(err);
     };
     $('jnGo').onclick = go;
     $('jnCode').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); go(); } };
@@ -1454,7 +1929,15 @@ function renderSettings() {
     b.classList.add('rec'); b.textContent = '按一个键…'; S.recKey = { a: b.dataset.ka, i: +b.dataset.ki };
   };
   $('keyDef').onclick = () => { store.setLocal('keys', {}); renderSettings(); toast('快捷键已恢复默认'); };
-  $('reload').onclick = async () => { S.base = {}; await loadSubjects(); await openSubject(S.subject.id); toast('题库已重新加载'); };
+  // 2026-11-15：重新加载要重新拉科目列表 + 整份题库，网络慢时按钮和没点一样
+  $('reload').onclick = async e => {
+    const tok = busyBegin(e.currentTarget, '正在重新加载…');
+    let err = '';
+    try { S.base = {}; await loadSubjects(); await openSubject(S.subject.id); }
+    catch (e2) { err = (e2 && e2.message) || String(e2); }
+    busyEnd(tok, err);
+    toast(err ? '重新加载失败：' + err : '题库已重新加载');
+  };
   $('resetP').onclick = e => sure(e.currentTarget, '确认清空？', resetAll);
 }
 
@@ -1466,6 +1949,9 @@ addEventListener('keydown', e => {
     return renderSettings();
   }
   if (e.ctrlKey || e.metaKey || e.altKey || e.target.closest('input,textarea,select,[contenteditable]')) return;
+  // 2026-11-15：科目药板下拉开着时，键盘全交给它自己（Esc / 上下 / 回车，见 openSubjectSheet），
+  // 不然这里会把「1~4 选答案」之类的快捷键也一并吃掉。
+  if (document.getElementById('bscStage')) return;
   if ($('sheet').classList.contains('show')) { if (e.key === 'Escape') closeSheet(); return; }
   const m = keyMap(), is = a => m[a].includes(e.key), hit = fn => { e.preventDefault(); fn(); };
   if (is('ask')) return hit(openAsk);

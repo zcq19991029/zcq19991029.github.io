@@ -13,15 +13,39 @@
      localStorage['hx-ai-key:<id>'] —— 用户勾了「记住」
      sessionStorage['hx-ai-key:<id>'] —— 没勾，只活在这个标签页
 
+   ────────── 2026-11-15 改版：加「平台」这一层（v1 → v2） ──────────
+   为什么改：v1 里「一套配置 = 一家服务商 + 一个模型」，于是
+     ① 一个 Key 想多用两个模型（便宜的跑批量、带视觉的专门读照片）就得配两套、把同一把 Key 填两遍；
+     ② 更糟的是模型下拉里什么模型都能混进去：给 DeepSeek 勾个「视频生成」，报错要等到真调用的那一刻，
+        用户看到的是「接口 400」，根本猜不到是当初选错了。
+   所以 v2 把「Key + 地址」和「模型 + 能力」拆成两层，一个平台（一个 Key）下面挂任意多个模型：
+     localStorage['hx-ai-v1'] = {
+       v: 2,
+       plats:    [{ id, name, provider, baseUrl, models, at }],        // 平台：别名（如「111」）+ 服务商 + 地址 + 读取到的模型
+       profiles: [{ id, platId, model, name, caps, thinkLevel, at }],  // 模型：挂在平台下，不再各存 baseUrl
+       active: {...}, tools: {...}   // 完全不变，仍然指向 profile.id —— 工具页只认这个，不许动
+     }
+   · 存储键名仍然是 hx-ai-v1（不是笔误）：改了键等于让所有人升级瞬间「配置消失」，宁可版本号放数据里。
+   · v1 存档读进来会自动迁移（见 read()）：按 provider+baseUrl 归组成平台、补 platId、把 Key 搬到平台名下，
+     不丢配置、不丢 Key、不动 active/tools 的指向。
+   · Key 也改挂平台：hx-ai-key:plat:<platId>（存哪个 storage 仍看用户勾没勾「记住」）；
+     老的 hx-ai-key:<profileId> 保留兜底读取 —— 迁移没跑成、用户手改过 localStorage 都不至于突然「没填 Key」。
+   · 对外（pick / forTool / list / get / settings）拿到的仍然是「拍平」的对象，
+     自带 baseUrl / provider / model / caps / thinkLevel，工具页不需要知道有平台这回事。
+
    用法（经典脚本，不是 ES module）：工具页在 head 里引上一层的 hx-ai.js（和 hx-theme.js 同一层），然后
      const txt = await HXAI.chat({ prompt:'你好', tool:'quiz' });
      const out = await HXAI.vision({ prompt:'读出图里的题目', images:[dataUrl], tool:'quiz' }); */
 (function (g) {
   'use strict';
 
-  var VERSION = 1;
+  // 2026-11-15：存储结构升到 v2（加平台层）。VERSION 同时是 settings() 对外报的版本号。
+  var VERSION = 2;
+  // 为什么存储键还叫 v1：全站 7 个工具 + 用户已有的存档都认这个键。升结构不升键名，
+  // 老页面读进来也能认（它们只读 profiles，读到的仍是拍平后的形状）。真正区分版本的是数据里的 v。
   var STORE = 'hx-ai-v1';
   var KEY_PREFIX = 'hx-ai-key:';
+  var PLAT_PREFIX = 'hx-ai-key:plat:';  // 2026-11-15：Key 挂平台，一个 Key 下所有模型共用
   var TIMEOUT = 60000; // 60 秒。识别整页扫描件时慢，但超过一分钟基本是卡住了
   var NO_AI = '还没有配置 AI 模型，请到首页「AI 设置」里加一套';
 
@@ -247,52 +271,201 @@
 
   var capIds = caps.map(function (c) { return c.id; });
 
-  function uid() {
-    return 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  // 生成 id：前缀区分种类（u = 平台，p = 模型），同一份存档里一眼能看出哪个是哪个。
+  // 2026-11-15：原来只有模型，一律 p 开头；平台新加，用 u 开头，避免和已有 id 撞车。
+  function uid(pre) {
+    return (pre || 'p') + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   }
 
   function str(v) { return v == null ? '' : String(v).trim(); }
 
-  // 把任意来源的对象收敛成一份合法 profile：不认识的 provider 落到 custom，
-  // 空的 baseUrl 用供应商预设兜（用户只改模型名时也能用），caps 只留认识的、去重。
+  function cleanId(v) { return str(v).replace(/[^\w-]/g, '').slice(0, 32); }
+
+  // 只留认识的 provider，其余落到 custom（用户手填的地址一样能用，只是没有预设）
+  function normProvider(v) { return providers[str(v)] ? str(v) : 'custom'; }
+
+  function normCaps(v) {
+    var cs = Array.isArray(v) ? v.map(str).filter(function (c) { return capIds.indexOf(c) >= 0; }) : [];
+    cs = cs.filter(function (c, i) { return cs.indexOf(c) === i; });  // 去重
+    if (!cs.length) cs = ['text']; // 没勾就当文本模型，不能让一个模型「什么都不能干」
+    return cs;
+  }
+
+  function normThink(v) {
+    // 思考程度：只认三档，老存档没这个字段 = 均衡（默认），不报错。
+    var tl = str(v);
+    if (thinkLevels.map(function (x) { return x.id; }).indexOf(tl) < 0) tl = 'balanced';
+    return tl;
+  }
+
+  /* 平台（2026-11-15 新增）：「一家服务商 + 一个接口地址 + 一把 Key」，用户还可以起个别名。
+     models 是「读取模型」拉回来的候选列表，存在平台这一层 —— 读一次，下面加十个模型都够用，
+     不用每个模型各自记一份候选。 */
+  function normPlat(raw) {
+    var o = raw && typeof raw === 'object' ? raw : {};
+    var provider = normProvider(o.provider);
+    var preset = providers[provider];
+    // 空的 baseUrl 用供应商预设兜（用户只填别名和 Key 时也能直接读模型）
+    var baseUrl = str(o.baseUrl) || preset.baseUrl || '';
+    var list = Array.isArray(o.models) ? o.models.map(str).filter(Boolean) : [];
+    list = list.filter(function (m, i) { return list.indexOf(m) === i; });
+    return {
+      id: cleanId(o.id),
+      name: str(o.name).slice(0, 40) || preset.label,   // 别名空着就用服务商名，卡片上不至于一片空白
+      provider: provider,
+      baseUrl: baseUrl,
+      models: list,
+      at: Number(o.at) || Date.now()
+    };
+  }
+
+  /* 模型（挂在平台下）。v2 的模型自己不存 baseUrl / provider / Key：
+     这些都归平台，模型的职责只有「叫什么、能干什么、想多想久」。 */
+  function normProfile(raw) {
+    var o = raw && typeof raw === 'object' ? raw : {};
+    return {
+      id: cleanId(o.id),
+      platId: cleanId(o.platId || o.platformId),
+      model: str(o.model),
+      name: str(o.name).slice(0, 40),
+      caps: normCaps(o.caps),
+      thinkLevel: normThink(o.thinkLevel),
+      at: Number(o.at) || Date.now()
+    };
+  }
+
+  /* 老形状（v1 的一份配置，或者调用方临时拼的 {provider,baseUrl,model,...}）→ 拍平对象。
+     保留这个名字是因为 pick({profile}) / test() / 工具页都可能直接塞一份手拼的配置进来，
+     它们不知道平台是什么，也不该被迫知道。 */
   function norm(raw) {
     var o = raw && typeof raw === 'object' ? raw : {};
-    var provider = providers[o.provider] ? o.provider : 'custom';
+    var provider = normProvider(o.provider);
     var preset = providers[provider];
     var baseUrl = str(o.baseUrl) || preset.baseUrl || '';
     var list = Array.isArray(o.models) ? o.models.map(str).filter(Boolean) : [];
-    var cs = Array.isArray(o.caps) ? o.caps.map(str).filter(function (c) { return capIds.indexOf(c) >= 0; }) : [];
-    cs = cs.filter(function (c, i) { return cs.indexOf(c) === i; });
-    if (!cs.length) cs = ['text']; // 没勾就当文本模型，不能让一套配置「什么都不能干」
-    // 思考程度：只认三档，老存档没这个字段 = 均衡（默认），不报错。
-    var tl = str(o.thinkLevel);
-    if (thinkLevels.map(function (x) { return x.id; }).indexOf(tl) < 0) tl = 'balanced';
     return {
-      id: str(o.id).replace(/[^\w-]/g, '').slice(0, 32),
+      id: cleanId(o.id),
+      platId: cleanId(o.platId),
+      platName: str(o.platName),
       name: str(o.name),
       provider: provider,
       baseUrl: baseUrl,
       model: str(o.model),
       models: list,
-      caps: cs,
-      thinkLevel: tl,
+      caps: normCaps(o.caps),
+      thinkLevel: normThink(o.thinkLevel),
       at: Number(o.at) || Date.now()
     };
   }
 
-  function read() {
+  // 存档里的一条模型 + 它所属的平台 → 拍平对象（也就是全站一直在用的那个形状）。
+  // 平台找不到（数据被手改坏了）就退回 custom + 空地址，至少不会整页崩掉。
+  function view(p, s) {
+    s = s || read();
+    var plat = findPlat(s, p.platId) || { id: p.platId, name: '', provider: 'custom', baseUrl: '', models: [] };
+    return {
+      id: p.id,
+      platId: plat.id,
+      platName: plat.name,
+      provider: plat.provider,
+      baseUrl: plat.baseUrl,
+      model: p.model,
+      name: p.name || p.model,
+      models: (plat.models || []).slice(),  // 兼容老字段：候选模型现在挂在平台上
+      caps: (p.caps || []).slice(),
+      thinkLevel: p.thinkLevel,
+      at: p.at
+    };
+  }
+
+  function parse() {
     var raw = null;
     try { raw = JSON.parse(g.localStorage.getItem(STORE) || 'null'); } catch (e) { raw = null; }
-    var s = { v: VERSION, profiles: [], active: {}, tools: {} };
-    if (!raw || typeof raw !== 'object') return s;
-    if (Array.isArray(raw.profiles)) {
-      raw.profiles.forEach(function (p) {
-        var n = norm(p);
-        if (!n.id || !n.model) return; // 没 id 或没模型名的残缺项直接丢，读出来也用不了
-        if (!s.profiles.some(function (x) { return x.id === n.id; })) s.profiles.push(n);
+    return raw && typeof raw === 'object' ? raw : null;
+  }
+
+  function findPlat(s, id) {
+    var k = str(id);
+    if (!k) return null;
+    var hit = null;
+    s.plats.forEach(function (x) { if (x.id === k) hit = x; });
+    return hit;
+  }
+
+  /* 按「服务商 + 接口地址」找平台，没有就建一个。两个用处：
+     ① v1 迁移时把同一家（同一地址）的几套配置归到一个平台下；
+     ② save() 还接受老的 {provider,baseUrl,model} 写法，老调用方不至于报错。
+     注意只在「没给 platId」时用 —— 用户可能故意用同一个地址挂两把不同账号的 Key。 */
+  function ensurePlat(s, o) {
+    o = o || {};
+    var provider = normProvider(o.provider);
+    var baseUrl = str(o.baseUrl) || providers[provider].baseUrl || '';
+    var hit = null;
+    s.plats.forEach(function (x) { if (!hit && x.provider === provider && x.baseUrl === baseUrl) hit = x; });
+    if (hit) return hit;
+    var label = providers[provider].label;
+    // 重名加序号：两个都是「DeepSeek」（一个官方、一个中转）时，卡片上还分得清
+    var name = label, n = 1;
+    while (s.plats.some(function (x) { return x.name === name; })) { n++; name = label + ' ' + n; }
+    var plat = { id: uid('u'), name: name, provider: provider, baseUrl: baseUrl, models: [], at: Date.now() };
+    s.plats.push(plat);
+    return plat;
+  }
+
+  /* 读存档，顺手把 v1 迁移成 v2。整份数据的唯一入口，所有 set* 都是「read → 改 → write」。
+     迁移规则（2026-11-15）：
+       · 有 raw.plats 就照读；没有就空着手等下面的 profile 来建。
+       · 每条 profile：有 platId 且平台还在就挂上去；否则按 provider+baseUrl 找/建平台 ——
+         这一步同时覆盖了「v1 存档」「v2 存档里有条手改坏了的数据」两种情况。
+       · active / tools 只保留指向真实存在的模型的 id（原来就有这条，配置删了不留死引用）。
+       · 有任何改动（版本不对、补了 platId、建了平台）就写回，并把老键里的 Key 搬到平台名下。 */
+  function read() {
+    var raw = parse();
+    var s = { v: VERSION, plats: [], profiles: [], active: {}, tools: {} };
+    if (!raw) return s;
+    var dirty = Number(raw.v) !== VERSION;
+    var moveKeys = [];   // { platId, from: [profileId…] }：迁移完成后把老键搬过去
+
+    if (Array.isArray(raw.plats)) {
+      raw.plats.forEach(function (x) {
+        var n = normPlat(x);
+        if (!n.id) { dirty = true; return; }
+        if (s.plats.some(function (y) { return y.id === n.id; })) return;
+        s.plats.push(n);
       });
     }
-    // active / tools 只保留指向真实存在的配置的 id，配置删了以后这里不会留死引用
+
+    if (Array.isArray(raw.profiles)) {
+      (raw).profiles.forEach(function (p) {
+        var n = normProfile(p);
+        if (!n.id || !n.model) return; // 没 id 或没模型名的残缺项直接丢，读出来也用不了
+        if (s.profiles.some(function (x) { return x.id === n.id; })) return;
+        var plat = findPlat(s, n.platId);
+        if (!plat) {
+          // v1 的配置带着 provider / baseUrl / models，正好用来归组
+          plat = ensurePlat(s, {
+            provider: p.provider,
+            baseUrl: p.baseUrl,
+            // 别名：迁移时不拿模型名当平台名（「DeepSeek 文本」不是平台），统一用服务商 label + 序号
+          });
+          n.platId = plat.id;
+          dirty = true;
+        }
+        if (!n.name) n.name = n.model;  // 老存档有的没名字，列表里总不能显示空白
+        s.profiles.push(n);
+        if (Array.isArray(p.models) && p.models.length) {
+          // v1 里每条配置各自记的候选模型，并进平台（去重），省得迁移后候选凭空少一半
+          p.models.map(str).filter(Boolean).forEach(function (m) {
+            if (plat.models.indexOf(m) < 0) plat.models.push(m);
+          });
+        }
+      });
+      // 迁移 Key：没平台的模型（= 刚从 v1 上来的）都要看一眼老键
+      if (dirty) {
+        moveKeys.push.apply(moveKeys, s.profiles.map(function (p) { return { platId: p.platId, from: p.id }; }));
+      }
+    }
+
     if (raw.active && typeof raw.active === 'object') {
       capIds.forEach(function (c) {
         var id = str(raw.active[c]);
@@ -304,6 +477,14 @@
         var id = str(raw.tools[t]);
         if (id && s.profiles.some(function (p) { return p.id === id; })) s.tools[t] = id;
       });
+    }
+
+    if (dirty) {
+      try {
+        write(s);
+        // 只有写成功了才「搬」—— 写不进去（隐私模式/配额满）时留着老键，别把用户唯一的 Key 弄丢
+        moveKeys.forEach(function (x) { migrateKey(x.platId, x.from); });
+      } catch (e) { /* 写不进去就算了，读出来的数据照样能用，Key 走老键兜底 */ }
     }
     return s;
   }
@@ -320,27 +501,41 @@
     return hit;
   }
 
-  function clone(p) { return JSON.parse(JSON.stringify(p)); }
-
-  function list() { return read().profiles.map(clone); }
-  function get(id) { var p = find(read(), str(id)); return p ? clone(p) : null; }
-
-  // 只读一份完整设置（给设置页画下拉用；同样是副本，改它不会写回存储）
-  function settings() {
-    var s = read();
-    return { v: VERSION, profiles: s.profiles.map(clone), active: JSON.parse(JSON.stringify(s.active)), tools: JSON.parse(JSON.stringify(s.tools)) };
+  // 对外的三个只读入口一律给「拍平」的对象（带 baseUrl/provider），
+  // 工具页从 v1 起就读这几个字段，改成平台结构以后它们一行都不用改。
+  // （原来这里有个 clone()，v2 起所有出口都走 view() 现造新对象，克隆就没用了，删掉免得两份逻辑。）
+  function list() { var s = read(); return s.profiles.map(function (p) { return view(p, s); }); }
+  function get(id) {
+    var s = read(), p = find(s, str(id));
+    return p ? view(p, s) : null;
   }
 
-  function has(id) { return !!key(str(id)); }
-  function key(id) {
-    var name = KEY_PREFIX + str(id);
+  /* 只读一份完整设置（给设置页画下拉用；同样是副本，改它不会写回存储）。
+     2026-11-15：多返回一个 plats（平台列表，带 count/caps/tools/hasKey 派生信息），
+     老的 profiles / active / tools 一字未动 —— 别的地方继续按老写法取值就行。 */
+  function settings() {
+    var s = read();
+    return {
+      v: VERSION,
+      plats: s.plats.map(function (x) { return derive(s, x); }),
+      profiles: s.profiles.map(function (p) { return view(p, s); }),
+      active: JSON.parse(JSON.stringify(s.active)),
+      tools: JSON.parse(JSON.stringify(s.tools))
+    };
+  }
+
+  // ---------- Key 存取（2026-11-15 改挂平台） ----------
+  // 统一从一个地方读：session 优先（当前标签页现填的更新），其次 local（勾了「记住」的）
+  function readKey(name) {
     try { return g.sessionStorage.getItem(name) || g.localStorage.getItem(name) || ''; }
     catch (e) { return ''; }
   }
-
-  // 只动这一套的 Key：先两个存储都清掉再按「记住」放回一处，避免同一把 Key 残留两份
-  function setKey(id, value, remember) {
-    var name = KEY_PREFIX + str(id), k = str(value);
+  function keyRemembered(name) {
+    try { return !!g.localStorage.getItem(name); } catch (e) { return false; }
+  }
+  // 只动这一个名字的 Key：先两个存储都清掉再按「记住」放回一处，避免同一把 Key 残留两份
+  function writeKey(name, value, remember) {
+    var k = str(value);
     try {
       g.localStorage.removeItem(name);
       g.sessionStorage.removeItem(name);
@@ -348,7 +543,72 @@
     } catch (e) { /* 隐私模式下可能写不进去，不影响其它功能 */ }
   }
 
+  function platKey(platId) { return str(platId) ? readKey(PLAT_PREFIX + str(platId)) : ''; }
+  function platRemembered(platId) { return str(platId) ? keyRemembered(PLAT_PREFIX + str(platId)) : false; }
+  function setPlatKey(platId, value, remember) {
+    if (!str(platId)) return;
+    writeKey(PLAT_PREFIX + str(platId), value, !!remember);
+  }
+  function clearPlatKey(platId) { setPlatKey(platId, '', false); }
+
+  /* 一个模型这个「平台」的 Key：先找平台键，再兜底老键。
+     兜底为什么必须有：迁移写回失败（隐私模式 / 配额满）、或者用户手改过 localStorage 时，
+     平台键是不存在的。这时候如果只认平台键，全站会一起报「没填 Key」—— 那是升级事故，不是用户操作。 */
+  function keyOfProfile(p, s) {
+    if (!p) return '';
+    s = s || read();
+    var plat = findPlat(s, p.platId);
+    var v = plat ? platKey(plat.id) : '';
+    return v || readKey(KEY_PREFIX + p.id);
+  }
+
+  function has(id) { return !!key(str(id)); }
+
+  /* 老签名（按 id 取 Key）保留：传模型 id 就解析到它所属的平台，传平台 id 也可以。
+     设置页从 v1 起就是这么调的，不改成「必须传平台」的话，别处的调用一行都不用动。 */
+  function key(id) {
+    var k = str(id);
+    if (!k) return '';
+    var s = read();
+    var p = find(s, k);
+    if (p) return keyOfProfile(p, s);
+    if (findPlat(s, k)) return platKey(k);
+    return readKey(KEY_PREFIX + k);  // 认不出的 id：照老规矩直读，别把调用方弄懵
+  }
+
+  /* 老签名（按 id 存 Key）：语义变成「改这个模型所属平台的 Key」——
+     同一平台下的其它模型自然一起生效，这正是用户要的「填一次就够」。 */
+  function setKey(id, value, remember) {
+    var k = str(id);
+    if (!k) return;
+    var s = read();
+    var p = find(s, k);
+    if (p) return setPlatKey(p.platId, value, remember);
+    if (findPlat(s, k)) return setPlatKey(k, value, remember);
+    writeKey(KEY_PREFIX + k, value, !!remember);
+  }
+
   function clearKey(id) { setKey(id, '', false); }
+
+  /* v1 → v2 的 Key 搬家：老键 hx-ai-key:<profileId> 复制到 hx-ai-key:plat:<platId>，
+     目标处已经有 Key 就不覆盖（用户可能已经在新界面上重填过了，别把新的盖掉），
+     然后删掉老键 —— 一把 Key 只留一份，免得出现「改了平台 Key 但老键还在、读到的却是旧的」。 */
+  function migrateKey(platId, profileId) {
+    if (!str(platId) || !str(profileId)) return;
+    var from = KEY_PREFIX + str(profileId);
+    var to = PLAT_PREFIX + str(platId);
+    try {
+      [g.localStorage, g.sessionStorage].forEach(function (box) {
+        var v = null;
+        try { v = box.getItem(from); } catch (e) { v = null; }
+        if (!v) return;
+        var exist = null;
+        try { exist = box.getItem(to); } catch (e) { exist = null; }
+        if (!exist) { try { box.setItem(to, v); } catch (e) { return; } }
+        try { box.removeItem(from); } catch (e) { /* 删不掉也无害，读的时候平台键优先 */ }
+      });
+    } catch (e) { /* 存储不可用就留着老键，keyOfProfile 会兜底读到 */ }
+  }
 
   function supports(p, cap) {
     if (!p) return false;
@@ -356,34 +616,120 @@
     return (p.caps || []).indexOf(cap) >= 0;
   }
 
-  /* 新增或更新一套。
+  // ---------- 平台（2026-11-15 新增） ----------
+  /* 一个平台「现在有多少模型、被哪些能力 / 工具用着、有没有 Key」。
+     删除确认要把这些数字说给用户听（「还有 3 个模型、被 2 个工具用着」），
+     卡片上的徽标也要用，所以统一在这里算一遍，别让设置页自己再数一遍（数错了就删错东西）。 */
+  function derive(s, plat) {
+    var ids = {}, names = [];
+    s.profiles.forEach(function (p) {
+      if (p.platId !== plat.id) return;
+      ids[p.id] = 1; names.push(p.model);
+    });
+    var cs = [], ts = [];
+    capIds.forEach(function (c) { if (ids[s.active[c]]) cs.push(c); });
+    toolList.forEach(function (t) { if (ids[s.tools[t.id]]) ts.push(t.id); });
+    return {
+      id: plat.id, name: plat.name, provider: plat.provider, baseUrl: plat.baseUrl,
+      models: (plat.models || []).slice(), at: plat.at,
+      count: names.length, modelNames: names, caps: cs, tools: ts,
+      hasKey: !!platKey(plat.id)
+    };
+  }
+
+  function plats() {
+    var s = read();
+    return s.plats.map(function (x) { return derive(s, x); });
+  }
+
+  function getPlat(id) {
+    var s = read(), p = findPlat(s, str(id));
+    return p ? derive(s, p) : null;
+  }
+
+  /* 新增 / 修改平台。带 id = 改（别名、地址、Key），不带 = 新建。
+     Key 只有传了 key / apiKey 才动，没传就保持原样（编辑时 Key 框留空 = 不改）。
+     models 传了就当「读取模型」的结果存下来（下次加模型直接有候选），没传就保留原来的。 */
+  function savePlat(input) {
+    var s = read(), o = input && typeof input === 'object' ? input : {};
+    var pl = normPlat(o);
+    var i = -1;
+    s.plats.forEach(function (x, n) { if (pl.id && x.id === pl.id) i = n; });
+    if (!pl.id) { pl.id = uid('u'); i = -1; }
+    if (i >= 0) {
+      if (!Array.isArray(o.models)) pl.models = s.plats[i].models || [];  // 没传就保留已读到的候选
+      pl.at = s.plats[i].at || pl.at;   // 创建时间不动，卡片排序才稳
+      s.plats[i] = pl;
+    } else {
+      s.plats.push(pl);
+    }
+    if (o.key !== undefined || o.apiKey !== undefined) {
+      setPlatKey(pl.id, o.key !== undefined ? o.key : o.apiKey, !!o.remember);
+    }
+    write(s);
+    return derive(s, pl);
+  }
+
+  /* 删平台：连带它下面的所有模型、active/tools 里的死引用、平台 Key。
+     调用之前设置页会用 platInfo() 把「还有几个模型、被谁用着」摊给用户确认。 */
+  function removePlat(id) {
+    var s = read(), k = str(id);
+    var gone = {};
+    s.profiles.forEach(function (p) { if (p.platId === k) gone[p.id] = 1; });
+    s.plats = s.plats.filter(function (x) { return x.id !== k; });
+    s.profiles = s.profiles.filter(function (p) { return p.platId !== k; });
+    capIds.forEach(function (c) { if (gone[s.active[c]]) delete s.active[c]; });
+    Object.keys(s.tools).forEach(function (t) { if (gone[s.tools[t]]) delete s.tools[t]; });
+    write(s);
+    clearPlatKey(k);
+    Object.keys(gone).forEach(function (pid) { writeKey(KEY_PREFIX + pid, '', false); }); // 老键也清掉
+    return Object.keys(gone).length;
+  }
+
+  // 同一平台下同名的模型别存两份：存了也是两份一模一样的配置，用户以后自己都分不清
+  function existsModel(platId, model, exceptId) {
+    var s = read(), pid = str(platId), m = str(model);
+    return s.profiles.some(function (p) {
+      return p.platId === pid && p.model === m && p.id !== str(exceptId);
+    });
+  }
+
+  /* 新增或更新一个模型。
+     2026-11-15：主要走 { platId, model, caps, thinkLevel, name } 这种写法；
+     老的 { provider, baseUrl, model } 也还认 —— 找不到 platId 就按「服务商+地址」找/建平台。
      带 id = 更新，不带 = 新增；Key 只有在传了 key（或 apiKey）字段时才改，
      没传就是「保持原样」——设置页编辑时 Key 输入框留空就是这个意思。 */
   function save(input) {
-    var s = read();
-    var p = norm(input);
-    if (!p.id) p.id = uid();
+    var s = read(), o = input && typeof input === 'object' ? input : {};
+    var p = normProfile(o);
+    if (!p.id) p.id = uid('p');
     p.at = Date.now();
-    if (!p.name) p.name = p.model || providers[p.provider].label;
+    if (!p.name) p.name = p.model;
+    if (!p.platId || !findPlat(s, p.platId)) {
+      p.platId = ensurePlat(s, { provider: o.provider, baseUrl: o.baseUrl }).id;
+    }
     var i = -1;
     s.profiles.forEach(function (x, n) { if (x.id === p.id) i = n; });
     if (i >= 0) s.profiles[i] = p; else s.profiles.push(p);
-    if (input && (input.key !== undefined || input.apiKey !== undefined)) {
-      setKey(p.id, input.key !== undefined ? input.key : input.apiKey, !!input.remember);
+    if (o.key !== undefined || o.apiKey !== undefined) {
+      setPlatKey(p.platId, o.key !== undefined ? o.key : o.apiKey, !!o.remember);
     }
     // 新加的第一套顺手补上空着的默认位，省得用户还要再去下面选三次
     p.caps.forEach(function (c) { if (!s.active[c]) s.active[c] = p.id; });
     write(s);
-    return clone(p);
+    return view(p, s);
   }
 
+  /* 删一个模型（平台留着）。注意不再顺手清 Key —— 现在 Key 是平台共用的，
+     删掉平台下的某一个模型，不该把其它模型一起弄成「没填 Key」。 */
   function remove(id) {
-    var s = read(), k = str(id);
-    s.profiles = s.profiles.filter(function (p) { return p.id !== k; });
+    var s = read(), k = str(id), p = find(s, k);
+    s.profiles = s.profiles.filter(function (x) { return x.id !== k; });
     capIds.forEach(function (c) { if (s.active[c] === k) delete s.active[c]; });
     Object.keys(s.tools).forEach(function (t) { if (s.tools[t] === k) delete s.tools[t]; });
     write(s);
-    clearKey(k);
+    // 只有在「这个平台已经没有别的模型」时才清它的 Key，回收掉没人用的密码
+    if (p && !s.profiles.some(function (x) { return x.platId === p.platId; })) clearPlatKey(p.platId);
   }
 
   function setActive(cap, id) {
@@ -403,40 +749,46 @@
     write(s);
   }
 
+  // 下面四个对外入口都改成经 view() 拍平（2026-11-15）：
+  // 调用方要的仍然是 baseUrl / provider / model / caps / thinkLevel，平台是内部实现细节。
   function activeFor(cap) {
     var s = read();
     var p = find(s, s.active[cap]);
-    return p ? clone(p) : null;
+    return p ? view(p, s) : null;
   }
 
   function explicitFor(tool) {
     var s = read();
-    return tool ? find(s, s.tools[str(tool)]) : null;
+    var p = tool ? find(s, s.tools[str(tool)]) : null;
+    return p ? view(p, s) : null;
   }
 
   function forTool(tool) {
     var s = read();
     var p = find(s, s.tools[str(tool)]) || find(s, s.active.text) || null;
-    return p ? clone(p) : null;
+    return p ? view(p, s) : null;
   }
 
   /* 真正要用哪一套：
      ① 调用方直接给了 profile（设置页「测试连接」还没保存的配置）就用它；
      ② 指定了工具且这套工具确实能干这件事（比如要读图，工具指定的模型也勾了 vision）→ 用它；
      ③ 否则按能力找默认；
-     ④ 推理没单独设就退到文本默认；读图不退——把图塞给文本模型只会换来一句看不懂的报错。 */
+     ④ 推理没单独设就退到文本默认；读图不退——把图塞给文本模型只会换来一句看不懂的报错。
+     2026-11-15 改了一处：按能力找默认时，如果那个默认模型根本没勾这项能力（老存档 / 导入的
+     数据里常有：给 DeepSeek 设成「视频生成」默认），就当它没设，继续往下找，最后返回 null，
+     让 missMsg 说「缺哪种能力的模型」。为什么不再像 v1 那样闭眼返回：返回错模型的后果是
+     请求发出去才报 400，用户在设置页看不出任何问题，正是当初要修的那个坑。 */
   function pick(opts) {
     opts = opts || {};
     if (opts.profile) return norm(opts.profile);
     var cap = opts.cap || 'text';
     var s = read();
-    var byTool = explicitFor(opts.tool);
-    if (byTool && supports(byTool, cap)) return clone(byTool);
+    var byToolP = explicitFor(opts.tool);
+    if (byToolP && supports(byToolP, cap)) return byToolP;
     var byCap = find(s, s.active[cap]);
-    if (byCap) return clone(byCap);
-    if (cap === 'reason') { var t = find(s, s.active.text); if (t) return clone(t); }
-    if (byTool) return clone(byTool);
-    return cap === 'text' ? (s.profiles[0] ? clone(s.profiles[0]) : null) : null;
+    if (byCap && (cap === 'text' || supports(byCap, cap))) return view(byCap, s);
+    if (cap === 'reason') { var t = find(s, s.active.text); if (t) return view(t, s); }
+    return cap === 'text' ? (s.profiles[0] ? view(s.profiles[0], s) : null) : null;
   }
 
   // 统一友好报错：落到「缺什么能力 / 缺什么模型 / 缺什么 Key」三个维度，别让用户猜。
@@ -674,36 +1026,74 @@
   var tts = audio;    // 语音合成走 audio 能力（和 ASR 合并），入口名方便调用方语义化
   var asr = audio;    // 语音识别同 audio 能力
 
+  /* 把「平台 id / 模型 id / 表单里还没保存的一坨」统一解析成「一次请求需要的四件套」：
+     { provider, baseUrl, platId, key, name }。2026-11-15 加，因为「读模型 / 测试连接」
+     现在既可能在平台卡片上点（还没保存、也没模型），也可能在模型行上点（有模型、Key 归平台）。 */
+  function resolveConn(x) {
+    x = x && typeof x === 'object' ? x : {};
+    var s = read();
+    var explicitKey = str(x.key || x.apiKey);
+    var plat = null, prof = null;
+    if (x.platId) plat = findPlat(s, x.platId);
+    if (!plat && x.id && findPlat(s, x.id)) plat = findPlat(s, x.id);   // 直接传了平台 id
+    if (!plat && x.id) { prof = find(s, x.id); if (prof) plat = findPlat(s, prof.platId); }
+    var provider = normProvider(x.provider || (plat ? plat.provider : ''));
+    if (!plat) {
+      // 没有平台：只能靠表单里手填的 provider / baseUrl（平台还没保存时就是这条路）
+      var baseUrl = str(x.baseUrl) || providers[provider].baseUrl || '';
+      if (!baseUrl) return null;
+      return { provider: provider, baseUrl: baseUrl, platId: '', key: explicitKey, name: str(x.name) || providers[provider].label, id: '' };
+    }
+    return {
+      provider: plat.provider,
+      baseUrl: str(x.baseUrl) || plat.baseUrl,   // 表单里刚改还没保存的地址优先
+      platId: plat.id,
+      key: explicitKey || platKey(plat.id),
+      name: str(x.name) || plat.name,
+      id: prof ? prof.id : plat.id
+    };
+  }
+
   /* 设置页的「测试连接」：拿当前（可能还没保存的）配置发一句最短的话。
      成功返回 { ms, text }，失败把服务商原话抛出来——原话比「测试失败」有用得多。 */
   async function test(profileLike) {
     var p = norm(profileLike);
-    var k = str(profileLike && (profileLike.key || profileLike.apiKey)) || key(p.id);
+    var conn = resolveConn(profileLike);
+    // 平台上的地址 / 服务商优先（模型自己不存这两样了，norm() 只能按 provider 预设兜一个）
+    if (conn) { p.provider = conn.provider; p.baseUrl = conn.baseUrl; p.platId = conn.platId || p.platId; }
+    var k = str(profileLike && (profileLike.key || profileLike.apiKey)) || (conn && conn.key) || key(p.id);
     if (!k) throw new Error(NO_AI + '（这套还没填 API Key）');
     var t0 = Date.now();
     var text = await request(p, k, [{ role: 'user', content: '只回复两个字：收到' }], { maxTokens: 32, temperature: 0 });
     return { ms: Date.now() - t0, text: str(text).slice(0, 40) };
   }
 
-  // 拉模型列表：GET {baseUrl}/models。失败不再默默返回空数组 —— 抛出「缺什么」说清楚的错，
-  // 让设置页把「读不到模型」的原因（Key 无效 / 没权限 / 地址不对 / 服务商不开放这接口）直接告诉用户。
-  async function models(profileLike) {
-    var p = profileLike ? norm(profileLike) : pick({ cap: 'text' });
-    if (!p) throw new Error('还没有可用的模型配置，先加一套再读。');
-    var k = str(profileLike && (profileLike.key || profileLike.apiKey)) || key(p.id);
-    if (!k) throw new Error('这套「' + (p.name || p.model) + '」还没填 API Key，读不了模型列表。');
+  /* 拉模型列表：GET {baseUrl}/models。失败不再默默返回空数组 —— 抛出「缺什么」说清楚的错，
+     让设置页把「读不到模型」的原因（Key 无效 / 没权限 / 地址不对 / 服务商不开放这接口）直接告诉用户。
+     2026-11-15：改成「按平台读」，读到结果顺手存进平台（plat.models），
+     所以在平台卡片上读一次，下面加模型时下拉里就一直有候选了。 */
+  async function models(target) {
+    var conn = target ? resolveConn(target) : null;
+    if (!conn) {
+      // 老用法：不传参数 = 读「文本默认那套」的平台
+      var def = pick({ cap: 'text' });
+      if (def) conn = { provider: def.provider, baseUrl: def.baseUrl, platId: def.platId, key: keyOf(def), name: def.platName || def.name, id: def.id };
+    }
+    if (!conn || !conn.baseUrl) throw new Error('还没有可用的平台，先加一个平台再读模型列表。');
+    var k = conn.key;
+    if (!k) throw new Error('「' + (conn.name || '这个平台') + '」还没填 API Key，读不了模型列表。');
     // 给「读模型列表」单独设一个 12 秒超时：这个接口轻量、秒回，12 秒还没响应基本是被拦了/网络不通。
     var ctl = new AbortController();
     var timer = setTimeout(function () { ctl.abort(); }, 12000);
     var res;
     try {
-      res = await fetch(endpoint(p.baseUrl, '/models'), { headers: { Authorization: 'Bearer ' + k }, signal: ctl.signal });
+      res = await fetch(endpoint(conn.baseUrl, '/models'), { headers: { Authorization: 'Bearer ' + k }, signal: ctl.signal });
     } catch (e) {
       // 主动 abort 触发的是 AbortError → 判定为「连接超时」；其它异常是 fetch 在拿到响应前就抛了 → 网络不通/被拦截。
       if (e && e.name === 'AbortError') {
         throw new Error('读模型列表连接超时（12 秒没响应）。可能原因：① 本地代理/防火墙拦了这个域名（试试关代理、换网络，或用手机热点）；② 学校网络屏蔽；③ 服务商临时故障。接口地址是对的，Key 问题会单独提示。');
       }
-      throw new Error('连不上「' + (providers[p.provider] ? providers[p.provider].label : p.provider) + '」的模型列表接口。可能原因：① 本地代理/防火墙拦了这个域名（试试关代理、换网络，或用手机热点）；② 学校网络屏蔽；③ 服务商临时故障。接口地址是对的，Key 问题会单独提示。');
+      throw new Error('连不上「' + (conn.name || conn.provider) + '」的模型列表接口。可能原因：① 本地代理/防火墙拦了这个域名（试试关代理、换网络，或用手机热点）；② 学校网络屏蔽；③ 服务商临时故障。接口地址是对的，Key 问题会单独提示。');
     } finally {
       clearTimeout(timer);
     }
@@ -714,20 +1104,31 @@
     var data;
     try { data = await res.json(); } catch (e) { data = null; }
     if (!data || !Array.isArray(data.data)) throw new Error('读模型列表失败：接口返回的内容不是模型列表（可能地址填成了别的接口）。');
-    return data.data.map(function (x) { return str(x.id); }).filter(Boolean).sort();
+    var out = data.data.map(function (x) { return str(x.id); }).filter(Boolean).sort();
+    // 存回平台：下次打开设置页、加新模型时，候选里直接就有（不用再点一次「读取模型」）
+    if (conn.platId) {
+      try {
+        var s = read();
+        var pl = findPlat(s, conn.platId);
+        if (pl) { pl.models = out.slice(); write(s); }
+      } catch (e) { /* 存不下也无所谓，列表已经返回了 */ }
+    }
+    return out;
   }
 
-  // 导出：只导「模型和地址」，Key 永远不进来。顺便再兜一层 replacer，防止以后有人往 profile 里塞了 key 字段。
+  // 导出：只导「平台、模型和地址」，Key 永远不进来。顺便再兜一层 replacer，防止以后有人往平台/模型里塞了 key 字段。
   function exportJson() {
     var s = read();
-    var data = { v: VERSION, profiles: s.profiles, active: s.active, tools: s.tools };
+    var data = { v: VERSION, plats: s.plats, profiles: s.profiles, active: s.active, tools: s.tools };
     return JSON.stringify(data, function (k2, v) {
       return /^(key|apiKey|remember)$/i.test(k2) ? undefined : v;
     }, 2);
   }
 
   /* 导入：同 id 覆盖、新 id 追加（换电脑时目标机是空的，效果等于整体恢复）。
-     导入的配置没有 Key，界面会提示补填。 */
+     导入的配置没有 Key，界面会提示补填。
+     2026-11-15：同时认 v2（plats + profiles）和 v1（只有 profiles）两种格式 ——
+     同事给你一份从老版本导出的 JSON，也得能导进来：平台按 provider+baseUrl 自动归组。 */
   function importJson(text) {
     var raw = str(text);
     if (!raw) throw new Error('先把配置 JSON 粘进来。');
@@ -735,12 +1136,26 @@
     try { data = JSON.parse(raw); } catch (e) { throw new Error('这不是有效的 JSON，检查一下有没有复制不全。'); }
     var arr = Array.isArray(data) ? data : (data && Array.isArray(data.profiles) ? data.profiles : null);
     if (!arr) throw new Error('JSON 里没有 profiles 数组。');
-    var s = read(), added = 0, updated = 0;
+    var s = read(), added = 0, updated = 0, platAdded = 0;
+    // 先把平台导进来（这样 profiles 里的 platId 才有地方落）
+    if (!Array.isArray(data) && Array.isArray(data.plats)) {
+      data.plats.forEach(function (item) {
+        var pl = normPlat(item);
+        if (!pl.id) pl.id = uid('u');
+        var i = -1;
+        s.plats.forEach(function (x, n) { if (x.id === pl.id) i = n; });
+        if (i >= 0) s.plats[i] = pl; else { s.plats.push(pl); platAdded++; }
+      });
+    }
     arr.forEach(function (item) {
-      var p = norm(item);
+      var p = normProfile(item);
       if (!p.model) return; // 连模型名都没有的条目没法用
-      if (!p.id) p.id = uid();
+      if (!p.id) p.id = uid('p');
       if (!p.name) p.name = p.model;
+      // 导入的是 v1 格式（没有 platId）→ 按服务商+地址找/建平台
+      if (!p.platId || !findPlat(s, p.platId)) {
+        p.platId = ensurePlat(s, { provider: item.provider, baseUrl: item.baseUrl }).id;
+      }
       var i = -1;
       s.profiles.forEach(function (x, n) { if (x.id === p.id) i = n; });
       if (i >= 0) { p.at = Date.now(); s.profiles[i] = p; updated++; } else { s.profiles.push(p); added++; }
@@ -759,7 +1174,7 @@
     }
     if (!added && !updated) throw new Error('这份 JSON 里没有能用的模型配置。');
     write(s);
-    return { added: added, updated: updated };
+    return { added: added, updated: updated, plats: platAdded };
   }
 
   g.HXAI = {
@@ -774,7 +1189,8 @@
     settings: settings,
     activeFor: activeFor,
     forTool: forTool,
-    hasKey: has,
+    has: has,          // 老 API 名，全站工具都按这个调（别改名，会崩）
+    hasKey: has,       // 2026-11-15 别名：设置页/新代码读起来更直白，两个名都指向同一个函数
     key: key,
     save: save,
     remove: remove,
@@ -790,6 +1206,20 @@
     tts: tts,
     asr: asr,
     test: test,
-    models: models
+    models: models,
+    // ---------- 2026-11-15 新增：平台层（设置页用，工具页不用管） ----------
+    plats: plats,             // 所有平台 + 派生信息（几个模型、被谁用着、有没有 Key）
+    getPlat: getPlat,
+    savePlat: savePlat,       // 新增/修改平台（别名、服务商、地址、Key）
+    removePlat: removePlat,   // 删平台：连带模型 / 默认 / 工具指定 / Key 一起清，返回删掉的模型数
+    platKey: platKey,         // 平台的 Key（设置页判断「记住」落在哪个 storage）
+    platRemembered: platRemembered,
+    setPlatKey: setPlatKey,
+    clearPlatKey: clearPlatKey,
+    existsModel: existsModel, // 同一平台下同名模型查重
+    explicitFor: explicitFor, // 之前只有 forTool，设置页要区分「单独指定」和「跟随默认」
+    // pick 一直是内部函数（chat / vision / image 用），2026-11-15 顺手放出来：
+    // 设置页要按能力预演「现在会落到哪个模型」，自验脚本也要能直接断言过滤口径。
+    pick: pick
   };
 })(typeof window !== 'undefined' ? window : this);

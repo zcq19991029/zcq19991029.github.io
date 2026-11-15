@@ -569,6 +569,112 @@ html[data-hx-mode="dark"] .study {
 .st-ask .muted { display: block; }
 .st-out .study { margin-top: 10px; }
 
+/* ============================================================
+   选择科目：药板胶囊下拉（2026-11-15 用户要求复刻 LeiBox blister-dropdown）
+   ------------------------------------------------------------
+   视觉照 LeiBox 原版搬：铝箔拉丝底（斜纹 + 竖向压痕 + 随鼠标走的高光）、
+   药槽（三圈金属内阴影 + 玻璃罩光）、双色胶囊、撕开后的锡纸空槽。
+   尺寸按本站顶栏/手机宽度缩小一档（原版药槽 112×64、胶囊 81×33）：
+   药槽 92×52、胶囊 68×27、行高 70px —— 一行还能看全十几个汉字的长科目名。
+   颜色写死不用主题变量：铝箔本来就是金属色，深浅色下都是「一板真药」，
+   主题色只在选中圆点上用（--acc 同族蓝）。
+   ============================================================ */
+.bsc-stage { position: fixed; inset: 0; z-index: 50; display: grid; place-items: start center; padding: 62px 12px 12px; overflow: hidden; opacity: 1; transition: opacity .18s ease; }
+.bsc-stage.bsc-out { opacity: 0; }
+/* 遮罩：纯色不发虚。这里刻意不做 backdrop-filter —— 2026-11-02 的教训，
+   全屏实时模糊在希沃一体机上每帧都要重新取整屏，比省下的那点层次感贵得多。 */
+.bsc-scrim { position: absolute; inset: 0; background: rgba(0, 0, 0, .36); }
+.bsc-wrap { position: relative; width: min(420px, 100%); }
+.bsc-assembly { position: relative; }
+
+/* 铝箔：拉丝斜纹 + 与鼠标位置联动的高光（--sheen-x/y 由 JS 写） */
+.bsc-foil {
+  --sheen-x: 38%; --sheen-y: 28%;
+  border: 1px solid #ffffff69; border-radius: 16px;
+  background:
+    radial-gradient(300px circle at var(--sheen-x) var(--sheen-y), #ffffff85 0, #ffffff24 38%, transparent 72%),
+    repeating-linear-gradient(45deg, #ffffff3b 0 1px, transparent 1px 3.5px),
+    repeating-linear-gradient(-45deg, #373c461f 0 1px, transparent 1px 3.5px),
+    repeating-linear-gradient(0deg, #ffffff25 0, #0000000a 1px, #ffffff1c 2px),
+    linear-gradient(165deg, #eceef1, #d8dade 36%, #c5c9d0 74%, #d4d7dc);
+  box-shadow: inset 0 1.5px 1px #ffffffe8, inset 1px 0 1px #ffffffa6,
+    inset 0 -2px 3px #484c568c, inset -1px 0 2px #52566061,
+    0 20px 42px -8px #0009, 0 6px 16px #0006;
+}
+
+/* 触发器：药槽 + 当前科目名 + 箭头（展开时箭头朝上） */
+.bsc-trigger { position: relative; z-index: 2; display: grid; grid-template-columns: 92px minmax(0, 1fr) 20px; align-items: center; gap: 10px; width: 100%; height: 72px; padding: 0 14px 0 10px; color: #25282c; text-align: left; cursor: pointer; transition: transform 180ms cubic-bezier(.22,1,.36,1); }
+.bsc-trigger:active { transform: translateY(1px) scale(.995); }
+.bsc-trigger:focus-visible { outline: 2px solid #1a56ff; outline-offset: 3px; } /* 固定胶囊蓝：深色主题下 --acc 是白色，套在铝箔上像多描了一圈白边 */
+.bsc-cur { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; font-size: 15.5px; letter-spacing: -.01em; text-shadow: 0 1px #fffa; }
+.bsc-chev { width: 16px; height: 16px; fill: none; stroke: #3b4048; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; transition: transform 360ms cubic-bezier(.22,1,.36,1); }
+.bsc-trigger[aria-expanded="false"] .bsc-chev { transform: rotate(180deg); }
+
+/* 药板从触发器背后滑下来（组件用的是同一套 inert + transform） */
+.bsc-clip { position: absolute; top: 100%; left: 0; right: 0; padding: 8px 0 40px; overflow: hidden; pointer-events: none; }
+.bsc-panel { display: flex; flex-direction: column; max-height: min(56vh, 400px); overflow: hidden; pointer-events: auto; transition: transform 460ms cubic-bezier(.22,1.06,.36,1), opacity 320ms cubic-bezier(.22,1,.36,1); }
+.bsc-panel[inert] { transform: translateY(calc(-100% - 18px)); opacity: 0; pointer-events: none; }
+/* 科目数量不定：中间列表自己滚，底部两个按钮钉住 */
+.bsc-list { min-height: 0; overflow: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+.bsc-gt { padding: 10px 16px 0; font-size: 11.5px; font-weight: 600; letter-spacing: .08em; color: #5c626b; text-shadow: 0 1px #fffa; }
+
+/* 一行 = 药槽 + 科目名（+ 标签）+ 题数 */
+.bsc-row { display: grid; grid-template-columns: 92px minmax(0, 1fr) auto; gap: 10px; align-items: center; min-height: 70px; padding: 0 16px 0 10px; cursor: pointer; outline-offset: -3px; }
+.bsc-row + .bsc-row { border-top: 2px dotted #54596488; }
+@media (hover: hover) and (pointer: fine) { .bsc-row:hover { background: #ffffff25; } }
+.bsc-row:active { background: #0000000d; }
+.bsc-row:focus-visible { outline: 2px solid #1a56ff; }
+.bsc-name { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.bsc-name b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; font-size: 15px; color: #20242a; text-shadow: 0 1px #fffa; }
+.bsc-tag { flex: none; font-style: normal; font-size: 10.5px; padding: 1px 7px; border-radius: 99px; background: #00000010; color: #4a4f57; box-shadow: inset 0 0 0 1px #00000012; }
+.bsc-total { font-size: 12.5px; color: #333840; text-shadow: 0 1px #fffa; white-space: nowrap; }
+/* 当前科目：名字前点一颗小蓝丸（组件里的 .blister-selection） */
+.bsc-name::before { content: ""; flex: none; width: 0; height: 8px; border-radius: 50%; opacity: 0; background: radial-gradient(circle at 35% 35%, #5986ff, #1a56ff 55%, #1036ac); box-shadow: 0 0 8px #1a56ff85, 0 1px #fffb; transition: width 220ms, margin-right 220ms, opacity 160ms; }
+.bsc-row[aria-selected="true"] .bsc-name::before { width: 8px; margin-right: 2px; opacity: 1; }
+
+/* 药槽：三圈金属内阴影的铝箔圈 + 中间压痕 + 玻璃罩光 */
+.bsc-pocket { position: relative; display: grid; place-items: center; width: 92px; height: 52px; isolation: isolate; pointer-events: none; }
+.bsc-rim { position: absolute; inset: 2px 3px; border-radius: 999px; background: linear-gradient(162deg, #fbfcff9c 2%, #73798677 24%, #f4f5f852 49%, #4c525e54 66%, #fff 96%); box-shadow: 0 2px 3px #0004, inset 0 0 0 1px #fafcffbe, inset 0 0 0 3px #8288958c, inset 0 0 0 5px #e9edf29c, inset 0 1px 8px #333946c4; }
+.bsc-rim::after { content: ""; position: absolute; inset: 8px; border-radius: inherit; background: #b8bbc65c; box-shadow: inset 0 2px 4px #34384255, inset 0 -1px 1px #fff; }
+.bsc-dome { position: absolute; z-index: 2; inset: 6px 9px; border-radius: 999px; background: linear-gradient(145deg, #fff5, #fff1 32%, transparent 56%, #fff2); box-shadow: inset 0 1px 1.5px #fff9; pointer-events: none; }
+/* 胶囊：左半颗药、右半颗壳，外面罩一层上下高光 */
+.bsc-pill, .bsc-flight { width: 68px; height: 27px; border-radius: 999px; background: linear-gradient(90deg, #0645c5 0 49%, #e8e8e8 50%); box-shadow: 0 2px 4px #11182266, inset 0 1px 1px #0006; }
+.bsc-pill { position: relative; }
+.bsc-pill::before, .bsc-flight::before { content: ""; position: absolute; inset: 3px 50% 4px 4px; border: 2px solid #6099fc55; border-right: 0; border-radius: 999px 0 0 999px; }
+.bsc-pill::after, .bsc-flight::after { content: ""; position: absolute; inset: 0; border-radius: inherit; background: linear-gradient(180deg, #0007, transparent 33%, #fff5 68%, #0004); box-shadow: inset 0 -1px 1px #0005; }
+
+/* 撕开的空槽：铝箔毛边（clip-path 撕裂轮廓）+ 里面黑洞 + 一小片反光的锡纸 */
+.bsc-cavity { position: absolute; inset: 2px 3px; display: none; border-radius: 999px; background: conic-gradient(from 12deg, #f5f5f5, #666970 10%, #e4e6e8 17%, #b8bbc2 29%, #f5f5f5 37%, #484b50 48%, #d6d8db 59%, #878b91 66%, #f6f6f6 78%, #4a4c50 89%, #efeff0); box-shadow: inset 0 0 0 1px #fff, inset 0 0 0 3px #7a7d82, inset 0 0 0 5px #e4e6ea, 0 3px 5px #0005; }
+.bsc-cavity::before, .bsc-cavity::after { content: ""; position: absolute; }
+.bsc-cavity::before { inset: 6px 8px; clip-path: polygon(0 34%, 9% 10%, 25% 18%, 38% 0, 52% 14%, 72% 0, 89% 15%, 100% 36%, 97% 77%, 87% 95%, 69% 86%, 56% 100%, 38% 82%, 24% 92%, 20% 64%, 4% 63%); background: repeating-linear-gradient(4deg, #ffffff10 0 1px, transparent 1px 3px), radial-gradient(ellipse at 50% 78%, #4d4f51, #252729 62%, #111214 83%); box-shadow: inset 0 4px 12px #000; }
+.bsc-cavity::after { width: 37%; height: 61%; left: 8%; bottom: 9%; clip-path: polygon(0 3%, 38% 14%, 52% 30%, 85% 42%, 74% 64%, 99% 90%, 51% 100%, 11% 75%); background: conic-gradient(from 31deg at 46% 49%, #fffb, #8c8f95, #fff, #53565e, #f9fafc, #bcbec3, #fffb); }
+.bsc-row[aria-selected="true"] .bsc-cavity { display: block; }
+.bsc-row[aria-selected="true"] :is(.bsc-rim, .bsc-dome, .bsc-pill) { visibility: hidden; }
+
+/* 药板底部：新建科目 / 输入分享码（原弹层里的两条，位置和文案都不变） */
+.bsc-foot { display: flex; gap: 8px; padding: 10px 12px; border-top: 2px dotted #54596488; background: #00000008; }
+.bsc-act { flex: 1; height: 38px; border: 0; border-radius: 11px; background: #ffffff5c; box-shadow: inset 0 0 0 1px #00000014; color: #2b3038; font-size: 13.5px; font-weight: 600; }
+@media (hover: hover) and (pointer: fine) { .bsc-act:hover { background: #ffffff8c; } }
+.bsc-act:active { transform: scale(.98); }
+.bsc-act:focus-visible { outline: 2px solid #1a56ff; outline-offset: 2px; }
+
+/* 飞行中的那颗：绝对定位在 .bsc-wrap 里，坐标由 JS 算（translate3d），所以不会触发重排 */
+.bsc-flight { position: absolute; top: 0; left: 0; z-index: 6; pointer-events: none; }
+.bsc-burst { position: absolute; z-index: 5; pointer-events: none; }
+.bsc-burst > span { position: absolute; background: #f4f6f9; box-shadow: 0 0 1px #51535f; }
+.bsc-burst > .bsc-ring { width: 26px; height: 14px; margin: -7px -13px; background: transparent; border: 1px solid #1a56ff; border-radius: 50%; }
+
+/* 极简模式 / 系统「减少动态效果」：胶囊不飞、药板不滑，只淡入淡出（JS 侧同样跳过 burst 和飞行帧） */
+html.hx-lite .bsc-panel { transition: opacity .16s linear; }
+html.hx-lite .bsc-panel[inert] { transform: none; }
+html.hx-lite .bsc-chev { transition: none; }
+@media (prefers-reduced-motion: reduce) {
+  .bsc-panel { transition: opacity .16s linear; }
+  .bsc-panel[inert] { transform: none; }
+  .bsc-chev, .bsc-trigger { transition: none; }
+  .bsc-name::before { transition: none; }
+}
+
 /* ---------- 题库分享码（2026-11-08）----------
    6 位码要念得清、看得见：等宽字体 + 拉开字距，避免把 0 看成 O（字母表里本来就没有 O/0/1/I/L）。
    二维码给固定方块底，深浅两套主题下都能扫。 */
@@ -578,3 +684,16 @@ html[data-hx-mode="dark"] .study {
 .sh-qr { margin: 14px auto 12px; }
 .sh-qr canvas { width: min(240px, 70vw); height: auto; display: block; margin: 0 auto; padding: 8px; border-radius: 14px; background: #fff; }
 .sh-out .line { flex-wrap: wrap; }
+
+/* ---------- AI 查重结果（2026-11-15）----------
+   一条一组「保留前一道 / 删后一道」：保留的正常色，要删的划掉并压暗 ——
+   老师扫一眼就知道这次动作要拿走哪一道，不用读完整题干。
+   列表限高、内部滚动：查出一二十组时弹层不能长到屏幕外面去。 */
+.dp-prog { padding: 22px 4px; text-align: center; color: var(--dim); font-size: 14px; }
+.dplist { display: grid; gap: 8px; max-height: min(46vh, 380px); overflow: auto; overscroll-behavior: contain; }
+.dp-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border-radius: 12px; background: var(--fill); font-size: 13.5px; line-height: 1.55; cursor: pointer; }
+.dp-item input { flex: none; width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--acc); }
+.dp-body { flex: 1; min-width: 0; display: grid; gap: 3px; }
+.dp-keep { font-weight: 600; }
+.dp-drop { color: var(--dim); text-decoration: line-through; }
+.dp-body small { color: var(--dim); font-size: 12px; }

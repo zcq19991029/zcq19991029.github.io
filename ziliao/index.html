@@ -85,7 +85,29 @@ pre { white-space: pre-wrap; word-break: break-word; margin: 0; }
 /* 资料 */
 .mat-drop { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 16px; border: 1px dashed var(--line2, rgba(0, 0, 0, .16)); border-radius: 14px; background: var(--fill, rgba(0, 0, 0, .03)); }
 .mat-drop.on { border-color: var(--acc, #2f845a); background: var(--accbg, rgba(47, 132, 90, .1)); }
-.mat-prog { margin: 10px 0 0; word-break: break-word; }
+/* 上传进度（2026-11-15）：深色底 + 蓝青流光扫过 + 百分比 / 已传字节。
+   参考了用户给的 WebGL 流光进度条（metalforge slosh）的观感，但这里只用 CSS 渐变 + 遮罩位移，
+   不引 WebGL、不引任何库；深浅色主题都吃 var(--ink/--dim)，轨道固定偏深，当仪表盘看。 */
+.mat-prog { margin: 12px 0 0; word-break: break-word; }
+.mat-prog[hidden] { display: none; }
+.mat-pg-h { display: flex; flex-wrap: wrap; gap: 2px 10px; align-items: baseline; font-size: 13px; color: var(--dim, #6e6e73); }
+.mat-pg-t { flex: 1 1 240px; min-width: 0; line-height: 1.5; }
+.mat-pg-w { flex: 0 0 auto; font-variant-numeric: tabular-nums; opacity: .85; }
+.mat-pg-v { flex: 0 0 auto; font-size: 13px; font-variant-numeric: tabular-nums; color: var(--ink, #1d1d1f); }
+.mat-pg-track { position: relative; height: 7px; margin-top: 7px; border-radius: 99px; overflow: hidden; background: #08131f; box-shadow: inset 0 0 0 1px rgba(90, 200, 255, .18), inset 0 2px 6px rgba(0, 0, 0, .7); }
+.mat-pg-fill { position: relative; display: block; width: 0; height: 100%; border-radius: 99px; background: linear-gradient(90deg, #0b6f96 0%, #24c8f0 45%, #6fe9ff 72%, #a9dcff 100%); box-shadow: 0 0 10px rgba(60, 220, 255, .6), 0 0 22px rgba(40, 170, 255, .28); transition: width .28s cubic-bezier(.22, .61, .36, 1); }
+/* 流光：一条白色高光在填充区里来回扫（slosh 的流动感），只在「正在传」时有 */
+.mat-pg-fill::before { content: ""; position: absolute; inset: 0; border-radius: inherit; background: linear-gradient(90deg, transparent 0 30%, rgba(255, 255, 255, .55) 50%, transparent 70% 100%); background-size: 260% 100%; background-repeat: no-repeat; animation: mat-pg-slosh 1.6s linear infinite; }
+/* 前端那点泛光 / 蓄势的高亮头，失败和完成时收掉 */
+.mat-pg-fill::after { content: ""; position: absolute; top: -3px; bottom: -3px; right: -2px; width: 12px; border-radius: 99px; background: radial-gradient(closest-side, rgba(200, 250, 255, .95), rgba(90, 220, 255, 0)); }
+@keyframes mat-pg-slosh { from { background-position: 160% 0; } to { background-position: -60% 0; } }
+.mat-prog.ok .mat-pg-fill { background: linear-gradient(90deg, #12704a, #35d98a); box-shadow: 0 0 10px rgba(60, 220, 150, .55); }
+.mat-prog.bad .mat-pg-fill { background: linear-gradient(90deg, #7a1524, #ff5f6d); box-shadow: 0 0 10px rgba(255, 95, 109, .5); }
+.mat-prog.ok .mat-pg-fill::before, .mat-prog.bad .mat-pg-fill::before { animation: none; opacity: 0; }
+.mat-prog.ok .mat-pg-fill::after, .mat-prog.bad .mat-pg-fill::after { opacity: 0; }
+.mat-prog.ok .mat-pg-v { color: var(--ok, #248a3d); }
+.mat-prog.bad .mat-pg-v { color: var(--bad, #d70015); }
+@media (prefers-reduced-motion: reduce) { .mat-pg-fill { transition: none; } .mat-pg-fill::before { animation: none; } }
 .mat-list { display: grid; gap: 8px; }
 .mat-i { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 9px 12px; border-radius: 12px; background: var(--fill, rgba(0, 0, 0, .03)); }
 .mat-pick { display: inline-flex; align-items: center; }
@@ -141,6 +163,18 @@ pre { white-space: pre-wrap; word-break: break-word; margin: 0; }
 .qb-dq2 { display: grid; gap: 3px; color: var(--dim, #6e6e73); font-size: 12.5px; }
 .qb-dq2 i { font-style: normal; color: var(--dim, #6e6e73); padding-left: 2px; }
 .qb-dq { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 发布弹层（2026-11-15）：题库 id 的说明文字 + 语义查重拦下来的题。
+   颜色全部沿用 --dim / --badbg，不另起一套配色；说明贴住输入框（负 margin 抵掉 .zl-f 的下边距），
+   因为它是那行输入框的注脚，不是独立段落。 */
+.pb-hint { margin: -6px 0 12px; line-height: 1.6; }
+.pb-sem { margin: 10px 0 4px; font-size: 13.5px; }
+.pb-sem b { color: var(--bad, #d70015); }
+.pb-flag { margin: 4px 0 10px; padding: 0; list-style: none; display: grid; gap: 6px; }
+.pb-flag li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 10px; padding: 8px 10px; border-radius: 10px; background: var(--badbg, rgba(215, 0, 21, .08)); font-size: 13px; }
+.pb-flag .pb-force { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; color: var(--bad, #d70015); grid-row: span 2; align-self: start; white-space: nowrap; }
+.pb-flag .qb-dq { white-space: normal; }
+@media (max-width: 480px) { .pb-flag li { grid-template-columns: minmax(0, 1fr); } .pb-flag .pb-force { grid-row: auto; } }
 
 .toast { position: fixed; left: 50%; bottom: 24px; z-index: 9500; transform: translate(-50%, 20px); opacity: 0; pointer-events: none; max-width: calc(100vw - 32px); padding: 10px 16px; border-radius: 12px; background: var(--ink, #1d1d1f); color: var(--bg, #fff); font-size: 14px; transition: opacity .2s, transform .2s; }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
@@ -936,17 +970,31 @@ async function api(p, o) {
   if (o.auth !== false) await fresh();
   const h = { apikey: HXK, 'Content-Type': 'application/json' };
   if (o.auth !== false && sess) h.Authorization = 'Bearer ' + sess.access_token;
+  /* 2026-11-15 用户报「20.4MB PDF 停在『上传原文件…』再无任何反馈」。
+     排查发现整条链路上的 fetch 全是裸调用：服务端不回包，浏览器就永远 pending，
+     没有超时、没有中断、界面也没有任何提示 —— 看起来就是卡死。
+     这里统一兜底：默认 120 秒，到点 abort 并报中文原因；确实慢的步骤用 o.timeout 放宽
+     （比如写 400 段切段给 5 分钟）。 */
+  const ms = +o.timeout || 120000;
+  const ac = typeof AbortController === 'function' ? new AbortController() : null;
+  const tid = ac ? setTimeout(() => ac.abort(), ms) : 0;
+  const toMsg = '服务器 ' + Math.round(ms / 1000) + ' 秒没响应，已中止（网络太慢或服务端卡住）';
   let r;
-  try { r = await fetch(HXB + p, { method: o.method || 'GET', headers: h, body: o.body === undefined ? undefined : JSON.stringify(o.body) }); }
-  catch (e) { throw new Error('连不上服务器，请检查网络'); }
-  const t = await r.text(); let j = null; try { j = t ? JSON.parse(t) : null; } catch (e) { j = t; }
+  try { r = await fetch(HXB + p, { method: o.method || 'GET', headers: h, body: o.body === undefined ? undefined : JSON.stringify(o.body), signal: ac ? ac.signal : undefined }); }
+  catch (e) { clearTimeout(tid); throw new Error(e && e.name === 'AbortError' ? toMsg : '连不上服务器，请检查网络'); }
+  let t;
+  try { t = await r.text(); }
+  catch (e) { throw new Error(e && e.name === 'AbortError' ? toMsg : '读服务器回应时连接断了，请重试'); }
+  finally { clearTimeout(tid); }
+  let j = null; try { j = t ? JSON.parse(t) : null; } catch (e) { j = t; }
   if (!r.ok) {
     const e = new Error(String(j && (j.message || j.msg || j.error_description) || 'HTTP ' + r.status).replace(/JWT expired/i, '登录过期了，请在首页重新登录'));
     e.status = r.status; throw e;
   }
   return j;
 }
-const rpc = (f, b) => api('/rest/v1/rpc/' + f, { method: 'POST', body: b || {} });
+// 第三个参数 ms = 这一步愿意等多久（毫秒），不传走 api() 的 120 秒默认
+const rpc = (f, b, ms) => api('/rest/v1/rpc/' + f, { method: 'POST', body: b || {}, timeout: ms });
 const app = () => $('appMain') || $('app');
 const ME = { me: null };
 const myName = () => {
@@ -1113,32 +1161,84 @@ function MAT_banner(msg) {
 }
 
 /* ---------------- Storage ---------------- */
+/* 上传超时口径（2026-11-15）：
+   · MAT_PUT_STALL = 120 秒「没有任何一次进度事件」→ 判定卡死，abort 并报错（用户要求的 120 秒）；
+   · MAT_PUT_HARD  = 15 分钟总时长兜底 → 防止「每秒都挤一点、永远传不完」把界面挂死。
+   用 XHR 不用 fetch：fetch 在浏览器里拿不到上传字节进度，也永远不超时；
+   XHR 的 upload.onprogress 是唯一能报「已传 / 总量」的原生通道。 */
+const MAT_PUT_STALL = 120000, MAT_PUT_HARD = 900000;
 function MAT_path(ext) {
   const uid = sess && sess.user && sess.user.id;
   if (!uid) throw new Error('登录过期了，请在首页重新登录');
   return uid + '/' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7) + (ext || '');
 }
-async function MAT_put(path, blob, mime) {
+/* 传原文件到 Storage 私有桶。onProgress(已传字节, 总字节) 可选。
+   2026-11-15 用户报上传卡死后的重写：
+     ① 原来这里是裸 fetch()，没有超时、没有中断、没有进度 —— 20.4MB 传不动时界面就只剩
+        一句「上传原文件…」永远不动，用户分不清「正在传」和「已经死了」。这是真正的卡点。
+     ② 现在三重保险：真实字节进度 + 120 秒无进展看门狗 + 15 分钟总时长兜底；
+        任何非 2xx 都把 Storage 返回的原文（如 413 超限 / 401 过期）点名抛出来。 */
+function MAT_put(path, blob, mime, onProgress) {
   load();
-  if (!sess || !sess.access_token) throw new Error('登录过期了，请在首页重新登录');
-  const r = await fetch(HXB + '/storage/v1/object/' + MAT_BUCKET + '/' + path, {
-    method: 'POST',
-    headers: { apikey: HXK, Authorization: 'Bearer ' + sess.access_token, 'Content-Type': mime || 'application/octet-stream', 'x-upsert': 'true' },
-    body: blob
-  }).catch(() => { throw new Error('连不上服务器，请检查网络'); });
-  if (!r.ok) {
-    const t = await r.text().catch(() => '');
-    throw new Error('Storage HTTP ' + r.status + (t ? '：' + String(t).slice(0, 120) : ''));
-  }
+  if (!sess || !sess.access_token) return Promise.reject(new Error('登录过期了，请在首页重新登录'));
+  const total = (blob && blob.size) || 0;
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    let done = false, stallT = 0, hardT = 0, loaded = 0;
+    const finish = err => {
+      if (done) return;
+      done = true; clearTimeout(stallT); clearTimeout(hardT);
+      if (err) reject(err); else resolve();
+    };
+    const stop = err => { finish(err); try { xhr.abort(); } catch (e) { } };   // 先落定再 abort，避免 onabort 覆盖真实原因
+    const arm = () => {           // 每收到一次进度事件就重新上弦；静默满 120 秒 = 卡死
+      clearTimeout(stallT);
+      stallT = setTimeout(() => stop(new Error('传输卡住：' + (MAT_PUT_STALL / 1000) + ' 秒没有任何进展（已传 ' + MAT_kb(loaded) + ' / ' + MAT_kb(total) + '），已自动中止。请检查网络后重传')), MAT_PUT_STALL);
+    };
+    hardT = setTimeout(() => stop(new Error('上传超时：' + (MAT_PUT_HARD / 60000) + ' 分钟还没传完（已传 ' + MAT_kb(loaded) + ' / ' + MAT_kb(total) + '）。文件太大或网络太慢，换网 / 压缩后再传')), MAT_PUT_HARD);
+    try {
+      xhr.open('POST', HXB + '/storage/v1/object/' + MAT_BUCKET + '/' + path, true);
+      xhr.setRequestHeader('apikey', HXK);
+      xhr.setRequestHeader('Authorization', 'Bearer ' + sess.access_token);
+      xhr.setRequestHeader('Content-Type', mime || 'application/octet-stream');
+      xhr.setRequestHeader('x-upsert', 'true');
+      xhr.upload.onprogress = e => {
+        loaded = e.loaded || 0;
+        arm();
+        if (onProgress) { try { onProgress(loaded, e.lengthComputable ? e.total : total); } catch (err) { } }
+      };
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) return finish();
+        const raw = String(xhr.responseText || '');
+        let msg = raw;
+        try { const j = JSON.parse(raw); msg = j.message || j.error || raw; } catch (e) { }
+        // 常见拒绝原因直接翻译成人话，省得老师看到一串 JSON 不知道找谁
+        const hint = xhr.status === 413 ? '（文件超过 Storage 桶的大小上限，需要在 Supabase 后台调 bucket 限制）'
+          : (xhr.status === 401 || xhr.status === 403) ? '（登录过期或这个账号没有写入权限）'
+            : '';
+        finish(new Error('Storage HTTP ' + xhr.status + (msg ? '：' + String(msg).slice(0, 160) : '') + hint));
+      };
+      xhr.onerror = () => finish(new Error('连不上服务器（网络断了或被浏览器拦了），请检查网络后重传'));
+      xhr.ontimeout = () => finish(new Error('上传超时，已中止'));
+      xhr.onabort = () => finish(new Error('上传被中止（网络或浏览器中断）'));
+      arm();
+      xhr.send(blob);
+    } catch (e) { finish(new Error('上传起不来：' + (e && e.message ? e.message : e))); }
+  });
 }
 // 删文件「尽力而为」：表里那条已经删了，文件删不掉最多占点空间
+// 2026-11-15：顺手给它也加个 15 秒上限 —— 同一个坑（裸 fetch 永不回包）会让「删除」在
+// 「已删表、删文件」这一步卡住，列表永远不刷新。
 async function MAT_rm(path) {
   if (!path || !sess || !sess.access_token) return;
+  const ac = typeof AbortController === 'function' ? new AbortController() : null;
+  const tid = ac ? setTimeout(() => ac.abort(), 15000) : 0;
   try {
     await fetch(HXB + '/storage/v1/object/' + MAT_BUCKET + '/' + String(path).replace(/^\/+/, ''), {
-      method: 'DELETE', headers: { apikey: HXK, Authorization: 'Bearer ' + sess.access_token }
+      method: 'DELETE', headers: { apikey: HXK, Authorization: 'Bearer ' + sess.access_token }, signal: ac ? ac.signal : undefined
     });
   } catch (e) { /* 忽略 */ }
+  finally { clearTimeout(tid); }
 }
 
 /* ---------------- 页面 ---------------- */
@@ -1153,7 +1253,18 @@ function matHome() {
         <button class="pri" id="matPick">选择文件</button>
         <span class="note">PDF · DOCX · TXT · MD · 图片，可拖进来</span>
       </div>
-      <p class="mat-prog note" id="matProg" hidden></p>
+      <!-- 2026-11-15：进度从「一行字」升级成「文字 + 一条细进度条」。
+           结构固定，进度值全由 MAT_pg() 写；.ok 偏绿 / .bad 偏红 由 MAT_pgEnd() 切。 -->
+      <div class="mat-prog" id="matProg" hidden>
+        <div class="mat-pg-h">
+          <span class="mat-pg-t" id="matPgT"></span>
+          <span class="mat-pg-w" id="matPgW"></span>
+          <b class="mat-pg-v" id="matPgV">0%</b>
+        </div>
+        <div class="mat-pg-track" id="matPgBar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <i class="mat-pg-fill" id="matPgFill"></i>
+        </div>
+      </div>
     </section>
     <section class="card">
       <div class="zl-ch"><h2>资料 <span class="note" id="matCnt"></span></h2><button class="sm" id="matRefresh">刷新</button></div>
@@ -1189,7 +1300,9 @@ function matBind() {
   drop.addEventListener('drop', e => { const fs = [...((e.dataTransfer || {}).files || [])]; if (fs.length) matUpload(fs); });
   $('mgGo').onclick = matGenRun;
   // 手动点「刷新」= 老师不信缓存了：必须绕过缓存（onclick 直接把事件当参数传进去会永远 fresh，所以用箭头函数）
-  $('matRefresh').onclick = () => matReload(true);
+  // 2026-11-15：原来点刷新页面一动不动（旧列表原样留着，请求慢时就像没点上），
+  // 现在按钮立刻转圈+计时，列表同时换成「正在读资料…」。
+  $('matRefresh').onclick = e => HXBusy.run(e.currentTarget, '正在刷新…', () => matReload(true));
 }
 
 const MAT_kb = n => { n = +n || 0; return n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : n >= 1024 ? Math.round(n / 1024) + ' KB' : n + ' B'; };
@@ -1202,11 +1315,19 @@ async function matReload(fresh) {
   if (fresh) cacheDrop('mat:' + sid);
   const hit = fresh ? null : cacheGet('mat:' + sid);
   if (hit) { MAT_LIST = hit; matDrawList(); return; }
+  /* 2026-11-15：刷新/删完/传完之后旧列表会被替换，先放占位 —— 否则请求慢时这一块
+     完全静止，用户不知道是「在读」还是「点漏了」。
+     首次进页面时列表里本来就有加载动效（matHome 里那个），别重复挂第二份。 */
+  const lb = $('matList');
+  if (lb && !lb.querySelector('[data-fxload]')) { lb.innerHTML = fxLoad('正在读资料…'); if (window.HXLoadFx) HXLoadFx.auto(lb); }
   const r = await MAT_call('hx_exam_mat_list', { p_subject_id: sid });
   if (MAT_sid() !== sid) return;   // 读的过程中切了科目
   if (!r.ok) {
+    /* 2026-11-15：这里原来结尾调了一个不存在的 matDrawMats()，读失败会再抛一次
+       ReferenceError（错误红条虽然已经写进去了，但控制台多一条没人看得懂的异常）。
+       失败就该停在「把原因留在列表位置」，别再重画一遍把红条覆盖成「还没有资料」。 */
     const box = $('matList'); if (box) box.innerHTML = `<div class="errs">${esc(r.err)}</div>`;
-    MAT_LIST = []; matDrawMats(); return;
+    MAT_LIST = []; return;
   }
   MAT_LIST = Array.isArray(r.data) ? r.data : [];
   if (MAT_LIST.length) cacheSet('mat:' + sid, MAT_LIST);
@@ -1222,87 +1343,151 @@ function matDrawList() {
       <div class="mat-a"><button class="sm" data-mview="${m.id}">看原文</button><button class="sm danger" data-mdel="${m.id}">删除</button></div>
     </div>`).join('')
     : '<p class="note">还没有资料。</p>';
-  box.querySelectorAll('[data-mview]').forEach(b => b.onclick = () => matView(+b.dataset.mview));
-  box.querySelectorAll('[data-mdel]').forEach(b => b.onclick = () => matDel(+b.dataset.mdel));
+  box.querySelectorAll('[data-mview]').forEach(b => b.onclick = () => matView(+b.dataset.mview, b));
+  box.querySelectorAll('[data-mdel]').forEach(b => b.onclick = () => matDel(+b.dataset.mdel, b));
 }
-/* 看原文：按段列出切好的文字（就是 AI 出题时读到的那些段） */
-async function matView(id) {
+/* 看原文：按段列出切好的文字（就是 AI 出题时读到的那些段）
+   2026-11-15：按段读也要等网络，原来按钮毫无反应（只有下方盒子在变），改成按钮转圈，
+   失败原因同时写进按钮 title，鼠标移上去能看到为什么没出来。 */
+async function matView(id, btn) {
   const box = $('matView'); if (!box) return;
+  const tok = HXBusy.begin(btn, '正在读…');
   const m = MAT_LIST.find(x => +x.id === id) || {};
   box.innerHTML = `<div class="mat-v">${fxLoad('正在读原文…')}</div>`;
   if (window.HXLoadFx) HXLoadFx.auto(box);
-  const r = await MAT_call('hx_exam_chunk_get', { p_material_id: id });
-  if (!r.ok) { box.innerHTML = `<div class="errs">${esc(r.err)}</div>`; return; }
-  const arr = Array.isArray(r.data) ? r.data : [];
-  box.innerHTML = `<div class="mat-v" id="matViewBox">
+  try {
+    const r = await MAT_call('hx_exam_chunk_get', { p_material_id: id });
+    if (!r.ok) { box.innerHTML = `<div class="errs">${esc(r.err)}</div>`; HXBusy.end(tok, r.err); return; }
+    const arr = Array.isArray(r.data) ? r.data : [];
+    box.innerHTML = `<div class="mat-v" id="matViewBox">
     <div class="zl-ch"><b>${esc(m.name || '资料')}</b><span class="note" id="matSegN">${arr.length} 段</span><button class="sm" id="matViewX">收起</button></div>
     <div class="mat-segs">${arr.length ? arr.map(c => `<div class="mat-seg"><span class="note">第 ${(+c.idx || 0) + 1} 段</span><pre>${esc((c.title ? c.title + '\n' : '') + c.body)}</pre></div>`).join('') : '<p class="note">这份资料没有切段（可能没读到文字）。</p>'}</div></div>`;
-  $('matViewX').onclick = () => { box.innerHTML = ''; };
-  box.scrollIntoView({ block: 'nearest' });
+    $('matViewX').onclick = () => { box.innerHTML = ''; };
+    box.scrollIntoView({ block: 'nearest' });
+  } finally { HXBusy.end(tok); }
 }
 
-async function matDel(id) {
+/* 删一份资料：删表 + 删 Storage 文件是两次网络，原来点完按钮一直是原样，
+   用户以为卡住了（2026-11-15）。现在按钮转圈，失败原因照旧挂在顶部红条上。 */
+async function matDel(id, btn) {
   const m = MAT_LIST.find(x => +x.id === id) || {};
   if (!await hxConfirm('删除资料「' + (m.name || '') + '」？\n\n它的切段会一起删掉；已经出好的题留在题池里。')) return;
-  const r = await MAT_call('hx_exam_mat_del', { p_id: id });
-  if (!r.ok) return MAT_banner('删除失败：' + r.err);
-  await MAT_rm(typeof r.data === 'string' ? r.data : (r.data && r.data.path));
-  toast('已删除');
-  const v = $('matView'); if (v) v.innerHTML = '';
-  matReload(true); loadSubjects(true);   // 删完同样要绕过缓存
+  const tok = HXBusy.begin(btn, '正在删…');
+  try {
+    const r = await MAT_call('hx_exam_mat_del', { p_id: id });
+    if (!r.ok) { MAT_banner('删除失败：' + r.err); HXBusy.end(tok, r.err); return; }
+    await MAT_rm(typeof r.data === 'string' ? r.data : (r.data && r.data.path));
+    toast('已删除');
+    const v = $('matView'); if (v) v.innerHTML = '';
+    matReload(true); loadSubjects(true);   // 删完同样要绕过缓存
+  } finally { HXBusy.end(tok); }
 }
 
-/* 上传：解析 → 传文件 → 登记 → 写切段。每一步失败都点名是哪一步。 */
+/* ---------------- 上传进度（2026-11-15） ----------------
+   用户报 20.4MB PDF 停在「上传原文件…」之后再无反馈，分不清是「在传」还是「死了」。
+   这里做两件事：
+     ① 进度条本身：深色底 + 蓝青流光扫过（纯 CSS 渐变 + 遮罩动画，不引 WebGL、不引库），
+        右侧百分比，文案里带「已传 X / 总 Y」；失败 .bad 偏红、完成 .ok 偏绿。
+     ② 百分比口径老实交代：只有「上传原文件」这一步能从 XHR 的 upload.onprogress 拿到真实字节；
+        读文件 / AI 识图 / 登记 / 写切段浏览器不给任何回调，只能按阶段给区间值。
+        所以这是「阶段式进度」，不是假造的精确进度 —— 文案里始终写着当前阶段名，
+        并且每秒刷新「已等 N 秒」，让人一眼看出它没死。 */
+let MAT_PG_TICK = 0;
+function MAT_pg(pct, text, state) {
+  const box = $('matProg'); if (!box) return;
+  box.hidden = false;
+  const cls = 'mat-prog' + (state ? ' ' + state : '');
+  if (box.className !== cls) box.className = cls;
+  const p = Math.max(0, Math.min(100, Math.round(+pct || 0)));
+  const fill = $('matPgFill'), t = $('matPgT'), v = $('matPgV'), bar = $('matPgBar');
+  if (fill) fill.style.width = p + '%';
+  if (t) t.textContent = text || '';
+  if (v) v.textContent = p + '%';
+  if (bar) bar.setAttribute('aria-valuenow', p);
+}
+function MAT_pgRun() {
+  MAT_pg(0, '准备上传…');
+  const t0 = Date.now();
+  clearInterval(MAT_PG_TICK);
+  MAT_PG_TICK = setInterval(() => {          // 活着的心跳：只要还在跑，秒数就一直在涨
+    const w = $('matPgW'); if (!w) return;
+    const s = Math.floor((Date.now() - t0) / 1000);
+    w.textContent = s >= 1 ? '已等 ' + s + ' 秒' : '';
+  }, 1000);
+}
+function MAT_pgEnd(ok, text) {
+  clearInterval(MAT_PG_TICK); MAT_PG_TICK = 0;
+  const w = $('matPgW'); if (w) w.textContent = '';
+  MAT_pg(100, text, ok ? 'ok' : 'bad');
+}
+
+/* 上传：解析 → 传文件 → 登记 → 写切段。每一步失败都点名是哪一步。
+   2026-11-15：「选择文件」按钮在上传全程也挂上 HXBusy（转圈 + 已等 N 秒），
+   和下面的 MAT_pg 阶段进度条是两回事 —— 进度条说「做到哪一步」，按钮说「还在忙」。
+   选文件的 input 是隐藏的，真正被点的就是这颗按钮，不接住它用户会觉得点了没反应。 */
 async function matUpload(files) {
   if (MAT_BUSY) return toast('正在传上一批，等它传完');
   const sid = MAT_sid(); if (sid == null) return;
+  const tok = HXBusy.begin($('matPick'), '正在上传…');
   MAT_BUSY = true;
-  const prog = $('matProg'); prog.hidden = false;
+  MAT_pgRun();
   const bad = [], warn = [];
   let okN = 0, segN = 0;
   for (let i = 0; i < files.length; i++) {
     const f = files[i];
     let step = '读文件';
-    const say = s => { step = s; prog.textContent = `（${i + 1}/${files.length}）${f.name}：${s}…`; };
+    /* 总进度 =（已处理完的文件数 + 本文件内部进度）/ 文件数。内部进度的区间：
+       读文件 2% → AI 识图 10% → 上传原文件 35%~70%（真实字节）→ 登记 74% → 写切段 84% → 100%。 */
+    const pg = (inner, text) => MAT_pg(((i + Math.max(0, Math.min(1, inner))) / files.length) * 100, `（${i + 1}/${files.length}）${f.name}：` + text);
+    const say = (s, inner) => { step = s; pg(inner == null ? 0 : inner, s + '…'); };
     try {
-      say('读文件');
+      say('读文件', 0.02);
       const got = await HXImp.readMaterial(f);
       let text = String(got.text || '');
-      if (got.image) { say('AI 识图'); text = await HXImp.ocrImages([got.image]); }
+      if (got.image) { say('AI 识图', 0.10); text = await HXImp.ocrImages([got.image]); }
       if (got.scannedPdf) {
         // 扫描 PDF：逐页 AI 识图（Z7/B12，花用户 AI 额度）。每页报一次进度，断在哪页一眼可见。
-        say('逐页 AI 识图（第 1 页）');
-        text = await HXImp.ocrScannedPdf(got.scannedPdf, (i, total, t) => {
-          const done = t ? `（第 ${i} 页已识出 ${t.length} 字）` : `（第 ${i}/${total} 页渲染中）`;
-          prog.textContent = `（${i}/${files.length}）${f.name}：逐页 AI 识图 ${i}/${total}${done}`;
+        say('逐页 AI 识图（第 1 页）', 0.08);
+        text = await HXImp.ocrScannedPdf(got.scannedPdf, (k, total, t) => {
+          step = '逐页 AI 识图（第 ' + k + '/' + total + ' 页）';
+          const frac = total ? Math.min(1, k / total) : 0;
+          pg(0.08 + 0.27 * frac, `逐页 AI 识图 ${k}/${total} 页` + (t ? `（本页识出 ${t.length} 字）` : '（渲染中）'));
         });
       }
       text = text.replace(/\r/g, '').trim();
       if (!text) throw new Error('没读到任何文字（可能是空白页或加密文件）');
 
-      say('上传原文件');
+      say('上传原文件', 0.35);
       const ext = (f.name.match(/\.[a-z0-9]+$/i) || [''])[0].toLowerCase();
       const path = MAT_path(ext);
-      await MAT_put(path, f, f.type);
+      // 真实字节进度（XHR upload.onprogress）；0.35~0.70 是上传那一段
+      await MAT_put(path, f, f.type, (loaded, total) => {
+        const frac = total ? loaded / total : 0;
+        pg(0.35 + 0.35 * frac, '上传原文件 ' + MAT_kb(loaded) + ' / ' + MAT_kb(total || f.size));
+      });
 
-      say('登记');
-      const saved = await rpc('hx_exam_mat_save', { p_subject_id: sid, p_name: f.name, p_mime: f.type || '', p_bytes: f.size, p_path: path, p_chars: text.length });
+      say('登记', 0.74);
+      const saved = await rpc('hx_exam_mat_save', { p_subject_id: sid, p_name: f.name, p_mime: f.type || '', p_bytes: f.size, p_path: path, p_chars: text.length }, 60000);
       const mid = saved && saved.id;
       if (!mid) throw new Error('云端没返回资料编号');
 
       const list = HXImp.chunks(text, 3600, 320);
       const keep = list.slice(0, 400);   // hx_exam_chunk_put 一次最多 400 段
-      say(`写入 ${keep.length} 段`);
-      await rpc('hx_exam_chunk_put', { p_material_id: mid, p_chunks: keep.map((body, idx) => ({ idx, title: '', body })) });
+      say(`写入 ${keep.length} 段`, 0.84);
+      // 切段最多的那份要写 400 段（几百 KB JSON），比普通 rpc 慢，给它 5 分钟
+      await rpc('hx_exam_chunk_put', { p_material_id: mid, p_chunks: keep.map((body, idx) => ({ idx, title: '', body })) }, 300000);
       if (list.length > keep.length) warn.push(f.name + '：太长，只存了前 ' + keep.length + ' 段');
       okN++; segN += keep.length;
+      pg(1, '完成（' + keep.length + ' 段）');
     } catch (e) {
       bad.push(f.name + '：「' + step + '」失败 —— ' + (e && e.message ? e.message : e));
     }
   }
   MAT_BUSY = false;
-  prog.textContent = (okN ? `传好 ${okN} 份，切成 ${segN} 段。` : '') + (warn.length ? ' ' + warn.join('；') + '。' : '')
+  const tail = (okN ? `传好 ${okN} 份，切成 ${segN} 段。` : '') + (warn.length ? ' ' + warn.join('；') + '。' : '')
     + (bad.length ? ' 有 ' + bad.length + ' 份没传成：' + bad.join('；') : '');
+  MAT_pgEnd(!bad.length, tail);
+  HXBusy.end(tok, bad.length ? bad.join('；') : null);   // 有失败就把原因挂到按钮 title，悬停能看到
   if (!bad.length) toast('上传完成');
   await matReload(true);   // 刚传完：绕过缓存，新资料立刻出现在列表里
   loadSubjects(true);      // 科目卡片上的「N 份资料」也跟着变
@@ -1318,27 +1503,38 @@ async function matGenRun() {
   const extra = $('mgExtra').value.trim(), scope = $('mgScope').value.trim(), level = $('mgLevel').value, think = $('mgThink').value;
   const state = $('mgState');
   let text = '', tag = '', mid = null;
-  if (picks.length) {
-    const parts = [];
-    for (const id of picks) {
-      const r = await MAT_call('hx_exam_chunk_get', { p_material_id: id });
-      if (!r.ok) return MAT_banner('读资料切段失败：' + r.err);
-      const arr = Array.isArray(r.data) ? r.data : [];
-      if (!arr.length) continue;
-      const nm = (MAT_LIST.find(m => +m.id === id) || {}).name || ('资料 ' + id);
-      parts.push('【' + nm + '】\n' + arr.map(c => (c.title ? c.title + '\n' : '') + c.body).join('\n\n'));
-      tag += (tag ? '、' : '') + nm;
-    }
-    if (!parts.length) return toast('勾的资料里没有可用的段，重新传一次试试');
-    text = parts.join('\n\n');
-    mid = picks.length === 1 ? picks[0] : null;
-  } else {
-    if (!extra) return toast('没勾资料时，请在「额外要求」里写下要出题的内容');
-    text = extra; tag = '老师手写的要求';
-  }
   const sub = curSub();
-  MAT_BUSY = true; $('mgGo').disabled = true; state.textContent = '正在准备…';
+  /* 2026-11-15：出题是整页最长的动作（按段喂模型，可能几分钟），而且前面还要逐份读切段。
+     三道反馈一起上：
+     ① #mgGo 转圈 + 每 400ms 刷「已等 N 秒」，20 秒后变暖色 —— 证明它没死；
+     ② #mgState 跟着走：读切段时写「正在读第 2/3 份资料」，出题时用 HXImp 的 onProgress
+        写「正在根据第 3 / 9 段出题，已出 12 题…」这种真实进度；
+     ③ 失败时按钮 title 挂上原因，顶部的红条照旧写全。
+     注意：读切段也是 await，所以 begin 要放在这一整段之前，不能等读完才转圈。 */
+  const tok = HXBusy.begin($('mgGo'), '正在出题…');
+  MAT_BUSY = true;
   try {
+    if (picks.length) {
+      const parts = [];
+      for (let k = 0; k < picks.length; k++) {
+        const id = picks[k];
+        state.textContent = `正在读资料（${k + 1}/${picks.length}）…`;
+        const r = await MAT_call('hx_exam_chunk_get', { p_material_id: id });
+        if (!r.ok) { MAT_banner('读资料切段失败：' + r.err); HXBusy.end(tok, r.err); return; }
+        const arr = Array.isArray(r.data) ? r.data : [];
+        if (!arr.length) continue;
+        const nm = (MAT_LIST.find(m => +m.id === id) || {}).name || ('资料 ' + id);
+        parts.push('【' + nm + '】\n' + arr.map(c => (c.title ? c.title + '\n' : '') + c.body).join('\n\n'));
+        tag += (tag ? '、' : '') + nm;
+      }
+      if (!parts.length) { state.textContent = ''; toast('勾的资料里没有可用的段，重新传一次试试'); HXBusy.end(tok); return; }
+      text = parts.join('\n\n');
+      mid = picks.length === 1 ? picks[0] : null;
+    } else {
+      if (!extra) { state.textContent = ''; toast('没勾资料时，请在「额外要求」里写下要出题的内容'); HXBusy.end(tok); return; }
+      text = extra; tag = '老师手写的要求';
+    }
+    state.textContent = '正在准备出题…';
     const res = await HXImp.aiGenerate(text, sub.key, sub.name, { types, scope, level, extra: picks.length ? extra : '', thinkLevel: think || undefined }, msg => { state.textContent = msg; });
     MAT_GEN = { items: res.questions, rejected: res.rejected, tag: tag + ' · AI 出题', mid, sid: sub.id };
     state.textContent = `出完 ${res.questions.length} 道` + (res.rejected.length ? `，${res.rejected.length} 道没收下` : '');
@@ -1348,7 +1544,8 @@ async function matGenRun() {
     const partial = e && e.partialQuestions ? e.partialQuestions : [];
     if (partial.length) { MAT_GEN = { items: partial, rejected: e.partialRejected || [], tag: tag + ' · AI 出题（中途断了）', mid, sid: sub.id }; matGenDraw(); }
     MAT_banner('出题失败：' + (e && e.message ? e.message : e) + (partial.length ? '（已经出的 ' + partial.length + ' 道留在下面）' : ''));
-  } finally { MAT_BUSY = false; const b = $('mgGo'); if (b) b.disabled = false; }
+    HXBusy.end(tok, (e && e.message) || String(e));
+  } finally { MAT_BUSY = false; HXBusy.end(tok); }
 }
 
 const MAT_ANS = q => {
@@ -1394,23 +1591,28 @@ async function matGenAdd() {
   const picks = [...box.querySelectorAll('[data-gpick]:checked')].map(x => +x.dataset.gpick);
   if (!picks.length) return toast('一道都没勾');
   const btn = box.querySelector('#mgAdd'), st = box.querySelector('#mgAddState');
-  btn.disabled = true; st.textContent = '正在写入…';
   const items = picks.map(i => MAT_toDb(MAT_GEN.items[i], MAT_GEN.tag));
-  // 入池前硬去重：拉本科目已有题，按「题型 + 题干去空白」拦一字不差的重复
   const norm = s => String(s == null ? '' : s).replace(/\s+/g, '').toLowerCase();
-  const old = await MAT_call('hx_exam_qbank_list', { p_subject_id: MAT_GEN.sid });
-  const stems = new Set(((old.ok && Array.isArray(old.data) ? old.data : [])).map(x => x.t + '|' + norm(x.q)));
-  const fresh = [], dup = [];
-  items.forEach(it => { (stems.has(it.t + '|' + norm(it.q)) ? dup : fresh).push(it); });
-  const r = await MAT_call('hx_exam_qbank_add', { p_subject_id: MAT_GEN.sid, p_items: fresh, p_material_id: MAT_GEN.mid });
-  btn.disabled = false;
-  if (!r.ok) { st.textContent = ''; return MAT_banner('进题池失败：' + r.err); }
-  const n = (r.data && r.data.added) || 0;
-  const dmsg = dup.length ? `，${dup.length} 道与题池重复已跳过` : '';
-  toast('已加入题池 ' + n + ' 道' + dmsg);
-  MAT_GEN = null; matGenDraw();
-  $('mgState').textContent = '已进题池 ' + n + ' 道' + dmsg;
-  loadSubjects(true);   // 题数变了：科目卡的计数要重算
+  /* 2026-11-15：入池是两次网络（拉已有题 + 写新题），原来只把按钮灰掉、旁边写「正在写入…」，
+     换字不明显。改成按钮转圈 + 计时；st 继续写阶段，让「在拉旧题」和「在写新题」分得开。 */
+  const tok = HXBusy.begin(btn, '正在写入…');
+  try {
+    // 入池前硬去重：拉本科目已有题，按「题型 + 题干去空白」拦一字不差的重复
+    st.textContent = '正在比对题池…';
+    const old = await MAT_call('hx_exam_qbank_list', { p_subject_id: MAT_GEN.sid });
+    const stems = new Set(((old.ok && Array.isArray(old.data) ? old.data : [])).map(x => x.t + '|' + norm(x.q)));
+    const fresh = [], dup = [];
+    items.forEach(it => { (stems.has(it.t + '|' + norm(it.q)) ? dup : fresh).push(it); });
+    st.textContent = '正在写入题池…';
+    const r = await MAT_call('hx_exam_qbank_add', { p_subject_id: MAT_GEN.sid, p_items: fresh, p_material_id: MAT_GEN.mid });
+    if (!r.ok) { st.textContent = ''; MAT_banner('进题池失败：' + r.err); HXBusy.end(tok, r.err); return; }
+    const n = (r.data && r.data.added) || 0;
+    const dmsg = dup.length ? `，${dup.length} 道与题池重复已跳过` : '';
+    toast('已加入题池 ' + n + ' 道' + dmsg);
+    MAT_GEN = null; matGenDraw();
+    const st2 = $('mgState'); if (st2) st2.textContent = '已进题池 ' + n + ' 道' + dmsg;
+    loadSubjects(true);   // 题数变了：科目卡的计数要重算
+  } finally { HXBusy.end(tok); }
 }
 
 ;
@@ -1458,27 +1660,38 @@ function qbHome() {
   $('qbType').onchange = () => { QB_T = $('qbType').value; qbDraw(); };
   $('qbKn').onchange = () => { QB_K = $('qbKn').value; qbLoad(); };
   $('qbAll').onchange = () => { const on = $('qbAll').checked; qbShown().forEach(q => on ? QB_SEL.add(String(q.id)) : QB_SEL.delete(String(q.id))); qbDraw(); };
-  $('qbRefresh').onclick = qbLoad;
-  $('qbDedup').onclick = qbDedup;
-  $('qbClear').onclick = qbClear;
-  $('qbPub').onclick = pubOpen;
+  // 2026-11-15：这几颗都是「点了要等云端」的按钮，全部把按钮本身传进去，让 HXBusy 转圈+计时
+  // （原来点刷新/清空整块界面一动不动，用户以为没点上；AI 查重要几十秒更像是卡死）
+  $('qbRefresh').onclick = () => qbLoad($('qbRefresh'));
+  $('qbDedup').onclick = () => qbDedup($('qbDedup'));
+  $('qbClear').onclick = () => qbClear($('qbClear'));
+  $('qbPub').onclick = pubOpen;   // 只开弹层、不发请求，真正的等待在弹层里的「检查」上
   qbLoad();
 }
 const qbShown = () => QB_T ? QB_ALL.filter(x => x.t === QB_T) : QB_ALL;
 
-async function qbLoad() {
+/* 读题池。btn（可选）= 触发这次读取的按钮，传入后按钮在等待期间转圈 + 显示已等秒数。
+   2026-11-15：同时把列表换成「正在读题池…」占位 —— 刷新时旧列表原样留着，
+   请求慢的时候界面完全静止，用户分不清是在读还是点漏了。
+   首次进页面时列表里已经有加载动效（qbHome 那个），别重复挂第二份。 */
+async function qbLoad(btn) {
   const sid = MAT_sid(); if (sid == null) return;
-  const body = { p_subject_id: sid };
-  if (QB_K) body.p_knowledge = QB_K;
-  const r = await MAT_call('hx_exam_qbank_list', body);
-  if (MAT_sid() !== sid) return;
-  const box = $('qbList'); if (!box) return;
-  if (!r.ok) { box.innerHTML = `<div class="errs">${esc(r.err)}</div>`; QB_ALL = []; qbDrawStat(); return; }
-  QB_ALL = Array.isArray(r.data) ? r.data : [];
-  if (!QB_K) qbKnBuild(QB_ALL);   // 只在未按知识点筛选时重建下拉，避免筛选后把选项刷没
-  const ids = new Set(QB_ALL.map(q => String(q.id)));
-  QB_SEL = new Set([...QB_SEL].filter(id => ids.has(id)));
-  qbDrawStat(); qbDraw();
+  const tok = HXBusy.begin(btn, '正在刷新…');
+  const lb = $('qbList');
+  if (lb && !lb.querySelector('[data-fxload]')) { lb.innerHTML = fxLoad('正在读题池…'); if (window.HXLoadFx) HXLoadFx.auto(lb); }
+  try {
+    const body = { p_subject_id: sid };
+    if (QB_K) body.p_knowledge = QB_K;
+    const r = await MAT_call('hx_exam_qbank_list', body);
+    if (MAT_sid() !== sid) return;
+    const box = $('qbList'); if (!box) return;
+    if (!r.ok) { box.innerHTML = `<div class="errs">${esc(r.err)}</div>`; QB_ALL = []; qbDrawStat(); HXBusy.end(tok, r.err); return; }
+    QB_ALL = Array.isArray(r.data) ? r.data : [];
+    if (!QB_K) qbKnBuild(QB_ALL);   // 只在未按知识点筛选时重建下拉，避免筛选后把选项刷没
+    const ids = new Set(QB_ALL.map(q => String(q.id)));
+    QB_SEL = new Set([...QB_SEL].filter(id => ids.has(id)));
+    qbDrawStat(); qbDraw();
+  } finally { HXBusy.end(tok); }
 }
 /* 从题池里收集去重后的知识点，填进 qbKn 下拉（空的不显示），保留当前选中项 */
 function qbKnBuild(list) {
@@ -1520,56 +1733,82 @@ function qbDraw() {
       <div class="qb-act"><button class="sm" data-qed="${q.id}">改</button><button class="sm danger" data-qdel="${q.id}">删</button></div>
     </div>`).join('');
   box.querySelectorAll('[data-qsel]').forEach(b => b.onchange = () => { b.checked ? QB_SEL.add(b.dataset.qsel) : QB_SEL.delete(b.dataset.qsel); qbDraw(); });
-  box.querySelectorAll('[data-qdel]').forEach(b => b.onclick = () => qbDel(b.dataset.qdel));
+  box.querySelectorAll('[data-qdel]').forEach(b => b.onclick = () => qbDel(b.dataset.qdel, b));
   box.querySelectorAll('[data-qed]').forEach(b => b.onclick = () => qbEdit(b.dataset.qed));
 }
 
-async function qbDel(id) {
+/* 删单题。2026-11-15：删一行只发一次 rpc，但那一下也要等网络，原来行内没有任何变化，
+   用户原话「点了删除没反应就跟卡了一样」。现在这颗「删」按钮自己转圈 + 计时，
+   失败原因除了顶部红条，还挂在按钮 title 上（鼠标移上去能看到）。 */
+async function qbDel(id, btn) {
   if (!await hxConfirm('删掉这道题？只删这一道。')) return;
-  const r = await MAT_call('hx_exam_qbank_del', { p_id: +id });
-  if (!r.ok) return MAT_banner('删除失败：' + r.err);
-  QB_ALL = QB_ALL.filter(x => String(x.id) !== String(id)); QB_SEL.delete(String(id));
-  qbDrawStat(); qbDraw(); toast('已删除');
-  loadSubjects(true);   // 题数变了：科目卡的计数要重算，别拿缓存
+  const tok = HXBusy.begin(btn, '正在删…');
+  try {
+    const r = await MAT_call('hx_exam_qbank_del', { p_id: +id });
+    if (!r.ok) { MAT_banner('删除失败：' + r.err); HXBusy.end(tok, r.err); return; }
+    QB_ALL = QB_ALL.filter(x => String(x.id) !== String(id)); QB_SEL.delete(String(id));
+    qbDrawStat(); qbDraw(); toast('已删除');
+    loadSubjects(true);   // 题数变了：科目卡的计数要重算，别拿缓存
+  } finally { HXBusy.end(tok); }
 }
-async function qbClear() {
+/* 清空题池：一次 rpc 删几十上百行，比删单题慢得多，按钮必须转圈给人看 */
+async function qbClear(btn) {
   const s = curSub(); if (!s) return;
   if (!QB_ALL.length) return toast('题池是空的');
   if (!await hxConfirm(`清空「${s.name}」题池里全部 ${QB_ALL.length} 道题？\n\n删了找不回来；资料和已经发布到刷题的题不受影响。`)) return;
-  const r = await MAT_call('hx_exam_qbank_clear', { p_subject_id: s.id });
-  if (!r.ok) return MAT_banner('清空失败：' + r.err);
-  QB_ALL = []; QB_SEL.clear(); qbDrawStat(); qbDraw();
-  toast('已清空 ' + ((r.data && +r.data) || 0) + ' 道');
-  loadSubjects(true);   // 题数变了：科目卡的计数要重算，别拿缓存
+  const tok = HXBusy.begin(btn, '正在清空…');
+  try {
+    const r = await MAT_call('hx_exam_qbank_clear', { p_subject_id: s.id });
+    if (!r.ok) { MAT_banner('清空失败：' + r.err); HXBusy.end(tok, r.err); return; }
+    QB_ALL = []; QB_SEL.clear(); qbDrawStat(); qbDraw();
+    toast('已清空 ' + ((r.data && +r.data) || 0) + ' 道');
+    loadSubjects(true);   // 题数变了：科目卡的计数要重算，别拿缓存
+  } finally { HXBusy.end(tok); }
 }
 
 /* ---------------- AI 查重 ----------------
    两层：① 题干（题型 + 去空白）完全相同的，直接判重；② 剩下的交给 AI 语义比对，
    让它标出「考点重复」的题对（措辞不同但考同一知识点）。结果弹层里老师逐个勾删除，
    不自动删 —— 怕 AI 误判把好题删了。 */
-async function qbDedup() {
+/* 2026-11-15：AI 查重是一次性把整个题池喂给模型，题多时要几十秒。原来点完按钮、
+   界面什么都不变（结果要等弹层才出来），用户以为没点上。现在三件事一起做：
+   ① 「AI 查重」按钮转圈 + 已等 N 秒；② 顶部条写清楚正在干什么；③ 失败不再被
+   「没查出重复题」的 toast 盖掉（AI 挂了和「真的没重复」必须分得开）。 */
+async function qbDedup(btn) {
   const s = curSub(); if (!s) return;
   if (QB_ALL.length < 2) return toast('题池里不足 2 道题，没有查重的必要');
-  const norm = x => String(x == null ? '' : x).replace(/\s+/g, '').toLowerCase();
-  const pairs = [];                       // 判重结果：{ a, b, why, exact }
-  // ① 硬去重：同题型 + 题干去空白相等
-  const seen = {};
-  QB_ALL.forEach(q => {
-    const k = q.t + '|' + norm(q.q);
-    if (seen[k]) pairs.push({ a: seen[k], b: q, why: '题干完全相同', exact: true });
-    else seen[k] = q;
-  });
-  // ② AI 语义比对：把没被硬重判掉的题喂给 AI，让它标重复对
-  let aiPairs = [];
+  const tok = HXBusy.begin(btn, '正在查重…');
+  const banner = $('qbBanner');
+  const say = t => { if (banner) { banner.textContent = t || ''; banner.hidden = !t; } };
+  say('正在查重：先挑出题干完全相同的，再让 AI 比一遍考点，题多时可能要几十秒…');
   try {
-    aiPairs = await qbDedupAI();
-  } catch (e) {
-    // AI 查不到不致命：硬去重的结果照样给，AI 失败给个提示
-    if (pairs.length) MAT_banner('AI 语义比对没跑成：' + (e && e.message ? e.message : e) + '。下面只显示了题干完全相同的重复。');
-  }
-  const all = pairs.concat(aiPairs);
-  if (!all.length) return toast('没查出重复题（AI 语义比对也没发现疑似重复）');
-  qbDedupDraw(all);
+    const norm = x => String(x == null ? '' : x).replace(/\s+/g, '').toLowerCase();
+    const pairs = [];                       // 判重结果：{ a, b, why, exact }
+    // ① 硬去重：同题型 + 题干去空白相等
+    const seen = {};
+    QB_ALL.forEach(q => {
+      const k = q.t + '|' + norm(q.q);
+      if (seen[k]) pairs.push({ a: seen[k], b: q, why: '题干完全相同', exact: true });
+      else seen[k] = q;
+    });
+    // ② AI 语义比对：把没被硬重判掉的题喂给 AI，让它标重复对
+    let aiPairs = [], aiErr = null;
+    try {
+      aiPairs = await qbDedupAI();
+    } catch (e) {
+      // AI 查不到不致命：硬去重的结果照样给，但原因必须留下（别退化成一句「没查出重复题」）
+      aiErr = (e && e.message) || String(e);
+    }
+    say('');
+    if (aiErr) {
+      HXBusy.end(tok, aiErr);
+      if (!pairs.length) { MAT_banner('AI 语义比对没跑成：' + aiErr + '。题干完全相同的重复也没查到。'); return; }
+      MAT_banner('AI 语义比对没跑成：' + aiErr + '。下面只显示了题干完全相同的重复。');
+    }
+    const all = pairs.concat(aiPairs);
+    if (!all.length) { toast('没查出重复题（AI 语义比对也没发现疑似重复）'); return; }
+    qbDedupDraw(all);
+  } finally { HXBusy.end(tok); }
 }
 /* AI 语义比对：把题池里所有题编号喂给 AI，让它返回「重复的题对」的编号数组。
    一次调用（不是两两调用），省额度；题太多时按题型分组降 token。 */
@@ -1601,18 +1840,24 @@ function qbDedupDraw(pairs) {
     <p class="note" style="margin:0 0 8px">共发现 ${pairs.length} 对重复。默认勾选「保留前一道、删掉后一道」，不想要的把勾去掉；只删勾中的那一道，另一道保留。</p>
     <div class="qb-dl">${rows}</div>
     <div class="errs" id="qbDedupErr" hidden></div>
-    <div class="row"><button class="pri" id="qbDedupGo">删除勾中的 ${pairs.length} 道</button><button id="qbDedupCancel">取消</button></div>`);
+    <div class="row"><button class="pri" id="qbDedupGo">删除勾中的 ${pairs.length} 道</button><button id="qbDedupCancel">取消</button><span class="note" id="qbDedupState"></span></div>`);
   $('qbDedupCancel').onclick = zlModalClose;
   $('qbDedupGo').onclick = async () => {
     const ids = [...document.querySelectorAll('[data-ddel]:checked')].map(x => +x.dataset.ddel);
     if (!ids.length) return toast('一道都没勾');
     const fail = m => { $('qbDedupErr').textContent = m; $('qbDedupErr').hidden = false; };
-    $('qbDedupGo').disabled = true;
+    const st = $('qbDedupState');
+    /* 2026-11-15：批量删除是一条一条发 rpc，20 道就要转 20 次网络。原来按钮只是灰掉，
+       没有任何进度，用户不知道删到第几道、是不是卡死了。现在按钮转圈 + 旁边写「正在删 3/12」。 */
+    const tok = HXBusy.begin($('qbDedupGo'), '正在删…');
     let n = 0;
-    for (const id of ids) {
-      const r = await MAT_call('hx_exam_qbank_del', { p_id: id });
-      if (r.ok) n++; else if (r.err) fail('删第 ' + id + ' 道失败：' + r.err);
-    }
+    try {
+      for (let k = 0; k < ids.length; k++) {
+        if (st) st.textContent = '正在删 ' + (k + 1) + '/' + ids.length + '…';
+        const r = await MAT_call('hx_exam_qbank_del', { p_id: ids[k] });
+        if (r.ok) n++; else if (r.err) fail('删第 ' + ids[k] + ' 道失败：' + r.err);
+      }
+    } finally { HXBusy.end(tok); }
     zlModalClose();
     toast('删了 ' + n + ' 道重复题');
     qbLoad(); loadSubjects(true);
@@ -1659,15 +1904,19 @@ function qbEdit(id) {
       if (!it.a) return fail('答案不能空');
       if (q.t === 'prog') it.code = $('qeCode').value.replace(/\s+$/, '') || null;
     }
-    $('qeSave').disabled = true;
-    const add = await MAT_call('hx_exam_qbank_add', { p_subject_id: MAT_sid(), p_items: [it], p_material_id: q.material_id == null ? null : +q.material_id });
-    if (!add.ok || !(add.data && add.data.added)) { $('qeSave').disabled = false; return fail('保存失败：' + (add.err || '云端没收下')); }
-    const del = await MAT_call('hx_exam_qbank_del', { p_id: +q.id });
-    zlModalClose();
-    if (!del.ok) MAT_banner('新内容已保存，但旧的那条没删掉：' + del.err);
-    QB_SEL.delete(String(q.id));
-    toast('已保存');
-    qbLoad();
+    /* 2026-11-15：「改」是两次网络（先加新的一条、再删旧的一条），比删单题还慢。
+       原来只把按钮灰掉，界面上没有任何「在忙」的迹象；现在按钮转圈 + 计时。 */
+    const tok = HXBusy.begin($('qeSave'), '正在保存…');
+    try {
+      const add = await MAT_call('hx_exam_qbank_add', { p_subject_id: MAT_sid(), p_items: [it], p_material_id: q.material_id == null ? null : +q.material_id });
+      if (!add.ok || !(add.data && add.data.added)) { const m = add.err || '云端没收下'; fail('保存失败：' + m); HXBusy.end(tok, m); return; }
+      const del = await MAT_call('hx_exam_qbank_del', { p_id: +q.id });
+      zlModalClose();
+      if (!del.ok) MAT_banner('新内容已保存，但旧的那条没删掉：' + del.err);
+      QB_SEL.delete(String(q.id));
+      toast('已保存');
+      qbLoad();
+    } finally { HXBusy.end(tok); }
   };
 }
 
@@ -1743,15 +1992,22 @@ function ZL_merge(existing, rows, bank) {
 window.ZL = { toQuiz: ZL_toQuiz, merge: ZL_merge, OLD: ZL_OLD };
 
 /* ---------------- 发布到刷题 ---------------- */
-let PUB = null;   // 预览结果：{ bank, rows, got, row, merged, classes, teachers, name, owner }
+let PUB = null;   // 预览结果：{ bank, rows, got, row, merged, flagged, semErr, classes, teachers, name, owner }
+let PUB_FORCE = new Set();   // 语义查重命中、但老师勾了「仍然追加」的题（按题目 id）
 function pubOpen() {
   const s = curSub(); if (!s) return;
   // 按进题池的先后排（列表是新的在上），追加到刷题里的顺序和出题顺序一致
   const rows = QB_ALL.filter(q => QB_SEL.has(String(q.id))).sort((a, b) => (+a.at || 0) - (+b.at || 0) || (+a.id) - (+b.id));
   if (!rows.length) return toast('先勾要发布的题');
-  PUB = null;
+  PUB = null; PUB_FORCE = new Set();
+  /* 2026-11-15：用户问「这个题库 id 是啥」—— 光一个 placeholder 讲不清，所以在输入框下面
+     补 4 行说明（.pb-hint 用现有 note 的字色，不另起一套样式）。说的就是三件事：
+     它是什么、什么时候改不了、四个老题库为什么不能换。 */
   zlModal(`<h2>发布到刷题</h2>
     <label class="zl-f">目标题库 id<input id="pbBank" class="mono" maxlength="64" autocomplete="off" value="${esc(s.quiz_bank)}" ${s.quiz_bank ? 'readonly aria-readonly="true"' : 'placeholder="新题库的英文 id，如 dianzi-jichu"'}></label>
+    <p class="note pb-hint">这是刷题工具里那份题库的英文标识，不是给学生看的名字。发布 = 往这份题库里追加题，不是新建一份。
+    ${s.quiz_bank ? '科目已经绑了题库 id，这里改不了（绑上就是以后都往这份发）；要换回首页「管理 → 科目」改。' : '自己起一个英文 id，只能用 A-Z a-z 0-9 _ -，最多 64 位，例：dianzi-jichu。'}
+    wiring / mcu / psychology / education 这四个老题库不能拿别的 id 顶：排位成绩按题库名对账，只能往里追加。</p>
     ${s.quiz_bank ? '' : '<div class="row"><button id="pbCheck">检查</button></div>'}
     <div id="pbInfo" class="pb-info">${s.quiz_bank ? fxLoad('正在读刷题题库…') : ''}</div>
     <div class="errs" id="pbErr" hidden></div>
@@ -1762,50 +2018,153 @@ function pubOpen() {
   if (s.quiz_bank) pubCheck(rows);
   else $('pbCheck').onclick = () => pubCheck(rows);
 }
+
+/* ---------------- 发布前的语义查重门槛（2026-11-15） ----------------
+   用户原话：「我怕那边有重复题冗余，二次查重门槛截杀」。
+   ZL_merge 只能挡「题型 + 题干去空白」完全相同的题；措辞不同、考点相同的题会一路追加进去，
+   刷题题库越攒越臃肿。所以合并完之后再让 AI 比一遍「本轮新增 vs 目标题库已有」：
+     · 只比新增 vs 已有，不做两两全比；新增按 30 道一批，批与批之间回调进度；
+     · 已有题只取前 PUB_SEM_MAX_OLD 道、每道截 200 字 —— 题库再大也不至于把 prompt 撑爆
+       （撑爆的表现就是请求超时，等于这道门槛白设）；
+     · 命中只是「建议不追加」：界面上逐题给「仍然追加」的勾，AI 挂了也照常允许发布。 */
+const PUB_SEM_MAX_OLD = 400, PUB_SEM_BATCH = 30;
+const PUB_SEM_T = { single: '单选', multiple: '多选', judgment: '判断', fill: '填空', short: '简答', term: '名词解释', prog: '程序分析' };
+async function pubSemAI(added, existing, onP) {
+  const olds = (existing || []).slice(0, PUB_SEM_MAX_OLD)
+    .map((q, i) => ({ i, t: PUB_SEM_T[q && q.type] || (q && q.type) || '', stem: String((q && q.stem) || '').slice(0, 200) }))
+    .filter(x => x.stem);
+  if (!olds.length) return [];
+  const oldByI = new Map(olds.map(x => [x.i, x]));
+  const oldBlock = olds.map(x => '[E' + x.i + ']（' + x.t + '）' + x.stem).join('\n');
+  const batchN = Math.ceil(added.length / PUB_SEM_BATCH);
+  const hit = new Map();                       // 按新增题 id 收，同一道题只报一次（保留第一条原因）
+  for (let b = 0; b < batchN; b++) {
+    if (onP) onP(b + 1, batchN);
+    const chunk = added.slice(b * PUB_SEM_BATCH, (b + 1) * PUB_SEM_BATCH);
+    const newBlock = chunk.map((q, i) => '[N' + (b * PUB_SEM_BATCH + i) + ']（' + (PUB_SEM_T[q.type] || q.type || '') + '）' + String(q.stem || '').slice(0, 200)).join('\n');
+    const prompt = 'A 组是本轮要新加进这份题库的题，B 组是这份题库里已有的题。请找出「A 组某道题和 B 组某道题考的是同一个考点、可以算重复」的组合——'
+      + '哪怕措辞不一样，只要考同一个知识点就算重复；只是同属一章但考点不同的不算。\n'
+      + '只输出 JSON，格式：{"pairs":[{"a":A组编号,"b":B组编号,"why":"一句话说明为什么重复"}]}，没有重复就 {"pairs":[]}。\n'
+      + 'A 组（新增）：\n' + newBlock + '\nB 组（已有）：\n' + oldBlock;
+    const res = await hximpChat([{ role: 'system', content: '你是严谨的题库审题员，只返回合法 JSON。' }, { role: 'user', content: prompt }], { json: true });
+    const obj = HXImp.parseJson(typeof res === 'string' ? res : JSON.stringify(res));
+    const arr = (obj && obj.pairs) || [];
+    if (!Array.isArray(arr)) continue;
+    arr.forEach(p => {
+      const q = added[+p.a], e = oldByI.get(+p.b);
+      if (!q || !e) return;                    // 编号越界（模型瞎报）直接丢，宁漏不错杀
+      const k = String(q.id);
+      if (hit.has(k)) return;
+      hit.set(k, { q, why: String(p.why || '疑似重复') + '（已有：' + String(e.stem).slice(0, 40) + '…）' });
+    });
+  }
+  return [...hit.values()];
+}
+/* 「最后到底发哪些」：已有题原样不动，新增题去掉被门槛挡下且没勾「仍然追加」的那些，
+   编号从已有题的最大 number 往下排（挡掉几道之后不留空洞）。 */
+function pubFinal() {
+  const P = PUB;
+  if (!P) return { old: [], add: [], questions: [] };
+  const old = P.got && Array.isArray(P.got.questions) ? P.got.questions : [];
+  const flaggedIds = new Set(P.flagged.map(f => String(f.q.id)));
+  const kept = P.merged.added.filter(q => !flaggedIds.has(String(q.id)) || PUB_FORCE.has(String(q.id)));
+  let num = old.reduce((m, q) => Math.max(m, +(q && q.number) || 0), 0);
+  const add = kept.map(q => { q.number = ++num; return q; });
+  return { old, add, questions: old.concat(add) };
+}
+/* 把 PUB 画进弹层。勾「仍然追加」时整体重画（勾选状态存在 PUB_FORCE 里，不会丢）。 */
+function pubPaint() {
+  const P = PUB; if (!P) return;
+  const info = $('pbInfo'), err = $('pbErr'), go = $('pbGo'); if (!info) return;
+  const fin = pubFinal();
+  const nOld = P.got ? P.got.questions.length : 0;
+  const blocked = P.merged.added.length - fin.add.length;
+  info.innerHTML = `<p>${P.got ? `刷题题库「${esc(P.name)}」现有 <b id="pbOld">${nOld}</b> 题，下发范围沿用：${esc(P.row.targets || '原样')}`
+    : `新题库「${esc(P.name)}」，发布后只有你自己能刷，去刷题里再下发给班级`}</p>
+    <p>本次选了 ${P.rows.length} 道：新增 <b id="pbAdd">${fin.add.length}</b> · 重复跳过 <b id="pbDup">${P.merged.dup}</b> · 转不了 <b id="pbSkip">${P.merged.skipped.length}</b>${blocked ? ` · 语义重复挡下 <b>${blocked}</b>` : ''}</p>
+    ${P.merged.skipped.length ? `<ul class="pb-skip">${P.merged.skipped.map(x => `<li>「${esc(x.stem)}」：${esc(x.reason)}</li>`).join('')}</ul>` : ''}
+    ${P.semErr ? `<p class="note">语义查重没跑成（${esc(P.semErr)}），这次只做了「完全相同」的去重，新增的题都照发；想稳一点可以关掉弹层重来一次。</p>` : ''}
+    ${P.flagged.length ? `<p class="pb-sem">语义查重：这 <b>${P.flagged.length}</b> 道看着和题库里已有的题重复，默认不发。确认要发就勾「仍然追加」。</p>
+      <ul class="pb-flag">${P.flagged.map(f => `<li><label class="pb-force"><input type="checkbox" data-pbforce="${f.q.id}" ${PUB_FORCE.has(String(f.q.id)) ? 'checked' : ''}>仍然追加</label>
+        <span class="qb-dq">${esc(PUB_SEM_T[f.q.type] || f.q.type || '')} · ${esc(String(f.q.stem || '').slice(0, 60))}</span>
+        <span class="note">${esc(f.why)}</span></li>`).join('')}</ul>` : ''}
+    <p>发布后共 <b id="pbTotal">${fin.questions.length}</b> 题</p>`;
+  info.querySelectorAll('[data-pbforce]').forEach(b => b.onchange = () => {
+    b.checked ? PUB_FORCE.add(String(b.dataset.pbforce)) : PUB_FORCE.delete(String(b.dataset.pbforce));
+    pubPaint();
+  });
+  go.disabled = !fin.add.length;
+  if (!fin.add.length) { err.textContent = '没有可以新增的题'; err.hidden = false; }
+  else err.hidden = true;
+}
 async function pubCheck(rows) {
   const s = curSub(), info = $('pbInfo'), err = $('pbErr'), go = $('pbGo');
   const fail = m => { info.innerHTML = ''; err.textContent = m; err.hidden = false; go.disabled = true; PUB = null; };
-  err.hidden = true; go.disabled = true;
-  const bank = $('pbBank').value.trim();
-  if (!ZL_BANK_RE.test(bank)) return fail('题库 id 只能是英文、数字、下划线、连字符（最长 64 位）');
-  let list;
-  try { list = await rpc('quiz_public_list'); } catch (e) { return fail('读不到刷题题库列表：' + e.message); }
-  const row = (Array.isArray(list) ? list : []).find(x => x.id === bank) || null;
-  const old = ZL_OLD.has(bank);
-  if (row && !row.mine && !old) return fail('题库 id「' + bank + '」是别的老师的题库，不能往里发。换一个新的 id。');
-  let got = null;
-  try { got = await rpc('quiz_public_get', { p_id: bank }); } catch (e) { return fail('读不到刷题题库「' + bank + '」：' + e.message); }
-  if (got && !Array.isArray(got.questions)) got = null;
-  if (!got && old) return fail('「' + bank + '」是刷题内置题库，云端还没有它（还是随代码发布的本地文件）。先在刷题设置页把内置题库搬到账号里，再来追加；直接发会生成一份只有新题的同名题库，把内置的题盖掉。');
-  if (!got && row) return fail('列表里有「' + bank + '」但取不到题目，先别发，刷新再试。');
-  if (got && !row) return fail('读不到「' + bank + '」原来的下发范围，先别发（不然会改掉它发给谁）。');
-  const merged = ZL_merge(got ? got.questions : [], rows, bank);
-  PUB = {
-    bank, rows, got, row, merged,
-    name: got ? (got.name || bank) : s.name,
-    owner: got ? (got.owner_name || '') : myName(),
-    classes: got ? (row.class_ids === undefined ? null : row.class_ids) : [],
-    teachers: got ? (row.teacher_ids === undefined ? null : row.teacher_ids) : null
-  };
-  const nOld = got ? got.questions.length : 0;
-  info.innerHTML = `<p>${got ? `刷题题库「${esc(PUB.name)}」现有 <b id="pbOld">${nOld}</b> 题，下发范围沿用：${esc(row.targets || '原样')}`
-    : `新题库「${esc(PUB.name)}」，发布后只有你自己能刷，去刷题里再下发给班级`}</p>
-    <p>本次选了 ${rows.length} 道：新增 <b id="pbAdd">${merged.added.length}</b> · 重复跳过 <b id="pbDup">${merged.dup}</b> · 转不了 <b id="pbSkip">${merged.skipped.length}</b></p>
-    ${merged.skipped.length ? `<ul class="pb-skip">${merged.skipped.map(x => `<li>「${esc(x.stem)}」：${esc(x.reason)}</li>`).join('')}</ul>` : ''}
-    <p>发布后共 <b id="pbTotal">${merged.questions.length}</b> 题</p>`;
-  go.disabled = !merged.added.length;
-  if (!merged.added.length) { err.textContent = '没有可以新增的题'; err.hidden = false; }
+  err.hidden = true; go.disabled = true; PUB = null; PUB_FORCE = new Set();
+  /* 2026-11-15：检查要连着打四五次网络（题库列表 → 现有题 → 语义查重按批走），
+     原来只有一行「正在读刷题题库…」，之后就没动静了。现在按钮转圈 + 计时，
+     #pbInfo 里逐段把当前在干什么写出来（尤其是语义查重到第几批）。 */
+  const tok = HXBusy.begin($('pbCheck'), '正在检查…');
+  try {
+    const bank = $('pbBank').value.trim();
+    if (!ZL_BANK_RE.test(bank)) { fail('题库 id 只能是英文、数字、下划线、连字符（最长 64 位）'); HXBusy.end(tok, 'id 不合法'); return; }
+    info.innerHTML = '<p class="note">正在读刷题题库列表…</p>';
+    let list;
+    try { list = await rpc('quiz_public_list'); } catch (e) { fail('读不到刷题题库列表：' + e.message); HXBusy.end(tok, e.message); return; }
+    const row = (Array.isArray(list) ? list : []).find(x => x.id === bank) || null;
+    const old = ZL_OLD.has(bank);
+    if (row && !row.mine && !old) { fail('题库 id「' + bank + '」是别的老师的题库，不能往里发。换一个新的 id。'); HXBusy.end(tok, '不是自己的题库'); return; }
+    info.innerHTML = '<p class="note">正在读「' + esc(bank) + '」里现有的题…</p>';
+    let got = null;
+    try { got = await rpc('quiz_public_get', { p_id: bank }); } catch (e) { fail('读不到刷题题库「' + bank + '」：' + e.message); HXBusy.end(tok, e.message); return; }
+    if (got && !Array.isArray(got.questions)) got = null;
+    if (!got && old) { fail('「' + bank + '」是刷题内置题库，云端还没有它（还是随代码发布的本地文件）。先在刷题设置页把内置题库搬到账号里，再来追加；直接发会生成一份只有新题的同名题库，把内置的题盖掉。'); HXBusy.end(tok, '云端还没有内置题库'); return; }
+    if (!got && row) { fail('列表里有「' + bank + '」但取不到题目，先别发，刷新再试。'); HXBusy.end(tok, '取不到题目'); return; }
+    if (got && !row) { fail('读不到「' + bank + '」原来的下发范围，先别发（不然会改掉它发给谁）。'); HXBusy.end(tok, '读不到下发范围'); return; }
+    const merged = ZL_merge(got ? got.questions : [], rows, bank);
+    /* 硬去重之后再过一道语义门槛：只有「本轮确实有新增」且「目标题库本来就有题」时才值得比，
+       新题库 / 全是重复的情况直接跳过，省一次 AI 调用。 */
+    let flagged = [], semErr = '';
+    if (merged.added.length && got && got.questions.length) {
+      info.innerHTML = '<p class="note">正在语义查重…</p>';
+      try {
+        flagged = await pubSemAI(merged.added, got.questions, (k, n) => {
+          info.innerHTML = `<p class="note">正在语义查重（第 ${k}/${n} 批）…</p>`;
+        });
+      } catch (e) {
+        // 语义查重只是「建议」，挂了不能挡住发布：记下原因，界面照常给确认按钮
+        semErr = (e && e.message) || String(e);
+      }
+    }
+    PUB = {
+      bank, rows, got, row, merged, flagged, semErr,
+      name: got ? (got.name || bank) : s.name,
+      owner: got ? (got.owner_name || '') : myName(),
+      classes: got ? (row.class_ids === undefined ? null : row.class_ids) : [],
+      teachers: got ? (row.teacher_ids === undefined ? null : row.teacher_ids) : null
+    };
+    pubPaint();
+  } finally { HXBusy.end(tok); }
 }
 async function pubGo() {
   if (!PUB || !PUB.merged.added.length) return;
   const s = curSub(), go = $('pbGo'), err = $('pbErr');
-  go.disabled = true;
   const P = PUB;
+  const fin = pubFinal();
+  if (!fin.add.length) { err.textContent = '没有可以新增的题'; err.hidden = false; return; }
+  /* 2026-11-15：发布要整份题库回传（几百道题的 JSON），慢网下能等好几秒，
+     原来只是把按钮灰掉，用户看不出在提交。现在按钮转圈 + 计时，失败原因同时挂在按钮上。 */
+  const tok = HXBusy.begin(go, '正在发布…');
   let r;
   try {
-    r = await rpc('quiz_publish', { p_id: P.bank, p_name: P.name, p_questions: P.merged.questions, p_owner_name: P.owner, p_classes: P.classes, p_teachers: P.teachers });
-  } catch (e) { err.textContent = '发布失败：' + e.message; err.hidden = false; go.disabled = false; return; }
-  const total = r && r.total != null ? +r.total : P.merged.questions.length;
+    r = await rpc('quiz_publish', { p_id: P.bank, p_name: P.name, p_questions: fin.questions, p_owner_name: P.owner, p_classes: P.classes, p_teachers: P.teachers });
+  } catch (e) {
+    err.textContent = '发布失败：' + e.message; err.hidden = false;
+    HXBusy.end(tok, e.message);
+    return;
+  }
+  HXBusy.end(tok);
+  const total = r && r.total != null ? +r.total : fin.questions.length;
   const nOld = P.got ? P.got.questions.length : 0;
   let note = '';
   if (s && !s.quiz_bank) {
@@ -1813,10 +2172,10 @@ async function pubGo() {
     try { await rpc('hx_exam_subject_save', { p_key: s.key, p_name: s.name, p_kind: s.kind, p_quiz_bank: P.bank }); await loadSubjects(true); }
     catch (e) { note = '（题已发布，但没能把题库 id 记到科目上：' + e.message + '）'; }
   }
-  $('pbInfo').innerHTML = `<p class="ok" id="pbDone">已发布：「${esc(P.name)}」现在 ${total} 题（原 ${nOld} + 新增 ${P.merged.added.length}）${esc(note)}</p>`;
+  $('pbInfo').innerHTML = `<p class="ok" id="pbDone">已发布：「${esc(P.name)}」现在 ${total} 题（原 ${nOld} + 新增 ${fin.add.length}）${esc(note)}</p>`;
   PUB = null;
   $('pbGo').hidden = true; $('pbCancel').textContent = '关闭';
-  if (total !== nOld + P.merged.added.length) MAT_banner('发布后题数对不上：云端 ' + total + '，预期 ' + (nOld + P.merged.added.length));
+  if (total !== nOld + fin.add.length) MAT_banner('发布后题数对不上：云端 ' + total + '，预期 ' + (nOld + fin.add.length));
   cacheDrop('subjects');   // 科目卡上的题数跟着变了，下次读科目别再拿缓存
   /* 顺手把刷题那边同一份题库的缓存也作废：老师发完通常立刻去刷题看题到没到，
      不作废就要等最多 5 分钟（两边 key 各管各的，这里只做「尽力而为」，删不到也没关系）。 */

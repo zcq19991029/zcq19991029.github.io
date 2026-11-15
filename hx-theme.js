@@ -1592,3 +1592,173 @@
   })();
   apply();
 })();
+
+/* ==================== 全站统一的「按钮进行中」反馈（HXBusy） ====================
+   2026-11-15 用户报：「按钮点了没反馈，不知道啥时候会给我跳出处理结果」「点了删除没反应
+   就跟卡了一样，不知道是处理到哪儿了还是真卡住了」「类似按钮问题很多个，需要严格自查」。
+
+   病根：几乎所有异步按钮都是 onclick = async () => { ... } 里裸 await，
+   点下去既不 disable、也不换字，请求慢的时候界面和没点一模一样；失败了只有 toast
+   一闪而过，用户根本没看见。删一条记录时更是连转圈的地方都没有。
+
+   这一份做成**全站唯一实现**，放在 hx-theme.js 里（每个工具页都引了它，不用改任何
+   build 白名单）。各工具只需要在 async 处理器外面包一层：
+
+     const tok = HXBusy.begin(btn, '正在出题…');      // 立刻：转圈 + 灰掉 + 计时
+     try { ...await 真活... }
+     finally { HXBusy.end(tok); }                     // 一定恢复，不管成败
+
+   或者用简写（不关心异常时）：
+
+     const ok = await HXBusy.run(btn, '正在删除…', () => doDelete(id));
+
+   约定（别改，各工具都按这个用）：
+     · begin 之后按钮**不能再点**（disabled），并且宽度锁死，换字不会让工具栏跳位；
+     · 每 400ms 把「已等 N 秒」写进按钮，超过 20 秒变暖色 —— 让用户看见「系统活着」；
+     · end 会把 innerHTML / disabled / minWidth / title 全部还原，按钮被重新渲染过
+       （isConnected = false）就跳过还原，不碰已脱离文档的节点；
+     · 出错不要吞：把原因交给调用方 toast / 写在行内 .rmsg 里，HXBusy 只负责「在忙」这件事。
+   ======================================================================= */
+(function () {
+  'use strict';
+  if (window.HXBusy) return;
+
+  // 样式只注入一次。用 .hx-busy 前缀，别撞各工具自己的 .btn 规则。
+  var CSS =
+    '.hx-busy{position:relative;cursor:progress!important;opacity:.92}' +
+    '.hx-busy[disabled]{pointer-events:none}' +
+    '.hx-busy .hx-spin{display:inline-block;width:.92em;height:.92em;margin-right:.5em;vertical-align:-.08em;' +
+    'border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:hx-spin .7s linear infinite}' +
+    '.hx-busy .hx-el{opacity:.72;font-variant-numeric:tabular-nums;font-weight:600;margin-left:.5em}' +
+    '.hx-busy.hx-busy-warn{color:#b45309;border-color:#f0b429}' +
+    '.hx-busy.hx-busy-warn .hx-el{opacity:1}' +
+    /* 极简 / 减少动效：不转圈，改成三点闪烁（仍然是「在动」但不会晃眼） */
+    'html.hx-lite .hx-busy .hx-spin,.hx-busy.hx-busy-still .hx-spin{animation:hx-blink 1.1s steps(2,end) infinite;' +
+    'border:0;width:auto;height:auto;border-radius:0}' +
+    'html.hx-lite .hx-busy .hx-spin:before,.hx-busy.hx-busy-still .hx-spin:before{content:"●"}' +
+    '@keyframes hx-spin{to{transform:rotate(360deg)}}' +
+    '@keyframes hx-blink{50%{opacity:.25}}';
+  function inject() {
+    if (document.getElementById('hx-busy-css')) return;
+    var s = document.createElement('style');
+    s.id = 'hx-busy-css';
+    s.textContent = CSS;
+    (document.head || document.documentElement).appendChild(s);
+  }
+  if (document.readyState === 'loading') addEventListener('DOMContentLoaded', inject); else inject();
+
+  function esc(v) {
+    return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  var tickers = [];
+
+  /* begin(btn, label, opts)
+       btn   HTMLElement | string(id)   —— 找不到就直接返回一个空 token，调用方照常 await
+       label 字符串，显示在按钮上（如「正在出题…」）
+       opts  {warn:20, 单位秒；min:最短显示毫秒，默认 320（太快一闪反而像没点）} */
+  function begin(btn, label, opts) {
+    if (typeof btn === 'string') btn = document.getElementById(btn);
+    inject();
+    if (!btn || btn.nodeType !== 1) return { btn: null, skip: true };
+    // 同一个按钮已经在忙：不叠加，直接把已有 token 还回去（防连点起两份请求）
+    if (btn.__hxBusy) return btn.__hxBusy;
+
+    opts = opts || {};
+    var warnMs = (opts.warn == null ? 20 : +opts.warn) * 1000;
+    var tok = {
+      btn: btn,
+      html: btn.innerHTML,
+      dis: !!btn.disabled,
+      title: btn.getAttribute('title'),
+      minW: btn.style.minWidth,
+      t0: Date.now(),
+      label: label || '处理中…',
+      warnMs: warnMs,
+      minMs: opts.min == null ? 320 : +opts.min,
+      timer: 0,
+      done: false
+    };
+    // 锁宽：换字以后按钮不许变胖变瘦，否则一整排工具按钮会跟着跳
+    var w = btn.offsetWidth;
+    if (w > 0) btn.style.minWidth = w + 'px';
+    btn.classList.add('hx-busy');
+    btn.disabled = true;
+    btn.setAttribute('aria-busy', 'true');
+    btn.innerHTML = '<i class="hx-spin" aria-hidden="true"></i>' + esc(tok.label) + '<em class="hx-el">0s</em>';
+    btn.__hxBusy = tok;
+
+    function tick() {
+      if (tok.done || !tok.btn.isConnected) return;
+      var sec = Math.round((Date.now() - tok.t0) / 1000);
+      var el = tok.btn.querySelector('.hx-el');
+      if (el) el.textContent = sec + 's';
+      if (Date.now() - tok.t0 >= warnMs) tok.btn.classList.add('hx-busy-warn');
+    }
+    tok.timer = setInterval(tick, 400);
+    tickers.push(tok);
+    return tok;
+  }
+
+  /* end(tok, errMsg)
+       还原按钮；给了 errMsg 就挂到 title 上（鼠标悬停能看到失败原因），
+       同时把按钮标成 warn 300ms 让用户瞄到一眼「这次没成」。 */
+  function end(tok, errMsg) {
+    if (!tok || tok.skip || tok.done) return;
+    tok.done = true;
+    clearInterval(tok.timer);
+    var i = tickers.indexOf(tok); if (i >= 0) tickers.splice(i, 1);
+    var btn = tok.btn;
+    if (!btn || !btn.isConnected) return;          // 已被重新渲染掉：没有可还原的东西
+    // 太快就闪一下不算「点了」：至少让转圈留 320ms，用户才看得出发生过什么
+    var wait = Math.max(0, tok.minMs - (Date.now() - tok.t0));
+    var reallyRestore = function () {
+      if (!btn.isConnected) return;
+      btn.innerHTML = tok.html;
+      btn.disabled = tok.dis;
+      btn.style.minWidth = tok.minW || '';
+      btn.classList.remove('hx-busy');
+      btn.removeAttribute('aria-busy');
+      if (tok.title == null) btn.removeAttribute('title'); else btn.setAttribute('title', tok.title);
+      delete btn.__hxBusy;
+      if (errMsg) {
+        btn.classList.add('hx-busy-warn');
+        btn.setAttribute('title', String(errMsg));
+        setTimeout(function () { if (btn.isConnected) btn.classList.remove('hx-busy-warn'); }, 400);
+      }
+    };
+    if (wait > 0) setTimeout(reallyRestore, wait); else reallyRestore();
+  }
+
+  /* run(btn, label, fn) —— 简写。fn 抛异常照常往外抛（调用方自己 catch 后 toast），
+     但按钮一定会还原。返回 fn 的返回值。 */
+  function run(btn, label, fn, opts) {
+    var tok = begin(btn, label, opts);
+    var p;
+    try { p = fn(); } catch (e) { end(tok); throw e; }
+    return Promise.resolve(p).then(
+      function (v) { end(tok); return v; },
+      function (e) { end(tok, e && e.message ? e.message : String(e)); throw e; }
+    );
+  }
+
+  // 行内「处理中」小标签：给没有按钮的地方用（比如整行删除、批量任务的状态行）
+  function tag(host, text) {
+    if (typeof host === 'string') host = document.getElementById(host);
+    if (!host) return { done: function () { } };
+    inject();
+    var el = document.createElement('span');
+    el.className = 'hx-busy-tag';
+    el.style.cssText = 'display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:inherit;opacity:.8';
+    el.innerHTML = '<i class="hx-spin" aria-hidden="true"></i>' + esc(text || '处理中…');
+    host.appendChild(el);
+    return {
+      text: function (t) { el.innerHTML = '<i class="hx-spin" aria-hidden="true"></i>' + esc(t); },
+      done: function () { if (el.isConnected) el.remove(); }
+    };
+  }
+
+  window.HXBusy = { begin: begin, end: end, run: run, tag: tag, count: function () { return tickers.length; } };
+})();

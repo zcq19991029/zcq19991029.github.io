@@ -14,16 +14,16 @@
      要登录时调 window.HXPortal.login()；被单独打开时 hx-theme.js 会跳回这里（见 hx-theme.js 的 data-tool）。
      账号：Supabase 华夏工具项目，localStorage paike-session 和各工具共用；身份由数据库 hx_me() 决定。
      脚本里不用反引号模板字符串（本机测试时整页当字符串注入到线上同源页面里）。 -->
-<link rel="stylesheet" href="hx-theme.css?v=0862235">
-<script src="hx-theme.js?v=0862235"></script>
+<link rel="stylesheet" href="hx-theme.css?v=55f2d94">
+<script src="hx-theme.js?v=55f2d94"></script>
 <script src="rank-bg.js" defer></script><!-- 排位身份卡预设（2026-11-12）：总入口外观面板当场弹窗设置身份卡背景，预设数据在总入口也能用 -->
 <!-- 首页卡片上的像素小生物：pixelfx 的 12 个 critters（MIT），打包成一个 91 KB 的独立脚本。
      加载失败不影响首页——hx-critters.js 开头就有 window.PixelFX 存在性检查，没有就整段跳过。 -->
-<script src="fx/pixelfx-critters.js?v=0862235" defer></script>
-<script src="fx/hx-critters.js?v=0862235" defer></script>
+<script src="fx/pixelfx-critters.js?v=55f2d94" defer></script>
+<script src="fx/hx-critters.js?v=55f2d94" defer></script>
 <!-- 课堂码大屏二维码：离线 QR 编码器（qrcode 1.5.4 core 打包，MIT，见 fx/NOTICE-qr.md）。延迟加载即可：只有老师点「大屏二维码」时才用 -->
-<script src="fx/hx-qr.js?v=0862235" defer></script>
-<script src="hx-scan.js?v=0862235" defer></script><!-- 全站扫一扫（2026-11-08 K5）：摄像头 + BarcodeDetector / 本地 jsQR -->
+<script src="fx/hx-qr.js?v=55f2d94" defer></script>
+<script src="hx-scan.js?v=55f2d94" defer></script><!-- 全站扫一扫（2026-11-08 K5）：摄像头 + BarcodeDetector / 本地 jsQR -->
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; width: 100%; overflow: hidden; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -733,6 +733,34 @@
   /* 分节卡里的分段控件：默认的 --fill 底在 --fill 卡上会糊成一片，改成实心卡底 + 描边 */
   .lk-sec .seg { background: var(--card-solid); box-shadow: inset 0 0 0 1px var(--edge); }
   .lk-sec .seg button[aria-pressed="true"] { background: color-mix(in srgb, var(--acc) 18%, var(--card-solid)); color: var(--ink); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--acc) 45%, transparent); }
+  /* ── 深浅：像素日夜开关（2026-11-15 用户要求复刻 LeiBox pixel-toggle）─────────
+     为什么内联而不用组件包：publish.cjs 的 FILES 是白名单，新增文件不登记线上就 404；
+     这一段 CSS + JS 一共两百来行，本页本来就大量内联，内联最省事（也不污染其它工具）。
+     尺寸：面板内容宽约 292px，轨道定 168×88，和原组件 520×272 同比例（0.323 倍）；
+     canvas 里仍按原组件的设计坐标（520×272）画，靠 transform 缩放，动画数值一个没改。
+     颜色全部走 --ptog-* 自定义属性：JS 逐帧写（theme 0→1 混色，跟原组件一致的观感），
+     下面这串默认值 = 夜间那一套，保证 JS 还没跑（或脚本挂了）时开关也是对的深色样子。 */
+  .ptog { display: flex; align-items: center; gap: 12px; }
+  .ptog-sw { position: relative; flex: none; width: 168px; height: 88px; padding: 0; border: 0; border-radius: 28px;
+    background: linear-gradient(180deg, var(--ptog-track-top), var(--ptog-track-bottom));
+    box-shadow: inset 0 5px 9px var(--ptog-track-inset), inset 0 -1px 2px var(--ptog-track-light),
+      0 1px 0 var(--ptog-track-edge), 0 9px 16px -7px var(--ptog-track-shadow);
+    cursor: grab; touch-action: pan-y; user-select: none; -webkit-tap-highlight-color: transparent;
+    --ptog-track-top: rgba(9, 9, 10, 1); --ptog-track-bottom: rgba(13, 13, 14, 1);
+    --ptog-track-inset: rgba(0, 0, 0, 1); --ptog-track-light: rgba(26, 26, 29, 1);
+    --ptog-track-edge: rgba(36, 36, 38, 1); --ptog-track-shadow: rgba(0, 0, 0, 1);
+    --ptog-knob-top: rgba(83, 83, 91, .5); --ptog-knob-bottom: rgba(40, 40, 49, .42);
+    --ptog-knob-rim: rgba(255, 255, 255, .27); --ptog-knob-shadow: rgba(0, 0, 0, .44); }
+  .ptog-sw[data-dragging] { cursor: grabbing; }
+  .ptog-sw:focus-visible { outline: 2px solid var(--acc); outline-offset: 4px; }
+  .ptog-sw > * { pointer-events: none; }
+  .ptog-knob { position: absolute; left: 5px; top: 5px; width: 78px; height: 78px; display: block; border-radius: 22px;
+    background: linear-gradient(180deg, var(--ptog-knob-top), var(--ptog-knob-bottom));
+    box-shadow: inset 0 0 0 1px var(--ptog-knob-rim), inset 0 0 2px #ffffff2e,
+      0 5px 7px -3px var(--ptog-knob-shadow), 0 1px 3px var(--ptog-knob-shadow); }
+  /* 光带和像素画在这张 canvas 上（盖在滑块上面，和原组件一样：像素压在玻璃上） */
+  .ptog-fx { position: absolute; inset: 0; display: block; width: 100%; height: 100%; border-radius: 28px; }
+  .ptog-txt { font-size: 12px; font-weight: 600; color: var(--dim); }
   /* 面板底部：恢复默认外观（只管 hx-theme，不碰账号数据） */
   .lk-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--edge); }
   .lk-foot span { font-size: 11.5px; line-height: 1.5; color: var(--dim); }
@@ -1710,7 +1738,9 @@ function renderLogin() {
   if ($('rx')) $('rx').onclick = function () { $('login').close(); };
   if ($('rgh')) $('rgh').onclick = function () { HX.github(); };
   if ($('rlater')) $('rlater').onclick = function () { $('login').close(); };
-  if ($('rout')) $('rout').onclick = async function () { $('login').close(); var me = HX.me(); if (me && me.id) HX.forgetAccount(me.id); await HX.out(); reloadTools(); refresh(); };
+  /* 2026-11-15：退出要等云端注销（HX.out 是一次网络请求），原来点完窗一关就没动静，像没退出。
+     按钮挂 HXBusy，慢的时候也能看见「已等 N 秒」。 */
+  if ($('rout')) $('rout').onclick = async function () { var b = $('rout'), tok = (window.HXBusy && b) ? HXBusy.begin(b, '正在退出…') : null; try { var me = HX.me(); if (me && me.id) HX.forgetAccount(me.id); await HX.out(); } finally { $('login').close(); if (tok) HXBusy.end(tok); else if (b) b.disabled = false; } reloadTools(); refresh(); };
 }
 
 // 地址栏 #wiring 这样的直接打开对应工具；没有或没权限就是首页
@@ -2040,14 +2070,21 @@ function renderPop() {
   $('pop').querySelectorAll('[data-e]').forEach(function (b) { b.onclick = function () { ST.edit = b.dataset.e; renderPop(); var f = $('pop').querySelector('input'); if (f) f.focus(); }; });
   if ($('pav')) $('pav').onchange = async function (e) {
     var f = e.target.files[0]; if (!f) return;
+    /* 2026-11-15：选完头像要先压缩、再上传到 storage、再写一次 user —— 三步都要等，
+       原来选完文件后弹窗里毫无反应。图片输入框没有按钮可转圈，就把状态写在 #pmsg 上
+       （失败原因也留在那里，不会只闪一下 toast 就没）。 */
+    var pm = $('pmsg'); if (pm) pm.textContent = '正在上传头像…';
     try {
       await slimToken(); // 老账号 token 可能还带着 base64（膨胀），先瘦身再上传，否则 400
-      ST.user = await HX.setUser({ data: { avatar_url: await avatarUpload(await smallPic(f)) } }); toast('头像已更新'); render(); renderPop();
-    } catch (er) { toast(er.message); }
+      ST.user = await HX.setUser({ data: { avatar_url: await avatarUpload(await smallPic(f)) } }); toast('头像已更新'); if (pm) pm.textContent = ''; render(); renderPop();
+    } catch (er) { toast(er.message); if (pm) pm.textContent = '头像没换成：' + (er && er.message ? er.message : er); }
   };
   if ($('pcancel')) $('pcancel').onclick = function () { ST.edit = null; renderPop(); };
   if ($('psave')) $('psave').onclick = async function () {
-    var b = $('psave'), msg = $('pmsg'); b.disabled = true; msg.textContent = '';
+    /* 2026-11-15：保存资料 / 改密码 / 认证入班 都要等云端确认，原来只有按钮变灰。
+       失败原因本来就写在 #pmsg 里（看得见），这里只补「在忙」。 */
+    var b = $('psave'), msg = $('pmsg'), tok = (window.HXBusy && b) ? HXBusy.begin(b, '正在保存…') : null;
+    if (!tok) b.disabled = true; msg.textContent = '';
     try {
       if (E === 'claim') {
         var cc = $('pcc').value.trim().toUpperCase(), cn = $('pcno').value.trim(), cm = $('pcnm').value.trim(); if (!cc) throw new Error('请填课堂码'); if (!/^\d{6,20}$/.test(cn)) throw new Error('学号应为 6～20 位数字'); if (!cm) throw new Error('请填姓名');
@@ -2061,13 +2098,15 @@ function renderPop() {
         ST.user = await HX.setUser({ password: p1, data: { has_password: true } });
       }
       ST.edit = null; toast('已保存'); render(); renderPop();
-    } catch (e) { msg.textContent = e.message; b.disabled = false; }
+    } catch (e) { msg.textContent = e.message; }
+    finally { if (tok) HXBusy.end(tok); else b.disabled = false; }
   };
   if ($('plink')) $('plink').onclick = function () { HX.linkGitHub().catch(function (e) { toast(e.message); }); };
   if ($('pswitch')) $('pswitch').onclick = function () { closePops(); openAccounts(); };
   if ($('pdev')) $('pdev').onclick = function () { closePops(); openDevices(); };
   // 退出登录：把这个账号从这台设备上删掉，下次要重新输密码（和「切换账号」的区别就在这一步）
-  if ($('pout')) $('pout').onclick = async function () { var me = HX.me(); if (me && me.id) HX.forgetAccount(me.id); await HX.out(); closePops(); reloadTools(); refresh(); };
+  /* 2026-11-15：同上，「退出登录」也是一次网络注销，按钮转圈直到完事 */
+  if ($('pout')) $('pout').onclick = async function () { var b = $('pout'), tok = (window.HXBusy && b) ? HXBusy.begin(b, '正在退出…') : null; try { var me = HX.me(); if (me && me.id) HX.forgetAccount(me.id); await HX.out(); } finally { closePops(); if (tok) HXBusy.end(tok); else if (b) b.disabled = false; } reloadTools(); refresh(); };
   if ($('pgo')) $('pgo').onclick = function () { openLogin('', 'act'); };
 }
 // 切换账号：列出这台设备上登录过的账号，点一下就切过去（拿本地存的 refresh_token 换新凭证，不用再输密码）。
@@ -2211,6 +2250,504 @@ function lkIdLoad() {
     LKID.got = true; lkIdPaint();
   }).catch(function () { LKID.got = true; lkIdPaint(); });
 }
+/* ── 深浅开关：像素日夜（2026-11-15 用户要求复刻 LeiBox pixel-toggle）──────────
+   来源：LeiBox 的 pixel-toggle（设计参考 Zsolt Kacso；原组件 = 520×272 大开关 +
+   WebGL2 玻璃着色器 + Canvas2D 兜底）。用户要的是「可拖动的日夜开关 + 像素散开重组
+   + 光带绕滑块」这套交互，所以只搬这三件事，不搬整套渲染管线：
+
+   ① 可拖动：按下拖动跟手（位置可略微越界，松手弹回），松手按「位置过没过半 / 甩动速度」
+      定落哪边 —— 逻辑照搬原组件 pointerdown/move/up + 弹簧。
+   ② 像素：太阳 / 月亮两张像素点阵（makeSun / makeMoon 原样照抄），切换瞬间 burst 炸开、
+      再按弹簧各自归位；theme 在 0↔1 之间插值时按「离两端多远」自动散开。
+   ③ 光带：沿滑块圆角轮廓的周长采样形状，绕一圈转；切换时 phase 多转一整圈（900ms），
+      所以看起来是「光带绕滑块跑一圈」，transit 让它转的时候更亮。
+
+   取舍（都写在交付说明里）：
+   - 不搬 WebGL：这块屏幕只有 168×88，玻璃折射看不出来，还要多一个 shader 和降级分支。
+     滑块/轨道的金属质感交给 CSS 渐变 + 内阴影，光带和像素交给 Canvas 2D。
+   - 原组件用 CSS 变量逐帧插值轨道与滑块配色（theme 0→1 连续混色），这里照搬这个做法，
+     但只在 theme 变化时才写那 11 个变量（一帧最多 11 次 setProperty），代价可忽略。
+   - 不新增偏好键：开关只读 HXTheme.get().mode、只调 HXTheme.set({mode})，
+     面板重开时用当前 mode 初始化，所以状态一定跟页面一致。
+   - 极简（html.hx-lite）/ 系统「减少动态效果」：不跑 rAF、不跑粒子，只在状态变化时
+     画一张静态帧（亮着的那个图标 + 定住的光带），点击仍然即时切换。 */
+var HXPtog = (function () {
+  // 全部尺寸沿用原组件的设计坐标（520×272 / 滑块 240 / 圆角 69 / 行程 248），
+  // 最后统一乘 SCALE 缩到面板里 —— 这样动画的弹簧系数、光带宽度都不用重调。
+  var TW = 520, TH = 272, KNOB = 240, INSET = 16, TRAVEL = 248, RID = 69, BOXR = 86;
+  var SCALE = 168 / TW;
+  var TURN = Math.PI * 2, DAY = 0.5;
+
+  function clamp(v, lo, hi) { lo = lo == null ? 0 : lo; hi = hi == null ? 1 : hi; return v < lo ? lo : (v > hi ? hi : v); }
+  function mix(a, b, t) { return a + (b - a) * t; }
+  function wrap(v, p) { return (v % p + p) % p; }
+  function hex(c) { var m = c.match(/../g); return [parseInt(m[0], 16), parseInt(m[1], 16), parseInt(m[2], 16)]; }
+  function blend(a, b, t) { return [Math.round(mix(a[0], b[0], t)), Math.round(mix(a[1], b[1], t)), Math.round(mix(a[2], b[2], t))]; }
+  function rgba(c, a) { return 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + (a == null ? 1 : a) + ')'; }
+
+  // 原组件的配色表：[夜间, 白天]。alpha 表是「滑块那几个半透明层在两种模式下的不透明度」。
+  var PAL = {
+    'track-top': ['09090a', 'dededd'], 'track-bottom': ['0d0d0e', 'ebebea'],
+    'track-inset': ['000000', 'bdbdba'], 'track-light': ['1a1a1d', 'ffffff'],
+    'track-edge': ['242426', 'f3f3f2'], 'track-shadow': ['000000', '9d9b96'],
+    'knob-top': ['53535b', 'ffffff'], 'knob-bottom': ['282831', 'eeede9'],
+    'knob-rim': ['ffffff', 'ffffff'], 'knob-shadow': ['000000', '7c7b77']
+  };
+  var PAL_KEYS = Object.keys(PAL);
+  var PAL_A = { 'knob-top': [0.5, 0.94], 'knob-bottom': [0.42, 0.88], 'knob-rim': [0.27, 0.62], 'knob-shadow': [0.44, 0.35] };
+  var MOON_LIGHT = [111, 134, 255], SUN_LIGHT = [255, 168, 46];
+
+  function paintVars(el, theme) {
+    for (var i = 0; i < PAL_KEYS.length; i++) {
+      var k = PAL_KEYS[i], a = PAL_A[k], c = blend(hex(PAL[k][0]), hex(PAL[k][1]), theme);
+      el.style.setProperty('--ptog-' + k, rgba(c, a ? mix(a[0], a[1], theme) : 1));
+    }
+  }
+
+  // ── 两张像素点阵（原样照抄；[列, 行, 不透明度]）──
+  function makeMoon() {
+    var px = [], row, col;
+    for (row = -8; row <= 8; row++) {
+      for (col = -8; col <= 8; col++) {
+        if (Math.sqrt(col * col + row * row) > 6.6) continue;
+        var cut = Math.sqrt((col - 3.3) * (col - 3.3) + (row + 2.4) * (row + 2.4));
+        if (cut > 5.4) px.push([col, row, 1]);
+        else if ((col + row) % 2 === 0) px.push([col, row, 0.15]);
+      }
+    }
+    return px.concat([[7, -7, 1], [6, -7, 0.45], [8, -7, 0.45], [7, -8, 0.45], [7, -6, 0.45]]);
+  }
+  function makeSun() {
+    var px = [], row, col, ray;
+    for (row = -3; row <= 3; row++) for (col = -3; col <= 3; col++) if (Math.sqrt(col * col + row * row) <= 3.7) px.push([col, row, 1]);
+    for (ray = 0; ray < 8; ray++) {
+      var ang = ray * Math.PI / 4;
+      var ds = ray % 2 ? [5.9, 7.2] : [5.6, 6.6, 7.6];
+      for (var i = 0; i < ds.length; i++) px.push([Math.round(Math.cos(ang) * ds[i]), Math.round(Math.sin(ang) * ds[i]), 1]);
+    }
+    return px;
+  }
+  // size 是「一个像素格」的设计坐标边长。原组件 6.85（滑块 240）；这里按 168 的滑块取 8.6：
+  // 照抄 6.85 的话屏幕上一个像素格只有 2.2px，看不清是月亮还是太阳；再大就会顶到滑块圆角上。
+  var GLYPH = [{ px: makeMoon(), size: 8.6 }, { px: makeSun(), size: 8.6 }];
+  var DOT_COUNT = Math.max(GLYPH[0].px.length, GLYPH[1].px.length) + 20;
+
+  // ── 像素粒子：散开位置随机撒在滑块里，目标位置 = 图标点阵 ──
+  function createDots() {
+    var current = 0, dots = [], i;
+    for (i = 0; i < DOT_COUNT; i++) {
+      var a = Math.random() * TURN, d = Math.sqrt(Math.random()) * 74;
+      dots.push({
+        sx: Math.cos(a) * d, sy: Math.sin(a) * d * 0.85,
+        x: 0, y: 0, vx: 0, vy: 0, tx: 0, ty: 0, o: 0, to: 0, ph: Math.random() * TURN
+      });
+    }
+    function assign(idx, instant) {
+      current = idx;
+      var g = GLYPH[idx], targets = [], j, t;
+      for (j = 0; j < g.px.length; j++) targets.push(g.px[j]);
+      // 打乱目标分配：不洗牌的话每次重组都是「同一颗像素飞同一条线」，看起来像机械位移
+      for (j = targets.length - 1; j > 0; j--) { var r = Math.floor(Math.random() * (j + 1)); t = targets[j]; targets[j] = targets[r]; targets[r] = t; }
+      for (j = 0; j < dots.length; j++) {
+        var dot = dots[j], tgt = targets[j];
+        dot.tx = tgt ? tgt[0] * g.size : dot.sx;
+        dot.ty = tgt ? tgt[1] * g.size : dot.sy;
+        dot.to = tgt ? tgt[2] : 0;
+        if (instant) { dot.x = dot.tx; dot.y = dot.ty; dot.o = dot.to; dot.vx = dot.vy = 0; }
+      }
+    }
+    function burst(k) {
+      for (var j = 0; j < dots.length; j++) {
+        var a2 = Math.random() * TURN, sp = (60 + Math.random() * 200) * k;
+        dots[j].vx += Math.cos(a2) * sp; dots[j].vy += Math.sin(a2) * sp;
+      }
+    }
+    function advance(theme, agit, pointer, center, dt) {
+      var want = theme > 0.5 ? 1 : 0;
+      if (want !== current) assign(want, false);
+      // scatter：越靠中间（theme≈0.5）散得越开 —— 这就是「散开重组」的扳机
+      var scatter = Math.max(agit, clamp(1 - Math.abs(2 * theme - 1) * 1.6));
+      var moving = false, j;
+      for (j = 0; j < dots.length; j++) {
+        var dot = dots[j];
+        dot.ph += dt * 2;
+        var tx = mix(dot.tx, dot.sx, scatter) + Math.sin(dot.ph) * scatter * 6;
+        var ty = mix(dot.ty, dot.sy, scatter) + Math.cos(dot.ph * 0.82) * scatter * 6;
+        dot.vx += ((tx - dot.x) * 340 - dot.vx * 27) * dt;
+        dot.vy += ((ty - dot.y) * 340 - dot.vy * 27) * dt;
+        if (pointer) { // 鼠标划过去会把像素吹开（原组件的指针斥力）
+          var dx = dot.x - (pointer.x - center.x), dy = dot.y - (pointer.y - center.y);
+          var dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist > 0 && dist < 49) {
+            var f = (1 - (dist / 49) * (dist / 49)) * 2800 * dt / dist;
+            dot.vx += dx * f; dot.vy += dy * f;
+          }
+        }
+        dot.x += dot.vx * dt; dot.y += dot.vy * dt;
+        var op = Math.max(dot.to * (1 - scatter * 0.25), scatter * 0.55);
+        dot.o = mix(dot.o, op, Math.min(1, dt * (op > dot.o ? 9 : 12)));
+        if (!moving && (Math.abs(tx - dot.x) + Math.abs(ty - dot.y) > 0.15 || Math.abs(dot.vx) + Math.abs(dot.vy) > 0.8 || Math.abs(op - dot.o) > 0.005)) moving = true;
+      }
+      return { scatter: scatter, moving: moving };
+    }
+    function draw(c2, center, theme, scatter) {
+      var size = GLYPH[current].size, col = blend([255, 245, 233], [37, 34, 31], theme);
+      c2.save();
+      // 夜里给像素一圈暖光（原组件是逐点 shadowBlur，这里整组设一次，省一半开销）
+      c2.shadowColor = '#fff0d9';
+      c2.shadowBlur = Math.max(0, (1 - 2 * theme) * 3);
+      for (var j = 0; j < dots.length; j++) {
+        var dot = dots[j];
+        if (dot.o < 0.02) continue;
+        var sp = clamp(Math.sqrt(dot.vx * dot.vx + dot.vy * dot.vy) / 420);
+        var h = size * 0.82 * (1 - sp * 0.35) * (1 - scatter * 0.35);
+        c2.fillStyle = rgba(col, dot.o * (1 - sp * 0.2));
+        c2.fillRect(center.x + dot.x - h / 2, center.y + dot.y - h / 2, h, h);
+      }
+      c2.restore();
+    }
+    return { assign: assign, advance: advance, draw: draw, burst: burst, idx: function () { return current; } };
+  }
+
+  // ── 圆角轮廓：按周长采样，光带顺着它走（原样照抄，只把 .find/.at(-1) 换成普通循环）──
+  function outline(box, radius) {
+    var x = box.x, y = box.y, w = box.width, h = box.height;
+    var right = x + w, bottom = y + h, cx = x + w / 2, cy = y + h / 2;
+    var r = Math.min(radius, w / 2, h / 2), corner = Math.PI * r / 2;
+    var horiz = w - 2 * r, vert = h - 2 * r;
+    var perimeter = 2 * (horiz + vert) + 4 * corner, quarter = horiz / 2 + corner + vert / 2;
+    var opposite = horiz + 2 * corner + vert, segs = [], end = 0;
+    function line(sx, sy, tx2, ty2) {
+      var len = Math.sqrt((tx2 - sx) * (tx2 - sx) + (ty2 - sy) * (ty2 - sy));
+      if (!len) return;
+      end += len;
+      segs.push({ end: end, len: len, at: function (t) { return [mix(sx, tx2, t), mix(sy, ty2, t)]; } });
+    }
+    function curve(ox, oy, start) {
+      end += corner;
+      segs.push({ end: end, len: corner, at: function (t) { var a = start + t * Math.PI / 2; return [ox + Math.cos(a) * r, oy + Math.sin(a) * r]; } });
+    }
+    line(cx, y, right - r, y); curve(right - r, y + r, -Math.PI / 2);
+    line(right, y + r, right, bottom - r); curve(right - r, bottom - r, 0);
+    line(right - r, bottom, x + r, bottom); curve(x + r, bottom - r, Math.PI / 2);
+    line(x, bottom - r, x, y + r); curve(x + r, y + r, Math.PI);
+    line(x + r, y, cx, y);
+    function point(d) {
+      var at = wrap(d, perimeter), seg = segs[segs.length - 1], i;
+      for (i = 0; i < segs.length; i++) if (at <= segs[i].end) { seg = segs[i]; break; }
+      return seg.at(1 - (seg.end - at) / seg.len);
+    }
+    function phaseDistance(phase) {
+      var turn = wrap(phase, 1) * 4, side = Math.floor(turn);
+      var sides = [opposite, quarter, 0, quarter + opposite, opposite];
+      return mix(side === 2 ? perimeter : sides[side], sides[side + 1], turn - side);
+    }
+    return { point: point, phaseDistance: phaseDistance, perimeter: perimeter, center: { x: cx, y: cy } };
+  }
+  function ribbonPoints(o, distance, length) {
+    var out = [], i;
+    for (i = 0; i <= 48; i++) {
+      var f = i / 48, at = distance + (f - 0.5) * length;
+      var p = o.point(at), a = o.point(at - 1), b = o.point(at + 1);
+      var span = Math.sqrt((b[0] - a[0]) * (b[0] - a[0]) + (b[1] - a[1]) * (b[1] - a[1])) || 1;
+      out.push({ x: p[0], y: p[1], nx: (b[1] - a[1]) / span, ny: (a[0] - b[0]) / span, taper: Math.sin(Math.PI * f) });
+    }
+    return out;
+  }
+  function paintRibbon(ctx, pts, o) {
+    var w = o.width, ex = o.exponent, off = o.offset || 0, i, s, spread;
+    ctx.save();
+    ctx.globalAlpha = o.opacity == null ? 1 : o.opacity;
+    ctx.fillStyle = rgba(o.color);
+    ctx.beginPath();
+    for (i = 0; i < pts.length; i++) {
+      s = pts[i]; spread = off + w / 2 * Math.pow(s.taper, ex);
+      if (i === 0) ctx.moveTo(s.x + s.nx * spread, s.y + s.ny * spread);
+      else ctx.lineTo(s.x + s.nx * spread, s.y + s.ny * spread);
+    }
+    for (i = pts.length - 1; i >= 0; i--) {
+      s = pts[i]; spread = off - w / 2 * Math.pow(s.taper, ex);
+      ctx.lineTo(s.x + s.nx * spread, s.y + s.ny * spread);
+    }
+    ctx.closePath();
+    // 原组件用 ctx.filter 做模糊；chrome 上 filter/blur 比 shadow 贵，这里用 shadowBlur 近似，
+    // 数值是按缩放后的画面调的（宽的那两层给一点点晕，细的两层不给）
+    if (o.glow) { ctx.shadowBlur = o.glow; ctx.shadowColor = ctx.fillStyle; }
+    ctx.fill();
+    ctx.restore();
+  }
+  // 滑块外形（含拖动时被拉长、按下时被压扁），原样照抄
+  function knobBox(position, stretch, press) {
+    var over = Math.max(-position, position - 1, 0);
+    var impact = Math.min(0.16, over * 1.12);
+    var squeeze = 1 - press * 0.055;
+    var w = KNOB * clamp((1 + stretch - impact) * squeeze, 0.82, 1.19);
+    var h = KNOB * clamp((1 - stretch * 0.45 + impact * 0.42) * squeeze, 0.85, 1.08);
+    var center = INSET + KNOB / 2 + clamp(position) * TRAVEL;
+    var x = position > 1 ? TW - INSET - w : position < 0 ? INSET : clamp(center - w / 2, INSET, TW - INSET - w);
+    return { x: x, y: (TH - h) / 2, width: w, height: h };
+  }
+
+  // ── 画一帧 ──
+  function createPainter(sw, knobEl, cv) {
+    var ctx = null;
+    try { ctx = cv.getContext('2d'); } catch (e) { ctx = null; }
+    var dpr = Math.min(2, window.devicePixelRatio || 1);
+    cv.width = Math.round(TW * SCALE * dpr);
+    cv.height = Math.round(TH * SCALE * dpr);
+    var K = SCALE * dpr, lastTheme = -1;
+    function trackPath() {
+      var r = BOXR;
+      ctx.beginPath();
+      ctx.moveTo(r, 0); ctx.lineTo(TW - r, 0);
+      ctx.quadraticCurveTo(TW, 0, TW, r); ctx.lineTo(TW, TH - r);
+      ctx.quadraticCurveTo(TW, TH, TW - r, TH); ctx.lineTo(r, TH);
+      ctx.quadraticCurveTo(0, TH, 0, TH - r); ctx.lineTo(0, r);
+      ctx.quadraticCurveTo(0, 0, r, 0); ctx.closePath();
+    }
+    return function paint(box, theme, phase, transit, dots, scatter) {
+      if (theme !== lastTheme) { paintVars(sw, theme); lastTheme = theme; }
+      // 滑块位置直接写 px，不走 transform：它的 width/height 每帧也在变，一起写更省事
+      knobEl.style.left = (box.x * SCALE) + 'px';
+      knobEl.style.top = (box.y * SCALE) + 'px';
+      knobEl.style.width = (box.width * SCALE) + 'px';
+      knobEl.style.height = (box.height * SCALE) + 'px';
+      if (!ctx) return;
+      ctx.setTransform(K, 0, 0, K, 0, 0);
+      ctx.clearRect(0, 0, TW, TH);
+      ctx.save();
+      trackPath();
+      // 裁到轨道里：光带和像素会超出轨道，面板是 overflow:auto，不裁就会糊到旁边几节去
+      ctx.clip();
+      var pad = 8;
+      var outer = outline({ x: box.x - pad, y: box.y - pad, width: box.width + 2 * pad, height: box.height + 2 * pad }, RID + pad);
+      var inner = outline(box, RID);
+      // 亮弧长度随 theme 变，且随 phase 轻微呼吸（原组件的 arcFraction）
+      var arc = mix(0.31, 0.33, theme) * (1 - 0.12 * Math.sin(TURN * wrap(phase, 0.5)));
+      var oPts = ribbonPoints(outer, outer.phaseDistance(phase), outer.perimeter * arc);
+      var iPts = ribbonPoints(inner, inner.phaseDistance(phase), inner.perimeter * arc * 1.25);
+      var wash = blend(MOON_LIGHT, SUN_LIGHT, theme);
+      var bright = blend(wash, [255, 255, 255], 0.72);
+      var body = blend(wash, bright, 0.48);
+      var night = theme < 0.55;
+
+      // ① 滑块外那圈光晕：以光带最亮点为圆心糊一团径向光，夜里用加色混合（原组件的 spill）
+      var edge = iPts[24];
+      ctx.save();
+      ctx.globalCompositeOperation = night ? 'lighter' : 'source-over';
+      ctx.translate(edge.x, edge.y);
+      ctx.rotate(Math.atan2(edge.nx, -edge.ny));
+      var depth = KNOB * mix(0.57, 0.7, theme) * (1 + transit * 0.3);
+      ctx.scale(KNOB * 0.6, depth * 0.42);
+      var g = ctx.createRadialGradient(0, 0, 0, 0, 0, 1);
+      g.addColorStop(0, rgba(bright, mix(0.76, 0.66, theme)));
+      g.addColorStop(0.23, rgba(wash, mix(0.34, 0.22, theme)));
+      g.addColorStop(0.56, rgba(wash, mix(0.16, 0.1, theme)));
+      g.addColorStop(1, rgba(wash, 0));
+      ctx.fillStyle = g;
+      ctx.fillRect(-1, -1, 2, 2);
+      ctx.restore();
+
+      // ② 光带：外圈四层（宽→窄、暗→亮）+ 内圈两层，形状跟着滑块形变走。
+      // 原组件轨道周围留白很大，光带可以整片甩到轨道外面；这里轨道只有 5px 余量，
+      // 所以把 offset 收窄，让最亮的几条贴着滑块描边 —— 甩出去的部分会被轨道圆角裁掉，
+      // 剩下的正好是「绕着滑块的一道弧」。
+      ctx.globalCompositeOperation = night ? 'lighter' : 'source-over';
+      paintRibbon(ctx, oPts, { width: 30, exponent: 0.5, offset: 6, color: wash, opacity: mix(0.52, 0.3, theme), glow: 8 });
+      paintRibbon(ctx, oPts, { width: 13, exponent: 0.6, offset: 3, color: wash, opacity: 0.64, glow: 3 });
+      paintRibbon(ctx, oPts, { width: 7.5, exponent: 0.75, color: body, opacity: 0.95 });
+      paintRibbon(ctx, oPts, { width: 3, exponent: 0.6, color: bright, opacity: 1 });
+      ctx.globalCompositeOperation = 'source-over';
+      paintRibbon(ctx, iPts, { width: 14, exponent: 0.5, color: night ? bright : body, opacity: 0.74 - transit * 0.34, glow: 5 });
+      paintRibbon(ctx, iPts, { width: 6.5, exponent: 0.6, color: bright, opacity: 0.94 });
+
+      // ③ 像素压在滑块上（canvas 在滑块之上，所以太阳/月亮是「浮」在玻璃上的）
+      dots.draw(ctx, inner.center, theme, scatter);
+      ctx.restore();
+    };
+  }
+
+  // ── 挂载：root = 那个 .ptog 包裹层 ──
+  function mount(root, opts) {
+    opts = opts || {};
+    var sw = root.querySelector('.ptog-sw'), knobEl = root.querySelector('.ptog-knob');
+    var cv = root.querySelector('.ptog-fx'), txt = root.querySelector('.ptog-txt');
+    if (!sw || !knobEl || !cv) return null;
+    var dots = createDots();
+    var paint = createPainter(sw, knobEl, cv);
+    var checked = !!opts.checked;
+    var pos = Number(checked), theme = pos, phase = checked ? DAY : 0;
+    var speed = 0, stretch = 0, stretchSpeed = 0, press = 0, agit = 0;
+    var colorMove = null, lightMove = null, drag = null, pointer = null;
+    var frame = 0, last = 0, alive = true, suppress = false;
+    var rmq = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+
+    // 极简（省电）或系统「减少动态效果」：整块动画停掉，只画静态帧
+    function still() { return document.documentElement.classList.contains('hx-lite') || !!(rmq && rmq.matches); }
+    function render(box, scatter, transit) {
+      paint(box || knobBox(pos, stretch, press), clamp(theme), phase, transit || 0, dots, scatter || 0);
+    }
+    function stop() { if (frame) cancelAnimationFrame(frame); frame = 0; last = 0; }
+    function snap() {
+      stop();
+      pos = theme = Number(checked);
+      phase = checked ? DAY : 0;
+      speed = stretch = stretchSpeed = press = agit = 0;
+      colorMove = lightMove = null;
+      dots.assign(pos, true);
+      render();
+    }
+    function requestFrame() {
+      // still() 这道判断是必须的：pointermove 也会走到这里（鼠标划过开关 / 拖动中），
+      // 不挡住的话极简模式下「划过开关」就会排一帧 rAF，等于没降级。
+      if (still()) return;
+      if (!frame && alive && !document.hidden) frame = requestAnimationFrame(tick);
+    }
+    function tick(now) {
+      frame = 0;
+      // 面板一重画，这个开关的 DOM 就被摘掉了；不停掉的话 rAF 会一直空转（原组件用 destroy() 处理）
+      if (!alive || !sw.isConnected) { alive = false; return; }
+      var dt = last ? clamp((now - last) / 1000, 0.001, 0.033) : 1 / 60;
+      last = now;
+      var sub = dt / 4, transit = 0, i, p;
+      if (drag && drag.active) {
+        // 拖动时 theme 跟着位置连续变（sigmoid），不是等松手才切 —— 拖到中间像素就已经开始散
+        var pt = 1 / (1 + Math.exp(-(pos - 0.5) / 0.07));
+        theme = mix(theme, pt, 1 - Math.exp(-dt * 14));
+        phase = mix(phase, drag.base + clamp(pos) * DAY, 1 - Math.exp(-dt * 18));
+        speed *= Math.exp(-dt * 16);
+        transit = 0.5;
+      } else {
+        if (colorMove) {
+          p = clamp((now - colorMove.start) / colorMove.dur);
+          theme = mix(colorMove.from, Number(checked), p * p * (3 - 2 * p));
+          if (p === 1) colorMove = null;
+        }
+        if (lightMove) {
+          p = clamp((now - lightMove.start) / lightMove.dur);
+          phase = mix(lightMove.from, lightMove.to, 1 - Math.pow(1 - p, 3));
+          transit = Math.min(1, p * 8) * Math.pow(1 - p, 2.2);
+          if (p === 1) lightMove = null;
+        }
+        for (i = 0; i < 4; i++) { // 弹簧：位置追 checked
+          speed += ((Number(checked) - pos) * 224 - speed * 15.5) * sub;
+          pos += speed * sub;
+        }
+        if (Math.abs(pos - Number(checked)) < 1e-4 && Math.abs(speed) < 1e-3) { pos = Number(checked); speed = 0; }
+      }
+      // 滑块本身也有弹簧：快的时候被拉长，过头了被压扁
+      var goal = Math.min(0.18, Math.abs(speed) * 0.024);
+      for (i = 0; i < 4; i++) {
+        stretchSpeed += ((goal - stretch) * 420 - stretchSpeed * 24) * sub;
+        stretch += stretchSpeed * sub;
+      }
+      if (!goal && Math.abs(stretch) < 1e-4 && Math.abs(stretchSpeed) < 1e-3) stretch = stretchSpeed = 0;
+      var pressGoal = drag ? 1 : 0;
+      press = mix(press, pressGoal, 1 - Math.exp(-dt * (drag ? 30 : 21)));
+      if (Math.abs(press - pressGoal) < 1e-3) press = pressGoal;
+      agit = Math.max(drag && !drag.active ? 0.3 : 0, agit - dt * 7);
+      var box = knobBox(pos, stretch, press);
+      var live = pointer && now - pointer.at < 160 ? pointer : null;
+      var res = dots.advance(clamp(theme), agit, live, { x: box.x + box.width / 2, y: box.y + box.height / 2 }, dt);
+      render(box, res.scatter, transit);
+      if (res.moving || agit || pos !== Number(checked) || stretch || press !== pressGoal || colorMove || lightMove || (drag && drag.active)) requestFrame();
+      else last = 0;
+    }
+
+    // 状态落定：写 aria / 文案 / 通知外面（外面负责 HXTheme.set）
+    function change(next, trigger) {
+      var moved = next !== checked;
+      checked = next;
+      sw.setAttribute('aria-checked', String(checked));
+      sw.setAttribute('aria-label', checked ? '深浅：浅色' : '深浅：深色');
+      if (txt) txt.textContent = checked ? '浅色' : '深色';
+      if (still() || document.hidden) snap();
+      else {
+        var now = (window.performance || Date).now();
+        var clicking = trigger === 'click';
+        var rest = checked ? DAY : 0;
+        // 点击时让 phase 往前凑到整数圈：光带总是「顺着转一圈」，不会半路倒回去
+        var finalPhase = clicking ? Math.ceil(phase + 0.1 - rest) + rest : Math.round(phase - rest) + rest;
+        colorMove = { from: theme, start: now, dur: clicking ? (checked ? 100 : 70) : 140 };
+        lightMove = { from: phase, to: finalPhase, start: now + (clicking ? 10 : 0), dur: clicking ? 900 : 700 };
+        if (clicking) { press = Math.max(press, 0.65); agit = 0.8; dots.burst(1.1); }
+        requestFrame();
+      }
+      if (moved && typeof opts.onChange === 'function') opts.onChange(checked);
+    }
+
+    function pointOf(e) {
+      var r = sw.getBoundingClientRect(), sc = r.width / TW;
+      return { x: (e.clientX - r.left) / sc, y: (e.clientY - r.top) / sc };
+    }
+    sw.addEventListener('pointerdown', function (e) {
+      if (!e.isPrimary || e.button !== 0 || drag) return;
+      var local = pointOf(e);
+      drag = { id: e.pointerId, startX: local.x, startPos: pos, x: local.x, at: (window.performance || Date).now(), vel: 0, active: false, base: 0 };
+      try { sw.setPointerCapture(e.pointerId); } catch (er) { }
+      if (!still()) { agit = 0.3; dots.burst(0.35); requestFrame(); }
+    });
+    sw.addEventListener('pointermove', function (e) {
+      if (drag && e.pointerId !== drag.id) return;
+      var local = pointOf(e);
+      pointer = e.pointerType === 'touch' && !drag ? null : { x: local.x, y: local.y, at: (window.performance || Date).now() };
+      if (drag) {
+        var delta = local.x - drag.startX;
+        // 走 3px 才算拖动：不然「点一下」也会被当成拖，click 就没了
+        if (!drag.active && Math.abs(delta) > 3) {
+          drag.active = true;
+          drag.base = Math.round(phase - pos * DAY);
+          sw.setAttribute('data-dragging', '');
+          colorMove = lightMove = null;
+        }
+        if (drag.active) {
+          var raw = drag.startPos + delta / TRAVEL;
+          // 越界只给一点点（0.6 次方衰减），松手弹回来 —— 原组件的橡皮筋
+          var next = raw < 0 ? -Math.pow(-raw, 0.6) * 0.05 : raw > 1 ? 1 + Math.pow(raw - 1, 0.6) * 0.05 : raw;
+          var now = (window.performance || Date).now();
+          var el = Math.max(1, now - drag.at);
+          drag.vel = mix(drag.vel, (local.x - drag.x) / el, 0.5);
+          speed = mix(speed, (next - pos) * 1000 / el, 0.5);
+          drag.x = local.x; drag.at = now;
+          pos = next;
+          agit = Math.max(agit, clamp(Math.abs(drag.vel) * 1.6) * 0.9);
+          if (still()) { theme = Number(next >= 0.5); phase = drag.base + clamp(next) * DAY; dots.assign(theme, true); render(); }
+        }
+      }
+      requestFrame();
+    });
+    sw.addEventListener('pointerleave', function () { pointer = null; requestFrame(); });
+    function finish(e) {
+      if (!drag || e.pointerId !== drag.id) return;
+      var done = e.type === 'pointerup', d = drag;
+      drag = null;
+      if (e.pointerType === 'touch' || !done) pointer = null;
+      sw.removeAttribute('data-dragging');
+      if (!d.active) return;
+      // 拖过之后浏览器还会补一个 click，得挡掉，否则一次拖动会连切两下
+      suppress = true;
+      var fling = (window.performance || Date).now() - d.at <= 120 && Math.abs(d.vel) > 0.6;
+      var next = done ? (fling ? d.vel > 0 : pos >= 0.5) : checked;
+      change(next, done ? 'drag' : 'cancel');
+    }
+    var suppress = false;
+    sw.addEventListener('pointerup', finish);
+    sw.addEventListener('pointercancel', finish);
+    sw.addEventListener('lostpointercapture', finish);
+    sw.addEventListener('click', function (e) {
+      if (e.detail && suppress) { suppress = false; return; }
+      change(!checked, 'click');
+    });
+    // 键盘：role=switch 的 button 天然支持空格 / Enter（浏览器会发 click）
+
+    sw.setAttribute('aria-checked', String(checked));
+    sw.setAttribute('aria-label', checked ? '深浅：浅色' : '深浅：深色');
+    snap();
+    return { destroy: function () { alive = false; stop(); } };
+  }
+
+  return { mount: mount };
+})();
 function renderLookBody() {
   var s = HXTheme.get(), A = HXTheme.acc, B = HXTheme.bg, m = HXTheme.mode();
   // 省电模式当前是哪一档：null = 还没手工选过（默认极简）；'1' = 极简；'0' = 标准
@@ -2257,10 +2794,20 @@ function renderLookBody() {
     // 原来那句「正在设置：某某工具（只影响 XX，首页和其它工具不变）」已经不成立，必须撤掉。
     + '<p class="lk-note">全站统一：这里改一次，首页和所有工具都一样。</p>'
     // 深浅（2026-11-11 用户定）：去掉「自动」，只留 浅色 / 深色，默认深色
+    // 2026-11-15 用户要求把这两个分段按钮换成 LeiBox pixel-toggle 的像素日夜开关：
+    //   拖 / 点都能切，切的时候太阳 ↔ 月亮像素散开重组、光带绕滑块转一圈。
+    //   id="modeVal" 是给开关用的：开关切完要就地改这一行「浅色/深色」，
+    //   因为下面 HXTheme.onChange 那个守卫会跳过整块重画（不跳过的话动画刚起就被重画摘掉了）。
     + sec({
-      t: '深浅', v: val(s.mode === 'light' ? '浅色' : '深色'),
-      c: '<div class="seg">' + [['light', '浅色'], ['dark', '深色']].map(function (x) { return '<button type="button" data-mode="' + x[0] + '" aria-pressed="' + (s.mode === x[0]) + '">' + x[1] + '</button>'; }).join('') + '</div>',
-      tip: '深色适合教室投影和晚上，浅色在强光下更清楚。'
+      t: '深浅', v: '<span class="lk-val" id="modeVal">' + (s.mode === 'light' ? '浅色' : '深色') + '</span>',
+      c: '<div class="ptog" id="ptog" data-ptog="' + s.mode + '">'
+        + '<button type="button" class="ptog-sw" role="switch" aria-checked="' + (s.mode === 'light') + '" aria-label="深浅">'
+        + '<i class="ptog-knob" aria-hidden="true"></i>'
+        + '<canvas class="ptog-fx" aria-hidden="true"></canvas>'
+        + '</button>'
+        + '<span class="ptog-txt">' + (s.mode === 'light' ? '浅色' : '深色') + '</span>'
+        + '</div>',
+      tip: '拖动开关，或者直接点一下；切的时候像素会散开再重组。深色适合教室投影和晚上，浅色在强光下更清楚。'
     })
     + sec({
       t: '主题色', v: val(esc((A[s.acc] && A[s.acc].name) || s.acc)),
@@ -2327,7 +2874,22 @@ function renderLookBody() {
     + '<div class="lk-foot"><span>只把外观改回默认，不动账号和工具数据。</span>'
     + '<button class="btn link" id="lookReset" type="button">恢复默认外观</button></div>';
   $('look').innerHTML = html;
-  $('look').querySelectorAll('[data-mode]').forEach(function (b) { b.onclick = function () { HXTheme.set({ mode: b.dataset.mode }); }; });
+  // 深浅开关（2026-11-15 换成 LeiBox pixel-toggle）：不再用 [data-mode] 按钮，
+  // 改成挂一个实例。同步方式只有一条 —— 进面板时 checked = (HXTheme.get().mode === 'light')，
+  // 用户操作时回写 HXTheme.set({mode})；没加任何偏好键，页面在别处改了深浅，面板重开自然是对的。
+  var ptogEl = $('ptog');
+  if (ptogEl && HXPtog) {
+    HXPtog.mount(ptogEl, {
+      checked: HXTheme.mode() === 'light',
+      onChange: function (on) {
+        // 给 onChange 守卫打个时间戳：HXTheme.set 是同步回调，不拦住就会立刻 renderLook()，
+        // 刚挂上的开关连同它的 rAF 一起被 innerHTML 冲掉，用户看不到任何动画。
+        ptogAt = Date.now();
+        HXTheme.set({ mode: on ? 'light' : 'dark' });
+        var mv = $('modeVal'); if (mv) mv.textContent = on ? '浅色' : '深色';
+      }
+    });
+  }
   $('look').querySelectorAll('[data-acc]').forEach(function (b) { b.onclick = function () { HXTheme.set({ acc: b.dataset.acc }); }; });
   // 2026-11-13 加即时反馈：原来点背景没有任何提示，背景变化不明显时用户会觉得「点了没反应」。
   $('look').querySelectorAll('[data-bg]').forEach(function (b) {
@@ -2414,7 +2976,11 @@ function renderLookBody() {
 }
 // 拖透明度时不重画面板：手机上拖动滑块不会获得焦点，一重画滑块就被换掉、只能点不能拖
 var opAt = 0;
-HXTheme.onChange(function () { if ($('look').classList.contains('show') && document.activeElement !== $('op') && Date.now() - opAt > 800) renderLook(); });
+// 2026-11-15 深浅开关同理：HXTheme.set 是同步回调，一点开关就 renderLook() 会把开关整块换掉，
+// 动画一帧都播不出来（还会留下一堆 detach 掉的 rAF）。所以开关自己写的不重画，
+// 「浅色/深色」那行字由开关直接改（见 renderLookBody 里的 onChange）。
+var ptogAt = 0;
+HXTheme.onChange(function () { if ($('look').classList.contains('show') && document.activeElement !== $('op') && Date.now() - opAt > 800 && Date.now() - ptogAt > 900) renderLook(); });
 $('lookBtn').onclick = function (e) { e.stopPropagation(); togglePop('look');
   // 打开面板时顺手把云端相册拉一次（跨设备）：别的设备上传的图会自己补进「上传过的背景」，
   // 指纹一样（本机就是最新的）时它一个请求都不发。失败安静跳过，本地那份照旧用。
@@ -2646,7 +3212,14 @@ function grpWire(box) {
   box.querySelectorAll('[data-gdel2]').forEach(function (b) {
     b.onclick = async function () {
       if (!sure(b, '确认解除？')) return;
-      try { await HX.rpc('hx_class_group_del', { p_id: +b.dataset.gdel2 }); toast('已解除合班'); rosterBust(); await loadGroups(); } catch (e) { toast(e.message); }
+      /* 2026-11-15 用户：「点了删除没反应」。解除合班要等云端删一行，慢网下这一两秒
+         原来按钮毫无变化（连 disabled 都没有）。转圈 + 计时，失败把原因挂到按钮 title 上。 */
+      var tok = (window.HXBusy && b) ? HXBusy.begin(b, '正在解除…') : null;
+      if (!tok) b.disabled = true;
+      var err = null;
+      try { await HX.rpc('hx_class_group_del', { p_id: +b.dataset.gdel2 }); toast('已解除合班'); rosterBust(); await loadGroups(); }
+      catch (e) { toast(e.message); err = e && e.message ? e.message : String(e); }
+      finally { if (tok) HXBusy.end(tok, err); else b.disabled = false; }
     };
   });
   if (!E) return;
@@ -2659,9 +3232,12 @@ function grpWire(box) {
     E.name = $('gName').value.trim(); E.err = '';
     if (!E.name) E.err = '合班名字不能为空'; else if (E.ids.length < 2) E.err = '合班至少要选 2 个班';
     if (E.err) { sheetCls(); return; }
-    this.disabled = true;
+    /* 2026-11-15：保存合班要等云端写库，原来只变灰不换字。转圈 + 计时，失败原因走 E.err 留在面板红字里。 */
+    var b = this, tok = (window.HXBusy && b) ? HXBusy.begin(b, '正在保存…') : null;
+    if (!tok) b.disabled = true;
     try { await HX.rpc('hx_class_group_save', { p_id: E.id, p_name: E.name, p_class_ids: E.ids.slice() }); ST.grpEdit = null; toast('合班已保存'); rosterBust(); await loadGroups(); }
     catch (e) { E.err = e.message; sheetCls(); }
+    finally { if (tok) HXBusy.end(tok); else b.disabled = false; }
   };
 }
 /* 2026-11-12 班级归档（软删）+ 移交（一次性码）—— 面板里三块 UI 与数据：
@@ -2783,27 +3359,35 @@ function sheetCls() {
       var c = ST.classes.filter(function (x) { return x.id === +b.dataset.clsarch; })[0];
       if (!c) return;
       if (!sure(b, '确认归档？')) return; // 第一下变「确认归档？」，3 秒内再点才执行
-      b.disabled = true;
+      /* 2026-11-15：归档是一次云端写库，原来只变灰。转圈 + 计时，失败原因挂按钮 title。 */
+      var tok = (window.HXBusy && b) ? HXBusy.begin(b, '正在归档…') : null;
+      if (!tok) b.disabled = true;
+      var err = null;
       try {
         await HX.rpc('hx_class_archive', { p_class: c.id, p_on: true });
         ST.arch = undefined;                                   // 已归档列表要重读
         if (ST.xfer && ST.xfer.id === c.id) ST.xfer = null;    // 这个班正在展示移交码就撤掉
         toast('已归档，可在「已归档」里恢复');
         await loadClasses(true);
-      } catch (e) { toast(e.message); b.disabled = false; }
+      } catch (e) { toast(e.message); err = e && e.message ? e.message : String(e); }
+      finally { if (tok) HXBusy.end(tok, err); else b.disabled = false; }
     };
   });
   box.querySelectorAll('[data-clsxfer]').forEach(function (b) {
     b.onclick = async function () {
       var c = ST.classes.filter(function (x) { return x.id === +b.dataset.clsxfer; })[0];
       if (!c) return;
-      b.disabled = true;
+      /* 2026-11-15：拿移交码要等云端现算 6 位码，原来只变灰。转圈 + 计时。 */
+      var tok = (window.HXBusy && b) ? HXBusy.begin(b, '正在生成移交码…') : null;
+      if (!tok) b.disabled = true;
+      var err = null;
       try {
         var code = await HX.rpc('hx_class_transfer_new', { p_class: c.id });
         ST.xfer = { id: c.id, name: c.name, code: code };
         sheetCls();                                            // 就地展开移交码块
         var inp = $('xferCode'); if (inp) { inp.focus(); inp.select(); }
-      } catch (e) { toast(e.message); b.disabled = false; }
+      } catch (e) { toast(e.message); err = e && e.message ? e.message : String(e); }
+      finally { if (tok) HXBusy.end(tok, err); else b.disabled = false; }
     };
   });
   box.querySelectorAll('[data-xfercopy]').forEach(function (b) {
@@ -2823,30 +3407,45 @@ function sheetCls() {
     b.onclick = async function () {
       var inp = $('takeCode'), code = inp ? inp.value.trim().toUpperCase() : '';
       if (!code) { toast('请先填对方给的 6 位移交码'); return; }
-      b.disabled = true;
+      /* 2026-11-15：接收移交要等云端校验 + 换班，原来只变灰。转圈 + 计时。 */
+      var tok = (window.HXBusy && b) ? HXBusy.begin(b, '正在接收…') : null;
+      if (!tok) b.disabled = true;
+      var err = null;
       try {
         var name = await HX.rpc('hx_class_transfer_take', { p_code: code });
         ST.arch = undefined; ST.xfer = null;
         toast('已接收：' + name);
         await loadClasses(true);
-      } catch (e) { toast(e.message); b.disabled = false; }      // 失败原样显示服务端报错
+      } catch (e) { toast(e.message); err = e && e.message ? e.message : String(e); }      // 失败原样显示服务端报错
+      finally { if (tok) HXBusy.end(tok, err); else b.disabled = false; }
     };
   });
   box.querySelectorAll('[data-clsrestore]').forEach(function (b) {
     b.onclick = async function () {
-      b.disabled = true;
+      /* 2026-11-15：恢复归档也是云端写库，原来只变灰。转圈 + 计时。 */
+      var tok = (window.HXBusy && b) ? HXBusy.begin(b, '正在恢复…') : null;
+      if (!tok) b.disabled = true;
+      var err = null;
       try {
         await HX.rpc('hx_class_archive', { p_class: +b.dataset.clsrestore, p_on: false });
         ST.arch = undefined;
         toast('已恢复，回到班级列表');
         await loadClasses(true);
-      } catch (e) { toast(e.message); b.disabled = false; }
+      } catch (e) { toast(e.message); err = e && e.message ? e.message : String(e); }
+      finally { if (tok) HXBusy.end(tok, err); else b.disabled = false; }
     };
   });
   box.querySelectorAll('[data-gdel]').forEach(function (b) {
     b.onclick = async function () {
       if (!sure(b, '确认删除？')) return;
-      try { var r = await HX.rpc('hx_student_remove', { p_id: +b.dataset.gdel }); toast(r === 'deleted' ? '已删除' : '已删除，账号停用'); await loadClasses(true); } catch (e) { toast(e.message); }
+      /* 2026-11-15 用户：「点了删除没反应」。删学生要等云端删一行，原来按钮毫无变化
+         （连 disabled 都没有）。转圈 + 计时，失败把原因挂到按钮 title 上。 */
+      var tok = (window.HXBusy && b) ? HXBusy.begin(b, '正在删除…') : null;
+      if (!tok) b.disabled = true;
+      var err = null;
+      try { var r = await HX.rpc('hx_student_remove', { p_id: +b.dataset.gdel }); toast(r === 'deleted' ? '已删除' : '已删除，账号停用'); await loadClasses(true); }
+      catch (e) { toast(e.message); err = e && e.message ? e.message : String(e); }
+      finally { if (tok) HXBusy.end(tok, err); else b.disabled = false; }
     };
   });
   if (ST.open) renderStu(ST.open);
@@ -2864,25 +3463,30 @@ function sheetCls() {
     $('rNo').onclick = function () { ST.rosters = null; sheetCls(); };
     $('rImp').onclick = async function () {
       R.forEach(function (x, k) { if (x.list) { x.cls = box.querySelector('[data-rc="' + k + '"]').value.trim(); x.term = box.querySelector('[data-rt="' + k + '"]').value.trim(); } });
-      $('rImp').disabled = true;
+      /* 2026-11-15：导入考勤表要逐班写库（还会顺手开号），班里一多能等好几秒，原来只变灰。
+         转圈 + 计时；每个文件失败的红色原因照旧留在面板里（left 数组），不额外覆盖。 */
+      var b = $('rImp'), tok = (window.HXBusy && b) ? HXBusy.begin(b, '正在导入…') : null;
+      if (!tok) b.disabled = true;
       var ok = 0, n = 0, left = [], made0 = 0, madeFail = 0;
-      for (var k = 0; k < R.length; k++) {
-        var x = R[k]; if (!x.list) { left.push(x); continue; }
-        try {
-          if (!x.cls) throw new Error('请填写班级');
-          // 2026-11-06：导入考勤表现在会顺手把没账号的学生开掉（hx_import_class 内部调 hx_student_signup），
-          // 已注册的一个都不动。返回值里 created/bound/failed 就是开号的结果。
-          var r = await HX.rpc('hx_import_class', { p_name: x.cls, p_term: x.term, p_rows: x.list }); delete ST.studs[r.class]; ok++; n += r.count; made0 += (r.created || 0);
-          if (r.failed) madeFail += r.failed;
-        } catch (er) { x.err = '导入失败：' + er.message; left.push(x); }
-      }
-      ST.rosters = left.length ? left : null; // 失败的留在面板里，写着原因，改了可以再导
-      // 说清楚「开了几个号」：老师的核心疑问是「学生能不能直接登录了」
-      toast((ok ? '已导入 ' + ok + ' 个班、' + n + ' 人' : '没有导入成功')
-        + (made0 ? '，新开号 ' + made0 + ' 个（密码就是学号）' : '')
-        + (madeFail ? '，' + madeFail + ' 个开号失败' : '')
-        + (left.length ? '；' + left.length + ' 个文件失败，原因见下面' : ''));
-      await loadClasses(true);
+      try {
+        for (var k = 0; k < R.length; k++) {
+          var x = R[k]; if (!x.list) { left.push(x); continue; }
+          try {
+            if (!x.cls) throw new Error('请填写班级');
+            // 2026-11-06：导入考勤表现在会顺手把没账号的学生开掉（hx_import_class 内部调 hx_student_signup），
+            // 已注册的一个都不动。返回值里 created/bound/failed 就是开号的结果。
+            var r = await HX.rpc('hx_import_class', { p_name: x.cls, p_term: x.term, p_rows: x.list }); delete ST.studs[r.class]; ok++; n += r.count; made0 += (r.created || 0);
+            if (r.failed) madeFail += r.failed;
+          } catch (er) { x.err = '导入失败：' + er.message; left.push(x); }
+        }
+        ST.rosters = left.length ? left : null; // 失败的留在面板里，写着原因，改了可以再导
+        // 说清楚「开了几个号」：老师的核心疑问是「学生能不能直接登录了」
+        toast((ok ? '已导入 ' + ok + ' 个班、' + n + ' 人' : '没有导入成功')
+          + (made0 ? '，新开号 ' + made0 + ' 个（密码就是学号）' : '')
+          + (madeFail ? '，' + madeFail + ' 个开号失败' : '')
+          + (left.length ? '；' + left.length + ' 个文件失败，原因见下面' : ''));
+        await loadClasses(true);
+      } finally { if (tok) HXBusy.end(tok); else b.disabled = false; }
     };
   }
   box.querySelectorAll('[data-tool]').forEach(function (b) {
@@ -3163,7 +3767,11 @@ function sheetCode(role) {
   box.innerHTML = html;
   var made = function (code, label) { ST.aCode = { code: code, role: role, label: label }; box.scrollTop = 0; codesChanged(); };
   if ($('cGo')) $('cGo').onclick = async function () {
-    var b = $('cGo'); b.disabled = true;
+    /* 2026-11-15 用户：「按钮点了没反馈，不知道啥时候给结果」。
+       批量生成教师码是**逐个 rpc 串行**（最多 20 次），慢的时候要好几秒；
+       原来只有按钮变灰、字不变，管理员会以为没点上而连点，结果多出一堆码。 */
+    var b = $('cGo'), tok = (window.HXBusy && b) ? HXBusy.begin(b, '正在生成…') : null;
+    if (!tok) b.disabled = true;
     try {
       if (g) {
         var gn = $('cNote').value.trim(), u = +$('cUses').value; if (!(u >= 1 && u <= 200 && u % 1 === 0)) throw new Error('可用次数填 1～200');
@@ -3175,7 +3783,8 @@ function sheetCode(role) {
         made(first, '教师码 × ' + n + ' · 一码一用，都在下面列表里');
       }
       else { var o = $('cCls').selectedOptions[0]; ST.sCls = +o.value; made(await HX.rpc('hx_new_code', { p_role: 'student', p_class: +o.value, p_note: '' }), o.textContent + ' · 课堂码 · 4 小时有效'); }
-    } catch (e) { toast(e.message); b.disabled = false; }
+    } catch (e) { toast(e.message); if (tok) { HXBusy.end(tok, e && e.message); } else b.disabled = false; }
+    finally { if (tok) HXBusy.end(tok); } // 2026-11-15：成功时 made() 会重画面板，这里补一次 end 清掉计时器（幂等，失败已在 catch 里 end 过）
   };
   if ($('aShare')) $('aShare').onclick = function () { shareCode(A.code, A.role); };
   box.querySelectorAll('[data-share]').forEach(function (b) { b.onclick = function () { shareCode(b.dataset.share, b.dataset.role); }; });
@@ -3353,9 +3962,14 @@ function renderStu(cid) {
     sheetCls(); renderMgmt('none');
   };
   var save = async function (tr) {
-    var b = tr.querySelector('[data-save]'), id = tr.dataset.sid ? +tr.dataset.sid : null; b.disabled = true;
+    /* 2026-11-15：保存一个学生是一次 rpc；成功后名单整块重画，失败原来只 toast。
+       现在按钮转圈，失败把原因同时挂到按钮 title 上（鼠标停上去还能看到）。 */
+    var b = tr.querySelector('[data-save]'), id = tr.dataset.sid ? +tr.dataset.sid : null;
+    var tok = (window.HXBusy && b) ? HXBusy.begin(b, '正在保存…') : null;
+    if (!tok) b.disabled = true;
     try { await HX.rpc('hx_student_save', { p_class: cid, p_id: id, p_no: tr.querySelector('[data-f="no"]').value, p_name: tr.querySelector('[data-f="nm"]').value }); await done(id ? '已保存' : '已添加'); }
-    catch (e) { toast(e.message); b.disabled = false; }
+    catch (e) { toast(e.message); if (tok) HXBusy.end(tok, e && e.message); else b.disabled = false; }
+    finally { if (tok) HXBusy.end(tok); } // 2026-11-15：成功时 done() 重画名单会摘掉按钮，这里补一次 end 清计时器（幂等）
   };
   el.querySelectorAll('[data-save]').forEach(function (b) { b.onclick = function () { save(b.closest('tr')); }; });
   el.querySelectorAll('.ti').forEach(function (i) { i.onkeydown = function (e) { if (e.key === 'Enter') save(i.closest('tr')); else if (e.key === 'Escape' && ST.stuEdit) { e.preventDefault(); e.stopPropagation(); ST.stuEdit = null; renderStu(cid); } }; });
@@ -3364,10 +3978,21 @@ function renderStu(cid) {
   el.querySelectorAll('[data-del]').forEach(function (b) {
     b.onclick = async function () {
       if (!sure(b, '确认删除？')) return;
-      try { var r = await HX.rpc('hx_student_remove', { p_id: +b.dataset.del }); await done(r === 'deleted' ? '已删除' : '已标为退学，记录保留'); } catch (e) { toast(e.message); }
+      /* 2026-11-15 用户原话：「点了删除没反应就跟卡了一样」。删学生要等云端，成功后整块名单重画；
+         失败原来只有 toast。按钮转圈 + 失败原因留在按钮 title 上。 */
+      var tok = (window.HXBusy && b) ? HXBusy.begin(b, '正在删除…') : null;
+      if (!tok) b.disabled = true;
+      try { var r = await HX.rpc('hx_student_remove', { p_id: +b.dataset.del }); await done(r === 'deleted' ? '已删除' : '已标为退学，记录保留'); }
+      catch (e) { toast(e.message); if (tok) HXBusy.end(tok, e && e.message); else b.disabled = false; }
+      finally { if (tok) HXBusy.end(tok); } // 2026-11-15：成功时 done() 重画名单会摘掉按钮，补一次 end 清计时器（幂等）
     };
   });
-  el.querySelectorAll('[data-back]').forEach(function (b) { b.onclick = async function () { try { await HX.rpc('hx_student_restore', { p_id: +b.dataset.back }); await done('已恢复'); } catch (e) { toast(e.message); } }; });
+  el.querySelectorAll('[data-back]').forEach(function (b) { b.onclick = async function () {
+    var tok = (window.HXBusy && b) ? HXBusy.begin(b, '正在恢复…') : null; if (!tok) b.disabled = true;
+    try { await HX.rpc('hx_student_restore', { p_id: +b.dataset.back }); await done('已恢复'); }
+    catch (e) { toast(e.message); if (tok) HXBusy.end(tok, e && e.message); else b.disabled = false; }
+    finally { if (tok) HXBusy.end(tok); } // 2026-11-15：成功时 done() 重画名单会摘掉按钮，补一次 end 清计时器（幂等）
+  }; });
   el.querySelectorAll('[data-block]').forEach(function (b) { b.onclick = function () { openBlockDlg(cid, +b.dataset.block); }; });
 }
 /* 2026-11-14 内容封禁：拉某班封禁清单（hx_content_blocks），回来就地重画名单（只补「已封禁」角标，不打断编辑/选中态）。 */
@@ -3394,7 +4019,9 @@ function openBlockDlg(cid, sid) {
   $('bkBody').querySelectorAll('[data-bkclose]').forEach(function (b) { b.onclick = function () { d.close(); }; });
   $('bkSave').onclick = async function () {
     var av = $('bkAv').checked, bg = $('bkBg').checked, reason = $('bkReason').value.trim();
-    this.disabled = true;
+    /* 2026-11-15：封禁/解封要多存两行（头像、背景各一次），给按钮转圈，别让老师以为点空了 */
+    var bt = this, tok = (window.HXBusy && bt) ? HXBusy.begin(bt, '正在保存…') : null;
+    if (!tok) bt.disabled = true;
     try {
       // 两个字段独立提交：变化了才调（avatar 和 bg 各一把开关，改哪个推哪个）
       var avChanged = av !== !!b.avatar_blocked, bgChanged = bg !== !!b.bg_blocked;
@@ -3403,7 +4030,8 @@ function openBlockDlg(cid, sid) {
       await loadBlocks(cid);
       d.close();
       toast(av || bg ? '已封禁，全站不再显示对应信息' : '已解除封禁');
-    } catch (e) { toast(e.message); this.disabled = false; }
+    } catch (e) { toast(e.message); if (tok) HXBusy.end(tok, e && e.message); else bt.disabled = false; }
+    finally { if (tok) HXBusy.end(tok); } // 2026-11-15：封禁弹窗关闭后按钮仍在文档里（不是重画摘掉的），必须 end 还原并清计时器
   };
 }
 $('blockDlg').addEventListener('close', function () { ST.block = null; });
@@ -3460,7 +4088,7 @@ function sheetSubj() {
     }).join('') : '<p class="empty">还没有科目：点右上角「＋ 新建科目」建第一个。</p>') + '</div>';
   $('sjAdd').onclick = function () { subjEdit(null); };
   box.querySelectorAll('[data-sjren]').forEach(function (b) { b.onclick = function () { subjEdit(+b.dataset.sjren); }; });
-  box.querySelectorAll('[data-sjdel]').forEach(function (b) { b.onclick = function () { subjDel(+b.dataset.sjdel); }; });
+  box.querySelectorAll('[data-sjdel]').forEach(function (b) { b.onclick = function () { subjDel(+b.dataset.sjdel, b); }; });
 }
 function subjEdit(id) {
   var s = id == null ? null : (ST.subjects || []).filter(function (x) { return +x.id === id; })[0];
@@ -3477,7 +4105,9 @@ function subjEdit(id) {
   $('sjSave').onclick = async function () {
     var name = $('sjName').value.trim();
     if (!name) { $('sjErr').textContent = '请填科目名字'; $('sjErr').style.display = ''; return; }
-    $('sjSave').disabled = true; $('sjErr').style.display = 'none';
+    /* 2026-11-15：建科目时还会顺手建刷题空题库（两次 rpc），原来只有按钮变灰 */
+    var sb = $('sjSave'), stok = (window.HXBusy && sb) ? HXBusy.begin(sb, '正在保存…') : null;
+    if (!stok) sb.disabled = true; $('sjErr').style.display = 'none';
     try {
       var key = s ? s.key : subjKey(name);
       var r = await HX.rpc('hx_exam_subject_save', { p_key: key, p_name: name, p_kind: s ? s.kind : 'theory', p_quiz_bank: s && s.quiz_bank ? s.quiz_bank : key });
@@ -3489,19 +4119,25 @@ function subjEdit(id) {
       await loadSubjects(true);
       sheetSubj();
       toast(s ? '已保存' : '已建科目「' + name + '」');
-    } catch (e) { $('sjSave').disabled = false; $('sjErr').textContent = '失败：' + e.message; $('sjErr').style.display = ''; }
+    } catch (e) { if (stok) HXBusy.end(stok, e && e.message); else $('sjSave').disabled = false; $('sjErr').textContent = '失败：' + e.message; $('sjErr').style.display = ''; }
+    finally { if (stok) HXBusy.end(stok); } // 2026-11-15：成功时 sheetSubj() 重画面板会摘掉按钮，补一次 end 清计时器（幂等）
   };
 }
-function subjDel(id) {
+function subjDel(id, btn) {
   var s = (ST.subjects || []).filter(function (x) { return +x.id === id; })[0];
   if (!s) return;
   ask('删除科目', '删除「' + s.name + '」？它下面的资料、题池会一起删掉；已经发布到刷题的题不受影响。', '删除').then(function (ok) {
     if (!ok) return;
+    /* 2026-11-15 用户：「点了删除没反应」。删科目要连删云端资料文件（每条一个 DELETE），
+       可能会等好几秒；按钮转圈，失败时按钮带一句原因（鼠标停上去能看到）。 */
+    var tok = (window.HXBusy && btn) ? HXBusy.begin(btn, '正在删除…') : null;
+    if (!tok && btn) btn.disabled = true;
     return HX.rpc('hx_exam_subject_del', { p_id: id }).then(function (r) {
       ((r && r.paths) || []).forEach(function (p) { try { HX.api('/storage/v1/object/exam-material/' + String(p).replace(/^\/+/, ''), { method: 'DELETE' }); } catch (e) { } });
       toast('已删除科目');
       loadSubjects(true);
-    });
+    }).then(function () { if (tok) HXBusy.end(tok); else if (btn) btn.disabled = false; },
+      function (e) { if (tok) HXBusy.end(tok, e && e.message); else if (btn) btn.disabled = false; throw e; });
   }).catch(function (e) { toast('删不了：' + e.message); });
 }
 var xlsxP = null;
@@ -3815,7 +4451,11 @@ $('lseg').querySelectorAll('button').forEach(function (b) { b.onclick = function
 $('rf').onsubmit = async function (e) {
   e.preventDefault();
   var go = $('rgo'), msg = $('rmsg'), R = ST.reg, v = function (id) { return $(id) ? $(id).value.trim() : ''; };
-  msg.textContent = ''; go.disabled = true;
+  /* 2026-11-15 用户：「点了没反馈，不知道啥时候给结果」。注册这一趟要走 4～5 个请求
+     （查码 → 查重 → 建账号 → 查身份 → 开通），全程好几秒；原来按钮只变灰、字不动。
+     这里只换字（登录那边本来就是「正在连接…」，保持一致），失败原因照旧写在 #rmsg。 */
+  var goLabel = go.textContent;
+  msg.textContent = ''; go.disabled = true; go.textContent = (ST.lm === 'reg' ? '正在注册…' : '正在处理…');
   try {
     if (!R) {
       var code = v('rcode').toUpperCase(); if (!code) throw new Error('请填写邀请码');
@@ -3866,7 +4506,7 @@ $('rf').onsubmit = async function (e) {
     }
     $('login').close(); toast(r === 'teacher' ? '已开通教师账号' : '已开通，欢迎 ' + nm); reloadTools(); refresh();
   } catch (err) {
-    msg.textContent = err.message; go.disabled = false;
+    msg.textContent = err.message; go.disabled = false; go.textContent = goLabel;
     if (ST.lm === 'reg' && HX.in()) { ST.lm = 'act'; ST.actFor = HX.uid(); renderLogin(); $('rmsg').textContent = '账号已建好，但开通没成功：' + err.message; refresh(); } // 账号建了但开通失败：改成开通窗口重试
   }
 };

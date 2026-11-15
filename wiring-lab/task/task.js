@@ -362,7 +362,7 @@ async function publish() {
   const date = $('#fDate').value || null;
   // 日期优先用所选课次自己的：两边不一致时以「小组加分」那一课为准，分数不会落到别的时间轴上
   const lessonDate = (picked && picked.date) || date;
-  ST.busy = true; $('#fGo').disabled = true; $('#fMsg').textContent = '发布中…';
+  ST.busy = true; $('#fGo').disabled = true; btnWait($('#fGo'), '发布中…'); $('#fMsg').textContent = '发布中…';
   try {
     const r = await HX.rpc('wire_task_open', {
       p_class: cls, p_circuit: cir, p_title: title, p_note: note, p_lesson_no: no, p_lesson_date: lessonDate,
@@ -380,8 +380,15 @@ async function publish() {
     const live = $('#live'); if (live) live.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   } catch (e) {
     $('#fMsg').innerHTML = '<span style="color:var(--bad)">' + esc(e.message) + '</span>';
-  } finally { ST.busy = false; $('#fGo').disabled = false; }
+  } finally { ST.busy = false; $('#fGo').disabled = false; btnDone($('#fGo')); }
 }
+
+/* 2026-11-15 用户：「按钮点了没反馈，不知道啥时候给结果」。
+   这一页是 /wiring-lab/task/ 的独立目录页，没有引 hx-theme.js（HXBusy 不在这里），
+   所以只做最小的「换字」：按钮变灰的同时把字也换掉，失败时换回原字。
+   不改任何请求顺序，也不碰按钮以外的东西 —— 结束/作废要等云端重算名次，这一两秒最容易被当成卡死。 */
+function btnWait(btn, text) { if (!btn) return; btn.dataset.hxOld = btn.innerHTML; btn.textContent = text; }
+function btnDone(btn) { if (!btn || btn.dataset.hxOld == null) return; btn.innerHTML = btn.dataset.hxOld; delete btn.dataset.hxOld; }
 
 // 当前任务面板（轮询只重画这一块）
 // 2026-11-12：整块做成可折叠 —— 进行中默认展开；已结束/已冻结默认收起（和「历史任务」一个样子），
@@ -496,7 +503,7 @@ function paintLive() {
   const c1 = $('#lvClose'), c2 = $('#lvVoid');
   if (c1) c1.onclick = async () => {
     if (!confirm('结束这个任务？\n\n结束时会按当前名次算一次分并冻结，之后成绩不再变。')) return;
-    c1.disabled = true;
+    c1.disabled = true; btnWait(c1, '结束中…');
     try {
       /* ★ 顺序很重要（2026-11-12）：先把服务端返回的看板存下来（要拿 lesson_no 拼提示），
          再 reloadTasks + pickCurrent —— pickCurrent 会清空 ST.tip 和 ST.board，
@@ -515,11 +522,11 @@ function paintLive() {
         ? '分数已冻结，并自动写入「小组加分」第 ' + nt.lesson_no + ' 次课的「' + jfCol(nt.circuit) + '」列（不用导出 CSV）。'
         : '分数已冻结。这个任务没填课次，分数进不了「小组加分」，建议作废重发。';
       paintLive(); paintHist();
-    } catch (e) { alert('结束失败：' + e.message); c1.disabled = false; }
+    } catch (e) { alert('结束失败：' + e.message); c1.disabled = false; btnDone(c1); }
   };
   if (c2) c2.onclick = async () => {
     if (!confirm('作废这个任务？\n\n作废后不计分（记录保留），适合发错班/发错题。')) return;
-    c2.disabled = true;
+    c2.disabled = true; btnWait(c2, '作废中…');
     try {
       await HX.rpc('wire_task_void', { p_task: t.id });
       await reloadTasks();
@@ -528,7 +535,7 @@ function paintLive() {
       ST.view = null;
       await pickCurrent();   // 作废的这条已经不算「当前任务」，直接落到历史里
       paintLive(); paintHist();
-    } catch (e) { alert('作废失败：' + e.message); c2.disabled = false; }
+    } catch (e) { alert('作废失败：' + e.message); c2.disabled = false; btnDone(c2); }
   };
   /* 重新拉起（2026-11-11 用户要求「让没刷的人补刷，再关闭」）：closed → open，
      已完成的旧成绩保留（不删数据），没做的学生补排位自动记上；
@@ -537,7 +544,7 @@ function paintLive() {
   const c3 = $('#lvReopen');
   if (c3) c3.onclick = async () => {
     if (!confirm('重新拉起这个任务？\n\n重开后任务回到「进行中」，没完成的学生可以补做（已完成的旧成绩保留）。\n再次「结束任务」时会按最新名次重新冻结得分：如果补做的同学用时更短，\n前面的人完成率可能掉档（100%→80%），这是排位规则本身。')) return;
-    c3.disabled = true;
+    c3.disabled = true; btnWait(c3, '重新拉起中…');
     try {
       await HX.rpc('wire_task_reopen', { p_task: t.id });
       await reloadTasks();
@@ -548,7 +555,7 @@ function paintLive() {
       syncPoll();
       ST.tip = '任务已重新拉起：没完成的学生去排位就自动补记，都补完了再点「结束任务」重新冻结得分。';
       paintLive(); paintHist();
-    } catch (e) { alert('重新拉起失败：' + e.message); c3.disabled = false; }
+    } catch (e) { alert('重新拉起失败：' + e.message); c3.disabled = false; btnDone(c3); }
   };
 }
 
@@ -604,6 +611,7 @@ function paintHist() {
   box.querySelectorAll('[data-look]').forEach(btn => btn.onclick = async () => {
     /* 「看这份」= 回看模式：ST.view 指向它，ST.cur（进行中的任务）不受影响。
        原来是把 ST.cur 直接改掉，等于把一条已结束的任务冒充成「当前任务」。 */
+    btnWait(btn, '读取中…');
     ST.view = +btn.dataset.look;
     ST.tip = '';
     await refreshBoard();
@@ -616,7 +624,7 @@ function paintHist() {
   box.querySelectorAll('[data-reopen]').forEach(btn => btn.onclick = async () => {
     const id = +btn.dataset.reopen;
     if (!confirm('重新拉起这个任务？\n\n重开后任务回到「进行中」，没完成的学生可以补做（已完成的旧成绩保留）。\n再次「结束任务」时会按最新名次重新冻结得分：如果补做的同学用时更短，\n前面的人完成率可能掉档（100%→80%），这是排位规则本身。')) return;
-    btn.disabled = true;
+    btn.disabled = true; btnWait(btn, '重新拉起中…');
     try {
       await HX.rpc('wire_task_reopen', { p_task: id });
       await reloadTasks();
@@ -627,7 +635,7 @@ function paintHist() {
       ST.liveOpen = null;
       paintLive(); paintHist();
       $('#live').scrollIntoView({ behavior: 'smooth', block: 'start' });
-    } catch (e) { alert('重新拉起失败：' + e.message); btn.disabled = false; }
+    } catch (e) { alert('重新拉起失败：' + e.message); btn.disabled = false; btnDone(btn); }
   });
 }
 

@@ -5796,8 +5796,12 @@ function restoreDroppedToHome(cls) {
     var username = $('#switchUsername').value.trim(), password = $('#switchPassword').value, msg = $('#switchAccountMsg'), submit = $('#btnSwitchSubmit');
     if (!username || !password) { msg.textContent = '请选择或填写账号，并输入密码。'; msg.hidden = false; return; }
     submit.disabled = true; msg.hidden = true;
+    /* 2026-11-15 用户：「按钮点了没反馈，不知道啥时候给结果」。切账号要先 flush 本机没同步的改动、
+       再走一次登录，两步都是网络，慢的时候一两秒；原来只有按钮变灰，弹窗里一点动静都没有。
+       只换按钮上的字（不引入新的加载组件），失败仍在 #switchAccountMsg 里显示原因。 */
+    var oldLabel = submit.textContent; submit.textContent = '正在切换…';
     var ready = CLOUD && CLOUD.flush ? CLOUD.flush() : Promise.resolve();
-    ready.then(function () { return CLOUD.login(username, password); }).then(function () { dlgAccountSwitch.close(); flash('已切换到账号：' + username, true); }).catch(function (e) { msg.textContent = '切换失败：' + (e && e.message ? e.message : e); msg.hidden = false; }).finally(function () { submit.disabled = false; });
+    ready.then(function () { return CLOUD.login(username, password); }).then(function () { dlgAccountSwitch.close(); flash('已切换到账号：' + username, true); }).catch(function (e) { msg.textContent = '切换失败：' + (e && e.message ? e.message : e); msg.hidden = false; }).finally(function () { submit.disabled = false; submit.textContent = oldLabel; });
   }
 
   /* <dialog> 关掉之后要立刻再撑开（校验没过、保存失败都要留在这一页）。
@@ -5862,8 +5866,12 @@ function restoreDroppedToHome(cls) {
       danger: true
     });
     if (!out) return;
+    /* 2026-11-15：退出要先 flush 本机改动再注销，两步网络，原来点完弹窗里毫无动静。
+       只换按钮上的字；失败把原因弹一句 flash，别再像以前那样静默吞掉。 */
+    var btn = $('#btnSwitchOther'), oldLabel = btn ? btn.textContent : '';
+    if (btn) { btn.textContent = '正在退出…'; btn.disabled = true; }
     var ready = CLOUD && CLOUD.flush ? CLOUD.flush() : Promise.resolve();
-    ready.then(function () { return CLOUD.signOut(); });
+    ready.then(function () { return CLOUD.signOut(); }).catch(function (e) { if (btn) { btn.textContent = oldLabel; btn.disabled = false; } flash('退出没成功：' + (e && e.message ? e.message : e)); });
   };
 
   var syncEditBlocked=true;
