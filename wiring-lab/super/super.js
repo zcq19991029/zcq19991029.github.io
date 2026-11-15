@@ -1489,10 +1489,46 @@
     }
   }
 
-  /* 一根线：落位中按弧线画（发光大一点），落完是朴素折线 + 段级连通底光（practice.js:747-766 同一套） */
+  /* 一根线：落位中按弧线画（发光大一点），落完是朴素折线 + 段级连通底光（practice.js:747-766 同一套）。
+     2026-11-15 用户报「有的线要等后面线连完才会亮，大部分在并联交点」，选方案 B：
+     不再「每根线连上就亮」，而是按**等电位网是否接完整**亮——一个标准网（比如星三角的 W2 星点
+     KM2.b0/KM3.t0/M.t3）的所有端子都连进同一个连通块了，这一整块才「通电亮起」；还没接全的块压暗。
+     这样并联交点处那根线会等整个网连完才亮，正是用户要的「通电」语义，而不是线一落就亮。 */
   function drawWireLayer(t) {
     syncRoutes();
     const rv = errKeys && errKeys.size;
+
+    /* 算「哪些连通块已经完整接通某个标准网」：
+       netsOf(wires) 用并查集把已连线合并成连通块；再对照 NETS 的每个网，看该网的全部端子
+       是否落在同一个连通块里（和 progress()/judge 里 inOne 同一口径）。完整的块记进 liveRoots。
+       结果缓存到 termLive（端子 → 是否已通电），避免每根线每帧都重跑并查集。 */
+    let termLive = null;                       // null = 不暗化（查错态 / 算不出 / 无网表）
+    if (!rv && W && NETS) {
+      try {
+        const nets = W.netsOf(wires), where = {};
+        nets.forEach((grp, i) => grp.forEach(t => { where[t] = i; }));
+        const liveRoots = new Set();
+        Object.keys(NETS).forEach(n => {
+          const want = NETS[n] || [];
+          if (want.length < 2) return;                 // 单端子网（悬空）不算「要连的电位」
+          const i = where[want[0]];
+          if (i !== undefined && want.every(t => where[t] === i)) liveRoots.add(i);
+        });
+        termLive = {};
+        nets.forEach((grp, i) => grp.forEach(t => { termLive[t] = liveRoots.has(i); }));
+      } catch (e) { termLive = null; }                // 算不出来就退回「都亮」，别让画面卡死
+    }
+    const liveOf = w => termLive === null ? true : !!termLive[w.a];
+
+    // 第一趟：所有线的底光（只画「已完整接通」的块里的线，暗的块不铺光）
+    wires.forEach(w => {
+      if (w.born != null || !w.pts) return;
+      if (rv) return;
+      if (!liveOf(w)) return;
+      wireLit(w.pts, w.color || wireColor(w.a));
+    });
+    // 第二趟：描边 + 实体。已接通的块正常画；没接全的块压暗（alpha 0.28），
+    //   让它看起来是「还没通电」，而不是「线没画对」。落位动画（born）仍按弧线亮一下。
     wires.forEach(w => {
       const pts = w.pts;
       if (!pts) return;
@@ -1512,9 +1548,11 @@
         w.born = null;                       // 落完了，以后按普通折线画
       }
       if (rv) { reviewWire(w, t); return; }  // 查错只报红：错线红闪、其余压暗（不泄答案、不画绿）
-      wireLit(pts, col);                     // 底光画在导线下面（practice.js:763 的画序）
+      const on = liveOf(w);
+      if (!on) g.globalAlpha = 0.28;         // 没接全的网：整块压暗（线还在，只是不「通电」）
       poly(pts, WEDGE(), wireW + 2);         // 导线描边：主题的 C.wireEdge（parts.js:179 同一枚令牌）
       poly(pts, col, wireW);
+      if (!on) g.globalAlpha = 1;
     });
     if (arm) drawCable(t);
     drawEditHandles();

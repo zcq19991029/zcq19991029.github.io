@@ -14,16 +14,16 @@
      要登录时调 window.HXPortal.login()；被单独打开时 hx-theme.js 会跳回这里（见 hx-theme.js 的 data-tool）。
      账号：Supabase 华夏工具项目，localStorage paike-session 和各工具共用；身份由数据库 hx_me() 决定。
      脚本里不用反引号模板字符串（本机测试时整页当字符串注入到线上同源页面里）。 -->
-<link rel="stylesheet" href="hx-theme.css?v=55f2d94">
-<script src="hx-theme.js?v=55f2d94"></script>
+<link rel="stylesheet" href="hx-theme.css?v=e0d2a5a">
+<script src="hx-theme.js?v=e0d2a5a"></script>
 <script src="rank-bg.js" defer></script><!-- 排位身份卡预设（2026-11-12）：总入口外观面板当场弹窗设置身份卡背景，预设数据在总入口也能用 -->
 <!-- 首页卡片上的像素小生物：pixelfx 的 12 个 critters（MIT），打包成一个 91 KB 的独立脚本。
      加载失败不影响首页——hx-critters.js 开头就有 window.PixelFX 存在性检查，没有就整段跳过。 -->
-<script src="fx/pixelfx-critters.js?v=55f2d94" defer></script>
-<script src="fx/hx-critters.js?v=55f2d94" defer></script>
+<script src="fx/pixelfx-critters.js?v=e0d2a5a" defer></script>
+<script src="fx/hx-critters.js?v=e0d2a5a" defer></script>
 <!-- 课堂码大屏二维码：离线 QR 编码器（qrcode 1.5.4 core 打包，MIT，见 fx/NOTICE-qr.md）。延迟加载即可：只有老师点「大屏二维码」时才用 -->
-<script src="fx/hx-qr.js?v=55f2d94" defer></script>
-<script src="hx-scan.js?v=55f2d94" defer></script><!-- 全站扫一扫（2026-11-08 K5）：摄像头 + BarcodeDetector / 本地 jsQR -->
+<script src="fx/hx-qr.js?v=e0d2a5a" defer></script>
+<script src="hx-scan.js?v=e0d2a5a" defer></script><!-- 全站扫一扫（2026-11-08 K5）：摄像头 + BarcodeDetector / 本地 jsQR -->
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; width: 100%; overflow: hidden; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -740,7 +740,7 @@
      canvas 里仍按原组件的设计坐标（520×272）画，靠 transform 缩放，动画数值一个没改。
      颜色全部走 --ptog-* 自定义属性：JS 逐帧写（theme 0→1 混色，跟原组件一致的观感），
      下面这串默认值 = 夜间那一套，保证 JS 还没跑（或脚本挂了）时开关也是对的深色样子。 */
-  .ptog { display: flex; align-items: center; gap: 12px; }
+  .ptog { display: flex; align-items: center; justify-content: center; gap: 12px; }
   .ptog-sw { position: relative; flex: none; width: 168px; height: 88px; padding: 0; border: 0; border-radius: 28px;
     background: linear-gradient(180deg, var(--ptog-track-top), var(--ptog-track-bottom));
     box-shadow: inset 0 5px 9px var(--ptog-track-inset), inset 0 -1px 2px var(--ptog-track-light),
