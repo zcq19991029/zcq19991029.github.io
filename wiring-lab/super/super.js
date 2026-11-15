@@ -1856,7 +1856,6 @@
   .ftb-b .hold { position: absolute; inset: -3px; width: 48px; height: 48px; pointer-events: none; transform: rotate(-90deg); }
   .ftb-b .hold circle { fill: none; stroke: var(--bad); stroke-width: 3.5; stroke-linecap: round; stroke-dasharray: 176; stroke-dashoffset: 176; transition: stroke-dashoffset .3s ease-out; }
   .ftb-b.holding .hold circle { stroke-dashoffset: 0; transition: stroke-dashoffset 1s linear; }
-  .ftb-b .pdot { position: absolute; right: 3px; bottom: 3px; width: 9px; height: 9px; border-radius: 50%; border: 2px solid var(--tbbg); }
   /* 圆球（收起后）：22px 小点 + 44px 热区 + 4 秒「工具」小标签（practice-ui.js:148-162 同款） */
   .ftb-orb { position: fixed; z-index: 20; width: 22px; height: 22px; opacity: .82; border-radius: 50%; display: none; place-items: center;
     cursor: pointer; touch-action: none; background: radial-gradient(circle at 35% 30%, var(--tbbg), var(--tbbg2));
@@ -1935,7 +1934,6 @@
     btn('theme', I.theme, '主题', '切换主题（适应不同光线）');
     btn('full', I.full, '全屏', '全屏');
     btn('min', I.min, '收起', '收成一个圆球');
-    const pdot = el('span', 'pdot'); B.pen.appendChild(pdot);
     tb.append(grip, B.undo, B.del, B.clear, B.err, el('div', 'ftb-sep'), B.pen, B.theme, B.full, el('div', 'ftb-sep'), B.min);
 
     B.undo.onclick = () => { closePop(); cancelArm(null); undoWire(); };
@@ -2071,7 +2069,6 @@
       B.del.disabled = !selWire;
       B.clear.disabled = !wires.length && !B.clear.classList.contains('holding');
       B.err.disabled = !wires.length;
-      pdot.style.background = penColor === 'auto' ? C.ink : netColor(penColor);
     }
     window.__wireToolsShow = show;
     window.__ftbSync = sync;
