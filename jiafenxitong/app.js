@@ -1978,11 +1978,6 @@ function restoreDroppedToHome(cls) {
       （2026-11-13：原来还提到「全组扣分 changeMemberPoints」，那个函数随个人扣分入口一起删了。） */
   function remaining(lesson,gno,i){var s=sc(lesson,gno);return Math.max(0,5-(+s.phone||0)-(+s.personal[String(i)]||0));}
 
-  function ctlClear(gno, compact) {
-    return '<button class="mini" data-cleargroup="' + gno + '" type="button" title="把本组这节课的分数全部归零">' +
-      (compact ? '↺' : '↺ 清零') + '</button>';
-  }
-
   var groupPicking = null;
   function mountGroupPicker(cls,lesson){
     if(groupPicking&&(groupPicking.classId!==cls.id||groupPicking.lessonId!==lesson.id))groupPicking=null;
@@ -1993,7 +1988,7 @@ function restoreDroppedToHome(cls) {
       target.classList.add('group-pick-toggle');target.title=unlocked?'双击组号结束分组编辑':'双击组号编辑分组';target.tabIndex=0;target.setAttribute('aria-label','第'+g.no+'组，'+target.title);
       function toggleGroup(e){e.preventDefault();e.stopPropagation();groupPicking=unlocked?null:{classId:cls.id,lessonId:lesson.id,no:g.no};renderGroups(cls,lesson);}
       target.ondblclick=toggleGroup;target.onkeydown=function(e){if(e.key==='Enter')toggleGroup(e);};
-      if(unlocked){var done=document.createElement('button');done.type='button';done.className='btn tiny';done.textContent='完成';done.onclick=toggleGroup;target.appendChild(done);if(scoreLayout==='table'){var clear=document.createElement('button');clear.type='button';clear.className='btn tiny';clear.textContent='清零本组';clear.dataset.cleargroup=g.no;target.appendChild(clear);}}
+      if(unlocked){var done=document.createElement('button');done.type='button';done.className='btn tiny';done.textContent='完成';done.onclick=toggleGroup;target.appendChild(done);}
       if(!unlocked)return;
       /* 以前这里「满 7 人就整个不挂控件」，老师看到组号双击后什么都没有，只能以为分组坏了。
          现在满员也照常展开：加人/减人是老师的手动决定，只受这个组自己的上限约束（见 groupCap）。 */
@@ -2104,7 +2099,7 @@ function restoreDroppedToHome(cls) {
             '<div class="v ' + signClass(total) + '" data-total="' + g.no + '">' + fmt(total) + '</div></div>' +
         '</div>' +
         '<div class="gnames">' + names + '</div>' +
-        '<div class="gcard-secondary"><span class="card-feedback-space" aria-hidden="true"></span>' + ctlClear(g.no, false) + '</div>' +
+        '<div class="gcard-secondary"><span class="card-feedback-space" aria-hidden="true"></span></div>' +
         /* 2026-11-13 三次返修：每一组都常驻这一格（默认 100%），不再按值日组留空 */
         '<div class="gctl"><div><div class="lbl">值日缺勤</div>' + ctlDuty(g.no, duty) + '</div></div>' +
       '</div>';
@@ -2281,14 +2276,13 @@ function restoreDroppedToHome(cls) {
     var key = memberKey(member);
     var values = (rec.members || {})[key] || [];
     var net = (A && A.lessonNet) ? A.lessonNet(lesson, gno, i, key) : { raw: 0, earned: 0, max: 0 };
-    var items = [], sumRaw = 0, sumMax = 0;
+    var items = [];
     names.forEach(function (name, idx) {
       var label = String(name == null ? '' : name).trim();
       if (!label) return;
       var v = values[idx];
       var blank = (v == null || v === '');
       var num = blank ? 0 : (Number(v) || 0);
-      sumRaw += num; sumMax += 5;
       var isTask = TASK_COL.test(label);
       /* 2026-11-14 用户：「不用显示分数 诸如5分 只需要完成率」→ 去掉「得分/5」那一列，只留完成率 */
       items.push('<span class="sumd-item' + (blank ? ' is-blank' : '') + (isTask ? ' is-task' : '') + '">' +
@@ -2297,9 +2291,12 @@ function restoreDroppedToHome(cls) {
         '</span>');
     });
     var ded = Math.max(0, Math.round((net.raw - net.earned) * 100) / 100);
-    var foot = '合计 ' + fmt(sumRaw) + '/' + fmt(sumMax) + ' · 本节完成率 ' +
-      (net.max ? pctText(Math.max(0, net.earned) / net.max * 100) : '—') +
-      (ded > 0 ? ' · 实际扣分 ' + fmt(ded) + '（手机未入袋 / 个人扣分，扣完本节为止）' : '');
+    /* 2026-11-15 用户：「还有分数旧方案残留」→ foot 里原来还留着「合计 X/Y」这种 5 分制
+       得分/满分旧格式，且「本节完成率」又和头部 .sumd-total 重复。这里只保留真正有用的
+       「实际扣分」来源说明（解释为什么完成率没满），扣了分才显示，没扣分 foot 整条留空。 */
+    var foot = ded > 0
+      ? '实际扣分 ' + fmt(ded) + '（手机未入袋 / 个人扣分，扣完本节为止）'
+      : '';
     return '<div class="sumd-panel" role="region" aria-label="本节各项目完成率明细">' +
       '<div class="sumd-head">' +
         '<b class="sumd-who">第 ' + gno + ' 组 · ' + esc(member.name) + '</b>' +
@@ -2548,42 +2545,9 @@ function restoreDroppedToHome(cls) {
     return m ? m.name : '';
   }
 
-  /** 整组清零（含个人扣分），可撤销。异步了：确认走悬浮弹窗 */
-  async function clearGroup(cls, lesson, gno) {
-    var key = String(gno);
-    if (!touched(lesson, gno)) { flash('第 ' + gno + ' 组这节课还没记过分'); return; }
-    var ok = await askConfirm({
-      title: '把第 ' + gno + ' 组这节课清零？',
-      body: '这个组的首个正确 / 小组分 / 手机 / 个人扣分全部归零，其它组不受影响。',
-      note: '清错了可以点「撤销」。',
-      ok: '清零',
-      danger: true
-    });
-    if (!ok) return;
-    var old = JSON.parse(JSON.stringify(lesson.scores[key] ||
-      { first: 0, group: 0, phone: 0, personal: {} }));
-    lesson.scores[key] = { first: 0, group: lesson.memberProjectBase===5?5:0, phone: 0, personal: {} };
-    pushUndo({ lessonId: lesson.id, gno: gno, reset: true, old: old });
-    save();
-    refreshCard(cls, lesson, gno);
-    renderMetrics(cls, lesson);
-    flash('已把第 ' + gno + ' 组本节清零（可撤销）');
-  }
-
-  $('#groupList').addEventListener('click', function (e) {
-    var b = e.target.closest('button[data-cleargroup]');
-    if (!b) return;
-    var cls = curClass(), lesson = curLesson(cls);
-    if (!cls || !lesson) return;
-    clearGroup(cls, lesson, +b.dataset.cleargroup);
-  });
-
-  /* 2026-11-13 清理（E）：这里原来是「个人扣分：右键 / 长按 = 往回减 1」的监听 +
-     550ms 长按定时器。记分卡片模板已不再渲染 .pchip，这两个监听永远命中不了任何元素，
-     连同 longPressFired / lpStop 一起删掉（bumpPersonal 也一并删除）。
-     同一段里别的点击分支不受影响：清零按钮走上面 data-cleargroup、输入框走下面的 change 委托。 */
-
-  /* 清零使用明确按钮，避免连续两次扣分被浏览器dblclick误判为清零。 */
+  /* 2026-11-15 用户：「不需要清零按钮，会把我们项目分搞乱，项目分存在，但是这边清零干嘛」。
+     两个清零入口（卡片右下角「↺ 清零」、双击组号编辑分组时的「清零本组」）连同 clearGroup
+     函数和它的 data-cleargroup 点击委托一起删除。清零仍可通过「撤销」逐个回退，不丢能力。 */
 
   $('#groupList').addEventListener('change', function (e) {
     var inp = e.target.closest('input.num');

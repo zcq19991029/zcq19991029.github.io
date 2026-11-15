@@ -216,7 +216,12 @@ input[readonly] { background: var(--panel-soft); color: var(--muted); }
 .btn.primary:disabled:hover { background: linear-gradient(180deg, var(--accent-hi), var(--accent)); color: #fff; }
 
 .card {
-  background: var(--panel); border: 1px solid var(--line);
+  /* 2026-11-15 修「本工具内背景无法生效」：原来写死 var(--panel)（浅色 .66 白 / 深色 .72 深蓝），
+     不透光，把外观里设的背景图整块盖住。改成和顶栏一致的玻璃配方——用 color-mix 乘 --hx-a
+     （外观「卡片通透度」滑杆，100=最透/0=最实），背景透出来，滑杆也在这页生效了。
+     真 blur 由下面 @supports 的 backdrop-filter 统一补上。 */
+  background: color-mix(in srgb, var(--panel) calc(var(--hx-a, 1) * 78%), transparent);
+  border: 1px solid var(--line);
   border-radius: var(--radius); padding: 16px 18px; box-shadow: var(--shadow);
 }
 .tablewrap { overflow-x: auto; }
@@ -2365,11 +2370,8 @@ html.hx-bg body::before { display: none; }
 .peer-block-pend-on { color: var(--warn); font-weight: 700; }
 .peer-block-pend-none { color: var(--faint); }
 .peer-block-acts { display: flex; gap: 6px; flex-wrap: wrap; }
-/* 复核人 / 备注：两列网格，标签在上、控件在下，别让「组长/复核人」和「备注」一个横一个竖 */
-.peer-block-foot { display: grid; grid-template-columns: minmax(180px, .8fr) minmax(240px, 1.4fr); gap: 8px 14px; align-items: start; margin-top: 8px; }
-.peer-block-foot .field { margin: 0; }
-.peer-block-foot textarea { min-height: 34px; resize: vertical; }
-.peer-block-fb { grid-column: 1 / -1; margin: 0; font-size: 12px; color: var(--hint-ink); }
+/* 2026-11-15：组内评分页底部「组长/复核人 + 备注」输入框已删（用户「都线上打分了」），
+   相关 .peer-block-foot / .peer-block-fb 样式一并移除。 */
 
 /* 格子上的两种标记：黄圈=待确认；金色+「师」=教师直接填 */
 .peer-cell { position: relative; }
@@ -2409,11 +2411,10 @@ html.hx-bg body::before { display: none; }
 }
 @media (max-width: 720px) {
   .peer-block { padding: 10px 10px 6px; }
-  .peer-block-foot { grid-template-columns: 1fr; }
 }
 
 @media print {
-  .peer-colcard, .peer-dock, .peer-block-head, .peer-block-foot, .peer-gate { display: none !important; }
+  .peer-colcard, .peer-dock, .peer-block-head, .peer-gate { display: none !important; }
   .peer-block { padding: 0; border: 0; box-shadow: none; break-inside: avoid; }
 }
 

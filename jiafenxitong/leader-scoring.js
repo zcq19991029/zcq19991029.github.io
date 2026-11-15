@@ -219,7 +219,6 @@
     });
     var byGno = {};
     states.forEach(function (st) { byGno[String(st.group.no)] = st; });
-    var blockFb = {};
     /* 老师最后一次动格子的时间：自动刷新拉到新数据时，如果刚点过格子就先别重画，
        免得把老师正要点的按钮抽掉（2026-11-10 改成自动计分后每 10 秒会拉一次） */
     var lastEditAt = 0;
@@ -288,7 +287,6 @@
     function logFor(st, detail) { if (context.log) context.log(cls.name + ' · 第' + lesson.seq + '次课 · 第' + st.group.no + '组 · ' + detail); }
     function logClass(detail) { if (context.log) context.log(cls.name + ' · 第' + lesson.seq + '次课 · ' + detail); }
     function setMsg(text) { peerMsg = text || ''; var el = sheet.querySelector('#leaderPeerMsg'); if (el) el.textContent = peerMsg; }
-    function setBlockFb(gno, text) { blockFb[gno] = text; var el = sheet.querySelector('[data-fb="' + gno + '"]'); if (el) el.textContent = text; }
 
     /* 「组员平均」「互评」「师」「接」四种来源角标（2026-11-09 用户问「互评和平均啥意思 为什么组员也有平均」）：
        师 = 教师直接填，接 = 接线任务自动入账；
@@ -371,7 +369,6 @@
          老师想改 → 去接线那边重跑/重开任务，同步会自己更新这一格。
          这里必须挡在写入之前，否则一次误点就把任务分改掉，下一轮同步又会把它改回去（老师会以为见鬼）。 */
       if (cellMeta(st, mk, col) === 'wire' || isWireCol(col)) {
-        setBlockFb(st.group.no, '这一列是线上排位列（课堂任务自动入账），只有真实完成排位才能得分，不能手改；要改请重跑任务。');
         return;
       }
       if (!st.rec.members[mk]) st.rec.members[mk] = [];
@@ -390,7 +387,6 @@
       } catch (e) { /* 记不上时间也不影响这次手改，只是旧的自动刷新可能盖回来，下一轮手改再顶 */ }
       logFor(st, m.name + ' · ' + (sharedProjects[col] || ('项目' + (col + 1))) + '：' + (old == null ? '未填' : numPctText(old)) + ' → ' + (value == null ? '未填' : numPctText(value)) + '（教师直接填）');
       persist(st);
-      setBlockFb(st.group.no, value == null ? '已撤销这一格的加分。' : '教师直接记 ' + numPctText(value) + '（学生再提交更新的分才会覆盖它）。');
     }
 
     /* ---------- 顶部：本节提交汇总（只报收了多少条，不再有待确认） ---------- */
@@ -504,9 +500,6 @@
           sharedProjects.map(function (_, i) { return colThHtml(st, i); }).join('') +
           '</tr></thead><tbody>' + rows + '</tbody></table></div>'
         : '<p class="note">本组暂无成员。已确定名单和分组后，成员会出现在这里。</p>';
-      var fbDefault = gone.length
-        ? '本组现在 0 人，但这一课留有 ' + gone.length + ' 人的历史评分（人员已转组或移出名单），所以照常显示；这些分照常计入成绩。'
-        : '点 20%–100% 直接记分（带「师」角标，改完就是最终分）；双击分数撤销。学生提交的分已经直接计入。';
       return '<section class="card peer-block" id="leaderGroup-' + no + '" data-gno="' + no + '">' +
         '<div class="peer-block-head">' +
         '<div class="peer-block-title"><span class="peer-block-no">第 ' + no + ' 组</span><span class="peer-block-meta">组长 ' + esc(leadName) + ' · 共 ' + st.members.length + ' 人' + (gone.length ? ' · 留有历史评分' : '') + '</span></div>' +
@@ -515,11 +508,7 @@
         '<button type="button" class="btn tiny" data-excel-gno="' + no + '">下载 Excel</button>' +
         '<button type="button" class="btn tiny" data-full-gno="' + no + '">一键满分</button>' +
         '</div></div>' + table +
-        '<div class="peer-block-foot">' +
-        '<label class="field col"><span>组长 / 复核人</span><input data-signed="' + no + '" maxlength="100" value="' + esc(st.rec.signedBy || '') + '"></label>' +
-        '<label class="field col"><span>备注</span><textarea data-note="' + no + '" maxlength="500" rows="2">' + esc(st.rec.note || '') + '</textarea></label>' +
-        '<p class="peer-block-fb" data-fb="' + no + '">' + esc(blockFb[no] || fbDefault) + '</p>' +
-        '</div></section>';
+        '</section>';
     }
 
     var gateOpen = !!lesson.peerGate;
@@ -687,9 +676,7 @@
       var named = sharedProjects.map(function (p, i) { return String(p).trim() && !isTaskCol(p) ? i : -1; }).filter(function (i) { return i >= 0; });
       var wireNamed = sharedProjects.filter(function (p) { return isTaskCol(p); }).length;
       if (!named.length) {
-        setBlockFb(gno, wireNamed
-          ? '本课的项目列都是线上排位列：只有真实完成排位才能得分，不能一键满分。'
-          : '请先在页顶填项目名称；每个项目满分 100%。');
+        /* 一键满分不可用时不再在底部说明栏提示（2026-11-15 底部说明栏已删）。 */
         return;
       }
       var dlg = document.createElement('dialog');
@@ -773,8 +760,6 @@
       var t = e.target;
       if (!t.matches) return;
       if (t.matches('[data-project]')) { renameProject(+t.dataset.project, t.value); return; }
-      if (t.matches('[data-signed]')) { var st1 = byGno[String(t.dataset.signed)]; if (st1) { st1.rec.signedBy = t.value.trim(); persist(st1); } return; }
-      if (t.matches('[data-note]')) { var st2 = byGno[String(t.dataset.note)]; if (st2) { st2.rec.note = t.value; persist(st2); } }
     });
 
     /* ---------- 本节课「互评」开关 + 刷新提交（2026-11-13 已上移到顶部「班级/课次」行，从 root 查） ---------- */
