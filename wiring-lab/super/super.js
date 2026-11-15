@@ -710,6 +710,7 @@
   let edit = null;
   const EDIT_HIST = [];
   let errKeys = null;
+  let badWireCache = null;   // 逐线错线集合缓存（{ wkey: true }）；touchWires 时清空，drawWireLayer 惰性重算
   /* 线宽 / 线色：练习页工具栏那两块设置（practice.js:392 WIRE_SIZES / :201 PALETTE）。
      排位存自己的键 zfz-super-pen（不读写练习页的键），默认标准 3.5 / 自动配色。 */
   const PEN_KEY = 'zfz-super-pen';
@@ -735,6 +736,19 @@
   function wireColor(term) {
     const n = netOfTerm()[term];
     return netColor(n || '1');
+  }
+  /* 端子在标准网表里的网名（线号），查不到返回 '' —— 给「这是哪根线」的提示文案用 */
+  function netNameOf(term) {
+    return netOfTerm()[term] || '';
+  }
+  /* 网名 → 给人看的中文线号。相线网名带 U/V/W 前缀的翻成「U 相 / V 相 / W 相」，
+     星点/零线/控制线单独说，其它直接显示网名原文（如 U13、W2）。 */
+  function netLabel(n) {
+    if (!n) return '（未知线号）';
+    if (n === 'N') return '零线 N';
+    if (n === 'Y') return '星点 Y';
+    if (/^[1-9]\d*$/.test(n)) return '控制线 ' + n;
+    return n;
   }
 
   /* ── 命中半径（2026-11-09 对齐 practice.js 的 termAt 口径） ──
@@ -1329,6 +1343,7 @@
   function touchWires() {
     if (phase === 'done') { phase = 'wire'; go.textContent = '检查'; go.classList.remove('done'); }
     errKeys = null;                        // 接线一变，查错的红标就失效（练习页是 PS.checked = null，同口径）
+    badWireCache = null;                   // 错线集合也得重算（接线变了）
     if (selWire && !wires.some(w => wkey(w) === selWire)) selWire = null;
     updateStat();
     need();
@@ -1367,7 +1382,18 @@
         if (q) fx('burst', { x: q.x, y: q.y, col: col });
         fx('sweep', { pts: w.pts, col: col });              // 亮光沿线跑一遍
       }
-      say('已连线：' + r.wire.a + ' → ' + r.wire.b, 'ok');  // practice.js:463 的提示口径
+      /* 2026-11-15 用户要「连每一根线就知道对不对、是哪根线号」，别等全连完点检查。
+         这里连线成功后**立刻**判：两端同网 = 对（报线号），跨网 = 错（提示不该连）。
+         判据 = 标准网表里两端的网名是否相同（judge 的 wrong 同一口径）。 */
+      const na = netNameOf(r.wire.a), nb = netNameOf(r.wire.b);
+      if (na && nb && na === nb) {
+        say('✓ 接对了 · ' + netLabel(na) + '（' + r.wire.a + ' → ' + r.wire.b + '）', 'ok');
+        if (p || q) { const pp = p || q; fx('burst', { x: pp.x, y: pp.y, col: OKC() }); }
+      } else if (na && nb) {
+        say('✗ 接错了：' + r.wire.a + ' 是 ' + netLabel(na) + '，' + r.wire.b + ' 是 ' + netLabel(nb) + '，这两端不该连', 'bad');
+      } else {
+        say('已连线：' + r.wire.a + ' → ' + r.wire.b + '（这两端不在标准网表里，判不了对错）', '');
+      }
       touchWires();
       return;
     }
@@ -1490,49 +1516,41 @@
   }
 
   /* 一根线：落位中按弧线画（发光大一点），落完是朴素折线 + 段级连通底光（practice.js:747-766 同一套）。
-     2026-11-15 用户报「有的线要等后面线连完才会亮，大部分在并联交点」，选方案 B：
-     不再「每根线连上就亮」，而是按**等电位网是否接完整**亮——一个标准网（比如星三角的 W2 星点
-     KM2.b0/KM3.t0/M.t3）的所有端子都连进同一个连通块了，这一整块才「通电亮起」；还没接全的块压暗。
-     这样并联交点处那根线会等整个网连完才亮，正是用户要的「通电」语义，而不是线一落就亮。 */
+     2026-11-15 用户澄清需求：「连每一根线时就要知道对不对、以及它是哪根线号，不是全连完才告诉我通了」。
+     所以这里改成**逐线即时判对错**：
+       · 对 —— 线的两端在标准网表里属于同一个电位网，用它的线号相色正常画 + 铺底光；
+       · 错 —— 两端跨两个电位网，整根线实时标红（错线集合 termBad 由 judge 的 wrong 提供）；
+       · 线号 —— 颜色始终按起点端子所属网名的相色取（wireColor），「这是哪根线」一眼可见。
+     这跟「查错」视图（rv）不同：查错是点「检查」后的红闪报红；这里是**接线过程中每根线实时**的对错。 */
   function drawWireLayer(t) {
     syncRoutes();
     const rv = errKeys && errKeys.size;
 
-    /* 算「哪些连通块已经完整接通某个标准网」：
-       netsOf(wires) 用并查集把已连线合并成连通块；再对照 NETS 的每个网，看该网的全部端子
-       是否落在同一个连通块里（和 progress()/judge 里 inOne 同一口径）。完整的块记进 liveRoots。
-       结果缓存到 termLive（端子 → 是否已通电），避免每根线每帧都重跑并查集。 */
-    let termLive = null;                       // null = 不暗化（查错态 / 算不出 / 无网表）
-    if (!rv && W && NETS) {
+    /* 错线集合：用 judge 的 wrong（跨点连错的线的 key）标红。惰性重算 + 缓存——
+       只有接线变化（touchWires 清空缓存）才重跑 W.judge，逐帧渲染不重复算并查集。 */
+    if (badWireCache === null && !rv && W && NETS) {
       try {
-        const nets = W.netsOf(wires), where = {};
-        nets.forEach((grp, i) => grp.forEach(t => { where[t] = i; }));
-        const liveRoots = new Set();
-        Object.keys(NETS).forEach(n => {
-          const want = NETS[n] || [];
-          if (want.length < 2) return;                 // 单端子网（悬空）不算「要连的电位」
-          const i = where[want[0]];
-          if (i !== undefined && want.every(t => where[t] === i)) liveRoots.add(i);
-        });
-        termLive = {};
-        nets.forEach((grp, i) => grp.forEach(t => { termLive[t] = liveRoots.has(i); }));
-      } catch (e) { termLive = null; }                // 算不出来就退回「都亮」，别让画面卡死
+        const jr = W.judge(wires, null, { nets: NETS || {} });
+        const badKeys = new Set(jr.wrong || []);
+        badWireCache = {};
+        wires.forEach(w => { badWireCache[wkey(w)] = badKeys.has(wkey(w)); });
+      } catch (e) { badWireCache = {}; }              // 算不出错线就不标红，退回正常画
     }
-    const liveOf = w => termLive === null ? true : !!termLive[w.a];
+    const isBad = w => (badWireCache && badWireCache[wkey(w)]) || false;
 
-    // 第一趟：所有线的底光（只画「已完整接通」的块里的线，暗的块不铺光）
+    // 第一趟：所有线的底光（对线铺线号色光晕；错线不铺，留待下面标红）
     wires.forEach(w => {
       if (w.born != null || !w.pts) return;
       if (rv) return;
-      if (!liveOf(w)) return;
+      if (isBad(w)) return;
       wireLit(w.pts, w.color || wireColor(w.a));
     });
-    // 第二趟：描边 + 实体。已接通的块正常画；没接全的块压暗（alpha 0.28），
-    //   让它看起来是「还没通电」，而不是「线没画对」。落位动画（born）仍按弧线亮一下。
+    // 第二趟：描边 + 实体。对线按线号色；错线整根标红（theme 的 C.bad）+ 红晕。
     wires.forEach(w => {
       const pts = w.pts;
       if (!pts) return;
-      const col = w.color || wireColor(w.a);
+      const bad = isBad(w);
+      const col = bad ? BADC() : (w.color || wireColor(w.a));
       if (w.born != null) {
         const k = (t - w.born) / 0.45;
         if (k < 1) {
@@ -1548,11 +1566,12 @@
         w.born = null;                       // 落完了，以后按普通折线画
       }
       if (rv) { reviewWire(w, t); return; }  // 查错只报红：错线红闪、其余压暗（不泄答案、不画绿）
-      const on = liveOf(w);
-      if (!on) g.globalAlpha = 0.28;         // 没接全的网：整块压暗（线还在，只是不「通电」）
+      if (bad) {                             // 错线：红晕 + 红线，一眼认出
+        g.save(); g.shadowColor = BADC(); g.shadowBlur = 16 * Math.max(TH.glow || 1, 0.4);
+        poly(pts, BADC(), wireW + 3); g.restore();
+      }
       poly(pts, WEDGE(), wireW + 2);         // 导线描边：主题的 C.wireEdge（parts.js:179 同一枚令牌）
       poly(pts, col, wireW);
-      if (!on) g.globalAlpha = 1;
     });
     if (arm) drawCable(t);
     drawEditHandles();
