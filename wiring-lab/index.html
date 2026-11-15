@@ -3,7 +3,7 @@
 <html lang="zh-CN">
 <head>
 <script src="../hx-theme.js" data-tool="wiring"></script>
-<script>window.HX_BUILD = "2026-11-15T05:26:08Z 5e9e8c3";</script>
+<script>window.HX_BUILD = "2026-11-15T05:28:33Z f8767f0";</script>
 <meta charset="utf-8">
 <meta name="copyright" content="© 2026 zcq 版权所有，未经许可禁止复制、修改、转载">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
@@ -2119,6 +2119,20 @@
   #fw-rankcard .rkc-stu-prev i { font-style: normal; font-size: 12px; font-weight: 800; letter-spacing: .08em; color: #7fd7ff; }
   #fw-rankcard .rkc-stu-prev b { font-size: 17px; font-weight: 800; color: #fff; line-height: 1.18; }
   #fw-rankcard .rkc-stu-prev small { font-size: 12px; font-weight: 600; color: #a9bcdd; }
+  /* 分组卡预览（2026-11-15）：复刻小组加分 .gcard 的样子——背景图铺满整卡，
+     左深右浅斜向遮罩保证左侧组号/人名可读，跟小组加分 has-face 的分组卡同一套视觉 */
+  #fw-rankcard .rkc-group-prev { position: relative; display: flex; flex-direction: column; gap: 8px;
+    height: 92px; padding: 12px 14px; border-radius: 12px; overflow: hidden; text-align: left;
+    border: 1px solid rgba(90, 132, 224, .35); background: rgb(12 19 37 / .6); }
+  #fw-rankcard .rkc-group-prev .rk-lb-bg { position: absolute; inset: 0; z-index: 0; background-size: cover; background-position: 50% 50%; }
+  #fw-rankcard .rkc-group-prev .rk-lb-veil { position: absolute; inset: 0; z-index: 1;
+    background: linear-gradient(90deg, rgba(6, 12, 26, .88) 0%, rgba(6, 12, 26, .4) 48%, rgba(6, 12, 26, 0) 100%); }
+  #fw-rankcard .rkc-group-prev > *:not(.rk-lb-bg):not(.rk-lb-veil) { position: relative; z-index: 2; }
+  #fw-rankcard .rkc-group-prev .rkc-gp-no { align-self: flex-start; display: inline-flex; align-items: center; height: 20px; padding: 0 9px;
+    border-radius: 999px; background: rgba(255, 255, 255, .16); color: #fff; font-size: 12px; font-weight: 800; }
+  #fw-rankcard .rkc-group-prev .rkc-gp-body { display: flex; flex-direction: column; gap: 1px; }
+  #fw-rankcard .rkc-group-prev .rkc-gp-body b { font-size: 15px; font-weight: 800; color: #fff; line-height: 1.2; }
+  #fw-rankcard .rkc-group-prev .rkc-gp-body small { font-size: 11.5px; font-weight: 600; color: #a9bcdd; }
   #fw-rankcard .rkc-h { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 800; color: #dfe9ff; }
   #fw-rankcard .rkc-h small { margin-left: auto; font-weight: 600; color: #8fa6c9; font-size: 12px; }
   #fw-rankcard .rkc-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; }
@@ -5003,6 +5017,12 @@ function rkCardPaint(body) {
       <span class="rk-lb-bg" aria-hidden="true"></span><span class="rk-lb-veil" aria-hidden="true"></span>
       <i>01</i><b>${esc(name)}</b><small>${esc(cls)}</small>
     </div>
+    <div class="rkc-h">分组卡<small>小组加分里当组长时，这张背景会铺满整个分组卡的样子</small></div>
+    <div class="rkc-group-prev" id="rkcGroupPrev">
+      <span class="rk-lb-bg" aria-hidden="true"></span><span class="rk-lb-veil" aria-hidden="true"></span>
+      <b class="rkc-gp-no">第 1 组</b>
+      <div class="rkc-gp-body"><b>${esc(name)}</b><small>${esc(cls)} · 组长</small></div>
+    </div>
     <div class="rkc-row">
       <label for="rkcPos">上下位置</label>
       <input type="range" id="rkcPos" min="0" max="100" step="1" value="50">
@@ -5086,6 +5106,14 @@ function rkCardPaint(body) {
       const stStu = rkBgStyle(RKC.bg, rkcTune('p4'));
       stuBg.setAttribute('style', stStu || '');
       stuPrev.setAttribute('data-nobg', stStu ? '0' : '1');
+    }
+    // 分组卡预览（2026-11-15）：同一张背景铺满分组卡，遮罩用分组卡自己的斜向渐变（左深右浅）
+    const grpPrev = body.querySelector('#rkcGroupPrev');
+    const grpBg = grpPrev && grpPrev.querySelector('.rk-lb-bg');
+    if (grpBg) {
+      const stGrp = rkBgStyle(RKC.bg, rkcTune('p1'));
+      grpBg.setAttribute('style', stGrp || '');
+      grpPrev.setAttribute('data-nobg', stGrp ? '0' : '1');
     }
     paintMinis();
   };
