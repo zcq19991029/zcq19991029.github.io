@@ -14,16 +14,16 @@
      要登录时调 window.HXPortal.login()；被单独打开时 hx-theme.js 会跳回这里（见 hx-theme.js 的 data-tool）。
      账号：Supabase 华夏工具项目，localStorage paike-session 和各工具共用；身份由数据库 hx_me() 决定。
      脚本里不用反引号模板字符串（本机测试时整页当字符串注入到线上同源页面里）。 -->
-<link rel="stylesheet" href="hx-theme.css?v=2489b83">
-<script src="hx-theme.js?v=2489b83"></script>
+<link rel="stylesheet" href="hx-theme.css?v=0862235">
+<script src="hx-theme.js?v=0862235"></script>
 <script src="rank-bg.js" defer></script><!-- 排位身份卡预设（2026-11-12）：总入口外观面板当场弹窗设置身份卡背景，预设数据在总入口也能用 -->
 <!-- 首页卡片上的像素小生物：pixelfx 的 12 个 critters（MIT），打包成一个 91 KB 的独立脚本。
      加载失败不影响首页——hx-critters.js 开头就有 window.PixelFX 存在性检查，没有就整段跳过。 -->
-<script src="fx/pixelfx-critters.js?v=2489b83" defer></script>
-<script src="fx/hx-critters.js?v=2489b83" defer></script>
+<script src="fx/pixelfx-critters.js?v=0862235" defer></script>
+<script src="fx/hx-critters.js?v=0862235" defer></script>
 <!-- 课堂码大屏二维码：离线 QR 编码器（qrcode 1.5.4 core 打包，MIT，见 fx/NOTICE-qr.md）。延迟加载即可：只有老师点「大屏二维码」时才用 -->
-<script src="fx/hx-qr.js?v=2489b83" defer></script>
-<script src="hx-scan.js?v=2489b83" defer></script><!-- 全站扫一扫（2026-11-08 K5）：摄像头 + BarcodeDetector / 本地 jsQR -->
+<script src="fx/hx-qr.js?v=0862235" defer></script>
+<script src="hx-scan.js?v=0862235" defer></script><!-- 全站扫一扫（2026-11-08 K5）：摄像头 + BarcodeDetector / 本地 jsQR -->
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; width: 100%; overflow: hidden; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -179,7 +179,16 @@
   .hero img { width: clamp(64px, 12vw, 88px); aspect-ratio: 1; border-radius: 22%; object-fit: cover; box-shadow: 0 12px 32px -14px var(--shade); }
   .hero h1 { margin: 18px 0 0; font: 700 clamp(40px, 8vw, 64px)/1.06 var(--hx-font-d); letter-spacing: -.02em; }
   .hero p { margin: 10px 0 0; font-size: clamp(19px, 3vw, 24px); color: var(--dim); font-weight: 500; min-height: 1.4em; }
-  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 228px), 1fr)); gap: 16px; }
+  /* 卡片栅格：从「按断点写死列数」改成流体（2026-11-15 用户：「别写死 6 列，未来还会更多工具卡，
+     每个工具相邻距离自适应，别太宽别太挤」）。
+     auto-fit + minmax(232px, 1fr) 的含义：先按 232px 的最小卡宽算能放几列，再把**用不到的列折叠掉**，
+     剩下的列平分整行 —— 所以 5 张卡的行会变成 5 列、4 张卡的行变成 4 列，每一行右边界都贴齐，
+     不会再有「6 列只装 5 张、右侧空一格」的观感（原来的问题）。
+     列数完全由容器宽度决定：1080 → 4 列、1440 → 5 列、1600 → 5~6 列，加新工具卡不用改任何 CSS。
+     gap 用 clamp 跟着视口微调，避免超宽屏卡片之间拉得太开。 */
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 232px), 1fr)); gap: clamp(14px, 1.1vw, 22px); }
+  /* 只有一张卡的组（目前是「Yeye Toys / 音乐」）：auto-fit 会把它拉成整行满宽，单独压回普通卡宽。 */
+  .tiles > .tile:only-child { max-width: 320px; }
   /* 歌单弹层（2026-11-09）：点首页「音乐」卡打开，内容和 /music/ 页一样（同一个 HXPlayer.panel）。
      音乐卡本身是普通 .tile，不再单独造一张满宽卡 —— 用户要「和其他工具卡保持一致」。 */
   .hxms { position: fixed; inset: 0; z-index: 2147483001; display: none; align-items: center; justify-content: center; padding: 18px; background: rgba(0,0,0,.52); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
@@ -943,8 +952,9 @@
     header #syncPill { display: none; } /* 用 header 前缀提高优先度：≤640 那条 max-width 会把裸 #syncPill 的 display:none 盖掉 */
   }
   @keyframes up { from { transform: translateY(100%); } }
-  /* 平板：一行 3 张；电脑宽屏：用满宽度，一行 6 张，标题靠左 */
-  @media (min-width: 641px) and (max-width: 1199px) { .tiles { grid-template-columns: repeat(3, 1fr); } }
+  /* 平板 / 电脑宽屏都不再写死列数：列数由 .tiles 的流体栅格自己算（见文件上方的 .tiles 定义）。
+     2026-11-15 删掉这里原来的「641~1199 三列」与「≥1200 六列」两条硬规则 —— 前者会让 5 张卡变两行、
+     后者就是「6 列只装 5 张、右侧空一格」的根源。 */
   @media (min-width: 1024px) {
     #home { padding: 0 clamp(32px, 4vw, 72px) 64px; }
     .hero { display: grid; grid-template-columns: auto 1fr; column-gap: 22px; align-items: center; text-align: left; padding: 52px 0 36px; }
@@ -952,7 +962,7 @@
     .hero h1 { margin: 0; font-size: 46px; } .hero p { margin: 4px 0 0; font-size: 20px; }
     .sec { margin: 48px 0 16px; } .sec h2 { font-size: 16px; }
   }
-  @media (min-width: 1200px) { .wrap { width: min(1600px, 100%); } .tiles { grid-template-columns: repeat(6, 1fr); } }
+  @media (min-width: 1200px) { .wrap { width: min(1600px, 100%); } }
 
   /* ── 首页全站同步胶囊（2026-11-06 自小组加分顶栏迁来，职责升级为「整站」）──
      老家那颗管的是 jf_score_states 一张表；这颗管全部工具：版本号 = 整站发布版本（复用
@@ -1779,6 +1789,45 @@ function show(id, how) { // how：不写 = 新开一页（进浏览器历史，�
      （播放器自己判断有没有歌；没歌单不占地方） */
   if (window.HXPlayer) HXPlayer.topBar(true);
 }
+/* ---------- 首页卡片栅格的列数均衡（2026-11-15） ----------
+   背景：栅格原来是按断点写死列数（641~1199 三列、≥1200 六列）。宽屏下 5 张卡只占 6 列里的 5 列，
+   右侧永远空一格，用户报「放大全屏后两边太空」。
+   CSS 侧已改成流体 auto-fit（能放几列就几列、空列自动折叠），但纯 CSS 还留两个毛病：
+     ① 「一行最多放 4 列、却有 5 张卡」→ 变成 4+1，最后一张孤零零占一行；
+     ② 某个组只剩 1~2 张时会被 1fr 拉成整行满宽（一张 790px 的巨卡）。
+   这里按每组实际卡片数把列数微调成「行数最少、各行尽量均衡」，并给单卡宽度封顶。
+   窄屏（<520）不接管，交回 CSS 的 2 列规则，避免和手机布局打架。 */
+function tileBalance() {
+  /* MINW 取 176：这是「1080 宽窗口里 5 张卡能不能挤成一行」的门槛。
+     取 200 的话 1080 放不下 5 列 → 变 3+2，卡片被拉到 322px，比 1920 下（303px）还大 ——
+     出现「屏幕越小卡片越大」的尺寸倒挂。176 让 1080 正好一行 5 张（约 187px），
+     也和手机端 2 列时的 173px 同一个量级，不算挤。 */
+  var MINW = 176, MAXW = 420, ONE_MAXW = 320;
+  document.querySelectorAll('#tiles .tiles').forEach(function (g) {
+    var n = g.children.length;
+    if (!n) return;
+    var w = g.clientWidth, gap = parseFloat(getComputedStyle(g).columnGap) || 16;
+    if (!w) return;                                                   // 页面被藏起来（进工具了）时量不到，跳过
+    /* 640 以下交回 CSS：那段有专门的「手机 2 列」规则（卡片更大、好点），JS 别去抢。 */
+    if (w < 640) { g.style.gridTemplateColumns = ''; g.style.justifyContent = ''; return; }
+    var fit = Math.max(1, Math.floor((w + gap) / (MINW + gap)));       // 一行按最小卡宽能放几列
+    var cols;
+    if (fit >= n) cols = n;                                            // 一行放得下就一行
+    else cols = Math.ceil(n / Math.ceil(n / fit));                     // 否则按「行数最少」均分：5 张 + 最多 4 列 → 3+2，而不是 4+1
+    var cw = (w - (cols - 1) * gap) / cols;
+    var cap = n === 1 ? ONE_MAXW : MAXW;
+    if (cw > cap) {                                                    // 卡会太宽（组里张数少）：钉死宽度、左对齐，不再拉满
+      g.style.gridTemplateColumns = 'repeat(' + cols + ', ' + cap + 'px)';
+      g.style.justifyContent = 'start';
+    } else {
+      g.style.gridTemplateColumns = 'repeat(' + cols + ', 1fr)';
+      g.style.justifyContent = '';
+    }
+  });
+}
+var _balT = null;
+window.addEventListener('resize', function () { clearTimeout(_balT); _balT = setTimeout(tileBalance, 120); });
+
 function render() {
   var go = svg('<path d="M9 6l6 6-6 6"/>', 'go'), n = 0, G = GROUPS.map(function (g) { return { name: g[0], list: TOOLS.filter(function (t) { return can(t) && g[1].indexOf(t.id) >= 0; }) }; }).filter(function (g) { return g.list.length; });
   $('tiles').innerHTML = (!HX.in() ? '<div class="tiles"><button class="tile act" type="button" id="tIn" style="--c1:#5ac8fa;--c2:#0a84ff"><span class="ic">' + svg('<circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/>') + '</span><b>登录 / 注册</b>' + go + '</button></div>' : '') + (locked() ? '<div class="tiles"><button class="tile act" type="button" id="tAct" style="--c1:#5ac8fa;--c2:#0a84ff"><span class="ic">' + svg('<rect x="3" y="6" width="18" height="12" rx="2.5"/><path d="M15 6v12" stroke-dasharray="1.5 2.5"/><path d="M7 10.5h4M7 13.5h3"/>') + '</span><b>填写邀请码开通</b>' + go + '</button></div>' : '') +
@@ -1821,6 +1870,7 @@ function render() {
   });
   if ($('tAct')) $('tAct').onclick = function () { openLogin('', 'act'); };
   if ($('tIn')) $('tIn').onclick = function () { openLogin(); };
+  tileBalance();   // 卡片已插入 DOM：按实际张数和容器宽度定列数（见函数注释）
   var i = HX.in() && ST.user ? info() : null;
   $('scanBtn').hidden = !i; // 扫一扫只给登录后的人
   $('hi').innerHTML = i ? '你好，' + esc(i.name) + badge() : '';
