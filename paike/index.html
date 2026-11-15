@@ -12,7 +12,7 @@
   /* 背景那两团微光是品牌色的延伸，必须跟着主色走 —— 写死蓝紫的话换了绿色主题，
      按钮绿了、背景还是蓝紫，一眼就看出「没换干净」。用 var(--acc) 现算，透明度不变。 */
   --bg:#f2f4f8;--glow1:color-mix(in srgb,var(--acc,#2f6bff) 13%,transparent);--glow2:color-mix(in srgb,var(--acc2,#7c5cff) 10%,transparent);--dots:rgba(30,41,59,.07);
-  --card:rgba(255,255,255,.78);--card-solid:#ffffff;--card-brd:rgba(255,255,255,.9);--side:rgba(250,251,253,.7);
+  --card:rgb(255 255 255 / calc(.78 * var(--hx-a, 1)));--card-solid:#ffffff;--card-brd:rgba(255,255,255,.9);--side:rgba(250,251,253,.7);
   --field:#ffffff;--field2:#eef1f6;--field3:#e4e8f0;
   --ink:#0b1220;--ink2:#374151;--mute:#6b7280;--line:#d5dbe6;--hair:rgba(15,23,42,.08);
   --acc:#2f6bff;--acc-h:#4b80ff;--acc2:#7c5cff;--accbg:rgba(47,107,255,.10);--ring:rgba(47,107,255,.32);
@@ -29,7 +29,7 @@
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --bg:#080b12;--glow1:color-mix(in srgb,var(--acc,#5b8cff) 20%,transparent);--glow2:color-mix(in srgb,var(--acc2,#9b7cff) 15%,transparent);--dots:rgba(148,163,184,.08);
-  --card:rgba(20,25,36,.72);--card-solid:#141924;--card-brd:rgba(255,255,255,.07);--side:rgba(12,16,24,.66);
+  --card:rgb(20 25 36 / calc(.72 * var(--hx-a, 1)));--card-solid:#141924;--card-brd:rgba(255,255,255,.07);--side:rgba(12,16,24,.66);
   --field:#0e131d;--field2:rgba(255,255,255,.05);--field3:rgba(255,255,255,.09);
   --ink:#e9edf5;--ink2:#c3cad7;--mute:#8a93a5;--line:rgba(255,255,255,.13);--hair:rgba(255,255,255,.08);
   --acc:#5b8cff;--acc-h:#7aa2ff;--acc2:#9b7cff;--accbg:rgba(91,140,255,.16);--ring:rgba(91,140,255,.45);
@@ -41,7 +41,7 @@
 }}
 :root[data-theme="dark"]{
   --bg:#080b12;--glow1:color-mix(in srgb,var(--acc,#5b8cff) 20%,transparent);--glow2:color-mix(in srgb,var(--acc2,#9b7cff) 15%,transparent);--dots:rgba(148,163,184,.08);
-  --card:rgba(20,25,36,.72);--card-solid:#141924;--card-brd:rgba(255,255,255,.07);--side:rgba(12,16,24,.66);
+  --card:rgb(20 25 36 / calc(.72 * var(--hx-a, 1)));--card-solid:#141924;--card-brd:rgba(255,255,255,.07);--side:rgba(12,16,24,.66);
   --field:#0e131d;--field2:rgba(255,255,255,.05);--field3:rgba(255,255,255,.09);
   --ink:#e9edf5;--ink2:#c3cad7;--mute:#8a93a5;--line:rgba(255,255,255,.13);--hair:rgba(255,255,255,.08);
   --acc:#5b8cff;--acc-h:#7aa2ff;--acc2:#9b7cff;--accbg:rgba(91,140,255,.16);--ring:rgba(91,140,255,.45);
@@ -900,7 +900,7 @@ HXLoadFx.boot('paike', 'hxBoot');
 <div id="toast" class="toast" role="status"></div>
 <script id="saved-data" type="application/json">null</script>
 <script>
-const BUILD={"time":"2026-11-15T06:48:49.074Z","sha":"414b5af"};
+const BUILD={"time":"2026-11-15T11:41:52.533Z","sha":"2489b83"};
 /* ---- engine.js ---- */
 /* ================= 排课引擎：数据模型、次数/轮次、自动排课、固定老师同步、校验 =================
    纯逻辑，不碰页面；浏览器里是全局 Engine，node 里 require 进来测试。

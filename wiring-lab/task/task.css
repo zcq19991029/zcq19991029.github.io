@@ -9,7 +9,7 @@
 :root {
   --bg: #04060e; --ink: #e9edff; --dim: #8b95bd;
   --edge: rgba(150, 175, 255, .16); --edge2: rgba(150, 175, 255, .3);
-  --card: rgba(22, 28, 48, .78); --card2: rgba(12, 16, 30, .72);
+  --card: rgb(22 28 48 / calc(.78 * var(--hx-a, 1))); --card2: rgb(12 16 30 / calc(.72 * var(--hx-a, 1)));
   --acc: #7c9cff; --acc2: #b18cff; --ok: #34d399; --bad: #fb7185; --warn: #fbbf24;
   --onacc: #fff;
 }

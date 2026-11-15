@@ -33,6 +33,16 @@ const THEME_KEY = 'zfz-practice-theme', CTRL_KEY = 'zfz-practice-ctrl';
 // 华夏工具网站版：外壳把首页“外观”的主色、背景图、透明度传进来（hxLook）。选了背景图时画布底色变半透明，背景图从页面底下透出来
 let HXL = null;
 const hxRgba = (hex, a) => { const m = /^#([0-9a-f]{6})$/i.exec(hex); if (!m) return hex; const v = parseInt(m[1], 16); return `rgba(${v >> 16},${(v >> 8) & 255},${v & 255},${a})`; };
+/* 2026-11-15 修「通透度滑杆只动顶栏、不动画布卡片」：
+   接线仿真的卡片是 canvas 画的（glass()），读不到 CSS 的 --hx-a，必须在 JS 里自己换算。
+   把 rgba(...) 的 alpha 乘以 mult 并钳到 0~1；不是 rgba（如 #ffffff）的原样返回。 */
+const hxAlpha = (col, mult) => {
+  const m = /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*(?:,\s*([\d.]+)\s*)?\)$/.exec(col);
+  if (!m) return col;
+  const base = m[4] === undefined ? 1 : parseFloat(m[4]);
+  const a = Math.min(1, Math.max(0, base * mult));
+  return `rgba(${m[1]},${m[2]},${m[3]},${+a.toFixed(3)})`;
+};
 // ── 2026-11-08 修「背景/动效点了没反应」的根：练习画布逐帧叠加把透明底越涂越实 ──
 // 练习页每帧开头 fillRect(0,0,W,H) 铺一次半透明底色（TH.bg 带 alpha 时），且从不 clearRect ——
 // source-over 反复叠加，N 帧后画布 alpha 收敛到 1（实测约半秒），壁纸和动效层只在头几帧闪一下
@@ -96,10 +106,29 @@ function applyTheme(n) {
   if (HXL) {
     if (HXL.acc) TH.acc = HXL.acc;
     if (HXL.acc2) TH.acc2 = HXL.acc2;
+    /* 2026-11-15 修「通透度/清晰度只动顶栏、不动下面卡片」（用户：卡片就属于被控制控件）：
+       · 通透度 --hx-a（HXL.a；100=最透=1，往上更透、往下更实，语义见 hx-theme.js）
+         → 卡片玻璃 alpha 乘它，和 HTML 卡片同一套口径；canvas 不读 CSS 变量，这里手动换算。
+       · 清晰度 --hx-bgo（HXL.bgo；**已经是 0~1**，1=背景原样、0=几乎全无；hx-theme 在 apply() 里
+         就把滑杆的 0~150 折算成这个 0~1 了，别再除 100 —— 2026-11-15 端到端验证发现多除一次，
+         导致 bgo=100 时底色 alpha=0.9956（应该 0.56），清晰度滑杆在画布上等于没反应）
+         → 画布底色 alpha：清晰度拉满时底色更透（壁纸更清楚），归零时底色变实（壁纸几乎看不见）。
+       两条都必须在这里做，因为接线仿真的「卡片/底色」全是 canvas 画的，CSS 管不到。 */
+    const mul = HXL.a > 0 ? HXL.a : 1;
+    TH.cardTop = hxAlpha(TH.cardTop, mul);
+    TH.cardBot = hxAlpha(TH.cardBot, mul);
+    TH.hi = hxAlpha(TH.hi, mul);   // 卡片顶部那层亮边高光也算卡片玻璃的一部分，跟通透度一起走
     // 有背景（真图或 hx-theme 的透明哨兵图 = 只开动效）才把底色调成半透明，并打开上面的「填充前先清屏」：
     // 清屏让画布 alpha 稳定在 .56/.82 不再叠加收敛，壁纸和外壳的动效层才真的透得出来。无背景 = 全不透明 = 干净纯色。
     const hasBg = !!(HXL.img && HXL.img !== 'none');
-    if (hasBg) TH.bg = hxRgba(TH.bg, THEMES[n].dark ? .56 : .82);
+    if (hasBg) {
+      const baseA = THEMES[n].dark ? .56 : .82;
+      // HXL.bgo 由 hxLook() 交出，口径是 0~1（hx-theme 已经把滑杆 0~150 折算过）。
+      // 兼容老调用点万一传 0~100：大于 1 就当百分比再除一次，其余原样。
+      const rawBgo = HXL.bgo == null ? 1 : +HXL.bgo;
+      const bgo = Math.min(1, Math.max(0, rawBgo > 1 ? rawBgo / 100 : rawBgo));
+      TH.bg = hxRgba(TH.bg, baseA + (1 - baseA) * (1 - bgo));
+    }
     hxBgClear = hasBg;
   } else hxBgClear = false;
   try { localStorage.setItem(THEME_KEY, n); } catch (e) { }

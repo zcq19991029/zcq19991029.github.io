@@ -1908,7 +1908,7 @@ html[data-hx-acc] {
   --cds-clay: var(--acc); --cds-clay-hover: var(--accent-strong); --cds-clay-soft: var(--accbg);
 }
 html[data-hx-acc] body::after { background-image: none; }
-html.hx-bg body::after { background: linear-gradient(rgb(245 245 247 / calc(var(--hx-a, .9) * .7)), rgb(245 245 247 / calc(var(--hx-a, .9) * .7))), var(--hx-img) center / cover no-repeat; }
+html.hx-bg body::after { display: block; background: linear-gradient(rgb(245 245 247 / calc(var(--hx-a, .9) * .7)), rgb(245 245 247 / calc(var(--hx-a, .9) * .7))), var(--hx-img) center / cover no-repeat; }
 html.hx-bg body::before { display: none; }
 /* 加载中：不出登录卡片，只有一行字 */
 .gate.quiet { background: transparent; }
@@ -2762,8 +2762,10 @@ html.hx-bg[data-hx-mode="dark"] body::after,
    ============================================================ */
 
 /* 浅色页面底纹：CDS 在 screen 下把 body::before/after 关了，这里重新打开 body::after
-   并加几团淡彩光，让毛玻璃卡片背后有东西可糊；深色模式有自己的底纹，不受影响 */
-:root:not([data-hx-mode="dark"]) body::after {
+   并加几团淡彩光，让毛玻璃卡片背后有东西可糊；深色模式有自己的底纹，不受影响。
+   2026-11-15 修「选了背景图也看不到」：加 :not(.hx-bg) —— 挂了壁纸(html.hx-bg)时这里不画淡彩光，
+   否则这条 0,3,1 特异性会盖掉下面 html.hx-bg body::after 的 --hx-img，背景图永远画不出来。 */
+:root:not([data-hx-mode="dark"]):not(.hx-bg) body::after {
   display: block;
   background-image:
     radial-gradient(56vmin 44vmin at 50% 24%, rgba(232, 35, 46, .10), rgba(232, 35, 46, 0) 72%),
