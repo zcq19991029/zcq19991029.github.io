@@ -1856,7 +1856,7 @@
   .ftb-b .hold { position: absolute; inset: -3px; width: 48px; height: 48px; pointer-events: none; transform: rotate(-90deg); }
   .ftb-b .hold circle { fill: none; stroke: var(--bad); stroke-width: 3.5; stroke-linecap: round; stroke-dasharray: 176; stroke-dashoffset: 176; transition: stroke-dashoffset .3s ease-out; }
   .ftb-b.holding .hold circle { stroke-dashoffset: 0; transition: stroke-dashoffset 1s linear; }
-  .ftb-b .pdot { position: absolute; right: 9px; bottom: 19px; width: 11px; height: 11px; border-radius: 50%; border: 2px solid var(--tbbg); }
+  .ftb-b .pdot { position: absolute; right: 3px; bottom: 3px; width: 9px; height: 9px; border-radius: 50%; border: 2px solid var(--tbbg); }
   /* 圆球（收起后）：22px 小点 + 44px 热区 + 4 秒「工具」小标签（practice-ui.js:148-162 同款） */
   .ftb-orb { position: fixed; z-index: 20; width: 22px; height: 22px; opacity: .82; border-radius: 50%; display: none; place-items: center;
     cursor: pointer; touch-action: none; background: radial-gradient(circle at 35% 30%, var(--tbbg), var(--tbbg2));
@@ -1866,6 +1866,10 @@
   .ftb-orb.on { display: grid; }
   .ftb-orb.hide { opacity: 0; transform: scale(.3); pointer-events: none; }
   .ftb-orb.dragging { transition: none; animation: none; transform: scale(1.08); }
+  /* 发烫治理：ftbPulse 光晕每 2.6s 脉冲一次 box-shadow、持续触发 GPU 合成。
+     极简模式（html.hx-lite）与手机触屏都停掉这圈无限脉冲（和 practice-ui.js 的 awPulse 同一口径）。 */
+  html.hx-lite .ftb-orb { animation: none; }
+  @media (pointer: coarse) { .ftb-orb { animation: none; } }
   .ftb-orb svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   .ftb-orb::before { content: ''; position: absolute; inset: -11px; border-radius: 50%; }
   .ftb-orb::after { content: '工具'; position: absolute; left: 50%; top: calc(100% + 5px); transform: translateX(-50%);
