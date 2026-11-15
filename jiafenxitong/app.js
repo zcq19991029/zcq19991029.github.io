@@ -103,16 +103,6 @@
       ? 5 + (lessons || []).reduce(function (a, l) { return a + lessonMaxOf(l); }, 0)
       : 0;
   }
-  /** 审计「加减分」列：±分值文本 → ±百分比（如 −1 → −20%、+1/人 → +20%/人） */
-  function auditDeltaPct(text) {
-    if (text == null || text === '') return '—';
-    var m = /^([+\-]?)(\d+(?:\.\d+)?)(\/人)?$/.exec(String(text));
-    if (!m) return String(text);            // '—' 等非数值照原样
-    var v = Number(m[2]) / 5 * 100;
-    var body = pctText(v).slice(0, -1);      // 去掉 % 再拼，避免 '-20%%'
-    return (m[1] === '-' ? '−' : m[1]) + body + '%' + (m[3] || '');
-  }
-
   /** 打开 <dialog>。极老的浏览器没有 showModal，退化成 open 属性，
       总比点按钮「什么都不发生」强。 */
   function openDlg(d) {
@@ -221,7 +211,7 @@
 
   var S = null;
   var saveTimer = null;
-  /* 云端模块（cloud.js）。没有它（比如离线打开、或被浏览器拦了 CDN）就退化成纯本机模式，
+  /* 云端模块（supabase-cloud.js）。没有它（比如离线打开、或被浏览器拦了 CDN）就退化成纯本机模式，
      界面上会明确写出来，不会偷偷当成"已同步"。 */
   var CLOUD = window.JFDT_CLOUD || null;
   var UI = window.JFDT_UI;
@@ -538,7 +528,7 @@ function removeMemberAt(cls, g, j) {
 /* ================= 分组变动时的分数迁移（2026-11-08） =================
    用户原话：「分完组之后我之前弄的加分全部丢失了基本上」。
    根因：lesson.scores 是按「组号 gno」存整组四列，个人扣分又按「组内下标 i」存
-   （见 sc() / remaining() / memberTotals()）。组一重排、或者组里少一个人，下标整体错位，
+   （见 sc() / memberTotals()）。组一重排、或者组里少一个人，下标整体错位，
    看上去就像分全丢了；旧代码在「按选座确认分组」里甚至会把整组 personal 清空。
    现在凡是会改变「组号 → 成员顺序」的动作，都先拍一张按【学生身份】记的快照，
    动完再按身份写回；实在对不上人的保留在原处并报数，绝不静默清零。 */
@@ -1207,7 +1197,6 @@ function restoreDroppedToHome(cls) {
         {lessonId, gno, reset:true, old}      整组清零（old 是该组原 scores 的副本） */
   function operationEffect(op){if(op.effect)return op.effect;var l=getLesson(op.lessonId),cls=l&&getClass(l.classId),g=cls&&groupOf(cls,op.gno),now=l&&l.scores[String(op.gno)];if(op.reset&&op.old&&now&&g){function points(sc,i){return Math.max(0,5-(+sc.phone||0)-(+((sc.personal||{})[String(i)])||0));}var patch=g.members.map(function(m,i){return {path:'point:'+i,delta:points(now,i)-points(op.old,i)};}).filter(function(x){return x.delta;});return patch;}return [{path:op.i!=null?'point:'+op.i:op.f,delta:op.i!=null?(+op.old||0)-(+op.neu||0):(+op.neu||0)-(+op.old||0)}].filter(function(x){return x.delta;});}
   function inverseEffects(a,b){return a.length===b.length&&a.every(function(x){return b.some(function(y){return x.path===y.path&&Math.abs(x.delta+y.delta)<1e-8;});});}
-  function applyEffect(op,effect,direction){var l=getLesson(op.lessonId),cls=getClass(l.classId),g=groupOf(cls,op.gno),scored=sc(l,op.gno),actual=[];effect.forEach(function(e){var old,next;if(e.path.startsWith('leader:')){var token=e.path.slice(7),cut=token.lastIndexOf('|'),mk=token.slice(0,cut),col=+token.slice(cut+1),r=l.leaderScores&&l.leaderScores[String(op.gno)];if(!r)return;var values=r.members[mk]||(r.members[mk]=[]);old=Number(values[col])||0;next=Math.max(0,Math.min(5,old+direction*e.delta));values[col]=next===0&&direction<0&&e.wasBlank?null:next;}else if(e.path.startsWith('point:')){var i=e.path.slice(6),values=g.members.map(function(_,j){return remaining(l,g.no,j);});var base=5;old=values[+i];next=Math.max(0,Math.min(base,old+direction*e.delta));scored.phone=0;scored.group=base;scored.first=0;g.members.forEach(function(_,j){scored.personal[String(j)]=base-(String(j)===i?next:values[j]);});}else if(e.path.startsWith('personal:')){var i=e.path.slice(9);old=+scored.personal[i]||0;next=Math.max(0,Math.min(5,old+direction*e.delta));scored.personal[i]=next;}else{old=+scored[e.path]||0;next=Math.max(0,Math.min(e.path==='phone'?1000000:(e.path==='dutyAbsent'?20:5),old+direction*e.delta));scored[e.path]=next;}if(next!==old)actual.push({path:e.path,delta:next-old,wasBlank:e.wasBlank});});return actual;}
   function pushUndo(op) {
     if (!S.undo) S.undo = [];
     op.id=op.id||uid('op');
@@ -1220,14 +1209,6 @@ function restoreDroppedToHome(cls) {
     var opposite=-1;for(var oi=S.undo.length-1;oi>=0&&op.f!=='group'&&(+sc(getLesson(op.lessonId),op.gno).group===5);oi--){var previous=S.undo[oi];if(previous.lessonId===op.lessonId&&previous.gno===op.gno&&operationEffect(previous).some(function(e){return op.effect.some(function(x){return e.path===x.path;});})){if(inverseEffects(operationEffect(previous),op.effect))opposite=oi;break;}}
     if(opposite>=0)S.undo.splice(opposite,1);else S.undo.push(op);
     if (S.undo.length > UNDO_MAX) S.undo.shift();
-    renderUndoBtn();
-  }
-
-  function dropUndo() { S.undo = []; renderUndoBtn(); }
-
-  /** 某节课被清零 / 删除后，指向它的撤销记录就没意义了 */
-  function dropUndoForLesson(lessonId) {
-    S.undo = (S.undo || []).filter(function (op) { return op.lessonId !== lessonId; });
     renderUndoBtn();
   }
 
@@ -1258,77 +1239,10 @@ function restoreDroppedToHome(cls) {
     S.operationLog.push({id:uid('log'),at:new Date().toISOString(),kind:kind,detail:detail,lessonId:op&&op.lessonId,opId:op&&op.id,audit:op&&op.audit?JSON.parse(JSON.stringify(op.audit)):undefined});
     if(S.operationLog.length>500) S.operationLog.splice(0,S.operationLog.length-500);
   }
-  function canUndoAt(index) {
-    var op=(S.undo||[])[index]; if(!op || !getLesson(op.lessonId))return false;if(op.projectBatch&&JSON.stringify(window.JFDT_ASSESSMENT.projectNames(getLesson(op.lessonId)))!==JSON.stringify(op.projectNames))return false;
-    return true;
-  }
-  function renderOperationLog() {
-    var list=$('#operationLogList'); if(!list) return;
-    var classFilter=$('#logClassFilter'),savedClass=classFilter.value,search=$('#logSearch').value.trim().toLowerCase();
-    /* 用可见班级，不用 S.classes：旧班/别的班不该出现在筛选里（2026-11-04） */
-    classFilter.innerHTML='<option value="">全部班级</option>'+visibleClasses().map(function(c){return '<option value="'+esc(c.id)+'">'+esc(c.name)+'</option>';}).join('');classFilter.value=savedClass;
-    var lessonFilter=$('#logLessonFilter'),savedLesson=lessonFilter.value;
-    lessonFilter.innerHTML='<option value="">全部课次</option>'+S.lessons.filter(function(l){return !classFilter.value||l.classId===classFilter.value;}).sort(function(a,b){return b.seq-a.seq;}).map(function(l){var c=getClass(l.classId);return '<option value="'+esc(l.id)+'">'+esc((!classFilter.value&&c?c.name+' · ':'')+'第'+l.seq+'次课 · '+l.date)+'</option>';}).join('');lessonFilter.value=Array.from(lessonFilter.options).some(function(o){return o.value===savedLesson;})?savedLesson:'';
-    function matches(op){var lesson=getLesson(op.lessonId);return (!classFilter.value||lesson&&lesson.classId===classFilter.value)&&(!lessonFilter.value||op.lessonId===lessonFilter.value)&&(!search||(undoLabel(op)+' '+JSON.stringify(op.audit||{})).toLowerCase().includes(search));}
-    function when(at){return at?new Date(at).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}):'历史记录';}
-    function row(op,index,restored){var lesson=getLesson(op.lessonId),cls=lesson&&getClass(lesson.classId),allowed=restored||canUndoAt(index),meta=Object.assign({},op.audit||{}),label=undoLabel(reverseOp(op)),title=meta.lesson||(cls?cls.name+' · 第'+lesson.seq+'次课 · '+(lesson.date||'')+' · '+(lesson.topic||''):'历史课次');if(!meta.delta&&op.effect&&op.effect.length){var effects=op.effect,pointOnly=effects.every(function(e){return e.path.startsWith('point:');}),single=effects.length===1&&['group','first','phone'].includes(effects[0].path);if((pointOnly&&effects.every(function(e){return e.delta===effects[0].delta;}))||single){var d=effects[0].delta*(effects[0].path==='phone'?-1:1);meta.delta=(d>0?'+':'')+d+((pointOnly&&effects.length>1)||(single&&op.i==null)?'/人':'');}}/* 显示层（2026-11-09）：加减分与操作后总分按完成率口径展示，存储值不动 */var deltaShow=auditDeltaPct(meta.delta),afterShow=meta.afterPct||meta.after||'—';return '<tr class="operation-row"><td title="'+esc(when(op.at))+'">'+esc(when(op.at))+'</td><td>'+esc(meta.source||'课堂记分')+'</td><td title="'+esc(title+'；'+label)+'">'+esc(title)+'</td><td class="log-student" title="'+esc(meta.student||label)+'"><span class="log-no">'+esc(meta.sid||'第'+op.gno+'组')+'</span><b>'+esc(meta.student||op.name||'小组记分')+'</b></td><td class="delta '+(String(meta.delta||'').startsWith('-')?'minus':'plus')+'" title="'+esc(label)+'">'+esc(deltaShow||'—')+'</td><td title="当时的累计完成率；多人操作按成员顺序排列">'+esc(afterShow)+'</td><td><button class="edit-log-btn '+(restored?'log-restore':'log-undo')+'" '+(restored?'data-redo-index':'data-undo-index')+'="'+index+'" '+(!allowed?'disabled':'')+' title="'+esc((meta.sid==='全组操作'?'整笔全组操作：':'')+(restored?'恢复实际效果':'撤销实际效果'))+'">'+(restored?'恢复':'撤销')+'</button></td></tr>';}
-    function table(rows,restored){return '<div class="bubble-audit-scroll"><table class="bubble-audit-table"><thead class="log-table-head"><tr><th>北京时间</th><th>来源</th><th>课次</th><th>学生</th><th>加减分</th><th>操作后总分</th><th>操作</th></tr></thead><tbody>'+rows.map(function(r){return row(r.op,r.index,restored);}).join('')+'</tbody></table></div>';}
-    var pending=(S.undo||[]).map(function(op,i){return {op:op,index:i};}).filter(function(r){return matches(r.op);}).reverse(),redo=(S.redo||[]).map(function(e,i){return {op:e.op,index:i};}).filter(function(r){return matches(r.op);}).reverse();
-    function entryLesson(e){if(e.lessonId)return getLesson(e.lessonId);var detail=e.detail||'',m=detail.match(/第\s*(\d+)\s*次(?:课)?/),c=S.classes.find(function(c){return detail.startsWith(c.name+' ·');});return c&&m?S.lessons.find(function(l){return l.classId===c.id&&l.seq===+m[1];}):null;}
-    function auditRow(e){var l=entryLesson(e),c=l&&getClass(l.classId),meta=e.audit||{},detail=e.detail||'',parts=detail.split(' · '),tail=parts.slice(2).join(' · ')||detail;var source=meta.source||e.kind||'历史记录',title=meta.lesson||(l?c.name+' · 第'+l.seq+'次课 · '+l.date+' · '+(l.topic||''):parts.slice(0,2).join(' · '));var deltaShow=meta.delta!=null?auditDeltaPct(meta.delta):'—',afterShow=meta.afterPct||meta.after||'—';return '<tr class="audit-row"><td>'+esc(when(e.at))+'</td><td>'+esc(source)+'</td><td title="'+esc(detail)+'">'+esc(title||'历史记录')+'</td><td class="log-student" title="'+esc(detail)+'"><b>'+esc(meta.student||tail)+'</b></td><td class="delta '+(String(meta.delta||'').startsWith('-')?'minus':'plus')+'">'+esc(deltaShow)+'</td><td>'+esc(afterShow)+'</td><td>'+esc(e.kind==='撤销'?'已撤销':e.kind==='重做'?'已恢复':'核对记录')+'</td></tr>';}
-    var entries=(S.operationLog||[]).slice().reverse().filter(function(e){var l=entryLesson(e);return (!classFilter.value||(l?l.classId===classFilter.value:(e.detail||'').startsWith((getClass(classFilter.value)||{}).name+' ·')))&&(!lessonFilter.value||l&&l.id===lessonFilter.value)&&(!search||(e.detail||'').toLowerCase().includes(search));});
-    var auditTable=table([],false).replace('<tbody></tbody>','<tbody>'+entries.map(auditRow).join('')+'</tbody>');
-    list.innerHTML=(pending.length?table(pending,false):'<div class="log-empty">'+(search||classFilter.value||lessonFilter.value?'没有匹配的记录':'暂无可撤销记分')+'</div>')+'<details class="log-restored"'+(redo.length?' open':'')+'><summary>已撤销，可恢复 <span>'+redo.length+'</span></summary>'+(redo.length?table(redo,true):'<div class="log-empty">暂无已撤销记录</div>')+'</details><details class="log-audit"><summary>完整流水 <span>'+entries.length+'</span></summary>'+auditTable+'</details>';
-    var entry=(S.redo || []).slice(-1)[0];
-    $('#redoDetail').textContent=entry ? '下一步重做：'+undoLabel(reverseOp(entry.op)) : '暂无可重做操作';
-  }
-
-  function fadeLogRow(row) {
-    if(!row || window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
-    var rect=row.getBoundingClientRect(), ghost=row.cloneNode(true);
-    ghost.classList.add('log-row-ghost'); ghost.setAttribute('aria-hidden','true');
-    ghost.style.cssText='position:fixed;left:'+rect.left+'px;top:'+rect.top+'px;width:'+rect.width+'px;height:'+rect.height+'px;z-index:5;pointer-events:none;';
-    $('#dlgOperationLog').appendChild(ghost);
-    setTimeout(function(){ghost.remove();},220);
-  }
-
   function renderUndoBtn() {
     /* V10（2026-11-12）：操作日志与撤销 UI 已整体移除，这里不再更新任何按钮。
        数据层 S.undo/S.redo 保留（pushUndo 调用不变，内存栈自然增长，不再有入口读取）。 */
     return;
-  }
-
-  /** 撤销一步。返回是否真的撤了 */
-  function undo() {
-    if (!(S.undo || []).length) return false;
-    var op = null, l = null;
-    while (S.undo.length) {
-      op = S.undo.pop();
-      l = getLesson(op.lessonId);
-      if (l) break;
-      op = null;                        // 课次已被删掉，跳过这条继续往前撤
-    }
-    renderUndoBtn();
-    if (!op) return false;
-    if (UI) UI.clear();
-
-    var key = String(op.gno);
-    var beforeUndo=JSON.parse(JSON.stringify(l.scores[key]||{}));if(!S.redo)S.redo=[];var actual=applyEffect(op,operationEffect(op),-1);var undoChanged=actual.length>0;S.redo.push({op:JSON.parse(JSON.stringify(op)),redoEffect:actual.map(function(e){return {path:e.path,delta:-e.delta,wasBlank:e.wasBlank};})});
-
-    var cls = getClass(l.classId);
-    var sameView = cls && S.ui.classId === l.classId && S.ui.lessonId === l.id;
-    if (cls) { S.ui.classId = l.classId; S.ui.lessonId = l.id; }
-    addOperationLog('撤销',undoLabel(op));
-    save(false);
-    renderUndoBtn();
-
-    if(op.projectBatch)renderLeader();
-    if (sameView) { refreshCard(cls, l, op.gno); renderMetrics(cls, l); }
-    else { renderScore(); }
-
-    flash('已撤销：' + undoLabel(op));
-    if (UI && undoChanged) UI.feedback(op.gno, op.reset ? null : op.f, op.i, 0, '已撤销：' + undoLabel(op), true);
-    return true;
   }
 
   /** 顶栏那句小字兼做提示条 */
@@ -1949,10 +1863,6 @@ function restoreDroppedToHome(cls) {
   /* 本节合计（2026-11-12 R1）：按完成率百分比显示 =（Σ个人项目分 − 本节扣分）÷（5×已命名项目数）；
      不再有「每节课送 5 分」，值日缺勤是整学期一次的项目，不摊进单节课 */
   function lessonMemberTotals(cls,lesson,g){return '<div data-member-lesson-totals="'+g.no+'">'+g.members.map(function(m,i){if(!m.name)return '';return '<div class="home-grade-person" data-lesson-member="'+i+'" title="'+esc(m.name)+'"><strong>'+memberLessonRateText(lesson,g.no,m,i)+'</strong></div>';}).join('')+'</div>';}
-  function ctlSum(gno, total, cumVal) {
-    return '<div hidden class="legacy-group-total v '+signClass(total)+'" data-total="'+gno+'">'+fmt(total)+'</div>'+lessonMemberTotals(curClass(),curLesson(curClass()),groupOf(curClass(),gno));
-
-  }
 
   /* 考勤格显示层（2026-11-09）：8、9 分值改按 (9−累计扣分)/9 完成率百分比显示；存储仍是 9 分制 */
   function attendanceCell(cls,lesson,g,printing){var A=window.JFDT_ASSESSMENT,rows=A.rows(cls,lessonsOf(cls.id),memberTotals(cls));return '<td rowspan="2" class="home-attendance">'+g.members.filter(function(m){return !!m.name;}).map(function(m,i){var k=A.key(m),row=rows.find(function(r){return r.key===k;}),score=row?row.attendance:9;return '<div class="home-attendance-person compact"><span>'+(i+1)+'</span>'+(printing?'<strong>'+attPctText(score)+'</strong>':'<button type="button" class="attendance-score" data-attendance-open="'+esc(k)+'" aria-label="成员'+(i+1)+' '+esc(m.name)+' 考勤完成率 '+attPctText(score)+'，点击修改">'+attPctText(score)+'</button>')+'</div>';}).join('')+'</td>';}
@@ -1972,11 +1882,6 @@ function restoreDroppedToHome(cls) {
     var members=g.members.filter(function(m){return !!m.name;}).map(function(m,i){return {member:m,index:i+1,row:rows.find(function(r){return r.key===A.key(m);})};});
     return ['regular','contribution','needed'].map(function(field){return '<td rowspan="2" class="home-grade '+field+'" data-home-grade="'+field+'">'+members.map(function(item){var m=item.member,r=item.row;if(!r)return '';var value=field==='needed'?(r.attendanceFailed?'不适用':r.needed>100?'无法达到':r.needed):r[field];return '<div class="home-grade-person" data-grade-student="'+esc(r.key)+'" title="'+esc(m.name)+'：'+(r.ready?'记录已齐':'预估，项目或考勤记录未齐')+'"><strong>'+value+(field==='regular'?' <span class="completion-rate">（'+(r.totalMaximum?Math.round(r.performanceRate*1000)/10+'%':'—')+'）</span>':'')+'</strong>'+(r.attendanceFailed?'<small>考勤挂科</small>':'')+'</div>';}).join('')+'</td>';}).join('');
   }
-
-  /** 某成员本节剩余可扣的项目分（5 分制）：5 − 手机未入袋次数 − 本人已扣分。
-      底层数据函数：undo/redo（applyEffect 的 point: 分支）依赖它。
-      （2026-11-13：原来还提到「全组扣分 changeMemberPoints」，那个函数随个人扣分入口一起删了。） */
-  function remaining(lesson,gno,i){var s=sc(lesson,gno);return Math.max(0,5-(+s.phone||0)-(+s.personal[String(i)]||0));}
 
   var groupPicking = null;
   function mountGroupPicker(cls,lesson){
@@ -2039,22 +1944,6 @@ function restoreDroppedToHome(cls) {
     /* 2026-11-14 用户：「不用显示分数 只需要完成率」「点这边的区域也会弹窗 肯定不对 我都没要看详情啊」
        → 后三列成绩（平时分/计入总评/期末需考）一律不再挂「完成率明细」弹窗，纯展示、不可点。 */
 
-  }
-
-  function showStudentGrade(cls,key,throughLesson){
-    /* 悬浮窗互斥（2026-11-13）：先收起「本节明细」等浮层，同一时刻只留一个 */
-    closeAllFloats('studentGradeDialog');
-    var A=window.JFDT_ASSESSMENT,ls=(throughLesson?lessonsThrough(cls,throughLesson):lessonsOf(cls.id)).slice().sort(function(a,b){return a.seq-b.seq;}),student=A.rows(cls,ls,memberTotals(cls)).find(function(m){return m.key===key;});if(!student)return;
-    var dialog=$('#studentGradeDialog');if(!dialog){dialog=document.createElement('dialog');dialog.id='studentGradeDialog';dialog.className='student-grade-dialog';document.body.appendChild(dialog);}
-    var dutyPct=dutyPctText(ls,student.gno);
-    var detail=ls.map(function(l){var net=A.lessonNet(l,student.gno,student.memberIndex,key),a=l.attendance&&l.attendance[key],names=A.projectNames(l),record=l.leaderScores&&l.leaderScores[String(student.gno)],values=record&&record.members&&record.members[key],projects=names.map(function(n,i){return String(n||'').trim()?esc(n)+'：'+(values&&values[i]!=null?scorePctText(values[i]):'未填'):'';}).filter(Boolean);
-      /* 2026-11-13 用户原话：「满分 300% 本人扣 −0% 实得 100% 谁能看懂 以为是扣分了呢，本节项目与扣分可以删掉」
-         → 整列删掉，右端「本节完成率」本来就是最终值；考勤只在真扣了分时才显示扣多少，不再出现「−0%」。 */
-      var attLoss=+((a&&Number(a.loss))||0);
-      return '<tr><td>第'+l.seq+'次<br>'+esc(l.date||'')+'<br>'+esc(l.topic||'')+'</td><td>'+ (projects.join('<br>')||'无命名项目')+'</td><td>'+esc(a?a.label||a.status:'正常到课')+(attLoss>0?'<br>−'+pctText(attLoss/9*100):'')+'</td><td><b>'+(net.max?pctText(Math.max(0,net.earned)/net.max*100):'—')+'</b></td></tr>';
-    }).join('');
-    dialog.innerHTML='<div class="student-grade-heading"><h2>'+esc(student.name)+' · 截至第'+throughLesson.seq+'次课完成率明细</h2><button type="button" class="btn" data-close-grade>关闭</button></div><p>'+esc(cls.name)+' · '+esc(student.sid||'')+'</p><p>项目完成率 <b>'+Math.round(student.task.earned*100)/100+' / '+student.task.maximum+'</b>（'+Math.round(student.task.rate*1000)/10+'%）；值日完成率 <b>'+dutyPct+'</b>；考勤完成率 <b>'+attPctText(student.attendance)+'</b>（'+student.attendance+'/9）；平时分 <b>'+student.regular+'</b>/100；计入总评 '+student.contribution+'/40。</p><div class="student-grade-scroll"><table class="data"><thead><tr><th>课次</th><th>个人项目</th><th>考勤</th><th>本节完成率</th></tr></thead><tbody>'+detail+'</tbody></table></div>';
-    $('[data-close-grade]',dialog).onclick=function(){dialog.close();};if(!dialog.open)openDlg(dialog);
   }
 
   function groupsCards(cls, lesson) {
@@ -2201,7 +2090,7 @@ function restoreDroppedToHome(cls) {
     var t = groupTotal(lesson, gno);
     var v = $('[data-total="' + gno + '"]', card);
     v.textContent = fmt(t);
-    v.className = 'legacy-group-total v ' + signClass(t);var memberTotalsEl=$('[data-member-lesson-totals]',card);if(memberTotalsEl)memberTotalsEl.outerHTML=lessonMemberTotals(cls,lesson,groupOf(cls,gno));var gradeCells=$$('[data-home-grade]',card);if(gradeCells.length){var holder=document.createElement('tr');holder.innerHTML=homeGradeCells(cls,groupOf(cls,gno),lesson);gradeCells.forEach(function(cell,i){cell.innerHTML=holder.children[i].innerHTML;});}
+    v.className = 'v ' + signClass(t);var memberTotalsEl=$('[data-member-lesson-totals]',card);if(memberTotalsEl)memberTotalsEl.outerHTML=lessonMemberTotals(cls,lesson,groupOf(cls,gno));var gradeCells=$$('[data-home-grade]',card);if(gradeCells.length){var holder=document.createElement('tr');holder.innerHTML=homeGradeCells(cls,groupOf(cls,gno),lesson);gradeCells.forEach(function(cell,i){cell.innerHTML=holder.children[i].innerHTML;});}
     
     var totals=memberTotals(cls);
     $$('[data-semester-group]',card).forEach(function(el){var member=cls.groups.find(function(g){return g.no===gno;}).members[+el.dataset.semesterIndex];var total=totals.find(function(m){return m.gno===gno && m.name===member.name && m.sid===member.sid;});el.querySelector('b').textContent=fmt(total?total.total:0);});
@@ -2384,7 +2273,7 @@ function restoreDroppedToHome(cls) {
        · #dlgHomeAttendance   —— 考勤修改框（原生 dialog）
        · #studentGradeDialog  —— 学生「平时分明细」框（动态创建的原生 dialog）
        · #dlgMe               —— 我的/账号（侧栏头像）      · #dlgEditLesson —— 课次设置
-       · #dlgLesson / #dlgGroupReport / #dlgOperationLog / #dlgWirePub / #dlgDraw /
+       · #dlgLesson / #dlgGroupReport / #dlgWirePub / #dlgDraw /
          #dlgLessonPrint / #dlgDeleteGroup / #dlgPassword / #dlgAccountSwitch / #dlgSyncConflict
      例外（故意不关）：
        · #dlgAskConfirm —— 模态确认框。它可能从别的框里触发（如「确认分组」），
@@ -2395,7 +2284,7 @@ function restoreDroppedToHome(cls) {
   function closeAllFloats(exceptId) {
     closeSumDetail();                       // 唯一不是 dialog 的浮层，单独收
     var ids = ['dlgHomeAttendance', 'studentGradeDialog', 'dlgMe', 'dlgEditLesson',
-      'dlgLesson', 'dlgGroupReport', 'dlgOperationLog', 'dlgWirePub', 'dlgDraw',
+      'dlgLesson', 'dlgGroupReport', 'dlgWirePub', 'dlgDraw',
       'dlgLessonPrint', 'dlgDeleteGroup', 'dlgPassword', 'dlgAccountSwitch', 'dlgSyncConflict'];
     ids.forEach(function (id) {
       if (id === exceptId || id === 'dlgAskConfirm') return;
@@ -5102,18 +4991,6 @@ function restoreDroppedToHome(cls) {
 
   /* ================= 数据与同步视图 ================= */
 
-  var rosterClassId = null;
-
-  function renderData() {
-    /* 2026-11-12 删「数据与同步」页：renderData 保留作死代码，但页面 DOM 已删。
-       renderHxRoster（首页班级对应）已搬到分组页，其余（导出/课次/名单）整页删掉了。
-       这里只剩 renderHxRoster 还有真实容器（#hxRosterCard 已搬到 view-pool），
-       其余两块 DOM 没了，直接跳过，避免 null.innerHTML 报错。 */
-    renderHxRoster();
-    if ($('#lessonListCard')) renderLessonList();
-    if ($('#rosterCard')) { if (!rosterClassId) rosterClassId = (curClass() || {}).id || null; renderRoster(); }
-  }
-
   /* 班级名单来自首页“班级”（点亮“小组加分”的班），规则见 hx-roster.js：只读首页名单，不删加分里的任何数据 */
   var HXR = window.JFDT_HXROSTER;
   var hxRoster = { classes: null, all: null, students: {}, loading: null, error: '', review: null };
@@ -5241,166 +5118,9 @@ function restoreDroppedToHome(cls) {
      .addEventListener 直接抛 TypeError —— 脚本从这里中断，后面所有初始化（填班级/填课次/画名单）
      全部没执行，整个记分页一片空白（2026-11-13 线上事故）。所以整块一起删干净。
      自动对应仍由 loadHxRoster 在后台维护，只是不再有可见卡片和交互。 */
-  /* 2026-11-13：「首页班级」那张卡连同刷新按钮一起删了（用户：这个也没用）。
-     自动对应仍由 loadHxRoster 在后台维护，只是不再有可见卡片。 */
-  if ($('#btnHxRefresh')) $('#btnHxRefresh').addEventListener('click', function () { renderHxRoster(); loadHxRoster(true); });
-
-  function renderLessonList() {
-    var rows = S.lessons.slice().sort(function (a, b) {
-      var ca = getClass(a.classId), cb = getClass(b.classId);
-      var na = ca ? ca.name : '', nb = cb ? cb.name : '';
-      return na.localeCompare(nb, 'zh') || (a.seq - b.seq);
-    });
-    $('#lessonListCard').innerHTML = rows.length
-      ? '<table class="data"><thead><tr><th>班级</th><th>课次</th><th>日期</th><th>本节任务</th>' +
-        '<th>值日组</th><th>已记分组</th><th>操作</th></tr></thead><tbody>' +
-        rows.map(function (l) {
-          var c = getClass(l.classId);
-          var n = c ? c.groups.filter(function (g) { return touched(l, g.no); }).length : 0;
-          return '<tr>' +
-            '<td>' + esc(c ? c.name : '（已删除）') + '</td>' +
-            '<td>第 ' + l.seq + ' 次</td>' +
-            '<td>' + esc(l.date || '') + '</td>' +
-            '<td>' + esc(l.topic || '') + '</td>' +
-            '<td>' + (l.dutyGroup ? '第 ' + l.dutyGroup + ' 组' : '—') + '</td>' +
-            '<td>' + n + '</td>' +
-            '<td><button class="btn tiny" data-lopen="' + l.id + '">打开</button> ' +
-                '<button class="btn tiny" data-lclear="' + l.id + '">清零</button> ' +
-                '<button class="btn tiny danger" data-ldel="' + l.id + '">删除</button></td>' +
-          '</tr>';
-        }).join('') + '</tbody></table>'
-      : '<p class="rank-note">还没有任何课次记录。</p>';
-  }
-
-  function renderRoster() {
-    var cls = getClass(rosterClassId);
-    if (!cls || visibleClasses().indexOf(cls) < 0) cls = curClass();
-    if (!cls) { $('#rosterCard').innerHTML = ''; return; }
-    rosterClassId = cls.id;
-
-    var head = '<div class="btnrow">' +
-      '<label class="field"><span>班级</span><select id="rosterSel">' +
-      visibleClasses().map(function (c) {
-        return '<option value="' + c.id + '"' + (c.id === cls.id ? ' selected' : '') + '>' + esc(c.name) + '</option>';
-      }).join('') + '</select></label>' +
-      '<label class="field"><span>教师</span><input type="text" id="rosterTeacher" value="' + esc(cls.teacher || '') + '" style="width:110px"></label>' +
-      '<span class="spacer"></span>' +
-      '<button class="btn tiny" id="btnAddGroup">＋ 添加一组</button></div>';
-
-    var cols = GROUP_CAP;
-    var body = '<table class="data"><thead><tr><th>组号</th>';
-    for (var i = 1; i <= cols; i++) body += '<th>成员' + i + '</th>';
-    body += '<th>操作</th></tr></thead><tbody>';
-    cls.groups.forEach(function (g) {
-      body += '<tr><td>第 ' + g.no + ' 组</td>';
-      for (var j = 0; j < cols; j++) {
-        var m = g.members[j];
-        var shown = m ? (m.name + (m.sid ? ' ' + m.sid : (m.no == null ? '' : ' ' + m.no))) : '';
-        body += '<td><input type="text" data-rg="' + g.no + '" data-rm="' + j + '" value="' +
-          esc(shown) + '" placeholder="姓名"></td>';
-      }
-      body += '<td><button class="btn tiny danger" data-rgdel="' + g.no + '">删组</button></td></tr>';
-    });
-    body += '</tbody></table>';
-    body += '<p class="rank-note">成员格填「姓名」即可，学号与班内序号会自动按全班名单补齐；' +
-      '也可以手写「姓名 学号」。留空表示该位置没人。要批量调整请用「分组」页。</p>';
-
-    $('#rosterCard').innerHTML = head + body;
-
-    $('#rosterSel').addEventListener('change', function () { rosterClassId = this.value; renderRoster(); });
-    $('#rosterTeacher').addEventListener('change', function () { cls.teacher = this.value; save(); });
-    $('#btnAddGroup').addEventListener('click', function () {
-      var maxNo = cls.groups.reduce(function (a, g) { return Math.max(a, g.no); }, 0);
-      cls.groups.push({ id: uid('g'), no: maxNo + 1, members: [] });
-      save(); renderRoster();
-    });
-    $$('#rosterCard input[data-rg]').forEach(function (inp) {
-      inp.addEventListener('change', function () {
-        var g = groupOf(cls, +inp.dataset.rg);
-        if (!g) return;
-        var j = +inp.dataset.rm;
-        var raw = inp.value.trim();
-        while (g.members.length <= j) g.members.push({ id: uid('m'), name: '', sid: '' });
-        var prev = g.members[j];
-        if (!raw) {
-          g.members[j] = { id: prev.id, name: '', sid: '', no: null };
-        } else {
-          /* 「姓名 26000000001」或「姓名 05」两种写法都收；
-             只写姓名时保留原有的学号 / 序号，避免改个错别字把学号弄丢 */
-          var mm = raw.match(/^(.*?)\s*([0-9]{1,20})$/);
-          var nm = mm ? mm[1].trim() : raw;
-          var tail = mm ? mm[2] : '';
-          var hit = rosterOf(cls).filter(function (r) { return r.name === nm; })[0];
-          g.members[j] = {
-            id: prev.id,
-            name: nm,
-            sid: (hit && hit.sid) ? hit.sid
-              : (tail.length >= 8 ? tail : (prev.sid || '')),
-            no: (hit && hit.no != null) ? hit.no
-              : (tail && tail.length < 8 ? parseInt(tail, 10) : (prev.no == null ? null : prev.no))
-          };
-        }
-        while (g.members.length && !g.members[g.members.length - 1].name) g.members.pop();
-        save(); renderRoster();
-      });
-    });
-    $$('#rosterCard button[data-rgdel]').forEach(function (b) {
-      b.addEventListener('click', function () {
-        var no = +b.dataset.rgdel;
-        var dialog=document.createElement('dialog');dialog.id='dlgDeleteGroup';dialog.innerHTML='<form method="dialog"><h2>删除第'+no+'组？</h2><p>该组成员会回到未分组，该组历史记分将删除。要留退路请先到华夏工具首页「全站备份」导出一份。</p><div class="btnrow"><button class="btn" value="cancel">取消</button><button class="btn danger" value="ok">确认删除</button></div></form>';document.body.appendChild(dialog);dialog.addEventListener('close',function(){var accepted=dialog.returnValue==='ok';dialog.remove();if(!accepted)return;
-        cls.groups = cls.groups.filter(function (g) { return g.no !== no; });
-        S.lessons.forEach(function (l) { if (l.classId === cls.id) delete l.scores[String(no)]; });
-        save(); renderRoster();
-        });openDlg(dialog);   // 走统一入口：打开前先把别的浮层收掉（悬浮窗互斥）
-      });
-    });
-  }
-
-  document.addEventListener('click', async function (e) {
-    var b = e.target.closest('button');
-    if (!b) return;
-
-    if (b.dataset.lopen) {
-      var l = getLesson(b.dataset.lopen);
-      if (l) { S.ui.classId = l.classId; S.ui.lessonId = l.id; save(); switchView('score'); }
-      return;
-    }
-    if (b.dataset.lclear) {
-      var l2 = getLesson(b.dataset.lclear);
-      if (!l2) return;
-      var clearOk = await askConfirm({
-        title: '第 ' + l2.seq + ' 次课的分数清零？',
-        body: '这节课记过的分全部清空（课次本身保留）。',
-        note: '可以撤销。',
-        ok: '清零',
-        danger: true
-      });
-      if (clearOk) {
-        l2.scores = {};
-        dropUndoForLesson(l2.id);
-        save(); renderData();
-      }
-      return;
-    }
-    if (b.dataset.ldel) {
-      var l3 = getLesson(b.dataset.ldel);
-      if (!l3) return;
-      var delOk = await askConfirm({
-        title: '删除第 ' + l3.seq + ' 次课？',
-        body: '这节课的全部记录都会删除，包括所有小组的分数。',
-        note: '此操作不可撤销，要留退路请先到华夏工具首页「全站备份」导出一份。',
-        ok: '删除',
-        danger: true
-      });
-      if (delOk) {
-        S.lessons = S.lessons.filter(function (x) { return x.id !== l3.id; });
-        if (S.ui.lessonId === l3.id) S.ui.lessonId = null;
-        dropUndoForLesson(l3.id);
-        save(); renderData();
-      }
-      return;
-    }
-  });
+  /* 2026-11-15 死代码清理：renderLessonList / renderRoster 及其 btnHxRefresh 监听、data-lopen/lclear/ldel
+     委托已删——「数据与同步」页 DOM（#lessonListCard / #rosterCard / #btnHxRefresh）早已从 index.html 移除，
+     这些函数被 renderData 里的 if($('#…')) 挡死、永不执行。 */
 
   /* ================= 导出 ================= */
 
@@ -5731,9 +5451,9 @@ function restoreDroppedToHome(cls) {
   }
 
   /* 撤销：按钮 + Ctrl/Cmd+Z */
-  function redo(index) {if(typeof index!=='number')index=(S.redo||[]).length-1;var entry=(S.redo||[]).splice(index,1)[0];if(!entry)return false;var l=getLesson(entry.op.lessonId);if(!l)return false;var effect=entry.redoEffect||operationEffect(entry.op),actual=applyEffect(entry.op,effect,1);entry.op.effect=actual;S.undo.push(entry.op);S.ui.classId=l.classId;S.ui.lessonId=l.id;addOperationLog('重做',undoLabel(reverseOp(entry.op)));save(false);renderScore();if(entry.op.projectBatch)renderLeader();renderUndoBtn();flash('已恢复所选操作');return true;}
   /* V10（2026-11-12）：操作日志与撤销已整体移除（用户确认），Ctrl+Z 撤销快捷键一并停用。
-     数据层 pushUndo/undo/redo 保留（不暴露 UI），将来若要恢复撤销只需加回入口。 */
+     数据层 pushUndo 保留（不暴露 UI）。2026-11-15 死代码清理：undo/redo/applyEffect 等
+     撤销执行函数已随 UI 一并删除。 */
 
   /* 表格式 / 卡片式 切换 */
   $('#layoutSeg').addEventListener('click', function (e) {
@@ -6373,13 +6093,6 @@ function restoreDroppedToHome(cls) {
   checkAppVersion(false);
   /* 2026-11-12 删「数据与同步」页：同步条上的两个按钮（核对云端/修复历史分）挂载点已删。
      逻辑保留（refreshCloud / repairOrphanScores 仍在），等有新的挂载点再放回来。 */
-  if ($('#btnSyncNow')) {
-    var checkCloudButton=document.createElement('button');checkCloudButton.id='btnCheckCloudLatest';checkCloudButton.className='btn';checkCloudButton.textContent='核对云端最新版';checkCloudButton.onclick=function(){checkCloudButton.disabled=true;checkCloudButton.setAttribute('aria-busy','true');refreshCloud().then(function(ok){flash(ok?'核对完成：本机已是云端最新版':'核对未完成：请查看同步冲突详情');}).finally(function(){checkCloudButton.disabled=false;checkCloudButton.removeAttribute('aria-busy');});};$('#btnSyncNow').parentElement.appendChild(checkCloudButton);
-  }
-  if ($('#btnSyncNow')) {
-    var repairScoresButton=document.createElement('button');repairScoresButton.id='btnRepairScores';repairScoresButton.className='btn';repairScoresButton.textContent='修复认不到人的历史分';repairScoresButton.onclick=async function(){var R=window.JFDT_SCORE_REPAIR;if(!R){flash('修复模块没加载，请刷新页面');return;}var n=0;visibleClasses().forEach(function(c){n+=R.countOrphans(S,c);});if(!n){flash('没有认不到人的历史分，不用修');return;}var ok=await askConfirm({title:'接回 '+n+' 条历史分？',body:'检测到 '+n+' 条分数「换组后认不到人」：分还在库里，只是显示不出来。',note:'只搬不删，认不出人的原样保留。',ok:'接回'});if(!ok)return;var fixed=repairOrphanScores(false);flash(fixed?'已接回 '+fixed+' 条历史分':'没有可接回的分数');};$('#btnSyncNow').parentElement.appendChild(repairScoresButton);
-  }
-
   /* 闸门上的按钮 */
   $('#btnAccountLogin').addEventListener('click', doLogin);
   ['#loginEmail', '#loginPassword'].forEach(function (sel) {
@@ -6415,72 +6128,6 @@ function restoreDroppedToHome(cls) {
   loadAuthOptions();
   showInviteField();
 
-  /* 数据页的同步按钮（2026-11-12 删「数据与同步」页：这些按钮 DOM 已删，逻辑保留作死代码。
-     用 if 保护，避免 null.addEventListener 报错；手动同步/覆盖/退出仍由自动同步和 openMe 覆盖。 */
-  if ($('#btnSyncNow')) $('#btnSyncNow').addEventListener('click', function () {
-    if (!CLOUD || !CLOUD.available()) { alert('云端组件没加载出来，请检查网络后刷新页面。'); return; }
-    refreshCloud().then(function (verified) { if(verified)return CLOUD.flush(); }).catch(function (e) {
-      alert('同步失败：' + (e && e.message ? e.message : e));
-    });
-  });
-  if ($('#btnPullCloud')) $('#btnPullCloud').addEventListener('click', async function () {
-    if (!CLOUD_ON || !CLOUD || !CLOUD.profile()) { alert('请先登录后再拉取。'); return; }
-    var cover = await askConfirm({
-      title: '用云端记录覆盖这台设备？',
-      body: '本机现在的分数会被替换掉（云端记录是同一账号在别的设备上存的那份）。',
-      note: '要留退路请先到华夏工具首页「全站备份」导出一份。',
-      ok: '用云端覆盖',
-      danger: true
-    });
-    if (!cover) return;
-    if (CLOUD.cancelPending && !CLOUD.cancelPending()) {
-      alert('正在上传记录，请等待同步结束后再拉取。'); return;
-    }
-    var pullStartedAt = S.updatedAt;
-    cloudUiBackup = { classId: S.ui.classId, lessonId: S.ui.lessonId, scoreLayout: S.ui.scoreLayout };
-    CLOUD.pull().then(function (rec) {
-      if (S.updatedAt !== pullStartedAt) { alert('拉取期间记录已改变，本次未覆盖，请重试。'); return; }
-      if (!rec || !rec.data || !rec.data.classes) { alert('云端还没有这个账号的记录。'); return; }
-      S = migrate(JSON.parse(JSON.stringify(rec.data)));
-      if (CLOUD.acceptRemote) CLOUD.acceptRemote(rec);
-      if (!S.ui) S.ui = {};
-      if (cloudUiBackup) { S.ui.classId = cloudUiBackup.classId; S.ui.lessonId = cloudUiBackup.lessonId; S.ui.scoreLayout = cloudUiBackup.scoreLayout; }
-      if (!S.ui.classId && S.classes[0]) S.ui.classId = S.classes[0].id;
-      S.updatedAt = new Date().toISOString();
-      writeLocal();
-      initLayout();
-      fillClassSelects();
-      renderUndoBtn();
-      flash('已用云端记录覆盖本机');
-    }).catch(function (e) {
-      alert('拉取失败：' + (e && e.message ? e.message : e));
-    });
-  });
-  if ($('#btnPushCloud')) $('#btnPushCloud').addEventListener('click', async function () {
-    if (!CLOUD_ON || !CLOUD || !CLOUD.profile()) { alert('请先登录后再上传。'); return; }
-    var push = await askConfirm({
-      title: '把这台设备的记录传到云端？',
-      body: '会覆盖云端那一份记录（同一账号在别的设备上看到的就是这一份）。',
-      ok: '上传覆盖',
-      danger: true
-    });
-    if (!push) return;
-    var upload = CLOUD.forcePush ? CLOUD.forcePush(function () { return S; }) : (CLOUD.touch(function () { return S; }), CLOUD.flush());
-    upload.then(function () { alert('已经上传到云端。'); }).catch(function (e) {
-      alert('上传失败，记录仍保存在当前设备：' + (e && e.message ? e.message : e));
-    });
-  });
-  if ($('#btnSignOut')) $('#btnSignOut').addEventListener('click', async function () {
-    var out = await askConfirm({
-      title: '退出登录？',
-      body: '未同步的记录仅保存在当前浏览器，下次用同一教师账号登录可以继续。',
-      note: '建议先确认同步成功，或在华夏工具首页「全站备份」导出一份。',
-      ok: '退出',
-      danger: true
-    });
-    if (!out) return;
-    CLOUD.signOut();
-  });
   $('#btnMe').addEventListener('click', openMe);
   /* 2026-11-12 删「数据与同步」页：⚙ 不再跳那个页，直接开账号弹窗（openMe 里已有退出登录） */
   $('#btnUserMenu').addEventListener('click', openMe);

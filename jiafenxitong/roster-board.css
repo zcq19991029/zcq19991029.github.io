@@ -550,7 +550,6 @@ body.gb-dragging .gb-chip { cursor: grabbing; }
 .gcard.has-face .gsum .k { color: rgba(255, 255, 255, .72); }
 .gcard.has-face .gsum .c { color: rgba(255, 255, 255, .5); }
 .gcard.has-face .gcard-secondary { color: rgba(255, 255, 255, .72); }
-.gcard.has-face .gcard-secondary .mini { color: rgba(255, 255, 255, .8); }
 .gcard.has-face .gctl .lbl { color: #fff; }
 
 /* 卡片头里的组长头像：和 .gb-av 同一颗圆徽章，比看板人卡小一号 */
