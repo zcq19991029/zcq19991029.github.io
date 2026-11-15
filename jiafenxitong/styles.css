@@ -1444,6 +1444,11 @@ input[type=password], input:not([type]) { font: inherit; color: var(--text); bac
   .groups .gcard .gctl { border: 0; padding-top: 4px; gap: 12px; }
   .groups .gcard .gctl > div { padding: 0; background: transparent; border-radius: 0; }
   .groups .gcard .gctl .lbl { margin-bottom: 6px; padding-left: 7px; padding-right: 48px; border-left: 3px solid var(--xl-first); color: var(--text); font-size: 13px; min-height: 22px; }
+  /* 2026-11-15 值日块：100% 原来整块居中，和上方「值日缺勤」四个字（左对齐带左边框）错开。
+     这里让 .duty-cell 整块左对齐，100% 和「缺勤」按钮对齐到 .lbl 文字同一左边界（3px 边框 + 7px 缩进）。 */
+  .groups .gcard .duty-cell { align-items: flex-start; }
+  .groups .gcard .duty-cell .duty-pct { margin-left: 10px; }
+  .groups .gcard .duty-cell .duty-score { margin-left: 10px; align-self: flex-start; width: auto; }
   .groups .gcard .gctl > div:nth-child(3) .lbl { border-color: var(--xl-phone); }
   .groups .gcard .gctl > div:nth-child(4) .lbl { border-color: var(--xl-duty); }
   .groups .gcard .step { gap: 4px; }
@@ -2850,10 +2855,10 @@ html.hx-bg[data-hx-mode="dark"] body::after,
   width: 100%; height: 100%;
   font-size: 28px; font-weight: 900; line-height: 1; letter-spacing: 0;
   background: none;
-  color: var(--accent);
-  -webkit-text-stroke: 1px color-mix(in srgb, var(--accent-strong) 45%, transparent);
-  text-shadow: 0 2px 0 color-mix(in srgb, var(--accent-strong) 30%, #000 / .85),
-               0 0 14px var(--accent-glow);
+  color: hsl(var(--h, 220) var(--s, 58%) 30%);
+  -webkit-text-stroke: 1px hsl(var(--h, 220) var(--s, 58%) calc(var(--lb, 90%) - 18%) / .5);
+  text-shadow: 0 2px 0 hsl(var(--h, 220) var(--s, 58%) 22% / .85),
+               0 0 14px hsl(var(--h, 220) 90% 62% / .55);
 }
 
 /* 红绿分数标签：加分绿 / 扣分红，做成彩色药丸 */
