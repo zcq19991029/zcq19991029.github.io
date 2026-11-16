@@ -120,7 +120,9 @@ em { font-style: normal; }
 /* 发布表单铺满整行以后字段横向排：班级 / 电路 / 课次 / 上课日期 正好四列，一行放完（老师在教室只有几十秒）。
    这里写死 repeat(4) 而不是 auto-fit：auto-fit 在宽屏会把空轨道收掉、剩余空间不还给已有轨道，
    结果四个字段只占面板左半边，右边空一大片，课次下拉也被压到只能显示「第 3 次课 · 2026-11-09 · 2…」。 */
-.form { display: grid; gap: 12px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+/* 2026-11-16：删掉「上课日期」后只剩 3 个短字段（班级 / 电路 / 课次），
+   原来是 4 栏，右边会空出一格，所以改成 3 栏让它铺满。 */
+.form { display: grid; gap: 12px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .form .full { grid-column: 1 / -1; }
 .field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .field > label { font-size: 12.5px; color: var(--dim); font-weight: 700; }

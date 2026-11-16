@@ -85,10 +85,8 @@
   function uid(p) { return p + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
   /* 必须和 app.js 的 memberKey() 一字不差：leaderScores[组号].members 的键就是它 */
   function memberKey(m) { return m && (m.sid ? 'sid:' + m.sid : 'id:' + m.id); }
-  function todayStr() {
-    var d = new Date();
-    return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
-  }
+  /* todayStr() 2026-11-16 删掉：原来只在「自动建课次」时兜底日期用，
+     现在用户明确「课堂任务不用自动绑定一个时间」，本机时钟不再参与记账。 */
   function dayOf(v) { return v == null ? '' : String(v).slice(0, 10); }
   function num1(v) { var n = Math.round((Number(v) + Number.EPSILON) * 10) / 10; return n % 1 === 0 ? String(n) : n.toFixed(1); }
   function score1(v) { return Math.round((Number(v) || 0) * 10) / 10; }
@@ -154,10 +152,15 @@
       out.notes.push({ kind: 'byDate', taskId: task.task_id, text: '接线' + task.circuit + '：任务没填课次，已按日期 ' + d + ' 新开第 ' + seq + ' 次课记账' });
     }
     /* 课次不存在就自动建一个：用户要的是「每节课发布即新增 5 分项目」，
-       课次不存在 → 分数无处可去 → 等于又要老师手工补一节课，那就白做了。 */
+       课次不存在 → 分数无处可去 → 等于又要老师手工补一节课，那就白做了。
+       ★ 日期 2026-11-16 改成「有就带、没有就留空」，不再兜底 todayStr()：
+         用户原话「这边课堂任务不用自动绑定一个时间」。原因是他为了用 Claude 改过电脑时区，
+         换台机器新建任务时「今天」会不一样，写进去的日期就是歪的。
+         留空后课次下拉会显示「日期未填」，老师到「小组加分 → 课次设置 ⚙」里自己填
+         （那个表单本来就要求有效日期，填不了错）。带日期发布的老任务不受影响。 */
     var l = {
       id: uid('l'), classId: cls.id, seq: seq,
-      date: dayOf(task.lesson_date) || todayStr(),
+      date: dayOf(task.lesson_date) || '',
       topic: task.title || ('接线' + task.circuit),
       dutyGroup: null, dutyGroups: [],
       scores: {}, memberProjectBase: 5,
@@ -557,7 +560,8 @@
         var res = W.plan(st, cache, { log: true });
         if (res.created.length) {
           hooks.log('接线任务入账', res.created.map(function (x) {
-            return '自动建了第 ' + x.seq + ' 次课（' + x.date + ' · ' + x.topic + '），接线成绩记进去了';
+            /* 日期可能是空的（2026-11-16 起课堂任务不再自己绑时间），空着别写出「（ · 主题）」 */
+            return '自动建了第 ' + x.seq + ' 次课（' + [x.date, x.topic].filter(Boolean).join(' · ') + '），接线成绩记进去了';
           }).join('；'));
         }
         if (res.added.length) {
@@ -797,7 +801,8 @@
           (hooks.getState().lessons || []).forEach(function (l) {
             if (l.classId === cls.id && Number(l.seq) === Number(t.lesson_no)) lesson = l;
           });
-          at = ' → 第' + t.lesson_no + '次课' + (lesson ? '（' + esc(lesson.date || '') + '）' : '');
+          /* 日期可能为空（课堂任务不再自己绑时间，老师还没在课次设置里填）→ 别写出「第3次课（）」 */
+          at = ' → 第' + t.lesson_no + '次课' + (lesson && dayOf(lesson.date) ? '（' + esc(dayOf(lesson.date)) + '）' : (lesson ? '（日期未填）' : ''));
           /* 课次对上了但日期不一样：多半是两边课次号错位，分数记进了别的课，必须提醒 */
           if (lesson && dayOf(t.lesson_date) && dayOf(lesson.date) && dayOf(t.lesson_date) !== dayOf(lesson.date)) {
             at += '<span class="wire-warn">⚠ 任务日期 ' + esc(dayOf(t.lesson_date)) + ' 和这节课的日期 ' + esc(dayOf(lesson.date)) + ' 不一致，可能记错了课次，请核对</span>';

@@ -260,7 +260,6 @@ function renderTeacher() {
         <div class="field"><label for="fNo">课次（第几次课）· 必填</label>
           <div id="fNoBox"></div>
         </div>
-        <div class="field"><label for="fDate">上课日期</label><input id="fDate" type="date" value="${todayStr()}"></div>
         <small class="hint full" id="fNoInfo"></small>
         <div class="field full"><label for="fTitle">任务名（可改）</label><input id="fTitle" maxlength="60" placeholder="2.3 双重互锁正反转 · 排位"></div>
         <div class="field full"><label for="fNote">任务说明（可选）</label><textarea id="fNote" maxlength="200" placeholder="每人接完并仿真成功，按排位用时给分"></textarea></div>
@@ -269,7 +268,7 @@ function renderTeacher() {
         <button class="btn primary big" id="fGo" type="button">发布任务</button>
         <span class="hint" id="fMsg"></span>
       </div>
-      <p class="hint">课次直接选「小组加分」里已有的课次，会显示那节课的日期和主题；日期对不上会红字提醒。<b>填错课次，分数会记到别的课上</b>。<br>
+      <p class="hint">课次直接选「小组加分」里已有的课次，会显示那节课的日期和主题；<b>这里不再填上课日期</b> —— 日期只认「小组加分」那一课自己的（要新建课次、要改日期，都在「小组加分」里做）。<b>填错课次，分数会记到别的课上</b>。<br>
         可以同时发布多个任务（<b>同一节课发几道电路也行</b>），每个任务都是一个独立的 5 分项目，各自结束、各自入账。<br>
         学生「完成」= 在任务发布之后，把这道电路点排位并仿真成功（不用另外点签到）。</p>
     </div>
@@ -291,9 +290,9 @@ function renderTeacher() {
   // 切班：每个班的课次不一样，整个下拉重建（默认选中这个班最后一节）；
   // 下面的「当前任务 / 历史任务」也跟着只显示这个班（用户要求按班级隔离）
   $('#fCls').onchange = async () => { buildLessonPicker(); await setClass($('#fCls').value); };
-  // 日期改了要重新比对「课次日期」是否一致
-  $('#fDate').oninput = paintLessonInfo;
-  $('#fDate').onchange = paintLessonInfo;
+  /* 2026-11-16 删掉了「上课日期」输入框，这里的两行 oninput/onchange 也一起删 ——
+     只删 HTML 不删绑定的话 $('#fDate') 是 null，赋 .oninput 直接抛 TypeError，
+     顶层脚本中断 = 整个页面空白（2026-11-13 踩过一次）。 */
   buildLessonPicker();
   $('#fGo').onclick = publish;
   paintLive();
@@ -365,12 +364,12 @@ function nextLessonNo() {
   return Math.max(last ? last.seq : 0, maxTaskNo(+$('#fCls').value)) + 1;
 }
 
-// 选完立刻说清楚「写进哪一课、哪一列」，日期对不上/列已存在当场提醒（别等发布后的横幅）
+// 选完立刻说清楚「写进哪一课、哪一列」，列已存在当场提醒（别等发布后的横幅）
+// 2026-11-16 起这里不再有「上课日期」可比对：日期只认「小组加分」那一课自己的。
 function paintLessonInfo() {
   const info = $('#fNoInfo'), box = $('#fNoBox');
   if (!info || !box) return;
   const col = jfCol($('#fCir').value);
-  const date = $('#fDate').value || '';
   const lines = [];
 
   if (box.dataset.mode === 'select') {
@@ -380,12 +379,9 @@ function paintLessonInfo() {
       if (l.wireCols.indexOf(col) >= 0) {
         lines.push(`<span class="warnl">这一课已经有「${esc(col)}」列了，新的成绩会并进去/覆盖</span>`);
       }
-      if (date && l.date && date !== l.date) {
-        lines.push(`<span class="badl">任务日期 ${esc(date)} 和这一课的日期 ${esc(l.date)} 不一致，可能记错课次</span>`);
-      }
     } else {
       const n = nextLessonNo();
-      lines.push(`会新建「小组加分」第 <b>${n}</b> 次课（日期取上面的上课日期${date ? '：' + esc(date) : ''}），结束后写入「${esc(col)}」列`);
+      lines.push(`会新建「小组加分」第 <b>${n}</b> 次课（<b>日期留空</b>，到「小组加分」的课次设置里自己填），结束后写入「${esc(col)}」列`);
     }
   } else {
     const n = $('#fNo').value ? +$('#fNo').value : 0;
@@ -410,9 +406,12 @@ async function publish() {
     $('#fMsg').innerHTML = '<span style="color:var(--bad)">请选课次：接线成绩按课次进「小组加分」，选错会记到别的课上。</span>';
     return;
   }
-  const date = $('#fDate').value || null;
-  // 日期优先用所选课次自己的：两边不一致时以「小组加分」那一课为准，分数不会落到别的时间轴上
-  const lessonDate = (picked && picked.date) || date;
+  /* 上课日期：2026-11-16 用户要求「上课时间无需再次填写，删除」。
+     理由有二 —— ① 「小组加分」那边已经写过时间了，两处填等于两处可能对不上；
+     ② 为了用 Claude 改过电脑时区，换台机器新建任务时「今天」会不一样，日期就写歪了。
+     所以这里**不再有自己的日期**：选了已有课次就带那一课自己的日期（那是小组加分的数据），
+     「新建第 N 次课」一律留空，老师到「小组加分」的课次设置里自己填（那边本来就能自定义）。 */
+  const lessonDate = (picked && picked.date) || null;
   ST.busy = true; $('#fGo').disabled = true; btnWait($('#fGo'), '发布中…'); $('#fMsg').textContent = '发布中…';
   try {
     const r = await HX.rpc('wire_task_open', {
@@ -502,7 +501,7 @@ function liveCard(t, viewing) {
       <div class="task-head">
         <div style="min-width:0;flex:1">
           <b>${esc(t.title || cname(t.circuit))}</b>
-          <div class="meta">${esc(cname(t.circuit))} · 第 ${t.lesson_no || '—'} 次课 · ${esc(t.lesson_date || '—')} · 发布于 ${fmtClock(t.opened_at)}${t.closed_at ? ' · 结束于 ' + fmtClock(t.closed_at) : ''}</div>
+          <div class="meta">${esc(cname(t.circuit))} · 第 ${t.lesson_no || '—'} 次课${t.lesson_date ? ' · ' + esc(t.lesson_date) : ''} · 发布于 ${fmtClock(t.opened_at)}${t.closed_at ? ' · 结束于 ' + fmtClock(t.closed_at) : ''}</div>
         </div>
         <span class="state ${t.status}">${statusText(t.status)}${t.frozen ? ' · 得分已冻结' : ''}</span>
       </div>
@@ -655,18 +654,26 @@ async function deleteTask(t, btn) {
 }
 
 /* 改课次（2026-11-10）：课次下拉上线前的历史任务走了旧数字框默认 1，分数记错课次。
-   老师在这里改课次号（和日期），改完 wire-task-link.js 下次同步会按新课次把分数落对。
-   旧的错课次列老师自己到「小组加分」记分页删掉即可（尊重老师手动删列）。 */
+   老师在这里改课次号，改完 wire-task-link.js 下次同步会按新课次把分数落对。
+   旧的错课次列老师自己到「小组加分」记分页删掉即可（尊重老师手动删列）。
+   ★ 2026-11-16 起不再问「上课日期」：用户要求课堂任务不自己绑时间。改完课次后，
+     日期自动取「小组加分」里那一课自己的日期（取不到就留空），老师要改日期去小组加分改。 */
 async function editLesson(t) {
   const cur = t.lesson_no || '';
-  const curDate = t.lesson_date || todayStr();
-  const no = prompt('把「' + (t.title || cname(t.circuit)) + '」的课次改到第几次课？\n\n现在：第 ' + (cur || '—') + ' 次课（' + curDate + '）\n改错课次，分数会记到别的课上，务必和「小组加分」里的课次对上。', cur);
+  const L = window.HX_LESSONS;
+  const list = (L && typeof L.list === 'function') ? L.list(L.read(), t.class_id) : [];
+  const hit = list.find(l => Number(l.seq) === Number(cur));
+  const no = prompt('把「' + (t.title || cname(t.circuit)) + '」的课次改到第几次课？\n\n现在：第 ' + (cur || '—') + ' 次课' + (hit ? '（' + (hit.date || '日期未填') + ' · ' + (hit.topic || '未填主题') + '）' : '')
+    + '\n改错课次，分数会记到别的课上，务必和「小组加分」里的课次对上。', cur);
   if (no == null) return;
   const n = parseInt(no, 10);
   if (!n || n < 1) { alert('课次号要填 ≥1 的整数'); return; }
-  const date = prompt('上课日期（不填保持原样）', curDate);
+  /* 日期跟着「小组加分」那一课走：找到就把它的日期同步过来，找不到（这一课还没建）就留空，
+     绝不拿本机「今天」顶上 —— 电脑时区被改过，today 不一定是真的今天。 */
+  const target = list.find(l => Number(l.seq) === n);
+  const lessonDate = (target && target.date) || null;
   try {
-    await HX.rpc('wire_task_update_lesson', { p_task: t.id, p_lesson_no: n, p_lesson_date: (date && date.trim()) || null });
+    await HX.rpc('wire_task_update_lesson', { p_task: t.id, p_lesson_no: n, p_lesson_date: lessonDate });
     await reloadTasks();
     /* reloadTasks 之后 ST.tasks 里全是新对象，旧 t 已经悬空。
        先 pickOpen 重新定位「进行中」的任务（它顺手把 ST.view 清空），
@@ -799,7 +806,7 @@ async function studentView() {
           <div class="task-head">
             <div style="min-width:0;flex:1">
               <b>${esc(t.title || cname(t.circuit))}</b>
-              <div class="meta">${esc(cname(t.circuit))} · 第 ${t.lesson_no || '—'} 次课 · ${esc(t.lesson_date || '—')} · 发布于 ${fmtClock(t.opened_at)}</div>
+              <div class="meta">${esc(cname(t.circuit))} · 第 ${t.lesson_no || '—'} 次课${t.lesson_date ? ' · ' + esc(t.lesson_date) : ''} · 发布于 ${fmtClock(t.opened_at)}</div>
             </div>
             <span class="state ${t.status}">${statusText(t.status)}</span>
           </div>
