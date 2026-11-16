@@ -3,7 +3,7 @@
 <html lang="zh-CN">
 <head>
 <script src="../hx-theme.js" data-tool="wiring"></script>
-<script>window.HX_BUILD = "2026-11-16T00:33:52Z 802c1c6";</script>
+<script>window.HX_BUILD = "2026-11-16T00:41:19Z e169009";</script>
 <meta charset="utf-8">
 <meta name="copyright" content="© 2026 zcq 版权所有，未经许可禁止复制、修改、转载">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
@@ -6755,11 +6755,25 @@ if (document.fonts) document.fonts.ready.then(() => { if (cur && SEG.some(x => x
       + '#hxv button{flex:none;margin-left:8px;font:inherit;font-weight:700;font-size:13px;color:var(--acc);background:none;'
       + 'border:1px solid color-mix(in srgb,var(--acc) 45%,transparent);border-radius:9px;padding:3px 12px;cursor:pointer}'
       + '#hxv button:hover{background:color-mix(in srgb,var(--acc) 18%,transparent)}'
+      + '#hxv button.now{color:#fff;background:var(--acc);border-color:transparent;box-shadow:0 2px 8px -2px color-mix(in srgb,var(--acc) 70%,transparent)}'
+      + '#hxv button.now:hover{background:color-mix(in srgb,var(--acc) 85%,#000);filter:brightness(1.05)}'
       + 'html.is-lite #hxv{background:var(--bar)}@keyframes hxvBlink{50%{opacity:.35}}';
     document.head.appendChild(css);
     box = document.createElement('div'); box.id = 'hxv'; box.setAttribute('role', 'status');
     box.innerHTML = '<span class="dot"></span><span>有新版本，本页是旧版：请按 <b>Ctrl+F5</b> 强制刷新</span>';
     cdEl = document.createElement('span'); cdEl.className = 'cd'; box.appendChild(cdEl);
+    // 「立即刷新」：点一下等于 Ctrl+F5 组合强制刷新（带时间戳跳转绕过浏览器/CDN 缓存），始终可见。
+    var nowBtn = document.createElement('button'); nowBtn.type = 'button'; nowBtn.className = 'now';
+    nowBtn.textContent = '立即刷新';
+    nowBtn.onclick = function () {
+      try { sessionStorage.setItem('hxv-reloaded', '1'); } catch (e) { }
+      var hash = location.hash || '';
+      var u = location.href.split('#')[0];
+      var sep = u.indexOf('?') < 0 ? '?' : '&';
+      try { location.replace(u + sep + 'hxvfresh=' + Date.now() + hash); }
+      catch (e) { location.reload(); }
+    };
+    box.appendChild(nowBtn);
     cdBtn = document.createElement('button'); cdBtn.type = 'button'; cdBtn.textContent = '稍后'; cdBtn.hidden = true;
     cdBtn.onclick = function () { st.dismissed = true; stopCd(); cdBtn.hidden = true; };
     box.appendChild(cdBtn);
