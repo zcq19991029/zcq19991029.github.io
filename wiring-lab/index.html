@@ -3,7 +3,7 @@
 <html lang="zh-CN">
 <head>
 <script src="../hx-theme.js" data-tool="wiring"></script>
-<script>window.HX_BUILD = "2026-11-15T23:23:14Z e14c169";</script>
+<script>window.HX_BUILD = "2026-11-16T00:26:00Z 70b0654";</script>
 <meta charset="utf-8">
 <meta name="copyright" content="© 2026 zcq 版权所有，未经许可禁止复制、修改、转载">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
@@ -1070,8 +1070,6 @@
   #fw-draw .drw-card.is-flip .drw-cface { animation: nmPop .5s cubic-bezier(.2, 1.3, .4, 1) both; }
   @keyframes nmPop { 0% { filter: brightness(1.9) saturate(1.35); } 100% { filter: brightness(1) saturate(1); } }
   #fw-draw .nm-stage[data-phase="revealed"] .drw-card[data-r="gold"] .drw-cface { animation: nmGold 2.6s ease-in-out .35s infinite; }
-  /* 抽中收尾：中奖卡留在原位，其余卡淡出（不演成一片空白） */
-  #fw-draw .nm-stage[data-phase="revealed"] .drw-card:not(.is-flip) { opacity: 0; pointer-events: none; }
   @keyframes nmGold { 50% { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .1), 0 0 34px rgba(245, 197, 66, .7); } }
   /* 空位：这组不发的卡位 */
   #fw-draw .drw-slot { height: var(--cardh, 400px); border-radius: 13px; border: 1px dashed rgba(120, 160, 200, .26);
