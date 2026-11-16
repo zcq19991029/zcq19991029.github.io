@@ -274,7 +274,13 @@ body.board.lite .ring .capg { transition: none; }
 .bd-pending h2 em, .bd-done h3 em { color: var(--warn); font-size: 2.4vmin; font-variant-numeric: tabular-nums; }
 .pend-grid {
   flex: 1; min-height: 0; overflow: hidden; align-content: start;
-  display: grid; gap: 1.1vmin; grid-template-columns: repeat(auto-fill, minmax(20vmin, 1fr));
+  display: grid; gap: 1.1vmin;
+  /* 列宽下限 = 字号 × --pk（--pk 由 task-board.js 的 setMetrics 按**真实最长的名字**算好写进 :root）。
+     2026-11-16 之前这里是写死的 20vmin，跟 --pfs 脱钩：人少时字号 5.2vmin（≈56px）却只给 216px 的卡，
+     名字必然被省略号吃掉（用户截图报的「名字显示不全」就是这条）。cards 只能整档缩小，不能压名字。 */
+  justify-content: center;
+  /* auto-fit + 上限 1.15× 下限：卡只比名字需要的宽一点点，不会拉成一条几百像素的太空卡（用户嫌「卡片太大」）。 */
+  grid-template-columns: repeat(auto-fit, minmax(calc(var(--pfs, 3vmin) * var(--pk, 6.5)), calc(var(--pfs, 3vmin) * var(--pk, 6.5) * 1.15)));
   grid-auto-rows: min-content;
 }
 /* 未完成身份卡（2026-11-13）

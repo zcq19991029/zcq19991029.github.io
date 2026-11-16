@@ -79,6 +79,106 @@ function bgStyleOf(sid) {
 function pendSize(n) { return n <= 12 ? 5.2 : n <= 20 ? 4.4 : n <= 32 ? 3.8 : n <= 48 ? 3.2 : 2.7; }
 function pendCol(n) { return n <= 12 ? 34 : n <= 20 ? 28 : n <= 32 ? 24 : n <= 48 ? 20 : 17; }
 
+/* ── 姓名永远不许被压缩（2026-11-16 用户紧急要求）────────────────────────────
+   用户原话：「课堂任务投屏名字要始终无压缩 不能显示不全 卡片是自适应可以缩小的 现在就是卡片太大
+   右边完成太多了 就压缩位置导致名字显示不全」。
+   病根两条：
+     ① .pend-grid 的列宽下限是写死的 20vmin（`minmax(20vmin,1fr)`），跟 --pfs 字号脱钩 ——
+        人少时字号 5.2vmin（约 56px）却只给 216px 的卡，名字必然被省略号吃掉；
+     ② doneLayout 里 pMinW 按 pendCol() 算（34vmin），CSS 却不认这个数，于是「右栏以为左栏只要 34，
+        实际上左栏被压到 20」—— 右栏越挤越多，左栏越压越扁，全挤在名字上。
+   这一版把「一列至少多宽」变成字号和真实名字长度的函数，并且 JS 算出来的数 CSS 一定照做：
+     · PEND_KW / DC_KW 由**最长那个名字**算出来（--pk / --dk 写进 :root，CSS 的 minmax 读它）；
+     · 左栏按 PFS_TIERS 从大到小试，必须在给右栏留下 DONE_MIN 的前提下塞得下；
+       试不到就整体降一档字号（卡跟着变窄），**绝不靠省略号**。
+   一句话：宁可卡片变小，也不让名字缺一个字。 */
+const MAIN_W = 172, LIST_H = 66, MARGIN = 3.2, PGAP = 1.1, DONE_MIN = 30;
+/* .bd-main 的左右内边距 2.4×2 + 两栏间距 1.6（vmin）—— 算真实可用宽度时要一起扣掉 */
+const PAD_X = 4.8, MGAP = 1.6;
+/* 真实可用宽度（vmin）。MAIN_W=172 是照 1920×1080 拍的；1440×900 上 100vmin 只有 900px，
+   172vmin 已经是 1548px > 屏宽 → 那个常数在非 1080p 投影上是虚的，多算一列就会把左栏挤扁。
+   所以每次画之前按 #bdRoot 的实测宽度换算一遍，宁可少一列也不能压名字。 */
+function availW() {
+  const vminPx = Math.min(innerWidth, innerHeight) / 100 || 1;
+  const w = root.clientWidth || innerWidth;
+  return Math.max(60, w / vminPx - PAD_X - MGAP);
+}
+/* 卡宽的构成（单位 = 字号倍数）：
+   左栏 头像 1.3 + 间隙 .42 + 名字 N 字 × .95 + 内边距 .88 + 余量 .35
+   右栏 内边距 .8 + 奖牌 1.4 + 两处间隙 .68 + 完成率徽标 2.1 + 名字 N 字 × .82 + 余量 .3 */
+const PEND_KW_OF = len => +(2.6 + len * 0.95 + 0.35).toFixed(2);
+const DC_KW_OF = len => +(5.0 + len * 0.82 + 0.3).toFixed(2);
+const longestName = rows => (rows || []).reduce((m, r) => Math.max(m, String((r && (r.name || r.no)) || '').length), 0);
+let PEND_KW = 6.5, DC_KW = 7.5;   // 每次 paint 前按真实名单重算（见 setMetrics）
+const PFS_TIERS = [5.2, 4.6, 4.1, 3.7, 3.4, 3.1, 2.8, 2.5];
+
+/* 左栏求解：返回 {pfs, col, pMinW}。从「人多就小」那一档起，先保证右栏还有 DONE_MIN 可用。 */
+function pendPlan(pN, avail) {
+  const budget = avail || (MAIN_W - DONE_MIN - MARGIN);   // 左栏最多能占多宽（vmin）
+  const start = pendSize(pN);
+  let i = Math.max(0, PFS_TIERS.findIndex(v => v <= start + 1e-9));
+  let last = null;
+  for (; i < PFS_TIERS.length; i++) {
+    const pfs = PFS_TIERS[i], col = pfs * PEND_KW;
+    const rows = Math.max(1, Math.floor(LIST_H / (pfs * 2.55 + PGAP)));
+    const cols = Math.max(1, Math.ceil(pN / rows));
+    const w = cols * col + (cols - 1) * PGAP;
+    last = { pfs, col, pMinW: w };
+    if (w <= budget) return last;
+  }
+  return last; // 全班挤满：最后一档是什么就用什么（字已经最小了，再压就真看不清）
+}
+/* ── 第二遍：量真实容器，定列数，必要时降字号（2026-11-16）────────────────────
+   为什么非要量不可：左栏实际宽度 = 总宽 − 右栏宽度，而右栏宽度又取决于「右栏想放几张卡」，
+   两边互相牵制。纯算容易差一列，差一列的后果就是「多一行」→ 上下各裁半个卡（实测截到过）。
+   所以：先按算出来的样子画出来，再量一次 .pend-grid 的 clientWidth/Height，
+   取「能塞下的最大整数列」，列宽用 1fr 均分 —— 卡只会比名字需要的宽一丁点，不会被拉成太空卡，
+   也不会因为列数算多而未行溢出。行数还放不下就整体降一档字号（卡跟着变小），**绝不用省略号**。 */
+function fitPending() {
+  const grid = root.querySelector('.pend-grid');
+  if (!grid) return;
+  const cards = grid.querySelectorAll('.pend');
+  const n = cards.length;
+  if (!n) return;
+  const W = grid.clientWidth, H = grid.clientHeight;
+  if (!W || !H) return;
+  const cs = getComputedStyle(grid);
+  const gc = parseFloat(cs.columnGap) || 0, gr = parseFloat(cs.rowGap) || gc;
+  const vminPx = Math.min(innerWidth, innerHeight) / 100 || 1;
+  const cardH = cards[0].getBoundingClientRect().height || (0);
+  const pfsNow = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--pfs')) || 3.8;
+  let i = Math.max(0, PFS_TIERS.indexOf(pfsNow));
+  if (i < 0) i = 0;
+  for (; i < PFS_TIERS.length; i++) {
+    const pfs = PFS_TIERS[i];
+    const minW = pfs * PEND_KW * vminPx;
+    const cols = Math.max(1, Math.floor((W + gc) / (minW + gc)));
+    const rows = Math.ceil(n / cols);
+    // 行高按当前实测值等比例换算到候选字号（没量到就退回设计值 2.55 倍字号）
+    const rowH = (cardH ? cardH * (pfs / pfsNow) : pfs * 2.55 * vminPx) + gr;
+    const fits = rows * rowH <= H + 1;
+    if (fits || i === PFS_TIERS.length - 1) {
+      document.documentElement.style.setProperty('--pfs', pfs + 'vmin');
+      /* 列宽 = min(均分宽度, 卡宽上限 1.15×最小宽)。
+         为什么要封顶：早先这里写的是 minmax(0,1fr)，一个人未完成时那一列会被拉成整屏宽的一条，
+         看着就是用户嫌的「卡片太大」。封顶后卡只比名字宽一小圈，剩下的留白由 justify-content 居中吃掉。 */
+      const share = (W - gc * (cols - 1)) / cols;
+      const cw = Math.max(1, Math.min(share, minW * 1.15));
+      grid.style.gridTemplateColumns = `repeat(${cols}, ${cw.toFixed(1)}px)`;
+      return;
+    }
+  }
+}
+
+/* 每次渲染前按名单长度定卡宽，并写进 :root 给 CSS 的 minmax / grid 模板读 */
+function setMetrics(pend, done) {
+  PEND_KW = PEND_KW_OF(Math.max(2, longestName(pend)));
+  DC_KW = DC_KW_OF(Math.max(2, longestName(done)));
+  const r = document.documentElement.style;
+  r.setProperty('--pk', PEND_KW);
+  r.setProperty('--dk', DC_KW);
+}
+
 /* ── 右栏（已完成）排位身份卡求解器（2026-11-13 排位改版）─────────────────────
    目标：所有已完成的人一屏放下、不翻页、不滚动；左栏人少时右栏自动向左扩。
    思路：
@@ -88,22 +188,21 @@ function pendCol(n) { return n <= 12 ? 34 : n <= 20 ? 28 : n <= 32 ? 24 : n <= 4
    卡片尺寸全部是 --dcs 的倍数（卡宽 DC_KW、卡高 DC_KH、间距 DC_KG），
    列数由「能塞几行」反推：人多自动缩字号/缩卡宽、人少自动放大；
    左栏人越少 → dW 越大 → 档位越大 → 右栏越向左扩、卡越大。 */
-const DC_KW = 7.5, DC_KH = 1.9, DC_KG = 0.5;
-function doneLayout(pN, dN) {
-  const MAIN_W = 172, LIST_H = 66, MARGIN = 3.2, PGAP = 1.1;
+const DC_KH = 1.9, DC_KG = 0.5;   // DC_KW 现在是变量（按名字长度算，见 setMetrics）
+function doneLayout(pN, dN, mainW) {
+  const MW = mainW || MAIN_W;   // 真实可用宽度（vmin）：1440×900 屏上 172 是虚的，实测只有 ~141，差一列就会把左栏挤扁
   const DCS_TIERS = [3.0, 2.7, 2.4, 2.2, 2.0, 1.85, 1.7, 1.55, 1.4, 1.3];
-  // 1) 左栏最小宽度（未完成卡片高度 ≈ pfs*2.55，间距 1.1vmin，都要实测过才敢用）
-  let pMinW = 0;
+  // 1) 左栏最小宽度：和 CSS 的 .pend-grid 用同一份 pendulum 求解（pendPlan），口径必须一致，
+  //    否则又会出现「右栏以为左栏只要 34vmin、实际 CSS 压到 20vmin」这种把名字挤没的老毛病。
+  let pMinW = 0, pfsOut = null;
   if (pN > 0) {
-    const pfs = pendSize(pN), col = pendCol(pN);
-    const rows = Math.max(1, Math.floor(LIST_H / (pfs * 2.55 + PGAP)));
-    const cols = Math.max(1, Math.ceil(pN / rows));
-    pMinW = cols * col + (cols - 1) * PGAP;
+    const P = pendPlan(pN, MW - DONE_MIN - MARGIN);
+    pMinW = P.pMinW; pfsOut = P.pfs;
   } else {
     // 全部完成：给「全部完成 ✔」留一小条，别把左栏挤成一条缝（2026-11-13）
     pMinW = 20;
   }
-  const dW = Math.max(8, MAIN_W - pMinW - MARGIN);
+  const dW = Math.max(8, MW - pMinW - MARGIN);
   // 2) 从大到小挑第一档塞得下的 --dcs
   let best = null;
   for (const dcs of DCS_TIERS) {
@@ -119,6 +218,8 @@ function doneLayout(pN, dN) {
   }
   // 3) 用实际列数反算右栏宽度，直接写进 inline width，跟 CSS 网格宽度严格一致
   best.w = best.dcs * (best.cols * DC_KW + (best.cols - 1) * DC_KG);
+  best.pfs = pfsOut;   // 左栏最终用的字号档（和 pendPlan 同源，paint 直接写 --pfs）
+  best.pMinW = pMinW;
   return best;
 }
 
@@ -209,15 +310,20 @@ function paint(b) {
   // 人数越多字越小、卡片越窄：保证任何班（20～60 人）都能一屏放下，不出现滚动条；
   // 人少时卡片放大，把整块屏幕铺满（空一大片反而显得没在「督促」）
   const n = pend.length;
-  const fs = pendSize(n);
-  const col = pendCol(n);
-  document.documentElement.style.setProperty('--pfs', fs + 'vmin');
+  // 卡宽先按「这一屏真实的最长名字」定下来（--pk / --dk），再解两侧的尺寸 —— 顺序不能反，
+  // 否则 CSS 还是拿上一帧的卡宽算 minmax，名字又会被压。
+  setMetrics(pend, done);
   // 右栏排位身份卡：人数越多字越小、卡越窄；左栏人少时右栏自动向左扩（宽度/列数由求解器给）。
-  const L = doneLayout(n, done.length);
+  // 传真实可用宽度进去（见 availW）：1920×1080 之外的分辨率上 MAIN_W 是虚的，不传就会多算一列。
+  const L = doneLayout(n, done.length, availW());
+  const fs = L.pfs || pendSize(n);
+  document.documentElement.style.setProperty('--pfs', fs + 'vmin');
   document.documentElement.style.setProperty('--dcs', L.dcs + 'vmin');
   // 是否第一屏：第一屏播入场动画，之后重绘只保留「新完成那一个」的高亮（见 task.css 的 body.no-anim）
   const firstPaint = !B.painted;
   B.painted = true;
+  // 排完版再量一次真实宽度，见 fitPending 的注释（必须在 root.innerHTML 之后）
+  setTimeout(() => fitPending(), 0);
   /* 进度环（2026-11-13 重构成 Apple 健身环）：
      r=42、环宽 13 → 周长 = 2πr ≈ 263.89；外沿 48.5 不出 100 的 viewBox，内径 35.5 留给百分比。
      渐变写在下面 <defs> 里：r=42 用 CSS 的 stroke: url(#ringGrad) 喂给 .val，
@@ -276,7 +382,7 @@ function paint(b) {
   <main class="bd-main">
     <section class="bd-pending">
       <h2>还没完成的同学 <em>${pend.length}</em> 人</h2>
-      <div class="pend-grid" style="grid-template-columns:repeat(auto-fill,minmax(${col},1fr));align-content:${n <= 32 ? 'center' : 'start'}">
+      <div class="pend-grid" style="align-content:${n <= 32 ? 'center' : 'start'}">
         ${pend.length ? pend.map(p => {
             const st = bgStyleOf(p.student_id);
             return `<div class="pend" data-nobg="${st ? '0' : '1'}">
