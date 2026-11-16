@@ -20,18 +20,24 @@ const ST = {
   classes: [],       // 点亮了「接线仿真」的班
   tasksAll: [],      // wire_task_list() 的原始结果（所有班）
   tasks: [],         // 当前班级的任务（= tasksAll 里本班那些）
-  cls: null,         // 当前班级 id：课堂任务、历史任务都只显示这个班（用户要求「按班级隔离」）
-  cur: null,         // **进行中**的任务（本班最多一个，没有就是 null）—— 已结束/已作废的一律不算
-  view: null,        // 正在回看的历史任务 id：从「历史任务」点「看这份」进来，只读，不占「当前任务」的位置
-  board: null,       // wire_task_board(正在看的那个任务.id)
+  binAll: [],        // wire_task_bin()（回收站：老师删掉的任务，所有班）
+  bin: [],           // 当前班级的回收站
+  cls: null,         // 当前班级 id：课堂任务、历史任务、回收站都只显示这个班（用户要求「按班级隔离」）
+  /* ★ 2026-11-16 用户要求「课堂任务支持发布多个 无论是不是同一节课都允许」：
+     ST.cur（单个进行中）改成 ST.opens（进行中任务的数组）。一个班可以同时有好几节课的任务，
+     甚至同一节课发好几道电路。每张卡各自折叠、各自有看板和按钮。 */
+  opens: [],         // 本班所有**进行中**的任务
+  view: null,        // 正在回看的历史任务 id：从「历史任务」点「看这份」进来，只读
+  boards: {},        // taskId → wire_task_board()（多开以后每张卡一份，不能只存一份）
   mine: null,        // 学生端 wire_task_my_result()
-  liveOpen: null,    // 当前任务面板展开状态：null = 按状态自动（进行中展开 / 已冻结收起）
+  liveOpen: {},      // 折叠状态：taskId → 是否展开（缺省 = 展开）
   histOpen: false,   // 历史任务面板：默认收起，点标题才展开
+  binOpen: false,    // 回收站面板：同上
   busy: false,
   lessons: [],       // 本班在「小组加分」里已有的课次（发布表单的下拉，见 task-lessons.js）
   stop: null,        // 轮询停止函数
-  err: '',           // 最近一次读取失败的一句话（显示在当前任务卡顶部，轮询成功就自动清掉）
-  tip: '',           // 结束任务后那句「分数已自动进小组加分」（结束即停轮询，所以它不会被下一轮冲掉）
+  err: '',           // 最近一次读取失败的一句话（轮询成功就自动清掉）
+  tip: '',           // 结束/删除任务后那句提示（结束即停轮询，所以它不会被下一轮冲掉）
 };
 const $ = s => document.querySelector(s);
 const todayStr = () => { const d = new Date(), p = n => String(n).padStart(2, '0'); return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()); };
@@ -41,10 +47,10 @@ const statusText = s => s === 'open' ? '进行中' : s === 'closed' ? '已结束
 // 对方会自动加「#任务号」（接线2.3#12），所以这里只显示老师最可能看到的那一个名字。
 const jfCol = circuit => '接线' + circuit;
 /* 任务列表排序（2026-11-11 用户要求「按班级课次隔离，新课任务在最上面」）：
-   进行中的排最前（一个班同时只有一个 open），其余按发布时间倒序 —— 和学生榜 SQL
-   （wire_task_student_list 的 (status='open') desc, opened_at desc）同一套口径，
-   教师端/学生端/大屏看到的顺序一致。wire_task_list 本身只按 opened_at desc 排，
-   open 最前这一档在这里补。 */
+   进行中的排最前（2026-11-16 起可以同时有多个，"open 最前"这一档仍然有效），
+   其余按发布时间倒序 —— 和学生榜 SQL（wire_task_student_list 的
+   (status='open') desc, opened_at desc）同一套口径，教师端/学生端/大屏看到的顺序一致。
+   wire_task_list 本身只按 opened_at desc 排，open 最前这一档在这里补。 */
 const sortTasks = list => (list || []).slice().sort((a, b) =>
   ((b.status === 'open') ? 1 : 0) - ((a.status === 'open') ? 1 : 0) ||
   String(b.opened_at || '').localeCompare(String(a.opened_at || '')));
@@ -119,34 +125,48 @@ async function teacherView() {
   if (!ST.classes.length) {
     return gate('还没有点亮「接线仿真」的班', '去华夏工具首页的「班级」里导入考勤表，并勾上「接线仿真」，再回来发布任务。');
   }
-  try { ST.tasksAll = sortTasks(await HX.rpc('wire_task_list')); }
-  catch (e) { ST.tasksAll = []; ST.err = '任务列表读取失败：' + e.message; }
-
+  try { await loadTasks(); }
+  catch (e) { ST.tasksAll = []; ST.binAll = []; ST.err = '任务列表读取失败：' + e.message; }
   /* 2026-11-12（R2）：课堂任务和历史任务都按班级隔离。
      班级上下文就取发布表单那个「班级」下拉（ST.cls）—— 一个老师带好几个班时，
      原来两张表把所有班的任务混在一起，还总把别的班的「进行中」当成当前任务。
      默认落在「有进行中任务」的那个班（老师打开这页多半是来看这节课的），没有就第一个班。 */
   ST.cls = defaultClass();
   ST.tasks = tasksOf(ST.cls);
-  ST.liveOpen = null;
+  ST.bin = binOf(ST.cls);
+  ST.liveOpen = {};
   ST.histOpen = false;
+  ST.binOpen = false;
 
-  await pickCurrent();
+  await pickOpen();
   renderTeacher();
   syncPoll();
 }
 
 // 当前班级的任务（tasksAll 里只留本班）
 const tasksOf = cls => ST.tasksAll.filter(t => Number(t.class_id) === Number(cls));
+// 当前班级的回收站（ST.binAll 里只留本班）
+const binOf = cls => (ST.binAll || []).filter(t => Number(t.class_id) === Number(cls));
 const className = id => (ST.classes.find(c => Number(c.id) === Number(id)) || {}).name || '';
-/* 界面上「当前要渲染的那一个任务」：
-   默认 = 进行中的任务；点了历史里的「看这份」就临时换成那一条（ST.view），
-   但 ST.cur 本身永远是「进行中」，这样「当前任务 / 历史任务」两个分区的边界才不会糊。 */
-const showing = () => (ST.view ? ST.tasks.find(t => t.id === ST.view) : ST.cur) || null;
-// 重新拉任务列表，并保持「只留当前班级」（换班 / 发布 / 结束 / 作废 / 重新拉起都用这一条）
+/* 本班「进行中」的任务（2026-11-16 起是数组，可能 0 个、1 个或多个）。
+   界面上每一张卡 = 一条 open 任务；点历史里的「看这份」时只渲染那一条（ST.view），
+   进行中的任务同时被轮询，但界面上暂时让位给回看的那一条。 */
+const openTasks = () => ST.tasks.filter(t => t.status === 'open');
+const viewTask = () => (ST.view ? ST.tasks.find(t => t.id === ST.view) : null) || null;
+// 重新拉「任务列表 + 回收站」，并保持「只留当前班级」（换班 / 发布 / 结束 / 删除 / 撤销都用这一条）
+async function loadTasks() {
+  const [list, bin] = await Promise.all([
+    HX.rpc('wire_task_list'),
+    /* 回收站读失败不该拖垮整页（老库还没跑 2026-11-16 迁移时这个函数不存在） */
+    HX.rpc('wire_task_bin').catch(() => []),
+  ]);
+  ST.tasksAll = sortTasks(list);
+  ST.binAll = Array.isArray(bin) ? bin : [];
+}
 async function reloadTasks() {
-  ST.tasksAll = sortTasks(await HX.rpc('wire_task_list'));
+  await loadTasks();
   ST.tasks = tasksOf(ST.cls);
+  ST.bin = binOf(ST.cls);
 }
 // 默认班级：优先「有进行中任务」的班（最新的那个），否则第一个班
 function defaultClass() {
@@ -154,55 +174,78 @@ function defaultClass() {
   const id = open ? Number(open.class_id) : Number(ST.classes[0].id);
   return ST.classes.some(c => Number(c.id) === id) ? id : Number(ST.classes[0].id);
 }
-// 轮询跟着「当前任务」走：换班 / 结束 / 重新拉起都要重开，否则还在读上一个班的进度
+// 轮询跟着「进行中的任务」走：换班 / 发布 / 结束 / 重新拉起都要重开，否则还在读上一个班的进度
 // （在回看历史任务时不轮询：已结束的数据不会变，白打接口）
 function syncPoll() {
   if (ST.stop) { ST.stop(); ST.stop = null; }
-  if (ST.cur && ST.cur.status === 'open' && !ST.view) ST.stop = every(4000, async () => { await refreshBoard(); paintLive(); });
+  if (!ST.opens.length || ST.view) return;
+  /* 多开时每张卡一份看板，请求数随任务数线性增长：2 个以上就把间隔从 4 秒放宽到 6 秒，
+     别让「一节课发了三道题」把免费版数据库顶住。 */
+  const gap = ST.opens.length > 1 ? 6000 : 4000;
+  ST.stop = every(gap, async () => { await refreshBoards(); paintLive(); });
 }
-// 切班：换当前任务、重开轮询、两张表就地重画（发布表单不重画，老师正在填的内容不会被冲掉）
+// 切班：换当前任务、重开轮询、三张表就地重画（发布表单不重画，老师正在填的内容不会被冲掉）
 async function setClass(v) {
   const id = Number(v);
   if (!id || id === ST.cls) return;
   ST.cls = id;
   ST.tasks = tasksOf(id);
-  ST.liveOpen = null; ST.err = '';
-  await pickCurrent();
+  ST.bin = binOf(id);
+  ST.liveOpen = {}; ST.err = '';
+  await pickOpen();
   syncPoll();
-  paintLive(); paintHist();
+  paintLive(); paintHist(); paintBin();
 }
 
-// 当前任务 = 本班**进行中**的那一个（一个班同时只有一个 open）。
-// ★ 2026-11-12 深夜修（用户原话：「为什么都是当前任务 我都冻结了 为什么还不算历史任务呢」）：
-//   原来写的是 `ST.cur = open || ST.tasks[0]` —— 没有进行中的任务时，把**最近一个已结束的任务**
-//   顶到「当前任务」里，于是老师刚冻结完，抬头一看它还在「当前任务」，历史上却少了一条。
-//   现在没有进行中的任务就是 null，那个面板显示空状态并指向「历史任务」。
-async function pickCurrent() {
-  ST.cur = ST.tasks.find(t => t.status === 'open') || null;
+/* 重新定位「进行中的任务」。
+   ★ 2026-11-12 深夜修（用户原话：「为什么都是当前任务 我都冻结了 为什么还不算历史任务呢」）：
+     原来在没有进行中任务时会把**最近一个已结束的任务**顶到「当前任务」里，于是老师刚冻结完，
+     抬头一看它还在「当前任务」，历史上却少了一条。现在没有进行中的任务就是空列表。
+   ★ 2026-11-16：单个 → 数组（可以同时多个），看板也跟着按任务 id 分别存。 */
+async function pickOpen() {
+  ST.opens = openTasks();
   ST.view = null;
-  ST.board = null;
+  ST.boards = {};
   ST.tip = ''; // 换任务就把「刚结束、已入账」那句清掉，免得挂到别的任务上
-  if (showing()) await refreshBoard();
+  if (ST.opens.length) await refreshBoards();
+  else ST.boards = {};
 }
-async function refreshBoard() {
-  const t = showing();
-  if (!t) return;
-  try { ST.board = await HX.rpc('wire_task_board', { p_task: t.id }); ST.err = ''; }
-  catch (e) { ST.board = null; ST.err = '进度读取失败：' + e.message; }
+/* 拉看板：回看模式下只拉那一条，否则把本班每个进行中的任务都拉一份。
+   并发拉（Promise.all）—— 串行等三个任务就是三次往返，老师会觉得「点了没反应」。 */
+async function refreshBoards() {
+  const vt = viewTask();
+  const list = vt ? [vt] : ST.opens;
+  const boards = {};
+  let bad = '';
+  await Promise.all(list.map(async t => {
+    try { boards[t.id] = await HX.rpc('wire_task_board', { p_task: t.id }); }
+    catch (e) { bad = bad || ('进度读取失败：' + e.message); }
+  }));
+  ST.boards = boards;
+  ST.err = bad;
 }
 
-// 折叠面板骨架：标题栏整条可点，收起时只留标题 + 摘要（用户 2026-11-12：冻结的任务要收起来，历史任务也要能展开）
-function foldInto(box, title, tagHtml, open, body, onToggle) {
-  box.className = 'panel span2' + (open ? '' : ' collapsed');
-  box.innerHTML = `<h2 class="fold-head"><button class="fold" type="button" aria-expanded="${open}">
+/* 折叠面板骨架：标题栏整条可点，收起时只留标题 + 摘要
+   （用户 2026-11-12：冻结的任务要收起来，历史任务也要能展开）
+   cls：外层 class。顶级面板要 span2（占满 .pg-main 两栏），
+   而「当前任务」里嵌套的卡片在 .live-stack 里，不能再加 span2（那是栅格语义，套两层会错）。 */
+function foldHead(title, tagHtml, open) {
+  return `<h2 class="fold-head"><button class="fold" type="button" aria-expanded="${open}">
       <svg class="caret" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
-      <span class="fold-t">${esc(title)}</span>${tagHtml || ''}</button></h2>` + body;
+      <span class="fold-t">${esc(title)}</span>${tagHtml || ''}</button></h2>`;
+}
+function foldInto(box, title, tagHtml, open, body, onToggle, cls) {
+  box.className = (cls || 'panel span2') + (open ? '' : ' collapsed');
+  box.innerHTML = foldHead(title, tagHtml, open) + body;
   const btn = box.querySelector('.fold');
   if (btn) btn.onclick = () => onToggle(!open);
 }
 
 function renderTeacher() {
   const cls = ST.classes;
+  /* 「当前任务」这块在多开之后是「卡片堆叠容器 #live」，不再是一整块 panel，
+     所以它必须自己带 span2 —— .pg-main 在 ≥1180px 是两栏栅格，只有直接子元素加了
+     span2 才占满整行。漏掉它的后果 = 卡片全挤在左半栏、右边一大片空白（2026-11-16 实测截到过）。 */
   $('#main').innerHTML = `
   <section class="panel span2">
     <h2>发布本节课任务 <span class="tag">发布即新增一个 5 分项目</span></h2>
@@ -227,14 +270,16 @@ function renderTeacher() {
         <span class="hint" id="fMsg"></span>
       </div>
       <p class="hint">课次直接选「小组加分」里已有的课次，会显示那节课的日期和主题；日期对不上会红字提醒。<b>填错课次，分数会记到别的课上</b>。<br>
-        一个班同时只能有一个进行中的任务；换题请先结束上一个（结束那一刻才入账）。<br>
+        可以同时发布多个任务（<b>同一节课发几道电路也行</b>），每个任务都是一个独立的 5 分项目，各自结束、各自入账。<br>
         学生「完成」= 在任务发布之后，把这道电路点排位并仿真成功（不用另外点签到）。</p>
     </div>
   </section>
 
-  <section class="panel span2" id="live"><div class="empty">加载进度…</div></section>
+  <div id="live" class="live-stack span2"><div class="panel"><div class="empty">加载进度…</div></div></div>
 
-  <section class="panel span2" id="hist"><div class="empty">加载历史任务…</div></section>`;
+  <section class="panel span2" id="hist"><div class="empty">加载历史任务…</div></section>
+
+  <section class="panel span2" id="bin" style="display:none"></section>`;
 
   // 电路一变，任务名跟着变（老师多半直接用默认名，别让他手打）
   const fCir = $('#fCir'), fTitle = $('#fTitle');
@@ -253,6 +298,7 @@ function renderTeacher() {
   $('#fGo').onclick = publish;
   paintLive();
   paintHist();
+  paintBin();
 }
 
 /* ============================================================================
@@ -376,11 +422,10 @@ async function publish() {
     // 刚发的任务一定属于「当前选中的班」：先锁到那个班再重拉，下面两张表才不会显示成别的班。
     ST.cls = cls;
     await reloadTasks();
-    await pickCurrent();
-    ST.liveOpen = null; // 新任务进行中 → 回到自动（展开）
+    await pickOpen();
     syncPoll();
     // 表单值保留（连着发两个班时省事），只把提示和进度刷新
-    paintLive(); paintHist();
+    paintLive(); paintHist(); paintBin();
     $('#fMsg').innerHTML = `<span style="color:var(--ok)">已发布（任务 #${(r && r.id) || '—'} · 第 ${no} 次课）：学生去排位、接对仿真成功就算完成；结束后分数自动进「小组加分」第 ${no} 次课「${esc(jfCol(cir))}」列${isNew ? '（这一课结束时会自动建）' : ''}。</span>`;
     const live = $('#live'); if (live) live.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   } catch (e) {
@@ -395,48 +440,65 @@ async function publish() {
 function btnWait(btn, text) { if (!btn) return; btn.dataset.hxOld = btn.innerHTML; btn.textContent = text; }
 function btnDone(btn) { if (!btn || btn.dataset.hxOld == null) return; btn.innerHTML = btn.dataset.hxOld; delete btn.dataset.hxOld; }
 
-// 当前任务面板（轮询只重画这一块）
-// 2026-11-12：整块做成可折叠 —— 进行中默认展开；已结束/已冻结默认收起（和「历史任务」一个样子），
-// 点标题展开。收起时标题栏上仍然写着班级、状态、完成人数，不用展开也能一眼看完。
+/* ============================================================================
+   当前任务面板（2026-11-16 起一个班可以同时有多个进行中的任务）
+   ----------------------------------------------------------------------------
+   用户原话：「课堂任务支持发布多个 无论是不是同一节课都允许」。
+   于是这一块从「一张卡」变成「一列卡」：每个进行中的任务一张，各自有看板、按钮、折叠状态。
+   · 轮询一次刷新全部进行中的任务（见 syncPoll / refreshBoards），间隔按任务数放宽；
+   · 折叠状态按任务 id 记在 ST.liveOpen 里，某一张卡重画不会把别的卡连带展开/收起；
+   · 回看历史任务（ST.view）时这一块只渲染那一张，进行中的仍照常轮询、只是暂时让位；
+   · 顶部一行 tip 是「刚结束 / 刚删除」那类收尾提示 —— 多卡时它不能挂在某一张卡里，
+     否则卡一消失（任务被结束就不在进行中列表里了）提示也跟着消失。
+   ========================================================================== */
+const cardOpen = t => (typeof ST.liveOpen[t.id] === 'boolean' ? ST.liveOpen[t.id] : true);
+
 function paintLive() {
   const box = $('#live'); if (!box) return;
-  const t = showing();
-  const b = ST.board;
+  const vt = viewTask();
+  const list = vt ? [vt] : ST.opens;
+  const notes = [];
+  if (ST.err) notes.push(`<div class="live-tip bad">${esc(ST.err)}</div>`);
+  if (ST.tip) notes.push(`<div class="live-tip">${esc(ST.tip)}</div>`);
+  if (!list.length) { box.innerHTML = notes.join('') + liveEmpty(); return; }
+  box.innerHTML = notes.join('') + list.map(t => liveCard(t, !!vt)).join('');
+  list.forEach(t => bindLiveCard(t, !!vt));
+}
+
+function liveEmpty() {
+  /* 本班没有进行中的任务。
+     两种情况要分开说：① 一个任务都没有（引导去发布）；② 有历史任务（引导去历史里看）。 */
   const histN = ST.tasks.filter(x => x.status !== 'open').length;
-  if (!t) {
-    /* 本班没有进行中的任务。
-       两种情况要分开说：① 一个任务都没有（引导去发布）；② 有历史任务（引导去历史里看，
-       顺便把刚冻结那条「分数已入账」的提示带上 —— 它原来是挂在面板 body 里的，面板一空就没了）。 */
-    const tip = ST.tip ? `<p class="fold-note">${esc(ST.tip)}</p>`
-      : ST.err ? `<p class="fold-note bad">${esc(ST.err)}</p>` : '';
-    const inner = histN
-      ? `<div class="empty">这个班现在<b>没有进行中的任务</b>。<br>
-         已经结束 / 作废的 <b>${histN}</b> 个都在下面的「历史任务」里，点标题就能展开，进去能看名次和得分，也能「重新拉起」让没做完的学生补做。</div>`
-      : `<div class="empty">这个班还没有任务。在上面发布一个吧。</div>`;
-    foldInto(box, '当前任务', `<span class="tag">${esc(className(ST.cls))} · 无进行中</span>`, true,
-      tip + `<div class="body">${inner}</div>`, () => { });
-    return;
-  }
+  const inner = histN
+    ? `<div class="empty">这个班现在<b>没有进行中的任务</b>。<br>
+       已经结束 / 作废的 <b>${histN}</b> 个都在下面的「历史任务」里，点标题就能展开，进去能看名次和得分，也能「重新拉起」让没做完的学生补做。</div>`
+    : `<div class="empty">这个班还没有任务。在上面发布一个吧（<b>同一节课可以发多个</b>）。</div>`;
+  return `<section class="panel">${foldHead('当前任务', `<span class="tag">${esc(className(ST.cls))} · 无进行中</span>`, true)}
+    <div class="body">${inner}</div></section>`;
+}
+
+// 一张「当前任务」卡（t = 任务行，viewing = 是不是在回看历史任务）
+function liveCard(t, viewing) {
+  const b = ST.boards[t.id];
+  const open = cardOpen(t);
+  const title = viewing ? '历史任务 · 查看中' : '当前任务';
+  const multi = !viewing && ST.opens.length > 1;
+  const tag = `<span class="tag">${esc(t.class_name || className(t.class_id))} · ${statusText(t.status)}${t.frozen ? ' · 得分已冻结' : ''}${
+    b ? ' · 完成 ' + b.done + '/' + b.total : ''}${multi ? ' · 任务 #' + t.id : ''}</span>`;
   /* 有任务、但进度没读到（网络抖动 / 权限变更）：别假装没有任务，也别让下面的 b.xxx 抛错。 */
   if (!b) {
-    foldInto(box, t.status === 'open' ? '当前任务' : '历史任务 · 查看中',
-      `<span class="tag">${esc(t.class_name)} · ${statusText(t.status)}</span>`, true,
-      `<div class="body"><div class="empty">进度读取失败${ST.err ? '：' + esc(ST.err) : ''}（会自动重试；也可以点标题收起再展开重试）</div></div>`,
-      () => { });
-    return;
+    return `<section class="panel${open ? '' : ' collapsed'}" data-card="${t.id}">
+      ${foldHead(title, tag, open)}
+      <div class="body"><div class="empty">进度读取失败（会自动重试；也可以点标题收起再展开重试）</div></div>
+    </section>`;
   }
-  const rows = b && b.done_rows || [];
-  const pend = b && b.pending || [];
-  const pct = (b && b.pct) || 0;
+  const rows = b.done_rows || [];
+  const pend = b.pending || [];
+  const pct = b.pct || 0;
   const canAct = t.status === 'open';
-  const viewing = !canAct && ST.view === t.id;   // 正在回看一条历史任务
-  // 展开状态：老师点过就听老师的；没点过则「进行中展开、已冻结收起」
-  const open = ST.liveOpen == null ? t.status === 'open' : ST.liveOpen;
-  const tag = `<span class="tag">${esc(t.class_name)} · ${statusText(t.status)}${t.frozen ? ' · 得分已冻结' : ''}${b ? ' · 完成 ' + b.done + '/' + b.total : ''}</span>`;
-  // 收尾提示（「分数已冻结并写入第 N 次课」）放在 body 外面：收起时也看得见
-  const note = ST.err ? `<p class="fold-note bad">${esc(ST.err)}</p>`
-    : ST.tip ? `<p class="fold-note">${esc(ST.tip)}</p>` : '';
-  const body = `<div class="body">
+  return `<section class="panel${open ? '' : ' collapsed'}" data-card="${t.id}">
+    ${foldHead(title, tag, open)}
+    <div class="body">
       <div class="task-head">
         <div style="min-width:0;flex:1">
           <b>${esc(t.title || cname(t.circuit))}</b>
@@ -453,13 +515,14 @@ function paintLive() {
       </div>
       <div class="bar"><i style="width:${Math.max(0, Math.min(100, pct))}%"></i></div>
       <div class="acts">
-        <button class="btn" id="lvBoard" type="button">打开大屏（投影）</button>
-        ${canAct ? '<button class="btn primary" id="lvClose" type="button">结束任务并冻结得分</button><button class="btn danger" id="lvVoid" type="button">作废</button>' : ''}
-        <button class="btn ghost" id="lvLesson" type="button" title="课次填错了就改这里，分数会跟着落到正确的课次">改课次</button>
-        ${t.status === 'closed' ? '<button class="btn" id="lvJf" type="button">打开小组加分</button>' : ''}
-        ${t.status === 'closed' ? '<button class="btn primary" id="lvReopen" type="button" title="让没完成的学生补做：任务回到进行中，再次结束时按最新名次重新冻结得分">重新拉起（补做）</button>' : ''}
-        ${viewing ? '<button class="btn ghost" id="lvExit" type="button" title="回看结束，回到本班的当前任务">退出查看</button>' : ''}
-        <button class="btn ghost" id="lvCsv" type="button">导出名单 CSV</button>
+        <button class="btn" data-act="board" type="button">打开大屏（投影）</button>
+        ${canAct ? '<button class="btn primary" data-act="close" type="button">结束任务并冻结得分</button><button class="btn danger" data-act="void" type="button">作废</button>' : ''}
+        <button class="btn ghost" data-act="lesson" type="button" title="课次填错了就改这里，分数会跟着落到正确的课次">改课次</button>
+        ${t.status === 'closed' ? '<button class="btn" data-act="jf" type="button">打开小组加分</button>' : ''}
+        ${t.status === 'closed' ? '<button class="btn primary" data-act="reopen" type="button" title="让没完成的学生补做：任务回到进行中，再次结束时按最新名次重新冻结得分">重新拉起（补做）</button>' : ''}
+        ${viewing ? '<button class="btn ghost" data-act="exit" type="button" title="回看结束，回到本班的当前任务">退出查看</button>' : ''}
+        <button class="btn ghost" data-act="csv" type="button">导出名单 CSV</button>
+        <button class="btn danger" data-act="del" type="button" title="删错了可以在下面的「回收站」里撤销删除">删除任务</button>
       </div>
       <p class="hint">赋分：第 1–10 名 <b>100%</b>（5 分）· 第 11–20 名 <b>80%</b>（4 分）· 其余已完成 <b>70%</b>（3.5 分）· 未完成 <b>0 分</b>。<br>
         名次按用时从短到长排，会随新完成的人实时变化；<b>结束任务那一刻算一次并写死</b>，之后不再变。</p>
@@ -492,76 +555,103 @@ function paintLive() {
         这就是竞争 —— <b>再刷一次、把用时压下去就能反超回来</b>（重刷只记更快的那次，慢的不会顶掉好成绩）。结束任务那一刻才冻结。</p>
       ${t.status === 'closed' ? (t.lesson_no
         ? `<p class="hint" style="color:var(--ok)">✓ 分数已冻结并进入「小组加分」· 第 ${t.lesson_no} 次课 · 列名「${esc(jfCol(t.circuit))}」</p>`
-        : '<p class="hint" style="color:var(--warn)">⚠ 这个任务没填课次，分数进不了「小组加分」，建议作废重发</p>') : ''}
-    </div>`;
-  /* 标题随状态走：进行中叫「当前任务」；点「看这份」回看历史时如实标成「历史任务 · 查看中」，
-     不让老师误以为这条还活着（2026-11-12 用户反馈后加的）。 */
-  foldInto(box, viewing ? '历史任务 · 查看中' : (t.status === 'open' ? '当前任务' : '历史任务 · 查看中'),
-    tag, open, note + body, v => { ST.liveOpen = v; paintLive(); });
+        : '<p class="hint" style="color:var(--warn)">⚠ 这个任务没填课次，分数进不了「小组加分」，建议删除重发</p>') : ''}
+    </div>
+  </section>`;
+}
 
-  $('#lvBoard').onclick = () => window.open('board.html?t=' + t.id, '_blank');
-  $('#lvCsv').onclick = () => exportCsv(b);
-  const lvLesson = $('#lvLesson'); if (lvLesson) lvLesson.onclick = () => editLesson(t);
-  const lvExit = $('#lvExit');
-  if (lvExit) lvExit.onclick = async () => { ST.view = null; await pickCurrent(); paintLive(); paintHist(); };
-  const jfBtn = $('#lvJf'); if (jfBtn) jfBtn.onclick = () => window.open(JF_URL, '_blank', 'noopener');
-  const c1 = $('#lvClose'), c2 = $('#lvVoid');
-  if (c1) c1.onclick = async () => {
-    if (!confirm('结束这个任务？\n\n结束时会按当前名次算一次分并冻结，之后成绩不再变。')) return;
-    c1.disabled = true; btnWait(c1, '结束中…');
-    try {
-      /* ★ 顺序很重要（2026-11-12）：先把服务端返回的看板存下来（要拿 lesson_no 拼提示），
-         再 reloadTasks + pickCurrent —— pickCurrent 会清空 ST.tip 和 ST.board，
-         所以「分数已冻结并写入第 N 次课」必须**在 pickCurrent 之后**再赋值，否则这句提示会凭空消失。
-         结束之后这条任务已经是 closed，pickCurrent 找不到 open 的任务 → 当前任务面板进空状态，
-         它自己就落到下面的「历史任务」里了（这轮修的就是这个）。 */
-      ST.board = await HX.rpc('wire_task_close', { p_task: t.id });
-      const nt = (ST.board && ST.board.task) || t;
-      await reloadTasks();
-      if (ST.stop) { ST.stop(); ST.stop = null; }
-      ST.liveOpen = null; // 冻结后自动收起
-      ST.view = null;
-      await pickCurrent();
-      // 结束即入账：把「分数已冻结 + 自动写入小组加分第几次课」说清楚，并给一个直接去看的入口
-      ST.tip = nt.lesson_no
-        ? '分数已冻结，并自动写入「小组加分」第 ' + nt.lesson_no + ' 次课的「' + jfCol(nt.circuit) + '」列（不用导出 CSV）。'
-        : '分数已冻结。这个任务没填课次，分数进不了「小组加分」，建议作废重发。';
-      paintLive(); paintHist();
-    } catch (e) { alert('结束失败：' + e.message); c1.disabled = false; btnDone(c1); }
-  };
-  if (c2) c2.onclick = async () => {
-    if (!confirm('作废这个任务？\n\n作废后不计分（记录保留），适合发错班/发错题。')) return;
-    c2.disabled = true; btnWait(c2, '作废中…');
-    try {
-      await HX.rpc('wire_task_void', { p_task: t.id });
-      await reloadTasks();
-      if (ST.stop) { ST.stop(); ST.stop = null; }
-      ST.liveOpen = null; // 作废后同样收起
-      ST.view = null;
-      await pickCurrent();   // 作废的这条已经不算「当前任务」，直接落到历史里
-      paintLive(); paintHist();
-    } catch (e) { alert('作废失败：' + e.message); c2.disabled = false; btnDone(c2); }
-  };
-  /* 重新拉起（2026-11-11 用户要求「让没刷的人补刷，再关闭」）：closed → open，
-     已完成的旧成绩保留（不删数据），没做的学生补排位自动记上；
-     再次结束时 wire_task_close 按全部记录重算冻结 —— 补做的同学更快会让前面的人掉档，
-     这是排位规则本身，确认弹窗里要说清楚。 */
-  const c3 = $('#lvReopen');
-  if (c3) c3.onclick = async () => {
-    if (!confirm('重新拉起这个任务？\n\n重开后任务回到「进行中」，没完成的学生可以补做（已完成的旧成绩保留）。\n再次「结束任务」时会按最新名次重新冻结得分：如果补做的同学用时更短，\n前面的人完成率可能掉档（100%→80%），这是排位规则本身。')) return;
-    c3.disabled = true; btnWait(c3, '重新拉起中…');
-    try {
-      await HX.rpc('wire_task_reopen', { p_task: t.id });
-      await reloadTasks();
-      if (ST.stop) { ST.stop(); ST.stop = null; }
-      ST.liveOpen = null; // 回到进行中 → 自动展开
-      ST.view = null;
-      await pickCurrent();   // 重新拉起后它又是本班唯一 open 的任务 → 自动占回「当前任务」
-      syncPoll();
-      ST.tip = '任务已重新拉起：没完成的学生去排位就自动补记，都补完了再点「结束任务」重新冻结得分。';
-      paintLive(); paintHist();
-    } catch (e) { alert('重新拉起失败：' + e.message); c3.disabled = false; btnDone(c3); }
-  };
+function bindLiveCard(t, viewing) {
+  const card = document.querySelector('#live [data-card="' + t.id + '"]');
+  if (!card) return;
+  const b = ST.boards[t.id];
+  const on = (sel, fn) => { const el = card.querySelector(sel); if (el) el.onclick = () => fn(el); };
+  on('.fold', () => { ST.liveOpen[t.id] = !cardOpen(t); paintLive(); });
+  on('[data-act="board"]', () => window.open('board.html?t=' + t.id, '_blank'));
+  on('[data-act="csv"]', () => { if (b) exportCsv(b); });
+  on('[data-act="lesson"]', () => editLesson(t));
+  on('[data-act="exit"]', async () => { ST.view = null; await pickOpen(); syncPoll(); paintLive(); paintHist(); });
+  on('[data-act="jf"]', () => window.open(JF_URL, '_blank', 'noopener'));
+  on('[data-act="close"]', btn => closeTask(t, btn));
+  on('[data-act="void"]', btn => voidTask(t, btn));
+  on('[data-act="del"]', btn => deleteTask(t, btn));
+  on('[data-act="reopen"]', btn => reopenTask(t, btn));
+}
+
+/* 结束任务并冻结得分。
+   ★ 顺序很重要（2026-11-12）：pickOpen 会清空 ST.tip，所以「分数已冻结并写入第 N 次课」
+     必须**在 pickOpen 之后**再赋值，否则这句提示会凭空消失。 */
+async function closeTask(t, btn) {
+  if (!confirm('结束「' + (t.title || cname(t.circuit)) + '」？\n\n结束时会按当前名次算一次分并冻结，之后成绩不再变。')) return;
+  btn.disabled = true; btnWait(btn, '结束中…');
+  try {
+    const nb = await HX.rpc('wire_task_close', { p_task: t.id });
+    const nt = (nb && nb.task) || t;
+    await reloadTasks();
+    ST.view = null;
+    await pickOpen();
+    syncPoll();
+    ST.tip = nt.lesson_no
+      ? '「' + (nt.title || cname(nt.circuit)) + '」分数已冻结，并自动写入「小组加分」第 ' + nt.lesson_no + ' 次课的「' + jfCol(nt.circuit) + '」列（不用导出 CSV）。'
+      : '「' + (nt.title || cname(nt.circuit)) + '」分数已冻结。这个任务没填课次，分数进不了「小组加分」，建议删除重发。';
+    paintLive(); paintHist(); paintBin();
+  } catch (e) { alert('结束失败：' + e.message); btn.disabled = false; btnDone(btn); }
+}
+
+async function voidTask(t, btn) {
+  if (!confirm('作废「' + (t.title || cname(t.circuit)) + '」？\n\n作废后不计分（记录保留），适合发错班/发错题。')) return;
+  btn.disabled = true; btnWait(btn, '作废中…');
+  try {
+    await HX.rpc('wire_task_void', { p_task: t.id });
+    await reloadTasks();
+    ST.view = null;
+    await pickOpen();
+    syncPoll();
+    paintLive(); paintHist(); paintBin();
+  } catch (e) { alert('作废失败：' + e.message); btn.disabled = false; btnDone(btn); }
+}
+
+/* 重新拉起（2026-11-11 用户要求「让没刷的人补刷，再关闭」）：closed → open，
+   已完成的旧成绩保留（不删数据），没做的学生补排位自动记上；
+   再次结束时 wire_task_close 按全部记录重算冻结 —— 补做的同学更快会让前面的人掉档，
+   这是排位规则本身，确认弹窗里要说清楚。 */
+async function reopenTask(t, btn) {
+  if (!confirm('重新拉起「' + (t.title || cname(t.circuit)) + '」？\n\n重开后任务回到「进行中」，没完成的学生可以补做（已完成的旧成绩保留）。\n再次「结束任务」时会按最新名次重新冻结得分：如果补做的同学用时更短，\n前面的人完成率可能掉档（100%→80%），这是排位规则本身。')) return;
+  btn.disabled = true; btnWait(btn, '重新拉起中…');
+  try {
+    await HX.rpc('wire_task_reopen', { p_task: t.id });
+    await reloadTasks();
+    ST.view = null;
+    await pickOpen();
+    syncPoll();
+    ST.tip = '「' + (t.title || cname(t.circuit)) + '」已重新拉起：没完成的学生去排位就自动补记，都补完了再点「结束任务」重新冻结得分。';
+    paintLive(); paintHist(); paintBin();
+  } catch (e) { alert('重新拉起失败：' + e.message); btn.disabled = false; btnDone(btn); }
+}
+
+/* 删除任务（2026-11-16 用户要求：「发布错了不能只有冻结 在历史记录不好看 支持删除和撤销删除
+   删除任务那分数情况也全部绑定删除 防止有的学生手速快比别人多这个分不公平」）。
+   服务端只打一个 deleted_at（软删除），所以撤销删除能原样恢复；「分数一起删」由
+   小组加分/wire-task-link.js 在下次同步时把那一列整列删掉（见那边文件头 ④）。 */
+async function deleteTask(t, btn) {
+  const nm = t.title || cname(t.circuit);
+  const msg = '删除「' + nm + '」？\n\n'
+    + (t.done ? '已经有 ' + t.done + ' 人完成。\n\n' : '')
+    + '删除后：\n'
+    + '· 它不再出现在「历史任务」里（挪到下面的「回收站」）；\n'
+    + '· 它已经写进「小组加分」的那一列分数会跟着一起删掉（否则先刷完的人就白拿这 5 分）；\n'
+    + '· 学生端也看不到它了。\n\n'
+    + '删错了到「回收站」点「撤销删除」就能恢复：完成记录一条没丢，分数也会写回去。';
+  if (!confirm(msg)) return;
+  btn.disabled = true; btnWait(btn, '删除中…');
+  try {
+    await HX.rpc('wire_task_delete', { p_task: t.id });
+    await reloadTasks();
+    ST.view = null;
+    await pickOpen();
+    syncPoll();
+    ST.tip = '「' + nm + '」已删除。它写进「小组加分」的那一列分数会在下次打开「小组加分」时一并删掉；删错了到下面「回收站」点「撤销删除」。';
+    paintLive(); paintHist(); paintBin();
+  } catch (e) { alert('删除失败：' + e.message); btn.disabled = false; btnDone(btn); }
 }
 
 /* 改课次（2026-11-10）：课次下拉上线前的历史任务走了旧数字框默认 1，分数记错课次。
@@ -579,21 +669,22 @@ async function editLesson(t) {
     await HX.rpc('wire_task_update_lesson', { p_task: t.id, p_lesson_no: n, p_lesson_date: (date && date.trim()) || null });
     await reloadTasks();
     /* reloadTasks 之后 ST.tasks 里全是新对象，旧 t 已经悬空。
-       先 pickCurrent 重新定位「进行中」的任务（它顺手把 ST.view 清空），
+       先 pickOpen 重新定位「进行中」的任务（它顺手把 ST.view 清空），
        如果刚才改的是历史任务，再把回看指针指回去 —— 否则老师一改课次就被弹回别处。 */
-    await pickCurrent();
-    if (t.status !== 'open') { ST.view = t.id; await refreshBoard(); }
+    await pickOpen();
+    if (t.status !== 'open') { ST.view = t.id; await refreshBoards(); }
     ST.tip = '课次已改为第 ' + n + ' 次课，分数会跟着落到正确的课次（旧的错课次列到「小组加分」记分页删掉）。';
-    paintLive(); paintHist();
+    paintLive(); paintHist(); paintBin();
   } catch (e) { alert('改课次失败：' + e.message); }
 }
 
-/* 历史任务（2026-11-12 按用户要求改三处）
+/* 历史任务（2026-11-12 按用户要求改三处；2026-11-16 加「删除」）
    ① 默认收起、点标题展开（以前是整张表平铺在页面上，把「当前任务」挤到看不见）；
    ② 只列当前班级的任务 —— 一个老师带几个班时，以前所有班的任务混在一张表里。
-   ③ **历史 = 本班所有「非进行中」的任务**（原来写的是 `t.id !== ST.cur.id`，
+   ③ **历史 = 本班所有「非进行中」且没被删除的任务**（原来写的是 `t.id !== ST.cur.id`，
       于是「当前任务」一旦顶了一条已结束的上来，它就从历史里消失了；
-      现在按状态切，正在回看的那条也照样留在历史里，点「看这份」不会让它凭空不见）。 */
+      现在按状态切，正在回看的那条也照样留在历史里，点「看这份」不会让它凭空不见）。
+      删掉的任务不进这里（用户：「在历史记录不好看」）—— 它们在下面的「回收站」里。 */
 function paintHist() {
   const box = $('#hist'); if (!box) return;
   const all = ST.tasks.filter(t => t.status !== 'open');
@@ -609,38 +700,76 @@ function paintHist() {
         <td><span class="state ${t.status}"${t.status === 'closed' && !t.lesson_no ? ' title="没填课次，无法入账"' : ''}>${
           t.status === 'closed' ? '已结束 · 已入账' : statusText(t.status)}</span></td>
         <td>${t.status === 'closed' ? '<button class="btn ghost" data-reopen="' + t.id + '" type="button" title="让没完成的学生补做：任务回到进行中，再次结束时按最新名次重新冻结">重新拉起</button>' : ''}
-            <button class="btn ghost" data-look="${t.id}" type="button">看这份</button></td></tr>`).join('')
+            <button class="btn ghost" data-look="${t.id}" type="button">看这份</button>
+            <button class="btn danger" data-del="${t.id}" type="button" title="删掉它，分数也一起删；删错了在回收站里撤销删除">删除</button></td></tr>`).join('')
         : '<tr><td colspan="7" class="muted" style="text-align:center;padding:22px">没有更早的任务</td></tr>'}
       </tbody></table></div></div>`;
   foldInto(box, '历史任务', tag, ST.histOpen, body, v => { ST.histOpen = v; paintHist(); });
   box.querySelectorAll('[data-look]').forEach(btn => btn.onclick = async () => {
-    /* 「看这份」= 回看模式：ST.view 指向它，ST.cur（进行中的任务）不受影响。
-       原来是把 ST.cur 直接改掉，等于把一条已结束的任务冒充成「当前任务」。 */
+    /* 「看这份」= 回看模式：ST.view 指向它，进行中的任务不受影响。
+       原来是把「当前任务」直接改掉，等于把一条已结束的任务冒充成「当前任务」。 */
     btnWait(btn, '读取中…');
     ST.view = +btn.dataset.look;
     ST.tip = '';
-    await refreshBoard();
+    await refreshBoards();
     syncPoll();
-    ST.liveOpen = true; // 点「看这份」＝要看详情：面板直接展开
+    ST.liveOpen[ST.view] = true; // 点「看这份」＝要看详情：那张卡直接展开
     paintLive(); paintHist();
     $('#live').scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
-  /* 历史列表里的「重新拉起」（2026-11-11）：closed 任务让没刷的人补做，逻辑同 paintLive 的 lvReopen */
+  box.querySelectorAll('[data-del]').forEach(btn => btn.onclick = async () => {
+    const t = ST.tasks.find(x => x.id === +btn.dataset.del);
+    if (!t) return;
+    if (ST.view === t.id) { ST.view = null; }
+    await deleteTask(t, btn);
+  });
+  /* 历史列表里的「重新拉起」（2026-11-11）：closed 任务让没刷的人补做 */
   box.querySelectorAll('[data-reopen]').forEach(btn => btn.onclick = async () => {
-    const id = +btn.dataset.reopen;
-    if (!confirm('重新拉起这个任务？\n\n重开后任务回到「进行中」，没完成的学生可以补做（已完成的旧成绩保留）。\n再次「结束任务」时会按最新名次重新冻结得分：如果补做的同学用时更短，\n前面的人完成率可能掉档（100%→80%），这是排位规则本身。')) return;
-    btn.disabled = true; btnWait(btn, '重新拉起中…');
+    const t = ST.tasks.find(x => x.id === +btn.dataset.reopen);
+    if (!t) return;
+    await reopenTask(t, btn);
+    $('#live').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+}
+
+/* ============================================================================
+   回收站（2026-11-16）
+   ----------------------------------------------------------------------------
+   用户原话：「发布错了不能只有冻结 在历史记录不好看 支持删除和撤销删除」。
+   删掉的任务进这里，不进历史、不计分、学生看不到；点「撤销删除」原样回来。
+   ★ 没有已删除的任务时整块面板藏起来（display:none），页面上不留一块空表。
+   ========================================================================== */
+function paintBin() {
+  const box = $('#bin'); if (!box) return;
+  const all = ST.bin || [];
+  if (!all.length) { box.style.display = 'none'; box.innerHTML = ''; box.className = 'panel span2'; return; }
+  box.style.display = '';
+  const body = `<div class="body tight"><div class="tbl-wrap scroll-y">
+      <table class="tbl"><thead><tr>
+        <th>删除时间</th><th>电路</th><th>课次</th><th class="num">完成</th><th>原状态</th><th></th>
+      </tr></thead><tbody>
+      ${all.map(t => `<tr>
+        <td>${fmtClock(t.deleted_at)}</td><td>${esc(cname(t.circuit))}</td>
+        <td>${t.lesson_no || '—'}${t.lesson_date ? '<br><span class="muted" style="font-size:12px">' + esc(t.lesson_date) + '</span>' : ''}</td>
+        <td class="num">${t.done}/${t.total}</td>
+        <td><span class="state ${t.status}">${statusText(t.status)}</span></td>
+        <td><button class="btn ghost" data-restore="${t.id}" type="button">撤销删除</button></td></tr>`).join('')}
+      </tbody></table></div>
+      <p class="hint">这里的任务不进历史、不计分、学生也看不到。撤销删除后任务回到原来的状态，完成记录一条没丢；
+        它写进「小组加分」的那一列分数，会在下次打开「小组加分」时自动写回去。</p></div>`;
+  foldInto(box, '回收站', `<span class="tag">${esc(className(ST.cls))} · 已删除 ${all.length} 个</span>`, ST.binOpen, body, v => { ST.binOpen = v; paintBin(); });
+  box.querySelectorAll('[data-restore]').forEach(btn => btn.onclick = async () => {
+    const t = (ST.bin || []).find(x => x.id === +btn.dataset.restore);
+    if (!t) return;
+    btn.disabled = true; btnWait(btn, '恢复中…');
     try {
-      await HX.rpc('wire_task_reopen', { p_task: id });
+      await HX.rpc('wire_task_restore', { p_task: t.id });
       await reloadTasks();
-      ST.tip = '';
-      ST.view = null;               // 重开后它变成「进行中」，不再是回看对象
-      await pickCurrent();          // pickCurrent 会顺手把这条拉成当前任务并读看板
+      await pickOpen();
       syncPoll();
-      ST.liveOpen = null;
-      paintLive(); paintHist();
-      $('#live').scrollIntoView({ behavior: 'smooth', block: 'start' });
-    } catch (e) { alert('重新拉起失败：' + e.message); btn.disabled = false; btnDone(btn); }
+      ST.tip = '「' + (t.title || cname(t.circuit)) + '」已撤销删除：任务回到原来的状态，成绩记录都在；打开「小组加分」会自动把那一列分数写回去。';
+      paintLive(); paintHist(); paintBin();
+    } catch (e) { alert('撤销删除失败：' + e.message); btn.disabled = false; btnDone(btn); }
   });
 }
 
@@ -655,21 +784,17 @@ function exportCsv(b) {
 
 /* ============================================================================
    学生端
+   ----------------------------------------------------------------------------
+   2026-11-16：老师可以同时发布多个任务（同一节课也能发多个），所以这里改成
+   「一条任务一张卡」—— 每条显示自己的状态/用时/名次/得分，不再只显示最新那一条。
+   数据来自 wire_task_my_result() 的 items（open 排前、最多 10 条）；
+   items 缺失时退回老字段 task/mine，老库没跑迁移也不白屏。
    ========================================================================== */
 async function studentView() {
   const main = $('#main');
-  const paint = () => {
-    const d = ST.mine;
-    if (!d || !d.student) { main.innerHTML = `<div class="panel span2"><div class="empty">名单里没有绑定你的学号，请找老师</div></div>`; return; }
-    const t = d.task;
-    if (!t) {
-      main.innerHTML = `<div class="panel span2"><div class="empty">老师还没发布课堂任务。<br>等发布了这里会显示「你有没有完成」「现在第几名」「能拿几分」。</div></div>`;
-      return;
-    }
-    const m = d.mine;
-    main.innerHTML = `
+  const one = (t, m, total, done) => `
       <section class="panel span2">
-        <h2>本节课任务 <span class="tag">${esc(statusText(t.status))}</span></h2>
+        <h2>${t.status === 'open' ? '本节课任务' : '已结束的任务'} <span class="tag">${esc(statusText(t.status))} · 第 ${t.lesson_no || '—'} 次课</span></h2>
         <div class="body">
           <div class="task-head">
             <div style="min-width:0;flex:1">
@@ -682,23 +807,41 @@ async function studentView() {
           <div class="mine-card" style="margin-top:16px">
             <div class="kpi ${m.finished ? 'mine-done' : 'mine-todo'}"><em>我的状态</em><b>${m.finished ? '已完成' : '还没完成'}</b></div>
             <div class="kpi"><em>我的用时</em><b>${fmtSec(m.sec)}</b></div>
-            <div class="kpi"><em>当前名次</em><b>${m.place == null ? '—' : '第 ' + m.place + ' 名'}</b></div>
+            <div class="kpi"><em>${t.status === 'open' ? '当前名次' : '最终名次'}</em><b>${m.place == null ? '—' : '第 ' + m.place + ' 名'}</b></div>
             <div class="kpi"><em>完成率 / 得分</em><b>${m.finished ? rateText(m.rate) + ' · ' + scoreText(m.score) : '—'}</b></div>
           </div>
           <div class="kpis">
-            <div class="kpi"><em>全班已完成</em><b>${d.done}<small>/ ${d.total}</small></b></div>
+            <div class="kpi"><em>全班已完成</em><b>${done}<small>/ ${total}</small></b></div>
           </div>
           <p class="hint">${m.finished
-            ? '你已经算完成。名次会随更快的同学完成而实时变化；老师结束任务时冻结最终得分。'
+            ? (t.status === 'open'
+              ? '你已经算完成。名次会随更快的同学完成而实时变化；老师结束任务时冻结最终得分。'
+              : '这个任务的得分已经冻结，老师不用再操作了。')
             : '去「接线仿真」里选这道电路，点右上角「排位」，全部接对仿真成功就自动算完成（不用在这里点任何按钮）。'}
             <br>赋分：第 1–10 名 100%（5 分）· 第 11–20 名 80%（4 分）· 其余已完成 70%（3.5 分）。</p>
           <div class="acts"><a class="btn primary big" href="${TOOL}">去排位</a></div>
         </div>
       </section>`;
+  const paint = () => {
+    const d = ST.mine;
+    if (!d || !d.student) { main.innerHTML = `<div class="panel span2"><div class="empty">名单里没有绑定你的学号，请找老师</div></div>`; return; }
+    const items = (Array.isArray(d.items) && d.items.length)
+      ? d.items
+      : (d.task ? [{ task: d.task, mine: d.mine, total: d.total, done: d.done }] : []);
+    if (!items.length) {
+      main.innerHTML = `<div class="panel span2"><div class="empty">老师还没发布课堂任务。<br>等发布了这里会显示「你有没有完成」「现在第几名」「能拿几分」。</div></div>`;
+      return;
+    }
+    const opens = items.filter(x => x.task.status === 'open').length;
+    main.innerHTML = (opens > 1
+      ? `<div class="panel span2"><div class="body"><p class="hint" style="margin:0">现在有 <b>${opens}</b> 个进行中的任务，<b>每一个都要做</b>（各算一个 5 分项目）。</p></div></div>`
+      : '') + items.map(x => one(x.task, x.mine || {}, x.total, x.done)).join('');
   };
   try { ST.mine = await HX.rpc('wire_task_my_result'); } catch (e) { return gate('读取任务失败', esc(e.message), true); }
   paint();
-  if (ST.mine && ST.mine.task && ST.mine.task.status === 'open') {
+  const anyOpen = () => ((ST.mine && ST.mine.items) || []).some(x => x && x.task && x.task.status === 'open')
+    || (ST.mine && ST.mine.task && ST.mine.task.status === 'open');
+  if (anyOpen()) {
     ST.stop = every(5000, async () => { try { ST.mine = await HX.rpc('wire_task_my_result'); paint(); } catch (e) { } });
   }
 }

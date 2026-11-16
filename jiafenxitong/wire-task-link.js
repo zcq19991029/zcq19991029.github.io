@@ -31,6 +31,11 @@
       全班就会一直显示「N 项待批改」。
    ③ **老师删掉这一列就不再塞回去**。列名被改掉也视为「这一列归老师管」，
       只记一条提示，不抢回来。任务是分数的来源，但不能跟老师抢方向盘。
+   ④ **任务被删除 = 那一列的分数一起删掉**（2026-11-16 用户要求：「删除任务那分数情况也全部
+      绑定删除 防止有的学生手速快比别人多这个分不公平」）。wire_task_scores 会给已删除的任务
+      带一个 deleted=true，plan 看到就把整列（名称 + 各组分数 + 互评标记）删掉，动作和
+      老师在记分页手动删列完全一致。老师撤销删除后 deleted 变回 false，下一轮同步会把列和
+      分数重新建/写回来（完成记录还在数据库里，学生不用重做）。
 
    ── 2026-11-09 追加：进行中的任务要「实时榜」──
    用户原话：「课堂任务完成名单应该也有在旁边 而且实时显示获得的完成率是多少 会变化才对」
@@ -169,6 +174,93 @@
 
   /* ---------------- 定位/新增这一列 ---------------- */
 
+  /* 找课次：和 lessonFor 同一个口径，但**找不到就返回 null，绝不新建**。
+     用于「任务被删了要删列」这条路径 —— 不能因为要删一个列，反而给这门课凭空建出一个空课次。 */
+  function findLesson(state, cls, task) {
+    var seq = Number(task.lesson_no);
+    if (isFinite(seq) && seq > 0) {
+      var hit = null;
+      (state.lessons || []).forEach(function (l) {
+        if (l && l.classId === cls.id && Number(l.seq) === seq) hit = l;
+      });
+      return hit;
+    }
+    var d = dayOf(task.lesson_date);
+    if (!d) return null;
+    var byDate = null;
+    (state.lessons || []).forEach(function (l) {
+      if (l && l.classId === cls.id && dayOf(l.date) === d) byDate = l;
+    });
+    return byDate;
+  }
+
+  /* 删掉某一列（列名 + 每组成员这一格的分数 + 互评标记），后面的列整体左移一位。
+     必须是 leader-scoring.js 里 removeProject 的同一套动作，否则列名和分数会错列：
+       ① sharedProjects 里 splice；② 每组 rec.projects 重设；
+       ③ 每组 members[mk] 分数数组 splice；④ peerMeta 的「组|成员|列号」键前移。
+     唯一的区别：这里不弹确认、不 save、不重画 —— 由 maybeSync 统一收口（它要在一轮里处理多条任务）。 */
+  function removeColAt(lesson, index) {
+    var names = currentNames(lesson);
+    var removed = String(names[index] == null ? '' : names[index]).trim();
+    names.splice(index, 1);
+    lesson.leaderProjectNames = names.slice();
+    lesson.leaderProjectCount = names.length;
+    if (Array.isArray(lesson.teacherOnly) && removed) {
+      var di = lesson.teacherOnly.indexOf(removed);
+      if (di >= 0) lesson.teacherOnly.splice(di, 1);
+    }
+    Object.keys(lesson.leaderScores || {}).forEach(function (k) {
+      var r = lesson.leaderScores[k];
+      if (!r) return;
+      r.projects = names.slice();
+      Object.keys(r.members || {}).forEach(function (mk) {
+        var arr = r.members[mk];
+        if (Array.isArray(arr)) arr.splice(index, 1);
+      });
+    });
+    if (lesson.peerMeta) {
+      var next = {};
+      Object.keys(lesson.peerMeta).forEach(function (k) {
+        var parts = k.split('|');
+        if (parts.length !== 3) return;
+        var c = Number(parts[2]);
+        if (!isFinite(c) || c === index) return;
+        next[parts[0] + '|' + parts[1] + '|' + (c > index ? c - 1 : c)] = lesson.peerMeta[k];
+      });
+      lesson.peerMeta = next;
+    }
+    return removed;
+  }
+
+  /* 任务被老师删掉了（wire_task_scores 里 deleted=true）→ 把它在「小组加分」里那一列整列删掉。
+     用户原话（2026-11-16）：「删除任务那分数情况也全部绑定删除 防止有的学生手速快比别人多这个分不公平」
+     —— 只把任务藏起来、分数留在表上，那先刷完的那批人就白拿 5 分，正是要堵的漏洞。
+     撤销删除后 deleted 变回 false，下一轮同步会照 normal 流程把列和分数重新建回来（完成记录还在库里）。 */
+  function removeTaskColumn(state, task, out) {
+    var cls = null;
+    state.classes.forEach(function (c) { if (c && Number(c.hxClassId) === Number(task.class_id)) cls = c; });
+    if (!cls) return;
+    var lesson = findLesson(state, cls, task);
+    if (!lesson) return;
+    var key = String(task.task_id);
+    if (!lesson.wireTasks || !lesson.wireTasks[key]) return;   // 从没写进过分（发布完立刻删的）
+    var entry = lesson.wireTasks[key];
+    var names = currentNames(lesson);
+    var at = entry.name ? names.indexOf(entry.name) : -1;
+    if (at >= 0) {
+      var removed = removeColAt(lesson, at);
+      out.removed.push({ taskId: task.task_id, lessonSeq: lesson.seq, name: removed });
+      /* 这一列没了，别的任务记的列号都要往前挪一格。
+         不挪也不至于错（columnFor 每次都按名字重找），但留着错位迟早坑人。 */
+      Object.keys(lesson.wireTasks).forEach(function (k) {
+        var e = lesson.wireTasks[k];
+        if (k !== key && e && typeof e.col === 'number' && e.col > at) e.col = e.col - 1;
+      });
+    }
+    delete lesson.wireTasks[key];
+    out.changed = true;
+  }
+
   function columnFor(lesson, task, out) {
     var names = currentNames(lesson);
     if (!lesson.wireTasks) lesson.wireTasks = {};
@@ -291,12 +383,15 @@
    */
   W.plan = function (state, tasks, opts) {
     opts = opts || {};
-    var out = { changed: false, added: [], created: [], notes: [], unmatched: [], logs: [], live: [] };
+    var out = { changed: false, added: [], created: [], notes: [], unmatched: [], logs: [], live: [], removed: [] };
     if (!state || !Array.isArray(state.classes) || !Array.isArray(tasks)) return out;
     if (!Array.isArray(state.lessons)) state.lessons = [];
 
     tasks.forEach(function (task) {
       if (!task) return;
+      /* 2026-11-16：老师删掉的任务（deleted=true）→ 把它那一列连同分数整列删掉，然后跳过。
+         必须放在最前面：删掉的 open 任务 status 还是 'open'，不先拦就会被下面当成「进行中」继续写分。 */
+      if (task.deleted) { removeTaskColumn(state, task, out); return; }
       /* 2026-11-11：进行中（open）也入账，不再等结束。
          用户原话「我没结束不算？我必须展示实时动态 给学生及时反馈」——学生做到哪，
          这一列就实时是多少（rate × 100%），本节完成率和平时分跟着一起动。
@@ -415,7 +510,7 @@
   function hasLive(cls) {
     if (!cls || !cls.hxClassId) return false;
     return cache.some(function (t) {
-      return t && t.status === 'open' && Number(t.class_id) === Number(cls.hxClassId);
+      return t && t.status === 'open' && !t.deleted && Number(t.class_id) === Number(cls.hxClassId);
     });
   }
 
@@ -471,6 +566,13 @@
           }).join('；'));
         }
         if (res.logs.length) hooks.log('接线任务入账', res.logs.join('；'));
+        /* 2026-11-16：老师删掉的任务，这一列分数被整列删掉 —— 必须留痕，
+           否则老师只觉得「我填的分怎么没了」。 */
+        if (res.removed.length) {
+          hooks.log('删除接线任务', res.removed.map(function (x) {
+            return '任务 #' + x.taskId + ' 已删除，第 ' + x.lessonSeq + ' 次课「' + x.name + '」这一列连同分数一起删掉了（撤销删除后会自动写回来）';
+          }).join('；'));
+        }
         /* 2026-11-09：把「为什么没入账」说出来。
            以前 notes（班级没对应 / 没填课次 / 列被删过）和 unmatched（认不出的人）只写进返回值，
            谁都不显示 —— 用户看到的就是「课堂任务的分没加到上课计分」，而且完全无从下手。
@@ -652,7 +754,7 @@
       if (!hooks || !hooks.hasRpc || !hooks.hasRpc()) { box.hidden = true; box.innerHTML = ''; return; }
       cls = cls && cls.id ? cls : (hooks.curClass ? hooks.curClass() : null);
       if (!cls || !cls.hxClassId) { box.hidden = true; box.innerHTML = ''; return; }
-      var mine = cache.filter(function (t) { return t && Number(t.class_id) === Number(cls.hxClassId); });
+      var mine = cache.filter(function (t) { return t && !t.deleted && Number(t.class_id) === Number(cls.hxClassId); });
       if (!mine.length && !lastError) { box.hidden = true; box.innerHTML = ''; return; }
 
       var open = null, closed = [];

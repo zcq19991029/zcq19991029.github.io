@@ -3,7 +3,7 @@
 <html lang="zh-CN">
 <head>
 <script src="../hx-theme.js" data-tool="wiring"></script>
-<script>window.HX_BUILD = "2026-11-16T01:11:17Z d4fbf64";</script>
+<script>window.HX_BUILD = "2026-11-16T01:38:17Z cb01208";</script>
 <meta charset="utf-8">
 <meta name="copyright" content="© 2026 zcq 版权所有，未经许可禁止复制、修改、转载">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
@@ -988,9 +988,13 @@
   #fw-draw .nm-stage { flex: 1 1 auto; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 8px 16px 4px; scrollbar-width: thin; }
   #fw-draw .nm-stage::-webkit-scrollbar { width: 10px; height: 10px; }
   #fw-draw .nm-stage::-webkit-scrollbar-thumb { background: #24425f; border-radius: 10px; }
-  #fw-draw .nm-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: 14px;
-    height: 100%; min-height: 0; align-content: stretch;
-    width: 100%; max-width: 1500px; margin: 0 auto; }
+  /* 卡组网格：尺寸由 rank.js 的 drwFit() 按「牌的原始比例 + 舞台可用宽高」算好后写成 inline 的
+     列宽/行高（见那边注释）。这里只留一套「JS 还没跑」时的兜底：6 列、400px 高、水平居中 —— 
+     ⚠️ 别再把 grid-auto-rows 写成 1fr、也别加 height:100%：那会把牌拉成又窄又长的竖条
+        （2026-11-15 就是这么坏的，2026-11-16 用户截图报「长宽比例不要变啊 现在很丑」）。 */
+  #fw-draw .nm-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); grid-auto-rows: 400px; gap: 14px;
+    align-content: center; justify-content: center;
+    width: 100%; margin: 0 auto; }
   /* ---------- 一张牌 ---------- */
   #fw-draw .drw-card { position: relative; height: auto; min-height: 0; perspective: 1100px; cursor: pointer;
     animation: nmDeal .42s cubic-bezier(.2, .8, .3, 1) backwards; animation-delay: calc(var(--i, 0) * 55ms);
@@ -1100,8 +1104,9 @@
   }
   html.is-lite #fw-draw .drw-card, html.is-lite #fw-draw .drw-slot, html.is-lite #fw-draw .drw-cface { animation: none !important; }
   html.is-lite #fw-draw .drw-cardin, html.is-lite #fw-draw .drw-card { transition-duration: .01s !important; }
-  /* ---------- 窄屏：卡组列数三档响应式（≤900 三列、≤560 两列）；卡高一律由 grid-auto-rows:1fr 撑满舞台，
-     不再写死固定高度（写死会导致高分辨率屏上卡片只占舞台上部一小块、下方大片留白，2026-11-15 修） ---------- */
+  /* ---------- 窄屏：卡组列数三档（≤900 三列、≤560 两列）。
+     卡的实际尺寸一律由 rank.js 的 drwFit() 按原始长宽比算（等比放大、不变形），
+     下面这两条只是 JS 没跑起来时的兜底列数。---------- */
   @media (max-width: 900px) {
     #fw-draw .nm-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     #fw-draw .nm-brand span { display: none; }
@@ -5272,7 +5277,7 @@ function rkProxyUse(s) {
 // 按当前班级抽：一次课就一个班，卡组里只装这一个班的人，不允许把几个班合在一起混抽（老师明确要求）。
 function isT() { return !!(RK.me && (RK.me.teacher || RK.me.admin || RK.me.dev)); } // 函数声明，提升到顶部：rkRender 里先用到也不会撞上暂时性死区
 // 抽人状态机：idle → dealing（发牌）→ flipping（翻面）→ revealed（抽中静止）；refreshing 是刷新卡组的洗牌过渡
-const DRW = { cls: null, picked: null, busy: false, phase: 'idle', pool: [], box: null, last: null, dealt: [], gen: 0, timers: [] };
+const DRW = { cls: null, picked: null, busy: false, phase: 'idle', pool: [], box: null, last: null, dealt: [], gen: 0, timers: [], fitObs: null };
 const DRW_CLS_KEY = 'zfz-draw-cls'; // 记住这一节课选的班：一次课一个班，下次打开不用重选
 // 稀有度：夜市 4 档（蓝 / 绿 / 紫 / 金），每张牌独立摇，装饰性质
 const DRW_RAR = [
@@ -5468,6 +5473,64 @@ function drwFaceHTML(p, r) {
     `<div class="drw-tag">${p.cls ? `<span>${esc(p.cls)}</span>` : ''}</div>` +
     `<div class="nm-ticket"><span>课堂幸运卡</span><span class="drw-vp">${drwAvatar(p)}<b>✦${drwScoreOf(p)}</b><em>分</em></span></div>`;
 }
+/* ---------- 卡组等比铺满（2026-11-16 用户：「长宽比例不要变啊 现在很丑 还原比例并等比例放大」）----------
+   出了什么事：2026-11-15 为了消灭「卡片只占舞台上部 1/3、下方大片留白」，把卡高从写死的 400px
+   改成 `grid-auto-rows:1fr` + `height:100%`。高度确实铺满了，**但宽度还是 6 等分**，
+   于是每张牌被拉成又窄又长的竖条 —— 比例全毁（用户截图里就是这副样子）。
+
+   正确做法：先定比例、再定尺寸。
+     · 一张牌的设计比例 = 宽 : 高 ≈ 238.33 : 400（老参数 6 列 × 400px、列间距 14px、总宽 1500px 反推的）；
+     · 按舞台**可用宽/高**求出能放下的最大卡宽，宽高同时按这个比例缩放（真·等比放大）；
+     · 舞台窄 → 先缩宽（上下留白）；舞台矮 → 先缩高（左右留白）。两种情况都不会变形。
+   ⚠️ 只动 grid 的列宽/行高，不碰卡片内部任何尺寸（里面的字号、头像都是相对卡的百分比，
+      卡一变它们跟着等比变，这也是「等比例放大」能一次到位的原因）。 */
+const DRW_RATIO = 238.33 / 400;   // 一张牌的 宽/高
+function drwFit() {
+  const grid = document.querySelector('#fw-draw #drwGrid');
+  if (!grid) return;
+  const stage = grid.closest('.nm-stage') || grid.parentElement;
+  if (!stage) return;
+  // 无人可抽时 grid 里是一段提示文字，不是卡组：把上次的尺寸清掉，别把提示拉成一根竖条
+  if (!grid.querySelector('.drw-card, .drw-slot')) {
+    grid.style.gridTemplateColumns = ''; grid.style.gridAutoRows = '';
+    return;
+  }
+  const gs = getComputedStyle(grid), ss = getComputedStyle(stage);
+  const gap = parseFloat(gs.columnGap || gs.gap) || 14;
+  const availW = stage.clientWidth - (parseFloat(ss.paddingLeft) || 0) - (parseFloat(ss.paddingRight) || 0);
+  const availH = stage.clientHeight - (parseFloat(ss.paddingTop) || 0) - (parseFloat(ss.paddingBottom) || 0);
+  if (availW < 60 || availH < 60) return;      // 还没布局出来（窗口刚开/被折叠），下一帧再说
+  const n = grid.children.length || 6;
+  /* 列数跟着可用宽度走（和 CSS 的三档媒体查询同一个分界：≤900 三列、≤560 两列），
+     但这里用 JS 算，是因为尺寸也要按同一组列数一起算，两边分开算必然错一拍。 */
+  const cols = Math.min(n, availW <= 560 ? 2 : availW <= 900 ? 3 : 6);
+  const rows = Math.max(1, Math.ceil(n / cols));
+  let cw = (availW - gap * (cols - 1)) / cols;  // 先按「宽度吃满」算
+  let ch = cw / DRW_RATIO;                       // 再按比例推高度
+  const maxCh = (availH - gap * (rows - 1)) / rows;
+  if (ch > maxCh) { ch = maxCh; cw = ch * DRW_RATIO; }   // 高度放不下 → 整体缩小，宽度留白
+  grid.style.gridTemplateColumns = `repeat(${cols}, ${cw.toFixed(2)}px)`;
+  grid.style.gridAutoRows = ch.toFixed(2) + 'px';
+  grid.style.gap = gap + 'px';
+  grid.style.justifyContent = 'center';
+  grid.style.alignContent = rows > 1 ? 'start' : 'center';
+  /* 高度撑满舞台：只为让 align-content 有地方可居中（不撑满的话 grid 高=卡片高，
+     永远贴在最上面，下方还是一大片空白 —— 那正是 11-15 用户报的「卡片占上部 1/3」）。
+     卡片本身的尺寸已经算好了，撑满不会把牌拉长。 */
+  grid.style.height = '100%';
+}
+/* 舞台尺寸一变就重算（窗口拖动缩放、浏览器窗口改大小、投影切分辨率都走这里）。
+   ResizeObserver 比 window.resize 靠得住：浮窗拖右下角改尺寸时 window 根本不发 resize。 */
+function drwWatchFit(box) {
+  const stage = box.querySelector('#drwStage');
+  if (!stage) return;
+  if (DRW.fitObs) { try { DRW.fitObs.disconnect(); } catch (e) { } DRW.fitObs = null; }
+  requestAnimationFrame(drwFit);
+  if (typeof ResizeObserver === 'function') {
+    DRW.fitObs = new ResizeObserver(() => drwFit());
+    DRW.fitObs.observe(stage);
+  }
+}
 function drwRender(box) {
   DRW.box = box; DRW.pool = drwPool(); DRW.picked = null;
   drwHalt();
@@ -5479,6 +5542,7 @@ function drwRender(box) {
     `<footer class="drw-foot" id="drwFoot">${drwFootHTML()}</footer>`;
   const x = box.querySelector('#drwCloseX'); if (x) x.onclick = drwCloseWin;
   drwDeal(box);
+  drwWatchFit(box);   // 卡组等比铺满（放在 drwDeal 之后：牌已经发出来，尺寸才有得算）
   drwFxMount(box.querySelector('#drwFxl'), .2); drwFxRun();
 }
 /* 这组发几张：原型固定 6 张，班比 6 人还少时以人数为准 */
@@ -5520,6 +5584,7 @@ function drwDeal(box) {
   const live = box.querySelector('#drwLive'); if (live) live.textContent = '';
   drwChrome(box);
   g.querySelectorAll('.drw-card').forEach(el => (el.onclick = () => drwManualFlip(el, box)));
+  requestAnimationFrame(drwFit);   // 发牌/切班之后卡片数可能变（空位多寡），尺寸重算一次
 }
 /* 工具条 / 底栏都跟着状态机重画（和 .drw-card 的 onclick 一起重新绑） */
 function drwChrome(box) {
