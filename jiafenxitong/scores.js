@@ -20,6 +20,12 @@
   var SESSION_KEY = 'paike-session';
   var PORTAL = 'https://zcq19991029.github.io/';
   var POLL_MS = 4000;
+  /* 2026-11-16 后端拥堵兜底（用户当晚「登录登不上 服务器异常、学生都不行」那次）：
+     轮询原来失败也死按 4 秒再打 —— 全班几十台设备 × 每 4 秒 = 后端越喘越被踩。
+     现在失败一次退一档 4→8→16→30 秒（封顶 30），**成功立刻回落到 4 秒**，
+     页面上照实说明「第 N 次重试、X 秒后再试」，老师看「数据更新于」变旧就知道是服务器在喘。 */
+  var failStreak = 0;
+  function backoffMs() { return Math.min(30000, POLL_MS * Math.pow(2, Math.min(3, failStreak))); }
 
   var D = null;            // 最近一次快照
   var CLASS = null;        // 全班考核表（jf_class_scores 返回的摘要，含别人汇总数字）
@@ -227,10 +233,12 @@
         '<br><br>先把这一页留着，等上课记完分再回来看。');
       schedule(5000);
     } else {
-      renderMyCard(null, '打不开');
-      notice('<b>读取失败：</b>' + esc(extra && extra.message || '未知错误') +
-        '<br>检查一下网络，或者退出重新登录再试。');
-      schedule(5000);
+      var n = (extra && extra.n) || 1, ms = (extra && extra.ms) || 5000;
+      renderMyCard(null, '连不上服务器');
+      notice('<b>读取失败：</b>' + esc((extra && extra.message) || '未知错误') +
+        '<br><b>第 ' + n + ' 次没成功，' + Math.round(ms / 1000) + ' 秒后自动再试</b> —— 这一页不用动，它自己会回来。' +
+        '<br>如果一直这样，多半是服务器在拥堵（不是你的账号或密码问题）：过几分钟再看，或者问老师。');
+      schedule(ms);
     }
   }
 
@@ -1015,6 +1023,13 @@
     syncCbHost();
   }
 
+  /* 轮询连续失败时把实情写到顶部那行状态里（否则页面看着正常，其实数据早就停了） */
+  function warnSync(n, ms) {
+    var el = $('sync'); if (!el) return;
+    el.classList.add('stale');
+    el.textContent = '连不上服务器：第 ' + n + ' 次重试，' + Math.round(ms / 1000) + ' 秒后再试（这一页不用刷新）';
+  }
+
   function paintSync() {
     var el = $('sync');
     var at = D && D.at ? new Date(D.at) : null;
@@ -1034,6 +1049,7 @@
       return showFatal('no_data', payload || {});
     }
     fatal = null;
+    failStreak = 0;          // 这一轮拿到了 → 退避归零，回到 4 秒轮询
     D = payload;
     /* 顶部身份卡：班级 + 姓名 + 学号 + 组别一次填完（原来班级/姓名是拆在 .top-main 里的纯文本，
        2026-11-13 起和选桌页统一成同一张卡，都走 renderMyCard） */
@@ -1047,7 +1063,10 @@
 
   function fail(e) {
     if (e && (e.status === 401 || e.message === 'NO_LOGIN')) return showFatal('no_login');
-    showFatal('error', { message: e && e.message });
+    /* 首次就没拉下来：不是「死在这一页」，而是进退避重试 —— 后端缓过来以后页面自己会回来，
+       不用学生去刷新（那时的刷新也是一次打后端）。 */
+    failStreak++;
+    showFatal('error', { message: e && e.message, n: failStreak, ms: backoffMs() });
   }
 
   /* 全班考核表：单独拉一次 + 手动刷新，不塞进 4 秒轮询（考核表变化不频繁，别给轮询加压）。
@@ -1085,7 +1104,10 @@
       if (!token()) return showFatal('no_login');
       rpc('jf_my_scores', {}).then(apply).catch(function (e) {
         if (e && e.status === 401) return showFatal('no_login');
-        schedule(POLL_MS);   // 网络抖一下不打断，下一轮再试
+        /* 一两次抖动静默跳过（不打断人看分）；连续 3 次以上才在顶部写明，并按退避间隔再试 */
+        failStreak++;
+        if (failStreak >= 3) warnSync(failStreak, backoffMs());
+        schedule(backoffMs());
       });
     }, ms);
   }

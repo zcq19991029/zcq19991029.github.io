@@ -3,7 +3,7 @@
 <html lang="zh-CN">
 <head>
 <script src="../hx-theme.js" data-tool="wiring"></script>
-<script>window.HX_BUILD = "2026-11-16T06:47:12Z c52c997";</script>
+<script>window.HX_BUILD = "2026-11-16T08:54:22Z c52c997";</script>
 <meta charset="utf-8">
 <meta name="copyright" content="© 2026 zcq 版权所有，未经许可禁止复制、修改、转载">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
@@ -3520,10 +3520,10 @@ function partView(p) {
 function openParts() {
   // 2026-11-02 性能：左侧列表不再放实物缩略图 —— 7 张 WebP 一进窗口就要全部解码 + 布局，
   // 手机上点一下要等 0.4 秒。缩写字母块反而更好认（QF、KM 本来就是要背的），实物图只在右边详情里出。
-  floatWin('parts', { title: '元器件介绍', sub: '项目二 2.1～2.6 用到的 9 种元件 · 缩写 · 端子号 · 实物图', w: 940, h: 650, minH: 520, a1: '#0ea5e9', a2: '#8b5cf6',
+  floatWin('parts', { title: '元器件介绍', sub: '项目二 2.1～2.6 用到的 9 种元件 · 缩写 · 端子号 · 实物图', w: 940, h: 700, minH: 560, a1: '#0ea5e9', a2: '#8b5cf6',
     render: (body, el) => {
       body.innerHTML = `<div class="pt"><div class="pt-list">${PARTS.map((p, i) => `<button class="pt-tab${i ? '' : ' on'}" data-p="${i}"><i>${esc(p.k)}</i><div><b>${esc(p.k)}</b><small>${esc(p.n)}</small></div></button>`).join('')}
-          <div class="vid-row"><b>方法课 · 全 12 题通用</b>${CONCEPT_VIDEOS.map(c => vidBtn(c[0])).join('')}</div>
+          <div class="vid-row"><b>方法课 · 全 12 题通用</b>${CONCEPT_VIDEOS.map(c => vidBtn(c[0], '', true)).join('')}</div>
           <p class="pt-hint">只收录 2.1～2.6 真正用到的 9 种元件（普通按钮、复合按钮、双速电动机各算一种）。端子排没收录：这几节的按钮都装在板上直接接线，不经端子排。</p>
         </div><div class="pt-detail" id="ptDetail">${partView(PARTS[0])}</div></div>`;
       const box = body.querySelector('#ptDetail');

@@ -1347,7 +1347,13 @@ var HX = (function () {
     try {
       r = await fetch(BASE + path, { method: o.method || 'GET', headers: h, body: o.body === undefined ? undefined : JSON.stringify(o.body), signal: ctl ? ctl.signal : undefined });
     } catch (e) {
-      throw new Error(e && e.name === 'AbortError' ? '服务器 12 秒没回应（网络慢，或后端正忙），请再点一次' : '连不上服务器，请检查网络');
+      /* 2026-11-16：把「连不上」和「连上了但后端不回」分开报 —— 这两种情况的处置完全不同，
+         原来都笼统归到「服务器繁忙，请再点一次」，老师分不清是自己的网、代理，还是后端挂了。
+         err.code 会一路带到 signIn 的最终提示里。 */
+      var isAbort = e && e.name === 'AbortError';
+      var ne = new Error(isAbort ? '服务器 12 秒没回应（网络慢，或后端正忙），请再点一次' : '连不上服务器，请检查网络');
+      ne.code = isAbort ? 'timeout' : 'offline';
+      throw ne;
     } finally { if (tm) clearTimeout(tm); }
     var t = await r.text(), j = null; try { j = t ? JSON.parse(t) : null; } catch (e) { j = t; }
     if (!r.ok) { var err = new Error(zh(j && (j.msg || j.message || j.error_description || j.error) || 'HTTP ' + r.status)); err.status = r.status; throw err; }
@@ -1472,8 +1478,15 @@ var HX = (function () {
           return api('/auth/v1/token?grant_type=password', { method: 'POST', body: { email: email, password: pw }, auth: false });
         }, function (n) { say('服务器繁忙，正在自动重试（第 ' + n + ' 次）…'); });
       } catch (e) {
-        // 重试也没成：给学生一句人话，不把英文原文/状态码丢到脸上
-        if (retriable(e)) throw new Error('服务器繁忙，请再点一次');
+        /* 重试也没成：给学生一句人话，不把英文原文/状态码丢到脸上。
+           2026-11-16 再细一档：连不上（offline）/ 连上了不回（timeout）/ 其它（频繁、5xx）。
+           用户当时的原话就是「登录登不上 服务器异常」—— 他分不清是账号问题还是后端挂了，
+           所以这里必须把「不是你密码错」这句话直接说出来，并告诉他下一步干什么。 */
+        if (retriable(e)) {
+          if (e.code === 'offline') throw new Error('连不上服务器：网络不通，或者代理/VPN 把它挡住了。已自动重试 3 次。请换个网络（如手机热点）或关掉代理再试。');
+          if (e.code === 'timeout') throw new Error('服务器 12 秒没回应，已自动重试 3 次。这是后端拥堵，不是账号密码的问题 —— 过几分钟再试；如果一直这样，请老师确认服务器是否正常。');
+          throw new Error('服务器繁忙，请再点一次');
+        }
         throw e;
       }
       take(j);
@@ -4424,13 +4437,24 @@ $('lf').onsubmit = async function (e) {
   e.preventDefault();
   var f = $('lf'), btn = f.querySelector('button[type="submit"]'), msg = $('lmsg');
   if (btn.disabled) return; // 抖动期间重复点：不再发第二个请求
+  /* 2026-11-16：原来只有一句「正在连接…」干转，后端慢的时候学生以为卡死、老师以为是自己网差，
+     就开始反复点、反复刷新（每次都打一遍已经拥堵的后端）。现在把「已等几秒」写出来，
+     让人一眼看出是后端在拖，而不是自己的电脑死机。 */
+  var t0 = Date.now(), base = '正在连接…', stopped = false;
+  var paint = function () {
+    if (stopped) return;
+    var s = Math.round((Date.now() - t0) / 1000);
+    msg.textContent = base + (s >= 2 ? '（已等 ' + s + ' 秒）' : '');
+  };
   msg.textContent = ''; btn.disabled = true; btn.textContent = '正在连接…';
+  paint();
+  var tick = setInterval(paint, 1000);
   try {
-    await HX.signIn($('lid').value, $('lpw').value, function (t) { msg.textContent = t; });
+    await HX.signIn($('lid').value, $('lpw').value, function (t) { base = t; paint(); });
     $('login').close(); $('lpw').value = ''; was = true; reloadTools(); refresh();
   }
   catch (err) { msg.textContent = err.message; }
-  finally { btn.disabled = false; btn.textContent = '登录'; }
+  finally { stopped = true; clearInterval(tick); btn.disabled = false; btn.textContent = '登录'; }
 };
 $('lgh').onclick = function () { HX.github(); };
 $('shareC').onclick = function () { $('shareT').select(); (navigator.clipboard ? navigator.clipboard.writeText($('shareT').value) : Promise.reject()).then(function () { toast('已复制'); }, function () { try { document.execCommand('copy'); toast('已复制'); } catch (e) { } }); };
