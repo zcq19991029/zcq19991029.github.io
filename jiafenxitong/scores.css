@@ -491,3 +491,97 @@ table.book.class-board tr.cb-detail td { text-align: left; background: #f8fafd; 
   table.book.class-board { min-width: 560px; }
   .cb-d-list { flex-direction: column; align-items: flex-start; }
 }
+
+/* ============================================================================
+   全班考核表：照搬教师端那张 8 列考核表（2026-11-16 用户要求「照搬改为只读权限即可」）
+   ----------------------------------------------------------------------------
+   类名和结构跟 app.js 的 verticalHead / verticalGroup 一一对应（.sheet.sheet-vertical /
+   .gno-swatch / .member-name-cell / .duty-pct / .home-grade ...），老师喊「看第几列」
+   学生这边一眼能对上。
+   唯一区别是「只读」：教师端能点的值日「缺勤」按钮、考勤数字、平时分 ▾ 明细，
+   这里全部是纯文字（没有 button、没有 cursor:pointer 的格子）。
+   ------------------------------------------------------------------------- */
+.sheetwrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+table.sheet.sheet-vertical {
+  width: 100%; min-width: 680px; border-collapse: collapse; table-layout: fixed;
+  font-size: 13.5px; color: var(--ink);
+}
+table.sheet.sheet-vertical col.w-no { width: 6%; }
+table.sheet.sheet-vertical col.w-mem { width: 20%; }
+table.sheet.sheet-vertical col.w-duty { width: 11%; }
+table.sheet.sheet-vertical col.w-attendance { width: 13%; }
+table.sheet.sheet-vertical col.w-sum { width: 12%; }
+table.sheet.sheet-vertical col.w-grade { width: 12.6%; }
+table.sheet.sheet-vertical thead th {
+  padding: 10px 6px; font-size: 12px; font-weight: 700; line-height: 1.35;
+  color: var(--muted); background: var(--panel-soft, rgba(128, 145, 180, .10));
+  border-bottom: 1px solid var(--line-strong); white-space: normal; text-align: center;
+  vertical-align: middle;
+}
+table.sheet.sheet-vertical thead th.c-mem { text-align: left; padding-left: 12px; }
+table.sheet.sheet-vertical tbody tr.vertical-member-row > td {
+  padding: 7px 6px; border-bottom: 1px solid var(--line);
+  text-align: center; vertical-align: middle; font-variant-numeric: tabular-nums;
+}
+table.sheet.sheet-vertical tbody + tbody tr.vertical-member-row:first-child > td {
+  border-top: 2px solid var(--line-strong);
+}
+table.sheet.sheet-vertical td.c-no { padding: 0 4px; }
+table.sheet.sheet-vertical td.c-mem {
+  text-align: left; padding-left: 12px; font-weight: 650;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+table.sheet.sheet-vertical td.c-mem small {
+  margin-left: 5px; font-size: 11.5px; font-weight: 500;
+  color: var(--muted); font-variant-numeric: tabular-nums;
+}
+/* 组号：不是色块，是「艺术字」——数字用组色描边 + 发光，跟分组页 / 教师端同一套配色。
+   色相由行内 style="--h:…" 注入（groupHue 算的），深浅两套主题各一份亮度。 */
+.gno-swatch {
+  display: inline-block; font-size: 30px; font-weight: 900; line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: hsl(var(--h, 220) var(--s, 58%) 32%);
+  -webkit-text-stroke: 1px hsl(var(--h, 220) var(--s, 58%) calc(var(--lb, 90%) - 16%) / .5);
+  text-shadow: 0 2px 0 hsl(var(--h, 220) var(--s, 58%) 24% / .8),
+               0 0 12px hsl(var(--h, 220) 88% 60% / .45);
+}
+:root[data-hx-mode="dark"] .gno-swatch {
+  color: hsl(var(--h, 220) calc(var(--s, 58%) + 22%) 84%);
+  -webkit-text-stroke: 1px hsl(var(--h, 220) calc(var(--s, 58%) + 10%) 70% / .5);
+  text-shadow: 0 0 12px hsl(var(--h, 220) 90% 62% / .55),
+               0 2px 6px hsl(var(--h, 220) var(--s, 58%) 50% / .4);
+}
+/* 组长那一行：姓名前一枚 👑，整格字重更大（教师端的 .group-leader-name 同义） */
+table.sheet.sheet-vertical td.c-mem.group-leader-name { font-weight: 800; }
+.leader-crown { font-size: 12.5px; }
+/* 值日缺勤：只读 —— 只有数字和「值日」角标，没有「缺勤」按钮 */
+table.sheet.sheet-vertical td.c-duty { line-height: 1.3; }
+.duty-pct { display: block; font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.duty-flag {
+  display: inline-block; margin-top: 2px; padding: 0 5px; border-radius: 5px;
+  font-size: 10.5px; font-weight: 700; letter-spacing: .04em;
+  color: var(--ok); background: var(--ok-soft, rgba(47, 132, 90, .14));
+}
+/* 本节完成率 / 考勤完成率 / 三列成绩：只读纯数字 */
+table.sheet.sheet-vertical td.c-sum strong,
+table.sheet.sheet-vertical td.home-attendance { font-weight: 700; }
+table.sheet.sheet-vertical td.home-grade strong { font-weight: 700; white-space: nowrap; }
+table.sheet.sheet-vertical td.home-grade .completion-rate {
+  font-weight: 600; font-size: 11.5px; color: var(--muted); white-space: nowrap;
+}
+/* 「我」那一行：左侧绿条 + 淡绿底，和原来卡片式的 .is-me 一致，一眼找到自己 */
+table.sheet.sheet-vertical tr.vertical-member-row.is-me > td {
+  background: var(--ok-soft, rgba(47, 132, 90, .12));
+}
+table.sheet.sheet-vertical tr.vertical-member-row.is-me > td.c-mem { box-shadow: inset 3px 0 0 var(--ok, #2f845a); }
+table.sheet.sheet-vertical td.c-mem .me-tag {
+  margin-left: 6px; padding: 0 5px; border-radius: 5px; font-size: 10.5px; font-weight: 700;
+  color: #fff; background: var(--ok, #2f845a); vertical-align: 1px;
+}
+/* 明细面板：点一行在表格下面展开，不插进 tbody（组号/值日格是 rowspan 合并的） */
+.cb-detail-panel { margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: var(--panel-soft, rgba(128, 145, 180, .08)); border: 1px solid var(--line); }
+.cb-open-who { font-size: 12px; color: var(--muted); }
+@media (max-width: 600px) {
+  table.sheet.sheet-vertical { min-width: 640px; font-size: 12.5px; }
+  .gno-swatch { font-size: 22px; }
+}

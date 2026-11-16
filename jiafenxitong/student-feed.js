@@ -36,6 +36,18 @@
   function round(n) { return Math.round((Number(n) + Number.EPSILON) * 10) / 10; }
   function clampNum(v, lo, hi) { return Math.max(lo, Math.min(hi, Number(v) || 0)); }
 
+  /* 组长判定（2026-11-16）：学生端考核表要照搬教师端的「👑 组长」，这里把结果一起发布下去。
+     口径和 app.js 的 groupLeaderKey 完全一致：存了 leaderKey 且那个人还在组里就用它，
+     否则默认第一个有名字的成员当组长（老师从没点过组长时就是这个默认值）。 */
+  function leaderKeyOf(g) {
+    if (!g || !Array.isArray(g.members)) return '';
+    var named = g.members.filter(function (x) { return !!x && !!x.name; });
+    var stored = String(g.leaderKey || '');
+    if (stored && named.some(function (x) { return mKey(x) === stored; })) return stored;
+    return named.length ? mKey(named[0]) : '';
+  }
+  function mKey(m) { return m && (m.sid ? 'sid:' + m.sid : 'id:' + m.id); }
+
   /** 一个学生在一节课里的全部数字。没有记分记录的课也保留（seq/date 要显示），用 recorded 标记 */
   function lessonRow(A, l, m) {
     var sc = (l.scores || {})[String(m.gno)] || {};
@@ -91,6 +103,10 @@
     var mates = ranked.filter(function (x) { return x.gno === m.gno; });
     var gRank = 1 + mates.filter(function (x) { return x.total > m.total; }).length;
     var cfg = A.settings ? A.settings(cls) : { passScore: 60 };
+    /* 我是不是本组组长（2026-11-16）：学生端考核表照搬教师端，姓名前要挂 👑。
+       只下发一个布尔值，不下发别组的结构。 */
+    var myGroup = (cls.groups || []).filter(function (g) { return Number(g.no) === Number(m.gno); })[0];
+    var isLeader = !!myGroup && !!leaderKeyOf(myGroup) && leaderKeyOf(myGroup) === m.key;
 
     /* 2026-11-10（用户拍板 B 方案）：学生端开放「本组组员名单 + 各自项目分」，但看不到别组。
        mates 已经是 filter(x.gno === m.gno) 的结果，天然只含本组；每个组员只带姓名、学号、
@@ -113,7 +129,8 @@
         sid: m.sid || '',
         no: m.no == null ? '' : String(m.no),
         gno: Number(m.gno) || 0,
-        gname: m.gno ? '第 ' + m.gno + ' 组' : '待分配'
+        gname: m.gno ? '第 ' + m.gno + ' 组' : '待分配',
+        isLeader: isLeader
       },
       passScore: Number(cfg.passScore) || 60,
       lessons: lessons.map(function (l) { return lessonRow(A, l, m); }),

@@ -619,7 +619,7 @@
       '</div>' +
       '<div class="scroll"><table class="book group"><thead><tr>' +
       '<th>#</th><th>组员</th><th>学号</th><th>个人项目累计</th><th>平时分</th>' +
-      '</tr></thead><tbody>' + rows + '</tbody></table></div>' +
+      '</tr></thead>' + rows + '</table></div>' +
       '<p class="note">这里只显示你自己的小组（' + esc(d.me.gname || '') + '，共 ' + d.group.size +
       ' 人），别的小组看不到。「个人项目累计」是组长在课上逐项打分后的合计，仅供参考，有疑问直接找老师。</p></div>';
   }
@@ -705,56 +705,115 @@
     });
   }
 
+  function twoN(n) {
+    if (n === null || n === undefined || n === '') return '';
+    var v = String(n);
+    return v.length === 1 ? '0' + v : v;
+  }
+  /* 组号色相：和教师端 gbTone 同一套（相邻组差 7×15°=105°，一眼分得开） */
+  function groupHue(gno) {
+    var n = Number(gno) || 1;
+    return (((n - 1) * 7) % 24) * 15;
+  }
+  /* 值日缺勤：整学期一个 5 分项目（一学期一次，扣到 0 为止），0–5 → 百分比 */
+  function dutyPctText(v) {
+    if (v === null || v === undefined) return '—';
+    return pct(Math.round(Math.max(0, Math.min(5, Number(v))) / 5 * 1000) / 10);
+  }
+  /* 期末至少需考：和教师端四种状态一致（考勤挂科 / 无法达到 / 数字 / —） */
+  function neededCell(s) {
+    if (s.failed) return '<span class="pill bad">考勤挂科</span>';
+    if (s.needed === null || s.needed === undefined) return '—';
+    if (s.needed > 100) return '<span class="pill warn">无法达到</span>';
+    return num(s.needed);
+  }
+
+  /* 全班考核表（2026-11-16 照搬教师端，只读）──────────────────────────────────
+     用户原话：「学生端有这个吗？还是你只做了这个？」「这个完全不行 我就要你照搬改为只读权限即可」。
+     上一版学生端自己发明了 7 列（组/姓名/学号/平时分/计入总评/期末需考/项目完成率），
+     跟老师端那张 8 列考核表长得完全不一样，老师喊「看第几列」学生根本对不上。
+     这一版直接照搬 app.js 的 verticalHead / verticalGroup 结构：
+       组号（整组 rowspan 合并）· 成员（👑组长 + 序号）· 值日缺勤 · 考勤完成率 ·
+       本节完成率 · 平时分（至今完成率）· 计入总评 /40 · 期末至少需考 /100
+     所有能改分的地方（值日「缺勤」按钮、考勤可点、平时分 ▾ 明细）一律换成纯文字 ——
+     「只读」的全部区别就在这里，其余照搬。
+     点任意一行仍在**表格下方**展开「每节课完成率」明细：不插进 <tbody>，
+     因为组号格和值日格是 rowspan 合并的，插一行会把整组的竖线错开。
+     数据来源 jf_class_scores()；2026-11-16 起多下发 duty / duty_flag / last_pct / last_seq / leader。 */
   function renderClassBoard() {
     if (!CLASS || !Array.isArray(CLASS.students) || !CLASS.students.length) return '';
     var meKey = CLASS.me && CLASS.me.key;
-    var groups = [];
+    /* 按组号分块，未分组（gno = 0）排最后 */
+    var order = [], bag = {};
     CLASS.students.forEach(function (s) {
-      var gno = Number(s.gno) || 0;
-      var g = groups[gno];
-      if (!g) { g = groups[gno] = []; }
-      g.push(s);
+      var g = Number(s.gno) || 0;
+      if (!bag[g]) { bag[g] = []; order.push(g); }
+      bag[g].push(s);
     });
-    var rows = '';
-    Object.keys(groups).map(Number).sort(function (a, b) { return a - b; }).forEach(function (gno) {
-      var list = groups[gno];
-      var hue = ((gno || 0) * 67) % 360;
-      list.forEach(function (s) {
+    order.sort(function (a, b) { if (!a) return 1; if (!b) return -1; return a - b; });
+
+    var lastSeq = 0;
+    CLASS.students.forEach(function (s) { if (s.last_seq > lastSeq) lastSeq = Number(s.last_seq); });
+
+    /* 每组一个 <tbody>（和教师端 verticalGroup 一致）：组与组之间靠 tbody + tbody 的粗线分隔，
+       组号格 / 值日格的 rowspan 只在组内合并，跨组不会串。 */
+    var rows = order.map(function (gno) {
+      var list = bag[gno], span = list.length, hue = groupHue(gno || 1);
+      /* 本组本节是不是值日组：每人 payload 里只有「我自己这组」这一个布尔值，
+         组内取或就得到这一组的值（老师端用的是 lesson.dutyGroups，同源） */
+      var dutyFlag = list.some(function (s) { return !!s.duty_flag; });
+      return '<tbody data-card="' + (gno || 0) + '"' + (dutyFlag ? ' class="is-duty-group"' : '') + '>' + list.map(function (s, i) {
         var isMe = !!(meKey && s.key === meKey);
-        var need = s.failed ? '<span class="pill bad">考勤挂科</span>'
-          : s.needed === null || s.needed === undefined ? '—'
-          : s.needed > 100 ? '<span class="pill warn">已超 100</span>'
-          : num(s.needed);
-        rows += '<tr class="cb-row' + (isMe ? ' is-me' : '') + (boardOpen === s.key ? ' is-open' : '') + '" data-board-key="' + esc(s.key || '') + '"' +
-          ' title="点我展开每节课完成率（只读）">' +
-          '<td class="cb-gno"><span class="cb-swatch" style="background:hsl(' + hue + ',70%,92%);color:hsl(' + hue + ',62%,38%)">' + esc(gno) + '</span></td>' +
-          '<td class="nm cb-name"><b>' + esc(s.name) + '</b>' + (isMe ? '<span class="me-tag">我</span>' : '') + '</td>' +
-          '<td class="cb-no">' + esc(s.no || '') + '</td>' +
-          '<td><b>' + num(s.regular) + '</b></td>' +
-          '<td>' + num(s.contribution) + '</td>' +
-          '<td>' + need + '</td>' +
-          '<td class="cb-rate">' + (s.task_rate === null || s.task_rate === undefined ? '—' : num(s.task_rate) + '%') + '</td>' +
-          '</tr>';
-        /* 任意一行都能展开：自己的用本机已有的 D.lessons，别人的按需拉只读明细 */
-        if (boardOpen === s.key) {
-          rows += '<tr class="cb-detail is-open" data-board-detail="' + esc(s.key || '') + '">' +
-            '<td colspan="7"><div class="cb-detail-inner">' +
-            (isMe ? classBoardDetail() : classBoardDetailOf(s.key)) +
-            '</div></td></tr>';
-        }
-      });
-    });
+        var out = '<tr class="vertical-member-row' + (isMe ? ' is-me' : '') + '"' +
+          ' data-board-key="' + esc(s.key || '') + '" title="点我展开每节课完成率（只读）">';
+        if (!i) out += '<td class="c-no" rowspan="' + span + '"><span class="gno-swatch"' +
+          ' style="--h:' + hue + ';--s:58%;--lb:90%">' + (gno || '—') + '</span></td>';
+        out += '<td class="c-mem member-name-cell' + (s.leader ? ' group-leader-name' : '') + '">' +
+          (s.leader ? '<span class="leader-crown" aria-label="组长">👑</span> ' : '') + esc(s.name) +
+          (s.no === '' || s.no === null || s.no === undefined ? '' : ' <small>' + esc(twoN(s.no)) + '</small>') +
+          (isMe ? '<span class="me-tag">我</span>' : '') + '</td>';
+        if (!i) out += '<td class="c-duty' + (dutyFlag ? ' is-duty' : '') + '" rowspan="' + span + '">' +
+          '<b class="duty-pct" title="整学期值日完成率：一学期一次，扣到 0% 为止">' + dutyPctText(list[0].duty) + '</b>' +
+          (dutyFlag ? '<span class="duty-flag">值日</span>' : '') + '</td>';
+        out += '<td class="home-attendance">' + pct(s.att_rate) + '</td>';
+        out += '<td class="c-sum"><strong>' + pct(s.last_pct) + '</strong></td>';
+        out += '<td class="home-grade regular"><strong>' + num(s.regular) +
+          (s.task_rate === null || s.task_rate === undefined ? '' :
+            ' <span class="completion-rate">（' + pct(s.task_rate) + '）</span>') + '</strong></td>';
+        out += '<td class="home-grade contribution"><strong>' + num(s.contribution) + '</strong></td>';
+        out += '<td class="home-grade needed"><strong>' + neededCell(s) + '</strong></td>';
+        return out + '</tr>';
+      }).join('') + '</tbody>';
+    }).join('');
+
+    /* 明细面板：点谁就在表格下面展开谁（自己的用本机 D.lessons，别人的按需拉只读明细） */
+    var openS = null;
+    if (boardOpen) openS = CLASS.students.filter(function (s) { return s.key === boardOpen; })[0] || null;
+    var panel = boardOpen ? ('<div class="cb-detail-panel"><div class="cb-detail-inner">' +
+      (meKey && boardOpen === meKey ? classBoardDetail() : classBoardDetailOf(boardOpen)) +
+      '</div></div>') : '';
+
     return '<div class="card class-board"><div class="cb-head">' +
       '<h3>全班考核表</h3>' +
       '<span class="cb-ro">只读</span>' +
+      (openS ? '<span class="cb-open-who">正在看：' + esc(openS.name || '') + '</span>' : '') +
       '<button type="button" class="cb-refresh" id="cbRefresh" aria-label="刷新全班考核表">刷新</button>' +
       '</div>' +
-      '<div class="scroll"><table class="book class-board"><thead><tr>' +
-      '<th>组</th><th class="nm">姓名</th><th>学号</th><th>平时分</th><th>计入总评</th><th>期末至少需考</th><th>项目完成率</th>' +
-      '</tr></thead><tbody>' + rows + '</tbody></table></div>' +
-      '<p class="note">全班各组的平时分 / 计入总评 / 期末至少需考 / 项目完成率，只读、不能加减分。' +
-      '点任意一行（包括别的组）都能展开「每节课完成率」明细，每节课里再列各项目的完成率；' +
-      '这些明细同样只能看，改不了。老师那边一存分，点右上角「刷新」就能看到最新。</p></div>';
+      '<div class="sheetwrap"><table class="sheet sheet-vertical">' +
+      '<colgroup><col class="w-no"><col class="w-mem"><col class="w-duty"><col class="w-attendance">' +
+      '<col class="w-sum"><col class="w-grade"><col class="w-grade"><col class="w-grade"></colgroup>' +
+      '<thead><tr>' +
+      '<th class="c-no">组号</th><th class="c-mem">成员</th><th class="c-duty">值日缺勤</th>' +
+      '<th class="home-attendance">考勤完成率</th>' +
+      '<th class="c-sum"' + (lastSeq ? ' title="最近一次课：第 ' + lastSeq + ' 次"' : '') + '>本节完成率</th>' +
+      '<th class="home-grade regular">平时分<br>（至今完成率）</th>' +
+      '<th class="home-grade contribution">计入总评 /40</th>' +
+      '<th class="home-grade needed">期末至少需考 /100</th>' +
+      '</tr></thead>' + rows + '</table></div>' +
+      panel +
+      '<p class="note">和老师端那张考核表是同一张，<b>只读</b>：不能加减分、不能改值日、不能换组长。' +
+      '点任意一行（包括别的组）会在表格下面展开「每节课完成率」明细，同样只能看。' +
+      '老师一存分，点右上角「刷新」就能看到最新。</p></div>';
   }
 
   /* 本学期总分（2026-11-13 合并页签后成了整页的第一张卡）：
@@ -989,7 +1048,7 @@
      现在任何一行都能点；别人的明细按需走 loadStudentDetail()（只读 RPC），不会一次全拉下来。 */
   document.addEventListener('click', function (e) {
     if (e.target.closest && e.target.closest('#cbRefresh')) { loadClassBoard(); return; }
-    var row = e.target.closest && e.target.closest('tr.cb-row');
+    var row = e.target.closest && e.target.closest('tr[data-board-key]');
     if (!row || !row.closest('#view')) return;
     var key = row.dataset.boardKey;
     if (!key) return;
