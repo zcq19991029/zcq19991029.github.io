@@ -3,7 +3,7 @@
 <html lang="zh-CN">
 <head>
 <script src="../hx-theme.js" data-tool="wiring"></script>
-<script>window.HX_BUILD = "2026-11-16T00:26:00Z 70b0654";</script>
+<script>window.HX_BUILD = "2026-11-16T00:33:52Z 802c1c6";</script>
 <meta charset="utf-8">
 <meta name="copyright" content="© 2026 zcq 版权所有，未经许可禁止复制、修改、转载">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
@@ -988,12 +988,10 @@
   #fw-draw .nm-stage { flex: 1 1 auto; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 8px 16px 4px; scrollbar-width: thin; }
   #fw-draw .nm-stage::-webkit-scrollbar { width: 10px; height: 10px; }
   #fw-draw .nm-stage::-webkit-scrollbar-thumb { background: #24425f; border-radius: 10px; }
-  #fw-draw .nm-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; align-content: center;
+  #fw-draw .nm-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px; align-content: start;
     width: 100%; max-width: 1500px; margin: 0 auto; }
-  /* 竖长舞台 → 2 列×3 行；横宽默认 3 列×2 行（列数/卡高由 rank.js 的 drwFitGrid 写进 data-cols / --cardh） */
-  #fw-draw .nm-stage[data-cols="2"] .nm-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 980px; }
   /* ---------- 一张牌 ---------- */
-  #fw-draw .drw-card { position: relative; height: var(--cardh, 400px); perspective: 1100px; cursor: pointer;
+  #fw-draw .drw-card { position: relative; height: 400px; perspective: 1100px; cursor: pointer;
     animation: nmDeal .42s cubic-bezier(.2, .8, .3, 1) backwards; animation-delay: calc(var(--i, 0) * 55ms);
     transition: opacity .45s ease, transform .25s ease; }
   @keyframes nmDeal { 0% { opacity: 0; transform: translateY(22px) scale(.95); } 100% { opacity: 1; transform: none; } }
@@ -1072,7 +1070,7 @@
   #fw-draw .nm-stage[data-phase="revealed"] .drw-card[data-r="gold"] .drw-cface { animation: nmGold 2.6s ease-in-out .35s infinite; }
   @keyframes nmGold { 50% { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .1), 0 0 34px rgba(245, 197, 66, .7); } }
   /* 空位：这组不发的卡位 */
-  #fw-draw .drw-slot { height: var(--cardh, 400px); border-radius: 13px; border: 1px dashed rgba(120, 160, 200, .26);
+  #fw-draw .drw-slot { height: 400px; border-radius: 13px; border: 1px dashed rgba(120, 160, 200, .26);
     background: rgba(10, 22, 38, .5); display: grid; place-items: center;
     animation: nmDeal .42s backwards; animation-delay: calc(var(--i, 0) * 55ms); }
   #fw-draw .drw-slot::after { content: ""; width: 7px; height: 7px; border-radius: 50%; background: rgba(120, 160, 200, .3); }
@@ -1101,8 +1099,12 @@
   }
   html.is-lite #fw-draw .drw-card, html.is-lite #fw-draw .drw-slot, html.is-lite #fw-draw .drw-cface { animation: none !important; }
   html.is-lite #fw-draw .drw-cardin, html.is-lite #fw-draw .drw-card { transition-duration: .01s !important; }
-  /* ---------- 窄屏：卡组列数/卡高已由 rank.js 的 drwFitGrid 按舞台宽高比决定，这里只调顶栏/工具条/牌背字号 ---------- */
+  /* ---------- 窄屏：卡组列数/卡高三档响应式（≤1100 卡高 370、≤900 三列、≤560 两列+卡高 300） ---------- */
+  @media (max-width: 1100px) {
+    #fw-draw .drw-card, #fw-draw .drw-slot { height: 370px; }
+  }
   @media (max-width: 900px) {
+    #fw-draw .nm-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     #fw-draw .nm-brand span { display: none; }
     #fw-draw .nm-tool { gap: 8px; padding: 9px 12px; }
   }
@@ -1113,7 +1115,8 @@
     #fw-draw .nm-vp { display: none; }
     #fw-draw .nm-tool { justify-content: stretch; }
     #fw-draw .drw-tabs { flex: 1 1 100%; max-height: 120px; overflow: auto; }
-    #fw-draw .nm-grid { gap: 10px; }
+    #fw-draw .nm-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    #fw-draw .drw-card, #fw-draw .drw-slot { height: 300px; }
     #fw-draw .nm-sig { font-size: 32px; }
     #fw-draw .drw-cface { padding: 11px 10px 10px; }
     #fw-draw .drw-foot { flex-wrap: wrap; }
@@ -5478,7 +5481,6 @@ function drwRender(box) {
     `<footer class="drw-foot" id="drwFoot">${drwFootHTML()}</footer>`;
   const x = box.querySelector('#drwCloseX'); if (x) x.onclick = drwCloseWin;
   drwDeal(box);
-  drwFitGrid(box);
   drwFxMount(box.querySelector('#drwFxl'), .2); drwFxRun();
 }
 /* 这组发几张：原型固定 6 张，班比 6 人还少时以人数为准 */
@@ -5530,24 +5532,6 @@ function drwChrome(box) {
   const g = box.querySelector('#drwGrid'); if (g) g.querySelectorAll('.drw-card').forEach(el => (el.onclick = () => drwManualFlip(el, box)));
   const u = box.querySelector('#drwUse'); if (u) u.onclick = drwUse;
 }
-/* 卡组自适应（2026-11-13 用户：「抽卡界面应该扩大卡片大小和位置适应」）：
-   按舞台宽高比选 3 列×2 行（横宽）或 2 列×3 行（竖长），卡高算满一屏、不留大空。
-   列数写进 stage 的 data-cols，卡高写进 --cardh，CSS 只认这两个信号，不再写死 400px。 */
-function drwFitGrid(box) {
-  const stage = box.querySelector('#drwStage'); if (!stage) return;
-  const w = stage.clientWidth, h = stage.clientHeight;
-  let cols = 3;
-  if (w > 0 && h > 0 && w / h < 1.15) cols = 2;   // 竖长 → 2 列；横宽 → 3 列
-  const gap = 14, pad = 12;                        // .nm-stage 上下 padding 8+4
-  const rows = Math.ceil(6 / cols);                // 卡组固定 6 个卡位（几张卡 + 空位），列数定行数
-  const cardh = Math.max(120, Math.min(560, Math.floor((h - pad - (rows - 1) * gap) / rows)));
-  stage.dataset.cols = String(cols);
-  stage.style.setProperty('--cardh', cardh + 'px');
-}
-addEventListener('resize', () => {
-  const d = document.getElementById('fw-draw');
-  if (d && d.classList.contains('show')) { const b = d.querySelector('#drw'); if (b) drwFitGrid(b); }
-});
 /* 手动点牌翻面（原型：点牌就翻） */
 function drwManualFlip(card, box) {
   if (DRW.busy || !card || card.classList.contains('is-flip')) return;
