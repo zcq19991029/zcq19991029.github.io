@@ -624,66 +624,11 @@
       ' 人），别的小组看不到。「个人项目累计」是组长在课上逐项打分后的合计，仅供参考，有疑问直接找老师。</p></div>';
   }
 
-  /* 全班考核表（2026-11-13）：把老师端那张「上课记分」考核表开放给学生端**只读**查看。
-     数据源 jf_class_scores() 只下发每人摘要字段（不下发每课每项目明细），所以别人的行只有汇总；
-     「我」这一行可以点开「每节课完成率」明细（复用 jf_my_scores 的 D.lessons）。
-     列对齐老师端 verticalHead：组号/姓名/学号/平时分/计入总评/期末至少需考/项目完成率。
-     注意：项目完成率（taskRate）和平时分（regular）是同一个完成率——一个折成 /100、一个显示 %，
-     这里保留「完成率」一列是为了和老师端考核表对得上一眼，不是新增一个数。 */
-  function classBoardDetail() {
-    var ls = (D && D.lessons) || [];
-    if (!ls.length) return '<p class="note">还没有课次，老师记分后这里会出现每节课的完成率。</p>';
-    var items = ls.slice().reverse().map(function (l) {
-      return '<span class="cb-d-item"><b>' + esc(lessonLabel(l)) + '</b>' +
-        (l.pct === null ? '<span class="wait">—</span>' : '<b>' + pct(l.pct) + '</b>') + '</span>';
-    }).join('');
-    return '<div class="cb-d-head">我的每节课完成率</div><div class="cb-d-list">' + items + '</div>';
-  }
+  /* 2026-11-16：原来的 classBoardDetail() / classBoardDetailOf() 两个「表格下方明细块」的
+     渲染函数连同 .cb-detail-panel 一起删掉了 —— 现在统一走 cbPanelHtml() 的悬浮卡。
+     数据口径没变（自己用 D，别人用 detailCache），只是换了呈现方式。 */
 
-  /* 别人的明细（2026-11-13 新增，用户原话：「学生端需要可查明细包括别的组的」）：
-     jf_class_scores() 出于体积和隐私考虑不下发别人的 lessons，所以这里按需再调一次
-     jf_class_student_detail(p_key)（迁移文件 supabase/2026-11-13-学生查他人明细.sql）。
-     返回结构和 jf_my_scores 的 lessons 基本一致，但只含这名学生自己的数据，别组/别人的一律不给。
-     ⚠ 这里只渲染，不提供任何点击修改的入口 —— 明细面板明确标「只读 · 仅供查看」。 */
-  function classBoardDetailOf(key) {
-    var c = detailCache[key];
-    if (!c || c.state === 'loading') return '<p class="note">正在读取这位同学的逐课明细…</p>';
-    if (c.state === 'err') {
-      return '<p class="note">读不到这位同学的明细' + (c.msg ? '：' + esc(c.msg) : '') +
-        '。点右上角「刷新」再试；一直不行就找老师。</p>';
-    }
-    var d = c.data || {}, ls = d.lessons || [], t = d.total || {}, stu = d.student || {};
-    var head = '<div class="cb-d-head">' + esc(stu.name || '') + ' · 每节课完成率' +
-      '<span class="cb-ro">只读 · 仅供查看</span></div>';
-    if (!ls.length) return head + '<p class="note">这位同学还没有课次记录。</p>';
-    /* 每节课一块：块头是课次 + 本节完成率，块里把这一课每个项目竖着列出来（项目名 + 完成率）。
-       和「我」那边的明细口径一致，只是数据来自另一个只读函数。 */
-    var blocks = ls.slice().reverse().map(function (l) {
-      var projs = (l.projects || []).map(function (p) {
-        return '<span class="cb-d-item"><b>' + esc(p.n || '') + '</b>' +
-          (p.s === null || p.s === undefined ? '<span class="wait">未填</span>' : '<b>' + pct(Number(p.s) / 5 * 100) + '</b>') +
-          '</span>';
-      }).join('');
-      return '<div class="cb-d-lesson">' +
-        '<div class="cb-d-lh">' + esc(lessonLabel(l)) + ' · 本节完成率 <b>' + pct(l.pct) + '</b></div>' +
-        '<div class="cb-d-list">' + (projs || '<span class="cb-d-item"><span class="wait">本节没有命名项目</span></span>') + '</div>' +
-        '</div>';
-    }).join('');
-    var dutyRate = t.duty === null || t.duty === undefined ? null : Number(t.duty) / 5 * 100;
-    var need = t.failed ? '考勤挂科'
-      : (t.needed === null || t.needed === undefined ? '—' : (t.needed > 100 ? '已超 100' : num(t.needed)));
-    var sum = '<div class="cb-d-sum">' +
-      '项目完成率 <b>' + pct(t.taskRate) + '</b> · ' +
-      '值日完成率 <b>' + pct(dutyRate) + '</b> · ' +
-      '考勤完成率 <b>' + pct(t.attRate) + '</b> · ' +
-      '平时分 <b>' + num(t.regular) + '</b>/100 · ' +
-      '计入总评 <b>' + num(t.contribution) + '</b>/40 · ' +
-      '期末至少需考 <b>' + need + '</b>' +
-      '</div>';
-    return head + blocks + sum;
-  }
-
-  /* 拉某个同学的逐课明细（只读）。失败不弹窗、不打断整页，就在展开处写一句原因。 */
+  /* 拉某个同学的逐课明细（只读）。失败不弹窗、不打断整页，就在悬浮卡里写一句原因。 */
   function loadStudentDetail(key) {
     if (!key || detailCache[key]) return;
     detailCache[key] = { state: 'loading' };
@@ -728,6 +673,140 @@
     return num(s.needed);
   }
 
+  /* ── 逐课明细悬浮卡（2026-11-16）──────────────────────────────────────
+     用户原话：「@image#3 这里完全不正常显示 完全复刻教师端悬浮窗样式即可 点哪儿亮在哪儿
+     方便看 你放最下面不方便 还显示出问题了」。
+     老师端那张卡（app.js 的 showFloatDetail / cumDetailHtml + index.html 的 .sumd-* 样式）
+     是「贴着点中那一格弹出、表格一动不动」的 fixed 卡片；学生端上一版却塞在表格下面，
+     把页面撑长、要看的那一行被推出视野，还随 #view 一起重绘 —— 就是用户说的「不正常显示」。
+     这一版照老师端 1:1 做：一个 #cbHost（fixed）+ .sumd-panel，内容 =
+     每节课一组（默认收起，点组头展开项目完成率）+ 底部一行汇总。
+     数据两路：自己用本机 D（jf_my_scores，不用再打 RPC），
+     别人的用 detailCache（jf_class_student_detail，只读）。 */
+  function cbPanelHtml(key) {
+    var meKey = CLASS && CLASS.me && CLASS.me.key;
+    var stu = ((CLASS && CLASS.students) || []).filter(function (s) { return s.key === key; })[0] || {};
+    var name = stu.name || '';
+    var gno = Number(stu.gno) || 0;
+    var ls = [], t = {}, state = 'ok', msg = '';
+    if (meKey && key === meKey) {
+      ls = (D && D.lessons) || [];
+      t = (D && D.total) || {};
+    } else {
+      var c = detailCache[key];
+      state = c ? c.state : 'loading';
+      if (state === 'err') msg = c.msg || '';
+      if (state === 'ok') {
+        var dd = c.data || {};
+        ls = dd.lessons || []; t = dd.total || {};
+        if (dd.student && dd.student.name) name = dd.student.name;
+        if (dd.student && dd.student.gno) gno = Number(dd.student.gno) || gno;
+      }
+    }
+    var head = '<div class="sumd-head">' +
+      '<b class="sumd-who">' + (gno ? '第 ' + gno + ' 组 · ' : '') + esc(name) + '</b>' +
+      '<span class="sumd-lesson">每节课完成率</span>' +
+      '<span class="sumd-total">平时分 <b>' + num(t.regular) + '</b>/100</span>' +
+      '<span class="spacer"></span>' +
+      '<button type="button" class="sumd-x" data-sumd-close="1" aria-label="关闭明细">✕</button>' +
+      '</div>';
+    if (state === 'loading') {
+      return '<div class="sumd-panel" role="region" aria-label="每节课完成率明细">' + head +
+        '<p class="sumd-empty">正在读取这位同学的逐课明细…</p></div>';
+    }
+    if (state === 'err') {
+      return '<div class="sumd-panel" role="region" aria-label="每节课完成率明细">' + head +
+        '<p class="sumd-empty">读不到这位同学的明细' + (msg ? '：' + esc(msg) : '') +
+        '。点右上角「刷新」再试；一直不行就找老师。</p></div>';
+    }
+    if (!ls.length) {
+      return '<div class="sumd-panel" role="region" aria-label="每节课完成率明细">' + head +
+        '<p class="sumd-empty">这位同学还没有课次记录。</p></div>';
+    }
+    /* 每节课一组，最近的课排最前（和页面里别处一样从近到远） */
+    var groups = ls.slice().sort(function (a, b) { return (Number(b.seq) || 0) - (Number(a.seq) || 0); }).map(function (l) {
+      var projs = (l.projects || []).map(function (p) {
+        var blank = (p.s === null || p.s === undefined);
+        return '<span class="sumd-project' + (blank ? ' is-blank' : '') + '">' +
+          '<b class="sumd-name">' + esc(p.n || '') + '</b>' +
+          '<span class="sumd-pct">' + (blank ? '—' : pct(Number(p.s) / 5 * 100)) + '</span></span>';
+      }).join('');
+      var lp = (l.pct === null || l.pct === undefined) ? '—' : pct(l.pct);
+      return '<div class="sumd-lesson-group">' +
+        '<div class="sumd-lesson-head" data-lesson-toggle="1" role="button" tabindex="0">' +
+        '<span class="sumd-caret" aria-hidden="true">▾</span>' +
+        '<b>' + esc(lessonLabel(l)) + '</b>' +
+        '<span class="sumd-pct">' + lp + '</span></div>' +
+        '<div class="sumd-lesson-body" hidden>' +
+        (projs ? '<div class="sumd-projects">' + projs + '</div>' : '<div class="sumd-noproj">本课没有命名项目</div>') +
+        '</div></div>';
+    }).join('');
+    var dutyRate = (t.duty === null || t.duty === undefined) ? null : Number(t.duty) / 5 * 100;
+    var need = t.failed ? '考勤挂科'
+      : (t.needed === null || t.needed === undefined ? '—' : (t.needed > 100 ? '无法达到' : num(t.needed)));
+    var foot = '项目完成率 <b>' + pct(t.taskRate) + '</b> · 值日完成率 <b>' + pct(dutyRate) +
+      '</b> · 考勤完成率 <b>' + pct(t.attRate) + '</b> · 计入总评 <b>' + num(t.contribution) +
+      '</b>/40 · 期末至少需考 <b>' + need + '</b>';
+    return '<div class="sumd-panel" role="region" aria-label="每节课完成率明细">' + head +
+      '<div class="sumd-lessons">' + groups + '</div>' +
+      '<div class="sumd-foot">' + foot + '</div></div>';
+  }
+
+  /* 找那一行：paint() 会把 #view 整个重写，所以不能缓存 tr 引用，每次都重新按 key 找 */
+  function anchorRow(key) {
+    var rows = document.querySelectorAll('#view tr[data-board-key]');
+    for (var i = 0; i < rows.length; i++) if (rows[i].dataset.boardKey === key) return rows[i];
+    return null;
+  }
+
+  /* 定位照老师端 placeSumPanel：贴着那一行下方弹出（贴右对齐），下方放不下就翻到上方，
+     再夹进可视区。表格一动不动 —— 这正是老师端「下面同学也能同时看到」的做法。 */
+  function placeCbHost(host, tr) {
+    var r = tr.getBoundingClientRect();
+    var w = host.offsetWidth || 380, h = host.offsetHeight || 220;
+    var vw = window.innerWidth, vh = window.innerHeight, pad = 10;
+    var left = Math.min(Math.max(pad, r.right - w), Math.max(pad, vw - w - pad));
+    var top = r.bottom + 8;
+    if (top + h > vh - pad) top = r.top - h - 8;
+    if (top < pad) top = pad;
+    /* 再夹一次下边界：学生端这张表比老师端长得多，翻到上方也可能顶到屏幕顶端。
+       夹完最坏是「卡盖住那一行」，但卡片本身一定在屏幕里 —— 比整张跑到视口外好。 */
+    if (top + h > vh - pad) top = Math.max(pad, vh - h - pad);
+    host.style.left = Math.round(left) + 'px';
+    host.style.top = Math.round(top) + 'px';
+  }
+
+  function closeCbHost() {
+    var host = $('cbHost');
+    if (!host) return;
+    host.hidden = true;
+    host.innerHTML = '';
+  }
+
+  /* 把悬浮卡的内容和位置刷成「当前 boardOpen 那一行」。
+     paint() 末尾会调一次 —— 行高亮和内容都靠这一处同步，别在别处再塞一份。 */
+  function syncCbHost() {
+    var host = $('cbHost');
+    if (!host) return;
+    if (!boardOpen || !CLASS) { closeCbHost(); return; }
+    var tr = anchorRow(boardOpen);
+    if (!tr) { closeCbHost(); return; }
+    host.innerHTML = cbPanelHtml(boardOpen);
+    host.hidden = false;
+    placeCbHost(host, tr);
+  }
+
+  /* 收起：不清 boardOpen 也行，但那样下次 paint() 会又弹出来。
+     这里连 DOM 高亮一起摘掉，避免整页重绘（学生端每 4 秒轮询一次，重绘很贵）。 */
+  function dismissCb() {
+    boardOpen = '';
+    var rows = document.querySelectorAll('#view tr.is-sumd-on');
+    for (var i = 0; i < rows.length; i++) rows[i].classList.remove('is-sumd-on');
+    var who = document.querySelector('.cb-open-who');
+    if (who && who.parentNode) who.parentNode.removeChild(who);
+    closeCbHost();
+  }
+
   /* 全班考核表（2026-11-16 照搬教师端，只读）──────────────────────────────────
      用户原话：「学生端有这个吗？还是你只做了这个？」「这个完全不行 我就要你照搬改为只读权限即可」。
      上一版学生端自己发明了 7 列（组/姓名/学号/平时分/计入总评/期末需考/项目完成率），
@@ -764,8 +843,9 @@
       var dutyFlag = list.some(function (s) { return !!s.duty_flag; });
       return '<tbody data-card="' + (gno || 0) + '"' + (dutyFlag ? ' class="is-duty-group"' : '') + '>' + list.map(function (s, i) {
         var isMe = !!(meKey && s.key === meKey);
-        var out = '<tr class="vertical-member-row' + (isMe ? ' is-me' : '') + '"' +
-          ' data-board-key="' + esc(s.key || '') + '" title="点我展开每节课完成率（只读）">';
+        var isOpen = !!(boardOpen && s.key === boardOpen);
+        var out = '<tr class="vertical-member-row' + (isMe ? ' is-me' : '') + (isOpen ? ' is-sumd-on' : '') + '"' +
+          ' data-board-key="' + esc(s.key || '') + '" title="点我弹出每节课完成率悬浮卡（只读）">';
         if (!i) out += '<td class="c-no" rowspan="' + span + '"><span class="gno-swatch"' +
           ' style="--h:' + hue + ';--s:58%;--lb:90%">' + (gno || '—') + '</span></td>';
         out += '<td class="c-mem member-name-cell' + (s.leader ? ' group-leader-name' : '') + '">' +
@@ -786,12 +866,10 @@
       }).join('') + '</tbody>';
     }).join('');
 
-    /* 明细面板：点谁就在表格下面展开谁（自己的用本机 D.lessons，别人的按需拉只读明细） */
+    /* 明细不再插在表格下面（2026-11-16）：改成 fixed 悬浮卡，渲染在 #cbHost 里。
+       这里只负责给「点中的那一行」打高亮，具体内容由 syncCbHost() 填。 */
     var openS = null;
     if (boardOpen) openS = CLASS.students.filter(function (s) { return s.key === boardOpen; })[0] || null;
-    var panel = boardOpen ? ('<div class="cb-detail-panel"><div class="cb-detail-inner">' +
-      (meKey && boardOpen === meKey ? classBoardDetail() : classBoardDetailOf(boardOpen)) +
-      '</div></div>') : '';
 
     return '<div class="card class-board"><div class="cb-head">' +
       '<h3>全班考核表</h3>' +
@@ -810,9 +888,8 @@
       '<th class="home-grade contribution">计入总评 /40</th>' +
       '<th class="home-grade needed">期末至少需考 /100</th>' +
       '</tr></thead>' + rows + '</table></div>' +
-      panel +
       '<p class="note">和老师端那张考核表是同一张，<b>只读</b>：不能加减分、不能改值日、不能换组长。' +
-      '点任意一行（包括别的组）会在表格下面展开「每节课完成率」明细，同样只能看。' +
+      '点任意一行（包括别的组），会在那一行旁边弹出「每节课完成率」悬浮卡，点哪行亮哪行，同样只能看。' +
       '老师一存分，点右上角「刷新」就能看到最新。</p></div>';
   }
 
@@ -933,6 +1010,9 @@
       ro.textContent = live ? '本节可互评' : '只读';
       ro.classList.toggle('live', live);
     }
+    /* 悬浮卡必须在这里重挂：上一行 #view.innerHTML 把所有行都重建了，
+       原来那张卡的位置锚（那一行）已经不存在，内容和位置都得按新 DOM 重新算一次。 */
+    syncCbHost();
   }
 
   function paintSync() {
@@ -1048,14 +1128,48 @@
      现在任何一行都能点；别人的明细按需走 loadStudentDetail()（只读 RPC），不会一次全拉下来。 */
   document.addEventListener('click', function (e) {
     if (e.target.closest && e.target.closest('#cbRefresh')) { loadClassBoard(); return; }
+    /* 悬浮卡内部的点击：✕ 收起；点某节课的组头展开/收起项目（高度变了要重新定位，别让卡跑出屏幕） */
+    var host = $('cbHost');
+    if (host && !host.hidden && host.contains(e.target)) {
+      if (e.target.closest('[data-sumd-close]')) { dismissCb(); return; }
+      var head = e.target.closest('[data-lesson-toggle]');
+      if (head) {
+        var body = head.parentElement.querySelector('.sumd-lesson-body');
+        if (body) {
+          body.hidden = !body.hidden;
+          head.parentElement.classList.toggle('is-open', !body.hidden);
+          var tr = anchorRow(boardOpen);
+          if (tr) placeCbHost(host, tr);
+        }
+      }
+      return;
+    }
     var row = e.target.closest && e.target.closest('tr[data-board-key]');
     if (!row || !row.closest('#view')) return;
     var key = row.dataset.boardKey;
     if (!key) return;
-    if (boardOpen === key) { boardOpen = ''; paint(); return; }   // 点同一行 = 收起
+    if (boardOpen === key) { dismissCb(); return; }   // 点同一行 = 收起
     boardOpen = key;
     if (key !== (CLASS && CLASS.me && CLASS.me.key)) loadStudentDetail(key);
     paint();
+  });
+
+  /* 悬浮卡是 fixed 定位：页面一滚 / 窗口一变尺寸，它就和那一行错开了。
+     老师端是「直接收起，老师再点一下就有新的」；学生端照做，成本最低。
+     注意只监听**窗口**滚动，不捕获表格内部的横向滚动 —— 手机上表格要左右滑着看列，
+     一滑就把卡收掉会很难用。 */
+  window.addEventListener('scroll', function () {
+    var host = $('cbHost');
+    if (host && !host.hidden) dismissCb();
+  }, { passive: true });
+  window.addEventListener('resize', function () {
+    var host = $('cbHost');
+    if (host && !host.hidden) dismissCb();
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    var host = $('cbHost');
+    if (host && !host.hidden) dismissCb();
   });
 
   document.addEventListener('visibilitychange', function () {
