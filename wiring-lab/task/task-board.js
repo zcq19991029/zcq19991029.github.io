@@ -131,10 +131,10 @@ function doneLayout(pN, dN) {
   const q = new URLSearchParams(location.search);
   B.taskId = +(q.get('t') || 0) || null;
   try {
-    const me = await HX.me();
+    const me = await HX.boot(() => HX.me());
     if (!me.teacher) return gate('只有教师能打开大屏', '学生请用接线仿真里的排位，或者看任务页里自己的成绩。', false);
     if (!B.taskId) {
-      const list = await HX.rpc('wire_task_list');
+      const list = await HX.boot(() => HX.rpc('wire_task_list'));
       const pick = list.find(t => t.status === 'open') || list[0];
       if (!pick) return gate('还没有课堂任务', '先在任务页发布一个，再打开大屏。', false);
       B.taskId = pick.id;
@@ -157,7 +157,9 @@ function gate(title, msg, login) {
 
 async function load(first) {
   let b;
-  try { b = await HX.rpc('wire_task_board', { p_task: B.taskId }); }
+  /* 首屏那次走自动重试（投影已经架好了，不能因为服务器一忙就退回「读取进度失败」大白屏）；
+     后面 12~18 秒的轮询不重试 —— 跳过一轮下一轮再来更省，也不会把请求叠起来。 */
+  try { b = first ? await HX.boot(() => HX.rpc('wire_task_board', { p_task: B.taskId })) : await HX.rpc('wire_task_board', { p_task: B.taskId }); }
   catch (e) {
     if (first) return gate('读取进度失败', e.message, true);
     return; // 轮询失败不打断画面，下一轮再试

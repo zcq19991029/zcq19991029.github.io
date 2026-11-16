@@ -32,11 +32,28 @@ const HX = (() => {
     const tm = ctl ? setTimeout(() => { try { ctl.abort(); } catch (e) { } }, TIMEOUT) : 0;
     let r;
     try { r = await fetch(BASE + path, { method, headers: h, body: body === undefined ? undefined : JSON.stringify(body), signal: ctl ? ctl.signal : undefined }); }
-    catch (e) { throw new Error(e && e.name === 'AbortError' ? '服务器 12 秒没回应（网络慢，或后端正忙），请再点一次' : '连不上服务器，请检查网络'); }
+    catch (e) { throw new Error(e && e.name === 'AbortError' ? '服务器没回应（网络慢，或后端正忙），请再试一次' : '连不上服务器，请检查网络'); }
     finally { if (tm) clearTimeout(tm); }
     const txt = await r.text(); let j = null; try { j = txt ? JSON.parse(txt) : null; } catch (e) { j = txt; }
     if (!r.ok) throw Object.assign(new Error(zh(j && (j.msg || j.message || j.error_description || j.error) || 'HTTP ' + r.status)), { status: r.status });
     return j;
+  }
+  /* 只读请求的自动重试（2026-11-16，和 rank.js 的 HX.boot 同一套口径）：
+     免费版 Nano 冷启动 / 全班同时点的时候，第一次经常 10 秒以上，第二次基本是热的。
+     任务列表、看板这类**读**接口多试两次；写接口（发布 / 结束 / 删除 / 撤销）绝不重试，
+     否则会重复建任务、重复入账。 */
+  const RETRY_WAIT = [1200, 3000];
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const retriable = e => { if (!e) return false; if (!e.status) return true; if (e.status === 429) return true; return e.status >= 500 && e.status <= 599; };
+  async function boot(fn, onTry) {
+    for (let i = 0; ; i++) {
+      try { return await fn(); }
+      catch (e) {
+        if (i >= RETRY_WAIT.length || !retriable(e)) throw e;
+        if (onTry) onTry(i + 1);
+        await sleep(RETRY_WAIT[i]);
+      }
+    }
   }
   // ---------- 这台设备上登录过的账号（和总入口共用 paike-accounts） ----------
   // 谁续期谁把新 refresh_token 写回去：否则账号列表里留着已经轮换作废的旧 rt，
@@ -90,6 +107,7 @@ const HX = (() => {
     online: () => /^https?:$/.test(location.protocol),
     in: () => !!(load() && s.access_token),
     rpc,
+    boot,   // 只读请求的自动重试（写请求绝不走它）
     // GitHub 登录跳回来时地址栏 # 后面带凭证：收下并清掉（否则会被当成路由参数）
     grab() {
       const h = new URLSearchParams(location.hash.slice(1)), err = h.get('error_description');

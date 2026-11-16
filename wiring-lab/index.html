@@ -3,7 +3,7 @@
 <html lang="zh-CN">
 <head>
 <script src="../hx-theme.js" data-tool="wiring"></script>
-<script>window.HX_BUILD = "2026-11-16T02:04:09Z 7bafe94";</script>
+<script>window.HX_BUILD = "2026-11-16T02:38:43Z 877fc6e";</script>
 <meta charset="utf-8">
 <meta name="copyright" content="© 2026 zcq 版权所有，未经许可禁止复制、修改、转载">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
@@ -199,6 +199,20 @@
   .rk-btn.gh { background: #24292f; box-shadow: none; } .rk-btn svg { width: 18px; height: 18px; fill: currentColor; }
   .rk-ghost { border: 0; background: none; color: var(--acc); font: inherit; font-size: 14px; font-weight: 700; padding: 6px 10px; border-radius: 10px; cursor: pointer; } .rk-ghost:hover { background: var(--track); } .rk-ghost.bad { color: #ef4444; }
   .rk-err { color: #ef4444; font-weight: 600; min-height: 1em; margin: 0; } .rk-wait, .rk-empty, .rk-hint { color: var(--dim); margin: 6px 0; } .rk-empty { padding: 40px 0; text-align: center; font-size: 16px; }
+  /* 读数据失败块（2026-11-16）：红字 + 一颗「再试一次」+ 一句安慰，别再让人只能关窗重开。
+     卡面必须**不透明深色**：#fw-rank .rk 是透明的（平时靠 .rk-main 里的卡片撑场面），
+     用 var(--card) 那种玻璃底会透出电路图、字根本看不清（实测截到过）。 */
+  .rk-fail { display: grid; gap: 12px; justify-items: center; text-align: center;
+    margin: auto; padding: 30px 28px; max-width: 520px;
+    border-radius: 16px; border: 1px solid rgba(120, 170, 255, .26);
+    background: linear-gradient(150deg, #16203c, #090e1c);
+    box-shadow: 0 26px 60px -30px #000; }
+  .rk-fail .rk-err { color: #fca5a5; max-width: 30em; line-height: 1.7; font-size: 15px; }
+  .rk-fail .rk-hint { margin: 0; font-size: 13px; color: rgba(255, 255, 255, .55); }
+  .rk-fail .btn { padding: 9px 20px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, .22);
+    background: rgba(255, 255, 255, .08); color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+  .rk-fail .btn:hover { border-color: var(--rk-orange, #f59e0b); color: #ffd68a; }
+  .rk-fail .btn:disabled { opacity: .6; cursor: default; }
   .rk-link { display: inline-block; margin-top: 12px; color: var(--acc); font-weight: 700; }
   .rk-login { max-width: 380px; margin: 4px auto; display: grid; gap: 12px; }
   .rk-hero { border-radius: 16px; padding: 16px 18px; color: #fff; background: linear-gradient(120deg, #f59e0b, #ef4444 60%, #ec4899); box-shadow: 0 14px 30px -16px rgba(239,68,68,.7); }
@@ -1318,8 +1332,8 @@
     box-shadow: 0 0 9px rgba(0, 223, 255, .55); animation: rkDivPulse 3.2s ease-in-out infinite; }
   @keyframes rkDivPulse { 50% { opacity: .45; box-shadow: 0 0 16px rgba(0, 223, 255, .9); } }
   #fw-rank .fw-t small { color: var(--rk-dim); font-size: 13px; font-weight: 600; letter-spacing: 2px; }
-  /* 关闭钮：机械切角，hover 蓝紫发光 */
-  #fw-rank .fw-x { flex: none; width: 40px; height: 34px; border: 0; border-radius: 0; font-size: 17px; color: var(--rk-ink); cursor: pointer;
+  /* 关闭钮：机械切角，hover 蓝紫发光（margin-left:auto 吃掉剩余空间，钉在右端） */
+  #fw-rank .fw-x { flex: none; margin-left: auto; width: 40px; height: 34px; border: 0; border-radius: 0; font-size: 17px; color: var(--rk-ink); cursor: pointer;
     background: linear-gradient(160deg, rgba(54, 140, 255, .22), rgba(23, 34, 60, .92) 55%);
     clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
     transition: filter .18s, transform .1s; }
@@ -1770,6 +1784,8 @@
   #fw-rank .fw-t b { font-size: 21px; letter-spacing: 5px; }
   #fw-rank .fw-t b::after { height: 20px; }
   #fw-rank .fw-t small { font-size: 12px; letter-spacing: 1.2px; }
+  /* 2026-11-16：删掉身份胶囊后，原来由它的 margin-left:auto 把 × 顶到右端，改挂在 .fw-x 自己身上。
+     导航位置不动（还是紧贴标题右边），这样除了那颗胶囊消失，别的都没挪窝。 */
   #fw-rank .rkx-nav { display: flex; align-items: center; gap: 4px; margin-left: 6px; padding: 3px;
     border-radius: 12px; border: 1px solid rgba(54, 140, 255, .24); background: rgba(10, 17, 36, .55);
     overflow-x: auto; scrollbar-width: none; min-width: 0; }
@@ -1786,17 +1802,9 @@
   #fw-rank .rkx-nb.rkx-hot { color: #fff; background: linear-gradient(120deg, #FF9B12, #FF453A);
     box-shadow: 0 0 16px -5px rgba(255, 90, 50, .75), inset 0 1px 0 rgba(255, 255, 255, .3); }
   #fw-rank .rkx-nb.rkx-hot:hover { filter: brightness(1.07); }
-  #fw-rank .rkx-who { display: flex; align-items: center; gap: 8px; margin-left: auto; flex: none;
-    max-width: 30%; padding: 4px 10px 4px 6px; border-radius: 999px;
-    border: 1px solid rgba(124, 156, 255, .26); background: rgba(12, 20, 40, .5); }
-  #fw-rank .rkx-who > span { color: #CFE0FF; font-weight: 700; font-size: 13px; max-width: 12em;
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  #fw-rank .rkx-ico { flex: none; width: 34px; height: 34px; display: grid; place-items: center; padding: 0;
-    border: 1px solid rgba(124, 156, 255, .3); border-radius: 10px; background: rgba(20, 32, 60, .6);
-    color: #cfe0ff; cursor: pointer; transition: background .18s, color .18s, transform .12s; }
-  #fw-rank .rkx-ico svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
-  #fw-rank .rkx-ico:hover { background: rgba(0, 207, 255, .16); color: #fff; }
-  #fw-rank .rkx-ico:active { transform: scale(.94); }
+  /* 2026-11-16 删掉 .rkx-who 身份胶囊（开发者标签 + 账号名 + 全屏钮）：用户说冗余。
+     身份在排行榜 Hero 卡里有，全屏钮外壳顶栏 #fsBtn 本来就有，标题栏这层是重复的。
+     导航自己靠 .fw-t{flex:1} 顶到右边，不用再靠胶囊的 margin-left:auto。 */
 
   /* ── 主区：左 56 / 右 44，两栏各自独立滚动，整页不出纵向滚动条 ── */
   #fw-rank .rk { padding: 12px 16px 14px; }
@@ -2261,8 +2269,6 @@
     #fw-rank .rkx-nb { padding: 0 11px; font-size: 13px; }
   }
   @media (max-width: 980px) {
-    #fw-rank .rkx-nav { margin-left: 0; }
-    #fw-rank .rkx-who > span { display: none; }
     #fw-rank .rk-hero .rkx-trophy { display: none; }
   }
   @media (max-width: 880px) {
@@ -4359,6 +4365,22 @@ const HX = (() => {
       catch (e) { if (i >= RETRY_WAIT.length || !retriable(e)) throw e; if (onRetry) onRetry(i + 1); await sleep(RETRY_WAIT[i]); }
     }
   }
+  /* 只读请求的自动重试（2026-11-16 用户报「又网络拥挤了」：打开排位只发了一条 hx_me，
+     12 秒没回就把整块面板换成红字，只能关窗重开）。
+     免费版 Nano 冷启动 / 被全班同时点击压住时，第一次常常 10 秒以上才回，第二次基本是热的。
+     所以：最多 3 次（12s + 1.2s + 12s + 3s + 12s），期间 onTry 把「加载中」改成「正在重试」，
+     只有全失败才抛给调用方；调用方再给一颗「再试一次」。
+     ⚠ 只给**读**用：写请求（rank_start / rank_finish）绝不能自动重试，否则会重复计时/重复记账。 */
+  async function boot(fn, onTry) {
+    for (let i = 0; ; i++) {
+      try { return await fn(); }
+      catch (e) {
+        if (i >= RETRY_WAIT.length || !retriable(e)) throw e;
+        if (onTry) onTry(i + 1);
+        await sleep(RETRY_WAIT[i]);
+      }
+    }
+  }
   async function api(path, { method = 'GET', body, auth = true } = {}) {
     if (auth) await fresh();
     const h = { apikey: KEY, 'Content-Type': 'application/json' }; if (auth && s) h.Authorization = 'Bearer ' + s.access_token;
@@ -4366,7 +4388,8 @@ const HX = (() => {
     const tm = ctl ? setTimeout(() => { try { ctl.abort(); } catch (e) { } }, TIMEOUT) : 0;
     let r;
     try { r = await fetch(BASE + path, { method, headers: h, body: body === undefined ? undefined : JSON.stringify(body), signal: ctl ? ctl.signal : undefined }); }
-    catch (e) { throw new Error(e && e.name === 'AbortError' ? '服务器 12 秒没回应（网络慢，或后端正忙），请再点一次' : '连不上服务器，请检查网络'); }
+    // 不再写死「12 秒」：读接口会自己重试 3 次，总共可能等 40 秒，报个具体秒数只会让人更疑惑
+    catch (e) { throw new Error(e && e.name === 'AbortError' ? '服务器没回应（网络慢，或后端正忙），请再试一次' : '连不上服务器，请检查网络'); }
     finally { if (tm) clearTimeout(tm); }
     const txt = await r.text(); let j = null; try { j = txt ? JSON.parse(txt) : null; } catch (e) { j = txt; }
     if (!r.ok) throw Object.assign(new Error(zh(j && (j.msg || j.message || j.error_description || j.error) || 'HTTP ' + r.status)), { status: r.status });
@@ -4384,6 +4407,7 @@ const HX = (() => {
     online: () => /^https?:$/.test(location.protocol),
     in: () => !!(load() && s.access_token),
     rpc,
+    boot,   // 只读请求的自动重试（读数据专用，写请求绝不走它）
     // GitHub 登录跳回来时，地址栏 # 后面带着登录凭证：先收下再清掉，免得被当成电路编号
     grab() {
       const h = new URLSearchParams(location.hash.slice(1)), err = h.get('error_description');
@@ -4702,18 +4726,35 @@ const TASKLINK = /^https?:$/.test(location.protocol)
 // 离线单文件没有云端名单，同样只在 http(s) 给。点开是只读浮窗（rkTaskBWin），绝不写任何数据。
 const TASKBOARD = /^https?:$/.test(location.protocol)
   ? '<button class="rk-super" id="rkTaskB" type="button" title="本班课堂任务的完成名单：谁完成了、用时、名次（实时）">任务榜</button>' : '';
-// ── R6 顶栏图标（2026-11-12）：身份卡 / 全屏。内联 SVG，跟站里其它按钮同一套线条风格 ──
+// ── 顶栏图标（内联 SVG，跟站里其它按钮同一套线条风格）──
+// 2026-11-16：身份卡 / 全屏两个图标随顶栏胶囊一起删了，只剩「学生」这一个还在用。
 const RK_ICO = {
-  card: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 15l4.5-4 4 3.5 3-2.5L21 17"/><circle cx="8" cy="9.5" r="1.4"/></svg>',
-  fs: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>',
   users: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M4 19a5 5 0 0 1 10 0"/><circle cx="17" cy="9" r="2.4"/><path d="M14.6 19a4.2 4.2 0 0 1 5.8-3.9"/></svg>',
-  cap: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8.5 12 5l9 3.5-9 3.5z"/><path d="M7 11v4.2c0 1.2 2.2 2.3 5 2.3s5-1.1 5-2.3V11"/></svg>',
 };
+/* 读数据失败时的统一块：红字 + 一颗「再试一次」。
+   2026-11-16 之前只有一行红字，用户只能关窗重开（截图就是那块）。 */
+function rkFail(box, e, again) {
+  const msg = (e && e.message) ? e.message : String(e || '读取失败');
+  box.innerHTML = `<div class="rk-fail"><p class="rk-err">${esc(msg)}</p>`
+    + '<button class="btn" type="button" id="rkAgain">再试一次</button>'
+    + '<p class="rk-hint">免费版服务器在人多时会排队，通常再点一次就好。</p></div>';
+  const b = box.querySelector('#rkAgain');
+  if (b) b.onclick = () => { b.disabled = true; b.textContent = '重试中…'; again(); };
+}
+// 引导期的「正在重试」提示：让等待有解释，不要停在「加载中…」一动不动
+function rkWait(box, n) {
+  if (!box) return;
+  box.innerHTML = `<p class="rk-wait">服务器比较忙，正在重试（第 ${n} 次）…</p>`;
+}
 async function rkRender() {
   const box = rkEl(); if (!box) return;
   if (!HX.online()) { box.innerHTML = `<div class="soon-hero"><b>排位需要在线版</b><span>成绩和排行榜存在云端，本机离线文件不能排位。</span></div><a class="rk-link" href="https://zcq19991029.github.io/wiring-lab/" target="_blank">打开在线版</a>`; return; }
   if (!HX.in()) return rkLogin(box);
-  try { RK.me = await HX.rpc('hx_me'); } catch (e) { if (!HX.in()) return rkLogin(box); box.innerHTML = `<p class="rk-err">${esc(e.message)}</p>`; return; }
+  /* 2026-11-16：打招呼这一条 hx_me 是打开排位的唯一阻塞请求，以前 12 秒没回就整块红字。
+     现在自动重试 3 次（每次最多 12 秒，间隔 1.2s / 3s），期间显示「正在重试（第 N 次）」；
+     全失败才出错误块 + 「再试一次」按钮。 */
+  try { RK.me = await HX.boot(() => HX.rpc('hx_me'), n => rkWait(box, n)); }
+  catch (e) { if (!HX.in()) return rkLogin(box); return rkFail(box, e, () => rkRender()); }
   if (!RK.me.teacher && !RK.me.student) return rkRedeem(box);
   if (RK.me.student) RK.pick = { id: RK.me.student.id, name: rkStuName(RK.me.student), cls: RK.me.student.class, no: RK.me.student.student_no || '' };
   // 账号只有一套：班级名单、课堂码在首页“班级”，管理员任命在首页“管理”，这里只排位
@@ -4722,14 +4763,17 @@ async function rkRender() {
   if (RK.me.student && RK.pick && !RK.pick.name) RK.pick.name = name;
   // ── R6（2026-11-12）顶栏重构 ──
   // 规格第三节要「一条紧凑顶栏 + 不许出现两个重复标题栏」。原来这里另起一条 .rk-top（第二个标题栏），
-  // 现在把导航直接塞进窗口标题栏 .fw-head：左边 ⚡排位/副标题（浮窗自带），中间功能导航，右边身份卡/全屏/关闭。
+  // 现在把导航直接塞进窗口标题栏 .fw-head：左边 ⚡排位/副标题（浮窗自带），中间功能导航，右边关闭。
   // 因此这里不再渲染 .rk-top，只留内容区。
-  rkTopBar(box.closest('.fw') || document.getElementById('fw-rank'), name);
+  rkTopBar(box.closest('.fw') || document.getElementById('fw-rank'));
   box.innerHTML = `<div class="rk-body" id="rkBody"></div>`;
   rkMain(box.querySelector('#rkBody'));
 }
-// 顶栏：导航 + 账号胶囊。学生没有「课堂任务」（那是教师发布任务用的），教师没有「任务榜」。
-function rkTopBar(fw, name) {
+// 顶栏：只挂功能导航。学生没有「课堂任务」（那是教师发布任务用的），教师没有「任务榜」。
+// 2026-11-16 用户：「开发者 + 账号名 + 全屏」那个胶囊整个删掉，冗余 ——
+//   ① 身份在排行榜 Hero 卡里已经写着，标题栏再挂一遍是重复；
+//   ② 全屏钮外壳顶栏本来就有（#fsBtn），这里那个只是离线兜底，用不上。
+function rkTopBar(fw) {
   if (!fw) return;
   const head = fw.querySelector('.fw-head'); if (!head) return;
   head.querySelectorAll('.rkx-nav,.rkx-who').forEach(n => n.remove());
@@ -4742,21 +4786,8 @@ function rkTopBar(fw, name) {
     + (isT() ? '<button type="button" class="rkx-nb rkx-hot" id="rkDrawBtn">随机选人</button>' : '')
     + (RK.me && RK.me.student ? TASKBOARD.replace('class="rk-super"', 'class="rkx-nb"') : '');
   head.insertBefore(nav, x);
-  const who = document.createElement('div');
-  who.className = 'rkx-who';
-  // 2026-11-12 U3：身份卡背景设置入口已迁到总入口「外观」面板（多工具共享），排位顶栏不再挂「我的身份卡」。
-  who.innerHTML = `<em class="rk-role r-${roleCls(RK.me)}">${roleOf(RK.me)}</em><span title="${esc(name || '')}">${esc(name || '')}</span>`
-    + `<button type="button" class="rkx-ico" id="rkFsBtn" title="全屏（希沃 / 投影时用）" aria-label="全屏">${RK_ICO.fs}</button>`;
-  head.insertBefore(who, x);
   const db = nav.querySelector('#rkDrawBtn'); if (db) db.onclick = rkDrawWin;
   const tb = nav.querySelector('#rkTaskB'); if (tb) tb.onclick = rkTaskBWin;
-  const fb = who.querySelector('#rkFsBtn');
-  if (fb) fb.onclick = () => {
-    const b = document.getElementById('fsBtn');
-    if (b) return b.click();
-    // 离线单文件没有外壳顶栏的全屏钮：直接调 API 兜底
-    try { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen(); } catch (e) { }
-  };
 }
 // 没登录、没开通：登录和填邀请码都在华夏工具首页
 function rkLogin(box) {
@@ -4816,14 +4847,31 @@ async function rkMain(body) {
 }
 // 学生面板身份卡背景（2026-11-12 U3）：复用排行榜那张 hx_rank_bg（同一份账号背景）。
 // hx_rank_bgs 只回「本课题上过榜」的学生；没上过榜的查不到背景就退回默认底 —— 数据层不为此再开函数。
+/* 2026-11-16：合成一条。打开一次排位会同时要背景两处（排行榜卡片 + Hero 身份卡），
+   原来各发一条一模一样的 hx_rank_bgs —— 全班 40 台同时点就是白白多 40 个请求。
+   现在：① 同一题正在拉 → 直接复用那个 promise；② 拉回来 8 秒内复用结果（背景极少变）。
+   顺便走 HX.boot 自动重试，背景挂了也悄悄重来，不打断界面。 */
+let rkBgsMemo = { k: '', t: 0, m: null, p: null };
 async function rkClassBgs() {
-  try {
-    const rows = await HX.rpc('hx_rank_bgs', { p_circuit: RK.circuit, p_limit: 200 }, HX.in());
-    const arr = Array.isArray(rows) ? rows : (rows && Array.isArray(rows.data) ? rows.data : []);
-    const m = {};
-    arr.forEach(b => { if (b && b.student_id != null) m[b.student_id] = b; });
-    return m;
-  } catch (e) { return {}; }
+  const k = String(RK.circuit || '') + '|' + (HX.in() ? '1' : '0');
+  const now = Date.now();
+  if (rkBgsMemo.k === k) {
+    if (rkBgsMemo.p) return rkBgsMemo.p;                      // 正在拉：合流
+    if (rkBgsMemo.m && now - rkBgsMemo.t < 8000) return rkBgsMemo.m; // 刚拉过：直接用
+  }
+  rkBgsMemo.k = k;
+  rkBgsMemo.p = (async () => {
+    try {
+      const rows = await HX.boot(() => HX.rpc('hx_rank_bgs', { p_circuit: RK.circuit, p_limit: 200 }, HX.in()));
+      const arr = Array.isArray(rows) ? rows : (rows && Array.isArray(rows.data) ? rows.data : []);
+      const m = {};
+      arr.forEach(b => { if (b && b.student_id != null) m[b.student_id] = b; });
+      rkBgsMemo.m = m; rkBgsMemo.t = Date.now();
+      return m;
+    } catch (e) { return {}; }
+    finally { rkBgsMemo.p = null; }
+  })();
+  return rkBgsMemo.p;
 }
 // Hero 身份卡背景（2026-11-13）：当前选手（RK.pick）用自己的账号身份卡背景，和排行榜/学生卡同一份 hx_rank_bg。
 // 学生端 RK.pick 就是自己、教师端是抽中的学生 —— 都按 student_id 取；取不到/没上过榜就退回深蓝渐变底，不塌版。
@@ -4846,11 +4894,14 @@ async function rkHeroBg(hero) {
 async function rkPicker(el, body) {
   // 只列首页“班级”里勾了“接线仿真”的班；一个工具都没勾的班（旧班级）各工具都显示
   // 班级要不要出现在接线仿真：首页「班级名单」里点亮「接线仿真」才算开通（以前是空数组=全开，太反直觉，改成点亮才算）
-  try { if (!RK.classes) RK.classes = await rkMyClasses(); } catch (e) { el.innerHTML = `<p class="rk-err">${esc(e.message)}</p>`; return; }
+  /* 2026-11-16：这两个也是读接口，跟着走自动重试；失败给「再试一次」而不是干一行红字。 */
+  try { if (!RK.classes) RK.classes = await HX.boot(() => rkMyClasses(), n => { el.innerHTML = `<p class="rk-wait">班级名单加载中…服务器忙，正在重试（第 ${n} 次）</p>`; }); }
+  catch (e) { rkFail(el, e, () => rkPicker(el, body)); return; }
   if (!RK.classes.length) { el.innerHTML = '<p class="rk-wait">还没有班级：在首页“班级”里导入考勤表，勾上“接线仿真”</p>'; return; }
   if (!RK.classes.some(c => c.id === RK.cls)) RK.cls = (RK.pick && (RK.classes.find(c => c.name === RK.pick.cls) || {}).id) || RK.classes[0].id;
   let list = RK.studs[RK.cls];
-  try { if (!list) list = RK.studs[RK.cls] = await HX.rpc('hx_class_students', { p_class: RK.cls }); } catch (e) { el.innerHTML = `<p class="rk-err">${esc(e.message)}</p>`; return; }
+  try { if (!list) list = RK.studs[RK.cls] = await HX.boot(() => HX.rpc('hx_class_students', { p_class: RK.cls }), n => { el.innerHTML = `<p class="rk-wait">学生名单加载中…服务器忙，正在重试（第 ${n} 次）</p>`; }); }
+  catch (e) { rkFail(el, e, () => rkPicker(el, body)); return; }
   const cls = RK.classes.find(c => c.id === RK.cls);
   // ── R6 班级胶囊 + 学生身份卡（2026-11-12）──
   // 数据与选中逻辑一字未动：RK.cls 依旧是当前班，点名字写 RK.pick；改的只是排版与字号。
@@ -5818,17 +5869,19 @@ async function rkBoard(el, hl, page) {
   const isPageFlip = page != null;              // 翻页 = 全新一页，不做 FLIP；只有同页数据刷新才做
   if (isPageFlip) RK.boardPage = Math.max(0, page);
   // 2026-11-14 优化「加载慢」：rank_board 与 hx_rank_bgs 两个 rpc 并行发出（背景失败不影响榜单）。
-  const boardP = HX.rpc('rank_board', { p_circuit: RK.circuit, p_limit: 200 }, HX.in());
-  const bgP = HX.rpc('hx_rank_bgs', { p_circuit: RK.circuit, p_limit: 200 }, HX.in()).catch(() => []);
-  let rows; try { rows = await boardP; } catch (e) { el.innerHTML = `<p class="rk-err">${esc(e.message)}</p>`; return; }
+  // 2026-11-16：榜单这一条改成自动重试（读数据，安全），失败时给「再试一次」而不是干一行红字。
+  const boardP = HX.boot(() => HX.rpc('rank_board', { p_circuit: RK.circuit, p_limit: 200 }, HX.in()),
+    n => { el.innerHTML = `<p class="rk-wait">榜单加载中…服务器忙，正在重试（第 ${n} 次）</p>`; });
+  /* 背景走 rkClassBgs（带「同一题只发一次」的合流）：原来这里和 rkHeroBg 各发一条一模一样的
+     hx_rank_bgs，打开一次排位就打两次数据库 —— 全班同时点的时候这就是白白多出来的 40 个请求。 */
+  const bgP = rkClassBgs();
+  let rows; try { rows = await boardP; }
+  catch (e) { rkFail(el, e, () => rkBoard(el, hl, page)); return; }
   // 后端口径可能返回对象（老函数 / 代理层包了一层），一律归一成数组，别让整块榜单崩掉
   if (!Array.isArray(rows)) rows = (rows && Array.isArray(rows.data)) ? rows.data : [];
-  // 个人身份卡背景：新表 hx_rank_bg，按 student_id 关联（绝不按名次）。
-  // 背景已并行发出，这里只等它落地；失败/没建函数只影响背景，不影响成绩与排序。
-  let bgs = [];
-  if (rows.length) { try { bgs = (await bgP) || []; } catch (e) { bgs = []; } }
-  if (!Array.isArray(bgs)) bgs = (bgs && Array.isArray(bgs.data)) ? bgs.data : [];
-  const BG = {}; bgs.forEach(b => { if (b && b.student_id != null) BG[b.student_id] = b; });
+  // 个人身份卡背景：按 student_id 关联（绝不按名次）。失败/没建函数只影响背景，不影响成绩与排序。
+  let BG = {};
+  if (rows.length) { try { BG = (await bgP) || {}; } catch (e) { BG = {}; } }
   const nEl = document.getElementById('rkBoardN');
   if (nEl) nEl.textContent = rows.length ? '共 ' + rows.length + ' 人 · 按用时升序' : '';
   // 空榜单只放提示语，绝不放假成绩
@@ -6541,8 +6594,10 @@ async function rkTaskBList(body) {
   TB.id = null; tbStopPoll();
   body.innerHTML = '<div class="tb"><p class="rk-wait">读取任务…</p></div>';
   let list;
-  try { list = TB.tasks = await HX.rpc('wire_task_student_list'); }
-  catch (e) { body.innerHTML = `<div class="tb"><p class="rk-err">${esc(e.message)}</p></div>`; return; }
+  /* 首屏这一次走自动重试（读）；后面 tbListPoll 的轮询故意不重试 ——
+     轮询本来就每 12~18 秒一轮，重试只会把请求叠起来，跳过这一轮等下一轮更省。 */
+  try { list = TB.tasks = await HX.boot(() => HX.rpc('wire_task_student_list'), n => { body.innerHTML = `<div class="tb"><p class="rk-wait">任务榜加载中…服务器忙，正在重试（第 ${n} 次）</p></div>`; }); }
+  catch (e) { rkFail(body, e, () => rkTaskBList(body)); return; }
   if (!list.length) {
     body.innerHTML = `<div class="tb"><div class="tb-none"><b>老师还没发布课堂任务</b>
       <span>发布了这里会显示：谁完成了、用时、名次，自己有没有被记上。</span></div></div>`;
@@ -6596,8 +6651,14 @@ async function rkTaskBDetail(body, id) {
   body.innerHTML = `<div class="tb"><button class="tb-back" type="button" id="tbBack">‹ 返回任务列表</button><p class="rk-wait">读取名单…</p></div>`;
   const back = body.querySelector('#tbBack'); if (back) back.onclick = () => rkTaskBList(tbBody());
   let b;
-  try { b = TB.board = await HX.rpc('wire_task_student_board', { p_task: id }); }
-  catch (e) { TB.id = null; body.querySelector('.rk-wait').outerHTML = `<p class="rk-err">${esc(e.message)}</p>`; return; }
+  /* 首次进详情走自动重试（读）；下面 12~18 秒的轮询故意不重试，跳过一轮更省。 */
+  try { b = TB.board = await HX.boot(() => HX.rpc('wire_task_student_board', { p_task: id }), n => { const w = body.querySelector('.rk-wait'); if (w) w.textContent = '名单加载中…服务器忙，正在重试（第 ' + n + ' 次）'; }); }
+  catch (e) {
+    TB.id = null;
+    const w = body.querySelector('.rk-wait');
+    if (w) { const d = document.createElement('div'); w.replaceWith(d); rkFail(d, e, () => rkTaskBDetail(body, id)); }
+    return;
+  }
   tbPaint(body, b);
   // 进行中的任务 15 秒刷一次（2026-11-11 用户批准：学生端人手一份，5 秒太频繁，统一降到 15 秒）；
   // 每次调度 ±20% 抖动（12~18 秒），全班设备不会同相位；窗口关掉（.show 摘掉）或页面隐藏时这一轮跳过 —— 重开窗口会重新拉。

@@ -77,7 +77,7 @@ const JF_URL = SITE + 'jiafenxitong/';
   if (!HX.online()) return gate('课堂任务需要在线版', '成绩和进度存在云端，本机离线文件不能用。<br>请打开在线版（zcq19991029.github.io/wiring-lab/）里的「课堂任务」。');
   if (!HX.in()) return gate('先登录再用课堂任务', '课堂任务和排位共用华夏工具账号。<br>点下面的按钮去登录，登录后回到这一页。', true);
 
-  try { ST.me = await HX.me(); }
+  try { ST.me = await HX.boot(() => HX.me()); }
   catch (e) { return gate('读取身份失败', esc(e.message), true); }
   await paintWho();
   if (ST.me.teacher) return teacherView();
@@ -119,7 +119,7 @@ async function teacherView() {
 
   try {
     // 只列首页「班级」里点亮了「接线仿真」的班（用户要求：别的班不该出现在这个工具里）
-    ST.classes = (await HX.rpc('hx_my_classes')).filter(c => (c.tools || []).includes('wiring'));
+    ST.classes = (await HX.boot(() => HX.rpc('hx_my_classes'))).filter(c => (c.tools || []).includes('wiring'));
   } catch (e) { return gate('读取班级失败', esc(e.message)); }
 
   if (!ST.classes.length) {
@@ -154,11 +154,12 @@ const className = id => (ST.classes.find(c => Number(c.id) === Number(id)) || {}
 const openTasks = () => ST.tasks.filter(t => t.status === 'open');
 const viewTask = () => (ST.view ? ST.tasks.find(t => t.id === ST.view) : null) || null;
 // 重新拉「任务列表 + 回收站」，并保持「只留当前班级」（换班 / 发布 / 结束 / 删除 / 撤销都用这一条）
+// 2026-11-16：两条都是读，走 HX.boot 自动重试（服务器忙的时候第一次常常 10 秒以上）
 async function loadTasks() {
   const [list, bin] = await Promise.all([
-    HX.rpc('wire_task_list'),
+    HX.boot(() => HX.rpc('wire_task_list')),
     /* 回收站读失败不该拖垮整页（老库还没跑 2026-11-16 迁移时这个函数不存在） */
-    HX.rpc('wire_task_bin').catch(() => []),
+    HX.boot(() => HX.rpc('wire_task_bin')).catch(() => []),
   ]);
   ST.tasksAll = sortTasks(list);
   ST.binAll = Array.isArray(bin) ? bin : [];
@@ -218,7 +219,7 @@ async function refreshBoards() {
   const boards = {};
   let bad = '';
   await Promise.all(list.map(async t => {
-    try { boards[t.id] = await HX.rpc('wire_task_board', { p_task: t.id }); }
+    try { boards[t.id] = await HX.boot(() => HX.rpc('wire_task_board', { p_task: t.id })); }
     catch (e) { bad = bad || ('进度读取失败：' + e.message); }
   }));
   ST.boards = boards;
@@ -844,7 +845,7 @@ async function studentView() {
       ? `<div class="panel span2"><div class="body"><p class="hint" style="margin:0">现在有 <b>${opens}</b> 个进行中的任务，<b>每一个都要做</b>（各算一个 5 分项目）。</p></div></div>`
       : '') + items.map(x => one(x.task, x.mine || {}, x.total, x.done)).join('');
   };
-  try { ST.mine = await HX.rpc('wire_task_my_result'); } catch (e) { return gate('读取任务失败', esc(e.message), true); }
+  try { ST.mine = await HX.boot(() => HX.rpc('wire_task_my_result')); } catch (e) { return gate('读取任务失败', esc(e.message), true); }
   paint();
   const anyOpen = () => ((ST.mine && ST.mine.items) || []).some(x => x && x.task && x.task.status === 'open')
     || (ST.mine && ST.mine.task && ST.mine.task.status === 'open');
