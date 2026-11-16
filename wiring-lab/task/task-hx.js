@@ -131,8 +131,36 @@ const TOOL = (() => {
 // 兼容旧引用：task-board.js / task.js 里剩下的 HOME 仍按「站点根」理解（语义不变，值也没变）
 const HOME = SITE;
 
-/* 回「接线仿真」外壳。只是换掉自己这一帧的目标页，绝不把站点根加载进来。 */
-function goTool() { location.href = TOOL; return true; }
+/* 回「接线仿真」的排位界面（课堂任务是从排位窗里点进来的，「上一级」就是它）。
+   分两种页面形态：
+   ── ① 独立窗口（大屏 board.html 是 task.js 用 window.open(...,'_blank') 开出来的）
+         → 一步回总入口并切到接线仿真（SITE + '#wiring'）。
+         不能写 '../'：那是 /wiring-lab/ 这个工具页，它带 data-tool="wiring"，
+         在独立窗口里会被 hx-theme.js 再 replace 到总入口 → 用户看到「工具页 + 外壳」两层标题栏。
+   ── ② 在总入口 iframe 里（课堂任务 task.html）→ 回 ../（接线仿真主页）并带 ?rank=1，
+         接线仿真启动时看到这个参数就把排位窗直接打开（用户要求「点返回就回到排位的界面」）。
+   ⚠️ 这里**必须用 location.replace，不能用 location.href**（2026-11-15 用户实测死循环）：
+      href 会往浏览器历史里再压一条 /wiring-lab/，而总入口左上角「← 返回」在工具自己退不动时
+      会走 history.back()；历史里一前一后正好是「课堂任务」和「接线仿真」，于是两页来回弹、返回彻底失效。
+      replace 只替换当前这一条，历史里不留多余条目，返回按键从此正常。 */
+function goTool() {
+  if (window.top === window && /^https?:$/.test(location.protocol)) { location.replace(SITE + '#wiring'); return true; }
+  /* ⚠️ 必须先用 URL 对象把 '../' 解析成绝对地址，再挂 ?rank=1。
+     直接写 location.replace(TOOL + '?rank=1')（即 '../?rank=1'）在 /wiring-lab/task/ 下会被
+     浏览器解析成站点根 '/?rank=1'（字符串拼接的相对路径歧义，2026-11-15 实测踩到）——
+     结果 iframe 里装进了总入口首页，用户看到的正是「标题写着接线仿真、内容却是桌面」的假嵌套。
+     new URL('../', '/wiring-lab/task/') = '/wiring-lab/'，再 set 查询串，稳。 */
+  let u;
+  try {
+    u = new URL(TOOL, location.href);
+    u.searchParams.set('rank', '1');
+  } catch (e) {
+    location.replace(TOOL);
+    return true;
+  }
+  location.replace(u.href);
+  return true;
+}
 /* 回总入口首页：嵌在 iframe 里必须先请外层换页。直接改 location 会把总入口整页装进 iframe
    （= 用户说的「冗余首页」），所以这里优先走总入口的接口，够不着才退化成跳转。 */
 function goPortalHome(hash) {

@@ -125,11 +125,12 @@
     return d;
   }
   function hueOf(p) { return hashOf(String(p.id) + String(p.name)); }
-  /* 票据上的点券数字（装饰），同一个人每次一样，不闪 */
+  /* 票据上的点券数字（装饰），同一个人每次一样，不闪。
+     课堂幸运分口径：1~10 分区间（用户 2026-11-15 定），1+(d%10) 全覆盖、绝无 11。 */
   function scoreOf(p) {
     var d = 0, s = String(p.id);
     for (var i = 0; i < s.length; i++) { var c = s.charCodeAt(i) - 48; if (c >= 0 && c <= 9) d = (d * 31 + c) % 997; }
-    return 5 + (d % 7);
+    return 1 + (d % 10);
   }
 
   function avatarHTML(p) {
