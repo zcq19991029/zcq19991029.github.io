@@ -73,7 +73,11 @@ main{padding-top:16px}
 :root[data-hx-mode="dark"]{
   --card: rgb(22 29 43 / var(--hx-a, 1));
   --card2: rgb(28 37 54 / var(--hx-a, 1));
-  --glass-card: rgb(12 15 20 / calc(var(--hx-a, 1) * .56));
+  /* 2026-11-17 与使用说明页同一条口径：文档类页面的玻璃用**白雾**，不用黑纱。
+     原来这里是 rgb(12 15 20 / .56) 在加黑，深色壁纸上暗部细节全丢，用户看到的是一块糊。
+     公式：白 × (--hx-a × .12) → 150 最透 .06 / 100 默认 .12 / 0 最实 .24。
+     别推广到功能页（刷题、排课那些），那边要保持加黑的可读性。 */
+  --glass-card: rgb(255 255 255 / calc(var(--hx-a, 1) * .12));
 }
 html.hx-bg .card,
 html.hx-bg .plat,

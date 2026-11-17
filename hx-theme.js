@@ -29,17 +29,13 @@
     // 2026-11-04 深夜用户定：背景只留三档 —— 无 / 极光动态（新的全站默认）/ 自己上传。
     // 原来的小熊、吉伊卡哇、猫耳、晨雾、海湾、暮光、极光渐变**全部下架**（原话「其他的背景删除」）。
     //
-    // 极光是**视频**壁纸（用户给的哲风壁纸 4K 绿色极光，雪山星空）：
-    //   · 站上只拿得到 960×540 的预览版（4K 原片要登录），所以用它；
-    //   · 用「正放 + 倒放」拼成 10s 无缝循环（620KB），首尾帧完全相同，看不出接缝；
-    //   · `bg/aurora.jpg` 是海报帧，视频解码好之前先把这一帧铺上，避免黑屏闪一下；
-    //   · 省电模式（hx-lite）和系统「减少动态效果」只显示海报帧，不播视频（一体机省 GPU）。
-    // mirror：这条片子是「正放 5 秒 + 倒放 5 秒」拼的（ffprobe 抽帧验证过：第 f 帧与第 299-f 帧
-    // 几乎完全相同，平均差 1.30，而相邻帧平均差 3.10）。倒放那半段就是用户说的「播放完再倒放一遍」，
-    // 所以播放层只取前一半（0～5s）当循环周期，靠交叉淡入接回开头 —— 见 bgTick()。
-    // 2026-11-17：视频壁纸停用（见 bgNoVideo 开头那行 return true），这一项现在放的是静态帧
-    // aurora.jpg，名字里不能再写「动态」；video 字段留着备恢复，平时不会被读到。
-    aurora: { name: '极光', video: 'bg/aurora.mp4', poster: 'bg/aurora.jpg', op: 100, mirror: 1 },
+    // 极光：**静态图**（bg/aurora.jpg，960×540，30 KB）。
+    // 2026-11-17 视频壁纸整体删除（用户原话「视频背景功能删除　我们只用自己的静态图」）——
+    // 原来这里放的是 bg/aurora.mp4（620 KB，正放+倒放拼的无缝循环，双 video 交叉淡入），
+    // 那条路唯一的优点是有流动感，代价却是：解码失败 / 自动播放被拦 / 网络没下完就变一块黑，
+    // 还要 620 KB 和一路持续解码。现在退回静态帧，靠 motion:1 挂 hx-bg-mo 的纯 CSS 柔光呼吸，
+    // 观感上仍然「在动」，但零解码、零黑屏、零下载。
+    aurora: { name: '极光', img: 'bg/aurora.jpg', motion: 1, op: 100 },
     custom: { name: '自己的图', op: 70 }
   };
   // VER 4（2026-11-04 深夜）：背景项合并成上面三档，默认改成极光视频。
@@ -102,23 +98,31 @@
     //   暂停了，观感一致）。代价是「壁纸在 iframe 里又画了一遍」，但这幅画和总入口是同一张、同位置，
     //   肉眼看不出来；不这么做的话深色工具页就只有一片白。
     // 浅色仍铺自己的浅色底（见下面注释），所以只对深色生效。
-    st.textContent = 'html.hx-embedded[data-hx-mode="dark"]{background-color:var(--hx-page,#000)!important;background-image:none!important}'
+    st.textContent =
+      /* ① 深浅通用：嵌入页**只要有壁纸**，就让 body 透明、把 --hx-img 铺到 body::before 上。
+         2026-11-17 修用户报的「很多工具浅色主题没背景」：原来下面这段只有
+         `[data-hx-mode="dark"]` 一个分支，而工具页（刷题/考勤/排课/单片机/接线仿真……）
+         绝大多数**不引 hx-theme.css**（那条 html.hx-bg body::before 在 CSS 里），
+         所以浅色下整个 iframe 里没有任何一层在画壁纸 —— 白底一片，壁纸凭空消失。
+         深色之所以正常，纯粹是因为这里给它补了一份。现在把壁纸这部分从深浅分支里提出来，
+         用 .hx-bg 当闸门（选了壁纸才铺，没选壁纸的页面行为完全不变）。 */
+      'html.hx-embedded.hx-bg body{background-color:transparent!important;background-image:none!important}'
+      /* 每个属性都带 !important，因为好几个工具页自己就占着 body::before：
+         · 排课 `body::before{inset:-20%;z-index:0;radial-gradient;background-repeat:repeat}` —— 不压它，壁纸会被瓦片平铺；
+         · 小组加分 `body::before{display:none}` —— 只改 background-image 是不够的，伪元素根本不渲染
+           （2026-11-17 差点又踩一次：测试只查 backgroundImage 会假绿，必须同时查 content 和 display）；
+         · 课程进度 `body.teacher-ui::before` —— 特异性要够高才盖得住。
+         所以这里给全套：content / display / position / inset / z-index / background 简写 / opacity。 */
+      + 'html.hx-embedded.hx-bg body::before{content:""!important;display:block!important;'
+      + 'position:fixed!important;inset:0!important;z-index:-1!important;pointer-events:none!important;'
+      + 'background:var(--hx-img) center / cover no-repeat!important;background-image:var(--hx-img)!important;'
+      + 'opacity:var(--hx-bgo,1)!important}'
+      /* ② 深色专用兜底：**没有壁纸时**也要把白底刷成 --hx-page(#000)。
+         工具页自带的白底 + 深色主题的浅色文字 = 看不清，这条是那次事故的修法，别动。 */
+      + 'html.hx-embedded[data-hx-mode="dark"]{background-color:var(--hx-page,#000)!important;background-image:none!important}'
       + 'html.hx-embedded[data-hx-mode="dark"] body{background-color:transparent!important;background-image:none!important}'
-      + 'html.hx-embedded[data-hx-mode="dark"] body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;'
-      + 'background:var(--hx-img) center / cover no-repeat;opacity:var(--hx-bgo,1)}'
-      // 视频层照旧挡掉（iframe 里一个 video 都不建，这条是防「旧缓存脚本 + 新样式」混搭时漏出来）。
-      // 2026-11-13：**动效层 .hx-bgmo 从这里移出去了**。原来它和视频一起被 display:none 关掉，
-      // 于是标准模式下的极光背景在子工具里是一张死图 —— 用户报的「打开标准模式，子工具里背景也不动」
-      // 一半是这条、另一半是 apply() 里根本没调 bgMotion()（两处一起修，缺一个都不动）。
-      + 'html.hx-embedded .hx-bgvid-wrap{display:none!important}'
-      /* 2026-11-16 用户报「极简模式有壁纸、标准模式没有」（截图两张）。
-         嵌入的工具页**永远不建视频层**，所以海报帧就是它唯一能画的壁纸 —— 而 hx-vidlive 那条
-         `html.hx-vidlive body::before{background-image:none!important}` 一旦残留，壁纸就整块消失，
-         剩下的只有 html 的 --hx-page 纯黑，观感就是「标准模式背景没了」。
-         这里把海报钉死：只要 hx-bg（选了壁纸），嵌入页的 body::before 必须画 --hx-img，
-         与有没有 hx-vidlive 无关。极简/标准两档因此完全一致（差别只在 .hx-bgmo 动效层）。
-         --hx-img 是 none 时这条等于没写，没有副作用。 */
-      + 'html.hx-embedded.hx-bg body::before{background-image:var(--hx-img)!important}';
+      // ③ 浅色不刷底色：壁纸 opacity<100 时要透出的是工具页自己那层浅灰（各页调过，别统一成 --hx-page）
+      + 'html.hx-embedded .hx-bgvid-wrap{display:none!important}';
     (document.head || document.documentElement).appendChild(st);
 
     // ── 嵌入时的背景动效层样式（2026-11-13）─────────────────────────────
@@ -210,9 +214,7 @@
       + 'background:var(--hx-img) center / cover no-repeat;opacity:var(--hx-bgo,1)}'
       // 深色模式压暗：和 hx-theme.css 里同一条 scrim，壁纸太亮时把整页压回来。
       // 浓度跟 --hx-scrim 走（apply 里按 bgo 算）：bgo=100 时 = 0，背景原图直出、不再蒙灰。
-      + ':root[data-hx-mode="dark"].hx-layer body::before{background-image:linear-gradient(rgba(8,8,10,var(--hx-scrim,.38)),rgba(8,8,10,var(--hx-scrim,.38))),var(--hx-img)}'
-      // 视频播放中：海报帧层让位给视频（否则 z-index:-1 的海报把 -2 的视频盖住）
-      + 'html.hx-vidlive body::before{background-image:none!important}';
+      + ':root[data-hx-mode="dark"].hx-layer body::before{background-image:linear-gradient(rgba(8,8,10,var(--hx-scrim,.38)),rgba(8,8,10,var(--hx-scrim,.38))),var(--hx-img)}';
     (document.head || document.documentElement).appendChild(ls2);
   })();
 
@@ -571,107 +573,30 @@
   //   · 预设背景本身就是 1080p 级 JPEG，直接用；
   //   · 不再有任何 blur，`--hx-img` 指向真图，缩小/放大都不会出现「糊→清」的跳变。
   // 想要背景淡一点，用外观面板的「背景透明度」（--hx-bgo），那才是用户要的那根滑杆。
-  // ── 动态背景（视频壁纸，2026-11-04 深夜）──────────────────────────────
-  // 用户：「所有账号背景默认改为这个动态背景」。三条硬规矩：
-  //   ① 省电模式（hx-lite）或系统「减少动态效果」→ 只留海报帧，不播视频（一体机省 GPU）；
-  //   ② 切到后台标签页 → 暂停；回到前台 → 续播（教室里同时开十几个标签页很常见）；
-  //   ③ 打开工具（body.tool，背景被 iframe 完全盖住）→ 暂停，由 index.html 的 show() 调 bgPause 控制。
-  // 元素插成 body 第一个孩子、z-index:-2：永远在内容、水印、深色 scrim 的下面。
+  // ── 背景层（2026-11-04 建视频壁纸 → 2026-11-17 整体改成静态图）──────────────
+  // 现在只剩一条链路：--hx-img 交给 body::before 铺（cover + --hx-bgo 透明度），
+  // 动态素材预设（极光）额外挂一层纯 CSS 的 .hx-bgmo 柔光呼吸。
+  // 原视频方案的三条硬规矩（省电只留海报 / 切后台暂停 / 打开工具暂停）随视频一起作废。
   //
-  // ── 2026-11-04 深夜重写（两个用户报障）──────────────────────────────────
-  // 【报障 A：手机上打开首页直接变成全屏视频播放器，退不掉】
-  //   根因不是 controls（本来就没设），是**背景层太"真"**：
-  //     ① #hx-bgvid 没有 pointer-events:none（样式串里只有 z-index），手机上手指点在/长按在
-  //        这块铺满视口的 video 上，Safari 与部分国产内核当成"用户点了媒体"，弹原生控件、进而接管整页；
-  //     ② 没有 disablepictureinpicture / controlslist / x5-* 属性，微信、QQ 浏览器的 X5 内核会自作主张
-  //        把 <video> 提升成原生播放器（顶部标题栏 + 中间 16:9 + 底部进度条，正是用户截图那个样子）。
-  //   修法两条并行：
-  //     · 样式补 pointer-events:none / z-index:-2 / touch-action:none / user-select:none；
-  //       元素补齐 controls=false、disablePictureInPicture、controlslist、x5-video-player-type=h5-page 等；
-  //     · **移动端根本不建 <video>**（见 bgNoVideo()）—— 没有元素就没有控件可接管，这是治本的那条。
-  //       手机只剩海报帧 bg/aurora.jpg（31KB）铺满，视觉几乎一样，还省掉 634KB 的 h264 和一路解码。
-  // 【报障 B：「播放完 再倒放一遍 不丝滑 没有无缝衔接」】
-  //   ffprobe/ffmpeg 逐帧验证过：aurora.mp4 是「正放 150 帧 + 倒放 150 帧」拼的
-  //   （第 f 帧与第 299-f 帧的平均灰度差 1.30，相邻帧却是 3.10；f149 与 f150 差 0.11 = 同一帧），
-  //   所以那半段倒放是**素材里就有的**，用户看到的就是这个"来回摆"。
-  //   播放层不再整段放 10 秒：只取前一半（0～5s，即 mirror 标志 → loopEnd = duration/2），
-  //   到 4.2s 开始双 video 交叉淡入，接回**开头**，于是永远朝同一个方向流动。
-  //   顺带解决原生 loop 的接缝（同一帧被重复/跳过，会看到一顿）：淡入的 0.7s 里两路叠着，
-  //   接缝被渐变彻底盖掉。
-  //   两路复用同一个 src（浏览器共享缓存，不会多下一次）。
-  var BG_FADE = 700, BG_LEAD = 0.8;         // 淡入时长（和 CSS transition 对齐）/ 提前多少秒换路
-  var bgVids = [], bgCur = 0, bgWant = false, bgTick = null, bgFading = false, bgFadeAt = 0;
-  var bgLoopEnd = 0, bgHalf = false, bgPosterUrl = '';
-  // bgWantLive：按当前设置「这个页面该不该有视频壁纸」（apply() 每轮重算）。
-  // 注意它回答的是「该不该」，不是「有没有」—— 真正挂不挂 hx-vidlive 还要看视频出帧了没有，
-  // 见 bgAnyFrame() / bgSyncLive()（2026-11-16 修「标准模式没背景」）。
-  var bgWantLive = false;
-  // bgHold：外面（总入口 show()）要求的「背景先别播」。2026-11-06 修 bug：这个状态原来不存在，
-  // bgPause(true) 只是把 bgTick 清掉，于是之后**任何一次 apply()**（改主题、storage 事件、
-  // 系统深浅色切换、跨 820 断点）走到 bgVideo() 的「同 src」分支时看到 !bgTick，就又把视频
-  // 恢复播放了；visibilitychange 回来更是无条件 bgPause(false)。表现：打开工具后，父页面（总入口）
-  // 那层背景视频被反复唤醒/暂停/回卷 —— 它正好垫在总入口 52px 顶栏后面（--bar 85% 白 + 15% 透出），
-  // 顶栏亮度就跟着一明一暗地跳，用户看到的就是「刷题页顶部导航条狂闪」（iframe 里的内容其实是稳的）。
-  var bgHold = false;
+  /* ── 2026-11-17：视频壁纸功能整体删除（用户原话「视频背景功能删除」「死代码也删除」）──
+     删掉的东西：双 <video> 交叉淡入（bgMake / bgSwap / bgStep / bgRun / bgStopAll / bgDrop）、
+     620 KB mp4 的延后加载（bgVidReady）、820px 断点降级、自动播放被拒的降级、
+     总入口开工具时的 bgPause / bgHold，以及配套的 .hx-bgvid-wrap 样式注入。
+     为什么删：它是全站唯一「能不能出画面看运气」的东西 —— 解码失败、自动播放被拦、
+     网络没下完都会变成一块黑（2026-11-16 那次「标准模式没背景」正是这么来的）；
+     还要 620 KB 流量加一路持续解码。而用户自己用的是上传的静态图，这条路径根本用不到。
+     现在所有背景一律走 body::before 的 --hx-img（静态图），极光预设用 bg/aurora.jpg。 */
 
-  // 移动端 / 触屏 / 省电 / 减少动效 → 一个 video 都不建。
-  // 判据（无 hover 的粗指针 + 常见移动 UA）：故意不用「有粗指针就关」，
-  // 因为带触摸屏的笔记本、教室一体机也有 (pointer:coarse)，那些机器该正常播；
-  // 加上 (hover:none) 才能把「真的只能摸」的设备和「能摸也能用鼠标」的设备分开。
-  // 2026-11-06：**820px 断点从这条里拿掉了**。原来它和 bgNarrow() 混在一起，
-  // 跨一次断点就 bgDrop()（销毁两路 video）再跨回来 bgMake()（重建 + 重新解码），
-  // 窗口宽度正好卡在 806~820（滚动条出现/消失就差 15px）时，翻一页题就来回跨 → 背景层反复重建。
-  // 现在窄屏只「暂停 + 靠 CSS display:none 藏起来」（样式里本来就有这条），元素留着，回宽屏接着播，不跳。
-  function bgNoVideo() {
-    /* 2026-11-17 用户定（原话「视频背景功能删除是不是就解决了　我们只用自己的静态图」）：
-       **视频壁纸整条路径停用**，所有背景一律走静态图（body::before 的 --hx-img）。
-       理由：视频壁纸是全站唯一「能不能出画面看运气」的东西 —— 解码失败、自动播放被拦、
-       网络没下完，都会变成一块黑（上一轮 hx-vidlive 灭海报的事故就是这么来的）；
-       它还要 620 KB 流量和一路持续解码，而用户自己用的是上传的静态图，根本用不上。
-       这一行是唯一的开关：想在以后恢复，删掉它即可（下面全套逻辑都还在，没删代码）。
-       副作用是好的：aurora 预设现在走 vidStill 分支 → 显示 bg/aurora.jpg 静态帧 +
-       hx-bg-mo 的纯 CSS 柔光呼吸，仍然「在动」，但零解码、零黑屏风险。 */
-    return true;
-    /* eslint-disable no-unreachable -- 以下是停用前的原判据，保留以便随时恢复 */
-    if (liteOn() || document.documentElement.classList.contains('hx-lite')) return true;
-    if (!window.matchMedia) return false;
-    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return true;
-    if (matchMedia('(pointer: coarse)').matches && matchMedia('(hover: none)').matches) return true;
-    var ua = navigator.userAgent || '';
-    if (/iPhone|iPod|Windows Phone|Android.+Mobile|IEMobile/i.test(ua)) return true;
-    /* iPad 走「桌面版网站」时 UA 是 Macintosh，只能靠触摸点数认出来。
-       2026-11-08 修误判：原来只判 `maxTouchPoints > 1 && /Macintosh/`，会把两类机器错杀 ——
-         ① 装了触摸屏的 Mac / 某些远程桌面环境（触摸点会报 10），被当成 iPad → 不建视频 → 背景静图；
-         ② Chromium headless（自动化测试）默认报 10 个触摸点，导致测试里根本建不出 video（本轮踩到）。
-       真 iPad 的特征是 **Macintosh UA + 触摸 + 指针是 coarse（无精确悬停）**；
-       带触屏的 Mac 指针仍是 fine（有鼠标/触控板），据此区分。 */
-    if (navigator.maxTouchPoints > 1 && /Macintosh/.test(ua)
-        && matchMedia('(pointer: coarse)').matches && matchMedia('(hover: none)').matches) return true;
-    return false;
-  }
-  // 窄屏（≤820px）：不建新元素、但已有的元素只暂停不销毁 —— CSS 那边 .hx-bgvid-wrap 会 display:none。
-  function bgNarrow() { return !!(window.matchMedia && matchMedia('(max-width: 820px)').matches); }
-
-  // ── 2026-11-05 六修：手机（及窄屏）背景「不会动」──
-  // 移动端不建 video（bgNoVideo，为了根治 Safari 弹原生播放器），只剩 --hx-img 一张静态海报帧，
-  // 用户反馈「手机上首页背景不会动」。这里补一层**纯 CSS 合成动画**（见 hx-theme.css 的 hx-bgmo-*）：
-  //   · html.hx-bg-mo body::before 自己做缓慢推近（ken burns）；
-  //   · body 里插一个 .hx-bgmo，两团极光柔光反向漂移。
-  // 只在「视频壁纸被降级成海报帧」时挂；省电一体机（hx-lite）不挂（那才是真的硬件吃力）。
-  // 2026-11-08 修「手机端背景不会动」：原来这里还认 prefers-reduced-motion，一票否决。
-  //   iOS 低电量模式会自动打开 reduce → 手机上背景永远是静图 —— 这正是用户报的障。
-  //   现在减动效**照挂**，由 hx-theme.css 那边把三条动画的周期拉长 3 倍（34s→102s 等），
-  //   画面仍然在缓缓呼吸，但没有快速位移，符合减动效的本意（见 css 里那段注释）。
-  // 全程零 video、零 rAF、零 blur、零 blend-mode：只有 transform / opacity 两个合成器属性在动。
+  // ── 静态壁纸的「缓慢呼吸」（纯 CSS 合成，零 video / 零 rAF / 零 blur）──────────
+  // 只给「素材本身就是动态的」预设挂（BG 表里标 motion:1 的那档，目前只有极光）；
+  // 用户自己上传的图不挂 —— 那张图是静的，动起来反而怪。
+  // 极简模式一票否决：那一档本来就是给老一体机兜底的。
+  // 动画本体在 hx-theme.css（.hx-bgmo 两团柔光 + body::before 的 ken burns），
+  // 另有下面 hx-bgmo-style 那份内联副本（全站只有总入口和刷题引了 CSS，其余工具页拿不到）。
   var bgMo = null;
-  // 2026-11-08：视频自动播放被拒时降级成 CSS 动画，只降一次（见 bgPlay 里的 catch）
-  var bgMoFallback = false;
   function bgMotion(on) {
     var r = document.documentElement;
-    // 2026-11-08：降级模式下（视频播不动）即使 on=false 也要挂着 ——
-    // 降级是「视频真的不动了，用动画顶上」，不能被下一次 apply() 顺手取消掉，
-    // 否则 Safari 上会出现「刚降级成功、切个主题又变回静图」的怪象。
-    var need = (!!on || bgMoFallback) && !liteOn() && !r.classList.contains('hx-lite');
+    var need = !!on && !liteOn() && !r.classList.contains('hx-lite');
     r.classList.toggle('hx-bg-mo', need);
     if (!need) {
       if (bgMo && bgMo.parentNode) bgMo.parentNode.removeChild(bgMo);
@@ -688,273 +613,6 @@
     document.body.insertBefore(bgMo, document.body.firstChild);
   }
 
-  function bgSetFade(v, k) {
-    if (!v) return;
-    v.style.setProperty('--hx-fade', k ? '1' : '0');
-  }
-  // 两路的上下关系用 z-index 显式定死（不能只靠 DOM 顺序：insertBefore 会让先插的那路反而在上面）。
-  // 都在 -1 以下：-2 = 正在淡入的那路（上），-3 = 垫在下面一直全不透明的那路（下）。
-  // 为什么不让两路同时半透明交叉：0.5 + 0.5 叠起来，合成后的不透明度只有 0.75，
-  // 中间那 0.35 秒整块背景会往页面底色沉一下 —— 每 5 秒一次的亮度脉冲，比接缝还显眼。
-  // 改成「新的从 0 淡上来、旧的始终满不透明垫底」，全程没有亮度凹谷，只有两帧叠影的柔化。
-  function bgSetZ(v, onTop) {
-    if (!v) return;
-    v.style.zIndex = onTop ? '-2' : '-3';
-  }
-  function bgStopAll() {
-    for (var i = 0; i < bgVids.length; i++) { try { bgVids[i].pause(); } catch (e) { } }
-  }
-  function bgDrop() {
-    bgStopAll();
-    if (bgTick) { clearInterval(bgTick); bgTick = null; }
-    for (var i = 0; i < bgVids.length; i++) if (bgVids[i].parentNode) bgVids[i].parentNode.removeChild(bgVids[i]);
-    // 2026-11-06 修 bug：原来只摘 video、不摘外层 wrap。跨 820 断点（或切背景）走到这里时，
-    // body 里那个 position:fixed inset:0 的空 wrap 会留下来；再跨回来 bgMake() 又插一个新的，
-    // 每切一次攒一层全屏 fixed 图层（实测拖 8 次窗口宽 821↔819 → 8 个空 wrap 堆着）。
-    // 老机器上这些层会拖慢合成；更重要的是它们让「背景层到底有没有」变得不可判定。
-    if (bgWrap && bgWrap.parentNode) bgWrap.parentNode.removeChild(bgWrap);
-    bgWrap = null;
-    bgVids = []; bgCur = 0; bgFading = false; bgLoopEnd = 0;
-    // 视频层整个没了，海报必须立刻回来（否则 bgWantLive 还是 true、类还挂着 → 纯黑）
-    document.documentElement.classList.remove('hx-vidlive');
-  }
-  var bgWrap = null;
-  /* ── 620 KB 极光视频不再抢首屏（2026-11-09）──
-     用户报「打不开了 / 登录都登录不了」时量的账：首页下行 1668 KB，其中 bg/aurora.mp4 占 620 KB
-     （桌面端唯一的大件）。它和登录、名单、分数一毛钱关系都没有，却和它们抢同一条带宽 ——
-     教室几十台机器一起开，视频把线吃满，app.js / hx_me 就排在后面慢慢等。
-     做法：首屏先只出海报帧（bg/aurora.jpg，30 KB，本来就已经由 apply() 写进 --hx-img 了，
-     视觉上就是同一帧画面），等 window.load 之后浏览器空闲了再把视频建出来续上。
-     用户看到的差别只有：开头零点几秒背景是静的，然后自然动起来 —— 慢网上反而是「先有画面」。
-     已经建过视频的不受影响（bgVids.length 非 0 就走原来的路），反复切主题也不会重建。
-     requestIdleCallback 不存在（Safari 老版）就退回 1.2 秒定时；再兜一个 10 秒硬上限，
-     防某个资源卡住导致 load 永远不来、背景一辈子是静图（10 秒是「慢网也基本 load 完了」的量级）。 */
-  var bgVidReady = false;
-  (function () {
-    function go() { if (bgVidReady) return; bgVidReady = true; try { apply(); } catch (e) { } }
-    function later() {
-      if (window.requestIdleCallback) requestIdleCallback(go, { timeout: 2500 });
-      else setTimeout(go, 1200);
-    }
-    setTimeout(go, 10000);                                 // 硬上限：load 不来也放行
-    if (document.readyState === 'complete') later();
-    else addEventListener('load', later);
-  })();
-  // ── 2026-11-16 修「标准模式有壁纸、标准模式看不到背景」的根因 ────────────────────
-  // 用户原话：「现在是极简模式有壁纸，标准没有」「标准下还是没透明看到背景」。
-  // 以前 apply() 的判据是「该有视频」→ 就挂 html.hx-vidlive，而 hx-vidlive 那条
-  //   html.hx-vidlive body::before{background-image:none!important}
-  // 会把**海报帧整层灭掉**（视频层 z-index -2 在海报 -1 下面，不灭海报就会盖住视频）。
-  // 问题在于「视频能不能出帧」是运行时才知道的：加载失败（实测 err 4 MEDIA_ERR_SRC_NOT_SUPPORTED）、
-  // 解码失败、被自动播放策略拦、网络还没下完 —— 这些情况下海报已灭、视频又是黑的，
-  // 页面上就只剩 html 那层纯黑（--hx-page #000）。卡片本身是半透明的（.56），
-  // 但透出来的是黑，观感就是「不透明 / 没有背景」。
-  // 极简模式为什么正常？bgNoVideo() 在极简下直接返回 true → 根本不建视频 → 海报留着。
-  //
-  // 现在改成「**视频真出帧了才收走海报**」：默认海报可见，等某一路 video 报 loadeddata/playing
-  // 并且 videoWidth > 0 的那一刻才挂 hx-vidlive；一旦 error/emptied 又自动退回海报。
-  // 好处是黑屏窗口彻底消失，慢网下也不会出现「先黑一块、再变色」。
-  function bgAnyFrame() {
-    for (var i = 0; i < bgVids.length; i++) {
-      var v = bgVids[i];
-      if (v && !v.error && v.readyState >= 2 && v.videoWidth > 0 && !v.paused) return true;
-    }
-    return false;
-  }
-  function bgSyncLive() {
-    var r = document.documentElement;
-    // 该有视频、并且真出了帧 → 收走海报；其余一切情况都留着海报
-    r.classList.toggle('hx-vidlive', !!(bgWantLive && bgAnyFrame()));
-  }
-
-  function bgMake() {
-    // 防御：万一还有旧的空 wrap（bgDrop 之前的代码路径），先摘掉再建
-    if (bgWrap && bgWrap.parentNode) bgWrap.parentNode.removeChild(bgWrap);
-    // 两路共用一个定位父层：--hx-bgo 挂在外层，交叉淡入只在内层动。见上面 style 那段注释。
-    bgWrap = document.createElement('div');
-    bgWrap.className = 'hx-bgvid-wrap';
-    bgWrap.setAttribute('aria-hidden', 'true');
-    for (var i = 0; i < 2; i++) {
-      var v = document.createElement('video');
-      // 第一路保留 #hx-bgvid 这个 id：外部（验收脚本、旧样式缓存）可能按它找元素
-      if (!i) v.id = 'hx-bgvid';
-      v.className = 'hx-bgvid';
-      v.setAttribute('aria-hidden', 'true');
-      // muted 必须在插入 DOM **之前**写好，否则移动端自动播放策略直接拒
-      v.muted = true; v.defaultMuted = true;
-      v.setAttribute('muted', '');
-      v.playsInline = true;
-      v.setAttribute('playsinline', ''); v.setAttribute('webkit-playsinline', '');
-      // 不让任何内核把这块背景画当成"可播放的媒体"（X5 / 部分国产内核的接管开关）
-      v.controls = false;
-      v.disablePictureInPicture = true;
-      v.setAttribute('disablepictureinpicture', '');
-      v.setAttribute('controlslist', 'nodownload nofullscreen noplaybackrate noremoteplayback');
-      v.setAttribute('x5-video-player-type', 'h5-page');
-      v.setAttribute('x5-video-player-fullscreen', 'false');
-      v.setAttribute('x5-playsinline', 'true');
-      v.setAttribute('tabindex', '-1');
-      // loop 交给 bgStep() 手动管：要在片尾之前换路，原生 loop 会先跳到 0 再淡，闪一帧
-      v.loop = false;
-      v.preload = 'auto';
-      bgSetFade(v, i === 0);
-      bgSetZ(v, i === 0);
-      bgWrap.appendChild(v);
-      bgVids.push(v);
-      /* 出帧/失败都重新判一次「要不要收海报」。四类事件缺一不可：
-         · loadeddata / playing —— 真正有画面了（收海报）
-         · error / emptied —— 加载或解码失败、被清空（还海报）
-         · seeked 不管：换路时会 seek，但那时画面已经有了，不需要动海报
-         注意 bgAnyFrame() 里还要求 !paused：暂停中的那一路不算「有画面在放」，
-         否则换路时旧路已 pause、新路还没出帧，会提前收掉海报露出黑块。 */
-      ['loadeddata', 'playing', 'error', 'emptied'].forEach(function (ev) {
-        v.addEventListener(ev, bgSyncLive, false);
-      });
-    }
-    document.body.insertBefore(bgWrap, document.body.firstChild);
-  }
-  // 换路：旧那一路保持满不透明垫在下面，新那一路叠在上面从 0 淡到 1。
-  // 淡到 1 之后旧的被完全盖住，这时再把它停下、透明度归零 —— 这一步在屏幕上不可见，
-  // 所以全程整块背景的合成 alpha 恒等于 1，既没有接缝一帧，也没有"亮度凹一次"的闪烁。
-  function bgSwap() {
-    var cur = bgVids[bgCur], nxt = bgVids[1 - bgCur];
-    if (!cur || !nxt) return;
-    bgSetZ(cur, false); bgSetZ(nxt, true);
-    // 2026-11-06 修 bug：待命那一路在上一轮收尾时已经 currentTime = 0 过了（见 bgStep），
-    // 这里再赋一次 0 会**再触发一次 seek**（Chrome 对相同值赋值也发 seeking），把已解码的帧
-    // 缓冲丢掉、等新帧（实测每轮换路都有一次 seeking + waiting）。弱网 / 老一体机上就是
-    // 每 4.3 秒一次的卡帧或黑帧，正好发生在它往上淡入的时候。没必要就别 seek。
-    try { if (nxt.currentTime > 0.05) nxt.currentTime = 0; } catch (e) { }
-    var p = nxt.play(); if (p && p.catch) p.catch(function () { });
-    bgSetFade(nxt, 1);
-    bgFading = true; bgFadeAt = Date.now();
-  }
-  function bgStep() {
-    if (!bgVids.length || document.hidden || bgWant === false) return;
-    var cur = bgVids[bgCur], nxt = bgVids[1 - bgCur];
-    if (!cur || !nxt) return;
-    if (!bgLoopEnd) {
-      var d = cur.duration;
-      if (!isFinite(d) || !d) return;          // 元数据还没到
-      bgLoopEnd = bgHalf ? d / 2 : d;
-    }
-    if (bgFading) {
-      if (Date.now() - bgFadeAt >= BG_FADE + 80) {
-        // 新的那一路已经满不透明、把旧的完全盖住了：这时停掉旧的、把它透明度归零并送回下层待命。
-        // 顺序很重要 —— 先归零再抬 z 会露出下一个下层，所以必须「旧的先降 opacity（已被盖住看不见）
-        // → 旧的挪到下层 → 新的升到上层」。
-        try { cur.pause(); cur.currentTime = 0; } catch (e) { }
-        bgSetFade(cur, 0); bgSetZ(cur, false); bgSetZ(nxt, true);
-        bgCur = 1 - bgCur; bgFading = false;
-      }
-      return;
-    }
-    if (cur.paused) return;
-    // 定时器被节流时可能一次跨过整段：直接强制换路，别让旧那一路自己撞到 duration 卡住
-    if (cur.currentTime >= bgLoopEnd - BG_LEAD || cur.currentTime >= bgLoopEnd) bgSwap();
-  }
-  function bgRun(on) {
-    if (!bgVids.length) return;
-    if (bgTick) { clearInterval(bgTick); bgTick = null; }
-    if (!on) { bgStopAll(); return; }
-    // 从暂停里回来时，主那一路可能正停在换路窗口边缘（甚至已经滑进片尾）。
-    // 先把时间拨回开头再起播：否则恢复的那一瞬间会先闪一次"倒放段"。
-    var curV = bgVids[bgCur];
-    if (curV && bgLoopEnd && curV.currentTime >= bgLoopEnd - BG_LEAD) { try { curV.currentTime = 0; } catch (e) { } }
-    for (var i = 0; i < bgVids.length; i++) {
-      // 换路窗口里被 bgPause 停过的话，两路都还在淡入淡出中间态，续播必须两路一起起 ——
-      // 只起主那一路会让另一路卡在中间的不透明度上，画面变成两层半透明叠着
-      if (i !== bgCur && !bgFading) continue;
-      (function (v) {
-        var p = v.play();
-        if (!p || !p.catch) return;
-        p.catch(function () {
-          /* ── 2026-11-08 修：Safari 上「背景视频没动」（用户实机报）──
-             原来这里 catch 里什么都不做，注释写「海报帧兜底」——但海报帧是**静图**，
-             用户看到的就是背景一动不动，而日志里一点痕迹都没有，极难排查。
-             Safari 的自动播放策略比 Chrome 严：桌面 Safari 在「低电量模式」、
-             「设置里关了自动播放」、「页面不是用户主动打开」等情况下会拒绝 play()，
-             而且只抛 Promise，不报错不弹提示。
-             现在拒绝就**自动降级成 CSS 合成动画**（和手机上同一套 hx-bgmo），
-             背景照样在缓缓动，不再是一张死图。用户完全不用管是视频还是动画。
-             注意只降级一次（bgMoFallback 打标），避免播放被反复拒时反复建元素。 */
-          if (!bgMoFallback) {
-            bgMoFallback = true;
-            try {
-              document.documentElement.classList.add('hx-bg-mo');
-              bgMotion(true);
-            } catch (e) { }
-          }
-        });
-      })(bgVids[i]);
-    }
-    // 不用 rAF：每帧读 currentTime 纯白烧 CPU。150ms 一次足够（换路窗口 0.8s ≈ 5 次采样）
-    bgTick = setInterval(bgStep, 150);
-  }
-  function bgVideo(src, poster, half) {
-    var wasSrc = bgVids.length ? bgVids[0].getAttribute('data-src') : '';
-    bgWant = !!src;
-    if (!src) { bgPosterUrl = ''; bgDrop(); return; }
-    if (!document.body) { // 脚本在 <head> 里执行：等 body 出来再插，插完重跑一次 apply
-      addEventListener('DOMContentLoaded', function () { apply(); });
-      return;
-    }
-    bgPosterUrl = poster ? root + poster : '';
-    bgHalf = !!half;
-    if (bgNoVideo()) { bgDrop(); return; }   // 移动端：--hx-img 由 apply() 设成海报帧
-    // 窄屏且还没建过：先不建（省一次 620KB 下载），等窗口放宽了再建。
-    // 已经建好的绝不销毁 —— 见 bgNarrow() 上面那段：销毁/重建正是跨断点时背景跳变的来源。
-    if (!bgVids.length) {
-      if (bgNarrow()) { bgDrop(); return; }
-      // 首屏阶段先不建：只留海报帧，等 load + 空闲再建（见上面 bgVidReady 那段）
-      if (!bgVidReady) { bgDrop(); return; }
-      bgMake();
-    }
-    if (wasSrc === src) {
-      // 同一张片子：只在被降级掉/暂停掉之后重新起播，不重置淡入状态 ——
-      // apply() 会因为改主题色、改透明度被反复调用，每调一次就 reset 会让背景一直闪
-      // 2026-11-06：bgHold（外面要求暂停，比如总入口开着工具）时绝不能自己起来，见 bgHold 那段注释。
-      // 窄屏同理：元素留着（CSS 已经 display:none），只把解码停掉，跨断点回来就能接着播。
-      if (bgHold || bgNarrow()) { bgStopAll(); if (bgTick) { clearInterval(bgTick); bgTick = null; } return; }
-      if (!bgTick) bgRun(true);
-      return;
-    }
-    for (var i = 0; i < 2; i++) {
-      var v = bgVids[i];
-      v.setAttribute('data-src', src);
-      v.poster = bgPosterUrl;
-      v.src = root + src;
-    }
-    bgLoopEnd = 0;
-    bgCur = 0; bgFading = false;
-    bgSetFade(bgVids[0], 1); bgSetFade(bgVids[1], 0);
-    // 暂停态（工具开着）或窄屏：元素照样备好，等条件满足再起播
-    if (bgHold || bgNarrow()) { bgStopAll(); return; }
-    bgRun(true);
-  }
-  function bgPause(on) { // index.html 打开工具时调用：背景被 iframe 盖住就别再解码了
-    // 状态必须先记下来 —— 即使此刻视频还没建（bgVids 为空），后面 apply() 建出来也不能自己播。
-    bgHold = !!on;
-    if (!bgVids.length) return;
-    // 两路都要停：只停主那一路的话，交叉淡入窗口里正好被调到的那条会继续解
-    if (on) bgRun(false);
-    else if (bgWant && !bgNoVideo() && !bgNarrow()) bgRun(true);
-  }
-  addEventListener('visibilitychange', function () {
-    if (!bgVids.length) return;
-    // 2026-11-06：原来回来那句是无条件 bgPause(false)，把 show() 之前设的暂停也一起解掉了，
-    // 于是工具还开着、父页面背景视频却在 iframe 背后恢复播放（白烧一路 4K 解码，还顶着顶栏）。
-    if (document.hidden) bgStopAll(); else if (!bgHold) bgPause(false);
-  });
-  // 视口跨过 820px（手机横竖屏切换、开发者拖窄窗口）时重新判一次：该降级的降级成海报帧、
-  // 该恢复的恢复成视频。只挂在那一根断点上，不会因为普通 resize 反复跑 apply。
-  (function () {
-    if (!window.matchMedia) return;
-    var mq = matchMedia('(max-width:820px)'), last = mq.matches;
-    var on = function () { if (mq.matches !== last) { last = mq.matches; apply(); } };
-    if (mq.addEventListener) mq.addEventListener('change', on); else if (mq.addListener) mq.addListener(on);
-  })();
-
   function apply() {
     // get() 现在读的是全站唯一一份外观（VER 8）：顶栏、首页、工具页、工具 iframe 天生同一套，
     // 不会再有「上面深色条、下面浅色页」或者「首页换了颜色、工具里还是老的」这种拼接感。
@@ -970,29 +628,12 @@
     // 嵌入时不挂：iframe 里的背景由 hx-embedded 那套规则自己铺（见文件上方），
     // 两边都铺就是双背景，而且 .hx-layer 的 scrim 会和嵌入那条叠成两层灰。
     r.classList.toggle('hx-layer', !embedded && s.bg !== 'none');
-    // 视频壁纸：图层面自己播。--hx-img 给海报帧而不是 'none'：
-    //   · 视频解码好之前 body::before 先铺海报，避免黑屏闪一下；
-    //   · 接线仿真这类「画布不透明的工具」靠读 --hx-img 拿到背景图地址（theme.js 的 hxLook 通道），
-    //     给 'none' 它就拿不到，背景永远是纯色 —— 用户说的「背景没东西」一半是这条。
-    //   · 视频真正在播时 body::before 会整层藏起来（hx-vidlive），不会盖住视频。
-    var isVid = !!(b && b.video) && s.bg !== 'none';
+    // 2026-11-17 视频壁纸删除后，--hx-img 就是那张静态图本身（极光预设现在也带 img 了）。
+    // isMo 只回答一件事：「这条预设的素材本来是动态的吗」→ 决定要不要挂 hx-bg-mo 的呼吸动效。
+    // 注意 --hx-img 必须给真地址、不能给 'none'：接线仿真这类「画布不透明的工具」靠读
+    // --hx-img 拿到背景图地址（theme.js 的 hxLook 通道），给 none 它背景就永远是纯色。
+    var isMo = !!(b && b.motion) && s.bg !== 'none';
     var img = s.bg === 'custom' ? 'url("' + ls(IMG) + '")' : b.img ? 'url("' + root + b.img + '")' : b.css || 'none';
-    if (isVid && b.poster) img = 'url("' + root + b.poster + '")';
-    // 移动端 / 省电 / 减少动效：不播视频，但**背景照样得有** —— 把海报帧交给 --hx-img，
-    // 走 body::before 那条现成的「铺满 cover + --hx-bgo 透明度」链路，观感和视频帧一模一样，
-    // 且手机不需要下载 634KB 的 mp4。这条是「手机跳成播放器」的治本修法。
-    // 窄屏（≤820）也要给海报：视频元素此时被 CSS display:none 藏了，不给海报就只剩页底色。
-    var vidStill = isVid && (bgNoVideo() || bgNarrow());
-    if (vidStill && b.poster) img = 'url("' + root + b.poster + '")';
-    // 视频真的在播：把 body::before 的海报帧整层藏起来 —— 它在 z-index:-1、视频层(-2)之上，
-    // 不藏会把视频整个盖住。视频停了/降级了（手机、省电）再放回来当静图。
-    // 嵌入时不挂：iframe 里根本不建视频（见 apply 末尾 embedded 分支），挂了只会把上面那条
-    // 嵌入专用的海报规则一起点名灭掉（html.hx-vidlive body::before{background-image:none!important}），
-    // 工具页就又回到白底了。
-    // 2026-11-16 改判据：以前是「该有视频」就挂 hx-vidlive（= 立刻灭掉海报），
-    // 现在要求视频**真的出帧**了才挂，否则保留海报当兜底（详见 bgAnyFrame 上方那段注释）。
-    bgWantLive = !!(isVid && !vidStill && !embedded);
-    r.classList.toggle('hx-vidlive', !!(bgWantLive && bgAnyFrame()));
     // --hx-a：玻璃浓度乘数（各条玻璃配方的 alpha 都乘它）。
     // 2026-11-05 随通透度滑杆翻转语义：100（最透）= 1，正好是 2026-11-04 定稿的那套清透玻璃；
     // 往下调卡片变实：0 = 2，各配方 alpha × 2 后被浏览器钳到 1，整卡变成实色（保可读的兜底端）。
@@ -1026,23 +667,11 @@
       '--hx-ink': m === 'dark' ? '#f5f5f7' : '#1d1d1f' };
     for (var k in vars) r.style.setProperty(k, vars[k]);
     r.classList.remove('hx-bgblur'); // 旧版挂的「预糊图」标记，现在没有任何样式依赖它，清掉防止老缓存残留
-    // 嵌入的工具不建自己的视频（一个 iframe 一份 mp4，几个工具同时开就炸）。
-    // 但**背景得动**（2026-11-13 修用户报障「标准模式下，极光背景在子工具里不动」）：
-    // 用同一套 CSS 合成动画（bgMotion → .hx-bgmo 两层柔光 + body::before 的 ken burns）顶上，
-    // 成本只有 transform / opacity 两个合成器属性，比视频便宜一个数量级。
-    if (!embedded) {
-      bgVideo(isVid ? b.video : null, isVid ? b.poster : null, isVid && b.mirror);
-      // 海报帧兜底时（手机 / 窄屏）补一层 CSS 合成动画，不然手机上的背景是一张不动的静图。
-      // 只认「视频壁纸被降级」这一种：普通图片壁纸、纯色背景保持原样，不动用户选好的画面。
-      bgMotion(vidStill && !!b.video);
-    } else {
-      // 嵌入时只有两个条件同时成立才挂动效：
-      //   · 选的是动态壁纸（有 video 的那档，目前就是极光）；
-      //   · 深色。浅色嵌入页本来就不铺壁纸（见文件上方 hx-embedded 那段：浅色让工具铺自己的浅底），
-      //     忽然多出两团极光等于改了它原本的样子 —— 不做没被要求的改动。
-      // 极简模式（hx-lite）照旧一票否决，判在 bgMotion 里面：极简下所有发热耗电的内容都舍弃。
-      bgMotion(m === 'dark' && isVid && !!b.video);
-    }
+    // 背景的「缓慢呼吸」：只给动态素材预设挂（目前就是极光），用户自己上传的静态图不挂 ——
+    // 那张图是静的，让它慢慢缩放反而怪。极简模式由 bgMotion 内部一票否决。
+    // 2026-11-17 起嵌入页和独立页同一套判据：浅色嵌入页现在也铺壁纸了（见文件上方
+    // hx-embedded 那段），动效自然跟着一起开，不再有「深色才动」的分叉。
+    bgMotion(isMo);
     var meta = document.querySelector('meta[name="theme-color"]'); if (meta) meta.setAttribute('content', m === 'dark' ? '#000000' : '#f5f5f7');
     try { ls('zfz-practice-theme', m); ls('wanxiu-paike-theme', m); ls('ui.theme', JSON.stringify(m)); } catch (e) { }
     for (var i = 0; i < subs.length; i++) try { subs[i](s, m); } catch (e) { }
@@ -1502,7 +1131,9 @@
     prefSync: prefSync,
     // 像素方块「正在载入」药丸（2026-11-04）：见文件上方 loadPill 那段注释。
     // HXTheme.loadPill(host, '正在载入…') / loadPill('正在载入…')（铺满整页）；返回 { el, text(), done() }
-    loadPill: loadPill, bgPause: bgPause,
+    loadPill: loadPill,
+    // 2026-11-17：bgPause 随视频壁纸一起删了。总入口那句 `if (HXTheme.bgPause) …` 带守卫，
+    // 取到 undefined 就是空操作，不会报错（也让旧缓存的 index.html 混搭新脚本时不炸）。
     // 极简 / 标准开关（2026-11-09 用户要的按钮，2026-11-11 改名 + 定默认）：
     // 不传参 = 读当前是不是极简；传 '1' / '0' = 标准模式 / 极简模式（写进本地，这台机器记住）。
     // 2026-11-11 用户定：「模式自动不需要给用户切换，默认极简」——不再有 'auto' 档，
