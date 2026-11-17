@@ -8039,40 +8039,79 @@ async function electronicEditExam() {
      · tool:'exam' 让「按工具指定」里给考试选的那套优先；
      · json:true 让 hx-ai.js 先剥 ```json 围栏，我们再自己兜一层解析；
      · 没配模型 / 没填 Key 时按钮置灰并说清楚去哪配，不静默失败。 */
-let eAiLoading = null;
+let eAiLoading = null, eAiFailed = false;
 function eLoadAI() {
   if (window.HXAI) return Promise.resolve(window.HXAI);
   if (!eAiLoading) {
     eAiLoading = new Promise(resolve => {
       let s;
       try { s = document.createElement('script'); s.src = '../hx-ai.js'; }
-      catch (e) { eAiLoading = null; return resolve(null); }
-      s.onload = () => resolve(window.HXAI || null);
-      s.onerror = () => { eAiLoading = null; resolve(null); };
+      catch (e) { eAiLoading = null; eAiFailed = true; return resolve(null); }
+      s.onload = () => { if (!window.HXAI) eAiFailed = true; resolve(window.HXAI || null); };
+      /* 失败时把 eAiLoading 清掉 = 允许下次再点一次重试；不设个「已经失败过」的旗标的话，
+         界面会永远停在「正在读取 AI 设置…」，用户以为卡死。 */
+      s.onerror = () => { eAiLoading = null; eAiFailed = true; resolve(null); };
       document.head.appendChild(s);
     });
   }
   return eAiLoading;
 }
-const E_AI_MSG = '先在首页『AI 设置』里给『考试』这个工具选一个模型';
-function eAiState() {
+
+/* ── 2026-11-17 修「我配了 AI，考试还让我去设置」────────────────────────
+   两个真 bug：
+     ① **把「hx-ai.js 还没加载完」当成「没配置」**。第一次进批改台时 HXAI 还在路上，
+        eAiState() 立刻返回「去设置」，而且画出来的按钮不会自己恢复 ——
+        用户明明配好了，看到的却是让他再去配一遍。（实测：eLoadAI 之前 ok:false，
+        同一毫秒之后 ok:true。）
+     ② **只认「按工具指定」里给考试选的那套**。`forTool('exam')` 其实会回落到文本默认，
+        但只要那套配置的 Key 挂在别的地方、或者用户只给刷题配过，就会误判成没配。
+   现在改成四步找，跟 hx-ai.js 内部 pick() 的口径对齐：
+     ① 考试单独指定的 → ② 全站文本默认 → ③ 任何一套带 Key 的 → ④ 都没有才报缺。
+   并且把「没加载完 / 加载失败 / 真没配」三种状态分开，界面不许再混为一谈。 */
+function eAiHasKey(H, id) {
+  try {
+    const f = H.hasKey || H.has;
+    return typeof f === 'function' ? !!f.call(H, id) : false;
+  } catch (e) { return false; }
+}
+function eAiPick() {
   const H = window.HXAI;
-  if (!H) return { ok: false, msg: E_AI_MSG };
   let p = null;
   try { p = H.forTool ? H.forTool('exam') : null; } catch (e) { p = null; }
-  let ok = false;
+  if (p && eAiHasKey(H, p.id)) return { profile: p, from: 'tool' };
+  /* forTool 已经会回落文本默认，但它回落来的那套可能没 Key —— 显式再走一遍 activeFor。 */
   try {
-    /* 老 API HXAI.has(id) 是按模型 id 查 Key，不是按工具名。这里把任务里约定的
-       HXAI.has('exam') 和更准确的「forTool('exam') + hasKey(profile.id)」都试一遍：
-       前者兼容测试桩/老版本，后者才是真实配置。 */
-    if (typeof H.has === 'function' && H.has('exam')) ok = true;
-    if (!ok && p && typeof H.hasKey === 'function') ok = !!H.hasKey(p.id);
-    if (!ok && p && typeof H.has === 'function') ok = !!H.has(p.id);
-  } catch (e) { ok = false; }
-  return {
-    ok, profile: p,
-    msg: ok ? '' : (p ? `首页 AI 设置里「${p.name || p.model || '这套模型'}」还没填 Key` : E_AI_MSG)
-  };
+    const t = H.activeFor ? H.activeFor('text') : null;
+    if (t && eAiHasKey(H, t.id)) return { profile: t, from: 'text' };
+  } catch (e) { }
+  /* 兜底：用户可能只给某一个工具配了一套，别的工具也该能用（同一把 Key）。 */
+  try {
+    const L = H.list ? H.list() : [];
+    const hit = L.filter(x => eAiHasKey(H, x.id))[0];
+    if (hit) return { profile: hit, from: 'any' };
+  } catch (e) { }
+  let n = 0;
+  try { n = (H.list ? H.list() : []).length; } catch (e) { n = 0; }
+  return { profile: p, from: 'none', count: n };
+}
+function eAiState() {
+  const H = window.HXAI;
+  if (!H) {
+    /* 还在加载 or 加载失败 —— 都**不许**说「去设置」 */
+    if (eAiFailed) return { ok: false, loading: false, from: 'fail', msg: 'AI 组件没加载出来（可能是网络断了一下），点这颗按钮重试一次' };
+    eLoadAI();   // 首次调用顺手把脚本拉起来
+    return { ok: false, loading: true, from: 'loading', msg: '正在读取 AI 设置…' };
+  }
+  const pick = eAiPick();
+  if (pick.from !== 'none') {
+    return { ok: true, profile: pick.profile, from: pick.from, msg: '', note: pick.from === 'any' ? '用「' + (pick.profile.name || pick.profile.model || '已配模型') + '」批改' : '' };
+  }
+  const p = pick.profile;
+  let msg;
+  if (p) msg = 'AI 设置里「' + (p.name || p.model || '这套模型') + '」还没填 Key，补上就能用';
+  else if (pick.count) msg = 'AI 设置里有 ' + pick.count + ' 套模型，但都没填 Key，补一个就能用';
+  else msg = '还没配 AI：首页「AI 设置」里加一套模型（填接口地址、模型名和 Key）';
+  return { ok: false, loading: false, from: 'none', profile: p, msg };
 }
 async function eAiChat(prompt) {
   const H = await eLoadAI();
@@ -8208,21 +8247,30 @@ async function subsElectronic(x) {
 
   function renderAll() {
     const ai = aiNow();
+    /* 「正在读取 AI 设置」和「没配」必须长得不一样：
+         · loading：按钮灰但写「读取中…」，底下一行灰字解释，**不画红色警告**，读完自己恢复；
+         · none / fail：才画那颗「AI 批改没开」的提示。
+       2026-11-17 之前一律画成「去设置」，用户配好了还以为没配上。 */
     app().innerHTML = `<header class="ex-h"><div class="eyebrow">批改 · ${E_ESC(exam.code)}</div><h1>${E_ESC(exam.title)}</h1><p>${E_ESC(SUBJECTS[exam.subject] || exam.subject)} · 共 ${paper.length} 题 · 满分 ${E_ESC(eFmtNum(full))} 分</p></header>
       <div class="eg-top">
         <div class="eg-stat">已批 <b id="egDoneN">0/${subs.length}</b> 份 · 未批 <b id="egLeftN">0</b> 份</div>
         <div class="row">
-          <button class="pri${ai.ok ? '' : ' off'}" id="egAi" ${ai.ok ? '' : 'disabled'} title="${E_ESC(ai.msg)}">AI 一键批改</button>
+          <button class="pri${ai.ok ? '' : ' off'}" id="egAi" ${ai.ok ? '' : 'disabled'} title="${E_ESC(ai.msg)}">${ai.loading ? '读取 AI 设置…' : 'AI 一键批改'}</button>
           <button id="egRel">${released ? '收起成绩' : '发布成绩'}</button>
           <button id="egCsv">导出 CSV</button><button id="egBack">返回</button>
         </div>
         <span class="eg-rel">${released ? '<b class="eg-on">学生已可查分</b>' : '成绩未发布 · 学生看不到分'}</span>
-        <span class="eg-msg" id="egAiState"></span>
+        <span class="eg-msg" id="egAiState">${E_ESC(ai.note || '')}</span>
       </div>
-      ${ai.ok ? '' : `<div class="warns eg-aihint">AI 批改没开：${E_ESC(ai.msg)}</div>`}
+      ${!ai.ok && !ai.loading ? `<div class="warns eg-aihint">AI 批改没开：${E_ESC(ai.msg)}</div>` : ''}
+      ${ai.loading ? '<div class="warns eg-aihint">正在读取 AI 设置…读到就会自动亮起来，不用刷新。</div>' : ''}
       <div class="eg-index">${subs.map((s, si) => `<button class="eg-chip" data-jump="${si}"><b>${E_ESC(s.name)}</b><span id="egChipT${si}">${E_ESC(eFmtNum(subTotal(s)))} 分</span></button>`).join('')}</div>
       <div id="egCards">${subs.length ? subs.map(cardHTML).join('') : '<div class="card"><p class="note">还没有人交卷。</p></div>'}</div>`;
     refreshTop();
+    /* 还在读取 → 读完自动重画一次，按钮自己亮，别让老师守着个灰按钮去手动刷新。
+       判断「是否还停在批改台」用 DOM 而不是某个全局变量：这页没有 ST，
+       而且老师可能已经切走了 —— 切走了再 renderAll() 会把人拽回来。 */
+    if (ai.loading) eLoadAI().then(H => { if (H && $('egAi')) renderAll(); }).catch(() => { });
     /* 保存/重批/评分/评语 */
     app().querySelectorAll('[data-save]').forEach(b => { b.onclick = () => saveCard(+b.dataset.save, b); });
     app().querySelectorAll('[data-reset]').forEach(b => { b.onclick = () => resetCard(+b.dataset.reset); });
@@ -8324,7 +8372,14 @@ async function subsElectronic(x) {
      每批 5~8 题（这里 6 题），一批一个 HXAI.chat；同一学生的题号唯一，[i] 才能对得上。
      解析失败只标这一批，不抛到整页。AI 给的分数标 by:'ai'，老师改了分数就变 by:'manual'。 */
   async function aiGrade(si, onlyI) {
-    const st = eAiState();
+    let st = eAiState();
+    /* 还没就绪（正在读 / 刚才加载失败）就再等一次，别一上来就把人打回「去设置」。 */
+    if (!st.ok && (st.from === 'loading' || st.from === 'fail')) {
+      eAiLoading = null; eAiFailed = false;
+      const H = await eLoadAI();
+      if (!H) return toast('AI 组件没加载出来（可能是网络），过一会儿再点一次');
+      st = eAiState();
+    }
     if (!st.ok) return toast(st.msg);
     const targets = [];
     subs.forEach((s, idx) => paper.forEach((q, i) => {
