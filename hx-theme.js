@@ -1573,4 +1573,345 @@
   }
 
   window.HXBusy = { begin: begin, end: end, run: run, tag: tag, count: function () { return tickers.length; } };
+  /* ── 药丸下拉：原生 <select> 的可视替身（2026-11-17 用户定）────────────────────
+     用户原话：「还有很多下拉选项卡没做成药丸那种风格 刷题那边是正常的 ……
+     请他就出现在下拉那边衔接上 然后也不用现在这么大比例」
+     为什么做成「一个增强器」而不是挨个改 95 处：95 个 select 分散在 13 个工具，
+     很多是 JS 动态生成的（attendance.js、ui-builder.js、排课 .room-sel），
+     逐个手写弹层 = 95 套定位/关闭/键盘逻辑，必然歪成 95 种样子 —— 这正是要防的。
+     三条铁律：
+       1. **原生 select 留在 DOM 里**（`visibility:hidden` 盖在按钮下面），只负责值。
+          用户点的是我们画的按钮，选中后 `sel.selectedIndex = i` + 派发 input/change，
+          所以各工具现有的 onchange / addEventListener('change') / sel.value 读**一行都不用改**。
+          用 visibility 而不是 opacity：opacity 会让 Tab 停在一个看不见的控件上，
+          而且 select 还在 flowed 里、正好用它自己的盒子撑出包装层的尺寸（不用 JS 量宽高）。
+       2. **按钮外观从原生 select 的 computed style 现场抄**（字体/颜色/背景/边框/圆角/内边距/对齐），
+          所以 95 个长相各不相同的下拉不用改任何工具 CSS，自动跟原样一致。
+          隐藏着的 select（还没显示出来的对话框里那些）先不抄 —— 那时候 computed style 是默认值，
+          抄了就是错的；等它第一次露出来（open / pointerdown / focus）再抄，见 skin()。
+       3. **贴着触发器左对齐往下展开**（下方 6px 缝），放不下就翻到上方、再夹进视口，**不做全屏遮罩**。
+     开启方式（一页一行，这就是「一个一个做」）：`<html data-hx-peanut>` 或脚本里 `HXPeanut.init()`。
+     排除：单个 select 加 `data-hx-plain`；multiple / size>1 自动跳过。
+     刷题 `#subjBtn` 那套是自绘的药板胶囊（.bsc-*），不归这里管，别让这里接管它。 */
+  (function () {
+    if (window.HXPeanut) return;
+
+    var STID = 'hx-peanut-style', sheet = null, OPEN = null, all = [], inited = false, queued = false;
+    var wrapOf = new WeakMap();
+
+    function inject() {
+      if (document.getElementById(STID)) return;
+      var s = document.createElement('style');
+      s.id = STID;
+      s.textContent =
+        '.hx-pn{position:relative;display:inline-block;vertical-align:middle;max-width:100%;box-sizing:border-box}'
+        // 原生 select 只留位置，别让它再被点到（visibility 而不是 opacity，见上面注释）
+        + '.hx-pn-src{visibility:hidden!important}'
+        // 按钮铺满包装层（= select 原来的盒子），外观由 skin() 逐条抄过来
+        + '.hx-pn-btn{position:absolute;inset:0;box-sizing:border-box;display:flex;align-items:center;'
+        + 'justify-content:space-between;gap:8px;width:100%;height:100%;overflow:hidden;cursor:pointer;'
+        + 'font:inherit;color:inherit;background:transparent;border:0;padding:0 8px;border-radius:8px;'
+        + 'line-height:1.2;text-align:left;margin:0}'
+        + '.hx-pn-btn[disabled]{cursor:not-allowed;opacity:.55}'
+        + '.hx-pn-btn:focus-visible{outline:2px solid var(--acc,#0a84ff);outline-offset:2px}'
+        + '.hx-pn-txt{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'
+        + '.hx-pn-car{flex:0 0 auto;width:6px;height:6px;border-right:1.7px solid currentColor;'
+        + 'border-bottom:1.7px solid currentColor;transform:translateY(-2px) rotate(45deg);opacity:.55}'
+        // 面板：毛玻璃 + 胶囊行
+        + '.hx-pn-sheet{position:fixed;z-index:2147482000;box-sizing:border-box;display:none;overflow:auto;'
+        + 'padding:6px;border-radius:16px;background:rgba(255,255,255,.9);border:1px solid rgba(0,0,0,.08);'
+        + 'box-shadow:0 12px 32px rgba(0,0,0,.16),0 2px 6px rgba(0,0,0,.07);color:#1d1d1f;'
+        // 文字色**写死两套**、不取 var(--hx-ink)：那个变量是 apply() 时写进 html 的内联值，
+        // 一旦什么时候 mode 变了而 apply 没跟着跑（工具页自绘主题、测试里直接改属性），就会浅底浅字直接看不见。
+        + 'backdrop-filter:blur(14px) saturate(1.4);-webkit-backdrop-filter:blur(14px) saturate(1.4);'
+        + '-webkit-overflow-scrolling:touch}'
+        + 'html[data-hx-mode="dark"] .hx-pn-sheet{background:rgba(28,28,30,.9);border-color:rgba(255,255,255,.12);'
+        + 'color:#f5f5f7;box-shadow:0 12px 32px rgba(0,0,0,.6),0 2px 6px rgba(0,0,0,.4)}'
+        + '.hx-pn-opt{display:flex;align-items:center;width:100%;box-sizing:border-box;min-height:34px;padding:0 13px;'
+        + 'border:0;border-radius:999px;background:transparent;color:inherit;font:inherit;font-size:13.5px;'
+        + 'text-align:left;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0}'
+        + '.hx-pn-opt:hover{background:rgba(0,0,0,.055)}'
+        + 'html[data-hx-mode="dark"] .hx-pn-opt:hover{background:rgba(255,255,255,.1)}'
+        + '.hx-pn-opt.on{font-weight:600;background:color-mix(in srgb,var(--acc,#0a84ff) 16%,transparent);'
+        + 'box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--acc,#0a84ff) 42%,transparent)}'
+        + '.hx-pn-opt.dis{opacity:.4;cursor:not-allowed}'
+        + '.hx-pn-grp{padding:8px 13px 4px;font-size:11.5px;opacity:.55;letter-spacing:.02em}'
+        + '.hx-pn-empty{padding:10px 13px;font-size:13px;opacity:.55}'
+        // 极简外观（hx-lite）：纯色直角，不要毛玻璃不要胶囊
+        + 'html.hx-lite .hx-pn-sheet{border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,.22);'
+        + 'backdrop-filter:none;-webkit-backdrop-filter:none;background:#fff}'
+        + 'html.hx-lite[data-hx-mode="dark"] .hx-pn-sheet{background:#111}'
+        + 'html.hx-lite .hx-pn-opt{border-radius:4px}';
+      (document.head || document.documentElement).appendChild(s);
+    }
+
+    function labelOf(sel) {
+      var o = sel.options[sel.selectedIndex];
+      var t = o ? String(o.text || o.label || '') : '';
+      t = t.replace(/\s+/g, ' ').trim();
+      return t || '请选择';
+    }
+
+    /* 从原生 select 现场抄外观。注意：**只抄能抄的**（颜色/边框/圆角/字体/内边距），
+       不抄 width/height —— 那两条由「select 撑包装层、按钮铺满」这个结构负责，抄成 px 反而不能自适应。 */
+    function skin(inst) {
+      var sel = inst.sel, btn = inst.btn, st = btn.style;
+      if (!sel.getClientRects().length) return; // 还没露出来，量不到，等下次
+      var cs = getComputedStyle(sel);
+      var fill = ['color', 'backgroundColor', 'backgroundImage', 'fontFamily', 'fontSize', 'fontWeight',
+        'letterSpacing', 'lineHeight', 'textAlign', 'borderTopWidth', 'borderRightWidth', 'borderBottomWidth',
+        'borderLeftWidth', 'borderTopStyle', 'borderRightStyle', 'borderBottomStyle', 'borderLeftStyle',
+        'borderTopColor', 'borderRightColor', 'borderBottomColor', 'borderLeftColor', 'borderRadius',
+        'paddingLeft', 'paddingRight', 'boxShadow'];
+      for (var i = 0; i < fill.length; i++) {
+        var v = cs[fill[i]];
+        if (v) st[fill[i]] = v;
+      }
+      // 原生下拉的文字大多是垂直居中、左右各留一点；按钮默认 0.8em 的内边距稍微补一点
+      if (!inst.txt.textContent) st.paddingRight = (parseFloat(cs.paddingLeft) || 8) + 18 + 'px';
+      inst.skinned = true;
+    }
+
+    function refresh(el) {
+      var inst = wrapOf.get(el);
+      if (!inst) return;
+      var t = labelOf(el);
+      inst.txt.textContent = t;
+      inst.btn.disabled = !!el.disabled;
+      inst.btn.title = t;
+      if (!inst.skinned) skin(inst);
+    }
+
+    function buildSheet(inst) {
+      var sel = inst.sel, cur = sel.selectedIndex, lastGrp = null, i, o;
+      sheet.innerHTML = '';
+      if (!sel.options.length) {
+        sheet.innerHTML = '<div class="hx-pn-empty">没有可选项</div>';
+        return;
+      }
+      for (i = 0; i < sel.options.length; i++) {
+        o = sel.options[i];
+        var grp = (o.parentNode && o.parentNode.tagName === 'OPTGROUP') ? (o.parentNode.label || '') : '';
+        if (grp && grp !== lastGrp) {
+          var h = document.createElement('div');
+          h.className = 'hx-pn-grp';
+          h.textContent = grp;
+          sheet.appendChild(h);
+        }
+        lastGrp = grp;
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'hx-pn-opt' + (i === cur ? ' on' : '') + (o.disabled ? ' dis' : '');
+        b.setAttribute('role', 'option');
+        b.setAttribute('aria-selected', i === cur ? 'true' : 'false');
+        b.setAttribute('data-i', i);
+        if (o.disabled) b.disabled = true;
+        b.textContent = String(o.text || '').replace(/\s+/g, ' ').trim() || '（空）';
+        sheet.appendChild(b);
+      }
+    }
+
+    function place(inst) {
+      var r = inst.wrap.getBoundingClientRect();
+      var vw = document.documentElement.clientWidth || innerWidth;
+      var vh = document.documentElement.clientHeight || innerHeight;
+      var pw = Math.round(r.width) + 20;
+      if (pw < 168) pw = 168;
+      if (pw > 340) pw = 340;
+      if (pw > vw - 16) pw = vw - 16;
+      sheet.style.width = pw + 'px';
+      sheet.style.maxHeight = Math.max(120, Math.min(320, vh - 24)) + 'px';
+      sheet.style.left = '-9999px';       // 先挪出去量真实高度，量完再摆
+      sheet.style.top = '0px';
+      var h = sheet.offsetHeight;
+      var left = Math.max(8, Math.min(Math.round(r.left), vw - 8 - pw));
+      var top = Math.round(r.bottom) + 6;
+      if (top + h > vh - 8) {
+        var up = Math.round(r.top) - 6 - h;
+        top = up >= 8 ? up : Math.max(8, vh - 8 - h);   // 上方也放不下就夹进视口底部
+      }
+      sheet.style.left = left + 'px';
+      sheet.style.top = top + 'px';
+    }
+
+    function close() {
+      if (!OPEN) return;
+      var inst = OPEN;
+      OPEN = null;
+      try { inst.btn.setAttribute('aria-expanded', 'false'); } catch (e) { }
+      if (sheet) sheet.style.display = 'none';
+    }
+
+    function pick(inst, i) {
+      var sel = inst.sel;
+      if (sel.selectedIndex === i) { refresh(sel); close(); return; }
+      sel.selectedIndex = i;
+      refresh(sel);
+      close();
+      // 顺序跟原生一致：先 input 再 change。写请求类的监听方（如果这个 select 触发了存盘）不受影响 ——
+      // 这里只是把「用户选了一下」这件事补上，不做任何重试（全站写请求都不许重试）。
+      try { sel.dispatchEvent(new Event('input', { bubbles: true })); } catch (e) { }
+      try { sel.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) { }
+      try { inst.btn.focus({ preventScroll: true }); } catch (e2) { }
+    }
+
+    function onSheetClick(e) {
+      var b = e.target && e.target.closest ? e.target.closest('.hx-pn-opt') : null;
+      if (!b || !OPEN || b.disabled) return;
+      pick(OPEN, +b.getAttribute('data-i'));
+    }
+
+    function open(inst) {
+      // 双击（或合成点击连发两次 click）时别把刚开出来的面板又收起来 —— 260ms 内的第二下直接忽略。
+      // 原生 select 双击也是「开着」，这里对齐它。
+      var now = +new Date();
+      if (OPEN === inst && now - (inst.t || 0) < 260) return;
+      inst.t = now;
+      if (OPEN === inst) { close(); return; }
+      close();
+      inject();
+      if (OPEN) close();
+      if (!sheet) {
+        sheet = document.createElement('div');
+        sheet.className = 'hx-pn-sheet';
+        sheet.setAttribute('role', 'listbox');
+        sheet.addEventListener('click', onSheetClick);
+        document.body.appendChild(sheet);
+      } else if (sheet.parentNode !== document.body) {
+        document.body.appendChild(sheet);
+      }
+      skin(inst);
+      buildSheet(inst);
+      sheet.style.display = 'block';
+      place(inst);
+      OPEN = inst;
+      try { inst.btn.setAttribute('aria-expanded', 'true'); } catch (e) { }
+      var on = sheet.querySelector('.hx-pn-opt.on');
+      if (on) sheet.scrollTop = Math.max(0, on.offsetTop - sheet.clientHeight / 2 + on.offsetHeight / 2);
+    }
+
+    function enhance(sel) {
+      if (wrapOf.has(sel) || sel.multiple || sel.size > 1) return;
+      if (sel.hasAttribute('data-hx-plain')) return;
+      if (!sel.parentNode) return;
+      inject();
+      var cs = getComputedStyle(sel);
+      var wrap = document.createElement('span');
+      wrap.className = 'hx-pn';
+      // 原来是整行宽的 select（宽度差不多等于父容器）→ 包装层也按块级铺满，否则保持 inline-block 的自适应宽度。
+      // 这条不写死，靠实测比一次，避免排课 .room-sel、单片机判卷表那种表格单元格里的下拉被压窄。
+      var pw = sel.parentNode.clientWidth || 0;
+      var full = (cs.display === 'block' || cs.display === 'flex' || cs.display === 'grid')
+        || (pw > 0 && sel.offsetWidth >= pw - 2);
+      wrap.style.display = full ? 'block' : 'inline-block';
+      if (full) wrap.style.width = '100%';
+      sel.parentNode.insertBefore(wrap, sel);
+      sel.classList.add('hx-pn-src');
+      wrap.appendChild(sel);
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'hx-pn-btn';
+      btn.setAttribute('aria-haspopup', 'listbox');
+      btn.setAttribute('aria-expanded', 'false');
+      btn.innerHTML = '<span class="hx-pn-txt"></span><i class="hx-pn-car" aria-hidden="true"></i>';
+      wrap.appendChild(btn);
+      var inst = { sel: sel, wrap: wrap, btn: btn, txt: btn.querySelector('.hx-pn-txt'), skinned: false };
+      wrapOf.set(sel, inst);
+      all.push(inst);
+      btn.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (sel.disabled) return;
+        open(inst);
+      });
+      btn.addEventListener('pointerdown', function () { skin(inst); });
+      sel.addEventListener('change', function () { refresh(sel); });
+      sel.addEventListener('focus', function () { skin(inst); });
+      // 选项被 JS 重画（attendance.js 的「请选择科目」、ui-builder.js 那些）时，按钮文字要跟着对
+      try {
+        new MutationObserver(function () { refresh(sel); })
+          .observe(sel, { childList: true, subtree: true, attributes: true, attributeFilter: ['disabled'] });
+      } catch (e) { }
+      refresh(sel);
+    }
+
+    function scan(root) {
+      var list = [];
+      if (root && root.nodeType === 1 && root.tagName === 'SELECT') list.push(root);
+      if (root && root.querySelectorAll) list = list.concat([].slice.call(root.querySelectorAll('select')));
+      for (var i = 0; i < list.length; i++) { try { enhance(list[i]); } catch (e) { } }
+    }
+
+    function reskin() { for (var i = 0; i < all.length; i++) { all[i].skinned = false; skin(all[i]); } }
+
+    function globals() {
+      if (globals.on) return;
+      globals.on = true;
+      addEventListener('pointerdown', function (e) {
+        if (!OPEN) return;
+        if (sheet && sheet.contains(e.target)) return;
+        if (OPEN.wrap.contains(e.target)) return;
+        close();
+      }, true);
+      addEventListener('keydown', function (e) {
+        if (!OPEN) return;
+        if (e.key === 'Escape' || e.key === 'Esc') close();
+      }, true);
+      // 页面一滚就收（面板是 fixed，位置会飘）；面板自己内部的滚动不算
+      addEventListener('scroll', function (e) {
+        if (!OPEN) return;
+        if (e.target && e.target.nodeType === 1 && sheet && sheet.contains(e.target)) return;
+        close();
+      }, { capture: true, passive: true });
+      addEventListener('resize', function () { if (OPEN) place(OPEN); });
+      addEventListener('orientationchange', function () { if (OPEN) place(OPEN); });
+      try { if (window.HXTheme && HXTheme.onChange) HXTheme.onChange(reskin); } catch (e) { }
+    }
+
+    function init() {
+      if (inited) { scan(document); return; }
+      inited = true;
+      globals();
+      inject();
+      scan(document);
+      // 页面后续动态插入的 select（对话框、动态表格行）也要接管；节流到一帧一次，别在 busy 页面上狂扫
+      try {
+        new MutationObserver(function () {
+          if (queued) return;
+          queued = true;
+          (window.requestAnimationFrame || setTimeout)(function () { queued = false; scan(document); }, 16);
+        }).observe(document.documentElement, { childList: true, subtree: true });
+      } catch (e) { }
+    }
+
+    /* 代码用 JS 改值（`sel.value = x` / `sel.selectedIndex = i`）不会发事件，
+       按钮文字就会停在旧值上 —— 这是这种「可视替身」最容易漏的一处，所以在原型 setter 上挂个钩子。
+       只做「改完刷新文字」这一件事，取值/赋值原样转发，不改变任何行为。 */
+    (function hookValue() {
+      try {
+        var d = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value');
+        if (!d || !d.set || d.set.__hxPeanut) return;
+        var set = function (v) { d.set.call(this, v); try { refresh(this); } catch (e) { } };
+        set.__hxPeanut = true;
+        Object.defineProperty(HTMLSelectElement.prototype, 'value', { configurable: true, enumerable: d.enumerable, get: d.get, set: set });
+        var di = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'selectedIndex');
+        if (di && di.set && !di.set.__hxPeanut) {
+          var seti = function (v) { di.set.call(this, v); try { refresh(this); } catch (e) { } };
+          seti.__hxPeanut = true;
+          Object.defineProperty(HTMLSelectElement.prototype, 'selectedIndex', { configurable: true, enumerable: di.enumerable, get: di.get, set: seti });
+        }
+      } catch (e) { }
+    })();
+
+    window.HXPeanut = {
+      init: init, scan: scan, open: open, close: close, refresh: function (el) { el ? refresh(el) : reskin(); },
+      count: function () { return all.length; }
+    };
+
+    if (document.documentElement.hasAttribute('data-hx-peanut')) {
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+      else init();
+    }
+  })();
+
 })();
