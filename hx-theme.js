@@ -75,9 +75,13 @@
   // 在网站上被单独打开的子工具：回到总入口（登录、账号、外观都在那里）。离线单文件不跳；地址加 ?solo 也不跳（调试用）。
   if (tool && window.top === window && /^https?:$/.test(location.protocol) && !/[?&]solo\b/.test(location.search)) { location.replace(root + '#' + tool); return; }
 
-  /* ── 全站滚动条：统一成「无感滑轨」（2026-11-17 用户定）────────────────────
+  /* ── 全站滚动条：统一成「滚动才浮现的毛玻璃滑轨」（2026-11-17 用户定，第二版）──
      用户原话：「这种下拉滑轨都要改成无感的 所有工具所有页面都是如此 …… 很丑」
+     「我不需要一直在 就是触发滚动 就微微显示即可 透明毛玻璃状态」
      （配图是刷题科目药板右侧那根带上下箭头的系统灰条）。
+     专业词汇（用户问过，记这儿省得再查）：整条叫 **滚动条 scrollbar**；底槽叫 **轨道 track**；
+     能拖的那块叫 **滑块 thumb**；滚动条占掉的那条缝叫 **gutter**。对应伪元素：
+     ::-webkit-scrollbar / -track / -thumb / -button / -corner。
      现状为什么乱：以前每个工具各写各的 —— 小组加分给 .assessment-scroll 做了 13px 粗轨
      加 3px 白边、.nm-stage 10px 深蓝，其余工具（刷题、资料库、课程进度、排课、考试……）
      全用系统默认，Windows Chrome 那根带箭头的灰条压在铝箔药板、深色卡片上特别出戏。
@@ -85,9 +89,13 @@
      其余工具只引这个 JS（下面「动态背景那一层」「页面层基础样式」两段开头的注释说的是同一件事）。
      统一口径（一处改、全站生效，以后别再往各工具 CSS 里单写滚动条）：
        · 粗细 6px（横竖一样），圆头，**没有轨道底色、没有两端箭头**；
-       · 默认完全透明 —— 静止时看不见，鼠标移到那个容器上才淡淡浮出来（触屏没 hover，
-         就一直透明，手指滑照样能滚，这才是「无感」）；
-       · 颜色跟主题走：浅色黑 20%、深色白 24%；
+       · **静止时滑块完全透明 = 看不见**；只有这个容器真的在滚的那一下才浮出来，停手 900ms 褪回去
+         —— 这就是「触发滚动才微微显示」，不是「极淡但一直在」；
+       · 浮现态 = 半透明毛玻璃：浅色黑 32% / 深色白 36%，再加 1px 内白边模拟磨砂高光；
+       · 为什么用 scroll 事件而不是 :hover —— 自检页实测 `matches(':hover')` 恒 false，
+         一体机触摸板更触发不到；而滚轮 / 触摸 / 拖滑块 / JS 滚动**一定会发 scroll 事件**；
+       · 副作用要认：滚动条伪元素**不支持 transition / opacity 过渡**，所以出现和消失是硬切，
+         做不到渐隐（Chromium 的限制，不是没写）；
        · !important 是故意的：各工具自带的 ::-webkit-scrollbar 规则加载在本文件之后，
          不加就能把粗轨又写回来。这条规矩已写进 claude项目/CLAUDE.md。
      真要彻底不要滚动条（横滑 chip 条那种），在自己那条规则里写 display:none 即可，
@@ -97,30 +105,54 @@
     sb.id = 'hx-scrollbar-style';
     sb.textContent =
       // Firefox 用标准属性（Chrome 121+ 只要写了 scrollbar-color 就会**整段忽略** ::-webkit-scrollbar，
-      // 所以这两条必须锁在 @supports 里只给火狐，别让 Chromium 吃到；这个坑 2026-11-17 实测踩过）
-      + '@supports (-moz-appearance:none){*{scrollbar-width:thin;scrollbar-color:rgba(0,0,0,.22) transparent}'
-      + 'html[data-hx-mode="dark"] *{scrollbar-color:rgba(255,255,255,.26) transparent}}'
+      // 所以这几条必须锁在 @supports 里只给火狐，别让 Chromium 吃到；这个坑 2026-11-17 实测踩过）
+      '@supports (-moz-appearance:none){'
+      + '*{scrollbar-width:thin;scrollbar-color:transparent transparent}'
+      + '.hx-rolling{scrollbar-color:rgba(0,0,0,.32) transparent}'
+      + 'html[data-hx-mode="dark"] .hx-rolling,html[data-hx-mode="dark"].hx-rolling{scrollbar-color:rgba(255,255,255,.36) transparent}'
+      + '}'
       // WebKit / Blink（Chrome、Edge、QQ、360 —— 教室里全是这一族）
       + '::-webkit-scrollbar{width:6px!important;height:6px!important;background:transparent!important}'
       + '::-webkit-scrollbar-track,::-webkit-scrollbar-corner{background:transparent!important;border:0!important}'
       + '::-webkit-scrollbar-button{display:none!important;width:0!important;height:0!important}'
-      /* 缩略图：平时极淡（浅色黑 12%／深色白 15%），指针压上去或拖动时才加深。
-         为什么不写成「静止完全透明、悬停才出现」：Chrome 里 `*:hover::-webkit-scrollbar-thumb`
-         的悬停态并不可靠（合成鼠标事件、部分一体机触摸板都触发不到，2026-11-17 自检页实测
-         悬停中=false 时缩略图永远不出现）—— 那等于把「能不能看出这里能滚」赌在一个不保证的
-         伪类上。6px + 12% 的圆头本来就是一根极细的发丝线，够淡，也永远看得见。 */
-      + '::-webkit-scrollbar-thumb{background:transparent!important;border:0!important;border-radius:99px!important;min-height:28px}'
-      + 'html:not([data-hx-mode="dark"]) ::-webkit-scrollbar-thumb{background:rgba(0,0,0,.09)!important}'
-      + 'html[data-hx-mode="dark"] ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12)!important}'
-      /* 悬停/拖动加深这几条**必须带上 html 前缀**：上面那两条基础色特异性是 (0,1,2)，
-         裸的 `*:hover::…` 只有 (0,1,1)，加上 !important 也压不过去（顺序不重要，特异性才重要）。 */
-      + 'html:not([data-hx-mode="dark"]) *:hover::-webkit-scrollbar-thumb{background:rgba(0,0,0,.26)!important}'
-      + 'html:not([data-hx-mode="dark"]) *::-webkit-scrollbar-thumb:hover,html:not([data-hx-mode="dark"]) *::-webkit-scrollbar-thumb:active{background:rgba(0,0,0,.38)!important}'
-      + 'html[data-hx-mode="dark"] *:hover::-webkit-scrollbar-thumb{background:rgba(255,255,255,.30)!important}'
-      + 'html[data-hx-mode="dark"] *::-webkit-scrollbar-thumb:hover,html[data-hx-mode="dark"] *::-webkit-scrollbar-thumb:active{background:rgba(255,255,255,.42)!important}'
+      /* 滑块：**默认全透明**。颜色只能写死 rgba —— 滚动条伪元素里取不到 var(--xxx)，
+         写成变量会让整条声明作废、滑块彻底消失（2026-11-17 实测，别再「优化」成 var）。
+         只有容器带上 .hx-rolling（下面 scroll 监听挂的那个 class）的那 0.9 秒才有颜色。 */
+      + '::-webkit-scrollbar-thumb{background:transparent!important;border:0!important;border-radius:99px!important;min-height:32px}'
+      + '.hx-rolling::-webkit-scrollbar-thumb{background:rgba(0,0,0,.32)!important;'
+      + 'box-shadow:inset 0 0 0 1px rgba(255,255,255,.55),0 0 6px rgba(0,0,0,.18)!important}'
+      /* 深色那几条要多带 `.hx-rolling` 的兄弟形态：页面级滚动条挂在 <html> 上，
+         `html[data-hx-mode="dark"] .hx-rolling` 是后代选择器，匹配不到 html 自己。 */
+      + 'html[data-hx-mode="dark"] .hx-rolling::-webkit-scrollbar-thumb,'
+      + 'html[data-hx-mode="dark"].hx-rolling::-webkit-scrollbar-thumb{background:rgba(255,255,255,.36)!important;'
+      + 'box-shadow:inset 0 0 0 1px rgba(255,255,255,.6),0 0 6px rgba(0,0,0,.35)!important}'
+      /* 悬停 / 拖动再深一点。**必须带 html 前缀**：上面的基础色特异性是 (0,1,2)，
+         裸的 `::-webkit-scrollbar-thumb:hover` 只有 (0,0,2)，加 !important 也压不过（顺序不重要）。 */
+      + '::-webkit-scrollbar-thumb:hover{background:rgba(0,0,0,.42)!important}'
+      + '::-webkit-scrollbar-thumb:active{background:rgba(0,0,0,.5)!important}'
+      + 'html[data-hx-mode="dark"] ::-webkit-scrollbar-thumb:hover,html[data-hx-mode="dark"]::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.46)!important}'
+      + 'html[data-hx-mode="dark"] ::-webkit-scrollbar-thumb:active,html[data-hx-mode="dark"]::-webkit-scrollbar-thumb:active{background:rgba(255,255,255,.54)!important}'
       // 需求里点名的两处老粗轨（小组加分考核表横滚 / 名单竖滚），留着它们自己的尺寸会跟上面打架
       + '.assessment-scroll::-webkit-scrollbar,.nm-stage::-webkit-scrollbar{width:6px!important;height:6px!important}';
     (document.head || document.documentElement).appendChild(sb);
+
+    /* 滚动中才显示：scroll 不冒泡，必须用 capture 才收得到所有滚动容器；
+       e.target 是 document / body 时归一到 <html>（页面级滚动条挂在根上，不是 body）。
+       停手 900ms 摘掉 class。计时器存 WeakMap：容器销毁不漏定时器，同一容器连续滚也不会越叠越多。 */
+    var CLS = 'hx-rolling', DELAY = 900, timers = new WeakMap();
+    addEventListener('scroll', function (e) {
+      var t = e.target;
+      if (!t || t === document || t === document.body || t.nodeType !== 1) t = document.documentElement;
+      try {
+        t.classList.add(CLS);
+        var old = timers.get(t);
+        if (old) clearTimeout(old);
+        timers.set(t, setTimeout(function () {
+          try { t.classList.remove(CLS); } catch (e2) { }
+          timers.delete(t);
+        }, DELAY));
+      } catch (e3) { }
+    }, { capture: true, passive: true });
   })();
 
   // 嵌在总入口里的子工具：背景层自己铺一遍（以前是「透明让首页壁纸透上来」，2026-11-09 证明
