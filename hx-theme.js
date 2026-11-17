@@ -652,6 +652,20 @@
     try { if (ls('hx-lite') === '1') return true; if (ls('hx-lite') === '0') return false; } catch (e) { }
     return true;   // ← 默认极简（2026-11-11）
   }
+  /* 按当前 localStorage 重新切一次档（类 + 通知）。
+     为什么需要它：上面这一行在**模块加载那一刻**就定档了，而账号偏好（hx_pref 云端快照）
+     往往比它晚到 —— 首帧读不到就落默认极简。快照铺下来之后如果不重切，
+     账号明明是「标准模式」，这一页仍按极简渲染，非得刷新一次才对。
+     2026-11-17 用户报「我账号用的是标准模式，怎么部分工具全是极简」就是这么来的：
+     总入口先开→铺快照→只写了 localStorage 没重切；后加载的 iframe 反而读到 '0' 是标准 → 两处不一致。 */
+  function syncLite() {
+    try {
+      var on = liteOn();
+      document.documentElement.classList.toggle('hx-lite', on);
+      dispatchEvent(new CustomEvent('hx-lite-change', { detail: { lite: on } }));
+      return on;
+    } catch (e) { return false; }
+  }
   try { document.documentElement.classList.toggle('hx-lite', liteOn()); } catch (e) { }
   // ── 背景图：原图直出，不再预模糊（2026-11-04 用户要求）──────────────────
   // 历史：2026-11-02 为了性能把「每张卡各自 backdrop-filter」改成「背景层统一糊一次」；
@@ -1035,6 +1049,9 @@
     // 会把用户辛苦挑的主题色（blue 等）顶掉，写回 mono 主键。用户看到的就是「选了蓝色、刷新变白」。
     migrateGlobal();   // 触发迁移：主键 ver8 会原样返回；残缺主键会就地合并成 ver8 并写回
     pruneOldSnaps();   // 迁移定稿后清掉旧分键，杜绝后续污染
+    // 快照里的 hx-lite 已经写进本机了，**这里必须当场重切一次档** —— 否则这一页还挂着
+    // 加载那一刻定下的「默认极简」，账号明明是标准模式也得刷新才生效（2026-11-17 用户报的「部分工具全是极简」）。
+    syncLite();
   }
   // 清除所有旧界面分键 hx-theme:s:*（迁移定稿后它们不再被读取，留着只会埋竞态地雷）。
   function pruneOldSnaps() {
@@ -1152,7 +1169,7 @@
     // 不换的话总入口点了「标准模式」，iframe 里还挂着 html.hx-lite，背景动效被一票否决 ——
     // 用户看到的就是「我开了标准模式，子工具里背景还是不动」。
     if (e.key === 'hx-lite') {
-      try { document.documentElement.classList.toggle('hx-lite', liteOn()); } catch (er) { }
+      syncLite();
       apply(); return;
     }
     if (e.key === KEY || e.key === IMG || e.key === DEV || e.key === null
