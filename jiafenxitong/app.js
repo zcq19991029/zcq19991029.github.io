@@ -5953,8 +5953,273 @@ function restoreDroppedToHome(cls) {
 
   var syncEditBlocked=true;
   function setSyncEditGate(blocked,message){syncEditBlocked=blocked;if(!S)return;['#view-score','#view-leader','#view-attendance','#view-pool','#scoreTools','#rosterCard','#lessonListCard','#hxRosterBox'].forEach(function(selector){var el=$(selector);if(el)el.toggleAttribute('inert',blocked);});var gate=$('#syncEditGate');if(!gate){gate=document.createElement('div');gate.id='syncEditGate';gate.className='sync-edit-gate';gate.setAttribute('role','status');$('#main').prepend(gate);}gate.hidden=!blocked;gate.textContent=message||'正在核对云端，确认后开放编辑';if(!blocked)hxAfterGate();}
-  var conflictNotice=document.createElement('dialog');conflictNotice.id='dlgSyncConflict';conflictNotice.innerHTML='<div class="dlg"><div class="dlg-head"><h3>两台设备的记录不同</h3><button type="button" class="dlg-x" id="closeSyncConflict" aria-label="关闭同步冲突提示">✕</button></div><div class="dlg-body"><p>系统已暂停上传，请先查看下面的业务数据差异，再选择保留哪一边。</p><p class="note">关闭窗口不会解决冲突；完成一次处理后才会恢复编辑和自动同步。</p><div id="syncConflictDetails" aria-live="polite"></div><div class="btnrow conflict-actions"><button class="btn" id="backupConflictLocal">先下载本机存档</button><button class="btn" id="keepCloudConflict">保留云端记录</button><button class="btn primary" id="keepLocalConflict">保留本机记录</button></div><button class="linkbtn" id="openSyncConflictTools">打开数据与同步页面</button></div></div>';document.body.appendChild(conflictNotice);wireDialog(conflictNotice);var conflictNoticeShown=false;
-  $('#closeSyncConflict').onclick=function(){conflictNotice.close();};$('#backupConflictLocal').onclick=function(){downloadLocalSnapshot();};$('#openSyncConflictTools').onclick=function(){conflictNotice.close();flash('同步已经自动进行：数据库自带同步，这里没有单独的同步页了。冲突请用下面「保留云端 / 保留本机」解决。');};$('#keepCloudConflict').onclick=function(){conflictNotice.close();if(!CLOUD_ON||!CLOUD||!CLOUD.profile()){flash('请先登录。');return;}if(CLOUD.cancelPending&&!CLOUD.cancelPending()){flash('正在上传，稍后再试。');return;}var st=S.updatedAt;CLOUD.pull().then(function(rec){if(S.updatedAt!==st){flash('拉取期间记录已变，未覆盖。');return;}if(!rec||!rec.data||!rec.data.classes){flash('云端还没有这个账号的记录。');return;}S=migrate(JSON.parse(JSON.stringify(rec.data)));if(CLOUD.acceptRemote)CLOUD.acceptRemote(rec);if(!S.ui)S.ui={};if(!S.ui.classId&&S.classes[0])S.ui.classId=S.classes[0].id;S.updatedAt=new Date().toISOString();writeLocal();initLayout();fillClassSelects();flash('已用云端记录覆盖本机');}).catch(function(e){flash('拉取失败：'+(e&&e.message?e.message:e));});};$('#keepLocalConflict').onclick=function(){conflictNotice.close();if(!CLOUD_ON||!CLOUD||!CLOUD.profile()){flash('请先登录。');return;}var upload=CLOUD.forcePush?CLOUD.forcePush(function(){return S;}):(CLOUD.touch(function(){return S;}),CLOUD.flush());upload.then(function(){flash('已用本机记录覆盖云端。');}).catch(function(e){flash('上传失败，记录仍保存在当前设备：'+(e&&e.message?e.message:e));});};
+  /* ── 同步冲突弹窗（2026-11-17 大修）──────────────────────────────────────────
+     用户原话：「数据冲突咋办 说是本地和云端冲突 但是备份那里也没有谁覆盖谁的选项 也看不到冲突点在哪」。
+     用假数据复现（.tmp/conflict-ui.cjs）查出三个真问题，都不是「老师不会用」：
+       ① **差异清单翻译不出来**：diffValues 给的 path 段是**数组下标**（'/lessons/0/scores/1/group'），
+          旧 conflictLabel 却拿它当 id 去 getLesson('0') → 永远查不到 → 所有课次差异都显示成
+          「课次记录」，班级差异一律「班级与分组」。5 处差异看起来长得一模一样，等于没说。
+       ② **弹窗根本不弹**：自动开门那几行写在 `if (chip)` 里面，而 #cloudChip 只在
+          「数据与同步」那块 DOM 里才有 → 在记分表页遇到冲突，弹窗不弹、三个按钮无从点起。
+       ③ **横幅只指路不给按钮**：顶部 #localWarn 写「请到首页全站备份导出，再选择云端覆盖本机
+          或把本机覆盖云端」，备份页当然没有这个选项 —— 老师照着走一圈回到原点。
+     改法：路径翻成业务语言（班级名 / 第 N 次课 / 第 N 组 / 某人 / 哪个字段）、长值截断、
+     同一条业务路径合并成一行；弹窗不再依赖 chip；横幅上直接挂「用本机覆盖云端 / 用云端覆盖本机 /
+     看差在哪」三个按钮；两个覆盖动作都会二次确认（弹窗里已经看清楚了就不再问）。 */
+  var conflictNotice = document.createElement('dialog');
+  conflictNotice.id = 'dlgSyncConflict';
+  conflictNotice.innerHTML = '<div class="dlg"><div class="dlg-head"><h3>本机和云端不一样</h3><button type="button" class="dlg-x" id="closeSyncConflict" aria-label="关闭同步冲突提示">✕</button></div>' +
+    '<div class="dlg-body"><p>系统已暂停上传，<b>两边都没有被覆盖</b>。下面逐条列出差在哪、本机是什么、云端是什么，看清后再选留哪一边。</p>' +
+    '<div id="syncConflictDetails" aria-live="polite"></div>' +
+    '<p class="note">选「保留云端」＝本机改成云端的样子；选「保留本机」＝云端改成本机的样子。想事后复查就先「下载本机存档」。关闭窗口不会解决冲突，编辑会一直锁着。</p>' +
+    '<div class="btnrow conflict-actions"><button class="btn" id="backupConflictLocal">下载本机存档</button><button class="btn" id="keepCloudConflict">保留云端记录</button><button class="btn primary" id="keepLocalConflict">保留本机记录</button></div>' +
+    '<button class="linkbtn" id="recheckSyncConflict">再核对一次云端</button></div></div>';
+  document.body.appendChild(conflictNotice);
+  wireDialog(conflictNotice);
+  var conflictNoticeShown = false;
+
+  /* 差异值的展示：长字符串截断、数组给条数、对象给字段数 —— 原来直接 JSON.stringify 整段，
+     一个班 47 人 × 12 列能把表格撑成一道墙。 */
+  function conflictValue(value, max) {
+    max = max || 56;
+    if (value === undefined) return '（没有）';
+    if (value === null) return '（空）';
+    if (Array.isArray(value)) {
+      if (!value.length) return '（空列表）';
+      var s = JSON.stringify(value);
+      return s.length > max ? s.slice(0, max) + '…（共 ' + value.length + ' 项）' : s;
+    }
+    if (typeof value === 'object') {
+      var keys = Object.keys(value);
+      var t = JSON.stringify(value);
+      return t.length > max ? '{' + keys.slice(0, 3).join(',') + (keys.length > 3 ? ',…' : '') + '}（' + keys.length + ' 个字段）' : t;
+    }
+    var str = String(value);
+    if (!str) return '（空）';
+    return str.length > max ? str.slice(0, max) + '…（' + str.length + ' 字）' : str;
+  }
+
+  /* 字段名的中文说法。没收录的直接显示英文键名，总比「课次记录」四个字强。 */
+  var CONFLICT_FIELD_CN = {
+    name: '姓名', sid: '学号', no: '组号', cap: '本组上限', groupLimit: '每组上限',
+    groups: '分组', members: '组员', roster: '名单', date: '日期', seq: '第几次课',
+    scores: '记分', leaderScores: '个人项目评分', attendance: '考勤', duty: '值日',
+    dutyParticipation: '值日缺勤', personal: '个人扣分', phone: '手机未入袋',
+    first: '首次分', group: '小组分', classId: '所属班级', teamTables: '桌数',
+    operationLog: '操作记录', ui: '界面状态', status: '考勤状态', loss: '扣分',
+    label: '说明', score: '分数', value: '分数', updatedAt: '更新时间',
+    memberProjectBase: '个人项目基础分', peerMeta: '组内互评说明', peerSync: '组内互评时间'
+  };
+
+  /* 成员键（sid:xxx / id:xxx）翻成姓名 —— 考勤和个人项目分都是按这个键存的，
+     直接显示 'sid:2600000010' 老师根本不知道是谁。 */
+  function conflictNameByKey(cls, key) {
+    if (!cls || !key) return '';
+    var hit = '';
+    (cls.groups || []).forEach(function (g) {
+      (g.members || []).forEach(function (m) { if (!hit && memberKey(m) === key) hit = m.name || ''; });
+    });
+    if (!hit) (cls.roster || []).forEach(function (r) { if (!hit && memberKey(r) === key) hit = r.name || ''; });
+    return hit;
+  }
+
+  function conflictGroupByNo(cls, gno) {
+    return ((cls && cls.groups) || []).filter(function (g) { return Number(g.no) === Number(gno); })[0] || null;
+  }
+
+  /* 把 '/lessons/0/scores/1/group' 这种路径翻成「第 13 次课 · 26工器1班 · 第 2 组 · 小组分」。
+     ⚠ 下标规则不统一，不能一律 +1，也不能一律当 id：
+       · classes / lessons / groups / members / roster 是**数组** → 段是下标
+       · scores / leaderScores 是**对象**，键就是**组号** → 段直接是组号
+       · personal 是对象，键是该组**组员下标**
+       · attendance 是对象，键是**成员键**（sid:xxx / id:xxx）
+     命名一律用本机这份结构；两端条目数不同时下标可能偏一位，但右边两列的值摆着，仍能认出来。 */
+  function conflictBreadcrumb(raw) {
+    var text = String(raw == null ? '' : raw);
+    if (!text || text === '/') return '整份记录';
+    if (text.indexOf('/本机记录') === 0) return '本机记录概况';
+    if (text.indexOf('/处理范围') === 0) return '冲突处理范围';
+    if (text === '/版本') return '版本号';
+    var parts = text.split('/').filter(function (x) { return x !== ''; });
+    if (!parts.length) return '整份记录';
+    var out = [], all = S || {}, cls = null, g = null, i;
+
+    if (parts[0] === 'classes') {
+      cls = (all.classes || [])[+parts[1]];
+      out.push(cls && cls.name ? cls.name : '第 ' + (+parts[1] + 1) + ' 个班');
+      if (parts[2] === 'groups') {                        // groups：数组 → 下标
+        g = cls && (cls.groups || [])[+parts[3]];
+        out.push('第 ' + (g && g.no != null ? g.no : (+parts[3] + 1)) + ' 组');
+        if (parts[4] === 'members') {
+          var mm = g && (g.members || [])[+parts[5]];
+          out.push(mm && mm.name ? mm.name : '第 ' + (+parts[5] + 1) + ' 位组员');
+          if (parts[6]) out.push(CONFLICT_FIELD_CN[parts[6]] || parts[6]);
+        } else if (parts[4]) out.push(CONFLICT_FIELD_CN[parts[4]] || parts[4]);
+      } else if (parts[2] === 'roster') {                 // roster：数组 → 下标
+        var r = cls && (cls.roster || [])[+parts[3]];
+        out.push(r && r.name ? r.name : '名单第 ' + (+parts[3] + 1) + ' 人');
+        if (parts[4]) out.push(CONFLICT_FIELD_CN[parts[4]] || parts[4]);
+      } else if (parts[2]) {
+        out.push(CONFLICT_FIELD_CN[parts[2]] || parts[2]);
+      }
+      return out.join(' · ');
+    }
+
+    if (parts[0] === 'lessons') {
+      var lesson = (all.lessons || [])[+parts[1]];
+      var c2 = lesson && lesson.classId != null ? getClass(lesson.classId) : null;
+      out.push('第 ' + (lesson && lesson.seq != null ? lesson.seq : (+parts[1] + 1)) + ' 次课');
+      if (c2) out.push(c2.name);
+
+      if (parts[2] === 'scores') {
+        var gno = Number(parts[3]);                        // scores：键＝组号，不 +1
+        out.push('第 ' + gno + ' 组');
+        var g3 = conflictGroupByNo(c2, gno);
+        if (parts[4] === 'personal') {
+          var mem = g3 && (g3.members || [])[+parts[5]];   // personal：键＝组员下标
+          out.push(mem && mem.name ? mem.name : '第 ' + (+parts[5] + 1) + ' 位组员');
+          out.push(parts[6] && CONFLICT_FIELD_CN[parts[6]] ? CONFLICT_FIELD_CN[parts[6]] : '个人扣分');
+        } else if (parts[4]) {
+          out.push(CONFLICT_FIELD_CN[parts[4]] || parts[4]);
+        } else {
+          out.push('整组记分');
+        }
+      } else if (parts[2] === 'leaderScores') {            // 键＝组号；更深是 members/<成员键>
+        if (parts[3] != null && parts[3] !== '') out.push('第 ' + Number(parts[3]) + ' 组');
+        if (parts[4] === 'members' && parts[5]) {
+          out.push(conflictNameByKey(c2, parts[5]) || '某位组员');
+          out.push('个人项目评分');
+        } else {
+          out.push('个人项目评分');
+        }
+      } else if (parts[2] === 'attendance') {              // 键＝成员键
+        if (parts[3]) {
+          var who = conflictNameByKey(c2, parts[3]);
+          out.push(who || (/^\d+$/.test(parts[3]) ? '第 ' + parts[3] + ' 组' : '某位学生'));
+          out.push(parts[4] && CONFLICT_FIELD_CN[parts[4]] ? CONFLICT_FIELD_CN[parts[4]] : '考勤');
+        } else {
+          out.push('考勤');
+        }
+      } else if (parts[2]) {
+        out.push(CONFLICT_FIELD_CN[parts[2]] || parts[2]);
+      }
+      return out.join(' · ');
+    }
+
+    return CONFLICT_FIELD_CN[parts[0]] || parts[0];
+  }
+
+  /* 考勤状态存的是内部码，直接把 present/late 摆给老师等于没翻译 */
+  var CONFLICT_VALUE_CN = { present: '到课', leave: '请假', truant: '旷课', late: '迟到', early: '早退' };
+  function conflictPretty(path, value) {
+    if (typeof value === 'string' && CONFLICT_VALUE_CN[value] && /\/status$/.test(String(path || ''))) return CONFLICT_VALUE_CN[value];
+    return value;
+  }
+
+  /* 差异清单：翻成业务语言 + 同一条路径只留一行 + 两端值其实一样的不占行 + 最多列 30 行 */
+  function conflictRows(st) {
+    var raw = Array.isArray(st && st.conflictDetails) ? st.conflictDetails
+      : (Array.isArray(st && st.conflicts) ? st.conflicts : []);
+    var seen = Object.create(null), out = [];
+    raw.forEach(function (item) {
+      var path = item && item.path;
+      var label = conflictBreadcrumb(path);
+      var lv = conflictValue(conflictPretty(path, item && item.local));
+      var rv = conflictValue(conflictPretty(path, item && item.remote));
+      if (lv === rv) return;
+      var key = label + '\u0001' + lv + '\u0001' + rv;
+      if (seen[key]) return;
+      seen[key] = 1;
+      out.push({ label: label, local: lv, remote: rv });
+    });
+    return out;
+  }
+
+  function renderConflictBox(st) {
+    var box = $('#syncConflictDetails');
+    if (!box) return;
+    var rows = conflictRows(st), shown = rows.slice(0, 30);
+    var rawLen = Array.isArray(st && st.conflictDetails) ? st.conflictDetails.length
+      : (Array.isArray(st && st.conflicts) ? st.conflicts.length : 0);
+    var html = '<div class="sync-conflict-intro"><b>' +
+      (rows.length ? '一共 ' + rows.length + ' 处不一样' : (rawLen ? '检测到 ' + rawLen + ' 处差异' : '云端版本不一样')) +
+      '</b>' + (rows.length ? '：左边是差在哪，中间是本机的值，右边是云端的值。'
+        : '，但没拿到能展开的字段差别（通常只是版本号/时间不同，内容其实一样）。');
+    if (shown.length) {
+      html += '<div class="sync-conflict-table" role="table"><div class="sync-conflict-row sync-conflict-head" role="row"><span>差在哪</span><span>本机</span><span>云端</span></div>';
+      shown.forEach(function (r) {
+        html += '<div class="sync-conflict-row" role="row"><span class="sync-conflict-path">' + esc(r.label) + '</span><code>' + esc(r.local) + '</code><code>' + esc(r.remote) + '</code></div>';
+      });
+      html += '</div>';
+      if (rows.length > shown.length) html += '<p class="note">还有 ' + (rows.length - shown.length) + ' 处没列出。建议先「下载本机存档」留底，再选保留哪一边。</p>';
+    } else {
+      html += '<p class="note">这种情况下留哪一边结果都一样，可以放心点「保留云端记录」。</p>';
+    }
+    box.innerHTML = html;
+  }
+
+  /* 两个「覆盖」动作抽成函数：弹窗和顶部横幅共用同一份逻辑，避免改一处漏一处。
+     needConfirm=true 时才二次确认（横幅上直接点的场景）。
+     ⚠ 失败分支必须把弹窗重新打开：冲突没解决、编辑还锁着，弹窗却被关掉，
+     老师只会看到「点了一下什么都没发生」，然后彻底卡住。 */
+  function reopenConflict() {
+    if (!conflictNotice.open) openConflictNotice();
+  }
+
+  function conflictDoKeepCloud() {
+    conflictNotice.close();
+    if (!CLOUD_ON || !CLOUD || !CLOUD.profile()) { flash('请先登录。'); reopenConflict(); return; }
+    if (CLOUD.cancelPending && !CLOUD.cancelPending()) { flash('正在上传，稍后再试。'); reopenConflict(); return; }
+    var st = S.updatedAt;
+    CLOUD.pull().then(function (rec) {
+      if (S.updatedAt !== st) { flash('拉取期间记录已变，未覆盖，请重新看一次差异。'); reopenConflict(); return; }
+      if (!rec || !rec.data || !rec.data.classes) { flash('云端还没有这个账号的记录，不能覆盖本机。'); reopenConflict(); return; }
+      S = migrate(JSON.parse(JSON.stringify(rec.data)));
+      if (CLOUD.acceptRemote) CLOUD.acceptRemote(rec);
+      if (!S.ui) S.ui = {};
+      if (!S.ui.classId && S.classes[0]) S.ui.classId = S.classes[0].id;
+      S.updatedAt = new Date().toISOString();
+      writeLocal(); initLayout(); fillClassSelects();
+      flash('已用云端记录覆盖本机');
+    }).catch(function (e) { flash('拉取失败：' + (e && e.message ? e.message : e)); reopenConflict(); });
+  }
+
+  function conflictDoKeepLocal() {
+    conflictNotice.close();
+    if (!CLOUD_ON || !CLOUD || !CLOUD.profile()) { flash('请先登录。'); reopenConflict(); return; }
+    var upload = CLOUD.forcePush ? CLOUD.forcePush(function () { return S; })
+      : (CLOUD.touch(function () { return S; }), CLOUD.flush());
+    upload.then(function () { flash('已用本机记录覆盖云端。'); })
+      .catch(function (e) { flash('上传失败，记录仍保存在当前设备：' + (e && e.message ? e.message : e)); reopenConflict(); });
+  }
+
+  function conflictKeepCloud(needConfirm) {
+    if (!CLOUD_ON || !CLOUD || !CLOUD.profile()) { flash('请先登录。'); return; }
+    if (!needConfirm) { conflictDoKeepCloud(); return; }
+    askConfirm('用云端记录覆盖本机？\n\n本机这边的改动会丢掉，云端不会变化。\n想留个底就先点「下载本机存档」。', { okText: '用云端覆盖' })
+      .then(function (ok) { if (ok) conflictDoKeepCloud(); });
+  }
+
+  function conflictKeepLocal(needConfirm) {
+    if (!CLOUD_ON || !CLOUD || !CLOUD.profile()) { flash('请先登录。'); return; }
+    if (!needConfirm) { conflictDoKeepLocal(); return; }
+    askConfirm('用本机记录覆盖云端？\n\n云端那份会变成现在这台电脑的样子，其他设备随后也会跟着变。\n想留个底就先点「下载本机存档」。', { okText: '用本机覆盖' })
+      .then(function (ok) { if (ok) conflictDoKeepLocal(); });
+  }
+
+  function openConflictNotice() {
+    renderConflictBox(CLOUD && CLOUD.status ? CLOUD.status() : null);
+    if (!conflictNotice.open) openDlg(conflictNotice);
+  }
+
+  $('#closeSyncConflict').onclick = function () { conflictNotice.close(); };
+  $('#backupConflictLocal').onclick = function () { downloadLocalSnapshot(); };
+  $('#keepCloudConflict').onclick = function () { conflictKeepCloud(false); };
+  $('#keepLocalConflict').onclick = function () { conflictKeepLocal(false); };
+  $('#recheckSyncConflict').onclick = function () {
+    flash('正在重新核对云端…');
+    var r = refreshCloud(); if (r && r.then) r.then(function () { renderConflictBox(CLOUD && CLOUD.status ? CLOUD.status() : null); });
+  };
   var cloudChip = $('#cloudChip');
   if (cloudChip) {
     cloudChip.onclick = function () { if (CLOUD && CLOUD.status().mode === 'conflict') openDlg(conflictNotice); };
@@ -5965,12 +6230,7 @@ function restoreDroppedToHome(cls) {
     st = st || (CLOUD && CLOUD.status()) || { mode: 'idle', text: '' };
     var map = { checking:'saving',ok: 'ok', saving: 'saving', connecting: 'saving', offline: 'offline', error: 'error', conflict: 'error' };
     var cls = map[st.mode] || '';
-    if(st.mode==='conflict'&&S){
-      function conflictValue(value){if(value===undefined)return '未设置';if(value===null)return '空值';if(typeof value==='object'){try{return JSON.stringify(value);}catch(e){return '[复杂数据]';}}return String(value);}
-      function conflictLabel(path){var raw=String(path||'');if(raw==='/本机记录')return '本机记录概况';if(raw==='/处理范围')return '冲突处理范围';var parts=raw.split('/'),lesson=parts[1]==='lessons'&&getLesson(parts[2]),c=lesson&&getClass(lesson.classId);if(parts[1]==='classes')return '班级与分组';if(!lesson)return parts[1]==='lessons'?'课次记录':'业务数据';var prefix=(c?c.name:'当前班级')+' · 第'+lesson.seq+'次课';if(parts[3]==='scores'){var g=groupOf(c,+parts[4]),m=g&&g.members[+parts[6]],field=parts[5];return prefix+' · 第'+parts[4]+'组 · '+(field==='personal'?(m?m.name:'成员')+'个人扣分':field==='duty'||field==='dutyParticipation'?'值日分（旧制，已废弃）':field==='group'?'值日缺勤（整学期 5 分）':field==='phone'?'手机未入袋扣分':field==='first'?'首次分':'小组记分');}if(parts[3]==='leaderScores')return prefix+' · 第'+parts[4]+'组 · 个人项目评分';if(parts[3]==='attendance')return prefix+' · 考勤';return prefix+' · 课次或项目设置';}
-      var rawDetails=Array.isArray(st.conflictDetails)?st.conflictDetails:[],details=rawDetails.filter(function(item,index){return rawDetails.findIndex(function(other){return String(other.path||'')===String(item.path||'')&&String(other.local)===String(item.local)&&String(other.remote)===String(item.remote);})===index;}),shown=details.slice(0,12),conflictCount=details.length||st.conflicts&&st.conflicts.length||0,detailHtml='<div class="sync-conflict-intro"><b>'+(conflictCount?'检测到 '+conflictCount+' 处差异':'检测到云端版本冲突')+'</b>'+(conflictCount?'：下面分别列出本机和云端的值。':'，但当前接口没有返回可展开的字段差异。');
-      if(shown.length){detailHtml+='<div class="sync-conflict-table" role="table"><div class="sync-conflict-row sync-conflict-head" role="row"><span>位置</span><span>本机</span><span>云端</span></div>';shown.forEach(function(item){detailHtml+='<div class="sync-conflict-row" role="row"><span class="sync-conflict-path">'+esc(conflictLabel(item.path))+'</span><code>'+esc(conflictValue(item.local))+'</code><code>'+esc(conflictValue(item.remote))+'</code></div>';});detailHtml+='</div>'+(details.length>shown.length?'<p class="note">还有 '+(details.length-shown.length)+' 处差异，请先到首页「全站备份」导出本机存档，再到「数据与同步」继续核对。</p>':'');}else{detailHtml+='<p class="note">当前版本只拿到了差异位置，未能读取两端的具体值。请刷新后重试；系统仍会暂停上传，不会自动覆盖。</p>';}$('#syncConflictDetails').innerHTML=detailHtml;
-    }
+    if (st.mode === 'conflict' && S) renderConflictBox(st);
 
     if(CLOUD_ON&&S){if(st.mode==='ok')setSyncEditGate(false);else if(['checking','connecting','offline','error','conflict'].includes(st.mode))setSyncEditGate(true,st.mode==='conflict'?'记录存在冲突，请先处理后再编辑':st.mode==='offline'||st.mode==='error'?'同步未完成，已暂停编辑；恢复连接并核对成功后开放':'正在核对云端，确认后开放编辑');}
     var text = st.mode === 'idle' ? '未连接云端' : st.text;
@@ -5980,8 +6240,21 @@ function restoreDroppedToHome(cls) {
     if (chip) {
       chip.className = 'chip ' + cls;
       chip.textContent = text;chip.title='云端版本：'+(st.cloudVersion==null?'未核对':st.cloudVersion)+'；最近核对：'+(st.checkedAt?new Date(st.checkedAt).toLocaleString():'尚未核对')+'；云端保存：'+(st.serverTime?new Date(st.serverTime).toLocaleString():'未知');
-      if(st.mode==='conflict'){chip.textContent='同步冲突 · 点击处理';chip.title=text;chip.classList.add('conflict-action');if(!conflictNoticeShown){conflictNoticeShown=true;setTimeout(function(){if(!document.querySelector('dialog[open]')&&CLOUD.status().mode==='conflict')openDlg(conflictNotice);},0);}}else{chip.classList.remove('conflict-action');if(st.mode==='ok')conflictNoticeShown=false;}
+      if(st.mode==='conflict'){chip.textContent='同步冲突 · 点击处理';chip.title=text;chip.classList.add('conflict-action');}else{chip.classList.remove('conflict-action');}
       chip.hidden = false;
+    }
+
+    /* 冲突自动开门必须放在 if (chip) 外面：#cloudChip 只在「数据与同步」那块 DOM 里，
+       写在里面等于「在记分表页遇到冲突永远不弹」，编辑被锁死却一个入口都点不到。 */
+    if (st.mode === 'conflict' && S) {
+      if (!conflictNoticeShown) {
+        conflictNoticeShown = true;
+        setTimeout(function () {
+          if (!document.querySelector('dialog[open]') && CLOUD && CLOUD.status().mode === 'conflict') openConflictNotice();
+        }, 0);
+      }
+    } else if (st.mode === 'ok') {
+      conflictNoticeShown = false;
     }
 
     var row = $('.sync-row');
@@ -5996,12 +6269,24 @@ function restoreDroppedToHome(cls) {
       var bad = !!S && (!CLOUD_ON || /^(offline|error|conflict)$/.test(st.mode)) && st.mode !== 'connecting';
       warn.hidden = !bad;
       if (bad) {
-        warn.innerHTML = (st.mode === 'conflict' ? '<b>同步冲突，本机记录已保留</b> —— 请先到华夏工具首页「全站备份」导出本机记录，再选择从云端覆盖本机或把本机覆盖云端。' :
-          '<b>记录尚未同步</b> —— 这节课的改动保存在当前浏览器；请检查连接与账号状态。') +
+        warn.innerHTML = (st.mode === 'conflict'
+            ? '<b>本机和云端的记录不一样</b> —— 已暂停上传，<b>两边都没有被覆盖</b>，看清差在哪再选留哪一边。'
+            : '<b>记录尚未同步</b> —— 这节课的改动保存在当前浏览器；请检查连接与账号状态。') +
           (offlineWhy ? '<span class="why">（' + esc(offlineWhy) + '）</span>' : '') +
+          (st.mode === 'conflict'
+            ? ' <button class="linkbtn" id="btnShowConflict">看差在哪</button>' +
+              ' <button class="linkbtn" id="btnKeepLocalConflict">用本机覆盖云端</button>' +
+              ' <button class="linkbtn" id="btnKeepCloudConflict">用云端覆盖本机</button>'
+            : '') +
           ' <button class="linkbtn" id="btnRetryCloud">重试连接</button>';
         var rb = $('#btnRetryCloud');
         if (rb) rb.addEventListener('click', function () { refreshCloud(); });
+        if (st.mode === 'conflict') {
+          var bShow = $('#btnShowConflict'), bLocal = $('#btnKeepLocalConflict'), bCloud = $('#btnKeepCloudConflict');
+          if (bShow) bShow.addEventListener('click', openConflictNotice);
+          if (bLocal) bLocal.addEventListener('click', function () { conflictKeepLocal(true); });
+          if (bCloud) bCloud.addEventListener('click', function () { conflictKeepCloud(true); });
+        }
       }
     }
     tryAutoUpdateAppVersion(false);

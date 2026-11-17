@@ -9,6 +9,17 @@
    ⚠️ 改这里要同步看 src/rank.js 的 HX：两边必须用同一个项目地址、同一个 key、同一个
       localStorage 键（paike-session），否则排位和课堂任务会「一边登了一边没登」。
    ========================================================================== */
+/* ── 教师端「测试查看用户」演示视角（2026-11-17）─────────────────────────────
+   地址带 ?pv=<班级id> 时，每个 RPC 多带一个请求头 x-hx-probe: <班级id>。
+   数据库里 hx_preview_class() 先校验「你确实是这个班的教师（或 admin/dev）」，通过后
+   hx_acting_student() 才把「我是谁」换成该班的影子身份（id 恒为 -1）。
+   **查询主体一行不改**，所以演示视角看到的行数、字段、遮罩规则和真实学生走的是同一段 SQL。
+   学生拿这个地址打开也没用：校验不过就静默回落成他自己（只会看到自己本来能看的东西）。
+   演示态只读：写接口（排位开局/结算、单片机提交）在数据库里直接 raise，页面按钮也置灰。 */
+const HX_PV = (() => {
+  const m = /[?&]pv=([0-9]{1,19})(?:&|$)/.exec(location.search || '');
+  return m ? m[1] : '';
+})();
 const HX = (() => {
   const BASE = 'https://eiqgyrjrwdaunhxjmdyr.supabase.co', KEY = 'sb_publishable_FcVnLx3TNrj6HnbgarYnRw_DW4-yFzd';
   const SKEY = 'paike-session'; // 华夏工具全站共用一份登录（排课、接线仿真、刷题…都是它）
@@ -28,6 +39,9 @@ const HX = (() => {
   async function api(path, { method = 'GET', body, auth = true } = {}) {
     if (auth) await fresh();
     const h = { apikey: KEY, 'Content-Type': 'application/json' }; if (auth && s) h.Authorization = 'Bearer ' + s.access_token;
+    // 演示视角：带上影子身份开关（详见文件顶部注释）。登录/续期这种 auth=false 的请求也带上无害
+    // （那些接口不读这个头），统一「演示态每条请求都带头」更好审计。
+    if (HX_PV) h['x-hx-probe'] = HX_PV;
     const ctl = typeof AbortController === 'function' ? new AbortController() : null;
     const tm = ctl ? setTimeout(() => { try { ctl.abort(); } catch (e) { } }, TIMEOUT) : 0;
     let r;
@@ -252,6 +266,37 @@ const scoreText = s => s == null ? '—' : (+s).toFixed(1) + ' 分';
 /* 完成率分档 → 颜色类（100% 金 / 80% 蓝 / 70% 灰）。档位与数据库 hx_wire_task__calc 一字对应。
    2026-11-09 用户要求：完成率要实时可见 ——「被别人超了就会变 这是很正常的竞争学习」。 */
 const rateTier = r => r == null ? 'r-none' : Number(r) >= 100 ? 'r100' : Number(r) >= 80 ? 'r80' : 'r70';
+
+/* ── 演示视角提示条（2026-11-17）────────────────────────────────────────────
+   照「小组加分/scores.js」的写法：页面顶部一条「演示视角 · 测试查看用户（只读）」，
+   说清楚「你看到的就是本班学生看到的」以及「演示态不能写」。
+   单独写一个函数而不是塞进 HTML：课堂任务页和大屏页共用本文件，两页都要有；
+   样式全用内联，避免为了一个提示条去动 task.css（那会让打包产物多一处差异）。
+   注意：本函数只在 ?pv= 存在时才会插节点，普通学生/老师打开页面时 DOM 与改动前完全一致。 */
+function hxProbeBar() {
+  if (!HX_PV || document.getElementById('hxProbeBar')) return;
+  const el = document.createElement('div');
+  el.id = 'hxProbeBar';
+  el.setAttribute('role', 'status');
+  el.style.cssText = 'flex:none;display:flex;align-items:center;gap:10px;flex-wrap:wrap;' +
+    'padding:8px 14px;background:#2a2007;color:#ffd79a;border-bottom:1px solid rgba(255,180,60,.35);' +
+    'font:13px/1.55 system-ui,-apple-system,"Microsoft YaHei",sans-serif;position:relative;z-index:60';
+  el.innerHTML = '<b style="font-size:13px;white-space:nowrap">演示视角 · 测试查看用户（只读）</b>' +
+    '<span style="flex:1;min-width:220px;opacity:.92">你正在看本班「测试查看用户」眼里的学生端：它没有分数、不计人数，' +
+    '能看到的东西和本班任何一个真实学生完全一样。演示态只能看，不能排位、不能提交。</span>' +
+    '<button type="button" id="hxProbeExit" style="flex:none;padding:3px 11px;border-radius:999px;' +
+    'border:1px solid rgba(255,200,120,.55);background:transparent;color:#ffd79a;font:12px system-ui;cursor:pointer">退出演示</button>';
+  document.body.insertBefore(el, document.body.firstChild);
+  /* 退出演示：只把地址里的 pv 去掉再重载。不写 localStorage、不动登录态 ——
+     关掉这个开关就是「回到老师自己」，下次要用再从总入口点进来。 */
+  const out = el.querySelector('#hxProbeExit');
+  if (out) out.onclick = () => {
+    try { const u = new URL(location.href); u.searchParams.delete('pv'); location.replace(u.href); }
+    catch (e) { location.search = ''; }
+  };
+}
+if (document.body) hxProbeBar();
+else document.addEventListener('DOMContentLoaded', hxProbeBar);
 
 /* ── 「上一步」接口：给总入口左上角那颗「返回」用（2026-11-14）────────────────
    总入口的返回按钮会先问当前工具：HXBack() 返回 true = 工具自己退了一步，外层什么都不做。

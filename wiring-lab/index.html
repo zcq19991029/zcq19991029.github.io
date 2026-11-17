@@ -3,7 +3,7 @@
 <html lang="zh-CN">
 <head>
 <script src="../hx-theme.js" data-tool="wiring"></script>
-<script>window.HX_BUILD = "2026-11-17T07:36:36Z 144597b";</script>
+<script>window.HX_BUILD = "2026-11-17T10:22:50Z 48f55dc";</script>
 <meta charset="utf-8">
 <meta name="copyright" content="© 2026 zcq 版权所有，未经许可禁止复制、修改、转载">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
@@ -4739,6 +4739,17 @@ document.getElementById('logBtn').onclick = openLog;
 
 // ---------- 排位：华夏工具账号（和排课同一个 Supabase、同一份登录）。希沃上老师登录、学生选自己的名字；学生也能用课堂码在手机上注册自己练 ----------
 // 由 build-practice.cjs 放进外壳脚本里（和外壳一起混淆）。成绩、名次都在服务器上算，网页只负责计时显示和动画。
+/* ── 教师端「测试查看用户」演示视角（2026-11-17）─────────────────────────────
+   地址带 ?pv=<班级id> 时，每个 RPC 多带一个请求头 x-hx-probe: <班级id>。
+   数据库里 hx_preview_class() 先校验「你确实是这个班的教师（或 admin/dev）」，通过后
+   hx_acting_student() 才把「我是谁」换成该班的影子身份（id 恒为 -1）。
+   **查询主体一行不改**，所以演示视角看到的排行榜、遮罩规则、任务榜和真实学生是同一段 SQL。
+   学生拿这个地址打开没用：校验不过就静默回落成他自己。
+   演示态只读：排位开局/结算在数据库里直接 raise，这里也把「开始排位」置灰并拦一道。 */
+const HX_PV = (() => {
+  const m = /[?&]pv=([0-9]{1,19})(?:&|$)/.exec(location.search || '');
+  return m ? m[1] : '';
+})();
 const HX = (() => {
   const BASE = 'https://eiqgyrjrwdaunhxjmdyr.supabase.co', KEY = 'sb_publishable_FcVnLx3TNrj6HnbgarYnRw_DW4-yFzd';
   const SKEY = 'paike-session'; // 和排课在同一个网站下，共用一份登录：排课登过，这里就不用再登
@@ -4786,6 +4797,9 @@ const HX = (() => {
   async function api(path, { method = 'GET', body, auth = true } = {}) {
     if (auth) await fresh();
     const h = { apikey: KEY, 'Content-Type': 'application/json' }; if (auth && s) h.Authorization = 'Bearer ' + s.access_token;
+    // 演示视角：带上影子身份开关（详见文件顶部注释）。登录/续期这类 auth=false 的请求带上也无害，
+    // 统一成「演示态每条请求都带头」，以后加新接口不会漏。
+    if (HX_PV) h['x-hx-probe'] = HX_PV;
     const ctl = typeof AbortController === 'function' ? new AbortController() : null;
     const tm = ctl ? setTimeout(() => { try { ctl.abort(); } catch (e) { } }, TIMEOUT) : 0;
     let r;
@@ -5234,7 +5248,7 @@ async function rkMain(body) {
         ${proxy ? '<em class="rk-proxytag">教师代做</em>' : ''}
       </div>
       <svg class="rkx-trophy" viewBox="0 0 64 64" aria-hidden="true"><path fill="currentColor" d="M18 8h28v6h8v6c0 8-5.6 14.4-13 15.6A14 14 0 0 1 34 42v6h8a2 2 0 0 1 0 4H22a2 2 0 0 1 0-4h8v-6a14 14 0 0 1-7-6.4C15.6 34.4 10 28 10 20v-6h8zm-4 10v2c0 5.3 3.3 9.7 8 11.5V18zm36 0h-8v13.5c4.7-1.8 8-6.2 8-11.5z"/></svg>
-      <button class="rk-start" id="rkStart" ${(RK.pick || isT()) ? '' : 'disabled'}><span>开始排位</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg></button>
+      <button class="rk-start" id="rkStart" ${(RK.pick || isT()) && !HX_PV ? '' : 'disabled'}${HX_PV ? ' title="演示视角只能看：接完线也不记成绩"' : ''}><span>${HX_PV ? '演示视角 · 只读' : '开始排位'}</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg></button>
     </div>
     ${T ? `<div class="rk-students">
       <div class="rk-sh">${RK_ICO.users}<b>学生</b><em id="rkStuN">— 人</em></div>
@@ -5418,6 +5432,9 @@ function rkTuneOf(b, place) {
   };
 }
 async function rkCardWin() {
+  /* 演示视角只能看（2026-11-17）：身份卡背景是写接口（hx_rank_bg_put），而且影子身份根本没有
+     自己的背景 —— 打开也只会改到老师自己账号上，容易让人误以为「演示也能改」。直接不给开。 */
+  if (HX_PV) { toast('演示视角只能看，不能改身份卡背景'); return; }
   // 2026-11-12 U3：身份卡背景设置入口迁到总入口「外观」面板后，这里可能被外壳直接唤起
   // （排位窗还没开过、RK.me 还是空的），所以自己先补拉一次身份，不再依赖排位窗先初始化。
   if (!RK.me) {
@@ -6404,6 +6421,10 @@ function rkGoNext() {
   return Promise.resolve().then(rkStartRun).catch(e => toast('换下一题失败：' + ((e && e.message) || e)));
 }
 async function rkStartRun() {
+  /* 演示视角只能看（2026-11-17）：影子身份不是真学生，开一局就会往 rank_attempts 写一条
+     不属于任何人的记录。数据库那边 rank_start 也会 raise，这里是第一道闸（按钮虽已置灰，
+     但「下一题」「抽中即开局」等路径都汇到这里，必须在这里挡）。 */
+  if (HX_PV) return toast('演示视角只能看：这次不记成绩。要真排位请点横幅里的「退出演示」');
   if (!RK.pick) {
     // 教师代做（2026-11-11）：老师还没选人时点「开始排位」，先问「这局算谁」再开局。
     // 学生账号永远有 RK.pick（= 他自己那一行），走不到这里，老路径零改动。
@@ -7150,6 +7171,33 @@ addEventListener('storage', e => { if (e.key === 'paike-session') acctRefresh();
 { const r = HX.grab(); let again = false; try { again = sessionStorage.getItem('hx-open-rank') === '1'; sessionStorage.removeItem('hx-open-rank'); } catch (e) { }
   if (r && r.error) setTimeout(() => toast('登录失败：' + r.error), 300); else if (r || again) setTimeout(openRank, 300); } // GitHub 登录回来后直接打开排位
 acctRefresh();
+/* ── 演示视角提示条（2026-11-17）────────────────────────────────────────────
+   照「小组加分/scores.js」的写法：页面顶部一条「演示视角 · 测试查看用户（只读）」。
+   只在 ?pv= 存在时插节点，普通学生/老师打开时 DOM 与改动前完全一致。
+   样式内联，不改 project2.html 的 CSS（那是整个练习页的骨架，动它风险大）。 */
+function hxProbeBar() {
+  if (!HX_PV || document.getElementById('hxProbeBar')) return;
+  const el = document.createElement('div');
+  el.id = 'hxProbeBar';
+  el.setAttribute('role', 'status');
+  el.style.cssText = 'flex:none;display:flex;align-items:center;gap:10px;flex-wrap:wrap;' +
+    'padding:8px 14px;background:#2a2007;color:#ffd79a;border-bottom:1px solid rgba(255,180,60,.35);' +
+    'font:13px/1.55 system-ui,-apple-system,"Microsoft YaHei",sans-serif;position:relative;z-index:60';
+  el.innerHTML = '<b style="font-size:13px;white-space:nowrap">演示视角 · 测试查看用户（只读）</b>' +
+    '<span style="flex:1;min-width:220px;opacity:.92">你正在看本班「测试查看用户」眼里的学生端：它没有分数、不计人数，' +
+    '能看到的东西和本班任何一个真实学生完全一样。演示态只能看，不能开排位、不能提交。</span>' +
+    '<button type="button" id="hxProbeExit" style="flex:none;padding:3px 11px;border-radius:999px;' +
+    'border:1px solid rgba(255,200,120,.55);background:transparent;color:#ffd79a;font:12px system-ui;cursor:pointer">退出演示</button>';
+  document.body.insertBefore(el, document.body.firstChild);
+  /* 退出演示：只把地址里的 pv 去掉再重载，不动登录态、不写 localStorage。 */
+  const out = el.querySelector('#hxProbeExit');
+  if (out) out.onclick = () => {
+    try { const u = new URL(location.href); u.searchParams.delete('pv'); location.replace(u.href); }
+    catch (e) { location.search = ''; }
+  };
+}
+hxProbeBar();
+
 // 登录了但没开通（GitHub 新账号等，身份“未开通”）：整页挡住，只引导去首页填邀请码；没登录的照样能用（排位要登录）
 async function hxLock() {
   let me = null; if (HX.online() && HX.in()) try { me = await HX.rpc('hx_me'); } catch (e) { }

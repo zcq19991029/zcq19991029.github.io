@@ -827,7 +827,7 @@ async function studentView() {
               : '这个任务的得分已经冻结，老师不用再操作了。')
             : '去「接线仿真」里选这道电路，点右上角「排位」，全部接对仿真成功就自动算完成（不用在这里点任何按钮）。'}
             <br>赋分：第 1–10 名 100%（5 分）· 第 11–20 名 80%（4 分）· 其余已完成 70%（3.5 分）。</p>
-          <div class="acts"><a class="btn primary big" href="${TOOL}">去排位</a></div>
+          <div class="acts"><a class="btn primary big" href="${TOOL}${HX_PV ? '?pv=' + HX_PV : ''}">去排位</a></div>
         </div>
       </section>`;
   const paint = () => {

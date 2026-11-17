@@ -14,16 +14,16 @@
      要登录时调 window.HXPortal.login()；被单独打开时 hx-theme.js 会跳回这里（见 hx-theme.js 的 data-tool）。
      账号：Supabase 华夏工具项目，localStorage paike-session 和各工具共用；身份由数据库 hx_me() 决定。
      脚本里不用反引号模板字符串（本机测试时整页当字符串注入到线上同源页面里）。 -->
-<link rel="stylesheet" href="hx-theme.css?v=144597b">
-<script src="hx-theme.js?v=144597b"></script>
+<link rel="stylesheet" href="hx-theme.css?v=48f55dc">
+<script src="hx-theme.js?v=48f55dc"></script>
 <script src="rank-bg.js" defer></script><!-- 排位身份卡预设（2026-11-12）：总入口外观面板当场弹窗设置身份卡背景，预设数据在总入口也能用 -->
 <!-- 首页卡片上的像素小生物：pixelfx 的 12 个 critters（MIT），打包成一个 91 KB 的独立脚本。
      加载失败不影响首页——hx-critters.js 开头就有 window.PixelFX 存在性检查，没有就整段跳过。 -->
-<script src="fx/pixelfx-critters.js?v=144597b" defer></script>
-<script src="fx/hx-critters.js?v=144597b" defer></script>
+<script src="fx/pixelfx-critters.js?v=48f55dc" defer></script>
+<script src="fx/hx-critters.js?v=48f55dc" defer></script>
 <!-- 课堂码大屏二维码：离线 QR 编码器（qrcode 1.5.4 core 打包，MIT，见 fx/NOTICE-qr.md）。延迟加载即可：只有老师点「大屏二维码」时才用 -->
-<script src="fx/hx-qr.js?v=144597b" defer></script>
-<script src="hx-scan.js?v=144597b" defer></script><!-- 全站扫一扫（2026-11-08 K5）：摄像头 + BarcodeDetector / 本地 jsQR -->
+<script src="fx/hx-qr.js?v=48f55dc" defer></script>
+<script src="hx-scan.js?v=48f55dc" defer></script><!-- 全站扫一扫（2026-11-08 K5）：摄像头 + BarcodeDetector / 本地 jsQR -->
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; width: 100%; overflow: hidden; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -1769,10 +1769,14 @@ var hoverFine = !!(window.matchMedia && matchMedia('(hover:hover) and (pointer:f
 function toolUrl(t) { // 学生点开时用 t.studentUrl（只给一个页面），老师始终用完整的 t.url
   return (!isTeacher() && t && t.studentUrl) ? t.studentUrl : (t ? t.url : '');
 }
-function mount(t) { // 建（或复用）工具 iframe。真正的下载发生在这一步，所以只在要打开时才调
-  if (frames[t.id]) return frames[t.id];
+function mount(t, src) { // 建（或复用）工具 iframe。真正的下载发生在这一步，所以只在要打开时才调
+  /* 2026-11-17：src 只在「测试查看用户」演示视角里传（带 ?pv=）；平时不传，行为和改动前一模一样。 */
+  if (frames[t.id]) {
+    if (src && frames[t.id].src !== src) { frames[t.id].src = src; delete frames[t.id].dataset.ready; }
+    return frames[t.id];
+  }
   var f = document.createElement('iframe');
-  f.src = toolUrl(t); f.title = t.name; f.allow = 'fullscreen; clipboard-write; clipboard-read'; f.setAttribute('allowfullscreen', '');
+  f.src = src || toolUrl(t); f.title = t.name; f.allow = 'fullscreen; clipboard-write; clipboard-read'; f.setAttribute('allowfullscreen', '');
   f.addEventListener('load', function () { f.dataset.ready = '1'; });
   $('main').appendChild(f); frames[t.id] = f; return f;
 }
@@ -1817,6 +1821,12 @@ function show(id, how) { // how：不写 = 新开一页（进浏览器历史，�
     st = t ? (history.state && history.state.hx || 0) : 0;
   if (how === 'replace' || (!how && (t ? t.id : null) === (prevTab || null))) history.replaceState({ hx: st }, '', url);
   else if (how !== 'pop') history.pushState({ hx: st + 1 }, '', url);
+  /* 2026-11-17：这一帧若是「测试查看用户」打开的（地址带 ?pv=），正常点工具卡进来必须回到
+     老师自己的视角 —— 否则演示身份会一直留在帧里，老师会以为「工具坏了/看不到学生名单」。
+     how === 'probe' 是演示入口自己派发的切换，跳过这里（见 openProbeTool）。 */
+  if (t && how !== 'probe' && frames[t.id] && /[?&]pv=/.test(frames[t.id].src || '')) {
+    frames[t.id].src = toolUrl(t); delete frames[t.id].dataset.ready;
+  }
   if (t) mount(t); // 等待期的提示由工具页自己的启动屏负责（外层药丸已退役，见 tip()）
   for (var k in frames) frames[k].classList.toggle('on', !!t && k === t.id);
   pauseAll(t ? t.id : null); // 2026-11-02：切走的工具页要真正停下来，见 pauseAll
@@ -3970,6 +3980,10 @@ function renderStu(cid) {
     '<small class="dim">用它打开学生端，看到的就是本班学生能看到的东西（用于演示和答疑）。</small></span>' +
     '<button class="btn sm" data-probe="' + cid + '" data-page="scores">看学生端 →</button>' +
     '<button class="btn sub sm" data-probe="' + cid + '" data-page="team">看选桌页</button>' +
+    /* 2026-11-17：接线仿真 / 单片机也接了演示视角（同一套 ?pv= 开关）。
+       这两个工具的学生端就在工具主页里，所以直接在同一个 iframe 里打开，不另开标签页。 */
+    '<button class="btn sub sm" data-probe-tool="wiring">看接线仿真</button>' +
+    '<button class="btn sub sm" data-probe-tool="mcu">看单片机</button>' +
     '</div>';
   el.innerHTML = probeBar + '<table><tr><th class="sq">序号</th><th>学号</th><th>姓名</th><th></th></tr><tr data-sid=""><td class="sq"></td>' + inp(null) + '<td class="ra"><button class="btn sm" data-save>添加</button></td></tr>' +
     list.map(function (s) {
@@ -4024,6 +4038,7 @@ function renderStu(cid) {
   }; });
   el.querySelectorAll('[data-block]').forEach(function (b) { b.onclick = function () { openBlockDlg(cid, +b.dataset.block); }; });
   el.querySelectorAll('[data-probe]').forEach(function (b) { b.onclick = function () { openProbeView(cid, b.dataset.page); }; });
+  el.querySelectorAll('[data-probe-tool]').forEach(function (b) { b.onclick = function () { openProbeTool(b.dataset.probeTool, cid); }; });
 }
 /* 2026-11-17 测试查看用户：在新标签页用影子身份打开学生端（scores.html / team.html）。
    地址里的 ?pv=<班级id> 只是「以这个班的学生身份看」的开关；数据库里会先校验「你确实是这个班的教师」，
@@ -4033,6 +4048,17 @@ function openProbeView(cid, page) {
   var url = SITE + '/jiafenxitong/' + f + '?pv=' + encodeURIComponent(cid);
   var w = window.open(url, '_blank');
   if (!w) toast('浏览器拦了新标签页，请允许弹窗后再点一次');
+}
+/* 2026-11-17 测试查看用户：在**同一个工具 iframe** 里用 ?pv= 打开接线仿真 / 单片机。
+   为什么不用 window.open 新标签页：这两个工具页都加载了 hx-theme.js，单独打开（top === window）时
+   会被它重定向到「总入口首页 #工具」，地址里的 ?pv= 一并丢掉，演示视角直接失效。
+   走 iframe 既保住参数，也和全班学生的真实打开方式一致（手机端本来也只有这一条路径）。
+   帧已经存在时只换地址（mount 会复用它），不会多建一个 iframe。 */
+function openProbeTool(id, cid) {
+  var t = TOOLS.filter(function (x) { return x.id === id; })[0];
+  if (!t) return;
+  mount(t, t.url + '?pv=' + encodeURIComponent(cid));  // 帧不存在就直接用演示地址建，避免白载一次
+  show(id, 'probe');                                   // 'probe' = 别把刚设的 ?pv= 清掉
 }
 /* 2026-11-14 内容封禁：拉某班封禁清单（hx_content_blocks），回来就地重画名单（只补「已封禁」角标，不打断编辑/选中态）。 */
 async function loadBlocks(cid) {

@@ -1805,17 +1805,27 @@ table.sheet col.w-grp,table.sheet th.c-grp,table.sheet td.c-grp,#printArea col.w
 @keyframes app-version-spin{to{transform:rotate(360deg)}}
 @media(prefers-reduced-motion:reduce){.app-version-refresh{transition:none}.app-version-refresh[aria-busy="true"]{animation:none}}
 .local-warn{position:relative;z-index:35;white-space:normal;overflow-wrap:anywhere;line-height:1.6;max-width:100%;box-sizing:border-box}
-#dlgSyncConflict{width:min(520px,94vw);padding:0}
+#dlgSyncConflict{width:min(720px,94vw);padding:0}
 #dlgSyncConflict p{line-height:1.7;overflow-wrap:anywhere}
 #dlgSyncConflict .sync-conflict-intro{margin:4px 0 10px;line-height:1.6}
 #dlgSyncConflict .sync-conflict-table{border:1px solid var(--line);border-radius:10px;overflow:auto;max-height:min(46vh,420px);font-size:13px}
-#dlgSyncConflict .sync-conflict-row{display:grid;grid-template-columns:minmax(210px,1.5fr) minmax(88px,1fr) minmax(88px,1fr);gap:8px;align-items:start;padding:8px 10px;border-top:1px solid var(--line);line-height:1.45}
+#dlgSyncConflict .sync-conflict-row{display:grid;grid-template-columns:minmax(272px,1.8fr) minmax(76px,.75fr) minmax(76px,.75fr);gap:8px;align-items:start;padding:8px 10px;border-top:1px solid var(--line);line-height:1.45}
 #dlgSyncConflict .sync-conflict-row:first-child{border-top:0}
 #dlgSyncConflict .sync-conflict-head{position:sticky;top:0;background:var(--panel);font-weight:700;border-top:0;z-index:1}
 #dlgSyncConflict .sync-conflict-path{overflow-wrap:anywhere}
 #dlgSyncConflict .sync-conflict-row code{font-family:inherit;white-space:pre-wrap;overflow-wrap:anywhere;color:var(--text)}
 #dlgSyncConflict .btnrow{display:flex;flex-wrap:wrap;gap:10px}
 #dlgSyncConflict .btn{flex:1 1 160px;white-space:normal}
+/* 手机上三列挤成一团：位置独占一行，两个值并排并各自带上「本机 / 云端」前缀，
+   不然只剩两串数字，谁是谁全靠记列位。 */
+@media (max-width:620px){
+  #dlgSyncConflict{width:96vw}
+  #dlgSyncConflict .sync-conflict-row{grid-template-columns:1fr 1fr;row-gap:2px;padding:8px 9px}
+  #dlgSyncConflict .sync-conflict-path,
+  #dlgSyncConflict .sync-conflict-head span:first-child{grid-column:1 / -1}
+  #dlgSyncConflict .sync-conflict-row code:nth-of-type(1)::before{content:'本机：';opacity:.6}
+  #dlgSyncConflict .sync-conflict-row code:nth-of-type(2)::before{content:'云端：';opacity:.6}
+}
 .sync-edit-gate{position:sticky;top:8px;z-index:40;padding:12px 16px;border:1px solid var(--warn);background:var(--warn-bg);color:var(--text);border-radius:10px;margin-bottom:12px;font-size:14px;line-height:1.6;overflow-wrap:anywhere}
 [inert]{cursor:progress}
 .sync-edit-gate{position:fixed;top:auto;bottom:16px;right:16px;max-width:min(420px,85vw);margin:0;box-sizing:border-box;}
