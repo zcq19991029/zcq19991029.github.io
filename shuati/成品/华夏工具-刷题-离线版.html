@@ -1930,19 +1930,24 @@ html.hx-lite .hx-crumb:active::after { animation: none; }
         + 'color:var(--pn-fg,#1d1d1f);box-shadow:var(--pn-sh,0 12px 32px rgba(0,0,0,.18),0 2px 6px rgba(0,0,0,.07));'
         + 'backdrop-filter:blur(14px) saturate(1.3);-webkit-backdrop-filter:blur(14px) saturate(1.3);'
         + '-webkit-overflow-scrolling:touch}'
-        + '.hx-pn-opt{display:flex;align-items:center;width:100%;box-sizing:border-box;min-height:34px;padding:0 13px;'
+        // 每一行是一颗胶囊：999px 圆角 + 一圈极细的描边。
+        // 只靠圆角没有底色时看不出形状（用户「药丸在哪儿」问的就是这个），描边让每颗胶囊有轮廓，像铝箔药板。
+        + '.hx-pn-opt{display:flex;align-items:center;width:100%;box-sizing:border-box;min-height:34px;padding:0 14px;'
         + 'border:0;border-radius:999px;background:transparent;color:inherit;font:inherit;font-size:13.5px;'
-        + 'text-align:left;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0}'
+        + 'text-align:left;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0 0 3px;'
+        + 'box-shadow:inset 0 0 0 1px color-mix(in srgb,currentColor 13%,transparent)}'
+        + '.hx-pn-opt:last-child{margin-bottom:0}'
         + '.hx-pn-opt:hover{background:var(--pn-hov,rgba(0,0,0,.06))}'
         + '.hx-pn-opt.on{font-weight:600;background:color-mix(in srgb,var(--acc,#0a84ff) 16%,transparent);'
         + 'box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--acc,#0a84ff) 42%,transparent)}'
         + '.hx-pn-opt.dis{opacity:.4;cursor:not-allowed}'
         + '.hx-pn-grp{padding:8px 13px 4px;font-size:11.5px;opacity:.55;letter-spacing:.02em}'
         + '.hx-pn-empty{padding:10px 13px;font-size:13px;opacity:.55}'
-        // 极简外观（hx-lite）：直角、去毛玻璃（底色仍取触发器自己的，不写死白/黑）
-        + 'html.hx-lite .hx-pn-sheet{border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,.22);'
-        + 'backdrop-filter:none;-webkit-backdrop-filter:none}'
-        + 'html.hx-lite .hx-pn-opt{border-radius:4px}';
+        // 极简外观（hx-lite）：去毛玻璃、收阴影，但**圆角不动** ——
+        // 2026-11-17 用户看到方角版直接问「药丸在哪儿？」，药丸形状是这套组件的本分，不因极简而变方。
+        // （底色仍取触发器脚下的底，不写死白/黑）
+        + 'html.hx-lite .hx-pn-sheet{box-shadow:0 4px 12px rgba(0,0,0,.22);'
+        + 'backdrop-filter:none;-webkit-backdrop-filter:none}';
       (document.head || document.documentElement).appendChild(s);
     }
 
