@@ -1875,6 +1875,19 @@
         || (pw > 0 && sel.offsetWidth >= pw - 2);
       wrap.style.display = full ? 'block' : 'inline-block';
       if (full) wrap.style.width = '100%';
+      // 父容器是 flex 行时（总入口密码框那颗 #pwCls 就是 style="flex:1"），flex / 宽度约束长在 select 身上，
+      // 换成 inline-block 包装层就全丢了 → 按钮缩回内容宽度、旁边那颗按钮跟着挪位。
+      // 所以把 flex、align-self、min/max-width、order 原样搬到包装层上，让它顶替 select 当 flex 子项。
+      try {
+        var pcs = getComputedStyle(sel.parentNode);
+        if (/flex/.test(pcs.display)) {
+          wrap.style.flex = cs.flex || '0 1 auto';
+          if (cs.alignSelf && cs.alignSelf !== 'auto') wrap.style.alignSelf = cs.alignSelf;
+          if (cs.minWidth && cs.minWidth !== 'auto' && cs.minWidth !== '0px') wrap.style.minWidth = cs.minWidth;
+          if (cs.maxWidth && cs.maxWidth !== 'none') wrap.style.maxWidth = cs.maxWidth;
+          if (cs.order && cs.order !== '0') wrap.style.order = cs.order;
+        }
+      } catch (e) { }
       sel.parentNode.insertBefore(wrap, sel);
       sel.classList.add('hx-pn-src');
       wrap.appendChild(sel);
