@@ -1,13 +1,18 @@
 <!doctype html>
-<html lang="zh-CN" data-mode="light">
+<html lang="zh-CN" data-mode="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>使用说明与来源 · UI 设计</title>
+<!-- 和 index.html 同一套外观（2026-11-17）：引 hx-theme.js 拿壁纸/深浅/主题色，同样不带 data-tool。
+     注释与理由见 index.html 顶部那段，别只改一处。 -->
+<script src="../hx-theme.js"></script>
 <script>
   try {
-    var m = localStorage.getItem('uikit:mode');
-    if (!m) m = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    var raw = localStorage.getItem('hx-theme'), o = null;
+    try { o = raw ? JSON.parse(raw) : null; } catch (e2) { }
+    var m = (o && (o.mode === 'light' || o.mode === 'dark')) ? o.mode
+          : (localStorage.getItem('uikit:mode') || 'dark');
     document.documentElement.setAttribute('data-mode', m);
   } catch (e) { }
 </script>
@@ -27,6 +32,7 @@
 </header>
 
 <main class="doc">
+ <div class="docbody">
   <h1>使用说明与来源</h1>
   <p class="upd">更新日期：2026 年 11 月 17 日</p>
 
@@ -68,6 +74,7 @@
   <p>联系方式：登录华夏工具后，从首页「反馈」工具留言即可（开发者直接收得到）。</p>
 
   <a class="btn back" href="index.html">回组件目录</a>
+ </div>
 </main>
 
 </body>

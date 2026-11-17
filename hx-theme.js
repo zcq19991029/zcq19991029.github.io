@@ -26,16 +26,14 @@
   // （op 字段是旧版「选背景时顺手改卡片透明度」的推荐值，VER 5 起不再使用：通透度归界面层管，换背景不动它。）
   var BG = {
     none: { name: '无' },
-    // 2026-11-04 深夜用户定：背景只留三档 —— 无 / 极光动态（新的全站默认）/ 自己上传。
-    // 原来的小熊、吉伊卡哇、猫耳、晨雾、海湾、暮光、极光渐变**全部下架**（原话「其他的背景删除」）。
-    //
-    // 极光：**静态图**（bg/aurora.jpg，960×540，30 KB）。
-    // 2026-11-17 视频壁纸整体删除（用户原话「视频背景功能删除　我们只用自己的静态图」）——
-    // 原来这里放的是 bg/aurora.mp4（620 KB，正放+倒放拼的无缝循环，双 video 交叉淡入），
-    // 那条路唯一的优点是有流动感，代价却是：解码失败 / 自动播放被拦 / 网络没下完就变一块黑，
-    // 还要 620 KB 和一路持续解码。现在退回静态帧，靠 motion:1 挂 hx-bg-mo 的纯 CSS 柔光呼吸，
-    // 观感上仍然「在动」，但零解码、零黑屏、零下载。
-    aurora: { name: '极光', img: 'bg/aurora.jpg', motion: 1, op: 100 },
+    /* 2026-11-17：**极光壁纸彻底删除**（用户原话「极光壁纸彻底清除」）。
+       删掉的是：BG.aurora 这一档、bg/aurora.jpg 这个图、外观面板里的「极光」按钮、
+       「静态壁纸缓慢呼吸」那整套（bgMotion + .hx-bgmo 两团柔光 + body::before 的 ken burns，
+       它只服务极光这一档，没有别的预设带 motion 标记，留着就是一段永不执行的死代码）。
+       为什么删：它是全站唯一的「非用户自己素材」的背景预设 —— 一张固定的图，教室里每个班看都一样，
+       占 30 KB，还要为它养一层动效；用户要的是「干净底」或者「自己的图」，中间这档没意义。
+       老存档里的 bg:'aurora' 由 migrateGlobal() 就地改写成 'none'（见那边），不会白屏、不会报错。
+       背景现在只有两档：无 / 自己的图。 */
     custom: { name: '自己的图', op: 70 }
   };
   // VER 4（2026-11-04 深夜）：背景项合并成上面三档，默认改成极光视频。
@@ -212,75 +210,21 @@
          同时「壁纸 opacity<100」时透出的底色也统一成全站标准底色，和 B3 的口径一致。
          只给 background-color，不给 background-image：接线仿真外壳会把壁纸用**行内** background 写在 html 上，
          这里再用 background-image:none 会把它那一层砍掉。 */
-      + 'html.hx-embedded.hx-bg{background-color:var(--hx-page,#f5f5f7)!important}'
-      + 'html.hx-embedded .hx-bgvid-wrap{display:none!important}';
+      + 'html.hx-embedded.hx-bg{background-color:var(--hx-page,#f5f5f7)!important}';
     (document.head || document.documentElement).appendChild(st);
 
-    // ── 嵌入时的背景动效层样式（2026-11-13）─────────────────────────────
-    // 为什么要在 JS 里再写一份：.hx-bgmo / hx-bgmo-zoom 这几条规则住在 hx-theme.css，
-    // 而全站只有总入口和刷题引了那份 CSS —— 小组加分、排课、考试、单片机这些 iframe 里
-    // 拿不到它们，bgMotion() 把元素建出来也是个「没有样式、不占位、看不见」的空 div。
-    // 值必须和 hx-theme.css 里那一份逐字一致（同一套极光柔光、同一组周期），
-    // 否则同一个背景在 iframe 内外会是两种观感。两份同时存在时值相同，谁生效都一样。
-    var moSt = document.createElement('style');
-    moSt.id = 'hx-bgmo-style';
-    moSt.textContent =
-      '@keyframes hx-bgmo-zoom{from{transform:scale(1.06) translate3d(-.9%,.6%,0)}to{transform:scale(1.18) translate3d(1.1%,-.9%,0)}}'
-      // 只加 backface-visibility、**不写 transform**：写了 transform 会把 @keyframes 里的 transform
-      // 整个盖掉，动画当场压死（CSS 动画最常见的自杀写法，hx-theme.css 那边也是这么避开的）。
-      + 'html.hx-bg-mo body::before{animation:hx-bgmo-zoom 34s ease-in-out infinite alternate;'
-      + 'transform-origin:52% 46%;will-change:transform;-webkit-backface-visibility:hidden;backface-visibility:hidden}'
-      // z-index:-1 和 body::before 同层，靠 DOM 顺序压在壁纸之上、内容之下
-      + '.hx-bgmo{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden;opacity:var(--hx-bgo,1)}'
-      + '.hx-bgmo i{position:absolute;display:block;border-radius:50%;will-change:transform,opacity}'
-      + '.hx-bgmo i:first-child{width:84vmax;height:84vmax;left:-32vmax;top:-26vmax;'
-      + 'background:radial-gradient(closest-side,rgba(126,196,255,.34),rgba(96,156,240,.15) 56%,transparent 74%);'
-      + 'animation:hx-bgmo-a 24s ease-in-out infinite}'
-      + '.hx-bgmo i:last-child{width:70vmax;height:70vmax;right:-26vmax;bottom:-22vmax;'
-      + 'background:radial-gradient(closest-side,rgba(146,255,226,.26),rgba(108,220,196,.11) 56%,transparent 74%);'
-      + 'animation:hx-bgmo-b 32s ease-in-out infinite}'
-      + '@keyframes hx-bgmo-a{0%,100%{transform:translate3d(0,0,0) scale(1);opacity:.8}50%{transform:translate3d(17vmax,11vmax,0) scale(1.18);opacity:1}}'
-      + '@keyframes hx-bgmo-b{0%,100%{transform:translate3d(0,0,0) scale(1.1);opacity:.65}50%{transform:translate3d(-15vmax,-10vmax,0) scale(.92);opacity:1}}'
-      // 系统「减少动态效果」：不压成死图，只把周期拉长 3 倍，画面还在缓缓呼吸（和 hx-theme.css 一致）
-      + '@media (prefers-reduced-motion:reduce){html.hx-bg-mo body::before{animation-duration:102s}'
-      + '.hx-bgmo i:first-child{animation-duration:72s}.hx-bgmo i:last-child{animation-duration:96s}}';
-    (document.head || document.documentElement).appendChild(moSt);
+    // （2026-11-17：这里原来还有一份 hx-bgmo-style，给「极光壁纸的柔光呼吸」在 iframe 里补样式。
+    //   极光壁纸整体删除时一起删了 —— 没有预设带 motion 标记，那层元素再也不会被创建。）
 
-    // 脚本在 <head> 里跑，此刻 <body> 还没解析出来，bgMotion() 建不了动效层（它要 insertBefore 到 body）。
-    // 不补这一下也能成（load + 空闲后 bgVidReady 会再 apply 一次），但那之前首屏几秒是静的 ——
-    // 干脆 body 一出来就补，用户几乎看不到静的那一段。
+    // 脚本在 <head> 里跑，此刻 <body> 还没解析出来，有些要往 body 里插东西的初始化做不了。
+    // 不补这一下也能成（后面 load + 空闲还会再 apply 一次），但那之前首屏几秒是旧外观 ——
+    // 干脆 body 一出来就补，用户几乎看不到那一段。
     if (document.readyState === 'loading') addEventListener('DOMContentLoaded', function () { try { apply(); } catch (e) { } });
   }
 
-  // 动态背景（视频壁纸）那一层：样式必须全局注入 —— 全站只有总入口和刷题引了 hx-theme.css，
-  // 其余工具只引这个 JS，写进 CSS 文件等于对它们无效。
-  // z-index:-2 排在 body::before（-1，负责深色模式压暗）下面，也排在 .hx-wm（0）和所有内容下面。
-  // opacity 跟 --hx-bgo 走，所以外观面板那根「背景透明度」对视频一样有效。
-  (function () {
-    var vs = document.createElement('style');
-    vs.id = 'hx-bgvid-style';
-    // 2026-11-04 深夜（bug：手机打开首页变成全屏视频播放器）：
-    //  · pointer-events:none —— 之前只写了 z-index，没写这条。手机上手指点/长按/滑过视频元素，
-    //    Safari 与部分国产内核会把它当成「用户点了媒体」，弹出原生播放器控件、甚至整页接管播放。
-    //    背景壁纸必须是**画**：点不到、选不中、拖不动。
-    //  · z-index:-2 —— 一直写在注释里，样式串里其实也有；这里保留并叠在 body::before(-1) 之下。
-    //  · touch-action:none / user-select:none —— 双保险，禁止滑动/长按选中触发媒体手势。
-    //  · -webkit-user-drag:none —— 桌面端也顺手禁止拖拽成独立窗口。
-    //  · opacity 拆成两层：外层 .hx-bgvid-wrap 吃 --hx-bgo（背景浓度滑杆），
-    //    内层两路只吃 --hx-fade（交叉淡入）。为什么不把 bgo 乘进每一路：
-    //    两路同时半透明时叠加的合成 alpha = o1+o2-o1·o2，比单路更大，整块背景会在淡入中点亮一下。
-    //    把 bgo 提到外层之后，内层永远只有一路"满不透明 + 一路淡出"，合成结果严格等于 bgo。
-    vs.textContent = '.hx-bgvid-wrap{position:fixed;inset:0;z-index:-2;pointer-events:none;'
-      + 'opacity:var(--hx-bgo,1);background:transparent}'
-      + '.hx-bgvid{position:absolute;inset:0;width:100%;height:100%;'
-      + 'object-fit:cover;object-position:center;background:transparent;pointer-events:none;'
-      + 'touch-action:none;user-select:none;-webkit-user-select:none;-webkit-user-drag:none;'
-      + 'opacity:var(--hx-fade,1);'
-      + 'transition:opacity .7s var(--hx-ease,ease);will-change:opacity}'
-      // 屏宽 ≤820px 时一律不挂视频（JS 侧已提前拦掉，这条防「旧缓存 JS + 新 CSS」这种混搭）
-      + '@media (max-width:820px){.hx-bgvid-wrap{display:none!important}}';
-    (document.head || document.documentElement).appendChild(vs);
-  })();
+  // （2026-11-17：这里原来还注入了一份 .hx-bgvid-wrap 样式给视频壁纸用 ——
+  //   视频壁纸功能删除后它没有任何元素可挂，一并清掉。背景现在只有「无 / 自己的图」两档，
+  //   一律走 body::before 的 --hx-img 静态图。）
 
   // ── 页面层基础样式（2026-11-08 修「工具页选背景没东西」）──────────────────
   // 背景图要看得见，前提是页面自己别先铺一层不透明底色把它全盖住。
@@ -589,16 +533,22 @@
     // 极老的存档是 'day' / 'night' 这样的主题名（见 OLD 表），不是 JSON
     if (raw && OLD[raw]) base = { acc: OLD[raw].acc, mode: OLD[raw].mode };
     else if (raw) base = jparse(raw);
+    // 2026-11-17：极光壁纸彻底删除。老存档（不管 ver 是几）里残留的 'aurora' 就地改写成「无」，
+    // 顺带写回盘 —— 否则 ver 已经是 8 的存档会走下面那条「原样返回」，字符串一直留着，
+    // 将来某次读不到 BG 表就会落成空白背景（get() 现在能兜到 none，但存档该干净就干净）。
+    if (base && base.bg === 'aurora') {
+      base.bg = 'none';
+      try { ls(KEY, JSON.stringify(base)); } catch (e) { }
+    }
     // 已经是 VER 8 的结构：原样用，一个字节都不改（这就是幂等的落点）
     if (base && (+base.ver || 0) >= VER) { pruneOldSnaps(); migVal = base; return base; }
     // 全新用户（既没有全局键也没有任何界面键）：什么都不写，get() 直接落默认值。
     // 不写盘的好处是「没动过外观的人」localStorage 里干干净净，以后改默认也不会被旧快照挡住。
     if (!base && !snaps.length) return null;
     if (!base) base = {};
-    // 下面两条是 VER 7 之前写在 get() 里的老迁移，现在一次性落进存档，省得每次读都算
+    // 下面这条是 VER 7 之前写在 get() 里的老迁移，现在一次性落进存档，省得每次读都算
     if (raw && !base.ver && base.bg !== 'custom') base.bg = DEF.bg;
-    if ((+base.ver || 0) < 7 && base.bg === 'aurora') base.bg = 'none';
-    if (!BG[base.bg]) delete base.bg;          // 已下架的背景（bear/cat/…）：让工具键有机会补一个合法值
+    if (!BG[base.bg]) delete base.bg;          // 已下架的背景（aurora / bear / cat / …）：让工具键有机会补一个合法值
     for (var i = 0; i < snaps.length; i++) fill(base, snaps[i], true);
     if (base.acc === 'green') base.acc = DEF.acc; // 规则 ④：只迁「还是旧默认绿」的
     if (base.wm === undefined) base.wm = DEF.wm;  // 规则 ③：没关过 = 显示
@@ -678,10 +628,9 @@
   //   · 预设背景本身就是 1080p 级 JPEG，直接用；
   //   · 不再有任何 blur，`--hx-img` 指向真图，缩小/放大都不会出现「糊→清」的跳变。
   // 想要背景淡一点，用外观面板的「背景透明度」（--hx-bgo），那才是用户要的那根滑杆。
-  // ── 背景层（2026-11-04 建视频壁纸 → 2026-11-17 整体改成静态图）──────────────
-  // 现在只剩一条链路：--hx-img 交给 body::before 铺（cover + --hx-bgo 透明度），
-  // 动态素材预设（极光）额外挂一层纯 CSS 的 .hx-bgmo 柔光呼吸。
-  // 原视频方案的三条硬规矩（省电只留海报 / 切后台暂停 / 打开工具暂停）随视频一起作废。
+  // ── 背景层（2026-11-04 建视频壁纸 → 2026-11-17 整体改成静态图 → 同日连极光一起删）──────
+  // 现在只剩一条链路：`--hx-img` 交给 body::before 铺（cover + --hx-bgo 透明度）。
+  // 背景只有两档：**无 / 自己的图**（用户原话「极光壁纸彻底清除」）。
   //
   /* ── 2026-11-17：视频壁纸功能整体删除（用户原话「视频背景功能删除」「死代码也删除」）──
      删掉的东西：双 <video> 交叉淡入（bgMake / bgSwap / bgStep / bgRun / bgStopAll / bgDrop）、
@@ -690,33 +639,11 @@
      为什么删：它是全站唯一「能不能出画面看运气」的东西 —— 解码失败、自动播放被拦、
      网络没下完都会变成一块黑（2026-11-16 那次「标准模式没背景」正是这么来的）；
      还要 620 KB 流量加一路持续解码。而用户自己用的是上传的静态图，这条路径根本用不到。
-     现在所有背景一律走 body::before 的 --hx-img（静态图），极光预设用 bg/aurora.jpg。 */
 
-  // ── 静态壁纸的「缓慢呼吸」（纯 CSS 合成，零 video / 零 rAF / 零 blur）──────────
-  // 只给「素材本身就是动态的」预设挂（BG 表里标 motion:1 的那档，目前只有极光）；
-  // 用户自己上传的图不挂 —— 那张图是静的，动起来反而怪。
-  // 极简模式一票否决：那一档本来就是给老一体机兜底的。
-  // 动画本体在 hx-theme.css（.hx-bgmo 两团柔光 + body::before 的 ken burns），
-  // 另有下面 hx-bgmo-style 那份内联副本（全站只有总入口和刷题引了 CSS，其余工具页拿不到）。
-  var bgMo = null;
-  function bgMotion(on) {
-    var r = document.documentElement;
-    var need = !!on && !liteOn() && !r.classList.contains('hx-lite');
-    r.classList.toggle('hx-bg-mo', need);
-    if (!need) {
-      if (bgMo && bgMo.parentNode) bgMo.parentNode.removeChild(bgMo);
-      bgMo = null;
-      return;
-    }
-    if (bgMo) return;
-    if (!document.body) return;               // 脚本在 <head> 里跑，body 还没出来：下次 apply() 再补
-    bgMo = document.createElement('div');
-    bgMo.className = 'hx-bgmo';
-    bgMo.setAttribute('aria-hidden', 'true');
-    bgMo.appendChild(document.createElement('i'));
-    bgMo.appendChild(document.createElement('i'));
-    document.body.insertBefore(bgMo, document.body.firstChild);
-  }
+     ── 同一份文件里，极光那套「静态壁纸缓慢呼吸」也一起删了 ──
+     它原本是给 BG.aurora 那一档挂 .hx-bgmo 两团柔光 + body::before 的 ken burns（34s 缩放）。
+     BG.aurora 删除后没有任何预设带 motion 标记，bgMotion() 永远不会被打开，
+     留在代码里只会让人以为「还有动态壁纸这回事」。整套（函数 / 调用 / 样式 / CSS 那一段）全部移除。 */
 
   /* lastLook：apply() 每次算完顺手存一份「机器可读的外观」，供 hxLookNow() 交给子页面。
      为什么不在 hxLookNow() 里重算一遍：公式（--hx-a 的线性式、bgo 的 clamp、img 三种来源）
@@ -737,11 +664,9 @@
     // 嵌入时不挂：iframe 里的背景由 hx-embedded 那套规则自己铺（见文件上方），
     // 两边都铺就是双背景，而且 .hx-layer 的 scrim 会和嵌入那条叠成两层灰。
     r.classList.toggle('hx-layer', !embedded && s.bg !== 'none');
-    // 2026-11-17 视频壁纸删除后，--hx-img 就是那张静态图本身（极光预设现在也带 img 了）。
-    // isMo 只回答一件事：「这条预设的素材本来是动态的吗」→ 决定要不要挂 hx-bg-mo 的呼吸动效。
+    // 2026-11-17 视频壁纸删除后，--hx-img 就是那张静态图本身。
     // 注意 --hx-img 必须给真地址、不能给 'none'：接线仿真这类「画布不透明的工具」靠读
     // --hx-img 拿到背景图地址（theme.js 的 hxLook 通道），给 none 它背景就永远是纯色。
-    var isMo = !!(b && b.motion) && s.bg !== 'none';
     var img = s.bg === 'custom' ? 'url("' + ls(IMG) + '")' : b.img ? 'url("' + root + b.img + '")' : b.css || 'none';
     // --hx-a：玻璃浓度乘数（各条玻璃配方的 alpha 都乘它）。
     // 2026-11-05 随通透度滑杆翻转语义：100（最透）= 1，正好是 2026-11-04 定稿的那套清透玻璃；
@@ -779,11 +704,7 @@
     // 因为下游（接线仿真 theme.js）直接拿它拼 CSS 简写：`HXL.img + ' center / cover no-repeat'`。
     lastLook = { acc: c, acc2: c2, a: hx_a, bgo: bgo, img: img, mode: m };
     r.classList.remove('hx-bgblur'); // 旧版挂的「预糊图」标记，现在没有任何样式依赖它，清掉防止老缓存残留
-    // 背景的「缓慢呼吸」：只给动态素材预设挂（目前就是极光），用户自己上传的静态图不挂 ——
-    // 那张图是静的，让它慢慢缩放反而怪。极简模式由 bgMotion 内部一票否决。
-    // 2026-11-17 起嵌入页和独立页同一套判据：浅色嵌入页现在也铺壁纸了（见文件上方
-    // hx-embedded 那段），动效自然跟着一起开，不再有「深色才动」的分叉。
-    bgMotion(isMo);
+    r.classList.remove('hx-bg-mo');  // 极光删除后不再有动态壁纸；清掉旧页面可能残留的呼吸类，别让它挂着空转
     var meta = document.querySelector('meta[name="theme-color"]'); if (meta) meta.setAttribute('content', m === 'dark' ? '#000000' : '#f5f5f7');
     try { ls('zfz-practice-theme', m); ls('wanxiu-paike-theme', m); ls('ui.theme', JSON.stringify(m)); } catch (e) { }
     for (var i = 0; i < subs.length; i++) try { subs[i](s, m); } catch (e) { }
@@ -1273,8 +1194,7 @@
     //   传 'auto' 当没传处理（只读）。历史上 'auto' 是「清掉手工选择回到按机器猜」，
     //   现在默认就是极简、也不必猜机器，那条分支去掉了。
     // 设置完**当场生效**：html.hx-lite 一变，像素小生物 / 头像 / 天气动效的动画循环下一帧就停
-    // （它们每一帧都查这个类，不是只在加载时查一次），再跑一次 apply() 把背景视频摘掉、
-    // 只留海报帧，CSS 合成动画层（hx-bg-mo）也一起摘。
+    // （它们每一帧都查这个类，不是只在加载时查一次），再跑一次 apply() 把壁纸层重新算一遍。
     lite: function (v) {
       if (v === undefined || v === 'auto') return liteOn();
       try { localStorage.setItem('hx-lite', v === '1' ? '1' : '0'); } catch (e) { }

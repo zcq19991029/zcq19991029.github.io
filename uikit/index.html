@@ -1,14 +1,26 @@
 <!doctype html>
-<html lang="zh-CN" data-mode="light">
+<html lang="zh-CN" data-mode="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>UI 设计 · 华夏工具</title>
-<!-- 先把深浅定下来再渲染，避免白屏闪一下 -->
+<!-- 全站外观（2026-11-17 起）：这一页原来自己一套白底 + 自己的深浅开关，用户看后原话
+     「这个没用背景　因为你没做卡片模块　分块没做　背景和主题没安排好啊」—— 所以接回全站那套。
+     注意**不带 data-tool**：
+       · 带 data-tool 的话，hx-theme.js 开头会把顶层打开的页面 location.replace 回总入口，
+         开发者工具就没法单独开着用了；
+       · gate() 第一行是 if (tool) 才拦，不带 data-tool ⇒ 也不挂登录墙（本页是纯静态存档，没有云端数据）。
+     拿到的：壁纸层（.hx-layer + body::before）、深浅、主题色 --acc、统一滚动条、校徽水印。
+     hx-theme.js 会往 <html> 写 data-hx-mode，style.css 的深色分支认的就是它。 -->
+<script src="../hx-theme.js"></script>
+<!-- 先把深浅定下来再渲染，避免白屏闪一下。读的键跟 hx-theme 同一把（hx-theme = {ver,acc,mode,bg,clr,bgo,wm}），
+     老存档里的 uikit:mode 只做一次性兜底 —— 以前是本站独立开关，现在归全站管。 -->
 <script>
   try {
-    var m = localStorage.getItem('uikit:mode');
-    if (!m) m = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    var raw = localStorage.getItem('hx-theme'), o = null;
+    try { o = raw ? JSON.parse(raw) : null; } catch (e2) { }
+    var m = (o && (o.mode === 'light' || o.mode === 'dark')) ? o.mode
+          : (localStorage.getItem('uikit:mode') || 'dark');
     document.documentElement.setAttribute('data-mode', m);
   } catch (e) { }
 </script>

@@ -9,8 +9,17 @@
 (function () {
   var DATA = window.UIKIT || { version: '0', updated: '', items: [] };
   var $ = function (s, r) { return (r || document).querySelector(s); };
-  var mode = localStorage.getItem('uikit:mode')
-    || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  /* 深浅归全站管（2026-11-17）。取当前值的优先级：
+       1. hx-theme.js 写进 <html> 的 data-hx-mode（真来源）；
+       2. 本页内联脚本先落下的 data-mode（hx-theme 还没跑完时的兜底）；
+       3. 默认深色（全站默认就是深色）。
+     老存档里的 uikit:mode 只用于第 2 步，不再由这里写。 */
+  function curMode() {
+    var h = document.documentElement, m = h.getAttribute('data-hx-mode');
+    if (m !== 'light' && m !== 'dark') m = h.getAttribute('data-mode');
+    return m === 'light' ? 'light' : 'dark';
+  }
+  var mode = curMode();
   var q = '';                       // 搜索词
 
   /* ── 小工具 ─────────────────────────────────────────────────────────── */
@@ -42,12 +51,40 @@
     try { document.execCommand('copy'); toast('已复制'); } catch (e) { toast('复制失败，请手动选择'); }
     ta.remove();
   }
-  function setMode(m) {
-    document.documentElement.setAttribute('data-mode', m);
-    localStorage.setItem('uikit:mode', m);
+  /* 只同步按钮提示，**不动 <html> 上的属性**。
+     属性（data-hx-mode）是 hx-theme 的地盘：这里也去写的话，切一次深浅会出现「我先写 light、
+     hx-theme 还是 dark」的一瞬，属性观察者读到旧值就把 mode 掰回去，表现为点了没反应 / 闪一下。 */
+  function applyModeUI(m) {
     var b = $('.theme-btn');
-    if (b) b.title = m === 'dark' ? '切到浅色' : '切到深色';
+    if (b) {
+      b.title = m === 'dark' ? '切到浅色' : '切到深色';
+      b.setAttribute('aria-label', b.title);
+    }
   }
+  /* 点右上角那个月亮/太阳：改的是**全站那一把键**（hx-theme），不是本站私有键 ——
+     全站只要一个外观控制，在这里切完，总入口和别的工具也该跟着变。
+     没引到 hx-theme.js 时（离线单文件 / 404）退回旧的 uikit:mode + 自己写 data-mode，页面至少自己能用。 */
+  function setMode(m) {
+    applyModeUI(m);
+    try {
+      if (window.HXTheme && HXTheme.set) { HXTheme.set({ mode: m }); return; }
+    } catch (e) { }
+    try { localStorage.setItem('uikit:mode', m); } catch (e) { }
+    document.documentElement.setAttribute('data-mode', m);
+  }
+  /* 别人在总入口改了深浅（storage / 外壳 apply）→ 本页跟着变。
+     hx-theme 是往 <html data-hx-mode> 写的，光听 storage 收不到（那只是另一个标签页里发生的事），
+     所以盯属性。自己点按钮时也会触发一次，靠 mode 值比对挡掉重复渲染。 */
+  (function () {
+    if (!window.MutationObserver) return;
+    new MutationObserver(function () {
+      var m = curMode();
+      if (m === mode) return;
+      mode = m;
+      applyModeUI(m);
+      route();                       // 预览 iframe 要跟着换深浅
+    }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-hx-mode', 'data-mode'] });
+  })();
   function match(it) {
     if (!q) return true;
     var hay = (it.name + ' ' + it.sub + ' ' + (it.tags || []).join(' ') + ' ' +
@@ -236,16 +273,21 @@
     m.innerHTML = '';
     if (!it) {
       var nf = el('div', 'detail');
-      nf.appendChild(el('h1', null, '没找到这个组件'));
+      var nfh = el('div', 'dhead');
+      nfh.appendChild(el('h1', null, '没找到这个组件'));
       var back = el('a', 'btn', '回组件目录');
       back.href = '#/';
-      nf.appendChild(back);
+      nfh.appendChild(back);
+      nf.appendChild(nfh);
       m.appendChild(nf);
       return;
     }
+    /* 详情页分块（2026-11-17）：头部（标题/副标题/元信息）一张卡，下面每个区块各一张卡。
+       原来这些全裸排、区块之间只隔一条细横线，在壁纸页上看着「一坨、没分块」—— 用户原话。 */
     var root = el('div', 'detail');
-    root.appendChild(el('h1', null, it.name));
-    root.appendChild(el('p', 'sub', it.sub));
+    var head = el('div', 'dhead');
+    head.appendChild(el('h1', null, it.name));
+    head.appendChild(el('p', 'sub', it.sub));
 
     var meta = el('div', 'meta');
     if (it.date) meta.appendChild(el('span', null, it.date));
@@ -255,7 +297,8 @@
       meta.appendChild(el('span', 'dot'));
       meta.appendChild(el('span', null, it.tags.slice(0, 3).join(' · ')));
     }
-    root.appendChild(meta);
+    head.appendChild(meta);
+    root.appendChild(head);
 
     /* 简介 */
     var s1 = el('section', 'sec');
@@ -382,7 +425,7 @@
   }
 
   /* ── 启动 ───────────────────────────────────────────────────────────── */
-  setMode(mode);
+  applyModeUI(mode);      // 只摆按钮图标/提示，不改存储也不改 html 属性（属性归 hx-theme）
   $('.ver').textContent = 'v' + DATA.version + ' · ' + DATA.updated;
   $('.theme-btn').addEventListener('click', function () {
     mode = mode === 'dark' ? 'light' : 'dark';

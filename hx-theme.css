@@ -113,82 +113,12 @@ html.hx-bg body::before {
 :root[data-hx-mode="dark"].hx-bg body::before {
   background-image: linear-gradient(rgba(8, 8, 10, var(--hx-scrim, .38)), rgba(8, 8, 10, var(--hx-scrim, .38))), var(--hx-img);
 }
-/* ── 2026-11-05 六修：手机（及窄屏）背景「不会动」────────────────────────
-   用户 iPhone Safari 实机：「手机上首页背景不会动」。原因不是坏了，是 2026-11-04
-   为了根治「手机弹原生播放器」，把移动端的 <video> 整条砍掉了（见 hx-theme.js 的 bgNoVideo()），
-   手机只剩一张静态海报帧 bg/aurora.jpg，一动不动。
-   现在不把 video 请回来（那正是弹播放器的根源，也不受 iOS 低电量模式待见），改成**纯 CSS 的两层
-   GPU 合成动画**，仍然一个 video 元素都不建：
-     · 层一 body::before 自己缓慢推近（ken burns）：transform 只动合成器，不重排不重绘；
-     · 层二 .hx-bgmo 里两团极光柔光反向漂移，用 radial-gradient 画（不用 filter: blur，
-       也不用 mix-blend-mode —— 两者在 iOS 上都要额外的全屏合成代价）。
-   开关在 hx-theme.js 的 bgMotion()：只给「视频壁纸被降级成海报帧」这种情况挂，
-   省电一体机（hx-lite）和系统「减少动态效果」一律不挂，保持静态。 */
-/* ── 2026-11-08 七修：Safari 上背景还是不动（用户实机报「我用safari还是背景视频没动」）──
-   前面几修已经解决了两件事：① 不再被 prefers-reduced-motion 一票否决（iOS 低电量会自动打开它）
-   ② 手机不建 video（bgNoVideo），改用纯 CSS 两层合成动画。
-   Chromium 模拟 iPhone UA + reduce 实测两档都在动（transform 矩阵 1.5 秒内确实变了），
-   但**Safari 真机不动** —— 差异就在 WebKit 对「position:fixed 伪元素 + transform 动画」的处理：
-     · body::before 是 position:fixed 的伪元素，WebKit 里它不一定被提升成独立合成层，
-       动画就退化成主线程重绘；一旦主线程忙（首屏加载、滚动），动画看着就是停的。
-     · 更严重的是 Safari 有个「后台标签页 / 滚动中暂停非合成动画」的省电策略，
-       没被提升到合成层的动画会被静默停掉 —— 表现就是「一直是那张静图」。
-   兜底做法（都是 WebKit 认的老写法，不影响 Chromium）：
-     · translateZ(0)：显式让 WebKit 建合成层（will-change 在旧 WebKit 上不总生效）
-     · backface-visibility:hidden：同上，强制 GPU 层
-     · 动画里带 translate3d（已经带了，保留）
-   注意：这些属性只挂在 hx-bg-mo 这个「已降级成静图、需要靠动画补生机」的状态上，
-   不影响有视频的桌面端（那边根本不加 hx-bg-mo）。 */
-html.hx-bg-mo body::before {
-  animation: hx-bgmo-zoom 34s ease-in-out infinite alternate;
-  transform-origin: 52% 46%;
-  will-change: transform;
-  /* Safari 合成层兜底：只加 backface-visibility 和 perspective，**不写 transform**——
-     写 transform: translateZ(0) 会把 @keyframes 里的 transform 整个覆盖掉，动画直接压死。
-     这是 CSS 动画最常见的自杀写法，这里特意避开。 */
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
-}
-@keyframes hx-bgmo-zoom {
-  from { transform: scale(1.06) translate3d(-.9%, .6%, 0); }
-  to { transform: scale(1.18) translate3d(1.1%, -.9%, 0); }
-}
-/* 极光层：z-index:-1，和 body::before 同层；它在伪元素之后绘制（DOM 顺序），所以压在壁纸上、内容下。 */
-.hx-bgmo {
-  position: fixed; inset: 0; z-index: -1; pointer-events: none; overflow: hidden;
-  opacity: var(--hx-bgo, 1);      /* 跟着「背景透明度」滑杆一起收，调到 0 时背景整块不显示 */
-}
-.hx-bgmo i { position: absolute; display: block; border-radius: 50%; will-change: transform, opacity; }
-.hx-bgmo i:first-child {
-  width: 84vmax; height: 84vmax; left: -32vmax; top: -26vmax;
-  background: radial-gradient(closest-side, rgba(126, 196, 255, .34), rgba(96, 156, 240, .15) 56%, transparent 74%);
-  animation: hx-bgmo-a 24s ease-in-out infinite;
-}
-.hx-bgmo i:last-child {
-  width: 70vmax; height: 70vmax; right: -26vmax; bottom: -22vmax;
-  background: radial-gradient(closest-side, rgba(146, 255, 226, .26), rgba(108, 220, 196, .11) 56%, transparent 74%);
-  animation: hx-bgmo-b 32s ease-in-out infinite;
-}
-@keyframes hx-bgmo-a {
-  0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: .8; }
-  50% { transform: translate3d(17vmax, 11vmax, 0) scale(1.18); opacity: 1; }
-}
-@keyframes hx-bgmo-b {
-  0%, 100% { transform: translate3d(0, 0, 0) scale(1.1); opacity: .65; }
-  50% { transform: translate3d(-15vmax, -10vmax, 0) scale(.92); opacity: 1; }
-}
-/* ── 2026-11-08：系统「减少动态效果」不再把背景压成死图，改成**同一条动画放慢 3 倍** ──
-   用户报障：「手机端背景不会动」。实测根因之一就是这条 `animation: none`：
-   iOS 低电量模式会自动打开 prefers-reduced-motion:reduce，于是手机上背景永远是一张静图。
-   减动效的诉求是「别有大位移/快速运动」，不是「整页不许有生机」；背景极光是极慢的漂移，
-   把周期拉长到 3 倍（34s→102s / 24s→72s / 32s→96s）就已经足够安静，而画面还在缓缓呼吸。
-   注意：只改 animation-duration，不动 @keyframes —— 这样「有没有在动」一眼可辨，也没有额外合成开销
-   （transform/opacity 仍是合成器属性，帧更少反而更省电）。 */
-@media (prefers-reduced-motion: reduce) {
-  html.hx-bg-mo body::before { animation-duration: 102s; }
-  .hx-bgmo i:first-child { animation-duration: 72s; }
-  .hx-bgmo i:last-child { animation-duration: 96s; }
-}
+/* 2026-11-17：极光壁纸彻底删除（用户原话「极光壁纸彻底清除」）。
+   这里原来是「静态壁纸缓慢呼吸」整段：body::before 的 ken burns（34s 缩放）、
+   .hx-bgmo 两团极光柔光的反向漂移、以及两条 prefers-reduced-motion 的放慢例外。
+   它整套只服务 BG.aurora 那一档，极光删除后没有任何预设带 motion 标记，
+   bgMotion() 也一起删了 —— 留着就是一段永不执行、只会误导后来人的死代码。
+   背景现在只有两档：无 / 自己的图，一律走 body::before 的 --hx-img 静态图。 */
 /* 老设备上一律不做实时背景模糊（顶栏、底栏、弹层都算）。背景图已经糊过，去掉之后几乎看不出差别，
    但省掉的是每一次滚动都要重算的高斯模糊。顶栏改实色兜底，不然内容会从底下透上来。 */
 html.hx-lite, html.hx-lite * { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
@@ -198,15 +128,6 @@ html.hx-lite[data-hx-mode="dark"] { --bar: rgb(22 22 23 / .95); }
 /* 打开工具后首页整个不参与绘制（原来只是 visibility:hidden，合成层其实还挂着） */
 html.hx-lite body.tool #home { content-visibility: hidden; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
-/* ── 2026-11-08：上面那条全局兜底会把背景极光也压成 .01ms（等于死图）。
-     背景动画是「极慢的呼吸」，不是减动效要治理的「大幅位移」，单独开个例外放回来。
-     必须写成比 `*` 更高特异度的选择器 + !important 才能压过它。── */
-@media (prefers-reduced-motion: reduce) {
-  html.hx-bg-mo body::before, .hx-bgmo i:first-child, .hx-bgmo i:last-child { animation-duration: revert !important; }
-  html.hx-bg-mo body::before { animation-duration: 102s !important; }
-  .hx-bgmo i:first-child { animation-duration: 72s !important; }
-  .hx-bgmo i:last-child { animation-duration: 96s !important; }
-}
 /* ── 按钮按下的像素碎屑（2026-11-02）──
    按一下按钮，四周迸出一圈像素方点，向外散开再往下落。纯 CSS，零 JS、零帧循环：
    由 :active 触发，动画本身 0.45 秒自动结束，不占常驻开销。

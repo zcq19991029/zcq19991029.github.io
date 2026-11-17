@@ -1,20 +1,50 @@
 /* UI 设计 · 组件档样式
    ─────────────────────────────────────────────────────────────────────────
-   这一页**不引 hx-theme.js**：它是开发者参考档，要的是「平底 + 高对比 + 代码可读」，
-   不是全站那套壁纸与卡片通透度。深浅跟着本站自己的开关（右上角），存 localStorage: uikit:mode。
+   2026-11-17 改版：**接回全站外观 + 全页卡片化**。
+   用户看后原话：「这个没用背景　因为你没做卡片模块　分块没做　背景和主题没安排好」
+   —— 上一版这块是「平底 + 大段灰字 + 每个区块只加一条小标题横线」，在壁纸页上显得空、
+   内容一坨分不开。现在：
+     · 壁纸 / 深浅 / 主题色全由 hx-theme.js 供（index.html 引了它，不带 data-tool）；
+     · 深浅判据认 **html[data-hx-mode]**（hx-theme 写的），同时也认本站自己的 data-mode（兜底）；
+     · 每个区块都是一张独立的玻璃卡片，卡片上面有分区标题（主题色小竖条 + 名称）；
+     · 卡片底色用 rgba + backdrop-filter，壁纸能透出来，跟课程进度/小组加分是同一套配方。
+   代码块仍是深色实底：它要的是「代码可读」，透出壁纸反而看不清。
    ───────────────────────────────────────────────────────────────────────── */
 :root{
-  --bg:#ffffff; --bg2:#f6f7f9; --panel:#ffffff; --line:#e6e8ec; --line2:#f0f1f4;
+  /* 页面层（无壁纸时的纯色底，也是卡片之外的留白色） */
+  --bg:#f4f5f8; --bg2:#eceef3; --panel:#ffffff; --line:#e3e6ec; --line2:#f0f1f4;
   --ink:#171a1f; --ink2:#4b5563; --dim:#7a828f;
   --acc:#1a56ff; --acc-soft:#eef2ff;
   --code-bg:#0f1420; --code-ink:#e6ebf5;
+
+  /* 玻璃卡片（壁纸透出的关键三件套：半透明底 + 模糊 + 细边框） */
+  --card:rgba(255,255,255,.74);
+  --card-2:rgba(255,255,255,.56);      /* 次级块：表格头、代码头、来源条 */
+  --card-line:rgba(255,255,255,.62);   /* 卡片上沿那道高光，缺了就变灰片 */
+  --card-edge:rgba(23,26,31,.10);
+  --shadow:0 18px 44px -30px rgba(16,24,40,.55), 0 2px 8px -4px rgba(16,24,40,.16);
+  --shadow-sm:0 10px 26px -22px rgba(16,24,40,.6);
+  --blur:blur(16px) saturate(1.25);
+
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
 }
-html[data-mode="dark"]{
-  --bg:#0c0e12; --bg2:#12151b; --panel:#141821; --line:#242a35; --line2:#1c2129;
+/* 深色：data-hx-mode 是 hx-theme.js 写的（全站唯一来源），data-mode 只是「hx-theme 还没跑 / 没引到」时的兜底。
+   必须写成 :not([data-hx-mode]) —— 两个属性都命中时，后写的深色块会把 :root 的浅色默认覆盖掉，
+   表现为「点了切到浅色、页面还是深色」。有 hx-theme 的页面 data-mode 永远停在首帧那个值，躲不开这条。 */
+html[data-hx-mode="dark"], html[data-mode="dark"]:not([data-hx-mode]){
+  --bg:#08090c; --bg2:#12151b; --panel:#141821; --line:#252b37; --line2:#1c2129;
   --ink:#eef1f6; --ink2:#b6bdc9; --dim:#8b93a1;
   --acc:#6f8dff; --acc-soft:#1a2140;
-  --code-bg:#0a0d14; --code-ink:#dfe6f2;
+  --code-bg:#080b11; --code-ink:#dfe6f2;
+
+  /* 深色卡片用一点点冷灰而不是纯黑：壁纸的暗部和纯黑卡片容易糊在一起，
+     拉开一点点明度差，「卡片浮在壁纸上」这层关系才看得出来。 */
+  --card:rgba(28,33,44,.70);
+  --card-2:rgba(255,255,255,.055);
+  --card-line:rgba(255,255,255,.13);
+  --card-edge:rgba(255,255,255,.11);
+  --shadow:0 22px 54px -34px rgba(0,0,0,.92), 0 2px 10px -6px rgba(0,0,0,.7);
+  --shadow-sm:0 14px 32px -26px rgba(0,0,0,.9);
 }
 *{box-sizing:border-box}
 html,body{height:100%}
@@ -23,16 +53,20 @@ body{
   font:15px/1.72 "Microsoft YaHei", system-ui, -apple-system, "Segoe UI", sans-serif;
   -webkit-font-smoothing:antialiased;
 }
+/* 选了壁纸时 hx-theme 会给 html 挂 .hx-layer，并用 !important 把 body 刷透明（壁纸在 body::before）。
+   这里不拦它 —— 但补一条：壁纸层要能穿过根元素的底色，否则 html 的 background 会把 z-index:-1 盖掉。 */
+html.hx-layer{background:var(--hx-page,#08090c)}
 a{color:var(--acc); text-decoration:none}
 a:hover{text-decoration:underline}
 code,kbd,pre{font-family:var(--mono)}
 
-/* ── 顶栏 ───────────────────────────────────────────────────────────── */
+/* ── 顶栏（玻璃，压在壁纸上）───────────────────────────────────────── */
 .top{
   position:sticky; top:0; z-index:50; display:flex; align-items:center; gap:14px;
-  height:56px; padding:0 20px; background:color-mix(in srgb, var(--bg) 88%, transparent);
-  backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
-  border-bottom:1px solid var(--line);
+  height:56px; padding:0 20px;
+  background:color-mix(in srgb, var(--card) 88%, transparent);
+  backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur);
+  border-bottom:1px solid var(--card-edge);
 }
 .brand{display:flex; align-items:center; gap:9px; font-weight:800; letter-spacing:-.01em; white-space:nowrap}
 .brand i{
@@ -43,12 +77,12 @@ code,kbd,pre{font-family:var(--mono)}
 .brand b{font-size:15px}
 .ver{
   font-size:11px; font-weight:700; padding:2px 7px; border-radius:99px;
-  background:var(--bg2); color:var(--dim); border:1px solid var(--line); font-family:var(--mono);
+  background:var(--card-2); color:var(--dim); border:1px solid var(--card-edge); font-family:var(--mono);
 }
 .search{
   margin-left:auto; display:flex; align-items:center; gap:7px;
-  height:34px; padding:0 11px; border:1px solid var(--line); border-radius:10px;
-  background:var(--bg2); color:var(--dim); min-width:180px; max-width:280px;
+  height:34px; padding:0 11px; border:1px solid var(--card-edge); border-radius:10px;
+  background:var(--card-2); color:var(--dim); min-width:180px; max-width:280px;
 }
 .search input{
   flex:1; min-width:0; border:0; outline:0; background:transparent; color:var(--ink);
@@ -60,13 +94,13 @@ code,kbd,pre{font-family:var(--mono)}
 /* ── 按钮 ───────────────────────────────────────────────────────────── */
 .btn{
   display:inline-flex; align-items:center; gap:6px; height:36px; padding:0 13px;
-  border:1px solid var(--line); border-radius:10px; background:var(--panel); color:var(--ink);
+  border:1px solid var(--card-edge); border-radius:10px; background:var(--card-2); color:var(--ink);
   font:inherit; font-size:13.5px; font-weight:600; cursor:pointer; white-space:nowrap;
   transition:background .14s, border-color .14s, transform .14s;
 }
-.btn:hover{background:var(--bg2); border-color:var(--dim)}
+.btn:hover{background:color-mix(in srgb, var(--acc) 10%, var(--card-2)); border-color:var(--acc)}
 .btn:active{transform:translateY(1px)}
-.btn.pri{background:var(--acc); border-color:var(--acc); color:#fff}
+.btn.pri{background:var(--acc); border-color:var(--acc); color:var(--on-acc,#fff)}
 .btn.pri:hover{filter:brightness(1.06)}
 .btn.ghost{background:transparent}
 .btn[disabled]{opacity:.5; pointer-events:none}
@@ -76,7 +110,9 @@ code,kbd,pre{font-family:var(--mono)}
 .shell{display:grid; grid-template-columns:264px minmax(0,1fr); align-items:start; min-height:calc(100vh - 56px)}
 .nav{
   position:sticky; top:56px; height:calc(100vh - 56px); overflow:auto;
-  border-right:1px solid var(--line); padding:16px 12px 40px; background:var(--bg);
+  border-right:1px solid var(--card-edge); padding:16px 12px 40px;
+  background:color-mix(in srgb, var(--card) 74%, transparent);
+  backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur);
 }
 .nav h6{
   margin:4px 8px 8px; font-size:11px; font-weight:700; letter-spacing:.1em;
@@ -85,74 +121,129 @@ code,kbd,pre{font-family:var(--mono)}
 .nav a{
   display:block; padding:9px 11px; border-radius:10px; color:var(--ink2); font-size:13.5px;
   font-weight:600; line-height:1.45; text-decoration:none;
+  border:1px solid transparent;
 }
 .nav a small{display:block; font-weight:400; font-size:11.5px; color:var(--dim); margin-top:2px;
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-.nav a:hover{background:var(--bg2); color:var(--ink); text-decoration:none}
-.nav a.on{background:var(--acc-soft); color:var(--acc)}
+.nav a:hover{background:var(--card-2); border-color:var(--card-edge); color:var(--ink); text-decoration:none}
+.nav a.on{background:color-mix(in srgb, var(--acc) 16%, transparent); border-color:color-mix(in srgb, var(--acc) 34%, transparent); color:var(--acc)}
 .nav a.on small{color:var(--acc); opacity:.75}
-.nav .sep{height:1px; background:var(--line); margin:12px 8px}
+.nav .sep{height:1px; background:var(--card-edge); margin:12px 8px}
 .nav .empty{padding:10px 11px; font-size:13px; color:var(--dim)}
 
-.main{min-width:0; padding:26px 32px 90px; max-width:1040px}
+.main{min-width:0; padding:26px 32px 90px; max-width:1180px}
+
+/* ── 通用：一张玻璃卡片 ─────────────────────────────────────────────
+   为什么用 ::before 画边框而不是 border：卡片要 backdrop-filter，某些老 Chromium
+   在「有 border-radius + border」的块上会把模糊做成方角。这里用 inset 阴影当描边，
+   圆角始终干净。@supports 兜住不吃 backdrop-filter 的机器（退化成本就够读的实色）。 */
+.cardish{
+  position:relative; border-radius:18px; background:var(--card);
+  box-shadow:inset 0 0 0 1px var(--card-edge), inset 0 1px 0 var(--card-line), var(--shadow);
+  backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur);
+}
+@supports not ((backdrop-filter:blur(2px)) or (-webkit-backdrop-filter:blur(2px))){
+  html[data-hx-mode="dark"] .cardish, html[data-mode="dark"]:not([data-hx-mode]) .cardish{background:rgba(19,23,31,.96)}
+  .cardish{background:rgba(255,255,255,.97)}
+}
 
 /* ── 首页：组件网格 ─────────────────────────────────────────────────── */
-.hero h1{margin:6px 0 8px; font-size:30px; letter-spacing:-.02em}
-.hero p{margin:0; color:var(--ink2); max-width:660px}
-.hero .row{display:flex; gap:9px; flex-wrap:wrap; margin-top:16px}
-.grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:14px; margin-top:26px}
-.tile{
-  display:block; padding:18px; border:1px solid var(--line); border-radius:16px;
-  background:var(--panel); color:inherit; text-decoration:none;
-  transition:border-color .16s, transform .16s, box-shadow .16s;
+.hero{
+  padding:26px 28px 24px; border-radius:20px; background:var(--card);
+  box-shadow:inset 0 0 0 1px var(--card-edge), inset 0 1px 0 var(--card-line), var(--shadow);
+  backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur);
 }
-.tile:hover{border-color:var(--acc); transform:translateY(-2px); box-shadow:0 12px 28px -18px #1a56ff66; text-decoration:none}
+.hero h1{margin:2px 0 8px; font-size:30px; letter-spacing:-.02em}
+.hero p{margin:0; color:var(--ink2); max-width:660px}
+.hero .row{display:flex; gap:9px; flex-wrap:wrap; margin-top:18px}
+.grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:16px; margin-top:18px}
+.tile{
+  display:block; padding:20px; border-radius:18px;
+  background:var(--card); color:inherit; text-decoration:none;
+  box-shadow:inset 0 0 0 1px var(--card-edge), inset 0 1px 0 var(--card-line), var(--shadow-sm);
+  backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur);
+  transition:transform .16s, box-shadow .16s, background .16s;
+}
+.tile:hover{
+  transform:translateY(-3px); text-decoration:none;
+  background:color-mix(in srgb, var(--acc) 8%, var(--card));
+  box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--acc) 40%, transparent), inset 0 1px 0 var(--card-line), var(--shadow);
+}
 .tile h3{margin:0 0 6px; font-size:16.5px; letter-spacing:-.01em}
 .tile p{margin:0; font-size:13px; color:var(--ink2); line-height:1.6}
 .tags{display:flex; gap:6px; flex-wrap:wrap; margin-top:12px}
-.tag{font-size:11px; font-weight:700; padding:2px 8px; border-radius:99px;
-  background:var(--bg2); color:var(--dim); border:1px solid var(--line)}
+.tag{
+  font-size:11px; font-weight:700; padding:2px 8px; border-radius:99px;
+  background:var(--card-2); color:var(--dim);
+  box-shadow:inset 0 0 0 1px var(--card-edge);
+}
 
 /* ── 详情 ───────────────────────────────────────────────────────────── */
-.detail h1{margin:2px 0 6px; font-size:27px; letter-spacing:-.02em}
-.sub{margin:0; color:var(--ink2); font-size:15px}
-.meta{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:14px 0 0; font-size:12.5px; color:var(--dim)}
-.meta .dot{width:3px; height:3px; border-radius:50%; background:var(--dim); display:inline-block}
-.sec{margin-top:34px; scroll-margin-top:76px}
-.sec > h2{
-  margin:0 0 12px; font-size:13px; font-weight:800; letter-spacing:.08em; text-transform:uppercase;
-  color:var(--dim); display:flex; align-items:center; gap:10px;
+.detail{display:block}
+/* 头部一张卡：标题 + 副标题 + meta 自己站一块，下面各段再各自一张 */
+.dhead{
+  padding:24px 26px 20px; border-radius:20px; background:var(--card);
+  box-shadow:inset 0 0 0 1px var(--card-edge), inset 0 1px 0 var(--card-line), var(--shadow);
+  backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur);
 }
-.sec > h2::after{content:""; flex:1; height:1px; background:var(--line)}
+.detail h1{margin:0 0 6px; font-size:27px; letter-spacing:-.02em}
+.sub{margin:0; color:var(--ink2); font-size:15px}
+.meta{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:13px 0 0; font-size:12.5px; color:var(--dim)}
+.meta .dot{width:3px; height:3px; border-radius:50%; background:var(--dim); display:inline-block}
+
+/* 每个区块 = 一张卡。间距 16px 就够分开；原来是 34px + 一条横线，看着散、又分不清边界。 */
+.sec{
+  margin-top:16px; padding:20px 24px 22px; border-radius:18px;
+  background:var(--card);
+  box-shadow:inset 0 0 0 1px var(--card-edge), inset 0 1px 0 var(--card-line), var(--shadow-sm);
+  backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur);
+  scroll-margin-top:76px;
+}
+/* 分区标题：主题色小竖条 + 名称。比原来「灰色大写 + 一条长横线」分得清、也更像分块。 */
+.sec > h2{
+  margin:0 0 14px; font-size:14px; font-weight:800; letter-spacing:.01em;
+  color:var(--ink); display:flex; align-items:center; gap:9px;
+}
+.sec > h2::before{
+  content:""; width:3px; height:15px; border-radius:3px; flex:none;
+  background:linear-gradient(180deg, var(--acc), color-mix(in srgb, var(--acc) 45%, transparent));
+}
 .prose p{margin:0 0 12px; color:var(--ink2)}
 .prose p:last-child{margin-bottom:0}
 .src{
   display:flex; gap:12px; align-items:flex-start; padding:14px 16px;
-  border:1px solid var(--line); border-radius:12px; background:var(--bg2);
+  border-radius:13px; background:var(--card-2);
+  box-shadow:inset 0 0 0 1px var(--card-edge);
 }
 .src b{display:block; font-size:14px; color:var(--ink)}
 .src span{font-size:13px; color:var(--ink2)}
 
-/* 预览 */
-.stage{border:1px solid var(--line); border-radius:16px; overflow:hidden; background:var(--bg2)}
-.stage-bar{display:flex; align-items:center; gap:8px; padding:9px 12px; border-bottom:1px solid var(--line);
-  background:var(--panel); font-size:12.5px; color:var(--dim)}
+/* 预览：卡片里再嵌一块，底色跟着深浅（组件自己画在白底上，深色下要给它深底） */
+.stage{border-radius:14px; overflow:hidden; background:var(--bg2); box-shadow:inset 0 0 0 1px var(--card-edge)}
+.stage-bar{
+  display:flex; align-items:center; gap:8px; padding:9px 12px;
+  background:var(--card-2); border-bottom:1px solid var(--card-edge);
+  font-size:12.5px; color:var(--dim);
+}
 .stage-bar .sp{margin-left:auto; display:flex; gap:6px}
 .stage-bar .btn{height:28px; padding:0 9px; font-size:12px; border-radius:8px}
-.stage iframe{display:block; width:100%; border:0; background:#f3f4f7}
-.stage-note{padding:9px 12px; font-size:12px; color:var(--dim); border-top:1px solid var(--line); background:var(--panel)}
+.stage iframe{display:block; width:100%; border:0; background:var(--bg2)}
+.stage-note{padding:9px 12px; font-size:12px; color:var(--dim); border-top:1px solid var(--card-edge); background:var(--card-2)}
 
-/* 表格 */
+/* 表格：卡片里不再套外框，只留行分隔；表头做粘性不必要（表格都不长），保持轻。 */
 .tbl{width:100%; border-collapse:collapse; font-size:13.5px}
-.tbl th,.tbl td{padding:10px 12px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top}
+.tbl th,.tbl td{padding:10px 12px; border-bottom:1px solid var(--card-edge); text-align:left; vertical-align:top}
 .tbl th{font-size:12px; font-weight:700; color:var(--dim); letter-spacing:.04em; white-space:nowrap}
 .tbl td:first-child{white-space:nowrap}
 .tbl tr:last-child td{border-bottom:0}
-.tbl code{font-size:12.5px; padding:1px 6px; border-radius:6px; background:var(--bg2); border:1px solid var(--line); color:var(--ink)}
+.tbl code{
+  font-size:12.5px; padding:1px 6px; border-radius:6px; background:var(--card-2);
+  box-shadow:inset 0 0 0 1px var(--card-edge); color:var(--ink);
+}
 .tbl .ty{color:var(--ink2); font-family:var(--mono); font-size:12.5px}
 
-/* 代码 */
-.codebox{border-radius:14px; overflow:hidden; background:var(--code-bg); border:1px solid #1e2636}
+/* 代码：保持深色实底（透壁纸就看不清了），只把圆角/边框跟卡片对齐 */
+.codebox{border-radius:14px; overflow:hidden; background:var(--code-bg); box-shadow:inset 0 0 0 1px #1e2636}
 .code-head{display:flex; align-items:center; gap:6px; padding:8px 10px; border-bottom:1px solid #1e2636}
 .code-head .tab{
   height:26px; padding:0 10px; border:0; border-radius:7px; background:transparent;
@@ -172,9 +263,12 @@ code,kbd,pre{font-family:var(--mono)}
 .codebox pre code{font-size:inherit}
 .hintline{margin:10px 0 0; font-size:12.5px; color:var(--dim)}
 
-/* 提示词 */
-.prompt{border:1px dashed var(--acc); border-radius:14px; background:var(--acc-soft); padding:14px 16px}
-html[data-mode="dark"] .prompt{background:#141a2c}
+/* 提示词：主题色淡底 + 虚线边，一眼认出「这段是给 AI 的」 */
+.prompt{
+  border-radius:14px; padding:14px 16px;
+  background:color-mix(in srgb, var(--acc) 9%, transparent);
+  box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--acc) 38%, transparent);
+}
 .prompt-h{display:flex; align-items:center; gap:10px; margin-bottom:10px}
 .prompt-h b{font-size:13.5px}
 .prompt-h .sp{margin-left:auto}
@@ -190,34 +284,48 @@ html[data-mode="dark"] .prompt{background:#141a2c}
 .toast.on{opacity:1; transform:translate(-50%,0)}
 
 /* 空状态 */
-.none{padding:40px 0; text-align:center; color:var(--dim); font-size:14px}
+.none{padding:42px 0; text-align:center; color:var(--dim); font-size:14px}
 
 /* ── 窄屏 ───────────────────────────────────────────────────────────── */
 @media (max-width: 860px){
   .shell{grid-template-columns:1fr}
-  .nav{position:static; height:auto; border-right:0; border-bottom:1px solid var(--line);
+  .nav{position:static; height:auto; border-right:0; border-bottom:1px solid var(--card-edge);
     display:flex; gap:6px; overflow-x:auto; padding:10px 12px}
   .nav h6,.nav .sep{display:none}
-  .nav a{flex:0 0 auto; padding:8px 12px; background:var(--bg2); border-radius:99px}
+  .nav a{flex:0 0 auto; padding:8px 12px; background:var(--card-2); border-radius:99px}
   .nav a small{display:none}
   .main{padding:20px 16px 80px}
   .top{height:auto; padding:10px 14px; flex-wrap:wrap}
   .search{order:3; margin:0; max-width:none; width:100%}
   .tbl th:nth-child(3),.tbl td:nth-child(3){display:none}
+  .hero{padding:22px 20px}
+  .sec{padding:18px 18px 20px}
+  .dhead{padding:20px 18px 18px}
 }
 
 /* ── 独立文档页（使用说明与来源）───────────────────────────────────── */
-.doc{max-width:760px; padding:34px 32px 100px}
+/* 长文阅读：窄栏比满宽好读，但**必须居中** —— 靠左顶着、右边露一大片壁纸，看着像没做完。 */
+.doc{max-width:880px; padding:34px 32px 100px; margin:0 auto}
+.doc > .docbody{
+  padding:26px 30px 30px; border-radius:20px; background:var(--card);
+  box-shadow:inset 0 0 0 1px var(--card-edge), inset 0 1px 0 var(--card-line), var(--shadow);
+  backdrop-filter:var(--blur); -webkit-backdrop-filter:var(--blur);
+}
 .doc h1{margin:0 0 6px; font-size:27px; letter-spacing:-.02em}
-.doc .upd{margin:0 0 26px; font-size:13px; color:var(--dim)}
-.doc h2{margin:34px 0 10px; font-size:17px; letter-spacing:-.01em}
+.doc .upd{margin:0 0 24px; font-size:13px; color:var(--dim)}
+.doc h2{margin:30px 0 10px; font-size:17px; letter-spacing:-.01em; display:flex; align-items:center; gap:9px}
+.doc h2::before{content:""; width:3px; height:15px; border-radius:3px; background:var(--acc); flex:none}
+.doc h2:first-of-type{margin-top:6px}
 .doc p{margin:0 0 13px; color:var(--ink2)}
 .doc p.lead{color:var(--ink); font-size:15.5px}
 .doc ul{margin:0 0 13px; padding-left:22px; color:var(--ink2)}
 .doc li{margin:0 0 7px}
-.doc code{font-size:12.5px; padding:1px 6px; border-radius:6px; background:var(--bg2); border:1px solid var(--line)}
+.doc code{font-size:12.5px; padding:1px 6px; border-radius:6px; background:var(--card-2); box-shadow:inset 0 0 0 1px var(--card-edge)}
 .doc .back{display:inline-flex; margin-top:30px}
 
 /* 简介里的行内代码与加粗（data.js 只用 **加粗** 和 `代码` 两种标记） */
-.prose code{font-size:12.5px; padding:1px 6px; border-radius:6px; background:var(--bg2); border:1px solid var(--line); color:var(--ink)}
+.prose code{
+  font-size:12.5px; padding:1px 6px; border-radius:6px; background:var(--card-2);
+  box-shadow:inset 0 0 0 1px var(--card-edge); color:var(--ink);
+}
 .prose b{color:var(--ink)}

@@ -106,12 +106,10 @@ themeJs = patchTheme(themeJs, /var me = document\.currentScript, root = me \? ne
   "var me = document.currentScript, root = '';", 'root = new URL(...)');
 // 离线不该跳回总入口：把「单独打开就跳首页」那段去掉
 themeJs = patchTheme(themeJs, /if \(tool && window\.top === window && \/\^https\?:\$\/\.test\(location\.protocol\)[\s\S]*?return; \}/, '', '单独打开就跳首页');
-// 离线没有 bg/ 目录（图片、视频都不跟着文件走）。2026-11-04 起全站默认背景是「极光动态」视频，
-// 不处理的话离线打开会去要一个不存在的 bg/aurora.mp4（620KB 的 404），背景层还会是空的。
-// 这里就地降级成海报帧（base64 内联），离线也有极光画面，只是不动。
-const auroraJpg = sharedB64('bg/aurora.jpg');
-themeJs = patchTheme(themeJs, /aurora: \{[^}]*\}/,
-  `aurora: { name: '极光 · 静帧', img: 'data:image/jpeg;base64,${auroraJpg}' }`, 'aurora 背景那段');
+// 离线没有 bg/ 目录（图片不跟着文件走）。2026-11-17 起极光壁纸彻底删除，背景只剩「无 / 自己的图」，
+// 自己的图本来就在 localStorage 里（dataURL），所以离线这里**不需要再补任何背景补丁** ——
+// 原来那段「把 aurora 换成 base64 静帧」的 patchTheme 已删；留着的话它会因为找不到
+// /aurora: \{[^}]*\}/ 直接抛错，把整个离线打包拦下来。
 html = hit(html, /<script src="\.\.\/hx-theme\.js"[^>]*><\/script>/, () => `<script>\n${themeJs}\n</script>`, '../hx-theme.js 那条 <script>');
 /* 题库分享码的二维码生成器（2026-11-08）：分享码要用它画二维码。
    离线版是单个 HTML 文件，../fx/hx-qr.js 在 file:// 下根本取不到，所以直接内联。
