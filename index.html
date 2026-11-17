@@ -4057,8 +4057,14 @@ function openProbeView(cid, page) {
   var t = TOOLS.filter(function (x) { return x.id === 'jiafen'; })[0];
   if (!t) return;
   var f = page === 'team' ? 'team.html' : 'scores.html';
+  closeSheetForProbe();
   mount(t, SITE + '/jiafenxitong/' + f + '?pv=' + encodeURIComponent(cid));
   show('jiafen', 'probe');   // 'probe' = 别把刚设的 ?pv= 清掉
+}
+/* 打开演示视角前先把「教务管理」那张弹窗收起来 —— 它是 <dialog>，不关就一直盖在工具上面，
+   老师点完只会看到名单，以为「点了没反应」。 */
+function closeSheetForProbe() {
+  try { var d = $('sheet'); if (d && d.open) d.close(); } catch (e) { }
 }
 /* 2026-11-17 测试查看用户：在**同一个工具 iframe** 里用 ?pv= 打开接线仿真 / 单片机。
    为什么不用 window.open 新标签页：这两个工具页都加载了 hx-theme.js，单独打开（top === window）时
@@ -4068,6 +4074,7 @@ function openProbeView(cid, page) {
 function openProbeTool(id, cid) {
   var t = TOOLS.filter(function (x) { return x.id === id; })[0];
   if (!t) return;
+  closeSheetForProbe();
   mount(t, t.url + '?pv=' + encodeURIComponent(cid));  // 帧不存在就直接用演示地址建，避免白载一次
   show(id, 'probe');                                   // 'probe' = 别把刚设的 ?pv= 清掉
 }
