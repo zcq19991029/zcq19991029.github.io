@@ -37,7 +37,9 @@
     // mirror：这条片子是「正放 5 秒 + 倒放 5 秒」拼的（ffprobe 抽帧验证过：第 f 帧与第 299-f 帧
     // 几乎完全相同，平均差 1.30，而相邻帧平均差 3.10）。倒放那半段就是用户说的「播放完再倒放一遍」，
     // 所以播放层只取前一半（0～5s）当循环周期，靠交叉淡入接回开头 —— 见 bgTick()。
-    aurora: { name: '极光 · 动态', video: 'bg/aurora.mp4', poster: 'bg/aurora.jpg', op: 100, mirror: 1 },
+    // 2026-11-17：视频壁纸停用（见 bgNoVideo 开头那行 return true），这一项现在放的是静态帧
+    // aurora.jpg，名字里不能再写「动态」；video 字段留着备恢复，平时不会被读到。
+    aurora: { name: '极光', video: 'bg/aurora.mp4', poster: 'bg/aurora.jpg', op: 100, mirror: 1 },
     custom: { name: '自己的图', op: 70 }
   };
   // VER 4（2026-11-04 深夜）：背景项合并成上面三档，默认改成极光视频。
@@ -621,6 +623,16 @@
   // 窗口宽度正好卡在 806~820（滚动条出现/消失就差 15px）时，翻一页题就来回跨 → 背景层反复重建。
   // 现在窄屏只「暂停 + 靠 CSS display:none 藏起来」（样式里本来就有这条），元素留着，回宽屏接着播，不跳。
   function bgNoVideo() {
+    /* 2026-11-17 用户定（原话「视频背景功能删除是不是就解决了　我们只用自己的静态图」）：
+       **视频壁纸整条路径停用**，所有背景一律走静态图（body::before 的 --hx-img）。
+       理由：视频壁纸是全站唯一「能不能出画面看运气」的东西 —— 解码失败、自动播放被拦、
+       网络没下完，都会变成一块黑（上一轮 hx-vidlive 灭海报的事故就是这么来的）；
+       它还要 620 KB 流量和一路持续解码，而用户自己用的是上传的静态图，根本用不上。
+       这一行是唯一的开关：想在以后恢复，删掉它即可（下面全套逻辑都还在，没删代码）。
+       副作用是好的：aurora 预设现在走 vidStill 分支 → 显示 bg/aurora.jpg 静态帧 +
+       hx-bg-mo 的纯 CSS 柔光呼吸，仍然「在动」，但零解码、零黑屏风险。 */
+    return true;
+    /* eslint-disable no-unreachable -- 以下是停用前的原判据，保留以便随时恢复 */
     if (liteOn() || document.documentElement.classList.contains('hx-lite')) return true;
     if (!window.matchMedia) return false;
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) return true;

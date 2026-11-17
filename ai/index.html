@@ -92,13 +92,12 @@ html.hx-bg[data-hx-mode="dark"] .lead{
 html.hx-bg .card,
 html.hx-bg .plat,
 html.hx-bg .lead{
-  -webkit-backdrop-filter: saturate(180%) blur(18px);
-  backdrop-filter: saturate(180%) blur(18px);
+  /* 2026-11-17 用户定：标准模式也不要实时模糊（原话「我现在用的就是静态图　目前还是模糊的」）。
+     以前是 saturate(180%) blur(18px)，把背后的壁纸糊成一大团光晕，背景图等于白放。
+     玻璃感靠半透明色纱 + 边框 + 内高光撑，背景必须清晰透出来。 */
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
-/* 极简模式：玻璃可以有，实时模糊一层都不留（全站口径：极简只求跑得动） */
-html.hx-lite.hx-bg .card,
-html.hx-lite.hx-bg .plat,
-html.hx-lite.hx-bg .lead{ -webkit-backdrop-filter: none; backdrop-filter: none; }
 .card > h2{margin:0 0 4px;font-size:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .card > .sub{margin:0 0 12px;font-size:13px;color:var(--dim);line-height:1.65}
 .card > h2 .right{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}

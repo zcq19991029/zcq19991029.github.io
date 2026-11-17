@@ -61,15 +61,14 @@ header.top h1 i{font-style:normal;display:inline-grid;place-items:center;width:2
   background:linear-gradient(140deg,var(--acc),var(--acc2));color:#fff;font-size:13px;font-weight:900}
 main{padding-top:16px;padding-bottom:60px}
 .card{background:var(--card,var(--panel));border:1px solid var(--edge);border-radius:16px;padding:18px;margin-bottom:14px;box-shadow:var(--shadow)}
-/* ── 有壁纸时卡片换玻璃 + 实时模糊（2026-11-12 用户原话：
-      「没给每张卡加实时模糊这个不对　在标准模式允许啊　有的性能好　而且我们也要换服务器了」）──
-   规则：**标准模式给真的 backdrop-filter**（底下的壁纸被实时糊掉，玻璃才有厚度）；
-   **极简模式（html.hx-lite）一律关掉** —— 那一档本来就是给老一体机兜底的，逐卡实时模糊会烧 GPU。
-   这也是全站统一口径：标准=允许重特效，极简=只求跑得动。
+/* ── 有壁纸时卡片换玻璃底（2026-11-12 建；模糊口径 2026-11-17 已改，见下面那条）──
+   历史：2026-11-12 用户原话「没给每张卡加实时模糊这个不对　在标准模式允许啊」，
+   当时这里配的是 backdrop-filter: blur(18px)。
+   2026-11-17 用户改口：「我现在用的就是静态图　目前还是模糊的」→ 标准模式也不要实时模糊。
+   现在这一段只负责「把卡片底换成玻璃色纱」，糊不糊由紧跟其后的那条 none 统一管。
    ★ 选 `html.hx-bg` 而不是 `html.hx-layer`：本页在总入口里是 iframe，嵌入时 hx-theme.js 故意不挂
-     .hx-layer（背景由 body::before 自己铺一遍），只看 hx-layer 的话玻璃和模糊永远不生效。
-     hx-bg = 「有壁纸」，嵌入/独立两种情形都在，是这里唯一正确的闸门。背景是「无」时不挂 —— 纯色底上
-     本来就没有东西可糊，卡片回到实色反而更清楚。 */
+     .hx-layer（背景由 body::before 自己铺一遍），只看 hx-layer 的话玻璃永远不生效。
+     hx-bg = 「有壁纸」，嵌入/独立两种情形都在，是这里唯一正确的闸门。 */
 html.hx-bg .card,
 html.hx-bg .docmain{
   /* 用 --card（上面 :root 里那份，已经乘过 --hx-a），别再写死 alpha */
@@ -86,19 +85,19 @@ html.hx-bg[data-hx-mode="dark"] .docmain{
 html.hx-bg .card,
 html.hx-bg .docmain,
 html.hx-bg .side{
-  -webkit-backdrop-filter: saturate(180%) blur(18px);
-  backdrop-filter: saturate(180%) blur(18px);
+  /* 2026-11-17 用户定（原话「我现在用的就是静态图　目前还是模糊的」）：**标准模式也不要实时模糊**。
+     以前这里是 saturate(180%) blur(18px)，把背后的壁纸糊成一大团光晕 —— 背景图等于白放。
+     玻璃感靠「半透明色纱（--glass-card）+ 1px 边框 + 顶部内高光 + 落影」撑起来就够了，
+     背景必须一个像素都不糊地透出来。saturate 也一并去掉：它同样要开一个全屏合成层，收益抵不过代价。 */
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
-/* 极简模式：玻璃可以有，模糊一层都不留 */
-html.hx-lite.hx-bg .card,
-html.hx-lite.hx-bg .docmain,
-html.hx-lite.hx-bg .side{ -webkit-backdrop-filter: none; backdrop-filter: none; }
-/* ── 二级「卡」也要真糊（2026-11-12 第二遍）────────────────────────────
+/* ── 二级「卡」（2026-11-12 建，2026-11-17 统一改成不糊）─────────────────
    本页其实一张 .card 都没有：用户眼里的「每张卡」是正文里那 18 个分区（.hd）、
    目录条目（.toc a）和底部标签（.got span）。它们的底原本是 --card/--panel 实色，
-   压在玻璃正文上就是一块块硬边黑板 —— 上一版只给 .docmain 加了模糊，所以用户看
-   「没给每张卡加实时模糊」是对的。
-   blur 从 18px 收到 12px：卡片面积小，18px 会让边缘糊出一圈光晕。 */
+   压在玻璃正文上就是一块块硬边黑板，所以要单独给它们一层玻璃底。
+   2026-11-12 这里配的是 blur(12px)；2026-11-17 跟大卡一起改成 none —— 小卡上的模糊
+   同样会把壁纸糊掉，而且这些元素又多又小，逐个小模糊层在教室一体机上更亏。 */
 
 /* 次级「卡片」（分区 .hd / 目录条目 / 底部标签）同样乘 --hx-a：
    2026-11-16 之前这几个 alpha 也是写死的，所以拖通透度只有大卡在动、里面一块块还是不动。 */
@@ -108,15 +107,13 @@ html.hx-bg .toc a{ background: rgb(255 255 255 / calc(var(--hx-a, 1) * .12)); }
 html.hx-bg[data-hx-mode="dark"] .toc a{ background: rgb(12 15 20 / calc(var(--hx-a, 1) * .34)); }
 html.hx-bg .got span{ background: rgb(255 255 255 / calc(var(--hx-a, 1) * .16)); }
 html.hx-bg[data-hx-mode="dark"] .got span{ background: rgb(255 255 255 / calc(var(--hx-a, 1) * .07)); }
+/* 次级「卡片」也一律不糊（2026-11-17 同上：原来这里是 blur(12px)，同样把壁纸糊掉） */
 html.hx-bg .hd,
 html.hx-bg .toc a,
 html.hx-bg .got span{
-  -webkit-backdrop-filter: saturate(170%) blur(12px);
-  backdrop-filter: saturate(170%) blur(12px);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
-html.hx-lite.hx-bg .hd,
-html.hx-lite.hx-bg .toc a,
-html.hx-lite.hx-bg .got span{ -webkit-backdrop-filter: none; backdrop-filter: none; }
 /* 分色块说明（.hd 也是卡片：底色跟「卡片通透度」走，用 --card 而不是死透明度） */
 .hx-doc p{margin:0 0 8px;font-size:14px;line-height:1.65;color:var(--dim)}
 .hx-doc b{color:var(--ink);font-weight:600}
@@ -278,7 +275,7 @@ html.hx-lite.hx-bg .got span{ -webkit-backdrop-filter: none; backdrop-filter: no
         + '<li><b>卡片按窗口宽度自动排</b>：窗口越宽一行放得越多，每一行都铺满、不会在右边空出一格；窗口拉窄会自动折行（手机上固定两列）。同一组的卡片宽度一致，不同组张数不同时会略宽一点，这是为了每行都对齐。</li>'
         + '<li><b>顶栏</b>：左边是品牌名和开发者名单（赵成乾 · 宋耀龙 · 黄子欣 合作开发），右边是外观按钮、全站同步胶囊、账号。<b>开发者名单只在首页显示</b>，进工具后自动收起。</li>'
         + '<li>右上角<b>外观</b>面板最上面是<b>「我的身份卡」</b>：点一下当场弹窗设背景（见第 1 节接线仿真里的身份卡说明）。</li>'
-        + '<li><b>模式</b>两档：<b>极简</b>（默认）和<b>标准</b>。<b>极简下所有氛围动效整块不显示</b> —— 像素小人、天气、极光动态背景都不播，光效归零；接线仿真里放大看细节时画面精细度会压一档，画面长时间不动也会自动降帧。<b>标准</b>才播动态极光视频、才开实时模糊。<b>标准模式下视频加载不出来（网络慢、机器解码不了）会自动回落成同一帧静态壁纸</b>，不会变成一块黑屏 —— 这一点两种模式都不用管，是自动的。<b>记分、考勤、分组、成绩照常用</b>，一样都不少。学校一体机、老机器建议就用极简。</li>'
+        + '<li><b>模式</b>两档：<b>极简</b>（默认）和<b>标准</b>。<b>极简下特效整块关掉</b> —— 背景的柔和光晕不再呼吸、光效归零；接线仿真里放大看细节时画面精细度会压一档，画面长时间不动也会自动降帧。<b>标准</b>才开光效和背景那点缓慢呼吸。<b>背景在两种模式下都是同一张静态图，卡片也都不做实时模糊</b>，所以背景图在两种模式下同样清晰 —— 不会再出现「玻璃把壁纸糊成一大团光晕」的情况。<b>记分、考勤、分组、成绩照常用</b>，一样都不少。学校一体机、老机器建议就用极简。</li>'
         + '<li><b>标准</b>下所有特效都在：壁纸会动，选了壁纸时卡片的玻璃模糊也是实的。想让教室大屏好看就切标准。</li>'
         + '<li><b>例外</b>：排位模式的「321GO」「切班过场」「QUEST COMPLETE」这三种仪式动效<b>在极简下也保留</b>，那是课堂体验的核心，不算氛围装饰。</li>'
         + '<li><b>深浅</b>只有<b>浅色 / 深色</b>两档，<b>没有「自动」</b>；另外可调主色、背景图、卡片通透度、背景清晰度、校徽水印。</li>'
@@ -526,7 +523,7 @@ html.hx-lite.hx-bg .got span{ -webkit-backdrop-filter: none; backdrop-filter: no
         + '<li>登录后按<b>学习 / 教学 / 维护</b>分组列出你能用的工具，点卡片进入，左上角「返回」回首页。</li>'
         + '<li>右上角外观面板可以换<b>深浅（只有浅色 / 深色两档）</b>、主色、背景、卡片通透度、背景清晰度、水印，<b>只影响你自己的账号</b>。</li>'
         + '<li><b>卡片通透度</b>任何时候都能调，管的是<b>所有工具的卡片</b>（含接线仿真画布上画的卡片），不只改顶栏，也跟有没有背景图无关；<b>背景清晰度</b>只在选了背景图（极光 / 自己的图）时才出现。</li>'
-        + '<li>外观面板里的<b>极简 / 标准</b>：<b>极简是默认</b>，像素小人、天气、极光动态背景这些氛围动效整块不显示，光效也关掉，老电脑、一体机不发烫；想看特效就切<b>标准</b>。标准模式下的极光背景是动态视频，网络慢或者机器解码不了的时候会<b>自动换成同一帧静态画面</b>，不会黑屏，不用你管。<b>两种模式下做题、记分、签到全都一样</b>，只是动画多少的区别。</li>'
+        + '<li>外观面板里的<b>极简 / 标准</b>：<b>极简是默认</b>，背景的柔和光晕不再呼吸、光效也关掉，老电脑、一体机不发烫；想看那点呼吸感和光效就切<b>标准</b>。<b>背景图在两种模式下都用同一张静态图、卡片都不做实时模糊</b>，所以壁纸是清晰的，不会被玻璃糊掉。<b>两种模式下做题、记分、签到全都一样</b>，只是特效多少的区别。</li>'
         + '<li>例外：排位里的「321GO」「切班过场」「QUEST COMPLETE」在极简下也照常播，那是排位的仪式感。</li>'
         + '<li>外观<b>跟着账号走</b>：你在这台电脑调好的主题、背景，换一台电脑登录会自动带过去；别人用他的账号登录也不会把你的覆盖掉。</li>'
         + '<li>外观面板最上面是<b>「我的身份卡」</b>：点一下当场就能设背景 —— 12 套预设或自己上传一张图，冠军 / 亚军 / 季军 / 常规四种卡型各自调取景，弹窗里能预览。背景跟你的账号走，会出现在排行榜、选人列表、课堂任务看板和小组加分的分组卡上。</li>'
