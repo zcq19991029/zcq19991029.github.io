@@ -2,7 +2,30 @@
 // 键：subjects（自建科目）、bank:<科目>（导入的题）、progress:<科目>（刷题记录）。本机按账号分开存，没登录记在“guest”下。
 import { api, rpc, signedIn, uid } from './hx.js';
 
-const owner = () => uid() || 'guest';
+/* 演示视角（教师端「测试查看用户」，2026-11-17）：
+   这一页读写的 quiz_mine 是按 auth.uid() 分行的 —— 演示时 auth.uid() 仍然是**老师本人**，
+   所以照常读写会把老师自己的题库/进度当成「这个学生」的，写下去还会污染老师的数据。
+   开关由 app.js 在问到 hx_me（student.probe === true）之后打开，只认数据库的结论，不认地址上的 pv ——
+   学生在自己地址上加 ?pv= 会被数据库回落到本人（probe=false），本地数据分毫不动。
+   打开后：① 本地键换到 probe 命名空间（与老师本人彻底分开）；② 云端一律不读不写；
+          ③ write / remove 直接空转 —— 影子身份不产生任何数据。 */
+let PROBE_ON = false;
+export function setProbe(on) {
+  if (PROBE_ON === !!on) return;
+  PROBE_ON = !!on;
+  if (!PROBE_ON) return;
+  // 清掉上一轮演示留下的本地痕迹（缓存/队列）：演示要看到的是「一个从没刷过题的新学生」
+  try {
+    const kill = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i) || '';
+      if (/^hx-quiz:probe/.test(k) || /^hx-quiz-cache-[^:]+:probe/.test(k)) kill.push(k);
+    }
+    kill.forEach(k => localStorage.removeItem(k));
+  } catch { /* 无痕模式 */ }
+}
+const owner = () => PROBE_ON ? 'probe' : (uid() || 'guest');
+
 const lkey = key => `hx-quiz:${owner()}:${key}`;
 export function getLocal(key, fallback) { try { const v = JSON.parse(localStorage.getItem(lkey(key))); return v ?? fallback; } catch { return fallback; } }
 export function setLocal(key, value) { try { localStorage.setItem(lkey(key), JSON.stringify(value)); return true; } catch { return false; } }
@@ -46,7 +69,8 @@ async function cloudPut(key, data) {
 }
 async function cloudDel(key) { await api(`/rest/v1/quiz_mine?key=eq.${encodeURIComponent(key)}`, { method: 'DELETE' }); }
 const guard = async fn => {
-  if (!signedIn() || !uid()) { cloud.ok = null; return null; }
+  // 演示视角：一步云端都不走（读也不行 —— quiz_mine 是按老师自己的 uid 存的，读了就是把老师的题当成学生的）
+  if (!signedIn() || !uid() || PROBE_ON) { cloud.ok = null; return null; }
   try { const r = await fn(); cloud.ok = true; cloud.error = ''; return r; }
   catch (e) { cloud.ok = false; cloud.error = e.message; return null; }
 };
@@ -62,14 +86,20 @@ export async function read(key, fallback, merge = (a, b) => b ?? a) {
 }
 const timers = {};
 // 写：本机立即写，云端延迟 1.5 秒合并写（刷题时每题都会写）
+// 演示视角：一律不落盘（本机也不落）——「不记录做题结果」是演示视角的硬要求，刷新就回到干净状态。
 export function write(key, value, { now = false } = {}) {
+  if (PROBE_ON) return;
   setLocal(key, value);
   clearTimeout(timers[key]);
   const go = () => guard(() => cloudPut(key, value));
   if (now) return go();
   timers[key] = setTimeout(go, 1500);
 }
-export async function remove(key) { try { localStorage.removeItem(lkey(key)); } catch { /* ignore */ } await guard(() => cloudDel(key)); }
+export async function remove(key) {
+  if (PROBE_ON) return;
+  try { localStorage.removeItem(lkey(key)); } catch { /* ignore */ }
+  await guard(() => cloudDel(key));
+}
 export function flush() { for (const k of Object.keys(timers)) { clearTimeout(timers[k]); delete timers[k]; } }
 
 // 刷题记录合并：同一题取作答次数多的那份（两台设备各刷了一部分，都保留）
@@ -152,6 +182,7 @@ export const myClasses = () => signedIn()
 // 交过的题记在 ranksent:<科目>，再答对不重复交；分数只在服务器算。
 let rankTimer = null;
 export function rankPush(bank, id, answer, onDone) {
+  if (PROBE_ON) return;   // 演示视角不交排位（数据库那边也会 raise，这里先不发请求）
   if (getLocal('ranksent:' + bank, []).includes(id)) return;
   const q = getLocal('rankq', []);
   if (!q.some(x => x.bank === bank && x.id === id)) q.push({ bank, id, answer });

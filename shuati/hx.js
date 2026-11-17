@@ -1,6 +1,14 @@
 // 华夏工具账号（Supabase 华夏工具项目）。登录存在 localStorage paike-session，和总入口、接线仿真、排课、小组加分共用（同一网站）。
 // 续期前先重读：别的页面可能刚续过期，续期后旧凭证作废，拿旧的再续会把所有工具一起踢下线。
 const BASE = 'https://eiqgyrjrwdaunhxjmdyr.supabase.co', KEY = 'sb_publishable_FcVnLx3TNrj6HnbgarYnRw_DW4-yFzd', SKEY = 'paike-session';
+/* 教师端「测试查看用户」演示视角（2026-11-17）：地址带 ?pv=<班级id> 时，每个请求多带一个
+   x-hx-probe 头。数据库先校验「你确实是这个班的教师」，再把「我是谁」换成该班的影子身份；
+   校验不过就静默回落到你自己 —— 所以学生拿到这个地址也只是看到他自己，前端不需要分辨。
+   这里只负责「把地址上的 pv 转成请求头」，不判断权限（权限在数据库里）。 */
+export const PROBE = (() => {
+  const m = /[?&]pv=([0-9]{1,19})(?:&|$)/.exec(location.search || '');
+  return m ? m[1] : '';
+})();
 let s = null;
 const now = () => Math.floor(Date.now() / 1000);
 function load() { try { s = JSON.parse(localStorage.getItem(SKEY)); } catch { s = null; } return s; }
@@ -58,6 +66,7 @@ export async function api(path, o = {}) {
   const auth = o.auth !== false;
   if (auth) await fresh();
   const h = { apikey: KEY, 'Content-Type': 'application/json', ...(o.headers || {}) };
+  if (PROBE) h['x-hx-probe'] = PROBE;
   if (auth && s) h.Authorization = 'Bearer ' + s.access_token;
   let r;
   try { r = await fetch(BASE + path, { method: o.method || 'GET', headers: h, body: o.body === undefined ? undefined : JSON.stringify(o.body) }); }

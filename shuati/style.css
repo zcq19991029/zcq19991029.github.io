@@ -697,3 +697,11 @@ html.hx-lite .bsc-chev { transition: none; }
 .dp-keep { font-weight: 600; }
 .dp-drop { color: var(--dim); text-decoration: line-through; }
 .dp-body small { color: var(--dim); font-size: 12px; }
+
+/* 演示视角提示条（2026-11-17）：教师端「测试查看用户」进学生端时，顶在内容最前面的一条只读说明。
+   只用站内已有的 --fill / --acc / --dim，不加新颜色，深浅色和背景图下都跟主题走。 */
+.demo-bar { margin: 0 0 14px; padding: 10px 14px; border-radius: 14px; background: var(--fill); color: var(--ink);
+  border-left: 4px solid var(--acc); font-size: 13px; line-height: 1.5; }
+.demo-bar b { font-weight: 600; }
+.demo-bar span { display: block; margin-top: 2px; color: var(--dim); }
+.demo-bar span b { color: var(--ink); }

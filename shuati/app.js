@@ -115,6 +115,11 @@ const S = {
 };
 const prefs = () => store.getLocal('prefs', {});
 const savePrefs = () => store.setLocal('prefs', { subject: S.subject?.id, type: S.type, scope: S.scope, mode: S.mode, unit: S.unit, kn: S.kn });
+/* 教师端「测试查看用户」演示视角（2026-11-17）：
+   只有数据库说「这一页是影子身份在看」（hx_me().student.probe === true）才算演示态。
+   地址上的 ?pv= 只是「请求头」的来源，不构成判断依据 —— 学生在自己地址上加 pv 拿不到 probe。 */
+let DEMO = false;
+let demoHinted = false; // 演示态第一次作答提示一次「不会记录」，之后别再刷屏
 const inPortal = () => { try { return window.top !== window && window.top.location.pathname === '/'; } catch { return false; } };
 const isTeacher = () => !!(S.me && (S.me.teacher || S.me.admin || S.me.dev));
 // 开发者最高权限（2026-11-08 用户明确：「开发者拥有以上全部功能 管理员开发者都属于教师账号 只不过开发者最高权限」）。
@@ -318,6 +323,7 @@ function override() { // 填空判错、其实意思对：算对
   S.records[q.id] = r; S.picked[q.id] = ['ok']; saveRecords(); saveSess(); renderHero(); renderScopes(); renderCard(); renderBar();
 }
 function answer(q, sel, ok) {
+  if (DEMO && !demoHinted) { demoHinted = true; toast('演示视角：这次作答只在本页显示，不会被记录'); }
   const r = { ...rec(q.id) };
   r.attempts = (r.attempts || 0) + 1; if (!ok) { r.wrong = (r.wrong || 0) + 1; r.status = 'unknown'; }
   r.last = sel; r.ok = ok; r.at = Date.now();
@@ -369,6 +375,17 @@ window.HXBack = function () {
   if (S.view && S.view !== 'practice') { show('practice'); return true; }
   return false;
 };
+/* 演示视角提示条（照 小组加分/scores.js 的口径：只说明「这是谁的视角 + 只读」，不做任何假数据）。
+   插在 <main> 最前面：不覆盖顶栏、不动任何布局尺寸，滚走也没关系。 */
+function paintDemoBar() {
+  if (!DEMO || document.getElementById('demoBar')) return;
+  const el = document.createElement('div');
+  el.id = 'demoBar';
+  el.className = 'demo-bar';
+  el.innerHTML = '<b>演示视角 · 测试查看用户（只读）</b><span>这一屏就是本班学生登录后看到的：可以翻题、看答案和解析；'
+    + '<b>作答、错题、排位都不会被记录</b>，关掉标签页就结束。</span>';
+  document.querySelector('main').prepend(el);
+}
 function counts(list = S.questions) {
   let known = 0, wrong = 0, done = 0;
   for (const q of list) { const r = rec(q.id); if (r.status === 'known') known++; if (r.wrong > 0 && r.status !== 'known') wrong++; if (r.attempts) done++; }
@@ -828,7 +845,7 @@ function histHtml() {
   return `<h3>刷题记录 <small class="muted">${list.length}</small></h3>
     <div class="chips" style="margin-bottom:10px">${HF.map(([k, t]) => `<button type="button" class="chip" data-hf="${k}" aria-pressed="${S.hf === k}">${t}</button>`).join('')}</div>
     ${shown.length ? `<div class="hl">${shown.map(q => { const r = rec(q.id); return `<label><input type="checkbox" data-h="${esc(q.id)}" ${S.hsel.has(q.id) ? 'checked' : ''}><span>${esc(q.stem)}</span><small>${typeName(q.type)}${r.status === 'known' ? ' · 已记住' : ''}${r.wrong ? ' · 错 ' + r.wrong : ''}</small></label>`; }).join('')}</div>` : '<p class="muted">这里还没有题。</p>'}
-    <div class="row" style="margin-top:12px;flex-wrap:wrap">${shown.length ? `<button class="btn sm ghost" type="button" id="hAll">${all ? '全不选' : '全选'}</button><button class="btn sm" type="button" id="hBack" ${n ? '' : 'disabled'}>放回重刷${n ? '（' + n + '）' : ''}</button>` : ''}<span class="sp" style="flex:1"></span><button class="btn sm danger" type="button" id="hWipe">清空全部重刷</button></div>`;
+    <div class="row" style="margin-top:12px;flex-wrap:wrap">${shown.length ? `<button class="btn sm ghost" type="button" id="hAll">${all ? '全不选' : '全选'}</button><button class="btn sm" type="button" id="hBack" ${n ? '' : 'disabled'}>放回重刷${n ? '（' + n + '）' : ''}</button>` : ''}<span class="sp" style="flex:1"></span>${DEMO ? '' : '<button class="btn sm danger" type="button" id="hWipe">清空全部重刷</button>'}</div>`;
 }
 function bindHist() {
   const box = $('hist'); if (!box) return;
@@ -840,7 +857,7 @@ function bindHist() {
     const ids = [...S.hsel]; for (const id of ids) delete S.records[id];
     S.hsel.clear(); saveRecords(); clearSess(); buildQueue(false); renderOverview(); toast(`已放回 ${ids.length} 题，在“未做”里能刷到`);
   };
-  $('hWipe').onclick = e => sure(e.currentTarget, '确认清空全部记录？', resetAll);
+  if ($('hWipe')) $('hWipe').onclick = e => sure(e.currentTarget, '确认清空全部记录？', resetAll);
 }
 
 // ---------- 理论题排行：每个课程科目一个榜，分数 = 答对过的不同选择、判断题数（服务器判对、去重，见 supabase/quiz-schema.sql 第 3 节） ----------
@@ -1348,8 +1365,9 @@ function renderBank() {
       <dl class="kv"><dt>来源</dt><dd>${srcText}</dd>${base.length ? `<dt>课程题</dt><dd>${base.length} 题</dd>` : ''}<dt>我导入的</dt><dd>${S.bank.length} 题</dd>${isTeacher() && (sub.published || sub.kind === 'public') && sub.targets ? `<dt>下发范围</dt><dd>${esc(sub.targets)}</dd>` : ''}</dl>
       ${sub.kind === 'builtin' && !sub.cloud ? '<p class="muted" style="margin:8px 0 0">这套题现在是随代码发布的本地文件，改不了。搬到你的账号之后就能在云端改、也能发布给班级。</p>' : ''}
       ${sentToMe}
-      <div class="f" style="margin-top:12px"><div class="line"><button class="btn sm ghost" type="button" id="expBtn">导出 JSON</button>${S.questions.length ? '<button class="btn sm ghost" type="button" id="shareBtn">生成分享码</button>' : ''}${dupBtn}${S.bank.length ? '<button class="btn sm ghost" type="button" id="clrBtn">清空我导入的</button>' : ''}${sub.kind === 'mine' ? '<button class="btn sm ghost" type="button" id="renBtn">改名</button><button class="btn sm danger" type="button" id="delBtn">删除科目</button>' : sub.kind === 'shared' ? '<button class="btn sm danger" type="button" id="delBtn">移出我的列表</button>' : ''}${fwdBtn}${pubBtns2}</div>${dupNote}</div></div>
-    <div class="panel"><h3>新建科目</h3><div class="f"><div class="line"><input id="newName" maxlength="30" placeholder="科目名称" style="flex:1"><button class="btn sm" type="button" id="newBtn">新建</button></div></div></div>
+      <div class="f" style="margin-top:12px"><div class="line"><button class="btn sm ghost" type="button" id="expBtn">导出 JSON</button>${S.questions.length && !DEMO ? '<button class="btn sm ghost" type="button" id="shareBtn">生成分享码</button>' : ''}${dupBtn}${S.bank.length && !DEMO ? '<button class="btn sm ghost" type="button" id="clrBtn">清空我导入的</button>' : ''}${!DEMO && sub.kind === 'mine' ? '<button class="btn sm ghost" type="button" id="renBtn">改名</button><button class="btn sm danger" type="button" id="delBtn">删除科目</button>' : !DEMO && sub.kind === 'shared' ? '<button class="btn sm danger" type="button" id="delBtn">移出我的列表</button>' : ''}${fwdBtn}${pubBtns2}</div>${dupNote}${DEMO ? '<p class="muted" style="margin:8px 0 0;font-size:12px">演示视角只读：生成分享码、新建科目、导入、改名、删除都关掉了（这些都会写进你自己的账号）。</p>' : ''}</div></div>
+    ${DEMO ? '<div class="panel"><h3>新建科目</h3><p class="muted">演示视角只读：新建 / 导入 / 删除题库都不会发生。</p></div>'
+      : `<div class="panel"><h3>新建科目</h3><div class="f"><div class="line"><input id="newName" maxlength="30" placeholder="科目名称" style="flex:1"><button class="btn sm" type="button" id="newBtn">新建</button></div></div></div>`}
     ${qpoolPanel()}
     ${studyPanel()}`;
   const on = (id, fn) => { if ($(id)) $(id).onclick = fn; };
@@ -1923,7 +1941,7 @@ function renderSettings() {
     <div class="panel"><h3>快捷键</h3><div class="keys">${KEY_ACTS.map(([a, n]) => `<div><span>${n}</span>${[0, 1].map(k => `<button type="button" data-ka="${a}" data-ki="${k}">${esc(keyName(keyMap()[a][k] || '') || '—')}</button>`).join('')}</div>`).join('')}</div>
       <div style="display:flex;gap:8px;margin-top:12px;align-items:center"><button class="btn sm ghost" type="button" id="keyDef">恢复默认</button><span class="muted">点一个键位再按键盘；按退格清空</span></div></div>
     <div class="panel guide" id="guide"><h3>使用说明</h3>${guide()}</div>
-    <div class="panel"><h3>本科目</h3><div class="row" style="flex-wrap:wrap"><button class="btn sm ghost" type="button" id="reload">重新加载题库</button><button class="btn sm danger" type="button" id="resetP">重置“${esc(S.subject.name)}”的刷题记录</button></div></div>`;
+    <div class="panel"><h3>本科目</h3><div class="row" style="flex-wrap:wrap"><button class="btn sm ghost" type="button" id="reload">重新加载题库</button>${DEMO ? '' : `<button class="btn sm danger" type="button" id="resetP">重置“${esc(S.subject.name)}”的刷题记录</button>`}</div>${DEMO ? '<p class="muted" style="margin:8px 0 0;font-size:12px">演示视角只读：刷题记录不会被清空或写入（影子身份本来就没有记录）。</p>' : ''}</div>`;
   for (const b of $('v-settings').querySelectorAll('[data-ka]')) b.onclick = () => {
     for (const x of $('v-settings').querySelectorAll('.rec')) x.classList.remove('rec');
     b.classList.add('rec'); b.textContent = '按一个键…'; S.recKey = { a: b.dataset.ka, i: +b.dataset.ki };
@@ -1938,7 +1956,7 @@ function renderSettings() {
     busyEnd(tok, err);
     toast(err ? '重新加载失败：' + err : '题库已重新加载');
   };
-  $('resetP').onclick = e => sure(e.currentTarget, '确认清空？', resetAll);
+  if ($('resetP')) $('resetP').onclick = e => sure(e.currentTarget, '确认清空？', resetAll);
 }
 
 // ---------- 键盘、手势 ----------
@@ -2219,6 +2237,15 @@ async function boot() {
   if (!hx.signedIn()) { if (window.HXLoadFx) HXLoadFx.finishBoot(); lock(true); return; }
   if (hx.signedIn()) { try { [S.user, S.me] = await Promise.all([hx.user(), hx.me()]); } catch { S.user = S.me = null; } }
   if (lock(S.me && !S.me.teacher && !S.me.admin && !S.me.dev && !S.me.student && !S.me.left)) { if (window.HXLoadFx) HXLoadFx.finishBoot(); return; }
+  /* 演示视角（2026-11-17）：hx_me 在演示态会把 teacher/admin/dev 全置 false，student 换成影子身份并带
+     probe:true —— 所以上面那道锁天然放行（它只看「有没有任一身份」），这里不用为它加分支；
+     要做的只有两件事：告诉 store「这一页不读不写」、在页面上说清这是只读的演示视角。 */
+  DEMO = !!(S.me && S.me.student && S.me.student.probe);
+  store.setProbe(DEMO);
+  paintDemoBar();
+  /* 「专注」是老师本人的偏好（存在他自己的键里、脚本一开始就套上了）。演示是给学生看的，
+     不该打开就只剩一张题卡 —— 这里只把界面样式摘掉，不改他的偏好。 */
+  if (DEMO) { document.body.classList.remove('focus'); tellTop(false); }
   // 首页那套 AI 配置（hx-ai.js → window.HXAI）尽早拿到：题卡、导入区、问 AI 都要判断“配没配模型”。
   // 离线版不加载（没有 AI）；加载失败很快返回，最多等 1.5 秒，不挡首屏。
   await Promise.race([ensureHxAi(), new Promise(r => setTimeout(r, 1500))]);
