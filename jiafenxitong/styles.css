@@ -1607,9 +1607,8 @@ table.sheet td.c-sum .c { font-size: 13px; color: var(--text); }
 .assessment-scroll {scrollbar-gutter:stable;}
 
 /* Keep the full table reachable; horizontal scroll controls remain visible. */
-.assessment-scroll {min-width:0;width:100%;overflow:auto;max-height:65dvh;border-bottom:1px solid var(--line);padding-bottom:8px;scrollbar-width:auto;scrollbar-color:#9f9386 #eee9e2;}
-.assessment-scroll::-webkit-scrollbar {height:13px;width:13px;}
-.assessment-scroll::-webkit-scrollbar-thumb {background:#9f9386;border:3px solid #eee9e2;border-radius:10px;}
+.assessment-scroll {min-width:0;width:100%;overflow:auto;max-height:65dvh;border-bottom:1px solid var(--line);padding-bottom:8px;}
+/* 2026-11-17 滚动条全站统一成 6px 无感滑轨（hx-theme.js 的 hx-scrollbar-style），这里不再自定 */
 .assessment-scroll:focus-visible {outline:2px solid #a7472e;outline-offset:3px;}
 .assessment-table {min-width:1480px;}
 .assessment-table th,.assessment-table td {overflow:visible;}
@@ -2565,9 +2564,7 @@ html.hx-bg[data-hx-mode="dark"] body::after,
 :root[data-hx-mode="dark"] button.toggle.on[data-act="first"] {
   color: #05261c; background: var(--accent); border-color: var(--accent);
 }
-:root[data-hx-mode="dark"] .assessment-scroll { scrollbar-color: #46536f #101a36; }
-:root[data-hx-mode="dark"] .assessment-scroll::-webkit-scrollbar-thumb { background: #46536f; border-color: #101a36; }
-:root[data-hx-mode="dark"] .sheetwrap::-webkit-scrollbar-thumb { background: #3d4a68; }
+/* 2026-11-17 滚动条全站统一成 6px 无感滑轨（hx-theme.js 的 hx-scrollbar-style），这里不再自定 */
 :root[data-hx-mode="dark"] .attendance-score:hover { background: rgba(67, 214, 196, .12); }
 :root[data-hx-mode="dark"] .attendance-failed { color: #ff9aa9 !important; }
 :root[data-hx-mode="dark"] .leader-project { background: rgba(9, 16, 36, .88); color: var(--xl-ink); }

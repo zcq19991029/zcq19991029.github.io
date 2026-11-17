@@ -364,7 +364,8 @@ table.assign select{min-width:170px}
 /* 月课表右侧：本轮待分配名单（粘性窄栏） */
 .with-rail{display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:20px;align-items:start}
 .rail-main{min-width:0}
-.rail{position:sticky;top:20px;max-height:calc(100vh - 40px);overflow:auto;overscroll-behavior:contain;scrollbar-width:thin;
+/* 2026-11-17 滚动条全站统一成 6px 无感滑轨（hx-theme.js），这里不再自定 */
+.rail{position:sticky;top:20px;max-height:calc(100vh - 40px);overflow:auto;overscroll-behavior:contain;
   background:var(--card);border:1px solid var(--card-brd);backdrop-filter:blur(20px) saturate(160%);-webkit-backdrop-filter:blur(20px) saturate(160%);
   border-radius:var(--r-card);box-shadow:var(--shadow);padding:18px 16px;transition:box-shadow .25s,border-color .25s,background-color .25s}
 .rail-h h2{font:650 19px/1.3 var(--font-d);letter-spacing:-.02em;margin:0 0 2px}
@@ -903,7 +904,7 @@ HXLoadFx.boot('paike', 'hxBoot');
 <div id="toast" class="toast" role="status"></div>
 <script id="saved-data" type="application/json">null</script>
 <script>
-const BUILD={"time":"2026-11-17T12:51:06.813Z","sha":"85cf16e+"};
+const BUILD={"time":"2026-11-17T13:11:06.132Z","sha":"52bce63+"};
 /* ---- engine.js ---- */
 /* ================= 排课引擎：数据模型、次数/轮次、自动排课、固定老师同步、校验 =================
    纯逻辑，不碰页面；浏览器里是全局 Engine，node 里 require 进来测试。

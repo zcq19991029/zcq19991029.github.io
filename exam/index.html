@@ -121,7 +121,8 @@ a.nav-i{text-decoration:none}
 @keyframes modIn{from{opacity:0;transform:translateY(10px) scale(.992);filter:blur(4px)}to{opacity:1;transform:none;filter:none}}
 /* 主区 + 右侧粘性窄栏 */
 .with-rail{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:20px;align-items:start}
-.rail{position:sticky;top:20px;max-height:calc(100vh - 40px);overflow:auto;overscroll-behavior:contain;border-radius:var(--r-card);scrollbar-width:thin}
+/* 2026-11-17 滚动条全站统一成 6px 无感滑轨（hx-theme.js），这里不再自定 */
+.rail{position:sticky;top:20px;max-height:calc(100vh - 40px);overflow:auto;overscroll-behavior:contain;border-radius:var(--r-card)}
 .rail .q-title{font-size:19px}
 .rail .card{margin-bottom:16px}
 @media(max-width:1180px){.with-rail{grid-template-columns:minmax(0,1fr) 330px}}
@@ -423,6 +424,7 @@ button.qdel.sm{width:26px;height:26px;font-size:15px}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
 
 /* 考试页面布局（组件样式沿用单片机的 BASE_CSS，颜色跟首页“外观”） */
+/* 2026-11-17 滚动条全站统一成 6px 无感滑轨（hx-theme.js），这里不再自定 */
 body { margin: 0; }
 .ex { width: min(1600px, 100%); margin: 0 auto; padding: 22px 18px 60px; box-sizing: border-box; }
 
@@ -437,7 +439,7 @@ body { margin: 0; }
 /* 横屏铺满（2026-11-08）：外壳原来 min(1280px,100%)，比 .ex 的 1600px 更窄，大屏上正文呈一条窄柱；
    统一到 1600px（用户要求「横屏网页铺满」）。左栏 232px 固定、右栏 minmax(0,1fr) 继续自适应，窄屏在 900px 断点变单列。 */
 .ex-shell { display: grid; grid-template-columns: 232px minmax(0, 1fr); width: min(1600px, 100%); margin: 0 auto; box-sizing: border-box; }
-.ex-nav { position: sticky; top: 18px; align-self: start; max-height: calc(100vh - 36px); overflow: auto; padding: 18px 12px; scrollbar-width: thin; }
+.ex-nav { position: sticky; top: 18px; align-self: start; max-height: calc(100vh - 36px); overflow: auto; padding: 18px 12px; }
 .ex-nav-h { font: 600 11px/1.4 Consolas, "Cascadia Mono", monospace; letter-spacing: .1em; color: var(--mute, #6b7280); text-transform: uppercase; padding: 0 10px 8px; }
 .ex-nav-i { display: grid; gap: 1px; width: 100%; text-align: left; padding: 10px 12px; margin-bottom: 4px; border: 0; border-radius: 12px; background: transparent; color: var(--ink, #0b1220); cursor: pointer; font: inherit; }
 .ex-nav-i b { font-weight: 600; font-size: 14px; }
@@ -496,7 +498,7 @@ button.danger { color: var(--bad, #d70015); }
    下面那张组卷码卡了；.bk-h 吸顶是为了滚到 M5 时还知道自己在哪个母题里。
    ============================================================ */
 .bk-card h2 { font-size: 16px; }
-.bk-list { max-height: min(58vh, 560px); overflow: auto; overscroll-behavior: contain; margin: 10px 0; padding-right: 4px; border-top: 1px solid var(--hair); scrollbar-width: thin; }
+.bk-list { max-height: min(58vh, 560px); overflow: auto; overscroll-behavior: contain; margin: 10px 0; padding-right: 4px; border-top: 1px solid var(--hair); }
 .bk-h { position: sticky; top: 0; z-index: 1; background: var(--card-solid, #fff); padding: 8px 2px 4px; font: 600 12px/1.5 Consolas, "Cascadia Mono", monospace; letter-spacing: .02em; color: var(--mute); border-bottom: 1px solid var(--hair); }
 .bk-i { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 7px 6px; border: 1px solid transparent; border-radius: 10px; cursor: pointer; transition: background-color .15s, border-color .15s; }
 .bk-i:hover { background: var(--field2); }
@@ -522,7 +524,7 @@ button.danger { color: var(--bad, #d70015); }
    列表自己滚（60 条上限），否则组卷页 rail 会被历史卷子推到看不见组卷码。
    ============================================================ */
 .lib-name { flex: 1 1 150px; min-width: 0; max-width: 100%; }
-.lib-list { display: grid; gap: 8px; margin-top: 10px; max-height: 260px; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+.lib-list { display: grid; gap: 8px; margin-top: 10px; max-height: 260px; overflow: auto; overscroll-behavior: contain; }
 .lib-i { display: grid; gap: 6px; padding: 9px 11px; border-radius: 12px; background: var(--field2); border: 1px solid var(--hair); }
 .lib-m { display: grid; gap: 1px; min-width: 0; }
 .lib-m b { font-size: 13.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -574,7 +576,7 @@ button.danger { color: var(--bad, #d70015); }
 
 /* 画布：自身滚动，工具栏始终留在上面；.ppstage 按缩放后的真实尺寸撑开，
    所以不会出现“里面一层滚动条” */
-.ppwrap { position: relative; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin;
+.ppwrap { position: relative; overflow: auto; overscroll-behavior: contain;
   border-radius: 14px; border: 1px solid var(--hair); background: var(--field2); padding: 12px; max-height: calc(100vh - 190px); }
 .ppstage { position: relative; margin: 0 auto; }
 #ppFrame { position: absolute; left: 0; top: 0; border: 0; display: block; transform-origin: 0 0; background: #8a8f98; box-shadow: 0 10px 30px -16px rgba(0, 0, 0, .5); }
@@ -582,7 +584,7 @@ button.danger { color: var(--bad, #d70015); }
 
 /* 抽屉：右侧滑出，不占画布宽度；手机上全屏（否则 A3 只剩一条） */
 .ppdrawer { position: fixed; top: 0; right: 0; z-index: 60; display: flex; flex-direction: column; gap: 10px;
-  width: min(430px, 92vw); height: 100vh; padding: 14px 14px 70px; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin;
+  width: min(430px, 92vw); height: 100vh; padding: 14px 14px 70px; overflow: auto; overscroll-behavior: contain;
   background: var(--card-solid); border-left: 1px solid var(--hair); box-shadow: -24px 0 60px -34px rgba(0, 0, 0, .45);
   transform: translateX(102%); visibility: hidden; transition: transform .26s var(--spring, cubic-bezier(.32, .72, 0, 1)), visibility 0s linear .26s; }
 .ppdrawer.on { transform: none; visibility: visible; transition: transform .26s var(--spring, cubic-bezier(.32, .72, 0, 1)); }
@@ -5050,7 +5052,8 @@ a.nav-i{text-decoration:none}
 @keyframes modIn{from{opacity:0;transform:translateY(10px) scale(.992);filter:blur(4px)}to{opacity:1;transform:none;filter:none}}
 /* 主区 + 右侧粘性窄栏 */
 .with-rail{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:20px;align-items:start}
-.rail{position:sticky;top:20px;max-height:calc(100vh - 40px);overflow:auto;overscroll-behavior:contain;border-radius:var(--r-card);scrollbar-width:thin}
+/* 2026-11-17 滚动条全站统一成 6px 无感滑轨（hx-theme.js），这里不再自定 */
+.rail{position:sticky;top:20px;max-height:calc(100vh - 40px);overflow:auto;overscroll-behavior:contain;border-radius:var(--r-card)}
 .rail .q-title{font-size:19px}
 .rail .card{margin-bottom:16px}
 @media(max-width:1180px){.with-rail{grid-template-columns:minmax(0,1fr) 330px}}

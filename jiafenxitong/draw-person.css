@@ -204,10 +204,8 @@ dialog.draw-dlg::backdrop { background: rgba(2, 6, 12, .78); }
   overflow: auto;
   overscroll-behavior: contain;
   padding: 8px 16px 4px;
-  scrollbar-width: thin;
 }
-.nm-stage::-webkit-scrollbar { width: 10px; height: 10px; }
-.nm-stage::-webkit-scrollbar-thumb { background: #24425f; border-radius: 10px; }
+/* 2026-11-17 滚动条全站统一成 6px 无感滑轨（hx-theme.js 的 hx-scrollbar-style），这里不再自定 */
 .nm-grid {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));

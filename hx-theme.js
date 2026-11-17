@@ -75,6 +75,54 @@
   // 在网站上被单独打开的子工具：回到总入口（登录、账号、外观都在那里）。离线单文件不跳；地址加 ?solo 也不跳（调试用）。
   if (tool && window.top === window && /^https?:$/.test(location.protocol) && !/[?&]solo\b/.test(location.search)) { location.replace(root + '#' + tool); return; }
 
+  /* ── 全站滚动条：统一成「无感滑轨」（2026-11-17 用户定）────────────────────
+     用户原话：「这种下拉滑轨都要改成无感的 所有工具所有页面都是如此 …… 很丑」
+     （配图是刷题科目药板右侧那根带上下箭头的系统灰条）。
+     现状为什么乱：以前每个工具各写各的 —— 小组加分给 .assessment-scroll 做了 13px 粗轨
+     加 3px 白边、.nm-stage 10px 深蓝，其余工具（刷题、资料库、课程进度、排课、考试……）
+     全用系统默认，Windows Chrome 那根带箭头的灰条压在铝箔药板、深色卡片上特别出戏。
+     为什么放在这个 JS 里而不是 hx-theme.css：**全站只有总入口和刷题真的引了那份 CSS**，
+     其余工具只引这个 JS（下面「动态背景那一层」「页面层基础样式」两段开头的注释说的是同一件事）。
+     统一口径（一处改、全站生效，以后别再往各工具 CSS 里单写滚动条）：
+       · 粗细 6px（横竖一样），圆头，**没有轨道底色、没有两端箭头**；
+       · 默认完全透明 —— 静止时看不见，鼠标移到那个容器上才淡淡浮出来（触屏没 hover，
+         就一直透明，手指滑照样能滚，这才是「无感」）；
+       · 颜色跟主题走：浅色黑 20%、深色白 24%；
+       · !important 是故意的：各工具自带的 ::-webkit-scrollbar 规则加载在本文件之后，
+         不加就能把粗轨又写回来。这条规矩已写进 claude项目/CLAUDE.md。
+     真要彻底不要滚动条（横滑 chip 条那种），在自己那条规则里写 display:none 即可，
+     优先级更高，不受这里影响。 */
+  (function () {
+    var sb = document.createElement('style');
+    sb.id = 'hx-scrollbar-style';
+    sb.textContent =
+      // Firefox 用标准属性（Chrome 121+ 只要写了 scrollbar-color 就会**整段忽略** ::-webkit-scrollbar，
+      // 所以这两条必须锁在 @supports 里只给火狐，别让 Chromium 吃到；这个坑 2026-11-17 实测踩过）
+      + '@supports (-moz-appearance:none){*{scrollbar-width:thin;scrollbar-color:rgba(0,0,0,.22) transparent}'
+      + 'html[data-hx-mode="dark"] *{scrollbar-color:rgba(255,255,255,.26) transparent}}'
+      // WebKit / Blink（Chrome、Edge、QQ、360 —— 教室里全是这一族）
+      + '::-webkit-scrollbar{width:6px!important;height:6px!important;background:transparent!important}'
+      + '::-webkit-scrollbar-track,::-webkit-scrollbar-corner{background:transparent!important;border:0!important}'
+      + '::-webkit-scrollbar-button{display:none!important;width:0!important;height:0!important}'
+      /* 缩略图：平时极淡（浅色黑 12%／深色白 15%），指针压上去或拖动时才加深。
+         为什么不写成「静止完全透明、悬停才出现」：Chrome 里 `*:hover::-webkit-scrollbar-thumb`
+         的悬停态并不可靠（合成鼠标事件、部分一体机触摸板都触发不到，2026-11-17 自检页实测
+         悬停中=false 时缩略图永远不出现）—— 那等于把「能不能看出这里能滚」赌在一个不保证的
+         伪类上。6px + 12% 的圆头本来就是一根极细的发丝线，够淡，也永远看得见。 */
+      + '::-webkit-scrollbar-thumb{background:transparent!important;border:0!important;border-radius:99px!important;min-height:28px}'
+      + 'html:not([data-hx-mode="dark"]) ::-webkit-scrollbar-thumb{background:rgba(0,0,0,.09)!important}'
+      + 'html[data-hx-mode="dark"] ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12)!important}'
+      /* 悬停/拖动加深这几条**必须带上 html 前缀**：上面那两条基础色特异性是 (0,1,2)，
+         裸的 `*:hover::…` 只有 (0,1,1)，加上 !important 也压不过去（顺序不重要，特异性才重要）。 */
+      + 'html:not([data-hx-mode="dark"]) *:hover::-webkit-scrollbar-thumb{background:rgba(0,0,0,.26)!important}'
+      + 'html:not([data-hx-mode="dark"]) *::-webkit-scrollbar-thumb:hover,html:not([data-hx-mode="dark"]) *::-webkit-scrollbar-thumb:active{background:rgba(0,0,0,.38)!important}'
+      + 'html[data-hx-mode="dark"] *:hover::-webkit-scrollbar-thumb{background:rgba(255,255,255,.30)!important}'
+      + 'html[data-hx-mode="dark"] *::-webkit-scrollbar-thumb:hover,html[data-hx-mode="dark"] *::-webkit-scrollbar-thumb:active{background:rgba(255,255,255,.42)!important}'
+      // 需求里点名的两处老粗轨（小组加分考核表横滚 / 名单竖滚），留着它们自己的尺寸会跟上面打架
+      + '.assessment-scroll::-webkit-scrollbar,.nm-stage::-webkit-scrollbar{width:6px!important;height:6px!important}';
+    (document.head || document.documentElement).appendChild(sb);
+  })();
+
   // 嵌在总入口里的子工具：背景层自己铺一遍（以前是「透明让首页壁纸透上来」，2026-11-09 证明
   // Chrome 会把显式透明的根背景画成白画布，深色工具页整片发白 —— 详见下面那段注释）
   // hx-embedded：告诉工具「你被嵌在框里了」。自带校徽水印的工具（目前只有排课 .wm）见到它就收起自己那一份，
