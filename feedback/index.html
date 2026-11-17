@@ -6,14 +6,24 @@
 <title>反馈信箱 · 华夏工具</title>
 <style>
 :root{
-  --bg:#f4f6fa; --panel:#fff; --edge:#e3e8f0; --ink:#1b2333; --dim:#77839a; --faint:#a8b2c4;
+  /* 浅色底跟全站标准底色走（hx-theme.js 写的 --hx-page = #f5f5f7）：页面没引到主题时退回本页原来的 #f4f6fa。 */
+  --bg:var(--hx-page,#f4f6fa); --panel:#fff; --edge:#e3e8f0; --ink:#1b2333; --dim:#77839a; --faint:#a8b2c4;
   --acc:#7c5cff; --acc2:#e0457b; --ok:#17a34a; --warn:#d97706; --bad:#dc2626;
   --shadow:0 14px 34px -22px rgba(23,33,58,.55);
 }
+/* 系统深色只在「站内还没定过主题」时才生效（:not([data-hx-mode])）。
+   2026-11-17 修：原来这条是无条件 `:root{...}`，站内选浅色 + 系统深色时反馈页仍变深 ——
+   页面听的是系统而不是站内开关。hx-theme.js 一跑就会把 data-hx-mode 写到 <html> 上，
+   所以这条从此只在「根本没引到主题脚本」的极端情况（离线单文件 / 预览）兜底。 */
 @media (prefers-color-scheme: dark){
-  :root{ --bg:#0f1420; --panel:#161d2b; --edge:#25304a; --ink:#e8edf7; --dim:#94a1b8; --faint:#5d6a82;
+  :root:not([data-hx-mode]){ --bg:#0f1420; --panel:#161d2b; --edge:#25304a; --ink:#e8edf7; --dim:#94a1b8; --faint:#5d6a82;
     --shadow:0 16px 38px -24px rgba(0,0,0,.9); }
 }
+/* 站内切深色时也要有深色（原来只有上面那条「系统深色」的口子，于是「站内深色 + 系统浅色」这页是白的）。
+   色值逐字照抄上面那条媒体查询 —— 不改观感，只是把触发条件从「系统」换成「站内」。
+   不写这一条的话，--bg 会落到 var(--hx-page)=#000，而本页文字色仍是深色，等于黑字黑底。 */
+:root[data-hx-mode="dark"]{ --bg:#0f1420; --panel:#161d2b; --edge:#25304a; --ink:#e8edf7; --dim:#94a1b8; --faint:#5d6a82;
+  --shadow:0 16px 38px -24px rgba(0,0,0,.9); }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
 body{background:var(--bg);color:var(--ink);font:15px/1.6 "Microsoft YaHei",system-ui,-apple-system,"Segoe UI",sans-serif;
@@ -94,8 +104,10 @@ button.btn[disabled]{opacity:.5;cursor:default}
 <script src="/hx-theme.js" data-tool="feedback"></script>
 </head>
 <body>
-<!-- 首屏闪屏（全站统一三件套）：动效 + 标题 + 药丸；脚本没加载出来时回落药丸，8 秒兜底撤层 -->
-<style>#hxBoot{background:#f4f6fa}@media (prefers-color-scheme:dark){#hxBoot{background:#0f1420}}</style>
+<!-- 首屏闪屏（全站统一三件套）：动效 + 标题 + 药丸；脚本没加载出来时回落药丸，8 秒兜底撤层。
+     底色跟站内主题走（--hx-page），系统深色只在「站内还没定过主题」时兜底 —— 否则站内选浅色、
+     系统是深色时，先闪一层深色再变白，用户看到的就是「这页还是深的」。 -->
+<style>#hxBoot{background:var(--hx-page,#f4f6fa)}@media (prefers-color-scheme:dark){html:not([data-hx-mode]) #hxBoot{background:#0f1420}}</style>
 <div id="hxBoot" class="hx-boot" aria-hidden="true">
   <div class="hx-boot-card">
     <canvas id="hxBootCv" width="96" height="96"></canvas>

@@ -117,11 +117,22 @@
       + 'position:fixed!important;inset:0!important;z-index:-1!important;pointer-events:none!important;'
       + 'background:var(--hx-img) center / cover no-repeat!important;background-image:var(--hx-img)!important;'
       + 'opacity:var(--hx-bgo,1)!important}'
-      /* ② 深色专用兜底：**没有壁纸时**也要把白底刷成 --hx-page(#000)。
+      /* ② 深色兜底：**没有壁纸时**也要把白底刷成 --hx-page(#000)。
          工具页自带的白底 + 深色主题的浅色文字 = 看不清，这条是那次事故的修法，别动。 */
       + 'html.hx-embedded[data-hx-mode="dark"]{background-color:var(--hx-page,#000)!important;background-image:none!important}'
       + 'html.hx-embedded[data-hx-mode="dark"] body{background-color:transparent!important;background-image:none!important}'
-      // ③ 浅色不刷底色：壁纸 opacity<100 时要透出的是工具页自己那层浅灰（各页调过，别统一成 --hx-page）
+      /* ③ 浅色也要刷底色（2026-11-17 修「使用说明页浅色下有两层背景、深色正常」）。
+         根因不在页内，而在**跨 iframe**：总入口在 html.hx-bg 下把 iframe 元素设成 background:transparent，
+         于是「iframe 文档的根背景是不是透明」决定了总入口那层壁纸能不能从它后面透上来。
+         深色原本就刷了不透明 --hx-page(#000)，所以只有一层；浅色此前故意不刷（想让工具页自己的浅灰透出来），
+         结果 iframe 根透明 → 总入口的壁纸（cover，按**总入口视口**缩放）从 iframe 底下透上来，
+         和 iframe 自己 body::before 的壁纸（cover，按 **iframe** 视口缩放）叠成**两张不同大小的同一张图**，
+         浅色下看得一清二楚（深色被 #000 挡住，所以「深色正常」）。
+         修法：浅色也把根底色刷成 --hx-page(#f5f5f7) —— iframe 变成不透明，父页面壁纸不再透上来；
+         同时「壁纸 opacity<100」时透出的底色也统一成全站标准底色，和 B3 的口径一致。
+         只给 background-color，不给 background-image：接线仿真外壳会把壁纸用**行内** background 写在 html 上，
+         这里再用 background-image:none 会把它那一层砍掉。 */
+      + 'html.hx-embedded.hx-bg{background-color:var(--hx-page,#f5f5f7)!important}'
       + 'html.hx-embedded .hx-bgvid-wrap{display:none!important}';
     (document.head || document.documentElement).appendChild(st);
 

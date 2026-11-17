@@ -15,7 +15,9 @@
      而且老界面里任何模型都能被选去干任何事，给 DeepSeek 设成「视频生成」默认，要到真调用才报错。 -->
 <style>
 :root{
-  --bg:#f4f6fa; --panel:#fff; --panel2:#f7f9fc; --edge:#e3e8f0; --ink:#1b2333; --dim:#77839a; --faint:#a2adbf;
+  /* 浅色底跟全站标准底色走（hx-theme.js 的 --hx-page = #f5f5f7）；没引到主题时退回 #f4f6fa。
+     2026-11-17：浅色底全站统一（本页与「使用说明」同源，两页一起改才不会有色差）。深色块不动。 */
+  --bg:var(--hx-page,#f4f6fa); --panel:#fff; --panel2:#f7f9fc; --edge:#e3e8f0; --ink:#1b2333; --dim:#77839a; --faint:#a2adbf;
   --acc:#5e5ce6; --acc2:#7c5cff; --ok:#17a34a; --bad:#dc2626; --warn:#b45309;
   --shadow:0 14px 34px -24px rgba(23,33,58,.5);
 }

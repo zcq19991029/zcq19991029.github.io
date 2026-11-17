@@ -29,6 +29,16 @@
 
   var D = null;            // 最近一次快照
   var CLASS = null;        // 全班考核表（jf_class_scores 返回的摘要，含别人汇总数字）
+
+  /* 教师端「测试查看用户」演示视角（2026-11-17）：
+     地址带 ?pv=<班级id> 时，每个 RPC 多带一个 x-hx-probe 头。数据库里先校验「你确实是这个班的教师」，
+     再把「我是谁」换成该班的影子身份 —— 查询本身一行不改，所以看到的和真实学生完全一样。
+     学生拿这个地址打开也没用：校验不过就回落成他自己（见 hx_preview_class）。 */
+  var PV = (function () {
+    var m = /[?&]pv=([0-9]{1,19})(?:&|$)/.exec(location.search || '');
+    return m ? m[1] : '';
+  })();
+  var PROBE = null;        // 演示视角的载荷（有值 = 这一页是影子身份在看）
   /* 考核表里当前展开「每节课完成率」的那一行。
      2026-11-13 用户原话：「学生端需要可查明细包括别的组的」—— 从「只可能是自己」放开成任意一行，
      别人的明细按需向 jf_class_student_detail(p_key) 拉一次，缓存进 detailCache。 */
@@ -94,9 +104,11 @@
 
   function rpc(name, args) {
     return freshToken().then(function (t) {
+      var h = { apikey: KEY, Authorization: 'Bearer ' + t, 'Content-Type': 'application/json' };
+      if (PV) h['x-hx-probe'] = PV;
       return fetch(API + '/rest/v1/rpc/' + name, {
         method: 'POST',
-        headers: { apikey: KEY, Authorization: 'Bearer ' + t, 'Content-Type': 'application/json' },
+        headers: h,
         body: JSON.stringify(args || {})
       }).then(function (r) {
         return r.text().then(function (txt) {
@@ -240,6 +252,32 @@
         '<br>如果一直这样，多半是服务器在拥堵（不是你的账号或密码问题）：过几分钟再看，或者问老师。');
       schedule(ms);
     }
+  }
+
+  /* ---------- 教师端「测试查看用户」演示视角（2026-11-17） ----------
+     用户要的是「塞一个测试查看用户，让老师切换成学生端，演示给学生看，权限和真学生一模一样」。
+     数据库那边（hx_acting_student）把「我是谁」换成该班的影子身份，查询逻辑一行没改；
+     影子身份没有学号账号、不在任何成绩表里，所以它的个人分数区天生是空的。
+     这一屏就照它真实的样子画：只画全班考核表（这张表和真学生看到的完全一致），
+     上面加一句话说清「这是演示视角」，不做任何假数据。 */
+  function showProbe(p) {
+    PROBE = p;
+    failStreak = 0;
+    $('sync').textContent = '';
+    renderMyCard(p.me, p.class || '本班');
+    paintProbe();
+  }
+
+  function paintProbe() {
+    var v = $('view');
+    if (!v) return;
+    clearNotice();
+    v.innerHTML = '<div class="card"><h3>演示视角 · 测试查看用户</h3>' +
+      '<p class="note">你正在看本班「测试查看用户」眼里的学生端。它没有分数、不计人数，' +
+      '能看到的东西和本班任何一个真实学生完全一样 —— 这一屏就是学生登录后看到的。</p>' +
+      '<p class="note">想看选桌组队：点右上角「去选桌组队」（会带着同一个演示身份）；想退出：关掉这个标签页。</p>' +
+      '</div>' + renderClassBoard() +
+      (CLASS ? '' : '<div class="card"><p class="note">正在读取全班考核表…</p></div>');
   }
 
   /* ---------- 渲染 ---------- */
@@ -1028,7 +1066,7 @@
      本轮值日（一句话）→ 本学期总分 → 平时分怎么来的 → 每节课明细 → 互评 → 我的小组 → 规则 → 登分册。
      两块原来分属两个 tab 的内容现在同一个容器里纵向排，缺一块也不会把另一块顶掉。 */
   function paint() {
-    if (!D || fatal) return;
+    if (!D || fatal) { if (PROBE) paintProbe(); return; }
     $('view').innerHTML = renderDuty(D.lessons || []) +
       renderTotal() + renderBreakdown() +
       renderScore() + renderClassBoard() +
@@ -1068,6 +1106,9 @@
 
   function apply(payload) {
     if (!payload || payload.reason) {
+      /* 演示视角：影子身份本来就没有分数（「还没被记过任何分的学生」），
+         这不是错误，不能按「没数据」画一屏提示把人挡住。 */
+      if (payload && payload.reason === 'no_data' && payload.probe) return showProbe(payload);
       if (payload && payload.reason === 'not_student') return showFatal('not_student');
       return showFatal('no_data', payload || {});
     }
@@ -1106,6 +1147,8 @@
   }
 
   function boot() {
+    /* 演示视角：把「去选桌组队」也带上同一个 pv，学生在组队页看到的身份才不会跳回老师 */
+    if (PV) { var go = document.querySelector('.idc-go'); if (go) go.href = 'team.html?pv=' + PV; }
     if (!token()) { showFatal('no_login'); return; }
     rpc('jf_my_scores', {}).then(apply).catch(fail);
     loadClassBoard();

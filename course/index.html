@@ -17,7 +17,11 @@
 <script src="../ui-dialog.js"></script>
 <style>
 :root{
-  --bg:#f4f6fa; --panel:#fff; --line:#e4e9f0; --line-strong:#cbd5e1;
+  /* 浅色底 = 全站标准底色 #f5f5f7（2026-11-17 统一）。
+     这里用**写死的色值**而不是 var(--hx-page)：本页没有深色配色（--text 那几档永远是深色字），
+     而 --hx-page 在站内深色下是 #000 —— 跟着它走会黑字黑底。
+     深色下本页仍是这块浅底（和改动前一致，不在本次范围里）。 */
+  --bg:#f5f5f7; --panel:#fff; --line:#e4e9f0; --line-strong:#cbd5e1;
   --text:#1e293b; --text-2:#475569; --text-3:#94a3b8;
   /* 这一组是「交互强调色」——按钮、选中页签、聚焦边框、进度条全用它。
      以前写死蓝色，全站换了绿色主题后这一页的按钮还是蓝的，

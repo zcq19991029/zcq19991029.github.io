@@ -3958,7 +3958,20 @@ function renderStu(cid) {
   var blocks = ST.blocks[cid] || [];
   var blockedOf = function (sid) { var b = blocks.filter(function (x) { return x.student_id === sid; })[0]; return b && (b.avatar_blocked || b.bg_blocked); };
   var inp = function (s) { return '<td><input class="ti" data-f="no" inputmode="numeric" maxlength="20" placeholder="学号" value="' + esc(s ? s.student_no : '') + '"></td><td><input class="ti" data-f="nm" maxlength="20" placeholder="姓名" value="' + esc(s ? s.name : '') + '"></td>'; };
-  el.innerHTML = '<table><tr><th class="sq">序号</th><th>学号</th><th>姓名</th><th></th></tr><tr data-sid=""><td class="sq"></td>' + inp(null) + '<td class="ra"><button class="btn sm" data-save>添加</button></td></tr>' +
+  /* 2026-11-17 「测试查看用户」：每班一个影子学生，只给教师切换学生端视角用。
+     它不在名单里（数据库里根本没写进 hx_students），所以不计人数、不算分、不参与任何统计；
+     点按钮会在新标签页用它的身份打开学生端，看到的东西和本班任何真实学生一模一样。
+     数据库侧：hx_probe_student（建/取影子身份）+ hx_preview_class（只认该班教师）+ hx_acting_student。 */
+  var probeBar = '<div class="probe-bar" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;' +
+    'padding:8px 10px;margin:0 0 10px;border:1px dashed var(--edge,#d8dbe2);border-radius:10px">' +
+    '<span class="pill">测试查看用户</span>' +
+    '<span style="flex:1;min-width:170px;line-height:1.5"><b>测试查看用户</b>' +
+    '<small class="dim"> · 学号 00000000000 · 不计人数、不算分、不参与任何统计</small><br>' +
+    '<small class="dim">用它打开学生端，看到的就是本班学生能看到的东西（用于演示和答疑）。</small></span>' +
+    '<button class="btn sm" data-probe="' + cid + '" data-page="scores">看学生端 →</button>' +
+    '<button class="btn sub sm" data-probe="' + cid + '" data-page="team">看选桌页</button>' +
+    '</div>';
+  el.innerHTML = probeBar + '<table><tr><th class="sq">序号</th><th>学号</th><th>姓名</th><th></th></tr><tr data-sid=""><td class="sq"></td>' + inp(null) + '<td class="ra"><button class="btn sm" data-save>添加</button></td></tr>' +
     list.map(function (s) {
       var sq = '<td class="sq">' + (s.seq < 1000 && !s.left_school ? s.seq : '') + '</td>';
       var blocked = !s.left_school && blockedOf(s.id);
@@ -4010,6 +4023,16 @@ function renderStu(cid) {
     finally { if (tok) HXBusy.end(tok); } // 2026-11-15：成功时 done() 重画名单会摘掉按钮，补一次 end 清计时器（幂等）
   }; });
   el.querySelectorAll('[data-block]').forEach(function (b) { b.onclick = function () { openBlockDlg(cid, +b.dataset.block); }; });
+  el.querySelectorAll('[data-probe]').forEach(function (b) { b.onclick = function () { openProbeView(cid, b.dataset.page); }; });
+}
+/* 2026-11-17 测试查看用户：在新标签页用影子身份打开学生端（scores.html / team.html）。
+   地址里的 ?pv=<班级id> 只是「以这个班的学生身份看」的开关；数据库里会先校验「你确实是这个班的教师」，
+   学生拿着这个地址打开也只会回落成他自己。 */
+function openProbeView(cid, page) {
+  var f = page === 'team' ? 'team.html' : 'scores.html';
+  var url = SITE + '/jiafenxitong/' + f + '?pv=' + encodeURIComponent(cid);
+  var w = window.open(url, '_blank');
+  if (!w) toast('浏览器拦了新标签页，请允许弹窗后再点一次');
 }
 /* 2026-11-14 内容封禁：拉某班封禁清单（hx_content_blocks），回来就地重画名单（只补「已封禁」角标，不打断编辑/选中态）。 */
 async function loadBlocks(cid) {

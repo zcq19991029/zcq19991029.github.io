@@ -12,7 +12,9 @@ const THEMES = {
       rail: ['#151b2e', '#2b3452', '#111727'], disc: 'rgba(14,20,40,.95)', title: ['#ffffff', '#a5b4fc'], sub: 'rgba(165,180,252,.75)', sweep: '#ffffff', wm: 'rgba(255,255,255,.55)', logo: 'grayscale(1) brightness(5)', logoA: 0.32, veil: 'rgba(0,0,0,.62)' } },
   light: { name: '明亮', dark: false,
     C: { wireEdge: 'rgba(15,23,42,.35)', ink: '#0f172a', dim: '#475569', paper: '#ffffff', paperRun: '#fff7ed', trace: '#0284c7', ok: '#059669', bad: '#e11d48', gold: '#d97706', cur: '#ea580c', ctrl: '#be123c', N: '#1d4ed8', L1: '#ca8a04', L2: '#16a34a', L3: '#dc2626' },
-    TH: { bg: '#e9eef6', acc: '#4f46e5', acc2: '#7c3aed', edge: 'rgba(71,85,105,.22)', io: '#059669', out: '#2563eb', dot: '71,85,105', dotA: 0.06, spot: '99,102,241', glow: 0.45,
+    /* 浅色画布底色 = 全站标准底色 #f5f5f7（2026-11-17 统一，原来 #e9eef6 偏蓝，和别的工具页有色差）。
+       注意只改色值：透明度（下面 applyTheme 里的 baseA）不动，浅色仍按 2026-11-17 定的 .62 走。 */
+    TH: { bg: '#f5f5f7', acc: '#4f46e5', acc2: '#7c3aed', edge: 'rgba(71,85,105,.22)', io: '#059669', out: '#2563eb', dot: '71,85,105', dotA: 0.06, spot: '99,102,241', glow: 0.45,
       cardTop: 'rgba(255,255,255,.96)', cardBot: 'rgba(246,248,252,.96)', hi: 'rgba(255,255,255,.6)', shadow: 'rgba(30,41,59,.12)', btn: 'rgba(15,23,42,.04)', btnHov: 'rgba(79,70,229,.10)',
       rail: ['#d1d5db', '#f3f4f6', '#c7ccd4'], disc: '#f1f5f9', title: ['#0f172a', '#4f46e5'], sub: 'rgba(79,70,229,.75)', sweep: '#4f46e5', wm: 'rgba(15,23,42,.35)', logo: 'none', logoA: 0.7, veil: 'rgba(15,23,42,.35)' } },
   contrast: { name: '高对比', dark: false,
@@ -132,10 +134,26 @@ function applyTheme(n) {
       // 兼容老调用点万一传 0~100：大于 1 就当百分比再除一次，其余原样。
       const rawBgo = HXL.bgo == null ? 1 : +HXL.bgo;
       const bgo = Math.min(1, Math.max(0, rawBgo > 1 ? rawBgo / 100 : rawBgo));
-      TH.bg = hxRgba(TH.bg, baseA + (1 - baseA) * (1 - bgo));
+      /* ── 2026-11-17 修用户报障「深色模式同配置下看不到背景、卡片太厚黑」────────────────
+         原因是两处叠乘，不是卡片本身：
+         ① **body 又铺了一层同色底**：practice-ui 把 document.body.background 也设成 TH.bg，
+            画布每帧还铺一次 TH.bg —— 同一份 alpha 乘了两次，净透过率被平方。
+            bgo=100 时是 44%×44%=19%，bgo=25 时只剩 11%×11%=1.2%，肉眼就是纯黑。
+            现在深色/灰阶把 body 放透明（和 parallel.js 的 seeThrough 同一条规矩），只让画布那一层控制。
+         ② **深色低清晰度把底色推到 89%**：浅色底是 #f5f5f7（亮），89% 压上去还剩一层粉，看得出壁纸；
+            深色底是 #03050b（近黑），89% 压上去就是「把壁纸涂黑」——同样一根滑杆，深色感觉是失灵。
+            所以深色把「清晰度调低带来的额外不透明」再乘 0.5：bgo=100 仍是 .56（不动），
+            bgo=25 从 .89 → .725，bgo=0 从 1 → .78。滑杆依旧单调有效，只是不再一路黑到底。
+         浅色一个数都不动（.62 + 原公式），刚定稿的观感保持原样。 */
+      const extra = (1 - baseA) * (1 - bgo) * (THEMES[n].dark ? .5 : 1);
+      TH.bg = hxRgba(TH.bg, baseA + extra);
+      // body 只当「没有画布」的兜底：深色/灰阶有壁纸时交给画布那一层，别再乘第二次
+      TH.bodyBg = THEMES[n].dark ? 'transparent' : TH.bg;
+    } else {
+      TH.bodyBg = TH.bg;
     }
     hxBgClear = hasBg;
-  } else hxBgClear = false;
+  } else { hxBgClear = false; TH.bodyBg = TH.bg; }
   try { localStorage.setItem(THEME_KEY, n); } catch (e) { }
 }
 // 深色玻璃卡片：渐变底 + 细亮边 + 顶部高光 + 淡淡的蓝色外发光

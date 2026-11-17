@@ -23,6 +23,14 @@
   var busy = false;
   var fatal = null;      // 致命状态：no_login / no_room / not_student / error
 
+  /* 教师端「测试查看用户」演示视角（2026-11-17）：地址带 ?pv=<班级id> 时，
+     每个 RPC 多带一个 x-hx-probe 头，数据库校验「你确实是这个班的教师」后把「我是谁」
+     换成该班的影子身份。这一页在演示视角下强制只读：座位是真实数据，影子身份不占座。 */
+  var PV = (function () {
+    var m = /[?&]pv=([0-9]{1,19})(?:&|$)/.exec(location.search || '');
+    return m ? m[1] : '';
+  })();
+
   /* 我的身份卡背景（2026-11-12）：读 hx_rank_bg，和排位身份卡同一套。 */
   var MY_BG = { bg: '', pos: 50, loaded: false };
   var drag = null;       // 正在拖「我」这张卡：{el, moved}
@@ -92,9 +100,11 @@
 
   function rpc(name, args) {
     return freshToken().then(function (t) {
+      var h = { apikey: KEY, Authorization: 'Bearer ' + t, 'Content-Type': 'application/json' };
+      if (PV) h['x-hx-probe'] = PV;
       return fetch(API + '/rest/v1/rpc/' + name, {
         method: 'POST',
-        headers: { apikey: KEY, Authorization: 'Bearer ' + t, 'Content-Type': 'application/json' },
+        headers: h,
         body: JSON.stringify(args || {})
       }).then(function (r) {
         return r.text().then(function (txt) {
@@ -303,7 +313,9 @@
      jf_team_mine 会在没有 open 房间时回最近一期 closed 房间，就是为了让学生确认完还能看到
      最终分组；所以 closed 不是「没有房间」，必须照常渲染，只是全部只读。
      历史数据里还有 locked（旧版「锁定分组」，教师端已删），一律按「已结束」只读处理。 */
-  function isOpen() { return !!S && S.status === 'open'; }
+  /* 演示视角一律只读：影子身份不占座（数据库也会拒），所以这里直接当「已结束」处理，
+     连拖动/点选都不响应，老师演示时不会误把自己塞进某一桌。 */
+  function isOpen() { return !!S && S.status === 'open' && !PV; }
   function isFinal() { return !!S && S.status === 'closed'; }
 
   /* 生成「我自己」那条 chip（带身份牌背景，和排位身份卡同一套）。放在组内或未分组池子里。
@@ -460,10 +472,12 @@
        老数据 locked 用灰胶囊写「已结束」，不再对学生说「老师已锁定」。 */
     var pill = $('statePill');
     pill.className = 'top-state' + (isOpen() ? '' : (isFinal() ? ' final' : ' closed'));
-    pill.textContent = isOpen() ? '组队中' : (isFinal() ? '最终分组' : '已结束');
+    pill.textContent = PV ? '演示中' : (isOpen() ? '组队中' : (isFinal() ? '最终分组' : '已结束'));
 
     clearNotice();
-    if (isFinal()) {
+    if (PV) {
+      notice('<b>演示视角 · 测试查看用户。</b><br>这是本班学生看到的选座页，只读：影子身份不占座，也不会改动任何分组。', 'final');
+    } else if (isFinal()) {
       /* 学生刷新后能走到这里，说明 jf_team_mine 把最近一期 closed 房间给了他 —— 这一屏就是
          老师确认过的最终结果，必须说清楚「已定稿 / 只读 / 下一轮等老师重开」，别让人以为还能改。 */
       notice('<b>分组已确认。</b><br>这是老师定下的最终分组，只读。下一轮组队等老师重新开放，这一页会自动跟上。', 'final');
