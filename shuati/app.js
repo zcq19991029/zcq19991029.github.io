@@ -611,10 +611,11 @@ function openOrderSheet() {
 }
 /* ---------- 选择科目：药板胶囊下拉（2026-11-15 用户要求复刻 LeiBox blister-dropdown） ----------
    交互外壳整个换成 LeiBox 的 blister-dropdown（`leibox show blister-dropdown --framework vanilla`）：
-     · 顶部一块铝箔触发器，点开下面滑下一板同样的铝箔药板；
+     · 顶部一块铝箔触发器 —— 它正好压在顶栏那颗「科目」按钮上，展开时就是那颗按钮亮成铝箔；
+     · 药板从触发器正下方滑下来，左边缘和按钮对齐（老板是 420px 全屏居中，2026-11-17 用户否了）；
      · 每一行左边一个药槽，槽里躺着一颗双色胶囊 —— 当前科目那颗已经被抠掉，只剩撕开的空槽；
-     · 点某一行 → 那颗胶囊从药槽里弹出来，划一道弧飞进顶部药槽，
-       行里留下空槽（铝箔撕裂 + 锡纸毛边），顶部换上新胶囊再弹一下。
+     · 点某一行 → 那颗胶囊从药槽里弹出来，划一道弧飞向触发器，缩没；铝箔弹一下，行里留下
+       撕开的空槽（铝箔撕裂 + 锡纸毛边），按钮上的名字换成新科目。
    **数据流一个字节都没动**：选中之后仍然只调 openSubject(id) —— 和原来那个按钮回调是同一句，
    切科目、重载题库、写 prefs 全在它内部（见上面 openSubject），这里不碰 store / supabase，
    也没往 S 里加任何字段。原来弹层里的「＋ 新建科目 / 输入分享码」两条也原样留着，挂在药板底部。
@@ -650,7 +651,6 @@ function openSubjectSheet() {
     <div class="bsc-wrap">
       <div class="bsc-assembly">
         <button type="button" class="bsc-trigger bsc-foil" id="bscTrigger" aria-haspopup="listbox" aria-controls="bscList" aria-expanded="true">
-          ${bscPocket(false)}
           <span class="bsc-cur">${esc(S.subject ? S.subject.name : '选择科目')}</span>
           <svg class="bsc-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 15l-6-6-6 6"/></svg>
         </button>
@@ -673,11 +673,41 @@ function openSubjectSheet() {
   const list = stage.querySelector('#bscList');
   const trigger = stage.querySelector('#bscTrigger');
   const curLabel = trigger.querySelector('.bsc-cur');
-  const headPill = trigger.querySelector('.bsc-pill');
   const flight = stage.querySelector('#bscFlight');
   const rows = [...list.querySelectorAll('.bsc-row')];
   const lite = bscLite();
   let closing = false, fly = null, timer = 0;
+
+  /* 2026-11-17 用户改口：不要「全屏居中的一大块」，要「从顶栏那颗科目按钮正下方衔接展开」。
+     所以外壳不再自己居中，位置全按 #subjBtn 的实测矩形来：
+       · 触发器比按钮四周各多 3~4px（圆角同为药丸），展开时看着就是那颗按钮自己亮成一块铝箔；
+       · 药板从触发器底下滑出，左边缘与按钮对齐；右边放不下（窄屏）就整体左移，绝不溢出视口；
+       · 高度按「按钮下沿到屏幕底」留，避免药板顶出屏幕外。
+     顶栏是 position:sticky，盒子不随页面滚动变，只有窗口尺寸变化时才需要重算。 */
+  const anchor = $('subjBtn');
+  function place() {
+    const r = anchor ? anchor.getBoundingClientRect() : { left: 14, top: 9, width: 120, height: 34 };
+    const vw = document.documentElement.clientWidth || innerWidth;
+    const vh = document.documentElement.clientHeight || innerHeight;
+    const th = Math.max(34, Math.round(r.height) + 6);          // 触发器高
+    // 药板宽：默认 340；窄屏优先「与按钮左对齐后还能塞下多少就多少」（手机 390 宽时别再左移，
+    // 左移会让药板跟按钮错开一截，看着就不像「从这里展开」了）。真塞不下才退到整体夹进视口。
+    let pw = Math.min(340, vw - 8 - Math.round(r.left));
+    if (pw < 200) pw = Math.min(340, Math.max(200, vw - 20));
+    const left = Math.max(8, Math.min(Math.round(r.left), vw - 8 - pw));
+    const wrapLeft = Math.round(r.left) - 4;
+    wrap.style.left = `${wrapLeft}px`;
+    wrap.style.top = `${Math.round(r.top) - 3}px`;
+    wrap.style.width = `${Math.round(r.width) + 8}px`;
+    stage.style.setProperty('--bsc-th', `${th}px`);
+    stage.style.setProperty('--bsc-pw', `${pw}px`);
+    stage.style.setProperty('--bsc-dx', `${left - wrapLeft}px`);
+    // 药板顶在「触发器下沿 + 6px 缝」处，往下还有多少就长多少
+    panel.style.maxHeight = `${Math.max(150, Math.min(320, vh - r.top - th - 22))}px`;
+  }
+  place();
+  addEventListener('resize', place);
+  addEventListener('orientationchange', place);
 
   // 键盘焦点：当前科目那一行是 Tab 入口，其余行走「上下键 + roving tabindex」
   const mark = i => rows.forEach((r, n) => { r.tabIndex = n === i ? 0 : -1; });
@@ -723,6 +753,8 @@ function openSubjectSheet() {
     panel.inert = true;                       // 药板滑回触发器背后
     trigger.setAttribute('aria-expanded', 'false');
     stage.classList.add('bsc-out');           // 整层淡出
+    removeEventListener('resize', place);
+    removeEventListener('orientationchange', place);
     const b = $('subjBtn');                   // 焦点还给顶栏那颗「科目」按钮（就是打开它的触发器）
     if (b) { try { b.focus({ preventScroll: true }); } catch (e) { b.focus(); } }
     setTimeout(() => stage.remove(), lite ? 200 : 460);
@@ -739,25 +771,28 @@ function openSubjectSheet() {
     if (lite || same) { curLabel.textContent = r.querySelector('.bsc-name b').textContent; close(); return; }
     const o = wrap.getBoundingClientRect();
     const src = r.querySelector('.bsc-pocket').getBoundingClientRect();
-    const dst = trigger.querySelector('.bsc-pocket').getBoundingClientRect();
-    headPill.style.visibility = 'hidden';
+    /* 落点：触发器左端那块空铝箔（2026-11-17 触发器里不摆药槽了 —— 它压在顶栏那颗按钮上，
+       多摆一颗胶囊就要吃掉 40px 宽，长科目名当场变省略号）。胶囊飞到这里缩没，铝箔本身弹一下。 */
+    const tr = trigger.getBoundingClientRect();
     flight.hidden = false;
     const hw = flight.offsetWidth / 2, hh = flight.offsetHeight / 2;
     const sx = src.left + src.width / 2 - o.left - hw, sy = src.top + src.height / 2 - o.top - hh;
-    const dx = dst.left + dst.width / 2 - o.left - hw, dy = dst.top + dst.height / 2 - o.top - hh;
+    const dx = tr.left + 13 - o.left - hw, dy = tr.top + tr.height / 2 - o.top - hh;
     burst(sx + hw, sy + hh);
     const cav = r.querySelector('.bsc-cavity'); // 空槽被撕开的那一下
     if (cav) cav.animate([{ transform: 'scale(.84)', filter: 'brightness(1.35)' }, { transform: 'scale(1.05)', filter: 'brightness(.92)', offset: .45 }, { transform: 'none', filter: 'none' }], { duration: 260, easing: 'cubic-bezier(.22,1,.36,1)' });
-    // 23 帧：前 36% 在槽里弹起放大，后面沿抛物线飞进顶部并缩小（帧数与组件一致）
+    // 23 帧：前 36% 在槽里弹起放大，后面沿抛物线飞向触发器并缩没（帧数与组件一致）
+    const lift = 8;
     const frames = Array.from({ length: 23 }, (_, i) => {
       const t = i / 22, pop = t <= .36;
       const p = pop ? back(t / .36) : cubic((t - .36) / .64);
       const arc = pop ? 0 : Math.sin(Math.PI * p);
-      const x = pop ? sx : sx + (dx - sx) * p - 6 * arc;
-      const y = pop ? sy - 12 * p : sy - 12 + (dy - sy + 12) * p;
-      const sc = pop ? 1 + .36 * p : 1.36 - .36 * p + .08 * arc;
+      const x = pop ? sx : sx + (dx - sx) * p - 5 * arc;
+      const y = pop ? sy - lift * p : sy - lift + (dy - sy + lift) * p;
+      const sc = pop ? 1 + .3 * p : 1.3 + (.34 - 1.3) * p + .06 * arc;
+      const fade = pop ? 1 : 1 - Math.max(0, (p - .84) / .16);
       const tilt = -5.5 * (pop ? p : 1 - p);
-      return { transform: `translate3d(${x}px,${y}px,0) rotate(${tilt}deg) scale(${sc})` };
+      return { transform: `translate3d(${x}px,${y}px,0) rotate(${tilt}deg) scale(${sc})`, opacity: fade };
     });
     fly = flight.animate(frames, { duration: 430, fill: 'forwards' });
     fly.finished.then(() => {
@@ -765,8 +800,7 @@ function openSubjectSheet() {
       try { for (const a of flight.getAnimations()) a.cancel(); } catch (e) { }
       flight.hidden = true;
       if (closing) return;
-      headPill.style.visibility = '';         // 顶部药槽里长出新胶囊
-      headPill.animate([{ transform: 'translateY(-3px) scale(1.24)' }, { transform: 'translateY(1px) scale(.92)', offset: .55 }, { transform: 'none' }], { duration: 340, easing: 'cubic-bezier(.22,1,.36,1)' });
+      trigger.animate([{ transform: 'scale(1.05)' }, { transform: 'scale(.985)', offset: .55 }, { transform: 'none' }], { duration: 320, easing: 'cubic-bezier(.22,1,.36,1)' });
       curLabel.textContent = r.querySelector('.bsc-name b').textContent;
       timer = setTimeout(close, 220);
     }, () => { });
