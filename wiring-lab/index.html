@@ -3,7 +3,7 @@
 <html lang="zh-CN">
 <head>
 <script src="../hx-theme.js" data-tool="wiring"></script>
-<script>window.HX_BUILD = "2026-11-16T16:29:39Z ff66cd0";</script>
+<script>window.HX_BUILD = "2026-11-17T04:33:00Z 5121631";</script>
 <meta charset="utf-8">
 <meta name="copyright" content="© 2026 zcq 版权所有，未经许可禁止复制、修改、转载">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
@@ -3329,9 +3329,14 @@ const VIDEO_LINKS = {
        part:concept-FLOW   三步法总览（拿 2.1 起动回路走一遍）
      空字符串 = 还没上传，界面自动显示灰底「待发布」，不装死链。填法：拿到 B站链接后原样贴进 ''。
      注意：SEG 里没有这些 id，所以不会进「教学视频」窗口，也不会把那边「已上线 X / N 节」算歪。 */
-  'part:QF': '', 'part:FU': '', 'part:FR': '', 'part:KM': '',
-  'part:SB': '', 'part:SB4': '', 'part:KT': '', 'part:M': '', 'part:M2': '',
-  'part:concept-NO_NC': '', 'part:concept-PORT': '', 'part:concept-FLOW': '',
+  // 2026-11-16 用户上传完毕：12 条全部挂在扩展练习那个稿件 BV1vC4s6PEWZ 上，P4~P15
+  // （分P 标题与成片文件名一致，时长逐条核对过；P1~P3 是并联/E1/E2，见上面那段）
+  'part:QF': 'https://www.bilibili.com/video/BV1vC4s6PEWZ?p=7', 'part:FU': 'https://www.bilibili.com/video/BV1vC4s6PEWZ?p=8',
+  'part:FR': 'https://www.bilibili.com/video/BV1vC4s6PEWZ?p=10', 'part:KM': 'https://www.bilibili.com/video/BV1vC4s6PEWZ?p=9',
+  'part:SB': 'https://www.bilibili.com/video/BV1vC4s6PEWZ?p=11', 'part:SB4': 'https://www.bilibili.com/video/BV1vC4s6PEWZ?p=12',
+  'part:KT': 'https://www.bilibili.com/video/BV1vC4s6PEWZ?p=15', 'part:M': 'https://www.bilibili.com/video/BV1vC4s6PEWZ?p=13',
+  'part:M2': 'https://www.bilibili.com/video/BV1vC4s6PEWZ?p=14', 'part:concept-NO_NC': 'https://www.bilibili.com/video/BV1vC4s6PEWZ?p=4',
+  'part:concept-PORT': 'https://www.bilibili.com/video/BV1vC4s6PEWZ?p=5', 'part:concept-FLOW': 'https://www.bilibili.com/video/BV1vC4s6PEWZ?p=6',
 };
 // 概念片：三个入口在「元器件介绍」「符号介绍」两个窗口顶部一排按钮（不挂在某个具体元件上）
 const CONCEPT_VIDEOS = [
@@ -5444,7 +5449,7 @@ function rkProxyUse(s) {
   if (!RK.lock) RK.lock = RK.circuit;
   Promise.resolve().then(rkStartRun).catch(e => toast('开始排位失败：' + ((e && e.message) || e)));
 }
-// ---------- 随机抽人（教师）：夜市翻牌（2026-11-06 完整迁移自 .tmp-ref/night-market-draw-prototype.html） ----------
+// ---------- 随机抽人（教师）：夜市翻牌（2026-11-06 完整迁移自 .tmp-ref/night-market-draw-prototype.html，临时原型已随 2026-11-16 清理删除，行为以本文件为准） ----------
 // 呈现整体换成原型：顶栏（NIGHT MARKET / 点券 / ✕）→ 工具条（班级 / 一次抽一个）→
 // 6 个卡位的夜市卡组（牌背按稀有度上色、3D 翻牌、像素动效、金色票据）。
 // 抽取逻辑原样保留：按当前班级抽、一次只抽一个、不与上一次重复（DRW.last）、抽中可「设为当前选手」；
@@ -6374,7 +6379,7 @@ async function rkCountText(v, R) {
 //
 // ── 2026-11-06 用户：「321go后面的动效10个转场随机显示 现在明显不全」──
 // 原来这里只有 5 条，而 pixelfx 的 transitions 全家里有 6 个能盖满全屏的。补到 10 条，
-// 两条依据都是实测出来的，不是估的（脚本 .tmp-ref/_fxcurve.cjs，逐 0.05s 采样 240 阈值不透明像素占比）：
+// 两条依据都是实测出来的，不是估的（当时的采样脚本已随 2026-11-16 清理删除，结论保留；要复测按同样口径：逐 0.05s 采样 240 阈值不透明像素占比）：
 //
 // ① **glitch-wipe 原来被误判成「盖不满屏」，实测是满的**。原注释写「撕裂条带盖不满屏、底下切换会穿帮」，
 //    实测曲线（1.8s）：0.1→0 / 0.3→0.15 / 0.5→0.75 / **0.7~1.1 全是 1.00** / 1.2→0.92 / 1.4→0.45 / 1.7→0。
@@ -6442,7 +6447,7 @@ function rkReveal(R) {
   // ── 2026-11-06 修坑：opts 必须真的传进 createFx，否则 RK_FX_PAL 那几组换色全是摆设 ──
   // createFx(effectsModule, options) 的第二个参数就是 options，它会跟 meta.options 深合并（库内 re(o,t)），
   // 所以这里把它铺在 x/y/seed 之上：换色（palette）、聚光圈落点（focus）都靠这一句才生效。
-  // 实测过不传 = 变体和原色 RGBA 逐字节相同（见 .tmp-ref/_fxpal.cjs 的输出对比）。
+  // 实测过不传 = 变体和原色 RGBA 逐字节相同（当时的对比脚本已随 2026-11-16 清理删除，结论保留）。
   const fx = P.createFx(mod, Object.assign({ x: O[0], y: O[1], seed: Math.random() * 999 | 0 }, pick.opts || {}));
   // ── 2026-11-06 修坑：转场期间把练习页的 60fps 画布暂停 —— 它跟转场共用主线程，
   //   不让的话希沃这类弱机上转场一秒只能画 4~6 帧（4 倍 CPU 节流实测），等于「转场没出来」。

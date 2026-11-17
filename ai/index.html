@@ -38,16 +38,14 @@ a{color:inherit}
 header.top{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 90%,transparent);backdrop-filter:blur(10px);
   border-bottom:1px solid var(--edge)}
 header.top .wrap{display:flex;align-items:center;gap:12px;min-height:62px;flex-wrap:wrap;padding-top:9px;padding-bottom:9px}
-.back{flex:none;text-decoration:none;font-size:13.5px;font-weight:700;color:var(--dim);padding:7px 12px;border-radius:10px;
-  border:1px solid var(--edge);background:var(--panel)}
-.back:hover{color:var(--ink);border-color:var(--acc)}
+/* .back 已随「← 回首页」一起删掉（2026-11-16）：返回统一交给总入口外壳那一颗。 */
 h1{margin:0;font-size:19px;letter-spacing:.3px;display:flex;align-items:center;gap:9px}
 h1 i{font-style:normal;width:30px;height:30px;border-radius:9px;display:grid;place-items:center;font-size:13px;font-weight:800;color:#fff;
   background:linear-gradient(140deg,var(--acc),var(--acc2));box-shadow:0 8px 18px -10px var(--acc)}
 .count{margin-left:auto;font-size:12.5px;font-weight:700;color:var(--dim);padding:5px 11px;border-radius:999px;
   background:var(--panel);border:1px solid var(--edge)}
 main{padding-top:16px}
-.lead{margin:0 0 16px;font-size:13.5px;line-height:1.7;color:var(--dim);background:var(--panel);border:1px solid var(--edge);
+.lead{margin:0 0 16px;font-size:13.5px;line-height:1.7;color:var(--dim);background:var(--card,var(--panel));border:1px solid var(--edge);
   border-left:3px solid var(--acc);border-radius:12px;padding:12px 14px}
 .lead b{color:var(--ink)}
 /* ---- 两栏骨架（2026-11-15） ----
@@ -60,7 +58,47 @@ main{padding-top:16px}
 /* 最底一排：导入导出 + 注册渠道。为什么不塞进上面两栏 —— 这两块的量是固定的（不会随用户模型多少变），
    塞进右栏会让「按工具/总览」那一列一路长到两千多像素，左栏底下留一大片空白（2026-11-15 实测 1524 vs 2180）。 */
 .bottom{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:16px;margin-top:16px;align-items:start}
-.card{background:var(--panel);border:1px solid var(--edge);border-radius:16px;padding:16px;box-shadow:var(--shadow);min-width:0}
+.card{background:var(--card,var(--panel));border:1px solid var(--edge);border-radius:16px;padding:16px;box-shadow:var(--shadow);min-width:0}
+/* ── 有壁纸时的玻璃（2026-11-16 补：本页以前一条玻璃配方都没有）──
+   用户报障「背景完全又不透明了　卡片也改不了」。实测本页所有卡片永远是 --panel 实色：
+   既看不见壁纸，也完全不认外观面板的「卡片通透度」(--hx-a)，拖到底都没反应。
+   配方与 hx-theme.css / help 页同源：alpha = 基础值 × --hx-a，并同样定义 --card 供别处复用。 */
+:root{
+  /* --card：无壁纸时的卡底。通透度 100（--hx-a=1）时就是实色，和以前一样；
+     只有往「更透」拖才会真透出来。公式与 hx-theme.css 对齐。 */
+  --card: rgb(255 255 255 / var(--hx-a, 1));
+  --card2: rgb(247 249 252 / var(--hx-a, 1));
+  --glass-card: rgb(255 255 255 / calc(var(--hx-a, 1) * .62));
+}
+:root[data-hx-mode="dark"]{
+  --card: rgb(22 29 43 / var(--hx-a, 1));
+  --card2: rgb(28 37 54 / var(--hx-a, 1));
+  --glass-card: rgb(12 15 20 / calc(var(--hx-a, 1) * .56));
+}
+html.hx-bg .card,
+html.hx-bg .plat,
+html.hx-bg .lead{
+  background-color: var(--glass-card);
+  border-color: rgba(18,22,30,.14);
+  box-shadow: var(--glass-drop, 0 24px 48px -26px rgba(15,22,35,.38)), inset 0 .8px 0 rgba(255,255,255,.8);
+}
+html.hx-bg[data-hx-mode="dark"] .card,
+html.hx-bg[data-hx-mode="dark"] .plat,
+html.hx-bg[data-hx-mode="dark"] .lead{
+  background-color: var(--glass-card);
+  border-color: rgba(255,255,255,.12);
+  box-shadow: var(--glass-drop, 0 22px 54px -28px rgba(0,0,0,.9)), inset 0 .8px 0 rgba(255,255,255,.12);
+}
+html.hx-bg .card,
+html.hx-bg .plat,
+html.hx-bg .lead{
+  -webkit-backdrop-filter: saturate(180%) blur(18px);
+  backdrop-filter: saturate(180%) blur(18px);
+}
+/* 极简模式：玻璃可以有，实时模糊一层都不留（全站口径：极简只求跑得动） */
+html.hx-lite.hx-bg .card,
+html.hx-lite.hx-bg .plat,
+html.hx-lite.hx-bg .lead{ -webkit-backdrop-filter: none; backdrop-filter: none; }
 .card > h2{margin:0 0 4px;font-size:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .card > .sub{margin:0 0 12px;font-size:13px;color:var(--dim);line-height:1.65}
 .card > h2 .right{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
@@ -77,7 +115,7 @@ button{font:inherit;cursor:pointer}
 /* ---- 平台卡片（2026-11-15 新增） ---- */
 #plats:empty::after{content:'还没有平台。点右上角「+ 新增平台」，把 Key 和接口地址加进来 —— 同一个 Key 下的模型都挂在它下面。';
   display:block;font-size:13.5px;color:var(--faint);padding:12px 2px 4px}
-.plat{border:1px solid var(--edge);border-radius:14px;background:var(--panel2);padding:13px;margin-bottom:12px}
+.plat{border:1px solid var(--edge);border-radius:14px;background:var(--card2,var(--panel2));padding:13px;margin-bottom:12px}
 .plat:last-child{margin-bottom:0}
 .phead{display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap}
 .phead .pt{flex:1 1 240px;min-width:0;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -94,7 +132,7 @@ button{font:inherit;cursor:pointer}
 .mmain{flex:1 1 240px;min-width:0}
 .mmain .mt{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .mmain .mt b{font-size:14.5px}
-.mmain .mt code{font-size:11.5px;color:var(--dim);background:var(--panel);border:1px solid var(--edge);
+.mmain .mt code{font-size:11.5px;color:var(--dim);background:var(--card,var(--panel));border:1px solid var(--edge);
   border-radius:6px;padding:1px 6px;word-break:break-all;font-family:ui-monospace,Consolas,monospace}
 .mmain .u{margin:4px 0 0;font-size:11.5px;color:var(--dim);line-height:1.55}
 .mmain .u b{color:var(--ink);font-weight:700}
@@ -213,7 +251,9 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
 </head>
 <body>
 <header class="top"><div class="wrap">
-  <a class="back" id="back" href="../" target="_top">← 回首页</a>
+  <!-- 2026-11-16 用户：「这里回首页也多余了　这种会把我网页弄得乱飞　返回为主」。
+       本页是在总入口 iframe 里打开的，外壳左上角已经有一颗「← 返回」，
+       页内再放一颗「← 回首页」等于同一个位置两个出口，点错就整页跳走。删掉它，只留外壳那一颗。 -->
   <h1><i>AI</i>AI 设置</h1>
   <span class="count" id="count">0 个平台 · 0 个模型</span>
 </div></header>
