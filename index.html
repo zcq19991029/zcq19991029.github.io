@@ -3977,13 +3977,18 @@ function renderStu(cid) {
     '<span class="pill">测试查看用户</span>' +
     '<span style="flex:1;min-width:170px;line-height:1.5"><b>测试查看用户</b>' +
     '<small class="dim"> · 学号 00000000000 · 不计人数、不算分、不参与任何统计</small><br>' +
-    '<small class="dim">用它打开学生端，看到的就是本班学生能看到的东西（用于演示和答疑）。</small></span>' +
+    '<small class="dim">点右边任意一颗，就在工具窗口里用它打开那个工具的学生端 —— 和本班任何一个真实学生看到的完全一样（能点能看，只是不写数据）。看完点左上角「返回」就回到你自己的视角。</small></span>' +
     '<button class="btn sm" data-probe="' + cid + '" data-page="scores">看学生端 →</button>' +
     '<button class="btn sub sm" data-probe="' + cid + '" data-page="team">看选桌页</button>' +
     /* 2026-11-17：接线仿真 / 单片机也接了演示视角（同一套 ?pv= 开关）。
        这两个工具的学生端就在工具主页里，所以直接在同一个 iframe 里打开，不另开标签页。 */
     '<button class="btn sub sm" data-probe-tool="wiring">看接线仿真</button>' +
     '<button class="btn sub sm" data-probe-tool="mcu">看单片机</button>' +
+    /* 2026-11-17：刷题 / 考勤 / 考试的学生端也接了同一套 ?pv= 开关。它们和小组加分一样
+       会被 hx-theme.js 弹回总入口（刷题带 data-tool="quiz"），所以同样只能走 iframe。 */
+    '<button class="btn sub sm" data-probe-tool="quiz">看刷题</button>' +
+    '<button class="btn sub sm" data-probe-tool="kaoqin">看考勤</button>' +
+    '<button class="btn sub sm" data-probe-tool="exam">看考试</button>' +
     '</div>';
   el.innerHTML = probeBar + '<table><tr><th class="sq">序号</th><th>学号</th><th>姓名</th><th></th></tr><tr data-sid=""><td class="sq"></td>' + inp(null) + '<td class="ra"><button class="btn sm" data-save>添加</button></td></tr>' +
     list.map(function (s) {
@@ -4040,14 +4045,20 @@ function renderStu(cid) {
   el.querySelectorAll('[data-probe]').forEach(function (b) { b.onclick = function () { openProbeView(cid, b.dataset.page); }; });
   el.querySelectorAll('[data-probe-tool]').forEach(function (b) { b.onclick = function () { openProbeTool(b.dataset.probeTool, cid); }; });
 }
-/* 2026-11-17 测试查看用户：在新标签页用影子身份打开学生端（scores.html / team.html）。
+/* 2026-11-17 测试查看用户：用影子身份打开学生端（scores.html / team.html）。
    地址里的 ?pv=<班级id> 只是「以这个班的学生身份看」的开关；数据库里会先校验「你确实是这个班的教师」，
-   学生拿着这个地址打开也只会回落成他自己。 */
+   学生拿着这个地址打开也只会回落成他自己。
+   ⚠️ 2026-11-17 修：原来这里用 window.open 开新标签页，**实际上点了一点用都没有** ——
+   scores.html / team.html 都带 <script src="../hx-theme.js" data-tool="jiafen">，
+   而 hx-theme.js 第 76 行规定：带 data-tool 的页在顶层（top === window）打开就
+   location.replace(总入口 + '#jiafen')，整个 ?pv= 一起丢掉。老师点了只会回到总入口首页。
+   现在改成和接线仿真 / 单片机一样，在**同一个工具 iframe** 里用 ?pv= 打开（也和学生真实的打开方式一致）。 */
 function openProbeView(cid, page) {
+  var t = TOOLS.filter(function (x) { return x.id === 'jiafen'; })[0];
+  if (!t) return;
   var f = page === 'team' ? 'team.html' : 'scores.html';
-  var url = SITE + '/jiafenxitong/' + f + '?pv=' + encodeURIComponent(cid);
-  var w = window.open(url, '_blank');
-  if (!w) toast('浏览器拦了新标签页，请允许弹窗后再点一次');
+  mount(t, SITE + '/jiafenxitong/' + f + '?pv=' + encodeURIComponent(cid));
+  show('jiafen', 'probe');   // 'probe' = 别把刚设的 ?pv= 清掉
 }
 /* 2026-11-17 测试查看用户：在**同一个工具 iframe** 里用 ?pv= 打开接线仿真 / 单片机。
    为什么不用 window.open 新标签页：这两个工具页都加载了 hx-theme.js，单独打开（top === window）时
