@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#f5f5f7">
 <title>刷题 · 华夏工具</title>
 <!-- 华夏工具 · 刷题 © 2026 zcq：选科目刷单选、多选、判断；内置课程题库，可新建科目、导入资料或让 AI 根据资料出题；登录后进度和题库跟账号走，老师可把题库发布给学生。 -->
-<link rel="icon" href="../logo.jpg">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%2324a148'/%3E%3Crect x='7.6' y='5.2' width='16.8' height='21.6' rx='4' fill='none' stroke='%23fff' stroke-width='1.9'/%3E%3Cpath d='M11.8 15.7l3.2 3.2 5.6-6.3' fill='none' stroke='%23fff' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="../hx-theme.css">
 <script src="../hx-theme.js" data-tool="quiz"></script>
 <!-- 统一弹窗组件：hxAlert / hxConfirm / hxPrompt（必须在业务脚本之前加载） -->
@@ -42,7 +42,22 @@
 </div>
 <script>window.HXLoadFx && HXLoadFx.boot('quiz', 'hxBoot');</script>
 <header class="top">
-  <a class="brand" id="brand" href="../" target="_top"><img src="../logo.jpg" alt=""><span>刷题</span></a>
+  <!-- 左上角这个标志（2026-11-17 第二次修，这次是终版）：
+       第一版引 ../logo.jpg、第二版换 ../logo-256.png —— 同一张 1080×1080 的白毛人物插画，
+       压到 28 / 34 px 之后**都还是一团白**（图确实加载成功了，naturalWidth=256，just 认不出）。
+       矢量图在这个尺寸才立得住，所以改成内联 SVG：绿色圆角块（跟总入口「刷题」那张卡的渐变
+       #5ad16f → #24a148 同色）+ 白色「作业本打勾」，就是总入口里刷题那个图标（icon 的
+       rect+path，viewBox 从 24 放到 32）。好处：
+         · 任何 DPI、任何尺寸都清晰，永远不会有「白糊」；
+         · 不额外发请求，也不依赖站点根有没有 logo 文件（少一个 404 的可能）；
+         · 深浅色都不用换图 —— 白色描边压在绿色块上，两种模式下对比度都够。
+       顶栏 52px，图标 32px 上下各留 10px。 -->
+  <a class="brand" id="brand" href="../" target="_top" aria-label="回到华夏工具"><svg class="bmark" viewBox="0 0 32 32" aria-hidden="true">
+    <defs><linearGradient id="bmq" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5ad16f"/><stop offset="1" stop-color="#24a148"/></linearGradient></defs>
+    <rect width="32" height="32" rx="9" fill="url(#bmq)"/>
+    <rect x="7.6" y="5.2" width="16.8" height="21.6" rx="4" fill="none" stroke="#fff" stroke-width="1.9" stroke-opacity=".95"/>
+    <path d="M11.8 15.7l3.2 3.2 5.6-6.3" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg><span>刷题</span></a>
   <button class="subj" id="subjBtn" type="button"><b id="subjName">加载中</b><svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg></button>
   <nav class="tabs" id="tabs"></nav>
   <div class="sp"></div>

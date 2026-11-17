@@ -14,16 +14,16 @@
      要登录时调 window.HXPortal.login()；被单独打开时 hx-theme.js 会跳回这里（见 hx-theme.js 的 data-tool）。
      账号：Supabase 华夏工具项目，localStorage paike-session 和各工具共用；身份由数据库 hx_me() 决定。
      脚本里不用反引号模板字符串（本机测试时整页当字符串注入到线上同源页面里）。 -->
-<link rel="stylesheet" href="hx-theme.css?v=dd8b339">
-<script src="hx-theme.js?v=dd8b339"></script>
+<link rel="stylesheet" href="hx-theme.css?v=595c44b">
+<script src="hx-theme.js?v=595c44b"></script>
 <script src="rank-bg.js" defer></script><!-- 排位身份卡预设（2026-11-12）：总入口外观面板当场弹窗设置身份卡背景，预设数据在总入口也能用 -->
 <!-- 首页卡片上的像素小生物：pixelfx 的 12 个 critters（MIT），打包成一个 91 KB 的独立脚本。
      加载失败不影响首页——hx-critters.js 开头就有 window.PixelFX 存在性检查，没有就整段跳过。 -->
-<script src="fx/pixelfx-critters.js?v=dd8b339" defer></script>
-<script src="fx/hx-critters.js?v=dd8b339" defer></script>
+<script src="fx/pixelfx-critters.js?v=595c44b" defer></script>
+<script src="fx/hx-critters.js?v=595c44b" defer></script>
 <!-- 课堂码大屏二维码：离线 QR 编码器（qrcode 1.5.4 core 打包，MIT，见 fx/NOTICE-qr.md）。延迟加载即可：只有老师点「大屏二维码」时才用 -->
-<script src="fx/hx-qr.js?v=dd8b339" defer></script>
-<script src="hx-scan.js?v=dd8b339" defer></script><!-- 全站扫一扫（2026-11-08 K5）：摄像头 + BarcodeDetector / 本地 jsQR -->
+<script src="fx/hx-qr.js?v=595c44b" defer></script>
+<script src="hx-scan.js?v=595c44b" defer></script><!-- 全站扫一扫（2026-11-08 K5）：摄像头 + BarcodeDetector / 本地 jsQR -->
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; width: 100%; overflow: hidden; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -113,6 +113,24 @@
   main iframe.on { display: block; animation: fin .22s var(--hx-ease) both; }
   @keyframes fin { from { opacity: 0; } to { opacity: 1; } }
   html.hx-bg main iframe { background: transparent; }
+  /* ── 工具页 404 兜底卡（2026-11-17）────────────────────────────────────
+     用户两次截图报「404 /mcu/」「404 /wiring-lab/」，我这边复测都是 200 —— 根因是
+     `node publish.cjs` 期间 GitHub Pages 把整个站点重建，那几十秒里任何工具都可能 404。
+     **代码没错，错在没有兜底**：外壳把 404 页直接糊在壁纸上，看着像「这个工具永久坏了」，
+     而且没有任何重试入口，用户只能去刷新整站。
+     这张卡只在「重试两次还是 404」时出现（见 watchLoad），平时完全不存在。
+     层级：iframe 是 absolute inset:0，这张卡用同一定位 + z-index 压在上面。
+     放 main 里而不是放 iframe 里：同源跨 iframe 改 DOM 太脆，而且 404 页根本没有我的代码。 */
+  .t404 { position: absolute; inset: 0; z-index: 6; display: flex; align-items: center; justify-content: center; padding: 24px;
+    /* 一层很淡的底色：真正的 404 页是空白的，本来不用压；但万一兜底卡盖在正常内容上（图省事复用了演示视角），
+       没这层薄雾文字就跟底下的图糊在一起。--bg 浅色模式是白的、深色是黑的，两边都成立。 */
+    background: color-mix(in srgb, var(--bg) 55%, transparent); }
+  .t404[hidden] { display: none; }
+  .t404c { max-width: 420px; padding: 26px 26px 22px; border-radius: 20px; background: var(--card); color: var(--ink); text-align: center;
+    box-shadow: inset 0 0 0 1px var(--edge), 0 18px 50px -20px rgba(0,0,0,.55); -webkit-backdrop-filter: var(--hx-blur); backdrop-filter: var(--hx-blur); }
+  .t404c b { display: block; font-size: 17px; margin-bottom: 8px; }
+  .t404c p { margin: 0 0 18px; font-size: 14px; line-height: 1.65; color: var(--dim); }
+  .t404b { display: flex; gap: 10px; justify-content: center; }
   /* ── 加载动效（2026-11-03 用户要求「刷新加载动画缺一个 包括其他界面」）──
      统一做成「像素方块波浪」：7 个小方块错峰起伏，像一条跑动的像素带。
      为什么用纯 CSS 而不是 canvas：这是全站显示频率最高、生命周期最短的动画，
@@ -1190,6 +1208,18 @@
       <div id="mgmt"></div>
     </div>
   </section>
+  <!-- 工具页 404 兜底卡（2026-11-17）：默认 hidden，只有重试两次仍是 404 才由 watchLoad() 显示。
+       位置必须在 #home 之后、和 iframe 同一个定位上下文里（main 是 position:relative）。 -->
+  <div class="t404" id="t404" hidden>
+    <div class="t404c" role="alert">
+      <b>这个工具刚才没打开</b>
+      <p id="t404p">页面暂时取不到，多半是网站正在更新。已经自动重试过两次，你可以再试一次。</p>
+      <div class="t404b">
+        <button class="btn pri sm" id="t404retry" type="button">重试</button>
+        <button class="btn sub sm" id="t404home" type="button">回首页</button>
+      </div>
+    </div>
+  </div>
 </main>
 <div class="toast" id="toast" popover="manual"></div>
 <dialog id="sheet" class="sheet">
@@ -1774,6 +1804,68 @@ var hoverFine = !!(window.matchMedia && matchMedia('(hover:hover) and (pointer:f
 function toolUrl(t) { // 学生点开时用 t.studentUrl（只给一个页面），老师始终用完整的 t.url
   return (!isTeacher() && t && t.studentUrl) ? t.studentUrl : (t ? t.url : '');
 }
+/* ── 工具页 404 兜底（2026-11-17）─────────────────────────────────────────
+   起因：用户两次截图报「404 /mcu/」「404 /wiring-lab/」。我这边复测全是 200 ——
+   根因是 `node publish.cjs` 期间 GitHub Pages 把整个站点重建，那几十秒里任何工具都可能 404。
+   **问题不在代码，在于外壳没有任何兜底**：直接把 404 页糊在壁纸上，看着像「这工具永久坏了」，
+   也没有重试入口，用户只能整站刷新。
+
+   做法（三步）：
+     1. iframe 的 load 里读 contentDocument（同源，读得到）判一下是不是 404 页；
+     2. 是 → 自己退避重试两次（1.5s / 4s）。GitHub Pages 重建一般几十秒，冷等就能过去；
+     3. 三次都 404 → 盖一张说明卡（重试 / 回首页），不再把 404 直接怼脸上。
+   判据只认「明显是 404」的两条同时成立：
+     · 正文极短（< 400 字）：真工具页不可能这么空，这条把误判挡掉九成；
+     · 正文开头就是 404 / 标题含 404 / 有 GitHub Pages 那句 File not found。
+   为什么要长度这道闸：刷题题库里某道题的解析、反馈页的求助内容里都可能出现「404」字样，
+   只看文本会把正常页面盖住 —— **误判比看见 404 更糟**（正常工具会变成打不开）。
+   跨源读不到 contentDocument 时一律当正常，宁可漏判。 */
+var tool404 = {};                     // 工具 id → 已自动重试次数
+function looks404(f) {
+  var d;
+  try { d = f.contentDocument; } catch (e) { return false; }   // 跨源：读不到就别判
+  if (!d || !d.body) return false;
+  if (d.readyState === 'loading') return false;                // 还没解析完，别急着下结论
+  /* 用 textContent 而不是 innerText：innerText 会强制排版，接线仿真里每次翻页都会触发一次，
+     几十页下来纯属白烧 CPU。textContent 不进样式计算，代价几乎为零。
+     代价是它会把 <script> 里的文本也算进来 —— 这只会让「正文很长 → 不是 404」更容易成立，
+     判错的方向是「漏判」，正是我们要的那一侧。 */
+  var txt = (d.body.textContent || '').replace(/\s+/g, ' ').trim();
+  var title = d.title || '';
+  if (!txt && !title) return false;                            // 空白过渡页（about:blank）不算 404
+  if (txt.length > 400) return false;                          // 正文够长 = 真页面
+  if (/^404\b/.test(txt)) return true;                         // 本站 / GitHub Pages 的 404 页开头就是 404
+  return /404|not\s*found|there isn't a github pages site here/i.test(title + ' ' + txt);
+}
+function hide404() { var b = $('t404'); if (b) b.hidden = true; }
+function retryFrame(t, f) {
+  delete f.dataset.ready;
+  /* 重试一定要带上 `_r=时间戳`：GitHub Pages 对 404 是有缓存的，同地址重载很可能又拿到
+     那份缓存的 404，看起来像「重试没用」。加个一次性查询参数可以绕开缓存，而且各工具
+     都不认这个参数，加了不影响它们（`?solo` / `?pv=` 这些照旧在后面）。
+     用 f.src 而不是 toolUrl(t)：重试的必须是「刚才失败的那个地址」，
+     测试查看用户的 ?pv= 也得原样带着。 */
+  var u = (f.src || '').replace(/([?&])_r=\d+&?/, '$1').replace(/[?&]$/, '');
+  u += (u.indexOf('?') < 0 ? '?' : '&') + '_r=' + Date.now();
+  try { f.src = u; } catch (e) { }
+}
+function show404(t, f) {
+  var b = $('t404'); if (!b) return;
+  $('t404p').textContent = '「' + t.name + '」页面暂时取不到，多半是网站刚更新完还没同步。已经自动重试过两次，你可以再试一次。';
+  b.hidden = false;
+  b._t = t;
+  $('t404retry').onclick = function () { b.hidden = true; tool404[t.id] = 0; retryFrame(t, f); };
+  $('t404home').onclick = function () { b.hidden = true; show(null); };
+}
+function watchLoad(t, f) {
+  f.addEventListener('load', function () {
+    f.dataset.ready = '1';
+    if (!looks404(f)) { tool404[t.id] = 0; var b = $('t404'); if (b && b._t === t) b.hidden = true; return; }
+    var n = (tool404[t.id] = (tool404[t.id] || 0) + 1);
+    if (n <= 2) { setTimeout(function () { retryFrame(t, f); }, n === 1 ? 1500 : 4000); return; }
+    if (ST.tab === t.id) show404(t, f);   // 已经切走的工具别弹卡，免得盖住正在用的那个
+  });
+}
 function mount(t, src) { // 建（或复用）工具 iframe。真正的下载发生在这一步，所以只在要打开时才调
   /* 2026-11-17：src 只在「测试查看用户」演示视角里传（带 ?pv=）；平时不传，行为和改动前一模一样。 */
   if (frames[t.id]) {
@@ -1782,7 +1874,7 @@ function mount(t, src) { // 建（或复用）工具 iframe。真正的下载发
   }
   var f = document.createElement('iframe');
   f.src = src || toolUrl(t); f.title = t.name; f.allow = 'fullscreen; clipboard-write; clipboard-read'; f.setAttribute('allowfullscreen', '');
-  f.addEventListener('load', function () { f.dataset.ready = '1'; });
+  watchLoad(t, f);
   $('main').appendChild(f); frames[t.id] = f; return f;
 }
 function tip() { // 空壳：外层「正在加载」药丸已退役，见下方说明
@@ -1834,6 +1926,9 @@ function show(id, how) { // how：不写 = 新开一页（进浏览器历史，�
   }
   if (t) mount(t); // 等待期的提示由工具页自己的启动屏负责（外层药丸已退役，见 tip()）
   for (var k in frames) frames[k].classList.toggle('on', !!t && k === t.id);
+  /* 2026-11-17：切到别的工具 / 回首页时把「刚才没打开」那张卡收掉 —— 它是挂在上一个工具身上的，
+     留着会盖住现在这个正常工具（卡片本身不区分是谁的）。 */
+  hide404();
   pauseAll(t ? t.id : null); // 2026-11-02：切走的工具页要真正停下来，见 pauseAll
   document.body.classList.toggle('zen', !!t && !!zen[t.id]);
   document.body.classList.toggle('hxfull', !!t && !!full[t.id]);
@@ -2875,8 +2970,8 @@ function renderLookBody() {
     + sec({
       t: '卡片通透度',
       v: '<output class="lk-val" id="opv" for="op">' + pct(s.clr) + '</output>',
-      c: '<div class="rng"><input type="range" id="op" min="-50" max="150" step="1" value="' + s.clr + '"></div>',
-      tip: '100% = 默认的清透玻璃。往右更透（不管有没有背景图，透出来的是它背后的东西）；往左卡片变实、文字更清楚。0% 是实色卡，-50% 最实。'
+      c: '<div class="rng"><input type="range" id="op" min="-50" max="250" step="1" value="' + s.clr + '"></div>',
+      tip: '100% = 默认的清透玻璃。往右更透（不管有没有背景图，透出来的是它背后的东西），250% 卡片基本只剩文字和边框；往左卡片变实、文字更清楚。0% 是实色卡，-50% 最实。'
     })
     + (s.bg !== 'none' ? sec({
       t: '背景清晰度',

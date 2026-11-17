@@ -20,7 +20,12 @@ a { color: var(--acc); }
    .bar / .dock 留着 backdrop-filter 不动：它们是 position: fixed，不会随滚动每帧重合成。 */
 .top { position: sticky; top: 0; z-index: 20; height: 52px; display: flex; align-items: center; gap: 10px; padding: 0 14px; background: var(--bar); -webkit-backdrop-filter: none; backdrop-filter: none; border-bottom: 1px solid var(--edge); }
 .brand { display: flex; align-items: center; gap: 8px; color: var(--ink); text-decoration: none; font-weight: 600; }
-.brand img { width: 28px; height: 28px; border-radius: 8px; object-fit: cover; }
+/* 2026-11-17：这一格图标换了两次。
+   第一版 ../logo.jpg、第二版 ../logo-256.png —— 都是同一张 1080×1080 白毛人物插画，
+   压到 28 / 34px 都只剩一团白（图加载是好的，就是认不出），用户原话「左上角有 bug」。
+   现在换成内联 SVG（见 index.html 的 .bmark 注释）：绿色圆角块 + 白色打勾，矢量、任何尺寸都清晰。
+   这里只管尺寸和圆角，颜色全在 SVG 里。 */
+.brand .bmark { width: 32px; height: 32px; border-radius: 9px; flex: none; display: block; }
 .subj { display: flex; align-items: center; gap: 4px; min-width: 0; height: 34px; padding: 0 10px 0 14px; border: 0; border-radius: 99px; background: var(--fill); font-weight: 600; transition: background .2s; }
 .subj b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 12em; font-weight: 600; }
 .subj svg { flex: none; width: 16px; fill: var(--dim); }

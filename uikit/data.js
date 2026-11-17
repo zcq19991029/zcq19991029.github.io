@@ -39,7 +39,10 @@ window.UIKIT = {
       ],
       source: {
         name: '华夏工具 · 刷题「科目药板」',
-        note: '本项目原创，从刷题页的 .bsc-foil / .bsc-rim / .bsc-pill / 飞行胶囊与碎屑动效 提炼成通用组件。仅供学习使用。'
+        /* 2026-11-17 用户定（原话「来源这里改为 参考学习开源社区，仅供学习使用」）：
+           全站「来源」一栏统一成这一句版权声明，不再逐条写「本项目原创 + 细节描述」。
+           三条 source.note 现在字面完全一致，改文案时三个一起改。 */
+        note: '参考学习开源社区，仅供学习使用。'
       },
       demo: 'peanut.html',
       demoH: 430,
@@ -638,7 +641,7 @@ html.hx-lite .hx-pn-sheet[inert]{ transform:none; }
         '踩过的坑：只做透明不做模糊，数字直接压在人物照片上根本读不清；所以必须配 `backdrop-filter: blur(9px)`。另一个坑是 `--hx-a` 是**数字**不是颜色，塞进 `color-mix()` 会让整条声明作废。',
         '还有一处容易漏：卡片里的**子卡片**（浅绿结果框、浅粉提示框）如果还是写死的 rgba，父卡片透了它不透，看上去像贴了一块不透明胶布。'
       ],
-      source: { name: '华夏工具 · 进制转换 / 小组加分', note: '本项目原创，2026-11-17 统一到全站外观面板。仅供学习使用。' },
+      source: { name: '华夏工具 · 进制转换 / 小组加分', note: '参考学习开源社区，仅供学习使用。' },
       demo: 'card-alpha.html',
       demoH: 340,
       params: [
@@ -718,7 +721,7 @@ document.documentElement.style.setProperty('--hx-a', value);  // 1 ~ 2
         '四个实测坑，每个都能让整条规则静默失效：① 滚动条伪元素里**取不到 `var(--xxx)`**，颜色只能写死 rgba；② 滚动条**不支持 transition / opacity**，浮现和褪回都是硬切，只能靠延时统一；③ Chromium 一旦看到标准属性 `scrollbar-color`（非 auto）就**整段忽略** `::-webkit-scrollbar`；④ 悬停色覆盖必须带 `html` 前缀，否则特异性不够。',
         '还有一个行为细节：`scroll` 事件不冒泡，必须 `capture`；`e.target` 是 `document`/`body` 时要归一到 `documentElement`，否则页面级滚动条拿不到 class。'
       ],
-      source: { name: '华夏工具 · 全站', note: '本项目原创。仅供学习使用。' },
+      source: { name: '华夏工具 · 全站', note: '参考学习开源社区，仅供学习使用。' },
       demo: 'scrollbar.html',
       demoH: 330,
       params: [
