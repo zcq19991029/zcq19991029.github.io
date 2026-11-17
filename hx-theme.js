@@ -613,6 +613,10 @@
     document.body.insertBefore(bgMo, document.body.firstChild);
   }
 
+  /* lastLook：apply() 每次算完顺手存一份「机器可读的外观」，供 hxLookNow() 交给子页面。
+     为什么不在 hxLookNow() 里重算一遍：公式（--hx-a 的线性式、bgo 的 clamp、img 三种来源）
+     只能有一处，重算就是迟早不一致。这里只做搬运。 */
+  var lastLook = null;
   function apply() {
     // get() 现在读的是全站唯一一份外观（VER 8）：顶栏、首页、工具页、工具 iframe 天生同一套，
     // 不会再有「上面深色条、下面浅色页」或者「首页换了颜色、工具里还是老的」这种拼接感。
@@ -666,6 +670,9 @@
       // 不再依赖各工具页自己定义的 --ink/--text（有的深色有的浅色，导致「深色下颜色不一致」）。
       '--hx-ink': m === 'dark' ? '#f5f5f7' : '#1d1d1f' };
     for (var k in vars) r.style.setProperty(k, vars[k]);
+    // 机器可读的那一份（见上面 lastLook 的注释）。img 给的是完整的 `url("…")`，
+    // 因为下游（接线仿真 theme.js）直接拿它拼 CSS 简写：`HXL.img + ' center / cover no-repeat'`。
+    lastLook = { acc: c, acc2: c2, a: hx_a, bgo: bgo, img: img, mode: m };
     r.classList.remove('hx-bgblur'); // 旧版挂的「预糊图」标记，现在没有任何样式依赖它，清掉防止老缓存残留
     // 背景的「缓慢呼吸」：只给动态素材预设挂（目前就是极光），用户自己上传的静态图不挂 ——
     // 那张图是静的，让它慢慢缩放反而怪。极简模式由 bgMotion 内部一票否决。
@@ -1066,6 +1073,24 @@
   if (dark) (dark.addEventListener ? dark.addEventListener('change', apply) : dark.addListener(apply));
   // 总入口（同源的上层页面）：子工具要登录时请它弹登录窗口；不在框里就跳回首页
   function portal() { try { return window.top !== window && window.top.HXPortal ? window.top.HXPortal : null; } catch (e) { return null; } }
+  /* ---------- hxLookNow()：把外观交给「自己画背景」的子页面（2026-11-17 补齐） ----------
+     接线仿真（/wiring-lab/）和它的练习页不是纯 HTML 页面，底色/卡片/CSS 全在 canvas 上画，
+     读不到 CSS 的 --hx-img / --hx-a / --hx-bgo。它们从 2026-11-08 起就在等一个通道：
+       practice.js:163 / parallel.js:1064 →
+         window.parent.hxLookNow && window.parent.hxLookNow()
+       拿到 {acc, acc2, a, bgo, img} 就：html 铺背景图、body 和画布底色变半透明、
+       卡片玻璃 alpha 乘 a —— 壁纸才透得出来。
+     **但这个函数此前在整仓一次都没定义过**，`window.parent.hxLookNow` 恒为 undefined（带守卫，
+     所以不报错，只是静默不生效）。结果就是接线仿真深浅两种模式都只显示纯色底，
+     用户报的「浅色主题背景丢失」里最难解释的一页（截图里整块灰底）就是它。
+     现在放在这里：hx-theme.js 既是总入口也装在工具页，谁当父页面谁就把自己这份交出去，
+     子 iframe 一次调用拿到的是**同一套**值（都是 apply() 算的，不会和 CSS 变量打架）。 */
+  window.hxLookNow = function () {
+    try {
+      if (!lastLook) apply();          // 还没跑过 apply()（脚本在 <head> 里求值阶段就被调用）
+      return lastLook;
+    } catch (e) { return null; }
+  };
   /* ---------- 未登录不许用工具（2026-11-08 用户定，补回上次的临时放开） ----------
      用户原话：「没登录的人不允许使用任何工具 现在我发现不登录都能有好多工具 这是不对的 上次临时放开没有关闭上你」。
      2026-11-01 为了修注册，曾经在总入口和各工具页放开过免登录；注册早修好了，总入口那边已经收，
