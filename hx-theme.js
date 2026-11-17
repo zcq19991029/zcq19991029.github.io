@@ -600,6 +600,10 @@
   var BG_FADE = 700, BG_LEAD = 0.8;         // 淡入时长（和 CSS transition 对齐）/ 提前多少秒换路
   var bgVids = [], bgCur = 0, bgWant = false, bgTick = null, bgFading = false, bgFadeAt = 0;
   var bgLoopEnd = 0, bgHalf = false, bgPosterUrl = '';
+  // bgWantLive：按当前设置「这个页面该不该有视频壁纸」（apply() 每轮重算）。
+  // 注意它回答的是「该不该」，不是「有没有」—— 真正挂不挂 hx-vidlive 还要看视频出帧了没有，
+  // 见 bgAnyFrame() / bgSyncLive()（2026-11-16 修「标准模式没背景」）。
+  var bgWantLive = false;
   // bgHold：外面（总入口 show()）要求的「背景先别播」。2026-11-06 修 bug：这个状态原来不存在，
   // bgPause(true) 只是把 bgTick 清掉，于是之后**任何一次 apply()**（改主题、storage 事件、
   // 系统深浅色切换、跨 820 断点）走到 bgVideo() 的「同 src」分支时看到 !bgTick，就又把视频
@@ -699,6 +703,8 @@
     if (bgWrap && bgWrap.parentNode) bgWrap.parentNode.removeChild(bgWrap);
     bgWrap = null;
     bgVids = []; bgCur = 0; bgFading = false; bgLoopEnd = 0;
+    // 视频层整个没了，海报必须立刻回来（否则 bgWantLive 还是 true、类还挂着 → 纯黑）
+    document.documentElement.classList.remove('hx-vidlive');
   }
   var bgWrap = null;
   /* ── 620 KB 极光视频不再抢首屏（2026-11-09）──
@@ -722,6 +728,33 @@
     if (document.readyState === 'complete') later();
     else addEventListener('load', later);
   })();
+  // ── 2026-11-16 修「标准模式有壁纸、标准模式看不到背景」的根因 ────────────────────
+  // 用户原话：「现在是极简模式有壁纸，标准没有」「标准下还是没透明看到背景」。
+  // 以前 apply() 的判据是「该有视频」→ 就挂 html.hx-vidlive，而 hx-vidlive 那条
+  //   html.hx-vidlive body::before{background-image:none!important}
+  // 会把**海报帧整层灭掉**（视频层 z-index -2 在海报 -1 下面，不灭海报就会盖住视频）。
+  // 问题在于「视频能不能出帧」是运行时才知道的：加载失败（实测 err 4 MEDIA_ERR_SRC_NOT_SUPPORTED）、
+  // 解码失败、被自动播放策略拦、网络还没下完 —— 这些情况下海报已灭、视频又是黑的，
+  // 页面上就只剩 html 那层纯黑（--hx-page #000）。卡片本身是半透明的（.56），
+  // 但透出来的是黑，观感就是「不透明 / 没有背景」。
+  // 极简模式为什么正常？bgNoVideo() 在极简下直接返回 true → 根本不建视频 → 海报留着。
+  //
+  // 现在改成「**视频真出帧了才收走海报**」：默认海报可见，等某一路 video 报 loadeddata/playing
+  // 并且 videoWidth > 0 的那一刻才挂 hx-vidlive；一旦 error/emptied 又自动退回海报。
+  // 好处是黑屏窗口彻底消失，慢网下也不会出现「先黑一块、再变色」。
+  function bgAnyFrame() {
+    for (var i = 0; i < bgVids.length; i++) {
+      var v = bgVids[i];
+      if (v && !v.error && v.readyState >= 2 && v.videoWidth > 0 && !v.paused) return true;
+    }
+    return false;
+  }
+  function bgSyncLive() {
+    var r = document.documentElement;
+    // 该有视频、并且真出了帧 → 收走海报；其余一切情况都留着海报
+    r.classList.toggle('hx-vidlive', !!(bgWantLive && bgAnyFrame()));
+  }
+
   function bgMake() {
     // 防御：万一还有旧的空 wrap（bgDrop 之前的代码路径），先摘掉再建
     if (bgWrap && bgWrap.parentNode) bgWrap.parentNode.removeChild(bgWrap);
@@ -756,6 +789,15 @@
       bgSetZ(v, i === 0);
       bgWrap.appendChild(v);
       bgVids.push(v);
+      /* 出帧/失败都重新判一次「要不要收海报」。四类事件缺一不可：
+         · loadeddata / playing —— 真正有画面了（收海报）
+         · error / emptied —— 加载或解码失败、被清空（还海报）
+         · seeked 不管：换路时会 seek，但那时画面已经有了，不需要动海报
+         注意 bgAnyFrame() 里还要求 !paused：暂停中的那一路不算「有画面在放」，
+         否则换路时旧路已 pause、新路还没出帧，会提前收掉海报露出黑块。 */
+      ['loadeddata', 'playing', 'error', 'emptied'].forEach(function (ev) {
+        v.addEventListener(ev, bgSyncLive, false);
+      });
     }
     document.body.insertBefore(bgWrap, document.body.firstChild);
   }
@@ -935,7 +977,10 @@
     // 嵌入时不挂：iframe 里根本不建视频（见 apply 末尾 embedded 分支），挂了只会把上面那条
     // 嵌入专用的海报规则一起点名灭掉（html.hx-vidlive body::before{background-image:none!important}），
     // 工具页就又回到白底了。
-    r.classList.toggle('hx-vidlive', isVid && !vidStill && !embedded);
+    // 2026-11-16 改判据：以前是「该有视频」就挂 hx-vidlive（= 立刻灭掉海报），
+    // 现在要求视频**真的出帧**了才挂，否则保留海报当兜底（详见 bgAnyFrame 上方那段注释）。
+    bgWantLive = !!(isVid && !vidStill && !embedded);
+    r.classList.toggle('hx-vidlive', !!(bgWantLive && bgAnyFrame()));
     // --hx-a：玻璃浓度乘数（各条玻璃配方的 alpha 都乘它）。
     // 2026-11-05 随通透度滑杆翻转语义：100（最透）= 1，正好是 2026-11-04 定稿的那套清透玻璃；
     // 往下调卡片变实：0 = 2，各配方 alpha × 2 后被浏览器钳到 1，整卡变成实色（保可读的兜底端）。
