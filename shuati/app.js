@@ -1034,6 +1034,8 @@ async function renderRank() {
 function noAiHint(cap = 'text') {
   const st = aiState(cap);
   if (st.offline) return `<span class="noai muted" data-noai>${esc(st.msg)}</span>`;
+  // 还在读设置：别给「去首页 AI 设置」的按钮（人配好了，过去只会莫名其妙）
+  if (st.loading) return `<span class="noai muted" data-noai>${esc(st.msg)}</span>`;
   return `<span class="noai" data-noai><span>${esc(st.msg)}</span><a class="btn sm ghost" href="${AI_PAGE}" target="_top">去首页 AI 设置</a></span>`;
 }
 const noAiWarn = (cap = 'text') => `<div class="imp-warn">${noAiHint(cap)}</div>`;
@@ -1120,7 +1122,10 @@ async function runStudyCard() {
   if (!st || !q) return toast('先在上面选一道题');
   const words = String(st.text || '').trim();
   if (words.length < 4) { if ($('stText')) $('stText').focus(); return toast('先用一句话说说你想让 AI 怎么讲这道题'); }
-  if (!aiReady()) return toast(aiState().msg);
+  if (!aiReady()) {
+    if (aiState().loading) await ensureHxAi(); // 还在读设置：等它读完再判一次，别让人白点
+    if (!aiReady()) return toast(aiState().msg);
+  }
   st.busy = true; st.err = ''; st.spec = null; st.ask = [];
   paintStudy();
   try {
@@ -2211,7 +2216,11 @@ function openAsk() {
     };
     async function send() {
       const text = inp.value.trim(); if (!text) return;
-      if (!aiReady()) { S.askDraft = inp.value; draw(); return toast(aiState().msg); } // 提示 + 去 /ai/ 的链接就在聊天区里
+      if (!aiReady()) {
+        if (aiState().loading) await ensureHxAi();
+        // 提示 + 去 /ai/ 的链接就在聊天区里
+        if (!aiReady()) { S.askDraft = inp.value; draw(); return toast(aiState().msg); }
+      }
       let content = text;
       if (withQ && q) {
         content = `题目（${typeName(q.type)}）：${q.stem}${figText(q)}${q.code ? '\n' + q.code : ''}${(q.options || []).length ? '\n' + q.options.map(o => o.key + '. ' + optText(o)).join('\n') : ''}${S.picked[q.id] ? '\n题库答案：' + q.answer.join(q.type === 'fill' ? '；' : '') : ''}\n\n我的问题：${text}`;
@@ -2321,4 +2330,10 @@ hx.onChange(() => { const n = hx.signedIn(); if (n !== was) { was = n; store.flu
   new MutationObserver(() => { if (hasExt() === ext) return; ext = !ext; if (!S.subject) return; if (S.view === 'settings') renderSettings(); if (S.view === 'practice') renderCard(); }).observe(document.documentElement, { childList: true });
 }
 addEventListener('pagehide', () => { if (S.subject) store.write('progress:' + S.subject.id, S.records, { now: true }); });
-boot();
+/* 2026-11-17：首屏只等 hx-ai.js 1.5 秒（慢网 / 第一次冷启动常超时），以前超时就一路显示
+   「还没配置 AI」到手动刷新为止。这里等它真到了再重画一次，「✦ AI 逐项解析」这类按钮自己亮起来。
+   必须等 boot() 跑完再判：S.subject 没就绪时 show() 会直接 return，什么都画不出来。 */
+boot().then(() => {
+  if (window.HXAI) return;
+  ensureHxAi().then(H => { if (H && S.subject && S.view) { try { show(S.view); } catch (e) { } } });
+}).catch(() => { });

@@ -19,6 +19,7 @@ const isOffline = () => !!globalThis.__OFFLINE;
 
 // 首页的 hx-ai.js 按需加载（和 hx-theme.js 同一层：../hx-ai.js）。离线版不加载。
 let loading = null;
+let failAt = 0; // 上一次加载失败的时刻，用来节流，别每渲染一次就重下一遍脚本
 export function ensureHxAi() {
   if (hxai()) return Promise.resolve(hxai());
   if (isOffline() || typeof document === 'undefined') return Promise.resolve(null);
@@ -26,8 +27,10 @@ export function ensureHxAi() {
     loading = new Promise(resolve => {
       const s = document.createElement('script');
       s.src = '../hx-ai.js';
-      s.onload = () => resolve(hxai());
-      s.onerror = () => { loading = null; resolve(null); }; // 失败允许下次再试
+      // 2026-11-17：onload 了但 window.HXAI 还是没挂上（脚本 404 时有的浏览器也走 onload）——
+      // 这时必须把 loading 复位，否则会永远停在「正在读取 AI 设置…」。
+      s.onload = () => { if (!hxai()) { loading = null; failAt = Date.now(); } resolve(hxai()); };
+      s.onerror = () => { loading = null; failAt = Date.now(); resolve(null); }; // 失败允许下次再试
       document.head.appendChild(s);
     });
   }
@@ -54,11 +57,19 @@ function guessProfile(H, cap) {
   return typeof H.forTool === 'function' ? H.forTool('quiz') || null : null;
 }
 
-/* 配没配：{ ok, msg, profile }。cap = text / reason / vision。 */
+/* 配没配：{ ok, msg, profile, loading }。cap = text / reason / vision。
+   2026-11-17：**还在加载 ≠ 没配**。首屏只等 ensureHxAi() 1.5 秒，慢网或第一次冷启动
+   （hx-ai.js 还没缓存）常常超过，以前这里直接报「还没配置 AI，去首页 AI 设置」——
+   人明明配好了，却被指去设置页白跑一趟（考试那边先撞的同一个坑，一起改了）。 */
 export function aiState(cap = 'text') {
   if (isOffline()) return { ok: false, offline: true, msg: OFFLINE_MSG };
   const H = hxai();
-  if (!H) return { ok: false, msg: NO_AI };
+  if (!H) {
+    // 顺手把加载踢起来（幂等：已经在加载就复用同一个 promise），失败 3 秒内不重复踢
+    if (!isOffline() && typeof document !== 'undefined' && Date.now() - failAt > 3000) ensureHxAi();
+    if (loading) return { ok: false, loading: true, msg: '正在读取 AI 设置…' };
+    return { ok: false, msg: NO_AI };
+  }
   let p = null;
   try { p = guessProfile(H, cap); } catch { p = null; }
   if (!p) return { ok: false, msg: cap === 'vision' ? '还没配置能看图片的 AI（要勾「图片识别」），去首页 AI 设置' : NO_AI };
