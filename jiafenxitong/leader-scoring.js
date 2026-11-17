@@ -413,8 +413,10 @@
         '</div></div></th>';
     }
     function colCardHtml() {
+      /* 0 列是合法状态（2026-11-17 A2 允许删到 0）：这里给一句明确的下一步，
+         否则只剩「项目列」三个字，老师会以为列渲染坏了。 */
       return '<div class="card peer-colcard" id="leaderColCard"><div class="peer-colcard-head"><b>项目列（全班共用）</b>' +
-        '<span class="peer-colcard-hint">改这里所有组一起改；空白列只占位，不发布给学生打分。</span>' +
+        '<span class="peer-colcard-hint">' + (sharedProjects.length ? '改这里所有组一起改；空白列只占位，不发布给学生打分。' : '本课还没有项目列：点右边「新增项目列」加一列，再填项目名。') + '</span>' +
         '<button type="button" class="btn tiny" id="leaderAddProject">新增项目列</button></div>' +
         '<div class="tablewrap peer-tablewrap peer-colwrap" style="--peer-cols:' + sharedProjects.length + '"><table class="leader-table peer-col-table"><thead>' +
         /* 前两格必须分开写（不能用 colspan=2）：colspan 会让浏览器把「序号」那一列的 55px 宽算给合并格，
@@ -544,13 +546,27 @@
 
     /* ---------- 项目列增删改（全班共用一份） ---------- */
     function rerenderKeepScroll() { preserveScroll = true; window.JFDT_LEADER_RENDER(context); }
+    /* 项目列一改（加 / 删 / 改名）或一键满分之后，如果本节互评已经开着，立刻把新 payload 重发一次。
+       为什么必须现在发：payload 是「开放互评」那一刻整份写到云端的 ——
+         · 项目列变了不重发 → 学生端还是老列：新列打不了分，按老名字提交的分回到老师这边
+           对不上列号（colOf 返回 -1）被丢掉，看起来就是「确认完了还是一堆待打分」；
+         · 一键满分不重发 → 学生端不知道这些格子已经有分，照样摆 20%–100% 按钮。
+       force=true：不看指纹直接发；失败由 syncGroups 自己吞掉，不打扰老师。
+       注意这是一次**写**请求，所以只在老师明确的批量动作（改列 / 一键满分）后发一次，绝不做任何重试。 */
+    function pushPeerPayload() {
+      try {
+        if (!lesson.peerGate) return;
+        if (!(context.peer && context.peer.syncGroups)) return;
+        context.peer.syncGroups(cls, true);
+      } catch (e) { /* 网络问题不该拦住老师改列 */ }
+    }
     function addProject() {
       if (sharedProjects.length >= 30) { setMsg('最多 30 个项目列。'); return; }
       lesson.leaderProjectNames = sharedProjects.concat('');
       lesson.leaderProjectCount = lesson.leaderProjectNames.length;
       if (!lesson.leaderScores) lesson.leaderScores = {};
       cls.groups.forEach(function (g) { var r = lesson.leaderScores[String(g.no)]; if (r) r.projects = lesson.leaderProjectNames.slice(); });
-      context.save(); rerenderKeepScroll();
+      context.save(); rerenderKeepScroll(); pushPeerPayload();
     }
     function renameProject(index, next) {
       next = String(next == null ? '' : next).trim();
@@ -574,7 +590,7 @@
         r.projects = sharedProjects.slice();
       });
       logClass('全班统一项目' + (index + 1) + '名称：' + (old || '空') + ' → ' + (next || '空') + '（所有小组同步）');
-      context.save(); rerenderKeepScroll();
+      context.save(); rerenderKeepScroll(); pushPeerPayload();
       /* 2026-11-10 用户报：「填了项目名称但学生说教室没发布任务」。
          根因：填项目名只存本地，必须再点「组长打分」开关才会发布到云端（jf_peer_gate），
          老师往往填完名就以为发出去了。改成「项目名确定即发布」：某个项目名从空变非空
@@ -622,7 +638,10 @@
     }
 
     function removeProject(index) {
-      if (sharedProjects.length <= 1) { setMsg('至少保留 1 列。'); return; }
+      /* 2026-11-17 A2：允许删到 0 列（用户原话「允许删除为0个」）。
+         以前这里挡着「至少保留 1 列」，删最后一列只弹一句提示 —— 等于删不掉。
+         删到 0 之后 projectNames() 会返回空数组（见 assessment.js 的显式 0 分支），
+         表格只剩「序号 / 成员」，完成率显示「—」，不会 NaN。 */
       var records = lesson.leaderScores || {};
       var hasData = String(sharedProjects[index] || '').trim() || Object.keys(records).some(function (k) {
         return Object.keys(records[k].members || {}).some(function (mk) { var v = records[k].members[mk]; return v && v[index] !== null && v[index] !== undefined; });
@@ -655,7 +674,7 @@
         lesson.peerMeta = nextMeta;
       }
       logClass('删除全班项目列' + (index + 1));
-      context.save(); rerenderKeepScroll();
+      context.save(); rerenderKeepScroll(); pushPeerPayload();
     }
 
     /* ---------- 打印 / 导出 / 一键满分（按组） ---------- */
@@ -671,12 +690,36 @@
     }
     function openFullMarks(gno) {
       var st = byGno[String(gno)];
+      if (!st) return;                      // 组号对不上（画完又换了课次）：宁可什么都不做，也别抛错中断点击
+      if (!st.members.length) {             // 空组：点了确实没东西可填，得说一句，不能装死
+        setMsg('第 ' + st.group.no + ' 组还没有成员，没有可填的对象。');
+        return;
+      }
       /* 线上排位列只有真实完成排位才能得分：一键满分绝不能给它填 100%，
          所以「已命名项目」先剔除排位列（新旧前缀都剔），剩下 0 项就明说 */
       var named = sharedProjects.map(function (p, i) { return String(p).trim() && !isTaskCol(p) ? i : -1; }).filter(function (i) { return i >= 0; });
       var wireNamed = sharedProjects.filter(function (p) { return isTaskCol(p); }).length;
       if (!named.length) {
-        /* 一键满分不可用时不再在底部说明栏提示（2026-11-15 底部说明栏已删）。 */
+        /* 2026-11-17 修 A1「一键满分点了没反应」：
+           这里原来是一个光秃秃的 return —— 底部说明栏在 2026-11-15 删掉之后，点了就真的什么都不发生。
+           现在必须给出可执行的下一步：说清为什么点不了，并把光标送到该填的地方。
+           两种原因分开说（本课一列没命名 / 命名的全是线上排位列），
+           因为老师要做的事完全不同：前者去填名字，后者是这课本来就不该用一键满分。 */
+        var unnamed = sharedProjects.filter(function (p) { return !String(p).trim(); }).length;
+        if (!wireNamed) {
+          setMsg('还没有可填的项目列：先在「项目列（全班共用）」里给项目起个名字（第 ' + (unnamed || 1) + ' 列现在还是空的），再来一键满分。');
+        } else if (unnamed) {
+          setMsg('已命名的项目列都是线上排位列（只有真实完成排位才能得分），剩下的还是空列；先给空列起个名字再一键满分。');
+        } else {
+          setMsg('本课的项目列都是线上排位列：只有真实完成排位才能得分，不能一键满分。');
+        }
+        var card = sheet.querySelector('#leaderColCard');
+        if (card) card.scrollIntoView({ block: 'center' });
+        var firstEmpty = null;
+        Array.prototype.forEach.call(sheet.querySelectorAll('.leader-project'), function (inp) {
+          if (!firstEmpty && !String(inp.value || '').trim()) firstEmpty = inp;
+        });
+        if (firstEmpty) { try { firstEmpty.focus(); firstEmpty.select(); } catch (e) { } }
         return;
       }
       var dlg = document.createElement('dialog');
@@ -692,6 +735,8 @@
           var target = dlg.querySelector('select').value === 'all' ? cls.groups : [st.group];
           context.fullMarks(lesson, target, named, sharedProjects);
           rerenderKeepScroll();
+          /* 满分的格子要尽快变成学生端的「老师已给分」（payload 里的 sealed），否则组长还以为没打 */
+          pushPeerPayload();
         }
         dlg.remove();
       });

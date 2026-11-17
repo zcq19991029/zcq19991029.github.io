@@ -57,8 +57,14 @@
     var rec = (l.leaderScores || {})[String(m.gno)] || {};
     var mine = (rec.members || {})[m.key];
     var projects = [], projectEarned = 0;
-    A.projectNames(l).forEach(function (name, i) {
-      if (!String(name || '').trim()) return;
+    /* 只下发「计入完成率」的列（2026-11-17 A2）：空项目全班一格都没录过分，
+       它既不在老师端的分母里，也不该在学生端冒出一行「待评」把课时明细撑长。
+       注意仍按列号取分，不能重新编号——列号是 leaderScores 的下标。 */
+    var cols = (A.countedIndexes ? A.countedIndexes(l) : null) ||
+      A.projectNames(l).map(function (n, i) { return String(n || '').trim() ? i : -1; }).filter(function (i) { return i >= 0; });
+    var allNames = A.projectNames(l);
+    cols.forEach(function (i) {
+      var name = allNames[i];
       var v = mine ? mine[i] : null;
       var score = (v === null || v === undefined) ? null : clampNum(v, 0, 5);
       if (score !== null) projectEarned += score;

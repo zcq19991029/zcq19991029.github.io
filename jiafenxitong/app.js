@@ -78,15 +78,20 @@
   function attPctText(score) {
     return pctText(Math.max(0, Math.min(9, Number(score) || 0)) / 9 * 100);
   }
-  /** 一节课里「已命名」的个人项目列数（空名不算分母） */
-  function namedProjectCount(lesson) {
+  /** 一节里**计入完成率**的项目列数（2026-11-17 A2）。
+      口径只有一处：assessment.js 的 countedCount —— 有名字、且全班至少一格录过分。
+      空项目（刚建课还没打分的那一列）不进分母，否则默认那几个空列会把完成率按 20% 一档拉低。
+      以前这里叫 namedProjectCount 只数「有名字」的列，和用户要的口径对不上，改名以免误用。 */
+  function countedProjectCount(lesson) {
     var A = window.JFDT_ASSESSMENT;
+    if (A && A.countedCount) return A.countedCount(lesson);
+    /* 成绩模块没加载时退回「只数有名字的列」——总比显示 0% 强（打印/离线单文件会走到这里） */
     var names = (A && A.projectNames && A.projectNames(lesson)) || [];
     return names.filter(function (n) { return String(n == null ? '' : n).trim(); }).length;
   }
-  /** 每课完成率分母 = 5 × 已命名项目数（2026-11-12：每课那 5 分送分已取消） */
+  /** 每课完成率分母 = 5 × 计入完成率的项目数（2026-11-12：每课那 5 分送分已取消） */
   function lessonMaxOf(lesson) {
-    return 5 * namedProjectCount(lesson);
+    return 5 * countedProjectCount(lesson);
   }
   /** 某成员某课的项目完成率文本：本节项目净得分 ÷ (5 × 已命名项目数)；没命名项目返回 '—' */
   function memberLessonRateText(lesson, gno, member, i) {
@@ -1083,7 +1088,7 @@ function restoreDroppedToHome(cls) {
   function groupTotal(lesson, gno) {
     var A = window.JFDT_ASSESSMENT, cls = getClass(lesson.classId), g = cls && groupOf(cls, gno);
     if (!A || !g) return 0;
-    var n = namedProjectCount(lesson);
+    var n = countedProjectCount(lesson);
     if (!n) return 0;
     var sum = 0, cnt = 0;
     g.members.forEach(function (m, i) {
@@ -1101,7 +1106,7 @@ function restoreDroppedToHome(cls) {
 
   /** 有命名项目的课次数量（小组累计完成率的分母：每课 5 分） */
   function groupLessonSpan(ls) {
-    var n = (ls || []).filter(function (l) { return namedProjectCount(l) > 0; }).length;
+    var n = (ls || []).filter(function (l) { return countedProjectCount(l) > 0; }).length;
     return n || 1;
   }
 
@@ -1374,7 +1379,13 @@ function restoreDroppedToHome(cls) {
 
   /** 本节课要发布的项目列（只发有名字的列，col 保持与 leaderScores 下标一致）
       2026-11-12：「仅教师」列**不发给学生** —— 学生端根本看不到这一列，
-      自然也就点不了；老师那边照旧可以点格子给分。 */
+      自然也就点不了；老师那边照旧可以点格子给分。
+      2026-11-17 修 A4：**线上排位列也不发**（用户原话「尤其排位分 这是只能系统给分
+      老师学生都不允许打分」）。以前只滤「仅教师」，排位列照旧进 payload，
+      组长打开互评就看见一整列「需要打分」的格 —— 前端虽然渲染成只读占位，
+      但在窄屏上就是一片「待打分区」，看着像老师漏了一堆分。
+      这一列的分只由接线仿真任务按完成率自动入账（taskScore），任何人都不能手打；
+      不发布它，学生端连占位都不会有。server 端 jf_peer_submit 仍会拒绝（老缓存页兜底）。 */
   function peerProjectList(lesson) {
     var names = (window.JFDT_ASSESSMENT && window.JFDT_ASSESSMENT.projectNames(lesson)) || [];
     var skip = teacherOnlyCols(lesson);
@@ -1383,7 +1394,40 @@ function restoreDroppedToHome(cls) {
       var name = String(n == null ? '' : n).trim();
       if (!name) return;
       if (skip.indexOf(name) >= 0) return;
+      if (TASK_COL.test(name)) return;
       out.push({ name: name, col: i });
+    });
+    return out;
+  }
+
+  /** 「这一格老师已经定分了」的名单（2026-11-17 A4）。
+      用户原话：「很多分都确认完了 但是打开互评后组长能看到很多需要打分的」。
+      根因：组长看到的互评表来自学生自己的提交（jf_peer_scores），老师在这边点格子给分、
+      或者一键满分，只写进 leaderScores，学生的提交表里当然一条都没有，于是每格都摆回
+      20%–100% 按钮 —— 在组长眼里就是「明明打完了，怎么还要打」。
+      做法：把「值已经有了、而且来源不是学生互评」的格子标出来发给学生端，学生端渲染成
+      「老师已给分」的只读胶囊。**只发列号，不发分数**：学生自己的分数在「我的分数」里本来就能看，
+      这里只需要让他知道「这一格不用你再打了」，没必要把同组每个人的分再下发一遍。
+      为什么用 peerMeta 判来源：互评落格一定带 leader/avg 标记（peer-apply.js 写的）；
+      查不到标记却有值 = 老师手填 / 一键满分 / 老数据导入，这类都不该再问学生。 */
+  function peerSealedMap(cls, lesson) {
+    var out = {};
+    (cls.groups || []).forEach(function (g) {
+      var rec = lesson.leaderScores && lesson.leaderScores[String(g.no)];
+      if (!rec || !rec.members) return;
+      var per = {};
+      Object.keys(rec.members).forEach(function (k) {
+        var vals = rec.members[k];
+        if (!Array.isArray(vals)) return;
+        var cols = [];
+        vals.forEach(function (v, i) {
+          if (v === null || v === undefined || v === '') return;
+          var meta = lesson.peerMeta && lesson.peerMeta[g.no + '|' + k + '|' + i];
+          if (!meta || meta === 'teacher') cols.push(i);
+        });
+        if (cols.length) per[k] = cols;
+      });
+      if (Object.keys(per).length) out[String(g.no)] = per;
     });
     return out;
   }
@@ -1397,6 +1441,8 @@ function restoreDroppedToHome(cls) {
       projects: peerProjectList(lesson),
       /* 名单也一起发下去：学生端拿它做二次过滤（防旧缓存页），peer-apply 拿它做兜底丢弃 */
       teacherOnly: teacherOnlyCols(lesson),
+      /* 老师已经定分的格子（只有列号，没有分数），学生端据此显示「老师已给分」而不是打分按钮 */
+      sealed: peerSealedMap(cls, lesson),
       groups: (cls.groups || []).map(function (g) {
         var members = g.members.filter(function (m) { return !!m.name; })
           .map(function (m) { return { key: memberKey(m), name: m.name }; });
@@ -1425,9 +1471,18 @@ function restoreDroppedToHome(cls) {
     });
   }
 
-  /* 分组 / 组长 / 名单的指纹。用来判断「服务器上那份 payload 还跟不跟得上本机」 */
+  /* 分组 / 组长 / 名单的指纹。用来判断「服务器上那份 payload 还跟不跟得上本机」。
+     2026-11-17 修 A4：**把项目列也并进指纹**。原来只比 groups，于是「开课时发过一次」之后，
+     老师再加列 / 改名 / 删列都不会重发 —— 服务器上还是老项目名：
+       · 学生端互评里列的是老列（新列在对他们来说根本不存在，组长永远打不完）；
+       · 学生按老名字提交的分，回到老师这边 colOf 找不到这一列（返回 -1）就被丢掉，
+         表现就是「老师明明确认完了，组长那边还是一堆待打分」。
+     项目名和列号都要进去：只比名字不比列号，删了中间一列导致后面列号前移也发现不了。 */
   function peerGroupsHash(cls, lesson) {
-    try { return JSON.stringify(peerPayload(cls, lesson).groups); } catch (e) { return ''; }
+    try {
+      var p = peerPayload(cls, lesson);
+      return JSON.stringify({ g: p.groups, p: p.projects, t: p.teacherOnly, s: p.sealed });
+    } catch (e) { return ''; }
   }
 
   /* 组长（或名单、分组）在本机变了，就把最新的一份悄悄重发上去。
@@ -3655,12 +3710,31 @@ function restoreDroppedToHome(cls) {
     var empties = all.filter(function (g) { return memberCount(g) === 0; });
     var allEmpty = empties.length === all.length;      // 一个能留的组都没有
     var pending = truePendingList(cls);
-    if (!empties.length && !pending.length) {
-      flash('现在没有空组、也没有未分组的人，组号已经是连续的 1–' + groupCountOf(cls) + '，不用再整理');
-      return;
-    }
-    if (allEmpty && !pending.length) {
-      flash('这 ' + all.length + ' 个组都还空着，也没有未分组的人：先把学生名单导进来，或把他们拖进组');
+    /* 2026-11-17 修（用户：「我开放组队再点击确认 就不让确认 因为我什么都没改 这不对」）：
+       #btnTeamOpen 在「组队中」状态下的语义是**这一轮收工**，不只是「整理分组」——
+       哪怕没有空组、没有未分组的人、组号也已经连续（看着没事可做），也必须能确认，
+       确认之后这一轮才算结束、学生端才转只读。原来这里两种「没事可做」直接 flash + return，
+       等于把老师的「收工」动作吞掉了。现在改成：弹一句把话说清 → 照样确认 → 收工。
+       分组数据一个字都不动（不拍快照、不压缩、不 save）。 */
+    var keepBase = allEmpty ? sortGroupsByNo(all)
+      : sortGroupsByNo(all.filter(function (g) { return memberCount(g) > 0; }));
+    var renumberNeeded = keepBase.some(function (g, i) { return Number(g.no) !== i + 1; });
+    var noWork = !pending.length && !empties.length && !renumberNeeded;
+    var emptyNoBody = allEmpty && !pending.length && !renumberNeeded;
+    if (noWork || emptyNoBody) {
+      var why = noWork
+        ? '· 分组没有变化：没有空组，也没有未分组的人，组号已经是连续的 1–' + all.length
+        : '· 这 ' + all.length + ' 个组都还空着，也没有未分组的人（名单可能还没导入）';
+      askConfirm('确认分组？\n\n' + why + '\n' +
+        '· 确认之后这一轮组队就结束了，学生端转为只读（想再调整就再点「开放组队」）\n\n' +
+        '想反悔可以点看板上的「撤回上一次分组」。',
+        { title: '确认分组', okText: '确认分组', cancelText: '取消' })
+        .then(function (ok) {
+          if (!ok) return;
+          /* 只收工：没有变化可存，所以不 pushGroupSnapshot / 不 applyCompress / 不 save */
+          flash(noWork ? '已确认分组（分组没有变化），学生端已转只读' : '已确认分组，学生端已转只读');
+          tmCloseRoom();
+        });
       return;
     }
     /* 组号重复：压缩/重排一定中止，别让老师点完确认才被告知。
@@ -3677,9 +3751,8 @@ function restoreDroppedToHome(cls) {
     function roomSum(list) {
       return roomsOf(list).reduce(function (a, x) { return a + x.left; }, 0);
     }
-    var keep = allEmpty
-      ? sortGroupsByNo(all)                                        // 组全空：保留全部组
-      : sortGroupsByNo(all.filter(function (g) { return memberCount(g) > 0; }));
+    /* keepBase 在上面「没事可做」那段就算过了（口径一样），这里直接沿用，别写第二份 */
+    var keep = keepBase.slice();
     var totalRoom = roomSum(keep);
     /* 空位不够时先别急着删空组：刚才打算删掉的那些空组还能装人，删了就真装不下了。
        例：2 组各 3 人 + 2 组空 / 每组上限 5 / 10 人待分配 → 压缩后只剩 4 个空位，
@@ -3744,6 +3817,10 @@ function restoreDroppedToHome(cls) {
         reportGroupChange(cls, beforeF, '确认分组');
         renderGroupSetup();
         renderPoolBanner(cls);
+        /* 2026-11-17：和「按选座确认分组」那条路对齐 —— 确认分组 = 这一轮收工，
+           顺手把房间关掉，学生端才真的变只读（以前这条路忘了关，学生还能继续拖）。
+           还有没分完的人，老师再点一次「开放组队」他们就能继续移动。 */
+        tmCloseRoom();
       });
   }
 

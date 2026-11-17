@@ -30,12 +30,29 @@
     var rule=(cfg.customRules||[]).find(function(r){return r.id===status;});return rule?rule.loss:0;
   }
   function statusName(status,cfg) { var r=(cfg.customRules||[]).find(function(r){return r.id===status;});return labels[status]||(r&&r.name)||status; }
+  /* 项目列名（全班共用一份）。三条必须在改之前知道：
+     ① 默认列数 2026-11-17 从 4 改成 1（用户：「默认四个空项目 改为1个」）。
+        没有 leaderProjectCount 的老课次会跟着变成 1 列——但它们真实的项目名会被下面的
+        include() 撑回去，只有「真的是空的」那几列才消失，不会丢分。
+     ② 允许 0 列（用户：「允许删除为0个」）：leaderProjectCount 显式写 0 就是 0 列，
+        不能再被 Math.max(1, …) 兜回 1 —— 否则删到 0 会自己长回一列，等于删不掉。
+     ③ 名字解析顺序：先看共享名单 lesson.leaderProjectNames，**那一格是空串时继续往下找**
+        各组记录里的名字。老数据的共享名单可能是一串空串（只有各组 leaderScores[x].projects
+        里才有真名），以前直接 `shared[i]||''` 会让真名被空串挡掉 —— 表现就是项目列全叫「项目1…」，
+        于是「一键满分」找不到任何已命名列、点了毫无反应（2026-11-17 A1 的真因之一）。 */
   function projectNames(lesson) {
     var records=lesson.leaderScores||{},shared=Array.isArray(lesson.leaderProjectNames)?lesson.leaderProjectNames:null;
-    var length=Math.max(1,Number(lesson.leaderProjectCount)||4);
+    var rawLength=lesson.leaderProjectCount;
+    /* 显式 0 就是 0；没写过 / 不是数字才用默认 1 列 */
+    var length=(rawLength===0||rawLength==='0')?0:(Number.isFinite(Number(rawLength))&&rawLength!==null&&rawLength!==''?Math.max(0,Number(rawLength)):1);
     function include(values){(values||[]).forEach(function(v,i){if(v!==null&&v!==undefined&&String(v).trim()!=='')length=Math.max(length,i+1);});}
     if(shared)include(shared);Object.values(records).forEach(function(r){include(r.projects);Object.values(r.members||{}).forEach(include);});
-    return Array.from({length:Math.min(30,length)},function(_,i){if(shared)return shared[i]||'';for(var g of Object.keys(records).sort(function(a,b){return Number(a)-Number(b);})){var name=records[g].projects&&records[g].projects[i];if(String(name||'').trim())return name;}return '';});
+    var order=Object.keys(records).sort(function(a,b){return Number(a)-Number(b);});
+    return Array.from({length:Math.min(30,length)},function(_,i){
+      if(shared&&String(shared[i]==null?'':shared[i]).trim())return shared[i];
+      for(var gi=0;gi<order.length;gi++){var name=records[order[gi]].projects&&records[order[gi]].projects[i];if(String(name||'').trim())return name;}
+      return (shared&&shared[i])||'';
+    });
   }
   /* ---------- 2026-11-12 R1：值日缺勤 = 整学期一次 5 分项目 ----------
      旧口径（本版作废）：每节课都送 5 分（叫「干净又卫生」），13 节课白送 65 分，
@@ -47,11 +64,44 @@
          第二次轮到值日再缺勤还能再扣一次（扣分叠加），最终落到个人分数上；
        · 每节课的满分只剩「5 × 已命名项目数」；手机未入袋 / 个人扣分从本节项目分里扣，
          扣完为止、不跨课（旧口径是从每课那 5 分送分里扣）。 */
-  function namedCount(lesson) {
-    return projectNames(lesson).filter(function (n) { return String(n || '').trim(); }).length;
+  /* 「这一列到底算不算一个项目」的判定（2026-11-17 A2，用户原话：
+     「默认1个空项目时不计总分上面 也就是没算作其中一项完成率 不然空的多了会拉低完成率」）。
+     口径写死在这里，别再各处自己数：**这一列在全班任何一个学生身上都没有已录入的分数 = 空项目**，
+     不进任何分母（本节完成率 / 整学期分母 / 小组累计 / 打印），也不算「待批改」。
+     为什么按「有没有分数」而不是「名字是不是空的」：老师可能先把名字起好、这节课还没开始打分，
+     名字在但一格没录 —— 这种列同样是「还没成为一项任务」，按名字判会立刻把全班完成率拉低。
+     反过来，只要有一个学生在这一列得过 0 分，它就算数（0 分是有效成绩，不是没录）。 */
+  function columnHasScore(lesson, index) {
+    var records = lesson.leaderScores || {};
+    var groups = Object.keys(records);
+    for (var gi = 0; gi < groups.length; gi++) {
+      var rec = records[groups[gi]] || {};
+      var members = rec.members || {};
+      var keys = Object.keys(members);
+      for (var mi = 0; mi < keys.length; mi++) {
+        var vals = members[keys[mi]];
+        if (!Array.isArray(vals)) continue;
+        var v = vals[index];
+        if (v !== null && v !== undefined && v !== '') return true;
+      }
+    }
+    return false;
+  }
+  /** 计入完成率的项目列号（已有名字 + 至少一格有分） */
+  function countedIndexes(lesson) {
+    var out = [];
+    projectNames(lesson).forEach(function (n, i) {
+      if (!String(n || '').trim()) return;
+      if (columnHasScore(lesson, i)) out.push(i);
+    });
+    return out;
+  }
+  /** 计入完成率的项目数（= 分母里的「几项」）。0 列时返回 0，调用方必须自己处理除零。 */
+  function countedCount(lesson) {
+    return countedIndexes(lesson).length;
   }
   /** 每节课的项目满分（不含整学期那 5 分值日缺勤） */
-  function lessonMax(lesson) { return 5 * namedCount(lesson); }
+  function lessonMax(lesson) { return 5 * countedCount(lesson); }
   /** 整学期值日缺勤扣了几档（1 档 = 20% = 1 分）；按组累计，封顶 5 档 */
   function dutyLoss(lessons, gno) {
     var n = 0, key = String(gno);
@@ -68,8 +118,9 @@
     var n = 0, raw = 0;
     var rec = (lesson.leaderScores || {})[String(gno)] || {};
     var values = (rec.members || {})[key];
-    projectNames(lesson).forEach(function (name, i) {
-      if (!String(name || '').trim()) return;
+    /* 只数「计入完成率」的那几列（见 countedIndexes 的说明）：
+       空项目不进分母，也不该出现在分子里（它本来就没分，但 n++ 会把分母撑大 → 完成率被拉低）。 */
+    countedIndexes(lesson).forEach(function (i) {
       n++;
       var v = values ? values[i] : null;
       if (v === null || v === undefined) return;
@@ -84,7 +135,8 @@
   }
   /** 本组本节的项目完成（0–5）：按已记分的成员平均，兼容老调用（组级没有成员下标，个人扣分不计） */
   function groupNet(lesson, gno, lessons) {
-    var n = namedCount(lesson);
+    var cols = countedIndexes(lesson);
+    var n = cols.length;
     if (!n) return 0;
     var rec = (lesson.leaderScores || {})[String(gno)] || {}, meter = (lesson.scores || {})[String(gno)] || {};
     var keys = Object.keys(rec.members || {});
@@ -92,8 +144,7 @@
     var phone = Math.max(0, Number(meter.phone) || 0), sum = 0;
     keys.forEach(function (k) {
       var values = rec.members[k] || [], raw = 0;
-      projectNames(lesson).forEach(function (name, i) {
-        if (!String(name || '').trim()) return;
+      cols.forEach(function (i) {
         var v = values[i];
         if (v === null || v === undefined) return;
         raw += Math.max(0, Math.min(5, Number(v) || 0));
@@ -108,12 +159,14 @@
     var duty=lessons.length?dutyScore(lessons,m.gno):0;
     earned+=duty;maximum+=lessons.length?5:0;
     lessons.forEach(function(l){
-      var projects=projectNames(l),values=((l.leaderScores||{})[String(m.gno)]||{}).members;
+      var cols=countedIndexes(l),values=((l.leaderScores||{})[String(m.gno)]||{}).members;
       var mine=values&&values[m.key];
-      if(!namedCount(l))return;
-      maximum+=5*namedCount(l);
+      if(!cols.length)return;
+      maximum+=5*cols.length;
       earned+=lessonNet(l,m.gno,Number.isInteger(m.memberIndex)?m.memberIndex:-1,m.key).earned;
-      projects.forEach(function(name,index){if(!String(name||'').trim())return;
+      /* 待批改只数「已经在打分」的列：空项目（全班一格都没有）不该报成待批改，
+         否则刚建一课就显示「4 项待批改」，老师会以为漏了一堆事。 */
+      cols.forEach(function(index){
         var n=mine&&mine[index];if(n===null||n===undefined)pending++;
       });
     });
@@ -165,7 +218,7 @@
   function renderRank(ctx) {
     var cls=ctx.cls,cfg=settings(cls),ms=rows(cls,ctx.lessons,ctx.raw);
     /* 显示层（2026-11-09 完成率改革）：当前累计与考勤按百分比显示；存储与公式不动 */
-    var semesterMax=ctx.lessons.reduce(function(a,l){return a+5*namedCount(l);},0)+(ctx.lessons.length?5:0);
+    var semesterMax=ctx.lessons.reduce(function(a,l){return a+5*countedCount(l);},0)+(ctx.lessons.length?5:0);
     function memberRate(m){return semesterMax?round(Math.max(0,m.total)/semesterMax*100):0;}
     function attPct(v){return round(Math.max(0,Math.min(9,Number(v)||0))/9*100);}
     ctx.root.innerHTML='<details class="rank-note"><summary>平时分说明：项目与考勤合并完成率，无基础赠分</summary><p>项目与考勤统一按完成率计算。「值日缺勤」是整学期一次 5 分项目：一学期没缺勤就是 100%，每节课都显示同一个学期值；值日组缺勤时老师点一次「值日缺勤」，全组每人 −20%（团队绑定，要扣都扣），第二次轮到值日再缺勤还能再扣，按组累计、最低 0%。每节课的满分只有「5 × 已命名项目数」（任一组新增命名个人项目，全班分母同步增加一档满分）；手机未入袋和个人扣分从本节项目分里扣，每次 −20%，扣完为止、不跨课。</p><p>项目完成率＝max(0,min(1,项目净得分÷项目满分))。整学期分母＝5（值日缺勤，只算一次）＋Σ每课 5×已命名项目数；所以项目越多分母越大，但不会再因为每节课白送 5 分把项目分的比重稀释掉。全组扣分从每位成员身上扣，个人扣分只扣本人。</p><p>考勤是学期固定项目，满分折 100%（9 分制扣分，如扣 1 分 ≈ 88.9%）：考勤分＝max(0,9−个人累计考勤扣分)，扣完后标记考勤挂科。迟到、早退、旷课和自定义原因按本班设置直接扣考勤分；请假默认不扣。折算的旷课次数只用于挂科标记，不再次扣分。迟到＋早退按设置次数折算旷课；实际旷课＋折算旷课达到设置门槛，姓名标红并标记考勤挂科。</p><p>平时分＝100×合并完成率；总评贡献＝平时分×40%，满分40。期末至少需考＝max(0,(及格线−平时分×0.4)÷0.6)，向上取0.1分。例如项目净得50%且考勤满分时，合并完成率=(50%×10+9)÷(10+9)≈73.7%，平时分73.7；项目和考勤均满分时平时分100。考勤挂科时目标不适用。</p><p>未编辑考勤默认到课。考勤归零或实际加折算旷课达到门槛，开启判定时姓名标红。</p></details><div class="assessment-actions"><button class="btn" id="assessmentGoAttendance">考勤与规则</button><button class="btn" id="assessmentExport">导出综合成绩CSV</button></div><p class="note">窄屏可左右滑动表格查看实际期末与综合成绩。</p><div class="assessment-scroll" tabindex="0" role="region" aria-label="成绩表，可左右滚动"><table class="data assessment-table"><thead><tr><th>展示名次</th><th>姓名 / 学号</th><th>小组</th><th>当前累计</th><th>项目完成率</th><th>考勤完成率</th><th class="grade-regular">平时分（合并完成率）</th><th class="grade-contribution">计入总评 /40</th><th class="grade-needed">期末至少需考 /100</th><th>实际期末</th><th>综合/100</th></tr></thead><tbody>'+ms.map(function(m){return '<tr><td>'+m.rank+'</td><td><b class="'+(m.attendanceFailed?'attendance-failed':'')+'">'+esc(m.name)+'</b><small>'+esc(m.sid||m.no||'')+'</small></td><td>'+(m.gno?'第'+m.gno+'组':'待分配')+'</td><td><b>'+(semesterMax?memberRate(m)+'%':'—')+'</b><small>全组 '+(semesterMax?round(Math.max(0,m.groupScore)/semesterMax*100)+'%':'—')+' · 个人项目 '+(semesterMax?round(Math.max(0,m.project)/semesterMax*100)+'%':'—')+' · 扣 '+(semesterMax?round(Math.max(0,m.personal)/semesterMax*100)+'%':'—')+'</small></td><td>'+round(m.task.rate*100)+'%<small>项目 '+m.task.earned+'/'+m.task.maximum+'<br>考勤完成率 '+attPct(m.attendance)+'%<br>合并完成率 '+round(m.performanceRate*100)+'%'+(m.task.pending?' · '+m.task.pending+'项待批改':'')+(!m.task.maximum?' · 未设置有效任务':'')+'</small></td><td>'+attPct(m.attendance)+'%<small>'+m.recorded+'/'+ctx.lessons.length+'课已登记 · 扣'+m.loss+'分（9分制）<br>'+esc(attendanceText(m))+'</small></td><td class="grade-regular"><strong class="grade-value">'+m.regular+' <span class="completion-rate">（'+(m.totalMaximum?Math.round(m.performanceRate*1000)/10+'%':'—')+'）</span></strong><small>达到及格线所需</small>'+(!m.ready?'<small>预估</small>':'')+'</td><td class="grade-contribution">'+m.contribution+'</td><td class="grade-needed">'+neededText(m)+'</td><td><input class="assessment-exam" aria-label="'+esc(m.name)+' 实际期末成绩" data-exam-key="'+esc(m.key)+'" type="number" min="0" max="100" step="0.1" value="'+m.exam+'" placeholder="待考"></td><td>'+(m.attendanceFailed?'考勤挂科'+(m.final==null?'':'<small>数值参考 '+m.final+'</small>'):m.final==null?'—':m.final)+(!m.ready&&m.final!==null?'<small>待复核</small>':'')+'</td></tr>';}).join('')+'</tbody></table></div><p class="rank-note">项目与考勤合并为0–100分，无60分保底。按本班设置的实际＋折算旷课门槛判定考勤挂科，不以数值总分代替资格判定。排名仅展示，不改变他人分数。及格线'+cfg.passScore+'，期末需考向上取到0.1分。共'+ms.length+'人（含待分配），计划'+cfg.totalLessons+'课。</p>';
@@ -204,12 +257,12 @@
       ms=ms.slice().sort(function(a,b){return b.regular-a.regular||a.rawRank-b.rawRank;});
       dispRank=function(m){ return m.rank; };
     }
-    var semesterMax=ctx.lessons.reduce(function(a,l){return a+5*namedCount(l);},0)+(ctx.lessons.length?5:0);
+    var semesterMax=ctx.lessons.reduce(function(a,l){return a+5*countedCount(l);},0)+(ctx.lessons.length?5:0);
     function memberRate(m){return semesterMax?round(Math.max(0,m.total)/semesterMax*100):0;}
     /* 每课的项目完成率：本节项目净得分 ÷（5 × 已命名项目数）；没记分或没命名项目返回 null */
     function lessonRate(m,l){
       var recorded=Object.keys(l.scores||{}).length||Object.keys(l.leaderScores||{}).length;
-      if(!recorded||!namedCount(l))return null;
+      if(!recorded||!countedCount(l))return null;
       var rec=lessonNet(l,m.gno,Number.isInteger(m.memberIndex)?m.memberIndex:-1,m.key);
       return round(Math.max(0,Math.min(100,rec.earned/rec.max*100)));
     }
@@ -357,10 +410,10 @@
   function printHtml(cls,lessons,raw) {
     var ms=rows(cls,lessons,raw);
     /* 显示层（2026-11-09 完成率改革）：当前累计与考勤按百分比显示，存储与公式不动 */
-    var semesterMax=lessons.reduce(function(a,l){return a+5*namedCount(l);},0)+(lessons.length?5:0);
+    var semesterMax=lessons.reduce(function(a,l){return a+5*countedCount(l);},0)+(lessons.length?5:0);
     function memberRate(m){return semesterMax?round(Math.max(0,m.total)/semesterMax*100)+'%':'—';}
     function attPct(v){return round(Math.max(0,Math.min(9,Number(v)||0))/9*100)+'%';}
     return '<h2>平时赋分与期末测算</h2><p>项目与考勤合并为0–100完成率；考勤是学期固定项目，满分折 100%（9 分制扣分）。迟到/早退合计3次折旷课1次，实际旷课＋折算旷课合计3次考勤挂科，折算不重复扣分；平时40%＋期末60%。名次只展示，未批改/考勤未齐为预估。</p><table><thead><tr><th>名次</th><th>姓名</th><th>学号</th><th>当前累计</th><th>项目完成率</th><th>考勤完成率</th><th>平时/100</th><th>折合/40</th><th>期末需考</th><th>实际期末</th><th>综合</th><th>记录状态</th></tr></thead><tbody>'+ms.map(function(m){return '<tr><td>'+m.rank+'</td><td>'+esc(m.name)+'</td><td>'+esc(m.sid||m.no||'')+'</td><td>'+memberRate(m)+'</td><td>'+round(m.task.rate*100)+'%<small>'+m.task.earned+'/'+m.task.maximum+'</small></td><td>'+attPct(m.attendance)+'<small>'+round(m.attendanceRate*100)+'%</small></td><td>'+m.regular+'<small>'+round(m.performanceRate*100)+'%</small></td><td>'+m.contribution+'</td><td>'+(neededText(m))+'</td><td>'+m.exam+'</td><td>'+(m.attendanceFailed?'考勤挂科'+(m.final==null?'':'<small>数值参考 '+m.final+'</small>'):m.final==null?'—':m.final)+'</td><td>'+esc(confirmationText(m))+(m.ready?' · 已齐':' · 预估')+'<br>'+esc(attendanceText(m))+'</td></tr>';}).join('')+'</tbody></table>';
   }
-  root.JFDT_ASSESSMENT={groupNet:groupNet,namedCount:namedCount,lessonMax:lessonMax,dutyLoss:dutyLoss,dutyScore:dutyScore,lessonNet:lessonNet,projectNames:projectNames,printHtml:printHtml,taskEvidence:taskEvidence,key:key,ident:ident,settings:settings,roster:roster,rows:rows,deduction:deduction,renderRank:renderRank,renderDetail:renderDetail,renderAttendance:renderAttendance,importPlan:importPlan,importFind:importFind,importStatus:importStatus};
+  root.JFDT_ASSESSMENT={groupNet:groupNet,countedCount:countedCount,countedIndexes:countedIndexes,namedCount:countedCount,lessonMax:lessonMax,dutyLoss:dutyLoss,dutyScore:dutyScore,lessonNet:lessonNet,projectNames:projectNames,printHtml:printHtml,taskEvidence:taskEvidence,key:key,ident:ident,settings:settings,roster:roster,rows:rows,deduction:deduction,renderRank:renderRank,renderDetail:renderDetail,renderAttendance:renderAttendance,importPlan:importPlan,importFind:importFind,importStatus:importStatus};
 })(typeof window==='undefined'?globalThis:window);

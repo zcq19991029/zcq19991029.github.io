@@ -479,6 +479,17 @@
     return !!n && list.indexOf(n) >= 0;
   }
 
+  /* 老师已经定过分的格子（2026-11-17 A4）：payload 里的 sealed 只有列号，没有分数。
+     用途只有一个 —— 别再把「已经有分」的格子摆成 20%–100% 按钮，让组长以为还要重打一遍。 */
+  function peerSealed(project, target) {
+    var s = peer.data && peer.data.sealed;
+    if (!s) return false;
+    var per = s[String(peer.data.me && peer.data.me.group_no)];
+    if (!per) return false;
+    var cols = per[target && target.key];
+    return Array.isArray(cols) && cols.indexOf(Number(project.col)) >= 0;
+  }
+
   function peerCellHtml(project, target) {
     var value = peerScore(project.name, target.key), locked = project.status === 'confirmed';
     var label = esc(target.name) + ' · ' + esc(project.name);
@@ -500,6 +511,12 @@
       return '<div class="peer-cell is-set" data-score="' + value + '" data-project="' + esc(project.name) +
         '" data-target="' + esc(target.key) + '" role="button" tabindex="0" title="双击撤销这一格的加分">' +
         projTag + '<span class="peer-score">' + scorePct(value) + '</span></div>';
+    }
+    /* 老师手填 / 一键满分的格子：显示「老师已给分」只读胶囊，不再摆 5 颗按钮。
+       要改分找老师（老师那边点一下格子就能改）；学生重新提交会在老师改完之后再覆盖。 */
+    if (peerSealed(project, target)) {
+      return '<div class="peer-cell is-locked" title="这一格老师已经给过分，你不用再打；要改请找老师">' +
+        projTag + '<span>老师已给分</span></div>';
     }
     if (locked) {
       return '<div class="peer-cell is-locked" title="老师已确认这一列，不能再改">' +
@@ -537,7 +554,13 @@
     var targets = d.me.is_leader
       ? (d.members || []).filter(function (m) { return m.key !== d.me.key; })
       : (d.members || []).filter(function (m) { return m.key === (d.leader && d.leader.key); });
-    var projects = d.projects || [];
+    /* 项目列再过一遍：线上排位列 / 仅教师列一律不摆出来（2026-11-17 A4）。
+       正常路径上 app.js 的 peerProjectList() 已经不发布这两种列了，这里挡的是
+       「云端 payload 还是上一版」的窗口期和浏览器里缓存的旧页面 ——
+       组长看到一整列只能看不能点的格子，会以为老师漏了一堆分没打。 */
+    var projects = (d.projects || []).filter(function (p) {
+      return p && !isTaskCol(p.name) && !isTeacherOnly(p.name);
+    });
 
     var html = '<div class="card peer-card"><div class="peer-card-head"><h3>组内互评 · 第 ' + d.seq + ' 次课</h3>' +
       '<span class="peer-pill is-open">教师已开放</span>' +

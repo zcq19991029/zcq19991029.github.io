@@ -50,18 +50,33 @@
   --shadow: 0 1px 2px rgba(150, 90, 90, .08), 0 8px 24px rgba(150, 90, 90, .12);
   --shadow-lift: 0 4px 10px rgba(150, 90, 90, .10), 0 16px 34px rgba(150, 90, 90, .13);
 
-  /* 纸质记录表的七个配色（取自 Excel：BDD7EE / EAF2FB / FCE4D6 / FDF3E3 / FBE5E5 / E2EFDA / FFF2CC） */
-  --xl-no: #bdd7ee;
-  --xl-mem: #eaf2fb;
+  /* 纸质记录表的七个配色（取自 Excel：BDD7EE / EAF2FB / FCE4D6 / FDF3E3 / FBE5E5 / E2EFDA / FFF2CC）
+     2026-11-17 修 A3（用户原话：「加分这里浅色直接无背景了 是不是需要清空表格单元格色块？
+     我允许 要和深色模式效果一样」）：浅色这套原来是**不透明实色**，整块表格像一张不透明的纸
+     盖在壁纸上，于是「选了背景图在表格区域等于没有」；深色那套一直是半透明玻璃（见下面的
+     :root[data-hx-mode="dark"]），所以深色正常、浅色失效。
+     现在浅色也改成「色相不变 + 半透明」，alpha 乘 --hx-a（卡片通透度滑杆，100 = 1，越低越实），
+     和 help/index.html 的 --glass-card、hx-theme.css 的玻璃配方同一个口径。
+     · 值取 .55~.66：壁纸能明显透上来（纯红背景仍是一眼粉红），第 1 行黑字也还压得住；
+       要更实/更透，用户拖「卡片通透度」就行，不用改代码。
+     · 深色块的数值一个字都没动 —— 深色本来就是对的，不能改坏。
+     · 打印在 @media print 里被强制转回实色（见下面「打印还原实色」那段）。 */
+  /* --xl-a = 浅色表格色块的浓度。调这一个值就能整体改「壁纸透多少」：
+     0.34 是在 1600×1000 下用纯红壁纸实测出来的手感 —— 表格能一眼看出壁纸的颜色和纹理，
+     黑字（--xl-ink）压在上面仍然清楚；再低（0.2 以下）表头就和正文糊成一片，反而不好认。
+     深色那套不用这个变量（它有自己的 0.26–0.30 玻璃配比，见下面深色块）。 */
+  --xl-a: .34;
+  --xl-no: rgb(189 215 238 / calc(var(--hx-a, 1) * var(--xl-a)));
+  --xl-mem: rgb(234 242 251 / calc(var(--hx-a, 1) * var(--xl-a)));
   --xl-ded: var(--xl-phone);
   --xl-first: var(--xl-duty);
-  --xl-phone: #fbe5e5;
-  --xl-duty: #e2efda;
-  --xl-sum: #fff2cc;
+  --xl-phone: rgb(251 229 229 / calc(var(--hx-a, 1) * var(--xl-a)));
+  --xl-duty: rgb(226 239 218 / calc(var(--hx-a, 1) * var(--xl-a)));
+  --xl-sum: rgb(255 242 204 / calc(var(--hx-a, 1) * var(--xl-a)));
   --xl-line: #b9c0c9;
   --xl-line-strong: #6f7883;
   --xl-ink: #1b1f24;
-  --xl-input-bg: #ffffff;
+  --xl-input-bg: rgb(255 255 255 / calc(.55 + var(--hx-a, 1) * .30));
 }
 
 
@@ -1270,7 +1285,11 @@ dialog::backdrop {
 .leader-table .leader-member { min-width: 130px; font-weight: 700; }
 .leader-member small { display: block; font-size: 11px; font-weight: 400; color: var(--muted); }
 .leader-table .leader-total { background: var(--xl-sum); font-weight: 800; font-size: 18px; min-width: 50px; }
-.leader-project { width: 76px; min-width: 0; font: inherit; padding: 7px 3px; border: 1px solid var(--xl-line); border-radius: 6px; background: white; }
+.leader-project { width: 76px; min-width: 0; font: inherit; padding: 7px 3px; border: 1px solid var(--xl-line); border-radius: 6px;
+  /* 2026-11-17 A3：项目名输入框原来是纯白实底，在浅色壁纸下就是一块块白砖。
+     改成半透明（跟着卡片通透度滑杆），壁纸能透上来；打印时由 @media print 的
+     --xl-input-bg 实色兜住，纸上仍是白底黑字。 */
+  background: var(--xl-input-bg); }
 .leader-number { width: 58px; min-width: 0; text-align: center; }
 @media print { .leader-table { min-width: 0; table-layout: fixed; font-size: 9pt; } .leader-table th, .leader-table td { padding: 7pt 2pt; -webkit-print-color-adjust: exact; print-color-adjust: exact; } .leader-table th:nth-child(2) { width: 18%; } .leader-print h2 { text-align: center; font-size: 16pt; } .leader-print p { font-size: 10pt; } }
 .profile-preview { display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel-soft); }
@@ -3291,4 +3310,27 @@ table.data th, .assessment-table thead th,
   body.sidebar-layout table.sheet.sheet-vertical td.c-mem { padding: 1px 6px; }
   /* 表格本身不留白边：让腾出来的宽度全给列 */
   body.sidebar-layout .sheetwrap { margin: 0; }
+}
+
+/* ============================================================
+   2026-11-17 A3 收尾：打印还原实色
+   ------------------------------------------------------------------
+   浅色屏幕版把 --xl-* 改成了半透明（让壁纸透上来，见文件头）。但打印/导出 PDF
+   是给学校存档的纸质表，半透明会把表格染上页面底色、文字对比度也跟着掉。
+   所以 print 媒体下把这一套强制转回原来的 Excel 实色 —— 打印结果和改之前一模一样。
+   特意把深色模式也一起覆盖：深色的 --xl-* 是深底亮字，印在纸上就是一片黑。
+   ============================================================ */
+@media print {
+  :root,
+  :root[data-hx-mode="dark"] {
+    --xl-no: #bdd7ee;
+    --xl-mem: #eaf2fb;
+    --xl-phone: #fbe5e5;
+    --xl-duty: #e2efda;
+    --xl-sum: #fff2cc;
+    --xl-line: #b9c0c9;
+    --xl-line-strong: #6f7883;
+    --xl-ink: #1b1f24;
+    --xl-input-bg: #ffffff;
+  }
 }
