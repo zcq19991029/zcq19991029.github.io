@@ -108,7 +108,15 @@
       // 2026-11-13：**动效层 .hx-bgmo 从这里移出去了**。原来它和视频一起被 display:none 关掉，
       // 于是标准模式下的极光背景在子工具里是一张死图 —— 用户报的「打开标准模式，子工具里背景也不动」
       // 一半是这条、另一半是 apply() 里根本没调 bgMotion()（两处一起修，缺一个都不动）。
-      + 'html.hx-embedded .hx-bgvid-wrap{display:none!important}';
+      + 'html.hx-embedded .hx-bgvid-wrap{display:none!important}'
+      /* 2026-11-16 用户报「极简模式有壁纸、标准模式没有」（截图两张）。
+         嵌入的工具页**永远不建视频层**，所以海报帧就是它唯一能画的壁纸 —— 而 hx-vidlive 那条
+         `html.hx-vidlive body::before{background-image:none!important}` 一旦残留，壁纸就整块消失，
+         剩下的只有 html 的 --hx-page 纯黑，观感就是「标准模式背景没了」。
+         这里把海报钉死：只要 hx-bg（选了壁纸），嵌入页的 body::before 必须画 --hx-img，
+         与有没有 hx-vidlive 无关。极简/标准两档因此完全一致（差别只在 .hx-bgmo 动效层）。
+         --hx-img 是 none 时这条等于没写，没有副作用。 */
+      + 'html.hx-embedded.hx-bg body::before{background-image:var(--hx-img)!important}';
     (document.head || document.documentElement).appendChild(st);
 
     // ── 嵌入时的背景动效层样式（2026-11-13）─────────────────────────────
