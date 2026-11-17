@@ -13,12 +13,19 @@
      不按题过滤 —— 「挑对元件」本身就是要考的一半；挑错形态由摆放校验明确提示。
      摆放判定只看种类 + 个数，位置不算；连线判定只看「哪些端子连成了一片」，和摆在哪无关。
      版权和 guard.js 同其它页。 -->
-<html lang="zh-CN">
+<html lang="zh-CN" data-hx-peanut>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#03050b">
 <title>超级排位 · 摆元器件</title>
+<!-- 全站外观 + 药丸下拉（2026-11-17）：data-hx-peanut 在 <html> 上，顶栏那颗「选择题目」原生 select
+     由 hx-theme.js 换成铝箔药板，原生 select 仍留在 DOM 里负责取值，super.js 一行都不用改。
+     ../../hx-theme.js 按线上深度写：本页发布在 /wiring-lab/super/（两层深），站点根是 / ——
+     写成 ../hx-theme.js 会解析到 /wiring-lab/hx-theme.js（404），本地预览实测过，别再改回去。
+     data-tool="wiring"：正常入口是练习页 location.href='super/'（在 /wiring-lab/ 的 iframe 里换页），
+     window.top !== window 不会触发跳转；单独打开时回总入口 #wiring，和 /wiring-lab/ 同一套规矩。 -->
+<script src="../../hx-theme.js" data-tool="wiring"></script>
 <style>
   /* ★ 这些变量只是「还没换主题时的默认值」，页面启动时会由 super.js 按 theme.js 的 TH/C 整体覆盖一遍
        （见 syncCss），所以换主题时整页跟着换 —— 之前这里写死了一整套深色，主题改了它不动，用户说的

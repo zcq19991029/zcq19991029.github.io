@@ -8,13 +8,20 @@
        · 已完成的人缩成金色小头像条，不抢未完成名单的位置；
        · 每 3 秒自动刷新（只看，不写），新完成的人弹一下高亮，督促效果就靠这一下。
      ⚠️ 这一页整屏不滚动（1920×1080 投影一屏放下）：名单再多就自动缩字号/缩卡片，绝不出现滚动条。 -->
-<html lang="zh-CN">
+<html lang="zh-CN" data-hx-peanut>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#04060e">
 <title>课堂任务大屏 · 接线仿真</title>
 <link rel="stylesheet" href="task.css">
+<!-- 全站外观 + 药丸下拉（2026-11-17），../../hx-theme.js 按线上深度写：发布在 /wiring-lab/task/board.html，
+     两层深，站点根是 /（写成 ../ 会落到 /wiring-lab/hx-theme.js，404）。
+     ⚠️ 这一页**故意不加 data-tool**：大屏是 task.js 用 window.open('board.html?t=…') 开在顶层窗口里投屏的，
+     而 hx-theme.js 见到 data-tool + 顶层窗口 + 没有 ?solo 就会 location.replace 回总入口 —— 正在投的名单
+     会当场被换成总入口首页。所以这里只引脚本、不挂闸门：大屏不登录也能看，被踢回首页的代价远大于
+     少一道「未登录跳回总入口」。 -->
+<script src="../../hx-theme.js"></script>
 </head>
 <body class="board">
 <div id="bdRoot"><div class="bd-gate"><b>读取任务…</b></div></div>

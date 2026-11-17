@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-hx-peanut>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -1917,7 +1917,8 @@ html.hx-lite .hx-crumb:active::after { animation: none; }
   (function () {
     if (window.HXPeanut) return;
 
-    var STID = 'hx-peanut-style', sheet = null, OPEN = null, all = [], inited = false, queued = false;
+    var STID = 'hx-peanut-style', sheet = null, clip = null, fx = null, hideT = 0, pickT = 0;
+    var OPEN = null, all = [], inited = false, queued = false;
     var wrapOf = new WeakMap();
 
     function inject() {
@@ -1938,35 +1939,112 @@ html.hx-lite .hx-crumb:active::after { animation: none; }
         + '.hx-pn-txt{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'
         + '.hx-pn-car{flex:0 0 auto;width:6px;height:6px;border-right:1.7px solid currentColor;'
         + 'border-bottom:1.7px solid currentColor;transform:translateY(-2px) rotate(45deg);opacity:.55}'
-        // 面板：毛玻璃 + 胶囊行
-        + '.hx-pn-sheet{position:fixed;z-index:2147482000;box-sizing:border-box;display:none;overflow:auto;'
-        + 'padding:6px;border-radius:16px;'
-        // 面板配色**跟着触发器走**（open 时由 tint() 从按钮的 computed style 取），不跟账号主题：
-        // 工具页各自有各的底色（进制转换是米白、单片机是深蓝），跟主题走就会出现「浅页面弹深色面板」。
-        + 'background:var(--pn-bg,rgba(255,255,255,.94));border:1px solid var(--pn-bd,rgba(0,0,0,.1));'
-        + 'color:var(--pn-fg,#1d1d1f);box-shadow:var(--pn-sh,0 12px 32px rgba(0,0,0,.18),0 2px 6px rgba(0,0,0,.07));'
-        + 'backdrop-filter:blur(14px) saturate(1.3);-webkit-backdrop-filter:blur(14px) saturate(1.3);'
+        // 面板 = 一块铝箔药板。配方**直接从 刷题/style.css 的 .bsc-foil / .bsc-rim / .bsc-pill 抄过来**：
+        // 用户要的就是「跟刷题那边一样」，别再自己发明第二种长相（第一版做成白底圆角条，被问「药丸在哪儿」）。
+        // 铝箔是实物色（浅银），所以既不跟主题也不跟触发器底色走 —— 深色页面上它也是一块亮银色药板，
+        // 这正是刷题里那块药板的样子。因此原来那套 --pn-bg/--pn-fg 的 tint() 机制整个删掉了。
+        // 药板外面套一层「裁剪盒」（同刷题 .bsc-clip）：没有这一层，收起时能看到药板整块飘在触发器上方，
+        // 有了它就是「从触发器背后滑出来 / 滑回去」。上下留 6px / 30px 内边距，是给药板阴影留的呼吸位。
+        + '.hx-pn-clip{position:fixed;z-index:2147482000;display:none;box-sizing:border-box;'
+        + 'padding:6px 0 30px;overflow:hidden;pointer-events:none}'
+        // 460ms 回弹曲线滑出 + 320ms 淡入，跟刷题 .bsc-panel 逐条一致（用户要的就是「一样」）
+        + '.hx-pn-sheet{position:relative;box-sizing:border-box;width:100%;overflow:auto;pointer-events:auto;'
+        + 'transition:transform 460ms cubic-bezier(.22,1.06,.36,1),opacity 320ms cubic-bezier(.22,1.06,.36,1);'
+        + 'padding:6px;border-radius:14px;color:#20242a;border:1px solid rgba(255,255,255,.41);'
+        + 'background:'
+        + 'radial-gradient(300px circle at 38% 28%,rgba(255,255,255,.52) 0,rgba(255,255,255,.14) 38%,transparent 72%),'
+        + 'repeating-linear-gradient(45deg,rgba(255,255,255,.23) 0 1px,transparent 1px 3.5px),'
+        + 'repeating-linear-gradient(-45deg,rgba(55,60,70,.12) 0 1px,transparent 1px 3.5px),'
+        + 'repeating-linear-gradient(0deg,rgba(255,255,255,.145) 0,rgba(0,0,0,.04) 1px,rgba(255,255,255,.11) 2px),'
+        + 'linear-gradient(165deg,#eceef1,#d8dade 36%,#c5c9d0 74%,#d4d7dc);'
+        + 'box-shadow:inset 0 1.5px 1px rgba(255,255,255,.91),inset 1px 0 1px rgba(255,255,255,.65),'
+        + 'inset 0 -2px 3px rgba(72,76,86,.55),inset -1px 0 2px rgba(82,86,96,.38),'
+        + '0 14px 30px -8px rgba(0,0,0,.6),0 4px 10px rgba(0,0,0,.31);'
         + '-webkit-overflow-scrolling:touch}'
-        // 每一行是一颗胶囊：999px 圆角 + 一圈极细的描边。
-        // 只靠圆角没有底色时看不出形状（用户「药丸在哪儿」问的就是这个），描边让每颗胶囊有轮廓，像铝箔药板。
-        + '.hx-pn-opt{display:flex;align-items:center;width:100%;box-sizing:border-box;min-height:34px;padding:0 14px;'
-        + 'border:0;border-radius:999px;background:transparent;color:inherit;font:inherit;font-size:13.5px;'
-        + 'text-align:left;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0 0 3px;'
-        + 'box-shadow:inset 0 0 0 1px color-mix(in srgb,currentColor 13%,transparent)}'
-        + '.hx-pn-opt:last-child{margin-bottom:0}'
-        + '.hx-pn-opt:hover{background:var(--pn-hov,rgba(0,0,0,.06))}'
-        + '.hx-pn-opt.on{font-weight:600;background:color-mix(in srgb,var(--acc,#0a84ff) 16%,transparent);'
-        + 'box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--acc,#0a84ff) 42%,transparent)}'
-        + '.hx-pn-opt.dis{opacity:.4;cursor:not-allowed}'
-        + '.hx-pn-grp{padding:8px 13px 4px;font-size:11.5px;opacity:.55;letter-spacing:.02em}'
-        + '.hx-pn-empty{padding:10px 13px;font-size:13px;opacity:.55}'
-        // 极简外观（hx-lite）：去毛玻璃、收阴影，但**圆角不动** ——
-        // 2026-11-17 用户看到方角版直接问「药丸在哪儿？」，药丸形状是这套组件的本分，不因极简而变方。
-        // （底色仍取触发器脚下的底，不写死白/黑）
-        + 'html.hx-lite .hx-pn-sheet{box-shadow:0 4px 12px rgba(0,0,0,.22);'
-        + 'backdrop-filter:none;-webkit-backdrop-filter:none}';
+        // 一行 = 药板上的一格：左边一颗胶囊，右边名字；行与行之间是点线（同 .bsc-row）
+        + '.hx-pn-opt{display:grid;grid-template-columns:38px minmax(0,1fr);gap:9px;align-items:center;'
+        + 'width:100%;box-sizing:border-box;min-height:42px;padding:0 11px;margin:0;border:0;border-radius:0;'
+        + 'background:transparent;color:#20242a;font:inherit;font-size:13.5px;font-weight:600;'
+        + 'text-align:left;cursor:pointer;overflow:hidden}'
+        + '.hx-pn-opt+.hx-pn-opt{border-top:1px dotted rgba(84,89,100,.53)}'
+        + '.hx-pn-opt:hover{background:rgba(255,255,255,.24)}'
+        + '.hx-pn-opt:active{background:rgba(0,0,0,.05)}'
+        + '.hx-pn-opt:focus-visible{outline:2px solid #1a56ff;outline-offset:-3px}'
+        + '.hx-pn-opt.dis{opacity:.42;cursor:not-allowed}'
+        // 药槽 = 刷题 `.bsc-pocket` 那一套四层（`.bsc-rim` 金属圈 + `.bsc-rim::after` 压痕 + `.bsc-dome` 玻璃罩 + `.bsc-pill` 胶囊），
+        // 尺寸整体 ×0.7（药槽 54×30 → 38×21、胶囊 40×16 → 28×11）。缩小的原因：原生 select 常常只有一百来像素宽，
+        // 原尺寸一颗药就吃掉 54px，窄下拉里选项文字当场变省略号 —— 层次和比例一模一样，只是小一号。
+        + '.hx-pn-pk{position:relative;display:grid;place-items:center;width:38px;height:21px;isolation:isolate;pointer-events:none}'
+        + '.hx-pn-rim{position:absolute;inset:1px 1.5px;border-radius:999px;'
+        + 'background:linear-gradient(162deg,rgba(251,252,255,.61) 2%,rgba(115,121,134,.47) 24%,'
+        + 'rgba(244,245,248,.32) 49%,rgba(76,82,94,.33) 66%,#fff 96%);'
+        + 'box-shadow:0 1px 1.4px rgba(0,0,0,.27),inset 0 0 0 1px rgba(250,252,255,.75),'
+        + 'inset 0 0 0 1.5px rgba(130,136,149,.55),inset 0 0 0 2.5px rgba(233,237,242,.61),'
+        + 'inset 0 .7px 3.5px rgba(51,57,70,.77)}'
+        + '.hx-pn-rim::after{content:"";position:absolute;inset:3.5px;border-radius:inherit;'
+        + 'background:rgba(184,187,198,.36);'
+        + 'box-shadow:inset 0 1.4px 2px rgba(52,56,66,.33),inset 0 -.7px .7px #fff}'
+        + '.hx-pn-dome{position:absolute;z-index:2;inset:3px 4px;border-radius:999px;'
+        + 'background:linear-gradient(145deg,rgba(255,255,255,.33),rgba(255,255,255,.07) 32%,'
+        + 'transparent 56%,rgba(255,255,255,.13));box-shadow:inset 0 1px 1px rgba(255,255,255,.6)}'
+        + '.hx-pn-pill{position:relative;width:28px;height:11px;border-radius:999px;'
+        + 'background:linear-gradient(90deg,#0645c5 0 49%,#e8e8e8 50%);'
+        + 'box-shadow:0 1px 2px rgba(17,24,34,.4),inset 0 1px 1px rgba(0,0,0,.4)}'
+        + '.hx-pn-pill::before{content:"";position:absolute;inset:1.4px 50% 1.8px 1.8px;'
+        + 'border:1px solid rgba(96,153,252,.33);border-right:0;border-radius:999px 0 0 999px}'
+        + '.hx-pn-pill::after{content:"";position:absolute;inset:0;border-radius:inherit;'
+        + 'background:linear-gradient(180deg,rgba(0,0,0,.47),transparent 33%,rgba(255,255,255,.33) 68%,rgba(0,0,0,.27));'
+        + 'box-shadow:inset 0 -.7px .7px rgba(0,0,0,.33)}'
+        // 选中 = 这颗药被抠走了：露出撕开的空槽（同 `.bsc-cavity`，含毛边 clip-path 和那片反光锡纸）
+        + '.hx-pn-cav{position:absolute;inset:1px 1.5px;display:none;border-radius:999px;'
+        + 'background:conic-gradient(from 12deg,#f5f5f5,#666970 10%,#e4e6e8 17%,#b8bbc2 29%,'
+        + '#f5f5f5 37%,#484b50 48%,#d6d8db 59%,#878b91 66%,#f6f6f6 78%,#4a4c50 89%,#efeff0);'
+        + 'box-shadow:inset 0 0 0 1px #fff,inset 0 0 0 1.5px #7a7d82,inset 0 0 0 2.5px #e4e6ea,'
+        + '0 1.4px 2.8px rgba(0,0,0,.31)}'
+        + '.hx-pn-cav::before,.hx-pn-cav::after{content:"";position:absolute}'
+        + '.hx-pn-cav::before{inset:3px 4px;'
+        + 'clip-path:polygon(0 34%,9% 10%,25% 18%,38% 0,52% 14%,72% 0,89% 15%,100% 36%,'
+        + '97% 77%,87% 95%,69% 86%,56% 100%,38% 82%,24% 92%,20% 64%,4% 63%);'
+        + 'background:repeating-linear-gradient(4deg,rgba(255,255,255,.06) 0 1px,transparent 1px 3px),'
+        + 'radial-gradient(ellipse at 50% 78%,#4d4f51,#252729 62%,#111214 83%);box-shadow:inset 0 3px 8px #000}'
+        + '.hx-pn-cav::after{width:37%;height:61%;left:8%;bottom:9%;'
+        + 'clip-path:polygon(0 3%,38% 14%,52% 30%,85% 42%,74% 64%,99% 90%,51% 100%,11% 75%);'
+        + 'background:conic-gradient(from 31deg at 46% 49%,rgba(255,255,255,.73),#8c8f95,#fff,'
+        + '#53565e,#f9fafc,#bcbec3,rgba(255,255,255,.73))}'
+        + '.hx-pn-opt.on .hx-pn-cav{display:block}'
+        + '.hx-pn-opt.on :is(.hx-pn-rim,.hx-pn-dome,.hx-pn-pill){visibility:hidden}'
+        + '.hx-pn-opt.on .hx-pn-txt{font-weight:800}'
+        + '.hx-pn-txt{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-shadow:0 1px rgba(255,255,255,.66)}'
+        + '.hx-pn-grp{padding:8px 12px 3px;font-size:10.5px;font-weight:700;letter-spacing:.08em;color:#5c626b}'
+        + '.hx-pn-empty{padding:10px 12px;font-size:13px;color:#4a4f57}'
+        // 收起位：藏到触发器背后（--pn-hide 由 JS 按实测高度写，上方弹出时取正值反向滑出）
+        + '.hx-pn-sheet[inert]{transform:translateY(var(--pn-hide,-160px));opacity:0;pointer-events:none}'
+        // ── 动效层：一颗会飞的胶囊 + 铝箔碎屑 ───────────────────────────────
+        // 飞行的胶囊不能放在 .hx-pn-clip 里 —— 裁剪盒只罩住药板，触发器在它外面，飞行路径会被裁掉。
+        // 所以单独开一层铺满视口、不吃事件的 fx 层，坐标就是视口坐标（省掉刷题那边 wrap 相对换算）。
+        + '.hx-pn-fx{position:fixed;inset:0;z-index:2147482001;display:none;pointer-events:none;overflow:hidden}'
+        + '.hx-pn-flight{position:absolute;top:0;left:0;width:28px;height:11px;border-radius:999px;'
+        + 'background:linear-gradient(90deg,#0645c5 0 49%,#e8e8e8 50%);'
+        + 'box-shadow:0 1px 2px rgba(17,24,34,.4),inset 0 1px 1px rgba(0,0,0,.4);will-change:transform}'
+        + '.hx-pn-flight::before{content:"";position:absolute;inset:1.4px 50% 1.8px 1.8px;'
+        + 'border:1px solid rgba(96,153,252,.33);border-right:0;border-radius:999px 0 0 999px}'
+        + '.hx-pn-flight::after{content:"";position:absolute;inset:0;border-radius:inherit;'
+        + 'background:linear-gradient(180deg,rgba(0,0,0,.47),transparent 33%,rgba(255,255,255,.33) 68%,rgba(0,0,0,.27));'
+        + 'box-shadow:inset 0 -.7px .7px rgba(0,0,0,.33)}'
+        + '.hx-pn-burst{position:absolute;pointer-events:none}'
+        + '.hx-pn-burst>span{position:absolute;background:#f4f6f9;box-shadow:0 0 1px #51535f}'
+        + '.hx-pn-burst>.hx-pn-ring{width:18px;height:10px;margin:-5px -9px;background:transparent;'
+        + 'border:1px solid #1a56ff;border-radius:50%;box-shadow:none}'
+        // 极简外观：只收阴影，药板本体不动（刷题那边极简也还是这块铝箔）
+        + 'html.hx-lite .hx-pn-sheet{box-shadow:0 6px 16px rgba(0,0,0,.4)}'
+        // 极简档 / 系统「减少动态效果」：药板不滑、胶囊不飞，只淡入淡出（JS 侧同样跳过 burst 和飞行帧）
+        + 'html.hx-lite .hx-pn-sheet{transition:opacity .16s linear}'
+        + 'html.hx-lite .hx-pn-sheet[inert]{transform:none}'
+        + '@media (prefers-reduced-motion:reduce){.hx-pn-sheet{transition:opacity .16s linear}'
+        + '.hx-pn-sheet[inert]{transform:none}}';
       (document.head || document.documentElement).appendChild(s);
     }
+
 
     function labelOf(sel) {
       var o = sel.options[sel.selectedIndex];
@@ -1977,11 +2055,33 @@ html.hx-lite .hx-crumb:active::after { animation: none; }
 
     /* 从原生 select 现场抄外观。注意：**只抄能抄的**（颜色/边框/圆角/字体/内边距），
        不抄 width/height —— 那两条由「select 撑包装层、按钮铺满」这个结构负责，抄成 px 反而不能自适应。 */
+    /* 原生 select 常把「下拉箭头」挂成 background-image（考试页就是
+       `background: var(--field) url("data:image/svg+xml,…chevron…")`）。
+       skin() 只搬 backgroundImage、不搬 backgroundRepeat / Position / Size，
+       于是那个 12×8 的箭头会被平铺满整条按钮，看上去像一片波纹（2026-11-17 考试页实机）。
+       按钮右侧本来就有自己画的 .hx-pn-car 箭头，所以 url() 那几层直接丢掉，
+       纯渐变（单片机那种）照旧保留 —— 只按顶层逗号切层，括号里的逗号不算。 */
+    function stripIconLayers(bg) {
+      if (!bg || bg.indexOf('url(') === -1) return bg;
+      var parts = [], depth = 0, cur = '';
+      for (var i = 0; i < bg.length; i++) {
+        var ch = bg.charAt(i);
+        if (ch === '(') depth++;
+        else if (ch === ')') depth--;
+        if (ch === ',' && depth === 0) { parts.push(cur); cur = ''; }
+        else cur += ch;
+      }
+      parts.push(cur);
+      var keep = [];
+      for (var j = 0; j < parts.length; j++) if (parts[j].indexOf('url(') === -1) keep.push(parts[j]);
+      return keep.join(',') || 'none';
+    }
+
     function skin(inst) {
       var sel = inst.sel, btn = inst.btn, st = btn.style;
       if (!sel.getClientRects().length) return; // 还没露出来，量不到，等下次
       var cs = getComputedStyle(sel);
-      var fill = ['color', 'backgroundColor', 'backgroundImage', 'fontFamily', 'fontSize', 'fontWeight',
+      var fill = ['color', 'backgroundColor', 'fontFamily', 'fontSize', 'fontWeight',
         'letterSpacing', 'lineHeight', 'textAlign', 'borderTopWidth', 'borderRightWidth', 'borderBottomWidth',
         'borderLeftWidth', 'borderTopStyle', 'borderRightStyle', 'borderBottomStyle', 'borderLeftStyle',
         'borderTopColor', 'borderRightColor', 'borderBottomColor', 'borderLeftColor', 'borderRadius',
@@ -1990,6 +2090,7 @@ html.hx-lite .hx-crumb:active::after { animation: none; }
         var v = cs[fill[i]];
         if (v) st[fill[i]] = v;
       }
+      st.backgroundImage = stripIconLayers(cs.backgroundImage);
       // 原生下拉的文字大多是垂直居中、左右各留一点；按钮默认 0.8em 的内边距稍微补一点
       if (!inst.txt.textContent) st.paddingRight = (parseFloat(cs.paddingLeft) || 8) + 18 + 'px';
       inst.skinned = true;
@@ -2003,40 +2104,6 @@ html.hx-lite .hx-crumb:active::after { animation: none; }
       inst.btn.disabled = !!el.disabled;
       inst.btn.title = t;
       if (!inst.skinned) skin(inst);
-    }
-
-    /* 面板配色**跟着触发器走**：深色卡片里的下拉弹深色面板、米白页面上弹米白面板。
-       底色取按钮（= 原生 select）的 computed style；按钮是透明的（进制转换的「方向」就是无边框内联文字）
-       就沿着祖先找最近一层**有底色**的容器当面板底色 —— 总之不许出现「浅色页面弹一块深色面板」。
-       文字色一律用触发器自己的 color：那是人家为这块底配好的色。 */
-    var TRANSP = /^rgba\(0, 0, 0, 0\)$|^transparent$/;
-    function surfaceOf(el) {
-      var n = el && el.parentNode, i = 0;
-      while (n && n.nodeType === 1 && i++ < 10) {
-        var c = getComputedStyle(n).backgroundColor;
-        if (c && !TRANSP.test(c)) return c;
-        n = n.parentNode;
-      }
-      return null;
-    }
-    function tint(inst) {
-      var cs = getComputedStyle(inst.btn), st = sheet.style;
-      var bg = cs.backgroundColor, fg = cs.color || '#1d1d1f', bd = cs.borderTopColor;
-      var dark = document.documentElement.getAttribute('data-hx-mode') === 'dark';
-      if (!bg || TRANSP.test(bg)) bg = surfaceOf(inst.wrap);
-      if (bg && !TRANSP.test(bg)) {
-        st.setProperty('--pn-bg', bg);
-        st.setProperty('--pn-fg', fg);
-        st.setProperty('--pn-bd', (!bd || TRANSP.test(bd)) ? 'color-mix(in srgb,' + fg + ' 20%,transparent)' : bd);
-        st.setProperty('--pn-hov', 'color-mix(in srgb,' + fg + ' 9%,transparent)');
-        st.setProperty('--pn-sh', '0 12px 32px rgba(0,0,0,.26),0 2px 6px rgba(0,0,0,.1)');
-      } else {
-        st.setProperty('--pn-bg', dark ? 'rgba(28,28,30,.94)' : 'rgba(255,255,255,.94)');
-        st.setProperty('--pn-fg', dark ? '#f5f5f7' : '#1d1d1f');
-        st.setProperty('--pn-bd', dark ? 'rgba(255,255,255,.14)' : 'rgba(0,0,0,.1)');
-        st.setProperty('--pn-hov', dark ? 'rgba(255,255,255,.1)' : 'rgba(0,0,0,.06)');
-        st.setProperty('--pn-sh', dark ? '0 12px 32px rgba(0,0,0,.6)' : '0 12px 32px rgba(0,0,0,.18)');
-      }
     }
 
     function buildSheet(inst) {
@@ -2063,11 +2130,20 @@ html.hx-lite .hx-crumb:active::after { animation: none; }
         b.setAttribute('aria-selected', i === cur ? 'true' : 'false');
         b.setAttribute('data-i', i);
         if (o.disabled) b.disabled = true;
-        b.textContent = String(o.text || '').replace(/\s+/g, ' ').trim() || '（空）';
+        // 左边那颗胶囊（选中行由 CSS 换成空药槽）+ 右边名字
+        b.innerHTML = '<span class="hx-pn-pk"><i class="hx-pn-rim"></i><i class="hx-pn-pill"></i>'
+          + '<i class="hx-pn-dome"></i><i class="hx-pn-cav"></i></span><span class="hx-pn-txt"></span>';
+        b.querySelector('.hx-pn-txt').textContent = String(o.text || '').replace(/\s+/g, ' ').trim() || '（空）';
         sheet.appendChild(b);
       }
     }
 
+    /* 摆位。药板本体不再自己 fixed，改由裁剪盒定位置：
+         · 下方放得下 → 药板上沿 = 触发器下沿 + 6px（正好是 clip 的 6px 上内边距），从这里往下滑；
+         · 下方放不下 → 翻到上方，药板下沿 = 触发器上沿 − 6px，此时滑出方向反转为「从下往上」；
+         · 两边都放不下 → 夹进视口。
+       --pn-hide 就是「藏起来时该偏移多少」：放在触发器下面时往上藏（负值），
+       放在上面时往下藏（正值），两边都能完全藏进裁剪盒外面，动画起手才不露边。 */
     function place(inst) {
       var r = inst.wrap.getBoundingClientRect();
       var vw = document.documentElement.clientWidth || innerWidth;
@@ -2076,46 +2152,195 @@ html.hx-lite .hx-crumb:active::after { animation: none; }
       if (pw < 168) pw = 168;
       if (pw > 340) pw = 340;
       if (pw > vw - 16) pw = vw - 16;
-      sheet.style.width = pw + 'px';
+      clip.style.width = pw + 'px';
       sheet.style.maxHeight = Math.max(120, Math.min(320, vh - 24)) + 'px';
-      sheet.style.left = '-9999px';       // 先挪出去量真实高度，量完再摆
-      sheet.style.top = '0px';
-      var h = sheet.offsetHeight;
+      // 先挪出屏幕量真实高度（transform 不影响 offsetHeight，所以藏着也能量）
+      clip.style.left = '-9999px';
+      clip.style.top = '0px';
+      var sh = sheet.offsetHeight;
+      var h = sh + 36;                       // 药板高 + clip 上下内边距（6 + 30）
       var left = Math.max(8, Math.min(Math.round(r.left), vw - 8 - pw));
-      var top = Math.round(r.bottom) + 6;
+      var top = Math.round(r.bottom);        // 下沿对齐：药板上沿 = r.bottom + 6
+      var below = true;
       if (top + h > vh - 8) {
-        var up = Math.round(r.top) - 6 - h;
-        top = up >= 8 ? up : Math.max(8, vh - 8 - h);   // 上方也放不下就夹进视口底部
+        var up = Math.round(r.top) - sh - 12;  // 药板下沿 = r.top − 6，再减上内边距
+        if (up >= 8) { top = up; below = false; }
+        else top = Math.max(8, vh - 8 - h);    // 上方也放不下就夹进视口底部（按「往下滑」处理）
       }
-      sheet.style.left = left + 'px';
-      sheet.style.top = top + 'px';
+      sheet.style.setProperty('--pn-hide', (below ? -1 : 1) * (sh + 16) + 'px');
+      clip.style.left = left + 'px';
+      clip.style.top = top + 'px';
     }
 
-    function close() {
-      if (!OPEN) return;
+    /* 极简档 / 系统「减少动态效果」：胶囊不飞、药板不滑，只淡入淡出。
+       判据同时看 html.hx-lite（全站唯一档位开关）和 matchMedia，跟刷题 bscLite() 一致。 */
+    function isLite() {
+      try { if (document.documentElement.classList.contains('hx-lite')) return true; } catch (e) { }
+      try { return !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e) { return false; }
+    }
+
+    // 刷题那两条曲线：胶囊从槽里「弹」出来用回弹，后半程飞向触发器用缓入缓出
+    function back(t) { return 1 + 2.70158 * (t - 1) * (t - 1) * (t - 1) + 1.70158 * (t - 1) * (t - 1); }
+    function cubic(t) { return t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
+
+    function fxOn() { if (fx) fx.style.display = 'block'; }
+    function fxOff() {
+      if (!fx) return;
+      // 还有没播完的碎屑就再等等，别把正在飞的胶囊一起摘掉
+      for (var i = 0; i < fx.children.length; i++) if (fx.children[i].getAttribute('data-busy') === '1') return;
+      fx.style.display = 'none';
+    }
+
+    /* 撕开药槽那一下：一圈细环 + N 片锡纸（照刷题 burst()，尺寸按 ×0.7 的药槽缩小）。
+       cx / cy 是视口坐标；fx 层铺满视口且 inset:0，所以坐标可以直接用。 */
+    function burstAt(cx, cy, shards) {
+      if (!fx) return;
+      var g = document.createElement('span');
+      g.className = 'hx-pn-burst';
+      g.setAttribute('aria-hidden', 'true');
+      g.setAttribute('data-busy', '1');
+      g.style.left = cx + 'px';
+      g.style.top = cy + 'px';
+      fx.appendChild(g);
+      var ring = document.createElement('span');
+      ring.className = 'hx-pn-ring';
+      g.appendChild(ring);
+      var left = shards ? shards + 1 : 1, done = 0;
+      function tick() { if (++done >= left) { g.remove(); fxOff(); } }
+      function run(el, frames, opt) {
+        try { el.animate(frames, opt).finished.then(tick, tick); } catch (e) { tick(); }
+      }
+      run(ring, [{ opacity: .7, transform: 'scale(.8)' }, { opacity: 0, transform: 'scale(3.2)' }],
+        { duration: 280, easing: 'ease-out', fill: 'forwards' });
+      for (var i = 0; i < (shards || 0); i++) {
+        var f = document.createElement('span');
+        var a = i / shards * Math.PI * 2 + (Math.random() - .5) * .3;
+        var d = 18 + Math.random() * 24;
+        var x = Math.cos(a) * d, y = Math.sin(a) * d;
+        f.style.width = (2.5 + i % 3) + 'px';
+        f.style.height = (1.2 + i % 2) + 'px';
+        g.appendChild(f);
+        run(f, [
+          { opacity: .92, transform: 'translate(' + (x * .16) + 'px,' + (y * .12) + 'px) rotate(' + (i * 26) + 'deg)' },
+          { opacity: .48, transform: 'translate(' + (x * .66) + 'px,' + (y * .72 - 9) + 'px) rotate(' + (i * 34 + 45) + 'deg)', offset: .56 },
+          { opacity: 0, transform: 'translate(' + x + 'px,' + (y + 12) + 'px) rotate(' + (i * 40 + 95) + 'deg)' }
+        ], { duration: 290 + i % 4 * 32, fill: 'forwards' });
+      }
+    }
+
+    /* 胶囊从被点的那一格里飞出来，划一道弧线扎进触发器左端缩没（23 帧，与刷题同一条曲线）。
+       用 translate3d 拼帧而不是改 left/top：不触发重排，95 个下拉扎堆的页面上也不掉帧。 */
+    function fly(src, dst, btn) {
+      if (!fx || !src || !dst || !src.width) return;
+      fxOn();
+      var cx = src.left + src.width / 2, cy = src.top + src.height / 2;
+      burstAt(cx, cy, 14);
+      var pill = document.createElement('span');
+      pill.className = 'hx-pn-flight';
+      pill.setAttribute('aria-hidden', 'true');
+      fx.appendChild(pill);
+      var hw = (pill.offsetWidth || 28) / 2, hh = (pill.offsetHeight || 11) / 2;
+      var sx = cx - hw, sy = cy - hh;
+      var dx = dst.left + 13 - hw, dy = dst.top + dst.height / 2 - hh;
+      var lift = 5, N = 23, frames = [];
+      for (var i = 0; i < N; i++) {
+        var t = i / (N - 1), pop = t <= .36;
+        var p = pop ? back(t / .36) : cubic((t - .36) / .64);
+        var arc = pop ? 0 : Math.sin(Math.PI * p);
+        var x = pop ? sx : sx + (dx - sx) * p - 4 * arc;
+        var y = pop ? sy - lift * p : sy - lift + (dy - sy + lift) * p;
+        var sc = pop ? 1 + .3 * p : 1.3 + (.34 - 1.3) * p + .06 * arc;
+        var fade = pop ? 1 : 1 - Math.max(0, (p - .84) / .16);
+        var tilt = -5.5 * (pop ? p : 1 - p);
+        frames.push({
+          transform: 'translate3d(' + x + 'px,' + y + 'px,0) rotate(' + tilt + 'deg) scale(' + sc + ')',
+          opacity: fade
+        });
+      }
+      var anim;
+      try { anim = pill.animate(frames, { duration: 430, fill: 'forwards' }); } catch (e) { pill.remove(); return; }
+      function land() {
+        pill.remove();
+        // 落点再闪一圈 + 触发器弹一下（刷题是「整块铝箔亮起来」，我们这颗按钮的外观是从原生 select 抄的，
+        // 没法整块换成铝箔，就改成一记回弹 + 一圈光晕，位置和节奏对得上）
+        burstAt(dst.left + 13, dst.top + dst.height / 2, 0);
+        try {
+          btn.animate([{ transform: 'scale(1.05)' }, { transform: 'scale(.985)', offset: .55 }, { transform: 'none' }],
+            { duration: 320, easing: 'cubic-bezier(.22,1,.36,1)' });
+        } catch (e) { }
+        fxOff();
+      }
+      anim.finished.then(land, function () { pill.remove(); fxOff(); });
+    }
+
+    /* instant=true：立刻收（不播滑回动画）。换触发器 / 页面滚动 / Esc 走这里，
+       因为那时候触发器可能已经不在原位，让药板「滑回某个已经移走的位置」反而像卡住。 */
+    function close(instant) {
+      clearTimeout(hideT);
+      clearTimeout(pickT);
+      if (!OPEN) {
+        if (instant && clip) clip.style.display = 'none';
+        return;
+      }
       var inst = OPEN;
       OPEN = null;
       try { inst.btn.setAttribute('aria-expanded', 'false'); } catch (e) { }
-      if (sheet) sheet.style.display = 'none';
+      if (!clip) return;
+      if (instant) { clip.style.display = 'none'; return; }
+      sheet.inert = true;                     // 药板滑回触发器背后
+      hideT = setTimeout(function () { if (!OPEN && clip) clip.style.display = 'none'; }, 480);
     }
 
-    function pick(inst, i) {
+    function pick(inst, i, row) {
       var sel = inst.sel;
       if (sel.selectedIndex === i) { refresh(sel); close(); return; }
+      var lite = isLite();
+      // 起点/落点必须在收起之前量 —— 药板一开始滑，行就不在原位了
+      var src = null, dst = null;
+      if (!lite && row && row.querySelector && inst.btn.getClientRects().length) {
+        var pk = row.querySelector('.hx-pn-pk');
+        if (pk) { src = pk.getBoundingClientRect(); dst = inst.btn.getBoundingClientRect(); }
+      }
       sel.selectedIndex = i;
       refresh(sel);
-      close();
+      /* 点中的那格当场变成空药槽（同刷题 choose()：换的是壳不是数据）——
+         胶囊就是从这一格里飞走的，若等下一 次 buildSheet 才换，飞行起点会对着另一格。 */
+      if (!lite && row && sheet) {
+        var opts = sheet.querySelectorAll('.hx-pn-opt');
+        for (var k = 0; k < opts.length; k++) {
+          var isOn = opts[k] === row;
+          opts[k].classList.toggle('on', isOn);
+          opts[k].setAttribute('aria-selected', isOn ? 'true' : 'false');
+        }
+      }
       // 顺序跟原生一致：先 input 再 change。写请求类的监听方（如果这个 select 触发了存盘）不受影响 ——
       // 这里只是把「用户选了一下」这件事补上，不做任何重试（全站写请求都不许重试）。
       try { sel.dispatchEvent(new Event('input', { bubbles: true })); } catch (e) { }
       try { sel.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) { }
       try { inst.btn.focus({ preventScroll: true }); } catch (e2) { }
+      if (!src || !dst) { close(); return; }
+      /* 动效放在派发之后：change 的监听方常常就地重画页面（甚至开对话框），
+         先把数据这一趟走完，再纯粹放烟花，出问题也只是少一个动画，不会挡住功能。 */
+      var cav = row.querySelector('.hx-pn-cav');   // 被撕开的那格先亮一下
+      if (cav) {
+        try {
+          cav.animate([{ transform: 'scale(.84)', filter: 'brightness(1.35)' },
+          { transform: 'scale(1.05)', filter: 'brightness(.92)', offset: .45 },
+          { transform: 'none', filter: 'none' }], { duration: 260, easing: 'cubic-bezier(.22,1,.36,1)' });
+        } catch (e) { }
+      }
+      try { fly(src, dst, inst.btn); } catch (e) { }
+      /* 收板子晚 165ms：胶囊飞出槽的那一段（0~36% / 430ms ≈ 155ms）得在板子上演完，
+         否则药板一眨眼就滑走，只剩一颗胶囊在半空飘，看不出「从这一格里取走」。
+         数据早就在上面派发完了，这 165ms 只是画面，不影响任何工具。 */
+      clearTimeout(pickT);
+      pickT = setTimeout(function () { close(); }, 165);
     }
 
     function onSheetClick(e) {
       var b = e.target && e.target.closest ? e.target.closest('.hx-pn-opt') : null;
       if (!b || !OPEN || b.disabled) return;
-      pick(OPEN, +b.getAttribute('data-i'));
+      pick(OPEN, +b.getAttribute('data-i'), b);
     }
 
     function open(inst) {
@@ -2125,27 +2350,50 @@ html.hx-lite .hx-crumb:active::after { animation: none; }
       if (OPEN === inst && now - (inst.t || 0) < 260) return;
       inst.t = now;
       if (OPEN === inst) { close(); return; }
-      close();
+      close(true);
       inject();
-      if (OPEN) close();
-      if (!sheet) {
+      if (!clip) {
+        clip = document.createElement('div');
+        clip.className = 'hx-pn-clip';
         sheet = document.createElement('div');
         sheet.className = 'hx-pn-sheet';
         sheet.setAttribute('role', 'listbox');
         sheet.addEventListener('click', onSheetClick);
-        document.body.appendChild(sheet);
-      } else if (sheet.parentNode !== document.body) {
-        document.body.appendChild(sheet);
+        clip.appendChild(sheet);
       }
+      if (clip.parentNode !== document.body) document.body.appendChild(clip);
+      if (!fx) {
+        fx = document.createElement('div');
+        fx.className = 'hx-pn-fx';
+      }
+      if (fx.parentNode !== document.body) document.body.appendChild(fx);
       skin(inst);
-      tint(inst);
       buildSheet(inst);
-      sheet.style.display = 'block';
-      place(inst);
+      sheet.style.display = '';       // 兼容上一版：药板本身不再控制显隐，交回 CSS
+      clip.style.display = 'block';
+      sheet.inert = true;             // 先摆成「藏在触发器背后」，下一帧再放行
       OPEN = inst;
+      place(inst);
       try { inst.btn.setAttribute('aria-expanded', 'true'); } catch (e) { }
       var on = sheet.querySelector('.hx-pn-opt.on');
       if (on) sheet.scrollTop = Math.max(0, on.offsetTop - sheet.clientHeight / 2 + on.offsetHeight / 2);
+      var lite = isLite();
+      // 两个 rAF 再放行：CSS 过渡把药板从触发器背后滑下来（跟刷题一模一样的起手）
+      (window.requestAnimationFrame || setTimeout)(function () {
+        if (OPEN !== inst) return;
+        sheet.inert = false;
+        if (lite) return;
+        // 每颗胶囊从槽里逐个弹起，delay 按行号递增 —— 药板滑下来的同时药粒「醒过来」
+        var pills = sheet.querySelectorAll('.hx-pn-opt:not(.on) .hx-pn-pill');
+        for (var i = 0; i < pills.length; i++) {
+          try {
+            pills[i].animate([{ transform: 'translateY(-4px) scale(.82)' },
+            { transform: 'translateY(1px) scale(1.06)', offset: .65 },
+            { transform: 'none' }],
+              { duration: 380, delay: i * 45, easing: 'cubic-bezier(.22,1,.36,1)', fill: 'backwards' });
+          } catch (e) { }
+        }
+      });
     }
 
     function enhance(sel) {
@@ -2163,6 +2411,19 @@ html.hx-lite .hx-crumb:active::after { animation: none; }
         || (pw > 0 && sel.offsetWidth >= pw - 2);
       wrap.style.display = full ? 'block' : 'inline-block';
       if (full) wrap.style.width = '100%';
+      // 父容器是 flex 行时（总入口密码框那颗 #pwCls 就是 style="flex:1"），flex / 宽度约束长在 select 身上，
+      // 换成 inline-block 包装层就全丢了 → 按钮缩回内容宽度、旁边那颗按钮跟着挪位。
+      // 所以把 flex、align-self、min/max-width、order 原样搬到包装层上，让它顶替 select 当 flex 子项。
+      try {
+        var pcs = getComputedStyle(sel.parentNode);
+        if (/flex/.test(pcs.display)) {
+          wrap.style.flex = cs.flex || '0 1 auto';
+          if (cs.alignSelf && cs.alignSelf !== 'auto') wrap.style.alignSelf = cs.alignSelf;
+          if (cs.minWidth && cs.minWidth !== 'auto' && cs.minWidth !== '0px') wrap.style.minWidth = cs.minWidth;
+          if (cs.maxWidth && cs.maxWidth !== 'none') wrap.style.maxWidth = cs.maxWidth;
+          if (cs.order && cs.order !== '0') wrap.style.order = cs.order;
+        }
+      } catch (e) { }
       sel.parentNode.insertBefore(wrap, sel);
       sel.classList.add('hx-pn-src');
       wrap.appendChild(sel);
@@ -2711,6 +2972,9 @@ html[data-hx-mode="light"].hx-bg .seg button[aria-pressed="true"] { background: 
 #filterRow select { flex: 1; min-width: 0; height: 34px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line2); background: var(--card-solid); color: var(--ink); font-size: 13px; outline: none; transition: border-color .2s, box-shadow .2s; }
 #filterRow select:focus { border-color: var(--acc); box-shadow: 0 0 0 3px var(--ring, var(--fill)); }
 #filterRow select:disabled { color: var(--dim); }
+/* 药丸下拉（2026-11-17）：这一行在初始化时是 hidden 的，hx-theme.js 包 .hx-pn 时量不到
+   flex:1，两颗筛选会缩成文字宽度。补在包装层上，跟上面 select 的规则对齐。 */
+#filterRow .hx-pn { flex: 1; min-width: 0; }
 
 /* 题卡：答完后可以左右拖（鼠标、手指都行），左“记住”、右“再练” */
 .card { padding: 22px 20px 20px; touch-action: pan-y; will-change: transform; }

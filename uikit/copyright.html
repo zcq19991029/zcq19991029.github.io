@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="zh-CN" data-mode="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>使用说明与来源 · UI 设计</title>
+<script>
+  try {
+    var m = localStorage.getItem('uikit:mode');
+    if (!m) m = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-mode', m);
+  } catch (e) { }
+</script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">
+    <i aria-hidden="true"></i>
+    <b>UI 设计</b>
+    <span class="ver">v0.1 · 2026-11-17</span>
+  </div>
+  <div style="margin-left:auto; display:flex; gap:8px">
+    <a class="btn" href="index.html">回组件目录</a>
+  </div>
+</header>
+
+<main class="doc">
+  <h1>使用说明与来源</h1>
+  <p class="upd">更新日期：2026 年 11 月 17 日</p>
+
+  <p class="lead">仅供学习使用。</p>
+  <p>UI 设计是华夏工具里的界面零件存档，属于个人教学工具与界面学习项目；它不是所参考设计师或项目的官方网站，也不代表获得其背书。</p>
+  <p>学习用途声明只说明本项目的目的，不代替授权、不转移著作权，也不授予复制、分发或商业使用第三方内容的权利。</p>
+
+  <h2>这套东西怎么用</h2>
+  <ul>
+    <li><b>源码</b>：每个组件都给出可以直接复制到别的项目里跑的 HTML / CSS / JS，不依赖本站的构建流程。</li>
+    <li><b>复刻提示词</b>：一段写给 AI 的完整需求，粘过去就能让它把这个组件重做一遍 —— 比只给代码更适合「我要改成我们自己的风格」。</li>
+    <li><b>预览</b>：iframe 里跑的是真组件，不是截图。可以点、可以拖、可以切深浅。</li>
+    <li><b>API 参考</b>：属性、方法、事件、CSS 变量，够你判断「能不能直接套用」。</li>
+  </ul>
+  <p>欢迎抄、欢迎改。唯一的要求：抄走的时候把出处留着，别把别人的东西说成自己原创。</p>
+
+  <h2>逐项核对来源</h2>
+  <p>组件详情页保留已知的设计参考、代码来源和许可信息。公开链接、署名、免费提供或改写实现，本身都不等于取得受保护内容的使用授权。</p>
+  <p>许可不明确时，应在公开发布或再次分发前取得权利人授权，或改用独立制作且权利清楚的替代内容。</p>
+
+  <h2>图片、媒体与商标</h2>
+  <p>组件代码的许可不一定涵盖其中的照片、字体、插画、商标及参考设计。使用时应替换为自己拥有权利或获准使用的素材，不将第三方作品冒称原创。</p>
+  <p>对于现有代码仍适用的版权和来源声明会予以保留。本页不重新许可第三方作品，也不承诺任何使用方式都已获授权。</p>
+
+  <h2>第三方组件与致谢</h2>
+  <ul>
+    <li><b>pixelfx</b>（MIT）：首页卡片上的像素小生物与像素加载动效。义务只有一条 —— 保留版权与许可声明，见仓库 <code>NOTICE-pixelfx.md</code>。</li>
+    <li><b>LeiBox</b>（<code>leibox.pantoria.cn</code>）：一个公开的界面组件学习项目。本工具的<b>版式与组织方式</b>（简介 / 来源 / 预览 / 参数 / 代码 / 使用示例 / 复刻提示词 / API 参考的先后顺序，以及这份使用说明页的条目结构）参考了它；<b>代码与素材均为本项目独立实现</b>，没有复制其组件源码或图片。</li>
+    <li>其余组件（药丸下拉、卡片通透度、无感滚动条等）均为华夏工具原创，来源写在各自的详情页里。</li>
+    <li><b>关于「药丸动效」</b>：铝合金药板、胶囊飞行弧线与锡纸碎屑这套动效，是本项目在 2026-11 一次课堂工具改造里反复调出来的（初版只抄了外观，用户一眼看出「跟刷题那个只是长得一样」，随后补了整套运动曲线）。
+      文中的时间常数（460ms 回弹、430ms／23 帧、165ms 延迟）来自实机比对，不是从别处抄的数值；如果你要用，直接拿去，出处在 <code>hx-theme.js</code> 末尾的 <code>HXPeanut</code>。</li>
+  </ul>
+
+  <h2>这是非盈利项目</h2>
+  <p>华夏工具不收费、不接广告、不卖数据，是给教室里用的教学工具，外加一个给同行看的技术存档。这里收录的界面做法都可以自由拿去用在学习、教学和个人项目里。</p>
+
+  <h2>权利人联系</h2>
+  <p>如您是相关权利人，请提供涉及页面链接、原始作品或权利证明、具体问题与联系方式。我会核实请求，并根据情况更正署名、替换素材或移除内容。</p>
+  <p>联系方式：登录华夏工具后，从首页「反馈」工具留言即可（开发者直接收得到）。</p>
+
+  <a class="btn back" href="index.html">回组件目录</a>
+</main>
+
+</body>
+</html>

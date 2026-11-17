@@ -86,7 +86,114 @@
 <style>
 .tx1-page{max-width:1500px;margin:0 auto;padding-bottom:28px}.tx1-hero{display:flex;align-items:end;justify-content:space-between;gap:20px;flex-wrap:wrap;margin:8px 0 18px}.tx1-hero h2{margin:5px 0 4px;font-size:clamp(24px,3vw,38px);color:#1d2733}.tx1-hero p{margin:0;color:#66717d;font-weight:700}.tx1-controls{display:flex;gap:8px;flex-wrap:wrap}.tx1-control{border:1px solid #dfb3b4;background:#fffafa;border-radius:9px;padding:9px 12px;color:#a9222a;font-weight:900;cursor:pointer}.tx1-control.primary{background:#d9232e;color:#fff;border-color:#d9232e}.tx1-layout{display:grid;grid-template-columns:minmax(0,1.52fr) minmax(310px,.48fr);gap:18px;align-items:start}.tx1-board-card{padding:14px;background:#fff;border:1px solid #ead7d7;border-radius:18px;box-shadow:0 12px 28px #79212512}.tx1-photo-wrap{position:relative;overflow:hidden;width:100%;aspect-ratio:2497/1274;border-radius:11px;background:#210d0f;box-shadow:inset 0 0 0 3px #4f1518,0 8px 18px #28111422}.tx1-photo{display:block;width:100%;height:100%;object-fit:cover}.tx1-photo-wrap:after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(120deg,#ffffff12,transparent 35%,#00000018)}.tx1-wire-overlay{display:none!important;position:absolute;inset:0;width:100%;height:100%;opacity:0;transition:opacity .2s;pointer-events:none}.tx1-wire-overlay.visible{opacity:1}.tx1-wire-overlay path{fill:none;stroke:#ffe36c;stroke-width:.8;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:2.5 2;filter:drop-shadow(0 0 3px #4b2500)}.tx1-wire-overlay text{font:900 2.6px ui-sans-serif;fill:#fff4a1;paint-order:stroke;stroke:#5e1b20;stroke-width:.45px}.tx1-hotspot{position:absolute;z-index:2;transform:translate(-50%,-50%);min-width:25px;height:25px;padding:3px;border:2px solid #fff;border-radius:50%;background:#d7232d;color:#fff;box-shadow:0 2px 9px #3c0708aa;cursor:pointer;transition:transform .15s,background .15s}.tx1-hotspot:hover,.tx1-hotspot.active{transform:translate(-50%,-50%) scale(1.18);background:#ffc94d;color:#391719}.tx1-hotspot span{position:absolute;left:50%;top:calc(100% + 5px);transform:translateX(-50%);white-space:nowrap;padding:3px 6px;border-radius:5px;background:#191f29eF;color:#fff;font-size:11px;font-weight:900;pointer-events:none}.tx1-hotspot[data-part="mcu"]{left:45.7%;top:53%;background:#f7e0e0;color:#68191e}.tx1-hotspot[data-part="p1"]{left:80.6%;top:26%;}.tx1-hotspot[data-part="led"]{left:25%;top:16%;}.tx1-hotspot[data-part="s2"]{left:22%;top:93%;}.tx1-hotspot[data-part="s3"]{left:28.3%;top:93%;}.tx1-hotspot[data-part="buzzer"]{left:63.5%;top:77%;}.tx1-hotspot[data-part="reset"]{left:52.5%;top:78%;}.tx1-hotspot[data-part="power"]{left:96%;top:13%;}.tx1-photo-caption{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:11px 3px 2px;color:#6d5960;font-size:12px;font-weight:800}.tx1-photo-caption b{color:#9e242b}.tx1-side{display:grid;gap:14px}.tx1-panel{padding:11px;background:#fff;border:1px solid #ead7d7;border-radius:14px}.tx1-panel h3{margin:0 0 10px;color:#84232a;font-size:19px}.tx1-panel p{margin:8px 0;color:#66717d;line-height:1.5;font-size:13px;font-weight:700}.tx1-readout{display:grid;grid-template-columns:auto 1fr;gap:5px 12px;align-items:center;padding:11px;border-radius:10px;background:#202a36;color:#fff}.tx1-readout strong{color:#ffd348;font:900 25px ui-monospace}.tx1-readout span{grid-column:2;color:#bdc8d2;font:12px ui-monospace}.tx1-led-strip{display:grid;grid-template-columns:repeat(8,1fr);gap:4px;margin-top:11px}.tx1-led-cell{text-align:center;color:#65717e;font:10px ui-monospace}.tx1-led-cell i{display:block;width:19px;height:19px;margin:0 auto 3px;border-radius:50%;background:#b0b7be;border:2px solid #444c55}.tx1-led-cell i.on{background:#ff343b;box-shadow:0 0 13px #ff293d}.tx1-pin-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.tx1-pin{padding:9px;border:1px solid #ecdcdc;border-radius:9px;background:#fff9f7}.tx1-pin b,.tx1-pin span,.tx1-pin em{display:block}.tx1-pin b{color:#a0232a}.tx1-pin span{margin-top:2px;color:#66717d;font:12px ui-monospace}.tx1-pin em{margin-top:3px;color:#3e795b;font-style:normal;font-size:11px;font-weight:900}.tx1-key-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}.tx1-key{min-height:48px;border:2px solid #6f7479;border-radius:8px;background:linear-gradient(#f9f8e7,#d4d6c7);box-shadow:0 3px #363c42;color:#2b343c;cursor:pointer;touch-action:none}.tx1-key:active,.tx1-key.pressed{transform:translateY(3px);box-shadow:none;background:#ffd05e}.tx1-key b,.tx1-key small{display:block}.tx1-key small{margin-top:3px;font-size:9px;color:#68727a}.tx1-buzzer{display:flex;align-items:center;gap:12px;padding:10px;border-radius:9px;background:#fff5da}.tx1-buzzer-icon{display:grid;place-items:center;width:55px;height:37px;border-radius:50%;background:#172029;border:4px solid #6f7c85;color:#ffe379;font:900 8px ui-monospace}.tx1-waves{color:#e97c37;font-size:22px;letter-spacing:-4px;opacity:.22}.tx1-buzzer.active .tx1-waves{opacity:1;animation:tx1Pulse .55s ease-in-out infinite alternate}@keyframes tx1Pulse{to{transform:scale(1.12);opacity:.55}}.tx1-state{font-weight:900;color:#a02229}.tx1-note{padding:10px;border-radius:9px;background:#fff3cf;color:#785d1e;font-size:12px;line-height:1.5;font-weight:800}.tx1-legend{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;color:#65717d;font-size:11px;font-weight:800}.tx1-legend b{color:#d2222d}@media(max-width:1050px){.tx1-layout{grid-template-columns:1fr}.tx1-side{grid-template-columns:repeat(2,minmax(0,1fr))}.tx1-side .tx1-panel:last-child{grid-column:1/-1}}@media(max-width:650px){.tx1-side{grid-template-columns:1fr}.tx1-hotspot span{font-size:9px}.tx1-pin-grid{grid-template-columns:1fr 1fr}.tx1-photo-caption{font-size:11px}}
 </style>
-<style>.tx1-vector{display:block;width:100%;height:100%}.pcb-key{cursor:pointer;touch-action:none}.pcb-key:hover .key-cap{fill:#424c59}.pcb-key.pressed .key-cap{fill:#ffd15b}.tx1-photo-wrap{aspect-ratio:1500/700}.tx1-board-card{min-width:0}.tx1-layout{grid-template-columns:minmax(0,1fr)}.tx1-side{grid-template-columns:repeat(4,minmax(0,1fr))}@media(max-width:1000px){.tx1-side{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:650px){.tx1-side{grid-template-columns:1fr}.tx1-photo-wrap{overflow-x:auto}.tx1-vector{min-width:850px}.tx1-photo-wrap{aspect-ratio:auto}} </style><style>.tx1-keil-panel{margin-top:18px;padding:18px;background:#fff;border:1px solid #ead7d7;border-radius:16px;box-shadow:0 10px 24px #79212512}.tx1-keil-head{display:flex;justify-content:space-between;gap:16px;align-items:end;flex-wrap:wrap}.tx1-keil-head h3{margin:4px 0;color:#84232a;font-size:22px}.tx1-keil-head p{margin:0;color:#66717d;font-weight:700}.tx1-keil-actions{display:flex;gap:8px;flex-wrap:wrap}.tx1-code-editor{display:block;width:100%;min-height:220px;margin-top:14px;box-sizing:border-box;resize:vertical;background:#18222e;color:#eef3f7;border:3px solid #273646;border-radius:12px;padding:18px;font:15px/1.65 Consolas,'Courier New',monospace;tab-size:4}.tx1-code-editor:focus{outline:3px solid #f5c2c5}.tx1-keil-status{margin-top:10px;padding:10px 12px;border-radius:8px;background:#fff4d2;color:#765b1d;font-weight:800}.tx1-keil-status.ok{background:#e4f7eb;color:#277346}.tx1-keil-status.error{background:#ffe5e5;color:#a3212a}.tx1-pin-check{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;color:#596875;font-size:12px;font-weight:700}.tx1-pin-check b{color:#a0232a}.tx1-pin-check span{padding:5px 8px;background:#f7f0f0;border-radius:6px}</style><style>.bitgarden{max-width:960px;margin:0 auto;padding:clamp(16px,3vw,32px);background:linear-gradient(145deg,rgba(255,249,237,calc(.3 + var(--hx-a,1)*.32)),rgba(241,251,245,calc(.3 + var(--hx-a,1)*.32)));border:2px solid rgba(234,220,189,calc(.4 + var(--hx-a,1)*.4));backdrop-filter:blur(10px) saturate(1.06);-webkit-backdrop-filter:blur(10px) saturate(1.06)}.bg-toolbar,.bg-controls{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:center}.bg-toolbar select{padding:8px;border-radius:10px}.bg-target{display:grid;justify-items:center;gap:8px;margin:24px 0;color:#637359}.bg-target strong{font-size:clamp(60px,9vw,96px);line-height:1.1;color:#54402b}.bg-tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:clamp(8px,2vw,18px)}.bg-tile{border:3px solid rgba(228,199,163,calc(var(--hx-a,1)*.72));border-radius:22px;background:rgba(255,243,223,calc(.28 + var(--hx-a,1)*.36));box-shadow:0 7px 0 #e5d4b9;display:grid;gap:10px;justify-items:center;padding:20px 5px;cursor:pointer;color:#735837;transition:transform .15s,background .15s}.bg-tile strong{font-size:clamp(35px,6vw,64px)}.bg-tile small{font-size:12px}.bg-tile .bg-bit{font-size:26px;font-weight:900;border-radius:50%;width:42px;background:#e6ded0}.bg-tile[aria-pressed=true]{background:#bfe8c6;border-color:#62aa73;box-shadow:0 7px 0 #86bf8e;transform:translateY(-3px)}.bg-tile[aria-pressed=true] .bg-bit{background:#347548;color:white}.bg-tile:focus-visible{outline:3px solid #237bc0;outline-offset:4px}.bg-equation{text-align:center;font-size:clamp(18px,3vw,27px);font-weight:900;margin:28px 0 12px}.bg-binary{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:12px}.bg-binary strong{font:900 36px monospace;letter-spacing:10px;color:#347548}.bg-controls{margin-top:25px}#bgFeedback{padding:16px;border-radius:16px;background:#fff;min-height:60px;line-height:1.7}.bg-good{color:#257245}.bg-bad{color:#b03035}.bg-flowers{text-align:center;font-size:27px;min-height:40px;word-break:break-all}.bitgarden details{margin-top:18px;line-height:1.8}.bitgarden summary{cursor:pointer;font-weight:800}@media(max-width:480px){.bg-tile{border-radius:14px;padding:16px 2px}.bg-tile small{font-size:10px}}</style><style>.bg-nibbles{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:20px 0}.bg-nibble{background:#fff;border:2px solid #cfddcc;border-radius:18px;padding:14px;text-align:center}.bg-lamps{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.bg-lamp{display:grid;justify-items:center;gap:8px;font-size:12px}.bg-lamp i{width:clamp(22px,4vw,38px);height:clamp(22px,4vw,38px);border-radius:50%;background:#6e7881;border:3px solid #34414d}.bg-lamp i.on{background:#ff3946;box-shadow:0 0 15px #ff6178}.bg-lamp b{font:900 25px monospace}.bg-nibble h3{font-size:16px}.bg-pairbits{font:900 clamp(24px,5vw,45px) monospace;letter-spacing:4px}#bgPairAnswers{text-align:center}#bgPairAnswers label{display:inline-block;margin:8px}#bgPairAnswers select{padding:10px;border:2px solid #9fc7a2;border-radius:10px;font-size:20px}.bg-target strong{font-family:monospace}@media(max-width:460px){.bg-nibbles{gap:8px}.bg-nibble{padding:8px}.bg-lamps{gap:3px}.bg-lamp{font-size:10px}}</style><style>.page-nav{grid-template-columns:repeat(3,minmax(0,1fr))}.page-tab[hidden]{display:none!important}</style>
+<style>.tx1-vector{display:block;width:100%;height:100%}.pcb-key{cursor:pointer;touch-action:none}.pcb-key:hover .key-cap{fill:#424c59}.pcb-key.pressed .key-cap{fill:#ffd15b}.tx1-photo-wrap{aspect-ratio:1500/700}.tx1-board-card{min-width:0}.tx1-layout{grid-template-columns:minmax(0,1fr)}.tx1-side{grid-template-columns:repeat(4,minmax(0,1fr))}@media(max-width:1000px){.tx1-side{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:650px){.tx1-side{grid-template-columns:1fr}.tx1-photo-wrap{overflow-x:auto}.tx1-vector{min-width:850px}.tx1-photo-wrap{aspect-ratio:auto}} </style><style>.tx1-keil-panel{margin-top:18px;padding:18px;background:#fff;border:1px solid #ead7d7;border-radius:16px;box-shadow:0 10px 24px #79212512}.tx1-keil-head{display:flex;justify-content:space-between;gap:16px;align-items:end;flex-wrap:wrap}.tx1-keil-head h3{margin:4px 0;color:#84232a;font-size:22px}.tx1-keil-head p{margin:0;color:#66717d;font-weight:700}.tx1-keil-actions{display:flex;gap:8px;flex-wrap:wrap}.tx1-code-editor{display:block;width:100%;min-height:220px;margin-top:14px;box-sizing:border-box;resize:vertical;background:#18222e;color:#eef3f7;border:3px solid #273646;border-radius:12px;padding:18px;font:15px/1.65 Consolas,'Courier New',monospace;tab-size:4}.tx1-code-editor:focus{outline:3px solid #f5c2c5}.tx1-keil-status{margin-top:10px;padding:10px 12px;border-radius:8px;background:#fff4d2;color:#765b1d;font-weight:800}.tx1-keil-status.ok{background:#e4f7eb;color:#277346}.tx1-keil-status.error{background:#ffe5e5;color:#a3212a}.tx1-pin-check{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;color:#596875;font-size:12px;font-weight:700}.tx1-pin-check b{color:#a0232a}.tx1-pin-check span{padding:5px 8px;background:#f7f0f0;border-radius:6px}</style><style>
+/* ── ③ 进制转换小游戏 · 8421 位权冲刺（2026-11-17 整段重做）────────────────────────
+   旧版的标题写在 .page-intro 里，不在任何卡片上，深色壁纸下几乎看不清；玩法是把「点 4 个位凑一个数」
+   重复 15 次。现在整块游戏装进一张 .card（沿用 #hx-card-alpha 的 --card-a 通透度 + 8px 毛玻璃），
+   内部色块用 --tile-a 跟同一根「卡片通透度」滑杆联动（1 → .60，2 → .90），不写死 #fff。 */
+.game-shell {
+  --tile-a: calc(var(--hx-a, 1) * .30 + .30);
+  position: relative; max-width: 1240px; margin: 0 auto;
+  padding: clamp(18px, 2.4vw, 30px); border-radius: 26px; overflow: hidden;
+}
+.game-shell::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(circle at 92% -12%, rgba(255, 203, 84, .26), transparent 52%);
+}
+.game-head { position: relative; z-index: 1; display: flex; flex-wrap: wrap; gap: 14px 20px; align-items: flex-start; justify-content: space-between; }
+.game-head-txt { min-width: 0; }
+.game-head h2 { margin: 8px 0 8px; font-size: clamp(26px, 2.6vw, 38px); letter-spacing: -.02em; }
+.game-head p { margin: 0; max-width: 60ch; color: #5b6470; font-size: 16px; font-weight: 700; line-height: 1.6; }
+.game-head p strong { color: #a91f27; }
+.game-badge { display: inline-block; margin-left: 6px; padding: 5px 10px; border-radius: 9px; background: #ffe1e2; color: #a91f27; font-size: 14px; font-weight: 900; vertical-align: 6px; white-space: nowrap; }
+.game-tools { display: flex; flex: 0 0 auto; flex-wrap: wrap; gap: 10px; align-items: center; }
+.game-mode { display: flex; gap: 8px; align-items: center; color: #7a3a3e; font-size: 15px; font-weight: 900; white-space: nowrap; }
+/* 只给原生 select 一个够宽的最小宽度（药丸组件按 select 的盒子尺寸画触发器和面板），
+   不碰颜色/圆角/背景 —— 外观仍由全站组件负责，否则选项文字会被截成「入门 · 0…」 */
+.game-mode select { min-width: 172px; }
+.game-btn { padding: 11px 16px; border: 1px solid transparent; border-radius: 12px; font-size: 15px; font-weight: 900; cursor: pointer; }
+.game-btn-ghost { border-color: #e6cfd0; background: rgba(255, 255, 255, var(--tile-a)); color: #a91f27; }
+.game-btn-ghost:hover { background: #fff3f3; }
+.game-btn-main { padding: 15px 30px; border-color: #d9272e; background: #d9272e; color: #fff; font-size: 19px; box-shadow: 0 9px 20px rgba(170, 30, 38, .24); }
+.game-btn-main:hover { background: #c11f26; }
+
+/* 记分条：只有 3 个数（时间 / 得分 / 连击），答对数挪进结算面板 */
+.game-hud { position: relative; z-index: 1; display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, .62fr) minmax(0, .62fr); gap: 10px; margin: 18px 0 0; }
+.game-hud[hidden] { display: none; }
+.hud-item { display: grid; gap: 3px; padding: 10px 15px 12px; border: 1px solid #e7dcdc; border-radius: 15px; background: rgba(255, 255, 255, var(--tile-a)); }
+.hud-item span { color: #77808c; font-size: 14px; font-weight: 900; }
+.hud-item b { color: #202934; font: 900 clamp(26px, 2.6vw, 34px)/1.05 ui-monospace, Consolas, monospace; }
+.hud-time b { color: #a91f27; }
+.hud-combo b { color: #b4761d; }
+.hud-bar { height: 9px; margin-top: 7px; border-radius: 9px; background: #efe6e6; overflow: hidden; }
+#gBar { height: 100%; width: 100%; border-radius: inherit; background: linear-gradient(90deg, #d9272e, #f3a2a0); transition: width .12s linear; }
+#gBar.low { background: linear-gradient(90deg, #7e181d, #d9272e); }
+
+.game-stage { position: relative; z-index: 1; display: grid; justify-items: center; gap: 12px; padding: 20px 0 4px; text-align: center; }
+.game-stage[hidden] { display: none; }
+.game-stage.shake { animation: gShake .34s ease; }
+@keyframes gShake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-9px); }
+  45% { transform: translateX(8px); }
+  70% { transform: translateX(-5px); }
+}
+.g-prompt { margin: 0; color: #7a3a3e; font-size: 16px; font-weight: 900; letter-spacing: .06em; }
+.g-target { color: #1c2430; font: 900 clamp(68px, 8.6vw, 118px)/1 ui-monospace, Consolas, monospace; letter-spacing: -.02em; text-shadow: 0 8px 22px rgba(140, 20, 25, .13); transition: color .12s; }
+.g-target.ok { color: #257245; }
+.g-target.pop { animation: gPop .44s cubic-bezier(.2, 1.5, .45, 1); }
+@keyframes gPop {
+  0% { transform: scale(.72); opacity: .35; }
+  65% { transform: scale(1.07); opacity: 1; }
+  100% { transform: scale(1); }
+}
+.g-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: clamp(8px, 1.4vw, 16px); width: 100%; max-width: 880px; }
+.g-tiles.eight { grid-template-columns: repeat(8, minmax(0, 1fr)); max-width: 100%; }
+.g-tile { display: grid; justify-items: center; gap: 6px; padding: 13px 5px 11px; border: 3px solid #e0c7a9; border-radius: 20px; background: rgba(255, 246, 232, var(--tile-a)); box-shadow: 0 7px 0 #e7d7bf; color: #7d5c33; cursor: pointer; transition: transform .12s, background .12s, box-shadow .12s, border-color .12s; }
+.g-tile small { font-size: 15px; font-weight: 900; opacity: .9; letter-spacing: .02em; }
+.g-tile b { font: 900 clamp(34px, 4.4vw, 54px)/1 ui-monospace, Consolas, monospace; }
+.g-bit { display: grid; place-items: center; width: 44px; height: 44px; border: 2px solid #cdb995; border-radius: 12px; background: #ded1b4; color: #6f5c40; font: 900 23px/1 ui-monospace, Consolas, monospace; transition: .12s; }
+.g-tile:hover { border-color: #d3b48c; }
+.g-tile[aria-pressed="true"] { border-color: #5d9f6c; background: #cdedd2; box-shadow: 0 7px 0 #8ac094; transform: translateY(-4px); color: #20512f; }
+.g-tile[aria-pressed="true"] .g-bit { background: #2f7a43; color: #fff; box-shadow: 0 0 0 3px rgba(47, 122, 67, .16); }
+.g-tile:focus-visible { outline: 3px solid #237bc0; outline-offset: 3px; }
+.g-tiles.eight .g-tile { padding: 10px 3px 9px; border-radius: 15px; }
+.g-tiles.eight .g-tile small { font-size: 14px; }
+.g-tiles.eight .g-tile b { font-size: clamp(20px, 2.3vw, 34px); }
+.g-tiles.eight .g-bit { width: 36px; height: 36px; font-size: 20px; }
+
+.g-live { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: baseline; justify-content: center; margin: 4px 0 0; color: #3b4a59; font-size: clamp(18px, 2.1vw, 26px); font-weight: 900; }
+.g-live em { color: #2f7a43; font: 900 clamp(20px, 2.3vw, 30px)/1 ui-monospace, Consolas, monospace; letter-spacing: .18em; font-style: normal; }
+.g-live.bad, .g-live.bad em { color: #b03035; }
+.g-feedback { min-height: 26px; margin: 0; color: #6d7480; font-size: 16px; font-weight: 900; }
+.g-feedback.ok { color: #257245; }
+.g-feedback.bad { color: #b03035; }
+
+.game-over { position: relative; z-index: 1; display: grid; justify-items: center; gap: 6px; padding: 26px 16px 22px; text-align: center; animation: gPop .4s cubic-bezier(.2, 1.4, .45, 1); }
+.game-over[hidden] { display: none; }
+.g-over-label { margin: 0; color: #a91f27; font-size: 16px; font-weight: 900; letter-spacing: .08em; }
+.g-over-score { color: #1c2430; font: 900 clamp(52px, 6.4vw, 84px)/1.05 ui-monospace, Consolas, monospace; }
+.g-over-sub { margin: 0; color: #4d5765; font-size: 18px; font-weight: 800; }
+.g-over-comment { margin: 0 0 14px; color: #a91f27; font-size: 16px; font-weight: 900; }
+
+.game-help { position: relative; z-index: 1; margin-top: 16px; padding-top: 13px; border-top: 1px dashed #e3d5d5; color: #5b6470; font-size: 14px; font-weight: 700; line-height: 1.7; }
+.game-help summary { color: #8a2930; font-weight: 900; cursor: pointer; }
+.game-help p { margin: 8px 0 0; }
+
+@media (max-width: 820px) {
+  .game-hud { grid-template-columns: 1fr 1fr; }
+  .hud-time { grid-column: 1 / -1; }
+  .g-tiles.eight { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .g-tiles.eight .g-tile b { font-size: clamp(24px, 5vw, 34px); }
+}
+@media (max-width: 560px) {
+  .game-head p { font-size: 15px; }
+  .g-tile { padding: 10px 3px 8px; border-radius: 15px; }
+  .g-tile small { font-size: 14px; }
+  .g-bit { width: 38px; height: 38px; font-size: 20px; }
+  .game-btn { padding: 10px 13px; font-size: 14px; }
+}
+</style><style>.page-nav{grid-template-columns:repeat(3,minmax(0,1fr))}.page-tab[hidden]{display:none!important}</style>
 <!-- 统一像素加载动效（2026-11-07）：head 阻塞加载站点根 /fx/ 的共享特效件（与刷题/考试/小组加分同一套规则），
      body 开头的 #hxBoot 解析到就画出第一帧「canvas 像素动效 + 标题 + 药丸」，页面就绪后整层淡出。 -->
 <script src="/fx/pixelfx-loader.js"></script>
@@ -272,16 +379,54 @@ void main(void){ Timer0Init(); while(1){} }</pre><p class="code-explain">定时�
       <div class="tutorial-checklist"><h3>项目一至项目五：头文件怎么选</h3><ul><li><code>STC89C52RC.H</code>：开发板芯片专用寄存器定义，优先用于 STC89C52RC 工程。</li><li><code>REG51.H</code> 或 <code>REG52.H</code>：传统 51 兼容寄存器定义；如果老师发的工程模板指定了其中一个，就保持模板一致。</li><li><code>INTRINS.H</code>：Keil C51 内部函数库，提供 <code>_crol_()</code> 循环左移、<code>_cror_()</code> 循环右移等函数。</li><li>项目一 P1 流水灯会用到芯片头文件 + <code>INTRINS.H</code>；项目二至项目五至少需要芯片头文件，定时器项目还要使用定时器/中断寄存器定义。</li></ul></div>
       <div class="tutorial-checklist"><h3>课堂验收清单</h3><ul><li>工程树中能看到 LED.c，编译窗口显示 0 Error(s)。</li><li>Objects 文件夹里确实出现 .hex，记录工程名和生成时间。</li><li>STC-ISP 选择正确芯片与串口，下载成功后 P1 LED 按程序亮灭。</li><li>学生能说清：C 代码 → 编译器/链接器 → HEX → 下载器 → 单片机执行。</li></ul></div>
     </section>
-    <div class="footer-note">小提示：二进制只有 0 和 1；十六进制会用到 A～F 哦。<br><span>© 2026 夜夜班 · 夜夜班的进制转换练习 Sites版 · 版本 v38</span></div>
 <section class="page-panel" id="arenaPage" data-page-panel="arena" hidden>
-<div class="page-intro"><span class="eyebrow">四位二进制 · 本地小游戏</span><h1>8421 拼数小花园 🌷</h1><p>用 8、4、2、1 拼出题目数字。用到的位是 1，没用到的位是 0。</p></div>
-<div class="bitgarden card"><div class="bg-toolbar"><label>方向 <select id="bgDirection"><option value="dec-bin">十进制 → 二进制</option><option value="bin-dec">二进制 → 十进制</option><option value="mixed">四位混合练习</option><option value="pair-dec">升级① 双组二进制 → 两个十进制数</option><option value="pair-hex">升级② 八灯二进制 → 两位十六进制</option></select></label><button class="code-btn" id="bgStart">重新开始</button><span id="bgStats">本机花朵 0</span></div>
-<div class="bg-target"><span id="bgTargetLabel">请拼出这个十进制数</span><strong id="bgTarget">0</strong><span>🐱 帮小猫点亮正确的位权！</span></div>
-<div id="bgEight" hidden></div><div id="bgFour"><div class="bg-tiles"><button class="bg-tile" type="button" data-weight="8" aria-pressed="false"><small>第 3 位 · 2<sup>3</sup></small><strong>8</strong><span class="bg-bit">0</span><small class="bg-switch">未选中</small></button><button class="bg-tile" type="button" data-weight="4" aria-pressed="false"><small>第 2 位 · 2<sup>2</sup></small><strong>4</strong><span class="bg-bit">0</span><small class="bg-switch">未选中</small></button><button class="bg-tile" type="button" data-weight="2" aria-pressed="false"><small>第 1 位 · 2<sup>1</sup></small><strong>2</strong><span class="bg-bit">0</span><small class="bg-switch">未选中</small></button><button class="bg-tile" type="button" data-weight="1" aria-pressed="false"><small>第 0 位 · 2<sup>0</sup></small><strong>1</strong><span class="bg-bit">0</span><small class="bg-switch">未选中</small></button></div>
-<div class="bg-equation" id="bgEquation">没有选中任何位 = 0</div><div class="bg-binary">四位二进制 <strong id="bgBinary">0000</strong><span>（从左到右：8、4、2、1）</span></div>
-</div><label id="bgDecimalRow" hidden>你的十进制答案 <select id="bgDecimal"><option value="">请选择 0～15</option><option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option></select></label><div id="bgPairAnswers" hidden><label>左四位（高位） <select id="bgHigh"></select></label><label>右四位（低位） <select id="bgLow"></select></label><p id="bgPairHelp"></p></div><div class="bg-controls"><button class="code-btn primary" id="bgCheck">确认 ✨</button><button class="code-btn" id="bgHint">给个提示 💡</button></div>
-<p id="bgFeedback" role="status" aria-live="polite">点击位权卡片试一试；再次点击可以取消。数字 0 需要四位全部不选。</p><div class="bg-flowers" id="bgFlowers" aria-label="本局答对进度"></div>
-<details><summary>为什么这样就能转成二进制？</summary><p>四位二进制的位权依次是 8、4、2、1。每位只能取 0 或 1：取 1 就加上该位权，取 0 就不加。例如 13 = 8 + 4 + 1，因此是 1101。四张全选为 15，全部不选为 0。</p><p>键盘快捷键：8、4、2、1 切换对应卡片；Enter 确认答案或进入下一题。不限时间；每次首次答对得一朵花，使用提示后仍可练习，但不计花朵。</p></details></div></section>
+  <div class="card game-shell">
+    <header class="game-head">
+      <div class="game-head-txt">
+        <span class="eyebrow"><span></span>二进制位权 · 课堂小游戏</span>
+        <h2>8421 位权冲刺 <span class="game-badge">60 秒一轮</span></h2>
+        <p>看到十进制数，用 8、4、2、1 拼出它。加到<strong>正好就过关</strong>，加过头要马上减回来。</p>
+      </div>
+      <div class="game-tools">
+        <label class="game-mode">难度
+          <select id="bgDirection">
+            <option value="4">入门 · 0～15</option>
+            <option value="8">挑战 · 0～255</option>
+          </select>
+        </label>
+        <button class="game-btn game-btn-ghost" id="bgStart" type="button">重新开始</button>
+      </div>
+    </header>
+
+    <div class="game-hud" id="gHud">
+      <div class="hud-item hud-time"><span>剩余时间</span><b id="gTime">60</b><div class="hud-bar"><div id="gBar"></div></div></div>
+      <div class="hud-item"><span>得分</span><b id="gScore">0</b></div>
+      <div class="hud-item hud-combo"><span>连击</span><b id="gCombo">0</b></div>
+    </div>
+
+    <div class="game-stage" id="gStage">
+      <p class="g-prompt">用位权拼出这个数</p>
+      <strong class="g-target" id="gTarget">13</strong>
+      <div class="g-tiles" id="gTiles"></div>
+      <p class="g-live" id="gLive"><span id="gEquation">没有选中任何位 = 0</span><em id="gBits">0000</em></p>
+      <p class="g-feedback" id="gFeedback" role="status" aria-live="polite">点一下位权卡片，它就变成 1。</p>
+    </div>
+
+    <div class="game-over" id="gOver" hidden>
+      <p class="g-over-label">本轮结束 · 60 秒到</p>
+      <strong class="g-over-score" id="gFinal">0 分</strong>
+      <p class="g-over-sub" id="gFinalSub">答对 0 题 · 最高连击 0</p>
+      <p class="g-over-comment" id="gFinalComment"></p>
+      <button class="game-btn game-btn-main" id="gAgain" type="button">再来一轮 →</button>
+    </div>
+
+    <details class="game-help">
+      <summary>为什么这样拼就是二进制？</summary>
+      <p>四位二进制的位权是 8、4、2、1，每一位只能取 0 或 1：取 1 就加上这个位权，取 0 就不加。例如 13 = 8 + 4 + 1，所以写成 1101。键盘 1～4（八位模式 1～8）从左到右切换卡片。</p>
+    </details>
+  </div>
+</section>
+  <div class="footer-note">小提示：二进制只有 0 和 1；十六进制会用到 A～F 哦。<br><span>© 2026 夜夜班 · 夜夜班的进制转换练习 Sites版 · 版本 v38</span></div>
   </main><div class="toast" id="toast"></div>
   
   <script>
@@ -683,19 +828,169 @@ void main()
 </script>
 
 <script>(()=>{
-const $=id=>document.getElementById(id),tiles=[...document.querySelectorAll('.bg-tile')];let mode='dec-bin',reverse=false,pair=false,review=false,target=0,selected=new Set(),hinted=false,flowers=0,total=0,bag=[];
-try{total=Number(localStorage.getItem('bitgarden-flowers-v1'))||0}catch(e){}
-const bits=n=>n.toString(2).padStart(4,'0'),hex=n=>n.toString(16).toUpperCase(),sumText=n=>[8,4,2,1].filter(w=>n&w).join(' + ')||'0';
-function say(t,c=''){$('bgFeedback').textContent=t;$('bgFeedback').className=c}
-function explanation(){if(!pair)return sumText(target)+' = '+target+' → '+bits(target);const hi=target>>4,lo=target&15;return '左四位 '+bits(hi)+'：'+sumText(hi)+' = '+hi+'；右四位 '+bits(lo)+'：'+sumText(lo)+' = '+lo+(mode==='pair-hex'?'。'+hi+' → '+hex(hi)+'，'+lo+' → '+hex(lo)+'；P1 = 0x'+hex(hi)+hex(lo)+';':'。这是两个独立四位组的值；整个八位数是 '+hi+' × 16 + '+lo+' = '+target+'。')}
-function render(){const sum=[...selected].reduce((a,b)=>a+b,0);tiles.forEach(b=>{const on=selected.has(Number(b.dataset.weight));b.setAttribute('aria-pressed',String(on));b.querySelector('.bg-bit').textContent=on?'1':'0';b.querySelector('.bg-switch').textContent=on?'选中':'未选中';b.disabled=review});$('bgBinary').textContent=reverse?bits(target):[8,4,2,1].map(w=>selected.has(w)?1:0).join('');$('bgEquation').textContent=reverse?'把题目中为 1 的位权相加，再选择十进制答案。':([...selected].sort((a,b)=>b-a).join(' + ')||'没有选中任何位')+' = '+sum;$('bgStats').textContent='本局花朵 '+flowers+' · 本机累计 '+total;$('bgFlowers').textContent='🌷'.repeat(Math.min(flowers,30));$('bgCheck').textContent=review?'下一题 →':'确认 ✨';$('bgHint').disabled=review;['bgDecimal','bgHigh','bgLow'].forEach(id=>$(id).disabled=review)}
-function arrangeCards(){const ordered=[...tiles];if(reverse){for(let i=ordered.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[ordered[i],ordered[j]]=[ordered[j],ordered[i]]}if(ordered.every((b,i)=>b===tiles[i]))ordered.push(ordered.shift())}ordered.forEach(b=>b.parentNode.appendChild(b))}
-function next(){mode=$('bgDirection').value;pair=mode.startsWith('pair-');reverse=mode==='bin-dec'||(mode==='mixed'&&Math.random()<.5);if(!bag.length){bag=Array.from({length:pair?256:16},(_,i)=>i);for(let i=bag.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[bag[i],bag[j]]=[bag[j],bag[i]]}}target=bag.pop();arrangeCards();selected.clear();review=false;hinted=false;['bgDecimal','bgHigh','bgLow'].forEach(id=>$(id).value='');$('bgFour').hidden=pair;$('bgEight').hidden=!pair;$('bgPairAnswers').hidden=!pair;$('bgDecimalRow').hidden=pair||!reverse;$('bgTargetLabel').textContent=pair?(mode==='pair-hex'?'把八个灯的位值转换成两位 HEX':'分别计算左四位和右四位的十进制值'):reverse?'请把这个四位二进制转成十进制':'请拼出这个十进制数';$('bgTarget').textContent=pair?bits(target>>4)+' '+bits(target&15):reverse?bits(target):target;
-if(pair){const radix=mode==='pair-hex'?16:10;['bgHigh','bgLow'].forEach(id=>{$(id).innerHTML='<option value="">请选择</option>'+Array.from({length:16},(_,n)=>'<option value="'+n+'">'+(radix===16?hex(n):n)+'</option>').join('')});$('bgPairHelp').textContent=radix===16?'每组四位对应一个 HEX 字符；左边高位，右边低位。10～15 对应 A～F。':'分别填写两个 0～15 的数，不是直接填写整个八位的十进制总值。';$('bgEight').innerHTML='<div class="bg-nibbles">'+[0,1].map(g=>'<div class="bg-nibble"><h3>'+(!g?'左四位 · 高位':'右四位 · 低位')+'</h3><div class="bg-lamps">'+[8,4,2,1].map((w,i)=>{const idx=7-g*4-i,bit=(target>>idx)&1;return '<div class="bg-lamp"><span>位权 '+w+'</span><i class="'+(bit?'':'on')+'"></i><b>'+bit+'</b><span>P1.'+idx+'</span></div>'}).join('')+'</div></div>').join('')+'</div><p style="text-align:center">0 为低电平：灯亮；1 为高电平：灯灭。计算的是位值，不是亮灯数量。</p>'}
-say(pair?'从左到右，每四位按 8、4、2、1 求和。选好两组答案后确认。':reverse?'观察四位二进制中哪些位置为 1，再选择十进制答案。':'点选 8、4、2、1 拼数，然后确认。');render()}
-function start(){flowers=0;bag=[];next()}
-tiles.forEach(b=>b.addEventListener('click',()=>{if(review||pair)return;const w=Number(b.dataset.weight);selected.has(w)?selected.delete(w):selected.add(w);render();if(reverse){const sum=[...selected].reduce((a,b)=>a+b,0);$('bgDecimal').value=String(sum);$('bgEquation').textContent=([...selected].sort((a,b)=>b-a).join(' + ')||'0')+' = '+sum+'；你选出的二进制：'+[8,4,2,1].map(w=>selected.has(w)?1:0).join('')}}));
-$('bgCheck').onclick=()=>{if(review){next();return}if((pair&&(!$('bgHigh').value||!$('bgLow').value))||(reverse&&!$('bgDecimal').value)){say('请先选好答案。','bg-bad');return}const ok=pair?Number($('bgHigh').value)===(target>>4)&&Number($('bgLow').value)===(target&15):reverse?Number($('bgDecimal').value)===target:[...selected].reduce((a,b)=>a+b,0)===target;const explain=explanation();if(!ok){review=true;render();say('还不对。正确解析：'+explain+'。再次确认进入下一题。','bg-bad');return}if(!hinted){flowers++;total++;try{localStorage.setItem('bitgarden-flowers-v1',String(total))}catch(e){}}const usedHint=hinted;next();say('答对啦！'+explain+(usedHint?'（提示题不计花朵）':' 🌷')+' 已进入下一题。','bg-good')};
-$('bgHint').onclick=()=>{if(review)return;hinted=true;say('提示：'+explanation())};$('bgDirection').onchange=start;$('bgStart').onclick=start;document.addEventListener('keydown',e=>{if($('arenaPage').hidden||/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)||e.repeat)return;if(!pair&&['8','4','2','1'].includes(e.key)){e.preventDefault();tiles.find(b=>b.dataset.weight===e.key).click()}else if(e.key==='Enter'){e.preventDefault();$('bgCheck').click()}});start();})();</script></body>
+/* ③ 进制转换小游戏 · 8421 位权冲刺（2026-11-17 整段重写，替换旧的「8421 拼数小花园」）
+   一句话规则：屏幕给一个十进制数，用位权卡片把它拼出来 —— 加到正好就过关，加过头要减回来。
+   · 不用点「确认」：当前和 == 目标 立刻判定正确（节奏快，也逼学生盯住「和」的变化）
+   · 超过目标：红闪 + 扣 2 秒 + 连击清零（同一个目标只罚一次，避免连续误点直接判死）
+   · 60 秒一到进结算面板，一次点击「再来一轮」直接开下一局
+   · 离开页签（arenaPage.hidden）时暂停计时，切回来接着玩
+   对外只保留两个旧 id：#bgDirection（原生 select，由全站药丸下拉组件接管，这里只读 .value / 用 onchange）
+   和 #bgStart（重新开始）。 */
+const $=id=>document.getElementById(id);
+const panel=$('arenaPage'),tilesEl=$('gTiles'),stageEl=$('gStage'),liveEl=$('gLive'),overEl=$('gOver'),hudEl=$('gHud');
+const targetEl=$('gTarget'),timeEl=$('gTime'),barEl=$('gBar'),scoreEl=$('gScore'),comboEl=$('gCombo');
+const eqEl=$('gEquation'),bitsEl=$('gBits'),fbEl=$('gFeedback');
+const finalEl=$('gFinal'),finalSubEl=$('gFinalSub'),finalTipEl=$('gFinalComment'),modeEl=$('bgDirection');
+
+const ROUND=60000, TICK=100, PENALTY=2000;
+const SUP=['⁰','¹','²','³','⁴','⁵','⁶','⁷','⁸'];
+let bits=4, weights=[8,4,2,1], picked=new Set();
+let target=0, score=0, combo=0, best=0, hits=0, remain=ROUND;
+let running=false, over=false, locked=false, penalized=false, timer=null, lastTick=0;
+
+const sum=()=>weights.reduce((a,w)=>a+(picked.has(w)?w:0),0);
+const bin=()=>weights.map(w=>picked.has(w)?1:0).join('');
+const onBits=()=>weights.filter(w=>picked.has(w));
+
+function buildTiles(){
+  bits=modeEl.value==='8'?8:4;
+  weights=Array.from({length:bits},(_,i)=>2**(bits-1-i));
+  tilesEl.className='g-tiles'+(bits===8?' eight':'');
+  tilesEl.innerHTML=weights.map((w,i)=>{
+    const e=bits-1-i;
+    return '<button class="g-tile" type="button" data-w="'+w+'" aria-pressed="false"'
+      +' aria-label="位权 '+w+'，2 的 '+e+' 次方"><small>2'+SUP[e]+'</small>'
+      +'<b>'+w+'</b><span class="g-bit">0</span></button>';
+  }).join('');
+}
+
+function render(){
+  [...tilesEl.children].forEach(btn=>{
+    const on=picked.has(Number(btn.dataset.w));
+    btn.setAttribute('aria-pressed',String(on));
+    btn.querySelector('.g-bit').textContent=on?'1':'0';
+  });
+  const parts=onBits();
+  eqEl.textContent=(parts.length?parts.join(' + '):'没有选中任何位')+' = '+sum();
+  bitsEl.textContent=bin();
+  scoreEl.textContent=score;
+  comboEl.textContent=combo;
+}
+
+function say(text,cls){
+  fbEl.textContent=text;
+  fbEl.className='g-feedback'+(cls?' '+cls:'');
+}
+
+function paintTime(){
+  timeEl.textContent=Math.ceil(remain/1000);
+  barEl.style.width=Math.max(0,remain/ROUND*100)+'%';
+  barEl.classList.toggle('low',remain<=10000);
+}
+
+function nextTarget(){
+  if(!running)return;
+  locked=false; penalized=false; picked.clear();
+  const max=2**bits-1;
+  let t=target, guard=0;
+  while(t===target&&guard++<8) t=1+Math.floor(Math.random()*max);
+  target=t;
+  targetEl.textContent=target;
+  targetEl.classList.remove('pop','ok'); void targetEl.offsetWidth; targetEl.classList.add('pop');
+  liveEl.classList.remove('bad');
+  say('拼到正好 '+target+' 就过关。');
+  render();
+}
+
+function hit(){
+  locked=true;
+  hits++; combo++; if(combo>best)best=combo;
+  const gain=10+Math.min(combo-1,5)*2;
+  score+=gain;
+  say('对了！'+target+' = '+onBits().join(' + ')+' → '+bin()+'　+'+gain+' 分'+(combo>1?' · 连击 ×'+combo:''),'ok');
+  targetEl.classList.add('ok');
+  render();
+  setTimeout(()=>{ if(running) nextTarget(); },780);
+}
+
+function overshoot(){
+  liveEl.classList.add('bad');
+  if(penalized){ say('已经超了，点一下亮着的位把它减回去。','bad'); return; }
+  penalized=true; combo=0;
+  remain=Math.max(0,remain-PENALTY);
+  stageEl.classList.remove('shake'); void stageEl.offsetWidth; stageEl.classList.add('shake');
+  say('超了 '+(sum()-target)+'！点一下亮着的位，减回来。','bad');
+  render(); paintTime();
+  if(remain<=0) finish();
+}
+
+function toggle(w){
+  if(!running||locked)return;
+  if(picked.has(w))picked.delete(w); else picked.add(w);
+  render();
+  const s=sum();
+  if(s===target) hit();
+  else if(s>target) overshoot();
+  else liveEl.classList.remove('bad');
+}
+
+function tick(){
+  const now=performance.now();
+  const dt=Math.min(now-lastTick,400);
+  lastTick=now;
+  if(!running||over||panel.hidden)return;   // 看不到游戏就不扣时间
+  remain-=dt;
+  paintTime();
+  if(remain<=0){ remain=0; paintTime(); finish(); }
+}
+
+function startTimer(){
+  if(timer)clearInterval(timer);
+  lastTick=performance.now();
+  timer=setInterval(tick,TICK);
+}
+
+function startRound(){
+  over=false; running=true; locked=false; penalized=false;
+  picked.clear(); target=0; score=0; combo=0; best=0; hits=0; remain=ROUND;
+  overEl.hidden=true; stageEl.hidden=false; hudEl.hidden=false;
+  buildTiles(); paintTime(); render(); startTimer();
+  nextTarget();
+}
+
+function finish(){
+  if(over)return;
+  over=true; running=false; locked=true;
+  if(timer){clearInterval(timer);timer=null;}
+  finalEl.textContent=score+' 分';
+  finalSubEl.textContent='60 秒答对 '+hits+' 题 · 最高连击 '+best;
+  finalTipEl.textContent=score>=200?'位权已经很熟了，去试试八位挑战。'
+    :score>=100?'不错，再一轮就能上 200 分。'
+    :'记住：哪一位亮，就把那一个位权加进来。';
+  stageEl.hidden=true;
+  hudEl.hidden=true;          // 结算时把 0 秒的记分条收掉，屏幕上只留一个结论
+  overEl.hidden=false;
+}
+
+tilesEl.addEventListener('click',e=>{
+  const btn=e.target.closest('.g-tile');
+  if(btn)toggle(Number(btn.dataset.w));
+});
+$('bgStart').onclick=startRound;
+$('gAgain').onclick=startRound;
+modeEl.onchange=startRound;      // 药丸下拉派发的是原生 change，这里照旧读 .value
+
+document.addEventListener('keydown',e=>{
+  if(panel.hidden||/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)||e.repeat)return;
+  if(e.key==='Enter'){ if(over){e.preventDefault();startRound();} return; }
+  const n=Number(e.key);
+  if(!Number.isInteger(n)||n<1||n>bits)return;
+  const btn=tilesEl.children[n-1];          // 1 = 最左（最高位）
+  if(btn){ e.preventDefault(); toggle(Number(btn.dataset.w)); }
+});
+document.addEventListener('visibilitychange',()=>{ lastTick=performance.now(); });
+
+startRound();   // 打开页面就摆好一局；页签没切到游戏时 tick() 不扣时间
+})();</script></body>
 </html>
 

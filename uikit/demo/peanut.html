@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="zh-CN" data-hx-peanut>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>预览 · 药丸下拉选项卡</title>
+<!-- 演示页跑的是「真组件」：引站点根那份 hx-theme.js，所以这里看到的效果 = 各工具里实际的样子。
+     但 hx-theme 会在 body::before 上铺账号壁纸，而且「被 iframe 嵌着」时那条规则
+     （html.hx-embedded.hx-bg body::before）特异性比这里任何一条都高，压不掉。
+     所以不跟它抢背景：内容整体套一层不透明的 .demo-stage，用自己的 z-index 盖在上面。 -->
+<script src="../../hx-theme.js?v=3"></script>
+<style>
+  :root { --stage: #f3f4f7; --ink: #20242a; --dim: #6b7280; --line: #e2e5ea; --field: #fff; }
+  html[data-demo-dark] { --stage: #14161a; --ink: #eef1f5; --dim: #9aa3af; --line: #2b2f36; --field: #1e222a; }
+  html, body { height: 100%; }
+  body { margin: 0; }
+  .demo-stage {
+    position: relative; z-index: 3; box-sizing: border-box; min-height: 100vh; padding: 22px;
+    background: var(--stage); color: var(--ink);
+    font: 14px/1.6 "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; max-width: 560px; }
+  label { display: grid; gap: 6px; font-size: 12.5px; font-weight: 700; color: var(--dim); }
+  select { height: 38px; padding: 0 12px; border: 1px solid var(--line); border-radius: 10px;
+    background: var(--field); color: var(--ink); font: inherit; font-size: 13.5px; }
+  .hint { margin: 14px 0 0; font-size: 12.5px; color: var(--dim); max-width: 560px; }
+  .hint b { color: var(--ink); }
+  .kbd { display: inline-block; padding: 1px 6px; border-radius: 6px; background: #00000010;
+    border: 1px solid var(--line); font-size: 11.5px; font-family: ui-monospace, monospace; }
+</style>
+</head>
+<body>
+<div class="demo-stage">
+  <div class="row">
+    <label>科目
+      <select id="subj">
+        <option>单片机技术及应用</option>
+        <option>电气接线原理</option>
+        <option>电子工艺</option>
+      </select>
+    </label>
+    <label>类别
+      <select id="kind">
+        <option value="">全部类别</option>
+        <option>单选题</option>
+        <option>填空题</option>
+        <option>判断题</option>
+        <option disabled>实验题（未开放）</option>
+      </select>
+    </label>
+  </div>
+
+  <p class="hint">点上面任意一格打开药板。选中项显示为<b>空药槽</b>（那颗药被取走了），
+    其余行是蓝白胶囊。按 <span class="kbd">Esc</span> 或点面板外面收起。</p>
+  <p class="hint">选中一格时注意看：那一格先被撕成空槽，一颗放大的胶囊<b>从槽里弹起、划弧飞进上方触发器</b>，
+    落点炸一圈蓝环和锡纸碎屑。药板要等胶囊飞出槽才收起（165ms）。</p>
+  <p class="hint" id="log">change 事件：还没动过</p>
+</div>
+
+<script>
+  var q = (location.search.match(/mode=(\w+)/) || [])[1];
+  if (q === 'dark') document.documentElement.setAttribute('data-demo-dark', '');
+  document.addEventListener('change', function (e) {
+    if (e.target.tagName !== 'SELECT') return;
+    document.getElementById('log').textContent =
+      'change 事件：#' + e.target.id + ' → ' + e.target.value + '（原生事件，各工具原样收到）';
+  }, true);
+</script>
+</body>
+</html>

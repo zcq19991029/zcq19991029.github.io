@@ -98,6 +98,9 @@ html[data-hx-mode="light"].hx-bg .seg button[aria-pressed="true"] { background: 
 #filterRow select { flex: 1; min-width: 0; height: 34px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line2); background: var(--card-solid); color: var(--ink); font-size: 13px; outline: none; transition: border-color .2s, box-shadow .2s; }
 #filterRow select:focus { border-color: var(--acc); box-shadow: 0 0 0 3px var(--ring, var(--fill)); }
 #filterRow select:disabled { color: var(--dim); }
+/* 药丸下拉（2026-11-17）：这一行在初始化时是 hidden 的，hx-theme.js 包 .hx-pn 时量不到
+   flex:1，两颗筛选会缩成文字宽度。补在包装层上，跟上面 select 的规则对齐。 */
+#filterRow .hx-pn { flex: 1; min-width: 0; }
 
 /* 题卡：答完后可以左右拖（鼠标、手指都行），左“记住”、右“再练” */
 .card { padding: 22px 20px 20px; touch-action: pan-y; will-change: transform; }

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN" data-mode="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>UI 设计 · 华夏工具</title>
+<!-- 先把深浅定下来再渲染，避免白屏闪一下 -->
+<script>
+  try {
+    var m = localStorage.getItem('uikit:mode');
+    if (!m) m = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-mode', m);
+  } catch (e) { }
+</script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">
+    <i aria-hidden="true"></i>
+    <b>UI 设计</b>
+    <span class="ver">v0 · —</span>
+  </div>
+
+  <label class="search">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+      stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.6-3.6"></path></svg>
+    <input type="search" placeholder="搜组件、用途、关键词…" aria-label="搜索组件">
+  </label>
+
+  <button class="btn theme-btn" type="button" title="切到深色" aria-label="切换深浅">
+    <svg viewBox="0 0 24 24"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.5 6.5 0 0 0 9.8 9.8z"></path></svg>
+  </button>
+  <a class="btn" href="copyright.html">使用说明与来源</a>
+</header>
+
+<div class="shell">
+  <nav class="nav" aria-label="组件目录"></nav>
+  <main class="main" id="main"></main>
+</div>
+
+<div class="toast" role="status"></div>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

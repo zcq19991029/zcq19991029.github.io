@@ -1,0 +1,223 @@
+/* UI 设计 · 组件档样式
+   ─────────────────────────────────────────────────────────────────────────
+   这一页**不引 hx-theme.js**：它是开发者参考档，要的是「平底 + 高对比 + 代码可读」，
+   不是全站那套壁纸与卡片通透度。深浅跟着本站自己的开关（右上角），存 localStorage: uikit:mode。
+   ───────────────────────────────────────────────────────────────────────── */
+:root{
+  --bg:#ffffff; --bg2:#f6f7f9; --panel:#ffffff; --line:#e6e8ec; --line2:#f0f1f4;
+  --ink:#171a1f; --ink2:#4b5563; --dim:#7a828f;
+  --acc:#1a56ff; --acc-soft:#eef2ff;
+  --code-bg:#0f1420; --code-ink:#e6ebf5;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+}
+html[data-mode="dark"]{
+  --bg:#0c0e12; --bg2:#12151b; --panel:#141821; --line:#242a35; --line2:#1c2129;
+  --ink:#eef1f6; --ink2:#b6bdc9; --dim:#8b93a1;
+  --acc:#6f8dff; --acc-soft:#1a2140;
+  --code-bg:#0a0d14; --code-ink:#dfe6f2;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font:15px/1.72 "Microsoft YaHei", system-ui, -apple-system, "Segoe UI", sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:var(--acc); text-decoration:none}
+a:hover{text-decoration:underline}
+code,kbd,pre{font-family:var(--mono)}
+
+/* ── 顶栏 ───────────────────────────────────────────────────────────── */
+.top{
+  position:sticky; top:0; z-index:50; display:flex; align-items:center; gap:14px;
+  height:56px; padding:0 20px; background:color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--line);
+}
+.brand{display:flex; align-items:center; gap:9px; font-weight:800; letter-spacing:-.01em; white-space:nowrap}
+.brand i{
+  width:22px; height:22px; border-radius:7px; display:block;
+  background:linear-gradient(150deg,#6f8dff,#1a56ff 60%,#0b3ac4);
+  box-shadow:inset 0 1px 0 #ffffff66, 0 2px 6px #1a56ff44;
+}
+.brand b{font-size:15px}
+.ver{
+  font-size:11px; font-weight:700; padding:2px 7px; border-radius:99px;
+  background:var(--bg2); color:var(--dim); border:1px solid var(--line); font-family:var(--mono);
+}
+.search{
+  margin-left:auto; display:flex; align-items:center; gap:7px;
+  height:34px; padding:0 11px; border:1px solid var(--line); border-radius:10px;
+  background:var(--bg2); color:var(--dim); min-width:180px; max-width:280px;
+}
+.search input{
+  flex:1; min-width:0; border:0; outline:0; background:transparent; color:var(--ink);
+  font:inherit; font-size:13.5px;
+}
+.top .btn{height:34px}
+.theme-btn{width:34px; padding:0; justify-content:center}
+
+/* ── 按钮 ───────────────────────────────────────────────────────────── */
+.btn{
+  display:inline-flex; align-items:center; gap:6px; height:36px; padding:0 13px;
+  border:1px solid var(--line); border-radius:10px; background:var(--panel); color:var(--ink);
+  font:inherit; font-size:13.5px; font-weight:600; cursor:pointer; white-space:nowrap;
+  transition:background .14s, border-color .14s, transform .14s;
+}
+.btn:hover{background:var(--bg2); border-color:var(--dim)}
+.btn:active{transform:translateY(1px)}
+.btn.pri{background:var(--acc); border-color:var(--acc); color:#fff}
+.btn.pri:hover{filter:brightness(1.06)}
+.btn.ghost{background:transparent}
+.btn[disabled]{opacity:.5; pointer-events:none}
+.btn svg{width:14px; height:14px; fill:none; stroke:currentColor; stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round}
+
+/* ── 骨架 ───────────────────────────────────────────────────────────── */
+.shell{display:grid; grid-template-columns:264px minmax(0,1fr); align-items:start; min-height:calc(100vh - 56px)}
+.nav{
+  position:sticky; top:56px; height:calc(100vh - 56px); overflow:auto;
+  border-right:1px solid var(--line); padding:16px 12px 40px; background:var(--bg);
+}
+.nav h6{
+  margin:4px 8px 8px; font-size:11px; font-weight:700; letter-spacing:.1em;
+  color:var(--dim); text-transform:uppercase;
+}
+.nav a{
+  display:block; padding:9px 11px; border-radius:10px; color:var(--ink2); font-size:13.5px;
+  font-weight:600; line-height:1.45; text-decoration:none;
+}
+.nav a small{display:block; font-weight:400; font-size:11.5px; color:var(--dim); margin-top:2px;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.nav a:hover{background:var(--bg2); color:var(--ink); text-decoration:none}
+.nav a.on{background:var(--acc-soft); color:var(--acc)}
+.nav a.on small{color:var(--acc); opacity:.75}
+.nav .sep{height:1px; background:var(--line); margin:12px 8px}
+.nav .empty{padding:10px 11px; font-size:13px; color:var(--dim)}
+
+.main{min-width:0; padding:26px 32px 90px; max-width:1040px}
+
+/* ── 首页：组件网格 ─────────────────────────────────────────────────── */
+.hero h1{margin:6px 0 8px; font-size:30px; letter-spacing:-.02em}
+.hero p{margin:0; color:var(--ink2); max-width:660px}
+.hero .row{display:flex; gap:9px; flex-wrap:wrap; margin-top:16px}
+.grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:14px; margin-top:26px}
+.tile{
+  display:block; padding:18px; border:1px solid var(--line); border-radius:16px;
+  background:var(--panel); color:inherit; text-decoration:none;
+  transition:border-color .16s, transform .16s, box-shadow .16s;
+}
+.tile:hover{border-color:var(--acc); transform:translateY(-2px); box-shadow:0 12px 28px -18px #1a56ff66; text-decoration:none}
+.tile h3{margin:0 0 6px; font-size:16.5px; letter-spacing:-.01em}
+.tile p{margin:0; font-size:13px; color:var(--ink2); line-height:1.6}
+.tags{display:flex; gap:6px; flex-wrap:wrap; margin-top:12px}
+.tag{font-size:11px; font-weight:700; padding:2px 8px; border-radius:99px;
+  background:var(--bg2); color:var(--dim); border:1px solid var(--line)}
+
+/* ── 详情 ───────────────────────────────────────────────────────────── */
+.detail h1{margin:2px 0 6px; font-size:27px; letter-spacing:-.02em}
+.sub{margin:0; color:var(--ink2); font-size:15px}
+.meta{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:14px 0 0; font-size:12.5px; color:var(--dim)}
+.meta .dot{width:3px; height:3px; border-radius:50%; background:var(--dim); display:inline-block}
+.sec{margin-top:34px; scroll-margin-top:76px}
+.sec > h2{
+  margin:0 0 12px; font-size:13px; font-weight:800; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--dim); display:flex; align-items:center; gap:10px;
+}
+.sec > h2::after{content:""; flex:1; height:1px; background:var(--line)}
+.prose p{margin:0 0 12px; color:var(--ink2)}
+.prose p:last-child{margin-bottom:0}
+.src{
+  display:flex; gap:12px; align-items:flex-start; padding:14px 16px;
+  border:1px solid var(--line); border-radius:12px; background:var(--bg2);
+}
+.src b{display:block; font-size:14px; color:var(--ink)}
+.src span{font-size:13px; color:var(--ink2)}
+
+/* 预览 */
+.stage{border:1px solid var(--line); border-radius:16px; overflow:hidden; background:var(--bg2)}
+.stage-bar{display:flex; align-items:center; gap:8px; padding:9px 12px; border-bottom:1px solid var(--line);
+  background:var(--panel); font-size:12.5px; color:var(--dim)}
+.stage-bar .sp{margin-left:auto; display:flex; gap:6px}
+.stage-bar .btn{height:28px; padding:0 9px; font-size:12px; border-radius:8px}
+.stage iframe{display:block; width:100%; border:0; background:#f3f4f7}
+.stage-note{padding:9px 12px; font-size:12px; color:var(--dim); border-top:1px solid var(--line); background:var(--panel)}
+
+/* 表格 */
+.tbl{width:100%; border-collapse:collapse; font-size:13.5px}
+.tbl th,.tbl td{padding:10px 12px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top}
+.tbl th{font-size:12px; font-weight:700; color:var(--dim); letter-spacing:.04em; white-space:nowrap}
+.tbl td:first-child{white-space:nowrap}
+.tbl tr:last-child td{border-bottom:0}
+.tbl code{font-size:12.5px; padding:1px 6px; border-radius:6px; background:var(--bg2); border:1px solid var(--line); color:var(--ink)}
+.tbl .ty{color:var(--ink2); font-family:var(--mono); font-size:12.5px}
+
+/* 代码 */
+.codebox{border-radius:14px; overflow:hidden; background:var(--code-bg); border:1px solid #1e2636}
+.code-head{display:flex; align-items:center; gap:6px; padding:8px 10px; border-bottom:1px solid #1e2636}
+.code-head .tab{
+  height:26px; padding:0 10px; border:0; border-radius:7px; background:transparent;
+  color:#8ca0bd; font:inherit; font-size:12px; font-weight:700; cursor:pointer;
+}
+.code-head .tab.on{background:#1c2432; color:#dbe6f8}
+.code-head .sp{margin-left:auto; display:flex; gap:6px}
+.copy{
+  height:26px; padding:0 9px; border:1px solid #2a3446; border-radius:7px; background:#161d29;
+  color:#a9bad4; font:inherit; font-size:11.5px; font-weight:700; cursor:pointer;
+}
+.copy:hover{background:#1e2736; color:#e6eefb}
+.codebox pre{
+  margin:0; padding:14px 16px; overflow:auto; max-height:520px;
+  font-size:12.5px; line-height:1.65; color:var(--code-ink); tab-size:2;
+}
+.codebox pre code{font-size:inherit}
+.hintline{margin:10px 0 0; font-size:12.5px; color:var(--dim)}
+
+/* 提示词 */
+.prompt{border:1px dashed var(--acc); border-radius:14px; background:var(--acc-soft); padding:14px 16px}
+html[data-mode="dark"] .prompt{background:#141a2c}
+.prompt-h{display:flex; align-items:center; gap:10px; margin-bottom:10px}
+.prompt-h b{font-size:13.5px}
+.prompt-h .sp{margin-left:auto}
+.prompt pre{
+  margin:0; padding:13px 15px; border-radius:10px; background:var(--code-bg); color:var(--code-ink);
+  font-size:12.5px; line-height:1.7; overflow:auto; max-height:420px; white-space:pre-wrap;
+}
+.toast{
+  position:fixed; left:50%; bottom:28px; transform:translate(-50%,14px); opacity:0;
+  padding:10px 16px; border-radius:99px; background:#171a1f; color:#fff; font-size:13px; font-weight:600;
+  box-shadow:0 12px 30px -12px #0009; pointer-events:none; transition:opacity .18s, transform .18s; z-index:99;
+}
+.toast.on{opacity:1; transform:translate(-50%,0)}
+
+/* 空状态 */
+.none{padding:40px 0; text-align:center; color:var(--dim); font-size:14px}
+
+/* ── 窄屏 ───────────────────────────────────────────────────────────── */
+@media (max-width: 860px){
+  .shell{grid-template-columns:1fr}
+  .nav{position:static; height:auto; border-right:0; border-bottom:1px solid var(--line);
+    display:flex; gap:6px; overflow-x:auto; padding:10px 12px}
+  .nav h6,.nav .sep{display:none}
+  .nav a{flex:0 0 auto; padding:8px 12px; background:var(--bg2); border-radius:99px}
+  .nav a small{display:none}
+  .main{padding:20px 16px 80px}
+  .top{height:auto; padding:10px 14px; flex-wrap:wrap}
+  .search{order:3; margin:0; max-width:none; width:100%}
+  .tbl th:nth-child(3),.tbl td:nth-child(3){display:none}
+}
+
+/* ── 独立文档页（使用说明与来源）───────────────────────────────────── */
+.doc{max-width:760px; padding:34px 32px 100px}
+.doc h1{margin:0 0 6px; font-size:27px; letter-spacing:-.02em}
+.doc .upd{margin:0 0 26px; font-size:13px; color:var(--dim)}
+.doc h2{margin:34px 0 10px; font-size:17px; letter-spacing:-.01em}
+.doc p{margin:0 0 13px; color:var(--ink2)}
+.doc p.lead{color:var(--ink); font-size:15.5px}
+.doc ul{margin:0 0 13px; padding-left:22px; color:var(--ink2)}
+.doc li{margin:0 0 7px}
+.doc code{font-size:12.5px; padding:1px 6px; border-radius:6px; background:var(--bg2); border:1px solid var(--line)}
+.doc .back{display:inline-flex; margin-top:30px}
+
+/* 简介里的行内代码与加粗（data.js 只用 **加粗** 和 `代码` 两种标记） */
+.prose code{font-size:12.5px; padding:1px 6px; border-radius:6px; background:var(--bg2); border:1px solid var(--line); color:var(--ink)}
+.prose b{color:var(--ink)}
