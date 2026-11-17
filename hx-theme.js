@@ -1619,28 +1619,25 @@
         + 'border-bottom:1.7px solid currentColor;transform:translateY(-2px) rotate(45deg);opacity:.55}'
         // 面板：毛玻璃 + 胶囊行
         + '.hx-pn-sheet{position:fixed;z-index:2147482000;box-sizing:border-box;display:none;overflow:auto;'
-        + 'padding:6px;border-radius:16px;background:rgba(255,255,255,.9);border:1px solid rgba(0,0,0,.08);'
-        + 'box-shadow:0 12px 32px rgba(0,0,0,.16),0 2px 6px rgba(0,0,0,.07);color:#1d1d1f;'
-        // 文字色**写死两套**、不取 var(--hx-ink)：那个变量是 apply() 时写进 html 的内联值，
-        // 一旦什么时候 mode 变了而 apply 没跟着跑（工具页自绘主题、测试里直接改属性），就会浅底浅字直接看不见。
-        + 'backdrop-filter:blur(14px) saturate(1.4);-webkit-backdrop-filter:blur(14px) saturate(1.4);'
+        + 'padding:6px;border-radius:16px;'
+        // 面板配色**跟着触发器走**（open 时由 tint() 从按钮的 computed style 取），不跟账号主题：
+        // 工具页各自有各的底色（进制转换是米白、单片机是深蓝），跟主题走就会出现「浅页面弹深色面板」。
+        + 'background:var(--pn-bg,rgba(255,255,255,.94));border:1px solid var(--pn-bd,rgba(0,0,0,.1));'
+        + 'color:var(--pn-fg,#1d1d1f);box-shadow:var(--pn-sh,0 12px 32px rgba(0,0,0,.18),0 2px 6px rgba(0,0,0,.07));'
+        + 'backdrop-filter:blur(14px) saturate(1.3);-webkit-backdrop-filter:blur(14px) saturate(1.3);'
         + '-webkit-overflow-scrolling:touch}'
-        + 'html[data-hx-mode="dark"] .hx-pn-sheet{background:rgba(28,28,30,.9);border-color:rgba(255,255,255,.12);'
-        + 'color:#f5f5f7;box-shadow:0 12px 32px rgba(0,0,0,.6),0 2px 6px rgba(0,0,0,.4)}'
         + '.hx-pn-opt{display:flex;align-items:center;width:100%;box-sizing:border-box;min-height:34px;padding:0 13px;'
         + 'border:0;border-radius:999px;background:transparent;color:inherit;font:inherit;font-size:13.5px;'
         + 'text-align:left;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0}'
-        + '.hx-pn-opt:hover{background:rgba(0,0,0,.055)}'
-        + 'html[data-hx-mode="dark"] .hx-pn-opt:hover{background:rgba(255,255,255,.1)}'
+        + '.hx-pn-opt:hover{background:var(--pn-hov,rgba(0,0,0,.06))}'
         + '.hx-pn-opt.on{font-weight:600;background:color-mix(in srgb,var(--acc,#0a84ff) 16%,transparent);'
         + 'box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--acc,#0a84ff) 42%,transparent)}'
         + '.hx-pn-opt.dis{opacity:.4;cursor:not-allowed}'
         + '.hx-pn-grp{padding:8px 13px 4px;font-size:11.5px;opacity:.55;letter-spacing:.02em}'
         + '.hx-pn-empty{padding:10px 13px;font-size:13px;opacity:.55}'
-        // 极简外观（hx-lite）：纯色直角，不要毛玻璃不要胶囊
+        // 极简外观（hx-lite）：直角、去毛玻璃（底色仍取触发器自己的，不写死白/黑）
         + 'html.hx-lite .hx-pn-sheet{border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,.22);'
-        + 'backdrop-filter:none;-webkit-backdrop-filter:none;background:#fff}'
-        + 'html.hx-lite[data-hx-mode="dark"] .hx-pn-sheet{background:#111}'
+        + 'backdrop-filter:none;-webkit-backdrop-filter:none}'
         + 'html.hx-lite .hx-pn-opt{border-radius:4px}';
       (document.head || document.documentElement).appendChild(s);
     }
@@ -1680,6 +1677,40 @@
       inst.btn.disabled = !!el.disabled;
       inst.btn.title = t;
       if (!inst.skinned) skin(inst);
+    }
+
+    /* 面板配色**跟着触发器走**：深色卡片里的下拉弹深色面板、米白页面上弹米白面板。
+       底色取按钮（= 原生 select）的 computed style；按钮是透明的（进制转换的「方向」就是无边框内联文字）
+       就沿着祖先找最近一层**有底色**的容器当面板底色 —— 总之不许出现「浅色页面弹一块深色面板」。
+       文字色一律用触发器自己的 color：那是人家为这块底配好的色。 */
+    var TRANSP = /^rgba\(0, 0, 0, 0\)$|^transparent$/;
+    function surfaceOf(el) {
+      var n = el && el.parentNode, i = 0;
+      while (n && n.nodeType === 1 && i++ < 10) {
+        var c = getComputedStyle(n).backgroundColor;
+        if (c && !TRANSP.test(c)) return c;
+        n = n.parentNode;
+      }
+      return null;
+    }
+    function tint(inst) {
+      var cs = getComputedStyle(inst.btn), st = sheet.style;
+      var bg = cs.backgroundColor, fg = cs.color || '#1d1d1f', bd = cs.borderTopColor;
+      var dark = document.documentElement.getAttribute('data-hx-mode') === 'dark';
+      if (!bg || TRANSP.test(bg)) bg = surfaceOf(inst.wrap);
+      if (bg && !TRANSP.test(bg)) {
+        st.setProperty('--pn-bg', bg);
+        st.setProperty('--pn-fg', fg);
+        st.setProperty('--pn-bd', (!bd || TRANSP.test(bd)) ? 'color-mix(in srgb,' + fg + ' 20%,transparent)' : bd);
+        st.setProperty('--pn-hov', 'color-mix(in srgb,' + fg + ' 9%,transparent)');
+        st.setProperty('--pn-sh', '0 12px 32px rgba(0,0,0,.26),0 2px 6px rgba(0,0,0,.1)');
+      } else {
+        st.setProperty('--pn-bg', dark ? 'rgba(28,28,30,.94)' : 'rgba(255,255,255,.94)');
+        st.setProperty('--pn-fg', dark ? '#f5f5f7' : '#1d1d1f');
+        st.setProperty('--pn-bd', dark ? 'rgba(255,255,255,.14)' : 'rgba(0,0,0,.1)');
+        st.setProperty('--pn-hov', dark ? 'rgba(255,255,255,.1)' : 'rgba(0,0,0,.06)');
+        st.setProperty('--pn-sh', dark ? '0 12px 32px rgba(0,0,0,.6)' : '0 12px 32px rgba(0,0,0,.18)');
+      }
     }
 
     function buildSheet(inst) {
@@ -1781,6 +1812,7 @@
         document.body.appendChild(sheet);
       }
       skin(inst);
+      tint(inst);
       buildSheet(inst);
       sheet.style.display = 'block';
       place(inst);
