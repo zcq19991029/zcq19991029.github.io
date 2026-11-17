@@ -1634,35 +1634,83 @@
         + '.hx-pn-txt{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'
         + '.hx-pn-car{flex:0 0 auto;width:6px;height:6px;border-right:1.7px solid currentColor;'
         + 'border-bottom:1.7px solid currentColor;transform:translateY(-2px) rotate(45deg);opacity:.55}'
-        // 面板：毛玻璃 + 胶囊行
+        // 面板 = 一块铝箔药板。配方**直接从 刷题/style.css 的 .bsc-foil / .bsc-rim / .bsc-pill 抄过来**：
+        // 用户要的就是「跟刷题那边一样」，别再自己发明第二种长相（第一版做成白底圆角条，被问「药丸在哪儿」）。
+        // 铝箔是实物色（浅银），所以既不跟主题也不跟触发器底色走 —— 深色页面上它也是一块亮银色药板，
+        // 这正是刷题里那块药板的样子。因此原来那套 --pn-bg/--pn-fg 的 tint() 机制整个删掉了。
         + '.hx-pn-sheet{position:fixed;z-index:2147482000;box-sizing:border-box;display:none;overflow:auto;'
-        + 'padding:6px;border-radius:16px;'
-        // 面板配色**跟着触发器走**（open 时由 tint() 从按钮的 computed style 取），不跟账号主题：
-        // 工具页各自有各的底色（进制转换是米白、单片机是深蓝），跟主题走就会出现「浅页面弹深色面板」。
-        + 'background:var(--pn-bg,rgba(255,255,255,.94));border:1px solid var(--pn-bd,rgba(0,0,0,.1));'
-        + 'color:var(--pn-fg,#1d1d1f);box-shadow:var(--pn-sh,0 12px 32px rgba(0,0,0,.18),0 2px 6px rgba(0,0,0,.07));'
-        + 'backdrop-filter:blur(14px) saturate(1.3);-webkit-backdrop-filter:blur(14px) saturate(1.3);'
+        + 'padding:6px;border-radius:14px;color:#20242a;border:1px solid rgba(255,255,255,.41);'
+        + 'background:'
+        + 'radial-gradient(300px circle at 38% 28%,rgba(255,255,255,.52) 0,rgba(255,255,255,.14) 38%,transparent 72%),'
+        + 'repeating-linear-gradient(45deg,rgba(255,255,255,.23) 0 1px,transparent 1px 3.5px),'
+        + 'repeating-linear-gradient(-45deg,rgba(55,60,70,.12) 0 1px,transparent 1px 3.5px),'
+        + 'repeating-linear-gradient(0deg,rgba(255,255,255,.145) 0,rgba(0,0,0,.04) 1px,rgba(255,255,255,.11) 2px),'
+        + 'linear-gradient(165deg,#eceef1,#d8dade 36%,#c5c9d0 74%,#d4d7dc);'
+        + 'box-shadow:inset 0 1.5px 1px rgba(255,255,255,.91),inset 1px 0 1px rgba(255,255,255,.65),'
+        + 'inset 0 -2px 3px rgba(72,76,86,.55),inset -1px 0 2px rgba(82,86,96,.38),'
+        + '0 14px 30px -8px rgba(0,0,0,.6),0 4px 10px rgba(0,0,0,.31);'
         + '-webkit-overflow-scrolling:touch}'
-        // 每一行是一颗胶囊：999px 圆角 + 一圈极细的描边。
-        // 只靠圆角没有底色时看不出形状（用户「药丸在哪儿」问的就是这个），描边让每颗胶囊有轮廓，像铝箔药板。
-        + '.hx-pn-opt{display:flex;align-items:center;width:100%;box-sizing:border-box;min-height:34px;padding:0 14px;'
-        + 'border:0;border-radius:999px;background:transparent;color:inherit;font:inherit;font-size:13.5px;'
-        + 'text-align:left;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0 0 3px;'
-        + 'box-shadow:inset 0 0 0 1px color-mix(in srgb,currentColor 13%,transparent)}'
-        + '.hx-pn-opt:last-child{margin-bottom:0}'
-        + '.hx-pn-opt:hover{background:var(--pn-hov,rgba(0,0,0,.06))}'
-        + '.hx-pn-opt.on{font-weight:600;background:color-mix(in srgb,var(--acc,#0a84ff) 16%,transparent);'
-        + 'box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--acc,#0a84ff) 42%,transparent)}'
-        + '.hx-pn-opt.dis{opacity:.4;cursor:not-allowed}'
-        + '.hx-pn-grp{padding:8px 13px 4px;font-size:11.5px;opacity:.55;letter-spacing:.02em}'
-        + '.hx-pn-empty{padding:10px 13px;font-size:13px;opacity:.55}'
-        // 极简外观（hx-lite）：去毛玻璃、收阴影，但**圆角不动** ——
-        // 2026-11-17 用户看到方角版直接问「药丸在哪儿？」，药丸形状是这套组件的本分，不因极简而变方。
-        // （底色仍取触发器脚下的底，不写死白/黑）
-        + 'html.hx-lite .hx-pn-sheet{box-shadow:0 4px 12px rgba(0,0,0,.22);'
-        + 'backdrop-filter:none;-webkit-backdrop-filter:none}';
+        // 一行 = 药板上的一格：左边一颗胶囊，右边名字；行与行之间是点线（同 .bsc-row）
+        + '.hx-pn-opt{display:grid;grid-template-columns:38px minmax(0,1fr);gap:9px;align-items:center;'
+        + 'width:100%;box-sizing:border-box;min-height:42px;padding:0 11px;margin:0;border:0;border-radius:0;'
+        + 'background:transparent;color:#20242a;font:inherit;font-size:13.5px;font-weight:600;'
+        + 'text-align:left;cursor:pointer;overflow:hidden}'
+        + '.hx-pn-opt+.hx-pn-opt{border-top:1px dotted rgba(84,89,100,.53)}'
+        + '.hx-pn-opt:hover{background:rgba(255,255,255,.24)}'
+        + '.hx-pn-opt:active{background:rgba(0,0,0,.05)}'
+        + '.hx-pn-opt:focus-visible{outline:2px solid #1a56ff;outline-offset:-3px}'
+        + '.hx-pn-opt.dis{opacity:.42;cursor:not-allowed}'
+        // 药槽 = 刷题 `.bsc-pocket` 那一套四层（`.bsc-rim` 金属圈 + `.bsc-rim::after` 压痕 + `.bsc-dome` 玻璃罩 + `.bsc-pill` 胶囊），
+        // 尺寸整体 ×0.7（药槽 54×30 → 38×21、胶囊 40×16 → 28×11）。缩小的原因：原生 select 常常只有一百来像素宽，
+        // 原尺寸一颗药就吃掉 54px，窄下拉里选项文字当场变省略号 —— 层次和比例一模一样，只是小一号。
+        + '.hx-pn-pk{position:relative;display:grid;place-items:center;width:38px;height:21px;isolation:isolate;pointer-events:none}'
+        + '.hx-pn-rim{position:absolute;inset:1px 1.5px;border-radius:999px;'
+        + 'background:linear-gradient(162deg,rgba(251,252,255,.61) 2%,rgba(115,121,134,.47) 24%,'
+        + 'rgba(244,245,248,.32) 49%,rgba(76,82,94,.33) 66%,#fff 96%);'
+        + 'box-shadow:0 1px 1.4px rgba(0,0,0,.27),inset 0 0 0 1px rgba(250,252,255,.75),'
+        + 'inset 0 0 0 1.5px rgba(130,136,149,.55),inset 0 0 0 2.5px rgba(233,237,242,.61),'
+        + 'inset 0 .7px 3.5px rgba(51,57,70,.77)}'
+        + '.hx-pn-rim::after{content:"";position:absolute;inset:3.5px;border-radius:inherit;'
+        + 'background:rgba(184,187,198,.36);'
+        + 'box-shadow:inset 0 1.4px 2px rgba(52,56,66,.33),inset 0 -.7px .7px #fff}'
+        + '.hx-pn-dome{position:absolute;z-index:2;inset:3px 4px;border-radius:999px;'
+        + 'background:linear-gradient(145deg,rgba(255,255,255,.33),rgba(255,255,255,.07) 32%,'
+        + 'transparent 56%,rgba(255,255,255,.13));box-shadow:inset 0 1px 1px rgba(255,255,255,.6)}'
+        + '.hx-pn-pill{position:relative;width:28px;height:11px;border-radius:999px;'
+        + 'background:linear-gradient(90deg,#0645c5 0 49%,#e8e8e8 50%);'
+        + 'box-shadow:0 1px 2px rgba(17,24,34,.4),inset 0 1px 1px rgba(0,0,0,.4)}'
+        + '.hx-pn-pill::before{content:"";position:absolute;inset:1.4px 50% 1.8px 1.8px;'
+        + 'border:1px solid rgba(96,153,252,.33);border-right:0;border-radius:999px 0 0 999px}'
+        + '.hx-pn-pill::after{content:"";position:absolute;inset:0;border-radius:inherit;'
+        + 'background:linear-gradient(180deg,rgba(0,0,0,.47),transparent 33%,rgba(255,255,255,.33) 68%,rgba(0,0,0,.27));'
+        + 'box-shadow:inset 0 -.7px .7px rgba(0,0,0,.33)}'
+        // 选中 = 这颗药被抠走了：露出撕开的空槽（同 `.bsc-cavity`，含毛边 clip-path 和那片反光锡纸）
+        + '.hx-pn-cav{position:absolute;inset:1px 1.5px;display:none;border-radius:999px;'
+        + 'background:conic-gradient(from 12deg,#f5f5f5,#666970 10%,#e4e6e8 17%,#b8bbc2 29%,'
+        + '#f5f5f5 37%,#484b50 48%,#d6d8db 59%,#878b91 66%,#f6f6f6 78%,#4a4c50 89%,#efeff0);'
+        + 'box-shadow:inset 0 0 0 1px #fff,inset 0 0 0 1.5px #7a7d82,inset 0 0 0 2.5px #e4e6ea,'
+        + '0 1.4px 2.8px rgba(0,0,0,.31)}'
+        + '.hx-pn-cav::before,.hx-pn-cav::after{content:"";position:absolute}'
+        + '.hx-pn-cav::before{inset:3px 4px;'
+        + 'clip-path:polygon(0 34%,9% 10%,25% 18%,38% 0,52% 14%,72% 0,89% 15%,100% 36%,'
+        + '97% 77%,87% 95%,69% 86%,56% 100%,38% 82%,24% 92%,20% 64%,4% 63%);'
+        + 'background:repeating-linear-gradient(4deg,rgba(255,255,255,.06) 0 1px,transparent 1px 3px),'
+        + 'radial-gradient(ellipse at 50% 78%,#4d4f51,#252729 62%,#111214 83%);box-shadow:inset 0 3px 8px #000}'
+        + '.hx-pn-cav::after{width:37%;height:61%;left:8%;bottom:9%;'
+        + 'clip-path:polygon(0 3%,38% 14%,52% 30%,85% 42%,74% 64%,99% 90%,51% 100%,11% 75%);'
+        + 'background:conic-gradient(from 31deg at 46% 49%,rgba(255,255,255,.73),#8c8f95,#fff,'
+        + '#53565e,#f9fafc,#bcbec3,rgba(255,255,255,.73))}'
+        + '.hx-pn-opt.on .hx-pn-cav{display:block}'
+        + '.hx-pn-opt.on :is(.hx-pn-rim,.hx-pn-dome,.hx-pn-pill){visibility:hidden}'
+        + '.hx-pn-opt.on .hx-pn-txt{font-weight:800}'
+        + '.hx-pn-txt{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-shadow:0 1px rgba(255,255,255,.66)}'
+        + '.hx-pn-grp{padding:8px 12px 3px;font-size:10.5px;font-weight:700;letter-spacing:.08em;color:#5c626b}'
+        + '.hx-pn-empty{padding:10px 12px;font-size:13px;color:#4a4f57}'
+        // 极简外观：只收阴影，药板本体不动（刷题那边极简也还是这块铝箔）
+        + 'html.hx-lite .hx-pn-sheet{box-shadow:0 6px 16px rgba(0,0,0,.4)}';
       (document.head || document.documentElement).appendChild(s);
     }
+
 
     function labelOf(sel) {
       var o = sel.options[sel.selectedIndex];
@@ -1701,40 +1749,6 @@
       if (!inst.skinned) skin(inst);
     }
 
-    /* 面板配色**跟着触发器走**：深色卡片里的下拉弹深色面板、米白页面上弹米白面板。
-       底色取按钮（= 原生 select）的 computed style；按钮是透明的（进制转换的「方向」就是无边框内联文字）
-       就沿着祖先找最近一层**有底色**的容器当面板底色 —— 总之不许出现「浅色页面弹一块深色面板」。
-       文字色一律用触发器自己的 color：那是人家为这块底配好的色。 */
-    var TRANSP = /^rgba\(0, 0, 0, 0\)$|^transparent$/;
-    function surfaceOf(el) {
-      var n = el && el.parentNode, i = 0;
-      while (n && n.nodeType === 1 && i++ < 10) {
-        var c = getComputedStyle(n).backgroundColor;
-        if (c && !TRANSP.test(c)) return c;
-        n = n.parentNode;
-      }
-      return null;
-    }
-    function tint(inst) {
-      var cs = getComputedStyle(inst.btn), st = sheet.style;
-      var bg = cs.backgroundColor, fg = cs.color || '#1d1d1f', bd = cs.borderTopColor;
-      var dark = document.documentElement.getAttribute('data-hx-mode') === 'dark';
-      if (!bg || TRANSP.test(bg)) bg = surfaceOf(inst.wrap);
-      if (bg && !TRANSP.test(bg)) {
-        st.setProperty('--pn-bg', bg);
-        st.setProperty('--pn-fg', fg);
-        st.setProperty('--pn-bd', (!bd || TRANSP.test(bd)) ? 'color-mix(in srgb,' + fg + ' 20%,transparent)' : bd);
-        st.setProperty('--pn-hov', 'color-mix(in srgb,' + fg + ' 9%,transparent)');
-        st.setProperty('--pn-sh', '0 12px 32px rgba(0,0,0,.26),0 2px 6px rgba(0,0,0,.1)');
-      } else {
-        st.setProperty('--pn-bg', dark ? 'rgba(28,28,30,.94)' : 'rgba(255,255,255,.94)');
-        st.setProperty('--pn-fg', dark ? '#f5f5f7' : '#1d1d1f');
-        st.setProperty('--pn-bd', dark ? 'rgba(255,255,255,.14)' : 'rgba(0,0,0,.1)');
-        st.setProperty('--pn-hov', dark ? 'rgba(255,255,255,.1)' : 'rgba(0,0,0,.06)');
-        st.setProperty('--pn-sh', dark ? '0 12px 32px rgba(0,0,0,.6)' : '0 12px 32px rgba(0,0,0,.18)');
-      }
-    }
-
     function buildSheet(inst) {
       var sel = inst.sel, cur = sel.selectedIndex, lastGrp = null, i, o;
       sheet.innerHTML = '';
@@ -1759,7 +1773,10 @@
         b.setAttribute('aria-selected', i === cur ? 'true' : 'false');
         b.setAttribute('data-i', i);
         if (o.disabled) b.disabled = true;
-        b.textContent = String(o.text || '').replace(/\s+/g, ' ').trim() || '（空）';
+        // 左边那颗胶囊（选中行由 CSS 换成空药槽）+ 右边名字
+        b.innerHTML = '<span class="hx-pn-pk"><i class="hx-pn-rim"></i><i class="hx-pn-pill"></i>'
+          + '<i class="hx-pn-dome"></i><i class="hx-pn-cav"></i></span><span class="hx-pn-txt"></span>';
+        b.querySelector('.hx-pn-txt').textContent = String(o.text || '').replace(/\s+/g, ' ').trim() || '（空）';
         sheet.appendChild(b);
       }
     }
@@ -1834,7 +1851,6 @@
         document.body.appendChild(sheet);
       }
       skin(inst);
-      tint(inst);
       buildSheet(inst);
       sheet.style.display = 'block';
       place(inst);

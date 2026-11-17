@@ -15,7 +15,7 @@
   </script>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%23ffcb54'/%3E%3Ccircle cx='23' cy='31' r='5' fill='%233b4351'/%3E%3Ccircle cx='43' cy='31' r='5' fill='%233b4351'/%3E%3Cpath d='M25 43c5 5 10 5 15 0' fill='none' stroke='%233b4351' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E" />
   <style>
-    :root { --ink:#171717; --muted:#6d6d73; --cream:#fff; --paper:#ffffff; --line:#e6e6e6; --yellow:#d9272e; --yellow-deep:#ad1f25; --mint:#f3d9da; --mint-deep:#a91f27; --pink:#efb5b7; --purple:#a91f27; --shadow:0 16px 40px rgba(35,20,20,.10); --watermark-opacity:1; --surface-opacity:0; --tab-opacity:0; }
+    :root { --ink:#171717; --muted:#6d6d73; --cream:#fff; --paper:#ffffff; --line:#e6e6e6; --yellow:#d9272e; --yellow-deep:#ad1f25; --mint:#f3d9da; --mint-deep:#a91f27; --pink:#efb5b7; --purple:#a91f27; --shadow:0 16px 40px rgba(35,20,20,.10); --watermark-opacity:1; --tab-opacity:0; }
     * { box-sizing:border-box; }
     body { margin:0; color:var(--ink); font-family: ui-rounded, "SF Pro Rounded", "PingFang SC", "Microsoft YaHei", sans-serif; background:radial-gradient(circle at 5% 4%, #ffe8e9 0 8%, transparent 25%),radial-gradient(circle at 93% 14%, #f5eeee 0 7%, transparent 24%),var(--cream); min-height:100vh; overflow-x:hidden; }
     body:before{content:"";position:fixed;inset:0;background:url('夜夜班校徽.png') center/ min(92vw,92vh) auto no-repeat;opacity:var(--watermark-opacity);pointer-events:none;z-index:0;filter:saturate(.95)}
@@ -34,7 +34,7 @@
     .stat b { font-size:16px; color:var(--purple); } .stat.streak b { color:#f38673; }
     .settings-wrap{position:relative}.settings-btn{padding:10px 13px;border:1px solid var(--line);border-radius:14px;background:#fff;color:var(--ink);font-size:13px;font-weight:900;box-shadow:0 8px 20px rgba(77,61,41,.05)}.settings-panel{display:none;position:absolute;right:0;top:48px;width:290px;padding:16px;background:rgba(255,255,255,.97);border:1px solid var(--line);border-radius:16px;box-shadow:0 18px 35px rgba(25,15,15,.15);z-index:10}.settings-panel.open{display:block}.settings-panel h3{margin:0 0 5px;font-size:15px}.settings-panel p{margin:0 0 13px;color:var(--muted);font-size:11px;font-weight:700}.setting-row{display:grid;grid-template-columns:92px 1fr 42px;align-items:center;gap:8px;margin:11px 0;font-size:12px;font-weight:800}.setting-row input{width:100%;accent-color:#d9272e}.setting-row output{color:#a91f27;text-align:right;font-variant-numeric:tabular-nums}.reset-settings{width:100%;margin-top:5px;padding:8px;border:1px solid #ead2d3;border-radius:9px;background:#fff7f7;color:#a91f27;font-size:12px;font-weight:900}
     .layout { display:grid; grid-template-columns:minmax(0, 1.6fr) minmax(280px,.82fr); gap:18px; align-items:start; }
-    .card { background:rgba(255,255,255,var(--surface-opacity)); border:1px solid var(--line); border-radius:24px; box-shadow:var(--shadow); }
+    .card { background:rgba(255,255,255,var(--card-a)); border:1px solid var(--line); border-radius:24px; box-shadow:var(--shadow); }
     .main-card { padding:25px; position:relative; overflow:hidden; } .main-card:after { content:""; position:absolute; right:-35px; top:-50px; width:160px; height:160px; border-radius:50%; background:#fff2bd; opacity:.6; }
     .eyebrow { position:relative; z-index:1; display:flex; align-items:center; gap:9px; color:var(--mint-deep); font-size:13px; font-weight:900; letter-spacing:.06em; text-transform:uppercase; }
     .eyebrow span { width:8px; height:8px; background:var(--mint); border-radius:50%; box-shadow:0 0 0 5px #e4faf1; }
@@ -94,6 +94,32 @@
 <!-- 未登录闸门（2026-11-08）：hx-theme.js 的 gate() 会在没登录时把单独打开的页面送回总入口。
      这一页以前没引 hx-theme.js（纯本机 localStorage，不依赖账号），所以不登录也能直接用 —— 用户要求收回。 -->
 <script src="/hx-theme.js" data-tool="base"></script>
+
+<style id="hx-card-alpha">
+  /* ── 卡片通透度：跟全站「外观 → 卡片通透度」走（2026-11-17 用户报「这 2 页卡片无法调整通透度」）─────
+     之前这些卡片的底色是写死的 #fff / rgba(255,255,255,.9x)，本机那个「内容卡片」滑杆又只管 .card 一个类，
+     所以滑杆怎么拖都不动。现在统一：--hx-a 1 = 最透（.62）、2 = 最实（1.0），跟小组加分那边的写法一致。
+     配 8px 毛玻璃：透出壁纸的同时文字不糊（纯透不做模糊时，数字直接压在照片上读不清，2026-11-17 试过）。 */
+  :root { --card-a: calc(var(--hx-a, 1) * .62); }
+  .card, .main-card, .challenge, .reference, .progress-card, .led-lab, .code-lab, .sim-panel,
+  .nibble, .base-box, .option, .step, .lab-result, .base-readouts > div, .tutorial-step,
+  .tutorial-checklist, .code-example-panel, .teaching-box, .standalone-output, .project-card,
+  .bitgarden, .stat, .settings-btn, .bit-input {
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  }
+  .card, .main-card, .challenge, .reference, .progress-card, .led-lab, .code-lab,
+  .nibble, .base-box, .option, .base-readouts > div, .tutorial-step, .tutorial-checklist {
+    background-color: rgba(255, 255, 255, var(--card-a)) !important;
+  }
+  .lab-result { background-color: rgba(233, 250, 242, var(--card-a)) !important; }
+  .sim-panel { background-color: rgba(255, 249, 249, var(--card-a)) !important; }
+  .teaching-box { background-color: rgba(255, 250, 247, var(--card-a)) !important; }
+  .standalone-output { background-color: rgba(255, 248, 243, var(--card-a)) !important; }
+  .code-example-panel { background-color: rgba(255, 255, 255, var(--card-a)) !important; }
+  .project-card { background-color: rgba(255, 255, 255, var(--card-a)) !important; }
+  .step { background-color: rgba(255, 250, 242, var(--card-a)) !important; }
+  .tutorial-hero { background: rgba(255, 250, 244, var(--card-a)) !important; }
+</style>
 </head>
 
 
@@ -118,7 +144,7 @@
   <main class="app">
     <header class="topbar">
       <div class="brand"><div class="brand-mark" aria-hidden="true"><i></i></div><div><h1>夜夜班的进制转换练习 Sites版</h1><small>单片机 8 位 LED · 看懂二进制、十进制和十六进制</small></div></div>
-      <div class="stats" aria-label="学习统计"><div class="settings-wrap"><button class="settings-btn" id="settingsBtn" aria-expanded="false">⚙ 背景设置</button><div class="settings-panel" id="settingsPanel"><h3>背景透明度</h3><p>拖动滑块，页面会立即更新；设置会保存在本机。</p><label class="setting-row"><span>校徽背景</span><input id="watermarkRange" type="range" min="0" max="100" value="100"><output id="watermarkValue">100%</output></label><label class="setting-row"><span>内容卡片</span><input id="surfaceRange" type="range" min="0" max="100" value="0"><output id="surfaceValue">0%</output></label><label class="setting-row"><span>选项卡</span><input id="tabRange" type="range" min="0" max="100" value="0"><output id="tabValue">0%</output></label><button class="reset-settings" id="resetSettings">恢复默认</button></div></div></div>
+      <div class="stats" aria-label="学习统计"><div class="settings-wrap"><button class="settings-btn" id="settingsBtn" aria-expanded="false">⚙ 背景设置</button><div class="settings-panel" id="settingsPanel"><h3>背景透明度</h3><p>拖动滑块，页面会立即更新；设置会保存在本机。</p><label class="setting-row"><span>校徽背景</span><input id="watermarkRange" type="range" min="0" max="100" value="100"><output id="watermarkValue">100%</output></label><label class="setting-row"><span>选项卡</span><input id="tabRange" type="range" min="0" max="100" value="0"><output id="tabValue">0%</output></label><button class="reset-settings" id="resetSettings">恢复默认</button></div></div></div>
     </header>
     <nav class="page-nav" aria-label="课堂模块">
       <button class="page-tab active" data-page="learn" aria-current="page">① 进制学习</button>
@@ -266,10 +292,10 @@ void main(void){ Timer0Init(); while(1){} }</pre><p class="code-explain">定时�
     };
     const $=s=>document.querySelector(s); const $$=s=>[...document.querySelectorAll(s)];
     $('.pin-map').innerHTML=Array.from({length:8},(_,i)=>`<div class="pin"><b>P1.${i}</b><small>LED${i}</small></div>`).join('');
-    const settingDefaults={watermark:100,surface:0,tab:0};
-    function applySetting(key,value){const v=Number(value);document.documentElement.style.setProperty(key==='watermark'?'--watermark-opacity':key==='surface'?'--surface-opacity':'--tab-opacity',v/100);$('#'+key+'Value').textContent=v+'%';$('#'+key+'Range').value=v;localStorage.setItem('夜夜班-'+key,v)}
+    const settingDefaults={watermark:100,tab:0};
+    function applySetting(key,value){const v=Number(value);document.documentElement.style.setProperty(key==='watermark'?'--watermark-opacity':'--tab-opacity',v/100);$('#'+key+'Value').textContent=v+'%';$('#'+key+'Range').value=v;localStorage.setItem('夜夜班-'+key,v)}
     function loadSettings(){const version=localStorage.getItem('夜夜班-settings-version');if(version!=='2'){Object.entries(settingDefaults).forEach(([k,v])=>localStorage.setItem('夜夜班-'+k,v));localStorage.setItem('夜夜班-settings-version','2')}Object.entries(settingDefaults).forEach(([k,d])=>applySetting(k,localStorage.getItem('夜夜班-'+k)??d));}
-    $('#settingsBtn').addEventListener('click',()=>{let p=$('#settingsPanel'),open=p.classList.toggle('open');$('#settingsBtn').setAttribute('aria-expanded',open)});[['watermark','watermarkRange'],['surface','surfaceRange'],['tab','tabRange']].forEach(([key,id])=>$('#'+id).addEventListener('input',e=>applySetting(key,e.target.value)));$('#resetSettings').addEventListener('click',()=>Object.entries(settingDefaults).forEach(([k,v])=>applySetting(k,v)));
+    $('#settingsBtn').addEventListener('click',()=>{let p=$('#settingsPanel'),open=p.classList.toggle('open');$('#settingsBtn').setAttribute('aria-expanded',open)});[['watermark','watermarkRange'],['tab','tabRange']].forEach(([key,id])=>$('#'+id).addEventListener('input',e=>applySetting(key,e.target.value)));$('#resetSettings').addEventListener('click',()=>Object.entries(settingDefaults).forEach(([k,v])=>applySetting(k,v)));
     loadSettings();
     let mode='bin-dec', reverse=false;
     const names={2:'二进制',10:'十进制',16:'十六进制'};
