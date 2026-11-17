@@ -383,7 +383,7 @@ function paintDemoBar() {
   el.id = 'demoBar';
   el.className = 'demo-bar';
   el.innerHTML = '<b>演示视角 · 测试查看用户（只读）</b><span>这一屏就是本班学生登录后看到的：可以翻题、看答案和解析；'
-    + '<b>作答、错题、排位都不会被记录</b>，关掉标签页就结束。</span>';
+    + '<b>作答、错题、排位都不会被记录</b>。看完点左上角「返回」回首页，再点一次「刷题」就回到你自己的视角。</span>';
   document.querySelector('main').prepend(el);
 }
 function counts(list = S.questions) {

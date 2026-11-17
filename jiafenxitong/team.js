@@ -512,6 +512,9 @@
   }
 
   function boot() {
+    /* 演示视角：右上角「看我的分数」也要带上同一个 pv，否则影子身份在这儿断了
+       （回到 scores.html 会把老师当成「不是学生」直接挡掉）。scores.js 里反过来那条已经带过。 */
+    if (PV) { var go = document.querySelector('.idc-go'); if (go) go.href = 'scores.html?pv=' + PV; }
     if (!token()) { showFatal('no_login'); return; }
     rpc('jf_team_mine', {}).then(function (res) {
       if (!token()) { showFatal('no_login'); return; }
