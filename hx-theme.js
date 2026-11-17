@@ -1721,11 +1721,33 @@
 
     /* 从原生 select 现场抄外观。注意：**只抄能抄的**（颜色/边框/圆角/字体/内边距），
        不抄 width/height —— 那两条由「select 撑包装层、按钮铺满」这个结构负责，抄成 px 反而不能自适应。 */
+    /* 原生 select 常把「下拉箭头」挂成 background-image（考试页就是
+       `background: var(--field) url("data:image/svg+xml,…chevron…")`）。
+       skin() 只搬 backgroundImage、不搬 backgroundRepeat / Position / Size，
+       于是那个 12×8 的箭头会被平铺满整条按钮，看上去像一片波纹（2026-11-17 考试页实机）。
+       按钮右侧本来就有自己画的 .hx-pn-car 箭头，所以 url() 那几层直接丢掉，
+       纯渐变（单片机那种）照旧保留 —— 只按顶层逗号切层，括号里的逗号不算。 */
+    function stripIconLayers(bg) {
+      if (!bg || bg.indexOf('url(') === -1) return bg;
+      var parts = [], depth = 0, cur = '';
+      for (var i = 0; i < bg.length; i++) {
+        var ch = bg.charAt(i);
+        if (ch === '(') depth++;
+        else if (ch === ')') depth--;
+        if (ch === ',' && depth === 0) { parts.push(cur); cur = ''; }
+        else cur += ch;
+      }
+      parts.push(cur);
+      var keep = [];
+      for (var j = 0; j < parts.length; j++) if (parts[j].indexOf('url(') === -1) keep.push(parts[j]);
+      return keep.join(',') || 'none';
+    }
+
     function skin(inst) {
       var sel = inst.sel, btn = inst.btn, st = btn.style;
       if (!sel.getClientRects().length) return; // 还没露出来，量不到，等下次
       var cs = getComputedStyle(sel);
-      var fill = ['color', 'backgroundColor', 'backgroundImage', 'fontFamily', 'fontSize', 'fontWeight',
+      var fill = ['color', 'backgroundColor', 'fontFamily', 'fontSize', 'fontWeight',
         'letterSpacing', 'lineHeight', 'textAlign', 'borderTopWidth', 'borderRightWidth', 'borderBottomWidth',
         'borderLeftWidth', 'borderTopStyle', 'borderRightStyle', 'borderBottomStyle', 'borderLeftStyle',
         'borderTopColor', 'borderRightColor', 'borderBottomColor', 'borderLeftColor', 'borderRadius',
@@ -1734,6 +1756,7 @@
         var v = cs[fill[i]];
         if (v) st[fill[i]] = v;
       }
+      st.backgroundImage = stripIconLayers(cs.backgroundImage);
       // 原生下拉的文字大多是垂直居中、左右各留一点；按钮默认 0.8em 的内边距稍微补一点
       if (!inst.txt.textContent) st.paddingRight = (parseFloat(cs.paddingLeft) || 8) + 18 + 'px';
       inst.skinned = true;
