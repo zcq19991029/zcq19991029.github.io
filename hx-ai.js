@@ -765,7 +765,10 @@
 
   function forTool(tool) {
     var s = read();
-    var p = find(s, s.tools[str(tool)]) || find(s, s.active.text) || null;
+    /* 2026-11-17：补上最后那层兜底 —— 和 pick() 的「文本退第一套」保持一致。
+       以前少了这一层，会出现「设置页说这个工具没有可用模型，但真点下去 AI 又能用」
+       （因为 pick() 会退到 profiles[0]）。两边口径不一致，老师只会更糊涂。 */
+    var p = find(s, s.tools[str(tool)]) || find(s, s.active.text) || s.profiles[0] || null;
     return p ? view(p, s) : null;
   }
 

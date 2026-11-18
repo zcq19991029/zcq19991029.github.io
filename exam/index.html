@@ -482,6 +482,18 @@ body { margin: 0; }
 .ex .editor { min-height: 260px; margin-top: 10px; }
 .mono { font-family: Consolas, "Cascadia Mono", monospace; }
 button.danger { color: var(--bad, #d70015); }
+/* 2026-11-17：电子试卷列表的「成绩发布状态」。用户要的是「醒目的标签，别只写灰色小字」，
+   所以已发布用实心绿、未发布用琥珀描边 —— 扫一眼就知道哪几场还没放分。 */
+.ex-rel { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin-top: 6px; }
+.ex-rel-tag { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; font-weight: 700; letter-spacing: .01em; padding: 4px 12px; border-radius: 99px; border: 1px solid transparent; }
+.ex-rel-tag::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.ex-rel-tag.on { color: #fff; background: var(--ok, #1a7f37); }
+.ex-rel-tag.off { color: #b45309; background: rgba(180, 83, 9, .16); border-color: rgba(180, 83, 9, .55); }
+.ex-rel-tag.unk { color: var(--mute, #6b7280); border-color: var(--hair, rgba(15, 23, 42, .12)); }
+.ex-rel-sub { font-size: 12px; color: var(--acc, #2f6bff); }
+/* 删只用红字：button.danger 在 BASE_CSS 里是红底，再刷红字就成了一块看不出字的大红块（截图踩过）。 */
+.ex-item [data-danger] { color: var(--bad, #d70015); }
+.ex-fail { color: #dc2626; margin: 8px 0 0; }
 @media (max-width: 720px) {
   .ex { padding: 14px 12px 50px; }
   .ex-h h1 { font-size: 26px; }
@@ -838,6 +850,8 @@ a.ex-btn:hover { filter: brightness(1.06); }
 .eg-badge { font-size: 11.5px; padding: 2px 9px; border-radius: 99px; border: 1px solid var(--hair, rgba(15,23,42,.12)); color: var(--mute, #6b7280); }
 .eg-badge.ok { color: var(--ok, #1a7f37); border-color: var(--ok, #1a7f37); }
 .eg-badge.wait { color: #b45309; border-color: #b45309; }
+/* 「已单独发布」：和「已批完 / 未批完」区分开 —— 前者说的是学生能不能看分，后者说的是批没批完。 */
+.eg-badge.sub { color: var(--acc, #2f6bff); border-color: var(--acc, #2f6bff); background: var(--accbg, rgba(47, 107, 255, .1)); }
 .eg-q { padding: 12px 0; border-bottom: 1px dashed var(--hair, rgba(15,23,42,.12)); }
 .eg-q:last-child { border-bottom: 0; }
 .eg-qh { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: baseline; font-size: 13px; color: var(--mute, #6b7280); }
@@ -7827,14 +7841,65 @@ async function electronicTeacherHome(msg) {
   app().innerHTML = `<header class="ex-h"><div class="eyebrow">教师</div><h1>考试</h1><p>从资料库题池组一套电子卷，发布考试码给学生</p></header>${msg ? `<div class="errs">${E_ESC(msg)}</div>` : ''}<div class="row" style="margin-bottom:14px"><button class="pri" id="btnNew">发布电子试卷</button></div><div id="list">${fxLoad('加载中…')}</div>`;
   if (window.HXLoadFx) HXLoadFx.auto($('list')); $('btnNew').onclick = () => electronicEditExam();
   let list; try { [list, CLASSES] = await Promise.all([rpc('hx_exam_mine'), CLASSES || rpc('hx_my_classes')]); } catch (e) { $('list').innerHTML = `<div class="errs">${E_ESC(e.message)}</div>`; return; }
+  /* 2026-11-17：成绩发布状态 + 撤销/重新发布 + 删除整场。
+     发布状态单独走 hx_exam_rel_list（hx_exam_mine 是 returns table，加列等于改返回类型，
+     不能 create or replace）。这一支读不出来时**不挡整页**：卡片照画，只把发布按钮置灰并写明原因。 */
+  const relMap = new Map(); let relErr = '';
+  try { (await rpc('hx_exam_rel_list') || []).forEach(r => relMap.set(+r.id, r)); }
+  catch (e) { relErr = e && e.message ? e.message : String(e); }
   const cname = id => (CLASSES.find(c => c.id === id) || {}).name || '（已删的班）';
-  $('list').innerHTML = list.length ? list.map(x => `<div class="card ex-item${x.open ? '' : ' shut'}"><div class="ex-code-big">${E_ESC(x.code)}</div><div class="ex-meta"><b>${E_ESC(x.title)}</b><span class="note">${E_ESC(SUBJECTS[x.subject] || x.subject)} · ${x.classes.map(cname).map(E_ESC).join('、') || '没选班'} · ${x.subs} 人交卷 · ${x.open ? '考试中' : '已收卷'}</span></div><div class="row"><button class="pri" data-subs="${x.id}">交卷与批改</button><button data-open="${x.id}">${x.open ? '收卷' : '重新开放'}</button><button data-pre="${E_ESC(x.code)}">预览</button></div></div>`).join('') : '<div class="card"><p class="note">还没有电子考试，点“发布电子试卷”开始。</p></div>';
+  const relTag = st => st
+    ? `<span class="ex-rel-tag ${st.released ? 'on' : 'off'}">${st.released ? '成绩已发布' : '成绩未发布'}</span>`
+    : `<span class="ex-rel-tag unk" title="${E_ESC(relErr || '发布状态没读出来')}">成绩状态未知</span>`;
+  const relBtn = st => st
+    ? `<button data-rel="${st.id}">${st.released ? '撤销发布' : '发布成绩'}</button>`
+    : `<button data-rel="" disabled title="${E_ESC(relErr || '发布状态没读出来，刷新一下再试')}">发布成绩</button>`;
+  $('list').innerHTML = list.length ? list.map(x => {
+    const st = relMap.get(+x.id);
+    const subNote = st && !st.released && st.rel_subs ? `<span class="ex-rel-sub">${st.rel_subs} 人已单独发分</span>` : '';
+    return `<div class="card ex-item${x.open ? '' : ' shut'}"><div class="ex-code-big">${E_ESC(x.code)}</div>
+      <div class="ex-meta"><b>${E_ESC(x.title)}</b><span class="note">${E_ESC(SUBJECTS[x.subject] || x.subject)} · ${x.classes.map(cname).map(E_ESC).join('、') || '没选班'} · ${x.subs} 人交卷 · ${x.open ? '考试中' : '已收卷'}</span><span class="ex-rel">${relTag(st)}${subNote}</span></div>
+      <div class="row"><button class="pri" data-subs="${x.id}">交卷与批改</button><button data-open="${x.id}">${x.open ? '收卷' : '重新开放'}</button><button data-pre="${E_ESC(x.code)}">预览</button>${relBtn(st)}<button data-del="${x.id}" data-danger>删除</button></div></div>`;
+  }).join('') : '<div class="card"><p class="note">还没有电子考试，点“发布电子试卷”开始。</p></div>';
   const byId = id => list.find(x => x.id === +id);
+  /* 写操作失败一律「toast + 写进那张卡」，不留点了没反应的按钮。 */
+  const cardFail = (b, e) => { const card = b.closest('.card'); if (card) card.insertAdjacentHTML('beforeend', `<p class="note ex-fail">没成功：${E_ESC(e && e.message ? e.message : e)}</p>`); };
   $('list').querySelectorAll('[data-subs]').forEach(b => { b.onclick = () => subsElectronic(byId(b.dataset.subs)); });
   /* 2026-11-15：收卷 / 重新开放是一次 rpc 写入，原来点完界面毫无变化（要等整页重画才看得出），
      失败还完全没有提示（没有 catch）。现在按钮转圈，失败把原因写在那一行的卡片里。 */
   $('list').querySelectorAll('[data-open]').forEach(b => { b.onclick = async () => { const x = byId(b.dataset.open); const tok = window.HXBusy ? HXBusy.begin(b, x.open ? '正在收卷…' : '正在开放…') : null; if (!tok) b.disabled = true; try { await rpc('hx_exam_open', { p_id: x.id, p_open: !x.open }); if (tok) HXBusy.end(tok); electronicTeacherHome(); } catch (e) { toast(e.message); const card = b.closest('.card'); if (card) card.insertAdjacentHTML('beforeend', `<p class="note" style="color:#dc2626">没成功：${E_ESC(e && e.message ? e.message : e)}</p>`); if (tok) HXBusy.end(tok); else b.disabled = false; } }; });
   $('list').querySelectorAll('[data-pre]').forEach(b => { b.onclick = async () => { const tok = window.HXBusy ? HXBusy.begin(b, '正在取题…') : null; if (!tok) b.disabled = true; try { const r = await rpc('hx_exam_take', { p_code: b.dataset.pre }); if (tok) HXBusy.end(tok); electronicRoom(b.dataset.pre, r, electronicTeacherHome); } catch (e) { toast(e.message); if (tok) HXBusy.end(tok); else b.disabled = false; } }; });
+  /* 发布成绩 / 撤销发布（2026-11-17）。撤销前必须问一句：学生那边是「立刻」看不到分，
+     不是等下次刷新。撤销时服务端会把单人发布的标记一起清掉（见 SQL 文件 §4）。 */
+  $('list').querySelectorAll('[data-rel]').forEach(b => { b.onclick = async () => {
+    const x = byId(b.dataset.rel), st = x ? relMap.get(+x.id) : null;
+    if (!x || !st) return toast('发布状态没读出来，刷新一下再试');
+    const on = !st.released;
+    if (!on && !await hxConfirm('撤销后学生立刻看不到分，确定？')) return;
+    const tok = window.HXBusy ? HXBusy.begin(b, on ? '正在发布…' : '正在撤销…') : null; if (!tok) b.disabled = true;
+    try {
+      const r = await rpc('hx_exam_release', { p_id: x.id, p_on: on });
+      if (tok) HXBusy.end(tok);
+      toast(r.released ? '已发布：学生现在能看到分' : '已撤销：学生看不到分了');
+      electronicTeacherHome();
+    } catch (e) { toast(e.message); cardFail(b, e); if (tok) HXBusy.end(tok); else b.disabled = false; }
+  }; });
+  /* 删除整场（交卷随 exam_id 外键 cascade 一起删）。确认框必须写清交卷份数 —— 删了找不回来。 */
+  $('list').querySelectorAll('[data-del]').forEach(b => { b.onclick = async () => {
+    const x = byId(b.dataset.del); if (!x) return;
+    const n = +x.subs || 0;
+    const msg = n
+      ? `删「${x.title}」和 ${n} 份交卷？删了找不回来。`
+      : `删「${x.title}」？这套卷还没有人交卷，删了找不回来。`;
+    if (!await hxConfirm(msg)) return;
+    const tok = window.HXBusy ? HXBusy.begin(b, '正在删除…') : null; if (!tok) b.disabled = true;
+    try {
+      await rpc('hx_exam_delete', { p_id: x.id });
+      if (tok) HXBusy.end(tok);
+      toast('已删除「' + x.title + '」');
+      electronicTeacherHome();
+    } catch (e) { toast(e.message); cardFail(b, e); if (tok) HXBusy.end(tok); else b.disabled = false; }
+  }; });
 }
 async function electronicEditExam() {
   ePageAC();
@@ -8233,15 +8298,24 @@ async function subsElectronic(x) {
       ${q.t === 'fill' && m && m.note ? `<div class="eg-tip" data-tip="${si}:${i}">${E_ESC(m.note)}</div>` : ''}
     </article>`;
   };
+  /* 2026-11-17：每张卡多一颗「只发他的成绩 / 收回他的成绩」。
+     全班已发布（released=true）时这颗按钮没有意义 —— 全班本来就能看 —— 直接置灰并说明原因，
+     不把它藏掉：老师至少知道「这里本来是单人的开关，现在被全班发布盖住了」。
+     徽标只在「单独发了、全班还没发」时出现，否则「已单独发布」会让人以为别人看不到。 */
+  const subRelBtn = (s, si) => released
+    ? `<button data-relsub="" id="egRelSub${si}" disabled title="全班成绩已发布，这个学生已经能看到自己的分，不用单独发">全班已发布</button>`
+    : `<button data-relsub="${si}" id="egRelSub${si}" title="${s.released ? '收回后这个学生立刻看不到分' : '只让这一个学生看到自己的分'}">${s.released ? '收回他的成绩' : '只发他的成绩'}</button>`;
   const cardHTML = (s, si) => {
     const tot = subTotal(s), done = isDone(s);
+    const subRel = !!s.released && !released;
     return `<section class="card eg-card" data-sid="${s.student_id}" data-k="${si}" id="egC${si}">
       <div class="eg-ch"><span class="eg-name">${E_ESC(s.name)}</span>
         <span class="note">${E_ESC(s.student_no)} · ${E_ESC(s.class_name)} · 交卷 ${E_ESC(when(s.at))}</span>
+        <span class="eg-badge sub" id="egSubBadge${si}"${subRel ? '' : ' hidden'}>已单独发布</span>
         <span class="eg-total" id="egTot${si}">${E_ESC(eFmtNum(tot))} / ${E_ESC(eFmtNum(full))}</span>
         <span class="eg-badge ${done ? 'ok' : 'wait'}" id="egDone${si}">${done ? '已批完' : '未批完'}</span></div>
       <div class="eg-qs">${paper.map((q, i) => qHTML(s, q, i, si)).join('')}</div>
-      <div class="eg-foot"><button class="pri" data-save="${si}">保存这份</button><button data-reset="${si}">重批</button><span class="eg-msg" id="egMsg${si}"></span></div>
+      <div class="eg-foot"><button class="pri" data-save="${si}">保存这份</button><button data-reset="${si}">重批</button>${subRelBtn(s, si)}<span class="eg-msg" id="egMsg${si}"></span></div>
     </section>`;
   };
 
@@ -8274,6 +8348,7 @@ async function subsElectronic(x) {
     /* 保存/重批/评分/评语 */
     app().querySelectorAll('[data-save]').forEach(b => { b.onclick = () => saveCard(+b.dataset.save, b); });
     app().querySelectorAll('[data-reset]').forEach(b => { b.onclick = () => resetCard(+b.dataset.reset); });
+    app().querySelectorAll('[data-relsub]').forEach(b => { b.onclick = () => toggleSubRelease(+b.dataset.relsub || 0, b); });
     app().querySelectorAll('[data-g]').forEach(inp => {
       inp.oninput = () => {
         const si = +inp.dataset.si, i = +inp.dataset.g, k = String(i + 1), s = subs[si], q = paper[i];
@@ -8358,8 +8433,58 @@ async function subsElectronic(x) {
     try {
       const r = await rpc('hx_exam_release', { p_id: exam.id, p_on: !released });
       released = !!r.released; toast(released ? '已发布：学生现在能看到分' : '已收起：学生看不到分了');
+      /* 收起全班时服务端把单人标记一并清了（否则「撤销」撤不干净），内存里的也跟着归 false，
+         不然重画出来的卡片还会挂着「已单独发布」的徽标。 */
+      if (!released) subs.forEach(s => { s.released = false; });
       renderAll();
     } catch (e) { if (b) { if (tok) HXBusy.end(tok); else b.disabled = false; } toast(e.message); }
+  }
+  /* 单人发布（2026-11-17）：只让这一个学生看到自己那份。
+     整页不重画 —— 老师可能正在改分，重画会把滚动位置和刚输入的焦点全丢掉；
+     这里只改这一张卡的按钮文案 / 徽标 / 提示。 */
+  function paintRelSub(si) {
+    const s = subs[si], on = !!s.released && !released;
+    const badge = $('egSubBadge' + si); if (badge) badge.hidden = !on;
+    const b = $('egRelSub' + si);
+    if (!b) return;
+    b.textContent = released ? '全班已发布' : (s.released ? '收回他的成绩' : '只发他的成绩');
+    b.disabled = !!released;
+    b.title = released ? '全班成绩已发布，这个学生已经能看到自己的分，不用单独发'
+      : (s.released ? '收回后这个学生立刻看不到分' : '只让这一个学生看到自己的分');
+  }
+  async function toggleSubRelease(si, btn) {
+    const s = subs[si]; if (!s) return;
+    if (released) return toast('全班成绩已发布，不用再单独发');
+    const on = !s.released;
+    if (on) {
+      /* 发出去之前把两种「发出去也没意义」的情况说清楚：
+         改了没保存 → 学生看到的是库里上一次保存的分；没批完 → 学生看到「待批改」。 */
+      const warn = [];
+      if (dirty.has(si)) warn.push('这份改了还没保存，学生看到的是上次保存的分');
+      if (!isDone(s)) warn.push('还有题没批，学生那边显示「待批改」');
+      if (warn.length && !await hxConfirm(`只发「${s.name}」的成绩？${warn.join('；')}。仍要发布？`)) return;
+    } else if (!await hxConfirm(`收回「${s.name}」的成绩？他立刻看不到分，确定？`)) return;
+    const tok = (window.HXBusy && btn) ? HXBusy.begin(btn, on ? '正在发布…' : '正在收回…') : null;
+    if (!tok && btn) btn.disabled = true;
+    let doneRel = false;
+    try {
+      const r = await rpc('hx_exam_release_sub', { p_exam_id: exam.id, p_student_id: s.student_id, p_on: on });
+      s.released = !!r.released;
+      doneRel = true;
+      cardMsg(si, s.released ? '已单独发布：这个学生现在能看到自己的分' : '已收回：这个学生看不到分了');
+      toast(s.released ? `已发「${s.name}」的成绩` : `已收回「${s.name}」的成绩`);
+    } catch (e) {
+      cardMsg(si, '没成功：' + (e && e.message ? e.message : e), true);
+      toast(e.message);
+    } finally {
+      if (tok) HXBusy.end(tok); else if (btn) btn.disabled = false;
+      /* HXBusy.end 会把按钮 innerHTML 还原成**点之前**的样子（而且最少留 320ms 才还原），
+         所以这里必须等它还原完再写新文案，否则「只发他的成绩」会被刷回去 —— 实测踩到。 */
+      if (doneRel) {
+        paintRelSub(si);
+        setTimeout(() => { if ($('egRelSub' + si)) paintRelSub(si); }, (tok && tok.minMs ? tok.minMs : 0) + 80);
+      }
+    }
   }
   function exportCsv() {
     const q = s => '"' + String(s == null ? '' : s).replace(/"/g, '""') + '"';

@@ -399,6 +399,12 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
   var $ = function (id) { return document.getElementById(id); };
 
   var snap = null;         // HXAI.settings() 的快照，所有渲染都读它，改存储后重新取
+  /* 2026-11-17：「平台选了、但还没选模型」这一步必须临时记住。
+     以前没记 —— 选完平台就 renderAll()，而平台下拉是按「当前模型的平台」画的，
+     于是刚切到新平台的这一下**立刻被弹回旧平台/跟随默认**，用户看到的就是
+     「切不到我的新平台」「各个工具都只能跟随默认」。这个状态只活在本页面内存里：
+     一旦选了模型就落库（HXAI.setActive / setTool），同时把它清掉。 */
+  var tmpPlat = { cap: {}, tool: {} };
   var editingPlat = '';    // '' = 正在新增平台；有 id = 正在编辑那个平台
   var platModels = [];     // 平台表单里「读取模型」读到的候选（保存平台时一起存进去）
   var editingModel = '';   // '' = 正在新增模型；有 id = 正在编辑那个模型
@@ -496,7 +502,7 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
       var ms = profsOf(pl.id);
       var rows = ms.length
         ? ms.map(modelRow).join('')
-        : '<p class="mempty">这个平台还没有模型。点上面的「+ 加模型」，选它，再「读取模型」把它真有的模型列出来。</p>';
+        : '<p class="mempty">这个平台还没有模型 —— <b>只有模型才能真正被工具调用</b>，光填 Key 不够。<br>点卡头上的「+ 加模型」，选这个平台，再「读取模型」把它真有的模型列出来。<button class="btn sm" type="button" data-act="add">现在就加</button></p>';
       // 平台被哪些能力当默认用着（模型行里已经写了，这里只在卡片头上给个汇总）
       var defCaps = (pl.caps || []).map(capName);
       return '<div class="plat" data-plat="' + esc(pl.id) + '">' +
@@ -514,7 +520,9 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
             '<button class="btn sm bad" type="button" data-act="del">删除平台</button>' +
           '</div>' +
           '<p class="pm">' + esc(pl.baseUrl || '（没填接口地址）') +
-            (pl.models && pl.models.length ? ' · 已读到 ' + pl.models.length + ' 个候选模型' : '') + '</p>' +
+            /* 2026-11-17：这里原来写「已读到 N 个候选模型」，容易让人以为已经能用了 ——
+               候选只是「服务器上有这些模型」，工具真正调用的是下面 mrows 里加进来的模型。 */
+            (pl.models && pl.models.length ? ' · 服务器上还有 ' + pl.models.length + ' 个模型可选（没加进来）' : '') + '</p>' +
         '</div>' +
         '<div class="mrows">' + rows + '</div>' +
         '<p class="pmsg"></p>' +
@@ -527,7 +535,9 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
     $('caps').innerHTML = HXAI.caps.map(function (c) {
       var cur = snap.active[c.id] || '';
       var curP = profById(cur);
-      var curPlatId = curP ? curP.platId : '';
+      // 当前平台：**先看「刚选过、还没选模型」的临时态**，再退回「已落库的模型所属平台」。
+      // 顺序反了就等于没修：只要这个工具以前指定过模型，tmpPlat 永远不生效，切平台照样弹回。
+      var curPlatId = tmpPlat.cap[c.id] || (curP ? curP.platId : '');
       // 平台下拉只列「这个平台里至少有一个能干这件事的模型」，否则选了也是空
       var platsOk = snap.plats.filter(function (pl) {
         return profsOf(pl.id).some(function (p) { return supportsCap(p, c.id); });
@@ -572,7 +582,7 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
     $('tools').innerHTML = HXAI.toolList.map(function (t) {
       var cur = snap.tools[t.id] || '';
       var curP = profById(cur);
-      var curPlatId = curP ? curP.platId : '';
+      var curPlatId = tmpPlat.tool[t.id] || (curP ? curP.platId : '');
       var platOpts = '<option value="">跟随默认</option>' + snap.plats.map(function (pl) {
         var n = profsOf(pl.id).length;
         return '<option value="' + esc(pl.id) + '"' + (pl.id === curPlatId ? ' selected' : '') + '>' +
@@ -708,6 +718,13 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
 
   function renderAll() {
     snap = HXAI.settings();
+    // 平台被删掉之后，临时记住的选中项要一起清，否则下拉会停在一个不存在的 value 上
+    ['cap', 'tool'].forEach(function (k) {
+      Object.keys(tmpPlat[k]).forEach(function (key) {
+        var id = tmpPlat[k][key];
+        if (!snap.plats.some(function (pl) { return pl.id === id; })) delete tmpPlat[k][key];
+      });
+    });
     $('count').textContent = snap.plats.length + ' 个平台 · ' + snap.profiles.length + ' 个模型';
     renderPlats(); renderCaps(); renderTools(); renderOverview(); renderChannels();
   }
@@ -791,7 +808,10 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
   // ---------- 「按能力」「按工具」下拉的变化 ----------
   /* 两级联动，2026-11-15：
      选平台时如果这个平台只有一个能干这件事的模型，直接选上（少点一次）；
-     有多个就留「选一个模型」，逼用户自己看一遍 —— 别替他猜，猜错了就是当初那种错配。 */
+     有多个就留「选一个模型」，逼用户自己看一遍 —— 别替他猜，猜错了就是当初那种错配。
+     2026-11-17 修：**「选了平台、还没选模型」这一步要记住**（tmpPlat）。
+     以前没记，这一下 renderAll() 会按「当前模型的平台」重画，当场把平台弹回去 ——
+     用户报的「切不到我新平台 / 各个工具都只能跟随默认」就是它。 */
   function bindTwoLevel(box) {
     box.addEventListener('change', function (e) {
       var sel = e.target;
@@ -799,9 +819,12 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
       var cap = sel.dataset.cap || '';
       var tool = sel.dataset.tool || '';
       if (!cap && !tool) return;
+      var bag = cap ? tmpPlat.cap : tmpPlat.tool;
+      var key = cap || tool;
 
       if (sel.dataset.kind === 'model') {
-        // 选具体模型 = 落库
+        // 选具体模型 = 落库；平台选择随之生效，临时态可以清了
+        delete bag[key];
         if (cap) { HXAI.setActive(cap, sel.value); toast(sel.value ? '已更新默认模型' : '已清空这项默认'); }
         else { HXAI.setTool(tool, sel.value); toast(sel.value ? '已指定这个工具用的模型' : '已改回跟随默认'); }
         renderAll();
@@ -811,17 +834,23 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
       // 选了平台：找出这个平台里能干这件事的模型
       var platId = sel.value;
       if (!platId) {
+        delete bag[key];
         if (cap) { HXAI.setActive(cap, ''); toast('已清空这项默认'); }
         else { HXAI.setTool(tool, ''); toast('已改回跟随默认'); }
         renderAll();
         return;
       }
+      bag[key] = platId;   // 先记住，别在下一行 renderAll() 里被弹回去
       var cands = profsOf(platId).filter(function (p) { return cap ? supportsCap(p, cap) : true; });
-      if (cands.length === 1 && cap) {
-        HXAI.setActive(cap, cands[0].id);
-        toast('已选「' + (cands[0].name || cands[0].model) + '」');
+      if (!cands.length) {
+        toast(cap ? '这个平台没有能做「' + capName(cap) + '」的模型，去左边给它加一个' : '这个平台还没有模型，去左边给它加一个');
+      } else if (cands.length === 1) {
+        // 只有一套就替他选上（省一次点击，也不存在选错的可能）
+        delete bag[key];
+        if (cap) { HXAI.setActive(cap, cands[0].id); toast('已选「' + (cands[0].name || cands[0].model) + '」'); }
+        else { HXAI.setTool(tool, cands[0].id); toast('这个工具改用「' + (cands[0].name || cands[0].model) + '」'); }
       }
-      renderAll();   // 平台变了但没定模型：重画出来让用户在模型下拉里挑
+      renderAll();   // 平台变了但没定模型：重画出来让用户在模型下拉里挑（tmpPlat 保证平台不弹回）
     });
   }
   bindTwoLevel($('caps'));
