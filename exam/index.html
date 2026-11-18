@@ -1006,6 +1006,20 @@ button.off { opacity: .5; cursor: not-allowed; }
 .ex-dlg-f { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px; padding: 12px 16px; border-top: 1px solid var(--hair, rgba(0,0,0,.08)); }
 .ex-dlg-f .note { margin-right: auto; font-size: 11.5px; }
 
+/* ---------- 加题浮层（2026-11-17）----------
+   跟删题共用 .ex-dlg* 的骨架，只多一条工具栏和「分值」输入框。
+   工具栏放 .ex-dlg-b 外面：题池可能一百多行，筛选条必须一直可见，不能跟着滚走。 */
+.aq-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 16px; border-bottom: 1px solid var(--hair, rgba(0,0,0,.08)); }
+.aq-bar select { max-width: 160px; }
+.aq-bar input[type="search"] { flex: 1; min-width: 140px; }
+.aq-row { align-items: flex-start; }
+.aq-row input[type="checkbox"] { margin-top: 3px; }
+/* 分值框定宽 + 右对齐：一行里几十个数字，宽度不齐会看成「两列」 */
+.aq-pts { flex: 0 0 auto; width: 74px; text-align: right; }
+.aq-pts[disabled] { opacity: .45; }
+/* 写失败的行内原因：贴在页脚上方，不挤占题池滚动区 */
+.aq-err { margin: 0 16px 8px; }
+
 @media (max-width: 720px) {
   .lb-table th, .lb-table td { padding: 6px 5px; }
   .lb-rank { width: 38px; }
@@ -8099,7 +8113,7 @@ async function electronicTeacherHome(msg) {
     const canDelQ = qs.length > 1;
     return `<div class="card ex-item${x.open ? '' : ' shut'}" data-exam="${x.id}"><div class="ex-code-big">${E_ESC(x.code)}</div>
       <div class="ex-meta"><b>${E_ESC(x.title)}</b><span class="note">${E_ESC(SUBJECTS[x.subject] || x.subject)} · ${x.classes.map(cname).map(E_ESC).join('、') || '没选班'} · ${x.subs} 人交卷 · 满分 ${E_ESC(eFmtNum(full))} 分 · ${qs.length} 题 · ${x.open ? '考试中' : '已收卷'}</span><span class="ex-rel">${relTag(st)}${subNote}</span></div>
-      <div class="row"><button class="pri" data-subs="${x.id}">${isDone ? '查看成绩' : '交卷与批改'}</button><button data-open="${x.id}">${x.open ? '收卷' : '重新开放'}</button><button data-pre="${E_ESC(x.code)}">预览</button><button data-delq="${x.id}"${canDelQ ? '' : ' disabled title="至少留一道题"'} title="${canDelQ ? '删掉这套卷里的某一道题（学生那份的题号会自动前移）' : '至少留一道题'}">删题</button>${relBtn(st)}<button data-del="${x.id}" data-danger>删除</button></div></div>`;
+      <div class="row"><button class="pri" data-subs="${x.id}">${isDone ? '查看成绩' : '交卷与批改'}</button><button data-open="${x.id}">${x.open ? '收卷' : '重新开放'}</button><button data-pre="${E_ESC(x.code)}">预览</button><button data-addq="${x.id}" title="从题库再挑几道题加到卷尾（已有题号和已交卷的答案都不动）">加题</button><button data-delq="${x.id}"${canDelQ ? '' : ' disabled title="至少留一道题"'} title="${canDelQ ? '删掉这套卷里的某一道题（学生那份的题号会自动前移）' : '至少留一道题'}">删题</button>${relBtn(st)}<button data-del="${x.id}" data-danger>删除</button></div></div>`;
   };
   const emptyCard = t => `<div class="card"><p class="note">${t}</p></div>`;
 
@@ -8154,6 +8168,8 @@ async function electronicTeacherHome(msg) {
     }; });
     /* 删题（2026-11-17）：先开浮层列题目，点哪道删哪道。真正的重映射在 hx_exam_del_q 里。 */
     root.querySelectorAll('[data-delq]').forEach(b => { b.onclick = () => { const x = byId(b.dataset.delq); if (x) delQDialog(x); }; });
+    /* 加题（2026-11-17）：只往卷尾加。已有题号不动 ⇒ 已交卷的 answers/marks 一个键都不用改。 */
+    root.querySelectorAll('[data-addq]').forEach(b => { b.onclick = () => { const x = byId(b.dataset.addq); if (x) addQDialog(x); }; });
     /* 删除整场（交卷随 exam_id 外键 cascade 一起删）。确认框必须写清交卷份数 —— 删了找不回来。 */
     root.querySelectorAll('[data-del]').forEach(b => { b.onclick = async () => {
       const x = byId(b.dataset.del); if (!x) return;
@@ -8233,6 +8249,156 @@ function delQDialog(x) {
       } catch (e) { toast(e.message); b.disabled = false; }
     };
   });
+}
+
+/* ================= 加题浮层（2026-11-17 新增） =================
+   为什么只能加到卷尾：answers / marks 的键是**题号**，不是题目 id。
+   删题（hx_exam_del_q）必须重映射所有交卷的键；加题不需要 —— 拼在末尾，
+   已有题号 1..N 一个都不动，学生那份的新题天然是「没作答、没批」。
+   所以这里**不排序、不按题型归位**，选中的顺序就是卷尾的顺序。
+   题型默认分和组卷页同一张表（PAPER_DEFAULT.sections），不另写一份。
+   浮层视觉复用删题的 .ex-dlg*（见 app.css 那段说明）。 */
+const E_ADD_PTS = { choice: 2, judge: 1, fill: 1, term: 4, short: 6, prog: 10 };
+function eAddDefPts(t) { const v = E_ADD_PTS[String(t == null ? '' : t).toLowerCase()]; return v > 0 ? v : 10; }
+async function addQDialog(x) {
+  const qs = ePaperDecode(x.paper);
+  if (!qs || !qs.length) return toast('这套卷子不是电子试卷格式，不能加题');
+  const full = qs.reduce((a, q) => a + (+q.pts || 0), 0);
+  const have = new Set(qs.map(q => String(q.id)));   // 已在卷里：按 q.id 去重，题池里不再出现
+
+  const mask = document.createElement('div');
+  mask.className = 'ex-dlg-mask';
+  mask.innerHTML = `<div class="ex-dlg" role="dialog" aria-modal="true" aria-label="加题目">
+    <div class="ex-dlg-h"><b>加题目 · 这套卷共 ${qs.length} 题 · 满分 ${E_ESC(eFmtNum(full))} 分</b><button type="button" class="sm" data-dlgclose="1" aria-label="关闭">关闭</button></div>
+    <div class="aq-bar">
+      <label class="e-filter">题型<select id="aqType"><option value="">全部</option></select></label>
+      <input id="aqSearch" type="search" placeholder="搜题干…" aria-label="搜索题干">
+    </div>
+    <div class="ex-dlg-b" id="aqList">${fxLoad('正在读取题池…')}</div>
+    <div class="errs aq-err" id="aqMsg" hidden></div>
+    <div class="ex-dlg-f"><span class="note" id="aqCount">已选 0 题 · 合计 +0 分</span><button type="button" class="pri" id="aqAdd" disabled>加到卷尾</button></div></div>`;
+  document.body.appendChild(mask);
+  const close = () => { document.removeEventListener('keydown', onKey); mask.remove(); };
+  function onKey(e) { if (e.key === 'Escape') { e.preventDefault(); close(); } }
+  document.addEventListener('keydown', onKey);
+  mask.addEventListener('mousedown', e => { if (e.target === mask) close(); });
+  mask.querySelectorAll('[data-dlgclose]').forEach(b => { b.onclick = close; });
+
+  /* 行状态：pool 是题池（已去掉卷里有的），picked 是 id → 分值（Map 的插入顺序就是点的先后，
+     但真正写进卷子的是 order 数组 —— 取消再勾选不该把题挪到前面，老师按勾的顺序理解就够了）。 */
+  let pool = [], picked = new Map(), order = [], fType = '', kw = '';
+  try {
+    const subs = await rpc('hx_exam_subject_list') || [];
+    const sub = subs.find(s => String(s.key) === String(x.subject));
+    if (!sub || sub.id == null) throw new Error('找不到这套卷的科目（' + x.subject + '），不能加题');
+    const all = await rpc('hx_exam_qbank_list', { p_subject_id: +sub.id }) || [];
+    pool = (Array.isArray(all) ? all : []).filter(q => q && q.id != null && !have.has(String(q.id)));
+  } catch (e) {
+    const box = mask.querySelector('#aqList');
+    if (box) box.innerHTML = `<div class="errs">读不到题池：${E_ESC(e && e.message ? e.message : e)}</div>`;
+    return;
+  }
+
+  const body = mask.querySelector('#aqList');
+  const countEl = mask.querySelector('#aqCount');
+  const addBtn = mask.querySelector('#aqAdd');
+  const typeSel = mask.querySelector('#aqType');
+  const searchEl = mask.querySelector('#aqSearch');
+  /* 写失败不许「点了没反应」：RPC 不存在（迁移没跑）/ 权限 / 网络都要把原因落在浮层里，
+     同时照旧 toast 一份 —— 老师可能已经把浮层滚到顶上看不见底部。 */
+  const errEl = mask.querySelector('#aqMsg');
+  const fail = m => {
+    if (!errEl) return;
+    errEl.textContent = '没成功：' + m;
+    errEl.hidden = false;
+  };
+
+  const cnt = {};
+  pool.forEach(q => { const t = String(q.t || ''); cnt[t] = (cnt[t] || 0) + 1; });
+  const order0 = PAPER_DEFAULT.sections.map(s => s.t);
+  const types = Object.keys(cnt).sort((a, b) => {
+    const ia = order0.indexOf(a), ib = order0.indexOf(b);
+    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+  });
+  typeSel.innerHTML = `<option value="">全部（${pool.length}）</option>` + types.map(t =>
+    `<option value="${E_ESC(t)}">${E_ESC(eType(eNormType({ t, a: '' })))}（${cnt[t]}）</option>`).join('');
+
+  const syncCount = () => {
+    let sum = 0;
+    order.forEach(id => { if (picked.has(id)) sum += picked.get(id); });
+    countEl.textContent = `已选 ${picked.size} 题 · 合计 +${eFmtNum(sum)} 分`;
+    addBtn.disabled = !picked.size;
+    addBtn.textContent = picked.size ? `加到卷尾（+${eFmtNum(sum)} 分）` : '加到卷尾';
+  };
+
+  const draw = () => {
+    const k = kw.trim().toLowerCase();
+    const shown = pool.filter(q => (!fType || String(q.t) === fType)
+      && (!k || String(q.q || '').toLowerCase().includes(k)));
+    if (!pool.length) {
+      body.innerHTML = `<p class="note" style="padding:12px 8px">题池里没有可加的题了：这个科目的题要么都已经在这套卷里，要么还没出题。</p>`;
+      syncCount(); return;
+    }
+    if (!shown.length) {
+      body.innerHTML = `<p class="note" style="padding:12px 8px">没有匹配的题（题型/关键词换个说法试试）。</p>`;
+      syncCount(); return;
+    }
+    body.innerHTML = shown.map(q => {
+      const id = String(q.id), def = eAddDefPts(q.t), on = picked.has(id);
+      return `<div class="ex-dlg-i aq-row">
+        <input type="checkbox" id="aqc${E_ESC(id)}" data-aqp="${E_ESC(id)}" ${on ? 'checked' : ''}>
+        <label class="ex-dlg-q" for="aqc${E_ESC(id)}"><b>${E_ESC(eType(eNormType({ t: q.t, a: q.a })))} · 默认 ${E_ESC(eFmtNum(def))} 分</b><span>${E_ESC(String(q.q || '').replace(/\s+/g, ' ').trim().slice(0, 40))}</span></label>
+        <input class="aq-pts" type="number" min="0.5" max="100" step="0.5" value="${E_ESC(eFmtNum(on ? picked.get(id) : def))}" data-aqpv="${E_ESC(id)}" aria-label="这题分值"${on ? '' : ' disabled'}>
+      </div>`;
+    }).join('');
+    body.querySelectorAll('[data-aqp]').forEach(el => {
+      el.onchange = () => {
+        const id = el.dataset.aqp, row = el.closest('.aq-row');
+        if (el.checked) {
+          const inp = row.querySelector('[data-aqpv]');
+          const v = Math.max(0.5, Math.min(100, Number(String(inp.value).replace(/[^\d.]/g, '')) || eAddDefPts((pool.find(q => String(q.id) === id) || {}).t)));
+          picked.set(id, Math.round(v * 2) / 2);
+          if (!order.includes(id)) order.push(id);
+          inp.disabled = false; inp.value = eFmtNum(picked.get(id));
+        } else { picked.delete(id); row.querySelector('[data-aqpv]').disabled = true; }
+        syncCount();
+      };
+    });
+    body.querySelectorAll('[data-aqpv]').forEach(el => {
+      const apply = () => {
+        const id = el.dataset.aqpv;
+        if (!picked.has(id)) return;
+        const raw = String(el.value).trim(); if (!raw) return;   // 打字中间态，等 change 再归一
+        const v = Math.max(0.5, Math.min(100, Number(raw.replace(/[^\d.]/g, '')) || 0));
+        if (!v) return;
+        picked.set(id, Math.round(v * 2) / 2);
+        syncCount();
+      };
+      el.oninput = apply;
+      el.onchange = () => { apply(); const id = el.dataset.aqpv; if (picked.has(id)) el.value = eFmtNum(picked.get(id)); syncCount(); };
+    });
+    syncCount();
+  };
+
+  typeSel.onchange = () => { fType = typeSel.value; draw(); };
+  searchEl.oninput = () => { kw = searchEl.value; draw(); };
+  addBtn.onclick = async () => {
+    /* 顺序 = 老师勾选的先后（order），只取还在 picked 里的；
+       题池行是按题池顺序画的，这里绝不能改成「按列表顺序」—— 老师会以为加错了位置。 */
+    const ids = order.filter(id => picked.has(id));
+    if (!ids.length) return;
+    const pts = ids.map(id => picked.get(id));
+    const before = full;
+    addBtn.disabled = true;
+    if (errEl) { errEl.hidden = true; errEl.textContent = ''; }
+    try {
+      const r = await rpc('hx_exam_add_q', { p_id: x.id, p_qids: ids.map(Number), p_pts: pts });
+      close();
+      toast(`已加 ${r.added} 题：满分 ${eFmtNum(before)} → ${eFmtNum(r.full)} 分`);
+      electronicTeacherHome();
+    } catch (e) { const m = e && e.message ? e.message : String(e); fail(m); toast(m); addBtn.disabled = false; }
+  };
+  draw();
 }
 async function electronicEditExam() {
   ePageAC();
@@ -8530,24 +8696,77 @@ function eAiParse(txt) {
   return null;
 }
 /* Prompt 写死在代码里（中文），每条只给 AI 判分需要的最小信息。
-   明确「只输出 JSON 数组」+「不要代码块」，是为了让解析兜底成为小概率事件。 */
+   明确「只输出 JSON 数组」+「不要代码块」，是为了让解析兜底成为小概率事件。
+
+   2026-11-17 第二轮（用户原话：「AI批改需要更智能识别近似值和语义能力 然后给适当的分」）：
+   上一版只说「按命中要点比例给分」，模型实际倾向于全给或全不给（6 分题答对两点还是 0）。
+   这一版把规则拆成三步写死：
+     ① 先在心里拆参考答案的得分点 → ② 主观题按点给分（0 / 0.5 步进 / 满分，部分对给部分分）
+     → ③ 填空题仍只要「满分或 0」。
+   另外要求每题多吐 hits / miss：前端把 miss 拼进评语（「缺：起动电流大的处理」），
+   老师一眼看到扣在哪，不用去对照参考答案。 */
 function eAiPrompt(items) {
   return '你是中职电气专业课的阅卷老师。下面是一批待判分的题（主观题 + 填空题）的学生作答，请逐题给分。\n'
-    + '评分要求：\n'
-    + '1. 只按参考答案的要点给分；满分是每题标注的分数，可以给 0.5 分。\n'
-    + '2. 答案空着给 0 分；完全跑题给 0 分。\n'
-    + '3. 部分正确按命中的要点比例给分，并在 note 里讲清扣分点。\n'
-    + '4. note 用中文，不超过 60 字，直接说哪里对、哪里缺。\n'
-    + '5. 只输出一个 JSON 数组，不要输出解释，不要用 markdown 代码块。格式：\n'
-    + '[{"i":1,"got":3.5,"note":"..."}]\n'
-    /* 2026-11-17 用户：「填空 ai 识别不会思考，比如下一个行和第二行可能是一个意思」。
-       纯字符串比对判不出同义说法（「显示器」/「显示屏」），所以这一条必须写死给模型。 */
-    + '6. 题型是「填空」的题，**不要逐字比对**：只要学生的说法和参考答案表达的是同一个意思，就给满分。\n'
+    + '一、先拆得分点\n'
+    + '每道题先在内部把参考答案拆成若干**得分点**（一个独立的意思 = 一个得分点），判分时逐点核对。\n'
+    + '二、主观题（简答 / 名词解释 / 编程题）：按要点分层给分\n'
+    + '1. 满分是每题标注的分数。**部分对就给部分分**，步进 0.5 分：\n'
+    + '   例如 6 分的题拆成 3 个要点，答对 2 个给 4 分，只答对 1 个给 2 分。\n'
+    + '2. got 只能落在 0 到满分之间，且必须是 0.5 的整数倍（0 / 0.5 / 1 / 1.5 … 满分）。\n'
+    + '3. **语义优先**：同义说法、近义词、俗称（电动机/马达、开关/断路器、起动/启动）、口语化表达、\n'
+    + '   用具体例子代替术语、语序不同、多写或少写语气词与标点 —— 只要意思对，就算这个要点命中。\n'
+    + '   不要因为「措辞和参考答案不一样」就判 0 分；宁可给分，不要误伤。\n'
+    + '4. 答案空着给 0 分；完全跑题给 0 分。\n'
+    + '5. 实在判断不了（学生写法含糊、两种理解都说得通）→ 给中间分，并在 note 里写「建议人工复核」。\n'
+    + '三、填空题：只给满分或 0 分\n'
+    + '1. **不要逐字比对**：只要学生的说法和参考答案表达的是同一个意思，就给满分。\n'
     + '   同义说法、近义词、俗称（显示器/显示屏、电动机/马达、开关/断路器）、单位写法不同、语序不同、\n'
     + '   多写或少写语气词与标点，都算对；只有意思确实不同才给 0 分。这类题**只给满分或 0 分**，不要给中间分。\n'
-    + '   note 用一句话说清算对或算错的原因（例如「『显示屏』与『显示器』同义，算对」）。\n\n'
+    + '2. note 用一句话说清算对或算错的原因（例如「『显示屏』与『显示器』同义，算对」）。\n'
+    + '四、输出\n'
+    + '1. 只输出一个 JSON 数组，不要输出解释，不要用 markdown 代码块。\n'
+    + '2. 每题都要给 hits（学生实际答到的得分点，最多 4 条）和 miss（参考答案里有、学生没答到的得分点，\n'
+    + '   最多 4 条；全答到就给空数组）。两者都用短语，不要整段抄答案。\n'
+    + '3. note 用中文，不超过 60 字，直接说哪里对、哪里缺；**不要重复列 miss**（前端会自动拼「缺：…」）。\n'
+    + '   格式：\n'
+    + '[{"i":1,"got":3.5,"hits":["接线简单"],"miss":["起动电流大"],"note":"..."}]\n\n'
     + '题目：\n'
     + items.map(x => `${x.i}. 题型：${x.t}；满分：${x.pts} 分\n题干：${x.q}\n参考答案：${x.a}\n学生答案：${x.ans || '（空）'}`).join('\n\n');
+}
+/* AI 给的分数必须防脏（2026-11-17）：模型会返回 9（满分 6）、-2、3.7 这种值。
+   规则和后端 hx_exam_mark 的校验一致：夹紧到 [0, 满分]，对齐 0.5；
+   填空题只允许「满分或 0」（同义算对，不按比例）。
+   返回 null = 这条不能写进 marks（**保持未批**）—— 绝不能当成 0 分写下去，
+   否则学生端会显示「0 分」，老师还以为 AI 判过了。 */
+function eAiGot(v, pts, fill) {
+  if (v == null || String(v).trim() === '') return null;
+  const n = Number(v);
+  if (!isFinite(n)) return null;
+  const max = Math.max(0, Number(pts) || 0);
+  let g = Math.round(Math.max(0, Math.min(max, n)) * 2) / 2;
+  if (fill) return g > 0 ? max : 0;
+  return g;
+}
+/* 把 AI 返回的一条结果变成 marks 里的一项；返回 null = 这条不能落库（保持「未批」）。
+   单独抽出来，是为了能在**不连库**的测试里直接调（考试/test/_exam-ai-pure.cjs）：
+   夹紧、0.5 步进、脏值丢弃、miss 拼评语全在这一个入口，测它就等于测 aiGrade 的解析段。 */
+function eAiMark(z, pts, fill) {
+  if (!z) return null;
+  const got = eAiGot(z.got, pts, fill);
+  if (got == null) return null;
+  return { got: got, by: 'ai', note: eAiNote(z.note, z.miss) };
+}
+/* 评语 + 缺失得分点合成一句（前端只显示 marks[i].note，输入框 maxlength=60）。
+   miss 是老师最想看的（扣在哪），所以**先保 miss**：剩余字数再从 note 头部截。 */
+function eAiNote(note, miss) {
+  const n = String(note == null ? '' : note).trim().replace(/[。；;，,\s]+$/, '');
+  const ms = (Array.isArray(miss) ? miss : (miss == null ? [] : [miss]))
+    .map(x => String(x == null ? '' : x).trim()).filter(Boolean).slice(0, 4);
+  if (!ms.length) return Array.from(n).slice(0, 60).join('');
+  const tail = '缺：' + ms.join('、');
+  const room = 60 - Array.from(tail).length - 1;   // 1 = 中间那个「；」
+  const head = room > 0 ? Array.from(n).slice(0, room).join('') : '';
+  return ((head ? head + '；' : '') + tail).slice(0, 60);
 }
 
 /* ================= 老师批改台（2026-11-17 重做） =================
@@ -9004,7 +9223,7 @@ async function subsElectronic(x) {
     const aiBtn = $('egAi'); if (aiBtn) aiBtn.disabled = true;
     const setSt = t => { const el = $('egAiState'); if (el) { el.textContent = t; el.className = 'eg-msg warn'; } };
     const fails = {};
-    let done = 0;
+    let done = 0, skipped = 0;
     const groups = {};
     targets.forEach(t => { (groups[t.si] = groups[t.si] || []).push(t); });
     for (const key of Object.keys(groups)) {
@@ -9023,11 +9242,11 @@ async function subsElectronic(x) {
           list.forEach(z => { const i = +z.i; if (i >= 1 && i <= paper.length) byI[i] = z; });
           batch.forEach(t => {
             const z = byI[t.i + 1]; if (!z) return;
-            const max = +t.q.pts || 0;
-            let g = Number(z.got);
-            if (!isFinite(g)) return;
-            g = Math.round(Math.max(0, Math.min(max, g)) * 2) / 2;
-            t.s._marks[String(t.i + 1)] = { got: g, by: 'ai', note: String(z.note == null ? '' : z.note).slice(0, 60) };
+            /* 2026-11-17：夹紧 + 0.5 步进 + 填空只给满分/0 + miss 拼评语，全在 eAiMark 一处；
+               返回 null（got 缺失 / 非数字）→ **不写 marks**（保持「未批」），绝不写 0。 */
+            const m = eAiMark(z, +t.q.pts || 0, t.q.t === 'fill');
+            if (!m) { skipped++; return; }
+            t.s._marks[String(t.i + 1)] = m;
             dirty.add(t.si); done++;
           });
         } catch (e) { fails[key] = 'AI 调用失败：' + (e && e.message ? e.message : e) + '（已保留人工批改）'; }
@@ -9035,8 +9254,10 @@ async function subsElectronic(x) {
     }
     renderAll();
     Object.keys(fails).forEach(k => cardMsg(+k, fails[k], true));
-    setSt(done ? `AI 批完 ${done} 道，记得点每张卡的「保存这份」` : 'AI 没批出结果，已保留人工批改');
-    toast(done ? `AI 批完 ${done} 道，还要点每张卡的「保存这份」` : 'AI 没批出结果');
+    /* 「没给分」的题要明说：以前它们会静默留在待批，老师以为 AI 漏跑了。 */
+    const skipNote = skipped ? `，${skipped} 道 AI 没给出有效分数（保持待批，请人工核）` : '';
+    setSt(done ? `AI 批完 ${done} 道${skipNote}，记得点每张卡的「保存这份」` : 'AI 没批出结果，已保留人工批改');
+    toast(done ? `AI 批完 ${done} 道${skipNote}，还要点每张卡的「保存这份」` : 'AI 没批出结果');
   }
 
   addEventListener('beforeunload', e => {
