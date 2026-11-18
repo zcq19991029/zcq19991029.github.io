@@ -1,0 +1,29 @@
+<!doctype html>
+<!-- 接线仿真 · 课堂任务未完成总览大屏（2026-11-18）
+     用法：教师在任务页点「未完成总览（投屏）」→ 新窗口 task-overview.html；
+           直接开 task-overview.html 也行，会自动列「我教的、点亮了接线仿真的」所有班
+           里**进行中**的任务。
+     设计（用户要求）：
+       · 一个班一块，每块把「进行中」的任务一排排铺开，每行 = 任务名 + 该任务还没完成的人；
+       · 点某个名字 = 以他身份打开那道题的排位（成绩记到他头上），老师叫到谁就点谁，
+         学生上希沃/一体机直接接，接完自动算完成；
+       · 已结束/作废的任务不上屏（用户只要「当前已开放」的）；
+       · 每 15 秒自动刷新（只看不写），没进行的任务就不占地方。
+     ⚠️ 和大屏 board.html 一样**故意不加 data-tool**（顶层窗口投屏，加 data-tool 会被
+       hx-theme.js replace 回总入口），只引脚本、不挂闸门。 -->
+<html lang="zh-CN" data-hx-peanut>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#04060e">
+<title>课堂任务 · 未完成总览</title>
+<link rel="stylesheet" href="task.css">
+<link rel="stylesheet" href="task-overview.css">
+<script src="../../hx-theme.js"></script>
+</head>
+<body class="ov">
+<div id="ovRoot"><div class="bd-gate"><b>读取任务…</b></div></div>
+<script src="task-hx.js"></script>
+<script src="task-overview.js"></script>
+</body>
+</html>

@@ -1014,9 +1014,8 @@ button.off { opacity: .5; cursor: not-allowed; }
 .aq-bar input[type="search"] { flex: 1; min-width: 140px; }
 .aq-row { align-items: flex-start; }
 .aq-row input[type="checkbox"] { margin-top: 3px; }
-/* 分值框定宽 + 右对齐：一行里几十个数字，宽度不齐会看成「两列」 */
-.aq-pts { flex: 0 0 auto; width: 74px; text-align: right; }
-.aq-pts[disabled] { opacity: .45; }
+/* 2026-11-18 取消逐题改分（用户：「我要逐题改分干嘛呢」），分值一律按题型默认 →
+   .aq-pts 那颗输入框已删，样式一并清掉，别留死规则。 */
 /* 写失败的行内原因：贴在页脚上方，不挤占题池滚动区 */
 .aq-err { margin: 0 16px 8px; }
 
@@ -8284,9 +8283,13 @@ async function addQDialog(x) {
   mask.addEventListener('mousedown', e => { if (e.target === mask) close(); });
   mask.querySelectorAll('[data-dlgclose]').forEach(b => { b.onclick = close; });
 
-  /* 行状态：pool 是题池（已去掉卷里有的），picked 是 id → 分值（Map 的插入顺序就是点的先后，
-     但真正写进卷子的是 order 数组 —— 取消再勾选不该把题挪到前面，老师按勾的顺序理解就够了）。 */
-  let pool = [], picked = new Map(), order = [], fType = '', kw = '';
+  /* 行状态：pool 是题池（已去掉卷里有的），picked 是「勾了哪些题」（Set），
+     order 记勾选先后（取消再勾选不把它挪到前面，老师按勾的顺序理解就够了）。
+     2026-11-18 用户原话「我要逐题改分干嘛呢」——**取消逐题改分**，分值一律按题型默认
+     （E_ADD_PTS，和 SQL 里 hx_exam_add_q 的兜底表同一套数）。所以 picked 只是 Set，
+     不再是「id → 分值」的 Map，浮层也不再传 p_pts。 */
+  let pool = [], picked = new Set(), order = [], fType = '', kw = '';
+  const defOf = id => eAddDefPts((pool.find(q => String(q.id) === String(id)) || {}).t);
   try {
     const subs = await rpc('hx_exam_subject_list') || [];
     const sub = subs.find(s => String(s.key) === String(x.subject));
@@ -8325,7 +8328,7 @@ async function addQDialog(x) {
 
   const syncCount = () => {
     let sum = 0;
-    order.forEach(id => { if (picked.has(id)) sum += picked.get(id); });
+    order.forEach(id => { if (picked.has(id)) sum += defOf(id); });
     countEl.textContent = `已选 ${picked.size} 题 · 合计 +${eFmtNum(sum)} 分`;
     addBtn.disabled = !picked.size;
     addBtn.textContent = picked.size ? `加到卷尾（+${eFmtNum(sum)} 分）` : '加到卷尾';
@@ -8347,35 +8350,16 @@ async function addQDialog(x) {
       const id = String(q.id), def = eAddDefPts(q.t), on = picked.has(id);
       return `<div class="ex-dlg-i aq-row">
         <input type="checkbox" id="aqc${E_ESC(id)}" data-aqp="${E_ESC(id)}" ${on ? 'checked' : ''}>
-        <label class="ex-dlg-q" for="aqc${E_ESC(id)}"><b>${E_ESC(eType(eNormType({ t: q.t, a: q.a })))} · 默认 ${E_ESC(eFmtNum(def))} 分</b><span>${E_ESC(String(q.q || '').replace(/\s+/g, ' ').trim().slice(0, 40))}</span></label>
-        <input class="aq-pts" type="number" min="0.5" max="100" step="0.5" value="${E_ESC(eFmtNum(on ? picked.get(id) : def))}" data-aqpv="${E_ESC(id)}" aria-label="这题分值"${on ? '' : ' disabled'}>
+        <label class="ex-dlg-q" for="aqc${E_ESC(id)}"><b>${E_ESC(eType(eNormType({ t: q.t, a: q.a })))} · ${E_ESC(eFmtNum(def))} 分</b><span>${E_ESC(String(q.q || '').replace(/\s+/g, ' ').trim().slice(0, 40))}</span></label>
       </div>`;
     }).join('');
     body.querySelectorAll('[data-aqp]').forEach(el => {
       el.onchange = () => {
-        const id = el.dataset.aqp, row = el.closest('.aq-row');
-        if (el.checked) {
-          const inp = row.querySelector('[data-aqpv]');
-          const v = Math.max(0.5, Math.min(100, Number(String(inp.value).replace(/[^\d.]/g, '')) || eAddDefPts((pool.find(q => String(q.id) === id) || {}).t)));
-          picked.set(id, Math.round(v * 2) / 2);
-          if (!order.includes(id)) order.push(id);
-          inp.disabled = false; inp.value = eFmtNum(picked.get(id));
-        } else { picked.delete(id); row.querySelector('[data-aqpv]').disabled = true; }
+        const id = el.dataset.aqp;
+        if (el.checked) { picked.add(id); if (!order.includes(id)) order.push(id); }
+        else picked.delete(id);
         syncCount();
       };
-    });
-    body.querySelectorAll('[data-aqpv]').forEach(el => {
-      const apply = () => {
-        const id = el.dataset.aqpv;
-        if (!picked.has(id)) return;
-        const raw = String(el.value).trim(); if (!raw) return;   // 打字中间态，等 change 再归一
-        const v = Math.max(0.5, Math.min(100, Number(raw.replace(/[^\d.]/g, '')) || 0));
-        if (!v) return;
-        picked.set(id, Math.round(v * 2) / 2);
-        syncCount();
-      };
-      el.oninput = apply;
-      el.onchange = () => { apply(); const id = el.dataset.aqpv; if (picked.has(id)) el.value = eFmtNum(picked.get(id)); syncCount(); };
     });
     syncCount();
   };
@@ -8387,12 +8371,12 @@ async function addQDialog(x) {
        题池行是按题池顺序画的，这里绝不能改成「按列表顺序」—— 老师会以为加错了位置。 */
     const ids = order.filter(id => picked.has(id));
     if (!ids.length) return;
-    const pts = ids.map(id => picked.get(id));
     const before = full;
     addBtn.disabled = true;
     if (errEl) { errEl.hidden = true; errEl.textContent = ''; }
     try {
-      const r = await rpc('hx_exam_add_q', { p_id: x.id, p_qids: ids.map(Number), p_pts: pts });
+      /* 只传 p_id + p_qids：分值全部按题型默认由服务端算（三参重载 2026-11-18 已删）。 */
+      const r = await rpc('hx_exam_add_q', { p_id: x.id, p_qids: ids.map(Number) });
       close();
       toast(`已加 ${r.added} 题：满分 ${eFmtNum(before)} → ${eFmtNum(r.full)} 分`);
       electronicTeacherHome();

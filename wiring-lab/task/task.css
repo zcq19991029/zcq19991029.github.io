@@ -506,6 +506,7 @@ body.board.lite .pend, body.board.lite .dc { animation: none; }
   display: flex; align-items: center; gap: 6px; min-width: 0;
   padding: 6px 9px; border-radius: 9px; font-size: 13px;
   background: rgba(251, 113, 133, .1); border: 1px solid rgba(251, 113, 133, .28);
+  font-family: inherit;
 }
 .pend-chip i {
   flex: none; width: 21px; height: 21px; border-radius: 50%; display: grid; place-items: center;
@@ -513,6 +514,15 @@ body.board.lite .pend, body.board.lite .dc { animation: none; }
 }
 .pend-chip b { font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pend-chip small { margin-left: auto; color: var(--dim); font-size: 11px; font-variant-numeric: tabular-nums; }
+/* 2026-11-18：未完成名单「点名字 = 以他身份打开排位」。
+   从 <span> 改成 <button>，把可点这个状态做明显：悬浮变实、冒一颗 ▶。 */
+.pend-chip.pend-go { cursor: pointer; position: relative; padding-right: 26px; text-align: left; }
+.pend-chip.pend-go:hover { background: rgba(251, 113, 133, .22); border-color: rgba(251, 113, 133, .55); }
+.pend-chip.pend-go:active { transform: translateY(1px); }
+.pend-go-ico {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  color: #fb7185; font-size: 11px; font-weight: 800; line-height: 1;
+}
 /* 完成率按档位上色：和已完成的头像条、大屏一套配色，学生看哪个页面都是同一种说法 */
 td.rate { font-variant-numeric: tabular-nums; font-weight: 700; }
 td.rate.r100 { color: #fbbf24; }

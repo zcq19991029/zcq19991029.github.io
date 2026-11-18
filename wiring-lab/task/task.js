@@ -516,6 +516,7 @@ function liveCard(t, viewing) {
       <div class="bar"><i style="width:${Math.max(0, Math.min(100, pct))}%"></i></div>
       <div class="acts">
         <button class="btn" data-act="board" type="button">打开大屏（投影）</button>
+        <button class="btn" data-act="ov" type="button" title="把本班所有进行中任务的未完成名单铺在一屏上，点名字就能以他身份直接进排位">未完成总览（投屏）</button>
         ${canAct ? '<button class="btn primary" data-act="close" type="button">结束任务并冻结得分</button><button class="btn danger" data-act="void" type="button">作废</button>' : ''}
         <button class="btn ghost" data-act="lesson" type="button" title="课次填错了就改这里，分数会跟着落到正确的课次">改课次</button>
         ${t.status === 'closed' ? '<button class="btn" data-act="jf" type="button">打开小组加分</button>' : ''}
@@ -544,10 +545,11 @@ function liveCard(t, viewing) {
           </div>
         </div>
         <div class="live-pend">
-          <h3>还没完成 <em>${pend.length}</em> 人</h3>
-          ${pend.length ? `<div class="pend-grid2 scroll-y">${pend.map(p => `<span class="pend-chip" title="${esc((p.name || '') + ' · ' + (p.no || ''))}">
+          <h3>还没完成 <em>${pend.length}</em> 人 <small>点名字＝以他身份打开排位（成绩记到他头上）</small></h3>
+          ${pend.length ? `<div class="pend-grid2 scroll-y">${pend.map(p => `<button type="button" class="pend-chip pend-go" data-rank-for="${esc(p.student_id)}"
+              title="点一下：以「${esc(p.name || p.no || '')}」的身份打开这一题的排位（接完自动算他完成）">
               <i>${esc(String(p.name || p.no || '?').trim().slice(0, 1))}</i>
-              <b>${esc(p.name || p.no)}</b></span>`).join('')}</div>`
+              <b>${esc(p.name || p.no)}</b><span class="pend-go-ico" aria-hidden="true">▶</span></button>`).join('')}</div>`
             : '<p class="hint" style="color:var(--ok)">全部完成 ✔ 这一节课没有人掉队</p>'}
         </div>
       </div>
@@ -567,6 +569,9 @@ function bindLiveCard(t, viewing) {
   const on = (sel, fn) => { const el = card.querySelector(sel); if (el) el.onclick = () => fn(el); };
   on('.fold', () => { ST.liveOpen[t.id] = !cardOpen(t); paintLive(); });
   on('[data-act="board"]', () => window.open('board.html?t=' + t.id, '_blank'));
+  /* 未完成总览（2026-11-18）：把「当前班级」带过去，老师在别的班发布的任务不会混进这一屏 */
+  on('[data-act="ov"]', () => window.open('task-overview.html?cls=' + t.class_id, '_blank'));
+  on('.pend-go', el => { const p = (b && b.pending || []).find(x => String(x.student_id) === el.dataset.rankFor); if (p) openRankFor(t, p, t.class_name); });
   on('[data-act="csv"]', () => { if (b) exportCsv(b); });
   on('[data-act="lesson"]', () => editLesson(t));
   on('[data-act="exit"]', async () => { ST.view = null; await pickOpen(); syncPoll(); paintLive(); paintHist(); });

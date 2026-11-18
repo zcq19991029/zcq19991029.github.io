@@ -298,6 +298,39 @@ function hxProbeBar() {
 if (document.body) hxProbeBar();
 else document.addEventListener('DOMContentLoaded', hxProbeBar);
 
+/* ── 「点名 → 直接进他的排位」（2026-11-18）──────────────────────────────────
+   用户原话：「课堂任务未完成名单有个一键跳转完成任务的功能（让他上西沃做），也就是完成排位，
+   跳转他的排位开始界面」「这样我可以一个一个找人上希沃跳转排位 督促学习」。
+   排位的「教师代做」早就有：选手身份存在 localStorage['hx-rank-pick']，
+   开局调 rank_start(RK.pick.id, 电路)，服务端 rank_can_act 只放行「本班教师」，
+   接完全部线 rank_finish 就把成绩记到这名学生头上。所以这里**不用动数据库**，只做两件事：
+     ① 把选手身份写成这名学生（同源 localStorage，/wiring-lab/ 下所有页面都读得到）；
+     ② 新标签页打开「接线仿真 ?solo&rank=1#<电路>」——rank=1 自动开排位窗，
+        hash 锁住这一题（rkEntryCircuit 从 hash 读），学生上来直接接就是那道题。
+   ⚠ 必须带 ?solo：工具页在**顶层窗口**打开时会被 hx-theme.js replace 回总入口，
+     ?rank=1 与 hash 一起丢，点进去只会看到首页（2026-11-17 演示视角踩过同一个坑）。
+   ⚠ 开新标签页而不是改当前页：课堂任务/总览页可能正投在希沃上，换掉就等于把名单关了。
+   ⚠ 别给 window.open 传 'noopener'：那样返回值恒为 null，会把「被拦截」的兜底误判成每次都走。 */
+function taskRankUrl(task) {
+  const u = new URL(TOOL, location.href);   // /wiring-lab/（本机预览退化成 ./）
+  u.searchParams.set('solo', '1');
+  u.searchParams.set('rank', '1');
+  if (task && task.circuit) u.hash = '#' + task.circuit;
+  return u.href;
+}
+function openRankFor(task, stu, clsName) {
+  if (!task || !stu || stu.student_id == null) return false;
+  const pick = {
+    id: +stu.student_id, name: stu.name || '', no: stu.no || '',
+    cls: clsName || (task && task.class_name) || ''
+  };
+  try { localStorage.setItem('hx-rank-pick', JSON.stringify(pick)); } catch (e) { }
+  const url = taskRankUrl(task);
+  const w = window.open(url, '_blank');
+  if (!w) { try { location.href = url; } catch (e) { } }   // 弹窗被拦：退化成当前页跳
+  return true;
+}
+
 /* ── 「上一步」接口：给总入口左上角那颗「返回」用（2026-11-14）────────────────
    总入口的返回按钮会先问当前工具：HXBack() 返回 true = 工具自己退了一步，外层什么都不做。
    课堂任务 / 大屏的「上一步」只有一个去处：接线仿真主页（/wiring-lab/，不是站点根）。
