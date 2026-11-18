@@ -1140,10 +1140,13 @@ function restoreDroppedToHome(cls) {
      2026-11-09 用户要求「课堂任务积分直接丢进上课计分首页总表内」——
      以前这部分只在侧栏「组内个人评分」里看得到，总表只体现成一个变大的「本节完成率」，
      老师上课时看不出这分是哪来的。null = 本节这个人没有课堂任务分。
-     ⚠ 前缀常量在 wire-task-link.js 的 NAME_PREFIX，两处必须一起改。
+     ⚠ 前缀常量在 wire-task-link.js 的 NAME_PREFIX 和 exam-link.js 的 NAME_PREFIX，三处必须一起改。
      2026-11-13 起这条正则还兼任「排位列只读」的判定（见 leader-scoring.js 与本节说明）：
-     命中它的列是接线仿真课堂任务自动生成的，老师/学生都不能手改。 */
-  var TASK_COL = /^(?:接线|线上连线排位|线上接线仿真)/;
+     命中它的列是接线仿真课堂任务 / 电子试卷自动生成的，老师/学生都不能手改。
+     2026-11-17 加「电子考试」：电子试卷「得分 ÷ 满分 = 完成率」也走这个 5 分项目列机制，
+     只读待遇和排位列完全一样（同一个正则 = 同一道锁，不用再记第二套规则）。
+     ⚠ 除本文件外，同一口径还在：leader-scoring.js、peer-apply.js、scores.js、score-clean.js。 */
+  var TASK_COL = /^(?:接线|线上连线排位|线上接线仿真|电子考试)/;
   function taskScore(lesson, gno, member) {
     var rec = lesson.leaderScores && lesson.leaderScores[String(gno)];
     if (!rec || !rec.members || !member) return null;
@@ -1588,9 +1591,13 @@ function restoreDroppedToHome(cls) {
 
   /** 老师点「清空本列」：这一列本轮加分全部清掉（含互评标记），学生重新提交才会再计分 */
   function peerClearColumn(cls, lesson, project) {
-    /* 线上排位列：分是课堂任务自动入账的，清空本列会把任务分一起抹掉 —— 坚决拒绝 */
+    /* 自动列（排位 / 电子试卷）：分是系统按完成率入账的，清空本列会把那一列的分一起抹掉 —— 坚决拒绝 */
     if (TASK_COL.test(String(project == null ? '' : project).trim())) {
-      console.warn('[peer] 拒绝清空线上排位列「' + project + '」：这一列的分来自课堂任务，不能清空');
+      var isExam = /^电子考试/.test(String(project == null ? '' : project).trim());
+      console.warn('[peer] 拒绝清空自动入账列「' + project + '」');
+      flash(isExam
+        ? '这一列的分由电子试卷自动入账（得分 ÷ 满分），不能清空。要清就先到「记分 → 电子试卷…」里解除关联'
+        : '这一列的分由课堂任务自动入账，不能清空。要清就去接线仿真那边撤掉任务');
       return 0;
     }
     var col = peerColumnOf(lesson, project);
@@ -1861,6 +1868,142 @@ function restoreDroppedToHome(cls) {
     };
     openDlg(wirePubDialog);
   }
+
+  /* ---- 电子试卷 → 小组加分（2026-11-17）----
+     入口：「记分」页课次那一行的「电子试卷…」按钮。
+     这里只做「选哪场试、记到哪节课」这一件事；分数的算法在 exam-link.js：
+     每格 = 得分 ÷ 满分 × 5，老师不能手改，试卷改题/重批/撤销发布/删除时自动跟着变。
+     为什么不放在「组内个人评分」页：老师是站在某一节课上决定「这场试算这节的加分」的，
+     记分页有当前课次，选完直接能看到总分变了；评分页是组长/项目列的地方，不该混进选卷。 */
+  var examLinkDialog = document.createElement('dialog');
+  examLinkDialog.id = 'dlgExamLink';
+  examLinkDialog.setAttribute('aria-labelledby', 'examLinkTitle');
+  examLinkDialog.innerHTML =
+    '<h2 id="examLinkTitle">电子试卷 → 小组加分</h2>' +
+    '<p class="note" id="examLinkInfo"></p>' +
+    '<label class="field col">记入课次<select id="examLinkLesson"></select></label>' +
+    '<div id="examLinkList" class="exam-link-list"><p class="note">读取中…</p></div>' +
+    '<p id="examLinkError" role="alert" class="note"></p>' +
+    '<div class="btnrow"><button type="button" class="btn" id="examLinkClose">关闭</button></div>';
+  document.body.appendChild(examLinkDialog);
+  wireDialog(examLinkDialog);
+
+  var examLinkCtx = null;   // { cls, lesson }：这一次对话框是给哪班哪节课开的
+
+  function examLinkLessonSelect(cls, lesson) {
+    var ls = lessonsOf(cls.id).slice().sort(function (a, b) { return (Number(a.seq) || 0) - (Number(b.seq) || 0); });
+    $('#examLinkLesson').innerHTML = ls.map(function (l) {
+      return '<option value="' + esc(l.id) + '">第 ' + l.seq + ' 次课 · ' + esc(l.date || '日期未填') +
+        (l.topic ? ' · ' + esc(l.topic) : '') + '</option>';
+    }).join('');
+    if (lesson) $('#examLinkLesson').value = lesson.id;
+  }
+
+  function fillExamLinkList(rows) {
+    var ctx = examLinkCtx;
+    if (!ctx) return;
+    var cls = ctx.cls;
+    var box = $('#examLinkList');
+    if (!rows.length) {
+      box.innerHTML = '<p class="note">这个班还没有「已发给本班、而且有学生交卷」的电子试卷。' +
+        '先去「电子试卷」发布一场，等学生交卷，再回来记入本节。</p>';
+      return;
+    }
+    box.innerHTML = rows.map(function (x) {
+      var linked = x.link_class != null;
+      var mine = linked && Number(x.link_class) === Number(cls.hxClassId);
+      var seq = 0;
+      if (mine) (S.lessons || []).forEach(function (l) { if (String(l.id) === String(x.link_lesson)) seq = Number(l.seq) || 0; });
+      var where = !linked ? '' : (mine
+        ? '已记入' + (seq ? '第 ' + seq + ' 次课' : '某节课') + (x.link_column ? '「' + esc(x.link_column) + '」' : '')
+        : '已记到别的班');
+      var hasCol = mine && window.JFDT_EXAM && window.JFDT_EXAM.columnOf(
+        (S.lessons || []).filter(function (l) { return String(l.id) === String(x.link_lesson); })[0], x.exam_id);
+      return '<div class="exam-row" data-exam="' + Number(x.exam_id) + '">' +
+        '<div class="exam-main"><b>' + esc(x.title || '（未命名试卷）') + '</b>' +
+        '<small>' + Number(x.subs || 0) + ' 人交卷 · 满分 ' + Number(x.full || 0) +
+        ' · ' + (x.released ? '已发布成绩' : '未发布') + (where ? ' · ' + where : '') + '</small></div>' +
+        '<div class="exam-acts">' +
+        '<button type="button" class="btn tiny primary" data-exam-link="' + Number(x.exam_id) + '">' +
+        (hasCol ? '重新同步' : '记入所选课次') + '</button>' +
+        (linked ? '<button type="button" class="btn tiny" data-exam-unlink="' + Number(x.exam_id) + '">解除</button>' : '') +
+        '</div></div>';
+    }).join('');
+  }
+
+  function refreshExamLinkList() {
+    var ctx = examLinkCtx;
+    if (!ctx || !ctx.cls || !ctx.cls.hxClassId) return Promise.resolve(null);
+    return CLOUD.rpc('hx_exam_linkable', { p_class: Number(ctx.cls.hxClassId) }).then(function (rows) {
+      fillExamLinkList(Array.isArray(rows) ? rows : []);
+    }, function (err) {
+      $('#examLinkList').innerHTML = '';
+      $('#examLinkError').textContent = '读取失败：' + ((err && err.message) || '请检查网络');
+    });
+  }
+
+  function openExamLink(cls, lesson) {
+    if (!cls) return;
+    if (!cls.hxClassId) { flash('这个班还没和首页班级对应上（去名单页点「导入/对应班级」），记不了电子试卷'); return; }
+    if (!lesson) { flash('这个班还没有课次：先点「＋ 新开一课」，再记电子试卷'); return; }
+    if (!(CLOUD_ON && CLOUD && typeof CLOUD.rpc === 'function' && CLOUD.profile && CLOUD.profile())) {
+      flash('请先登录教师账号，才能把电子试卷记进小组加分'); return;
+    }
+    examLinkCtx = { cls: cls, lesson: lesson };
+    $('#examLinkTitle').textContent = '电子试卷 → ' + cls.name;
+    $('#examLinkInfo').textContent = '记进来以后，所选课次会多一列「电子考试 试卷标题」（5 分项目）：' +
+      '每个学生的分 = 得分 ÷ 满分 × 5，批改 / 删题 / 重批 / 撤销发布都会自动跟着变，老师不能手改也不能清空。';
+    examLinkLessonSelect(cls, lesson);
+    $('#examLinkError').textContent = '';
+    $('#examLinkList').innerHTML = '<p class="note">读取中…</p>';
+    openDlg(examLinkDialog);
+    refreshExamLinkList();
+  }
+
+  function examLinkLessonText(lessonId) {
+    var ctx = examLinkCtx;
+    if (!ctx) return '某节课';
+    var seq = 0;
+    (S.lessons || []).forEach(function (l) { if (String(l.id) === String(lessonId)) seq = Number(l.seq) || 0; });
+    return seq ? ('第 ' + seq + ' 次课') : '所选课次';
+  }
+
+  $('#examLinkClose').addEventListener('click', function () { examLinkDialog.close(); });
+  $('#examLinkList').addEventListener('click', function (e) {
+    var ctx = examLinkCtx;
+    if (!ctx || !ctx.cls) return;
+    var linkBtn = e.target.closest ? e.target.closest('[data-exam-link]') : null;
+    var unBtn = e.target.closest ? e.target.closest('[data-exam-unlink]') : null;
+    if (!linkBtn && !unBtn) return;
+    var btn = linkBtn || unBtn;
+    if (btn.disabled) return;
+    var examId = Number(linkBtn ? linkBtn.dataset.examLink : unBtn.dataset.examUnlink);
+    var lessonId = $('#examLinkLesson').value;
+    if (!examId || !lessonId) return;
+    btn.disabled = true;
+    var name = ctx.cls.name + ' · ' + examLinkLessonText(lessonId);
+    var ask = linkBtn
+      ? CLOUD.rpc('hx_exam_link_set', { p_exam: examId, p_class: Number(ctx.cls.hxClassId), p_lesson: lessonId, p_column: null })
+      : CLOUD.rpc('hx_exam_link_del', { p_exam: examId });
+    ask.then(function () {
+      addOperationLog('电子试卷入账', name + ' · ' + (linkBtn ? '记入一场电子试卷（得分 ÷ 满分 = 完成率，自动入账）' : '解除一场电子试卷的入账'));
+      save();   /* 日志要落盘：maybeSync 没变化时不会替我们保存 */
+      /* 强制同步一次：列当场建出来 / 消失，老师不用等 45 秒心跳 */
+      return window.JFDT_EXAM ? window.JFDT_EXAM.maybeSync(ctx.cls, true) : null;
+    }).then(function () {
+      try { if (view === 'score') renderScore(); else if (view === 'leader') renderLeader(); } catch (e2) { }
+      flash(linkBtn ? '已记入 ' + examLinkLessonText(lessonId) + '：这一列由电子试卷自动给分，老师不能手改' : '已解除：这一列连同分数会在下一次同步时删掉');
+      refreshExamLinkList();
+    }).catch(function (err) {
+      btn.disabled = false;
+      $('#examLinkError').textContent = (err && err.message) || '操作失败，请检查网络后重试';
+    });
+  });
+  $('#btnExamLink').addEventListener('click', function () {
+    var cls = curClass();
+    openExamLink(cls, cls ? curLesson(cls) : null);
+  });
+
 
   var lessonEditor=document.createElement('dialog');lessonEditor.id='dlgEditLesson';lessonEditor.setAttribute('aria-labelledby','editLessonTitle');
   lessonEditor.innerHTML='<form id="editLessonForm"><h2 id="editLessonTitle">修改课次</h2><p class="note">更正课次资料，保留本课分数、项目评价和考勤。日期不参与计分。</p><label class="field col">课次序号<input id="editLessonSeq" type="number" min="1" step="1" required></label><label class="field col">上课日期<input id="editLessonDate" type="date" required></label><label class="field col">本节任务<input id="editLessonTopic" maxlength="300"></label><label class="field col">值日组<select id="editLessonDuty" multiple size="4"></select></label><label class="field col">值日提醒（学生端会显示自己组本节课要值日）<input id="editLessonDutyNote" maxlength="60" placeholder="留空则用默认提示"></label><p id="editLessonError" role="alert" class="note"></p><div class="btnrow"><button type="button" class="btn" id="cancelEditLesson">取消</button><button type="submit" class="btn primary">保存修改</button></div></form>';
@@ -6008,7 +6151,8 @@ function restoreDroppedToHome(cls) {
     first: '首次分', group: '小组分', classId: '所属班级', teamTables: '桌数',
     operationLog: '操作记录', ui: '界面状态', status: '考勤状态', loss: '扣分',
     label: '说明', score: '分数', value: '分数', updatedAt: '更新时间',
-    memberProjectBase: '个人项目基础分', peerMeta: '组内互评说明', peerSync: '组内互评时间'
+    memberProjectBase: '个人项目基础分', peerMeta: '组内互评说明', peerSync: '组内互评时间',
+    examLinks: '电子试卷入账', wireTasks: '接线任务入账'
   };
 
   /* 成员键（sid:xxx / id:xxx）翻成姓名 —— 考勤和个人项目分都是按这个键存的，
@@ -6407,19 +6551,31 @@ function restoreDroppedToHome(cls) {
     renderPoolBanner(curClass());
     switchView('score');
     if (repairedScores) flash('已把 ' + repairedScores + ' 条「换组后认不到人」的历史分接回本人');
-    /* 2026-11-10 接线课堂任务 → 小组加分自动入账（实现见 wire-task-link.js 顶部说明） */
+    /* 2026-11-10 接线课堂任务 → 小组加分自动入账（实现见 wire-task-link.js 顶部说明）
+       2026-11-17 电子试卷的成绩 → 同一套 5 分项目列（实现见 exam-link.js 顶部说明）。
+       两个模块共用同一组 hook，写入的也都是同一份 leaderScores，所以一起 boot、一起心跳。 */
+    var jfHooks = {
+      getState: function () { return S; },
+      save: function () { save(); },
+      log: addOperationLog,
+      flash: flash,
+      rerender: function () {
+        if (view === 'score') renderScore();
+        else if (view === 'leader') renderLeader();
+      },
+      curClass: curClass,
+      rpc: function (name, args) { return CLOUD.rpc(name, args); },
+      hasRpc: function () { return !!(CLOUD_ON && CLOUD && typeof CLOUD.rpc === 'function' && CLOUD.profile && CLOUD.profile()); }
+    };
     if (window.JFDT_WIRE) {
-      window.JFDT_WIRE.boot({
-        getState: function () { return S; },
-        save: function () { save(); },
-        log: addOperationLog,
-        flash: flash,
-        rerender: function () { renderScore(); },
-        curClass: curClass,
-        rpc: function (name, args) { return CLOUD.rpc(name, args); },
-        hasRpc: function () { return !!(CLOUD_ON && CLOUD && typeof CLOUD.rpc === 'function' && CLOUD.profile && CLOUD.profile()); }
-      });
+      window.JFDT_WIRE.boot(jfHooks);
       window.JFDT_WIRE.syncAll();
+    }
+    if (window.JFDT_EXAM) {
+      window.JFDT_EXAM.boot(jfHooks);
+      window.JFDT_EXAM.syncAll();
+    }
+    if (window.JFDT_WIRE || window.JFDT_EXAM) {
       /* 2026-11-09：接线任务结束以后，成绩要自己走进「上课记分」总表的「课堂任务」列。
          这里一个 10 秒心跳，做两件事：
            ① maybeSync() 拉一次只读 RPC，把**已结束**的任务入账；
@@ -6435,6 +6591,9 @@ function restoreDroppedToHome(cls) {
           if (document.hidden) return;
           if (!S) return;
           if (window.JFDT_WIRE) window.JFDT_WIRE.maybeSync(curClass());
+          /* 2026-11-17 电子试卷：同一个心跳、同一个节流（exam-link.js 内部 45s / 正在考试 10s）。
+             不新开 setInterval —— 两个自动列必须踩同一个节拍，否则老师会看到两列不同步。 */
+          if (window.JFDT_EXAM) window.JFDT_EXAM.maybeSync(curClass());
           /* 互评看板：只拉「当前在看的班 + 当前课 + 开着组长打分」这一份 */
           var cls = curClass();
           var lesson = cls ? curLesson(cls) : null;

@@ -3068,10 +3068,12 @@ table.data th, .assessment-table thead th,
 #view-leader .peer-src-peer { background: #e3f5e9; border-color: #a9d6bc; color: #1d6b40; }
 #view-leader .peer-src-teacher { background: #fff3d2; border-color: #e6c27c; color: #7a4c00; }
 #view-leader .peer-src-wire { background: #e6ebff; border-color: #9db0f5; color: #2f47a8; }
+#view-leader .peer-src-exam { background: #f1e9ff; border-color: #c9a9f0; color: #5c2f8f; }
 :root[data-hx-mode="dark"] #view-leader .peer-src-avg { background: rgba(120, 140, 240, .24); border-color: rgba(160, 176, 255, .55); color: #ccd4ff; }
 :root[data-hx-mode="dark"] #view-leader .peer-src-peer { background: rgba(61, 220, 151, .18); border-color: rgba(61, 220, 151, .45); color: #93f2c6; }
 :root[data-hx-mode="dark"] #view-leader .peer-src-teacher { background: rgba(242, 199, 107, .18); border-color: rgba(242, 199, 107, .5); color: #ffdf9e; }
 :root[data-hx-mode="dark"] #view-leader .peer-src-wire { background: rgba(96, 150, 255, .22); border-color: rgba(120, 165, 255, .55); color: #b4ccff; }
+:root[data-hx-mode="dark"] #view-leader .peer-src-exam { background: rgba(178, 130, 255, .22); border-color: rgba(200, 160, 255, .55); color: #e2ccff; }
 
 /* ---------- 5. 右上角「?」：圆形按钮 + 悬浮气泡（hover 显示 / 点击开合 / 点空白关闭） ---------- */
 #view-leader .leader-help { position: relative; display: inline-flex; flex: none; align-self: center; }
@@ -3341,3 +3343,16 @@ table.data th, .assessment-table thead th,
     --xl-input-bg: #ffffff;
   }
 }
+
+/* ---------- 电子试卷 → 小组加分（2026-11-17）----------
+   对话框里的试卷清单：一行一场试，左边标题 + 交卷/满分，右边两个动作按钮。
+   窄屏时按钮换到下一行，别把标题挤成两三个字一行。 */
+.exam-link-list { display: flex; flex-direction: column; gap: 8px; max-height: 46vh; overflow: auto; margin: 6px 0; }
+.exam-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 10px; border: 1px solid var(--line, #d8dde5); border-radius: 10px; background: var(--panel, #fff); }
+.exam-row .exam-main { flex: 1 1 240px; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.exam-row .exam-main b { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.exam-row .exam-main small { color: var(--muted, #6b7280); font-size: 12px; }
+.exam-row .exam-acts { display: flex; gap: 6px; flex: none; }
+/* 项目列表头是电子试卷自动入账的：淡紫底，一眼能认出不是老师手加的列 */
+#view-leader .peer-col-th.is-exam-col .leader-project { background: #f5efff; border-color: #c9a9f0; }
+:root[data-hx-mode="dark"] #view-leader .peer-col-th.is-exam-col .leader-project { background: rgba(178, 130, 255, .16); border-color: rgba(200, 160, 255, .5); }

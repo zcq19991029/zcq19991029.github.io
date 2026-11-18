@@ -34,7 +34,7 @@
      2026-11-13 加上「线上接线仿真」（NAME_PREFIX 的新值），三处正则必须同步。
      ⚠ 前缀口径与 app.js 的 taskScore()、wire-task-link.js 的 NAME_PREFIX 保持一致，
        三处必须一起改，否则老数据的旧列名「接线2.3」会漏判。 */
-  var TASK_COL = /^(?:接线|线上连线排位|线上接线仿真)/;
+  var TASK_COL = /^(?:接线|线上连线排位|线上接线仿真|电子考试)/;
   function isTaskCol(name) { return TASK_COL.test(String(name == null ? '' : name).trim()); }
 
   /* 逐列「仅教师可评」（2026-11-12 用户规则：收拾板子 / 归位工具的分只能老师给）。

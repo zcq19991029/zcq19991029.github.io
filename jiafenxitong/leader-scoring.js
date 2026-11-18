@@ -13,17 +13,20 @@
      切走/离开评分页就停。定时器只留一个，重画时先清旧的，别泄漏。 */
   var PEER_POLL_MS = 10000;
   var poll = { timer: 0, alive: null, run: null };
-  /* 线上排位列（2026-11-11 修互评刷分漏洞）：列名带「接线 / 线上连线排位 / 线上接线仿真」
-     前缀的列是课堂任务（wire-task-link.js）自动入账的成绩，只有学生真实完成线上排位才能得分，
-     老师在这里不能手改、不能撤销、不能一键满分 —— 互评分档（scores.js）和提交侧
-     （peer-apply.js）也同样锁死，三处同一个正则。
+  /* 自动入账列（2026-11-11 修互评刷分漏洞；2026-11-17 加电子试卷）：列名带
+     「接线 / 线上连线排位 / 线上接线仿真 / 电子考试」前缀的列是系统按完成率自动入账的，
+     只有真实完成（排位任务 / 电子试卷得分）才能得分，老师在这里不能手改、不能撤销、
+     不能一键满分 —— 互评分档（scores.js）和提交侧（peer-apply.js）也同样锁死，同一个正则。
      原来这里只认 peerMeta === 'wire'：列在而 meta 丢失（加前缀之前的老数据、
      互评先落过格再被任务接管）就会漏锁，学生照样能互相刷分 —— 所以改成按列名统一判断。
      2026-11-13 加上「线上接线仿真」：wire-task-link.js 的 NAME_PREFIX 改成这一版，
      漏了这条新列名就锁不上，学生又能给排位列刷分。
-     ⚠ 前缀口径与 app.js 的 taskScore()、wire-task-link.js 的 NAME_PREFIX 保持一致。 */
-  var TASK_COL = /^(?:接线|线上连线排位|线上接线仿真)/;
+     2026-11-17 加上「电子考试」：exam-link.js 的列名 = 「电子考试 <试卷标题>」。
+     ⚠ 前缀口径与 app.js 的 taskScore()、wire-task-link.js / exam-link.js 的 NAME_PREFIX 保持一致。 */
+  var TASK_COL = /^(?:接线|线上连线排位|线上接线仿真|电子考试)/;
   function isTaskCol(name) { return TASK_COL.test(String(name == null ? '' : name).trim()); }
+  /* 电子试卷列单独认一次：只为了把悬浮提示写成「电子试卷」而不是「课堂任务」 */
+  function isExamCol(name) { return /^电子考试/.test(String(name == null ? '' : name).trim()); }
   function pollStop() { if (poll.timer) { clearTimeout(poll.timer); poll.timer = 0; } }
   function pollSchedule() {
     pollStop();
@@ -61,7 +64,7 @@
       '<li>学生一提交就<b>直接计分</b>，不用老师再逐列确认。</li>' +
       '<li><b>组员平均</b>：组员们给组长打的平均完成率（至少 2 人打才计入，标在组长那一行）。</li>' +
       '<li><b>曾任组长</b>：这个人当过组长，分是他任组长时组员打的平均分。</li>' +
-      '<li><b>互评</b>：组长给这位组员打的完成率。<b>师</b>：老师直接填的分。<b>接</b>：线上排位任务自动入账。</li>' +
+      '<li><b>互评</b>：组长给这位组员打的完成率。<b>师</b>：老师直接填的分。<b>接</b>：线上排位任务自动入账。<b>卷</b>：电子试卷自动入账（得分 ÷ 满分）。</li>' +
       '<li>要改分，直接点格子里的 20%–100%（带「师」角标）；双击分数撤销这一格。</li>' +
       '</ul></div>';
   }
@@ -299,7 +302,10 @@
     }
     function srcHtml(meta, isLead) {
       if (!meta) return '';
-      var text = meta === 'avg' ? (isLead ? '组员平均' : '曾任组长') : (meta === 'teacher' ? '师' : (meta === 'wire' ? '接' : '互评'));
+      var text = meta === 'avg' ? (isLead ? '组员平均' : '曾任组长')
+        : (meta === 'teacher' ? '师'
+        : (meta === 'wire' ? '接'
+        : (meta === 'exam' ? '卷' : '互评')));
       /* 白色空格不折行：格子窄的时候角标宁可挤出一条直线，也别一个字一行地叠起来 */
       return '<span class="peer-src peer-src-' + meta + '" style="white-space:nowrap">' + text + '</span>';
     }
@@ -320,9 +326,10 @@
     }
     function cellTitle(st, mk, col) {
       var v = cellValue(st, mk, col), meta = cellMeta(st, mk, col);
-      /* 排位列（2026-11-09 用户定：「这一列的分不能人为控制」；2026-11-11 起按列名判断，
-         不再只依赖 peerMeta）：分数 = 任务完成率 × 5，由任务成绩自动写入，老师不能在这里
-         手改、也不能撤销。想改这格 → 去接线那边重跑/重开任务，下一轮同步会自动更新。 */
+      /* 自动列（2026-11-09 用户定：「这一列的分不能人为控制」；2026-11-11 起按列名判断，
+         不再只依赖 peerMeta）：分数由系统按完成率自动写入，老师不能在这里手改、也不能撤销。
+         电子试卷列（2026-11-17）：分 = 得分 ÷ 满分 × 5，改题/重批后下一轮同步自动更新。 */
+      if (isExamCol(sharedProjects[col])) return '电子试卷列：分是电子试卷按「得分 ÷ 满分 = 完成率」自动入账的，老师不能手改；试卷改了题 / 重新批改后下一轮同步会自动更新这一格';
       if (meta === 'wire' || isWireCol(col)) return '线上排位列：分是课堂任务自动入账的（任务完成率 × 100%），只有真实完成排位才能得分，不能手改；任务重跑后下一轮同步会自动更新这一格';
       if (v == null) return '教师可直接给 20%–100%（不用等学生提交）';
       if (meta === 'teacher') return '教师直接填的完成率，已计入；双击撤销这一格的加分';
@@ -402,8 +409,14 @@
     /* ---------- 顶部：项目列（全班共用，只在这里改名字，各组表格共用一份） ---------- */
     function projectInputTh(i) {
       var only = isTeacherOnlyCol(i);
-      return '<th class="peer-col-th' + (only ? ' is-teacher-only' : '') + '">' +
-        '<div class="peer-col-in"><input class="leader-project" data-project="' + i + '" aria-label="评分项目' + (i + 1) + '" maxlength="80" placeholder="项目' + (i + 1) + '" value="' + esc(sharedProjects[i]) + '">' +
+      /* 2026-11-17：电子试卷列 —— 悬停直接说明「本列由电子试卷自动入账」，不再另加一条横幅
+         （用户不喜欢多一条横幅；鼠标停在列头上就能知道这列的分是谁给的）。 */
+      var exam = isExamCol(sharedProjects[i]);
+      var examTip = '本列由电子试卷自动入账：分 = 得分 ÷ 满分 × 5，老师不能手改；试卷改题 / 重批后自动更新。删掉这一列 = 这场试卷不再计入加分。';
+      return '<th class="peer-col-th' + (only ? ' is-teacher-only' : '') + (exam ? ' is-exam-col' : '') + '"' +
+        (exam ? ' title="' + esc(examTip) + '"' : '') + '>' +
+        '<div class="peer-col-in"><input class="leader-project" data-project="' + i + '" aria-label="评分项目' + (i + 1) + '" maxlength="80" placeholder="项目' + (i + 1) + '" value="' + esc(sharedProjects[i]) + '"' +
+        (exam ? ' title="' + esc(examTip) + '"' : '') + '>' +
         '<div class="peer-col-acts">' +
         '<button type="button" class="project-lock' + (only ? ' on' : '') + '" data-teach-only="' + i + '" aria-pressed="' + (only ? 'true' : 'false') + '" title="' +
         (only ? '这一列现在只有你能给分（学生端看不到它）。点一下放开给学生打分'
@@ -590,6 +603,12 @@
         r.projects = sharedProjects.slice();
       });
       logClass('全班统一项目' + (index + 1) + '名称：' + (old || '空') + ' → ' + (next || '空') + '（所有小组同步）');
+      /* 电子试卷列：改名后系统按「老师接管了这一列」处理，不再往里写分（见 exam-link.js 约定③）。
+         必须当场说清楚，否则老师只会看到「怎么不改分了」。 */
+      if (isExamCol(old) || isExamCol(next)) {
+        setMsg('提示：这一列是电子试卷自动入账的。改名后系统不再往这一列写分（视为这一列归你管）；' +
+          '要恢复自动入账，把名字改回原来的「电子考试 …」，或到「记分 → 电子试卷…」里重新记入。');
+      }
       context.save(); rerenderKeepScroll(); pushPeerPayload();
       /* 2026-11-10 用户报：「填了项目名称但学生说教室没发布任务」。
          根因：填项目名只存本地，必须再点「组长打分」开关才会发布到云端（jf_peer_gate），
@@ -674,6 +693,12 @@
         lesson.peerMeta = nextMeta;
       }
       logClass('删除全班项目列' + (index + 1));
+      /* 电子试卷列被删 = 老师接管了这一列（约定③）：系统不再往这列写分，也不重建。
+         关联还在数据库里，只是这一列的分数不再自动出现；要恢复就到「记分 → 电子试卷…」重新记入。 */
+      if (isExamCol(removedName)) {
+        setMsg('已删除「' + removedName + '」。这一列是电子试卷自动入账的，删掉后系统不再给你写回来；' +
+          '要恢复就到「记分 → 电子试卷…」重新记入。');
+      }
       context.save(); rerenderKeepScroll(); pushPeerPayload();
     }
 

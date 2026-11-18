@@ -39,10 +39,11 @@
   var W = {};
 
   /* 必须和 app.js taskScore() 的 TASK_COL、leader-scoring.js isTaskCol() 一字不差：
-     app.js:1085        var TASK_COL = /^(?:接线|线上连线排位|线上接线仿真)/;
-     leader-scoring:25  var TASK_COL = /^(?:接线|线上连线排位|线上接线仿真)/;
-     改这里 = 改那两处，否则「哪些列是排位列」三个地方会打架。 */
-  var TASK_COL = /^(?:接线|线上连线排位|线上接线仿真)/;
+     app.js:1146         var TASK_COL = /^(?:接线|线上连线排位|线上接线仿真|电子考试)/;
+     leader-scoring:25   var TASK_COL = /^(?:接线|线上连线排位|线上接线仿真|电子考试)/;
+     改这里 = 改那两处，否则「哪些列是排位列」几个地方会打架。
+     2026-11-17 加「电子考试」：电子试卷列也是自动入账、老师不能手填的列（exam-link.js）。 */
+  var TASK_COL = /^(?:接线|线上连线排位|线上接线仿真|电子考试)/;
 
   /* 必须和 app.js:419 一字不差：leaderScores[组号].members 的键、peerMeta 键里那段都是它。
      app.js:419  function memberKey(m) { return m && (m.sid ? 'sid:' + m.sid : 'id:' + m.id); } */
@@ -58,6 +59,7 @@
   function srcText(meta) {
     if (!meta) return '无来源标记（老数据 / 丢标记）';
     if (meta === 'wire') return '接线任务';
+    if (meta === 'exam') return '电子试卷';
     if (meta === 'teacher') return '老师手填';
     if (meta === 'leader') return '学生互评';
     if (meta === 'avg') return '互评平均分';
@@ -135,7 +137,7 @@
             if (isEmpty(value)) continue;             // 空格子没分可清（残留的 meta 也不用管）
             var metaKey = gnoKey + '|' + key + '|' + col;
             var m = Object.prototype.hasOwnProperty.call(meta, metaKey) ? meta[metaKey] : '';
-            if (m === 'wire') continue;               // 接线任务写的真分，保留
+            if (m === 'wire' || m === 'exam') continue;   // 接线任务 / 电子试卷写的真分，保留
             items.push({
               lesson: lesson, cls: cls,
               gnoKey: gnoKey,
@@ -179,8 +181,9 @@
         colName: it.colName,
         value: it.value,
         meta: it.meta,
-        reason: '「' + it.colName + '」是接线任务自动生成的排位列（只读），这一格的来源是'
-          + srcText(it.meta) + '而不是接线任务（peerMeta≠wire），属于误加的分'
+        reason: '「' + it.colName + '」是' + (/^电子考试/.test(str(it.colName).trim()) ? '电子试卷' : '接线任务') +
+          '自动生成的项目列（只读），这一格的来源是'
+          + srcText(it.meta) + '而不是系统自动入账（peerMeta 既不是 wire 也不是 exam），属于误加的分'
       });
       var tag = it.meta || 'none';
       byMeta[tag] = (byMeta[tag] || 0) + 1;
@@ -202,7 +205,7 @@
       parts.push('标记「' + t + '」' + rep.byMeta[t] + ' 格');
     });
     return '共 ' + rep.lessons.length + ' 次课、' + rep.total + ' 格会被清掉（'
-      + parts.join('，') + '）。接线任务写入的分（标记 wire）一格不动。';
+      + parts.join('，') + '）。接线任务 / 电子试卷自动写入的分（标记 wire / exam）一格不动。';
   }
 
   /**
