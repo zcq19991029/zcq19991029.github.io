@@ -5685,7 +5685,9 @@ const PAPER_DEFAULT={
   key:'',space:'auto',weights:{1:20,2:20,3:25,4:25,5:10},
   sections:[{t:'choice',n:15,pts:2},{t:'fill',n:10,pts:1},{t:'judge',n:10,pts:1},{t:'term',n:3,pts:4},{t:'short',n:3,pts:6},{t:'prog',n:2,pts:10}]
 };
-const blanksOf=q=>q.t==='fill'?(q.q.match(/____/g)||[]).length:1;
+/* 2026-11-18：题干缺失时也不能崩 —— 老版本是 q.q.match(...)，只要有一道填空题没题干
+   （导入的半成品卷 / 手搓的测试对象）整页 eFillMatch 就抛 TypeError，批改台白屏。 */
+const blanksOf=q=>q.t==='fill'?(String(q.q==null?'':q.q).match(/____/g)||[]).length:1;
 
 /* ================= 选择题选项归一（2026-11-09） =================
    用户原话：「电气接线的理论考试选择题选项都报错了 没有正常的」。
@@ -7773,26 +7775,93 @@ function eFillParts(ans, n) {
   const p = s.split(/\s*(?:\||;|；|\n)\s*/);
   return Array.from({ length: n }, (_, i) => p[i] == null ? '' : p[i]);
 }
+/* ── 单位容差（2026-11-18）────────────────────────────────────────────
+   起因是用户一张截图：参考答案「50Hz」，学生答「50」，机器写「自动匹配不上，请人工核对」。
+   老师眼里这就是对的（只是漏了单位），程序却把它打回人工 —— 一道题 40 个人能折一半。
+   所以归一后仍不相等时再走一遍「数值 + 单位」比对：
+     · 数值部分必须完全相同（50 ≠ 500，220 ≠ 0.22）；
+     · 单位按同义词表归一（Hz/赫兹、V/伏/伏特、kW→kw …）；
+     · **学生只写数值、答案带单位**：只有答案单位是「基本单位」才放过（见 E_UNIT_BASE）。
+       千伏 / 千瓦 / 兆帕 这类带前缀的不放过 —— 「220」对「220kV」是真错，不能替他补单位。
+   表里没有的单位一律不放行（交 AI 判），宁可多问一句，不许乱给分。 */
+const E_UNIT_ALIAS = {
+  hz: 'hz', 赫: 'hz', 赫兹: 'hz',
+  v: 'v', 伏: 'v', 伏特: 'v',
+  a: 'a', 安: 'a', 安培: 'a',
+  ohm: 'ohm', 'ω': 'ohm', 欧: 'ohm', 欧姆: 'ohm',
+  w: 'w', 瓦: 'w', 瓦特: 'w',
+  pa: 'pa', 帕: 'pa', 帕斯卡: 'pa',
+  n: 'n', 牛: 'n', 牛顿: 'n',
+  j: 'j', 焦: 'j', 焦耳: 'j',
+  m: 'm', 米: 'm', mm: 'mm', 毫米: 'mm', cm: 'cm', 厘米: 'cm',
+  s: 's', 秒: 's', min: 'min', 分: 'min', 分钟: 'min', h: 'h', 时: 'h', 小时: 'h',
+  kg: 'kg', 千克: 'kg', 公斤: 'kg', g: 'g', 克: 'g', t: 't', 吨: 't',
+  rpm: 'rpm', 转每分: 'rpm', 转分: 'rpm', 转分钟: 'rpm',
+  '%': '%', 百分: '%',
+  '℃': '℃', 摄氏度: '℃', '°c': '℃',
+  va: 'va', 伏安: 'va', kva: 'kva', 千伏安: 'kva',
+  kw: 'kw', 千瓦: 'kw', kwh: 'kwh', 千瓦时: 'kwh', 度电: 'kwh',
+  kv: 'kv', 千伏: 'kv', ma: 'ma', 毫安: 'ma', mv: 'mv', 毫伏: 'mv',
+  kω: 'kohm', 千欧: 'kohm', mω: 'mohm', 兆欧: 'mohm',
+  kpa: 'kpa', 千帕: 'kpa', mpa: 'mpa', 兆帕: 'mpa',
+  mw: 'mw', 兆瓦: 'mw'
+};
+/* 基本单位（不带 k / m 前缀）：学生只写数值时，只有这些才替他补单位。 */
+const E_UNIT_BASE = new Set(['hz', 'v', 'a', 'ohm', 'w', 'pa', 'n', 'j', 'm', 'mm', 'cm',
+  's', 'min', 'h', 'kg', 'g', 't', 'rpm', '%', '℃', 'va']);
+/* 把「50Hz」「50.0 hz」「50 赫兹」拆成 {num:'50', unit:'hz'}；不是「数值开头」的返回 null。 */
+function eNumUnit(x) {
+  const m = /^([+-]?\d+(?:\.\d+)?)(.*)$/.exec(String(x == null ? '' : x));
+  if (!m) return null;
+  return { num: String(Number(m[1])), unit: m[2] };
+}
+/* 宽松归一 —— **只给「数值 + 单位」这条判据用**。
+   不能直接用 eNormText：它把「.」当标点删掉（2.5 → 25、50.0 → 500），
+   于是「50.0Hz」和「50Hz」会被算成 500 与 50 两个不同的数，白丢一分。
+   这里只做全角转半角 / 去空白 / 小写 / 去单位里的间隔号，保留小数点。 */
+function eLatText(s) {
+  const x = String(s == null ? '' : s)
+    .replace(/[\uFF01-\uFF5E]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0))
+    .replace(/[\u3000\s]+/g, '')
+    .toLowerCase();
+  return x.replace(/[·・]/g, '');
+}
+/* 两个答案是不是同一个值：归一后全等 → 同时去掉单位换算后再比。 */
+function eFillSame(a, b) {
+  const na = eNormText(a), nb = eNormText(b);
+  if (!na || !nb) return false;
+  if (na === nb) return true;
+  const la = eLatText(a), lb = eLatText(b);
+  if (la === lb) return true;
+  const A = eNumUnit(la), B = eNumUnit(lb);
+  if (!A || !B || A.num !== B.num) return false;
+  const ua = E_UNIT_ALIAS[A.unit], ub = E_UNIT_ALIAS[B.unit];
+  if (ua && ub) return ua === ub;
+  if (ua && !B.unit) return E_UNIT_BASE.has(ua);
+  if (ub && !A.unit) return E_UNIT_BASE.has(ub);
+  if (!A.unit && !B.unit) return true;          // 纯数值：2.50 与 2.5
+  /* 表里都不认识：只有单位字符串一模一样才算（'50hz' vs '50.0hz' 这种）。 */
+  return A.unit === B.unit && !!A.unit;
+}
 /* 填空题判分：返回 {got, by, note}。
    全对 → 满分 auto；部分对 → 按命中空数比例给分、四舍五入到 0.5、by:'auto'；
-   一个空都对不上 → got:null、by:'manual'，**不写 0**（可能是同义表述，留给老师）。
+   一个空都对不上 → got:null、by:'manual'，**不写 0**（可能是同义表述，留给老师/AI）。
    注意：hx_exam_mark 服务端会把非数字 got 归一成 0，所以「留人工」在保存时
    表现为**不写这一题**（和未批的大题一样），学生端才能显示「待批改」而不是 0 分。 */
 function eFillMatch(q, ans) {
   const pts = Math.max(0, +q.pts || 0);
   const n = Math.max(1, typeof blanksOf === 'function' ? blanksOf(q) : 1);
   const refs = eFillRefs(q, n), parts = eFillParts(ans, n);
-  const hit = parts.map((v, i) => {
-    const nv = eNormText(v);
-    return !!nv && refs[i].some(r => eNormText(r) === nv);
-  });
+  const hit = parts.map((v, i) => !!eNormText(v) && refs[i].some(r => eFillSame(r, v)));
   const k = hit.filter(Boolean).length;
   if (!String(ans == null ? '' : ans).trim()) {
     return { got: 0, by: 'auto', note: n > 1 ? '0/' + n + ' 个空' : '' };
   }
   if (k === n) return { got: pts, by: 'auto', note: '' };
   if (k > 0) return { got: Math.round(pts * k / n * 2) / 2, by: 'auto', note: k + '/' + n + ' 个空对' };
-  return { got: null, by: 'manual', note: '自动匹配不上，请人工核对' };
+  /* 2026-11-18 用户：「这个ai不会批改吗」。判不动的填空**自动**送 AI 判同义（见 aiAutoFill），
+     这里的 note 只在 AI 没配 / 没给出结果时才会留在老师眼前，所以写成「可以怎么做」。 */
+  return { got: null, by: 'manual', note: '自动匹配不上，点下方「AI 批这题」判同义或人工核对' };
 }
 /* 一题的自动判分入口：客观题复用 eAnswer；填空走 eFillMatch；大题不判（等人工/AI）。 */
 function eAutoMark(q, ans) {
@@ -8209,7 +8278,9 @@ let EX_DONE_OPEN = false, EX_DONE_CUR = 0;
 function delQDialog(x) {
   const qs = ePaperDecode(x.paper);
   if (!qs || !qs.length) return toast('这套卷子不是电子试卷格式，不能删题');
-  const full = qs.reduce((a, q) => a + (+q.pts || 0), 0);
+  let full = qs.reduce((a, q) => a + (+q.pts || 0), 0);
+  /* 删过没有 —— 只有关浮层时才刷新首页列表（见 close）。 */
+  let dirty = false;
   const mask = document.createElement('div');
   mask.className = 'ex-dlg-mask';
   const rows = qs.map((q, i) => {
@@ -8222,7 +8293,13 @@ function delQDialog(x) {
     <div class="ex-dlg-b">${rows}</div>
     <div class="ex-dlg-f"><span class="note">删掉的题，学生那份的作答和分数会一起消失，后面的题号自动前移。</span><button type="button" data-dlgclose="1">关闭</button></div></div>`;
   document.body.appendChild(mask);
-  const close = () => { document.removeEventListener('keydown', onKey); mask.remove(); };
+  const close = () => {
+    document.removeEventListener('keydown', onKey);
+    mask.remove();
+    /* 2026-11-18 用户：「考试删题 删一个就刷新退出一次 还要再去选择删除」。
+       浮层里连删期间**一律不刷新**，攒到关闭时统一重画一次首页（题数/满分/批改台题号都变了）。 */
+    if (dirty) electronicTeacherHome();
+  };
   function onKey(e) { if (e.key === 'Escape') { e.preventDefault(); close(); } }
   document.addEventListener('keydown', onKey);
   mask.addEventListener('mousedown', e => { if (e.target === mask) close(); });
@@ -8242,9 +8319,34 @@ function delQDialog(x) {
       b.disabled = true;
       try {
         const r = await rpc('hx_exam_del_q', { p_id: x.id, p_idx: idx });
-        close();
-        toast(`已删掉第 ${idx} 题：满分 ${eFmtNum(full)} → ${eFmtNum(r.full)} 分`);
-        electronicTeacherHome();
+        /* 2026-11-18：删完**不关浮层、不回首页**，原地把这一行去掉、重编后面每行的题号，
+           老师可以接着删下一道；只有关闭浮层时才统一刷新首页（见 close）。
+           以前这里直接 close() + electronicTeacherHome()，表现就是「删一个 → 整页退出 → 还要重新点删除 → 再找到那一题」。 */
+        qs.splice(idx - 1, 1);
+        dirty = true;
+        if (r && r.full != null) full = +r.full;
+        const row = b.closest('.ex-dlg-i');
+        if (row) row.remove();
+        const head = mask.querySelector('.ex-dlg-h b');
+        if (head) head.textContent = `删题目 · 这套卷共 ${qs.length} 题 · 满分 ${eFmtNum(full)} 分`;
+        let ni = 0;
+        mask.querySelectorAll('.ex-dlg-i').forEach(el => {
+          ni++;
+          const qt = el.querySelector('.ex-dlg-q b');
+          if (qt) qt.textContent = qt.textContent.replace(/^第 \d+ 题/, '第 ' + ni + ' 题');
+          const db = el.querySelector('[data-delone]');
+          if (db) {
+            db.dataset.delone = ni;
+            if (qs.length <= 1) { db.disabled = true; db.title = '至少留一道题'; }
+          }
+        });
+        const footNote = mask.querySelector('.ex-dlg-f .note');
+        if (footNote) {
+          footNote.textContent = qs.length <= 1
+            ? '只剩一道题了，不能再删；把这个浮层关掉才会刷新上面的题目列表。'
+            : '删掉的题，学生那份的作答和分数会一起消失，后面的题号自动前移。';
+        }
+        toast(`已删掉第 ${idx} 题：满分 → ${eFmtNum(full)} 分`);
       } catch (e) { toast(e.message); b.disabled = false; }
     };
   });
@@ -8319,12 +8421,13 @@ async function addQDialog(x) {
   const cnt = {};
   pool.forEach(q => { const t = String(q.t || ''); cnt[t] = (cnt[t] || 0) + 1; });
   const order0 = PAPER_DEFAULT.sections.map(s => s.t);
-  const types = Object.keys(cnt).sort((a, b) => {
-    const ia = order0.indexOf(a), ib = order0.indexOf(b);
-    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
-  });
+  /* 2026-11-18 用户：「加题没全部题型啊 这才到哪儿」——原来只列**题池里出现过的**题型，
+     池里只有填空/简答时下拉里就只有两行，看着像"题型不全、加不了别的"。现在列标准题型全集
+     （PAPER_DEFAULT 那 6 种：选择/填空/判断/名词/简答/程序），池里一道都没有的也照样列出来并写 0 ——
+     这样能一眼分清「是题库里没这种题」还是「功能没做」。池里出现非标准题型时排在后面。 */
+  const types = order0.concat(Object.keys(cnt).filter(t => order0.indexOf(t) < 0));
   typeSel.innerHTML = `<option value="">全部（${pool.length}）</option>` + types.map(t =>
-    `<option value="${E_ESC(t)}">${E_ESC(eType(eNormType({ t, a: '' })))}（${cnt[t]}）</option>`).join('');
+    `<option value="${E_ESC(t)}">${E_ESC(eType(eNormType({ t, a: '' })))}（${cnt[t] || 0}）</option>`).join('');
 
   const syncCount = () => {
     let sum = 0;
@@ -8884,7 +8987,9 @@ async function subsElectronic(x) {
       <div class="eg-qb">
         <div class="eg-stem">${eStemHTML(q)}</div>
         ${obj ? `<div class="eg-opts">${eOptions(q).map(o => `<span><b>${E_ESC(o.key)}</b> ${E_ESC(o.text)}</span>`).join('')}</div>` : ''}
-        <details class="eg-ref"><summary>参考答案</summary><div>${E_ESC(eCorrectText(q))}</div></details>
+        <!-- 2026-11-18 用户：「参考答案我批改你缩进去干嘛 防我呢 展开啊」——改成**默认展开**。
+             批改时老师本来就要对着参考答案看，折起来等于每道题多点一次；仍可手动收起（open 是默认态，不是锁定态）。 -->
+        <details class="eg-ref" open><summary>参考答案</summary><div>${E_ESC(eCorrectText(q))}</div></details>
         <div class="eg-ansbox"><span>学生答案</span><pre class="eg-ans">${E_ESC(ans == null || ans === '' ? '（没答）' : ans)}</pre></div>
         ${obj ? '' : score}
         ${isBig ? `<input class="eg-note" data-n="${i}" data-si="${si}" maxlength="60" placeholder="评语（≤60 字，学生看得到）" value="${E_ESC(m && m.note ? m.note : '')}">` : ''}
@@ -9174,7 +9279,42 @@ async function subsElectronic(x) {
   }
   /* AI 批改：只批「大题（short/term/prog）且还没有数字分」的题。
      每批 5~8 题（这里 6 题），一批一个 HXAI.chat；同一学生的题号唯一，[i] 才能对得上。
-     解析失败只标这一批，不抛到整页。AI 给的分数标 by:'ai'，老师改了分数就变 by:'manual'。 */
+     解析失败只标这一批，不抛到整页。AI 给的分数标 by:'ai'，老师改了分数就变 by:'manual'。
+     2026-11-18：真正的「发请求 + 写 marks」抽成 aiRunTargets()，因为进页面时还要
+     自动复核一遍判不动的填空（aiAutoFill），两处必须共用同一套解析与防脏规则。 */
+  async function aiRunTargets(targets, onProgress) {
+    const fails = {};
+    let done = 0, skipped = 0;
+    const groups = {};
+    targets.forEach(t => { (groups[t.si] = groups[t.si] || []).push(t); });
+    for (const key of Object.keys(groups)) {
+      const arr = groups[key];
+      for (let p = 0; p < arr.length; p += 6) {
+        const batch = arr.slice(p, p + 6);
+        if (onProgress) onProgress(done, targets.length);
+        try {
+          const txt = await eAiChat(eAiPrompt(batch.map(t => ({
+            i: t.i + 1, t: eType(t.q.t), pts: +t.q.pts || 0,
+            q: t.q.q || t.q.stem || '', a: eCorrectText(t.q), ans: (t.s.answers || {})[t.i + 1] || ''
+          }))));
+          const list = eAiParse(txt);
+          if (!list) { fails[key] = 'AI 没读懂这一批，已保留人工批改'; continue; }
+          const byI = {};
+          list.forEach(z => { const i = +z.i; if (i >= 1 && i <= paper.length) byI[i] = z; });
+          batch.forEach(t => {
+            const z = byI[t.i + 1]; if (!z) return;
+            /* 2026-11-17：夹紧 + 0.5 步进 + 填空只给满分/0 + miss 拼评语，全在 eAiMark 一处；
+               返回 null（got 缺失 / 非数字）→ **不写 marks**（保持「未批」），绝不写 0。 */
+            const m = eAiMark(z, +t.q.pts || 0, t.q.t === 'fill');
+            if (!m) { skipped++; return; }
+            t.s._marks[String(t.i + 1)] = m;
+            dirty.add(t.si); done++;
+          });
+        } catch (e) { fails[key] = 'AI 调用失败：' + (e && e.message ? e.message : e) + '（已保留人工批改）'; }
+      }
+    }
+    return { done, skipped, fails };
+  }
   async function aiGrade(si, onlyI) {
     let st = eAiState();
     /* 还没就绪（正在读 / 刚才加载失败）就再等一次，别一上来就把人打回「去设置」。 */
@@ -9206,42 +9346,46 @@ async function subsElectronic(x) {
     if (!targets.length) return toast('没有要批的题（已批过的不会重批）');
     const aiBtn = $('egAi'); if (aiBtn) aiBtn.disabled = true;
     const setSt = t => { const el = $('egAiState'); if (el) { el.textContent = t; el.className = 'eg-msg warn'; } };
-    const fails = {};
-    let done = 0, skipped = 0;
-    const groups = {};
-    targets.forEach(t => { (groups[t.si] = groups[t.si] || []).push(t); });
-    for (const key of Object.keys(groups)) {
-      const arr = groups[key];
-      for (let p = 0; p < arr.length; p += 6) {
-        const batch = arr.slice(p, p + 6);
-        setSt(`AI 批改中 ${done}/${targets.length} 道…`);
-        try {
-          const txt = await eAiChat(eAiPrompt(batch.map(t => ({
-            i: t.i + 1, t: eType(t.q.t), pts: +t.q.pts || 0,
-            q: t.q.q || t.q.stem || '', a: eCorrectText(t.q), ans: (t.s.answers || {})[t.i + 1] || ''
-          }))));
-          const list = eAiParse(txt);
-          if (!list) { fails[key] = 'AI 没读懂这一批，已保留人工批改'; continue; }
-          const byI = {};
-          list.forEach(z => { const i = +z.i; if (i >= 1 && i <= paper.length) byI[i] = z; });
-          batch.forEach(t => {
-            const z = byI[t.i + 1]; if (!z) return;
-            /* 2026-11-17：夹紧 + 0.5 步进 + 填空只给满分/0 + miss 拼评语，全在 eAiMark 一处；
-               返回 null（got 缺失 / 非数字）→ **不写 marks**（保持「未批」），绝不写 0。 */
-            const m = eAiMark(z, +t.q.pts || 0, t.q.t === 'fill');
-            if (!m) { skipped++; return; }
-            t.s._marks[String(t.i + 1)] = m;
-            dirty.add(t.si); done++;
-          });
-        } catch (e) { fails[key] = 'AI 调用失败：' + (e && e.message ? e.message : e) + '（已保留人工批改）'; }
-      }
-    }
+    const { done, skipped, fails } = await aiRunTargets(targets, (d, n) => setSt(`AI 批改中 ${d}/${n} 道…`));
     renderAll();
     Object.keys(fails).forEach(k => cardMsg(+k, fails[k], true));
     /* 「没给分」的题要明说：以前它们会静默留在待批，老师以为 AI 漏跑了。 */
     const skipNote = skipped ? `，${skipped} 道 AI 没给出有效分数（保持待批，请人工核）` : '';
     setSt(done ? `AI 批完 ${done} 道${skipNote}，记得点每张卡的「保存这份」` : 'AI 没批出结果，已保留人工批改');
     toast(done ? `AI 批完 ${done} 道${skipNote}，还要点每张卡的「保存这份」` : 'AI 没批出结果');
+  }
+  /* ── 进批改台就自动复核「判不动的填空」（2026-11-18）──────────────────────
+     用户原话：「这个ai不会批改吗 我问你你都会吧」。截图里学生答「50」、答案是「50Hz」，
+     机器只写一句「自动匹配不上，请人工核对」—— 老师得自己猜该不该点 AI。
+     现在：本地单位容差先放行一批（见 eFillSame），剩下还是判不动的，**AI 配好就直接送**，
+     结果照样只进内存（要点「保存这份」才写库），老师随时能改。
+     边界：只送 got==null 的填空；机器判 0 的（一个空都没对）不动，省 token 也不改已有判断；
+     一次最多 30 道，超出的留给老师点「AI 一键批改」。 */
+  let aiAutoDone = false;
+  async function aiAutoFill() {
+    if (aiAutoDone) return;
+    /* 先判状态再上锁：AI 还没读出来时**不锁**，免得「首次打开刚好在加载」就把这次机会永久吃掉。 */
+    const st = eAiState();
+    if (!st.ok) return;                     // 没配 AI / 还在读：什么都不做，保持「待批改」
+    aiAutoDone = true;
+    const targets = [];
+    subs.forEach((s, idx) => paper.forEach((q, i) => {
+      if (q.t !== 'fill' || targets.length >= 30) return;
+      if (eMarkGot(s._marks[String(i + 1)]) != null) return;
+      targets.push({ si: idx, s, i, q });
+    }));
+    if (!targets.length) return;
+    const setSt = t => { const el = $('egAiState'); if (el) { el.textContent = t; el.className = 'eg-msg warn'; } };
+    setSt(`AI 复核填空 0/${targets.length} 道…`);
+    let r;
+    try { r = await aiRunTargets(targets, (d, n) => setSt(`AI 复核填空 ${d}/${n} 道…`)); }
+    catch (e) { setSt('AI 复核填空时出错了，可点「AI 一键批改」重试'); return; }
+    /* 老师可能已经切走 —— 切走了再 renderAll() 会把批改台画到别的页面上。 */
+    if (AC.signal.aborted || !$('egCards')) return;
+    renderAll();
+    Object.keys(r.fails).forEach(k => cardMsg(+k, r.fails[k], true));
+    const skipNote = r.skipped ? `，${r.skipped} 道 AI 也没给分（请人工核）` : '';
+    setSt(r.done ? `AI 复核完 ${r.done} 道填空${skipNote}，记得点「保存这份」` : 'AI 没批出填空，保持待批改');
   }
 
   addEventListener('beforeunload', e => {
@@ -9260,6 +9404,8 @@ async function subsElectronic(x) {
   }, { signal: AC.signal });
 
   renderAll();
+  /* 画完再自动复核：先把界面交出去，AI 在路上时老师已经能看题了（不 await）。 */
+  aiAutoFill().catch(() => { });
 }
 
 /* ---------------- 老师：发布、收卷、批改（旧函数保留用于历史页面兼容） ---------------- */
