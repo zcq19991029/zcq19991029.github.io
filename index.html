@@ -14,16 +14,16 @@
      要登录时调 window.HXPortal.login()；被单独打开时 hx-theme.js 会跳回这里（见 hx-theme.js 的 data-tool）。
      账号：Supabase 华夏工具项目，localStorage paike-session 和各工具共用；身份由数据库 hx_me() 决定。
      脚本里不用反引号模板字符串（本机测试时整页当字符串注入到线上同源页面里）。 -->
-<link rel="stylesheet" href="hx-theme.css?v=b4276c6">
-<script src="hx-theme.js?v=b4276c6"></script>
+<link rel="stylesheet" href="hx-theme.css?v=47c042b">
+<script src="hx-theme.js?v=47c042b"></script>
 <script src="rank-bg.js" defer></script><!-- 排位身份卡预设（2026-11-12）：总入口外观面板当场弹窗设置身份卡背景，预设数据在总入口也能用 -->
 <!-- 首页卡片上的像素小生物：pixelfx 的 12 个 critters（MIT），打包成一个 91 KB 的独立脚本。
      加载失败不影响首页——hx-critters.js 开头就有 window.PixelFX 存在性检查，没有就整段跳过。 -->
-<script src="fx/pixelfx-critters.js?v=b4276c6" defer></script>
-<script src="fx/hx-critters.js?v=b4276c6" defer></script>
+<script src="fx/pixelfx-critters.js?v=47c042b" defer></script>
+<script src="fx/hx-critters.js?v=47c042b" defer></script>
 <!-- 课堂码大屏二维码：离线 QR 编码器（qrcode 1.5.4 core 打包，MIT，见 fx/NOTICE-qr.md）。延迟加载即可：只有老师点「大屏二维码」时才用 -->
-<script src="fx/hx-qr.js?v=b4276c6" defer></script>
-<script src="hx-scan.js?v=b4276c6" defer></script><!-- 全站扫一扫（2026-11-08 K5）：摄像头 + BarcodeDetector / 本地 jsQR -->
+<script src="fx/hx-qr.js?v=47c042b" defer></script>
+<script src="hx-scan.js?v=47c042b" defer></script><!-- 全站扫一扫（2026-11-08 K5）：摄像头 + BarcodeDetector / 本地 jsQR -->
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; width: 100%; overflow: hidden; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -1663,6 +1663,17 @@ var HX = (function () {
     uid: function () { load(); return s && s.user && s.user.id; },
     github: function () { location.href = BASE + '/auth/v1/authorize?provider=github&redirect_to=' + encodeURIComponent(back()); },
     linkGitHub: async function () { var j = await api('/auth/v1/user/identities/authorize?provider=github&skip_http_redirect=true&redirect_to=' + encodeURIComponent(back())); location.href = j.url; },
+    // 解绑 GitHub（2026-11-19）：Supabase GoTrue 的 unlink 接口，按 identity_id 解绑（不是 provider）。
+    // identity_id 取 GitHub 那条 identity 的 identity_id / id 字段。解绑后身份立即从账号里摘掉；
+    // 前端在调用前会拦一道：只剩 GitHub 一个登录方式时不放行（解了就没法登录了）。
+    unlinkGitHub: async function () {
+      var id = null;
+      var usr = await api('/auth/v1/user');
+      var gh = (usr.identities || []).filter(function (i) { return i.provider === 'github'; })[0];
+      if (gh) id = gh.identity_id || gh.id;
+      if (!id) throw new Error('没找到 GitHub 绑定信息');
+      return await api('/auth/v1/user/identities/' + id, { method: 'DELETE' });
+    },
     // say(text)：登录过程中的状态回显（「正在连接…」/「正在自动重试（第 N 次）」）。
     // 抖动在**所有请求之前**：账号名→邮箱那一步也是打数据库，全班同一秒点登录会一起压上去；
     // 等完 0~2.5 秒再查邮箱 + 登录，峰值约 40/秒 → 16/秒。
@@ -1812,7 +1823,8 @@ var ST = { me: null, user: null, tab: null, lm: 'in', reg: null, actFor: null, e
   // 2026-11-12 班级归档/移交：arch = 已归档班列表（undefined 没读 / null 读中 / 数组已读），
   // archOpen = 「已归档」折叠区是不是展开的（重画面板后保持），xfer = 刚生成的移交码块。
   // 2026-11-19 第七轮 T2：users = 用户管理列表，grantSel = 工具权限面板当前选中的教师邮箱。
-  arch: undefined, archOpen: false, archErr: null, xfer: null, users: undefined, grantSel: null };
+  // uQ/uF/uPg = 用户管理面板的搜索词 / 角色筛选 / 页码（1000 账号分页，避免一次渲染卡死弱机）。
+  arch: undefined, archOpen: false, archErr: null, xfer: null, users: undefined, grantSel: null, uQ: '', uF: 'all', uPg: 1 };
 /* ---------- 静态数据短缓存（2026-11-11 降载） ----------
    科目表 / 班级名单只有老师在改，平时不变；每次打开首页都重新拉一遍纯属白烧 Nano 的 CPU。
    命中（5 分钟内）就直接用上次结果、**不再发请求**；过期或换账号才重新拉。
@@ -2411,7 +2423,7 @@ function renderPop() {
     html += '<div class="rows">' +
       '<button type="button" data-e="name"><span>名字</span><span>' + esc(i.full || i.name) + '</span></button>' +
       '<button type="button" data-e="pw"><span>密码</span><span>修改</span></button>' +
-      (i.gh ? '<div><span>GitHub</span><span>' + esc(i.gh) + '</span></div>' : '<button type="button" id="plink"><span>GitHub</span><span>绑定</span></button>') + '</div>';
+      (i.gh ? '<div class="f" style="gap:8px"><span style="flex:1;min-width:0"><span>GitHub</span><span>' + esc(i.gh) + '</span></span><button type="button" class="btn link sm ib" id="punlink">解绑</button><button type="button" class="btn link sm ib" id="prelink">换绑</button></div>' : '<button type="button" id="plink"><span>GitHub</span><span>绑定</span></button>') + '</div>';
     if (r === '访客') html += '<div class="f" style="margin-bottom:14px"><button class="btn" type="button" data-e="claim">认证入班</button></div>'; // 好友码注册、老师后来才建班的学生，用课堂码补认证
     if (r === '未开通') html += '<div class="f" style="margin-bottom:14px"><button class="btn" id="pgo">填写邀请码开通</button></div>'; // 登录后会自动弹出；关掉了从这里再打开
     html += '<div class="f"><button class="btn sub" id="pswitch">切换账号</button><button class="btn sub" id="pdev">登录设备</button><button class="btn link bad" id="pout">退出登录</button></div>';
@@ -2453,6 +2465,26 @@ function renderPop() {
     finally { if (tok) HXBusy.end(tok); else b.disabled = false; }
   };
   if ($('plink')) $('plink').onclick = function () { HX.linkGitHub().catch(function (e) { toast(e.message); }); };
+  // 解绑 / 换绑 GitHub（2026-11-19）：绑定了就不能编辑，用户要求能解绑、换绑。
+  // 解绑前先查还有没有别的登录方式（密码 / 邮箱），只剩 GitHub 一个就不放行 —— 解了会把自己锁在门外。
+  if ($('punlink')) $('punlink').onclick = async function () {
+    var me = ST.user || {}, hasPw = !!(me.user_metadata && me.user_metadata.has_password);
+    if (!hasPw && !(me.identities || []).some(function (x) { return x.provider !== 'github'; })) {
+      toast('这个账号只有 GitHub 一种登录方式，解绑后就登不进来了。请先在「密码」里设一个密码再解绑。'); return;
+    }
+    if (!await ask('解绑 GitHub', '解绑后这个 GitHub（' + esc(info().gh) + '）不再和当前账号关联，下次要用 GitHub 登录得重新绑定。确定解绑？', '解绑')) return;
+    try { await HX.unlinkGitHub(); toast('已解绑 GitHub'); ST.user = await HX.user(); renderPop(); }
+    catch (e) { toast(e.message); }
+  };
+  if ($('prelink')) $('prelink').onclick = async function () {
+    var me2 = ST.user || {}, hasPw2 = !!(me2.user_metadata && me2.user_metadata.has_password);
+    if (!hasPw2 && !(me2.identities || []).some(function (x) { return x.provider !== 'github'; })) {
+      toast('这个账号只有 GitHub 一种登录方式，换绑会先解绑、可能导致登不进来。请先在「密码」里设一个密码再换绑。'); return;
+    }
+    if (!await ask('换绑 GitHub', '换绑 = 先解绑当前 GitHub（' + esc(info().gh) + '），再跳到 GitHub 绑定另一个账号。确定继续？', '换绑')) return;
+    try { await HX.unlinkGitHub(); toast('已解绑，正在跳到 GitHub 绑定新账号…'); } catch (e) { toast(e.message); return; }
+    HX.linkGitHub().catch(function (e) { toast(e.message); });
+  };
   if ($('pswitch')) $('pswitch').onclick = function () { closePops(); openAccounts(); };
   if ($('pdev')) $('pdev').onclick = function () { closePops(); openDevices(); };
   // 退出登录：把这个账号从这台设备上删掉，下次要重新输密码（和「切换账号」的区别就在这一步）
@@ -3484,8 +3516,8 @@ function renderSheet() {
   var k = ST.sheet; $('shA').innerHTML = '';
   if (k === 'manage') sheetManage();
   else if (k === 'adm') sheetAdm();
-  else if (k === 'users') { if (ST.users === undefined) { ST.users = null; loadUsers(); } else sheetUsers(); }   // 2026-11-19 第七轮 T2：用户管理
-  else if (k === 'grant') { if (ST.users === undefined) { ST.users = null; loadUsers(); } else sheetGrant(); }   // 2026-11-19 第七轮 T2：按用户下放工具权限（也读 hx_users_list 拿 uid）
+  else if (k === 'users') { if (ST.users === undefined) { ST.users = null; sheetUsers(); loadUsers(); } else sheetUsers(); }   // 2026-11-19 第七轮 T2：用户管理（先画「加载中」再异步拉，避免面板停在上一张卡的旧内容）
+  else if (k === 'grant') { if (ST.users === undefined) { ST.users = null; sheetGrant(); loadUsers(); } else sheetGrant(); }   // 2026-11-19 第七轮 T2：按用户下放工具权限（同上，先画加载态）
   else sheetCode(k === 'tcode' ? 'teacher' : k === 'gcode' ? 'guest' : 'student');
 }
 // 合并面板（2026-11-10）：班级/科目/重置密码并进一张「教务管理」卡。
@@ -4319,9 +4351,25 @@ async function loadTeachers() { try { ST.teachers = await HX.rpc('hx_teachers') 
 function sheetUsers() {
   var box = $('shB'), U = ST.users;
   var roleCn = { teacher: '教师', student: '学生', guest: '访客' };
+  var q = (ST.uQ || '').trim().toLowerCase(), f = ST.uF || 'all', pg = ST.uPg || 1, PER = 50;
+  // 1000 个账号（988 学生）一次性渲染成表格会卡死弱机 —— 先按搜索/角色筛，再分页，每页 50。
+  var rows = (U && !U.err) ? U.filter(function (u) {
+    if (f !== 'all' && u.role !== f) return false;
+    if (!q) return true;
+    var hay = (u.name || '') + ' ' + (u.email || '');
+    return hay.toLowerCase().indexOf(q) >= 0;
+  }) : [];
+  var total = rows.length, pages = Math.max(1, Math.ceil(total / PER));
+  if (pg > pages) pg = ST.uPg = pages;
+  var pageRows = rows.slice((pg - 1) * PER, pg * PER);
   box.innerHTML = '<p class="msg" style="margin:0 0 12px;color:var(--dim,#8a8f98)">所有账号：可改身份、改头衔（「合作开发者」紫色）、停用。改头衔只改显示标签，不动真实权限；工具权限在「工具权限」卡单独下放。停用后该账号登录也用不了工具。</p>' +
+    '<div class="f frow" style="margin:0 0 10px;gap:8px"><input id="uSearch" style="flex:1;min-width:0" placeholder="搜姓名 / 邮箱 / 账号" value="' + esc(q) + '">' +
+    '<select id="uFilter" style="max-width:8em">' + ['all', 'teacher', 'student', 'guest'].map(function (r) {
+      return '<option value="' + r + '"' + (f === r ? ' selected' : '') + '>' + (r === 'all' ? '全部' : roleCn[r] || r) + '</option>';
+    }).join('') + '</select></div>' +
     '<div id="uList">' + (U === null ? '<p class="empty">加载中…</p>' : (U && U.err) ? '<p class="empty">读取失败：' + esc(U.err) + '</p>' :
-      '<table><tr><th>账号</th><th>身份</th><th>头衔</th><th>状态</th><th></th></tr>' + U.map(function (u) {
+      (!total ? '<p class="empty">没有匹配的账号</p>' :
+      '<table><tr><th>账号</th><th>身份</th><th>头衔</th><th>状态</th><th></th></tr>' + pageRows.map(function (u) {
         var pill = u.is_dev ? '<span class="pill dev">开发者</span>' : u.title === '合作开发者' ? '<span class="pill codev">合作开发者</span>' : u.is_admin ? '<span class="pill admin">管理员</span>' : '';
         return '<tr><td>' + esc(u.name || u.email) + '<small class="dim">' + esc(u.email) + '</small></td>' +
           '<td>' + esc(roleCn[u.role] || u.role) + pill + '</td>' +
@@ -4331,7 +4379,14 @@ function sheetUsers() {
             '<button class="btn link sm ib" data-u-setrole="' + u.uid + '" title="改身份">改身份</button>' +
             '<button class="btn link sm ib" data-u-title="' + u.uid + '" title="改头衔">头衔</button>' +
             '<button class="btn link sm ib bad" data-u-toggle="' + u.uid + '" title="停用/启用">' + (u.disabled ? '启用' : '停用') + '</button>') + '</td></tr>';
-      }).join('') + '</table>') + '</div>';
+      }).join('') + '</table>' +
+      (pages > 1 ? '<div class="f frow" style="margin-top:10px;gap:8px;align-items:center"><button class="btn sm" id="uPrev"' + (pg <= 1 ? ' disabled' : '') + '>上一页</button><small class="dim" id="uPg">第 ' + pg + ' / ' + pages + ' 页 · 共 ' + total + ' 个</small><button class="btn sm" id="uNext"' + (pg >= pages ? ' disabled' : '') + '>下一页</button></div>' : '<small class="dim">共 ' + total + ' 个账号</small>')
+      )) + '</div>';
+  // 搜索 / 筛选 / 分页：改了状态就重画，但不重拉数据（数据已在 ST.users 里）
+  if ($('uSearch')) { var st; $('uSearch').oninput = function () { clearTimeout(st); st = setTimeout(function () { ST.uQ = $('uSearch').value; ST.uPg = 1; sheetUsers(); }, 200); }; }
+  if ($('uFilter')) $('uFilter').onchange = function () { ST.uF = $('uFilter').value; ST.uPg = 1; sheetUsers(); };
+  if ($('uPrev')) $('uPrev').onclick = function () { ST.uPg--; sheetUsers(); };
+  if ($('uNext')) $('uNext').onclick = function () { ST.uPg++; sheetUsers(); };
   box.querySelectorAll('[data-u-setrole]').forEach(function (b) {
     b.onclick = async function () {
       var u = (ST.users || []).filter(function (x) { return x.uid === b.dataset.uSetrole; })[0]; if (!u) return;
