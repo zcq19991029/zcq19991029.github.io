@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#f6f9f7" />
+<title>回收站 · 华夏工具</title>
+<!-- 单独打开时回总入口：嵌在总入口里不跳，本地双击 file:// 不跳，?solo 不跳。 -->
+<script>
+(function () {
+  if (window.top === window && /^https?:$/.test(location.protocol) && !/[?&]solo\b/.test(location.search))
+    location.replace('../#recycle');
+})();
+</script>
+<link rel="stylesheet" href="../hx-theme.css">
+<script src="../hx-theme.js" data-tool="recycle"></script>
+<style>
+:root { --ink:#1c2321; --mute:#6b7a74; --acc:#16a34a; --acc-deep:#15803d; --warn:#b45309; --danger:#dc2626; }
+* { box-sizing:border-box; }
+html,body { margin:0; }
+body {
+  color:var(--ink); font-family:ui-rounded,"SF Pro Rounded","PingFang SC","Microsoft YaHei",sans-serif;
+  background:var(--bg); min-height:100vh;
+}
+.app { width:min(880px, calc(100% - 32px)); margin:0 auto; padding:26px 0 60px; }
+header { display:flex; align-items:center; gap:14px; margin-bottom:8px; }
+.mark { width:52px; height:52px; display:grid; place-items:center; border-radius:15px; background:linear-gradient(135deg,#f59e0b,#d97706); color:#fff; box-shadow:inset 0 -5px 0 rgba(0,0,0,.14); }
+.mark svg { width:28px; height:28px; }
+h1 { font-size:24px; margin:0; }
+header p { margin:4px 0 0; color:var(--dim); font-size:13.5px; line-height:1.6; }
+.sec { margin-top:18px; }
+.sec-h { display:flex; align-items:baseline; gap:10px; margin:0 0 10px; }
+.sec-h h2 { font-size:17px; margin:0; }
+.sec-h .n { font-size:12.5px; color:var(--dim); }
+.card { background:var(--card); border:1px solid var(--edge); border-radius:18px; padding:14px 16px; }
+.row { display:flex; align-items:center; gap:10px; }
+.item { display:flex; align-items:center; gap:12px; padding:11px 4px; border-bottom:1px solid var(--edge); }
+.item:last-child { border-bottom:0; }
+.item .ic { flex:0 0 auto; width:34px; height:34px; display:grid; place-items:center; border-radius:10px; font-size:15px; font-weight:800; color:#fff; }
+.item .body { flex:1; min-width:0; }
+.item .body b { display:block; font-size:14.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.item .body span { font-size:12.5px; color:var(--dim); }
+.item button { flex:0 0 auto; padding:7px 14px; border-radius:11px; border:0; cursor:pointer; font:inherit; font-size:13.5px; font-weight:700; }
+.item button.restore { background:#16a34a; color:#fff; }
+.item button.restore:hover { background:#15803d; }
+.item button.restore:disabled { opacity:.5; cursor:not-allowed; }
+.item button.gone { background:transparent; color:var(--dim); border:1px solid var(--edge); }
+.empty { padding:26px 10px; text-align:center; color:var(--dim); font-size:14px; }
+.empty b { color:var(--ink); }
+.gate { width:min(520px, calc(100% - 32px)); margin:80px auto; }
+.gate .card { padding:26px; text-align:center; }
+.gate h1 { font-size:20px; }
+.gate p { color:var(--dim); font-size:14px; margin:10px 0 18px; }
+.gate a { display:inline-block; padding:11px 22px; border-radius:12px; background:var(--acc); color:#fff; text-decoration:none; font-weight:800; font-size:15px; }
+.toast { position:fixed; left:50%; bottom:28px; transform:translateX(-50%) translateY(10px); background:rgba(20,26,24,.92); color:#fff; padding:10px 18px; border-radius:12px; font-size:14px; opacity:0; pointer-events:none; transition:.2s; z-index:99; }
+.toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+.note-warn { margin-top:18px; padding:12px 14px; border-radius:12px; background:rgba(245,158,11,.1); border:1px solid rgba(245,158,11,.25); color:#8a5a13; font-size:12.5px; line-height:1.7; }
+</style>
+</head>
+<body>
+<div class="app" id="app"></div>
+<script>
+'use strict';
+/* ================= 华夏工具 · 回收站 =================
+   统一回收站（第三轮 B 组任务 5）。三类「删了就没了」的东西：
+     ① 课堂任务（含学生完成记录 + 分数）—— 后端已软删除，读 wire_task_bin、还原 wire_task_restore；
+     ② 试卷库（老师精心组的卷）—— 前端删除时留档，还原重新 hx_exam_lib_save；
+     ③ 教材（老师上传的文档）—— 前端删除时留档元数据，还原 hx_exam_mat_save（文件本体提示重新上传）。
+   题池删题**不进回收站**（用户确认：题随时能重新生成，删了就是永久）。
+   本地留档 key：hx-recycle-v1，结构 [{kind, id, name, at, payload}]。 */
+var HXB='https://eiqgyrjrwdaunhxjmdyr.supabase.co', HXK='sb_publishable_FcVnLx3TNrj6HnbgarYnRw_DW4-yFzd', SKEY='paike-session', RKEY='hx-recycle-v1';
+var $=function(id){return document.getElementById(id);};
+var esc=function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});};
+var now=function(){return Math.floor(Date.now()/1000);};
+var when=function(t){var d=new Date(+t||t);return isNaN(d)?'':(d.getMonth()+1)+'月'+d.getDate()+'日 '+d.getHours()+':'+String(d.getMinutes()).padStart(2,'0');};
+
+/* ---- 会话 + rpc（和资料库/考试同一套：共用 paike-session，快过期先续期） ---- */
+var sess=null;
+function load(){try{sess=JSON.parse(localStorage.getItem(SKEY));}catch(e){sess=null;}return sess;}
+function keep(v){sess=v;try{v?localStorage.setItem(SKEY,JSON.stringify(v)):localStorage.removeItem(SKEY);}catch(e){}}
+var refreshing=null;
+async function fresh(){
+  load(); if(!sess||!sess.expires_at||now()<sess.expires_at-60) return;
+  if(!sess.refresh_token) return;
+  if(refreshing) return refreshing;
+  var usedRt=sess.refresh_token, prevUser=sess.user||null;
+  refreshing=(async function(){
+    try{
+      var j=await api('/auth/v1/token?grant_type=refresh_token',{method:'POST',body:{refresh_token:usedRt},auth:false});
+      keep({access_token:j.access_token,refresh_token:j.refresh_token,expires_at:j.expires_at||now()+(j.expires_in||3600),user:j.user||prevUser||null});
+    }catch(e){
+      var cur=load();
+      if(cur&&cur.access_token&&cur.expires_at&&now()<cur.expires_at-60) return;
+      if(!e.status) throw e;
+      if(cur&&cur.refresh_token===usedRt) keep(null);
+      throw e;
+    }finally{refreshing=null;}
+  })();
+  return refreshing;
+}
+async function api(p,o){
+  o=o||{};
+  if(o.auth!==false) await fresh();
+  var h={apikey:HXK,'Content-Type':'application/json'};
+  if(o.auth!==false&&sess) h.Authorization='Bearer '+sess.access_token;
+  var r; try{r=await fetch(HXB+p,{method:o.method||'GET',headers:h,body:o.body===undefined?undefined:JSON.stringify(o.body)});}
+  catch(e){throw new Error('连不上服务器，请检查网络');}
+  var t=await r.text(),j=null;try{j=t?JSON.parse(t):null;}catch(e){j=t;}
+  if(!r.ok){var e=new Error(String(j&&(j.message||j.msg||j.error_description)||'HTTP '+r.status));e.status=r.status;throw e;}
+  return j;
+}
+var rpc=function(f,b){return api('/rest/v1/rpc/'+f,{method:'POST',body:b||{}});};
+
+/* ---- 本地回收站留档 ---- */
+function recycleRead(){try{return JSON.parse(localStorage.getItem(RKEY))||[];}catch(e){return [];}}
+function recycleWrite(L){try{localStorage.setItem(RKEY,JSON.stringify(L));}catch(e){}}
+function recycleAdd(rec){
+  var L=recycleRead();
+  L.unshift(rec);
+  recycleWrite(L.slice(0,200));
+}
+function recycleDrop(rec){ // 还原成功后移除这条留档
+  var L=recycleRead().filter(function(x){return !(x.kind===rec.kind&&String(x.id)===String(rec.id));});
+  recycleWrite(L);
+}
+
+/* ---- toast ---- */
+var toastT=0;
+function toast(m){var t=$('toast');if(!t){t=document.createElement('div');t.id='toast';t.className='toast';document.body.appendChild(t);}t.textContent=m;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(function(){t.classList.remove('show');},4200);}
+
+var IC = {
+  task: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg>',
+  lib: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/></svg>',
+  mat: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H10l2 2h6.5A1.5 1.5 0 0 1 20 7.5v11a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18.5z"/></svg>'
+};
+var ICC = { task:'#ff7a00', lib:'#7d7aff', mat:'#a3e635' };
+
+/* ---- 三类数据源 ---- */
+async function taskBin(){ // 课堂任务：读后端软删除（云端真相）
+  try { return await rpc('wire_task_bin'); }
+  catch(e){ return { __err: e.message }; }
+}
+function libBin(){ // 试卷库：本地留档
+  return recycleRead().filter(function(x){return x.kind==='lib';});
+}
+function matBin(){ // 教材：本地留档
+  return recycleRead().filter(function(x){return x.kind==='mat';});
+}
+
+/* ---- 还原 ---- */
+async function restoreTask(rec,btn){
+  btn.disabled=true; btn.textContent='还原中…';
+  try{
+    await rpc('wire_task_restore',{p_task:rec.id});
+    toast('已还原课堂任务「'+rec.title+'」');
+    render();
+  }catch(e){ toast('还原失败：'+e.message); btn.disabled=false; btn.textContent='还原'; }
+}
+async function restoreLib(rec,btn){
+  btn.disabled=true; btn.textContent='还原中…';
+  try{
+    var r=await rpc('hx_exam_lib_save',{p_sub:rec.payload.sub,p_kind:rec.payload.kind,p_name:rec.name,p_payload:rec.payload.payload});
+    if(!r||!r.id) throw new Error('云端没返回编号');
+    recycleDrop(rec);
+    toast('已还原试卷「'+rec.name+'」到试卷库');
+    render();
+  }catch(e){ toast('还原失败：'+e.message); btn.disabled=false; btn.textContent='还原'; }
+}
+async function restoreMat(rec,btn){
+  btn.disabled=true; btn.textContent='还原中…';
+  try{
+    var r=await rpc('hx_exam_mat_save',{p_subject_id:rec.payload.subject_id,p_name:rec.name,p_mime:rec.payload.mime,p_bytes:rec.payload.bytes,p_path:rec.payload.path,p_chars:rec.payload.chars});
+    if(!r||!r.id) throw new Error('云端没返回编号');
+    recycleDrop(rec);
+    toast('已还原教材「'+rec.name+'」（文件本体需重新上传，见下方说明）');
+    render();
+  }catch(e){ toast('还原失败：'+e.message); btn.disabled=false; btn.textContent='还原'; }
+}
+
+/* ---- 渲染 ---- */
+async function render(){
+  var task = await taskBin();
+  var lib = libBin(), mat = matBin();
+  var app=$('app');
+  var h='<header><div class="mark">'+IC.task+'</div><div><h1>回收站</h1><p>删掉的课堂任务、试卷、教材都能在这里还原。题池删题是永久的（题可随时重新生成），不进这里。</p></div></header>';
+
+  /* ① 课堂任务 */
+  var taskList = Array.isArray(task)?task:[];
+  h += '<section class="sec"><div class="sec-h"><h2>课堂任务</h2><span class="n">'+taskList.length+' 个</span></div><div class="card">';
+  if(task.__err){ h += '<div class="empty">读不到课堂任务回收站：<b>'+esc(task.__err)+'</b></div>'; }
+  else if(!taskList.length){ h += '<div class="empty">没有删除的课堂任务</div>'; }
+  else taskList.forEach(function(t){
+    h += '<div class="item"><span class="ic" style="background:'+ICC.task+'">'+IC.task+'</span>'
+      +'<div class="body"><b>'+esc(t.title||('电路 '+(t.circuit||'')))+'</b><span>'+esc(t.class_name||'')+' · 完成 '+t.done+'/'+t.total+' 人 · 删除于 '+when(t.deleted_at)+'</span></div>'
+      +'<button class="restore" data-restore-task="'+t.id+'">还原</button></div>';
+  });
+  h += '</div></section>';
+
+  /* ② 试卷库 */
+  h += '<section class="sec"><div class="sec-h"><h2>试卷库</h2><span class="n">'+lib.length+' 份</span></div><div class="card">';
+  if(!lib.length){ h += '<div class="empty">没有删除的试卷</div>'; }
+  else lib.forEach(function(x){
+    h += '<div class="item"><span class="ic" style="background:'+ICC.lib+'">'+IC.lib+'</span>'
+      +'<div class="body"><b>'+esc(x.name)+'</b><span>删除于 '+when(x.at)+'</span></div>'
+      +'<button class="restore" data-restore-lib="'+esc(x.id)+'">还原</button></div>';
+  });
+  h += '</div></section>';
+
+  /* ③ 教材 */
+  h += '<section class="sec"><div class="sec-h"><h2>教材资料</h2><span class="n">'+mat.length+' 份</span></div><div class="card">';
+  if(!mat.length){ h += '<div class="empty">没有删除的教材</div>'; }
+  else mat.forEach(function(x){
+    h += '<div class="item"><span class="ic" style="background:'+ICC.mat+'">'+IC.mat+'</span>'
+      +'<div class="body"><b>'+esc(x.name)+'</b><span>删除于 '+when(x.at)+'</span></div>'
+      +'<button class="restore" data-restore-mat="'+esc(x.id)+'">还原</button></div>';
+  });
+  h += '</div></section>';
+
+  h += '<div class="note-warn">教材的<b>文件本体</b>删除时已从云端清掉（文件大，无法本地留档）。还原只会把这条记录找回来，文件需要重新上传；已经出好的题不受影响、仍留在题池里。</div>';
+
+  app.innerHTML=h;
+
+  /* 绑定还原 */
+  app.querySelectorAll('[data-restore-task]').forEach(function(b){ b.onclick=function(){
+    var id=+b.dataset.restoreTask, rec=taskList.find(function(t){return t.id===id;});
+    if(rec) restoreTask(rec,b);
+  };});
+  app.querySelectorAll('[data-restore-lib]').forEach(function(b){ b.onclick=function(){
+    var id=b.dataset.restoreLib, rec=lib.find(function(x){return String(x.id)===String(id);});
+    if(rec) restoreLib(rec,b);
+  };});
+  app.querySelectorAll('[data-restore-mat]').forEach(function(b){ b.onclick=function(){
+    var id=b.dataset.restoreMat, rec=mat.find(function(x){return String(x.id)===String(id);});
+    if(rec) restoreMat(rec,b);
+  };});
+}
+
+/* ---- 开机 ---- */
+function gate(){
+  $('app').innerHTML='<div class="gate"><div class="card"><h1>回收站</h1><p>请先用教师账号登录。</p><a href="../">去首页登录</a></div></div>';
+}
+var ME=null;
+async function boot(){
+  if(window.HXTheme&&HXTheme.gated) return;
+  load();
+  if(!sess||!sess.access_token) return gate();
+  try{ ME=await rpc('hx_me'); }
+  catch(e){ return gate(); }
+  if(!ME||!(ME.teacher||ME.admin||ME.dev)) return gate();
+  await render();
+}
+addEventListener('storage',function(e){ if(e.key===SKEY){ load(); boot(); } });
+boot();
+</script>
+</body>
+</html>
