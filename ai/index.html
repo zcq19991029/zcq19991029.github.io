@@ -131,6 +131,13 @@ button{font:inherit;cursor:pointer}
 .pmsg{margin:8px 0 0;font-size:12.5px;color:var(--dim)}
 .pmsg.bad{color:var(--bad)} .pmsg.good{color:var(--ok)}
 .mrows{margin-top:11px;border-top:1px dashed var(--edge);padding-top:2px}
+/* 2026-11-19：模型列表按功能分组展示（收起后点「查看模型」才展开），组头带小计数 */
+.mgrp{margin:8px 0 2px}
+.mgrp-h{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:var(--acc);margin:4px 0 2px}
+.mgrp-h span{font-size:11px;color:var(--dim);font-weight:500;background:var(--card2,var(--panel2));border:1px solid var(--edge);
+  border-radius:999px;padding:0 7px;line-height:16px}
+.mgrp .mrow{border-top:1px solid var(--edge)}
+.mgrp .mrow:first-child{border-top:1px solid var(--edge)}
 .mempty{margin:9px 0 3px;font-size:12.5px;color:var(--faint);line-height:1.6}
 .mrow{display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap;padding:10px 0;border-top:1px solid var(--edge)}
 .mrow:first-child{border-top:0;padding-top:8px}
@@ -324,8 +331,8 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
 
       <section class="card">
         <h2>识别用模型</h2>
-        <p class="sub">「让 AI 识别能力」时，用<b>哪一个平台哪个模型</b>去判别的平台的模型能力。
-          比如想用硅基流动的 DeepSeek V3.2（有免费额度）去给 DeepSeek 平台识别能力，就在这里选它。</p>
+        <p class="sub">独立识别模块：指定<b>用哪个平台哪个模型</b>去判断其它平台模型的能力（比如用硅基流动的 DeepSeek V3.2 判 DeepSeek 平台）。
+          不指定时自动推荐一个文本+推理的模型。点下面按钮，一次判全部平台的模型。</p>
         <div class="rowset" id="judge"></div>
       </section>
 
@@ -428,32 +435,44 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
       ' · 思考 ' + esc(thinkName(p.thinkLevel)) + ' · 能力 ' + esc(cs);
   }
 
-  // ---------- 画：平台 + 平台下的模型 ----------
-  function modelRow(m) {
-    var usedCaps = [];
-    Object.keys(snap.active).forEach(function (c) { if (snap.active[c] === m.id) usedCaps.push(capName(c)); });
-    // 2026-11-19：模型自动全量加入，不再单个「编辑」（能力自动标、思考程度统一均衡）；
-    // 行上只留「测试」和「删除」，用户只需把不要的个别模型删掉。
-    var usage = [];
-    if (usedCaps.length) usage.push('<b>默认</b> ' + esc(usedCaps.join('、')));
-    var isSame = (m.name || '') === m.model;
-    return '<div class="mrow" data-model="' + esc(m.id) + '">' +
-      '<div class="mmain">' +
-        '<div class="mt"><b>' + esc(m.name || m.model) + '</b>' +
-          (isSame ? '' : '<code>' + esc(m.model) + '</code>') +
-          '<span class="tl-chip">思考 ' + esc(thinkName(m.thinkLevel)) + '</span>' +
+  // 按功能分类展示模型：text/vision/reason/image/video/audio 六个组，每组只列勾了该能力的模型。
+  // 一个模型可能出现在多个组（比如 text+reason），正常 —— 展示的是「这个功能有哪些模型可用」。
+  function modelGroups(ms) {
+    var groups = [];
+    HXAI.caps.forEach(function (c) {
+      var hit = ms.filter(function (p) { return supportsCap(p, c.id); });
+      if (hit.length) groups.push({ cap: c.id, name: c.name, list: hit });
+    });
+    return groups;
+  }
+
+  // 模型浮窗/展开体：按功能分组，每组列「模型名 + 能力标签 + 默认标记 + 测试/删除」
+  function modelRowsHtml(pl, ms) {
+    if (!ms.length) {
+      return '<p class="mempty">这个平台还没有模型 —— 点「同步模型」，把这个平台名下的模型自动全部加进来。</p>';
+    }
+    var groups = modelGroups(ms);
+    return groups.map(function (g) {
+      var rows = g.list.map(function (m) {
+        var usedCaps = [];
+        Object.keys(snap.active).forEach(function (c) { if (snap.active[c] === m.id) usedCaps.push(capName(c)); });
+        var usage = usedCaps.length ? '<span class="chip on">默认 ' + esc(usedCaps.join('/')) + '</span>' : '';
+        return '<div class="mrow" data-model="' + esc(m.id) + '">' +
+          '<div class="mmain">' +
+            '<div class="mt"><b>' + esc(m.name || m.model) + '</b>' + usage + '</div>' +
+            '<div class="chips">' + (m.caps || []).map(function (c) {
+              return '<span class="chip on">' + esc(capName(c)) + '</span>';
+            }).join('') + '</div>' +
           '</div>' +
-        '<div class="chips">' + (m.caps || []).map(function (c) {
-          return '<span class="chip on">' + esc(capName(c)) + '</span>';
-        }).join('') + '</div>' +
-        '<p class="u">' + (usage.length ? usage.join('；') : '还没被任何能力设为默认') + '</p>' +
-      '</div>' +
-      '<div class="macts">' +
-        '<button class="btn sm" type="button" data-act="test">测试</button>' +
-        '<button class="btn sm bad" type="button" data-act="del">删除</button>' +
-      '</div>' +
-      '<p class="rmsg"></p>' +
-    '</div>';
+          '<div class="macts">' +
+            '<button class="btn sm" type="button" data-act="test">测试</button>' +
+            '<button class="btn sm bad" type="button" data-act="del">删除</button>' +
+          '</div>' +
+          '<p class="rmsg"></p>' +
+        '</div>';
+      }).join('');
+      return '<div class="mgrp"><div class="mgrp-h">' + esc(g.name) + '<span>' + g.list.length + '</span></div>' + rows + '</div>';
+    }).join('');
   }
 
   function renderPlats() {
@@ -462,11 +481,9 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
     if (!s.plats.length) { box.innerHTML = ''; return; }
     box.innerHTML = s.plats.map(function (pl) {
       var ms = profsOf(pl.id);
-      var rows = ms.length
-        ? ms.map(modelRow).join('')
-        : '<p class="mempty">这个平台还没有模型 —— 点上面的「同步模型」，把这个平台名下的模型自动全部加进来。</p>';
-      // 平台被哪些能力当默认用着（模型行里已经写了，这里只在卡片头上给个汇总）
       var defCaps = (pl.caps || []).map(capName);
+      // 模型列表默认收起：只显示「N 个模型」+「查看模型」按钮，点开才按功能分组展示。
+      // 展开状态用 data-open 记在 DOM 上（renderAll 重画会收起，但只有点「查看/收起」才重画这一块）。
       return '<div class="plat" data-plat="' + esc(pl.id) + '">' +
         '<div class="phead">' +
           '<div class="pt"><b>' + esc(pl.name) + '</b>' +
@@ -477,13 +494,13 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
           '</div>' +
           '<div class="pacts">' +
             '<button class="btn sm" type="button" data-act="fetch">同步模型</button>' +
-            '<button class="btn sm" type="button" data-act="judge">让 AI 识别能力（耗一次调用）</button>' +
+            '<button class="btn sm" type="button" data-act="toggle-models">' + (ms.length ? '查看模型' : '') + '</button>' +
             '<button class="btn sm" type="button" data-act="edit">编辑 / 改 Key</button>' +
             '<button class="btn sm bad" type="button" data-act="del">删除平台</button>' +
           '</div>' +
           '<p class="pm">' + esc(pl.baseUrl || '（没填接口地址）') + '</p>' +
         '</div>' +
-        '<div class="mrows">' + rows + '</div>' +
+        '<div class="mrows" hidden>' + modelRowsHtml(pl, ms) + '</div>' +
         '<p class="pmsg"></p>' +
       '</div>';
     }).join('');
@@ -541,15 +558,16 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
     }).join('');
   }
 
-  // ---------- 画：「识别用模型」（谁负责帮别的平台判能力） ----------
+  // ---------- 画：「识别用模型」（独立模块：识别能力 + 指定识别器） ----------
   function renderJudge() {
     var jm = HXAI.judgeModel();
+    var rec = HXAI.recommendJudge();
     var jmPlatId = tmpPlat.judgePlat || (jm ? jm.platId : (snap.judge && snap.judge.platId)) || '';
     // 平台下拉：只列「至少有一个能做文本问答的模型」的平台（识别是纯文字任务，用文本模型判）
     var platsOk = snap.plats.filter(function (pl) {
       return profsOf(pl.id).some(function (p) { return supportsCap(p, 'text'); });
     });
-    var platOpts = '<option value="">未设置（用文本默认模型）</option>' + platsOk.map(function (pl) {
+    var platOpts = '<option value="">未设置（自动推荐）</option>' + platsOk.map(function (pl) {
       return '<option value="' + esc(pl.id) + '"' + (pl.id === jmPlatId ? ' selected' : '') + '>' +
         esc(pl.name) + '（' + esc(provLabel(pl.provider)) + '）</option>';
     }).join('');
@@ -562,21 +580,38 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
       return '<option value="' + esc(p.id) + '"' + (p.id === (jm && jm.id ? jm.id : '') ? ' selected' : '') + '>' +
         esc(p.name || p.model) + '（' + esc(p.model) + '）</option>';
     }).join('');
-    var eff;
-    if (jm) {
-      var jmPl = platById(jm.platId);
-      eff = '当前识别模型：平台「' + esc(jmPl ? jmPl.name : '（平台已删）') + '」· ' + esc(jm.name || jm.model);
+
+    // 实际生效的识别模型：设了用它，没设用推荐的那个
+    var effModel = jm || rec;
+    var eff, recLine = '';
+    if (effModel) {
+      var effPl = platById(effModel.platId);
+      var effTag = jm ? '' : '<span class="chip on">自动推荐</span>';
+      eff = '识别模型：' + effTag + '平台「' + esc(effPl ? effPl.name : '（平台已删）') + '」· ' + esc(effModel.name || effModel.model);
     } else {
-      eff = '当前：未设置 · 会用「文本问答」的默认模型来识别';
+      eff = '还没有可用的文本模型，先加一个平台和模型。';
     }
+    if (rec && !jm) {
+      var recPl = platById(rec.platId);
+      recLine = '<p class="eff">推荐用「' + esc(recPl ? recPl.name : '') + ' · ' + esc(rec.name || rec.model) +
+        '」当识别器（文本+推理，判得准）。<button class="btn sm" type="button" data-act="use-rec">就用推荐</button></p>';
+    }
+
+    var totalModels = snap.profiles.length;
     $('judge').innerHTML =
       '<div class="row" data-judge="1">' +
-        '<div class="hd"><b>识别用模型</b><em>点「让 AI 识别能力」时用哪个模型判</em></div>' +
+        '<div class="hd"><b>识别用模型</b><em>「让 AI 识别能力」时用哪个模型判</em></div>' +
         '<div class="sels">' +
           '<select data-kind="jplat" aria-label="识别用哪个平台">' + platOpts + '</select>' +
           '<select data-kind="jmodel" aria-label="识别用哪个模型">' + modelOpts + '</select>' +
         '</div>' +
+        recLine +
         '<p class="eff">' + esc(eff) + '</p>' +
+        '<div class="acts">' +
+          '<button class="btn pri" type="button" data-act="judge-all">让 AI 识别全部平台的模型能力</button>' +
+          '<p class="msg" id="judgeMsg"></p>' +
+        '</div>' +
+        '<p class="hint" style="margin:8px 0 0">识别会调用上面那个识别模型，把所有平台下「还没官方标注」的模型各判一次能力，判完自动更新。</p>' +
       '</div>';
   }
 
@@ -644,25 +679,12 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
       });
       return;
     }
-    if (act === 'judge' && !rowEl) {
-      if (!profsOf(platId).length) { toast('这个平台还没有模型，先加一个', true); return; }
-      var jmsg = platEl.querySelector('.pmsg');
-      jmsg.className = 'pmsg';
-      jmsg.textContent = '正在让 AI 识别这个平台下模型的能力…（会调用一次文本模型）';
-      HXAI.judgeCaps({ platId: platId }).then(function (r) {
-        renderAll();   // 能力写进了 profile + 缓存，重画才能看到
-        var again = document.querySelector('.plat[data-plat="' + platId + '"] .pmsg');
-        if (again) {
-          again.className = 'pmsg ' + (r.src === 'ai' ? 'good' : '');
-          again.textContent = r.src === 'ai'
-            ? 'AI 已识别 ' + r.judged + ' 个模型的能力。'
-            : (r.warn || ('已按名字猜 ' + r.judged + ' 个模型，可能不准'));
-        }
-        toast(r.src === 'ai' ? 'AI 已识别能力' : '识别失败，已按名字猜（可能不准）');
-      }).catch(function (e) {
-        var m2 = document.querySelector('.plat[data-plat="' + platId + '"] .pmsg');
-        if (m2) { m2.className = 'pmsg bad'; m2.textContent = e.message; }
-      });
+    if (act === 'toggle-models' && !rowEl) {
+      var mrows = platEl.querySelector('.mrows');
+      var btn = platEl.querySelector('[data-act="toggle-models"]');
+      var isOpen = !mrows.hidden;
+      mrows.hidden = isOpen;
+      if (btn) btn.textContent = isOpen ? '查看模型' : '收起模型';
       return;
     }
     if (act === 'edit') return openPlatForm(platId);
@@ -779,7 +801,43 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
       HXAI.setJudge(pid, sel.value);
       tmpPlat.judgePlat = '';
       renderAll();
-      toast(sel.value ? '已设识别用模型' : '已清空，改回文本默认模型');
+      toast(sel.value ? '已设识别用模型' : '已清空，改用自动推荐');
+    }
+  });
+
+  // 「识别用模型」卡片上的按钮（就用推荐 / 识别全部平台），事件委托
+  $('judge').addEventListener('click', function (e) {
+    var btn = e.target && e.target.closest ? e.target.closest('[data-act]') : null;
+    if (!btn) return;
+    var act = btn.getAttribute('data-act');
+    if (act === 'use-rec') {
+      var rec = HXAI.recommendJudge();
+      if (!rec) { toast('还没有可推荐的模型，先加一个平台和模型', true); return; }
+      HXAI.setJudge(rec.platId, rec.id);
+      tmpPlat.judgePlat = '';
+      renderAll();
+      toast('已用推荐识别模型：' + (rec.name || rec.model));
+      return;
+    }
+    if (act === 'judge-all') {
+      var msg = $('judgeMsg');
+      if (!snap.profiles.length) { toast('还没有模型，先加一个平台并同步模型', true); return; }
+      msg.className = 'msg'; msg.textContent = '正在让识别模型判断所有平台模型的能力…（会调用一次识别模型）';
+      HXAI.judgeCaps({}).then(function (r) {
+        renderAll();
+        var m2 = $('judgeMsg');
+        if (m2) {
+          m2.className = 'msg ' + (r.src === 'ai' ? 'good' : '');
+          m2.textContent = r.src === 'ai'
+            ? 'AI 已识别 ' + r.judged + ' 个模型的能力。'
+            : (r.warn || ('已按名字猜 ' + r.judged + ' 个模型，可能不准'));
+        }
+        toast(r.src === 'ai' ? 'AI 已识别能力' : '识别失败，已按名字猜（可能不准）');
+      }).catch(function (err) {
+        var m3 = $('judgeMsg');
+        if (m3) { m3.className = 'msg bad'; m3.textContent = err.message; }
+      });
+      return;
     }
   });
 

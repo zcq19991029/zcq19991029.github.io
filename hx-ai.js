@@ -1503,6 +1503,12 @@
     } else if (opts.platId) {
       var pl = findPlat(s, opts.platId);
       s.profiles.forEach(function (p) { if (p.platId === opts.platId) list.push({ model: p.model, provider: pl ? pl.provider : '' }); });
+    } else {
+      // 2026-11-19：不传 platId = 识别「所有平台」的模型（识别能力是独立模块，一次判全站）
+      s.profiles.forEach(function (p) {
+        var pl = findPlat(s, p.platId);
+        list.push({ model: p.model, provider: pl ? pl.provider : '' });
+      });
     }
     var seen = {};
     return list.filter(function (x) {
@@ -1570,7 +1576,7 @@
   /* 「识别用模型」：用户专门指定「哪个平台哪个模型」负责帮其它平台的模型判能力
      （2026-11-19 用户原话：想用硅基流动的 DeepSeek V3.2 去给 DeepSeek 平台识别能力，因为有免费额度）。
      存哪：存档里新增 judge = { platId, modelId }（v2 存档缺这字段时自动为空，兼容老数据）。
-     设了它，judgeCaps 就用它来判；没设，退回「文本默认模型」。 */
+     设了它，judgeCaps 就用它来判；没设，自动推荐一个（recommendJudge）。 */
   function judgeModel(s) {
     s = s || read();
     var j = s.judge;
@@ -1589,16 +1595,40 @@
     write(s);
   }
 
+  /* 「推荐一个识别用模型」（2026-11-19）：识别能力是独立模块，没手动指定时给个靠谱默认。
+     挑法按「越适合判模型能力越靠前」：
+       ① 文本 + 推理都有（能看懂清单并多想一步），优先硅基流动 DeepSeek V3.2（用户有免费额度）；
+       ② 只要文本也行（任何文本模型都能判，只是没那么准）；
+       ③ 实在没有返回 null（界面提示先加模型）。
+     注意返回 null 不代表「用不了」—— judgeCaps 会在它之后再退「文本默认」。 */
+  function recommendJudge() {
+    var s = read();
+    // 先找「文本+推理」都有的
+    var both = null, anyText = null;
+    s.profiles.forEach(function (p) {
+      var caps = p.caps || [];
+      var isBoth = caps.indexOf('text') >= 0 && caps.indexOf('reason') >= 0;
+      if (isBoth) {
+        if (!both) both = p;
+        // 硅基流动 DeepSeek V3.2 优先（用户点名有免费额度的那个）
+        else if (/deepseek.*v3\.2/i.test(p.model) && !/deepseek.*v3\.2/i.test(both.model)) both = p;
+      }
+      if (!anyText && caps.indexOf('text') >= 0) anyText = p;
+    });
+    var hit = both || anyText;
+    return hit ? view(hit, s) : null;
+  }
+
   async function judgeCaps(opts) {
     opts = opts || {};
     var list = collectJudgeList(opts);
     if (!list.length) throw new Error('没有需要识别的模型（这个平台下还没有模型，或都已经有官方标注）。');
 
-    // 识别用模型：优先用户专门指定的「识别用模型」，否则退文本默认。
+    // 识别用模型：优先用户专门指定的「识别用模型」，否则自动推荐一个（文本+推理优先）。
     var judge = null, jk = '';
     try {
       var s = read();
-      judge = judgeModel(s) || find(s, s.active.text);
+      judge = judgeModel(s) || recommendJudge();
       jk = judge ? keyOf(judge) : '';
     } catch (e) { judge = null; }
 
@@ -1769,6 +1799,7 @@
     capsSrcLabel: capsSrcLabel, // 来源的中文名（官方标注 / AI 识别 / 按名字猜）
     judgeCaps: judgeCaps,     // 让 AI 识别一批模型的能力（手动触发，会耗一次调用）
     judgeModel: judgeModel,   // 当前「识别用模型」（谁负责帮别的平台判能力），没设返回 null
+    recommendJudge: recommendJudge, // 推荐一个识别用模型（文本+推理优先，硅基 DeepSeek V3.2 优先）
     setJudge: setJudge,       // 指定 / 清空「识别用模型」：setJudge(platId, modelId) / setJudge('', '')
     officialCaps: officialCaps, // 从 /models 单条对象摘官方能力（供自验 / 单测）
     // pick 一直是内部函数（chat / vision / image 用），2026-11-15 顺手放出来：
