@@ -47,14 +47,19 @@ main{padding-top:16px}
 .lead{margin:0 0 16px;font-size:13.5px;line-height:1.7;color:var(--dim);background:var(--card,var(--panel));border:1px solid var(--edge);
   border-left:3px solid var(--acc);border-radius:12px;padding:12px 14px}
 .lead b{color:var(--ink)}
-/* ---- 单栏骨架（2026-11-19） ----
-   删掉「按工具指定 / 总览」右栏后，整页只剩一列：平台与模型、按能力设默认、识别用模型、导入导出、注册渠道。
-   单栏读起来更顺，宽屏也不会左右不对称留白。max-width 收窄到 960，别让卡片在 2K 屏上拉成超宽面条。 */
-.wrap{max-width:960px;margin:0 auto;padding:0 20px}
-.cols{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;align-items:start}
+/* ---- 矩阵骨架（2026-11-19） ----
+   用户两次反馈「两边特别空、要铺满矩阵」：单栏窄条把 70% 宽度浪费在壁纸上了。
+   改回宽幅 + 两列网格：左列放「平台与模型」（最重的一张），右列竖排「按能力设默认」「识别用模型」，
+   底部再两列「导入导出」「注册渠道」。卡片铺满可用宽度，宽屏不再左右空。 */
+.wrap{max-width:1440px;margin:0 auto;padding:0 20px}
+.cols{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:16px;align-items:start}
 .col{display:flex;flex-direction:column;gap:16px;min-width:0}
-/* 最底一排：导入导出 + 注册渠道。单栏后这两块直接竖向堆叠（内容固定，单列读起来更顺）。 */
-.bottom{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;margin-top:16px;align-items:start}
+/* 最底一排：导入导出 + 注册渠道，两列铺满。 */
+.bottom{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:16px;margin-top:16px;align-items:start}
+@media (max-width:1000px){
+  .cols{grid-template-columns:minmax(0,1fr)}
+  .bottom{grid-template-columns:minmax(0,1fr)}
+}
 .card{background:var(--card,var(--panel));border:1px solid var(--edge);border-radius:16px;padding:16px;box-shadow:var(--shadow);min-width:0}
 /* ── 有壁纸时的玻璃（2026-11-16 补：本页以前一条玻璃配方都没有）──
    用户报障「背景完全又不透明了　卡片也改不了」。实测本页所有卡片永远是 --panel 实色：
@@ -305,6 +310,11 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
         <div id="plats"></div>
       </section>
 
+    </div>
+
+    <!-- ============ 右栏：按能力设默认 + 识别用模型（2026-11-19 矩阵铺满） ============ -->
+    <div class="col">
+
       <section class="card">
         <h2>按能力设默认</h2>
         <p class="sub">工具没单独指定时，就按这里找模型。<b>先选平台，再选模型</b> ——
@@ -320,8 +330,6 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
       </section>
 
     </div>
-
-    <!-- ============ 右栏（已删除「按工具指定」与「总览」：2026-11-19 用户「按工具选没道理，按需求/能力选就行」） ============ -->
   </div>
 
   <div class="bottom">
