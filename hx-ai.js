@@ -1638,9 +1638,9 @@
         var raw = await request(judge, jk, [{ role: 'user', content: buildJudgePrompt(list) }], { json: true, maxTokens: 2000, temperature: 0 });
         parsed = parseJudgeResult(raw, list);
         if (!parsed) aiErr = '模型没返回能解析的 JSON';
-      } catch (e) { aiErr = (e && e.message) || '调用失败'; }
+      } catch (e) { aiErr = judgeErrHint(e, judge); }
     } else {
-      aiErr = '没有可用的文本模型或没填 Key';
+      aiErr = '没有可用的识别模型或没填 Key（点「就用推荐」或手动选一个识别模型，并确认它的 Key 已填）。';
     }
 
     if (parsed) {
@@ -1650,7 +1650,30 @@
     var guessed = {};
     list.forEach(function (x) { guessed[x.model] = guessCaps(x.model); });
     var items2 = commitJudge(opts, list, guessed, 'guess');
-    return { src: 'guess', judged: list.length, items: items2, warn: (aiErr ? aiErr + '。' : '') + '这次是按名字猜的，可能不准' };
+    return { src: 'guess', judged: list.length, items: items2, warn: (aiErr ? aiErr + '。' : '') + '已按名字猜，可能不准' };
+  }
+
+  /* 识别失败时，把底层英文/技术错误转成用户能动手修的中文提示。
+     别让用户对着「Authentication Fails ... is invalid」发懵，他要知道的是：Key 错了？没额度？模型名不对？ */
+  function judgeErrHint(e, judge) {
+    var m = (e && e.message) || '调用失败';
+    var low = m.toLowerCase();
+    // 网络不通（post 里已经转成中文「连不上…接口」的会原样保留，这里只兜没有转的）
+    if (/invalid|authentication|unauthorized|401|api ?key/i.test(low)) {
+      return '识别模型的 Key 无效或已失效（' + (judge ? '平台「' + (judge.platName || judge.name || judge.model) + '」' : '') + '），请到该平台卡片里重新填一个有效的 Key';
+    }
+    if (/insufficient|balance|quota|exceeded|429|余额|额度/i.test(low)) {
+      return '识别模型的额度/余额不足或请求被限流，请充值或换个有额度的模型当识别器';
+    }
+    if (/model|not found|not exist|404/i.test(low)) {
+      return '识别模型名不存在或该平台不提供，请换个模型名或换平台';
+    }
+    if (/timeout|超时|abort/i.test(low)) {
+      return '识别请求超时，检查网络后重试，或换个更快的模型';
+    }
+    // 已经是中文可操作提示（如「连不上…接口」）就原样返回
+    if (/连不上|接口|网络|代理|防火墙|屏蔽|故障/.test(m)) return m;
+    return m;
   }
 
   // 导出：只导「平台、模型和地址」，Key 永远不进来。顺便再兜一层 replacer，防止以后有人往平台/模型里塞了 key 字段。

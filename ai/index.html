@@ -820,12 +820,16 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
         renderAll();
         var m2 = $('judgeMsg');
         if (m2) {
-          m2.className = 'msg ' + (r.src === 'ai' ? 'good' : '');
-          m2.textContent = r.src === 'ai'
-            ? 'AI 已识别 ' + r.judged + ' 个模型的能力。'
-            : (r.warn || ('已按名字猜 ' + r.judged + ' 个模型，可能不准'));
+          if (r.src === 'ai') {
+            m2.className = 'msg good';
+            m2.textContent = 'AI 已识别 ' + r.judged + ' 个模型的能力。';
+          } else {
+            // 识别失败退回按名字猜：用红色醒目标出「为什么没识别成」，别让用户只看到「可能不准」
+            m2.className = 'msg bad';
+            m2.textContent = (r.warn || '已按名字猜 ' + r.judged + ' 个模型，可能不准');
+          }
         }
-        toast(r.src === 'ai' ? 'AI 已识别能力' : '识别失败，已按名字猜（可能不准）');
+        toast(r.src === 'ai' ? 'AI 已识别能力' : '识别没成功，已按名字猜（见下方原因）');
       }).catch(function (err) {
         if (pill) pill.done();
         var m3 = $('judgeMsg');
