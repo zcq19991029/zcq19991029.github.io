@@ -3,7 +3,7 @@
 <html lang="zh-CN">
 <head>
 <script src="../hx-theme.js" data-tool="wiring"></script>
-<script>window.HX_BUILD = "2026-11-19T06:41:46Z 428e4c9";</script>
+<script>window.HX_BUILD = "2026-11-19T11:26:24Z e066377";</script>
 <meta charset="utf-8">
 <meta name="copyright" content="© 2026 zcq 版权所有，未经许可禁止复制、修改、转载">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
@@ -2057,17 +2057,20 @@
   /* 2026-11-19：删掉「窄屏两列退成单列」—— 用户要求任何设备都是同一套排版，
      手机/平板只整体等比缩小，绝不改成单列、也绝不减少人数。 */
   #fw-rank .rk-lb { position: relative; flex: none; display: grid; grid-template-columns: 34px minmax(0, 1fr) auto;
-    align-items: center; gap: 10px; height: var(--lbh, 54px); box-sizing: border-box; padding: 0 14px 0 8px; border-radius: 11px;
+    align-items: center; gap: 10px; height: var(--lbh, 116px); box-sizing: border-box; padding: 0 14px 0 8px; border-radius: 11px;
     overflow: hidden; border: 1px solid rgba(90, 132, 224, .22); background: rgb(12 19 37 / calc(var(--hx-a, 1) * .62));
     font-weight: 700; color: #e9f1ff;
     transition: transform .38s cubic-bezier(.22, 1, .36, 1); }
-  /* 卡片尺寸按名次递减（设计基准 px，整版缩放时一起缩）：1 名 88 > 2 名 74 > 3 名 64 > 4 名起全部 54。
-     4 名及以后完全同高 —— 用户原话「第四名及以后一样大」。
+  /* 卡片高度：**所有名次同一个高度**（2026-11-19 第二轮，用户确认「身份卡统一成一种卡」）。
+     原来是 1 名 88 / 2 名 74 / 3 名 64 / 4 名起 54，四种高度裁同一张背景图 ——
+     高卡里能看到脸和肩、扁卡里只剩一条眼缝，用户原话「完全破坏显示公平逻辑」。
+     现在一律 116px（一页 10 人省下来的高度全给卡片），名次差异只用配色 + 奖牌表现。
+     ⚠️ 这个 116 和 rank.js 的 RK_CARDS[0].real 必须一致，改一处要同步另一处。
      box-sizing:border-box 是必须的：舞台高度 667 是按「含边框的卡高」算死的，差 2px 就会在底部溢出一条。 */
-  #fw-rank .rk-lb[data-tier="1"] { --lbh: 88px; grid-template-columns: 52px minmax(0, 1fr) auto; padding-right: 16px; }
-  #fw-rank .rk-lb[data-tier="2"] { --lbh: 74px; grid-template-columns: 46px minmax(0, 1fr) auto; }
-  #fw-rank .rk-lb[data-tier="3"] { --lbh: 64px; grid-template-columns: 42px minmax(0, 1fr) auto; }
-  #fw-rank .rk-lb[data-tier="4"] { --lbh: 54px; }
+  #fw-rank .rk-lb[data-tier="1"] { --lbh: 116px; grid-template-columns: 52px minmax(0, 1fr) auto; padding-right: 16px; }
+  #fw-rank .rk-lb[data-tier="2"] { --lbh: 116px; grid-template-columns: 46px minmax(0, 1fr) auto; }
+  #fw-rank .rk-lb[data-tier="3"] { --lbh: 116px; grid-template-columns: 42px minmax(0, 1fr) auto; }
+  #fw-rank .rk-lb[data-tier="4"] { --lbh: 116px; }
   #fw-rank .rk-lb-bg { position: absolute; inset: 0; z-index: 0; background-size: cover; background-repeat: no-repeat;
     background-position: 50% 50%; transform: scale(1.02); }
   #fw-rank .rk-lb-veil { position: absolute; inset: 0; z-index: 1; pointer-events: none;
@@ -2151,50 +2154,31 @@
   #fw-rank .rk-empty b { font-size: 15px; color: #cfdcf5; }
   #fw-rank .rk-empty span { font-size: 12.5px; }
 
-  /* 身份卡设置弹窗（#fw-rankcard）：四种卡型预览 + 12 套预设 + 上传 + 位置/缩放 + 恢复
-     预览是**等比缩小**的真实卡：真实卡宽 805，--s = 预览宽 / 805，高度 ≤66×--s（见 data-card），
-     字号/奖牌/圆角/内边距全部乘 --s —— 所以预览里看到的取景就是榜单上看到的那一块。 */
+  /* 身份卡设置弹窗（#fw-rankcard）：**一个预览** + 12 套预设 + 上传 + 位置/缩放 + 恢复
+     2026-11-19 第二轮：删掉「四种卡型 2×2 对照」那套（.rkc-cards/.rkc-ct/.rkc-mini），
+     用户原话「预览卡按理说只需要显示一个即可 因为不管说明卡 都是等比例缩放 只不过大小不一样
+     而不是显示背景不一样 有的显示全有的不全肯定是不对的」。现在排行榜所有卡同一尺寸，
+     所以只有一个预览，它看到的取景就是榜单上那一块。
+     预览是**等比缩小**的真实卡：真实卡宽 371.5、高 116，--s = 预览宽 / 真实卡宽，
+     字号/奖牌/圆角/内边距全部乘 --s。 */
   #fw-rankcard { --rkc-line: rgba(90, 132, 224, .3); }
   #fw-rankcard .rkc { display: flex; flex-direction: column; gap: 13px; padding: 16px 20px 18px; }
-  /* 四种卡型：2×2，每格 = 名称 + 一张 mini 卡（真实比例缩到底宽）。
-     用户要的是「一屏看到四种卡把同一张图裁成什么样」，所以 mini 必须和主预览同源，
-     不能另画一张示意图 —— 否则调完发现榜单上不是这个样子。 */
-  #fw-rankcard .rkc-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
-  #fw-rankcard .rkc-ct { display: block; padding: 7px 8px 8px; border-radius: 10px; cursor: pointer; text-align: left;
-    border: 1px solid var(--rkc-line); background: rgba(12, 20, 40, .7); color: #cfdcff;
-    font: 800 12.5px/1.1 inherit; transition: border-color .16s, background .16s, color .16s; }
-  #fw-rankcard .rkc-ct-t { display: flex; align-items: baseline; gap: 6px; margin-bottom: 5px; }
-  #fw-rankcard .rkc-ct-t small { margin-left: auto; font-size: 11px; font-weight: 600; color: #8fa6c9; }
-  #fw-rankcard .rkc-ct:hover { border-color: rgba(124, 156, 255, .6); color: #fff; }
-  #fw-rankcard .rkc-ct.on { border-color: #ffb934; background: linear-gradient(120deg, rgba(255, 185, 52, .18), rgba(255, 112, 46, .12));
-    color: #fff; box-shadow: 0 0 0 1px rgba(255, 185, 52, .45) inset; }
-  #fw-rankcard .rkc-ct.on small { color: #ffd895; }
-  /* mini 卡：高度按真实卡比例（--ms = 格宽/805），字号固定 9.5px 不跟着缩，否则一个字都看不见 */
-  #fw-rankcard .rkc-mini { --ms: .41; position: relative; display: block; width: 100%; border-radius: 7px; overflow: hidden;
-    background: #0a1022; border: 1px solid rgba(90, 132, 224, .22);
-    display: flex; align-items: center; gap: 6px; padding: 0 7px 0 5px; }
-  #fw-rankcard .rkc-mini[data-c="p1"] { height: calc(66px * var(--ms)); border-color: rgba(255, 196, 72, .5); }
-  #fw-rankcard .rkc-mini[data-c="p2"] { height: calc(60px * var(--ms)); border-color: rgba(186, 208, 236, .45); }
-  #fw-rankcard .rkc-mini[data-c="p3"] { height: calc(57px * var(--ms)); border-color: rgba(214, 138, 84, .45); }
-  #fw-rankcard .rkc-mini[data-c="p4"] { height: calc(42px * var(--ms)); }
-  #fw-rankcard .rkc-mini .rk-lb-bg { position: absolute; inset: 0; background-size: cover; background-position: 50% 50%; }
-  #fw-rankcard .rkc-mini .rk-lb-veil { position: absolute; inset: 0;
-    background: linear-gradient(90deg, rgba(4, 8, 18, .84) 0%, rgba(4, 8, 18, .52) 38%, rgba(4, 8, 18, .38) 62%, rgba(4, 8, 18, .78) 100%); }
-  #fw-rankcard .rkc-mini > *:not(.rk-lb-bg):not(.rk-lb-veil) { position: relative; z-index: 2; }
-  #fw-rankcard .rkc-mini b { font-size: 9.5px; font-weight: 800; color: #f2f7ff; line-height: 1;
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  #fw-rankcard .rkc-mini-m { display: grid; place-items: center; width: 16px; height: 16px; flex: none; }
-  #fw-rankcard .rkc-mini-m svg { width: 15px; height: 15px; overflow: visible; }
-  #fw-rankcard .rkc-mini-p { display: grid; place-items: center; width: 13px; height: 13px; border-radius: 4px;
-    background: rgba(90, 132, 224, .26); color: #cfe0ff; font: 900 8px/1 inherit; }
   #fw-rankcard .rkc-prev { --s: .87; position: relative; border-radius: calc(11px * var(--s)); overflow: hidden;
     border: 1px solid rgba(255, 185, 52, .45); background: #0a1022;
     display: flex; align-items: center; gap: calc(10px * var(--s));
     padding: 0 calc(14px * var(--s)) 0 calc(8px * var(--s)); }
-  #fw-rankcard .rkc-prev[data-card="p1"] { height: calc(66px * var(--s)); border-color: rgba(255, 196, 72, .8); }
-  #fw-rankcard .rkc-prev[data-card="p2"] { height: calc(60px * var(--s)); border-color: rgba(186, 208, 236, .7); }
-  #fw-rankcard .rkc-prev[data-card="p3"] { height: calc(57px * var(--s)); border-color: rgba(214, 138, 84, .72); }
-  #fw-rankcard .rkc-prev[data-card="p4"] { height: calc(42px * var(--s)); border-color: rgba(90, 132, 224, .35); }
+  /* 2026-11-19 第二轮：只剩一种卡型，预览必须和榜单上的卡**完全同一个宽高比**。
+     原来写 height: calc(116px * var(--s))，--s 是「预览宽 / 真实卡宽」估出来的，
+     估偏一点形状就变形（实测 714×103，比例 6.9:1，真卡是 3.2:1）。
+     改成 aspect-ratio 直接锁死比例，怎么缩放都不会变形；--s 只负责字号/奖牌/圆角。 */
+  #fw-rankcard .rkc-prev,
+  #fw-rankcard .rkc-prev[data-card="all"] {
+    aspect-ratio: 371.5 / 116; height: auto;
+    /* width:100% 不能省：.rkc 是 flex column，只给 margin-inline:auto 会变成 fit-content，
+       宽高比 × 0 宽 = 0 高，预览直接塌掉（实测 70×22）。 */
+    width: 100%; max-width: 560px; margin-inline: auto;
+    border-color: rgba(90, 132, 224, .45);
+  }
   #fw-rankcard .rkc-prev .rk-lb-bg { position: absolute; inset: 0; background-size: cover; background-position: 50% 50%; }
   #fw-rankcard .rkc-prev .rk-lb-veil { position: absolute; inset: 0;
     background: linear-gradient(90deg, rgba(4, 8, 18, .84) 0%, rgba(4, 8, 18, .52) 38%, rgba(4, 8, 18, .38) 62%, rgba(4, 8, 18, .78) 100%); }
@@ -5000,7 +4984,7 @@ const HX = (() => {
     async out() { try { await api('/auth/v1/logout', { method: 'POST' }); } catch (e) { } keep(null); },
   };
 })();
-const RK = { me: null, view: 'rank', circuit: null, lock: null, pick: null, classes: null, cls: null, studs: {}, run: null, signup: false, code: null, newCode: null, roster: null, parOpen: null, boardPage: 0 };
+const RK = { me: null, view: 'rank', circuit: null, lock: null, pick: null, classes: null, cls: null, studs: {}, run: null, signup: false, code: null, newCode: null, roster: null, parOpen: null, boardPage: 0, boardRows: null, boardBG: null };
 /* ---------- 静态数据短缓存（2026-11-11 降载，和总入口/刷题同一口径） ----------
    只缓存「老师偶尔才改一次」的东西：我教的班（hx_my_classes）。
    **绝不缓存**排位榜 / 排位记录 / 任务完成状态（rank_board、wire_task_*）—— 那些随时在变。
@@ -5259,6 +5243,9 @@ async function openRank(lockTo) {
   if (!RK.lock && typeof cur === 'string' && cur) RK.lock = cur;
   if (RK.lock) RK.circuit = RK.lock; // 本次入口覆盖上一次的 circuit（localStorage / 内存里的旧值）
   RK.boardPage = 0; // 换题/重进排位：榜单翻页回到第一页（分页 2026-11-12）
+  /* 2026-11-19：换题/重进必须清掉榜单缓存，否则翻页会拿上一题的旧数据重画（见 rkBoard 里那段）。
+     这里是「重新开始」的唯一入口，清在这里最保险。 */
+  RK.boardRows = null; RK.boardBG = null;
   floatWin('rank', { title: '排位', sub: '计时接线 · 全对自动停表', w: 1040, h: 700, a1: '#f59e0b', a2: '#ef4444', full: true, html: '<div class="rk" id="rk"><p class="rk-wait">加载中…</p></div>' });
   /* 2026-11-19 用户：「超级排位不需要多一个返回排位按钮 我是说左上角的返回键就应该返回到上一级
      也就是我们从排位进来的就应该返回到排位 这个逻辑是全部开发软件的标准规则 当然你排位那右上角
@@ -5568,23 +5555,45 @@ addEventListener('resize', () => {
    → 一张背景统一喂给四种尺寸（冠军 66 / 亚军 60 / 季军 57 / 常规 42），
      但**每种卡型各存一组 {pos, zoom}**（tune jsonb），因为同一张图在 66px 和 42px 高里
      能看到的画面不一样，一刀切的取景必然有一边难看。 */
+/* ── 2026-11-19 第二轮（用户确认）────────────────────────────────────────
+   用户原话：「排位卡高度不够 可以往上加 那一页放12人完全能接受 **首页排行榜只显示前十名也就是10人都行**
+     预览卡按理说只需要显示一个即可 因为不管说明卡 都是等比例缩放 只不过大小不一样
+     而不是显示背景不一样 有的显示全有的不全肯定是不对的 这样就不对 完全破坏显示公平逻辑了」
+   我问过之后他确认：一页 10 人、身份卡统一成一种卡型。
+   ── 为什么不再分四档高度 ──
+   原来是冠军 66 / 亚军 60 / 季军 57 / 常规 42，四种高度裁同一张图 ——
+   高卡里能看到脸和肩、扁卡里只剩一条眼缝，用户觉得「完全破坏显示公平逻辑」。
+   现在**所有卡同一个高度**，名次差异只用配色和奖牌表现（金/银/铜/普通）。
+   同时一页从 20 人降到 10 人，省下来的高度全给卡片，让背景能露出头到肩
+   （他最早的原话：「背景有点太小了 上下看不清」「只能显示一个眼睛的位置」）。 */
 const RK_CARDS = [
-  { k: 'p1', name: '冠军卡', real: 66, tag: '排位之星', ms: '0:16.56' },
-  { k: 'p2', name: '亚军卡', real: 60, tag: '卓越表现', ms: '0:22.41' },
-  { k: 'p3', name: '季军卡', real: 57, tag: '实力先锋', ms: '0:24.99' },
-  { k: 'p4', name: '常规卡', real: 42, tag: '', ms: '0:31.11' },
+  { k: 'all', name: '身份卡', real: 116, tag: '排位之星', ms: '0:16.56' }
 ];
 // 榜单真实卡宽：**运行时量**（1920×1080 实测约 1026，1300 宽屏下更窄），量不到才用 805 兜底。
 // 预览按 clientWidth/真实行宽 等比缩，做到「预览即所见」（写死 805 会让预览比榜单胖 28%）。
-const RK_CARD_W = 805;
-const RKC = { bg: '', pos: 50, cur: 'p1', tune: {} };
+/* 榜单上一张卡的**设计基准宽度**（2026-11-19 第二轮：两列、舞台 752 宽、column-gap 9 → 371.5）。
+   只作为「预览该按几倍放大」的分母用；能量到真实行宽时以真实行宽为准。 */
+const RK_CARD_W = 371.5;
+const RKC = { bg: '', pos: 50, cur: 'all', tune: {} };
 const rkcDef = () => ({ pos: 50, zoom: 100 });
-function rkcTune(k) { const t = RKC.tune[k]; return { pos: t && t.pos != null ? t.pos : 50, zoom: t && t.zoom != null ? t.zoom : 100 }; }
+/* tune 读取（含老存档迁移）：现在只有一种卡，但老数据里是 {p1,p2,p3,p4} 四份。
+   取 p4（常规卡）当唯一取景 —— 它原本就是绝大多数人看到的那一档，
+   老师当年调好的位置/缩放不会白调。新存档只写 all 一个键。 */
+function rkcTune(k) {
+  if (k === 'all') {
+    const a = RKC.tune.all, p4 = RKC.tune.p4, src = (a && (a.pos != null || a.zoom != null)) ? a : (p4 || {});
+    return { pos: src.pos != null ? src.pos : 50, zoom: src.zoom != null ? src.zoom : 100 };
+  }
+  const t = RKC.tune[k]; return { pos: t && t.pos != null ? t.pos : 50, zoom: t && t.zoom != null ? t.zoom : 100 };
+}
 function rkcSet(k, patch) { RKC.tune[k] = Object.assign(rkcTune(k), patch); }
-// 榜单侧：按名次取该卡型的取景；没有 tune 的老数据退回行里的 pos + 100%
+/* 榜单侧：取这一行的背景取景。
+   2026-11-19 第二轮：所有名次**同一尺寸**，所以也**同一套取景** —— 这正是用户要的
+   「都是等比例缩放 只不过大小不一样 而不是显示背景不一样 有的显示全有的不全肯定是不对的」。
+   新存档读 all；老存档（{p1..p4}）退到 p4（常规卡，原本就是多数人看到的那一档）。 */
 function rkTuneOf(b, place) {
-  const k = 'p' + Math.min(place, 4);
-  const t = (b && b.tune && b.tune[k]) || null;
+  const T = (b && b.tune) || null;
+  const t = T ? (T.all || T.p4 || null) : null;
   return {
     pos: t && t.pos != null ? t.pos : (b && b.pos != null ? b.pos : 50),
     zoom: t && t.zoom != null ? t.zoom : 100,
@@ -5602,7 +5611,7 @@ async function rkCardWin() {
   }
   if (!RK.me.student && !isT()) { toast('登录后才能设置身份卡'); return; }
   const el = floatWin('rankcard', {
-    title: '我的身份卡', sub: '背景跟账号走 · 四种卡型各自微调', w: 800, h: 780, minH: 600,
+    title: '我的身份卡', sub: '背景跟账号走 · 榜单上所有名次都是这一张', w: 800, h: 780, minH: 600,
     a1: '#00cfff', a2: '#ff702e', render: body => rkCardBody(body),
   });
   el.classList.add('show');
@@ -5618,7 +5627,9 @@ window.addEventListener('message', function (e) {
 });
 async function rkCardBody(body) {
   body.innerHTML = '<div class="rkc"><p class="rk-wait">读取你的身份卡…</p></div>';
-  RKC.cur = 'p1';
+  /* 2026-11-19 第二轮：卡型已统一成一种（'all'）。这里原来是 'p1'（四种卡型时代的大卡），
+     留着会让预览的 data-card="p1" 匹配不到任何 CSS，预览缩略图就成了一块空白。 */
+  RKC.cur = 'all';
   try {
     const rows = await HX.rpc('hx_rank_bg_get');
     const r = rows && rows[0];
@@ -5636,28 +5647,17 @@ function rkCardPaint(body) {
   const cls = (stu && stu.class) || (RK.pick && RK.pick.cls) || '';
   const ps = (window.RANK_BG_PRESETS || []);
   body.innerHTML = `<div class="rkc">
-    <div class="rkc-h">身份卡型<small>四种尺寸同时出现在排行榜上 · 每型单独调取景 · 点哪张调哪张</small></div>
-    <div class="rkc-cards">${RK_CARDS.map(c => `<button type="button" class="rkc-ct${RKC.cur === c.k ? ' on' : ''}" data-card="${c.k}" title="${esc(c.name)}：榜单上 ${c.real}px 高">
-      <span class="rkc-ct-t">${esc(c.name)}<small>${c.real}px 高</small></span>
-      <span class="rkc-mini" data-c="${c.k}"><span class="rk-lb-bg" aria-hidden="true"></span><span class="rk-lb-veil" aria-hidden="true"></span><span class="rkc-mini-m" aria-hidden="true"></span><b>${esc(name)}</b></span>
-    </button>`).join('')}</div>
+    <!-- 2026-11-19 第二轮：只剩这一个预览（用户原话「预览卡按理说只需要显示一个即可」）。
+         原来是「四种卡型各一张 mini 对照 + 大预览 + 学生卡 + 分组卡」共四块，
+         同一张背景图在四种高度里被裁得不一样，用户说「有的显示全有的不全 完全破坏显示公平逻辑」。
+         现在排行榜所有卡等高，所以只需要一个预览，看到的就是榜单上那张卡的样子。 -->
     <div class="rkc-prev" data-card="${esc(RKC.cur)}">
       <span class="rk-lb-bg" aria-hidden="true"></span><span class="rk-lb-veil" aria-hidden="true"></span>
       <span class="rkc-medal" id="rkcMedal"></span>
       <span class="rkc-name">${esc(name)}<small>${esc(cls)}<em id="rkcTag"></em></small></span>
       <em class="rkc-ms" id="rkcMs"></em>
     </div>
-    <div class="rkc-h">学生卡<small>选人面板里学生身份卡的样子 · 和排行榜共用同一张背景（取景跟常规卡）</small></div>
-    <div class="rkc-stu-prev" id="rkcStuPrev">
-      <span class="rk-lb-bg" aria-hidden="true"></span><span class="rk-lb-veil" aria-hidden="true"></span>
-      <i>01</i><b>${esc(name)}</b><small>${esc(cls)}</small>
-    </div>
-    <div class="rkc-h">分组卡<small>小组加分里当组长时，这张背景会铺满整个分组卡的样子</small></div>
-    <div class="rkc-group-prev" id="rkcGroupPrev">
-      <span class="rk-lb-bg" aria-hidden="true"></span><span class="rk-lb-veil" aria-hidden="true"></span>
-      <b class="rkc-gp-no">第 1 组</b>
-      <div class="rkc-gp-body"><b>${esc(name)}</b><small>${esc(cls)} · 组长</small></div>
-    </div>
+    <p class="rkc-msg" style="margin:2px 0 10px">这张就是排行榜上你那一行的样子（所有名次同一尺寸，只按名次换配色）· 拖动下面的滑杆调取景</p>
     <div class="rkc-row">
       <label for="rkcPos">上下位置</label>
       <input type="range" id="rkcPos" min="0" max="100" step="1" value="50">
@@ -5671,7 +5671,7 @@ function rkCardPaint(body) {
     <div class="rkc-row">
       <button type="button" class="rkc-btn" id="rkcUp">上传自己的图片</button>
       <input type="file" id="rkcFile" accept="image/jpeg,image/png,image/webp" hidden>
-      <span class="rkc-msg">JPG / PNG / WebP，自动压到 600KB 以内；一张图统一作用于四种卡型</span>
+      <span class="rkc-msg">JPG / PNG / WebP，自动压到 600KB 以内；一张图统一作用于榜单上所有名次</span>
     </div>
     <div class="rkc-act">
       <button type="button" class="rkc-btn" id="rkcReset">恢复默认</button>
@@ -5689,7 +5689,6 @@ function rkCardPaint(body) {
   const elMs = body.querySelector('#rkcMs');
   const pos = body.querySelector('#rkcPos'), posV = body.querySelector('#rkcPosV');
   const zoom = body.querySelector('#rkcZoom'), zoomV = body.querySelector('#rkcZoomV');
-  const minis = Array.from(body.querySelectorAll('.rkc-mini'));
   /* 榜单里的真实卡宽（2026-11-12 修「预览比榜单胖」）：
      原来写死 805，但 1920×1080 实测排行榜行宽是 1026，预览按 805 算 → 高度偏大 28%，
      老师调好的取景一上榜单就变样。这里直接量一根真行的宽度，量不到才退回 805。 */
@@ -5699,67 +5698,30 @@ function rkCardPaint(body) {
     return (w && w > 200) ? w : RK_CARD_W;
   };
   // 预览宽度 → 缩放系数：按**真实行宽**等比缩，字号/奖牌/圆角一起缩，做到「预览即所见」
+  /* 2026-11-19 第二轮：上限从 1.6 放到 2.4。预览卡最宽 560px、真实卡约 371.5px，
+     倍率 1.5 左右；排行榜没打开时 rkRealW() 退回 RK_CARD_W（371.5），算出来也是同一档。 */
   const fitPrev = () => {
-    const s = Math.max(.35, Math.min(1.6, (prevBox.clientWidth || RK_CARD_W) / rkRealW()));
+    const s = Math.max(.35, Math.min(2.4, (prevBox.clientWidth || RK_CARD_W) / rkRealW()));
     prevBox.style.setProperty('--s', s.toFixed(3));
   };
-  // 四型同屏对照：每格一张 mini 卡，背景与主预览**同源**（都过 rkBgStyle + 各自的 tune），
-  // 只是容器小。这样老师不用一个个点也知道「同一张图在 66px 和 42px 的卡里被裁成什么样」。
-  const paintMinis = () => {
-    const realW = rkRealW();
-    minis.forEach(m => {
-      const k = m.dataset.c;
-      const st = rkBgStyle(RKC.bg, rkcTune(k));
-      const bgel = m.querySelector('.rk-lb-bg');
-      if (bgel) bgel.setAttribute('style', st || '');
-      m.setAttribute('data-nobg', st ? '0' : '1');
-      const mm = m.querySelector('.rkc-mini-m');
-      if (mm) mm.innerHTML = k === 'p4' ? '<i class="rkc-mini-p">4</i>' : rkMedal(+k.slice(1));
-      // --ms 只用来算 mini 的高度（与榜单同样比例），不参与字号，字号固定 9.5px 保证看得清
-      m.style.setProperty('--ms', (Math.max(.2, (m.clientWidth || 330) / realW)).toFixed(3));
-    });
-  };
   const paintPrev = () => {
-    const c = RK_CARDS.find(x => x.k === RKC.cur) || RK_CARDS[0];
+    const c = RK_CARDS[0];                 // 2026-11-19：只剩一种卡型
     const t = rkcTune(c.k);
     fitPrev();
     prevBox.setAttribute('data-card', c.k);
     const st = rkBgStyle(RKC.bg, t);
     if (prevBg) prevBg.setAttribute('style', st || '');
     prevBox.setAttribute('data-nobg', st ? '0' : '1');
-    if (elMedal) elMedal.innerHTML = c.k === 'p4' ? '<i class="rkc-place">4</i>' : rkMedal(+c.k.slice(1));
-    if (elTag) elTag.textContent = c.tag ? ' · ' + c.tag : '';
+    /* 预览里的名次用「常规」表现（不带奖牌）—— 所有名次同一尺寸，这里演示的是最普通的那一行，
+       名次配色差异在排行榜上自然能看到，预览不必挨个演一遍。 */
+    if (elMedal) elMedal.innerHTML = '<i class="rkc-place">4</i>';
+    if (elTag) elTag.textContent = '';
     if (elMs) elMs.textContent = c.ms;
     if (pos) pos.value = t.pos;
     if (posV) posV.textContent = t.pos;
     if (zoom) zoom.value = t.zoom;
     if (zoomV) zoomV.textContent = t.zoom + '%';
-    // 学生卡预览：同一张背景、取景跟「常规卡」，只改这一格里那张 mini 图
-    const stuPrev = body.querySelector('#rkcStuPrev');
-    const stuBg = stuPrev && stuPrev.querySelector('.rk-lb-bg');
-    if (stuBg) {
-      const stStu = rkBgStyle(RKC.bg, rkcTune('p4'));
-      stuBg.setAttribute('style', stStu || '');
-      stuPrev.setAttribute('data-nobg', stStu ? '0' : '1');
-    }
-    // 分组卡预览（2026-11-15）：同一张背景铺满分组卡，遮罩用分组卡自己的斜向渐变（左深右浅）
-    const grpPrev = body.querySelector('#rkcGroupPrev');
-    const grpBg = grpPrev && grpPrev.querySelector('.rk-lb-bg');
-    if (grpBg) {
-      const stGrp = rkBgStyle(RKC.bg, rkcTune('p1'));
-      grpBg.setAttribute('style', stGrp || '');
-      grpPrev.setAttribute('data-nobg', stGrp ? '0' : '1');
-    }
-    paintMinis();
   };
-  // 卡型切换：只换预览尺寸与滑杆值，背景本身不动（一张图喂四种卡）
-  body.querySelectorAll('[data-card]').forEach(b => (b.onclick = () => {
-    RKC.cur = b.dataset.card;
-    body.querySelectorAll('[data-card]').forEach(x => x.classList.toggle('on', x === b));
-    paintPrev();
-    const c = RK_CARDS.find(x => x.k === RKC.cur) || RK_CARDS[0];
-    setMsg('正在调「' + c.name + '」的取景，四种卡型各自记住');
-  }));
   // 预设：只改本地状态 + 重绘预览，不写库（点「保存并应用」才落库）
   body.querySelectorAll('[data-p]').forEach(b => (b.onclick = () => {
     RKC.bg = b.dataset.p;
@@ -5773,7 +5735,7 @@ function rkCardPaint(body) {
   body.querySelector('#rkcReset').onclick = () => {
     RKC.bg = ''; RKC.pos = 50; RKC.tune = {};
     body.querySelectorAll('[data-p]').forEach(x => x.classList.remove('on'));
-    paintPrev(); setMsg('已恢复默认背景（四种卡型取景也一起归零），点「保存并应用」生效');
+    paintPrev(); setMsg('已恢复默认背景（取景也一起归零），点「保存并应用」生效');
   };
   // 上传：类型/大小先校验，再用 canvas 压到 1280 宽、JPEG 质量递减到 620KB 以内
   const file = body.querySelector('#rkcFile');
@@ -5785,11 +5747,11 @@ function rkCardPaint(body) {
     setMsg('正在压缩…');
     try {
       RKC.bg = await rkCompressImg(f);
-      // 换了新图，旧的四组取景对新图没意义（构图完全不同）→ 一起归零，再逐型微调
+      // 换了新图，旧的取景对新图没意义（构图完全不同）→ 归零
       RKC.tune = {};
       body.querySelectorAll('[data-p]').forEach(x => x.classList.remove('on'));
       paintPrev();
-      setMsg('图片已载入（' + Math.round(RKC.bg.length / 1024) + 'KB）· 四种卡型取景已归零，逐个切过去调好再保存', 'ok');
+      setMsg('图片已载入（' + Math.round(RKC.bg.length / 1024) + 'KB）· 取景已归零，拖滑杆调好再保存', 'ok');
     } catch (e) { setMsg('这张图用不了：' + (e.message || e), 'bad'); }
   };
   // 保存：服务端校验 + upsert（本人那一行）；成功后立刻重画右侧榜单，自己那张卡当场变
@@ -5799,9 +5761,12 @@ function rkCardPaint(body) {
     save.disabled = true; setMsg('保存中…');
     try {
       const tune = {};
-      RK_CARDS.forEach(c => { const t = rkcTune(c.k); tune[c.k] = { pos: +t.pos, zoom: +t.zoom }; });
-      await HX.rpc('hx_rank_bg_put', { p_bg: RKC.bg || 'none', p_pos: rkcTune('p1').pos, p_tune: tune });
-      setMsg('已保存：排行榜身份卡和学生卡都会换成这张背景（四种卡型取景都记住了）', 'ok');
+      /* 2026-11-19 第二轮：只剩一种卡，只写 all 一个键。
+         老的 {p1,p2,p3,p4} 会在读取时被 rkcTune('all') 迁移成 p4 的值（见那边注释），
+         所以老师之前调好的取景不会丢；保存一次之后就只剩 all 了。 */
+      const t0 = rkcTune('all'); tune.all = { pos: +t0.pos, zoom: +t0.zoom };
+      await HX.rpc('hx_rank_bg_put', { p_bg: RKC.bg || 'none', p_pos: t0.pos, p_tune: tune });
+      setMsg('已保存：排行榜身份卡都会换成这张背景（取景已记住）', 'ok');
       const b = document.getElementById('rkBoard'); if (b) rkBoard(b);
       toast('身份卡已保存');
     } catch (e) { setMsg('保存失败：' + (e.message || e), 'bad'); }
@@ -6404,17 +6369,19 @@ function rkMedal(p) {
 // 背景样式串缓存：base64 正则替换 / 预设 CSS 的 replace 是这块最贵的活，一个学生一次算好就复用，
 // 翻页、同页数据刷新都不重算。键 = student_id + 卡片型（名次 1..4 → 冠军/亚军/季军/常规的取景不同）。
 const RK_BGSTYLE = {};
-// 卡片高度按名次分 4 档：第 1 名 > 第 2 名 > 第 3 名 > 第 4 名及以后（4 名起全部同高）。
-// 档位数字直接写进 data-tier，project2.html 里按 [data-tier] 写死 --lbh（88/74/64/54）；改一处要同步另一处。
+// 卡片高度：**所有名次同一个高度**（2026-11-19 第二轮用户确认「统一成一种卡」）。
+// 数字写进 data-tier，project2.html 里按 [data-tier] 写死 --lbh；改一处要同步另一处。
+// 116px 是「背景能露出人像头到肩」的高度（原来常规卡 42px 只露一条眼缝）。
 function rkTier(place) { return place <= 3 ? place : 4; }
-/* ── 榜单舞台的设计基准（2026-11-19 用户原话）──────────────────────────────
-   「排位展示一页20个吧 前三名毕竟厉害 就最大 到第二大到第三大 第四名及以后一样大
-    无论设备尺寸怎么变 这些排版和尺寸都不变 只是等比例放大」。
-   752×667 就是 1440×900 下右侧榜单的实测内容尺寸（2026-11-18 量过）——
-   等于「现在电脑上这一版」原样固定下来，别的屏幕整体缩/放，不换排版、不增删人数。
-   667 = 左列 88 + 74 + 64 + 7×54 + 9×7（第 1/2/3 名 + 第 4–10 名共 7 张常规卡 + 列内 9 个间隙）。 */
+/* ── 榜单舞台的设计基准（2026-11-19 第二轮）──────────────────────────────
+   用户原话：「首页排行榜只显示前十名也就是10人都行」「排位卡高度不够 可以往上加」。
+   一页 10 人（每列 5 张），省下来的高度全给卡片 → 卡高 116px（原来 20 人时是 54px）。
+   752×667 是 1440×900 下右侧榜单的实测内容尺寸（2026-11-18 量过），
+   等于「现在电脑上这一版」原样固定，别的屏幕整体缩/放，不换排版、不增删人数。
+   舞台高 = 5 张卡 + 4 个列内间隙 + 翻页脚：
+     5×116 + 4×9 = 616，加翻页脚约 51 → 667（沿用原基准高，正好装得下）。 */
 const RK_STAGE_W = 752, RK_STAGE_H = 667;
-const RK_PER = 20, RK_COL = 10; // 一页固定 20 人：左列 10（第 1–10 名）、右列 10（第 11–20 名），列优先
+const RK_PER = 10, RK_COL = 5; // 一页固定 10 人：左列 5（第 1–5 名）、右列 5（第 6–10 名），列优先
 /* 整版等比缩放：k = min(可用宽 / 设计宽, 可用高 / 设计高)，舞台顶端对齐、水平居中。
    ⚠️ 可用宽高只能用 clientWidth / clientHeight —— getBoundingClientRect() 会被 transform 影响，
    量到的是缩放后的尺寸，再拿去算 k 就是「缩放 → 量到新尺寸 → 再缩放」的死循环（以前踩过）。
@@ -6447,11 +6414,26 @@ window.addEventListener('resize', () => {
   fit(); requestAnimationFrame(fit); setTimeout(fit, 120); setTimeout(fit, 400);
 });
 async function rkBoard(el, hl, page) {
-  // 分页（2026-11-13 用户：「123 名应该在左边第一列且卡片最大，后续跟着 456 依次往后，
-  //   第二列接着第一列最后的排名往后……」）。2026-11-19 定稿：一页 20 人、左列 1–10 / 右列 11–20、
-  //   卡片尺寸用设计基准写死，整版等比缩放（见下面 RK_STAGE_W/RK_STAGE_H 那段）。
+  /* 分页（2026-11-13 用户：「123 名应该在左边第一列且卡片最大，后续跟着 456 依次往后，
+     第二列接着第一列最后的排名往后……」）。2026-11-19 定稿：一页 10 人、左列 1–5 / 右列 6–10、
+     卡片尺寸用设计基准写死，整版等比缩放（见下面 RK_STAGE_W/RK_STAGE_H 那段）。
+
+     ── 2026-11-19 第二轮：翻页不许再打网络 ──────────────────────────────────
+     用户原话：「然后下一页点击但是反应很慢 半天才显示」。
+     原因：原来翻页也是走 rkBoard() 全流程 —— 又发一遍 rank_board + hx_rank_bgs 两个 RPC，
+     等网络回来才渲染，慢的时候就是「点了半天没反应」。
+     现在把「取数据」和「画这一页」拆开：数据拿到就存进 RK.boardRows / RK.boardBG，
+     翻页只调 rkBoardPaint() 用缓存重画（同一帧完成，不发请求）。
+     只有「重进排位 / 换题 / 手动刷新」才走 rkBoard() 重新拉数据（那时 page 传 undefined）。 */
   const isPageFlip = page != null;              // 翻页 = 全新一页，不做 FLIP；只有同页数据刷新才做
   if (isPageFlip) RK.boardPage = Math.max(0, page);
+
+  /* 翻页且已有缓存 → 直接用缓存重画，一个请求都不发（这是「反应慢」的修法）。 */
+  if (isPageFlip && RK.boardRows) {
+    rkBoardPaint(el, hl, true);
+    return;
+  }
+
   // 2026-11-14 优化「加载慢」：rank_board 与 hx_rank_bgs 两个 rpc 并行发出（背景失败不影响榜单）。
   // 2026-11-16：榜单这一条改成自动重试（读数据，安全），失败时给「再试一次」而不是干一行红字。
   const boardP = HX.boot(() => HX.rpc('rank_board', { p_circuit: RK.circuit, p_limit: 200 }, HX.in()),
@@ -6466,27 +6448,34 @@ async function rkBoard(el, hl, page) {
   // 个人身份卡背景：按 student_id 关联（绝不按名次）。失败/没建函数只影响背景，不影响成绩与排序。
   let BG = {};
   if (rows.length) { try { BG = (await bgP) || {}; } catch (e) { BG = {}; } }
+  // 存缓存：翻页时直接拿来重画（见上面那段注释）
+  RK.boardRows = rows; RK.boardBG = BG;
+  rkBoardPaint(el, hl, false);
+}
+/* 只画当前这一页（不发任何请求）。pageFlip=true 表示这次是翻页触发的，不做 FLIP 动画。 */
+function rkBoardPaint(el, hl, pageFlip) {
+  const rows = RK.boardRows || [];
+  const BG = RK.boardBG || {};
   const nEl = document.getElementById('rkBoardN');
   if (nEl) nEl.textContent = rows.length ? '共 ' + rows.length + ' 人 · 按用时升序' : '';
   // 空榜单只放提示语，绝不放假成绩
   if (!rows.length) { el.innerHTML = `<div class="rk-empty"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10v4a5 5 0 0 1-10 0z"/><path d="M7 5H4v1.5A3.5 3.5 0 0 0 7.5 10M17 5h3v1.5A3.5 3.5 0 0 1 16.5 10M12 13v4M8.5 20h7"/></svg><b>暂无排位成绩</b><span>完成首次接线挑战后，成绩将在此展示</span></div>`; return; }
-  // 2026-11-19 用户：「排位展示一页20个吧 …… 无论设备尺寸怎么变 这些排版和尺寸都不变 只是等比例放大」
-  //   → 每页固定 20 人（左列 10、右列 10，列优先），**不再按容器高度算容量**：
-  //     老写法（rkColCap）屏幕高就多放人、矮就少放人，同一个班在两台电脑上是两种排版。
-  //     现在只有超过 20 人才翻页，翻页脚保留。
+  // 一页固定 RK_PER 人（左列 RK_COL、右列其余，列优先），**不按容器高度算容量**：
+  //   老写法（rkColCap）屏幕高就多放人、矮就少放人，同一个班在两台电脑上是两种排版。
   const PER = RK_PER;
   let pages = Math.max(1, Math.ceil(rows.length / PER));
   if (RK.boardPage >= pages) RK.boardPage = pages - 1;           // 数据变少（比如删了人）页码别越界
   const start = RK.boardPage * PER;
   const cnt = Math.min(PER, rows.length - start);                 // 本页人数（末页可能不满）
   const pageRows = rows.slice(start, start + cnt);
-  // 列优先：左列先装 10 张（第 1–10 名），剩下的进右列（第 11–20 名）；
-  // 末页不足 10 人时全在左列（右列空着），不为了「看起来满」把名次拆乱。
+  // 列优先：左列先装 RK_COL 张，剩下的进右列；
+  // 末页不足时全在左列（右列空着），不为了「看起来满」把名次拆乱。
   const K = Math.min(RK_COL, cnt);
   const left = pageRows.slice(0, K), right = pageRows.slice(K);
   // FLIP（2026-11-08，纯视觉）：重绘前记下旧行位置（按 姓名|班级 找），重绘后把位置变化过的行
   // 从旧位置平移到新位置 —— 数据更新时行是“滑过去”的，新上榜的行短暂高亮一下。
   // 只在「同页数据更新」时做；翻页是全新一页，不做 FLIP。首绘（没有旧行）也不做。
+  const isPageFlip = !!pageFlip;
   const prev = {};
   if (!isPageFlip && !drwNoAnim()) {
     const items = el.querySelectorAll('.rk-lb');
@@ -6521,8 +6510,7 @@ async function rkBoard(el, hl, page) {
       + `<button type="button" class="rk-pg" data-pg="1"${RK.boardPage >= pages - 1 ? ' disabled' : ''}>下一页 ›</button></div>`
     : '';
   /* 榜单主体包一层固定设计基准的舞台（.rk-stage），外层 .rk-stagewrap 按可用空间整体 scale。
-     2026-11-19 用户：「无论设备尺寸怎么变 这些排版和尺寸都不变 只是等比例放大 …… 不随着缩放增减人」
-     → 永远 20 人、两列 10+10、卡片 88/74/64/54，屏幕小就整体缩小，绝不改排版。 */
+     2026-11-19：永远 10 人、两列 5+5、所有卡同一高度，屏幕小就整体缩小，绝不改排版。 */
   el.innerHTML = `<div class="rk-stagewrap"><div class="rk-stage"><div class="rk-board2">${col(left)}${col(right)}</div></div></div>${foot}`;
   rkFitStage(el.querySelector('.rk-stagewrap'));
   // 首帧布局可能还没稳定（字体 / 窗口入场动画 / 滚动条），下一帧再量一次，确保 k 是对当前可用空间
@@ -6536,7 +6524,7 @@ async function rkBoard(el, hl, page) {
     el._rkRO = new ResizeObserver(() => rkFitStage(document.querySelector('#fw-rank .rk-stagewrap')));
     el._rkRO.observe(el.querySelector('.rk-stagewrap'));
   }
-  // 翻页：重取当前数据后切页（不重新拉接口也行，但 rows 就在闭包里，直接重画最省）
+  // 翻页：**用缓存重画**，不发请求（2026-11-19 修「反应很慢 半天才显示」）
   el.querySelectorAll('.rk-pg').forEach(btn => {
     btn.onclick = () => { rkBoard(el, hl, RK.boardPage + Number(btn.getAttribute('data-pg'))); };
   });
