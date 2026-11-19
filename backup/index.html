@@ -101,7 +101,6 @@
         </div>
         <div>
           <h1>全站备份</h1>
-          <p>一键导出 / 恢复整个华夏工具在本机的全部本地数据（localStorage + 音乐库 IndexedDB）。换电脑、换浏览器或担心数据丢失时用。</p>
         </div>
       </div>
     </header>
@@ -109,7 +108,6 @@
     <!-- 导出 -->
     <section class="card">
       <h2>导出备份</h2>
-      <p class="sub">把下面列出的所有工具的本地数据打包成一个 JSON 文件下载到本机。建议定期导出保存。</p>
       <div class="row">
         <button class="btn green" id="btnExport" type="button">导出备份</button>
         <label class="chk" title="默认不包含：API 密钥敏感，会随备份文件一起离开本机"><input type="checkbox" id="optAI">包含 AI 密钥</label>
@@ -121,7 +119,7 @@
     <!-- 导入 -->
     <section class="card">
       <h2>导入备份</h2>
-      <p class="sub">选一个之前导出的备份 JSON 文件，解析后写回本机。<b style="color:var(--red)">导入会覆盖当前本地数据</b>，请先确认。</p>
+      <p class="sub">导入会覆盖当前本地数据，请先确认。</p>
       <div class="file-drop">
         <span class="fname empty" id="fileName">尚未选择文件</span>
         <button class="btn ghost" id="btnPick" type="button">选择文件</button>
@@ -130,15 +128,14 @@
         <button class="btn blue" id="btnImport" type="button" disabled>导入并覆盖</button>
       </div>
       <div class="stat" id="importStat"></div>
-      <p class="hint">导入范围与导出一致：localStorage 按 key 逐条覆盖写入（不清除备份里没有的 key）；音乐库先清空再整份恢复。<b>备份含登录会话（paike-session），导入后可能需要重新登录。</b></p>
+      <p class="hint"><b>备份含登录会话（paike-session），导入后可能需要重新登录。</b></p>
     </section>
 
     <!-- 范围说明 -->
     <section class="card">
       <h2>备份范围</h2>
-      <p class="sub">以下工具/模块的本地数据会被包含：</p>
       <div class="scope" id="scopeList"></div>
-      <p class="hint">默认<b>不包含</b> AI 密钥（<code>hx-ai-key:*</code>）和纯同步标记类缓存（小组加分的 base/supabase/session 标记）。这两类可在导出时按需勾选「包含 AI 密钥」或始终排除。</p>
+      <p class="hint">默认<b>不包含</b> AI 密钥和同步标记类缓存。</p>
     </section>
   </div>
 

@@ -275,9 +275,7 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
 </div></header>
 
 <main class="wrap">
-  <p class="lead">配置和 Key 都<b>跟账号云端走</b>，换台电脑登录同一个账号就能接着用；<b>Key 只在调用时直接发给服务商</b>。
-    同一个账号里的各个工具（刷题、单片机、考试……）共用这一份配置。
-    <br><b>一个平台 = 一个 Key + 一个接口地址</b>；加平台时自动把它名下的模型全部加进来（不用一个个选），<b>Key 只填一次</b>。</p>
+  <p class="lead">配置和 Key 跟账号云端走；一个平台 = 一个 Key + 一个接口地址，加平台时自动把它的模型全加进来。</p>
 
   <div class="cols">
     <!-- ============ 左栏 ============ -->
@@ -289,23 +287,19 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
             <button class="btn sm pri" type="button" id="addPlat">+ 新增平台</button>
           </span>
         </h2>
-        <p class="sub">加一个平台（服务商 + 接口地址 + Key），它名下的模型会<b>自动全部加入</b>。
-          不需要的个别模型，可以在平台卡片里单独删掉。</p>
 
         <!-- 平台表单：新增 / 编辑都用这一个，字段少，摊开比弹窗好填 -->
         <form class="pf" id="pf" hidden>
           <h3 id="pfT">新增平台</h3>
           <div class="grid2">
-            <label class="fld"><span>别名（自己认得出就行）</span>
+            <label class="fld"><span>别名</span>
               <input type="text" id="pfName" maxlength="40" placeholder="如：111 / 学校中转 / 硅基流动"></label>
             <label class="fld"><span>服务商</span><select id="pfProv"></select></label>
           </div>
-          <p class="hint" id="pfProvNote" style="margin:-4px 0 12px" hidden></p>
           <label class="fld"><span>接口地址</span>
             <input type="url" id="pfBase" placeholder="https://api.siliconflow.cn/v1" spellcheck="false"></label>
           <label class="fld"><span>API Key</span>
             <input type="password" id="pfKey" autocomplete="off" placeholder="sk-..." spellcheck="false"></label>
-          <p class="hint" style="margin:-4px 0 12px">一个平台只填一次 Key，它下面的所有模型共用。Key 会跟着你的账号保存（云端），换电脑登录同一账号即可。</p>
           <div class="acts">
             <button class="btn pri" type="submit" id="pfSave">保存平台</button>
             <button class="btn" type="button" id="pfFetch">读取模型</button>
@@ -324,15 +318,11 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
 
       <section class="card">
         <h2>按能力设默认</h2>
-        <p class="sub">工具没单独指定时，就按这里找模型。<b>先选平台，再选模型</b> ——
-          模型下拉里只有这个平台里勾了这项能力的，选不出「用 deepseek 生成视频」这种错配。</p>
         <div class="rowset" id="caps"></div>
       </section>
 
       <section class="card">
         <h2>识别用模型</h2>
-        <p class="sub">独立识别模块：指定<b>用哪个平台哪个模型</b>去判断其它平台模型的能力（比如用硅基流动的 DeepSeek V3.2 判 DeepSeek 平台）。
-          不指定时自动推荐一个文本+推理的模型。点下面按钮，一次判全部平台的模型。</p>
         <div class="rowset" id="judge"></div>
       </section>
 
@@ -342,9 +332,7 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
   <div class="bottom">
     <section class="card">
       <h2>导入 / 导出</h2>
-      <p class="sub">换电脑或者给同事复制配置用。<b>导出的 JSON 里有平台和模型，没有 Key</b>（Key 只在你自己浏览器里）。
-        导入后每个平台「编辑」补一次 Key 就行，不用每个模型都补。</p>
-      <textarea id="io" rows="7" placeholder="点「复制配置」把 JSON 弄出来；或者把别人给的 JSON 粘到这里再点「导入」" spellcheck="false"></textarea>
+      <textarea id="io" rows="7" placeholder="复制配置 / 粘贴 JSON 导入" spellcheck="false"></textarea>
       <div class="ioacts">
         <button class="btn" type="button" id="copyCfg">复制配置 JSON</button>
         <button class="btn" type="button" id="importCfg">从上面的 JSON 导入</button>
@@ -354,10 +342,7 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
 
     <section class="card">
       <h2>AI 注册渠道与工具建议</h2>
-      <p class="sub">工具里的 AI 功能要有一把自己的 Key 才能用。下面几个平台注册门槛低，按顺序挑一个，
-        把 Key 配到上面的「平台与模型」里（<b>硅基流动</b>一个 Key 就有文本 / 读图 / 文生图 / 文生视频 / 语音，最省事）。</p>
       <div class="invs" id="channels"></div>
-      <p class="inv-tip">提示：这些是第三方平台，注册和使用要遵守它们自己的规则；用不用、用哪个都不影响华夏工具的正常使用。</p>
     </section>
   </div>
 </main>
@@ -539,7 +524,7 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
       // 2026-11-19：这类提示统一用红字（.eff.bad 现在是 --bad），并且说清「真调用会报错」——
       // 只写「建议重选」太软，用户会以为什么都不影响。
       var eff, bad = false;
-      if (!curP) eff = '当前：未设置 · 用到这项能力时会提示「缺哪种能力」';
+      if (!curP) eff = '当前：未设置';
       else {
         eff = effLine(curP);
         if (!supportsCap(curP, c.id)) {
@@ -548,7 +533,7 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
         }
       }
       return '<div class="row" data-cap="' + c.id + '">' +
-        '<div class="hd"><b>' + esc(c.name) + '</b><em>' + esc(c.hint) + '</em></div>' +
+        '<div class="hd"><b>' + esc(c.name) + '</b></div>' +
         '<div class="sels">' +
           '<select data-kind="plat" data-cap="' + c.id + '" aria-label="' + esc(c.name) + '用哪个平台">' + platOpts + '</select>' +
           '<select data-kind="model" data-cap="' + c.id + '" aria-label="' + esc(c.name) + '用哪个模型">' + modelOpts + '</select>' +
@@ -600,7 +585,7 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
     var totalModels = snap.profiles.length;
     $('judge').innerHTML =
       '<div class="row" data-judge="1">' +
-        '<div class="hd"><b>识别用模型</b><em>「让 AI 识别能力」时用哪个模型判</em></div>' +
+        '<div class="hd"><b>识别用模型</b></div>' +
         '<div class="sels">' +
           '<select data-kind="jplat" aria-label="识别用哪个平台">' + platOpts + '</select>' +
           '<select data-kind="jmodel" aria-label="识别用哪个模型">' + modelOpts + '</select>' +
@@ -611,7 +596,6 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
           '<button class="btn pri" type="button" data-act="judge-all">让 AI 识别全部平台的模型能力</button>' +
           '<p class="msg" id="judgeMsg"></p>' +
         '</div>' +
-        '<p class="hint" style="margin:8px 0 0">识别会调用上面那个识别模型，把所有平台下「还没官方标注」的模型各判一次能力，判完自动更新。</p>' +
       '</div>';
   }
 
@@ -842,13 +826,6 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
   });
 
   // ---------- 平台表单 ----------
-  function setPlatProvNote() {
-    var el = $('pfProvNote');
-    var preset = HXAI.providers[$('pfProv').value];
-    el.textContent = (preset && preset.note) || '';
-    el.hidden = !(preset && preset.note);
-  }
-
   function openPlatForm(id, noScroll) {
     editingPlat = id || '';
     platModels = [];
@@ -859,7 +836,6 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
     $('pfProv').value = pl ? pl.provider : 'deepseek';
     // 新平台照服务商预设填地址；编辑时用存下来的（用户可能手改过）
     $('pfBase').value = pl ? pl.baseUrl : (HXAI.providers[$('pfProv').value].baseUrl || '');
-    setPlatProvNote();
     // Key 从不回显：留空 = 不动原来那把（一个平台只有一把，改一次全平台生效）
     $('pfKey').value = '';
     $('pfKey').placeholder = pl && pl.hasKey ? '已保存（留空表示不改）' : 'sk-...';
@@ -880,7 +856,6 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
   $('pfProv').onchange = function () {
     // 换服务商 = 换一家，地址跟着换（已经手填过的地址会被覆盖，这是有意的）
     $('pfBase').value = HXAI.providers[$('pfProv').value].baseUrl || '';
-    setPlatProvNote();
   };
 
   function collectPlat() {
