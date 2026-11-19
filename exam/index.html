@@ -8809,6 +8809,12 @@ const T_PAGES = [['exam', '考试', '发布、交卷、批改'], ['paper', '理�
 /* 试卷库只给老师看：学生端根本不走 teacherShell，这里再显式挡一层，
    以后要是有人把外壳复用给学生页，也不会把「全科目的卷子」摆到学生面前。 */
 const isTeacher = () => !!(ME.me && (ME.me.teacher || ME.me.admin || ME.me.dev));
+/* 科目是不是「内置单片机」（无云端 id，走打包进本工具的 THEORY 教材题）。
+   2026-11-19 修：以前到处用 key==='mcu' 判断内置，但云端科目「单片机技术及应用」的 key 恰好也是 'mcu'，
+   结果它被误当内置、不读云端题池 —— 资料库清空题池后，考试还显示打包的教材题，两边对不上。
+   改成按「有没有云端 id」判：id==null 才是内置，云端建过的科目（哪怕 key 叫 mcu）一律走云端题池。 */
+const subIsBuiltin = sub => { const s = SUBJ.find(x => x.key === sub); return !!(s && s.id == null); };
+const curIsBuiltin = () => subIsBuiltin(CUR_SUB);
 /* 2026-11-08 Z4：「资料库」「AI 题库」两页整体搬到独立工具 资料库工具（站点 /ziliao/），
    这里只留一个跳转按钮。考试在 /exam/、资料库在 /ziliao/，所以用相对路径 ../ziliao/；
    target=_top：考试可能被首页外壳用 iframe 嵌着，跳转必须换掉整个顶层页面，不能在 iframe 里再套一层。
@@ -8941,7 +8947,7 @@ window.HXBack = function () {
 function buildHome() {
   app().innerHTML = `<header class="ex-h"><div class="eyebrow">教师 · ${esc(SUBJECTS[CUR_SUB] || CUR_SUB)}</div><h1>组卷与组卷码</h1>
     <p>调每道题的母题、题型、分值，网页现算出一串组卷码；拿去「考试」页发布，学生就能取题</p>
-    ${CUR_SUB === 'mcu' ? '' : '<p class="note">这一页（网页答题器）现在只接单片机的组卷题库（M1～M6）；「' + esc(SUBJECTS[CUR_SUB] || CUR_SUB) + '」的题在题池里（「资料库」工具出题入池）——出 A3 纸质试卷去「理论试卷」页，那边直接抽题池。</p>'}
+    ${curIsBuiltin() ? '' : '<p class="note">这一页（网页答题器）现在只接单片机的组卷题库（M1～M6）；「' + esc(SUBJECTS[CUR_SUB] || CUR_SUB) + '」的题在题池里（「资料库」工具出题入池）——出 A3 纸质试卷去「理论试卷」页，那边直接抽题池。</p>'}
     <details class="ex-help"><summary>这一页怎么用（点开看 4 步）</summary>
       <ol>
         <li><b>左边「组卷」</b>：每一行的三个下拉分别是<b>母题 / 题型 / 分值</b>；题不够点「<b>+ 添加一题</b>」，多了点行尾「×」。满分会自动算。</li>
@@ -8965,7 +8971,7 @@ function buildHome() {
    再画页面 —— 页面里的章节勾、各项目比重、题库抽屉全都照着池子建，先画再换池会把这些画错。
    空池：单独一页指引（去资料库出题），不让老师对着一张空卷子发愣。 */
 async function paperHome() {
-  if (CUR_SUB !== 'mcu') {
+  if (!curIsBuiltin()) {
     const s = SUBJ.find(x => x.key === CUR_SUB);
     app().innerHTML = `<header class="ex-h pp-hex"><div class="eyebrow">教师 · ${esc(SUBJECTS[CUR_SUB] || CUR_SUB)}理论</div><h1>理论试卷</h1><p class="note">正在从 AI 题库读题…</p></header>`;
     let rows;
@@ -8999,7 +9005,7 @@ async function paperHome() {
     }
   } else window.__examSetPool(null, null);
   app().innerHTML = `<header class="ex-h pp-hex"><div class="eyebrow">教师 · ${esc(SUBJECTS[CUR_SUB] || CUR_SUB)}理论</div><h1>理论试卷</h1>
-    <p>点卷面上任意一题，就能从题库里换掉它；A3 横向两栏、双面${CUR_SUB === 'mcu' ? '，题目来自教材项目 1～5' : '，题目来自这个科目的 AI 题库（共 ' + POOL.length + ' 道）'}</p></header>
+    <p>点卷面上任意一题，就能从题库里换掉它；A3 横向两栏、双面${curIsBuiltin() ? '，题目来自教材项目 1～5' : '，题目来自这个科目的 AI 题库（共 ' + POOL.length + ' 道）'}</p></header>
     <div class="pp-page">
       <div class="pp-bar">
         <div class="pp-bar-l">
@@ -9086,9 +9092,9 @@ let LIB_PICK = new Set(), LIB_PICK_SUB = '';
    要逐题比重复度，得先把这个科目的题池摆回内存里，让 libPaperQs 能按种子还原整卷。
    拉不到就 poolOk(false)：查重只比老师点名的题，绝不拿内置单片机题库冒充别的科目。 */
 async function libEnsurePool(sub) {
-  if (sub === 'mcu') {
+  if (subIsBuiltin(sub)) {
     window.__examSetPool(null, null);
-    if (window.HXLib) HXLib.poolOk(true);      // 单片机走内置 THEORY，永远可用
+    if (window.HXLib) HXLib.poolOk(true);      // 内置单片机走 THEORY，永远可用
     return;
   }
   const s = SUBJ.find(x => x.key === sub);
