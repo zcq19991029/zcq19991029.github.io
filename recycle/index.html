@@ -16,6 +16,9 @@
 <script src="../hx-theme.js" data-tool="recycle"></script>
 <!-- 2026-11-19：回收站清单跟账号走（hx_pref）。hx-cloud.js 没加载到就用本机副本，页面照样能用。 -->
 <script src="../hx-cloud.js"></script>
+<!-- 彻底删除是不可逆的，确认框不能再是浏览器原生 confirm（样式和全站不一路，手机上还容易被习惯性点掉）。
+     ui-dialog.js 提供 hxConfirm / hxAlert，资料库删资料用的也是它。 -->
+<script src="../ui-dialog.js"></script>
 <style>
 :root { --ink:#1c2321; --mute:#6b7a74; --acc:#16a34a; --acc-deep:#15803d; --warn:#b45309; --danger:#dc2626; }
 * { box-sizing:border-box; }
@@ -46,6 +49,11 @@ header p { margin:4px 0 0; color:var(--dim); font-size:13.5px; line-height:1.6; 
 .item button.restore { background:#16a34a; color:#fff; }
 .item button.restore:hover { background:#15803d; }
 .item button.restore:disabled { opacity:.5; cursor:not-allowed; }
+.item .acts { flex:0 0 auto; display:flex; align-items:center; gap:8px; }
+/* 彻底删除：描边红字，故意做得比「还原」弱 —— 免得手快点错（不可逆，删完连文件一起没） */
+.item button.purge { background:transparent; color:var(--danger); border:1px solid rgba(220,38,38,.42); }
+.item button.purge:hover { background:rgba(220,38,38,.08); }
+.item button.purge:disabled { opacity:.45; cursor:not-allowed; }
 .item button.gone { background:transparent; color:var(--dim); border:1px solid var(--edge); }
 .empty { padding:26px 10px; text-align:center; color:var(--dim); font-size:14px; }
 .empty b { color:var(--ink); }
@@ -225,6 +233,53 @@ async function restoreMat(rec,btn){
   }catch(e){ toast('还原失败：'+e.message); btn.disabled=false; btn.textContent='还原'; }
 }
 
+/* ---- 彻底删除（不可逆） ----
+   用户原话：「回收站里“彻底删除”的后端函数已经备好（hx_exam_mat_purge），前端还没接按钮」。
+   三种东西的实际含义不一样，别混着处理：
+     · 教材（云端记录）：hx_exam_mat_purge 删行 + **返回 Storage 路径**，路径要前端拿去做第二次请求
+       真删文件 —— 函数体在数据库里删不了 storage.objects，只能把 path 交回来。
+       老记录（__cloud 不存在）库里早就没这行了，本地留档删掉就等于彻底没。
+     · 试卷库：没有云端表，留档只在这份 hx-recycle-v1 里，删掉本地记录（并推云端）就没了。
+     · 课堂任务：后端没有 purge 函数（连 hx_wire_task_run 的成绩和小组加分的入账记录都还挂着），
+       这一轮不做 —— 宁可先不给按钮，也不要做出一个会留下孤儿分数的「彻底删除」。 */
+var MAT_BUCKET = 'exam-material';
+function ask(msg){ // 统一走全站确认框；ui-dialog.js 没加载到就退原生 confirm
+  if (typeof window.hxConfirm === 'function') return window.hxConfirm(msg);
+  return Promise.resolve(window.confirm(msg));
+}
+async function rmFile(path){
+  if (!path || !sess || !sess.access_token) return;
+  try{
+    await fetch(HXB + '/storage/v1/object/' + MAT_BUCKET + '/' + String(path).replace(/^\/+/, ''), {
+      method:'DELETE', headers:{ apikey:HXK, Authorization:'Bearer ' + sess.access_token }
+    });
+  }catch(e){ /* 文件删不掉也算删成功：行已经没了，用户看到的就是没了；留个孤儿文件不影响使用 */ }
+}
+async function purgeMat(rec, btn){
+  var ok = await ask('彻底删除教材「' + rec.name + '」？\n\n'
+    + '原件和切段会一起删掉，回收站里也不会再出现，删了就找不回来。\n'
+    + '已经用它出好的题不受影响（那些题在题池里，不跟着这份资料走）。');
+  if (!ok) return;
+  btn.disabled = true; btn.textContent = '删除中…';
+  try{
+    if (rec.__cloud){
+      var p = await rpc('hx_exam_mat_purge', { p_id:+rec.id });
+      await rmFile(typeof p === 'string' ? p : (p && p.path));
+    }
+    recycleDrop(rec);
+    toast('已彻底删除「' + rec.name + '」');
+    render();
+  }catch(e){ toast('彻底删除失败：' + e.message); btn.disabled = false; btn.textContent = '彻底删除'; }
+}
+async function purgeLib(rec, btn){
+  var ok = await ask('彻底删除试卷「' + rec.name + '」？\n\n' + '删了就找不回来，回收站里也不会再出现。');
+  if (!ok) return;
+  btn.disabled = true; btn.textContent = '删除中…';
+  recycleDrop(rec);
+  toast('已彻底删除「' + rec.name + '」');
+  render();
+}
+
 /* ---- 渲染 ---- */
 async function render(){
   var task = await taskBin();
@@ -240,9 +295,14 @@ async function render(){
   else taskList.forEach(function(t){
     h += '<div class="item"><span class="ic" style="background:'+ICC.task+'">'+IC.task+'</span>'
       +'<div class="body"><b>'+esc(t.title||('电路 '+(t.circuit||'')))+'</b><span>'+esc(t.class_name||'')+' · 完成 '+t.done+'/'+t.total+' 人 · 删除于 '+when(t.deleted_at)+'</span></div>'
-      +'<button class="restore" data-restore-task="'+t.id+'">还原</button></div>';
+      +'<span class="acts"><button class="restore" data-restore-task="'+t.id+'">还原</button></span></div>';
   });
-  h += '</div></section>';
+  h += '</div>';
+  /* 课堂任务后端只有「软删除 / 还原」，没有 purge（任务删了，hx_wire_task_run 的完成记录和
+     小组加分的入账都还挂在它上面）。与其给个会留孤儿分数的按钮，不如说清楚。 */
+  if(taskList.length) h += '<div class="note-warn">课堂任务没有「彻底删除」：它的完成记录和小组加分入账还挂在上面，'
+    +'一键删干净会留下对不上的分数。要彻底清，先去小组加分把对应入账撤回，再删任务；否则就先留在这儿，随时能还原。</div>';
+  h += '</section>';
 
   /* ② 试卷库 */
   h += '<section class="sec"><div class="sec-h"><h2>试卷库</h2><span class="n">'+lib.length+' 份</span></div><div class="card">';
@@ -250,7 +310,8 @@ async function render(){
   else lib.forEach(function(x){
     h += '<div class="item"><span class="ic" style="background:'+ICC.lib+'">'+IC.lib+'</span>'
       +'<div class="body"><b>'+esc(x.name)+'</b><span>删除于 '+when(x.at)+'</span></div>'
-      +'<button class="restore" data-restore-lib="'+esc(x.id)+'">还原</button></div>';
+      +'<span class="acts"><button class="restore" data-restore-lib="'+esc(x.id)+'">还原</button>'
+      +'<button class="purge" data-purge-lib="'+esc(x.id)+'">彻底删除</button></span></div>';
   });
   h += '</div></section>';
 
@@ -263,12 +324,14 @@ async function render(){
       +(x.subject?'<b>'+esc(x.subject)+'</b> · ':'')
       +(x.__cloud?(+(x.chars||0)).toLocaleString()+' 字 · ':'')
       +'删除于 '+when(x.at)+(x.__cloud?'':' · 旧记录，还原后需要重新上传文件')+'</span></div>'
-      +'<button class="restore" data-restore-mat="'+esc(x.id)+'">还原</button></div>';
+      +'<span class="acts"><button class="restore" data-restore-mat="'+esc(x.id)+'">还原</button>'
+      +'<button class="purge" data-purge-mat="'+esc(x.id)+'">彻底删除</button></span></div>';
   });
   h += '</div></section>';
 
   h += '<div class="note-warn">教材删除是<b>软删除</b>：原文件和切段都留在云端，点「还原」就回到资料库原来的科目下，<b>不用重新上传</b>。'
-    +'只有 2026-11-19 之前删的旧记录例外（那时是直接删文件，只剩一条记录）。已经出好的题不受影响，仍在题池里。</div>';
+    +'只有 2026-11-19 之前删的旧记录例外（那时是直接删文件，只剩一条记录）。已经出好的题不受影响，仍在题池里。'
+    +'<br>「彻底删除」是<b>不可逆</b>的：教材会连云端原件一起删，试卷库删掉这条留档，两者都不会再出现在这里。</div>';
 
   app.innerHTML=h;
 
@@ -284,6 +347,14 @@ async function render(){
   app.querySelectorAll('[data-restore-mat]').forEach(function(b){ b.onclick=function(){
     var id=b.dataset.restoreMat, rec=mat.find(function(x){return String(x.id)===String(id);});
     if(rec) restoreMat(rec,b);
+  };});
+  app.querySelectorAll('[data-purge-lib]').forEach(function(b){ b.onclick=function(){
+    var id=b.dataset.purgeLib, rec=lib.find(function(x){return String(x.id)===String(id);});
+    if(rec) purgeLib(rec,b);
+  };});
+  app.querySelectorAll('[data-purge-mat]').forEach(function(b){ b.onclick=function(){
+    var id=b.dataset.purgeMat, rec=mat.find(function(x){return String(x.id)===String(id);});
+    if(rec) purgeMat(rec,b);
   };});
 }
 

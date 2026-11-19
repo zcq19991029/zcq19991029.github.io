@@ -3,7 +3,7 @@
 <html lang="zh-CN">
 <head>
 <script src="../hx-theme.js" data-tool="wiring"></script>
-<script>window.HX_BUILD = "2026-11-19T14:00:26Z 8c59e89";</script>
+<script>window.HX_BUILD = "2026-11-19T14:36:38Z b73b06d";</script>
 <meta charset="utf-8">
 <meta name="copyright" content="© 2026 zcq 版权所有，未经许可禁止复制、修改、转载">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
@@ -2174,11 +2174,10 @@
   /* 整块斜向扫光（第三轮）：一道 8.5s 一次的极淡斜光从左划到右，让榜单像一块「通电的玻璃」而不是死底。
      z-index:1 + pointer-events:none + alpha 只有 .07 —— 卡片文字在 z-index:2 且这层几乎透明，扫过去不糊字。
      （绝不能用 filter:blur 铺满整块：那会把姓名一起糊掉，用户报过。） */
-  #fw-rank .rk-boardwrap::after { content: ""; position: absolute; top: -14%; bottom: -14%; left: -34%; width: 24%; z-index: 1;
-    pointer-events: none; transform: skewX(-16deg);
-    background: linear-gradient(100deg, transparent, rgba(150, 220, 255, .07), rgba(196, 168, 255, .05), transparent);
-    animation: rkBoardSheen 8.5s ease-in-out infinite; }
-  @keyframes rkBoardSheen { 0% { left: -34%; opacity: 0; } 8%, 78% { opacity: 1; } 55%, 100% { left: 118%; } }
+  /* 第三轮这里有一道「整块斜向扫光」（.rk-boardwrap::after + rkBoardSheen 8.5s）—— 第四轮**整条删掉**。
+     原因（用户原话）：「我左边选择的学生 id 卡那个需要发光，而不是排行榜所有人发光，只有前三名发光加双向流水灯」。
+     那道光是横着扫过整个榜单的，等于每张卡（包括第 10 名）都被扫一遍，正是用户不要的「所有人发光」。
+     现在流光只保留在两处：① 右栏外框的双向跑马灯；② 前三名卡片的边框跑马灯 + 辉光。 */
 
   /* 排行榜身份卡：背景图 → 渐变遮罩 → 玻璃层 → 文字（四层，文字永远最上） */
   #fw-rank .rk-board { display: flex; flex-direction: column; gap: 7px; max-height: none; overflow-y: auto;
@@ -2190,8 +2189,12 @@
      整版放在 .rk-stage 里按设计基准写死尺寸，外层 scale(k) 等比缩放（k 由 rank.js 的 rkFitStage 算）。
      ⚠️ 缩放后**不能用 getBoundingClientRect() 量尺寸**（量到的是缩放后的值，会形成缩放死循环），
         所以可用宽高一律取 clientWidth/clientHeight。 */
+  /* align-content 必须是 stretch（第四轮改）：
+     原来写 start —— grid 行高按内容算（658），两列就只有 658 高，.rk-col-full 的 space-between
+     没有余量可分，舞台 710 底下白留 52px（用户截图里「这下面还很空」就是这个）。
+     改 stretch 后行占满 height:100%，两列被拉到 710，space-between 才真正把差额摊进卡缝。 */
   #fw-rank .rk-board2 { display: grid; grid-template-columns: 1fr 1fr; gap: 7px 9px;
-    width: 100%; height: 100%; align-content: start; overflow: visible; padding: 0; }
+    width: 100%; height: 100%; align-content: stretch; overflow: visible; padding: 0; }
   /* 舞台外层：占满榜单区域，溢出裁掉（缩放后多出来的部分不滚，也不顶出滚动条） */
   #fw-rank .rk-stagewrap { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; }
   /* 舞台：设计基准尺寸由 rank.js 内联写（宽 752 / 高 667），这里只给定位和合成提示。
@@ -2199,8 +2202,10 @@
   #fw-rank .rk-stage { position: absolute; left: 50%; top: 0; transform-origin: top center;
     will-change: transform; }
   #fw-rank .rk-col { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; min-width: 0; }
-  /* 右列有 5 张卡时由 rank.js 加这个类：左列 168+150+132+116+116 比右列 5×116 高 74px，
-     space-between 把多出来的高度均摊到卡缝里，右下角不再空一块。左列绝不能用（会把前三名撑开）。 */
+  /* 满列时由 rank.js 加这个类，space-between 把「列高 − 卡片总高」的差额均摊到卡缝里，底部不再空一块。
+     第四轮起**两列都加**：第一页左列 168+150+132+88+88 = 654、右列 7×88 = 616 + 6×7 = 658、
+     其他页两列各 658，都矮于舞台 710 —— 不撑开就会在底部留 50px 空白（用户截图里那种）。
+     末页不满 5 张时 rank.js 不加这个类（3 张被撑成顶/中/底会很难看）。 */
   #fw-rank .rk-col.rk-col-full { justify-content: space-between; }
   #fw-rank .rk-pager { flex: none; display: flex; align-items: center; justify-content: center; gap: 12px;
     padding: 8px 4px 2px; }
@@ -2423,12 +2428,16 @@
   #fw-rank .rk-board2 li.rk-lb[data-tier="1"] { --lbh: 168px; grid-template-columns: 62px minmax(0, 1fr) auto; padding-right: 16px; }
   #fw-rank .rk-board2 li.rk-lb[data-tier="2"] { --lbh: 150px; grid-template-columns: 50px minmax(0, 1fr) auto; }
   #fw-rank .rk-board2 li.rk-lb[data-tier="3"] { --lbh: 132px; grid-template-columns: 42px minmax(0, 1fr) auto; }
-  #fw-rank .rk-board2 li.rk-lb[data-tier="4"] { --lbh: 116px; grid-template-columns: auto minmax(0, 1fr) auto; }
+  #fw-rank .rk-board2 li.rk-lb[data-tier="4"] { --lbh: 88px; grid-template-columns: auto minmax(0, 1fr) auto; }
   #fw-rank .rk-board2 li.rk-lb > .rk-lb-bg { position: absolute; inset: 0; z-index: 0; border-radius: 0;
     background-size: cover; background-repeat: no-repeat; background-position: 50% 50%; filter: none; }
   #fw-rank .rk-board2 li.rk-lb > .rk-lb-veil { position: absolute; inset: 0; z-index: 1; border-radius: 0;
     background: linear-gradient(90deg, rgba(4, 8, 18, .84) 0%, rgba(4, 8, 18, .52) 38%, rgba(4, 8, 18, .38) 62%, rgba(4, 8, 18, .78) 100%); }
-  #fw-rank .rk-board2 li.rk-lb > :not(.rk-lb-bg):not(.rk-lb-veil) { position: relative; z-index: 2; }
+  /* ⚠️ 必须把 .rk-lb-run 也排除掉（第四轮）：它自己是 position:absolute 的装饰层，
+     这条通配规则特异性 (1,4,1) 会把它改成 relative，于是它变成一个 grid item 占掉一格 ——
+     实测后果：用时 <em> 被挤到第二行、跑到卡片左下角，前三名卡整个布局塌掉。
+     .rkx-run（ID 卡那条）同理，只是它在 flex 里，见下方。 */
+  #fw-rank .rk-board2 li.rk-lb > :not(.rk-lb-bg):not(.rk-lb-veil):not(.rk-lb-run) { position: relative; z-index: 2; }
   /* 中文名次胶囊（第 4 名起）：内容是「第N名」，所以不能再写死 26px 方形 ——
      改成 inline-flex + 左右 9px 内边距，由内容撑宽，min-height:26px 保证和最矮的卡也配得上。
      flex:none + white-space:nowrap 是红线：名次胶囊**永远不许**被压窄，压窄就会去抢姓名列。
@@ -2463,18 +2472,21 @@
   #fw-rank .rk-board2 li.rk-lb > .rk-lb-who > .rk-lb-sub > .rk-lb-cls { color: #a9bcdd; font-size: 12px; font-weight: 600; }
   #fw-rank .rk-board2 li.rk-lb > em { color: #eaf3ff; font-size: 15px; font-weight: 900; text-align: right;
     justify-self: end; text-shadow: 0 1px 8px rgba(0, 0, 0, .8); }
+  /* 第四轮：常规卡压到 88px，用时跟着收 1px，跟 13.5px 的姓名同一视觉层级（前三名仍是 15px） */
+  #fw-rank .rk-board2 li.rk-lb[data-tier="4"] > em { font-size: 14px; }
   #fw-rank .rk-board2 li.rk-lb > .rk-lb-tag { display: none; }
   /* 2026-11-19 第三轮：这段「.rk-lb-medal 三档尺寸 + 金银铜 drop-shadow」随 rkMedal() 一起作废
      （DOM 不再产出 .rk-lb-medal）。奖杯的 62/50/42 尺寸和辉光在下面的 .rk-lb-cup[data-r] 里。 */
   #fw-rank .rk-board2 li.rk-lb[data-tier="1"] > .rk-lb-place,
   #fw-rank .rk-board2 li.rk-lb[data-tier="2"] > .rk-lb-place,
   #fw-rank .rk-board2 li.rk-lb[data-tier="3"] > .rk-lb-place { display: none; }
-  /* 姓名随档位放大：21 / 18 / 16 / 14.5。前三名卡高了，字太小会显得空；第 4 名起维持 14.5。
-     名字列始终 minmax(0,1fr) + 单行 ellipsis，放大字号不会把卡撑开。 */
+  /* 姓名随档位放大：21 / 18 / 16 / 13.5。第四轮把常规卡从 116 压到 88，字号跟着收 1~1.5px
+     （不收的话 88px 高里两行文字几乎顶到边，背景图也只剩一条缝）。
+     名字列始终 minmax(0,1fr) + 单行 ellipsis，缩小字号只会更容易放下，不会截断更多。 */
   #fw-rank .rk-board2 li.rk-lb[data-tier="1"] > .rk-lb-who > b { font-size: 21px; }
   #fw-rank .rk-board2 li.rk-lb[data-tier="2"] > .rk-lb-who > b { font-size: 18px; }
   #fw-rank .rk-board2 li.rk-lb[data-tier="3"] > .rk-lb-who > b { font-size: 16px; }
-  #fw-rank .rk-board2 li.rk-lb[data-tier="4"] > .rk-lb-who > b { font-size: 14.5px; }
+  #fw-rank .rk-board2 li.rk-lb[data-tier="4"] > .rk-lb-who > b { font-size: 13.5px; }
   /* 金 / 银 / 铜（.p1/.p2/.p3 类只管颜色，不管尺寸） */
   #fw-rank .rk-board2 li.rk-lb.p1 { border-color: rgba(255, 196, 72, .85);
     background: linear-gradient(100deg, rgba(255, 178, 46, .22), rgba(24, 20, 14, calc(var(--hx-a, 1) * .5)) 55%, rgba(12, 14, 26, calc(var(--hx-a, 1) * .6)));
@@ -2784,6 +2796,152 @@
     color: #F0B183; filter: sepia(.82) saturate(1.4) brightness(.95) contrast(1.02)
       drop-shadow(0 0 8px rgba(168, 98, 44, .38)) drop-shadow(0 6px 12px rgba(110, 70, 40, .14)); }
 
+  /* ══ 第四轮（2026-11-19）：双向跑马灯 · ID 卡名次 ═══════════════════════════════
+     用户口径（原话，逐条对齐）：
+       「整个排行榜可以增加流光…要流水灯的流光效果，可以双向跑马灯那种轨迹感，霓虹灯也可以，线粗可以不变」
+       「流水灯是前三名需要有的，其他名字不需要」
+       「我左边选择的学生 id 卡那个需要发光，而不是排行榜所有人发光，只有前三名发光加双向流水灯」
+       「左上角 id 卡需要有名次：前三名奖杯，其他人名次」
+     ── 技法（和第三轮的区别）──
+     第三轮是 `background-size:300%` + `background-position` 平移 —— 整圈颜色一起呼吸，**没有光点头尾**，
+     看着是「渐变在挪」而不是「灯在跑」。第四轮换成：conic-gradient 画「白亮头部 + 约 130° 长渐隐尾」，
+     整层 `transform: rotate()` 转起来，就得到光点沿边框跑、身后拖着尾巴的轨迹感。
+       · 右栏外框  → .rk-right::before 顺时针（青白 7.2s）／::after 逆时针（紫白 9.4s）→ 双向对跑
+       · 前三名卡片 → .rk-lb-run 用 mask 挖出 1.6px 环，环内同样跑两层反向 conic（金/银/铜按名次配色）
+       · 左上 ID 卡 → .rkx-run 同技法，只有 .rk-hero[data-top="1|2|3"] 才挂（第 4 名起 node 都不显示）
+     为什么用 mask 而不是 border-image：border-image 遇到 border-radius 会被切成直角，卡片是 11px 圆角。
+     旋转层用固定 600/800/1600px 居中（margin 负半宽），不依赖 translate/aspect-ratio，老 Chrome 也不会歪。
+     性能：全是 transform 合成层动画，不触发重排；is-lite 与 prefers-reduced-motion 由上面 1821 行的全局规则统一停。
+     **不动的**：描边线粗仍 1.5~1.6px（用户说「线粗可以不变」）、卡片高度/分页/舞台尺寸一个字节没改。 */
+  @keyframes rkRunCW { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  @keyframes rkRunCCW { from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }
+
+  /* ── 1. 右栏外框：双向跑马灯（只在那 1.5px 描边里跑，不进屋内）──
+     .rk-rin 抬到 z-index:1，把旋转层压在下面 → 只有 padding:1.5px 那一圈露出来。
+     旋转层固定 1600×1600：右栏最大约 1000×760，对角线 1256 < 1600，任何视口都盖得住。 */
+  #fw-rank .rk-right > .rk-rin { z-index: 1; }
+  #fw-rank .rk-right::before,
+  #fw-rank .rk-right::after { content: ""; position: absolute; z-index: 0; pointer-events: none;
+    left: 50%; top: 50%; width: 1600px; height: 1600px; margin: -800px 0 0 -800px; }
+  #fw-rank .rk-right::before {
+    background: conic-gradient(from 0deg,
+      transparent 0deg 206deg,
+      rgba(0, 222, 255, 0) 224deg,
+      rgba(0, 222, 255, .50) 292deg,
+      rgba(150, 245, 255, .95) 342deg,
+      #ffffff 356deg,
+      rgba(255, 255, 255, 0) 360deg);
+    animation: rkRunCW 7.2s linear infinite; }
+  #fw-rank .rk-right::after { opacity: .78;
+    background: conic-gradient(from 0deg,
+      transparent 0deg 214deg,
+      rgba(152, 87, 255, 0) 232deg,
+      rgba(152, 87, 255, .55) 298deg,
+      rgba(208, 178, 255, .95) 346deg,
+      #ffffff 357deg,
+      rgba(255, 255, 255, 0) 360deg);
+    animation: rkRunCCW 9.4s linear infinite; }
+
+  /* ── 2. 前三名卡片：边框双向跑马灯（第 4 名起 rank.js 根本不给 .rk-lb-run 节点）──
+     mask 两层的写法：第一层 content-box（内缩 1.6px）＋ 第二层整块，composite: exclude 挖空中间，
+     于是只剩 1.6px 的环可见。overflow:hidden 再兜一层，旋转层不会画到卡外。 */
+  #fw-rank .rk-board2 li.rk-lb > .rk-lb-run { position: absolute; inset: 0; z-index: 3; pointer-events: none;
+    border-radius: inherit; padding: 1.6px; overflow: hidden;
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    mask-composite: exclude; }
+  #fw-rank .rk-board2 li.rk-lb > .rk-lb-run::before,
+  #fw-rank .rk-board2 li.rk-lb > .rk-lb-run::after {
+    content: ""; position: absolute; left: 50%; top: 50%; width: 600px; height: 600px; margin: -300px 0 0 -300px; }
+  /* 三档配色：--run-a 是有色段、--run-b 是亮尾；头部统一纯白（三档共用同一条渐变写法，只换变量） */
+  #fw-rank .rk-board2 li.rk-lb[data-r="1"] > .rk-lb-run { --run-a: 255 190 60;  --run-b: 255 238 186; }
+  #fw-rank .rk-board2 li.rk-lb[data-r="2"] > .rk-lb-run { --run-a: 176 206 240; --run-b: 240 250 255; }
+  #fw-rank .rk-board2 li.rk-lb[data-r="3"] > .rk-lb-run { --run-a: 214 138 80;  --run-b: 255 226 190; }
+  #fw-rank .rk-board2 li.rk-lb > .rk-lb-run::before {
+    background: conic-gradient(from 0deg,
+      transparent 0deg 206deg,
+      rgb(var(--run-a) / 0) 224deg,
+      rgb(var(--run-a) / .62) 294deg,
+      rgb(var(--run-b) / .97) 344deg,
+      #ffffff 356deg,
+      rgba(255, 255, 255, 0) 360deg);
+    animation: rkRunCW 3.6s linear infinite; }
+  #fw-rank .rk-board2 li.rk-lb > .rk-lb-run::after { opacity: .72;
+    background: conic-gradient(from 0deg,
+      transparent 0deg 218deg,
+      rgb(var(--run-a) / 0) 236deg,
+      rgb(var(--run-a) / .42) 300deg,
+      rgb(var(--run-b) / .88) 348deg,
+      #ffffff 357deg,
+      rgba(255, 255, 255, 0) 360deg);
+    animation: rkRunCCW 5.6s linear infinite; }
+
+  /* ── 3. 左上 ID 卡：只有前三名才亮（跑马灯 + 外发光），非前三名整支杯子收起 ──
+     用户：「左上角 id 卡需要有名次：前三名奖杯，其他人名次」——所以灰剪影杯不再当占位，
+     没名次/第 4 名起一律 display:none，位置让给下面的中文胶囊。 */
+  #fw-rank .rk-hero .rkx-cup { display: none; }
+  /* 恢复时必须用 grid 而不是 block —— 1969 行那条基础规则是 display:grid + place-items:center，
+     写成 block 会把杯子和 halo/ring 的对中一起弄坏。 */
+  #fw-rank .rk-hero[data-top="1"] .rkx-cup,
+  #fw-rank .rk-hero[data-top="2"] .rkx-cup,
+  #fw-rank .rk-hero[data-top="3"] .rkx-cup { display: grid; }
+  #fw-rank .rkx-run { position: absolute; inset: 0; z-index: 4; pointer-events: none; display: none;
+    border-radius: inherit; padding: 1.6px; overflow: hidden;
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    mask-composite: exclude; }
+  #fw-rank .rk-hero[data-top="1"] .rkx-run,
+  #fw-rank .rk-hero[data-top="2"] .rkx-run,
+  #fw-rank .rk-hero[data-top="3"] .rkx-run { display: block; }
+  #fw-rank .rkx-run::before,
+  #fw-rank .rkx-run::after { content: ""; position: absolute; left: 50%; top: 50%;
+    width: 800px; height: 800px; margin: -400px 0 0 -400px; }
+  #fw-rank .rk-hero[data-top="1"] .rkx-run { --run-a: 255 190 60;  --run-b: 255 240 190; }
+  #fw-rank .rk-hero[data-top="2"] .rkx-run { --run-a: 176 206 240; --run-b: 240 250 255; }
+  #fw-rank .rk-hero[data-top="3"] .rkx-run { --run-a: 214 138 80;  --run-b: 255 226 190; }
+  #fw-rank .rkx-run::before {
+    background: conic-gradient(from 0deg,
+      transparent 0deg 204deg,
+      rgb(var(--run-a) / 0) 222deg,
+      rgb(var(--run-a) / .60) 292deg,
+      rgb(var(--run-b) / .97) 344deg,
+      #ffffff 356deg,
+      rgba(255, 255, 255, 0) 360deg);
+    animation: rkRunCW 4.4s linear infinite; }
+  #fw-rank .rkx-run::after { opacity: .72;
+    background: conic-gradient(from 0deg,
+      transparent 0deg 216deg,
+      rgb(var(--run-a) / 0) 234deg,
+      rgb(var(--run-a) / .40) 300deg,
+      rgb(var(--run-b) / .88) 348deg,
+      #ffffff 357deg,
+      rgba(255, 255, 255, 0) 360deg);
+    animation: rkRunCCW 6.6s linear infinite; }
+  /* ID 卡外发光：只在名次 1/2/3 时挂。原来那条 box-shadow 必须原样带上，不然会把它顶掉。 */
+  #fw-rank .rk-hero[data-top="1"] { border-color: rgba(255, 201, 71, .62);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), 0 18px 40px -26px rgba(0, 0, 0, .9),
+      0 0 0 1px rgba(255, 201, 71, .40), 0 0 34px -8px rgba(255, 186, 60, .60); }
+  #fw-rank .rk-hero[data-top="2"] { border-color: rgba(196, 220, 245, .58);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), 0 18px 40px -26px rgba(0, 0, 0, .9),
+      0 0 0 1px rgba(196, 220, 245, .34), 0 0 32px -9px rgba(168, 205, 255, .55); }
+  #fw-rank .rk-hero[data-top="3"] { border-color: rgba(226, 150, 92, .58);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), 0 18px 40px -26px rgba(0, 0, 0, .9),
+      0 0 0 1px rgba(226, 150, 92, .32), 0 0 30px -9px rgba(226, 138, 84, .52); }
+
+  /* ── 4. 左上 ID 卡的中文名次（第 4 名起；前三名没有，奖杯就是名次）──
+     和榜单行卡 .rk-lb-place 同一套语言（蓝底浅字胶囊），只是尺寸放大到身份卡的比例。
+     [hidden] 必须显式写 display:none —— 上面的 display:inline-flex 会盖掉 UA 的 [hidden] 规则。 */
+  #fw-rank .rkx-place { position: absolute; right: 168px; top: 50%; transform: translateY(-50%); z-index: 3;
+    display: inline-flex; align-items: center; justify-content: center; flex: none;
+    min-width: 60px; height: 36px; padding: 0 15px; border-radius: 10px;
+    background: rgba(90, 132, 224, .20); color: #d3e3ff;
+    border: 1px solid rgba(122, 170, 255, .34);
+    font-style: normal; font-size: 17px; font-weight: 900; font-variant-numeric: tabular-nums;
+    white-space: nowrap; box-shadow: 0 6px 18px -12px rgba(0, 0, 0, .8); }
+  #fw-rank .rkx-place[hidden] { display: none; }
+
   /* 窄屏（笔记本小窗 / 平板竖屏）：左右改上下，卡片仍保持可读字号 */
   @media (max-width: 1180px) {
     #fw-rank .rk-main { grid-template-columns: 52fr 48fr; }
@@ -2826,6 +2984,35 @@
     #fw-rank .rk-hero { flex-wrap: wrap; }
     #fw-rank .rk-hero .rk-start { flex: 1 1 100%; }
   }
+
+  /* ── 第四轮的窄屏与浅色适配（补在最末尾：媒体查询要盖过前面同特异性的 760 规则）── */
+  @media (max-width: 980px) {
+    #fw-rank .rkx-place { right: 148px; height: 30px; min-width: 50px; font-size: 14px; }
+  }
+  @media (max-width: 760px) {
+    /* ★ 必须把 [data-top] 三档也一起关掉：`#fw-rank .rk-hero[data-top="1"] .rkx-cup` 是 (1,3,1)，
+       比 2965 行那条 `#fw-rank .rk-hero .rkx-cup { display:none }` (1,2,1) 更"重"，
+       不补这一条，手机上杯子会重新冒出来压住姓名。 */
+    #fw-rank .rk-hero[data-top="1"] .rkx-cup,
+    #fw-rank .rk-hero[data-top="2"] .rkx-cup,
+    #fw-rank .rk-hero[data-top="3"] .rkx-cup { display: none; }
+    #fw-rank .rkx-place { right: 12px; top: 12px; transform: none; height: 26px; min-width: 44px; padding: 0 9px;
+      font-size: 12.5px; border-radius: 8px; }
+  }
+  /* 浅色：白色光点在浅色喷边上会发灰，稍微压亮度 + 提饱和；环宽一点没动（用户要求「线粗可以不变」）。 */
+  html[data-hx-mode="light"] #fw-rank .rk-right::before,
+  html[data-hx-mode="light"] #fw-rank .rk-right::after { filter: saturate(1.18) brightness(.97); }
+  html[data-hx-mode="light"] #fw-rank .rkx-place { background: rgb(255 255 255 / .88); color: #24406e;
+    border-color: rgba(61, 126, 240, .40); box-shadow: 0 8px 20px -16px rgba(30, 55, 110, .55); }
+  html[data-hx-mode="light"] #fw-rank .rk-hero[data-top="1"] {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .7), 0 14px 30px -24px rgba(30, 55, 110, .5),
+      0 0 0 1px rgba(201, 138, 18, .38), 0 0 26px -8px rgba(201, 138, 18, .40); }
+  html[data-hx-mode="light"] #fw-rank .rk-hero[data-top="2"] {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .7), 0 14px 30px -24px rgba(30, 55, 110, .5),
+      0 0 0 1px rgba(125, 142, 166, .32), 0 0 24px -9px rgba(125, 142, 166, .38); }
+  html[data-hx-mode="light"] #fw-rank .rk-hero[data-top="3"] {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .7), 0 14px 30px -24px rgba(30, 55, 110, .5),
+      0 0 0 1px rgba(168, 98, 44, .30), 0 0 24px -9px rgba(168, 98, 44, .34); }
 </style>
 </head>
 <body>
@@ -5836,6 +6023,8 @@ async function rkMain(body) {
         ${proxy ? '<em class="rk-proxytag">教师代做</em>' : ''}
       </div>
       <span class="rkx-cup" id="rkCupHero" data-rank="0" aria-hidden="true"><span class="rkx-cup-halo"></span><span class="rkx-cup-ring"></span>${rkCup(1, 'rkx-cup-svg')}</span>
+      <i class="rkx-place" id="rkHeroPlace" aria-hidden="true" hidden>第—名</i>
+      <i class="rkx-run" aria-hidden="true"></i>
       <button class="rk-start" id="rkStart" ${(RK.pick || isT()) && !HX_PV ? '' : 'disabled'}${HX_PV ? ' title="演示视角只能看：接完线也不记成绩"' : ''}><span>${HX_PV ? '演示视角 · 只读' : '开始排位'}</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg></button>
     </div>
     ${T ? `<div class="rk-students">
@@ -6848,25 +7037,36 @@ function rkCup(place, cls) {
     + star + ears + bowl + base
     + '</svg>';
 }
-/* 选手卡奖杯点亮（2026-11-19 第三轮）：把 #rkCupHero 的 data-rank 设成「当前选手这一题的名次」。
+/* 选手卡名次（2026-11-19 第四轮）：左上身份卡也要有名次 —— **前三名亮奖杯，第 4 名起显示「第N名」中文**。
    为什么两端同一套逻辑：教师端点名 / 代做（rkProxy）时 RK.pick 是那个学生，学生端 RK.pick 就是自己 ——
    取的都是「这一局算在谁头上」的那个人，所以不需要分角色，也就不会有「老师看到金杯、学生看到灰杯」的错位。
-   ⚠️ 榜单是异步回来的：rkMain() 先画 Hero（这时 RK.boardRows 还是 null，只能给 0），
-   等 rank_board 到了、rkBoardPaint() 画完再调一次点亮。翻页也从这里重算（翻到别的页不影响名次，
-   名次取自整份 RK.boardRows，不是当前页）。
-   纯装饰：找不到元素 / 没选手 / 没数据一律给 0（灰色剪影），任何异常都不许冒泡打断榜单渲染。 */
+   ⚠️ 榜单是异步回来的：rkMain() 先画 Hero（这时 RK.boardRows 还是 null），等 rank_board 到了、
+   rkBoardPaint() 画完再调一次。翻页也从这里重算（名次取自整份 RK.boardRows，不是当前页）。
+   三种状态写在 .rk-hero 的 data-top 上，CSS 靠它决定「亮杯 + 跑马灯」还是「中文胶囊」还是「都不显示」：
+     1|2|3  → 奖杯点亮 + 双向跑马灯 + 外发光
+     out    → 奖杯收起，显示「第N名」中文胶囊，无流光
+     none   → 没数据/没选人，两个都不显示
+   纯装饰：找不到元素 / 没选手 / 没数据一律给 none，任何异常都不许冒泡打断榜单渲染。 */
 function rkHeroRank() {
   try {
     const el = document.getElementById('rkCupHero'); if (!el) return;
-    let rank = 0;
+    const hero = el.closest('.rk-hero');
+    const pill = document.getElementById('rkHeroPlace');
+    let place = 0;
     const pick = RK.pick, rows = RK.boardRows;
     if (pick && pick.id != null && Array.isArray(rows)) {
       const row = rows.find(r => r && String(r.student_id) === String(pick.id));
       const pl = row ? Number(row.place) : 0;
-      if (pl >= 1 && pl <= 3) rank = pl;
+      if (pl >= 1) place = pl;
     }
-    el.setAttribute('data-rank', String(rank));
-  } catch (e) { /* 忽略：奖杯点不亮不影响成绩与榜单 */ }
+    const top = place >= 1 && place <= 3 ? place : 0;
+    el.setAttribute('data-rank', String(top));
+    if (hero) hero.setAttribute('data-top', place ? (top ? String(top) : 'out') : 'none');
+    if (pill) {
+      if (place > 3) { pill.textContent = '第' + place + '名'; pill.hidden = false; }
+      else { pill.hidden = true; }
+    }
+  } catch (e) { /* 忽略：名次点不亮不影响成绩与榜单 */ }
 }
 // 背景样式串缓存：base64 正则替换 / 预设 CSS 的 replace 是这块最贵的活，一个学生一次算好就复用，
 // 翻页、同页数据刷新都不重算。键 = student_id + 卡片型（名次 1..4 → 冠军/亚军/季军/常规的取景不同）。
@@ -6875,16 +7075,22 @@ const RK_BGSTYLE = {};
 // 数字写进 data-tier，project2.html 里按 [data-tier] 写死 --lbh；改一处要同步另一处。
 // 116px 是「背景能露出人像头到肩」的高度（原来常规卡 42px 只露一条眼缝）。
 function rkTier(place) { return place <= 3 ? place : 4; }
-/* ── 榜单舞台的设计基准（2026-11-19 第二轮）──────────────────────────────
-   用户原话：「首页排行榜只显示前十名也就是10人都行」「排位卡高度不够 可以往上加」。
-   一页 10 人（每列 5 张），省下来的高度全给卡片 → 常规卡高 116px（原来 20 人时是 54px）。
-   752×710 是 1440×900 下右侧榜单的实测内容尺寸，别的屏幕整体缩/放，不换排版、不增删人数。
-   2026-11-19 第三轮：前三名放大成 168/150/132，舞台高跟着按**最高的那一列**（左列）重算：
-     左列 = 168 + 150 + 132 + 116 + 116 + 4×7（列内间隙）= 682 + 28 = 710
-     右列 = 5×116 + 4×7 = 580 + 28 = 608（比左列矮 102，靠 .rk-col-full 把 5 张均匀铺满列高）
-   取 710 是为了左列铺满；右列那 102px 的差由 CSS 的 space-between 吃掉，不留右下空白。 */
+/* ── 榜单舞台的设计基准（2026-11-19 第二轮，第四轮改人数）────────────────
+   752×710 是 1440×900 下右侧榜单的实测内容尺寸。**设计基准写死，整版等比缩放**：
+   换电脑 / 手机打开只是整体缩，排版（几列×几人）永远一样，卡片背景的取景也跟着一模一样。
+   2026-11-19 第四轮（用户：「可以压缩一下三名开外的人 id 卡显示大小」「除了第一页其他页根据 id 大小
+   自适应适配人数」「第一页可能需要装 12 个人」）：常规卡 116 → 88，一页能多装几个人。
+     第一页 左列 = 168 + 150 + 132 + 88 + 88 + 4×7 = 654
+            右列 = 7×88 + 6×7                    = 658   ⇒ 12 人
+     其他页 两列各 7×88 + 6×7 = 658                     ⇒ 14 人
+   两列都略矮于 710，靠 CSS 的 .rk-col-full（space-between）把间隙均匀撑开，
+   所以底部不会出现用户截图里那种大片空白。 */
 const RK_STAGE_W = 752, RK_STAGE_H = 710;
-const RK_PER = 10, RK_COL = 5; // 一页固定 10 人：左列 5（第 1–5 名）、右列 5（第 6–10 名），列优先
+/* 每页人数：第一页 12（左列 3 大 + 2 普 = 5 张，右列 7 张），其他页 14（两列各 7 张）。
+   ⚠️ 这里任何一个数变动，都必须同步 project2.html 的 `li.rk-lb[data-tier="4"] { --lbh }` 和 `.rk-col { gap }`，
+      以及上面 RK_STAGE_H 的算式 —— 三处是同一个约束，改一处不改其余就会溢出或留空。 */
+const RK_PER_FIRST = 12, RK_PER_REST = 14;
+const RK_COL_TOP = 5, RK_COL_REST = 7;   // 左列张数：第一页 3大+2普；其他页 7
 /* 整版等比缩放：k = min(可用宽 / 设计宽, 可用高 / 设计高)，舞台顶端对齐、水平居中。
    ⚠️ 可用宽高只能用 clientWidth / clientHeight —— getBoundingClientRect() 会被 transform 影响，
    量到的是缩放后的尺寸，再拿去算 k 就是「缩放 → 量到新尺寸 → 再缩放」的死循环（以前踩过）。
@@ -6963,17 +7169,18 @@ function rkBoardPaint(el, hl, pageFlip) {
   if (nEl) nEl.textContent = rows.length ? '共 ' + rows.length + ' 人 · 按用时升序' : '';
   // 空榜单只放提示语，绝不放假成绩
   if (!rows.length) { el.innerHTML = `<div class="rk-empty"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10v4a5 5 0 0 1-10 0z"/><path d="M7 5H4v1.5A3.5 3.5 0 0 0 7.5 10M17 5h3v1.5A3.5 3.5 0 0 1 16.5 10M12 13v4M8.5 20h7"/></svg><b>暂无排位成绩</b><span>完成首次接线挑战后，成绩将在此展示</span></div>`; rkHeroRank(); return; }
-  // 一页固定 RK_PER 人（左列 RK_COL、右列其余，列优先），**不按容器高度算容量**：
+  // 每页人数：第一页 12（含前三名大卡）、其他页 14（全是常规卡）。**不按容器高度算容量**：
   //   老写法（rkColCap）屏幕高就多放人、矮就少放人，同一个班在两台电脑上是两种排版。
-  const PER = RK_PER;
-  let pages = Math.max(1, Math.ceil(rows.length / PER));
+  const first = Math.min(RK_PER_FIRST, rows.length);
+  let pages = 1 + Math.max(0, Math.ceil(Math.max(0, rows.length - first) / RK_PER_REST));
   if (RK.boardPage >= pages) RK.boardPage = pages - 1;           // 数据变少（比如删了人）页码别越界
-  const start = RK.boardPage * PER;
-  const cnt = Math.min(PER, rows.length - start);                 // 本页人数（末页可能不满）
+  const isP1 = RK.boardPage === 0;
+  const start = isP1 ? 0 : first + (RK.boardPage - 1) * RK_PER_REST;
+  const cnt = isP1 ? first : Math.min(RK_PER_REST, rows.length - start);   // 本页人数（末页可能不满）
   const pageRows = rows.slice(start, start + cnt);
-  // 列优先：左列先装 RK_COL 张，剩下的进右列；
+  // 列优先：左列先装满（第一页 5 张 = 3 大 + 2 普；其他页 7 张），剩下的进右列；
   // 末页不足时全在左列（右列空着），不为了「看起来满」把名次拆乱。
-  const K = Math.min(RK_COL, cnt);
+  const K = Math.min(isP1 ? RK_COL_TOP : RK_COL_REST, cnt);
   const left = pageRows.slice(0, K), right = pageRows.slice(K);
   // FLIP（2026-11-08，纯视觉）：重绘前记下旧行位置（按 姓名|班级 找），重绘后把位置变化过的行
   // 从旧位置平移到新位置 —— 数据更新时行是“滑过去”的，新上榜的行短暂高亮一下。
@@ -7004,23 +7211,27 @@ function rkBoardPaint(el, hl, pageFlip) {
     const rk = Math.min(r.place, 3);
     return `<li class="rk-lb${cls}${r.me || r.place === hl ? ' me' : ''}" data-tier="${tier}"${top ? ` data-r="${rk}"` : ''} data-k="${esc(r.name + '|' + r.class_name)}" data-nobg="${st ? '0' : '1'}">`
       + `<span class="rk-lb-bg" aria-hidden="true"${st ? ` style="${esc(st)}"` : ''}></span><span class="rk-lb-veil" aria-hidden="true"></span>`
+      /* 跑马灯边框（2026-11-19 第四轮）：只有前三名有，双向流动。挂在独立子元素上是为了让 CSS 能用
+         mask 挖出一个 1.6px 的环 —— li 自己的 ::before/::after 已经被「呼吸辉光」和「斜向 sheen」占了。 */
+      + (top ? `<i class="rk-lb-run" aria-hidden="true"></i>` : '')
       + (top ? `<span class="rk-lb-cup" data-r="${rk}">${rkCup(r.place)}</span>` : `<i class="rk-lb-place">第${r.place}名</i>`)
       + `<span class="rk-lb-who"><b>${esc(r.name)}</b><span class="rk-lb-sub"><small class="rk-lb-cls">${esc(r.class_name)}</small>${top ? `<span class="rk-lb-tag">${RK_TAG[rk]}</span>` : ''}</span></span>`
       + `<em>${fmtMs(r.ms)}</em></li>`;
   };
-  /* 右列永远比左列矮（左列前三名放大过）：满 5 张时给它加 .rk-col-full，
-     CSS 用 justify-content: space-between 把 5 张均匀铺到列底。左列不加（它本来就铺满）。 */
+  /* 两列都交给 .rk-col-full（space-between）把间隙均匀撑开：
+     第一页左列 654 / 右列 658、其他页两列各 658，都比舞台 710 矮 50 左右，不撑开会留一块底空。 */
   const col = (arr, full) => `<ol class="rk-col${steady}${full && arr.length >= 5 ? ' rk-col-full' : ''}">${arr.map(rowHTML).join('')}</ol>`;
   // 分页脚：只在超过一页时出现；「第 N–M 名」说清楚当前这段
-  const from = RK.boardPage * PER + 1, to = Math.min((RK.boardPage + 1) * PER, rows.length);
+  const from = start + 1, to = start + cnt;
   const foot = pages > 1
     ? `<div class="rk-pager"><button type="button" class="rk-pg" data-pg="-1"${RK.boardPage === 0 ? ' disabled' : ''}>‹ 上一页</button>`
       + `<span>第 ${from}–${to} 名 · 共 ${rows.length} 人</span>`
       + `<button type="button" class="rk-pg" data-pg="1"${RK.boardPage >= pages - 1 ? ' disabled' : ''}>下一页 ›</button></div>`
     : '';
   /* 榜单主体包一层固定设计基准的舞台（.rk-stage），外层 .rk-stagewrap 按可用空间整体 scale。
-     2026-11-19：永远 10 人、两列 5+5、所有卡同一高度，屏幕小就整体缩小，绝不改排版。 */
-  el.innerHTML = `<div class="rk-stagewrap"><div class="rk-stage"><div class="rk-board2">${col(left)}${col(right, true)}</div></div></div>${foot}`;
+     2026-11-19 第四轮：第一页 12 人（左 3大+2普 / 右 7 普）、其他页 14 人（7+7），
+     整版等比缩放，屏幕小就整体缩小，**绝不改排版、不改每页人数** —— 换电脑/手机看到的是同一张图。 */
+  el.innerHTML = `<div class="rk-stagewrap"><div class="rk-stage"><div class="rk-board2">${col(left, true)}${col(right, true)}</div></div></div>${foot}`;
   rkFitStage(el.querySelector('.rk-stagewrap'));
   // 首帧布局可能还没稳定（字体 / 窗口入场动画 / 滚动条），下一帧再量一次，确保 k 是对当前可用空间
   requestAnimationFrame(() => rkFitStage(document.querySelector('#fw-rank .rk-stagewrap')));

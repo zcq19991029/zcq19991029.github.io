@@ -121,66 +121,79 @@
   // 一律只收「认 /chat/completions」的 —— Anthropic 原生 /v1/messages 不走这套，别往里加。
   // 文生图 / 文生视频 / TTS 的模型 ID 各平台改得快，这里只填有把握的主流 ID，
   // 拿不准的一律留空、靠「读取模型」拉 /models 补全（别瞎编一个不存在的 ID 糊弄用户）。
+  // rec（2026-11-19）：这家「最适合本工具集」的那一款，必须真实出现在它自己的 models 里 ——
+  //   优先能读图的便宜款（刷题 / 考试 / 资料库 / 接线仿真都要读扫描件）；没有视觉的就选最稳的文本款；
+  //   custom 留空。它只活在这份预设里，不写进用户存档，所以改推荐款不会动任何人已有的配置。
   var providers = {
     // ---------- 国内 · 官方 ----------
     deepseek: {
       label: 'DeepSeek', group: '国内 · 官方', baseUrl: 'https://api.deepseek.com',
       models: ['deepseek-v4-flash', 'deepseek-v4-pro'],
       caps: ['text', 'reason', 'vision'],
+      rec: 'deepseek-v4-flash',
       note: '最便宜，写题改题够用。deepseek-chat / deepseek-reasoner 已于 2026-07 弃用，现在用 deepseek-v4-flash（快）和 deepseek-v4-pro（强）。flash 带视觉能读图。'
     },
     qwen: {
       label: '通义千问（阿里云百炼）', group: '国内 · 官方', baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
       models: ['qwen-plus', 'qwen-max', 'qwen-turbo', 'qwen-vl-max', 'qwen-vl-plus'],
       caps: ['text', 'vision'],
+      rec: 'qwen-vl-plus',
       note: 'qwen-vl- 开头的是视觉模型，读扫描件用它。阿里云后台要先开通「百炼」。'
     },
     moonshot: {
       label: 'Kimi / 月之暗面', group: '国内 · 官方', baseUrl: 'https://api.moonshot.cn/v1',
       models: ['moonshot-v1-8k', 'moonshot-v1-32k', 'moonshot-v1-128k', 'moonshot-v1-8k-vision-preview'],
       caps: ['text', 'vision'],
+      rec: 'moonshot-v1-8k-vision-preview',
       note: '长文强，整本教材丢进去也行。vision 结尾的才能读图。'
     },
     zhipu: {
       label: '智谱 GLM', group: '国内 · 官方', baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
       models: ['glm-4-plus', 'glm-4-air', 'glm-4-flash', 'glm-4v-plus', 'glm-4v'],
       caps: ['text', 'vision'],
+      rec: 'glm-4v',
       note: 'glm-4v 系列能读图；glm-4-flash 有免费额度。'
     },
     volc: {
       label: '火山方舟（豆包）', group: '国内 · 官方', baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
       models: ['doubao-pro-32k', 'doubao-pro-128k', 'doubao-lite-32k', 'doubao-vision-pro-32k'],
       caps: ['text', 'vision'],
+      rec: 'doubao-vision-pro-32k',
       note: '模型名要填「接入点 ID」（ep-xxxx）或模型名，看你后台怎么开的。'
     },
     hunyuan: {
       label: '腾讯混元', group: '国内 · 官方', baseUrl: 'https://api.hunyuan.cloud.tencent.com/v1',
       models: ['hunyuan-turbo', 'hunyuan-pro', 'hunyuan-standard', 'hunyuan-vision'],
       caps: ['text', 'vision'],
+      rec: 'hunyuan-vision',
       note: 'hunyuan-vision 能读图。腾讯云后台拿 Key。'
     },
     qianfan: {
       label: '百度千帆（文心）', group: '国内 · 官方', baseUrl: 'https://qianfan.baidubce.com/v2',
       models: ['ernie-4.5-turbo-128k', 'ernie-4.0-8k', 'ernie-speed-128k'],
       caps: ['text'],
+      rec: 'ernie-4.5-turbo-128k',
       note: '走 v2 的 OpenAI 兼容入口。老版本用的是 access_token，地址会不一样。'
     },
     minimax: {
       label: 'MiniMax', group: '国内 · 官方', baseUrl: 'https://api.minimax.chat/v1',
       models: ['MiniMax-Text-01', 'abab6.5s-chat', 'MiniMax-VL-01'],
       caps: ['text', 'vision'],
+      rec: 'MiniMax-VL-01',
       note: '部分账号的地址是 api.minimaxi.com，报 404 就换一下。'
     },
     stepfun: {
       label: '阶跃星辰 StepFun', group: '国内 · 官方', baseUrl: 'https://api.stepfun.com/v1',
       models: ['step-2-16k', 'step-1-8k', 'step-1v-8k'],
       caps: ['text', 'vision'],
+      rec: 'step-1v-8k',
       note: 'step-1v 能读图。'
     },
     modelscope: {
       label: '魔搭 ModelScope', group: '国内 · 官方', baseUrl: 'https://api-inference.modelscope.cn/v1',
       models: ['Qwen/Qwen2.5-72B-Instruct', 'Qwen/Qwen2.5-VL-72B-Instruct', 'deepseek-ai/DeepSeek-V3'],
       caps: ['text', 'vision'],
+      rec: 'Qwen/Qwen2.5-VL-72B-Instruct',
       note: '阿里社区，模型名带斜杠，常送免费额度。'
     },
 
@@ -212,30 +225,35 @@
         'Qwen/Qwen3-Reranker-8B', 'Qwen/Qwen3-Embedding-8B', 'BAAI/bge-m3'
       ],
       caps: ['text', 'vision', 'image', 'audio'],
+      rec: 'Qwen/Qwen3-VL-8B-Instruct',
       note: '一个 Key 用几十家模型，带 VL 的能读图；文生图（FLUX/Kolors/Qwen-Image）、TTS（CosyVoice）、文生视频（Wan2.2）也有，点「读取模型」拉全列表。实名送额度。'
     },
     ppio: {
       label: '派欧云 PPIO', group: '国内 · 聚合', baseUrl: 'https://api.ppinfra.com/v3/openai',
       models: ['deepseek/deepseek-v3', 'qwen/qwen2.5-72b-instruct', 'deepseek/deepseek-r1'],
       caps: ['text', 'reason'],
+      rec: 'deepseek/deepseek-v3',
       note: '模型名带「厂/型号」前缀。'
     },
     qiniu: {
       label: '七牛云 AI', group: '国内 · 聚合', baseUrl: 'https://openai.qiniu.com/v1',
       models: ['deepseek-v3', 'deepseek-r1', 'gpt-4o-mini'],
       caps: ['text', 'reason'],
+      rec: 'gpt-4o-mini',
       note: '企业用户有免费 token 额度。'
     },
     ai302: {
       label: '302.AI', group: '国内 · 聚合', baseUrl: 'https://api.302.ai/v1',
       models: ['gpt-4o-mini', 'deepseek-chat', 'claude-3-5-sonnet-20241022'],
       caps: ['text', 'vision'],
+      rec: 'gpt-4o-mini',
       note: '按量付费，海内外模型都有。'
     },
     aihubmix: {
       label: 'AiHubMix', group: '国内 · 聚合', baseUrl: 'https://aihubmix.com/v1',
       models: ['gpt-4o-mini', 'claude-3-5-sonnet-20241022', 'gemini-1.5-pro', 'deepseek-chat'],
       caps: ['text', 'vision'],
+      rec: 'gpt-4o-mini',
       note: '一个 Key 打通各家，国内可直连；价格比官方便宜。'
     },
 
@@ -244,24 +262,28 @@
       label: 'OpenAI', group: '海外 · 官方', baseUrl: 'https://api.openai.com/v1',
       models: ['gpt-4o-mini', 'gpt-4o', 'o3-mini', 'gpt-image-1', 'dall-e-3', 'tts-1', 'whisper-1'],
       caps: ['text', 'vision', 'reason', 'image', 'audio'],
+      rec: 'gpt-4o-mini',
       note: '国内直连多半不通，要么自备代理地址，要么用上面的聚合。文生图用 gpt-image-1/dall-e-3，语音用 tts-1/whisper-1。'
     },
     gemini: {
       label: 'Google Gemini', group: '海外 · 官方', baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
       models: ['gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-1.5-flash'],
       caps: ['text', 'vision'],
+      rec: 'gemini-2.0-flash',
       note: '走 Google 的 OpenAI 兼容入口，地址结尾必须带 /openai。'
     },
     xai: {
       label: 'xAI Grok', group: '海外 · 官方', baseUrl: 'https://api.x.ai/v1',
       models: ['grok-2-latest', 'grok-beta', 'grok-vision-beta'],
       caps: ['text', 'vision'],
+      rec: 'grok-vision-beta',
       note: 'vision 结尾的能读图。国内需代理。'
     },
     mistral: {
       label: 'Mistral', group: '海外 · 官方', baseUrl: 'https://api.mistral.ai/v1',
       models: ['mistral-large-latest', 'mistral-small-latest', 'pixtral-large-latest'],
       caps: ['text', 'vision'],
+      rec: 'pixtral-large-latest',
       note: 'pixtral 系列能读图，欧洲服务，国内需代理。'
     },
 
@@ -270,36 +292,41 @@
       label: 'OpenRouter', group: '海外 · 聚合', baseUrl: 'https://openrouter.ai/api/v1',
       models: ['openai/gpt-4o-mini', 'anthropic/claude-3.5-sonnet', 'deepseek/deepseek-chat', 'google/gemini-1.5-pro'],
       caps: ['text', 'vision'],
+      rec: 'openai/gpt-4o-mini',
       note: '一个 Key 用所有模型，模型名是「厂/型号」；有免费模型（名字带 :free）。'
     },
     together: {
       label: 'Together AI', group: '海外 · 聚合', baseUrl: 'https://api.together.xyz/v1',
       models: ['meta-llama/Llama-3.3-70B-Instruct-Turbo', 'Qwen/Qwen2.5-72B-Instruct-Turbo', 'black-forest-labs/FLUX.1-schnell'],
       caps: ['text', 'image'],
+      rec: 'meta-llama/Llama-3.3-70B-Instruct-Turbo',
       note: '开源模型为主，价格低；也有 FLUX 这类文生图，点「读取模型」拉全列表。'
     },
     groq: {
       label: 'Groq', group: '海外 · 聚合', baseUrl: 'https://api.groq.com/openai/v1',
       models: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'],
       caps: ['text'],
+      rec: 'llama-3.3-70b-versatile',
       note: '速度极快（推理芯片），适合要秒回的场景。'
     },
     novita: {
       label: 'Novita AI', group: '海外 · 聚合', baseUrl: 'https://api.novita.ai/v3/openai',
       models: ['meta-llama/llama-3.1-70b-instruct', 'deepseek/deepseek-v3'],
       caps: ['text'],
+      rec: 'deepseek/deepseek-v3',
       note: '开源模型托管，按量计费。'
     },
     nvidia: {
       label: 'NVIDIA NIM', group: '海外 · 聚合', baseUrl: 'https://integrate.api.nvidia.com/v1',
       models: ['meta/llama-3.1-70b-instruct', 'nvidia/llama-3.1-nemotron-70b-instruct'],
       caps: ['text'],
+      rec: 'meta/llama-3.1-70b-instruct',
       note: '注册送额度，模型名带「厂/型号」。'
     },
 
     // ---------- 自定义 ----------
     custom: {
-      label: '自定义（任意 OpenAI 兼容）', group: '自定义', baseUrl: '', models: [], caps: ['text'],
+      label: '自定义（任意 OpenAI 兼容）', group: '自定义', baseUrl: '', models: [], caps: ['text'], rec: '',
       note: '学校自建的中转、或上面没列的服务，只要认 /chat/completions 都能填。'
     }
   };
@@ -324,18 +351,122 @@
     { id: 'deep', name: '深度', hint: '多思考、更准，难题 / 长文用它' }
   ];
 
-  // 能单独指定模型的工具（和首页 TOOLS 的 id 对齐，改了要两边一起改）
+  /* 能单独指定模型的工具（和首页 TOOLS 的 id 对齐，改了要两边一起改）
+     2026-11-19：每项多两样东西 ——
+       need   ：这个工具最少要模型具备哪几项能力（判定「推荐 / 缺能力」的唯一口径）；
+       needWhy：给用户看的一句话，说明为什么非要这几项。
+     这两样只活在内存里，不写进存档 —— 老配置没有它们也照常跑。 */
+  var NEED_WHY_IMG = '扫描件、照片、接线图要读图，没图片识别只能处理纯文字';
+  var NEED_WHY_TXT = '只处理文字，普通文本模型就够';
   var toolList = [
-    { id: 'quiz', name: '刷题' },
-    { id: 'mcu', name: '单片机' },
-    { id: 'exam', name: '考试' },
-    { id: 'ziliao', name: '资料库' },
-    { id: 'wiring', name: '接线仿真' },
-    { id: 'paike', name: '排课' },
-    { id: 'course', name: '课程进度' }
+    { id: 'quiz', name: '刷题', need: ['text', 'vision'], needWhy: NEED_WHY_IMG },
+    { id: 'mcu', name: '单片机', need: ['text'], needWhy: NEED_WHY_TXT },
+    { id: 'exam', name: '考试', need: ['text', 'vision'], needWhy: NEED_WHY_IMG },
+    { id: 'ziliao', name: '资料库', need: ['text', 'vision'], needWhy: NEED_WHY_IMG },
+    { id: 'wiring', name: '接线仿真', need: ['text', 'vision'], needWhy: NEED_WHY_IMG },
+    { id: 'paike', name: '排课', need: ['text'], needWhy: NEED_WHY_TXT },
+    { id: 'course', name: '课程进度', need: ['text'], needWhy: NEED_WHY_TXT }
   ];
 
   var capIds = caps.map(function (c) { return c.id; });
+
+  /* 按模型名猜「它能干什么」（2026-11-19 新增）。
+     为什么要有：以前设置页给新模型预勾能力时，直接套用平台的整包 caps ——
+     给 DeepSeek 加个纯文本模型也带着「图片识别」，真去读扫描件才报「The model is not a VLM」。
+     模型名里其实写着答案（vl / vision / r1 / tts …），按名字猜一次，勾错的概率比整包套用低得多。
+     永远带 text：任何一套都能当文本模型用（和 supports() 的口径一致）。
+     只认 capIds 里的六项；每条正则后面写着判定依据，改规则就改这里。 */
+  function guessCaps(name) {
+    var m = str(name);
+    var out = ['text'];
+    if (!m) return out;
+    var rules = [
+      // 图片识别：各家对多模态的命名 —— vl / vision / omni，以及本来就带视觉的几款主力型号。
+      // deepseek-v4-flash 名字里没有 vl，但它是 DeepSeek 现在的多模态款（上面预设的 rec 就是它），
+      // 不认出来会出现「推荐的模型自己被判成不能读图」，所以单独列一条。
+      ['vision', /vl\b|vl-|vision|(^|[-_])4v|glm-4\.5v|omni|llava|pixtral|gemini|gpt-4o|gpt-4\.1|claude-3|claude-4|step-1v|minimax-vl|qwen2\.5-vl|internvl|molmo|deepseek-v4-flash/i],
+      // 擅长推理：名字里带 reason / thinking / r1 / o1 / o3 / qwq 的都是「愿意多想一步」的型号
+      ['reason', /reason|thinking|(^|[-_])r1([-_]|$)|o1([-_]|$)|o3([-_]|$)|qwq|deepseek-v4-pro/i],
+      // 图像生成：dall-e / gpt-image / flux / sd 系
+      ['image', /dall-e|gpt-image|flux|stable-diffusion|seedream|wanx|cogview|sd3/i],
+      // 视频生成：sora / veo / kling / wan2 / seedance 等
+      ['video', /sora|veo|kling|wan2|seedance|cogvideo|hunyuan-video/i],
+      // 音频：tts / whisper / asr 这类合成与识别模型
+      ['audio', /tts|whisper|audio|speech|asr/i]
+    ];
+    rules.forEach(function (r) { if (r[1].test(m) && out.indexOf(r[0]) < 0) out.push(r[0]); });
+    return out;
+  }
+
+  // 一个工具需要哪几项能力（不认识的工具当「纯文本」处理，别让它变成「什么都不能干」）
+  function toolNeed(tool) {
+    var t = str(tool);
+    for (var i = 0; i < toolList.length; i++) if (toolList[i].id === t) return toolList[i].need || ['text'];
+    return ['text'];
+  }
+
+  function coversAll(p, need) {
+    if (!p) return false;
+    for (var i = 0; i < need.length; i++) if (!supports(p, need[i])) return false;
+    return true;
+  }
+
+  // 这套模型是不是「它所在平台推荐的那一款」（推荐款 = 平台预设里 rec 指的那个模型名）
+  function isRecModel(s, p) {
+    if (!p) return false;
+    var plat = findPlat(s, p.platId);
+    var preset = plat ? providers[plat.provider] : null;
+    return !!(preset && preset.rec && preset.rec === p.model);
+  }
+
+  /* 能覆盖这几项能力的最佳模型：先看服务商推荐款，同档再按「先加进来的」。
+     为什么不挑最便宜的：平台 rec 那一款就是为了这套工具选的（能读图、够便宜），
+     让用户第一次打开就落在对的模型上，而不是落在一个读不了扫描件的纯文本模型上。 */
+  function bestForList(s, need) {
+    var hit = null;
+    s.profiles.forEach(function (p) {
+      if (!coversAll(p, need)) return;
+      if (!hit) { hit = p; return; }
+      var pr = isRecModel(s, p), hr = isRecModel(s, hit);
+      if (pr && !hr) hit = p;
+      else if (pr === hr && Number(p.at) < Number(hit.at)) hit = p;
+    });
+    return hit;
+  }
+
+  /* 「这个工具推荐用哪套」（2026-11-19）。顺序刻意按「越少打扰用户越靠前」：
+     ① 已经单独指定、而且能力够用 → 就是它，不给任何提示（用户自己选的要尊重）；
+     ② 没指定 / 指定了但能力不够 → 在所有模型里挑一套 need 全覆盖的，优先平台推荐款、其次先加的；
+     ③ 一套都不够 → 退文本默认 → 第一套（和 forTool / pick 的兜底一致，别让界面空着）。 */
+  function recFor(tool) {
+    var s = read();
+    var t = str(tool);
+    var need = toolNeed(t);
+    var own = find(s, s.tools[t]);
+    if (own && coversAll(own, need)) return view(own, s);
+    var best = bestForList(s, need);
+    if (best) return view(best, s);
+    var fb = find(s, s.active.text) || s.profiles[0];
+    return fb ? view(fb, s) : null;
+  }
+
+  /* 这个模型干这个工具缺哪几项能力 —— 返回中文名数组（如 ['图片识别']），可以直接拼进提示语。
+     不缺返回 []。id 认不出（模型已删）也按「全缺」算，界面才能提醒用户重选。 */
+  function missingCaps(profileId, tool) {
+    var s = read();
+    var p = find(s, str(profileId));
+    var need = toolNeed(tool);
+    var out = [];
+    need.forEach(function (c) { if (!supports(p, c)) out.push(capLabel(c)); });
+    return out;
+  }
+
+  // 「某一项能力该用哪套」：给设置页的「全部按推荐」用，和 recFor 第 ② 步同一套挑法
+  function bestFor(cap) {
+    var s = read();
+    var p = bestForList(s, [str(cap) || 'text']);
+    return p ? view(p, s) : null;
+  }
 
   // 生成 id：前缀区分种类（u = 平台，p = 模型），同一份存档里一眼能看出哪个是哪个。
   // 2026-11-15：原来只有模型，一律 p 开头；平台新加，用 u 开头，避免和已有 id 撞车。
@@ -1327,6 +1458,11 @@
     clearPlatKey: clearPlatKey,
     existsModel: existsModel, // 同一平台下同名模型查重
     explicitFor: explicitFor, // 之前只有 forTool，设置页要区分「单独指定」和「跟随默认」
+    // ---------- 2026-11-19 新增：按模型名猜能力 / 按工具推荐 ----------
+    guessCaps: guessCaps,     // 猜模型能力（新模型预勾用），永远含 text
+    recFor: recFor,           // 这个工具推荐用哪套（尊重已指定且能力够的）
+    missingCaps: missingCaps, // 这个模型相对这个工具缺哪几项能力（中文名数组）
+    bestFor: bestFor,         // 某项能力该用哪套（「全部按推荐」用，和 recFor 同一套挑法）
     // pick 一直是内部函数（chat / vision / image 用），2026-11-15 顺手放出来：
     // 设置页要按能力预演「现在会落到哪个模型」，自验脚本也要能直接断言过滤口径。
     pick: pick,
