@@ -459,7 +459,7 @@ body { margin: 0; }
    ============================================================ */
 /* 横屏铺满（2026-11-08）：外壳原来 min(1280px,100%)，比 .ex 的 1600px 更窄，大屏上正文呈一条窄柱；
    统一到 1600px（用户要求「横屏网页铺满」）。左栏 232px 固定、右栏 minmax(0,1fr) 继续自适应，窄屏在 900px 断点变单列。 */
-.ex-shell { display: grid; grid-template-columns: 232px minmax(0, 1fr); width: min(1600px, 100%); margin: 0 auto; box-sizing: border-box; }
+.ex-shell { display: grid; grid-template-columns: 232px minmax(0, 1fr); width: min(1600px, 100%); margin: 0 auto; box-sizing: border-box; transition: grid-template-columns .24s var(--spring, cubic-bezier(.32, .72, 0, 1)); }
 .ex-nav { position: sticky; top: 18px; align-self: start; max-height: calc(100vh - 36px); overflow: auto; padding: 18px 12px; }
 .ex-nav-h { font: 600 11px/1.4 Consolas, "Cascadia Mono", monospace; letter-spacing: .1em; color: var(--mute, #6b7280); text-transform: uppercase; padding: 0 10px 8px; }
 .ex-nav-i { display: grid; gap: 1px; width: 100%; text-align: left; padding: 10px 12px; margin-bottom: 4px; border: 0; border-radius: 12px; background: transparent; color: var(--ink, #0b1220); cursor: pointer; font: inherit; }
@@ -613,7 +613,7 @@ button.danger { color: var(--bad, #d70015); }
    设置全部收进右侧抽屉，画布独占屏幕。
    ============================================================ */
 .ex.wide-paper { width: 100%; padding: 10px 12px 24px; }
-.ex-shell.wide { width: 100%; grid-template-columns: 232px minmax(0, 1fr); }
+.ex-shell.wide { width: 100%; grid-template-columns: 232px minmax(0, 1fr); transition: grid-template-columns .24s var(--spring, cubic-bezier(.32, .72, 0, 1)); }
 .ex-shell.wide .ex-main { padding: 14px 16px 36px; }
 @media (max-width: 900px) { .ex-shell.wide { grid-template-columns: 1fr; } .ex-shell.wide .ex-main { padding: 10px 8px 30px; } }
 /* 标题只在侧栏切换时用来认页，压成一行给画布腾高度 */
@@ -666,20 +666,20 @@ html[data-hx-mode="dark"] .ppwrap { background: #14171c; }
 .ppd-cur { grid-column: 1 / -1; font-size: 12px; color: var(--mute); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ppd-h .note { font-size: 12px; }
 .ppd-f { position: sticky; bottom: -70px; display: flex; gap: 10px; align-items: center; justify-content: space-between;
-  padding: 10px 0; background: var(--card-lift); border-top: 1px solid var(--hair); }
+  padding: 10px 0; background: var(--card-solid, #fff); border-top: 1px solid var(--hair); }
 @media (max-width: 720px) { .ppdrawer { width: 100vw; border-left: 0; padding: 12px 10px 70px; } }
 
 /* 题库抽屉：筛选（项目 + 关键词）吸顶，列表自己滚，底部「恢复随机」常驻 */
 .ppdbank { width: min(480px, 94vw); padding-bottom: 12px; }
 /* 手机上抽屉要的是「全屏」而不是 94vw：留着那 6% 既不美观也点不到边框 */
 @media (max-width: 720px) { .ppdrawer.ppdbank, .ppdrawer { width: 100vw; } }
-.ppb-f { position: sticky; top: 34px; z-index: 2; display: grid; gap: 8px; padding: 8px 0; background: var(--card-lift); border-bottom: 1px solid var(--hair); }
+.ppb-f { position: sticky; top: 34px; z-index: 2; display: grid; gap: 8px; padding: 8px 0; background: var(--card-solid, #fff); border-bottom: 1px solid var(--hair); }
 .ppb-ch { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 12.5px; color: var(--ink2); }
 .ppb-ch label { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
 /* 知识点筛选（2026-11-13）：和题库抽屉的章节筛选同一套换行勾选样式 */
 .ppkn { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 12.5px; color: var(--ink2); }
 .ppkn label { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
-.ppb-l { display: grid; gap: 2px; align-content: start; }
+.ppb-l { display: grid; gap: 2px; align-content: start; padding-bottom: 60px; }
 .bkq { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto auto; gap: 8px; align-items: center; padding: 8px 8px;
   border: 1px solid transparent; border-radius: 10px; cursor: pointer; }
 .bkq:hover { background: var(--field2); }
@@ -1125,8 +1125,7 @@ button.off { opacity: .5; cursor: not-allowed; }
    用户原话：「组卷界面换题需要把题库放右边筛选库拖动替换  现在弹窗不方便持续工作」。
    宽屏（≥1080）右栏常驻，不再点一次弹一次；窄屏才退回抽屉（否则 A3 只剩一条缝）。
    ═══════════════════════════════════════════════════════════════════════════ */
-/* 空白卷按钮（2026-11-19 第六轮：由 checkbox 改成按钮）的「已开启」高亮态 */
-#ppBlank.on { background: var(--accbg); border-color: var(--acc); color: var(--acc); }
+/* 空白卷按钮已于 2026-11-19 删除（和「清空卷面」重复），#ppBlank.on 样式一并移除 */
 .ppck { display: flex; align-items: center; gap: 8px; font-size: 13px; margin: 10px 0; cursor: pointer; }
 .ppck input { width: 16px; height: 16px; margin: 0; }
 
@@ -1167,13 +1166,17 @@ button.off { opacity: .5; cursor: not-allowed; }
   /* 收起态：内容全藏起来，只剩那颗竖排「题库」手柄 */
   .pp-page:not(.bank-open) > .ppdrawer.ppdbank#ppBank > *:not(.ppb-handle) { display: none !important; }
   .pp-page.bank-open > .ppdrawer.ppdbank#ppBank > .ppb-handle { display: none !important; }
-  .pp-page > .ppdrawer.ppdbank#ppBank .ppd-h { top: -12px; margin: -12px 0 0; padding: 10px 0 8px; background: var(--card); }
-  .pp-page > .ppdrawer.ppdbank#ppBank .ppd-f { bottom: -8px; background: var(--card); }
-  .pp-page > .ppdrawer.ppdbank#ppBank .ppb-f { top: 30px; background: var(--card); }
+  .pp-page > .ppdrawer.ppdbank#ppBank .ppd-h { top: -12px; margin: -12px 0 0; padding: 10px 0 8px; background: var(--card-solid, #fff); }
+  .pp-page > .ppdrawer.ppdbank#ppBank .ppd-f { bottom: -8px; background: var(--card-solid, #fff); }
+  .pp-page > .ppdrawer.ppdbank#ppBank .ppb-f { top: 30px; background: var(--card-solid, #fff); }
   /* 常驻了就不需要「关闭题库」和切换按钮 */
   .pp-page > .ppdrawer.ppdbank#ppBank [data-ppclose="ppBank"],
   #ppBankBtn { display: none; }
+  /* 锁定图钉：只在宽屏（会自动收缩）有意义，窄屏抽屉不显示 */
+  .ppb-pin { display: inline-flex; align-items: center; justify-content: center; }
+  .ppb-pin.on { background: var(--accbg); border-color: var(--acc); color: var(--acc); }
 }
+@media (max-width: 1079px) { .ppb-pin { display: none; } }
 /* 抽屉模式下（窄屏）才允许关 */
 @media (max-width: 1079px) {
   .pp-page > .ppdrawer.ppdbank#ppBank { width: min(520px, 96vw); }
@@ -7253,9 +7256,10 @@ function ppModal(html) {
 }
 
 let PPAC = null;
-/* 题库栏「本次会话保持展开」：老师手动点开过一次就不再跟他抢，刷新页面归零（2026-11-19 第五轮）。
+/* 题库栏「保持展开」锁定：老师点右上角图钉（或窄条手柄）锁定后，不再自动收起；刷新也记住（2026-11-19）。
    放在 mountPaper 外面：切科目 / 回理论试卷会重新挂载，状态要活过重新挂载。 */
-let bankPinned = false;
+let bankPinned = (() => { try { return localStorage.getItem('exam.bank-pinned') === '1'; } catch (e) { return false; } })();
+const setBankPinned = v => { bankPinned = v; try { localStorage.setItem('exam.bank-pinned', v ? '1' : '0'); } catch (e) { } };
 const PPTXT = s => String(s == null ? '' : s);
 const ppCut = (s, n) => { s = PPTXT(s).replace(/\s+/g, ' '); return s.length > n ? s.slice(0, n) + '…' : s; };
 
@@ -7489,6 +7493,12 @@ function mountPaper(sub) {
       h.title = on ? '收起题库栏（本次会话不再自动收起）' : '展开题库栏';
       h.classList.toggle('on', !!on);
     }
+    const pin = $('ppBankPin');
+    if (pin) {
+      pin.setAttribute('aria-pressed', bankPinned ? 'true' : 'false');
+      pin.classList.toggle('on', !!bankPinned);
+      pin.title = bankPinned ? '已锁定：点一下恢复自动收起' : '锁定：固定展开，不再自动收起';
+    }
     clearTimeout(bankFitT);
     bankFitT = setTimeout(fit, 240);        // 200ms 过渡 + 余量
   }
@@ -7516,12 +7526,20 @@ function mountPaper(sub) {
     b.onclick = () => {
       if (!bankWide()) return;                              // 窄屏这颗粒子不该出现，兜底不做事
       const open = !!(pageEl && pageEl.classList.contains('bank-open'));
-      bankPinned = !open;                                   // 手动开 → 钉住；手动关 → 解除
+      setBankPinned(!open);                                 // 手动开 → 钉住；手动关 → 解除
       bankSet(!open);
       if (open) toast('题库栏已收起；再点一次展开');
     };
     bank.addEventListener('mouseenter', () => { bankHover = true; clearTimeout(bankTimer); bankOpenTemp(); }, sig);
     bank.addEventListener('mouseleave', () => { bankHover = false; bankCloseSoon(); }, sig);
+    // 右上角「锁定」图钉：点一下固定展开（不再自动收），再点恢复自动（2026-11-19）
+    const pin = $('ppBankPin');
+    if (pin) pin.onclick = () => {
+      if (!bankWide()) return;
+      setBankPinned(!bankPinned);
+      if (bankPinned) { clearTimeout(bankTimer); bankSet(true); toast('题库栏已锁定，不再自动收起'); }
+      else { bankSet(true); bankCloseSoon(); toast('已解锁，鼠标移开 2 秒会自动收起'); }
+    };
   })();
   if (pageEl) pageEl.addEventListener('transitionend', ev => {
     /* 过渡挂在 #ppBank 的 width 上（grid 的 minmax(0,1fr) 不插值，见 app.css 注释） */
@@ -7682,7 +7700,9 @@ function mountPaper(sub) {
      把坐标换算回 A3 坐标，命中哪一格就把它高亮；松手就换那一格。 */
   let dragVal = null, dragT = '', hitKey = null;
   const mask = $('ppMask');
+  let _rectsCache = null;               // 拖动期间卷面布局不变，缓存一次，避免 pointermove 每次都重测几十个格子（卡顿/闪烁根因）
   function blkRects() {
+    if (_rectsCache) return _rectsCache;
     const fr = $('ppFrame');
     if (!fr || !fr.contentDocument) return [];
     const k = +(($('ppStage') || {}).dataset || {}).k || 1;
@@ -7690,12 +7710,13 @@ function mountPaper(sub) {
     /* getBoundingClientRect 已经把 scale 算进去了；用左上角 + 宽高推每个块的屏幕矩形 */
     /* ⚠️ 查 #out 不查 #src：PAPER_LAYOUT_JS 排完版会把 blocks 搬进 #out 然后 src.remove()，
        查 #src 永远返回空数组 → 拖动永远落不到格子上（2026-11-19 实测踩到）。 */
-    return [...fr.contentDocument.querySelectorAll('#out .blk[data-k]')].map(n => {
+    _rectsCache = [...fr.contentDocument.querySelectorAll('#out .blk[data-k]')].map(n => {
       const r = n.getBoundingClientRect(), b = fr.contentDocument.body.getBoundingClientRect();
       return { k: n.dataset.k, t: n.dataset.t, no: +n.dataset.no || 0,
         x: base.left + (r.left - b.left) * k, y: base.top + (r.top - b.top) * k,
         w: r.width * k, h: r.height * k };
     });
+    return _rectsCache;
   }
   function hitTest(x, y) {
     const rects = blkRects();
@@ -7706,6 +7727,7 @@ function mountPaper(sub) {
     if (!mask) return;
     mask.hidden = !on;
     document.body.classList.toggle('ppdragging', on);
+    if (!on) _rectsCache = null;         // 收起遮罩后清缓存，下次拖动重新量（卷面可能已变）
   }
   if (mask) {
     mask.addEventListener('pointermove', ev => {
@@ -7819,36 +7841,12 @@ function mountPaper(sub) {
     toast(picksCount() ? `已恢复默认题量；${picksCount()} 道手动选的题还在` : '已恢复默认题量与比重');
   };
 
-  /* ---------- 空白卷 / 清空 / 撤回 / 重做 ---------- */
-  /* 2026-11-19 第六轮：「空白卷」从 checkbox 改成功能按钮：点一下弹居中浮窗二次确认，
-     确认后清空为空白卷（只留题型和题号）。状态用 setBlankBtn() 同步到按钮外观。
-     C.noAuto 仍保留（换种子 / 补齐剩余题目的逻辑还在用它），不再有「取消勾选空白卷」动作。 */
-  function setBlankBtn() {
-    const b = $('ppBlank');
-    if (!b) return;
-    b.classList.toggle('on', !!C.blank);
-    b.textContent = C.blank ? '空白卷 ✓' : '空白卷';
-    b.title = C.blank ? '当前是空白卷：卷面只剩题型和题号' : '空白卷：卷面只放题型和题号，题从右侧题库点/拖进来';
-  }
-  if ($('ppBlank')) {
-    $('ppBlank').onclick = () => {
-      const M = ppModal(`<h2>清空为空白卷？</h2>
-        <p class="note" style="margin:0 0 4px">要把卷面清空为空白卷吗？只会留题型和题号，已手动选的题会撤掉（可撤回）。</p>
-        <div class="row"><button class="pri" id="ppBlankGo">确认清空</button><button id="ppBlankX">取消</button></div>`);
-      $('ppBlankGo').onclick = () => {
-        M.close();
-        commitPicks(() => { C.picks = {}; C.blank = true; });
-        setBlankBtn();
-        toast('已清空为空白卷，卷面只剩题号');
-      };
-      $('ppBlankX').onclick = () => M.close();
-    };
-  }
-  setBlankBtn();
+  /* ---------- 清空 / 撤回 / 重做 ---------- */
+  /* 2026-11-19：删掉「空白卷」按钮 —— 它和「清空卷面」做的事完全一样（都是 C.picks={} + C.blank=true），
+     用户「空白卷是不是可以删除了，和清空卷面没区别啊」。C.blank / C.noAuto 语义保留，换种子、补齐剩余题目还用。 */
   if ($('ppClear')) $('ppClear').onclick = async () => {
     if (!await hxConfirm('清空整张卷面？\n\n所有手动选的题都会撤掉，卷面只剩题型和题号（撤回可用）。')) return;
     commitPicks(() => { C.picks = {}; C.blank = true; });
-    setBlankBtn();
     toast('已清空，卷面只剩题号');
   };
   if ($('ppUndo')) $('ppUndo').onclick = () => {
@@ -8053,7 +8051,6 @@ function mountPaper(sub) {
       const nAll = Object.keys(picks).length;
       if (!nAll) { err('AI 一道都没挑出来（可能要求太窄），换个说法再试'); HXBusy.end(tok); return; }
       commitPicks(() => { C.picks = Object.assign({}, C.picks, picks); C.blank = true; });
-      setBlankBtn();
       if (aiM) { aiM.close(); aiM = null; }
       toast(`AI 已填 ${nAll} 道，不满意的点右边换掉`);
     } catch (e) {
@@ -8840,21 +8837,36 @@ function teacherShell() {
 /* 左侧栏伸缩（2026-11-19 第六轮）：点顶部手柄把 .ex-nav 收成 56px 窄条图标栏，
    只露菜单名首字 + 科目首字圆点，标题/说明文字全藏；状态存 localStorage，刷新记住。
    class 挂在 .ex-shell 上，这样 .ex-shell.wide（组卷页）收起时同样收成 56px。 */
+/* 左侧栏自动收缩（2026-11-19）：默认收成 56px 窄条图标栏（贴最左边），
+   鼠标放上去展开，移开 3 秒自动缩回。手柄仍可点一下手动展开/收起（点手柄会临时锁定：
+   手动展开后不再自动缩，直到再点手柄或移开悬停才恢复自动）。 */
 function initNavCollapse() {
   const shell = document.querySelector('.ex-shell');
+  const nav = $('exNav');
   const tg = $('exNavTg');
-  if (!shell || !tg) return;
+  if (!shell || !nav || !tg) return;
+  let timer = null, pinned = false;
   const apply = c => {
     shell.classList.toggle('collapsed', c);
     tg.title = c ? '展开侧栏' : '收起侧栏';
     tg.setAttribute('aria-label', c ? '展开侧栏' : '收起侧栏');
     tg.setAttribute('aria-expanded', c ? 'false' : 'true');
   };
-  apply(store.get('exam.nav-collapsed', 0) === 1);
+  const collapseSoon = () => {
+    clearTimeout(timer);
+    if (pinned) return;               // 手动固定了就不自动缩
+    timer = setTimeout(() => apply(true), 3000);
+  };
+  const expandNow = () => { clearTimeout(timer); apply(false); };
+  // 默认收起（贴最左边）
+  apply(true);
+  nav.addEventListener('mouseenter', expandNow);
+  nav.addEventListener('mouseleave', collapseSoon);
+  // 手柄：点一下手动展开/收起，并把它固定住（不再自动缩）；再点一次恢复自动
   tg.onclick = () => {
-    const c = !shell.classList.contains('collapsed');
-    apply(c);
-    store.set('exam.nav-collapsed', c ? 1 : 0);
+    pinned = !pinned;
+    if (pinned) { clearTimeout(timer); apply(false); tg.title = '已固定展开（再点恢复自动）'; }
+    else { apply(false); collapseSoon(); }
   };
 }
 function exNavClick(e) {
@@ -8992,7 +9004,6 @@ async function paperHome() {
       <div class="pp-bar">
         <div class="pp-bar-l">
           <button id="ppSet" class="ppset" aria-expanded="false" aria-controls="ppDrawer">设置</button>
-          <button id="ppBlank" class="sm" title="空白卷：卷面只放题型和题号，题从右侧题库点/拖进来">空白卷</button>
           <button id="ppUndo" class="sm" disabled>撤回</button><button id="ppRedo" class="sm" disabled>重做</button>
           <button id="ppClear" class="sm">清空卷面</button>
           <button id="ppAI" class="pri sm">AI 一键组卷</button>
@@ -9043,7 +9054,7 @@ async function paperHome() {
       </aside>
       <!-- 题库：宽屏是右侧常驻栏，窄屏才当抽屉弹（CSS 控制，见 app.css 的 .pp-page 媒体查询） -->
       <aside class="ppdrawer ppdbank" id="ppBank" aria-hidden="false" aria-label="题库">
-        <div class="ppd-h"><b id="ppBankTitle">题库</b><button class="sm" data-ppclose="ppBank" aria-label="关闭题库">关闭</button></div>
+        <div class="ppd-h"><b id="ppBankTitle">题库</b><button class="sm ppb-pin" id="ppBankPin" type="button" title="锁定：固定展开，不再自动收起" aria-pressed="false" aria-label="锁定题库栏">🔒</button><button class="sm" data-ppclose="ppBank" aria-label="关闭题库">关闭</button></div>
         <div class="ppb-tabs" id="ppBankTabs"></div>
         <div class="ppb-f">
           <div class="ppb-ch" id="ppBankCh">${Object.keys(curCH()).map(c => `<label><input type="checkbox" data-ch="${c}" checked>${esc(chLabel(c))}</label>`).join('')}</div>

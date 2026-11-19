@@ -134,12 +134,8 @@ pre { white-space: pre-wrap; word-break: break-word; margin: 0; }
 .mat-i { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 9px 12px; border-radius: 12px; background: var(--fill, rgba(0, 0, 0, .03)); }
 .mat-pick { display: inline-flex; align-items: center; }
 .mat-pick input { width: 16px; height: 16px; margin: 0; accent-color: var(--acc, #2f845a); cursor: pointer; }
-/* 2026-11-19：第一列从「一颗勾」变成「两颗勾」（用这份出题 / 原文件），竖着排，
-   第二颗带文字，字号小一档，不抢第一颗的位置。 */
+/* 2026-11-19：删掉「原文件」第二颗勾，第一列回到一颗勾。 */
 .mat-pk { display: grid; gap: 3px; justify-items: center; }
-.mat-raw { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; line-height: 1.2; color: var(--dim, #6b7280); white-space: nowrap; cursor: pointer; user-select: none; }
-.mat-raw input { width: 13px; height: 13px; margin: 0; accent-color: var(--acc, #2f845a); cursor: pointer; }
-.mat-raw:has(input:checked) { color: var(--acc, #2f845a); font-weight: 600; }
 .mat-err { color: var(--bad, #d70015); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mat-m { display: grid; gap: 2px; min-width: 0; }
 .mat-m b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -252,20 +248,20 @@ html.hx-lite #hxBootCv{display:none}
 
 /* ── 题型管理弹层 ─────────────────────────────────────────────────────────── */
 .qt-list { display: grid; gap: 6px; max-height: 46vh; overflow: auto; }
-.qt-row { display: grid; grid-template-columns: 96px minmax(0, 1fr) 58px 48px auto;
+.qt-row { display: grid; grid-template-columns: 96px minmax(0, 1fr) 48px auto;
   gap: 8px; align-items: center; padding: 7px 9px; border-radius: 10px;
   background: var(--fill, rgba(0, 0, 0, .035)); }
 .qt-k { font-size: 12px; opacity: .62; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .qt-row input { width: 100%; min-width: 0; }
 .qt-tag { font-size: 11px; opacity: .6; text-align: center; }
-.qt-add { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 70px auto;
+.qt-add { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
   gap: 8px; align-items: end; margin-top: 12px; padding-top: 12px;
   border-top: 1px solid var(--edge, rgba(0, 0, 0, .1)); }
 .qt-add > b { grid-column: 1 / -1; font-size: 13px; }
 .qt-add label { display: grid; gap: 4px; font-size: 12px; font-weight: 600; min-width: 0; }
 .qt-add input { width: 100%; min-width: 0; }
 @media (max-width: 620px) {
-  .qt-row { grid-template-columns: minmax(0, 1fr) 58px auto; }
+  .qt-row { grid-template-columns: minmax(0, 1fr) 48px auto; }
   .qt-row .qt-k { display: none; }
   .qt-add { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 }
@@ -1358,7 +1354,7 @@ const MAT_DB_T = { single: 'choice', multiple: 'choice', judgment: 'judge', fill
      · 自建题型落 public.hx_exam_qtype（见 考试/supabase/2026-11-19-自定义题型.sql），一个科目一份；
      · 改名 / 改量词对内置题型也生效 —— 存一行同 k 的配置覆盖默认值，删掉那行就回默认。
    key（k）是题池 t 字段直接存的东西，**改名不动 key**，所以改名不会让已有题「丢失」。 */
-const MAT_BUILTIN = [['choice', '选择', '题'], ['fill', '填空', '空'], ['judge', '判断', '题'], ['term', '名词解释', '题'], ['short', '简答', '题'], ['prog', '程序分析', '题']];
+const MAT_BUILTIN = [['choice', '选择题', '题'], ['fill', '填空题', '空'], ['judge', '判断题', '题'], ['term', '名词解释题', '题'], ['short', '简答题', '题'], ['prog', '程序分析题', '题']];
 /* 题库题型 key → 出题引擎认的类型名（引擎只认 single/fill/judgment/term/short/prog 六个）。
    自建题型不在表里 → 原样当引擎类型传下去（imports.js 那边按「文字答案题」处理）。 */
 const MAT_ENGINE = { choice: 'single', fill: 'fill', judge: 'judgment', term: 'term', short: 'short', prog: 'prog' };
@@ -1395,8 +1391,12 @@ async function matQtLoad(fresh) {
   const by = new Map(rows.map(x => [String(x.k), x]));
   const out = MAT_BUILTIN.map(([k, name, per]) => {
     const o = by.get(k); by.delete(k);
-    return { k, name: (o && o.name) || name, per: (o && o.per) || per, builtin: true };
-  });
+    /* 内置题型「删除」= 存一行 name='' 的覆盖配置。这里读到空名就跳过（隐藏），
+       题池里已有的题不动；「新增」里把同 k 加回来（改名）就能恢复。 */
+    const nm = (o && o.name) || name;
+    if (o && o.name === '') return null;
+    return { k, name: nm, per: (o && o.per) || per, builtin: true };
+  }).filter(Boolean);
   by.forEach(o => out.push({ k: o.k, name: o.name, per: o.per || '题', builtin: false }));
   MAT_QT = out;
   cacheSet(key, out);
@@ -1405,7 +1405,7 @@ async function matQtLoad(fresh) {
 function matQtPills() {
   const box = $('mgPills'); if (!box) return;
   if (!MAT_QT.some(x => x.k === MAT_QK)) MAT_QK = (MAT_QT[0] || {}).k || 'choice';
-  box.innerHTML = MAT_QT.map(t => `<button type="button" class="mg-pill${t.k === MAT_QK ? ' on' : ''}" data-qt="${esc(t.k)}" aria-pressed="${t.k === MAT_QK}">${esc(t.name)}<small>/${esc(t.per)}</small></button>`).join('');
+  box.innerHTML = MAT_QT.map(t => `<button type="button" class="mg-pill${t.k === MAT_QK ? ' on' : ''}" data-qt="${esc(t.k)}" aria-pressed="${t.k === MAT_QK}">${esc(t.name)}</button>`).join('');
   const cur = MAT_QT.find(x => x.k === MAT_QK);
   const lb = $('mgQtLabel'); if (lb) lb.textContent = cur ? cur.name : '';
   box.querySelectorAll('[data-qt]').forEach(b => b.onclick = () => { MAT_QK = b.dataset.qt; matQtPills(); });
@@ -1418,19 +1418,17 @@ async function matTypeMgr() {
   const rows = MAT_QT.map(t => `<div class="qt-row" data-k="${esc(t.k)}">
       <code class="qt-k">${esc(t.k)}</code>
       <input class="qt-name" maxlength="12" value="${esc(t.name)}" aria-label="题型名">
-      <input class="qt-per" maxlength="4" value="${esc(t.per)}" aria-label="量词">
       <span class="qt-tag">${t.builtin ? '内置' : '自建'}</span>
-      <button class="sm danger" data-qtdel="${esc(t.k)}">${t.builtin ? '改回默认' : '删除'}</button>
+      <button class="sm danger" data-qtdel="${esc(t.k)}">删除</button>
     </div>`).join('');
   zlModal(`<h2>管理题型 · ${esc(curSub().name)}</h2>
-    <p class="note" style="margin:0 0 10px">题型名可以随便改（比如把「简答」改成「简答（含实操）」）。标识（左边灰色那串）是题池里存的东西，改名不动它，所以改完已有的题不会丢。</p>
+    <p class="note" style="margin:0 0 10px">题型名就是完整叫法（如「填空题」「简答题」），不用再分「名字+量词」。改名字不动题池里已出的题；删题型只让它从出题列表消失，题池里已出的题一道都不删。</p>
     <div class="qt-list">${rows}</div>
     <div class="errs" id="qtErr" hidden></div>
     <div class="qt-add">
       <b>新增一种题型</b>
       <label>标识<input id="qtK" class="mono" maxlength="24" placeholder="英文小写，如 shicao" autocomplete="off"></label>
       <label>名字<input id="qtN" maxlength="12" placeholder="如 实操" autocomplete="off"></label>
-      <label>量词<input id="qtP" maxlength="4" value="题" autocomplete="off"></label>
       <button class="pri" id="qtAdd">添加</button>
     </div>
     <div class="row" style="margin-top:12px"><button class="pri" id="qtSave">保存全部改动</button><button id="qtClose">关闭</button><span class="note" id="qtState"></span></div>`);
@@ -1439,12 +1437,12 @@ async function matTypeMgr() {
   $('qtClose').onclick = zlModalClose;
   document.querySelectorAll('[data-qtdel]').forEach(b => b.onclick = async () => {
     const k = b.dataset.qtdel, t = MAT_QT.find(x => x.k === k);
-    if (!await hxConfirm(t && t.builtin ? `把「${t.name}」改回默认名字？\n\n只恢复显示名，题池里的题不动。` : `删掉题型「${t ? t.name : k}」？\n\n只删这个题型名，题池里已经出好的题一道都不删；以后把 ${k} 加回来，那些题又都能看见。`)) return;
+    if (!await hxConfirm(`删掉题型「${t ? t.name : k}」？\n\n它只会从出题列表里消失，题池里已经出好的题一道都不删；以后再把 ${k} 加回来，那些题又都能看见。`)) return;
     const tok = HXBusy.begin(b, '正在删…');
     try {
       if (t && t.builtin) {
-        /* 内置题型「改回默认」= 删掉那条覆盖配置。RPC 的 del 只按 k 删配置，题不动，正好合用。 */
-        const r = await MAT_call('hx_exam_qtype_del', { p_subject_id: sid, p_k: k });
+        /* 内置题型「删除」= 存一行 name='' 的覆盖配置（matQtLoad 读到空名就跳过 = 隐藏）。 */
+        const r = await MAT_call('hx_exam_qtype_save', { p_subject_id: sid, p_k: k, p_name: '', p_per: t.per || '题', p_ord: 100 });
         if (!r.ok) { fail(r.err); HXBusy.end(tok, r.err); return; }
       } else {
         const r = await MAT_call('hx_exam_qtype_del', { p_subject_id: sid, p_k: k });
@@ -1453,18 +1451,18 @@ async function matTypeMgr() {
       await matQtLoad(true);
       matQtPills();
       zlModalClose();
-      toast('已处理，题池里的题没动');
+      toast('已删除，题池里的题没动');
       matTypeMgr();
     } finally { HXBusy.end(tok); }
   });
   $('qtAdd').onclick = async () => {
-    const k = $('qtK').value.trim().toLowerCase(), n = $('qtN').value.trim(), p = $('qtP').value.trim() || '题';
+    const k = $('qtK').value.trim().toLowerCase(), n = $('qtN').value.trim();
     if (!/^[a-z][a-z0-9_]{0,23}$/.test(k)) return fail('标识只能用英文小写、数字、下划线，且以字母开头（如 shicao）');
     if (!n) return fail('名字不能空');
-    if (MAT_QT.some(x => x.k === k)) return fail('标识「' + k + '」已经有了，直接改上面那行就行');
+    /* 之前删掉的内置题型，用同一个标识加回来 = 恢复（覆盖掉 name='' 的隐藏配置）。 */
     const tok = HXBusy.begin($('qtAdd'), '正在加…');
     try {
-      const r = await MAT_call('hx_exam_qtype_save', { p_subject_id: sid, p_k: k, p_name: n, p_per: p, p_ord: 100 });
+      const r = await MAT_call('hx_exam_qtype_save', { p_subject_id: sid, p_k: k, p_name: n, p_per: '题', p_ord: 100 });
       if (!r.ok) { fail(r.err); HXBusy.end(tok, r.err); return; }
       await matQtLoad(true);
       MAT_QK = k;
@@ -1480,12 +1478,11 @@ async function matTypeMgr() {
       for (const row of document.querySelectorAll('.qt-row')) {
         const k = row.dataset.k;
         const name = row.querySelector('.qt-name').value.trim().slice(0, 12);
-        const per = row.querySelector('.qt-per').value.trim().slice(0, 4) || '题';
         const old = MAT_QT.find(x => x.k === k);
         if (!name) { fail('「' + k + '」的名字不能空'); HXBusy.end(tok); return; }
-        if (old && old.name === name && old.per === per) continue;   // 没改就不发请求
+        if (old && old.name === name) continue;   // 没改就不发请求
         if (st) st.textContent = '正在保存「' + name + '」…';
-        const r = await MAT_call('hx_exam_qtype_save', { p_subject_id: sid, p_k: k, p_name: name, p_per: per, p_ord: 100 });
+        const r = await MAT_call('hx_exam_qtype_save', { p_subject_id: sid, p_k: k, p_name: name, p_per: (old && old.per) || '题', p_ord: 100 });
         if (!r.ok) { fail('「' + name + '」没存上：' + r.err); HXBusy.end(tok, r.err); return; }
       }
       await matQtLoad(true);
@@ -1679,12 +1676,12 @@ async function matReload(fresh) {
 function matDrawList() {
   const box = $('matList'); if (!box) return;
   const cnt = $('matCnt'); if (cnt) cnt.textContent = MAT_LIST.length ? MAT_LIST.length + ' 份' : '';
-  /* 每行两颗勾：左边是「用这份出题」（老行为，喂切段），下面一颗「原文件」
-     （2026-11-19 用户要求：有些资料不是规整教材，切段不可靠，要能按整份原文出题）。 */
+  /* 每行一颗勾：勾上＝用这份资料出题（喂切段、按范围挑）。
+     2026-11-19 删掉下面那颗「原文件」勾 —— 用户：md 本来就是生成完再手动上传的，PDF 本身才是原文件，
+     「原文件」勾选没意义（WorkBuddy 解析 PDF 生成 md，那个 md 就是喂给 AI 的内容）。 */
   box.innerHTML = MAT_LIST.length ? MAT_LIST.map(m => `<div class="mat-i" data-mid="${m.id}">
       <div class="mat-pk">
         <label class="mat-pick" title="勾上＝用这份资料出题"><input type="checkbox" data-mpick="${m.id}" ${m.status === 'failed' ? 'disabled' : ''}></label>
-        <label class="mat-raw" title="勾上＝用整份原文出题（适合章节不规整的资料）"><input type="checkbox" data-mraw="${m.id}"> 原文件</label>
       </div>
       <div class="mat-m"><b title="${esc(m.name)}">${esc(m.name)}</b>
         <span class="note">${(+m.chars || 0).toLocaleString()} 字 · ${MAT_kb(m.bytes)}${m.status === 'failed' ? ' · 解析失败' : ''} · ${when(m.at)}</span>
@@ -1859,28 +1856,17 @@ async function matUpload(files) {
   loadSubjects(true);      // 科目卡片上的「N 份资料」也跟着变
 }
 
-/* ---------------- 「原文件」＝按整份原文出题（2026-11-19） ----------------
-   用户原话：「导入资料后你现在是拆分成相应章节，如果不是这类资料呢，是不是应该保证原文件区域，
-   同样支持勾选原文件让 ai 出题，随时可以生成相应需要的资料（针对性提示词可能）」
-   所以每行除了「用这份出题」（喂切段、按范围挑）之外，还有一颗「原文件」：
-   勾上 = 把这份资料的**全部切段按 idx 顺序**拼成一份全文，原样给模型，不挑段、不按范围。
-   为什么仍然读切段而不是读 Storage 原件：切段就是解析出来的正文，原件是二进制，
-   浏览器里重新解析一遍既慢又可能解析失败（而且失败正是用户勾原文件的原因）。 */
-function matFullText(m, arr) {
-  const segs = (arr || []).slice().sort((a, b) => (+a.idx || 0) - (+b.idx || 0));
-  const nm = (m && m.name) || '资料';
-  return '下面是《' + nm + '》的整份原文（按原文顺序，共 ' + segs.length + ' 段），请基于全文出题，不要只挑其中一段。\n\n'
-    + segs.map(c => (c.title ? c.title + '\n' : '') + (c.body || '')).join('\n\n');
-}
+/* ---------------- 「原文件」已删（2026-11-19） ----------------
+   用户原话：「原文件没意义啊，删除这个模块。md 本来就是生成完再来手动上传的，
+   PDF 本身才是原文件」—— 所以不再有「整份原文出题」的独立勾选，一律按切段出题。 */
 
-/* 把勾中的资料读成文字。rawSet 里的是「整份原文」口径，其余保持老行为（按切段拼）。
-   返回 { parts, tag }；某份勾了原文件却 0 段（解析失败）时直接抛中文错误，不静默跳过。 */
+/* 把勾中的资料读成文字（老行为：按切段拼）。
+   返回 { parts, tag }。 */
 async function matCollect(picks, rawSet, state) {
   const parts = [], names = [], empty = [];
   for (let k = 0; k < picks.length; k++) {
     const id = +picks[k];
     const m = MAT_LIST.find(x => +x.id === id) || { id, name: '资料 ' + id };
-    const raw = !!(rawSet && rawSet.has(id));
     if (state) state.textContent = `正在读资料（${k + 1}/${picks.length}）…`;
     const r = await MAT_call('hx_exam_chunk_get', { p_material_id: id });
     if (!r.ok) throw new Error('读《' + (m.name || m.id) + '》的切段失败：' + r.err);
@@ -1888,15 +1874,11 @@ async function matCollect(picks, rawSet, state) {
        顺序错了等于把书的章节打乱喂给模型，出的题会串。 */
     const arr = (Array.isArray(r.data) ? r.data : []).slice().sort((a, b) => (+a.idx || 0) - (+b.idx || 0));
     if (!arr.length) {
-      /* 勾了「原文件」还 0 段 = 这份根本没解析出字（或者是空文档）。
-         出题会得到一份「什么都没有」的原文，必须当场说清楚找谁算账，不能悄悄跳过。 */
-      if (raw) empty.push('《' + (m.name || '资料 ' + id) + '》没有可读文字，先重新解析或改用其它资料');
+      empty.push('《' + (m.name || '资料 ' + id) + '》没有可读文字，先重新解析或改用其它资料');
       continue;
     }
-    parts.push(raw
-      ? matFullText(m, arr)
-      : '【' + (m.name || ('资料 ' + id)) + '】\n' + arr.map(c => (c.title ? c.title + '\n' : '') + (c.body || '')).join('\n\n'));
-    names.push((m.name || ('资料 ' + id)) + (raw ? '（整份原文）' : ''));
+    parts.push('【' + (m.name || ('资料 ' + id)) + '】\n' + arr.map(c => (c.title ? c.title + '\n' : '') + (c.body || '')).join('\n\n'));
+    names.push(m.name || ('资料 ' + id));
   }
   if (empty.length) throw new Error(empty.join('；'));
   return { parts, tag: names.join('、') };
@@ -1936,10 +1918,8 @@ async function matGenRun() {
   MAT_BUSY = true;
   try {
     if (picks.length) {
-      /* 2026-11-19：哪些资料勾了「原文件」= 按整份原文出题。这里在读切段之前一次性取好，
-         后面 matCollect 只管拼文字（DOM 只在这一处读，别在循环里反复查）。 */
-      const rawSet = new Set([...document.querySelectorAll('[data-mraw]:checked')].map(x => +x.dataset.mraw));
-      const got = await matCollect(picks, rawSet, state);
+      /* 2026-11-19：删掉「原文件」勾选后，一律按切段出题（老行为）。 */
+      const got = await matCollect(picks, null, state);
       if (!got.parts.length) { state.textContent = ''; toast('勾的资料里没有可用的段，重新传一次试试'); HXBusy.end(tok); return; }
       text = got.parts.join('\n\n');
       tag = got.tag;
