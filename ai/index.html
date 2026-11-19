@@ -111,9 +111,9 @@ button{font:inherit;cursor:pointer}
 .btn{font-size:13.5px;font-weight:700;padding:8px 14px;border-radius:10px;border:1px solid var(--edge);
   background:var(--panel);color:var(--ink);transition:.15s}
 .btn:hover{border-color:var(--acc);color:var(--acc)}
-.btn.pri{background:linear-gradient(140deg,var(--acc),var(--acc2));border-color:transparent;color:#fff;
+.btn.pri{background:linear-gradient(140deg,var(--acc),var(--acc2));border-color:transparent;color:var(--on-acc,#fff);
   box-shadow:0 10px 20px -12px var(--acc)}
-.btn.pri:hover{filter:brightness(1.06);color:#fff}
+.btn.pri:hover{filter:brightness(1.06);color:var(--on-acc,#fff)}
 .btn.sm{font-size:12.5px;padding:6px 11px;border-radius:9px}
 .btn.bad:hover{border-color:var(--bad);color:var(--bad)}
 .btn[disabled]{opacity:.45;cursor:not-allowed}
@@ -568,13 +568,13 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
 
     // 实际生效的识别模型：设了用它，没设用推荐的那个
     var effModel = jm || rec;
-    var eff, recLine = '';
+    var eff, effHtml = '', recLine = '';
     if (effModel) {
       var effPl = platById(effModel.platId);
       var effTag = jm ? '' : '<span class="chip on">自动推荐</span>';
-      eff = '识别模型：' + effTag + '平台「' + esc(effPl ? effPl.name : '（平台已删）') + '」· ' + esc(effModel.name || effModel.model);
+      effHtml = '识别模型：' + effTag + '平台「' + esc(effPl ? effPl.name : '（平台已删）') + '」· ' + esc(effModel.name || effModel.model);
     } else {
-      eff = '还没有可用的文本模型，先加一个平台和模型。';
+      effHtml = '还没有可用的文本模型，先加一个平台和模型。';
     }
     if (rec && !jm) {
       var recPl = platById(rec.platId);
@@ -591,7 +591,7 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
           '<select data-kind="jmodel" aria-label="识别用哪个模型">' + modelOpts + '</select>' +
         '</div>' +
         recLine +
-        '<p class="eff">' + esc(eff) + '</p>' +
+        '<p class="eff">' + effHtml + '</p>' +
         '<div class="acts">' +
           '<button class="btn pri" type="button" data-act="judge-all">让 AI 识别全部平台的模型能力</button>' +
           '<p class="msg" id="judgeMsg"></p>' +
@@ -646,8 +646,10 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
     if (act === 'fetch' && !rowEl) {
       var msg = platEl.querySelector('.pmsg');
       msg.className = 'pmsg';
-      msg.textContent = '正在读取模型列表并自动加入…';
+      msg.textContent = '';
+      var pill = window.HXTheme && HXTheme.loadPill ? HXTheme.loadPill('正在读取「' + pl.name + '」的模型列表…') : null;
       HXAI.models({ platId: platId }).then(function (ms) {
+        if (pill) pill.done();
         // 读到的模型全量挂进平台（已存在的跳过），不再让用户一个个选
         var r = HXAI.savePlatModels(platId, ms);
         renderAll();
@@ -658,6 +660,7 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
             (r.skipped ? '（已有 ' + r.skipped + ' 个）' : '') + '。不需要的可以逐个删除。';
         }
       }).catch(function (e) {
+        if (pill) pill.done();
         var m2 = document.querySelector('.plat[data-plat="' + platId + '"] .pmsg');
         if (m2) { m2.className = 'pmsg bad'; m2.textContent = e.message; }
       });
@@ -703,11 +706,14 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
     if (act === 'test') {
       var rmsg = rowEl.querySelector('.rmsg');
       rmsg.className = 'rmsg';
-      rmsg.textContent = '正在测试…';
+      rmsg.textContent = '';
+      var pill = window.HXTheme && HXTheme.loadPill ? HXTheme.loadPill('正在测试「' + (m.name || m.model) + '」连接…') : null;
       HXAI.test({ platId: platId, id: modelId, model: m.model, caps: m.caps, thinkLevel: m.thinkLevel }).then(function (r) {
+        if (pill) pill.done();
         rmsg.className = 'rmsg good';
         rmsg.textContent = '连接成功 · ' + r.ms + ' 毫秒 · 返回「' + r.text + '」';
       }).catch(function (e) {
+        if (pill) pill.done();
         rmsg.className = 'rmsg bad';
         rmsg.textContent = '连接失败：' + e.message;
       });
@@ -806,8 +812,11 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
     if (act === 'judge-all') {
       var msg = $('judgeMsg');
       if (!snap.profiles.length) { toast('还没有模型，先加一个平台并同步模型', true); return; }
-      msg.className = 'msg'; msg.textContent = '正在让识别模型判断所有平台模型的能力…（会调用一次识别模型）';
+      msg.className = 'msg'; msg.textContent = '';
+      // 悬浮加载框：识别要调一次识别模型，弱网下可能好几秒，光靠一行小字用户会以为卡了/没按下去
+      var pill = window.HXTheme && HXTheme.loadPill ? HXTheme.loadPill('正在让 AI 识别所有平台的模型能力…') : null;
       HXAI.judgeCaps({}).then(function (r) {
+        if (pill) pill.done();
         renderAll();
         var m2 = $('judgeMsg');
         if (m2) {
@@ -818,6 +827,7 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
         }
         toast(r.src === 'ai' ? 'AI 已识别能力' : '识别失败，已按名字猜（可能不准）');
       }).catch(function (err) {
+        if (pill) pill.done();
         var m3 = $('judgeMsg');
         if (m3) { m3.className = 'msg bad'; m3.textContent = err.message; }
       });

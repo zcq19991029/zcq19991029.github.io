@@ -1509,6 +1509,35 @@
     window.HXCrumbs = { sweep: sweep };
     if (document.readyState === 'loading') addEventListener('DOMContentLoaded', boot); else boot();
   })();
+
+  // ── 按钮按下「压下去 + 变暗」（2026-11-19）────────────────────────────
+  // 用户反馈「按钮按下动效也不做，我哪知道按下去了没有」。原来只有像素碎屑（炸一圈），
+  // 而且碎屑只挂在 24~150px 宽的中小按钮上——文字一长的操作按钮（如「让 AI 识别全部平台的模型能力」
+  // 宽 215px）被「太大不挂」跳过，按下时按钮本体纹丝不动，触摸/鼠标点下去完全没手感。
+  // 这里补一段**全站所有可点按钮**都有的按下反馈：往下压 1px + 微收 + 变暗一档。
+  // 为什么放 JS 里注入 style 而不是写进 hx-theme.css：全站只有总入口、刷题、ai、help、音乐、
+  // 回收站真的引了那份 CSS，其余工具（考试/接线仿真/考勤/单片机/资料库/排课/课程进度/进制/备份）
+  // 只引这份 JS —— 写 CSS 它们吃不到，写这里才谈得上「全站统一」（和滚动条同一套道理）。
+  // 变暗用 filter 而不是改 background：按钮底色千差万别（渐变/透明描边/纯色），filter 一套通用。
+  // 不写 transition：各工具按钮自带的 transition（border/color/background）会被覆盖；按下要「跟手」，
+  // 瞬时切换最灵敏，松开由按钮自己的 transition 或默认瞬间回位。
+  // 排除项：已经自己带按下动效的（.rk-go）、以及任何被标了 data-hx-nocrumb 的（和碎屑同款跳过口径）。
+  // 不碰 .tile：首页工具卡有自己一套「悬停上浮 + 按下上移」的动效，这里把它压下去会反转手感。
+  (function () {
+    var st = document.createElement('style');
+    st.id = 'hx-press-style';
+    st.textContent =
+      'button:not([disabled]):active,'
+      + '[role="button"]:not([disabled]):active,'
+      + '.btn:not([disabled]):active{'
+      + 'transform:translateY(1px) scale(.985);filter:brightness(.92)}'
+      // 极简 / 关动画：只保留下压位移，去掉 scale 和变暗（极简不该再有滤镜开销）
+      + 'html.hx-lite button:active,html.hx-lite [role="button"]:active,html.hx-lite .btn:active{'
+      + 'transform:translateY(1px);filter:none}'
+      + '@media (prefers-reduced-motion:reduce){button:active,[role="button"]:active,.btn:active{'
+      + 'transform:none;filter:none}}';
+    (document.head || document.documentElement).appendChild(st);
+  })();
   /* 2026-11-09 音乐播放器：全站只用站点根的一份 /hx-player.js（歌单、当前曲、音量只能有一份状态）。
      只在 top window 引 —— 工具页被 iframe 嵌着时，顶部那条由总入口统一挂；
      每个 iframe 各挂一条的话，页面上会同时出现三四个一模一样的控制条。 */
