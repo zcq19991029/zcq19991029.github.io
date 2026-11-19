@@ -210,3 +210,51 @@ html.hx-lite body.tool #home { content-visibility: hidden; }
 html.hx-lite .hx-crumb:active::after { animation: none; }
 @media (prefers-reduced-motion: reduce) { .hx-crumb:active::after { animation: none; } }
 
+/* ── 毛玻璃开关（2026-11-19 第七轮 T7④）──────────────────────────────
+   关闭（默认）：卡片底板全透明、没有背景模糊，只留文字和描边，壁纸整张透出来。
+   开启：走上面的现有毛玻璃配方（--card / --glass-wash + backdrop-filter）。
+   html[data-hx-glass="off"] 由 hx-theme.js 的 apply() 写入（glass=0，默认）。
+   做法是覆盖 CSS 变量本身：全站卡片（.hx-glass / .tile / .cardish / 工具页各自的 .card）
+   全都从 --card / --card2 / --bar / --glass-wash 取色，把这几支 token 归零，
+   所有引用者一起变透明，不用挨个页面改。文字（--ink / --g-ink）和描边（--edge / --glass-edge）保留，
+   保证「只留文字和描边」还能读清。
+   为什么用 :root[data-hx-glass="off"] + !important：--card 定义在 :root[data-hx-mode="dark"]
+   （伪类 :root 算 (0,1,0)，加上属性选择器共 (0,2,0)），普通的 html[data-hx-glass="off"]
+   （html 类型 (0,0,1) + 属性 (0,1,0) = (0,1,1)）特异性打不过它，会被压掉 ——
+   实测 --card 读回来还是 rgb(28 28 30 / …)，透明没生效。用 :root 前缀对齐特异性，再 !important 兜底。 */
+:root[data-hx-glass="off"] {
+  --card: transparent !important;
+  --card2: transparent !important;
+  --bar: transparent !important;
+  --glass-wash: transparent !important;
+  --glass-top: transparent !important;
+  --glass-bot: transparent !important;
+}
+/* 玻璃体本身的叠白层、折射高光也关掉；只留落影（让卡片在壁纸上仍有「浮起来」的边界感） */
+:root[data-hx-glass="off"] .hx-glass { background: transparent; }
+:root[data-hx-glass="off"] .hx-glass::before,
+:root[data-hx-glass="off"] .hx-glass::after { display: none; }
+/* 顶栏、面板、弹层的背景模糊全部关掉（全透明下再模糊没有意义，还白吃 GPU） */
+:root[data-hx-glass="off"] .top,
+:root[data-hx-glass="off"] .nav,
+:root[data-hx-glass="off"] .pop,
+:root[data-hx-glass="off"] .hx-glass {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+/* 首页工具卡（总入口 .tile）有自己一套玻璃配方：本体 background + ::before 扫光 + ::after 玻璃体
+   （亮唇/内阴影/描边），底色在「有背景图」分支里直接写 rgb(… / calc(var(--hx-a) * α))，不读 --card。
+   所以关毛玻璃时要单独把它这三层背景归零，只留文字和 0.6px 描边（描边归 ::after 的 --fld-edge，
+   这里保留它，让卡片在壁纸上仍有边界）。!important 是必要的：.tile 这些规则写在总入口内联
+   <style> 里、且在本文件之后加载，同特异性下内联会压过外部，不用 !important 覆盖不掉。 */
+:root[data-hx-glass="off"] .tile {
+  background-color: transparent !important;
+  background-image: none !important;
+}
+:root[data-hx-glass="off"] .tile::before {
+  background: none !important;
+}
+:root[data-hx-glass="off"] .tile::after {
+  background: none !important;
+}
+

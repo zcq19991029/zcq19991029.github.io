@@ -14,16 +14,16 @@
      要登录时调 window.HXPortal.login()；被单独打开时 hx-theme.js 会跳回这里（见 hx-theme.js 的 data-tool）。
      账号：Supabase 华夏工具项目，localStorage paike-session 和各工具共用；身份由数据库 hx_me() 决定。
      脚本里不用反引号模板字符串（本机测试时整页当字符串注入到线上同源页面里）。 -->
-<link rel="stylesheet" href="hx-theme.css?v=d3b8a61">
-<script src="hx-theme.js?v=d3b8a61"></script>
+<link rel="stylesheet" href="hx-theme.css?v=83910a7">
+<script src="hx-theme.js?v=83910a7"></script>
 <script src="rank-bg.js" defer></script><!-- 排位身份卡预设（2026-11-12）：总入口外观面板当场弹窗设置身份卡背景，预设数据在总入口也能用 -->
 <!-- 首页卡片上的像素小生物：pixelfx 的 12 个 critters（MIT），打包成一个 91 KB 的独立脚本。
      加载失败不影响首页——hx-critters.js 开头就有 window.PixelFX 存在性检查，没有就整段跳过。 -->
-<script src="fx/pixelfx-critters.js?v=d3b8a61" defer></script>
-<script src="fx/hx-critters.js?v=d3b8a61" defer></script>
+<script src="fx/pixelfx-critters.js?v=83910a7" defer></script>
+<script src="fx/hx-critters.js?v=83910a7" defer></script>
 <!-- 课堂码大屏二维码：离线 QR 编码器（qrcode 1.5.4 core 打包，MIT，见 fx/NOTICE-qr.md）。延迟加载即可：只有老师点「大屏二维码」时才用 -->
-<script src="fx/hx-qr.js?v=d3b8a61" defer></script>
-<script src="hx-scan.js?v=d3b8a61" defer></script><!-- 全站扫一扫（2026-11-08 K5）：摄像头 + BarcodeDetector / 本地 jsQR -->
+<script src="fx/hx-qr.js?v=83910a7" defer></script>
+<script src="hx-scan.js?v=83910a7" defer></script><!-- 全站扫一扫（2026-11-08 K5）：摄像头 + BarcodeDetector / 本地 jsQR -->
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; width: 100%; overflow: hidden; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -98,6 +98,7 @@
   .pill.ok { background: rgba(34, 197, 94, .14); color: #16a34a; }
   .pill.dev { color: #fff; background: linear-gradient(120deg, #f59e0b, #ec4899); box-shadow: 0 4px 14px -6px #ec4899; }
   .pill.admin { color: #fff; background: linear-gradient(120deg, #2563eb, #06b6d4); box-shadow: 0 4px 14px -6px #2563eb; }
+  .pill.codev { color: #fff; background: linear-gradient(120deg, #8b5cf6, #a855f7); box-shadow: 0 4px 14px -6px #8b5cf6; }
   .acct .pill { margin: 0 4px 0 -2px; } .hero p .pill { vertical-align: middle; margin-left: 6px; }
   .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 14px; } .grid2 .panel { margin: 0 0 14px; }
   .panel h3 { margin: 0 0 12px; font-size: 19px; font-weight: 600; } .dim { color: var(--dim); } .ra { text-align: right; white-space: nowrap; } .mono { font-family: ui-monospace, Consolas, monospace; letter-spacing: .06em; }
@@ -1434,7 +1435,7 @@ var SITE = location.protocol === 'file:' ? 'https://zcq19991029.github.io' : '';
 // stu 是「学生点开时去哪个页面」：不给就照 who:'all' 用 url。给 who:'all' + stu 就是「老师进完整工具、
 // 学生只进一个页面」——2026-11-03 用户要「单独开放小组加分里面的分组模块给学生」，先用这个机制开一个模块。
 // pop 是「不挂工具页、点开直接弹层」的卡片（2026-11-08 用户要求把顶栏的 ? 和 AI 两颗圆钮挪成卡片）。
-var GROUPS = [['学习', ['wiring', 'quiz', 'base', 'mcu', 'exam']], ['教学', ['kaoqin', 'ziliao', 'paike', 'jiafen', 'course']], ['维护', ['help', 'ai', 'backup', 'recycle', 'feedback']], ['开发者工具', ['uikit']]]; // 首页按使用场景分组
+var GROUPS = [['学习', ['wiring', 'quiz', 'base', 'mcu', 'exam']], ['教学', ['kaoqin', 'ziliao', 'paike', 'jiafen', 'course', 'manage']], ['维护', ['help', 'ai', 'backup', 'recycle', 'feedback']], ['开发者工具', ['uikit', 'music', 'tcode', 'users', 'grant']]]; // 首页按使用场景分组（2026-11-19 第七轮 T4/T5：教务管理归教学、音乐+开发者三卡归开发者工具）
 /* 音乐不塞进上面三个组：它是「背景音乐」性质的常驻卡片，和工具并列但不属于「学习/教学/维护」。
    所以单独在 render() 里当一张 tile 追加（见 render 里的 musicTile 处理），仍走同一套 .tile 样式。 */
 var TOOLS = [
@@ -1507,7 +1508,12 @@ var TOOLS = [
    2026-11-09 用户原话「班级默认考勤不需要勾选 这是必备的」。
    考勤是每个班的必备功能，不参与「点亮」，也不允许被点掉（点了也没用，考勤页不看这个开关）。
    真正让一个班从考勤里消失的只有「收起」（= tools 清空）。 */
-var CLASS_TOOLS = [['wiring', '接线仿真'], ['quiz', '刷题'], ['mcu', '单片机'], ['exam', '考试'], ['kaoqin', '考勤', 1], ['jiafen', '小组加分']];
+var CLASS_TOOLS = [['wiring', '接线仿真'], ['quiz', '刷题'], ['mcu', '单片机'], ['exam', '考试'], ['kaoqin', '考勤', 1], ['jiafen', '小组加分'], ['ziliao', '资料库']];
+/* 学生「按班级点亮」的工具集合（2026-11-19 第七轮 T1 严格隔离）。
+   这些工具的学生可见性由「所在班有没有点亮」决定：点亮了首页才显示、直连 URL 也才进得去。
+   考勤（kaoqin）是必备功能，不在这个集合里 —— 只要班没被归档，学生就能进考勤（只读，考勤页自己分流）。
+   base（进制转换）纯本地、不分班，也不在集合里，学生都能用。 */
+var CLS_GATE = { wiring: 1, quiz: 1, mcu: 1, exam: 1, jiafen: 1, ziliao: 1 };
 var HX = (function () {
   var BASE = 'https://eiqgyrjrwdaunhxjmdyr.supabase.co', KEY = 'sb_publishable_FcVnLx3TNrj6HnbgarYnRw_DW4-yFzd', SKEY = 'paike-session';
   var s = null;
@@ -1805,7 +1811,8 @@ function planets() {
 var ST = { me: null, user: null, tab: null, lm: 'in', reg: null, actFor: null, edit: null, classes: null, open: null, studs: {}, rosters: null, subjects: null, subjOk: false,
   // 2026-11-12 班级归档/移交：arch = 已归档班列表（undefined 没读 / null 读中 / 数组已读），
   // archOpen = 「已归档」折叠区是不是展开的（重画面板后保持），xfer = 刚生成的移交码块。
-  arch: undefined, archOpen: false, archErr: null, xfer: null };
+  // 2026-11-19 第七轮 T2：users = 用户管理列表，grantSel = 工具权限面板当前选中的教师邮箱。
+  arch: undefined, archOpen: false, archErr: null, xfer: null, users: undefined, grantSel: null };
 /* ---------- 静态数据短缓存（2026-11-11 降载） ----------
    科目表 / 班级名单只有老师在改，平时不变；每次打开首页都重新拉一遍纯属白烧 Nano 的 CPU。
    命中（5 分钟内）就直接用上次结果、**不再发请求**；过期或换账号才重新拉。
@@ -1826,6 +1833,10 @@ function rosterBust() { try { localStorage.setItem('hx-roster-bust', String(Date
 var frames = {};
 function isTeacher() { return !!(ST.me && (ST.me.teacher || ST.me.admin || ST.me.dev)); }
 function isDev() { return !!(ST.me && ST.me.dev); }
+function isStudent() { return !!(ST.me && ST.me.student); }
+/* 合作开发者（2026-11-19 第七轮 T6）：数据库 hx_profiles.title = '合作开发者'。
+   只影响「能看到开发者工具组 / 音乐」这类**可见性**，不改他的真实权限（权限按 T2 按用户下放）。 */
+function isCoDev() { return !!(ST.me && ST.me.title === '合作开发者'); }
 /* 管理员 + 开发者 —— 和数据库 hx_is_admin()（is_admin or is_dev）同一口径。
    2026-11-11 起音乐卡不再用它：用户明确「非开发者管理员压根没有音乐这个工具，不是访问的问题，
    压根不给门」，所以音乐入口改成 isDev()（只有开发者）。这个函数留给其它需要「管理员级」判定的地方。 */
@@ -1836,9 +1847,16 @@ function can(t) { // who：all 登录的人都有、teacher 教师、admin 只�
   // 所以 2026-11-01 那个「注册坏了先解锁接线仿真和刷题」的 open 后门已经拆掉，这里不再有免登录分支。
   if (t.anon) return true; // anon:1 的卡片（当前没有）未登录也放行；「使用说明」已改成 anon:0，随登录闸门一起收
   if (!HX.in() || locked()) return false;
-  if (t.who === 'dev') return isDev();
+  if (t.who === 'dev') return isDev() || isCoDev(); // 2026-11-19 第七轮 T5：开发者工具组只给开发者（含合作开发者）
   if (t.who === 'admin') return isOwner(); // 2026-11-11 用户：「排课功能只给管理员开放……收回权限」
   if (t.who === 'teacher') return isTeacher();
+  // who === 'all'：学生还要看「所在班点亮没」（2026-11-19 第七轮 T1 严格隔离）。
+  // CLS_GATE 里的工具（接线/刷题/单片机/考试/小组加分），这个学生所在班点亮了才显示、才进得去；
+  // 没点亮 → 卡片不显示、直连 URL 也被拦（show() 里同一把 can() 判）。考勤、进制转换不在 CLS_GATE，照旧放行。
+  if (isStudent() && CLS_GATE[t.id]) {
+    var st = ST.me.student;
+    return !!(st && st.tools && st.tools.indexOf(t.id) >= 0);
+  }
   return true;
 }
 /* 排课的「管理员」口径：和 排课/src/cloud.js 里 ADMIN_GITHUB 保持一致（同一个 GitHub 账号），
@@ -1863,7 +1881,8 @@ function isOwner() {
 }
 function role() {
   var m = ST.me; if (!m) return null;
-  return m.dev ? '开发者' : m.admin ? '管理员' : m.teacher ? '教师' : m.student ? (m.guest ? '访客' : '学生') : m.left ? '已退学' : '未开通';
+  // 合作开发者（title）优先级在开发者之后、管理员之前：它本质是教师，但显示独立头衔（T6）。
+  return m.dev ? '开发者' : (m.title === '合作开发者' ? '合作开发者' : m.admin ? '管理员' : m.teacher ? '教师' : m.student ? (m.guest ? '访客' : '学生') : m.left ? '已退学' : '未开通');
 }
 function info() { // 名字、头像、GitHub 用户名、邮箱
   var u = ST.user || {}, d = u.user_metadata || {}, gh = (u.identities || []).filter(function (i) { return i.provider === 'github'; })[0];
@@ -1890,7 +1909,7 @@ function avatar(i, cls) { // 有图 = 透明圆盘（.has-img，见上面注释�
    窄屏就被 #who 的 max-width 裁掉一半，字露在外面、右边被切。
    现在 badge(1) 表示「窄屏顶栏用的紧凑版」（只给 #who 用）；不带参数的地方
    （首页「你好，XX」那行、管理区标题）保持完整文字，那里不缺空间。 */
-function badge(tight) { var m = ST.me, t = tight ? ' tight' : ''; return m && m.dev ? '<span class="pill dev' + t + '" title="开发者">开发者</span>' : m && m.admin ? '<span class="pill admin' + t + '" title="管理员">管理员</span>' : ''; } // 身份象征：开发者金粉、管理员蓝
+function badge(tight) { var m = ST.me, t = tight ? ' tight' : ''; return m && m.dev ? '<span class="pill dev' + t + '" title="开发者">开发者</span>' : m && m.title === '合作开发者' ? '<span class="pill codev' + t + '" title="合作开发者">合作开发者</span>' : m && m.admin ? '<span class="pill admin' + t + '" title="管理员">管理员</span>' : ''; } // 身份象征：开发者金粉、管理员蓝、合作开发者紫（2026-11-19 第七轮 T6）
 // 按钮上二次确认：第一下变成“确认…？”，3 秒内再点才执行（不用 confirm()：应用内浏览器等环境会直接当成“取消”，看起来像点了没反应）
 function sure(b, text) {
   if (b.dataset.sure) { clearTimeout(+b.dataset.sure); delete b.dataset.sure; b.innerHTML = b.dataset.was; return true; }
@@ -2175,8 +2194,36 @@ function tileBalance() {
 var _balT = null;
 window.addEventListener('resize', function () { clearTimeout(_balT); _balT = setTimeout(tileBalance, 120); });
 
+/* 一个 id 能渲染成什么卡（2026-11-19 第七轮 T4/T5/T2 分组重构）：
+   TOOLS 工具卡（点开 iframe）/ MG sheet 卡（点开弹层）/ 音乐卡（点开歌单）。
+   返回 { id, name, c, icon, kind }，kind = tool|sheet|music；不满足可见性就返回 null。 */
+function cardOf(id) {
+  var t = TOOLS.filter(function (x) { return x.id === id; })[0];
+  if (t && can(t)) return { id: t.id, name: t.name, c: t.c, icon: t.icon, kind: 'tool' };
+  if (id === 'music') {
+    /* 音乐归开发者工具组（T5）：只有开发者（含合作开发者）可见。
+       服务端同步锁在 hx_is_dev()，这里只是藏卡片。 */
+    if (isDev() || isCoDev()) return { id: 'music', name: '音乐', c: ['#ff9eb3', '#e11d63'], icon: '<path d="M9 18V6l10-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/>', kind: 'music' };
+    return null;
+  }
+  var m = MG[id];
+  if (m && canSheet(id)) return { id: id, name: m.name, c: m.c, icon: m.icon, kind: 'sheet' };
+  return null;
+}
+/* sheet 卡的可见性（2026-11-19 第七轮）：
+   manage 教务管理 → 教师（含管理员/开发者），已归教学组（T4）；
+   tcode 教师邀请码 / users 用户管理 / grant 工具权限 → 只有开发者（含合作开发者）（T2）。 */
+function canSheet(id) {
+  if (id === 'manage') return isTeacher();
+  if (id === 'tcode' || id === 'users' || id === 'grant') return isDev() || isCoDev();
+  return false;
+}
 function render() {
-  var go = svg('<path d="M9 6l6 6-6 6"/>', 'go'), n = 0, G = GROUPS.map(function (g) { return { name: g[0], list: TOOLS.filter(function (t) { return can(t) && g[1].indexOf(t.id) >= 0; }) }; }).filter(function (g) { return g.list.length; });
+  var go = svg('<path d="M9 6l6 6-6 6"/>', 'go'), n = 0, G = GROUPS.map(function (g) {
+    var list = [];
+    g[1].forEach(function (id) { var c = cardOf(id); if (c) list.push(c); });
+    return { name: g[0], list: list };
+  }).filter(function (g) { return g.list.length; });
   $('tiles').innerHTML = (!HX.in() ? '<div class="tiles"><button class="tile act" type="button" id="tIn" style="--c1:#5ac8fa;--c2:#0a84ff"><span class="ic">' + svg('<circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/>') + '</span><b>登录 / 注册</b>' + go + '</button></div>' : '') + (locked() ? '<div class="tiles"><button class="tile act" type="button" id="tAct" style="--c1:#5ac8fa;--c2:#0a84ff"><span class="ic">' + svg('<rect x="3" y="6" width="18" height="12" rx="2.5"/><path d="M15 6v12" stroke-dasharray="1.5 2.5"/><path d="M7 10.5h4M7 13.5h3"/>') + '</span><b>填写邀请码开通</b>' + go + '</button></div>' : '') +
     G.map(function (g) { // 只有一组又没有“管理”时不加小标题
       return (G.length > 1 || mgList().length ? '<div class="sec"><h2>' + g.name + '</h2></div>' : '') + '<div class="tiles">' + g.list.map(function (t) {
@@ -2184,26 +2231,11 @@ function render() {
           '<span class="ic">' + svg(t.icon) + '</span>' + planets() + '<b>' + t.name + '</b>' + go + '</button>';
       }).join('') + '</div>';
     }).join('');
-  /* 音乐卡（2026-11-09）：和其它工具卡**完全同款**的一张 .tile，单独成一组「Yeye Toys」追加在网格末尾。
-     不进 GROUPS（它不是「学习/教学/维护」任何一类，是「夜夜的玩具」——个人化的小功能），
-     也不进 TOOLS（点它不 mount iframe，是弹歌单面板）。
-     可见性（2026-11-11 收敛，用户原话「非开发者管理员压根没有音乐这个工具，不是访问的问题，压根不给门」）：
-     **只有开发者 isDev() 看得到**，管理员、教师、学生一律连卡片都不渲染。
-     原因：音乐存在 Supabase Storage，免费版每月 5GB 出口流量，一首默认 BGM 就 40MB，每播一次拉一整份。
-     全班两百人一起用很容易把额度吃光，连带整站 API 异常。
-     服务端同步上锁到 hx_is_dev()（音乐/supabase/2026-11-11-音乐只给开发者.sql），连读都锁，不是只藏卡片。 */
-  if (isDev()) {
-    $('tiles').innerHTML += '<div class="sec"><h2>Yeye Toys</h2></div><div class="tiles"><button class="tile" type="button" data-id="music" style="--c1:#ff9eb3;--c2:#e11d63;animation-delay:' + (n++ * 50) + 'ms">' +
-      '<span class="ic">' + svg('<path d="M9 18V6l10-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/>') + '</span>' + planets() + '<b>音乐</b>' + go + '</button></div>';
-  }
   $('tiles').querySelectorAll('.tile[data-id]').forEach(function (b) {
-    if (b.dataset.id === 'music') {
-      b.onclick = function () { openMusicSheet(); };
-    } else {
-      b.onclick = function () {
-        show(b.dataset.id);
-      };
-    }
+    var c = cardOf(b.dataset.id);
+    if (c && c.kind === 'music') b.onclick = function () { openMusicSheet(); };
+    else if (c && c.kind === 'sheet') b.onclick = function () { openSheet(b.dataset.id); };
+    else b.onclick = function () { show(b.dataset.id); };
     // 卡片上端的像素小生物：每个工具固定配一只（本会话内不变），换会话重新随机
     if (window.HXCritters) HXCritters.attach(b, b.dataset.id);
     // 2026-11-02 撤掉「鼠标划过就预取」。原来 pointerenter 就 mount()，教室里鼠标从一排卡上划过去，
@@ -3166,6 +3198,18 @@ function renderLookBody() {
       c: '<div class="rng"><input type="range" id="op" min="-50" max="250" step="1" value="' + s.clr + '"></div>',
       tip: '100% = 默认的清透玻璃。往右更透（不管有没有背景图，透出来的是它背后的东西），250% 卡片基本只剩文字和边框；往左卡片变实、文字更清楚。0% 是实色卡，-50% 最实。'
     })
+    // 毛玻璃开关（2026-11-19 第七轮 T7④）：默认关闭 = 全透明。
+    // 开关独立于「卡片通透度」滑杆：滑杆调的是玻璃浓度（半透明→实色），毛玻璃开关是「要不要那层玻璃」——
+    // 关掉后卡片底板整个透明、没有背景模糊，只留文字和描边，壁纸整张透出来（用户原话「全透明很好看，当默认」）。
+    + sec({
+      t: '毛玻璃',
+      v: val(s.glass ? '开启' : '关闭'),
+      c: '<div class="seg">' + [['1', '开启'], ['0', '关闭']].map(function (x) {
+        return '<button type="button" data-glass="' + x[0] + '" aria-pressed="' + (String(s.glass || 0) === x[0]) + '">' + x[1] + '</button>';
+      }).join('') + '</div>',
+      tip: '开启 = 现在的毛玻璃（半透明底 + 背景模糊，文字最好读）；关闭 = 卡片底板全透明、没有模糊，只留文字和描边，壁纸整张透出来。默认关闭。',
+      more: '这个开关跟账号走（存云端 hx_pref），换电脑登录还是同一个观感。和上面的「卡片通透度」不冲突：通透度管玻璃浓度，这里管要不要玻璃。'
+    })
     + (s.bg !== 'none' ? sec({
       t: '背景清晰度',
       v: '<output class="lk-val" id="bgov" for="bgo">' + pct(s.bgo == null ? 100 : s.bgo) + '</output>',
@@ -3247,6 +3291,8 @@ function renderLookBody() {
     };
   });
   $('look').querySelectorAll('[data-wm]').forEach(function (b) { b.onclick = function () { HXTheme.set({ wm: +b.dataset.wm }); }; });
+  // 毛玻璃开关（2026-11-19 T7④）：set({glass}) 会走 apply() 写 data-hx-glass，全站卡片当场透明/还原。
+  $('look').querySelectorAll('[data-glass]').forEach(function (b) { b.onclick = function () { HXTheme.set({ glass: +b.dataset.glass }); }; });
   // 模式（2026-11-11 改名）：HXTheme.lite('1'/'0') 写偏好 + 当场生效（停视频/停动效/停光效）。
   // 防旧缓存：hx-theme.js 还是浏览器缓存的旧版时没有 lite 这个接口，别把外观面板点炸。
   $('look').querySelectorAll('[data-lite]').forEach(function (b) {
@@ -3355,30 +3401,27 @@ var MG = {
   tcode: { name: '教师邀请码', c: ['#c38cff', '#9b51e0'], icon: '<rect x="3" y="6" width="18" height="12" rx="2.5"/><path d="M15 6v12" stroke-dasharray="1.5 2.5"/><path d="M7 10.5h4M7 13.5h3"/>' },
   gcode: { name: '好友邀请码', c: ['#ff9f0a', '#ff6b00'], icon: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M19 8v6M16 11h6"/>' },
   scode: { name: '学生课堂码', c: ['#64d2c8', '#0fa3a0'], icon: '<rect x="4" y="4" width="6" height="6" rx="1.2"/><rect x="14" y="4" width="6" height="6" rx="1.2"/><rect x="4" y="14" width="6" height="6" rx="1.2"/><path d="M14 14h2.5v2.5H14zM17.5 17.5H20V20h-2.5zM20 14v1M14 20v-1"/>' },
-  adm: { name: '管理员', c: ['#a1a1a6', '#636366'], icon: '<path d="M12 3l7.5 3v5.5c0 4.5-3.2 8.2-7.5 9.5-4.3-1.3-7.5-5-7.5-9.5V6z"/><path d="M9 12l2 2 4-4"/>' }
+  adm: { name: '管理员', c: ['#a1a1a6', '#636366'], icon: '<path d="M12 3l7.5 3v5.5c0 4.5-3.2 8.2-7.5 9.5-4.3-1.3-7.5-5-7.5-9.5V6z"/><path d="M9 12l2 2 4-4"/>' },
+  // 2026-11-19 第七轮 T2：开发者工具组新增两张卡。
+  users: { name: '用户管理', c: ['#93c5fd', '#3b82f6'], icon: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 8h6M19 5v6"/>' },
+  grant: { name: '工具权限', c: ['#fca5a5', '#ef4444'], icon: '<path d="M12 2l8 3.5V11c0 5-3.4 9.3-8 11-4.6-1.7-8-6-8-11V5.5z"/><path d="M9 12l2 2 4-4"/>' }
 };
 // 2026-11-04 课堂码并入班级面板：cls 面板现在也画码了，codes 变了要跟着重画。
 // scode 那张独立卡已经取消，这里保留映射不影响（万一以后还有别处 openSheet('scode')）。
 /* 2026-11-08 补 subj：科目面板加进来时漏登记这一项，导致 loadSubjects() → renderMgmt('subj')
    在「面板正开着」时走 NEED['subj'].indexOf 直接抛 TypeError（保存完科目就报「失败：Cannot read
    properties of undefined (reading 'indexOf')」，rpc 其实已经成功了）。 */
-var NEED = { manage: ['cls', 'subj', 'codes'], gcode: ['codes'], tcode: ['codes'], scode: ['codes', 'cls'], adm: ['adm'] }; // 哪份数据变了，要重画哪张面板
+var NEED = { manage: ['cls', 'subj', 'codes'], gcode: ['codes'], tcode: ['codes'], scode: ['codes', 'cls'], adm: ['adm'], users: ['users'], grant: ['grant'] }; // 哪份数据变了，要重画哪张面板
 // 2026-11-02 用户要求：学生忘密码时，管理员 / 任课教师 / 开发者都能重置。
 // 判断用 isTeacher() || m.admin || m.dev —— 不能只写 isTeacher()：
 // 管理员和开发者不一定带教师身份，只判 isTeacher() 会让他们连这张卡都看不到。
 // 数据库函数 hx_reset_pw_by_no 里还会再判一次（教师只能重置自己班的，管理员/开发者不限），
 // 前端这层只负责别让人点进一个注定报错的窗口。
 function mgList() {
-  var m = ST.me || {}, L = [], staff = isTeacher() || m.admin || m.dev;
-  // 2026-11-10 用户要求：班级、科目、重置密码三个卡合并成一张「教务管理」卡。
-  // 只要需要其中任意一个（教师三者都要；管理员/开发者只为重置密码）就显示这张卡。
-  if (staff) L.push('manage');
-  // 2026-11-04 用户要求：「课堂码和班级功能重复甚至跳转多此一举，合并到班级」。
-  // 原来「班级」面板里每行有个「课堂码」按钮跳到独立的「学生课堂码」面板，两个入口看同一套数据。
-  // 现在本班课堂码直接画在班级面板里（码、已注册/人数、生成/分享/撤销都在那一行），
-  // 独立卡片取消，管理区只剩「好友邀请码」（那是访客用的，跟班级无关，留着）。
+  var m = ST.me || {}, L = [];
+  // 2026-11-19 第七轮 T4/T2：教务管理（manage）移到教学组、教师邀请码（tcode）移到开发者工具组，
+  // 都不再进这个「管理」区。这里只剩好友邀请码（gcode，教师）和管理员任命（adm，开发者）。
   if (isTeacher()) L.push('gcode');
-  if (m.admin) L.push('tcode');
   if (m.dev) L.push('adm');
   return L;
 }
@@ -3429,7 +3472,7 @@ function renderMgmt(part) {
       if (window.HXCritters) HXCritters.attach(b, 'mg-' + b.dataset.k);
     });
   } else box.querySelectorAll('[data-k]').forEach(function (b) { b.querySelector('.sum').textContent = mgSum(b.dataset.k); });
-  if (ST.sheet && L.indexOf(ST.sheet) < 0) $('sheet').close();
+  if (ST.sheet && !cardOf(ST.sheet) && L.indexOf(ST.sheet) < 0) $('sheet').close(); // 2026-11-19：manage/tcode 移出管理区后，它们仍是有效 sheet，不能再按「不在 mgList」误关
   // NEED 没登记的面板（比如以后新加的）按「part 变了一律重画」处理，不要抛 undefined.indexOf
   else if (ST.sheet && (!part || (NEED[ST.sheet] || []).indexOf(part) >= 0)) renderSheet();
   // 2026-11-19：render() 里那次 tileBalance() 跑在 #mgmt 还是空的时候，
@@ -3441,6 +3484,8 @@ function renderSheet() {
   var k = ST.sheet; $('shA').innerHTML = '';
   if (k === 'manage') sheetManage();
   else if (k === 'adm') sheetAdm();
+  else if (k === 'users') { if (ST.users === undefined) { ST.users = null; loadUsers(); } else sheetUsers(); }   // 2026-11-19 第七轮 T2：用户管理
+  else if (k === 'grant') { if (ST.users === undefined) { ST.users = null; loadUsers(); } else sheetGrant(); }   // 2026-11-19 第七轮 T2：按用户下放工具权限（也读 hx_users_list 拿 uid）
   else sheetCode(k === 'tcode' ? 'teacher' : k === 'gcode' ? 'guest' : 'student');
 }
 // 合并面板（2026-11-10）：班级/科目/重置密码并进一张「教务管理」卡。
@@ -4236,7 +4281,7 @@ function sheetAdm() {
   var box = $('shB'), T = ST.teachers;
   box.innerHTML = '<div class="f frow"><input id="aMail" type="email" placeholder="老师的登录邮箱"><button class="btn" id="aGo">设为管理员</button></div>' + (T === null ? '<p class="empty">加载中…</p>' : T.err ? '<p class="empty">名单读取失败：' + esc(T.err) + '</p>' : !T.length ? '<p class="empty">还没有教师</p>' :
     '<table><tr><th>老师</th><th>邮箱</th><th></th></tr>' + T.map(function (t) {
-      return '<tr><td>' + esc(t.name) + '</td><td class="dim">' + esc(t.email || '') + '</td><td class="ra">' + (t.is_dev ? '<span class="pill dev">开发者</span>'
+      return '<tr><td>' + esc(t.name) + (t.title === '合作开发者' ? ' <span class="pill codev">合作开发者</span>' : '') + '</td><td class="dim">' + esc(t.email || '') + '</td><td class="ra">' + (t.is_dev ? '<span class="pill dev">开发者</span>'
         : '<button type="button" class="chip" data-adm="' + esc(t.email || '') + '" aria-pressed="' + !!t.is_admin + '">' + (t.is_admin ? '管理员 ✓' : '设为管理员') + '</button>') + '</td></tr>';
     }).join('') + '</table>');
   $('aGo').onclick = async function () {
@@ -4268,6 +4313,103 @@ async function loadCodes() {
   renderMgmt('codes');
 }
 async function loadTeachers() { try { ST.teachers = await HX.rpc('hx_teachers') || []; } catch (e) { ST.teachers = { err: e.message }; } renderMgmt('adm'); }
+/* ── 2026-11-19 第七轮 T2②：用户管理（开发者工具组）──
+   列出全部账号，能看身份/头衔/停用/下放的工具；能改身份、改头衔（含设「合作开发者」）、停用。
+   危险操作（停用、改身份、清权限）二次确认。数据只给开发者（后端 hx_users_list 已锁 hx_is_dev）。 */
+function sheetUsers() {
+  var box = $('shB'), U = ST.users;
+  var roleCn = { teacher: '教师', student: '学生', guest: '访客' };
+  box.innerHTML = '<p class="msg" style="margin:0 0 12px;color:var(--dim,#8a8f98)">所有账号：可改身份、改头衔（「合作开发者」紫色）、停用。改头衔只改显示标签，不动真实权限；工具权限在「工具权限」卡单独下放。停用后该账号登录也用不了工具。</p>' +
+    '<div id="uList">' + (U === null ? '<p class="empty">加载中…</p>' : (U && U.err) ? '<p class="empty">读取失败：' + esc(U.err) + '</p>' :
+      '<table><tr><th>账号</th><th>身份</th><th>头衔</th><th>状态</th><th></th></tr>' + U.map(function (u) {
+        var pill = u.is_dev ? '<span class="pill dev">开发者</span>' : u.title === '合作开发者' ? '<span class="pill codev">合作开发者</span>' : u.is_admin ? '<span class="pill admin">管理员</span>' : '';
+        return '<tr><td>' + esc(u.name || u.email) + '<small class="dim">' + esc(u.email) + '</small></td>' +
+          '<td>' + esc(roleCn[u.role] || u.role) + pill + '</td>' +
+          '<td>' + esc(u.title || '—') + '</td>' +
+          '<td>' + (u.disabled ? '<span class="pill bad">已停用</span>' : '<span class="pill ok">正常</span>') + '</td>' +
+          '<td class="ra">' + (u.is_dev ? '' :
+            '<button class="btn link sm ib" data-u-setrole="' + u.uid + '" title="改身份">改身份</button>' +
+            '<button class="btn link sm ib" data-u-title="' + u.uid + '" title="改头衔">头衔</button>' +
+            '<button class="btn link sm ib bad" data-u-toggle="' + u.uid + '" title="停用/启用">' + (u.disabled ? '启用' : '停用') + '</button>') + '</td></tr>';
+      }).join('') + '</table>') + '</div>';
+  box.querySelectorAll('[data-u-setrole]').forEach(function (b) {
+    b.onclick = async function () {
+      var u = (ST.users || []).filter(function (x) { return x.uid === b.dataset.uSetrole; })[0]; if (!u) return;
+      var next = u.role === 'teacher' ? 'student' : 'teacher';
+      if (!await ask('改身份', '把 ' + (u.name || u.email) + ' 的身份从「' + (roleCn[u.role] || u.role) + '」改成「' + (roleCn[next] || next) + '」？', '改身份')) return;
+      var tok = (window.HXBusy && b) ? HXBusy.begin(b, '改身份…') : null; if (!tok) b.disabled = true;
+      try { await HX.rpc('hx_user_set_role', { p_uid: u.uid, p_role: next }); toast('已改身份'); await loadUsers(); }
+      catch (e) { toast(e.message); } finally { if (tok) HXBusy.end(tok); else b.disabled = false; }
+    };
+  });
+  box.querySelectorAll('[data-u-title]').forEach(function (b) {
+    b.onclick = async function () {
+      var u = (ST.users || []).filter(function (x) { return x.uid === b.dataset.uTitle; })[0]; if (!u) return;
+      // 就地弹一个小选择：设「合作开发者」或清空头衔
+      var t = u.title === '合作开发者' ? '' : '合作开发者';
+      if (!await ask('改头衔', t ? '把 ' + (u.name || u.email) + ' 设为「合作开发者」？这只是显示标签，不改他的真实工具权限。' : '清掉 ' + (u.name || u.email) + ' 的「合作开发者」头衔？', t ? '设为合作开发者' : '清空')) return;
+      var tok = (window.HXBusy && b) ? HXBusy.begin(b, '改头衔…') : null; if (!tok) b.disabled = true;
+      try { await HX.rpc('hx_user_set_title', { p_uid: u.uid, p_title: t }); toast(t ? '已设为合作开发者' : '已清空头衔'); await loadUsers(); }
+      catch (e) { toast(e.message); } finally { if (tok) HXBusy.end(tok); else b.disabled = false; }
+    };
+  });
+  box.querySelectorAll('[data-u-toggle]').forEach(function (b) {
+    b.onclick = async function () {
+      var u = (ST.users || []).filter(function (x) { return x.uid === b.dataset.uToggle; })[0]; if (!u) return;
+      if (!sure(b, u.disabled ? '确认启用？' : '确认停用？')) return;
+      var tok = (window.HXBusy && b) ? HXBusy.begin(b, u.disabled ? '启用…' : '停用…') : null; if (!tok) b.disabled = true;
+      try { await HX.rpc('hx_user_disable', { p_uid: u.uid, p_on: !u.disabled }); toast(u.disabled ? '已启用' : '已停用'); await loadUsers(); }
+      catch (e) { toast(e.message); } finally { if (tok) HXBusy.end(tok); else b.disabled = false; }
+    };
+  });
+}
+async function loadUsers() { try { ST.users = await HX.rpc('hx_users_list') || []; } catch (e) { ST.users = { err: e.message }; } renderSheet(); }
+/* ── 2026-11-19 第七轮 T2③：按用户下放工具权限（开发者工具组）──
+   选一个教师用户，勾选下放哪些工具（默认全关，点亮才可用）。和学生的「按班级点亮」同一套模式。 */
+function sheetGrant() {
+  var box = $('shB'), U = ST.users, sel = ST.grantSel;
+  var tools = ['wiring', 'quiz', 'base', 'mcu', 'exam', 'kaoqin', 'jiafen', 'ziliao', 'paike', 'course', 'help', 'ai', 'backup', 'recycle'];
+  var nameOf = function (id) { var t = TOOLS.filter(function (x) { return x.id === id; })[0]; return t ? t.name : id; };
+  var teachers = (U && !U.err) ? U.filter(function (x) { return x.role === 'teacher' && !x.is_dev; }) : [];
+  box.innerHTML = '<p class="msg" style="margin:0 0 12px;color:var(--dim,#8a8f98)">给某个教师账号下放工具：下放哪个，他才在首页看到、能用哪个；默认全关。开发者工具组（UI 设计 / 用户管理 / 教师邀请码 / 工具权限 / 音乐）不在这里下放，那是开发者专属。</p>' +
+    '<div class="f frow"><select id="gUser" style="flex:1;min-width:0">' +
+    (U === null ? '<option>加载中…</option>' : (U && U.err) ? '<option>读取失败</option>' : teachers.length ? teachers.map(function (t) {
+      return '<option value="' + esc(t.email || '') + '"' + (sel === t.email ? ' selected' : '') + '>' + esc(t.name || t.email) + '</option>';
+    }).join('') : '<option>还没有教师账号</option>') + '</select><button class="btn" id="gLoad">看这个人的权限</button></div>' +
+    '<div id="gList" style="margin-top:12px"></div>';
+  $('gLoad').onclick = function () {
+    sel = ST.grantSel = $('gUser').value;
+    loadGrant();
+  };
+  if (sel) loadGrant();
+}
+async function loadGrant() {
+  var box = $('gList'); if (!box) return;
+  var em = ST.grantSel; if (!em) return;
+  var tools = ['wiring', 'quiz', 'base', 'mcu', 'exam', 'kaoqin', 'jiafen', 'ziliao', 'paike', 'course', 'help', 'ai', 'backup', 'recycle'];
+  var nameOf = function (id) { var t = TOOLS.filter(function (x) { return x.id === id; })[0]; return t ? t.name : id; };
+  box.innerHTML = '<p class="empty">读取中…</p>';
+  var uid = grantUid(em);
+  if (!uid) { box.innerHTML = '<p class="empty">没找到这个账号</p>'; return; }
+  var cur = [];
+  try { cur = await HX.rpc('hx_user_tools_get', { p_uid: uid }) || []; } catch (e) { box.innerHTML = '<p class="empty">读取失败：' + esc(e.message) + '</p>'; return; }
+  box.innerHTML = '<div class="chips" style="margin-bottom:12px">' + tools.map(function (t) {
+    var on = cur.indexOf(t) >= 0;
+    return '<button type="button" class="chip" data-gt="' + t + '" aria-pressed="' + on + '">' + nameOf(t) + '</button>';
+  }).join('') + '</div><button class="btn" id="gSave">保存下放</button>';
+  box.querySelectorAll('[data-gt]').forEach(function (b) {
+    b.onclick = function () { var on = b.getAttribute('aria-pressed') === 'true'; b.setAttribute('aria-pressed', !on); };
+  });
+  $('gSave').onclick = async function () {
+    var sel = [];
+    box.querySelectorAll('[data-gt]').forEach(function (b) { if (b.getAttribute('aria-pressed') === 'true') sel.push(b.dataset.gt); });
+    var tok = (window.HXBusy && this) ? HXBusy.begin(this, '保存…') : null; if (!tok) this.disabled = true;
+    try { await HX.rpc('hx_user_tools_set', { p_uid: uid, p_tools: sel }); toast('已保存下放'); }
+    catch (e) { toast(e.message); } finally { if (tok) HXBusy.end(tok); else this.disabled = false; }
+  };
+}
+function grantUid(email) { var U = ST.users || []; var u = U.filter(function (x) { return x.email === email; })[0]; return u ? u.uid : null; }
+
 // 名单：第一行加学生；每人可改学号姓名、删除（已开通或有成绩的标为退学，灰着放最后，可恢复）
 var PEN = '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>', BIN = '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>';
 var BLOCK = '<path d="M12 3l7.5 3v5.5c0 4.5-3.2 8.2-7.5 9.5-4.3-1.3-7.5-5-7.5-9.5V6z"/><path d="M5 6.5l14 0"/>';
@@ -4466,6 +4608,12 @@ function subjKey(name) {
   if (ascii.length >= 3 && /^[a-z]/.test(ascii) && !(ST.subjects || []).some(function (s) { return s.key === ascii.slice(0, 20); })) return ascii.slice(0, 20);
   return 'sub' + Date.now().toString(36) + Math.random().toString(36).slice(2, 4);
 }
+/* 刷题内置题库的内部 id → 中文名（2026-11-19 第七轮 T8）。
+   科目右侧挂的关联刷题库名原来直接显示底层 id（「刷题 mcu」「刷题 wiring」这种技术名），
+   用户看着别扭。这里只把**内置题库**那几个内部 id 翻成中文展示，其它（新建科目的同名空题库、
+   自定义题库）不在表里就退回原样 —— 底层 id 是数据关联的键，一个字都不动。 */
+var BANK_CN = { wiring: '电气接线原理', mcu: '单片机应用技术', psychology: '教育心理学', education: '教育学' };
+function bankCn(b) { return (b && BANK_CN[b]) || b; }
 /* 科目面板：和「班级」同构。列表 + 新建 / 改名 / 删除。
    新建 = 建 hx_exam_subject + 同步建同名刷题空题库（quiz_publish，id=科目代号），
    这样刷题里立刻出现这个科目；老师之后在资料库出题「发布到刷题」填充它。 */
@@ -4476,7 +4624,7 @@ function sheetSubj() {
     '<p class="msg" style="margin:0 0 12px;color:var(--dim,#8a8f98)">科目给资料库、考试、考勤、刷题共用：在这里建一个，各处都能选到；建完会顺手在刷题里也建一个同名空题库。</p>' +
     '<div class="cls">' + (S.length ? S.map(function (s) {
       var n = [s.name].concat((s.mats || 0) ? ['资料 ' + s.mats] : []).concat((s.banks || 0) ? ['题 ' + s.banks] : []).join(' · ');
-      return '<div class="cl"><div><h3>' + esc(s.name) + '</h3><small>' + esc(n) + (s.quiz_bank ? ' · 刷题 ' + esc(s.quiz_bank) : '') + '</small></div>' +
+      return '<div class="cl"><div><h3>' + esc(s.name) + '</h3><small>' + esc(n) + (s.quiz_bank ? ' · 关联刷题库：' + esc(bankCn(s.quiz_bank)) : '') + '</small></div>' +
         '<div class="acts">' +
         '<button class="btn sub sm" data-sjren="' + s.id + '">改名</button>' +
         '<button class="btn sub sm ib bad" data-sjdel="' + s.id + '">删除</button></div></div>';

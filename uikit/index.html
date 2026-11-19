@@ -41,10 +41,10 @@
     <input type="search" placeholder="搜组件、用途、关键词…" aria-label="搜索组件">
   </label>
 
-  <button class="btn theme-btn" type="button" title="切到深色" aria-label="切换深浅">
-    <svg viewBox="0 0 24 24"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.5 6.5 0 0 0 9.8 9.8z"></path></svg>
-  </button>
-  <a class="btn" href="copyright.html">使用说明与来源</a>
+  <!-- 2026-11-19 第七轮 T7①：删掉页面内部的深浅切换按钮（月亮图标）。
+       深浅归全站管，嵌在总入口里时顶栏已有主题按钮，这里再放一颗就是重复；
+       直接打开本页时深浅也跟着 hx-theme 走（下方内联脚本已按 data-hx-mode 兜底）。
+       原「使用说明与来源」按钮也删了：首页 hero 和左栏已各有一个入口，顶部再来是第三处重复（T7③）。 -->
 </header>
 
 <div class="shell">

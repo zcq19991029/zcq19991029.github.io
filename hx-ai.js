@@ -398,6 +398,110 @@
     return out;
   }
 
+  /* ── 能力来源三级：官方标注 → AI 判断 → 按名字猜（2026-11-19）──────────────────
+     为什么要有这一层：guessCaps 是按模型名正则猜，vl / vision 这种名字里的线索会漏、
+     也会误判（比如「gpt-4o」没写 vl 但其实是多模态）。用户在设置页的诉求是
+     「别让我手勾，能力自动标、而且要标得准」。于是定成三级，越靠前越可信：
+       ① 官方标注：读 /models 时把各家返回的能力字段（capabilities / modalities /
+          type / object / owned_by）摘出来，存进下面的缓存（src = official）；
+       ② AI 判断：用户点「让 AI 识别能力」时，调一个已有的文本模型，喂「模型名 + 平台」
+          清单让它判，结果也进缓存（src = ai）；
+       ③ 按名字猜：上面都没有时退回 guessCaps（src = guess），并明说「可能不准」。
+     缓存按「模型名」存（同名模型能力基本一致，跨平台也能复用），优先级 official > ai > guess，
+     低优先级的写不覆盖高优先级的。 */
+  var CAPS_CACHE = 'hx-ai-caps-cache-v1';
+  var CAPS_SRC_LABEL = { official: '官方标注', ai: 'AI 识别', guess: '按名字猜' };
+  var CAPS_SRC_RANK = { official: 3, ai: 2, guess: 1 };
+
+  function capsCacheRead() {
+    var raw = null;
+    try { raw = JSON.parse(g.localStorage.getItem(CAPS_CACHE) || 'null'); } catch (e) { raw = null; }
+    return raw && typeof raw === 'object' ? raw : {};
+  }
+  function capsCacheWrite(map) {
+    try { g.localStorage.setItem(CAPS_CACHE, JSON.stringify(map)); } catch (e) { /* 隐私模式写不进不碍事 */ }
+  }
+  // 读缓存里某个模型的能力（带来源），没有返回 null
+  function capsCacheGet(model) {
+    var m = str(model);
+    if (!m) return null;
+    var e = capsCacheRead()[m];
+    if (!e || !Array.isArray(e.caps)) return null;
+    return { caps: withText(e.caps), src: CAPS_SRC_LABEL[e.src] ? e.src : 'guess', at: Number(e.at) || 0 };
+  }
+  function capsCacheSet(model, capsArr, src) {
+    var m = str(model);
+    if (!m || !Array.isArray(capsArr)) return;
+    var map = capsCacheRead();
+    var prev = map[m];
+    var nr = CAPS_SRC_RANK[src] || 1;
+    var pr = prev && prev.src ? (CAPS_SRC_RANK[prev.src] || 0) : 0;
+    if (prev && pr > nr) return;   // 低优先级不覆盖高优先级
+    map[m] = { caps: withText(capsArr), src: src, at: Date.now() };
+    capsCacheWrite(map);
+  }
+  // 能力列表统一兜底带 text（supports() 里 text 永远为真，这里保持一致，别存出一份没有 text 的）
+  function withText(cs) {
+    var a = normCaps(cs);
+    if (a.indexOf('text') < 0) a.unshift('text');
+    return a;
+  }
+
+  /* 从 /models 返回的单条 model 对象里摘「官方标注」的能力。只认官方字段值里的明确词，
+     绝不看模型名字（名字猜是 guessCaps 的事）。认不出任何能力 → 返回 null（表示「官方没标」），
+     交给上层走 AI 判断 / 按名字猜，绝不假装拿到。 */
+  function officialCaps(entry) {
+    if (!entry || typeof entry !== 'object') return null;
+    var out = ['text'];
+    var add = function (c) { if (c && out.indexOf(c) < 0) out.push(c); };
+    var capsVal = entry.capabilities;
+    if (Array.isArray(capsVal)) capsVal.forEach(function (v) { add(capFromOfficialWord(String(v), false)); });
+    else if (capsVal && typeof capsVal === 'object') Object.keys(capsVal).forEach(function (k) { if (capsVal[k]) add(capFromOfficialWord(k, false)); });
+    ['modalities', 'supported_modalities', 'modes'].forEach(function (k) {
+      var v = entry[k];
+      if (!Array.isArray(v)) return;
+      v.forEach(function (x) { add(capFromOfficialWord(String(x), true)); });
+    });
+    ['type', 'object', 'owned_by'].forEach(function (k) {
+      var v = entry[k];
+      if (typeof v === 'string' && v) add(capFromOfficialWord(v, false));
+    });
+    return out.length > 1 ? out : null;
+  }
+  // 官方字段值 → cap。asMode 为真时是「输入输出模态」语境，bare image 指「能读图」= vision。
+  function capFromOfficialWord(w, asMode) {
+    var s = String(w == null ? '' : w).toLowerCase();
+    if (!s) return null;
+    if (/embedding|embed|rerank|reranker|moderation|search/.test(s)) return null;
+    if (/text.?to.?image|image.?generation|image.?gen|image.?edit/.test(s)) return 'image';
+    if (/text.?to.?video|video.?generation|video.?gen/.test(s)) return 'video';
+    if (/tts|whisper|asr|speech.?to.?text|speech|audio|voice|sound/.test(s)) return 'audio';
+    if (/vision|vlm|multimodal|image.?input|image.?understanding|image_url|image.?to.?text/.test(s)) return 'vision';
+    if (asMode && /image/.test(s)) return 'vision';
+    if (/image/.test(s)) return 'image';
+    if (/video|veo|sora|kling|wan/.test(s)) return 'video';
+    if (/reason|thinking/.test(s)) return 'reason';
+    if (/text|chat|language|completion/.test(s)) return 'text';
+    return null;
+  }
+
+  /* 三级能力来源的最终落点：缓存里已有（official / ai / guess）就用缓存的，否则按名字猜。
+     guess 也会写回缓存（按名字是确定的，缓存省得下次再猜；以后读到官方标注或 AI 判断会升级覆盖）。 */
+  function resolveCaps(model) {
+    var m = str(model);
+    var c = m ? capsCacheGet(m) : null;
+    if (c) return { caps: c.caps, src: c.src };
+    var g = guessCaps(m);
+    if (m) capsCacheSet(m, g, 'guess');
+    return { caps: g, src: 'guess' };
+  }
+  function capsOf(model) { return resolveCaps(model).caps; }
+  function capsSource(model) {
+    var c = capsCacheGet(str(model));
+    return c ? c.src : 'guess';
+  }
+  function capsSrcLabel(src) { return CAPS_SRC_LABEL[src] || CAPS_SRC_LABEL.guess; }
+
   // 一个工具需要哪几项能力（不认识的工具当「纯文本」处理，别让它变成「什么都不能干」）
   function toolNeed(tool) {
     var t = str(tool);
@@ -488,6 +592,13 @@
     return cs;
   }
 
+  /* 新增 / 导入时模型的 caps 从哪来：有显式勾选（老数据 / 手动传的）就用勾选的，
+     没勾就按三级来源自动判 —— 有标注用标注，没标注走兜底（不再要求用户手动勾）。 */
+  function capsFor(o) {
+    if (o && Array.isArray(o.caps) && o.caps.length) return normCaps(o.caps);
+    return resolveCaps(o && o.model).caps;
+  }
+
   function normThink(v) {
     // 思考程度：只认三档，老存档没这个字段 = 均衡（默认），不报错。
     var tl = str(v);
@@ -525,7 +636,7 @@
       platId: cleanId(o.platId || o.platformId),
       model: str(o.model),
       name: str(o.name).slice(0, 40),
-      caps: normCaps(o.caps),
+      caps: capsFor(o),
       thinkLevel: normThink(o.thinkLevel),
       at: Number(o.at) || Date.now()
     };
@@ -549,7 +660,7 @@
       baseUrl: baseUrl,
       model: str(o.model),
       models: list,
-      caps: normCaps(o.caps),
+      caps: capsFor(o),
       thinkLevel: normThink(o.thinkLevel),
       at: Number(o.at) || Date.now()
     };
@@ -649,6 +760,9 @@
           dirty = true;
         }
         if (!n.name) n.name = n.model;  // 老存档有的没名字，列表里总不能显示空白
+        // 2026-11-19：老存档没勾能力（caps 空 / 缺）→ 已经按三级来源自动补上，标脏写回，
+        // 下次打开/换电脑也能带出去，不用每次现猜。
+        if (!Array.isArray(p.caps) || !p.caps.length) dirty = true;
         s.profiles.push(n);
         if (Array.isArray(p.models) && p.models.length) {
           // v1 里每条配置各自记的候选模型，并进平台（去重），省得迁移后候选凭空少一半
@@ -1317,6 +1431,14 @@
     try { data = await res.json(); } catch (e) { data = null; }
     if (!data || !Array.isArray(data.data)) throw new Error('读模型列表失败：接口返回的内容不是模型列表（可能地址填成了别的接口）。');
     var out = data.data.map(function (x) { return str(x.id); }).filter(Boolean).sort();
+    // 2026-11-19：顺手摘官方能力标注 —— 有就写进能力缓存（src=official），没有就跳过。
+    // 大多数 /models 接口其实只回 id 不带能力，这里能摘多少摘多少，绝不假装拿到。
+    data.data.forEach(function (x) {
+      var id = str(x.id);
+      if (!id) return;
+      var oc = officialCaps(x);
+      if (oc) capsCacheSet(id, oc, 'official');
+    });
     // 存回平台：下次打开设置页、加新模型时，候选里直接就有（不用再点一次「读取模型」）
     if (conn.platId) {
       try {
@@ -1326,6 +1448,116 @@
       } catch (e) { /* 存不下也无所谓，列表已经返回了 */ }
     }
     return out;
+  }
+
+  /* 「让 AI 识别能力」（2026-11-19）：当官方标注缺失时，调一个已有的文本模型，
+     喂一份「模型名 + 平台」清单，让它判断每个模型的能力，返回 JSON。
+     这一步是用户手动触发的（会烧 token、也慢），绝不在后台自动跑。
+     失败 / 超时 / 没配文本模型 → 退回 guessCaps，并带一句「可能不准」的提示。 */
+  function collectJudgeList(opts) {
+    var s = read();
+    var list = [];
+    if (Array.isArray(opts.models)) {
+      list = opts.models.map(function (x) {
+        return typeof x === 'string' ? { model: str(x), provider: '' } : { model: str(x && x.model), provider: str(x && x.provider) };
+      }).filter(function (x) { return x.model; });
+    } else if (opts.platId) {
+      var pl = findPlat(s, opts.platId);
+      s.profiles.forEach(function (p) { if (p.platId === opts.platId) list.push({ model: p.model, provider: pl ? pl.provider : '' }); });
+    }
+    var seen = {};
+    return list.filter(function (x) {
+      if (seen[x.model]) return false;
+      seen[x.model] = 1;
+      var c = capsCacheGet(x.model);
+      if (c && c.src === 'official') return false;   // 官方已标注，不用再让 AI 判
+      return true;
+    });
+  }
+  function buildJudgePrompt(list) {
+    var names = list.map(function (x, i) {
+      var lab = x.provider && providers[x.provider] ? providers[x.provider].label : (x.provider || '未知');
+      return (i + 1) + '. ' + x.model + '（平台：' + lab + '）';
+    }).join('\n');
+    return '请你判断下面每个模型各自具备哪些能力，用于在工具里自动标注。\n' +
+      '能力只有六种，用英文 id：text（文本问答）、vision（图片识别）、reason（擅长推理）、image（图像生成）、video（视频生成）、audio（音频 / 语音）。\n' +
+      '规则：所有模型都有 text；其余能力按这个模型是否真的能做来判断（视觉模型才有 vision，文生图模型才有 image，依此类推）。\n' +
+      '只输出一个 JSON 对象，键是模型名，值是该模型的能力 id 数组，例如 {"gpt-4o": ["text","vision"]}。不要输出任何解释、注释或代码块标记。\n\n模型清单：\n' + names;
+  }
+  function parseJudgeResult(text, list) {
+    var data = null;
+    try { data = JSON.parse(stripFence(text)); } catch (e) { return null; }
+    var out = {};
+    var grab = function (name, cs) {
+      var n = str(name);
+      if (n && Array.isArray(cs)) out[n] = withText(cs);
+    };
+    if (Array.isArray(data)) {
+      data.forEach(function (it) {
+        if (!it || typeof it !== 'object') return;
+        grab(it.model || it.name || it.id, it.caps || it.abilities || it.capabilities);
+      });
+    } else if (data && typeof data === 'object') {
+      Object.keys(data).forEach(function (k) {
+        var v = data[k];
+        if (Array.isArray(v)) grab(k, v);
+        else if (v && typeof v === 'object') grab(k, v.caps || v.abilities || v.capabilities);
+      });
+    }
+    var result = {};
+    list.forEach(function (x) { if (out[x.model]) result[x.model] = out[x.model]; });
+    return Object.keys(result).length ? result : null;
+  }
+  // 把判断结果写进缓存，并把范围内 profile 的 caps 一并更新（工具立刻按新能力挑模型）。
+  // 已有更高优先级的来源（official > ai > guess）时，只跳过 profile 的降级更新，缓存也不降级。
+  function commitJudge(opts, list, map, src) {
+    var s = read();
+    var nr = CAPS_SRC_RANK[src] || 1;
+    list.forEach(function (x) {
+      var cs = withText(map[x.model]);
+      var prev = capsCacheGet(x.model);
+      var pr = prev ? (CAPS_SRC_RANK[prev.src] || 0) : 0;
+      capsCacheSet(x.model, cs, src);
+      if (pr > nr) return;
+      s.profiles.forEach(function (p) {
+        if (p.model !== x.model) return;
+        if (opts.platId && p.platId !== opts.platId) return;
+        p.caps = cs;
+      });
+    });
+    write(s);
+    return list.map(function (x) { return { model: x.model, caps: withText(map[x.model]) }; });
+  }
+  async function judgeCaps(opts) {
+    opts = opts || {};
+    var list = collectJudgeList(opts);
+    if (!list.length) throw new Error('没有需要识别的模型（这个平台下还没有模型，或都已经有官方标注）。');
+
+    var judge = null, jk = '';
+    try {
+      judge = pick({ cap: 'text' });
+      jk = judge ? keyOf(judge) : '';
+    } catch (e) { judge = null; }
+
+    var parsed = null, aiErr = '';
+    if (judge && jk) {
+      try {
+        var raw = await request(judge, jk, [{ role: 'user', content: buildJudgePrompt(list) }], { json: true, maxTokens: 2000, temperature: 0 });
+        parsed = parseJudgeResult(raw, list);
+        if (!parsed) aiErr = '模型没返回能解析的 JSON';
+      } catch (e) { aiErr = (e && e.message) || '调用失败'; }
+    } else {
+      aiErr = '没有可用的文本模型或没填 Key';
+    }
+
+    if (parsed) {
+      var items = commitJudge(opts, list, parsed, 'ai');
+      return { src: 'ai', judged: list.length, items: items, warn: '' };
+    }
+    var guessed = {};
+    list.forEach(function (x) { guessed[x.model] = guessCaps(x.model); });
+    var items2 = commitJudge(opts, list, guessed, 'guess');
+    return { src: 'guess', judged: list.length, items: items2, warn: (aiErr ? aiErr + '。' : '') + '这次是按名字猜的，可能不准' };
   }
 
   // 导出：只导「平台、模型和地址」，Key 永远不进来。顺便再兜一层 replacer，防止以后有人往平台/模型里塞了 key 字段。
@@ -1459,10 +1691,16 @@
     existsModel: existsModel, // 同一平台下同名模型查重
     explicitFor: explicitFor, // 之前只有 forTool，设置页要区分「单独指定」和「跟随默认」
     // ---------- 2026-11-19 新增：按模型名猜能力 / 按工具推荐 ----------
-    guessCaps: guessCaps,     // 猜模型能力（新模型预勾用），永远含 text
+    guessCaps: guessCaps,     // 猜模型能力（三级来源里的最后兜底），永远含 text
     recFor: recFor,           // 这个工具推荐用哪套（尊重已指定且能力够的）
     missingCaps: missingCaps, // 这个模型相对这个工具缺哪几项能力（中文名数组）
     bestFor: bestFor,         // 某项能力该用哪套（「全部按推荐」用，和 recFor 同一套挑法）
+    // ---------- 2026-11-19 能力三级来源：官方标注 / AI 判断 / 按名字猜 ----------
+    capsOf: capsOf,           // 这个模型现在会被标成哪几项能力（含缓存回退）
+    capsSource: capsSource,   // 能力来源：official / ai / guess
+    capsSrcLabel: capsSrcLabel, // 来源的中文名（官方标注 / AI 识别 / 按名字猜）
+    judgeCaps: judgeCaps,     // 让 AI 识别一批模型的能力（手动触发，会耗一次调用）
+    officialCaps: officialCaps, // 从 /models 单条对象摘官方能力（供自验 / 单测）
     // pick 一直是内部函数（chat / vision / image 用），2026-11-15 顺手放出来：
     // 设置页要按能力预演「现在会落到哪个模型」，自验脚本也要能直接断言过滤口径。
     pick: pick,

@@ -59,7 +59,10 @@
     //   校徽水印显示 模式极简」。所以主题色默认从 'green' 换成 'mono'（色板里叫「黑白」，深色下
     //   d 色 = #f5f5f7，就是用户要的白），水印默认从「首页开 / 工具页关」统一成「全站开」。
     //   迁移只把**值还等于旧默认**的字段换成新默认，用户显式选过的颜色一律保留（见 migrateGlobal）。
-    DEF = { acc: 'mono', mode: 'dark', bg: 'none', clr: 100, bgo: 100, wm: 1 };
+    // glass：毛玻璃开关（2026-11-19 第七轮 T7④ 新增）。0 = 关闭（默认，卡片底板全透明、
+    //   无背景模糊，只留文字和描边，壁纸整张透出来——用户原话「全透明很好看，要它当默认」）；
+    //   1 = 开启（现在的毛玻璃：半透明底 + backdrop-filter 模糊，保文字可读性）。
+    DEF = { acc: 'mono', mode: 'dark', bg: 'none', clr: 100, bgo: 100, wm: 1, glass: 0 };
   // 2026-11-11 用户定（第二次改默认背景）：「极光背景改 … 使用默认静态背景？比如就用深色总默认 无背景
   //   可以选极光 加入选择不强制」。所以全站默认背景从 `aurora`（动态视频壁纸）改成 `none`
   //   （纯深色底，最省电、最不抢内容）；想要极光的人在外观面板里自己点，不再是默认。
@@ -512,7 +515,7 @@
   // 只列这六个：acc 主题色 / mode 深浅 / bg 背景 / clr 卡片通透度 / bgo 背景清晰度 / wm 校徽水印。
   // 为什么要有这么一张表：迁移和写入都只认这六个，老存档里的 wx（已删的像素动效）、op（旧滑杆语义）
   // 之类不会再被抄进新存档，以后也不会因为「顺手 for in」把不相干的字段带进云端快照。
-  var GKEYS = ['acc', 'mode', 'bg', 'clr', 'bgo', 'wm'];
+  var GKEYS = ['acc', 'mode', 'bg', 'clr', 'bgo', 'wm', 'glass'];
 
   // ── VER 8 全局化迁移（2026-11-13）────────────────────────────────────
   // 背景：VER 5/6 把外观拆成了「首页一把（hx-theme）+ 每个工具一把（hx-theme:s:<tool>）」，
@@ -613,7 +616,9 @@
       // 上限 250（2026-11-17 用户要「上限增加 100%」）—— 那一点上 hx_a 正好降到 0，卡片完全透明。
       clr: clampRange(+g.clr, DEF.clr, 250),
       // 背景清晰度：100 = 原样显示（最清楚），0 = 背景几乎看不见、只剩页面底色。
-      bgo: clampRange(+g.bgo, DEF.bgo)
+      bgo: clampRange(+g.bgo, DEF.bgo),
+      // 毛玻璃开关（2026-11-19 T7④）：只认显式写过的「开」，其余一律关（默认全透明）。
+      glass: (g.glass === 1 || g.glass === '1' || g.glass === true) ? 1 : 0
     };
     if (s.bg === 'custom' && !ls(IMG)) s.bg = DEF.bg;
     if (BG[s.bg].dev && !isDev()) s.bg = 'none'; // 开发者专属背景：别的账号（或没登录）回落到无背景
@@ -697,6 +702,10 @@
     r.setAttribute('data-hx-mode', m); r.setAttribute('data-theme', m); r.setAttribute('data-hx-acc', s.acc);
     r.classList.toggle('hx-bg', s.bg !== 'none');
     r.classList.toggle('hx-wm-off', !s.wm);   // 校徽水印开关（VER 8：全站一份，默认显示）
+    // 毛玻璃开关（2026-11-19 T7④）：写 data-hx-glass，CSS 侧据此决定卡片底板透明/模糊。
+    //   关闭（glass=0，默认）→ data-hx-glass="off"，卡片底板全透明、无 backdrop-filter、只留文字和描边；
+    //   开启（glass=1）→ 无该属性，走现有毛玻璃配方（--card / --glass-wash + backdrop-filter）。
+    r.setAttribute('data-hx-glass', s.glass ? 'on' : 'off');
     // 页面层开关：有背景可看时才把 body 放透明、铺页面底色；
     // 背景是「无」时不挂 —— 页面保持自己原来的底色，就是用户要的干净纯色背景。
     // 嵌入时不挂：iframe 里的背景由 hx-embedded 那套规则自己铺（见文件上方），
@@ -1248,7 +1257,7 @@
   // 要删去相册里点 ×。2026-11-13 用户拍板「恢复默认不能删上传的背景图」—— 所以这里只把 bg 置回
   // none（DEF.bg），绝不清 IMG / IMGS，恢复默认后想切回来，图还在。
   function reset() {
-    var d = { ver: VER, acc: DEF.acc, mode: DEF.mode, bg: DEF.bg, clr: DEF.clr, bgo: DEF.bgo, wm: DEF.wm };
+    var d = { ver: VER, acc: DEF.acc, mode: DEF.mode, bg: DEF.bg, clr: DEF.clr, bgo: DEF.bgo, wm: DEF.wm, glass: DEF.glass };
     try { ls(KEY, JSON.stringify(d)); } catch (e) { }
     resetMig();
     apply();

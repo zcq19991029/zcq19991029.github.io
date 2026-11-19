@@ -53,7 +53,9 @@
   }
   /* 只同步按钮提示，**不动 <html> 上的属性**。
      属性（data-hx-mode）是 hx-theme 的地盘：这里也去写的话，切一次深浅会出现「我先写 light、
-     hx-theme 还是 dark」的一瞬，属性观察者读到旧值就把 mode 掰回去，表现为点了没反应 / 闪一下。 */
+     hx-theme 还是 dark」的一瞬，属性观察者读到旧值就把 mode 掰回去，表现为点了没反应 / 闪一下。
+     2026-11-19 第七轮 T7①：删掉了页面内部的深浅按钮（.theme-btn），这里不再有按钮要同步提示，
+     只保留「别人改了深浅 → 本页跟着换预览」的属性观察（见下）。 */
   function applyModeUI(m) {
     var b = $('.theme-btn');
     if (b) {
@@ -61,6 +63,7 @@
       b.setAttribute('aria-label', b.title);
     }
   }
+  /* 2026-11-19 第七轮 T7①：.theme-btn 已删，setMode 的按钮点击入口没了，但函数保留（万一将来复用）。 */
   /* 点右上角那个月亮/太阳：改的是**全站那一把键**（hx-theme），不是本站私有键 ——
      全站只要一个外观控制，在这里切完，总入口和别的工具也该跟着变。
      没引到 hx-theme.js 时（离线单文件 / 404）退回旧的 uikit:mode + 自己写 data-mode，页面至少自己能用。 */
@@ -247,22 +250,12 @@
     hero.appendChild(row);
     m.appendChild(hero);
 
-    var grid = el('div', 'grid');
+    /* 2026-11-19 第七轮 T7③：右栏原来把这 4 个组件又渲染成 4 张 tile 卡片，
+       和左栏目录（renderNav）逐条重复 —— 用户截图指出「左栏 4 组件 vs 右栏 4 卡片重复」。
+       去重后右栏只留 hero 简介，组件列表统一归左栏；搜索时结果也只落在左栏。 */
     var hit = 0;
-    DATA.items.forEach(function (it) {
-      if (!match(it)) return;
-      hit++;
-      var a = el('a', 'tile');
-      a.href = '#/c/' + it.id;
-      a.appendChild(el('h3', null, it.name));
-      a.appendChild(el('p', null, it.sub));
-      var tg = el('div', 'tags');
-      (it.tags || []).slice(0, 4).forEach(function (x) { tg.appendChild(el('span', 'tag', x)); });
-      a.appendChild(tg);
-      grid.appendChild(a);
-    });
-    if (hit) m.appendChild(grid);
-    else m.appendChild(el('div', 'none', '没有匹配的组件，换个词试试。'));
+    DATA.items.forEach(function (it) { if (match(it)) hit++; });
+    if (!hit) m.appendChild(el('div', 'none', '没有匹配的组件，换个词试试。'));
   }
 
   /* ── 详情 ───────────────────────────────────────────────────────────── */
@@ -427,7 +420,9 @@
   /* ── 启动 ───────────────────────────────────────────────────────────── */
   applyModeUI(mode);      // 只摆按钮图标/提示，不改存储也不改 html 属性（属性归 hx-theme）
   $('.ver').textContent = 'v' + DATA.version + ' · ' + DATA.updated;
-  $('.theme-btn').addEventListener('click', function () {
+  // 深浅切换按钮已在 T7 移除，此处仅保留条件保护（避免 .theme-btn 为 null 时报错）
+  var tb = $('.theme-btn');
+  if (tb) tb.addEventListener('click', function () {
     mode = mode === 'dark' ? 'light' : 'dark';
     setMode(mode);
     route();   // 预览 iframe 要跟着换深浅

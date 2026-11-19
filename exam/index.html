@@ -481,6 +481,32 @@ body { margin: 0; }
   .ex-nav-sub { margin: 0; border: 0; padding: 0; display: flex; gap: 6px; }
   .ex-main { padding: 16px 12px 50px; }
 }
+/* 侧栏伸缩手柄（2026-11-19 第六轮）：点一下把左栏收成 56px 窄条图标栏。
+   class 挂在 .ex-shell 上，桌面端收起/展开都走这里；手机端（≤900px）导航本就横排，手柄隐藏。 */
+.ex-nav-tg { display: flex; width: 100%; justify-content: flex-end; align-items: center; padding: 0 10px 8px;
+  border: 0; background: transparent; color: var(--mute); cursor: pointer; }
+.ex-nav-tg span { font-size: 18px; line-height: 1; font-weight: 600; transition: transform .22s var(--spring, cubic-bezier(.32, .72, 0, 1)); }
+.ex-nav-tg:hover span { color: var(--acc); }
+@media (min-width: 901px) {
+  .ex-shell.collapsed,
+  .ex-shell.wide.collapsed { grid-template-columns: 56px minmax(0, 1fr); }
+  .ex-shell.collapsed .ex-nav { padding: 12px 8px; overflow: visible; }
+  .ex-shell.collapsed .ex-nav-tg { justify-content: center; padding: 0 0 10px; }
+  .ex-shell.collapsed .ex-nav-tg span { transform: rotate(180deg); }
+  .ex-shell.collapsed .ex-nav-h { display: none; }
+  /* 菜单项：只剩首字（没有图标就用菜单名第一个字），说明文字和标题全藏，title 提示完整名 */
+  .ex-shell.collapsed .ex-nav-i { display: flex; align-items: center; justify-content: center; padding: 10px 0; }
+  .ex-shell.collapsed .ex-nav-i b,
+  .ex-shell.collapsed .ex-nav-i span { display: none; }
+  .ex-shell.collapsed .ex-nav-i::before { content: attr(data-i); font-weight: 600; font-size: 15px; }
+  .ex-shell.collapsed .ex-nav-sub { margin-top: 14px; padding-top: 12px; }
+  /* 科目 tab 缩成竖排小圆点，首字做标记，仍可切换 */
+  .ex-shell.collapsed .ex-subtabs { flex-direction: column; align-items: center; gap: 8px; border: 0; background: transparent; box-shadow: none; padding: 0; }
+  .ex-shell.collapsed .ex-subtab { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0; font-size: 0; border-radius: 50%; }
+  .ex-shell.collapsed .ex-subtab::before { content: attr(data-i); font-size: 12.5px; font-weight: 600; }
+  .ex-shell.collapsed .ex-subtab::after { display: none; }
+}
+@media (max-width: 900px) { .ex-nav-tg { display: none; } }
 .ex-h { margin: 6px 0 18px; }
 .ex-h h1 { margin: 2px 0 4px; font-size: 32px; letter-spacing: -.02em; }
 .ex-h p { margin: 0; color: var(--dim, #6e6e73); }
@@ -601,11 +627,6 @@ button.danger { color: var(--bad, #d70015); }
 .ppmeta b { color: var(--ink); font-weight: 600; }
 .pppicked { color: var(--acc); font-weight: 600; }
 .ppset.on { background: var(--accbg); border-color: var(--acc); color: var(--acc); }
-/* 缩放：一组按钮贴在一起，选中那个用主题强调色，和单选按钮的语义一致 */
-.ppzoom { display: inline-flex; border: 1px solid var(--hair); border-radius: 999px; overflow: hidden; background: var(--field2); }
-.ppzoom button { border: 0; border-radius: 0; background: transparent; padding: 5px 11px; font-size: 12.5px; color: var(--mute); }
-.ppzoom button:hover { background: var(--field3); transform: none; }
-.ppzoom button.on { background: var(--accbg); color: var(--acc); font-weight: 600; }
 
 /* 画布：自身滚动，工具栏始终留在上面；.ppstage 按缩放后的真实尺寸撑开，
    所以不会出现“里面一层滚动条” */
@@ -627,6 +648,10 @@ html[data-hx-mode="dark"] .ppwrap { background: #14171c; }
   background: var(--card-lift); border-left: 1px solid var(--hair); box-shadow: -24px 0 60px -34px rgba(0, 0, 0, .45);
   transform: translateX(102%); visibility: hidden; transition: transform .26s var(--spring, cubic-bezier(.32, .72, 0, 1)), visibility 0s linear .26s; }
 .ppdrawer.on { transform: none; visibility: visible; transition: transform .26s var(--spring, cubic-bezier(.32, .72, 0, 1)); }
+/* 设置抽屉的透明遮罩（2026-11-19 第六轮）：压在卷面(.pp-bar z7 / .ppmask z58)之上、抽屉(z60)之下。
+   打开设置时点抽屉外 = 关闭抽屉，不再漏点到 iframe 触发 selectSlot 展开题库。 */
+.pp-drawer-mask { position: fixed; inset: 0; z-index: 55; display: none; background: transparent; }
+.pp-drawer-mask.on { display: block; }
 .ppdrawer .card { margin-bottom: 10px; padding: 16px 18px; }
 .ppdrawer .card h2 { font-size: 16px; margin-bottom: 10px; }
 .ppd-h { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; align-items: center; position: sticky; top: -14px; z-index: 2;
@@ -1096,8 +1121,8 @@ button.off { opacity: .5; cursor: not-allowed; }
    用户原话：「组卷界面换题需要把题库放右边筛选库拖动替换  现在弹窗不方便持续工作」。
    宽屏（≥1080）右栏常驻，不再点一次弹一次；窄屏才退回抽屉（否则 A3 只剩一条缝）。
    ═══════════════════════════════════════════════════════════════════════════ */
-.ppblank { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink2); cursor: pointer; white-space: nowrap; }
-.ppblank input { width: 15px; height: 15px; margin: 0; }
+/* 空白卷按钮（2026-11-19 第六轮：由 checkbox 改成按钮）的「已开启」高亮态 */
+#ppBlank.on { background: var(--accbg); border-color: var(--acc); color: var(--acc); }
 .ppck { display: flex; align-items: center; gap: 8px; font-size: 13px; margin: 10px 0; cursor: pointer; }
 .ppck input { width: 16px; height: 16px; margin: 0; }
 
@@ -1222,10 +1247,14 @@ body.ppdragging #ppFrame { pointer-events: none; }
   font-size: 13px; color: var(--mute); box-shadow: none !important; }
 .ppfm.on { background: var(--accbg) !important; color: var(--acc) !important; font-weight: 700; }
 .ppfill-ai { margin-top: 12px; }
-.ppfill-ai label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
-.ppfill-ai textarea { width: 100%; box-sizing: border-box; resize: vertical; font: inherit; font-size: 13.5px;
-  padding: 10px 12px; border: 1px solid var(--line, var(--hair)); border-radius: 12px; background: var(--field); color: var(--ink); }
-.ppfill-ai textarea:focus { outline: none; border-color: var(--acc); box-shadow: 0 0 0 4px var(--accbg); }
+/* 大输入框（2026-11-19 第六轮）：AI 一键组卷的「详细要求」+ 补齐剩余题目的「想补什么样的题」
+   共用 .pp-ai-req —— 标签独占一行，文本框占满卡片宽、够高、内边距舒适、focus 主题描边。
+   （原来 ppAITxt 挂的 .zl-f 在考试工具里根本没定义，label 走默认 inline 布局全挤在一行。） */
+.pp-ai-req { display: flex; flex-direction: column; gap: 7px; font-size: 13px; font-weight: 600; color: var(--ink); }
+.pp-ai-req textarea { width: 100%; box-sizing: border-box; min-height: 150px; resize: vertical; font: inherit;
+  font-weight: 400; font-size: 14px; line-height: 1.6; padding: 12px 14px;
+  border: 1px solid var(--line, var(--hair)); border-radius: 12px; background: var(--field); color: var(--ink); }
+.pp-ai-req textarea:focus { outline: none; border-color: var(--acc); box-shadow: 0 0 0 4px var(--accbg); }
 
 /* ═══════════════════════════════════════════════════════════════════════════
    2026-11-19 第五轮：试卷库进左侧栏 + 题库栏自动缩回 + 成绩 CSV 预览
@@ -6667,6 +6696,115 @@ window.specDocx = specDocx;
 window.specLevels = specLevels;
 window.specLevelsAI = specLevelsAI;
 
+/* ================= 真实打印版式预览（2026-11-19 第六轮） =================
+   用户原话：「预览可以用 pdf 展示实际格式，而不是网页，不然 word 和网页效果差很多」。
+   之前 Word / 参考答案 / 细目表三颗导出按钮的预览是 HTML 摘要（pvPaper/pvAns/pvSpec），
+   跟真正导出的 docx 版式差很多。这里改成：给每个导出生成一份**和 docx 同版式的打印级 HTML**，
+   在 iframe 里按纸张真实宽高排版、缩放展示 —— 打印预览≈PDF 效果，不破坏 Word 格式。
+   · 试卷（paper）：直接复用 paperDocHTML(edit:false)，它就是 A3 横向两栏的打印版，
+     与 PDF 预览同一份，和 paperDocx 的 A3 横向两栏同版式；
+   · 参考答案（ans）：A4 竖排单栏，逐题列答案（选择题/判断多列制表、填空/大题一题一行），
+     排版对齐 answerDocx；
+   · 双向细目表（spec）：A4 横向，学院/专业/命题教师表头 + A/B/C 卷各一块「题型 × 认知层次 × 分数」。
+   三个产物都是独立 HTML 文档（自带 <!DOCTYPE> 和 <style>），塞进 iframe 的 srcdoc 即可，
+   不依赖父页主题变量 —— 纸张永远是白底黑字。 */
+const PREV_WRAP = (title, body, css) => `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"><title>${esc(title)}</title><style>${css}</style></head><body>${body}</body></html>`;
+/* 参考答案预览的打印 CSS：A4 竖排，宋体五号，行距固定 18 磅（与 answerDocx 的 sectPr 一致） */
+const ANS_PREV_CSS = `
+@page{size:210mm 297mm;margin:18mm}
+*{box-sizing:border-box}
+html,body{margin:0;background:#888;font-family:"SimSun","宋体","Songti SC","STSong",serif;font-size:10.5pt;line-height:18pt;color:#000}
+.sheet{width:210mm;min-height:297mm;background:#fff;margin:0 auto;padding:16mm 18mm;page-break-after:always;break-after:page}
+.sheet:last-child{margin-bottom:0}
+.ttl{text-align:center;font-family:"SimHei","黑体",sans-serif;font-weight:bold;font-size:13pt;line-height:24pt}
+.sec{margin:8pt 0 2pt;font-family:"SimHei","黑体",sans-serif;font-weight:bold}
+.ans{display:grid;grid-template-columns:repeat(6,1fr);gap:2pt 0}
+.ans span{white-space:nowrap}
+.ansline{margin:0;text-indent:0}
+.qline{font-weight:bold;margin:4pt 0 0}
+.qline .score{font-weight:normal;color:#1F4E79;display:block;margin-left:1em}
+.qline .grade{font-weight:normal;color:#666;font-size:9pt;display:block;margin-left:1em}
+.dist{margin-top:10pt;font-family:"SimHei","黑体",sans-serif;font-weight:bold}
+@media print{html,body{background:#fff}.sheet{margin:0;min-height:0}}`;
+function answerPreviewHTML(P, cfg) {
+  let b = `<div class="sheet"><div class="ttl">广州华夏职业学院${esc(cfg.year)}学年${esc(cfg.term)}</div>
+<div class="ttl">《${esc(cfg.course)}》期末考试试卷（${esc(cfg.ver)}卷）</div>
+<div class="ttl">参考答案及评分标准</div>
+<div style="text-align:center;margin:2pt 0 6pt">考试方式：${esc(cfg.mode)}　　满分 ${paperTotal(P)} 分</div>`;
+  const real = s => s.items.filter(q => q && !q.__blank);
+  P.forEach(s => {
+    const items = real(s);
+    if (!items.length) return;
+    b += `<div class="sec">${secTitle(s)}</div>`;
+    if (s.t === 'choice') b += `<div class="ans">${items.map((q, i) => `<span>${i + 1}、${esc(q.a)}</span>`).join('')}</div>`;
+    else if (s.t === 'judge') b += `<div class="ans">${items.map((q, i) => `<span>${i + 1}、（${q.a ? '√' : '×'}）</span>`).join('')}</div>`;
+    else if (s.t === 'fill') items.forEach((q, i) => { b += `<p class="ansline">${i + 1}、${esc(Array.isArray(q.a) ? q.a.join('；') : q.a)}</p>`; });
+    else items.forEach((q, i) => {
+      b += `<div class="qline">${i + 1}、${esc(q.q)}<span class="score">${esc(Array.isArray(q.a) ? q.a.join('；') : String(q.a == null ? '' : q.a))}</span><span class="grade">（评分：按要点给分，共 ${s.pts} 分）</span></div>`;
+    });
+  });
+  const st = paperStats(P);
+  b += `<div class="dist">各项目分值分布</div>`;
+  b += `<p>${Object.keys(st).sort((a, b2) => (+a) - (+b2)).map(c => `${esc(curCH()[c])}：${st[c]} 分`).join('；')}</p>`;
+  b += `</div>`;
+  return PREV_WRAP('参考答案', b, ANS_PREV_CSS);
+}
+/* 双向细目表预览：A4 横向表格，结构和 specDocx 完全一致（学院/专业/命题教师 + A/B/C 卷四列认知层次） */
+const SPEC_PREV_CSS = `
+@page{size:297mm 210mm;margin:14mm}
+*{box-sizing:border-box}
+html,body{margin:0;background:#888;font-family:"SimSun","宋体","Songti SC","STSong",serif;font-size:10pt;line-height:16pt;color:#000}
+.sheet{width:297mm;min-height:210mm;background:#fff;margin:0 auto;padding:12mm 14mm;page-break-after:always;break-after:page}
+.sheet:last-child{margin-bottom:0}
+.ttl{text-align:center;font-family:"SimHei","黑体",sans-serif;font-weight:bold;font-size:13pt;line-height:24pt}
+table{border-collapse:collapse;width:100%;margin:8pt 0}
+td,th{border:1px solid #000;text-align:center;padding:2pt 3pt;font-weight:normal;vertical-align:middle}
+th{font-family:"SimHei","黑体",sans-serif;font-weight:bold}
+td.l,th.l{text-align:left}
+.vhead{font-family:"SimHei","黑体",sans-serif;font-weight:bold}
+.note{font-size:9pt;color:#333}
+@media print{html,body{background:#fff}.sheet{margin:0;min-height:0}}`;
+function specPreviewHTML(P, cfg, meta, lv) {
+  const W = [2500, 1300, 1600, 1800, 1800, 1100];
+  const wPct = W.map(w => (w / W.reduce((a, b) => a + b, 0) * 100).toFixed(1) + '%');
+  const col = w => `width:${w}`;
+  let b = `<div class="sheet"><div class="ttl">${esc(meta.college || '')}期末考试命题双向细目表（A/B/C卷）</div>
+<div class="ttl">${esc(cfg.year)}学年${esc(cfg.term)}</div>`;
+  b += `<table><colgroup>${wPct.map(w => `<col style="${col(w)}">`).join('')}</colgroup>
+<tr><th style="${col(wPct[0])}">学院</th><td style="${col(wPct[1])}" class="l">${esc(meta.college || '')}</td><th style="${col(wPct[2])}">课程名称</th><td style="${col(wPct[3])}" colspan="3" class="l">${esc(cfg.course)}</td></tr>
+<tr><th style="${col(wPct[0])}">专业</th><td style="${col(wPct[1])}" class="l">${esc(cfg.major)}</td><th style="${col(wPct[2])}">命题教师</th><td style="${col(wPct[3])}" colspan="3" class="l">${esc(meta.teachers || '')}</td></tr>
+<tr><th style="${col(wPct[0])}">适用年级</th><td style="${col(wPct[1])}" class="l">${esc(cfg.grade)}</td><th style="${col(wPct[2])}">考核方式</th><td style="${col(wPct[3])}">${esc(meta.assess || '考试')}</td><th style="${col(wPct[4])}">考试方式</th><td style="${col(wPct[5])}">${esc(cfg.mode)}</td></tr></table>`;
+  const mode = ['A', 'B', 'C'];
+  const useVers = mode.slice(0, Math.max(1, mode.indexOf(cfg.ver) + 1));
+  useVers.forEach(v => {
+    b += `<table><colgroup>${wPct.map(w => `<col style="${col(w)}">`).join('')}</colgroup>
+<tr><th colspan="6" style="${col('100%')}">${v} 卷</th></tr>
+<tr><th style="${col(wPct[0])}">题型题号</th>${SPEC_LV.map(x => `<th style="${col(wPct[1])}">${x[1]}</th>`).join('')}<th style="${col(wPct[2])}">分 数</th></tr>`;
+    const colScore = { e: 0, m: 0, a: 0, c: 0 };
+    let grand = 0;
+    P.forEach(s => {
+      const cells = { e: '', m: '', a: '', c: '' };
+      let sc = 0;
+      (s.items || []).forEach((q, i) => {
+        if (!q || q.__blank) return;
+        const n = s.t === 'fill' ? blanksOf(q) : 1;
+        const pts = n * (s.pts || 0);
+        const d = (lv && lv[s.t + ':' + i]) || SPEC_DEF[s.t] || { lv: 'm', diff: 'M' };
+        cells[d.lv] = d.diff;
+        colScore[d.lv] += pts;
+        sc += pts;
+      });
+      grand += sc;
+      b += `<tr><td style="${col(wPct[0])}" class="l">${s.no}、${esc(pType(s.t).name)}</td>${SPEC_LV.map(x => `<td style="${col(wPct[1])}">${cells[x[0]]}</td>`).join('')}<td style="${col(wPct[2])}">${sc}</td></tr>`;
+    });
+    b += `<tr><th style="${col(wPct[0])}">总 分</th>${SPEC_LV.map(x => `<th style="${col(wPct[1])}">${colScore[x[0]] || 0}</th>`).join('')}<th style="${col(wPct[2])}">${grand}</th></tr></table>`;
+  });
+  b += `<p class="note">填表说明：1、请在交试题时附上此表，容易的用 E 表示，中难度的用 M 表示，难度较大的用 D 表示。<br>命题要求：易：中：难 = 3：5：2<br>说明：四列认知层次里的 E/M/D 为按题干初判的难度（AI 不可用则按题型粗判），分数取自当前卷面；请复核后使用。</p></div>`;
+  return PREV_WRAP('双向细目表', b, SPEC_PREV_CSS);
+}
+window.answerPreviewHTML = answerPreviewHTML;
+window.specPreviewHTML = specPreviewHTML;
+
 ;
 /* ================= 考试 · 试卷库（2026-11-06 建，2026-11-08 接云端） =================
    用户原话：「我们确认了 这套卷子就可以命名为XXX保存到理论试卷库里面供我挑选和备用等」，
@@ -7287,15 +7425,6 @@ function mountPaper(sub) {
     if (e.detail !== 'paper') return;
     setTimeout(() => { if (dirty) preview(); else fit(); }, 50);
   }, sig);
-  const zoomBox = $('ppZoom');
-  if (zoomBox) zoomBox.addEventListener('click', ev => {
-    const b = ev.target.closest('[data-z]');
-    if (!b) return;
-    ZOOM = b.dataset.z;
-    zoomBox.querySelectorAll('[data-z]').forEach(x => x.classList.toggle('on', x === b));
-    fit();
-  });
-
   /* ================= 设置抽屉（题库不再是抽屉，是常驻栏） ================= */
   function drawer(id, on) {
     const d = $(id);
@@ -7303,9 +7432,26 @@ function mountPaper(sub) {
     const open = on === undefined ? !d.classList.contains('on') : on;
     d.classList.toggle('on', open);
     d.setAttribute('aria-hidden', open ? 'false' : 'true');
-    if (id === 'ppDrawer' && $('ppSet')) {
-      $('ppSet').classList.toggle('on', open);
-      $('ppSet').setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (id === 'ppDrawer') {
+      if ($('ppSet')) {
+        $('ppSet').classList.toggle('on', open);
+        $('ppSet').setAttribute('aria-expanded', open ? 'true' : 'false');
+      }
+      /* 2026-11-19 第六轮：设置抽屉打开时，在卷面上盖一层透明遮罩（z-index 低于抽屉、高于卷面）。
+         点遮罩 = 关闭抽屉，而不是漏点到 iframe 触发 selectSlot → 展开题库（用户报的
+         「打开试卷设置不小心碰到下层弹出试卷信息遮挡」）。遮罩挂进 .pp-page，随页面销毁，不留残。 */
+      let mask = $('ppDrawerMask');
+      if (!mask) {
+        mask = document.createElement('div');
+        mask.id = 'ppDrawerMask';
+        mask.className = 'pp-drawer-mask';
+        mask.setAttribute('aria-hidden', 'true');
+        mask.onclick = () => drawer('ppDrawer', false);
+        const pg = document.querySelector('.pp-page');
+        (pg || document.body).appendChild(mask);
+      }
+      mask.classList.toggle('on', open);
+      mask.setAttribute('aria-hidden', open ? 'false' : 'true');
     }
   }
   if ($('ppSet')) $('ppSet').onclick = () => drawer('ppDrawer');
@@ -7670,24 +7816,35 @@ function mountPaper(sub) {
   };
 
   /* ---------- 空白卷 / 清空 / 撤回 / 重做 ---------- */
+  /* 2026-11-19 第六轮：「空白卷」从 checkbox 改成功能按钮：点一下弹居中浮窗二次确认，
+     确认后清空为空白卷（只留题型和题号）。状态用 setBlankBtn() 同步到按钮外观。
+     C.noAuto 仍保留（换种子 / 补齐剩余题目的逻辑还在用它），不再有「取消勾选空白卷」动作。 */
+  function setBlankBtn() {
+    const b = $('ppBlank');
+    if (!b) return;
+    b.classList.toggle('on', !!C.blank);
+    b.textContent = C.blank ? '空白卷 ✓' : '空白卷';
+    b.title = C.blank ? '当前是空白卷：卷面只剩题型和题号' : '空白卷：卷面只放题型和题号，题从右侧题库点/拖进来';
+  }
   if ($('ppBlank')) {
-    $('ppBlank').checked = !!C.blank;
-    $('ppBlank').onchange = () => {
-      const on = !!$('ppBlank').checked;
-      /* 2026-11-19 用户：「取消勾选补充的题目永远是同一套…而且是按钮按下去填充，
-         而不是取消勾选填充，反直觉了」。所以这里**只切显示方式**，picks 一个字都不动：
-         取消勾选 = noAuto（不再按固定种子兜底抽题），剩下的空位等「补齐剩余题目」。 */
-      C.blank = on;
-      C.noAuto = !on;
-      paperSave(sub, C);
-      changed();
-      toast(on ? '已切到空白卷：只放题号，题从右边点或拖进来'
-        : '已取消空白卷：不再自动补题；要补空位请点「补齐剩余题目」');
+    $('ppBlank').onclick = () => {
+      const M = ppModal(`<h2>清空为空白卷？</h2>
+        <p class="note" style="margin:0 0 4px">要把卷面清空为空白卷吗？只会留题型和题号，已手动选的题会撤掉（可撤回）。</p>
+        <div class="row"><button class="pri" id="ppBlankGo">确认清空</button><button id="ppBlankX">取消</button></div>`);
+      $('ppBlankGo').onclick = () => {
+        M.close();
+        commitPicks(() => { C.picks = {}; C.blank = true; });
+        setBlankBtn();
+        toast('已清空为空白卷，卷面只剩题号');
+      };
+      $('ppBlankX').onclick = () => M.close();
     };
   }
+  setBlankBtn();
   if ($('ppClear')) $('ppClear').onclick = async () => {
     if (!await hxConfirm('清空整张卷面？\n\n所有手动选的题都会撤掉，卷面只剩题型和题号（撤回可用）。')) return;
-    commitPicks(() => { C.picks = {}; C.blank = true; if ($('ppBlank')) $('ppBlank').checked = true; });
+    commitPicks(() => { C.picks = {}; C.blank = true; });
+    setBlankBtn();
     toast('已清空，卷面只剩题号');
   };
   if ($('ppUndo')) $('ppUndo').onclick = () => {
@@ -7791,7 +7948,7 @@ function mountPaper(sub) {
         <button type="button" class="ppfm" data-fm="ai">按我的要求补</button>
       </div>
       <div class="ppfill-ai" id="ppFillAi" hidden>
-        <label>想补什么样的题<textarea id="ppFillTxt" rows="4" placeholder="例如：多考计算、避免名词解释、难度偏中上、只考第 3 章"></textarea></label>
+        <label class="pp-ai-req">想补什么样的题<textarea id="ppFillTxt" rows="7" placeholder="例如：多考计算、避免名词解释、难度偏中上、只考第 3 章"></textarea></label>
       </div>
       <div class="errs" id="ppFillErr" hidden></div>
       <div class="row"><button class="pri" id="ppFillGo">开始补齐</button><button id="ppFillX">取消</button><span class="note" id="ppFillState"></span></div>`);
@@ -7842,7 +7999,7 @@ function mountPaper(sub) {
   if ($('ppAI')) $('ppAI').onclick = () => {
     const M = aiM = ppModal(`<h2>AI 一键组卷 · ${esc(subName())}</h2>
       <p class="note" style="margin:0 0 10px">AI 只在这个科目的题池里挑，不会编新题。挑完的结果可以直接撤回（顶栏「撤回」）。</p>
-      <label class="zl-f">详细要求<textarea id="ppAITxt" rows="4" placeholder="例：以第 1～5 章为主，选择题由易到难；填空只考定时器和中断；程序分析要有 LED 和数码管各一题"></textarea></label>
+      <label class="pp-ai-req">详细要求<textarea id="ppAITxt" rows="7" placeholder="例：以第 1～5 章为主，选择题由易到难；填空只考定时器和中断；程序分析要有 LED 和数码管各一题"></textarea></label>
       <div class="errs" id="ppAIErr" hidden></div>
       <div class="row"><button class="pri" id="ppAIGo">开始挑题</button><button id="ppAIX">取消</button><span class="note" id="ppAIState"></span></div>`);
     if ($('ppAIX')) $('ppAIX').onclick = () => { M.close(); if (aiM === M) aiM = null; };
@@ -7891,7 +8048,8 @@ function mountPaper(sub) {
       }
       const nAll = Object.keys(picks).length;
       if (!nAll) { err('AI 一道都没挑出来（可能要求太窄），换个说法再试'); HXBusy.end(tok); return; }
-      commitPicks(() => { C.picks = Object.assign({}, C.picks, picks); C.blank = true; if ($('ppBlank')) $('ppBlank').checked = true; });
+      commitPicks(() => { C.picks = Object.assign({}, C.picks, picks); C.blank = true; });
+      setBlankBtn();
       if (aiM) { aiM.close(); aiM = null; }
       toast(`AI 已填 ${nAll} 道，不满意的点右边换掉`);
     } catch (e) {
@@ -7981,27 +8139,46 @@ function mountPaper(sub) {
       <p class="note" style="margin:8px 0 0">认知层次里填的是难度 E/M/D（AI 判断，不勾就按题型粗分）。</p>`;
   }
   function exportPreview(o) {
-    const isPdf = o.kind === 'pdf';
+    const isDoc = o.kind === 'pdf' || o.kind === 'paper' || o.kind === 'ans' || o.kind === 'spec';
     const M = ppModal(`<h2>${esc(o.title)}</h2>
       <p class="note ppx-sub">${esc(o.sub || '')}</p>
-      <div class="ppx-body" id="ppxBody">${isPdf
-        ? '<div class="ppx-doc" id="ppxDoc"><iframe id="ppxFrame" title="试卷预览"></iframe></div>'
+      <div class="ppx-body" id="ppxBody">${isDoc
+        ? '<div class="ppx-doc" id="ppxDoc"><iframe id="ppxFrame" title="导出预览"></iframe></div>'
         : (o.preview || '')}</div>
       <div class="errs" id="ppxErr" hidden></div>
       <div class="row ppx-foot"><button class="pri" id="ppxGo">确认导出</button><button id="ppxX">取消</button><span class="note" id="ppxState"></span></div>`);
-    /* PDF：复用现有预览的 srcdoc，按 50% 缩放塞进弹层；不重新排版一份。 */
-    if (isPdf && o.frame) {
+    /* PDF / Word / 答案 / 细目表：都在 iframe 里按真实打印版式排版，缩放塞进弹层。
+       统一走 frameHTML + natW/natH/k 四个字段：
+       · PDF 复用 #ppFrame 已经排好的 srcdoc（A3 1588px 宽，0.45 缩放）；
+       · Word 试卷复用 paperDocHTML(edit:false)（同为 A3 1588px，0.45 缩放）；
+       · 答案 / 细目表用新生成的打印级 HTML（A4 竖/横，纸张真实宽高，0.6 缩放）。
+       iframe 加载后量出自己的文档高（scrollHeight）再定容器高，不靠猜。 */
+    if (isDoc && o.frameHTML) {
       const f = $('ppxFrame'), doc = $('ppxDoc');
-      /* 0.45：弹层卡片内容宽 736px，A3 原宽 1588 —— 0.5 会顶出卡片右侧一截
-         （2026-11-19 截图实测）。0.45 刚好整幅放得下，窄屏交给 .ppx-doc 横向滚动。 */
-      const ih = +o.frame.dataset.h || 800, k = .45;
+      const natW = o.natW || NAT_W, k = o.k || 0.6;
       if (f) {
-        f.srcdoc = o.frame.srcdoc;
-        f.style.width = NAT_W + 'px';
-        f.style.height = ih + 'px';
+        f.srcdoc = o.frameHTML;
+        f.style.width = natW + 'px';
+        f.style.height = (o.natH || 1000) + 'px';
         f.style.transform = 'scale(' + k + ')';
+        f.style.transformOrigin = 'top left';
       }
-      if (doc) doc.style.height = Math.round(ih * k) + 'px';
+      if (doc) {
+        doc.style.width = Math.round(natW * k) + 'px';
+        doc.style.height = Math.round((o.natH || 1000) * k) + 'px';
+      }
+      /* iframe 排完后按真实高度重定容器（A3/A4 一页固定高，多页时撑高） */
+      const fitDoc = () => {
+        try {
+          const d = f && f.contentDocument;
+          if (d && d.documentElement && d.documentElement.scrollHeight) {
+            const ih = d.documentElement.scrollHeight;
+            f.style.height = ih + 'px';
+            doc.style.height = Math.round(ih * k) + 'px';
+          }
+        } catch (e) { }
+      };
+      if (f) f.addEventListener('load', fitDoc);
     }
     $('ppxX').onclick = () => M.close();
     $('ppxGo').onclick = async () => {
@@ -8033,7 +8210,8 @@ function mountPaper(sub) {
     if (!fr || !fr.contentDocument || !fr.contentDocument.body || !fr.contentDocument.body.getAttribute('data-pages')) { toast('预览还没排好，稍等一下再点'); return; }
     exportPreview({
       title: `导出 PDF · ${C.course} 期末试卷（${C.ver}卷）`,
-      sub: exportSub('pdf'), kind: 'pdf', frame: fr, closeFirst: true,
+      sub: exportSub('pdf'), kind: 'pdf',
+      frameHTML: fr.srcdoc, natW: NAT_W, natH: (+fr.dataset.h || 800), k: .45, closeFirst: true,
       build: () => {
         window.__lastExport = 'pdf';
         toast('在打印窗口里：目标选「另存为 PDF」，纸张 A3，横向，边距「无」');
@@ -8046,7 +8224,8 @@ function mountPaper(sub) {
     if (!P) return;
     exportPreview({
       title: `导出 Word 试卷 · ${C.course} 期末试卷（${C.ver}卷）`,
-      sub: exportSub('word'), kind: 'paper', preview: pvPaper(),
+      sub: exportSub('word'), kind: 'paper',
+      frameHTML: paperDocHTML(P, C, { edit: false }), natW: NAT_W, k: .45,
       build: () => { window.__lastExport = 'word'; saveDocx(base() + '.docx', paperDocx(P, C)); },
       toast: '已导出 Word 试卷（A3 横向两栏）'
     });
@@ -8055,7 +8234,8 @@ function mountPaper(sub) {
     if (!P) return;
     exportPreview({
       title: `导出参考答案 · ${C.course} 期末试卷（${C.ver}卷）`,
-      sub: exportSub('ans'), kind: 'ans', preview: pvAns(),
+      sub: exportSub('ans'), kind: 'ans',
+      frameHTML: answerPreviewHTML(P, C), natW: 794, natH: 1123, k: .6,
       build: () => { window.__lastExport = 'ans'; saveDocx(base() + '_参考答案.docx', answerDocx(P, C)); },
       toast: '已导出参考答案'
     });
@@ -8095,7 +8275,8 @@ function mountPaper(sub) {
         exportPreview({
           title: `导出双向细目表 · ${C.course} 期末试卷（${C.ver}卷）`,
           sub: '题型 × 记忆/理解/简单应用/综合应用 × 分数 · ' + exportSub('spec'),
-          kind: 'spec', preview: pvSpec(lv),
+          kind: 'spec',
+          frameHTML: specPreviewHTML(P, C, meta, lv), natW: 1123, natH: 794, k: .6,
           build: () => { window.__lastExport = 'spec'; saveDocx(name, specDocx(P, C, meta, lv)); },
           toast: '已导出双向细目表'
         });
@@ -8638,17 +8819,39 @@ let CUR_T = 'exam', CUR_SUB = 'mcu';
 function teacherShell() {
   $('app').innerHTML = `<div class="ex-shell">
     <nav class="ex-nav" id="exNav">
+      <button class="ex-nav-tg" id="exNavTg" type="button" title="收起侧栏" aria-label="收起侧栏" aria-expanded="true"><span>⟨</span></button>
       <div class="ex-nav-h">考试</div>
       <div class="ex-nav-sub" id="exSub"></div>
-      ${T_PAGES.filter(([k]) => k !== 'lib' || isTeacher()).map(([k, n, s]) => `<button class="ex-nav-i" data-t="${k}"><b>${n}</b><span>${s}</span></button>`).join('')}
+      ${T_PAGES.filter(([k]) => k !== 'lib' || isTeacher()).map(([k, n, s]) => `<button class="ex-nav-i" data-t="${k}" data-i="${esc(n[0])}" title="${esc(n)}：${esc(s)}"><b>${n}</b><span>${s}</span></button>`).join('')}
     </nav>
     <div class="ex-main" id="appMain"></div></div>`;
   drawSubNav();
   $('exNav').addEventListener('click', exNavClick);
+  initNavCollapse();
   showT(CUR_T);
   /* 科目是异步拉的：先画外壳（用内置的「单片机上机」），拉到云端列表再重画科目区。
      拉不到（没建表 / 没登录）时 loadSubjects 保留内置那份，页面照常能用。 */
   loadSubjects();
+}
+/* 左侧栏伸缩（2026-11-19 第六轮）：点顶部手柄把 .ex-nav 收成 56px 窄条图标栏，
+   只露菜单名首字 + 科目首字圆点，标题/说明文字全藏；状态存 localStorage，刷新记住。
+   class 挂在 .ex-shell 上，这样 .ex-shell.wide（组卷页）收起时同样收成 56px。 */
+function initNavCollapse() {
+  const shell = document.querySelector('.ex-shell');
+  const tg = $('exNavTg');
+  if (!shell || !tg) return;
+  const apply = c => {
+    shell.classList.toggle('collapsed', c);
+    tg.title = c ? '展开侧栏' : '收起侧栏';
+    tg.setAttribute('aria-label', c ? '展开侧栏' : '收起侧栏');
+    tg.setAttribute('aria-expanded', c ? 'false' : 'true');
+  };
+  apply(store.get('exam.nav-collapsed', 0) === 1);
+  tg.onclick = () => {
+    const c = !shell.classList.contains('collapsed');
+    apply(c);
+    store.set('exam.nav-collapsed', c ? 1 : 0);
+  };
 }
 function exNavClick(e) {
   const t = e.target.closest('[data-t]');
@@ -8658,7 +8861,7 @@ function exNavClick(e) {
 }
 function drawSubNav() {
   const box = $('exSub'); if (!box) return;
-  box.innerHTML = `<div class="ex-subtabs" role="tablist" aria-label="考试科目">${SUBJ.map(s => `<button role="tab" class="ex-subtab${s.key === CUR_SUB ? ' on' : ''}" data-sub="${esc(s.key)}" aria-selected="${s.key === CUR_SUB}">${esc(s.name)}</button>`).join('')}</div>`
+  box.innerHTML = `<div class="ex-subtabs" role="tablist" aria-label="考试科目">${SUBJ.map(s => `<button role="tab" class="ex-subtab${s.key === CUR_SUB ? ' on' : ''}" data-sub="${esc(s.key)}" data-i="${esc(s.name[0])}" title="${esc(s.name)}" aria-selected="${s.key === CUR_SUB}">${esc(s.name)}</button>`).join('')}</div>`
     + (SUBJ_ERR ? `<p class="ex-subnote">${esc(SUBJ_ERR)}</p>` : '');
 }
 async function loadSubjects() {
@@ -8785,10 +8988,7 @@ async function paperHome() {
       <div class="pp-bar">
         <div class="pp-bar-l">
           <button id="ppSet" class="ppset" aria-expanded="false" aria-controls="ppDrawer">设置</button>
-          <div class="ppzoom" id="ppZoom" role="group" aria-label="缩放">
-            <button data-z="fit" class="on">适应宽度</button><button data-z="1">100%</button><button data-z="0.75">75%</button><button data-z="0.5">50%</button>
-          </div>
-          <label class="ppblank" title="空白卷 = 卷面只放题型和题号，题从右侧题库点/拖进来"><input type="checkbox" id="ppBlank"> 空白卷</label>
+          <button id="ppBlank" class="sm" title="空白卷：卷面只放题型和题号，题从右侧题库点/拖进来">空白卷</button>
           <button id="ppUndo" class="sm" disabled>撤回</button><button id="ppRedo" class="sm" disabled>重做</button>
           <button id="ppClear" class="sm">清空卷面</button>
           <button id="ppAI" class="pri sm">AI 一键组卷</button>
@@ -11131,7 +11331,8 @@ function editExam(x, pre) {
 // 交卷与批改：逐人逐题编译 + 模拟判分（浏览器里算，不上传），导出 CSV
 async function subs(x) {
   app().innerHTML = `<header class="ex-h"><div class="eyebrow">交卷与批改 · ${esc(x.code)}</div><h1>${esc(x.title)}</h1><p class="mono">${esc(x.paper)}</p></header>
-    <div class="row" style="margin-bottom:12px"><button class="pri" id="btnGrade">全部批改</button><button id="btnCsv">导出成绩 CSV</button><button id="btnBack">返回</button><span class="note" id="gState"></span></div><div class="card" id="tbl">${fxLoad('加载中…')}</div><div id="detail"></div>`;
+    <div class="row" style="margin-bottom:12px"><button class="pri" id="btnGrade">全部批改</button><button id="btnCsv">导出成绩 CSV</button><button id="btnBack">返回</button><span class="note" id="gState"></span></div>
+    <p class="note" style="margin:-6px 0 12px">这里的成绩是本机按标准答案即时算出来的预览（不上传、不写库，刷新即没）；要保存到云端、给学生看，请到「批改台」里导出。</p><div class="card" id="tbl">${fxLoad('加载中…')}</div><div id="detail"></div>`;
   if (window.HXLoadFx) HXLoadFx.auto($('tbl'));
   $('btnBack').onclick = teacherHome;
   let rows;
