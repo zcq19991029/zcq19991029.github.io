@@ -1391,9 +1391,7 @@ input[type=password], input:not([type]) { font: inherit; color: var(--text); bac
 @media screen {
   .score-feedback-target { outline: 2px solid var(--accent-strong) !important; outline-offset: 2px; box-shadow: 0 0 0 4px var(--accent-line) !important; }
   .score-delta { position: fixed; z-index: 90; pointer-events: none; user-select: none; padding: 2px 8px; border-radius: 6px; background: var(--panel-tint); color: var(--accent-strong); border: 1px solid var(--accent-line); font: 700 15px/1.5 system-ui; font-variant-numeric: tabular-nums; transform: translateX(-50%); }
-  #layoutSeg.motion-ready { position: relative; isolation: isolate; }
-  #layoutSeg.motion-ready::before { content: ''; position: absolute; z-index: -1; top: 2px; bottom: 2px; left: 0; width: var(--layout-pill-width); transform: translateX(var(--layout-pill-x)); background: var(--raise); border-radius: var(--pill); box-shadow: 0 1px 3px var(--line-strong); transition: transform 180ms var(--cds-ease-swift), width 180ms var(--cds-ease-swift); pointer-events: none; }
-  #layoutSeg.motion-ready button.on { background: transparent; box-shadow: none; }
+  /* 2026-11-18 表格式 / 卡片式 切换按钮已删（#layoutSeg 不再存在），原来的指示块 ::before 规则一并清掉 */
   #groupList { overflow-anchor: none; }
   dialog { opacity: 0; transform: translateY(6px); transition: opacity 160ms var(--cds-ease-swift), transform 160ms var(--cds-ease-swift), display 160ms allow-discrete, overlay 160ms allow-discrete; }
   dialog[open] { opacity: 1; transform: none; }
@@ -1406,7 +1404,7 @@ input[type=password], input:not([type]) { font: inherit; color: var(--text); bac
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  #layoutSeg.motion-ready::before, dialog, dialog::backdrop, .score-help::details-content { transition: none !important; }
+  dialog, dialog::backdrop, .score-help::details-content { transition: none !important; }
   .score-feedback-target { outline-width: 3px !important; }
 }
 @media print { .score-delta, .sr-feedback { display: none !important; } }
@@ -1437,7 +1435,6 @@ input[type=password], input:not([type]) { font: inherit; color: var(--text); bac
   body.sidebar-layout .score-tools .lesson-bar .field { flex: 1 1 100%; }
   body.sidebar-layout .score-tools .lesson-bar .field select { flex: 1; width: 0; }
   body.sidebar-layout .score-tools .spacer { display: none; }
-  body.sidebar-layout #layoutSeg { margin-left: auto; }
   body.sidebar-layout .score-tools .lesson-meta { gap: 8px; }
   body.sidebar-layout .score-tools .lesson-meta .field { flex: 1 1 100%; }
   body.sidebar-layout .score-tools .lesson-meta .field input, body.sidebar-layout .score-tools .lesson-meta .field select { min-width: 0; width: 0; flex: 1; }
@@ -1768,15 +1765,21 @@ table.sheet col.w-attendance{width:165px}.home-attendance{background:var(--xl-at
 /* 2026-11-13：课次操作按钮改图标 + 悬浮提示（打印三合一），图标钮紧凑、不 flex 撑满 */
 .lesson-meta .btnrow.lesson-actions{flex:0 0 auto;margin-left:auto;gap:6px}
 .lesson-meta .btn.icon-btn{flex:0 0 auto;width:34px;height:34px;padding:0;font-size:15px;line-height:1;border-radius:9px}
-/* 值日组点选（2026-11-13）：记分页主界面直接点选今天第几组值日，不用再进课次设置弹窗 */
-.lesson-duty-picker{display:flex;align-items:center;gap:5px;flex-wrap:wrap;min-width:0}
-.lesson-duty-picker .lesson-duty-label{font-size:12px;color:var(--muted);margin-right:1px;white-space:nowrap}
-.lesson-duty-picker .duty-swatch{width:28px;height:28px;border-radius:8px;border:1px solid var(--line-strong);background:var(--panel);color:var(--muted);font-weight:700;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;transition:transform .08s,box-shadow .12s,background .12s,color .12s,border-color .12s}
-.lesson-duty-picker .duty-swatch:hover{border-color:var(--warn);color:var(--warn)}
-.lesson-duty-picker .duty-swatch.on{background:var(--warn);border-color:var(--warn);color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.18)}
-.lesson-duty-picker .duty-swatch:active{transform:translateY(1px)}
-.lesson-duty-picker .lesson-duty-note{font-size:12px;color:var(--muted)}
-@media screen and (min-width:1000px){body.sidebar-layout .lesson-meta{display:block;padding:10px}body.sidebar-layout .lesson-bar{gap:6px}body.sidebar-layout #layoutSeg{margin-left:0}}
+/* 2026-11-18 主界面「值日」组号点选胶囊已删（用户：「值日 这个加入课次设置即可 不用再冗余显示」），
+   原来 .lesson-duty-picker / .duty-swatch 的样式一并清掉；值日组改在「修改课次」里用行内按钮组设置。
+   为什么课次设置里不用 <select>：原生下拉弹层（含 hx-theme.js 接管后的药丸层）会被模态 dialog 的 top layer 盖住，点不到。 */
+.duty-chips { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-width: 0; }
+.duty-chip {
+  border: 1px solid var(--line-strong); border-radius: 999px; padding: 6px 11px;
+  background: var(--panel); color: var(--muted); font: inherit; font-size: 12.5px; font-weight: 700;
+  cursor: pointer; transition: background .12s, color .12s, border-color .12s, transform .08s;
+}
+.duty-chip:hover { border-color: var(--warn); color: var(--warn); }
+.duty-chip:active { transform: translateY(1px); }
+.duty-chip.on { background: var(--warn); border-color: var(--warn); color: #fff; box-shadow: 0 2px 8px rgba(0, 0, 0, .18); }
+.duty-chip:focus-visible { outline: 2px solid var(--warn); outline-offset: 2px; }
+.duty-chips-hint { display: block; margin-top: 3px; font-size: 11.5px; font-weight: 400; color: var(--muted); white-space: normal; }
+@media screen and (min-width:1000px){body.sidebar-layout .lesson-meta{display:block;padding:10px}body.sidebar-layout .lesson-bar{gap:6px}}
 @media print{body.print-lesson:has(.lesson-duplex){margin:0!important;padding:0!important;min-height:0!important;height:auto!important;page:leaderPaper}body.print-lesson:has(.lesson-duplex)>*:not(#printArea){display:none!important}body.print-lesson:has(.lesson-duplex) #printArea{position:static!important;margin:0!important;padding:0!important;width:100%!important}.lesson-duplex-page{page:leaderPaper;width:100%;height:276mm;box-sizing:border-box;break-after:page;break-inside:avoid;padding:0;overflow:hidden}.lesson-duplex-page:last-child{break-after:auto}.lesson-duplex-front .sheet-tb{font-size:6pt!important}.lesson-duplex-front .sheet-tb td,.lesson-duplex-front .sheet-tb th{padding:1mm .4mm!important}.lesson-duplex-front .home-grade-person,.lesson-duplex-front .home-attendance-person{min-height:4mm!important}.lesson-duplex-front .home-grade-person strong{font-size:8pt!important}.lesson-rules-back{font-family:Arial,'Microsoft YaHei',sans-serif;font-size:10pt;line-height:1.55}.lesson-rules-back h1{font-size:17pt;text-align:center;margin:4mm 0}.lesson-rules-back h2{font-size:12pt;margin:5mm 0 2mm}.lesson-rules-back p{margin:2mm 0}.duplex-note{border-top:.2mm solid #aaa;padding-top:4mm;font-size:9pt}}
 
 @media print{#printArea .lesson-duplex-front .sheet-tb .c-mem{white-space:normal!important;overflow-wrap:anywhere;font-size:6pt;line-height:1.2}}
@@ -3377,11 +3380,8 @@ table.data th, .assessment-table thead th,
   body.sidebar-layout #scoreTools .lesson-bar .field > select:focus { background: var(--panel); border-color: var(--accent); }
   body.sidebar-layout #scoreTools .lesson-bar .spacer { display: none; }
   body.sidebar-layout #scoreTools .lesson-bar .btn { width: 100%; min-height: 36px; }
-  body.sidebar-layout #scoreTools #layoutSeg { margin: 0; width: 100%; }
   body.sidebar-layout #scoreTools .lesson-meta { display: block; padding: 0; }
   body.sidebar-layout #scoreTools .lesson-topic-summary { font-size: 12px; }
-  body.sidebar-layout #scoreTools .lesson-duty-picker { gap: 4px; }
-  body.sidebar-layout #scoreTools .lesson-duty-picker .duty-swatch { width: 24px; height: 24px; font-size: 12px; }
   body.sidebar-layout #scoreTools .lesson-meta .btnrow.lesson-actions { margin: 8px 0 0; }
 
   /* ---------- 收起态：窄图标条（只留一个字 + ☰） ---------- */

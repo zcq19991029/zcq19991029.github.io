@@ -1536,7 +1536,7 @@
           所以 95 个长相各不相同的下拉不用改任何工具 CSS，自动跟原样一致。
           隐藏着的 select（还没显示出来的对话框里那些）先不抄 —— 那时候 computed style 是默认值，
           抄了就是错的；等它第一次露出来（open / pointerdown / focus）再抄，见 skin()。
-       3. **贴着触发器左对齐往下展开**（下方 6px 缝），放不下就翻到上方、再夹进视口，**不做全屏遮罩**。
+       3. **贴着触发器左对齐往下展开**（下方 6px 缝），优先往下、下方太矮先压高度，实在到底才翻到上方、再夹进视口，**不做全屏遮罩**。
      开启方式（一页一行，这就是「一个一个做」）：`<html data-hx-peanut>` 或脚本里 `HXPeanut.init()`。
      排除：单个 select 加 `data-hx-plain`；multiple / size>1 自动跳过。
      刷题 `#subjBtn` 那套是自绘的药板胶囊（.bsc-*），不归这里管，别让这里接管它。 */
@@ -1552,7 +1552,9 @@
       var s = document.createElement('style');
       s.id = STID;
       s.textContent =
-        '.hx-pn{position:relative;display:inline-block;vertical-align:middle;max-width:100%;box-sizing:border-box}'
+        // min-width:0（2026-11-18）：包装层当 flex 子项时，默认的 min-width:auto 会把它顶在内容宽度上，
+        // 父容器再宽也不长 —— 长课次名于是被切在「2026-…」，右边却空着一大片。
+        '.hx-pn{position:relative;display:inline-block;vertical-align:middle;max-width:100%;min-width:0;box-sizing:border-box}'
         // 原生 select 只留位置，别让它再被点到（visibility 而不是 opacity，见上面注释）
         + '.hx-pn-src{visibility:hidden!important}'
         // ── 触发器 = 一块铝箔卡（2026-11-18 用户：「选项卡本身是药丸胶囊包装样子」）──
@@ -1561,11 +1563,13 @@
         // 不跟深浅主题走 —— 深色页面上它也该是一块亮银色药板。
         // 布局 [药槽][文字 1fr][折角]：列宽 = --pn-pw，行高 = --pn-ph，都由 JS 按实测高度写，
         // 因为原生 select 高度从 26px 到 44px 都有，写死像素会撑破行高。
-        // padding-left 不再抄原生 select（药槽自己占一列），文字左边距 = 药槽宽 + 8px 的列间距。
+        // padding-left 不再抄原生 select（药槽自己占一列），文字左边距 = 药槽宽 + 6px 的列间距。
         + '.hx-pn-btn{position:absolute;inset:0;box-sizing:border-box;display:grid;align-items:center;'
-        + 'grid-template-columns:var(--pn-pw,34px) minmax(0,1fr) 12px;column-gap:8px;'
+        // 2026-11-18 用户「右边遮挡不完整」：折角列 12→10、列间距 8→6、左右内边距各收一点
+        // （默认值也跟着收），一行文字能多出 10~12px —— 宿主给多宽改不了，只能把自己消耗的压到最小。
+        + 'grid-template-columns:var(--pn-pw,30px) minmax(0,1fr) 10px;column-gap:6px;'
         + 'width:100%;height:100%;overflow:hidden;cursor:pointer;margin:0;'
-        + 'padding:0 var(--pn-padr,8px) 0 var(--pn-padl,5px);'
+        + 'padding:0 var(--pn-padr,6px) 0 var(--pn-padl,4px);'
         + 'font:inherit;line-height:1.2;color:#20242a;text-align:left;'
         + 'border:1px solid rgba(255,255,255,.41);border-radius:var(--pn-r,8px);'
         + '--sheen-x:38%;--sheen-y:28%;'
@@ -1601,7 +1605,9 @@
         // 药板里的每一格都是「压缩版」比例（样张 .sm 段）：药槽 46×26、胶囊 33×14。
         // 药槽内部所有 inset 都用 --pn-pw/--pn-ph 的百分比算，所以触发器里那圈更小的槽
         // 用的是同一套配方，只是尺寸不同（见 .hx-pn-pk）。
-        + '--pn-pw:46px;--pn-ph:26px;'
+        // 2026-11-18 用户「可以适当缩小文字和ui尺寸适配」：整板按 0.82 档收（46×26 → 38×21.5，
+        // 配 38px 行高 / 11px 字），药槽、胶囊、行距同步缩，不会变成「大字小药丸」。
+        + '--pn-pw:38px;--pn-ph:21.5px;'
         + 'transition:transform 460ms cubic-bezier(.22,1.06,.36,1),opacity 320ms cubic-bezier(.22,1.06,.36,1);'
         + 'padding:6px;border-radius:14px;color:#20242a;border:1px solid rgba(255,255,255,.41);'
         + 'background:'
@@ -1614,10 +1620,13 @@
         + 'inset 0 -2px 3px rgba(72,76,86,.55),inset -1px 0 2px rgba(82,86,96,.38),'
         + '0 14px 30px -8px rgba(0,0,0,.6),0 4px 10px rgba(0,0,0,.31);'
         + '-webkit-overflow-scrolling:touch}'
-        // 一行 = 药板上的一格：左边一颗胶囊（药槽 46×26），右边名字；行与行之间是点线（同 .bsc-row）
-        + '.hx-pn-opt{display:grid;grid-template-columns:46px minmax(0,1fr);gap:10px;align-items:center;'
-        + 'width:100%;box-sizing:border-box;min-height:46px;padding:0 12px 0 10px;margin:0;border:0;border-radius:0;'
-        + 'background:transparent;color:#20242a;font:inherit;font-size:13.5px;font-weight:600;'
+        // 一行 = 药板上的一格：左边一颗胶囊（药槽 38×21.5），右边名字；行与行之间是点线（同 .bsc-row）
+        // 2026-11-18 用户「可以适当缩小文字和ui尺寸适配」：46/13.5/46 高 一起收 → 38/12/38 高，
+        // 行内边距与列间距同步收，手机上同样内容能少滚一屏。
+        // ⚠️ 字号只收到 12px（第一版按 0.82 收到 11px 太小了）——药槽可以小，文字要留得住。
+        + '.hx-pn-opt{display:grid;grid-template-columns:38px minmax(0,1fr);gap:8px;align-items:center;'
+        + 'width:100%;box-sizing:border-box;min-height:38px;padding:0 10px 0 8px;margin:0;border:0;border-radius:0;'
+        + 'background:transparent;color:#20242a;font:inherit;font-size:12px;font-weight:600;'
         + 'text-align:left;cursor:pointer;overflow:hidden}'
         + '.hx-pn-opt+.hx-pn-opt{border-top:1px dotted rgba(84,89,100,.53)}'
         + '.hx-pn-opt:hover{background:rgba(255,255,255,.24)}'
@@ -1626,10 +1635,10 @@
         + '.hx-pn-opt.dis{opacity:.42;cursor:not-allowed}'
         // ── 药槽 = 金属圈 + 压痕 + 玻璃罩 + 胶囊（样张 `.pocket/.rim/.dome/.pill`）──
         // 尺寸全部由 --pn-pw / --pn-ph 驱动：面板里是 46×26（样张 `.sm` 段的压缩比例），
-        // 触发器里是 JS 按按钮实测高度算出来的（16~64）。所有 inset、环宽、阴影偏移都写成
+        // 触发器里是 JS 按按钮实测高度算出来的（14~54）。所有 inset、环宽、阴影偏移都写成
         // --pn-ph / --pn-pw 的百分比，同一套配方在两种尺寸下比例一致，不会出现「小槽配粗金属圈」。
         + '.hx-pn-pk{position:relative;display:grid;place-items:center;isolation:isolate;pointer-events:none;'
-        + 'width:var(--pn-pw,46px);height:var(--pn-ph,26px)}'
+        + 'width:var(--pn-pw,38px);height:var(--pn-ph,21.5px)}'
         // 2026-11-18 二次修正：药槽 / 空槽**回到参考原型的 CSS 配方**，删掉那两张 data-URI 素材图。
         //   ├ 上一版我以为参考里的 pocket-rim / popped-cavity 是渲染图，于是从别处找了张实拍素材内嵌进来，
         //   │  结果喂回参考截图对比时肉眼就能看出两处不像：外圈是暗灰扁环（参考是明暗交替的亮银圈）、
@@ -1716,8 +1725,8 @@
         + '.hx-pn-opt.on .hx-pn-cav{display:block}'
         + '.hx-pn-opt.on :is(.hx-pn-rim,.hx-pn-dome,.hx-pn-pill){visibility:hidden}'
         + '.hx-pn-opt.on .hx-pn-txt{font-weight:800}'
-        + '.hx-pn-grp{padding:8px 12px 3px;font-size:10.5px;font-weight:700;letter-spacing:.08em;color:#5c626b}'
-        + '.hx-pn-empty{padding:10px 12px;font-size:13px;color:#4a4f57}'
+        + '.hx-pn-grp{padding:7px 10px 2px;font-size:9px;font-weight:700;letter-spacing:.08em;color:#5c626b}'
+        + '.hx-pn-empty{padding:8px 10px;font-size:11px;color:#4a4f57}'
         // 收起位：藏到触发器背后（--pn-hide 由 JS 按实测高度写，上方弹出时取正值反向滑出）
         + '.hx-pn-sheet[inert]{transform:translateY(var(--pn-hide,-160px));opacity:0;pointer-events:none}'
         // ── 动效层：一颗会飞的胶囊 + 铝箔碎屑 ───────────────────────────────
@@ -1726,7 +1735,7 @@
         + '.hx-pn-fx{position:fixed;inset:0;z-index:2147482001;display:none;pointer-events:none;overflow:hidden}'
         // 飞行胶囊只负责「定位 + 帧动画」，材质/尺寸规则由上面的 :is(.hx-pn-pill,.hx-pn-flight) 提供；
         // 实际宽高由 JS 按「被点那一格」的胶囊实测值写进 style，所以这里给的只是兜底。
-        + '.hx-pn-flight{position:absolute;top:0;left:0;width:33px;height:14px;will-change:transform}'
+        + '.hx-pn-flight{position:absolute;top:0;left:0;width:27px;height:11.5px;will-change:transform}'
         + '.hx-pn-burst{position:absolute;pointer-events:none}'
         + '.hx-pn-burst>span{position:absolute;background:#f4f6f9;box-shadow:0 0 1px #51535f}'
         + '.hx-pn-burst>.hx-pn-ring{width:18px;height:10px;margin:-5px -9px;background:transparent;'
@@ -1798,18 +1807,21 @@
 
     /* 触发器药槽的自适应尺寸（2026-11-18）。
        原生 select 的实测高度 26~44px 都有，药槽写死像素会撑破行高，所以：
-         药槽高 = clamp(16, 按钮高 − 10, 64)px，药槽宽 = 药槽高 × 1.75
-         （36px 高的表单行 → 26 × 45.5，正好是样张 `.sm` 段验证过的 46×26 比例）
-       宽度再夹一道按钮自身的 45%：窄下拉（一百来像素）里一颗药吃掉半条会把文字挤成省略号。
+         药槽高 = clamp(14, (按钮高 − 10) × 0.82, 54)px，药槽宽 = 药槽高 × 1.75
+         （36px 高的表单行 → 21.3 × 37.3，正好是样张 `.sm` 段 46×26 的 0.82 档）
+       宽度再夹一道按钮自身的 42%：窄下拉（一百来像素）里一颗药吃掉近半条会把文字挤成省略号。
        CSS 侧所有药槽内部尺寸（金属圈环宽、压痕、玻璃罩、胶囊）都用 calc(--pn-ph/--pn-pw * 系数)，
        所以这里只写两个变量，整套材质跟着缩放。 */
     function sizeBtn(inst) {
       var btn = inst.btn;
       var w = btn.offsetWidth || 0, h = btn.offsetHeight || 0;
       if (!w || !h) return;
-      var ph = Math.max(16, Math.min(64, h - 10));
+      // 2026-11-18 用户「可以适当缩小文字和ui尺寸适配」：触发器里的药槽也收 0.82 档
+      // （36px 的行 → 药槽 21.3×37.3，和面板里的 38×21.5 同一比例），药槽上限 64→54、下限 16→14。
+      // 窄下拉的占比上限 45%→42%，省下来的宽度全给文字 —— 长课次名能多露两个字。
+      var ph = Math.max(14, Math.min(54, (h - 10) * .82));
       var pw = ph * 1.75;
-      if (pw > w * .45) pw = Math.max(22, w * .45);
+      if (pw > w * .42) pw = Math.max(20, w * .42);
       btn.style.setProperty('--pn-ph', Math.round(ph * 10) / 10 + 'px');
       btn.style.setProperty('--pn-pw', Math.round(pw * 10) / 10 + 'px');
     }
@@ -1829,16 +1841,24 @@
         var v = cs[fill[i]];
         if (v) st[fill[i]] = v;
       }
+      // 2026-11-18 用户「可以适当缩小文字和ui尺寸适配」：字号跟药槽一起收 0.88 档。
+      // 只缩字号不缩药槽会变成「大字小药丸」，所以上面 sizeBtn 同步按 0.82 缩了药槽；
+      // 0.88 略大于 0.82 是为了让触发器文字（原生 select 的字号，14~15px）别小到看不清。
+      // 同时这也是 ②「文字被截断」的一半解药：12.5px 的「第 13 次课 · 2026-…」比 14px 多露两个字。
+      var fs = parseFloat(cs.fontSize);
+      if (isFinite(fs) && fs > 0) st.fontSize = (fs * .88).toFixed(1) + 'px';
       // 药槽尺寸先算出来 —— 下面的左右内边距要拿它当基准
       try { sizeBtn(inst); } catch (e) { }
       // 圆角跟随原生 select，最小 6px（26px 高的行再小就成直角了，跟铝箔不搭）
       var br = parseFloat(cs.borderTopLeftRadius);
       st.setProperty('--pn-r', (isFinite(br) ? Math.max(6, Math.min(br, 18)) : 8) + 'px');
-      // 左右内边距：左边只留一点点（药槽自己占第一列，文字左边距 = 药槽宽 + 列间距 8px），
+      // 左右内边距：左边只留一点点（药槽自己占第一列，文字左边距 = 药槽宽 + 列间距 6px），
       // 右边要补出折角的位置（原生 select 的 paddingRight 常常是给它的 background 箭头留的）。
+      // 2026-11-18 用户「右边遮挡不完整」：以前右最多让到 20px，可我们已经有独立的折角列（10px + 6px 间距），
+      // 那 20px 是白扔的；左 10 / 右 20 → 左 8 / 右 14，一行文字多出 8px 左右。
       var pl = parseFloat(cs.paddingLeft), pr = parseFloat(cs.paddingRight);
-      st.setProperty('--pn-padl', Math.max(2, Math.min(isFinite(pl) ? pl : 8, 10)) + 'px');
-      st.setProperty('--pn-padr', Math.max(7, Math.min((isFinite(pr) ? pr : 8) + 2, 20)) + 'px');
+      st.setProperty('--pn-padl', Math.max(2, Math.min(isFinite(pl) ? pl : 6, 8)) + 'px');
+      st.setProperty('--pn-padr', Math.max(5, Math.min((isFinite(pr) ? pr : 6) + 2, 14)) + 'px');
       inst.skinned = true;
     }
 
@@ -1890,37 +1910,78 @@
     }
 
     /* 摆位。药板本体不再自己 fixed，改由裁剪盒定位置：
-         · 下方放得下 → 药板上沿 = 触发器下沿 + 6px（正好是 clip 的 6px 上内边距），从这里往下滑；
-         · 下方放不下 → 翻到上方，药板下沿 = 触发器上沿 − 6px，此时滑出方向反转为「从下往上」；
+         · **优先往下**：药板上沿 = 触发器下沿 + 6px（正好是 clip 的 6px 上内边距），从这里往下滑；
+         · 下方矮到连 2 行都放不下、而上方放得下 → 才翻到上方，药板下沿 = 触发器上沿 − 6px，
+           此时滑出方向反转为「从下往上」；
          · 两边都放不下 → 夹进视口。
        --pn-hide 就是「藏起来时该偏移多少」：放在触发器下面时往上藏（负值），
-       放在上面时往下藏（正值），两边都能完全藏进裁剪盒外面，动画起手才不露边。 */
+       放在上面时往下藏（正值），两边都能完全藏进裁剪盒外面，动画起手才不露边。
+
+       2026-11-18 用户：「这个怎么是往上弹窗 默认肯定往下啊」。
+       以前只问「整块药板放不放得下」——放不下就整块翻上去。课次下拉正好在页面下半部分，
+       列表一翻就把上面的内容全盖住，看着就是弹错了方向。
+       现在改成**优先往下 + 先压缩高度、实在不行才翻**：
+         · 下方净空压完还剩 ≥ 88px（2 行）→ 永远往下，maxHeight 夹到「下方净空 − 12px」，内部滚动；
+         · 下方真到底了、上方能放下 2 行 → 才翻上去；
+         · 两边都不到 2 行 → 取空间大的一边并夹进视口（仍按往下处理，动画方向不变）。
+       常见的「页面下半部分」场景（下方 150~400px）从此都是往下弹，只是矮一点、能滚。 */
     function place(inst) {
       var r = inst.wrap.getBoundingClientRect();
-      var vw = document.documentElement.clientWidth || innerWidth;
-      var vh = document.documentElement.clientHeight || innerHeight;
+      /* 2026-11-18 用户「右边遮挡不完整」：不能只信 documentElement.clientWidth ——
+         clip 是 position:fixed，量的是布局视口；页面有竖向滚动条、或宿主用 zoom / transform 缩放过时，
+         clientWidth 和真正的可视宽度会差十几像素，右边缘就被裁掉一截。
+         先取 clientWidth / innerWidth 的较小值，摆好之后再用 clip.getBoundingClientRect() 复核真实右边缘。 */
+      var docW = document.documentElement.clientWidth || 0, winW = innerWidth || 0;
+      var vw = (docW && winW) ? Math.min(docW, winW) : (docW || winW);
+      var docH = document.documentElement.clientHeight || 0, winH = innerHeight || 0;
+      var vh = (docH && winH) ? Math.min(docH, winH) : (docH || winH);
       var pw = Math.round(r.width) + 20;
       if (pw < 168) pw = 168;
       if (pw > 340) pw = 340;
-      if (pw > vw - 16) pw = vw - 16;
+      if (pw > vw - 16) pw = Math.max(120, vw - 16);
       clip.style.width = pw + 'px';
-      sheet.style.maxHeight = Math.max(120, Math.min(320, vh - 24)) + 'px';
+      var capBase = Math.max(120, Math.min(320, vh - 24));
+      var roomBelow = Math.round(vh - 8 - r.bottom);   // 触发器下沿到视口底的净空
+      var roomAbove = Math.round(r.top - 14);          // 触发器上沿到视口顶（扣 8 边距 + 6 缝）
+      var MIN2 = 88;                                   // 2 行保底（行高 38 + 药板上下内边距）
+      var below = true, cap;
+      if (roomBelow - 12 >= MIN2) {                    // 下方还放得下 2 行：压高度，保持往下
+        cap = Math.min(capBase, roomBelow - 12);
+      } else if (roomAbove - 12 >= MIN2) {             // 下方真到底了，上方放得下 2 行：翻上去
+        below = false;
+        cap = Math.min(capBase, roomAbove - 12);
+      } else {                                         // 两边都不够 2 行：夹进视口，仍按往下滑
+        cap = Math.min(capBase, Math.max(MIN2, Math.max(roomBelow, roomAbove) - 12));
+      }
+      sheet.style.maxHeight = cap + 'px';
       // 先挪出屏幕量真实高度（transform 不影响 offsetHeight，所以藏着也能量）
       clip.style.left = '-9999px';
       clip.style.top = '0px';
       var sh = sheet.offsetHeight;
-      var h = sh + 36;                       // 药板高 + clip 上下内边距（6 + 30）
       var left = Math.max(8, Math.min(Math.round(r.left), vw - 8 - pw));
-      var top = Math.round(r.bottom);        // 下沿对齐：药板上沿 = r.bottom + 6
-      var below = true;
-      if (top + h > vh - 8) {
-        var up = Math.round(r.top) - sh - 12;  // 药板下沿 = r.top − 6，再减上内边距
-        if (up >= 8) { top = up; below = false; }
-        else top = Math.max(8, vh - 8 - h);    // 上方也放不下就夹进视口底部（按「往下滑」处理）
+      var top;
+      if (!below) {
+        top = Math.round(r.top) - sh - 12;             // 药板下沿 = r.top − 6，再减上内边距
+        if (top < 8) top = 8;
+      } else {
+        top = Math.round(r.bottom);                    // 下沿对齐：药板上沿 = r.bottom + 6
+        // 只夹「药板本身」的越界，**不能拿 sh+36 当判据**：clip 下方那 30px 是给药板阴影留的呼吸位，
+        // 压缩后药板正好填满下方时它本来就会溢出视口（看不见也不该看见），按它夹会把药板从触发器上挪开。
+        var overY = top + 6 + sh - (vh - 8);
+        if (overY > 0) top = Math.max(8, top - overY);
       }
       sheet.style.setProperty('--pn-hide', (below ? -1 : 1) * (sh + 16) + 'px');
       clip.style.left = left + 'px';
       clip.style.top = top + 'px';
+      // 摆好之后复核真实右边缘（原因见上面 vw 那段）：超了就把整块往左回退，宁可左边留白也不裁掉字
+      try {
+        var cr = clip.getBoundingClientRect();
+        var overX = Math.ceil(cr.right - (vw - 8));
+        if (overX > 0) {
+          left = Math.max(8, left - overX);
+          clip.style.left = left + 'px';
+        }
+      } catch (e) { }
     }
 
     /* 极简档 / 系统「减少动态效果」：胶囊不飞、药板不滑，只淡入淡出。

@@ -14,16 +14,16 @@
      要登录时调 window.HXPortal.login()；被单独打开时 hx-theme.js 会跳回这里（见 hx-theme.js 的 data-tool）。
      账号：Supabase 华夏工具项目，localStorage paike-session 和各工具共用；身份由数据库 hx_me() 决定。
      脚本里不用反引号模板字符串（本机测试时整页当字符串注入到线上同源页面里）。 -->
-<link rel="stylesheet" href="hx-theme.css?v=a22fb2b">
-<script src="hx-theme.js?v=a22fb2b"></script>
+<link rel="stylesheet" href="hx-theme.css?v=261ff03">
+<script src="hx-theme.js?v=261ff03"></script>
 <script src="rank-bg.js" defer></script><!-- 排位身份卡预设（2026-11-12）：总入口外观面板当场弹窗设置身份卡背景，预设数据在总入口也能用 -->
 <!-- 首页卡片上的像素小生物：pixelfx 的 12 个 critters（MIT），打包成一个 91 KB 的独立脚本。
      加载失败不影响首页——hx-critters.js 开头就有 window.PixelFX 存在性检查，没有就整段跳过。 -->
-<script src="fx/pixelfx-critters.js?v=a22fb2b" defer></script>
-<script src="fx/hx-critters.js?v=a22fb2b" defer></script>
+<script src="fx/pixelfx-critters.js?v=261ff03" defer></script>
+<script src="fx/hx-critters.js?v=261ff03" defer></script>
 <!-- 课堂码大屏二维码：离线 QR 编码器（qrcode 1.5.4 core 打包，MIT，见 fx/NOTICE-qr.md）。延迟加载即可：只有老师点「大屏二维码」时才用 -->
-<script src="fx/hx-qr.js?v=a22fb2b" defer></script>
-<script src="hx-scan.js?v=a22fb2b" defer></script><!-- 全站扫一扫（2026-11-08 K5）：摄像头 + BarcodeDetector / 本地 jsQR -->
+<script src="fx/hx-qr.js?v=261ff03" defer></script>
+<script src="hx-scan.js?v=261ff03" defer></script><!-- 全站扫一扫（2026-11-08 K5）：摄像头 + BarcodeDetector / 本地 jsQR -->
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; width: 100%; overflow: hidden; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -810,6 +810,73 @@
   .lk-id-s { margin: 3px 0 8px; font-size: 11px; line-height: 1.55; color: var(--dim); }
   .lk-id-act { display: flex; gap: 6px; }
   .lk-id-act .btn { height: 28px; padding: 0 12px; font-size: 12.5px; }
+  /* ── 2026-11-18 外观面板改成居中卡片 ───────────────────────────────────────
+     用户原话（说的是浮窗，外观面板是完全一样的问题）：
+     「打开出现应该在屏幕中间 且适应各种屏幕 不要铺满遮挡全屏」「这个还是过大 缩小到一半都可以 手机端遮挡严重」。
+     以前 .pop 桌面贴右上 60px、宽 360、高几乎吃满一屏；手机是贴底抽屉 88dvh —— 两种都是「铺满」。
+     现在**只改 #look**（账号面板 #pop 没被投诉，不动它，免得牵动另一套打开路径）：
+       · 屏幕居中：left/top 各 50% + translate(-50%,-50%)，四边都不贴墙；
+       · 尺寸按视口比例夹：宽 min(420px, 92vw)，高 min(76vh, 720px) —— 永远给四周留一圈能看见外面的余量；
+       · 内部滚动 + overscroll-behavior:contain，滚到底不会把背后首页一起带着滚；
+       · 居中卡片碰不到刘海/小横条，safe-area 不需要再单独补（那条只对贴底抽屉有意义）。
+     同一次诉求里的「可以适当缩小文字和ui尺寸适配」：整卡字号/控件收 0.88 档。
+     标题、说明、数值、分段按钮、色点、缩略图、身份卡、底部一行**一起缩**，
+     只缩正文会让标题反而显得更大（这正是 2026-11-13 分节卡想避免的「层级糊掉」）。
+     ⚠️ 面板里的两根滑杆是原生 <input type=range>，不自己算指针坐标，改定位/尺寸不影响；
+        像素开关（#ptog）的拖拽坐标走 getBoundingClientRect，缩放后自动跟着变（见下面 .ptog 那条）。 */
+  #look.pop { left: 50%; top: 50%; right: auto; bottom: auto; width: min(420px, 92vw); height: auto;
+    max-height: min(76vh, 720px); padding: 18px 18px 20px; border-radius: 22px;
+    overscroll-behavior: contain;
+    transform: translate(-50%, -50%) translateY(10px) scale(.97); transform-origin: 50% 50%; }
+  #look.pop.show { transform: translate(-50%, -50%); }
+  /* vh 在手机浏览器里按「最大视口」算（地址栏收起时），dvh 才是真正看得见的高度 */
+  @supports (height: 1dvh) { #look.pop { max-height: min(76dvh, 720px); } }
+  @media (max-width: 560px) {
+    /* 手机：不再从底部整幅升起，改成居中卡片 92vw × 72vh，同样内部滚动 */
+    #look.pop { width: 92vw; max-height: 72vh; padding: 14px 14px 16px; border-radius: 20px; }
+    @supports (height: 1dvh) { #look.pop { max-height: 72dvh; } }
+  }
+  /* 0.94 档（基准值 −0.5~1px）。
+     ⚠️ 2026-11-18 校准：第一版按 0.88 一刀切，把 13px 的标题压到 11.5px、11.5px 的说明压到 10px ——
+        面板本来就是小字排版，再缩就变成教室投影看不清。用户说的是「适当缩小」，
+        要收的是**版面和控件**（宽度、留白、缩略图、分段按钮高度），字号只做轻微下调。 */
+  #look.pop h3 { font-size: 12.5px; margin-bottom: 8px; }
+  #look.pop h3 + * { margin-bottom: 16px; }
+  #look.pop h3 + .lk-note { margin-bottom: 12px; }
+  #look.pop .lk-note { font-size: 11.5px; margin-bottom: 12px; }
+  #look.pop .lk-sec { margin: 0 0 8px; padding: 9px 10px 10px; border-radius: 13px; }
+  #look.pop .lk-hd { margin-bottom: 8px; }
+  #look.pop .lk-hd h4 { font-size: 12.5px; }
+  #look.pop .lk-val { font-size: 11.5px; }
+  #look.pop .lk-tip { margin-top: 8px; font-size: 11px; line-height: 1.6; }
+  #look.pop .seg { padding: 2px; border-radius: 10px; }
+  #look.pop .seg button { height: 28px; font-size: 12.5px; border-radius: 8px; }
+  #look.pop .sw { gap: 10px; }
+  #look.pop .sw button { width: 26px; height: 26px; }
+  /* 缩略图别跟着面板变宽：4 列固定改 auto-fill，宽屏上每张约 58px（原 70px），更省地方 */
+  #look.pop .bgs { grid-template-columns: repeat(auto-fill, minmax(56px, 1fr)); gap: 7px; }
+  #look.pop .bgs button, #look.pop .bgs label { border-radius: 12px; font-size: 10px; padding-bottom: 3px; }
+  #look.pop .bgs.imgs .del { width: 16px; height: 16px; font-size: 11px; }
+  #look.pop .rng { gap: 10px; }
+  #look.pop .rng input { height: 18px; }
+  #look.pop .rng output { font-size: 12.5px; }
+  /* 像素日夜开关：canvas / 滑块 / 行程全部是 168×88 的设计坐标写死在 HXPtog 里（SCALE = 168/520），
+     直接改盒子尺寸会让胶囊、光带和轨道错位。所以用 transform 等比缩 ——
+     pointOf() 走 sw.getBoundingClientRect()，缩放后的 rect 就是实际热区，拖拽/点击坐标自动跟着变。 */
+  #look.pop .ptog { transform: scale(.94); transform-origin: 50% 50%; }
+  #look.pop .ptog-txt { font-size: 11.5px; }
+  /* 身份卡：预览列 132 → 112，字号轻微下调 */
+  #look.pop .lk-id { grid-template-columns: 112px 1fr; gap: 10px; margin: 2px 0 12px; padding: 9px; border-radius: 16px; }
+  #look.pop .lk-id-prev { padding: 4px 5px; border-radius: 8px; }
+  #look.pop .lk-id-prev b { font-size: 9px; }
+  #look.pop .lk-id-prev small { font-size: 8px; }
+  #look.pop .lk-id-t { font-size: 12px; }
+  #look.pop .lk-id-t em { font-size: 10px; }
+  #look.pop .lk-id-s { font-size: 10.5px; margin: 2px 0 7px; }
+  #look.pop .lk-id-act { gap: 5px; }
+  #look.pop .lk-id-act .btn { height: 26px; padding: 0 10px; font-size: 12px; }
+  #look.pop .lk-foot { margin-top: 10px; padding-top: 10px; }
+  #look.pop .lk-foot span { font-size: 11px; }
   .who-top { display: grid; justify-items: center; gap: 6px; text-align: center; padding-bottom: 16px; margin-bottom: 8px; border-bottom: 1px solid var(--edge); }
   .who-top b { font-size: 21px; } .who-top small { color: var(--dim); word-break: break-all; font-size: 14px; }
   .rows { display: grid; margin-bottom: 14px; }

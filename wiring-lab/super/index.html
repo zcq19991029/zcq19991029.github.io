@@ -5,7 +5,10 @@
      第二步「连线」（交互与练习页同一套，2026-11-09 对齐）：点一个端子再点另一个接一根线（也可直接拖过去）；
      点已画的线 = 选中（拖手柄调整走线），删除走工具栏「删除」；工具圆盘 + 展开工具栏照 practice-ui.js，
      提示 / 检查 / 答案三颗在排位里不建，查错只报红；检查只说还差多少，不说答案。
-     顶栏的题目下拉 + 上一题/下一题：切题会清空画布和导线（清单来自 SUPER_CIRCUITS）。
+     顶栏的题目下拉：切题会清空画布和导线（清单来自 SUPER_CIRCUITS）。
+     （2026-11-18 用户「超级排位的下拉选项卡两边怎么有旧冗余」：下拉本身已经列全 9 题，
+       两侧的上一题 / 下一题箭头是旧设计留下的，连同两颗按钮和它们那套圆角小块样式一起删了，
+       药丸外壳现在只紧包着下拉。）
      2026-11-09 排版重做：元器件库不再占左栏一整列，改成**左侧竖条 + 悬浮抽屉**（点竖条滑出，
      覆盖在画布之上，Esc / 点画布空白 / 再点竖条收起；从库里拖卡片期间抽屉锁住不收）；
      原理图像练习页一样放**左侧一列**（可点标题折叠），右侧整块都给待布置/连线画布。
@@ -46,17 +49,15 @@
   .top h1 { margin: 0; font-size: 17px; letter-spacing: .08em; white-space: nowrap; }
   .top .tsk { font-size: 13px; font-weight: 700; padding: 4px 10px; border-radius: 10px;
     border: 1px solid var(--edge); background: var(--card); white-space: nowrap; }
-  /* 题目切换（8 条电路都能玩，P 标注「只练摆放」）：下拉 + 上一题 / 下一题，和顶栏其它徽章同一套观感 */
-  .tsel { flex: none; display: flex; align-items: center; gap: 2px; padding: 2px; border-radius: 10px;
+  /* 题目切换（8 条电路都能玩，P 标注「只练摆放」）：只有下拉，和顶栏其它徽章同一套观感。
+     2026-11-18 删掉两侧的上一题/下一题箭头后，壳子里只剩一个 select —— gap 没用了去掉，
+     padding 仍是 2px 的一圈细边，正好紧贴下拉、不再空出两段缝。 */
+  .tsel { flex: none; display: flex; align-items: center; padding: 2px; border-radius: 10px;
     border: 1px solid color-mix(in srgb, var(--acc) 34%, transparent); background: var(--card); }
   .tsel select { appearance: none; -webkit-appearance: none; border: 0; outline: none; background: transparent;
     color: var(--ink); font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer;
     padding: 4px 6px 4px 8px; max-width: 216px; }
   .tsel select option { background: var(--tbbg2); color: var(--ink); }
-  .tnav { flex: none; width: 24px; height: 24px; display: grid; place-items: center; padding: 0; border: 0;
-    border-radius: 7px; background: transparent; color: var(--acc); font: inherit; font-size: 15px; font-weight: 800;
-    cursor: pointer; touch-action: manipulation; }
-  .tnav:hover { background: var(--tbhov); }
   .top .sub { font-size: 12.5px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .top .grow { flex: 1; }
   /* 阶段徽章：第一步「摆放」→ 第二步「连线」（点「开始连线」后切换，见 super.js 的 setPhase） */
@@ -67,7 +68,8 @@
     background: linear-gradient(135deg, color-mix(in srgb, var(--ok) 30%, transparent), color-mix(in srgb, var(--acc) 22%, transparent)); }
   .top .tag { flex: none; font-size: 11.5px; font-weight: 700; color: var(--acc); padding: 4px 9px; border-radius: 9px;
     border: 1px dashed color-mix(in srgb, var(--acc) 45%, transparent); background: color-mix(in srgb, var(--acc) 10%, transparent); white-space: nowrap; }
-  /* 返回练习页（独立页唯一的出口）：做成真按钮，样式跟 tag 同族，但用实线边 + 指针 */
+  /* 返回排位（独立页唯一的出口，2026-11-18 起回的是练习页的排位窗，不是首页）：
+     做成真按钮，样式跟 tag 同族，但用实线边 + 指针 */
   .top .tag.back { font: inherit; font-size: 11.5px; font-weight: 700; color: var(--dim); cursor: pointer;
     border-style: solid; background: transparent; }
   .top .tag.back:hover { color: var(--ink); border-color: var(--acc); }
@@ -227,7 +229,6 @@
     .top h1 { font-size: 14px; letter-spacing: .03em; }
     .tsel { padding: 1px; }
     .tsel select { max-width: 104px; font-size: 11px; padding: 3px 2px 3px 6px; }
-    .tnav { width: 20px; height: 22px; font-size: 13px; }
     .top .step { font-size: 11px; padding: 3px 8px; }
   }
   @media (prefers-reduced-motion: reduce) { .tb-orb, .card, .go, .toast { transition: none !important; } }
@@ -236,20 +237,20 @@
 <body>
 <header class="top">
   <h1>超级排位</h1>
-  <!-- 题目切换：清单来自 SUPER_CIRCUITS（9 条），有标准网表的 8 条可判连线，P 标注「只练摆放」 -->
+  <!-- 题目切换：清单来自 SUPER_CIRCUITS（9 条），有标准网表的 8 条可判连线，P 标注「只练摆放」。
+       2026-11-18 只保留下拉（用户说两侧箭头是「旧冗余」），切题仍走 super.js 的 change 事件。 -->
   <div class="tsel">
-    <button class="tnav" id="tPrev" type="button" title="上一题" aria-label="上一题">‹</button>
     <select id="tPick" aria-label="选择题目"></select>
-    <button class="tnav" id="tNext" type="button" title="下一题" aria-label="下一题">›</button>
   </div>
   <b class="tsk" id="tsk">2.2 电气互锁正反转</b>
   <b class="step" id="step">第一步：摆放</b>
   <span class="sub" id="sub">照着左边的电气原理图摆元器件：点左缘「元器件库」竖条挑元件，拖到右边画布</span>
   <span class="grow"></span>
-  <!-- 2026-11-08 发布时补的出口：这是独立页（/wiring-lab/super/），从练习页的「排位」旁边点进来，
-       在 iframe 里直接换页；没有返回入口就出不去（iframe 里的浏览器后退不可靠）。回到练习页 /wiring-lab/。 -->
-  <button class="tag back" id="back" type="button" title="回到练习页">← 练习页</button>
-  <span class="tag">不提示位置和数量</span>
+  <!-- 2026-11-08 发布时补的出口：这是独立页（/wiring-lab/super/），从练习页的排位窗点进来，
+       在 iframe 里直接换页；没有返回入口就出不去（iframe 里的浏览器后退不可靠）。
+       2026-11-18 用户「这一页返回是回到排位页面 而不是首页，更不是回到练习页」：回 ../?rank=1，
+       练习页的 rank.js 看到 rank=1 会自动把排位窗打开（见 rank.js 的 openRankFromTaskBack）。 -->
+  <button class="tag back" id="back" type="button" title="回到排位窗">← 返回排位</button>
 </header>
 <main class="wrap">
   <!-- 左列：电气原理图（练习页同款「左边对照图」，点标题折叠成一条；只有 2.2 等有画法，
@@ -303,9 +304,19 @@
 <script src="super-alias.js"></script>
 <script src="super.js"></script>
 <script>
-  /* 返回练习页。线上地址是 /wiring-lab/super/，练习页在上一级 /wiring-lab/，所以跳 ../。
-     不用 history.back()：这一页可能是在 iframe 里被直接换进来的，后退不一定回到练习页。 */
-  document.getElementById('back').onclick = function () { location.href = '../'; };
+  /* 返回排位窗（2026-11-18 用户：「这一页返回是回到排位页面 而不是首页，更不是回到练习页」）。
+     线上地址是 /wiring-lab/super/，练习页在上一级 /wiring-lab/，所以跳 ../ 再挂 ?rank=1 ——
+     练习页的 rank.js 有 openRankFromTaskBack()，看到 rank=1 会自动把排位窗打开。
+     ⚠️ 必须先用 URL 对象把 '../' 解析成绝对地址，再挂参数：直接写 location.href='../?rank=1'
+     这种相对字符串在某些路径下会被浏览器当成站点根的 /?rank=1（2026-11-15 在 task-hx.js 的 goTool()
+     上实测踩过，那里也是这么拼的）。用 replace 而不是 href：进来时历史里已经有一条 /wiring-lab/，
+     返回再 push 一条只会让「后退」在两页之间来回弹；replace 之后后退 = 回到进 super 之前那一次，
+     符合「返回」的直觉。 */
+  document.getElementById('back').onclick = function () {
+    var u = new URL('../', location.href);
+    u.searchParams.set('rank', '1');
+    location.replace(u.href);
+  };
 </script>
 </body>
 </html>

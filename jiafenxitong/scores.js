@@ -361,24 +361,119 @@
   /* 值日提示（2026-11-13 精简）：老师都是上课当场设值日组，学生只需要知道「本轮谁值日」。
      原来这张卡常驻一段整学期规则（下课后留下打扫 / 缺勤扣 20% / 一学期只算一次 5 分），
      和页面下方的「怎么算的」完全重复，还占掉首屏一整块，用户嫌啰嗦。
-     现在只剩一行事实 + 规则小问号（title 悬浮），有值日缺勤才多一行提醒。 */
-  function renderDuty(ls) {
-    var dutyLesson = null;
-    ls.forEach(function (l) {
-      if (l.duty && l.duty.is && (!dutyLesson || (Number(l.seq) || 0) > (Number(dutyLesson.seq) || 0))) dutyLesson = l;
+     现在只剩一行事实 + 规则小问号（title 悬浮），有值日缺勤才多一行提醒。
+     2026-11-18：老师不再单写「值日提醒」了（用户：「值日组和值日提醒冗余 值日组自动就是提醒啊」），
+     文案统一走下面这句默认规则，提醒完全由「本节我组在值日名单里」自动生成。 */
+  var DUTY_RULE = '值日组下课后留下把教室打扫干净，别提前走；值日缺勤全组每人扣 20%，一学期只算一次 5 分。';
+
+  /** 最近一节「本组要值日」的课次；没有就返回 null（静态小卡和开页弹窗共用这一个口径） */
+  function dutyLessonOf(ls) {
+    var found = null;
+    (ls || []).forEach(function (l) {
+      if (l.duty && l.duty.is && (!found || (Number(l.seq) || 0) > (Number(found.seq) || 0))) found = l;
     });
+    return found;
+  }
+
+  function renderDuty(ls) {
+    var dutyLesson = dutyLessonOf(ls);
     if (!dutyLesson) return '';
     var missed = Math.max(0, Number(dutyLesson.duty.absent) || 0);
-    /* 老师能在值日上自己写提醒（duty.note），有就优先显示老师的原话，没有才用通用规则 */
-    var rule = dutyLesson.duty.note ||
-      '值日组下课后留下把教室打扫干净，别提前走；值日缺勤全组每人扣 20%，一学期只算一次 5 分。';
     return '<div class="card duty-callout">' +
       '<p class="duty-callout-main"><b>' + esc(D.me.gname || ('第 ' + D.me.gno + ' 组')) + '</b>' +
       '<span>本轮值日</span>' +
       '<span class="duty-callout-when">' + esc(lessonLabel(dutyLesson)) + '</span>' +
-      '<span class="duty-help" aria-label="值日规则" title="' + esc(rule) + '">?</span></p>' +
+      '<span class="duty-help" aria-label="值日规则" title="' + esc(DUTY_RULE) + '">?</span></p>' +
       (missed ? '<p class="duty-missed-line">本节已记值日缺勤 ' + missed + ' 次，全组每人 −' + (missed * 20) + '%</p>' : '') +
       '</div>';
+  }
+
+  /* ---------- 开页值日提醒弹窗（2026-11-18） ----------
+     用户：「需要打开学生端小组加分就弹窗他们组值日 做的炫酷一点」。
+     触发条件：只看「最近那一节课」—— 本组在那一节的值日名单里（duty.is）才弹；
+     翻旧课不弹（标题写的是「今天」）。
+     同一课次 + 同一组只弹一次，键名 jf-duty-seen:<课次id>:<组号>（老数据没有课次 id 时用 seq-日期）。
+     用普通 <div> + 高 z-index 遮罩，不用 <dialog>.showModal()：原生模态在浏览器 top layer，
+     比任何 z-index 都高，会和全站药丸 / 悬浮层的层级体系打架（老师端课次设置的下拉就栽在这上面）。
+     动效全部是 CSS keyframes（扫光 + 组号逐字翻入 + 细光环绕 + 碎屑上浮），不引第三方库；
+     prefers-reduced-motion 下只保留淡入（样式见 scores.css 末尾）。
+     页面里那张静态 dutyCallout 小卡保留：弹窗关掉之后学生还能回看。 */
+  var DUTY_SEEN = 'jf-duty-seen:';
+  var dutyPopEl = null;
+
+  function dutySeenKey(l) {
+    var id = l && l.id ? String(l.id)
+      : ('seq' + (Number(l && l.seq) || 0) + '-' + String((l && l.date) || ''));
+    return DUTY_SEEN + id + ':' + (Number(D.me && D.me.gno) || 0);
+  }
+
+  function dutyPopClose() {
+    if (!dutyPopEl) return;
+    var el = dutyPopEl;
+    dutyPopEl = null;
+    document.removeEventListener('keydown', dutyPopKeys);
+    el.classList.remove('in');
+    el.classList.add('out');
+    setTimeout(function () { if (el.parentNode) el.remove(); }, 340);
+  }
+
+  function dutyPopKeys(e) {
+    if (e.key === 'Escape') { e.preventDefault(); dutyPopClose(); }
+  }
+
+  function maybeDutyPop() {
+    if (!D || fatal || dutyPopEl) return;
+    /* 只认「最近那一节课」：弹窗标题是「今天你们组值日」，翻出上周的值日组会莫名其妙。
+       老师上课当场在课次设置里标值日组，所以最近一节课就是本节。 */
+    var latest = null;
+    (D.lessons || []).forEach(function (x) {
+      if (!latest || (Number(x.seq) || 0) > (Number(latest.seq) || 0)) latest = x;
+    });
+    if (!latest || !latest.duty || !latest.duty.is) return;
+    var l = latest;
+    var key = dutySeenKey(l);
+    /* 无痕模式 / 禁用存储时读写会抛，读失败就每次都弹，但绝不能因此中断页面 */
+    try {
+      if (localStorage.getItem(key) === '1') return;
+      localStorage.setItem(key, '1');
+    } catch (e) { }
+    var gno = Number(D.me && D.me.gno) || 0;
+    var bits = '';
+    for (var i = 0; i < 18; i++) {
+      bits += '<i aria-hidden="true" style="--x:' + ((i * 37) % 100) + '%;--dl:' + ((i % 9) * 0.16).toFixed(2) +
+        's;--du:' + (2.4 + (i % 4) * 0.55).toFixed(2) + 's;--sz:' + (3 + (i % 3) * 2) + 'px"></i>';
+    }
+    var el = document.createElement('div');
+    el.className = 'duty-pop-overlay';
+    el.setAttribute('role', 'dialog');
+    el.setAttribute('aria-modal', 'true');
+    el.setAttribute('aria-labelledby', 'dutyPopTitle');
+    el.innerHTML =
+      '<div class="duty-pop">' +
+        '<span class="duty-pop-rays" aria-hidden="true"></span>' +
+        '<span class="duty-pop-ring" aria-hidden="true"></span>' +
+        '<span class="duty-pop-sweep" aria-hidden="true"></span>' +
+        '<span class="duty-pop-particles" aria-hidden="true">' + bits + '</span>' +
+        '<p class="duty-pop-kicker">DUTY · 值日提醒</p>' +
+        '<div class="duty-pop-gno" aria-hidden="true">' +
+          '<span style="--k:0">第</span><b style="--k:1">' + gno + '</b><span style="--k:2">组</span>' +
+        '</div>' +
+        '<h2 id="dutyPopTitle" class="duty-pop-title">今天你们组值日</h2>' +
+        '<p class="duty-pop-when">' + esc(lessonLabel(l)) + '</p>' +
+        '<p class="duty-pop-rule">下课后留下把教室打扫干净，别提前走。</p>' +
+        '<p class="duty-pop-warn">值日缺勤全组每人 −20%<span>一学期只算一次 5 分</span></p>' +
+        '<button type="button" class="duty-pop-btn">知道了</button>' +
+      '</div>';
+    document.body.appendChild(el);
+    dutyPopEl = el;
+    el.addEventListener('click', function (e) {
+      if (e.target === el || (e.target.closest && e.target.closest('.duty-pop-btn'))) dutyPopClose();
+    });
+    document.addEventListener('keydown', dutyPopKeys);
+    void el.offsetWidth;          // 强制一次布局，让 .in 的过渡真的从初始态开始播
+    el.classList.add('in');
+    var btn = el.querySelector('.duty-pop-btn');
+    if (btn && btn.focus) btn.focus({ preventScroll: true });
   }
 
   /* 合并页签（2026-11-13）后，原来「上课记分」那张「累计到现在」卡不再单独存在：
@@ -1084,6 +1179,9 @@
     /* 悬浮卡必须在这里重挂：上一行 #view.innerHTML 把所有行都重建了，
        原来那张卡的位置锚（那一行）已经不存在，内容和位置都得按新 DOM 重新算一次。 */
     syncCbHost();
+    /* 开页值日提醒（2026-11-18）：paint 每 4 秒都会跑一次，maybeDutyPop 内部靠
+       「本地已标记 + 当前已有一张弹窗」双重保险，同一课次同一组只会弹一次。 */
+    maybeDutyPop();
   }
 
   /* 轮询连续失败时把实情写到顶部那行状态里（否则页面看着正常，其实数据早就停了） */

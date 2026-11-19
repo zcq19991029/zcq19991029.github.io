@@ -2384,13 +2384,11 @@
       }).join('');
       tPick.value = DATA.task;
       tPick.addEventListener('change', () => setTask(tPick.value));
-      const step = d => {
-        const i = ids.indexOf(DATA.task);
-        setTask(ids[(i + d + ids.length) % ids.length]);
-      };
-      const prev = $('tPrev'), next = $('tNext');
-      if (prev) prev.addEventListener('click', () => step(-1));
-      if (next) next.addEventListener('click', () => step(1));
+      /* 2026-11-18：原来这里给顶栏下拉两侧那两颗「上一题 / 下一题」箭头绑 click（step(±1)）。
+         用户「超级排位的下拉选项卡两边怎么有旧冗余」→ 两颗按钮连样式一起从 super.html 删了，
+         这里的取元素和绑定也必须同步删：留着取 id 拿到 null 再 addEventListener 会抛错，
+         整页脚本从这里中断（这个项目踩过「删 DOM 不同步清引用 → 白屏」）。
+         下拉已经在 change 里直接调 setTask，切题功能不缺。 */
     }
     $('tsk').textContent = TASK.title || DATA.task;
     $('schT').textContent = TASK.sch || TASK.title;
