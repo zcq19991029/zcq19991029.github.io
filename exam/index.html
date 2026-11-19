@@ -494,15 +494,19 @@ body { margin: 0; }
   .ex-shell.collapsed .ex-nav-tg { justify-content: center; padding: 0 0 10px; }
   .ex-shell.collapsed .ex-nav-tg span { transform: rotate(180deg); }
   .ex-shell.collapsed .ex-nav-h { display: none; }
-  /* 菜单项：只剩首字（没有图标就用菜单名第一个字），说明文字和标题全藏，title 提示完整名 */
-  .ex-shell.collapsed .ex-nav-i { display: flex; align-items: center; justify-content: center; padding: 10px 0; }
+  /* 菜单项：只剩首字（没有图标就用菜单名第一个字），说明文字和标题全藏，title 提示完整名。
+     给每个菜单项一个圆形底（和科目圆点一致），收成真正的「图标栏」而不是裸字竖排 */
+  .ex-shell.collapsed .ex-nav-i { display: flex; align-items: center; justify-content: center; width: 38px; height: 38px;
+    padding: 0; margin: 0 auto 6px; border-radius: 50%; background: var(--field2, rgba(255, 255, 255, .05)); }
   .ex-shell.collapsed .ex-nav-i b,
   .ex-shell.collapsed .ex-nav-i span { display: none; }
   .ex-shell.collapsed .ex-nav-i::before { content: attr(data-i); font-weight: 600; font-size: 15px; }
+  .ex-shell.collapsed .ex-nav-i:hover { background: var(--field3, rgba(255, 255, 255, .09)); }
+  .ex-shell.collapsed .ex-nav-i.on { background: var(--accbg, rgba(47, 107, 255, .12)); color: var(--acc, #2f6bff); }
   .ex-shell.collapsed .ex-nav-sub { margin-top: 14px; padding-top: 12px; }
   /* 科目 tab 缩成竖排小圆点，首字做标记，仍可切换 */
   .ex-shell.collapsed .ex-subtabs { flex-direction: column; align-items: center; gap: 8px; border: 0; background: transparent; box-shadow: none; padding: 0; }
-  .ex-shell.collapsed .ex-subtab { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0; font-size: 0; border-radius: 50%; }
+  .ex-shell.collapsed .ex-subtab { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0; font-size: 0; border-radius: 50%; background: var(--field2, rgba(255, 255, 255, .05)); }
   .ex-shell.collapsed .ex-subtab::before { content: attr(data-i); font-size: 12.5px; font-weight: 600; }
   .ex-shell.collapsed .ex-subtab::after { display: none; }
 }
