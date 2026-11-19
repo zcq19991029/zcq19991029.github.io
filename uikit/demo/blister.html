@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>预览 · 铝箔药板材质</title>
+<!-- 这个样张**不引 hx-theme.js**：它演示的是材质本身（药槽 / 空槽 / 胶囊 / 铝箔），
+     不是下拉组件。下面那段 CSS 和站上 hx-theme.js 里注入的完全同源，
+     只把面板专用的部分（裁剪盒、动效层）去掉了。 -->
+<style>
+  :root { --stage:#f3f4f7; --ink:#20242a; --dim:#6b7280; --line:#e2e5ea; --cell:#ffffff; }
+  html[data-demo-dark] { --stage:#14161a; --ink:#eef1f5; --dim:#9aa3af; --line:#2b2f36; --cell:#1e222a; }
+  * { box-sizing:border-box; }
+  html, body { height:100%; }
+  body { margin:0; }
+  .demo-stage {
+    position:relative; z-index:3; box-sizing:border-box; min-height:100vh; padding:20px 22px;
+    background:var(--stage); color:var(--ink);
+    font:14px/1.6 "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+  }
+  h4 { margin:0 0 10px; font-size:12px; font-weight:800; letter-spacing:.06em; color:var(--dim); text-transform:uppercase; }
+  section + section { margin-top:22px; }
+  .row { display:flex; flex-wrap:wrap; gap:14px; align-items:flex-end; }
+  .cell { display:grid; gap:7px; justify-items:center; font-size:11.5px; color:var(--dim); }
+  .hint { margin:14px 0 0; font-size:12.5px; color:var(--dim); max-width:640px; }
+  .hint b { color:var(--ink); }
+
+  /* ─── 铝箔底：3 条 repeating-linear-gradient（±45° 压纹 + 横向细线）叠在 165° 银灰渐变上 ─── */
+  .foil {
+    padding:16px 18px; border-radius:13px; border:1px solid rgba(255,255,255,.41);
+    background:
+      radial-gradient(320px circle at 38% 28%,rgba(255,255,255,.52) 0,rgba(255,255,255,.14) 38%,transparent 72%),
+      repeating-linear-gradient(45deg,rgba(255,255,255,.23) 0 1px,transparent 1px 3.5px),
+      repeating-linear-gradient(-45deg,rgba(55,60,70,.12) 0 1px,transparent 1px 3.5px),
+      repeating-linear-gradient(0deg,rgba(255,255,255,.145) 0,rgba(0,0,0,.04) 1px,rgba(255,255,255,.11) 2px),
+      linear-gradient(165deg,#eceef1,#d8dade 36%,#c5c9d0 74%,#d4d7dc);
+    box-shadow:
+      inset 0 1.5px 1px rgba(255,255,255,.91), inset 1px 0 1px rgba(255,255,255,.65),
+      inset 0 -2px 3px rgba(72,76,86,.55), inset -1px 0 2px rgba(82,86,96,.38),
+      0 8px 20px -6px rgba(0,0,0,.45), 0 3px 8px rgba(0,0,0,.22);
+  }
+
+  /* ═══ 以下为药槽配方本体（与 hx-theme.js 同源） ═══════════════════════════
+     尺寸全部由 --pn-pw / --pn-ph 驱动：下面所有 inset、环宽、阴影偏移都是这两个
+     变量的百分比，所以同一套配方在 30×17（触发器）到 112×64（大号）之间比例一致。
+     换算基准：46×26 下 1px ≈ .038ph / .022pw。 */
+  .hx-pn-pk { position:relative; display:grid; place-items:center; isolation:isolate; pointer-events:none;
+    width:var(--pn-pw,46px); height:var(--pn-ph,26px); }
+
+  /* 药槽外圈：162deg 明暗交替反光（不是单向渐变 —— 铝箔拉丝是斜向的）+ 3 层 inset 环 */
+  .hx-pn-rim { position:absolute; border-radius:999px;
+    inset:calc(var(--pn-ph,26px)*.038) calc(var(--pn-pw,46px)*.033);
+    background:linear-gradient(162deg,rgba(251,252,255,.61) 2%,rgba(115,121,134,.47) 24%,
+      rgba(244,245,248,.32) 49%,rgba(76,82,94,.33) 66%,#fff 96%);
+    box-shadow:0 calc(var(--pn-ph,26px)*.038) calc(var(--pn-ph,26px)*.077) rgba(0,0,0,.27),
+      inset 0 0 0 1px rgba(250,252,255,.67), inset 0 0 0 calc(var(--pn-ph,26px)*.077) rgba(130,136,149,.55),
+      inset 0 0 0 calc(var(--pn-ph,26px)*.115) rgba(233,237,242,.6),
+      inset 0 calc(var(--pn-ph,26px)*.038) calc(var(--pn-ph,26px)*.154) rgba(51,57,70,.69);
+  }
+  /* 槽底：比外圈暗一档的凹陷面 + 上方压影 + 下方回光。缺了这层，胶囊像浮在铝箔上而不是嵌在槽里 */
+  .hx-pn-rim::after { content:""; position:absolute; border-radius:inherit;
+    inset:calc(var(--pn-ph,26px)*.154); background:rgba(184,187,198,.36);
+    box-shadow:inset 0 calc(var(--pn-ph,26px)*.077) calc(var(--pn-ph,26px)*.154) rgba(52,56,66,.33),
+      inset 0 -1px 1px #fff;
+  }
+  /* 半透明塑料罩：压在胶囊上面 */
+  .hx-pn-dome { position:absolute; z-index:2; border-radius:999px;
+    inset:calc(var(--pn-ph,26px)*.115) calc(var(--pn-pw,46px)*.109);
+    background:linear-gradient(145deg,rgba(255,255,255,.33),rgba(255,255,255,.07) 32%,
+      transparent 56%,rgba(255,255,255,.13));
+    box-shadow:inset 0 1px 1px rgba(255,255,255,.6);
+  }
+  /* 三种胶囊：0 蓝白 / 1 琥珀 / 2 鼠尾草 */
+  .hx-pn-pill { position:relative; border-radius:999px;
+    width:calc(var(--pn-pw,46px)*.717); height:calc(var(--pn-ph,26px)*.538);
+    background:linear-gradient(90deg,#0645c5 0 49%,#e8e8e8 50%);
+    box-shadow:0 calc(var(--pn-ph,26px)*.05) calc(var(--pn-ph,26px)*.09) rgba(17,24,34,.4),
+      inset 0 1px 1px rgba(0,0,0,.4);
+  }
+  .hx-pn-pill::before { content:""; position:absolute;
+    inset:calc(var(--pn-ph,26px)*.054) 50% calc(var(--pn-ph,26px)*.077) calc(var(--pn-pw,46px)*.043);
+    border:1px solid rgba(96,153,252,.33); border-right:0; border-radius:999px 0 0 999px;
+  }
+  .hx-pn-pill::after { content:""; position:absolute; inset:0; border-radius:inherit;
+    background:linear-gradient(180deg,rgba(0,0,0,.47),transparent 33%,rgba(255,255,255,.33) 68%,rgba(0,0,0,.27));
+    box-shadow:inset 0 -.7px .7px rgba(0,0,0,.33);
+  }
+  /* 琥珀 */
+  .hx-pn-pill[data-mat="1"] {
+    background:radial-gradient(ellipse at 46% 51%,#63320c 0 25%,#ac570c 40%,transparent 65%),
+      linear-gradient(156deg,#783a09 12%,#ffa226 28%,#d07516 44%,#4c200a 68%,#ffc25b 83%,#7e4109 94%);
+    box-shadow:0 calc(var(--pn-ph,26px)*.06) calc(var(--pn-ph,26px)*.1) rgba(29,12,1,.38),
+      inset 0 0 0 1px #6d300a, inset 0 0 calc(var(--pn-ph,26px)*.15) #ee9f40;
+  }
+  .hx-pn-pill[data-mat="1"]::before { display:none; }
+  .hx-pn-pill[data-mat="1"]::after {
+    inset:calc(var(--pn-ph,26px)*.077) calc(var(--pn-pw,46px)*.098);
+    background:linear-gradient(178deg,#ffe6ad 0,transparent 25%,rgba(51,19,5,.55) 53%,#ffd486 92%);
+    box-shadow:calc(var(--pn-pw,46px)*-.087) calc(var(--pn-ph,26px)*.077) 0
+      calc(var(--pn-pw,46px)*-.043) #fff5dc, inset 0 0 1px #fff3cf;
+  }
+  /* 鼠尾草 */
+  .hx-pn-pill[data-mat="2"] {
+    background:linear-gradient(90deg,#778b70 0 51%,#58674f 52%,#83927a 55%,#65785e 96%);
+    box-shadow:0 calc(var(--pn-ph,26px)*.06) calc(var(--pn-ph,26px)*.1) rgba(17,29,20,.47),
+      inset 0 1px 1px rgba(37,44,34,.43);
+  }
+  .hx-pn-pill[data-mat="2"]::before { display:none; }
+  .hx-pn-pill[data-mat="2"]::after {
+    background:radial-gradient(ellipse at 23% 74%,rgba(230,235,212,.55),transparent 45%),
+      linear-gradient(180deg,rgba(34,44,33,.66),transparent 32%,rgba(206,212,190,.36) 70%,rgba(48,60,46,.44));
+  }
+  /* 空槽：三层缺一不可 —— 金属断面 / 锯齿撕口 / 折起来的碎箔 */
+  .hx-pn-cav { position:absolute; display:none; border-radius:999px;
+    inset:calc(var(--pn-ph,26px)*.038) calc(var(--pn-pw,46px)*.033);
+    background:conic-gradient(from 12deg,#f5f5f5,#666970 10%,#e4e6e8 17%,#b8bbc2 29%,#f5f5f5 37%,
+      #484b50 48%,#d6d8db 59%,#878b91 66%,#f6f6f6 78%,#4a4c50 89%,#efeff0);
+    box-shadow:inset 0 0 0 1px #fff, inset 0 0 0 calc(var(--pn-ph,26px)*.077) #7a7d82,
+      inset 0 0 0 calc(var(--pn-ph,26px)*.115) #e4e6ea,
+      0 calc(var(--pn-ph,26px)*.038) calc(var(--pn-ph,26px)*.077) rgba(0,0,0,.27);
+  }
+  .hx-pn-cav::before, .hx-pn-cav::after { content:""; position:absolute; }
+  .hx-pn-cav::before { inset:calc(var(--pn-ph,26px)*.115) calc(var(--pn-pw,46px)*.087);
+    clip-path:polygon(0 34%,9% 10%,25% 18%,38% 0,52% 14%,72% 0,89% 15%,100% 36%,
+      97% 77%,87% 95%,69% 86%,56% 100%,38% 82%,24% 92%,20% 64%,4% 63%);
+    background:repeating-linear-gradient(4deg,rgba(255,255,255,.06) 0 1px,transparent 1px 3px),
+      radial-gradient(ellipse at 50% 78%,#4d4f51,#252729 62%,#111214 83%);
+    box-shadow:inset 0 4px 12px #000;
+  }
+  .hx-pn-cav::after { width:37%; height:61%; left:8%; bottom:9%;
+    clip-path:polygon(0 3%,38% 14%,52% 30%,85% 42%,74% 64%,99% 90%,51% 100%,11% 75%);
+    background:conic-gradient(from 31deg at 46% 49%,#fffb,#8c8f95,#fff,#53565e,#f9fafc,#bcbec3,#fffb);
+  }
+  .is-cav .hx-pn-rim, .is-cav .hx-pn-dome, .is-cav .hx-pn-pill { visibility:hidden; }
+  .is-cav .hx-pn-cav { display:block; }
+
+  /* 尺寸对照：同一个类，只换两个变量 */
+  .big  { --pn-pw:112px; --pn-ph:64px; }
+  .mini { --pn-pw:30px;  --pn-ph:17px; }
+</style>
+</head>
+<body>
+<div class="demo-stage">
+
+  <section>
+    <h4>药槽的四种状态 · 112×64（放大看材质）</h4>
+    <div class="row">
+      <div class="cell">
+        <span class="hx-pn-pk big is-cav"><i class="hx-pn-rim"></i><i class="hx-pn-pill"></i><i class="hx-pn-dome"></i><i class="hx-pn-cav"></i></span>
+        被取走
+      </div>
+      <div class="cell">
+        <span class="hx-pn-pk big"><i class="hx-pn-rim"></i><i class="hx-pn-pill" data-mat="0"></i><i class="hx-pn-dome"></i><i class="hx-pn-cav"></i></span>
+        蓝白
+      </div>
+      <div class="cell">
+        <span class="hx-pn-pk big"><i class="hx-pn-rim"></i><i class="hx-pn-pill" data-mat="1"></i><i class="hx-pn-dome"></i><i class="hx-pn-cav"></i></span>
+        琥珀
+      </div>
+      <div class="cell">
+        <span class="hx-pn-pk big"><i class="hx-pn-rim"></i><i class="hx-pn-pill" data-mat="2"></i><i class="hx-pn-dome"></i><i class="hx-pn-cav"></i></span>
+        鼠尾草
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h4>同一套配方 · 三种尺寸（面板里实际就是最小的那档 46×26）</h4>
+    <div class="row">
+      <div class="cell">
+        <span class="hx-pn-pk mini"><i class="hx-pn-rim"></i><i class="hx-pn-pill" data-mat="0"></i><i class="hx-pn-dome"></i><i class="hx-pn-cav"></i></span>
+        30×17 触发器
+      </div>
+      <div class="cell">
+        <span class="hx-pn-pk"><i class="hx-pn-rim"></i><i class="hx-pn-pill" data-mat="1"></i><i class="hx-pn-dome"></i><i class="hx-pn-cav"></i></span>
+        46×26 面板
+      </div>
+      <div class="cell">
+        <span class="hx-pn-pk big"><i class="hx-pn-rim"></i><i class="hx-pn-pill" data-mat="2"></i><i class="hx-pn-dome"></i><i class="hx-pn-cav"></i></span>
+        112×64 大号
+      </div>
+      <div class="cell">
+        <span class="hx-pn-pk big is-cav"><i class="hx-pn-rim"></i><i class="hx-pn-pill"></i><i class="hx-pn-dome"></i><i class="hx-pn-cav"></i></span>
+        大号空槽
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h4>铝箔底 · 药板本体</h4>
+    <div class="foil">
+      <div class="row">
+        <span class="hx-pn-pk"><i class="hx-pn-rim"></i><i class="hx-pn-pill" data-mat="0"></i><i class="hx-pn-dome"></i><i class="hx-pn-cav"></i></span>
+        <span class="hx-pn-pk"><i class="hx-pn-rim"></i><i class="hx-pn-pill" data-mat="1"></i><i class="hx-pn-dome"></i><i class="hx-pn-cav"></i></span>
+        <span class="hx-pn-pk"><i class="hx-pn-rim"></i><i class="hx-pn-pill" data-mat="2"></i><i class="hx-pn-dome"></i><i class="hx-pn-cav"></i></span>
+        <span class="hx-pn-pk is-cav"><i class="hx-pn-rim"></i><i class="hx-pn-pill"></i><i class="hx-pn-dome"></i><i class="hx-pn-cav"></i></span>
+      </div>
+    </div>
+    <p class="hint">药槽之所以「嵌在」铝箔里而不是「贴在上面」，靠的是两件事：<b>槽底比外圈暗一档</b>（<code>.hx-pn-rim::after</code>），
+      以及外圈那圈 <b>162° 的明暗交替反光</b> —— 铝箔拉丝是斜向的，单向渐变会显得像塑料。</p>
+  </section>
+
+  <p class="hint">把滑杆（外层页面的「深色」开关）切一下：铝箔是实物色，深色页面上它仍然是这块亮银药板，不跟主题走。</p>
+</div>
+
+<script>
+  var q = (location.search.match(/mode=(\w+)/) || [])[1];
+  if (q === 'dark') document.documentElement.setAttribute('data-demo-dark', '');
+</script>
+</body>
+</html>

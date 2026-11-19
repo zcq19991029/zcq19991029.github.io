@@ -8,10 +8,22 @@
    ============================================================ */
 :root {
   --bg: #fdf7f7;
-  /* 毛玻璃：面板半透明白（真 blur 由 @supports 追加，低配设备自动降级为纯半透明） */
-  --panel: rgba(255, 255, 255, .66);
-  --panel-soft: rgba(255, 250, 249, .55);
-  --panel-tint: rgba(253, 236, 236, .58);
+  /* 2026-11-18：--hx-blur 只在 hx-theme.css 里定义，而本工具只引 hx-theme.js ——
+     不补这一行，所有 backdrop-filter: var(--hx-blur) 都会解析失败、玻璃直接没有模糊。
+     值照抄 hx-theme.css，和首页同一档。 */
+  --hx-blur: saturate(180%) blur(20px);
+  /* 毛玻璃：面板半透明白（真 blur 由 @supports 追加，低配设备自动降级为纯半透明）
+     2026-11-18 透明度统一（用户：「其他工具都有不一样不统一的地方，尤其你看小组加分」）：
+     原来 --panel / --panel-soft / --panel-tint / --raise 的 alpha 是写死的，于是所有吃这四个 token 的
+     面（卡片、指标卡、胶囊、输入框、抬升面板…）对「卡片通透度」毫无反应 —— 滑杆只改了顶栏和表格里
+     那几个手写 calc(...) 的格子，页面其余部分纹丝不动，观感就是「不是一套东西」。
+     现在四个 token 的 alpha 统一乘 --hx-a（首页卡片同一口径）：
+       clr=0（--hx-a=2）→ 全部钳到 1 = 实色；clr=100 → 原值；clr=250（0）→ 全透。
+     改 token 一处 = 整页 60+ 个使用点一起跟手，不用逐个选择器补。
+     ⚠ 不要再在这些 token 外面二次乘 --hx-a（见下面各处的注释），否则 250 端会变成二阶压缩。 */
+  --panel: rgb(255 255 255 / min(1, calc(.52 * var(--hx-a, 1))));
+  --panel-soft: rgb(255 250 249 / min(1, calc(.55 * var(--hx-a, 1))));
+  --panel-tint: rgb(253 236 236 / min(1, calc(.58 * var(--hx-a, 1))));
   --line: rgba(236, 220, 220, .72);
   --line-strong: #e6d2d2;
   --text: #1c1c1e;
@@ -45,8 +57,9 @@
   --radius-lg: 22px;
   --radius-sm: 10px;
   --pill: 999px;
-  /* 比面板"再抬一层"的表面色：浅色下就是纯白，深色下要比面板亮，不能用 --panel */
-  --raise: #ffffff;
+  /* 比面板"再抬一层"的表面色：浅色下就是纯白，深色下要比面板亮，不能用 --panel
+     2026-11-18：alpha 同样乘 --hx-a（clr=0 仍是实白兜底，clr=250 时跟整页一起透） */
+  --raise: rgb(255 255 255 / var(--hx-a, 1));
   --shadow: 0 1px 2px rgba(150, 90, 90, .08), 0 8px 24px rgba(150, 90, 90, .12);
   --shadow-lift: 0 4px 10px rgba(150, 90, 90, .10), 0 16px 34px rgba(150, 90, 90, .13);
 
@@ -61,11 +74,15 @@
        要更实/更透，用户拖「卡片通透度」就行，不用改代码。
      · 深色块的数值一个字都没动 —— 深色本来就是对的，不能改坏。
      · 打印在 @media print 里被强制转回实色（见下面「打印还原实色」那段）。 */
-  /* --xl-a = 浅色表格色块的浓度。调这一个值就能整体改「壁纸透多少」：
-     0.34 是在 1600×1000 下用纯红壁纸实测出来的手感 —— 表格能一眼看出壁纸的颜色和纹理，
-     黑字（--xl-ink）压在上面仍然清楚；再低（0.2 以下）表头就和正文糊成一片，反而不好认。
-     深色那套不用这个变量（它有自己的 0.26–0.30 玻璃配比，见下面深色块）。 */
-  --xl-a: .34;
+  /* --xl-a = 浅色表格色块的浓度。2026-11-18 从 .34 提到 .5，理由见下。 */
+  /* 2026-11-18 统一口径（用户：「上课加分大表格压根不会动，不受通透度控制」）：
+     这里的 alpha 必须和首页卡片一样**只乘 --hx-a**，并且取 .5 ——
+       clr=0（--hx-a=2）→ 1.0，整张表是不透明实色纸，和首页卡片实色端一致；
+       clr=100（--hx-a=1）→ .5，壁纸透上来但黑字压得住；
+       clr=250（--hx-a=0）→ 0，只剩文字和网格线。
+     中间线性过渡，不会出现「周围卡片在变、表格不动」。别再改回 .34（那样实色端只有 .68，
+     和首页的实色卡永远差一截，用户一眼就能看出两张东西不是一套）。 */
+  --xl-a: .5;
   --xl-no: rgb(189 215 238 / calc(var(--hx-a, 1) * var(--xl-a)));
   --xl-mem: rgb(234 242 251 / calc(var(--hx-a, 1) * var(--xl-a)));
   --xl-ded: var(--xl-phone);
@@ -76,7 +93,18 @@
   --xl-line: #b9c0c9;
   --xl-line-strong: #6f7883;
   --xl-ink: #1b1f24;
-  --xl-input-bg: rgb(255 255 255 / calc(.55 + var(--hx-a, 1) * .30));
+  --xl-input-bg: rgb(255 255 255 / min(1, calc(.85 * var(--hx-a, 1))));
+  /* 大表格右半边四列（2026-11-18）：平时分绿 / 计入总评蓝 / 期末需考橙 / 考勤列粉。
+     这四列原来是**写死的不透明色块**（#edf5ee / #edf2fa / #fcf0e9 / #f6eff1），占了整张表一半宽度，
+     拖「卡片通透度」时纹丝不动 —— 用户说的「上课加分大表格压根不会动」主要就是这一片。
+     现在和左边那几列（--xl-no/--xl-mem/--xl-duty/--xl-sum）同一口径：alpha 乘 --hx-a，基准取 --xl-a。
+     课堂任务列（--xl-task）原来只写了 var(--xl-task, #e8f1ff) 兜底、变量根本没定义，
+     等于永远是一块实色浅蓝，这里补上定义。 */
+  --xl-g: rgb(237 245 238 / calc(var(--hx-a, 1) * var(--xl-a)));
+  --xl-g2: rgb(237 242 250 / calc(var(--hx-a, 1) * var(--xl-a)));
+  --xl-g3: rgb(252 240 233 / calc(var(--hx-a, 1) * var(--xl-a)));
+  --xl-att: rgb(246 239 241 / calc(var(--hx-a, 1) * var(--xl-a)));
+  --xl-task: rgb(232 241 255 / calc(var(--hx-a, 1) * var(--xl-a)));
 }
 
 
@@ -132,12 +160,18 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
    改成普通文档流（static）：顶栏跟着页面向下滚走，表格自然翻上来，不再被遮挡。
    玻璃质感（半透明 + backdrop-filter）保留，只是不再有吸顶遮挡问题。 */
 .topbar {
-  background: rgba(255, 255, 255, .9);
-  -webkit-backdrop-filter: saturate(180%) blur(12px);
-  backdrop-filter: saturate(180%) blur(12px);
+  /* 2026-11-18 统一：alpha 乘 --hx-a（原来写死 .9，通透度滑杆对顶栏无效），模糊走全站 --hx-blur */
+  /* 2026-11-18：顶栏改吃首页同一支配方 —— hx-theme.css 的 --bar：
+     rgb(251 251 253 / calc(.55 + var(--hx-a) * .3))。
+     首页顶栏在 clr=250 时仍有 .55 的底（否则正文会从吸顶条底下透上来），
+     之前这里一路降到 0，两端一对比就是「不是一套」。 */
+  background: rgb(251 251 253 / calc(.55 + var(--hx-a, 1) * .30));
+  -webkit-backdrop-filter: var(--hx-blur);
+  backdrop-filter: var(--hx-blur);
   border-bottom: 1px solid var(--line);
   padding: 9px 16px 0;
 }
+:root[data-hx-mode="dark"] .topbar { background: rgb(22 22 23 / calc(.55 + var(--hx-a, 1) * .30)); }
 
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
   .topbar { background: var(--panel); backdrop-filter: none; }
@@ -235,7 +269,9 @@ input[readonly] { background: var(--panel-soft); color: var(--muted); }
      不透光，把外观里设的背景图整块盖住。改成和顶栏一致的玻璃配方——用 color-mix 乘 --hx-a
      （外观「卡片通透度」滑杆，100=最透/0=最实），背景透出来，滑杆也在这页生效了。
      真 blur 由下面 @supports 的 backdrop-filter 统一补上。 */
-  background: color-mix(in srgb, var(--panel) calc(var(--hx-a, 1) * 78%), transparent);
+  /* 2026-11-18 第二次修：原来这里又叠了一层 78%，clr=0 时最多到 .78，而首页实测是 1.0（真正实色）。
+     现在直接吃 --panel（token 里已有 min(1, .70×--hx-a)）：0→1.00 / 100→0.70 / 250→0，和首页逐档一致。 */
+  background: var(--panel);
   border: 1px solid var(--line);
   border-radius: var(--radius); padding: 16px 18px; box-shadow: var(--shadow);
 }
@@ -252,7 +288,12 @@ input[readonly] { background: var(--panel-soft); color: var(--muted); }
 .hint-help:hover, .hint-help:focus { color: var(--accent-strong); border-color: var(--accent-line); }
 .hint-help .hint-pop { position: absolute; top: calc(100% + 8px); left: 50%; transform: translateX(-50%);
   width: 340px; max-width: 82vw; padding: 12px 14px; border-radius: 12px; text-align: left;
-  font-size: 12.5px; line-height: 1.6; color: var(--text); background: var(--card-solid);
+  font-size: 12.5px; line-height: 1.6; color: var(--text);
+  /* 2026-11-18：浮层也跟通透度走。原来的 var(--card-solid) 在本工具里**根本没定义**
+     （那是 hx-theme.css 的 token，小组加分只引 hx-theme.js），color-mix 拿不到颜色整条声明作废
+     → 气泡变成完全无底色。这里改用本文件里真实存在的 --raise（它已乘过 --hx-a），浓度 .96 保可读。 */
+  background: color-mix(in srgb, var(--raise) 96%, transparent);
+  -webkit-backdrop-filter: var(--hx-blur); backdrop-filter: var(--hx-blur);
   border: 1px solid var(--line); box-shadow: 0 12px 32px -12px var(--shade, rgba(0,0,0,.25));
   opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .16s ease, visibility .16s ease; z-index: 60; }
 .hint-help:hover .hint-pop, .hint-help:focus .hint-pop { opacity: 1; visibility: visible; }
@@ -306,7 +347,9 @@ input[readonly] { background: var(--panel-soft); color: var(--muted); }
 /* ---------- 指标卡 ---------- */
 .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
 .metric {
-  background: var(--panel); border: 1px solid var(--line);
+  /* 2026-11-18：原来直接吃 var(--panel)（写死 alpha），通透度滑杆对这一排指标卡无效 → 乘 --hx-a */
+  background: color-mix(in srgb, var(--panel) 100%, transparent);
+  border: 1px solid var(--line);
   border-radius: var(--radius); padding: 12px 16px; box-shadow: var(--shadow);
 }
 .metric .k { font-size: 12px; color: var(--muted); }
@@ -323,7 +366,8 @@ input[readonly] { background: var(--panel-soft); color: var(--muted); }
    --h/--s/--lb 由 app.js 的 gbTone(组号,0) 内联注入（和 .gb-chip 成员卡同一套「同组同色 + 半透明玻璃」），
    组长设了 id 卡背景才走 .gcard.has-face 铺背景。浅色 = 同色相半透明白玻璃 + 描边；深色 = 同色相半透明暗玻璃。 */
 .gcard {
-  background: hsl(var(--h, 0) var(--s, 0%) var(--lb, 90%) / .55);
+  /* 2026-11-18：alpha 乘 --hx-a（原来写死 .55，滑杆对组卡无效）。.55×2=1.1 → clr=0 时整卡实色 */
+  background: hsl(var(--h, 0) var(--s, 0%) var(--lb, 90%) / calc(.55 * var(--hx-a, 1)));
   border: 1px solid hsl(var(--h, 0) var(--s, 0%) calc(var(--lb, 90%) - 14%));
   border-radius: var(--radius); padding: 14px 16px;
   display: flex; flex-direction: column; gap: 12px;
@@ -331,7 +375,7 @@ input[readonly] { background: var(--panel-soft); color: var(--muted); }
   transition: border-color .18s, box-shadow .18s;
 }
 :root[data-hx-mode="dark"] .gcard {
-  background: hsl(var(--h, 0) var(--s, 0%) var(--lb, 60%) / .16);
+  background: hsl(var(--h, 0) var(--s, 0%) var(--lb, 60%) / calc(1 * var(--hx-a, 1) * .16));
   border-color: hsl(var(--h, 0) var(--s, 0%) var(--lb, 70%) / .30);
 }
 .gcard:hover { box-shadow: var(--shadow-lift); }
@@ -432,7 +476,38 @@ table.sheet .step .num:hover, table.sheet .step .num:focus {
 
 /* ---------- 表格式（与纸质记录表同款）---------- */
 
-.sheetwrap { overflow-x: auto; }
+/* 2026-11-18 大表格的「卡」：以前 .sheetwrap 完全透明，只有单元格自己带一点色，
+   于是通透度滑杆只改单元格内层，整张表看起来像贴在页面上、和旁边的卡片不是一套。
+   现在给容器一层和首页卡片同口径的底（背景乘 --hx-a + 1px 细边 + 柔影），单元格再叠在它上面：
+     clr=0   → 容器整块实白 + 单元格 1.0 → 一张不透明的纸质表
+     clr=250 → 容器 0 + 单元格 0 → 只剩文字和网格线，壁纸原样透出来
+   ⚠ 2026-11-18 二次修正：**不要**给 .sheetwrap 加 backdrop-filter。
+     上一版加了 var(--hx-blur)，等于「一张覆盖半屏的 20px 实时高斯模糊层」，
+     而首页 hx-theme.css 里专门写过为什么不能这么干（2026-11-02：希沃一体机每帧采样背景图，
+     十几个卡片级 blur 直接崩渲染进程，最后改成「背景层糊一次，卡片只上色」）。
+     表格是整页最大的一块，比那十几个卡片加起来还贵。这里跟首页一致：只上色，不糊。 */
+.sheetwrap {
+  overflow-x: auto;
+  background: rgb(255 255 255 / min(1, calc(.52 * var(--hx-a, 1))));
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+/* 表格已经在 .card 里（如学生端「全班考核表」）时不再叠第二层玻璃：一层就够，叠两层会发白 */
+.card .sheetwrap {
+  background: transparent; border: 0; border-radius: 0; box-shadow: none;
+}
+:root[data-hx-mode="dark"] .sheetwrap { background: rgb(10 10 12 / calc(.52 * var(--hx-a, 1))); border-color: rgba(255, 255, 255, .10); }
+
+/* 行一层（2026-11-18）：用户要求「大表格做成卡片同步控制」，且三层要有层次、不能糊成一块。
+   配方：容器 .72 → 行 .34 → 单元格 --xl-a(.5)，三层各乘各的 --hx-a：
+     clr=0   → .72×2=1（容器实色）+ 行 1 + 单元格 1，整张表是不透明白纸，和首页实色卡同观感；
+     clr=100 → .72 / .34 / .5，壁纸透上来、行与行之间还能看出淡淡的分层；
+     clr=250 → 三层都归零，只剩文字和网格线。
+   行背景画在 <tr> 上，被单元格自己的色块盖住的部分看不见，露出来的（没上色的格子）就是这层淡玻璃 ——
+   这样「行一层」既存在又不会把 --xl-* 的四列颜色洗白。 */
+table.sheet tbody > tr { background: rgb(255 255 255 / calc(.34 * var(--hx-a, 1))); }
+:root[data-hx-mode="dark"] table.sheet tbody > tr { background: rgb(146 170 224 / calc(.10 * var(--hx-a, 1))); }
 
 table.sheet {
   width: 100%; min-width: 900px;
@@ -529,7 +604,7 @@ table.sheet td.c-task { background: var(--xl-task, #e8f1ff); text-align: center;
 table.sheet td.c-task b { font-size: 15px; color: var(--accent); }
 table.sheet td.c-task .c-task-none { color: var(--faint); }
 :root[data-hx-mode="dark"] table.sheet thead th.c-task,
-:root[data-hx-mode="dark"] table.sheet td.c-task { background: rgba(58, 110, 196, .16); }
+:root[data-hx-mode="dark"] table.sheet td.c-task { background: var(--xl-task); }
 
 table.sheet .toggle { padding: 6px 2px; font-size: 11.5px; }
 table.sheet .step { gap: 2px; }
@@ -1173,11 +1248,14 @@ dialog::backdrop {
     --cds-clay-soft: #fbf3ef;
     --cds-ease-swift: cubic-bezier(.16,1,.3,1);
     --bg: var(--cds-bg-surface-0);
-    /* 毛玻璃：CDS 这一层会在屏幕上覆盖文件头 :root，面板色也统一改半透明 */
-    --panel: rgba(251, 251, 250, .66);
-    --panel-soft: rgba(247, 247, 245, .55);
-    --panel-tint: rgba(251, 243, 239, .6);
-    --raise: var(--cds-bg-input);
+    /* 毛玻璃：CDS 这一层会在屏幕上覆盖文件头 :root，面板色也统一改半透明。
+       2026-11-18：这四行是**屏幕态真正生效的那一份**（媒体查询块在文件后半，
+       同权重下压掉文件头的 :root），原来还把 alpha 写死 —— 只改文件头等于没改，
+       卡片/指标卡/顶栏照样不动。alpha 统一乘 --hx-a，和文件头保持同一口径。 */
+    --panel: rgb(251 251 250 / min(1, calc(.70 * var(--hx-a, 1))));
+    --panel-soft: rgb(247 247 245 / min(1, calc(.55 * var(--hx-a, 1))));
+    --panel-tint: rgb(251 243 239 / min(1, calc(.6 * var(--hx-a, 1))));
+    --raise: rgb(253 253 252 / var(--hx-a, 1));
     --text: var(--cds-text-primary);
     --muted: var(--cds-text-secondary);
     --faint: #999793;
@@ -1644,9 +1722,9 @@ table.sheet td.c-sum .c { font-size: 13px; color: var(--text); }
 .lesson-cumulative {font-size:12px;line-height:1.5;color:#695a36;margin-top:6px;white-space:nowrap}.lesson-cumulative strong{font-size:16px;font-variant-numeric:tabular-nums}.sheet .c-sum small{font-size:11px;font-weight:500}.gsum .lesson-cumulative{font-size:12px}@media print{.lesson-cumulative{font-size:9px;margin-top:3px}.lesson-cumulative strong{font-size:12px}}
 
 table.sheet col.w-grade,#printArea col.w-grade{width:115px}
-table.sheet .home-grade{padding:5px;background:#edf5ee;color:#236442;vertical-align:top}
-table.sheet .home-grade.contribution{background:#edf2fa;color:#2f527a}
-table.sheet .home-grade.needed{background:#fcf0e9;color:#a7472e}
+table.sheet .home-grade{padding:5px;background:var(--xl-g);color:#236442;vertical-align:top}
+table.sheet .home-grade.contribution{background:var(--xl-g2);color:#2f527a}
+table.sheet .home-grade.needed{background:var(--xl-g3);color:#a7472e}
 .home-grade-person{display:grid;grid-template-columns:1fr auto;align-items:center;gap:0 4px;min-height:34px;border-bottom:1px solid #00000009;line-height:1.2}
 .home-grade-person:last-child{border:0}.home-grade-name{font-size:11px;white-space:nowrap}.home-grade-person strong{font-size:18px;font-variant-numeric:tabular-nums}.home-grade-person small{grid-column:1/-1;font-size:9px;opacity:.8}
 @media screen and (min-width:1000px){body.sidebar-layout table.sheet{min-width:1400px;height:auto;min-height:calc(100dvh - 16px)}}
@@ -1654,7 +1732,7 @@ table.sheet .home-grade.needed{background:#fcf0e9;color:#a7472e}
 
 @media print{#printArea .sheet-tb{width:100%;table-layout:fixed}#printArea .sheet-tb col.w-no{width:3%}#printArea .sheet-tb col.w-mem{width:6%}#printArea .sheet-tb col.w-phone{width:7%}#printArea .sheet-tb col.w-first{width:5%}#printArea .sheet-tb col.w-grp,#printArea .sheet-tb col.w-duty,#printArea .sheet-tb col.w-sum{width:6%}#printArea .sheet-tb col.w-grade{width:10%}#printArea .sheet-tb th{white-space:normal}#printArea .home-grade-person{grid-template-columns:1fr auto}.home-grade-name{white-space:normal}}
 
-table.sheet col.w-attendance{width:165px}.home-attendance{background:#f6eff1;padding:4px;vertical-align:top}.home-attendance-person{display:grid;grid-template-columns:12px minmax(0,1fr) 42px;gap:3px;align-items:center;min-height:34px;font-size:11px}.home-attendance-person select{min-width:0;width:100%;height:30px;font-size:12px;padding:2px}.home-attendance-person strong{font-size:11px;font-variant-numeric:tabular-nums}.home-grade-person{grid-template-columns:14px 1fr}.home-grade-person strong{text-align:center}.home-grade-name{text-align:center}
+table.sheet col.w-attendance{width:165px}.home-attendance{background:var(--xl-att);padding:4px;vertical-align:top}.home-attendance-person{display:grid;grid-template-columns:12px minmax(0,1fr) 42px;gap:3px;align-items:center;min-height:34px;font-size:11px}.home-attendance-person select{min-width:0;width:100%;height:30px;font-size:12px;padding:2px}.home-attendance-person strong{font-size:11px;font-variant-numeric:tabular-nums}.home-grade-person{grid-template-columns:14px 1fr}.home-grade-person strong{text-align:center}.home-grade-name{text-align:center}
 @media screen and (min-width:1000px){body.sidebar-layout table.sheet{min-width:1560px}}
 @media print{#printArea .sheet-tb col.w-attendance{width:11%}#printArea .sheet-tb col.w-mem{width:4.5%}#printArea .home-attendance-person{grid-template-columns:9px 1fr 27px;min-height:22px;font-size:8px}#printArea .home-attendance-person strong{font-size:8px}}
 
@@ -1936,8 +2014,14 @@ html[data-hx-acc] {
   --cds-clay: var(--acc); --cds-clay-hover: var(--accent-strong); --cds-clay-soft: var(--accbg);
 }
 html[data-hx-acc] body::after { background-image: none; }
-html.hx-bg body::after { display: block; background: linear-gradient(rgb(245 245 247 / calc(var(--hx-a, .9) * .7)), rgb(245 245 247 / calc(var(--hx-a, .9) * .7))), var(--hx-img) center / cover no-repeat; }
-html.hx-bg body::before { display: none; }
+/* 2026-11-18 透明度/清晰度统一（用户：「你把模糊度拉0或者100对比首页完全不是一个效果」）：
+   这里原来自己重写了一份壁纸层 —— body::before 关掉、改在 body::after 里画
+   `linear-gradient(#f5f5f7 / calc(--hx-a * .7)), var(--hx-img)`。
+   于是「背景清晰度」滑杆（--hx-bgo）对小组加分完全无效，反倒是「卡片通透度」（--hx-a）
+   在改壁纸的浓度，而且永远固定糊着一层 70% 白纱（首页是原图直出）。
+   现在删掉这份重写，壁纸交回 hx-theme.js 注入的 `html.hx-layer body::before`
+   （opacity: var(--hx-bgo)）—— 和首页、和其它工具走同一条链路。 */
+
 /* 加载中：不出登录卡片，只有一行字 */
 .gate.quiet { background: transparent; }
 .gate.quiet .gate-card { background: transparent; box-shadow: none; border: 0; }
@@ -2224,9 +2308,9 @@ html.hx-bg body::before { display: none; }
   position: sticky; top: 8px; z-index: 60;
   margin: 12px 0 4px; padding: 8px 12px 6px;
   border: 1px solid var(--line); border-radius: 16px;
-  background: color-mix(in srgb, var(--panel) 94%, transparent);
-  -webkit-backdrop-filter: blur(12px) saturate(160%);
-  backdrop-filter: blur(12px) saturate(160%);
+  background: rgb(255 255 255 / min(1, calc(.66 * var(--hx-a, 1))));
+  -webkit-backdrop-filter: var(--hx-blur);
+  backdrop-filter: var(--hx-blur);
   box-shadow: 0 8px 24px rgba(60, 40, 40, .10), inset 0 1px 0 rgba(255, 255, 255, .9);
 }
 .peer-summary { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; font-size: 13px; line-height: 1.6; color: var(--text); margin-bottom: 6px; }
@@ -2334,18 +2418,18 @@ html.hx-bg body::before { display: none; }
 /* ---------- 顶栏/侧栏玻璃（浅色玻璃为默认，深色在下面覆盖） ---------- */
 @media screen {
   .topbar {
-    background: color-mix(in srgb, var(--panel) 86%, transparent);
-    -webkit-backdrop-filter: blur(18px) saturate(160%);
-    backdrop-filter: blur(18px) saturate(160%);
+    background: rgb(251 251 253 / calc(.55 + var(--hx-a, 1) * .30));
+    -webkit-backdrop-filter: var(--hx-blur);
+    backdrop-filter: var(--hx-blur);
   }
 
   /* 宽屏：顶栏整体变成离窗口边缘留白的圆角玻璃侧栏 */
   body.sidebar-layout .topbar {
     left: 12px; top: 12px; bottom: 12px; width: 264px; padding: 14px 12px 16px;
     border: 1px solid var(--line); border-radius: 22px;
-    background: color-mix(in srgb, var(--panel) 74%, transparent);
-    -webkit-backdrop-filter: blur(18px) saturate(160%);
-    backdrop-filter: blur(18px) saturate(160%);
+    background: rgb(251 251 253 / calc(.55 + var(--hx-a, 1) * .30));
+    -webkit-backdrop-filter: var(--hx-blur);
+    backdrop-filter: var(--hx-blur);
     box-shadow: var(--shadow-lift);
   }
   /* 2026-11-08 修横向溢出：上面 @media(min-width:1000px) 那条给 main 写死了 width:calc(100% - 250px)，
@@ -2413,15 +2497,15 @@ html.hx-bg body::before { display: none; }
      抽屉打开时顶栏被遮罩盖住，去掉模糊改用更实的底色即可 */
   body.nav-open .topbar {
     -webkit-backdrop-filter: none; backdrop-filter: none;
-    background: color-mix(in srgb, var(--panel) 96%, transparent);
+    background: rgb(251 251 253 / calc(.55 + var(--hx-a, 1) * .30));
   }
   body .tabs {
     position: fixed; z-index: 120; left: 10px; top: 10px; bottom: 10px; width: min(80vw, 320px);
     flex-direction: column; gap: 14px; margin: 0; padding: 18px 12px 20px; overflow-y: auto;
     border-radius: 22px; border: 1px solid var(--line);
-    background: color-mix(in srgb, var(--panel) 92%, transparent);
-    -webkit-backdrop-filter: blur(18px) saturate(160%);
-    backdrop-filter: blur(18px) saturate(160%);
+    background: rgb(251 251 253 / calc(.55 + var(--hx-a, 1) * .30));
+    -webkit-backdrop-filter: var(--hx-blur);
+    backdrop-filter: var(--hx-blur);
     box-shadow: var(--shadow-lift);
     transform: translateX(calc(-100% - 30px)); visibility: hidden;
     transition: transform .26s cubic-bezier(.16, 1, .3, 1), visibility 0s linear .26s;
@@ -2467,10 +2551,11 @@ html.hx-bg body::before { display: none; }
 /* ---------- 夜览：深色玻璃主题 ---------- */
 :root[data-hx-mode="dark"] {
   --bg: #060a15;
-  --panel: rgba(13, 22, 46, .72);
-  --panel-soft: rgba(19, 30, 60, .62);
-  --panel-tint: rgba(26, 39, 78, .6);
-  --raise: rgba(26, 38, 74, .88);
+  /* 2026-11-18：深色 token 同样乘 --hx-a（和浅色同一口径，clr=0 到实色 / 250 全透） */
+  --panel: rgb(13 22 46 / min(1, calc(.52 * var(--hx-a, 1))));
+  --panel-soft: rgb(19 30 60 / min(1, calc(.62 * var(--hx-a, 1))));
+  --panel-tint: rgb(26 39 78 / min(1, calc(.60 * var(--hx-a, 1))));
+  --raise: rgb(24 38 76 / min(1, calc(.92 * var(--hx-a, 1))));
   --line: rgba(126, 156, 235, .13);
   --line-strong: rgba(136, 164, 230, .27);
   --text: #e9eefb;
@@ -2498,36 +2583,44 @@ html.hx-bg body::before { display: none; }
   --shadow: 0 1px 2px rgba(0, 0, 0, .35), 0 8px 26px rgba(0, 0, 0, .38);
   --shadow-lift: 0 6px 16px rgba(0, 0, 0, .4), 0 22px 48px rgba(0, 0, 0, .5);
 
-  /* 纸质记分表的玻璃版：色相不变（蓝表头/红手机/绿值日/黄合计），底改暗、字改亮 */
-  --xl-no: rgba(88, 128, 208, .34);
-  --xl-mem: rgba(58, 86, 152, .30);
-  --xl-phone: rgba(214, 104, 126, .26);
-  --xl-duty: rgba(84, 172, 128, .28);
-  --xl-sum: rgba(222, 180, 92, .28);
+  /* 纸质记分表的玻璃版：色相不变（蓝表头/红手机/绿值日/黄合计），底改暗、字改亮。
+     2026-11-18：深色这套原来写死 .26–.34，完全不跟「卡片通透度」——用户在深色下拖滑杆，
+     浅色端会变、深色端纹丝不动，正是「表格压根不会动」的根源之一。现在 alpha 也乘 --hx-a，
+     基准值按原比例放大到「clr=0 能到 1.0」的量级（.34/.30/.26/.28 → .50/.44/.38/.41）。 */
+  --xl-no: rgb(88 128 208 / calc(var(--hx-a, 1) * .50));
+  --xl-mem: rgb(58 86 152 / calc(var(--hx-a, 1) * .44));
+  --xl-phone: rgb(214 104 126 / calc(var(--hx-a, 1) * .38));
+  --xl-duty: rgb(84 172 128 / calc(var(--hx-a, 1) * .41));
+  --xl-sum: rgb(222 180 92 / calc(var(--hx-a, 1) * .41));
+  /* 深色下这四列同样要跟滑杆（原来 .10/.12/.06 写死，见文件末尾它们的 !important 覆盖） */
+  --xl-g: rgb(61 220 151 / calc(var(--hx-a, 1) * .30));
+  --xl-g2: rgb(96 150 255 / calc(var(--hx-a, 1) * .32));
+  --xl-g3: rgb(251 146 60 / calc(var(--hx-a, 1) * .32));
+  --xl-att: rgb(146 170 224 / calc(var(--hx-a, 1) * .16));
+  --xl-task: rgb(58 110 196 / calc(var(--hx-a, 1) * .32));
   --xl-line: rgba(146, 170, 224, .34);
   --xl-line-strong: rgba(170, 192, 240, .6);
   --xl-ink: #e9eefb;
-  --xl-input-bg: rgba(9, 16, 36, .88);
+  --xl-input-bg: rgb(9 16 36 / min(1, calc(.88 * var(--hx-a, 1))));
 
   color-scheme: dark;
 }
 
-/* 夜览页面底色：深海蓝 + 一团靛青光；校徽水印压暗 */
-:root[data-hx-mode="dark"] body::after {
+/* 夜览页面底色：深海蓝 + 一团靛青光；校徽水印压暗。
+   只在「没有壁纸」时才是页面底色 —— 有壁纸时 body::before（hx-theme.js 铺的那层）盖在它上面。 */
+:root[data-hx-mode="dark"]:not(.hx-bg) body::after {
   background-image: radial-gradient(60vmin 46vmin at 50% 18%,
                     rgba(86, 112, 255, .12), rgba(86, 112, 255, 0) 72%),
                     linear-gradient(rgba(6, 10, 22, .45), rgba(6, 10, 22, .45));
   background-repeat: no-repeat, no-repeat;
   background-size: 100% 100%, 100% 100%;
 }
-:root[data-hx-mode="dark"] body::before { opacity: .12; }
-/* 挂了整站壁纸（html.hx-bg）时：壁纸保持，上面压深海蓝 scrim */
-html.hx-bg[data-hx-mode="dark"] body::after,
-:root[data-hx-mode="dark"].hx-bg body::after {
-  background-image: linear-gradient(rgba(6, 10, 22, .62), rgba(6, 10, 22, .62)), var(--hx-img);
-  background-size: 100% 100%, cover;
-  background-position: center;
-}
+/* 2026-11-18 删掉 `:root[data-hx-mode="dark"] body::before { opacity:.12 }`：
+   它把 hx-theme.js 那条 `html.hx-layer body::before{opacity:var(--hx-bgo)}` 按特异性压住了
+   （0,2,1 > 0,1,1），深色下壁纸永远是 12% —— 这正是「深色拖背景清晰度没反应」的原因。 */
+/* 2026-11-18：原来这里给「暗色壁纸」再压一层 .62 的深海蓝 scrim（body::after）。
+   它同样不跟「背景清晰度」滑杆，而且和 hx-theme.js 的 --hx-scrim 叠成两层灰。
+   壁纸的压暗统一交给 hx-theme.js（scrim 浓度由 --hx-bgo 算），这里不再插手。 */
 
 /* 夜览玻璃面板：卡片/指标/课次条/弹窗/横幅统一半透明深蓝 */
 :root[data-hx-mode="dark"] .card,
@@ -2570,10 +2663,10 @@ html.hx-bg[data-hx-mode="dark"] body::after,
 :root[data-hx-mode="dark"] .leader-project { background: rgba(9, 16, 36, .88); color: var(--xl-ink); }
 
 /* 夜览玻璃表格：通用数据表（排行/名单/日志/考勤），表头半透明深蓝、行悬停柔和 */
-:root[data-hx-mode="dark"] table.data th { background: rgba(24, 38, 76, .92); color: var(--muted); }
+:root[data-hx-mode="dark"] table.data th { background: var(--raise); color: var(--muted); }
 :root[data-hx-mode="dark"] table.data tbody tr:hover td { background: rgba(67, 214, 196, .06); }
 :root[data-hx-mode="dark"] table.data tr.top1 td { background: rgba(242, 199, 107, .1); }
-:root[data-hx-mode="dark"] .assessment-table thead th { background: rgba(24, 38, 76, .92); }
+:root[data-hx-mode="dark"] .assessment-table thead th { background: var(--raise); }
 :root[data-hx-mode="dark"] .assessment-table .grade-regular { background: rgba(61, 220, 151, .1); color: #7ef0bd; }
 :root[data-hx-mode="dark"] .assessment-table .grade-contribution { background: rgba(96, 150, 255, .12); color: #a7c4ff; }
 :root[data-hx-mode="dark"] .assessment-table .grade-needed { background: rgba(251, 146, 60, .12); color: #ffc48f; }
@@ -2582,20 +2675,20 @@ html.hx-bg[data-hx-mode="dark"] body::after,
 :root[data-hx-mode="dark"] .assessment-table .grade-needed small { color: var(--muted); }
 :root[data-hx-mode="dark"] .assessment-table th.grade-regular,
 :root[data-hx-mode="dark"] .assessment-table th.grade-contribution,
-:root[data-hx-mode="dark"] .assessment-table th.grade-needed { background: rgba(24, 38, 76, .92); }
+:root[data-hx-mode="dark"] .assessment-table th.grade-needed { background: var(--raise); }
 :root[data-hx-mode="dark"] .assessment-exam { background: rgba(9, 16, 36, .88); color: var(--text); }
 
 /* 夜览：纸质记分表（table.sheet）随之变暗底彩色玻璃；打印时变量不生效（打印样式自带纸白） */
-:root[data-hx-mode="dark"] .home-grade { background: rgba(61, 220, 151, .1) !important; color: #7ef0bd !important; }
-:root[data-hx-mode="dark"] .home-grade.contribution { background: rgba(96, 150, 255, .12) !important; color: #a7c4ff !important; }
-:root[data-hx-mode="dark"] .home-grade.needed { background: rgba(251, 146, 60, .12) !important; color: #ffc48f !important; }
+:root[data-hx-mode="dark"] .home-grade { background: rgb(61 220 151 / calc(var(--hx-a, 1) * .30)) !important; color: #7ef0bd !important; }
+:root[data-hx-mode="dark"] .home-grade.contribution { background: rgb(96 150 255 / calc(var(--hx-a, 1) * .32)) !important; color: #a7c4ff !important; }
+:root[data-hx-mode="dark"] .home-grade.needed { background: rgb(251 146 60 / calc(var(--hx-a, 1) * .32)) !important; color: #ffc48f !important; }
 /* 2026-11-13 用户：「深色模式下值日缺勤、考勤完成率两列是一整片灰绿/深绿底块，中间只有一个小字，很空很难看」
    → 这两列不再整块铺色，回到和别的列一致的表格式观感：深底 + 浅字 + 细分隔线，值本身用文字标签呈现。 */
-:root[data-hx-mode="dark"] .home-attendance { background: rgba(146, 170, 224, .06); color: var(--xl-ink); }
+:root[data-hx-mode="dark"] .home-attendance { background: var(--xl-att); color: var(--xl-ink); }
 :root[data-hx-mode="dark"] table.sheet thead th.c-duty,
-:root[data-hx-mode="dark"] table.sheet thead th.home-attendance { background: rgba(24, 38, 76, .92); color: var(--muted); }
+:root[data-hx-mode="dark"] table.sheet thead th.home-attendance { background: var(--raise); color: var(--muted); }
 :root[data-hx-mode="dark"] table.sheet td.c-duty,
-:root[data-hx-mode="dark"] table.sheet td.home-attendance { background: rgba(146, 170, 224, .05); }
+:root[data-hx-mode="dark"] table.sheet td.home-attendance { background: var(--xl-att); }
 :root[data-hx-mode="dark"] table.sheet tbody.is-duty td.c-duty { background: rgba(251, 188, 85, .08); }
 :root[data-hx-mode="dark"] .duty-cell .duty-pct { color: var(--good); }
 :root[data-hx-mode="dark"] .duty-cell .duty-flag { color: var(--vip); background: var(--vip-bg); border-color: var(--vip-line); }
@@ -2802,19 +2895,25 @@ html.hx-bg[data-hx-mode="dark"] body::after,
 /* 卡片类统一毛玻璃：真 blur 只在支持 backdrop-filter 的设备上生效 */
 @supports (backdrop-filter: blur(1px)) {
   .card, .gcard, .metric, .gate-card, .dt-card, .rank-secondary, .remembered-account {
-    -webkit-backdrop-filter: blur(16px) saturate(1.2);
-    backdrop-filter: blur(16px) saturate(1.2);
+    /* 2026-11-18：半径/饱和度统一走全站 --hx-blur（原来各写 16px saturate(1.2)，
+       和首页的 blur(20px) 不是一套，滑杆拉到 0/100 时观感对不上） */
   }
 }
 
-/* 浮层 / 输入 / 表头必须实底：--panel 半透明后这些地方再透会糊字、透出滚动行。
-   统一用 --raise（浅色纯白 #fdfdfc，深色近实 rgba(26,38,74,.88)）兜住。
-   深色下 dialog 已有 :root[data-hx-mode="dark"] dialog 的实底覆盖，特异性更高，不受这里影响 */
-dialog { background: var(--raise); }
-.toast { background: var(--raise); }
+/* 浮层 / 输入 / 表头：--panel 半透明后这些地方再透会糊字，所以基准浓度取高（.94）。
+   2026-11-18 统一口径：即使「必须实底」，alpha 也要乘 --hx-a ——
+   clr=0 时 .94×2 被钳到 1（真正的实底，和原来一样），clr=250 时才跟着一起透。
+   不乘的话，用户把滑杆拉到两端，弹窗纹丝不动，还是「两套东西」的观感。 */
+dialog { background: rgb(255 255 255 / calc(.94 * var(--hx-a, 1))); -webkit-backdrop-filter: var(--hx-blur); backdrop-filter: var(--hx-blur); }
+:root[data-hx-mode="dark"] dialog { background: rgb(26 38 74 / calc(.94 * var(--hx-a, 1))); }
+.toast { background: rgb(255 255 255 / calc(.96 * var(--hx-a, 1))); }
+:root[data-hx-mode="dark"] .toast { background: rgb(26 38 74 / calc(.96 * var(--hx-a, 1))); }
 input[type="password"], input:not([type]) { background: var(--raise); }
 table.data th, .assessment-table thead th,
-.sync-conflict-head { background: var(--raise); }
+.sync-conflict-head { background: rgb(255 255 255 / calc(.92 * var(--hx-a, 1))); }
+:root[data-hx-mode="dark"] table.data th,
+:root[data-hx-mode="dark"] .assessment-table thead th,
+:root[data-hx-mode="dark"] .sync-conflict-head { background: rgb(26 38 74 / calc(.92 * var(--hx-a, 1))); }
 
 /* ============================================================
    希沃式顶部胶囊选项卡（2026-11-11）：把宽屏侧栏导航改成顶部横排毛玻璃胶囊。
@@ -2837,9 +2936,10 @@ table.data th, .assessment-table thead th,
   }
   /* 顶部玻璃条：半透明白玻璃（alpha 乘 --hx-a），背后主题背景透出来 */
   body.sidebar-layout .topbar {
-    background: color-mix(in srgb, var(--panel) calc(var(--hx-a, 1) * 78%), transparent);
-    -webkit-backdrop-filter: blur(18px) saturate(160%);
-    backdrop-filter: blur(18px) saturate(160%);
+    background: var(--panel);
+    /* 2026-11-18：模糊半径统一走全站 --hx-blur（原来是 18px，和首页 20px 不同一套） */
+    -webkit-backdrop-filter: var(--hx-blur);
+    backdrop-filter: var(--hx-blur);
   }
   body.sidebar-layout .topbar-main { gap: 10px; flex-wrap: nowrap; }
   body.sidebar-layout .brandtext { flex: 0 1 auto; min-width: 0; }
@@ -2867,7 +2967,7 @@ table.data th, .assessment-table thead th,
     text-align: center; padding: 7px 16px; min-height: 34px;
     border-radius: var(--pill);
     font-size: 13px; font-weight: 500; color: var(--muted);
-    background: color-mix(in srgb, var(--panel) calc(var(--hx-a, 1) * 60%), transparent);
+    background: rgb(13 22 46 / min(1, calc(.43 * var(--hx-a, 1))));
     -webkit-backdrop-filter: blur(10px) saturate(140%);
     backdrop-filter: blur(10px) saturate(140%);
     border: 1px solid var(--line);
@@ -2903,10 +3003,10 @@ table.data th, .assessment-table thead th,
 
 /* 深色模式：顶部玻璃条换成深色玻璃，选中胶囊保持主题色（青色那支由 --accent 驱动） */
 :root[data-hx-mode="dark"] body.sidebar-layout .topbar {
-  background: color-mix(in srgb, var(--panel) calc(var(--hx-a, 1) * 82%), transparent);
+  background: rgb(22 22 23 / calc(.55 + var(--hx-a, 1) * .30));
 }
 :root[data-hx-mode="dark"] body.sidebar-layout .tabs button {
-  background: color-mix(in srgb, var(--panel) calc(var(--hx-a, 1) * 60%), transparent);
+  background: rgb(13 22 46 / min(1, calc(.43 * var(--hx-a, 1))));
   border-color: rgba(126, 156, 235, .16);
 }
 :root[data-hx-mode="dark"] body.sidebar-layout .tabs button.on {

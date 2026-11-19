@@ -14,8 +14,16 @@
   /* --bg 跟全站标准底色走（hx-theme.js 的 --hx-page = #f5f5f7），本页原来的 #f2f4f8 只作离线兜底。
      2026-11-17：浅色底全站统一 —— 各页各写一个浅灰（#f5f5f7 / #f2f4f8 / #f4f6fa）在切换工具时能看出色差。
      深色块里的 --bg 不动。 */
+  /* 2026-11-18：--hx-blur 只在 hx-theme.css 里定义，而本工具只引 hx-theme.js ——
+     不补这一行，所有 backdrop-filter: var(--hx-blur) 都会解析失败、玻璃直接没有模糊。
+     值照抄 hx-theme.css，和首页同一档。 */
+  --hx-blur: saturate(180%) blur(20px);
   --bg:var(--hx-page,#f2f4f8);--glow1:color-mix(in srgb,var(--acc,#2f6bff) 13%,transparent);--glow2:color-mix(in srgb,var(--acc2,#7c5cff) 10%,transparent);--dots:rgba(30,41,59,.07);
-  --card:rgb(255 255 255 / calc(.78 * var(--hx-a, 1)));--card-solid:#ffffff;--card-brd:rgba(255,255,255,.9);--side:rgba(250,251,253,.7);
+  --card:rgb(255 255 255 / calc(.52 * var(--hx-a, 1)));--card-solid:#ffffff;--card-brd:rgba(255,255,255,.9);--side:rgba(250,251,253,.7);
+  /* 2026-11-18 透明度统一：表头 / 左侧房间列 / 弹窗原来吃 --card-solid（纯实色），
+     拖「卡片通透度」时它们纹丝不动 —— 一整张课表里就这几块是死的。
+     这里单独给一组「实色端也能到 1」的抬升面 token（--card 只有 .78，做表头会太透）。 */
+  --head-bg:rgb(255 255 255 / min(1, calc(.88 * var(--hx-a, 1))));--dlg-bg:rgb(255 255 255 / min(1, calc(.96 * var(--hx-a, 1))));--field-bg:rgb(255 255 255 / min(1, calc(1 * var(--hx-a, 1))));
   --field:#ffffff;--field2:#eef1f6;--field3:#e4e8f0;
   --ink:#0b1220;--ink2:#374151;--mute:#6b7280;--line:#d5dbe6;--hair:rgba(15,23,42,.08);
   --acc:#2f6bff;--acc-h:#4b80ff;--acc2:#7c5cff;--accbg:rgba(47,107,255,.10);--ring:rgba(47,107,255,.32);
@@ -32,7 +40,8 @@
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --bg:#080b12;--glow1:color-mix(in srgb,var(--acc,#5b8cff) 20%,transparent);--glow2:color-mix(in srgb,var(--acc2,#9b7cff) 15%,transparent);--dots:rgba(148,163,184,.08);
-  --card:rgb(20 25 36 / calc(.72 * var(--hx-a, 1)));--card-solid:#141924;--card-brd:rgba(255,255,255,.07);--side:rgba(12,16,24,.66);
+  --card:rgb(20 25 36 / calc(.52 * var(--hx-a, 1)));--card-solid:#141924;--card-brd:rgba(255,255,255,.07);--side:rgba(12,16,24,.66);
+  --head-bg:rgb(20 25 36 / min(1, calc(.88 * var(--hx-a, 1))));--dlg-bg:rgb(16 20 30 / min(1, calc(.96 * var(--hx-a, 1))));--field-bg:rgb(20 25 36 / min(1, calc(1 * var(--hx-a, 1))));
   --field:#0e131d;--field2:rgba(255,255,255,.05);--field3:rgba(255,255,255,.09);
   --ink:#e9edf5;--ink2:#c3cad7;--mute:#8a93a5;--line:rgba(255,255,255,.13);--hair:rgba(255,255,255,.08);
   --acc:#5b8cff;--acc-h:#7aa2ff;--acc2:#9b7cff;--accbg:rgba(91,140,255,.16);--ring:rgba(91,140,255,.45);
@@ -44,7 +53,8 @@
 }}
 :root[data-theme="dark"]{
   --bg:#080b12;--glow1:color-mix(in srgb,var(--acc,#5b8cff) 20%,transparent);--glow2:color-mix(in srgb,var(--acc2,#9b7cff) 15%,transparent);--dots:rgba(148,163,184,.08);
-  --card:rgb(20 25 36 / calc(.72 * var(--hx-a, 1)));--card-solid:#141924;--card-brd:rgba(255,255,255,.07);--side:rgba(12,16,24,.66);
+  --card:rgb(20 25 36 / calc(.52 * var(--hx-a, 1)));--card-solid:#141924;--card-brd:rgba(255,255,255,.07);--side:rgba(12,16,24,.66);
+  --head-bg:rgb(20 25 36 / min(1, calc(.88 * var(--hx-a, 1))));--dlg-bg:rgb(16 20 30 / min(1, calc(.96 * var(--hx-a, 1))));--field-bg:rgb(20 25 36 / min(1, calc(1 * var(--hx-a, 1))));
   --field:#0e131d;--field2:rgba(255,255,255,.05);--field3:rgba(255,255,255,.09);
   --ink:#e9edf5;--ink2:#c3cad7;--mute:#8a93a5;--line:rgba(255,255,255,.13);--hair:rgba(255,255,255,.08);
   --acc:#5b8cff;--acc-h:#7aa2ff;--acc2:#9b7cff;--accbg:rgba(91,140,255,.16);--ring:rgba(91,140,255,.45);
@@ -148,7 +158,7 @@ body::after{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
 
 /* 数字块 */
 .stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-bottom:20px}
-.stat{position:relative;overflow:hidden;background:var(--card);border:1px solid var(--card-brd);backdrop-filter:blur(18px) saturate(160%);-webkit-backdrop-filter:blur(18px) saturate(160%);border-radius:20px;box-shadow:var(--shadow);padding:16px 18px;min-width:0}
+.stat{}
 .stat::after{content:"";position:absolute;right:-30px;top:-30px;width:90px;height:90px;border-radius:50%;background:radial-gradient(var(--accbg),transparent 70%);pointer-events:none}
 .stat .k{font:600 11px/1.4 var(--mono);letter-spacing:.1em;color:var(--mute);text-transform:uppercase}
 .stat .v{font:700 34px/1.25 var(--font-d);letter-spacing:-.03em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-variant-numeric:tabular-nums}
@@ -157,7 +167,7 @@ body::after{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
 @media(max-width:760px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
 /* 卡片：磨砂玻璃 */
-.card{background:var(--card);border:1px solid var(--card-brd);backdrop-filter:blur(20px) saturate(160%);-webkit-backdrop-filter:blur(20px) saturate(160%);border-radius:var(--r-card);box-shadow:var(--shadow);padding:22px 24px;margin-bottom:20px}
+.card{}
 .card h2{font:650 20px/1.3 var(--font-d);letter-spacing:-.02em;margin:0}
 .card-h{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
 .card-h .sub{color:var(--mute);font-size:13px}
@@ -188,8 +198,8 @@ button.danger{background:var(--bad);color:#fff;border-color:transparent}
 button:disabled{opacity:.45;cursor:default;transform:none}
 
 /* 输入框、下拉框 */
-select,input,textarea{font:inherit;font-size:14px;padding:7px 12px;border:1px solid var(--line);border-radius:var(--r-ctl);background:var(--field);color:var(--ink);transition:border-color .2s,box-shadow .2s;min-width:0}
-select{appearance:none;-webkit-appearance:none;padding-right:34px;background:var(--field) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%238a93a5' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 12px center}
+select,input,textarea{font:inherit;font-size:14px;padding:7px 12px;border:1px solid var(--line);border-radius:var(--r-ctl);background:var(--field-bg);color:var(--ink);transition:border-color .2s,box-shadow .2s;min-width:0}
+select{appearance:none;-webkit-appearance:none;padding-right:34px;background:var(--field-bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%238a93a5' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 12px center}
 select:focus,input:focus,textarea:focus{outline:none;border-color:var(--acc);box-shadow:0 0 0 4px var(--accbg)}
 
 /* 表格 */
@@ -247,10 +257,10 @@ button.ic.xs svg{width:15px;height:15px}
 .foot-note{margin-top:14px}
 
 /* 月课表：每列一个周一，每行一间教室 */
-.tt-wrap{overflow-x:auto;border-radius:var(--r-card);background:var(--card);border:1px solid var(--card-brd);box-shadow:var(--shadow);backdrop-filter:blur(20px) saturate(160%);-webkit-backdrop-filter:blur(20px) saturate(160%)}
+.tt-wrap{}
 .tt{display:grid;grid-template-columns:96px repeat(var(--cols),minmax(200px,1fr));min-width:calc(96px + var(--cols) * 200px)}
 .tt>div{border-right:1px dashed var(--hair);border-bottom:1px dashed var(--hair)}
-.tt-corner,.tt-head{background:color-mix(in srgb,var(--card-solid) 88%,transparent);border-bottom:1px solid var(--hair)!important}
+.tt-corner,.tt-head{background:var(--head-bg);border-bottom:1px solid var(--hair)!important}
 .tt-corner{position:sticky;left:0;z-index:3;padding:14px 10px;font-weight:700;text-align:center}
 .tt-corner small{display:block;font:500 10.5px/1.5 var(--mono);color:var(--mute);margin-top:4px}
 .tt-head{position:relative;padding:12px 10px 10px;text-align:center}
@@ -263,7 +273,7 @@ button.ic.xs svg{width:15px;height:15px}
 .tt-head:hover .hacts,.tt-head:focus-within .hacts{opacity:1}
 .tt-head.skip{background:color-mix(in srgb,var(--warnbg) 60%,var(--card-solid))}
 .tt-head .tag{margin-top:4px}
-.tt-room{position:sticky;left:0;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px;background:color-mix(in srgb,var(--card-solid) 82%,transparent)}
+.tt-room{position:sticky;left:0;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px;background:var(--head-bg)}
 .tt-room b{font:700 15px/1.2 var(--mono);letter-spacing:.02em}
 .tt-cell{padding:6px;min-height:96px;display:flex}
 .tt-cell.blank{background:repeating-linear-gradient(135deg,transparent 0 8px,var(--field2) 8px 9px)}
@@ -335,7 +345,7 @@ table.assign select{min-width:170px}
 /* 对话框：磨砂背景 + 回弹放大 */
 .modal{position:fixed;inset:0;z-index:20;display:flex;align-items:flex-start;justify-content:center;padding:7vh 12px;overflow:auto;background:rgba(8,11,18,.32);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);animation:fadeIn .2s ease-out}
 @keyframes fadeIn{from{opacity:0}}
-.dlg{width:min(580px,100%);background:var(--card-solid);border:1px solid var(--card-brd);border-radius:24px;box-shadow:0 30px 80px -20px rgba(0,0,0,.45);animation:popIn .42s var(--bounce) both;overflow:hidden}
+.dlg{width:min(580px,100%);background:var(--dlg-bg);border:1px solid var(--card-brd);border-radius:24px;box-shadow:0 30px 80px -20px rgba(0,0,0,.45);animation:popIn .42s var(--bounce) both;overflow:hidden}
 @keyframes popIn{from{opacity:0;transform:translateY(14px) scale(.95)}}
 .dlg h3{margin:0;padding:18px 22px 4px;font:650 18px/1.35 var(--font-d);letter-spacing:-.02em}
 .dlg .dsub{padding:0 22px 12px;color:var(--mute);font-size:13px;border-bottom:1px solid var(--hair)}
@@ -904,7 +914,7 @@ HXLoadFx.boot('paike', 'hxBoot');
 <div id="toast" class="toast" role="status"></div>
 <script id="saved-data" type="application/json">null</script>
 <script>
-const BUILD={"time":"2026-11-18T14:29:17.880Z","sha":"2b53895"};
+const BUILD={"time":"2026-11-19T04:22:51.249Z","sha":"a22fb2b"};
 /* ---- engine.js ---- */
 /* ================= 排课引擎：数据模型、次数/轮次、自动排课、固定老师同步、校验 =================
    纯逻辑，不碰页面；浏览器里是全局 Engine，node 里 require 进来测试。

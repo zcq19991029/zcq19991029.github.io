@@ -3,7 +3,7 @@
 <html lang="zh-CN">
 <head>
 <script src="../hx-theme.js" data-tool="wiring"></script>
-<script>window.HX_BUILD = "2026-11-18T14:29:20Z 2b53895";</script>
+<script>window.HX_BUILD = "2026-11-19T04:22:54Z a22fb2b";</script>
 <meta charset="utf-8">
 <meta name="copyright" content="© 2026 zcq 版权所有，未经许可禁止复制、修改、转载">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
@@ -291,16 +291,17 @@
   .rk-nope { margin: 6px 0; font-size: 16px; font-weight: 600; opacity: .9; line-height: 1.6; }
   .rk-hud { position: fixed; z-index: 35; left: 50%; top: 52px; transform: translate(-50%, -20px); opacity: 0; pointer-events: none; display: flex; align-items: center; gap: 12px; padding: 8px 10px 8px 16px; border-radius: 16px;
     background: var(--bar); border: 1px solid var(--edge); box-shadow: 0 14px 36px -14px rgba(0,0,0,.55); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); font-weight: 700; transition: opacity .3s, transform .4s cubic-bezier(.3,1.3,.5,1); }
-  /* ⚠️ 2026-11-03：show 之后容器**依然不吃点击**，只有红点、计时数字、按钮自己可点。
+  /* ⚠️ 2026-11-03：show 之后容器曾经**不吃点击**，只有红点、计时数字、按钮自己可点。
      原因：HUD 默认悬在顶部中央（top:52px，z-index:35 在外壳层），练习页 iframe 里的
      浮动工具栏吸顶时握把正好被它压住 —— 外壳层永远在 iframe 之上，用户按住握把拖动
-     时事件全被 HUD 吃掉，表现就是「排位时工具栏拖不动」。整条 pointer-events:none 后
-     事件穿透到 iframe；拖动计时条改由红点 / 数字承接（它们 auto，pointerdown 冒泡到
-     容器上的 rkHudDrag），「放弃 / 退出全屏」按钮照常点。全屏态（body.hxfull）本来就是
-     这套做法，这里只是把它推广到普通态。 */
-  .rk-hud.show { opacity: 1; transform: translate(-50%, 0); pointer-events: none; }
+     时事件全被 HUD 吃掉，表现就是「排位时工具栏拖不动」。
+     2026-11-18 用户要求「整块点任何地方都能拖动，现在只能点住时间可拖」→ 改回整条 auto。
+     挡握把的那个问题现在靠「更容易拖走」来解决：以前只有红点（10px）和数字能抓，
+     现在整条都能抓，一按就能拖开。按钮仍然排除在拖动之外。 */
+  .rk-hud.show { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
   .rk-hud.show .rk-rec, .rk-hud.show b, .rk-hud.show .rk-ghost { pointer-events: auto; }
-  .rk-hud b { font-size: 26px; font-variant-numeric: tabular-nums; min-width: 118px; text-align: right; }
+  /* 2026-11-18：计时数字收小一号（26→21），min-width 跟着收，否则数字小了框还那么宽 */
+  .rk-hud b { font-size: 21px; font-variant-numeric: tabular-nums; min-width: 92px; text-align: right; }
   .rk-hud.stop b { color: #22c55e; } .rk-hud.stop .rk-rec { animation: none; background: #22c55e; }
   .rk-rec { width: 10px; height: 10px; border-radius: 50%; background: #ef4444; box-shadow: 0 0 10px #ef4444; animation: breathe 1s ease-in-out infinite; }
   .rk-fx { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 45; pointer-events: none; }
@@ -978,7 +979,7 @@
     transform: translateY(-8px); gap: 8px; padding: 5px 6px 5px 10px; border-radius: 12px; pointer-events: none; }
   body.hxfull .rk-hud.show { transform: none; }
   body.hxfull .rk-hud span { display: none; } /* 全屏里省掉“姓名 · 电路名”，只留计时 */
-  body.hxfull .rk-hud b { font-size: 17px; min-width: 72px; }
+  body.hxfull .rk-hud b { font-size: 15px; min-width: 64px; }
   body.hxfull .rk-hud .rk-ghost { pointer-events: auto; height: 26px; padding: 0 10px; font-size: 12px; }
   /* “退出全屏”只在全屏里有意义；非全屏时藏着，免得占地方 */
   .rk-hud .rk-exitfull { display: none; }
@@ -1304,14 +1305,14 @@
   /* ===== 计时条：只显示计时、可拖动 ===== */
   .rk-hud { gap: 8px; padding: 6px 8px 6px 12px; border-radius: 14px; cursor: grab; touch-action: none; }
   .rk-hud.drag { cursor: grabbing; transition: none; }
-  .rk-hud b { font-size: clamp(26px, 3.4vw, 38px); min-width: 108px; text-align: center; }
+  .rk-hud b { font-size: clamp(21px, 2.6vw, 29px); min-width: 88px; text-align: center; }
   .rk-hud .rk-ghost { font-size: 12px; font-weight: 800; padding: 4px 9px; opacity: .9; }
   .rk-hud.moved { left: var(--hx, 50%); top: var(--hy, 52px); transform: none; }
   .rk-hud.moved.show { transform: none; }
   body.hxfull .rk-hud.moved { left: auto; top: calc(8px + env(safe-area-inset-top, 0px)); transform: translateY(-8px); }
   body.hxfull .rk-hud.moved.show { transform: none; }
   .rk-hud.stop { padding: 10px 14px; }
-  .rk-hud.stop b { font-size: clamp(34px, 4.6vw, 54px); } /* 停表后恢复成看得清的尺寸 */
+  .rk-hud.stop b { font-size: clamp(26px, 3.4vw, 40px); } /* 停表后放大一号，但仍然比原来小 */
   /* 教室一体机常见 1280×720：竖着空间不够，成绩页和准备页整体收一号，别把「再来一次」挤到屏幕外面 */
   @media (max-height: 820px) {
     .drw-bar { padding: 7px 12px; } .drw-go { padding: 0 18px; font-size: 15px; }
@@ -3199,18 +3200,16 @@ window.hxCloseDrill = () => mainBtn.onclick(); // 并联专项 / 扩展练习页
    外壳点返回时先问当前工具：HXBack() 返回 true = 工具自己往回退了一步（外壳什么都不做）；
    返回 false = 已经在工具的第一屏，外壳再回首页。
    退的顺序按「越靠近手边的越先退」：
-     ① 开着的浮窗（排位 / 本节内容 / 教学视频 / 元器件 / 符号 / 扩展练习 / 更新日志 / 关于）
-     ② 排位准备层（「庞宇铭 · 开始」那张）→ 等于点「退出排位」
-     ③ 扩展练习 / 并联专项 → 回主电路
-   都退完了才返回 false。浮窗关的时候顺手停视频（和点 × 一样，不然缓冲占内存）。 */
+     ① 排位准备层（「庞宇铭 · 开始」那张）→ 等于点「退出排位」
+     ② 扩展练习 / 并联专项 → 回主电路
+   都退完了才返回 false。
+
+   ── 2026-11-18 改：浮窗不再参与「返回」（用户原话见上面 openPanel 那段）──
+   原来第一步是「关掉最上面那个 .fw.show」，于是浏览器/外壳的返回变成「一层层关弹窗」，
+   学生想看上一屏，结果先关掉了元器件窗，还得再按一次才动页面 —— 语义是错的。
+   现在浮窗**只由 ✕（或 Esc）关**，HXBack 只退「页面级」的东西（排位准备层 → 主电路 → 让外壳回上一屏）。
+   浮窗也没有任何 history.pushState / popstate 登记，浏览器后退不会动它。 */
 window.HXBack = function () {
-  const fws = [...document.querySelectorAll('.fw.show')];
-  if (fws.length) {
-    const top = fws[fws.length - 1];
-    top.classList.remove('show');
-    top.querySelectorAll('video').forEach(v => { try { v.pause(); v.removeAttribute('src'); v.load(); } catch (e) { } });
-    return true;
-  }
   const quit = document.querySelector('#rkVeil.show #rkQuit');
   if (quit) { quit.click(); return true; }
   if (mainBtn && !mainBtn.hidden) { mainBtn.click(); return true; }
@@ -3284,6 +3283,33 @@ window.addEventListener('hashchange', () => { const h = decodeURIComponent(locat
 // ---------- 悬浮窗：拖标题栏移动，拖右边、下边、右下角改宽高；位置大小记在浏览器里 ----------
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 let fwZ = 30;
+/* ── 同一时刻只留一个「模块浮窗」（2026-11-18）──
+   用户原话：「接线仿真上面几个模块 比如元器件 符号 说明等等窗口点开后打开别的上一个不会关闭 就一直累加在桌面
+   且与返回键联动 这种弹窗只跟右上角的关闭X有关才对 返回去针对于整个页面的」。
+   老写法：每个模块自己调 floatWin('parts'|'sym'|'info'…)，id 不同就各建一个 <section class="fw">，
+   点第二个时第一个只是留在下面，桌面越点越花（z-index 也一层层往上加）。
+   现在：所有这类「看内容」的窗口统一走 openPanel(kind)，进来先把上一个关掉；
+   当前是哪一个记在 panelNow（模块级变量，不去查 DOM —— 窗口被别处摘掉时状态也不会跟着错）。
+   关闭只有两条路：右上角 ✕（以及它自己的按钮）、Esc。**不进 history，也不挂 popstate**，
+   外壳「返回」的 HXBack() 不再管浮窗（见下面那段）。 */
+let panelNow = null; // { id, el } —— 当前那个（唯一）模块浮窗
+function pauseFw(el) { // 关窗时把视频真正停掉并断开数据源（只 pause() 的话缓冲还占内存）
+  if (!el) return;
+  el.querySelectorAll('video').forEach(v => { try { v.pause(); v.removeAttribute('src'); v.load(); } catch (e) { } });
+}
+function closePanel(el) {
+  if (!el) return;
+  el._fwClosed = true; // 关掉之后，还没跑的那个「加 .show」的 rAF 不许再把它点亮（见 floatWin 末尾）
+  el.classList.remove('show');
+  pauseFw(el);
+  if (panelNow && panelNow.el === el) panelNow = null;
+}
+function openPanel(id, o) {
+  if (panelNow && panelNow.id !== id) closePanel(panelNow.el); // 先关上一个，再开新的：桌面上永远只有一个
+  const el = floatWin(id, o);
+  panelNow = { id, el };
+  return el;
+}
 function floatWin(id, o) {
   let el = document.getElementById('fw-' + id);
   if (!el) {
@@ -3333,10 +3359,7 @@ function floatWin(id, o) {
     drag(el.querySelector('.fw-head'), 'move'); drag(el.querySelector('.fw-rs.r'), 'r'); drag(el.querySelector('.fw-rs.b'), 'b'); drag(el.querySelector('.fw-rs.rb'), 'rb');
     // 关窗口时把视频真正停掉并断开数据源：只 pause() 的话已下载的缓冲还占着内存，
     // 下次打开同一个视频也不会重新取，教室里连续开关几次会越开越卡。
-    el.querySelector('.fw-x').onclick = () => {
-      el.classList.remove('show');
-      el.querySelectorAll('video').forEach(v => { try { v.pause(); v.removeAttribute('src'); v.load(); } catch (e) { } });
-    };
+    el.querySelector('.fw-x').onclick = () => closePanel(el);
   }
   el.querySelector('.fw-t b').textContent = o.title; el.querySelector('.fw-t small').textContent = o.sub || '';
   el.style.zIndex = ++fwZ;
@@ -3345,21 +3368,27 @@ function floatWin(id, o) {
   // 以前是「先把整块 HTML 塞进 DOM，再让窗口显示」——手机上点下去要等 400～700ms 才有任何反应，
   // 中间既没有动画也没有反馈（用户原话「打开很多按钮要等半天 加载半天还没有动画」）。
   // 现在：当帧先把窗口和骨架摆出来并开始入场动画，下一帧再填内容并调 o.render 里绑事件。
+  // 上面这两段都是「下一帧再把 .show 加上」——如果这一帧里窗口已经被关掉（快速连点两个模块按钮，
+  // 上一个还没等到 rAF 就被 closePanel 收了），这个迟到的 rAF 会把它又点亮，桌面上重新冒出个残影。
+  // 所以每个窗口带一个 _fwClosed 闸：closePanel 置 true，这里开窗前清掉，迟到的 rAF 看到 true 就不动。
+  el._fwClosed = false;
   if (typeof o.render === 'function') {
     body.innerHTML = '<div class="fw-skel"><i></i><i></i><i></i><i></i></div>';
     requestAnimationFrame(() => {
+      if (el._fwClosed || !el.isConnected) return;
       el.classList.add('show');
-      requestAnimationFrame(() => { if (!el.isConnected) return; body.innerHTML = ''; o.render(body, el); });
+      requestAnimationFrame(() => { if (el._fwClosed || !el.isConnected) return; body.innerHTML = ''; o.render(body, el); });
     });
     return el;
   }
   body.innerHTML = o.html;
-  requestAnimationFrame(() => el.classList.add('show')); return el;
+  requestAnimationFrame(() => { if (el._fwClosed || !el.isConnected) return; el.classList.add('show'); }); return el;
 }
 window.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
+  // Esc = 键盘上的 ✕：只关最上面那个模块浮窗，别的什么都不碰
   const open = [...document.querySelectorAll('.fw.show')].sort((a, b) => b.style.zIndex - a.style.zIndex)[0];
-  if (open) { open.classList.remove('show'); open.querySelectorAll('video').forEach(v => v.pause()); }
+  if (open) closePanel(open);
 });
 // 本节内容：从当前电路页读 lessonInfo()（导线按教案的颜色统计根数，方便学生领线、备工具）
 function openInfo() {
@@ -3367,7 +3396,7 @@ function openInfo() {
   if (!L) return toast('页面还在加载，稍后再试');
   const max = Math.max(...L.wires.map(w => w.n));
   // 2026-11-02 性能：本节内容卡片多、节点多，改成骨架双帧（先出窗口和动画，下一帧再填内容）
-  floatWin('info', { title: (/^[EP]/.test(L.id) ? '扩展练习' : '项目' + L.id) + ' 本节内容', sub: L.name || L.title, w: 940, h: 660, a1: '#22c55e', a2: '#3b82f6',
+  openPanel('info', { title: (/^[EP]/.test(L.id) ? '扩展练习' : '项目' + L.id) + ' 本节内容', sub: L.name || L.title, w: 940, h: 660, a1: '#22c55e', a2: '#3b82f6',
     render: body => {
       body.innerHTML = `<div class="sh-body">
     <div class="sh-card"><h3>实训目标</h3><ol class="goals">${L.goals.map(g => `<li>${esc(g)}</li>`).join('')}</ol></div>
@@ -3503,7 +3532,7 @@ function openVideo(play) {
         ? `<div class="soon-hero"><b>教学视频 · 待发布</b><span>${soon}</span></div>`
         : `<div class="soon-hero"><b>已上线 ${got} / ${total} 节</b><span>做好一节上一节，还差 ${total - got} 节。有「观看」的直接点开看。</span></div>`;
   const row = c => `<i>${c.id}</i><div><b>${esc(c.name)}</b><small>${c.id === cur ? '当前这一节' : esc(c.short)}</small></div>`;
-  floatWin('video', { title: '教学视频', sub: '视频平台观看 · 新窗口打开', w: 760, h: 700, a1: '#f43f5e', a2: '#f59e0b',
+  openPanel('video', { title: '教学视频', sub: '视频平台观看 · 新窗口打开', w: 760, h: 700, a1: '#f43f5e', a2: '#f59e0b',
     // 骨架双帧：事件绑定必须放 render 里，放外面会绑到还没替换掉的骨架上
     render: (body, el) => {
       body.innerHTML = `<div class="vid">${top}
@@ -3536,14 +3565,14 @@ function openExtra() {
     if (c.id === cur) return '正在练习';
     return c.drill ? '先判出入口 · 同一个点任选端子 · 一个端子最多 2 根线' : '电工中级 · 接线仿真';
   };
-  floatWin('extra', { title: '扩展练习', sub: '电工证类 · 电工中级应会实操', w: 560, h: 460, a1: '#14b8a6', a2: '#6366f1',
+  openPanel('extra', { title: '扩展练习', sub: '电工证类 · 电工中级应会实操', w: 560, h: 460, a1: '#14b8a6', a2: '#6366f1',
     render: (body, el) => {
       body.innerHTML = `<div class="vid">
     <div class="soon-hero teal"><b>扩展练习 · 电工证类</b><span>电工中级（四级）应会实操的接线题，和项目二一样连线、检查、仿真试车。</span></div>
     ${CIRCUITS.filter(c => c.drill).map(c => `<button class="vid-row ext-go" data-id="${c.id}"><i>专项</i><div><b>${esc(c.name)}</b><small>${esc(extSub(c))}</small></div><em class="go">开始</em>${extVideoBtn(c)}</button>`).join('')}
     ${CIRCUITS.filter(c => c.ext && !c.drill).map((c, k) => `<button class="vid-row ext-go" data-id="${c.id}"><i>题${k + 1}</i><div><b>${esc(c.name)}</b><small>${esc(extSub(c))}</small></div><em class="go">开始</em>${extVideoBtn(c)}</button>`).join('')}
   </div>`;
-      el.querySelectorAll('.ext-go').forEach(b => (b.onclick = () => { select(b.dataset.id); el.classList.remove('show'); }));
+      el.querySelectorAll('.ext-go').forEach(b => (b.onclick = () => { select(b.dataset.id); closePanel(el); }));
       // ── 2026-11-06 扩展练习的教学视频入口（用户：「把扩展练习的教学视频按钮放在扩展练习该项目的开始按钮后面也行」）──
       // 就放在每行「开始」后面：想看课的人不用再回顶部「教学视频」（那里只列 2.1～2.6）。
       // 2026-11-08：只有真有链接的行才会画这个按钮（见上面 extVideoBtn），所以这里只管开播。
@@ -3783,7 +3812,7 @@ function openParts() {
   // 2026-11-02 性能：左侧列表不再放实物缩略图 —— 7 张 WebP 一进窗口就要全部解码 + 布局，
   // 手机上点一下要等 0.4 秒。缩写字母块反而更好认（QF、KM 本来就是要背的），实物图只在右边详情里出。
   const ALL = partAll();
-  floatWin('parts', { title: '元器件介绍', sub: '项目二 2.1～2.6 用到的 9 种 + 电工证常用的 10 种 · 缩写 · 端子号 · 实物图 · 考什么', w: 940, h: 700, minH: 560, a1: '#0ea5e9', a2: '#8b5cf6',
+  openPanel('parts', { title: '元器件介绍', sub: '项目二 2.1～2.6 用到的 9 种 + 电工证常用的 10 种 · 缩写 · 端子号 · 实物图 · 考什么', w: 940, h: 700, minH: 560, a1: '#0ea5e9', a2: '#8b5cf6',
     render: (body, el) => {
       body.innerHTML = `<div class="pt"><div class="pt-list">
           ${PARTS.map((p, i) => partRow(p, i)).join('')}
@@ -3827,7 +3856,7 @@ function openSymbols() {
   const cats = [SEM].concat(cats0);
   const inCat = (s, c) => (c === SEM ? s.sem === true : s.cat === c);
   const nOf = c => list.filter(s => inCat(s, c)).length;
-  floatWin('sym', { title: '符号介绍', sub: '国标符号 ↔ 实物对照 · ' + list.length + ' 个常用元件 · 本学期常用 ' + nOf(SEM) + ' 条 · ' + cats0.length + ' 类速查', w: 980, h: 680, minH: 520, a1: '#0ea5e9', a2: '#8b5cf6',
+  openPanel('sym', { title: '符号介绍', sub: '国标符号 ↔ 实物对照 · ' + list.length + ' 个常用元件 · 本学期常用 ' + nOf(SEM) + ' 条 · ' + cats0.length + ' 类速查', w: 980, h: 680, minH: 520, a1: '#0ea5e9', a2: '#8b5cf6',
     render: (body, el) => {
       body.innerHTML = `<div class="sy">
         <div class="sy-bar"><div class="sy-tabs" role="tablist" aria-label="符号分类">${cats.map((c, i) => {
@@ -3994,7 +4023,7 @@ function ptSetup(el) {
     // e.target 已经脱网，closest('.pt-panel') 会变 null，把「点了卡片」误判成「点了遮罩」把窗口收走。
     const path = e.composedPath ? e.composedPath() : [];
     const hit = c => path.some(n => n && n.classList && n.classList.contains(c));
-    if (hit('pt-x') || !hit('pt-panel')) el.classList.remove('show');
+    if (hit('pt-x') || !hit('pt-panel')) closePanel(el);
   });
   // Tab 只在面板里循环（焦点管理），不跑到遮罩后面去
   el.addEventListener('keydown', e => {
@@ -4027,7 +4056,7 @@ function aboutView(edit) {
   })();
   // w/h 传给 floatWin 只是兜底（遮罩尺寸由 CSS 钉死整屏）；标题照传，隐藏的原生标题栏不用它
   const prevFocus = document.activeElement; // 趁还没把焦点挪进面板，先记下「是从哪打开的」（关闭时还回去）
-  const el = floatWin('about', { title: '项目团队', sub: 'PROJECT TEAM', w: 760, h: 540, minH: 360, a1: '#9254FF', a2: '#368CFF', html: ptShell() });
+  const el = openPanel('about', { title: '项目团队', sub: 'PROJECT TEAM', w: 760, h: 540, minH: 360, a1: '#9254FF', a2: '#368CFF', html: ptShell() });
   if (reopen) el.classList.add('pt-refresh'); else el.classList.remove('pt-refresh');
   ptSetup(el);
   if (prevFocus && !el.contains(prevFocus)) el._ptBack = prevFocus; // 云端名单回来重画时焦点已在面板里，沿用上次记的
@@ -4115,7 +4144,7 @@ function aboutArm(el) {
   aboutForceStop();
   // 先把 closeAbout 声明出来：下面定时器要用它。虽然 setTimeout 是延迟执行的，
   // 但按「先定义后使用」写，读代码时不必自己去推执行顺序。
-  const closeAbout = () => { aboutForceStop(); aboutAutoClosed = true; el.classList.remove('show'); };
+  const closeAbout = () => { aboutForceStop(); aboutAutoClosed = true; closePanel(el); };
   // 计时器单独抽出来，好让「面板里动过手」只**续期**而不是当场取消（见下面 keep 的注释）
   const aboutRearm = () => {
     if (aboutForceT) clearTimeout(aboutForceT);
@@ -4204,7 +4233,7 @@ async function aboutWho() {
 window.hxAboutForce = aboutForce; // 也给自测直接调：hxAboutForce({ dev: true }) / hxAboutForce(null, { force: true })
 // ---------- 提建议：写进云端反馈信箱（hx_feedback），开发者在 /feedback/ 处理；那边点「采纳并进鸣谢」会自动加进上面的名单 ----------
 function openFeedback() {
-  const el = floatWin('fb', { title: '提建议', sub: '反馈会进我的信箱 · 采纳的写进鸣谢名单', w: 500, h: 490, a1: '#7c3aed', a2: '#e0457b', html: `<div class="fb">
+  const el = openPanel('fb', { title: '提建议', sub: '反馈会进我的信箱 · 采纳的写进鸣谢名单', w: 500, h: 490, a1: '#7c3aed', a2: '#e0457b', html: `<div class="fb">
     <p class="fb-tip">哪里不对、哪个端子看不懂、或者想加什么功能，都写在这里，我会一条条看。</p>
     <div class="fb-kinds"><button class="fb-k on" data-k="suggest">建议</button><button class="fb-k" data-k="bug">遇到问题</button><button class="fb-k" data-k="other">其它</button></div>
     <textarea id="fbText" rows="6" maxlength="2000" placeholder="越具体越好，比如：2.4 里 KM3 的 14NO 标签挡住了导线；或者希望加一个……"></textarea>
@@ -4229,7 +4258,7 @@ function openFeedback() {
       text.value = ''; contact.value = '';
       msg.style.color = '#16a34a'; msg.textContent = '收到了，谢谢！采纳的会写进鸣谢名单';
       toast('反馈已提交，谢谢');
-      setTimeout(() => el.classList.remove('show'), 1000);
+      setTimeout(() => closePanel(el), 1000);
     } catch (e) { msg.style.color = '#dc2626'; msg.textContent = e.message; send.disabled = false; }
   };
   setTimeout(() => { try { text.focus(); } catch (e) { } }, 260);
@@ -4361,7 +4390,7 @@ function openLog() {
   // 2026-11-02：CHANGELOG 已经三十多个版本，一次全渲染要 500 多个节点，手机上点一下要等 0.5 秒还没动画。
   // 改成默认只画最新 3 个版本，其余按需展开；顺便解决「一进来就一大坨」。
   let shown = 3;
-  floatWin('log', { title: '更新日志', sub: '当前版本 v' + L.v + ' · ' + L.date, w: 560, h: 620, a1: '#8b5cf6', a2: '#ec4899',
+  openPanel('log', { title: '更新日志', sub: '当前版本 v' + L.v + ' · ' + L.date, w: 560, h: 620, a1: '#8b5cf6', a2: '#ec4899',
     render: body => {
       const draw = () => {
         body.innerHTML = `<div class="log">
@@ -6793,11 +6822,12 @@ function rkHudLoad(h) {
   h.classList.add('moved'); h.style.setProperty('--hx', p.x + 'px'); h.style.setProperty('--hy', p.y + 'px'); rkHudClamp(h);
 }
 function rkHudDrag(h) {
-  // 2026-11-03：HUD 容器整条不吃点击了（压在工具栏上会挡住握把，见 project2.html 的 .rk-hud.show），
-  // 拖动靠红点和计时数字承接 —— 它们 pointer-events:auto，pointerdown 冒泡到容器这里。
+  // 2026-11-18：用户要求「整块点任何地方都能拖动」。
+  // 之前（2026-11-03）只有红点 .rk-rec 和计时数字 <b> 能当拖柄 —— 那时 HUD 整条不吃点击，
+  // 为的是不挡住练习页 iframe 里的浮动工具栏握把；现在 .rk-hud.show 改回 pointer-events:auto，
+  // 容器上任意非按钮位置都能起拖。只在按钮上放行（放弃 / 退出全屏要照常点得动）。
   h.addEventListener('pointerdown', e => {
     if (e.target.closest('button')) return; // 放弃、退出全屏照常点，不吃拖动
-    if (!e.target.closest('b') && !e.target.closest('.rk-rec')) return; // 空白处穿透给练习页，不当拖柄
     if (document.body.classList.contains('hxfull')) return; // 全屏里位置由右上角那套 CSS 定，不跟着拖
     const r = h.getBoundingClientRect(), x0 = r.left, y0 = r.top, px = e.clientX, py = e.clientY;
     e.preventDefault(); h.classList.add('moved', 'drag');

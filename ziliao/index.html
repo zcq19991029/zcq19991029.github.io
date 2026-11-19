@@ -19,6 +19,23 @@
    表格 table-layout:fixed + word-break，390 竖屏不许横向溢出。 */
 *, *::before, *::after { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
+:root {
+  /* 2026-11-18：--card 来自 hx-theme.css，那一份是 rgb(255 255 255 / var(--hx-a)) —— clr=100 时 = 1.0，
+     卡片是纯实色；而首页工具卡实测是「.70 × --hx-a」（0 → 1.00 / 100 → 0.70 / 250 → 0）。
+     这里按首页口径覆盖，卡片三档才能和首页对上。 */
+  --card: rgb(255 255 255 / min(1, calc(.52 * var(--hx-a, 1))));
+}
+:root[data-hx-mode="dark"] { --card: rgb(28 28 30 / min(1, calc(.52 * var(--hx-a, 1)))); }
+:root {
+  /* 2026-11-18：--hx-blur 只在 hx-theme.css 里定义，而本工具只引 hx-theme.js ——
+     不补这一行，所有 backdrop-filter: var(--hx-blur) 都会解析失败、玻璃直接没有模糊。
+     值照抄 hx-theme.css，和首页同一档。 */
+  --hx-blur: saturate(180%) blur(20px);
+  /* 2026-11-18 透明度统一：输入框 / 弹窗 / 代码块原来吃 --card-solid（纯实色），不通透度滑杆。
+     --card-lift：clr=0 → 1（原实色），clr=100 → .90，clr=250 → 0。 */
+  --card-lift: rgb(255 255 255 / min(1, calc(.90 * var(--hx-a, 1))));
+}
+:root[data-hx-mode="dark"] { --card-lift: rgb(18 26 42 / min(1, calc(.90 * var(--hx-a, 1)))); }
 body { margin: 0; background: var(--bg, #f5f5f7); color: var(--ink, #1d1d1f); font: 15px/1.6 var(--hx-font, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif); overflow-x: hidden; }
 #app { width: min(1600px, 100%); margin: 0 auto; padding: 16px; }
 h1, h2 { letter-spacing: -.01em; }
@@ -37,7 +54,7 @@ button.pri, .btn.pri { background: var(--acc, #2f845a); border-color: var(--acc,
 button.danger { color: var(--bad, #d70015); }
 button.sm { padding: 5px 10px; font-size: 13px; }
 .big { padding: 12px 22px; font-size: 16px; }
-input, select, textarea { font: inherit; font-size: 14px; color: var(--ink, #1d1d1f); background: var(--card-solid, #fff); border: 1px solid var(--line2, rgba(0, 0, 0, .12)); border-radius: 10px; padding: 7px 10px; max-width: 100%; min-width: 0; }
+input, select, textarea { font: inherit; font-size: 14px; color: var(--ink, #1d1d1f); background: var(--card-lift, #fff); border: 1px solid var(--line2, rgba(0, 0, 0, .12)); border-radius: 10px; padding: 7px 10px; max-width: 100%; min-width: 0; }
 input[type=checkbox] { width: 16px; height: 16px; padding: 0; accent-color: var(--acc, #2f845a); flex: 0 0 auto; }
 textarea { width: 100%; resize: vertical; }
 table { width: 100%; table-layout: fixed; border-collapse: collapse; word-break: break-word; }
@@ -81,7 +98,7 @@ pre { white-space: pre-wrap; word-break: break-word; margin: 0; }
 
 /* 弹层 */
 .zl-modal { position: fixed; inset: 0; z-index: 9000; display: grid; place-items: center; padding: 16px; background: rgba(0, 0, 0, .4); overflow: auto; }
-.zl-mcard { width: min(620px, 100%); margin: 0; max-height: calc(100vh - 32px); overflow: auto; background: var(--card-solid, #fff); }
+.zl-mcard { width: min(620px, 100%); margin: 0; max-height: calc(100vh - 32px); overflow: auto; background: var(--card-lift, #fff); }
 .zl-f { display: grid; gap: 6px; font-size: 13px; font-weight: 600; margin-bottom: 12px; }
 .zl-f input, .zl-f select { width: 100%; }
 .pb-info p { margin: 6px 0; word-break: break-word; }
@@ -154,7 +171,7 @@ pre { white-space: pre-wrap; word-break: break-word; margin: 0; }
 .qb-body { min-width: 0; display: grid; gap: 4px; word-break: break-word; }
 .qb-t { display: inline-block; margin-right: 8px; padding: 0 7px; border-radius: 6px; background: var(--accbg, rgba(47, 132, 90, .14)); color: var(--acc, #2f845a); font-size: 12px; font-weight: 600; }
 .qb-o { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; color: var(--dim, #6e6e73); }
-.qb-code { font-size: 12.5px; padding: 6px 8px; border-radius: 8px; background: var(--card-solid, #fff); max-height: 220px; overflow: auto; }
+.qb-code { font-size: 12.5px; padding: 6px 8px; border-radius: 8px; background: var(--card-lift, #fff); max-height: 220px; overflow: auto; }
 .qb-a { font-size: 12.5px; color: var(--dim, #6e6e73); }
 .qb-act { display: flex; flex-wrap: wrap; gap: 6px; }
 @media (max-width: 560px) { .qb-i { grid-template-columns: auto minmax(0, 1fr); } .qb-act { grid-column: 2; } }

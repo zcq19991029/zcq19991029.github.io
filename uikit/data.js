@@ -18,8 +18,8 @@
      api     API 参考表（k / t / def / d）
    ───────────────────────────────────────────────────────────────────────── */
 window.UIKIT = {
-  version: '0.3',
-  updated: '2026-11-17',
+  version: '0.4',
+  updated: '2026-11-18',
   items: [
 
     /* ═══════════════════════════════════════════════════════════════════
@@ -34,7 +34,8 @@ window.UIKIT = {
       intro: [
         '原生下拉在教室里有两个致命问题：一是样式跟着操作系统跑（希沃一体机上是一坨灰色系统控件），二是选项列表又窄又丑，投屏时后排根本看不清。所以做成「原生 select 的可视替身」——select 还留在 DOM 里负责值，屏幕上看到的是这块药板。',
         '关键决策：做成一个**增强器**，而不是挨个手写弹层。项目里有九十多个 select，分散在十几个工具，很多还是 JS 动态生成的；逐个手写等于九十几套定位/关闭/键盘逻辑，最后必然歪成九十几种样子。',
-        '面板长相照抄「科目药板」那套：铝箔拉丝底 + 金属圈凹槽 + 蓝白两截胶囊，选中行把胶囊取走、露出撕开的空药槽。铝箔是实物色，深色页面上它也是一块亮银药板，不跟主题走。',
+        '面板长相照抄「科目药板」那套：铝箔压纹底 + 金属圈凹槽 + 两截胶囊，选中行把胶囊取走、露出撕开的空药槽。铝箔是实物色，深色页面上它也是一块亮银药板，不跟主题走。',
+        '**药槽和空槽全是渐变 + clip-path 画的，没有一张贴图。** 这一条踩过坑：看着那圈银边和撕口的碎箔，很自然会以为是渲染图，于是内嵌了两张 136×80 的 PNG（约 50 KB）；结果外圈变成一圈暗灰扁环、碎箔变成密集小卷，喂回参考截图一比，肉眼就能看出不像。铝箔的明暗是「斜向拉丝 + 一圈断面」的关系，渐变天生就擅长表达这个，图反而是二手信息。所以 CSS 能画出来的东西别用图 —— 顺带还省了 50 KB（三份副本都要吃这份体积）。',
         '**只像不动 = 白做**。第一版把外观抄全了，用户一眼就看出来「跟刷题那个只是长得一样」—— 真正的药丸感全在动效里：药板从触发器背后 460ms 弹出来、每颗胶囊错开 45ms 逐个醒过来；点中某一格时那格当场被撕成空槽，一颗**放大的胶囊从槽里弹起、划一道弧线扎进触发器左端缩没**，落点再炸一圈冲击环和 14 片锡纸。这些全部用 WAAPI 逐帧 `translate3d` 驱动（不改 left/top，不触发重排），极简档和系统「减少动态效果」下自动降级成纯淡入淡出。'
       ],
       source: {
@@ -50,11 +51,12 @@ window.UIKIT = {
         { k: 'data-hx-peanut', def: '—', d: '加在 <html> 上，整页的 <select> 全部接管。' },
         { k: 'data-hx-plain', def: '—', d: '加在某个 <select> 上，跳过它（比如打印页、需要原生的地方）。' },
         { k: 'multiple / size>1', def: '自动跳过', d: '多选和列表式 select 形状完全不同，组件不接管。' },
-        { k: '胶囊尺寸', def: '药槽 38×21 / 胶囊 28×11', d: '刷题原版是 54×30 / 40×16，这里乘 0.7 —— 原生 select 常常只有一百来像素宽，一颗药吃掉 54px 会把选项名挤成省略号。' },
+        { k: '药槽 / 胶囊尺寸', def: '药槽 46×26 / 胶囊 33×14', d: '两个数写进 --pn-pw / --pn-ph，药槽里所有 inset、环宽、阴影偏移都是这两个变量的百分比，所以同一套配方能同时用在面板（46×26）和触发器（按按钮实测高度 16~64）上。参考原型那次压缩用的就是 46×27，几乎同一档。' },
         { k: '展开曲线', def: '460ms cubic-bezier(.22,1.06,.36,1)', d: '药板上滑出/滑回的时间与曲线，和 opacity 320ms 并行。这条曲线起手极快、尾巴带一点过冲，就是「弹出来」的手感；换成 ease 会软塌塌。' },
         { k: '胶囊起飞', def: '430ms / 23 帧', d: '前 36% 在药槽里弹起放大（回弹曲线），后 64% 沿抛物线飞向触发器并缩到 0.34 倍、末段淡出。帧数是硬编码的数组，改曲线只改这一处。' },
         { k: '收板延迟', def: '165ms', d: '点中之后不是立刻收板，而是等「胶囊弹出槽」这一段演完（36% × 430ms ≈ 155ms）再收 —— 否则药板一眨眼就没，只剩一颗胶囊在半空飘，看不出是从哪一格取走的。数据（input/change）仍然在点击当下就派发完。' },
-        { k: '面板最大高度', def: '跟随 .hx-pn-sheet 的 overflow', d: '选项超过容器高度时面板自己滚，并且打开时自动把选中项滚到中间。' }
+        { k: '面板最大高度', def: '跟随 .hx-pn-sheet 的 overflow', d: '选项超过容器高度时面板自己滚，并且打开时自动把选中项滚到中间。' },
+        { k: '动效收尾', def: 'onfinish + finished + setTimeout 三保险', d: 'WAAPI 返回的 finished 不是保票：页面被判 hidden（后台标签、投屏切走、无头浏览器冷启动）时，这个 Promise 可能一直不 settle。后果不只是残留 —— 落定回调里那句 restore() 不跑，触发器那颗胶囊就永久停在 visibility:hidden，下拉从此变成一个没有胶囊的空槽。所以每段动画都配一个 duration+200ms 的定时兜底，回调本体做成幂等（fired/landed 布尔量），谁先到谁交卷。' },
       ],
       deps: {
         code: '不需要任何依赖、框架、构建工具。\n只有一条前置：给 <html> 加 data-hx-peanut（或用 HXPeanut.scan(root) 手动挂）。',
@@ -79,21 +81,97 @@ window.UIKIT = {
         },
         {
           lang: 'css', label: 'CSS',
-          code: `/* 面板 = 一块铝箔药板。下面这一段是配方本体，尺寸按 0.7 缩过。 */
-
-/* ① 裁剪盒：药板住在它里面，overflow:hidden 让「滑进滑出」有遮挡可依。
-      没有这一层，收起时会看到药板整块飘在触发器上方。
-      上下留 6px / 30px 内边距，是给药板那圈大阴影留呼吸位。 */
-.hx-pn-clip{
-  position:fixed; z-index:2147482000; display:none; box-sizing:border-box;
-  padding:6px 0 30px; overflow:hidden; pointer-events:none;
+          code: `/* 药板下拉 · 配方本体（与站上跑的 hx-theme.js 完全同源，从那里抽出来的）
+   ─────────────────────────────────────────────────────────────
+   ① 铝箔是实物色（浅银），所以既不跟主题也不跟触发器底色走 —— 深色页面上它也是一块亮银药板。
+   ② 整块药板的底纹 = 3 条 repeating-linear-gradient（±45° 压纹 + 横向细线）叠在 165° 银灰渐变上，
+      另加一层跟着指针走的 320px 圆形反光（--sheen-x / --sheen-y）。
+   ③ 药槽和空槽都是纯渐变 + clip-path 画的，没有一张贴图。
+      这条很关键：曾试过内嵌两张 136×80 的实拍 PNG（约 50 KB），
+      结果外圈变成暗灰扁环、碎箔变成密集小卷，和参考一比肉眼就能看出不像。
+      渐变能画出来的东西，别用图。 */
+.hx-pn{position:relative;display:inline-block;vertical-align:middle;max-width:100%;box-sizing:border-box}
+.hx-pn-src{visibility:hidden!important}
+.hx-pn-btn{
+  position:absolute;
+  inset:0;
+  box-sizing:border-box;
+  display:grid;
+  align-items:center;
+  grid-template-columns:var(--pn-pw,34px) minmax(0,1fr) 12px;
+  column-gap:8px;
+  width:100%;
+  height:100%;
+  overflow:hidden;
+  cursor:pointer;
+  margin:0;
+  padding:0 var(--pn-padr,8px) 0 var(--pn-padl,5px);
+  font:inherit;
+  line-height:1.2;
+  color:#20242a;
+  text-align:left;
+  border:1px solid rgba(255,255,255,.41);
+  border-radius:var(--pn-r,8px);
+  --sheen-x:38%;
+  --sheen-y:28%;
+  background:
+    radial-gradient(320px circle at var(--sheen-x) var(--sheen-y),rgba(255,255,255,.52) 0,rgba(255,255,255,.14) 38%,transparent 72%),
+    repeating-linear-gradient(45deg,rgba(255,255,255,.23) 0 1px,transparent 1px 3.5px),
+    repeating-linear-gradient(-45deg,rgba(55,60,70,.12) 0 1px,transparent 1px 3.5px),
+    repeating-linear-gradient(0deg,rgba(255,255,255,.145) 0,rgba(0,0,0,.04) 1px,rgba(255,255,255,.11) 2px),
+    linear-gradient(165deg,#eceef1,#d8dade 36%,#c5c9d0 74%,#d4d7dc);
+  box-shadow:
+    inset 0 1.5px 1px rgba(255,255,255,.91),
+    inset 1px 0 1px rgba(255,255,255,.65),
+    inset 0 -2px 3px rgba(72,76,86,.55),
+    inset -1px 0 2px rgba(82,86,96,.38),
+    0 3px 7px -2px rgba(0,0,0,.5),
+    0 1px 2px rgba(0,0,0,.28);
+  transition:transform 180ms cubic-bezier(.22,1,.36,1);
 }
-
-/* ② 药板本体。transition 就是「弹出来」的来源，时长别省。 */
+.hx-pn-btn:active{transform:translateY(1px) scale(.995)}
+.hx-pn-btn[disabled]{cursor:not-allowed;opacity:.55}
+.hx-pn-btn:focus-visible{outline:2px solid var(--acc,#0a84ff);outline-offset:2px}
+.hx-pn-txt{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  text-shadow:0 1px rgba(255,255,255,.66);
+}
+.hx-pn-car{
+  justify-self:center;
+  width:6px;
+  height:6px;
+  border-right:1.7px solid currentColor;
+  border-bottom:1.7px solid currentColor;
+  transform:translateY(-2px) rotate(45deg);
+  opacity:.55;
+  transition:transform 300ms cubic-bezier(.22,1,.36,1);
+}
+.hx-pn-btn[aria-expanded="true"] .hx-pn-car{transform:translateY(1px) rotate(-135deg)}
+.hx-pn-clip{
+  position:fixed;
+  z-index:2147482000;
+  display:none;
+  box-sizing:border-box;
+  padding:6px 0 30px;
+  overflow:hidden;
+  pointer-events:none;
+}
 .hx-pn-sheet{
-  position:relative; box-sizing:border-box; width:100%; overflow:auto; pointer-events:auto;
-  transition:transform 460ms cubic-bezier(.22,1.06,.36,1), opacity 320ms cubic-bezier(.22,1.06,.36,1);
-  padding:6px; border-radius:14px; color:#20242a; border:1px solid rgba(255,255,255,.41);
+  position:relative;
+  box-sizing:border-box;
+  width:100%;
+  overflow:auto;
+  pointer-events:auto;
+  --pn-pw:46px;
+  --pn-ph:26px;
+  transition:transform 460ms cubic-bezier(.22,1.06,.36,1),opacity 320ms cubic-bezier(.22,1.06,.36,1);
+  padding:6px;
+  border-radius:14px;
+  color:#20242a;
+  border:1px solid rgba(255,255,255,.41);
   background:
     radial-gradient(300px circle at 38% 28%,rgba(255,255,255,.52) 0,rgba(255,255,255,.14) 38%,transparent 72%),
     repeating-linear-gradient(45deg,rgba(255,255,255,.23) 0 1px,transparent 1px 3.5px),
@@ -101,124 +179,225 @@ window.UIKIT = {
     repeating-linear-gradient(0deg,rgba(255,255,255,.145) 0,rgba(0,0,0,.04) 1px,rgba(255,255,255,.11) 2px),
     linear-gradient(165deg,#eceef1,#d8dade 36%,#c5c9d0 74%,#d4d7dc);
   box-shadow:
-    inset 0 1.5px 1px rgba(255,255,255,.91), inset 1px 0 1px rgba(255,255,255,.65),
-    inset 0 -2px 3px rgba(72,76,86,.55), inset -1px 0 2px rgba(82,86,96,.38),
-    0 14px 30px -8px rgba(0,0,0,.6), 0 4px 10px rgba(0,0,0,.31);
+    inset 0 1.5px 1px rgba(255,255,255,.91),
+    inset 1px 0 1px rgba(255,255,255,.65),
+    inset 0 -2px 3px rgba(72,76,86,.55),
+    inset -1px 0 2px rgba(82,86,96,.38),
+    0 14px 30px -8px rgba(0,0,0,.6),
+    0 4px 10px rgba(0,0,0,.31);
+  -webkit-overflow-scrolling:touch;
 }
-
-/* ③ 收起位：藏到触发器背后。--pn-hide 由 JS 按实测高度写（向上展开时取正值反向藏），
-      写死 -100% 只能应付「向下展开」那一种情况。 */
-.hx-pn-sheet[inert]{ transform:translateY(var(--pn-hide,-160px)); opacity:0; pointer-events:none; }
-
-/* 一行 = 药板上的一格：左边一颗药，右边名字 */
 .hx-pn-opt{
-  display:grid; grid-template-columns:38px minmax(0,1fr); gap:9px; align-items:center;
-  width:100%; box-sizing:border-box; min-height:42px; padding:0 11px;
-  border:0; border-radius:0; background:transparent; color:#20242a;
-  font:inherit; font-size:13.5px; font-weight:600; text-align:left; cursor:pointer; overflow:hidden;
+  display:grid;
+  grid-template-columns:46px minmax(0,1fr);
+  gap:10px;
+  align-items:center;
+  width:100%;
+  box-sizing:border-box;
+  min-height:46px;
+  padding:0 12px 0 10px;
+  margin:0;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  color:#20242a;
+  font:inherit;
+  font-size:13.5px;
+  font-weight:600;
+  text-align:left;
+  cursor:pointer;
+  overflow:hidden;
 }
-.hx-pn-opt + .hx-pn-opt{ border-top:1px dotted rgba(84,89,100,.53); }
-.hx-pn-opt:hover{ background:rgba(255,255,255,.24); }
-.hx-pn-opt.dis{ opacity:.42; cursor:not-allowed; }
+.hx-pn-opt+.hx-pn-opt{border-top:1px dotted rgba(84,89,100,.53)}
+.hx-pn-opt:hover{background:rgba(255,255,255,.24)}
+.hx-pn-opt:active{background:rgba(0,0,0,.05)}
+.hx-pn-opt:focus-visible{outline:2px solid #1a56ff;outline-offset:-3px}
+.hx-pn-opt.dis{opacity:.42;cursor:not-allowed}
 
-/* 药槽：四层叠出来 —— 金属圈(含压痕) → 胶囊 → 玻璃罩 → 撕开的空槽 */
-.hx-pn-pk{ position:relative; display:grid; place-items:center; width:38px; height:21px; isolation:isolate; }
+/* ── 药槽 = 四层叠出来：金属圈(含压痕) → 胶囊 → 塑料罩 → 选中的空槽 ──
+   尺寸全部由 --pn-pw / --pn-ph 驱动：面板里 46×26，触发器里由 JS 按按钮实测高度写（16~64）。
+   下面所有 inset / 环宽 / 阴影偏移都是这两个变量的百分比，所以同一套配方在两种尺寸下比例一致，
+   不会出现「小槽配粗金属圈」。换算基准：46×26 下 1px ≈ .038ph / .022pw。 */
+.hx-pn-pk{
+  position:relative;
+  display:grid;
+  place-items:center;
+  isolation:isolate;
+  pointer-events:none;
+  width:var(--pn-pw,46px);
+  height:var(--pn-ph,26px);
+}
+
+/* 药槽外圈：162deg 的明暗交替反光（不是单向渐变 —— 铝箔拉丝是斜向的）+ 3 层 inset 环 */
 .hx-pn-rim{
-  position:absolute; inset:1px 1.5px; border-radius:999px;
-  background:linear-gradient(162deg,rgba(251,252,255,.61) 2%,rgba(115,121,134,.47) 24%,
-    rgba(244,245,248,.32) 49%,rgba(76,82,94,.33) 66%,#fff 96%);
-  box-shadow:0 1px 1.4px rgba(0,0,0,.27),
-    inset 0 0 0 1px rgba(250,252,255,.75), inset 0 0 0 1.5px rgba(130,136,149,.55),
-    inset 0 0 0 2.5px rgba(233,237,242,.61), inset 0 .7px 3.5px rgba(51,57,70,.77);
+  position:absolute;
+  border-radius:999px;
+  inset:calc(var(--pn-ph,26px)*.038) calc(var(--pn-pw,46px)*.033);
+  background:linear-gradient(162deg,rgba(251,252,255,.61) 2%,rgba(115,121,134,.47) 24%,rgba(244,245,248,.32) 49%,rgba(76,82,94,.33) 66%,#fff 96%);
+  box-shadow:
+    0 calc(var(--pn-ph,26px)*.038) calc(var(--pn-ph,26px)*.077) rgba(0,0,0,.27),
+    inset 0 0 0 1px rgba(250,252,255,.67),
+    inset 0 0 0 calc(var(--pn-ph,26px)*.077) rgba(130,136,149,.55),
+    inset 0 0 0 calc(var(--pn-ph,26px)*.115) rgba(233,237,242,.6),
+    inset 0 calc(var(--pn-ph,26px)*.038) calc(var(--pn-ph,26px)*.154) rgba(51,57,70,.69);
 }
+
+/* 槽底：比外圈暗一档的凹陷面 + 上方压影 + 下方回光。缺了这层，胶囊像浮在铝箔上而不是嵌在槽里 */
 .hx-pn-rim::after{
-  content:""; position:absolute; inset:3.5px; border-radius:inherit;
+  content:"";
+  position:absolute;
+  border-radius:inherit;
+  inset:calc(var(--pn-ph,26px)*.154);
   background:rgba(184,187,198,.36);
-  box-shadow:inset 0 1.4px 2px rgba(52,56,66,.33), inset 0 -.7px .7px #fff;
+  box-shadow:
+    inset 0 calc(var(--pn-ph,26px)*.077) calc(var(--pn-ph,26px)*.154) rgba(52,56,66,.33),
+    inset 0 -1px 1px #fff;
 }
+
+/* 塑料罩：斜向高光，压在胶囊上面 */
 .hx-pn-dome{
-  position:absolute; z-index:2; inset:3px 4px; border-radius:999px;
-  background:linear-gradient(145deg,rgba(255,255,255,.33),rgba(255,255,255,.07) 32%,
-    transparent 56%,rgba(255,255,255,.13));
+  position:absolute;
+  z-index:2;
+  border-radius:999px;
+  inset:calc(var(--pn-ph,26px)*.115) calc(var(--pn-pw,46px)*.109);
+  background:linear-gradient(145deg,rgba(255,255,255,.33),rgba(255,255,255,.07) 32%,transparent 56%,rgba(255,255,255,.13));
   box-shadow:inset 0 1px 1px rgba(255,255,255,.6);
 }
-.hx-pn-pill{
-  position:relative; width:28px; height:11px; border-radius:999px;
+
+/* 三种胶囊：0 蓝白 / 1 琥珀 / 2 鼠尾草，按「选项下标 % 3」分配。
+   飞行胶囊和槽里那颗共用同一套材质（:is 一起选）—— 分开写会出现「飞出去是蓝的、落下来变琥珀」的断层。 */
+:is(.hx-pn-pill,.hx-pn-flight){
+  position:relative;
+  border-radius:999px;
+  width:calc(var(--pn-pw,46px)*.717);
+  height:calc(var(--pn-ph,26px)*.538);
   background:linear-gradient(90deg,#0645c5 0 49%,#e8e8e8 50%);
-  box-shadow:0 1px 2px rgba(17,24,34,.4), inset 0 1px 1px rgba(0,0,0,.4);
+  box-shadow:
+    0 calc(var(--pn-ph,26px)*.05) calc(var(--pn-ph,26px)*.09) rgba(17,24,34,.4),
+    inset 0 1px 1px rgba(0,0,0,.4);
 }
-.hx-pn-pill::before{
-  content:""; position:absolute; inset:1.4px 50% 1.8px 1.8px;
-  border:1px solid rgba(96,153,252,.33); border-right:0; border-radius:999px 0 0 999px;
+:is(.hx-pn-pill,.hx-pn-flight)::before{
+  content:"";
+  position:absolute;
+  inset:calc(var(--pn-ph,26px)*.054) 50% calc(var(--pn-ph,26px)*.077) calc(var(--pn-pw,46px)*.043);
+  border:1px solid rgba(96,153,252,.33);
+  border-right:0;
+  border-radius:999px 0 0 999px;
 }
-.hx-pn-pill::after{
-  content:""; position:absolute; inset:0; border-radius:inherit;
+:is(.hx-pn-pill,.hx-pn-flight)::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius:inherit;
   background:linear-gradient(180deg,rgba(0,0,0,.47),transparent 33%,rgba(255,255,255,.33) 68%,rgba(0,0,0,.27));
   box-shadow:inset 0 -.7px .7px rgba(0,0,0,.33);
 }
-/* 选中的那一格：胶囊被取走，露出撕开的空槽（毛边用 clip-path 切） */
+
+/* 琥珀 */
+:is(.hx-pn-pill,.hx-pn-flight)[data-mat="1"]{
+  background:
+    radial-gradient(ellipse at 46% 51%,#63320c 0 25%,#ac570c 40%,transparent 65%),
+    linear-gradient(156deg,#783a09 12%,#ffa226 28%,#d07516 44%,#4c200a 68%,#ffc25b 83%,#7e4109 94%);
+  box-shadow:
+    0 calc(var(--pn-ph,26px)*.06) calc(var(--pn-ph,26px)*.1) rgba(29,12,1,.38),
+    inset 0 0 0 1px #6d300a,
+    inset 0 0 calc(var(--pn-ph,26px)*.15) #ee9f40;
+}
+:is(.hx-pn-pill,.hx-pn-flight)[data-mat="1"]::before{display:none}
+:is(.hx-pn-pill,.hx-pn-flight)[data-mat="1"]::after{
+  inset:calc(var(--pn-ph,26px)*.077) calc(var(--pn-pw,46px)*.098);
+  background:linear-gradient(178deg,#ffe6ad 0,transparent 25%,rgba(51,19,5,.55) 53%,#ffd486 92%);
+  box-shadow:
+    calc(var(--pn-pw,46px)*-.087) calc(var(--pn-ph,26px)*.077) 0 calc(var(--pn-pw,46px)*-.043) #fff5dc,
+    inset 0 0 1px #fff3cf;
+}
+
+/* 鼠尾草 */
+:is(.hx-pn-pill,.hx-pn-flight)[data-mat="2"]{
+  background:linear-gradient(90deg,#778b70 0 51%,#58674f 52%,#83927a 55%,#65785e 96%);
+  box-shadow:
+    0 calc(var(--pn-ph,26px)*.06) calc(var(--pn-ph,26px)*.1) rgba(17,29,20,.47),
+    inset 0 1px 1px rgba(37,44,34,.43);
+}
+:is(.hx-pn-pill,.hx-pn-flight)[data-mat="2"]::before{display:none}
+:is(.hx-pn-pill,.hx-pn-flight)[data-mat="2"]::after{
+  background:
+    radial-gradient(ellipse at 23% 74%,rgba(230,235,212,.55),transparent 45%),
+    linear-gradient(180deg,rgba(34,44,33,.66),transparent 32%,rgba(206,212,190,.36) 70%,rgba(48,60,46,.44));
+}
+
+/* 选中 = 这颗药被抠走了，露出撕开的空槽。三层缺一不可：
+   ① 本体 conic 12 段明暗交替 = 撕开一圈的金属箔断面
+      ← 亮度必须和隔壁完整药槽的银圈对齐，否则选中行看起来像矮了一截
+   ② ::before 16 个点的锯齿 clip-path + 椭圆深洞 = 撕口的毛边
+   ③ ::after 左下 37%×61% 的折面 = 折起来的碎箔
+      ← 一层银白三角就够。做成密集小卷（像揉皱的锡纸）是错的，参考里是整片折角 */
 .hx-pn-cav{
-  position:absolute; inset:1px 1.5px; display:none; border-radius:999px;
-  background:conic-gradient(from 12deg,#f5f5f5,#666970 10%,#e4e6e8 17%,#b8bbc2 29%,
-    #f5f5f5 37%,#484b50 48%,#d6d8db 59%,#878b91 66%,#f6f6f6 78%,#4a4c50 89%,#efeff0);
-  box-shadow:inset 0 0 0 1px #fff, inset 0 0 0 1.5px #7a7d82,
-    inset 0 0 0 2.5px #e4e6ea, 0 1.4px 2.8px rgba(0,0,0,.31);
+  position:absolute;
+  display:none;
+  border-radius:999px;
+  inset:calc(var(--pn-ph,26px)*.038) calc(var(--pn-pw,46px)*.033);
+  background:conic-gradient(from 12deg,#f5f5f5,#666970 10%,#e4e6e8 17%,#b8bbc2 29%,#f5f5f5 37%,#484b50 48%,#d6d8db 59%,#878b91 66%,#f6f6f6 78%,#4a4c50 89%,#efeff0);
+  box-shadow:
+    inset 0 0 0 1px #fff,
+    inset 0 0 0 calc(var(--pn-ph,26px)*.077) #7a7d82,
+    inset 0 0 0 calc(var(--pn-ph,26px)*.115) #e4e6ea,
+    0 calc(var(--pn-ph,26px)*.038) calc(var(--pn-ph,26px)*.077) rgba(0,0,0,.27);
 }
-.hx-pn-cav::before, .hx-pn-cav::after{ content:""; position:absolute; }
+.hx-pn-cav::before,.hx-pn-cav::after{content:"";position:absolute}
+
+/* 撕口：clip-path 切出锯齿边，里面是椭圆深洞 + 4deg 的细横纹 */
 .hx-pn-cav::before{
-  inset:3px 4px;
-  clip-path:polygon(0 34%,9% 10%,25% 18%,38% 0,52% 14%,72% 0,89% 15%,100% 36%,
-    97% 77%,87% 95%,69% 86%,56% 100%,38% 82%,24% 92%,20% 64%,4% 63%);
-  background:repeating-linear-gradient(4deg,rgba(255,255,255,.06) 0 1px,transparent 1px 3px),
+  inset:calc(var(--pn-ph,26px)*.115) calc(var(--pn-pw,46px)*.087);
+  clip-path:polygon(0 34%,9% 10%,25% 18%,38% 0,52% 14%,72% 0,89% 15%,100% 36%,97% 77%,87% 95%,69% 86%,56% 100%,38% 82%,24% 92%,20% 64%,4% 63%);
+  background:
+    repeating-linear-gradient(4deg,rgba(255,255,255,.06) 0 1px,transparent 1px 3px),
     radial-gradient(ellipse at 50% 78%,#4d4f51,#252729 62%,#111214 83%);
-  box-shadow:inset 0 3px 8px #000;
+  box-shadow:inset 0 4px 12px #000;
 }
+
+/* 折起来的碎箔：只占左下 37%×61%，conic 打出折面明暗 */
 .hx-pn-cav::after{
-  width:37%; height:61%; left:8%; bottom:9%;
+  width:37%;
+  height:61%;
+  left:8%;
+  bottom:9%;
   clip-path:polygon(0 3%,38% 14%,52% 30%,85% 42%,74% 64%,99% 90%,51% 100%,11% 75%);
-  background:conic-gradient(from 31deg at 46% 49%,rgba(255,255,255,.73),#8c8f95,#fff,
-    #53565e,#f9fafc,#bcbec3,rgba(255,255,255,.73));
+  background:conic-gradient(from 31deg at 46% 49%,#fffb,#8c8f95,#fff,#53565e,#f9fafc,#bcbec3,#fffb);
 }
-.hx-pn-opt.on .hx-pn-cav{ display:block; }
-.hx-pn-opt.on :is(.hx-pn-rim,.hx-pn-dome,.hx-pn-pill){ visibility:hidden; }
-.hx-pn-opt.on .hx-pn-txt{ font-weight:800; }
+.hx-pn-opt.on .hx-pn-cav{display:block}
+.hx-pn-opt.on :is(.hx-pn-rim,.hx-pn-dome,.hx-pn-pill){visibility:hidden}
+.hx-pn-opt.on .hx-pn-txt{font-weight:800}
+.hx-pn-grp{padding:8px 12px 3px;font-size:10.5px;font-weight:700;letter-spacing:.08em;color:#5c626b}
+.hx-pn-empty{padding:10px 12px;font-size:13px;color:#4a4f57}
 
-/* ── 动效层：一颗会飞的胶囊 + 铝箔碎屑 ─────────────────────────────
-   飞行的胶囊不能放在 .hx-pn-clip 里 —— 裁剪盒只罩住药板，触发器在它外面，
-   飞行路径会被裁掉。所以单独开一层铺满视口、不吃事件的层，坐标就是视口坐标。 */
-.hx-pn-fx{ position:fixed; inset:0; z-index:2147482001; display:none; pointer-events:none; overflow:hidden; }
+/* 收起位：藏到触发器背后。--pn-hide 由 JS 按实测高度写像素值（向上展开时取正值反向藏），
+   写死 -100% 只能应付「向下展开」那一种情况 */
+.hx-pn-sheet[inert]{transform:translateY(var(--pn-hide,-160px));opacity:0;pointer-events:none}
 
-/* 飞行中的那颗：和药槽里的胶囊同一套渐变 + 两道高光，尺寸也一样（爬起来才不像换了个东西） */
-.hx-pn-flight{
-  position:absolute; top:0; left:0; width:28px; height:11px; border-radius:999px;
-  background:linear-gradient(90deg,#0645c5 0 49%,#e8e8e8 50%);
-  box-shadow:0 1px 2px rgba(17,24,34,.4), inset 0 1px 1px rgba(0,0,0,.4);
-  will-change:transform;
-}
-.hx-pn-flight::before{
-  content:""; position:absolute; inset:1.4px 50% 1.8px 1.8px;
-  border:1px solid rgba(96,153,252,.33); border-right:0; border-radius:999px 0 0 999px;
-}
-.hx-pn-flight::after{
-  content:""; position:absolute; inset:0; border-radius:inherit;
-  background:linear-gradient(180deg,rgba(0,0,0,.47),transparent 33%,rgba(255,255,255,.33) 68%,rgba(0,0,0,.27));
-  box-shadow:inset 0 -.7px .7px rgba(0,0,0,.33);
-}
-
-/* 碎屑组：一圈冲击环 + 若干片锡纸，位置由 JS 写 left/top，每片自己一条 WAAPI 轨迹 */
-.hx-pn-burst{ position:absolute; pointer-events:none; }
-.hx-pn-burst > span{ position:absolute; background:#f4f6f9; box-shadow:0 0 1px #51535f; }
-.hx-pn-burst > .hx-pn-ring{
-  width:18px; height:10px; margin:-5px -9px; background:transparent;
-  border:1px solid #1a56ff; border-radius:50%; box-shadow:none;
+/* ── 动效层：一颗会飞的胶囊 + 铝箔碎屑 ──
+   飞行胶囊不能放进 .hx-pn-clip —— 裁剪盒只罩住药板，触发器在它外面，飞行路径会被裁掉。
+   所以单独开一层铺满视口、不吃事件的层，坐标就是视口坐标。 */
+.hx-pn-fx{position:fixed;inset:0;z-index:2147482001;display:none;pointer-events:none;overflow:hidden}
+.hx-pn-flight{position:absolute;top:0;left:0;width:33px;height:14px;will-change:transform}
+.hx-pn-burst{position:absolute;pointer-events:none}
+.hx-pn-burst>span{position:absolute;background:#f4f6f9;box-shadow:0 0 1px #51535f}
+.hx-pn-burst>.hx-pn-ring{
+  width:18px;
+  height:10px;
+  margin:-5px -9px;
+  background:transparent;
+  border:1px solid #1a56ff;
+  border-radius:50%;
+  box-shadow:none;
 }
 
 /* 极简档 / 系统「减少动态效果」：药板不滑、胶囊不飞，只淡入淡出 */
-html.hx-lite .hx-pn-sheet{ transition:opacity .16s linear; }
-html.hx-lite .hx-pn-sheet[inert]{ transform:none; }
+html.hx-lite .hx-pn-sheet{box-shadow:0 6px 16px rgba(0,0,0,.4)}
+html.hx-lite .hx-pn-sheet{transition:opacity .16s linear}
+html.hx-lite .hx-pn-sheet[inert]{transform:none}
 @media (prefers-reduced-motion:reduce){
-  .hx-pn-sheet{ transition:opacity .16s linear; }
-  .hx-pn-sheet[inert]{ transform:none; }
+  .hx-pn-sheet{transition:opacity .16s linear}.hx-pn-sheet[inert]{transform:none}
 }`
         },
         {
@@ -592,15 +771,17 @@ html.hx-lite .hx-pn-sheet[inert]{ transform:none; }
 3. 按钮外观从 select 的 computed style 现场抄（color / backgroundColor / font / borderRadius / padding），
    不抄宽高 —— 靠 select 自己的盒子撑包装层，响应式自动跟。抄 backgroundImage 时要把含 url() 的层丢掉，
    否则原生箭头图标会被平铺满整条按钮。
-4. 面板是一块铝箔药板，视觉四层：
-   · 金属圈：linear-gradient(162deg, 五个色标) + 4 层 inset 阴影（0 0 0 1px 白 / 1.5px 灰 / 2.5px 浅 / 0 .7px 3.5px 深）
-   · 压痕：金属圈的 ::after，inset 3.5px，浅灰半透明 + 两道 inset 阴影
-   · 胶囊：28×11 圆角，linear-gradient(90deg,#0645c5 0 49%,#e8e8e8 50%)，再加 ::before 左侧高光圈和 ::after 上下明暗
-   · 玻璃罩：inset 3px 4px 的半透明白渐变，盖在胶囊上
-   选中行：前三层 visibility:hidden，露出「撕开的空槽」—— conic-gradient 金属边 + clip-path 多边形毛边 + 里面一个径向渐变黑洞 + 一片反光锡纸。
+4. 面板是一块铝箔药板，视觉四层（尺寸全部由 --pn-pw / --pn-ph 两个变量驱动，
+   46×26 基准下 1px ≈ .038ph / .022pw，所以同一份 CSS 能从 30×17 撑到 112×64）：
+   · 金属圈：linear-gradient(162deg, 五个色标) + 4 层 shadow（0 1px 2px 落影 / inset 1px 白环 / 2px 灰环 / 3px 亮灰环 / inset 0 1px 4px 内凹压影）
+   · 槽底：金属圈的 ::after，inset 4px，浅灰半透明 + 两道 inset 阴影（上压影、下回光）
+   · 胶囊：33×14 圆角，linear-gradient(90deg,#0645c5 0 49%,#e8e8e8 50%)，再加 ::before 左侧高光圈和 ::after 上下明暗
+   · 塑料罩：inset 3px 5px 的半透明白渐变，盖在胶囊上
+   选中行：前三层 visibility:hidden，露出「撕开的空槽」—— conic-gradient 金属断面 + clip-path 16 点锯齿毛边 + 里面一个径向渐变黑洞 + 左下一片折起来的反光锡纸。
+   注意这三层缺一不可：少了金属断面，选中行会比隔壁矮一截；少了折片，就变成一个纯黑洞。
 5. 药板本身：多层背景叠出来（径向高光 + ±45° 1px 斜纹 + 水平拉丝 + 银灰渐变），五层阴影，
    圆角 14px。注意它是实物色，深色页面上也保持亮银，不跟主题变色。
-6. 一行 = grid-template-columns: 38px minmax(0,1fr)，min-height 42px，行间 1px 点线。
+6. 一行 = grid-template-columns: 46px minmax(0,1fr)，min-height 46px，行间 1px 点线。
 7. 定位用一个 fixed 面板：打开时量触发器 rect，宽度不小于触发器，下面放不下就翻到上面；
    页面滚动、按 Esc、点面板外都收起；选项多时面板自己滚并自动把选中项滚到中间。
 8. 代码改值（sel.value = x）不会触发事件，所以在 HTMLSelectElement.prototype 的
@@ -616,7 +797,7 @@ html.hx-lite .hx-pn-sheet[inert]{ transform:none; }
     显示和位移在同一帧里一起变，浏览器不起过渡，下一帧才播，所以每次都能看到「从触发器背后滑出来」。
 12. --pn-hide 不能用 -100%：向上展开时药板要往下藏。由 JS 按实测高度写 px（下面展开取 -(h+16)、上面展开取 +(h+16)）。
 13. 选中时先量好两个矩形（被点那格的 .hx-pn-pk、触发器 .hx-pn-btn），再关板子。
-    然后一颗 28×11 的同款胶囊从药槽中心起飞，430ms / 23 帧用 translate3d 拼：
+    然后一颗 33×14 的同款胶囊从药槽中心起飞，430ms / 23 帧用 translate3d 拼：
     前 36% 用回弹曲线 back(t)=1+2.70158(t-1)³+1.70158(t-1)² 在槽里弹起（scale 1→1.3，同时上抬 5px），
     后 64% 用缓入缓出沿抛物线飞向触发器左端（x = dst.left + 13、y = 触发器垂直居中），
     scale 收到 .34、最后 16% 淡出。起点同时炸一圈 scale 到 3.2 的蓝色细环 + 14 片锡纸碎屑（随机角度、290~386ms）；
@@ -624,11 +805,218 @@ html.hx-lite .hx-pn-sheet[inert]{ transform:none; }
     这颗胶囊必须放在独立的、position:fixed inset:0 的 fx 层里 —— 放进裁剪盒会被裁掉，因为触发器在盒子外面。
 14. 收板子要延迟 165ms（≈ 36% × 430ms），让「胶囊弹出槽」那一段在板子上演完；
     但 input/change 必须在点击当下就同步派发，不能跟着动画一起晚。
-15. html.hx-lite 或 prefers-reduced-motion: reduce 时：不飞行、不放碎屑、药板不滑，只保留 opacity .16s 的淡入淡出。`
+15. WAAPI 的收尾别只挂 anim.finished.then()。页面被判 hidden（后台标签、投屏被切走、无头浏览器冷启动）时
+    这个 Promise 可能一直不 settle。后果不只是留残影 —— 落定回调里那句 restore() 不跑，
+    触发器那颗胶囊就永久停在 visibility:hidden，下拉从此变成一个没有胶囊的空槽。
+    做法：每段动画都配一个 duration+200ms 的 setTimeout 兜底，回调本体做成幂等（fired / landed 布尔量），谁先到谁交卷。
+16. html.hx-lite 或 prefers-reduced-motion: reduce 时：不飞行、不放碎屑、药板不滑，只保留 opacity .16s 的淡入淡出。`
     },
 
     /* ═══════════════════════════════════════════════════════════════════
-       2. 卡片通透度（毛玻璃卡片）
+       2. 铝箔药板材质
+       ═══════════════════════════════════════════════════════════════════ */
+    {
+      id: 'blister',
+      name: '铝箔药板材质',
+      sub: '一颗药嵌在金属药槽里：药槽 / 撕开的空槽 / 三种胶囊，加下药板那块铝箔底',
+      tags: ['药板', '铝箔', '药槽', '胶囊', '金属', '拟物', '材质', 'blister', 'foil', 'pill'],
+      date: '2026-11-18',
+      intro: [
+        '这是药丸下拉里「真正像药」的那一半 —— 下拉的定位、键盘、选中逻辑都在 peanut 那条里，这里只讲材质：一颗胶囊怎么看起来是**嵌在**铝箔的药槽里，而不是贴在上面。',
+        '三层叠出来：**铝箔底**（±45° 压纹 + 横向细线 + 165° 银灰渐变，另加一层跟着鼠标走的圆形反光）→ **药槽**（162° 明暗交替反光 + 3 层 inset 环 + 内凹压痕 + 半透明塑料罩）→ **胶囊**。选中时把胶囊和药槽一起藏掉，换成**空槽**：conic 金属断面 + 16 点锯齿撕口 + 左下一片折起来的碎箔。',
+        '整套配方只有两个尺寸变量 `--pn-pw` / `--pn-ph`，所有 inset、环宽、阴影偏移都写成它们的百分比。因此同一份 CSS 能同时撑住 30×17（塞进 36px 表单行的触发器）和 112×64（原尺寸）—— 不用像手写死像素那样给小尺寸再抄一套参数。',
+        '**这些都是渐变画的，没有一张贴图。** 踩过的坑写在这里：那圈银边和撕口的碎箔太像渲染图，一开始真的内嵌了两张 136×80 的 PNG（约 50 KB），结果外圈变成一圈暗灰扁环、碎箔变成密集小卷，喂回参考截图一比肉眼就能看出不像。铝箔的观感本质是「斜向拉丝 + 一圈断面」的明暗关系，渐变天生擅长，图反而是二手信息。',
+        '铝箔是实物色（浅银），所以它**不跟主题走**：深色页面上它仍然是一块亮银药板。这是有意的 —— 药板如果跟着夜间模式变暗，就变成一块深灰色的塑料片了。'
+      ],
+      source: {
+        name: '华夏工具 · 刷题「科目药板」',
+        note: '参考学习开源社区，仅供学习使用。'
+      },
+      demo: 'blister.html',
+      demoH: 510,
+      params: [
+        { k: '--pn-pw / --pn-ph', def: '46px / 26px', d: '药槽的宽高。整套配方唯一的两个尺寸输入：改这两个值，环宽、压痕、胶囊、撕口、折片全部按比例跟着变。面板里 46×26，触发器里由 JS 按按钮实测高度写（16~64）。' },
+        { k: 'data-mat', def: '0', d: '胶囊材质。0 = 蓝白两截（默认）、1 = 琥珀（带一圈偏心高光和左侧回光）、2 = 鼠尾草（哑光绿）。组件里按「选项下标 % 3」自动分配，不会两行连着同色。' },
+        { k: 'is-cav（组件里是 .on）', def: '—', d: '选中态。加上它就把 rim + dome + pill 一起 visibility:hidden，露出下面的空槽。用 visibility 而不是 display：四层都在原位、不触发重排，尺寸也不会跳。' },
+        { k: '--sheen-x / --sheen-y', def: '38% / 28%', d: '铝箔底那圈 320px 圆形反光的位置。组件里跟着指针写这两个值，就有「药板被手电照到」的感觉；不要的话固定住也好看。' },
+        { k: '换算基准', def: '1px ≈ .038ph / .022pw', d: '所有比例值都按 46×26 换算过来（46×26 下 1px 在该方向上的占比）。想在别的基准尺寸上重新对一遍参考，用这两个数反推就行。' }
+      ],
+      deps: {
+        code: '纯 CSS，零依赖。\n只有一条：外层要有一个能铺底的容器（药板 .hx-pn-sheet 或你自己的卡片），它自己不带背景。',
+        note: '本站版本在 hx-theme.js 里随药丸下拉一起注入，类名 .hx-pn-* 全站通用。'
+      },
+      code: [
+        {
+          lang: 'css', label: 'CSS',
+          code: `/* ═══ ① 铝箔底：药板本体 ═══════════════════════════════════════════
+   3 条 repeating-linear-gradient 叠在 165° 银灰渐变上，最上面再加一层圆形反光。
+   ±45° 那两条是「压纹」，0deg 那条是横向细线 —— 缺了横向那条，铝箔会变成一块布。 */
+.hx-pn-sheet{
+  border:1px solid rgba(255,255,255,.41); border-radius:14px; padding:6px;
+  --sheen-x:38%; --sheen-y:28%;
+  background:
+    radial-gradient(320px circle at var(--sheen-x) var(--sheen-y),
+      rgba(255,255,255,.52) 0,rgba(255,255,255,.14) 38%,transparent 72%),
+    repeating-linear-gradient(45deg,rgba(255,255,255,.23) 0 1px,transparent 1px 3.5px),
+    repeating-linear-gradient(-45deg,rgba(55,60,70,.12) 0 1px,transparent 1px 3.5px),
+    repeating-linear-gradient(0deg,rgba(255,255,255,.145) 0,rgba(0,0,0,.04) 1px,rgba(255,255,255,.11) 2px),
+    linear-gradient(165deg,#eceef1,#d8dade 36%,#c5c9d0 74%,#d4d7dc);
+  box-shadow:
+    inset 0 1.5px 1px rgba(255,255,255,.91), inset 1px 0 1px rgba(255,255,255,.65),
+    inset 0 -2px 3px rgba(72,76,86,.55), inset -1px 0 2px rgba(82,86,96,.38),
+    0 14px 30px -8px rgba(0,0,0,.6), 0 4px 10px rgba(0,0,0,.31);
+}
+
+/* ═══ ② 药槽：一个容器 + 四层 ═══════════════════════════════════════
+   尺寸只认这两个变量。下面所有 inset / 环宽 / 阴影偏移都写成它们的百分比，
+   所以 30×17 和 112×64 用的是同一份代码。换算基准：46×26 下 1px ≈ .038ph / .022pw。 */
+.hx-pn-pk{
+  position:relative; display:grid; place-items:center; isolation:isolate; pointer-events:none;
+  width:var(--pn-pw,46px); height:var(--pn-ph,26px);
+}
+
+/* 外圈：162deg 的明暗交替反光 —— 单向渐变会像塑料，铝箔拉丝是斜向的。
+   再叠 3 层 inset 环（白边 / 灰环 / 亮灰环）+ 内凹压痕，槽的厚度全靠这几层。 */
+.hx-pn-rim{
+  position:absolute; border-radius:999px;
+  inset:calc(var(--pn-ph,26px)*.038) calc(var(--pn-pw,46px)*.033);
+  background:linear-gradient(162deg,rgba(251,252,255,.61) 2%,rgba(115,121,134,.47) 24%,
+    rgba(244,245,248,.32) 49%,rgba(76,82,94,.33) 66%,#fff 96%);
+  box-shadow:0 calc(var(--pn-ph,26px)*.038) calc(var(--pn-ph,26px)*.077) rgba(0,0,0,.27),
+    inset 0 0 0 1px rgba(250,252,255,.67),
+    inset 0 0 0 calc(var(--pn-ph,26px)*.077) rgba(130,136,149,.55),
+    inset 0 0 0 calc(var(--pn-ph,26px)*.115) rgba(233,237,242,.6),
+    inset 0 calc(var(--pn-ph,26px)*.038) calc(var(--pn-ph,26px)*.154) rgba(51,57,70,.69);
+}
+/* 槽底：比外圈暗一档 + 上方压影 + 下方回光。
+   ★ 没有这一层，胶囊就是「浮在铝箔上」而不是「嵌在槽里」—— 整组里最不能省的一段。 */
+.hx-pn-rim::after{
+  content:""; position:absolute; border-radius:inherit;
+  inset:calc(var(--pn-ph,26px)*.154); background:rgba(184,187,198,.36);
+  box-shadow:inset 0 calc(var(--pn-ph,26px)*.077) calc(var(--pn-ph,26px)*.154) rgba(52,56,66,.33),
+    inset 0 -1px 1px #fff;
+}
+/* 半透明塑料罩：斜向高光压在胶囊上面，药板那层「吸塑壳」就是它 */
+.hx-pn-dome{
+  position:absolute; z-index:2; border-radius:999px;
+  inset:calc(var(--pn-ph,26px)*.115) calc(var(--pn-pw,46px)*.109);
+  background:linear-gradient(145deg,rgba(255,255,255,.33),rgba(255,255,255,.07) 32%,
+    transparent 56%,rgba(255,255,255,.13));
+  box-shadow:inset 0 1px 1px rgba(255,255,255,.6);
+}
+
+/* ═══ ③ 三种胶囊 ═══════════════════════════════════════════════════
+   宽度 = pw × .717、高度 = ph × .538（46×26 下正好 33×14）。 */
+.hx-pn-pill{
+  position:relative; border-radius:999px;
+  width:calc(var(--pn-pw,46px)*.717); height:calc(var(--pn-ph,26px)*.538);
+  /* 默认（data-mat=0）蓝白两截：一刀切在 50%，左边药身右边药帽 */
+  background:linear-gradient(90deg,#0645c5 0 49%,#e8e8e8 50%);
+  box-shadow:0 calc(var(--pn-ph,26px)*.05) calc(var(--pn-ph,26px)*.09) rgba(17,24,34,.4),
+    inset 0 1px 1px rgba(0,0,0,.4);
+}
+/* 左半那圈蓝色描边（只在蓝白胶囊上有，琥珀和鼠尾草是 ::before{display:none}） */
+.hx-pn-pill::before{
+  content:""; position:absolute;
+  inset:calc(var(--pn-ph,26px)*.054) 50% calc(var(--pn-ph,26px)*.077) calc(var(--pn-pw,46px)*.043);
+  border:1px solid rgba(96,153,252,.33); border-right:0; border-radius:999px 0 0 999px;
+}
+/* 圆柱体的明暗：顶部压暗、中段透明、下三分之一提亮、底边再压一道 */
+.hx-pn-pill::after{
+  content:""; position:absolute; inset:0; border-radius:inherit;
+  background:linear-gradient(180deg,rgba(0,0,0,.47),transparent 33%,rgba(255,255,255,.33) 68%,rgba(0,0,0,.27));
+  box-shadow:inset 0 -.7px .7px rgba(0,0,0,.33);
+}
+
+/* 琥珀：一条偏心 radial（暗芯）+ 156deg 的环向渐变（金属漆那种流动感） */
+.hx-pn-pill[data-mat="1"]{
+  background:radial-gradient(ellipse at 46% 51%,#63320c 0 25%,#ac570c 40%,transparent 65%),
+    linear-gradient(156deg,#783a09 12%,#ffa226 28%,#d07516 44%,#4c200a 68%,#ffc25b 83%,#7e4109 94%);
+  box-shadow:0 calc(var(--pn-ph,26px)*.06) calc(var(--pn-ph,26px)*.1) rgba(29,12,1,.38),
+    inset 0 0 0 1px #6d300a, inset 0 0 calc(var(--pn-ph,26px)*.15) #ee9f40;
+}
+.hx-pn-pill[data-mat="1"]::before{ display:none; }
+.hx-pn-pill[data-mat="1"]::after{
+  inset:calc(var(--pn-ph,26px)*.077) calc(var(--pn-pw,46px)*.098);
+  background:linear-gradient(178deg,#ffe6ad 0,transparent 25%,rgba(51,19,5,.55) 53%,#ffd486 92%);
+  /* 左边那道负偏移的实心阴影 = 胶囊左侧的反射高光 */
+  box-shadow:calc(var(--pn-pw,46px)*-.087) calc(var(--pn-ph,26px)*.077) 0
+    calc(var(--pn-pw,46px)*-.043) #fff5dc, inset 0 0 1px #fff3cf;
+}
+
+/* 鼠尾草：哑光绿，靠 90deg 的双色分界 + 一处偏心高光，不描边 */
+.hx-pn-pill[data-mat="2"]{
+  background:linear-gradient(90deg,#778b70 0 51%,#58674f 52%,#83927a 55%,#65785e 96%);
+  box-shadow:0 calc(var(--pn-ph,26px)*.06) calc(var(--pn-ph,26px)*.1) rgba(17,29,20,.47),
+    inset 0 1px 1px rgba(37,44,34,.43);
+}
+.hx-pn-pill[data-mat="2"]::before{ display:none; }
+.hx-pn-pill[data-mat="2"]::after{
+  background:radial-gradient(ellipse at 23% 74%,rgba(230,235,212,.55),transparent 45%),
+    linear-gradient(180deg,rgba(34,44,33,.66),transparent 32%,rgba(206,212,190,.36) 70%,rgba(48,60,46,.44));
+}
+
+/* ═══ ④ 空槽：选中 = 这颗药被抠走了 ═════════════════════════════════
+   三层缺一不可，少任何一层就变成「一个黑洞」：
+   ① 本体 conic 12 段明暗交替 = 撕开一圈的金属箔断面
+      ← 亮度必须和隔壁完整药槽的银圈对齐，否则选中行看起来像矮了一截
+   ② ::before 16 个点的锯齿 clip-path + 椭圆深洞 = 撕口的毛边
+   ③ ::after 左下 37%×61% 的折面 = 折起来的碎箔
+      ← 一层银白三角就够。做成密集小卷（像揉皱的锡纸）是错的，参考里是整片折角 */
+.hx-pn-cav{
+  position:absolute; display:none; border-radius:999px;
+  inset:calc(var(--pn-ph,26px)*.038) calc(var(--pn-pw,46px)*.033);
+  background:conic-gradient(from 12deg,#f5f5f5,#666970 10%,#e4e6e8 17%,#b8bbc2 29%,#f5f5f5 37%,
+    #484b50 48%,#d6d8db 59%,#878b91 66%,#f6f6f6 78%,#4a4c50 89%,#efeff0);
+  box-shadow:inset 0 0 0 1px #fff, inset 0 0 0 calc(var(--pn-ph,26px)*.077) #7a7d82,
+    inset 0 0 0 calc(var(--pn-ph,26px)*.115) #e4e6ea,
+    0 calc(var(--pn-ph,26px)*.038) calc(var(--pn-ph,26px)*.077) rgba(0,0,0,.27);
+}
+.hx-pn-cav::before, .hx-pn-cav::after{ content:""; position:absolute; }
+.hx-pn-cav::before{
+  inset:calc(var(--pn-ph,26px)*.115) calc(var(--pn-pw,46px)*.087);
+  clip-path:polygon(0 34%,9% 10%,25% 18%,38% 0,52% 14%,72% 0,89% 15%,100% 36%,
+    97% 77%,87% 95%,69% 86%,56% 100%,38% 82%,24% 92%,20% 64%,4% 63%);
+  background:repeating-linear-gradient(4deg,rgba(255,255,255,.06) 0 1px,transparent 1px 3px),
+    radial-gradient(ellipse at 50% 78%,#4d4f51,#252729 62%,#111214 83%);
+  box-shadow:inset 0 4px 12px #000;
+}
+.hx-pn-cav::after{
+  width:37%; height:61%; left:8%; bottom:9%;
+  clip-path:polygon(0 3%,38% 14%,52% 30%,85% 42%,74% 64%,99% 90%,51% 100%,11% 75%);
+  background:conic-gradient(from 31deg at 46% 49%,#fffb,#8c8f95,#fff,#53565e,#f9fafc,#bcbec3,#fffb);
+}
+
+/* ═══ ⑤ 切到空槽态 ═════════════════════════════════════════════════
+   用 visibility 而不是 display：四层都还在流里，尺寸不跳，也不会触发重排。 */
+.hx-pn-pk.is-cav .hx-pn-rim,
+.hx-pn-pk.is-cav .hx-pn-dome,
+.hx-pn-pk.is-cav .hx-pn-pill{ visibility:hidden; }
+.hx-pn-pk.is-cav .hx-pn-cav{ display:block; }`
+        },
+        {
+          lang: 'html', label: 'HTML',
+          code: `<!-- 一个药槽 = 四层，顺序不能换：
+     rim 在底 → pill 居中 → dome 压在胶囊上 → cav 在最上面（选中时才显示） -->
+<span class="hx-pn-pk">
+  <i class="hx-pn-rim"></i>
+  <i class="hx-pn-pill" data-mat="0"></i>
+  <i class="hx-pn-dome"></i>
+  <i class="hx-pn-cav"></i>
+</span>
+
+<!-- 被取走的那一格：加 is-cav（药丸下拉里是 .hx-pn-opt.on 顺带切） -->
+<span class="hx-pn-pk is-cav"> ...同上四层... </span>
+
+<!-- 换尺寸只改两个变量，不用换类、不用抄第二份 CSS -->
+<span class="hx-pn-pk" style="--pn-pw:112px;--pn-ph:64px"> ... </span>
+<span class="hx-pn-pk" style="--pn-pw:30px;--pn-ph:17px"> ... </span>`
+        }
+      ]
+    },
+
+    /* ═══════════════════════════════════════════════════════════════════
+       3. 卡片通透度（毛玻璃卡片）
        ═══════════════════════════════════════════════════════════════════ */
     {
       id: 'card-alpha',
@@ -708,7 +1096,7 @@ document.documentElement.style.setProperty('--hx-a', value);  // 1 ~ 2
     },
 
     /* ═══════════════════════════════════════════════════════════════════
-       3. 无感滚动条
+       4. 无感滚动条
        ═══════════════════════════════════════════════════════════════════ */
     {
       id: 'scrollbar',

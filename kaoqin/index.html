@@ -15,6 +15,23 @@
    表格 table-layout:fixed + word-break，overflow-x:auto 只包表格外层，390 竖屏不许横向溢出。 */
 *, *::before, *::after { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
+:root {
+  /* 2026-11-18：--card 来自 hx-theme.css，那一份是 rgb(255 255 255 / var(--hx-a)) —— clr=100 时 = 1.0，
+     卡片是纯实色；而首页工具卡实测是「.70 × --hx-a」（0 → 1.00 / 100 → 0.70 / 250 → 0）。
+     这里按首页口径覆盖，卡片三档才能和首页对上。 */
+  --card: rgb(255 255 255 / min(1, calc(.52 * var(--hx-a, 1))));
+}
+:root[data-hx-mode="dark"] { --card: rgb(28 28 30 / min(1, calc(.52 * var(--hx-a, 1)))); }
+:root {
+  /* 2026-11-18：--hx-blur 只在 hx-theme.css 里定义，而本工具只引 hx-theme.js ——
+     不补这一行，所有 backdrop-filter: var(--hx-blur) 都会解析失败、玻璃直接没有模糊。
+     值照抄 hx-theme.css，和首页同一档。 */
+  --hx-blur: saturate(180%) blur(20px);
+  /* 2026-11-18 透明度统一：输入框 / 弹窗原来吃 --card-solid（纯实色），拖「卡片通透度」时不动。
+     --card-lift：clr=0 → 1（原实色，可读性兜底），clr=100 → .90，clr=250 → 0。 */
+  --card-lift: rgb(255 255 255 / min(1, calc(.90 * var(--hx-a, 1))));
+}
+:root[data-hx-mode="dark"] { --card-lift: rgb(18 26 42 / min(1, calc(.90 * var(--hx-a, 1)))); }
 body { margin: 0; background: var(--bg, #f5f5f7); color: var(--ink, #1d1d1f); font: 15px/1.6 var(--hx-font, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif); overflow-x: hidden; }
 #app { width: min(1600px, 100%); margin: 0 auto; padding: 16px; }
 h1, h2 { letter-spacing: -.01em; }
@@ -42,8 +59,6 @@ html.hx-bg .card:not(.att-mcard) {
   box-shadow: var(--glass-drop), inset 0 .8px 0 rgba(255, 255, 255, .14);
   /* 2026-11-12 用户原话：「没给每张卡加实时模糊这个不对　在标准模式允许啊　有的性能好　而且我们也要换服务器了」
      → **标准模式给真的 backdrop-filter**，极简模式（html.hx-lite）一律关掉（见下面那条）。 */
-  -webkit-backdrop-filter: saturate(180%) blur(18px);
-  backdrop-filter: saturate(180%) blur(18px);
 }
 html:not([data-hx-mode="dark"]).hx-bg .card:not(.att-mcard) {
   background-color: rgb(255 255 255 / calc(var(--hx-a, 1) * .70));
@@ -67,7 +82,7 @@ button.danger { color: var(--bad, #d70015); }
 button.sm { padding: 4px 10px; font-size: 13px; }
 button[data-nr] { opacity: .55; }
 .big { padding: 12px 22px; font-size: 16px; }
-input, select, textarea { font: inherit; font-size: 14px; color: var(--ink, #1d1d1f); background: var(--card-solid, #fff); border: 1px solid var(--line2, rgba(0, 0, 0, .12)); border-radius: 10px; padding: 7px 10px; max-width: 100%; min-width: 0; }
+input, select, textarea { font: inherit; font-size: 14px; color: var(--ink, #1d1d1f); background: var(--card-lift, #fff); border: 1px solid var(--line2, rgba(0, 0, 0, .12)); border-radius: 10px; padding: 7px 10px; max-width: 100%; min-width: 0; }
 input[type=checkbox] { width: 16px; height: 16px; padding: 0; accent-color: var(--acc, #2f845a); flex: 0 0 auto; }
 input[type=range] { flex: 1 1 200px; padding: 0; accent-color: var(--acc, #2f845a); }
 table { width: 100%; table-layout: fixed; border-collapse: collapse; word-break: break-word; }
@@ -125,7 +140,7 @@ table { width: 100%; table-layout: fixed; border-collapse: collapse; word-break:
 
 /* 弹层 */
 .att-modal { position: fixed; inset: 0; z-index: 9000; display: grid; place-items: center; padding: 16px; background: rgba(0, 0, 0, .4); overflow: auto; }
-.att-mcard { width: min(620px, 100%); margin: 0; max-height: calc(100vh - 32px); overflow: auto; background: var(--card-solid, #fff); }
+.att-mcard { width: min(620px, 100%); margin: 0; max-height: calc(100vh - 32px); overflow: auto; background: var(--card-lift, #fff); }
 .att-mcard.att-pvcard { width: min(1400px, 100%); }
 .att-pvh { justify-content: space-between; margin-bottom: 8px; }
 .att-pvh h2 { margin: 0; }

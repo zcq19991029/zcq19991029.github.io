@@ -12,8 +12,15 @@
 :root{
   /* --bg 跟全站标准底色走（hx-theme.js 的 --hx-page = #f5f5f7），原来的 #f2f4f8 只作离线兜底。
      2026-11-17：浅色底全站统一。考试页用的是同一份 BASE_CSS，改这里两页一起对齐；深色块不动。 */
+  /* 2026-11-18：--hx-blur 只在 hx-theme.css 里定义，而本工具只引 hx-theme.js ——
+     不补这一行，所有 backdrop-filter: var(--hx-blur) 都会解析失败、玻璃直接没有模糊。
+     值照抄 hx-theme.css，和首页同一档。 */
+  --hx-blur: saturate(180%) blur(20px);
   --bg:var(--hx-page,#f2f4f8);--glow1:rgba(56,112,255,.13);--glow2:rgba(124,92,255,.10);--dots:rgba(30,41,59,.07);
   --card:rgb(255 255 255 / calc(.78 * var(--hx-a, 1)));--card-solid:#ffffff;--card-brd:rgba(255,255,255,.9);--side:rgba(250,251,253,.7);
+  /* 2026-11-18 透明度统一：抬升面（吸顶表头 / 题干预览 / 导入样例 / 页签滑块）原来吃 --card-solid 实色，
+     拖「卡片通透度」时这些块不动。--card-lift 是它们的同源变量：clr=0 → 1（原实色），100 → .80，250 → 0。 */
+  --card-lift:rgb(255 255 255 / min(1, calc(.80 * var(--hx-a, 1))));
   --field:#ffffff;--field2:#eef1f6;--field3:#e4e8f0;
   --ink:#0b1220;--ink2:#374151;--mute:#6b7280;--line:#d5dbe6;--hair:rgba(15,23,42,.08);
   --acc:#2f6bff;--acc-h:#4b80ff;--acc2:#7c5cff;--accbg:rgba(47,107,255,.10);--ring:rgba(47,107,255,.32);
@@ -30,7 +37,7 @@
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --bg:#080b12;--glow1:rgba(64,120,255,.20);--glow2:rgba(140,100,255,.15);--dots:rgba(148,163,184,.08);
-  --card:rgb(20 25 36 / calc(.72 * var(--hx-a, 1)));--card-solid:#141924;--card-brd:rgba(255,255,255,.07);--side:rgba(12,16,24,.66);
+  --card:rgb(20 25 36 / calc(.52 * var(--hx-a, 1)));--card-solid:#141924;--card-brd:rgba(255,255,255,.07);--side:rgba(12,16,24,.66);--card-lift:rgb(20 25 36 / min(1, calc(.86 * var(--hx-a, 1))));
   --field:#0e131d;--field2:rgba(255,255,255,.05);--field3:rgba(255,255,255,.09);
   --ink:#e9edf5;--ink2:#c3cad7;--mute:#8a93a5;--line:rgba(255,255,255,.13);--hair:rgba(255,255,255,.08);
   --acc:#5b8cff;--acc-h:#7aa2ff;--acc2:#9b7cff;--accbg:rgba(91,140,255,.16);--ring:rgba(91,140,255,.45);
@@ -42,7 +49,7 @@
 }}
 :root[data-theme="dark"]{
   --bg:#080b12;--glow1:rgba(64,120,255,.20);--glow2:rgba(140,100,255,.15);--dots:rgba(148,163,184,.08);
-  --card:rgb(20 25 36 / calc(.72 * var(--hx-a, 1)));--card-solid:#141924;--card-brd:rgba(255,255,255,.07);--side:rgba(12,16,24,.66);
+  --card:rgb(20 25 36 / calc(.52 * var(--hx-a, 1)));--card-solid:#141924;--card-brd:rgba(255,255,255,.07);--side:rgba(12,16,24,.66);--card-lift:rgb(20 25 36 / min(1, calc(.86 * var(--hx-a, 1))));
   --field:#0e131d;--field2:rgba(255,255,255,.05);--field3:rgba(255,255,255,.09);
   --ink:#e9edf5;--ink2:#c3cad7;--mute:#8a93a5;--line:rgba(255,255,255,.13);--hair:rgba(255,255,255,.08);
   --acc:#5b8cff;--acc-h:#7aa2ff;--acc2:#9b7cff;--accbg:rgba(91,140,255,.16);--ring:rgba(91,140,255,.45);
@@ -91,7 +98,7 @@ a.nav-i{text-decoration:none}
 .themes button{position:relative;z-index:1;padding:3px 10px;font-size:12px;background:transparent;border:0;box-shadow:none;color:var(--mute)}
 .themes button:hover{background:transparent;color:var(--ink);transform:none}
 .themes button.on{color:var(--ink)}
-.themes>.tab-ind{background:var(--card-solid);border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.15)}
+.themes>.tab-ind{background:var(--card-lift);border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.15)}
 .main{min-width:0;padding:34px 38px 96px}
 .page-h{margin:0 0 24px}
 .eyebrow{font:600 11.5px/1 var(--mono);letter-spacing:.16em;color:var(--acc);text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:8px}
@@ -158,7 +165,10 @@ a.step:hover{text-decoration:none}
 button.big{font-size:16px;padding:12px 30px}
 
 /* 卡片：磨砂玻璃 */
-.card{background:var(--card);border:1px solid var(--card-brd);backdrop-filter:blur(20px) saturate(160%);-webkit-backdrop-filter:blur(20px) saturate(160%);border-radius:var(--r-card);box-shadow:var(--shadow);padding:24px 26px;margin-bottom:20px}
+.card{background:var(--card);border:1px solid var(--card-brd);border-radius:var(--r-card);box-shadow:var(--shadow);padding:24px 26px;margin-bottom:20px}
+/* 2026-11-18：.card 上的 backdrop-filter 已去掉 —— 判据是首页（总入口/hx-theme.css）：
+   背景层糊一次、卡片只上色。这里是单片机引擎的公共样式，考试工具也会内联它，
+   一屏十几张卡各自实时高斯，正是 2026-11-02 把希沃一体机渲染进程干崩的那个写法。 */
 .card h2{font:650 20px/1.3 var(--font-d);letter-spacing:-.02em;margin:0 0 14px}
 .grid2{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:18px;align-items:start}
 @media(max-width:920px){.grid2{grid-template-columns:1fr}}
@@ -225,7 +235,7 @@ a.jump:hover{text-decoration:underline}
 .qno{font:600 13px/1 var(--mono);min-width:56px;color:var(--ink2)}
 .qpts input{width:68px}
 .qdel{width:34px;height:34px;padding:0;font-size:18px;line-height:1;margin-left:auto}
-.qprev{flex-basis:100%;margin-top:2px;background:var(--card-solid);border-radius:12px;padding:4px 14px}
+.qprev{flex-basis:100%;margin-top:2px;background:var(--card-lift);border-radius:12px;padding:4px 14px}
 .codebox{display:flex;flex-wrap:wrap;align-items:center;gap:14px;justify-content:space-between;margin:16px 0 8px;padding:16px 20px;border-radius:18px;background:linear-gradient(135deg,var(--accbg),transparent 120%);border:1px solid var(--accbg)}
 .cb-code{font:700 24px/1.3 var(--mono);letter-spacing:.02em;color:var(--ink);word-break:break-all}
 .hexok{background:var(--okbg);color:var(--ok);border-radius:14px;padding:10px 14px;margin:10px 0;font-size:13.5px}
@@ -380,7 +390,7 @@ body.dragging #dropmask{display:flex;position:fixed;inset:12px;background:var(--
 .imp-item{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:10px 14px;border-radius:16px;background:var(--field2);border:1px solid var(--hair)}
 .imp-sample{flex-basis:100%}
 .imp-sample:empty{display:none}
-.imp-sample>details{background:var(--card-solid);border-radius:12px;padding:8px 12px;margin-top:6px}
+.imp-sample>details{background:var(--card-lift);border-radius:12px;padding:8px 12px;margin-top:6px}
 .imp-det{margin-top:10px;padding:12px 14px;border-radius:16px;background:var(--accbg)}
 .imp-add>summary,#pImportCard>summary{cursor:pointer}
 /* 2026-11-08 「保存到文件」整套去掉（离线版取消），.savebar 的样式一并删掉 */
@@ -394,9 +404,9 @@ button.sm{padding:4px 12px;font-size:12.5px}
 .clstabs button{position:relative;z-index:1;padding:5px 14px;font-size:13px;background:transparent;border:0;box-shadow:none;color:var(--mute);white-space:nowrap}
 .clstabs button:hover{background:transparent;color:var(--ink);transform:none}
 .clstabs button.on{color:var(--ink);font-weight:600}
-.clstabs>.tab-ind{background:var(--card-solid);border-radius:9px;box-shadow:0 1px 3px rgba(0,0,0,.12),0 4px 12px -6px var(--ring)}
+.clstabs>.tab-ind{background:var(--card-lift);border-radius:9px;box-shadow:0 1px 3px rgba(0,0,0,.12),0 4px 12px -6px var(--ring)}
 .rtable{max-height:460px;overflow:auto;border-radius:12px;border:1px solid var(--hair)}
-.rtable thead th{position:sticky;top:0;background:var(--card-solid);z-index:1}
+.rtable thead th{position:sticky;top:0;background:var(--card-lift);z-index:1}
 /* 练习记录汇总行里的「一次都没做 N 人」：老师最需要一眼看到的数，用警示色，不用加粗红字吓人 */
 #trStat b.idle{color:var(--bad)}
 .rprev{margin-top:12px;padding:12px 14px;border-radius:14px;background:var(--accbg);border:1px solid var(--accbg)}
@@ -422,6 +432,17 @@ button.qdel.sm{width:26px;height:26px;font-size:15px}
 .ppbar b{font-variant-numeric:tabular-nums;text-align:right}
 @media(max-width:600px){.card{padding:18px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
+
+/* 2026-11-18 透明度统一（用户：「其他工具都有不一样不统一的地方」）
+   ------------------------------------------------------------------
+   本页大量沿用 --card-solid（#fff / #141924 纯实色）做「抬升面」：表头吸顶条、右侧预览抽屉、
+   批量改分栏、分段标签条、判分卡、对话框。它们是实色 → 拖「卡片通透度」时整块纹丝不动，
+   和同屏的 --card 卡片对不上。
+   这里补一个和 --card 同源、但浓度更高的 --card-lift：clr=0 → 1（实色，原观感），
+   clr=100 → .80/.86，clr=250 → 0。下面把那些 --card-solid 的**背景**换成它
+   （文字色用到的 --card-solid 不动，那不是面）。 */
+:root { --card-lift: rgb(255 255 255 / min(1, calc(.52 * var(--hx-a, 1)))); }
+:root[data-theme="dark"], :root[data-hx-mode="dark"] { --card-lift: rgb(20 25 36 / min(1, calc(.52 * var(--hx-a, 1)))); }
 
 /* 考试页面布局（组件样式沿用单片机的 BASE_CSS，颜色跟首页“外观”） */
 /* 2026-11-17 滚动条全站统一成 6px 无感滑轨（hx-theme.js），这里不再自定 */
@@ -511,7 +532,7 @@ button.danger { color: var(--bad, #d70015); }
    ============================================================ */
 .bk-card h2 { font-size: 16px; }
 .bk-list { max-height: min(58vh, 560px); overflow: auto; overscroll-behavior: contain; margin: 10px 0; padding-right: 4px; border-top: 1px solid var(--hair); }
-.bk-h { position: sticky; top: 0; z-index: 1; background: var(--card-solid, #fff); padding: 8px 2px 4px; font: 600 12px/1.5 Consolas, "Cascadia Mono", monospace; letter-spacing: .02em; color: var(--mute); border-bottom: 1px solid var(--hair); }
+.bk-h { position: sticky; top: 0; z-index: 1; background: var(--card-lift, #fff); padding: 8px 2px 4px; font: 600 12px/1.5 Consolas, "Cascadia Mono", monospace; letter-spacing: .02em; color: var(--mute); border-bottom: 1px solid var(--hair); }
 .bk-i { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 7px 6px; border: 1px solid transparent; border-radius: 10px; cursor: pointer; transition: background-color .15s, border-color .15s; }
 .bk-i:hover { background: var(--field2); }
 .bk-i.on { background: var(--accbg); border-color: var(--acc); }
@@ -597,27 +618,27 @@ button.danger { color: var(--bad, #d70015); }
 /* 抽屉：右侧滑出，不占画布宽度；手机上全屏（否则 A3 只剩一条） */
 .ppdrawer { position: fixed; top: 0; right: 0; z-index: 60; display: flex; flex-direction: column; gap: 10px;
   width: min(430px, 92vw); height: 100vh; padding: 14px 14px 70px; overflow: auto; overscroll-behavior: contain;
-  background: var(--card-solid); border-left: 1px solid var(--hair); box-shadow: -24px 0 60px -34px rgba(0, 0, 0, .45);
+  background: var(--card-lift); border-left: 1px solid var(--hair); box-shadow: -24px 0 60px -34px rgba(0, 0, 0, .45);
   transform: translateX(102%); visibility: hidden; transition: transform .26s var(--spring, cubic-bezier(.32, .72, 0, 1)), visibility 0s linear .26s; }
 .ppdrawer.on { transform: none; visibility: visible; transition: transform .26s var(--spring, cubic-bezier(.32, .72, 0, 1)); }
 .ppdrawer .card { margin-bottom: 10px; padding: 16px 18px; }
 .ppdrawer .card h2 { font-size: 16px; margin-bottom: 10px; }
 .ppd-h { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; align-items: center; position: sticky; top: -14px; z-index: 2;
-  padding: 10px 0; margin: -14px 0 0; background: var(--card-solid); border-bottom: 1px solid var(--hair); }
+  padding: 10px 0; margin: -14px 0 0; background: var(--card-lift); border-bottom: 1px solid var(--hair); }
 .ppd-h b { font: 650 15px/1.4 var(--font-d); letter-spacing: -.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ppd-h .sm { grid-column: 2; grid-row: 1; }
 /* 当前这道题的长摘要：单独一行、截断 —— 塞在标题右边会把它挤成三行（实测截图） */
 .ppd-cur { grid-column: 1 / -1; font-size: 12px; color: var(--mute); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ppd-h .note { font-size: 12px; }
 .ppd-f { position: sticky; bottom: -70px; display: flex; gap: 10px; align-items: center; justify-content: space-between;
-  padding: 10px 0; background: var(--card-solid); border-top: 1px solid var(--hair); }
+  padding: 10px 0; background: var(--card-lift); border-top: 1px solid var(--hair); }
 @media (max-width: 720px) { .ppdrawer { width: 100vw; border-left: 0; padding: 12px 10px 70px; } }
 
 /* 题库抽屉：筛选（项目 + 关键词）吸顶，列表自己滚，底部「恢复随机」常驻 */
 .ppdbank { width: min(480px, 94vw); padding-bottom: 12px; }
 /* 手机上抽屉要的是「全屏」而不是 94vw：留着那 6% 既不美观也点不到边框 */
 @media (max-width: 720px) { .ppdrawer.ppdbank, .ppdrawer { width: 100vw; } }
-.ppb-f { position: sticky; top: 34px; z-index: 2; display: grid; gap: 8px; padding: 8px 0; background: var(--card-solid); border-bottom: 1px solid var(--hair); }
+.ppb-f { position: sticky; top: 34px; z-index: 2; display: grid; gap: 8px; padding: 8px 0; background: var(--card-lift); border-bottom: 1px solid var(--hair); }
 .ppb-ch { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 12.5px; color: var(--ink2); }
 .ppb-ch label { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
 /* 知识点筛选（2026-11-13）：和题库抽屉的章节筛选同一套换行勾选样式 */
@@ -738,13 +759,13 @@ a.ex-btn { display: inline-block; font-size: 14px; font-weight: 500; padding: 8p
 a.ex-btn:hover { filter: brightness(1.06); }
 
 /* 电子档考试：题池快照 + 顶部科目毛玻璃选项卡 */
-.ex-subtabs{display:flex;align-items:center;gap:4px;flex-wrap:wrap;padding:6px;border:1px solid var(--hair,rgba(15,23,42,.1));border-radius:16px;background:color-mix(in srgb,var(--card-solid,#fff) 72%,transparent);backdrop-filter:blur(18px);box-shadow:0 10px 28px -20px rgba(15,23,42,.35)}
+.ex-subtabs{display:flex;align-items:center;gap:4px;flex-wrap:wrap;padding:6px;border:1px solid var(--hair,rgba(15,23,42,.1));border-radius:16px;background:var(--card-lift,#fff);backdrop-filter:var(--hx-blur);box-shadow:0 10px 28px -20px rgba(15,23,42,.35)}
 .ex-subtab{position:relative;border:0;background:transparent;color:var(--mute,#6b7280);padding:9px 14px;border-radius:11px;cursor:pointer;font:600 13px/1.2 inherit;white-space:nowrap}
 .ex-subtab::after{content:"";position:absolute;left:14px;right:14px;bottom:4px;height:2px;border-radius:9px;background:var(--acc,#2f6bff);transform:scaleX(0);transition:transform .2s ease}
 .ex-subtab.on{color:var(--ink,#0b1220);background:var(--accbg,rgba(47,107,255,.12))}.ex-subtab.on::after{transform:scaleX(1)}
 .ex-subadd{width:auto;margin:0;padding:8px 12px;border:1px dashed var(--hair,rgba(15,23,42,.15));border-radius:11px;background:transparent;color:var(--mute,#6b7280);cursor:pointer}
 .e-paper{display:grid;gap:14px;max-width:1120px}.e-q{margin:0}.e-qhead{display:flex;justify-content:space-between;gap:10px;color:var(--mute,#6b7280);font-size:13px}.e-q h3{margin:10px 0 12px;font-size:18px;line-height:1.55}.e-options{display:grid;gap:9px}.e-options label{display:flex;gap:8px;align-items:flex-start;padding:10px 12px;border:1px solid var(--hair,rgba(15,23,42,.12));border-radius:11px;cursor:pointer}.e-options label:has(input:checked){border-color:var(--acc,#2f6bff);background:var(--accbg,rgba(47,107,255,.1))}.e-answer{width:100%;box-sizing:border-box;resize:vertical}.e-submit{display:flex;align-items:center;justify-content:space-between;gap:14px;position:sticky;bottom:12px;z-index:2}.e-pick{display:grid;grid-template-columns:auto 1fr 74px;gap:8px;align-items:start;padding:10px 0;border-bottom:1px solid var(--hair,rgba(15,23,42,.1));line-height:1.5}.e-pick input[type=number]{width:74px}.e-code-gate{max-width:520px}
-@media(max-width:900px){.ex-nav{position:sticky;top:0;z-index:3;background:color-mix(in srgb,var(--card-solid,#fff) 80%,transparent);backdrop-filter:blur(16px)}.ex-nav-sub{order:9;flex-basis:100%;margin:0;border:0;padding:0}.ex-subtabs{width:100%;overflow:auto;flex-wrap:nowrap}.ex-subtab{flex:0 0 auto}.e-submit{align-items:flex-start;flex-direction:column}.e-submit .row{width:100%}.e-submit button{flex:1}.e-q h3{font-size:16px}}
+@media(max-width:900px){.ex-nav{position:sticky;top:0;z-index:3;background:var(--card-lift,#fff);backdrop-filter:var(--hx-blur)}.ex-nav-sub{order:9;flex-basis:100%;margin:0;border:0;padding:0}.ex-subtabs{width:100%;overflow:auto;flex-wrap:nowrap}.ex-subtab{flex:0 0 auto}.e-submit{align-items:flex-start;flex-direction:column}.e-submit .row{width:100%}.e-submit button{flex:1}.e-q h3{font-size:16px}}
 
 /* 演示视角提示条（2026-11-17）：教师端「测试查看用户」看学生考试页时，页面最上面一条只读说明。
    只用站内已有的 --card / --edge / --acc / --ink / --dim，不加新颜色。 */
@@ -908,6 +929,18 @@ a.ex-btn:hover { filter: brightness(1.06); }
 .eg-tip { margin-top: 4px; font-size: 12px; color: #b45309; }
 .eg-foot { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--hair, rgba(15,23,42,.1)); }
 .eg-foot .eg-msg { margin-left: 4px; }
+/* 「保存」那颗：从必点的动作变成状态灯（2026-11-18）。
+   文案就在按钮上（改完自动保存 / 正在保存… / 已自动保存 · 12:31 / 第 3 题没保存上），
+   所以按钮必须能长时间停在「已保存」这种安静的状态 —— 不用主色，别抢分数的注意力。 */
+.eg-save { flex: 0 0 auto; padding: 6px 13px; border-radius: 10px; border: 1px solid var(--hair, rgba(15,23,42,.14));
+  background: transparent; color: var(--mute, #6b7280); font: inherit; font-size: 12.5px; line-height: 1.4; cursor: pointer; }
+.eg-save:hover { border-color: var(--acc, #2f6bff); color: var(--acc, #2f6bff); }
+.eg-save.ok { color: var(--ok, #1a7f37); border-color: color-mix(in srgb, var(--ok, #1a7f37) 42%, transparent); }
+.eg-save.warn { color: #b45309; border-color: rgba(180, 83, 9, .45); }
+.eg-save.bad { color: var(--bad, #d70015); border-color: color-mix(in srgb, var(--bad, #d70015) 48%, transparent); background: rgba(215, 0, 21, .07); }
+.eg-dirty.eg-saving { color: var(--mute, #6b7280); border-color: var(--hair, rgba(15,23,42,.14)) !important; }
+.eg-saveerr { font-size: 12px; line-height: 1.5; color: var(--bad, #d70015); }
+.eg-saveerr:empty { display: none; }
 button.off { opacity: .5; cursor: not-allowed; }
 
 @media (max-width: 720px) {
@@ -922,7 +955,9 @@ button.off { opacity: .5; cursor: not-allowed; }
 /* 新卡片的最低可读底：用户把「卡片通透度」拉到 0 时，--card 会变成全透明，
    而壁纸底部接近纯黑 —— 批改台/结果页的长文本会糊在背景里。这里给新卡片补一层
    62% 的 --card-solid 玻璃底，既保留通透感，也保证题干和评语在任何壁纸下都能读。 */
-.eg-card, .e-rq, .e-result, .e-wait { background: color-mix(in srgb, var(--card-solid, #141924) 62%, transparent); backdrop-filter: blur(18px); }
+/* 2026-11-18：不再给卡片加 backdrop-filter —— 判据是首页（总入口/hx-theme.css）：
+   背景层糊一次、卡片只上色。批改台一屏十来个卡片，各自实时高斯会拖垮希沃一体机。 */
+.eg-card, .e-rq, .e-result, .e-wait { background: var(--card-lift, #141924); }
 /* 结果页底部动作条不要 sticky：这一页很长，吸底会一直盖住题目 */
 .e-rfoot { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; margin-top: 14px; }
 
@@ -988,7 +1023,7 @@ button.off { opacity: .5; cursor: not-allowed; }
 /* 背景不能只写 var(--card-solid)：用户把「卡片通透度」拉低时它是半透明的，
    浮层会透出底下的列表、字全糊住（实测截图踩到）。这里按卡片的玻璃逻辑给一层
    更实的底（78%）+ 足够强的 backdrop-filter，深浅主题都能读。 */
-.ex-dlg { display: flex; flex-direction: column; width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 48px); overflow: hidden; border: 1px solid var(--card-brd, var(--hair, rgba(0,0,0,.1))); border-radius: 16px; background: color-mix(in srgb, var(--card-solid, #fff) 78%, transparent); backdrop-filter: blur(26px) saturate(1.1); -webkit-backdrop-filter: blur(26px) saturate(1.1); color: var(--ink, #1d1d1f); box-shadow: 0 24px 64px -14px rgba(0, 0, 0, .55); animation: exdlg-pop .2s cubic-bezier(.16, 1, .3, 1); }
+.ex-dlg { display: flex; flex-direction: column; width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 48px); overflow: hidden; border: 1px solid var(--card-brd, var(--hair, rgba(0,0,0,.1))); border-radius: 16px; background: var(--card-lift, #fff); backdrop-filter: var(--hx-blur); -webkit-backdrop-filter: var(--hx-blur); color: var(--ink, #1d1d1f); box-shadow: 0 24px 64px -14px rgba(0, 0, 0, .55); animation: exdlg-pop .2s cubic-bezier(.16, 1, .3, 1); }
 @keyframes exdlg-pop { from { transform: scale(.94); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 .ex-dlg-h { display: flex; align-items: center; gap: 10px; padding: 13px 16px; border-bottom: 1px solid var(--hair, rgba(0,0,0,.08)); font-size: 15px; }
 .ex-dlg-h b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
@@ -5251,8 +5286,15 @@ const BASE_CSS=`
 :root{
   /* --bg 跟全站标准底色走（hx-theme.js 的 --hx-page = #f5f5f7），原来的 #f2f4f8 只作离线兜底。
      2026-11-17：浅色底全站统一。考试页用的是同一份 BASE_CSS，改这里两页一起对齐；深色块不动。 */
+  /* 2026-11-18：--hx-blur 只在 hx-theme.css 里定义，而本工具只引 hx-theme.js ——
+     不补这一行，所有 backdrop-filter: var(--hx-blur) 都会解析失败、玻璃直接没有模糊。
+     值照抄 hx-theme.css，和首页同一档。 */
+  --hx-blur: saturate(180%) blur(20px);
   --bg:var(--hx-page,#f2f4f8);--glow1:rgba(56,112,255,.13);--glow2:rgba(124,92,255,.10);--dots:rgba(30,41,59,.07);
   --card:rgb(255 255 255 / calc(.78 * var(--hx-a, 1)));--card-solid:#ffffff;--card-brd:rgba(255,255,255,.9);--side:rgba(250,251,253,.7);
+  /* 2026-11-18 透明度统一：抬升面（吸顶表头 / 题干预览 / 导入样例 / 页签滑块）原来吃 --card-solid 实色，
+     拖「卡片通透度」时这些块不动。--card-lift 是它们的同源变量：clr=0 → 1（原实色），100 → .80，250 → 0。 */
+  --card-lift:rgb(255 255 255 / min(1, calc(.80 * var(--hx-a, 1))));
   --field:#ffffff;--field2:#eef1f6;--field3:#e4e8f0;
   --ink:#0b1220;--ink2:#374151;--mute:#6b7280;--line:#d5dbe6;--hair:rgba(15,23,42,.08);
   --acc:#2f6bff;--acc-h:#4b80ff;--acc2:#7c5cff;--accbg:rgba(47,107,255,.10);--ring:rgba(47,107,255,.32);
@@ -5269,7 +5311,7 @@ const BASE_CSS=`
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --bg:#080b12;--glow1:rgba(64,120,255,.20);--glow2:rgba(140,100,255,.15);--dots:rgba(148,163,184,.08);
-  --card:rgb(20 25 36 / calc(.72 * var(--hx-a, 1)));--card-solid:#141924;--card-brd:rgba(255,255,255,.07);--side:rgba(12,16,24,.66);
+  --card:rgb(20 25 36 / calc(.52 * var(--hx-a, 1)));--card-solid:#141924;--card-brd:rgba(255,255,255,.07);--side:rgba(12,16,24,.66);--card-lift:rgb(20 25 36 / min(1, calc(.86 * var(--hx-a, 1))));
   --field:#0e131d;--field2:rgba(255,255,255,.05);--field3:rgba(255,255,255,.09);
   --ink:#e9edf5;--ink2:#c3cad7;--mute:#8a93a5;--line:rgba(255,255,255,.13);--hair:rgba(255,255,255,.08);
   --acc:#5b8cff;--acc-h:#7aa2ff;--acc2:#9b7cff;--accbg:rgba(91,140,255,.16);--ring:rgba(91,140,255,.45);
@@ -5281,7 +5323,7 @@ const BASE_CSS=`
 }}
 :root[data-theme="dark"]{
   --bg:#080b12;--glow1:rgba(64,120,255,.20);--glow2:rgba(140,100,255,.15);--dots:rgba(148,163,184,.08);
-  --card:rgb(20 25 36 / calc(.72 * var(--hx-a, 1)));--card-solid:#141924;--card-brd:rgba(255,255,255,.07);--side:rgba(12,16,24,.66);
+  --card:rgb(20 25 36 / calc(.52 * var(--hx-a, 1)));--card-solid:#141924;--card-brd:rgba(255,255,255,.07);--side:rgba(12,16,24,.66);--card-lift:rgb(20 25 36 / min(1, calc(.86 * var(--hx-a, 1))));
   --field:#0e131d;--field2:rgba(255,255,255,.05);--field3:rgba(255,255,255,.09);
   --ink:#e9edf5;--ink2:#c3cad7;--mute:#8a93a5;--line:rgba(255,255,255,.13);--hair:rgba(255,255,255,.08);
   --acc:#5b8cff;--acc-h:#7aa2ff;--acc2:#9b7cff;--accbg:rgba(91,140,255,.16);--ring:rgba(91,140,255,.45);
@@ -5330,7 +5372,7 @@ a.nav-i{text-decoration:none}
 .themes button{position:relative;z-index:1;padding:3px 10px;font-size:12px;background:transparent;border:0;box-shadow:none;color:var(--mute)}
 .themes button:hover{background:transparent;color:var(--ink);transform:none}
 .themes button.on{color:var(--ink)}
-.themes>.tab-ind{background:var(--card-solid);border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.15)}
+.themes>.tab-ind{background:var(--card-lift);border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.15)}
 .main{min-width:0;padding:34px 38px 96px}
 .page-h{margin:0 0 24px}
 .eyebrow{font:600 11.5px/1 var(--mono);letter-spacing:.16em;color:var(--acc);text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:8px}
@@ -5397,7 +5439,10 @@ a.step:hover{text-decoration:none}
 button.big{font-size:16px;padding:12px 30px}
 
 /* 卡片：磨砂玻璃 */
-.card{background:var(--card);border:1px solid var(--card-brd);backdrop-filter:blur(20px) saturate(160%);-webkit-backdrop-filter:blur(20px) saturate(160%);border-radius:var(--r-card);box-shadow:var(--shadow);padding:24px 26px;margin-bottom:20px}
+.card{background:var(--card);border:1px solid var(--card-brd);border-radius:var(--r-card);box-shadow:var(--shadow);padding:24px 26px;margin-bottom:20px}
+/* 2026-11-18：.card 上的 backdrop-filter 已去掉 —— 判据是首页（总入口/hx-theme.css）：
+   背景层糊一次、卡片只上色。这里是单片机引擎的公共样式，考试工具也会内联它，
+   一屏十几张卡各自实时高斯，正是 2026-11-02 把希沃一体机渲染进程干崩的那个写法。 */
 .card h2{font:650 20px/1.3 var(--font-d);letter-spacing:-.02em;margin:0 0 14px}
 .grid2{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:18px;align-items:start}
 @media(max-width:920px){.grid2{grid-template-columns:1fr}}
@@ -5464,7 +5509,7 @@ a.jump:hover{text-decoration:underline}
 .qno{font:600 13px/1 var(--mono);min-width:56px;color:var(--ink2)}
 .qpts input{width:68px}
 .qdel{width:34px;height:34px;padding:0;font-size:18px;line-height:1;margin-left:auto}
-.qprev{flex-basis:100%;margin-top:2px;background:var(--card-solid);border-radius:12px;padding:4px 14px}
+.qprev{flex-basis:100%;margin-top:2px;background:var(--card-lift);border-radius:12px;padding:4px 14px}
 .codebox{display:flex;flex-wrap:wrap;align-items:center;gap:14px;justify-content:space-between;margin:16px 0 8px;padding:16px 20px;border-radius:18px;background:linear-gradient(135deg,var(--accbg),transparent 120%);border:1px solid var(--accbg)}
 .cb-code{font:700 24px/1.3 var(--mono);letter-spacing:.02em;color:var(--ink);word-break:break-all}
 .hexok{background:var(--okbg);color:var(--ok);border-radius:14px;padding:10px 14px;margin:10px 0;font-size:13.5px}
@@ -5619,7 +5664,7 @@ body.dragging #dropmask{display:flex;position:fixed;inset:12px;background:var(--
 .imp-item{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:10px 14px;border-radius:16px;background:var(--field2);border:1px solid var(--hair)}
 .imp-sample{flex-basis:100%}
 .imp-sample:empty{display:none}
-.imp-sample>details{background:var(--card-solid);border-radius:12px;padding:8px 12px;margin-top:6px}
+.imp-sample>details{background:var(--card-lift);border-radius:12px;padding:8px 12px;margin-top:6px}
 .imp-det{margin-top:10px;padding:12px 14px;border-radius:16px;background:var(--accbg)}
 .imp-add>summary,#pImportCard>summary{cursor:pointer}
 /* 2026-11-08 「保存到文件」整套去掉（离线版取消），.savebar 的样式一并删掉 */
@@ -5633,9 +5678,9 @@ button.sm{padding:4px 12px;font-size:12.5px}
 .clstabs button{position:relative;z-index:1;padding:5px 14px;font-size:13px;background:transparent;border:0;box-shadow:none;color:var(--mute);white-space:nowrap}
 .clstabs button:hover{background:transparent;color:var(--ink);transform:none}
 .clstabs button.on{color:var(--ink);font-weight:600}
-.clstabs>.tab-ind{background:var(--card-solid);border-radius:9px;box-shadow:0 1px 3px rgba(0,0,0,.12),0 4px 12px -6px var(--ring)}
+.clstabs>.tab-ind{background:var(--card-lift);border-radius:9px;box-shadow:0 1px 3px rgba(0,0,0,.12),0 4px 12px -6px var(--ring)}
 .rtable{max-height:460px;overflow:auto;border-radius:12px;border:1px solid var(--hair)}
-.rtable thead th{position:sticky;top:0;background:var(--card-solid);z-index:1}
+.rtable thead th{position:sticky;top:0;background:var(--card-lift);z-index:1}
 /* 练习记录汇总行里的「一次都没做 N 人」：老师最需要一眼看到的数，用警示色，不用加粗红字吓人 */
 #trStat b.idle{color:var(--bad)}
 .rprev{margin-top:12px;padding:12px 14px;border-radius:14px;background:var(--accbg);border:1px solid var(--accbg)}
@@ -8859,7 +8904,10 @@ function eAiNote(note, miss) {
 /* ================= 老师批改台（2026-11-17 重做） =================
    为什么按学生一人一张卡、不再用一张大表：大题答案是一整段，表格塞不下；
    而且老师要逐题给分 + 写评语，输入框在表格里会挤成一条。
-   所有改动只进内存（s._marks），点「保存这份」才调 hx_exam_mark 写库。 */
+   改动先进内存（s._marks），然后**自动落库**（2026-11-18 起，见 eSave* 那段注释）：
+   停手约 0.9 秒就把这一份整张 marks 发给 hx_exam_mark；
+   卡片底部那颗按钮因此从「保存这份（必点）」变成状态指示「已自动保存 · 12:31」，
+   点它仍然能立刻存一次（兜底），但**不再是老师必须记得做的动作**。 */
 async function subsElectronic(x) {
   const AC = ePageAC();
   app().innerHTML = `<header class="ex-h"><div class="eyebrow">批改 · ${E_ESC(x.code)}</div><h1>${E_ESC(x.title)}</h1></header><div class="card">${fxLoad('正在读取交卷…')}</div>`;
@@ -8879,7 +8927,30 @@ async function subsElectronic(x) {
   await eLoadAI();   // 先拿到 HXAI 再画，否则「AI 一键批改」会先灰一下再亮
   const subs = (sheet.subs || []).map(s => Object.assign({}, s, { _marks: Object.assign({}, s.marks || {}) }));
   const full = paper.reduce((a, q) => a + (+q.pts || 0), 0);
+  /* ── 自动保存（2026-11-18）──────────────────────────────────────────────
+     用户原话：「不懂你的保存这份有啥用 直接发布成绩不就行了 我发布就代表我复核完分数了」。
+     所以「保存」从**老师的动作**变成**实现细节**：改完停手约 0.9 秒，这一份就被写库。
+     以下六个容器就是全部状态（都按学生下标 si 索引）：
+       · dirty   —— 还有改动没落库的学生。beforeunload / 顶栏 / 发布前 flush 都只看它；
+       · ver     —— 每个学生的改动版本号。保存是异步的，RPC 回来时如果版本已经变了，
+                    说明老师在这期间又改了，**不能**把 dirty 清掉（否则最后一处改动会凭空消失）；
+       · tmr     —— 每个学生一个防抖定时器（停手才发，连续打字只发最后一次）；
+       · saving  —— 正在发 RPC 的学生（顶栏写「正在保存」，beforeunload 也要拦）；
+       · failed  —— 保存失败的学生 → 卡片底部红字「第 3 题没保存上」，点按钮重试，绝不静默丢分；
+       · savedAt —— 最近一次成功保存的时刻，卡片底部显示「已自动保存 · 12:31」。 */
+  const SAVE_DELAY = 900;
   const dirty = new Set();
+  const ver = Object.create(null);
+  const tmr = Object.create(null);
+  const saving = new Set();
+  const failed = new Map();
+  const savedAt = new Map();
+  const lastEdit = Object.create(null);   // si -> 最后动过的题下标（失败时告诉老师是第几题）
+  const saveChain = Object.create(null);  // si -> 串行 Promise（同一份不会两个 RPC 打架）
+  const hhmm = t => {
+    const d = new Date(t);
+    return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  };
   /* 2026-11-17：批改台的两种看法。
      · oneMode（默认）= 一次一个学生：卡片里已批的题自动折叠成一行，没批的才展开，
        一屏基本放得下，不用一路往下滑；
@@ -8901,13 +8972,16 @@ async function subsElectronic(x) {
   const big = q => q.t === 'short' || q.t === 'term' || q.t === 'prog';
   const subTotal = s => paper.reduce((a, q, i) => a + (eMarkGot(s._marks[String(i + 1)]) || 0), 0);
   const isDone = s => paper.every((q, i) => eMarkGot(s._marks[String(i + 1)]) != null);
-  /* 进页先把客观题和填空算一遍（只进内存，不写库）。客观题每次重算，填空只在没批过时算，
-     老师改过的填空分（marks 里已有数字）不被覆盖。 */
+  /* 进页先补算还没批的题（只进内存）。2026-11-18 起**客观题也不再无条件重算**：
+     老师手改过选择题的分（比如部分给分）是他复核过的结论，重进批改台 / 任何一次重画
+     都不该被本地的自动判分洗回原值 —— 只有「还没批过」的题才自动判。
+     重批是显式动作，那里会先把 _marks 清空再调用这里，所以照样全部重算。 */
   function autoFill(s) {
     paper.forEach((q, i) => {
       const k = String(i + 1), ans = (s.answers || {})[k];
+      if (eMarkGot(s._marks[k]) != null) return;
       if (q.t === 'single' || q.t === 'multiple' || q.t === 'judgment') s._marks[k] = eAutoMark(q, ans);
-      else if (q.t === 'fill' && eMarkGot(s._marks[k]) == null) s._marks[k] = eFillMatch(q, ans);
+      else if (q.t === 'fill') s._marks[k] = eFillMatch(q, ans);
     });
   }
   subs.forEach(autoFill);
@@ -8917,12 +8991,90 @@ async function subsElectronic(x) {
     const el = $('egMsg' + si);
     if (el) { el.textContent = text || ''; el.className = 'eg-msg' + (bad ? ' bad' : text ? ' warn' : ''); }
   };
-  const markDirty = si => { dirty.add(si); cardMsg(si, '有改动未保存'); };
-  const markClean = (si, text) => {
-    dirty.delete(si);
-    cardMsg(si, text);
-    const el = $('egMsg' + si); if (el) el.className = 'eg-msg ok';
+  /* 底部那颗按钮的四种状态：没改过 / 正在存 / 已自动保存 / 没保存上。
+     失败必须**看得见**（红按钮 + 右边写清原因），这是「不静默丢分」的唯一出口。
+     failed 里存的是 { label, why }：label 上按钮（短），why 写右边（带原始报错）。 */
+  const saveStatus = si => {
+    const f = failed.get(si);
+    if (f) return { cls: 'bad', text: f.label };
+    if (saving.has(si) || dirty.has(si)) return { cls: 'warn', text: '正在保存…' };
+    if (savedAt.has(si)) return { cls: 'ok', text: '已自动保存 · ' + hhmm(savedAt.get(si)) };
+    return { cls: '', text: '改完自动保存' };
   };
+  const paintSave = si => {
+    const st = saveStatus(si), f = failed.get(si);
+    const b = $('egSave' + si);
+    if (b) {                              // 逐个批改模式下别人的卡不在 DOM 里，这里可能取不到
+      b.textContent = st.text;
+      b.className = 'eg-save' + (st.cls ? ' ' + st.cls : '');
+      b.title = f ? '这份的改动还没写进数据库，点一下立刻重试' : '改完自动保存，这颗只是立刻存一次';
+    }
+    /* 失败原因单独一个 span：成功时只清这一格，不会把 AI 提示 / 单人发布提示（#egMsg）顶掉。 */
+    const err = $('egSaveErr' + si);
+    if (err) { err.textContent = f ? f.why : ''; err.className = 'eg-saveerr' + (f ? ' bad' : ''); }
+  };
+  /* 顶栏那条「正在自动保存… / N 份没保存上」。每敲一个字都会调到这里，
+     所以：① 只改 #egSaveBar 这一个 span，不重画整页；② 文案没变就不碰 DOM（否则每敲一下都把按钮重建一次）。 */
+  let barKey = '';
+  const paintSaveBar = () => {
+    const box = $('egSaveBar');
+    if (!box) return;
+    const pending = new Set([...dirty, ...saving]);
+    const nf = failed.size;
+    const key = nf ? 'f' + nf : pending.size ? 'b' : '';
+    if (key === barKey) return;
+    barKey = key;
+    if (!key) { box.innerHTML = ''; return; }
+    const label = nf ? `⚠ ${nf} 份没保存上 · 点这里` : '正在自动保存…';
+    box.innerHTML = `<button class="sm eg-dirty${nf ? '' : ' eg-saving'}" data-godirty="1" title="${nf
+      ? '点了跳到第一份没保存上的，卡片底部那颗按钮再点一下就是重试'
+      : '停手就会自动写库，不用点保存；这里只是告诉你还在存'}">${label}</button>`;
+    const b = box.querySelector('[data-godirty]');
+    if (b) b.onclick = () => {
+      const first = [...(nf ? failed.keys() : pending)].sort((a, z) => a - z)[0];
+      if (first == null) return;
+      /* 和 chip 一样：一律回到「逐个批改」，只留这个人（全部展开里跳过去还会看到别人的卡） */
+      cur = first; oneMode = true; renderAll();
+      try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) { }
+    };
+  };
+  const paintAllSave = () => { subs.forEach((_, si) => paintSave(si)); paintSaveBar(); };
+
+  /* 改了分 / 改了评语：版本 +1、进 dirty、排一次防抖保存。i = 题下标，只为失败时能说清是第几题。 */
+  const markDirty = (si, i) => {
+    ver[si] = (ver[si] || 0) + 1;
+    dirty.add(si);
+    failed.delete(si);
+    if (i != null) lastEdit[si] = i;
+    paintSave(si);
+    paintSaveBar();
+    queueSave(si);
+  };
+  /* AI 批改 / 重批这类「一次改很多份」的入口用这个：不碰卡片文案（那时卡片可能还没画），
+     同样进 dirty + 排队保存 —— 自动保存对 AI 给出的分一视同仁，否则老师一刷新就白批了。 */
+  const touchSave = si => {
+    ver[si] = (ver[si] || 0) + 1;
+    dirty.add(si);
+    failed.delete(si);
+    paintSave(si);
+    paintSaveBar();
+    queueSave(si);
+  };
+  function queueSave(si, delay) {
+    if (tmr[si]) clearTimeout(tmr[si]);
+    tmr[si] = setTimeout(() => {
+      tmr[si] = null;
+      saveCard(si, null, { auto: true }).catch(() => { });
+    }, delay == null ? SAVE_DELAY : delay);
+  }
+  /* 把还没落库的改动一次写完（发布成绩 / 点返回 / beforeunload 提示前都走这里）。
+     返回 true = 此刻数据库里就是老师屏幕上看到的那个分。 */
+  async function flushAll() {
+    Object.keys(tmr).forEach(si => { if (tmr[si]) { clearTimeout(tmr[si]); tmr[si] = null; } });
+    const list = [...new Set([...dirty, ...saving, ...failed.keys()])].map(Number);
+    await Promise.all(list.map(si => saveCard(si, null, { auto: true }).catch(() => { })));
+    return !dirty.size && !saving.size && !failed.size;
+  }
   const refreshCard = si => {
     const s = subs[si], tot = subTotal(s), done = isDone(s);
     if ($('egTot' + si)) $('egTot' + si).textContent = eFmtNum(tot) + ' / ' + eFmtNum(full);
@@ -8981,7 +9133,7 @@ async function subsElectronic(x) {
     const isBig = big(q);
     const isFill = q.t === 'fill';
     const score = `<label class="eg-score">得分 <input type="number" min="0" max="${pts}" step="0.5" value="${got == null ? '' : E_ESC(eFmtNum(got))}" data-g="${i}" data-si="${si}" aria-label="第${i + 1}题得分"> / ${E_ESC(eFmtNum(pts))} 分
-        <span class="eg-src" data-src="${si}:${i}">${m && m.by === 'ai' ? '<span class="eg-ai">AI</span>' : got == null ? '<span class="eg-wait">待批改</span>' : ''}</span></label>`;
+        <span class="eg-src" data-src="${si}:${i}">${m && m.by === 'ai' ? '<span class="eg-ai">AI</span>' : got == null ? '<span class="eg-wait">待批改</span>' : m.by === 'manual' ? '<span class="eg-man">人工</span>' : ''}</span></label>`;
     return `<details class="eg-q${got == null ? '' : ' done'}" data-q="${i}"${got == null ? ' open' : ''}>
       <summary class="eg-qh"><b>第 ${i + 1} 题 · ${E_ESC(eType(q.t))}</b><span>满分 ${E_ESC(eFmtNum(pts))}</span><span class="eg-qsum">${qSumHTML(s, q, i)}</span></summary>
       <div class="eg-qb">
@@ -9015,7 +9167,7 @@ async function subsElectronic(x) {
         <span class="eg-total" id="egTot${si}">${E_ESC(eFmtNum(tot))} / ${E_ESC(eFmtNum(full))}</span>
         <span class="eg-badge ${done ? 'ok' : 'wait'}" id="egDone${si}">${done ? '已批完' : '未批完'}</span></div>
       <div class="eg-qs">${paper.map((q, i) => qHTML(s, q, i, si)).join('')}</div>
-      <div class="eg-foot"><button class="pri" data-save="${si}">保存这份</button><button data-reset="${si}">重批</button>${subRelBtn(s, si)}<span class="eg-msg" id="egMsg${si}"></span></div>
+      <div class="eg-foot"><button class="eg-save" id="egSave${si}" data-save="${si}" title="改完自动保存，这颗只是立刻存一次">改完自动保存</button><button data-reset="${si}" title="清掉这份的全部批改（学生答案不动），只在你主动点时才清">重批</button>${subRelBtn(s, si)}<span class="eg-saveerr" id="egSaveErr${si}"></span><span class="eg-msg" id="egMsg${si}"></span></div>
     </section>`;
   };
 
@@ -9025,7 +9177,7 @@ async function subsElectronic(x) {
     const cardsHTML = !subs.length
       ? '<div class="card"><p class="note">还没有人交卷。</p></div>'
       : oneMode ? cardHTML(subs[cur], cur) : subs.map(cardHTML).join('');
-    /* 排行榜（2026-11-17）：老师端按**内存里**的 marks 现算 —— 老师刚打完还没点「保存这份」的
+    /* 排行榜（2026-11-17）：老师端按**内存里**的 marks 现算 —— 老师刚打完、还在自动保存路上的
        改动也要算进去，否则榜单和卡片上的总分对不上。一题都没批的人 total 记 null，
        不参与排名、排在最后（见 eRankRows）。 */
     const lbRows = subs.map(s => {
@@ -9043,11 +9195,13 @@ async function subsElectronic(x) {
         <div class="row">
           <button class="pri${ai.ok ? '' : ' off'}" id="egAi" ${ai.ok ? '' : 'disabled'} title="${E_ESC(ai.msg)}">${ai.loading ? '读取 AI 设置…' : 'AI 一键批改'}</button>
           <button id="egLbBtn" aria-expanded="${lbOpen}" aria-controls="egLb" title="在题卡上方展开 / 收起成绩排行榜">${lbOpen ? '收起排行榜' : '排行榜'}</button>
-          <button id="egRel" class="${released ? 'eg-on' : ''}">${released ? '撤销发布' : '发布成绩'}</button>
-          <button id="egCsv">导出 CSV</button><button id="egBack">返回</button>
+          <button id="egRel" class="${released ? 'eg-on' : ''}" title="${released
+            ? '撤销后学生立刻看不到分（已发布的成绩要保持对外就别点）'
+            : '发布 = 你确认分数复核完了，学生现在就能看分；发布后还能继续改，改完自动同步'}">${released ? '撤销发布' : '发布成绩'}</button>
+          <button id="egCsv" title="按界面上现在的分数导出（正在自动保存的改动也算在内）">导出 CSV</button><button id="egBack">返回</button>
         </div>
         <span class="eg-rel ${released ? 'on' : ''}" id="egRelState">${released
-          ? '✓ 成绩已发布 · 学生现在就能查分'
+          ? '✓ 成绩已发布 · 学生现在就能查分 · 还能继续改，改完自动同步'
           : '成绩未发布 · 学生只看到「已交卷，等老师批改」'}</span>
         <span class="eg-msg" id="egAiState">${E_ESC(ai.note || '')}</span>
       </div>
@@ -9064,22 +9218,29 @@ async function subsElectronic(x) {
         </div>` : `<div class="eg-index">${subs.map((s, si) => `<button class="eg-chip" data-jump="${si}"><b>${E_ESC(s.name)}</b><span id="egChipT${si}">${E_ESC(eFmtNum(subTotal(s)))} 分</span></button>`).join('')}</div>`}
         ${/* 学生下拉（2026-11-17）：49 个人一路翻太慢。选了就回到「逐个批改」、只显示这一个人。 */''}
         ${subs.length ? `<label class="eg-pick">学生<select id="egPick" aria-label="只看某一位学生">${subs.map((s, si) => `<option value="${si}"${si === cur ? ' selected' : ''}>${si + 1} / ${subs.length} · ${E_ESC(s.name)}</option>`).join('')}</select></label>` : ''}
-        ${dirty.size ? `<button class="sm eg-dirty" data-godirty="1" title="点了跳到第一个还没保存的人">⚠ ${dirty.size} 份改了没保存</button>` : ''}
+        ${/* 2026-11-18：原来这里是「⚠ N 份改了没保存」，现在保存是自动的，
+             所以改成一个**进度/失败**指示（内容由 paintSaveBar 填，打字时只改这一小块）。 */''}
+        <span id="egSaveBar"></span>
         <button class="sm" data-mode="1">${oneMode ? '全部展开' : '逐个批改'}</button>
       </div>
       <section class="card lb-card eg-lb" id="egLb" aria-label="成绩排行榜"${lbOpen ? '' : ' hidden'}>
         <div class="lb-h"><h2>成绩排行榜</h2><span class="note">未批完的人排在最后；同分同名次</span></div>
         ${eRankTableHTML(lbRows, full, { empty: '还没有人交卷' })}
-        <p class="note lb-note">分数跟着上面每张卡实时算（还没点「保存这份」的改动也算在内）。</p>
+        <p class="note lb-note">分数跟着上面每张卡实时算（正在自动保存的改动也算在内）。</p>
       </section>
       <div id="egCards">${cardsHTML}</div>`;
     refreshTop();
+    /* 重画会冲掉卡片底部的状态（已自动保存 / 正在保存 / 没保存上 + 原因），
+       paintAllSave 一次性按内存状态补回来 —— 失败信息绝不能因为重画而消失。
+       顶栏那条是新的空 span，清掉文案缓存，否则「文案没变就不碰 DOM」会把它当已画过。 */
+    barKey = '';
+    paintAllSave();
     /* 还在读取 → 读完自动重画一次，按钮自己亮，别让老师守着个灰按钮去手动刷新。
        判断「是否还停在批改台」用 DOM 而不是某个全局变量：这页没有 ST，
        而且老师可能已经切走了 —— 切走了再 renderAll() 会把人拽回来。 */
     if (ai.loading) eLoadAI().then(H => { if (H && $('egAi')) renderAll(); }).catch(() => { });
-    /* 保存/重批/评分/评语 */
-    app().querySelectorAll('[data-save]').forEach(b => { b.onclick = () => saveCard(+b.dataset.save, b); });
+    /* 保存/重批/评分/评语。注意「保存」这颗现在只是**兜底**：正常流程不用点，见 markDirty。 */
+    app().querySelectorAll('[data-save]').forEach(b => { b.onclick = () => saveCard(+b.dataset.save, null, { manual: true }); });
     app().querySelectorAll('[data-reset]').forEach(b => { b.onclick = () => resetCard(+b.dataset.reset); });
     app().querySelectorAll('[data-relsub]').forEach(b => { b.onclick = () => toggleSubRelease(+b.dataset.relsub || 0, b); });
     app().querySelectorAll('[data-g]').forEach(inp => {
@@ -9091,7 +9252,7 @@ async function subsElectronic(x) {
           const n = Math.max(0, Math.min(+q.pts || 0, Number(v) || 0));
           s._marks[k] = { got: Math.round(n * 2) / 2, by: 'manual', note: (s._marks[k] && s._marks[k].note) || '' };
         }
-        markDirty(si); refreshCard(si);
+        markDirty(si, i); refreshCard(si);
         const src = app().querySelector(`[data-src="${si}:${i}"]`);
         if (src) src.innerHTML = eMarkGot(s._marks[k]) == null ? '<span class="eg-wait">待批改</span>' : '<span class="eg-man">人工</span>';
         paintQSum(si, i);   // 折叠头那一行的分数也跟着变
@@ -9107,21 +9268,13 @@ async function subsElectronic(x) {
         const si = +inp.dataset.si, i = +inp.dataset.n, k = String(i + 1), s = subs[si];
         if (!s._marks[k]) s._marks[k] = { got: null, by: 'manual', note: '' };
         s._marks[k].note = inp.value.slice(0, 60);
-        markDirty(si);
+        markDirty(si, i);
       };
     });
     app().querySelectorAll('[data-aiq]').forEach(b => { b.onclick = () => aiGrade(+b.dataset.si, +b.dataset.aiq); });
     app().querySelectorAll('[data-step]').forEach(b => { b.onclick = () => stepCard(+b.dataset.step); });
-    /* 「N 份改了没保存」：点了跳到第一个没保存的人 —— 切来切去容易忘，给个能点回去的入口。 */
-    app().querySelectorAll('[data-godirty]').forEach(b => {
-      b.onclick = () => {
-        const first = [...dirty].sort((a, z) => a - z)[0];
-        if (first == null) return;
-        /* 和 chip 一样：一律回到「逐个批改」，只留这个人（全部展开里跳过去还会看到别人的卡） */
-        cur = first; oneMode = true; renderAll();
-        try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) { }
-      };
-    });
+    /* 顶栏那颗「正在保存 / N 份没保存上」的按钮由 paintSaveBar 自己绑（它会反复重建），
+       这里不要再绑一次，否则每重画一次就多挂一个 onclick。 */
     app().querySelectorAll('[data-mode]').forEach(b => {
       b.onclick = () => { oneMode = !oneMode; renderAll(); try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) { } };
     });
@@ -9152,56 +9305,112 @@ async function subsElectronic(x) {
     if ($('egBack')) $('egBack').onclick = async () => { if (await guard()) electronicTeacherHome(); };
     if ($('egRel')) $('egRel').onclick = release;
     if ($('egCsv')) $('egCsv').onclick = exportCsv;
-    /* 重画会冲掉「有改动未保存」的提示，这里补回来 */
-    dirty.forEach(si => cardMsg(si, '有改动未保存'));
   }
 
+  /* 离开批改台（点「返回」）：先把没落库的改动 flush 完，真的写不进去才问一句。 */
   async function guard() {
-    if (!dirty.size) return true;
-    return await hxConfirm(`有 ${dirty.size} 份改了还没保存，离开就丢了。确定继续？`);
+    if (!dirty.size && !saving.size && !failed.size) return true;
+    const all = await flushAll();
+    if (all) return true;
+    return await hxConfirm(`有 ${Math.max(failed.size, dirty.size)} 份没保存上（见卡片底部红字），现在离开这几处改动就丢了。确定继续？`);
   }
-  async function saveCard(si, btn) {
-    const s = subs[si], marks = {};
+  /* 保存一份 = 把**整张 marks** 覆盖写上去（服务端 hx_exam_mark 的语义）。
+     三条路径共用：① 防抖自动保存（opts.auto）② 老师点卡片底部那颗（opts.manual）③ flushAll。
+     同一个人再次进来会**排在上一趟后面**（saveChain），不会出现两个 RPC 抢着写同一行的乱序。 */
+  function saveCard(si, btn, opts) {
+    opts = opts || {};
+    if (tmr[si]) { clearTimeout(tmr[si]); tmr[si] = null; }   // 手动点 / flush 时取消还没到点的防抖
+    const prev = saveChain[si] || Promise.resolve();
+    const p = prev.then(() => doSave(si, btn, opts), () => doSave(si, btn, opts));
+    saveChain[si] = p.catch(() => { });
+    return p;
+  }
+  async function doSave(si, btn, opts) {
+    const s = subs[si];
+    /* 没有任何待写的东西（也没失败过）→ 不发这次 RPC。
+       手动点的时候例外：老师就是想要「立刻存一次」这个确定性。 */
+    if (!opts.manual && !dirty.has(si) && !failed.has(si)) return;
+    const v0 = ver[si] || 0;                 // 这一趟保存对应的改动版本
+    const marks = {};
     Object.keys(s._marks).forEach(k => {
       const m = s._marks[k], g = eMarkGot(m);
       /* 没分的题**不写进 marks**：服务端会把非数字 got 归一成 0，写了就等于判 0 分。
          不写 = 学生端 items 里 got/by 是 null，显示「待批改」。 */
       if (g != null) marks[k] = { got: g, by: m.by || 'manual', note: String(m.note || '').slice(0, 500) };
     });
-    const tok = (window.HXBusy && btn) ? HXBusy.begin(btn, '保存中…') : null;
-    if (!tok && btn) btn.disabled = true;
+    saving.add(si); failed.delete(si);
+    paintSave(si); paintSaveBar();
     try {
       const r = await rpc('hx_exam_mark', { p_exam_id: exam.id, p_student_id: s.student_id, p_marks: marks });
       s.total = r.total;
-      markClean(si, '已保存 · 总分 ' + eFmtNum(r.total));
+      savedAt.set(si, Date.now());
+      /* 版本没变才算真正干净；保存期间老师又改了，就把 dirty 留着等下一轮防抖 ——
+         否则「最后一处改动」会被前面那趟 RPC 的回执误判成已保存。 */
+      if ((ver[si] || 0) === v0) dirty.delete(si);
       refreshCard(si);
-      /* 逐个批改模式下，这一份**批完了**就自动翻到下一个没批完的 —— 老师不用自己找。
-         没批完就留在原地（他可能还想接着改这道题）；别的学生还有没保存的改动时也不跳，
-         免得把那句「有改动未保存」顶掉。 */
-      if (oneMode && isDone(s) && !dirty.size) {
+    } catch (e) {
+      /* 失败绝不静默：卡片底部那颗变成红字「第 N 题没保存上」，右边写清原因，点一下就重试。
+         dirty 保留 → beforeunload 还会拦、发布前 flush 也会失败并拒绝发布。 */
+      const i = lastEdit[si];
+      const qn = i == null ? '' : '第 ' + (i + 1) + ' 题';
+      const why = (e && e.message ? e.message : String(e));
+      failed.set(si, {
+        label: (qn || '这份') + '没保存上',
+        why: '没写进数据库：' + why + '（点左边这颗按钮重试）'
+      });
+    } finally {
+      saving.delete(si);
+      paintSave(si); paintSaveBar();
+    }
+    /* 手动保存 + 逐个批改 + 这一份已经批完 + 没有别的待写 → 自动翻到下一个还没批完的。
+       自动保存（防抖）**不走这条路**：老师可能正在写最后一道题的评语，
+       只要他还停在这张卡上，就不该被系统的保存动作甩到下一个学生。 */
+    if (opts.manual && !failed.has(si) && oneMode && isDone(s)) {
+      const pending = new Set([...dirty, ...saving]);
+      if (!pending.size) {
         const n = nextUnfinished(si);
         if (n != null) {
           cur = n; renderAll();
           try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) { }
         }
       }
-    } catch (e) {
-      cardMsg(si, '没保存：' + (e && e.message ? e.message : e), true);
-    } finally { if (tok) HXBusy.end(tok); else if (btn) btn.disabled = false; }
+    }
   }
   async function resetCard(si) {
     const s = subs[si];
+    /* 「重批」是**显式**动作：老师点了才清（这是它和「发布」最大的区别 —— 发布永不清批改）。
+       清完的这份会立刻被自动保存重新写库（只含刚重算出来的自动分），老师不用再点保存。 */
     if (!await hxConfirm(`重批「${s.name}」会清掉这份的所有批改（学生答案不动），确定？`)) return;
     try {
       await rpc('hx_exam_sub_reset', { p_exam_id: exam.id, p_student_id: s.student_id });
-      s._marks = {}; autoFill(s); dirty.add(si);
+      s._marks = {}; autoFill(s);
+      touchSave(si);                                   // 进 dirty + 排队自动保存
       renderAll();
-      cardMsg(si, '已清除批改；自动判分是刚算的，点「保存这份」才写库');
+      cardMsg(si, '已清除批改；自动判分刚重算，正在自动写库');
       const el = $('egC' + si); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } catch (e) { cardMsg(si, '没重批成功：' + (e && e.message ? e.message : e), true); }
   }
   async function release() {
-    if (!await guard()) return;
+    /* 2026-11-18（用户：「我发布就代表我复核完分数了」）：
+       发布前必须先把还没落库的改动**全部写完**再发 —— 否则会出现「老师屏幕上最后一处改动」和
+       「学生看到的分」对不上，而这正是老师以为已经复核过的地方。写失败就**不发**：
+       宁可不发，也不发一份自己都没存住的分；失败原因留在卡片上，存好再点一次就行。 */
+    if (!released) {
+      const b0 = $('egRel');
+      if (b0 && (dirty.size || saving.size || failed.size)) {
+        b0.disabled = true; b0.textContent = '先保存再发布…';
+        await new Promise(r => setTimeout(r, 0));      // 让「先保存再发布…」这一帧先画出来
+      }
+      const all = await flushAll();
+      const b1 = $('egRel');
+      if (!all) {
+        if (b1) { b1.disabled = false; b1.textContent = '发布成绩'; }
+        const n = Math.max(failed.size, dirty.size);
+        toast(`还有 ${n} 份没保存上，先点卡片底部那颗红色的「…没保存上」重试，存好再发布（没发出去，学生看不到分）`);
+        return;
+      }
+      if (b1) { b1.disabled = false; b1.textContent = '发布成绩'; }
+    }
     /* 2026-11-17（用户：「ai给分的 客观自动给的 为什么不能一键发布成绩呢 我不想改主观题呢」）：
        **发布不再因为「有题没批」拦人。** 客观题自动判、填空题自动判、AI 批过的大题都已经有分了，
        没批的题学生看到的是「待批改」、总分只算已批的题 —— 这是个安全状态，没有理由不让发。
@@ -9217,8 +9426,12 @@ async function subsElectronic(x) {
          不然重画出来的卡片还会挂着「已单独发布」的徽标。 */
       if (!released) subs.forEach(s => { s.released = false; });
       const left = subs.filter(s => !isDone(s)).length;
+      /* 发布**不动** marks：by（ai/manual/auto）和 note 原样留在库里，
+         发布后继续改分也走同一条 hx_exam_mark，学生下次刷新看到的就是新分。 */
       toast(released
-        ? (left ? `已发布：学生能看到分了（还有 ${left} 份的大题没批，学生那边显示「待批改」，总分只算已批的题）` : '已发布：学生现在能看到全部分数')
+        ? (left
+          ? `已发布：学生能看到分了（还有 ${left} 份的大题没批，学生那边显示「待批改」，总分只算已批的题）。以后还能继续改，改完自动同步`
+          : '已发布：学生现在能看到全部分数。以后还能继续改，改完自动同步')
         : '已撤销：学生看不到分了');
       renderAll();
     } catch (e) { if (b) { if (tok) HXBusy.end(tok); else b.disabled = false; } toast(e.message); }
@@ -9241,10 +9454,13 @@ async function subsElectronic(x) {
     if (released) return toast('全班成绩已发布，不用再单独发');
     const on = !s.released;
     if (on) {
-      /* 发出去之前把两种「发出去也没意义」的情况说清楚：
-         改了没保存 → 学生看到的是库里上一次保存的分；没批完 → 学生看到「待批改」。 */
+      /* 发出去之前先把这一份的改动写库 —— 「只发他的成绩」也代表老师认了这份分，
+         不能让他看到上次保存的旧分。写完再看还有没有「发出去也没意义」的情况。 */
+      if (dirty.has(si) || saving.has(si) || failed.has(si)) {
+        await saveCard(si, null, {}).catch(() => { });
+      }
       const warn = [];
-      if (dirty.has(si)) warn.push('这份改了还没保存，学生看到的是上次保存的分');
+      if (failed.has(si)) warn.push('这份有改动没保存上，学生看到的是上次存进去的分');
       if (!isDone(s)) warn.push('还有题没批，学生那边显示「待批改」');
       if (warn.length && !await hxConfirm(`只发「${s.name}」的成绩？${warn.join('；')}。仍要发布？`)) return;
     } else if (!await hxConfirm(`收回「${s.name}」的成绩？他立刻看不到分，确定？`)) return;
@@ -9308,7 +9524,9 @@ async function subsElectronic(x) {
             const m = eAiMark(z, +t.q.pts || 0, t.q.t === 'fill');
             if (!m) { skipped++; return; }
             t.s._marks[String(t.i + 1)] = m;
-            dirty.add(t.si); done++;
+            /* 2026-11-18：AI 给出的分也走自动保存 —— 否则老师「AI 一键批改完直接刷新/发布」
+               就会白批（以前必须逐张卡点「保存这份」）。 */
+            touchSave(t.si); done++;
           });
         } catch (e) { fails[key] = 'AI 调用失败：' + (e && e.message ? e.message : e) + '（已保留人工批改）'; }
       }
@@ -9351,14 +9569,14 @@ async function subsElectronic(x) {
     Object.keys(fails).forEach(k => cardMsg(+k, fails[k], true));
     /* 「没给分」的题要明说：以前它们会静默留在待批，老师以为 AI 漏跑了。 */
     const skipNote = skipped ? `，${skipped} 道 AI 没给出有效分数（保持待批，请人工核）` : '';
-    setSt(done ? `AI 批完 ${done} 道${skipNote}，记得点每张卡的「保存这份」` : 'AI 没批出结果，已保留人工批改');
-    toast(done ? `AI 批完 ${done} 道${skipNote}，还要点每张卡的「保存这份」` : 'AI 没批出结果');
+    setSt(done ? `AI 批完 ${done} 道${skipNote}，正在自动保存` : 'AI 没批出结果，已保留人工批改');
+    toast(done ? `AI 批完 ${done} 道${skipNote}，正在自动保存（不用再点保存）` : 'AI 没批出结果');
   }
   /* ── 进批改台就自动复核「判不动的填空」（2026-11-18）──────────────────────
      用户原话：「这个ai不会批改吗 我问你你都会吧」。截图里学生答「50」、答案是「50Hz」，
      机器只写一句「自动匹配不上，请人工核对」—— 老师得自己猜该不该点 AI。
      现在：本地单位容差先放行一批（见 eFillSame），剩下还是判不动的，**AI 配好就直接送**，
-     结果照样只进内存（要点「保存这份」才写库），老师随时能改。
+     结果进内存后照样**自动保存**（2026-11-18 起不用再点「保存这份」），老师随时能改。
      边界：只送 got==null 的填空；机器判 0 的（一个空都没对）不动，省 token 也不改已有判断；
      一次最多 30 道，超出的留给老师点「AI 一键批改」。 */
   let aiAutoDone = false;
@@ -9385,11 +9603,13 @@ async function subsElectronic(x) {
     renderAll();
     Object.keys(r.fails).forEach(k => cardMsg(+k, r.fails[k], true));
     const skipNote = r.skipped ? `，${r.skipped} 道 AI 也没给分（请人工核）` : '';
-    setSt(r.done ? `AI 复核完 ${r.done} 道填空${skipNote}，记得点「保存这份」` : 'AI 没批出填空，保持待批改');
+    setSt(r.done ? `AI 复核完 ${r.done} 道填空${skipNote}，正在自动保存` : 'AI 没批出填空，保持待批改');
   }
 
+  /* 关页面/刷新拦一下：只拦**还没 flush 完**的（防抖等待中 + 正在写库）。
+     已经自动保存好的就不拦了 —— 以前是「有任何改动就拦」，老师改完一题随手刷新也被弹窗吓一跳。 */
   addEventListener('beforeunload', e => {
-    if (!dirty.size) return;
+    if (!dirty.size && !saving.size) return;
     e.preventDefault(); e.returnValue = '';
   }, { signal: AC.signal });
 

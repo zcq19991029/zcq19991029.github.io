@@ -1555,16 +1555,39 @@
         '.hx-pn{position:relative;display:inline-block;vertical-align:middle;max-width:100%;box-sizing:border-box}'
         // 原生 select 只留位置，别让它再被点到（visibility 而不是 opacity，见上面注释）
         + '.hx-pn-src{visibility:hidden!important}'
-        // 按钮铺满包装层（= select 原来的盒子），外观由 skin() 逐条抄过来
-        + '.hx-pn-btn{position:absolute;inset:0;box-sizing:border-box;display:flex;align-items:center;'
-        + 'justify-content:space-between;gap:8px;width:100%;height:100%;overflow:hidden;cursor:pointer;'
-        + 'font:inherit;color:inherit;background:transparent;border:0;padding:0 8px;border-radius:8px;'
-        + 'line-height:1.2;text-align:left;margin:0}'
+        // ── 触发器 = 一块铝箔卡（2026-11-18 用户：「选项卡本身是药丸胶囊包装样子」）──
+        // 材质逐条照抄 _tmp/blister-demo.html 的 `.foil`：320px 跟鼠标走的反光 + ±45° 压纹 +
+        // 2px 拉丝 + 165° 银灰底 + 同款内外阴影。铝箔是实物色（浅银），所以文字固定 #20242a，
+        // 不跟深浅主题走 —— 深色页面上它也该是一块亮银色药板。
+        // 布局 [药槽][文字 1fr][折角]：列宽 = --pn-pw，行高 = --pn-ph，都由 JS 按实测高度写，
+        // 因为原生 select 高度从 26px 到 44px 都有，写死像素会撑破行高。
+        // padding-left 不再抄原生 select（药槽自己占一列），文字左边距 = 药槽宽 + 8px 的列间距。
+        + '.hx-pn-btn{position:absolute;inset:0;box-sizing:border-box;display:grid;align-items:center;'
+        + 'grid-template-columns:var(--pn-pw,34px) minmax(0,1fr) 12px;column-gap:8px;'
+        + 'width:100%;height:100%;overflow:hidden;cursor:pointer;margin:0;'
+        + 'padding:0 var(--pn-padr,8px) 0 var(--pn-padl,5px);'
+        + 'font:inherit;line-height:1.2;color:#20242a;text-align:left;'
+        + 'border:1px solid rgba(255,255,255,.41);border-radius:var(--pn-r,8px);'
+        + '--sheen-x:38%;--sheen-y:28%;'
+        + 'background:'
+        + 'radial-gradient(320px circle at var(--sheen-x) var(--sheen-y),rgba(255,255,255,.52) 0,rgba(255,255,255,.14) 38%,transparent 72%),'
+        + 'repeating-linear-gradient(45deg,rgba(255,255,255,.23) 0 1px,transparent 1px 3.5px),'
+        + 'repeating-linear-gradient(-45deg,rgba(55,60,70,.12) 0 1px,transparent 1px 3.5px),'
+        + 'repeating-linear-gradient(0deg,rgba(255,255,255,.145) 0,rgba(0,0,0,.04) 1px,rgba(255,255,255,.11) 2px),'
+        + 'linear-gradient(165deg,#eceef1,#d8dade 36%,#c5c9d0 74%,#d4d7dc);'
+        + 'box-shadow:inset 0 1.5px 1px rgba(255,255,255,.91),inset 1px 0 1px rgba(255,255,255,.65),'
+        + 'inset 0 -2px 3px rgba(72,76,86,.55),inset -1px 0 2px rgba(82,86,96,.38),'
+        + '0 3px 7px -2px rgba(0,0,0,.5),0 1px 2px rgba(0,0,0,.28);'
+        + 'transition:transform 180ms cubic-bezier(.22,1,.36,1)}'
+        + '.hx-pn-btn:active{transform:translateY(1px) scale(.995)}'
         + '.hx-pn-btn[disabled]{cursor:not-allowed;opacity:.55}'
         + '.hx-pn-btn:focus-visible{outline:2px solid var(--acc,#0a84ff);outline-offset:2px}'
-        + '.hx-pn-txt{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'
-        + '.hx-pn-car{flex:0 0 auto;width:6px;height:6px;border-right:1.7px solid currentColor;'
-        + 'border-bottom:1.7px solid currentColor;transform:translateY(-2px) rotate(45deg);opacity:.55}'
+        + '.hx-pn-txt{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'
+        + 'text-shadow:0 1px rgba(255,255,255,.66)}'
+        + '.hx-pn-car{justify-self:center;width:6px;height:6px;border-right:1.7px solid currentColor;'
+        + 'border-bottom:1.7px solid currentColor;transform:translateY(-2px) rotate(45deg);opacity:.55;'
+        + 'transition:transform 300ms cubic-bezier(.22,1,.36,1)}'
+        + '.hx-pn-btn[aria-expanded="true"] .hx-pn-car{transform:translateY(1px) rotate(-135deg)}'
         // 面板 = 一块铝箔药板。配方**直接从 刷题/style.css 的 .bsc-foil / .bsc-rim / .bsc-pill 抄过来**：
         // 用户要的就是「跟刷题那边一样」，别再自己发明第二种长相（第一版做成白底圆角条，被问「药丸在哪儿」）。
         // 铝箔是实物色（浅银），所以既不跟主题也不跟触发器底色走 —— 深色页面上它也是一块亮银色药板，
@@ -1575,6 +1598,10 @@
         + 'padding:6px 0 30px;overflow:hidden;pointer-events:none}'
         // 460ms 回弹曲线滑出 + 320ms 淡入，跟刷题 .bsc-panel 逐条一致（用户要的就是「一样」）
         + '.hx-pn-sheet{position:relative;box-sizing:border-box;width:100%;overflow:auto;pointer-events:auto;'
+        // 药板里的每一格都是「压缩版」比例（样张 .sm 段）：药槽 46×26、胶囊 33×14。
+        // 药槽内部所有 inset 都用 --pn-pw/--pn-ph 的百分比算，所以触发器里那圈更小的槽
+        // 用的是同一套配方，只是尺寸不同（见 .hx-pn-pk）。
+        + '--pn-pw:46px;--pn-ph:26px;'
         + 'transition:transform 460ms cubic-bezier(.22,1.06,.36,1),opacity 320ms cubic-bezier(.22,1.06,.36,1);'
         + 'padding:6px;border-radius:14px;color:#20242a;border:1px solid rgba(255,255,255,.41);'
         + 'background:'
@@ -1587,9 +1614,9 @@
         + 'inset 0 -2px 3px rgba(72,76,86,.55),inset -1px 0 2px rgba(82,86,96,.38),'
         + '0 14px 30px -8px rgba(0,0,0,.6),0 4px 10px rgba(0,0,0,.31);'
         + '-webkit-overflow-scrolling:touch}'
-        // 一行 = 药板上的一格：左边一颗胶囊，右边名字；行与行之间是点线（同 .bsc-row）
-        + '.hx-pn-opt{display:grid;grid-template-columns:38px minmax(0,1fr);gap:9px;align-items:center;'
-        + 'width:100%;box-sizing:border-box;min-height:42px;padding:0 11px;margin:0;border:0;border-radius:0;'
+        // 一行 = 药板上的一格：左边一颗胶囊（药槽 46×26），右边名字；行与行之间是点线（同 .bsc-row）
+        + '.hx-pn-opt{display:grid;grid-template-columns:46px minmax(0,1fr);gap:10px;align-items:center;'
+        + 'width:100%;box-sizing:border-box;min-height:46px;padding:0 12px 0 10px;margin:0;border:0;border-radius:0;'
         + 'background:transparent;color:#20242a;font:inherit;font-size:13.5px;font-weight:600;'
         + 'text-align:left;cursor:pointer;overflow:hidden}'
         + '.hx-pn-opt+.hx-pn-opt{border-top:1px dotted rgba(84,89,100,.53)}'
@@ -1597,50 +1624,98 @@
         + '.hx-pn-opt:active{background:rgba(0,0,0,.05)}'
         + '.hx-pn-opt:focus-visible{outline:2px solid #1a56ff;outline-offset:-3px}'
         + '.hx-pn-opt.dis{opacity:.42;cursor:not-allowed}'
-        // 药槽 = 刷题 `.bsc-pocket` 那一套四层（`.bsc-rim` 金属圈 + `.bsc-rim::after` 压痕 + `.bsc-dome` 玻璃罩 + `.bsc-pill` 胶囊），
-        // 尺寸整体 ×0.7（药槽 54×30 → 38×21、胶囊 40×16 → 28×11）。缩小的原因：原生 select 常常只有一百来像素宽，
-        // 原尺寸一颗药就吃掉 54px，窄下拉里选项文字当场变省略号 —— 层次和比例一模一样，只是小一号。
-        + '.hx-pn-pk{position:relative;display:grid;place-items:center;width:38px;height:21px;isolation:isolate;pointer-events:none}'
-        + '.hx-pn-rim{position:absolute;inset:1px 1.5px;border-radius:999px;'
+        // ── 药槽 = 金属圈 + 压痕 + 玻璃罩 + 胶囊（样张 `.pocket/.rim/.dome/.pill`）──
+        // 尺寸全部由 --pn-pw / --pn-ph 驱动：面板里是 46×26（样张 `.sm` 段的压缩比例），
+        // 触发器里是 JS 按按钮实测高度算出来的（16~64）。所有 inset、环宽、阴影偏移都写成
+        // --pn-ph / --pn-pw 的百分比，同一套配方在两种尺寸下比例一致，不会出现「小槽配粗金属圈」。
+        + '.hx-pn-pk{position:relative;display:grid;place-items:center;isolation:isolate;pointer-events:none;'
+        + 'width:var(--pn-pw,46px);height:var(--pn-ph,26px)}'
+        // 2026-11-18 二次修正：药槽 / 空槽**回到参考原型的 CSS 配方**，删掉那两张 data-URI 素材图。
+        //   ├ 上一版我以为参考里的 pocket-rim / popped-cavity 是渲染图，于是从别处找了张实拍素材内嵌进来，
+        //   │  结果喂回参考截图对比时肉眼就能看出两处不像：外圈是暗灰扁环（参考是明暗交替的亮银圈）、
+        //   │  碎箔是密集小卷（参考是左下一整片锐利折面）。判据只有一条 —— 和参考 1:1，不是「像锡箔就行」。
+        //   └ 事实：参考原型 blister-demo.html 里 0 个 url()，全部是渐变 + clip-path 画的。
+        //     它的 `.sm` 段（药槽 46×27 / 胶囊 33×14）就是我们面板在用的压缩尺寸，
+        //     所以下面这些 px 直接按 46×26 基准换算成 --pn-pw/--pn-ph 的比例，忠实度最高。
+        //     顺带省掉约 50 KB base64（两份副本 + 刷题离线包三处都要吃这份体积）。
+        // 药槽 = 一圈斜向反光（162deg 的明暗交替）+ 3 层 inset 环（白边 / 灰环 / 亮灰环）+ 内凹压痕
+        + '.hx-pn-rim{position:absolute;border-radius:999px;'
+        + 'inset:calc(var(--pn-ph,26px)*.038) calc(var(--pn-pw,46px)*.033);'
         + 'background:linear-gradient(162deg,rgba(251,252,255,.61) 2%,rgba(115,121,134,.47) 24%,'
         + 'rgba(244,245,248,.32) 49%,rgba(76,82,94,.33) 66%,#fff 96%);'
-        + 'box-shadow:0 1px 1.4px rgba(0,0,0,.27),inset 0 0 0 1px rgba(250,252,255,.75),'
-        + 'inset 0 0 0 1.5px rgba(130,136,149,.55),inset 0 0 0 2.5px rgba(233,237,242,.61),'
-        + 'inset 0 .7px 3.5px rgba(51,57,70,.77)}'
-        + '.hx-pn-rim::after{content:"";position:absolute;inset:3.5px;border-radius:inherit;'
-        + 'background:rgba(184,187,198,.36);'
-        + 'box-shadow:inset 0 1.4px 2px rgba(52,56,66,.33),inset 0 -.7px .7px #fff}'
-        + '.hx-pn-dome{position:absolute;z-index:2;inset:3px 4px;border-radius:999px;'
+        + 'box-shadow:0 calc(var(--pn-ph,26px)*.038) calc(var(--pn-ph,26px)*.077) rgba(0,0,0,.27),'
+        + 'inset 0 0 0 1px rgba(250,252,255,.67),inset 0 0 0 calc(var(--pn-ph,26px)*.077) rgba(130,136,149,.55),'
+        + 'inset 0 0 0 calc(var(--pn-ph,26px)*.115) rgba(233,237,242,.6),'
+        + 'inset 0 calc(var(--pn-ph,26px)*.038) calc(var(--pn-ph,26px)*.154) rgba(51,57,70,.69)}'
+        // 槽底：比外圈暗一档的凹陷面 + 上方压影 + 下方回光（缺了这层，胶囊像浮在铝箔上而不是嵌在槽里）
+        + '.hx-pn-rim::after{content:"";position:absolute;border-radius:inherit;'
+        + 'inset:calc(var(--pn-ph,26px)*.154);background:rgba(184,187,198,.36);'
+        + 'box-shadow:inset 0 calc(var(--pn-ph,26px)*.077) calc(var(--pn-ph,26px)*.154) rgba(52,56,66,.33),'
+        + 'inset 0 -1px 1px #fff}'
+        + '.hx-pn-dome{position:absolute;z-index:2;border-radius:999px;'
+        + 'inset:calc(var(--pn-ph,26px)*.115) calc(var(--pn-pw,46px)*.109);'
         + 'background:linear-gradient(145deg,rgba(255,255,255,.33),rgba(255,255,255,.07) 32%,'
         + 'transparent 56%,rgba(255,255,255,.13));box-shadow:inset 0 1px 1px rgba(255,255,255,.6)}'
-        + '.hx-pn-pill{position:relative;width:28px;height:11px;border-radius:999px;'
+        // ── 三种胶囊：0 蓝白 / 1 琥珀 / 2 鼠尾草，按「选项下标 % 3」分配（buildSheet）；
+        // 触发器里显示当前选中项那一颗（refresh）。飞行胶囊共用同一套材质（:is 一起选），
+        // 否则飞出去是蓝的、落下来变成琥珀，中间有一道断层（样张特意修过这处）。
+        + ':is(.hx-pn-pill,.hx-pn-flight){position:relative;border-radius:999px;'
+        + 'width:calc(var(--pn-pw,46px)*.717);height:calc(var(--pn-ph,26px)*.538);'
         + 'background:linear-gradient(90deg,#0645c5 0 49%,#e8e8e8 50%);'
-        + 'box-shadow:0 1px 2px rgba(17,24,34,.4),inset 0 1px 1px rgba(0,0,0,.4)}'
-        + '.hx-pn-pill::before{content:"";position:absolute;inset:1.4px 50% 1.8px 1.8px;'
+        + 'box-shadow:0 calc(var(--pn-ph,26px)*.05) calc(var(--pn-ph,26px)*.09) rgba(17,24,34,.4),'
+        + 'inset 0 1px 1px rgba(0,0,0,.4)}'
+        + ':is(.hx-pn-pill,.hx-pn-flight)::before{content:"";position:absolute;'
+        + 'inset:calc(var(--pn-ph,26px)*.054) 50% calc(var(--pn-ph,26px)*.077) calc(var(--pn-pw,46px)*.043);'
         + 'border:1px solid rgba(96,153,252,.33);border-right:0;border-radius:999px 0 0 999px}'
-        + '.hx-pn-pill::after{content:"";position:absolute;inset:0;border-radius:inherit;'
+        + ':is(.hx-pn-pill,.hx-pn-flight)::after{content:"";position:absolute;inset:0;border-radius:inherit;'
         + 'background:linear-gradient(180deg,rgba(0,0,0,.47),transparent 33%,rgba(255,255,255,.33) 68%,rgba(0,0,0,.27));'
         + 'box-shadow:inset 0 -.7px .7px rgba(0,0,0,.33)}'
-        // 选中 = 这颗药被抠走了：露出撕开的空槽（同 `.bsc-cavity`，含毛边 clip-path 和那片反光锡纸）
-        + '.hx-pn-cav{position:absolute;inset:1px 1.5px;display:none;border-radius:999px;'
-        + 'background:conic-gradient(from 12deg,#f5f5f5,#666970 10%,#e4e6e8 17%,#b8bbc2 29%,'
-        + '#f5f5f5 37%,#484b50 48%,#d6d8db 59%,#878b91 66%,#f6f6f6 78%,#4a4c50 89%,#efeff0);'
-        + 'box-shadow:inset 0 0 0 1px #fff,inset 0 0 0 1.5px #7a7d82,inset 0 0 0 2.5px #e4e6ea,'
-        + '0 1.4px 2.8px rgba(0,0,0,.31)}'
+        // 琥珀（样张 `.pill[data-value=open]` 那串 radial + linear）
+        + ':is(.hx-pn-pill,.hx-pn-flight)[data-mat="1"]{'
+        + 'background:radial-gradient(ellipse at 46% 51%,#63320c 0 25%,#ac570c 40%,transparent 65%),'
+        + 'linear-gradient(156deg,#783a09 12%,#ffa226 28%,#d07516 44%,#4c200a 68%,#ffc25b 83%,#7e4109 94%);'
+        + 'box-shadow:0 calc(var(--pn-ph,26px)*.06) calc(var(--pn-ph,26px)*.1) rgba(29,12,1,.38),'
+        + 'inset 0 0 0 1px #6d300a,inset 0 0 calc(var(--pn-ph,26px)*.15) #ee9f40}'
+        + ':is(.hx-pn-pill,.hx-pn-flight)[data-mat="1"]::before{display:none}'
+        + ':is(.hx-pn-pill,.hx-pn-flight)[data-mat="1"]::after{'
+        + 'inset:calc(var(--pn-ph,26px)*.077) calc(var(--pn-pw,46px)*.098);'
+        + 'background:linear-gradient(178deg,#ffe6ad 0,transparent 25%,rgba(51,19,5,.55) 53%,#ffd486 92%);'
+        + 'box-shadow:calc(var(--pn-pw,46px)*-.087) calc(var(--pn-ph,26px)*.077) 0 calc(var(--pn-pw,46px)*-.043) #fff5dc,'
+        + 'inset 0 0 1px #fff3cf}'
+        // 鼠尾草（样张 `.pill[data-value=closed]`）
+        + ':is(.hx-pn-pill,.hx-pn-flight)[data-mat="2"]{'
+        + 'background:linear-gradient(90deg,#778b70 0 51%,#58674f 52%,#83927a 55%,#65785e 96%);'
+        + 'box-shadow:0 calc(var(--pn-ph,26px)*.06) calc(var(--pn-ph,26px)*.1) rgba(17,29,20,.47),'
+        + 'inset 0 1px 1px rgba(37,44,34,.43)}'
+        + ':is(.hx-pn-pill,.hx-pn-flight)[data-mat="2"]::before{display:none}'
+        + ':is(.hx-pn-pill,.hx-pn-flight)[data-mat="2"]::after{'
+        + 'background:radial-gradient(ellipse at 23% 74%,rgba(230,235,212,.55),transparent 45%),'
+        + 'linear-gradient(180deg,rgba(34,44,33,.66),transparent 32%,rgba(206,212,190,.36) 70%,rgba(48,60,46,.44))}'
+        // 选中 = 这颗药被抠走了：露出撕开的空槽。照参考 `.cavity` 三层原样搬 ——
+        //   ① 本体 conic-gradient 12 段明暗交替 = 被撕开一圈的金属箔断面（这一层最要紧：
+        //      它和隔壁完整药槽的银圈必须亮得一样，否则选中行看起来像「矮了一截」）；
+        //   ② ::before 16 个点的锯齿 clip-path + 椭圆深洞 = 撕口的毛边；
+        //   ③ ::after 左下 37%×61% 的折面 = 折起来的碎箔，一层银白三角足够，不要做成密集卷边。
+        + '.hx-pn-cav{position:absolute;display:none;border-radius:999px;'
+        + 'inset:calc(var(--pn-ph,26px)*.038) calc(var(--pn-pw,46px)*.033);'
+        + 'background:conic-gradient(from 12deg,#f5f5f5,#666970 10%,#e4e6e8 17%,#b8bbc2 29%,#f5f5f5 37%,'
+        + '#484b50 48%,#d6d8db 59%,#878b91 66%,#f6f6f6 78%,#4a4c50 89%,#efeff0);'
+        + 'box-shadow:inset 0 0 0 1px #fff,inset 0 0 0 calc(var(--pn-ph,26px)*.077) #7a7d82,'
+        + 'inset 0 0 0 calc(var(--pn-ph,26px)*.115) #e4e6ea,'
+        + '0 calc(var(--pn-ph,26px)*.038) calc(var(--pn-ph,26px)*.077) rgba(0,0,0,.27)}'
         + '.hx-pn-cav::before,.hx-pn-cav::after{content:"";position:absolute}'
-        + '.hx-pn-cav::before{inset:3px 4px;'
+        + '.hx-pn-cav::before{inset:calc(var(--pn-ph,26px)*.115) calc(var(--pn-pw,46px)*.087);'
         + 'clip-path:polygon(0 34%,9% 10%,25% 18%,38% 0,52% 14%,72% 0,89% 15%,100% 36%,'
         + '97% 77%,87% 95%,69% 86%,56% 100%,38% 82%,24% 92%,20% 64%,4% 63%);'
         + 'background:repeating-linear-gradient(4deg,rgba(255,255,255,.06) 0 1px,transparent 1px 3px),'
-        + 'radial-gradient(ellipse at 50% 78%,#4d4f51,#252729 62%,#111214 83%);box-shadow:inset 0 3px 8px #000}'
+        + 'radial-gradient(ellipse at 50% 78%,#4d4f51,#252729 62%,#111214 83%);'
+        + 'box-shadow:inset 0 4px 12px #000}'
         + '.hx-pn-cav::after{width:37%;height:61%;left:8%;bottom:9%;'
         + 'clip-path:polygon(0 3%,38% 14%,52% 30%,85% 42%,74% 64%,99% 90%,51% 100%,11% 75%);'
-        + 'background:conic-gradient(from 31deg at 46% 49%,rgba(255,255,255,.73),#8c8f95,#fff,'
-        + '#53565e,#f9fafc,#bcbec3,rgba(255,255,255,.73))}'
+        + 'background:conic-gradient(from 31deg at 46% 49%,#fffb,#8c8f95,#fff,#53565e,#f9fafc,#bcbec3,#fffb)}'
         + '.hx-pn-opt.on .hx-pn-cav{display:block}'
         + '.hx-pn-opt.on :is(.hx-pn-rim,.hx-pn-dome,.hx-pn-pill){visibility:hidden}'
         + '.hx-pn-opt.on .hx-pn-txt{font-weight:800}'
-        + '.hx-pn-txt{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-shadow:0 1px rgba(255,255,255,.66)}'
         + '.hx-pn-grp{padding:8px 12px 3px;font-size:10.5px;font-weight:700;letter-spacing:.08em;color:#5c626b}'
         + '.hx-pn-empty{padding:10px 12px;font-size:13px;color:#4a4f57}'
         // 收起位：藏到触发器背后（--pn-hide 由 JS 按实测高度写，上方弹出时取正值反向滑出）
@@ -1649,14 +1724,9 @@
         // 飞行的胶囊不能放在 .hx-pn-clip 里 —— 裁剪盒只罩住药板，触发器在它外面，飞行路径会被裁掉。
         // 所以单独开一层铺满视口、不吃事件的 fx 层，坐标就是视口坐标（省掉刷题那边 wrap 相对换算）。
         + '.hx-pn-fx{position:fixed;inset:0;z-index:2147482001;display:none;pointer-events:none;overflow:hidden}'
-        + '.hx-pn-flight{position:absolute;top:0;left:0;width:28px;height:11px;border-radius:999px;'
-        + 'background:linear-gradient(90deg,#0645c5 0 49%,#e8e8e8 50%);'
-        + 'box-shadow:0 1px 2px rgba(17,24,34,.4),inset 0 1px 1px rgba(0,0,0,.4);will-change:transform}'
-        + '.hx-pn-flight::before{content:"";position:absolute;inset:1.4px 50% 1.8px 1.8px;'
-        + 'border:1px solid rgba(96,153,252,.33);border-right:0;border-radius:999px 0 0 999px}'
-        + '.hx-pn-flight::after{content:"";position:absolute;inset:0;border-radius:inherit;'
-        + 'background:linear-gradient(180deg,rgba(0,0,0,.47),transparent 33%,rgba(255,255,255,.33) 68%,rgba(0,0,0,.27));'
-        + 'box-shadow:inset 0 -.7px .7px rgba(0,0,0,.33)}'
+        // 飞行胶囊只负责「定位 + 帧动画」，材质/尺寸规则由上面的 :is(.hx-pn-pill,.hx-pn-flight) 提供；
+        // 实际宽高由 JS 按「被点那一格」的胶囊实测值写进 style，所以这里给的只是兜底。
+        + '.hx-pn-flight{position:absolute;top:0;left:0;width:33px;height:14px;will-change:transform}'
         + '.hx-pn-burst{position:absolute;pointer-events:none}'
         + '.hx-pn-burst>span{position:absolute;background:#f4f6f9;box-shadow:0 0 1px #51535f}'
         + '.hx-pn-burst>.hx-pn-ring{width:18px;height:10px;margin:-5px -9px;background:transparent;'
@@ -1679,29 +1749,9 @@
       return t || '请选择';
     }
 
-    /* 从原生 select 现场抄外观。注意：**只抄能抄的**（颜色/边框/圆角/字体/内边距），
-       不抄 width/height —— 那两条由「select 撑包装层、按钮铺满」这个结构负责，抄成 px 反而不能自适应。 */
-    /* 原生 select 常把「下拉箭头」挂成 background-image（考试页就是
-       `background: var(--field) url("data:image/svg+xml,…chevron…")`）。
-       skin() 只搬 backgroundImage、不搬 backgroundRepeat / Position / Size，
-       于是那个 12×8 的箭头会被平铺满整条按钮，看上去像一片波纹（2026-11-17 考试页实机）。
-       按钮右侧本来就有自己画的 .hx-pn-car 箭头，所以 url() 那几层直接丢掉，
-       纯渐变（单片机那种）照旧保留 —— 只按顶层逗号切层，括号里的逗号不算。 */
-    function stripIconLayers(bg) {
-      if (!bg || bg.indexOf('url(') === -1) return bg;
-      var parts = [], depth = 0, cur = '';
-      for (var i = 0; i < bg.length; i++) {
-        var ch = bg.charAt(i);
-        if (ch === '(') depth++;
-        else if (ch === ')') depth--;
-        if (ch === ',' && depth === 0) { parts.push(cur); cur = ''; }
-        else cur += ch;
-      }
-      parts.push(cur);
-      var keep = [];
-      for (var j = 0; j < parts.length; j++) if (parts[j].indexOf('url(') === -1) keep.push(parts[j]);
-      return keep.join(',') || 'none';
-    }
+    /* ── 以下两个曾经用来把原生 select 的底色/箭头背景抄到按钮上 ──
+       2026-11-18 触发器改成铝箔卡之后不再需要（见 skin 顶部注释），整段删除；
+       纯渐变 / url() 箭头那些坑一并消失，按钮的材质由 CSS 全权负责。 */
 
     /* 包装层的宽度/排布策略。**必须能在「后来才露出来」的时候重跑一次**：
        课程进度那种页面整块在登录墙后面，59 个 select 初始化时全在隐藏容器里，
@@ -1746,24 +1796,49 @@
       inst.fitted = true;
     }
 
+    /* 触发器药槽的自适应尺寸（2026-11-18）。
+       原生 select 的实测高度 26~44px 都有，药槽写死像素会撑破行高，所以：
+         药槽高 = clamp(16, 按钮高 − 10, 64)px，药槽宽 = 药槽高 × 1.75
+         （36px 高的表单行 → 26 × 45.5，正好是样张 `.sm` 段验证过的 46×26 比例）
+       宽度再夹一道按钮自身的 45%：窄下拉（一百来像素）里一颗药吃掉半条会把文字挤成省略号。
+       CSS 侧所有药槽内部尺寸（金属圈环宽、压痕、玻璃罩、胶囊）都用 calc(--pn-ph/--pn-pw * 系数)，
+       所以这里只写两个变量，整套材质跟着缩放。 */
+    function sizeBtn(inst) {
+      var btn = inst.btn;
+      var w = btn.offsetWidth || 0, h = btn.offsetHeight || 0;
+      if (!w || !h) return;
+      var ph = Math.max(16, Math.min(64, h - 10));
+      var pw = ph * 1.75;
+      if (pw > w * .45) pw = Math.max(22, w * .45);
+      btn.style.setProperty('--pn-ph', Math.round(ph * 10) / 10 + 'px');
+      btn.style.setProperty('--pn-pw', Math.round(pw * 10) / 10 + 'px');
+    }
+
+    /* 从原生 select 现场抄外观。注意：**只抄能抄的**（字体/行高/对齐/圆角/内边距），
+       不抄 width/height —— 那两条由「select 撑包装层、按钮铺满」这个结构负责，抄成 px 反而不能自适应。
+       2026-11-18 起**不再抄** backgroundColor / backgroundImage / border* / boxShadow / color：
+       触发器现在是一块铝箔卡（实物色，见 inject 里的 .hx-pn-btn），抄过来就又变回普通表单框了。 */
     function skin(inst) {
       var sel = inst.sel, btn = inst.btn, st = btn.style;
       if (!sel.getClientRects().length) return; // 还没露出来，量不到，等下次
       // 第一次真正露出来：量一次宽度策略（隐藏时量出来的结论不可信，见 fit 注释）
       if (!inst.fitted) { try { fit(inst); } catch (e) { } }
       var cs = getComputedStyle(sel);
-      var fill = ['color', 'backgroundColor', 'fontFamily', 'fontSize', 'fontWeight',
-        'letterSpacing', 'lineHeight', 'textAlign', 'borderTopWidth', 'borderRightWidth', 'borderBottomWidth',
-        'borderLeftWidth', 'borderTopStyle', 'borderRightStyle', 'borderBottomStyle', 'borderLeftStyle',
-        'borderTopColor', 'borderRightColor', 'borderBottomColor', 'borderLeftColor', 'borderRadius',
-        'paddingLeft', 'paddingRight', 'boxShadow'];
+      var fill = ['fontFamily', 'fontSize', 'fontWeight', 'letterSpacing', 'lineHeight', 'textAlign'];
       for (var i = 0; i < fill.length; i++) {
         var v = cs[fill[i]];
         if (v) st[fill[i]] = v;
       }
-      st.backgroundImage = stripIconLayers(cs.backgroundImage);
-      // 原生下拉的文字大多是垂直居中、左右各留一点；按钮默认 0.8em 的内边距稍微补一点
-      if (!inst.txt.textContent) st.paddingRight = (parseFloat(cs.paddingLeft) || 8) + 18 + 'px';
+      // 药槽尺寸先算出来 —— 下面的左右内边距要拿它当基准
+      try { sizeBtn(inst); } catch (e) { }
+      // 圆角跟随原生 select，最小 6px（26px 高的行再小就成直角了，跟铝箔不搭）
+      var br = parseFloat(cs.borderTopLeftRadius);
+      st.setProperty('--pn-r', (isFinite(br) ? Math.max(6, Math.min(br, 18)) : 8) + 'px');
+      // 左右内边距：左边只留一点点（药槽自己占第一列，文字左边距 = 药槽宽 + 列间距 8px），
+      // 右边要补出折角的位置（原生 select 的 paddingRight 常常是给它的 background 箭头留的）。
+      var pl = parseFloat(cs.paddingLeft), pr = parseFloat(cs.paddingRight);
+      st.setProperty('--pn-padl', Math.max(2, Math.min(isFinite(pl) ? pl : 8, 10)) + 'px');
+      st.setProperty('--pn-padr', Math.max(7, Math.min((isFinite(pr) ? pr : 8) + 2, 20)) + 'px');
       inst.skinned = true;
     }
 
@@ -1774,6 +1849,8 @@
       inst.txt.textContent = t;
       inst.btn.disabled = !!el.disabled;
       inst.btn.title = t;
+      // 触发器药槽里那颗 = 当前选中项的材质（选项下标 % 3，跟面板里的分配一致）
+      if (inst.hero) inst.hero.setAttribute('data-mat', String(Math.max(0, el.selectedIndex) % 3));
       if (!inst.skinned) skin(inst);
     }
 
@@ -1802,7 +1879,10 @@
         b.setAttribute('data-i', i);
         if (o.disabled) b.disabled = true;
         // 左边那颗胶囊（选中行由 CSS 换成空药槽）+ 右边名字
-        b.innerHTML = '<span class="hx-pn-pk"><i class="hx-pn-rim"></i><i class="hx-pn-pill"></i>'
+        // 材质按选项下标 % 3 轮换（0 蓝白 / 1 琥珀 / 2 鼠尾草），三格一排正好三种颜色 ——
+        // 样张里就是「一板三种药」，不是同一颗复制三遍。
+        b.innerHTML = '<span class="hx-pn-pk"><i class="hx-pn-rim"></i>'
+          + '<i class="hx-pn-pill" data-mat="' + (i % 3) + '"></i>'
           + '<i class="hx-pn-dome"></i><i class="hx-pn-cav"></i></span><span class="hx-pn-txt"></span>';
         b.querySelector('.hx-pn-txt').textContent = String(o.text || '').replace(/\s+/g, ' ').trim() || '（空）';
         sheet.appendChild(b);
@@ -1878,8 +1958,14 @@
       g.appendChild(ring);
       var left = shards ? shards + 1 : 1, done = 0;
       function tick() { if (++done >= left) { g.remove(); fxOff(); } }
+      /* 2026-11-18：`finished` 不是保票 —— 页面被判定 hidden（后台标签、投屏切走、CDP 冷启动）
+         时这个 Promise 可能一直不 settle，实测过点选 1.8 秒后碎屑组还挂着 data-busy='1'，
+         把 fxOff() 顶住、整层永远不熄灯。所以每段动画都配一个定时兜底：到点没回调就自己交卷。 */
       function run(el, frames, opt) {
-        try { el.animate(frames, opt).finished.then(tick, tick); } catch (e) { tick(); }
+        var fired = false;
+        function once() { if (fired) return; fired = true; tick(); }
+        setTimeout(once, ((opt && opt.duration) || 300) + 200);
+        try { el.animate(frames, opt).finished.then(once, once); } catch (e) { once(); }
       }
       run(ring, [{ opacity: .7, transform: 'scale(.8)' }, { opacity: 0, transform: 'scale(3.2)' }],
         { duration: 280, easing: 'ease-out', fill: 'forwards' });
@@ -1899,49 +1985,85 @@
       }
     }
 
-    /* 胶囊从被点的那一格里飞出来，划一道弧线扎进触发器左端缩没（23 帧，与刷题同一条曲线）。
-       用 translate3d 拼帧而不是改 left/top：不触发重排，95 个下拉扎堆的页面上也不掉帧。 */
-    function fly(src, dst, btn) {
+    /* 胶囊从被点的那一格里飞出来，划一道弧线扎进**触发器左端药槽的中心**（23 帧，与样张同一条曲线）。
+       用 translate3d 拼帧而不是改 left/top：不触发重排，95 个下拉扎堆的页面上也不掉帧。
+       src = 被点那一格的药槽 rect（碎屑从这里炸开）
+       dst = 触发器药槽的 rect（不是整颗按钮 —— 落点必须是槽心，否则胶囊会停在按钮左边凭空一点）
+       mat / size = 被点那一格胶囊的材质与实测尺寸，飞出去和落下去必须是同一颗药。 */
+    function fly(src, dst, btn, mat, size) {
       if (!fx || !src || !dst || !src.width) return;
       fxOn();
+      var W = (size && size.w) || 33, H = (size && size.h) || 14;
+      var hero = btn ? btn.querySelector('.hx-pn-pill') : null;
+      var txt = btn ? btn.querySelector('.hx-pn-txt') : null;
       var cx = src.left + src.width / 2, cy = src.top + src.height / 2;
       burstAt(cx, cy, 14);
       var pill = document.createElement('span');
       pill.className = 'hx-pn-flight';
       pill.setAttribute('aria-hidden', 'true');
+      pill.setAttribute('data-mat', String(mat || 0));
+      pill.style.width = W + 'px';
+      pill.style.height = H + 'px';
       fx.appendChild(pill);
-      var hw = (pill.offsetWidth || 28) / 2, hh = (pill.offsetHeight || 11) / 2;
+      // 飞的是「这一颗」的替身，触发器里那颗先藏起来，落点再弹回来（同样张 paintHeader 的时机）
+      if (hero) hero.style.visibility = 'hidden';
+      var hw = W / 2, hh = H / 2;
       var sx = cx - hw, sy = cy - hh;
-      var dx = dst.left + 13 - hw, dy = dst.top + dst.height / 2 - hh;
-      var lift = 5, N = 23, frames = [];
+      var dx = dst.left + dst.width / 2 - hw, dy = dst.top + dst.height / 2 - hh;
+      var lift = 6, N = 23, frames = [];
       for (var i = 0; i < N; i++) {
         var t = i / (N - 1), pop = t <= .36;
         var p = pop ? back(t / .36) : cubic((t - .36) / .64);
         var arc = pop ? 0 : Math.sin(Math.PI * p);
-        var x = pop ? sx : sx + (dx - sx) * p - 4 * arc;
+        var x = pop ? sx : sx + (dx - sx) * p - 6 * arc;
         var y = pop ? sy - lift * p : sy - lift + (dy - sy + lift) * p;
         var sc = pop ? 1 + .3 * p : 1.3 + (.34 - 1.3) * p + .06 * arc;
-        var fade = pop ? 1 : 1 - Math.max(0, (p - .84) / .16);
         var tilt = -5.5 * (pop ? p : 1 - p);
+        // 不淡出：样张里这颗药是「一路亮到槽心」再被落点那颗顶替的，
+        // 提前淡掉会在最后 70ms 留下一个空槽（原来的写法就是这么露的）。
         frames.push({
-          transform: 'translate3d(' + x + 'px,' + y + 'px,0) rotate(' + tilt + 'deg) scale(' + sc + ')',
-          opacity: fade
+          transform: 'translate3d(' + x + 'px,' + y + 'px,0) rotate(' + tilt + 'deg) scale(' + sc + ')'
         });
       }
       var anim;
-      try { anim = pill.animate(frames, { duration: 430, fill: 'forwards' }); } catch (e) { pill.remove(); return; }
+      try { anim = pill.animate(frames, { duration: 430, fill: 'forwards' }); } catch (e) {
+        pill.remove();
+        if (hero) hero.style.visibility = '';
+        return;
+      }
+      function restore() { if (hero) hero.style.visibility = ''; }
       function land() {
         pill.remove();
-        // 落点再闪一圈 + 触发器弹一下（刷题是「整块铝箔亮起来」，我们这颗按钮的外观是从原生 select 抄的，
-        // 没法整块换成铝箔，就改成一记回弹 + 一圈光晕，位置和节奏对得上）
-        burstAt(dst.left + 13, dst.top + dst.height / 2, 0);
+        // 落点 = 槽心：再闪一圈，触发器里那颗药弹回来（340ms 回弹），文字跟着淡入（160ms）
+        burstAt(dst.left + dst.width / 2, dst.top + dst.height / 2, 0);
+        restore();
+        if (hero) {
+          try {
+            hero.animate([{ transform: 'translateY(-3px) scale(1.24)' },
+            { transform: 'translateY(1px) scale(.92)', offset: .55 },
+            { transform: 'none' }], { duration: 340, easing: 'cubic-bezier(.22,1,.36,1)' });
+          } catch (e) { }
+        }
+        if (txt) {
+          try { txt.animate([{ opacity: .15, transform: 'translateY(4px)' }, { opacity: 1, transform: 'none' }], { duration: 160 }); } catch (e) { }
+        }
         try {
-          btn.animate([{ transform: 'scale(1.05)' }, { transform: 'scale(.985)', offset: .55 }, { transform: 'none' }],
+          btn.animate([{ transform: 'scale(1.03)' }, { transform: 'scale(.990)', offset: .55 }, { transform: 'none' }],
             { duration: 320, easing: 'cubic-bezier(.22,1,.36,1)' });
         } catch (e) { }
         fxOff();
       }
-      anim.finished.then(land, function () { pill.remove(); fxOff(); });
+      /* 收尾必须幂等 + 必须有兜底，原因见上面 run() 那段注释。
+         这里比碎屑更要紧：land() 里那句 restore() 是**把触发器那颗胶囊从 visibility:hidden 放回来**，
+         它要是没跑，那颗下拉从此就是一个空槽、没有胶囊 —— 用户会当成「坏了」。 */
+      var landed = false;
+      function landOnce(fell) {
+        if (landed) return; landed = true;
+        if (fell) { try { land(); } catch (e) { pill.remove(); restore(); fxOff(); } return; }
+        pill.remove(); restore(); fxOff();
+      }
+      anim.finished.then(function () { landOnce(true); }, function () { landOnce(false); });
+      setTimeout(function () { landOnce(true); }, 430 + 140);
     }
 
     /* instant=true：立刻收（不播滑回动画）。换触发器 / 页面滚动 / Esc 走这里，
@@ -1966,11 +2088,24 @@
       var sel = inst.sel;
       if (sel.selectedIndex === i) { refresh(sel); close(); return; }
       var lite = isLite();
-      // 起点/落点必须在收起之前量 —— 药板一开始滑，行就不在原位了
-      var src = null, dst = null;
+      // 起点/落点必须在收起之前量 —— 药板一开始滑，行就不在原位了。
+      // src = 被点那一格的药槽（碎屑中心）；dst = **触发器自己的药槽**（不是整颗按钮），
+      // 落点取槽心，胶囊才落在槽里而不是停在按钮左边凭空一点。
+      // mat/size 跟着被点那格走：飞出去和落下去必须是同一颗药。
+      var src = null, dst = null, mat = 0, size = null;
       if (!lite && row && row.querySelector && inst.btn.getClientRects().length) {
         var pk = row.querySelector('.hx-pn-pk');
-        if (pk) { src = pk.getBoundingClientRect(); dst = inst.btn.getBoundingClientRect(); }
+        var pillel = row.querySelector('.hx-pn-pill');
+        var heroPk = inst.btn.querySelector('.hx-pn-pk');
+        if (pk && heroPk) {
+          src = pk.getBoundingClientRect();
+          dst = heroPk.getBoundingClientRect();
+          if (pillel) {
+            mat = +(pillel.getAttribute('data-mat') || 0);
+            var pr = pillel.getBoundingClientRect();
+            if (pr.width) size = { w: pr.width, h: pr.height };
+          }
+        }
       }
       sel.selectedIndex = i;
       refresh(sel);
@@ -2000,7 +2135,7 @@
           { transform: 'none', filter: 'none' }], { duration: 260, easing: 'cubic-bezier(.22,1,.36,1)' });
         } catch (e) { }
       }
-      try { fly(src, dst, inst.btn); } catch (e) { }
+      try { fly(src, dst, inst.btn, mat, size); } catch (e) { }
       /* 收板子晚 165ms：胶囊飞出槽的那一段（0~36% / 430ms ≈ 155ms）得在板子上演完，
          否则药板一眨眼就滑走，只剩一颗胶囊在半空飘，看不出「从这一格里取走」。
          数据早就在上面派发完了，这 165ms 只是画面，不影响任何工具。 */
@@ -2082,9 +2217,16 @@
       btn.className = 'hx-pn-btn';
       btn.setAttribute('aria-haspopup', 'listbox');
       btn.setAttribute('aria-expanded', 'false');
-      btn.innerHTML = '<span class="hx-pn-txt"></span><i class="hx-pn-car" aria-hidden="true"></i>';
+      // 结构 = [药槽(含一颗胶囊)] [文字 flex:1] [折角]，跟触发器那块的布局一一对应。
+      // 药槽里的胶囊 data-mat 由 refresh() 按当前选中项 % 3 写（三种材质）。
+      btn.innerHTML = '<span class="hx-pn-pk"><i class="hx-pn-rim"></i>'
+        + '<i class="hx-pn-pill" data-mat="0"></i><i class="hx-pn-dome"></i></span>'
+        + '<span class="hx-pn-txt"></span><i class="hx-pn-car" aria-hidden="true"></i>';
       wrap.appendChild(btn);
-      var inst = { sel: sel, wrap: wrap, btn: btn, txt: btn.querySelector('.hx-pn-txt'), skinned: false, fitted: false };
+      var inst = {
+        sel: sel, wrap: wrap, btn: btn, txt: btn.querySelector('.hx-pn-txt'),
+        hero: btn.querySelector('.hx-pn-pill'), skinned: false, fitted: false
+      };
       wrapOf.set(sel, inst);
       all.push(inst);
       try { fit(inst); } catch (e) { }
@@ -2094,6 +2236,17 @@
         e.stopPropagation();
         if (sel.disabled) return;
         open(inst);
+      });
+      // 铝箔上的那团反光跟着鼠标走（样张 pointermove）。只在标准模式生效 ——
+      // 极简档连这个都要省，所以判据放在事件里而不是绑定时（运行中切档也能立刻停掉）。
+      btn.addEventListener('pointermove', function (e) {
+        if (isLite()) return;
+        var r = btn.getBoundingClientRect();
+        if (!r.width || !r.height) return;
+        var x = Math.max(-20, Math.min(120, (e.clientX - r.left) / r.width * 100));
+        var y = Math.max(-20, Math.min(120, (e.clientY - r.top) / r.height * 100));
+        btn.style.setProperty('--sheen-x', x + '%');
+        btn.style.setProperty('--sheen-y', y + '%');
       });
       btn.addEventListener('pointerdown', function () { skin(inst); });
       sel.addEventListener('change', function () { refresh(sel); });
@@ -2133,8 +2286,11 @@
         ro = new ResizeObserver(function (list) {
           for (var i = 0; i < list.length; i++) {
             var it = instOf.get(list[i].target);
-            if (!it || it.fitted) continue;
-            try { skin(it); } catch (e) { }
+            if (!it) continue;
+            if (!it.fitted) { try { skin(it); } catch (e) { } continue; }
+            // 已经量过宽度的：容器一改高（响应式断点、字体放大、flex 拉伸），药槽跟着重算，
+            // 否则会出现「26px 的按钮里塞着一颗 46px 的药槽」。
+            try { sizeBtn(it); } catch (e) { }
           }
         });
       }
