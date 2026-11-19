@@ -1582,7 +1582,11 @@
     var j = s.judge;
     if (j && j.modelId) {
       var p = find(s, j.modelId);
-      if (p) return p;
+      // 返回 view() 包装（带 baseUrl / platName），和 recommendJudge 一致。
+      // 2026-11-19 修坑：原来直接 return find() 的原始 profile——profile 只有 id/platId/model/caps，
+      // 没有 baseUrl 字段，judgeCaps 拿去 request 时 endpoint(undefined) 抛「没有填接口地址」，
+      // 用户手动指定识别模型后一直退回按名字猜。这里统一成 view 包装。
+      if (p) return view(p, s);
     }
     return null;
   }
