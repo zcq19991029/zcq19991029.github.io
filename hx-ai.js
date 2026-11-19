@@ -10,8 +10,8 @@
    caps 六项：text 文本 / vision 图片识别 / reason 推理 / image 图像生成 / video 视频生成 / audio 音频（TTS+ASR）。
    thinkLevel 三档：quick 快速 / balanced 均衡 / deep 深度（老存档没有 = 均衡，读的时候自动补上）。
    Key 不进上面那份（导出配置时就不会带出去）：
-     localStorage['hx-ai-key:<id>'] —— 用户勾了「记住」
-     sessionStorage['hx-ai-key:<id>'] —— 没勾，只活在这个标签页
+     localStorage['hx-ai-key:plat:<platId>'] —— 2026-11-19 起 Key 一律持久化这里（全云端，不再有「记住」勾选）
+     sessionStorage 兜底读取 —— 老存档 / 别处临时填的 Key 仍能读到，只是不再往里写新的
 
    ────────── 2026-11-15 改版：加「平台」这一层（v1 → v2） ──────────
    为什么改：v1 里「一套配置 = 一家服务商 + 一个模型」，于是
@@ -60,9 +60,9 @@
        ② 本机存了配置 / 勾了「记住」的 Key → 尽力传一份上云（**先本机成功再上云**，上云失败不影响本机）；
        ③ 取消「记住」/ 清空 Key → 云端那份也要删，否则下次换台电脑它又冒出来。
 
-     安全底线（用户没同意就不能持久化）：**没勾「记住」的 Key 只活在 sessionStorage，永远不上云**。
-     这条不是靠调用方自觉 —— writeKey/readKey 是唯一的存取口，上传只在 remember 为真时发生；
-     sessionStorage 那份连快照都进不去（prefSnapData 只读 localStorage）。 */
+     安全底线：**Key 一律持久化本机 + 尽力同步账号云端**（2026-11-19 用户要求「都算云端，不存本地没这东西了」）。
+     所以不再有「勾了记住才持久化」的分支 —— writeKey 的唯一写入口里，有值就写 localStorage 并上云，
+     清空就删云端那份。sessionStorage 只留作「老存档 / 临时 Key」的兜底读取。 */
   var CLOUDKEY = 'hx-ai-key:';   // = KEY_PREFIX / PLAT_PREFIX 的共同前缀
   /* hx-cloud.js 是异步拉的。hx-theme.js 通常已经先拉过一次（同一个 window.__HXC_P），
      直接用它的 promise，避免同一个脚本 inject 两遍；只引了 hx-ai.js、没有 hx-theme.js 的页面
@@ -384,15 +384,17 @@
       // 图片识别：各家对多模态的命名 —— vl / vision / omni，以及本来就带视觉的几款主力型号。
       // deepseek-v4-flash 名字里没有 vl，但它是 DeepSeek 现在的多模态款（上面预设的 rec 就是它），
       // 不认出来会出现「推荐的模型自己被判成不能读图」，所以单独列一条。
-      ['vision', /vl\b|vl-|vision|(^|[-_])4v|glm-4\.5v|omni|llava|pixtral|gemini|gpt-4o|gpt-4\.1|claude-3|claude-4|step-1v|minimax-vl|qwen2\.5-vl|internvl|molmo|deepseek-v4-flash/i],
-      // 擅长推理：名字里带 reason / thinking / r1 / o1 / o3 / qwq 的都是「愿意多想一步」的型号
-      ['reason', /reason|thinking|(^|[-_])r1([-_]|$)|o1([-_]|$)|o3([-_]|$)|qwq|deepseek-v4-pro/i],
-      // 图像生成：dall-e / gpt-image / flux / sd 系
-      ['image', /dall-e|gpt-image|flux|stable-diffusion|seedream|wanx|cogview|sd3/i],
-      // 视频生成：sora / veo / kling / wan2 / seedance 等
-      ['video', /sora|veo|kling|wan2|seedance|cogvideo|hunyuan-video/i],
-      // 音频：tts / whisper / asr 这类合成与识别模型
-      ['audio', /tts|whisper|audio|speech|asr/i]
+      ['vision', /vl\b|vl-|vision|(^|[-_])4v|glm-4\.5v|omni|llava|pixtral|gemini|gpt-4o|gpt-4\.1|claude-3|claude-4|step-1v|minimax-vl|qwen2\.5-vl|qwen3-vl|internvl|molmo|deepseek-v4-flash/i],
+      // 擅长推理：名字里带 reason / thinking / r1 / o1 / o3 / qwq 的都是「愿意多想一步」的型号。
+      // DeepSeek 的 V3.x / R1 本身是带推理的对话模型（reasoner 定位），名字里常不写 r1/thinking，
+      // 但 deepseek-ai/DeepSeek-V3.x 就是推理款，单独列一条避免被当成纯文本漏掉。
+      ['reason', /reason|thinking|(^|[-_])r1([-_]|$)|o1([-_]|$)|o3([-_]|$)|qwq|deepseek-v4-pro|deepseek-ai\/deepseek-(v3|r1)/i],
+      // 图像生成：dall-e / gpt-image / flux / sd 系 / 各家文生图（qwen-image、seedream、wanx、cogview、kolors）
+      ['image', /dall-e|gpt-image|flux|stable-diffusion|seedream|wanx|cogview|sd3|qwen[-\/]?image|kolors/i],
+      // 视频生成：sora / veo / kling / wan / seedance 等
+      ['video', /sora|veo|kling|wan\b|wan2|seedance|cogvideo|hunyuan-video|hailuo/i],
+      // 音频：tts / whisper / asr / cosyvoice / audio / speech 这类合成与识别模型
+      ['audio', /tts|whisper|audio|speech|asr|cosyvoice|moss-tts|voice/i]
     ];
     rules.forEach(function (r) { if (r[1].test(m) && out.indexOf(r[0]) < 0) out.push(r[0]); });
     return out;
@@ -783,6 +785,12 @@
         if (id && s.profiles.some(function (p) { return p.id === id; })) s.active[c] = id;
       });
     }
+    // 识别用模型（2026-11-19 新增）：只有指向真实存在的模型才保留，删了模型不留死引用
+    if (raw.judge && raw.judge.modelId && s.profiles.some(function (p) { return p.id === raw.judge.modelId; })) {
+      s.judge = { platId: str(raw.judge.platId), modelId: str(raw.judge.modelId) };
+    } else {
+      s.judge = {};
+    }
     if (raw.tools && typeof raw.tools === 'object') {
       Object.keys(raw.tools).forEach(function (t) {
         var id = str(raw.tools[t]);
@@ -835,7 +843,8 @@
       plats: s.plats.map(function (x) { return derive(s, x); }),
       profiles: s.profiles.map(function (p) { return view(p, s); }),
       active: JSON.parse(JSON.stringify(s.active)),
-      tools: JSON.parse(JSON.stringify(s.tools))
+      tools: JSON.parse(JSON.stringify(s.tools)),
+      judge: s.judge ? JSON.parse(JSON.stringify(s.judge)) : {}
     };
   }
 
@@ -848,20 +857,21 @@
   function keyRemembered(name) {
     try { return !!g.localStorage.getItem(name); } catch (e) { return false; }
   }
-  // 只动这一个名字的 Key：先两个存储都清掉再按「记住」放回一处，避免同一把 Key 残留两份
+  /* 只动这一个名字的 Key：先两个存储都清掉，再落到 localStorage。
+     2026-11-19 改「全云端」：不再有「记住 / 不记住」这一说 —— 用户的 Key 一律持久化到本机，
+     并尽力同步上账号云端（换台电脑登录同一账号能读到）。remember 参数保留但已无意义
+     （老调用方还在传），写口兼容，行为统一为「持久化 + 上云」。 */
   function writeKey(name, value, remember) {
     var k = str(value);
     try {
       g.localStorage.removeItem(name);
       g.sessionStorage.removeItem(name);
-      if (k) (remember ? g.localStorage : g.sessionStorage).setItem(name, k);
+      if (k) g.localStorage.setItem(name, k);
     } catch (e) { /* 隐私模式下可能写不进去，不影响其它功能 */ }
-    /* 2026-11-19 跟账号走：所有 Key 的写入口就这一个（setPlatKey / setKey / clearKey / migrateKey 兜底
-       全走到这里），所以同步也只需要挂在这里。
-         · 勾了「记住」→ 传一份到账号；换台电脑登录同一个账号，keyOfProfile 直接就能读到。
-         · 清空 / 取消「记住」→ 云端那份删掉。否则用户以为删干净了，换台电脑又自己冒出来。
-       没勾「记住」的 Key 只落在上面那句 sessionStorage，压根不走云端（用户没同意持久化）。 */
-    if (k && remember) cloudPut(name, k); else cloudDel(name);
+    /* 跟账号走：Key 的写入口就这一个（setPlatKey / setKey / clearKey / migrateKey 兜底全走到这里），
+       所以同步也只需要挂在这里。有值就传一份到账号，清空就删掉云端那份 —— 否则用户以为删干净了，
+       换台电脑又自己冒出来。 */
+    if (k) cloudPut(name, k); else cloudDel(name);
   }
 
   function platKey(platId) { return str(platId) ? readKey(PLAT_PREFIX + str(platId)) : ''; }
@@ -1015,6 +1025,35 @@
     return s.profiles.some(function (p) {
       return p.platId === pid && p.model === m && p.id !== str(exceptId);
     });
+  }
+
+  /* 把一批模型批量挂到平台下（2026-11-19 用户要求「平台模型默认全加入，不二次挑选」）。
+     加平台时读到几个模型，就全建 profile，不用用户一个个加。
+     幂等：已存在的同名模型跳过（不重复建、也不覆盖用户可能手改过的能力），
+     返回 { added, skipped } 供界面提示「自动加了 N 个、已有 M 个」。 */
+  function savePlatModels(platId, models) {
+    var s = read(), pid = str(platId);
+    if (!pid || !findPlat(s, pid)) throw new Error('平台不存在。');
+    var list = (Array.isArray(models) ? models : []).map(str).filter(Boolean);
+    var added = 0, skipped = 0;
+    list.forEach(function (m) {
+      if (existsModel(pid, m)) { skipped++; return; }
+      var p = {
+        id: uid('p'),
+        platId: pid,
+        model: m,
+        name: '',
+        caps: resolveCaps(m).caps,   // 自动按三级来源标能力（官方标注 > AI > 按名字猜）
+        thinkLevel: 'balanced',
+        at: Date.now()
+      };
+      s.profiles.push(p);
+      // 顺手补空着的默认位（和 save() 同一口径）
+      p.caps.forEach(function (c) { if (!s.active[c]) s.active[c] = p.id; });
+      added++;
+    });
+    if (added) write(s);
+    return { added: added, skipped: skipped };
   }
 
   /* 新增或更新一个模型。
@@ -1528,14 +1567,38 @@
     write(s);
     return list.map(function (x) { return { model: x.model, caps: withText(map[x.model]) }; });
   }
+  /* 「识别用模型」：用户专门指定「哪个平台哪个模型」负责帮其它平台的模型判能力
+     （2026-11-19 用户原话：想用硅基流动的 DeepSeek V3.2 去给 DeepSeek 平台识别能力，因为有免费额度）。
+     存哪：存档里新增 judge = { platId, modelId }（v2 存档缺这字段时自动为空，兼容老数据）。
+     设了它，judgeCaps 就用它来判；没设，退回「文本默认模型」。 */
+  function judgeModel(s) {
+    s = s || read();
+    var j = s.judge;
+    if (j && j.modelId) {
+      var p = find(s, j.modelId);
+      if (p) return p;
+    }
+    return null;
+  }
+  function setJudge(platId, modelId) {
+    var s = read();
+    var k = str(modelId);
+    if (k && !find(s, k)) throw new Error('这套识别模型不存在（可能已被删除）。');
+    if (k) s.judge = { platId: str(platId), modelId: k };
+    else s.judge = {};
+    write(s);
+  }
+
   async function judgeCaps(opts) {
     opts = opts || {};
     var list = collectJudgeList(opts);
     if (!list.length) throw new Error('没有需要识别的模型（这个平台下还没有模型，或都已经有官方标注）。');
 
+    // 识别用模型：优先用户专门指定的「识别用模型」，否则退文本默认。
     var judge = null, jk = '';
     try {
-      judge = pick({ cap: 'text' });
+      var s = read();
+      judge = judgeModel(s) || find(s, s.active.text);
       jk = judge ? keyOf(judge) : '';
     } catch (e) { judge = null; }
 
@@ -1563,7 +1626,7 @@
   // 导出：只导「平台、模型和地址」，Key 永远不进来。顺便再兜一层 replacer，防止以后有人往平台/模型里塞了 key 字段。
   function exportJson() {
     var s = read();
-    var data = { v: VERSION, plats: s.plats, profiles: s.profiles, active: s.active, tools: s.tools };
+    var data = { v: VERSION, plats: s.plats, profiles: s.profiles, active: s.active, tools: s.tools, judge: s.judge || {} };
     return JSON.stringify(data, function (k2, v) {
       return /^(key|apiKey|remember)$/i.test(k2) ? undefined : v;
     }, 2);
@@ -1615,6 +1678,10 @@
         var id = str(data.tools[t]);
         if (id && s.profiles.some(function (p) { return p.id === id; })) s.tools[t] = id;
       });
+    }
+    // 识别用模型：导入的 judge 指向的模型得在（同 id 覆盖 / 新 id 追加之后），才接受
+    if (data && data.judge && data.judge.modelId && s.profiles.some(function (p) { return p.id === data.judge.modelId; })) {
+      s.judge = { platId: str(data.judge.platId), modelId: str(data.judge.modelId) };
     }
     if (!added && !updated) throw new Error('这份 JSON 里没有能用的模型配置。');
     write(s);
@@ -1689,6 +1756,7 @@
     setPlatKey: setPlatKey,
     clearPlatKey: clearPlatKey,
     existsModel: existsModel, // 同一平台下同名模型查重
+    savePlatModels: savePlatModels, // 批量把模型挂到平台（自动全量加入，2026-11-19）
     explicitFor: explicitFor, // 之前只有 forTool，设置页要区分「单独指定」和「跟随默认」
     // ---------- 2026-11-19 新增：按模型名猜能力 / 按工具推荐 ----------
     guessCaps: guessCaps,     // 猜模型能力（三级来源里的最后兜底），永远含 text
@@ -1700,6 +1768,8 @@
     capsSource: capsSource,   // 能力来源：official / ai / guess
     capsSrcLabel: capsSrcLabel, // 来源的中文名（官方标注 / AI 识别 / 按名字猜）
     judgeCaps: judgeCaps,     // 让 AI 识别一批模型的能力（手动触发，会耗一次调用）
+    judgeModel: judgeModel,   // 当前「识别用模型」（谁负责帮别的平台判能力），没设返回 null
+    setJudge: setJudge,       // 指定 / 清空「识别用模型」：setJudge(platId, modelId) / setJudge('', '')
     officialCaps: officialCaps, // 从 /models 单条对象摘官方能力（供自验 / 单测）
     // pick 一直是内部函数（chat / vision / image 用），2026-11-15 顺手放出来：
     // 设置页要按能力预演「现在会落到哪个模型」，自验脚本也要能直接断言过滤口径。
