@@ -3,7 +3,7 @@
 <html lang="zh-CN">
 <head>
 <script src="../hx-theme.js" data-tool="wiring"></script>
-<script>window.HX_BUILD = "2026-11-19T14:36:38Z b73b06d";</script>
+<script>window.HX_BUILD = "2026-11-19T15:13:12Z d3b8a61";</script>
 <meta charset="utf-8">
 <meta name="copyright" content="© 2026 zcq 版权所有，未经许可禁止复制、修改、转载">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
@@ -6972,66 +6972,71 @@ const RK_TAG = { 1: '排位之星', 2: '卓越表现', 3: '实力先锋' };
 function rkCup(place, cls) {
   // 只认 1/2/3；调用方保证只有前三名会进来，越界一律按第 3 名画，绝不吐空串
   const p = place === 1 ? 1 : place === 2 ? 2 : 3;
-  // body = 杯体金属渐变（亮→暗四段），acc = 星冠/双耳/底座的亮面，rim = 外缘描边
+  // 金属四段（近白高光 → 亮 → 主色 → 暗边），配两套渐变：G 杯体 / A 耳冠底座亮面
   const P = p === 1
-    ? { body: ['#fff7d9', '#ffd765', '#f5a40a', '#c97c05'], acc: ['#fff3b0', '#f2b428'], rim: '#fffbe6' }
+    ? { body: ['#fffbe6', '#ffe27a', '#f5a90c', '#a8680a'], acc: ['#fff3b0', '#e9a413'], rim: '#fff3c0' }
     : p === 2
-      ? { body: ['#ffffff', '#e3ecf7', '#b7c5da', '#8795ab'], acc: ['#ffffff', '#c3d2e6'], rim: '#f8fcff' }
-      : { body: ['#ffe6c8', '#e0a468', '#b76f31', '#8a4a1d'], acc: ['#ffd9a8', '#b4732f'], rim: '#ffe9d2' };
+      ? { body: ['#ffffff', '#eef4fc', '#b9c8dc', '#77869c'], acc: ['#ffffff', '#b3c2d8'], rim: '#f4f8ff' }
+      : { body: ['#ffeedb', '#f0c08a', '#c07a37', '#7d4519'], acc: ['#ffd9a8', '#a8641f'], rim: '#ffe6c8' };
   const id = 'rkCup' + p;
   const G = 'url(#' + id + 'G)', A = 'url(#' + id + 'A)';
-  const gloss = 'rgba(255,255,255,' + (p === 1 ? '.55' : p === 2 ? '.62' : '.42') + ')';
+  const gloss = 'rgba(255,255,255,' + (p === 1 ? '.5' : p === 2 ? '.58' : '.36') + ')';
 
-  // ① 星冠：只有第一名有（五角星，10 个顶点手算，避免再套一层 <polygon> 的坐标计算）
+  // ① 星冠（只有第 1 名）：一颗五角星浮在杯口上方，比杯口略窄，有白色描边让它「立」起来
   const star = p === 1
-    ? '<path class="c-star" d="M26 2 L27.29 5.42 L30.95 5.59 L28.09 7.88 L29.06 11.41 L26 9.4 L22.94 11.41 L23.91 7.88 L21.05 5.59 L24.71 5.42 Z"'
-      + ' fill="' + A + '" stroke="rgba(255,255,255,.5)" stroke-width=".5" stroke-linejoin="round"/>'
+    ? '<path class="c-star" d="M26 1.6 L27.42 5.42 L31.5 5.62 L28.3 8.12 L29.48 12.02 L26 9.82 L22.52 12.02 L23.7 8.12 L20.5 5.62 L24.58 5.42 Z"'
+      + ' fill="' + A + '" stroke="rgba(255,255,255,.72)" stroke-width=".55" stroke-linejoin="round"/>'
     : '';
-  // ② 双耳：一二名有，第三名是光秃秃的直筒杯
+  // ② 双耳（第 1、2 名有）：外张的圆润弧线，粗细比杯壁略粗，第三名没有
   const ears = p <= 2
-    ? '<g class="c-ear" fill="none" stroke="' + A + '" stroke-width="2.4" stroke-linecap="round">'
-      + '<path d="M16 15.2 C11.2 15.8 9.4 19.4 11 22.6 C12.1 24.8 14 25.7 16 25.3"/>'
-      + '<path d="M36 15.2 C40.8 15.8 42.6 19.4 41 22.6 C39.9 24.8 38 25.7 36 25.3"/></g>'
+    ? '<g class="c-ear" fill="none" stroke="' + A + '" stroke-width="2.6" stroke-linecap="round">'
+      + '<path d="M15.6 15.4 C10.6 15.9 8.8 19.6 10.6 23 C11.8 25.3 13.9 26.2 16 25.8"/>'
+      + '<path d="M36.4 15.4 C41.4 15.9 43.2 19.6 41.4 23 C40.2 25.3 38.1 26.2 36 25.8"/></g>'
     : '';
 
-  // ③ 杯身：三种杯型各一套坐标（直筒 / 弧底 / 直筒直壁）
+  // ③ 杯身：三种杯型（第 1 名收腰大弧底、第 2 名弧底、第 3 名直筒），
+  //    每套都带「杯口外椭圆 + 内暗椭圆」体现厚度，加左侧斜反光条 + 底部椭圆阴影
   const bowl = p === 1
-    ? '<rect x="15.2" y="11.4" width="21.6" height="3" rx="1.3" fill="' + A + '" stroke="' + P.rim + '" stroke-width=".6"/>'
-      + '<path d="M15.5 14.2 H36.5 V18 C36.5 25.4 32.4 30.4 26 31.8 C19.6 30.4 15.5 25.4 15.5 18 Z"'
+    ? '<path d="M15.5 14.6 H36.5 V17.6 C36.5 25.4 32.3 30.6 26 32 C19.7 30.6 15.5 25.4 15.5 17.6 Z"'
       + ' fill="' + G + '" stroke="' + P.rim + '" stroke-width="1"/>'
-      + '<ellipse cx="26" cy="13" rx="8.6" ry="1.7" fill="rgba(0,0,0,.20)"/>'
-      + '<ellipse cx="19.9" cy="20" rx="1.9" ry="4.4" fill="' + gloss + '" transform="rotate(-14 19.9 20)"/>'
+      + '<ellipse cx="26" cy="13.4" rx="9.4" ry="2" fill="' + A + '" stroke="' + P.rim + '" stroke-width=".7"/>'
+      + '<ellipse cx="26" cy="13.9" rx="7.1" ry="1.15" fill="rgba(80,42,6,.42)"/>'
+      + '<ellipse cx="19.6" cy="19.6" rx="1.9" ry="5" fill="' + gloss + '" transform="rotate(-15 19.6 19.6)"/>'
     : p === 2
-      ? '<rect x="16" y="9.8" width="20" height="2.6" rx="1.2" fill="' + A + '" stroke="' + P.rim + '" stroke-width=".6"/>'
-        + '<path d="M16 12.2 H36 V17.4 C36 26.6 32 32.6 26 34.2 C20 32.6 16 26.6 16 17.4 Z"'
+      ? '<path d="M15.9 12.4 H36.1 V17 C36.1 26.4 32.1 32.6 26 34.2 C19.9 32.6 15.9 26.4 15.9 17 Z"'
         + ' fill="' + G + '" stroke="' + P.rim + '" stroke-width="1"/>'
-        + '<ellipse cx="26" cy="13.2" rx="8" ry="1.6" fill="rgba(0,0,0,.16)"/>'
-        + '<ellipse cx="20.2" cy="20.4" rx="1.8" ry="5" fill="' + gloss + '" transform="rotate(-12 20.2 20.4)"/>'
-      : '<rect x="16.4" y="12" width="19.2" height="2.6" rx="1.2" fill="' + A + '" stroke="' + P.rim + '" stroke-width=".6"/>'
-        + '<path d="M16.8 14.4 H35.2 V28.4 C35.2 31.6 31.2 33.4 26 33.4 C20.8 33.4 16.8 31.6 16.8 28.4 Z"'
+        + '<ellipse cx="26" cy="13" rx="9" ry="1.9" fill="' + A + '" stroke="' + P.rim + '" stroke-width=".7"/>'
+        + '<ellipse cx="26" cy="13.4" rx="6.8" ry="1.1" fill="rgba(70,82,100,.4)"/>'
+        + '<ellipse cx="20" cy="20.4" rx="1.8" ry="5.2" fill="' + gloss + '" transform="rotate(-13 20 20.4)"/>'
+      : '<path d="M16.6 14.6 H35.4 V28.4 C35.4 31.8 31.4 33.8 26 33.8 C20.6 33.8 16.6 31.8 16.6 28.4 Z"'
         + ' fill="' + G + '" stroke="' + P.rim + '" stroke-width="1"/>'
-        + '<ellipse cx="26" cy="15.2" rx="7.6" ry="1.5" fill="rgba(0,0,0,.18)"/>'
-        + '<rect x="19.6" y="16.6" width="2.2" height="12.4" rx="1.1" fill="' + gloss + '"/>';
+        + '<ellipse cx="26" cy="13.2" rx="8.6" ry="1.8" fill="' + A + '" stroke="' + P.rim + '" stroke-width=".7"/>'
+        + '<ellipse cx="26" cy="13.6" rx="6.4" ry="1.05" fill="rgba(96,56,22,.42)"/>'
+        + '<rect x="19.8" y="16.4" width="2.1" height="13.4" rx="1.05" fill="' + gloss + '"/>'
+        + '<rect x="31.2" y="18.6" width="1.5" height="9.4" rx=".75" fill="rgba(90,50,16,.30)"/>';
 
-  // ④ 底座：冠军厚底座（两层）、亚军薄底座、季军一根单柱 + 小脚
+  // ④ 底座：第 1 名厚双层、第 2 名单层薄、第 3 名单柱 + 小脚；都带束腰（窄柱）显出层次
   const base = p === 1
     ? '<g class="c-base">'
-      + '<rect x="24.1" y="30.4" width="3.8" height="5.4" rx="1" fill="' + G + '"/>'
-      + '<rect x="13.6" y="35.2" width="24.8" height="5.2" rx="1.7" fill="' + G + '" stroke="' + P.rim + '" stroke-width=".8"/>'
-      + '<rect x="11.4" y="40.2" width="29.2" height="3.6" rx="1.6" fill="' + A + '" stroke="' + P.rim + '" stroke-width=".6"/></g>'
+      + '<rect x="24" y="30.6" width="4" height="5.6" rx="1.1" fill="' + G + '"/>'
+      + '<rect x="13.4" y="35.6" width="25.2" height="5.4" rx="1.8" fill="' + G + '" stroke="' + P.rim + '" stroke-width=".8"/>'
+      + '<rect x="11.2" y="40.8" width="29.6" height="3.8" rx="1.7" fill="' + A + '" stroke="' + P.rim + '" stroke-width=".6"/>'
+      + '<ellipse cx="26" cy="46.6" rx="15" ry="1.6" fill="rgba(0,0,0,.2)"/></g>'
     : p === 2
       ? '<g class="c-base">'
-        + '<rect x="24.2" y="33.8" width="3.6" height="4.6" rx="1" fill="' + G + '"/>'
-        + '<rect x="16.4" y="38" width="19.2" height="3.4" rx="1.4" fill="' + G + '" stroke="' + P.rim + '" stroke-width=".8"/></g>'
+        + '<rect x="24.1" y="33.8" width="3.8" height="4.8" rx="1" fill="' + G + '"/>'
+        + '<rect x="16.2" y="38.2" width="19.6" height="3.6" rx="1.5" fill="' + G + '" stroke="' + P.rim + '" stroke-width=".8"/>'
+        + '<ellipse cx="26" cy="43.8" rx="11" ry="1.2" fill="rgba(0,0,0,.18)"/></g>'
       : '<g class="c-base">'
-        + '<rect x="23.8" y="32.8" width="4.4" height="6.4" rx="1.2" fill="' + G + '"/>'
-        + '<rect x="17.6" y="38.8" width="16.8" height="3.6" rx="1.5" fill="' + A + '" stroke="' + P.rim + '" stroke-width=".6"/></g>';
+        + '<rect x="23.8" y="33" width="4.4" height="6.2" rx="1.2" fill="' + G + '"/>'
+        + '<rect x="17.4" y="38.8" width="17.2" height="3.6" rx="1.5" fill="' + A + '" stroke="' + P.rim + '" stroke-width=".6"/>'
+        + '<ellipse cx="26" cy="44.4" rx="9.5" ry="1.1" fill="rgba(0,0,0,.17)"/></g>';
 
   return '<svg viewBox="0 0 52 52" aria-hidden="true"' + (cls ? ' class="' + cls + '"' : '') + '><defs>'
-    + '<linearGradient id="' + id + 'G" x1="0" y1="0" x2=".35" y2="1">'
-    + '<stop offset="0" stop-color="' + P.body[0] + '"/><stop offset=".42" stop-color="' + P.body[1] + '"/>'
-    + '<stop offset=".78" stop-color="' + P.body[2] + '"/><stop offset="1" stop-color="' + P.body[3] + '"/></linearGradient>'
-    + '<linearGradient id="' + id + 'A" x1="0" y1="0" x2=".4" y2="1">'
+    + '<linearGradient id="' + id + 'G" x1="0" y1="0" x2=".32" y2="1">'
+    + '<stop offset="0" stop-color="' + P.body[0] + '"/><stop offset=".4" stop-color="' + P.body[1] + '"/>'
+    + '<stop offset=".76" stop-color="' + P.body[2] + '"/><stop offset="1" stop-color="' + P.body[3] + '"/></linearGradient>'
+    + '<linearGradient id="' + id + 'A" x1="0" y1="0" x2=".38" y2="1">'
     + '<stop offset="0" stop-color="' + P.acc[0] + '"/><stop offset="1" stop-color="' + P.acc[1] + '"/></linearGradient>'
     + '</defs>'
     + star + ears + bowl + base
@@ -7178,9 +7183,11 @@ function rkBoardPaint(el, hl, pageFlip) {
   const start = isP1 ? 0 : first + (RK.boardPage - 1) * RK_PER_REST;
   const cnt = isP1 ? first : Math.min(RK_PER_REST, rows.length - start);   // 本页人数（末页可能不满）
   const pageRows = rows.slice(start, start + cnt);
-  // 列优先：左列先装满（第一页 5 张 = 3 大 + 2 普；其他页 7 张），剩下的进右列；
-  // 末页不足时全在左列（右列空着），不为了「看起来满」把名次拆乱。
-  const K = Math.min(isP1 ? RK_COL_TOP : RK_COL_REST, cnt);
+  // 列优先：满页时左列装满（第一页 5 张 = 3 大 + 2 普；其他页 7 张），剩下的进右列；
+  // **末页不满时改成左右均分**（2026-11-19 第四轮）：原来「末页全塞左列、右列空着」，
+  // 用户截图里第 2 页右边空一大块就是这个 —— 8 个人时 7+1 比 4+4 难看得多，名次也没被拆乱。
+  const full = isP1 ? RK_PER_FIRST : RK_PER_REST;
+  const K = cnt >= full ? (isP1 ? RK_COL_TOP : RK_COL_REST) : Math.ceil(cnt / 2);
   const left = pageRows.slice(0, K), right = pageRows.slice(K);
   // FLIP（2026-11-08，纯视觉）：重绘前记下旧行位置（按 姓名|班级 找），重绘后把位置变化过的行
   // 从旧位置平移到新位置 —— 数据更新时行是“滑过去”的，新上榜的行短暂高亮一下。
