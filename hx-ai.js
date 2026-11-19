@@ -1600,12 +1600,17 @@
        ① 文本 + 推理都有（能看懂清单并多想一步），优先硅基流动 DeepSeek V3.2（用户有免费额度）；
        ② 只要文本也行（任何文本模型都能判，只是没那么准）；
        ③ 实在没有返回 null（界面提示先加模型）。
-     注意返回 null 不代表「用不了」—— judgeCaps 会在它之后再退「文本默认」。 */
+     注意返回 null 不代表「用不了」—— judgeCaps 会在它之后再退「文本默认」。
+     2026-11-19 修坑：原来不查平台在不在、地址空不空，命中的模型可能是个「孤儿」（platId 指向已删平台）
+     或平台没填地址，view() 兜底出 baseUrl:''，识别时 endpoint() 直接抛「没有填接口地址」→ 退回按名字猜。
+     这里加一道闸：platId 找不到平台、平台没地址的模型一律跳过，保证推荐出去的识别器是真能调的。 */
   function recommendJudge() {
     var s = read();
     // 先找「文本+推理」都有的
     var both = null, anyText = null;
     s.profiles.forEach(function (p) {
+      var plat = findPlat(s, p.platId);
+      if (!plat || !str(plat.baseUrl)) return;   // 孤儿模型 / 平台没地址：跳过，别推荐个调不通的
       var caps = p.caps || [];
       var isBoth = caps.indexOf('text') >= 0 && caps.indexOf('reason') >= 0;
       if (isBoth) {
@@ -1625,10 +1630,13 @@
     if (!list.length) throw new Error('没有需要识别的模型（这个平台下还没有模型，或都已经有官方标注）。');
 
     // 识别用模型：优先用户专门指定的「识别用模型」，否则自动推荐一个（文本+推理优先）。
+    // 手动指定的也可能是孤儿（指向已删平台）或平台没填地址，同样跳过退回推荐，别让 endpoint 抛「没地址」。
     var judge = null, jk = '';
     try {
       var s = read();
       judge = judgeModel(s) || recommendJudge();
+      // 兜一层：judge 拿到的平台没地址（孤儿 / 空 baseUrl）→ 清掉，退回 recommendJudge 再试一次
+      if (judge && !str(judge.baseUrl)) judge = recommendJudge();
       jk = judge ? keyOf(judge) : '';
     } catch (e) { judge = null; }
 
