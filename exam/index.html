@@ -609,10 +609,16 @@ button.danger { color: var(--bad, #d70015); }
 
 /* 画布：自身滚动，工具栏始终留在上面；.ppstage 按缩放后的真实尺寸撑开，
    所以不会出现“里面一层滚动条” */
+/* 2026-11-19 修「背景穿模」：试卷画布必须是**实色**底。
+   原来 background: var(--field2)，而深色主题下 --field2 = rgba(255,255,255,.05)（5% 白，近乎透明），
+   于是用户自定义的壁纸（外观面板上传的图）从画布四周透出来，压在卷面旁边，看着像“穿模/露底”。
+   画布是文档预览区，不该透出站点壁纸 —— 这里改成实色；#ppFrame 也跟着透明，
+   让整块画布统一一个底色，白纸浮在上面。 */
 .ppwrap { position: relative; overflow: auto; overscroll-behavior: contain;
-  border-radius: 14px; border: 1px solid var(--hair); background: var(--field2); padding: 12px; max-height: calc(100vh - 190px); }
+  border-radius: 14px; border: 1px solid var(--hair); background: #e6e9ee; padding: 12px; max-height: calc(100vh - 190px); }
+html[data-hx-mode="dark"] .ppwrap { background: #14171c; }
 .ppstage { position: relative; margin: 0 auto; }
-#ppFrame { position: absolute; left: 0; top: 0; border: 0; display: block; transform-origin: 0 0; background: #8a8f98; box-shadow: 0 10px 30px -16px rgba(0, 0, 0, .5); }
+#ppFrame { position: absolute; left: 0; top: 0; border: 0; display: block; transform-origin: 0 0; background: transparent; box-shadow: 0 10px 30px -16px rgba(0, 0, 0, .5); }
 @media (max-width: 900px) { .ppwrap { max-height: calc(100vh - 150px); padding: 6px; } }
 
 /* 抽屉：右侧滑出，不占画布宽度；手机上全屏（否则 A3 只剩一条） */
