@@ -1,4 +1,6 @@
 // 华夏工具外观（网站根目录 /hx-theme.js + /hx-theme.css）。全部工具在 <head> 里同步引用，打开就是选好的外观、不闪。
+// ⚠️ 这份 hx-theme.js 在根目录和 总入口/ 各有一份，publish.cjs 每次发布都会用根目录那份覆盖 总入口/，
+//    改必须两边一起改（改完 diff 两处应为空），否则下次发布就把 总入口/ 的改动丢掉。
 // ── 分层（2026-11-13 定稿 VER 8：**全站只有一份外观**）──
 //   · 全部页面共用同一把键 hx-theme：主题色 / 深色浅色 / 卡片通透度 / 背景清晰度 / 背景 / 校徽水印
 //     全存在这里。在哪个页面改，首页、总入口顶栏、每个工具页、嵌在总入口里的工具**一起变**。
@@ -947,6 +949,80 @@
        · 新账号在本机有归档 → 先铺上归档，随后云端那份会覆盖它（云端才是权威）；
        · 新账号本机从没登录过 → 先清成默认，随后云端那份覆盖它（没有云端行就把默认推上去当初始）；
        · 退出登录 → 回到本机「匿名」那份（没有就默认），登录页不残留上一个人的样子。 */
+  /* ── 账号云端（2026-11-19 用户要求「换电脑就看不到的东西，包括 api key，都跟账号走」）──
+     hx-cloud.js（根目录，挂 window.HXC）是这一轮的地基：同一个 public.hx_pref.data 里除了外观，
+     还住着 AI 配置 / 每把 Key / 回收站清单。以前这里只会「整行 upsert 一份外观快照」，
+     只要别人往同一行写过键，外观一改就把人家整行盖掉 —— 所以推送改走 HXC.prefMerge（读-合并-写）。
+     这里同时是**降级点**：hx-cloud.js 没加载出来（离线单文件、老缓存混搭、网络挂了、被 CSP 拦）
+     就一律退回原来的老路（整行 upsert / 只铺外观），外观功能绝不能因为云端那一层而坏掉。
+
+     下面两张表决定「谁跟账号走」，键名只在这里写一遍，别处一律调 isExtraKey()：
+       · 外观键（KEY / hx-lite / 老的 hx-theme:s:*）—— 由 prefKeys() 收，还是老逻辑；
+       · 额外键 —— 不参与外观判断，只跟着账号铺 / 清：
+           hx-ai-v1        AI 配置（平台 + 模型 + 工具指向）
+           hx-ai-key:*     AI 的 Key（只有勾了「记住」的才会落进 localStorage，才会被这里看到）
+           hx-recycle-v1   首页回收站里「试卷库 / 教材」两类的清单（读写由回收站页做）
+     同一台机器上换个人登录，这批键必须跟着外观一起清掉 —— 否则上一个人的 Key 会留在本机，
+     正是用户这次要消灭的东西。 */
+  var CLOUD_EXTRA_KEYS = ['hx-ai-v1', 'hx-recycle-v1'],
+    CLOUD_EXTRA_PREFIX = ['hx-ai-key:'];
+  function isExtraKey(k) {
+    if (!k) return false;
+    if (CLOUD_EXTRA_KEYS.indexOf(k) >= 0) return true;
+    for (var i = 0; i < CLOUD_EXTRA_PREFIX.length; i++) if (k.indexOf(CLOUD_EXTRA_PREFIX[i]) === 0) return true;
+    return false;
+  }
+  function extraKeys() {
+    var out = [];
+    try {
+      for (var i = 0; i < localStorage.length; i++) { var k = localStorage.key(i); if (isExtraKey(k)) out.push(k); }
+    } catch (e) { }
+    return out;
+  }
+  function extraSnapData() {
+    var d = {};
+    try { extraKeys().forEach(function (k) { var v = localStorage.getItem(k); if (v != null) d[k] = v; }); } catch (e) { }
+    return d;
+  }
+  /* 把 hx-cloud.js 拉进来（和本文件同目录的经典脚本）。
+     为什么要在这里拉：首页和各工具页只引了 hx-theme.js，没人为 hx-cloud.js 加 <script>
+     （index.html 不归这次改，7 个工具页更不该一家一家去改）。等价于「谁引了外观，就自动带上云端那一层」。
+
+     约束（2026-11-19 定的，别改）：
+       · 幂等：window.__HXC_P 是「本次注入」的共享 promise，hx-ai.js 看到它就直接复用，不会注两遍；
+         window.__hxcLoad = 'loading' / true / false 是状态标记。
+       · 可重试但不无限重试：失败时把 __HXC_P 清掉、__hxcLoad 置 false，下一次调用可以再来一次；
+         但每页最多 2 次（__hxcTry），防止脚本真的 404 时被几十次写操作反复注入。
+       · 不阻塞：任何调用方都不会被它 await 住（最坏 4 秒后一定 resolve）。
+       · 路径只用「本脚本自己的 src」（document.currentScript）推导；**拿不到 src 就直接不加载**，
+         绝不拿 location 去猜 —— 内联 / data: 离线单文件本来也没有同目录可拼。
+     cloudReady 一定会 resolve（成功 true / 失败 false），失败就当没这回事走老路。 */
+  var CLOUD_SRC = '';
+  try { CLOUD_SRC = (document.currentScript && document.currentScript.src) || ''; } catch (e) { CLOUD_SRC = ''; }
+  function cloudLoad() {
+    if (window.HXC) return Promise.resolve(true);
+    if (window.__HXC_P) return window.__HXC_P;                  // 正在注入：共用同一个 promise
+    if (!CLOUD_SRC) return Promise.resolve(false);              // 拿不到 src（内联 / 离线单文件）：不加载
+    var base = String(CLOUD_SRC).replace(/[?#].*$/, '').replace(/[^\/]*$/, '');
+    if (!/^https?:/i.test(base)) return Promise.resolve(false);
+    window.__hxcTry = (window.__hxcTry || 0) + 1;
+    if (window.__hxcTry > 2) return Promise.resolve(false);     // 每页最多试 2 次，404 时别被写操作反复注入
+    var el = document.createElement('script'), done = false;
+    window.__hxcLoad = 'loading';
+    var p = new Promise(function (ok) {
+      function fin(v) { if (done) return; done = true; ok(v); }
+      el.onload = function () { window.__hxcLoad = !!window.HXC; window.__HXC_P = null; fin(!!window.HXC); };
+      el.onerror = function () { window.__hxcLoad = false; window.__HXC_P = null; fin(false); };  // 404 / 断网：走老路
+      // 超时只 resolve(false)，**不解除占用**、也不判定失败：脚本可能只是慢，
+      // 解除了会让下一次调用再注一遍，等于把 hx-cloud.js 跑两遍。真要失效，等它 error 或下次刷新。
+      setTimeout(function () { fin(false); }, 4000);
+    });
+    el.src = base + 'hx-cloud.js';
+    window.__HXC_P = p;
+    (document.head || document.documentElement).appendChild(el);
+    return p;
+  }
+  var cloudReady = cloudLoad();
   var PREF_TBL = '/rest/v1/hx_pref', POWN = 'hx-pref-owner', PBAK = 'hx-pref-bak:', PDIRTY = 'hx-pref-dirty';
   function prefApi(path, o) {
     o = o || {};
@@ -997,7 +1073,16 @@
   }
   function prefApplyData(d) {
     try { prefKeys().forEach(function (k) { localStorage.removeItem(k); }); } catch (e) { }
-    if (d) for (var k in d) if (Object.prototype.hasOwnProperty.call(d, k)) { try { localStorage.setItem(k, d[k]); } catch (e) { } }
+    if (d) for (var k in d) if (Object.prototype.hasOwnProperty.call(d, k)) {
+      /* 外观键照旧铺；「跟账号走」的额外键（hx-ai-v1 / hx-ai-key:* / hx-recycle-v1）也铺 ——
+         换电脑、清缓存之后，AI 配置和 Key 就是靠这一步回来的。
+         其余键一律不往本机搬：云端那一行以后可能被别的功能扩进来，本机不该无脑吃下所有东西。
+         注意这里**只铺不清**：额外键的清除放在 prefSync 的「换账号」分支里做。
+         每次打开页面都先把 AI 的键删一遍太危险 —— 有一次上传失败（断网 / 401），
+         下次打开就会把本机唯一那份 Key 清掉，而云端恰好没有。 */
+      if (!(k === KEY || k === 'hx-lite' || k.indexOf(SKEY) === 0 || isExtraKey(k))) continue;
+      try { localStorage.setItem(k, d[k]); } catch (e) { }
+    }
     // 云端存的可能是**旧结构**（hx-theme + hx-theme:s:* + hx-lite，VER 7 及以前推上去的）。
     // 铺下来之后必须让迁移重跑一遍：否则老用户一登录，hx-theme 里还是分键时代的残缺存档
     // （常常只有 bg / wm / ver），主题色和两根滑杆会当场落回默认 —— 用户看到的就是「一登录外观全没了」。
@@ -1029,19 +1114,59 @@
   function loadBak(u) { try { var r = u ? localStorage.getItem(PBAK + u) : null; return r ? JSON.parse(r) : null; } catch (e) { return null; } }
   function markDirty() { try { localStorage.setItem(PDIRTY, '1'); } catch (e) { } }
   function clearDirty() { try { localStorage.removeItem(PDIRTY); } catch (e) { } }
-  function prefPushNow(uid) {
+  /* 推一份外观快照到账号。
+     2026-11-19：同一个 data 里住着 AI 配置 / Key / 回收站清单，整行 upsert 会把它们盖掉，
+     所以有 window.HXC 时走「读-合并-写」（只 patch 外观那几个键）。
+     seed=true：云端连行都没有（这台机器第一次登录），顺手把本机已有的「跟账号走」的键一起送上去 ——
+     用户先用了网站、后登录的场景，不至于让他到设置页把 Key 再填一遍。 */
+  function prefPushNow(uid, seed) {
     uid = uid || prefUid(); if (!uid) return Promise.resolve(false);
-    return prefApi('?on_conflict=owner', {
-      method: 'POST', prefer: 'resolution=merge-duplicates,return=minimal',
-      body: [{ owner: uid, data: prefSnapData() }]
-    }).then(function () { clearDirty(); return true; }).catch(function () { return false; });
+    var snap = prefSnapData();
+    if (seed) { var ex = extraSnapData(); for (var k in ex) if (Object.prototype.hasOwnProperty.call(ex, k)) snap[k] = ex[k]; }
+    if (window.HXC && window.HXC.prefMerge) {
+      return window.HXC.prefMerge(snap).then(function (r) {
+        if (!r) return false;                 // 云端故障：不打 dirty，下次再说
+        clearDirty(); return true;
+      }, function () { return false; });      // 契约上不 reject，这里仍然兜一层
+    }
+    /* 兜底（hx-cloud.js 没加载出来：404 / CSP / 离线单文件）：也**不能整行盖**。
+       同一个 data 里躺着 AI 配置、每把 Key、回收站清单，整行 upsert 会把它们一起冲掉 ——
+       「云端那一层没到位」不等于「用户的 Key 可以丢」，这条降级路径同样得是合并写。
+       所以：先 GET 当前行 → {...当前, ...外观快照} → upsert，只 patch 外观那几个键。
+       只有连当前行都读不出来（404 / 断网 / 401）才退回改前的整行 upsert：
+       那种情况下至少外观还能存上，而云端本来也读不到、谈不上「覆盖别人的键」。 */
+    return prefApi('?select=data&owner=eq.' + uid + '&limit=1')
+      .then(function (rows) {
+        var cur = rows && rows[0] && rows[0].data;
+        if (!cur || typeof cur !== 'object') return snap;        // 云端还没有这一行 → 直接写外观
+        var next = {}, k;
+        for (k in cur) if (Object.prototype.hasOwnProperty.call(cur, k)) next[k] = cur[k];
+        for (k in snap) if (Object.prototype.hasOwnProperty.call(snap, k)) next[k] = snap[k];
+        return next;
+      }, function () { return snap; })                            // 读失败 → 老行为：整行 upsert 外观
+      .then(function (data) {
+        return prefApi('?on_conflict=owner', {
+          method: 'POST', prefer: 'resolution=merge-duplicates,return=minimal',
+          body: [{ owner: uid, data: data }]
+        });
+      })
+      .then(function () { clearDirty(); return true; }).catch(function () { return false; });
   }
   var prefT = 0, prefRun = null;
   // 改设置后调用：防抖 1.5 秒推一次（滑杆拖动会连着调几十次，不能每一下都发请求）。
   // 同时打一个「有没推上去的改动」标记：下次打开页面若还带着它，就以本地为准补推，别被云端旧值盖掉。
   function prefPush() { markDirty(); if (prefT) clearTimeout(prefT); prefT = setTimeout(function () { prefT = 0; prefPushNow(); }, 1500); }
   /* 打开页面 / 登录 / 换账号时调一次：先按 owner 隔离本地，再和云端对齐。 */
+  var prefWaited = false;
   function prefSync() {
+    /* 2026-11-19：hx-cloud.js 是异步拉进来的，外观同步（idle 后跑）可能比它先到。
+       第一次：等它一把（cloudReady 最多 4 秒、失败也会 resolve）再决定走合并写还是老路；
+       已经等过（prefWaited）：不再等，这一趟先走老路，顺手在后台再试一次加载（cloudLoad 自己限 2 次）。
+       绝不能在这儿递归地等下去。 */
+    if (!window.HXC) {
+      if (!prefWaited) { prefWaited = true; return cloudReady.then(function () { return prefSync(); }); }
+      cloudLoad();   // 不 await：失败最多再试这一次，网络不该卡住登录 / 换账号这条路径
+    }
     var uid = prefUid(), own = prefOwner();
     if (uid !== own) {
       /* 账号变了。这里有两种情况，处理**必须分开**（2026-11-11 修用户报的「首次登录后背景没了」）：
@@ -1054,6 +1179,12 @@
          于是老用户新登录的那一下，他挑好的背景/主题色当场消失，还被当成空快照推上云端（云端也一起空了）。 */
       var hadOwner = !!own;
       if (hadOwner) saveBak(own, prefSnapData());
+      /* 2026-11-19 用户要求「api key 跟账号走、不留在本机」：
+         换账号 / 退出登录时，上一个人的 AI 配置、Key、回收站清单必须从本机清掉 ——
+         只清外观是不够的，Key 才是真正不能留的那份东西。新账号的那份随后从云端铺回来
+         （见下面第③步 prefApplyData）；云端没有、他自己也没存过，就该是空的，这正确。
+         注意**不归档**到 hx-pref-bak：那会把别人的 Key 落在本机磁盘上，正是要消灭的形态。 */
+      if (hadOwner) { try { extraKeys().forEach(function (k) { localStorage.removeItem(k); }); } catch (e) { } }
       var next = uid ? loadBak(uid) : null;
       if (next) prefApplyData(next);              // 本机有他这份归档 → 铺回来
       else if (hadOwner) prefApplyData(null);     // 换账号/退出：清成默认，不留上一个人的
@@ -1075,7 +1206,9 @@
         // 见到 dirty 就以本地为准补推，跳过覆盖。
         if (ls(PDIRTY) === '1') return prefPushNow(uid);
         if (d && typeof d === 'object' && Object.keys(d).length) prefApplyData(d);
-        else return prefPushNow(uid);     // 云端还没有：把这台机器上这份当成初始快照推上去
+        // 云端还没有：把这台机器上这份当成初始快照推上去；seed=true 顺带把本机已有的 AI 配置/Key 一起带上
+        //（用户「先用了网站、后登录」的场景，不必再到设置页把 Key 重填一遍）
+        else return prefPushNow(uid, true);     // 云端还没有：把这台机器上这份当成初始快照推上去
         return false;
       })
       .then(function (seeded) {

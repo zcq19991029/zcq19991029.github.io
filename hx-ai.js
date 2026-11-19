@@ -49,6 +49,72 @@
   var TIMEOUT = 60000; // 60 秒。识别整页扫描件时慢，但超过一分钟基本是卡住了
   var NO_AI = '还没有配置 AI 模型，请到首页「AI 设置」里加一套';
 
+  /* ── 账号云端：配置和 Key 跟账号走（2026-11-19 用户要求）──────────────────────
+     用户原话：「永远不存在本机换电脑就看不到的东西，包括 api key 和网页背景，
+               跟账号云端走，不留在本机」。
+     存在哪：Supabase public.hx_pref 那一行 data（和外观共用一行），读写统一走 window.HXC
+     （根目录 hx-cloud.js）。为什么那边是「读-合并-写」而不是整行覆盖，见 hx-cloud.js 顶部。
+
+     这一层的三件事，缺一不可：
+       ① 本机没有配置（换电脑 / 清缓存）→ 从云端拉一次并落地，异步、不阻塞首屏；
+       ② 本机存了配置 / 勾了「记住」的 Key → 尽力传一份上云（**先本机成功再上云**，上云失败不影响本机）；
+       ③ 取消「记住」/ 清空 Key → 云端那份也要删，否则下次换台电脑它又冒出来。
+
+     安全底线（用户没同意就不能持久化）：**没勾「记住」的 Key 只活在 sessionStorage，永远不上云**。
+     这条不是靠调用方自觉 —— writeKey/readKey 是唯一的存取口，上传只在 remember 为真时发生；
+     sessionStorage 那份连快照都进不去（prefSnapData 只读 localStorage）。 */
+  var CLOUDKEY = 'hx-ai-key:';   // = KEY_PREFIX / PLAT_PREFIX 的共同前缀
+  /* hx-cloud.js 是异步拉的。hx-theme.js 通常已经先拉过一次（同一个 window.__HXC_P），
+     直接用它的 promise，避免同一个脚本 inject 两遍；只引了 hx-ai.js、没有 hx-theme.js 的页面
+     （/ai/ 之外的旧页、离线单文件）才自己拉一次。
+     路径只用「本脚本自己的 src」推导，拿不到 src 就**直接不加载**（内联 / data: 没有同目录可拼），
+     绝不拿 location 猜。失败会清掉 __HXC_P 允许下次重试，但每页最多 2 次（__hxcTry）。
+     所有云端调用静默跳过 —— 本机功能一样不少。 */
+  var CLOUD_SRC = '';
+  try { CLOUD_SRC = (document.currentScript && document.currentScript.src) || ''; } catch (e) { CLOUD_SRC = ''; }
+  function cloudLoad() {
+    if (g.HXC) return Promise.resolve(true);
+    if (g.__HXC_P) return g.__HXC_P;                            // 正在注入：共用同一个 promise
+    if (!CLOUD_SRC) return Promise.resolve(false);              // 拿不到 src（内联 / 离线单文件）：不加载
+    var base = String(CLOUD_SRC).replace(/[?#].*$/, '').replace(/[^\/]*$/, '');
+    if (!/^https?:/i.test(base)) return Promise.resolve(false);  // file:// / data: 离线单文件不拉
+    g.__hxcTry = (g.__hxcTry || 0) + 1;
+    if (g.__hxcTry > 2) return Promise.resolve(false);           // 每页最多试 2 次
+    var el = document.createElement('script'), done = false;
+    g.__hxcLoad = 'loading';
+    var p = new Promise(function (ok) {
+      function fin(v) { if (done) return; done = true; ok(v); }
+      el.onload = function () { g.__hxcLoad = !!g.HXC; g.__HXC_P = null; fin(!!g.HXC); };
+      el.onerror = function () { g.__hxcLoad = false; g.__HXC_P = null; fin(false); };
+      setTimeout(function () { fin(false); }, 4000);              // 超时只 resolve，不解除占用（同 hx-theme.js）
+    });
+    el.src = base + 'hx-cloud.js';
+    g.__HXC_P = p;
+    (document.head || document.documentElement).appendChild(el);
+    return p;
+  }
+  // 每次要上云时都过一遍：HXC 还没到 → cloudLoad() 自己决定「拉 / 复用 / 放弃重试」
+  function cloudWhen() { return g.HXC ? Promise.resolve(true) : cloudLoad(); }
+  var cloudP = cloudLoad();   // 首屏先拉一次（hx-theme.js 通常也在拉，共用 __HXC_P）
+  // 「尽力上云」：不 await、不抛错、不影响本机（本机那步在调用处已经成功了）。
+  // 守卫式写法：加载时序不确定、或 HXC 只加载了一半，都只是这次没备份，绝不抛错。
+  function cloudPut(k, v) {
+    try {
+      cloudWhen().then(function (ok) {
+        if (!ok || !g.HXC || !g.HXC.prefPut) return null;
+        return g.HXC.prefPut(k, v);
+      }).catch(function () { });
+    } catch (e) { /* 连 Promise 都出问题也不能影响本机保存 */ }
+  }
+  function cloudDel(k) {
+    try {
+      cloudWhen().then(function (ok) {
+        if (!ok || !g.HXC || !g.HXC.prefDel) return null;
+        return g.HXC.prefDel(k);
+      }).catch(function () { });
+    } catch (e) { }
+  }
+
   // 供应商预设。baseUrl 照各家「OpenAI 兼容」入口填，末尾不写 /chat/completions（下面统一拼）。
   // models 只是候选（下拉里的建议），真实可用性以「读取模型」和「测试连接」为准。
   // group 决定下拉框里的分组（照 cc-switch 的 90+ 预设挑了对上课有用的：国内官方 / 国内聚合 / 海外官方 / 海外聚合）。
@@ -490,8 +556,12 @@
   }
 
   function write(s) {
-    try { g.localStorage.setItem(STORE, JSON.stringify(s)); }
+    var json;
+    try { json = JSON.stringify(s); g.localStorage.setItem(STORE, json); }
     catch (e) { throw new Error('浏览器不让保存（可能是隐私模式或存储满了）。'); }
+    // 顺序是刻意的：本机先落盘，成功了才「尽力」上云。云端挂了 / 没登录 → 只是这次没备份，不影响本机。
+    // 放在 write() 里而不是 save() 里：read() 的 v1→v2 迁移也走这里，老用户第一次打开就把迁移结果同步上云。
+    if (json) cloudPut(STORE, json);
   }
 
   function find(s, id) {
@@ -541,6 +611,12 @@
       g.sessionStorage.removeItem(name);
       if (k) (remember ? g.localStorage : g.sessionStorage).setItem(name, k);
     } catch (e) { /* 隐私模式下可能写不进去，不影响其它功能 */ }
+    /* 2026-11-19 跟账号走：所有 Key 的写入口就这一个（setPlatKey / setKey / clearKey / migrateKey 兜底
+       全走到这里），所以同步也只需要挂在这里。
+         · 勾了「记住」→ 传一份到账号；换台电脑登录同一个账号，keyOfProfile 直接就能读到。
+         · 清空 / 取消「记住」→ 云端那份删掉。否则用户以为删干净了，换台电脑又自己冒出来。
+       没勾「记住」的 Key 只落在上面那句 sessionStorage，压根不走云端（用户没同意持久化）。 */
+    if (k && remember) cloudPut(name, k); else cloudDel(name);
   }
 
   function platKey(platId) { return str(platId) ? readKey(PLAT_PREFIX + str(platId)) : ''; }
@@ -606,6 +682,8 @@
         try { exist = box.getItem(to); } catch (e) { exist = null; }
         if (!exist) { try { box.setItem(to, v); } catch (e) { return; } }
         try { box.removeItem(from); } catch (e) { /* 删不掉也无害，读的时候平台键优先 */ }
+        // 搬完把账号上那份也对齐：新键上去、老键删掉（只在 localStorage 这份上做 —— session 的 Key 不上云）
+        if (box === g.localStorage) { cloudPut(to, v); cloudDel(from); }
       });
     } catch (e) { /* 存储不可用就留着老键，keyOfProfile 会兜底读到 */ }
   }
@@ -1180,6 +1258,34 @@
     return { added: added, updated: updated, plats: platAdded };
   }
 
+  /* ── 换电脑 / 清了缓存：本机没有就向账号要一份（异步，不阻塞首屏）──────────────────
+     只补「本机确实没有」的东西：
+       · 配置：本机没有 hx-ai-v1 才拉；拉回来之前用户自己存过一次就放弃（别拿云端旧值盖新的）；
+       · Key：本机 localStorage / sessionStorage 都没有这个名字才补 —— 标签页里现填的优先。
+     云端那份只有「勾了记住」的 Key 才会有，所以补回来的也都是本该记住的。
+     落地后派一个 hx-ai-cloud 事件：/ai/ 设置页若正在显示，可以自己重画（没有监听也不影响什么）。
+     整个流程 .catch 吞掉：没登录 / 断网 / 401 都只是「这台机器上用回本机那份」。 */
+  (function pull() {
+    var hasLocal = true;
+    try { hasLocal = !!g.localStorage.getItem(STORE); } catch (e) { hasLocal = true; }
+    cloudP.then(function (ok) {
+      if (!ok || !g.HXC || !g.HXC.prefGet) return null;   // 守卫式：HXC 没到 / 只到了半截都不算事
+      return g.HXC.prefGet();
+    }).then(function (d) {
+      if (!d || typeof d !== 'object') return;
+      var changed = false;
+      try {
+        if (!hasLocal && !g.localStorage.getItem(STORE) && typeof d[STORE] === 'string' && d[STORE]) {
+          g.localStorage.setItem(STORE, d[STORE]); changed = true;
+        }
+        for (var k in d) if (Object.prototype.hasOwnProperty.call(d, k) && k.indexOf(CLOUDKEY) === 0) {
+          if (!g.localStorage.getItem(k) && !g.sessionStorage.getItem(k)) { g.localStorage.setItem(k, d[k]); changed = true; }
+        }
+      } catch (e) { /* 隐私模式写不进去：读的时候照样有兜底，不影响调用 */ }
+      if (changed) { try { g.dispatchEvent(new g.CustomEvent('hx-ai-cloud')); } catch (e) { } }
+    }).catch(function () { });
+  })();
+
   g.HXAI = {
     VERSION: VERSION,
     providers: providers,
@@ -1223,6 +1329,9 @@
     explicitFor: explicitFor, // 之前只有 forTool，设置页要区分「单独指定」和「跟随默认」
     // pick 一直是内部函数（chat / vision / image 用），2026-11-15 顺手放出来：
     // 设置页要按能力预演「现在会落到哪个模型」，自验脚本也要能直接断言过滤口径。
-    pick: pick
+    pick: pick,
+    // 2026-11-19：云端那一层的就绪 promise（resolve true/false，永不 reject）。
+    // 页面若想在「云端配置刚补下来」之后重画一次，`await HXAI.cloud` 即可；工具页不用管它。
+    cloud: cloudP
   };
 })(typeof window !== 'undefined' ? window : this);

@@ -14,6 +14,8 @@
 </script>
 <link rel="stylesheet" href="../hx-theme.css">
 <script src="../hx-theme.js" data-tool="recycle"></script>
+<!-- 2026-11-19：回收站清单跟账号走（hx_pref）。hx-cloud.js 没加载到就用本机副本，页面照样能用。 -->
+<script src="../hx-cloud.js"></script>
 <style>
 :root { --ink:#1c2321; --mute:#6b7a74; --acc:#16a34a; --acc-deep:#15803d; --warn:#b45309; --danger:#dc2626; }
 * { box-sizing:border-box; }
@@ -111,9 +113,41 @@ async function api(p,o){
 }
 var rpc=function(f,b){return api('/rest/v1/rpc/'+f,{method:'POST',body:b||{}});};
 
-/* ---- 本地回收站留档 ---- */
+/* ---- 本地回收站留档（2026-11-19 起**跟账号走**：本机只是副本，云端 hx_pref.data['hx-recycle-v1'] 才是真相） ----
+   用户原话：「永远不存在本机换电脑就看不到的东西」。
+   所以这里改成：开机先从云端拉一份铺下来；任何写入（留档/还原后移除）都推回云端。
+   window.HXC 是 /hx-cloud.js 提供的（没加载到就退化成纯本机，页面照样能用）。 */
 function recycleRead(){try{return JSON.parse(localStorage.getItem(RKEY))||[];}catch(e){return [];}}
-function recycleWrite(L){try{localStorage.setItem(RKEY,JSON.stringify(L));}catch(e){}}
+function recycleWrite(L){
+  try{localStorage.setItem(RKEY,JSON.stringify(L));}catch(e){}
+  recyclePush(L);
+}
+function recyclePush(L){
+  try{ if(window.HXC&&HXC.prefPut) HXC.prefPut(RKEY,JSON.stringify(L)).catch(function(){}); }catch(e){}
+}
+async function recyclePull(){
+  if(!window.HXC||!HXC.prefGet) return;
+  var all=null;
+  try{ all=await HXC.prefGet(); }catch(e){ return; }
+  var raw=all&&all[RKEY];
+  var local=recycleRead();
+  if(raw){
+    var arr=null;
+    try{ arr=JSON.parse(raw); }catch(e){ arr=null; }
+    if(Array.isArray(arr)){
+      /* 云端为准。合并一下：两边都有就按 id+kind 去重，云端在前（更新的顺序更准）。 */
+      var seen={}, merged=[];
+      arr.concat(local).forEach(function(x){
+        var k=x&&x.kind+'|'+x.id;
+        if(!k||seen[k]) return; seen[k]=1; merged.push(x);
+      });
+      try{localStorage.setItem(RKEY,JSON.stringify(merged.slice(0,200)));}catch(e){}
+      return;
+    }
+  }
+  /* 云端还没有而本机有：把本机这份当初始值推上去（老用户迁移） */
+  if(local.length) recyclePush(local);
+}
 function recycleAdd(rec){
   var L=recycleRead();
   L.unshift(rec);
@@ -140,10 +174,17 @@ async function taskBin(){ // 课堂任务：读后端软删除（云端真相）
   try { return await rpc('wire_task_bin'); }
   catch(e){ return { __err: e.message }; }
 }
-function libBin(){ // 试卷库：本地留档
+function libBin(){ // 试卷库：前端留档（现在跟账号走，见 recyclePull）
   return recycleRead().filter(function(x){return x.kind==='lib';});
 }
-function matBin(){ // 教材：本地留档
+/* 教材（2026-11-19 改）：优先读云端 hx_exam_mat_bin —— 教材现在是**软删除**，
+   行还在、切段还在、Storage 原文件也还在，还原就是清掉 deleted_at，不用重新上传。
+   老库还没跑 2026-11-19 迁移时这个函数不存在 → 退回本机留档（老记录，还原会走 hx_exam_mat_save）。 */
+async function matBin(){
+  try{
+    var r=await rpc('hx_exam_mat_bin');
+    if(Array.isArray(r)) return r.map(function(x){ x.__cloud=1; return x; });
+  }catch(e){ /* 函数还没建：走下面的老路 */ }
   return recycleRead().filter(function(x){return x.kind==='mat';});
 }
 
@@ -169,10 +210,17 @@ async function restoreLib(rec,btn){
 async function restoreMat(rec,btn){
   btn.disabled=true; btn.textContent='还原中…';
   try{
-    var r=await rpc('hx_exam_mat_save',{p_subject_id:rec.payload.subject_id,p_name:rec.name,p_mime:rec.payload.mime,p_bytes:rec.payload.bytes,p_path:rec.payload.path,p_chars:rec.payload.chars});
-    if(!r||!r.id) throw new Error('云端没返回编号');
-    recycleDrop(rec);
-    toast('已还原教材「'+rec.name+'」（文件本体需重新上传，见下方说明）');
+    if(rec.__cloud){
+      /* 软删除的记录：直接清 deleted_at，文件本体和切段都原样回来 */
+      await rpc('hx_exam_mat_restore',{p_id:+rec.id});
+      toast('已还原教材「'+rec.name+'」到资料库'+(rec.subject?'（'+rec.subject+'）':'')+'，原文件和切段都还在，不用重新上传');
+    }else{
+      /* 2026-11-19 之前删的老记录：只在本机留了元数据，只能把条目找回来 */
+      var r=await rpc('hx_exam_mat_save',{p_subject_id:rec.payload.subject_id,p_name:rec.name,p_mime:rec.payload.mime,p_bytes:rec.payload.bytes,p_path:rec.payload.path,p_chars:rec.payload.chars});
+      if(!r||!r.id) throw new Error('云端没返回编号');
+      recycleDrop(rec);
+      toast('已还原教材「'+rec.name+'」（这是旧记录，文件本体要重新上传）');
+    }
     render();
   }catch(e){ toast('还原失败：'+e.message); btn.disabled=false; btn.textContent='还原'; }
 }
@@ -180,7 +228,7 @@ async function restoreMat(rec,btn){
 /* ---- 渲染 ---- */
 async function render(){
   var task = await taskBin();
-  var lib = libBin(), mat = matBin();
+  var lib = libBin(), mat = await matBin();
   var app=$('app');
   var h='<header><div class="mark">'+IC.task+'</div><div><h1>回收站</h1><p>删掉的课堂任务、试卷、教材都能在这里还原。题池删题是永久的（题可随时重新生成），不进这里。</p></div></header>';
 
@@ -211,12 +259,16 @@ async function render(){
   if(!mat.length){ h += '<div class="empty">没有删除的教材</div>'; }
   else mat.forEach(function(x){
     h += '<div class="item"><span class="ic" style="background:'+ICC.mat+'">'+IC.mat+'</span>'
-      +'<div class="body"><b>'+esc(x.name)+'</b><span>删除于 '+when(x.at)+'</span></div>'
+      +'<div class="body"><b>'+esc(x.name)+'</b><span>'
+      +(x.subject?'<b>'+esc(x.subject)+'</b> · ':'')
+      +(x.__cloud?(+(x.chars||0)).toLocaleString()+' 字 · ':'')
+      +'删除于 '+when(x.at)+(x.__cloud?'':' · 旧记录，还原后需要重新上传文件')+'</span></div>'
       +'<button class="restore" data-restore-mat="'+esc(x.id)+'">还原</button></div>';
   });
   h += '</div></section>';
 
-  h += '<div class="note-warn">教材的<b>文件本体</b>删除时已从云端清掉（文件大，无法本地留档）。还原只会把这条记录找回来，文件需要重新上传；已经出好的题不受影响、仍留在题池里。</div>';
+  h += '<div class="note-warn">教材删除是<b>软删除</b>：原文件和切段都留在云端，点「还原」就回到资料库原来的科目下，<b>不用重新上传</b>。'
+    +'只有 2026-11-19 之前删的旧记录例外（那时是直接删文件，只剩一条记录）。已经出好的题不受影响，仍在题池里。</div>';
 
   app.innerHTML=h;
 
@@ -247,6 +299,7 @@ async function boot(){
   try{ ME=await rpc('hx_me'); }
   catch(e){ return gate(); }
   if(!ME||!(ME.teacher||ME.admin||ME.dev)) return gate();
+  await recyclePull();     // 清单先从账号拉一份（换电脑也能看到）
   await render();
 }
 addEventListener('storage',function(e){ if(e.key===SKEY){ load(); boot(); } });

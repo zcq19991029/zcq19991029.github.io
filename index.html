@@ -14,16 +14,16 @@
      要登录时调 window.HXPortal.login()；被单独打开时 hx-theme.js 会跳回这里（见 hx-theme.js 的 data-tool）。
      账号：Supabase 华夏工具项目，localStorage paike-session 和各工具共用；身份由数据库 hx_me() 决定。
      脚本里不用反引号模板字符串（本机测试时整页当字符串注入到线上同源页面里）。 -->
-<link rel="stylesheet" href="hx-theme.css?v=22cb929">
-<script src="hx-theme.js?v=22cb929"></script>
+<link rel="stylesheet" href="hx-theme.css?v=8c59e89">
+<script src="hx-theme.js?v=8c59e89"></script>
 <script src="rank-bg.js" defer></script><!-- 排位身份卡预设（2026-11-12）：总入口外观面板当场弹窗设置身份卡背景，预设数据在总入口也能用 -->
 <!-- 首页卡片上的像素小生物：pixelfx 的 12 个 critters（MIT），打包成一个 91 KB 的独立脚本。
      加载失败不影响首页——hx-critters.js 开头就有 window.PixelFX 存在性检查，没有就整段跳过。 -->
-<script src="fx/pixelfx-critters.js?v=22cb929" defer></script>
-<script src="fx/hx-critters.js?v=22cb929" defer></script>
+<script src="fx/pixelfx-critters.js?v=8c59e89" defer></script>
+<script src="fx/hx-critters.js?v=8c59e89" defer></script>
 <!-- 课堂码大屏二维码：离线 QR 编码器（qrcode 1.5.4 core 打包，MIT，见 fx/NOTICE-qr.md）。延迟加载即可：只有老师点「大屏二维码」时才用 -->
-<script src="fx/hx-qr.js?v=22cb929" defer></script>
-<script src="hx-scan.js?v=22cb929" defer></script><!-- 全站扫一扫（2026-11-08 K5）：摄像头 + BarcodeDetector / 本地 jsQR -->
+<script src="fx/hx-qr.js?v=8c59e89" defer></script>
+<script src="hx-scan.js?v=8c59e89" defer></script><!-- 全站扫一扫（2026-11-08 K5）：摄像头 + BarcodeDetector / 本地 jsQR -->
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; width: 100%; overflow: hidden; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -1220,7 +1220,7 @@
      用户原话：「背景id卡的背景有点太小了 上下看不清 … 我上传一个（人物图）
      目前这样只能显示一个眼睛的位置 这不行」「预览应该是统一的 所以只需要一个预览 全部场景一致」。
      一张竖版人物照塞进 14:1 的细条，永远只剩一条缝（这里 / 外观面板那个 112×35 是同一类问题）。
-     现在背景统一只在**同一份预览**里看：外观面板的 .lk-id-prev（4:3，112×84）+ 这个弹窗里
+     现在背景统一只在**同一份预览**里看：外观面板的 .lk-id-prev（和榜单真卡同比例 371.5:116）+ 这个弹窗里
      下面那个整卡预览 .rkc-prev / 学生卡 .rkc-stu-prev（都走 rkdBgStyle，cover + 50% 50%）。
      选择钮只负责「选卡型」——高度、描边、名字已经能区分，不需要再塞一条糊掉的背景。
      ⚠️ 不是删预览：paintPrev() 仍给 .rkc-prev / .rkc-stu-prev 画背景，只是这里不画。 */
@@ -1249,11 +1249,25 @@
   #rankCardDlg .rkc-prev .rk-lb-veil { position: absolute; inset: 0;
     background: linear-gradient(90deg, rgba(4, 8, 18, .84) 0%, rgba(4, 8, 18, .52) 38%, rgba(4, 8, 18, .38) 62%, rgba(4, 8, 18, .78) 100%); }
   #rankCardDlg .rkc-prev > *:not(.rk-lb-bg):not(.rk-lb-veil) { position: relative; z-index: 2; }
-  #rankCardDlg .rkc-medal { width: calc(46px * var(--s)); height: calc(46px * var(--s)); display: grid; place-items: center; flex: none; }
+  /* 首列（奖杯位 / 名次位）和榜单一样按内容撑开（榜单第 4 档 grid-template-columns: auto）。
+     所以这里的 width 必须让位给 min-width：旧版写死 46px，现在胶囊比它宽，写死会溢出。
+     44 只是下限，保证杯子真被塞进来时（40px svg）放得下。 */
+  #rankCardDlg .rkc-medal { min-width: calc(44px * var(--s)); height: calc(46px * var(--s)); display: grid; place-items: center; flex: none; }
   #rankCardDlg .rkc-medal svg { width: calc(40px * var(--s)); height: calc(40px * var(--s)); overflow: visible; }
-  #rankCardDlg .rkc-place { display: grid; place-items: center; width: calc(26px * var(--s)); height: calc(26px * var(--s));
-    border-radius: calc(8px * var(--s)); background: rgba(90, 132, 224, .2); color: #cfe0ff;
-    font: 900 calc(13px * var(--s))/1 inherit; font-variant-numeric: tabular-nums; }
+  /* 2026-11-19 第三轮：第 4 名起不再是单个数字，改成中文「第N名」胶囊 —— 逐项照抄榜单
+     （接线仿真 project2.html:2410 `#fw-rank .rk-board li.rk-lb > .rk-lb-place`，rk-css 定的权威值）：
+       width auto + min-width 26 / min-height 26 / padding 0 9px / radius 8 /
+       bg rgba(90,132,224,.18) / color #cfe0ff / font 900 12.5px / nowrap / flex none / inline-flex 居中。
+     宽度**交给内容撑**，不预设：「第4名」≈55.5px（3 个全角 37.5 + 内边距 18）、「第100名」≈64px，
+     两种都放得下，所以千万别再写死 62px 那种估出来的宽度 —— 那会比真卡宽、比真卡矮。
+     ⚠️ 这整块是外层 --s 等比缩放的（--s = 预览宽度 / 真行宽 371.5），尺寸一律「真卡原始 px × var(--s)」。
+        总入口有 *{box-sizing:border-box}（第 28 行），和榜单一致，26 这个下限在两种盒模型下结果相同
+        （内容永远超过 26，min-width 实际不生效），所以直接写 26 保持和榜单逐字对应。 */
+  #rankCardDlg .rkc-place { display: inline-flex; align-items: center; justify-content: center; flex: none;
+    box-sizing: border-box; width: auto; min-width: calc(26px * var(--s)); min-height: calc(26px * var(--s));
+    padding: 0 calc(9px * var(--s)); border-radius: calc(8px * var(--s));
+    background: rgba(90, 132, 224, .18); color: #cfe0ff;
+    font: 900 calc(12.5px * var(--s))/1 inherit; font-variant-numeric: tabular-nums; white-space: nowrap; }
   #rankCardDlg .rkc-name { font-size: calc(17px * var(--s)); font-weight: 900; color: #fff; line-height: 1.06;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #rankCardDlg .rkc-name small { display: block; margin-top: calc(2px * var(--s)); font-size: calc(12px * var(--s));
@@ -4592,16 +4606,16 @@ function openRankCard() {
    所以不再 show('wiring') 跳过去，而是在总入口直接弹 dialog。
    数据层仍是 public.hx_rank_bg（hx_rank_bg_get / hx_rank_bg_put，RLS 只认本人），
    预设复用总入口引的 rank-bg.js（window.RANK_BG_PRESETS / window.rankBgCss）。
-   这里只搬了 rkBgStyle / rkMedal / rkCompressImg / RK_CARDS 几个纯函数 + 精简 UI，
+   这里只搬了 rkdBgStyle / rkdMedal（奖杯）/ rkdCompressImg 几个纯函数 + 精简 UI，
    逻辑与接线仿真 rkCardWin 对齐（一张图统一作用、保存走本人账号）。
 
    ── 2026-11-19 第二轮：卡型统一成一种 ──
    用户原话：「预览卡按理说只需要显示一个即可 因为不管说明卡 都是等比例缩放 只不过大小不一样
      而不是显示背景不一样 有的显示全有的不全肯定是不对的 这样就不对 完全破坏显示公平逻辑了」
-   排位榜那边已经把四档高度（66/60/57/42）全部改成 **116px**，所以这里也跟着：
+   排位榜那边已经把四档高度（66/60/57/42）统一成**基准档 116px**（前三名在排位榜里逐级放大 168/150/132），所以这里也跟着：
      · RKD.cards 只剩一张「身份卡」；
      · 删掉「身份卡型 2×2 对照」那排小卡和下面的「学生卡」预览（同一张图只露一个取景，第 2、3、4 个必然不同）；
-     · 预览宽度基准 RK_CARD_W = 805 保持不变（榜单行宽按这个设计），高度交给 CSS 的 116px。
+     · 预览宽度基准跟着榜单真卡走（371.5），见 paintPrev 里的 --s 算法；高度/比例交给 CSS 的 --hx-idcard-ar。
    ⚠️ 改榜单卡高时，这三处要一起改：接线仿真/src/project2.html 的 --lbh、
      接线仿真/src/rank.js 的 RK_CARDS[0].real、总入口/index.html 的 --hx-idcard-ar。 */
 var RKD = { bg: '', cur: 'all', tune: {}, cards: [
@@ -4634,16 +4648,83 @@ function rkdBgStyle(bg, tune) {
     return 'background-image:url("' + s + '");background-size:cover;background-repeat:no-repeat;background-position:50% ' + p + '%' + sc;
   return '';
 }
+/* ── 2026-11-19 第三轮：奖杯（逐字对齐接线仿真 rank.js 的 rkCup）────────
+   榜单前三名不再显示数字/中文名次，改成金/银/铜三枚奖杯：
+     杯口沿 + 杯身 + 双耳（.c-ear）+ 星冠（.c-star）+ 底座（.c-base）；
+   **只靠「杯型 + 金属色」区分档位，不出现任何 <text> 名次数字**（和榜单口径一致）。
+   渐变 id 统一加 rkdCup 前缀（rkdCup1G / rkdCup1A 这种）：总入口是单文档，svg id 全局唯一，
+   不加前缀会和页面别处的 id 撞车 —— 撞了就是银杯被涂成金杯。
+   ⚠️ 暂未调用：预览演的现在是第 4 名（中文「第4名」胶囊），前三名在榜单上自然看得到；
+     保留这个函数是为了和 rkCup 保持同一套形态，以后预览想演前三名直接 rkdMedal(1|2|3)。 */
 function rkdMedal(p) {
-  var G = p === 1 ? ['#ffeeb8', '#ffb934', '#d98a0c'] : p === 2 ? ['#f7fbff', '#c3d3e8', '#7d8ea6'] : ['#ffd9bd', '#d98a52', '#9a5a2c'];
-  var id = 'rkdMedal' + p;
-  var crown = p === 1 ? '<path d="M14.5 12.5l3.4 4.1L24 9.4l6.1 7.2 3.4-4.1-1.7 7.4H16.2z" fill="' + G[1] + '" stroke="rgba(255,255,255,.6)" stroke-width=".8"/>' : '';
-  return '<svg viewBox="0 0 48 48" aria-hidden="true"><defs><linearGradient id="' + id + '" x1="0" y1="0" x2=".9" y2="1">'
-    + '<stop offset="0" stop-color="' + G[0] + '"/><stop offset=".55" stop-color="' + G[1] + '"/><stop offset="1" stop-color="' + G[2] + '"/></linearGradient></defs>'
-    + '<circle cx="24" cy="27.5" r="13" fill="url(#' + id + ')" stroke="rgba(255,255,255,.72)" stroke-width="1.2"/>'
-    + '<circle cx="24" cy="27.5" r="9.4" fill="rgba(0,0,0,.18)"/>'
-    + '<text x="24" y="32.4" text-anchor="middle" font-size="12.5" font-weight="900" fill="#fff" font-family="system-ui,sans-serif">' + p + '</text>'
-    + crown + '</svg>';
+  /* 三种名次 = 三种杯型，不是只换颜色（卡上杯子只有 40~60px，只换配色会看着一模一样）：
+       第 1 名：双耳大奖杯 + 顶部五角星冠 + 厚底座
+       第 2 名：双耳奖杯（无星）+ 薄底座
+       第 3 名：无耳直筒杯 + 单柱底座
+     每档两套渐变（G=杯体四段金属 / A=星冠·双耳·底座亮面），id 加 rkdCup 前缀防撞车。 */
+  var t = p === 1 ? 1 : p === 2 ? 2 : 3;
+  var C = t === 1
+    ? { body: ['#fff7d9', '#ffd765', '#f5a40a', '#c97c05'], acc: ['#fff3b0', '#f2b428'], rim: '#fffbe6' }
+    : t === 2
+      ? { body: ['#ffffff', '#e3ecf7', '#b7c5da', '#8795ab'], acc: ['#ffffff', '#c3d2e6'], rim: '#f8fcff' }
+      : { body: ['#ffe6c8', '#e0a468', '#b76f31', '#8a4a1d'], acc: ['#ffd9a8', '#b4732f'], rim: '#ffe9d2' };
+  var id = 'rkdCup' + t;
+  var G = 'url(#' + id + 'G)', A = 'url(#' + id + 'A)';
+  var gloss = 'rgba(255,255,255,' + (t === 1 ? '.55' : t === 2 ? '.62' : '.42') + ')';
+
+  // ① 星冠：只有第一名有
+  var star = t === 1
+    ? '<path class="c-star" d="M26 2 L27.29 5.42 L30.95 5.59 L28.09 7.88 L29.06 11.41 L26 9.4 L22.94 11.41 L23.91 7.88 L21.05 5.59 L24.71 5.42 Z"'
+      + ' fill="' + A + '" stroke="rgba(255,255,255,.5)" stroke-width=".5" stroke-linejoin="round"/>'
+    : '';
+  // ② 双耳：一二名有，第三名是光秃秃的直筒杯
+  var ears = t <= 2
+    ? '<g class="c-ear" fill="none" stroke="' + A + '" stroke-width="2.4" stroke-linecap="round">'
+      + '<path d="M16 15.2 C11.2 15.8 9.4 19.4 11 22.6 C12.1 24.8 14 25.7 16 25.3"/>'
+      + '<path d="M36 15.2 C40.8 15.8 42.6 19.4 41 22.6 C39.9 24.8 38 25.7 36 25.3"/></g>'
+    : '';
+
+  // ③ 杯身：三套坐标（弧底大奖杯 / 弧底奖杯 / 直筒直壁）
+  var bowl = t === 1
+    ? '<rect x="15.2" y="11.4" width="21.6" height="3" rx="1.3" fill="' + A + '" stroke="' + C.rim + '" stroke-width=".6"/>'
+      + '<path d="M15.5 14.2 H36.5 V18 C36.5 25.4 32.4 30.4 26 31.8 C19.6 30.4 15.5 25.4 15.5 18 Z"'
+      + ' fill="' + G + '" stroke="' + C.rim + '" stroke-width="1"/>'
+      + '<ellipse cx="26" cy="13" rx="8.6" ry="1.7" fill="rgba(0,0,0,.20)"/>'
+      + '<ellipse cx="19.9" cy="20" rx="1.9" ry="4.4" fill="' + gloss + '" transform="rotate(-14 19.9 20)"/>'
+    : t === 2
+      ? '<rect x="16" y="9.8" width="20" height="2.6" rx="1.2" fill="' + A + '" stroke="' + C.rim + '" stroke-width=".6"/>'
+        + '<path d="M16 12.2 H36 V17.4 C36 26.6 32 32.6 26 34.2 C20 32.6 16 26.6 16 17.4 Z"'
+        + ' fill="' + G + '" stroke="' + C.rim + '" stroke-width="1"/>'
+        + '<ellipse cx="26" cy="13.2" rx="8" ry="1.6" fill="rgba(0,0,0,.16)"/>'
+        + '<ellipse cx="20.2" cy="20.4" rx="1.8" ry="5" fill="' + gloss + '" transform="rotate(-12 20.2 20.4)"/>'
+      : '<rect x="16.4" y="12" width="19.2" height="2.6" rx="1.2" fill="' + A + '" stroke="' + C.rim + '" stroke-width=".6"/>'
+        + '<path d="M16.8 14.4 H35.2 V28.4 C35.2 31.6 31.2 33.4 26 33.4 C20.8 33.4 16.8 31.6 16.8 28.4 Z"'
+        + ' fill="' + G + '" stroke="' + C.rim + '" stroke-width="1"/>'
+        + '<ellipse cx="26" cy="15.2" rx="7.6" ry="1.5" fill="rgba(0,0,0,.18)"/>'
+        + '<rect x="19.6" y="16.6" width="2.2" height="12.4" rx="1.1" fill="' + gloss + '"/>';
+
+  // ④ 底座：冠军厚底座（两层）、亚军薄底座、季军单柱 + 小脚
+  var base = t === 1
+    ? '<g class="c-base">'
+      + '<rect x="24.1" y="30.4" width="3.8" height="5.4" rx="1" fill="' + G + '"/>'
+      + '<rect x="13.6" y="35.2" width="24.8" height="5.2" rx="1.7" fill="' + G + '" stroke="' + C.rim + '" stroke-width=".8"/>'
+      + '<rect x="11.4" y="40.2" width="29.2" height="3.6" rx="1.6" fill="' + A + '" stroke="' + C.rim + '" stroke-width=".6"/></g>'
+    : t === 2
+      ? '<g class="c-base">'
+        + '<rect x="24.2" y="33.8" width="3.6" height="4.6" rx="1" fill="' + G + '"/>'
+        + '<rect x="16.4" y="38" width="19.2" height="3.4" rx="1.4" fill="' + G + '" stroke="' + C.rim + '" stroke-width=".8"/></g>'
+      : '<g class="c-base">'
+        + '<rect x="23.8" y="32.8" width="4.4" height="6.4" rx="1.2" fill="' + G + '"/>'
+        + '<rect x="17.6" y="38.8" width="16.8" height="3.6" rx="1.5" fill="' + A + '" stroke="' + C.rim + '" stroke-width=".6"/></g>';
+
+  return '<svg viewBox="0 0 52 52" aria-hidden="true"><defs>'
+    + '<linearGradient id="' + id + 'G" x1="0" y1="0" x2=".35" y2="1">'
+    + '<stop offset="0" stop-color="' + C.body[0] + '"/><stop offset=".42" stop-color="' + C.body[1] + '"/>'
+    + '<stop offset=".78" stop-color="' + C.body[2] + '"/><stop offset="1" stop-color="' + C.body[3] + '"/></linearGradient>'
+    + '<linearGradient id="' + id + 'A" x1="0" y1="0" x2=".4" y2="1">'
+    + '<stop offset="0" stop-color="' + C.acc[0] + '"/><stop offset="1" stop-color="' + C.acc[1] + '"/></linearGradient>'
+    + '</defs>'
+    + star + ears + bowl + base + '</svg>';
 }
 function rkdCompressImg(file) {
   return new Promise(function (res, rej) {
@@ -4736,9 +4817,9 @@ function rkdPaint(body, name, cls) {
     var st = rkdBgStyle(RKD.bg, t);
     if (prevBg) prevBg.setAttribute('style', st || '');
     prevBox.setAttribute('data-nobg', st ? '0' : '1');
-    /* 预览演的是「最普通的那一行」（名次用数字，不带奖牌）—— 所有名次同一尺寸，
-       金/银/铜的差异在排行榜上自然看得到，这里不必挨个演一遍。 */
-    if (elMedal) elMedal.innerHTML = '<i class="rkc-place">4</i>';
+    /* 预览演的是「最普通的那一行」（第 4 名，中文「第4名」胶囊，不带奖杯）—— 所有名次同一尺寸，
+       前三是金/银/铜奖杯，那三种差异在排行榜上自然看得到，这里不必挨个演一遍。 */
+    if (elMedal) elMedal.innerHTML = '<i class="rkc-place">第4名</i>';
     if (elTag) elTag.textContent = '';
     if (elMs) elMs.textContent = '0:31.11';
     if (pos) pos.value = t.pos; if (posV) posV.textContent = t.pos;

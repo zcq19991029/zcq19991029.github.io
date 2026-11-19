@@ -134,6 +134,13 @@ pre { white-space: pre-wrap; word-break: break-word; margin: 0; }
 .mat-i { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 9px 12px; border-radius: 12px; background: var(--fill, rgba(0, 0, 0, .03)); }
 .mat-pick { display: inline-flex; align-items: center; }
 .mat-pick input { width: 16px; height: 16px; margin: 0; accent-color: var(--acc, #2f845a); cursor: pointer; }
+/* 2026-11-19：第一列从「一颗勾」变成「两颗勾」（用这份出题 / 原文件），竖着排，
+   第二颗带文字，字号小一档，不抢第一颗的位置。 */
+.mat-pk { display: grid; gap: 3px; justify-items: center; }
+.mat-raw { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; line-height: 1.2; color: var(--dim, #6b7280); white-space: nowrap; cursor: pointer; user-select: none; }
+.mat-raw input { width: 13px; height: 13px; margin: 0; accent-color: var(--acc, #2f845a); cursor: pointer; }
+.mat-raw:has(input:checked) { color: var(--acc, #2f845a); font-weight: 600; }
+.mat-err { color: var(--bad, #d70015); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mat-m { display: grid; gap: 2px; min-width: 0; }
 .mat-m b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mat-a { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -631,6 +638,74 @@ async function hximpVision(opts) {
 const HXIMP_IMG = /\.(jpe?g|png|webp|gif|bmp)$/i;
 const isImageFile = name => HXIMP_IMG.test(String(name || '').toLowerCase());
 
+/* ── 有没有文字层：按「每页平均字数」判，不按全文总量（2026-11-19）────────────
+   用户报：「逐页 AI 识图（第 35/35 页）」把整本 35 页的 PDF 都送去识图。
+   旧口径是「全文（去空白前）不足 50 字才算扫描件」，两个坑：
+     ① 扫描件里常夹着页码、水印、页眉，35 页凑出几十个字就超过 50，误判成「有文字层」；
+     ② 反过来，10 页里只有封面有文字，总量也可能不到 50，把整本有文字层的书送去做识图（花额度）。
+   每页平均才是真实口径：正常排版的 PDF 一页至少上百字，扫描件一页 0～几个字。 */
+const HXIMP_MIN_PAGE_CHARS = 20;
+function wantVision(pageTexts) {
+  const arr = Array.isArray(pageTexts) ? pageTexts : [];
+  if (!arr.length) return true;
+  const counts = arr.map(s => String(s == null ? '' : s).replace(/\s+/g, '').length);
+  return counts.reduce((a, b) => a + b, 0) / counts.length < HXIMP_MIN_PAGE_CHARS;
+}
+// 有文字层的页数（只用来报进度 / 排查，不参与判断）
+const hximpTextPages = pageTexts => (pageTexts || []).filter(s => String(s == null ? '' : s).replace(/\s+/g, '').length >= HXIMP_MIN_PAGE_CHARS).length;
+
+/* 当前这套配置用哪个模型（给报错文案用：老师要照着名字去改设置）。
+   hx-ai 的 pick 会按「工具指定 → 能力默认 → 文本默认」挑一套；挑不到就返回空串。 */
+function hxImpModel(cap) {
+  const H = (typeof window !== 'undefined') ? window.HXAI : null;
+  if (!H || typeof H.pick !== 'function') return '';
+  try {
+    const p = H.pick({ cap: cap || 'text', tool: 'ziliao' });
+    return p ? String(p.name || p.model || '') : '';
+  } catch (e) { return ''; }
+}
+
+/* ── 报错中文化（2026-11-19）──────────────────────────────────────────────
+   用户截图原话：「有 1 份没传成：电气接线第一章.pdf：「逐页 AI 识图（第 35/35 页）」失败 ——
+   The model is not a VLM (Vision Language Model). Please use text-only prompts.」
+   老师看不懂，也不知道下一步该点哪儿。上游（各家模型 / 网关）的报错一律经过这里改写：
+   「哪份资料 · 什么原因 · 去哪儿改 · 改完做什么」。 */
+const HXIMP_VLM_RE = /not a vlm|isn'?t a vision|not a vision|vision language|text-only|does not support (image|vision|multimodal)|unsupported.*(image|vision)|image.*not supported|多模态|不支持图片|不是视觉/i;
+function hxImpHumanErr(e, name, model) {
+  const raw = String((e && e.message) || e || '').trim();
+  const nm = name ? '《' + name + '》' : '这份资料';
+  const md = model ? '「' + model + '」' : '现在这套';
+  const goAI = '去首页「AI 设置」';
+  const tail = raw ? '（原始报错：' + raw.slice(0, 120) + '）' : '';
+  if (HXIMP_VLM_RE.test(raw)) {
+    return nm + '是扫描件（没有文字层），要靠 AI 看图识字，但'
+      + (model ? '你在「AI 设置 → 资料库」配的模型「' + model + '」' : '现在给「资料库」配的模型')
+      + '不支持图片。' + goAI + '给「资料库」换一个看图模型（如 Qwen-VL / GPT-4o），再重新上传这份资料。';
+  }
+  if (/40[13]|unauthor|invalid.*(key|token)|api[\s_-]?key|forbidden|no permission/i.test(raw)) {
+    return md + '的 API Key 不对或没有权限。' + goAI + '检查这套配置的 Key 有没有填错、是不是过期了。' + tail;
+  }
+  if (/429|rate.?limit|too many requests|quota|exceeded/i.test(raw)) {
+    return '调 AI 太频繁或用超了额度。等一两分钟再试，或' + goAI + '换一个模型。' + tail;
+  }
+  if (/402|insufficient|balance|余额|欠费/i.test(raw)) {
+    return md + '的账户余额不足。给这个平台充值，或' + goAI + '换一个平台。' + tail;
+  }
+  if (/context|too long|maximum.*token|max.*length|length.*limit/i.test(raw)) {
+    return nm + '太长，一次喂不完。把它拆成几份再传，或出题时在「范围」里限定章节。' + tail;
+  }
+  if (/timeout|timed out|abort|network|failed to fetch|econn|enotfound|连不上|网络/i.test(raw)) {
+    return '连不上 AI 服务。检查网络，或' + goAI + '看看接口地址填对没有。' + tail;
+  }
+  if (/\b5\d\d\b|server error|bad gateway|service unavailable/i.test(raw)) {
+    return 'AI 服务端出错了，不是你这边的问题。过几分钟再试，或' + goAI + '换一个模型。' + tail;
+  }
+  /* 已经是中文的（我们自己的提示 / hx-ai 的「没配模型」提示）原样放行，别套两层。 */
+  if (/[\u4e00-\u9fa5]/.test(raw)) return nm + '：' + raw;
+  return nm + '没处理成功' + (raw ? '，模型返回：' + raw.slice(0, 160) : '，模型没有返回原因')
+    + '。换一个模型再试；要是还不行，把这句话发给管理员。';
+}
+
 // 图片转 dataURL：最长边压到 1600px、JPEG 0.8。手机拍一页教材 4MB，原样发几张模型会直接拒。
 function fileToDataUrl(file, max = 1600, quality = 0.8) {
   return new Promise((resolve, reject) => {
@@ -680,12 +755,13 @@ async function readMaterial(file) {
     for (let i = 1; i <= pdf.numPages; i++) {
       const page = await pdf.getPage(i);
       const c = await page.getTextContent();
-      pages.push(c.items.map(it => it.str).join(' '));
+      pages.push(c.items.map(it => String(it.str || '')).join(' '));
     }
     const text = pages.join('\n');
-    // 扫描件没有文字层：不再抛错，而是把「这需要逐页识图」这件事交回调用方（带上原文件，
-    // 让 ui-mat.js 走 ocrScannedPdf 逐页 AI 识图）。纯图片扫描 PDF 走这条，有文字层的不受影响。
-    if (text.trim().length < 50) return { text: '', scannedPdf: file };
+    /* 扫描件没有文字层：把「这需要逐页识图」这件事交回调用方（带上原文件，
+       让 ui-mat.js 走 ocrScannedPdf 逐页 AI 识图）。
+       2026-11-19：判断口径改成「每页平均字数 < 20」—— 见上面 wantVision 的注释。 */
+    if (wantVision(pages)) return { text: '', scannedPdf: file, pageCount: pages.length, textPages: hximpTextPages(pages) };
     return { text };
   }
   throw new Error('支持 PDF、DOCX、TXT、MD，以及 jpg／png 图片；旧版 .doc 请另存为 .docx');
@@ -733,6 +809,14 @@ async function renderPdfPages(file, onPage) {
 
 // 逐页识图：一次传一页，onProgress(i, total, text) 报进度；整本拼成一段文字返回
 async function ocrScannedPdf(file, onProgress) {
+  /* 先看有没有看图模型，再开始渲染（2026-11-19）：
+     35 页的 PDF 渲染成图片要几十秒，渲染完才发现「模型不支持图片」纯属白等；
+     而且用户看到的进度会停在「第 35/35 页」（最后一步渲染），完全看不出错在第 1 页。
+     这里提前一步拦住，报错直接说清去哪儿换模型。 */
+  if (!hxImpModel('vision')) {
+    throw new Error('这份资料没有文字层（扫描件 / 图片），要靠 AI 看图识字，但「AI 设置」里还没有给「资料库」配看图模型。'
+      + '去首页「AI 设置」把一套支持图片的模型（如 Qwen-VL / GPT-4o）设为「图片识别」默认，再重新上传。');
+  }
   const { pages, pageCount } = await renderPdfPages(file, (i, n) => onProgress && onProgress(i, n, null));
   const out = [];
   for (let i = 0; i < pages.length; i++) {
@@ -961,7 +1045,15 @@ async function aiGenerate(text, subject, subjectName, opts, onProgress) {
     done++;
     if (onProgress) onProgress('正在根据第 ' + (i + 1) + ' / ' + pieces.length + ' 段出题，已出 ' + collected.length + ' 题…', collected);
     try {
-      const prompt = genPrompt({ subjectName, piece: pieces[i], scope: opts.scope, level: opts.level, counts, extra: opts.extra, typeNames: opts.typeNames });
+      /* note：资料太长被切成多块时，明确告诉模型「这是第几块」——
+         勾「原文件」整份原文出题时尤其需要，不然它会把每一块都当成完整的一本书。 */
+      const prompt = genPrompt({
+        subjectName, piece: pieces[i], scope: opts.scope, level: opts.level, counts, extra: opts.extra, typeNames: opts.typeNames,
+        note: pieces.length > 1 ? '（这是资料原文的第 ' + (i + 1) + ' / ' + pieces.length + ' 块，按原文顺序切开的；只就这一块出题，不要凭空补别的内容。）' : ''
+      });
+      /* 调试口（2026-11-19）：把这一块真正的提示词挂到 window.__lastPrompt，
+         自测和排查「到底喂了什么给模型」时在控制台直接看，不 toast 打扰老师。 */
+      try { if (typeof window !== 'undefined') window.__lastPrompt = prompt; } catch (e) { }
       const response = await hximpChat([{ role: 'system', content: '你是严谨的职业院校出题老师。只返回合法 JSON。' }, { role: 'user', content: prompt }], { json: true, thinkLevel: opts.thinkLevel });
       const result = normalizeQuestions(parseJson(response), subject, customKeys);
       collected.push(...result.questions);
@@ -997,7 +1089,10 @@ async function aiImport(text, subject, onProgress) {
 window.HXImp = {
   isImageFile, fileToDataUrl, readMaterial, ocrImages, ocrScannedPdf, renderPdfPages,
   normalizeQuestions, chunks, genPrompt, aiGenerate, aiImport,
-  parseJson, TYPE_LABEL, SUPPORTED, HXIMP_AI_MISS, HXIMP_VISION_MISS, HXIMP_LIB_MISS
+  parseJson, TYPE_LABEL, SUPPORTED, HXIMP_AI_MISS, HXIMP_VISION_MISS, HXIMP_LIB_MISS,
+  // 2026-11-19 新增：PDF 要不要走识图的判定、当前用的模型名、报错中文化（自测也直接调这几个）
+  wantVision, textPages: hximpTextPages, modelName: hxImpModel, humanErr: hxImpHumanErr,
+  MIN_PAGE_CHARS: HXIMP_MIN_PAGE_CHARS
 };
 
 ;
@@ -1514,7 +1609,8 @@ function matHome() {
     </section>
     <section class="card" id="matGen">
       <div class="zl-ch"><h2>AI 出题</h2><button class="sm" id="mgTypes">管理题型</button></div>
-      <p class="note" style="margin:0 0 12px">先在上面的资料列表勾选要用哪几份（一份都不勾就在「额外要求」里写内容），
+      <p class="note" style="margin:0 0 12px">先在上面的资料列表勾选要用哪几份（一份都不勾就在下面的「针对性要求」里写内容），
+        再勾每行下面的「原文件」＝按整份原文出题（适合章节不规整的资料），不勾就按切段出。
         然后选一个题型、填出题量。出的题直接进这个题型的题池 —— 组卷要多少道、怎么配分，去「考试 → 理论试卷」那边定。</p>
       <div class="mg-step"><b>题型 <small class="note" id="mgQtLabel"></small></b>
         <div class="mg-pills" id="mgPills"></div></div>
@@ -1524,7 +1620,7 @@ function matHome() {
         <label>思考程度<select id="mgThink"><option value="">跟随 AI 设置</option><option value="quick">快速</option><option value="balanced">均衡</option><option value="deep">深度</option></select></label>
         <label>范围<input id="mgScope" autocomplete="off" placeholder="留空 = 整份，如：第 5 章 中断系统"></label>
       </div>
-      <label class="mg-wide">额外要求<textarea id="mgExtra" rows="3" placeholder="可留空。没勾资料时，这里写的内容就是出题依据。想约束题型就写在这儿，如：实操题要写清接线步骤和仪表档位。"></textarea></label>
+      <label class="mg-wide">针对性要求（会原样拼进提示词）<textarea id="mgExtra" rows="3" placeholder="可留空。没勾资料时，这里写的内容就是出题依据。例：只出第 3 章的计算题、多考接线工艺、避免名词解释。"></textarea></label>
       <div class="row" style="margin-top:12px"><button class="pri" id="mgGo">开始出题</button><span class="note" id="mgState"></span></div>
       <div id="mgOut"></div>
     </section>`;
@@ -1583,10 +1679,16 @@ async function matReload(fresh) {
 function matDrawList() {
   const box = $('matList'); if (!box) return;
   const cnt = $('matCnt'); if (cnt) cnt.textContent = MAT_LIST.length ? MAT_LIST.length + ' 份' : '';
+  /* 每行两颗勾：左边是「用这份出题」（老行为，喂切段），下面一颗「原文件」
+     （2026-11-19 用户要求：有些资料不是规整教材，切段不可靠，要能按整份原文出题）。 */
   box.innerHTML = MAT_LIST.length ? MAT_LIST.map(m => `<div class="mat-i" data-mid="${m.id}">
-      <label class="mat-pick"><input type="checkbox" data-mpick="${m.id}" ${m.status === 'failed' ? 'disabled' : ''}></label>
+      <div class="mat-pk">
+        <label class="mat-pick" title="勾上＝用这份资料出题"><input type="checkbox" data-mpick="${m.id}" ${m.status === 'failed' ? 'disabled' : ''}></label>
+        <label class="mat-raw" title="勾上＝用整份原文出题（适合章节不规整的资料）"><input type="checkbox" data-mraw="${m.id}"> 原文件</label>
+      </div>
       <div class="mat-m"><b title="${esc(m.name)}">${esc(m.name)}</b>
-        <span class="note">${(+m.chars || 0).toLocaleString()} 字 · ${MAT_kb(m.bytes)}${m.status === 'failed' ? ' · 解析失败' : ''} · ${when(m.at)}</span></div>
+        <span class="note">${(+m.chars || 0).toLocaleString()} 字 · ${MAT_kb(m.bytes)}${m.status === 'failed' ? ' · 解析失败' : ''} · ${when(m.at)}</span>
+        ${m.status === 'failed' && m.err ? `<span class="note mat-err" title="${esc(m.err)}">原因：${esc(m.err)}</span>` : ''}</div>
       <div class="mat-a"><button class="sm" data-mview="${m.id}">看原文</button><button class="sm danger" data-mdel="${m.id}">删除</button></div>
     </div>`).join('')
     : '<p class="note">还没有资料。</p>';
@@ -1614,25 +1716,23 @@ async function matView(id, btn) {
   } finally { HXBusy.end(tok); }
 }
 
-/* 删一份资料：删表 + 删 Storage 文件是两次网络，原来点完按钮一直是原样，
-   用户以为卡住了（2026-11-15）。现在按钮转圈，失败原因照旧挂在顶部红条上。 */
+/* 删一份资料：2026-11-19 起改成「软删除」——
+   行还在（只打 deleted_at）、切段还在、Storage 原文件也不删，所以首页「回收站」还原回来
+   原文件和切段都齐，不用重新上传（用户原话：「还原后文件本体要重新上传…这个不对」）。
+   删表 + 删文件仍然是两次网络，所以按钮照旧转圈，失败原因挂在顶部红条上。 */
 async function matDel(id, btn) {
   const m = MAT_LIST.find(x => +x.id === id) || {};
-  if (!await hxConfirm('删除资料「' + (m.name || '') + '」？\n\n它的切段会一起删掉；已经出好的题留在题池里。')) return;
-  /* 进回收站（2026-11-19 第三轮任务 5）：删之前把元数据留档到统一回收站。
-     文件本体太大没法本地留档，所以还原只能找回记录、文件要重新上传 —— 回收站页会明说。 */
-  try {
-    let L = JSON.parse(localStorage.getItem('hx-recycle-v1') || '[]');
-    L.unshift({ kind: 'mat', id: String(id), name: m.name, at: Date.now(),
-      payload: { subject_id: MAT_sid(), mime: m.mime, bytes: m.bytes, path: m.path, chars: m.chars } });
-    localStorage.setItem('hx-recycle-v1', JSON.stringify(L.slice(0, 200)));
-  } catch (e) { /* 留档失败不影响删除本身 */ }
+  if (!await hxConfirm('删除资料「' + (m.name || '') + '」？\n\n它会进首页「回收站」，还原后原文件和切段都还在。')) return;
   const tok = HXBusy.begin(btn, '正在删…');
   try {
     const r = await MAT_call('hx_exam_mat_del', { p_id: id });
     if (!r.ok) { MAT_banner('删除失败：' + r.err); HXBusy.end(tok, r.err); return; }
-    await MAT_rm(typeof r.data === 'string' ? r.data : (r.data && r.data.path));
-    toast('已删除');
+    /* 只删「云端真的说要删的文件」：新的软删除函数返回空串（意思是行和文件都别动），
+       老实现返回 path（硬删除）。这里先取值再判空 —— 不判空就会把回收站里的原件删掉，
+       还原回来只剩一条空记录，正是用户报的那个 bug。 */
+    const path = typeof r.data === 'string' ? r.data : (r.data && r.data.path);
+    if (path) await MAT_rm(path);
+    toast('已进回收站');
     const v = $('matView'); if (v) v.innerHTML = '';
     matReload(true); loadSubjects(true);   // 删完同样要绕过缓存
   } finally { HXBusy.end(tok); }
@@ -1701,12 +1801,20 @@ async function matUpload(files) {
       let text = String(got.text || '');
       if (got.image) { say('AI 识图', 0.10); text = await HXImp.ocrImages([got.image]); }
       if (got.scannedPdf) {
-        // 扫描 PDF：逐页 AI 识图（Z7/B12，花用户 AI 额度）。每页报一次进度，断在哪页一眼可见。
-        say('逐页 AI 识图（第 1 页）', 0.08);
+        /* 扫描 PDF：逐页 AI 识图（Z7/B12，花用户 AI 额度）。每页报一次进度，断在哪页一眼可见。
+           2026-11-19：回调里 t == null 表示「正在把第 k 页渲染成图片」，不是「识别完第 k 页」。
+           原来两者共用一句「逐页 AI 识图（第 k/n 页）」，用户看到的报错是「第 35/35 页」——
+           其实是渲染走到最后一页，真正的失败在这之后的第 1 页识图。现在分开写清楚。 */
+        say('准备逐页 AI 识图', 0.06);
         text = await HXImp.ocrScannedPdf(got.scannedPdf, (k, total, t) => {
-          step = '逐页 AI 识图（第 ' + k + '/' + total + ' 页）';
           const frac = total ? Math.min(1, k / total) : 0;
-          pg(0.08 + 0.27 * frac, `逐页 AI 识图 ${k}/${total} 页` + (t ? `（本页识出 ${t.length} 字）` : '（渲染中）'));
+          if (t == null) {
+            step = '把第 ' + k + '/' + total + ' 页转成图片';
+            pg(0.06 + 0.04 * frac, `正在把第 ${k}/${total} 页转成图片（共 ${total} 页，这份是扫描件）`);
+          } else {
+            step = '逐页 AI 识图（第 ' + k + '/' + total + ' 页）';
+            pg(0.10 + 0.25 * frac, `逐页 AI 识图 ${k}/${total} 页` + (t ? `（本页识出 ${t.length} 字）` : '（这页没识出字）'));
+          }
         });
       }
       text = text.replace(/\r/g, '').trim();
@@ -1735,7 +1843,10 @@ async function matUpload(files) {
       okN++; segN += keep.length;
       pg(1, '完成（' + keep.length + ' 段）');
     } catch (e) {
-      bad.push(f.name + '：「' + step + '」失败 —— ' + (e && e.message ? e.message : e));
+      /* 2026-11-19：上游报错一律过一遍 HXImp.humanErr —— 老师看到的必须是中文 + 「怎么办」，
+         不能再把 "The model is not a VLM…" 这种原文甩出去。模型名按这一步用到的是哪种能力取。 */
+      const cap = /识图|图片|转成图片/.test(step) ? 'vision' : 'text';
+      bad.push('「' + step + '」失败 —— ' + HXImp.humanErr(e, f.name, HXImp.modelName(cap)));
     }
   }
   MAT_BUSY = false;
@@ -1746,6 +1857,49 @@ async function matUpload(files) {
   if (!bad.length) toast('上传完成');
   await matReload(true);   // 刚传完：绕过缓存，新资料立刻出现在列表里
   loadSubjects(true);      // 科目卡片上的「N 份资料」也跟着变
+}
+
+/* ---------------- 「原文件」＝按整份原文出题（2026-11-19） ----------------
+   用户原话：「导入资料后你现在是拆分成相应章节，如果不是这类资料呢，是不是应该保证原文件区域，
+   同样支持勾选原文件让 ai 出题，随时可以生成相应需要的资料（针对性提示词可能）」
+   所以每行除了「用这份出题」（喂切段、按范围挑）之外，还有一颗「原文件」：
+   勾上 = 把这份资料的**全部切段按 idx 顺序**拼成一份全文，原样给模型，不挑段、不按范围。
+   为什么仍然读切段而不是读 Storage 原件：切段就是解析出来的正文，原件是二进制，
+   浏览器里重新解析一遍既慢又可能解析失败（而且失败正是用户勾原文件的原因）。 */
+function matFullText(m, arr) {
+  const segs = (arr || []).slice().sort((a, b) => (+a.idx || 0) - (+b.idx || 0));
+  const nm = (m && m.name) || '资料';
+  return '下面是《' + nm + '》的整份原文（按原文顺序，共 ' + segs.length + ' 段），请基于全文出题，不要只挑其中一段。\n\n'
+    + segs.map(c => (c.title ? c.title + '\n' : '') + (c.body || '')).join('\n\n');
+}
+
+/* 把勾中的资料读成文字。rawSet 里的是「整份原文」口径，其余保持老行为（按切段拼）。
+   返回 { parts, tag }；某份勾了原文件却 0 段（解析失败）时直接抛中文错误，不静默跳过。 */
+async function matCollect(picks, rawSet, state) {
+  const parts = [], names = [], empty = [];
+  for (let k = 0; k < picks.length; k++) {
+    const id = +picks[k];
+    const m = MAT_LIST.find(x => +x.id === id) || { id, name: '资料 ' + id };
+    const raw = !!(rawSet && rawSet.has(id));
+    if (state) state.textContent = `正在读资料（${k + 1}/${picks.length}）…`;
+    const r = await MAT_call('hx_exam_chunk_get', { p_material_id: id });
+    if (!r.ok) throw new Error('读《' + (m.name || m.id) + '》的切段失败：' + r.err);
+    /* 一律按 idx 排序：接口现在按 idx 返回，但排序是零成本的保险 ——
+       顺序错了等于把书的章节打乱喂给模型，出的题会串。 */
+    const arr = (Array.isArray(r.data) ? r.data : []).slice().sort((a, b) => (+a.idx || 0) - (+b.idx || 0));
+    if (!arr.length) {
+      /* 勾了「原文件」还 0 段 = 这份根本没解析出字（或者是空文档）。
+         出题会得到一份「什么都没有」的原文，必须当场说清楚找谁算账，不能悄悄跳过。 */
+      if (raw) empty.push('《' + (m.name || '资料 ' + id) + '》没有可读文字，先重新解析或改用其它资料');
+      continue;
+    }
+    parts.push(raw
+      ? matFullText(m, arr)
+      : '【' + (m.name || ('资料 ' + id)) + '】\n' + arr.map(c => (c.title ? c.title + '\n' : '') + (c.body || '')).join('\n\n'));
+    names.push((m.name || ('资料 ' + id)) + (raw ? '（整份原文）' : ''));
+  }
+  if (empty.length) throw new Error(empty.join('；'));
+  return { parts, tag: names.join('、') };
 }
 
 /* ---------------- AI 出题 ----------------
@@ -1765,7 +1919,9 @@ async function matGenRun() {
   const n = Math.max(1, Math.min(50, Math.round(+$('mgN').value || 5)));
   const engineT = MAT_ENGINE[qt.k] || qt.k;     // 自建题型原样传给引擎
   const picks = [...document.querySelectorAll('[data-mpick]:checked')].map(x => +x.dataset.mpick);
-  const extra = $('mgExtra').value.trim(), scope = $('mgScope').value.trim(), level = $('mgLevel').value, think = $('mgThink').value;
+  /* 取值一律带判空：这块表单将来改结构时，宁可少一句要求，也别让整页 TypeError 变空白。 */
+  const exEl = $('mgExtra'), scEl = $('mgScope');
+  const extra = exEl ? exEl.value.trim() : '', scope = scEl ? scEl.value.trim() : '', level = $('mgLevel').value, think = $('mgThink').value;
   const state = $('mgState');
   let text = '', tag = '', mid = null;
   const sub = curSub();
@@ -1780,21 +1936,17 @@ async function matGenRun() {
   MAT_BUSY = true;
   try {
     if (picks.length) {
-      const parts = [];
-      for (let k = 0; k < picks.length; k++) {
-        const id = picks[k];
-        state.textContent = `正在读资料（${k + 1}/${picks.length}）…`;
-        const r = await MAT_call('hx_exam_chunk_get', { p_material_id: id });
-        if (!r.ok) { MAT_banner('读资料切段失败：' + r.err); HXBusy.end(tok, r.err); return; }
-        const arr = Array.isArray(r.data) ? r.data : [];
-        if (!arr.length) continue;
-        const nm = (MAT_LIST.find(m => +m.id === id) || {}).name || ('资料 ' + id);
-        parts.push('【' + nm + '】\n' + arr.map(c => (c.title ? c.title + '\n' : '') + c.body).join('\n\n'));
-        tag += (tag ? '、' : '') + nm;
-      }
-      if (!parts.length) { state.textContent = ''; toast('勾的资料里没有可用的段，重新传一次试试'); HXBusy.end(tok); return; }
-      text = parts.join('\n\n');
+      /* 2026-11-19：哪些资料勾了「原文件」= 按整份原文出题。这里在读切段之前一次性取好，
+         后面 matCollect 只管拼文字（DOM 只在这一处读，别在循环里反复查）。 */
+      const rawSet = new Set([...document.querySelectorAll('[data-mraw]:checked')].map(x => +x.dataset.mraw));
+      const got = await matCollect(picks, rawSet, state);
+      if (!got.parts.length) { state.textContent = ''; toast('勾的资料里没有可用的段，重新传一次试试'); HXBusy.end(tok); return; }
+      text = got.parts.join('\n\n');
+      tag = got.tag;
       mid = picks.length === 1 ? picks[0] : null;
+      /* 调试口：拼好的素材挂一份在 window.__lastPrompt 旁边的 __lastMatText 上，
+         自测/排查「喂给模型的是哪几段」时直接看，不 toast。 */
+      try { window.__lastMatText = text; } catch (e) { }
     } else {
       if (!extra) { state.textContent = ''; toast('没勾资料时，请在「额外要求」里写下要出题的内容'); HXBusy.end(tok); return; }
       text = extra; tag = '老师手写的要求';
