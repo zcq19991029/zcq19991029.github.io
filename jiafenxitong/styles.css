@@ -160,18 +160,33 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
    改成普通文档流（static）：顶栏跟着页面向下滚走，表格自然翻上来，不再被遮挡。
    玻璃质感（半透明 + backdrop-filter）保留，只是不再有吸顶遮挡问题。 */
 .topbar {
-  /* 2026-11-18 统一：alpha 乘 --hx-a（原来写死 .9，通透度滑杆对顶栏无效），模糊走全站 --hx-blur */
-  /* 2026-11-18：顶栏改吃首页同一支配方 —— hx-theme.css 的 --bar：
-     rgb(251 251 253 / calc(.55 + var(--hx-a) * .3))。
-     首页顶栏在 clr=250 时仍有 .55 的底（否则正文会从吸顶条底下透上来），
-     之前这里一路降到 0，两端一对比就是「不是一套」。 */
-  background: rgb(251 251 253 / calc(.55 + var(--hx-a, 1) * .30));
+  /* 2026-11-19 用户：「小组加分左边栏永远没透明 变化的只有被选中（蓝色）按钮块 …
+     我要的不是这些按钮块 而是他们所在的背景卡片块 目前是毛玻璃没啥变化 不会变纯透
+     和首页逻辑不一样」。
+     根因：这块侧栏就是 .topbar 本身（≥1100px 时 position:fixed 贴左边），
+     原来写的是 calc(.55 + var(--hx-a) * .30) —— --hx-a 的语义是
+     max(0, 1+(100-clr)/100)：0 → 2、100 → 1、250 → 0，代入后 clr=250 仍有 .55 的底，
+     所以「永远没透明」。改成和首页卡片同一口径：alpha = 基准 × --hx-a。
+     基准取 .70（与屏幕态 --panel 同值，默认档观感不变），两端：
+       clr=0（--hx-a=2）→ 钳到 1 = 实色；clr=100 → .70；clr=250（0）→ 0 = 全透。
+     ⚠ 只乘一次 --hx-a（见文件头注释：不要在 token 外二次乘）。 */
+  background: rgb(251 251 253 / min(1, calc(.70 * var(--hx-a, 1))));
   -webkit-backdrop-filter: var(--hx-blur);
   backdrop-filter: var(--hx-blur);
   border-bottom: 1px solid var(--line);
   padding: 9px 16px 0;
+  /* 2026-11-19 用户：「甚至文字都看不见了」。
+     全透时文字直接压在壁纸上，墨色压不住 —— 用随通透度反向增强的文字衬影
+     （越透光圈越实），比再铺一层底牌更轻，也不破坏「真透」这件事。
+     浅色是白晕托深字，深色是黑晕托亮字，见下面两条 dark 规则。 */
+  text-shadow: 0 1px 2px rgb(255 255 255 / calc((1 - min(1, var(--hx-a, 1))) * .95)),
+               0 0 6px rgb(255 255 255 / calc((1 - min(1, var(--hx-a, 1))) * .75));
 }
-:root[data-hx-mode="dark"] .topbar { background: rgb(22 22 23 / calc(.55 + var(--hx-a, 1) * .30)); }
+:root[data-hx-mode="dark"] .topbar {
+  background: rgb(22 22 23 / min(1, calc(.70 * var(--hx-a, 1))));
+  text-shadow: 0 1px 2px rgb(0 0 0 / calc((1 - min(1, var(--hx-a, 1))) * .95)),
+               0 0 6px rgb(0 0 0 / calc((1 - min(1, var(--hx-a, 1))) * .80));
+}
 
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
   .topbar { background: var(--panel); backdrop-filter: none; }
@@ -2179,7 +2194,7 @@ html[data-hx-acc] body::after { background-image: none; }
 .peer-pick:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 /* 说明文字颜色跟着主题走（2026-11-05 用户：「主题能改颜色，那为什么配字不能改」）。
-   --hint-ink 是面板里解释性文字（「每项 5 分，点 1–5 直接记分…」这类）的专用色：
+   --hint-ink 是面板里解释性文字（「每项满分 100%，按 20% 一档记分…」这类）的专用色：
    浅色主题比 --muted 再深一档（12.5px 灰字压在粉白底上对比度不够），深色主题换成偏亮蓝灰。
    两块都写在主题变量里，切深浅/换强调色时说明文字自动换到可读的组合，不再写死 #83848a。
    只作用于组内个人评分这一屏（#view-leader），别的页面 .note 不受影响。 */
@@ -2419,9 +2434,16 @@ html[data-hx-acc] body::after { background-image: none; }
 .tabs .nav-group button { position: relative; }
 
 /* ---------- 顶栏/侧栏玻璃（浅色玻璃为默认，深色在下面覆盖） ---------- */
+/* 2026-11-19 用户：「小组加分左边栏永远没透明 … 我要的不是这些按钮块 而是他们所在的背景卡片块
+   … 和首页逻辑不一样」。
+   这一段的 .topbar（宽屏就是左侧竖栏）、body .tabs（窄屏抽屉）原来都是
+   calc(.55 + var(--hx-a) * .30)：clr=250 时 --hx-a=0，底仍然有 .55，所以永远板在那里。
+   全部改成 min(1, calc(.70 * var(--hx-a, 1)))：clr=0 → 1（实色）、100 → .70、250 → 0（真全透），
+   和首页卡片「基准 × --hx-a」同一套逻辑，只是基准取 .70（侧栏比卡片大、压字更多，默认档不比原来实）。
+   ⚠ 只乘一次 --hx-a，别在这里再叠一层。 */
 @media screen {
   .topbar {
-    background: rgb(251 251 253 / calc(.55 + var(--hx-a, 1) * .30));
+    background: rgb(251 251 253 / min(1, calc(.70 * var(--hx-a, 1))));
     -webkit-backdrop-filter: var(--hx-blur);
     backdrop-filter: var(--hx-blur);
   }
@@ -2430,7 +2452,7 @@ html[data-hx-acc] body::after { background-image: none; }
   body.sidebar-layout .topbar {
     left: 12px; top: 12px; bottom: 12px; width: 264px; padding: 14px 12px 16px;
     border: 1px solid var(--line); border-radius: 22px;
-    background: rgb(251 251 253 / calc(.55 + var(--hx-a, 1) * .30));
+    background: rgb(251 251 253 / min(1, calc(.70 * var(--hx-a, 1))));
     -webkit-backdrop-filter: var(--hx-blur);
     backdrop-filter: var(--hx-blur);
     box-shadow: var(--shadow-lift);
@@ -2500,16 +2522,20 @@ html[data-hx-acc] body::after { background-image: none; }
      抽屉打开时顶栏被遮罩盖住，去掉模糊改用更实的底色即可 */
   body.nav-open .topbar {
     -webkit-backdrop-filter: none; backdrop-filter: none;
-    background: rgb(251 251 253 / calc(.55 + var(--hx-a, 1) * .30));
+    background: rgb(251 251 253 / min(1, calc(.70 * var(--hx-a, 1))));
   }
   body .tabs {
     position: fixed; z-index: 120; left: 10px; top: 10px; bottom: 10px; width: min(80vw, 320px);
     flex-direction: column; gap: 14px; margin: 0; padding: 18px 12px 20px; overflow-y: auto;
     border-radius: 22px; border: 1px solid var(--line);
-    background: rgb(251 251 253 / calc(.55 + var(--hx-a, 1) * .30));
+    background: rgb(251 251 253 / min(1, calc(.70 * var(--hx-a, 1))));
     -webkit-backdrop-filter: var(--hx-blur);
     backdrop-filter: var(--hx-blur);
     box-shadow: var(--shadow-lift);
+    /* 2026-11-19：窄屏抽屉 = 同一块侧栏的移动端形态，全透时同样要保证文字可读
+       （口径与上面 .topbar 的衬影一致：越透光圈越实） */
+    text-shadow: 0 1px 2px rgb(255 255 255 / calc((1 - min(1, var(--hx-a, 1))) * .95)),
+                 0 0 6px rgb(255 255 255 / calc((1 - min(1, var(--hx-a, 1))) * .75));
     transform: translateX(calc(-100% - 30px)); visibility: hidden;
     transition: transform .26s cubic-bezier(.16, 1, .3, 1), visibility 0s linear .26s;
     scrollbar-width: none;
@@ -2721,15 +2747,25 @@ html[data-hx-acc] body::after { background-image: none; }
 :root[data-hx-mode="dark"] .peer-gate.is-open { background: rgba(61, 220, 151, .08); border-color: rgba(61, 220, 151, .35); }
 :root[data-hx-mode="dark"] .peer-gate.is-open .peer-gate-btn { color: #7ef0bd; background: transparent; border-color: rgba(61, 220, 151, .4); }
 
-/* 夜览侧栏：深海蓝玻璃 */
+/* 夜览侧栏：深海蓝玻璃
+   2026-11-19 用户：「…目前是毛玻璃没啥变化 不会变纯透 和首页逻辑不一样」。
+   原来这里 alpha 写死 .84 / .80，完全没乘 --hx-a —— 深色模式下滑滑杆一点反应都没有，
+   这才是「永远没透明」的主因（这个浏览器里就停在深色）。现在每个色标的 alpha 都乘 --hx-a：
+   clr=250（--hx-a=0）两个色标一起到 0，整块侧栏真的透到壁纸。 */
 :root[data-hx-mode="dark"] body.sidebar-layout .topbar,
 :root[data-hx-mode="dark"] body .tabs {
-  background: linear-gradient(180deg, rgba(14, 23, 48, .84), rgba(8, 15, 32, .8));
+  background: linear-gradient(180deg,
+    rgb(14 23 48 / min(1, calc(.70 * var(--hx-a, 1)))),
+    rgb(8 15 32 / min(1, calc(.66 * var(--hx-a, 1)))));
   border-color: rgba(126, 156, 235, .17);
   box-shadow: 0 26px 64px -30px rgba(0, 0, 0, .7), inset 0 1px 0 rgba(255, 255, 255, .06);
+  /* 深色下窄屏抽屉是块独立元素，浅色那条白晕衬影在这里要换成黑晕（否则白字 + 白晕一起糊） */
+  text-shadow: 0 1px 2px rgb(0 0 0 / calc((1 - min(1, var(--hx-a, 1))) * .95)),
+               0 0 6px rgb(0 0 0 / calc((1 - min(1, var(--hx-a, 1))) * .80));
 }
 :root[data-hx-mode="dark"] .topbar {
-  background: rgba(8, 15, 32, .72);
+  /* 2026-11-19 同上：窄屏（无 sidebar-layout）时的顶部横条，alpha 也要跟着 --hx-a 走 */
+  background: rgb(8 15 32 / min(1, calc(.70 * var(--hx-a, 1))));
 }
 :root[data-hx-mode="dark"] .nav-scrim { background: rgba(2, 4, 10, .62); }
 
@@ -3004,9 +3040,12 @@ table.data th, .assessment-table thead th,
   }
 }
 
-/* 深色模式：顶部玻璃条换成深色玻璃，选中胶囊保持主题色（青色那支由 --accent 驱动） */
+/* 深色模式：顶部玻璃条换成深色玻璃，选中胶囊保持主题色（青色那支由 --accent 驱动）
+   2026-11-19 用户：「左边栏永远没透明」。≥1100px 时侧栏真正生效的就是这一条，
+   原来写死 calc(.55 + --hx-a * .30)，clr=250 仍有 .55 → 永不透明。
+   改成基准 × --hx-a（和上面浅色、和首页卡片同一口径）。 */
 :root[data-hx-mode="dark"] body.sidebar-layout .topbar {
-  background: rgb(22 22 23 / calc(.55 + var(--hx-a, 1) * .30));
+  background: rgb(22 22 23 / min(1, calc(.70 * var(--hx-a, 1))));
 }
 :root[data-hx-mode="dark"] body.sidebar-layout .tabs button {
   background: rgb(13 22 46 / min(1, calc(.43 * var(--hx-a, 1))));
@@ -3419,6 +3458,36 @@ table.data th, .assessment-table thead th,
   body.sidebar-layout table.sheet.sheet-vertical td.c-mem { padding: 1px 6px; }
   /* 表格本身不留白边：让腾出来的宽度全给列 */
   body.sidebar-layout .sheetwrap { margin: 0; }
+}
+
+/* ============================================================
+   2026-11-19 侧栏「全透」时的文字可读性兜底
+   用户原话：「…甚至文字都看不见了」「目前是毛玻璃没啥变化 不会变纯透 和首页逻辑不一样」。
+   侧栏背景放开到能真透到壁纸之后，菜单字直接压在花壁纸上会糊成一片（验收截图可见）。
+   这里只做颜色收敛，不动「背景真透」这件事，也不给整块侧栏再铺底：
+   越透（--hx-a 越小）菜单字越往正文色收，不再用中灰的 --muted；
+   配合 .topbar / body .tabs 上那条随通透度反向增强的文字衬影一起用。
+   ⚠ 用户明确说「我要的不是这些按钮块」，所以没有把背景挪到按钮上，只改字色。
+   ============================================================ */
+@media screen {
+  body .topbar .tabs button,
+  body .tabs button {
+    color: color-mix(in srgb, var(--muted) calc(min(1, var(--hx-a, 1)) * 100%), var(--text));
+    /* 浏览器 UA 样式表把 button 的 text-shadow 强制成 none，衬影继承不下来，这里补回继承 */
+    text-shadow: inherit;
+  }
+  body .topbar .nav-group-t,
+  body .tabs .nav-group-t {
+    color: color-mix(in srgb, var(--faint) calc(min(1, var(--hx-a, 1)) * 100%), var(--text));
+  }
+  body .topbar .sub,
+  body .topbar .topbar-state {
+    color: color-mix(in srgb, var(--muted) calc(min(1, var(--hx-a, 1)) * 100%), var(--text));
+  }
+  /* 班级 / 课次 两个胶囊里的小标签，全透时同样会糊 */
+  body .topbar .lesson-bar .field > span {
+    color: color-mix(in srgb, var(--muted) calc(min(1, var(--hx-a, 1)) * 100%), var(--text));
+  }
 }
 
 /* ============================================================

@@ -12,6 +12,7 @@
 // 自己上传的背景图压缩后存 hx-theme-img；同一网站的页面（包括嵌在总入口里的工具）通过 storage 事件一起变。
 // 子工具只适配：<html data-theme="light|dark">（排课、单片机上机原有的深浅色写法）+ 行内 CSS 变量 --acc 等；接线仿真、排课、单片机的旧主题键顺带改好。
 // <script src="../hx-theme.js" data-tool="paike">：子工具在网站上被单独打开（不在总入口框里）时，跳回总入口的对应工具，登录、账号只在总入口。
+//   2026-11-19 补充：只有「首次单独打开」才跳；在工具页上**刷新不跳**（用户原话「在哪刷新就刷新完还要在哪」），带 ?solo 也不跳。
 (function () {
   var ACC = {
     green: { name: '默认绿', l: '#2f845a', d: '#3ec383', l2: '#5aa77c', d2: '#7fd8a6' },
@@ -70,8 +71,37 @@
   var me = document.currentScript, root = me ? new URL('.', me.src).href : location.origin + '/';
   var tool = me && me.getAttribute('data-tool'), subs = [], dark = window.matchMedia ? matchMedia('(prefers-color-scheme: dark)') : null;
 
-  // 在网站上被单独打开的子工具：回到总入口（登录、账号、外观都在那里）。离线单文件不跳；地址加 ?solo 也不跳（调试用）。
-  if (tool && window.top === window && /^https?:$/.test(location.protocol) && !/[?&]solo\b/.test(location.search)) { location.replace(root + '#' + tool); return; }
+  /* ── 工具页被单独打开时回总入口外壳（2026-11-19 用户纠错：刷新不能回首页）──
+     原话：「只有首次从首页进入接线仿真才弹窗开发人员窗口 在哪刷新就刷新完还要在哪 不能刷新一下回到首页了」
+     这段原来的作用：工具页不在总入口的 iframe 里、而是被单独打开（直接敲地址、从收藏夹进），
+     就把地址整个换成「总入口 + 对应工具」，因为登录、账号、外观面板都长在总入口外壳上，单独的工具页没有。
+     问题：它是**无条件**执行的，所以老师在 /wiring-lab/ 看完一题按 F5 重新加载时也会被换地址 ——
+     视觉上就是「刷新一下回到首页」，原来在看的那道题、滚到的位置全丢了。用户为此纠错。
+     现在的三种情况（以后动这段先看这三条）：
+       ① 首次单独打开（地址栏直接敲、从外站/收藏夹点进来）→ **仍然跳**总入口外壳，原设计不变；
+       ② 刷新（F5 / Ctrl+R）→ **不跳**，原地重新加载，题目和位置都留住；
+       ③ 地址带 ?solo → **不跳**（离线调试、验收脚本都靠它，一直如此）。
+     怎么认出「刷新」——两层，任意一层成立就算：
+       · performance.getEntriesByType('navigation')[0].type === 'reload'（Chrome/Safari/Firefox 都支持；
+         老浏览器或取不到这一项时当「不是刷新」，退回原来的跳转，行为与改前一致，不会变坏）；
+       · document.referrer 和当前页是**同一个页面**（同源、同路径，index.html 与目录结尾视为同一页）。
+         有的浏览器在刷新时拿不到 navigation 条目，这一层兜底；只认「同一个页面」，
+         所以从总入口「/」点链接进 /wiring-lab/ 时 referrer 是「/」、不算同页，①的跳转照样生效。 */
+  function hxIsReloadOrSelfNav() {
+    try {
+      var navs = performance.getEntriesByType && performance.getEntriesByType('navigation');
+      if (navs && navs[0] && navs[0].type === 'reload') return true;
+    } catch (e) { }
+    try {
+      if (document.referrer) {
+        var ref = new URL(document.referrer);
+        var strip = function (p) { return p.replace(/\/index\.html?$/i, '/').replace(/\/+$/, '/'); };
+        if (ref.origin === location.origin && strip(ref.pathname) === strip(location.pathname)) return true;
+      }
+    } catch (e) { }
+    return false;
+  }
+  if (tool && window.top === window && /^https?:$/.test(location.protocol) && !/[?&]solo\b/.test(location.search) && !hxIsReloadOrSelfNav()) { location.replace(root + '#' + tool); return; }
 
   /* ── 全站滚动条：统一成「滚动才浮现的毛玻璃滑轨」（2026-11-17 用户定，第二版）──
      用户原话：「这种下拉滑轨都要改成无感的 所有工具所有页面都是如此 …… 很丑」

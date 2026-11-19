@@ -68,11 +68,6 @@
     background: linear-gradient(135deg, color-mix(in srgb, var(--ok) 30%, transparent), color-mix(in srgb, var(--acc) 22%, transparent)); }
   .top .tag { flex: none; font-size: 11.5px; font-weight: 700; color: var(--acc); padding: 4px 9px; border-radius: 9px;
     border: 1px dashed color-mix(in srgb, var(--acc) 45%, transparent); background: color-mix(in srgb, var(--acc) 10%, transparent); white-space: nowrap; }
-  /* 返回排位（独立页唯一的出口，2026-11-18 起回的是练习页的排位窗，不是首页）：
-     做成真按钮，样式跟 tag 同族，但用实线边 + 指针 */
-  .top .tag.back { font: inherit; font-size: 11.5px; font-weight: 700; color: var(--dim); cursor: pointer;
-    border-style: solid; background: transparent; }
-  .top .tag.back:hover { color: var(--ink); border-color: var(--acc); }
   /* 主区：左列 = 电气原理图（同练习页），右侧整块 = 待布置/连线画布；元器件库不在这里 —— 它是悬浮抽屉 */
   .wrap { flex: 1; min-height: 0; display: flex; gap: 12px; padding: 12px; }
   /* ── 元器件库：悬浮抽屉（position:fixed，不占布局宽度）──
@@ -246,11 +241,10 @@
   <b class="step" id="step">第一步：摆放</b>
   <span class="sub" id="sub">照着左边的电气原理图摆元器件：点左缘「元器件库」竖条挑元件，拖到右边画布</span>
   <span class="grow"></span>
-  <!-- 2026-11-08 发布时补的出口：这是独立页（/wiring-lab/super/），从练习页的排位窗点进来，
-       在 iframe 里直接换页；没有返回入口就出不去（iframe 里的浏览器后退不可靠）。
-       2026-11-18 用户「这一页返回是回到排位页面 而不是首页，更不是回到练习页」：回 ../?rank=1，
-       练习页的 rank.js 看到 rank=1 会自动把排位窗打开（见 rank.js 的 openRankFromTaskBack）。 -->
-  <button class="tag back" id="back" type="button" title="回到排位窗">← 返回排位</button>
+  <!-- 2026-11-19 用户原话：「超级排位不需要多一个返回排位按钮 我是说左上角的返回键就应该返回到上一级
+       也就是我们从排位进来的就应该返回到排位 这个逻辑是全部开发软件的标准规则」。
+       所以这一页不再自带返回按钮：退出走外壳（总入口）左上角那颗「← 返回」，
+       它调本页的 window.HXBack()，本页自己退一步回到练习页的排位窗（见下面 body 末尾那段脚本）。 -->
 </header>
 <main class="wrap">
   <!-- 左列：电气原理图（练习页同款「左边对照图」，点标题折叠成一条；只有 2.2 等有画法，
@@ -304,18 +298,24 @@
 <script src="super-alias.js"></script>
 <script src="super.js"></script>
 <script>
-  /* 返回排位窗（2026-11-18 用户：「这一页返回是回到排位页面 而不是首页，更不是回到练习页」）。
-     线上地址是 /wiring-lab/super/，练习页在上一级 /wiring-lab/，所以跳 ../ 再挂 ?rank=1 ——
-     练习页的 rank.js 有 openRankFromTaskBack()，看到 rank=1 会自动把排位窗打开。
-     ⚠️ 必须先用 URL 对象把 '../' 解析成绝对地址，再挂参数：直接写 location.href='../?rank=1'
-     这种相对字符串在某些路径下会被浏览器当成站点根的 /?rank=1（2026-11-15 在 task-hx.js 的 goTool()
-     上实测踩过，那里也是这么拼的）。用 replace 而不是 href：进来时历史里已经有一条 /wiring-lab/，
-     返回再 push 一条只会让「后退」在两页之间来回弹；replace 之后后退 = 回到进 super 之前那一次，
-     符合「返回」的直觉。 */
-  document.getElementById('back').onclick = function () {
+  /* ── 「上一步」接口：给网站外壳（总入口）左上角那颗「← 返回」用 ──
+     2026-11-19 用户原话：「超级排位不需要多一个返回排位按钮 我是说左上角的返回键就应该返回到上一级
+     也就是我们从排位进来的就应该返回到排位 这个逻辑是全部开发软件的标准规则」。
+     本页的上一级 = 练习页的排位窗，所以退一步就是回 ../?rank=1
+     （练习页的 rank.js 看到 rank=1 会自动把排位窗打开，见 openRankFromTaskBack）。
+
+     ⚠️ 必须**同步** return true：外壳是同步调 HXBack()、拿返回值的
+     （true = 本页自己退了一步，外壳什么都别做；false = 让外壳回上一屏）。
+     先改地址再 return：地址赋值是同步的，不会等页面真的跳走才返回。
+     ⚠️ 用 URL 对象把 '../' 解析成绝对地址再挂参数：直接写 '../?rank=1' 这种相对字符串
+     在某些路径下会被浏览器当成站点根的 /?rank=1（2026-11-15 在 task-hx.js 的 goTool() 上实测踩过）。
+     用 href 而不是 replace：这一页是被外壳换进来的，返回练习页要在历史里留一条，
+     和外壳「上一步」的直觉一致。 */
+  window.HXBack = function () {
     var u = new URL('../', location.href);
     u.searchParams.set('rank', '1');
-    location.replace(u.href);
+    location.href = u.href;
+    return true;
   };
 </script>
 </body>

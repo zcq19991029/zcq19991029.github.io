@@ -89,7 +89,7 @@
     var names = (A && A.projectNames && A.projectNames(lesson)) || [];
     return names.filter(function (n) { return String(n == null ? '' : n).trim(); }).length;
   }
-  /** 每课完成率分母 = 5 × 计入完成率的项目数（2026-11-12：每课那 5 分送分已取消） */
+  /** 每课完成率分母 = 5 × 计入完成率的项目数（内部 5 分制记账口径；2026-11-12：每课那 5 分送分已取消。界面只显示完成率） */
   function lessonMaxOf(lesson) {
     return 5 * countedProjectCount(lesson);
   }
@@ -102,7 +102,7 @@
     return pctText(Math.max(0, rec.earned) / rec.max * 100);
   }
   /** 学期层面的完成率分母（与 assessment.js taskEvidence 的 maximum 同口径）：
-      值日缺勤 5 分整学期只算一次 + 每课 5 × 该课已命名项目数，逐课累加。 */
+      值日缺勤（内部按 5 分制记账，整学期只算一次）+ 每课 5 × 该课已命名项目数，逐课累加；界面只显示完成率。 */
   function semesterProjectMax(lessons) {
     return (lessons || []).length
       ? 5 + (lessons || []).reduce(function (a, l) { return a + lessonMaxOf(l); }, 0)
@@ -267,7 +267,7 @@
   /* ================= 值日改制迁移（2026-11-09） =================
      旧制：值日是「学期一次 5 分」的加分项目（sc.duty / sc.dutyParticipation），另有特殊表现记录
            （cls.specialRecords / specialRecordsTrash）。
-     新制：值日缺勤（2026-11-12 再改）——整学期一个 5 分项目，缺勤教师点一次「每人 −20%」，
+     新制：值日缺勤（2026-11-12 再改）——整学期一个项目（内部 5 分制），缺勤教师点一次「每人 −20%」，
            全组每人同扣一档（记在 sc.dutyAbsent，按课累计）；特殊表现功能整体删除。
            旧分值一律作废，所有人重新规划。
      迁移只做删除，全部幂等：跑多少次结果都一样；旧数据经此处理后项目总分自动不含值日分。 */
@@ -1105,7 +1105,7 @@ function restoreDroppedToHome(cls) {
     return Math.round(lessonsOf(cls.id).reduce(function (a, l) { return a + groupTotal(l, gno); }, 0)*100)/100;
   }
 
-  /** 有命名项目的课次数量（小组累计完成率的分母：每课 5 分） */
+  /** 有命名项目的课次数量（小组累计完成率的分母，内部口径：每课 5 分） */
   function groupLessonSpan(ls) {
     var n = (ls || []).filter(function (l) { return countedProjectCount(l) > 0; }).length;
     return n || 1;
@@ -1808,8 +1808,10 @@ function restoreDroppedToHome(cls) {
     var syncName = function () { if (!name.dataset.touched) name.value = '线上连线排位 · ' + cir.value + ' ' + (JF_WIRE_CIRCUITS.find(function (c) { return c.id === cir.value; }) || {}).short; };
     cir.onchange = syncName; name.oninput = function () { name.dataset.touched = '1'; };
     delete name.dataset.touched; syncName(); note.value = '';
+    /* 2026-11-19 完成率口径：原来写「本课总分满分随之 +5」，老师看到 5 就懵；
+       内部仍是多一个 5 分项目列，界面只说「多一个按 100% 计的项目」。 */
     $('#wirePubInfo').innerHTML = '会写进 <b>第 ' + lesson.seq + ' 次课</b>（' + esc(lesson.date || '日期未填') + ' · ' + esc(lesson.topic || '未填主题') +
-      '）的「线上连线排位 接线' + esc(cir.value) + '」列，本课总分满分随之 +5。<br>一个班同时只能有一个进行中的任务；学生端任务榜和大屏最多 15 秒就能看到。';
+      '）的「线上连线排位 接线' + esc(cir.value) + '」列，本课会多一个按 100% 计的项目。<br>一个班同时只能有一个进行中的任务；学生端任务榜和大屏最多 15 秒就能看到。';
     $('#wirePubError').textContent = '';
     var go = $('#wirePubGo');
     go.disabled = false; go.textContent = '发布任务';
@@ -1842,7 +1844,7 @@ function restoreDroppedToHome(cls) {
   /* ---- 电子试卷 → 小组加分（2026-11-17）----
      入口：「记分」页课次那一行的「电子试卷…」按钮。
      这里只做「选哪场试、记到哪节课」这一件事；分数的算法在 exam-link.js：
-     每格 = 得分 ÷ 满分 × 5，老师不能手改，试卷改题/重批/撤销发布/删除时自动跟着变。
+     每格 = 得分 ÷ 满分 × 5（内部 5 分制记账；界面只显示完成率），老师不能手改，试卷改题/重批/撤销发布/删除时自动跟着变。
      为什么不放在「组内个人评分」页：老师是站在某一节课上决定「这场试算这节的加分」的，
      记分页有当前课次，选完直接能看到总分变了；评分页是组长/项目列的地方，不该混进选卷。 */
   var examLinkDialog = document.createElement('dialog');
@@ -1921,8 +1923,10 @@ function restoreDroppedToHome(cls) {
     }
     examLinkCtx = { cls: cls, lesson: lesson };
     $('#examLinkTitle').textContent = '电子试卷 → ' + cls.name;
-    $('#examLinkInfo').textContent = '记进来以后，所选课次会多一列「电子考试 试卷标题」（5 分项目）：' +
-      '每个学生的分 = 得分 ÷ 满分 × 5，批改 / 删题 / 重批 / 撤销发布都会自动跟着变，老师不能手改也不能清空。';
+    /* 2026-11-19 统一完成率口径：这里原来是「5 分项目 / 得分 ÷ 满分 × 5」，老师看不懂这个 5。
+       内部仍按 5 分制记（exam-link.js 的换算没动），界面只说完成率。 */
+    $('#examLinkInfo').textContent = '记进来以后，所选课次会多一列「电子考试 试卷标题」（按完成率计的项目）：' +
+      '每个学生的完成率 = 得分 ÷ 满分（满分即 100%），批改 / 删题 / 重批 / 撤销发布都会自动跟着变，老师不能手改也不能清空。';
     examLinkLessonSelect(cls, lesson);
     $('#examLinkError').textContent = '';
     $('#examLinkList').innerHTML = '<p class="note">读取中…</p>';
@@ -2191,7 +2195,7 @@ function restoreDroppedToHome(cls) {
     return widths.map(function(w,i){return '<col class="w-'+names[i]+'" data-content-width="'+w+'" style="width:'+(100*w/total).toFixed(4)+'%!important">';}).join('');
   }
   /* 表头 title 只留一句操作提示：整段规则说明不挂在表格上反复出现（用户：「无需显示出来 我知道规则」） */
-  function verticalHead(){return '<thead><tr><th class="c-no">组号</th><th class="c-mem">成员</th><th class="c-duty" title="每一组都能点：单击全组每人 −20%（一学期 5 档，扣到 0% 为止），双击加回一档；带「值日」角标的是本节值日组">值日缺勤</th><th class="home-attendance" title="每人考勤完成率，点数字可改">考勤完成率</th><th class="c-sum">本节完成率</th><th class="home-grade regular">平时分<br>（至今完成率）</th><th class="home-grade contribution">计入总评 /40</th><th class="home-grade needed">期末至少需考 /100</th></tr></thead>';}
+  function verticalHead(){return '<thead><tr><th class="c-no">组号</th><th class="c-mem">成员</th><th class="c-duty" title="每一组都能点：单击全组每人 −20%（整学期按次累加，扣到 0% 为止），双击加回一档；带「值日」角标的是本节值日组">值日缺勤</th><th class="home-attendance" title="每人考勤完成率，点数字可改">考勤完成率</th><th class="c-sum">本节完成率</th><th class="home-grade regular">平时分<br>（至今完成率）</th><th class="home-grade contribution">计入总评 /40</th><th class="home-grade needed">期末至少需考 /100</th></tr></thead>';}
   function verticalGroup(cls,lesson,g,printing){
     var A=window.JFDT_ASSESSMENT,gradeLessons=lessonsThrough(cls,lesson),grades=A.rows(cls,gradeLessons,memberTotals(cls)),dutyList=dutyGroups(lesson),isDuty=dutyList.includes(g.no);
     var entries=groupMemberEntries(g),editing=!printing&&groupPicking&&groupPicking.classId===cls.id&&groupPicking.lessonId===lesson.id&&groupPicking.no===g.no;
@@ -2643,7 +2647,7 @@ function restoreDroppedToHome(cls) {
     /* 个人详细分（平铺版，2026-11-10 #14）：每个学生一张卡片，往下滑看全部；
        rankSort 控制排序：'group' 按组号升序（组内按平时分）、'regular' 按平时分降序 */
     var ms = memberTotals(cls);
-    /* 显示层：全班共用一个分母（Σ每课 5×已命名项目数 + 值日缺勤 5 分，只算一次），学期汇总按完成率口径 */
+    /* 显示层：全班共用一个分母（内部 5 分制：Σ每课 5×已命名项目数 + 值日缺勤 5 分，只算一次），学期汇总按完成率口径 */
     var semesterMax = semesterProjectMax(ls);
     /* 顶部统计（2026-11-11 #15）：原来是一整条独立横幅 + 一句「包含当前班全部已录入课次，随记分实时更新」，
        现在缩成一句话跟在班级下拉后面同一行，尾巴压短一点，宽屏一屏能放下不换行 */
@@ -5431,7 +5435,13 @@ function restoreDroppedToHome(cls) {
     frame.onload=function(){frame.contentWindow.focus();frame.contentWindow.print();};document.body.appendChild(frame);
   }
 
-  var XL_RULE = "「值日缺勤」是整学期一个 5 分项目（只算一次，每节课都显示同一个学期值）：一学期没缺勤就是 100%，值日组缺勤时教师点一次「值日缺勤」，全组每人 −20%（团队绑定，要扣都扣），第二次轮到值日再缺勤还能再扣，最低 0%。手机未入袋、个人或全组扣分从本节项目分里扣，每次 −20%，扣完为止（不跨课）。每个命名个人项目满分 100%，按 20%、40%、60%、80%、100% 五档打分（如 4 个项目打 3 个 100%、1 个 0%，项目完成率＝300%÷400%＝75%）。每课完成率＝本节项目净得分÷（5×已命名项目数）。整学期分母＝5（值日缺勤，只算一次）＋Σ每课 5×已命名项目数，项目再多也不会被每课白送的 5 分稀释。考勤是学期固定项目，满分折 100%（9 分制扣分，如扣 1 分 → 约 88.9%）。平时分＝项目完成率×100，计入总评＝平时分×40%，满分40。迟到早退每3次折1次旷课，不重复扣分；考勤归零或旷课达到门槛时按教师设置标红挂科。";
+  /* 2026-11-19 用户：「整学期满分100% 正常参加就满分 不然就扣分 …不然一轮完了第二轮只进行到一半 有的人分对不上
+     …全站不允许再出现具体几分、几比几这种分数说法 现在是完成率的说法 请整理修正
+     当然不包括转换成平时分那些」。
+     → 面向老师的文案全部改成完成率口径（「满分 100%」「扣 20%」），不再出现「5 分项目 / 5×项目数」；
+     内部仍按 5 分制记账、换算公式一个字没动（见文件上方 2026-11-09 那段说明）。
+     值日口径按用户定案重写：正常参加就满分，缺勤才扣，整学期只算一次，避开按轮次切分的循环问题。 */
+  var XL_RULE = "「值日缺勤」是整学期一个项目，满分 100%（整学期只算一次，每节课都显示同一个学期值）：正常参加值日就一直是 100%，值日组缺勤时教师点一次「值日缺勤」，全组每人 −20%（团队绑定，要扣都扣），第二次轮到值日再缺勤还能再扣，最低 0%；只按次数扣、不按轮次拆开，所以不会出现「一轮做完第二轮只进行到一半、分数对不上」的情况。手机未入袋、个人或全组扣分从本节项目分里扣，每次 −20%，扣完为止（不跨课）。每个命名个人项目满分 100%，按 20%、40%、60%、80%、100% 五档打分（如 4 个项目打 3 个 100%、1 个 0%，项目完成率＝300%÷400%＝75%）。每课完成率＝本节各项目完成率之和÷本节计入完成率的项目数；整学期完成率＝把每节课的每个项目和值日缺勤这一个整学期项目一起求平均（每个项目都按 100% 计），项目再多也不会被稀释。考勤是学期固定项目，满分折 100%（9 分制扣分，如扣 1 分 → 约 88.9%）。平时分＝项目完成率×100，计入总评＝平时分×40%，满分40。迟到早退每3次折1次旷课，不重复扣分；考勤归零或旷课达到门槛时按教师设置标红挂科。";
 
 
   /** 班内序号补两位，跟纸质表的「张三 05」一致 */
@@ -5509,7 +5519,7 @@ function restoreDroppedToHome(cls) {
     var foot='<tfoot><tr><td class="c-note" colspan="'+10+'">'+note+'</td></tr><tr><td class="c-note" colspan="'+10+'">右侧三列为本学期当前个人成绩，与排名页相同；按姓名逐行对应。成绩按已登记的项目和考勤计算，考勤挂科时考试目标不适用。打印后不会自动更新。</td></tr></tfoot>';
 
     var cfg=window.JFDT_ASSESSMENT.settings(cls);
-    var reverse='<section class="lesson-duplex-page lesson-rules-back"><h1>小组制课堂 · 加分与成绩换算说明</h1><p>'+esc(cls.name)+' · 第'+lesson.seq+'次课 · '+esc(lesson.date||'')+'</p><h2>1. 项目与扣分</h2><p>每个命名个人项目满分 100%（20%、40%、60%、80%、100% 五档）。同课任一组修改个人项目名，全班同步。手机未入袋、个人或全组扣分都从本节项目分里扣，每次 −20%，扣完为止；全组扣分从每个人身上扣，个人扣分只扣本人，最低 0%，不跨课。</p><h2>2. 值日与完成率换算</h2><p>「值日缺勤」是整学期一个 5 分项目（只算一次，每节课都显示同一个学期值）：一学期没缺勤就是 100%，值日组缺勤时教师点一下「值日缺勤」，全组每人 −20%（团队绑定，要扣都扣），第二次轮到值日再缺勤还能再扣，最低 0%。每节课的满分只有 5×已命名项目数，本节完成率＝本节项目净得分÷（5×已命名项目数）。整学期分母＝5（值日缺勤，只算一次）＋Σ每课 5×已命名项目数，所以项目再多也不会被每课白送的 5 分稀释。例如 4 个任务打 3 个 100%、1 个 0%：300%÷400%＝75%。考勤是学期固定项目，满分折 100%（9 分制扣分，如扣 1 分 → 约 88.9%）。平时分＝项目完成率×100；计入总评＝平时分×40%，满分40。迟到早退每3次折1次旷课，不重复扣分；考勤归零或旷课达到门槛时按教师设置标红挂科。</p><h2>3. 考勤与挂科标记</h2><p>本班默认扣分：迟到'+cfg.late+'、早退'+cfg.early+'、旷课'+cfg.truant+'、请假'+cfg.leave+'（9 分制分值，教师可随时更正）；每次可由教师更正。迟到＋早退每'+cfg.lateEarlyConversion+'次折算1次旷课，只用于挂科计数，不重复扣分。实际＋折算旷课合计'+cfg.truantFailure+'次触发标红；当前考勤挂科标记'+(cfg.attendanceFailureEnabled?'开启':'关闭')+'。门槛与开关由教师在二级设置调整，更正后自动重算。</p><h2>4. 期末还需考多少分</h2><p>平时占40%，期末占60%，本班及格线'+cfg.passScore+'。期末需考=max(0,(及格线−平时成绩×0.4)÷0.6)，向上取0.1分。折合列仅显示一位小数，计算使用未提前舍入的数值。超过100表示无法达到；考勤挂科时目标不适用，考试高分不能解除标记。</p><h2>5. 阅读与使用</h2><p>每名学生独占一行，姓名与值日缺勤、课堂任务、考勤完成率及右侧三列直接对应；右侧为打印时本学期当前个人成绩，与排名页相同，不是小组平均分。未编辑考勤默认到课，只登记请假、旷课、迟到或早退等异常。资料未齐时供参考。纸上填写不会自动识别，教师需回网页补录；以网页最新记录为准。</p><p class="duplex-note">双面打印：A4竖向，长边翻转；关闭浏览器页眉页脚。每张加分表正面后紧跟这份规则背面。</p></section>';
+    var reverse='<section class="lesson-duplex-page lesson-rules-back"><h1>小组制课堂 · 加分与成绩换算说明</h1><p>'+esc(cls.name)+' · 第'+lesson.seq+'次课 · '+esc(lesson.date||'')+'</p><h2>1. 项目与扣分</h2><p>每个命名个人项目满分 100%（20%、40%、60%、80%、100% 五档）。同课任一组修改个人项目名，全班同步。手机未入袋、个人或全组扣分都从本节项目分里扣，每次 −20%，扣完为止；全组扣分从每个人身上扣，个人扣分只扣本人，最低 0%，不跨课。</p><h2>2. 值日与完成率换算</h2><p>「值日缺勤」是整学期一个项目，满分 100%（整学期只算一次，每节课都显示同一个学期值）：正常参加值日就一直是 100%，值日组缺勤时教师点一下「值日缺勤」，全组每人 −20%（团队绑定，要扣都扣），第二次轮到值日再缺勤还能再扣，最低 0%；只按次数扣、不按轮次拆开，所以不会出现「一轮做完第二轮只进行到一半、分数对不上」的情况。本节完成率＝本节各项目完成率之和÷本节计入完成率的项目数；整学期完成率＝把每节课的每个项目和值日缺勤这一个整学期项目一起求平均（每个项目都按 100% 计），所以项目再多也不会被稀释。例如 4 个任务打 3 个 100%、1 个 0%：300%÷400%＝75%。考勤是学期固定项目，满分折 100%（9 分制扣分，如扣 1 分 → 约 88.9%）。平时分＝项目完成率×100；计入总评＝平时分×40%，满分40。迟到早退每3次折1次旷课，不重复扣分；考勤归零或旷课达到门槛时按教师设置标红挂科。</p><h2>3. 考勤与挂科标记</h2><p>本班默认扣分：迟到'+cfg.late+'、早退'+cfg.early+'、旷课'+cfg.truant+'、请假'+cfg.leave+'（9 分制分值，教师可随时更正）；每次可由教师更正。迟到＋早退每'+cfg.lateEarlyConversion+'次折算1次旷课，只用于挂科计数，不重复扣分。实际＋折算旷课合计'+cfg.truantFailure+'次触发标红；当前考勤挂科标记'+(cfg.attendanceFailureEnabled?'开启':'关闭')+'。门槛与开关由教师在二级设置调整，更正后自动重算。</p><h2>4. 期末还需考多少分</h2><p>平时占40%，期末占60%，本班及格线'+cfg.passScore+'。期末需考=max(0,(及格线−平时成绩×0.4)÷0.6)，向上取0.1分。折合列仅显示一位小数，计算使用未提前舍入的数值。超过100表示无法达到；考勤挂科时目标不适用，考试高分不能解除标记。</p><h2>5. 阅读与使用</h2><p>每名学生独占一行，姓名与值日缺勤、课堂任务、考勤完成率及右侧三列直接对应；右侧为打印时本学期当前个人成绩，与排名页相同，不是小组平均分。未编辑考勤默认到课，只登记请假、旷课、迟到或早退等异常。资料未齐时供参考。纸上填写不会自动识别，教师需回网页补录；以网页最新记录为准。</p><p class="duplex-note">双面打印：A4竖向，长边翻转；关闭浏览器页眉页脚。每张加分表正面后紧跟这份规则背面。</p></section>';
     var groupsPerPage=pageGroups&&pageGroups.length?pageGroups:[printGroups],pages=[];
     groupsPerPage.forEach(function(part,pageIndex){var body=part.map(function(g){return verticalGroup(cls,lesson,g,true);}).join('');pages.push('<section class="lesson-duplex-page lesson-duplex-front"><div class="sheet-title">课堂分组与加分记录表</div><div class="sheet-info">'+esc(cls.name)+' · 第'+lesson.seq+'次 · '+esc(lesson.date||'')+' · '+esc(lesson.topic||'')+'</div><div class="sheet-duty">值日：'+(dg?'第'+dg+'组':'未指定')+' · 第'+(pageIndex+1)+'张 · '+(part.length===1?'第'+part[0].no+'组':'第'+part[0].no+'—'+part[part.length-1].no+'组')+'</div><table class="sheet-tb sheet-vertical"><colgroup>'+cols+'</colgroup>'+head+body+foot+'</table></section>');pages.push(reverse);});
     var holder=document.createElement('div');holder.innerHTML=pages.join('');
@@ -5545,7 +5555,7 @@ function restoreDroppedToHome(cls) {
     if (ms.length) {
       var printSemesterMax = semesterProjectMax(ls);
       html += '<h2>二、个人总分排行</h2><table><thead><tr><th>名次</th><th>姓名</th><th>学号</th><th>小组</th>' +
-        '<th>组得分</th><th>个人扣分</th><th>完成率</th></tr></thead><tbody>' +
+        '<th>项目完成率</th><th>个人扣分</th><th>完成率</th></tr></thead><tbody>' +
         ms.map(function (m, i) {
           return '<tr' + (i === 0 && m.total > 0 ? ' class="top1"' : '') + '><td>' + (i + 1) + '</td><td>' +
             esc(m.name) + '</td><td>' + esc(m.sid || (m.no == null ? '' : m.no)) +

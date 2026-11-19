@@ -3,7 +3,7 @@
 <html lang="zh-CN">
 <head>
 <script src="../hx-theme.js" data-tool="wiring"></script>
-<script>window.HX_BUILD = "2026-11-19T05:35:37Z 261ff03";</script>
+<script>window.HX_BUILD = "2026-11-19T06:41:46Z 428e4c9";</script>
 <meta charset="utf-8">
 <meta name="copyright" content="© 2026 zcq 版权所有，未经许可禁止复制、修改、转载">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
@@ -1143,7 +1143,7 @@
   #fw-draw .drw-tag span { font-size: clamp(10px, .8vw, 14px); font-weight: 800; color: rgba(255, 255, 255, .72); padding: 1px 8px; border-radius: 999px;
     background: rgba(255, 255, 255, .09); border: 1px solid rgba(255, 255, 255, .12); white-space: nowrap; max-width: 100%;
     overflow: hidden; text-overflow: ellipsis; }
-  /* 票据行（原型 .ticket：课堂幸运卡 | ✦ +N 分） */
+  /* 票据行（原型 .ticket：课堂幸运卡 | ✦ +N 点）—— 2026-11-19 起不写「分」，见 rank.js 的 drwScoreOf 注释 */
   #fw-draw .nm-ticket { border-top: 1px solid rgba(255, 255, 255, .18); padding-top: 8px; display: flex; align-items: center;
     justify-content: space-between; gap: 6px; color: rgba(255, 255, 255, .6); font-size: clamp(10px, .8vw, 14px); font-weight: 700; }
   #fw-draw .nm-ticket > span:first-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -1416,10 +1416,11 @@
     filter: drop-shadow(0 0 10px rgba(0, 223, 255, .7)) drop-shadow(0 0 18px rgba(152, 87, 255, .45)); }
   #fw-rank .fw-x:active { transform: scale(.9); }
   /* 2026-11-18 用户：「排位逻辑是返回按钮起作用 不需要关闭x」。
-     排位窗顶栏那颗 ✕ 被 rank.js 的 rkTopBar 改成「← 返回」（仍是 .fw-x，加 .rkx-back）：
-     排位没有「顺手关一下继续接线」这种用法，只剩「退出去」一个动作，写「返回」才说得通。
-     宽度改成自适应，别的（机械切角、悬停蓝紫发光、按压缩放）沿用上面那套，只把 40px 方块的定宽拆掉。 */
-  #fw-rank .fw-x.rkx-back { width: auto; min-width: 96px; padding: 0 14px; font-size: 14px; font-weight: 800; letter-spacing: 2px; white-space: nowrap; }
+     2026-11-19 用户再明确：「超级排位不需要多一个返回排位按钮 我是说左上角的返回键就应该返回到上一级」——
+     排位窗现在**一颗关闭/返回按钮都没有**（rank.js 的 openRank 在 floatWin 建好窗后把 .fw-x 直接摘掉），
+     退出只走外壳左上角的「← 返回」，由 project2.html 的 window.HXBack() 关掉这扇窗。
+     所以这里的 40px 方块样式和原来的 .rkx-back 只能留着给将来复用，眼下的排位窗里不会出现 .fw-x。
+     导航靠 .rkx-nav 的 margin-left:auto 顶到右端（见下面 .rkx-nav 那段），标题栏右侧不会空一块。 */
 
   /* ── 「排位 / 随机抽人」切换 ── */
   #fw-rank .rk-top { margin-bottom: 15px; }
@@ -1860,8 +1861,10 @@
   #fw-rank .fw-t b::after { height: 20px; }
   #fw-rank .fw-t small { font-size: 12px; letter-spacing: 1.2px; }
   /* 2026-11-16：删掉身份胶囊后，原来由它的 margin-left:auto 把 × 顶到右端，改挂在 .fw-x 自己身上。
-     导航位置不动（还是紧贴标题右边），这样除了那颗胶囊消失，别的都没挪窝。 */
-  #fw-rank .rkx-nav { display: flex; align-items: center; gap: 4px; margin-left: 6px; padding: 3px;
+     导航位置不动（还是紧贴标题右边），这样除了那颗胶囊消失，别的都没挪窝。
+     2026-11-19：排位窗连 .fw-x 也删了（见上面「一颗关闭/返回按钮都没有」），
+     没人再把导航顶到右端 → 改成 .rkx-nav 自己 margin-left:auto，位置和以前一样贴右。 */
+  #fw-rank .rkx-nav { display: flex; align-items: center; gap: 4px; margin-left: auto; padding: 3px;
     border-radius: 12px; border: 1px solid rgba(54, 140, 255, .24); background: rgba(10, 17, 36, .55);
     overflow-x: auto; scrollbar-width: none; min-width: 0; }
   #fw-rank .rkx-nav::-webkit-scrollbar { display: none; }
@@ -2027,11 +2030,21 @@
   /* 排行榜身份卡：背景图 → 渐变遮罩 → 玻璃层 → 文字（四层，文字永远最上） */
   #fw-rank .rk-board { display: flex; flex-direction: column; gap: 7px; max-height: none; overflow-y: auto;
     padding: 1px 2px; min-height: 0; flex: 1; }
-  /* ── 排行榜两列分页（2026-11-12 用户：「一列最多十个 id 卡…改成 2 列这样就是前 20 名展示」）──
-     一页 20 名拆左右两列（左列 1/3/5…、右列 2/4/6…），每张卡因此更宽更大；窄屏下网格会退成单列，
-     卡片不再被横向压成细线。滚动区在 .rk-board2 上，翻页脚 .rk-pager 常驻底部不跟着滚。 */
-  #fw-rank .rk-board2 { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 7px 9px;
-    align-content: start; overflow-y: auto; padding: 1px 2px; }
+  /* ── 排行榜两列分页（2026-11-19 用户最终口径）────────────────────────────────
+     用户原话：「排位展示一页20个吧 前三名毕竟厉害 就最大 到第二大到第三大 第四名及以后一样大
+               无论设备尺寸怎么变 这些排版和尺寸都不变 只是等比例放大」。
+     一页固定 20 人：左列第 1–10 名、右列第 11–20 名（列优先）。人数不再按容器高度增减。
+     整版放在 .rk-stage 里按设计基准写死尺寸，外层 scale(k) 等比缩放（k 由 rank.js 的 rkFitStage 算）。
+     ⚠️ 缩放后**不能用 getBoundingClientRect() 量尺寸**（量到的是缩放后的值，会形成缩放死循环），
+        所以可用宽高一律取 clientWidth/clientHeight。 */
+  #fw-rank .rk-board2 { display: grid; grid-template-columns: 1fr 1fr; gap: 7px 9px;
+    width: 100%; height: 100%; align-content: start; overflow: visible; padding: 0; }
+  /* 舞台外层：占满榜单区域，溢出裁掉（缩放后多出来的部分不滚，也不顶出滚动条） */
+  #fw-rank .rk-stagewrap { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; }
+  /* 舞台：设计基准尺寸由 rank.js 内联写（宽 752 / 高 667），这里只给定位和合成提示。
+     顶端对齐 + 水平居中（left:50% + 负 margin 由 JS 写），缩放后多出来的空间留在底部。 */
+  #fw-rank .rk-stage { position: absolute; left: 50%; top: 0; transform-origin: top center;
+    will-change: transform; }
   #fw-rank .rk-col { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; min-width: 0; }
   #fw-rank .rk-pager { flex: none; display: flex; align-items: center; justify-content: center; gap: 12px;
     padding: 8px 4px 2px; }
@@ -2041,21 +2054,20 @@
     background: rgba(24, 36, 66, calc(var(--hx-a, 1) * .6)); }
   #fw-rank .rk-pg:hover:not(:disabled) { border-color: rgba(0, 207, 255, .6); color: #fff; }
   #fw-rank .rk-pg:disabled { opacity: .38; cursor: default; }
-  /* 窄屏：两列退成单列，卡片保持完整宽度，绝不压扁（用户原话「网页缩小卡片会变形到看不到这不对的」） */
-  @media (max-width: 720px) {
-    #fw-rank .rk-board2 { grid-template-columns: 1fr; }
-  }
+  /* 2026-11-19：删掉「窄屏两列退成单列」—— 用户要求任何设备都是同一套排版，
+     手机/平板只整体等比缩小，绝不改成单列、也绝不减少人数。 */
   #fw-rank .rk-lb { position: relative; flex: none; display: grid; grid-template-columns: 34px minmax(0, 1fr) auto;
-    align-items: center; gap: 10px; height: var(--lbh, 56px); padding: 0 14px 0 8px; border-radius: 11px; overflow: hidden;
-    border: 1px solid rgba(90, 132, 224, .22); background: rgb(12 19 37 / calc(var(--hx-a, 1) * .62));
+    align-items: center; gap: 10px; height: var(--lbh, 54px); box-sizing: border-box; padding: 0 14px 0 8px; border-radius: 11px;
+    overflow: hidden; border: 1px solid rgba(90, 132, 224, .22); background: rgb(12 19 37 / calc(var(--hx-a, 1) * .62));
     font-weight: 700; color: #e9f1ff;
-    content-visibility: auto; contain-intrinsic-size: 480px var(--lbh, 56px);   /* 单页几十张卡，屏外不渲染 */
     transition: transform .38s cubic-bezier(.22, 1, .36, 1); }
-  /* 名次越大卡越小：4 档（前三名最大 → 常规最小）。尺寸只改 --lbh，金/银/铜配色仍走 .p1/.p2/.p3 */
-  #fw-rank .rk-lb[data-tier="1"] { --lbh: 95px; grid-template-columns: 52px minmax(0, 1fr) auto; padding-right: 16px; }
-  #fw-rank .rk-lb[data-tier="2"] { --lbh: 78px; }
-  #fw-rank .rk-lb[data-tier="3"] { --lbh: 64px; }
-  #fw-rank .rk-lb[data-tier="4"] { --lbh: 56px; }
+  /* 卡片尺寸按名次递减（设计基准 px，整版缩放时一起缩）：1 名 88 > 2 名 74 > 3 名 64 > 4 名起全部 54。
+     4 名及以后完全同高 —— 用户原话「第四名及以后一样大」。
+     box-sizing:border-box 是必须的：舞台高度 667 是按「含边框的卡高」算死的，差 2px 就会在底部溢出一条。 */
+  #fw-rank .rk-lb[data-tier="1"] { --lbh: 88px; grid-template-columns: 52px minmax(0, 1fr) auto; padding-right: 16px; }
+  #fw-rank .rk-lb[data-tier="2"] { --lbh: 74px; grid-template-columns: 46px minmax(0, 1fr) auto; }
+  #fw-rank .rk-lb[data-tier="3"] { --lbh: 64px; grid-template-columns: 42px minmax(0, 1fr) auto; }
+  #fw-rank .rk-lb[data-tier="4"] { --lbh: 54px; }
   #fw-rank .rk-lb-bg { position: absolute; inset: 0; z-index: 0; background-size: cover; background-repeat: no-repeat;
     background-position: 50% 50%; transform: scale(1.02); }
   #fw-rank .rk-lb-veil { position: absolute; inset: 0; z-index: 1; pointer-events: none;
@@ -2071,18 +2083,28 @@
   #fw-rank .rk-lb .rk-lb-tag { display: none; }
   #fw-rank .rk-lb .rk-lb-medal { display: none; }
 
-  /* 前三名：奖牌/桂冠/称号，字号最大；背景仍由学生自己决定（装饰属于名次，不属于背景） */
+  /* 前三名：奖牌/桂冠/称号，尺寸按名次递减；背景仍由学生自己决定（装饰属于名次，不属于背景）。
+     2026-11-19：第 2、3 名现在是独立档位（以前 1–3 名都算 tier1），必须补这两档的奖牌样式，
+     否则第 2/3 名既没有奖牌、也没有数字徽章（HTML 里给前三名只发了奖牌，不发 <i> 名次）。 */
   #fw-rank .rk-lb[data-tier="1"] .rk-lb-medal { display: grid; place-items: center; width: 60px; height: 60px; position: relative; }
   #fw-rank .rk-lb[data-tier="1"] .rk-lb-medal svg { width: 56px; height: 56px; overflow: visible;
+    filter: drop-shadow(0 3px 4px rgba(0, 0, 0, .4)); }
+  #fw-rank .rk-lb[data-tier="2"] .rk-lb-medal { display: grid; place-items: center; width: 46px; height: 46px; position: relative; }
+  #fw-rank .rk-lb[data-tier="2"] .rk-lb-medal svg { width: 44px; height: 44px; overflow: visible;
+    filter: drop-shadow(0 3px 4px rgba(0, 0, 0, .4)); }
+  #fw-rank .rk-lb[data-tier="3"] .rk-lb-medal { display: grid; place-items: center; width: 40px; height: 40px; position: relative; }
+  #fw-rank .rk-lb[data-tier="3"] .rk-lb-medal svg { width: 38px; height: 38px; overflow: visible;
     filter: drop-shadow(0 3px 4px rgba(0, 0, 0, .4)); }
   /* 金/银/铜奖牌各自的辉光（暗部投影后叠加一层彩光，别盖住名字） */
   #fw-rank .rk-lb.p1 .rk-lb-medal svg { filter: drop-shadow(0 3px 4px rgba(0, 0, 0, .4)) drop-shadow(0 0 7px rgba(255, 185, 52, .55)); }
   #fw-rank .rk-lb.p2 .rk-lb-medal svg { filter: drop-shadow(0 3px 4px rgba(0, 0, 0, .4)) drop-shadow(0 0 7px rgba(168, 205, 255, .55)); }
   #fw-rank .rk-lb.p3 .rk-lb-medal svg { filter: drop-shadow(0 3px 4px rgba(0, 0, 0, .4)) drop-shadow(0 0 7px rgba(226, 138, 84, .5)); }
-  #fw-rank .rk-lb[data-tier="1"] .rk-lb-place { display: none; }
+  #fw-rank .rk-lb[data-tier="1"] .rk-lb-place,
+  #fw-rank .rk-lb[data-tier="2"] .rk-lb-place,
+  #fw-rank .rk-lb[data-tier="3"] .rk-lb-place { display: none; }
   #fw-rank .rk-lb[data-tier="1"] b { font-size: 20px; }
-  #fw-rank .rk-lb[data-tier="2"] b { font-size: 16px; }
-  #fw-rank .rk-lb[data-tier="3"] b { font-size: 15px; }
+  #fw-rank .rk-lb[data-tier="2"] b { font-size: 17px; }
+  #fw-rank .rk-lb[data-tier="3"] b { font-size: 16px; }
   #fw-rank .rk-lb[data-tier="4"] b { font-size: 14px; }
   /* 金 / 银 / 铜（.p1/.p2/.p3 类只管颜色，不管尺寸） */
   #fw-rank .rk-lb.p1 { border-color: rgba(255, 196, 72, .85);
@@ -2099,7 +2121,9 @@
     background: linear-gradient(105deg, transparent 30%, rgba(255, 226, 160, .22) 46%, transparent 62%);
     background-size: 220% 100%; animation: rkGoldFlow 5.5s ease-in-out infinite; }
   @keyframes rkGoldFlow { 0%, 100% { background-position: 160% 0; } 50% { background-position: -60% 0; } }
-  #fw-rank .rk-lb[data-tier="1"] .rk-lb-tag {
+  #fw-rank .rk-lb[data-tier="1"] .rk-lb-tag,
+  #fw-rank .rk-lb[data-tier="2"] .rk-lb-tag,
+  #fw-rank .rk-lb[data-tier="3"] .rk-lb-tag {
     display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 999px;
     font-size: 11px; font-weight: 800; letter-spacing: .5px; white-space: nowrap; }
   #fw-rank .rk-lb.p1 .rk-lb-tag { color: #3a2400; background: linear-gradient(100deg, #ffd977, #ffb934); box-shadow: 0 0 12px -3px rgba(255, 185, 52, .9); }
@@ -2248,17 +2272,19 @@
      背景层也从 <i> 改成 <span>，彻底绕开 `li i` 那条徽章规则。
      ──────────────────────────────────────────────────────────────────── */
   #fw-rank .rk-board li.rk-lb { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto;
-    align-items: center; gap: 10px; height: var(--lbh, 56px); box-sizing: border-box; padding: 0 14px 0 8px; border-radius: 11px;
+    align-items: center; gap: 10px; height: var(--lbh, 54px); box-sizing: border-box; padding: 0 14px 0 8px; border-radius: 11px;
     overflow: hidden;   /* 背景层要按「缩放」放大，放大后必须裁在卡片圆角里 */
     border: 1px solid rgba(90, 132, 224, .22); background: rgb(12 19 37 / calc(var(--hx-a, 1) * .62));
     color: #e9f1ff; font-weight: 700;
-    content-visibility: auto; contain-intrinsic-size: 480px var(--lbh, 56px);   /* 单页几十张卡，屏外不渲染 */
     transition: transform .38s cubic-bezier(.22, 1, .36, 1); }
-  /* 名次越大卡越小：4 档（前三名最大 → 常规最小）。尺寸只在这改 --lbh，金/银/铜配色仍走 .p1/.p2/.p3 */
-  #fw-rank .rk-board li.rk-lb[data-tier="1"] { --lbh: 95px; grid-template-columns: 52px minmax(0, 1fr) auto; padding-right: 16px; }
-  #fw-rank .rk-board li.rk-lb[data-tier="2"] { --lbh: 78px; }
-  #fw-rank .rk-board li.rk-lb[data-tier="3"] { --lbh: 64px; }
-  #fw-rank .rk-board li.rk-lb[data-tier="4"] { --lbh: 56px; }
+  /* 卡片尺寸按名次递减（2026-11-19，设计基准 px）：1 名 88 > 2 名 74 > 3 名 64 > 4 名起全部 54。
+     一页只有 20 张卡，不再需要 content-visibility 的屏外跳过；
+     删掉 contain-intrinsic-size 还有一个原因：它会让 offsetHeight 报「估算值」（实测 +2px），
+     而舞台高度是按真实卡高算死的，多报 2px 就会在底部溢出一条。 */
+  #fw-rank .rk-board li.rk-lb[data-tier="1"] { --lbh: 88px; grid-template-columns: 52px minmax(0, 1fr) auto; padding-right: 16px; }
+  #fw-rank .rk-board li.rk-lb[data-tier="2"] { --lbh: 74px; grid-template-columns: 46px minmax(0, 1fr) auto; }
+  #fw-rank .rk-board li.rk-lb[data-tier="3"] { --lbh: 64px; grid-template-columns: 42px minmax(0, 1fr) auto; }
+  #fw-rank .rk-board li.rk-lb[data-tier="4"] { --lbh: 54px; }
   #fw-rank .rk-board li.rk-lb > .rk-lb-bg { position: absolute; inset: 0; z-index: 0; border-radius: 0;
     background-size: cover; background-repeat: no-repeat; background-position: 50% 50%; filter: none; }
   #fw-rank .rk-board li.rk-lb > .rk-lb-veil { position: absolute; inset: 0; z-index: 1; border-radius: 0;
@@ -2278,17 +2304,26 @@
     justify-self: end; text-shadow: 0 1px 8px rgba(0, 0, 0, .8); }
   #fw-rank .rk-board li.rk-lb > .rk-lb-medal { display: none; }
   #fw-rank .rk-board li.rk-lb > .rk-lb-tag { display: none; }
-  /* 前三名：奖牌 + 桂冠 + 称号，字号最大 */
+  /* 前三名：奖牌 + 桂冠 + 称号，尺寸按名次递减（2026-11-19：第 2、3 名现在是独立档位，
+     以前只有 tier1 显示奖牌，若不补这两档，第 2/3 名会掉回「数字徽章」）。 */
   #fw-rank .rk-board li.rk-lb[data-tier="1"] > .rk-lb-medal { display: grid; place-items: center; width: 60px; height: 60px; }
   #fw-rank .rk-board li.rk-lb[data-tier="1"] > .rk-lb-medal svg { width: 56px; height: 56px; overflow: visible;
+    filter: drop-shadow(0 3px 4px rgba(0, 0, 0, .4)); }
+  #fw-rank .rk-board li.rk-lb[data-tier="2"] > .rk-lb-medal { display: grid; place-items: center; width: 46px; height: 46px; }
+  #fw-rank .rk-board li.rk-lb[data-tier="2"] > .rk-lb-medal svg { width: 44px; height: 44px; overflow: visible;
+    filter: drop-shadow(0 3px 4px rgba(0, 0, 0, .4)); }
+  #fw-rank .rk-board li.rk-lb[data-tier="3"] > .rk-lb-medal { display: grid; place-items: center; width: 40px; height: 40px; }
+  #fw-rank .rk-board li.rk-lb[data-tier="3"] > .rk-lb-medal svg { width: 38px; height: 38px; overflow: visible;
     filter: drop-shadow(0 3px 4px rgba(0, 0, 0, .4)); }
   #fw-rank .rk-board li.rk-lb.p1 > .rk-lb-medal svg { filter: drop-shadow(0 3px 4px rgba(0, 0, 0, .4)) drop-shadow(0 0 7px rgba(255, 185, 52, .55)); }
   #fw-rank .rk-board li.rk-lb.p2 > .rk-lb-medal svg { filter: drop-shadow(0 3px 4px rgba(0, 0, 0, .4)) drop-shadow(0 0 7px rgba(168, 205, 255, .55)); }
   #fw-rank .rk-board li.rk-lb.p3 > .rk-lb-medal svg { filter: drop-shadow(0 3px 4px rgba(0, 0, 0, .4)) drop-shadow(0 0 7px rgba(226, 138, 84, .5)); }
-  #fw-rank .rk-board li.rk-lb[data-tier="1"] > .rk-lb-place { display: none; }
+  #fw-rank .rk-board li.rk-lb[data-tier="1"] > .rk-lb-place,
+  #fw-rank .rk-board li.rk-lb[data-tier="2"] > .rk-lb-place,
+  #fw-rank .rk-board li.rk-lb[data-tier="3"] > .rk-lb-place { display: none; }
   #fw-rank .rk-board li.rk-lb[data-tier="1"] > .rk-lb-who > b { font-size: 20px; }
-  #fw-rank .rk-board li.rk-lb[data-tier="2"] > .rk-lb-who > b { font-size: 16px; }
-  #fw-rank .rk-board li.rk-lb[data-tier="3"] > .rk-lb-who > b { font-size: 15px; }
+  #fw-rank .rk-board li.rk-lb[data-tier="2"] > .rk-lb-who > b { font-size: 17px; }
+  #fw-rank .rk-board li.rk-lb[data-tier="3"] > .rk-lb-who > b { font-size: 16px; }
   #fw-rank .rk-board li.rk-lb[data-tier="4"] > .rk-lb-who > b { font-size: 14px; }
   /* 金 / 银 / 铜（.p1/.p2/.p3 类只管颜色，不管尺寸） */
   #fw-rank .rk-board li.rk-lb.p1 { border-color: rgba(255, 196, 72, .85);
@@ -2313,7 +2348,9 @@
   #fw-rank .rk-board li.rk-lb.p1::after { background: linear-gradient(105deg, transparent 30%, rgba(255, 226, 160, .22) 46%, transparent 62%);
     background-size: 220% 100%; animation: rkGoldFlow 5.5s ease-in-out infinite; }
   #fw-rank .rk-board li.rk-lb.p2::after, #fw-rank .rk-board li.rk-lb.p3::after { background: none; }
-  #fw-rank .rk-board li.rk-lb[data-tier="1"] > .rk-lb-who > .rk-lb-sub > .rk-lb-tag {
+  #fw-rank .rk-board li.rk-lb[data-tier="1"] > .rk-lb-who > .rk-lb-sub > .rk-lb-tag,
+  #fw-rank .rk-board li.rk-lb[data-tier="2"] > .rk-lb-who > .rk-lb-sub > .rk-lb-tag,
+  #fw-rank .rk-board li.rk-lb[data-tier="3"] > .rk-lb-who > .rk-lb-sub > .rk-lb-tag {
     display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 999px;
     font-size: 11px; font-weight: 800; letter-spacing: .5px; white-space: nowrap; }
   #fw-rank .rk-board li.rk-lb.p1 > .rk-lb-who > .rk-lb-sub > .rk-lb-tag { color: #3a2400; background: linear-gradient(100deg, #ffd977, #ffb934); box-shadow: 0 0 12px -3px rgba(255, 185, 52, .9); }
@@ -2347,8 +2384,12 @@
     #fw-rank .rk-left, #fw-rank .rk-right { width: 100%; }
     #fw-rank .rk-students { flex: none; }
     #fw-rank .rkx-grid { max-height: 46vh; }
-    #fw-rank .rk-boardwrap { min-height: 320px; }
-    #fw-rank .rk-board { max-height: 52vh; }
+    /* 2026-11-19：手机/平板单列布局时，榜单外层高度是内容决定的（不是 flex 分配来的），
+       不能拿它去算缩放比例（会「量到 0 → 缩成 0 → 再量还是 0」）。
+       这里把舞台外层的高度交给 rank.js 定：先按宽度算 k，再把外层高度写死成 667×k。
+       flex:0 0 auto 是必须的 —— 否则 flex-grow 会把它重新撑开，量到的又不是我们写的高度。 */
+    #fw-rank .rk-boardwrap { min-height: 0; }
+    #fw-rank .rk-stagewrap { flex: 0 0 auto; height: 0; }
     #fw-rank .rk-hero { min-height: 96px; padding: 12px 14px; }
     #fw-rank .rk-hero .rk-pinfo > b { font-size: 22px; }
     #fw-rank .rk-hero .rk-start { height: 46px; padding: 0 16px; font-size: 15px; }
@@ -3219,18 +3260,31 @@ window.hxCloseDrill = () => mainBtn.onclick(); // 并联专项 / 扩展练习页
    外壳点返回时先问当前工具：HXBack() 返回 true = 工具自己往回退了一步（外壳什么都不做）；
    返回 false = 已经在工具的第一屏，外壳再回首页。
    退的顺序按「越靠近手边的越先退」：
-     ① 排位准备层（「庞宇铭 · 开始」那张）→ 等于点「退出排位」
-     ② 扩展练习 / 并联专项 → 回主电路
+     ① 排位浮窗（#fw-rank）→ 关掉它，回到练习页
+     ② 排位准备层（「庞宇铭 · 开始」那张）→ 等于点「退出排位」
+     ③ 扩展练习 / 并联专项 → 回主电路
    都退完了才返回 false。
 
    ── 2026-11-18 改：浮窗不再参与「返回」（用户原话见上面 openPanel 那段）──
    原来第一步是「关掉最上面那个 .fw.show」，于是浏览器/外壳的返回变成「一层层关弹窗」，
    学生想看上一屏，结果先关掉了元器件窗，还得再按一次才动页面 —— 语义是错的。
-   现在浮窗**只由 ✕（或 Esc）关**，HXBack 只退「页面级」的东西（排位准备层 → 主电路 → 让外壳回上一屏）。
+   **工具类**浮窗（元器件 / 符号 / 说明……）仍然只由 ✕（或 Esc）关，不参与返回。
+
+   ── 2026-11-19 再改：排位浮窗要参与「返回」（用户原话）──
+   「超级排位不需要多一个返回排位按钮 我是说左上角的返回键就应该返回到上一级 ……
+     这个逻辑是全部开发软件的标准规则」。
+   排位窗是 .fw-full 的**一整页**（不是随手开关的工具窗），它自己不带任何关闭/返回按钮了，
+   退出就只有「外壳左上角返回」这一条路 —— 所以这里必须先把它关掉：
+   从排位窗进来 → 按返回就该回到练习页，而不是跳过排位窗去关准备层/回首页。
    浮窗也没有任何 history.pushState / popstate 登记，浏览器后退不会动它。 */
 window.HXBack = function () {
+  // ① 排位浮窗（一整页）：关掉它就是「从排位退出来」，练习页原样还在底下
+  const rk = document.getElementById('fw-rank');
+  if (rk && rk.classList.contains('show')) { closePanel(rk); return true; }
+  // ② 排位准备层：等于点「退出排位」
   const quit = document.querySelector('#rkVeil.show #rkQuit');
   if (quit) { quit.click(); return true; }
+  // ③ 扩展练习 / 并联专项 → 回主电路
   if (mainBtn && !mainBtn.hidden) { mainBtn.click(); return true; }
   return false;
 };
@@ -3310,7 +3364,9 @@ let fwZ = 30;
    现在：所有这类「看内容」的窗口统一走 openPanel(kind)，进来先把上一个关掉；
    当前是哪一个记在 panelNow（模块级变量，不去查 DOM —— 窗口被别处摘掉时状态也不会跟着错）。
    关闭只有两条路：右上角 ✕（以及它自己的按钮）、Esc。**不进 history，也不挂 popstate**，
-   外壳「返回」的 HXBack() 不再管浮窗（见下面那段）。 */
+   外壳「返回」的 HXBack() 不管这类工具浮窗（见下面那段）。
+   ⚠️ 例外（2026-11-19）：排位窗（#fw-rank）是 .fw-full 的**一整页**，不是随手开关的工具窗 ——
+   它连 ✕ 都没有，退出只走外壳左上角「← 返回」→ HXBack() → closePanel(#fw-rank)。 */
 let panelNow = null; // { id, el } —— 当前那个（唯一）模块浮窗
 function pauseFw(el) { // 关窗时把视频真正停掉并断开数据源（只 pause() 的话缓冲还占内存）
   if (!el) return;
@@ -3401,8 +3457,8 @@ function floatWin(id, o) {
     drag(el.querySelector('.fw-head'), 'move'); drag(el.querySelector('.fw-rs.r'), 'r'); drag(el.querySelector('.fw-rs.b'), 'b'); drag(el.querySelector('.fw-rs.rb'), 'rb');
     // 关窗口时把视频真正停掉并断开数据源：只 pause() 的话已下载的缓冲还占着内存，
     // 下次打开同一个视频也不会重新取，教室里连续开关几次会越开越卡。
-    // 2026-11-18：加空值保护 —— 排位窗的 ✕ 现在被改造成「← 返回」（rank.js 的 rkTopBar），
-    // 万一哪天这条路径上一个 .fw-x 都找不到，这里不能再抛 TypeError 把整个 floatWin 打断。
+    // 2026-11-19：加空值保护 —— 排位窗的 ✕ 现在**整个摘掉了**（rank.js 的 openRank 建好窗就 remove()，
+    // 退出只走外壳左上角的「← 返回」→ HXBack），这里查不到 .fw-x 时不能抛 TypeError 把整个 floatWin 打断。
     const xBtn = el.querySelector('.fw-x');
     if (xBtn) xBtn.onclick = () => closePanel(el);
   }
@@ -5204,9 +5260,14 @@ async function openRank(lockTo) {
   if (RK.lock) RK.circuit = RK.lock; // 本次入口覆盖上一次的 circuit（localStorage / 内存里的旧值）
   RK.boardPage = 0; // 换题/重进排位：榜单翻页回到第一页（分页 2026-11-12）
   floatWin('rank', { title: '排位', sub: '计时接线 · 全对自动停表', w: 1040, h: 700, a1: '#f59e0b', a2: '#ef4444', full: true, html: '<div class="rk" id="rk"><p class="rk-wait">加载中…</p></div>' });
-  // 2026-11-18：窗口一建好就把 ✕ 换成「← 返回」。rkRender 走到在线且已登录才调 rkTopBar，
-  // 离线页 / 登录页 / 没开通这三条分支都不会到那儿 —— 不在这里先改，那几页上留的还是一颗 ×。
-  rkBackBtn();
+  /* 2026-11-19 用户：「超级排位不需要多一个返回排位按钮 我是说左上角的返回键就应该返回到上一级
+     也就是我们从排位进来的就应该返回到排位 这个逻辑是全部开发软件的标准规则 当然你排位那右上角
+     也是错的冗余的无需多言」。
+     排位窗是一整页（.fw-full），不属于「随手开关的工具窗」——它的右上角**一颗按钮都不留**，
+     退出只有外壳左上角的「← 返回」这一条路（project2.html 的 HXBack 会先关掉这扇窗，见那段注释）。
+     floatWin 建窗时必定塞一颗 .fw-x（其它浮窗还要靠它关），所以这里建好就摘掉；
+     只摘这一次就够：窗口是复用的，之后打开不会再生成新节点，但为了万无一失 rkTopBar 里也会再查一遍。 */
+  const fwx = document.querySelector('#fw-rank .fw-x'); if (fwx) fwx.remove();
   if (!RK.circuit || !rkCircuits().some(c => c.id === RK.circuit)) RK.circuit = rkCircuits()[0].id;
   // 强制对齐：练习页必须停在锁定的那一题上。用户 2026-11-06 的原话是
   // 「我在外面排位选的题和我开始排位的题不一样 比如我刚刚排位已经玩了并联第四题 出去换第六题点排位 结果还是第四题」
@@ -5281,30 +5342,16 @@ async function rkRender() {
 //   ① 身份在排行榜 Hero 卡里已经写着，标题栏再挂一遍是重复；
 //   ② 全屏钮外壳顶栏本来就有（#fsBtn），这里那个只是离线兜底，用不上。
 /* 2026-11-18 用户：「排位逻辑是返回按钮起作用 不需要关闭x」。
-   排位窗是 .fw-full 的「一整页」，退出只有一条路（回到练习页），一颗写着 × 的圆钮只会让人
-   以为「关掉这扇窗还能接着接线」。这里把标题栏那颗 .fw-x 就地改成「← 返回」：
-   · 保留 .fw-x 这个 class —— floatWin 创建窗口时已经给它绑了 closePanel(fw)，拖拽也要靠它排除；
-   · 点击行为一字未改，仍然是 closePanel(fw)；
-   · 加 .rkx-back 拿掉「40px 方块」的定宽，样式在 project2.html 里。
-   单独抽成函数是因为它有两个调用点：openRank 刚建好窗口时（离线页 / 登录页那条分支根本走不到
-   rkTopBar，不先改就会留一颗 ×），以及 rkTopBar 每次重绘时（幂等，重复调没事）。
-   找不到按钮就返回 null，调用方自己决定退化成「追加到末尾」。 */
-function rkBackBtn(fw) {
-  const box = fw || document.getElementById('fw-rank');
-  const x = box && box.querySelector('.fw-x');
-  if (!x) return null;
-  if (!x.classList.contains('rkx-back')) {   // 只改一次文案，别每次重绘都重写一遍节点（会丢焦点）
-    x.classList.add('rkx-back'); x.textContent = '← 返回';
-    x.title = '返回练习页'; x.setAttribute('aria-label', '返回练习页');
-  }
-  x.onclick = () => closePanel(box);
-  return x;
-}
+   2026-11-19 用户进一步说：「……当然你排位那右上角也是错的冗余的无需多言」——
+   上一版只是把 × 改成「← 返回」，仍然在排位窗右上角留了一颗按钮；用户要的是**一颗都不要**。
+   所以 rkBackBtn() 整个删掉：按钮由 openRank 里 fwx.remove() 摘走，退出只靠外壳左上角的「← 返回」
+   （project2.html 的 HXBack → closePanel(#fw-rank)）。rkTopBar 每次重绘只挂导航，不再碰 .fw-x。 */
 function rkTopBar(fw) {
   if (!fw) return;
   const head = fw.querySelector('.fw-head'); if (!head) return;
+  // 兜底：万一这一轮 DOM 里还留着 .fw-x（旧版本建出来的窗、或者以后 floatWin 改了），一并摘掉
+  head.querySelectorAll('.fw-x').forEach(n => n.remove());
   head.querySelectorAll('.rkx-nav,.rkx-who').forEach(n => n.remove());
-  const x = rkBackBtn(fw);
   const nav = document.createElement('nav');
   nav.className = 'rkx-nav'; nav.setAttribute('aria-label', '排位功能');
   nav.innerHTML = '<button type="button" class="rkx-nb on" aria-current="page">排位</button>'
@@ -5312,9 +5359,8 @@ function rkTopBar(fw) {
     + (isT() ? TASKLINK.replace('class="rk-super"', 'class="rkx-nb"') : '')
     + (isT() ? '<button type="button" class="rkx-nb rkx-hot" id="rkDrawBtn">随机选人</button>' : '')
     + (RK.me && RK.me.student ? TASKBOARD.replace('class="rk-super"', 'class="rkx-nb"') : '');
-  // 导航插在「返回」前面；万一返回钮不在了（x 为 null），insertBefore 的第二参只能是 null，
-  // 那就退化成追加到标题栏末尾 —— 位置仍然在标题右侧，不会掉到窗口外面去。
-  if (x) head.insertBefore(nav, x); else head.appendChild(nav);
+  // 没有关闭钮了，导航直接追加到标题栏末尾；.rkx-nav 自己 margin-left:auto 顶到右端（见 project2.html）
+  head.appendChild(nav);
   const db = nav.querySelector('#rkDrawBtn'); if (db) db.onclick = rkDrawWin;
   const tb = nav.querySelector('#rkTaskB'); if (tb) tb.onclick = rkTaskBWin;
 }
@@ -6013,9 +6059,11 @@ function drwFxStop() { if (DRW_FX.raf) cancelAnimationFrame(DRW_FX.raf); DRW_FX.
 
 /* 头像 / 点券：同一个人每次一样（用 id 做种子），不闪 */
 function drwHueOf(p) { let d = 0; const s = String(p.id) + p.name; for (let i = 0; i < s.length; i++) d = (d * 33 + s.charCodeAt(i)) % 360; return d; }
-/* 卡片上的「课堂幸运分」。历史：原来 5+(d%7) → 5~11 分，用户 2026-11-05 说「没有 11 分」，
-   改 1+(d%10) → 1~10；2026-11-08 用户说「是 5-10 分」改 5+(d%6)；
-   2026-11-15 用户最终定「只允许 1-10 分区间」，改回 1+(d%10)，1~10 全覆盖、绝无 11。
+/* 卡片上的「课堂幸运点数」（2026-11-19 起不写「分」：用户要求全站不再出现 5 分 / 10 分这种分数说法，
+   这里是抽人牌上的纯装饰数字，改成「点」就不会被误读成成绩）。
+   历史：原来 5+(d%7) → 5~11，用户 2026-11-05 说「没有 11」，
+   改 1+(d%10)；2026-11-08 用户说「是 5-10」改 5+(d%6)；
+   2026-11-15 用户最终定「只允许 1-10 区间」，改回 1+(d%10)，1~10 全覆盖、绝无 11。
    仍然用 id 做种子：同一个学生每次抽到同一个数，牌面不闪。 */
 function drwScoreOf(p) { let d = 0; const s = String(p.id); for (let i = 0; i < s.length; i++) { const c = s.charCodeAt(i) - 48; if (c >= 0 && c <= 9) d = (d * 31 + c) % 997; } return 1 + (d % 10); }
 function drwAvatar(p) { return `<b class="drw-av" style="--h:${drwHueOf(p)}">${esc(p.name.slice(0, 1))}</b>`; }
@@ -6054,7 +6102,7 @@ function drwFaceHTML(p, r) {
     `<strong class="drw-nm">${esc(p.name)}</strong>` +
     `<span class="drw-no">${p.seq != null && p.seq < 1000 ? p.seq : '——'}</span></div>` +
     `<div class="drw-tag">${p.cls ? `<span>${esc(p.cls)}</span>` : ''}</div>` +
-    `<div class="nm-ticket"><span>课堂幸运卡</span><span class="drw-vp">${drwAvatar(p)}<b>✦${drwScoreOf(p)}</b><em>分</em></span></div>`;
+    `<div class="nm-ticket"><span>课堂幸运卡</span><span class="drw-vp">${drwAvatar(p)}<b>✦${drwScoreOf(p)}</b><em>点</em></span></div>`;
 }
 /* ---------- 卡组等比铺满（2026-11-16 用户：「长宽比例不要变啊 现在很丑 还原比例并等比例放大」）----------
    出了什么事：2026-11-15 为了消灭「卡片只占舞台上部 1/3、下方大片留白」，把卡高从写死的 400px
@@ -6356,48 +6404,52 @@ function rkMedal(p) {
 // 背景样式串缓存：base64 正则替换 / 预设 CSS 的 replace 是这块最贵的活，一个学生一次算好就复用，
 // 翻页、同页数据刷新都不重算。键 = student_id + 卡片型（名次 1..4 → 冠军/亚军/季军/常规的取景不同）。
 const RK_BGSTYLE = {};
-// 卡片高度按名次分 4 档：前三名最大（左列最上），名次越大卡越小。
-// 各档是「基准卡高 --lbh」的倍率，和 project2.html 里 [data-tier] 的 --lbh 一一对应；改一处要同步另一处。
-// 倍率拉开一点，让「名次越大卡越小」在榜单上一眼看得出来（前三名带奖牌格外高）。
-const RK_MUL = { 1: 1.7, 2: 1.4, 3: 1.15, 4: 1.0 };
-function rkTier(place) {
-  if (place <= 3) return 1;
-  if (place <= 6) return 2;
-  if (place <= 12) return 3;
-  return 4;
-}
-function rkH(place) { return Math.round(56 * RK_MUL[rkTier(place)]); }   // 基准档高（--lbh=56 时），只用于估容量
-// 一列能装几张：从第 start 名起依次累加「卡高 + 列内 gap」，装到可用高度 H 为止。
-// total 只是循环上限（防死循环）；要算「右列满容量」时传总人数而不是剩余人数，别被剩余人数截短。
-function rkColCap(H, gap, total, start) {
-  let k = 0, h = 0;
-  while (k < total) {
-    const add = rkH(start + k) + (k === 0 ? 0 : gap);
-    if (h + add > H) break;
-    h += add; k++;
-  }
-  return Math.max(1, k);
-}
-// 一列高度：第 start 名起 cnt 张卡的总高（含列内 gap）
-function rkColH(start, cnt, gap) {
+// 卡片高度按名次分 4 档：第 1 名 > 第 2 名 > 第 3 名 > 第 4 名及以后（4 名起全部同高）。
+// 档位数字直接写进 data-tier，project2.html 里按 [data-tier] 写死 --lbh（88/74/64/54）；改一处要同步另一处。
+function rkTier(place) { return place <= 3 ? place : 4; }
+/* ── 榜单舞台的设计基准（2026-11-19 用户原话）──────────────────────────────
+   「排位展示一页20个吧 前三名毕竟厉害 就最大 到第二大到第三大 第四名及以后一样大
+    无论设备尺寸怎么变 这些排版和尺寸都不变 只是等比例放大」。
+   752×667 就是 1440×900 下右侧榜单的实测内容尺寸（2026-11-18 量过）——
+   等于「现在电脑上这一版」原样固定下来，别的屏幕整体缩/放，不换排版、不增删人数。
+   667 = 左列 88 + 74 + 64 + 7×54 + 9×7（第 1/2/3 名 + 第 4–10 名共 7 张常规卡 + 列内 9 个间隙）。 */
+const RK_STAGE_W = 752, RK_STAGE_H = 667;
+const RK_PER = 20, RK_COL = 10; // 一页固定 20 人：左列 10（第 1–10 名）、右列 10（第 11–20 名），列优先
+/* 整版等比缩放：k = min(可用宽 / 设计宽, 可用高 / 设计高)，舞台顶端对齐、水平居中。
+   ⚠️ 可用宽高只能用 clientWidth / clientHeight —— getBoundingClientRect() 会被 transform 影响，
+   量到的是缩放后的尺寸，再拿去算 k 就是「缩放 → 量到新尺寸 → 再缩放」的死循环（以前踩过）。
+   ⚠️ 手机单列布局（和 project2.html 的 @media (max-width: 880px) 同一条断点）时，外层高度是内容决定的，
+   量出来是 0 —— 这种版式只按宽度缩，并把外层高度写死成 667×k，否则「高度 0 → k=0 → 高度 0」会缩成一条线。 */
+const RK_NARROW = window.matchMedia ? window.matchMedia('(max-width: 880px)') : null;
+function rkFitStage(wrap) {
+  if (!wrap) return;
+  const stage = wrap.firstElementChild; if (!stage) return;
+  const narrow = !!(RK_NARROW && RK_NARROW.matches);
   let h = 0;
-  for (let i = 0; i < cnt; i++) h += rkH(start + i) + (i === 0 ? 0 : gap);
-  return h;
+  if (!narrow) { wrap.style.height = ''; h = wrap.clientHeight; }  // 先清掉上一次写的高度，免得越量越矮
+  const w = wrap.clientWidth || RK_STAGE_W;
+  const byW = w / RK_STAGE_W;
+  const k = (!narrow && h > 50) ? Math.min(byW, h / RK_STAGE_H) : byW;
+  // 单列布局（或量不到高度）时，外层高度跟着缩放后的实际高度走，不留一大片空白
+  wrap.style.height = narrow ? Math.round(RK_STAGE_H * k) + 'px' : '';
+  stage.style.width = RK_STAGE_W + 'px'; stage.style.height = RK_STAGE_H + 'px';
+  // 顶端对齐，水平居中：榜单从表头下面直接开始，缩放后多出来的空间留在底部（不留到表头下面）
+  stage.style.left = '50%'; stage.style.top = '0';
+  stage.style.marginLeft = (-RK_STAGE_W / 2) + 'px'; stage.style.marginTop = '0';
+  stage.style.transformOrigin = 'top center';
+  stage.style.transform = 'scale(' + k.toFixed(4) + ')';
 }
-// 把 cnt 张卡（第 start 名起）按高度分进左右两列，返回左列张数：左右两列高度尽量接近，
-// 这样「第二列接着第一列最后的名次往后」时，右列（名次靠后、卡更小）不会只挂零星几张、底下空一大片。
-function rkBalance(start, cnt, gap) {
-  let best = 1, bestD = Infinity;
-  for (let k = 1; k < cnt; k++) {
-    const d = Math.abs(rkColH(start, k, gap) - rkColH(start + k, cnt - k, gap));
-    if (d < bestD) { bestD = d; best = k; }
-  }
-  return best;
-}
+// 窗口尺寸变了（旋转手机、拖浏览器、进全屏）就重新算一次；只认排位窗里的那一个舞台。
+// ⚠️ 实测（无头 Chrome 切视口）：resize 事件派发时布局还是**旧的**，当场量到的是上一个视口的宽高，
+//    于是每次缩放都慢一拍（390 宽量到 1024 的 k）。所以当场算一次、下一帧再一次、120ms / 400ms 各兜一次。
+window.addEventListener('resize', () => {
+  const fit = () => { const w = document.querySelector('#fw-rank .rk-stagewrap'); if (w) rkFitStage(w); };
+  fit(); requestAnimationFrame(fit); setTimeout(fit, 120); setTimeout(fit, 400);
+});
 async function rkBoard(el, hl, page) {
   // 分页（2026-11-13 用户：「123 名应该在左边第一列且卡片最大，后续跟着 456 依次往后，
-  //   第二列接着第一列最后的排名往后，不限制一页多少个，只要满足尺寸排满」）。
-  // 每页人数不再写死 20：按容器高度现算，两列列优先（左列 1…K、右列 K+1…），底下「上一页/下一页」翻页。
+  //   第二列接着第一列最后的排名往后……」）。2026-11-19 定稿：一页 20 人、左列 1–10 / 右列 11–20、
+  //   卡片尺寸用设计基准写死，整版等比缩放（见下面 RK_STAGE_W/RK_STAGE_H 那段）。
   const isPageFlip = page != null;              // 翻页 = 全新一页，不做 FLIP；只有同页数据刷新才做
   if (isPageFlip) RK.boardPage = Math.max(0, page);
   // 2026-11-14 优化「加载慢」：rank_board 与 hx_rank_bgs 两个 rpc 并行发出（背景失败不影响榜单）。
@@ -6418,28 +6470,19 @@ async function rkBoard(el, hl, page) {
   if (nEl) nEl.textContent = rows.length ? '共 ' + rows.length + ' 人 · 按用时升序' : '';
   // 空榜单只放提示语，绝不放假成绩
   if (!rows.length) { el.innerHTML = `<div class="rk-empty"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10v4a5 5 0 0 1-10 0z"/><path d="M7 5H4v1.5A3.5 3.5 0 0 0 7.5 10M17 5h3v1.5A3.5 3.5 0 0 1 16.5 10M12 13v4M8.5 20h7"/></svg><b>暂无排位成绩</b><span>完成首次接线挑战后，成绩将在此展示</span></div>`; return; }
-  // 每页人数按容器现算：一屏排满、底下不留大片空白。.rk-boardwrap 上下 padding 22px，翻页脚常驻约 44px。
-  const gap = 7;                                // .rk-col 列内 gap
-  const H = Math.max(120, (el.clientHeight || 520) - 22);
-  // 满页容量：左列（名次靠前、卡大）Kleft 张 + 右列（名次靠后、卡小）Kright 张，各按实际卡高累加。
-  // 单页没有翻页脚，用全高 H 算；装不下（多页）时每页都有脚，得给脚让出 44px 再算一次。
-  let avail = H;
-  let Kleft = rkColCap(avail, gap, rows.length, 1);
-  let Kright = rkColCap(avail, gap, rows.length, Kleft + 1);
-  if (rows.length > Kleft + Kright) {
-    avail = H - 44;
-    Kleft = rkColCap(avail, gap, rows.length, 1);
-    Kright = rkColCap(avail, gap, rows.length, Kleft + 1);
-  }
-  const PER = Kleft + Kright;
+  // 2026-11-19 用户：「排位展示一页20个吧 …… 无论设备尺寸怎么变 这些排版和尺寸都不变 只是等比例放大」
+  //   → 每页固定 20 人（左列 10、右列 10，列优先），**不再按容器高度算容量**：
+  //     老写法（rkColCap）屏幕高就多放人、矮就少放人，同一个班在两台电脑上是两种排版。
+  //     现在只有超过 20 人才翻页，翻页脚保留。
+  const PER = RK_PER;
   let pages = Math.max(1, Math.ceil(rows.length / PER));
   if (RK.boardPage >= pages) RK.boardPage = pages - 1;           // 数据变少（比如删了人）页码别越界
   const start = RK.boardPage * PER;
   const cnt = Math.min(PER, rows.length - start);                 // 本页人数（末页可能不满）
   const pageRows = rows.slice(start, start + cnt);
-  // 本页两列：满页按左 Kleft / 右 Kright；一页就放得下、或末页人数不足满页时按高度分均，
-  // 让右列（名次靠后、卡更小）不至于只挂零星几张、底下空一大片。列优先连续排（不再蛇形 1/3/5、2/4/6）。
-  const K = cnt === PER ? Kleft : rkBalance(start + 1, cnt, gap);
+  // 列优先：左列先装 10 张（第 1–10 名），剩下的进右列（第 11–20 名）；
+  // 末页不足 10 人时全在左列（右列空着），不为了「看起来满」把名次拆乱。
+  const K = Math.min(RK_COL, cnt);
   const left = pageRows.slice(0, K), right = pageRows.slice(K);
   // FLIP（2026-11-08，纯视觉）：重绘前记下旧行位置（按 姓名|班级 找），重绘后把位置变化过的行
   // 从旧位置平移到新位置 —— 数据更新时行是“滑过去”的，新上榜的行短暂高亮一下。
@@ -6451,7 +6494,9 @@ async function rkBoard(el, hl, page) {
   }
   const steady = !isPageFlip && Object.keys(prev).length ? ' steady' : '';
   const rowHTML = (r, i) => {
-    const tier = rkTier(r.place), top = tier === 1;
+    // 2026-11-19：前三名各占一档（1 最大 → 2 → 3），第 4 名起全部同档。
+    //   top 判的是「有没有奖牌/称号」（1–3 名都有），和卡片档位分开，别把第 2、3 名降级成数字徽章。
+    const tier = rkTier(r.place), top = r.place <= 3;
     const ck = Math.min(r.place, 4);
     let st = RK_BGSTYLE[r.student_id + ':' + ck];
     if (st === undefined) {
@@ -6475,7 +6520,22 @@ async function rkBoard(el, hl, page) {
       + `<span>第 ${from}–${to} 名 · 共 ${rows.length} 人</span>`
       + `<button type="button" class="rk-pg" data-pg="1"${RK.boardPage >= pages - 1 ? ' disabled' : ''}>下一页 ›</button></div>`
     : '';
-  el.innerHTML = `<div class="rk-board2">${col(left)}${col(right)}</div>${foot}`;
+  /* 榜单主体包一层固定设计基准的舞台（.rk-stage），外层 .rk-stagewrap 按可用空间整体 scale。
+     2026-11-19 用户：「无论设备尺寸怎么变 这些排版和尺寸都不变 只是等比例放大 …… 不随着缩放增减人」
+     → 永远 20 人、两列 10+10、卡片 88/74/64/54，屏幕小就整体缩小，绝不改排版。 */
+  el.innerHTML = `<div class="rk-stagewrap"><div class="rk-stage"><div class="rk-board2">${col(left)}${col(right)}</div></div></div>${foot}`;
+  rkFitStage(el.querySelector('.rk-stagewrap'));
+  // 首帧布局可能还没稳定（字体 / 窗口入场动画 / 滚动条），下一帧再量一次，确保 k 是对当前可用空间
+  requestAnimationFrame(() => rkFitStage(document.querySelector('#fw-rank .rk-stagewrap')));
+  /* 只监听 window resize 不够：排位窗是全屏 div（宽高由 floatWin 按 innerWidth/innerHeight 写死），
+     有些环境（无头验收的视口切换、窗口入场动画、字体加载）不会派发 window resize ——
+     实测 1440 缩到 1280 时 transform 还是 1，卡片被裁掉。ResizeObserver 直接盯舞台外层自己的尺寸变化，
+     这是「可用空间变了就重算」最可靠的一路。设置高度是幂等的（同样的值不会再次触发回调），不会死循环。 */
+  if (window.ResizeObserver) {
+    if (el._rkRO) el._rkRO.disconnect();
+    el._rkRO = new ResizeObserver(() => rkFitStage(document.querySelector('#fw-rank .rk-stagewrap')));
+    el._rkRO.observe(el.querySelector('.rk-stagewrap'));
+  }
   // 翻页：重取当前数据后切页（不重新拉接口也行，但 rows 就在闭包里，直接重画最省）
   el.querySelectorAll('.rk-pg').forEach(btn => {
     btn.onclick = () => { rkBoard(el, hl, RK.boardPage + Number(btn.getAttribute('data-pg'))); };
@@ -7237,15 +7297,15 @@ function tbPaint(body, b) {
       <span><b>${Math.round(b.pct * 10) / 10}%</b><small>完成进度</small></span>
     </div>
     <div class="tb-me ${m.finished ? 'ok' : 'todo'}">${m.finished
-      ? `<i>✓</i><div><b>我已完成${m.place ? ' · 第 ' + m.place + ' 名' : ''}</b><small>用时 ${fmtMs((m.sec || 0) * 1000)}${m.rate != null ? ' · 完成率 ' + done(m.rate) + (m.score != null ? ' · ' + (+m.score).toFixed(1) + ' 分' : '') : ''}${t.status === 'open' ? '（实时：被更快的同学超了会掉档）' : '（已冻结）'}</small></div>`
+      ? `<i>✓</i><div><b>我已完成${m.place ? ' · 第 ' + m.place + ' 名' : ''}</b><small>用时 ${fmtMs((m.sec || 0) * 1000)}${m.rate != null ? ' · 完成率 ' + done(m.rate) : ''}${t.status === 'open' ? '（实时：被更快的同学超了会掉档）' : '（已冻结）'}</small></div>`
       : `<i>!</i><div><b>我还没完成</b><small>去练这一题、点「排位」接对仿真成功就自动记上，不用在这里点任何按钮</small></div>`}</div>
     <div class="tb-table"><table><thead><tr><th class="num">名次</th><th>姓名</th><th class="num">用时</th><th class="num">完成率</th></tr></thead><tbody>
       ${rows.map(r => `<tr class="${mineRow && r.student_id === me.id ? 'me' : ''}">
         <td class="num">${r.place == null ? '—' : r.place}</td><td>${esc(r.name || r.no)}</td>
-        <td class="num">${fmtMs(r.ms)}</td><td class="num">${r.rate == null ? '不计分' : r.rate + '%'}</td></tr>`).join('')}
+        <td class="num">${fmtMs(r.ms)}</td>        <td class="num">${r.rate == null ? '—' : r.rate + '%'}</td></tr>`).join('')}
       ${rows.length ? '' : '<tr><td colspan="4" class="tb-empty">还没有人完成 —— 第一个就是你</td></tr>'}
     </tbody></table></div>
-    <p class="tb-tip">${t.status === 'open' ? '名次和完成率是实时变化的：后来的人用时更短会把前面的人挤下一档（100% → 80% → 70%），再刷一次更快的就能反超回来。老师结束任务那一刻才冻结最终得分。' : '得分已在老师结束任务那一刻冻结，之后不再变化。'}<br>赋分：第 1–10 名 100%（5 分）· 第 11–20 名 80%（4 分）· 其余已完成 70%（3.5 分）· 未完成 0 分。</p>
+    <p class="tb-tip">${t.status === 'open' ? '名次和完成率是实时变化的：后来的人用时更短会把前面的人挤下一档（100% → 80% → 70%），再刷一次更快的就能反超回来。老师结束任务那一刻才冻结最终完成率。' : '完成率已在老师结束任务那一刻冻结，之后不再变化。'}<br>完成率档位：第 1–10 名 100% · 第 11–20 名 80% · 其余已完成 70% · 未完成 0%。</p>
   </div>`;
   const back = body.querySelector('#tbBack'); if (back) back.onclick = () => rkTaskBList(tbBody());
   // 名单长出一屏时自动滚到「我」那一行：学生打开榜单第一眼要找的就是自己
@@ -7389,8 +7449,17 @@ if (document.fonts) document.fonts.ready.then(() => { if (cur && SEG.some(x => x
   window.addEventListener('pageshow', function (e) { if (e.persisted) seen = true; });
   setTimeout(function () {
     if (seen) return;
-    try { sessionStorage.setItem('hx-wiring-entered', '1'); } catch (e) { }
-    aboutWho().then(me => aboutForce(me)).catch(() => { });
+    /* 2026-11-19 修：「本会话进过」的标记只在**确实弹了**之后再写。
+       老写法是进来先把 setItem 写掉、再去调 aboutForce —— 但 aboutForce 有三条否决
+       （正在排位 / 页面不在前台 / 窗口已经开着，见上面 aboutForce 那段），一旦被否决，
+       标记已经写了 → 这次「首次从首页进入」的弹窗就永久丢掉，必须回首页再进一次才补得回来。
+       aboutForce() 本来就是同步返回布尔值（弹了 = true / 被否决 = false），直接拿来用：
+       被否决时不写标记，刷新或下次进前台还会再试一次。 */
+    aboutWho().then(me => {
+      let shown = false;
+      try { shown = aboutForce(me); } catch (e) { shown = false; }
+      if (shown) { try { sessionStorage.setItem('hx-wiring-entered', '1'); } catch (e) { } }
+    }).catch(() => { });
   }, 120);
 })();
 </script>
