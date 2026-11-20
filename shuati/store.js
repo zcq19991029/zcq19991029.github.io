@@ -148,6 +148,11 @@ export const forward = (id, newName, ownerName, classes) => rpc('quiz_forward', 
 // 发题时能选哪些老师（不返回邮箱；管理员/开发者也在里面）
 export const teacherList = () => signedIn() ? cwrap('teachers', () => rpc('quiz_teacher_list', {}).catch(() => [])) : Promise.resolve([]);
 export const unpublish = id => rpc('quiz_unpublish', { p_id: id }).then(r => { dropPub(id); return r; });
+/* 删题库（2026-11-20，老师原话「用户好像不能主动清理刷题题库」）：
+   服务端 quiz_delete 只让删自己名下的（owner = auth.uid()）或管理员/开发者，内置题库不在 quiz_public 里，
+   调了会报「没有这个题库」。删的是云端那一份 —— 学生的答题记录 / 排行榜不动（老师要求累计），
+   别人的分享码也不受影响（存的是题目快照）。删完必须把列表和这份题的缓存都作废，否则自己还看得见。 */
+export const del = id => rpc('quiz_delete', { p_id: id }, signedIn()).then(r => { dropPub(id); return r; });
 
 /* 题池（hx_exam_qbank）和题池科目（hx_exam_subject）：资料库工具那边出的题（全站唯一权威题库）。
    刷题「从题池导入」走这两个 rpc —— 都需要教师身份（服务端 hx_is_teacher 判），学生端不调。

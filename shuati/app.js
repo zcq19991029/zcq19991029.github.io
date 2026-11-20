@@ -11,17 +11,24 @@ import { figSvg, figName } from './symbols.js';
    做法不是把 JSON 删掉，而是同一份题**两边都有**：
      · 云端（quiz_public，owner = 开发者，id 就是这里的 id）——登录后优先读它，可以发布给班级、可以改；
      · 本地 data/*.json —— 没网、没登录、云端还没搬过时的兜底。
-   为什么 id 必须一字不改（wiring / mcu / psychology / education）：
-   排位表 quiz_rank_hits.bank / quiz_rank_keys.bank 存的就是这 4 个名字，
-   换了 bank 名，1896 道题（370+245+540+741）的排位成绩全部对不上，等于把历史数据作废。
-   搬的动作见设置页「把内置题库搬到我的账号」按钮（只有开发者看得到）。 */
+   为什么 id 必须一字不改（wiring / mcu）：
+   排位表 quiz_rank_hits.bank / quiz_rank_keys.bank 存的就是这两个名字，
+   换了 bank 名，615 道题（370+245）的排位成绩全部对不上，等于把历史数据作废。
+   搬的动作见设置页「把内置题库搬到我的账号」按钮（只有开发者看得到）。
+   2026-11-20：只留这两门课。老师截图里科目面板还挂着「教育学」「教育心理学」（带「教资」标签），
+   要求删掉 —— 从这张表里移除即可，data/questions.json、data/education.json 文件留着不加载
+   （以后要恢复就往回加一行）。这两门课已经产生过的排位成绩留在表里，不影响别的科目。 */
 const BUILTIN = [
   { id: 'wiring', name: '电气接线原理', file: 'data/wiring.json', tag: '期末理论' },
   { id: 'mcu', name: '单片机应用技术', file: 'data/mcu.json', tag: '期末理论' },
-  { id: 'psychology', name: '教育心理学', file: 'data/questions.json', tag: '教资' },
-  { id: 'education', name: '教育学', file: 'data/education.json', tag: '教资' },
 ];
 const BUILTIN_IDS = new Set(BUILTIN.map(s => s.id));
+/* 2026-11-20 老师定（方案 B）：内置题库只留**科目壳**、不再给学生刷 —— 题目都已经进题池
+   （hx_exam_qbank）了，学生只该刷老师最终发布的 ABC 卷。
+   ⚠ 数据文件不能删：考试工具和单片机工具的理论试卷题库都是从 data/mcu.json 读的
+   （考试/theory.cjs、单片机/theory.cjs），文件一清空，理论卷当场抽不到题。
+   所以这里是「读的时候返回空」，不是「删文件」。要恢复某个科目，把它从这个集合里去掉即可。 */
+const BUILTIN_EMPTY = new Set(['wiring', 'mcu']);
 /* 题型只留三种（2026-11-19）：老师现在的卷子就是单选 / 判断 / 填空，
    多选、名词解释、简答、程序分析暂时没需求，题库里的题也一并删掉了（2290 → 1858 题）。
    要恢复的话把类型加回这个数组，并把题补回 data/*.json 即可 —— 引擎层（SELF、submit、
@@ -132,7 +139,9 @@ const isTeacher = () => !!(S.me && (S.me.teacher || S.me.admin || S.me.dev));
 // 目前只有两件事只给开发者：把内置题库搬到自己的账号、删别人发布的题库。
 const isDev = () => !!(S.me && S.me.dev);
 const rec = id => S.records[id] || { status: 'new', attempts: 0, wrong: 0 };
-const inScope = (r, s) => s === 'todo' ? r.status !== 'known' : s === 'wrong' ? r.wrong > 0 && r.status !== 'known' : s === 'new' ? !r.attempts : s === 'done' ? r.attempts > 0 : r.status === 'known';
+/* status='seen' 只给填空题用（2026-11-20 起填空只看不答）：看过就不算「待掌握」，
+   也不该出现在「已记住」里 —— 它既没判对也没判错，只在「已做」里留个痕迹。 */
+const inScope = (r, s) => s === 'todo' ? r.status !== 'known' && r.status !== 'seen' : s === 'wrong' ? r.wrong > 0 && r.status !== 'known' && r.status !== 'seen' : s === 'new' ? !r.attempts : s === 'done' ? r.attempts > 0 : r.status === 'known';
 /* 附加筛选（2026-11-14 用户：刷题加「单元/章节 + 知识点」组合筛选）：
    单元 = 题目的 source（如「项目1 熟悉单片机操作环境」），知识点 = 题目的 knowledge（题池导入的题才有）。
    两个都不选（空串）= 不过滤；选了就只从命中的题里抽。 */
@@ -160,12 +169,17 @@ async function loadSubjects(withPublic = true) { // withPublic=false：先不等
     store.read('shares', []), // 别人用分享码给我的题库（2026-11-08）
   ]);
   const mineIds = new Set(mine.map(s => s.id));
-  /* 内置 4 套搬到云端之后，quiz_public 里会出现 id 就叫 wiring / mcu / psychology / education 的记录。
+  /* 内置的这几套搬到云端之后，quiz_public 里会出现 id 就叫 wiring / mcu 的记录。
      它们**不能**再以「pub-wiring」这种第二个身份出现 —— 否则科目列表里一门课变两张卡，
      排行榜也会裂成 wiring 和 pub-wiring 两份。所以这类记录直接挂到内置那张卡上（cloud 标记），
      题目来源改成云端，local 那份 data/*.json 退成兜底。 */
   const cloudBuiltin = new Map();
   for (const p of (pub || [])) if (p && BUILTIN_IDS.has(p.id)) cloudBuiltin.set(p.id, p);
+  /* 2026-11-20：教育学 / 教育心理学已经从科目面板下线（老师要求只留接线和单片机）。
+     但 quiz_public 里可能还留着当年「搬到开发者名下」的 psychology / education 两行 ——
+     不筛掉的话，它们会换个身份（「xx 发布」的公共题库）重新冒出来，等于白删。
+     这两行不影响任何东西，留在数据库里就行；真要彻底清掉，用 quiz_delete 删那两行即可。 */
+  const RETIRED = new Set(['psychology', 'education']);
   S.subjects = [
     ...BUILTIN.map(s => {
       const p = cloudBuiltin.get(s.id);
@@ -173,7 +187,7 @@ async function loadSubjects(withPublic = true) { // withPublic=false：先不等
         ? { ...s, kind: 'builtin', cloud: true, pid: p.id, owner: p.owner_name, total: p.total, targets: p.targets, class_ids: p.class_ids, teacher_ids: p.teacher_ids, mine: p.mine }
         : { ...s, kind: 'builtin' };
     }),
-    ...(pub || []).filter(p => !BUILTIN_IDS.has(p.id) && !(p.mine && mineIds.has(p.id))).map(p => ({ id: 'pub-' + p.id, pid: p.id, name: p.name, kind: 'public', owner: p.owner_name, tag: p.owner_name ? p.owner_name + ' 发布' : '老师发布', total: p.total,
+    ...(pub || []).filter(p => p && !BUILTIN_IDS.has(p.id) && !RETIRED.has(p.id) && !(p.mine && mineIds.has(p.id))).map(p => ({ id: 'pub-' + p.id, pid: p.id, name: p.name, kind: 'public', owner: p.owner_name, tag: p.owner_name ? p.owner_name + ' 发布' : '老师发布', total: p.total,
       // 下发范围（2026-11-02）：targets 是给人看的说明，class_ids 给发布面板回填复选框
       // 2026-11-08 加 teacher_ids：发给指定老师时回填那一栏
       mine: p.mine, targets: p.targets, class_ids: p.class_ids, teacher_ids: p.teacher_ids })),
@@ -195,6 +209,8 @@ async function loadSubjects(withPublic = true) { // withPublic=false：先不等
   }
 }
 async function baseOf(sub) {
+  /* 内置科目现在是空壳：科目名还在、点进去 0 题，等老师发布自己的题库（见 BUILTIN_EMPTY） */
+  if (BUILTIN_EMPTY.has(sub.id)) { S.base[sub.id] = []; return []; }
   if (S.base[sub.id]) return S.base[sub.id];
   let list = [];
   if (sub.kind === 'builtin') {
@@ -353,6 +369,17 @@ function unmark(id) { // 撤销误点的“记住”：回到标记前的状态
   S.records[id] = { ...rec(id), status: S.undo[id] || 'new' }; delete S.undo[id];
   saveRecords(); renderHero(); renderScopes(); renderCard(); renderBar();
 }
+/* 填空题「已看过」（2026-11-20）：卡片一画出来就算看过 —— 不判对错、不写 picked。
+   记录里只加 attempts（「已做」照常累计）并把 status 记成 seen：counts() 不算进掌握率/错题，
+   inScope() 里它也不再回到「待掌握」。返回 true 表示这次真的记了（调用处要补画分数卡）。
+   注意只在 status 还不是 seen 时记一次，翻回来、重画卡片都不会把 attempts 越加越多。 */
+function markSeen(id) {
+  const r = rec(id);
+  if (r.status === 'seen') return false;
+  S.records[id] = { ...r, status: 'seen', attempts: (r.attempts || 0) + 1, at: Date.now() };
+  saveRecords();
+  return true;
+}
 
 // ---------- 渲染 ----------
 function renderNav() {
@@ -395,15 +422,25 @@ function paintDemoBar() {
     + '<b>作答、错题、排位都不会被记录</b>。看完点左上角「返回」回首页，再点一次「刷题」就回到你自己的视角。</span>';
   document.querySelector('main').prepend(el);
 }
+/* 掌握率的分母（2026-11-20）：填空题只「看」不作答，不进掌握率、也不算错题 ——
+   否则老师一进「单片机」看到几百道填空，掌握率当场被拉低一大截。
+   「已做」照常累计（填空看到就算做过），所以另外给 all（全部题数）当已做的分母。 */
 function counts(list = S.questions) {
-  let known = 0, wrong = 0, done = 0;
-  for (const q of list) { const r = rec(q.id); if (r.status === 'known') known++; if (r.wrong > 0 && r.status !== 'known') wrong++; if (r.attempts) done++; }
-  return { total: list.length, known, wrong, done };
+  let known = 0, wrong = 0, done = 0, total = 0;
+  for (const q of list) {
+    const r = rec(q.id);
+    if (r.attempts) done++;
+    if (q.type === 'fill') continue;
+    total++;
+    if (r.status === 'known') known++;
+    if (r.wrong > 0 && r.status !== 'known') wrong++;
+  }
+  return { total, all: list.length, known, wrong, done };
 }
 function renderHero() {
   const c = counts(), pct = c.total ? Math.round(c.known / c.total * 100) : 0;
   $('hero').innerHTML = `<h1>${esc(S.subject.name)}</h1><div class="meter"><i style="width:${pct}%"></i></div>
-    <div class="stats"><span><b>${pct}%</b>已掌握</span><span><b>${c.done}</b>/ ${c.total} 已做</span><span><b>${c.wrong}</b>错题</span></div>`;
+    <div class="stats"><span><b>${pct}%</b>已掌握</span><span><b>${c.done}</b>/ ${c.all} 已做</span><span><b>${c.wrong}</b>错题</span></div>`;
 }
 function renderScopes() {
   const ofType = S.questions.filter(q => q.type === S.type);
@@ -497,7 +534,10 @@ function renderCard() {
     if ($('toWrong')) $('toWrong').onclick = () => { S.scope = 'wrong'; savePrefs(); buildQueue(false); renderPractice(); };
     return;
   }
-  const picked = S.picked[q.id], r = rec(q.id), ai = S.ai[q.id];
+  const picked = S.picked[q.id];
+  // 填空：画出来就算「看过」（见 markSeen），稍后补画一次分数卡，已做数当帧就对
+  const seenNow = q.type === 'fill' && markSeen(q.id);
+  const r = rec(q.id), ai = S.ai[q.id];
   // 按打乱后的顺序显示，字母标签按“显示位置”重新编（第 1 个就是 A）：这样答案落在哪个字母上不再固定，
   // 但判分和记录仍用 o.key（题库里的原字母），所以已答记录、排行榜、AI 解析都照旧对得上。
   const view = showOpts(q), letter = i => 'ABCDEF'[i] || String(i + 1);
@@ -508,18 +548,35 @@ function renderCard() {
     const why = ai && ai.data && ai.data[o.key] ? `<small class="why">${esc(ai.data[o.key])}</small>` : '';
     return `<button type="button" class="opt ${cls}" data-k="${esc(o.key)}" ${picked ? 'disabled' : ''}><i>${q.type === 'judgment' ? (o.key === 'T' ? '✓' : '✗') : letter(i)}</i><span>${o.fig ? `<span style="display:block">${figSvg(o.fig)}</span>` : ''}${esc(o.text)}${why}</span></button>`;
   }).join('');
-  const self = SELF.has(q.type), typed = S.typed[q.id] || [];
+  const self = SELF.has(q.type);
+  /* 填空题改成「直接给答案」（2026-11-20）。老师原话：「刷题填空主要是看为主，不需要提交答案，
+     用颜色把答案直接填入即可」。所以：
+       · 不再画输入框、不再有「提交答案」、不判对错；
+       · 第 k 个 ____ 直接填 q.answer[k]：replace 只扫原文一遍、不会重扫填进去的答案，
+         所以计数器按出现顺序取就够（答案文本里本来也没有 ____）；
+       · 答案不足时空位显示「（缺答案）」，别留白让人以为是漏填；
+       · 卡片一出现就记 status='seen'（见 markSeen），不进错题、不进掌握率分母。 */
   let stem = esc(q.stem);
-  if (q.type === 'fill') { let n = 0; stem = stem.replace(/____/g, () => { const k = n++, v = typed[k] || ''; return `<input class="blank${picked && typed.length ? (blankOk(q.answer[k], v) ? ' right' : ' wrong') : ''}" data-n="${k}" value="${esc(v)}" ${picked ? 'disabled' : ''} autocomplete="off" aria-label="第 ${k + 1} 空" style="width:${Math.min(12, Math.max(4, String(q.answer[k]).replace(/[（(].*$/, '').length + 2))}em">`; }); }
+  if (q.type === 'fill') {
+    const ans = Array.isArray(q.answer) ? q.answer : [];
+    let k = 0;
+    stem = stem.replace(/____/g, () => {
+      const n = k++, a = ans[n];
+      const txt = a == null || String(a).trim() === '' ? '（缺答案）' : String(a);
+      return `<b class="fill-ans" title="第 ${n + 1} 空">${esc(txt)}</b>`;
+    });
+  }
   const extra = (q.fig ? `<figure style="margin:4px 0 12px;display:flex;justify-content:center;padding:10px;border-radius:12px;background:rgba(127,127,127,.08)">${figSvg(q.fig, true)}</figure>` : '') + (q.code ? `<pre class="code">${esc(q.code)}</pre>` : '') + (q.sub ? `<ol class="subs">${q.sub.map(x => `<li>${esc(x)}</li>`).join('')}</ol>` : '');
   const ref = () => `<div class="ref">${esc(q.answer[0])}</div>`;
   let fb = '';
   if (self && !picked) fb = S.shown[q.id] ? `<div class="fb self"><b>参考答案</b>${ref()}<div class="row"><button class="btn ghost" type="button" id="noBtn">没答对</button><button class="btn okb" type="button" id="okBtn">答对了</button></div></div>`
     : '<button class="btn submit" type="button" id="showBtn">看参考答案</button>';
-  if (picked && (self || q.type === 'fill')) {
-    const ok = isRight(q, picked), ans = q.answer.map((a, n) => (q.answer.length > 1 ? `第 ${n + 1} 空 ` : '') + a).join('；');
-    fb = `<div class="fb ${ok ? 'ok' : 'bad'}"><b>${self ? (ok ? '答对了' : '没答对') : ok ? '回答正确' : '答案是 ' + esc(ans)}</b>${self ? ref() : ''}${q.type === 'fill' && !ok && typed.length ? '<div class="ai"><button class="btn sm ghost" type="button" id="ovBtn">意思对，算我对</button></div>' : ''}</div>`;
-  } else if (picked) {
+  /* 填空不再走「作答→判对错」那条路（答案已经直接铺在题干里），所以这里只剩主观题自判。
+     老会话里可能还留着 fill 的 picked，那时也按「看答案」处理，不再画对错反馈。 */
+  if (picked && self) {
+    const ok = isRight(q, picked);
+    fb = `<div class="fb ${ok ? 'ok' : 'bad'}"><b>${ok ? '答对了' : '没答对'}</b>${ref()}</div>`;
+  } else if (picked && q.type !== 'fill') {
     const ok = isRight(q, picked), ans = q.type === 'judgment' ? (q.answer[0] === 'T' ? '正确' : '错误') : q.answer.join('');
     // 首页「AI 设置」配好了就给「✦ AI 逐项解析」；没配就在原位给一句提示 + 去 /ai/ 的链接（离线版只提示没有 AI）。
     const aiPart = !ai ? (aiReady() ? '<button class="btn sm ghost" type="button" id="aiBtn">✦ AI 逐项解析</button>' : noAiHint())
@@ -533,21 +590,22 @@ function renderCard() {
        老师补充（老版「说人话写学习卡」留下的 study）/ AI 解析 / 题库自带（导入 JSON 里的 tip）
        新版存的是「给 AI 的要求」（q.spec），学生看不到成品文案，只有 AI 现场解析的结果
      「题库复核」原来单独一行灰字，现在并进卡片底部的脚注 —— 它说的是题库准不准，不是知识点。
-     ── 为什么 !picked 就整块不画 ──
+     ── 为什么没作答就整块不画 ──
      口诀往往就是把答案编进去了（「写 1 关管子」= 选 B），答题前摆出来等于送分。
-     和参考答案、解析一样，都是答完才给。 */
+     和参考答案、解析一样，都是答完才给。填空例外：答案本来就摊在题干里，学习卡跟着一起看。 */
   const aiDone = ai && ai.state === 'done' && ai.data;
   const mine = q.study && typeof q.study === 'object' ? q.study : null;
-  const cards = !picked ? ''
+  const cards = !picked && q.type !== 'fill' ? ''
     : (mine ? studyCard({ _lead: mine.lead, _steps: mine.steps, _table: mine.table, _tip: mine.tip, _warn: mine.warn }, '老师补充') : '')
       + (aiDone ? studyCard({ ...ai.data, _note: /^一致/.test(ai.data._review || '') ? '' : ai.data._review }, 'AI 解析') : '')
       + (String(q.tip || '').trim() ? studyCard({ _tip: String(q.tip).trim() }, '题库自带') : '');
   const tag = (r.wrong ? `<span style="color:var(--bad)">错过 ${r.wrong} 次</span>` : r.status === 'known' ? '<span style="color:var(--ok)">已记住</span>' : '')
     + (r.status === 'known' && q.id in S.undo ? '<button class="btn sm ghost" type="button" id="undoBtn" style="height:26px">撤销记住</button>' : '');
   const hint = picked ? `<div class="hint">左滑或 <kbd>${esc(keyOf('know'))}</kbd> 记住 · 右滑或 <kbd>${esc(keyOf('again'))}</kbd> 再练</div>` : '';
+  const fillTip = q.type === 'fill' ? '<p class="fill-tip">填空题以看为主，答案已直接标在空里（不判对错，也不计入掌握率）</p>' : '';
   card.innerHTML = `<div class="qhead"><span class="qtype">${typeName(q.type)}</span>${q.sec ? `<span class="qsec" title="教材小节">${esc(q.sec)}${q.secTitle ? ' ' + esc(q.secTitle) : ''}</span>` : ''}<span>${S.i + 1} / ${S.queue.length}</span><span class="sp"></span>${tag}</div>
-    <h2 class="stem">${stem}</h2>${extra}${opts ? `<div class="opts">${opts}</div>` : ''}
-    ${q.type === 'multiple' && !picked ? `<button class="btn submit" type="button" id="submitBtn" ${S.sel.size ? '' : 'disabled'}>提交答案${S.sel.size ? `（已选 ${[...S.sel].sort().join('')}）` : ''}</button>` : ''}${q.type === 'fill' && !picked ? '<button class="btn submit" type="button" id="submitBtn">提交答案</button>' : ''}${fb}${cards}${hint}
+    <h2 class="stem">${stem}</h2>${extra}${opts ? `<div class="opts">${opts}</div>` : ''}${fillTip}
+    ${q.type === 'multiple' && !picked ? `<button class="btn submit" type="button" id="submitBtn" ${S.sel.size ? '' : 'disabled'}>提交答案${S.sel.size ? `（已选 ${[...S.sel].sort().join('')}）` : ''}</button>` : ''}${fb}${cards}${hint}
     <div class="veil" aria-hidden="true"><i></i></div>`;
   card.classList.toggle('drag', !!picked);
   // 给“夜夜题库AI伴侣”浏览器扩展（智慧职教AI伴学项目）读题：题型、题干、选项；答完才带答案
@@ -562,6 +620,8 @@ function renderCard() {
   if ($('ovBtn')) $('ovBtn').onclick = override;
   if ($('aiBtn')) $('aiBtn').onclick = () => explain(q);
   if ($('undoBtn')) $('undoBtn').onclick = () => unmark(q.id);
+  // 这一帧刚把这道填空记成「已看过」：分数卡和范围上的数字跟着补画一次（它们在这之前就算过了）
+  if (seenNow) { renderHero(); renderScopes(); }
 }
 function renderBar() {
   const q = cur(), picked = q && S.picked[q.id];
@@ -864,10 +924,18 @@ if ($('knSel')) $('knSel').onchange = () => { S.kn = $('knSel').value; savePrefs
 // ---------- 概览 ----------
 function renderOverview() {
   const c = counts(), wrong = S.questions.filter(q => inScope(rec(q.id), 'wrong')).sort((a, b) => rec(b.id).wrong - rec(a.id).wrong);
-  let att = 0, bad = 0; for (const r of Object.values(S.records)) { att += r.attempts || 0; bad += r.wrong || 0; }
-  const bars = TYPES.map(([t, n]) => { const l = S.questions.filter(q => q.type === t); if (!l.length) return ''; const k = counts(l); return `<div><span>${n}</span><div class="meter"><i style="width:${k.known / k.total * 100}%"></i></div><small class="muted">${k.known} / ${k.total}</small></div>`; }).join('');
+  // 正确率只算有对错的题：填空那点「看过」的次数算进去会把正确率虚高
+  let att = 0, bad = 0; for (const q of S.questions) { if (q.type === 'fill') continue; const r = rec(q.id); att += r.attempts || 0; bad += r.wrong || 0; }
+  // 填空只有「看过」这个状态，没有掌握率可言（counts 里 total=0），单列一行说明，别画成 0/0 的空条
+  const bars = TYPES.map(([t, n]) => {
+    const l = S.questions.filter(q => q.type === t); if (!l.length) return '';
+    const k = counts(l);
+    return t === 'fill'
+      ? `<div><span>${n}</span><small class="muted">以看为主，${k.done} 题已看过，不计掌握率</small></div>`
+      : `<div><span>${n}</span><div class="meter"><i style="width:${k.total ? k.known / k.total * 100 : 0}%"></i></div><small class="muted">${k.known} / ${k.total}</small></div>`;
+  }).join('');
   $('v-overview').innerHTML = `<div class="hero glow"><h1>${esc(S.subject.name)}</h1><div class="meter"><i style="width:${c.total ? c.known / c.total * 100 : 0}%"></i></div>
-      <div class="stats"><span><b>${c.known}</b>已记住</span><span><b>${c.done}</b>/ ${c.total} 已做</span><span><b>${att ? Math.round((att - bad) / att * 100) : 0}%</b>正确率</span><span><b>${att}</b>次作答</span></div></div>
+      <div class="stats"><span><b>${c.known}</b>已记住</span><span><b>${c.done}</b>/ ${c.all} 已做</span><span><b>${att ? Math.round((att - bad) / att * 100) : 0}%</b>正确率</span><span><b>${att}</b>次作答</span></div></div>
     <div class="panel"><h3>各题型掌握</h3><div class="bars">${bars}</div></div>
     <div class="panel"><h3>错题${wrong.length ? ` <small class="muted">${wrong.length}</small>` : ''}</h3>${wrong.length ? `<div class="wl">${wrong.slice(0, 50).map(q => `<button type="button" data-id="${esc(q.id)}"><small>错 ${rec(q.id).wrong}</small>${esc(q.stem)}</button>`).join('')}</div>
       <div class="row" style="margin-top:12px"><button class="btn sm" type="button" id="drill">刷错题</button></div>` : '<p class="muted">还没有错题。</p>'}</div>
@@ -1384,6 +1452,18 @@ function renderBank() {
   const pubBtns2 = sub.kind === 'builtin' && !sub.cloud && isDev()
     ? '<button class="btn sm" type="button" id="moveBtn">搬到我的账号</button>'
     : pubBtns;
+  /* 「删除题库」（2026-11-20，老师原话「用户好像不能主动清理刷题题库」）。
+     只给「云端的、自己名下的」：
+       · kind=public 且 mine —— 自己发布到公共题库那一份（pid 才是 quiz_public 的 id）；
+       · kind=mine 且 published —— 自己建的科目，已经发不过去云端，云端那份 id 就是科目 id。
+     内置课程题库（builtin，不管搬没搬到云端）一律置灰：它跟着代码发布，删了学生会掉回 data/*.json，
+     而且这门课的排位成绩是按题库名累计的，删了纯属添乱 —— 按钮留着，用 title 说清为什么点不动。
+     别人发布的、分享码来的、只在本地没上过云端的，都不给这个按钮（前者删不了，后者没得删）。 */
+  const canDelBank = !DEMO && ownIt && (sub.kind === 'public' || (sub.kind === 'mine' && sub.published));
+  const delBankBtn = DEMO ? ''
+    : canDelBank ? '<button class="btn sm danger" type="button" id="delBankBtn">删除题库</button>'
+      : sub.kind === 'builtin' ? '<button class="btn sm" type="button" id="delBankBtn" disabled title="内置题库随代码发布，删不掉；不想要就从科目列表里隐藏">删除题库</button>'
+        : '';
   /* 转发（2026-11-08）：别人发给我的题，我能复制一份到自己名下，再发给我自己的班。
      条件：是老师 + 这套题不是我发的 + 是「发布」类（builtin 云端 / public）。
      我的科目、分享码来的不用转发 —— 那些本来就在我自己名下。 */
@@ -1413,7 +1493,7 @@ function renderBank() {
       <dl class="kv"><dt>来源</dt><dd>${srcText}</dd>${base.length ? `<dt>课程题</dt><dd>${base.length} 题</dd>` : ''}<dt>我导入的</dt><dd>${S.bank.length} 题</dd>${isTeacher() && (sub.published || sub.kind === 'public') && sub.targets ? `<dt>下发范围</dt><dd>${esc(sub.targets)}</dd>` : ''}</dl>
       ${sub.kind === 'builtin' && !sub.cloud ? '<p class="muted" style="margin:8px 0 0">这套题现在是随代码发布的本地文件，改不了。搬到你的账号之后就能在云端改、也能发布给班级。</p>' : ''}
       ${sentToMe}
-      <div class="f" style="margin-top:12px"><div class="line"><button class="btn sm ghost" type="button" id="expBtn">导出 JSON</button>${S.questions.length && !DEMO ? '<button class="btn sm ghost" type="button" id="shareBtn">生成分享码</button>' : ''}${dupBtn}${S.bank.length && !DEMO ? '<button class="btn sm ghost" type="button" id="clrBtn">清空我导入的</button>' : ''}${!DEMO && sub.kind === 'mine' ? '<button class="btn sm ghost" type="button" id="renBtn">改名</button><button class="btn sm danger" type="button" id="delBtn">删除科目</button>' : !DEMO && sub.kind === 'shared' ? '<button class="btn sm danger" type="button" id="delBtn">移出我的列表</button>' : ''}${fwdBtn}${pubBtns2}</div>${dupNote}${DEMO ? '<p class="muted" style="margin:8px 0 0;font-size:12px">演示视角只读：生成分享码、新建科目、导入、改名、删除都关掉了（这些都会写进你自己的账号）。</p>' : ''}</div></div>
+      <div class="f" style="margin-top:12px"><div class="line"><button class="btn sm ghost" type="button" id="expBtn">导出 JSON</button>${S.questions.length && !DEMO ? '<button class="btn sm ghost" type="button" id="shareBtn">生成分享码</button>' : ''}${dupBtn}${S.bank.length && !DEMO ? '<button class="btn sm ghost" type="button" id="clrBtn">清空我导入的</button>' : ''}${!DEMO && sub.kind === 'mine' ? '<button class="btn sm ghost" type="button" id="renBtn">改名</button><button class="btn sm danger" type="button" id="delBtn">删除科目</button>' : !DEMO && sub.kind === 'shared' ? '<button class="btn sm danger" type="button" id="delBtn">移出我的列表</button>' : ''}${fwdBtn}${pubBtns2}${delBankBtn}</div>${dupNote}${DEMO ? '<p class="muted" style="margin:8px 0 0;font-size:12px">演示视角只读：生成分享码、新建科目、导入、改名、删除都关掉了（这些都会写进你自己的账号）。</p>' : ''}</div></div>
     ${DEMO ? '<div class="panel"><h3>新建科目</h3><p class="muted">演示视角只读：新建 / 导入 / 删除题库都不会发生。</p></div>'
       : `<div class="panel"><h3>新建科目</h3><div class="f"><div class="line"><input id="newName" maxlength="30" placeholder="科目名称" style="flex:1"><button class="btn sm" type="button" id="newBtn">新建</button></div></div></div>`}
     ${qpoolPanel()}
@@ -1482,6 +1562,33 @@ function renderBank() {
       toast(err ? (shared ? '移出失败：' : '删除失败：') + err : shared ? '已移出，这个码还能再加回来' : '已删除');
     });
   });
+  /* 删除题库（2026-11-20）：老师原话「用户好像不能主动清理刷题题库」。
+     删的是云端的这一份（quiz_delete），所以只在「云端的、自己名下的」那颗按钮上挂事件；
+     内置题库那颗是 disabled，浏览器根本不会触发。
+     弹窗要说清三件事，不然老师以为连成绩一起清了：学生看不到 / 记录和排行榜保留 / 分享码照旧。 */
+  if ($('delBankBtn') && !$('delBankBtn').disabled) $('delBankBtn').onclick = async e => {
+    const btn = e.currentTarget, pid = sub.pid || sub.id;
+    const ask = window.hxConfirm
+      ? await window.hxConfirm(`删除云端题库「${sub.name}」？\n\n删掉之后，学生那边就看不到这套题了。\n学生的答题记录和排行榜不会删（成绩继续累计）。\n已经发出去的分享码照旧能用（存的是题目快照）。\n\n删了找不回来，想留底先点「导出 JSON」。`,
+        { title: '删除题库', okText: '删除', cancelText: '不删' })
+      : confirm(`删除云端题库「${sub.name}」？学生那边就看不到了；答题记录和排行榜不删。`);
+    if (!ask) return;
+    const tok = busyBegin(btn, '正在删除…');
+    let err = '';
+    try {
+      await store.del(pid);
+      S.base = {}; // 云端这份没了，重新去取（删失败时也不会用到脏缓存）
+      // 自己建的科目：云端删了，本机那份要标记成「没发布」，否则按钮还挂着「取消发布」「删除题库」
+      if (sub.kind === 'mine') await saveMine(m => m.map(s => s.id === sub.id ? { ...s, published: false } : s));
+      else await loadSubjects();
+      const next = S.subjects.some(s => s.id === sub.id) ? sub.id : BUILTIN[0].id;
+      S.view = 'practice';
+      await openSubject(next);
+    } catch (e2) { err = (e2 && e2.message) || String(e2); }
+    busyEnd(tok, err);
+    if (err) toast('删除失败：' + err);
+    else toast('已删除云端题库；学生那边不再显示，答题记录和排行榜都保留');
+  };
   on('newBtn', async e => {
     const btn = e.currentTarget;
     const n = $('newName').value.trim(); if (!n) return $('newName').focus();
@@ -1506,9 +1613,9 @@ function renderBank() {
   on('pubBtn', () => openPublishSheet(() => { renderBank(); loadSubjects().then(paintSubj); }));
   /* 把内置的那套搬到开发者账号（只有开发者看得到这个按钮）。
      用户原话：「内置的转换成开发者的权限 算我上传的 搬我那里 这个我同意」。
-     搬完 quiz_public 里就有一行 id = wiring/mcu/psychology/education、owner = 他自己的记录；
+     搬完 quiz_public 里就有一行 id = wiring/mcu、owner = 他自己的记录；
      前端 baseOf 会优先读它，data/*.json 退成没网时的兜底。题目 id 一个不动，
-     所以 1896 题的历史排位成绩照样算在这门课头上。 */
+     所以 615 题的历史排位成绩照样算在这门课头上。 */
   on('moveBtn', e => {
     const btn = e.currentTarget, n = S.questions.length;
     sure(btn, `把「${sub.name}」${n} 题搬到你的账号？搬完能在云端改、也能发布给班级。`, async () => {

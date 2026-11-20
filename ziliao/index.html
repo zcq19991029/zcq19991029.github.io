@@ -1035,14 +1035,29 @@ function normalizeQuestions(raw, subject, extra) {
     const code = String((item && (item.code || item.代码 || item.程序)) || '').trim();
     const sub = arr(item && (item.sub || item.小问 || item.问题));
     const knowledge = String((item && (item.knowledge || item.知识点)) || '').trim();
-    /* 题干级的符号图 id（AI 按提示词的「符号表」写），空字符串当没写。 */
-    const fig = String((item && item.fig) || '').trim();
+    /* 题干级的符号图 id（AI 按提示词的「符号表」写），空字符串当没写。
+       2026-11-20：符号库里没有的 id 直接当没给（认不出的图不如没有），
+       下面「提了图就必须有图」那条会把它按「没图」处理。 */
+    const figRaw = String((item && item.fig) || '').trim();
+    const fig = figRaw && figKnown(figRaw) ? figRaw : '';
     /* 章节号 ch：AI 输出的数字（或「第N章」这种），认不出是 0/null。只留整数，别的当没有。 */
     const chRaw = item && (item.ch != null ? item.ch : item.章节);
     let ch = null;
     if (chRaw != null && chRaw !== '') {
       const m = String(chRaw).match(/\d+/);
       if (m) { const n = +m[0]; if (n > 0) ch = n; }
+    }
+    /* 小节（2026-11-20）：有目录时以块上的 sec 为准（aiGenerate 注入 __sec），
+       这里只是把模型万一写了的 sec / secTitle 收下来，给「没有目录的老资料」兜个底。 */
+    const secRaw = String((item && (item.sec != null ? item.sec : item.小节)) || '').trim();
+    const sec = /^[0-9]+(\.[0-9]+)*$/.test(secRaw) ? secRaw : null;
+    const secTitleRaw = String((item && (item.secTitle != null ? item.secTitle : item.节名)) || '').trim();
+    /* 「要么有图，要么别提图」（2026-11-20）：题干/选项里写了「如图」「下图」「图 1.23」
+       却没有可用的 fig —— 这道题直接不收。留着半截的题学生根本没法作答
+       （老师截图里的判断题：「在图 1.23 电路中……（  ）」既没图也不该出判断题）。 */
+    const figRef = figRefOf(stem, options);
+    if (figRef && !fig) {
+      return reject('引用了「' + figRef + '」却没给图：要么补上 fig，要么把这句话改成文字描述');
     }
     questions.push({
       id: subject + '-ai-' + hximpUid(),
@@ -1051,6 +1066,8 @@ function normalizeQuestions(raw, subject, extra) {
       explanation: String((item && (item.explanation || item.解析)) || '').trim(),
       ...(fig ? { fig } : {}),
       ...(ch != null ? { ch } : {}),
+      ...(sec ? { sec } : {}),
+      ...(secTitleRaw ? { secTitle: secTitleRaw.slice(0, 60) } : {}),
       ...(code ? { code } : {}),
       ...(sub.length ? { sub } : {}),
       ...(knowledge ? { knowledge } : {}),
@@ -1070,6 +1087,189 @@ function chunks(text, size = 4200, overlap = 450) {
     if (start + size >= clean.length) break;
   }
   return out;
+}
+
+/* ── 目录（章 / 节 / 知识点）：导入时做一次，出题时继承（2026-11-20）────────────
+   老师原话：「我们在导入材料的时候就把章节小节和其知识点做好，后续就算有题型未识别，
+   我们不就可以识别该知识点更属于哪个章节从而归纳了吗，我们要在导入材料的时候做好这些数据处理。」
+   现状：章节号 ch 全靠出题时让 AI「自己认」—— 电气 451 道题里 132 道认成空，按章组卷抽不到。
+   根子是结构信息在导入阶段就丢了。这里补四步：
+     A. buildToc：一次 AI 调用抽目录树，只喂「开头 + 全文里像标题的行」，不喂整本（省额度）；
+     B. tocFromText：AI 失败 / 返回空 / 超时就按「项目一 / 第1章 / 1.1 ×××」这类标题行
+        用正则拼一份最小目录 —— 绝不因为 AI 失败挡住导入；
+     C. chunkMeta：切块后按目录给每块打 ch / sec / secTitle（一块跨节取命中最多的那节，
+        一块完全没命中就沿用上一块，第一块没命中留空，不瞎猜）；
+     D. genPrompt：有 ch 时把「这一段的章节是……」写死进提示词，ch 由块继承，不再让模型猜。 */
+
+const HXIMP_TOC_HEAD = 2600;      // 目录/前言基本都在开头这 2600 字里
+const HXIMP_TOC_LINES = 240;      // 再补最多 240 条「像标题」的行
+const HXIMP_TOC_CHARS = 14000;    // 喂给模型的总字数上限
+const HXIMP_TOC_TIMEOUT = 60000;  // 目录识别最多等这么久，超时直接走正则兜底
+
+/* 中文数字 → 整数（「项目一」「第十二章」）。认不出返回 0。 */
+const HXIMP_CN = { 一: 1, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9 };
+function tocNum(s) {
+  const t = String(s == null ? '' : s).trim();
+  if (/^\d{1,3}$/.test(t)) return +t;
+  if (!t || !/^[一二三四五六七八九十]{1,3}$/.test(t)) return 0;
+  if (t === '十') return 10;
+  const m = t.match(/^([一二三四五六七八九])?十([一二三四五六七八九])?$/);
+  if (m) return (m[1] ? HXIMP_CN[m[1]] : 1) * 10 + (m[2] ? HXIMP_CN[m[2]] : 0);
+  return HXIMP_CN[t] || 0;
+}
+
+/* 一行像不像大章标题：「第3章 ××」「项目一 常用低压电器」「单元 2 ××」「模块4」。 */
+const HXIMP_H_CH = /^\s*(?:第\s*([0-9]{1,2}|[一二三四五六七八九十]{1,3})\s*(?:章|项目|单元|篇|讲|部分)|(项目|单元|课题|模块)\s*([0-9]{1,2}|[一二三四五六七八九十]{1,3}))\s*[、.:：．]?\s*(.*)$/;
+/* 一行像不像小节标题：「1.1 按钮开关」「3.2.1 安装工艺」。 */
+const HXIMP_H_SEC = /^\s*(\d{1,2})[.．](\d{1,2})(?:[.．](\d{1,2}))?\s*[、.:：．]?\s*(.{0,40})$/;
+
+const tocClean = s => String(s == null ? '' : s).replace(/\s+/g, ' ').replace(/^[、.:：．\-—\s]+/, '').trim();
+
+/* 正则兜底：只靠标题行拼最小目录。ch 按出现顺序连续编号（原文缺章也不跳号）。 */
+function tocFromText(text) {
+  const out = [];
+  let cur = null;
+  for (const line of String(text || '').replace(/\r/g, '').split('\n')) {
+    const s = tocClean(line);
+    if (!s || s.length > 60) continue;
+    let m = s.match(HXIMP_H_CH);
+    if (m) {
+      const n = tocNum(m[1] || m[3]);
+      /* 章标题用整行（「项目一 常用低压电器」「第1章 概述」都保留原文编号，题池里好核对），
+         只把后面带的小节号部分留给下面 HXIMP_H_SEC 认。 */
+      const title = s.slice(0, 60);
+      if (!n && !title) continue;
+      cur = { ch: out.length + 1, title: title || ('第 ' + (out.length + 1) + ' 章'), secs: [] };
+      out.push(cur);
+      continue;
+    }
+    m = s.match(HXIMP_H_SEC);
+    if (m) {
+      const no = m[1] + '.' + m[2] + (m[3] ? '.' + m[3] : '');
+      const title = tocClean(m[4]).slice(0, 60);
+      /* 「1.5 倍」「1.2 米」这种是正文里的数字，不是小节标题：没有文字标题的一律不当标题 */
+      if (!title || /^\d/.test(title)) continue;
+      if (!cur) { cur = { ch: out.length + 1, title: '第 ' + (out.length + 1) + ' 章', secs: [] }; out.push(cur); }
+      if (!cur.secs.some(x => x.no === no)) cur.secs.push({ no, title, kn: [] });
+    }
+  }
+  return out;
+}
+
+/* 给模型看的材料：开头 2600 字 + 全文里像标题的行（书正文太占额度，标题行才带结构）。 */
+function tocDigest(text) {
+  const t = String(text || '').replace(/\r/g, '');
+  const head = t.slice(0, HXIMP_TOC_HEAD);
+  const picked = [];
+  for (const line of t.split('\n')) {
+    if (picked.length >= HXIMP_TOC_LINES) break;
+    const s = tocClean(line);
+    if (!s || s.length > 60) continue;
+    if (HXIMP_H_CH.test(s) || HXIMP_H_SEC.test(s)) picked.push(s);
+  }
+  return (head + '\n……（以下是全文里像标题的行）……\n' + picked.join('\n')).slice(0, HXIMP_TOC_CHARS);
+}
+
+function tocPrompt(digest) {
+  return '下面是一本教材的开头部分，以及全文里「像标题」的行。请整理出它的目录结构，只输出 JSON：\n'
+    + '{"toc":[{"ch":1,"title":"项目一 常用低压电器","secs":[{"no":"1.1","title":"按钮开关","kn":["按钮的结构","常开常闭触点"]}]}]}\n'
+    + '要求：\n'
+    + '1. ch 从 1 开始**连续**编号（第几个大章/项目/单元就写几）；title 写大章原标题（如「项目一 常用低压电器」）；\n'
+    + '2. sec.no 用 1.1 / 1.2 这种编号（三级就 1.1.1），title 写小节原标题；\n'
+    + '3. 每节给 1～3 个知识点短标签（kn，每个不超过 12 个字，必须来自原文，不要编）；\n'
+    + '4. 原文没有明确的章节结构（只是一篇讲义、一页说明、一张表）就返回 {"toc":[]}，不要硬凑、不要编章节；\n'
+    + '5. 只输出 JSON 对象，不要解释文字。\n'
+    + '材料：\n' + String(digest || '');
+}
+
+/* 规整模型给的目录：ch 一律按出现顺序连续编号（不信模型自己编的号），
+   sec.no 不合法就给「ch.序号」，kn 去重、最多 3 个、每个最多 16 字。 */
+function parseToc(raw) {
+  const arr = Array.isArray(raw) ? raw : (raw && Array.isArray(raw.toc) ? raw.toc : null);
+  if (!arr) return [];
+  const out = [];
+  arr.forEach(c => {
+    const title = tocClean(c && (c.title || c.name || c.ch_title)).slice(0, 60);
+    const ch = out.length + 1;
+    const secsIn = Array.isArray(c && c.secs) ? c.secs : (Array.isArray(c && c.sections) ? c.sections : []);
+    const secs = [];
+    secsIn.forEach((s, k) => {
+      const st = tocClean(s && (s.title || s.name || s.sec_title)).slice(0, 60);
+      const noRaw = String((s && (s.no || s.sec || s.id)) || '').trim();
+      const no = /^\d{1,2}(\.\d{1,2}){0,2}$/.test(noRaw) ? noRaw : (ch + '.' + (k + 1));
+      const kn = (Array.isArray(s && s.kn) ? s.kn : (Array.isArray(s && s.knowledge) ? s.knowledge : []))
+        .map(x => tocClean(x).slice(0, 16)).filter(Boolean);
+      if (!st && !kn.length) return;
+      if (secs.some(x => x.no === no)) return;
+      secs.push({ no, title: st, kn: [...new Set(kn)].slice(0, 3) });
+    });
+    if (!title && !secs.length) return;
+    out.push({ ch, title: title || ('第 ' + ch + ' 章'), secs });
+  });
+  out.forEach((c, i) => { c.ch = i + 1; });   // 上面有 return 会跳号，这里再连续化一次
+  return out;
+}
+
+/* 抽目录：先 AI（一次、只喂 digest），抽不出来或超时就走正则兜底。
+   **永远不抛**——目录只是锦上添花，不能因为它挡住导入。 */
+async function buildToc(text, opts) {
+  const o = opts || {};
+  const src = String(text || '');
+  if (!src.trim()) return [];
+  let timer = null;
+  try {
+    const ask = hximpChat([
+      { role: 'system', content: '你是教材结构整理助手。只返回合法 JSON。' },
+      { role: 'user', content: tocPrompt(tocDigest(src)) }
+    ], { json: true, thinkLevel: o.thinkLevel || 'quick' });
+    const resp = await Promise.race([ask, new Promise((_, rej) => {
+      timer = setTimeout(() => rej(new Error('目录识别超时')), Math.max(4000, +o.timeout || HXIMP_TOC_TIMEOUT));
+    })]);
+    const toc = parseToc(parseJson(String(resp == null ? '' : resp)));
+    if (toc.length) return toc;
+  } catch (e) {
+    /* AI 挂了 / 返回垃圾 / 超时 —— 都落到下面的正则兜底，不往上报错 */
+  } finally { if (timer) clearTimeout(timer); }
+  return tocFromText(src);
+}
+
+/* 切块 → 每块的章节归属。规则：
+     ① 对每块 body 数「节标题文本」出现的次数（标题太短就数「no + 标题」），
+        命中哪节最多就归哪节（一块跨节很正常）；
+     ② 一块一次都没命中：沿用上一块的章节（文档是顺序的）；
+     ③ 第一块就没命中：留空（null），不瞎猜。 */
+function chunkMeta(pieces, toc) {
+  const list = [];
+  (Array.isArray(toc) ? toc : []).forEach(c => {
+    (c.secs || []).forEach(s => {
+      const st = tocClean(s && s.title);
+      list.push({
+        ch: +c.ch || 0, chTitle: tocClean(c.title),
+        sec: String((s && s.no) || ''), secTitle: st, kn: (s && s.kn) || [],
+        needle: st.length >= 3 ? st : ((s && s.no ? s.no + ' ' : '') + st).trim()
+      });
+    });
+  });
+  const EMPTY = () => ({ ch: null, chTitle: '', sec: null, secTitle: '', kn: [] });
+  if (!list.length) return (Array.isArray(pieces) ? pieces : []).map(EMPTY);
+  const countOf = (hay, needle) => {
+    if (!needle || needle.length < 2) return 0;
+    let n = 0, at = 0;
+    while ((at = hay.indexOf(needle, at)) >= 0) { n++; at += needle.length; }
+    return n;
+  };
+  let prev = null;
+  const pick = k => ({ ch: k.ch, chTitle: k.chTitle, sec: k.sec, secTitle: k.secTitle, kn: k.kn });
+  return (Array.isArray(pieces) ? pieces : []).map(body => {
+    const b = String(body == null ? '' : body);
+    let best = null, bestN = 0;
+    for (const k of list) {
+      const n = countOf(b, k.needle);
+      if (n > bestN) { bestN = n; best = k; }    // 打平取先出现的（书的顺序）
+    }
+    if (best) { prev = best; return pick(best); }
+    return prev ? pick(prev) : EMPTY();
+  });
 }
 
 // ---------- 提示词 ----------
@@ -1130,8 +1330,43 @@ function figRule() {
     + '   · 题目涉及电气图形符号时（如「图中的符号表示（ ）」「下图是哪种低压电器」），除正常字段外再加一个 "fig":"<符号 id>"，只能用上面列出的 id，不要自己编；\n'
     + '   · 题干要写成「图中的符号……」，让学生知道该看图；\n'
     + '   · 选择题的选项也可以是图：选项对象里加 "fig":"<id>"、text 留空字符串；\n'
-    + '   · 用不上图就别写 fig 字段，不要给每道题都硬塞一张图。\n'
+    + '   · 用不上图就别写 fig 字段，不要给每道题都硬塞一张图；**给了 fig 才允许题干写「图中」**，'
+    + '给不出 fig 就按「不出图题」处理，别写「图 1.23 所示」这种却没有图。\n'
     + '   带图的单选长这样：{"type":"single","stem":"图中的符号表示（ ）","fig":"qf3","options":[{"key":"A","text":"熔断器"},{"key":"B","text":"三极低压断路器"}],"answer":["B"],"ch":1,"knowledge":"低压断路器符号","explanation":"原文依据"}\n';
+}
+
+/* ── 「提了图就得有图」+「不许露内部 id」（2026-11-20，老师原话）─────────────
+   「判断题怎么可能出带图的呢 而且你说了图几 也没给图啊 这个出题规则加入一般约束
+     除非用户有要求 但是如果你题干有图x.x 一定要有相应的图 然后不能直接暴露试卷id」
+   截图里的题：「在图 1.23 电路中，发光二极管的阴极接 P1.0 引脚……（  ）」——
+   判断题，引用了图号，既没有图，也不该出这种要看图的判断题。所以：
+     ① 默认不出要看图的题（除非老师在「针对性要求」里明确要）；
+     ② 真引用了图，就必须同一道题里给 fig，给不出就把那句话改成文字描述；
+     ③ 题干 / 选项 / 答案里不许出现内部标识（试卷号、题库 id、题目 id、题型 key）。 */
+const FIG_REF_RE = /图\s*\d{1,3}\s*[-.．－]\s*\d{1,3}|如图|下图|见图|上图/;
+
+const FIG_RULE = '默认**不出需要看图的题**：除非老师的「针对性要求」明确要图题，题干里不要出现「如图」「下图」「图 1.23」「图2-11」这类引用；判断题、名词解释、简答题默认不配图。'
+  + '确实要引用图时（老师要求了，或这道题非图不可），**必须在同一道题里输出 fig 字段**（只能用符号表里列出的 id；没有符号表就别出图题）；'
+  + '给不出 fig 就把那句话改成文字描述（例如「在共阳极 LED 接 P1.0 的电路中，……」），**绝不允许题干留着「图1.23」却没有图**。';
+
+const ID_RULE = '题干、选项里**不许出现任何内部标识**：试卷号、题库 id、题目 id（如 Q123、QM25-2t30）、题型 key（如 shicao）；题干开头也不要留「(1)」这种纯编号。'
+  + '（程序分析题的 answer 按小问写（1）（2）（3）不受此限。）';
+
+/* fig 值认不认：有符号库就问 HXFig.hasFig，没有符号库（单独调试 imports.js）就不判，
+   交给 ui-mat 的 MAT_toDb 兜（那边本来就会丢认不出的 id）。 */
+function figKnown(id) {
+  const s = String(id == null ? '' : id).trim();
+  if (!s) return false;
+  const F = (typeof window !== 'undefined') ? window.HXFig : null;
+  if (!F || typeof F.hasFig !== 'function') return true;
+  try { return !!F.hasFig(s); } catch (e) { return true; }
+}
+
+/* 一道题里出现的「图引用」原文（题干 + 选项文字）。没有引用返回空串。 */
+function figRefOf(stem, options) {
+  const txt = String(stem || '') + ' ' + (Array.isArray(options) ? options.map(o => String((o && o.text) || '')).join(' ') : '');
+  const m = txt.match(FIG_REF_RE);
+  return m ? m[0].replace(/\s+/g, '') : '';
 }
 
 /* 题干必须独立成题（2026-11-20，老师原话）：
@@ -1150,21 +1385,43 @@ function genPrompt(o) {
   const samples = list.map(([t]) => '  ' + (TYPE_SAMPLE[t] || customSample(t, names[t] || t))).join(',\n');
   /* 有符号库才插「符号图」这一条；编号统一在下面按数组下标生成，插一条不会错号。 */
   const figBody = figRule();
+  /* 2026-11-20：这一段属于哪一章由**导入时的目录**定（chunkMeta 打好的标），不再让模型猜。
+     hasCh = 这块切块在导入时归到了某章；没有（老资料、没目录）就退回老口径让模型自己认。 */
+  const hasCh = !!(o.ch && +o.ch > 0);
+  const chTitle = tocClean(o.chTitle);
+  const secTitle = tocClean(o.secTitle);
+  const whereLine = hasCh
+    ? '这一段的章节是：第 ' + (+o.ch) + ' 章' + (chTitle ? '「' + chTitle + '」' : '')
+      + (o.sec ? '，第 ' + o.sec + ' 节' + (secTitle ? '「' + secTitle + '」' : '') : '') + '。\n'
+      + ((Array.isArray(o.kn) && o.kn.length)
+        ? '这一节的知识点候选（knowledge 优先从里面挑一个照抄，都不合适再自己按原文概括）：'
+          + o.kn.filter(Boolean).join(' / ') + '\n'
+        : '')
+    : '';
+  const chRule = hasCh
+    ? '每道题都要输出章节字段，**直接照抄上面给的那一段的章节，不要自己判断、不要改**：ch 填 ' + (+o.ch)
+      + (o.sec
+        ? '，sec 填 "' + o.sec + '"' + (secTitle ? '，secTitle 填 "' + secTitle + '"' : '')
+        : '') + '。'
+    : '每道题都要输出一个 ch 字段：这道题出自原文第几章/第几个项目（只填数字，如第 3 章写 3、项目 4 写 4）；原文里认不出属于哪一章就写 0。';
   /* 硬要求按数组排，编号由下标 + 1 生成 —— 以后加一条不用手改 6 / 7。 */
   const hard = [
     '每道题都必须能在原文找到依据；原文没写的不出，不编型号、参数、页码。',
     rules,
     STEM_FREE,
     '答案唯一、没有歧义；explanation 写一句依据（引用原文要点）。',
+    FIG_RULE,
+    ID_RULE,
     '每道题都要输出一个 knowledge 字段：一句话知识点（不超过 20 个字），能当筛选标签用，必须是原文里讲到的考点（例如「定时器工作方式 2 的选择」「并行 I/O 端口方向寄存器」）。',
-    '每道题都要输出一个 ch 字段：这道题出自原文第几章/第几个项目（只填数字，如第 3 章写 3、项目 4 写 4）；原文里认不出属于哪一章就写 0。'
+    chRule
   ];
   if (figBody) hard.push(figBody);
   /* 2026-11-20：**删掉「章节」和「范围」两个独立输入**（老师原话「这两个范围混乱，我直接融合到
      针对性提示词得了，全部靠口述，自由度对话决定」）。以前有一段「范围：X / 严格按这个范围出题」
      和一段「这批题统一标章节号 N」，和老师的「针对性要求」各说各的，互相打脸 ——
      现在范围/章节一律由老师在「针对性要求」里用自己的话讲，原样拼进提示词（就是下面的 extra），
-     不再由程序另起一段规定范围。ch 字段仍然要 AI 每题自己认（题池要按章筛），这条留着。
+     不再由程序另起一段规定范围。ch 字段（2026-11-20 起）优先继承导入时做好的目录 ——
+     下面 whereLine 只在 chunkMeta 给出 ch 时才出现；没有目录的老资料仍按老口径让模型自己认。
      批量出题（一次要 30 道以上）时，模型输出会被长度上限截断、少给几道 —— 下面 batch / avoid
      两段就是为分批服务的：告诉它是第几批、以及哪些题干已经出过，别重复。 */
   const batchLine = (o.batch && o.batch.m > 1)
@@ -1182,6 +1439,7 @@ function genPrompt(o) {
     + (o.extra ? '老师的针对性要求（原样遵循，包括范围/章节/题型偏好，**它优先于其它一切说明**）：\n' + o.extra + '\n' : '')
     + batchLine
     + avoidLine
+    + whereLine
     + '硬要求：\n'
     + hard.map((t, i) => (i + 1) + '. ' + t).join('\n') + '\n'
     + (hard.length + 1) + '. 只输出 JSON 对象，不要任何解释文字：\n'
@@ -1207,6 +1465,11 @@ async function aiGenerate(text, subject, subjectName, opts, onProgress) {
   }
   if (!Object.keys(wanted).length) throw new Error('请至少填一种题型的数量（大于 0）。');
   const pieces = chunks(text, 6000, 300);
+  /* 2026-11-20：目录由调用方（ui-mat 从 hx_exam_material.toc 拿）传进来；没传就整段不动，
+     行为和以前完全一样（老资料没有 toc，模型照旧自己认 ch）。
+     pieces 仍保持「纯字符串数组」—— 元信息放在并行的 metas 里，现有 chunks() 调用点不用改。 */
+  const toc = Array.isArray(opts.toc) ? opts.toc : [];
+  const metas = toc.length ? chunkMeta(pieces, toc) : [];
   /* 先把总题量摊到各段（老师说的是「整份资料一共几道」），再在段内按 SEED_BATCH 拆批：
      一次请求要 40 道以上，模型的输出很容易被长度上限截断 —— 少了还只是少几道，
      截断成半截 JSON 就直接报错（AI 查重那边踩过一次，position 15366）。 */
@@ -1224,6 +1487,8 @@ async function aiGenerate(text, subject, subjectName, opts, onProgress) {
   let anyPiece = false;
   for (let i = 0; i < pieces.length; i++) {
     const counts = plan[i];
+    /* 这一块在导入时被归到哪一章（metas 为空 = 没有目录的老资料，m 就是 null） */
+    const m = metas[i] || null;
     for (const [t, n] of Object.entries(counts)) {
       const rounds = Math.max(1, Math.ceil(n / SEED_BATCH));
       let left = n;
@@ -1239,6 +1504,9 @@ async function aiGenerate(text, subject, subjectName, opts, onProgress) {
           const prompt = genPrompt({
             subjectName, piece: pieces[i], level: opts.level, counts: { [t]: take },
             extra: opts.extra, typeNames: opts.typeNames,
+            /* 2026-11-20：块级的章节（导入时打好的标），有就让模型照抄，别再自己猜 */
+            ch: m && m.ch, chTitle: m && m.chTitle,
+            sec: m && m.sec, secTitle: m && m.secTitle, kn: m && m.kn,
             batch: rounds > 1 ? { k: r + 1, m: rounds } : null,
             /* 第 2 批起带上「已经出过的题干」，否则模型会把同一批题换个说法再出一次 */
             avoid: r > 0 ? collected.slice(-30).map(q => String(q.stem || q.q || '').slice(0, 42)) : null,
@@ -1249,6 +1517,12 @@ async function aiGenerate(text, subject, subjectName, opts, onProgress) {
           try { if (typeof window !== 'undefined') window.__lastPrompt = prompt; } catch (e) { }
           const response = await hximpChat([{ role: 'system', content: '你是严谨的职业院校出题老师。只返回合法 JSON。' }, { role: 'user', content: prompt }], { json: true, thinkLevel: opts.thinkLevel });
           const result = normalizeQuestions(parseJson(response), subject, customKeys);
+          /* 2026-11-20：把块的章节塞进每道题（__ 前缀 = 内部字段，不进题池 JSON）。
+             MAT_toDb 优先用它，模型自己写的 ch 只在没有块信息时兜底 —— 这样「AI 猜错章」
+             不会再污染题池的 ch，按章组卷也就抽得到了。 */
+          if (m && m.ch) {
+            for (const q of result.questions) { q.__ch = m.ch; q.__sec = m.sec || null; q.__secTitle = m.secTitle || null; }
+          }
           let fresh = 0;
           for (const q of result.questions) {
             const k = keyOf(q);
@@ -1291,6 +1565,8 @@ async function aiImport(text, subject, onProgress) {
 window.HXImp = {
   isImageFile, fileToDataUrl, readMaterial, ocrImages, ocrScannedPdf, renderPdfPages,
   normalizeQuestions, chunks, genPrompt, aiGenerate, aiImport,
+  // 2026-11-20 新增：导入时做目录（buildToc/tocFromText/parseToc）、切块打标（chunkMeta）
+  buildToc, tocFromText, parseToc, chunkMeta, tocDigest, tocNum,
   parseJson, TYPE_LABEL, SUPPORTED, HXIMP_AI_MISS, HXIMP_VISION_MISS, HXIMP_LIB_MISS,
   // 2026-11-19 新增：PDF 要不要走识图的判定、当前用的模型名、报错中文化（自测也直接调这几个）
   wantVision, textPages: hximpTextPages, modelName: hxImpModel, humanErr: hxImpHumanErr,
@@ -2025,10 +2301,17 @@ async function matView(id, btn) {
     const arr = Array.isArray(r.data) ? r.data : [];
     box.innerHTML = `<div class="mat-v" id="matViewBox">
     <div class="zl-ch"><b>${esc(m.name || '资料')}</b><span class="note" id="matSegN">${arr.length} 段</span><button class="sm" id="matViewX">收起</button></div>
-    <div class="mat-segs">${arr.length ? arr.map(c => `<div class="mat-seg"><span class="note">第 ${(+c.idx || 0) + 1} 段</span><pre>${esc((c.title ? c.title + '\n' : '') + c.body)}</pre></div>`).join('') : '<p class="note">这份资料没有切段（可能没读到文字）。</p>'}</div></div>`;
+    <div class="mat-segs">${arr.length ? arr.map(c => `<div class="mat-seg"><span class="note">第 ${(+c.idx || 0) + 1} 段${matSecTag(c)}</span><pre>${esc((c.title ? c.title + '\n' : '') + c.body)}</pre></div>`).join('') : '<p class="note">这份资料没有切段（可能没读到文字）。</p>'}</div></div>`;
     $('matViewX').onclick = () => { box.innerHTML = ''; };
     box.scrollIntoView({ block: 'nearest' });
   } finally { HXBusy.end(tok); }
+}
+
+/* 看原文时每段的章节角标（2026-11-20）：让老师能当场核对「导入时认的目录对不对」，
+   c 是 hx_exam_chunk_get 返回的行（新增 ch / sec / sec_title 三列，老函数不返回就是空）。 */
+function matSecTag(c) {
+  if (!c || !(+c.ch > 0)) return '';
+  return ' · 第 ' + (+c.ch) + ' 章' + (c.sec ? ' ' + c.sec : '') + (c.sec_title ? ' ' + c.sec_title : '');
 }
 
 /* 删一份资料：2026-11-19 起改成「软删除」——
@@ -2091,6 +2374,34 @@ function MAT_pgEnd(ok, text) {
   MAT_pg(100, text, ok ? 'ok' : 'bad');
 }
 
+/* 登记资料。2026-11-20：多带一个 p_toc（导入时做好的目录树）。
+   SQL（supabase/2026-11-20-资料目录与分块章节.sql）没跑过时，云端会说
+   「p_toc 不存在 / function not found」——这时自动去掉 p_toc 用老签名重试，
+   上传不会因为「忘了跑 SQL」整份失败（目录丢了可以重传，资料不能丢）。 */
+async function MAT_matSave(body) {
+  try {
+    return await rpc('hx_exam_mat_save', body, 60000);
+  } catch (e) {
+    const msg = String((e && e.message) || e || '');
+    if (body.p_toc != null && /p_toc|function|not find|does not exist|schema cache|重载|参数/i.test(msg)) {
+      const b2 = { ...body }; delete b2.p_toc;
+      return await rpc('hx_exam_mat_save', b2, 60000);
+    }
+    throw e;
+  }
+}
+
+/* 读一份资料的目录（出题时继承用）。SQL 没跑、或这份资料是改造前传的（toc 为空），
+   一律返回 null —— 调用方按「没有目录」处理，行为和以前一样。 */
+async function MAT_toc(id) {
+  const r = await MAT_call('hx_exam_mat_toc', { p_id: id });
+  return (r.ok && Array.isArray(r.data) && r.data.length) ? r.data : null;
+}
+/* 补出来的目录写回云端（只为「下次不再花一次额度」；失败就算了，不影响出题）。 */
+async function MAT_tocSave(id, toc) {
+  try { await rpc('hx_exam_mat_toc_set', { p_id: id, p_toc: toc }); } catch (e) { }
+}
+
 /* 上传：解析 → 传文件 → 登记 → 写切段。每一步失败都点名是哪一步。
    2026-11-15：「选择文件」按钮在上传全程也挂上 HXBusy（转圈 + 已等 N 秒），
    和下面的 MAT_pg 阶段进度条是两回事 —— 进度条说「做到哪一步」，按钮说「还在忙」。
@@ -2102,7 +2413,7 @@ async function matUpload(files) {
   MAT_BUSY = true;
   MAT_pgRun();
   const bad = [], warn = [];
-  let okN = 0, segN = 0;
+  let okN = 0, segN = 0, tocN = 0;
   for (let i = 0; i < files.length; i++) {
     const f = files[i];
     let step = '读文件';
@@ -2135,6 +2446,13 @@ async function matUpload(files) {
       text = text.replace(/\r/g, '').trim();
       if (!text) throw new Error('没读到任何文字（可能是空白页或加密文件）');
 
+      /* 目录（2026-11-20，老师原话：「导入材料的时候就把章节小节和其知识点做好」）：
+         在切块**之前**抽一次目录 —— 只喂开头 + 标题行，一次调用；AI 失败/超时/返回空
+         都会自动回退到正则抽标题，绝不因此挡住导入（buildToc 自己不抛错）。 */
+      say('识别目录（章 / 节 / 知识点）', 0.30);
+      let toc = [];
+      try { toc = await HXImp.buildToc(text); } catch (e) { toc = []; }
+
       say('上传原文件', 0.35);
       const ext = (f.name.match(/\.[a-z0-9]+$/i) || [''])[0].toLowerCase();
       const path = MAT_path(ext);
@@ -2145,17 +2463,35 @@ async function matUpload(files) {
       });
 
       say('登记', 0.74);
-      const saved = await rpc('hx_exam_mat_save', { p_subject_id: sid, p_name: f.name, p_mime: f.type || '', p_bytes: f.size, p_path: path, p_chars: text.length }, 60000);
+      const saved = await MAT_matSave({
+        p_subject_id: sid, p_name: f.name, p_mime: f.type || '', p_bytes: f.size,
+        p_path: path, p_chars: text.length,
+        /* 目录随资料一起存（hx_exam_material.toc）。SQL 没跑过时 p_toc 会被拒，
+           MAT_matSave 自动退到老签名重试 —— 不会让上传挂在这儿。 */
+        ...(toc.length ? { p_toc: toc } : {})
+      });
       const mid = saved && saved.id;
       if (!mid) throw new Error('云端没返回资料编号');
 
       const list = HXImp.chunks(text, 3600, 320);
       const keep = list.slice(0, 400);   // hx_exam_chunk_put 一次最多 400 段
+      /* 切块打标：按目录把每块归到某一节（一块跨节取命中最多的、没命中沿用上一块）。 */
+      const metas = toc.length ? HXImp.chunkMeta(keep, toc) : [];
       say(`写入 ${keep.length} 段`, 0.84);
       // 切段最多的那份要写 400 段（几百 KB JSON），比普通 rpc 慢，给它 5 分钟
-      await rpc('hx_exam_chunk_put', { p_material_id: mid, p_chunks: keep.map((body, idx) => ({ idx, title: '', body })) }, 300000);
+      await rpc('hx_exam_chunk_put', {
+        p_material_id: mid,
+        p_chunks: keep.map((body, idx) => {
+          const m = metas[idx] || {};
+          return {
+            idx, title: '', body,
+            ch: m.ch || null, sec: m.sec || null, sec_title: m.secTitle || null
+          };
+        })
+      }, 300000);
       if (list.length > keep.length) warn.push(f.name + '：太长，只存了前 ' + keep.length + ' 段');
       okN++; segN += keep.length;
+      if (toc.length) tocN++;
       pg(1, '完成（' + keep.length + ' 段）');
     } catch (e) {
       /* 2026-11-19：上游报错一律过一遍 HXImp.humanErr —— 老师看到的必须是中文 + 「怎么办」，
@@ -2165,7 +2501,8 @@ async function matUpload(files) {
     }
   }
   MAT_BUSY = false;
-  const tail = (okN ? `传好 ${okN} 份，切成 ${segN} 段。` : '') + (warn.length ? ' ' + warn.join('；') + '。' : '')
+  const tail = (okN ? `传好 ${okN} 份，切成 ${segN} 段`
+    + (tocN ? `（${tocN} 份已做好章 / 节目录）` : '') + '。' : '') + (warn.length ? ' ' + warn.join('；') + '。' : '')
     + (bad.length ? ' 有 ' + bad.length + ' 份没传成：' + bad.join('；') : '');
   MAT_pgEnd(!bad.length, tail);
   HXBusy.end(tok, bad.length ? bad.join('；') : null);   // 有失败就把原因挂到按钮 title，悬停能看到
@@ -2225,7 +2562,7 @@ async function matGenRun() {
   const exEl = $('mgExtra');
   const extra = exEl ? exEl.value.trim() : '', level = $('mgLevel').value, think = $('mgThink').value;
   const state = $('mgState');
-  let text = '', tag = '', mid = null;
+  let text = '', tag = '', mid = null, toc = null;
   const sub = curSub();
   /* 2026-11-15：出题是整页最长的动作（按段喂模型，可能几分钟），而且前面还要逐份读切段。
      三道反馈一起上：
@@ -2244,6 +2581,18 @@ async function matGenRun() {
       text = got.parts.join('\n\n');
       tag = got.tag;
       mid = picks.length === 1 ? picks[0] : null;
+      /* 目录继承（2026-11-20）：勾一份资料时，把导入时做好的目录读出来交给引擎，
+         每块切块就带着 ch / sec 去出题 —— ch 不再由模型每题自己猜。
+         只勾一份才用：多份资料的章号会互相打架，宁可退回老口径。
+         改造前传的老资料没有 toc：这里现场补一次（一次调用），补完写回云端，下次不再花额度。 */
+      if (mid != null) {
+        toc = await MAT_toc(mid);
+        if (!toc) {
+          state.textContent = '正在识别这份资料的章节目录…';
+          try { toc = await HXImp.buildToc(text); } catch (e) { toc = null; }
+          if (toc && toc.length) await MAT_tocSave(mid, toc);
+        }
+      }
       /* 调试口：拼好的素材挂一份在 window.__lastPrompt 旁边的 __lastMatText 上，
          自测/排查「喂给模型的是哪几段」时直接看，不 toast。 */
       try { window.__lastMatText = text; } catch (e) { }
@@ -2255,12 +2604,15 @@ async function matGenRun() {
     const res = await HXImp.aiGenerate(text, sub.key, sub.name, {
       types: { [engineT]: n },
       level, extra: picks.length ? extra : '', thinkLevel: think || undefined,
+      /* 目录（章 / 节 / 知识点）：有就让每块切块继承章节，没有就完全按老行为让模型自己认。 */
+      toc: toc || undefined,
       // 自建题型：告诉引擎「这些 key 也认」，并把中文名带过去给它写提示词
       customKeys: qt.builtin ? [] : [engineT],
       typeNames: { [engineT]: qt.name },
     }, msg => { state.textContent = msg; });
-    /* 2026-11-20：章节不再由老师单独填（删了 #mgCh），ch 完全用 AI 每题自己认的那个。
-       老师说「只要第 3 章」这类要求写在「针对性要求」里，由模型按提示词办。 */
+    /* 2026-11-20：章节优先用导入时做好的目录（toc → 每块 ch/sec），
+       只有老资料（没有 toc）才回到「AI 每题自己认 ch」的老口径。
+       老师说「只要第 3 章」这类要求仍然写在「针对性要求」里，由模型按提示词办。 */
     const items = res.questions.map(q => MAT_toDb(q, (tag || 'AI') + ' · AI 出题'));
     MAT_GEN = { items, rejected: res.rejected, tag: `${qt.name} · ${items.length} 道`, mid, sid: sub.id, qt: qt.name };
     state.textContent = `出了 ${res.questions.length} 道` + (res.rejected.length ? `，${res.rejected.length} 道没收下` : '') + '，正在入池…';
@@ -2399,12 +2751,19 @@ function MAT_toDb(q, src) {
   else if (t === 'fill') a = q.answer.slice();
   else a = Array.isArray(q.answer) ? (q.answer[0] || '') : String(q.answer == null ? '' : q.answer);
   const fig = matFig(q.fig);
+  /* 章节（2026-11-20）：**优先用块的**（aiGenerate 按导入时的目录注入 q.__ch），
+     模型自己写的 ch / sec 只在这块没有目录信息时兜底 —— 这样 AI 猜错章不会污染题池。
+     有块级 ch 就整组用块级的（ch / sec / secTitle 必须自洽，不能 ch 用一个源、sec 用另一个）。 */
+  const blockCh = (q.__ch != null && +q.__ch > 0) ? +q.__ch : null;
+  const okSec = v => (v != null && /^[0-9]+(\.[0-9]+)*$/.test(String(v).trim())) ? String(v).trim() : null;
+  const ch = blockCh || ((q.ch != null && +q.ch > 0) ? +q.ch : null);
+  const sec = blockCh ? okSec(q.__sec) : okSec(q.sec);
+  const secTitle = blockCh
+    ? (q.__secTitle ? String(q.__secTitle).slice(0, 120) : null)
+    : (q.secTitle ? String(q.secTitle).slice(0, 120) : null);
   return {
-    t, ch: (q.ch != null && +q.ch > 0) ? +q.ch : null,
-    /* 小节（2026-11-19）：AI 如果按提示词给出了 sec（如 3.2.1），原样带进题池；
-       只收「数字.数字」这种，别的当没填。 */
-    sec: (q.sec != null && /^[0-9]+(\.[0-9]+)*$/.test(String(q.sec).trim())) ? String(q.sec).trim() : null,
-    secTitle: null,
+    t, ch,
+    sec, secTitle,
     q: q.stem,
     /* 选项的 fig 单独筛：认不出就只删这个字段，选项文字照样留着。 */
     o: t === 'choice' || t === 'judge' ? (q.options || []).map(o => {

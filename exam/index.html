@@ -635,6 +635,9 @@ button.danger { color: var(--bad, #d70015); }
   max-height: 148px; overflow: auto; padding: 8px 10px; border-radius: 10px; background: var(--field2); }
 .lib-pub-list label { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink); }
 .lib-pub-list input { width: auto; }
+.lib-pub-more { font-size: 12.5px; color: var(--mute); }
+.lib-pub-more summary { cursor: pointer; padding: 2px 0; }
+.lib-pub-more label { display: grid; gap: 5px; margin-top: 6px; }
 @media (max-width: 720px) { .ppset-foot { margin: 12px -14px -16px; padding: 10px 14px; flex-wrap: wrap; } .ppset-foot .note { flex: 1 1 100%; } }
 .lib-list { display: grid; gap: 8px; margin-top: 10px; max-height: 260px; overflow: auto; overscroll-behavior: contain; }
 .lib-i { display: grid; gap: 6px; padding: 9px 11px; border-radius: 12px; background: var(--field2); border: 1px solid var(--hair); }
@@ -9897,7 +9900,11 @@ async function libPubDialog() {
         ${skipTxt ? `<span class="warns-inline">跳过：${esc(skipTxt)}</span>` : ''}
       </div>
       <label>题库名<input id="lpName" maxlength="30" value="${esc(defName)}"></label>
-      <label>题库 id（英文，科目之间靠它隔离）<input id="lpId" class="mono" maxlength="64" value="${esc(defId)}"></label>
+      <!-- 2026-11-20 老师：「不能直接暴露试卷id」。题库 id 是内部标识，默认自动生成、收进「高级」里，
+           老师平时只需要填题库名；真要改再展开。 -->
+      <details class="lib-pub-more"><summary>高级：题库 id（默认自动生成，一般不用改）</summary>
+        <label>题库 id（英文，科目之间靠它隔离）<input id="lpId" class="mono" maxlength="64" value="${esc(defId)}"></label>
+      </details>
       <div class="lib-pub-blk"><b>发给哪些班</b>
         <div class="lib-pub-all"><label class="sm"><input type="checkbox" id="lpClsAll" checked> 全选</label></div>
         <div class="lib-pub-list" id="lpCls">${classes.map(c => `<label><input type="checkbox" data-cls="${c.id}" checked> ${esc(c.name)}</label>`).join('') || '<span class="note">没有班级</span>'}</div>

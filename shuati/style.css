@@ -342,6 +342,10 @@ body.focus .unfocus { display: block; }
 .blank { display: inline-block; max-width: 100%; height: 34px; margin: 2px 4px; padding: 0 10px; vertical-align: baseline; border: 0; border-bottom: 2px solid var(--acc); border-radius: 8px 8px 0 0; background: var(--fill); color: var(--ink); font: inherit; font-size: 16px; font-weight: 600; text-align: center; outline: none; }
 .blank:focus { background: var(--accbg, var(--fill)); }
 .blank.right { border-color: var(--ok); background: var(--okbg); } .blank.wrong { border-color: var(--bad); background: var(--badbg); }
+/* 填空题「答案直接标出来」（2026-11-20）：强调色 + 浅底 + 下划线，一眼看出这是答案、不是可填的框。
+   inline-block 是为了让长答案能折行，行内基线也不跳。 */
+.fill-ans { display: inline-block; margin: 0 3px; padding: 0 8px; border-radius: 7px 7px 3px 3px; border-bottom: 2px solid var(--acc); background: var(--accbg, var(--fill)); color: var(--acc); font-weight: 700; line-height: 1.5; }
+.fill-tip { margin: 10px 0 0; font-size: 12.5px; color: var(--dim); }
 .code { margin: 0 0 14px; padding: 12px 14px; overflow-x: auto; border-radius: 12px; background: var(--fill); font: 13.5px/1.55 Consolas, "Cascadia Mono", monospace; white-space: pre; }
 .subs { margin: 0 0 14px; padding-left: 1.6em; line-height: 1.7; }
 .ref { margin-top: 8px; white-space: pre-wrap; line-height: 1.75; font-size: 15px; }
