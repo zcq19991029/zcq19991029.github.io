@@ -38,18 +38,18 @@ export function ensureHxAi() {
 }
 
 /* 按 hx-ai.js 的 pick() 同样的顺序猜「这次会用哪一套」，只用来判断配没配、给提示；
-   真正调用时仍由 HXAI 自己挑（两边规则一致：工具指定且能干这件事 → 按能力默认 → 推理退文本 → 文本退第一套）。 */
+   真正调用时仍由 HXAI 自己挑（两边规则一致：按能力默认 → 推理退文本 → 文本退第一套）。
+   2026-11-20：和 hx-ai.js 一起不再看 s.tools —— 按工具指定的界面早删了，老存档里残留的
+   tools.quiz 会盖住「文本问答」默认，让设置页里换的模型看起来没生效（显示说用 A、实际用 B）。 */
 function guessProfile(H, cap) {
   const can = (p, c) => !!p && (c === 'text' || (p.caps || []).includes(c));
   if (typeof H.settings === 'function') {
-    const s = H.settings() || {}, ps = s.profiles || [], act = s.active || {}, tools = s.tools || {};
+    const s = H.settings() || {}, ps = s.profiles || [], act = s.active || {};
     const by = id => ps.find(p => p.id === id) || null;
-    const byTool = by(tools.quiz);
-    if (byTool && can(byTool, cap)) return byTool;
     const byCap = by(act[cap]);
-    if (byCap) return byCap;
+    // 和 pick() 一样：设了默认但模型没这项能力（老存档常见）就当没设，别让界面报「配好了」
+    if (can(byCap, cap)) return byCap;
     if (cap === 'reason' && by(act.text)) return by(act.text);
-    if (byTool) return byTool;
     return cap === 'text' || cap === 'reason' ? ps[0] || null : null;
   }
   // 精简版 HXAI（只有 forTool / activeFor 的桩）

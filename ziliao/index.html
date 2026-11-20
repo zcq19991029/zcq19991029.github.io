@@ -107,6 +107,12 @@ pre { white-space: pre-wrap; word-break: break-word; margin: 0; }
 /* 资料 */
 .mat-drop { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 16px; border: 1px dashed var(--line2, rgba(0, 0, 0, .16)); border-radius: 14px; background: var(--fill, rgba(0, 0, 0, .03)); }
 .mat-drop.on { border-color: var(--acc, #2f845a); background: var(--accbg, rgba(47, 132, 90, .1)); }
+/* 扫描版 PDF 的页码范围（2026-11-20）。单独一行、不上虚线框 —— 它不是拖放区的一部分，
+   免得老师以为「页码也要拖进来」。窄屏自动换行，输入框最窄 150px。 */
+.mat-range { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; margin: 10px 0 0; font-size: 13px; color: var(--dim, #6e6e73); }
+.mat-range label { flex: 0 0 auto; }
+.mat-range input { flex: 0 1 200px; min-width: 150px; }
+.mat-range .note { flex: 1 1 240px; }
 /* 上传进度（2026-11-15）：深色底 + 蓝青流光扫过 + 百分比 / 已传字节。
    参考了用户给的 WebGL 流光进度条（metalforge slosh）的观感，但这里只用 CSS 渐变 + 遮罩位移，
    不引 WebGL、不引任何库；深浅色主题都吃 var(--ink/--dim)，轨道固定偏深，当仪表盘看。 */
@@ -754,13 +760,30 @@ const hximpTextPages = pageTexts => (pageTexts || []).filter(s => String(s == nu
 /* 当前这套配置用哪个模型（给报错文案用：老师要照着名字去改设置）。
    hx-ai 的 pick 会按「工具指定 → 能力默认 → 文本默认」挑一套；挑不到就返回空串。 */
 function hxImpModel(cap) {
-  const H = (typeof window !== 'undefined') ? window.HXAI : null;
-  if (!H || typeof H.pick !== 'function') return '';
-  try {
-    const p = H.pick({ cap: cap || 'text', tool: 'ziliao' });
-    return p ? String(p.name || p.model || '') : '';
-  } catch (e) { return ''; }
+  const p = hxImpProfile(cap);
+  return p ? String(p.name || p.model || '') : '';
 }
+/* 同一套配置的原始 model id（发给平台的那个字符串）。为什么要单独要一份：
+   用户可能把配置命名成「硅基流动-看图」，名字里看不出模型是什么，
+   而「读不读得了图」只有 model id 说得清（Qwen/Qwen-Image 就是文生图）。 */
+function hxImpProfile(cap) {
+  const H = (typeof window !== 'undefined') ? window.HXAI : null;
+  if (!H || typeof H.pick !== 'function') return null;
+  try { return H.pick({ cap: cap || 'text', tool: 'ziliao' }) || null; }
+  catch (e) { return null; }
+}
+
+/* ── 这个模型根本不能读图（2026-11-20）────────────────────────────────────
+   用户报的原文：「有 1 份没转成：《第 314/314 页转成图片》失败 —— …没处理成功，
+   模型返回：Model does not exist. Please check it carefully.」
+   他的「图片识别」位配的是 Qwen/Qwen-Image —— 硅基流动的文生图模型，只挂在
+   /images/generations，走 /chat/completions 就是这个英文报错。
+   以前只判断「有没有配模型」（hxImpModel 返回空才算没配），配错了类型拦不住，
+   结果 314 页全渲染完（几十秒 + 上百 MB）才在第 1 页识图时炸，进度条还停在
+   「第 314/314 页」，看着像「渲染失败」，老师完全不知道该改哪儿。
+   所以挪到开跑前按 model id 拦一次：名字里带 image / flux / embed / tts 这些的，
+   一个都读不了图。宁可早一秒说清楚，也别白跑 314 页。 */
+const HXIMP_NO_VISION_RE = /dall-?e|gpt-image|flux|stable-diffusion|seedream|wanx|cogview|kolors|qwen[-\/]?image|(^|[-_/])sd3|embed|rerank|bge-|tts|whisper|(^|[-_/])asr|speech|cogvideo|seedance|(^|[-_/])sora|(^|[-_/])veo|kling/i;
 
 /* ── 报错中文化（2026-11-19）──────────────────────────────────────────────
    用户截图原话：「有 1 份没传成：电气接线第一章.pdf：「逐页 AI 识图（第 35/35 页）」失败 ——
@@ -768,16 +791,33 @@ function hxImpModel(cap) {
    老师看不懂，也不知道下一步该点哪儿。上游（各家模型 / 网关）的报错一律经过这里改写：
    「哪份资料 · 什么原因 · 去哪儿改 · 改完做什么」。 */
 const HXIMP_VLM_RE = /not a vlm|isn'?t a vision|not a vision|vision language|text-only|does not support (image|vision|multimodal)|unsupported.*(image|vision)|image.*not supported|多模态|不支持图片|不是视觉/i;
-function hxImpHumanErr(e, name, model) {
+/* 模型根本不存在（2026-11-20）。用户截图原话：
+   「《单片机应用技术…》没处理成功，模型返回：Model does not exist. Please check it carefully.」
+   —— 他 314 页扫描教材跑到「第 314/314 页」才炸，看到的就是这句英文 + 「把这句反馈给管理员」。
+   硅基流动 / OneAPI 这类网关对「这个接口不认这个模型」统一回 20012「Model does not exist」，
+   最常见的两个原因：① 模型名打错（多了空格 / 用了别家的 id）；② 把文生图模型
+   （Qwen/Qwen-Image 这种只挂在 /images/generations 的）填进了「图片识别」——
+   /chat/completions 不认它，报的就是这句。这两种都不是老师能自己读懂的，必须翻译成人话。 */
+const HXIMP_MODEL_MISS_RE = /model does not exist|model not found|no such model|invalid model|unknown model|model_not_found|模型不存在|找不到模型|模型.*(不存在|没有找到)/i;
+function hxImpHumanErr(e, name, model, cap) {
   const raw = String((e && e.message) || e || '').trim();
   const nm = name ? '《' + name + '》' : '这份资料';
   const md = model ? '「' + model + '」' : '现在这套';
   const goAI = '去首页「AI 设置」';
   const tail = raw ? '（原始报错：' + raw.slice(0, 120) + '）' : '';
+  /* 要读图的时候，报错必须指名「图片识别」这一格 —— 老师改「文本问答」是没用的。 */
+  const slot = cap === 'vision' ? '图片识别' : '资料库';
+  if (HXIMP_MODEL_MISS_RE.test(raw)) {
+    return nm + '：' + goAI + '「' + slot + '」配的模型'
+      + (model ? '「' + model + '」' : '') + '在这个平台上不存在。'
+      + '要么模型名写错了（多一个空格、少了版本号都会这样），要么它是文生图 / 向量 / 语音这类模型 —— '
+      + '这些模型不能看图识字。' + goAI + '把「' + slot + '」换成一个能看图的模型'
+      + '（如 Qwen2.5-VL / Qwen3-VL / GPT-4o / doubao-vision），再重新上传这份资料。' + tail;
+  }
   if (HXIMP_VLM_RE.test(raw)) {
     return nm + '是扫描件（没有文字层），要靠 AI 看图识字，但'
       + (model ? '你在「AI 设置 → 资料库」配的模型「' + model + '」' : '现在给「资料库」配的模型')
-      + '不支持图片。' + goAI + '给「资料库」换一个看图模型（如 Qwen-VL / GPT-4o），再重新上传这份资料。';
+      + '不支持图片。' + goAI + '给「' + slot + '」换一个看图模型（如 Qwen-VL / GPT-4o），再重新上传这份资料。';
   }
   if (/40[13]|unauthor|invalid.*(key|token)|api[\s_-]?key|forbidden|no permission/i.test(raw)) {
     return md + '的 API Key 不对或没有权限。' + goAI + '检查这套配置的 Key 有没有填错、是不是过期了。' + tail;
@@ -877,52 +917,111 @@ async function ocrImages(images) {
 /* ── 扫描 PDF 逐页识图（Z7 / B12，2026-11-12）────────────────────────────
    扫描件没有文字层，`readMaterial` 读到空文本后不再直接抛「请用 AI 识图」，
    而是把每页渲染成一张图，交给视觉模型逐页抄字 —— 一次传一页，逐页报进度，
-   断在哪一页一眼能看出来。约 350 页会花用户 AI 额度，这是用户拍板同意的。 */
+   断在哪一页一眼能看出来。约 350 页会花用户 AI 额度，这是用户拍板同意的。
 
-// 把 PDF 每一页渲染成 JPEG dataURL（最长边 1600px，和 fileToDataUrl 同一口径，省 token）
-async function renderPdfPages(file, onPage) {
+   2026-11-20 三处改动（都为用户那次「314 页教材」的事故）：
+     ① **渲染一页就识一页**，不再「先全渲染完再逐页识图」。原来那版把 314 张
+        1600px 的 JPEG dataURL 全攒在内存里（上百 MB），而且第一页识图就失败时，
+        前面 313 页的渲染全白跑 —— 用户看到的进度还停在「第 314/314 页」，
+        像是渲染挂了，实际是识图模型配错。
+     ② 开跑前按 model id 拦「读不了图的模型」（文生图 / 向量 / 语音），别等 49 秒后才炸。
+     ③ 支持页码范围：老师只要前五章（书页 1–179 ≈ PDF p11–p189），
+        没必要让 314 页全花一遍 AI 额度。range = {from, to}，都是 PDF 页码（1 起）。 */
+
+const HXIMP_RANGE_MISS = '页码范围写得不对（要像 11-189 这样，PDF 页码从 1 开始）';
+
+// 把用户的 {from,to} 收成合法区间；不传 / 写反 / 超界都兜住，绝不因为一个输入框让整份失败
+function hximpRange(numPages, range) {
+  const n = Math.max(1, Math.floor(+numPages) || 1);
+  let a = Math.floor(+(range && (range.from != null ? range.from : range[0])) || 0);
+  let b = Math.floor(+(range && (range.to != null ? range.to : range[1])) || 0);
+  if (!a && !b) return { from: 1, to: n, total: n };
+  if (a < 1) a = 1;
+  if (b < 1) b = n;
+  /* 起页超出总页数要拦：多半是照「书上的印刷页码」填的（这本差 10 页），
+     闷声转成「最后一页」只会给老师一份空白资料，不如当场说清。 */
+  if (a > n) throw new Error(HXIMP_RANGE_MISS + '：这份 PDF 只有 ' + n + ' 页，你写的是第 ' + a + ' 页起。');
+  if (b > n) b = n;                            // 尾页写超了就是到最后一页，不必打扰老师
+  if (a > b) { const t = a; a = b; b = t; }   // 写反了（189-11）就按小的在前，不报错
+  return { from: a, to: b, total: b - a + 1 };
+}
+
+// 打开 PDF（渲染和取页数都要用同一份 document，别每页重开一次）
+async function hximpOpenPdf(file) {
   let pdfjs;
   try { pdfjs = await import(HXIMP_V('pdf.js')); }
   catch (e) { throw new Error(HXIMP_LIB_MISS); }
   pdfjs = pdfjs.default && pdfjs.default.getDocument ? pdfjs.default : pdfjs;
   pdfjs.GlobalWorkerOptions.workerSrc = HXIMP_V('pdf.worker.js');
-  const pdf = await pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
-  const pages = [];
-  for (let i = 1; i <= pdf.numPages; i++) {
-    const page = await pdf.getPage(i);
-    const vp = page.getViewport({ scale: 1 });
-    const scale = Math.min(1.8, 1600 / Math.max(vp.width, vp.height));
-    const vp2 = page.getViewport({ scale });
-    const cv = document.createElement('canvas');
-    cv.width = Math.round(vp2.width); cv.height = Math.round(vp2.height);
-    const ctx = cv.getContext('2d');
-    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cv.width, cv.height); // 透明底铺白，转 JPEG 不会发黑
-    await page.render({ canvasContext: ctx, viewport: vp2 }).promise;
-    pages.push(cv.toDataURL('image/jpeg', 0.82));
-    if (onPage) onPage(i, pdf.numPages);
-  }
-  return { pages, pageCount: pdf.numPages };
+  return pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
 }
 
-// 逐页识图：一次传一页，onProgress(i, total, text) 报进度；整本拼成一段文字返回
-async function ocrScannedPdf(file, onProgress) {
-  /* 先看有没有看图模型，再开始渲染（2026-11-19）：
-     35 页的 PDF 渲染成图片要几十秒，渲染完才发现「模型不支持图片」纯属白等；
-     而且用户看到的进度会停在「第 35/35 页」（最后一步渲染），完全看不出错在第 1 页。
-     这里提前一步拦住，报错直接说清去哪儿换模型。 */
-  if (!hxImpModel('vision')) {
+// 把第 i 页（1 起）渲染成 JPEG dataURL（最长边 1600px，和 fileToDataUrl 同一口径，省 token）
+async function hximpRenderPage(pdf, i) {
+  const page = await pdf.getPage(i);
+  const vp = page.getViewport({ scale: 1 });
+  const scale = Math.min(1.8, 1600 / Math.max(vp.width, vp.height));
+  const vp2 = page.getViewport({ scale });
+  const cv = document.createElement('canvas');
+  cv.width = Math.round(vp2.width); cv.height = Math.round(vp2.height);
+  const ctx = cv.getContext('2d');
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cv.width, cv.height); // 透明底铺白，转 JPEG 不会发黑
+  await page.render({ canvasContext: ctx, viewport: vp2 }).promise;
+  return cv.toDataURL('image/jpeg', 0.82);
+}
+
+// 把 PDF 每一页渲染成 JPEG dataURL。onPage(k, 共几页, PDF 第几页)
+async function renderPdfPages(file, onPage, range) {
+  const pdf = await hximpOpenPdf(file);
+  const { from, to, total } = hximpRange(pdf.numPages, range);
+  const pages = [];
+  for (let i = from; i <= to; i++) {
+    pages.push(await hximpRenderPage(pdf, i));
+    if (onPage) onPage(i - from + 1, total, i);
+  }
+  return { pages, pageCount: total, from };
+}
+
+/* 逐页识图：一次传一页，onProgress(k, total, text, stage, pageNo) 报进度；整本拼成一段文字返回。
+   stage：'render'（正在把这页转成图片，text 为 null）/ 'ocr'（已渲染完，正要送模型识别）/
+   'done'（这页识完了，text 是识出来的字）。分开报是为了让进度条上的那句话永远是「正在干什么」，
+   而不是像原来那样两者共用一句「第 k/n 页」，最后停在哪句都说不清。 */
+async function ocrScannedPdf(file, onProgress, range) {
+  /* 先看「图片识别」这一格配的是什么，再开始渲染（2026-11-19 / 2026-11-20）：
+     35 页渲染要几十秒，314 页要一分多钟 —— 渲染完才发现模型配错纯属白等。
+     两道判断都要：
+       · 空的 → 没配看图模型；
+       · 配了但 model id 一看就是文生图 / 向量 / 语音（Qwen/Qwen-Image、bge-m3、whisper…）→
+         这种模型走 /chat/completions 只会回一句 Model does not exist，必须现在就翻译成人话。 */
+  const prof = hxImpProfile('vision');
+  if (!prof) {
     throw new Error('这份资料没有文字层（扫描件 / 图片），要靠 AI 看图识字，但「AI 设置」里还没有给「资料库」配看图模型。'
       + '去首页「AI 设置」把一套支持图片的模型（如 Qwen-VL / GPT-4o）设为「图片识别」默认，再重新上传。');
   }
-  const { pages, pageCount } = await renderPdfPages(file, (i, n) => onProgress && onProgress(i, n, null));
+  const mid = String(prof.model || ''), pname = String(prof.name || '');
+  if (HXIMP_NO_VISION_RE.test(mid) || HXIMP_NO_VISION_RE.test(pname)) {
+    throw new Error('「AI 设置 → 图片识别」现在配的是「' + (pname || mid) + '」（模型 ' + (mid || '未填') + '），'
+      + '它不是看图识字的模型 —— 文生图 / 向量（embedding、rerank）/ 语音这类模型读不了图片，'
+      + '发过去平台只会回一句 Model does not exist。'
+      + '去首页「AI 设置 → 图片识别」换成一个带 VL 的视觉模型（如 Qwen2.5-VL / Qwen3-VL / GPT-4o / doubao-vision），再重新上传。');
+  }
+  const pdf = await hximpOpenPdf(file);
+  const { from, to, total } = hximpRange(pdf.numPages, range);
   const out = [];
-  for (let i = 0; i < pages.length; i++) {
+  for (let k = 1; k <= total; k++) {
+    const pageNo = from + k - 1;
+    if (onProgress) onProgress(k, total, null, 'render', pageNo);
+    const img = await hximpRenderPage(pdf, pageNo);
+    if (onProgress) onProgress(k, total, null, 'ocr', pageNo);
+    /* 这里不包一层「第几页失败」—— 进度回调已经把「第 k/total 页」交给 ui-mat 写进 step，
+       报错文案由 humanErr 统一改写（它认得 Model does not exist 这句英文）。
+       两边都加页码只会变成「第 1 页：第 1/314 页识图失败：…」这种绕口的句子。 */
     const txt = String(await hximpVision({
       prompt: '把这张教材页里的文字逐字抄下来：保留段落、小标题和序号，公式、电路图用文字描述，表格逐行抄。看不清的写（看不清），不要总结、不要编、不要加自己的解释。',
-      images: [pages[i]]
+      images: [img]
     }) || '').trim();
     out.push(txt);
-    if (onProgress) onProgress(i + 1, pageCount, txt);
+    if (onProgress) onProgress(k, total, txt, 'done', pageNo);
   }
   return out.join('\n\n');
 }
@@ -1129,38 +1228,75 @@ function tocNum(s) {
   return HXIMP_CN[t] || 0;
 }
 
-/* 一行像不像大章标题：「第3章 ××」「项目一 常用低压电器」「单元 2 ××」「模块4」。 */
-const HXIMP_H_CH = /^\s*(?:第\s*([0-9]{1,2}|[一二三四五六七八九十]{1,3})\s*(?:章|项目|单元|篇|讲|部分)|(项目|单元|课题|模块)\s*([0-9]{1,2}|[一二三四五六七八九十]{1,3}))\s*[、.:：．]?\s*(.*)$/;
-/* 一行像不像小节标题：「1.1 按钮开关」「3.2.1 安装工艺」。 */
-const HXIMP_H_SEC = /^\s*(\d{1,2})[.．](\d{1,2})(?:[.．](\d{1,2}))?\s*[、.:：．]?\s*(.{0,40})$/;
+/* 2026-11-20：资料正文是 Markdown（`# 项目3 单片机并行 I/O 端口的应用`），
+   而老正则以 `^\s*` 开头、`#` 把它挡住了 —— 5 份资料的章命中全是 0，就是这个原因。
+   所以标题正则统一加一段「Markdown 前缀」：允许 `### ` 和 `> `（引用块里的标题）。
+   **故意不吃 `-` 和 `*`**：正文里 `- 项目3 建议 18 学时…` 这种列表项长得也像章标题，
+   放进来会把列表当成章（这个坑比漏掉标题更难查）。 */
+const HXIMP_MD = '^[ \\t]*(?:>[ \\t]*)?(?:#{1,6}[ \\t]*)?';
+/* 一行像不像大章标题：「第3章 ××」「项目一 常用低压电器」「## 项目3 ××」「单元 2 ××」「模块4」。 */
+const HXIMP_H_CH = new RegExp(HXIMP_MD + '(?:第\\s*([0-9]{1,2}|[一二三四五六七八九十]{1,3})\\s*(?:章|项目|单元|篇|讲|部分)|(项目|单元|课题|模块)\\s*([0-9]{1,2}|[一二三四五六七八九十]{1,3}))\\s*[、.:：．]?\\s*(.*)$');
+/* 一行像不像小节标题：「1.1 按钮开关」「3.2.1 安装工艺」「## 3.1 按钮开关」。 */
+const HXIMP_H_SEC = new RegExp(HXIMP_MD + '(\\d{1,2})[.．](\\d{1,2})(?:[.．](\\d{1,2}))?\\s*[、.:：．]?\\s*(.{0,40})$');
 
-const tocClean = s => String(s == null ? '' : s).replace(/\s+/g, ' ').replace(/^[、.:：．\-—\s]+/, '').trim();
+/* 洗标题：合并空白、去掉句首标点，**也去掉 Markdown 的 `#` / `>` 前缀** ——
+   不然「## 项目3」会原样存进 toc.title，界面上就是一堆井号。 */
+const tocClean = s => String(s == null ? '' : s).replace(/\s+/g, ' ').replace(/^[、.:：．\-—\s#>]+/, '').trim();
 
-/* 正则兜底：只靠标题行拼最小目录。ch 按出现顺序连续编号（原文缺章也不跳号）。 */
+/* 从标题里抠真实章节号：「项目3 …」「第3章 …」「项目 三 …」「3.1 …」「任务3-1 …」。
+   为什么不能用「出现顺序」：单册资料（只有「项目3」一本）会被编成第 1 章，
+   老师按第 3 章筛就一道也筛不到 —— 这是 2026-11-20 实测的坑。
+   认不出返回 0（调用方自己决定要不要按顺序兜底）。 */
+function tocChOf(s) {
+  const t = String(s == null ? '' : s).replace(/^[#>\s]+/, '').trim();
+  let m;
+  if ((m = t.match(/第\s*([0-9]{1,2}|[一二三四五六七八九十]{1,3})\s*(?:章|项目|单元|篇|讲|部分)/))) return tocNum(m[1]);
+  if ((m = t.match(/^(?:项目|单元|课题|模块)\s*([0-9]{1,2}|[一二三四五六七八九十]{1,3})/))) return tocNum(m[1]);
+  if ((m = t.match(/^(\d{1,2})\s*[.．]\s*\d{1,2}/))) return +m[1];
+  if ((m = t.match(/^任务\s*(\d{1,2})\s*[-–]/))) return +m[1];
+  return 0;
+}
+
+/* 正则兜底：只靠标题行拼最小目录。ch 取标题里的真实编号（认不出才按出现顺序补）。 */
 function tocFromText(text) {
   const out = [];
   let cur = null;
   for (const line of String(text || '').replace(/\r/g, '').split('\n')) {
-    const s = tocClean(line);
-    if (!s || s.length > 60) continue;
-    let m = s.match(HXIMP_H_CH);
+    /* 2026-11-20：正则跑在**原始行**上，不跑 tocClean 之后的结果 ——
+       tocClean 会把行首的 `- ` 一起吃掉，「- 项目3 建议 18 学时」就变成「项目3 …」被当成章。
+       原始行上 `-` / `*` 不在 HXIMP_MD 里，匹配不到，正是要的效果。 */
+    const raw = String(line).replace(/\s+/g, ' ').trim();
+    if (!raw || raw.length > 64) continue;
+    const s = tocClean(raw);
+    if (!s) continue;
+    let m = raw.match(HXIMP_H_CH);
     if (m) {
-      const n = tocNum(m[1] || m[3]);
       /* 章标题用整行（「项目一 常用低压电器」「第1章 概述」都保留原文编号，题池里好核对），
          只把后面带的小节号部分留给下面 HXIMP_H_SEC 认。 */
       const title = s.slice(0, 60);
-      if (!n && !title) continue;
-      cur = { ch: out.length + 1, title: title || ('第 ' + (out.length + 1) + ' 章'), secs: [] };
+      if (!title) continue;
+      /* 2026-11-20：号取标题里的真实编号（「项目3」→ 3），不再按出现顺序重编 ——
+         单册资料只有一本「项目3」，重编会把它变成第 1 章，老师按第 3 章筛就一道都筛不到。 */
+      const n = tocChOf(title) || (out.length + 1);
+      /* 同一个号已经出现过（原文里标题重复一行、或兜底正好撞号）→ 并进去，别生成两个「第3章」 */
+      const hit = out.find(c => c.ch === n);
+      if (hit) { cur = hit; continue; }
+      cur = { ch: n, title: title || ('第 ' + n + ' 章'), secs: [] };
       out.push(cur);
       continue;
     }
-    m = s.match(HXIMP_H_SEC);
+    m = raw.match(HXIMP_H_SEC);
     if (m) {
       const no = m[1] + '.' + m[2] + (m[3] ? '.' + m[3] : '');
       const title = tocClean(m[4]).slice(0, 60);
       /* 「1.5 倍」「1.2 米」这种是正文里的数字，不是小节标题：没有文字标题的一律不当标题 */
       if (!title || /^\d/.test(title)) continue;
-      if (!cur) { cur = { ch: out.length + 1, title: '第 ' + (out.length + 1) + ' 章', secs: [] }; out.push(cur); }
+      if (!cur) {
+        /* 只有小节没大章标题的资料：章号也取小节号的前半段（「3.1」→ 第 3 章），同样不重编 */
+        const base = tocChOf(no) || (out.length + 1);
+        cur = { ch: base, title: '第 ' + base + ' 章', secs: [] };
+        out.push(cur);
+      }
       if (!cur.secs.some(x => x.no === no)) cur.secs.push({ no, title, kn: [] });
     }
   }
@@ -1185,7 +1321,7 @@ function tocPrompt(digest) {
   return '下面是一本教材的开头部分，以及全文里「像标题」的行。请整理出它的目录结构，只输出 JSON：\n'
     + '{"toc":[{"ch":1,"title":"项目一 常用低压电器","secs":[{"no":"1.1","title":"按钮开关","kn":["按钮的结构","常开常闭触点"]}]}]}\n'
     + '要求：\n'
-    + '1. ch 从 1 开始**连续**编号（第几个大章/项目/单元就写几）；title 写大章原标题（如「项目一 常用低压电器」）；\n'
+    + '1. ch 写大章**真实编号**（「项目三」写 3、「第 5 章」写 5；原文本来没编号才按出现顺序写）；title 写大章原标题（如「项目一 常用低压电器」）；\n'
     + '2. sec.no 用 1.1 / 1.2 这种编号（三级就 1.1.1），title 写小节原标题；\n'
     + '3. 每节给 1～3 个知识点短标签（kn，每个不超过 12 个字，必须来自原文，不要编）；\n'
     + '4. 原文没有明确的章节结构（只是一篇讲义、一页说明、一张表）就返回 {"toc":[]}，不要硬凑、不要编章节；\n'
@@ -1193,7 +1329,8 @@ function tocPrompt(digest) {
     + '材料：\n' + String(digest || '');
 }
 
-/* 规整模型给的目录：ch 一律按出现顺序连续编号（不信模型自己编的号），
+/* 规整模型给的目录：ch 取标题里的真实编号（「项目3」→ 3），认不出才按出现顺序补 ——
+   不信模型自己编的号，但更不能把它重编成连续的（那正是「项目3 变第1章」的元凶）。
    sec.no 不合法就给「ch.序号」，kn 去重、最多 3 个、每个最多 16 字。 */
 function parseToc(raw) {
   const arr = Array.isArray(raw) ? raw : (raw && Array.isArray(raw.toc) ? raw.toc : null);
@@ -1201,7 +1338,11 @@ function parseToc(raw) {
   const out = [];
   arr.forEach(c => {
     const title = tocClean(c && (c.title || c.name || c.ch_title)).slice(0, 60);
-    const ch = out.length + 1;
+    /* 2026-11-20：原来这里是 `out.length + 1`，末尾还有一句 `out.forEach(c => c.ch = i+1)` 强制连续化。
+       两句一起把「项目3」压成第 1 章 —— 单册资料（老师一次只勾一本）必然踩到。
+       删掉之后允许跳号：缺号只是那个章桶不存在，不会崩。
+       复核过：考试/src/paper.js 按 Object.keys(curCH()) 求和、ui-paper.js 只遍历题池里出现过的章。 */
+    const ch = tocChOf(title) || (out.length + 1);
     const secsIn = Array.isArray(c && c.secs) ? c.secs : (Array.isArray(c && c.sections) ? c.sections : []);
     const secs = [];
     secsIn.forEach((s, k) => {
@@ -1215,9 +1356,15 @@ function parseToc(raw) {
       secs.push({ no, title: st, kn: [...new Set(kn)].slice(0, 3) });
     });
     if (!title && !secs.length) return;
+    /* 同一个章号出现两次（模型把一章拆成两段）→ 并进已有那章，别出两个「第3章」 */
+    const hit = out.find(x => x.ch === ch);
+    if (hit) {
+      if (!hit.title && title) hit.title = title;
+      for (const s of secs) if (!hit.secs.some(x => x.no === s.no)) hit.secs.push(s);
+      return;
+    }
     out.push({ ch, title: title || ('第 ' + ch + ' 章'), secs });
   });
-  out.forEach((c, i) => { c.ch = i + 1; });   // 上面有 return 会跳号，这里再连续化一次
   return out;
 }
 
@@ -1580,7 +1727,9 @@ window.HXImp = {
   buildToc, tocFromText, parseToc, chunkMeta, tocDigest, tocNum,
   parseJson, TYPE_LABEL, SUPPORTED, HXIMP_AI_MISS, HXIMP_VISION_MISS, HXIMP_LIB_MISS,
   // 2026-11-19 新增：PDF 要不要走识图的判定、当前用的模型名、报错中文化（自测也直接调这几个）
+  // 2026-11-20 补：profile（整套配置，含原始 model id）、pageRange（页码范围收口）、noVisionRe（读不了图的模型名）
   wantVision, textPages: hximpTextPages, modelName: hxImpModel, humanErr: hxImpHumanErr,
+  profile: hxImpProfile, pageRange: hximpRange, noVisionRe: HXIMP_NO_VISION_RE,
   MIN_PAGE_CHARS: HXIMP_MIN_PAGE_CHARS
 };
 
@@ -2184,6 +2333,14 @@ function matHome() {
         <button class="pri" id="matPick">选择文件</button>
         <span class="note">PDF · DOCX · TXT · MD · 图片，可拖进来</span>
       </div>
+      <!-- 2026-11-20：扫描版 PDF 的页码范围（用户原话「我只需要前五章的即可」）。
+           314 页整本逐页识图 = 314 次模型调用，又慢又费额度；教材前五章在 PDF 里只是 p11–p189。
+           文案里特意写「PDF 页码」：老师书上看的是印刷页码（这本差 10 页），混了会转错一段。 -->
+      <div class="mat-range">
+        <label for="matRange">扫描版 PDF 只转一部分</label>
+        <input id="matRange" type="text" inputmode="numeric" autocomplete="off" placeholder="如 11-190（PDF 页码），留空＝整本">
+        <span class="note">按 PDF 阅读器显示的页码填，不是书上的印刷页码；只填一个数＝从那页转到末尾。文字版 PDF 不看这里。</span>
+      </div>
       <!-- 2026-11-15：进度从「一行字」升级成「文字 + 一条细进度条」。
            结构固定，进度值全由 MAT_pg() 写；.ok 偏绿 / .bad 偏红 由 MAT_pgEnd() 切。 -->
       <div class="mat-prog" id="matProg" hidden>
@@ -2413,6 +2570,21 @@ async function MAT_tocSave(id, toc) {
   try { await rpc('hx_exam_mat_toc_set', { p_id: id, p_toc: toc }); } catch (e) { }
 }
 
+/* 读上传区那个「只转一部分」输入框 → {from, to} 或 null（=整本）。
+   为什么要这么宽松：老师会写 11-189、11～189、11 — 189、「11 到 189」。
+   解析不出来就当整本 —— 为一个输入框把整份资料拦下来重填，比多转几页更让人恼火。
+   单个数字（如 11）按「从第 11 页到末尾」处理（to=0，由 imports 的 hximpRange 收成末页）。 */
+function MAT_PAGE_RANGE() {
+  const el = $('matRange'); if (!el) return null;
+  const s = String(el.value || '').replace(/\s+/g, '');
+  if (!s) return null;
+  const m = s.match(/^(\d{1,5})(?:[-~—–－至到](\d{1,5}))?$/);
+  if (!m) return null;
+  const from = +m[1] || 1;
+  const to = m[2] ? +m[2] : 0;
+  return { from, to };
+}
+
 /* 上传：解析 → 传文件 → 登记 → 写切段。每一步失败都点名是哪一步。
    2026-11-15：「选择文件」按钮在上传全程也挂上 HXBusy（转圈 + 已等 N 秒），
    和下面的 MAT_pg 阶段进度条是两回事 —— 进度条说「做到哪一步」，按钮说「还在忙」。
@@ -2425,6 +2597,9 @@ async function matUpload(files) {
   MAT_pgRun();
   const bad = [], warn = [];
   let okN = 0, segN = 0, tocN = 0;
+  /* 页码范围在读文件前就读定：上传中途老师可能切走页面，输入框一没了就会退回「整本」，
+     那等于把 314 页全转一遍 —— 一次读定，整批文件都用同一个范围。 */
+  const range = MAT_PAGE_RANGE();
   for (let i = 0; i < files.length; i++) {
     const f = files[i];
     let step = '读文件';
@@ -2439,20 +2614,25 @@ async function matUpload(files) {
       if (got.image) { say('AI 识图', 0.10); text = await HXImp.ocrImages([got.image]); }
       if (got.scannedPdf) {
         /* 扫描 PDF：逐页 AI 识图（Z7/B12，花用户 AI 额度）。每页报一次进度，断在哪页一眼可见。
-           2026-11-19：回调里 t == null 表示「正在把第 k 页渲染成图片」，不是「识别完第 k 页」。
-           原来两者共用一句「逐页 AI 识图（第 k/n 页）」，用户看到的报错是「第 35/35 页」——
-           其实是渲染走到最后一页，真正的失败在这之后的第 1 页识图。现在分开写清楚。 */
+           2026-11-20：ocrScannedPdf 改成「渲染一页 → 识一页」，回调多一个 stage：
+             'render' 正在把这页转成图片 / 'ocr' 已渲染完、正要送模型 / 'done' 这页识完了。
+           为什么非得分清：用户 314 页教材那次，报的是「第 314/314 页转成图片」失败 ——
+           其实渲染全跑完了，炸的是第 1 页识图（模型配成了文生图）。两句共用一句文案，
+           就会把「渲染进度」误读成「失败页号」，老师只会以为书太大转不动。 */
         say('准备逐页 AI 识图', 0.06);
-        text = await HXImp.ocrScannedPdf(got.scannedPdf, (k, total, t) => {
+        text = await HXImp.ocrScannedPdf(got.scannedPdf, (k, total, t, stage) => {
           const frac = total ? Math.min(1, k / total) : 0;
-          if (t == null) {
+          if (stage === 'render') {
             step = '把第 ' + k + '/' + total + ' 页转成图片';
             pg(0.06 + 0.04 * frac, `正在把第 ${k}/${total} 页转成图片（共 ${total} 页，这份是扫描件）`);
+          } else if (stage === 'ocr') {
+            step = '逐页 AI 识图（第 ' + k + '/' + total + ' 页）';
+            pg(0.10 + 0.25 * frac, `正在识图第 ${k}/${total} 页（共 ${total} 页）`);
           } else {
             step = '逐页 AI 识图（第 ' + k + '/' + total + ' 页）';
             pg(0.10 + 0.25 * frac, `逐页 AI 识图 ${k}/${total} 页` + (t ? `（本页识出 ${t.length} 字）` : '（这页没识出字）'));
           }
-        });
+        }, range);
       }
       text = text.replace(/\r/g, '').trim();
       if (!text) throw new Error('没读到任何文字（可能是空白页或加密文件）');
@@ -2506,9 +2686,11 @@ async function matUpload(files) {
       pg(1, '完成（' + keep.length + ' 段）');
     } catch (e) {
       /* 2026-11-19：上游报错一律过一遍 HXImp.humanErr —— 老师看到的必须是中文 + 「怎么办」，
-         不能再把 "The model is not a VLM…" 这种原文甩出去。模型名按这一步用到的是哪种能力取。 */
+         不能再把 "The model is not a VLM…" 这种原文甩出去。模型名按这一步用到的是哪种能力取。
+         2026-11-20：多传一个 cap —— 报错要指名「图片识别」这一格，老师照着改的才对
+         （用户那次 Model does not exist 就是「图片识别」位填了文生图模型）。 */
       const cap = /识图|图片|转成图片/.test(step) ? 'vision' : 'text';
-      bad.push('「' + step + '」失败 —— ' + HXImp.humanErr(e, f.name, HXImp.modelName(cap)));
+      bad.push('「' + step + '」失败 —— ' + HXImp.humanErr(e, f.name, HXImp.modelName(cap), cap));
     }
   }
   MAT_BUSY = false;
@@ -2573,7 +2755,6 @@ async function matGenRun() {
   const exEl = $('mgExtra');
   const extra = exEl ? exEl.value.trim() : '', level = $('mgLevel').value, think = $('mgThink').value;
   const state = $('mgState');
-  let text = '', tag = '', mid = null, toc = null;
   const sub = curSub();
   /* 2026-11-15：出题是整页最长的动作（按段喂模型，可能几分钟），而且前面还要逐份读切段。
      三道反馈一起上：
@@ -2585,63 +2766,113 @@ async function matGenRun() {
   const tok = HXBusy.begin($('mgGo'), '正在出题…');
   MAT_BUSY = true;
   try {
-    if (picks.length) {
-      /* 2026-11-19：删掉「原文件」勾选后，一律按切段出题（老行为）。 */
-      const got = await matCollect(picks, null, state);
-      if (!got.parts.length) { state.textContent = ''; toast('勾的资料里没有可用的段，重新传一次试试'); HXBusy.end(tok); return; }
-      text = got.parts.join('\n\n');
-      tag = got.tag;
-      mid = picks.length === 1 ? picks[0] : null;
-      /* 目录继承（2026-11-20）：勾一份资料时，把导入时做好的目录读出来交给引擎，
-         每块切块就带着 ch / sec 去出题 —— ch 不再由模型每题自己猜。
-         只勾一份才用：多份资料的章号会互相打架，宁可退回老口径。
-         改造前传的老资料没有 toc：这里现场补一次（一次调用），补完写回云端，下次不再花额度。 */
-      if (mid != null) {
-        toc = await MAT_toc(mid);
-        if (!toc) {
-          state.textContent = '正在识别这份资料的章节目录…';
-          try { toc = await HXImp.buildToc(text); } catch (e) { toc = null; }
-          if (toc && toc.length) await MAT_tocSave(mid, toc);
-        }
-      }
-      /* 调试口：拼好的素材挂一份在 window.__lastPrompt 旁边的 __lastMatText 上，
-         自测/排查「喂给模型的是哪几段」时直接看，不 toast。 */
-      try { window.__lastMatText = text; } catch (e) { }
-    } else {
-      if (!extra) { state.textContent = ''; toast('没勾资料时，请在「额外要求」里写下要出题的内容'); HXBusy.end(tok); return; }
-      text = extra; tag = '老师手写的要求';
+    /* 2026-11-20（本轮核心修复）：勾了**多份**资料时改成「逐份出题」。
+       以前勾多份会把所有切段拼成一大坨、mid 置 null、目录整段跳过 —— 结果每道题的 ch
+       全靠模型猜：老师一次勾 5 份出 20 道实操题，流水灯（本该第 3 章）被写成第 4 章，
+       按第 3 章筛一道都筛不出来。逐份出之后每份各自读目录、各自带 ch、各自入池，
+       material_id 也不会再丢（原来多份时 mid=null）。 */
+    const jobs = picks.length
+      ? picks.map(id => ({ mid: +id }))
+      : [{ mid: null, text: extra, tag: '老师手写的要求' }];
+    if (!picks.length && !extra) {
+      state.textContent = '';
+      toast('没勾资料时，请在「额外要求」里写下要出题的内容');
+      HXBusy.end(tok); MAT_BUSY = false; return;
     }
-    state.textContent = '正在准备出题…' + (n > 24 ? `（${n} 道会分批要，可能要几分钟）` : '');
-    const res = await HXImp.aiGenerate(text, sub.key, sub.name, {
-      types: { [engineT]: n },
-      level, extra: picks.length ? extra : '', thinkLevel: think || undefined,
-      /* 目录（章 / 节 / 知识点）：有就让每块切块继承章节，没有就完全按老行为让模型自己认。 */
-      toc: toc || undefined,
-      // 自建题型：告诉引擎「这些 key 也认」，并把中文名带过去给它写提示词
-      customKeys: qt.builtin ? [] : [engineT],
-      typeNames: { [engineT]: qt.name },
-    }, msg => { state.textContent = msg; });
-    /* 2026-11-20：章节优先用导入时做好的目录（toc → 每块 ch/sec），
-       只有老资料（没有 toc）才回到「AI 每题自己认 ch」的老口径。
-       老师说「只要第 3 章」这类要求仍然写在「针对性要求」里，由模型按提示词办。 */
-    const items = res.questions.map(q => MAT_toDb(q, (tag || 'AI') + ' · AI 出题'));
-    MAT_GEN = { items, rejected: res.rejected, tag: `${qt.name} · ${items.length} 道`, mid, sid: sub.id, qt: qt.name };
-    state.textContent = `出了 ${res.questions.length} 道` + (res.rejected.length ? `，${res.rejected.length} 道没收下` : '') + '，正在入池…';
+    /* 题量平摊：老师说的「一共 n 道」不能因为勾了 5 份就变成 5n。
+       除不尽的前 rem 份各多 1 道。 */
+    const base = Math.floor(n / jobs.length), rem = n % jobs.length;
+    const allItems = [], allRejected = [], fails = [];
+    let added = 0, dup = 0, doneN = 0, commitBad = false;
+    for (let j = 0; j < jobs.length; j++) {
+      const want = base + (j < rem ? 1 : 0);
+      if (!want) continue;                       // 份数比题量还多：剩下的这份不出（免得 0 道还去读一遍）
+      const job = jobs[j];
+      const where = jobs.length > 1 ? `第 ${j + 1}/${jobs.length} 份：` : '';
+      let text = '', tag = '', toc = null;
+      const mid = job.mid;
+      try {
+        if (picks.length) {
+          state.textContent = where + '正在读资料…';
+          /* 只读这一份：原来传的是 picks 整组，拼成一大段后结构和来源都糊在一起。
+             state 传 null —— matCollect 里的进度写的是「第 1/1 份」，会把上面那句
+             「第 2/5 份」盖掉，逐份出题时它这句反而更容易让人以为只勾了一份。 */
+          const got = await matCollect([mid], null, null);
+          if (!got.parts.length) throw new Error('这份资料没有可用的切段，重新传一次试试');
+          text = got.parts[0];
+          tag = got.tag;
+          /* 目录继承（2026-11-20）：把导入时做好的目录读出来交给引擎，每块切块就带着
+             ch / sec 去出题 —— ch 不再由模型每题自己猜。老资料没有 toc 就现场补一次并写回云端。 */
+          toc = await MAT_toc(mid);
+          if (!toc) {
+            state.textContent = where + '正在识别这份资料的章节目录…';
+            try { toc = await HXImp.buildToc(text); } catch (e) { toc = null; }
+            if (toc && toc.length) await MAT_tocSave(mid, toc);
+          }
+          /* 调试口：最近一次喂给模型的资料原文挂在 window.__lastMatText 上（多份时是最后一份）。 */
+          try { window.__lastMatText = text; } catch (e) { }
+        } else {
+          text = job.text; tag = job.tag;
+        }
+        state.textContent = where + '正在准备出题…' + (want > 24 ? `（${want} 道会分批要，可能要几分钟）` : '');
+        const res = await HXImp.aiGenerate(text, sub.key, sub.name, {
+          types: { [engineT]: want },
+          level, extra: picks.length ? extra : '', thinkLevel: think || undefined,
+          /* 目录（章 / 节 / 知识点）：有就让每块切块继承章节，没有就完全按老行为让模型自己认。 */
+          toc: toc || undefined,
+          // 自建题型：告诉引擎「这些 key 也认」，并把中文名带过去给它写提示词
+          customKeys: qt.builtin ? [] : [engineT],
+          typeNames: { [engineT]: qt.name },
+        }, msg => { state.textContent = where + msg; });
+        /* 章节分级信任（2026-11-20）：目录 / 题干 / 模型推测 三级，上下文（资料名 + 目录）一起给，
+           这样模型猜的章号只有在「这份资料真的覆盖那一章」时才被采信。 */
+        const ctx = { matName: tag || '', toc };
+        const items = res.questions.map(q => MAT_toDb(q, (tag || 'AI') + ' · AI 出题', ctx));
+        allItems.push(...items);
+        allRejected.push(...res.rejected);
+        state.textContent = where + `出了 ${res.questions.length} 道` + (res.rejected.length ? `，${res.rejected.length} 道没收下` : '') + '，正在入池…';
+        const r = await matGenCommit(items, mid, sub.id, state);
+        added += r.added || 0; dup += r.dup || 0;
+        if (r && r.ok === false) commitBad = true;
+        doneN++;
+      } catch (e) {
+        /* **一份失败不拖累后面**：这份已经出的题照样入池（不然白花额度），错误攒起来最后一起说。 */
+        const partial = (e && e.partialQuestions) || [];
+        if (partial.length) {
+          const ctx = { matName: tag || '', toc };
+          const items = partial.map(q => MAT_toDb(q, (tag || 'AI') + ' · AI 出题（中途断了）', ctx));
+          allItems.push(...items);
+          allRejected.push(...(e.partialRejected || []));
+          try {
+            const r = await matGenCommit(items, mid, sub.id, state);
+            added += r.added || 0; dup += r.dup || 0;
+            if (r && r.ok === false) commitBad = true;
+            doneN++;
+          } catch (e2) { /* 入池也失败：题还在 MAT_GEN 里，界面会给「重新写入题池」 */ }
+        }
+        fails.push((jobs.length > 1 ? `第 ${j + 1} 份` : '') + ((e && e.message) || e));
+      }
+    }
+    /* 一道都没出：明确报错，别让界面停在「出了 0 道」上面装成功 */
+    if (!allItems.length) throw new Error(fails.length ? '一道题都没出（' + fails.join('；') + '）' : '一道题都没出');
+    MAT_GEN = {
+      items: allItems, rejected: allRejected,
+      added: { ok: !commitBad, added, dup },
+      tag: `${qt.name} · ${allItems.length} 道` + (jobs.length > 1 ? ` · ${doneN}/${jobs.length} 份资料` : ''),
+      /* 多份批次没有单一 mid：重写入题池那类操作要按份分开做（见 matGenDraw） */
+      mid: jobs.length === 1 ? jobs[0].mid : null,
+      multi: jobs.length > 1,
+      sid: sub.id, qt: qt.name
+    };
+    if (!fails.length) state.textContent = `出了 ${allItems.length} 道，入池 ${added} 道` + (dup ? `，重复跳过 ${dup} 道` : '');
     matGenDraw();
-    // 直接入池（用户要求「加入该题型的题池即可」）
-    const added = await matGenCommit(items, mid, sub.id, state);
-    if (MAT_GEN) { MAT_GEN.added = added; matGenDraw(); }
+    if (fails.length) {
+      MAT_banner('有 ' + fails.length + ' 份没出成：' + fails.join('；') + '（其余已入池 ' + added + ' 道）');
+      HXBusy.end(tok, fails.join('；'));
+    }
   } catch (e) {
     state.textContent = '';
-    const partial = e && e.partialQuestions ? e.partialQuestions : [];
-    if (partial.length) {
-      /* 中途断了：已经出的题也直接入池（不然全丢），并在状态里写清楚是半批 */
-      const items = partial.map(q => MAT_toDb(q, (tag || 'AI') + ' · AI 出题（中途断了）'));
-      MAT_GEN = { items, rejected: e.partialRejected || [], tag: `${qt.name} · 中途断了`, mid, sid: sub.id, qt: qt.name };
-      matGenDraw();
-      try { const added = await matGenCommit(items, mid, sub.id, state); if (MAT_GEN) { MAT_GEN.added = added; matGenDraw(); } } catch (e2) { }
-    }
-    MAT_banner('出题失败：' + (e && e.message ? e.message : e) + (partial.length ? '（已经出的 ' + partial.length + ' 道已放进题池）' : ''));
+    MAT_banner('出题失败：' + (e && e.message ? e.message : e));
     HXBusy.end(tok, (e && e.message) || String(e));
   } finally { MAT_BUSY = false; HXBusy.end(tok); }
 }
@@ -2701,23 +2932,41 @@ function matGenDraw() {
   const out = $('mgOut'); if (!out) return;
   if (!MAT_GEN) { out.innerHTML = ''; return; }
   const it = MAT_GEN.items, rej = MAT_GEN.rejected || [], ok = MAT_GEN.added;
+  /* 章节来源统计（2026-11-20）：老师要一眼看出「哪些章得自己核对」——
+     推测 = 模型自己写的章，只在这份资料的章区间内才采信，但仍然要核；未标 = 干脆没章，
+     按章组卷抽不到，老师想按章用就得手动补。 */
+  const chN = { toc: 0, text: 0, ai: 0, none: 0 };
+  it.forEach(q => { const k = q.chSrc; chN[k === 'toc' || k === 'text' || k === 'ai' ? k : 'none']++; });
+  const chNote = (chN.toc || chN.text || chN.ai || chN.none)
+    ? `章节：目录 ${chN.toc} · 题干 ${chN.text} · 推测 ${chN.ai} · 未标 ${chN.none}`
+    : '';
   out.innerHTML = `<div class="mg-res">
     <div class="mg-rh"><b>${esc(MAT_GEN.tag || '本次出题')}</b>
       <span class="note">${ok && ok.ok ? `已进题池 ${ok.added} 道${ok.dup ? ` · 重复跳过 ${ok.dup} 道` : ''}` : '还没写进题池'}</span></div>
+    ${chNote ? `<div class="note" style="margin:-2px 0 8px">${esc(chNote)}</div>` : ''}
     <div class="mg-list">${it.map((q, i) => `<div class="mg-item ro">
       <span class="mg-q"><b>${esc(matQtName(q.t))}</b>${esc(q.q)}
-      <span class="note">答案：${esc(String(MAT_ANS_ROW(q)).slice(0, 140))}</span></span></div>`).join('')}</div>
+      <span class="note">答案：${esc(String(MAT_ANS_ROW(q)).slice(0, 140))}</span>
+      ${q.chSrc === 'ai' ? `<span class="note">（第 ${q.ch} 章 · AI 推测，请核对）</span>` : ''}
+      ${q.chSrc === 'none' && !q.ch ? '<span class="note">（未标章节）</span>' : ''}</span></div>`).join('')}</div>
     ${rej.length ? `<details class="mg-rej"><summary>${rej.length} 道没收下</summary><ul>${rej.map(r => `<li>第 ${r.index} 条「${esc(r.stem)}」：${esc(r.reason)}</li>`).join('')}</ul></details>` : ''}
     <div class="row" style="margin-top:10px"><button class="sm" id="mgGoQb">去题池看这批题</button>
-      ${ok && ok.ok === false ? '<button class="pri sm" id="mgRetry">重新写入题池</button>' : ''}
+      ${ok && ok.ok === false
+        ? (MAT_GEN.multi
+          /* 多份批次没有单一 material_id（每题属于不同资料），一起重写会把 material_id 存丢，
+             所以这里只禁用并说明，不给一个「看着能点、点了更糟」的按钮。 */
+          ? '<button class="sm" id="mgRetry" disabled title="这批是分成多份分别入池的，请到题池里按题型筛出来处理">多份批次请分开重试</button>'
+          : '<button class="pri sm" id="mgRetry">重新写入题池</button>')
+        : ''}
       <span class="note">不满意的到题池里按题型筛出来批量删掉就行</span></div>
   </div>`;
   const b = out.querySelector('#mgGoQb');
   if (b) b.onclick = () => { if (typeof qbHome === 'function') qbHome(); };
   /* 入池失败时别让老师白瞎这一批 AI 额度（2026-11-20：自建题型被后端挡住，20 道题生成出来了却进不去）。
-     题目还在内存里，给一颗「重新写入题池」直接重试，不必重新出题。 */
+     题目还在内存里，给一颗「重新写入题池」直接重试，不必重新出题。
+     多份批次那颗按钮是 disabled 的（见上），这里也 guard 一下，别给一个点了会丢 material_id 的入口。 */
   const rt = out.querySelector('#mgRetry');
-  if (rt) rt.onclick = async () => {
+  if (rt && !MAT_GEN.multi) rt.onclick = async () => {
     if (!MAT_GEN) return;
     const tok = HXBusy.begin(rt, '正在重试…');
     try {
@@ -2752,7 +3001,67 @@ function matFig(id) {
   return null;
 }
 
-function MAT_toDb(q, src) {
+/* ── 章节号：分级信任（2026-11-20）─────────────────────────────────────────
+   病根：原来只有 `blockCh || 模型的 ch` 一句 —— 模型写 4 就是第 4 章，没有任何校验。
+   20 道实操题（流水灯本该是第 3 章）被判成第 1/4/5 章，老师按第 3 章筛一道都筛不到。
+   现在按可信度从高到低：
+     ① 目录（导入时做好的 toc → 块上的 __ch）→ 直接用，标 chSrc:'toc'
+     ② 题干里写明的「第3章 / 项目3 / 任务3-1 / 图3.2 / 3.1 节」→ 用（这是原文里的证据），标 'text'
+     ③ 模型自己回的 ch → **只有落在「这份资料实际覆盖的章节区间」内**才采信，标 'ai'
+     ④ 全落空 → null，标 'none'
+   为什么不一刀切全写 null：新题会全都没章节，按章组卷直接抽不到，比现在更糟。 */
+
+const MAT_CN_D = { 一: 1, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9 };
+function matCnNum(t) {
+  const s = String(t || '');
+  if (/^\d{1,2}$/.test(s)) return +s;
+  if (s === '十') return 10;
+  const m = s.match(/^([一二三四五六七八九])?十([一二三四五六七八九])?$/);
+  if (m) return (m[1] ? MAT_CN_D[m[1]] : 1) * 10 + (m[2] ? MAT_CN_D[m[2]] : 0);
+  return MAT_CN_D[s] || 0;
+}
+/* 从一段文字里抠章号。只认**带编号**的写法，认不出返回 0（不乱猜）。 */
+function matChNum(text) {
+  const t = String(text == null ? '' : text);
+  const NUM = '(\\d{1,2}|[一二三四五六七八九十]{1,3})';
+  let m;
+  if ((m = t.match(new RegExp('第\\s*' + NUM + '\\s*(?:章|项目|单元|篇|讲|部分)')))) return matCnNum(m[1]);
+  if ((m = t.match(new RegExp('(?:项目|单元|课题|模块)\\s*' + NUM)))) return matCnNum(m[1]);
+  if ((m = t.match(/任务\s*(\d{1,2})\s*[-–]/))) return +m[1];
+  if ((m = t.match(/图\s*(\d{1,2})\s*[.．–-]/))) return +m[1];
+  if ((m = t.match(/(\d{1,2})\s*[.．]\s*\d{1,2}(?:\s*[.．]\s*\d{1,2})?\s*节/))) return +m[1];
+  return 0;
+}
+/* 这份资料实际覆盖的章节区间：优先用目录（min/max）；没有目录就从资料名里的「项目3」推。 */
+function chRangeOf(matName, toc) {
+  const list = (Array.isArray(toc) ? toc : []).map(c => (+c && +c.ch) || 0).filter(n => n > 0);
+  if (list.length) return { min: Math.min(...list), max: Math.max(...list) };
+  const n = matChNum(matName);
+  return n ? { min: n, max: n } : null;
+}
+/* 题干（+ 选项文字）里能看出的章节号；看不出返回 0。 */
+function chFromTextOf(q) {
+  const opts = Array.isArray(q && q.options) ? q.options.map(o => String((o && o.text) || '')).join(' ') : '';
+  return matChNum(String((q && q.stem) || '') + ' ' + opts);
+}
+/* 四级判定：返回 { ch, src }，src 只给界面看（DB 里没这列，add 会忽略多余 key）。 */
+function chDecide(q, ctx) {
+  const c = ctx || {};
+  const blockCh = (q && q.__ch != null && +q.__ch > 0) ? +q.__ch : null;
+  if (blockCh) return { ch: blockCh, src: 'toc' };
+  const fromText = chFromTextOf(q);
+  if (fromText) return { ch: fromText, src: 'text' };
+  const ai = (q && q.ch != null && +q.ch > 0) ? +q.ch : null;
+  if (ai) {
+    const range = chRangeOf(c.matName, c.toc);
+    /* 没有区间可判（既没目录、资料名也没编号）就只能信模型 —— 这也是改造前的行为，不算退步 */
+    if (!range || (ai >= range.min && ai <= range.max)) return { ch: ai, src: 'ai' };
+    return { ch: null, src: 'none' };   // 模型说的章不在这份资料的范围里：宁可不标，也别标错
+  }
+  return { ch: null, src: 'none' };
+}
+
+function MAT_toDb(q, src, ctx) {
   /* 2026-11-19：自建题型（如 shicao）在 MAT_DB_T 里没有映射，原来会掉进 'choice' ——
      表现是「明明出的实操题，进题池却变成选择题，还没有选项」。现在原样保留 key。 */
   const t = MAT_DB_T[q.type] || q.type || 'choice';
@@ -2762,18 +3071,22 @@ function MAT_toDb(q, src) {
   else if (t === 'fill') a = q.answer.slice();
   else a = Array.isArray(q.answer) ? (q.answer[0] || '') : String(q.answer == null ? '' : q.answer);
   const fig = matFig(q.fig);
-  /* 章节（2026-11-20）：**优先用块的**（aiGenerate 按导入时的目录注入 q.__ch），
-     模型自己写的 ch / sec 只在这块没有目录信息时兜底 —— 这样 AI 猜错章不会污染题池。
+  /* 章节（2026-11-20）：四级判定（见 chDecide）—— 目录 > 题干原文 > 模型推测（限区间）。
      有块级 ch 就整组用块级的（ch / sec / secTitle 必须自洽，不能 ch 用一个源、sec 用另一个）。 */
-  const blockCh = (q.__ch != null && +q.__ch > 0) ? +q.__ch : null;
+  const dec = chDecide(q, ctx);
+  const ch = dec.ch, chSrc = dec.src;
+  const fromBlock = chSrc === 'toc';
   const okSec = v => (v != null && /^[0-9]+(\.[0-9]+)*$/.test(String(v).trim())) ? String(v).trim() : null;
-  const ch = blockCh || ((q.ch != null && +q.ch > 0) ? +q.ch : null);
-  const sec = blockCh ? okSec(q.__sec) : okSec(q.sec);
-  const secTitle = blockCh
+  const sec = fromBlock ? okSec(q.__sec) : okSec(q.sec);
+  const secTitle = fromBlock
     ? (q.__secTitle ? String(q.__secTitle).slice(0, 120) : null)
     : (q.secTitle ? String(q.secTitle).slice(0, 120) : null);
   return {
     t, ch,
+    /* chSrc 只给界面看（「目录 / 题干 / 推测 / 未标」），**不入库** ——
+       hx_exam_qbank_add 是逐列 it->>'xxx' 取值（supabase/2026-11-20-题池题型不再写死.sql:38-46），
+       多余的 key 会被忽略，不会让整批写入失败。 */
+    chSrc,
     sec, secTitle,
     q: q.stem,
     /* 选项的 fig 单独筛：认不出就只删这个字段，选项文字照样留着。 */

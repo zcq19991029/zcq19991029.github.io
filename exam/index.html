@@ -450,9 +450,10 @@ body { margin: 0; }
 .ex { width: min(1600px, 100%); margin: 0 auto; padding: 22px 18px 60px; box-sizing: border-box; }
 
 /* ============================================================
-   教师端外壳：左侧栏（考试 / 组卷与组卷码 / 理论试卷 + 科目）＋ 右侧内容
+   教师端外壳：左侧栏（考试 / 理论试卷 / 试卷库 + 科目）＋ 右侧内容
    ------------------------------------------------------------
    2026-11-06 用户：「考试/组卷/理论试卷」，并要求「各个科目考试考虑做区分选项卡」。
+   2026-11-20 去掉了「组卷与组卷码」页：老师只用「发布电子试卷 → 考试码」这一条路。
    侧栏放在 #app 里、内容放进 #appMain，这样 app() 只要指向 #appMain，原来所有页面
    （发布、交卷与批改、学生取题、考场）一行都不用改。
    学生端不套外壳：学生只看得到自己那一张考场，侧栏对他没有意义。
@@ -522,11 +523,11 @@ body { margin: 0; }
 .ex-meta { display: grid; gap: 2px; min-width: 0; }
 .ex-meta .mono { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ex-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
-.ex-form label, .ex-paste { display: grid; gap: 6px; font-weight: 600; }
-.ex-paste { margin-top: 12px; }
+.ex-form label { display: grid; gap: 6px; font-weight: 600; }
 .ex-cls { display: flex; flex-wrap: wrap; gap: 8px; }
 .ex-cls label { display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 10px; background: var(--fill, rgba(0, 0, 0, .04)); }
-.ex-rows select { max-width: 220px; }
+/* 2026-11-20：`.ex-paste`（粘贴组卷码那一栏）和 `.ex-rows`（母题/题型/分值那张表）随之删掉 ——
+   它们只服务已删的老发布表单 editExam，留着就是没人用的死样式。 */
 .ex .editor { min-height: 260px; margin-top: 10px; }
 .mono { font-family: Consolas, "Cascadia Mono", monospace; }
 button.danger { color: var(--bad, #d70015); }
@@ -539,6 +540,8 @@ button.danger { color: var(--bad, #d70015); }
 .ex-rel-tag.off { color: #b45309; background: rgba(180, 83, 9, .16); border-color: rgba(180, 83, 9, .55); }
 .ex-rel-tag.unk { color: var(--mute, #6b7280); border-color: var(--hair, rgba(15, 23, 42, .12)); }
 .ex-rel-sub { font-size: 12px; color: var(--acc, #2f6bff); }
+/* 老组卷码格式的考试（不是 E1 电子卷）：提醒一句，别让老师点进去才发现取不到题 */
+.ex-legacy { font-size: 12px; color: var(--warn, #b25000); }
 /* 删只用红字：button.danger 在 BASE_CSS 里是红底，再刷红字就成了一块看不出字的大红块（截图踩过）。 */
 .ex-item [data-danger] { color: var(--bad, #d70015); }
 .ex-fail { color: #dc2626; margin: 8px 0 0; }
@@ -550,38 +553,10 @@ button.danger { color: var(--bad, #d70015); }
 }
 
 /* ============================================================
-   组卷页的「题库选题」面板（2026-11-06）
-   ------------------------------------------------------------
-   用户要「每一题都可以去选择题库去添加进去 精准组卷」。面板放在右侧 rail 顶部，
-   是卡片不是弹窗：和这一页其他东西同一套视觉，手机上也不用处理遮罩/滚动锁。
-   72 项（6 母题 × 12 变式）必须**自己能滚**：整页跟着变长的话，老师点开题库就找不到
-   下面那张组卷码卡了；.bk-h 吸顶是为了滚到 M5 时还知道自己在哪个母题里。
-   ============================================================ */
-.bk-card h2 { font-size: 16px; }
-.bk-list { max-height: min(58vh, 560px); overflow: auto; overscroll-behavior: contain; margin: 10px 0; padding-right: 4px; border-top: 1px solid var(--hair); }
-.bk-h { position: sticky; top: 0; z-index: 1; background: var(--card-lift, #fff); padding: 8px 2px 4px; font: 600 12px/1.5 Consolas, "Cascadia Mono", monospace; letter-spacing: .02em; color: var(--mute); border-bottom: 1px solid var(--hair); }
-.bk-i { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 7px 6px; border: 1px solid transparent; border-radius: 10px; cursor: pointer; transition: background-color .15s, border-color .15s; }
-.bk-i:hover { background: var(--field2); }
-.bk-i.on { background: var(--accbg); border-color: var(--acc); }
-.bk-n { font: 600 12px/1.4 Consolas, "Cascadia Mono", monospace; color: var(--mute); white-space: nowrap; }
-.bk-t { font-size: 13px; color: var(--ink2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.bk-i.on .bk-t { color: var(--ink); }
-/* 「✓ 已在用」必须放在摘要**前面**：.bk-t 是两行截断（-webkit-line-clamp），
-   跟在长摘要后面时手机上直接被截掉 —— 选中了却看不到标记，等于没写。 */
-.bk-on { color: var(--acc); font-weight: 600; margin-right: 6px; white-space: nowrap; }
-.bk-q { margin: 2px 0 10px 8px; padding: 8px 12px 12px; border-left: 2px solid var(--acc); background: var(--field2); border-radius: 0 12px 12px 0; }
-.bk-q .q-head { margin-top: 0; }
-.bk-q .q-req ul { margin: 6px 0 0; padding-left: 18px; }
-/* 手机上 rail 不再是侧栏（见 BASE_CSS 的 .with-rail），面板仍保持内部滚动，别把整页顶得很长 */
-@media (max-width: 1000px) {
-  .bk-list { max-height: 52vh; }
-}
-
-/* ============================================================
-   试卷库列表（组卷页 + 理论试卷页共用，2026-11-06）
+   试卷库列表（理论试卷页 + 侧栏「试卷库」页共用，2026-11-06）
    ------------------------------------------------------------
    每行三件事：名字 / 存的时间 + 识别码 / 选用·改名·删。手机上按钮换行也不会挤成一坨。
-   列表自己滚（60 条上限），否则组卷页 rail 会被历史卷子推到看不见组卷码。
+   列表自己滚（60 条上限），免得历史卷子把下面的按钮推出屏幕。
    ============================================================ */
 .lib-name { flex: 1 1 150px; min-width: 0; max-width: 100%; }
 /* 覆盖已有卷（2026-11-20）：一行「覆盖已有卷 [下拉]」，选中后下面那句提示会变红，
@@ -6697,7 +6672,7 @@ pre.code{font-family:"Consolas","Courier New",monospace;font-size:9pt;line-heigh
 #src{position:absolute;left:-9999px;top:0;width:var(--colw)}
 #mm{position:absolute;left:-9999px;width:1px;height:100mm}
 /* ── 编辑态（只在网页预览里出现，打印一定不能带） ──
-   题目块整块可点：悬停给底色 + 虚线框，右上角一枚「N 换」小标；老师点名的题左边一道蓝线。
+   题目块整块可点：悬停给底色 + 虚线框；老师点名的题左边一道蓝线。
    颜色在这里写死是因为这段 CSS 也进打印文档（iframe 里拿不到父页的主题变量），
    而且纸面本身永远是白底黑字，不需要跟随明暗主题。 */
 body[data-edit="1"] .ed{position:relative;cursor:pointer;border-radius:3px;outline:1px dashed transparent;outline-offset:1px;transition:background-color .12s,outline-color .12s}
@@ -6712,22 +6687,15 @@ body[data-edit="1"] .ed.pin{box-shadow:inset 3px 0 0 #2f6bff;padding-left:8px}
    所以小问块不再各画一个虚线框，只保留悬停底色，并整块跟题干共用同一个 data-k（点哪块都是换整道）。 */
 body[data-edit="1"] .ed.edsub{outline:none;cursor:pointer}
 body[data-edit="1"] .ed.edsub:hover{background:#e9f0ff}
-body[data-edit="1"] .ednote{display:block;font:9px/1.5 "SimHei","黑体",sans-serif;font-style:normal;color:#94a3b8;margin:2px 0 0;user-select:none}
-/* 角落的「N 换」：常亮但很淡（老师一看就知道这里能点），鼠标放上去变实；
-   触屏没有 hover，直接常亮。已经点名的题更实一点，一眼能看出哪几道是自己定的。 */
-body[data-edit="1"] .edx{position:absolute;right:0;top:-1px;font:9px/1.35 "SimHei","黑体",sans-serif;font-style:normal;color:#fff;background:#2f6bff;border-radius:0 3px 3px 0;padding:0 4px;opacity:.22;transition:opacity .12s;pointer-events:none;user-select:none}
-body[data-edit="1"] .ed.pin .edx{opacity:.7}
-body[data-edit="1"] .ed:hover .edx{opacity:1}
+/* 2026-11-20 删掉角落那枚「N 换」蓝色小标（.edx），连带那条「（1）～（N）是这道题自带的小问」
+   灰字说明（.ednote）：说明里点的正是「右上角『换整题』」，小标没了它就成了指路指空。
+   老师原话「这个蓝色换 完全冗余了吧…大家都知道怎么换题」。悬停底色 / 虚线框已经说明这块能点。 */
 /* 从右侧题库往卷面上拖时，光标压住的那一格（2026-11-20 老师「现在都不让拖动」）：
    虚线橙框 + 浅黄底，比悬停的蓝底更实，一眼看出松手会落到哪一道。
    写在 :hover 之后、同为两个类选择器，所以拖拽高亮能盖住悬停底色。 */
 body[data-edit="1"] .ed.drop-hot{background:#fff6d8;outline:2px dashed #e8940a;outline-offset:2px;box-shadow:inset 0 0 0 2px rgba(232,148,10,.16)}
-body[data-edit="1"] .ed.drop-hot .edx{opacity:1}
-/* 手机上看不出 hover，小标常亮，否则老师根本发现不了题目能点 */
-@media (hover:none),(pointer:coarse){body[data-edit="1"] .edx{opacity:.85;padding:0 5px;font-size:10px}}
 @media print{html,body{background:#fff}.sheet{margin:0}
-  .ed{position:static!important;background:none!important;outline:0!important;box-shadow:none!important;border-radius:0!important}
-  .edx,.ednote{display:none!important}}
+  .ed{position:static!important;background:none!important;outline:0!important;box-shadow:none!important;border-radius:0!important}}
 `;
 /* 排版脚本（在预览 / 打印用的页面里运行）：量每个块的高度，按栏装，再拼成一张张 A3 */
 const PAPER_LAYOUT_JS=`
@@ -6985,26 +6953,23 @@ function paperDocHTML(P,cfg,opts){
          抽题会退回随机，这时不该还画着“已指定”的样子 */
       const pin=picks[kk]!=null&&pickQ(picks[kk])===q;
       const cls=edit?('blk ed'+(pin?' pin':'')):'blk';
-      const subs=hxSubs(q.sub), nsub=subs.length;
-      /* 有多个小问的题，小标写「换整题」，免得老师以为只是换这个小问 */
-      /* ⚠️ 这行必须留在下面「空白卷占位」之前：tag 是 const，写在使用点后面会 TDZ 直接抛错，
-         空白卷一开整页渲染失败（2026-11-19 实测踩到）。 */
-      const tag=edit?`<i class="edx">${i+1} 换${nsub>1?'整题':''}</i>`:'';
+      const subs=hxSubs(q.sub);
       /* 空白卷占位：只画题号 + 留白，不碰 opts/code/sub（都是空的） */
       if(q.__blank){
         const n={choice:2,fill:1,judge:1,term:4,short:8,prog:8}[s.t]||4;
-        blocks.push(`<div class="${cls}"${at}>${tag}<div class="q">${i+1}.</div>${lines(n)}</div>`);
+        blocks.push(`<div class="${cls}"${at}><div class="q">${i+1}.</div>${lines(n)}</div>`);
         return;
       }
       /* 程序分析题按小问拆成几块，可以跨栏，不会因为整题太长空出半栏。
-         2026-11-08：小问块加 edsub（不单独画虚线框），并在题干块下加一行灰字说明 —— 
-         用户原话「这个大题的位置为什么是两个 / 这个咋是三个 咋选的」，说明拆块让人误以为是多道题。 */
+         2026-11-08：小问块加 edsub（不单独画虚线框）——
+         用户原话「这个大题的位置为什么是两个 / 这个咋是三个 咋选的」，说明拆块让人误以为是多道题。
+         原来题干块下还有一行灰字解释这件事，2026-11-20 连同「N 换」小标一起删了。 */
       if(s.t==='prog'){
         const sub=k=>`<div class="q sub">（${k+1}）${ptxt(subs[k])}</div>${lines(subs.length>1?3:7)}`;
         const subcls=edit?('blk ed edsub'+(pin?' pin':'')):'blk';
-        blocks.push(`<div class="${cls} keep"${at}>${tag}<div class="q">${i+1}.${ptxt(q.q)}</div>${hxFig(q.fig,true)}<pre class="code">${esc(q.code)}</pre>${edit&&nsub>1?`<i class="ednote">（1）～（${nsub}）是这道题自带的小问；点右上角「换整题」是整道一起换，不是只换其中一问</i>`:''}</div>`);
+        blocks.push(`<div class="${cls} keep"${at}><div class="q">${i+1}.${ptxt(q.q)}</div>${hxFig(q.fig,true)}<pre class="code">${esc(q.code)}</pre></div>`);
         for(let k=0;k<subs.length;k++)blocks.push(`<div class="${subcls}"${at}>${sub(k)}</div>`);
-      } else blocks.push(`<div class="${cls}"${at}>${tag}${itemHTML(s,q,i)}</div>`);
+      } else blocks.push(`<div class="${cls}"${at}>${itemHTML(s,q,i)}</div>`);
     });
   });
   const seal=`<div class="seal"><span style="left:22%">密</span><span style="left:50%">封</span><span style="left:78%">线</span></div>`;
@@ -7403,8 +7368,9 @@ window.specPreviewHTML = specPreviewHTML;
      ② 把本机还没传上去的（_sync !== 1，例如「这个功能还是纯本机版」时存的老卷子）逐条补传；
      ③ 合并结果写回本机镜像。
    ── 为什么读写都收在这一个文件里 ──
-   组卷页和理论试卷页共用一份库，只在 kind / sub 上分开（build = 上机组卷，
-   paper = 理论试卷设置 C）；以后加科目、加「教研组共享」，只动这里。
+   理论试卷页和侧栏「试卷库」页共用一份库，按 kind / sub 分开（kind 现在只有 paper = 理论试卷设置 C；
+   2026-11-20 起「组卷与组卷码」页删了，它当年的 kind='build' 记录只可能留在老数据里，不再展示）；
+   以后加科目、加「教研组共享」，只动这里。
    ── 上限 60 条 ──
    云端 hx_exam_lib_save 也按 60 条裁（多的从最旧的删），本机镜像同样 60，两头一致。
    ── 重名不弹 confirm ──
@@ -7602,10 +7568,11 @@ function libWhen(at) {
   const d = new Date(at), p = n => String(n).padStart(2, '0');
   return `${d.getMonth() + 1}月${d.getDate()}日 ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
-/* 列表里显示的识别码：上机卷看组卷码前 8 位（一眼能对上），理论卷看换题种子 */
+/* 列表里显示的识别码：理论卷看换题种子。
+   原来还有一支给「上机组卷」（kind='build'）算组卷码前 8 位，组卷页删掉后没人再传 build，
+   那一支成了死代码，2026-11-20 删。 */
 function libCode(it) {
   try {
-    if (it.kind === 'build' && it.payload && it.payload.key) return makeExamCode(it.payload.key, it.payload.qs || []).slice(0, 8) + '…';
     if (it.payload && it.payload.key) return String(it.payload.key);
   } catch (e) { }
   return '';
@@ -9533,360 +9500,12 @@ function mountPaper(sub) {
 window.HXPaper = { mount: mountPaper };
 
 ;
-/* ================= 考试 · 组卷与组卷码（2026-11-06 从单片机迁来） =================
-   用户原话：「我们单片机组卷理论试卷和导出文件全部属于考试功能 我们需要迁移」。
-   ── 和单片机那份的差别 ──
-   1. 不再存在网页文件里（没有「保存到文件」这一步），组卷设置存 localStorage（键 exam.build），
-      换了浏览器就回到默认 —— 所以这套组卷的真正存档是「发布出去的考试」（Supabase 里那行 paper 码）。
-      组卷页的职责收窄成一件事：**调出一串组卷码**，复制去「考试」页发布。
-   2. 没有名单、没有批改、没有导出的旧入口，那些都在别的页。
-   3. 母题只认内置 M1～M6（导入书上代码那套要单片机离线文件，网页版做不了），
-      用到自定义母题的组卷码在这里直接拦住并说明原因。
-   4. 科目：现在只有单片机上机。组卷状态按科目分开存（SUBJECTS 的键），以后加科目不用改这里。
-   5. 2026-11-06 加「题库选题」与「试卷库」：用户要「每一题都可以去选择题库去添加进去 精准组卷，
-      而不是只有随机」，以及「这套卷子就可以命名为XXX保存到理论试卷库里面供我挑选和备用」。
-      题库的本质还是 M1～M6 的生成器，只是把变式号 pin 钉死（见 bank.js 的 bankVariant）：
-      钉死的题和口令、学号、这是第几题都无关，所以老师在题库里看到的那道就是学生拿到的那道。 */
-'use strict';
-
-const BUILD_KEY = 'exam.build';
-/* 每道题的默认值：和「考试」页发布时的默认一致，老师来回切两页看到的是同一套 */
-const BUILD_DEFAULT_QS = [
-  { mid: null, type: 'fill', pts: 30, draw: null },
-  { mid: null, type: 'modify', pts: 35, draw: null },
-  { mid: null, type: 'fix', pts: 35, draw: null }
-];
-const randKey = () => 'K' + Math.random().toString(36).slice(2, 6).toUpperCase();
-
-/* ---------- 题库（变式清单）的状态 ----------
-   bankCache 是模块级的：buildVariant 不便宜（要生成代码、算评分点），
-   72 项每次 draw() 重算会让点一下卡一下；同一个 (题型,母题,变式号) 出的题永远一样，缓存绝对安全。
-   上限是 3 题型 × 72 = 216 道，几 MB 以内，比反复重算划算。 */
-const bankCache = new Map();
-let bankFor = null;        // 题库面板开着的是第几题（null = 关着）。只在内存里，不存盘：这是临时动作，不是设置
-let bankPeek = new Set();  // 展开了「看」的变式（'M3|5'）
-
-function bankGet(mid, type, pin) {
-  const k = type + '|' + mid + '|' + pin;
-  let v = bankCache.get(k);
-  if (!v) { v = bankVariant(mid, type, pin); bankCache.set(k, v); }
-  return v;
-}
-/* 列表里只放一句摘要：72 项如果每项都渲染整道题（题目 + 程序 + 评分点），手机上直接卡死。
-   摘要取的是「要求」的第一句，正好是这题跟别题最不一样的地方。 */
-function bankSum(v) {
-  const s = (v.req || []).join('；').replace(/\s+/g, ' ').trim();
-  return s.length > 60 ? s.slice(0, 60) + '…' : s;
-}
-
-/* 母题下拉：只列内置 M1～M6。
-   单片机的 motherOptions 会附上「老师导入的书上代码」和「我自己导入的代码」两组，
-   那两块在网页版考试里根本没有（导入要单片机离线文件），列出来就是一堆选了会失败的选项。
-   ── 为什么自己写一份而不复用 motherOptions ──
-   它依赖 ui-practice.js 的 PRACTICE_MOTHERS，考试工具不打包那个文件，直接调会 ReferenceError。 */
-function builderMothers(sel, first) {
-  const o = m => `<option value="${m.id}" ${sel === m.id ? 'selected' : ''}>${m.id} ${esc(m.name)}${m.task ? '（' + esc(m.task) + '）' : ''}</option>`;
-  return (first || '') + MOTHERS.map(o).join('');
-}
-
-/* 组卷状态：{ [科目]: { key, qs:[{mid,type,pts,draw,pin}], requireHex } } */
-function buildLoad(sub) {
-  const all = store.get(BUILD_KEY, {}) || {};
-  const b = all[sub];
-  if (b && Array.isArray(b.qs) && b.qs.length) return { key: b.key || randKey(), qs: b.qs.map(q => ({ ...q })), requireHex: !!b.requireHex };
-  return { key: randKey(), qs: BUILD_DEFAULT_QS.map(q => ({ ...q })), requireHex: false };
-}
-function buildSave(sub, B) {
-  const all = store.get(BUILD_KEY, {}) || {};
-  all[sub] = { key: B.key, qs: B.qs.map(q => ({ ...q })), requireHex: !!B.requireHex };
-  store.set(BUILD_KEY, all);
-}
-const buildCode = B => makeExamCode(B.key, B.qs);
-
-/* 反查：这个组卷码发布成考试了吗（2026-11-13）
-   用户原话「组卷码没有已发布卷反查，改组不提示会影响哪场考试」。
-   把当前组卷码拿去 hx_exam_find_by_paper 精确匹配 paper 字段，列出已经发布成考试的记录；
-   class_names / subs 由 SQL 现算好（组卷页没有班级列表，这里只负责拼出来），不用再发请求。 */
-function findHTML(list) {
-  if (!Array.isArray(list) || !list.length) return '<p class="note">这个组卷码还没有发布成考试，怎么改都不影响已发布的考试。</p>';
-  return list.map(x => {
-    const cls = (Array.isArray(x.class_names) ? x.class_names : []).map(esc).join('、') || '没选班';
-    const t = x.created_at ? when(x.created_at) : '';
-    return `<div style="padding:8px 0;border-top:1px solid rgba(127,127,127,.18)">
-      <div><b>${esc(x.title || '未命名')}</b> <span class="note mono">学生短码 ${esc(x.code || '')}</span></div>
-      <div class="note">${cls}${t ? ' · ' + t : ''}${x.subs ? ' · ' + x.subs + ' 人交卷' : ''}${x.open ? '' : ' · 已收卷'}</div>
-    </div>`;
-  }).join('');
-}
-
-/* 用到导入书上代码的题改回随机：网页版没有自定义母题库，留着会让组卷码解不开。
-   顺带把没有 pin 的题补成 pin:null，让下面所有判断都能直接写 q.pin != null */
-function buildFixMids(B) {
-  B.qs.forEach(q => {
-    if (q.mid && !MOTHER_BY_ID[q.mid]) { q.mid = null; q.pin = null; }
-    if (q.pin === undefined) q.pin = null;
-    if (q.pin != null) q.draw = null;   // pin 和 draw 同时存在时 pin 说话（seed 以 pin 优先），留着 draw 只会让码更乱
-  });
-  return B;
-}
-
-/* ---------------- 组卷页 ---------------- */
-function mountBuilder(sub) {
-  const box = $('bdBox');
-  if (!box) return;
-  /* 重复挂载要能重复调（2026-11-06）：试卷库「选用」之后要重挂组卷器，
-     以前这里每次都在 box 上加一对 change/click 监听 —— 元素没换，监听就叠一份，
-     点一次删除会删两题、点一次换题会换两次。现在每次挂载先把上一份全部解绑。 */
-  if (box._ac) box._ac.abort();
-  const ac = box._ac = new AbortController();
-  const sig = { signal: ac.signal };
-
-  let B = buildFixMids(buildLoad(sub));
-  bankFor = null; bankPeek.clear();   // 每次进组卷页都从「关着」开始，别让上次开在哪一题的记忆带过来
-
-  const total = () => B.qs.reduce((a, q) => a + (q.pts || 0), 0);
-  const redraw = () => { buildSave(sub, B); draw(); };
-
-  /* 题库面板：只在打开时渲染（懒生成）。第一行是母题标题，下面 12 个变式。 */
-  function bankCard() {
-    if (bankFor == null || !B.qs[bankFor]) { bankFor = null; return ''; }
-    const i = bankFor, q = B.qs[i];
-    const list = MOTHERS.map(M => {
-      let rows = `<div class="bk-h">${esc(M.id + ' ' + M.name)}${M.task ? ' · ' + esc(M.task) : ''}</div>`;
-      for (let pin = 1; pin <= BANK_PINS; pin++) {
-        const v = bankGet(M.id, q.type, pin);
-        const on = q.mid === M.id && q.pin === pin;
-        const peek = bankPeek.has(M.id + '|' + pin);
-        rows += `<div class="bk-i${on ? ' on' : ''}" data-mid="${M.id}" data-pin="${pin}">
-          <span class="bk-n">变式 ${pin}</span>
-          <span class="bk-t">${on ? '<b class="bk-on">✓ 已在用</b>' : ''}${esc(bankSum(v))}</span>
-          <button class="sm" data-bk="peek" data-mid="${M.id}" data-pin="${pin}" aria-label="看第${pin}个变式">${peek ? '收起' : '看'}</button>
-        </div>`;
-        if (peek) rows += `<div class="bk-q">${questionHTML(v, { qno: i + 1 })}<details><summary>答案</summary>${answerHTML(v)}</details></div>`;
-      }
-      return rows;
-    }).join('');
-    return `<div class="card bk-card">
-      <div class="row" style="justify-content:space-between;align-items:center"><h2 style="margin:0">${esc(TYPE_NAME[q.type])} · 题库（共 ${MOTHERS.length * BANK_PINS} 题）</h2><button class="sm" id="bkClose">关闭</button></div>
-      <p class="note">放进第 ${i + 1} 题：点一行就把这道变式钉进这一题（全班都做它，和口令、学号都无关）；点「看」先看题和答案。</p>
-      <div class="bk-list">${list}</div>
-      <div class="row" style="margin-top:10px"><button id="bkRand">改用随机（每人不同）</button></div>
-    </div>`;
-  }
-
-  function draw() {
-    const mopt = sel => builderMothers(sel, '<option value="">随机（每人抽不同的母题）</option>');
-    const topt = sel => Object.entries(TYPE_NAME).map(([k, n]) => `<option value="${k}" ${sel === k ? 'selected' : ''}>${n}</option>`).join('');
-    /* 全班同一题 / 题库指定的预览：pin 也一律出同一道，所以两种都要给老师看 */
-    const preview = i => {
-      const q = B.qs[i];
-      if (q.draw == null && q.pin == null) return '';
-      let v;
-      try { v = examPaper('预览', buildCode(B))[i]; } catch (e) { return ''; }
-      if (!v) return '';
-      return `<details class="qprev"><summary>看这道题（全班都考它）：${esc(v.title)}</summary>${questionHTML(v, { qno: i + 1 })}<details><summary>答案</summary>${answerHTML(v)}</details></details>`;
-    };
-    const pinned = q => q.pin != null;
-    const same = q => q.draw != null || q.pin != null;
-    box.innerHTML = `<div class="with-rail">
-      <div class="rail-main">
-        <div class="card">
-          <h2>组卷</h2>
-          <div class="row">
-            <label>换题种子 <input id="bdKey" style="width:150px" placeholder="字母和数字" autocomplete="off" value="${esc(B.key)}"></label>
-            <button id="bdNewKey">换一套题</button>
-            <span class="note">种子是组卷码最前面那段，决定具体抽到哪些题、参数怎么变；题目设置不变时，换种子 = 换一整套题。一般不用手动改。</span>
-          </div>
-          <div id="bdList" class="qlist">${B.qs.map((q, i) => `<div class="qrow" data-i="${i}">
-            <span class="qno">第 ${i + 1} 题</span>
-            <select data-f="mid" aria-label="第${i + 1}题的母题">${mopt(q.mid)}</select>
-            <select data-f="type" aria-label="第${i + 1}题的题型">${topt(q.type)}</select>
-            <label class="qpts"><input type="number" min="1" max="100" data-f="pts" value="${q.pts}" aria-label="第${i + 1}题分值"> 分</label>
-            <select data-f="mode" aria-label="第${i + 1}题的出题方式"><option value="each" ${same(q) ? '' : 'selected'}>每人参数不同</option><option value="fixed" ${same(q) ? 'selected' : ''}>全班同一题</option></select>
-            <button class="sm" data-f="bank" aria-label="第${i + 1}题从题库选题">${pinned(q) ? esc(q.mid) + ' · 变式' + q.pin : '题库选题'}</button>
-            ${q.draw != null ? '<button data-f="redraw" title="不满意就换一道（全班一起换）">换一题</button>' : ''}
-            <button class="qdel" data-f="del" title="删掉这一题" aria-label="删掉第${i + 1}题" ${B.qs.length <= 1 ? 'disabled' : ''}>×</button>
-            ${preview(i)}
-          </div>`).join('')}</div>
-          <div class="row"><button id="bdAddQ" ${B.qs.length >= 5 ? 'disabled' : ''}>＋ 添加一题</button><span class="note" id="bdSum"></span></div>
-          <div class="row" style="margin-top:12px"><label><input type="checkbox" id="bdHex" ${B.requireHex ? 'checked' : ''}> 批改时必须交有效 .hex 才给「编译通过」分</label></div>
-        </div>
-      </div>
-      <aside class="rail">
-        ${bankCard()}
-        <div class="card">
-          <div class="codebox"><div class="cb-l"><div class="note">组卷码（自动生成 = 换题种子 + 每道题的设置；学生直接输这个）</div><div class="cb-code mono" id="bdCode"></div><div class="note" id="bdLen"></div></div>
-            <button id="bdCopy">复制</button></div>
-          <p class="note" style="margin-top:10px">拿到码之后去「考试」页：<b>发布考试 → 粘贴组卷码 → 选班级</b>，网页会再给你一个学生输的短码。</p>
-          <div class="card band" style="margin-top:12px">
-            <div class="row" style="justify-content:space-between;align-items:center"><b>发布过吗</b><button class="sm" id="bdFind">查这个码</button></div>
-            <div id="bdFindOut" style="margin-top:6px"></div>
-          </div>
-        </div>
-        <div class="card">
-          <h2>试卷库</h2>
-          <div class="row"><input id="bdLibName" class="lib-name" autocomplete="off" placeholder="给这套卷起个名字"><button id="bdLibSave">保存到试卷库</button></div>
-          <div id="bdLibList"></div>
-          <p class="note">存的是这一页的全部设置（换题种子 + 每题母题/题型/分值/题库选题）。下一届点「选用」就回来了。</p>
-        </div>
-        <div class="card">
-          <details><summary>读入一个已有的组卷码</summary>
-            <div class="row" style="margin-top:6px"><input id="bdIn" style="width:100%" placeholder="例如 QM25-2t30-4g35.3-6c35" autocomplete="off"><button id="bdLoad">读入</button></div></details>
-        </div>
-      </aside>
-    </div>`;
-    $('bdSum').textContent = `共 ${B.qs.length} 题，满分 ${total()} 分`;
-    $('bdCode').textContent = buildCode(B);
-    $('bdLen').textContent = buildCode(B).length + ' 个字符';
-    drawLib();
-  }
-
-  /* ---------- 试卷库 ----------
-     2026-11-08 接云端：libLoad 先跟云端对齐（失败退回本机镜像），对齐完才画列表。
-     所以这里是 async —— 调用处不用 await（draw() 里是最后一句，等它没意义），
-     只保证「先出占位文案、回来再替换」。 */
-  async function drawLib() {
-    const el = $('bdLibList');
-    if (!el) return;
-    if (!el.querySelector('.lib-i') && !el.querySelector('.lib-empty')) el.innerHTML = '<p class="note lib-empty">正在读试卷库…</p>';
-    await libLoad('build', sub);
-    if (!el.isConnected) return;   // 等云端这段时间里切页了，别再往旧 DOM 上写
-    el.innerHTML = libListHTML('build', sub);
-    libBind(el, 'build', sub, {
-      onUse: (id, it) => {
-        const p = it.payload || {};
-        if (!Array.isArray(p.qs) || !p.qs.length) { toast('这份记录里没有题目，可能存坏了，删掉重存一次'); return; }
-        buildSave(sub, { key: p.key || randKey(), qs: p.qs.map(q => ({ ...q })), requireHex: !!p.requireHex });
-        bankFor = null; bankPeek.clear();
-        mountBuilder(sub);   // 重挂：上面的 AbortController 会先把旧监听解绑
-        toast('已选用「' + it.name + '」');
-      },
-      refresh: drawLib
-    });
-  }
-  if ($('bdLibName')) $('bdLibName').value = libDefaultName('build', sub);
-
-  /* 事件：用委托，draw() 重建 DOM 后不用重绑 */
-  box.addEventListener('change', e => {
-    const row = e.target.closest('.qrow');
-    if (row) {
-      const q = B.qs[+row.dataset.i], f = e.target.dataset.f;
-      if (!q) return;
-      if (f === 'mid') q.mid = e.target.value || null;
-      if (f === 'type') q.type = e.target.value;
-      if (f === 'pts') q.pts = Math.max(1, Math.min(100, Math.round(+e.target.value || 1)));
-      /* 出题方式：切回「每人不同」等于放弃题库选题；切到「全班同一题」时如果本来就是题库里的题，
-         不用再补 draw —— pin 已经保证全班一样，多一个 .1 只会让组卷码看不懂 */
-      if (f === 'mode') {
-        if (e.target.value === 'fixed') { if (q.draw == null && q.pin == null) q.draw = 1; }
-        else { q.draw = null; q.pin = null; }
-      }
-      redraw(); return;
-    }
-    if (e.target.id === 'bdHex') { B.requireHex = e.target.checked; buildSave(sub, B); toast('已记下（只影响这台设备上的组卷设置）'); return; }
-    if (e.target.id === 'bdKey') {
-      const k = e.target.value.trim();
-      if (!/^[A-Za-z0-9]{1,16}$/.test(k)) { toast('换题种子只能用字母和数字（最多 16 个）'); e.target.value = B.key; return; }
-      B.key = k; redraw();
-    }
-  }, sig);
-  box.addEventListener('click', e => {
-    /* 题库面板：整行都能点，所以要排在「必须是按钮」的判断前面 */
-    const peek = e.target.closest('[data-bk="peek"]');
-    if (peek) {
-      const k = peek.dataset.mid + '|' + peek.dataset.pin;
-      bankPeek.has(k) ? bankPeek.delete(k) : bankPeek.add(k);
-      draw(); return;
-    }
-    const bi = e.target.closest('.bk-i');
-    if (bi && bankFor != null && B.qs[bankFor]) {
-      const q = B.qs[bankFor];
-      q.mid = bi.dataset.mid; q.pin = +bi.dataset.pin; q.draw = null;
-      redraw();
-      toast(`第 ${bankFor + 1} 题已换成 ${q.mid} 变式 ${q.pin}（全班都做这道）`);
-      return;
-    }
-    const b = e.target.closest('button');
-    if (!b) return;
-    if (b.id === 'bkClose') { bankFor = null; draw(); return; }
-    if (b.id === 'bkRand') {
-      const q = bankFor != null ? B.qs[bankFor] : null;
-      if (q) { q.mid = null; q.pin = null; q.draw = null; redraw(); toast(`第 ${bankFor + 1} 题改回随机：每人按学号抽不同的题`); }
-      return;
-    }
-    if (b.id === 'bdLibSave') {
-      /* 2026-11-15：存云端要等（hx_exam_lib_save），原来只禁按钮不换字，老师看不出在忙；
-         失败也只有 toast。现在转圈，失败原因留在试卷库列表顶上。 */
-      const tok = window.HXBusy ? HXBusy.begin(b, '正在保存…') : null;
-      if (!tok) b.disabled = true;
-      if (window.HXLib) HXLib.errLine($('bdLibList'), '');
-      libAdd($('bdLibName') ? $('bdLibName').value : '', 'build', sub, { key: B.key, qs: B.qs.map(q => ({ ...q })), requireHex: !!B.requireHex })
-        .then(it => {
-          if ($('bdLibName')) $('bdLibName').value = libDefaultName('build', sub);
-          toast(it.__offline ? '已存在这台电脑上（' + it.__err + '），下次连上云端会自动传上去：' + it.name : '已存入试卷库（云端）：' + it.name);
-          return drawLib();
-        })
-        .catch(e => {
-          const m = '没存上：' + (e && e.message ? e.message : e);
-          toast(m); if (window.HXLib) HXLib.errLine($('bdLibList'), m);
-        })
-        .then(() => { if (tok) HXBusy.end(tok); else b.disabled = false; });
-      return;
-    }
-    const row = b.closest('.qrow');
-    if (row && b.dataset.f) {
-      const i = +row.dataset.i;
-      if (b.dataset.f === 'del' && B.qs.length > 1) {
-        B.qs.splice(i, 1);
-        /* 删掉的题在题库面板上面时，面板指向的行号要跟着往前挪，否则会开到隔壁那道题上 */
-        if (bankFor === i) bankFor = null;
-        else if (bankFor != null && bankFor > i) bankFor--;
-        redraw();
-      }
-      if (b.dataset.f === 'redraw') { B.qs[i].draw = (B.qs[i].draw || 0) % 9999 + 1; redraw(); toast(`第 ${i + 1} 题已换成另一道`); }
-      if (b.dataset.f === 'bank') { bankFor = bankFor === i ? null : i; draw(); if (bankFor != null) { const c = box.querySelector('.bk-card'); if (c) c.scrollIntoView({ block: 'nearest' }); } }
-      return;
-    }
-    if (b.id === 'bdAddQ') { if (B.qs.length < 5) { B.qs.push({ mid: null, type: 'fill', pts: 20, draw: null, pin: null }); redraw(); } return; }
-    if (b.id === 'bdNewKey') { B.key = randKey(); redraw(); toast('已换一套题（种子变了）'); return; }
-    if (b.id === 'bdCopy') {
-      const code = buildCode(B);
-      (navigator.clipboard ? navigator.clipboard.writeText(code) : Promise.reject()).then(() => toast('组卷码已复制')).catch(() => toast('复制失败，请手动选中复制'));
-      return;
-    }
-    if (b.id === 'bdFind') {
-      /* 反查：拿当前组卷码去 hx_exam_find_by_paper 查有没有已经发布成考试。
-         结果区先出「正在查…」，回来再替换；查不到也说明白（可能是真没发布，也可能是 SQL 还没建）。 */
-      const out = $('bdFindOut');
-      if (!out) return;
-      const code = buildCode(B);
-      out.innerHTML = '<p class="note">正在查这个组卷码有没有发布成考试…</p>';
-      rpc('hx_exam_find_by_paper', { p_paper: code })
-        .then(list => { out.innerHTML = findHTML(list); })
-        .catch(e => { out.innerHTML = '<p class="note">没查到：' + esc(e && e.message ? e.message : e) + '</p>'; });
-      return;
-    }
-    if (b.id === 'bdLoad') {
-      const p = parseExamCode($('bdIn').value);
-      if (!p) { toast('组卷码格式不对，例如 QM25-2t30-4g35.3-6c35'); return; }
-      if (!p.qs.length) { toast('组卷码里至少要有 1 道题'); return; }
-      /* 网页版没有导入的母题库：用到 M7 以上（自定义）的码读不进来说明原因，别让老师以为坏了 */
-      if (p.qs.some(q => q.mid && !MOTHER_BY_ID[q.mid])) { toast('这个组卷码用到了导入书上代码的母题，网页版还不支持（要用单片机离线文件）'); return; }
-      B.key = p.key; B.qs = p.qs.map(q => ({ ...q })); bankFor = null; bankPeek.clear(); redraw(); toast('已读入组卷码');
-    }
-  }, sig);
-
-  draw();
-}
-
-/* ---------------- 科目里的其他页：由 app.js 的导航调 ---------------- */
-window.HXBuilder = { mount: mountBuilder, codify: () => buildCode(buildFixMids(buildLoad('mcu'))) };
-
-;
 /* ================= 华夏工具 · 考试 =================
-   教师账号发布考试：科目（现在只有单片机上机）+ 组卷码（单片机的组卷设置，如 QM25-2t30-4g35.3-6c35）+ 哪几个班。
-   这几个班的学生在首页登录后，输老师公布的码（自动生成的 6 位码或老师起的名字）取题：每人的题由学号 + 组卷码算出来，和单片机离线文件一样。
-   学生在网页里写程序、编译检查、看要求的现象，交卷（收卷前可以重交）；老师看交卷、一键批改（浏览器里编译 + 模拟判分）、导出成绩。
+   老师把题池里的一套题发布成「电子试卷」，网页给一串考试短码；学生在首页登录后输这个短码取题。
+   学生直接在网页上答题（选择 / 判断 / 填空 / 简答），交卷；老师看交卷、批改（含 AI 一键批改）、导出成绩。
+   ── 卷子的唯一格式是 E1: ──
+   发布时把题目冻进 paper 字段（E1:<base64(JSON)>），学生和批改台只认这一种。
+   2026-11-20 删掉了早期「单片机离线组卷码（QM25-…）」那条读卷路：用户明确「历史试卷有障碍大不了清除即可」。
    数据库见 supabase/exam-schema.sql；账号是 paike-session（和首页、各工具共用）。 */
 'use strict';
 const HXB = 'https://eiqgyrjrwdaunhxjmdyr.supabase.co', HXK = 'sb_publishable_FcVnLx3TNrj6HnbgarYnRw_DW4-yFzd', SKEY = 'paike-session';
@@ -9904,7 +9523,8 @@ let DEMO = false; // 只在 hx_me() 说 student.probe === true 之后为真（�
 const SUBJECTS = { mcu: '单片机上机' };
 const SUBJ = [{ id: null, key: 'mcu', name: '单片机上机', kind: 'machine', mats: 0, banks: 0 }];
 let SUBJ_ERR = '';
-const TYPES = [['t', '改编填空'], ['g', '按要求改程序'], ['c', '改错']];
+/* 题型表（改编填空 / 改程序 / 改错）只服务已删的上机组卷发布表单；电子卷的题型来自题池，
+   这里不再保留一份会和题池对不上的副本（2026-11-20）。 */
 const now = () => Math.floor(Date.now() / 1000);
 /* 面板加载占位（2026-11-06）：原来这里只有一排像素方块药丸，没有像素动效本体。
    现在写一个 data-fxload 占位，交给 src/loadfx.js 的 auto() 就地升级成
@@ -10039,6 +9659,8 @@ const curIsBuiltin = () => subIsBuiltin(CUR_SUB);
 const ZL_URL = '../ziliao/';
 const ALL_PAGES = T_PAGES;
 let CUR_T = 'exam', CUR_SUB = 'mcu';
+/* 班级列表缓存：电子试卷页要按班筛选 / 显示班名，交卷页也要用。第一次进页面时拉一次，之后复用。 */
+let CLASSES = null;
 /* 2026-11-08 科目建 / 改名 / 删统一搬到首页「管理 → 科目」面板，这里科目只读（理论试卷要按科目切题池）。 */
 function teacherShell() {
   $('app').innerHTML = `<div class="ex-shell">
@@ -10132,35 +9754,60 @@ function showT(k) {
   if (root) root.classList.toggle('wide-paper', k === 'paper');
   try { history.replaceState(null, '', '#' + k); } catch (e) { }
   document.dispatchEvent(new CustomEvent('hxpag', { detail: k }));
-  if (k === 'exam') return teacherHome();
-  if (k === 'build') return buildHome();
+  if (k === 'exam') return electronicTeacherHome();
   if (k === 'paper') return paperHome();
   if (k === 'lib') return libHome();
 }
 /* 2026-11-08：给网站外壳（总入口）左上角「返回」用的「上一步」接口。
    外壳先问当前工具能不能自己退一步：true = 工具退了（外壳什么都不做），false = 已在第一屏，外壳回首页。
-   本站第一屏是「考试」页，组卷/理论试卷都退它一步。 */
+   本站第一屏是「考试」页，理论试卷 / 试卷库都退它一步。 */
 window.HXBack = function () {
   if (CUR_T && CUR_T !== 'exam') { showT('exam'); return true; }
   return false;
 };
-/* 组卷页：只有组卷器本体（挂进 #bdBox），没别的 */
-function buildHome() {
-  app().innerHTML = `<header class="ex-h"><div class="eyebrow">教师 · ${esc(SUBJECTS[CUR_SUB] || CUR_SUB)}</div><h1>组卷与组卷码</h1>
-    <p>调每道题的母题、题型、分值，网页现算出一串组卷码；拿去「考试」页发布，学生就能取题</p>
-    ${curIsBuiltin() ? '' : '<p class="note">这一页（网页答题器）现在只接单片机的组卷题库（M1～M6）；「' + esc(SUBJECTS[CUR_SUB] || CUR_SUB) + '」的题在题池里（「资料库」工具出题入池）——出 A3 纸质试卷去「理论试卷」页，那边直接抽题池。</p>'}
-    <details class="ex-help"><summary>这一页怎么用（点开看 4 步）</summary>
-      <ol>
-        <li><b>左边「组卷」</b>：每一行的三个下拉分别是<b>母题 / 题型 / 分值</b>；题不够点「<b>+ 添加一题</b>」，多了点行尾「×」。满分会自动算。</li>
-        <li><b>右边「组卷码」</b>：这串码就是这套卷子的“地址”，改任何一格它都会跟着变，不是出错。要留档就先「<b>复制</b>」或「<b>保存到试卷库</b>」。</li>
-        <li><b>去「考试」页</b>点「发布考试」，把码粘到表单下面「或者粘贴单片机里生成的组卷码」那一栏，勾上班级，点发布 —— 这一步才真正生成<b>学生短码</b>。</li>
-        <li><b>课上只公布学生短码</b>（6 位）。学生登录后输这个短码取题。</li>
-      </ol>
-      <p class="note">最容易搞混的一点：<b>组卷码 ≠ 学生短码</b>。组卷码是给老师自己用的（发布、存档、换电脑找回），学生那边永远只输发布后的短码；没发布过的组卷码，学生和老师都取不到题。</p>
-    </details></header>
-    <div id="bdBox"></div>`;
-  if (window.HXBuilder) HXBuilder.mount(CUR_SUB);
-  else app().innerHTML += '<div class="errs">组卷模块没打包进来，请重新 node build.js</div>';
+/* 章节显示名（2026-11-20）：原来只拼「第N章」，老师看不出「第3章=流水灯」。
+   优先用资料的 toc 真标题（导入时做好才有），没有就退回资料名里的「项目N」，
+   两者都没有才退回「第N章」。rows = qbank 原始行（要 material_id），mats = 带 toc 的资料清单。
+   注意：调用方必须传**原始 rows**，不能传 map 过的 items —— items 里已经没有 material_id 了。 */
+function chNamesOf(rows, mats) {
+  const chs = {};
+  (rows || []).forEach(q => { const c = q.ch == null ? 0 : +q.ch; chs[c] = ''; });
+  const byMat = new Map((mats || []).map(m => [+m.id, m]));
+  const votes = {};
+  (rows || []).forEach(q => {
+    const c = q.ch == null ? 0 : +q.ch; if (!c) return;
+    const m = byMat.get(+q.material_id); if (!m) return;
+    let t = '';
+    if (Array.isArray(m.toc)) { const hit = m.toc.find(x => +x.ch === c); if (hit && hit.title) t = String(hit.title); }
+    if (!t && m.name) {
+      const mm = String(m.name).match(/(?:项目|第)\s*([0-9]{1,2})\s*(?:章|项目)?/);
+      if (mm && +mm[1] === c) t = String(m.name).replace(/\.[a-z0-9]+$/i, '').replace(/[-_]/g, ' ');
+    }
+    if (t) (votes[c] = votes[c] || []).push(t);
+  });
+  const top = c => {
+    const a = votes[c] || []; if (!a.length) return '';
+    const n = {}; a.forEach(x => { n[x] = (n[x] || 0) + 1; });
+    return Object.keys(n).sort((x, y) => n[y] - n[x])[0];
+  };
+  Object.keys(chs).forEach(c => {
+    const n = +c;
+    chs[c] = n === 0 ? '未分章' : ('第 ' + n + ' 章' + (top(n) ? ' · ' + top(n) : ''));
+  });
+  return chs;
+}
+/* 资料清单 + 每份的目录（toc）。为什么还要单独拉目录：hx_exam_mat_list 只回 id/name/status 这些，
+   目录存在 hx_exam_material.toc 列，得按 id 走 hx_exam_mat_toc 取（资料库工具导入时写的）。
+   这一步纯锦上添花 —— 任何一环失败都只是章节名退回「第N章」，绝不能让题池打不开。 */
+async function matListWithToc(s) {
+  let mats = [];
+  try { const r = await rpc('hx_exam_mat_list', { p_subject_id: s && s.id }); mats = Array.isArray(r) ? r : []; }
+  catch (e) { return []; }
+  /* 资料份数一般个位数；上限 12 份防止某个科目攒了几十份教材时一次发几十个请求 */
+  await Promise.all(mats.slice(0, 12).map(async m => {
+    try { const t = await rpc('hx_exam_mat_toc', { p_id: m.id }); if (Array.isArray(t)) m.toc = t; } catch (e) { }
+  }));
+  return mats;
 }
 /* 理论试卷页（2026-11-06 第二轮重做）：上面一条工具栏、下面整幅 A3 画布，设置收进右侧抽屉。
    用户原话：「组卷页面需要很大平铺那种 然后正反面不就是两页吗 点击题目那一区域就可以换题」。
@@ -10187,11 +9834,10 @@ async function paperHome() {
       return;
     }
     rows = rows || [];
-    /* ch 为 null 的题归 0（「未分章」）；章节名先用「第N章」——src 里带的是资料名，不是章节名 */
+    /* ch 为 null 的题归 0（「未分章」）；章节名走 chNamesOf：优先资料目录真标题（第 3 章 · 流水灯），
+       再退回资料名里的「项目N」，都没有才「第N章」。传的是 rows 不是 items —— items 丢了 material_id。 */
     const items = rows.map(q => ({ id: q.id, t: q.t, ch: q.ch == null ? 0 : +q.ch, q: q.q, o: q.o || undefined, a: q.a, code: q.code, sub: q.sub, src: q.src, fig: q.fig || undefined, knowledge: q.knowledge }));
-    const chs = {};
-    items.forEach(q => { chs[q.ch] = q.ch === 0 ? '未分章' : '第' + q.ch + '章'; });
-    window.__examSetPool(items, chs);
+    window.__examSetPool(items, chNamesOf(rows, await matListWithToc(s)));
     if (!items.length) {
       app().innerHTML = `<header class="ex-h pp-hex"><div class="eyebrow">教师 · ${esc(SUBJECTS[CUR_SUB] || CUR_SUB)}理论</div><h1>理论试卷</h1></header>
       <div class="card" style="max-width:640px;margin:40px auto"><h2>这个科目的 AI 题库还是空的</h2>
@@ -10325,9 +9971,8 @@ async function libEnsurePool(sub) {
     return;
   }
   const items = rows.map(q => ({ id: q.id, t: q.t, ch: q.ch == null ? 0 : +q.ch, q: q.q, o: q.o || undefined, a: q.a, code: q.code, sub: q.sub, src: q.src, fig: q.fig || undefined, knowledge: q.knowledge }));
-  const chs = {};
-  items.forEach(q => { chs[q.ch] = q.ch === 0 ? '未分章' : '第' + q.ch + '章'; });
-  window.__examSetPool(items, chs);
+  /* 与 paperHome 同一套章节名（见 chNamesOf 的注释）：查重页显示的组名要跟试卷页一模一样。 */
+  window.__examSetPool(items, chNamesOf(rows, await matListWithToc(s)));
   if (window.HXLib) HXLib.poolOk(true);
   try { if (window.paperLoadTypes) await paperLoadTypes(s ? s.id : null); } catch (e) { }
 }
@@ -10675,62 +10320,12 @@ function demoBar() {
     + '卷子能看能翻，但影子身份没有学号、不能交卷（交卷按钮已关掉）。</span></div>';
 }
 
-/* ---------------- 学生：输码取题 → 做题 → 交卷 ---------------- */
-function studentHome(msg) {
-  const st = ME.me.student;
-  app().innerHTML = demoBar() + `<header class="ex-h"><div class="eyebrow">${esc(st.class)} · ${esc(st.name)}</div><h1>考试</h1></header>
-    <div class="card ex-gate"><label class="ex-code">组卷码<input id="sCode" autocomplete="off" placeholder="老师公布的码或名字" value="${esc(store.get('exam.code', ''))}"></label>
-      <div class="errs" id="sMsg" ${msg ? '' : 'hidden'}>${esc(msg || '')}</div><button class="pri big" id="sGo">取题</button></div>`;
-  const go = async () => {
-    const code = $('sCode').value.trim(); if (!code) return $('sCode').focus();
-    $('sGo').disabled = true;
-    try { const r = await rpc('hx_exam_take', { p_code: code }); store.set('exam.code', code); room(code, r); }
-    catch (e) { $('sMsg').textContent = e.message; $('sMsg').hidden = false; $('sGo').disabled = false; }
-  };
-  $('sGo').onclick = go; $('sCode').onkeydown = e => { if (e.key === 'Enter') go(); };
-}
-// 考场：每题一张卡片（题目、编辑区、编译检查、看现象、下载）；右边交卷。preview：老师预览，不能交
-function room(code, r, back) {
-  const no = r.preview ? '预览' : r.no;
-  let paper;
-  try { paper = examPaper(no, r.paper); } catch (e) { return back ? back(e.message) : studentHome(e.message); }
-  const draftKey = 'exam.draft.' + r.id + '.' + no, saved = r.answers || {}, draft = DEMO ? {} : store.get(draftKey, {});
-  const total = paper.reduce((a, v) => a + (v.pts || 0), 0), boards = [];
-  app().innerHTML = demoBar() + `<header class="ex-h"><div class="eyebrow">${r.preview ? (r.probe ? '测试查看用户（演示）· 学号按“预览”出题' : '老师预览 · 学号按“预览”出题') : esc(r.name) + ' · ' + esc(r.no)}</div><h1>${esc(r.title)}</h1>
-      <p>${SUBJECTS[r.subject] || ''} · 共 ${paper.length} 题 · 满分 ${total} · 卷号 ${paper[0].paper}</p></header>
-    <div class="with-rail"><div class="rail-main">${paper.map((v, i) => `<div class="card">${questionHTML(v, { qno: i + 1, extra: `<span class="tag na">${v.pts} 分</span>` })}
-      <textarea class="editor" data-ed="${i}" spellcheck="false" aria-label="第${i + 1}题程序">${esc(draft[i + 1] || saved[i + 1] || paperFile(v, { stuId: no, qno: i + 1, paper: v.paper }))}</textarea>
-      <div class="row" style="margin-top:8px"><button data-cc="${i}">编译检查</button><button data-ref="${i}">看要求的现象</button><button data-dl="${i}">下载 .c</button><button data-hex="${i}">生成 HEX</button></div>
-      <div data-out="${i}"></div><div data-board="${i}"></div></div>`).join('')}</div>
-    <aside class="rail"><div class="card"><h2>交卷</h2><div class="note" id="subState">${r.probe ? '演示视角：只能看卷，不保存答案、不能交卷' : r.at ? '已交过：' + when(r.at) + '，收卷前可以重交，以最后一次为准' : '还没交'}</div>
-      <div class="row" style="margin-top:10px">${r.preview ? '' : '<button class="pri" id="btnSub">交卷</button>'}<button id="btnBack">${r.preview ? '返回' : '换一个码'}</button></div>
-      <p class="note">程序随手存在这台设备上；交卷才会存到老师那里。老师收卷后就交不了了。</p></div></aside></div>`;
-  const val = i => app().querySelector(`[data-ed="${i}"]`).value;
-  app().querySelectorAll('[data-ed]').forEach(t => t.oninput = () => { if (DEMO) return; const d = store.get(draftKey, {}); d[+t.dataset.ed + 1] = t.value; store.set(draftKey, d); });
-  app().querySelectorAll('[data-cc]').forEach(b => b.onclick = () => {
-    const i = +b.dataset.cc, A = compileC(val(i)), out = app().querySelector(`[data-out="${i}"]`);
-    out.innerHTML = A.ok ? '<div class="note" style="color:var(--ok)">编译通过（0 错误）。现象对不对要自己在虚拟板或 Proteus 上看</div>' : `<div class="errs"><b>编译错误：</b><br>${A.errors.map(esc).join('<br>')}</div>`;
-  });
-  app().querySelectorAll('[data-ref]').forEach(b => b.onclick = () => {
-    const i = +b.dataset.ref, box = app().querySelector(`[data-board="${i}"]`);
-    if (boards[i]) { boards[i].stop(); boards[i] = null; box.innerHTML = ''; b.textContent = '看要求的现象'; return; }
-    boards[i] = makeBoard(box, { note: '这是题目要求的现象，你的程序要做到一样' }); boards[i].start(paper[i], paper[i].ref); b.textContent = '收起虚拟板';
-  });
-  app().querySelectorAll('[data-dl]').forEach(b => b.onclick = () => { const i = +b.dataset.dl; downloadC(`${no}_Q${i + 1}.c`, val(i)); });
-  app().querySelectorAll('[data-hex]').forEach(b => b.onclick = () => { const i = +b.dataset.hex, name = `${no}_Q${i + 1}.hex`; app().querySelector(`[data-out="${i}"]`).innerHTML = hexResultHTML(name, makeHexFile(name, val(i))); });
-  $('btnBack').onclick = () => { boards.forEach(x => x && x.stop()); back ? back() : studentHome(); };
-  if ($('btnSub')) $('btnSub').onclick = async () => {
-    if (!await hxConfirm('交卷？收卷前还可以改了再交。')) return;
-    const ans = {}; paper.forEach((v, i) => { ans[i + 1] = val(i); });
-    $('btnSub').disabled = true;
-    try { const t = await rpc('hx_exam_submit', { p_code: code, p_answers: ans }); $('subState').textContent = '已交卷：' + when(t) + '，收卷前可以重交'; toast('已交卷'); }
-    catch (e) { toast(e.message); } finally { $('btnSub').disabled = false; }
-  };
-}
-
 /* ---------------- 电子档考试（2026-11-08 重构） ----------------
-   题池快照编码为 E1:<base64url(JSON)>，发布后学生只输入短码；
-   旧 QM 组卷码仍可由历史记录预览，但新发布不再进入上机编译链。 */
+   题池快照编码为 E1:<base64url(JSON)>，发布后学生只输入短码。
+   2026-11-20：原来这里还留着一条「学生用单片机编译答题」的老链路（studentHome / room，
+   靠 examPaper 现算 QM25 组卷码出题）。电子卷上线后 bootOnce 只调 electronicStudentHome，
+   那条链再没人进得去，删掉 —— 用户「组卷与组卷码等死代码全部清除」。
+   老 QM 格式的考试记录现在会在取题/批改处提示「不是电子试卷格式」，不会再崩。 */
 const E_B64 = s => btoa(unescape(encodeURIComponent(s))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 const E_UNB64 = s => decodeURIComponent(escape(atob(String(s).replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((String(s).length + 3) % 4))));
 const E_ESC = s => esc(String(s == null ? '' : s));
@@ -11241,12 +10836,16 @@ async function electronicTeacherHome(msg) {
      满分从 rel_list 的 full 取（删题后立刻是新的），读不到才退回本地 decode 现算。 */
   const cardHTML = (x, isDone) => {
     const st = relMap.get(+x.id);
-    const qs = ePaperDecode(x.paper) || [];
+    /* 2026-11-20：老组卷码（QM25-…）时代发布的考试已经解不出电子卷了。
+       这种卡片照常列出来（不然老师以为记录丢了），但标题后面挂一句人话，
+       别让人点进批改台才发现「不是电子试卷格式」。 */
+    const dec = ePaperDecode(x.paper), qs = dec || [];
+    const legacy = dec ? '' : '<span class="note ex-legacy">旧组卷码格式 · 学生取不到题，建议删除</span>';
     const full = st && st.full != null ? +st.full : qs.reduce((a, q) => a + (+q.pts || 0), 0);
     const subNote = st && !st.released && st.rel_subs ? `<span class="ex-rel-sub">${st.rel_subs} 人已单独发分</span>` : '';
     const canDelQ = qs.length > 1;
     return `<div class="card ex-item${x.open ? '' : ' shut'}" data-exam="${x.id}"><div class="ex-code-big">${E_ESC(x.code)}</div>
-      <div class="ex-meta"><b>${E_ESC(x.title)}</b><span class="note">${E_ESC(SUBJECTS[x.subject] || x.subject)} · ${x.classes.map(cname).map(E_ESC).join('、') || '没选班'} · ${x.subs} 人交卷 · 满分 ${E_ESC(eFmtNum(full))} 分 · ${qs.length} 题 · ${x.open ? '考试中' : '已收卷'}</span><span class="ex-rel">${relTag(st)}${subNote}</span></div>
+      <div class="ex-meta"><b>${E_ESC(x.title)}</b>${legacy}<span class="note">${E_ESC(SUBJECTS[x.subject] || x.subject)} · ${x.classes.map(cname).map(E_ESC).join('、') || '没选班'} · ${x.subs} 人交卷 · 满分 ${E_ESC(eFmtNum(full))} 分 · ${qs.length} 题 · ${x.open ? '考试中' : '已收卷'}</span><span class="ex-rel">${relTag(st)}${subNote}</span></div>
       <div class="row"><button class="pri" data-subs="${x.id}">${isDone ? '查看成绩' : '交卷与批改'}</button><button data-open="${x.id}">${x.open ? '收卷' : '重新开放'}</button><button data-pre="${E_ESC(x.code)}">预览</button><button data-addq="${x.id}" title="从题库再挑几道题加到卷尾（已有题号和已交卷的答案都不动）">加题</button><button data-delq="${x.id}"${canDelQ ? '' : ' disabled title="至少留一道题"'} title="${canDelQ ? '删掉这套卷里的某一道题（学生那份的题号会自动前移）' : '至少留一道题'}">删题</button>${relBtn(st)}<button data-del="${x.id}" data-danger>删除</button></div></div>`;
   };
   const emptyCard = t => `<div class="card"><p class="note">${t}</p></div>`;
@@ -12653,136 +12252,11 @@ async function subsElectronic(x) {
   aiAutoFill().catch(() => { });
 }
 
-/* ---------------- 老师：发布、收卷、批改（旧函数保留用于历史页面兼容） ---------------- */
-let CLASSES = null;
-async function teacherHome(msg) {
-  return electronicTeacherHome(msg);
-  app().innerHTML = `<header class="ex-h"><div class="eyebrow">教师</div><h1>考试</h1><p>发布给哪几个班，学生在首页登录后输码取题</p>
-    <p class="note">三步：①在「组卷与组卷码」页组好卷、复制那一串码 → ②回到本页点「发布考试」，把码粘到表单下面的「或者粘贴…」一栏，选班级、点发布 → ③课上把发布后得到的短码公布给学生。</p></header>
-    ${msg ? `<div class="errs" style="margin-bottom:12px">${esc(msg)}</div>` : ''}
-    <div class="row" style="margin-bottom:14px"><button class="pri" id="btnNew">发布考试</button><button id="btnTake">用码取题</button></div><div id="list">${fxLoad('加载中…')}</div>`;
-  if (window.HXLoadFx) HXLoadFx.auto($('list'));
-  $('btnNew').onclick = () => editExam(null);
-  /* 「用码取题」只认已经发布过的考试（hx_exam_take 查的是 hx_exam 表）。
-     2026-11-08 用户把「组卷与组卷码」页刚生成的组卷码粘进来，得到一句「没有这个组卷码」，
-     完全不知道下一步该干什么 —— 现在把两条路的区别讲清楚，并直接把他送到发布表单、码也带过去。 */
-  $('btnTake').onclick = async () => {
-    const c = await hxPrompt('输入组卷码或学生短码（预览自己发布的考试）'); if (!c) return;
-    const code = c.trim();
-    try { const r = await rpc('hx_exam_take', { p_code: code }); room(code, r, teacherHome); }
-    catch (e) {
-      const unpublished = /没有这个组卷码|不存在|not found|invalid/i.test(e.message || '');
-      if (!unpublished) return toast(e.message);
-      const go = await hxConfirm(`「${code}」还没发布成考试，所以取不到题。\n\n`
-        + `说明：「组卷与组卷码」页生成的是组卷码（稿子），只有用它发布成考试之后，学生才取得到题。\n\n`
-        + `现在去发布？点「确定」跳到发布表单，这个码已经替你填好，你只要选班级、点发布。`);
-      if (go) editExam(null, { paper: code });
-    }
-  };
-  let list;
-  try { [list, CLASSES] = await Promise.all([rpc('hx_exam_mine'), CLASSES || rpc('hx_my_classes')]); }
-  catch (e) { $('list').innerHTML = `<div class="errs">${esc(e.message)}${/hx_exam/.test(e.message) ? '<br>数据库还没有考试表：管理员在 Supabase 运行 考试/supabase/exam-schema.sql' : ''}</div>`; return; }
-  const cname = id => (CLASSES.find(c => c.id === id) || {}).name || '（已删的班）';
-  $('list').innerHTML = list.length ? list.map(x => `<div class="card ex-item${x.open ? '' : ' shut'}"><div class="ex-code-big">${esc(x.code)}</div>
-      <div class="ex-meta"><b>${esc(x.title)}</b><span class="note">${SUBJECTS[x.subject] || x.subject} · ${x.classes.map(cname).map(esc).join('、') || '没选班'} · ${x.subs} 人交卷 · ${x.open ? '考试中' : '已收卷'}</span><span class="note mono">${esc(x.paper)}</span></div>
-      <div class="row"><button data-subs="${x.id}" class="pri">交卷与批改</button><button data-open="${x.id}">${x.open ? '收卷' : '重新开放'}</button><button data-edit="${x.id}">修改</button><button data-pre="${esc(x.code)}">预览</button><button data-del="${x.id}" class="danger">删除</button></div></div>`).join('')
-    : '<div class="card"><p class="note">还没有考试。点“发布考试”：选题、选班，网页给你一个码，课上公布给学生。</p></div>';
-  const byId = id => list.find(x => x.id === +id);
-  $('list').querySelectorAll('[data-subs]').forEach(b => b.onclick = () => subs(byId(b.dataset.subs)));
-  $('list').querySelectorAll('[data-open]').forEach(b => b.onclick = async () => { const x = byId(b.dataset.open); try { await rpc('hx_exam_open', { p_id: x.id, p_open: !x.open }); toast(x.open ? '已收卷：学生交不了了' : '已重新开放'); teacherHome(); } catch (e) { toast(e.message); } });
-  $('list').querySelectorAll('[data-edit]').forEach(b => b.onclick = () => editExam(byId(b.dataset.edit)));
-  $('list').querySelectorAll('[data-pre]').forEach(b => b.onclick = () => rpc('hx_exam_take', { p_code: b.dataset.pre }).then(r => room(b.dataset.pre, r, teacherHome)).catch(e => toast(e.message)));
-  $('list').querySelectorAll('[data-del]').forEach(b => b.onclick = async () => { const x = byId(b.dataset.del); if (!await hxConfirm(`删除“${x.title}”和 ${x.subs} 份交卷？删了找不回来。`)) return; try { await rpc('hx_exam_delete', { p_id: x.id }); toast('已删除'); teacherHome(); } catch (e) { toast(e.message); } });
-}
-// 发布 / 修改：标题、题目（母题、题型、分值、全班同一题）或直接粘贴单片机里生成的组卷码、班级、可选的好记名字
-function editExam(x, pre) {
-  /* pre：从「用码取题」失败跳过来时带的 { paper }，把组卷码预先填进「或者粘贴…」那一栏，
-     老师只要选班级就能发布（2026-11-08 加）。 */
-  pre = pre || {};
-  const spec = x && parseExamCode(x.paper);
-  /* pin（题库里挑的第几个变式）也要带过来：以前只认 draw，老师一「修改」再保存，
-     题库挑的题就被悄悄换成随机的了 —— 判分重算、学生看到的题也变了。 */
-  let rows = spec ? spec.qs.map(q => ({ mid: q.mid ? q.mid.slice(1) : '0', type: ({ fill: 't', modify: 'g', fix: 'c' })[q.type], pts: q.pts, same: q.draw != null || q.pin != null, pin: q.pin })) : [{ mid: '0', type: 't', pts: 30, same: false }, { mid: '0', type: 'g', pts: 35, same: false }, { mid: '0', type: 'c', pts: 35, same: false }];
-  const key = spec ? spec.key : 'Q' + Math.random().toString(36).slice(2, 6).toUpperCase();
-  const own = (CLASSES || []).filter(c => (c.tools || []).includes('exam')); // 首页点亮「考试」才算开通（空数组不再等于全开）
-  const sel = new Set(x ? x.classes : []);
-  const draw = () => {
-    app().innerHTML = `<header class="ex-h"><div class="eyebrow">${x ? '修改考试' : '发布考试'}</div><h1>${x ? esc(x.title) : '新考试'}</h1></header>
-    <div class="card"><div class="ex-form">
-      <label>标题<input id="fTitle" maxlength="40" value="${esc(x ? x.title : '')}" placeholder="例如 期末上机 A 卷"></label>
-      <label>科目<select id="fSub"><option value="mcu">单片机上机</option></select></label>
-      <label>口令<input id="fKey" maxlength="16" value="${esc(key)}" class="mono"></label>
-      <label>学生输的码<input id="fCode" maxlength="20" value="${esc(x ? x.code : '')}" placeholder="留空自动生成 6 位码，或起个名字如 期末A"></label></div>
-      <h2 style="margin-top:16px">题目</h2>
-      <table class="mini ex-rows"><thead><tr><th>#</th><th>母题</th><th>题型</th><th>分值</th><th>全班同一题</th><th></th></tr></thead><tbody>${rows.map((q, i) => `<tr>
-        <td>${i + 1}</td><td><select data-k="mid" data-i="${i}"><option value="0">随机</option>${MOTHERS.slice(0, 6).map((m, n) => `<option value="${n + 1}" ${q.mid === String(n + 1) ? 'selected' : ''}>M${n + 1} ${esc(m.title || m.name || '')}</option>`).join('')}</select></td>
-        <td><select data-k="type" data-i="${i}">${TYPES.map(([k, n]) => `<option value="${k}" ${q.type === k ? 'selected' : ''}>${n}</option>`).join('')}</select></td>
-        <td><input data-k="pts" data-i="${i}" type="number" min="1" max="100" value="${q.pts}" style="width:70px"></td>
-        <td><input data-k="same" data-i="${i}" type="checkbox" ${q.same ? 'checked' : ''}></td><td><button class="sm" data-rm="${i}" ${rows.length < 2 ? 'disabled' : ''}>删</button></td></tr>`).join('')}</tbody></table>
-      <div class="row" style="margin-top:8px"><button class="sm" id="addQ" ${rows.length >= 5 ? 'disabled' : ''}>加一题</button><span class="note" id="fTotal"></span></div>
-      <label class="ex-paste">或者粘贴单片机里生成的组卷码<input id="fPaste" class="mono" value="${esc(pre.paper || '')}" placeholder="QM25-2t30-4g35.3-6c35"></label>
-      <h2 style="margin-top:16px">考试的班级</h2>
-      <div class="ex-cls">${own.length ? own.map(c => `<label><input type="checkbox" data-c="${c.id}" ${sel.has(c.id) ? 'checked' : ''}>${esc(c.name)}${c.term ? ' · ' + esc(c.term) : ''}</label>`).join('') : '<p class="note">还没有班级：在首页“班级”里导入考勤表，勾上“考试”</p>'}</div>
-      <div class="errs" id="fMsg" hidden></div>
-      <div class="row" style="margin-top:16px"><button class="pri big" id="fSave">${x ? '保存' : '发布'}</button><button id="fBack">返回</button></div></div>`;
-    const total = () => { $('fTotal').textContent = '满分 ' + rows.reduce((a, q) => a + (+q.pts || 0), 0); };
-    total();
-    app().querySelectorAll('[data-k]').forEach(el => el.onchange = el.oninput = () => { const q = rows[+el.dataset.i]; q[el.dataset.k] = el.type === 'checkbox' ? el.checked : el.value; total(); });
-    app().querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { rows.splice(+b.dataset.rm, 1); draw(); });
-    app().querySelectorAll('[data-c]').forEach(b => b.onchange = () => { b.checked ? sel.add(+b.dataset.c) : sel.delete(+b.dataset.c); });
-    $('addQ').onclick = () => { rows.push({ mid: '0', type: 'g', pts: 20, same: false }); draw(); };
-    $('fBack').onclick = teacherHome;
-    $('fSave').onclick = async () => {
-      const fail = m => { $('fMsg').textContent = m; $('fMsg').hidden = false; };
-      const title = $('fTitle').value.trim(); if (!title) return fail('请填标题');
-      let paper = $('fPaste').value.trim();
-      if (paper) { if (!parseExamCode(paper)) return fail('粘贴的组卷码格式不对'); }
-      else {
-        const k = $('fKey').value.trim(); if (!/^[A-Za-z0-9]{1,16}$/.test(k)) return fail('口令只能是 1～16 位字母或数字');
-        paper = makeExamCode(k, rows.map(q => ({ mid: +q.mid ? 'M' + q.mid : null, type: ({ t: 'fill', g: 'modify', c: 'fix' })[q.type], pts: Math.max(1, Math.min(100, +q.pts || 0)), draw: q.same && q.pin == null ? 1 : null, pin: q.same && q.pin != null ? q.pin : null })));
-      }
-      if (parseExamCode(paper).fp) return fail('这套卷用到了单片机里导入的书上代码，网页考试还不支持；请只用 M1～M6 母题');
-      if (!sel.size && !await hxConfirm('没选班级，学生取不到题。先保存？')) return;
-      $('fSave').disabled = true;
-      try { const r = await rpc('hx_exam_save', { p_id: x ? x.id : null, p_subject: $('fSub').value, p_title: title, p_paper: paper, p_classes: [...sel], p_code: $('fCode').value.trim() || null }); toast((x ? '已保存' : '已发布') + '，学生输：' + r.code); teacherHome(); }
-      catch (e) { fail(e.message); $('fSave').disabled = false; }
-    };
-  };
-  draw();
-}
-// 交卷与批改：逐人逐题编译 + 模拟判分（浏览器里算，不上传），导出 CSV
-async function subs(x) {
-  app().innerHTML = `<header class="ex-h"><div class="eyebrow">交卷与批改 · ${esc(x.code)}</div><h1>${esc(x.title)}</h1><p class="mono">${esc(x.paper)}</p></header>
-    <div class="row" style="margin-bottom:12px"><button class="pri" id="btnGrade">全部批改</button><button id="btnCsv">导出成绩 CSV</button><button id="btnBack">返回</button><span class="note" id="gState"></span></div>
-    <p class="note" style="margin:-6px 0 12px">这里的成绩是本机按标准答案即时算出来的预览（不上传、不写库，刷新即没）；要保存到云端、给学生看，请到「批改台」里导出。</p><div class="card" id="tbl">${fxLoad('加载中…')}</div><div id="detail"></div>`;
-  if (window.HXLoadFx) HXLoadFx.auto($('tbl'));
-  $('btnBack').onclick = teacherHome;
-  let rows;
-  try { rows = await rpc('hx_exam_subs_of', { p_id: x.id }); } catch (e) { $('tbl').innerHTML = `<div class="errs">${esc(e.message)}</div>`; return; }
-  const n = (parseExamCode(x.paper) || { qs: [] }).qs.length;
-  const draw = () => {
-    $('tbl').innerHTML = rows.length ? `<table class="mini"><thead><tr><th>班级</th><th>学号</th><th>姓名</th><th>交卷时间</th>${Array.from({ length: n }, (_, i) => `<th>第${i + 1}题</th>`).join('')}<th>总分</th></tr></thead><tbody>${rows.map((r, k) => `<tr data-r="${k}" style="cursor:pointer"><td>${esc(r.class_name)}</td><td class="mono">${esc(r.student_no)}</td><td>${esc(r.name)}</td><td>${when(r.at)}</td>${Array.from({ length: n }, (_, i) => `<td>${r.res ? r.res[i].got + '/' + r.res[i].pts : '—'}</td>`).join('')}<td><b>${r.res ? r.total : '—'}</b></td></tr>`).join('')}</tbody></table>`
-      : '<p class="note">还没有人交卷。</p>';
-    $('tbl').querySelectorAll('[data-r]').forEach(tr => tr.onclick = () => one(rows[+tr.dataset.r]));
-  };
-  // 判分引擎每题按 100 分算，换成这题的分值
-  const gradeOne = r => { const paper = examPaper(r.student_no, x.paper); r.res = paper.map((v, i) => { const z = gradeVariant(v, (r.answers || {})[i + 1] || ''); z.pts = v.pts; z.got = z.max ? Math.round(z.score / z.max * v.pts * 10) / 10 : 0; return z; }); r.total = Math.round(r.res.reduce((a, b) => a + b.got, 0) * 10) / 10; };
-  const one = r => { if (!r.res) gradeOne(r); draw(); $('detail').innerHTML = `<div class="card"><h2>${esc(r.name)} · ${esc(r.student_no)} · ${r.total} 分</h2>${r.res.map((res, i) => `<h3>第${i + 1}题 · ${res.got}/${res.pts} 分</h3><pre class="code">${esc((r.answers || {})[i + 1] || '（没写）')}</pre>${resultHTML(res, { noText: true })}`).join('')}</div>`; mountPlayers && mountPlayers($('detail')); $('detail').scrollIntoView({ behavior: 'smooth' }); };
-  draw();
-  $('btnGrade').onclick = async () => {
-    $('btnGrade').disabled = true;
-    for (let k = 0; k < rows.length; k++) { $('gState').textContent = `批改中 ${k + 1}/${rows.length}…`; await new Promise(r => setTimeout(r, 0)); try { gradeOne(rows[k]); } catch (e) { rows[k].res = null; } }
-    $('gState').textContent = '已批改 ' + rows.length + ' 份'; $('btnGrade').disabled = false; draw();
-  };
-  $('btnCsv').onclick = () => {
-    if (rows.some(r => !r.res)) return toast('先点“全部批改”');
-    const head = ['班级', '学号', '姓名', '交卷时间', ...Array.from({ length: n }, (_, i) => '第' + (i + 1) + '题'), '总分'];
-    const q = s => '"' + String(s).replace(/"/g, '""') + '"';
-    const csv = [head, ...rows.map(r => [r.class_name, '\t' + r.student_no, r.name, when(r.at), ...r.res.map(z => z.got), r.total])].map(a => a.map(q).join(',')).join('\r\n');
-    /* 2026-11-19：同上，先预览确认再写文件 */
-    csvPreview('导出成绩 CSV · ' + x.title, `共 ${rows.length} 名学生 · ${n} 道题`, csv, x.title + '_成绩.csv');
-  };
-}
+/* ---------------- 老师：发布、收卷、批改 ----------------
+   2026-11-20 把「旧发布表单 + 用组卷码取题」整块删掉（teacherHome 的老正文 / editExam / 旧 subs）。
+   它们原来是 teacherHome 里 `return electronicTeacherHome(msg)` 之后的下半截，永远走不到；
+   用户「组卷与组卷码等死代码全部清除 我发布课上电子试卷使用考试码接收仅此而已」。
+   现在老师端只有 electronicTeacherHome（发布电子试卷 / 加题 / 删题 / 发布成绩）。 */
 
 /* 别处登录/退出（首页、别的标签页）才重进。同源 srcdoc 预览页也算「别处」，
    所以再加一道判断：会话里的用户没变就别白跑一遍（boot 自己也有防重入）。 */

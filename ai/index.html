@@ -411,12 +411,42 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
     if (cap === 'text') return true;
     return (p.caps || []).indexOf(cap) >= 0;
   }
+  /* 模型在界面上的名字（2026-11-20）：用户存的别名优先，其次是 hx-ai.js 的友好名，
+     都没有才显示裸 ID。下拉、「当前：」那句话、平台模型列表都走它，别各写一份。
+     用户认不出 deepseek-flash 就是 V4.1，就是因为以前这里只显示裸 ID。 */
+  function labelOf(p) {
+    if (!p) return '';
+    if (p.name && p.name !== p.model) return p.name + '（' + p.model + '）';
+    return HXAI.modelLabel(p.model);
+  }
+  // 平台的推荐款（预设里的 rec）：不是「最贵」，是「这套工具最该用的」—— 能读图、够便宜。
+  function recOf(plat) {
+    var pv = plat ? HXAI.providers[plat.provider] : null;
+    return pv && pv.rec ? pv.rec : '';
+  }
+  /* 下拉排序（2026-11-20 用户要求「按推荐顺序排」）：
+     推荐款第一 → 能读图的 → 其余；同组保留原来的先后（用下标兜底，老浏览器 sort 不稳定）。
+     「未设置」是清空项，由调用方放在最前面，绝不参与这里的排序。 */
+  function sortModels(list, cap, rec) {
+    var at = {};
+    list.forEach(function (p, i) { at[p.id] = i; });
+    return list.slice().sort(function (a, b) {
+      var ar = a.model === rec ? 0 : 1, br = b.model === rec ? 0 : 1;
+      if (ar !== br) return ar - br;
+      // 图像生成 / 视频 / 音频这几档不分「能不能读图」，按原顺序就好
+      if (cap === 'text' || cap === 'reason' || cap === 'vision') {
+        var av = supportsCap(a, 'vision') ? 0 : 1, bv = supportsCap(b, 'vision') ? 0 : 1;
+        if (av !== bv) return av - bv;
+      }
+      return at[a.id] - at[b.id];
+    });
+  }
   // 「当前：平台「111」· 模型 xxx · 思考 深度 · 能力 文本/视频」——用户点名要的那句话
   function effLine(p) {
     if (!p) return '当前：未设置';
     var pl = platById(p.platId);
     var cs = (p.caps || []).map(capName).join('/') || '未勾能力';
-    return '当前：平台「' + esc(pl ? pl.name : '（平台已删）') + '」· 模型 ' + esc(p.name || p.model) +
+    return '当前：平台「' + esc(pl ? pl.name : '（平台已删）') + '」· 模型 ' + esc(labelOf(p)) +
       ' · 思考 ' + esc(thinkName(p.thinkLevel)) + ' · 能力 ' + esc(cs);
   }
 
@@ -444,7 +474,7 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
         var usage = usedCaps.length ? '<span class="chip on">默认 ' + esc(usedCaps.join('/')) + '</span>' : '';
         return '<div class="mrow" data-model="' + esc(m.id) + '">' +
           '<div class="mmain">' +
-            '<div class="mt"><b>' + esc(m.name || m.model) + '</b>' + usage + '</div>' +
+            '<div class="mt"><b>' + esc(labelOf(m)) + '</b>' + usage + '</div>' +
             '<div class="chips">' + (m.caps || []).map(function (c) {
               return '<span class="chip on">' + esc(capName(c)) + '</span>';
             }).join('') + '</div>' +
@@ -499,9 +529,12 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
       // 当前平台：**先看「刚选过、还没选模型」的临时态**，再退回「已落库的模型所属平台」。
       // 顺序反了就等于没修：只要这个工具以前指定过模型，tmpPlat 永远不生效，切平台照样弹回。
       var curPlatId = tmpPlat.cap[c.id] || (curP ? curP.platId : '');
-      // 平台下拉只列「这个平台里至少有一个能干这件事的模型」，否则选了也是空
+      var curPlat = platById(curPlatId);
+      var rec = recOf(curPlat);
+      // 平台下拉只列「这个平台里至少有一个能干这件事的模型」，否则选了也是空；
+      // 但当前平台无论如何要留着，不然平台显示成「未设置」、模型却还挂在那儿，更让人糊涂。
       var platsOk = snap.plats.filter(function (pl) {
-        return profsOf(pl.id).some(function (p) { return supportsCap(p, c.id); });
+        return pl.id === curPlatId || profsOf(pl.id).some(function (p) { return supportsCap(p, c.id); });
       });
       var platOpts = '<option value="">' + (platsOk.length ? '未设置' : '还没有能做「' + esc(c.name) + '」的平台') + '</option>' +
         platsOk.map(function (pl) {
@@ -509,15 +542,27 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
             esc(pl.name) + '（' + esc(provLabel(pl.provider)) + '）</option>';
         }).join('');
 
-      // 模型下拉：只列选中平台里勾了这项能力的（文本能力不挑，任何模型都能当文本用）
-      var models = curPlatId ? profsOf(curPlatId).filter(function (p) { return supportsCap(p, c.id); }) : [];
+      /* 模型下拉：只列选中平台里勾了这项能力的（文本能力不挑，任何模型都能当文本用）。
+         2026-11-20：图片识别槽位额外挡掉文生图模型 —— Qwen/Qwen-Image 这类是「按文字画图」，
+         根本不吃图片输入；用户选了它去读教材，只会拿到 Model does not exist。
+         已经选中的那个要保留在列表里（否则下拉假装「未设置」），下面用红字告诉他必须换。 */
+      var models = curPlatId ? profsOf(curPlatId).filter(function (p) {
+        if (c.id === 'vision' && HXAI.looksImageGen(p.model)) return p.id === cur;
+        // 文本问答 / 擅长推理：嵌入、重排、文生图、TTS 都不能对话，别让它们混进来
+        if ((c.id === 'text' || c.id === 'reason') && HXAI.looksNonChat(p.model)) return p.id === cur;
+        return supportsCap(p, c.id);
+      }) : [];
+      models = sortModels(models, c.id, rec);
       var modelOpts;
       if (!curPlatId) modelOpts = '<option value="">先选平台</option>';
       else if (!models.length) modelOpts = '<option value="">这个平台没有可用于「' + esc(c.name) + '」的模型</option>';
       else modelOpts = '<option value="">' + (cur ? '未设置' : '选一个模型') + '</option>' +
         models.map(function (p) {
+          // 文案固定成「友好名（真实 ID）【推荐】· 能读图」：用户一眼能认出是谁、能不能读图
+          var tag = HXAI.capTag(p.model, p.caps, c.id);
+          var mark = p.model === rec ? '【推荐】' : '';
           return '<option value="' + esc(p.id) + '"' + (p.id === cur ? ' selected' : '') + '>' +
-            esc(p.name || p.model) + '（' + esc(p.model) + '）</option>';
+            esc(labelOf(p)) + mark + (tag ? ' · ' + esc(tag) : '') + '</option>';
         }).join('');
 
       // 当前状态那句话：设了但模型没勾这项能力时，要说实话（老存档里才有这种数据）。
@@ -527,7 +572,14 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
       if (!curP) eff = '当前：未设置';
       else {
         eff = effLine(curP);
-        if (!supportsCap(curP, c.id)) {
+        if (c.id === 'vision' && HXAI.looksImageGen(curP.model)) {
+          // 比「没勾能力」更具体：直接说它是什么、为什么不行，用户才知道该换成哪一种
+          eff += ' · <b>这是文生图模型（按文字画图），读不了图片，换一个标「能读图」的</b>（DeepSeek 的 deepseek-flash，也就是 V4.1 Flash，能读图）';
+          bad = true;
+        } else if ((c.id === 'text' || c.id === 'reason') && HXAI.looksNonChat(curP.model)) {
+          eff += ' · <b>这是嵌入 / 重排 / 生成类模型，不能当聊天模型，换一个标「只文本」或「能读图」的</b>';
+          bad = true;
+        } else if (!supportsCap(curP, c.id)) {
           eff += ' · <b>这个模型没勾「' + esc(c.name) + '」，真调用会直接报错，重选一个勾了的</b>';
           bad = true;
         }
@@ -556,14 +608,20 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
       return '<option value="' + esc(pl.id) + '"' + (pl.id === jmPlatId ? ' selected' : '') + '>' +
         esc(pl.name) + '（' + esc(provLabel(pl.provider)) + '）</option>';
     }).join('');
-    // 模型下拉：只列能做文本问答的模型，别把文生图 / TTS / 文生视频那些塞进来当「识别器」
-    var models = jmPlatId ? profsOf(jmPlatId).filter(function (p) { return supportsCap(p, 'text'); }) : [];
+    // 模型下拉：只列能做文本问答的模型，别把文生图 / TTS / 文生视频那些塞进来当「识别器」。
+    // 2026-11-20 修：以前只判断 supportsCap(p,'text')，而 text 是「人人都有」，
+    // 等于没过滤 —— Qwen-Image 这种文生图模型照样能选来当识别器，真判能力时必然报错。
+    var models = jmPlatId ? profsOf(jmPlatId).filter(function (p) {
+      return supportsCap(p, 'text') && !HXAI.looksNonChat(p.model);
+    }) : [];
+    models = sortModels(models, 'reason', recOf(platById(jmPlatId)));
     var modelOpts;
     if (!jmPlatId) modelOpts = '<option value="">先选平台</option>';
     else if (!models.length) modelOpts = '<option value="">这个平台没有可用于识别的模型</option>';
     else modelOpts = '<option value="">选一个识别模型</option>' + models.map(function (p) {
+      var tag = HXAI.capTag(p.model, p.caps, 'text');
       return '<option value="' + esc(p.id) + '"' + (p.id === (jm && jm.id ? jm.id : '') ? ' selected' : '') + '>' +
-        esc(p.name || p.model) + '（' + esc(p.model) + '）</option>';
+        esc(labelOf(p)) + (tag ? ' · ' + esc(tag) : '') + '</option>';
     }).join('');
 
     // 实际生效的识别模型：设了用它，没设用推荐的那个
@@ -572,13 +630,13 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
     if (effModel) {
       var effPl = platById(effModel.platId);
       var effTag = jm ? '' : '<span class="chip on">自动推荐</span>';
-      effHtml = '识别模型：' + effTag + '平台「' + esc(effPl ? effPl.name : '（平台已删）') + '」· ' + esc(effModel.name || effModel.model);
+      effHtml = '识别模型：' + effTag + '平台「' + esc(effPl ? effPl.name : '（平台已删）') + '」· ' + esc(labelOf(effModel));
     } else {
       effHtml = '还没有可用的文本模型，先加一个平台和模型。';
     }
     if (rec && !jm) {
       var recPl = platById(rec.platId);
-      recLine = '<p class="eff">推荐用「' + esc(recPl ? recPl.name : '') + ' · ' + esc(rec.name || rec.model) +
+      recLine = '<p class="eff">推荐用「' + esc(recPl ? recPl.name : '') + ' · ' + esc(labelOf(rec)) +
         '」当识别器（文本+推理，判得准）。<button class="btn sm" type="button" data-act="use-rec">就用推荐</button></p>';
     }
 
@@ -697,7 +755,7 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
     var m = modelId ? profById(modelId) : null;
     if (!m) return;
     if (act === 'del') {
-      if (!confirm('删掉模型「' + (m.name || m.model) + '」？\n平台「' + pl.name + '」和它的 Key 会留着，别的模型不受影响。')) return;
+      if (!confirm('删掉模型「' + labelOf(m) + '」？\n平台「' + pl.name + '」和它的 Key 会留着，别的模型不受影响。')) return;
       HXAI.remove(modelId);
       renderAll();
       toast('已删除模型');
@@ -707,7 +765,7 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
       var rmsg = rowEl.querySelector('.rmsg');
       rmsg.className = 'rmsg';
       rmsg.textContent = '';
-      var pill = window.HXTheme && HXTheme.loadPill ? HXTheme.loadPill('正在测试「' + (m.name || m.model) + '」连接…') : null;
+      var pill = window.HXTheme && HXTheme.loadPill ? HXTheme.loadPill('正在测试「' + labelOf(m) + '」连接…') : null;
       HXAI.test({ platId: platId, id: modelId, model: m.model, caps: m.caps, thinkLevel: m.thinkLevel }).then(function (r) {
         if (pill) pill.done();
         rmsg.className = 'rmsg good';
@@ -768,8 +826,8 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
       } else if (cands.length === 1) {
         // 只有一套就替他选上（省一次点击，也不存在选错的可能）
         delete bag[key];
-        if (cap) { HXAI.setActive(cap, cands[0].id); toast('已选「' + (cands[0].name || cands[0].model) + '」'); }
-        else { HXAI.setTool(tool, cands[0].id); toast('这个工具改用「' + (cands[0].name || cands[0].model) + '」'); }
+        if (cap) { HXAI.setActive(cap, cands[0].id); toast('已选「' + labelOf(cands[0]) + '」'); }
+        else { HXAI.setTool(tool, cands[0].id); toast('这个工具改用「' + labelOf(cands[0]) + '」'); }
       }
       renderAll();   // 平台变了但没定模型：重画出来让用户在模型下拉里挑（tmpPlat 保证平台不弹回）
     });
@@ -806,7 +864,7 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
       HXAI.setJudge(rec.platId, rec.id);
       tmpPlat.judgePlat = '';
       renderAll();
-      toast('已用推荐识别模型：' + (rec.name || rec.model));
+      toast('已用推荐识别模型：' + labelOf(rec));
       return;
     }
     if (act === 'judge-all') {

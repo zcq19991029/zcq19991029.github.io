@@ -128,10 +128,14 @@
     // ---------- 国内 · 官方 ----------
     deepseek: {
       label: 'DeepSeek', group: '国内 · 官方', baseUrl: 'https://api.deepseek.com',
-      models: ['deepseek-v4-flash', 'deepseek-v4-pro'],
+      // 2026-11-20 照官方文档（api-docs.deepseek.com/quick_start/pricing）对齐真实模型 ID：
+      //   现役只有两个 —— deepseek-flash（DeepSeek-V4.1-Flash，能读图）和 deepseek-v4-pro（强推理，不能读图）。
+      //   deepseek-v4-flash / deepseek-v4-flash-vision-exp 是退役旧名，官方仍兼容、按 Flash 计费，
+      //   但不写进推荐列表：用户看到三个差不多的名字只会更晕，旧名在界面上会标「旧名」。
+      models: ['deepseek-flash', 'deepseek-v4-pro'],
       caps: ['text', 'reason', 'vision'],
-      rec: 'deepseek-v4-flash',
-      note: '最便宜，写题改题够用。deepseek-chat / deepseek-reasoner 已于 2026-07 弃用，现在用 deepseek-v4-flash（快）和 deepseek-v4-pro（强）。flash 带视觉能读图。'
+      rec: 'deepseek-flash',
+      note: 'deepseek-flash 就是 DeepSeek V4.1 Flash（快、能读图），deepseek-v4-pro 是 V4 Pro（强推理、纯文本不能读图）。老配置里的 deepseek-v4-flash / deepseek-chat / deepseek-reasoner 仍兼容，会自动路由到 V4.1 Flash，但别再新配。'
     },
     qwen: {
       label: '通义千问（阿里云百炼）', group: '国内 · 官方', baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
@@ -382,9 +386,11 @@
     if (!m) return out;
     var rules = [
       // 图片识别：各家对多模态的命名 —— vl / vision / omni，以及本来就带视觉的几款主力型号。
-      // deepseek-v4-flash 名字里没有 vl，但它是 DeepSeek 现在的多模态款（上面预设的 rec 就是它），
-      // 不认出来会出现「推荐的模型自己被判成不能读图」，所以单独列一条。
-      ['vision', /vl\b|vl-|vision|(^|[-_])4v|glm-4\.5v|omni|llava|pixtral|gemini|gpt-4o|gpt-4\.1|claude-3|claude-4|step-1v|minimax-vl|qwen2\.5-vl|qwen3-vl|internvl|molmo|deepseek-v4-flash/i],
+      // 2026-11-20 修：DeepSeek 现役的读图款叫 deepseek-flash（DeepSeek-V4.1-Flash），
+      // 名字里既没有 vl 也没有 vision，旧正则只认 deepseek-v4-flash（退役旧名），
+      // 结果真正能读图的模型被判成「只文本」，用户在「图片识别」下拉里根本选不到它 ——
+      // 这正是「deepseek 4.1 没有识图能力吗」的来源。这里把新旧两个名字都认上。
+      ['vision', /vl\b|vl-|vision|(^|[-_])4v|glm-4\.5v|omni|llava|pixtral|gemini|gpt-4o|gpt-4\.1|claude-3|claude-4|step-1v|minimax-vl|qwen2\.5-vl|qwen3-vl|internvl|molmo|deepseek-(v4-)?flash/i],
       // 擅长推理：名字里带 reason / thinking / r1 / o1 / o3 / qwq 的都是「愿意多想一步」的型号。
       // DeepSeek 的 V3.x / R1 本身是带推理的对话模型（reasoner 定位），名字里常不写 r1/thinking，
       // 但 deepseek-ai/DeepSeek-V3.x 就是推理款，单独列一条避免被当成纯文本漏掉。
@@ -398,6 +404,83 @@
     ];
     rules.forEach(function (r) { if (r[1].test(m) && out.indexOf(r[0]) < 0) out.push(r[0]); });
     return out;
+  }
+
+  /* ── 模型名「说人话」（2026-11-20）──────────────────────────────────────────
+     用户认不出 deepseek-flash 就是 DeepSeek V4.1（他嘴里的「4.1」），
+     下拉里只给裸 ID 等于让他猜。这里只给「有把握的」几个主流 ID 配中文品牌名，
+     没收录的一律原样返回 —— 绝不按规则硬拼，拼错了比裸 ID 更误导。
+     名字以官方文档为准：deepseek-flash = DeepSeek-V4.1-Flash-1017。 */
+  var MODEL_NICE = {
+    'deepseek-flash': 'DeepSeek V4.1 Flash',
+    'deepseek-v4-flash': 'DeepSeek V4 Flash（旧名）',
+    'deepseek-v4-flash-vision-exp': 'DeepSeek V4 Flash 视觉实验版（旧名）',
+    'deepseek-v4-pro': 'DeepSeek V4 Pro',
+    'deepseek-chat': 'DeepSeek Chat（旧名）',
+    'deepseek-reasoner': 'DeepSeek Reasoner（旧名）'
+  };
+  function niceName(model) {
+    var m = str(model);
+    return MODEL_NICE[m.toLowerCase()] || m;
+  }
+  // 下拉 / 卡片统一文案：友好名（真实 ID）。名字和 ID 相同时不重复写两遍，省得又长又糊。
+  function modelLabel(model) {
+    var m = str(model), n = niceName(m);
+    return n && n !== m ? n + '（' + m + '）' : m;
+  }
+
+  /* 文生图 / 文生视频 / 语音合成这三类模型「长得像聊天模型」，但根本不能当识别器或问答用。
+     最坑的是 Qwen/Qwen-Image：名字里有 image，用户会以为它「能看图」，其实它是「按文字画图」。
+     用户把「图片识别」槽位选成它，上传 314 页教材就会拿到 Model does not exist。
+     能力标签能标对，但老存档里可能残留了错误的 vision（早期按平台整包 caps 勾的），
+     所以除了标签，还要在读取时把这层错误剥掉（见 saneCaps）。 */
+  function looksImageGen(model) {
+    return /dall-e|gpt-image|flux|stable-diffusion|seedream|wanx|cogview|sd3|qwen[-\/]?image|kolors|midjourney|imagen/i.test(str(model));
+  }
+  function looksVideoGen(model) {
+    return /sora|veo\b|kling|wan2|wan\b|seedance|cogvideo|hunyuan-video|hailuo|t2v|i2v/i.test(str(model));
+  }
+  function looksAudioGen(model) {
+    return /tts|whisper|asr|cosyvoice|speech|audio|voice|moss-ttsd|funasr/i.test(str(model));
+  }
+  // 纯生成类（文生图 / 文生视频 / 语音）：不能读图、也不该拿来当「识别器」或文本问答
+  function looksMediaGen(model) {
+    return looksImageGen(model) || looksVideoGen(model) || looksAudioGen(model);
+  }
+  /* 「不能当聊天模型用」的更多一类：嵌入 / 重排 / 审核。它们没有对话接口，
+     但 guessCaps 会兜底给个 text（任何模型都带 text 的口径），于是照样混进
+     「文本问答」下拉 —— 用户选中后只会拿到一句看不懂的 400。 */
+  function looksNonChat(model) {
+    var m = str(model);
+    return looksMediaGen(m) || /embedding|embed|rerank|reranker|moderation|bge-m3/i.test(m);
+  }
+
+  /* 存档里的能力纠偏：文生图 / 文生视频 / TTS 这些模型，早期版本按「平台整包 caps」预勾过 vision，
+     于是老存档里 Qwen/Qwen-Image 带着「图片识别」。不清掉的话，能力下拉会把它当成能读图，
+     真上传扫描件又报 Model does not exist。这里只剥掉「它物理上做不到」的那一项，别的一律不动，
+     用户自己手勾的其它能力照旧保留。
+     NO_VISION 只收「官方文档白纸黑字写了不支持视觉」的：DeepSeek 的 deepseek-v4-pro
+     （pricing 页 Vision 一栏是 Not supported），老存档若给它勾过 vision 也要纠正掉。
+     别的模型不往里加 —— 没查证过的不敢替它下结论。 */
+  var NO_VISION = { 'deepseek-v4-pro': 1 };
+  function saneCaps(model, cs) {
+    var m = str(model);
+    var a = (cs || []).slice();
+    if (looksImageGen(m) || NO_VISION[m.toLowerCase()]) a = a.filter(function (c) { return c !== 'vision'; });
+    return withText(a.length ? a : ['text']);
+  }
+
+  /* 能力 → 下拉里那句人话标签。用户明确要求「别让我猜能不能读图」，
+     所以每个模型都带一个短标签：能读图 / 只文本 / 文生图·不读图。 */
+  function capTag(model, capsArr, cap) {
+    var cs = Array.isArray(capsArr) && capsArr.length ? capsArr : capsOf(model);
+    if (cap === 'image') return looksImageGen(model) ? '文生图' : '不能生成图';
+    if (looksImageGen(model)) return '文生图·不读图';
+    if (looksVideoGen(model)) return '文生视频';
+    if (looksAudioGen(model)) return '语音';
+    if (cs.indexOf('vision') >= 0) return '能读图';
+    if (cs.indexOf('reason') >= 0) return '只文本·擅长推理';
+    return '只文本';
   }
 
   /* ── 能力来源三级：官方标注 → AI 判断 → 按名字猜（2026-11-19）──────────────────
@@ -414,6 +497,11 @@
   var CAPS_CACHE = 'hx-ai-caps-cache-v1';
   var CAPS_SRC_LABEL = { official: '官方标注', ai: 'AI 识别', guess: '按名字猜' };
   var CAPS_SRC_RANK = { official: 3, ai: 2, guess: 1 };
+  /* 名字规则的版本号：改了 guessCaps 的正则就 +1。
+     为什么只作废 guess 缓存：官方标注 / AI 判断是花成本拿到的结论，规则升级不该把它们一起丢掉；
+     但旧规则「猜」出来的结果是错的（比如 deepseek-flash 被猜成只文本），必须重算，
+     否则用户升级代码后老存档里那台模型永远读不了图。 */
+  var CAPS_RULES_V = 2;
 
   function capsCacheRead() {
     var raw = null;
@@ -429,6 +517,8 @@
     if (!m) return null;
     var e = capsCacheRead()[m];
     if (!e || !Array.isArray(e.caps)) return null;
+    // 旧规则猜出来的结果不再可信（CAPS_RULES_V 变过），当没有，让 resolveCaps 用新规则重猜
+    if (e.src === 'guess' && Number(e.v) !== CAPS_RULES_V) return null;
     return { caps: withText(e.caps), src: CAPS_SRC_LABEL[e.src] ? e.src : 'guess', at: Number(e.at) || 0 };
   }
   function capsCacheSet(model, capsArr, src) {
@@ -440,6 +530,7 @@
     var pr = prev && prev.src ? (CAPS_SRC_RANK[prev.src] || 0) : 0;
     if (prev && pr > nr) return;   // 低优先级不覆盖高优先级
     map[m] = { caps: withText(capsArr), src: src, at: Date.now() };
+    if (src === 'guess') map[m].v = CAPS_RULES_V;   // 记下是按哪版规则猜的
     capsCacheWrite(map);
   }
   // 能力列表统一兜底带 text（supports() 里 text 永远为真，这里保持一致，别存出一份没有 text 的）
@@ -497,7 +588,7 @@
     if (m) capsCacheSet(m, g, 'guess');
     return { caps: g, src: 'guess' };
   }
-  function capsOf(model) { return resolveCaps(model).caps; }
+  function capsOf(model) { return saneCaps(model, resolveCaps(model).caps); }
   function capsSource(model) {
     var c = capsCacheGet(str(model));
     return c ? c.src : 'guess';
@@ -541,15 +632,14 @@
   }
 
   /* 「这个工具推荐用哪套」（2026-11-19）。顺序刻意按「越少打扰用户越靠前」：
-     ① 已经单独指定、而且能力够用 → 就是它，不给任何提示（用户自己选的要尊重）；
-     ② 没指定 / 指定了但能力不够 → 在所有模型里挑一套 need 全覆盖的，优先平台推荐款、其次先加的；
-     ③ 一套都不够 → 退文本默认 → 第一套（和 forTool / pick 的兜底一致，别让界面空着）。 */
+     ① 所有模型里挑一套 need 全覆盖的，优先平台推荐款、其次先加的；
+     ② 一套都不够 → 退文本默认 → 第一套（和 forTool / pick 的兜底一致，别让界面空着）。
+     2026-11-20：删掉「已单独指定且能力够 → 用它」这一步，和 pick() 忽略 s.tools 同步 ——
+     界面已经没有按工具指定的入口，推荐结果也必须跟真实调用一致，不能一个说 A、一个用 B。 */
   function recFor(tool) {
     var s = read();
     var t = str(tool);
     var need = toolNeed(t);
-    var own = find(s, s.tools[t]);
-    if (own && coversAll(own, need)) return view(own, s);
     var best = bestForList(s, need);
     if (best) return view(best, s);
     var fb = find(s, s.active.text) || s.profiles[0];
@@ -594,11 +684,20 @@
     return cs;
   }
 
-  /* 新增 / 导入时模型的 caps 从哪来：有显式勾选（老数据 / 手动传的）就用勾选的，
-     没勾就按三级来源自动判 —— 有标注用标注，没标注走兜底（不再要求用户手动勾）。 */
+  /* 新增 / 导入时模型的 caps 从哪来：
+     ① 有显式勾选（老数据 / 手动传的）就以它为准，再**并上**按名字/官方/缓存判出来的能力；
+     ② 没勾就全按三级来源自动判（不再要求用户手动勾）。
+     为什么要并集而不是只看存档：2026-11-19 之前保存的 deepseek-flash 能力被旧正则判成「只文本」，
+     存档里写死了；只读存档的话，用户升级后它仍然不能选进「图片识别」——这次报的「4.1 没有识图能力吗」
+     就是这条。并集只加不减（真正做不到的由 saneCaps 剥掉），不会把用户原来的能力弄丢。 */
   function capsFor(o) {
-    if (o && Array.isArray(o.caps) && o.caps.length) return normCaps(o.caps);
-    return resolveCaps(o && o.model).caps;
+    var auto = resolveCaps(o && o.model).caps;
+    if (o && Array.isArray(o.caps) && o.caps.length) {
+      var merged = normCaps(o.caps);
+      auto.forEach(function (c) { if (merged.indexOf(c) < 0) merged.push(c); });
+      return saneCaps(o.model, merged);
+    }
+    return saneCaps(o && o.model, auto);
   }
 
   function normThink(v) {
@@ -1129,27 +1228,32 @@
     var s = read();
     /* 2026-11-17：补上最后那层兜底 —— 和 pick() 的「文本退第一套」保持一致。
        以前少了这一层，会出现「设置页说这个工具没有可用模型，但真点下去 AI 又能用」
-       （因为 pick() 会退到 profiles[0]）。两边口径不一致，老师只会更糊涂。 */
-    var p = find(s, s.tools[str(tool)]) || find(s, s.active.text) || s.profiles[0] || null;
+       （因为 pick() 会退到 profiles[0]）。两边口径不一致，老师只会更糊涂。
+       2026-11-20：不再看 s.tools —— 见 pick() 上方「为什么忽略 tools」的说明。 */
+    var p = find(s, s.active.text) || s.profiles[0] || null;
     return p ? view(p, s) : null;
   }
 
   /* 真正要用哪一套：
      ① 调用方直接给了 profile（设置页「测试连接」还没保存的配置）就用它；
-     ② 指定了工具且这套工具确实能干这件事（比如要读图，工具指定的模型也勾了 vision）→ 用它；
-     ③ 否则按能力找默认；
-     ④ 推理没单独设就退到文本默认；读图不退——把图塞给文本模型只会换来一句看不懂的报错。
+     ② 按能力找默认；
+     ③ 推理没单独设就退到文本默认；读图不退——把图塞给文本模型只会换来一句看不懂的报错。
      2026-11-15 改了一处：按能力找默认时，如果那个默认模型根本没勾这项能力（老存档 / 导入的
      数据里常有：给 DeepSeek 设成「视频生成」默认），就当它没设，继续往下找，最后返回 null，
      让 missMsg 说「缺哪种能力的模型」。为什么不再像 v1 那样闭眼返回：返回错模型的后果是
-     请求发出去才报 400，用户在设置页看不出任何问题，正是当初要修的那个坑。 */
+     请求发出去才报 400，用户在设置页看不出任何问题，正是当初要修的那个坑。
+
+     2026-11-20：**不再优先认存档里的 s.tools（按工具指定）**。
+     为什么：2026-11-19 的改版把「按工具指定」的界面整个删了（界面已无任何入口能看见 / 改回它），
+     但老存档里的 tools 桶为了兼容原样留着。工具页调用时会带 tool:'quiz' 之类的参数，
+     旧逻辑先认 tools[tool]，于是一个早已看不见的旧指定会一直盖住「文本问答」的默认 ——
+     用户在设置页怎么换模型都不生效，正是他说的「换了推荐的几个模型都没用」。
+     运行时不再读它，存档字段保留（导出 / 导入不丢数据）；setTool 也保留，供旧页面手动调用。 */
   function pick(opts) {
     opts = opts || {};
     if (opts.profile) return norm(opts.profile);
     var cap = opts.cap || 'text';
     var s = read();
-    var byToolP = explicitFor(opts.tool);
-    if (byToolP && supports(byToolP, cap)) return byToolP;
     var byCap = find(s, s.active[cap]);
     if (byCap && (cap === 'text' || supports(byCap, cap))) return view(byCap, s);
     if (cap === 'reason') { var t = find(s, s.active.text); if (t) return view(t, s); }
@@ -1825,7 +1929,15 @@
     explicitFor: explicitFor, // 之前只有 forTool，设置页要区分「单独指定」和「跟随默认」
     // ---------- 2026-11-19 新增：按模型名猜能力 / 按工具推荐 ----------
     guessCaps: guessCaps,     // 猜模型能力（三级来源里的最后兜底），永远含 text
-    recFor: recFor,           // 这个工具推荐用哪套（尊重已指定且能力够的）
+    // 2026-11-20：模型名「说人话」+ 生成类模型识别。设置页下拉 / 卡片统一用这几个，
+    // 别在页面里各写一份映射，改一处全站一致。
+    niceName: niceName,       // deepseek-flash → DeepSeek V4.1 Flash
+    modelLabel: modelLabel,   // DeepSeek V4.1 Flash（deepseek-flash）
+    capTag: capTag,           // 能读图 / 只文本 / 文生图·不读图（下拉里的短标签）
+    looksImageGen: looksImageGen, // 文生图模型（Qwen-Image / FLUX…）：绝不能当图片识别用
+    looksMediaGen: looksMediaGen, // 文生图 / 文生视频 / 语音：不能当识别器
+    looksNonChat: looksNonChat,   // 再加上嵌入 / 重排：不能进「文本问答 / 擅长推理」下拉
+    recFor: recFor,           // 这个工具推荐用哪套（按能力匹配；不再看已废弃的按工具指定）
     missingCaps: missingCaps, // 这个模型相对这个工具缺哪几项能力（中文名数组）
     bestFor: bestFor,         // 某项能力该用哪套（「全部按推荐」用，和 recFor 同一套挑法）
     // ---------- 2026-11-19 能力三级来源：官方标注 / AI 判断 / 按名字猜 ----------
