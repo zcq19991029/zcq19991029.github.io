@@ -2280,6 +2280,7 @@ function qbHome() {
           <label>找题<input id="qbKw" type="search" autocomplete="off" placeholder="题干关键词"></label>
           <button class="sm" id="qbRefresh">刷新</button>
           <button class="sm" id="qbDedup">AI 查重</button>
+          <button class="sm" id="qbTag" title="给还没有知识点的题批量打标签，题池就能按知识点筛">AI 打知识点</button>
           <button class="sm danger" id="qbClear">清空题池</button>
           <button class="sm pri" id="qbPub">发布到刷题</button>
         </div>
@@ -2321,6 +2322,7 @@ function qbHome() {
   // （原来点刷新/清空整块界面一动不动，用户以为没点上；AI 查重要几十秒更像是卡死）
   $('qbRefresh').onclick = () => qbLoad($('qbRefresh'));
   $('qbDedup').onclick = () => qbDedup($('qbDedup'));
+  $('qbTag').onclick = () => qbTagKb($('qbTag'));
   $('qbClear').onclick = () => qbClear($('qbClear'));
   $('qbPub').onclick = pubOpen;   // 只开弹层、不发请求，真正的等待在弹层里的「检查」上
   /* 题型表先读一次再画列表：否则自建题型（实操）在筛选下拉里会缺一项，
@@ -2648,6 +2650,71 @@ async function qbDedupAI() {
   arr.forEach(p => {
     const a = QB_ALL[+p.a], b = QB_ALL[+p.b];
     if (a && b && a.id !== b.id) out.push({ a, b, why: String(p.why || '疑似重复'), exact: false });
+  });
+  return out;
+}
+/* ---------------- AI 打知识点（2026-11-20） ----------------
+   内置题库导进来的题没有知识点（题库本身没这个字段），所以题池的「知识点」栏一直是空的。
+   这里让 AI 逐题给一个 4~10 字的标签（「中断优先级」「数码管动态显示」），写到
+   hx_exam_qbank.knowledge —— 之后题池能按知识点筛，组卷也能按考点挑。
+   为什么分批：855 道一次塞进去又贵又容易漏题/超时；每批 40 道、一批一落库，
+   中途断了前面不白跑。只跑「知识点为空」的题，重复点不会重复花钱。 */
+const KB_BATCH = 40;
+async function qbTagKb(btn) {
+  const s = curSub(); if (!s) return;
+  const todo = QB_ALL.filter(q => !String(q.knowledge || '').trim());
+  if (!todo.length) return toast('本科目题池里的题都已经有知识点了');
+  const rounds = Math.ceil(todo.length / KB_BATCH);
+  if (!await hxConfirm(`给本科目还差知识点的 ${todo.length} 道题打标签？\n\n每批 ${KB_BATCH} 道，共 ${rounds} 次 AI 请求，用「AI 设置 → 资料库」那套模型，会消耗额度。\n已经有知识点的题不会重打。`)) return;
+  const tok = HXBusy.begin(btn, '正在打知识点…');
+  const banner = $('qbBanner');
+  const say = t => { if (banner) { banner.textContent = t || ''; banner.hidden = !t; } };
+  let done = 0, bad = 0, lastErr = '';
+  try {
+    for (let i = 0; i < todo.length; i += KB_BATCH) {
+      const chunk = todo.slice(i, i + KB_BATCH);
+      const n = Math.floor(i / KB_BATCH) + 1;
+      say(`正在打知识点：第 ${n} / ${rounds} 批（已写好 ${done} 道，本批 ${chunk.length} 道）…`);
+      try {
+        const items = await qbTagKbAI(chunk);
+        if (!items.length) { bad += chunk.length; continue; }
+        const w = await MAT_call('hx_exam_qbank_knowledge', { p_subject_id: s.id, p_items: items });
+        if (!w.ok) throw new Error(w.err);
+        const got = (w.data && w.data.updated) || 0;
+        done += got; bad += chunk.length - got;
+        /* 本地同步，省一次重拉（qbDraw 用的是 QB_ALL） */
+        items.forEach(it => { const q = QB_ALL.find(x => String(x.id) === String(it.id)); if (q) q.knowledge = it.knowledge; });
+      } catch (e) { bad += chunk.length; lastErr = (e && e.message) || String(e); }
+    }
+    say('');
+    if (bad) MAT_banner(`知识点：写好 ${done} 道，没成功 ${bad} 道` + (lastErr ? `（最后一次错误：${lastErr}）` : '') + '。可以直接再点一次，只会补没打上的。');
+    else toast(`知识点打好了：${done} 道`);
+    qbKnBuild(QB_ALL);
+    qbDraw();
+  } finally { HXBusy.end(tok); }
+}
+/* 一批题 → [{id, knowledge}]。用「编号」对回题（题干会被截断，不能靠文本匹配）；
+   模型漏掉的这次就算了，下次点按钮会补。 */
+async function qbTagKbAI(chunk) {
+  const lines = chunk.map((q, i) => `[${i}]（${QB_CN[q.t] || q.t}）` + String(q.q || '').replace(/\s+/g, ' ').slice(0, 220));
+  const prompt = '下面是一份题库里的 ' + chunk.length + ' 道题（编号从 0 开始）。请给每道题标一个「知识点」标签：\n'
+    + '- 4~10 个汉字，写具体考点（如「中断优先级」「数码管动态显示」「熔断器选用」「正反转互锁」）；\n'
+    + '- 不要写「第一章」「选择题」这类章节名或题型；\n'
+    + '- 同一套教材里考同一概念的题尽量用同一个标签（方便老师按知识点筛题）。\n'
+    + '只输出 JSON：{"tags":[{"i":编号,"k":"知识点"}]}。每道题都要有一条，不要漏，不要解释。\n'
+    + '题目：\n' + lines.join('\n');
+  const res = await hximpChat([
+    { role: 'system', content: '你是严谨的教研员，只返回合法 JSON。' },
+    { role: 'user', content: prompt }
+  ], { json: true });
+  const obj = HXImp.parseJson(typeof res === 'string' ? res : JSON.stringify(res));
+  const arr = (obj && obj.tags) || [];
+  if (!Array.isArray(arr)) return [];
+  const out = [];
+  arr.forEach(t => {
+    const q = chunk[+t.i];
+    const k = String((t && (t.k || t.knowledge)) || '').trim().replace(/[。，,；;、]+$/, '');
+    if (q && k) out.push({ id: q.id, knowledge: k.slice(0, 40) });
   });
   return out;
 }
