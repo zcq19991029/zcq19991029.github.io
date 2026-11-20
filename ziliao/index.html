@@ -1009,8 +1009,17 @@ function genPrompt(o) {
   const chapterLine = (o.chapter != null && o.chapter !== '')
     ? '这批题统一标章节号 ' + o.chapter + '（这是老师指定的，照写，不用再从原文认）。\n'
     : '';
+  /* 范围（2026-11-19 加强）：原来只有一句「只出这个范围里写到的内容」，模型经常顺手
+     把范围外的也出了。老师要的是「就给第 3 章」「就给 3.2 这一节」，所以这里把
+     「可以精确到小节」和「范围外一律不用」都说清楚，并给出小节编号的写法示例。 */
+  const scopeLine = o.scope
+    ? '范围：' + o.scope + '\n'
+      + '  · 严格按这个范围出题：只在原文「' + o.scope + '」对应的章 / 节 / 小节里找出题素材。\n'
+      + '  · 范围可以精确到小节（原文里写成 3.2、3.2.1、「第 3.2 节」都算），填了小节就只出这一小节。\n'
+      + '  · 范围之外的内容一律不用，哪怕原文别处也有同样的知识点。\n'
+    : '范围：整份资料（原文里有什么就出什么）\n';
   return '你是「' + o.subjectName + '」课程的出题老师。请根据下面的资料出题。\n'
-    + '范围：' + (o.scope || '整份资料') + '（只出这个范围里写到的内容）\n'
+    + scopeLine
     + '难度：' + (o.level || '中等') + '\n'
     + '这一轮要出：' + parts + '\n'
     + (o.extra ? '额外要求：' + o.extra + '\n' : '')
@@ -1629,8 +1638,8 @@ function matHome() {
         <label>出题量<input type="number" id="mgN" min="1" max="50" value="5"></label>
         <label>难度<select id="mgLevel"><option>容易</option><option selected>中等</option><option>较难</option></select></label>
         <label>思考程度<select id="mgThink"><option value="">跟随 AI 设置</option><option value="quick">快速</option><option value="balanced">均衡</option><option value="deep">深度</option></select></label>
-        <label>章节<input id="mgCh" autocomplete="off" placeholder="留空 = AI 自动识别，如：3 或 项目4"></label>
-        <label>范围<input id="mgScope" autocomplete="off" placeholder="留空 = 整份，如：第 5 章 中断系统"></label>
+        <label>章节<input id="mgCh" autocomplete="off" placeholder="留空 = 随范围/ AI，如：3 或 项目4"></label>
+        <label>范围<input id="mgScope" autocomplete="off" placeholder="留空 = 整份；可精确到小节，如：3.2 定时器"></label>
       </div>
       <label class="mg-wide">针对性要求（会原样拼进提示词）<textarea id="mgExtra" rows="3" placeholder="可留空。没勾资料时，这里写的内容就是出题依据。例：只出第 3 章的计算题、多考接线工艺、避免名词解释。"></textarea></label>
       <div class="row" style="margin-top:12px"><button class="pri" id="mgGo">开始出题</button><span class="note" id="mgState"></span></div>
@@ -1915,6 +1924,25 @@ async function matCollect(picks, rawSet, state) {
      ③ 出完把这一批列出来（只读），想删就去题池里按题型筛出来删。
    为什么不再让老师勾一遍：题库已经有「按题型全选 → 批量删除」了，多一道勾选只是多一次点击；
    而「出了几道、有没有重复被跳过」这些信息仍然完整报出来，不会变黑箱。 */
+/* 从「范围」文本里推出大章号（2026-11-19）。只认明确写法，认不准就返回 null（交给 AI）：
+     「3.2」/「3.2.1」/「第 3.2 节」 → 3      （小节号取大章）
+     「第3章」/「项目4」/「第3单元」   → 3 / 4
+     「3」                            → 3
+     「前五章」/「第三章」            → null（中文数字 / 模糊范围不硬猜）
+   注意顺序：先试 x.y（否则「3.2」会被「第N章」之外的分支漏掉），再试「第N章」，最后纯数字。 */
+function matChapterFromScope(s) {
+  const t = String(s || '');
+  let m = t.match(/(\d+)\s*\.\s*\d+/);
+  if (m) return +m[1];
+  m = t.match(/项目\s*(\d+)/);                       // 「项目4」后面常没有单位词
+  if (m) return +m[1];
+  m = t.match(/第\s*(\d+)\s*[章单元讲课节]/);          // 「第3章」；「第3版」不算（版不在集合里）
+  if (m) return +m[1];
+  m = t.match(/^\s*(\d+)\s*$/);
+  if (m) return +m[1];
+  return null;
+}
+
 async function matGenRun() {
   if (MAT_BUSY) return toast('正在忙，等这一步结束');
   const qt = MAT_QT.find(x => x.k === MAT_QK) || MAT_QT[0];
@@ -1925,10 +1953,14 @@ async function matGenRun() {
   /* 取值一律带判空：这块表单将来改结构时，宁可少一句要求，也别让整页 TypeError 变空白。 */
   const exEl = $('mgExtra'), scEl = $('mgScope'), chEl = $('mgCh');
   const extra = exEl ? exEl.value.trim() : '', scope = scEl ? scEl.value.trim() : '', level = $('mgLevel').value, think = $('mgThink').value;
-  /* 章节：老师手动填了就用它（这批题统一标这个章节），没填就交给 AI 从原文认。 */
+  /* 章节：老师手动填了就用它（这批题统一标这个章节），没填就交给 AI 从原文认。
+     2026-11-19：章节栏留空、但范围栏写了明确的章/小节（「3.2 定时器」「第 5 章」「项目4」）时，
+     自动从范围里推出大章号 —— 老师填「3.2」出一批小节题，题池里也能按「第 3 章」筛到，
+     不用再手动回填一遍。推不出来（如「前五章」没有阿拉伯数字）就还是交给 AI 认。 */
   const chRaw = chEl ? chEl.value.trim() : '';
   let chapter = null;
   if (chRaw) { const m = chRaw.match(/\d+/); if (m) chapter = +m[0]; }
+  else if (scope) chapter = matChapterFromScope(scope);
   const state = $('mgState');
   let text = '', tag = '', mid = null;
   const sub = curSub();
@@ -1956,7 +1988,8 @@ async function matGenRun() {
       if (!extra) { state.textContent = ''; toast('没勾资料时，请在「额外要求」里写下要出题的内容'); HXBusy.end(tok); return; }
       text = extra; tag = '老师手写的要求';
     }
-    state.textContent = '正在准备出题…';
+    state.textContent = '正在准备出题…'
+      + (chapter != null ? `（这批题标第 ${chapter} 章${chRaw ? '' : '，从「范围」推出'}）` : '');
     const res = await HXImp.aiGenerate(text, sub.key, sub.name, {
       types: { [engineT]: n },
       scope, level, extra: picks.length ? extra : '', thinkLevel: think || undefined,
