@@ -175,6 +175,7 @@ pre { white-space: pre-wrap; word-break: break-word; margin: 0; }
 .qb-i > input { margin-top: 4px; }
 .qb-body { min-width: 0; display: grid; gap: 4px; word-break: break-word; }
 .qb-t { display: inline-block; margin-right: 8px; padding: 0 7px; border-radius: 6px; background: var(--accbg, rgba(47, 132, 90, .14)); color: var(--acc, #2f845a); font-size: 12px; font-weight: 600; }
+.qb-t.qb-ch { background: rgba(178, 80, 0, .12); color: var(--warn, #b25000); }
 .qb-o { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; color: var(--dim, #6e6e73); }
 .qb-code { font-size: 12.5px; padding: 6px 8px; border-radius: 8px; background: var(--card-lift, #fff); max-height: 220px; overflow: auto; }
 .qb-a { font-size: 12.5px; color: var(--dim, #6e6e73); }
@@ -938,11 +939,19 @@ function normalizeQuestions(raw, subject, extra) {
     const code = String((item && (item.code || item.代码 || item.程序)) || '').trim();
     const sub = arr(item && (item.sub || item.小问 || item.问题));
     const knowledge = String((item && (item.knowledge || item.知识点)) || '').trim();
+    /* 章节号 ch：AI 输出的数字（或「第N章」这种），认不出是 0/null。只留整数，别的当没有。 */
+    const chRaw = item && (item.ch != null ? item.ch : item.章节);
+    let ch = null;
+    if (chRaw != null && chRaw !== '') {
+      const m = String(chRaw).match(/\d+/);
+      if (m) { const n = +m[0]; if (n > 0) ch = n; }
+    }
     questions.push({
       id: subject + '-ai-' + hximpUid(),
       number: (item && item.number) || questions.length + 1,
       stem, type, options, answer,
       explanation: String((item && (item.explanation || item.解析)) || '').trim(),
+      ...(ch != null ? { ch } : {}),
       ...(code ? { code } : {}),
       ...(sub.length ? { sub } : {}),
       ...(knowledge ? { knowledge } : {}),
@@ -975,13 +984,13 @@ const TYPE_RULE = {
   prog: '程序分析题：stem 写清背景和要求（哪个口接了什么、要读哪段程序），code 里放这段完整可读的程序（保留换行和缩进，不要用 Markdown 代码块、不要加 ```），sub 里放 2～4 个具体小问，answer 里按小问顺序（1）（2）（3）写参考答案；'
 };
 const TYPE_SAMPLE = {
-  single: '{"type":"single","stem":"题干","options":[{"key":"A","text":"选项"}],"answer":["A"],"knowledge":"一句话知识点","explanation":"原文依据"}',
-  multiple: '{"type":"multiple","stem":"题干","options":[{"key":"A","text":"选项"}],"answer":["A","C"],"knowledge":"一句话知识点","explanation":"原文依据"}',
-  judgment: '{"type":"judgment","stem":"题干","options":[{"key":"T","text":"正确"},{"key":"F","text":"错误"}],"answer":["T"],"knowledge":"一句话知识点","explanation":"原文依据"}',
-  fill: '{"type":"fill","stem":"并行口方向寄存器决定端口是输入还是 ____","answer":["输出"],"knowledge":"并行 I/O 端口方向寄存器","explanation":"原文依据"}',
-  short: '{"type":"short","stem":"简述……的步骤","answer":["参考答案那一段话"],"knowledge":"一句话知识点","explanation":"原文依据"}',
-  term: '{"type":"term","stem":"解释：中断优先级","answer":["几句话的解释"],"knowledge":"中断优先级","explanation":"原文依据"}',
-  prog: '{"type":"prog","stem":"阅读下面的程序，P1 口接 8 个 LED（低电平点亮），回答问题。","code":"#include <reg51.h>\\nvoid main()\\n{\\n    P1 = 0xFE;\\n    while(1);\\n}","sub":["哪个灯先亮？","程序会不会停下来？"],"answer":["（1）D1 先亮（0xFE 最低位为 0）。（2）不会，while(1) 是死循环。"],"knowledge":"一句话知识点","explanation":"原文依据"}'
+  single: '{"type":"single","stem":"题干","options":[{"key":"A","text":"选项"}],"answer":["A"],"ch":1,"knowledge":"一句话知识点","explanation":"原文依据"}',
+  multiple: '{"type":"multiple","stem":"题干","options":[{"key":"A","text":"选项"}],"answer":["A","C"],"ch":1,"knowledge":"一句话知识点","explanation":"原文依据"}',
+  judgment: '{"type":"judgment","stem":"题干","options":[{"key":"T","text":"正确"},{"key":"F","text":"错误"}],"answer":["T"],"ch":1,"knowledge":"一句话知识点","explanation":"原文依据"}',
+  fill: '{"type":"fill","stem":"并行口方向寄存器决定端口是输入还是 ____","answer":["输出"],"ch":3,"knowledge":"并行 I/O 端口方向寄存器","explanation":"原文依据"}',
+  short: '{"type":"short","stem":"简述……的步骤","answer":["参考答案那一段话"],"ch":2,"knowledge":"一句话知识点","explanation":"原文依据"}',
+  term: '{"type":"term","stem":"解释：中断优先级","answer":["几句话的解释"],"ch":5,"knowledge":"中断优先级","explanation":"原文依据"}',
+  prog: '{"type":"prog","stem":"阅读下面的程序，P1 口接 8 个 LED（低电平点亮），回答问题。","code":"#include <reg51.h>\\nvoid main()\\n{\\n    P1 = 0xFE;\\n    while(1);\\n}","sub":["哪个灯先亮？","程序会不会停下来？"],"answer":["（1）D1 先亮（0xFE 最低位为 0）。（2）不会，while(1) 是死循环。"],"ch":3,"knowledge":"一句话知识点","explanation":"原文依据"}'
 };
 
 /* 老师自己加的题型（2026-11-19）：引擎只认识那六种，所以给自定义题型现编一条规则 + 一个样例。
@@ -997,17 +1006,22 @@ function genPrompt(o) {
   const parts = list.map(([t, n]) => (TYPE_LABEL[t] || names[t] || t) + ' ' + n + ' 道').join('、');
   const rules = list.map(([t]) => TYPE_RULE[t] || customRule(names[t] || t)).join('\n   ');
   const samples = list.map(([t]) => '  ' + (TYPE_SAMPLE[t] || customSample(t))).join(',\n');
+  const chapterLine = (o.chapter != null && o.chapter !== '')
+    ? '这批题统一标章节号 ' + o.chapter + '（这是老师指定的，照写，不用再从原文认）。\n'
+    : '';
   return '你是「' + o.subjectName + '」课程的出题老师。请根据下面的资料出题。\n'
     + '范围：' + (o.scope || '整份资料') + '（只出这个范围里写到的内容）\n'
     + '难度：' + (o.level || '中等') + '\n'
     + '这一轮要出：' + parts + '\n'
     + (o.extra ? '额外要求：' + o.extra + '\n' : '')
+    + chapterLine
     + '硬要求：\n'
     + '1. 每道题都必须能在原文找到依据；原文没写的不出，不编型号、参数、页码。\n'
     + '2. ' + rules + '\n'
     + '3. 答案唯一、没有歧义；explanation 写一句依据（引用原文要点）。\n'
     + '4. 每道题都要输出一个 knowledge 字段：一句话知识点（不超过 20 个字），能当筛选标签用，必须是原文里讲到的考点（例如「定时器工作方式 2 的选择」「并行 I/O 端口方向寄存器」）。\n'
-    + '5. 只输出 JSON 对象，不要任何解释文字：\n'
+    + '5. 每道题都要输出一个 ch 字段：这道题出自原文第几章/第几个项目（只填数字，如第 3 章写 3、项目 4 写 4）；原文里认不出属于哪一章就写 0。\n'
+    + '6. 只输出 JSON 对象，不要任何解释文字：\n'
     + '{"questions":[\n  ' + samples + '\n]}' + (o.note ? '\n' + o.note : '')
     + '\n资料原文：\n' + o.piece;
 }
@@ -1045,6 +1059,7 @@ async function aiGenerate(text, subject, subjectName, opts, onProgress) {
          勾「原文件」整份原文出题时尤其需要，不然它会把每一块都当成完整的一本书。 */
       const prompt = genPrompt({
         subjectName, piece: pieces[i], scope: opts.scope, level: opts.level, counts, extra: opts.extra, typeNames: opts.typeNames,
+        chapter: opts.chapter,
         note: pieces.length > 1 ? '（这是资料原文的第 ' + (i + 1) + ' / ' + pieces.length + ' 块，按原文顺序切开的；只就这一块出题，不要凭空补别的内容。）' : ''
       });
       /* 调试口（2026-11-19）：把这一块真正的提示词挂到 window.__lastPrompt，
@@ -1607,19 +1622,24 @@ function matHome() {
     <section class="card" id="matGen">
       <div class="zl-ch"><h2>AI 出题</h2><button class="sm" id="mgTypes">管理题型</button></div>
       <p class="note" style="margin:0 0 12px">先在上面的资料列表勾选要用哪几份（一份都不勾就在下面的「针对性要求」里写内容），
-        再勾每行下面的「原文件」＝按整份原文出题（适合章节不规整的资料），不勾就按切段出。
-        然后选一个题型、填出题量。出的题直接进这个题型的题池 —— 组卷要多少道、怎么配分，去「考试 → 理论试卷」那边定。</p>
+        然后选一个题型、填出题量、填章节（留空就由 AI 从原文认）。出的题直接进这个题型的题池 —— 组卷要多少道、怎么配分，去「考试 → 理论试卷」那边定。</p>
       <div class="mg-step"><b>题型 <small class="note" id="mgQtLabel"></small></b>
         <div class="mg-pills" id="mgPills"></div></div>
       <div class="mg-step mg-row">
         <label>出题量<input type="number" id="mgN" min="1" max="50" value="5"></label>
         <label>难度<select id="mgLevel"><option>容易</option><option selected>中等</option><option>较难</option></select></label>
         <label>思考程度<select id="mgThink"><option value="">跟随 AI 设置</option><option value="quick">快速</option><option value="balanced">均衡</option><option value="deep">深度</option></select></label>
+        <label>章节<input id="mgCh" autocomplete="off" placeholder="留空 = AI 自动识别，如：3 或 项目4"></label>
         <label>范围<input id="mgScope" autocomplete="off" placeholder="留空 = 整份，如：第 5 章 中断系统"></label>
       </div>
       <label class="mg-wide">针对性要求（会原样拼进提示词）<textarea id="mgExtra" rows="3" placeholder="可留空。没勾资料时，这里写的内容就是出题依据。例：只出第 3 章的计算题、多考接线工艺、避免名词解释。"></textarea></label>
       <div class="row" style="margin-top:12px"><button class="pri" id="mgGo">开始出题</button><span class="note" id="mgState"></span></div>
       <div id="mgOut"></div>
+    </section>
+    <section class="card" id="matBuiltin">
+      <div class="zl-ch"><h2>内置题库</h2><span class="note">刷题工具里的课程题库，一键导入当前科目的题池</span></div>
+      <p class="note" style="margin:0 0 12px">把刷题工具里的现成题库搬进题池，之后就能和 AI 出的题一起按章节、知识点筛、发布到刷题。导入会按「题型 + 题干」去重，已有的题不会重复加。</p>
+      <div id="matBuiltinList" class="mat-list">${fxLoad('正在读内置题库…')}</div>
     </section>`;
   if (window.HXLoadFx) HXLoadFx.auto($('matList'));
   matQtPills();
@@ -1628,6 +1648,7 @@ function matHome() {
   matQtLoad().then(() => { if ($('mgPills')) matQtPills(); });
   matBind();
   matReload();
+  matBuiltinDraw();
 }
 
 function matBind() {
@@ -1902,8 +1923,12 @@ async function matGenRun() {
   const engineT = MAT_ENGINE[qt.k] || qt.k;     // 自建题型原样传给引擎
   const picks = [...document.querySelectorAll('[data-mpick]:checked')].map(x => +x.dataset.mpick);
   /* 取值一律带判空：这块表单将来改结构时，宁可少一句要求，也别让整页 TypeError 变空白。 */
-  const exEl = $('mgExtra'), scEl = $('mgScope');
+  const exEl = $('mgExtra'), scEl = $('mgScope'), chEl = $('mgCh');
   const extra = exEl ? exEl.value.trim() : '', scope = scEl ? scEl.value.trim() : '', level = $('mgLevel').value, think = $('mgThink').value;
+  /* 章节：老师手动填了就用它（这批题统一标这个章节），没填就交给 AI 从原文认。 */
+  const chRaw = chEl ? chEl.value.trim() : '';
+  let chapter = null;
+  if (chRaw) { const m = chRaw.match(/\d+/); if (m) chapter = +m[0]; }
   const state = $('mgState');
   let text = '', tag = '', mid = null;
   const sub = curSub();
@@ -1935,10 +1960,16 @@ async function matGenRun() {
     const res = await HXImp.aiGenerate(text, sub.key, sub.name, {
       types: { [engineT]: n },
       scope, level, extra: picks.length ? extra : '', thinkLevel: think || undefined,
+      chapter,
       // 自建题型：告诉引擎「这些 key 也认」，并把中文名带过去给它写提示词
       customKeys: qt.builtin ? [] : [engineT],
       typeNames: { [engineT]: qt.name },
     }, msg => { state.textContent = msg; });
+    /* 老师手动填了章节（#mgCh）→ 强制把这一批题全标成那个章节。
+       为什么覆盖 AI 自己认的：老师说的是「这批就是第 5 章的题」，比模型猜的可靠；
+       不覆盖的话会出现「老师填 5、AI 认成 2、最终写成 2」这种跟老师对着干的结果。
+       没填（chapter=null）才用 AI 从原文认出来的 ch。 */
+    if (chapter != null) res.questions.forEach(q => { q.ch = chapter; });
     const items = res.questions.map(q => MAT_toDb(q, (tag || 'AI') + ' · AI 出题'));
     MAT_GEN = { items, rejected: res.rejected, tag: `${qt.name} · ${items.length} 道`, mid, sid: sub.id, qt: qt.name };
     state.textContent = `出了 ${res.questions.length} 道` + (res.rejected.length ? `，${res.rejected.length} 道没收下` : '') + '，正在入池…';
@@ -1951,6 +1982,7 @@ async function matGenRun() {
     const partial = e && e.partialQuestions ? e.partialQuestions : [];
     if (partial.length) {
       /* 中途断了：已经出的题也直接入池（不然全丢），并在状态里写清楚是半批 */
+      if (chapter != null) partial.forEach(q => { q.ch = chapter; });
       const items = partial.map(q => MAT_toDb(q, (tag || 'AI') + ' · AI 出题（中途断了）'));
       MAT_GEN = { items, rejected: e.partialRejected || [], tag: `${qt.name} · 中途断了`, mid, sid: sub.id, qt: qt.name };
       matGenDraw();
@@ -2029,11 +2061,116 @@ function MAT_toDb(q, src) {
   else if (t === 'fill') a = q.answer.slice();
   else a = Array.isArray(q.answer) ? (q.answer[0] || '') : String(q.answer == null ? '' : q.answer);
   return {
-    t, ch: null, q: q.stem,
+    t, ch: (q.ch != null && +q.ch > 0) ? +q.ch : null, q: q.stem,
     o: t === 'choice' || t === 'judge' ? (q.options || []).map(o => ({ key: o.key, text: o.text })) : null,
     a, code: q.code || null, sub: q.sub && q.sub.length ? q.sub : null,
     explanation: q.explanation || '', knowledge: q.knowledge || null, src
   };
+}
+
+/* ================= 内置题库导入（2026-11-19）================
+   用户原话：「把刷题工具的题池弄进来」。刷题工具 data/*.json 里的 4 套内置课程题库
+   （电气接线原理 / 单片机 / 教育心理学 / 教育学）是教材配套的现成题，这里提供一个入口，
+   一键把某一套转成题池格式、写进当前科目的题池，之后就能和 AI 出的题一起按章节、知识点筛，
+   再发布到刷题。导入按「题型 + 题干去空白」去重，已有的题不重复加。 */
+const MAT_BUILTIN_BANKS = [
+  { id: 'wiring', name: '电气接线原理', file: '../shuati/data/wiring.json', tag: '教材配套 · 期末理论', n: 370 },
+  { id: 'mcu', name: '单片机应用技术', file: '../shuati/data/mcu.json', tag: '教材配套 · 期末理论', n: 639 },
+  { id: 'psychology', name: '教育心理学', file: '../shuati/data/questions.json', tag: '教资', n: 540 },
+  { id: 'education', name: '教育学', file: '../shuati/data/education.json', tag: '教资', n: 741 }
+];
+
+/* 从刷题 source（如「项目1 熟悉单片机操作环境」「电气控制技术实训 第3版 项目2思考题」）
+   里抠出章节号：优先「项目N」「第N章」「第N单元」「第N讲」，抠不到就是 null。 */
+function builtinChapter(src) {
+  const s = String(src || '');
+  const m = s.match(/(?:项目|第\s*)?(\d+)\s*(?:章|单元|讲|项目|课)/) || s.match(/项目\s*(\d+)/) || s.match(/第\s*(\d+)\s*[章单元讲课]/);
+  if (m) { const n = +m[1]; if (n > 0) return n; }
+  return null;
+}
+
+/* 刷题一道题 → 题池一行（字段名照 hx_exam_qbank）。source → ch（章节号）+ src（完整出处）。 */
+function builtinToDb(q) {
+  const type = q.type;
+  let t, a;
+  if (type === 'single' || type === 'multiple') {
+    t = 'choice';
+    a = (Array.isArray(q.answer) ? q.answer : [q.answer]).join('').toUpperCase().replace(/[^A-Z]/g, '');
+  } else if (type === 'judgment') {
+    t = 'judge';
+    a = (q.answer && q.answer[0]) === 'T' ? true : false;
+  } else if (type === 'fill') {
+    t = 'fill';
+    a = (Array.isArray(q.answer) ? q.answer : [q.answer]).map(x => String(x == null ? '' : x).trim()).filter(Boolean);
+  } else {
+    t = type; // term / short / prog
+    a = Array.isArray(q.answer) ? (q.answer[0] || '') : String(q.answer == null ? '' : q.answer);
+  }
+  const src = String(q.source || '').trim() || '刷题内置题库';
+  return {
+    t, ch: builtinChapter(src), q: q.stem,
+    o: t === 'choice' || t === 'judge' ? (q.options || []).map(o => ({ key: o.key, text: o.text })) : null,
+    a, code: q.code || null, sub: q.sub && q.sub.length ? q.sub : null,
+    explanation: q.explanation || '', knowledge: (q.knowledge || null), src
+  };
+}
+
+/* 画内置题库列表：4 套，各带题数和「导入到题池」按钮。
+   题数用预置值（2026-11-19）：原来进页面就 fetch 四份 JSON（最大 480 KB）只为数题数，
+   白烧流量；题数是静态内置题库的已知量，写死即可，真导入时才去读整份文件。 */
+function matBuiltinDraw() {
+  const box = $('matBuiltinList'); if (!box) return;
+  box.innerHTML = MAT_BUILTIN_BANKS.map(b => `<div class="mat-i" data-bk="${b.id}">
+      <div class="mat-m"><b>${esc(b.name)}</b><span class="note">${esc(b.tag)} · ${b.n} 题</span></div>
+      <div class="mat-a"><button class="sm pri" data-bimp="${b.id}">导入到题池</button></div>
+    </div>`).join('');
+  box.querySelectorAll('[data-bimp]').forEach(btn => btn.onclick = () => matBuiltinImport(btn.dataset.bimp, btn));
+}
+
+/* 把一套内置题库导入当前科目题池：拉 JSON → 转格式 → 拉已有题去重 → 分批写入。
+   分批原因（2026-11-19）：hx_exam_qbank_add 里是 `limit 500`，一次最多写 500 条；
+   mcu 639 题、education 741 题都会超，不分批会「静默少写」（函数只写前 500 条，返回的 added 也是 500）。
+   每批 400 条留余量，逐批累加 added，全成功才报总数。 */
+async function matBuiltinImport(id, btn) {
+  const b = MAT_BUILTIN_BANKS.find(x => x.id === id);
+  const sid = MAT_sid(); if (sid == null || !b) return;
+  if (MAT_BUSY) return toast('正在忙，等这一步结束');
+  if (!await hxConfirm(`把「${b.name}」整套导入当前科目的题池？\n\n会按题型 + 题干去重，题池里已有的题不会重复加。`)) return;
+  const tok = HXBusy.begin(btn, '正在读题库…');
+  MAT_BUSY = true;
+  try {
+    const r = await fetch(b.file + '?v=20261119', { cache: 'no-cache' });
+    if (!r.ok) throw new Error('读内置题库失败 HTTP ' + r.status);
+    const arr = await r.json();
+    const list = Array.isArray(arr) ? arr : (arr && Array.isArray(arr.questions) ? arr.questions : []);
+    if (!list.length) throw new Error('这套题库是空的');
+    const items = list.map(builtinToDb).filter(x => x && x.q);
+    const old = await MAT_call('hx_exam_qbank_list', { p_subject_id: sid });
+    const norm = s => String(s == null ? '' : s).replace(/\s+/g, '').toLowerCase();
+    const stems = new Set(((old.ok && Array.isArray(old.data) ? old.data : [])).map(x => x.t + '|' + norm(x.q)));
+    const fresh = items.filter(it => !stems.has(it.t + '|' + norm(it.q)));
+    const dup = items.length - fresh.length;
+    if (!fresh.length) { toast('这套题库的题池里都已经有了，没重复加'); HXBusy.end(tok); return; }
+    let added = 0;
+    const BATCH = 400;
+    for (let i = 0; i < fresh.length; i += BATCH) {
+      const chunk = fresh.slice(i, i + BATCH);
+      const w = await MAT_call('hx_exam_qbank_add', { p_subject_id: sid, p_items: chunk, p_material_id: null });
+      if (!w.ok) {
+        /* 中途某批失败：前面已写进去的照实报，别让老师以为整批都没进 */
+        if (added) { toast(`已导入 ${added} 道，后面一批失败：${w.err}`); loadSubjects(true); }
+        MAT_banner('导入中途失败：' + w.err + (added ? `（已写入 ${added} 道）` : ''));
+        HXBusy.end(tok, w.err);
+        return;
+      }
+      added += (w.data && w.data.added) || 0;
+    }
+    toast(`已导入「${b.name}」${added} 道` + (dup ? `，${dup} 道重复跳过` : ''));
+    loadSubjects(true);
+  } catch (e) {
+    MAT_banner('导入失败：' + (e && e.message ? e.message : e));
+    HXBusy.end(tok, (e && e.message) || String(e));
+  } finally { MAT_BUSY = false; HXBusy.end(tok); }
 }
 
 ;
@@ -2067,10 +2204,10 @@ function qbCnBuild() {
   Object.keys(QB_FALLBACK).forEach(k => { if (order.indexOf(k) < 0) order.push(k); });
   QB_CN = cn; QB_ORDER = order;
 }
-let QB_ALL = [], QB_T = '', QB_K = '', QB_KW = '', QB_KN = [], QB_SEL = new Set();
+let QB_ALL = [], QB_T = '', QB_CH = '', QB_K = '', QB_KW = '', QB_KN = [], QB_SEL = new Set();
 
 function qbHome() {
-  QB_T = ''; QB_K = ''; QB_KW = ''; QB_KN = []; QB_ALL = []; QB_SEL = new Set();
+  QB_T = ''; QB_CH = ''; QB_K = ''; QB_KW = ''; QB_KN = []; QB_ALL = []; QB_SEL = new Set();
   qbCnBuild();
   const s = curSub();
   app().innerHTML = `<header class="zl-h"><h1>${esc(s.name)} · 题池</h1></header>
@@ -2080,6 +2217,7 @@ function qbHome() {
         <div class="qb-stat" id="qbStat"></div>
         <div class="qb-f">
           <label>题型<select id="qbType"><option value="">全部</option>${QB_ORDER.map(t => `<option value="${t}">${esc(QB_CN[t])}</option>`).join('')}</select></label>
+          <label>章节<select id="qbCh"><option value="">全部</option></select></label>
           <label>知识点<select id="qbKn"><option value="">全部</option></select></label>
           <label>找题<input id="qbKw" type="search" autocomplete="off" placeholder="题干关键词"></label>
           <button class="sm" id="qbRefresh">刷新</button>
@@ -2106,6 +2244,7 @@ function qbHome() {
     </section>`;
   if (window.HXLoadFx) HXLoadFx.auto($('qbList'));
   $('qbType').onchange = () => { QB_T = $('qbType').value; qbDraw(); };
+  $('qbCh').onchange = () => { QB_CH = $('qbCh').value; qbDraw(); };
   $('qbKn').onchange = () => { QB_K = $('qbKn').value; qbLoad(); };
   let kwT = 0;
   $('qbKw').oninput = () => { clearTimeout(kwT); kwT = setTimeout(() => { QB_KW = ($('qbKw').value || '').trim().toLowerCase(); qbDraw(); }, 140); };
@@ -2152,6 +2291,7 @@ function qbRebuildFilters() {
   }
 }
 const qbShown = () => QB_ALL.filter(q => (!QB_T || q.t === QB_T) &&
+  (!QB_CH || (q.ch != null && String(q.ch) === String(QB_CH))) &&
   (!QB_KW || (String(q.q || '') + ' ' + String(q.knowledge || '')).toLowerCase().indexOf(QB_KW) >= 0));
 
 /* 全选当前筛选：一个按钮两态 —— 当前筛选的题已经全勾上了，再点就是取消这批。 */
@@ -2238,6 +2378,7 @@ async function qbLoad(btn) {
     if (!r.ok) { box.innerHTML = `<div class="errs">${esc(r.err)}</div>`; QB_ALL = []; qbDrawStat(); HXBusy.end(tok, r.err); return; }
     QB_ALL = Array.isArray(r.data) ? r.data : [];
     if (!QB_K) qbKnBuild(QB_ALL);   // 只在未按知识点筛选时重建下拉，避免筛选后把选项刷没
+    qbChBuild(QB_ALL);              // 章节下拉：章节是 AI 出的、随时会变，每次都重建
     const ids = new Set(QB_ALL.map(q => String(q.id)));
     QB_SEL = new Set([...QB_SEL].filter(id => ids.has(id)));
     qbRebuildFilters();             // 按题型全选那个下拉要知道每类有多少道
@@ -2252,6 +2393,17 @@ function qbKnBuild(list) {
   sel.innerHTML = '<option value="">全部</option>' + QB_KN.map(k => `<option value="${esc(k)}">${esc(k)}</option>`).join('');
   sel.value = QB_KN.includes(cur) ? cur : '';
   QB_K = sel.value;
+}
+/* 章节下拉（2026-11-19）：用 ch 字段（第几章/第几个项目），从题池收集去重后的章节号。
+   没认到章节（ch 是 null）的题不进下拉 —— 但列表里还能看到，老师可以按「无章节」另行处理。
+   章节号按数字升序排（1、2、3…项目5），比按字符串排更符合直觉。 */
+function qbChBuild(list) {
+  const chs = [...new Set(list.map(q => (q.ch != null && +q.ch > 0) ? +q.ch : null).filter(x => x != null))].sort((a, b) => a - b);
+  const sel = $('qbCh'); if (!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">全部</option>' + chs.map(c => `<option value="${c}">第 ${c} 章</option>`).join('');
+  sel.value = (cur && chs.some(c => String(c) === cur)) ? cur : '';
+  QB_CH = sel.value;
 }
 function qbDrawStat() {
   const box = $('qbStat'); if (!box) return;
@@ -2297,17 +2449,18 @@ function qbDraw() {
   if (!list.length) {
     const why = [];
     if (QB_T) why.push('题型「' + (QB_CN[QB_T] || QB_T) + '」');
+    if (QB_CH) why.push('第 ' + QB_CH + ' 章');
     if (QB_KW) why.push('关键词「' + QB_KW + '」');
     box.innerHTML = '<p class="note">当前筛选下没有题' + (why.length ? '（' + esc(why.join('、')) + '）' : '')
       + '。 <button class="sm" id="qbClearFilter">清空筛选</button></p>';
     const c = $('qbClearFilter');
-    if (c) c.onclick = () => { QB_T = ''; QB_KW = ''; if ($('qbType')) $('qbType').value = ''; if ($('qbKw')) $('qbKw').value = ''; qbDraw(); };
+    if (c) c.onclick = () => { QB_T = ''; QB_CH = ''; QB_KW = ''; if ($('qbType')) $('qbType').value = ''; if ($('qbCh')) $('qbCh').value = ''; if ($('qbKw')) $('qbKw').value = ''; qbDraw(); };
     return;
   }
   box.innerHTML = list.map(q => `<div class="qb-i" data-qid="${q.id}">
       <input type="checkbox" data-qsel="${q.id}" ${QB_SEL.has(String(q.id)) ? 'checked' : ''} aria-label="选中这道题">
       <div class="qb-body">
-        <div class="qb-q"><span class="qb-t">${esc(QB_CN[q.t] || q.t)}</span>${esc(q.q)}</div>
+        <div class="qb-q"><span class="qb-t">${esc(QB_CN[q.t] || q.t)}</span>${q.ch != null && +q.ch > 0 ? `<span class="qb-t qb-ch">第 ${q.ch} 章</span>` : ''}${esc(q.q)}</div>
         ${Array.isArray(q.o) && q.o.length && q.t === 'choice' ? `<div class="qb-o">${q.o.map(o => `<span>${esc(o.key)}. ${esc(o.text)}</span>`).join('')}</div>` : ''}
         ${q.code ? `<pre class="qb-code">${esc(q.code)}</pre>` : ''}
         <div class="qb-a">${q.knowledge ? `<span class="qb-t">知识点</span>${esc(q.knowledge)} · ` : ''}答案：${esc(String(QB_ans(q)).slice(0, 300))}${q.src ? ' ｜ ' + esc(q.src) : ''}</div>
