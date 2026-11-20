@@ -165,11 +165,7 @@ pre { white-space: pre-wrap; word-break: break-word; margin: 0; }
 .mg-rej { margin-top: 10px; font-size: 13px; }
 .mg-rej ul { margin: 6px 0 0; padding-left: 18px; }
 
-/* 题池 */
-.qb-bar { display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-.qb-stat { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 13px; }
-.qb-f { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.qb-f label { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+/* 题池（顶栏布局见文件后半段「题池顶栏」那一块） */
 .qb-list { display: grid; gap: 8px; }
 .qb-i { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: start; padding: 10px 12px; border-radius: 12px; background: var(--fill, rgba(0, 0, 0, .03)); }
 .qb-i > input { margin-top: 4px; }
@@ -295,18 +291,33 @@ html.hx-lite #hxBootCv{display:none}
 .mg-item.ro { cursor: default; }
 .mg-item.ro:hover { background: var(--fill, rgba(0, 0, 0, .03)); }
 
-/* ── 题池顶栏「显示不全」的修法 ─────────────────────────────────────────────
-   用户原话：「这里显示不全 还缺少筛选状态下的全选按钮」。
-   原来 .qb-bar 是「统计 + 一长排控件」挤在一条 flex 里、justify-content:space-between，
-   控件多到一定数量就横向溢出被卡片裁掉（截图里右侧被切）。现在改成上下两行：
-     第 1 行：统计（可换行）
-     第 2 行：筛选 + 操作（自己换行，永不裁切）
-   第 3 行：全选 / 反选 / 批量操作 —— 选中数量为 0 时整条隐藏，不占地方。 */
-.qb-bar { display: grid; gap: 10px; margin-bottom: 12px; }
+/* ── 题池顶栏（2026-11-20 第二轮重排）─────────────────────────────────────
+   用户原话：「这里显示不全」—— 1440 宽下筛选控件和五颗按钮挤在同一条 flex 里，
+   「发布到刷题」被挤到第二行还压扁；窄屏右侧直接被卡片裁掉。
+   现在 .qb-bar 是**单列网格**（minmax(0,1fr)：怎么都不会撑破卡片），里面分行：
+     ① .qb-stat   统计芯片
+     ② .qb-f      筛选（题型/章节/小节/知识点/找题）—— 能换行，控件不缩成 0 宽
+     ③ .qb-acts   操作按钮 —— 单独换行 + margin-left:auto 靠右，不再和筛选抢宽度
+     ④ .qb-selbar 勾选 / 批量操作（题池空时整条隐藏）
+   <720px：筛选改两列网格，每个控件占一格（输入框拉满）；按钮均分整行。 */
+.qb-bar { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; margin-bottom: 12px; }
+.qb-h { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; justify-content: space-between; }
+.qb-h h1 { margin: 4px 0 14px; }
 .qb-stat { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 13px; }
 .qb-f { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; min-width: 0; }
-.qb-f label { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; min-width: 0; }
+.qb-f > label { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; font-size: 13px; min-width: 0; }
 .qb-f select { max-width: 150px; }
+.qb-f input[type=search] { width: 170px; min-width: 0; }
+.qb-acts { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-left: auto; }
+.qb-acts > button { flex: 0 0 auto; white-space: nowrap; }
+@media (max-width: 720px) {
+  .qb-f { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .qb-f > label { display: grid; gap: 4px; }
+  .qb-f > label:last-child { grid-column: 1 / -1; }   /* 「找题」占满整行 */
+  .qb-f select, .qb-f input[type=search] { width: 100%; max-width: none; }
+  .qb-acts { margin-left: 0; }
+  .qb-acts > button { flex: 1 1 auto; }
+}
 .qb-selbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
   padding: 8px 10px; border-radius: 10px; background: var(--fill, rgba(0, 0, 0, .04));
   font-size: 13px; }
@@ -917,10 +928,17 @@ function normalizeQuestions(raw, subject, extra) {
     if (!SUPPORTED.includes(type) && CUSTOM.indexOf(type) < 0) return reject('题型「' + (rawType || '未知') + '」暂时不支持');
 
     const rawOptions = (item && (item.options || item.选项)) || [];
+    /* 符号图（2026-11-20）：fig 只是原样透传，这里不判断 id 认不认识 ——
+       认不认识是 figlib（HXFig.hasFig）的事，写库前由 ui-mat 的 MAT_toDb 统一筛一遍。
+       没给 fig 的题/选项不补空值，题库那边就当作无图。 */
     let options = Array.isArray(rawOptions)
       ? rawOptions.map((op, i) => typeof op === 'string'
         ? { key: String.fromCharCode(65 + i), text: op.replace(/^[A-Fa-f][.、:：)）]\s*/, '') }
-        : { key: String((op && op.key) || String.fromCharCode(65 + i)).toUpperCase(), text: String(op && op.text != null ? op.text : (op && op.value) || '') })
+        : {
+          key: String((op && op.key) || String.fromCharCode(65 + i)).toUpperCase(),
+          text: String(op && op.text != null ? op.text : (op && op.value) || ''),
+          ...((op && op.fig) ? { fig: String(op.fig).trim() } : {})
+        })
       : Object.entries(rawOptions).map(([k, v]) => ({ key: k.toUpperCase(), text: String(v) }));
     const texty = type === 'fill' || type === 'short' || type === 'term' || type === 'prog' || CUSTOM.indexOf(type) >= 0;
     if (texty) options = [];
@@ -963,6 +981,8 @@ function normalizeQuestions(raw, subject, extra) {
     const code = String((item && (item.code || item.代码 || item.程序)) || '').trim();
     const sub = arr(item && (item.sub || item.小问 || item.问题));
     const knowledge = String((item && (item.knowledge || item.知识点)) || '').trim();
+    /* 题干级的符号图 id（AI 按提示词的「符号表」写），空字符串当没写。 */
+    const fig = String((item && item.fig) || '').trim();
     /* 章节号 ch：AI 输出的数字（或「第N章」这种），认不出是 0/null。只留整数，别的当没有。 */
     const chRaw = item && (item.ch != null ? item.ch : item.章节);
     let ch = null;
@@ -975,6 +995,7 @@ function normalizeQuestions(raw, subject, extra) {
       number: (item && item.number) || questions.length + 1,
       stem, type, options, answer,
       explanation: String((item && (item.explanation || item.解析)) || '').trim(),
+      ...(fig ? { fig } : {}),
       ...(ch != null ? { ch } : {}),
       ...(code ? { code } : {}),
       ...(sub.length ? { sub } : {}),
@@ -1024,6 +1045,25 @@ const customRule = name => '「' + name + '」题：题干把要求写清楚（�
   + 'answer 里给可以直接对照的参考答案（30～300 字，分步骤就按（1）（2）（3）写）；';
 const customSample = k => '{"type":"' + k + '","stem":"题干（写清要求）","answer":["参考答案，分步骤就按（1）（2）（3）写"],"knowledge":"一句话知识点","explanation":"原文依据"}';
 
+/* 符号表（2026-11-20）：电气接线这类课的题要带「符号图」——题干或选项里写 fig，
+   图由 figlib.js（window.HXFig）现画，和 刷题 用的是同一套符号 id。
+   这里把「能用的 id = 中文名」整张表喂给模型，省得它自己编 id（编的会在入池前被丢掉）。
+   HXFig 不存在（单独调试 imports.js）就返回空串，整段不进提示词，别让出题因为少个脚本就挂。 */
+function figRule() {
+  const F = (typeof window !== 'undefined') ? window.HXFig : null;
+  if (!F || !Array.isArray(F.list) || !F.list.length || typeof F.figName !== 'function') return '';
+  let table = '';
+  try { table = F.list.map(k => k + '=' + F.figName(k)).join('、'); } catch (e) { return ''; }
+  if (!table) return '';
+  return '电气图形符号（只有电气 / 电路类课程才用图；单片机、教资这类理论题一般不用）：\n'
+    + '   可用符号只有这些（id=中文名）：' + table + '\n'
+    + '   · 题目涉及电气图形符号时（如「图中的符号表示（ ）」「下图是哪种低压电器」），除正常字段外再加一个 "fig":"<符号 id>"，只能用上面列出的 id，不要自己编；\n'
+    + '   · 题干要写成「图中的符号……」，让学生知道该看图；\n'
+    + '   · 选择题的选项也可以是图：选项对象里加 "fig":"<id>"、text 留空字符串；\n'
+    + '   · 用不上图就别写 fig 字段，不要给每道题都硬塞一张图。\n'
+    + '   带图的单选长这样：{"type":"single","stem":"图中的符号表示（ ）","fig":"qf3","options":[{"key":"A","text":"熔断器"},{"key":"B","text":"三极低压断路器"}],"answer":["B"],"ch":1,"knowledge":"低压断路器符号","explanation":"原文依据"}\n';
+}
+
 function genPrompt(o) {
   const names = o.typeNames || {};
   const list = Object.entries(o.counts || {}).filter(([, n]) => n > 0);
@@ -1033,6 +1073,9 @@ function genPrompt(o) {
   const chapterLine = (o.chapter != null && o.chapter !== '')
     ? '这批题统一标章节号 ' + o.chapter + '（这是老师指定的，照写，不用再从原文认）。\n'
     : '';
+  /* 有符号库才插「符号图」这一条，并把它后面的输出格式那条顺延成 7（没符号库时仍是 6，编号不错乱）。 */
+  const figBody = figRule();
+  const lastNo = figBody ? 7 : 6;
   /* 范围（2026-11-19 加强）：原来只有一句「只出这个范围里写到的内容」，模型经常顺手
      把范围外的也出了。老师要的是「就给第 3 章」「就给 3.2 这一节」，所以这里把
      「可以精确到小节」和「范围外一律不用」都说清楚，并给出小节编号的写法示例。 */
@@ -1054,7 +1097,8 @@ function genPrompt(o) {
     + '3. 答案唯一、没有歧义；explanation 写一句依据（引用原文要点）。\n'
     + '4. 每道题都要输出一个 knowledge 字段：一句话知识点（不超过 20 个字），能当筛选标签用，必须是原文里讲到的考点（例如「定时器工作方式 2 的选择」「并行 I/O 端口方向寄存器」）。\n'
     + '5. 每道题都要输出一个 ch 字段：这道题出自原文第几章/第几个项目（只填数字，如第 3 章写 3、项目 4 写 4）；原文里认不出属于哪一章就写 0。\n'
-    + '6. 只输出 JSON 对象，不要任何解释文字：\n'
+    + (figBody ? '6. ' + figBody : '')
+    + lastNo + '. 只输出 JSON 对象，不要任何解释文字：\n'
     + '{"questions":[\n  ' + samples + '\n]}' + (o.note ? '\n' + o.note : '')
     + '\n资料原文：\n' + o.piece;
 }
@@ -2166,17 +2210,21 @@ async function matGenCommit(items, mid, sid, state) {
   const fresh = [], dup = [];
   items.forEach(it => { (stems.has(it.t + '|' + norm(it.q)) ? dup : fresh).push(it); });
   if (!fresh.length) {
+    MAT_FIG_BAD = 0;
     if (state) state.textContent = `这 ${items.length} 道题池里都已经有了，没重复加`;
     toast('这批题池里都有了，没重复加');
     return { ok: true, added: 0, dup: dup.length };
   }
   if (state) state.textContent = '正在写入题池…';
   const r = await MAT_call('hx_exam_qbank_add', { p_subject_id: sid, p_items: fresh, p_material_id: mid });
-  if (!r.ok) { MAT_banner('进题池失败：' + r.err); if (state) state.textContent = '入池失败：' + r.err; return { ok: false, added: 0, dup: dup.length, err: r.err }; }
+  if (!r.ok) { MAT_FIG_BAD = 0; MAT_banner('进题池失败：' + r.err); if (state) state.textContent = '入池失败：' + r.err; return { ok: false, added: 0, dup: dup.length, err: r.err }; }
   const added = (r.data && r.data.added) || 0;
   const dmsg = dup.length ? `，${dup.length} 道与题池重复已跳过` : '';
-  toast('已加入题池 ' + added + ' 道' + dmsg);
-  if (state) state.textContent = `已进入「${matQtName(MAT_QK)}」题池 ${added} 道` + dmsg;
+  /* 这一批有多少处 fig 认不出（题干 + 选项合在一起数），说过一次就清零，下一批重新算。 */
+  const badFig = MAT_FIG_BAD; MAT_FIG_BAD = 0;
+  const fmsg = badFig ? `，${badFig} 处图符号认不出已忽略` : '';
+  toast('已加入题池 ' + added + ' 道' + dmsg + fmsg);
+  if (state) state.textContent = `已进入「${matQtName(MAT_QK)}」题池 ${added} 道` + dmsg + fmsg;
   loadSubjects(true);   // 题数变了：科目卡的计数要重算
   return { ok: true, added, dup: dup.length };
 }
@@ -2213,6 +2261,21 @@ const MAT_ANS_ROW = q => {
 };
 
 // 引擎里的题 → 题池那一行（字段名照 考试/supabase/2026-11-08-科目-资料库-题库.sql）
+/* 符号图（2026-11-20）：AI 给的 fig 是 figlib 那套符号 id，写库前先问 HXFig.hasFig。
+   认不出的直接丢（DB 的 fig 列只收 ^[A-Za-z0-9_-]{1,24}$，硬塞进去整批写入会失败），
+   只把次数攒在 MAT_FIG_BAD 里，等这批入池完在状态行/提示里说一句，不逐题刷屏。
+   没有 HXFig（脚本没打包进去）时一律当无图处理，不影响其余字段。 */
+let MAT_FIG_BAD = 0;
+function matFig(id) {
+  const s = String(id == null ? '' : id).trim();
+  if (!s) return null;
+  const F = (typeof window !== 'undefined') ? window.HXFig : null;
+  if (!F || typeof F.hasFig !== 'function') return null;
+  if (F.hasFig(s)) return s;
+  MAT_FIG_BAD++;
+  return null;
+}
+
 function MAT_toDb(q, src) {
   /* 2026-11-19：自建题型（如 shicao）在 MAT_DB_T 里没有映射，原来会掉进 'choice' ——
      表现是「明明出的实操题，进题池却变成选择题，还没有选项」。现在原样保留 key。 */
@@ -2222,6 +2285,7 @@ function MAT_toDb(q, src) {
   else if (t === 'judge') a = q.answer[0] === 'T';
   else if (t === 'fill') a = q.answer.slice();
   else a = Array.isArray(q.answer) ? (q.answer[0] || '') : String(q.answer == null ? '' : q.answer);
+  const fig = matFig(q.fig);
   return {
     t, ch: (q.ch != null && +q.ch > 0) ? +q.ch : null,
     /* 小节（2026-11-19）：AI 如果按提示词给出了 sec（如 3.2.1），原样带进题池；
@@ -2229,8 +2293,13 @@ function MAT_toDb(q, src) {
     sec: (q.sec != null && /^[0-9]+(\.[0-9]+)*$/.test(String(q.sec).trim())) ? String(q.sec).trim() : null,
     secTitle: null,
     q: q.stem,
-    o: t === 'choice' || t === 'judge' ? (q.options || []).map(o => ({ key: o.key, text: o.text })) : null,
+    /* 选项的 fig 单独筛：认不出就只删这个字段，选项文字照样留着。 */
+    o: t === 'choice' || t === 'judge' ? (q.options || []).map(o => {
+      const of = matFig(o.fig);
+      return of ? { key: o.key, text: o.text, fig: of } : { key: o.key, text: o.text };
+    }) : null,
     a, code: q.code || null, sub: q.sub && q.sub.length ? q.sub : null,
+    ...(fig ? { fig } : {}),
     explanation: q.explanation || '', knowledge: q.knowledge || null, src
   };
 }
@@ -2394,7 +2463,17 @@ function qbHome() {
   QB_T = ''; QB_CH = ''; QB_SEC = ''; QB_K = ''; QB_KW = ''; QB_KN = []; QB_ALL = []; QB_SEL = new Set();
   qbCnBuild();
   const s = curSub();
-  app().innerHTML = `<header class="zl-h"><h1>${esc(s.name)} · 题池</h1></header>
+  /* 2026-11-20 顶栏重排：筛选 / 操作 / 选择条 各占一行。
+     用户原话「这里显示不全」——原来筛选和五颗按钮挤在同一条 flex 里，1440 宽就装不下，
+     「发布到刷题」被挤到第二行还被压扁。现在：
+       · 筛选（题型/章节/小节/知识点/找题）单独一行，能换行、每个控件不被压成 0 宽；
+       · 操作按钮收进 .qb-acts（自己换行 + margin-left:auto 靠右），不再和筛选抢宽度；
+       · 选择条只留「全选当前筛选 / 反选 / 清空选择 / 删除选中」。
+     「批量改题型」挪到标题右侧：它的语义是「把勾选的题改成另一个题型」，
+     放在选择条里容易被读成「让 AI 改题型」（用户原话：「我以为点一下 AI 就帮我改题型了」）。 */
+  app().innerHTML = `<header class="zl-h qb-h"><h1>${esc(s.name)} · 题池</h1>
+      <button class="sm" id="qbBatchType" title="把勾选的题改成另一个题型（比如把手写的简答题统一改成填空）">批量改题型</button>
+    </header>
     <div class="errs" id="qbBanner" hidden></div>
     <section class="card">
       <div class="qb-bar">
@@ -2405,6 +2484,8 @@ function qbHome() {
           <label>小节<select id="qbSec"><option value="">全部</option></select></label>
           <label>知识点<select id="qbKn"><option value="">全部</option></select></label>
           <label>找题<input id="qbKw" type="search" autocomplete="off" placeholder="题干关键词"></label>
+        </div>
+        <div class="qb-acts">
           <button class="sm" id="qbRefresh">刷新</button>
           <button class="sm" id="qbDedup">AI 查重</button>
           <button class="sm" id="qbTag" title="给还没有知识点的题批量打标签，题池就能按知识点筛">AI 打知识点</button>
@@ -2412,17 +2493,15 @@ function qbHome() {
           <button class="sm pri" id="qbPub">发布到刷题</button>
         </div>
         <!-- 2026-11-19：批量选择条。用户原话「还缺少筛选状态下的全选按钮…比如我想删减全部已生成的填空题池」
-             所以这里有三层全选：①当前筛选（受题型+知识点+关键词三重过滤）②反选 ③按题型全选（不受筛选影响，
-             专门用来「把这一类的题一次全清掉」）。删除/改题型都走服务端集合接口，一次网络，不逐条转圈。 -->
+             两层全选：①当前筛选（受题型+章节+小节+知识点+关键词过滤，再点一次就是取消这批）②反选。
+             2026-11-20 删掉「按题型全选」那个下拉：左边「题型」筛选 + 「全选当前筛选」已经能做到同样的事，
+             多一个下拉只是占地方。删除走服务端集合接口，一次网络，不逐条转圈。 -->
         <div class="qb-selbar" id="qbSelBar">
           <b>已选 <span id="qbSelN2">0</span> 道</b>
           <button class="sm" id="qbSelAll">全选当前筛选（<span id="qbShownN">0</span>）</button>
           <button class="sm" id="qbSelInv">反选</button>
           <button class="sm" id="qbSelNone">清空选择</button>
           <span class="grow"></span>
-          <label>按题型<select id="qbSelType"></select></label>
-          <button class="sm" id="qbSelTypeGo">全选这类全部</button>
-          <button class="sm" id="qbBatchType">改题型</button>
           <button class="sm danger" id="qbBatchDel">删除选中</button>
         </div>
       </div>
@@ -2442,7 +2521,6 @@ function qbHome() {
     qbDraw();
   };
   $('qbSelNone').onclick = () => { QB_SEL.clear(); qbDraw(); };
-  $('qbSelTypeGo').onclick = qbSelByType;
   $('qbBatchDel').onclick = qbBatchDel;
   $('qbBatchType').onclick = qbBatchType;
   // 2026-11-15：这几颗都是「点了要等云端」的按钮，全部把按钮本身传进去，让 HXBusy 转圈+计时
@@ -2461,7 +2539,8 @@ function qbHome() {
   }).catch(() => { });
   qbLoad();
 }
-/* 题型/知识点两个下拉与「按题型全选」那个下拉重建（题型表变了、或题池变了都要重来） */
+/* 题型下拉重建（题型表变了、或题池变了都要重来）。
+   2026-11-20：原来还顺手重建「按题型全选」那个下拉（qbSelType），那个控件已删。 */
 function qbRebuildFilters() {
   const sel = $('qbType');
   if (sel) {
@@ -2469,13 +2548,6 @@ function qbRebuildFilters() {
     sel.innerHTML = '<option value="">全部</option>' + QB_ORDER.map(t => `<option value="${t}">${esc(QB_CN[t] || t)}</option>`).join('');
     sel.value = QB_ORDER.indexOf(cur) >= 0 ? cur : '';
     QB_T = sel.value;
-  }
-  const st = $('qbSelType');
-  if (st) {
-    const cur = st.value;
-    const has = t => QB_ALL.some(q => q.t === t);
-    st.innerHTML = QB_ORDER.filter(has).map(t => `<option value="${t}">${esc(QB_CN[t] || t)}（${QB_ALL.filter(q => q.t === t).length}）</option>`).join('') || '<option value="">题池是空的</option>';
-    if (cur) st.value = cur;
   }
 }
 const qbShown = () => QB_ALL.filter(q => (!QB_T || q.t === QB_T) &&
@@ -2492,20 +2564,9 @@ function qbSelAll() {
   qbDraw();
   toast(allOn ? `已取消这 ${list.length} 道的勾选` : `已选中这 ${list.length} 道`);
 }
-/* 按题型全选：**不受当前筛选影响**，把这一类的题一道不落地勾上 ——
-   这就是「删减全部已生成的填空题池」那一步：选填空 → 全选这类全部 → 删除选中。 */
-function qbSelByType() {
-  const t = $('qbSelType') && $('qbSelType').value;
-  if (!t) return toast('先选一个题型');
-  const rows = QB_ALL.filter(q => q.t === t);
-  if (!rows.length) return toast('这个题型下没有题');
-  rows.forEach(q => QB_SEL.add(String(q.id)));
-  // 顺手把筛选切到这个题型，让老师立刻看见自己刚选了什么
-  QB_T = t; if ($('qbType')) $('qbType').value = t;
-  qbDraw();
-  toast(`已选中「${QB_CN[t] || t}」全部 ${rows.length} 道，可继续批量操作`);
-}
-/* 批量删除：一次 rpc 删完（hx_exam_qbank_del_many），不再逐条转网络 */
+/* 批量删除：一次 rpc 删完（hx_exam_qbank_del_many），不再逐条转网络。
+   2026-11-20：单题行内的「删」也去掉了 —— 老师原话「左边选右上角改删不就行了」，
+   删题统一走「勾选 → 删除选中」，只留「改」（单题修改没法批量）。 */
 async function qbBatchDel() {
   const ids = [...QB_SEL].map(Number).filter(n => n > 0);
   if (!ids.length) return toast('一道都没选');
@@ -2682,27 +2743,14 @@ function qbDraw() {
         ${q.code ? `<pre class="qb-code">${esc(q.code)}</pre>` : ''}
         <div class="qb-a">${q.knowledge ? `<span class="qb-t">知识点</span>${esc(q.knowledge)} · ` : ''}答案：${esc(String(QB_ans(q)).slice(0, 300))}${q.src ? ' ｜ ' + esc(q.src) : ''}</div>
       </div>
-      <div class="qb-act"><button class="sm" data-qed="${q.id}">改</button><button class="sm danger" data-qdel="${q.id}">删</button></div>
+      <div class="qb-act"><button class="sm" data-qed="${q.id}" title="单题修改（改题干/选项/答案/图）">改</button></div>
     </div>`).join('');
   box.querySelectorAll('[data-qsel]').forEach(b => b.onchange = () => { b.checked ? QB_SEL.add(b.dataset.qsel) : QB_SEL.delete(b.dataset.qsel); qbDraw(); });
-  box.querySelectorAll('[data-qdel]').forEach(b => b.onclick = () => qbDel(b.dataset.qdel, b));
   box.querySelectorAll('[data-qed]').forEach(b => b.onclick = () => qbEdit(b.dataset.qed));
 }
 
-/* 删单题。2026-11-15：删一行只发一次 rpc，但那一下也要等网络，原来行内没有任何变化，
-   用户原话「点了删除没反应就跟卡了一样」。现在这颗「删」按钮自己转圈 + 计时，
-   失败原因除了顶部红条，还挂在按钮 title 上（鼠标移上去能看到）。 */
-async function qbDel(id, btn) {
-  if (!await hxConfirm('删掉这道题？只删这一道。')) return;
-  const tok = HXBusy.begin(btn, '正在删…');
-  try {
-    const r = await MAT_call('hx_exam_qbank_del', { p_id: +id });
-    if (!r.ok) { MAT_banner('删除失败：' + r.err); HXBusy.end(tok, r.err); return; }
-    QB_ALL = QB_ALL.filter(x => String(x.id) !== String(id)); QB_SEL.delete(String(id));
-    qbDrawStat(); qbDraw(); toast('已删除');
-    loadSubjects(true);   // 题数变了：科目卡的计数要重算，别拿缓存
-  } finally { HXBusy.end(tok); }
-}
+/* 2026-11-20：删单题的 qbDel() 已删 —— 行内「删」按钮去掉了（只留「改」），
+   删题统一走勾选 + 顶部「删除选中」(qbBatchDel)，一次 rpc 删完，不留死代码。 */
 /* 清空题池：一次 rpc 删几十上百行，比删单题慢得多，按钮必须转圈给人看 */
 async function qbClear(btn) {
   const s = curSub(); if (!s) return;
@@ -2755,12 +2803,15 @@ async function qbDedup(btn) {
       if (seen[k]) pairs.push({ a: seen[k], b: q, why: '题干完全相同' + (q.fig ? '（同一张图）' : ''), kind: 'exact' });
       else seen[k] = q;
     });
-    // ② AI 语义比对：把没被硬重判掉的题喂给 AI，让它标重复对
-    let aiPairs = [], aiErr = null;
+    // ② AI 语义比对：把题按 DEDUP_BATCH 道一批分着送，逐批报进度
+    let aiPairs = [], aiErr = null, aiWarn = '';
     try {
-      aiPairs = await qbDedupAI();
+      const r = await qbDedupAI((k, n, cnt) => say(`正在比考点：第 ${k}/${n} 批（本批 ${cnt} 道）…`));
+      aiPairs = r.pairs;
+      /* 单批失败不中断（截断 / 超时只影响那一批），但欠的账要说清楚 */
+      if (r.bad) aiWarn = `${r.rounds} 批里 ${r.bad} 批没跑成` + (r.lastErr ? `（${r.lastErr}）` : '') + '，结果只覆盖了跑成的那几批。';
     } catch (e) {
-      // AI 查不到不致命：硬去重的结果照样给，但原因必须留下（别退化成一句「没查出重复题」）
+      // 整份都没跑成才算失败；AI 查不到不致命，硬去重照样给，但原因必须留下
       aiErr = (e && e.message) || String(e);
     }
     say('');
@@ -2770,8 +2821,13 @@ async function qbDedup(btn) {
       MAT_banner('AI 语义比对没跑成：' + aiErr + '。下面只显示了题干完全相同的重复。');
     }
     const all = qbDedupTidy(pairs.concat(aiPairs));
-    if (!all.length) { toast('没查出重复题（AI 语义比对也没发现疑似重复）'); return; }
-    qbDedupDraw(all);
+    if (!all.length) {
+      /* 有批次没跑成时说「没查出重复」是误导：那几批根本没比 */
+      if (aiWarn) MAT_banner('AI 语义比对：' + aiWarn);
+      else toast('没查出重复题（AI 语义比对也没发现疑似重复）');
+      return;
+    }
+    qbDedupDraw(all, aiWarn);
   } finally { HXBusy.end(tok); }
 }
 /* 同一对题可能被 AI 报两遍（a↔b 换个顺序也算同一对），按 id 归一后去重；
@@ -2793,12 +2849,31 @@ function qbDedupTidy(list) {
   });
   return [...m.values()];
 }
-/* AI 语义比对：把题池里所有题编号喂给 AI，让它返回「重复的题对」的编号数组。
-   一次调用（不是两两调用），省额度；题太多时按题型分组降 token。
-   2026-11-20：跨题型的重复也要它报（以前没明说，模型经常只比同题型），
-   报回来由前端分成「同题型 / 跨题型」两组。 */
-async function qbDedupAI() {
-  const list = QB_ALL.map((q, i) => ({ i, t: q.t, fig: q.fig, stem: String(q.q || '').slice(0, 300) }));
+/* AI 语义比对：把题池里的题编号喂给 AI，让它返回「重复的题对」的编号数组。
+   2026-11-20 改成**分批**：一次塞 536 道（单片机题池）时，模型的输出被 token 上限截断，
+   回来的 JSON 缺了尾巴 —— 用户看到的就是那条
+   「Expected ',' or '}' after array element in JSON at position 15366」红条。
+   现在每批 DEDUP_BATCH 道、逐批请求；单批失败只记一笔、不中断其它批，
+   最后交给弹层写「N 批里 M 批没跑成」。整份一批都没成才是真的失败。
+   跨题型的重复也要它报（以前没明说，模型经常只比同题型），报回来由前端分两组。 */
+const DEDUP_BATCH = 60;
+async function qbDedupAI(onP) {
+  const rounds = Math.ceil(QB_ALL.length / DEDUP_BATCH);
+  const out = [];
+  let bad = 0, lastErr = '';
+  for (let b = 0; b < rounds; b++) {
+    const chunk = QB_ALL.slice(b * DEDUP_BATCH, (b + 1) * DEDUP_BATCH);
+    if (onP) onP(b + 1, rounds, chunk.length);
+    try {
+      (await qbDedupAIBatch(chunk, b + 1)).forEach(p => out.push(p));
+    } catch (e) { bad++; lastErr = (e && e.message) || String(e); }
+  }
+  if (rounds && bad === rounds) throw new Error(lastErr || 'AI 语义比对整批都没跑成');
+  return { pairs: out, rounds, bad, lastErr };
+}
+/* 一批（≤ DEDUP_BATCH 道）→ 重复题对。编号 a/b 是**这一批内**的下标，对回 chunk 里的题。 */
+async function qbDedupAIBatch(chunk, batchNo) {
+  const list = chunk.map((q, i) => ({ i, t: q.t, fig: q.fig, stem: String(q.q || '').slice(0, 300) }));
   const prompt = '下面是同一个题库里的 ' + list.length + ' 道题（编号从 0 开始）。请找出「考同一个知识点、可以算重复」的题对——'
     + '哪怕措辞不一样，只要考的是同一个考点就算重复；只是同属一章但考点不同的不算。\n'
     + '注意：**不同题型之间**考同一个考点的（例如一道选择、一道判断问的是同一件事）也要报出来，'
@@ -2808,15 +2883,42 @@ async function qbDedupAI() {
     + '只输出 JSON，格式：{"pairs":[{"a":编号,"b":编号,"why":"一句话说明为什么重复"}]}，没有重复就 {"pairs":[]}。\n'
     + '题目：\n' + list.map(x => '[' + x.i + ']（' + QB_CN[x.t] + '）' + x.stem + (x.fig ? '［图：' + (HXFig.figName(x.fig) || x.fig) + '］' : '')).join('\n');
   const res = await hximpChat([{ role: 'system', content: '你是严谨的题库审题员，只返回合法 JSON。' }, { role: 'user', content: prompt }], { json: true });
-  const obj = HXImp.parseJson(typeof res === 'string' ? res : JSON.stringify(res));
+  const obj = qbParseJsonLoose(typeof res === 'string' ? res : JSON.stringify(res), batchNo);
   const arr = (obj && obj.pairs) || [];
   if (!Array.isArray(arr)) return [];
   const out = [];
   arr.forEach(p => {
-    const a = QB_ALL[+p.a], b = QB_ALL[+p.b];
+    const a = chunk[+p.a], b = chunk[+p.b];
     if (a && b && a.id !== b.id) out.push({ a, b, why: String(p.why || '疑似重复'), kind: a.t === b.t ? 'same' : 'cross' });
   });
   return out;
+}
+/* 解析 AI 返回的 JSON，**对截断容错**。
+   模型输出被 token 上限切掉时，JSON.parse 会抛「Expected ',' or '}' after array element…」这种
+   位置报错，原样糊到老师脸上毫无意义。这里先让 HXImp.parseJson 试一次，不行再修：
+     ① 截到最后一个完整的 '}'，补上 ]}（{"pairs":[{"a":0,"b":1…} → {"pairs":[{…}]}）；
+     ② 还不行就把里面每个完整的 {...} 摘出来，重新拼成 {pairs:[…]}；
+     ③ 两样都不行才抛 —— 报错写清是第几批、大概率是输出被截断。 */
+function qbParseJsonLoose(text, batchNo) {
+  try { return HXImp.parseJson(text); } catch (e) { }
+  const raw = String(text == null ? '' : text).trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '');
+  const a = raw.indexOf('{');
+  if (a >= 0) {
+    for (let i = raw.length - 1; i > a; i--) {
+      if (raw[i] !== '}') continue;
+      const head = raw.slice(a, i + 1);
+      for (const tail of [']}', ']}']) {
+        try { const o = JSON.parse(head + tail); if (o && typeof o === 'object') return o; } catch (e2) { }
+      }
+    }
+    const objs = [];
+    const re = /\{[^{}]*\}/g; let m;
+    while ((m = re.exec(raw))) {
+      try { const o = JSON.parse(m[0]); if (o && o.a != null && o.b != null) objs.push(o); } catch (e3) { }
+    }
+    if (objs.length) return { pairs: objs };
+  }
+  throw new Error('模型返回的不是合法 JSON（第 ' + (batchNo || 1) + ' 批，可能是输出被截断）');
 }
 /* ---------------- AI 打知识点（2026-11-20） ----------------
    内置题库导进来的题没有知识点（题库本身没这个字段），所以题池的「知识点」栏一直是空的。
@@ -2892,7 +2994,7 @@ const DEDUP_GROUPS = [
   { k: 'cross', name: '跨题型疑似重复', on: false,
     hint: '不同题型考同一个考点（一边选择、一边判断）。删掉会让那个题型的题变少，默认不勾。' }
 ];
-function qbDedupDraw(pairs) {
+function qbDedupDraw(pairs, warn) {
   const by = { exact: [], same: [], cross: [] };
   pairs.forEach(p => (by[p.kind] || by.same).push(p));
   const qx = x => `<span class="qb-dq">${esc(QB_CN[x.t] || x.t)} · ${esc(String(x.q || '').slice(0, 60))}</span>`;
@@ -2912,6 +3014,7 @@ function qbDedupDraw(pairs) {
   }).join('');
   const tot = pairs.length;
   zlModal(`<h2>AI 查重 · ${esc(curSub().name)}</h2>
+    ${warn ? `<p class="note" id="qbDedupWarn" style="margin:0 0 10px">注意：${esc(warn)}</p>` : ''}
     <p class="note" id="qbDedupSum" style="margin:0 0 10px">共 ${tot} 对：完全相同 ${by.exact.length} 对、同题型疑似 ${by.same.length} 对、跨题型疑似 ${by.cross.length} 对。
       <b>三类分开删</b>，删一组不动另一组；<b>默认只勾「完全相同」</b>，疑似两类要你自己勾。
       每对都是「删勾中的那一道、另一道保留」。</p>
@@ -3008,10 +3111,15 @@ function qbEdit(id) {
   const curFig = q.fig && HXFig.hasFig(q.fig) ? q.fig : '';
   zlModal(`<h2>改题 · ${esc(QB_CN[q.t] || q.t)}${curFig ? ' · 带图' : ''}</h2>
     <label class="zl-f">题干<textarea id="qeQ" rows="3">${esc(q.q)}</textarea></label>
-    <label class="zl-f">符号图<select id="qeFig">
-        <option value="">不加图</option>
+    <!-- 2026-11-20：这一栏原来叫「符号图」、第一项是「不加图」，老师以为是「让我选一张图配上」，
+         用户原话「叫我改就加图？原来是啥图就是啥图啊，我哪知道用啥图」。改成：
+         · 标题写明「不动就保持原图」，第一项明说这是「去掉图」（本题不要图）；
+         · 选中的默认值就是原图（curFig），什么都不动 → 保存后还是原来那张图。 -->
+    <label class="zl-f">图（不动就保持原图）<select id="qeFig">
+        <option value="">去掉图（本题不要图）</option>
         ${HXFig.list.map(k => `<option value="${esc(k)}"${k === curFig ? ' selected' : ''}>${esc(HXFig.figName(k) || k)}（${esc(k)}）</option>`).join('')}
       </select></label>
+    <p class="note" style="margin:-6px 0 10px">这里只是换图 / 去图，不改就保持原样；AI 出的题如果没带图，这里也可以给它挂一张。</p>
     <div class="qb-figpick" id="qeFigPrev"${curFig ? '' : ' hidden'}>${curFig ? HXFig.figSvg(curFig, true) : ''}</div>
     ${q.t === 'choice' ? `<label class="zl-f">选项（一行一个，A. 开头）<textarea id="qeO" rows="4">${esc(opts)}</textarea></label>
       ${figKeys.length ? `<p class="note" style="margin:-6px 0 10px">选项 ${esc(figKeys.join(' / '))} 本身是图形符号（${esc(figKeys.map(k => HXFig.figName(optFigs[k]) || optFigs[k]).join('、'))}），保存时按字母把原图接回去。</p>` : ''}` : ''}
