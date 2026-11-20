@@ -2965,6 +2965,7 @@ function qbHome() {
           <button class="sm" id="qbGuessCh" title="给没有章节号的题，按「来源资料名 / 题干里的项目号」倒推章节（只补空着的）">${QB_CH_UNDO.length ? '撤销补章节' : '按来源补章节'}</button>
           <button class="sm" id="qbDedup">AI 查重</button>
           <button class="sm" id="qbTag" title="给还没有知识点的题批量打标签，题池就能按知识点筛">AI 打知识点</button>
+          <button class="sm" id="qbSyncQuiz" title="把本科目题池按现状同步到已发布的刷题题库（只更新发布过的那几道，不新增题）">同步到刷题</button>
           <button class="sm danger" id="qbClear">清空题池</button>
           <button class="sm pri" id="qbPub">发布到刷题</button>
         </div>
@@ -3019,6 +3020,9 @@ function qbHome() {
   qbGuessChPaint();
   $('qbDedup').onclick = () => qbDedup($('qbDedup'));
   $('qbTag').onclick = () => qbTagKb($('qbTag'));
+  /* 2026-11-20：题池里改过的题要能一次刷到刷题那边（老师原话「全站调用该题都需要更新 包括了刷题」）。
+     单题改完已经会自动同步，这颗是「以前改过一堆、现在想统一刷一遍」用的。 */
+  $('qbSyncQuiz').onclick = () => qbSyncAll($('qbSyncQuiz'));
   $('qbClear').onclick = () => qbClear($('qbClear'));
   $('qbPub').onclick = pubOpen;   // 只开弹层、不发请求，真正的等待在弹层里的「检查」上
   /* 题型表先读一次再画列表：否则自建题型（实操）在筛选下拉里会缺一项，
@@ -3933,18 +3937,62 @@ function qbEdit(id) {
     }
     /* 2026-11-15：「改」是两次网络（先加新的一条、再删旧的一条），比删单题还慢。
        原来只把按钮灰掉，界面上没有任何「在忙」的迹象；现在按钮转圈 + 计时。 */
+    /* 2026-11-20：改成**就地更新**（hx_exam_qbank_update，id 不变）。
+       以前是「加一条新的 + 删旧的」，题池编号会变 —— 而刷题里那份副本的 id 是
+       `<题库id>-zl-<题池编号>`，编号一变就再也对不上，题池改了题、刷题那边永远停在旧版。
+       编号稳定之后，改题只要调一次 quiz_sync_questions 就能把副本刷成最新的。 */
     const tok = HXBusy.begin($('qeSave'), '正在保存…');
     try {
-      const add = await MAT_call('hx_exam_qbank_add', { p_subject_id: MAT_sid(), p_items: [it], p_material_id: q.material_id == null ? null : +q.material_id });
-      if (!add.ok || !(add.data && add.data.added)) { const m = add.err || '云端没收下'; fail('保存失败：' + m); HXBusy.end(tok, m); return; }
-      const del = await MAT_call('hx_exam_qbank_del', { p_id: +q.id });
+      const upd = await MAT_call('hx_exam_qbank_update', { p_id: +q.id, p_patch: it });
+      if (!upd.ok) { const m = upd.err || '云端没收下'; fail('保存失败：' + m); HXBusy.end(tok, m); return; }
       zlModalClose();
-      if (!del.ok) MAT_banner('新内容已保存，但旧的那条没删掉：' + del.err);
+      /* 本地先改，省一次整表重拉 */
+      Object.assign(q, it);
       QB_SEL.delete(String(q.id));
-      toast('已保存');
+      const sy = await qbSyncQuiz([q]).catch(() => null);
+      toast('已保存' + (sy && sy.updated ? `，刷题那份同步了 ${sy.updated} 道` : ''));
       qbLoad();
     } finally { HXBusy.end(tok); }
   };
+}
+
+/* ---------------- 题池改了题 → 刷题那份副本跟着更新（2026-11-20） ----------------
+   老师原话：「题池题干等有修改 全站调用该题都需要更新 包括了刷题」。
+   刷题 quiz_public.questions 里存的是**发布那一刻抄的一份** jsonb，题池后面改了题干 /
+   选项 / 答案，刷题那边一个字都不会变；排行榜判对用的 quiz_rank_keys 也是抄的。
+   服务端 quiz_sync_questions 按题 id 整条替换（number 题号保留）+ upsert 标准答案，一个事务。
+   只更新**已经发布过**的题：id 对不上的服务端直接跳过，不会凭空往题库里塞新题。 */
+async function qbSyncQuiz(rows) {
+  const s = curSub();
+  if (!s || !s.quiz_bank) return { skipped: 'no_bank' };
+  const items = [];
+  rows.forEach(r => {
+    const z = ZL_toQuiz(r, s.quiz_bank);
+    if (z && z.q && z.q.id) items.push(z.q);
+  });
+  if (!items.length) return { skipped: 'none' };
+  const r = await MAT_call('quiz_sync_questions', { p_bank: s.quiz_bank, p_items: items });
+  if (!r.ok) throw new Error(r.err || '同步失败');
+  return r.data || {};
+}
+/* 工具栏那颗「同步到刷题」：把本科目题池按现状整体刷一遍（分批 300 道） */
+async function qbSyncAll(btn) {
+  const s = curSub(); if (!s) return;
+  if (!s.quiz_bank) return toast('本科目还没绑定刷题题库 id，先「发布到刷题」一次');
+  if (!QB_ALL.length) return toast('题池是空的');
+  if (!await hxConfirm(`把本科目题池的 ${QB_ALL.length} 道题按现状同步到刷题「${s.quiz_bank}」？\n\n只更新**已经发布过**的题（题干 / 选项 / 答案 / 解析 / 小节），不会往题库里新增题；排行榜用的标准答案也跟着换。`)) return;
+  const tok = HXBusy.begin(btn, '正在同步…');
+  try {
+    let up = 0, sent = 0;
+    for (let i = 0; i < QB_ALL.length; i += 300) {
+      const r = await qbSyncQuiz(QB_ALL.slice(i, i + 300));
+      up += r.updated || 0; sent += r.sent || 0;
+      if (i + 300 < QB_ALL.length) await new Promise(res => setTimeout(res, 60));
+    }
+    if (!up) MAT_banner('刷题题库里没有一道题对得上题池 —— 多半还没发布过，先用「发布到刷题」发一次。');
+    else toast(`同步完成：更新 ${up} 道（送出 ${sent}）`);
+  } catch (e) { MAT_banner('同步失败：' + ((e && e.message) || e)); }
+  finally { HXBusy.end(tok); }
 }
 
 /* ---------------- 题池 → 刷题格式 ---------------- */

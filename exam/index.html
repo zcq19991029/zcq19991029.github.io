@@ -6215,8 +6215,15 @@ const PAPER_TYPES=JSON.parse(JSON.stringify(PAPER_TYPES_BASE));
    2026-11-19：没有这个兜底的话，自建题型在 pickSections 里会被 `PAPER_TYPES[s.t]` 过滤掉，
    表现是「明明在资料库出了实操题，组卷时这一大题一道都抽不出来」。 */
 const PAPER_EXTRA={};
+/* 题池里出现过的题型（Set）。声明提到这里是因为 pIsKnown 要用它 —— 放在题池那一段
+   会形成 TDZ，模块初始化阶段万一有人调到 pIsKnown 就 ReferenceError。 */
+let POOL_TYPES=null;
 const pType=t=>PAPER_TYPES[t]||PAPER_EXTRA[t]||{name:String(t||'题型'),unit:'每题',per:'题'};
-const pIsKnown=t=>!!(PAPER_TYPES[t]||PAPER_EXTRA[t]);
+/* 「已知题型」= 内置 ∪ 自建配置 ∪ **题池里真出现过的**。
+   最后一项是 2026-11-21 补的：题型表是一次 rpc 读回来的，没读到（断网、表还没建）时
+   已经存进试卷设置里的「实操」大题会被 pickSections 整段丢掉 —— 老师看到的是「卷子少了一节」。
+   题池里有这个 key 就说明它不是空的，照抽。 */
+const pIsKnown=t=>!!(PAPER_TYPES[t]||PAPER_EXTRA[t])||!!(POOL_TYPES&&POOL_TYPES.has(t));
 const CN_NUM='一二三四五六七八九十';
 const PAPER_DEFAULT={
   year:'2026-2027',term:'第一学期',course:'单片机技术及应用',ver:'A',major:'机电一体化技术',grade:'2025级',mode:'闭卷',minutes:90,
@@ -6369,6 +6376,12 @@ const paperHasFig = P => P.some(s => (s.items || []).some(q => q && !q.__blank &
    POOL_CH 按题库里实际出现的章节建：ch 为 null 的题归 0（「未分章」）。 */
 let POOL=null, POOL_CH=null, POOL_KN=null;
 const curPool=()=>POOL||THEORY;
+/* 题池里实际出现过的题型（Set）。
+   2026-11-21：老师问「题池有 考试那边组卷没有实操题 没关联上吗」——
+   题型名来自 hx_exam_qtype，一次 rpc 没读到（断网 / 表还没建）PAPER_EXTRA 就是空的，
+   这时 `pIsKnown` 会把已经存进设置里的「实操」大题**整段丢掉**，卷子看着像少了一节。
+   所以题池里真出现过的题型也算「已知」，名字读不到就退回 key（试卷页会提示去补题型名）。 */
+const curPoolTypes=()=>POOL_TYPES||new Set(curPool().map(q=>q.t));
 const curCH=()=>POOL_CH||THEORY_CH;
 const curKN=()=>POOL_KN||null;
 /* 章节显示名：mcu 保持「项目1」（和试卷库老存档一致），AI 题库用建池时给的名字（「第1章」「未分章」） */
@@ -6383,7 +6396,8 @@ window.__examSetPool=(items,ch)=>{
     const kn=new Set();
     items.forEach(q=>{const v=knVal(q);if(v)kn.add(v);});
     POOL_KN=kn.size?[...kn]:null;
-  } else POOL_KN=null;
+    POOL_TYPES=new Set(items.map(q=>q.t).filter(Boolean));
+  } else { POOL_KN=null; POOL_TYPES=null; }
 };
 /* 稳定键：内置题 'T'+下标（懒赋）；AI 题 'Q'+表 id（挂池时赋）。
    以前是 THEORY.indexOf(q) —— 题库顺序一变、增删一道，设置里存的点名就全错位。 */
@@ -6594,8 +6608,11 @@ function itemHTML(s,q,i){
     case 'term':return `<div class="q">${no}${ptxt(q.q)}：</div>${fig}${lines(4)}`;
     case 'short':return `<div class="q">${no}${ptxt(q.q)}</div>${fig}${lines((q.lines||8)-1)}`;
     case 'prog':{const subs=hxSubs(q.sub);return `<div class="q">${no}${ptxt(q.q)}</div>${fig}<pre class="code">${esc(q.code)}</pre>${subs.map((x,k)=>`<div class="q sub">（${k+1}）${ptxt(x)}</div>${lines(subs.length>1?3:7)}`).join('')}`;}
+    /* 2026-11-21：老师自建的题型（如「实操」）以前落到这里返回空串 ——
+       pickSections 明明抽到了 4 道，卷面上一个字都没有（老师的话是「没关联上吗」）。
+       没单独排版规则的题型一律按简答排：题干 + 答题留白，不猜它的结构。 */
+    default:return `<div class="q">${no}${ptxt(q.q)}</div>${fig}${lines((q.lines||8)-1)}`;
   }
-  return '';
 }
 const secTitle=s=>`${s.no}、${pType(s.t).name}（${pType(s.t).unit} ${s.pts} 分，共 ${s.total} 分）`;
 function headHTML(P,cfg){
@@ -6972,6 +6989,8 @@ function docxItems(s,q,i){
     const subs=hxSubs(q.sub);
     subs.forEach((x,k)=>{out.push(DX.p(DX.r(`（${k+1}）${x}`),{ind:210}));sp(subs.length>1?3:7);});
   }
+  /* 自建题型（实操之类）没有专门排版：按简答排，别导出成一张空白（2026-11-21） */
+  else {out.push(DX.p(DX.r(no+q.q)));figLine(ft);sp((q.lines||8)-1);}
   return out.join('');
 }
 /* 卷里真有图题时，在 Word 文件末尾写一行说明 —— 不然老师只看到一串「［图：…］」不知道怎么回事。
@@ -7850,6 +7869,28 @@ function paperSave(sub, C) {
   store.set(PAPER_KEY, all);
 }
 
+/* ================= 题池题型 → 卷面设置（2026-11-21 新增）=================
+   老师原话：「为什么题池有 考试那边组卷没有实操题呢 没关联上吗」。
+   组卷页的题型只来自「加一大题」下拉（内置六个 + 老师自建的），题池里新长出来的题型
+   （比如老师自己加的「实操」）不会自己出现在卷面设置里，看着就像两边没关联。
+   这里给题池里有、设置里没有的题型补一行**题数 0** 的空行：不改抽题、不动满分，
+   老师把它改成想要的题数就能出；不想考就删掉 —— 删过的记进 C.autoSkip，以后不再自己冒出来。 */
+function ppPoolTypeGap(C) {
+  if (!POOL) return [];
+  const have = new Set(C.sections.map(s => s.t));
+  const skip = new Set(Array.isArray(C.autoSkip) ? C.autoSkip : []);
+  return [...curPoolTypes()].filter(t => t && !have.has(t) && !skip.has(t));
+}
+function ppSyncPoolTypes(C) {
+  const gap = ppPoolTypeGap(C);
+  if (!gap.length) return [];
+  gap.forEach(t => {
+    C.sections.push({ t, n: 0, pts: 2 });
+    C.autoAdd = [...new Set([...(C.autoAdd || []), t])];
+  });
+  return gap;
+}
+
 /* 轻量弹层：考试工具原来没有通用弹层（zlModal 是资料库那边的），这里自带一个，
    只做「一张卡片 + 点空白关闭」，不引别的依赖。 */
 function ppModal(html) {
@@ -7879,6 +7920,12 @@ function mountPaper(sub) {
   const C = paperLoad(sub);
   if (POOL && POOL_CH) for (const c of Object.keys(POOL_CH)) if (C.weights[c] == null) C.weights[c] = 20;
   if (POOL && !(store.get(PAPER_KEY, {}) || {})[sub]) C.course = SUBJECTS[sub] || C.course;
+  /* 题池里有、设置里没有的题型先补进来（题数 0，不改卷面也不改满分）。
+     补完再画，下面所有地方（题型表、题库栏 tab、下拉）就都一致了。 */
+  const autoAdded = ppSyncPoolTypes(C);
+  if (autoAdded.length) {
+    setTimeout(() => toast(`题池里有「${autoAdded.map(t => pType(t).name).join('、')}」，已在「设置 → 题型和分值」里补了一行（题数 0，填上就能出题）`), 600);
+  }
   let P = null, timer = 0, ZOOM = 'fit', bankKey = '', pendingScroll = null;
   /* 撤回 / 重做：只记 picks 的快照（老师真正的编辑动作）。题型题数改了不撤销 ——
      那个有「恢复默认」按钮，和这里混在一起会让老师搞不清撤的是什么。 */
@@ -7936,8 +7983,7 @@ function mountPaper(sub) {
     const out = Object.keys(PAPER_TYPES).map(k => ({ k, name: pType(k).name }));
     Object.keys(PAPER_EXTRA).forEach(k => out.push({ k, name: pType(k).name }));
     if (POOL) {
-      const seen = new Set(curPool().map(q => q.t));
-      seen.forEach(k => { if (!out.some(x => x.k === k)) out.push({ k, name: pType(k).name }); });
+      curPoolTypes().forEach(k => { if (!out.some(x => x.k === k)) out.push({ k, name: pType(k).name }); });
     }
     return out;
   }
@@ -7946,9 +7992,15 @@ function mountPaper(sub) {
       const T = pType(s.t);
       /* 填空题的单位是「空」不是「题」：老师要的是**按空给分**（一道题 3 个空就是 3 空 × 每空分值）。
          这里补一句人话说明，不然后面那个数字很容易被当成题数（2026-11-20 老师问的就是这个）。 */
-      const hint = T.unit === '每空'
+      let hint = T.unit === '每空'
         ? `<div class="note" style="margin-top:2px">填的是<b>空数</b>，不是题数：一道题 3 个空算 3 空；按<b>每空</b>给分。</div>`
         : '';
+      /* 自动补进来的行（题池里有这个题型、设置里原来没有）：说清楚它是哪来的、有多少题可出。
+         不解释的话，老师看到一个从没加过的「实操 0 题」会以为出 bug 了。 */
+      const pn = POOL ? curPool().filter(q => q.t === s.t).length : 0;
+      if (Array.isArray(C.autoAdd) && C.autoAdd.indexOf(s.t) >= 0 && !(+s.n) && pn) {
+        hint += `<div class="note" style="margin-top:2px">题池里有 <b>${pn}</b> 道这类题，这一行是照着题池自动补的：填上题数就能出，不想考点右边 ×。</div>`;
+      }
       return `<tr><td>${CN_NUM[i] || (i + 1)}、${esc(T.name)}${hint}<div class="pp-act" data-act="${i}"></div></td>
         <td><input type="number" min="0" max="40" value="${s.n}" data-i="${i}" data-f="n" aria-label="${esc(T.name)}${esc(T.per)}数"> ${esc(T.per)}</td>
         <td><input type="number" min="0" max="30" step="0.5" value="${s.pts}" data-i="${i}" data-f="pts" aria-label="${esc(T.name)}${esc(T.unit)}分值"> <span style="white-space:nowrap">${T.unit === '每空' ? '分/空' : '分'}</span></td>
@@ -8370,7 +8422,9 @@ function mountPaper(sub) {
   function paintTabs(t) {
     const box = $('ppBankTabs');
     if (!box) return;
-    box.innerHTML = C.sections.map(s => {
+    /* 只画「卷面上真有题」的大题：题数 0 的（包括自动补进来的自建题型）在这里点不动，
+       摆一颗点不动的 tab 只会让人以为坏了。想考它就把题数填上，tab 自然出现。 */
+    box.innerHTML = C.sections.filter(s => +s.n > 0).map(s => {
       const total = s.n, done = (P ? (P.find(x => x.t === s.t) || { items: [] }).items : []).filter(q => q && !q.__blank).length;
       return `<button type="button" class="ppbt${s.t === t ? ' on' : ''}" data-btab="${s.t}" title="换到这一大题">${esc(pType(s.t).name)}<small>${done}/${total}</small></button>`;
     }).join('');
@@ -8759,6 +8813,12 @@ function mountPaper(sub) {
     let n = 0;
     Object.keys(C.picks).forEach(k => { if (k.split(':')[0] === s.t) { delete C.picks[k]; n++; } });
     C.sections.splice(i, 1);
+    /* 自动补进来的那一行被老师删掉 = 他明确不想考这个题型：记进 autoSkip，以后不再补。
+       不记的话下次进这一页它又冒出来，删了又长是最烦人的。 */
+    if (Array.isArray(C.autoAdd) && C.autoAdd.indexOf(s.t) >= 0) {
+      C.autoAdd = C.autoAdd.filter(x => x !== s.t);
+      C.autoSkip = [...new Set([...(Array.isArray(C.autoSkip) ? C.autoSkip : []), s.t])];
+    }
     /* 删掉的正好是右侧正在看的那一大题：bankKey 必须一起丢掉，否则右侧会一直指着一个
        已经不存在的题型（列表空、标题还写着它）。 */
     if (bankKey && bankKey.split(':')[0] === s.t) bankKey = '';
@@ -8800,8 +8860,12 @@ function mountPaper(sub) {
   $('ppReset').onclick = () => {
     C.sections = PAPER_DEFAULT.sections.map(s => ({ ...s }));
     C.weights = { ...PAPER_DEFAULT.weights };
+    /* 恢复默认只回到内置六个；题池里多出来的题型（自建的「实操」之类）照旧补一行 0 题，
+       免得老师刚加的那一大题被「恢复默认」顺手抹掉，还以为是 bug。 */
+    const back = ppSyncPoolTypes(C);
     renderTypes(); changed();
-    toast(picksCount() ? `已恢复默认题量；${picksCount()} 道手动选的题还在` : '已恢复默认题量与比重');
+    toast(picksCount() ? `已恢复默认题量；${picksCount()} 道手动选的题还在` : '已恢复默认题量与比重'
+      + (back.length ? `（题池里的「${back.map(t => pType(t).name).join('、')}」保留着，题数 0）` : ''));
   };
 
   /* ---------- 清空 / 撤回 / 重做 ---------- */
