@@ -618,6 +618,23 @@ button.danger { color: var(--bad, #d70015); }
 /* 「未标章节的题也参与抽题」开关 */
 .pp-noch { display: flex; align-items: center; gap: 6px; margin: 8px 0 2px; font-size: 12.5px; color: var(--mute); cursor: pointer; }
 .pp-noch input { margin: 0; }
+/* 试卷库 · 批量发布到刷题（2026-11-20） */
+.lib-home-act { display: inline-flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.lib-pub { width: min(700px, 94vw); }
+.lib-pub .ex-dlg-b { display: grid; gap: 10px; }
+.lib-pub > .ex-dlg-b > label { display: grid; gap: 5px; font-size: 13px; color: var(--mute); }
+.lib-pub input { width: 100%; }
+.lib-pub-sum { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: baseline; font-size: 13px; }
+.lib-pub-sum b { color: var(--ink); }
+.warns-inline { color: var(--warn, #b25000); font-size: 12.5px; }
+.lib-pub-blk { display: grid; gap: 6px; }
+.lib-pub-blk > b { font-size: 13px; color: var(--ink); }
+.lib-pub-all { display: flex; gap: 12px; }
+.lib-pub-all label { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; color: var(--mute); white-space: nowrap; }
+.lib-pub-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 4px 10px;
+  max-height: 148px; overflow: auto; padding: 8px 10px; border-radius: 10px; background: var(--field2); }
+.lib-pub-list label { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink); }
+.lib-pub-list input { width: auto; }
 @media (max-width: 720px) { .ppset-foot { margin: 12px -14px -16px; padding: 10px 14px; flex-wrap: wrap; } .ppset-foot .note { flex: 1 1 100%; } }
 .lib-list { display: grid; gap: 8px; margin-top: 10px; max-height: 260px; overflow: auto; overscroll-behavior: contain; }
 .lib-i { display: grid; gap: 6px; padding: 9px 11px; border-radius: 12px; background: var(--field2); border: 1px solid var(--hair); }
@@ -7402,6 +7419,30 @@ function libPaperQs(C) {
   });
   return out;
 }
+/* 整卷复原成**完整题目对象**（带题型和题面），给「批量发布到刷题」用。
+   libPaperQs 只返回 key/qid/text（查重够用），发布要选项、答案、解析，所以另外一份。
+   同样的前提：题池就位（LIB_POOL_OK）才敢按种子重抽，否则会拿内置题库顶替、发出一堆别的科目的题。 */
+function libPaperItems(C) {
+  if (!LIB_POOL_OK || typeof pickPaper !== 'function') return null;
+  const picks = (C && C.picks && typeof C.picks === 'object') ? C.picks : {};
+  if (typeof pickQ === 'function') {
+    for (const k of Object.keys(picks)) {
+      const v = picks[k];
+      if (v == null || v === '') continue;
+      if (!pickQ(v)) return null;
+    }
+  }
+  let P = null;
+  try { P = pickPaper(C); } catch (e) { return null; }
+  if (!P) return null;
+  const out = [];
+  P.forEach(sec => (sec.items || []).forEach(q => {
+    if (!q || q.__blank) return;
+    out.push({ t: sec.t, q });
+  }));
+  return out;
+}
+
 /* 两套卷的比对明细（界面要显示「重复几题 / 平均几题」，所以不能只返回百分比） */
 function libDupDetail(A, B) {
   const a = libPaperQs(A), b = libPaperQs(B);
@@ -7540,7 +7581,7 @@ function libBind(root, kind, sub, opt) {
   }, { signal: ac.signal });
 }
 
-window.HXLib = { items: libItems, load: libLoad, sync: libSync, add: libAdd, overwrite: libOverwrite, del: libDel, rename: libRename, listHTML: libListHTML, bind: libBind, defaultName: libDefaultName, when: libWhen, code: libCode, err: () => libErr, errLine: libErrLine, dupRate: libDupRate, dupDetail: libDupDetail, paperQs: libPaperQs, poolOk: v => { if (v !== undefined) LIB_POOL_OK = !!v; return LIB_POOL_OK; } };
+window.HXLib = { items: libItems, load: libLoad, sync: libSync, add: libAdd, overwrite: libOverwrite, del: libDel, rename: libRename, listHTML: libListHTML, bind: libBind, defaultName: libDefaultName, when: libWhen, code: libCode, err: () => libErr, errLine: libErrLine, dupRate: libDupRate, dupDetail: libDupDetail, paperQs: libPaperQs, paperItems: libPaperItems, poolOk: v => { if (v !== undefined) LIB_POOL_OK = !!v; return LIB_POOL_OK; } };
 
 ;
 /* ================= 考试 · 理论试卷（2026-11-06 从单片机迁来；2026-11-19 第三轮大改） =================
@@ -9693,12 +9734,16 @@ async function libHome() {
   app().innerHTML = `<header class="ex-h"><div class="eyebrow">教师 · ${esc(sname)}</div><h1>试卷库</h1>
     <p class="note">本科目已存的卷。勾选 2–3 套可以查重复度。</p></header>
     <div class="card lib-home" id="libHome">
-      <div class="lib-home-h"><h2>本科目的试卷</h2><button class="sm" id="libReload">刷新</button></div>
+      <div class="lib-home-h"><h2>本科目的试卷</h2>
+        <span class="lib-home-act"><button class="sm" id="libReload">刷新</button>
+        <button class="pri sm" id="libPub" disabled title="勾选几套卷，把它们按题型批量发到刷题">批量发布到刷题</button></span></div>
       <div id="libList" class="lib-page-list"><div data-fxload="正在读试卷库…"></div></div>
     </div>`;
   if (window.HXLoadFx) HXLoadFx.auto(app());
   const list = $('libList');
   if (list) list.addEventListener('change', libPickChange);
+  if ($('libPub')) $('libPub').onclick = () => libPubDialog().catch(e => toast('打不开发布窗：' + (e && e.message ? e.message : e)));
+  libPubBtnPaint();
   if ($('libReload')) $('libReload').onclick = async () => {
     const b = $('libReload'), tok = (window.HXBusy && b) ? HXBusy.begin(b, '正在同步…') : null;
     if (!tok) b.disabled = true;
@@ -9745,10 +9790,176 @@ function libListPaint() {
   libDupPaint();
 }
 
+/* ================= 批量发布到刷题（2026-11-20）=================
+   老师原话：「在试卷库的页面增加选项 选择多套试卷 选择xx多种题型批量发布到刷题（科目互相隔离）
+   发给谁（班级）也可以在此处设置 老师账户可以勾选（全选或者部分） 其他老师班级发不发 该任课老师决定」。
+   ── 做法 ──
+   ① 勾选的多套卷（最多 3 套）各自用种子复原成完整题目（HXLib.paperItems）；
+   ② 按题型筛：刷题只有单选 / 判断 / 填空三种，其余题型明确写「跳过 N 道」，不静默丢；
+   ③ 跨卷按「题型 + 题干」去重（ABC 三卷本来互不重题，重复多半是老师手动点的同一道）；
+   ④ 一次 quiz_publish 写成一个题库：科目隔离靠题库 id（<科目>-…）+ 只从本科目卷子里取题；
+   ⑤ 下发：班级多选（默认全选自己的班）、老师多选（可选，勾了对方就能看到）。
+      「其他老师的班」不在这里列 —— 他们的班由他们自己下发，正是老师说的「由该任课老师决定」。
+   产物仍然只落在 quiz_public 这一张表，刷题那边不用改。 */
+function libPubBtnPaint() {
+  const b = $('libPub');
+  if (!b) return;
+  const n = LIB_PICK.size;
+  b.disabled = n === 0;
+  b.textContent = n ? `批量发布到刷题（${n} 套）` : '批量发布到刷题';
+}
+const LIB_PUB_T = { choice: 'single', judge: 'judgment', fill: 'fill' };   // 考试题型 → 刷题题型
+const LIB_PUB_TN = { choice: '单项选择题', judge: '判断题', fill: '填空题' };
+
+/* 一道考试题 → 刷题格式。不支持的题型（名词解释/简答/程序分析/自建实操）返回 null，由调用方统计跳过。 */
+function libPubQ(q, i) {
+  const type = LIB_PUB_T[q.t];
+  if (!type) return null;
+  const stem = String(q.q == null ? '' : q.q);
+  if (!stem.trim()) return null;
+  const base = { id: 'q' + (q.id != null ? q.id : 'x' + i), stem, type, number: i, source: '考试卷', explanation: q.explanation || '' };
+  if (type === 'single') {
+    /* ⚠ 选项有两种形态：AI 题库是 [{key,text}]，内置 THEORY 是 ['甲','乙',…]（纯文本）。
+       不统一走 hxChoices 的话，内置题库的单选题会被当成「没有选项」整批跳过（实测踩到）。 */
+    const raw = (typeof hxChoices === 'function') ? hxChoices(q.o) : (Array.isArray(q.o) ? q.o : []);
+    const opts = raw.map(o => ({ key: String(o.key || '').toUpperCase(), text: String(o.text || '') })).filter(o => o.key && o.text);
+    const a = String(q.a == null ? '' : q.a).toUpperCase().replace(/[^A-Z]/g, '');
+    if (opts.length < 2 || !a) return null;
+    return Object.assign(base, { answer: [a], options: opts });
+  }
+  if (type === 'judgment') {
+    const ok = (q.a === true || q.a === 'true' || q.a === 'T' || q.a === '正确');
+    return Object.assign(base, { answer: [ok ? 'T' : 'F'], options: [{ key: 'T', text: '正确' }, { key: 'F', text: '错误' }] });
+  }
+  /* fill：刷题是按 ____ 切空、按 answer[k] 判分，题干没有 ____ 的填空发过去会没法填 */
+  const arr = Array.isArray(q.a) ? q.a.map(x => String(x == null ? '' : x)) : [String(q.a == null ? '' : q.a)];
+  if (!/____/.test(stem) || !arr.length || arr.every(x => !x.trim())) return null;
+  return Object.assign(base, { answer: arr, options: [] });
+}
+
+async function libPubDialog() {
+  const sub = CUR_SUB, sname = SUBJECTS[sub] || sub;
+  const ids = [...LIB_PICK];
+  if (!ids.length) return;
+  const picks = ids.map(id => ({ id, it: HXLib.items('paper', sub).find(x => String(x.id) === String(id)) })).filter(x => x.it);
+  if (!picks.length) return toast('选中的卷子找不到了，刷新一下');
+  if (!window.HXLib || typeof HXLib.paperItems !== 'function') return toast('试卷模块没加载好，刷新一下');
+
+  /* 复原题目的过程可能慢（要按种子重抽），先给个转圈 */
+  const all = [], skipped = {}, noItem = [];
+  for (const { it } of picks) {
+    const items = HXLib.paperItems(it.payload);
+    if (!items) { noItem.push(it.name); continue; }
+    items.forEach(x => all.push(x));
+  }
+  if (noItem.length) {
+    return toast('这几套卷读不出题目（题池还没就位或被改过）：' + noItem.join('、') + '，刷新后再试');
+  }
+  const seen = new Set(), qs = [];
+  let dup = 0;
+  all.forEach(x => {
+    const conv = libPubQ(x.q, qs.length + 1);
+    if (!conv) { skipped[x.t] = (skipped[x.t] || 0) + 1; return; }
+    const k = conv.type + '|' + conv.stem.replace(/\s+/g, '');
+    if (seen.has(k)) { dup++; return; }
+    seen.add(k); qs.push(conv);
+  });
+  if (!qs.length) return toast('这些卷子里没有刷题能用的题（单选 / 判断 / 填空）');
+
+  const cnt = { single: 0, judgment: 0, fill: 0 };
+  qs.forEach(q => { cnt[q.type]++; });
+  const skipTxt = Object.keys(skipped).map(t => `${pType(t).name} ${skipped[t]} 道（刷题不支持）`).join('、');
+
+  let classes = CLASSES, teachers = [];
+  try {
+    if (!classes) classes = await rpc('hx_my_classes');
+    if (Array.isArray(classes)) CLASSES = classes;
+  } catch (e) { classes = []; }
+  try { teachers = await rpc('quiz_teacher_list'); } catch (e) { teachers = []; }
+  classes = Array.isArray(classes) ? classes : [];
+  teachers = Array.isArray(teachers) ? teachers : [];
+
+  const myUid = (typeof ME !== 'undefined' && ME && ME.me && (ME.me.id || ME.me.uid)) || '';
+  const today = new Date();
+  const dstr = String(today.getMonth() + 1).padStart(2, '0') + String(today.getDate()).padStart(2, '0');
+  const defId = (sub + '-abc-' + dstr).toLowerCase().replace(/[^a-z0-9_-]/g, '');
+  const defName = sname + ' ABC 综合卷';
+
+  const mask = document.createElement('div');
+  mask.className = 'ex-dlg-mask';
+  mask.innerHTML = `<div class="ex-dlg lib-pub" role="dialog" aria-modal="true" aria-label="批量发布到刷题">
+    <div class="ex-dlg-h"><b>批量发布到刷题 · ${esc(sname)} · ${picks.length} 套卷</b><button type="button" class="sm" data-pclose="1">关闭</button></div>
+    <div class="ex-dlg-b">
+      <div class="lib-pub-sum">
+        <span>共 <b>${qs.length}</b> 题</span>
+        <span>单选 <b>${cnt.single}</b></span><span>判断 <b>${cnt.judgment}</b></span><span>填空 <b>${cnt.fill}</b></span>
+        ${dup ? `<span class="note">跨卷重复去掉 ${dup} 道</span>` : ''}
+        ${skipTxt ? `<span class="warns-inline">跳过：${esc(skipTxt)}</span>` : ''}
+      </div>
+      <label>题库名<input id="lpName" maxlength="30" value="${esc(defName)}"></label>
+      <label>题库 id（英文，科目之间靠它隔离）<input id="lpId" class="mono" maxlength="64" value="${esc(defId)}"></label>
+      <div class="lib-pub-blk"><b>发给哪些班</b>
+        <div class="lib-pub-all"><label class="sm"><input type="checkbox" id="lpClsAll" checked> 全选</label></div>
+        <div class="lib-pub-list" id="lpCls">${classes.map(c => `<label><input type="checkbox" data-cls="${c.id}" checked> ${esc(c.name)}</label>`).join('') || '<span class="note">没有班级</span>'}</div>
+        <p class="note">只列你带的班。其他老师的班由他们自己下发 —— 你只要把题库发给他们（下面勾老师）。</p>
+      </div>
+      <div class="lib-pub-blk"><b>发给哪些老师</b>
+        <div class="lib-pub-all"><label class="sm"><input type="checkbox" id="lpTeaAll"> 全选</label></div>
+        <div class="lib-pub-list" id="lpTea">${teachers.filter(t => String(t.uid) !== String(myUid)).map(t => `<label><input type="checkbox" data-tea="${t.uid}"> ${esc(t.name || '未命名')}${t.is_admin ? '（管理员）' : ''}</label>`).join('') || '<span class="note">没有其他老师</span>'}</div>
+        <p class="note">勾了的老师能在「刷题 → 题库」里看到这份题库，也能自己下发给自己班。</p>
+      </div>
+      <div class="errs" id="lpErr" hidden></div>
+    </div>
+    <div class="ex-dlg-f"><span class="note" id="lpSt">发布后立即生效，学生刷新刷题页就能看到</span>
+      <button type="button" class="pri" id="lpGo">发布</button><button type="button" data-pclose="1">取消</button></div>
+  </div>`;
+  document.body.appendChild(mask);
+  const close = () => { document.removeEventListener('keydown', onKey); mask.remove(); };
+  function onKey(e) { if (e.key === 'Escape') { e.preventDefault(); close(); } }
+  document.addEventListener('keydown', onKey);
+  mask.addEventListener('mousedown', e => { if (e.target === mask) close(); });
+  mask.querySelectorAll('[data-pclose]').forEach(b => b.onclick = close);
+
+  const syncAll = (allId, boxId, attr) => {
+    const all = $(allId), box = $(boxId);
+    if (!all || !box) return;
+    all.onchange = () => box.querySelectorAll(`[${attr}]`).forEach(x => { x.checked = all.checked; });
+    box.addEventListener('change', () => {
+      const items = [...box.querySelectorAll(`[${attr}]`)];
+      all.checked = items.length > 0 && items.every(x => x.checked);
+    });
+  };
+  syncAll('lpClsAll', 'lpCls', 'data-cls');
+  syncAll('lpTeaAll', 'lpTea', 'data-tea');
+
+  $('lpGo').onclick = async () => {
+    const err = m => { const e = $('lpErr'); e.textContent = m; e.hidden = false; };
+    const bank = $('lpId').value.trim().toLowerCase();
+    const name = $('lpName').value.trim();
+    if (!/^[A-Za-z0-9_-]{1,64}$/.test(bank)) return err('题库 id 只能用英文、数字、下划线、连字符');
+    if (!name) return err('题库名不能空');
+    const cls = [...mask.querySelectorAll('#lpCls [data-cls]:checked')].map(x => +x.dataset.cls);
+    const tea = [...mask.querySelectorAll('#lpTea [data-tea]:checked')].map(x => x.dataset.tea);
+    if (!cls.length && !tea.length && !await hxConfirm('没有选任何班级、也没发给别的老师，这份题库只有你自己能看到。仍要发布吗？')) return;
+    const go = $('lpGo');
+    const tok = (window.HXBusy && go) ? HXBusy.begin(go, '正在发布…') : null;
+    if (!tok) go.disabled = true;
+    try {
+      const r = await rpc('quiz_publish', { p_id: bank, p_name: name, p_questions: qs, p_owner_name: (ME.me && ME.me.name) || '', p_classes: cls, p_teachers: tea.length ? tea : null });
+      const total = r && r.total != null ? +r.total : qs.length;
+      close();
+      toast(`已发布「${name}」：${total} 题${cls.length ? '，发给 ' + cls.length + ' 个班' : ''}${tea.length ? '、' + tea.length + ' 位老师' : ''}`);
+    } catch (e) {
+      err('发布失败：' + (e && e.message ? e.message : e));
+    } finally { if (tok) HXBusy.end(tok); else if (go) go.disabled = false; }
+  };
+}
+
 function libPickChange(e) {
   const cb = e.target.closest('[data-libpick]');
   if (!cb) return;
   const id = cb.dataset.libpick;
+  setTimeout(libPubBtnPaint, 0);
   if (cb.checked) {
     if (LIB_PICK.size >= 3 && !LIB_PICK.has(id)) {
       /* 第 4 个：说清楚为什么勾不上，并把它弹回去 —— 静默无反应最像卡住 */
