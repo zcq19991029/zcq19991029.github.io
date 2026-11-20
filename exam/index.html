@@ -587,6 +587,12 @@ button.danger { color: var(--bad, #d70015); }
    列表自己滚（60 条上限），否则组卷页 rail 会被历史卷子推到看不见组卷码。
    ============================================================ */
 .lib-name { flex: 1 1 150px; min-width: 0; max-width: 100%; }
+/* 覆盖已有卷（2026-11-20）：一行「覆盖已有卷 [下拉]」，选中后下面那句提示会变红，
+   按钮也从「保存到试卷库」变成「覆盖保存」——让老师清楚这一下会替换掉旧的。 */
+.pplib-ov { display: flex; align-items: center; gap: 8px; margin: 10px 0 2px; font-size: 13px; color: var(--mute); }
+.pplib-ov > select { flex: 1 1 auto; min-width: 0; }
+.pplib-hint { margin: 4px 0 10px; }
+.pplib-hint.pplib-warn { color: var(--warn, #b25000); font-weight: 500; }
 .lib-list { display: grid; gap: 8px; margin-top: 10px; max-height: 260px; overflow: auto; overscroll-behavior: contain; }
 .lib-i { display: grid; gap: 6px; padding: 9px 11px; border-radius: 12px; background: var(--field2); border: 1px solid var(--hair); }
 .lib-m { display: grid; gap: 1px; min-width: 0; }
@@ -656,6 +662,37 @@ html[data-hx-mode="dark"] .ppwrap { background: #14171c; }
    打开设置时点抽屉外 = 关闭抽屉，不再漏点到 iframe 触发 selectSlot 展开题库。 */
 .pp-drawer-mask { position: fixed; inset: 0; z-index: 55; display: none; background: transparent; }
 .pp-drawer-mask.on { display: block; }
+
+/* ===== 试卷设置：从「右侧整条抽屉」改成「居中悬浮弹窗」（2026-11-20 老师截图反馈） =====
+   用户原话：「试卷设置做成悬浮弹窗吧 现在还是遮挡」。
+   原来它是 430px 宽的右侧抽屉、100vh 高，从右边贴边滑出——卷面右栏被压掉一条，
+   而且视觉上像页面的一部分。现在改成**浮在中间的卡片**（最大 620×80vh，圆角、投影、
+   外面一层淡遮罩），点遮罩 / 按 Esc / 点「关闭」都收回；关掉后卷面完全不被占位。
+   题库栏 #ppBank 仍然走下面的 .ppdrawer 原样式，两者互不影响（靠 .ppset-modal 这个类区分）。 */
+.ppdrawer.ppset-modal {
+  top: 50%; left: 50%; right: auto; bottom: auto;
+  width: min(620px, 94vw); height: auto; max-height: min(80vh, 760px);
+  padding: 16px 20px 18px; border-radius: 18px; border: 1px solid var(--hair); border-left: 1px solid var(--hair);
+  /* 必须**实色**底：抽屉原来用 --card-lift（半透明，吃 --hx-a 的通透度），改成居中弹窗后
+     后面的工具栏和卷面会从卡片里透出来，看着像鬼影（2026-11-20 截图实测）。 */
+  background: var(--card-solid, #fff);
+  box-shadow: 0 30px 90px -32px rgba(0, 0, 0, .55);
+  transform: translate(-50%, -47%) scale(.975); opacity: 0; visibility: hidden;
+  transition: transform .24s var(--spring, cubic-bezier(.32, .72, 0, 1)), opacity .18s ease, visibility 0s linear .24s;
+}
+.ppdrawer.ppset-modal.on {
+  transform: translate(-50%, -50%) scale(1); opacity: 1; visibility: visible;
+  transition: transform .24s var(--spring, cubic-bezier(.32, .72, 0, 1)), opacity .18s ease;
+}
+/* 弹窗里的吸顶标题：跟随 16px 内边距，滚内容时标题和「关闭」一直在 */
+.ppdrawer.ppset-modal .ppd-h { top: -16px; margin: -16px 0 0; padding: 14px 0 10px; background: var(--card-solid, #fff); border-radius: 18px 18px 0 0; }
+/* 设置弹窗的遮罩：淡黑 + 轻微模糊，能看出底下是卷面但点不到 */
+#ppDrawerMask.on { background: rgba(12, 16, 22, .28); backdrop-filter: blur(1.5px); }
+html[data-hx-mode="dark"] #ppDrawerMask.on { background: rgba(0, 0, 0, .45); }
+@media (max-width: 720px) {
+  .ppdrawer.ppset-modal { width: calc(100vw - 16px); max-height: 86vh; padding: 14px 14px 16px; border-radius: 16px; }
+  .ppdrawer.ppset-modal .ppd-h { top: -14px; margin: -14px 0 0; padding: 12px 0 8px; }
+}
 .ppdrawer .card { margin-bottom: 10px; padding: 16px 18px; }
 .ppdrawer .card h2 { font-size: 16px; margin-bottom: 10px; }
 .ppd-h { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; align-items: center; position: sticky; top: -14px; z-index: 2;
@@ -7145,6 +7182,39 @@ async function libDel(id) {
   libSynced = Date.now();
   return { ok: true };
 }
+/* 覆盖已有那套（2026-11-20）
+   老师原话：「保存到试卷库 可以选择覆盖试卷库已有试卷，因为可能只是他基础上改了点东西」。
+   原来 libAdd 只会新增（重名自动加 (2)、(3)），在旧卷上改两个字符再存就多出一套，越攒越乱。
+   这里做**原地覆盖**：
+     · 云端条目（_sync=1 且 id 是数字）走 hx_exam_lib_overwrite，只能改自己的；
+     · 本机待补传的条目（id 不是数字 / _sync=0）就改本机那条，仍保持待补传，下次连上再传；
+     · 名字被别人占了，云端会自动加序号（规则同 save / rename），返回真实名字要让调用方知道；
+     · 失败**不动本机**：宁可报错，也别出现「界面上看是覆盖了、云端其实没改」。
+   libAdd 一行没动 —— 不覆盖的路径完全照旧。 */
+async function libOverwrite(id, name, payload) {
+  const it = libById(id);
+  if (!it) return { ok: false, err: '这套卷已经不在库里了，刷新一下' };
+  const snap = JSON.parse(JSON.stringify(payload || {}));
+  const nm = String(name || '').trim() || it.name;
+  try {
+    if (it._sync === 1 && /^\d+$/.test(String(id))) {
+      const r = await rpc('hx_exam_lib_overwrite', { p_id: Number(id), p_name: nm, p_payload: snap });
+      if (!r || !r.id) throw new Error('云端没返回编号');
+      it.name = r.name || nm;
+    } else {
+      it.name = nm;
+    }
+    it.payload = snap;
+    it.at = Date.now();
+    it.__err = null;
+    libWrite(libCache);
+    libSynced = Date.now();
+    return { ok: true, item: it };
+  } catch (e) {
+    return { ok: false, err: libMsg(e) };
+  }
+}
+
 async function libRename(id, name) {
   const it = libById(id);
   if (!it) return { ok: false, err: '列表里没有这条了，刷新一下' };
@@ -7379,7 +7449,7 @@ function libBind(root, kind, sub, opt) {
   }, { signal: ac.signal });
 }
 
-window.HXLib = { items: libItems, load: libLoad, sync: libSync, add: libAdd, del: libDel, rename: libRename, listHTML: libListHTML, bind: libBind, defaultName: libDefaultName, when: libWhen, code: libCode, err: () => libErr, errLine: libErrLine, dupRate: libDupRate, dupDetail: libDupDetail, paperQs: libPaperQs, poolOk: v => { if (v !== undefined) LIB_POOL_OK = !!v; return LIB_POOL_OK; } };
+window.HXLib = { items: libItems, load: libLoad, sync: libSync, add: libAdd, overwrite: libOverwrite, del: libDel, rename: libRename, listHTML: libListHTML, bind: libBind, defaultName: libDefaultName, when: libWhen, code: libCode, err: () => libErr, errLine: libErrLine, dupRate: libDupRate, dupDetail: libDupDetail, paperQs: libPaperQs, poolOk: v => { if (v !== undefined) LIB_POOL_OK = !!v; return LIB_POOL_OK; } };
 
 ;
 /* ================= 考试 · 理论试卷（2026-11-06 从单片机迁来；2026-11-19 第三轮大改） =================
@@ -8476,13 +8546,57 @@ function mountPaper(sub) {
      列表已经搬到左侧栏的「试卷库」大栏目（app.js 的 libHome），设置抽屉里只留「存」这一件事：
      存完给一句 toast 指路，老师去左侧栏看列表 / 勾选查重。原来那个 #ppLibList 已从 DOM 里删掉。 */
   if ($('ppLibName')) $('ppLibName').value = libDefaultName('paper', sub);
+  /* 覆盖已有卷（2026-11-20）：下拉里列本科目已存的卷，选中就改名字、
+     按钮变「覆盖保存」并给出提示；存完清空回到「另存为新的一套」。 */
+  const libOver = $('ppLibOver');
+  const libOverHint = $('ppLibOvHint');
+  const libOverTarget = () => (libOver && libOver.value) ? libById(libOver.value) : null;
+  function syncLibOver() {
+    const t = libOverTarget();
+    const btn = $('ppLibSave');
+    if (btn) btn.textContent = t ? '覆盖保存' : '保存到试卷库';
+    if (libOverHint) {
+      libOverHint.textContent = t
+        ? `将覆盖《${t.name}》——原来那套的设置会被替换掉，其他卷不受影响。`
+        : '在已存的某套卷上改了点东西？上面选中它，再点「覆盖保存」——原来那套被替换，不会多出一条。';
+      libOverHint.classList.toggle('pplib-warn', !!t);
+    }
+    if (t && $('ppLibName')) $('ppLibName').value = t.name;
+  }
+  function fillLibOver() {
+    if (!libOver) return;
+    const cur = libOver.value;
+    const items = libItems('paper', sub);
+    libOver.innerHTML = '<option value="">另存为新的一套</option>' + items.map(x =>
+      `<option value="${esc(x.id)}">${esc(x.name)}${x._sync === 0 ? '（未上传）' : ''}</option>`).join('');
+    libOver.value = items.some(x => String(x.id) === String(cur)) ? cur : '';
+    syncLibOver();
+  }
+  if (libOver) {
+    fillLibOver();
+    libOver.onchange = syncLibOver;
+    /* 本地缓存可能还没拉过云端列表：拉回来再填一次（失败了就保持本机那份） */
+    if (window.libLoad) libLoad('paper', sub).then(fillLibOver).catch(() => { });
+  }
   if ($('ppLibSave')) $('ppLibSave').onclick = async () => {
     const btn = $('ppLibSave');
+    const target = libOverTarget();
+    if (target && !await hxConfirm(`覆盖《${target.name}》？\n\n这套卷原来存的设置会被替换掉（找不回来）。其他卷不受影响。`)) return;
     const tok = (window.HXBusy && btn) ? HXBusy.begin(btn, '正在保存…') : null;
     if (!tok) btn.disabled = true;
     try {
-      const it = await libAdd($('ppLibName') ? $('ppLibName').value : '', 'paper', sub, C);
+      const nm = $('ppLibName') ? $('ppLibName').value : '';
+      if (target) {
+        const r = await libOverwrite(target.id, nm, C);
+        if (!r.ok) { toast('没覆盖上：' + r.err); return; }
+        toast('已覆盖《' + r.item.name + '》（含 ' + picksCount() + ' 道手动选的题）—— 可在左侧栏「试卷库」里核对');
+        if ($('ppLibName')) $('ppLibName').value = libDefaultName('paper', sub);
+        fillLibOver();
+        return;
+      }
+      const it = await libAdd(nm, 'paper', sub, C);
       if ($('ppLibName')) $('ppLibName').value = libDefaultName('paper', sub);
+      fillLibOver();
       toast(it.__offline
         ? '已存在这台电脑上（' + it.__err + '），下次连上云端会自动传上去：' + it.name
         : '已存入试卷库（云端）：' + it.name + '（含 ' + picksCount() + ' 道手动选的题）—— 左侧栏「试卷库」里可以查重');
@@ -9210,10 +9324,14 @@ async function paperHome() {
       <!-- 拖动替换时盖在卷面上的透明层（2026-11-19）：不盖的话指针进了 iframe，
            父页收不到 pointerup，拖动就没法落点。 -->
       <div class="ppmask" id="ppMask" hidden><span class="ppmask-tag" id="ppMaskTag" hidden></span></div>
-      <aside class="ppdrawer" id="ppDrawer" aria-hidden="true" aria-label="试卷设置">
+      <aside class="ppdrawer ppset-modal" id="ppDrawer" aria-hidden="true" role="dialog" aria-modal="true" aria-label="试卷设置">
         <div class="ppd-h"><b>试卷设置</b><button class="sm" data-ppclose="ppDrawer" aria-label="关闭设置">关闭</button></div>
         <div class="card"><h2>保存到试卷库</h2>
           <div class="row"><input id="ppLibName" class="lib-name" autocomplete="off" placeholder="给这套卷起个名字"><button id="ppLibSave">保存到试卷库</button></div>
+          <!-- 2026-11-20：老师常常是在已存的某套卷上改了点东西再存（原话「因为可能只是他基础上改了点东西」），
+               所以给一个「覆盖已有卷」下拉，选哪套就原地替换，不再多出一条。 -->
+          <label class="pplib-ov">覆盖已有卷<select id="ppLibOver"><option value="">另存为新的一套</option></select></label>
+          <p class="note pplib-hint" id="ppLibOvHint">在已存的某套卷上改了点东西？上面选中它，再点「覆盖保存」——原来那套被替换，不会多出一条。</p>
           <p class="note">存的是这一页的全部设置（试卷信息、题型分值、各项目比重、换题种子、你手动选的题）。存好的卷在左侧栏的「试卷库」里：点「选用」载回来继续改，勾选 2–3 套可以查重复度。</p></div>
         <div class="card"><h2>试卷信息</h2>
           <div class="ppform">
