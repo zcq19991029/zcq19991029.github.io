@@ -194,6 +194,21 @@ pre { white-space: pre-wrap; word-break: break-word; margin: 0; }
 .qb-dq2 i { font-style: normal; color: var(--dim, #6e6e73); padding-left: 2px; }
 .qb-dq { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+/* 查重结果分三组（2026-11-20）：完全相同 / 同题型疑似 / 跨题型疑似，各有各的删除按钮。
+   每组自带滚动，避免三组叠在一起把弹层撑到屏幕外。 */
+.qb-dgrp { margin-bottom: 14px; }
+.qb-dgrp:last-child { margin-bottom: 4px; }
+.qb-dgh { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: baseline; margin-bottom: 6px; }
+.qb-dgh > b { font-size: 13.5px; font-weight: 600; }
+.qb-dgt.g-exact { color: var(--bad, #d70015); }
+.qb-dgt.g-same { color: var(--warn, #b25000); }
+.qb-dgt.g-cross { color: var(--dim, #6e6e73); }
+.qb-dgh .note { flex: 1 1 220px; font-size: 12.5px; }
+.qb-dgb { display: flex; gap: 6px; }
+.qb-dgrp .qb-dl { max-height: 30vh; margin-bottom: 8px; }
+.qb-dgf { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.qb-dgf .note { font-size: 12.5px; }
+
 /* 发布弹层（2026-11-15）：题库 id 的说明文字 + 语义查重拦下来的题。
    颜色全部沿用 --dim / --badbg，不另起一套配色；说明贴住输入框（负 margin 抵掉 .zl-f 的下边距），
    因为它是那行输入框的注脚，不是独立段落。 */
@@ -2593,7 +2608,16 @@ async function qbClear(btn) {
 /* ---------------- AI 查重 ----------------
    两层：① 题干（题型 + 去空白）完全相同的，直接判重；② 剩下的交给 AI 语义比对，
    让它标出「考点重复」的题对（措辞不同但考同一知识点）。结果弹层里老师逐个勾删除，
-   不自动删 —— 怕 AI 误判把好题删了。 */
+   不自动删 —— 怕 AI 误判把好题删了。
+
+   2026-11-20 一次误删改的（用户实测：点了一下，222 道「疑似重复」全没了）：
+   老版本把两类重复放在**同一个列表**、**默认全勾**、底下一颗「删除勾中的 N 道」，
+   点下去等于把 AI 判的疑似重复也一起删了 —— 而那些题考同一考点但措辞不同，
+   考试组卷可能还要用。现在改成四件事：
+     ① 三类分开列：「完全相同」/「同题型疑似」/「跨题型疑似」，各有各的删除按钮；
+     ② **默认只勾「完全相同」**，两类疑似默认不勾，要删得自己勾；
+     ③ 跨题型的单列一组 —— 删掉会让那个题型的题量变少（选择 15 题、判断 10 题是有配额的）；
+     ④ 删完不关弹层，剩下的组接着删，一次 AI 额度用到底。 */
 /* 2026-11-15：AI 查重是一次性把整个题池喂给模型，题多时要几十秒。原来点完按钮、
    界面什么都不变（结果要等弹层才出来），用户以为没点上。现在三件事一起做：
    ① 「AI 查重」按钮转圈 + 已等 N 秒；② 顶部条写清楚正在干什么；③ 失败不再被
@@ -2607,12 +2631,12 @@ async function qbDedup(btn) {
   say('正在查重：先挑出题干完全相同的，再让 AI 比一遍考点，题多时可能要几十秒…');
   try {
     const norm = x => String(x == null ? '' : x).replace(/\s+/g, '').toLowerCase();
-    const pairs = [];                       // 判重结果：{ a, b, why, exact }
+    const pairs = [];                       // 判重结果：{ a, b, why, kind }
     // ① 硬去重：同题型 + 题干去空白相等
     const seen = {};
     QB_ALL.forEach(q => {
       const k = q.t + '|' + norm(q.q);
-      if (seen[k]) pairs.push({ a: seen[k], b: q, why: '题干完全相同', exact: true });
+      if (seen[k]) pairs.push({ a: seen[k], b: q, why: '题干完全相同', kind: 'exact' });
       else seen[k] = q;
     });
     // ② AI 语义比对：把没被硬重判掉的题喂给 AI，让它标重复对
@@ -2629,17 +2653,38 @@ async function qbDedup(btn) {
       if (!pairs.length) { MAT_banner('AI 语义比对没跑成：' + aiErr + '。题干完全相同的重复也没查到。'); return; }
       MAT_banner('AI 语义比对没跑成：' + aiErr + '。下面只显示了题干完全相同的重复。');
     }
-    const all = pairs.concat(aiPairs);
+    const all = qbDedupTidy(pairs.concat(aiPairs));
     if (!all.length) { toast('没查出重复题（AI 语义比对也没发现疑似重复）'); return; }
     qbDedupDraw(all);
   } finally { HXBusy.end(tok); }
 }
+/* 同一对题可能被 AI 报两遍（a↔b 换个顺序也算同一对），按 id 归一后去重；
+   同一个 b 既被判「完全相同」又被 AI 判「疑似」时，只留前者（判断更硬）。
+   另外：跨题型的两道题若题干一字不差，那其实就是「完全相同」，别降级成跨题型疑似。 */
+function qbDedupTidy(list) {
+  const rank = { exact: 0, same: 1, cross: 2 };
+  const norm = x => String(x == null ? '' : x).replace(/\s+/g, '').toLowerCase();
+  const m = new Map();
+  list.forEach(p => {
+    if (!p || !p.a || !p.b || String(p.a.id) === String(p.b.id)) return;
+    const kind = norm(p.a.q) === norm(p.b.q) ? 'exact' : p.kind;
+    const x = String(p.a.id), y = String(p.b.id);
+    const k = x < y ? x + '|' + y : y + '|' + x;
+    const old = m.get(k);
+    if (!old || rank[kind] < rank[old.kind]) m.set(k, { ...p, kind });
+  });
+  return [...m.values()];
+}
 /* AI 语义比对：把题池里所有题编号喂给 AI，让它返回「重复的题对」的编号数组。
-   一次调用（不是两两调用），省额度；题太多时按题型分组降 token。 */
+   一次调用（不是两两调用），省额度；题太多时按题型分组降 token。
+   2026-11-20：跨题型的重复也要它报（以前没明说，模型经常只比同题型），
+   报回来由前端分成「同题型 / 跨题型」两组。 */
 async function qbDedupAI() {
   const list = QB_ALL.map((q, i) => ({ i, t: q.t, stem: String(q.q || '').slice(0, 300) }));
   const prompt = '下面是同一个题库里的 ' + list.length + ' 道题（编号从 0 开始）。请找出「考同一个知识点、可以算重复」的题对——'
     + '哪怕措辞不一样，只要考的是同一个考点就算重复；只是同属一章但考点不同的不算。\n'
+    + '注意：**不同题型之间**考同一个考点的（例如一道选择、一道判断问的是同一件事）也要报出来，'
+    + '我会把它们单独分组，不会和同题型的混在一起。\n'
     + '只输出 JSON，格式：{"pairs":[{"a":编号,"b":编号,"why":"一句话说明为什么重复"}]}，没有重复就 {"pairs":[]}。\n'
     + '题目：\n' + list.map(x => '[' + x.i + ']（' + QB_CN[x.t] + '）' + x.stem).join('\n');
   const res = await hximpChat([{ role: 'system', content: '你是严谨的题库审题员，只返回合法 JSON。' }, { role: 'user', content: prompt }], { json: true });
@@ -2649,7 +2694,7 @@ async function qbDedupAI() {
   const out = [];
   arr.forEach(p => {
     const a = QB_ALL[+p.a], b = QB_ALL[+p.b];
-    if (a && b && a.id !== b.id) out.push({ a, b, why: String(p.why || '疑似重复'), exact: false });
+    if (a && b && a.id !== b.id) out.push({ a, b, why: String(p.why || '疑似重复'), kind: a.t === b.t ? 'same' : 'cross' });
   });
   return out;
 }
@@ -2718,39 +2763,114 @@ async function qbTagKbAI(chunk) {
   });
   return out;
 }
+/* 三类分组。on = 默认是否勾选（只有「完全相同」默认勾，其余要老师自己勾）。 */
+const DEDUP_GROUPS = [
+  { k: 'exact', name: '完全相同', on: true,
+    hint: '同题型 + 题干一字不差（只忽略空格）。这种留着没意义，默认已勾。' },
+  { k: 'same', name: '同题型疑似重复', on: false,
+    hint: 'AI 判断考同一个考点、但措辞不同。默认不勾 —— 考试组卷可能还要用，自己看着办。' },
+  { k: 'cross', name: '跨题型疑似重复', on: false,
+    hint: '不同题型考同一个考点（一边选择、一边判断）。删掉会让那个题型的题变少，默认不勾。' }
+];
 function qbDedupDraw(pairs) {
-  const rows = pairs.map((p, i) => {
-    const q = x => `<span class="qb-dq">${esc(QB_CN[x.t] || x.t)} · ${esc(String(x.q || '').slice(0, 60))}</span>`;
-    return `<label class="qb-drow"><input type="checkbox" data-ddel="${p.b.id}" checked>
-      <span class="qb-dbody"><b>${p.exact ? '完全相同' : '疑似重复'}</b>${p.why ? ' · ' + esc(p.why) : ''}
-      <span class="qb-dq2">${q(p.a)}<i>↕</i>${q(p.b)}</span></span></label>`;
+  const by = { exact: [], same: [], cross: [] };
+  pairs.forEach(p => (by[p.kind] || by.same).push(p));
+  const qx = x => `<span class="qb-dq">${esc(QB_CN[x.t] || x.t)} · ${esc(String(x.q || '').slice(0, 60))}</span>`;
+  const secs = DEDUP_GROUPS.filter(g => by[g.k].length).map(g => {
+    const rows = by[g.k].map(p => `<label class="qb-drow" data-a="${esc(p.a.id)}" data-b="${esc(p.b.id)}">
+        <input type="checkbox" data-ddel="${esc(p.b.id)}" ${g.on ? 'checked' : ''}>
+        <span class="qb-dbody"><b>${g.name}</b>${p.why ? ' · ' + esc(p.why) : ''}
+        <span class="qb-dq2">${qx(p.a)}<i>↕</i>${qx(p.b)}</span></span></label>`).join('');
+    return `<section class="qb-dgrp" data-grp="${g.k}">
+      <div class="qb-dgh"><b class="qb-dgt g-${g.k}">${g.name}</b>
+        <span class="note">${by[g.k].length} 对 · ${g.hint}</span>
+        <span class="qb-dgb"><button type="button" class="sm" data-all="1">全选本组</button><button type="button" class="sm" data-all="0">全不选</button></span></div>
+      <div class="qb-dl">${rows}</div>
+      <div class="qb-dgf"><button type="button" class="pri sm" data-go="${g.k}">删除勾中的${g.name}</button>
+        <span class="note" data-cnt="${g.k}"></span><span class="note" data-st="${g.k}"></span></div>
+    </section>`;
   }).join('');
+  const tot = pairs.length;
   zlModal(`<h2>AI 查重 · ${esc(curSub().name)}</h2>
-    <p class="note" style="margin:0 0 8px">共发现 ${pairs.length} 对重复。默认勾选「保留前一道、删掉后一道」，不想要的把勾去掉；只删勾中的那一道，另一道保留。</p>
-    <div class="qb-dl">${rows}</div>
+    <p class="note" id="qbDedupSum" style="margin:0 0 10px">共 ${tot} 对：完全相同 ${by.exact.length} 对、同题型疑似 ${by.same.length} 对、跨题型疑似 ${by.cross.length} 对。
+      <b>三类分开删</b>，删一组不动另一组；<b>默认只勾「完全相同」</b>，疑似两类要你自己勾。
+      每对都是「删勾中的那一道、另一道保留」。</p>
+    <div id="qbDedupBody">${secs}</div>
     <div class="errs" id="qbDedupErr" hidden></div>
-    <div class="row"><button class="pri" id="qbDedupGo">删除勾中的 ${pairs.length} 道</button><button id="qbDedupCancel">取消</button><span class="note" id="qbDedupState"></span></div>`);
-  $('qbDedupCancel').onclick = zlModalClose;
-  $('qbDedupGo').onclick = async () => {
-    const ids = [...document.querySelectorAll('[data-ddel]:checked')].map(x => +x.dataset.ddel);
-    if (!ids.length) return toast('一道都没勾');
-    const fail = m => { $('qbDedupErr').textContent = m; $('qbDedupErr').hidden = false; };
-    const st = $('qbDedupState');
-    /* 2026-11-15：批量删除是一条一条发 rpc，20 道就要转 20 次网络。原来按钮只是灰掉，
-       没有任何进度，用户不知道删到第几道、是不是卡死了。现在按钮转圈 + 旁边写「正在删 3/12」。 */
-    const tok = HXBusy.begin($('qbDedupGo'), '正在删…');
-    let n = 0;
-    try {
-      for (let k = 0; k < ids.length; k++) {
-        if (st) st.textContent = '正在删 ' + (k + 1) + '/' + ids.length + '…';
-        const r = await MAT_call('hx_exam_qbank_del', { p_id: ids[k] });
-        if (r.ok) n++; else if (r.err) fail('删第 ' + ids[k] + ' 道失败：' + r.err);
-      }
-    } finally { HXBusy.end(tok); }
-    zlModalClose();
-    toast('删了 ' + n + ' 道重复题');
-    qbLoad(); loadSubjects(true);
+    <div class="row"><button id="qbDedupCancel">关闭</button></div>`);
+  $('qbDedupCancel').onclick = () => { zlModalClose(); qbLoad(); loadSubjects(true); };
+  const syncCnt = () => {
+    document.querySelectorAll('#qbDedupBody [data-grp]').forEach(sec => {
+      const k = sec.dataset.grp;
+      const n = sec.querySelectorAll('[data-ddel]:checked').length;
+      const c = sec.querySelector('[data-cnt]'); if (c) c.textContent = n ? '已勾 ' + n + ' 道' : '一道都没勾';
+      const go = sec.querySelector('[data-go]'); if (go) go.disabled = !n;
+    });
   };
+  document.querySelectorAll('#qbDedupBody [data-grp]').forEach(sec => {
+    sec.addEventListener('change', syncCnt);
+    sec.querySelectorAll('[data-all]').forEach(b => {
+      b.onclick = () => {
+        const on = b.dataset.all === '1';
+        sec.querySelectorAll('[data-ddel]').forEach(x => { x.checked = on; });
+        syncCnt();
+      };
+    });
+    sec.querySelector('[data-go]').onclick = () => qbDedupDel(sec);
+  });
+  syncCnt();
+}
+/* 删一组：只删这一组里勾中的（去重后的 id），删完把这组连带「引用了这些题的其它组行」一起撤掉，
+   剩下的组还能接着删 —— 不用为了删另一类再花一次 AI 额度。 */
+async function qbDedupDel(sec) {
+  const k = sec.dataset.grp;
+  const g = DEDUP_GROUPS.find(x => x.k === k) || { name: '勾中的' };
+  const ids = [...new Set([...sec.querySelectorAll('[data-ddel]:checked')].map(x => +x.dataset.ddel))];
+  if (!ids.length) return toast('一道都没勾');
+  if (!await hxConfirm(`删除「${g.name}」里勾中的 ${ids.length} 道题？\n\n删了不能撤销（想找回来只能在资料页重新导入内置题库，去重逻辑会只补缺的）。\n其它两组一道都不动。`)) return;
+  const fail = m => { const e = $('qbDedupErr'); if (e) { e.textContent = m; e.hidden = false; } };
+  const st = sec.querySelector('[data-st]');
+  const tok = HXBusy.begin(sec.querySelector('[data-go]'), '正在删…');
+  const gone = new Set();
+  try {
+    for (let i = 0; i < ids.length; i++) {
+      if (st) st.textContent = '正在删 ' + (i + 1) + '/' + ids.length + '…';
+      const r = await MAT_call('hx_exam_qbank_del', { p_id: ids[i] });
+      if (r.ok) gone.add(String(ids[i]));
+      else if (r.err) fail('删第 ' + ids[i] + ' 道失败：' + r.err);
+    }
+  } finally { HXBusy.end(tok); }
+  if (st) st.textContent = '';
+  /* 本地先同步，省一次重拉 */
+  QB_ALL = QB_ALL.filter(q => !gone.has(String(q.id)));
+  gone.forEach(id => QB_SEL.delete(String(id)));
+  /* 撤掉引用了这些题的行（含其它组里「另一道就是这个题」的行），空了的组整块撤掉 */
+  document.querySelectorAll('#qbDedupBody .qb-drow').forEach(row => {
+    if (gone.has(String(row.dataset.a)) || gone.has(String(row.dataset.b))) row.remove();
+  });
+  document.querySelectorAll('#qbDedupBody [data-grp]').forEach(s => {
+    const n = s.querySelectorAll('.qb-drow').length;
+    if (!n) { s.remove(); return; }
+    const note = s.querySelector('.note');
+    if (note) note.textContent = n + ' 对 · ' + note.textContent.replace(/^\d+ 对 · /, '');
+  });
+  toast('删了 ' + gone.size + ' 道（' + g.name + '）');
+  const left = document.querySelectorAll('#qbDedupBody [data-grp]').length;
+  if (!left) { zlModalClose(); qbLoad(); loadSubjects(true); return; }
+  qbDrawStat(); qbDraw();
+  syncAfterDel();
+  const cnt = { exact: 0, same: 0, cross: 0 };
+  document.querySelectorAll('#qbDedupBody [data-grp]').forEach(s => { cnt[s.dataset.grp] = s.querySelectorAll('.qb-drow').length; });
+  const sum = $('qbDedupSum');
+  if (sum) sum.textContent = `共 ${cnt.exact + cnt.same + cnt.cross} 对：完全相同 ${cnt.exact} 对、同题型疑似 ${cnt.same} 对、跨题型疑似 ${cnt.cross} 对。（三类分开删，删一组不动另一组；默认只勾「完全相同」。）`;
+}
+/* 删完一组后，勾选计数 / 按钮可用状态要重算（新 DOM 没有绑定过） */
+function syncAfterDel() {
+  document.querySelectorAll('#qbDedupBody [data-grp]').forEach(sec => {
+    const n = sec.querySelectorAll('[data-ddel]:checked').length;
+    const c = sec.querySelector('[data-cnt]'); if (c) c.textContent = n ? '已勾 ' + n + ' 道' : '一道都没勾';
+    const go = sec.querySelector('[data-go]'); if (go) go.disabled = !n;
+  });
 }
 
 /* ---------------- 改一道题 ---------------- */
