@@ -608,6 +608,13 @@ button.danger { color: var(--bad, #d70015); }
 .ppset-foot { position: sticky; bottom: 0; margin: 12px -20px -18px; padding: 10px 20px; display: flex; align-items: center; gap: 12px;
   background: var(--card-solid, #fff); border-top: 1px solid var(--hair); border-radius: 0 0 18px 18px; }
 .ppset-foot .note { flex: 1 1 auto; min-width: 0; margin: 0; }
+/* 双击改题的浮层（2026-11-20）：沿用 .ex-dlg 的骨架，只是把表单排成一列 */
+.pp-edit { width: min(680px, 94vw); }
+.pp-edit .ex-dlg-b { display: grid; gap: 10px; }
+.pp-edit label { display: grid; gap: 5px; font-size: 13px; color: var(--mute); }
+.pp-edit textarea, .pp-edit select { width: 100%; font: inherit; }
+.pp-edit textarea { resize: vertical; }
+.pp-edit .note { margin: 0; }
 @media (max-width: 720px) { .ppset-foot { margin: 12px -14px -16px; padding: 10px 14px; flex-wrap: wrap; } .ppset-foot .note { flex: 1 1 100%; } }
 .lib-list { display: grid; gap: 8px; margin-top: 10px; max-height: 260px; overflow: auto; overscroll-behavior: contain; }
 .lib-i { display: grid; gap: 6px; padding: 9px 11px; border-radius: 12px; background: var(--field2); border: 1px solid var(--hair); }
@@ -6655,11 +6662,28 @@ const PAPER_LAYOUT_JS=`
    产物是单文件 HTML，这里绝不能出现结束标签的字面写法（build.js 会拦），所以只用字符串拼。 */
 const PAPER_EDIT_JS=`
 (function(){
-  document.addEventListener('click',function(e){
+  /* 2026-11-20：双击题目 = 就地改这道题（老师原话「我组卷过程中发现题目有问题
+     我希望在双击该题目即可实现对题目的修改 修改完成后也给题池原题进行同步」）。
+     单击是「换一道」（开题库抽屉），双击是「改这道」，两者会打架：
+     双击时浏览器先发一次 click，抽屉就会闪一下。所以单击延迟 220ms 再发，
+     这期间来了 dblclick 就取消单击 —— 单点仍然跟手，双击也不会误开抽屉。 */
+  var t1=null;
+  function pick(el){ try{parent.postMessage({hxPaperPick:el.getAttribute('data-k'),no:+el.getAttribute('data-no'),t:el.getAttribute('data-t')},'*');}catch(x){} }
+  function edit(el){ try{parent.postMessage({hxPaperEdit:el.getAttribute('data-k'),no:+el.getAttribute('data-no'),t:el.getAttribute('data-t')},'*');}catch(x){} }
+  function host(e){
     var el=e.target;
     while(el&&el!==document&&!(el.getAttribute&&el.getAttribute('data-k')))el=el.parentNode;
-    if(!el||el===document||!el.getAttribute)return;
-    try{parent.postMessage({hxPaperPick:el.getAttribute('data-k'),no:+el.getAttribute('data-no'),t:el.getAttribute('data-t')},'*');}catch(x){}
+    return (el&&el!==document&&el.getAttribute)?el:null;
+  }
+  document.addEventListener('click',function(e){
+    var el=host(e); if(!el)return;
+    if(t1){clearTimeout(t1);t1=null;}
+    t1=setTimeout(function(){t1=null;pick(el);},220);
+  },true);
+  document.addEventListener('dblclick',function(e){
+    var el=host(e); if(!el)return;
+    if(t1){clearTimeout(t1);t1=null;}
+    edit(el);
   },true);
 })();`;
 function paperDocHTML(P,cfg,opts){
@@ -7767,6 +7791,7 @@ function mountPaper(sub) {
     const fr = $('ppFrame');
     if (!fr || e.source !== fr.contentWindow) return;
     const d = e.data || {};
+    if (d.hxPaperEdit) { editQAt(String(d.hxPaperEdit)); return; }
     if (d.hxPaperPick) { selectSlot(String(d.hxPaperPick), +d.no || 1, String(d.t || '')); return; }
     if (!d.paperReady) return;
     fr.dataset.h = fr.contentDocument.documentElement.scrollHeight;
@@ -7938,6 +7963,93 @@ function mountPaper(sub) {
     paintTabs(t);
     const l = $('ppBankList'); if (l) l.scrollTop = 0;
     /* 标题由 renderBank 统一写，这里不再重复（重复会盖成另一套文案）。 */
+  }
+  /* ================= 双击题目就地改（2026-11-20） =================
+     老师原话：「我组卷过程中发现题目有问题 我希望在双击该题目即可实现对题目的修改
+     修改完成后也给题池原题进行同步」。
+     · 卷面 iframe 里双击某题 → postMessage hxPaperEdit → 这里开编辑浮层；
+     · 保存 = 先调 hx_exam_qbank_update 改**题池原题**（id 不变，发布到刷题的 id 也不变），
+       成功了再改本地 POOL 和这份卷子里的那道，最后重排 —— 失败就一个字都不动，免得两边不一致；
+     · 内置题库（单片机 THEORY）的题没有题库编号，就地改存不住，直接说清楚。
+     为什么不用 hxPrompt：这里要题干 + 选项 + 答案 + 解析四块，hxPrompt 只能一行。 */
+  function editQAt(key) {
+    const parts = String(key || '').split(':');
+    const t = parts[0], idx = +parts[1];
+    const sec = P && P.find(x => x.t === t);
+    const q = sec && sec.items && sec.items[idx];
+    if (!q) return;
+    if (q.__blank) return toast('这道还是空的，先点一下从题库里选一道再双击改');
+    if (!q.id) return toast('这道来自内置题库（没有题库编号），就地改存不住；要改先在资料库把它导进题池');
+
+    const isChoice = t === 'choice', isJudge = t === 'judge', isFill = t === 'fill';
+    const optList = isChoice ? (window.hxChoices ? hxChoices(q.o) : (q.o || [])) : [];
+    const optsText = optList.map((o, i) => (o.key || String.fromCharCode(65 + i)) + '. ' + (o.text || '')).join('\n');
+    const ansText = Array.isArray(q.a) ? q.a.join('\n') : String(q.a == null ? '' : q.a);
+    const jv = q.a === true || q.a === 'true' || q.a === 'T';
+
+    const mask = document.createElement('div');
+    mask.className = 'ex-dlg-mask';
+    mask.innerHTML = `<div class="ex-dlg pp-edit" role="dialog" aria-modal="true" aria-label="改这道题">
+      <div class="ex-dlg-h"><b>改这道题 · ${esc(pType(t).name)} · 第 ${idx + 1} 题</b><button type="button" class="sm" data-eclose="1">关闭</button></div>
+      <div class="ex-dlg-b">
+        <label>题干<textarea id="ppEdQ" rows="4">${esc(String(q.q || ''))}</textarea></label>
+        ${isChoice ? `<label>选项（一行一个，A. 开头）<textarea id="ppEdO" rows="4">${esc(optsText)}</textarea></label>` : ''}
+        <label>${isJudge ? '答案' : isFill ? '答案（每空一行）' : '参考答案'}${isJudge
+          ? `<select id="ppEdJ"><option value="T"${jv ? ' selected' : ''}>正确</option><option value="F"${jv ? '' : ' selected'}>错误</option></select>`
+          : `<textarea id="ppEdA" rows="${isChoice ? 1 : 3}">${esc(ansText)}</textarea>`}</label>
+        <label>解析<textarea id="ppEdE" rows="2">${esc(String(q.explanation || ''))}</textarea></label>
+        <p class="note">保存会同时改<b>题池里这道原题</b>（编号不变），其它用同一道题的卷子下次打开也会是新的。</p>
+        <div class="errs" id="ppEdErr" hidden></div>
+      </div>
+      <div class="ex-dlg-f"><span class="note" id="ppEdSt"></span><button type="button" class="pri" id="ppEdSave">保存</button><button type="button" data-eclose="1">取消</button></div>
+    </div>`;
+    document.body.appendChild(mask);
+    const close = () => { document.removeEventListener('keydown', onKey); mask.remove(); };
+    function onKey(e) { if (e.key === 'Escape') { e.preventDefault(); close(); } }
+    document.addEventListener('keydown', onKey);
+    mask.addEventListener('mousedown', e => { if (e.target === mask) close(); });
+    mask.querySelectorAll('[data-eclose]').forEach(b => b.onclick = close);
+
+    $('ppEdSave').onclick = async () => {
+      const err = m => { const e = $('ppEdErr'); e.textContent = m; e.hidden = false; };
+      const stemV = $('ppEdQ').value.trim();
+      if (!stemV) return err('题干不能空');
+      const patch = { q: stemV, explanation: $('ppEdE').value.trim() };
+      if (isChoice) {
+        const opts = $('ppEdO').value.split('\n').map(x => x.trim()).filter(Boolean).map((s, i) => {
+          const m = s.match(/^([A-Za-z])[.、:：)）]\s*(.*)$/);
+          return m ? { key: m[1].toUpperCase(), text: m[2] } : { key: String.fromCharCode(65 + i), text: s };
+        });
+        if (opts.length < 2) return err('选择题至少要两个选项');
+        const a = $('ppEdA').value.toUpperCase().replace(/[^A-Z]/g, '');
+        if (!a) return err('答案不能空（填字母，如 A 或 AC）');
+        patch.o = opts; patch.a = a;
+      } else if (isJudge) {
+        patch.a = $('ppEdJ').value === 'T';
+      } else if (isFill) {
+        const arr = $('ppEdA').value.split('\n').map(x => x.trim()).filter(Boolean);
+        if (!arr.length) return err('答案不能空（每空一行）');
+        patch.a = arr;
+      } else {
+        const v = $('ppEdA').value.trim();
+        if (!v) return err('参考答案不能空');
+        patch.a = v;
+      }
+      const btn = $('ppEdSave');
+      /* 和其它地方一样先判 window.HXBusy：本站没加载 hx-theme 时（或测试桩里）不能整页崩 */
+      const tok = (window.HXBusy && btn) ? HXBusy.begin(btn, '正在保存…') : null;
+      try {
+        await rpc('hx_exam_qbank_update', { p_id: q.id, p_patch: patch });
+        /* 云端成了才改本地：题池缓存 + 这份卷子里的那一道 */
+        const pq = (POOL || []).find(x => String(x.id) === String(q.id));
+        [pq, q].forEach(x => { if (x) Object.assign(x, patch); });
+        close();
+        preview();
+        toast('已保存，题池里的原题也同步改好了');
+      } catch (e) {
+        err('没存上：' + (e && e.message ? e.message : e));
+      } finally { if (tok) HXBusy.end(tok); else if (btn) btn.disabled = false; }
+    };
   }
   function paintTabs(t) {
     const box = $('ppBankTabs');

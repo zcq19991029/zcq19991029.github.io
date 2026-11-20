@@ -1093,11 +1093,27 @@ const TYPE_SAMPLE = {
 };
 
 /* 老师自己加的题型（2026-11-19）：引擎只认识那六种，所以给自定义题型现编一条规则 + 一个样例。
-   规则故意写得很「通用」：题干要写清要求，答案给一段可直接对照的参考答案 —— 实操题、作图题、
-   计算题、编程题都能落在这一条上，老师真正的约束写在「额外要求」里（那段会原样进提示词）。 */
-const customRule = name => '「' + name + '」题：题干把要求写清楚（要做什么、给什么条件、写成几步），'
-  + 'answer 里给可以直接对照的参考答案（30～300 字，分步骤就按（1）（2）（3）写）；';
-const customSample = k => '{"type":"' + k + '","stem":"题干（写清要求）","answer":["参考答案，分步骤就按（1）（2）（3）写"],"knowledge":"一句话知识点","explanation":"原文依据"}';
+   规则故意写得很「通用」：题干要写清要求，答案给一段可直接对照的参考答案 —— 作图题、
+   计算题、编程题都能落在这一条上，老师真正的约束写在「额外要求」里（那段会原样进提示词）。
+
+   实操题单独走一条（2026-11-20，老师原话）：
+     「一般就两个小问 单片机第一题考的是 keil51 软件按题目要求编译成功 第二小问是选择
+       protues 或者开发板下载运行仿真」
+   所以名字含「实操 / 操作 / 实训 / 技能」的题型不再用泛泛那条规则，而是固定成
+   「一段任务描述 + 两个小问」—— 第一个小问 Keil C51 编译通过，第二个小问 Proteus 仿真
+   或开发板下载运行。接线/端口分配放进题干的任务描述里，不要再写「第一步接线、第二步写程序」。 */
+const CUSTOM_PRACTICE_RE = /实操|操作|实训|技能/;
+const customRule = name => CUSTOM_PRACTICE_RE.test(String(name || ''))
+  ? '「' + name + '」按实操考核出：题干 = 一段任务描述（要做什么、给定什么条件 / 器材 / 端口分配，'
+    + '不带教材编号，学生只看题干就能动手）；answer 固定写成两个小问：'
+    + '（1）用 Keil C51 编写程序，按题目要求完成编译（写出关键代码段与工程 / 编译要点）；'
+    + '（2）选择 Proteus 仿真或单片机开发板下载运行，写出运行 / 仿真结果（现象、关键数据、测量值）。'
+    + '不要写成「第一步接线、第二步写程序、第三步下载」的流水账，接线和端口分配写进题干的任务描述里。'
+  : '「' + name + '」题：题干把要求写清楚（要做什么、给什么条件、写成几步），'
+    + 'answer 里给可以直接对照的参考答案（30～300 字，分步骤就按（1）（2）（3）写）；';
+const customSample = (k, name) => CUSTOM_PRACTICE_RE.test(String(name || ''))
+  ? '{"type":"' + (k || 'shicao') + '","stem":"使用 AT89C51 单片机控制接在 P1.1 引脚上的 LED。要求：其余 LED 保持熄灭，程序按给定条件实现该灯点亮。","answer":["（1）在 Keil C51 中新建工程，编写主程序，将 P1 口相应位清零并编译通过（关键代码：P1 = 0xFD;）。","（2）在 Proteus 中搭建最小系统并加载 HEX，或下载到开发板运行；现象：P1.1 所接 LED 点亮，其余熄灭。"],"ch":1,"knowledge":"P1 口位操作与 LED 控制","explanation":"P1.1 输出低电平点亮 LED；0xFD = 11111101B，仅 P1.1 为 0。"}'
+  : '{"type":"' + (k || 'custom') + '","stem":"题干（写清要求）","answer":["参考答案，分步骤就按（1）（2）（3）写"],"knowledge":"一句话知识点","explanation":"原文依据"}';
 
 /* 符号表（2026-11-20）：电气接线这类课的题要带「符号图」——题干或选项里写 fig，
    图由 figlib.js（window.HXFig）现画，和 刷题 用的是同一套符号 id。
@@ -1118,15 +1134,32 @@ function figRule() {
     + '   带图的单选长这样：{"type":"single","stem":"图中的符号表示（ ）","fig":"qf3","options":[{"key":"A","text":"熔断器"},{"key":"B","text":"三极低压断路器"}],"answer":["B"],"ch":1,"knowledge":"低压断路器符号","explanation":"原文依据"}\n';
 }
 
+/* 题干必须独立成题（2026-11-20，老师原话）：
+   「不存在写任务1.1这样的题干 那是我们出题参考 而我们需要的是独立题干 正式一点」
+   AI 把教材原文里的「任务 1.1」「任务 1.1 变式」直接抄进了题干 —— 学生只看题干根本不知道
+   在说什么，离开教材就是一道废题。所有题型都吃这一条，所以单独拎出来。 */
+const STEM_FREE = '题干必须独立成题：不许出现「任务1.1」「例1-1」「习题3-2」「如图1.3」「第3章」'
+  + '这类教材里的编号或坐标，也不许写「本任务」「如上例」。把背景交代清楚，学生只看题干就能作答；'
+  + '需要引用原文时把内容复述进题干，而不是给编号。';
+
 function genPrompt(o) {
   const names = o.typeNames || {};
   const list = Object.entries(o.counts || {}).filter(([, n]) => n > 0);
   const parts = list.map(([t, n]) => (TYPE_LABEL[t] || names[t] || t) + ' ' + n + ' 道').join('、');
   const rules = list.map(([t]) => TYPE_RULE[t] || customRule(names[t] || t)).join('\n   ');
-  const samples = list.map(([t]) => '  ' + (TYPE_SAMPLE[t] || customSample(t))).join(',\n');
-  /* 有符号库才插「符号图」这一条，并把它后面的输出格式那条顺延成 7（没符号库时仍是 6，编号不错乱）。 */
+  const samples = list.map(([t]) => '  ' + (TYPE_SAMPLE[t] || customSample(t, names[t] || t))).join(',\n');
+  /* 有符号库才插「符号图」这一条；编号统一在下面按数组下标生成，插一条不会错号。 */
   const figBody = figRule();
-  const lastNo = figBody ? 7 : 6;
+  /* 硬要求按数组排，编号由下标 + 1 生成 —— 以后加一条不用手改 6 / 7。 */
+  const hard = [
+    '每道题都必须能在原文找到依据；原文没写的不出，不编型号、参数、页码。',
+    rules,
+    STEM_FREE,
+    '答案唯一、没有歧义；explanation 写一句依据（引用原文要点）。',
+    '每道题都要输出一个 knowledge 字段：一句话知识点（不超过 20 个字），能当筛选标签用，必须是原文里讲到的考点（例如「定时器工作方式 2 的选择」「并行 I/O 端口方向寄存器」）。',
+    '每道题都要输出一个 ch 字段：这道题出自原文第几章/第几个项目（只填数字，如第 3 章写 3、项目 4 写 4）；原文里认不出属于哪一章就写 0。'
+  ];
+  if (figBody) hard.push(figBody);
   /* 2026-11-20：**删掉「章节」和「范围」两个独立输入**（老师原话「这两个范围混乱，我直接融合到
      针对性提示词得了，全部靠口述，自由度对话决定」）。以前有一段「范围：X / 严格按这个范围出题」
      和一段「这批题统一标章节号 N」，和老师的「针对性要求」各说各的，互相打脸 ——
@@ -1150,13 +1183,8 @@ function genPrompt(o) {
     + batchLine
     + avoidLine
     + '硬要求：\n'
-    + '1. 每道题都必须能在原文找到依据；原文没写的不出，不编型号、参数、页码。\n'
-    + '2. ' + rules + '\n'
-    + '3. 答案唯一、没有歧义；explanation 写一句依据（引用原文要点）。\n'
-    + '4. 每道题都要输出一个 knowledge 字段：一句话知识点（不超过 20 个字），能当筛选标签用，必须是原文里讲到的考点（例如「定时器工作方式 2 的选择」「并行 I/O 端口方向寄存器」）。\n'
-    + '5. 每道题都要输出一个 ch 字段：这道题出自原文第几章/第几个项目（只填数字，如第 3 章写 3、项目 4 写 4）；原文里认不出属于哪一章就写 0。\n'
-    + (figBody ? '6. ' + figBody : '')
-    + lastNo + '. 只输出 JSON 对象，不要任何解释文字：\n'
+    + hard.map((t, i) => (i + 1) + '. ' + t).join('\n') + '\n'
+    + (hard.length + 1) + '. 只输出 JSON 对象，不要任何解释文字：\n'
     + '{"questions":[\n  ' + samples + '\n]}' + (o.note ? '\n' + o.note : '')
     + '\n资料原文：\n' + o.piece;
 }
@@ -2572,6 +2600,7 @@ function qbHome() {
         </div>
         <div class="qb-acts">
           <button class="sm" id="qbRefresh">刷新</button>
+          <button class="sm" id="qbCleanNo" title="去掉题干里抄来的教材编号（任务1.1 / 例1-1 / 习题3-2 / 第3题）">清理题干编号</button>
           <button class="sm" id="qbDedup">AI 查重</button>
           <button class="sm" id="qbTag" title="给还没有知识点的题批量打标签，题池就能按知识点筛">AI 打知识点</button>
           <button class="sm danger" id="qbClear">清空题池</button>
@@ -2623,6 +2652,7 @@ function qbHome() {
   // 2026-11-15：这几颗都是「点了要等云端」的按钮，全部把按钮本身传进去，让 HXBusy 转圈+计时
   // （原来点刷新/清空整块界面一动不动，用户以为没点上；AI 查重要几十秒更像是卡死）
   $('qbRefresh').onclick = () => qbLoad($('qbRefresh'));
+  $('qbCleanNo').onclick = () => qbCleanNo($('qbCleanNo'));
   $('qbDedup').onclick = () => qbDedup($('qbDedup'));
   $('qbTag').onclick = () => qbTagKb($('qbTag'));
   $('qbClear').onclick = () => qbClear($('qbClear'));
@@ -2867,6 +2897,56 @@ async function qbClear(btn) {
   } finally { HXBusy.end(tok); }
 }
 
+/* ---------------- 清理题干里的教材编号（2026-11-20） ----------------
+   老师原话：「不存在写任务1.1这样的题干 那是我们出题参考 而我们需要的是独立题干 正式一点」。
+   出题提示词已经不让 AI 抄教材编号了（imports.js 的 STEM_FREE），历史题池里还得能一把清。
+   只删编号片段，后面的正文一个字不动；清洗后题干变空的跳过（宁可留着脏题，也不留空壳）。
+   库里的 hx_exam_qbank_* 没有批量改题干的接口（hx_exam_qbank_update 是单条就地改、还没在线上验证），
+   所以按「删旧 + 加新」逐条做。删之前先把整行快照存进 DEDUP_UNDO —— 顶部「撤销删除」能整批找回。 */
+const QB_NO_RE = [
+  /任务\s*\d+(?:\.\d+)*\s*(?:变式|练习)?[：:、.．\s]*/g,
+  /例\s*\d+[-–]\d+[：:、.．\s]*/g,
+  /习题\s*\d+[-–]\d+[：:、.．\s]*/g,
+  /第\s*\d+\s*题[：:、.．\s]*/g
+];
+function qbCleanStem(s) {
+  let out = String(s == null ? '' : s);
+  /* 前后都是汉字时不动：「在任务1.1中要求…」删掉编号会变成「在中要求…」，
+     比留着编号更像乱码。只清能独立拆下来的编号（开头、括号里、标点旁边）。 */
+  const cjk = /[\u4e00-\u9fa5]/;
+  QB_NO_RE.forEach(re => {
+    out = out.replace(re, (m, off) => {
+      const before = off > 0 ? out[off - 1] : '';
+      const after = out[off + m.length] || '';
+      return (cjk.test(before) && cjk.test(after)) ? m : '';
+    });
+  });
+  return out.replace(/【\s*】|\[\s*\]|（）/g, '').replace(/^[\s：:、，,。.．]+/, '').trim();
+}
+async function qbCleanNo(btn) {
+  const s = curSub(); if (!s) return;
+  if (!QB_ALL.length) return toast('题池是空的');
+  const todo = QB_ALL.map(q => ({ q, q2: qbCleanStem(q.q) }))
+    .filter(x => x.q2 && x.q2 !== String(x.q.q == null ? '' : x.q.q).trim());
+  if (!todo.length) return toast('没有发现带教材编号的题干');
+  if (!await hxConfirm(`清理 ${todo.length} 道题题干里的教材编号？\n\n只去掉题干里「任务 1.1」「例1-1」「习题3-2」「第 3 题」这类教材编号，后面的正文一个字不动；清洗后题干为空的会跳过。\n\n只改题干，**题池编号不变**（发布到刷题、组卷里用它的地方都不受影响）。`)) return;
+  const tok = HXBusy.begin(btn, '正在清理…');
+  let done = 0, bad = '';
+  try {
+    /* 2026-11-20：原来走「删旧 + 加新」，题池编号会变、失败还可能删了没加上。
+       当天补了 hx_exam_qbank_update（只改传入字段、编号不变），这里改成逐条就地改题干：
+       一次 RPC 改一道，不删不加，id 稳、失败也不丢题。 */
+    for (const { q, q2 } of todo) {
+      const r = await MAT_call('hx_exam_qbank_update', { p_id: +q.id, p_patch: { q: q2 } });
+      if (!r.ok) { bad = '第 ' + q.id + ' 道（' + String(q.q || '').slice(0, 12) + '…）没改成：' + (r.err || '未知错误'); break; }
+      q.q = q2;              // 本地同步，省一次整表重拉
+      done++;
+    }
+    if (bad) MAT_banner('清理题干编号：改好 ' + done + ' 道，后面停下了（' + bad + '）。已改的保留，可以再点一次接着清。');
+    else toast('清理了 ' + done + ' 道（题池编号没变）');
+    qbDraw();
+  } finally { HXBusy.end(tok); }
+}
 /* ---------------- AI 查重 ----------------
    两层：① 题干（题型 + 去空白 + 同一张图）完全相同的，直接判重；② 剩下的交给 AI 语义比对，
    让它标出「考点重复」的题对（措辞不同但考同一知识点）。结果弹层里老师自己定删哪一道，
