@@ -127,6 +127,9 @@ html[data-hx-mode="light"].hx-bg .seg button[aria-pressed="true"] { background: 
 .card .veil.a i::before { content: "✕"; }
 .card .veil.go i { color: #fff; background: var(--c); box-shadow: 0 8px 28px color-mix(in srgb, var(--c) 45%, transparent); transform: translate(-50%, -50%) scale(1.06); }.qhead { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font-size: 13px; color: var(--dim); }
 .qtype { padding: 2px 10px; border-radius: 99px; font-weight: 600; color: var(--acc); background: var(--accbg, var(--fill)); }
+/* 小节标签（2026-11-19）：内置题库按教材小节标了 sec，卡片上给一眼「这题是 3.2.1 循环语句」。
+   用中性灰底，不跟题型标签抢注意力。 */
+.qsec { padding: 2px 9px; border-radius: 99px; font-size: 12px; font-weight: 600; color: var(--dim); background: var(--fill); max-width: 46%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .qhead .sp { flex: 1; }
 .stem { margin: 0 0 18px; font: 600 19px/1.6 var(--hx-font-d); letter-spacing: -.015em; }
 .opts { display: grid; gap: 10px; }

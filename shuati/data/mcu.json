@@ -26,7 +26,9 @@
    "B"
   ],
   "explanation": "",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.1.1",
+  "secTitle": "什么是单片机"
  },
  {
   "id": "mcu-single-2",
@@ -55,7 +57,9 @@
    "B"
   ],
   "explanation": "",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.1.1",
+  "secTitle": "什么是单片机"
  },
  {
   "id": "mcu-single-3",
@@ -84,7 +88,9 @@
    "A"
   ],
   "explanation": "",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.1.2",
+  "secTitle": "单片机内部结构"
  },
  {
   "id": "mcu-single-4",
@@ -113,7 +119,9 @@
    "B"
   ],
   "explanation": "",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.1.2",
+  "secTitle": "单片机内部结构"
  },
  {
   "id": "mcu-single-5",
@@ -142,7 +150,9 @@
    "C"
   ],
   "explanation": "",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.1.2",
+  "secTitle": "单片机内部结构"
  },
  {
   "id": "mcu-single-6",
@@ -171,7 +181,9 @@
    "C"
   ],
   "explanation": "",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.2.1",
+  "secTitle": "单片机开发流程与工具"
  },
  {
   "id": "mcu-single-7",
@@ -200,7 +212,9 @@
    "B"
   ],
   "explanation": "",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.2.1",
+  "secTitle": "单片机开发流程与工具"
  },
  {
   "id": "mcu-single-8",
@@ -229,7 +243,9 @@
    "B"
   ],
   "explanation": "",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1",
+  "secTitle": "项目1 熟悉单片机操作环境"
  },
  {
   "id": "mcu-single-9",
@@ -258,7 +274,9 @@
    "B"
   ],
   "explanation": "",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1",
+  "secTitle": "项目1 熟悉单片机操作环境"
  },
  {
   "id": "mcu-single-10",
@@ -287,7 +305,9 @@
    "B"
   ],
   "explanation": "",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1",
+  "secTitle": "项目1 熟悉单片机操作环境"
  },
  {
   "id": "mcu-single-11",
@@ -316,7 +336,9 @@
    "B"
   ],
   "explanation": "",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.1.2",
+  "secTitle": "单片机内部结构"
  },
  {
   "id": "mcu-single-12",
@@ -345,7 +367,9 @@
    "D"
   ],
   "explanation": "",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.1.1",
+  "secTitle": "什么是单片机"
  },
  {
   "id": "mcu-single-13",
@@ -374,7 +398,9 @@
    "A"
   ],
   "explanation": "",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.2.1",
+  "secTitle": "单片机开发流程与工具"
  },
  {
   "id": "mcu-fill-1",
@@ -387,7 +413,9 @@
    "存储器（ROM 和 RAM）"
   ],
   "explanation": "",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.1.2",
+  "secTitle": "单片机内部结构"
  },
  {
   "id": "mcu-fill-2",
@@ -400,7 +428,9 @@
    "165"
   ],
   "explanation": "",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.1.2",
+  "secTitle": "单片机内部结构"
  },
  {
   "id": "mcu-fill-3",
@@ -412,7 +442,9 @@
    "64"
   ],
   "explanation": "",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.1.2",
+  "secTitle": "单片机内部结构"
  },
  {
   "id": "mcu-fill-4",
@@ -424,7 +456,9 @@
    ".hex"
   ],
   "explanation": "",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.2.1",
+  "secTitle": "单片机开发流程与工具"
  },
  {
   "id": "mcu-fill-5",
@@ -436,7 +470,9 @@
    "0x（或 0X）"
   ],
   "explanation": "",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.1.2",
+  "secTitle": "单片机内部结构"
  },
  {
   "id": "mcu-fill-6",
@@ -448,7 +484,9 @@
    "低"
   ],
   "explanation": "",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1",
+  "secTitle": "项目1 熟悉单片机操作环境"
  },
  {
   "id": "mcu-fill-7",
@@ -460,7 +498,9 @@
    "1024"
   ],
   "explanation": "",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.1.2",
+  "secTitle": "单片机内部结构"
  },
  {
   "id": "mcu-fill-8",
@@ -472,7 +512,9 @@
    "255"
   ],
   "explanation": "",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.1.1",
+  "secTitle": "什么是单片机"
  },
  {
   "id": "mcu-judgment-1",
@@ -493,7 +535,9 @@
    "F"
   ],
   "explanation": "",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.2.2",
+  "secTitle": "单片机的仿真学习与 ISP 下载实验板"
  },
  {
   "id": "mcu-judgment-2",
@@ -514,7 +558,9 @@
    "T"
   ],
   "explanation": "",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.2.1",
+  "secTitle": "单片机开发流程与工具"
  },
  {
   "id": "mcu-judgment-3",
@@ -535,7 +581,9 @@
    "F"
   ],
   "explanation": "",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.1.2",
+  "secTitle": "单片机内部结构"
  },
  {
   "id": "mcu-judgment-4",
@@ -556,7 +604,9 @@
    "T"
   ],
   "explanation": "",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.2.1",
+  "secTitle": "单片机开发流程与工具"
  },
  {
   "id": "mcu-judgment-5",
@@ -577,7 +627,9 @@
    "T"
   ],
   "explanation": "",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.2.1",
+  "secTitle": "单片机开发流程与工具"
  },
  {
   "id": "mcu-judgment-6",
@@ -598,7 +650,9 @@
    "F"
   ],
   "explanation": "",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1",
+  "secTitle": "项目1 熟悉单片机操作环境"
  },
  {
   "id": "mcu-judgment-7",
@@ -619,7 +673,9 @@
    "F"
   ],
   "explanation": "",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1",
+  "secTitle": "项目1 熟悉单片机操作环境"
  },
  {
   "id": "mcu-judgment-8",
@@ -640,7 +696,9 @@
    "T"
   ],
   "explanation": "",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.2.1",
+  "secTitle": "单片机开发流程与工具"
  },
  {
   "id": "mcu-judgment-9",
@@ -661,7 +719,9 @@
    "F"
   ],
   "explanation": "",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.2.1",
+  "secTitle": "单片机开发流程与工具"
  },
  {
   "id": "mcu-judgment-10",
@@ -682,82 +742,9 @@
    "F"
   ],
   "explanation": "",
-  "source": "项目1 熟悉单片机操作环境"
- },
- {
-  "id": "mcu-term-1",
-  "number": 32,
-  "type": "term",
-  "stem": "单片机",
-  "options": [],
-  "answer": [
-   "把中央处理器（CPU）、存储器（ROM、RAM）、输入/输出接口、定时/计数器等集成在一块芯片上构成的微型计算机，也叫微控制器（MCU）。"
-  ],
-  "explanation": "",
-  "source": "项目1 熟悉单片机操作环境"
- },
- {
-  "id": "mcu-term-2",
-  "number": 33,
-  "type": "term",
-  "stem": "HEX 文件",
-  "options": [],
-  "answer": [
-   "由编译器（如 Keil）生成的 Intel 十六进制格式的目标代码文件，可下载到单片机或在 Proteus 中加载仿真。"
-  ],
-  "explanation": "",
-  "source": "项目1 熟悉单片机操作环境"
- },
- {
-  "id": "mcu-term-3",
-  "number": 34,
-  "type": "term",
-  "stem": "限流电阻",
-  "options": [],
-  "answer": [
-   "串联在 LED 回路中的电阻，用来把电流限制在 LED 正常工作的范围内（约 5～20mA），保护 LED 和单片机端口。"
-  ],
-  "explanation": "",
-  "source": "项目1 熟悉单片机操作环境"
- },
- {
-  "id": "mcu-short-1",
-  "number": 35,
-  "type": "short",
-  "stem": "简述用 Keil C51 编写程序并在 Proteus 中仿真的主要步骤。",
-  "options": [],
-  "answer": [
-   "①新建工程，选择单片机型号（如 AT89C51）；②新建 .c 文件，编写程序并加入工程；③在工程选项 Output 中勾选 Create HEX File；④编译，改正错误直到 0 错误；⑤在 Proteus 中画好电路，双击单片机加载 .hex 文件，设置晶振频率；⑥运行仿真，观察现象。"
-  ],
-  "explanation": "",
   "source": "项目1 熟悉单片机操作环境",
-  "lines": 8
- },
- {
-  "id": "mcu-short-2",
-  "number": 36,
-  "type": "short",
-  "stem": "单片机有哪些特点？请列举其主要应用领域（至少 4 个）。",
-  "options": [],
-  "answer": [
-   "特点：体积小、功耗低、价格低、控制功能强、可靠性高、易于开发和扩展。应用：家用电器、智能仪器仪表、工业控制、汽车电子、通信设备、医疗设备、智能玩具等（答出 4 个即可）。"
-  ],
-  "explanation": "",
-  "source": "项目1 熟悉单片机操作环境",
-  "lines": 8
- },
- {
-  "id": "mcu-short-3",
-  "number": 37,
-  "type": "short",
-  "stem": "画出（或描述）一个 LED 由单片机 P1.0 控制的电路，并说明怎样让它闪烁。",
-  "options": [],
-  "answer": [
-   "LED 阳极经 220Ω～1kΩ 限流电阻接 +5V，阴极接 P1.0。P1.0 输出 0 时 LED 亮，输出 1 时灭。程序中循环执行：P1.0 = 0 → 延时 → P1.0 = 1 → 延时，即可闪烁，延时长短决定闪烁快慢。"
-  ],
-  "explanation": "",
-  "source": "项目1 熟悉单片机操作环境",
-  "lines": 8
+  "sec": "1",
+  "secTitle": "项目1 熟悉单片机操作环境"
  },
  {
   "id": "mcu-single-14",
@@ -786,7 +773,9 @@
    "C"
   ],
   "explanation": "",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.1",
+  "secTitle": "8051 的信号引脚"
  },
  {
   "id": "mcu-single-15",
@@ -815,7 +804,9 @@
    "A"
   ],
   "explanation": "",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.1",
+  "secTitle": "8051 的信号引脚"
  },
  {
   "id": "mcu-single-16",
@@ -844,7 +835,9 @@
    "C"
   ],
   "explanation": "",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.2.2",
+  "secTitle": "单片机复位电路"
  },
  {
   "id": "mcu-single-17",
@@ -873,7 +866,9 @@
    "B"
   ],
   "explanation": "",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.2.2",
+  "secTitle": "单片机复位电路"
  },
  {
   "id": "mcu-single-18",
@@ -902,7 +897,9 @@
    "A"
   ],
   "explanation": "",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.2.2",
+  "secTitle": "单片机复位电路"
  },
  {
   "id": "mcu-single-19",
@@ -931,7 +928,9 @@
    "D"
   ],
   "explanation": "",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.2.2",
+  "secTitle": "单片机复位电路"
  },
  {
   "id": "mcu-single-20",
@@ -960,7 +959,9 @@
    "A"
   ],
   "explanation": "",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.2.1",
+  "secTitle": "单片机时钟电路"
  },
  {
   "id": "mcu-single-21",
@@ -989,7 +990,9 @@
    "C"
   ],
   "explanation": "",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.2.1",
+  "secTitle": "单片机时钟电路"
  },
  {
   "id": "mcu-single-22",
@@ -1018,7 +1021,9 @@
    "A"
   ],
   "explanation": "",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.3.1",
+  "secTitle": "片内数据存储器"
  },
  {
   "id": "mcu-single-23",
@@ -1047,7 +1052,9 @@
    "A"
   ],
   "explanation": "",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.4.3",
+  "secTitle": "作为输出端口使用"
  },
  {
   "id": "mcu-single-24",
@@ -1076,7 +1083,9 @@
    "B"
   ],
   "explanation": "",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.4.4",
+  "secTitle": "I/O 端口的第二功能"
  },
  {
   "id": "mcu-single-25",
@@ -1105,7 +1114,9 @@
    "A"
   ],
   "explanation": "",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.3.1",
+  "secTitle": "片内数据存储器"
  },
  {
   "id": "mcu-single-26",
@@ -1134,7 +1145,9 @@
    "B"
   ],
   "explanation": "",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.3.1",
+  "secTitle": "片内数据存储器"
  },
  {
   "id": "mcu-single-27",
@@ -1163,7 +1176,9 @@
    "B"
   ],
   "explanation": "",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.3.1",
+  "secTitle": "片内数据存储器"
  },
  {
   "id": "mcu-single-28",
@@ -1192,7 +1207,9 @@
    "A"
   ],
   "explanation": "",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.3.2",
+  "secTitle": "片外数据存储器"
  },
  {
   "id": "mcu-single-29",
@@ -1221,7 +1238,9 @@
    "A"
   ],
   "explanation": "",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.2.1",
+  "secTitle": "单片机时钟电路"
  },
  {
   "id": "mcu-single-30",
@@ -1250,7 +1269,9 @@
    "B"
   ],
   "explanation": "",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.4.2",
+  "secTitle": "作为输入端口使用"
  },
  {
   "id": "mcu-single-31",
@@ -1279,7 +1300,9 @@
    "B"
   ],
   "explanation": "",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.4.3",
+  "secTitle": "作为输出端口使用"
  },
  {
   "id": "mcu-single-32",
@@ -1308,7 +1331,9 @@
    "B"
   ],
   "explanation": "",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.3.1",
+  "secTitle": "片内数据存储器"
  },
  {
   "id": "mcu-fill-9",
@@ -1320,7 +1345,9 @@
    "4"
   ],
   "explanation": "",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.1",
+  "secTitle": "8051 的信号引脚"
  },
  {
   "id": "mcu-fill-10",
@@ -1333,7 +1360,9 @@
    "复位"
   ],
   "explanation": "",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.2",
+  "secTitle": "单片机最小系统电路"
  },
  {
   "id": "mcu-fill-11",
@@ -1345,7 +1374,9 @@
    "XTAL2"
   ],
   "explanation": "",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.2.1",
+  "secTitle": "单片机时钟电路"
  },
  {
   "id": "mcu-fill-12",
@@ -1358,7 +1389,9 @@
    "07"
   ],
   "explanation": "",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.2.2",
+  "secTitle": "单片机复位电路"
  },
  {
   "id": "mcu-fill-13",
@@ -1371,7 +1404,9 @@
    "1"
   ],
   "explanation": "",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.2.1",
+  "secTitle": "单片机时钟电路"
  },
  {
   "id": "mcu-fill-14",
@@ -1383,7 +1418,9 @@
    "位寻址"
   ],
   "explanation": "",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.3.1",
+  "secTitle": "片内数据存储器"
  },
  {
   "id": "mcu-fill-15",
@@ -1395,7 +1432,9 @@
    "4"
   ],
   "explanation": "",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.3.1",
+  "secTitle": "片内数据存储器"
  },
  {
   "id": "mcu-fill-16",
@@ -1408,7 +1447,9 @@
    "TXD"
   ],
   "explanation": "",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.4.4",
+  "secTitle": "I/O 端口的第二功能"
  },
  {
   "id": "mcu-fill-17",
@@ -1420,7 +1461,9 @@
    "64"
   ],
   "explanation": "",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.3.3",
+  "secTitle": "程序存储器"
  },
  {
   "id": "mcu-fill-18",
@@ -1432,7 +1475,9 @@
    "上拉"
   ],
   "explanation": "",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.1",
+  "secTitle": "8051 的信号引脚"
  },
  {
   "id": "mcu-judgment-11",
@@ -1453,7 +1498,9 @@
    "T"
   ],
   "explanation": "",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.4.3",
+  "secTitle": "作为输出端口使用"
  },
  {
   "id": "mcu-judgment-12",
@@ -1474,7 +1521,9 @@
    "F"
   ],
   "explanation": "",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.2.2",
+  "secTitle": "单片机复位电路"
  },
  {
   "id": "mcu-judgment-13",
@@ -1495,7 +1544,9 @@
    "T"
   ],
   "explanation": "",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.2.1",
+  "secTitle": "单片机时钟电路"
  },
  {
   "id": "mcu-judgment-14",
@@ -1516,7 +1567,9 @@
    "F"
   ],
   "explanation": "",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.3.1",
+  "secTitle": "片内数据存储器"
  },
  {
   "id": "mcu-judgment-15",
@@ -1537,7 +1590,9 @@
    "T"
   ],
   "explanation": "",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.4.4",
+  "secTitle": "I/O 端口的第二功能"
  },
  {
   "id": "mcu-judgment-16",
@@ -1558,7 +1613,9 @@
    "F"
   ],
   "explanation": "",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.2.2",
+  "secTitle": "单片机复位电路"
  },
  {
   "id": "mcu-judgment-17",
@@ -1579,7 +1636,9 @@
    "T"
   ],
   "explanation": "",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.3.1",
+  "secTitle": "片内数据存储器"
  },
  {
   "id": "mcu-judgment-18",
@@ -1600,7 +1659,9 @@
    "F"
   ],
   "explanation": "",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.4.3",
+  "secTitle": "作为输出端口使用"
  },
  {
   "id": "mcu-judgment-19",
@@ -1621,7 +1682,9 @@
    "T"
   ],
   "explanation": "",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.3.1",
+  "secTitle": "片内数据存储器"
  },
  {
   "id": "mcu-judgment-20",
@@ -1642,119 +1705,9 @@
    "F"
   ],
   "explanation": "",
-  "source": "项目2 单片机硬件系统"
- },
- {
-  "id": "mcu-term-4",
-  "number": 77,
-  "type": "term",
-  "stem": "单片机最小系统",
-  "options": [],
-  "answer": [
-   "能使单片机正常工作的最简电路，由单片机芯片、电源、时钟电路（晶振和电容）、复位电路组成，使用片内程序存储器时 EA 接高电平。"
-  ],
-  "explanation": "",
-  "source": "项目2 单片机硬件系统"
- },
- {
-  "id": "mcu-term-5",
-  "number": 78,
-  "type": "term",
-  "stem": "机器周期",
-  "options": [],
-  "answer": [
-   "单片机完成一个基本操作所需的时间，8051 的一个机器周期等于 12 个时钟（振荡）周期；12MHz 晶振时为 1μs。"
-  ],
-  "explanation": "",
-  "source": "项目2 单片机硬件系统"
- },
- {
-  "id": "mcu-term-6",
-  "number": 79,
-  "type": "term",
-  "stem": "复位",
-  "options": [],
-  "answer": [
-   "使单片机回到初始状态的操作：RST 引脚保持 2 个机器周期以上的高电平，复位后 PC = 0000H，程序从头开始执行，P0～P3 = FFH。"
-  ],
-  "explanation": "",
-  "source": "项目2 单片机硬件系统"
- },
- {
-  "id": "mcu-term-7",
-  "number": 80,
-  "type": "term",
-  "stem": "哈佛结构",
-  "options": [],
-  "answer": [
-   "程序存储器和数据存储器分开、各自独立编址的存储器结构，8051 单片机采用这种结构。"
-  ],
-  "explanation": "",
-  "source": "项目2 单片机硬件系统"
- },
- {
-  "id": "mcu-term-8",
-  "number": 81,
-  "type": "term",
-  "stem": "上拉电阻",
-  "options": [],
-  "answer": [
-   "一端接电源、一端接信号线的电阻，使信号线在无驱动时保持高电平；8051 的 P0 口作输出时必须外接上拉电阻。"
-  ],
-  "explanation": "",
-  "source": "项目2 单片机硬件系统"
- },
- {
-  "id": "mcu-short-4",
-  "number": 82,
-  "type": "short",
-  "stem": "什么是单片机最小系统？它由哪几部分组成？各部分的作用是什么？",
-  "options": [],
-  "answer": [
-   "能让单片机工作的最简电路。①电源：提供 +5V 工作电压（40 脚 VCC，20 脚 GND）；②时钟电路：晶振（如 12MHz）和两个约 30pF 电容接 XTAL1、XTAL2，提供工作时钟；③复位电路：上电复位或按键复位，使单片机从初始状态开始运行；④EA 接高电平，使用片内程序存储器。"
-  ],
-  "explanation": "",
   "source": "项目2 单片机硬件系统",
-  "lines": 9
- },
- {
-  "id": "mcu-short-5",
-  "number": 83,
-  "type": "short",
-  "stem": "8051 单片机的 P0～P3 口在结构和使用上有什么区别？",
-  "options": [],
-  "answer": [
-   "P0：开漏输出，作通用 I/O 时要外接上拉电阻，扩展时作低 8 位地址/数据总线；P1：准双向口，只作通用 I/O；P2：准双向口，扩展时作高 8 位地址；P3：准双向口，每一位还有第二功能（RXD、TXD、INT0、INT1、T0、T1、WR、RD）。四个口作输入时都要先写 1。"
-  ],
-  "explanation": "",
-  "source": "项目2 单片机硬件系统",
-  "lines": 9
- },
- {
-  "id": "mcu-short-6",
-  "number": 84,
-  "type": "short",
-  "stem": "8051 单片机内部 RAM 的低 128 字节是怎样划分的？",
-  "options": [],
-  "answer": [
-   "00H～1FH：工作寄存器区，4 组 R0～R7；20H～2FH：位寻址区，共 128 位；30H～7FH：用户 RAM 区（一般数据和堆栈）。80H～FFH 为特殊功能寄存器区。"
-  ],
-  "explanation": "",
-  "source": "项目2 单片机硬件系统",
-  "lines": 7
- },
- {
-  "id": "mcu-short-7",
-  "number": 85,
-  "type": "short",
-  "stem": "单片机复位电路有哪两种常见形式？复位后单片机处于什么状态？",
-  "options": [],
-  "answer": [
-   "上电复位（电容和电阻组成，上电瞬间 RST 为高电平）和按键复位（按键按下使 RST 为高电平）。复位后 PC = 0000H，程序从 0000H 开始执行；SP = 07H；P0～P3 = FFH。"
-  ],
-  "explanation": "",
-  "source": "项目2 单片机硬件系统",
-  "lines": 7
+  "sec": "2.2.2",
+  "secTitle": "单片机复位电路"
  },
  {
   "id": "mcu-single-33",
@@ -1783,7 +1736,9 @@
    "B"
   ],
   "explanation": "",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.1.1",
+  "secTitle": "第一个 C 语言程序"
  },
  {
   "id": "mcu-single-34",
@@ -1812,7 +1767,9 @@
    "C"
   ],
   "explanation": "",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.3",
+  "secTitle": "运算符和表达式"
  },
  {
   "id": "mcu-single-35",
@@ -1841,7 +1798,9 @@
    "B"
   ],
   "explanation": "",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.1",
+  "secTitle": "数据类型"
  },
  {
   "id": "mcu-single-36",
@@ -1870,7 +1829,9 @@
    "B"
   ],
   "explanation": "",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.1",
+  "secTitle": "数据类型"
  },
  {
   "id": "mcu-single-37",
@@ -1899,7 +1860,9 @@
    "B"
   ],
   "explanation": "",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.1",
+  "secTitle": "数据类型"
  },
  {
   "id": "mcu-single-38",
@@ -1928,7 +1891,9 @@
    "B"
   ],
   "explanation": "",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.3",
+  "secTitle": "运算符和表达式"
  },
  {
   "id": "mcu-single-39",
@@ -1957,7 +1922,9 @@
    "B"
   ],
   "explanation": "",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.1",
+  "secTitle": "数据类型"
  },
  {
   "id": "mcu-single-40",
@@ -1986,7 +1953,9 @@
    "B"
   ],
   "explanation": "",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.3",
+  "secTitle": "运算符和表达式"
  },
  {
   "id": "mcu-single-41",
@@ -2015,7 +1984,9 @@
    "A"
   ],
   "explanation": "",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.3",
+  "secTitle": "运算符和表达式"
  },
  {
   "id": "mcu-single-42",
@@ -2044,7 +2015,9 @@
    "C"
   ],
   "explanation": "",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.2.3",
+  "secTitle": "循环语句"
  },
  {
   "id": "mcu-single-43",
@@ -2073,7 +2046,9 @@
    "B"
   ],
   "explanation": "",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.2.3",
+  "secTitle": "循环语句"
  },
  {
   "id": "mcu-single-44",
@@ -2102,7 +2077,9 @@
    "B"
   ],
   "explanation": "",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.2.2",
+  "secTitle": "选择语句"
  },
  {
   "id": "mcu-single-45",
@@ -2131,7 +2108,9 @@
    "B"
   ],
   "explanation": "",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.1",
+  "secTitle": "数据类型"
  },
  {
   "id": "mcu-single-46",
@@ -2160,7 +2139,9 @@
    "B"
   ],
   "explanation": "",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.1.2",
+  "secTitle": "C 语言的基本结构"
  },
  {
   "id": "mcu-single-47",
@@ -2189,7 +2170,9 @@
    "B"
   ],
   "explanation": "",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.3",
+  "secTitle": "运算符和表达式"
  },
  {
   "id": "mcu-single-48",
@@ -2218,7 +2201,9 @@
    "A"
   ],
   "explanation": "",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.1",
+  "secTitle": "数据类型"
  },
  {
   "id": "mcu-fill-19",
@@ -2231,7 +2216,9 @@
    "sbit"
   ],
   "explanation": "",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.1",
+  "secTitle": "数据类型"
  },
  {
   "id": "mcu-fill-20",
@@ -2244,7 +2231,9 @@
    "循环"
   ],
   "explanation": "",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.1.2",
+  "secTitle": "C 语言的基本结构"
  },
  {
   "id": "mcu-fill-21",
@@ -2257,7 +2246,9 @@
    "0x7F"
   ],
   "explanation": "",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.3",
+  "secTitle": "运算符和表达式"
  },
  {
   "id": "mcu-fill-22",
@@ -2270,7 +2261,9 @@
    "0xAA"
   ],
   "explanation": "",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.3",
+  "secTitle": "运算符和表达式"
  },
  {
   "id": "mcu-fill-23",
@@ -2283,7 +2276,9 @@
    "&"
   ],
   "explanation": "",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.3",
+  "secTitle": "运算符和表达式"
  },
  {
   "id": "mcu-fill-24",
@@ -2295,7 +2290,9 @@
    "void"
   ],
   "explanation": "",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.4.1",
+  "secTitle": "函数的分类和定义"
  },
  {
   "id": "mcu-fill-25",
@@ -2307,7 +2304,9 @@
    "_crol_"
   ],
   "explanation": "",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.3",
+  "secTitle": "运算符和表达式"
  },
  {
   "id": "mcu-fill-26",
@@ -2319,7 +2318,9 @@
    "0"
   ],
   "explanation": "",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.2.2",
+  "secTitle": "选择语句"
  },
  {
   "id": "mcu-fill-27",
@@ -2331,7 +2332,9 @@
    "//"
   ],
   "explanation": "",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.1.2",
+  "secTitle": "C 语言的基本结构"
  },
  {
   "id": "mcu-fill-28",
@@ -2343,7 +2346,9 @@
    "5"
   ],
   "explanation": "",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.2.3",
+  "secTitle": "循环语句"
  },
  {
   "id": "mcu-judgment-21",
@@ -2364,7 +2369,9 @@
    "T"
   ],
   "explanation": "",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.1.3",
+  "secTitle": "C 语言的特点"
  },
  {
   "id": "mcu-judgment-22",
@@ -2385,7 +2392,9 @@
    "T"
   ],
   "explanation": "",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.3",
+  "secTitle": "运算符和表达式"
  },
  {
   "id": "mcu-judgment-23",
@@ -2406,7 +2415,9 @@
    "F"
   ],
   "explanation": "",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.3",
+  "secTitle": "运算符和表达式"
  },
  {
   "id": "mcu-judgment-24",
@@ -2427,7 +2438,9 @@
    "T"
   ],
   "explanation": "",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.3",
+  "secTitle": "运算符和表达式"
  },
  {
   "id": "mcu-judgment-25",
@@ -2448,7 +2461,9 @@
    "F"
   ],
   "explanation": "",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.2.2",
+  "secTitle": "选择语句"
  },
  {
   "id": "mcu-judgment-26",
@@ -2469,7 +2484,9 @@
    "T"
   ],
   "explanation": "",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.2.3",
+  "secTitle": "循环语句"
  },
  {
   "id": "mcu-judgment-27",
@@ -2490,7 +2507,9 @@
    "F"
   ],
   "explanation": "",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.1",
+  "secTitle": "数据类型"
  },
  {
   "id": "mcu-judgment-28",
@@ -2511,7 +2530,9 @@
    "T"
   ],
   "explanation": "",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.2.1",
+  "secTitle": "表达式语句和复合语句"
  },
  {
   "id": "mcu-judgment-29",
@@ -2532,7 +2553,9 @@
    "T"
   ],
   "explanation": "",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.2.2",
+  "secTitle": "选择语句"
  },
  {
   "id": "mcu-judgment-30",
@@ -2553,170 +2576,9 @@
    "F"
   ],
   "explanation": "",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
- },
- {
-  "id": "mcu-term-9",
-  "number": 122,
-  "type": "term",
-  "stem": "sbit",
-  "options": [],
-  "answer": [
-   "C51 扩展的关键字，用来定义特殊功能寄存器中的某一位（如某个 I/O 引脚），例如 sbit LED = P1^0;，之后就可以用 LED 直接读写该引脚。"
-  ],
-  "explanation": "",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
- },
- {
-  "id": "mcu-term-10",
-  "number": 123,
-  "type": "term",
-  "stem": "循环左移",
-  "options": [],
-  "answer": [
-   "把一个数的各位依次向左移动，最高位移出后补到最低位，例如 _crol_(0xFE,1) = 0xFD，常用来实现流水灯。"
-  ],
-  "explanation": "",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
- },
- {
-  "id": "mcu-term-11",
-  "number": 124,
-  "type": "term",
-  "stem": "按键抖动",
-  "options": [],
-  "answer": [
-   "机械按键在按下或松开的瞬间，触点会产生 5～10ms 的不稳定通断；处理办法是检测到按下后延时约 10ms 再判断（软件消抖）。"
-  ],
-  "explanation": "",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
- },
- {
-  "id": "mcu-short-8",
-  "number": 125,
-  "type": "short",
-  "stem": "比较 a << 1 和 _crol_(a,1) 的区别，并以 a = 0xFE 为例说明结果。",
-  "options": [],
-  "answer": [
-   "a << 1 是逻辑左移，最高位移出丢弃，最低位补 0：0xFE << 1 = 0xFC（取 8 位）。_crol_(a,1) 是循环左移，最高位移到最低位：_crol_(0xFE,1) = 0xFD。流水灯一般用 _crol_，亮的那一位能一圈圈循环。"
-  ],
-  "explanation": "",
   "source": "项目3 并行 I/O 端口与 C51 语言",
-  "lines": 8
- },
- {
-  "id": "mcu-short-9",
-  "number": 126,
-  "type": "short",
-  "stem": "什么是按键抖动？在程序中怎样消除？",
-  "options": [],
-  "answer": [
-   "机械按键触点在按下和释放时会弹跳，产生一串持续 5～10ms 的抖动信号，可能被误判为多次按键。软件消抖：检测到按键按下后，延时约 10ms 再检测一次，仍为按下才确认；等按键释放后再继续。"
-  ],
-  "explanation": "",
-  "source": "项目3 并行 I/O 端口与 C51 语言",
-  "lines": 8
- },
- {
-  "id": "mcu-short-10",
-  "number": 127,
-  "type": "short",
-  "stem": "说明 C 语言中 while、do-while、for 三种循环语句的区别。",
-  "options": [],
-  "answer": [
-   "while：先判断条件，条件成立才执行循环体，可能一次都不执行；do-while：先执行一次循环体再判断，至少执行一次；for：把初值、条件、修改写在一起，适合循环次数已知的情况。三者都可用 break 跳出。"
-  ],
-  "explanation": "",
-  "source": "项目3 并行 I/O 端口与 C51 语言",
-  "lines": 8
- },
- {
-  "id": "mcu-prog-1",
-  "number": 128,
-  "type": "prog",
-  "stem": "阅读下面的程序，P1 口接 8 个 LED（D1 接 P1.0，低电平点亮），回答问题。",
-  "options": [],
-  "answer": [
-   "（1）D1 先亮（0xFE 只有最低位为 0）。（2）亮灯从 D1 向 D8 方向逐个移动；移到 D8 后又回到 D1，循环不停（循环左移，移出的位补回最低位）。（3）改成循环右移后亮灯从 D1 跳到 D8，再向 D1 方向移动，方向相反。"
-  ],
-  "explanation": "",
-  "source": "项目3 并行 I/O 端口与 C51 语言",
-  "code": "#include <reg51.h>\n#include <intrins.h>\nvoid delay(unsigned int x)\n{\n    while(x--);\n}\nvoid main()\n{\n    unsigned char a = 0xFE;\n    while(1)\n    {\n        P1 = a;\n        delay(30000);\n        a = _crol_(a, 1);\n    }\n}",
-  "sub": [
-   "上电后哪个灯先亮？",
-   "亮灯向哪个方向移动？移到 D8 之后会怎样？",
-   "若把 _crol_ 改成 _cror_，现象有什么变化？"
-  ]
- },
- {
-  "id": "mcu-prog-2",
-  "number": 129,
-  "type": "prog",
-  "stem": "阅读下面的程序（P1 接 8 个 LED，低电平点亮；按键 K1 接 P3.4，按下为低电平），回答问题。",
-  "options": [],
-  "answer": [
-   "（1）8 个 LED 全灭（P1 = 0xFF）。（2）0x0F = 0000 1111B，为 0 的是 P1.4～P1.7，低电平点亮，所以 D5～D8 亮。（3）把 P1 = 0x0F; 改为 P1 = 0xF0;。"
-  ],
-  "explanation": "",
-  "source": "项目3 并行 I/O 端口与 C51 语言",
-  "code": "#include <reg51.h>\nsbit K1 = P3^4;\nvoid main()\n{\n    while(1)\n    {\n        if(K1 == 0)\n            P1 = 0x0F;\n        else\n            P1 = 0xFF;\n    }\n}",
-  "sub": [
-   "K1 没有按下时，LED 的状态是什么？",
-   "按住 K1 时，哪几个 LED 亮？",
-   "若要按下时改为 D1～D4 亮，程序应怎样修改？"
-  ]
- },
- {
-  "id": "mcu-prog-3",
-  "number": 130,
-  "type": "prog",
-  "stem": "阅读下面的程序（P1 接 8 个 LED，低电平点亮），回答问题。",
-  "options": [],
-  "answer": [
-   "（1）8 个 LED 全亮、全灭交替闪烁，共闪 3 次，之后保持全灭。（2）让程序停在原地（死循环），不再往下执行。（3）main 函数执行完后程序会“跑飞”或从头重新执行，现象不可控。"
-  ],
-  "explanation": "",
-  "source": "项目3 并行 I/O 端口与 C51 语言",
-  "code": "#include <reg51.h>\nvoid delay(unsigned int x)\n{\n    while(x--);\n}\nvoid main()\n{\n    unsigned char i;\n    for(i = 0; i < 3; i++)\n    {\n        P1 = 0x00;\n        delay(30000);\n        P1 = 0xFF;\n        delay(30000);\n    }\n    while(1);\n}",
-  "sub": [
-   "程序运行后 LED 有什么现象？一共闪几次？",
-   "最后一句 while(1); 的作用是什么？",
-   "如果去掉 while(1);，在单片机上会出现什么问题？"
-  ]
- },
- {
-  "id": "mcu-prog-4",
-  "number": 131,
-  "type": "prog",
-  "stem": "下面的程序想让 P1 口的 8 个 LED 从 D1 到 D8 依次点亮（流水灯），但有错误，请找出并改正。",
-  "options": [],
-  "answer": [
-   "①函数定义为 Delay、调用为 delay，大小写不一致，应统一为 delay；②delay(30000) 后缺分号；③LED 低电平点亮，初值应为 0xFE（只有 D1 亮），0x01 会使 7 个灯亮；④从 D1 到 D8 应循环左移 _crol_，不是 _cror_。"
-  ],
-  "explanation": "",
-  "source": "项目3 并行 I/O 端口与 C51 语言",
-  "code": "#include <reg51.h>\n#include <intrins.h>\nvoid Delay(unsigned int x)\n{\n    while(x--);\n}\nvoid main()\n{\n    unsigned char a = 0x01;\n    while(1)\n    {\n        P1 = a;\n        delay(30000)\n        a = _cror_(a, 1);\n    }\n}",
-  "sub": [
-   "找出程序中的错误（至少 3 处）并改正。"
-  ]
- },
- {
-  "id": "mcu-prog-5",
-  "number": 132,
-  "type": "prog",
-  "stem": "阅读下面的程序（P1 接 8 个 LED，低电平点亮），回答问题。",
-  "options": [],
-  "answer": [
-   "（1）0xAA = 1010 1010B，为 0 的位是 P1.0、P1.2、P1.4、P1.6，所以 D1、D3、D5、D7 亮。（2）D1、D3、D5、D7 和 D2、D4、D6、D8 两组交替闪烁。（3）增大 delay 的参数（或多调用几次 delay）。"
-  ],
-  "explanation": "",
-  "source": "项目3 并行 I/O 端口与 C51 语言",
-  "code": "#include <reg51.h>\nvoid delay(unsigned int x)\n{\n    while(x--);\n}\nvoid main()\n{\n    while(1)\n    {\n        P1 = 0xAA;\n        delay(30000);\n        P1 = 0x55;\n        delay(30000);\n    }\n}",
-  "sub": [
-   "P1 = 0xAA 时哪些 LED 亮？",
-   "程序运行的整体现象是什么？",
-   "如何让交替的速度变慢？"
-  ]
+  "sec": "3.4.1",
+  "secTitle": "函数的分类和定义"
  },
  {
   "id": "mcu-single-49",
@@ -2745,7 +2607,9 @@
    "B"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-single-50",
@@ -2774,7 +2638,9 @@
    "B"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-single-51",
@@ -2803,7 +2669,9 @@
    "A"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-single-52",
@@ -2832,7 +2700,9 @@
    "B"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-single-53",
@@ -2861,7 +2731,9 @@
    "B"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.3",
+  "secTitle": "LED 数码管动态显示"
  },
  {
   "id": "mcu-single-54",
@@ -2890,7 +2762,9 @@
    "B"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.3",
+  "secTitle": "LED 数码管动态显示"
  },
  {
   "id": "mcu-single-55",
@@ -2919,7 +2793,9 @@
    "A"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.6",
+  "secTitle": "单片机与矩阵键盘接口"
  },
  {
   "id": "mcu-single-56",
@@ -2948,7 +2824,9 @@
    "B"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.6.2",
+  "secTitle": "矩阵式键盘按键的识别"
  },
  {
   "id": "mcu-single-57",
@@ -2977,7 +2855,9 @@
    "B"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-single-58",
@@ -3006,7 +2886,9 @@
    "C"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.4",
+  "secTitle": "LED 大屏幕显示器及接口"
  },
  {
   "id": "mcu-single-59",
@@ -3035,7 +2917,9 @@
    "A"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.6",
+  "secTitle": "单片机与矩阵键盘接口"
  },
  {
   "id": "mcu-single-60",
@@ -3064,7 +2948,9 @@
    "B"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.2.1",
+  "secTitle": "一维数组"
  },
  {
   "id": "mcu-single-61",
@@ -3093,7 +2979,9 @@
    "A"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.6.1",
+  "secTitle": "矩阵式键盘结构"
  },
  {
   "id": "mcu-fill-29",
@@ -3106,7 +2994,9 @@
    "阴"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-fill-30",
@@ -3119,7 +3009,9 @@
    "0xFF"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-fill-31",
@@ -3132,7 +3024,9 @@
    "动态"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-fill-32",
@@ -3145,7 +3039,9 @@
    "位（选通）"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.3",
+  "secTitle": "LED 数码管动态显示"
  },
  {
   "id": "mcu-fill-33",
@@ -3158,7 +3054,9 @@
    "列"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.6",
+  "secTitle": "单片机与矩阵键盘接口"
  },
  {
   "id": "mcu-fill-34",
@@ -3170,7 +3068,9 @@
    "code"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-fill-35",
@@ -3182,7 +3082,9 @@
    "0xA4"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.2.1",
+  "secTitle": "一维数组"
  },
  {
   "id": "mcu-fill-36",
@@ -3194,7 +3096,9 @@
    "0"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-judgment-31",
@@ -3215,7 +3119,9 @@
    "T"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-judgment-32",
@@ -3236,7 +3142,9 @@
    "T"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.2",
+  "secTitle": "LED 数码管静态显示"
  },
  {
   "id": "mcu-judgment-33",
@@ -3257,7 +3165,9 @@
    "F"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.3",
+  "secTitle": "LED 数码管动态显示"
  },
  {
   "id": "mcu-judgment-34",
@@ -3278,7 +3188,9 @@
    "F"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.3",
+  "secTitle": "LED 数码管动态显示"
  },
  {
   "id": "mcu-judgment-35",
@@ -3299,7 +3211,9 @@
    "F"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.2.1",
+  "secTitle": "一维数组"
  },
  {
   "id": "mcu-judgment-36",
@@ -3320,7 +3234,9 @@
    "T"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.6",
+  "secTitle": "单片机与矩阵键盘接口"
  },
  {
   "id": "mcu-judgment-37",
@@ -3341,7 +3257,9 @@
    "T"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.2.1",
+  "secTitle": "一维数组"
  },
  {
   "id": "mcu-judgment-38",
@@ -3362,154 +3280,9 @@
    "T"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
- },
- {
-  "id": "mcu-term-12",
-  "number": 162,
-  "type": "term",
-  "stem": "段码（字形码）",
-  "options": [],
-  "answer": [
-   "使数码管显示某个字符时，送到各段（a～g、dp）的二进制代码；例如共阳数码管显示“0”的段码为 0xC0。"
-  ],
-  "explanation": "",
-  "source": "项目4 显示与键盘接口"
- },
- {
-  "id": "mcu-term-13",
-  "number": 163,
-  "type": "term",
-  "stem": "动态显示",
-  "options": [],
-  "answer": [
-   "多位数码管的段线并联，单片机轮流选通每一位（位选）并送出该位段码，每位只亮很短时间，利用视觉暂留看起来同时显示。"
-  ],
-  "explanation": "",
-  "source": "项目4 显示与键盘接口"
- },
- {
-  "id": "mcu-term-14",
-  "number": 164,
-  "type": "term",
-  "stem": "矩阵键盘",
-  "options": [],
-  "answer": [
-   "把按键排列在行线和列线的交叉点上构成的键盘，如 4×4 矩阵键盘用 8 根 I/O 线连接 16 个按键，通过逐行扫描识别按键。"
-  ],
-  "explanation": "",
-  "source": "项目4 显示与键盘接口"
- },
- {
-  "id": "mcu-short-11",
-  "number": 165,
-  "type": "short",
-  "stem": "比较数码管静态显示和动态显示的优缺点。",
-  "options": [],
-  "answer": [
-   "静态显示：每位数码管单独占一组 I/O 口，显示稳定、亮度高、程序简单，但占用口线多。动态显示：各位段线并联，轮流点亮，占用口线少、成本低，但需要不停扫描，占用 CPU 时间，亮度略低，扫描太慢会闪烁。"
-  ],
-  "explanation": "",
   "source": "项目4 显示与键盘接口",
-  "lines": 8
- },
- {
-  "id": "mcu-short-12",
-  "number": 166,
-  "type": "short",
-  "stem": "简述 4×4 矩阵键盘逐行扫描法识别按键的过程。",
-  "options": [],
-  "answer": [
-   "①让所有行线输出 0，读列线，若有列线为 0 说明有键按下；②延时消抖后再确认；③逐行输出 0（其余行为 1），读列线，哪一列为 0 就确定按下键所在的行和列；④由行号和列号算出键值；⑤等按键释放。"
-  ],
-  "explanation": "",
-  "source": "项目4 显示与键盘接口",
-  "lines": 9
- },
- {
-  "id": "mcu-short-13",
-  "number": 167,
-  "type": "short",
-  "stem": "说明 8 路抢答器的工作过程（按键接 P0，共阳数码管接 P1）。",
-  "options": [],
-  "answer": [
-   "上电时数码管显示初始值（如 0 或“-”）。程序不断读 P0，若某位为 0，说明对应选手按下，把选手号的段码送 P1 显示；显示后锁定，其他选手再按无效，直到主持人复位开始下一轮。"
-  ],
-  "explanation": "",
-  "source": "项目4 显示与键盘接口",
-  "lines": 8
- },
- {
-  "id": "mcu-prog-6",
-  "number": 168,
-  "type": "prog",
-  "stem": "阅读下面的程序（共阳极数码管接 P1），回答问题。",
-  "options": [],
-  "answer": [
-   "（1）共阳数码管 0～9 的段码；code 表示存放在程序存储器（ROM）中，节省 RAM。（2）数码管循环显示 0、1、2……9，再从 0 开始。（3）改为 for(i = 10; i > 0; i--) { P1 = tab[i - 1]; delay(50000); }（i 是 unsigned char，不能写成 for(i = 9; i >= 0; i--)，否则 i 永远不小于 0，变成死循环）。"
-  ],
-  "explanation": "",
-  "source": "项目4 显示与键盘接口",
-  "code": "#include <reg51.h>\nunsigned char code tab[] = {0xC0,0xF9,0xA4,0xB0,0x99,\n                            0x92,0x82,0xF8,0x80,0x90};\nvoid delay(unsigned int x)\n{\n    while(x--);\n}\nvoid main()\n{\n    unsigned char i;\n    while(1)\n    {\n        for(i = 0; i < 10; i++)\n        {\n            P1 = tab[i];\n            delay(50000);\n        }\n    }\n}",
-  "sub": [
-   "数组 tab 中存放的是什么？关键字 code 的作用是什么？",
-   "程序运行的现象是什么？",
-   "若要倒着从 9 显示到 0，for 语句应怎样修改？"
-  ]
- },
- {
-  "id": "mcu-prog-7",
-  "number": 169,
-  "type": "prog",
-  "stem": "阅读下面的 8 路抢答器片段（按键 S0～S7 接 P0.0～P0.7，按下为 0；共阳数码管接 P1），回答问题。",
-  "options": [],
-  "answer": [
-   "（1）显示 0（tab[0] = 0xC0）。（2）S2 接 P0.2，按下时 P0 = 0xFB，数码管显示 3。（3）先向 P0 写 1，使引脚可以正确读入按键状态（准备读引脚）。"
-  ],
-  "explanation": "",
-  "source": "项目4 显示与键盘接口",
-  "code": "unsigned char code tab[] = {0xC0,0xF9,0xA4,0xB0,0x99,\n                            0x92,0x82,0xF8,0x80};\nvoid main()\n{\n    P0 = 0xFF;\n    P1 = tab[0];\n    while(1)\n    {\n        switch(P0)\n        {\n            case 0xFE: P1 = tab[1]; break;\n            case 0xFD: P1 = tab[2]; break;\n            case 0xFB: P1 = tab[3]; break;\n            /* ……其余选手类似…… */\n        }\n    }\n}",
-  "sub": [
-   "上电后数码管显示什么？",
-   "按下 S2 时 P0 的值是多少？数码管显示几？",
-   "程序开头 P0 = 0xFF; 的作用是什么？"
-  ]
- },
- {
-  "id": "mcu-prog-8",
-  "number": 170,
-  "type": "prog",
-  "stem": "下面是两位数码管动态显示的程序片段（段码送 P0，位选 W1、W2 低电平有效），回答问题。",
-  "options": [],
-  "answer": [
-   "（1）W1 显示十位 4（47/10），W2 显示个位 7（47%10）。（2）先关掉当前位，避免送下一位段码时出现“鬼影”（串位显示）。（3）扫描太慢，看到两位数码管轮流闪烁，而不是同时稳定显示。"
-  ],
-  "explanation": "",
-  "source": "项目4 显示与键盘接口",
-  "code": "sbit W1 = P2^0;\nsbit W2 = P2^1;\nvoid show(unsigned char n)\n{\n    P0 = tab[n / 10];\n    W1 = 0;  delay(500);  W1 = 1;\n    P0 = tab[n % 10];\n    W2 = 0;  delay(500);  W2 = 1;\n}",
-  "sub": [
-   "n = 47 时，W1 和 W2 分别显示什么数字？",
-   "为什么每位显示后要把位选恢复为 1？",
-   "如果 delay 的参数很大（如 50000），会看到什么现象？"
-  ]
- },
- {
-  "id": "mcu-prog-9",
-  "number": 171,
-  "type": "prog",
-  "stem": "阅读下面的程序（共阳数码管接 P1，按键 K 接 P3.4，按下为 0），回答问题。",
-  "options": [],
-  "answer": [
-   "（1）按键计数：每按一次 K，数码管显示的数加 1，9 之后回到 0。（2）延时消抖，避免按键抖动被误判。（3）等待按键松开；去掉后按住不放时 n 会不停增加，数字快速跳变。"
-  ],
-  "explanation": "",
-  "source": "项目4 显示与键盘接口",
-  "code": "#include <reg51.h>\nsbit K = P3^4;\nunsigned char code tab[] = {0xC0,0xF9,0xA4,0xB0,0x99,\n                            0x92,0x82,0xF8,0x80,0x90};\nvoid delay(unsigned int x){ while(x--); }\nvoid main()\n{\n    unsigned char n = 0;\n    P1 = tab[n];\n    while(1)\n    {\n        if(K == 0)\n        {\n            delay(1000);\n            if(K == 0)\n            {\n                n++;\n                if(n > 9) n = 0;\n                P1 = tab[n];\n                while(K == 0);\n            }\n        }\n    }\n}",
-  "sub": [
-   "程序实现了什么功能？",
-   "两次判断 K == 0 中间的 delay(1000) 起什么作用？",
-   "while(K == 0); 起什么作用？去掉会怎样？"
-  ]
+  "sec": "4.6",
+  "secTitle": "单片机与矩阵键盘接口"
  },
  {
   "id": "mcu-single-62",
@@ -3538,7 +3311,9 @@
    "B"
   ],
   "explanation": "",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.2.2",
+  "secTitle": "51 单片机中断系统的结构"
  },
  {
   "id": "mcu-single-63",
@@ -3567,7 +3342,9 @@
    "B"
   ],
   "explanation": "",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.2",
+  "secTitle": "中断系统"
  },
  {
   "id": "mcu-single-64",
@@ -3596,7 +3373,9 @@
    "B"
   ],
   "explanation": "",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.2",
+  "secTitle": "中断系统"
  },
  {
   "id": "mcu-single-65",
@@ -3625,7 +3404,9 @@
    "B"
   ],
   "explanation": "",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.1.1",
+  "secTitle": "定时/计数器的结构"
  },
  {
   "id": "mcu-single-66",
@@ -3654,7 +3435,9 @@
    "C"
   ],
   "explanation": "",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.1.2",
+  "secTitle": "定时/计数器的工作方式"
  },
  {
   "id": "mcu-single-67",
@@ -3683,7 +3466,9 @@
    "A"
   ],
   "explanation": "",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.2",
+  "secTitle": "中断系统"
  },
  {
   "id": "mcu-single-68",
@@ -3712,7 +3497,9 @@
    "B"
   ],
   "explanation": "",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.1.2",
+  "secTitle": "定时/计数器的工作方式"
  },
  {
   "id": "mcu-single-69",
@@ -3741,7 +3528,9 @@
    "A"
   ],
   "explanation": "",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.1.1",
+  "secTitle": "定时/计数器的结构"
  },
  {
   "id": "mcu-fill-37",
@@ -3754,7 +3543,9 @@
    "串行口"
   ],
   "explanation": "",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.2.2",
+  "secTitle": "51 单片机中断系统的结构"
  },
  {
   "id": "mcu-fill-38",
@@ -3767,7 +3558,9 @@
    "TCON"
   ],
   "explanation": "",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.1.2",
+  "secTitle": "定时/计数器的工作方式"
  },
  {
   "id": "mcu-fill-39",
@@ -3780,7 +3573,9 @@
    "EA"
   ],
   "explanation": "",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.2.2",
+  "secTitle": "51 单片机中断系统的结构"
  },
  {
   "id": "mcu-fill-40",
@@ -3793,7 +3588,9 @@
    "0xB0"
   ],
   "explanation": "",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.1.2",
+  "secTitle": "定时/计数器的工作方式"
  },
  {
   "id": "mcu-fill-41",
@@ -3805,7 +3602,9 @@
    "1"
   ],
   "explanation": "",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.1.1",
+  "secTitle": "定时/计数器的结构"
  },
  {
   "id": "mcu-fill-42",
@@ -3817,7 +3616,9 @@
    "下降沿（边沿）"
   ],
   "explanation": "",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.2",
+  "secTitle": "中断系统"
  },
  {
   "id": "mcu-judgment-39",
@@ -3838,7 +3639,9 @@
    "T"
   ],
   "explanation": "",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.2.2",
+  "secTitle": "51 单片机中断系统的结构"
  },
  {
   "id": "mcu-judgment-40",
@@ -3859,7 +3662,9 @@
    "F"
   ],
   "explanation": "",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.1.2",
+  "secTitle": "定时/计数器的工作方式"
  },
  {
   "id": "mcu-judgment-41",
@@ -3880,7 +3685,9 @@
    "F"
   ],
   "explanation": "",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.2",
+  "secTitle": "中断系统"
  },
  {
   "id": "mcu-judgment-42",
@@ -3901,7 +3708,9 @@
    "T"
   ],
   "explanation": "",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.1.1",
+  "secTitle": "定时/计数器的结构"
  },
  {
   "id": "mcu-judgment-43",
@@ -3922,7 +3731,9 @@
    "T"
   ],
   "explanation": "",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.2",
+  "secTitle": "中断系统"
  },
  {
   "id": "mcu-judgment-44",
@@ -3943,91 +3754,9 @@
    "T"
   ],
   "explanation": "",
-  "source": "项目5 定时与中断系统"
- },
- {
-  "id": "mcu-term-15",
-  "number": 192,
-  "type": "term",
-  "stem": "中断",
-  "options": [],
-  "answer": [
-   "CPU 正在执行程序时，出现了需要立即处理的事件，CPU 暂停当前程序，转去执行处理该事件的中断服务程序，处理完后再返回原来的地方继续执行。"
-  ],
-  "explanation": "",
-  "source": "项目5 定时与中断系统"
- },
- {
-  "id": "mcu-term-16",
-  "number": 193,
-  "type": "term",
-  "stem": "中断源",
-  "options": [],
-  "answer": [
-   "能向 CPU 发出中断请求的来源，8051 有 5 个：外部中断 0、定时器 T0、外部中断 1、定时器 T1、串行口。"
-  ],
-  "explanation": "",
-  "source": "项目5 定时与中断系统"
- },
- {
-  "id": "mcu-short-14",
-  "number": 194,
-  "type": "short",
-  "stem": "简述 8051 定时器方式 1 定时的初始化步骤（以 T0 为例）。",
-  "options": [],
-  "answer": [
-   "①设置 TMOD（如 TMOD = 0x01）；②计算并装入初值 TH0、TL0（如 50ms：TH0 = 0x3C，TL0 = 0xB0）；③开中断：ET0 = 1，EA = 1；④启动定时器：TR0 = 1；⑤在中断函数（interrupt 1）中重装初值，并完成定时要做的事。"
-  ],
-  "explanation": "",
   "source": "项目5 定时与中断系统",
-  "lines": 9
- },
- {
-  "id": "mcu-short-15",
-  "number": 195,
-  "type": "short",
-  "stem": "什么是中断？采用中断方式有什么好处？",
-  "options": [],
-  "answer": [
-   "中断是 CPU 暂停当前程序去处理紧急事件、处理完再返回的过程。好处：CPU 不必一直查询等待，提高效率；能对外部事件实时响应；便于实现定时、计数等功能。"
-  ],
-  "explanation": "",
-  "source": "项目5 定时与中断系统",
-  "lines": 7
- },
- {
-  "id": "mcu-prog-10",
-  "number": 196,
-  "type": "prog",
-  "stem": "阅读下面的程序（12MHz 晶振，LED 接 P1.0，低电平点亮），回答问题。",
-  "options": [],
-  "answer": [
-   "（1）初值 0x3CB0 = 15536，计 65536 - 15536 = 50000 个机器周期，12MHz 时为 50ms。（2）中断 20 次翻转一次，20 × 50ms = 1s。（3）方式 1 不会自动重装，溢出后计数从 0 开始，不重装下一次就不是 50ms。"
-  ],
-  "explanation": "",
-  "source": "项目5 定时与中断系统",
-  "code": "#include <reg51.h>\nsbit LED = P1^0;\nunsigned char cnt = 0;\nvoid main()\n{\n    TMOD = 0x01;\n    TH0 = 0x3C;  TL0 = 0xB0;\n    ET0 = 1;  EA = 1;  TR0 = 1;\n    while(1);\n}\nvoid t0_isr(void) interrupt 1\n{\n    TH0 = 0x3C;  TL0 = 0xB0;\n    cnt++;\n    if(cnt == 20)\n    {\n        cnt = 0;\n        LED = ~LED;\n    }\n}",
-  "sub": [
-   "定时器每隔多长时间中断一次？",
-   "LED 每隔多长时间翻转一次？",
-   "中断函数里为什么要重新给 TH0、TL0 赋值？"
-  ]
- },
- {
-  "id": "mcu-prog-11",
-  "number": 197,
-  "type": "prog",
-  "stem": "下面的程序想用外部中断 0（按键接 P3.2）每按一次就让 P1 口的灯取反，请找出缺少或错误的地方。",
-  "options": [],
-  "answer": [
-   "①没有开总中断，要加 EA = 1;；②外部中断 0 的中断号是 0，应写 interrupt 0（interrupt 2 是外部中断 1）。IT0 = 1 设为下降沿触发是对的。"
-  ],
-  "explanation": "",
-  "source": "项目5 定时与中断系统",
-  "code": "#include <reg51.h>\nvoid main()\n{\n    P1 = 0xFF;\n    IT0 = 1;\n    EX0 = 1;\n    while(1);\n}\nvoid int0_isr(void) interrupt 2\n{\n    P1 = ~P1;\n}",
-  "sub": [
-   "指出程序中的问题并改正。"
-  ]
+  "sec": "5.2",
+  "secTitle": "中断系统"
  },
  {
   "id": "mcu-single-70",
@@ -4056,7 +3785,9 @@
    "D"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-single-71",
@@ -4085,7 +3816,9 @@
    "A"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-single-72",
@@ -4114,7 +3847,9 @@
    "D"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-single-73",
@@ -4143,7 +3878,9 @@
    "C"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-single-74",
@@ -4172,7 +3909,9 @@
    "A"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-single-75",
@@ -4201,7 +3940,9 @@
    "A"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-single-76",
@@ -4230,7 +3971,9 @@
    "D"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-single-77",
@@ -4259,7 +4002,9 @@
    "A"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-single-78",
@@ -4288,7 +4033,9 @@
    "D"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-single-79",
@@ -4317,7 +4064,9 @@
    "A"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-single-80",
@@ -4346,7 +4095,9 @@
    "B"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-single-81",
@@ -4375,7 +4126,9 @@
    "C"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-single-82",
@@ -4404,7 +4157,9 @@
    "D"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-single-83",
@@ -4433,7 +4188,9 @@
    "A"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-single-84",
@@ -4462,7 +4219,9 @@
    "D"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-single-85",
@@ -4491,7 +4250,9 @@
    "A"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-single-86",
@@ -4520,7 +4281,9 @@
    "D"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-single-87",
@@ -4549,7 +4312,9 @@
    "B"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-single-88",
@@ -4578,7 +4343,9 @@
    "D"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-single-89",
@@ -4607,7 +4374,9 @@
    "C"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-single-90",
@@ -4636,7 +4405,9 @@
    "D"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-single-91",
@@ -4665,7 +4436,9 @@
    "D"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-fill-43",
@@ -4678,7 +4451,9 @@
    "-"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-fill-44",
@@ -4691,7 +4466,9 @@
    "2"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-fill-45",
@@ -4704,7 +4481,9 @@
    "H"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-fill-46",
@@ -4717,7 +4496,9 @@
    "7"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-fill-47",
@@ -4730,7 +4511,9 @@
    "P"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-fill-48",
@@ -4743,7 +4526,9 @@
    "1"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-fill-49",
@@ -4755,7 +4540,9 @@
    "83（或 0x83、83H）"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-fill-50",
@@ -4767,7 +4554,9 @@
    "6E（或 0x6E、6EH）"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-fill-51",
@@ -4779,7 +4568,9 @@
    "A4（或 0xA4、A4H）"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-fill-52",
@@ -4791,7 +4582,9 @@
    "38（或 0x38、38H）"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-fill-53",
@@ -4803,7 +4596,9 @@
    "8C（或 0x8C、8CH）"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-fill-54",
@@ -4815,7 +4610,9 @@
    "77（或 0x77、77H）"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-fill-55",
@@ -4828,7 +4625,9 @@
    "6E（或 0x6E、6EH）"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-fill-56",
@@ -4841,7 +4640,9 @@
    "92（或 0x92、92H）"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-fill-57",
@@ -4854,7 +4655,9 @@
    "31（或 0x31、31H）"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-fill-58",
@@ -4867,7 +4670,9 @@
    "BF（或 0xBF、BFH）"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-fill-59",
@@ -4879,7 +4684,9 @@
    "1001 0001（或 10010001）"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-fill-60",
@@ -4891,7 +4698,9 @@
    "0000 0110（或 00000110）"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-fill-61",
@@ -4903,7 +4712,9 @@
    "1001 1001（或 10011001）"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-fill-62",
@@ -4915,7 +4726,9 @@
    "0011 1111（或 00111111）"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-judgment-45",
@@ -4936,7 +4749,9 @@
    "T"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-judgment-46",
@@ -4957,7 +4772,9 @@
    "T"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-judgment-47",
@@ -4978,7 +4795,9 @@
    "T"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-judgment-48",
@@ -4999,7 +4818,9 @@
    "F"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-judgment-49",
@@ -5020,7 +4841,9 @@
    "F"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-judgment-50",
@@ -5041,7 +4864,9 @@
    "F"
   ],
   "explanation": "",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-p1-001",
@@ -5070,7 +4895,9 @@
    "B"
   ],
   "explanation": "教材 1.1.1：单片机又叫微控制器（Micro-Controller-Unit，简称 MCU）。",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.1.1",
+  "secTitle": "什么是单片机"
  },
  {
   "id": "mcu-p1-002",
@@ -5082,19 +4909,9 @@
    "中断系统"
   ],
   "explanation": "教材 1.1.1：单片机内部功能部件包括 CPU、存储器、基本 I/O 接口电路、定时/计数器和中断系统等。",
-  "source": "项目1 熟悉单片机操作环境"
- },
- {
-  "id": "mcu-p1-003",
-  "number": 248,
-  "type": "term",
-  "stem": "名词解释：单片机。",
-  "options": [],
-  "answer": [
-   "单片机是单片微型计算机（Single Chip Microcomputer）的简称，指集成在一个芯片上的微型计算机：它的各种功能部件，包括 CPU（中央处理器）、存储器、基本输入/输出接口电路、定时/计数器和中断系统等，都制作在一块集成芯片上，构成一个完整的微型计算机。由于它的结构与指令功能都是按照工业控制要求设计的，故又叫微控制器（MCU）。单片机实质上是一个芯片，具有结构简单、控制功能强、可靠性高、体积小、价格低等优点。"
-  ],
-  "explanation": "教材 1.1.1「什么是单片机」。",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.1.2",
+  "secTitle": "单片机内部结构"
  },
  {
   "id": "mcu-p1-004",
@@ -5123,7 +4940,9 @@
    "A"
   ],
   "explanation": "教材表 1.1：中央处理器（CPU）由运算器和控制器组成；亦为思考与练习题 1.1 第（1）题。",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.1.2",
+  "secTitle": "单片机内部结构"
  },
  {
   "id": "mcu-p1-005",
@@ -5152,7 +4971,9 @@
    "C"
   ],
   "explanation": "教材 1.1.1 第 3 点：本书以 51 系列 8 位单片机为研究对象；亦为思考与练习题 1.1 第（2）题。",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.1.1",
+  "secTitle": "什么是单片机"
  },
  {
   "id": "mcu-p1-006",
@@ -5181,7 +5002,9 @@
    "C"
   ],
   "explanation": "教材任务1-2 小知识：单片机能够直接执行的程序是二进制程序；亦为思考与练习题 1.1 第（3）题。",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.1",
+  "secTitle": "低压断路器的拆装与检修"
  },
  {
   "id": "mcu-p1-007",
@@ -5202,7 +5025,9 @@
    "T"
   ],
   "explanation": "教材 1.1.1 第 3 点「51 单片机」：包括 Intel MCS-51 系列及其他厂商生产的兼容 MCS-51 内核的增强型 8051 单片机。",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.1.1",
+  "secTitle": "什么是单片机"
  },
  {
   "id": "mcu-p1-008",
@@ -5223,19 +5048,9 @@
    "F"
   ],
   "explanation": "教材 1.1.1：8 位单片机在性能价格比上占有优势，且 8 位增强型机在速度和功能上可挑战 16 位机，因此 8 位单片机仍是当前单片机的主流机型。",
-  "source": "项目1 熟悉单片机操作环境"
- },
- {
-  "id": "mcu-p1-009",
-  "number": 254,
-  "type": "short",
-  "stem": "什么是单片机？它由哪几部分组成？",
-  "options": [],
-  "answer": [
-   "单片机是单片微型计算机的简称，指集成在一个芯片上的微型计算机，即把微型计算机的各功能部件集成在一块芯片上，构成一个完整的微型计算机（又叫微控制器 MCU）。它由中央处理器 CPU（含运算器和控制器）、存储器（RAM 和 ROM）、并行 I/O 口、串行口、定时/计数器、中断系统和时钟电路等部分组成。"
-  ],
-  "explanation": "教材 1.1.1 与表 1.1；亦为思考与练习题 1.3 第（1）题。",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.1.1",
+  "secTitle": "什么是单片机"
  },
  {
   "id": "mcu-p1-010",
@@ -5264,7 +5079,9 @@
    "C"
   ],
   "explanation": "教材表 1.1 与图 1.22：8051 内部共有 4 KB 掩膜 ROM，只能读不能写，掉电后数据不丢失。",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.1.2",
+  "secTitle": "单片机内部结构"
  },
  {
   "id": "mcu-p1-011",
@@ -5293,7 +5110,9 @@
    "B"
   ],
   "explanation": "教材表 1.1：高 128 个单元被专用寄存器占用，低 128 个单元供用户使用，通常所说的内部数据存储器就是指低 128 个单元。",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.1.2",
+  "secTitle": "单片机内部结构"
  },
  {
   "id": "mcu-p1-012",
@@ -5322,7 +5141,9 @@
    "B"
   ],
   "explanation": "教材表 1.1：8051 内部有四个 8 位并行 I/O 接口，称为 P0、P1、P2 和 P3。",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.1.1",
+  "secTitle": "什么是单片机"
  },
  {
   "id": "mcu-p1-013",
@@ -5351,7 +5172,9 @@
    "B"
   ],
   "explanation": "教材表 1.1：8051 内部有两个 16 位的定时/计数器，可实现定时或计数功能。",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.1.1",
+  "secTitle": "什么是单片机"
  },
  {
   "id": "mcu-p1-014",
@@ -5380,7 +5203,9 @@
    "A"
   ],
   "explanation": "教材表 1.1：8051 内部共有 5 个中断源，分为高级和低级两个优先级别。",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.1.2",
+  "secTitle": "单片机内部结构"
  },
  {
   "id": "mcu-p1-015",
@@ -5394,7 +5219,9 @@
    "2"
   ],
   "explanation": "教材表 1.1「单片机的内部结构与功能」。",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.1.1",
+  "secTitle": "什么是单片机"
  },
  {
   "id": "mcu-p1-016",
@@ -5408,7 +5235,9 @@
    "128"
   ],
   "explanation": "教材表 1.1：8051 内部共有 256 个 RAM 单元，可读可写，掉电后数据丢失。",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.1.2",
+  "secTitle": "单片机内部结构"
  },
  {
   "id": "mcu-p1-017",
@@ -5437,7 +5266,9 @@
    "B"
   ],
   "explanation": "教材表 1.1 时钟电路：8051 内部有时钟电路，只需外接石英晶体和微调电容，晶振频率通常选择 6 MHz、12 MHz 或 11.0592 MHz。",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.1.2",
+  "secTitle": "单片机内部结构"
  },
  {
   "id": "mcu-p1-018",
@@ -5451,31 +5282,9 @@
    "硬件"
   ],
   "explanation": "教材 1.1.1 第 2 点「单片机应用系统」；亦为思考与练习题 1.2 第（1）题。",
-  "source": "项目1 熟悉单片机操作环境"
- },
- {
-  "id": "mcu-p1-019",
-  "number": 264,
-  "type": "short",
-  "stem": "什么是单片机应用系统？它由哪两部分组成？二者关系如何？",
-  "options": [],
-  "answer": [
-   "单片机应用系统是以单片机为核心，配以输入、输出、显示等外围接口电路和控制程序，能实现一种或多种功能的实用系统。它由硬件和控制程序（软件）两部分组成，二者相互依赖、缺一不可：硬件是应用系统的基础，控制程序在硬件的基础上对其资源进行合理调配和使用，控制其按一定顺序完成各种时序、运算或动作，从而实现应用系统所要求的任务。"
-  ],
-  "explanation": "教材 1.1.1 第 2 点与图 1.21；亦为思考与练习题 1.3 第（2）题。",
-  "source": "项目1 熟悉单片机操作环境"
- },
- {
-  "id": "mcu-p1-020",
-  "number": 265,
-  "type": "term",
-  "stem": "名词解释：单片机最小系统。",
-  "options": [],
-  "answer": [
-   "单片机最小系统是指能够让单片机工作的最小硬件电路。除了单片机本身之外，最小系统还包括复位电路和时钟电路（另需电源与接地）：复位电路用于将单片机内部各电路的状态恢复到初始值；时钟电路为单片机工作提供基本时钟，因为单片机内部由大量时序电路构成，没有时钟脉冲的跳动各部分将无法工作。"
-  ],
-  "explanation": "教材任务1-2 小知识（图 1.23 为 51 单片机的典型最小系统电路）。",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.1.1",
+  "secTitle": "什么是单片机"
  },
  {
   "id": "mcu-p1-021",
@@ -5488,7 +5297,9 @@
    "时钟"
   ],
   "explanation": "教材任务1-2 小知识；亦为思考与练习题 1.2 第（2）题。",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.1",
+  "secTitle": "低压断路器的拆装与检修"
  },
  {
   "id": "mcu-p1-022",
@@ -5500,7 +5311,9 @@
    "时钟（外接石英晶体和微调电容）"
   ],
   "explanation": "教材表 1.1 时钟电路与图 1.23：晶体振荡器接 XTAL1（19 脚）与 XTAL2（18 脚）；亦为思考与练习题 1.2 第（4）题。",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.1.2",
+  "secTitle": "单片机内部结构"
  },
  {
   "id": "mcu-p1-023",
@@ -5529,7 +5342,9 @@
    "B"
   ],
   "explanation": "教材任务1-2：EA 引脚连接 +5 V，表示程序将下载到单片机内部程序存储器中（参见 2.1 节引脚说明）。",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.2.1",
+  "secTitle": "单片机开发流程与工具"
  },
  {
   "id": "mcu-p1-024",
@@ -5550,7 +5365,9 @@
    "T"
   ],
   "explanation": "教材任务1-2（书页 15 首段）：P1.0 与发光二极管阴极连接，输出低电平时点亮，输出高电平时熄灭。",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1",
+  "secTitle": "项目1 熟悉单片机操作环境"
  },
  {
   "id": "mcu-p1-025",
@@ -5565,7 +5382,9 @@
    "3～20"
   ],
   "explanation": "教材任务1-2 器件介绍（2）发光二极管：直插式长引脚为阳极、短引脚为阴极，一般通过 3～20 mA 左右电流即可发光。",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1",
+  "secTitle": "项目1 熟悉单片机操作环境"
  },
  {
   "id": "mcu-p1-026",
@@ -5594,7 +5413,9 @@
    "B"
   ],
   "explanation": "教材小经验（书页 15）：I=(5−1.7)/1000=0.0033 A=3.3 mA。",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1",
+  "secTitle": "项目1 熟悉单片机操作环境"
  },
  {
   "id": "mcu-p1-027",
@@ -5608,7 +5429,9 @@
    "3.3"
   ],
   "explanation": "教材小经验（书页 15，图 1.25 相关算例）。",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1",
+  "secTitle": "项目1 熟悉单片机操作环境"
  },
  {
   "id": "mcu-p1-028",
@@ -5629,7 +5452,9 @@
    "T"
   ],
   "explanation": "教材焊接小经验（2）（书页 16）。",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1",
+  "secTitle": "项目1 熟悉单片机操作环境"
  },
  {
   "id": "mcu-p1-029",
@@ -5658,7 +5483,9 @@
    "B"
   ],
   "explanation": "教材图 1.23 与表 1.2：电阻 R₂ 为 10 kΩ、电解电容 C₃ 为 22 μF（R₁ 为 1 kΩ，C₁、C₂ 为 30 pF）。",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.1.2",
+  "secTitle": "单片机内部结构"
  },
  {
   "id": "mcu-p1-030",
@@ -5671,7 +5498,9 @@
    "DIP40"
   ],
   "explanation": "教材任务1-2 器件介绍（1）单片机芯片：DIP 双列直插式、PLCC、QFP、PGA、BGA；本书采用 DIP40 封装。",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.1.1",
+  "secTitle": "什么是单片机"
  },
  {
   "id": "mcu-p1-031",
@@ -5692,7 +5521,9 @@
    "T"
   ],
   "explanation": "教材任务1-2 器件介绍（1）单片机芯片封装形式说明。",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.1.1",
+  "secTitle": "什么是单片机"
  },
  {
   "id": "mcu-p1-032",
@@ -5721,7 +5552,9 @@
    "C"
   ],
   "explanation": "教材任务1-1 步骤 2）第（2）步：在「文件名」文本框中输入工程名字（如 ex1_1），不需要加扩展名。",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.2.1",
+  "secTitle": "单片机开发流程与工具"
  },
  {
   "id": "mcu-p1-033",
@@ -5735,7 +5568,9 @@
    ".a"
   ],
   "explanation": "教材任务1-1 小提示（书页 5）：源文件名后必须加扩展名「.c」，汇编语言源文件扩展名为「.a」，头文件扩展名为「.h」。",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.2.1",
+  "secTitle": "单片机开发流程与工具"
  },
  {
   "id": "mcu-p1-034",
@@ -5764,7 +5599,9 @@
    "B"
   ],
   "explanation": "教材任务1-1 步骤 5）：在图 1.13 中单击「Output」选项卡，打开「Output」选项设置页面（图 1.14），选中「Create HEX File」复选框。",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.2.1",
+  "secTitle": "单片机开发流程与工具"
  },
  {
   "id": "mcu-p1-035",
@@ -5793,7 +5630,9 @@
    "B"
   ],
   "explanation": "教材任务1-1 步骤 6）：单击「Project」→「Build target」菜单命令（或按快捷键 F7）进行编译（图 1.15）。",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.2.1",
+  "secTitle": "单片机开发流程与工具"
  },
  {
   "id": "mcu-p1-036",
@@ -5814,7 +5653,9 @@
    "T"
   ],
   "explanation": "教材任务1-1 小知识（书页 10）：可通过查看 HEX 文件生成的时间来确认是否为最新文件。",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.2.1",
+  "secTitle": "单片机开发流程与工具"
  },
  {
   "id": "mcu-p1-037",
@@ -5843,7 +5684,9 @@
    "B"
   ],
   "explanation": "教材任务1-1 小知识（书页 4）：STARTUP.A51 上电时初始化硬件堆栈、RAM、模拟堆栈，并跳转到 main 函数。",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.2.1",
+  "secTitle": "单片机开发流程与工具"
  },
  {
   "id": "mcu-p1-038",
@@ -5864,7 +5707,9 @@
    "F"
   ],
   "explanation": "教材任务1-1 小知识（书页 4）：如果不加载 STARTUP.A51 文件，编译的代码可能会使单片机工作异常。",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.2.1",
+  "secTitle": "单片机开发流程与工具"
  },
  {
   "id": "mcu-p1-039",
@@ -5885,7 +5730,9 @@
    "T"
   ],
   "explanation": "教材小经验（书页 10）：图 1.18 中第 1 行多输入一个「#」，就产生了 1 个警告、3 个错误，删去后重新编译即成功。",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.2.1",
+  "secTitle": "单片机开发流程与工具"
  },
  {
   "id": "mcu-p1-040",
@@ -5914,7 +5761,9 @@
    "B"
   ],
   "explanation": "教材图 1.18 下方说明：源程序名（行号）、警告代码 C314、不好的指示性语法。",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.2.1",
+  "secTitle": "单片机开发流程与工具"
  },
  {
   "id": "mcu-p1-041",
@@ -5928,19 +5777,9 @@
    "工程编译"
   ],
   "explanation": "教材图 1.19「使用 Keil C51 软件基本步骤」（图中虚线箭头指向的步骤可以改变顺序）。",
-  "source": "项目1 熟悉单片机操作环境"
- },
- {
-  "id": "mcu-p1-042",
-  "number": 287,
-  "type": "short",
-  "stem": "简述使用 Keil C51 建立工程并编译生成 HEX 文件的基本步骤。",
-  "options": [],
-  "answer": [
-   "① 启动 Keil C51（μVision）；② 单击 Project→New μVision Project，选择保存目录并输入工程名（不加扩展名）；③ 在 Select Device for Target 中选择 Atmel 的 AT89C51，点 OK；④ 在复制标准 8051 启动代码对话框中单击「是（Y）」，加载 STARTUP.A51；⑤ File→New 建立源文件，输入源程序后 File→Save as 存为 .c 文件；⑥ 在 Source Group 1 上右键选 Add Files to Group，把 .c 文件加入工程；⑦ 在 Target 1 上右键选 Options for Target，在 Output 选项卡中选中 Create HEX File；⑧ Project→Build target（F7）编译，输出窗口显示 0 Error(s)、0 Warning(s) 即成功，并生成 .hex 文件。"
-  ],
-  "explanation": "教材任务1-1 全部操作步骤与图 1.19。",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.2.1",
+  "secTitle": "单片机开发流程与工具"
  },
  {
   "id": "mcu-p1-043",
@@ -5969,7 +5808,9 @@
    "B"
   ],
   "explanation": "教材图 1.28：设计电路图→制作电路板→控制程序设计→硬软件联调→程序下载→产品测试。",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.2.1",
+  "secTitle": "单片机开发流程与工具"
  },
  {
   "id": "mcu-p1-044",
@@ -5982,7 +5823,9 @@
    "硬软件联调（仿真联调）"
   ],
   "explanation": "教材任务1-2「任务小结」与图 1.28。",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.2.1",
+  "secTitle": "单片机开发流程与工具"
  },
  {
   "id": "mcu-p1-045",
@@ -6003,7 +5846,9 @@
    "T"
   ],
   "explanation": "教材 1.2.1 小提示（2）：硬件设计和控制程序设计可以并行开发，同时进行。",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.2.1",
+  "secTitle": "单片机开发流程与工具"
  },
  {
   "id": "mcu-p1-046",
@@ -6024,31 +5869,9 @@
    "T"
   ],
   "explanation": "教材 1.2.2 第 2 点「ISP 下载实验板」优缺点说明。",
-  "source": "项目1 熟悉单片机操作环境"
- },
- {
-  "id": "mcu-p1-047",
-  "number": 292,
-  "type": "prog",
-  "stem": "参照教材 ex1_1.c 的结构，编写 C51 程序，使接在 P1.0 引脚上的发光二极管以一定间隔重复「点亮—熄灭」，并说明程序中 delay 函数的作用。",
-  "options": [],
-  "answer": [
-   "#include <reg51.h>\nsbit P1_0 = P1^0;\nvoid delay(unsigned int i)\n{\n    unsigned int k;\n    for (k = 0; k < i; k++);\n}\nvoid main()\n{\n    while (1)\n    {\n        P1_0 = 0;        // 点亮 LED\n        delay(10000);\n        P1_0 = 1;        // 熄灭 LED\n        delay(10000);\n    }\n}\ndelay 函数为软件延时函数，形参 i 控制空循环的循环次数，i 越大延时越长；改变实参即可改变 LED 的闪烁速度。"
-  ],
-  "explanation": "教材 ex1_1.c（书页 16–17）：P1.0 输出低电平点亮、高电平熄灭，用 delay(10000) 延时。",
-  "source": "项目1 熟悉单片机操作环境"
- },
- {
-  "id": "mcu-p1-048",
-  "number": 293,
-  "type": "prog",
-  "stem": "利用单片机控制 8 个发光二极管（接在 P1 口），设计 8 个灯同时闪烁的控制程序（亮、灭交替，中间加延时）。",
-  "options": [],
-  "answer": [
-   "#include <reg51.h>\nvoid delay(unsigned int i)\n{\n    unsigned int k;\n    for (k = 0; k < i; k++);\n}\nvoid main()\n{\n    while (1)\n    {\n        P1 = 0x00;      // 8 个 LED 全部点亮（低电平点亮）\n        delay(10000);\n        P1 = 0xFF;      // 8 个 LED 全部熄灭\n        delay(10000);\n    }\n}\n说明：P1 口整体赋值，0x00 使 P1.0～P1.7 全为低电平点亮，0xFF 使全部为高电平熄灭。"
-  ],
-  "explanation": "教材思考与练习题 1.4 第（1）题，结合任务1-2 中 P1.0 低电平点亮 LED 的接法。",
-  "source": "项目1 熟悉单片机操作环境"
+  "source": "项目1 熟悉单片机操作环境",
+  "sec": "1.2.2",
+  "secTitle": "单片机的仿真学习与 ISP 下载实验板"
  },
  {
   "id": "mcu-p2-001",
@@ -6077,7 +5900,9 @@
    "B"
   ],
   "explanation": "教材任务2-1（图2.1）：P1.0 输出低电平时三极管 V₁ 导通，蜂鸣器电流形成回路发声；输出高电平时 V₁ 截止不发声。",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.4.3",
+  "secTitle": "作为输出端口使用"
  },
  {
   "id": "mcu-p2-002",
@@ -6089,7 +5914,9 @@
    "9012"
   ],
   "explanation": "教材任务2-1 蜂鸣器驱动原理（书页 24）：用三极管 9012 放大输出电流驱动蜂鸣器。",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.4.3",
+  "secTitle": "作为输出端口使用"
  },
  {
   "id": "mcu-p2-003",
@@ -6110,7 +5937,9 @@
    "T"
   ],
   "explanation": "教材任务2-1（书页 23）：这里的「源」指振荡源，不是电源；无源蜂鸣器必须用方波信号驱动。",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.2.1",
+  "secTitle": "单片机时钟电路"
  },
  {
   "id": "mcu-p2-004",
@@ -6139,7 +5968,9 @@
    "B"
   ],
   "explanation": "教材任务2-1（书页 23）：无源蜂鸣器需方波驱动，频率一般为 2 kHz~5 kHz。",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.2.1",
+  "secTitle": "单片机时钟电路"
  },
  {
   "id": "mcu-p2-005",
@@ -6160,7 +5991,9 @@
    "F"
   ],
   "explanation": "教材任务2-1（书页 24）：单片机 I/O 引脚输出电流较小，TTL 电平基本上驱动不了蜂鸣器，需加三极管放大。",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.4.3",
+  "secTitle": "作为输出端口使用"
  },
  {
   "id": "mcu-p2-006",
@@ -6172,7 +6005,9 @@
    "集电极"
   ],
   "explanation": "教材任务2-1（书页 24）：蜂鸣器正极接三极管 V₁ 的集电极。",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.4.3",
+  "secTitle": "作为输出端口使用"
  },
  {
   "id": "mcu-p2-007",
@@ -6201,7 +6036,9 @@
    "B"
   ],
   "explanation": "教材 2.1 节（书页 25）：8051 采用标准 40 引脚双列直插式封装，引脚排列见图 2.3。",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.1",
+  "secTitle": "8051 的信号引脚"
  },
  {
   "id": "mcu-p2-008",
@@ -6213,7 +6050,9 @@
    "PSEN"
   ],
   "explanation": "教材表 2.1 与 2.1 节（书页 26）：PSEN 为外部程序存储器读选通信号，低电平有效。",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.3.3",
+  "secTitle": "程序存储器"
  },
  {
   "id": "mcu-p2-009",
@@ -6242,7 +6081,9 @@
    "C"
   ],
   "explanation": "教材 2.1 节（书页 26）：ALE 以晶振 1/6 固定频率输出正脉冲；亦为思考与练习题2 之 2.1 第（7）题。",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.2.1",
+  "secTitle": "单片机时钟电路"
  },
  {
   "id": "mcu-p2-010",
@@ -6254,7 +6095,9 @@
    "低"
   ],
   "explanation": "教材 2.1 节（书页 26）：EA 低电平只用外部程序存储器，高电平从片内 ROM 开始。",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.3.1",
+  "secTitle": "片内数据存储器"
  },
  {
   "id": "mcu-p2-011",
@@ -6283,7 +6126,9 @@
    "A"
   ],
   "explanation": "教材 2.2.1 节（书页 27）：高增益反相放大器的输入端为 XTAL1，输出端为 XTAL2，跨接晶振与微调电容即构成自激振荡器（图 2.4）。",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.2.1",
+  "secTitle": "单片机时钟电路"
  },
  {
   "id": "mcu-p2-012",
@@ -6295,7 +6140,9 @@
    "30"
   ],
   "explanation": "教材 2.2.1 节小提示（书页 27）：C₁ 和 C₂ 取 30 pF 左右。",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.2.1",
+  "secTitle": "单片机时钟电路"
  },
  {
   "id": "mcu-p2-013",
@@ -6324,7 +6171,9 @@
    "C"
   ],
   "explanation": "教材 2.2.1 节小提示（书页 27）：使用串行口通信时一般采用 11.0592 MHz 晶振。",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.2.1",
+  "secTitle": "单片机时钟电路"
  },
  {
   "id": "mcu-p2-014",
@@ -6336,7 +6185,9 @@
    "指令周期"
   ],
   "explanation": "教材 2.2.1 节（书页 27~28）：时序概念有 4 个，从小到大为节拍、状态、机器周期、指令周期。",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.2.1",
+  "secTitle": "单片机时钟电路"
  },
  {
   "id": "mcu-p2-015",
@@ -6365,7 +6216,9 @@
    "C"
   ],
   "explanation": "教材 2.2.1 节（书页 28）：一个机器周期的宽度为 6 个状态，即 12 个振荡脉冲周期。",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.2.1",
+  "secTitle": "单片机时钟电路"
  },
  {
   "id": "mcu-p2-016",
@@ -6377,7 +6230,9 @@
    "1"
   ],
   "explanation": "教材 2.2.1 节小提示（书页 28）：12 MHz 时一个机器周期为 1 μs。",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.2.1",
+  "secTitle": "单片机时钟电路"
  },
  {
   "id": "mcu-p2-017",
@@ -6406,7 +6261,9 @@
    "B"
   ],
   "explanation": "教材 2.2.2 节（书页 28）：RST 需持续两个机器周期（即 24 个脉冲振荡周期）以上的高电平。",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.2.2",
+  "secTitle": "单片机复位电路"
  },
  {
   "id": "mcu-p2-018",
@@ -6427,7 +6284,9 @@
    "T"
   ],
   "explanation": "教材 2.2.2 节（书页 28）：复位使各部件恢复确定的初始状态，例如复位后 PC=0x0000。",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.2.2",
+  "secTitle": "单片机复位电路"
  },
  {
   "id": "mcu-p2-019",
@@ -6439,7 +6298,9 @@
    "07H"
   ],
   "explanation": "教材表 2.3（书页 29）：复位后 SP 为 07H，PC 为 0000H，P0~P3 为 FFH。",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.2.2",
+  "secTitle": "单片机复位电路"
  },
  {
   "id": "mcu-p2-020",
@@ -6451,7 +6312,9 @@
    "上电复位电路"
   ],
   "explanation": "教材 2.2.2 节（图 2.5，书页 28~29）：复位电路分上电复位电路与按键复位电路。",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.2.2",
+  "secTitle": "单片机复位电路"
  },
  {
   "id": "mcu-p2-021",
@@ -6480,7 +6343,9 @@
    "C"
   ],
   "explanation": "教材 2.3.1 节（书页 29）：低 128 单元为 0x00~0x7F，高 128 单元为 0x80~0xFF。",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.3.1",
+  "secTitle": "片内数据存储器"
  },
  {
   "id": "mcu-p2-022",
@@ -6492,7 +6357,9 @@
    "80"
   ],
   "explanation": "教材 2.3.1 节（书页 31）：用户数据缓冲区地址 0x30~0x7F，共 80 个单元，常把堆栈开辟在此区。",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.3.1",
+  "secTitle": "片内数据存储器"
  },
  {
   "id": "mcu-p2-023",
@@ -6521,7 +6388,9 @@
    "C"
   ],
   "explanation": "教材 2.3.1 节（书页 40）：8051 共有 4 组工作寄存器，占据 0x00~0x1F 单元地址。",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.3.1",
+  "secTitle": "片内数据存储器"
  },
  {
   "id": "mcu-p2-024",
@@ -6542,7 +6411,9 @@
    "F"
   ],
   "explanation": "教材 2.3.1 节（书页 40）：位寻址区既可作为一般 RAM 单元进行字节操作，也可对每一位进行位操作。",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.3.1",
+  "secTitle": "片内数据存储器"
  },
  {
   "id": "mcu-p2-025",
@@ -6571,7 +6442,9 @@
    "B"
   ],
   "explanation": "教材 2.3.1 节与表 2.5（书页 40）：位寻址区单元地址 0x20~0x2F，对应的位地址为 0x00~0x7F。",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.3.1",
+  "secTitle": "片内数据存储器"
  },
  {
   "id": "mcu-p2-026",
@@ -6600,7 +6473,9 @@
    "C"
   ],
   "explanation": "教材 2.3.1 节（书页 41）：有 21 个可寻址的专用寄存器，不连续分布在 0x80~0xFF 中。",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.3.1",
+  "secTitle": "片内数据存储器"
  },
  {
   "id": "mcu-p2-027",
@@ -6621,7 +6496,9 @@
    "T"
   ],
   "explanation": "教材 2.3.1 节（书页 42）：11 个 SFR 可位寻址，可寻址的位共 83 位；字节地址末位为 0 或 8 者可位寻址。",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.3.1",
+  "secTitle": "片内数据存储器"
  },
  {
   "id": "mcu-p2-028",
@@ -6650,7 +6527,9 @@
    "C"
   ],
   "explanation": "教材 2.3.1 节（书页 43）：PC 是 16 位计数器，寻址范围为 64 KB，具有自动加 1 功能。",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.3.3",
+  "secTitle": "程序存储器"
  },
  {
   "id": "mcu-p2-029",
@@ -6671,7 +6550,9 @@
    "F"
   ],
   "explanation": "教材 2.3.1 节（书页 43）：PC 没有物理地址，是不可寻址的，用户无法对它读写，只能通过转移、调用、返回等指令改变其内容。",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.3.3",
+  "secTitle": "程序存储器"
  },
  {
   "id": "mcu-p2-030",
@@ -6683,7 +6564,9 @@
    "工作寄存器组"
   ],
   "explanation": "教材 2.3.1 节与表 2.7（书页 43、40）：当前工作寄存器组由 PSW 中 RS1、RS0 的状态组合决定。",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.2.2",
+  "secTitle": "单片机复位电路"
  },
  {
   "id": "mcu-p2-031",
@@ -6712,7 +6595,9 @@
    "B"
   ],
   "explanation": "教材 2.3.2 节（书页 43）：片外 RAM 最多可扩充 64 KB，即 XDATA 区，分页寻址时称 PDATA 区。",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.3.1",
+  "secTitle": "片内数据存储器"
  },
  {
   "id": "mcu-p2-032",
@@ -6741,7 +6626,9 @@
    "A"
   ],
   "explanation": "教材 2.3.3 节（书页 44，图 2.6）：0x0003~0x000A 为外部中断 0；0x000B 起为 T0、0x0013 起为外部中断 1、0x001B 起为 T1、0x0023 起为串行口。",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.3.3",
+  "secTitle": "程序存储器"
  },
  {
   "id": "mcu-p2-033",
@@ -6762,7 +6649,9 @@
    "T"
   ],
   "explanation": "教材 2.3.3 节（书页 44）：EA 高电平时片内外统一编址，EA 低电平时只用外部程序存储器。",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.3.1",
+  "secTitle": "片内数据存储器"
  },
  {
   "id": "mcu-p2-034",
@@ -6774,7 +6663,9 @@
    "4"
   ],
   "explanation": "教材 2.3.3 节（书页 44）：8051 片内为 4 KB 掩膜 ROM。",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.3.1",
+  "secTitle": "片内数据存储器"
  },
  {
   "id": "mcu-p2-035",
@@ -6803,7 +6694,9 @@
    "D"
   ],
   "explanation": "教材表 2.8（书页 35）：code 表示程序存储器（64 KB）；data 为 128 B、bdata 为 16 B、xdata 为 64 KB 外部数据存储器。",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.3.1",
+  "secTitle": "片内数据存储器"
  },
  {
   "id": "mcu-p2-036",
@@ -6832,7 +6725,9 @@
    "B"
   ],
   "explanation": "教材任务2-2（书页 35）：S₀ 在位置 2 时 P3.0 为低电平（0），拨到位置 1 时为高电平（1）。",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.4.2",
+  "secTitle": "作为输入端口使用"
  },
  {
   "id": "mcu-p2-037",
@@ -6853,7 +6748,9 @@
    "F"
   ],
   "explanation": "教材任务2-2 小提示（书页 36）：拨动开关具有断开和闭合两个稳定状态；只有弹性按键松手后才自动回到断开状态。",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.4.2",
+  "secTitle": "作为输入端口使用"
  },
  {
   "id": "mcu-p2-038",
@@ -6882,7 +6779,9 @@
    "C"
   ],
   "explanation": "教材 2.4.1 节（书页 37）：4 个 8 位并行 I/O 端口，可按位操作也可按字节操作。",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.1",
+  "secTitle": "8051 的信号引脚"
  },
  {
   "id": "mcu-p2-039",
@@ -6911,7 +6810,9 @@
    "B"
   ],
   "explanation": "教材 2.4.2 节（书页 38）：读引脚时，必须先向电路中的锁存器写入「1」。",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.4.2",
+  "secTitle": "作为输入端口使用"
  },
  {
   "id": "mcu-p2-040",
@@ -6923,7 +6824,9 @@
    "锁存器"
   ],
   "explanation": "教材 2.4.2 节（书页 38）：读端口即读锁存器的状态，以适应「读—修改—写」操作的需要。",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.4.2",
+  "secTitle": "作为输入端口使用"
  },
  {
   "id": "mcu-p2-041",
@@ -6944,7 +6847,9 @@
    "T"
   ],
   "explanation": "教材 2.4.3 节（书页 39）：只有 P0 口输出电路是漏极开路，必须外接 4.7 kΩ 或 10 kΩ 上拉电阻。",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.4.1",
+  "secTitle": "并行 I/O 端口电路结构"
  },
  {
   "id": "mcu-p2-042",
@@ -6973,7 +6878,9 @@
    "A"
   ],
   "explanation": "教材 2.4.3 节（书页 39）：P1=0x01 使 P1.0 为高电平、其余 7 个引脚均为低电平；字节操作时第 7 位为高位、第 0 位为低位。",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.4.3",
+  "secTitle": "作为输出端口使用"
  },
  {
   "id": "mcu-p2-043",
@@ -6994,7 +6901,9 @@
    "F"
   ],
   "explanation": "教材 2.4.4 节（书页 39）：作为第二功能使用的端口线，不能同时当做通用 I/O 端口使用，但其他未使用的端口线仍可作通用 I/O。",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.4.4",
+  "secTitle": "I/O 端口的第二功能"
  },
  {
   "id": "mcu-p2-044",
@@ -7023,7 +6932,9 @@
    "C"
   ],
   "explanation": "教材任务2-3 试一试（书页 43）：F11 为 Step 单步跟踪运行，可进入函数内部；F10 为 Step Over，把函数当作一条语句执行。",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.3.1",
+  "secTitle": "片内数据存储器"
  },
  {
   "id": "mcu-p2-045",
@@ -7044,115 +6955,9 @@
    "T"
   ],
   "explanation": "教材任务2-3 小提示（书页 44）：C 代表 Code，观察程序存储器内容；观察内部数据存储器则用字母 D 开头。",
-  "source": "项目2 单片机硬件系统"
- },
- {
-  "id": "mcu-p2-046",
-  "number": 339,
-  "type": "term",
-  "stem": "名词解释：单片机最小系统。",
-  "options": [],
-  "answer": [
-   "单片机最小系统是指能够让单片机工作的最小硬件电路。除了单片机芯片本身（以及电源和地线）之外，最小系统还包括时钟电路和复位电路。时钟电路为单片机工作提供基本时钟，因为单片机内部由大量的时序电路构成，没有时钟脉冲各个部分将无法工作；复位电路用于将单片机内部各电路的状态恢复到初始值。"
-  ],
-  "explanation": "教材 2.2 节（书页 27）与任务1-2 小知识：时钟和复位电路是单片机能够工作所必需的最小电路。",
-  "source": "项目2 单片机硬件系统"
- },
- {
-  "id": "mcu-p2-047",
-  "number": 340,
-  "type": "term",
-  "stem": "名词解释：机器周期。",
-  "options": [],
-  "answer": [
-   "51 单片机采用定时控制方式，有固定的机器周期。规定一个机器周期的宽度为 6 个状态，即 12 个振荡脉冲周期，因此机器周期就是振荡脉冲的十二分频。当振荡脉冲频率为 12 MHz 时，一个机器周期为 1 μs；当振荡脉冲频率为 6 MHz 时，一个机器周期为 2 μs。"
-  ],
-  "explanation": "教材 2.2.1 节（书页 38）：机器周期为 6 个状态、12 个振荡脉冲周期。",
-  "source": "项目2 单片机硬件系统"
- },
- {
-  "id": "mcu-p2-048",
-  "number": 341,
-  "type": "term",
-  "stem": "名词解释：指令周期。",
-  "options": [],
-  "answer": [
-   "指令周期是最大的时序定时单位，将执行一条指令所需要的时间称为指令周期。它一般由若干个机器周期组成，不同的指令所需要的机器周期数也不同。通常将包含一个机器周期的指令称为单周期指令，包含两个机器周期的指令称为双周期指令，依次类推。"
-  ],
-  "explanation": "教材 2.2.1 节（书页 38）：指令周期是最大的时序定时单位。",
-  "source": "项目2 单片机硬件系统"
- },
- {
-  "id": "mcu-p2-049",
-  "number": 342,
-  "type": "short",
-  "stem": "P3 口的第二功能是什么？",
-  "options": [],
-  "answer": [
-   "P3.0 为 RXD，串行数据接收；P3.1 为 TXD，串行数据发送；P3.2 为 INT0，外部中断 0 申请；P3.3 为 INT1，外部中断 1 申请；P3.4 为 T0，定时/计数器 0 的外部输入；P3.5 为 T1，定时/计数器 1 的外部输入；P3.6 为 WR，外部 RAM 或外部 I/O 写选通；P3.7 为 RD，外部 RAM 或外部 I/O 读选通。"
-  ],
-  "explanation": "教材表 2.2（书页 26）；亦为思考与练习题2 之 2.3 第（1）题。",
-  "source": "项目2 单片机硬件系统"
- },
- {
-  "id": "mcu-p2-050",
-  "number": 343,
-  "type": "short",
-  "stem": "51 单片机片内 RAM 的组成是如何划分的？各有什么功能？",
-  "options": [],
-  "answer": [
-   "8051 内部 RAM 共 256 个单元，按功能分为低 128 单元（0x00~0x7F）和高 128 单元（0x80~0xFF）两部分。低 128 单元是真正的 RAM 存储器，又分为 3 个区域：①工作寄存器区 0x00~0x1F，共 4 组、每组 8 个（R0~R7），共 32 个寄存器，用来存放操作数及中间结果；②位寻址区 0x20~0x2F，共 16 个单元 128 位，既可字节操作也可位操作，位地址为 0x00~0x7F；③用户数据缓冲区 0x30~0x7F，共 80 个单元，供用户使用的一般 RAM 区，一般应用中常把堆栈开辟在此区。高 128 单元为专用寄存器 SFR 区，其中有 21 个可寻址的专用寄存器；另有不可寻址的程序计数器 PC，它不占据 RAM 单元。"
-  ],
-  "explanation": "教材 2.3.1 节与表 2.4（书页 29~31）；亦为思考与练习题2 之 2.3 第（5）题。",
-  "source": "项目2 单片机硬件系统"
- },
- {
-  "id": "mcu-p2-051",
-  "number": 344,
-  "type": "short",
-  "stem": "51 单片机常用的复位方法有几种？说明其工作原理。",
-  "options": [],
-  "answer": [
-   "常用的复位电路有两种。①上电复位电路：利用电容充电来实现复位。在接电瞬间，RST 端的电位与 VCC 相同，随着充电电流的减少，RST 的电位逐渐下降；只要保证 RST 为高电平的时间大于两个机器周期，便能正常复位。②按键复位电路：除具有上电复位功能外，还可以按 RESET 键实现复位，此时电源 VCC 经两个电阻分压，在 RST 端产生一个复位高电平。复位的条件是必须使 RST（第 9 引脚）加上持续两个机器周期（即 24 个脉冲振荡周期）以上的高电平。"
-  ],
-  "explanation": "教材 2.2.2 节与图 2.5（书页 28~29）；亦为思考与练习题2 之 2.3 第（4）题。",
-  "source": "项目2 单片机硬件系统"
- },
- {
-  "id": "mcu-p2-052",
-  "number": 345,
-  "type": "short",
-  "stem": "简述程序状态字 PSW 各位的含义，单片机如何确定和改变当前的工作寄存器组？",
-  "options": [],
-  "answer": [
-   "PSW 是一个 8 位寄存器，用于存放程序运行中的各种状态信息：CY（PSW.7）为进位标志位，存放算术运算的进位或借位标志；AC（PSW.6）为辅助进位标志位，存放低 4 位向高 4 位进位或借位标志；F0（PSW.5）为用户标志位，需用软件置位或复位；RS1 和 RS0（PSW.4、PSW.3）为工作寄存器组选择位；OV（PSW.2）为溢出标志位，存放带符号数加减运算的溢出位；F1（PSW.1）保留未使用；P（PSW.0）为奇偶标志位，存放累加器 ACC 中 1 的个数的奇偶性。当前工作寄存器组由 PSW 中 RS1 和 RS0 的状态组合决定，上电或复位后 RS1 RS0=00，即选中第 0 组；通过改变 RS1、RS0 的取值即可切换到其他寄存器组。"
-  ],
-  "explanation": "教材 2.3.1 节、表 2.7 与表 2.4（书页 40、43）；亦为思考与练习题2 之 2.3 第（7）题。",
-  "source": "项目2 单片机硬件系统"
- },
- {
-  "id": "mcu-p2-053",
-  "number": 346,
-  "type": "prog",
-  "stem": "参照教材 ex2_1.c，编写 C51 程序使接在 P1.0 引脚上的蜂鸣器持续发出鸣叫声，并说明 P1.0 输出高低电平时蜂鸣器的工作状态。",
-  "options": [],
-  "answer": [
-   "#include<reg51.h>            //包含头文件reg51.h，定义51单片机的专用寄存器\nsbit beep=P1^0;              //定义位名称\nvoid delay(unsigned int i)   //延时函数\n{\n    unsigned int k;\n    for (k=0;k<i;k++);\n}\nvoid main()                  //主函数\n{\n    while (1)\n    {\n        beep=0;              //蜂鸣器发声\n        delay(100);          //调用延时函数，实际参数为100\n        beep=1;              //蜂鸣器不发声\n        delay(100);          //调用延时函数，实际参数为100\n    }\n}\n说明：P1.0 输出低电平时三极管 V1（9012）导通，蜂鸣器的电流形成回路而发声；输出高电平时 V1 截止，没有电流流过线圈，蜂鸣器不发声。程序中通过两个 delay(100) 交替产生高低电平，形成驱动信号使蜂鸣器发声；改变延时参数即可改变音调。"
-  ],
-  "explanation": "教材 ex2_1.c（书页 24）与蜂鸣器驱动原理（书页 24）。",
-  "source": "项目2 单片机硬件系统"
- },
- {
-  "id": "mcu-p2-054",
-  "number": 347,
-  "type": "prog",
-  "stem": "参照教材 ex2_2.c，编写 C51 程序模拟汽车左右转向灯控制：P1.0 接左转灯、P1.1 接右转灯，P3.0、P3.1 接两个拨动开关接收驾驶员命令，要求按表 2.9、表 2.10 的对应关系使转向灯闪烁或熄灭。",
-  "options": [],
-  "answer": [
-   "#include<reg51.h>            //包含头文件reg51.h，定义51单片机的专用寄存器\nsbit LED_L=P1^0;             //定义P1.0引脚位名称为LED_L\nsbit LED_R=P1^1;             //定义P1.1引脚位名称为LED_R\nsbit S_L=P3^0;               //定义P3.0引脚位名称为S_L\nsbit S_R=P3^1;               //定义P3.1引脚位名称为S_R\nvoid delay(unsigned int i)   //延时函数\n{\n    unsigned int k;\n    for (k=0;k<i;k++);\n}\nvoid main()                  //主函数\n{\n    bit left,right;          //定义位变量left、right表示左、右状态\n    while (1)                //无限循环\n    {\n        left=S_L;            //读取P3.0引脚的（左转向灯）命令状态并赋值给left\n        right=S_R;           //读取P3.1引脚的（右转向灯）命令状态并赋值给right\n        LED_L=left;          //将left的值送至P1.0引脚\n        LED_R=right;         //将right的值送至P1.1引脚\n        delay(20000);        //调用延时函数，实际参数为20000\n        LED_L=1;             //将P1.0引脚置1输出（熄灭LED）\n        LED_R=1;             //将P1.1引脚置1输出（熄灭LED）\n        delay(20000);        //调用延时函数，实际参数为20000\n    }\n}\n说明：P3.0、P3.1 为 1 时对应转向灯熄灭，为 0 时对应转向灯闪烁；两路同时为 0 时左右灯都闪烁，即汽车故障显示命令。"
-  ],
-  "explanation": "教材 ex2_2.c、表 2.9 与表 2.10（书页 36~37）。",
-  "source": "项目2 单片机硬件系统"
+  "source": "项目2 单片机硬件系统",
+  "sec": "2.3.1",
+  "secTitle": "片内数据存储器"
  },
  {
   "id": "mcu-p3a-001",
@@ -7181,7 +6986,9 @@
    "B"
   ],
   "explanation": "教材项目3 开篇语（书页 48）：本项目介绍了用 C 语言进行单片机结构化程序设计的方法。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.1",
+  "secTitle": "数据类型"
  },
  {
   "id": "mcu-p3a-002",
@@ -7194,7 +7001,9 @@
    "函数"
   ],
   "explanation": "教材项目3 教学导航表（书页 48）。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.1",
+  "secTitle": "数据类型"
  },
  {
   "id": "mcu-p3a-003",
@@ -7223,7 +7032,9 @@
    "B"
   ],
   "explanation": "教材任务3-1「1. 目的与要求」中的设计要求（书页 49）。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.2.3",
+  "secTitle": "循环语句"
  },
  {
   "id": "mcu-p3a-004",
@@ -7236,7 +7047,9 @@
    "7"
   ],
   "explanation": "教材任务3-1 源程序第 15 行及其注释（书页 49）：P1=0x7F 即 01111111B，点亮 P1.7 连接的 LED。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.2",
+  "secTitle": "常量和变量"
  },
  {
   "id": "mcu-p3a-005",
@@ -7265,7 +7078,9 @@
    "B"
   ],
   "explanation": "教材书页 50 正文：P1 端口顺序变化的 8 个状态（01111111、10111111……11111110）是最高位旁边的「0」依次右移。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.3",
+  "secTitle": "运算符和表达式"
  },
  {
   "id": "mcu-p3a-006",
@@ -7286,7 +7101,9 @@
    "F"
   ],
   "explanation": "教材小提示（书页 50）：_cror_() 是循环右移函数；举一反三（1）指出 _crol_() 为循环左移函数。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.3",
+  "secTitle": "运算符和表达式"
  },
  {
   "id": "mcu-p3a-007",
@@ -7301,31 +7118,9 @@
    "高"
   ],
   "explanation": "教材举一反三（2）（书页 50）对移位运算符 << 和 >> 的说明。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
- },
- {
-  "id": "mcu-p3a-008",
-  "number": 355,
-  "type": "prog",
-  "stem": "【补全代码】下面是教材 ex3_1.c 的流水灯程序，请补全【①】【②】【③】三处，使 P1 口所接 8 只发光二极管从 P1.7 开始逐位点亮并循环显示。\n\n```c\n#include<reg51.h>\n#include<【①】>\nvoid delay (unsigned int i)\n{\n    unsigned int k;\n    for (k=0;k<i;k++);\n}\nvoid main ( )\n{\n    P1=【②】;\n    while (1)\n    {\n        P1=【③】(P1,1);\n        delay(5000);\n    }\n}\n```",
-  "options": [],
-  "answer": [
-   "① intrins.h　② 0x7F　③ _cror_\n完整程序：\n#include<reg51.h>\n#include<intrins.h>\nvoid delay (unsigned int i)\n{\n    unsigned int k;\n    for (k=0;k<i;k++);\n}\nvoid main ( )\n{\n    P1=0x7F;\n    while (1)\n    {\n        P1=_cror_(P1,1);\n        delay(5000);\n    }\n}\n说明：intrins.h 是 Keil C51 提供的内部标准函数库头文件，其中定义了 _cror_() 循环右移函数；P1=0x7F 使 P1 口输出 01111111B，点亮 P1.7 的 LED；每次循环把 P1 口状态循环右移一位，即 01111111→10111111→……→11111110。延时参数保留教材的 delay(5000)。"
-  ],
-  "explanation": "教材 ex3_1.c（书页 49）与书页 50、书页 52 对 intrins.h 及 _cror_() 的说明。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
- },
- {
-  "id": "mcu-p3a-009",
-  "number": 356,
-  "type": "prog",
-  "stem": "【找错】下面这段程序由教材 ex3_1.c 抄录，但漏掉了一行预处理命令，编译时会提示找不到 _cror_ 函数。请指出缺少哪一行、应补在什么位置，并说明理由。\n\n```c\n#include<reg51.h>\nvoid delay (unsigned int i)\n{\n    unsigned int k;\n    for (k=0;k<i;k++);\n}\nvoid main ( )\n{\n    P1=0x7F;\n    while (1)\n    {\n        P1=_cror_(P1,1);\n        delay(5000);\n    }\n}\n```",
-  "options": [],
-  "answer": [
-   "缺少第 2 行 #include<intrins.h>，应紧接在 #include<reg51.h> 之后（即所有预处理命令都放在源程序的最前面）补上。\n理由：_cror_() 是 Keil C51 编译器提供的内部标准函数，定义在内部标准函数库头文件 intrins.h 中，调用标准函数前必须先用文件包含命令 #include 把包含该函数说明的头文件包含进来。reg51.h 只提供 51 单片机专用寄存器 SFR 和位名称的定义，不含 _cror_() 的说明，因此只包含 reg51.h 时编译器不认识 _cror_()。\n改正后的前两行：\n#include<reg51.h>\n#include<intrins.h>"
-  ],
-  "explanation": "教材书页 52：intrins.h 是内部标准函数库头文件，_cror_() 由其定义；书页 54 指出预处理命令必须放在源程序最前面。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.3",
+  "secTitle": "运算符和表达式"
  },
  {
   "id": "mcu-p3a-010",
@@ -7354,7 +7149,9 @@
    "B"
   ],
   "explanation": "教材 ex3_2.c 该行注释（书页 51）：将 aa 的值取反后经 8 位 P1 引脚输出，~ 为按位取反运算符。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.3",
+  "secTitle": "运算符和表达式"
  },
  {
   "id": "mcu-p3a-011",
@@ -7367,19 +7164,9 @@
    "01000000"
   ],
   "explanation": "教材 ex3_2.c 注释（书页 51）给出 aa=0x80 即 10000000，右移一位后高位补 0。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
- },
- {
-  "id": "mcu-p3a-012",
-  "number": 359,
-  "type": "prog",
-  "stem": "【写结果】ex3_2.c 中 aa 的初值为 0x80，for 循环共执行 8 次，每次先把 ~aa 送入 P1 口，再执行 aa>>=1。请按先后顺序写出 P1 口这 8 次输出的十六进制值。",
-  "options": [],
-  "answer": [
-   "依次为 0x7F、0xBF、0xDF、0xEF、0xF7、0xFB、0xFD、0xFE。\n推导：aa 初值 0x80=10000000B，~aa=01111111B=0x7F；每轮 aa 右移一位且高位补 0，依次为 0x40、0x20、0x10、0x08、0x04、0x02、0x01，取反后即得上述 8 个值，恰好对应 P1.7～P1.0 逐位点亮一只 LED，与教材给出的 8 个状态一致。\n注意：循环 8 次后 aa 变为 0，但 while(1) 中每轮重新赋 aa=0x80，所以流水灯会不断重复。"
-  ],
-  "explanation": "教材 ex3_2.c（书页 51）与书页 50 给出的 P1 口 8 个状态。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.2",
+  "secTitle": "常量和变量"
  },
  {
   "id": "mcu-p3a-013",
@@ -7408,7 +7195,9 @@
    "A"
   ],
   "explanation": "教材 3.1.1 节（书页 52）：reg51.h 保存在文件夹 keil\\c51\\inc 下。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.1.1",
+  "secTitle": "第一个 C 语言程序"
  },
  {
   "id": "mcu-p3a-014",
@@ -7421,7 +7210,9 @@
    "SFR"
   ],
   "explanation": "教材 3.1.1 节（书页 52）对 #include<reg51.h> 与 sfr 语句的说明。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.1.1",
+  "secTitle": "第一个 C 语言程序"
  },
  {
   "id": "mcu-p3a-015",
@@ -7442,7 +7233,9 @@
    "T"
   ],
   "explanation": "教材 3.1.1 节小提示（书页 52）：/* */ 可用于多行注释，「//」用于单行注释。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.1.2",
+  "secTitle": "C 语言的基本结构"
  },
  {
   "id": "mcu-p3a-016",
@@ -7471,7 +7264,9 @@
    "B"
   ],
   "explanation": "教材 3.1.2 节（书页 53）：每个 C 程序都必须有（且仅有）一个主函数 main()。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.1.2",
+  "secTitle": "C 语言的基本结构"
  },
  {
   "id": "mcu-p3a-017",
@@ -7484,7 +7279,9 @@
    "函数体"
   ],
   "explanation": "教材 3.1.2 节（书页 53）：一个函数由函数定义和函数体两部分组成。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.4.1",
+  "secTitle": "函数的分类和定义"
  },
  {
   "id": "mcu-p3a-018",
@@ -7513,7 +7310,9 @@
    "B"
   ],
   "explanation": "教材 3.1.2 节（书页 53）与小知识（1）：无返回值时应将函数类型定义为 void 型（空类型）。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.1.2",
+  "secTitle": "C 语言的基本结构"
  },
  {
   "id": "mcu-p3a-019",
@@ -7542,7 +7341,9 @@
    "A"
   ],
   "explanation": "教材 3.1.3 节（书页 54）：预处理命令必须放在源程序的最前面。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.1.1",
+  "secTitle": "第一个 C 语言程序"
  },
  {
   "id": "mcu-p3a-020",
@@ -7563,7 +7364,9 @@
    "F"
   ],
   "explanation": "教材 3.1.3 节（书页 54）：C 语言区分大小写，变量 i 和变量 I 表示两个不同的变量。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.2",
+  "secTitle": "常量和变量"
  },
  {
   "id": "mcu-p3a-021",
@@ -7592,7 +7395,9 @@
    "B"
   ],
   "explanation": "教材任务3-2 电路设计（书页 55）：P0.0 经上拉电阻 R₁₀ 接 +5 V，S₁ 未按下时保持高电平，按下时接地。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.2.2",
+  "secTitle": "选择语句"
  },
  {
   "id": "mcu-p3a-022",
@@ -7605,7 +7410,9 @@
    "接地"
   ],
   "explanation": "教材任务3-2 电路设计（书页 55）。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.2.2",
+  "secTitle": "选择语句"
  },
  {
   "id": "mcu-p3a-023",
@@ -7626,7 +7433,9 @@
    "T"
   ],
   "explanation": "教材任务3-2 小提示（书页 55）：复位时 I/O 引脚为高电平，可省略上拉电阻。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.2.2",
+  "secTitle": "选择语句"
  },
  {
   "id": "mcu-p3a-024",
@@ -7655,31 +7464,9 @@
    "B"
   ],
   "explanation": "教材任务3-2 小经验（书页 56）：按键触点抖动时间一般为 5~10 ms，如图 3.6 所示。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
- },
- {
-  "id": "mcu-p3a-025",
-  "number": 372,
-  "type": "term",
-  "stem": "名词解释：独立式按键硬件接口方式。",
-  "options": [],
-  "answer": [
-   "独立式按键硬件接口方式是指直接用单片机的 I/O 端口线控制按键，一个按键单独占用一根 I/O 端口线，按键的工作不会影响其他 I/O 端口线的状态（如图 3.5 中 P0.0 接 S₁）。这种连接方式的优点是电路配置灵活、软件结构简单；缺点是每个按键必须占用一根 I/O 端口线，因此在按键较多时 I/O 端口线浪费较大，不宜采用。"
-  ],
-  "explanation": "教材任务3-2（书页 56）对图 3.5 接口方式的说明。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
- },
- {
-  "id": "mcu-p3a-026",
-  "number": 373,
-  "type": "term",
-  "stem": "名词解释：按键的机械抖动。",
-  "options": [],
-  "answer": [
-   "机械式按键在按下或释放时，由于机械弹性作用的影响，触点不能立即稳定地接通或断开，而是伴随有一定时间的触点机械抖动（波形上表现为前沿抖动和后沿抖动），然后触点才稳定下来。抖动时间一般为 5~10 ms。在触点抖动期间检测按键的通与断状态，可能导致判断出错，因此需要采用硬件电路（如图 3.7 的去抖电路）或软件延时的方法进行去抖。"
-  ],
-  "explanation": "教材任务3-2 小经验与图 3.6、图 3.7（书页 56）。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.3",
+  "secTitle": "运算符和表达式"
  },
  {
   "id": "mcu-p3a-027",
@@ -7692,7 +7479,9 @@
    "大"
   ],
   "explanation": "教材任务3-2（书页 56）对独立式按键优缺点的说明。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.1.2",
+  "secTitle": "C 语言的基本结构"
  },
  {
   "id": "mcu-p3a-028",
@@ -7721,7 +7510,9 @@
    "B"
   ],
   "explanation": "教材 ex3_3.c 该行注释（书页 56）与软件去抖编程思路（书页 57）：延时 10 ms 左右去抖动。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.1.2",
+  "secTitle": "C 语言的基本结构"
  },
  {
   "id": "mcu-p3a-029",
@@ -7734,19 +7525,9 @@
    "释放按键"
   ],
   "explanation": "教材图 3.8「软件去抖流程」（书页 57）。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
- },
- {
-  "id": "mcu-p3a-030",
-  "number": 377,
-  "type": "short",
-  "stem": "什么是软件去抖？简述其编程思路。",
-  "options": [],
-  "answer": [
-   "软件去抖是用程序延时的方法消除按键触点机械抖动影响的一种措施。编程思路是：在检测到有键按下时，先执行 10 ms 左右的延时程序，然后再重新检测该键是否仍然按下，以确认该键按下不是因抖动引起的；同理，在检测到该键释放时，也采用先延时再判断的方法消除抖动的影响。在 ex3_3.c 中，这一思路体现为两次 if(S1==0) 判断之间插入 delay(1200)，即：if(S1==0){ delay(1200); if(S1==0){……} }。"
-  ],
-  "explanation": "教材任务3-2 软件去抖编程思路与图 3.8（书页 57）。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.2.2",
+  "secTitle": "选择语句"
  },
  {
   "id": "mcu-p3a-031",
@@ -7775,7 +7556,9 @@
    "B"
   ],
   "explanation": "教材 ex3_4.c（书页 58）：if(S2==0) P1=0x55; 为第二种模式（交叉亮灭）。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.2.2",
+  "secTitle": "选择语句"
  },
  {
   "id": "mcu-p3a-032",
@@ -7804,7 +7587,9 @@
    "A"
   ],
   "explanation": "教材小问答（书页 59）：++i 属于前置运算，先执行加 1 操作，再使用 i 的值；i++ 属于后置运算。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.2.2",
+  "secTitle": "选择语句"
  },
  {
   "id": "mcu-p3a-033",
@@ -7825,7 +7610,9 @@
    "F"
   ],
   "explanation": "教材小问答（书页 59）：有影响。人手按一次键的时间以秒计，而程序执行以微秒计，按一次键的时间 i 的值会改变很多次，无法控制四种显示模式的顺序。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.2.3",
+  "secTitle": "循环语句"
  },
  {
   "id": "mcu-p3a-034",
@@ -7838,19 +7625,9 @@
    "5"
   ],
   "explanation": "教材 ex3_5.c（书页 58–59）程序注释：定义变量 i 记录按下次数，i 增 1 且增加到 5 后重新赋值 1。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
- },
- {
-  "id": "mcu-p3a-035",
-  "number": 382,
-  "type": "prog",
-  "stem": "【补全代码】下面是教材 ex3_5.c 中用 switch 语句根据按键次数 i 选择显示模式的部分，请补全【①】～【④】四个 case 后的 P1 口输出值（依次为全亮、交叉亮灭、第三种模式、第四种模式）。\n\n```c\nswitch (i)\n{\n    case 1:P1=【①】;break;\n    case 2:P1=【②】;break;\n    case 3:P1=【③】;break;\n    case 4:P1=【④】;break;\n    default:break;\n}\n```",
-  "options": [],
-  "answer": [
-   "① 0x00　② 0x55　③ 0x0f　④ 0xf0\n完整语句：\nswitch (i)\n{\n    case 1:P1=0x00;break;   //i=1显示第一种模式\n    case 2:P1=0x55;break;   //i=2显示第二种模式\n    case 3:P1=0x0f;break;   //i=3显示第三种模式\n    case 4:P1=0xf0;break;   //i=4显示第四种模式\n    default:break;\n}\n说明：每个 case 后必须加 break，否则执行完该 case 后会继续执行后面的 case 语句；default 在不满足任何 case 时执行，此例中可省略。"
-  ],
-  "explanation": "教材 ex3_5.c 中的 switch 段（书页 59）与 3.2.2 节 switch 语句小提示（书页 64）。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.2.2",
+  "secTitle": "选择语句"
  },
  {
   "id": "mcu-p3a-036",
@@ -7879,7 +7656,9 @@
    "A"
   ],
   "explanation": "教材 3.2.1 节（书页 60）：空语句中只有一个分号「;」，执行时占用一条指令时间但什么也不做。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.2.1",
+  "secTitle": "表达式语句和复合语句"
  },
  {
   "id": "mcu-p3a-037",
@@ -7908,7 +7687,9 @@
    "B"
   ],
   "explanation": "教材 3.2.1 节小提示（书页 61）：复合语句中定义的变量称为局部变量，有效范围只在本复合语句中。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.2.1",
+  "secTitle": "表达式语句和复合语句"
  },
  {
   "id": "mcu-p3a-038",
@@ -7929,7 +7710,9 @@
    "T"
   ],
   "explanation": "教材 3.2.2 节小提示（2）（书页 62）与 3.2.3 节小提示（1）（书页 67）：if、while 的表达式括号后不能加分号。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.2.3",
+  "secTitle": "循环语句"
  },
  {
   "id": "mcu-p3a-039",
@@ -7958,7 +7741,9 @@
    "B"
   ],
   "explanation": "教材 3.2.2 节小提示（1）（书页 62）：只要表达式的值非 0 即为「真」，如 if(3)、if(P3_0) 都合法。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.2.2",
+  "secTitle": "选择语句"
  },
  {
   "id": "mcu-p3a-040",
@@ -7979,7 +7764,9 @@
    "T"
   ],
   "explanation": "教材 3.2.2 节小提示（1）（2）（书页 63）。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.2.2",
+  "secTitle": "选择语句"
  },
  {
   "id": "mcu-p3a-041",
@@ -8008,7 +7795,9 @@
    "A"
   ],
   "explanation": "教材 3.2.2 节小提示（3）（书页 63）：&& 为逻辑运算符，当且仅当左右两边都为「真」时结果为「真」。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.3",
+  "secTitle": "运算符和表达式"
  },
  {
   "id": "mcu-p3a-042",
@@ -8037,7 +7826,9 @@
    "A"
   ],
   "explanation": "教材 3.2.2 节小提示（1）（书页 64）：case 后各常量表达式的值不能相同。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.2.2",
+  "secTitle": "选择语句"
  },
  {
   "id": "mcu-p3a-043",
@@ -8058,19 +7849,9 @@
    "F"
   ],
   "explanation": "教材 3.2.2 节小提示（3）（书页 64）：执行完该标号后面的语句后不会自动跳出 switch，而是继续执行后面的 case 语句，因此每个 case 后要加 break。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
- },
- {
-  "id": "mcu-p3a-044",
-  "number": 391,
-  "type": "short",
-  "stem": "简述 switch 语句的执行过程，并说明为什么要在每个 case 语句后面加 break 语句。",
-  "options": [],
-  "answer": [
-   "执行过程：首先计算 switch 后「表达式」的值，并逐个与 case 后的「常量表达式」的值相比较；当「表达式」的值与某个「常量表达式」的值相等时，则执行该常量表达式后的「语句组」，再执行 break 语句，跳出 switch 语句的执行，继续执行下一条语句；如果表达式的值与所有 case 后的常量表达式均不相同，则执行 default 后的语句组。\n加 break 的原因：「case 常量表达式」只相当于一个语句标号，表达式的值和某个语句标号相等则转向该标号执行，但执行完该标号后面的语句后不会自动跳出整个 switch 语句，而是继续执行后面 case 的语句。因此必须在每一个 case 语句后面加 break 语句，使得执行完该 case 后能跳出整个 switch 语句。"
-  ],
-  "explanation": "教材 3.2.2 节 switch 语句（书页 64）与小提示（3）。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.2.2",
+  "secTitle": "选择语句"
  },
  {
   "id": "mcu-p3a-045",
@@ -8091,7 +7872,9 @@
    "T"
   ],
   "explanation": "教材 3.2.2 节小提示（4）（5）（书页 65）：case、default 顺序可改，default 可省略。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.2.2",
+  "secTitle": "选择语句"
  },
  {
   "id": "mcu-p3a-046",
@@ -8120,19 +7903,9 @@
    "B"
   ],
   "explanation": "教材 3.2.3 节小提示（3）（书页 65）：while(1) 表达式为常量 1，非 0 即为「真」，循环条件永远成立，为无限循环即死循环。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
- },
- {
-  "id": "mcu-p3a-047",
-  "number": 394,
-  "type": "term",
-  "stem": "名词解释：软件延时。",
-  "options": [],
-  "answer": [
-   "软件延时是指在程序的延时函数中使用循环语句（如 delay() 函数中的 for 循环，其循环体为空语句），通过反复执行空循环来消耗 CPU 时间，从而产生延时效果的方法。软件延时的缺点是占用 CPU 时间，使得 CPU 在延时过程中不能做其他事情；解决的方法是使用单片机中的硬件定时器实现延时。"
-  ],
-  "explanation": "教材 3.2.3 节开头（书页 65）。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.2.3",
+  "secTitle": "循环语句"
  },
  {
   "id": "mcu-p3a-048",
@@ -8153,7 +7926,9 @@
    "T"
   ],
   "explanation": "教材 3.2.3 节小提示（2）（书页 65）：while 是先判断后执行，条件一开始为假则循环体一次也不执行。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.2.3",
+  "secTitle": "循环语句"
  },
  {
   "id": "mcu-p3a-049",
@@ -8182,7 +7957,9 @@
    "A"
   ],
   "explanation": "教材 3.2.3 节小问答（书页 66）：用 do-while 实现无限循环的语句为 do{ ; }while(1);，括号后必须加分号。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.2.3",
+  "secTitle": "循环语句"
  },
  {
   "id": "mcu-p3a-050",
@@ -8211,7 +7988,9 @@
    "A"
   ],
   "explanation": "教材 3.2.3 节（书页 67）：do-while 是先执行、后判断，while 是先判断、后执行；条件一开始不满足时 do-while 至少执行一次循环体。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.2.3",
+  "secTitle": "循环语句"
  },
  {
   "id": "mcu-p3a-051",
@@ -8224,7 +8003,9 @@
    "必须"
   ],
   "explanation": "教材 3.2.3 节小提示（1）（书页 67）。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.2.3",
+  "secTitle": "循环语句"
  },
  {
   "id": "mcu-p3a-052",
@@ -8236,7 +8017,9 @@
    "101"
   ],
   "explanation": "教材 3.2.3 节（书页 68）：直到 i=101 时条件 i<=100 不成立，循环结束。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.2.3",
+  "secTitle": "循环语句"
  },
  {
   "id": "mcu-p3a-053",
@@ -8265,7 +8048,9 @@
    "A"
   ],
   "explanation": "教材 3.2.3 节小经验（1）（书页 68）：for(;;) 三个表达式全部为空，作用相当于 while(1)，构成无限循环。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.2.3",
+  "secTitle": "循环语句"
  },
  {
   "id": "mcu-p3a-054",
@@ -8286,7 +8071,9 @@
    "T"
   ],
   "explanation": "教材 3.2.3 节小经验（3）（书页 69）：三个表达式都可省略，但必须保留「;」。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.2.1",
+  "secTitle": "表达式语句和复合语句"
  },
  {
   "id": "mcu-p3a-055",
@@ -8307,19 +8094,9 @@
    "T"
   ],
   "explanation": "教材 3.2.3 节小提示（3）（书页 70）：在循环嵌套中，一个 break 语句只能向外跳出一层。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
- },
- {
-  "id": "mcu-p3a-056",
-  "number": 403,
-  "type": "short",
-  "stem": "break 语句与 continue 语句有什么区别？各举教材中的一个用法说明。",
-  "options": [],
-  "answer": [
-   "break 语句是直接结束整个循环语句：不论循环条件是否满足，都可使程序立即终止整个循环而执行循环后面的语句；在 switch 语句中使用时则跳出 switch。它通常与 if 语句一起使用，例如 ex3_2.c 举一反三中的 for(i=1;;i++){ if(i>10) break; sum=sum+i; }，i>10 时立即跳出循环。\ncontinue 语句则是停止当前循环体的执行，跳过循环体中余下的语句，再次进入循环条件判断，准备继续开始下一次循环体的执行，它只结束本次循环而不是整个循环。例如教材求 1~20 之间所有不能被 5 整除的整数之和的程序段：for(i=1;i<=20;i++){ if(i%5==0) continue; sum=sum+i; }，i 能被 5 整除时跳过本次求和，继续下一次循环。\n另外：break 对 if-else 的条件语句不起作用；在循环嵌套中一个 break 只能向外跳出一层。"
-  ],
-  "explanation": "教材 3.2.3 节第 5 点（书页 69–71）与图 3.16。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.2.3",
+  "secTitle": "循环语句"
  },
  {
   "id": "mcu-p3a-057",
@@ -8332,7 +8109,9 @@
    "取余"
   ],
   "explanation": "教材 3.2.3 节（书页 71）continue 示例程序段与小提示「%」取余运算符。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.2.3",
+  "secTitle": "循环语句"
  },
  {
   "id": "mcu-p3a-058",
@@ -8361,7 +8140,9 @@
    "A"
   ],
   "explanation": "教材任务3-3 电路设计（书页 72）：P1.0 引脚控制蜂鸣器，P1.1、P1.2 控制发光二极管，P0.0 接按键 S₁。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.1.1",
+  "secTitle": "第一个 C 语言程序"
  },
  {
   "id": "mcu-p3a-059",
@@ -8375,7 +8156,9 @@
    "2"
   ],
   "explanation": "教材图 3.17 与任务3-3 电路设计（书页 72），程序中对应 sbit beep=P1^0; green=P1^1; red=P1^2;。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.1",
+  "secTitle": "数据类型"
  },
  {
   "id": "mcu-p3a-060",
@@ -8404,7 +8187,9 @@
    "B"
   ],
   "explanation": "教材任务3-3 举一反三 1）（书页 73）：有人靠近时输出 UOUT=3 V，无人靠近时输出 UOUT=0 V。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.2",
+  "secTitle": "常量和变量"
  },
  {
   "id": "mcu-p3a-061",
@@ -8433,7 +8218,9 @@
    "B"
   ],
   "explanation": "教材任务3-3 举一反三 2）自动感应垃圾桶设计（书页 74）：I/O 端口输出电流只有几 mA，电机额定工作电流至少需要几百 mA。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.1.1",
+  "secTitle": "第一个 C 语言程序"
  },
  {
   "id": "mcu-p3a-062",
@@ -8446,19 +8233,9 @@
    "单片机"
   ],
   "explanation": "教材图 3.22 下方正文（书页 75）：+12 V 提供给电机驱动功率模块，经 7850/7805 稳压后的 +5 V 提供给单片机。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
- },
- {
-  "id": "mcu-p3a-063",
-  "number": 410,
-  "type": "short",
-  "stem": "按照图 3.22 的自动感应垃圾桶控制电路，说明该系统应具有的三项功能（含电机正转、反转与停止的控制条件）。",
-  "options": [],
-  "answer": [
-   "（1）人体感应信号检测功能：检测 P0.1 引脚的电平状态，判断是否有人接近（红外模块 OUT 接 P0.1）。（2）电机正转功能：P1.5=1、P1.3=1、P1.4=0；若要电机停止，只需让 P1.3=0 即可。（3）电机反转功能：P1.5=1、P1.3=0、P1.4=1；若要电机停止，只需让 P1.4=0 即可。即通过 P1.3、P1.4 的高低电平组合控制 L298 输出端的极性，从而控制直流电机的转向。"
-  ],
-  "explanation": "教材书页 75「按照图 3.22 电路设计，感应垃圾桶系统应具有以下功能」三条。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.1",
+  "secTitle": "数据类型"
  },
  {
   "id": "mcu-p3b-001",
@@ -8487,19 +8264,9 @@
    "C"
   ],
   "explanation": "教材表 3.2：unsigned char 为无符号字符型，长度 1 B，值域 0～255；亦为思考与练习题 3 的 3.1 第（9）题。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
- },
- {
-  "id": "mcu-p3b-002",
-  "number": 412,
-  "type": "short",
-  "stem": "C51 在 ANSI C 的基础上扩充了哪些数据类型？各有什么作用？",
-  "options": [],
-  "answer": [
-   "C51 的扩充数据类型（表 3.2 中加底色的部分）主要有 bit、sbit、sfr、sfr16 以及指针型 *。①bit：位类型，定义一个位类型变量，值只能是 0 或 1，与高级语言的 boolean 类型 True/False 类似，但不能定义位指针和位数组。②sbit：可寻址位类型，利用它可以访问单片机内部 RAM 中的可寻址位或专用寄存器中的可寻址位，定义格式为 sbit 位名称=位地址;，如 sbit P1_1=P1^1; 或 sbit P1_1=0x91;。③sfr：专用寄存器类型，占 1 B、值域 0～255，用来访问单片机内部的所有 8 位专用寄存器，如 sfr P0=0x80;。④sfr16：16 位专用寄存器类型，占 2 B、值域 0～65 535，定义时 2 字节地址必须连续且低字节地址在前，如 sfr16 T2=0xcc;，不能用于定时器 0 和 1 的定义。⑤指针型 *：变量中存放的是指向另一个数据的地址，在 C51 中长度一般为 1～3 B。这些扩充类型为访问 51 单片机的专用寄存器和可寻址位提供了直接手段，是 51 单片机 C 语言编程的基础。"
-  ],
-  "explanation": "教材表 3.2 与 3.3.1 第 5～9 点（书页 77～79）：C51 扩充数据类型 bit、sbit、sfr、sfr16 和指针型。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.1",
+  "secTitle": "数据类型"
  },
  {
   "id": "mcu-p3b-003",
@@ -8528,7 +8295,9 @@
    "B"
   ],
   "explanation": "教材表 3.2：unsigned int 与 signed int 的长度均为 2 B，值域分别为 0～65 535 与 −32 768～+32 767。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.1",
+  "secTitle": "数据类型"
  },
  {
   "id": "mcu-p3b-004",
@@ -8549,7 +8318,9 @@
    "T"
   ],
   "explanation": "教材 3.3.1：在进行 C 语言程序设计时，可以使用的数据类型与编译器有关，在 C51 中 int 与 short 相同、float 与 double 相同。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.1",
+  "secTitle": "数据类型"
  },
  {
   "id": "mcu-p3b-005",
@@ -8578,7 +8349,9 @@
    "A"
   ],
   "explanation": "教材 3.3.1 第 6 点：位类型 bit 的值是一个二进制位，只有 0 或 1，与高级语言的 boolean 类型 True/False 类似。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.2",
+  "secTitle": "常量和变量"
  },
  {
   "id": "mcu-p3b-006",
@@ -8599,7 +8372,9 @@
    "F"
   ],
   "explanation": "教材 3.3.1 第 6 点：利用 bit 可以定义位类型变量，但不能定义位指针，也不能定义位数组。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.1",
+  "secTitle": "数据类型"
  },
  {
   "id": "mcu-p3b-007",
@@ -8628,7 +8403,9 @@
    "A"
   ],
   "explanation": "教材 3.3.1 第 7 点与表 3.2：sfr 占用 1 B，值域 0～255，可访问片内所有 8 位专用寄存器。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.1",
+  "secTitle": "数据类型"
  },
  {
   "id": "mcu-p3b-008",
@@ -8642,7 +8419,9 @@
    "0xFF"
   ],
   "explanation": "教材 3.3.1 第 7 点：51 单片机内部定义了 21 个专用寄存器，地址为 0x80～0xFF。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.1",
+  "secTitle": "数据类型"
  },
  {
   "id": "mcu-p3b-009",
@@ -8671,7 +8450,9 @@
    "A"
   ],
   "explanation": "教材 3.3.1 第 9 点：可位寻址的专用寄存器字节地址都能被 8 整除，即以十六进制表示时以 8 或 0 为尾数。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.2",
+  "secTitle": "常量和变量"
  },
  {
   "id": "mcu-p3b-010",
@@ -8683,7 +8464,9 @@
    "208"
   ],
   "explanation": "教材 3.3.1 第 2 点小提示：超出无符号字符型范围时编译器不报语法错误，实际值为 208（256 是 8 位数据的模）。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.1",
+  "secTitle": "数据类型"
  },
  {
   "id": "mcu-p3b-011",
@@ -8712,7 +8495,9 @@
    "B"
   ],
   "explanation": "教材 3.3.2 常量（4）：字符串末尾系统自动加 ‘\\0’ 作结束符，“A” 实含 ‘A’ 与 ‘\\0’ 两个字符，多占用 1 个字节。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.1",
+  "secTitle": "数据类型"
  },
  {
   "id": "mcu-p3b-012",
@@ -8733,7 +8518,9 @@
    "F"
   ],
   "explanation": "教材 3.3.2 常量（4）：字符串常量 “A” 含 ‘A’ 和 ‘\\0’ 两个字符，比字符常量 ‘A’ 多占 1 个字节。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.1",
+  "secTitle": "数据类型"
  },
  {
   "id": "mcu-p3b-013",
@@ -8762,7 +8549,9 @@
    "B"
   ],
   "explanation": "教材 3.3.2 常量：符号常量是指在程序中用标识符代表的常量，使用前必须用 #define 定义，其后凡是出现 PI 的地方均用 3.1415 代替。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.2",
+  "secTitle": "常量和变量"
  },
  {
   "id": "mcu-p3b-014",
@@ -8783,7 +8572,9 @@
    "F"
   ],
   "explanation": "教材 3.3.2：常量的值在程序执行期间不能变化，变量的值在程序执行期间可以发生变化，题干把二者说反了。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.2",
+  "secTitle": "常量和变量"
  },
  {
   "id": "mcu-p3b-015",
@@ -8796,7 +8587,9 @@
    "存储器类型"
   ],
   "explanation": "教材 3.3.2 第 2 点“变量”：变量必须先定义后使用，并指出所用的数据类型和存储模式。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.1",
+  "secTitle": "数据类型"
  },
  {
   "id": "mcu-p3b-016",
@@ -8812,7 +8605,9 @@
    "auto"
   ],
   "explanation": "教材 3.3.2 第 3 点：存储种类四种，默认类型为 auto（自动变量）。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.2",
+  "secTitle": "常量和变量"
  },
  {
   "id": "mcu-p3b-017",
@@ -8841,7 +8636,9 @@
    "A"
   ],
   "explanation": "教材表 3.3 及说明（1）：small 模式所有默认变量参数均装入内部 RAM（默认类型 data），优点是速度快，缺点是空间有限、堆栈空间较少。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.2",
+  "secTitle": "常量和变量"
  },
  {
   "id": "mcu-p3b-018",
@@ -8870,7 +8667,9 @@
    "B"
   ],
   "explanation": "教材表 3.3：compact 模式把参数及局部变量放入外部数据存储器的前 256 B 中，默认存储器类型为 pdata。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.2",
+  "secTitle": "常量和变量"
  },
  {
   "id": "mcu-p3b-019",
@@ -8884,7 +8683,9 @@
    "xdata"
   ],
   "explanation": "教材表 3.3：small 最大 128 B（data）、compact 最大 256 B（pdata）、large 最大 64 KB（xdata）。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.2",
+  "secTitle": "常量和变量"
  },
  {
   "id": "mcu-p3b-020",
@@ -8905,7 +8706,9 @@
    "T"
   ],
   "explanation": "教材 3.3.2 第 4 点说明（1）：small 模式适用于较小的程序。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.2",
+  "secTitle": "常量和变量"
  },
  {
   "id": "mcu-p3b-021",
@@ -8926,7 +8729,9 @@
    "T"
   ],
   "explanation": "教材 3.3.2 第 3 点 3）static：静态局部变量始终存在，但作用域仍与自动变量相同，只能在定义它的函数内使用。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.2",
+  "secTitle": "常量和变量"
  },
  {
   "id": "mcu-p3b-022",
@@ -8955,7 +8760,9 @@
    "C"
   ],
   "explanation": "教材 3.3.2 第 3 点 4）register：寄存器变量存放在 CPU 的寄存器中，使用时不需要访问内存，可提高效率。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.2",
+  "secTitle": "常量和变量"
  },
  {
   "id": "mcu-p3b-023",
@@ -8984,7 +8791,9 @@
    "A"
   ],
   "explanation": "教材表 3.5 算术运算符：% 为取余，求两个数的余数，20%9=2；并注意取余要求参与运算的量均为整型。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.3",
+  "secTitle": "运算符和表达式"
  },
  {
   "id": "mcu-p3b-024",
@@ -9013,7 +8822,9 @@
    "B"
   ],
   "explanation": "教材 3.3.3 小提示（1）：两个整数相除所得值是整数，如 7/3 值为 2；而浮点数相除如 20.0/5 才得 4.0。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.3",
+  "secTitle": "运算符和表达式"
  },
  {
   "id": "mcu-p3b-025",
@@ -9042,7 +8853,9 @@
    "B"
   ],
   "explanation": "教材 3.3.3 小提示（3）：j=i++ 是后置运算，先使用 i 的值（100）加 1 后赋给 j，故 j=101、i=102。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.1",
+  "secTitle": "数据类型"
  },
  {
   "id": "mcu-p3b-026",
@@ -9057,7 +8870,9 @@
    "102"
   ],
   "explanation": "教材 3.3.3 小提示（3）示例代码：j=++i 得 j=101、i=101；j=i++ 得 j=101、i=102。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.1",
+  "secTitle": "数据类型"
  },
  {
   "id": "mcu-p3b-027",
@@ -9086,7 +8901,9 @@
    "A"
   ],
   "explanation": "教材 3.3.3 位运算小经验：按位与常用来清零或保留某些位，control=P3&0x03 中 0x03 即 00000011B，只保留低两位。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.3",
+  "secTitle": "运算符和表达式"
  },
  {
   "id": "mcu-p3b-028",
@@ -9115,7 +8932,9 @@
    "A"
   ],
   "explanation": "教材 3.3.3 位运算小经验：执行 P1&=0x0f;（0x0f 即 00001111B）可清除 P1.4～P1.7 为 0，其余位不变。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.3",
+  "secTitle": "运算符和表达式"
  },
  {
   "id": "mcu-p3b-029",
@@ -9144,7 +8963,9 @@
    "A"
   ],
   "explanation": "教材 3.3.3 右移说明：无符号数右移左端补 0，0x98 即 10011000B，右移 2 位得 00100110B，即 0x26。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.3",
+  "secTitle": "运算符和表达式"
  },
  {
   "id": "mcu-p3b-030",
@@ -9157,7 +8978,9 @@
    "48"
   ],
   "explanation": "教材 3.3.3 左移说明：左移时高位丢弃、低位补 0，00000011B 左移 4 位得 00110000B（48）。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.2",
+  "secTitle": "常量和变量"
  },
  {
   "id": "mcu-p3b-031",
@@ -9178,7 +9001,9 @@
    "F"
   ],
   "explanation": "教材 3.3.3 第 3 点：关系运算符优先级低于算术运算符，应先算 b+c+d 再作比较，即写成 “(a+b)>(c+d)” 的形式再比较。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.2.2",
+  "secTitle": "选择语句"
  },
  {
   "id": "mcu-p3b-032",
@@ -9207,7 +9032,9 @@
    "A"
   ],
   "explanation": "教材 3.3.3 第 3 点：关系表达式的值只有 0 和 1 两种，条件满足为 1（真），不满足为 0（假）。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.2.2",
+  "secTitle": "选择语句"
  },
  {
   "id": "mcu-p3b-033",
@@ -9236,7 +9063,9 @@
    "A"
   ],
   "explanation": "教材 3.3.3 第 4 点：逻辑非 ! 优先级最高，其次 &&，最低 ||；与其他运算符比较为 ! → 算术 → 关系 → && → || → 赋值。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.3",
+  "secTitle": "运算符和表达式"
  },
  {
   "id": "mcu-p3b-034",
@@ -9257,7 +9086,9 @@
    "F"
   ],
   "explanation": "教材表 3.8、表 3.10、表 3.11：& 是按位与，按二进制位逐位运算；&& 是逻辑与，只判断整体真假，二者不同。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.2",
+  "secTitle": "常量和变量"
  },
  {
   "id": "mcu-p3b-035",
@@ -9286,7 +9117,9 @@
    "C"
   ],
   "explanation": "教材 3.3.3 第 6 点：逗号表达式以最右边表达式的值为结果，y=10 后 y+5=15，故 x=15。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.3",
+  "secTitle": "运算符和表达式"
  },
  {
   "id": "mcu-p3b-036",
@@ -9303,7 +9136,9 @@
    "<<（左移）"
   ],
   "explanation": "教材表 3.10 位运算符：&、|、^、~、>>、<<。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.3",
+  "secTitle": "运算符和表达式"
  },
  {
   "id": "mcu-p3b-037",
@@ -9332,7 +9167,9 @@
    "A"
   ],
   "explanation": "教材任务3-4 小知识：占空比 = T₁/T = 1/4 = 0.25。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.1",
+  "secTitle": "数据类型"
  },
  {
   "id": "mcu-p3b-038",
@@ -9347,7 +9184,9 @@
    "T₂"
   ],
   "explanation": "教材任务3-4 小知识（书页 89）与图 3.25：占空比为 T₁/T，改变 T₁、T₂ 即改变高低电平持续的时间。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.1.1",
+  "secTitle": "第一个 C 语言程序"
  },
  {
   "id": "mcu-p3b-039",
@@ -9368,7 +9207,9 @@
    "T"
   ],
   "explanation": "教材任务3-4 小知识（书页 89）：PWM 定义与占空比关系的原文表述。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.3",
+  "secTitle": "运算符和表达式"
  },
  {
   "id": "mcu-p3b-040",
@@ -9397,7 +9238,9 @@
    "A"
   ],
   "explanation": "教材 ex3_8.c 注释：i=0、j=500 是灯最暗时的延时参数初值，此时高电平时间最短。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.2",
+  "secTitle": "常量和变量"
  },
  {
   "id": "mcu-p3b-041",
@@ -9410,7 +9253,9 @@
    "1"
   ],
   "explanation": "教材 ex3_8.c：P1.0 低电平点亮 LED，故 #define ON 0、#define OFF 1。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.2",
+  "secTitle": "常量和变量"
  },
  {
   "id": "mcu-p3b-042",
@@ -9439,7 +9284,9 @@
    "A"
   ],
   "explanation": "教材 ex3_8.c：L_up 按下时 j--;i++; 使亮的延时变长、灭的延时变短，灯变亮；L_down 按下时相反。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.3",
+  "secTitle": "运算符和表达式"
  },
  {
   "id": "mcu-p3b-043",
@@ -9460,19 +9307,9 @@
    "T"
   ],
   "explanation": "教材 ex3_8.c 主循环中的两处边界判断语句，实现“增到最亮再回到最暗、减到最暗再回到最亮”的循环调光。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
- },
- {
-  "id": "mcu-p3b-044",
-  "number": 454,
-  "type": "short",
-  "stem": "简述任务3-4 可调光华台灯是如何实现亮度调节的。",
-  "options": [],
-  "answer": [
-   "采用 PWM（脉宽调制）软件模拟法：单片机在 P1.0 引脚上不断输出高低电平，形成一个周期一定、高低电平可调的方波去驱动发光二极管。一个周期中高电平持续 T₁（灯亮）、低电平持续 T₂（灯灭），占空比 = T₁/T。程序中用 light=ON; delay(i); light=OFF; delay(j); 产生 PWM 波形，i 控制灯亮的时间、j 控制灯灭的时间。按下 L_up（接 P0.0）时执行 j--;i++; 使占空比增大、灯变亮，调到 j==0 时置 j=500、i=0 回到最暗；按下 L_down（接 P0.1）时执行 j++;i--; 使占空比减小、灯变暗，调到 i==0 时置 i=500、j=0 回到最亮。按键均经 delay(100) 去抖动并二次确认。由于该 51 单片机内部没有 PWM 模块，只能采用软件模拟法，方法简单实用但占用 CPU 大量时间。"
-  ],
-  "explanation": "教材任务3-4 目的与要求、图 3.24、PWM 小知识、图 3.25 与 ex3_8.c 程序。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.2.3",
+  "secTitle": "循环语句"
  },
  {
   "id": "mcu-p3b-045",
@@ -9501,7 +9338,9 @@
    "A"
   ],
   "explanation": "教材任务3-4 举一反三 1）（书页 91）：必须导通对角线上的一对三极管，不同三极管对导通使电流方向改变，从而控制电机转向。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.2.2",
+  "secTitle": "选择语句"
  },
  {
   "id": "mcu-p3b-046",
@@ -9516,7 +9355,9 @@
    "3"
   ],
   "explanation": "教材 ex3_9.c 的 switch 分支注释：0x01 为风速 1 挡弱风、0x02 为风速 2 挡舒适风、0x03 为风速 3 挡强风。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.2.2",
+  "secTitle": "选择语句"
  },
  {
   "id": "mcu-p3b-047",
@@ -9545,7 +9386,9 @@
    "A"
   ],
   "explanation": "教材任务3-4 举一反三 2）（书页 94）：单双八拍方式的通电顺序为 A—AB—B—BC—C—CD—D—DA—A。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.3",
+  "secTitle": "运算符和表达式"
  },
  {
   "id": "mcu-p3b-048",
@@ -9566,7 +9409,9 @@
    "T"
   ],
   "explanation": "教材任务3-4 举一反三 2）（书页 94）：步进电机的转动与绕组通电顺序有关，反转只需按相反方向顺序通电。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.3",
+  "secTitle": "运算符和表达式"
  },
  {
   "id": "mcu-p3b-049",
@@ -9578,7 +9423,9 @@
    "P1.0～P1.3"
   ],
   "explanation": "教材任务3-4 举一反三 2）与图 3.29：L298N 的 IN1～IN4 接 P1.0～P1.3，P0.0～P0.3 接 S₁～S₄ 四个按键。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.3.1",
+  "secTitle": "数据类型"
  },
  {
   "id": "mcu-p3b-050",
@@ -9607,7 +9454,9 @@
    "B"
   ],
   "explanation": "教材 ex3_10.c 的 main 函数：先执行 COUNT=20; 再进入 while(1) 循环判断正转、反转按键。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.2.3",
+  "secTitle": "循环语句"
  },
  {
   "id": "mcu-p3b-051",
@@ -9628,19 +9477,9 @@
    "T"
   ],
   "explanation": "教材 ex3_10.c：if (S3==0) 时 COUNT--（减速）、if (S4==0) 时 COUNT++（加速），并分别以 COUNT>2、COUNT<50 限幅；控制脉冲频率即控制转速。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
- },
- {
-  "id": "mcu-p3b-052",
-  "number": 462,
-  "type": "prog",
-  "stem": "下面是教材 ex3_10.c 中控制步进电机正转的函数 forward()，采用单双八拍方式。请补全 ①～④ 处缺失的 P1 赋值语句（注释已给出该拍通电的相），并说明 do-while 的循环条件为什么写成 while (S1==1)。\n\nvoid forward ( )\n{\n    do\n    {\n        P1=0x08;   //A\n        delay (COUNT);\n        P1=0x09;   //AD\n        delay (COUNT);\n        P1=0x01;   //D\n        delay (COUNT);\n        ①______;   //DC\n        delay (COUNT);\n        P1=0x02;   //C\n        delay (COUNT);\n        ②______;   //CB\n        delay (COUNT);\n        P1=0x04;   //B\n        delay (COUNT);\n        ③______;   //BA\n        delay (COUNT);\n        if (S3==0) { if (COUNT>2) COUNT--; }\n        if (S4==0) { if (COUNT<50) COUNT++; }\n    }while (④______);\n}",
-  "options": [],
-  "answer": [
-   "① P1=0x03;  ② P1=0x06;  ③ P1=0x0C;  ④ S1==1\n说明：单双八拍的通电顺序为 A—AB—B—BC—C—CD—D—DA—A，用 P1 的低 4 位（P1.0～P1.3）分别对应 A、B、C、D 四相，故 DC 拍为 0x03、CB 拍为 0x06、BA 拍为 0x0C；因 P1 高 4 位恒为 0，每个状态只点亮相邻两相（或单相）。do-while 的条件写成 while (S1==1)，表示只要反转按键 S₁ 没有被按下（P0.0 仍为高电平）就继续循环输出脉冲，电机持续正转；一旦 S₁ 按下（S1==0）则退出 forward()，转去执行 reverse() 反转。这样用按键电平直接作为循环条件，比在循环体内判断再 break 更简洁。"
-  ],
-  "explanation": "教材 ex3_10.c 的 forward() 函数（书页 95～96）：八拍序列 0x08、0x09、0x01、0x03、0x02、0x06、0x04、0x0C；循环条件 while (S1==1) 注释为“当 S₁ 键没有按下时，做以上循环”。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.2.2",
+  "secTitle": "选择语句"
  },
  {
   "id": "mcu-p3b-053",
@@ -9652,7 +9491,9 @@
    "main（主函数）"
   ],
   "explanation": "教材 3.4 节与知识梳理与总结第（4）条：一个 C 源程序中有且仅有一个主函数 main()，程序总是从 main() 开始执行。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.1.2",
+  "secTitle": "C 语言的基本结构"
  },
  {
   "id": "mcu-p3b-054",
@@ -9673,7 +9514,9 @@
    "F"
   ],
   "explanation": "教材 3.4 节：C 语言程序中有且只有一个主函数 main()，其他函数可以有多个；思考与练习题 3 的 3.2 第（1）题亦考此点。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.1.2",
+  "secTitle": "C 语言的基本结构"
  },
  {
   "id": "mcu-p3b-055",
@@ -9702,7 +9545,9 @@
    "A"
   ],
   "explanation": "教材思考与练习题 3 的 3.1 第（7）题：循环条件写作 i=3 是赋值表达式，其值恒为 3（非 0 即真），故形成死循环，执行无限次。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.2.3",
+  "secTitle": "循环语句"
  },
  {
   "id": "mcu-p3b-056",
@@ -9715,7 +9560,9 @@
    "unsigned char"
   ],
   "explanation": "教材思考与练习题 3 的 3.1 第（4）题与 3.2 第（10）题；参见延时函数 for (k=0;k<i;k++); 与 3.3.1 第 1 点小提示。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.2.3",
+  "secTitle": "循环语句"
  },
  {
   "id": "mcu-p3b-057",
@@ -9728,7 +9575,9 @@
    "switch"
   ],
   "explanation": "教材思考与练习题 3 的 3.2 第（6）题；ex3_9.c 中用 switch(number) 实现三挡风速选择。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.2.2",
+  "secTitle": "选择语句"
  },
  {
   "id": "mcu-p3b-058",
@@ -9740,79 +9589,9 @@
    "无限（死循环，无数次）"
   ],
   "explanation": "教材思考与练习题 3 的 3.2 第（8）题：循环体中没有任何语句改变 i 的值，i 恒为 3≠0，条件永远成立。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
- },
- {
-  "id": "mcu-p3b-059",
-  "number": 469,
-  "type": "short",
-  "stem": "C51 的函数由哪两部分组成？函数有哪三种调用方式？调用一个函数需要具备什么条件？",
-  "options": [],
-  "answer": [
-   "函数由两部分组成：①函数定义，即函数的第一行，包括函数类型、函数名、函数参数（形式参数）名、参数类型等；②函数体，即花括号 { } 内的部分，由定义局部变量数据类型的说明部分和实现函数功能的执行部分组成。若函数不需要返回执行结果，函数类型用无值型关键字 void 定义，return 语句可以省略。\n按函数调用在主调用函数中出现的位置，有三种调用方式：①函数语句，把被调用函数作为主调用函数的一个语句，如 delay(10000);，不要求返回值；②函数表达式，被调用函数以一个运算对象的形式出现在表达式中，如 c=2*max(a,b);；③函数参数，被调用函数作为另一个函数的实参，如 m=max(a,max(b,c));。\n调用条件：①被调用函数必须是已经存在的函数（标准库函数或用户已定义的函数），若函数定义在调用之后，必须在调用之前（一般在程序头部）对函数进行声明；②如果自定义函数不是在本源程序文件中定义的，要在程序开始处用 extern 修饰符进行函数原型说明。此外，调用标准函数必须用 #include 把相应头文件包含进来，并遵循“先定义或声明、后调用”的原则，实参与形参顺序对应、个数相等、类型一致。"
-  ],
-  "explanation": "教材 3.4.1 函数的定义、3.4.2 函数调用及小提示（书页 98～100）。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
- },
- {
-  "id": "mcu-p3b-060",
-  "number": 470,
-  "type": "short",
-  "stem": "C51 变量的四种存储种类 auto、extern、static、register 有什么区别？",
-  "options": [],
-  "answer": [
-   "①auto（自动变量）：C 语言中使用最广泛的一种，函数内凡未加存储种类说明的变量均为自动变量（默认）。它属于动态存储方式，只有在定义它的函数被调用时才分配存储单元，函数调用结束即释放，值不能保留；作用域仅限于定义它的函数或复合语句内，故不同函数内可使用同名变量而不混淆。②extern（外部变量）：在所有函数之前、函数外部定义的变量都是外部变量，可默认有 extern 说明符；若在函数体内引用已在别处或别的程序模块文件中定义过的外部变量，必须用 extern 说明。它用于多模块程序共享同一变量。③static（静态变量）：属于静态存储方式，静态局部变量在函数内定义，始终存在，但作用域仍限于该函数，退出函数后虽存在但不能使用；静态全局变量的作用域局限于一个源文件内，可避免在其他源文件中引起错误。④register（寄存器变量）：存放在 CPU 的寄存器中，使用时不需要访问内存，直接从寄存器读写，可提高效率。"
-  ],
-  "explanation": "教材 3.3.2 第 3 点“变量的存储种类”（书页 81～82）。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
- },
- {
-  "id": "mcu-p3b-061",
-  "number": 471,
-  "type": "term",
-  "stem": "名词解释：数据类型。",
-  "options": [],
-  "answer": [
-   "数据是计算机操作的对象，任何程序设计都要进行数据处理；具有一定格式的数字或数值称为数据，数据的不同格式称为数据类型。在 C 语言中，数据类型可分为基本数据类型、构造数据类型、指针类型和空类型四大类；其中基本类型又包括数值类型（整型 short/int/long、实型 float/double）、字符类型 char 和枚举类型 enum。在 C51 中，除 ANSI C 的标准类型外还扩充了 bit、sbit、sfr、sfr16 等类型，且 int 与 short 相同、float 与 double 相同。"
-  ],
-  "explanation": "教材 3.3.1「数据类型」与图 3.23、表 3.2。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
- },
- {
-  "id": "mcu-p3b-062",
-  "number": 472,
-  "type": "term",
-  "stem": "名词解释：占空比。",
-  "options": [],
-  "answer": [
-   "PWM 技术是一种周期一定而高低电平可调的方波信号。在一个信号周期中，高电平持续的时间为 T₁，低电平持续的时间为 T₂，高电平持续的时间与信号周期的比值称为占空比，即 占空比 = T₁/T。例如信号周期 T=4 μs、高电平持续时间 T₁=1 μs 时，占空比为 1/4=0.25。占空比越大，高电平持续的时间越长；改变 T₁ 和 T₂ 即改变占空比，也就改变了输出到负载上的平均电压，从而实现调光、调速。"
-  ],
-  "explanation": "教材任务3-4 小知识（书页 89）与图 3.25。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
- },
- {
-  "id": "mcu-p3b-063",
-  "number": 473,
-  "type": "term",
-  "stem": "名词解释：存储器模式（small、compact、large）。",
-  "options": [],
-  "answer": [
-   "存储器模式是 C51 编译器控制指令，用来决定变量的默认存储器类型、参数传递区和无明确存储种类说明的处理方式，分为三种：small 模式把参数及局部变量放入可直接寻址的内部数据存储器中（最大 128 B，默认类型 data），访问速度快但空间有限、堆栈空间较少，适用于较小的程序；compact 模式把参数及局部变量放入外部数据存储器的前 256 B 中（最大 256 B，默认类型 pdata），变量空间比 small 大但速度较慢；large 模式把参数及局部变量直接放入外部数据存储器中（最大 64 KB，默认类型 xdata），空间大、可定义变量多但速度较慢，适用于较大程序或扩展了大容量外部 RAM 的系统。可用 Keil 环境设置，也可在源程序第一行用 #pragma compact 等预处理命令设置；本书程序均运行在 small 模式下。"
-  ],
-  "explanation": "教材表 3.3 及 3.3.2 第 4 点三种模式的说明、方法 1 与方法 2（书页 83～84）。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
- },
- {
-  "id": "mcu-p3b-064",
-  "number": 474,
-  "type": "prog",
-  "stem": "教材 3.3.3 节指出“任务 3-1 中流水灯控制程序 ex3_2.c 就是采用移位运算来实现的”。请用移位运算编写一段 C51 程序，使接在 P1 口的 8 个发光二极管（低电平点亮）从左到右逐个点亮、循环显示，并写出当 i 取 0、1、2 时 P1 的值。",
-  "options": [],
-  "answer": [
-   "#include <reg51.h>\nvoid delay(unsigned int i)\n{\n    unsigned int k;\n    for (k = 0; k < i; k++);\n}\nvoid main()\n{\n    unsigned char i;\n    while (1)\n    {\n        for (i = 0; i < 8; i++)\n        {\n            P1 = ~(0x01 << i);   // 0x01 左移 i 位后取反，对应位输出低电平点亮\n            delay(20000);\n        }\n    }\n}\n当 i=0 时 P1=~(0x01)=0xFE；i=1 时 P1=~(0x02)=0xFD；i=2 时 P1=~(0x04)=0xFB。即 0x01 左移 i 位使“1”逐位左移，取反后该位为 0，对应发光二极管点亮，其余为 1 熄灭；循环 8 次后回到 i=0，形成流水效果。也可写成 P1=0xfe; P1=P1<<1|0x01; 的移位形式。说明：左移时高位丢弃、低位补 0；若写成 P1=P1<<1 会逐位熄灭而不循环，故每轮需重新由 0x01 起移。"
-  ],
-  "explanation": "教材 3.3.3 位运算左移规则与“任务 3-1 中流水灯控制程序 ex3_2.c 就是采用移位运算来实现的”一句（书页 88），结合任务1-2 中 P1.0 低电平点亮 LED 的接法。",
-  "source": "项目3 并行 I/O 端口与 C51 语言"
+  "source": "项目3 并行 I/O 端口与 C51 语言",
+  "sec": "3.2.3",
+  "secTitle": "循环语句"
  },
  {
   "id": "mcu-p4a-001",
@@ -9841,7 +9620,9 @@
    "C"
   ],
   "explanation": "教材 4.1.1 及任务4-1 小知识：LED 数码管由 8 个发光二极管（a、b、c、d、e、f、g、dp）构成。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-p4a-002",
@@ -9870,7 +9651,9 @@
    "B"
   ],
   "explanation": "教材 4.1.1：共阳极数码管公共控制端 com 接高电平，阴极作段控制端，段端低电平时点亮。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-p4a-003",
@@ -9899,7 +9682,9 @@
    "B"
   ],
   "explanation": "教材表 4.2：字符 0 的共阳极字型码为 0xC0（11000000B）。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-p4a-004",
@@ -9928,7 +9713,9 @@
    "B"
   ],
   "explanation": "教材 4.1.1 与表 4.2：共阴极显示「1」需送 00000110B，即 0x06。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-p4a-005",
@@ -9957,7 +9744,9 @@
    "B"
   ],
   "explanation": "教材表 4.2：字符 5 的共阴极字型码为 0x6D，共阳极为 0x92。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-p4a-006",
@@ -9986,7 +9775,9 @@
    "A"
   ],
   "explanation": "教材表 4.2：共阳极 0xF9 对应字符 1（b、c 两段点亮）。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-p4a-007",
@@ -10015,7 +9806,9 @@
    "B"
   ],
   "explanation": "教材表 4.2：字符 8 的共阴极字型码为 0x7F（七段全亮）。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-p4a-008",
@@ -10044,7 +9837,9 @@
    "B"
   ],
   "explanation": "教材表 4.2 末行「熄灭」：共阳极 0xFF、共阴极 0x00 时数码管熄灭，动态显示中即用作关显示。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.3",
+  "secTitle": "LED 数码管动态显示"
  },
  {
   "id": "mcu-p4a-009",
@@ -10073,7 +9868,9 @@
    "C"
   ],
   "explanation": "教材 4.1.2 小经验：n 位数码管的静态显示需占用 8×n 个 I/O 端口。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.2",
+  "secTitle": "LED 数码管静态显示"
  },
  {
   "id": "mcu-p4a-010",
@@ -10102,7 +9899,9 @@
    "A"
   ],
   "explanation": "教材 4.3：动态显示按位轮流点亮数码管，利用人的视觉暂留作用使人感觉同时显示。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.3",
+  "secTitle": "LED 数码管动态显示"
  },
  {
   "id": "mcu-p4a-011",
@@ -10131,7 +9930,9 @@
    "C"
   ],
   "explanation": "教材任务4-2 图 4.6：段选由 P1 口经 74LS245 输出，位选由 P2 口经 74LS04 反相驱动。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.3",
+  "secTitle": "LED 数码管动态显示"
  },
  {
   "id": "mcu-p4a-012",
@@ -10160,7 +9961,9 @@
    "B"
   ],
   "explanation": "教材图 4-6 后小问答：延时过长使每位数码管闪动频率太慢，超出视觉暂留时间，无法稳定显示。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.3",
+  "secTitle": "LED 数码管动态显示"
  },
  {
   "id": "mcu-p4a-013",
@@ -10189,7 +9992,9 @@
    "B"
   ],
   "explanation": "教材小问答：不关显示会把上一字符短暂显示在下一字符位置，形成拖影，影响显示美观。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.3",
+  "secTitle": "LED 数码管动态显示"
  },
  {
   "id": "mcu-p4a-014",
@@ -10218,7 +10023,9 @@
    "A"
   ],
   "explanation": "教材 4.2.1：数组元素的下标从 0 开始计算，a[5] 的 5 个元素为 a[0]~a[4]。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.2.1",
+  "secTitle": "一维数组"
  },
  {
   "id": "mcu-p4a-015",
@@ -10247,7 +10054,9 @@
    "B"
   ],
   "explanation": "教材 4.2.1：方括号中常量表达式表示元素个数（长度），下标从 0 起，故为 a[0]~a[9]。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.2.1",
+  "secTitle": "一维数组"
  },
  {
   "id": "mcu-p4a-016",
@@ -10276,7 +10085,9 @@
    "B"
   ],
   "explanation": "教材 4.2.2：3 行 4 列数组共 3×4=12 个元素。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.2.1",
+  "secTitle": "一维数组"
  },
  {
   "id": "mcu-p4a-017",
@@ -10305,7 +10116,9 @@
    "B"
   ],
   "explanation": "教材 4.2.2：二维数组的存放方式是按行排列，放完一行后顺次放入第二行。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.2.2",
+  "secTitle": "二维数组"
  },
  {
   "id": "mcu-p4a-018",
@@ -10334,7 +10147,9 @@
    "B"
   ],
   "explanation": "教材 4.2.3：字符串总是以 '\\0' 作为串的结束符，存入数组时也要把 '\\0' 存入。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.2.3",
+  "secTitle": "字符数组"
  },
  {
   "id": "mcu-p4a-019",
@@ -10363,7 +10178,9 @@
    "B"
   ],
   "explanation": "教材 4.2.3：省去长度说明时，初值个数即为长度，7 个字母加 '\\0' 共 8 个元素。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.2.3",
+  "secTitle": "字符数组"
  },
  {
   "id": "mcu-p4a-020",
@@ -10392,7 +10209,9 @@
    "A"
   ],
   "explanation": "教材 4.4.2：列驱动采用 74HC595 级联，用串行移入、并行输出的方式提供 16 位列数据。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.4",
+  "secTitle": "LED 大屏幕显示器及接口"
  },
  {
   "id": "mcu-p4a-021",
@@ -10421,7 +10240,9 @@
    "A"
   ],
   "explanation": "教材 4.4.2：SCK 上升沿时移位寄存器数据移位 QA→QB→…→QH，下降沿数据不变。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.4",
+  "secTitle": "LED 大屏幕显示器及接口"
  },
  {
   "id": "mcu-p4a-022",
@@ -10450,7 +10271,9 @@
    "B"
   ],
   "explanation": "教材 4.4.1：LED 点阵引脚数为行数与列数之和，8+8=16 个引脚，共 64 个点。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.4",
+  "secTitle": "LED 大屏幕显示器及接口"
  },
  {
   "id": "mcu-p4a-023",
@@ -10462,7 +10285,9 @@
    "发光二极管"
   ],
   "explanation": "教材 4.1.1：LED 数码管由 8 个发光二极管构成。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-p4a-024",
@@ -10475,7 +10300,9 @@
    "低电平（地）"
   ],
   "explanation": "教材 4.1.1：共阳极 com 接高电平，共阴极 com 接低电平。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-p4a-025",
@@ -10487,7 +10314,9 @@
    "80"
   ],
   "explanation": "教材表 4.2：字符 8 的共阳极字型码为 0x80（10000000B）。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-p4a-026",
@@ -10499,7 +10328,9 @@
    "4F"
   ],
   "explanation": "教材表 4.2：字符 3 的共阴极字型码为 0x4F，共阳极为 0xB0。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-p4a-027",
@@ -10511,7 +10342,9 @@
    "少"
   ],
   "explanation": "教材 4.1.2 小经验：静态显示占用 I/O 口多，适合显示位数较少的场合。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.2",
+  "secTitle": "LED 数码管静态显示"
  },
  {
   "id": "mcu-p4a-028",
@@ -10524,7 +10357,9 @@
    "段选端"
   ],
   "explanation": "教材 4.3：公共端称位选端，段并联所接端口称段选端。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.3",
+  "secTitle": "LED 数码管动态显示"
  },
  {
   "id": "mcu-p4a-029",
@@ -10537,7 +10372,9 @@
    "长度"
   ],
   "explanation": "教材 4.2.1 及小提示：下标从 0 开始，方括号内为长度（长度＝最大下标＋1）。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.2.1",
+  "secTitle": "一维数组"
  },
  {
   "id": "mcu-p4a-030",
@@ -10549,7 +10386,9 @@
    "常量表达式"
   ],
   "explanation": "教材 4.2.1：一维数组定义格式为「类型说明符 数组名[常量表达式];」，不能用变量。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.2.1",
+  "secTitle": "一维数组"
  },
  {
   "id": "mcu-p4a-031",
@@ -10562,7 +10401,9 @@
    "12"
   ],
   "explanation": "教材 4.2.2：3 行 4 列，共 3×4=12 个元素。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.2.1",
+  "secTitle": "一维数组"
  },
  {
   "id": "mcu-p4a-032",
@@ -10574,7 +10415,9 @@
    "'\\0'"
   ],
   "explanation": "教材 4.2.3：字符串结束符 '\\0' 由 C 编译器自动加上，数组长度比字符数多 1。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.2.3",
+  "secTitle": "字符数组"
  },
  {
   "id": "mcu-p4a-033",
@@ -10587,7 +10430,9 @@
    "P1"
   ],
   "explanation": "教材任务4-1 图 4.1：按键接 P0 口（经 4.7 kΩ 上拉），数码管静态接 P1 口。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-p4a-034",
@@ -10600,7 +10445,9 @@
    "74LS04"
   ],
   "explanation": "教材任务4-2 电路设计：P1 口经 74LS245 驱动段选，P2 口经 74LS04 驱动位选。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.3",
+  "secTitle": "LED 数码管动态显示"
  },
  {
   "id": "mcu-p4a-035",
@@ -10613,7 +10460,9 @@
    "存储（锁存）"
   ],
   "explanation": "教材 4.4.2：内部为 8 位串行移位寄存器、输出锁存器（8 位存储寄存器）和三态输出缓冲。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.4",
+  "secTitle": "LED 大屏幕显示器及接口"
  },
  {
   "id": "mcu-p4a-036",
@@ -10625,7 +10474,9 @@
    "2"
   ],
   "explanation": "教材 4.4.2 列驱动电路：采用两片 74HC595 级联，串入并出提供 16 位列数据。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.4",
+  "secTitle": "LED 大屏幕显示器及接口"
  },
  {
   "id": "mcu-p4a-037",
@@ -10646,7 +10497,9 @@
    "F"
   ],
   "explanation": "教材 4.1.1：共阳极 com 接高电平，段控制端为低电平时该段点亮，题干说法正好相反。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-p4a-038",
@@ -10667,7 +10520,9 @@
    "T"
   ],
   "explanation": "教材 4.1.2 前小问答：同一个字符共阴和共阳码的关系为取反。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-p4a-039",
@@ -10688,7 +10543,9 @@
    "T"
   ],
   "explanation": "教材 4.1.2 小经验：静态显示占 I/O 多、硬件复杂、成本高，适合位数较少的场合。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.2",
+  "secTitle": "LED 数码管静态显示"
  },
  {
   "id": "mcu-p4a-040",
@@ -10709,7 +10566,9 @@
    "F"
   ],
   "explanation": "教材小问答：延时太长使闪动频率太慢，超过视觉暂留时间就不能产生稳定显示效果。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.3",
+  "secTitle": "LED 数码管动态显示"
  },
  {
   "id": "mcu-p4a-041",
@@ -10730,7 +10589,9 @@
    "F"
   ],
   "explanation": "教材 4.2.1（5）：方括号中的常量表达式不可以是变量，但可以是符号常数或常量表达式。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.2.1",
+  "secTitle": "一维数组"
  },
  {
   "id": "mcu-p4a-042",
@@ -10751,7 +10612,9 @@
    "T"
   ],
   "explanation": "教材 4.2.1：数组必须先定义后使用，只能逐个使用数组元素，不能整体引用。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.2.1",
+  "secTitle": "一维数组"
  },
  {
   "id": "mcu-p4a-043",
@@ -10772,7 +10635,9 @@
    "T"
   ],
   "explanation": "教材 4.2.2：3×4＝12 个元素，int 类型占 2 字节，每个元素均占 2 字节。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.2.1",
+  "secTitle": "一维数组"
  },
  {
   "id": "mcu-p4a-044",
@@ -10793,7 +10658,9 @@
    "T"
   ],
   "explanation": "教材 4.2.3：8 个字符赋给 ch[0]~ch[7]，未赋值的 ch[8]、ch[9] 自动为空格字符。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.2.3",
+  "secTitle": "字符数组"
  },
  {
   "id": "mcu-p4a-045",
@@ -10814,7 +10681,9 @@
    "T"
   ],
   "explanation": "教材 4.4.1：行输出高电平、列输出低电平时该 LED 发光，如 Y7=1、X7=0 时右下角 LED 发光。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.4",
+  "secTitle": "LED 大屏幕显示器及接口"
  },
  {
   "id": "mcu-p4a-046",
@@ -10835,7 +10704,9 @@
    "F"
   ],
   "explanation": "教材 4.4.2：SCK 处于上升沿时移位，处于下降沿时数据不变；RCK 上升沿时数据进入存储寄存器。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.4",
+  "secTitle": "LED 大屏幕显示器及接口"
  },
  {
   "id": "mcu-p4a-047",
@@ -10856,103 +10727,9 @@
    "T"
   ],
   "explanation": "教材 4.4.1：总点数＝行数×列数，引脚数＝行数＋列数。",
-  "source": "项目4 显示与键盘接口"
- },
- {
-  "id": "mcu-p4a-048",
-  "number": 522,
-  "type": "term",
-  "stem": "名词解释：数码管的静态显示方式。",
-  "options": [],
-  "answer": [
-   "静态显示是指使用数码管显示字符时，数码管的公共端恒定接地（共阴极）或接 +5 V 电源（共阳极），将每个数码管的 8 个段控制引脚分别与单片机的一个 8 位 I/O 端口相连接。只要 I/O 端口有显示字型码输出，数码管就显示给定字符并保持不变，直到 I/O 端口输出新的段码。其优点是较小的电流即可获得较高亮度、占用 CPU 时间少、编程简单；缺点是占用 I/O 端口线多，n 位显示需 8×n 根，硬件电路复杂、成本高，适合显示位数较少的场合。"
-  ],
-  "explanation": "教材 4.1.2「LED 数码管静态显示」。",
-  "source": "项目4 显示与键盘接口"
- },
- {
-  "id": "mcu-p4a-049",
-  "number": 523,
-  "type": "term",
-  "stem": "名词解释：数码管的动态显示（动态扫描显示）。",
-  "options": [],
-  "answer": [
-   "动态显示是一种按位轮流点亮各位数码管、高速交替地进行显示，利用人的视觉暂留作用使人感觉看到多个数码管同时显示的控制方式。其电路将所有数码管的 8 个显示段分别并联后由一个并行 I/O 端口控制（段选端），各位数码管的公共端由另一个 I/O 端口控制（位选端）。工作时某一时段只让一位数码管的位选端有效并送出相应字型码，其他位因位选端无效而熄灭，下一时段按顺序选通另一位，如此循环，这一过程称为动态扫描显示。"
-  ],
-  "explanation": "教材 4.3「LED 数码管动态显示」。",
-  "source": "项目4 显示与键盘接口"
- },
- {
-  "id": "mcu-p4a-050",
-  "number": 524,
-  "type": "term",
-  "stem": "名词解释：数组。",
-  "options": [],
-  "answer": [
-   "在程序设计中，为了处理方便，把具有相同类型的若干数据项按有序的形式组织起来，这些按序排列的同类数据元素的集合称为数组，组成数组的各个数据分项称为数组元素。数组中的元素有固定数目和相同类型，数组元素的数据类型就是该数组的数据类型；数组还分为一维、二维、三维和多维数组，常用的是二维和字符数组（一维、二维和字符数组）。数组必须先定义后使用，且只能逐个引用数组元素而不能整体引用。"
-  ],
-  "explanation": "教材 4.2「数组的概念」。",
-  "source": "项目4 显示与键盘接口"
- },
- {
-  "id": "mcu-p4a-051",
-  "number": 525,
-  "type": "short",
-  "stem": "简述共阳极与共阴极 LED 数码管内部结构的区别，并说明如何用指针式万用表判断数码管是共阳极还是共阴极。",
-  "options": [],
-  "answer": [
-   "结构区别：共阳极数码管 8 个发光二极管的阳极连接在一起作为公共控制端 com，接高电平，阴极作为段控制端，某段控制端为低电平时该段导通点亮；共阴极数码管 8 个发光二极管的阴极连接在一起作为公共控制端 com，接低电平，阳极作为段控制端，某段控制端为高电平时该段导通点亮。\n判断方法：将指针式万用表置于电阻测量挡。假设数码管为共阳极，把表内电源正极（黑表笔）接数码管的 com 端，再用表内电源负极（红表笔）逐个接触各段，若各段逐个点亮则为共阳极；若各段均不亮则说明是共阴极。也可将黑、红表笔交换连接后再测。若只有部分段点亮而另一部分不亮，说明数码管已损坏。"
-  ],
-  "explanation": "教材 4.1.1 及该书页「小问答」。",
-  "source": "项目4 显示与键盘接口"
- },
- {
-  "id": "mcu-p4a-052",
-  "number": 526,
-  "type": "short",
-  "stem": "比较 LED 数码管静态显示与动态显示的优缺点及适用场合。",
-  "options": [],
-  "answer": [
-   "静态显示：每一位数码管占用一个 8 位 I/O 端口，n 位需 8n 根 I/O 线；优点是较小的电流即可获得较高亮度，占用 CPU 时间少，编程简单，便于监测和控制；缺点是占用 I/O 端口线多，硬件电路复杂、成本高，因此适合显示位数较少的场合。\n动态显示：所有数码管的段并联由一个端口控制（段选端），各位公共端由另一个端口控制（位选端），按位轮流点亮；优点是显示位数较多时可节省 I/O 端口资源、硬件电路简单；缺点是亮度低于静态显示，且 CPU 要不断运行扫描程序，占用 CPU 时间更多。动态扫描时不能有较长时间停止扫描的语句，否则显示不稳甚至无法显示，通常把扫描过程编成独立函数在需要延时处调用。"
-  ],
-  "explanation": "教材 4.1.2 小经验与 4.3 小经验。",
-  "source": "项目4 显示与键盘接口"
- },
- {
-  "id": "mcu-p4a-053",
-  "number": 527,
-  "type": "short",
-  "stem": "数码管动态显示程序中，为什么在送位选码和字型码之前要先执行「P1=0xff;」关显示？若去掉该语句会怎样？",
-  "options": [],
-  "answer": [
-   "关显示（对共阳极数码管送 0xFF，各段全灭）是为了在切换位选、更换字型码的瞬间不显示任何字符，避免上一位的段码残留在当前位上。若去掉关显示语句，在字符交替显示时会把上一个字符显示在下一个字符位置上很短的时间，形成拖影，导致显示效果不美观。此外，动态显示要求扫描间隔小于人眼视觉暂留时间，否则会出现闪烁、不能稳定显示。"
-  ],
-  "explanation": "教材任务4-2 后「小问答」及表 4.2 熄灭码 0xFF。",
-  "source": "项目4 显示与键盘接口"
- },
- {
-  "id": "mcu-p4a-054",
-  "number": 528,
-  "type": "short",
-  "stem": "定义数组时应注意哪些问题？请至少写出四点。",
-  "options": [],
-  "answer": [
-   "（1）数组的类型实际上是指数组元素的取值类型，同一数组所有元素的数据类型相同；（2）数组名的书写规则应符合标识符的书写规定；（3）数组名不能与其他变量名相同，否则编译出错；（4）方括号中常量表达式表示数组元素的个数（长度），如 a[5] 有 5 个元素，下标从 0 开始，为 a[0]~a[4]；（5）方括号中的常量表达式不可以是变量，但可以是符号常数或常量表达式；（6）允许在同一个类型说明中说明多个数组和多个变量，如 int a,b,c,d,k1[10],k2[20];。"
-  ],
-  "explanation": "教材 4.2.1「定义数组时，应注意以下几点」。",
-  "source": "项目4 显示与键盘接口"
- },
- {
-  "id": "mcu-p4a-055",
-  "number": 529,
-  "type": "prog",
-  "stem": "用 6 个共阳极数码管动态显示生日「901225」：数码管段选端接 P1 口、位选端接 P2 口（位选低电平有效）。请用一维数组存放字型码，编写完整的动态显示程序。",
-  "options": [],
-  "answer": [
-   "//程序：ex4_4.c\n//功能：6位数码管动态显示生日“901225”\n#include<reg51.h>                //包含头文件reg51.h，定义51单片机的专用寄存器\n#include<intrins.h>              //包含头文件intrins.h，使用了内部函数_crol_( )\nvoid delay (unsigned int i) ;    //延时函数声明\nvoid main ( )                    //主函数\n{\n    unsigned char led[]={0x90,0xc0,0xf9,0xa4,0xa4,0x92};\n                                 //设置数字901225共阳极字型码\n    unsigned char i,w;\n    while (1)\n    {\n        w=0xfe;                  //位选码初值为0xfe\n        for (i=0;i<6;i++)\n        {\n            P1=0xff;             //关显示，共阳极数码管0xff熄灭\n            P2=w;                //位选码送位选端口P2口\n            w=_crol_(w,1);       //位选码左移一位，选中下一位LED\n            P1=led[i];           //显示字型码送P1口\n            delay (100) ;        //延时\n        }\n    }\n}\nvoid delay (unsigned int i)      //延时函数参见任务1-2的ex1_1.c程序\n{\n    unsigned int k;\n    for (k=0;k<i;k++);\n}\n说明：位选码 0xfe 依次左移为 0xfd、0xfb、0xf7、0xef、0xdf，与表 4.3 中 P2 口数据一致；字型码数组依「9、0、1、2、2、5」顺序排列为 0x90、0xc0、0xf9、0xa4、0xa4、0x92；每次送码前先送 0xff 关显示以防拖影，延时 100 保证扫描频率高于视觉暂留要求。"
-  ],
-  "explanation": "教材任务4-2 图 4.6、表 4.3 与 ex4_4.c（书页 116~117）。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.4",
+  "secTitle": "LED 大屏幕显示器及接口"
  },
  {
   "id": "mcu-p4b-001",
@@ -10981,7 +10758,9 @@
    "B"
   ],
   "explanation": "教材表 4.4：11 脚为 SCK（数据输入时钟线），10 脚为 SCLR、12 脚为 RCK、13 脚为输出使能 Ḡ。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.4",
+  "secTitle": "LED 大屏幕显示器及接口"
  },
  {
   "id": "mcu-p4b-002",
@@ -11010,7 +10789,9 @@
    "C"
   ],
   "explanation": "教材表 4.5 真值表：Ḡ=H 时 QA~QH 输出高阻；Ḡ=L 时 QA~QH 输出有效值。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.4",
+  "secTitle": "LED 大屏幕显示器及接口"
  },
  {
   "id": "mcu-p4b-003",
@@ -11039,7 +10820,9 @@
    "B"
   ],
   "explanation": "教材书页 128 小提示：SCK 与 RCK 互相独立，可边显示本行各列数据边传送下一行列数据，达到并行处理的目的。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.4",
+  "secTitle": "LED 大屏幕显示器及接口"
  },
  {
   "id": "mcu-p4b-004",
@@ -11068,7 +10851,9 @@
    "C"
   ],
   "explanation": "教材表 4.5：RCK 上升沿时「输出存储器锁存移位寄存器中的状态值」，RCK 下降沿时输出存储器状态保持。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.4",
+  "secTitle": "LED 大屏幕显示器及接口"
  },
  {
   "id": "mcu-p4b-005",
@@ -11097,7 +10882,9 @@
    "C"
   ],
   "explanation": "教材表 4.6：3 脚 VO 为液晶显示驱动电源（0~5 V），可接电位器；电路图 4.15 中由电位器 R₁ 为 VO 提供可调驱动电压以调节对比度。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.5",
+  "secTitle": "字符型 LCD 液晶显示及接口"
  },
  {
   "id": "mcu-p4b-006",
@@ -11126,7 +10913,9 @@
    "B"
   ],
   "explanation": "教材表 4.6：RS 为数据和指令选择控制端，RS=0 选命令/状态，RS=1 选数据。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.5",
+  "secTitle": "字符型 LCD 液晶显示及接口"
  },
  {
   "id": "mcu-p4b-007",
@@ -11155,7 +10944,9 @@
    "B"
   ],
   "explanation": "教材书页 136：状态字格式为 BF AC6 AC5 AC4 AC3 AC2 AC1 AC0，最高位 D7 即忙标志 BF。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.5",
+  "secTitle": "字符型 LCD 液晶显示及接口"
  },
  {
   "id": "mcu-p4b-008",
@@ -11184,7 +10975,9 @@
    "B"
   ],
   "explanation": "教材图 4.18：00111000B（0x38）设置数据位数 8 位、2 行显示、5×7 点阵字符（DL=1、N=1、F=0）。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.4",
+  "secTitle": "LED 大屏幕显示器及接口"
  },
  {
   "id": "mcu-p4b-009",
@@ -11213,7 +11006,9 @@
    "B"
   ],
   "explanation": "教材图 4.18 举例：00001100B（0x0C）打开 LCD 显示、光标不显示、光标位字符不闪烁（D=1、C=0、B=0）。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.5",
+  "secTitle": "字符型 LCD 液晶显示及接口"
  },
  {
   "id": "mcu-p4b-010",
@@ -11242,7 +11037,9 @@
    "A"
   ],
   "explanation": "教材表 4.8：清屏指令为 00000001B（0x01），执行后光标回到第 1 行第 1 列；0x02 为归位 home。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.5",
+  "secTitle": "字符型 LCD 液晶显示及接口"
  },
  {
   "id": "mcu-p4b-011",
@@ -11271,7 +11068,9 @@
    "D"
   ],
   "explanation": "程序 ex4_10.c（书页 130）lcd_int( ) 中第一条为 lcd_w_cmd(0x3c)「设置工作方式」，其后依次是 0x0e、0x01、0x06、0x80。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.5.3",
+  "secTitle": "字符型 LCD 液晶显示器的应用"
  },
  {
   "id": "mcu-p4b-012",
@@ -11300,7 +11099,9 @@
    "B"
   ],
   "explanation": "教材表 4.9：第 2 行 DDRAM 地址从 0xC0 起算，第 7 列为 0xC0+6=0xC6；书页 138 例题亦给出 lcd_w_cmd(0xc6)。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.5",
+  "secTitle": "字符型 LCD 液晶显示及接口"
  },
  {
   "id": "mcu-p4b-013",
@@ -11329,7 +11130,9 @@
    "B"
   ],
   "explanation": "教材表 4.9：第 1 行第 1 列命令字为 0x80，故 0x83 为第 1 行第 4 列，程序注释即「设置显示位置」，用于让 9 个字符的「SHEN ZHEN」居中。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.5.3",
+  "secTitle": "字符型 LCD 液晶显示器的应用"
  },
  {
   "id": "mcu-p4b-014",
@@ -11358,7 +11161,9 @@
    "B"
   ],
   "explanation": "教材 4.5.3 节（书页 139）：A7 A6=01 即为 CGRAM 地址设置的命令字，其后 A5A4A3 为字符代码、A2A1A0 为字模行号。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.5",
+  "secTitle": "字符型 LCD 液晶显示及接口"
  },
  {
   "id": "mcu-p4b-015",
@@ -11387,7 +11192,9 @@
    "D"
   ],
   "explanation": "教材表 4.7：RS=0、R/W̄=0 写命令；RS=0、R/W̄=1 读状态；RS=1、R/W̄=0 写数据；RS=1、R/W̄=1 读数据。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.5",
+  "secTitle": "字符型 LCD 液晶显示及接口"
  },
  {
   "id": "mcu-p4b-016",
@@ -11416,7 +11223,9 @@
    "B"
   ],
   "explanation": "教材 4.5.3 节（书页 137）：两个函数的不同之处就是 RS 引脚的状态不同，写命令 RS=0、写数据 RS=1。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.5.3",
+  "secTitle": "字符型 LCD 液晶显示器的应用"
  },
  {
   "id": "mcu-p4b-017",
@@ -11445,7 +11254,9 @@
    "B"
   ],
   "explanation": "教材 4.6.2 节（书页 147）：首先向所有的列线上输出低电平，再读入所有的行信号，行电平不全为高即有键按下。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.6",
+  "secTitle": "单片机与矩阵键盘接口"
  },
  {
   "id": "mcu-p4b-018",
@@ -11474,7 +11285,9 @@
    "B"
   ],
   "explanation": "教材 4.6.2 节（书页 148）：将两次读入的行值和列值进行相加或按位「或」操作，得到按键的扫描码，再查表得键值。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.3",
+  "secTitle": "LED 数码管动态显示"
  },
  {
   "id": "mcu-p4b-019",
@@ -11503,7 +11316,9 @@
    "B"
   ],
   "explanation": "教材思考与练习题 4.1（7）；书页 147 小经验：按键较多时（一般多于 8 个）通常采用矩阵式键盘，比独立式按键节省很多 I/O 端口。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.6",
+  "secTitle": "单片机与矩阵键盘接口"
  },
  {
   "id": "mcu-p4b-020",
@@ -11532,7 +11347,9 @@
    "B"
   ],
   "explanation": "程序 ex4_12.c（书页 141）：P3.0 接发光二极管，P30=0 时发光二极管点亮表示开锁，P30=1 时熄灭表示关闭。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-p4b-021",
@@ -11544,7 +11361,9 @@
    "15"
   ],
   "explanation": "教材表 4.4：引脚 1、2、3、4、5、6、7、15 均为 QA~QH（并行三态输出），9 脚为串行数据输出 QH′。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.4",
+  "secTitle": "LED 大屏幕显示器及接口"
  },
  {
   "id": "mcu-p4b-022",
@@ -11558,7 +11377,9 @@
    "14"
   ],
   "explanation": "教材表 4.6：模块共 16 个引脚，7~14 脚为 DB0~DB7，15 脚 A、16 脚 K 为背光控制端。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.5",
+  "secTitle": "字符型 LCD 液晶显示及接口"
  },
  {
   "id": "mcu-p4b-023",
@@ -11570,7 +11391,9 @@
    "屏蔽掉状态字的低 7 位，只保留最高位忙标志 BF，以便用 i 是否为 0 判断 LCD 是否忙"
   ],
   "explanation": "教材书页 136 与程序 ex4_10.c：采用「与」操作屏蔽掉低 7 位，只留 D7（BF），BF=1 表示忙。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.5",
+  "secTitle": "字符型 LCD 液晶显示及接口"
  },
  {
   "id": "mcu-p4b-024",
@@ -11583,7 +11406,9 @@
    "0x01"
   ],
   "explanation": "程序 ex4_10.c（书页 130）：0x3c 设置工作方式、0x0e 设置光标、0x01 清屏、0x06 设置输入方式、0x80 设置初始显示位置。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.5.3",
+  "secTitle": "字符型 LCD 液晶显示器的应用"
  },
  {
   "id": "mcu-p4b-025",
@@ -11596,7 +11421,9 @@
    "5×8"
   ],
   "explanation": "教材 4.5.3 节（书页 139）：字符型 LCD1602 的 CGRAM 能自编 8 个 5×8 字符，地址自 0x40 起。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.4",
+  "secTitle": "LED 大屏幕显示器及接口"
  },
  {
   "id": "mcu-p4b-026",
@@ -11609,7 +11436,9 @@
    "0"
   ],
   "explanation": "教材图 4.18：输入方式格式 000001 I/D S，I/D=1 增量方式右移、S=0 不移位，即 00000110B（0x06）。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.5.3",
+  "secTitle": "字符型 LCD 液晶显示器的应用"
  },
  {
   "id": "mcu-p4b-027",
@@ -11622,7 +11451,9 @@
    "高"
   ],
   "explanation": "教材 4.6.2 节（书页 147）：列线全低后再读行，行电平不全为高则有键按下，全为高则无键按下。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.3",
+  "secTitle": "LED 数码管动态显示"
  },
  {
   "id": "mcu-p4b-028",
@@ -11636,7 +11467,9 @@
    "16"
   ],
   "explanation": "教材 4.6.1 节（书页 147）：4 根行线与 4 根列线交叉构成 4×4（16 个按键）矩阵式键盘。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.6",
+  "secTitle": "单片机与矩阵键盘接口"
  },
  {
   "id": "mcu-p4b-029",
@@ -11649,7 +11482,9 @@
    "10"
   ],
   "explanation": "教材图 4.23 小提示：键值=行号×4+列号，故行号 2、列号 2 的按键键值为 2×4+2=10。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.6",
+  "secTitle": "单片机与矩阵键盘接口"
  },
  {
   "id": "mcu-p4b-030",
@@ -11661,7 +11496,9 @@
    "静态"
   ],
   "explanation": "教材思考与练习题 4.1（2）；书页 140 小知识亦指出每个按键/每位显示单独占用 I/O 线时电路简单但线数浪费大。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.2",
+  "secTitle": "LED 数码管静态显示"
  },
  {
   "id": "mcu-p4b-031",
@@ -11675,7 +11512,9 @@
    "86"
   ],
   "explanation": "程序 ex4_12.c（书页 141）：led[] 中 0xf9 为 1、0x80 为 8；led1[] 中 0x86 为字符 E（0x8c 为 P、0xbf 为「-」）。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-p4b-032",
@@ -11687,7 +11526,9 @@
    "led[k]"
   ],
   "explanation": "教材书页 150 补全程序：for(k=0;k<10;) 循环中应取段码数组元素 led[k] 送 P1 口点亮数码管，再 k++ 并调用延时。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.1.1",
+  "secTitle": "LED 数码管的结构"
  },
  {
   "id": "mcu-p4b-033",
@@ -11708,7 +11549,9 @@
    "F"
   ],
   "explanation": "教材表 4.6：RS=0 为命令/状态，RS=1 才是数据；写数据时 RS 必须为 1。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.5",
+  "secTitle": "字符型 LCD 液晶显示及接口"
  },
  {
   "id": "mcu-p4b-034",
@@ -11729,7 +11572,9 @@
    "F"
   ],
   "explanation": "教材书页 138 小提示：第 1 行地址为 0x80~0x8F、第 2 行为 0xC0~0xCF，两行 DDRAM 地址并不连续。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.5",
+  "secTitle": "字符型 LCD 液晶显示及接口"
  },
  {
   "id": "mcu-p4b-035",
@@ -11750,7 +11595,9 @@
    "T"
   ],
   "explanation": "教材表 4.7 小提示：写命令、写数据、读数据前必须先读状态查忙标志，BF=0 表示 LCD 内部操作结束，才可进行。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.5",
+  "secTitle": "字符型 LCD 液晶显示及接口"
  },
  {
   "id": "mcu-p4b-036",
@@ -11771,7 +11618,9 @@
    "T"
   ],
   "explanation": "教材表 4.4 与表 4.5：QA~QH 为并行三态输出，Ḡ=H 输出高阻、Ḡ=L 输出有效值。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.4",
+  "secTitle": "LED 大屏幕显示器及接口"
  },
  {
   "id": "mcu-p4b-037",
@@ -11792,7 +11641,9 @@
    "T"
   ],
   "explanation": "教材 4.6.2 节（书页 148）：行列反转法将两次读值相加或按位或，合并成扫描码（如 0xee），再查表得键值。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.3",
+  "secTitle": "LED 数码管动态显示"
  },
  {
   "id": "mcu-p4b-038",
@@ -11813,7 +11664,9 @@
    "T"
   ],
   "explanation": "教材书页 140 小知识（1）：独立式按键每个按键单独占用一根 I/O 端口线，电路配置灵活、软件简单。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.6",
+  "secTitle": "单片机与矩阵键盘接口"
  },
  {
   "id": "mcu-p4b-039",
@@ -11834,7 +11687,9 @@
    "F"
   ],
   "explanation": "教材书页 147 小经验：按键较多时（一般多于 8 个）采用矩阵式键盘，较之独立式按键要节省很多 I/O 端口。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.6",
+  "secTitle": "单片机与矩阵键盘接口"
  },
  {
   "id": "mcu-p4b-040",
@@ -11855,7 +11710,9 @@
    "F"
   ],
   "explanation": "教材书页 147 小提示：读到行线 2 为低还可能是 S8、S9 或 S11 被按下，必须再逐列送低电平才能判断具体按键。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.3",
+  "secTitle": "LED 数码管动态显示"
  },
  {
   "id": "mcu-p4b-041",
@@ -11876,7 +11733,9 @@
    "T"
   ],
   "explanation": "程序 ex4_12.c（书页 141）：注释「P0 口低四位做输入口，先输出全 1」，主函数中写 P0=0xff。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.6.2",
+  "secTitle": "矩阵式键盘按键的识别"
  },
  {
   "id": "mcu-p4b-042",
@@ -11897,103 +11756,9 @@
    "F"
   ],
   "explanation": "教材思考与练习题 4.1（9）：6 个字符加字符串结束符共 7 个字节，超出数组长度 5，该初始化不正确。",
-  "source": "项目4 显示与键盘接口"
- },
- {
-  "id": "mcu-p4b-043",
-  "number": 572,
-  "type": "term",
-  "stem": "名词解释：忙标志 BF。",
-  "options": [],
-  "answer": [
-   "LCD1602 读状态操作时读回的状态字最高位 D7 即为忙标志 BF。BF=1 表示 LCD 正在进行内部操作（忙），此时不能进行写命令、写数据、读数据等其他三类操作；BF=0 表示 LCD 内部操作已经结束（不忙），可以进行其他三类操作。程序一般采用查询方式，读状态后与 0x80 相「与」屏蔽低 7 位，若结果非 0 则继续查询等待。"
-  ],
-  "explanation": "教材 4.5.3 节读状态操作（书页 136）与程序 ex4_10.c。",
-  "source": "项目4 显示与键盘接口"
- },
- {
-  "id": "mcu-p4b-044",
-  "number": 573,
-  "type": "term",
-  "stem": "名词解释：逐列扫描法。",
-  "options": [],
-  "answer": [
-   "逐列扫描法是识别矩阵键盘按键的常用方法。首先向所有列线输出低电平，再读入所有行信号：若有键按下，被按下键所在的行线与低电平列线导通，该行电平被拉低，读入的行电平不全为高；若无键按下，行电平全为高。然后逐列送低电平（其余列为高），依次读入行电平，判断该列上 4 个按键的状态，从而确定闭合键的行号和列号，再按「键值=行号×4+列号」得到键值。程序 ex4_12.c 的 scan_key( ) 即采用此法。"
-  ],
-  "explanation": "教材 4.6.2 节 1. 逐列扫描法（书页 147–148）与程序 ex4_12.c。",
-  "source": "项目4 显示与键盘接口"
- },
- {
-  "id": "mcu-p4b-045",
-  "number": 574,
-  "type": "term",
-  "stem": "名词解释：行列反转法。",
-  "options": [],
-  "answer": [
-   "行列反转法是通过给行、列端口输出两次相反的值，再将分别读入的行值和列值进行求和或按位「或」运算，得到每个键的扫描码，进而查表求得键值的矩阵键盘识别方法。具体做法：先向所有列线输出低电平、行线输出高电平，读入行值并记录；再向所有列线输出高电平、行线输出低电平（即行列反转），读入列值并记录；最后把两次读值相「或」得到 8 位扫描码，用查表法得出键值。程序 ex4_13.c 的 keyscan( ) 即采用此法。"
-  ],
-  "explanation": "教材 4.6.2 节 2. 行列反转法（书页 148）与程序 ex4_13.c。",
-  "source": "项目4 显示与键盘接口"
- },
- {
-  "id": "mcu-p4b-046",
-  "number": 575,
-  "type": "short",
-  "stem": "简述 LCD1602 初始化操作的主要任务和初始化流程，并写出各步骤使用的命令字。",
-  "options": [],
-  "answer": [
-   "LCD 上电时必须按一定时序进行初始化，主要任务是设置 LCD 的工作方式、显示状态、清屏、输入方式和光标位置。流程（图 4.18）为：①工作方式设置，命令字 0x38（00111000B）或程序 ex4_10.c 中的 0x3c，设置 8 位数据接口、2 行显示、5×7 点阵；②显示状态设置，0x0C（00001100B）或 0x0e，打开显示、光标不显示（0x0e 为显示光标）、字符不闪烁；③清屏，0x01，同时把光标置第 1 行第 1 列；④输入方式设置，0x06（00000110B），光标增量方式右移、显示不移动；⑤设置初始显示位置，0x80，光标定位到第 1 行第 1 列。以上均由写命令函数 lcd_w_cmd( ) 完成，每条命令前先读状态查忙标志 BF。"
-  ],
-  "explanation": "教材图 4.18 LCD 初始化流程（书页 137）与程序 ex4_10.c 的 lcd_int( )。",
-  "source": "项目4 显示与键盘接口"
- },
- {
-  "id": "mcu-p4b-047",
-  "number": 576,
-  "type": "short",
-  "stem": "用扫描法识别矩阵键盘按键的编程一般应包括哪些内容？",
-  "options": [],
-  "answer": [
-   "一般包括 5 项内容：（1）判别有无键按下；（2）键盘扫描取得闭合键的行、列号；（3）用计算法或查表法得到键值；（4）判断闭合键是否释放，如没释放则继续等待；（5）将闭合键的键值保存，同时转去执行该闭合键的功能。此外实际编程还需在判别有键后延时（如 delay(1200)）消除按键抖动后再复读确认。"
-  ],
-  "explanation": "教材 4.6.2 节（书页 148）末尾总结的五项内容。",
-  "source": "项目4 显示与键盘接口"
- },
- {
-  "id": "mcu-p4b-048",
-  "number": 577,
-  "type": "short",
-  "stem": "在 LCD1602 的指定位置显示一个字符需要哪两个步骤？分别属于哪种操作、RS 处于什么状态？",
-  "options": [],
-  "answer": [
-   "需要两个步骤：①进行光标定位，写入光标位置命令字，属于写命令操作，此时 RS=0、R/W̄=0，E 端产生一个脉冲；位置命令字为 0x80+列偏移（第 2 行为 0xC0+列偏移），如第 2 行第 7 列写 0xC6。②写入要显示字符的 ASCII 码，属于写数据操作，此时 RS=1、R/W̄=0，E 端产生一个脉冲，如 lcd_w_dat(0x41) 或 lcd_w_dat('A')。两步操作前都必须先读状态字查询忙标志 BF，BF=0 时才可执行。"
-  ],
-  "explanation": "教材 4.5.3 节 4）写数据操作、表 4.9 与书页 138 例题。",
-  "source": "项目4 显示与键盘接口"
- },
- {
-  "id": "mcu-p4b-049",
-  "number": 578,
-  "type": "prog",
-  "stem": "写出 LCD1602 的写命令字函数 lcd_w_cmd（要求含忙标志查询），并说明各控制端的时序安排。",
-  "options": [],
-  "answer": [
-   "void lcd_w_cmd (unsigned char com)\n{\n    unsigned char i;\n    do {\n        i = lcd_r_start ( );      //查LCD忙操作\n        i &= 0x80;                //屏蔽低7位，只留BF\n        delay (2);\n    } while (i != 0);             //LCD忙则继续查询，否则退出\n    RW = 0;  delay1 ( );\n    RS = 0;  delay1 ( );          //RW=0、RS=0，写LCD命令字\n    E = 1;   delay1 ( );          //E端产生脉冲\n    P1 = com; delay1 ( );         //将命令字写入LCD数据口\n    E = 0;   delay1 ( );\n    RW = 1;\n    delay (255);\n}\n\n说明：写操作时使能信号 E 的下降沿有效，因此软件上先设置 RS、R/W̄ 状态，再送数据，然后产生 E 信号的脉冲，最后复位 RS 和 R/W̄；每条语句后加延时以满足 LCD 读写时序。"
-  ],
-  "explanation": "程序 ex4_10.c 的 lcd_w_cmd( )（书页 131）与小问答的写时序说明（书页 136）。",
-  "source": "项目4 显示与键盘接口"
- },
- {
-  "id": "mcu-p4b-050",
-  "number": 579,
-  "type": "prog",
-  "stem": "编写 4×4 矩阵键盘逐列扫描函数 scan_key( )，要求返回键值 0~15，无键按下时返回 -1（列线由 P2 口控制，行线由 P0 口低四位读入）。",
-  "options": [],
-  "answer": [
-   "char scan_key ( )\n{\n    char i,temp,m,n;\n    bit find=0;                 //有键按下标志位\n    P2=0xf0;                    //向所有列线输出低电平\n    i=P0;                       //读入行值\n    i &= 0x0f;                  //屏蔽掉高四位\n    if (i != 0x0f)              //行值不全为1，有键按下\n    {   delay (1200);            //延时消抖\n        i=P0;  i &= 0x0f;       //再次读入行值并屏蔽高四位\n        if (i != 0x0f)          //第二次判断有键按下\n        {   for (i=0;i<4;i++)   //逐列送出低电平\n            {   P2=0xfe<<i;\n                temp=~P0;       //读行值并取反，全1变全0\n                temp=temp & 0x0f;   //屏蔽行值高4位\n                if (temp != 0x00)\n                {   m=i;        //保存列号至m\n                    find=1;     //置找到按键标志\n                    switch (temp)\n                    { case 0x01:n=0;break;   //第0行有键按下\n                      case 0x02:n=1;break;   //第1行有键按下\n                      case 0x04:n=2;break;   //第2行有键按下\n                      case 0x08:n=3;break;   //第3行有键按下\n                      default:break; }\n                    break; }    //有键按下，退出for循环\n            }\n        }\n    }\n    if (find==0) return -1;     //无键按下返回-1\n    else return (n*4+m);        //否则返回键值，键值=行号*4+列号\n}\n\n说明：P2=0xf0 时列线全为低、P0 低四位作输入口（调用前须先 P0=0xff）；P2=0xfe<<i 实现逐列拉低；temp=~P0 取反后为 1 的位即闭合键所在行，由此得到行号 n，与列号 m 组合成键值。"
-  ],
-  "explanation": "程序 ex4_12.c 的 scan_key( )（书页 142）与图 4.23 的「键值=行号×4+列号」。",
-  "source": "项目4 显示与键盘接口"
+  "source": "项目4 显示与键盘接口",
+  "sec": "4.2.3",
+  "secTitle": "字符数组"
  },
  {
   "id": "mcu-p5-001",
@@ -12022,7 +11787,9 @@
    "A"
   ],
   "explanation": "教材 5.1.1 第 2 点「定时/计数器的组成」：51 单片机的定时/计数器由 T0、T1、工作方式寄存器 TMOD 和控制寄存器 TCON 四部分组成。",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.1.2",
+  "secTitle": "定时/计数器的工作方式"
  },
  {
   "id": "mcu-p5-002",
@@ -12051,7 +11818,9 @@
    "B"
   ],
   "explanation": "教材表 5.4：方式 1 为 16 位定时/计数器，最大计数值 M=2¹⁶=65 536。",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.1.2",
+  "secTitle": "定时/计数器的工作方式"
  },
  {
   "id": "mcu-p5-003",
@@ -12080,7 +11849,9 @@
    "C"
   ],
   "explanation": "教材表 5.2：M1 M0=0 0 方式 0（13 位）、0 1 方式 1（16 位）、1 0 方式 2（初值自动重载 8 位）、1 1 方式 3。",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.1.2",
+  "secTitle": "定时/计数器的工作方式"
  },
  {
   "id": "mcu-p5-004",
@@ -12109,7 +11880,9 @@
    "C"
   ],
   "explanation": "教材 5.1 表 5.2 与小提示：T1 软件启动、定时、方式 1 即高 4 位 GATE=0、C/T̄=0、M1 M0=01，低 4 位取 0000，故 TMOD=0x10；亦为思考与练习题 5.1（3）。",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.1.2",
+  "secTitle": "定时/计数器的工作方式"
  },
  {
   "id": "mcu-p5-005",
@@ -12138,7 +11911,9 @@
    "B"
   ],
   "explanation": "教材表 5.2：T0 计数方式 1 时低 4 位 GATE=0、C/T̄=1、M1 M0=01，即 0101B=0x05；亦为思考与练习题 5.2（3）。",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.1.2",
+  "secTitle": "定时/计数器的工作方式"
  },
  {
   "id": "mcu-p5-006",
@@ -12167,7 +11942,9 @@
    "A"
   ],
   "explanation": "教材 5.1 第 3 点（3）：GATE=0 时或门被封锁、INT 信号无效，TR0/TR1 直接控制定时器的启动和关闭。",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.1.1",
+  "secTitle": "定时/计数器的结构"
  },
  {
   "id": "mcu-p5-007",
@@ -12196,7 +11973,9 @@
    "D"
   ],
   "explanation": "教材 5.1 第 3 点（2）与小问答：C/T̄=0 为定时器工作方式；C/T̄=1 为计数器工作方式，外部脉冲下降沿触发计数。",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.1.2",
+  "secTitle": "定时/计数器的工作方式"
  },
  {
   "id": "mcu-p5-008",
@@ -12225,7 +12004,9 @@
    "B"
   ],
   "explanation": "教材表 5.3：TR0 为 T0 运行控制位，由软件置 1 启动 T0；亦为思考与练习题 5.1（6）。",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.1.1",
+  "secTitle": "定时/计数器的结构"
  },
  {
   "id": "mcu-p5-009",
@@ -12254,7 +12035,9 @@
    "B"
   ],
   "explanation": "教材 5.1 小问答：12 MHz 时 T机器周期=1 μs；方式 1 最大计数值 65 536，故最长定时 65 536×1 μs=65.536 ms。",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.1.2",
+  "secTitle": "定时/计数器的工作方式"
  },
  {
   "id": "mcu-p5-010",
@@ -12283,7 +12066,9 @@
    "A"
   ],
   "explanation": "教材表 5.4 初值设置举例：THi=(65 536−50 000/1)/256，TLi=(65 536−50 000/1)%256，即 X=65 536−50 000=15 536。",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.1.2",
+  "secTitle": "定时/计数器的工作方式"
  },
  {
   "id": "mcu-p5-011",
@@ -12312,7 +12097,9 @@
    "B"
   ],
   "explanation": "教材表 5.4：方式 0 最大计数值 M=8 192，X=8 192−5 000/1=3 192（THi=3192/32=99，TLi=3192%32=24）。",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.1.2",
+  "secTitle": "定时/计数器的工作方式"
  },
  {
   "id": "mcu-p5-012",
@@ -12341,7 +12128,9 @@
    "B"
   ],
   "explanation": "教材表 5.4 与表 5.1：方式 2 为 8 位，M=256，X=256−250/1=6，THi=TLi=6。",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.1.2",
+  "secTitle": "定时/计数器的工作方式"
  },
  {
   "id": "mcu-p5-013",
@@ -12370,7 +12159,9 @@
    "B"
   ],
   "explanation": "教材 5.1 第 3 点小提示：TMOD 不能位寻址，只能用字节操作，高 4 位定义 T1、低 4 位定义 T0，复位时所有位均清零。",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.1.2",
+  "secTitle": "定时/计数器的工作方式"
  },
  {
   "id": "mcu-p5-014",
@@ -12399,7 +12190,9 @@
    "C"
   ],
   "explanation": "教材表 5.6：INT0、INT1、TF0、TF1、RI 或 TI 共 5 个中断源，分为高、低两个优先级别。",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.2.2",
+  "secTitle": "51 单片机中断系统的结构"
  },
  {
   "id": "mcu-p5-015",
@@ -12428,7 +12221,9 @@
    "D"
   ],
   "explanation": "教材 5.2.4：外部中断 0 为 0、T0 为 1、外部中断 1 为 2、T1 为 3、串行口为 4；故中断函数写作 interrupt 3。",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.2",
+  "secTitle": "中断系统"
  },
  {
   "id": "mcu-p5-016",
@@ -12457,7 +12252,9 @@
    "D"
   ],
   "explanation": "教材 5.2.4 中断类型号与入口地址表：定时/计数器 1（n=3）的入口地址为 0x001B；亦为思考与练习题 5.1（9）。",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.2",
+  "secTitle": "中断系统"
  },
  {
   "id": "mcu-p5-017",
@@ -12486,7 +12283,9 @@
    "A"
   ],
   "explanation": "教材 5.2.3 小经验：IE=0x88=1000 1000B，D7（EA）与 D3（ET1）为 1，即同时开放中断总允许位和定时器 T1 允许位。",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.2",
+  "secTitle": "中断系统"
  },
  {
   "id": "mcu-p5-018",
@@ -12515,7 +12314,9 @@
    "A"
   ],
   "explanation": "教材 5.2.3 第 4 点：当系统复位后，IP 低 5 位全部清零，所有中断源均设定为低优先级中断。",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.2.2",
+  "secTitle": "51 单片机中断系统的结构"
  },
  {
   "id": "mcu-p5-019",
@@ -12544,7 +12345,9 @@
    "C"
   ],
   "explanation": "教材表 5.8：EA 为总中断允许控制位，EA=1 开放所有中断，EA=0 禁止所有中断；亦为思考与练习题 5.1（13）。",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.2.2",
+  "secTitle": "51 单片机中断系统的结构"
  },
  {
   "id": "mcu-p5-020",
@@ -12573,7 +12376,9 @@
    "C"
   ],
   "explanation": "教材 5.2.3 自然优先级排列：外部中断 0＞T0＞外部中断 1＞T1＞串行口，故除串行口外级别最低的是 T1；亦为思考与练习题 5.1（11）。",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.2.2",
+  "secTitle": "51 单片机中断系统的结构"
  },
  {
   "id": "mcu-p5-021",
@@ -12602,7 +12407,9 @@
    "B"
   ],
   "explanation": "教材表 5.7：当 IT0=0 时外部中断 0 为电平触发方式；当 IT0=1 时外部中断 0 为边沿（下降沿）触发方式。",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.2",
+  "secTitle": "中断系统"
  },
  {
   "id": "mcu-p5-022",
@@ -12631,7 +12438,9 @@
    "C"
   ],
   "explanation": "教材 5.2.4 第 3 点 1）：置位标志后下一机器周期查询，再下一机器周期执行两机器周期的硬件长调用指令，故至少 3 个机器周期。",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.2.4",
+  "secTitle": "中断处理过程"
  },
  {
   "id": "mcu-p5-023",
@@ -12660,7 +12469,9 @@
    "B"
   ],
   "explanation": "教材 5.2.4 第 2 点：n 为中断类型号，C51 允许 0~31 个中断，n 取值范围 0~31；寄存器组号由 using m 指定。",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.2",
+  "secTitle": "中断系统"
  },
  {
   "id": "mcu-p5-024",
@@ -12689,7 +12500,9 @@
    "C"
   ],
   "explanation": "教材 ex5_3.c 的 int_0 函数：0xDB=1101 1011，P1.5（A 红）与 P1.2（B 红）为 0，低电平点亮，故两方向均为红灯。",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.1.1",
+  "secTitle": "定时/计数器的结构"
  },
  {
   "id": "mcu-p5-025",
@@ -12704,7 +12517,9 @@
    "加法"
   ],
   "explanation": "教材 5.1.1 第 2 点：内部有两个 16 位可编程定时/计数器 T0、T1，T0 和 T1 均为加法计数器。",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.1.1",
+  "secTitle": "定时/计数器的结构"
  },
  {
   "id": "mcu-p5-026",
@@ -12717,7 +12532,9 @@
    "2ⁿ"
   ],
   "explanation": "教材表 5.4 与表 5.1：n 位计数器的最大计数个数 M=2ⁿ，加法计数器初值 X初值=M−T定时时间/T机器周期。",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.1.2",
+  "secTitle": "定时/计数器的工作方式"
  },
  {
   "id": "mcu-p5-027",
@@ -12732,7 +12549,9 @@
    "8"
   ],
   "explanation": "教材表 5.4：方式 0 为 13 位（THi 高 8 位、TLi 低 5 位），M=8 192，THi=X/32、TLi=X%32；方式 2 为 8 位，THi=TLi=X初值。",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.1.2",
+  "secTitle": "定时/计数器的工作方式"
  },
  {
   "id": "mcu-p5-028",
@@ -12747,7 +12566,9 @@
    "TR0"
   ],
   "explanation": "教材 5.1 第 4 点 TCON 位分配图（地址 0x88，位地址 0x8F~0x88）：TF1、TR1、TF0、TR0、IE1、IT1、IE0、IT0。",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.1.1",
+  "secTitle": "定时/计数器的结构"
  },
  {
   "id": "mcu-p5-029",
@@ -12761,7 +12582,9 @@
    "T0"
   ],
   "explanation": "教材 5.1 第 3 点 TMOD 位格式：高 4 位为 T1 工作方式字段，低 4 位为 T0 工作方式字段，字段内依次为 GATE、C/T̄、M1、M0。",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.1.2",
+  "secTitle": "定时/计数器的工作方式"
  },
  {
   "id": "mcu-p5-030",
@@ -12777,7 +12600,9 @@
    "串行口中断（RI 或 TI）"
   ],
   "explanation": "教材表 5.6 51 单片机中断源；亦为思考与练习题 5.2（7）。",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.2.2",
+  "secTitle": "51 单片机中断系统的结构"
  },
  {
   "id": "mcu-p5-031",
@@ -12792,7 +12617,9 @@
    "0x0023"
   ],
   "explanation": "教材 5.2.4 中断类型号与入口地址表：INT0=0/0x0003，T0=1/0x000B，INT1=2/0x0013，T1=3/0x001B，串行口=4/0x0023。",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.2",
+  "secTitle": "中断系统"
  },
  {
   "id": "mcu-p5-032",
@@ -12806,7 +12633,9 @@
    "允许"
   ],
   "explanation": "教材 5.2.4 第 1 点「中断响应」列出的 3 个响应条件。",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.2.4",
+  "secTitle": "中断处理过程"
  },
  {
   "id": "mcu-p5-033",
@@ -12822,7 +12651,9 @@
    "串行口中断"
   ],
   "explanation": "教材 5.2.3 第 4 点自然优先级排列图：外部中断 0 最高级，串行口中断最低级。",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.2.2",
+  "secTitle": "51 单片机中断系统的结构"
  },
  {
   "id": "mcu-p5-034",
@@ -12837,7 +12668,9 @@
    "0xA8"
   ],
   "explanation": "教材 5.2.3 第 3 点 IE 位格式图：EA × × ES ET1 EX1 ET0 EX0，地址 0xA8。",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.2.2",
+  "secTitle": "51 单片机中断系统的结构"
  },
  {
   "id": "mcu-p5-035",
@@ -12850,7 +12683,9 @@
    "软件"
   ],
   "explanation": "教材 5.2.3 第 2 点中断标志撤除方式：TF0/TF1/IE0/IE1 硬件自动清除，TI/RI 必须软件清除。",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.2.4",
+  "secTitle": "中断处理过程"
  },
  {
   "id": "mcu-p5-036",
@@ -12865,7 +12700,9 @@
    "串行口波特率发生器"
   ],
   "explanation": "教材 5.1.2 方式 3 说明与小提示：T1 设为方式 3 后不工作；TR1、TF1 与 T1 中断源被 TH0 占用。",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.2.2",
+  "secTitle": "51 单片机中断系统的结构"
  },
  {
   "id": "mcu-p5-037",
@@ -12879,7 +12716,9 @@
    "131.072"
   ],
   "explanation": "教材 5.1 小问答：12 MHz 时机器周期 1 μs，6 MHz 时 T机器周期=12/(6×10⁶)=2 μs；65 536×2 μs=131.072 ms。",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.1.2",
+  "secTitle": "定时/计数器的工作方式"
  },
  {
   "id": "mcu-p5-038",
@@ -12893,7 +12732,9 @@
    "TR1=1;"
   ],
   "explanation": "教材 ex5_1.c 主函数：TMOD=0x10、ET1=1、EA=1、TR1=1（书页 154）。",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.2",
+  "secTitle": "中断系统"
  },
  {
   "id": "mcu-p5-039",
@@ -12908,7 +12749,9 @@
    "寄存器组"
   ],
   "explanation": "教材 5.2.4 小提示「编写中断函数时应遵循下列规则」（1）~（5）。",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.2",
+  "secTitle": "中断系统"
  },
  {
   "id": "mcu-p5-040",
@@ -12929,7 +12772,9 @@
    "T"
   ],
   "explanation": "教材 5.1.1 第 2 点：T0、T1 都是 16 位加法计数器，T0 由 TH0、TL0 组成，T1 由 TH1、TL1 组成。",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.1.1",
+  "secTitle": "定时/计数器的结构"
  },
  {
   "id": "mcu-p5-041",
@@ -12950,7 +12795,9 @@
    "T"
   ],
   "explanation": "教材表 5.2 与小提示：方式 2 具有初值自动装载功能，溢出后 TH 中保存的初值自动装入 TL，适合较精确的定时。",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.1.2",
+  "secTitle": "定时/计数器的工作方式"
  },
  {
   "id": "mcu-p5-042",
@@ -12971,7 +12818,9 @@
    "F"
   ],
   "explanation": "教材表 5.4「特点」及小提示：方式 0、方式 1 的初值不可自动重载，溢出后计数器复位为 0，必须重置初值。",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.1.2",
+  "secTitle": "定时/计数器的工作方式"
  },
  {
   "id": "mcu-p5-043",
@@ -12992,7 +12841,9 @@
    "F"
   ],
   "explanation": "教材 5.1 第 3 点小提示：TMOD 不能位寻址，只能用字节操作来设置定时器的工作方式。",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.1.2",
+  "secTitle": "定时/计数器的工作方式"
  },
  {
   "id": "mcu-p5-044",
@@ -13013,7 +12864,9 @@
    "F"
   ],
   "explanation": "教材 5.1.2：只有 T0 可以设置为工作方式 3，T1 设置为工作方式 3 后不工作（停止计数）。",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.1.2",
+  "secTitle": "定时/计数器的工作方式"
  },
  {
   "id": "mcu-p5-045",
@@ -13034,7 +12887,9 @@
    "T"
   ],
   "explanation": "教材 5.2.3 第 3 点：51 单片机的 5 个中断源都是可屏蔽中断，IE 用于控制 CPU 对各中断源的开放或屏蔽。",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.2.2",
+  "secTitle": "51 单片机中断系统的结构"
  },
  {
   "id": "mcu-p5-046",
@@ -13055,7 +12910,9 @@
    "F"
   ],
   "explanation": "教材表 5.7 与中断标志撤除说明：串行口中断响应后硬件不能自动清除 TI 或 RI，必须在中断服务程序中用软件清除。",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.2.4",
+  "secTitle": "中断处理过程"
  },
  {
   "id": "mcu-p5-047",
@@ -13076,7 +12933,9 @@
    "T"
   ],
   "explanation": "教材 5.2.3 第 4 点：同一优先级别的中断源可能不止一个，需要进行优先权排队，同一优先级别的中断源采用自然优先级。",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.2.2",
+  "secTitle": "51 单片机中断系统的结构"
  },
  {
   "id": "mcu-p5-048",
@@ -13097,7 +12956,9 @@
    "F"
   ],
   "explanation": "教材 5.2.4 小提示（1）（2）：中断函数不能进行参数传递，也无返回值，与普通函数不同。",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.2",
+  "secTitle": "中断系统"
  },
  {
   "id": "mcu-p5-049",
@@ -13118,7 +12979,9 @@
    "T"
   ],
   "explanation": "教材 5.2.4 小提示（3）：在任何情况下不能直接调用中断函数，其结果不确定并且通常是致命的。",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.2",
+  "secTitle": "中断系统"
  },
  {
   "id": "mcu-p5-050",
@@ -13139,7 +13002,9 @@
    "T"
   ],
   "explanation": "教材 5.1 第 3 点（3）：GATE=1 为硬软件共同启动方式，需 TR 置 1 且外部启动信号为高电平。",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.1.1",
+  "secTitle": "定时/计数器的结构"
  },
  {
   "id": "mcu-p5-051",
@@ -13160,114 +13025,8 @@
    "F"
   ],
   "explanation": "教材任务 5-2 电路设计：当 I/O 端口线输出高电平时对应的交通灯熄灭，输出低电平时对应的交通灯点亮。",
-  "source": "项目5 定时与中断系统"
- },
- {
-  "id": "mcu-p5-052",
-  "number": 631,
-  "type": "term",
-  "stem": "名词解释：中断。",
-  "options": [],
-  "answer": [
-   "中断指通过硬件来改变 CPU 的运行方向。计算机在执行程序的过程中，外部设备向 CPU 发出中断请求信号，要求 CPU 暂时中断当前程序的执行而转去执行相应的处理程序，待处理程序执行完毕后，再继续执行原来被中断的程序。这种程序在执行过程中由于外界的原因而被中间打断的情况称为中断。"
-  ],
-  "explanation": "教材 5.2.1 第 1 点「中断及相关概念」。",
-  "source": "项目5 定时与中断系统"
- },
- {
-  "id": "mcu-p5-053",
-  "number": 632,
-  "type": "term",
-  "stem": "名词解释：中断源、断点。",
-  "options": [],
-  "answer": [
-   "中断源：引起中断的原因，或能发出中断申请的来源，称为中断源。例如任务 5-1 中的中断源是定时器 T1，其计数溢出时向 CPU 申请中断。断点：主程序被断开的位置（或地址）称为断点。"
-  ],
-  "explanation": "教材表 5.5 中断相关概念。",
-  "source": "项目5 定时与中断系统"
- },
- {
-  "id": "mcu-p5-054",
-  "number": 633,
-  "type": "term",
-  "stem": "名词解释：计数器溢出（计数器翻转）。",
-  "options": [],
-  "answer": [
-   "当 S₁ 闭合时，计数器从计数初值开始，对计数脉冲进行加 1 或减 1 计数，当加法计数器计到最大值、或减法计数器计到最小值时，计数器产生溢出，将相应的溢出标志位 TF 置 1。计数器溢出也称为计数器翻转。对 8 位计数器而言，计数值从 255 再加 1 时计数值变为 0，即产生一次溢出。"
-  ],
-  "explanation": "教材表 5.1「计数器溢出」与 5.1.1 第 2 点（2）计数范围说明。",
-  "source": "项目5 定时与中断系统"
- },
- {
-  "id": "mcu-p5-055",
-  "number": 634,
-  "type": "short",
-  "stem": "51 单片机定时/计数器的定时功能和计数功能有什么不同？分别应用在什么场合？",
-  "options": [],
-  "answer": [
-   "定时功能时，计数脉冲来自内部时钟信号（对内部机器周期脉冲计数），由于机器周期是固定值，计数值确定时定时时间也随之确定，用于产生确定的时间间隔，如定时采样、延时、秒表与交通灯定时。计数功能时，计数脉冲来自外部信号引脚（T0 用 P3.4、T1 用 P3.5），外部脉冲的下降沿触发计数，每输入一个脉冲加法计数器加 1，用于统计外部事件的个数，如产品计数、转速测量、脉冲个数统计。两者的区别由 TMOD 中的 C/T̄ 位选择：C/T̄=0 为定时，C/T̄=1 为计数。对计数功能，外部输入信号的高电平与低电平持续时间都必须在一个机器周期以上。"
-  ],
-  "explanation": "教材 5.1.1 小问答（定时与计数的区别）与 5.1 第 3 点（2）C/T̄ 功能选择位；亦为思考与练习题 5.3（1）。",
-  "source": "项目5 定时与中断系统"
- },
- {
-  "id": "mcu-p5-056",
-  "number": 635,
-  "type": "short",
-  "stem": "CPU 响应中断的条件是什么？有哪几种情况会阻断中断响应？",
-  "options": [],
-  "answer": [
-   "响应条件有 3 条：①有中断源发出中断请求；②中断总允许位 EA 置 1；③申请中断的中断源允许位置 1。阻断情况有 3 种：①CPU 正在响应同级或更高优先级的中断；②当前指令未执行完；③正在执行中断返回指令（RETI）或访问寄存器 IE 和 IP。若存在任何一种阻断情况，中断查询结果即被取消，CPU 不响应中断请求，而在下一机器周期继续查询；否则 CPU 在下一机器周期响应中断。"
-  ],
-  "explanation": "教材 5.2.4 第 1 点「中断响应」及小提示；亦为思考与练习题 5.3（6）（7）相关知识点。",
-  "source": "项目5 定时与中断系统"
- },
- {
-  "id": "mcu-p5-057",
-  "number": 636,
-  "type": "short",
-  "stem": "51 单片机定时/计数器四种工作方式各有什么特点？如何进行选择和设定？",
-  "options": [],
-  "answer": [
-   "方式 0：13 位定时/计数器，由 THi 高 8 位与 TLi 低 5 位组成，M=8 192，初值不可自动重载。方式 1：16 位定时/计数器，由 THi 高 8 位与 TLi 低 8 位组成，M=65 536，初值不可自动重载，定时范围最大。方式 2：初值自动重载的 8 位计数器，TLi 计数、THi 保存初值，溢出后 THi 的值自动装入 TLi，M=256，适合较精确的定时或串行口波特率发生器。方式 3：只有 T0 可设置，T0 被拆成两个独立 8 位计数器，TL0 占用 T0 的控制位、引脚和中断源，可定时也可计数；TH0 占用 TR1、TF1 和 T1 中断源，只能对机器周期计数。选择与设定：由 TMOD 中的 M1、M0 两位选择工作方式，由 C/T̄ 选择定时或计数，由 GATE 选择启动方式；TMOD 不能位寻址，只能整字节写入，高 4 位定义 T1、低 4 位定义 T0，例如 T1 定时方式 1 写 TMOD=0x10。"
-  ],
-  "explanation": "教材表 5.2、表 5.4 与 5.1.2 节四种方式说明；亦为思考与练习题 5.3（5）。",
-  "source": "项目5 定时与中断系统"
- },
- {
-  "id": "mcu-p5-058",
-  "number": 637,
-  "type": "short",
-  "stem": "外部中断有哪两种触发方式？如何选择和设定？",
-  "options": [],
-  "answer": [
-   "外部中断有电平触发方式和边沿（下降沿）触发方式两种。选择与设定由 TCON 中的 IT0、IT1 位决定：IT0（TCON.0）控制外部中断 0、IT1（TCON.2）控制外部中断 1；当 ITx=0 时为电平触发方式（低电平有效），当 ITx=1 时为边沿（下降沿）触发方式。例如交通灯程序中用 IT0=1、IT1=1 把 S₁、S₂ 两个按键设为下降沿触发。两种方式的中断请求撤除方法不同：边沿触发的外部中断，CPU 响应后由硬件自动清除 IE0、IE1；电平触发的外部中断撤除方法较复杂，一般采用硬件和软件相结合的方式。另外，外部中断请求标志 IE0、IE1 由硬件在引脚信号有效时自动置位。"
-  ],
-  "explanation": "教材表 5.6、表 5.7 与 5.2.3 第 2 点中断标志撤除说明；亦为思考与练习题 5.2（8）、5.3（8）。",
-  "source": "项目5 定时与中断系统"
- },
- {
-  "id": "mcu-p5-059",
-  "number": 638,
-  "type": "prog",
-  "stem": "用定时器 T1 的工作方式 1 和中断方式编写程序，用两个静态连接的共阳极数码管（段码分别接 P1、P2 口）显示 00~99 的简易秒表，时间间隔为 1 s，晶振为 12 MHz，并说明 1 s 是如何实现的。",
-  "options": [],
-  "answer": [
-   "//程序：ex5_1.c  00~99 秒简易秒表，定时器 T1 中断方式\n#include \"reg51.h\"\nunsigned char count=0;        //对 50 ms 定时时间进行计数\nunsigned char miao=0;         //秒计数器\nvoid timer_1( ) interrupt 3   //T1 的中断类型号为 3\n{\n    TH1 = ( 65536-50000 ) /256;   //重新设置 T1 计数初值高 8 位\n    TL1 = ( 65536-50000 ) %256;   //重新设置 T1 计数初值低 8 位\n    count++;                      //50 ms 计数器加 1\n    if ( count==20 )              //1 s 时间到\n    {\n        count=0;                  //50 ms 计数器清 0\n        miao++;                   //秒计数器加 1\n        if ( miao==100 ) miao=0;  //计到 100 则回 0\n    }\n}\nvoid disp ( unsigned char i )\n{\n    unsigned char led[]={0xc0,0xf9,0xa4,0xb0,0x99,0x92,0x82,0xf8,0x80,0x90};  //共阳极 0~9 段码\n    P1=led[i/10];       //显示高位\n    P2=led[i%10];       //显示低位\n}\nvoid main ( )\n{\n    TMOD=0x10;                       //设置 T1 为工作方式 1\n    TH1= ( 65536-50000 ) /256;       //初值高 8 位，定时 50 ms\n    TL1= ( 65536-50000 ) %256;       //初值低 8 位\n    ET1=1;                           //开放 T1 中断允许\n    EA=1;                            //开放总中断允许\n    TR1=1;                           //启动 T1 开始计数\n    while ( 1 ) { disp ( miao ) ; }  //显示秒计数器值\n}\n1 s 的实现：12 MHz 晶振时机器周期为 1 μs，方式 1 定时 50 ms 的初值 X=65 536−50 000=15 536（TH1=0x3C、TL1=0xB0）；每次溢出进入中断后重装初值并使 count 加 1，count 计到 20 即 20×50 ms=1 s，此时秒计数器 miao 加 1，实现 00~99 秒计数，计到 100 回 0。"
-  ],
-  "explanation": "教材 ex5_1.c（书页 153–154）与表 5.4 初值计算公式。",
-  "source": "项目5 定时与中断系统"
- },
- {
-  "id": "mcu-p5-060",
-  "number": 639,
-  "type": "prog",
-  "stem": "用定时器 T0 的工作方式 1 编写程序，使接在 P1 口的 8 个发光二极管实现时间间隔为 1 s 的流水灯控制（每次只有一个灯点亮，低电平点亮），晶振 12 MHz。",
-  "options": [],
-  "answer": [
-   "//流水灯：T0 方式1 定时 50 ms，查询方式累计 20 次实现 1 s\n#include \"reg51.h\"\nvoid delay1s ( )\n{\n    unsigned char i;\n    for ( i=0;i<20;i++ )          //20 × 50 ms = 1 s\n    {\n        TH0= ( 65536-50000 ) /256;   //T0 初值高 8 位\n        TL0= ( 65536-50000 ) %256;   //T0 初值低 8 位\n        TR0=1;                       //启动 T0\n        while ( !TF0 ) ;             //查询是否溢出（50 ms 到）\n        TF0=0;                       //查询方式下必须由软件清零\n    }\n}\nvoid main ( )\n{\n    unsigned char led=0xfe;       //1111 1110B，最低位灯亮\n    TMOD=0x01;                    //T0 为工作方式 1\n    while ( 1 )\n    {\n        P1=led;                   //输出当前状态\n        delay1s ( ) ;             //间隔 1 s\n        led= ( led<<1 ) | 0x01;   //左移一位，末位补 1（熄灭）\n        if ( led==0xff ) led=0xfe; //8 个灯轮完一遍后重新开始\n    }\n}\n要点：TMOD=0x01 表示 T0 软件启动、定时、方式 1；初值 X=65 536−50 000=15 536；用 while(!TF0) 查询溢出，查询方式下 TF0 必须由软件清零；P1 口输出低电平点亮对应 LED，0xFE→0xFD→0xFB…→0x7F 依次左移即形成流水效果。"
-  ],
-  "explanation": "教材 5.4 操作题（1）结合 5.1 节 T0 方式 1、查询溢出与 ex5_2.c 的查询延时写法。",
-  "source": "项目5 定时与中断系统"
+  "source": "项目5 定时与中断系统",
+  "sec": "5.1.2",
+  "secTitle": "定时/计数器的工作方式"
  }
 ]

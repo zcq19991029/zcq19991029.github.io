@@ -176,6 +176,8 @@ pre { white-space: pre-wrap; word-break: break-word; margin: 0; }
 .qb-body { min-width: 0; display: grid; gap: 4px; word-break: break-word; }
 .qb-t { display: inline-block; margin-right: 8px; padding: 0 7px; border-radius: 6px; background: var(--accbg, rgba(47, 132, 90, .14)); color: var(--acc, #2f845a); font-size: 12px; font-weight: 600; }
 .qb-t.qb-ch { background: rgba(178, 80, 0, .12); color: var(--warn, #b25000); }
+/* 小节角标（2026-11-19）：比章节更细一级，用偏青的底色跟章节区分开 */
+.qb-t.qb-sec { background: rgba(0, 122, 140, .12); color: #00697a; max-width: 46%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .qb-o { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; color: var(--dim, #6e6e73); }
 .qb-code { font-size: 12.5px; padding: 6px 8px; border-radius: 8px; background: var(--card-lift, #fff); max-height: 220px; overflow: auto; }
 .qb-a { font-size: 12.5px; color: var(--dim, #6e6e73); }
@@ -2094,7 +2096,12 @@ function MAT_toDb(q, src) {
   else if (t === 'fill') a = q.answer.slice();
   else a = Array.isArray(q.answer) ? (q.answer[0] || '') : String(q.answer == null ? '' : q.answer);
   return {
-    t, ch: (q.ch != null && +q.ch > 0) ? +q.ch : null, q: q.stem,
+    t, ch: (q.ch != null && +q.ch > 0) ? +q.ch : null,
+    /* 小节（2026-11-19）：AI 如果按提示词给出了 sec（如 3.2.1），原样带进题池；
+       只收「数字.数字」这种，别的当没填。 */
+    sec: (q.sec != null && /^[0-9]+(\.[0-9]+)*$/.test(String(q.sec).trim())) ? String(q.sec).trim() : null,
+    secTitle: null,
+    q: q.stem,
     o: t === 'choice' || t === 'judge' ? (q.options || []).map(o => ({ key: o.key, text: o.text })) : null,
     a, code: q.code || null, sub: q.sub && q.sub.length ? q.sub : null,
     explanation: q.explanation || '', knowledge: q.knowledge || null, src
@@ -2107,10 +2114,10 @@ function MAT_toDb(q, src) {
    一键把某一套转成题池格式、写进当前科目的题池，之后就能和 AI 出的题一起按章节、知识点筛，
    再发布到刷题。导入按「题型 + 题干去空白」去重，已有的题不重复加。 */
 const MAT_BUILTIN_BANKS = [
-  { id: 'wiring', name: '电气接线原理', file: '../shuati/data/wiring.json', tag: '教材配套 · 期末理论', n: 370 },
-  { id: 'mcu', name: '单片机应用技术', file: '../shuati/data/mcu.json', tag: '教材配套 · 期末理论', n: 639 },
-  { id: 'psychology', name: '教育心理学', file: '../shuati/data/questions.json', tag: '教资', n: 540 },
-  { id: 'education', name: '教育学', file: '../shuati/data/education.json', tag: '教资', n: 741 }
+  { id: 'wiring', name: '电气接线原理', file: '../shuati/data/wiring.json', tag: '教材配套 · 期末理论 · 已标小节', n: 319 },
+  { id: 'mcu', name: '单片机应用技术', file: '../shuati/data/mcu.json', tag: '教材配套 · 期末理论 · 已标小节', n: 536 },
+  { id: 'psychology', name: '教育心理学', file: '../shuati/data/questions.json', tag: '教资', n: 435 },
+  { id: 'education', name: '教育学', file: '../shuati/data/education.json', tag: '教资', n: 568 }
 ];
 
 /* 从刷题 source（如「项目1 熟悉单片机操作环境」「电气控制技术实训 第3版 项目2思考题」）
@@ -2140,8 +2147,12 @@ function builtinToDb(q) {
     a = Array.isArray(q.answer) ? (q.answer[0] || '') : String(q.answer == null ? '' : q.answer);
   }
   const src = String(q.source || '').trim() || '刷题内置题库';
+  /* 小节（2026-11-19）：刷题题库里电气/单片机两套已经按教材标到小节（1.1 / 3.2.1），
+     直接带进题池；大章号优先从 sec 推（比从 source 文本正则稳），推不出来再走老办法。 */
+  const sec = (q.sec && /^[0-9]+(\.[0-9]+)*$/.test(String(q.sec).trim())) ? String(q.sec).trim() : null;
   return {
-    t, ch: builtinChapter(src), q: q.stem,
+    t, ch: sec ? +sec.split('.')[0] : builtinChapter(src), sec,
+    secTitle: sec && q.secTitle ? String(q.secTitle).slice(0, 120) : null, q: q.stem,
     o: t === 'choice' || t === 'judge' ? (q.options || []).map(o => ({ key: o.key, text: o.text })) : null,
     a, code: q.code || null, sub: q.sub && q.sub.length ? q.sub : null,
     explanation: q.explanation || '', knowledge: (q.knowledge || null), src
@@ -2237,10 +2248,10 @@ function qbCnBuild() {
   Object.keys(QB_FALLBACK).forEach(k => { if (order.indexOf(k) < 0) order.push(k); });
   QB_CN = cn; QB_ORDER = order;
 }
-let QB_ALL = [], QB_T = '', QB_CH = '', QB_K = '', QB_KW = '', QB_KN = [], QB_SEL = new Set();
+let QB_ALL = [], QB_T = '', QB_CH = '', QB_SEC = '', QB_K = '', QB_KW = '', QB_KN = [], QB_SEL = new Set();
 
 function qbHome() {
-  QB_T = ''; QB_CH = ''; QB_K = ''; QB_KW = ''; QB_KN = []; QB_ALL = []; QB_SEL = new Set();
+  QB_T = ''; QB_CH = ''; QB_SEC = ''; QB_K = ''; QB_KW = ''; QB_KN = []; QB_ALL = []; QB_SEL = new Set();
   qbCnBuild();
   const s = curSub();
   app().innerHTML = `<header class="zl-h"><h1>${esc(s.name)} · 题池</h1></header>
@@ -2251,6 +2262,7 @@ function qbHome() {
         <div class="qb-f">
           <label>题型<select id="qbType"><option value="">全部</option>${QB_ORDER.map(t => `<option value="${t}">${esc(QB_CN[t])}</option>`).join('')}</select></label>
           <label>章节<select id="qbCh"><option value="">全部</option></select></label>
+          <label>小节<select id="qbSec"><option value="">全部</option></select></label>
           <label>知识点<select id="qbKn"><option value="">全部</option></select></label>
           <label>找题<input id="qbKw" type="search" autocomplete="off" placeholder="题干关键词"></label>
           <button class="sm" id="qbRefresh">刷新</button>
@@ -2277,7 +2289,8 @@ function qbHome() {
     </section>`;
   if (window.HXLoadFx) HXLoadFx.auto($('qbList'));
   $('qbType').onchange = () => { QB_T = $('qbType').value; qbDraw(); };
-  $('qbCh').onchange = () => { QB_CH = $('qbCh').value; qbDraw(); };
+  $('qbCh').onchange = () => { QB_CH = $('qbCh').value; qbSecBuild(QB_ALL); qbDraw(); };
+  $('qbSec').onchange = () => { QB_SEC = $('qbSec').value; qbDraw(); };
   $('qbKn').onchange = () => { QB_K = $('qbKn').value; qbLoad(); };
   let kwT = 0;
   $('qbKw').oninput = () => { clearTimeout(kwT); kwT = setTimeout(() => { QB_KW = ($('qbKw').value || '').trim().toLowerCase(); qbDraw(); }, 140); };
@@ -2325,6 +2338,7 @@ function qbRebuildFilters() {
 }
 const qbShown = () => QB_ALL.filter(q => (!QB_T || q.t === QB_T) &&
   (!QB_CH || (q.ch != null && String(q.ch) === String(QB_CH))) &&
+  (!QB_SEC || String(q.sec || '') === QB_SEC) &&
   (!QB_KW || (String(q.q || '') + ' ' + String(q.knowledge || '')).toLowerCase().indexOf(QB_KW) >= 0));
 
 /* 全选当前筛选：一个按钮两态 —— 当前筛选的题已经全勾上了，再点就是取消这批。 */
@@ -2412,6 +2426,7 @@ async function qbLoad(btn) {
     QB_ALL = Array.isArray(r.data) ? r.data : [];
     if (!QB_K) qbKnBuild(QB_ALL);   // 只在未按知识点筛选时重建下拉，避免筛选后把选项刷没
     qbChBuild(QB_ALL);              // 章节下拉：章节是 AI 出的、随时会变，每次都重建
+  qbSecBuild(QB_ALL);             // 小节下拉（2026-11-19）：内置题库按教材标到 3.2.1 这一级
     const ids = new Set(QB_ALL.map(q => String(q.id)));
     QB_SEL = new Set([...QB_SEL].filter(id => ids.has(id)));
     qbRebuildFilters();             // 按题型全选那个下拉要知道每类有多少道
@@ -2438,6 +2453,31 @@ function qbChBuild(list) {
   sel.value = (cur && chs.some(c => String(c) === cur)) ? cur : '';
   QB_CH = sel.value;
 }
+/* 小节下拉（2026-11-19）：sec 形如 1.1 / 3.2.1，按数字逐段升序排（1.1 → 1.2 → 2.1 → 3.2.1）。
+   选了章节之后只列该章下的小节，免得 60 多个选项一起铺开。 */
+function qbSecBuild(list) {
+  const sel = $('qbSec'); if (!sel) return;
+  const cur = sel.value;
+  const pool = (QB_CH && !list.some(q => String(q.ch) === String(QB_CH))) ? list : list.filter(q => !QB_CH || String(q.ch) === String(QB_CH));
+  const seen = new Map();
+  for (const q of pool) {
+    const sec = String(q.sec || '').trim();
+    if (!sec) continue;
+    if (!seen.has(sec)) seen.set(sec, q.secTitle || '');
+  }
+  const keys = [...seen.keys()].sort((a, b) => {
+    const pa = a.split('.').map(Number), pb = b.split('.').map(Number);
+    for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+      const d = (pa[i] || 0) - (pb[i] || 0);
+      if (d) return d;
+    }
+    return 0;
+  });
+  sel.innerHTML = '<option value="">全部</option>' + keys.map(k => `<option value="${esc(k)}">${esc(k)}${seen.get(k) ? ' ' + esc(seen.get(k)) : ''}</option>`).join('');
+  sel.value = (cur && keys.includes(cur)) ? cur : '';
+  QB_SEC = sel.value;
+}
+
 function qbDrawStat() {
   const box = $('qbStat'); if (!box) return;
   if (!QB_ALL.length) {
@@ -2483,17 +2523,18 @@ function qbDraw() {
     const why = [];
     if (QB_T) why.push('题型「' + (QB_CN[QB_T] || QB_T) + '」');
     if (QB_CH) why.push('第 ' + QB_CH + ' 章');
+    if (QB_SEC) why.push('小节 ' + QB_SEC);
     if (QB_KW) why.push('关键词「' + QB_KW + '」');
     box.innerHTML = '<p class="note">当前筛选下没有题' + (why.length ? '（' + esc(why.join('、')) + '）' : '')
       + '。 <button class="sm" id="qbClearFilter">清空筛选</button></p>';
     const c = $('qbClearFilter');
-    if (c) c.onclick = () => { QB_T = ''; QB_CH = ''; QB_KW = ''; if ($('qbType')) $('qbType').value = ''; if ($('qbCh')) $('qbCh').value = ''; if ($('qbKw')) $('qbKw').value = ''; qbDraw(); };
+    if (c) c.onclick = () => { QB_T = ''; QB_CH = ''; QB_SEC = ''; QB_KW = ''; if ($('qbType')) $('qbType').value = ''; if ($('qbCh')) $('qbCh').value = ''; if ($('qbSec')) $('qbSec').value = ''; if ($('qbKw')) $('qbKw').value = ''; qbDraw(); };
     return;
   }
   box.innerHTML = list.map(q => `<div class="qb-i" data-qid="${q.id}">
       <input type="checkbox" data-qsel="${q.id}" ${QB_SEL.has(String(q.id)) ? 'checked' : ''} aria-label="选中这道题">
       <div class="qb-body">
-        <div class="qb-q"><span class="qb-t">${esc(QB_CN[q.t] || q.t)}</span>${q.ch != null && +q.ch > 0 ? `<span class="qb-t qb-ch">第 ${q.ch} 章</span>` : ''}${esc(q.q)}</div>
+        <div class="qb-q"><span class="qb-t">${esc(QB_CN[q.t] || q.t)}</span>${q.ch != null && +q.ch > 0 ? `<span class="qb-t qb-ch">第 ${q.ch} 章</span>` : ''}${q.sec ? `<span class="qb-t qb-sec" title="教材小节">${esc(q.sec)}${q.secTitle ? ' ' + esc(q.secTitle) : ''}</span>` : ''}${esc(q.q)}</div>
         ${Array.isArray(q.o) && q.o.length && q.t === 'choice' ? `<div class="qb-o">${q.o.map(o => `<span>${esc(o.key)}. ${esc(o.text)}</span>`).join('')}</div>` : ''}
         ${q.code ? `<pre class="qb-code">${esc(q.code)}</pre>` : ''}
         <div class="qb-a">${q.knowledge ? `<span class="qb-t">知识点</span>${esc(q.knowledge)} · ` : ''}答案：${esc(String(QB_ans(q)).slice(0, 300))}${q.src ? ' ｜ ' + esc(q.src) : ''}</div>
@@ -2696,7 +2737,11 @@ const ZL_norm = s => String(s == null ? '' : s).replace(/\s+/g, '').toLowerCase(
 function ZL_toQuiz(r, bank) {
   const stem = String((r && r.q) || '').trim();
   if (!stem) return { skip: '题干是空的' };
-  const q = { id: bank + '-zl-' + r.id, number: 0, type: '', stem, options: [], answer: [], explanation: String(r.explanation || ''), source: String(r.src || '资料库') };
+  /* 2026-11-19：刷题端题型收敛到单选 / 判断 / 填空三种（多选、名词解释、简答、程序分析
+     暂时没需求，题库里那 432 道也删了）。这边必须跟着收，否则发过去刷题页认不出题型、
+     学生「发布成功却刷不到」。小节 sec 照样带过去，刷题卡片上有角标。 */
+  const sec = (r.sec && /^[0-9]+(\.[0-9]+)*$/.test(String(r.sec).trim())) ? String(r.sec).trim() : null;
+  const q = { id: bank + '-zl-' + r.id, number: 0, type: '', stem, options: [], answer: [], explanation: String(r.explanation || ''), source: String(r.src || '资料库'), sec, secTitle: sec && r.secTitle ? String(r.secTitle) : null };
   const a = r.a;
   switch (r.t) {
     case 'choice': {
@@ -2707,7 +2752,8 @@ function ZL_toQuiz(r, bank) {
       q.answer = [...new Set(raw.toUpperCase().replace(/[^A-Z]/g, '').split('').filter(Boolean))];
       if (!q.answer.length) return { skip: '选择题没有答案' };
       if (q.answer.some(k => !keys.has(k))) return { skip: '答案不在选项里' };
-      q.type = q.answer.length > 1 ? 'multiple' : 'single';
+      if (q.answer.length > 1) return { skip: '多选题暂时不发布（刷题只做单选、判断、填空）' };
+      q.type = 'single';
       break;
     }
     case 'judge': {
@@ -2723,18 +2769,8 @@ function ZL_toQuiz(r, bank) {
       if (!/_{2,}/.test(stem)) return { skip: '填空题题干里没有 ____' };
       break;
     }
-    case 'term': case 'short': case 'prog': {
-      q.type = r.t;
-      const s = Array.isArray(a) ? a.join(' ') : String(a == null ? '' : a).trim();
-      if (!s) return { skip: '没有参考答案' };
-      q.answer = [s];
-      if (r.t === 'prog') {
-        if (r.code) q.code = String(r.code);
-        const sub = Array.isArray(r.sub) ? r.sub.map(x => String(x == null ? '' : x).trim()).filter(Boolean) : [];
-        if (sub.length) q.sub = sub;
-      }
-      break;
-    }
+    case 'term': case 'short': case 'prog':
+      return { skip: '名词解释 / 简答 / 程序分析暂时不发布（刷题只做单选、判断、填空）' };
     default: return { skip: '题型「' + (r && r.t) + '」刷题里没有' };
   }
   return { q };

@@ -22,10 +22,16 @@ const BUILTIN = [
   { id: 'education', name: '教育学', file: 'data/education.json', tag: '教资' },
 ];
 const BUILTIN_IDS = new Set(BUILTIN.map(s => s.id));
-const TYPES = [['single', '单选'], ['multiple', '多选'], ['judgment', '判断'], ['fill', '填空'], ['term', '名词解释'], ['short', '简答'], ['prog', '程序分析']];
-const SELF = new Set(['term', 'short', 'prog']); // 主观题：看参考答案自己判对错
+/* 题型只留三种（2026-11-19）：老师现在的卷子就是单选 / 判断 / 填空，
+   多选、名词解释、简答、程序分析暂时没需求，题库里的题也一并删掉了（2290 → 1858 题）。
+   要恢复的话把类型加回这个数组，并把题补回 data/*.json 即可 —— 引擎层（SELF、submit、
+   主观题自判）都还在，没拆。 */
+const TYPES = [['single', '单选'], ['judgment', '判断'], ['fill', '填空']];
+const TYPE_OK = new Set(TYPES.map(t => t[0]));
+const SELF = new Set(['term', 'short', 'prog']); // 主观题：看参考答案自己判对错（当前题型里没有，保留备用）
 // 题池（hx_exam_qbank）的题型名和刷题引擎不是一套：choice 单选/多选，judge 判断，其余同名
-const QPOOL_TYPES = [['choice', '选择'], ['judge', '判断'], ['fill', '填空'], ['term', '名词解释'], ['short', '简答'], ['prog', '程序分析']];
+// 2026-11-19：刷题只接三种题型，题池里另外三类（名词解释/简答/程序分析）导入时直接跳过
+const QPOOL_TYPES = [['choice', '选择'], ['judge', '判断'], ['fill', '填空']];
 const SCOPES = [['todo', '待掌握'], ['wrong', '错题'], ['new', '未做'], ['done', '已做'], ['known', '已记住']];
 // 出题顺序：题库顺序、刷题顺序（按上次作答时间，没做过的排在后面）各有正序倒序，再加随机
 const ORDERS = [['seq', '题库正序', '按题库里的编号从前往后'], ['seqR', '题库倒序', '按题库里的编号从后往前'], ['time', '刷题正序', '先出很久以前做的，没做过的在最后'], ['timeR', '刷题倒序', '先出最近做的，没做过的在最后'], ['rand', '随机', '打乱顺序']];
@@ -250,7 +256,10 @@ async function openSubject(id) {
   if (seq !== S.subSeq || S.subject !== sub) { if (loadfx) loadfx.done(); return; } // 期间又换过一次科目，这次结果作废
   S.bank = bank;
   const seen = new Set(base.map(q => q.id));
-  S.questions = [...base, ...S.bank.filter(q => !seen.has(q.id))];
+  // 2026-11-19：刷题只做单选 / 判断 / 填空。云端题库（老师早先发布过的）里可能还留着多选 /
+  // 名词解释 / 简答题，这里统一滤掉 —— 不然题型栏里没有这几类，学生在「全部」里却刷得到，
+  // 答完也没有对应的判分路径。题库数据本身没删，只是这个页面不显示。
+  S.questions = [...base, ...S.bank.filter(q => !seen.has(q.id))].filter(q => TYPE_OK.has(q.type));
   S.records = records;
   if (!S.questions.some(q => q.type === S.type)) S.type = (TYPES.find(t => S.questions.some(q => q.type === t[0])) || TYPES[0])[0];
   savePrefs(); buildQueue(true);
@@ -536,7 +545,7 @@ function renderCard() {
   const tag = (r.wrong ? `<span style="color:var(--bad)">错过 ${r.wrong} 次</span>` : r.status === 'known' ? '<span style="color:var(--ok)">已记住</span>' : '')
     + (r.status === 'known' && q.id in S.undo ? '<button class="btn sm ghost" type="button" id="undoBtn" style="height:26px">撤销记住</button>' : '');
   const hint = picked ? `<div class="hint">左滑或 <kbd>${esc(keyOf('know'))}</kbd> 记住 · 右滑或 <kbd>${esc(keyOf('again'))}</kbd> 再练</div>` : '';
-  card.innerHTML = `<div class="qhead"><span class="qtype">${typeName(q.type)}</span><span>${S.i + 1} / ${S.queue.length}</span><span class="sp"></span>${tag}</div>
+  card.innerHTML = `<div class="qhead"><span class="qtype">${typeName(q.type)}</span>${q.sec ? `<span class="qsec" title="教材小节">${esc(q.sec)}${q.secTitle ? ' ' + esc(q.secTitle) : ''}</span>` : ''}<span>${S.i + 1} / ${S.queue.length}</span><span class="sp"></span>${tag}</div>
     <h2 class="stem">${stem}</h2>${extra}${opts ? `<div class="opts">${opts}</div>` : ''}
     ${q.type === 'multiple' && !picked ? `<button class="btn submit" type="button" id="submitBtn" ${S.sel.size ? '' : 'disabled'}>提交答案${S.sel.size ? `（已选 ${[...S.sel].sort().join('')}）` : ''}</button>` : ''}${q.type === 'fill' && !picked ? '<button class="btn submit" type="button" id="submitBtn">提交答案</button>' : ''}${fb}${cards}${hint}
     <div class="veil" aria-hidden="true"><i></i></div>`;
@@ -984,12 +993,12 @@ function renderRankBody() {
   const me = all.find(r => r.me), total = all.length ? all[0].total : 0;
   const mineStat = isStudent()
     ? (me ? `<div class="meter"><i style="width:${n ? me.score / n * 100 : 0}%"></i></div><div class="stats"><span><b>${me.score}</b>/ ${n} 题答对</span><span>第 <b>${me.place}</b>名</span><span><b>${total}</b>人上榜</span></div>`
-          : note('答对一道单选、多选或判断就上榜'))
+          : note('答对一道单选或判断题就上榜'))
     : note(hx.signedIn() ? (isTeacher() ? '教师不上榜' : '开通学生账号后上榜') : '登录学生账号后，答对的题计入排行');
   const cols = who
     ? `<div class="rcols">${rankCol(mine, 'mine', isStudent() ? '本班' : '我的班')}${rankCol(all, 'all', '全校')}</div>`
     : `<div class="rcols one">${rankCol(all, 'all', '全校')}</div>`;
-  el.innerHTML = head(mineStat) + `<div class="panel">${cols}<p class="muted rrule">单选、多选、判断答对过的题，每题只算一次</p></div>`;
+  el.innerHTML = head(mineStat) + `<div class="panel">${cols}<p class="muted rrule">单选、判断答对过的题，每题只算一次</p></div>`;
   for (const b of el.querySelectorAll('.rpager button')) b.onclick = () => {
     const key = b.dataset.rp, d = +b.dataset.d;
     S.rpage[key] = (S.rpage[key] || 0) + d;
@@ -1553,7 +1562,7 @@ const qpoolTypeName = t => (QPOOL_TYPES.find(x => x[0] === t) || [, t])[1];
 function poolToQuiz(r, bank) {
   const stem = String((r && r.q) || '').trim();
   if (!stem) return { skip: '题干是空的' };
-  const q = { id: bank + '-zl-' + r.id, number: 0, type: '', stem, options: [], answer: [], explanation: String(r.explanation || ''), source: String(r.src || '题池'), knowledge: String(r.knowledge || '').trim() || null, chapter: r.ch != null ? +r.ch : null };
+  const q = { id: bank + '-zl-' + r.id, number: 0, type: '', stem, options: [], answer: [], explanation: String(r.explanation || ''), source: String(r.src || '题池'), knowledge: String(r.knowledge || '').trim() || null, chapter: r.ch != null ? +r.ch : null, sec: r.sec ? String(r.sec) : null, secTitle: r.secTitle ? String(r.secTitle) : null };
   const a = r.a;
   switch (r.t) {
     case 'choice': {
@@ -1564,7 +1573,9 @@ function poolToQuiz(r, bank) {
       q.answer = [...new Set(raw.toUpperCase().replace(/[^A-Z]/g, '').split('').filter(Boolean))];
       if (!q.answer.length) return { skip: '选择题没有答案' };
       if (q.answer.some(k => !keys.has(k))) return { skip: '答案不在选项里' };
-      q.type = q.answer.length > 1 ? 'multiple' : 'single';
+      // 2026-11-19：多选暂时不接（刷题只剩单选/判断/填空），答案多个字母的直接跳过
+      if (q.answer.length > 1) return { skip: '多选题暂时不导入' };
+      q.type = 'single';
       break;
     }
     case 'judge': {
@@ -1580,18 +1591,8 @@ function poolToQuiz(r, bank) {
       if (!/_{2,}/.test(stem)) return { skip: '填空题题干里没有 ____' };
       break;
     }
-    case 'term': case 'short': case 'prog': {
-      q.type = r.t;
-      const s = Array.isArray(a) ? a.join(' ') : String(a == null ? '' : a).trim();
-      if (!s) return { skip: '没有参考答案' };
-      q.answer = [s];
-      if (r.t === 'prog') {
-        if (r.code) q.code = String(r.code);
-        const sub = Array.isArray(r.sub) ? r.sub.map(x => String(x == null ? '' : x).trim()).filter(Boolean) : [];
-        if (sub.length) q.sub = sub;
-      }
-      break;
-    }
+    case 'term': case 'short': case 'prog':
+      return { skip: '名词解释 / 简答 / 程序分析暂时不导入（刷题只做单选、判断、填空）' };
     default: return { skip: '题型「' + (r && r.t) + '」刷题里没有' };
   }
   return { q };
