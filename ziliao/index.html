@@ -2571,6 +2571,8 @@ function qbCnBuild() {
   QB_CN = cn; QB_ORDER = order;
 }
 let QB_ALL = [], QB_T = '', QB_CH = '', QB_SEC = '', QB_K = '', QB_KW = '', QB_KN = [], QB_SEL = new Set();
+/* 补章节的撤销快照：qbHome 的模板要按它决定按钮文字，所以在最前面声明 */
+var QB_CH_UNDO = [];
 
 function qbHome() {
   QB_T = ''; QB_CH = ''; QB_SEC = ''; QB_K = ''; QB_KW = ''; QB_KN = []; QB_ALL = []; QB_SEL = new Set();
@@ -2601,6 +2603,7 @@ function qbHome() {
         <div class="qb-acts">
           <button class="sm" id="qbRefresh">刷新</button>
           <button class="sm" id="qbCleanNo" title="去掉题干里抄来的教材编号（任务1.1 / 例1-1 / 习题3-2 / 第3题）">清理题干编号</button>
+          <button class="sm" id="qbGuessCh" title="给没有章节号的题，按「来源资料名 / 题干里的项目号」倒推章节（只补空着的）">${QB_CH_UNDO.length ? '撤销补章节' : '按来源补章节'}</button>
           <button class="sm" id="qbDedup">AI 查重</button>
           <button class="sm" id="qbTag" title="给还没有知识点的题批量打标签，题池就能按知识点筛">AI 打知识点</button>
           <button class="sm danger" id="qbClear">清空题池</button>
@@ -2653,6 +2656,8 @@ function qbHome() {
   // （原来点刷新/清空整块界面一动不动，用户以为没点上；AI 查重要几十秒更像是卡死）
   $('qbRefresh').onclick = () => qbLoad($('qbRefresh'));
   $('qbCleanNo').onclick = () => qbCleanNo($('qbCleanNo'));
+  $('qbGuessCh').onclick = () => qbGuessChRun($('qbGuessCh'));
+  qbGuessChPaint();
   $('qbDedup').onclick = () => qbDedup($('qbDedup'));
   $('qbTag').onclick = () => qbTagKb($('qbTag'));
   $('qbClear').onclick = () => qbClear($('qbClear'));
@@ -2947,6 +2952,97 @@ async function qbCleanNo(btn) {
     qbDraw();
   } finally { HXBusy.end(tok); }
 }
+/* ================= 按来源倒推章节（2026-11-20）=================
+   老师的题池里 132 道没有章节号（ch 为空），抽题时一律抽不到。问「能不能按知识点倒推」——
+   查了一下：**电气 451 道题的知识点全是空的**，这条路走不通。
+   但「来源 src」里有答案：导入资料时 src 记的是资料名，资料名本身就带章节 ——
+     「电气控制技术实训 第3版 项目二（2.1-2.6）.pdf、电气接线第一章.pdf · AI 出题」→ 第 2 章
+     「电气接线 第二章」→ 2 ；「电气接线 第三章」→ 3
+   实测 132 道里 120 道能从来源判出（第2章 106、第3章 14），剩 12 道是「接线仿真使用说明」这类
+   内置说明资料，再看题干里的「项目二 / 2.1 / 图2-11」还能捞回大半。
+   原则：**只补空着的 ch，已有章节的一道都不动**；补之前先把原值记下来，按钮变「撤销补章节」。 */
+const QB_CH_CN = { '一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9, '十': 10 };
+QB_CH_UNDO = [];         // [{id, ch}] 补之前的原值，用于一键还原（声明在上面，模板要用）
+
+/* 从一段文字里投票猜章节：项目N / 第N章 权重 3，图N-x 权重 2，N.x 权重 1。
+   同一句里出现两个（「项目二…第一章」）取票多的 —— 实测这类来源出的题内容都是项目二那章，
+   因为主资料是《电气控制技术实训》的项目二，「第一章.pdf」是同一批资料里的另一份讲义。 */
+function qbChFromText(s) {
+  const t = String(s == null ? '' : s);
+  const v = {};
+  const add = (n, w) => { if (n >= 1 && n <= 10) v[n] = (v[n] || 0) + w; };
+  for (const m of t.matchAll(/项目\s*([一二三四五六七八九十])/g)) add(QB_CH_CN[m[1]], 3);
+  for (const m of t.matchAll(/第\s*([一二三四五六七八九十])\s*章/g)) add(QB_CH_CN[m[1]], 3);
+  for (const m of t.matchAll(/图\s*(\d+)\s*[-–]\s*\d+/g)) add(+m[1], 2);
+  for (const m of t.matchAll(/(?:^|[^\d.])([1-9])\s*\.\s*\d/g)) add(+m[1], 1);
+  const best = Object.entries(v).sort((a, b) => b[1] - a[1] || a[0] - b[0])[0];
+  return best ? +best[0] : 0;
+}
+/* 先看来源，来源判不出再看题干 */
+function qbGuessCh(q) {
+  return qbChFromText(q.src) || qbChFromText(q.q) || 0;
+}
+/* 按钮文字 = 当前状态：有快照就显示「撤销补章节」。工具栏重画后要重新调一次。 */
+function qbGuessChPaint() {
+  const b = $('qbGuessCh');
+  if (b) { b.textContent = QB_CH_UNDO.length ? '撤销补章节' : '按来源补章节'; b.setAttribute('data-p', String(QB_CH_UNDO.length)); }
+}
+
+async function qbGuessChRun(btn) {
+  /* 已经有快照 = 这一次点击是「撤销」 */
+  if (QB_CH_UNDO.length) {
+    const list = QB_CH_UNDO.slice();
+    if (!await hxConfirm(`撤销刚才的补章节？\n\n这 ${list.length} 道题会恢复成「未标章节」，别的题不受影响。`)) return;
+    const tok = HXBusy.begin(btn, '正在撤销…');
+    let n = 0, bad = '';
+    try {
+      for (const x of list) {
+        const r = await MAT_call('hx_exam_qbank_update', { p_id: x.id, p_patch: { ch: x.ch == null ? null : x.ch } });
+        if (!r.ok) { bad = '第 ' + x.id + ' 道没还原：' + (r.err || '未知错误'); break; }
+        n++;
+      }
+      if (!bad) { QB_CH_UNDO = []; toast('已撤销，' + n + ' 道题恢复成未标章节'); }
+      else MAT_banner('撤销补章节：还原了 ' + n + ' 道，后面停下了（' + bad + '）。');
+    } finally { HXBusy.end(tok); }
+    setTimeout(qbGuessChPaint, 420);   // 同上：等 HXBusy 把手里的按钮还原完
+    qbLoad().catch(() => { });
+    return;
+  }
+
+  const todo = QB_ALL.filter(q => !(+q.ch)).map(q => ({ q, ch: qbGuessCh(q) })).filter(x => x.ch > 0);
+  const miss = QB_ALL.filter(q => !(+q.ch)).length - todo.length;
+  if (!todo.length) return toast(miss ? '剩下 ' + miss + ' 道从来源和题干里都看不出章节' : '每道题都已经有章节号了');
+  const dist = {};
+  todo.forEach(x => { dist[x.ch] = (dist[x.ch] || 0) + 1; });
+  const lines = Object.keys(dist).sort((a, b) => a - b).map(c => '第 ' + c + ' 章：' + dist[c] + ' 道').join('\n');
+  const msg = `给 ${todo.length} 道没有章节号的题，按「来源资料名 / 题干里的项目号」倒推补上章节：\n\n${lines}`
+    + (miss ? `\n\n另有 ${miss} 道从来源和题干里都看不出章节，保持原样（还是未标章节）。` : '')
+    + '\n\n**只补空着的，已有章节的一道都不动。** 补完按钮会变成「撤销补章节」，点一下能全部还原。';
+  if (!await hxConfirm(msg)) return;
+
+  const tok = HXBusy.begin(btn, '正在补章节…');
+  let done = 0, bad = '';
+  QB_CH_UNDO = [];
+  try {
+    for (const { q, ch } of todo) {
+      const r = await MAT_call('hx_exam_qbank_update', { p_id: +q.id, p_patch: { ch: ch } });
+      if (!r.ok) { bad = '第 ' + q.id + ' 道（' + String(q.q || '').slice(0, 12) + '…）没改成：' + (r.err || '未知错误'); break; }
+      QB_CH_UNDO.push({ id: +q.id, ch: q.ch == null ? null : q.ch });
+      q.ch = ch;
+      done++;
+    }
+    if (bad) MAT_banner('补章节：补好 ' + done + ' 道，后面停下了（' + bad + '）。已经补的保留。');
+    else toast('给 ' + done + ' 道题补上了章节');
+  } finally { HXBusy.end(tok); }
+  /* ⚠ HXBusy.end() 会把按钮**还原成点之前的原文案**（它 begin 时存了一份），
+     所以按钮文字必须在 end 之后改，改在 try 里面会被它盖回去（实测踩到：data-p 明明写进去了，
+     文案却还是「按来源补章节」）。刷新列表同理，放最后、不等它。 */
+  /* HXBusy.end 的还原是 **setTimeout(minMs=320ms) 之后**才执行的，所以这里要等它还原完再改文案，
+     否则刚写上的「撤销补章节」会在 320ms 后被它用旧 innerHTML 盖回去（实测 data-p 写进去了、文字却回退）。 */
+  setTimeout(qbGuessChPaint, 420);
+  qbLoad().catch(() => { });
+}
+
 /* ---------------- AI 查重 ----------------
    两层：① 题干（题型 + 去空白 + 同一张图）完全相同的，直接判重；② 剩下的交给 AI 语义比对，
    让它标出「考点重复」的题对（措辞不同但考同一知识点）。结果弹层里老师自己定删哪一道，
