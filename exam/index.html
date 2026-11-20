@@ -6141,7 +6141,17 @@ const PAPER_DEFAULT={
 };
 /* 2026-11-18：题干缺失时也不能崩 —— 老版本是 q.q.match(...)，只要有一道填空题没题干
    （导入的半成品卷 / 手搓的测试对象）整页 eFillMatch 就抛 TypeError，批改台白屏。 */
-const blanksOf=q=>q.t==='fill'?(String(q.q==null?'':q.q).match(/____/g)||[]).length:1;
+/* 一道题有几个空（只对填空题有意义，其它题型恒 1）。
+   2026-11-20：原来只数题干里的 `____`。线上一查，116 道填空题里有 3 道「下划线数 ≠ 答案个数」
+   （AI 出题时题干少标了一个空），按题干算就会把 3 空的题按 2 空给分，学生白丢分。
+   现在取**两者较大值**：答案每空一个、题干每个空一条下划线，谁多按谁算，宁多算不少算。
+   老师自己改题干（比如把两个空连写成一条长下划线）也不会少分。 */
+const blanksOf=q=>{
+  if(q.t!=='fill')return 1;
+  const marks=(String(q.q==null?'':q.q).match(/____/g)||[]).length;
+  const ans=Array.isArray(q.a)?q.a.filter(x=>String(x==null?'':x).trim()!=='').length:0;
+  return Math.max(1,marks,ans);
+};
 
 /* ================= 选择题选项归一（2026-11-09） =================
    用户原话：「电气接线的理论考试选择题选项都报错了 没有正常的」。
@@ -7576,9 +7586,14 @@ function mountPaper(sub) {
   function renderTypes() {
     $('ppTypes').innerHTML = C.sections.map((s, i) => {
       const T = pType(s.t);
-      return `<tr><td>${CN_NUM[i] || (i + 1)}、${esc(T.name)}</td>
+      /* 填空题的单位是「空」不是「题」：老师要的是**按空给分**（一道题 3 个空就是 3 空 × 每空分值）。
+         这里补一句人话说明，不然后面那个数字很容易被当成题数（2026-11-20 老师问的就是这个）。 */
+      const hint = T.unit === '每空'
+        ? `<div class="note" style="margin-top:2px">填的是<b>空数</b>，不是题数：一道题 3 个空算 3 空；按<b>每空</b>给分。</div>`
+        : '';
+      return `<tr><td>${CN_NUM[i] || (i + 1)}、${esc(T.name)}${hint}</td>
         <td><input type="number" min="0" max="40" value="${s.n}" data-i="${i}" data-f="n" aria-label="${esc(T.name)}${esc(T.per)}数"> ${esc(T.per)}</td>
-        <td><input type="number" min="0" max="30" step="0.5" value="${s.pts}" data-i="${i}" data-f="pts" aria-label="${esc(T.name)}${esc(T.unit)}分值"> 分</td>
+        <td><input type="number" min="0" max="30" step="0.5" value="${s.pts}" data-i="${i}" data-f="pts" aria-label="${esc(T.name)}${esc(T.unit)}分值"> <span style="white-space:nowrap">${T.unit === '每空' ? '分/空' : '分'}</span></td>
         <td><button class="sm danger" data-secdel="${i}" title="删掉这一大题">×</button></td></tr>`;
     }).join('') || '<tr><td colspan="4" class="note">还没有题型，点下面的「加一大题」</td></tr>';
     const left = typeChoices().filter(x => !secOf(x.k));
@@ -9344,10 +9359,10 @@ async function paperHome() {
             <label>适用年级 <input id="ppGrade"></label>
             <label>考试时间（分钟）<input id="ppMin" type="number" min="30" max="180"></label>
             <label>答题留白 <select id="ppSpace"><option value="auto">自动（尽量 2 张 A3）</option><option value="loose">宽松</option><option value="normal">标准</option><option value="tight">紧凑</option></select></label>
-            <label>换题种子 <input id="ppKey" class="mono"></label>
+            <label class="wide" title="决定「抽哪一套题」。种子不变，这套设置每次打开、每次打印都是同一套题（A/B/C 三卷也靠它保证互不重题）；想换一批题就点右边的「换一套」。线下考试定稿后别再动它。">换题种子（决定抽哪一套题）<input id="ppKey" class="mono"></label>
             <div class="row" style="align-items:flex-end"><button id="ppNew">换一套</button></div>
           </div>
-          <p class="note">同一个种子出的 A、B、C 卷互不重题；种子不变，再打开还是同一套。换种子时你手动选的题会保留。</p></div>
+          <p class="note"><b>种子 = 抽题的「随机键」</b>：同一个种子、同一套设置，抽出来的题永远一样——所以定稿打印前先把它定下来，之后每次打开、每次点「导出 PDF」都是同一份卷子，不会今天一套明天一套。A/B/C 三卷也是靠它保证<b>互不重题</b>（同一份知识点、不同题）。想换一批题，点右边「换一套」换个种子即可；换种子时你<b>手动点的题会保留</b>。线下考试：种子定了就别再动，改题数 / 分值 / 留白都不影响已抽出的题。</p></div>
         <div class="card"><h2>题型和分值</h2>
           <p class="note" style="margin:0 0 8px">题型来自题池（在「资料库 → AI 出题 → 管理题型」里加/改名）。这里只决定这套卷出哪几种、各几题、每题几分。</p>
           <table class="mini pptypes"><tbody id="ppTypes"></tbody></table>
