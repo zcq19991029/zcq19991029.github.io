@@ -747,6 +747,12 @@ html[data-hx-mode="dark"] #ppDrawerMask.on { background: rgba(0, 0, 0, .45); }
 .bkq.on .bkq-q { color: var(--ink); }
 .bkq-tag { font-size: 11px; color: var(--mute); white-space: nowrap; }
 .bkq-tag.on { color: var(--acc); font-weight: 600; }
+/* 填空题「这一格已经装不下这道题」（2026-11-21）：
+   只剩 1 空时 2 空的题点了也排不进卷面，索性置灰 + 标一句「装不下」，
+   原因写在 title 里（悬停看「只剩 1 空，这道要 2 空」）。 */
+.bkq.noroom { opacity: .46; cursor: not-allowed; }
+.bkq.noroom:hover { background: transparent; }
+.bkq-no { font-style: normal; font-size: 11px; font-weight: 600; color: var(--warn); white-space: nowrap; }
 .bkq-p { padding: 2px 8px; font-size: 12px; }
 .bkq-src { font-size: 11px; color: var(--mute); white-space: nowrap; max-width: 140px; overflow: hidden; text-overflow: ellipsis; }
 /* 题库里没有 src 的题（mcu）只有 4 列：章 / 题干 / 标记 / 看 */
@@ -6256,6 +6262,35 @@ const blanksOf=q=>{
    等于同一道题考两遍、白占一个空位（那一次就是 10 空排出 15 空的原因之一）。
    去空白字符后比较：题干只差空格 / 空行 / 全角空格的，也算同一道。 */
 const stemKey=q=>String(q&&q.q==null?'':q.q).replace(/\s+/g,'');
+/* ================= 填空题的两条预算：空数 + 题数（2026-11-21） =================
+   老师原话：「我想的是实时动态匹配右边题库题目 比如我已经填入9个空共7个题了
+   第八题只能给我推荐一个空的了是不是也可以…比如我要挑6题10空 那就可以我自己自由组合
+   支持删除()也就是回到设置改成5题10空或者新增操作」。
+   所以填空题这一大题现在有两个互相独立的数：
+     · sec.n   = 空数上限（一直就有，分值按它算：每空 N 分）；
+     · sec.cnt = **题数上限**（这次新增；0 / 空 = 不限，只受空数约束）。
+   为什么不合并成一个：老师要的是「6 题 10 空」这种组合 —— 6 道题凑出 10 个空（几道两空的 + 几道一空的），
+   光有「10 空」限制不了题数，光有「6 题」也算不出空数，两个都得留。
+   老存档只有 n、没有 cnt → fillCntOf 返回 Infinity，行为跟改造前一模一样（不会把老师的旧卷子改坏）。 */
+const fillCntOf = s => {
+  const v = Math.round(+((s && s.cnt) || 0));
+  return v > 0 ? v : Infinity;
+};
+/* 这一道题还能不能收进这一大题：返回 '' = 能收；否则返回给老师看的原因。
+   **卷面抽题和右侧题库共用这一个判据** —— 两处各写一套必然对不上（一边给点、一边排不进去，
+   老师就会觉得「点了没反应」）。haveB / haveQ = 已经排进卷面的空数 / 题数。 */
+function fillNoRoom(sec, haveB, haveQ, q) {
+  if (!sec || sec.t !== 'fill') return '';
+  const cap = +((sec && sec.n) || 0);
+  const b = blanksOf(q);
+  if (haveB + b > cap) {
+    const left = Math.max(0, cap - haveB);
+    return left ? ('只剩 ' + left + ' 空，这道要 ' + b + ' 空') : '空数已经排满 ' + cap + ' 空';
+  }
+  const cm = fillCntOf(sec);
+  if (cm !== Infinity && haveQ + 1 > cm) return '这道大题已经排满 ' + cm + ' 题';
+  return '';
+}
 
 /* ================= 选择题选项归一（2026-11-09） =================
    用户原话：「电气接线的理论考试选择题选项都报错了 没有正常的」。
@@ -6531,6 +6566,7 @@ function pickSections(cfg,seed,used,picks){
     const __seen=new Set();
     const __dropped=[];
     let have=0;                    // 本大题已经收进来的空数（填空题按空算，别的题型≡题数）
+    let haveQ=0;                   // 已经收进来的**题数**（填空题才和 have 不同，见 fillCntOf）
     /* 点名：不受项目比重、也不受“别的卷用过”限制——老师点了就是要它。
        下标越界 / 题型对不上 / 同一个下标点两次，都当没点过（不能因为一份存坏的设置把整页弄崩）。 */
     const pin=[];
@@ -6561,17 +6597,21 @@ function pickSections(cfg,seed,used,picks){
     if(blankMode||noFill){
       const pinMap=new Map(pin.map(x=>[x.i,x.q]));
       const items=[];
+      /* 2026-11-21：这里多了一条「题数」预算（见 fillCntOf）。空白卷的格子既是「位置」也是「一道题」，
+         所以每摆一道真题要同时看空数够不够、题数够不够；摆占位也算一道题（占位本身就是 1 个空）。
+         老师要的「6 题 10 空」在空白卷上就体现为：最多 6 个格子，空数不超 10。 */
+      const capQ=isFill?fillCntOf(sec):Infinity;
       for(let i=0;i<sec.n;i++){
         const q=pinMap.get(i);
-        if(q&&!(isFill&&(have+cnt(q)>sec.n||__seen.has(stemKey(q))))){
-          if(isFill){have+=cnt(q);__seen.add(stemKey(q));}
+        if(q&&!fillNoRoom(sec,have,haveQ,q)&&!(isFill&&__seen.has(stemKey(q)))){
+          have+=cnt(q);haveQ++;__seen.add(stemKey(q));
           items.push(q);continue;
         }
-        if(q)__dropped.push(q);           // 收了会超空数 / 题干重复：不放卷面，留空位给老师重挑
-        /* 填空题的占位本身也是「1 个空」：预算用完就不再补占位 ——
-           否则 10 空里放 5 道两空题、再补 5 个占位，卷面又成了 15 空（老师截图那个数）。
-           别的题型占位 = 1 道题，题数本来就是 sec.n，照旧全补。 */
-        if(!isFill||have+1<=sec.n){if(isFill)have+=1;items.push(blankItem(sec.t,i));}
+        if(q)__dropped.push(q);           // 收了会超空数 / 超题数 / 题干重复：不放卷面，留空位给老师重挑
+        /* 填空题的占位本身也是「1 个空 + 1 道题」：任一条预算用完就不再补占位 ——
+           否则 10 空里放 5 道两空题、再补 5 个占位，卷面又成了 15 空（老师截图那个数）。 */
+        if(!isFill){items.push(blankItem(sec.t,i));continue;}
+        if(have+1<=sec.n&&haveQ+1<=capQ){have+=1;haveQ+=1;items.push(blankItem(sec.t,i));}
       }
       sec.items=items;
       if(__dropped.length)sec.__drop=__dropped.length;
@@ -6586,8 +6626,9 @@ function pickSections(cfg,seed,used,picks){
        保证「说 10 空就是 10 空」，而不是「给你 10 道题、空数看运气」。 */
     pin.forEach(x=>{
       const c=cnt(x.q),sk=stemKey(x.q);
-      if(have+c>sec.n||(isFill&&__seen.has(sk))){__dropped.push(x);return;}
-      have+=c;used.add(x.k);                  // 同一套卷里不能再出现第二遍
+      /* 空数 / 题数 / 题干重复三道闸一次判完（fillNoRoom 和右栏题库同一套判据） */
+      if(fillNoRoom(sec,have,haveQ,x.q)||(isFill&&__seen.has(sk))){__dropped.push(x);return;}
+      have+=c;haveQ++;used.add(x.k);          // 同一套卷里不能再出现第二遍
       if(isFill)__seen.add(sk);
       const pts=c*sec.pts;acc[x.q.ch]=(acc[x.q.ch]||0)+pts;tot+=pts;
       x.__fit=true;
@@ -6604,8 +6645,11 @@ function pickSections(cfg,seed,used,picks){
        一模一样的两道题（老师截图第 1 题 = 第 8 题），只挡点名的路等于没挡。
        pickable 同时给 cands 和 findIndex 用，两边条件必须完全一致：以前 findIndex 用的是
        内联条件，一旦返回 -1，`splice(-1,1)` 会把这一章的**最后一道**题悄悄删掉。 */
-    const pickable=q=>have+cnt(q)<=sec.n&&(!isFill||!__seen.has(stemKey(q)));
-    for(let guard=0;have<sec.n&&guard<200;guard++){
+    const pickable=q=>!fillNoRoom(sec,have,haveQ,q)&&(!isFill||!__seen.has(stemKey(q)));
+    /* 循环条件也要带题数：填空题凑够 6 题就停，哪怕还有空没排满（老师要的「6 题」是硬上限）。
+       别的题型 have 就是题数，fillCntOf 对它们无效，行为不变。 */
+    const capQ=isFill?fillCntOf(sec):Infinity;
+    for(let guard=0;(isFill?haveQ<capQ&&have<sec.n:have<sec.n)&&guard<200;guard++){
       const cands=Object.keys(byCh).filter(c=>byCh[c].some(pickable));
       if(!cands.length)break;
       const gap=c=>(wOf(c)/W)*(tot+sec.pts)-(acc[c]||0);
@@ -6613,7 +6657,7 @@ function pickSections(cfg,seed,used,picks){
       const c=cands[0],k=byCh[c].findIndex(pickable);
       if(k<0)continue;
       const q=byCh[c].splice(k,1)[0];
-      sec.items.push(q);have+=cnt(q);
+      sec.items.push(q);have+=cnt(q);haveQ++;
       if(isFill)__seen.add(stemKey(q));
       const p=cnt(q)*sec.pts;acc[c]=(acc[c]||0)+p;tot+=p;
     }
@@ -6645,6 +6689,9 @@ function pickPaper(cfg){
   paper.forEach((s,i)=>{
     s.no=CN_NUM[i];
     s.count=s.t==='fill'?s.items.reduce((a,q)=>a+blanksOf(q),0):s.items.length;
+    /* 填空题另外记一个**题数**（2026-11-21）：老师设的是「6 题 10 空」，
+       界面上要能同时说清「排了几道题、凑了几个空」，只报一个数他没法核对。 */
+    s.qcount=s.items.length;
     s.total=s.count*s.pts;
   });
   return paper;
@@ -6709,7 +6756,15 @@ function itemHTML(s,q,i){
     }
   }
 }
-const secTitle=s=>`${s.no}、${pType(s.t).name}（${pType(s.t).unit} ${s.pts} 分，共 ${s.total} 分）`;
+/* 大题标题（2026-11-21 补填空题的两个数）：老师设「6 题 10 空」时，卷面这一节其实是 6 道题凑 10 个空，
+   只写「每空 1 分，共 10 分」他对不上设置里那两个数，也对不上界面那行「实际 6 题 / 10 空」。
+   所以填空题额外报「N 题 / M 空」；别的题型不变（一字都不改，老卷子导出还是老样子）。 */
+const secTitle=s=>{
+  const T=pType(s.t);
+  const q=+(s.qcount!=null?s.qcount:(s.items?s.items.length:0));
+  const extra=(s.t==='fill'&&q)?`${q} 题 / ${s.count} 空，`:'';
+  return `${s.no}、${T.name}（${extra}${T.unit} ${s.pts} 分，共 ${s.total} 分）`;
+};
 function headHTML(P,cfg){
   const cols=P.map(s=>`<td>${s.no}</td>`).join('');
   return `<div class="ttl1">广州华夏职业学院${esc(cfg.year)}学年${esc(cfg.term)}</div>
@@ -8030,7 +8085,13 @@ function paperLoad(sub) {
   const C = Object.assign({}, PAPER_DEFAULT, all[sub] || {});
   C.weights = Object.assign({}, PAPER_DEFAULT.weights, C.weights || {});
   const secs = Array.isArray(C.sections) && C.sections.length ? C.sections : PAPER_DEFAULT.sections;
-  C.sections = secs.map(s => ({ t: s.t, n: s.n, pts: s.pts }));
+  /* 2026-11-21：这里只挑 t/n/pts 三个字段重建，填空题新加的**题数** cnt 必须一起带上 ——
+     漏了就是「设置里填的 6 题，一刷新又变回不限」（读出来就丢）。老存档没有 cnt，不受影响。 */
+  C.sections = secs.map(s => {
+    const o = { t: s.t, n: s.n, pts: s.pts };
+    if (+s.cnt > 0) o.cnt = Math.round(+s.cnt);
+    return o;
+  });
   C.picks = C.picks && typeof C.picks === 'object' && !Array.isArray(C.picks) ? Object.assign({}, C.picks) : {};
   C.kn = Array.isArray(C.kn) ? C.kn.map(String).filter(x => x) : [];
   /* blank：空白卷。2026-11-19 新增。
@@ -8276,22 +8337,48 @@ function mountPaper(sub) {
     }
     return out;
   }
+  /* 这一行下面那几行说明（2026-11-21 抽出来）：改了题数/空数之后要**就地**更新这两句话，
+     不能整张表重画 —— 数字输入框的上下小箭头每点一下都会触发 change，
+     整表 innerHTML 重建会把正在点的那个 input 换掉，箭头就「点一下就没了」（实测会这样）。 */
+  function secTipHTML(s, i) {
+    const T = pType(s.t);
+    /* 填空题的单位是「空」不是「题」：老师要的是**按空给分**（一道题 3 个空就是 3 空 × 每空分值）。
+       这里补一句人话说明，不然后面那个数字很容易被当成题数（2026-11-20 老师问的就是这个）。 */
+    let hint = T.unit === '每空'
+      ? `<div class="note" style="margin-top:2px">填的是<b>空数</b>，不是题数：一道题 3 个空算 3 空；按<b>每空</b>给分。<b>题数</b>留空 = 不限（只受空数约束），填了就是硬上限。</div>`
+      : '';
+    /* 自动补进来的行（题池里有这个题型、设置里原来没有）：说清楚它是哪来的、有多少题可出。
+       不解释的话，老师看到一个从没加过的「实操 0 题」会以为出 bug 了。 */
+    const pn = POOL ? curPool().filter(q => q.t === s.t).length : 0;
+    if (Array.isArray(C.autoAdd) && C.autoAdd.indexOf(s.t) >= 0 && !(+s.n) && pn) {
+      hint += `<div class="note" style="margin-top:2px">题池里有 <b>${pn}</b> 道这类题，这一行是照着题池自动补的：填上题数就能出，不想考点右边 ×。</div>`;
+    }
+    /* 两个数打架时（题数 > 空数）必须当场说破：一格至少 1 空，6 题塞进 5 空只能出 5 题。
+       不说的话老师会盯着「实际 5 题」以为抽题漏了。 */
+    if (T.unit === '每空' && +s.cnt > 0 && +s.cnt > +s.n) {
+      hint += `<div class="note" style="margin-top:2px;color:var(--warn)">题数 ${+s.cnt} 比空数 ${+s.n} 还多：一格至少 1 空，<b>最多只能出 ${+s.n} 题</b>。想多出题就把空数调大。</div>`;
+    }
+    return hint;
+  }
+  function paintSecTip() {
+    (C.sections || []).forEach((s, i) => {
+      const box = document.querySelector(`#ppTypes [data-tip="${i}"]`);
+      if (box) box.innerHTML = secTipHTML(s, i);
+    });
+  }
   function renderTypes() {
     $('ppTypes').innerHTML = C.sections.map((s, i) => {
       const T = pType(s.t);
-      /* 填空题的单位是「空」不是「题」：老师要的是**按空给分**（一道题 3 个空就是 3 空 × 每空分值）。
-         这里补一句人话说明，不然后面那个数字很容易被当成题数（2026-11-20 老师问的就是这个）。 */
-      let hint = T.unit === '每空'
-        ? `<div class="note" style="margin-top:2px">填的是<b>空数</b>，不是题数：一道题 3 个空算 3 空；按<b>每空</b>给分。</div>`
-        : '';
-      /* 自动补进来的行（题池里有这个题型、设置里原来没有）：说清楚它是哪来的、有多少题可出。
-         不解释的话，老师看到一个从没加过的「实操 0 题」会以为出 bug 了。 */
-      const pn = POOL ? curPool().filter(q => q.t === s.t).length : 0;
-      if (Array.isArray(C.autoAdd) && C.autoAdd.indexOf(s.t) >= 0 && !(+s.n) && pn) {
-        hint += `<div class="note" style="margin-top:2px">题池里有 <b>${pn}</b> 道这类题，这一行是照着题池自动补的：填上题数就能出，不想考点右边 ×。</div>`;
-      }
-      return `<tr><td>${CN_NUM[i] || (i + 1)}、${esc(T.name)}${hint}<div class="pp-act" data-act="${i}"></div></td>
-        <td><input type="number" min="0" max="40" value="${s.n}" data-i="${i}" data-f="n" aria-label="${esc(T.name)}${esc(T.per)}数"> ${esc(T.per)}</td>
+      /* 填空题的第二个数（2026-11-21）：**题数**。老师原话「比如我要挑 6 题 10 空，
+         那就可以我自己自由组合」—— 空数管「凑几个空」，题数管「出几道题」，两个都得能填。
+         题数留空 / 填 0 = 不限（只受空数约束）；老存档里没有 cnt，打开就是这样，行为跟以前一模一样。 */
+      const cntVal = (+s.cnt > 0) ? s.cnt : '';
+      const numCell = T.unit === '每空'
+        ? `<input type="number" min="0" max="40" value="${cntVal}" placeholder="不限" data-i="${i}" data-f="cnt" aria-label="填空题题数（留空=不限）" title="这一大题最多几道题；留空=只受空数约束"> 题
+           · <input type="number" min="1" max="40" value="${s.n}" data-i="${i}" data-f="n" aria-label="填空题空数" title="这一大题最多几个空（按空给分）"> 空`
+        : `<input type="number" min="0" max="40" value="${s.n}" data-i="${i}" data-f="n" aria-label="${esc(T.name)}${esc(T.per)}数"> ${esc(T.per)}`;
+      return `<tr><td>${CN_NUM[i] || (i + 1)}、${esc(T.name)}<div data-tip="${i}">${secTipHTML(s, i)}</div><div class="pp-act" data-act="${i}"></div></td>
+        <td>${numCell}</td>
         <td><input type="number" min="0" max="30" step="0.5" value="${s.pts}" data-i="${i}" data-f="pts" aria-label="${esc(T.name)}${esc(T.unit)}分值"> <span style="white-space:nowrap">${T.unit === '每空' ? '分/空' : '分'}</span></td>
         <td><button class="sm danger" data-secdel="${i}" title="删掉这一大题">×</button></td></tr>`;
     }).join('') || '<tr><td colspan="4" class="note">还没有题型，点下面的「加一大题」</td></tr>';
@@ -8321,19 +8408,45 @@ function mountPaper(sub) {
     const total = paperTotal(P), st = paperStats(P), nq = P.reduce((a, s) => a + s.items.length, 0);
     const blanks = P.reduce((a, s) => a + s.items.filter(q => q.__blank).length, 0);
     const short = P.map(s => {
-      const want = (C.sections.find(x => x.t === s.t) || {}).n || 0;
+      const cfgS2 = C.sections.find(x => x.t === s.t) || {};
+      const want = cfgS2.n || 0;
       if (C.blank || C.noAuto) return null;   // 空白卷 / 取消勾选后都不兜底抽题，没有「题库不够」这回事
+      /* 填空题多了「题数」这条硬上限（2026-11-21）：6 题 10 空时只有 1 空的题也只能凑 6 空，
+         那是老师自己设的题数先到了，不是题池不够 —— 不说清就会误报「题库只出 6 空、要 10 空」。 */
+      const cm2 = (s.t === 'fill' && typeof fillCntOf === 'function') ? fillCntOf(cfgS2) : Infinity;
+      if (cm2 !== Infinity && (s.qcount == null ? s.items.length : s.qcount) >= cm2) return null;
       return s.count < want ? `${pType(s.t).name} 题库只出 ${s.count}${pType(s.t).per}、要 ${want}${pType(s.t).per}` : null;
     }).filter(Boolean);
     /* 2026-11-20：老师问「计算都会出错吗」—— 不是算错，是**题池的题不够**时按实际抽到的算，
        而界面只写一句「一般应为 100 分」，看不出是哪一栏没抽够。这里两件事一起做：
        ① 每行题数下面标出「实际抽到 X」；② 满分那句直接点名差在哪个题型。 */
-    P.forEach((s2, i) => {
-      const box = document.querySelector(`#ppTypes [data-act="${i}"]`);
+    /* 2026-11-21：这里原来按 `P` 的下标去取 `C.sections[i]` —— 两个数组并不一定对齐
+       （pickPaper 只留「题数 > 0 且题型认得出」的那几行），只要有一大题设成 0 题，
+       后面每一行都会错位一格，把「实际抽到」的标准算成大题。
+       改成按**题型**找对应那行（同一份设置里题型不重复，这才是稳的键）。 */
+    P.forEach(s2 => {
+      const ci = C.sections.findIndex(x => x.t === s2.t);
+      if (ci < 0) return;
+      const box = document.querySelector(`#ppTypes [data-act="${ci}"]`);
       if (!box) return;
-      const want = (C.sections[i] || {}).n || 0;
+      const cfgS = C.sections[ci] || {};
+      const want = cfgS.n || 0;
       const unit = pType(s2.t).per;
       const got = s2.count;
+      /* 填空题要报两个数（2026-11-21）：老师设的是「6 题 10 空」，
+         只说「实际抽到 10 空」他没法核对到底出了几道题。 */
+      if (s2.t === 'fill') {
+        const cm = (typeof fillCntOf === 'function') ? fillCntOf(cfgS) : Infinity;
+        const qGot = (s2.qcount == null) ? s2.items.length : s2.qcount;
+        const bad = got !== want || (cm !== Infinity && qGot !== cm);
+        const lack = [];
+        if (got !== want) lack.push(`${want - got} 空`);
+        if (cm !== Infinity && qGot !== cm) lack.push(`${cm - qGot} 题`);
+        box.textContent = `实际 ${qGot} 题 / ${got} 空`
+          + (lack.length ? `（差 ${lack.join(' / ')}）` : '');
+        box.classList.toggle('pp-act-warn', bad);
+        return;
+      }
       box.textContent = '实际抽到 ' + got + ' ' + unit + (got === want ? '' : '（差 ' + (want - got) + '）');
       box.classList.toggle('pp-act-warn', got !== want);
     });
@@ -8714,7 +8827,9 @@ function mountPaper(sub) {
     /* 只画「卷面上真有题」的大题：题数 0 的（包括自动补进来的自建题型）在这里点不动，
        摆一颗点不动的 tab 只会让人以为坏了。想考它就把题数填上，tab 自然出现。 */
     box.innerHTML = C.sections.filter(s => +s.n > 0).map(s => {
-      const total = s.n, done = (P ? (P.find(x => x.t === s.t) || { items: [] }).items : []).filter(q => q && !q.__blank).length;
+      /* 格子数按 secSlots 算（填空题＝空数与题数取小，2026-11-21）：
+         6 题 10 空时这颗药丸该显示「5/6」（6 道题里的第 5 道），显示 5/10 会让人当成还差 5 题。 */
+      const total = secSlots(s), done = (P ? (P.find(x => x.t === s.t) || { items: [] }).items : []).filter(q => q && !q.__blank).length;
       return `<button type="button" class="ppbt${s.t === t ? ' on' : ''}" data-btab="${s.t}" title="换到这一大题">${esc(pType(s.t).name)}<small>${done}/${total}</small></button>`;
     }).join('');
     box.querySelectorAll('[data-btab]').forEach(b => b.onclick = () => {
@@ -8865,6 +8980,15 @@ function mountPaper(sub) {
       return;
     }
     const curT = bankKey ? bankKey.split(':')[0] : groups[0];
+    /* 2026-11-21：bankKey 可能指着一个**已经没有的格子**（题数/空数调小以后，原来的第 7 格不存在了）。
+       不夹回来的话，容量会算成「这一大题已经排满 N 题」，整列全变灰、一道都点不动 ——
+       老师只会看到「右边全灰了」。夹回最后一个存在的格子，等于「默认换这一大题的最后一道」。 */
+    if (bankKey) {
+      const bt = bankKey.split(':')[0], bi = +(bankKey.split(':')[1] || 0);
+      const bcfg = C.sections.find(x => x.t === bt);
+      const bcap = bcfg ? secSlots(bcfg) : 0;
+      if (bcap > 0 && bi >= bcap) bankKey = bt + ':' + (bcap - 1);
+    }
     paintTabs(curT);
     /* 标题栏要一直告诉老师「现在点一下是填哪一格」——否则右侧列表看着像在浏览，
        点下去却换掉了别的题（2026-11-19 补）。 */
@@ -8901,10 +9025,19 @@ function mountPaper(sub) {
        实际用起来是：点了「填空题」，下面还跟着一整段判断题，看着像筛选没生效。
        跨题型的题仍然看得到，换上面那颗药丸（或点卷面另一大题的格子）就行。 */
     const show = groups.indexOf(curT) >= 0 ? [curT] : groups.slice(0, 1);
+    /* 填空题的实时剩余容量（2026-11-21）—— 老师原话「实时动态匹配右边题库题目，
+       比如我已经填入 9 个空共 7 个题了，第八题只能给我推荐一个空的了是不是也可以」。
+       口径和卷面抽题完全一致（都走 fillRoomOf → paper.js 的 fillNoRoom），
+       正在被换掉的那一格不算进「已排」，否则换题时会被算成「已经满了」，一道都点不动。
+       记在循环外面，是因为下面那句提示要用。 */
+    let fillRoom = null, noRoomN = 0, doneN = 0, doneB = 0;
     show.forEach(gt => {
       const T = pType(gt);
       const secT = P.find(x => x.t === gt);
       const done = (secT ? secT.items : []).filter(q => q && !q.__blank).length;
+      const room = (gt === curT) ? fillRoomOf(gt, bankKey) : fillRoomOf(gt, '');
+      const dbl = (secT ? secT.items : []).reduce((a, x) => a + ((x && !x.__blank) ? blanksOf(x) : 0), 0);
+      if (gt === curT) { fillRoom = room; doneN = done; doneB = dbl; }
       const body = [];
       pool.forEach((q, i) => {
         if (q.t !== gt) return;
@@ -8928,9 +9061,14 @@ function mountPaper(sub) {
           return m ? m[0].toUpperCase() : (nm.trim().charAt(0) || '');
         })();
         const isCur = !!curQid && gt === curT && qid(q) === curQid;   // 卷面上正填的就是这道题
+        /* 这道题还能不能放进这一格（2026-11-21）：填空题只剩 1 空时，2 空的题点进去也排不进卷面
+           —— 与其让老师点完发现「没反应」，不如当场置灰 + 说清原因。别的题型恒为 ''。 */
+        const why = room ? roomWhy(gt, q, gt === curT ? bankKey : '', room) : '';
         if (oc0) occCount++;
-        body.push(`<div class="bkq${busy ? ' busy' : ''}${oc0 ? ' has-occ' : ''}${isCur ? ' on' : ''}" data-i="${pv}" draggable="true" role="button" tabindex="0"${oc0 ? ` data-occ="${esc(ocNames.join('、'))}" title="${esc(ocTitle)}" style="--bkq-oc:${esc(ocColor)}"` : ''}>
-        <span class="bkq-ch">${POOL ? '章' + q.ch : 'P' + q.ch}</span><span class="bkq-q">${esc(ppCut(q.q, 60))}</span>
+        if (why) noRoomN++;
+        const ttl = why ? why + (oc0 ? '；' + ocTitle : '') : (oc0 ? ocTitle : '');
+        body.push(`<div class="bkq${busy ? ' busy' : ''}${oc0 ? ' has-occ' : ''}${isCur ? ' on' : ''}${why ? ' noroom' : ''}" data-i="${pv}"${why ? ' data-no="1"' : ''} draggable="true" role="button" tabindex="0"${ttl ? ` title="${esc(ttl)}"` : ''}${oc0 ? ` data-occ="${esc(ocNames.join('、'))}" style="--bkq-oc:${esc(ocColor)}"` : ''}>
+        <span class="bkq-ch">${POOL ? '章' + q.ch : 'P' + q.ch}</span><span class="bkq-q">${esc(ppCut(q.q, 60))}${why ? ` <em class="bkq-no">${/已在卷面/.test(why) ? '已在卷面' : '装不下'}</em>` : ''}</span>
         ${POOL && q.src ? `<span class="bkq-src" title="${esc(q.src)}">${esc(ppCut(q.src, 20))}</span>` : ''}
         ${oc0 ? `<span class="bkq-occ" title="${esc(ocTitle)}">${esc(ocLetter)}</span>` : ''}
         ${busy ? '<span class="bkq-tag">本卷已用</span>' : ''}
@@ -8945,16 +9083,28 @@ function mountPaper(sub) {
          父盒子就是整个列表，于是每一组的标题都会一直粘在顶上、互相叠着 ——
          实测滚到「判断题」时顶上还写着「填空题」。
          包一层以后，标题只在自己这一组的高度里粘，到下一组自然被顶走。 */
+      /* 组标题上的计数：填空题报两个数（几题 / 几空），跟卷面上那行「实际 6 题 / 10 空」对得上；
+         别的题型还是「已填/要填」。 */
+      const cntTxt = (gt === 'fill' && room) ? `${done} 题 · ${dbl}/${room.capB} 空` : `${done}/${secT ? secT.n : 0}`;
       out.push(`<div class="bkq-sec" data-sec="${esc(gt)}">
-        <div class="bkq-grp${gt === curT ? ' cur' : ''}" data-grp="${esc(gt)}"><b>${esc(T.name)}</b><i>${done}/${secT ? secT.n : 0}</i>${gt === curT ? '<em>现在填这一大题</em>' : ''}</div>
+        <div class="bkq-grp${gt === curT ? ' cur' : ''}" data-grp="${esc(gt)}"><b>${esc(T.name)}</b><i>${cntTxt}</i>${gt === curT ? '<em>现在填这一大题</em>' : ''}</div>
         ${body.join('')}
       </div>`);
     });
     wrap.innerHTML = out.length ? out.join('') : `<p class="note" style="padding:12px 4px">没有符合条件的题（换个知识点或清空搜索词）</p>`;
     const hint = $('ppBankHint');
-    /* 只列一种题型之后，「整池 N 道」会让人以为别的题型被吃掉了 —— 直接写清是这一大题的可选数 */
-    if (hint) hint.textContent = `${pType(curT).name} 可选 ${shown} 道` +
-      (occCount ? ' · 左边色条 = 这道题已经出在别的卷子上（悬停看是哪一套）' : '');
+    /* 只列一种题型之后，「整池 N 道」会让人以为别的题型被吃掉了 —— 直接写清是这一大题的可选数。
+       填空题再补一句「已排几题几空 / 上限」「几道装不下」（2026-11-21，老师要的实时匹配）。 */
+    if (hint) {
+      let txt = `${pType(curT).name} 可选 ${shown} 道`;
+      if (fillRoom) {
+        const up = `上限 ${fillRoom.capQ === Infinity ? '不限' : fillRoom.capQ} 题 / ${fillRoom.capB} 空`;
+        txt += ` · 卷面已排 ${doneN} 题 ${doneB} 空（${up}）`;
+        if (noRoomN) txt += `；暗着的 ${noRoomN} 道排不进去（空数不够 / 已经在卷面上）`;
+      }
+      if (occCount) txt += ' · 左边色条 = 这道题已经出在别的卷子上（悬停看是哪一套）';
+      hint.textContent = txt;
+    }
     if ($('ppBankRand')) $('ppBankRand').disabled = !(C.picks[bankKey] != null);
     /* 换了要填的那一大题（点卷面另一格 / 点上面的药丸）→ 把这一组滚到眼前；
        同一大题内重绘才还原滚动位置，免得老师滚到第 80 题被弹回顶部。
@@ -9002,9 +9152,13 @@ function mountPaper(sub) {
      那就自动落到**它自己那一大题**的空位里，而不是弹一句「题型对不上」让人一脸问号。 */
   function slotFor(t2) {
     const sec2 = P && P.find(x => x.t === t2);
-    if (!sec2 || !+sec2.n) return null;
-    for (let i = 0; i < sec2.n; i++) if (!C.picks[t2 + ':' + i]) return t2 + ':' + i;
-    return t2 + ':' + (sec2.n - 1);
+    if (!sec2) return null;
+    /* 2026-11-21：格子数按 secSlots（填空题要看题数上限），不能直接拿 sec2.n —— 那是空数。 */
+    const cfgSec = C.sections.find(x => x.t === t2) || sec2;
+    const cap = secSlots(cfgSec);
+    if (!(cap > 0)) return null;
+    for (let i = 0; i < cap; i++) if (!C.picks[t2 + ':' + i]) return t2 + ':' + i;
+    return t2 + ':' + (cap - 1);
   }
   function usePick(v) {
     if (!bankKey || !P) return;
@@ -9023,11 +9177,18 @@ function mountPaper(sub) {
     const idx = +bankKey.split(':')[1] || 0;
     const sec = P.find(x => x.t === t);
     if (!sec) return;
+    /* 2026-11-21：**先判容量再落笔**。填空题只剩 1 空时点一道 2 空的题，
+       卷面那边会把这道题当成超预算丢掉（paper.js 的 __drop），老师看到的就是
+       「点了、列表也没变、题没进来」——所以在这里拦住并说清原因。 */
+    const why = roomWhy(t, q, bankKey);
+    if (why) { renderBank(); return toast(why + '（要考它就先把空数或题数调大）'); }
     commitPicks(() => { C.picks[bankKey] = POOL ? v : +v; });
-    /* 换完自动跳到下一个空位，连着换十道不用每次回卷面点一下 */
+    /* 换完自动跳到下一个空位，连着换十道不用每次回卷面点一下。
+       格子数按 secSlots 算（填空题要看题数上限），老的 `i < sec.n` 在 6 题 10 空时会跳到空位以外。 */
+    const cap = secSlots(C.sections.find(x => x.t === t) || sec);
     const next = (function () {
-      for (let i = idx + 1; i < sec.n; i++) if (!C.picks[t + ':' + i]) return t + ':' + i;
-      for (let i = 0; i < sec.n; i++) if (!C.picks[t + ':' + i]) return t + ':' + i;
+      for (let i = idx + 1; i < cap; i++) if (!C.picks[t + ':' + i]) return t + ':' + i;
+      for (let i = 0; i < cap; i++) if (!C.picks[t + ':' + i]) return t + ':' + i;
       return null;
     })();
     const msg = `已换成${POOL ? chLabel(q.ch) : '项目' + q.ch}：${ppCut(q.q, 18)}`
@@ -9087,6 +9248,10 @@ function mountPaper(sub) {
     const q = pickQ(POOL ? srcKey : +srcKey);
     if (!q) return toast('拖过来的这道题在当前题库里找不到了，刷新一下再试');
     if (q.t !== t) return toast('题型对不上：这一格要的是' + pType(t).name);
+    /* 和点击同一条闸（2026-11-21）：拖进来的题装不下就别写进 picks ——
+       写进去也会被卷面当超预算丢掉，老师只会看到「拖了没反应」。 */
+    const why = roomWhy(t, q, key);
+    if (why) return toast(why + '（要考它就先把空数或题数调大）');
     const old = sec.items[idx];
     if (old && !old.__blank && qid(old) === qid(q)) return;     // 拖回原地：什么都不做，别白记一次撤回
     bankKey = key;
@@ -9177,7 +9342,17 @@ function mountPaper(sub) {
     const t = e.target, s = C.sections[+t.dataset.i];
     if (!s || !t.dataset.f) return;
     s[t.dataset.f] = Math.max(0, +t.value || 0);
+    /* 2026-11-21：空数 / 题数调小以后，卷面上多出来的那几格已经排不进卷面了 ——
+       顺手把它们的点名删掉，并把删之前的样子压进撤回栈（删错了能点撤回拿回来）。
+       不删的话，老师把这一行改回「5 题 10 空」时，上次那几道旧题会「凭空又冒出来」。
+       只重画这一行下面那两句说明，不整表重画 —— 数字框的上下箭头每点一下都触发 change，
+       整表重建会把正在点的 input 换掉，箭头就点不动了。 */
+    const before = JSON.stringify(C.picks);
+    const cut = prunePicks();
+    if (cut) { UN.push(before); if (UN.length > 60) UN.shift(); RE.length = 0; paintUndo(); }
+    paintSecTip();
     changed();
+    if (cut) toast(`已收掉 ${cut} 道排不进卷面的题（点「撤回」可恢复）`);
   });
   $('ppTypes').addEventListener('click', e => {
     const b = e.target.closest('[data-secdel]');
@@ -9235,8 +9410,12 @@ function mountPaper(sub) {
     /* 恢复默认只回到内置六个；题池里多出来的题型（自建的「实操」之类）照旧补一行 0 题，
        免得老师刚加的那一大题被「恢复默认」顺手抹掉，还以为是 bug。 */
     const back = ppSyncPoolTypes(C);
+    /* 恢复默认后空数变小了，超出新空数的点名也一起收掉（同上，压撤回栈可恢复） */
+    const before = JSON.stringify(C.picks);
+    const cut = prunePicks();
+    if (cut) { UN.push(before); if (UN.length > 60) UN.shift(); RE.length = 0; paintUndo(); }
     renderTypes(); changed();
-    toast(picksCount() ? `已恢复默认题量；${picksCount()} 道手动选的题还在` : '已恢复默认题量与比重'
+    toast(picksCount() ? `已恢复默认题量；${picksCount()} 道手动选的题还在` + (cut ? `，收掉 ${cut} 道排不下的` : '') : '已恢复默认题量与比重'
       + (back.length ? `（题池里的「${back.map(t => pType(t).name).join('、')}」保留着，题数 0）` : ''));
   };
 
@@ -9288,9 +9467,17 @@ function mountPaper(sub) {
         const j = Math.floor(Math.random() * (i + 1));
         const tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp;
       }
-      byT[t].forEach((g, n) => {
-        const q = pool[n];
+      /* 填空题（2026-11-21）：空位数量 ≠ 还能装的空数。只剩 1 空时随机抓到一道 2 空的题，
+         卷面照样排不进去（等于「点了补齐、结果没补上」）。这里按剩余空数顺延，
+         空数不够的题直接跳过换下一道。别的题型 leftB = Infinity，行为不变。 */
+      let leftB = Infinity, pi = 0;
+      if (t === 'fill') { const r = fillRoomOf(t, ''); leftB = r ? r.leftB : 0; }
+      byT[t].forEach(g => {
+        while (pi < pool.length && (blanksOf(pool[pi]) > leftB)) pi++;
+        const q = pool[pi];
         if (!q) return;
+        pi++;
+        leftB -= blanksOf(q);
         add[g.k] = POOL ? qid(q) : qidx(q);
         used.add(qid(q));
       });
@@ -9423,6 +9610,9 @@ function mountPaper(sub) {
     try {
       for (const sec of C.sections) {
         if (!(sec.n > 0)) continue;
+        /* 要 AI 挑几道（2026-11-21）：填空题有两层预算，挑「几道题」得看 secSlots（空数和题数取小），
+           拿 sec.n 去要 10 道、实际只能装 6 道，等于白挑 4 道。别的题型 secSlots 就是 sec.n。 */
+        const want = secSlots(sec);
         const cand = (byT[sec.t] || []).slice(0, 120);
         if (!cand.length) continue;
         if (st) st.textContent = `正在挑「${pType(sec.t).name}」…`;
@@ -9430,9 +9620,9 @@ function mountPaper(sub) {
         const lines = cand.map(x => `[${x.i}] （${chLabel(x.q.ch) || '未分章'}）${ppCut(x.q.q, 110)}`);
         const prompt = '你是职业院校的组卷老师。下面是「' + pType(sec.t).name + '」的题池候选，编号在方括号里。\n'
           + '每行方括号后面圆括号里的「第 N 章 · 名字」是这道题所属的章节。\n'
-          + '请按老师的要求挑出 ' + sec.n + ' 道，按「先易后难、不同知识点尽量覆盖」的顺序排好。\n'
+          + '请按老师的要求挑出 ' + want + ' 道，按「先易后难、不同知识点尽量覆盖」的顺序排好。\n'
           + (req ? '老师的要求：' + req + '（老师提到「只考第几章」时，按圆括号里的章节号筛，别只看题干）\n' : '')
-          + '只输出 JSON：{"ids":[3,7,12]}，`ids` 里放 ' + sec.n + ' 个候选编号，必须都在下面的候选里，不要编。\n'
+          + '只输出 JSON：{"ids":[3,7,12]}，`ids` 里放 ' + want + ' 个候选编号，必须都在下面的候选里，不要编。\n'
           + '候选：\n' + lines.join('\n');
         const txt = await eAiChat(prompt);
         const ids = (function () {
@@ -9447,11 +9637,11 @@ function mountPaper(sub) {
           if (!hit || usedIdx.indexOf(n) >= 0) return;
           usedIdx.push(n);
         });
-        usedIdx.slice(0, sec.n).forEach((n, k) => {
+        usedIdx.slice(0, want).forEach((n, k) => {
           const q = curPool()[n];
           if (q && q.t === sec.t) picks[sec.t + ':' + k] = POOL ? qid(q) : n;
         });
-        if (st) st.textContent = `「${pType(sec.t).name}」挑了 ${Math.min(usedIdx.length, sec.n)} 道…`;
+        if (st) st.textContent = `「${pType(sec.t).name}」挑了 ${Math.min(usedIdx.length, want)} 道…`;
       }
       const nAll = Object.keys(picks).length;
       if (!nAll) { err('AI 一道都没挑出来（可能要求太窄），换个说法再试'); HXBusy.end(tok); return; }
@@ -9472,17 +9662,84 @@ function mountPaper(sub) {
      · 成绩 CSV 的导出口在 app.js（exportCsv / 判分页 btnCsv），不在本次可改范围，
        已在交接里点名，没有越界去动。
      · 文件名、内容一个字都没变，只是多了一层确认。 */
+  /* 这一大题一共几个「格子」（卷面位置）。
+     2026-11-21：填空题现在有两层预算 —— 空数 s.n、题数 s.cnt（见 paper.js 的 fillCntOf）。
+     格子数取两者较小值：6 题 10 空 → 最多 6 个格子；只填 10 空不填题数 → 还是老样子 10 个。
+     别的题型 s.cnt 不起作用，恒等于 s.n。 */
+  function secSlots(s) {
+    const n = +((s && s.n) || 0);
+    if (!s || s.t !== 'fill') return n;
+    const cm = (typeof fillCntOf === 'function') ? fillCntOf(s) : Infinity;
+    return cm === Infinity ? n : Math.min(n, cm);
+  }
   function emptySlots() {
     const out = [];
     (C.sections || []).forEach(s => {
-      if (!(s.n > 0)) return;
-      for (let i = 0; i < s.n; i++) {
+      const cap = secSlots(s);
+      if (!(cap > 0)) return;
+      for (let i = 0; i < cap; i++) {
         const k = s.t + ':' + i, raw = C.picks[k];
         const q = raw == null ? null : pickQ(raw);
         if (!q || q.t !== s.t) out.push({ t: s.t, i, k });
       }
     });
     return out;
+  }
+  /* ================= 填空题的「实时剩余容量」（2026-11-21） =================
+     老师原话：「实时动态匹配右边题库题目 比如我已经填入 9 个空共 7 个题了，
+     第八题只能给我推荐一个空的了是不是也可以」。
+     算法和卷面抽题完全一样（都调 paper.js 的 fillNoRoom）：右边题库置灰用它、
+     点题/拖题的拦截也用它 —— 两处各写一套必然对不上，一边给点一边排不进去，
+     老师就会觉得「点了没反应」。
+     参数 slotKey = 即将被填/被换掉的那一格（'fill:3'）。被换掉的那道题要从「已排」里扣掉，
+     不然换题时会把容量算成「已经满了」，明明是想换掉一道也点不动。 */
+  function fillRoomOf(t, slotKey) {
+    const cfg = (C.sections || []).find(x => x.t === t);
+    if (!cfg || cfg.t !== 'fill') return null;
+    const secP = P && P.find(x => x.t === t);
+    const skip = slotKey ? +(String(slotKey).split(':')[1] || -1) : -1;
+    let haveB = 0, haveQ = 0;
+    const placed = [];
+    ((secP && secP.items) || []).forEach((x, k) => {
+      if (!x || x.__blank || k === skip) return;
+      haveB += (typeof blanksOf === 'function') ? blanksOf(x) : 1;
+      haveQ++;
+      placed.push(x);
+    });
+    const capB = +cfg.n || 0;
+    const capQ = (typeof fillCntOf === 'function') ? fillCntOf(cfg) : Infinity;
+    return { cfg, capB, capQ, haveB, haveQ, placed, leftB: Math.max(0, capB - haveB), leftQ: capQ === Infinity ? Infinity : Math.max(0, capQ - haveQ) };
+  }
+  /* 这道题现在能不能放进这一格：'' = 能；否则是给老师看的原因（置灰的 title 和 toast 共用）。
+     pre = 已经算好的 fillRoomOf 结果（列表里逐行算一次就够了，不必每行重算）。 */
+  function roomWhy(t, q, slotKey, pre) {
+    const r = pre || fillRoomOf(t, slotKey);
+    if (!r || !q) return '';
+    const no = fillNoRoom(r.cfg, r.haveB, r.haveQ, q);
+    if (no) return no;
+    /* 同一张卷面里不许出现第二道一样的题（2026-11-21）：填空题在卷面那边是按**题干**去重的
+       （paper.js 的 stemKey），所以老师连着点同一行时，第二下会被静默丢掉 ——
+       看着就是「点了、什么都没发生」，还以为按错了。这里当场拦住并说清。
+       比对两个键：题库编号一样，或题干一字不差（去掉空白），都算同一道。 */
+    if (r.cfg.t === 'fill') {
+      const sk = (typeof stemKey === 'function') ? stemKey(q) : '';
+      const id = qid(q);
+      if (r.placed.some(x => qid(x) === id || (sk && stemKey(x) === sk))) return '这道题已经在卷面上（同一道不能排两遍）';
+    }
+    return '';
+  }
+  /* 空数/题数调小以后，卷面上多出来的那几格已经排不进卷面了 —— 顺手把它们的点名删掉。
+     不删的话，老师把这行改回「5 题 10 空」时，上次那几道旧题会「凭空又冒出来」。
+     只处理填空题：别的题型一个数管一件事，删点名等于删他辛苦挑的题，风险不一样。 */
+  function prunePicks() {
+    let n = 0;
+    Object.keys(C.picks || {}).forEach(k => {
+      const p = String(k).split(':'), t = p[0], i = +p[1];
+      const s = (C.sections || []).find(x => x.t === t);
+      if (!s || s.t !== 'fill') return;
+      if (i >= secSlots(s)) { delete C.picks[k]; n++; }
+    });
+    return n;
   }
   function paintFill() {
     const b = $('ppFill');
