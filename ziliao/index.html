@@ -2317,10 +2317,25 @@ function matGenDraw() {
       <span class="mg-q"><b>${esc(matQtName(q.t))}</b>${esc(q.q)}
       <span class="note">答案：${esc(String(MAT_ANS_ROW(q)).slice(0, 140))}</span></span></div>`).join('')}</div>
     ${rej.length ? `<details class="mg-rej"><summary>${rej.length} 道没收下</summary><ul>${rej.map(r => `<li>第 ${r.index} 条「${esc(r.stem)}」：${esc(r.reason)}</li>`).join('')}</ul></details>` : ''}
-    <div class="row" style="margin-top:10px"><button class="sm" id="mgGoQb">去题池看这批题</button><span class="note">不满意的到题池里按题型筛出来批量删掉就行</span></div>
+    <div class="row" style="margin-top:10px"><button class="sm" id="mgGoQb">去题池看这批题</button>
+      ${ok && ok.ok === false ? '<button class="pri sm" id="mgRetry">重新写入题池</button>' : ''}
+      <span class="note">不满意的到题池里按题型筛出来批量删掉就行</span></div>
   </div>`;
   const b = out.querySelector('#mgGoQb');
   if (b) b.onclick = () => { if (typeof qbHome === 'function') qbHome(); };
+  /* 入池失败时别让老师白瞎这一批 AI 额度（2026-11-20：自建题型被后端挡住，20 道题生成出来了却进不去）。
+     题目还在内存里，给一颗「重新写入题池」直接重试，不必重新出题。 */
+  const rt = out.querySelector('#mgRetry');
+  if (rt) rt.onclick = async () => {
+    if (!MAT_GEN) return;
+    const tok = HXBusy.begin(rt, '正在重试…');
+    try {
+      const r = await matGenCommit(MAT_GEN.items, MAT_GEN.mid, MAT_GEN.sid, null);
+      MAT_GEN.added = r;
+      matGenDraw();
+      if (r.ok && r.added) toast('这次写进去了 ' + r.added + ' 道');
+    } finally { HXBusy.end(tok); }
+  };
 }
 // 题池行（DB 形态）的答案显示：和 matGenDraw 用的引擎形态不是一套字段
 const MAT_ANS_ROW = q => {
