@@ -2114,8 +2114,10 @@ function MAT_toDb(q, src) {
    一键把某一套转成题池格式、写进当前科目的题池，之后就能和 AI 出的题一起按章节、知识点筛，
    再发布到刷题。导入按「题型 + 题干去空白」去重，已有的题不重复加。 */
 const MAT_BUILTIN_BANKS = [
-  { id: 'wiring', name: '电气接线原理', file: '../shuati/data/wiring.json', tag: '教材配套 · 期末理论 · 已标小节', n: 319 },
-  { id: 'mcu', name: '单片机应用技术', file: '../shuati/data/mcu.json', tag: '教材配套 · 期末理论 · 已标小节', n: 536 },
+  /* sec: true = 这套题库的每道题都带教材小节（sec / secTitle）。导入时用它判断
+     「拉回来的文件是不是旧版」（旧版没有 sec，见 matBuiltinImport 里的拦截）。 */
+  { id: 'wiring', name: '电气接线原理', file: '../shuati/data/wiring.json', tag: '教材配套 · 期末理论 · 已标小节', n: 319, sec: true },
+  { id: 'mcu', name: '单片机应用技术', file: '../shuati/data/mcu.json', tag: '教材配套 · 期末理论 · 已标小节', n: 536, sec: true },
   { id: 'psychology', name: '教育心理学', file: '../shuati/data/questions.json', tag: '教资', n: 435 },
   { id: 'education', name: '教育学', file: '../shuati/data/education.json', tag: '教资', n: 568 }
 ];
@@ -2183,12 +2185,22 @@ async function matBuiltinImport(id, btn) {
   const tok = HXBusy.begin(btn, '正在读题库…');
   MAT_BUSY = true;
   try {
-    const r = await fetch(b.file + '?v=20261119', { cache: 'no-cache' });
+    /* 2026-11-19 修：这里原来是固定版本号 `?v=20261119` + cache:'no-cache'。版本号不变，
+       浏览器 / GitHub Pages 的边缘缓存就可能一直给改版前的旧 JSON —— 表现为「导入成功，
+       但题池里小节全是空的、题数还是旧的那套」（用户实测：1009 = 旧 mcu 639 + 旧 wiring 370，
+       而新版应该是 536 + 319）。改成时间戳 + no-store：每次导入都拿最新文件，代价只是一次
+       几百 KB 的下载，比「悄悄导进一批旧题」划算得多。 */
+    const r = await fetch(b.file + '?v=' + Date.now(), { cache: 'no-store' });
     if (!r.ok) throw new Error('读内置题库失败 HTTP ' + r.status);
     const arr = await r.json();
     const list = Array.isArray(arr) ? arr : (arr && Array.isArray(arr.questions) ? arr.questions : []);
     if (!list.length) throw new Error('这套题库是空的');
     const items = list.map(builtinToDb).filter(x => x && x.q);
+    /* 这套题库号称「已标小节」，结果拉回来的题一条 sec 都没有 —— 基本就是吃到了旧文件。
+       直接拦下来，比让老师对着一片空的小节下拉发懵好。 */
+    if (b.sec && items.length && !items.some(it => it.sec)) {
+      throw new Error('拿到的是旧版题库（' + list.length + ' 题，无小节），不是最新的 ' + b.n + ' 题版本。请强刷页面（Ctrl+F5）后再点导入');
+    }
     const old = await MAT_call('hx_exam_qbank_list', { p_subject_id: sid });
     const norm = s => String(s == null ? '' : s).replace(/\s+/g, '').toLowerCase();
     const stems = new Set(((old.ok && Array.isArray(old.data) ? old.data : [])).map(x => x.t + '|' + norm(x.q)));
@@ -2209,7 +2221,8 @@ async function matBuiltinImport(id, btn) {
       }
       added += (w.data && w.data.added) || 0;
     }
-    toast(`已导入「${b.name}」${added} 道` + (dup ? `，${dup} 道重复跳过` : ''));
+    const secN = fresh.filter(it => it.sec).length;
+    toast(`已导入「${b.name}」${added} 道` + (dup ? `，${dup} 道重复跳过` : '') + (b.sec ? `，其中 ${secN} 道带教材小节` : ''));
     loadSubjects(true);
   } catch (e) {
     MAT_banner('导入失败：' + (e && e.message ? e.message : e));
