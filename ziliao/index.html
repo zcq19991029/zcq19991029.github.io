@@ -1062,6 +1062,53 @@ function answerTokens(raw) {
 const judgeKey = t => /^(正确|对|是|√|T|TRUE|Y|YES)$/i.test(t) ? 'T' : /^(错误|错|否|×|X|F|FALSE|N|NO)$/i.test(t) ? 'F' : '';
 const hximpUid = () => (globalThis.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2));
 
+/* ── 大题的小问拆分（2026-11-21）────────────────────────────────────────────
+   老师原话：「我想要的大题是分两个问的……每个小问题格式要求」。
+   提示词已经要求分条了，但模型还是经常把 2 个小问的答案连成**一个字符串**
+   （「（1）在 Keil C51 中新建工程…… （2）在 Proteus 中搭建最小系统……」）。
+   那个字符串写进 hx_exam_qbank.a 之后，卷面和参考答案都是一坨，看不出是两个问。
+   所以在入库前按**句首编号**（（1）/ (1) / ① / 1） / 1.）拆成数组，一个小问一条。
+
+   两条硬规矩：
+   · 至少认到 **2 个**编号才拆 —— 只有一个「（1）」开头的，是整段答案的序号，不是小问；
+   · 数字后紧跟数字的不算（「3.3V 供电」的「3.」不是编号），否则会把参数拆成好几条。
+   拆不干净就原样返回一条，绝不靠标点乱切。 */
+const SUBMARK_PAREN = /[（(]\s*(?:\d{1,2}|[一二三四五六七八九十])\s*[)）]|[①②③④⑤⑥⑦⑧⑨⑩]/g;
+/* 裸编号（1. / 1、/ 1））一定要有分隔符在前面：「3.3V 供电」的「3.」不是编号。
+   带括号的（1）和 ① 没这个歧义，不用前缀。 */
+const SUBMARK_BARE = /(?:^|[\s。；;：:、，,）)])(\d{1,2}[、.．](?!\d))/g;
+function subMarks(t) {
+  const out = [];
+  let m;
+  SUBMARK_PAREN.lastIndex = 0;
+  while ((m = SUBMARK_PAREN.exec(t))) out.push([m.index, m[0].length]);
+  SUBMARK_BARE.lastIndex = 0;
+  while ((m = SUBMARK_BARE.exec(t))) out.push([m.index + (m[0].length - m[1].length), m[1].length]);
+  return out.sort((a, b) => a[0] - b[0]);
+}
+function splitSubs(s) {
+  const t = String(s == null ? '' : s).trim();
+  if (!t) return [];
+  const marks = subMarks(t);
+  /* 只认到 1 个编号（多半是整段答案的序号，或者模型已经分好条、每条自带（1））：
+     把句首那个编号去掉就行 —— 渲染时会按小问序号重新加，留着会变成「（1）（1）…」。 */
+  if (marks.length < 2) {
+    const body = marks.length === 1 && marks[0][0] === 0 ? t.slice(marks[0][1]).trim() : t;
+    return [body || t];
+  }
+  const out = [];
+  /* 编号前面若还有引导语，并进第一条；但「参考答案：」这种小标签直接丢掉 —— 
+     拼进去会变成「（1）参考答案： 在 Keil…」，比不拆还难看。 */
+  let head = t.slice(0, marks[0][0]).trim();
+  if (/^[^。；;：:]{0,12}[：:]$/.test(head)) head = '';
+  for (let i = 0; i < marks.length; i++) {
+    const from = marks[i][0] + marks[i][1];
+    const seg = t.slice(from, i + 1 < marks.length ? marks[i + 1][0] : t.length).trim();
+    if (seg) out.push(i === 0 && head ? head + ' ' + seg : seg);
+  }
+  return out.length >= 2 ? out : [t];
+}
+
 /* 校验/规整一道题。和 刷题 那份逐条一致（含“被拒的题要带第几条 + 题干前几个字 + 原因”），
    只多了 term 和 term 的长度上限。返回 {questions, rejected}。 */
 function normalizeQuestions(raw, subject, extra) {
@@ -1112,9 +1159,15 @@ function normalizeQuestions(raw, subject, extra) {
     if (texty) {
       const raw2 = item.answer != null ? item.answer : item.答案;
       const vals = (Array.isArray(raw2) ? raw2 : [raw2]).map(v => String(v == null ? '' : v).trim()).filter(Boolean);
+      /* 填空：按顿号/分号拆成一空一条（原有行为不动）。
+         自建大题（实操之类）：**一条小问一条**，模型连成一段的按（1）（2）拆开（splitSubs）。
+         简答 / 名词解释 / 程序分析：仍合成一段 —— 它们在卷面上本来就是「一段答案 + 留白」，
+         拆成数组反而会让下游的 answer[0] 只显示第一句。 */
       answer = type === 'fill'
         ? vals.flatMap(v => v.split(/[、，,；;]+/).map(s => s.trim()).filter(Boolean))
-        : [vals.join(' ')].filter(Boolean);
+        : CUSTOM.indexOf(type) >= 0
+          ? vals.flatMap(splitSubs)
+          : [vals.join(' ')].filter(Boolean);
     } else {
       answer = answerTokens(item.answer != null ? item.answer : item.答案).map(tk => {
         const t = tk.replace(/[.。、:：)）]$/, '');
@@ -1464,17 +1517,81 @@ const TYPE_SAMPLE = {
    「一段任务描述 + 两个小问」—— 第一个小问 Keil C51 编译通过，第二个小问 Proteus 仿真
    或开发板下载运行。接线/端口分配放进题干的任务描述里，不要再写「第一步接线、第二步写程序」。 */
 const CUSTOM_PRACTICE_RE = /实操|操作|实训|技能/;
-const customRule = name => CUSTOM_PRACTICE_RE.test(String(name || ''))
-  ? '「' + name + '」按实操考核出：题干 = 一段任务描述（要做什么、给定什么条件 / 器材 / 端口分配，'
-    + '不带教材编号，学生只看题干就能动手）；answer 固定写成两个小问：'
-    + '（1）用 Keil C51 编写程序，按题目要求完成编译（写出关键代码段与工程 / 编译要点）；'
-    + '（2）选择 Proteus 仿真或单片机开发板下载运行，写出运行 / 仿真结果（现象、关键数据、测量值）。'
-    + '不要写成「第一步接线、第二步写程序、第三步下载」的流水账，接线和端口分配写进题干的任务描述里。'
+
+/* 小问数（2026-11-20，老师原话）：
+     「我想要的大题是分两个问的 / 大题需要生成的时候增加几个小问选项 / 每个小问题格式要求」
+   以前这里把「两个小问」写死在提示词里，界面也没得选。现在：
+     · 出题界面多一个「小问数」（1～5，默认 2），只对自建题型（实操这类）出现；
+     · 小问按固定骨架排：第 1 问 Keil 编译、第 2 问 Proteus/开发板运行，第 3 问起由题目定，
+       但格式一律是「动词开头 + 写清产出物」，不许只丢一个名词；
+     · **题干里列出小问、answer 条数与小问数严格相等** —— 这是原来最乱的地方：
+       同一批题里有的把（1）（2）写在题干、有的只写在答案，学生看不出要答几问。 */
+const PRACTICE_SUB_DEFAULT = 2;
+function practSub(n) {
+  const v = Math.round(+n || 0);
+  return v >= 1 && v <= 5 ? v : PRACTICE_SUB_DEFAULT;
+}
+const PRACTICE_SUB_FIXED = [
+  '用 Keil C51 新建工程、按题目要求编写程序并编译通过（写关键代码与工程 / 编译要点）；',
+  '用 Proteus 仿真或单片机开发板下载运行（写运行现象、关键数据或测量值）。'
+];
+function practiceRule(name, n) {
+  const k = practSub(n);
+  if (k === 1) {
+    return '「' + name + '」按实操考核出：题干 = 一段任务描述（要做什么、给定什么条件 / 器材 / 端口分配，'
+      + '不带教材编号，学生只看题干就能动手）。**这一批只要 1 个小问**：题干末尾用「要求：……」一句话交代'
+      + '要交什么（程序编译通过 / 运行现象），**不要**写成（1）（2）；answer 只给 1 条完整参考答案（代码要点 + 运行结果），不要分条。'
+      + '不要写成「第一步接线、第二步写程序」的流水账，接线和端口分配写进题干的任务描述里。';
+  }
+  const heads = [];
+  for (let i = 1; i <= k; i++) {
+    heads.push(PRACTICE_SUB_FIXED[i - 1]
+      || '由题目决定具体动作（如测量某点电压、写出某段数据、说明为什么是这个结果），同样要写清产出物；');
+  }
+  return '「' + name + '」按实操考核出：题干 = 一段任务描述（要做什么、给定什么条件 / 器材 / 端口分配，'
+    + '不带教材编号，学生只看题干就能动手）。'
+    + '题干末尾必须用「要求：」分行列 **' + k + ' 个小问**，编号（1）（2）…，每个小问单独一行：\n'
+    + heads.map((h, i) => '  （' + (i + 1) + '）' + h).join('\n') + '\n'
+    + '每个小问都必须「动词开头 + 写清产出物」，不许只丢一个名词（写成「（3）调试」不合格，'
+    + '要写成「（3）下载到开发板，记录数码管从 00 加到 09 的现象」）。\n'
+    + 'answer **必须恰好 ' + k + ' 条**，与小问一一对应、顺序一致，每条以（' + '1）（2）…' + '开头；'
+    + '几条小问就几条答案，不多不少、不合并、不调序。'
+    + '不要写成「第一步接线、第二步写程序、第三步下载」的流水账，接线和端口分配写进题干的任务描述里。';
+}
+const customRule = (name, n) => CUSTOM_PRACTICE_RE.test(String(name || ''))
+  ? practiceRule(name, n)
   : '「' + name + '」题：题干把要求写清楚（要做什么、给什么条件、写成几步），'
     + 'answer 里给可以直接对照的参考答案（30～300 字，分步骤就按（1）（2）（3）写）；';
-const customSample = (k, name) => CUSTOM_PRACTICE_RE.test(String(name || ''))
-  ? '{"type":"' + (k || 'shicao') + '","stem":"使用 AT89C51 单片机控制接在 P1.1 引脚上的 LED。要求：其余 LED 保持熄灭，程序按给定条件实现该灯点亮。","answer":["（1）在 Keil C51 中新建工程，编写主程序，将 P1 口相应位清零并编译通过（关键代码：P1 = 0xFD;）。","（2）在 Proteus 中搭建最小系统并加载 HEX，或下载到开发板运行；现象：P1.1 所接 LED 点亮，其余熄灭。"],"ch":1,"knowledge":"P1 口位操作与 LED 控制","explanation":"P1.1 输出低电平点亮 LED；0xFD = 11111101B，仅 P1.1 为 0。"}'
-  : '{"type":"' + (k || 'custom') + '","stem":"题干（写清要求）","answer":["参考答案，分步骤就按（1）（2）（3）写"],"knowledge":"一句话知识点","explanation":"原文依据"}';
+
+function customSample(k, name, n) {
+  const key = k || (CUSTOM_PRACTICE_RE.test(String(name || '')) ? 'shicao' : 'custom');
+  if (!CUSTOM_PRACTICE_RE.test(String(name || ''))) {
+    return '{"type":"' + key + '","stem":"题干（写清要求）","answer":["参考答案，分步骤就按（1）（2）（3）写"],"knowledge":"一句话知识点","explanation":"原文依据"}';
+  }
+  const c = practSub(n);
+  const stemBase = '使用 AT89C51 单片机控制接在 P1.1 引脚上的 LED。给定条件：8 只 LED 阳极经 1 kΩ 电阻接 +5 V，阴极分别接 P1.0～P1.7；要求其余 LED 保持熄灭。';
+  if (c === 1) {
+    return '{"type":"' + key + '","stem":"' + stemBase + '\\n要求：编写程序让 P1.1 所接 LED 点亮，其余保持熄灭，编译通过并说明现象。",'
+      + '"answer":["在 Keil C51 中新建工程，主程序执行 P1 = 0xFD; 并编译通过（0xFD = 11111101B，仅 P1.1 为 0）；'
+      + '烧录或仿真后 P1.1 所接 LED 点亮，其余 7 只保持熄灭。"],'
+      + '"ch":1,"knowledge":"P1 口位操作与 LED 控制","explanation":"P1.1 输出低电平点亮 LED；0xFD = 11111101B，仅 P1.1 为 0。"}';
+  }
+  const req = [];
+  for (let i = 1; i <= c; i++) {
+    req.push(i === 1 ? '（1）用 Keil C51 新建工程、编写程序并编译通过；'
+      : i === 2 ? '（2）用 Proteus 仿真或开发板下载运行，写出观察到的现象；'
+        : '（' + i + '）记录并说明该项数据 / 现象；');
+  }
+  const ans = [];
+  for (let i = 1; i <= c; i++) {
+    ans.push(i === 1 ? '（1）在 Keil C51 中新建工程，主程序执行 P1 = 0xFD;，编译无错误；'
+      : i === 2 ? '（2）Proteus 中搭建最小系统并加载 HEX（或下载到开发板），现象：P1.1 所接 LED 点亮，其余熄灭；'
+        : '（' + i + '）对应数据 / 现象按题干要求记录。');
+  }
+  return '{"type":"' + key + '","stem":"' + stemBase + '\\n要求：\\n' + req.join('\\n') + '",'
+    + '"answer":[' + ans.map(x => '"' + x + '"').join(',') + '],'
+    + '"ch":1,"knowledge":"P1 口位操作与 LED 控制","explanation":"P1.1 输出低电平点亮 LED；0xFD = 11111101B，仅 P1.1 为 0。"}';
+}
 
 /* 符号表（2026-11-20）：电气接线这类课的题要带「符号图」——题干或选项里写 fig，
    图由 figlib.js（window.HXFig）现画，和 刷题 用的是同一套符号 id。
@@ -1542,8 +1659,8 @@ function genPrompt(o) {
   const names = o.typeNames || {};
   const list = Object.entries(o.counts || {}).filter(([, n]) => n > 0);
   const parts = list.map(([t, n]) => (TYPE_LABEL[t] || names[t] || t) + ' ' + n + ' 道').join('、');
-  const rules = list.map(([t]) => TYPE_RULE[t] || customRule(names[t] || t)).join('\n   ');
-  const samples = list.map(([t]) => '  ' + (TYPE_SAMPLE[t] || customSample(t, names[t] || t))).join(',\n');
+  const rules = list.map(([t]) => TYPE_RULE[t] || customRule(names[t] || t, o.subCount)).join('\n   ');
+  const samples = list.map(([t]) => '  ' + (TYPE_SAMPLE[t] || customSample(t, names[t] || t, o.subCount))).join(',\n');
   /* 有符号库才插「符号图」这一条；编号统一在下面按数组下标生成，插一条不会错号。 */
   const figBody = figRule();
   /* 2026-11-20：这一段属于哪一章由**导入时的目录**定（chunkMeta 打好的标），不再让模型猜。
@@ -1665,6 +1782,8 @@ async function aiGenerate(text, subject, subjectName, opts, onProgress) {
           const prompt = genPrompt({
             subjectName, piece: pieces[i], level: opts.level, counts: { [t]: take },
             extra: opts.extra, typeNames: opts.typeNames,
+            /* 小问数（2026-11-20）：只对自建题型（实操这类）有意义，其它题型用不到就传 undefined */
+            subCount: opts.subCount,
             /* 2026-11-20：块级的章节（导入时打好的标），有就让模型照抄，别再自己猜 */
             ch: m && m.ch, chTitle: m && m.chTitle,
             sec: m && m.sec, secTitle: m && m.secTitle, kn: m && m.kn,
@@ -1725,7 +1844,7 @@ async function aiImport(text, subject, onProgress) {
 
 window.HXImp = {
   isImageFile, fileToDataUrl, readMaterial, ocrImages, ocrScannedPdf, renderPdfPages,
-  normalizeQuestions, chunks, genPrompt, aiGenerate, aiImport,
+  normalizeQuestions, chunks, genPrompt, aiGenerate, aiImport, splitSubs,
   // 2026-11-20 新增：导入时做目录（buildToc/tocFromText/parseToc）、切块打标（chunkMeta）
   buildToc, tocFromText, parseToc, chunkMeta, tocDigest, tocNum,
   parseJson, TYPE_LABEL, SUPPORTED, HXIMP_AI_MISS, HXIMP_VISION_MISS, HXIMP_LIB_MISS,
@@ -2158,6 +2277,10 @@ function matQtPills() {
   box.innerHTML = MAT_QT.map(t => `<button type="button" class="mg-pill${t.k === MAT_QK ? ' on' : ''}" data-qt="${esc(t.k)}" aria-pressed="${t.k === MAT_QK}">${esc(t.name)}</button>`).join('');
   const cur = MAT_QT.find(x => x.k === MAT_QK);
   const lb = $('mgQtLabel'); if (lb) lb.textContent = cur ? cur.name : '';
+  /* 小问数只对自建题型（实操这类）出现：内置六种没这个概念，
+     摆在那里只会让老师以为「选择题也能分小问」。（2026-11-20 老师要求） */
+  const sw = $('mgSubWrap');
+  if (sw) sw.hidden = !cur || !!cur.builtin;
   box.querySelectorAll('[data-qt]').forEach(b => b.onclick = () => { MAT_QK = b.dataset.qt; matQtPills(); });
 }
 /* 管理题型：改名 / 改量词 / 删除 / 新增。
@@ -2373,6 +2496,9 @@ function matHome() {
         <label>出题量<input type="number" id="mgN" min="1" max="200" value="5"></label>
         <label>难度<select id="mgLevel"><option>容易</option><option selected>中等</option><option>较难</option></select></label>
         <label>思考程度<select id="mgThink"><option value="">跟随 AI 设置</option><option value="quick">快速</option><option value="balanced">均衡</option><option value="deep">深度</option></select></label>
+        <!-- 小问数（2026-11-20 老师要求：「大题需要生成的时候增加几个小问选项，每个小问题格式要求」）：
+             只对自建题型（实操这类）显示，内置六种没这个概念 → 由 matQtPills() 控制显隐。 -->
+        <label id="mgSubWrap" hidden>小问数<select id="mgSub"><option value="1">1 个</option><option value="2" selected>2 个</option><option value="3">3 个</option><option value="4">4 个</option><option value="5">5 个</option></select></label>
         <!-- 2026-11-20：删掉「章节」「范围」两个输入（老师原话「这两个范围混乱，我直接融合到
              针对性提示词得了，全部靠口述，自由度对话决定」）。想限定范围就写在下面那个框里。 -->
       </div>
@@ -2757,6 +2883,10 @@ async function matGenRun() {
   /* 取值一律带判空：这块表单将来改结构时，宁可少一句要求，也别让整页 TypeError 变空白。 */
   const exEl = $('mgExtra');
   const extra = exEl ? exEl.value.trim() : '', level = $('mgLevel').value, think = $('mgThink').value;
+  /* 小问数（2026-11-20）：只对自建题型生效；内置六种不看这个框（它本来就不显示）。
+     取值一律带兜底 —— 界面将来改结构时宁可退回默认 2，也别让整页 TypeError。 */
+  const subEl = $('mgSub');
+  const subCount = qt.builtin ? undefined : Math.max(1, Math.min(5, Math.round(+(subEl ? subEl.value : 2) || 2)));
   const state = $('mgState');
   const sub = curSub();
   /* 2026-11-15：出题是整页最长的动作（按段喂模型，可能几分钟），而且前面还要逐份读切段。
@@ -2826,6 +2956,7 @@ async function matGenRun() {
           // 自建题型：告诉引擎「这些 key 也认」，并把中文名带过去给它写提示词
           customKeys: qt.builtin ? [] : [engineT],
           typeNames: { [engineT]: qt.name },
+          subCount,
         }, msg => { state.textContent = where + msg; });
         /* 章节分级信任（2026-11-20）：目录 / 题干 / 模型推测 三级，上下文（资料名 + 目录）一起给，
            这样模型猜的章号只有在「这份资料真的覆盖那一章」时才被采信。 */
@@ -2928,6 +3059,8 @@ const MAT_ANS = q => {
   if (q.type === 'judgment') return q.answer[0] === 'T' ? '正确' : '错误';
   if (q.type === 'fill') return q.answer.join(' / ');
   if (q.type === 'short' || q.type === 'term' || q.type === 'prog') return q.answer[0] || '';
+  /* 自建大题：小问分开列，别拼成一段（2026-11-21） */
+  if (Array.isArray(q.answer) && q.answer.length > 1) return q.answer.map((x, k) => `（${k + 1}）${x}`).join('\n');
   return Array.isArray(q.answer) ? q.answer.join(' ') : String(q.answer || '');
 };
 /* 出完的直接入池了，这里只做「这批出了什么」的回执列表（只读，不再有勾选框和「加入题池」按钮）。 */
@@ -2984,7 +3117,12 @@ function matGenDraw() {
 const MAT_ANS_ROW = q => {
   const a = q.a;
   if (q.t === 'judge') return a === true || a === 'true' || a === 'T' ? '正确' : '错误';
-  if (Array.isArray(a)) return a.join(' / ');
+  if (Array.isArray(a)) {
+    if (q.t === 'fill') return a.join(' / ');
+    /* 大题存成数组 = 几个小问几条：列出来（2026-11-21），拼成「/」看不出是两问 */
+    if (a.length > 1) return a.map((x, k) => `（${k + 1}）${x}`).join(' ');
+    return String(a[0] == null ? '' : a[0]);
+  }
   return String(a == null ? '' : a);
 };
 
@@ -3072,6 +3210,10 @@ function MAT_toDb(q, src, ctx) {
   if (t === 'choice') a = q.answer.join('');
   else if (t === 'judge') a = q.answer[0] === 'T';
   else if (t === 'fill') a = q.answer.slice();
+  /* 自建大题（实操之类，2026-11-21）：≥2 条 = 一道大题里的几个小问，**整组存进 a**，
+     让卷面/参考答案按（1）（2）分开显示。以前只留 answer[0]，2 个小问只剩第一个，
+     老师在参考答案里看到的就是「一坨」或者「少了一问」。1 条仍旧存字符串，老数据不受影响。 */
+  else if (t !== 'short' && t !== 'term' && t !== 'prog' && Array.isArray(q.answer) && q.answer.length > 1) a = q.answer.slice();
   else a = Array.isArray(q.answer) ? (q.answer[0] || '') : String(q.answer == null ? '' : q.answer);
   const fig = matFig(q.fig);
   /* 章节（2026-11-20）：四级判定（见 chDecide）—— 目录 > 题干原文 > 模型推测（限区间）。
@@ -3532,7 +3674,11 @@ function qbDrawStat() {
 function QB_ans(q) {
   const a = q.a;
   if (q.t === 'judge') return a === true || a === 'true' || a === 'T' ? '正确' : a === false || a === 'false' || a === 'F' ? '错误' : String(a == null ? '' : a);
-  if (Array.isArray(a)) return a.join(' / ');
+  if (Array.isArray(a)) {
+    /* 大题存成数组 = 几个小问几条（2026-11-21）：列出来，别拼成「甲 / 乙」看不出是两问 */
+    if (q.t !== 'fill' && a.length > 1) return a.map((x, k) => `（${k + 1}）${x}`).join('  ');
+    return a.join(' / ');
+  }
   if (a && typeof a === 'object') return JSON.stringify(a);
   return String(a == null ? '' : a);
 }
@@ -4388,7 +4534,12 @@ async function qbUndoDo() {
 function qbEdit(id) {
   const q = QB_ALL.find(x => String(x.id) === String(id)); if (!q) return;
   const opts = Array.isArray(q.o) ? q.o.map(o => o.key + '. ' + o.text).join('\n') : '';
-  const ans = q.t === 'fill' ? (Array.isArray(q.a) ? q.a : [q.a]).join('\n') : q.t === 'judge' ? '' : String(q.a == null ? '' : q.a);
+  /* 大题（含自建题型）的答案可能是「一问一行的数组」（2026-11-21）：
+     编辑框里也一行一条，保存时按行拆回数组 —— 以前 String(数组) 会显示成「甲,乙」，
+     一保存就把几个小问压成一段，老师自己改一次等于把分好的小问又改坏了。 */
+  const ans = q.t === 'fill' ? (Array.isArray(q.a) ? q.a : [q.a]).join('\n')
+    : q.t === 'judge' ? ''
+      : Array.isArray(q.a) ? q.a.join('\n') : String(q.a == null ? '' : q.a);
   const jv = q.a === true || q.a === 'true' || q.a === 'T';
   /* 选项本身是符号图的（o.fig）：文本框里没法画图，所以标明是哪几个，保存时按字母把原图接回去 */
   const optFigs = {};
@@ -4413,7 +4564,7 @@ function qbEdit(id) {
       ${figKeys.length ? `<p class="note" style="margin:-6px 0 10px">选项 ${esc(figKeys.join(' / '))} 本身是图形符号（${esc(figKeys.map(k => HXFig.figName(optFigs[k]) || optFigs[k]).join('、'))}），保存时按字母把原图接回去。</p>` : ''}` : ''}
     ${q.t === 'prog' ? `<label class="zl-f">程序<textarea id="qeCode" rows="5" class="mono">${esc(q.code || '')}</textarea></label>` : ''}
     ${q.t === 'judge' ? `<label class="zl-f">答案<select id="qeJ"><option value="T" ${jv ? 'selected' : ''}>正确</option><option value="F" ${jv ? '' : 'selected'}>错误</option></select></label>`
-      : `<label class="zl-f">答案${q.t === 'choice' ? '（字母，如 A 或 AC）' : q.t === 'fill' ? '（每空一行）' : ''}<textarea id="qeA" rows="${q.t === 'choice' ? 1 : 3}">${esc(ans)}</textarea></label>`}
+      : `<label class="zl-f">答案${q.t === 'choice' ? '（字母，如 A 或 AC）' : q.t === 'fill' ? '（每空一行）' : '（一问一行：一个大题两个小问就写两行）'}<textarea id="qeA" rows="${q.t === 'choice' ? 1 : q.t === 'fill' ? 3 : 4}">${esc(ans)}</textarea></label>`}
     <label class="zl-f">解析<textarea id="qeE" rows="2">${esc(q.explanation || '')}</textarea></label>
     <div class="errs" id="qeErr" hidden></div>
     <div class="row"><button class="pri" id="qeSave">保存</button><button id="qeCancel">取消</button></div>`);
@@ -4448,7 +4599,9 @@ function qbEdit(id) {
       if (!it.a.length) return fail('答案不能空');
       if (!/_{2,}/.test(it.q)) return fail('填空题题干里要有 ____');
     } else {
-      it.a = $('qeA').value.trim();
+      /* 一行一条 = 一个小问一条；只有一行就照旧存字符串（老数据、单问大题都不受影响） */
+      const lines = $('qeA').value.split('\n').map(s => s.trim()).filter(Boolean);
+      it.a = lines.length > 1 ? lines : (lines[0] || '');
       if (!it.a) return fail('答案不能空');
       if (q.t === 'prog') it.code = $('qeCode').value.replace(/\s+$/, '') || null;
     }

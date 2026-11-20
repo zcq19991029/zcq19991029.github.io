@@ -950,6 +950,9 @@ a.ex-btn:hover { filter: brightness(1.06); }
 .e-nav button.done { color: var(--acc, #2f6bff); border-color: var(--acc, #2f6bff); background: var(--accbg, rgba(47,107,255,.1)); }
 .e-nav button.on { color: var(--on-acc, #fff); background: var(--acc, #2f6bff); border-color: var(--acc, #2f6bff); }
 .e-q { scroll-margin-top: 96px; }
+/* 大题的小问（2026-11-21）：一问一行，学生一眼看出要答几问；以前用「；」连成一段 */
+.e-q .note .e-sub { display: block; }
+.e-q .note .e-sub + .e-sub { margin-top: 2px; }
 
 /* ---------- 学生结果页 ---------- */
 .e-result { text-align: center; padding: 26px 20px; }
@@ -6338,6 +6341,49 @@ function hxSubs(v) {
     .map(x => String(x == null ? '' : x).trim()).filter(Boolean);
 }
 
+/* 大题参考答案的「小问归一」（2026-11-21）。
+   老师原话：「我想要的大题是分两个问的……每个小问题格式要求」。
+   资料库那边现在会把一道大题的答案存成数组（一个小问一条），但库里还留着大量
+   老数据是**一个字符串里塞了（1）（2）**。两处都要能分开显示，所以统一走这里：
+     · 数组 / 字符串 → 一律先变成字符串数组；
+     · 数组 ≥2 条 = 几个小问，渲染时自己加（1）（2）序号；
+     · 单条字符串里要是自带（1）（2）也拆开（splitSubs，和资料库同一个口径）。
+   返回 ['…','…']，调用方决定怎么排。 */
+const SUBMARK_PAREN = /[（(]\s*(?:\d{1,2}|[一二三四五六七八九十])\s*[)）]|[①②③④⑤⑥⑦⑧⑨⑩]/g;
+const SUBMARK_BARE = /(?:^|[\s。；;：:、，,）)])(\d{1,2}[、.．](?!\d))/g;
+function hxSplitSubs(t) {
+  const s = String(t == null ? '' : t).trim();
+  if (!s) return [];
+  const marks = [];
+  let m;
+  SUBMARK_PAREN.lastIndex = 0;
+  while ((m = SUBMARK_PAREN.exec(s))) marks.push([m.index, m[0].length]);
+  SUBMARK_BARE.lastIndex = 0;
+  while ((m = SUBMARK_BARE.exec(s))) marks.push([m.index + (m[0].length - m[1].length), m[1].length]);
+  marks.sort((a, b) => a[0] - b[0]);
+  if (marks.length < 2) {
+    const body = marks.length === 1 && marks[0][0] === 0 ? s.slice(marks[0][1]).trim() : s;
+    return [body || s];
+  }
+  let head = s.slice(0, marks[0][0]).trim();
+  if (/^[^。；;：:]{0,12}[：:]$/.test(head)) head = '';
+  const out = [];
+  for (let i = 0; i < marks.length; i++) {
+    const seg = s.slice(marks[i][0] + marks[i][1], i + 1 < marks.length ? marks[i + 1][0] : s.length).trim();
+    if (seg) out.push(i === 0 && head ? head + ' ' + seg : seg);
+  }
+  return out.length >= 2 ? out : [s];
+}
+function hxAnsLines(v) {
+  return hxSubs(v).flatMap(hxSplitSubs);
+}
+/* 一段文本版（「（1）…\n（2）…」），给 HTML 预览 / 复制用 */
+function hxAnsText(v) {
+  const arr = hxAnsLines(v);
+  if (arr.length <= 1) return arr[0] || '';
+  return arr.map((x, k) => `（${k + 1}）${x}`).join('\n');
+}
+
 /* ================= 符号图（2026-11-20） =================
    题池里图题的 q.fig（题干）/ o.fig（选项）是**符号 id**（'fu' / 'qf3' / 'c23a' …），
    不是 SVG，也不接收外部 SVG。图库只有 window.HXFig 一份（build 时内联 src/figlib.js，
@@ -6607,7 +6653,13 @@ function itemHTML(s,q,i){
     /* 2026-11-21：老师自建的题型（如「实操」）以前落到这里返回空串 ——
        pickSections 明明抽到了 4 道，卷面上一个字都没有（老师的话是「没关联上吗」）。
        没单独排版规则的题型一律按简答排：题干 + 答题留白，不猜它的结构。 */
-    default:return `<div class="q">${no}${ptxt(q.q)}</div>${fig}${lines((q.lines||8)-1)}`;
+    /* 2026-11-21：老师自建的题型（如「实操」）现在往往带小问 —— 题干末尾那几问
+       要按（1）（2）单独占行，学生才知道要答几问；以前一律按简答排，小问整段丢掉。 */
+    default:{
+      const subs=hxAnsLines(q.sub);
+      const body=subs.length>1?subs.map((x,k)=>`<div class="q sub">（${k+1}）${ptxt(x)}</div>`).join(''):'';
+      return `<div class="q">${no}${ptxt(q.q)}</div>${fig}${body}${lines((q.lines||8)-1)}`;
+    }
   }
 }
 const secTitle=s=>`${s.no}、${pType(s.t).name}（${pType(s.t).unit} ${s.pts} 分，共 ${s.total} 分）`;
@@ -7028,8 +7080,14 @@ function docxItems(s,q,i){
     const subs=hxSubs(q.sub);
     subs.forEach((x,k)=>{out.push(DX.p(DX.r(`（${k+1}）${x}`),{ind:210}));sp(subs.length>1?3:7);});
   }
-  /* 自建题型（实操之类）没有专门排版：按简答排，别导出成一张空白（2026-11-21） */
-  else {out.push(DX.p(DX.r(no+q.q)));figLine(ft);sp((q.lines||8)-1);}
+  /* 自建题型（实操之类）没有专门排版：按简答排，别导出成一张空白（2026-11-21）。
+     带小问的把小问逐行排出来 —— 卷面少了小问，学生根本不知道要答几问。 */
+  else {
+    out.push(DX.p(DX.r(no+q.q)));figLine(ft);
+    const subs=hxAnsLines(q.sub);
+    subs.forEach((x,k)=>out.push(DX.p(DX.r(`（${k+1}）${x}`),{ind:210})));
+    sp((q.lines||8)-1);
+  }
   return out.join('');
 }
 /* 卷里真有图题时，在 Word 文件末尾写一行说明 —— 不然老师只看到一串「［图：…］」不知道怎么回事。
@@ -7096,7 +7154,15 @@ function answerDocx(P,cfg){
     if(s.t==='choice')b+=ansRows(items.map((q,i)=>`${i+1}、${q.a}`));
     else if(s.t==='judge')b+=ansRows(items.map((q,i)=>`${i+1}、（${q.a?'√':'×'}）`));
     else if(s.t==='fill')items.forEach((q,i)=>{b+=DX.p(DX.r(`${i+1}、${Array.isArray(q.a)?q.a.join('；'):q.a}`));});
-    else items.forEach((q,i)=>{b+=DX.p(DX.r(`${i+1}、${q.q}${hxFigText(q.fig)}`,{b:true}),{keep:true});b+=DX.p(DX.r(Array.isArray(q.a)?q.a.join('；'):String(q.a==null?'':q.a),{color:'1F4E79'}));b+=DX.p(DX.r(`（评分：按要点给分，共 ${s.pts} 分）`,{color:'666666',sz:18}));});
+    else items.forEach((q,i)=>{
+      b+=DX.p(DX.r(`${i+1}、${q.q}${hxFigText(q.fig)}`,{b:true}),{keep:true});
+      /* 大题答案按小问逐条排（2026-11-21）：以前不管几问都挤在一个段落里用「；」连起来，
+         老师看到的就是一坨；现在一个小问一段，带（1）（2）序号，和题干的小问一一对应。 */
+      const ans=hxAnsLines(q.a);
+      if(ans.length>1)ans.forEach((x,k)=>{b+=DX.p(DX.r(`（${k+1}）${x}`,{color:'1F4E79'}),{ind:210});});
+      else b+=DX.p(DX.r(ans[0]||'',{color:'1F4E79'}));
+      b+=DX.p(DX.r(`（评分：按要点给分，共 ${s.pts} 分）`,{color:'666666',sz:18}));
+    });
   });
   const st=paperStats(P);
   b+=DX.p(DX.r('各项目分值分布',{hei:true,b:true}),{before:160});
@@ -7274,6 +7340,8 @@ html,body{margin:0;background:#888;font-family:"SimSun","宋体","Songti SC","ST
 .ansline{margin:0;text-indent:0}
 .qline{font-weight:bold;margin:4pt 0 0}
 .qline .score{font-weight:normal;color:#1F4E79;display:block;margin-left:1em}
+/* 大题按小问分行（2026-11-21）：每问一行，缩进对齐，不再挤成一段 */
+.qline .ansub{display:block}
 .qline .grade{font-weight:normal;color:#666;font-size:9pt;display:block;margin-left:1em}
 .dist{margin-top:10pt;font-family:"SimHei","黑体",sans-serif;font-weight:bold}
 ${FIG_CSS}
@@ -7292,7 +7360,11 @@ function answerPreviewHTML(P, cfg) {
     else if (s.t === 'judge') b += `<div class="ans">${items.map((q, i) => `<span>${i + 1}、（${q.a ? '√' : '×'}）</span>`).join('')}</div>`;
     else if (s.t === 'fill') items.forEach((q, i) => { b += `<p class="ansline">${i + 1}、${esc(Array.isArray(q.a) ? q.a.join('；') : q.a)}</p>`; });
     else items.forEach((q, i) => {
-      b += `<div class="qline">${i + 1}、${esc(q.q)}${hxFig(q.fig,false)}<span class="score">${esc(Array.isArray(q.a) ? q.a.join('；') : String(q.a == null ? '' : q.a))}</span><span class="grade">（评分：按要点给分，共 ${s.pts} 分）</span></div>`;
+      const ans = hxAnsLines(q.a);
+      const aHTML = ans.length > 1
+        ? ans.map((x, k) => `<span class="ansub">（${k + 1}）${esc(x)}</span>`).join('')
+        : esc(ans[0] || '');
+      b += `<div class="qline">${i + 1}、${esc(q.q)}${hxFig(q.fig,false)}<span class="score">${aHTML}</span><span class="grade">（评分：按要点给分，共 ${s.pts} 分）</span></div>`;
     });
   });
   const st = paperStats(P);
@@ -8730,9 +8802,16 @@ function mountPaper(sub) {
     /* 图题（2026-11-20）：题干 q.fig 画大图，选项 o.fig 画小图；认不出的 id 当没图 */
     let h = `<div class="bkq-fq">${esc(q.q)}</div>${hxFig(q.fig, true)}`;
     if (t === 'choice') h += `<ol class="bkq-op">${hxChoices(q.o).map(x => `<li>${esc(x.key)}. ${hxFig(x.fig, false)}${esc(x.text)}</li>`).join('')}</ol>`;
-    if (q.code) h += `<pre class="code">${esc(q.code)}</pre>` + hxSubs(q.sub).map((x, k) => `<div class="note">（${k + 1}）${esc(x)}</div>`).join('');
-    const a = t === 'choice' ? q.a : t === 'judge' ? (q.a ? '正确' : '错误') : Array.isArray(q.a) ? q.a.join('；') : q.a;
-    h += `<div class="bkq-a"><b>答案</b>${esc(a)}</div>`;
+    if (q.code) h += `<pre class="code">${esc(q.code)}</pre>`;
+    /* 小问（2026-11-21）：程序分析题和自建大题都可能带小问，统一在这里排，
+       一个（1）（2）一行；以前只在有 code 时才排，实操题的小问就整段不见了。 */
+    const subs = hxAnsLines(q.sub);
+    if (subs.length > 1) h += subs.map((x, k) => `<div class="note">（${k + 1}）${esc(x)}</div>`).join('');
+    /* 答案：选择题/判断题是字母或对错（转义后直接贴），大题按小问分行（题干里的 < 也要转义） */
+    const a = t === 'choice' ? esc(String(q.a == null ? '' : q.a))
+      : t === 'judge' ? (q.a ? '正确' : '错误')
+        : esc(hxAnsText(q.a)).replace(/\n/g, '<br>');
+    h += `<div class="bkq-a"><b>答案</b>${a}</div>`;
     return h;
   }
 
@@ -10368,7 +10447,16 @@ const eFig = (id, big) => (typeof hxFig === 'function' ? hxFig(id, big) : '');
    图题发出去就成了「看文字猜图」，学生端一道图都看不到。 */
 function ePaperEncode(qs) { return 'E1:' + E_B64(JSON.stringify({ v: 1, qs: qs.map(q => ({ id: q.id, t: q.t, q: q.q, o: q.o || [], a: q.a, sub: q.sub || [], pts: q.pts || 10, src: q.src || '', fig: q.fig || '' })) })); }
 function ePaperDecode(code) { if (!/^E1:/.test(String(code || ''))) return null; try { const x = JSON.parse(E_UNB64(String(code).slice(3))); return x && Array.isArray(x.qs) ? x.qs : null; } catch (e) { return null; } }
-function eType(t) { return ({ single: '单选', multiple: '多选', judgment: '判断', choice: '选择题', judge: '判断', fill: '填空', short: '简答', term: '名词解释', prog: '编程题' }[t] || t || '题目'); }
+function eType(t) {
+  const m = { single: '单选', multiple: '多选', judgment: '判断', choice: '选择题', judge: '判断', fill: '填空', short: '简答', term: '名词解释', prog: '编程题' };
+  if (m[t]) return m[t];
+  /* 自建题型（实操这类）原来直接把 key 印在题头上 —— 学生看到「第 3 题 · shicao」。
+     这里回退到试卷配置里的中文名（paper.js 的 PAPER_TYPES / PAPER_EXTRA）。 */
+  try {
+    if (typeof pType === 'function' && (PAPER_TYPES[t] || PAPER_EXTRA[t])) return pType(t).name;
+  } catch (e) { }
+  return t || '题目';
+}
 /* ---- 选项 / 题型归一（2026-11-09）----
    用户报「电气接线的理论考试选择题选项都报错了 没有正常的」，两处对不上：
    ① 选项形状：题库 hx_exam_qbank.o 是 [{key,text}]（资料库工具 MAT_toDb 写进去的），
@@ -10406,7 +10494,10 @@ function eNormQ(q) {
      以前 `q.sub.map(...)` 在 sub 是字符串时抛 TypeError，直接把整页渲染打断 ——
      学生看到的就是「全都报错了」。这里统一成数组，渲染处只管 map。
      pts 可能是 '10分' / '10' / null，统一成数字，免得题头显示「10分 分」。 */
-  const sub = Array.isArray(q.sub) ? q.sub.filter(x => String(x == null ? '' : x).trim()) : (q.sub ? [q.sub] : []);
+  /* 小问连带拆开（2026-11-21）：sub 存成一整段「（1）…（2）…」也认，见 paper.js 的 hxAnsLines */
+  const sub = typeof hxAnsLines === 'function'
+    ? hxAnsLines(q.sub)
+    : (Array.isArray(q.sub) ? q.sub.filter(x => String(x == null ? '' : x).trim()) : (q.sub ? [q.sub] : []));
   const pts = Math.max(1, Math.min(100, Number(String((q && q.pts) == null ? 10 : q.pts).replace(/[^\d.]/g, '')) || 10));
   return Object.assign({}, q, { t, o, a, sub, pts });
 }
@@ -10580,16 +10671,27 @@ function eCorrectText(q) {
     const n = Math.max(1, typeof blanksOf === 'function' ? blanksOf(nq) : 1);
     return eFillRefs(nq, n).map(x => x.join(' / ')).join('；');
   }
+  /* 大题（简答/名词解释/程序分析/自建题型）：小问逐条换行显示（2026-11-21）。
+     以前不管几问都用「；」连成一行，老师在一坨里对着批分；
+     现在一个人工/机器可读的（1）（2）分行版，AI 批改的提示词也用这份文本。 */
+  if (typeof hxAnsText === 'function') return hxAnsText(nq.a);
   return Array.isArray(nq.a) ? nq.a.join('；') : String(nq.a == null ? '' : nq.a);
 }
+/* 参考答案进 HTML 时把换行留住（2026-11-21）：大题的小问是按行分的，
+   直接 E_ESC 进 <div> 会被 HTML 折叠成一行，又变回「一坨」。 */
+const eCorrectHTML = q => E_ESC(eCorrectText(q)).replace(/\n/g, '<br>');
 function eQuestionHTML(q, i, answer) {
   const nq = eNormQ(q);
   const typ = nq.t === 'single' || nq.t === 'multiple' || nq.t === 'judgment';
-  const big = nq.t === 'short' || nq.t === 'term' || nq.t === 'prog';
+  /* 自建大题（实操这类）也是大题：作答框要高一点（2026-11-21），
+     以前只认 short/term/prog，实操题只给 2 行，学生写不下。
+     判据就是「非客观题、非填空」，不用逐个列举题型 key。 */
+  const big = !typ && nq.t !== 'fill';
   let input = '';
   if (typ) input = `<div class="e-options">${nq.o.map(o => `<label><input type="${nq.t === 'multiple' ? 'checkbox' : 'radio'}" name="e_${i}" value="${E_ESC(o.key)}" ${String(answer || '').split(/[,、\s]+/).includes(String(o.key)) ? 'checked' : ''}> <b>${E_ESC(o.key)}</b> ${eFig(o.fig, false)}${E_ESC(o.text)}</label>`).join('')}</div>`;
   else input = `<textarea class="e-answer" data-ea="${i}" rows="${big ? 6 : 2}" placeholder="${big ? '在这里作答，可以分点写' : '填写答案（多个空用 | 或分号隔开）'}">${E_ESC(answer || '')}</textarea>`;
-  return `<article class="card e-q" id="eQ${i + 1}" data-qcard="${i}"><div class="e-qhead"><span>第 ${i + 1} 题 · ${E_ESC(eType(nq.t))}</span><b>本题 ${nq.pts || 10} 分</b></div><h3>${eStemHTML(nq)}</h3>${eFig(nq.fig, true)}${nq.sub && nq.sub.length ? `<p class="note">${nq.sub.map(E_ESC).join('；')}</p>` : ''}${input}</article>`;
+  const subHTML = nq.sub.length > 1 ? nq.sub.map((x, k) => `<span class="e-sub">（${k + 1}）${E_ESC(x)}</span>`).join('') : '';
+  return `<article class="card e-q" id="eQ${i + 1}" data-qcard="${i}"><div class="e-qhead"><span>第 ${i + 1} 题 · ${E_ESC(eType(nq.t))}</span><b>本题 ${nq.pts || 10} 分</b></div><h3>${eStemHTML(nq)}</h3>${eFig(nq.fig, true)}${subHTML ? `<p class="note">${subHTML}</p>` : ''}${input}</article>`;
 }
 /* 每一屏一个 AbortController：滚动监听、beforeunload 这类挂在 window 上的监听
    必须随页面翻篇解绑，否则学生翻几次卷就叠出十几份（这项目在理论试卷 iframe 上踩过）。 */
@@ -10811,7 +10913,7 @@ async function electronicResult(code, back) {
         <h3>${eStemHTML(q)}</h3>
         ${eFig(q.fig, true)}
         ${obj ? `<div class="e-options ro">${eOptions(q).map(o => `<span class="e-opt${String(ans || '').split(/[,、\s]+/).includes(String(o.key)) ? ' picked' : ''}"><b>${E_ESC(o.key)}</b> ${eFig(o.fig, false)}${E_ESC(o.text)}</span>`).join('')}</div>` : ''}
-        ${wrong ? `<div class="e-cmp"><div><span>你的答案</span><b class="bad">${E_ESC(mine ? (ans || '（没答）') : '（这台设备没留作答记录）')}</b></div><div><span>正确答案</span><b class="ok">${E_ESC(eCorrectText(q))}</b></div></div>` : ''}
+        ${wrong ? `<div class="e-cmp"><div><span>你的答案</span><b class="bad">${E_ESC(mine ? (ans || '（没答）') : '（这台设备没留作答记录）').replace(/\n/g, '<br>')}</b></div><div><span>正确答案</span><b class="ok">${eCorrectHTML(q)}</b></div></div>` : ''}
         ${!obj && String(ans || '').trim() ? `<details class="e-myans"><summary>我的作答</summary><pre>${E_ESC(ans)}</pre></details>` : ''}
         <div class="e-rmeta">${got == null ? '<span class="e-tag wait">待批改</span>' : `<span class="e-tag ${it.by === 'ai' ? 'ai' : it.by === 'auto' ? 'auto' : 'manual'}">${it.by === 'ai' ? 'AI 批改' : it.by === 'auto' ? '自动判分' : '老师批改'}</span>`}${it.note ? `<span class="e-rnote">${E_ESC(it.note)}</span>` : ''}</div>
       </article>`;
@@ -11793,7 +11895,7 @@ async function subsElectronic(x) {
         ${obj ? `<div class="eg-opts">${eOptions(q).map(o => `<span><b>${E_ESC(o.key)}</b> ${eFig(o.fig, false)}${E_ESC(o.text)}</span>`).join('')}</div>` : ''}
         <!-- 2026-11-18 用户：「参考答案我批改你缩进去干嘛 防我呢 展开啊」——改成**默认展开**。
              批改时老师本来就要对着参考答案看，折起来等于每道题多点一次；仍可手动收起（open 是默认态，不是锁定态）。 -->
-        <details class="eg-ref" open><summary>参考答案</summary><div>${E_ESC(eCorrectText(q))}</div></details>
+        <details class="eg-ref" open><summary>参考答案</summary><div>${eCorrectHTML(q)}</div></details>
         <div class="eg-ansbox"><span>学生答案</span><pre class="eg-ans">${E_ESC(ans == null || ans === '' ? '（没答）' : ans)}</pre></div>
         ${obj ? '' : score}
         ${isBig ? `<input class="eg-note" data-n="${i}" data-si="${si}" maxlength="60" placeholder="评语（≤60 字，学生看得到）" value="${E_ESC(m && m.note ? m.note : '')}">` : ''}
