@@ -481,36 +481,33 @@ body { margin: 0; }
   .ex-nav-sub { margin: 0; border: 0; padding: 0; display: flex; gap: 6px; }
   .ex-main { padding: 16px 12px 50px; }
 }
-/* 侧栏伸缩手柄（2026-11-19 第六轮）：点一下把左栏收成 56px 窄条图标栏。
-   class 挂在 .ex-shell 上，桌面端收起/展开都走这里；手机端（≤900px）导航本就横排，手柄隐藏。 */
-.ex-nav-tg { display: flex; width: 100%; justify-content: flex-end; align-items: center; padding: 0 10px 8px;
-  border: 0; background: transparent; color: var(--mute); cursor: pointer; }
-.ex-nav-tg span { font-size: 18px; line-height: 1; font-weight: 600; transition: transform .22s var(--spring, cubic-bezier(.32, .72, 0, 1)); }
-.ex-nav-tg:hover span { color: var(--acc); }
+/* 侧栏伸缩手柄（2026-11-19 第六轮）：**2026-11-20 晚已删除**。
+   老师原话「手动关闭键取消删除」—— 展开/缩回本来就靠悬停（移上去展开、移开 3 秒缩回），
+   顶上再摆一颗 ⟨ 只会让人以为必须点它。留着这段注释是为了下次别又加回来。 */
 @media (min-width: 901px) {
   .ex-shell.collapsed,
   .ex-shell.wide.collapsed { grid-template-columns: 56px minmax(0, 1fr); }
   .ex-shell.collapsed .ex-nav { padding: 12px 8px; overflow: visible; }
-  .ex-shell.collapsed .ex-nav-tg { justify-content: center; padding: 0 0 10px; }
-  .ex-shell.collapsed .ex-nav-tg span { transform: rotate(180deg); }
   .ex-shell.collapsed .ex-nav-h { display: none; }
   /* 菜单项：只剩首字（没有图标就用菜单名第一个字），说明文字和标题全藏，title 提示完整名。
-     给每个菜单项一个圆形底（和科目圆点一致），收成真正的「图标栏」而不是裸字竖排 */
-  .ex-shell.collapsed .ex-nav-i { display: flex; align-items: center; justify-content: center; width: 38px; height: 38px;
+     给每个菜单项一个圆形底，收成真正的「图标栏」而不是裸字竖排。
+     2026-11-20 晚：**圆点直径和字号跟下面的科目圆点统一**（老师截图问「这里文字大小格式
+     是否统一」——原来菜单项 38px/15px、科目 30px/12.5px，一列看下去忽大忽小）。 */
+  .ex-shell.collapsed .ex-nav-i { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px;
     padding: 0; margin: 0 auto 6px; border-radius: 50%; background: var(--field2, rgba(255, 255, 255, .05)); }
   .ex-shell.collapsed .ex-nav-i b,
   .ex-shell.collapsed .ex-nav-i span { display: none; }
-  .ex-shell.collapsed .ex-nav-i::before { content: attr(data-i); font-weight: 600; font-size: 15px; }
+  .ex-shell.collapsed .ex-nav-i::before { content: attr(data-i); font-weight: 600; font-size: 14px; line-height: 1; }
   .ex-shell.collapsed .ex-nav-i:hover { background: var(--field3, rgba(255, 255, 255, .09)); }
   .ex-shell.collapsed .ex-nav-i.on { background: var(--accbg, rgba(47, 107, 255, .12)); color: var(--acc, #2f6bff); }
   .ex-shell.collapsed .ex-nav-sub { margin-top: 14px; padding-top: 12px; }
-  /* 科目 tab 缩成竖排小圆点，首字做标记，仍可切换 */
-  .ex-shell.collapsed .ex-subtabs { flex-direction: column; align-items: center; gap: 8px; border: 0; background: transparent; box-shadow: none; padding: 0; }
-  .ex-shell.collapsed .ex-subtab { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0; font-size: 0; border-radius: 50%; background: var(--field2, rgba(255, 255, 255, .05)); }
-  .ex-shell.collapsed .ex-subtab::before { content: attr(data-i); font-size: 12.5px; font-weight: 600; }
+  /* 科目 tab 缩成竖排小圆点，首字做标记，仍可切换 —— 直径/字号与上面完全一致 */
+  .ex-shell.collapsed .ex-subtabs { flex-direction: column; align-items: center; gap: 6px; border: 0; background: transparent; box-shadow: none; padding: 0; }
+  .ex-shell.collapsed .ex-subtab { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; padding: 0; font-size: 0; border-radius: 50%; background: var(--field2, rgba(255, 255, 255, .05)); }
+  .ex-shell.collapsed .ex-subtab::before { content: attr(data-i); font-size: 14px; font-weight: 600; line-height: 1; }
   .ex-shell.collapsed .ex-subtab::after { display: none; }
+  .ex-shell.collapsed .ex-subtab.on { background: var(--accbg, rgba(47, 107, 255, .12)); }
 }
-@media (max-width: 900px) { .ex-nav-tg { display: none; } }
 .ex-h { margin: 6px 0 18px; }
 .ex-h h1 { margin: 2px 0 4px; font-size: 32px; letter-spacing: -.02em; }
 .ex-h p { margin: 0; color: var(--dim, #6e6e73); }
@@ -694,7 +691,10 @@ button.danger { color: var(--bad, #d70015); }
 .ppwrap { position: relative; overflow: auto; overscroll-behavior: contain;
   border-radius: 14px; border: 1px solid var(--hair); background: #e6e9ee; padding: 12px; max-height: calc(100vh - 190px); }
 html[data-hx-mode="dark"] .ppwrap { background: #14171c; }
-.ppstage { position: relative; margin: 0 auto; }
+/* 卷面靠左贴住画布（2026-11-20 晚）：老师原话「理论试卷左移是不是就可以让右边题池
+   直接显示更完整了」。原来 margin:0 auto，纸比画布窄的时候两边各留一条空白，右边那条
+   白占着，看着像题池被挤扁了。改成贴左，空白全落到靠题池那一侧，纸和题池挨得近。 */
+.ppstage { position: relative; margin: 0 auto 0 0; }
 #ppFrame { position: absolute; left: 0; top: 0; border: 0; display: block; transform-origin: 0 0; background: transparent; box-shadow: 0 10px 30px -16px rgba(0, 0, 0, .5); }
 @media (max-width: 900px) { .ppwrap { max-height: calc(100vh - 150px); padding: 6px; } }
 
@@ -802,6 +802,27 @@ html[data-hx-mode="dark"] #ppDrawerMask.on { background: rgba(0, 0, 0, .45); }
   background: var(--card-solid, #fff); box-shadow: 0 18px 46px -18px rgba(10, 20, 40, .45);
   font-size: 13px; animation: ppxFade .1s ease both; }
 .bkq-pop .bkq-fq { color: var(--ink); margin-bottom: 6px; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   2026-11-20 晚：右侧题库栏改成「整池按题型分组」
+   老师原话「我们题池显示的就应该是完整题池 只不过我们要求已经被选中到试卷的要显示颜色
+   和悬停后额外显示试卷名 如试卷ABCD等」。原来一次只列当前那一大题，勾选/换题得来回切。
+   现在按题型分组平铺，组标题吸顶写「已填/要填」，当前要填的那一组高亮。
+   ═══════════════════════════════════════════════════════════════════════════ */
+/* 每组包一层 .bkq-sec：组标题的 sticky 只在自己这一组高度内生效（详见 ui-paper.js 里的注释） */
+.bkq-sec { display: grid; gap: 2px; align-content: start; }
+.bkq-sec + .bkq-sec { margin-top: 8px; }
+.bkq-grp { position: sticky; top: -1px; z-index: 1; display: flex; align-items: baseline; gap: 7px;
+  margin: 0 0 2px; padding: 5px 8px 5px 4px; border-bottom: 1px solid var(--hair);
+  background: var(--card-solid, #fff); }
+.bkq-grp b { font-size: 12.5px; font-weight: 650; color: var(--ink); }
+.bkq-grp i { font-style: normal; font: 600 11.5px/1.4 Consolas, "Cascadia Mono", monospace;
+  color: var(--mute); font-variant-numeric: tabular-nums; }
+.bkq-grp em { font-style: normal; margin-left: auto; font-size: 11px; font-weight: 600; color: var(--acc); }
+.bkq-grp.cur { background: var(--accbg); border-bottom-color: var(--acc); }
+.bkq-grp.cur b { color: var(--acc); }
+/* 现在要填的那一格（卷面上就是这道题）：实心蓝边，一眼看出"点下去换的是它" */
+.bkq.on { background: var(--accbg); border-color: var(--acc); }
 
 /* ============================================================
    像素方块「正在载入」药丸（2026-11-04）
@@ -1279,7 +1300,7 @@ button.off { opacity: .5; cursor: not-allowed; }
     box-shadow: none; background: var(--card); padding: 8px 0; overflow: hidden;
     transition: width 200ms cubic-bezier(.32, .72, 0, 1), padding 200ms cubic-bezier(.32, .72, 0, 1);
   }
-  .pp-page.bank-open > .ppdrawer.ppdbank#ppBank { width: 372px; padding: 12px 12px 8px; }
+  .pp-page.bank-open > .ppdrawer.ppdbank#ppBank { width: clamp(360px, 32vw, 460px); padding: 12px 12px 8px; }
   /* 2026-11-20：列表自己滚。原来整栏 overflow:hidden 且 .ppb-l 不滚，题一多就被裁在底部
      （老师说的「滚到第 80 题」根本滚不到）。让列表占满剩余高度、自己出滚动条，
      页头/筛选/底部按钮保持吸顶吸底，换题时也才能谈「保住滚动位置」。 */
@@ -7980,6 +8001,9 @@ function mountPaper(sub) {
     setTimeout(() => toast(`题池里有「${autoAdded.map(t => pType(t).name).join('、')}」，已在「设置 → 题型和分值」里补了一行（题数 0，填上就能出题）`), 600);
   }
   let P = null, timer = 0, ZOOM = 'fit', bankKey = '', pendingScroll = null;
+  /* 上一次画列表时「要填的是哪一大题」—— 换成别的题型才把那一组滚到眼前，
+     同一大题内重绘只还原滚动位置（见 renderBankNow 末尾）。 */
+  let lastGrp = '';
   /* 撤回 / 重做：只记 picks 的快照（老师真正的编辑动作）。题型题数改了不撤销 ——
      那个有「恢复默认」按钮，和这里混在一起会让老师搞不清撤的是什么。 */
   const UN = [], RE = [];
@@ -8615,18 +8639,29 @@ function mountPaper(sub) {
         let i = sec ? sec.items.findIndex(q => q && q.__blank) : 0;
         if (i < 0) i = 0;
         bankKey = sec0.t + ':' + i;
-        paintTabs(sec0.t);
-      } else { wrap.innerHTML = '<p class="note">还没有题型。</p>'; return; }
+      }
     }
-    const t = bankKey.split(':')[0];
-    const T = pType(t);
-    const sec = P && P.find(x => x.t === t);
+    /* ── 2026-11-20 晚：整池按题型分组 ──
+       老师原话「我们题池显示的就应该是完整题池 只不过我们要求已经被选中到试卷的要显示颜色
+       和悬停后额外显示试卷名 如试卷ABCD等 这样就不会选重复太多了」。
+       原来这里一句 `if (q.t !== t) return`，一次只看得到「当前那一大题」的题型，老师没法
+       一边对着卷面一边看「这道题别的卷子用过没有」。现在：卷面里有哪几道大题就分几组，
+       一次全摆出来（组标题上写「已填/要填」），点别的题型的题会自动落到那一大题的空位。 */
+    const groups = (P ? P.filter(s => +s.n > 0) : []).map(s => s.t);
+    if (!groups.length) {
+      wrap.innerHTML = '<p class="note" style="padding:12px 4px">这套卷还没排大题 —— 先去「设置 → 题型和分值」加一行。</p>';
+      return;
+    }
+    const curT = bankKey ? bankKey.split(':')[0] : groups[0];
+    paintTabs(curT);
     /* 标题栏要一直告诉老师「现在点一下是填哪一格」——否则右侧列表看着像在浏览，
        点下去却换掉了别的题（2026-11-19 补）。 */
     const cur = $('ppBankTitle');
     if (cur) {
-      const no = (+bankKey.split(':')[1] || 0) + 1;
-      const filled = !!(sec && sec.items[no - 1] && !sec.items[no - 1].__blank);
+      const T = pType(curT);
+      const no = (+(bankKey.split(':')[1] || 0)) + 1;
+      const secC = P.find(x => x.t === curT);
+      const filled = !!(secC && secC.items[no - 1] && !secC.items[no - 1].__blank);
       cur.innerHTML = `<b>${esc(T.name)} · 第 ${no} ${T.per}</b>` + (filled ? '<span class="ppd-cur">已选，点下面的题可换掉</span>' : '<span class="ppd-cur">空着</span>');
     }
     const chk = [...document.querySelectorAll('#ppBankCh input:checked')].map(x => +x.dataset.ch);
@@ -8637,38 +8672,84 @@ function mountPaper(sub) {
        拿不到（没打包进来 / 还没实现）就当空，绝不能让整个列表挂掉。 */
     let occ = {};
     try { occ = (window.HXLib && HXLib.occupied) ? (HXLib.occupied(sub) || {}) : {}; } catch (e) { occ = {}; }
-    const rows = [];
-    let occCount = 0;
-    curPool().forEach((q, i) => {
-      if (q.t !== t) return;
-      if (chk.length && chk.indexOf(q.ch) < 0) return;
-      if (kw && (q.q + ' ' + hxChoices(q.o).map(x => x.text).join(' ') + ' ' + curCH()[q.ch]).toLowerCase().indexOf(kw) < 0) return;
-      const pv = POOL ? qid(q) : i;
-      const busy = used.has(qid(q)) && !(sec && sec.items.some(x => x && qid(x) === qid(q)));
-      /* 色条 + 行尾小标签（卷名首字母），多个卷子取第一条的颜色，title 列出全部卷名 */
-      const ocRaw = occ[String(qid(q))];
-      const oc = (Array.isArray(ocRaw) ? ocRaw : (ocRaw ? [ocRaw] : [])).filter(x => x && (x.name || x.color));
-      const oc0 = oc[0] || null;
-      const ocColor = oc0 ? String(oc0.color || '#d9534f') : '';
-      const ocNames = oc.map(x => String(x.name || '').trim()).filter(Boolean);
-      const ocTitle = ocNames.length ? '已用于：' + ocNames.join('、') : '已用于别的试卷';
-      const ocLetter = ocNames.length ? ocNames[0].charAt(0) : '';
-      if (oc0) occCount++;
-      rows.push(`<div class="bkq${busy ? ' busy' : ''}${oc0 ? ' has-occ' : ''}" data-i="${pv}" draggable="true" role="button" tabindex="0"${oc0 ? ` data-occ="${esc(ocNames.join('、'))}" title="${esc(ocTitle)}" style="--bkq-oc:${esc(ocColor)}"` : ''}>
+    const pool = curPool();
+    const out = [];
+    let occCount = 0, shown = 0;
+    /* 「现在要填的那一格」对应的题（用来给列表里那一行打高亮）。
+       注意别拿题池下标 `i` 去和 bankKey 比 —— bankKey 是「题型:卷面第几格」，
+       i 是这条题在整池里的序号，两个维度对不上（旧的 `(gt+':'+i)===bankKey` 只在第 0 格碰巧成立）。
+       正确判据：这一格真正装的那道题，和当前这一行是不是同一道（比 qid）。 */
+    const curIdx = +(bankKey.split(':')[1] || 0);
+    const curSec = P.find(x => x.t === curT);
+    const curItem = curSec ? curSec.items[curIdx] : null;
+    const curQid = (curItem && !curItem.__blank) ? qid(curItem) : null;
+    groups.forEach(gt => {
+      const T = pType(gt);
+      const secT = P.find(x => x.t === gt);
+      const done = (secT ? secT.items : []).filter(q => q && !q.__blank).length;
+      const body = [];
+      pool.forEach((q, i) => {
+        if (q.t !== gt) return;
+        if (chk.length && chk.indexOf(q.ch) < 0) return;
+        if (kw && (q.q + ' ' + hxChoices(q.o).map(x => x.text).join(' ') + ' ' + curCH()[q.ch]).toLowerCase().indexOf(kw) < 0) return;
+        const pv = POOL ? qid(q) : i;
+        const busy = used.has(qid(q)) && !(secT && secT.items.some(x => x && qid(x) === qid(q)));
+        /* 色条 + 行尾小标签（卷名首字母），多个卷子取第一条的颜色，title 列出全部卷名 */
+        const ocRaw = occ[String(qid(q))];
+        const oc = (Array.isArray(ocRaw) ? ocRaw : (ocRaw ? [ocRaw] : [])).filter(x => x && (x.name || x.color));
+        const oc0 = oc[0] || null;
+        const ocColor = oc0 ? String(oc0.color || '#d9534f') : '';
+        const ocNames = oc.map(x => String(x.name || '').trim()).filter(Boolean);
+        const ocTitle = ocNames.length ? '已用于：' + ocNames.join('、') : '已用于别的试卷';
+        /* 行尾那颗小标签显示什么：老师说的是「试卷ABCD」，所以**优先认名字里的 A/B/C/D**
+           （卷名常写成「…期末考试试卷A」），名字里没有字母才退回取首字。
+           以前一律取首字，「2026期末A卷」会显示成「2」，根本看不出是哪一套。 */
+        const ocLetter = (() => {
+          const nm = ocNames[0] || '';
+          const m = nm.match(/[A-Da-d]/);
+          return m ? m[0].toUpperCase() : (nm.trim().charAt(0) || '');
+        })();
+        const isCur = !!curQid && gt === curT && qid(q) === curQid;   // 卷面上正填的就是这道题
+        if (oc0) occCount++;
+        body.push(`<div class="bkq${busy ? ' busy' : ''}${oc0 ? ' has-occ' : ''}${isCur ? ' on' : ''}" data-i="${pv}" draggable="true" role="button" tabindex="0"${oc0 ? ` data-occ="${esc(ocNames.join('、'))}" title="${esc(ocTitle)}" style="--bkq-oc:${esc(ocColor)}"` : ''}>
         <span class="bkq-ch">${POOL ? '章' + q.ch : 'P' + q.ch}</span><span class="bkq-q">${esc(ppCut(q.q, 60))}</span>
         ${POOL && q.src ? `<span class="bkq-src" title="${esc(q.src)}">${esc(ppCut(q.src, 20))}</span>` : ''}
         ${oc0 ? `<span class="bkq-occ" title="${esc(ocTitle)}">${esc(ocLetter)}</span>` : ''}
         ${busy ? '<span class="bkq-tag">本卷已用</span>' : ''}
         <button class="sm bkq-p" data-peek="${i}" aria-label="预览这道题">看</button></div>
         <div class="bkq-d" data-d="${i}" hidden>${fullHTML(q)}</div>`);
+      });
+      /* 这一大题一道符合条件的都没有 → 不占屏（否则滑一堆空标题） */
+      if (!body.length) return;
+      shown += body.length;
+      /* ⚠ 必须每组包一层 .bkq-sec 再让组标题粘：
+         sticky 的「粘住范围」是它所在的父盒子。原先把 .bkq-grp 直接摆在 .ppb-l 里，
+         父盒子就是整个列表，于是每一组的标题都会一直粘在顶上、互相叠着 ——
+         实测滚到「判断题」时顶上还写着「填空题」。
+         包一层以后，标题只在自己这一组的高度里粘，到下一组自然被顶走。 */
+      out.push(`<div class="bkq-sec" data-sec="${esc(gt)}">
+        <div class="bkq-grp${gt === curT ? ' cur' : ''}" data-grp="${esc(gt)}"><b>${esc(T.name)}</b><i>${done}/${secT ? secT.n : 0}</i>${gt === curT ? '<em>现在填这一大题</em>' : ''}</div>
+        ${body.join('')}
+      </div>`);
     });
-    wrap.innerHTML = rows.length ? rows.join('') : `<p class="note" style="padding:12px 4px">没有符合条件的题（换个知识点或清空搜索词）</p>`;
+    wrap.innerHTML = out.length ? out.join('') : `<p class="note" style="padding:12px 4px">没有符合条件的题（换个知识点或清空搜索词）</p>`;
     const hint = $('ppBankHint');
-    if (hint) hint.textContent = `${T.name}共 ${rows.length} 道可选` +
-      (occCount ? ' · 色条 = 这道题已经出在别的卷子上（悬停看是哪套）' : '');
+    if (hint) hint.textContent = `整池 ${shown} 道可选` +
+      (occCount ? ' · 左边色条 = 这道题已经出在别的卷子上（悬停看是哪一套）' : '');
     if ($('ppBankRand')) $('ppBankRand').disabled = !(C.picks[bankKey] != null);
-    /* 还原滚动 + 悬停态：.bkq-hov 只是补一帧的底色，鼠标一动真 :hover 就接上了 */
-    if (keepTop) { void wrap.scrollHeight; wrap.scrollTop = keepTop; }
+    /* 换了要填的那一大题（点卷面另一格 / 点上面的药丸）→ 把这一组滚到眼前；
+       同一大题内重绘才还原滚动位置，免得老师滚到第 80 题被弹回顶部。
+       ⚠ 别用 `g.offsetTop`：`.ppb-l` 不是定位元素，offsetTop 的参照物是外层那个
+       position:sticky 的 #ppBank，滚出来的位置会差好几行（实测停在上一组的尾巴上）。
+       一律用两边的 getBoundingClientRect 差值 + 当前 scrollTop 换算。 */
+    if (lastGrp !== curT) {
+      lastGrp = curT;
+      const g = wrap.querySelector(`.bkq-grp[data-grp="${curT}"]`);
+      if (g) {
+        const top = g.getBoundingClientRect().top - wrap.getBoundingClientRect().top + wrap.scrollTop;
+        wrap.scrollTop = Math.max(0, top - 1);
+      }
+    } else if (keepTop) { void wrap.scrollHeight; wrap.scrollTop = keepTop; }
     if (keepHov) {
       const r = wrap.querySelector(`.bkq[data-i="${keepHov}"]`);
       if (r) r.classList.add('bkq-hov');
@@ -8690,17 +8771,32 @@ function mountPaper(sub) {
 
   /* 把一个题池里的题放到「当前选中的那一格」。
      2026-11-19：这是主操作，点一下就行 —— 右边列表里的每一行都是「换到这一格」。 */
+  /* 找「这一题型下一个能落脚的格子」：先找空位；全填满了就落在最后一道（等于换掉它）。
+     2026-11-20 晚加：右侧栏改成整池以后，老师点的题可能不是当前这一大题的题型 ——
+     那就自动落到**它自己那一大题**的空位里，而不是弹一句「题型对不上」让人一脸问号。 */
+  function slotFor(t2) {
+    const sec2 = P && P.find(x => x.t === t2);
+    if (!sec2 || !+sec2.n) return null;
+    for (let i = 0; i < sec2.n; i++) if (!C.picks[t2 + ':' + i]) return t2 + ':' + i;
+    return t2 + ':' + (sec2.n - 1);
+  }
   function usePick(v) {
     if (!bankKey || !P) return;
     /* 换完题再给题库栏 2 秒「免缩回」宽限：老师多半正连着点下一道 */
     bankPickAt = Date.now();
     bankOpenTemp();
-    const t = bankKey.split(':')[0], idx = +bankKey.split(':')[1] || 0;
-    const sec = P.find(x => x.t === t);
-    if (!sec) return;
     const q = pickQ(POOL ? v : +v);
     if (!q) return toast('这道题在当前题库里找不到了，刷新一下再试');
-    if (q.t !== t) return toast('题型对不上：这一格要的是' + pType(t).name);
+    let t = bankKey.split(':')[0];
+    let moved = false;
+    if (q.t !== t) {
+      const k2 = slotFor(q.t);
+      if (!k2) return toast('这套卷没有「' + pType(q.t).name + '」这一大题 —— 要考它就先去「设置 → 题型和分值」加一行');
+      bankKey = k2; t = q.t; moved = true;
+    }
+    const idx = +bankKey.split(':')[1] || 0;
+    const sec = P.find(x => x.t === t);
+    if (!sec) return;
     commitPicks(() => { C.picks[bankKey] = POOL ? v : +v; });
     /* 换完自动跳到下一个空位，连着换十道不用每次回卷面点一下 */
     const next = (function () {
@@ -8708,8 +8804,9 @@ function mountPaper(sub) {
       for (let i = 0; i < sec.n; i++) if (!C.picks[t + ':' + i]) return t + ':' + i;
       return null;
     })();
-    const msg = `已换成${POOL ? chLabel(q.ch) : '项目' + q.ch}：${ppCut(q.q, 18)}`;
-    if (next) { bankKey = next; setTimeout(() => { renderBank(); paintTabs(t); }, 60); }
+    const msg = `已换成${POOL ? chLabel(q.ch) : '项目' + q.ch}：${ppCut(q.q, 18)}`
+      + (moved ? `（填到${pType(t).name}第 ${idx + 1} 题）` : '');
+    if (next) { bankKey = next; setTimeout(() => { renderBank(); paintTabs(t); }, 60); toast(msg); }
     else toast(msg);
   }
 
@@ -8901,15 +8998,11 @@ function mountPaper(sub) {
     C.kn = [...set];
     changed();
   });
-  $('ppNew').onclick = () => {
-    C.key = 'T' + Math.random().toString(36).slice(2, 6).toUpperCase();
-    /* 「换一套」是明确的重新抽题动作：把 noAuto 关掉，否则换了种子卷面也不会变。 */
-    C.noAuto = false;
-    if ($('ppKey')) $('ppKey').value = C.key;
-    changed();
-    const n = picksCount();
-    toast(n ? `已换一套题；你手动选的 ${n} 道题保留着` : '已换一套题（种子变了）');
-  };
+  /* 2026-11-20 晚：删掉「换一套」按钮和「换题种子」输入框。
+     老师原话「我不懂为什么要换题种子呢」。种子是内部的抽题键（同一份设置永远抽出同一套卷、
+     A/B/C 之间互不重题、存到试卷库还能原样复现），老师本来就不需要管它 ——
+     要换题，卷面工具栏有「AI 一键组卷 / 补齐剩余题目」，单道题直接在右侧整池里点。
+     C.key 照旧保留在数据里（lib-paper 复原、撤销重做、A/B/C 互斥都靠它），只是不再露给老师。 */
   $('ppReset').onclick = () => {
     C.sections = PAPER_DEFAULT.sections.map(s => ({ ...s }));
     C.weights = { ...PAPER_DEFAULT.weights };
@@ -9283,7 +9376,7 @@ function mountPaper(sub) {
   /* ================= 表单 ================= */
   F('ppYear', 'year'); F('ppTerm', 'term'); F('ppCourse', 'course'); F('ppVer', 'ver');
   F('ppMajor', 'major'); F('ppGrade', 'grade'); F('ppMode', 'mode'); F('ppMin', 'minutes', true);
-  F('ppKey', 'key'); F('ppSpace', 'space');
+  F('ppSpace', 'space');
 
   const base = () => `${C.course}_期末试卷${C.ver}卷`;
   $('ppPdf').onclick = () => {
@@ -9950,7 +10043,6 @@ let CUR_T = 'exam', CUR_SUB = 'mcu';
 function teacherShell() {
   $('app').innerHTML = `<div class="ex-shell">
     <nav class="ex-nav" id="exNav">
-      <button class="ex-nav-tg" id="exNavTg" type="button" title="收起侧栏" aria-label="收起侧栏" aria-expanded="true"><span>⟨</span></button>
       <div class="ex-nav-h">考试</div>
       <div class="ex-nav-sub" id="exSub"></div>
       ${T_PAGES.filter(([k]) => k !== 'lib' || isTeacher()).map(([k, n, s]) => `<button class="ex-nav-i" data-t="${k}" data-i="${esc(n[0])}" title="${esc(n)}：${esc(s)}"><b>${n}</b><span>${s}</span></button>`).join('')}
@@ -9964,40 +10056,25 @@ function teacherShell() {
      拉不到（没建表 / 没登录）时 loadSubjects 保留内置那份，页面照常能用。 */
   loadSubjects();
 }
-/* 左侧栏伸缩（2026-11-19 第六轮）：点顶部手柄把 .ex-nav 收成 56px 窄条图标栏，
-   只露菜单名首字 + 科目首字圆点，标题/说明文字全藏；状态存 localStorage，刷新记住。
-   class 挂在 .ex-shell 上，这样 .ex-shell.wide（组卷页）收起时同样收成 56px。 */
 /* 左侧栏自动收缩（2026-11-19）：默认收成 56px 窄条图标栏（贴最左边），
-   鼠标放上去展开，移开 3 秒自动缩回。手柄仍可点一下手动展开/收起（点手柄会临时锁定：
-   手动展开后不再自动缩，直到再点手柄或移开悬停才恢复自动）。 */
+   鼠标放上去展开，移开 3 秒自动缩回。
+   2026-11-20 晚：**删掉那颗手动「收起侧栏」手柄**（老师原话「手动关闭键取消删除」）——
+   展开/缩回全交给悬停，不再需要老师点一下；那颗 ⟨ 按钮摆在那儿只会让人以为要点它。
+   连带「手动固定展开（pinned）」也一起去掉：不用再记「现在是不是被固定住了」。 */
 function initNavCollapse() {
   const shell = document.querySelector('.ex-shell');
   const nav = $('exNav');
-  const tg = $('exNavTg');
-  if (!shell || !nav || !tg) return;
-  let timer = null, pinned = false;
-  const apply = c => {
-    shell.classList.toggle('collapsed', c);
-    tg.title = c ? '展开侧栏' : '收起侧栏';
-    tg.setAttribute('aria-label', c ? '展开侧栏' : '收起侧栏');
-    tg.setAttribute('aria-expanded', c ? 'false' : 'true');
-  };
-  const collapseSoon = () => {
-    clearTimeout(timer);
-    if (pinned) return;               // 手动固定了就不自动缩
-    timer = setTimeout(() => apply(true), 3000);
-  };
+  if (!shell || !nav) return;
+  let timer = null;
+  const apply = c => shell.classList.toggle('collapsed', c);
   const expandNow = () => { clearTimeout(timer); apply(false); };
-  // 默认收起（贴最左边）
-  apply(true);
+  const collapseSoon = () => { clearTimeout(timer); timer = setTimeout(() => apply(true), 3000); };
+  apply(true);                       // 默认收起（贴最左边）
   nav.addEventListener('mouseenter', expandNow);
   nav.addEventListener('mouseleave', collapseSoon);
-  // 手柄：点一下手动展开/收起，并把它固定住（不再自动缩）；再点一次恢复自动
-  tg.onclick = () => {
-    pinned = !pinned;
-    if (pinned) { clearTimeout(timer); apply(false); tg.title = '已固定展开（再点恢复自动）'; }
-    else { apply(false); collapseSoon(); }
-  };
+  /* 键盘用户没有 hover：焦点进到侧栏就展开，离开就按悬停同一套规则缩回 */
+  nav.addEventListener('focusin', expandNow);
+  nav.addEventListener('focusout', () => { if (!nav.contains(document.activeElement)) collapseSoon(); });
 }
 function exNavClick(e) {
   const t = e.target.closest('[data-t]');
@@ -10157,7 +10234,7 @@ async function paperHome() {
                所以给一个「覆盖已有卷」下拉，选哪套就原地替换，不再多出一条。 -->
           <label class="pplib-ov">覆盖已有卷<select id="ppLibOver"><option value="">另存为新的一套</option></select></label>
           <p class="note pplib-hint" id="ppLibOvHint">在已存的某套卷上改了点东西？上面选中它，再点「覆盖保存」——原来那套被替换，不会多出一条。</p>
-          <p class="note">存的是这一页的全部设置（试卷信息、题型分值、各项目比重、换题种子、你手动选的题）。存好的卷在左侧栏的「试卷库」里：点「选用」载回来继续改，勾选 2–3 套可以查重复度。</p></div>
+          <p class="note">存的是这一页的全部设置（试卷信息、题型分值、各项目比重、你手动选的题）。存好的卷在左侧栏的「试卷库」里：点「选用」载回来继续改，勾选 2–3 套可以查重复度。</p></div>
         <div class="card"><h2>试卷信息</h2>
           <div class="ppform">
             <label>学年 <input id="ppYear"></label>
@@ -10169,10 +10246,14 @@ async function paperHome() {
             <label>适用年级 <input id="ppGrade"></label>
             <label>考试时间（分钟）<input id="ppMin" type="number" min="30" max="180"></label>
             <label>答题留白 <select id="ppSpace"><option value="auto">自动（A3 双面，尽量 2 张）</option><option value="loose">宽松</option><option value="normal">标准</option><option value="tight">紧凑</option></select></label>
-            <label class="wide" title="决定「抽哪一套题」。种子不变，这套设置每次打开、每次打印都是同一套题（A/B/C 三卷也靠它保证互不重题）；想换一批题就点右边的「换一套」。线下考试定稿后别再动它。">换题种子（决定抽哪一套题）<input id="ppKey" class="mono"></label>
-            <div class="row" style="align-items:flex-end"><button id="ppNew">换一套</button></div>
           </div>
-          <p class="note"><b>种子 = 抽题的「随机键」</b>：同一个种子、同一套设置，抽出来的题永远一样——所以定稿打印前先把它定下来，之后每次打开、每次点「导出 PDF」都是同一份卷子，不会今天一套明天一套。A/B/C 三卷也是靠它保证<b>互不重题</b>（同一份知识点、不同题）。想换一批题，点右边「换一套」换个种子即可；换种子时你<b>手动点的题会保留</b>。线下考试：种子定了就别再动，改题数 / 分值 / 留白都不影响已抽出的题。</p></div>
+          <!-- 2026-11-20 晚：「换题种子 + 换一套」整块删掉（老师原话「我不懂为什么要换题种子呢」）。
+               抽题键还在数据里（同一份设置永远同一套卷、A/B/C 互不重题、存试卷库能复现），
+               只是不再摆给老师看 —— 要换题有「AI 一键组卷 / 补齐剩余题目」，单题在右侧整池里点。 -->
+          <p class="note"><b>抽题是自动的</b>：上面定了题型、题数和各项目比重，系统就照这些条件从题池里抽，
+            同一份设置每次打开、每次导出都是<b>同一套卷</b>（不会今天一套明天一套），A/B/C 三卷之间也互不重题。
+            想换一批题，卷面工具栏有「<b>AI 一键组卷</b>」和「<b>补齐剩余题目</b>」；单道题想换，直接点卷面上那道题，
+            从右侧<b>整池</b>里挑 —— 已经被别的卷子用过的题会带一条色条，鼠标停一下能看出是哪一套。</p></div>
         <div class="card"><h2>题型和分值</h2>
           <p class="note" style="margin:0 0 8px">题型来自题池（在「资料库 → AI 出题 → 管理题型」里加/改名）。这里只决定这套卷出哪几种、各几题、每题几分。</p>
           <table class="mini pptypes"><tbody id="ppTypes"></tbody></table>
