@@ -594,6 +594,14 @@ button.danger { color: var(--bad, #d70015); }
 .pplib-hint { margin: 4px 0 10px; }
 .pplib-hint.pplib-warn { color: var(--warn, #b25000); font-weight: 500; }
 /* 每行题型下面那行「实际抽到 X 题」：和填的数字不一致时变黄，说明是题池不够，不是算错 */
+/* 题型表底下那一行：加一大题 / 满分 / 凑成 100 分 / 恢复默认。
+   原来「加一大题…」被挤到只剩「加...」（药丸下拉的宽度由选项文字决定），现在给死下限。 */
+.pp-typebar { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; }
+.pp-typebar #ppAddType { min-width: 156px; }
+.pp-typebar #ppTotal { flex: 1 1 auto; min-width: 0; }
+/* 「未标章节」那种掉在章节外的分值：红一点，提示老师去补章节 */
+.ppbar.ppbar-x span, .ppbar.ppbar-x b { color: var(--warn, #b25000); }
+.ppbar.ppbar-x i { background: color-mix(in srgb, var(--warn, #b25000) 55%, transparent); }
 .pp-act { margin-top: 2px; font-size: 11.5px; color: var(--mute); }
 .pp-act-warn { color: var(--warn, #b25000); font-weight: 600; }
 /* 设置弹窗底部吸底条：说明 + 「完成」 */
@@ -6460,7 +6468,18 @@ const paperTotal=P=>P.reduce((a,s)=>a+s.total,0);
 function paperStats(P){
   /* 空白卷的占位题（__blank）没有真章节，ch 恒 0 —— 不跳过的话「各项目分值分布」里会多出
      一个 `undefined：54 分`（2026-11-19 实测参考答案导出里就有这一行）。 */
-  const ch={};P.forEach(s=>s.items.forEach(q=>{if(!q||q.__blank)return;const w=s.t==='fill'?blanksOf(q)*s.pts:s.pts;ch[q.ch]=(ch[q.ch]||0)+w;}));
+  /* 2026-11-20：老师截图「各项目比重下面全是 0 分，改了也不显示」。根因是这里直接拿 q.ch 当键：
+     题池里 ch 为 null / 0 / '3'（字符串）/ undefined 的题会落到 `undefined`、`'3'` 这些没人认的键上，
+     界面上按 curCH() 的 1..5 去取就全是 0，而满分又是对的 —— 看起来像「算错」，其实是掉进了看不见的桶。
+     现在统一 `+q.ch || 0` 归一，并且**一定**留一个 0 号桶（未标章节）：有分就在界面上显式列出来，
+     不会再有「90 分凭空消失」这种事。 */
+  const ch={0:0};
+  P.forEach(s=>s.items.forEach(q=>{
+    if(!q||q.__blank)return;
+    const w=s.t==='fill'?blanksOf(q)*s.pts:s.pts;
+    const k=(+q.ch)||0;
+    ch[k]=(ch[k]||0)+w;
+  }));
   return ch;
 }
 
@@ -7660,7 +7679,33 @@ function mountPaper(sub) {
     if ($('ppMeta')) $('ppMeta').innerHTML = `<b>共 ${nq} 题</b> · 满分 ${total} 分`
       + (blanks ? ` · <span class="pppicked">空着 ${blanks} 道</span>` : '')
       + (picksCount() ? ` · <span class="pppicked">已手动选 ${picksCount()} 道</span>` : '');
-    $('ppStat').innerHTML = Object.keys(curCH()).map(c => `<div class="ppbar"><span>${esc(chLabel(c))}</span><i style="--w:${total ? ((st[c] || 0) / total * 100).toFixed(1) : 0}%"></i><b>${st[c] || 0} 分</b></div>`).join('') +
+    /* 分章分布（2026-11-20 修）：
+       ① 章节键统一按数字取，`+q.ch||0` 已经在 paperStats 里归一；
+       ② curCH() 里没有的桶（通常是 0 = 未标章节）如果**有分**，单独列一行红条 —— 不许静默丢掉；
+       ③ 全 0 但满分不为 0 时给一句诊断，告诉老师该去题池补章节，而不是让他盯着 0 猜。 */
+    const keys = Object.keys(curCH()).map(Number);
+    const bar = (label, v, cls) => `<div class="ppbar ${cls || ''}"><span>${esc(label)}</span>`
+      + `<i style="--w:${total ? (v / total * 100).toFixed(1) : 0}%"></i><b>${v} 分</b></div>`;
+    let statHTML = keys.map(c => bar(chLabel(c), st[c] || 0)).join('');
+    const extra = Object.keys(st).map(Number).filter(c => keys.indexOf(c) < 0 && (st[c] || 0) > 0);
+    if (extra.length) {
+      statHTML += extra.map(c => bar(c === 0 ? '未标章节' : ('第' + c + '章'), st[c] || 0, 'ppbar-x')).join('');
+    }
+    const sum = keys.reduce((a, c) => a + (st[c] || 0), 0) + extra.reduce((a, c) => a + (st[c] || 0), 0);
+    /* 空白卷（题目还没填）压根没有真题，说「章节号是空的」会把人带偏，单独一句 */
+    if (C.blank) {
+      statHTML += `<div class="warns" style="margin-top:8px">现在是<b>空白卷</b>（题目还没填），填上题之后这里才会出分值分布。</div>`;
+    } else if (total > 0 && sum === 0) {
+      statHTML += `<div class="warns" style="margin-top:8px">这些题的<b>章节号是空的</b>，所以分不到各章。去题池给它们补上章节（或让 AI 出题时在题干里写明是第几章），这里才会出分布。</div>`;
+    } else if (extra.length) {
+      statHTML += `<div class="warns" style="margin-top:8px">有 ${extra.reduce((a, c) => a + (st[c] || 0), 0)} 分落在<b>未标章节</b>的题上 —— 想按章统计，就去题池补一下章节号。</div>`;
+    }
+    /* 题池里没章节号的题**不参与抽题**（weight 取不到 = 0）。这件事必须说出来，
+       否则老师看着「题池里有 451 道」却只抽出几道，会觉得算错了。 */
+    let noCh = 0;
+    try { const pool = curPool() || []; noCh = pool.filter(q => !(+q.ch) && !q.__blank).length; } catch (e) { }
+    $('ppStat').innerHTML = statHTML +
+      (noCh ? `<div class="warns" style="margin-top:8px">题池里有 <b>${noCh} 道题没有章节号</b>，它们不参与抽题（没有分章权重）。想用上它们，去资料库题池给这些题补章节。</div>` : '') +
       (short.length ? `<div class="warns" style="margin-top:8px">题库里题不够：${short.join('；')}，已按能抽到的出。</div>` : '');
     paintFill();
   }
@@ -7769,6 +7814,30 @@ function mountPaper(sub) {
   if ($('ppSet')) $('ppSet').onclick = () => drawer('ppDrawer');
   /* 「完成」= 关弹窗 + 一句反馈。设置本来就是即时生效的（改一下就重排卷面、重新抽题），
      但原来没有任何收尾动作，老师会以为「改了没保存」（2026-11-20 反馈）。 */
+  /* 凑成 100 分（2026-11-20）：老师的原话「还要我自己算分是不是正好 100」。
+     按当前各题型的**实际题数**（填空是空数）把分值按比例缩放，再以 0.5 分为步长微调，
+     直到 Σ 正好 100。只动分值、不动题数 —— 题数是老师自己定的。 */
+  if ($('ppFit100')) $('ppFit100').onclick = () => {
+    const cnt = P.map(s2 => s2.count);
+    const cur = C.sections.map(s2 => +(s2.pts) || 0);
+    const tot = cnt.reduce((a, n, i) => a + n * cur[i], 0);
+    if (!tot) return toast('这套卷还没有题，先加题型或抽题');
+    const f = 100 / tot;
+    let pts = cur.map(v => Math.max(0.5, Math.round(v * f * 2) / 2));
+    const sum = () => cnt.reduce((a, n, i) => a + n * pts[i], 0);
+    /* 用「每 0.5 分 × 题数」当最小步长：挑题数最少的那一栏来吸收误差，平均 1~2 次就能落平 */
+    const order = cnt.map((n, i) => i).filter(i => cnt[i] > 0).sort((a, b) => cnt[a] - cnt[b]);
+    for (let guard = 0; guard < 400 && Math.abs(sum() - 100) > 1e-9; guard++) {
+      const d = sum() > 100 ? -0.5 : 0.5;
+      const i = order.find(k => pts[k] + d >= 0.5);
+      if (i == null) break;
+      pts[i] = Math.round((pts[i] + d) * 2) / 2;
+    }
+    if (Math.abs(sum() - 100) > 1e-9) return toast('这套题数凑不出正好 100 分，请手动微调一下分值');
+    C.sections.forEach((s2, i) => { s2.pts = pts[i]; });
+    renderTypes(); changed();   // changed() 里已经 paperSave + 防抖重排
+    toast('已按现在的题数把分值调成满分 100');
+  };
   if ($('ppSetDone')) $('ppSetDone').onclick = () => {
     drawer('ppDrawer', false);
     toast('设置已生效（卷面已按新设置重排）');
@@ -9407,7 +9476,9 @@ async function paperHome() {
         <div class="card"><h2>题型和分值</h2>
           <p class="note" style="margin:0 0 8px">题型来自题池（在「资料库 → AI 出题 → 管理题型」里加/改名）。这里只决定这套卷出哪几种、各几题、每题几分。</p>
           <table class="mini pptypes"><tbody id="ppTypes"></tbody></table>
-          <div class="row" style="justify-content:space-between;margin-top:8px"><select id="ppAddType" aria-label="加一大题"></select><span id="ppTotal"></span><button id="ppReset">恢复默认</button></div></div>
+          <div class="row pp-typebar" style="margin-top:8px"><select id="ppAddType" aria-label="加一大题"></select><span id="ppTotal"></span>
+            <button class="sm" id="ppFit100" title="按现在的题数，把各题型分值按比例缩放，让满分正好 100 分">凑成 100 分</button>
+            <button id="ppReset">恢复默认</button></div></div>
         <div class="card"><h2>各项目比重</h2>
           <div class="ppws" id="ppW"></div>
           <p class="note">数字是相对比重，默认项目 1～4 为主、项目 5 少一些；填 0 表示不出这一项目的题（你手动点的题不受这条限制）。下面是这套卷实际的分值分布：</p>
