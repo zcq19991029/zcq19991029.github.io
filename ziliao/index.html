@@ -2275,12 +2275,26 @@ async function matGenCommit(items, mid, sid, state) {
   const r = await MAT_call('hx_exam_qbank_add', { p_subject_id: sid, p_items: fresh, p_material_id: mid });
   if (!r.ok) { MAT_FIG_BAD = 0; MAT_banner('进题池失败：' + r.err); if (state) state.textContent = '入池失败：' + r.err; return { ok: false, added: 0, dup: dup.length, err: r.err }; }
   const added = (r.data && r.data.added) || 0;
+  /* 2026-11-20：云端 add 现在会回 skipped（题型 key 不合规被挡下）。
+     老师那次「实操题 0 道」就是被函数里写死的六种题型白名单挡掉的，函数还老实返回 added:0，
+     界面只能说「0 道」—— 现在至少能说清是哪一种情况。 */
+  const skipped = (r.data && r.data.skipped) || 0;
+  if (!added && !dup.length) {
+    MAT_FIG_BAD = 0;
+    const why = skipped
+      ? `写进题池 0 道：这 ${skipped} 道题的题型 key 不被接受（自建题型的 key 只能用 a-z / 0-9 / 下划线，且不能以数字开头）`
+      : `写进题池 0 道：云端一条都没收下（题型或题面不合规）`;
+    MAT_banner(why);
+    if (state) state.textContent = why;
+    return { ok: false, added: 0, dup: 0, err: why };
+  }
   const dmsg = dup.length ? `，${dup.length} 道与题池重复已跳过` : '';
+  const smsg = skipped ? `，${skipped} 道题型不被接受已跳过` : '';
   /* 这一批有多少处 fig 认不出（题干 + 选项合在一起数），说过一次就清零，下一批重新算。 */
   const badFig = MAT_FIG_BAD; MAT_FIG_BAD = 0;
   const fmsg = badFig ? `，${badFig} 处图符号认不出已忽略` : '';
-  toast('已加入题池 ' + added + ' 道' + dmsg + fmsg);
-  if (state) state.textContent = `已进入「${matQtName(MAT_QK)}」题池 ${added} 道` + dmsg + fmsg;
+  toast('已加入题池 ' + added + ' 道' + dmsg + smsg + fmsg);
+  if (state) state.textContent = `已进入「${matQtName(MAT_QK)}」题池 ${added} 道` + dmsg + smsg + fmsg;
   loadSubjects(true);   // 题数变了：科目卡的计数要重算
   return { ok: true, added, dup: dup.length };
 }
