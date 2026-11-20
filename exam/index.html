@@ -782,6 +782,27 @@ html[data-hx-mode="dark"] #ppDrawerMask.on { background: rgba(0, 0, 0, .45); }
 .bkq-a { margin-top: 6px; color: var(--acc); }
 .bkq-a b { color: var(--mute); font-weight: 600; margin-right: 6px; font-size: 12px; }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   2026-11-20：右侧题库列表三项修复
+   1) 悬停 2 秒浮出整道题（.bkq-pop 挂 body，position:fixed，不受列表重绘影响）
+   2) 已出在别的卷子上的题：左侧 3px 竖色条 + 行尾卷名首字母（颜色由 HXLib.occupied 给）
+   3) 列表重绘不再闪：底色只做 120ms 过渡，重绘后由 .bkq-hov 补一帧悬停底色，避免闪白
+   ═══════════════════════════════════════════════════════════════════════════ */
+.bkq { position: relative; transition: background-color .12s ease, border-color .12s ease; }
+.bkq-hov, .bkq.bkq-hold { background: var(--field2); }
+.bkq.bkq-drag { opacity: .45; }
+.bkq.has-occ { grid-template-columns: auto minmax(0, 1fr) auto auto auto auto; }
+.bkq.has-occ:not(:has(.bkq-src)) { grid-template-columns: auto minmax(0, 1fr) auto auto auto; }
+.bkq.has-occ::before { content: ''; position: absolute; left: 1px; top: 7px; bottom: 7px; width: 3px;
+  border-radius: 3px; background: var(--bkq-oc, #d9534f); }
+.bkq-occ { display: inline-grid; place-items: center; min-width: 17px; height: 17px; padding: 0 4px;
+  border-radius: 5px; font: 700 10px/1 system-ui, sans-serif; color: #fff; background: var(--bkq-oc, #d9534f); }
+.bkq-pop { position: fixed; z-index: 95; max-width: min(460px, 92vw); max-height: 60vh; overflow: auto;
+  overscroll-behavior: contain; padding: 10px 13px 12px; border: 1px solid var(--hair); border-radius: 12px;
+  background: var(--card-solid, #fff); box-shadow: 0 18px 46px -18px rgba(10, 20, 40, .45);
+  font-size: 13px; animation: ppxFade .1s ease both; }
+.bkq-pop .bkq-fq { color: var(--ink); margin-bottom: 6px; }
+
 /* ============================================================
    像素方块「正在载入」药丸（2026-11-04）
    ------------------------------------------------------------
@@ -1259,6 +1280,10 @@ button.off { opacity: .5; cursor: not-allowed; }
     transition: width 200ms cubic-bezier(.32, .72, 0, 1), padding 200ms cubic-bezier(.32, .72, 0, 1);
   }
   .pp-page.bank-open > .ppdrawer.ppdbank#ppBank { width: 372px; padding: 12px 12px 8px; }
+  /* 2026-11-20：列表自己滚。原来整栏 overflow:hidden 且 .ppb-l 不滚，题一多就被裁在底部
+     （老师说的「滚到第 80 题」根本滚不到）。让列表占满剩余高度、自己出滚动条，
+     页头/筛选/底部按钮保持吸顶吸底，换题时也才能谈「保住滚动位置」。 */
+  .pp-page > .ppdrawer.ppdbank#ppBank .ppb-l { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
   /* 收起态：内容全藏起来，只剩那颗竖排「题库」手柄 */
   .pp-page:not(.bank-open) > .ppdrawer.ppdbank#ppBank > *:not(.ppb-handle) { display: none !important; }
   .pp-page.bank-open > .ppdrawer.ppdbank#ppBank > .ppb-handle { display: none !important; }
@@ -6458,10 +6483,23 @@ function pickSections(cfg,seed,used,picks){
     }
     const pinK=new Set(pin.map(x=>x.k));
     let have=0;
+    /* 2026-11-20：填空题这一大题的 n 是**空数**，不是题数。老师设「10 空」，
+       卷面却排出 16 空（截图：实际抽到 16 空（差 -6）少算成超），根因就在这里 ——
+       点名的题（含「按理论试卷题量」自动勾的那一批、以及右侧题库点过来的题）**全部照收**，
+       一道 3 空的题叠一道 2 空的题，很容易就越过预算。现在按空数排队收：
+       收满 sec.n 为止，再来的收不进去（记到 sec.__drop，界面上明说），
+       保证「说 10 空就是 10 空」，而不是「给你 10 道题、空数看运气」。 */
+    const dropped=[];
     pin.forEach(x=>{
-      have+=cnt(x.q);used.add(x.k);           // 同一套卷里不能再出现第二遍
-      const p=cnt(x.q)*sec.pts;acc[x.q.ch]=(acc[x.q.ch]||0)+p;tot+=p;
+      const c=cnt(x.q);
+      if(have+c>sec.n){dropped.push(x);return;}
+      have+=c;used.add(x.k);                  // 同一套卷里不能再出现第二遍
+      const pts=c*sec.pts;acc[x.q.ch]=(acc[x.q.ch]||0)+pts;tot+=pts;
+      x.__fit=true;
     });
+    if(dropped.length)sec.__drop=dropped.length;
+    const pinFit=pin.filter(x=>x.__fit);
+    pin.length=0;pinFit.forEach(x=>pin.push(x));
     const pool=curPool().filter(q=>q.t===sec.t&&wOf(q.ch)>0&&!pinK.has(qid(q))&&(!knSel||knSel.has(knVal(q))));
     const need=sec.t==='fill'?Math.ceil(sec.n/2):sec.n;
     const fresh=pool.filter(q=>!used.has(qid(q)));
@@ -6638,6 +6676,11 @@ body[data-edit="1"] .ednote{display:block;font:9px/1.5 "SimHei","黑体",sans-se
 body[data-edit="1"] .edx{position:absolute;right:0;top:-1px;font:9px/1.35 "SimHei","黑体",sans-serif;font-style:normal;color:#fff;background:#2f6bff;border-radius:0 3px 3px 0;padding:0 4px;opacity:.22;transition:opacity .12s;pointer-events:none;user-select:none}
 body[data-edit="1"] .ed.pin .edx{opacity:.7}
 body[data-edit="1"] .ed:hover .edx{opacity:1}
+/* 从右侧题库往卷面上拖时，光标压住的那一格（2026-11-20 老师「现在都不让拖动」）：
+   虚线橙框 + 浅黄底，比悬停的蓝底更实，一眼看出松手会落到哪一道。
+   写在 :hover 之后、同为两个类选择器，所以拖拽高亮能盖住悬停底色。 */
+body[data-edit="1"] .ed.drop-hot{background:#fff6d8;outline:2px dashed #e8940a;outline-offset:2px;box-shadow:inset 0 0 0 2px rgba(232,148,10,.16)}
+body[data-edit="1"] .ed.drop-hot .edx{opacity:1}
 /* 手机上看不出 hover，小标常亮，否则老师根本发现不了题目能点 */
 @media (hover:none),(pointer:coarse){body[data-edit="1"] .edx{opacity:.85;padding:0 5px;font-size:10px}}
 @media print{html,body{background:#fff}.sheet{margin:0}
@@ -6695,7 +6738,8 @@ const PAPER_LAYOUT_JS=`
   document.body.setAttribute('data-pages',N);
   if(window.parent&&window.parent!==window)try{window.parent.postMessage({paperReady:true,pages:N},'*');}catch(e){}
 })();`;
-/* 编辑态脚本：点题 → 告诉父页“哪一节第几题”，父页开题库抽屉。
+/* 编辑态脚本（只在网页预览里跑，打印 / 导出不带）：单击点题 / 双击改题 → 告诉父页「哪一节第几题」；
+   2026-11-20 又加了两件：接收右侧题库拖过来的题（drop）、把卷面真实高度报给父页（paperHeight）。
    产物是单文件 HTML，这里绝不能出现结束标签的字面写法（build.js 会拦），所以只用字符串拼。 */
 const PAPER_EDIT_JS=`
 (function(){
@@ -6704,7 +6748,7 @@ const PAPER_EDIT_JS=`
      单击是「换一道」（开题库抽屉），双击是「改这道」，两者会打架：
      双击时浏览器先发一次 click，抽屉就会闪一下。所以单击延迟 220ms 再发，
      这期间来了 dblclick 就取消单击 —— 单点仍然跟手，双击也不会误开抽屉。 */
-  var t1=null;
+  var t1=null,noClickUntil=0,dragOn=false,hot=null,ht=0,lastH=0;
   function pick(el){ try{parent.postMessage({hxPaperPick:el.getAttribute('data-k'),no:+el.getAttribute('data-no'),t:el.getAttribute('data-t')},'*');}catch(x){} }
   function edit(el){ try{parent.postMessage({hxPaperEdit:el.getAttribute('data-k'),no:+el.getAttribute('data-no'),t:el.getAttribute('data-t')},'*');}catch(x){} }
   function host(e){
@@ -6712,16 +6756,125 @@ const PAPER_EDIT_JS=`
     while(el&&el!==document&&!(el.getAttribute&&el.getAttribute('data-k')))el=el.parentNode;
     return (el&&el!==document&&el.getAttribute)?el:null;
   }
+  /* ---------- 从右侧题库拖一道题过来（2026-11-20）----------
+     老师原话：「我是希望拖动题目进我想更换的地方或者空题处，直接更换；现在都不让拖动」。
+     右侧列表（ui-paper.js 的 renderBank）每行 draggable，dragstart 时 setData('text/hxq', 题的 key)；
+     这里接管卷面这半程：光标压住哪一格就给哪一格加 .drop-hot，松手把「目标格 + 拖来的 key」发回父页，
+     替换 / 填空由父页统一处理（它才知道 picks 怎么改、撤回栈怎么进）。
+     ── 为什么用 text/hxq 这个自定义 MIME ──
+     只有本工具自己拖得出来：从桌面上拖一张图、从别的网页拖一段字进来，都不该被当成换题。
+     ── 为什么不跟单击/双击打架 ──
+     拖拽过程中浏览器本来就不发 click（mousedown 在父页那一侧）；但拖完松手在卷面上时个别浏览器
+     会补一次 click，所以再上一道保险：dragover 时把 noClickUntil 往后推，click 里先看这个时间戳。 */
+  function isHx(e){
+    var t=e.dataTransfer&&e.dataTransfer.types;
+    if(!t)return false;
+    for(var i=0;i<t.length;i++)if(t[i]==='text/hxq')return true;
+    return false;
+  }
+  function clearHot(){ if(hot){hot.classList.remove('drop-hot');hot=null;} }
+  function setHot(el){
+    if(hot===el)return;
+    clearHot();
+    if(el){el.classList.add('drop-hot');hot=el;}
+  }
+  document.addEventListener('dragenter',function(e){
+    if(!isHx(e))return;
+    e.preventDefault();
+    dragOn=true;noClickUntil=Date.now()+400;
+    setHot(host(e));
+  },true);
+  document.addEventListener('dragover',function(e){
+    if(!isHx(e))return;
+    e.preventDefault();
+    try{e.dataTransfer.dropEffect='copy';}catch(x){}
+    dragOn=true;noClickUntil=Date.now()+400;
+    /* 每帧都按当前坐标重找一次目标块：跨格移动时先到的可能是上一格的 dragleave，
+       不能靠它清高亮，否则快速划过会闪 */
+    setHot(host(e));
+  },true);
+  document.addEventListener('dragleave',function(e){
+    if(!isHx(e))return;
+    var to=e.relatedTarget;
+    /* 真的离开了整张卷面（relatedTarget 为空 = 出去了）才收高亮；
+       在格子之间挪动的情况留给紧跟着的 dragover 去改目标 */
+    if(!to||to===document.documentElement||!document.documentElement.contains(to)){
+      clearHot();dragOn=false;noClickUntil=Date.now()+300;
+    } else if(hot&&!hot.contains(to)) clearHot();
+  },true);
+  document.addEventListener('dragstart',function(e){
+    /* 2026-11-20：卷面内部的题也能拖（老师：「试卷内部的题目可以拖动互换位置（同题型情况下）」）。
+       拖出来的就是这一格自己的 key（fill:3 这种），父页一看不是题库 key 就走「互换」而不是「换题」。 */
+    var el=host(e); if(!el)return;
+    try{e.dataTransfer.setData('text/hxq',el.getAttribute('data-k'));e.dataTransfer.effectAllowed='move';}catch(x){}
+    dragOn=true;noClickUntil=Date.now()+400;
+    el.style.opacity='.5';
+  },true);
+  document.addEventListener('dragend',function(e){
+    var el=host(e); if(el)el.style.opacity='';
+    dragOn=false;noClickUntil=Date.now()+300;
+    clearHot();
+  },true);
+  document.addEventListener('drop',function(e){
+    if(!isHx(e))return;
+    e.preventDefault();
+    var el=host(e),src='';
+    try{src=e.dataTransfer.getData('text/hxq')||'';}catch(x){}
+    clearHot();dragOn=false;noClickUntil=Date.now()+300;
+    if(!el||!src)return;                    // 松在页边空白处：当没拖，不换题
+    try{parent.postMessage({hxPaperDrop:el.getAttribute('data-k'),no:+el.getAttribute('data-no'),t:el.getAttribute('data-t'),src:src},'*');}catch(x){}
+  },true);
   document.addEventListener('click',function(e){
     var el=host(e); if(!el)return;
+    if(dragOn||Date.now()<noClickUntil)return;   // 拖拽刚结束的余波不算单击换题
     if(t1){clearTimeout(t1);t1=null;}
     t1=setTimeout(function(){t1=null;pick(el);},220);
   },true);
   document.addEventListener('dblclick',function(e){
     var el=host(e); if(!el)return;
+    if(dragOn||Date.now()<noClickUntil)return;
     if(t1){clearTimeout(t1);t1=null;}
     edit(el);
   },true);
+  /* ---------- 卷面真实高度（2026-11-20）----------
+     老师原话「缩放 100% 时下面显示不全、无法无感下滚」：父页的 fit() 只认 fr.dataset.h，
+     而这个值只在 paperReady 时设一次（当时量的是刚排完版的高度）。之后字体到齐、题目改成更长的、
+     卷子多出一栏，卷面就比 iframe 高了，底部直接被 iframe 裁掉，父页也滚不到那里。
+     高度只有 iframe 自己量得准，所以这里主动报：量最后一张纸的底边 + 它的下边距（灰色间隙也要露出来），
+     100ms 内多次变化只发一次；另外字体加载完再补一次（字体晚到会整体撑高，且不一定触发 resize）。 */
+  function measure(){
+    var o=document.getElementById('out'),h=0;
+    var y=window.pageYOffset||document.documentElement.scrollTop||0;
+    var shs=o?o.querySelectorAll('.sheet'):[];
+    if(shs.length){
+      var s=shs[shs.length-1],r=s.getBoundingClientRect();
+      h=Math.ceil(r.bottom+y+(parseFloat(getComputedStyle(s).marginBottom)||0));
+    } else if(o){
+      h=Math.ceil(o.getBoundingClientRect().bottom+y);
+    }
+    if(!h) h=document.documentElement.scrollHeight||0;
+    return h;
+  }
+  function sendH(force){
+    var h=measure(); if(!h)return;
+    if(!force&&Math.abs(h-lastH)<2)return;   // 差 1px 来回抖不算变化，否则父子两边互相触发
+    lastH=h;
+    try{parent.postMessage({paperHeight:h},'*');}catch(x){}
+  }
+  function queueH(){ clearTimeout(ht); ht=setTimeout(function(){ht=0;sendH();},100); }
+  try{
+    if(window.ResizeObserver){
+      var ro=new ResizeObserver(queueH);
+      if(document.body)ro.observe(document.body);
+      var oo=document.getElementById('out');
+      if(oo)ro.observe(oo);
+    }
+    if(document.fonts&&document.fonts.ready&&document.fonts.ready.then){
+      document.fonts.ready.then(function(){sendH();setTimeout(function(){sendH();},150);});
+    }
+  }catch(x){}
+  sendH(true);
+  setTimeout(function(){sendH();},300);
 })();`;
 function paperDocHTML(P,cfg,opts){
   opts=opts||{};
@@ -6734,7 +6887,9 @@ function paperDocHTML(P,cfg,opts){
     s.items.forEach((q,i)=>{
       /* 键和 cfg.picks 的键一致；data-no 是“这一大题里的第几小题”，填空题也按小题算，
          否则一节填空里有 1 个空和 3 个空的题时，序号和老师数的对不上。 */
-      const kk=`${s.t}:${i}`, at=edit?` data-k="${kk}" data-no="${i+1}" data-t="${s.t}"`:'';
+      /* 2026-11-20：编辑态给每一块加 draggable —— 卷面内部的题可以互相拖（同题型换位置），
+         拖出来的 key 就是这一格自己的 kk，父页收到后走 swapSlots。 */
+      const kk=`${s.t}:${i}`, at=edit?` data-k="${kk}" data-no="${i+1}" data-t="${s.t}" draggable="true"`:'';
       /* 蓝线只在“这一格确实是老师点的那道题”时出现：设置里存了个越界/题型不符的下标时
          抽题会退回随机，这时不该还画着“已指定”的样子 */
       const pin=picks[kk]!=null&&pickQ(picks[kk])===q;
@@ -7446,6 +7601,69 @@ function libPaperItems(C) {
   return out;
 }
 
+/* ================= 题目占用表：这道题已经出在哪些卷子上（2026-11-20） =================
+   老师原话：「已经被选中出试卷的题需要标记颜色 不同试卷颜色不同 比如 A 卷是红色 B 卷绿色，
+   悬停也会显示该题是已经出在了哪套试卷，不然可能重复率太高」。
+   ── 口径 ──
+   · 只认老师**点名**的题（payload.picks）：那是「这道题确实进了这套卷」的硬证据。
+     按种子随机抽出来的那部分要另一份题池才还原得出来（见 libPaperQs 的顾虑），
+     拿内置题库顶替会把别的科目的题算进来，宁可比得少也不能给假标记。
+   · 键用 qid(q)，和右侧题库列表判断「本卷已用」用的是同一把尺子，两边能对上。
+   · 颜色按卷名里的 A/B/C/D 固定（A 红 B 绿 C 蓝 D 橙），老师一眼能对上；
+     默认名那种没有字母的（「理论卷 11月20日 10:30」）按列表顺序轮这四个色。
+   · 同一套卷里同一道题点了两格，只记一次。 */
+const LIB_OCC_COLORS = ['#d33', '#2a8', '#37c', '#e80'];
+const LIB_OCC_LETTER = { A: '#d33', B: '#2a8', C: '#37c', D: '#e80' };
+function libOccColor(name, i) {
+  const m = String(name == null ? '' : name).match(/[A-Da-d]/);
+  if (m) return LIB_OCC_LETTER[m[0].toUpperCase()];
+  return LIB_OCC_COLORS[i % LIB_OCC_COLORS.length];
+}
+/* 纯函数：一份跟 libItems('paper', sub) 同形的列表 → { '<qid>': [{name, color}, …] }。
+   不碰存储、不碰缓存，Node 里能直接跑（测试见 test/occupied.test.mjs）。
+   resolve 只是给测试换桩用的：{ pick(key)→题, qid(题)→qid }，不给就用全局那两个。 */
+function occupiedFromPayloads(list, resolve) {
+  const out = {};
+  if (!Array.isArray(list)) return out;
+  const pick = (resolve && resolve.pick) || (typeof pickQ === 'function' ? pickQ : null);
+  const idf = (resolve && resolve.qid) || (typeof qid === 'function' ? qid : null);
+  if (!pick || !idf) return out;
+  list.forEach((it, i) => {
+    const picks = it && it.payload && it.payload.picks;
+    if (!picks || typeof picks !== 'object') return;
+    const name = String((it && it.name) || '未命名'), color = libOccColor(name, i);
+    const seen = new Set();
+    Object.keys(picks).forEach(k => {
+      const v = picks[k];
+      /* 空位、占位、失效 key 全跳过 —— 老卷子里这三种都有，不能让一块坏数据把整张表搞挂 */
+      if (v == null || v === '' || v === '__blank') return;
+      let q = null;
+      try { q = pick(v); } catch (e) { q = null; }
+      if (!q || q.__blank) return;
+      const id = String(idf(q));
+      if (!id || id === 'null' || id === 'undefined' || seen.has(id)) return;
+      seen.add(id);
+      (out[id] || (out[id] = [])).push({ name: name, color: color });
+    });
+  });
+  return out;
+}
+/* 30 秒缓存：renderBank 每次重画都要问一遍，而 libItems 只是过滤数组、payload 可能有几十套。
+   除了 TTL 还比对一份指纹（id + 存的时间 + 名字）：换了科目、新存/改名/删掉一套卷，
+   指纹就变了，立刻重算 —— 不用每个改动点都记得来清缓存。 */
+let libOccCache = { sub: null, at: 0, sig: '', map: null };
+function libOccupied(sub, force) {
+  const now = Date.now(), c = libOccCache;
+  let list = [];
+  try { list = libItems('paper', sub) || []; } catch (e) { return {}; }
+  const sig = list.map(x => x.id + '|' + x.at + '|' + x.name).join('~');
+  if (!force && c.map && c.sub === sub && c.sig === sig && now - c.at < 30000) return c.map;
+  let map;
+  try { map = occupiedFromPayloads(list); } catch (e) { map = {}; }
+  libOccCache = { sub: sub, at: now, sig: sig, map: map };
+  return map;
+}
+
 /* 两套卷的比对明细（界面要显示「重复几题 / 平均几题」，所以不能只返回百分比） */
 function libDupDetail(A, B) {
   const a = libPaperQs(A), b = libPaperQs(B);
@@ -7584,7 +7802,7 @@ function libBind(root, kind, sub, opt) {
   }, { signal: ac.signal });
 }
 
-window.HXLib = { items: libItems, load: libLoad, sync: libSync, add: libAdd, overwrite: libOverwrite, del: libDel, rename: libRename, listHTML: libListHTML, bind: libBind, defaultName: libDefaultName, when: libWhen, code: libCode, err: () => libErr, errLine: libErrLine, dupRate: libDupRate, dupDetail: libDupDetail, paperQs: libPaperQs, paperItems: libPaperItems, poolOk: v => { if (v !== undefined) LIB_POOL_OK = !!v; return LIB_POOL_OK; } };
+window.HXLib = { items: libItems, load: libLoad, sync: libSync, add: libAdd, overwrite: libOverwrite, del: libDel, rename: libRename, listHTML: libListHTML, bind: libBind, defaultName: libDefaultName, when: libWhen, code: libCode, err: () => libErr, errLine: libErrLine, dupRate: libDupRate, dupDetail: libDupDetail, paperQs: libPaperQs, paperItems: libPaperItems, occupied: libOccupied, occupiedFrom: occupiedFromPayloads, poolOk: v => { if (v !== undefined) LIB_POOL_OK = !!v; return LIB_POOL_OK; } };
 
 ;
 /* ================= 考试 · 理论试卷（2026-11-06 从单片机迁来；2026-11-19 第三轮大改） =================
@@ -7688,6 +7906,21 @@ function mountPaper(sub) {
     b.title = '卷面上还有空位时，可以随机补或按你的要求补';
     anchor.parentNode.insertBefore(b, anchor.nextSibling);
   })();
+  /* 2026-11-20 新加：按章节顺序排序（老师原话「出一个按钮 按章节顺序排序」）。
+     和「补齐剩余题目」并排、同一套样式；只排每个大题内部，不动题型和分值。 */
+  (function mountSortBtn() {
+    if ($('ppSort')) return;
+    const anchor = $('ppFill') || $('ppClear') || $('ppAI');
+    if (!anchor || !anchor.parentNode) return;
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.id = 'ppSort';
+    b.className = 'sm';
+    b.textContent = '按章节顺序排序';
+    b.title = '把每个大题内部的题按章节 / 小节重排一遍（只动顺序，可撤回）';
+    anchor.parentNode.insertBefore(b, anchor.nextSibling);
+    b.onclick = () => sortByCh();
+  })();
 
   const F = (id, k, num) => {
     const el = $(id);
@@ -7764,8 +7997,12 @@ function mountPaper(sub) {
       box.classList.toggle('pp-act-warn', got !== want);
     });
     const lackTxt = short.length ? '（<b>题池的题不够</b>：' + short.join('；') + '，满分按实际抽到的算）' : '';
+    /* 2026-11-20：填空题按空数收，手选的题超出预算就排不进去 —— 必须说出来，
+       否则老师会以为「我明明点了 12 道怎么只进来 8 道」。 */
+    const dropN = P.reduce((a, s2) => a + (s2.__drop || 0), 0);
     $('ppTotal').innerHTML = `<b style="${total === 100 ? '' : 'color:var(--warn)'}">满分 ${total} 分</b>`
-      + (lackTxt || (total === 100 ? '' : '（一般应为 100 分，调整题数或分值）'));
+      + (lackTxt || (total === 100 ? '' : '（一般应为 100 分，调整题数或分值）'))
+      + (dropN ? `<span class="note"> · 有 ${dropN} 道手选的题超过空数没排进卷面（先删掉几道再点）</span>` : '');
     if ($('ppMeta')) $('ppMeta').innerHTML = `<b>共 ${nq} 题</b> · 满分 ${total} 分`
       + (blanks ? ` · <span class="pppicked">空着 ${blanks} 道</span>` : '')
       + (picksCount() ? ` · <span class="pppicked">已手动选 ${picksCount()} 道</span>` : '');
@@ -7859,6 +8096,18 @@ function mountPaper(sub) {
     const d = e.data || {};
     if (d.hxPaperEdit) { editQAt(String(d.hxPaperEdit)); return; }
     if (d.hxPaperPick) { selectSlot(String(d.hxPaperPick), +d.no || 1, String(d.t || '')); return; }
+    /* 卷面 iframe 里松手完成一次拖动（2026-11-20）：{ hxPaperDrop: 目标key, no, t, src: 拖来的key } */
+    if (d.hxPaperDrop) { applyDrop(d); return; }
+    /* 2026-11-20 老师报「缩放 100% 时下方题目显示不全、无法无感下滚」：
+       原来卷面高度只在 paperReady 那次量一遍，换题/改题后内容变高就不会再更新，
+       底部被 iframe 高度裁掉、父页也滚不到。卷面自己用 ResizeObserver 持续上报
+       { paperHeight }，这里收到就跟着更新 —— **必须放在 paperReady 判断之前**，
+       否则会被下面那行 return 直接丢掉（实测踩到）。 */
+    if (d.paperHeight) {
+      const h = +d.paperHeight >> 0;
+      if (h > 200 && Math.abs(h - (+fr.dataset.h || 0)) > 2) { fr.dataset.h = h; fit(); }
+      return;
+    }
     if (!d.paperReady) return;
     fr.dataset.h = fr.contentDocument.documentElement.scrollHeight;
     fit();
@@ -8027,7 +8276,8 @@ function mountPaper(sub) {
     renderBank();
     /* 选中某一格时，若它属于另一个题型，把右侧的题型切过去，省得老师自己找 */
     paintTabs(t);
-    const l = $('ppBankList'); if (l) l.scrollTop = 0;
+    /* 2026-11-20：以前这里强制 scrollTop = 0 —— 老师滚到第 80 题换一道就弹回顶部（也算「闪」的一部分）。
+       滚动位置改由 renderBank 自己记/还原，这里不再动它。 */
     /* 标题由 renderBank 统一写，这里不再重复（重复会盖成另一套文案）。 */
   }
   /* ================= 双击题目就地改（2026-11-20） =================
@@ -8142,9 +8392,113 @@ function mountPaper(sub) {
     if (P) P.forEach(sec => sec.items.forEach(q => { if (q && !q.__blank) s.add(qid(q)); }));
     return s;
   }
+
+  /* ================= 悬停 2 秒浮出整道题（2026-11-20）=================
+     老师原话：「无法预览整道题，我鼠标悬停 2s 应该给我展示题目内容」。
+     列表每行只有 60 字截断题干，「看」要点一下才展开；这里改成停 2 秒自动浮出。
+     浮层挂 body（position:fixed）—— 列表重绘不会把它连带删掉，也永远不会参与列表布局、
+     不会把当前这一行顶走；贴边自动翻到左侧/上方，太高就自己滚（max-height 60vh）。 */
+  let bkPop = null, bkPopT = 0, bkPopHideT = 0, bkPopArm = null, bkPopRow = null, bkPopX = 0, bkPopY = 0;
+  function bkPopKill() {
+    clearTimeout(bkPopT); clearTimeout(bkPopHideT);
+    bkPopT = 0; bkPopHideT = 0; bkPopArm = null;
+    if (bkPopRow) { try { bkPopRow.classList.remove('bkq-hold'); } catch (e) { } bkPopRow = null; }
+    if (bkPop) { try { bkPop.remove(); } catch (e) { } bkPop = null; }
+  }
+  /* 鼠标离开行 → 不是立刻关：给 260ms 缓冲，指针挪进浮层里（想滚一下看长题）就留下 */
+  function bkPopLater() {
+    clearTimeout(bkPopHideT);
+    bkPopHideT = setTimeout(() => {
+      if (bkPop && bkPop.matches && bkPop.matches(':hover')) return;
+      bkPopKill();
+    }, 260);
+  }
+  function bkPopShow(row) {
+    const pl = $('ppBankList');
+    if (!pl || !row || !pl.contains(row)) return;
+    const pk = row.querySelector('[data-peek]');
+    const det = pk && pl.querySelector(`.bkq-d[data-d="${pk.dataset.peek}"]`);
+    if (!det) return;
+    bkPopKill();
+    const pop = document.createElement('div');
+    pop.className = 'bkq-pop';
+    pop.setAttribute('role', 'tooltip');
+    pop.innerHTML = det.innerHTML;          // 完整题干 + 选项 + 答案，现成的
+    document.body.appendChild(pop);
+    bkPop = pop; bkPopRow = row; row.classList.add('bkq-hold');
+    const pad = 10, vw = innerWidth, vh = innerHeight;
+    const w = pop.offsetWidth, h = pop.offsetHeight, rr = row.getBoundingClientRect();
+    let x = bkPopX + 18, y = bkPopY + 18;              // 默认贴在光标右下方
+    if (x + w > vw - pad) x = bkPopX - w - 18;         // 右边放不下 → 翻到左侧
+    if (x < pad) x = pad;
+    if (y + h > vh - pad) y = vh - h - pad;            // 下面放不下 → 往上抬
+    if (y < pad) y = pad;
+    /* 无论怎么翻都不许压住当前这一行（挡着自己正在看的那道题最难受） */
+    if (x < rr.right && x + w > rr.left && y < rr.bottom && y + h > rr.top) {
+      const below = rr.bottom + 8;
+      y = below + h <= vh - pad ? below : Math.max(pad, rr.top - h - 8);
+    }
+    pop.style.left = Math.round(x) + 'px';
+    pop.style.top = Math.round(y) + 'px';
+    pop.addEventListener('mouseenter', () => clearTimeout(bkPopHideT));
+    pop.addEventListener('mouseleave', bkPopLater);
+  }
+  const bankListEl = $('ppBankList');
+  if (bankListEl) {
+    /* mouseenter 不冒泡，又不能用一次性绑定（行会整体重建）→ 用 mouseover 委托，按「换行」判断 */
+    bankListEl.addEventListener('mouseover', ev => {
+      const row = ev.target.closest && ev.target.closest('.bkq');
+      if (!row || !bankListEl.contains(row)) return;
+      const hov = bankListEl.querySelector('.bkq-hov');
+      if (hov) hov.classList.remove('bkq-hov');            // 真 :hover 已经接上，补色的类可以撤
+      if (ev.relatedTarget && row.contains(ev.relatedTarget)) return;   // 同一行内挪，不算换行
+      if (bkPopRow === row) { clearTimeout(bkPopHideT); return; }        // 正看着这道，别打断
+      bkPopKill();
+      bkPopArm = row;
+      bkPopX = ev.clientX; bkPopY = ev.clientY;
+      bkPopT = setTimeout(() => { bkPopArm = null; bkPopShow(row); }, 2000);
+    });
+    bankListEl.addEventListener('mousemove', ev => {
+      const row = ev.target.closest && ev.target.closest('.bkq');
+      if (row && row === bkPopArm) { bkPopX = ev.clientX; bkPopY = ev.clientY; }
+    });
+    bankListEl.addEventListener('mouseout', ev => {
+      const row = ev.target.closest && ev.target.closest('.bkq');
+      if (!row) return;
+      if (ev.relatedTarget && row.contains(ev.relatedTarget)) return;
+      if (row === bkPopArm) { clearTimeout(bkPopT); bkPopT = 0; bkPopArm = null; }   // 还没到 2s 就走：取消
+      if (bkPopRow === row) bkPopLater();                                            // 已经浮着：给缓冲
+    });
+    bankListEl.addEventListener('scroll', () => { if (bkPop) bkPopKill(); }, { passive: true });
+  }
+  /* 点别处 / 按 Esc / 滚页面 都收掉 */
+  document.addEventListener('mousedown', () => { if (bkPop || bkPopArm) bkPopKill(); }, sig);
+  document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && (bkPop || bkPopArm)) bkPopKill(); }, sig);
+  window.addEventListener('scroll', ev => {
+    if (!bkPop) return;
+    if (bkPop.contains(ev.target)) return;                 // 浮层自己滚不算
+    bkPopKill();
+  }, { passive: true, capture: true });
+  PPAC.signal.addEventListener('abort', bkPopKill);
+
+  /* ================= 右侧题库列表 =================
+     2026-11-20 修「波动/闪烁」：一次点击会连着触发好几遍 renderBank（selectSlot 一遍、
+     preview 里再一遍、usePick 的 setTimeout 又来一遍），每遍都 wrap.innerHTML = 整块重建
+     → 列表闪一下、滚动条回顶、悬停断掉。这里把重绘排到下一帧，同一帧来几次都只画一次。 */
+  let bankRaf = 0;
   function renderBank() {
+    if (bankRaf) return;
+    const raf = window.requestAnimationFrame || (fn => setTimeout(fn, 16));
+    bankRaf = raf(() => { bankRaf = 0; renderBankNow(); });
+  }
+  function renderBankNow() {
     const wrap = $('ppBankList');
     if (!wrap) return;
+    /* 重绘前记下滚动位置 + 光标下那一行，画完立刻还原（老师滚到第 80 题换题不该弹回顶部） */
+    const keepTop = wrap.scrollTop;
+    const hovEl = wrap.querySelector('.bkq:hover') || bkPopRow;
+    const keepHov = hovEl ? String(hovEl.dataset.i || '') : '';
+    const keepPop = bkPopRow ? String(bkPopRow.dataset.i || '') : '';
     /* 2026-11-19：不再要求先点卷面某一题 —— 右侧栏常驻，默认就显示「当前大题」的题池，
        老师直接从这儿点题即可（点第一道就填进这一大题的第一个空位）。 */
     if (!bankKey) {
@@ -8171,23 +8525,49 @@ function mountPaper(sub) {
     const chk = [...document.querySelectorAll('#ppBankCh input:checked')].map(x => +x.dataset.ch);
     const kw = ($('ppBankQ').value || '').trim().toLowerCase();
     const used = usedIds();
+    /* 已经出在别的卷子上的题（2026-11-20）：卷子是有重复率的，老师要一眼看出「这道 A 卷用过」。
+       数据由 lib-paper.js 的 HXLib.occupied(sub) 给：{ '<qid>': [{ name:'A 卷', color:'#d33' }, …] }。
+       拿不到（没打包进来 / 还没实现）就当空，绝不能让整个列表挂掉。 */
+    let occ = {};
+    try { occ = (window.HXLib && HXLib.occupied) ? (HXLib.occupied(sub) || {}) : {}; } catch (e) { occ = {}; }
     const rows = [];
+    let occCount = 0;
     curPool().forEach((q, i) => {
       if (q.t !== t) return;
       if (chk.length && chk.indexOf(q.ch) < 0) return;
       if (kw && (q.q + ' ' + hxChoices(q.o).map(x => x.text).join(' ') + ' ' + curCH()[q.ch]).toLowerCase().indexOf(kw) < 0) return;
       const pv = POOL ? qid(q) : i;
       const busy = used.has(qid(q)) && !(sec && sec.items.some(x => x && qid(x) === qid(q)));
-      rows.push(`<div class="bkq${busy ? ' busy' : ''}" data-i="${pv}" draggable="true" role="button" tabindex="0">
+      /* 色条 + 行尾小标签（卷名首字母），多个卷子取第一条的颜色，title 列出全部卷名 */
+      const ocRaw = occ[String(qid(q))];
+      const oc = (Array.isArray(ocRaw) ? ocRaw : (ocRaw ? [ocRaw] : [])).filter(x => x && (x.name || x.color));
+      const oc0 = oc[0] || null;
+      const ocColor = oc0 ? String(oc0.color || '#d9534f') : '';
+      const ocNames = oc.map(x => String(x.name || '').trim()).filter(Boolean);
+      const ocTitle = ocNames.length ? '已用于：' + ocNames.join('、') : '已用于别的试卷';
+      const ocLetter = ocNames.length ? ocNames[0].charAt(0) : '';
+      if (oc0) occCount++;
+      rows.push(`<div class="bkq${busy ? ' busy' : ''}${oc0 ? ' has-occ' : ''}" data-i="${pv}" draggable="true" role="button" tabindex="0"${oc0 ? ` data-occ="${esc(ocNames.join('、'))}" title="${esc(ocTitle)}" style="--bkq-oc:${esc(ocColor)}"` : ''}>
         <span class="bkq-ch">${POOL ? '章' + q.ch : 'P' + q.ch}</span><span class="bkq-q">${esc(ppCut(q.q, 60))}</span>
         ${POOL && q.src ? `<span class="bkq-src" title="${esc(q.src)}">${esc(ppCut(q.src, 20))}</span>` : ''}
+        ${oc0 ? `<span class="bkq-occ" title="${esc(ocTitle)}">${esc(ocLetter)}</span>` : ''}
         ${busy ? '<span class="bkq-tag">本卷已用</span>' : ''}
         <button class="sm bkq-p" data-peek="${i}" aria-label="预览这道题">看</button></div>
         <div class="bkq-d" data-d="${i}" hidden>${fullHTML(q)}</div>`);
     });
     wrap.innerHTML = rows.length ? rows.join('') : `<p class="note" style="padding:12px 4px">没有符合条件的题（换个知识点或清空搜索词）</p>`;
-    $('ppBankHint').textContent = `${T.name}共 ${rows.length} 道可选`;
+    const hint = $('ppBankHint');
+    if (hint) hint.textContent = `${T.name}共 ${rows.length} 道可选` +
+      (occCount ? ' · 色条 = 这道题已经出在别的卷子上（悬停看是哪套）' : '');
     if ($('ppBankRand')) $('ppBankRand').disabled = !(C.picks[bankKey] != null);
+    /* 还原滚动 + 悬停态：.bkq-hov 只是补一帧的底色，鼠标一动真 :hover 就接上了 */
+    if (keepTop) { void wrap.scrollHeight; wrap.scrollTop = keepTop; }
+    if (keepHov) {
+      const r = wrap.querySelector(`.bkq[data-i="${keepHov}"]`);
+      if (r) r.classList.add('bkq-hov');
+    }
+    /* 浮层指向的那道题已经不在列表里（换了题型/筛掉了）→ 收掉，免得飘着一块无主的内容 */
+    if (keepPop && !wrap.querySelector(`.bkq[data-i="${keepPop}"]`)) bkPopKill();
   }
 
   function fullHTML(q) {
@@ -8252,89 +8632,114 @@ function mountPaper(sub) {
     toast('这一格已恢复随机/留空');
   };
 
-  /* ---------- 拖动替换（2026-11-19）----------
-     思路：从右侧列表按下拖动时，在画布上盖一层透明遮罩接管指针 —— 不盖的话指针进了 iframe，
-     pointerup 就落到 iframe 里去了，父页收不到，拖了个寂寞。遮罩上移动时按卷面缩放比
-     把坐标换算回 A3 坐标，命中哪一格就把它高亮；松手就换那一格。 */
-  let dragVal = null, dragT = '', hitKey = null;
-  const mask = $('ppMask');
-  let _rectsCache = null;               // 拖动期间卷面布局不变，缓存一次，避免 pointermove 每次都重测几十个格子（卡顿/闪烁根因）
-  function blkRects() {
-    if (_rectsCache) return _rectsCache;
-    const fr = $('ppFrame');
-    if (!fr || !fr.contentDocument) return [];
-    const k = +(($('ppStage') || {}).dataset || {}).k || 1;
-    const base = fr.getBoundingClientRect();
-    /* getBoundingClientRect 已经把 scale 算进去了；用左上角 + 宽高推每个块的屏幕矩形 */
-    /* ⚠️ 查 #out 不查 #src：PAPER_LAYOUT_JS 排完版会把 blocks 搬进 #out 然后 src.remove()，
-       查 #src 永远返回空数组 → 拖动永远落不到格子上（2026-11-19 实测踩到）。 */
-    _rectsCache = [...fr.contentDocument.querySelectorAll('#out .blk[data-k]')].map(n => {
-      const r = n.getBoundingClientRect(), b = fr.contentDocument.body.getBoundingClientRect();
-      return { k: n.dataset.k, t: n.dataset.t, no: +n.dataset.no || 0,
-        x: base.left + (r.left - b.left) * k, y: base.top + (r.top - b.top) * k,
-        w: r.width * k, h: r.height * k };
-    });
-    return _rectsCache;
+  /* ---------- 拖动换题（2026-11-20 重做）----------
+     老师原话：「我是希望拖动题目进我想更换的地方或者空题处，直接更换；现在都不让拖动」。
+     旧实现是「按下后盖一层透明遮罩自己算落点」，可行上本来就有 draggable="true" ——
+     原生 HTML5 拖动一开就接管了指针，pointermove/pointerup 收不到，两套机制互相打架，
+     结果谁都拖不动（遮罩还会把 iframe 挡在下面，落点永远判不到）。
+     现在统一走原生 DnD，父页这边只管**发**和**收**：
+       · dragstart：dataTransfer 放 text/hxq = 这道题在题库里的 key（就是行上的 data-i）；
+       · 卷面 iframe 收 drop，再 postMessage 回来 { hxPaperDrop: 目标key, no, t, src: 拖来的key }；
+       · 这里 applyDrop 把 src 填进目标格 —— 原来有题就直接换，不弹确认；空位同样能填。 */
+  function applyDrop(d) {
+    if (!P) return;
+    const key = String(d.hxPaperDrop == null ? '' : d.hxPaperDrop);
+    const srcKey = String(d.src == null ? '' : d.src);
+    if (!/^[^:]+:\d+$/.test(key) || !srcKey) return;
+    /* 2026-11-20：拖来的东西有两种 ——
+       ① 右侧题库的行（key 是题池 id / 数字下标）→ 换这一格的题；
+       ② **卷面上另一格**（key 形如 fill:3）→ 两格互换位置（老师要的「同题型拖动互换」）。
+       两种情况都走 commitPicks：进撤回栈、存盘、120ms 后重排。 */
+    if (/^[^:]+:\d+$/.test(srcKey)) return swapSlots(key, srcKey);
+    const parts = key.split(':'), t = parts[0], idx = +parts[1];
+    const sec = P.find(x => x.t === t);
+    if (!sec || !sec.items[idx]) return;                       // 这一格已经不在了（改了题数/题型）
+    const q = pickQ(POOL ? srcKey : +srcKey);
+    if (!q) return toast('拖过来的这道题在当前题库里找不到了，刷新一下再试');
+    if (q.t !== t) return toast('题型对不上：这一格要的是' + pType(t).name);
+    const old = sec.items[idx];
+    if (old && !old.__blank && qid(old) === qid(q)) return;     // 拖回原地：什么都不做，别白记一次撤回
+    bankKey = key;
+    bankPickAt = Date.now();
+    bankOpenTemp();
+    /* 复用「点题替换」的写入通道：记撤回、存盘、120ms 后 preview() 重排卷面 + 重画右侧列表 */
+    commitPicks(() => { C.picks[key] = POOL ? srcKey : +srcKey; });
+    toast(`已换成${POOL ? chLabel(q.ch) : '项目' + q.ch}：${ppCut(q.q, 18)}`);
   }
-  function hitTest(x, y) {
-    const rects = blkRects();
-    for (const r of rects) if (x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h) return r;
-    return null;
-  }
-  function maskOn(on) {
-    if (!mask) return;
-    mask.hidden = !on;
-    document.body.classList.toggle('ppdragging', on);
-    if (!on) _rectsCache = null;         // 收起遮罩后清缓存，下次拖动重新量（卷面可能已变）
-  }
-  if (mask) {
-    mask.addEventListener('pointermove', ev => {
-      const r = hitTest(ev.clientX, ev.clientY);
-      hitKey = r ? r.k : null;
-      const tag = $('ppMaskTag');
-      if (tag) {
-        tag.hidden = !r;
-        if (r) {
-          tag.textContent = `松手放到 ${pType(r.t).name} 第 ${r.no} 题`;
-          tag.style.left = ev.clientX + 14 + 'px';
-          tag.style.top = ev.clientY + 14 + 'px';
-        }
-      }
+
+  /* ---------- 卷面内部两格互换（2026-11-20）----------
+     老师原话：「试卷内部的题目可以拖动互换位置（同题型情况下）」。
+     · 只允许同题型互换：跨题型换会让「选择题 15 题、判断题 10 题」的配额对不上，
+       而且分值也不同（一题 2 分 vs 1 分），换了卷子就错了。跨题型给一句人话提示。
+     · 空位（空白卷占位 / 还没抽到的格）也能收：等于把题挪进空位。
+     · 写回 picks 时**两格都钉住**：原来的题可能是随机抽的（没在 picks 里），
+       只改一格的话另一格会重新随机，看起来像「换了一下又变了」。 */
+  function swapSlots(dstKey, srcKey) {
+    if (!P || dstKey === srcKey) return;
+    const pa = dstKey.split(':'), pb = srcKey.split(':');
+    const ta = pa[0], tb = pb[0];
+    if (ta !== tb) return toast('只能跟同一题型里的题换位置（' + pType(ta).name + ' 不能和 ' + pType(tb).name + ' 换）');
+    const sa = P.find(x => x.t === ta), sb = P.find(x => x.t === tb);
+    if (!sa || !sb) return;
+    const qa = sa.items[+pa[1]], qb = sb.items[+pb[1]];
+    const na = qa && !qa.__blank, nb = qb && !qb.__blank;
+    if (!na && !nb) return toast('两格都是空的');
+    const ka = na ? (POOL ? qid(qa) : qidx(qa)) : '';
+    const kb = nb ? (POOL ? qid(qb) : qidx(qb)) : '';
+    commitPicks(() => {
+      const set = (slot, v) => { if (v === '' || v == null) delete C.picks[slot]; else C.picks[slot] = v; };
+      set(dstKey, kb);
+      set(srcKey, ka);
     });
-    mask.addEventListener('pointerup', ev => {
-      const r = hitTest(ev.clientX, ev.clientY);
-      maskOn(false);
-      if (!r || dragVal == null) { dragVal = null; return; }
-      if (r.t !== dragT) { toast('题型对不上：那一格要的是' + pType(r.t).name); dragVal = null; return; }
-      bankKey = r.k;
-      usePick(dragVal);
-      dragVal = null;
+    toast('已互换两题的位置（同题型，可撤回）');
+  }
+
+  /* ---------- 按章节顺序排序（2026-11-20）----------
+     老师原话：「出一个按钮 按章节顺序排序」。
+     没点过题的时候，抽题本来就按章节排（paper.js 的 byPos）；**点过题**之后顺序按
+     「老师点的格子」走，一个项目一道、来回跳，导出和打印就乱了。
+     这个按钮把**每个大题内部**按「章节号 → 小节号 → 题库原序号」重排一遍，把结果写回 picks：
+     卷面、导出 PDF/Word、参考答案三处顺序一次对齐；只动顺序不动题、不改分值，可撤回。 */
+  function sortByCh() {
+    if (!P) return toast('卷面还没准备好，等它画完再点');
+    const cmp = (a, b) => ((+a.ch || 0) - (+b.ch || 0))
+      || String(a.sec || '').localeCompare(String(b.sec || ''), 'zh')
+      || (qidx(a) - qidx(b));
+    const plan = [], names = [];
+    P.forEach(sec => {
+      const real = sec.items.filter(q => q && !q.__blank);
+      if (real.length < 2) return;
+      const sorted = real.slice().sort(cmp);
+      if (sorted.every((q, i) => qid(q) === qid(real[i]))) return;   // 已经有序
+      plan.push({ t: sec.t, list: sorted });
+      names.push(pType(sec.t).name);
     });
-    mask.addEventListener('pointercancel', () => { maskOn(false); dragVal = null; });
+    if (!plan.length) return toast('每个大题内部已经是章节顺序了');
+    commitPicks(() => {
+      plan.forEach(({ t, list }) => {
+        Object.keys(C.picks).forEach(k => { if (k.indexOf(t + ':') === 0) delete C.picks[k]; });
+        list.forEach((q, i) => { C.picks[t + ':' + i] = POOL ? qid(q) : qidx(q); });
+      });
+    });
+    toast('已按章节排序：' + names.join('、') + '（可撤回）');
   }
   if (list) {
-    list.addEventListener('pointerdown', ev => {
-      const p = ev.target.closest('[data-peek]');
-      if (p) return;                       // 点「看」不算拖
-      const row = ev.target.closest('.bkq');
+    list.addEventListener('dragstart', ev => {
+      const row = ev.target.closest && ev.target.closest('.bkq');
       if (!row) return;
-      dragVal = row.dataset.i;
-      dragT = (bankKey || '').split(':')[0];
-      /* 只有真的移动了才盖遮罩：否则单击也会闪一下遮罩，像卡了一下 */
-      const x0 = ev.clientX, y0 = ev.clientY;
-      const arm = mv => {
-        if (Math.abs(mv.clientX - x0) + Math.abs(mv.clientY - y0) < 6) return;
-        list.removeEventListener('pointermove', arm);
-        maskOn(true);
-      };
-      list.addEventListener('pointermove', arm);
-      const dis = () => {
-        list.removeEventListener('pointermove', arm);
-        setTimeout(() => { if (mask && !mask.hidden) return; dragVal = null; }, 0);
-        window.removeEventListener('pointerup', dis);
-      };
-      window.addEventListener('pointerup', dis);
-    });
+      bkPopKill();                                            // 浮层别跟着拖走
+      try {
+        ev.dataTransfer.setData('text/hxq', String(row.dataset.i));
+        ev.dataTransfer.effectAllowed = 'copy';
+      } catch (e) { }
+      row.classList.add('bkq-drag');
+    }, sig);
+    list.addEventListener('dragend', ev => {
+      const row = ev.target.closest && ev.target.closest('.bkq');
+      if (row) row.classList.remove('bkq-drag');
+      document.querySelectorAll('#ppBankList .bkq-drag').forEach(r => r.classList.remove('bkq-drag'));
+      /* 拖完不选中、不重绘 —— 拖拽只负责把题送出去，落点由卷面那边回消息再决定 */
+    }, sig);
   }
 
   /* ================= 题型和分值的增删 ================= */
