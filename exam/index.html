@@ -9050,10 +9050,14 @@ function mountPaper(sub) {
       const cands = curPool().filter(q => q.t === t && !used.has(qid(q))).slice(0, 120);
       if (!cands.length) { short.push(pType(t).name); continue; }
       const need = byT[t].length;
-      const lines = cands.map(q => `[${qidx(q)}] ${ppCut(q.q, 110)}`);
+      /* 2026-11-20：候选行前面带上章节 —— 原来只有「[编号] 题干前 110 字」，老师写
+         「只考第 3 章」时模型手上没有任何结构化依据，只能靠题干里有没有「流水灯」三个字瞎猜，
+         这条要求等于不可执行。chLabel 现在给的是真名（第 3 章 · 并行IO端口与C51语言）。 */
+      const lines = cands.map(q => `[${qidx(q)}] （${chLabel(q.ch) || '未分章'}）${ppCut(q.q, 110)}`);
       const prompt = '你是职业院校的组卷老师。下面是要补进「' + pType(t).name + '」这一大题的候选题目，编号在方括号里。\n'
+        + '每行方括号后面圆括号里的「第 N 章 · 名字」是这道题所属的章节。\n'
         + '这一大题还差 ' + need + ' 道，请挑 ' + need + ' 道。\n'
-        + (req ? '老师的要求：' + req + '\n' : '')
+        + (req ? '老师的要求：' + req + '（老师提到「只考第几章」时，按圆括号里的章节号筛，别只看题干）\n' : '')
         + '只输出 JSON：{"ids":[3,7,12]}，`ids` 里放 ' + need + ' 个候选编号，必须都在下面的候选里，不要编。\n'
         + '候选：\n' + lines.join('\n');
       const txt = await eAiChat(prompt);
@@ -9163,10 +9167,12 @@ function mountPaper(sub) {
         const cand = (byT[sec.t] || []).slice(0, 120);
         if (!cand.length) continue;
         if (st) st.textContent = `正在挑「${pType(sec.t).name}」…`;
-        const lines = cand.map(x => `[${x.i}] ${ppCut(x.q.q, 110)}`);
+        /* 2026-11-20：和「按我的要求补」同一处修 —— 候选行带章节，老师写「只考第 3 章」才有依据 */
+        const lines = cand.map(x => `[${x.i}] （${chLabel(x.q.ch) || '未分章'}）${ppCut(x.q.q, 110)}`);
         const prompt = '你是职业院校的组卷老师。下面是「' + pType(sec.t).name + '」的题池候选，编号在方括号里。\n'
+          + '每行方括号后面圆括号里的「第 N 章 · 名字」是这道题所属的章节。\n'
           + '请按老师的要求挑出 ' + sec.n + ' 道，按「先易后难、不同知识点尽量覆盖」的顺序排好。\n'
-          + (req ? '老师的要求：' + req + '\n' : '')
+          + (req ? '老师的要求：' + req + '（老师提到「只考第几章」时，按圆括号里的章节号筛，别只看题干）\n' : '')
           + '只输出 JSON：{"ids":[3,7,12]}，`ids` 里放 ' + sec.n + ' 个候选编号，必须都在下面的候选里，不要编。\n'
           + '候选：\n' + lines.join('\n');
         const txt = await eAiChat(prompt);
@@ -9766,9 +9772,31 @@ window.HXBack = function () {
   return false;
 };
 /* 章节显示名（2026-11-20）：原来只拼「第N章」，老师看不出「第3章=流水灯」。
-   优先用资料的 toc 真标题（导入时做好才有），没有就退回资料名里的「项目N」，
-   两者都没有才退回「第N章」。rows = qbank 原始行（要 material_id），mats = 带 toc 的资料清单。
-   注意：调用方必须传**原始 rows**，不能传 map 过的 items —— items 里已经没有 material_id 了。 */
+   三级来源，从准到糙：
+     ① 资料目录的真标题（material.toc，导入时识别出来才有）—— 最准，是书上的原话；
+     ② 资料文件名里的「项目N」（material.name）；
+     ③ **题目自己的 src**（2026-11-20 补）—— 实测线上 604 道题的 material_id 全是空，
+        靠 ①② 一条都取不到，真名等于没做。但每道题的 src 都写着「项目3-并行IO端口与C51语言.md」，
+        从 src 里回到文件名是唯一在真实数据上能生效的路。
+   三级都没有才退回「第N章」。rows = qbank 原始行（要 ch / material_id / src），mats = 带 toc 的资料清单。
+   注意：调用方必须传**原始 rows**，不能传 map 过的 items —— items 里已经没有 material_id 和 src 了。 */
+/* 从一条 src 里抠出「第 c 章」对应的资料名。src 长这样：
+   「项目3-并行IO端口与C51语言.md、项目2-单片机硬件系统.md · AI 出题」
+   一份资料出题时只有一段，勾多份时会拼好几段 —— 所以按顿号切开逐段找，找「项目3」那一段。 */
+function chNameFromSrc(src, c) {
+  const parts = String(src || '').split(/[、，,;；]/);
+  for (let i = 0; i < parts.length; i++) {
+    const p = parts[i].split('·')[0];                 // 砍掉尾巴上的「AI 出题」这类标记
+    const m = p.match(/(?:项目|第)\s*([0-9]{1,2})\s*章?/);
+    if (!m || +m[1] !== c) continue;
+    let t = p.replace(/\.[a-z0-9]{1,5}$/i, '').trim();  // 去 .md
+    /* 去掉开头的「项目3-」「第3章 」——否则会显示成「第 3 章 · 项目3 并行IO端口」，重复一遍 */
+    t = t.replace(new RegExp('^(?:项目|第)\\s*' + c + '\\s*章?\\s*[-—_·:：]?\\s*'), '').trim();
+    t = t.replace(/[-—_]+/g, ' ').replace(/\s+/g, ' ').trim();
+    if (t) return t;
+  }
+  return '';
+}
 function chNamesOf(rows, mats) {
   const chs = {};
   (rows || []).forEach(q => { const c = q.ch == null ? 0 : +q.ch; chs[c] = ''; });
@@ -9776,13 +9804,16 @@ function chNamesOf(rows, mats) {
   const votes = {};
   (rows || []).forEach(q => {
     const c = q.ch == null ? 0 : +q.ch; if (!c) return;
-    const m = byMat.get(+q.material_id); if (!m) return;
     let t = '';
-    if (Array.isArray(m.toc)) { const hit = m.toc.find(x => +x.ch === c); if (hit && hit.title) t = String(hit.title); }
-    if (!t && m.name) {
-      const mm = String(m.name).match(/(?:项目|第)\s*([0-9]{1,2})\s*(?:章|项目)?/);
-      if (mm && +mm[1] === c) t = String(m.name).replace(/\.[a-z0-9]+$/i, '').replace(/[-_]/g, ' ');
+    const m = byMat.get(+q.material_id);
+    if (m) {
+      if (Array.isArray(m.toc)) { const hit = m.toc.find(x => +x.ch === c); if (hit && hit.title) t = String(hit.title); }
+      if (!t && m.name) {
+        const mm = String(m.name).match(/(?:项目|第)\s*([0-9]{1,2})\s*(?:章|项目)?/);
+        if (mm && +mm[1] === c) t = String(m.name).replace(/\.[a-z0-9]+$/i, '').replace(/[-_]/g, ' ');
+      }
     }
+    if (!t) t = chNameFromSrc(q.src, c);                // ③ src 兜底（线上真实可用的那一条）
     if (t) (votes[c] = votes[c] || []).push(t);
   });
   const top = c => {
