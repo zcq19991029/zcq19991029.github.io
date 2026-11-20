@@ -593,6 +593,14 @@ button.danger { color: var(--bad, #d70015); }
 .pplib-ov > select { flex: 1 1 auto; min-width: 0; }
 .pplib-hint { margin: 4px 0 10px; }
 .pplib-hint.pplib-warn { color: var(--warn, #b25000); font-weight: 500; }
+/* 每行题型下面那行「实际抽到 X 题」：和填的数字不一致时变黄，说明是题池不够，不是算错 */
+.pp-act { margin-top: 2px; font-size: 11.5px; color: var(--mute); }
+.pp-act-warn { color: var(--warn, #b25000); font-weight: 600; }
+/* 设置弹窗底部吸底条：说明 + 「完成」 */
+.ppset-foot { position: sticky; bottom: 0; margin: 12px -20px -18px; padding: 10px 20px; display: flex; align-items: center; gap: 12px;
+  background: var(--card-solid, #fff); border-top: 1px solid var(--hair); border-radius: 0 0 18px 18px; }
+.ppset-foot .note { flex: 1 1 auto; min-width: 0; margin: 0; }
+@media (max-width: 720px) { .ppset-foot { margin: 12px -14px -16px; padding: 10px 14px; flex-wrap: wrap; } .ppset-foot .note { flex: 1 1 100%; } }
 .lib-list { display: grid; gap: 8px; margin-top: 10px; max-height: 260px; overflow: auto; overscroll-behavior: contain; }
 .lib-i { display: grid; gap: 6px; padding: 9px 11px; border-radius: 12px; background: var(--field2); border: 1px solid var(--hair); }
 .lib-m { display: grid; gap: 1px; min-width: 0; }
@@ -1167,8 +1175,21 @@ button.off { opacity: .5; cursor: not-allowed; }
 .ppck input { width: 16px; height: 16px; margin: 0; }
 
 /* 题型表多了一列「删掉这一大题」 */
-.pptypes td:last-child { width: 40px; text-align: right; }
-.pptypes td:last-child button { padding: 2px 8px; line-height: 1.2; }
+/* 「15 题」「1 分/空」这种「数字 + 单位」不许折行：列一窄，单位就被挤到下一行，
+   看着像输入框错位（2026-11-20 截图）。输入框收窄一点，单位留在同一行。 */
+.pptypes td:not(:first-child) { white-space: nowrap; }
+.pptypes input[type="number"] { width: 62px; }
+.pptypes td:last-child { width: 46px; text-align: center; vertical-align: middle; }
+/* 删掉这一大题的 ×：原来用 .sm 的默认内边距，塞进 40px 的窄列会被挤成一个没有字的红色圆点
+   （2026-11-20 老师截图：「删除怎么没文字 红色畸形了 没上下居中对齐」）。
+   这里固定 26×26 正方形、透明底 + 红字红边，dark/light 都看得清，也不会再被压变形。 */
+.pptypes td:last-child button {
+  width: 26px; height: 26px; padding: 0; margin: 0 auto;
+  display: inline-grid; place-items: center; line-height: 1;
+  border-radius: 8px; font-size: 16px; font-weight: 600;
+  background: transparent; color: var(--bad, #c62828); border: 1px solid color-mix(in srgb, var(--bad, #c62828) 45%, transparent);
+}
+.pptypes td:last-child button:hover { background: color-mix(in srgb, var(--bad, #c62828) 12%, transparent); }
 
 /* 右侧题库里的「大题切换」药丸：显示「已填/要填」，一眼看出哪一大题还空着 */
 .ppb-tabs { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 0 2px; }
@@ -7591,7 +7612,7 @@ function mountPaper(sub) {
       const hint = T.unit === '每空'
         ? `<div class="note" style="margin-top:2px">填的是<b>空数</b>，不是题数：一道题 3 个空算 3 空；按<b>每空</b>给分。</div>`
         : '';
-      return `<tr><td>${CN_NUM[i] || (i + 1)}、${esc(T.name)}${hint}</td>
+      return `<tr><td>${CN_NUM[i] || (i + 1)}、${esc(T.name)}${hint}<div class="pp-act" data-act="${i}"></div></td>
         <td><input type="number" min="0" max="40" value="${s.n}" data-i="${i}" data-f="n" aria-label="${esc(T.name)}${esc(T.per)}数"> ${esc(T.per)}</td>
         <td><input type="number" min="0" max="30" step="0.5" value="${s.pts}" data-i="${i}" data-f="pts" aria-label="${esc(T.name)}${esc(T.unit)}分值"> <span style="white-space:nowrap">${T.unit === '每空' ? '分/空' : '分'}</span></td>
         <td><button class="sm danger" data-secdel="${i}" title="删掉这一大题">×</button></td></tr>`;
@@ -7621,7 +7642,21 @@ function mountPaper(sub) {
       if (C.blank || C.noAuto) return null;   // 空白卷 / 取消勾选后都不兜底抽题，没有「题库不够」这回事
       return s.count < want ? `${pType(s.t).name} 题库只出 ${s.count}${pType(s.t).per}、要 ${want}${pType(s.t).per}` : null;
     }).filter(Boolean);
-    $('ppTotal').innerHTML = `<b style="${total === 100 ? '' : 'color:var(--warn)'}">满分 ${total} 分</b>${total === 100 ? '' : '（一般应为 100 分，调整题数或分值）'}`;
+    /* 2026-11-20：老师问「计算都会出错吗」—— 不是算错，是**题池的题不够**时按实际抽到的算，
+       而界面只写一句「一般应为 100 分」，看不出是哪一栏没抽够。这里两件事一起做：
+       ① 每行题数下面标出「实际抽到 X」；② 满分那句直接点名差在哪个题型。 */
+    P.forEach((s2, i) => {
+      const box = document.querySelector(`#ppTypes [data-act="${i}"]`);
+      if (!box) return;
+      const want = (C.sections[i] || {}).n || 0;
+      const unit = pType(s2.t).per;
+      const got = s2.count;
+      box.textContent = '实际抽到 ' + got + ' ' + unit + (got === want ? '' : '（差 ' + (want - got) + '）');
+      box.classList.toggle('pp-act-warn', got !== want);
+    });
+    const lackTxt = short.length ? '（<b>题池的题不够</b>：' + short.join('；') + '，满分按实际抽到的算）' : '';
+    $('ppTotal').innerHTML = `<b style="${total === 100 ? '' : 'color:var(--warn)'}">满分 ${total} 分</b>`
+      + (lackTxt || (total === 100 ? '' : '（一般应为 100 分，调整题数或分值）'));
     if ($('ppMeta')) $('ppMeta').innerHTML = `<b>共 ${nq} 题</b> · 满分 ${total} 分`
       + (blanks ? ` · <span class="pppicked">空着 ${blanks} 道</span>` : '')
       + (picksCount() ? ` · <span class="pppicked">已手动选 ${picksCount()} 道</span>` : '');
@@ -7732,6 +7767,12 @@ function mountPaper(sub) {
     }
   }
   if ($('ppSet')) $('ppSet').onclick = () => drawer('ppDrawer');
+  /* 「完成」= 关弹窗 + 一句反馈。设置本来就是即时生效的（改一下就重排卷面、重新抽题），
+     但原来没有任何收尾动作，老师会以为「改了没保存」（2026-11-20 反馈）。 */
+  if ($('ppSetDone')) $('ppSetDone').onclick = () => {
+    drawer('ppDrawer', false);
+    toast('设置已生效（卷面已按新设置重排）');
+  };
   /* 2026-11-19 第五轮：顶栏那颗「试卷库」按钮已删 —— 试卷库搬进左侧栏（app.js 的 T_PAGES/libHome）。
      ⚠ 删 DOM 必须同时删这里的 $('ppLibBtn') 绑定，否则 null.onclick 抛 TypeError → 整页白。 */
   document.querySelectorAll('[data-ppclose]').forEach(b => { b.onclick = () => drawer(b.dataset.ppclose, false); });
@@ -9358,7 +9399,7 @@ async function paperHome() {
             <label class="wide">适用专业 <input id="ppMajor"></label>
             <label>适用年级 <input id="ppGrade"></label>
             <label>考试时间（分钟）<input id="ppMin" type="number" min="30" max="180"></label>
-            <label>答题留白 <select id="ppSpace"><option value="auto">自动（尽量 2 张 A3）</option><option value="loose">宽松</option><option value="normal">标准</option><option value="tight">紧凑</option></select></label>
+            <label>答题留白 <select id="ppSpace"><option value="auto">自动（A3 双面，尽量 2 张）</option><option value="loose">宽松</option><option value="normal">标准</option><option value="tight">紧凑</option></select></label>
             <label class="wide" title="决定「抽哪一套题」。种子不变，这套设置每次打开、每次打印都是同一套题（A/B/C 三卷也靠它保证互不重题）；想换一批题就点右边的「换一套」。线下考试定稿后别再动它。">换题种子（决定抽哪一套题）<input id="ppKey" class="mono"></label>
             <div class="row" style="align-items:flex-end"><button id="ppNew">换一套</button></div>
           </div>
@@ -9374,7 +9415,12 @@ async function paperHome() {
         ${POOL_KN && POOL_KN.length ? `<div class="card"><h2>知识点</h2>
           <div id="ppKn"></div>
           <p class="note">勾选后只从这些知识点的题里抽；不勾 = 全部知识点都抽（不影响各项目比重平衡）。</p></div>` : ''}
-        <p class="note">导出 PDF：在打印窗口里选「另存为 PDF」，纸张 A3、横向、边距「无」。Word 版方便人工核对和修改（装订线以 PDF 版为准）。</p>
+        <p class="note">导出 PDF 后打印：纸张 <b>A3</b>、<b>横向</b>、边距「无」、<b>双面 + 长边翻转</b>（1 张 A3 = 正反 2 页，系统按这个排）。Word 版方便人工核对修改，装订线以 PDF 版为准。</p>
+        <!-- 2026-11-20：老师问「试卷设置没保存按钮 也没保存成功反馈」。这套设置是**即时生效**的
+             （改一下就重排卷面），不需要「保存」；但界面上确实少一个收尾动作，看着像没存。
+             这里加一条吸底：说明 + 「完成」按钮（点了关弹窗并 toast 一句），要留档去上面「保存到试卷库」。 -->
+        <div class="ppset-foot"><span class="note">改完直接点「完成」就行 —— 设置立刻生效；想留档去上面「保存到试卷库」。</span>
+          <button class="pri" id="ppSetDone">完成</button></div>
       </aside>
       <!-- 题库：宽屏是右侧常驻栏，窄屏才当抽屉弹（CSS 控制，见 app.css 的 .pp-page 媒体查询） -->
       <aside class="ppdrawer ppdbank" id="ppBank" aria-hidden="false" aria-label="题库">
