@@ -615,6 +615,9 @@ button.danger { color: var(--bad, #d70015); }
 .pp-edit textarea, .pp-edit select { width: 100%; font: inherit; }
 .pp-edit textarea { resize: vertical; }
 .pp-edit .note { margin: 0; }
+/* 「未标章节的题也参与抽题」开关 */
+.pp-noch { display: flex; align-items: center; gap: 6px; margin: 8px 0 2px; font-size: 12.5px; color: var(--mute); cursor: pointer; }
+.pp-noch input { margin: 0; }
 @media (max-width: 720px) { .ppset-foot { margin: 12px -14px -16px; padding: 10px 14px; flex-wrap: wrap; } .ppset-foot .note { flex: 1 1 100%; } }
 .lib-list { display: grid; gap: 8px; margin-top: 10px; max-height: 260px; overflow: auto; overscroll-behavior: contain; }
 .lib-i { display: grid; gap: 6px; padding: 9px 11px; border-radius: 12px; background: var(--field2); border: 1px solid var(--hair); }
@@ -6371,6 +6374,20 @@ let __blankSeq=0;
 const blankItem=(t,i)=>({ __blank:true, t, ch:0, q:'', a:'', o:null, _k:'BLANK'+(++__blankSeq)+':'+t+':'+i });
 function pickSections(cfg,seed,used,picks){
   const W=Object.keys(curCH()).reduce((a,c)=>a+(+cfg.weights[c]||0),0)||1;
+  /* 2026-11-20：题池里没有章节号的题（ch 为 null / 0）原来一律**不参与抽题**（权重取不到=0）。
+     电气的题池里有 132 道是这种情况，等于三分之一永远抽不到，老师只会看到「满分 60」。
+     改成由设置里那个开关控制（ppNoCh，默认关 = 行为完全不变）：
+       打开后，未标章节的题按**各章平均比重**参与抽题，它们的分值在「各项目比重」里单列成「未标章节」。
+     平均比重 = W / 章数 —— 不偏向任何一章，也不至于把它们算成 0。 */
+  const noChW = () => {
+    const ks = Object.keys(curCH());
+    return ks.length ? W / ks.length : 0;
+  };
+  const wOf = c => {
+    const w = +cfg.weights[c] || 0;
+    if (w > 0) return w;
+    return ((+c || 0) === 0 && cfg.noCh) ? noChW() : 0;
+  };
   /* 知识点筛选题池：只在非 mcu（POOL 存在）且设置里勾了知识点时生效；mcu 的题没有 knowledge，永远不过这道筛。 */
   const knSel=POOL&&Array.isArray(cfg.kn)&&cfg.kn.length?new Set(cfg.kn.map(String)):null;
   /* 2026-11-19：自建题型（实操）也要能抽 —— 原来这里只认 PAPER_TYPES，自建题型整段被丢掉。 */
@@ -6425,7 +6442,7 @@ function pickSections(cfg,seed,used,picks){
       have+=cnt(x.q);used.add(x.k);           // 同一套卷里不能再出现第二遍
       const p=cnt(x.q)*sec.pts;acc[x.q.ch]=(acc[x.q.ch]||0)+p;tot+=p;
     });
-    const pool=curPool().filter(q=>q.t===sec.t&&(+cfg.weights[q.ch]||0)>0&&!pinK.has(qid(q))&&(!knSel||knSel.has(knVal(q))));
+    const pool=curPool().filter(q=>q.t===sec.t&&wOf(q.ch)>0&&!pinK.has(qid(q))&&(!knSel||knSel.has(knVal(q))));
     const need=sec.t==='fill'?Math.ceil(sec.n/2):sec.n;
     const fresh=pool.filter(q=>!used.has(qid(q)));
     const src=fresh.length>=need?fresh:pool;
@@ -6433,7 +6450,7 @@ function pickSections(cfg,seed,used,picks){
     for(let guard=0;have<sec.n&&guard<200;guard++){
       const cands=Object.keys(byCh).filter(c=>byCh[c].some(q=>have+cnt(q)<=sec.n));
       if(!cands.length)break;
-      const gap=c=>(cfg.weights[c]/W)*(tot+sec.pts)-(acc[c]||0);
+      const gap=c=>(wOf(c)/W)*(tot+sec.pts)-(acc[c]||0);
       cands.sort((a,b)=>gap(b)-gap(a)||rng.next()-0.5);
       const c=cands[0],k=byCh[c].findIndex(q=>have+cnt(q)<=sec.n),q=byCh[c].splice(k,1)[0];
       sec.items.push(q);have+=cnt(q);
@@ -7675,6 +7692,11 @@ function mountPaper(sub) {
     box.innerHTML = `<div class="ppkn">${kn.map(k => `<label><input type="checkbox" data-kn="${esc(k)}" ${sel.has(k) ? 'checked' : ''}> ${esc(k)}</label>`).join('')}</div>`;
   }
 
+  /* 未标章节的题要不要参与抽题（默认关）。改了立刻重排 —— 抽题范围变了，卷面就变了。 */
+  if ($('ppNoCh')) {
+    $('ppNoCh').checked = !!C.noCh;
+    $('ppNoCh').onchange = () => { C.noCh = $('ppNoCh').checked; changed(); };
+  }
   const picksCount = () => Object.keys(C.picks || {}).length;
 
   function stats() {
@@ -7729,7 +7751,7 @@ function mountPaper(sub) {
     let noCh = 0;
     try { const pool = curPool() || []; noCh = pool.filter(q => !(+q.ch) && !q.__blank).length; } catch (e) { }
     $('ppStat').innerHTML = statHTML +
-      (noCh ? `<div class="warns" style="margin-top:8px">题池里有 <b>${noCh} 道题没有章节号</b>，它们不参与抽题（没有分章权重）。想用上它们，去资料库题池给这些题补章节。</div>` : '') +
+      (noCh ? `<div class="warns" style="margin-top:8px">题池里有 <b>${noCh} 道题没有章节号</b>，它们不参与抽题（没有分章权重）。想用上它们：打开上面那个「让未标章节的题也参与抽题」，或者去资料库题池给这些题补章节。</div>` : '') +
       (short.length ? `<div class="warns" style="margin-top:8px">题库里题不够：${short.join('；')}，已按能抽到的出。</div>` : '');
     paintFill();
   }
@@ -9593,6 +9615,9 @@ async function paperHome() {
             <button id="ppReset">恢复默认</button></div></div>
         <div class="card"><h2>各项目比重</h2>
           <div class="ppws" id="ppW"></div>
+          <!-- 2026-11-20：题池里没有章节号的题（电气那 132 道）原来一律抽不到。给个开关，
+               默认关（行为不变），打开就按各章平均比重参与，分值单列成「未标章节」。 -->
+          <label class="pp-noch"><input type="checkbox" id="ppNoCh"> 让「未标章节」的题也参与抽题（按各章平均比重）</label>
           <p class="note">数字是相对比重，默认项目 1～4 为主、项目 5 少一些；填 0 表示不出这一项目的题（你手动点的题不受这条限制）。下面是这套卷实际的分值分布：</p>
           <div id="ppStat"></div></div>
         ${POOL_KN && POOL_KN.length ? `<div class="card"><h2>知识点</h2>
