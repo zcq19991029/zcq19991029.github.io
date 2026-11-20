@@ -1124,27 +1124,31 @@ function genPrompt(o) {
   const parts = list.map(([t, n]) => (TYPE_LABEL[t] || names[t] || t) + ' ' + n + ' 道').join('、');
   const rules = list.map(([t]) => TYPE_RULE[t] || customRule(names[t] || t)).join('\n   ');
   const samples = list.map(([t]) => '  ' + (TYPE_SAMPLE[t] || customSample(t))).join(',\n');
-  const chapterLine = (o.chapter != null && o.chapter !== '')
-    ? '这批题统一标章节号 ' + o.chapter + '（这是老师指定的，照写，不用再从原文认）。\n'
-    : '';
   /* 有符号库才插「符号图」这一条，并把它后面的输出格式那条顺延成 7（没符号库时仍是 6，编号不错乱）。 */
   const figBody = figRule();
   const lastNo = figBody ? 7 : 6;
-  /* 范围（2026-11-19 加强）：原来只有一句「只出这个范围里写到的内容」，模型经常顺手
-     把范围外的也出了。老师要的是「就给第 3 章」「就给 3.2 这一节」，所以这里把
-     「可以精确到小节」和「范围外一律不用」都说清楚，并给出小节编号的写法示例。 */
-  const scopeLine = o.scope
-    ? '范围：' + o.scope + '\n'
-      + '  · 严格按这个范围出题：只在原文「' + o.scope + '」对应的章 / 节 / 小节里找出题素材。\n'
-      + '  · 范围可以精确到小节（原文里写成 3.2、3.2.1、「第 3.2 节」都算），填了小节就只出这一小节。\n'
-      + '  · 范围之外的内容一律不用，哪怕原文别处也有同样的知识点。\n'
-    : '范围：整份资料（原文里有什么就出什么）\n';
+  /* 2026-11-20：**删掉「章节」和「范围」两个独立输入**（老师原话「这两个范围混乱，我直接融合到
+     针对性提示词得了，全部靠口述，自由度对话决定」）。以前有一段「范围：X / 严格按这个范围出题」
+     和一段「这批题统一标章节号 N」，和老师的「针对性要求」各说各的，互相打脸 ——
+     现在范围/章节一律由老师在「针对性要求」里用自己的话讲，原样拼进提示词（就是下面的 extra），
+     不再由程序另起一段规定范围。ch 字段仍然要 AI 每题自己认（题池要按章筛），这条留着。
+     批量出题（一次要 30 道以上）时，模型输出会被长度上限截断、少给几道 —— 下面 batch / avoid
+     两段就是为分批服务的：告诉它是第几批、以及哪些题干已经出过，别重复。 */
+  const batchLine = (o.batch && o.batch.m > 1)
+    ? '分批说明：这一轮要出的题比较多，分 ' + o.batch.m + ' 批要；**这是第 ' + o.batch.k + ' 批**，'
+      + '这一批只出上面写的那 ' + (list.reduce((a, [, n]) => a + n, 0)) + ' 道，不要多出、也不要少出。\n'
+    : '';
+  const avoid = Array.isArray(o.avoid) ? o.avoid.filter(Boolean) : [];
+  const avoidLine = avoid.length
+    ? '以下题干前几批已经出过，**这一批不要重复**（换考点、换问法）：\n'
+      + avoid.map(x => '  · ' + x).join('\n') + '\n'
+    : '';
   return '你是「' + o.subjectName + '」课程的出题老师。请根据下面的资料出题。\n'
-    + scopeLine
     + '难度：' + (o.level || '中等') + '\n'
     + '这一轮要出：' + parts + '\n'
-    + (o.extra ? '额外要求：' + o.extra + '\n' : '')
-    + chapterLine
+    + (o.extra ? '老师的针对性要求（原样遵循，包括范围/章节/题型偏好，**它优先于其它一切说明**）：\n' + o.extra + '\n' : '')
+    + batchLine
+    + avoidLine
     + '硬要求：\n'
     + '1. 每道题都必须能在原文找到依据；原文没写的不出，不编型号、参数、页码。\n'
     + '2. ' + rules + '\n'
@@ -1161,53 +1165,81 @@ function genPrompt(o) {
    数量按段分摊（老师说的是“整份资料一共几道”），一段没分到题就不白花 token。 */
 async function aiGenerate(text, subject, subjectName, opts, onProgress) {
   opts = opts || {};
-  if (!String(text || '').trim()) throw new Error('请先勾选资料，或在「额外要求」里写下要出题的内容。');
+  if (!String(text || '').trim()) throw new Error('请先勾选资料，或在「针对性要求」里写下要出题的内容。');
   /* 2026-11-19：原来这里只遍历 SUPPORTED（六个内置题型），老师自建的题型会被静默丢掉，
      表现是「出题成功但一道都没进题池」。现在把 opts.customKeys 一起纳入。 */
   const customKeys = Array.isArray(opts.customKeys) ? opts.customKeys : [];
   const allowed = [...SUPPORTED, ...customKeys];
   const wanted = {};
   for (const t of allowed) {
-    const n = Math.max(0, Math.min(50, Math.round(+((opts.types || {})[t]) || 0)));
+    /* 2026-11-20：上限原来写死 50（老师填 60、实际只出 50，就是因为这里和 UI 各有一道
+       Math.min(50)）。现在放到 200，真正的限制交给下面的分批：单次要太多模型会截断。 */
+    const n = Math.max(0, Math.min(200, Math.round(+((opts.types || {})[t]) || 0)));
     if (n) wanted[t] = n;
   }
   if (!Object.keys(wanted).length) throw new Error('请至少填一种题型的数量（大于 0）。');
   const pieces = chunks(text, 6000, 300);
+  /* 先把总题量摊到各段（老师说的是「整份资料一共几道」），再在段内按 SEED_BATCH 拆批：
+     一次请求要 40 道以上，模型的输出很容易被长度上限截断 —— 少了还只是少几道，
+     截断成半截 JSON 就直接报错（AI 查重那边踩过一次，position 15366）。 */
+  const SEED_BATCH = 24;
   const plan = pieces.map(() => ({}));
   for (const [t, n] of Object.entries(wanted)) {
     const base = Math.floor(n / pieces.length), rem = n % pieces.length;
     pieces.forEach((_, i) => { const c = base + (i < rem ? 1 : 0); if (c) plan[i][t] = c; });
   }
   const collected = [], rejected = [];
-  let done = 0;
+  const seen = new Set();
+  /* normalizeQuestions 出来的是 stem（MAT_toDb 也是读 stem），别写成 q.q —— 
+     写错的话所有题的去重键都变成「类型|空」，第二批开始会被当成重复全丢掉。 */
+  const keyOf = q => String(q.t || '') + '|' + String(q.stem || q.q || '').replace(/\s+/g, '').toLowerCase();
+  let anyPiece = false;
   for (let i = 0; i < pieces.length; i++) {
     const counts = plan[i];
-    if (!Object.keys(counts).length) continue;
-    done++;
-    if (onProgress) onProgress('正在根据第 ' + (i + 1) + ' / ' + pieces.length + ' 段出题，已出 ' + collected.length + ' 题…', collected);
-    try {
-      /* note：资料太长被切成多块时，明确告诉模型「这是第几块」——
-         勾「原文件」整份原文出题时尤其需要，不然它会把每一块都当成完整的一本书。 */
-      const prompt = genPrompt({
-        subjectName, piece: pieces[i], scope: opts.scope, level: opts.level, counts, extra: opts.extra, typeNames: opts.typeNames,
-        chapter: opts.chapter,
-        note: pieces.length > 1 ? '（这是资料原文的第 ' + (i + 1) + ' / ' + pieces.length + ' 块，按原文顺序切开的；只就这一块出题，不要凭空补别的内容。）' : ''
-      });
-      /* 调试口（2026-11-19）：把这一块真正的提示词挂到 window.__lastPrompt，
-         自测和排查「到底喂了什么给模型」时在控制台直接看，不 toast 打扰老师。 */
-      try { if (typeof window !== 'undefined') window.__lastPrompt = prompt; } catch (e) { }
-      const response = await hximpChat([{ role: 'system', content: '你是严谨的职业院校出题老师。只返回合法 JSON。' }, { role: 'user', content: prompt }], { json: true, thinkLevel: opts.thinkLevel });
-      const result = normalizeQuestions(parseJson(response), subject, customKeys);
-      collected.push(...result.questions);
-      rejected.push(...result.rejected);
-    } catch (error) {
-      error.partialQuestions = collected;
-      error.partialRejected = rejected;
-      if (onProgress) onProgress('中断了：' + error.message, collected);
-      throw error;
+    for (const [t, n] of Object.entries(counts)) {
+      const rounds = Math.max(1, Math.ceil(n / SEED_BATCH));
+      let left = n;
+      /* rounds+2：模型偶尔少给一两道，多给一次机会补齐；再补不齐就按实际数量入池（不骗老师） */
+      for (let r = 0; r < rounds + 2 && left > 0; r++) {
+        anyPiece = true;
+        const take = Math.min(SEED_BATCH, left);
+        const tail = rounds > 1 ? '（第 ' + Math.min(r + 1, rounds) + ' / ' + rounds + ' 批，还差 ' + left + ' 道）' : '';
+        if (onProgress) onProgress('正在根据第 ' + (i + 1) + ' / ' + pieces.length + ' 段出题' + tail + '，已出 ' + collected.length + ' 题…', collected);
+        try {
+          /* note：资料太长被切成多块时，明确告诉模型「这是第几块」——
+             勾「原文件」整份原文出题时尤其需要，不然它会把每一块都当成完整的一本书。 */
+          const prompt = genPrompt({
+            subjectName, piece: pieces[i], level: opts.level, counts: { [t]: take },
+            extra: opts.extra, typeNames: opts.typeNames,
+            batch: rounds > 1 ? { k: r + 1, m: rounds } : null,
+            /* 第 2 批起带上「已经出过的题干」，否则模型会把同一批题换个说法再出一次 */
+            avoid: r > 0 ? collected.slice(-30).map(q => String(q.stem || q.q || '').slice(0, 42)) : null,
+            note: pieces.length > 1 ? '（这是资料原文的第 ' + (i + 1) + ' / ' + pieces.length + ' 块，按原文顺序切开的；只就这一块出题，不要凭空补别的内容。）' : ''
+          });
+          /* 调试口（2026-11-19）：把这一块真正的提示词挂到 window.__lastPrompt，
+             自测和排查「到底喂了什么给模型」时在控制台直接看，不 toast 打扰老师。 */
+          try { if (typeof window !== 'undefined') window.__lastPrompt = prompt; } catch (e) { }
+          const response = await hximpChat([{ role: 'system', content: '你是严谨的职业院校出题老师。只返回合法 JSON。' }, { role: 'user', content: prompt }], { json: true, thinkLevel: opts.thinkLevel });
+          const result = normalizeQuestions(parseJson(response), subject, customKeys);
+          let fresh = 0;
+          for (const q of result.questions) {
+            const k = keyOf(q);
+            if (seen.has(k)) { rejected.push({ ...q, why: '与前面出过的题重复，已跳过' }); continue; }
+            seen.add(k); collected.push(q); fresh++; left--;
+          }
+          rejected.push(...result.rejected);
+          /* 这一批一道新的都没给（模型只是在重复）→ 不再空转，剩下的按实际数量收场 */
+          if (!fresh) break;
+        } catch (error) {
+          error.partialQuestions = collected;
+          error.partialRejected = rejected;
+          if (onProgress) onProgress('中断了：' + error.message, collected);
+          throw error;
+        }
+      }
     }
   }
-  if (!done) throw new Error('资料太短，没凑够一段。多贴一些文字再试。');
+  if (!anyPiece) throw new Error('资料太短，没凑够一段。多贴一些文字再试。');
   return { questions: collected, rejected };
 }
 
@@ -1858,17 +1890,18 @@ function matHome() {
     <section class="card" id="matGen">
       <div class="zl-ch"><h2>AI 出题</h2><button class="sm" id="mgTypes">管理题型</button></div>
       <p class="note" style="margin:0 0 12px">先在上面的资料列表勾选要用哪几份（一份都不勾就在下面的「针对性要求」里写内容），
-        然后选一个题型、填出题量、填章节（留空就由 AI 从原文认）。出的题直接进这个题型的题池 —— 组卷要多少道、怎么配分，去「考试 → 理论试卷」那边定。</p>
+        然后选一个题型、填出题量。<b>范围和章节不再单独填</b> —— 想限定「只要第一章到第四章」「第 5 章只来两个定时器」这类，直接写在「针对性要求」里，原样拼进提示词，怎么说就怎么出。
+        出的题直接进这个题型的题池 —— 组卷要多少道、怎么配分，去「考试 → 理论试卷」那边定。</p>
       <div class="mg-step"><b>题型 <small class="note" id="mgQtLabel"></small></b>
         <div class="mg-pills" id="mgPills"></div></div>
       <div class="mg-step mg-row">
-        <label>出题量<input type="number" id="mgN" min="1" max="50" value="5"></label>
+        <label>出题量<input type="number" id="mgN" min="1" max="200" value="5"></label>
         <label>难度<select id="mgLevel"><option>容易</option><option selected>中等</option><option>较难</option></select></label>
         <label>思考程度<select id="mgThink"><option value="">跟随 AI 设置</option><option value="quick">快速</option><option value="balanced">均衡</option><option value="deep">深度</option></select></label>
-        <label>章节<input id="mgCh" autocomplete="off" placeholder="留空 = 随范围/ AI，如：3 或 项目4"></label>
-        <label>范围<input id="mgScope" autocomplete="off" placeholder="留空 = 整份；可精确到小节，如：3.2 定时器"></label>
+        <!-- 2026-11-20：删掉「章节」「范围」两个输入（老师原话「这两个范围混乱，我直接融合到
+             针对性提示词得了，全部靠口述，自由度对话决定」）。想限定范围就写在下面那个框里。 -->
       </div>
-      <label class="mg-wide">针对性要求（会原样拼进提示词）<textarea id="mgExtra" rows="3" placeholder="可留空。没勾资料时，这里写的内容就是出题依据。例：只出第 3 章的计算题、多考接线工艺、避免名词解释。"></textarea></label>
+      <label class="mg-wide">针对性要求（原样拼进提示词，优先级最高 —— 范围、章节、挖空方式都写这里）<textarea id="mgExtra" rows="4" placeholder="可留空。没勾资料时，这里写的内容就是出题依据。例：以第一章到第四章为主，第五章只来两个定时器基础；我们的填空题只出上传资料原文挖空的，比如原文是 1234，我们填空题就是 12___4，答案是 3，这样方便学生找答案不用思考。"></textarea></label>
       <div class="row" style="margin-top:12px"><button class="pri" id="mgGo">开始出题</button><span class="note" id="mgState"></span></div>
       <div id="mgOut"></div>
     </section>
@@ -2151,43 +2184,18 @@ async function matCollect(picks, rawSet, state) {
      ③ 出完把这一批列出来（只读），想删就去题池里按题型筛出来删。
    为什么不再让老师勾一遍：题库已经有「按题型全选 → 批量删除」了，多一道勾选只是多一次点击；
    而「出了几道、有没有重复被跳过」这些信息仍然完整报出来，不会变黑箱。 */
-/* 从「范围」文本里推出大章号（2026-11-19）。只认明确写法，认不准就返回 null（交给 AI）：
-     「3.2」/「3.2.1」/「第 3.2 节」 → 3      （小节号取大章）
-     「第3章」/「项目4」/「第3单元」   → 3 / 4
-     「3」                            → 3
-     「前五章」/「第三章」            → null（中文数字 / 模糊范围不硬猜）
-   注意顺序：先试 x.y（否则「3.2」会被「第N章」之外的分支漏掉），再试「第N章」，最后纯数字。 */
-function matChapterFromScope(s) {
-  const t = String(s || '');
-  let m = t.match(/(\d+)\s*\.\s*\d+/);
-  if (m) return +m[1];
-  m = t.match(/项目\s*(\d+)/);                       // 「项目4」后面常没有单位词
-  if (m) return +m[1];
-  m = t.match(/第\s*(\d+)\s*[章单元讲课节]/);          // 「第3章」；「第3版」不算（版不在集合里）
-  if (m) return +m[1];
-  m = t.match(/^\s*(\d+)\s*$/);
-  if (m) return +m[1];
-  return null;
-}
-
 async function matGenRun() {
   if (MAT_BUSY) return toast('正在忙，等这一步结束');
   const qt = MAT_QT.find(x => x.k === MAT_QK) || MAT_QT[0];
   if (!qt) return toast('还没有题型，点右上角「管理题型」加一个');
-  const n = Math.max(1, Math.min(50, Math.round(+$('mgN').value || 5)));
+  /* 2026-11-20：这里原来卡死在 50（老师填 60 只出 50，就是它 + imports.js 里那道 50 一起造成的）。
+     现在放到 200，超过 24 道由引擎自动分批要，不会因为一次要太多被模型截断。 */
+  const n = Math.max(1, Math.min(200, Math.round(+$('mgN').value || 5)));
   const engineT = MAT_ENGINE[qt.k] || qt.k;     // 自建题型原样传给引擎
   const picks = [...document.querySelectorAll('[data-mpick]:checked')].map(x => +x.dataset.mpick);
   /* 取值一律带判空：这块表单将来改结构时，宁可少一句要求，也别让整页 TypeError 变空白。 */
-  const exEl = $('mgExtra'), scEl = $('mgScope'), chEl = $('mgCh');
-  const extra = exEl ? exEl.value.trim() : '', scope = scEl ? scEl.value.trim() : '', level = $('mgLevel').value, think = $('mgThink').value;
-  /* 章节：老师手动填了就用它（这批题统一标这个章节），没填就交给 AI 从原文认。
-     2026-11-19：章节栏留空、但范围栏写了明确的章/小节（「3.2 定时器」「第 5 章」「项目4」）时，
-     自动从范围里推出大章号 —— 老师填「3.2」出一批小节题，题池里也能按「第 3 章」筛到，
-     不用再手动回填一遍。推不出来（如「前五章」没有阿拉伯数字）就还是交给 AI 认。 */
-  const chRaw = chEl ? chEl.value.trim() : '';
-  let chapter = null;
-  if (chRaw) { const m = chRaw.match(/\d+/); if (m) chapter = +m[0]; }
-  else if (scope) chapter = matChapterFromScope(scope);
+  const exEl = $('mgExtra');
+  const extra = exEl ? exEl.value.trim() : '', level = $('mgLevel').value, think = $('mgThink').value;
   const state = $('mgState');
   let text = '', tag = '', mid = null;
   const sub = curSub();
@@ -2215,21 +2223,16 @@ async function matGenRun() {
       if (!extra) { state.textContent = ''; toast('没勾资料时，请在「额外要求」里写下要出题的内容'); HXBusy.end(tok); return; }
       text = extra; tag = '老师手写的要求';
     }
-    state.textContent = '正在准备出题…'
-      + (chapter != null ? `（这批题标第 ${chapter} 章${chRaw ? '' : '，从「范围」推出'}）` : '');
+    state.textContent = '正在准备出题…' + (n > 24 ? `（${n} 道会分批要，可能要几分钟）` : '');
     const res = await HXImp.aiGenerate(text, sub.key, sub.name, {
       types: { [engineT]: n },
-      scope, level, extra: picks.length ? extra : '', thinkLevel: think || undefined,
-      chapter,
+      level, extra: picks.length ? extra : '', thinkLevel: think || undefined,
       // 自建题型：告诉引擎「这些 key 也认」，并把中文名带过去给它写提示词
       customKeys: qt.builtin ? [] : [engineT],
       typeNames: { [engineT]: qt.name },
     }, msg => { state.textContent = msg; });
-    /* 老师手动填了章节（#mgCh）→ 强制把这一批题全标成那个章节。
-       为什么覆盖 AI 自己认的：老师说的是「这批就是第 5 章的题」，比模型猜的可靠；
-       不覆盖的话会出现「老师填 5、AI 认成 2、最终写成 2」这种跟老师对着干的结果。
-       没填（chapter=null）才用 AI 从原文认出来的 ch。 */
-    if (chapter != null) res.questions.forEach(q => { q.ch = chapter; });
+    /* 2026-11-20：章节不再由老师单独填（删了 #mgCh），ch 完全用 AI 每题自己认的那个。
+       老师说「只要第 3 章」这类要求写在「针对性要求」里，由模型按提示词办。 */
     const items = res.questions.map(q => MAT_toDb(q, (tag || 'AI') + ' · AI 出题'));
     MAT_GEN = { items, rejected: res.rejected, tag: `${qt.name} · ${items.length} 道`, mid, sid: sub.id, qt: qt.name };
     state.textContent = `出了 ${res.questions.length} 道` + (res.rejected.length ? `，${res.rejected.length} 道没收下` : '') + '，正在入池…';
@@ -2242,7 +2245,6 @@ async function matGenRun() {
     const partial = e && e.partialQuestions ? e.partialQuestions : [];
     if (partial.length) {
       /* 中途断了：已经出的题也直接入池（不然全丢），并在状态里写清楚是半批 */
-      if (chapter != null) partial.forEach(q => { q.ch = chapter; });
       const items = partial.map(q => MAT_toDb(q, (tag || 'AI') + ' · AI 出题（中途断了）'));
       MAT_GEN = { items, rejected: e.partialRejected || [], tag: `${qt.name} · 中途断了`, mid, sid: sub.id, qt: qt.name };
       matGenDraw();
