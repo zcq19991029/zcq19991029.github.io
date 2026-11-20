@@ -1535,12 +1535,27 @@ const PRACTICE_SUB_FIXED = [
   '用 Keil C51 新建工程、按题目要求编写程序并编译通过（写关键代码与工程 / 编译要点）；',
   '用 Proteus 仿真或单片机开发板下载运行（写运行现象、关键数据或测量值）。'
 ];
+/* 实操题的特殊口径（2026-11-21，老师原话）：
+     「实操题没有标准答案，仅供参考，尤其第二小问实体开发板则是根据现场仿真实际情况打分。
+      这是单片机这门课的特殊情况；第一小问也是看实际情况，但是可以给个参考示例代码」
+   → 三件事：
+     ① 答案一律叫「参考要点」，不写「正确答案」「必须」这种口吻 —— 学生怎么写、用仿真还是实物都行；
+     ② 第 1 小问配一段**能直接编译的 C51 参考示例代码**，放 code 字段（只出现在参考答案里，
+        不上面向学生的卷面），并注明「这只是一种写法」；
+     ③ 第 2 小问写**可能的预期现象 + 以现场为准**，不许写死一个结果 ——
+        实物板子的接线、器件差异都会让现象不同，真分数是老师现场看着给的。 */
 function practiceRule(name, n) {
   const k = practSub(n);
+  const head = '「' + name + '」按实操考核出：题干 = 一段任务描述（要做什么、给定什么条件 / 器材 / 端口分配，'
+    + '不带教材编号，学生只看题干就能动手）。'
+    + '**这类题没有标准答案**：学生怎么写程序、用仿真还是实物都行，只要现象符合题目要求就算对。'
+    + '所以 answer 里只写「参考要点」，不要用「正确答案」「必须」这种口吻。';
+  const codeRule = '另外给一个 code 字段，放一段**能直接编译的 C51 参考示例代码**'
+    + '（`#include <reg51.h>` 开头、完整 main、带关键注释、20 行以内）—— 这只是「一种写法」，允许学生用别的实现。';
   if (k === 1) {
-    return '「' + name + '」按实操考核出：题干 = 一段任务描述（要做什么、给定什么条件 / 器材 / 端口分配，'
-      + '不带教材编号，学生只看题干就能动手）。**这一批只要 1 个小问**：题干末尾用「要求：……」一句话交代'
-      + '要交什么（程序编译通过 / 运行现象），**不要**写成（1）（2）；answer 只给 1 条完整参考答案（代码要点 + 运行结果），不要分条。'
+    return head + '**这一批只要 1 个小问**：题干末尾用「要求：……」一句话交代'
+      + '要交什么（程序编译通过 / 运行现象），**不要**写成（1）（2）；'
+      + 'answer 只给 1 条参考要点（要点 + 可能的预期现象，不写死结果），不要分条；' + codeRule
       + '不要写成「第一步接线、第二步写程序」的流水账，接线和端口分配写进题干的任务描述里。';
   }
   const heads = [];
@@ -1548,14 +1563,19 @@ function practiceRule(name, n) {
     heads.push(PRACTICE_SUB_FIXED[i - 1]
       || '由题目决定具体动作（如测量某点电压、写出某段数据、说明为什么是这个结果），同样要写清产出物；');
   }
-  return '「' + name + '」按实操考核出：题干 = 一段任务描述（要做什么、给定什么条件 / 器材 / 端口分配，'
-    + '不带教材编号，学生只看题干就能动手）。'
+  return head
     + '题干末尾必须用「要求：」分行列 **' + k + ' 个小问**，编号（1）（2）…，每个小问单独一行：\n'
     + heads.map((h, i) => '  （' + (i + 1) + '）' + h).join('\n') + '\n'
     + '每个小问都必须「动词开头 + 写清产出物」，不许只丢一个名词（写成「（3）调试」不合格，'
     + '要写成「（3）下载到开发板，记录数码管从 00 加到 09 的现象」）。\n'
-    + 'answer **必须恰好 ' + k + ' 条**，与小问一一对应、顺序一致，每条以（' + '1）（2）…' + '开头；'
-    + '几条小问就几条答案，不多不少、不合并、不调序。'
+    + 'answer **必须恰好 ' + k + ' 条**，与小问一一对应、顺序一致，每条以（1）（2）… 开头：\n'
+    + '  （1）第 1 条写参考要点：工程怎么建、关键端口 / 寄存器怎么设、编译要过；'
+    + '并注明「示例代码见 code 字段，学生用别的写法同样算对」；\n'
+    + '  （2）第 2 条写**可能的预期现象**（举例，比如「P1.1 所接 LED 点亮、其余 7 只熄灭」），'
+    + '并明确写「实际以现场仿真 / 下载运行观察到的现象为准」——'
+    + '实物开发板的接线、器件差异会让结果不同，**不要写成一个唯一结果**；\n'
+    + (k > 2 ? '  （3）第 3 条起按题干的小问逐条写参考要点，同样不下绝对结论；\n' : '')
+    + '几条小问就几条答案，不多不少、不合并、不调序。' + codeRule
     + '不要写成「第一步接线、第二步写程序、第三步下载」的流水账，接线和端口分配写进题干的任务描述里。';
 }
 const customRule = (name, n) => CUSTOM_PRACTICE_RE.test(String(name || ''))
@@ -1570,10 +1590,14 @@ function customSample(k, name, n) {
   }
   const c = practSub(n);
   const stemBase = '使用 AT89C51 单片机控制接在 P1.1 引脚上的 LED。给定条件：8 只 LED 阳极经 1 kΩ 电阻接 +5 V，阴极分别接 P1.0～P1.7；要求其余 LED 保持熄灭。';
+  /* 参考示例代码（只进参考答案，不上面向学生的卷面）：一种写法而已，不是唯一解 */
+  const codeSample = '"code":"#include <reg51.h>\\nvoid main()\\n{\\n    P1 = 0xFD;      /* 1111 1101B：只有 P1.1 输出低电平 */\\n    while (1);      /* 保持这个状态 */\\n}"';
   if (c === 1) {
     return '{"type":"' + key + '","stem":"' + stemBase + '\\n要求：编写程序让 P1.1 所接 LED 点亮，其余保持熄灭，编译通过并说明现象。",'
-      + '"answer":["在 Keil C51 中新建工程，主程序执行 P1 = 0xFD; 并编译通过（0xFD = 11111101B，仅 P1.1 为 0）；'
-      + '烧录或仿真后 P1.1 所接 LED 点亮，其余 7 只保持熄灭。"],'
+      + '"answer":["参考要点：新建工程后主程序写 P1 = 0xFD;（0xFD = 11111101B，只有 P1.1 为低电平），编译无错误；'
+      + '示例代码见 code 字段，学生写成 sbit P1_1 = P1^1; P1_1 = 0; 这类同样算对。'
+      + '预期现象：P1.1 所接 LED 点亮、其余 7 只保持熄灭；实际以现场仿真或下载运行观察到的现象为准。"],'
+      + codeSample + ','
       + '"ch":1,"knowledge":"P1 口位操作与 LED 控制","explanation":"P1.1 输出低电平点亮 LED；0xFD = 11111101B，仅 P1.1 为 0。"}';
   }
   const req = [];
@@ -1584,12 +1608,13 @@ function customSample(k, name, n) {
   }
   const ans = [];
   for (let i = 1; i <= c; i++) {
-    ans.push(i === 1 ? '（1）在 Keil C51 中新建工程，主程序执行 P1 = 0xFD;，编译无错误；'
-      : i === 2 ? '（2）Proteus 中搭建最小系统并加载 HEX（或下载到开发板），现象：P1.1 所接 LED 点亮，其余熄灭；'
-        : '（' + i + '）对应数据 / 现象按题干要求记录。');
+    ans.push(i === 1 ? '（1）参考要点：工程里主程序写 P1 = 0xFD;（只有 P1.1 为低电平），编译无错误；示例代码见 code 字段，学生用别的写法同样算对；'
+      : i === 2 ? '（2）预期现象：P1.1 所接 LED 点亮、其余 7 只熄灭（若电路是高电平点亮，现象相反）。实际以现场仿真或下载运行观察到的现象为准，与题目要求一致即得分；'
+        : '（' + i + '）按题干要求记录该项数据 / 现象，以现场实测为准。');
   }
   return '{"type":"' + key + '","stem":"' + stemBase + '\\n要求：\\n' + req.join('\\n') + '",'
     + '"answer":[' + ans.map(x => '"' + x + '"').join(',') + '],'
+    + codeSample + ','
     + '"ch":1,"knowledge":"P1 口位操作与 LED 控制","explanation":"P1.1 输出低电平点亮 LED；0xFD = 11111101B，仅 P1.1 为 0。"}';
 }
 
@@ -3671,6 +3696,14 @@ function qbDrawStat() {
   });
   const sb = $('qbSelBar'); if (sb) sb.hidden = false;
 }
+/* 2026-11-21：自建题型（老师自己加的，如单片机「实操题」，key 一般是 shicao）= 不在内置那六个里。
+   为什么不写死字面量：内置题型本来就有一份 QB_FALLBACK，再抄一遍就成了两处真相，
+   以后加内置题型必然会漏改一处。这里只做「键在不在 QB_FALLBACK 里」一件事。
+   为什么要区分：老师原话「实操题没有标准答案，仅供参考，尤其第二小问实体开发板则是根据现场仿真
+   实际情况打分」——自建题型的 a 存的是**参考要点**、code 存的是**参考示例代码**，
+   界面上不能跟着内置题型一起说「答案」，不然老师会当成必须给标准答案。 */
+const QB_BUILTIN = Object.keys(QB_FALLBACK);
+function QB_IS_CUSTOM(t) { return QB_BUILTIN.indexOf(t) < 0; }
 function QB_ans(q) {
   const a = q.a;
   if (q.t === 'judge') return a === true || a === 'true' || a === 'T' ? '正确' : a === false || a === 'false' || a === 'F' ? '错误' : String(a == null ? '' : a);
@@ -3715,7 +3748,7 @@ function qbDraw() {
         ${q.fig ? `<div class="qb-figprev">${HXFig.figSvg(q.fig)}</div>` : ''}
         ${Array.isArray(q.o) && q.o.length && q.t === 'choice' ? `<div class="qb-o">${q.o.map(o => `<span>${esc(o.key)}. ${esc(o.text)}</span>`).join('')}</div>` : ''}
         ${q.code ? `<pre class="qb-code">${esc(q.code)}</pre>` : ''}
-        <div class="qb-a">${q.knowledge ? `<span class="qb-t">知识点</span>${esc(q.knowledge)} · ` : ''}答案：${esc(String(QB_ans(q)).slice(0, 300))}${q.src ? ' ｜ ' + esc(q.src) : ''}</div>
+        <div class="qb-a">${q.knowledge ? `<span class="qb-t">知识点</span>${esc(q.knowledge)} · ` : ''}${QB_IS_CUSTOM(q.t) ? '参考要点' : '答案'}：${esc(String(QB_ans(q)).slice(0, 300))}${q.src ? ' ｜ ' + esc(q.src) : ''}</div>
       </div>
       <div class="qb-act"><button class="sm" data-qed="${q.id}" title="单题修改（改题干/选项/答案/图）">改</button></div>
     </div>`).join('');
@@ -4562,9 +4595,13 @@ function qbEdit(id) {
     <div class="qb-figpick" id="qeFigPrev"${curFig ? '' : ' hidden'}>${curFig ? HXFig.figSvg(curFig, true) : ''}</div>
     ${q.t === 'choice' ? `<label class="zl-f">选项（一行一个，A. 开头）<textarea id="qeO" rows="4">${esc(opts)}</textarea></label>
       ${figKeys.length ? `<p class="note" style="margin:-6px 0 10px">选项 ${esc(figKeys.join(' / '))} 本身是图形符号（${esc(figKeys.map(k => HXFig.figName(optFigs[k]) || optFigs[k]).join('、'))}），保存时按字母把原图接回去。</p>` : ''}` : ''}
-    ${q.t === 'prog' ? `<label class="zl-f">程序<textarea id="qeCode" rows="5" class="mono">${esc(q.code || '')}</textarea></label>` : ''}
+    <!-- 2026-11-21：原来这一栏只给 prog 显示，自建题型（如单片机「实操题」）的 code
+         （= 参考示例代码）在界面上既看不见也改不了，老师没法补 / 换示例代码。
+         现在自建题型也显示这一栏，标题改口说清「可空、只出现在参考答案里」——
+         老师原话「实操题没有标准答案，仅供参考……第一小问也是看实际情况，但是可以给个参考示例代码」。 -->
+    ${q.t === 'prog' || QB_IS_CUSTOM(q.t) ? `<label class="zl-f">${q.t === 'prog' ? '程序' : '参考示例代码（可空，只出现在参考答案里，不印在卷面）'}<textarea id="qeCode" rows="5" class="mono">${esc(q.code || '')}</textarea></label>` : ''}
     ${q.t === 'judge' ? `<label class="zl-f">答案<select id="qeJ"><option value="T" ${jv ? 'selected' : ''}>正确</option><option value="F" ${jv ? '' : 'selected'}>错误</option></select></label>`
-      : `<label class="zl-f">答案${q.t === 'choice' ? '（字母，如 A 或 AC）' : q.t === 'fill' ? '（每空一行）' : '（一问一行：一个大题两个小问就写两行）'}<textarea id="qeA" rows="${q.t === 'choice' ? 1 : q.t === 'fill' ? 3 : 4}">${esc(ans)}</textarea></label>`}
+      : `<label class="zl-f">${QB_IS_CUSTOM(q.t) ? '参考要点（一问一行；本题没有标准答案，只作参考）' : '答案' + (q.t === 'choice' ? '（字母，如 A 或 AC）' : q.t === 'fill' ? '（每空一行）' : '（一问一行：一个大题两个小问就写两行）')}<textarea id="qeA" rows="${q.t === 'choice' ? 1 : q.t === 'fill' ? 3 : 4}">${esc(ans)}</textarea></label>`}
     <label class="zl-f">解析<textarea id="qeE" rows="2">${esc(q.explanation || '')}</textarea></label>
     <div class="errs" id="qeErr" hidden></div>
     <div class="row"><button class="pri" id="qeSave">保存</button><button id="qeCancel">取消</button></div>`);
@@ -4603,7 +4640,11 @@ function qbEdit(id) {
       const lines = $('qeA').value.split('\n').map(s => s.trim()).filter(Boolean);
       it.a = lines.length > 1 ? lines : (lines[0] || '');
       if (!it.a) return fail('答案不能空');
-      if (q.t === 'prog') it.code = $('qeCode').value.replace(/\s+$/, '') || null;
+      /* 2026-11-21：以前只有 prog 才读 code，自建题型的参考示例代码改了也不存。
+         改成「框在就读」——qeCode 只有 prog / 自建题型才有，其余题型这里 $() 拿到 null，跳过。
+         it 里本来就带着 code: q.code || null，没这一栏时不会被写成 undefined。 */
+      const codeEl = $('qeCode');
+      if (codeEl) it.code = codeEl.value.replace(/\s+$/, '') || null;
     }
     /* 2026-11-15：「改」是两次网络（先加新的一条、再删旧的一条），比删单题还慢。
        原来只把按钮灰掉，界面上没有任何「在忙」的迹象；现在按钮转圈 + 计时。 */

@@ -6223,6 +6223,15 @@ const pType=t=>PAPER_TYPES[t]||PAPER_EXTRA[t]||{name:String(t||'题型'),unit:'�
    已经存进试卷设置里的「实操」大题会被 pickSections 整段丢掉 —— 老师看到的是「卷子少了一节」。
    题池里有这个 key 就说明它不是空的，照抽。 */
 const pIsKnown=t=>!!(PAPER_TYPES[t]||PAPER_EXTRA[t])||!!(POOL_TYPES&&POOL_TYPES.has(t));
+/* 实操类题目（2026-11-21，老师原话）：
+     「实操题没有标准答案，仅供参考，尤其第二小问实体开发板则是根据现场仿真实际情况打分。
+      这是单片机这门课的特殊情况；第一小问也是看实际情况，但是可以给个参考示例代码」
+   所以卷面照常出题，但**参考答案一律标成「参考要点」**，并写清「实得分以现场为准」。
+   怎么认：按题型中文名，和资料库出题时那条 `CUSTOM_PRACTICE_RE` 同一个口径 ——
+   老师把题型改名成「实操题」「技能考核」「实训一」都认；自建的计算题之类不会被误标。 */
+const PRACTICE_NAME_RE=/实操|操作|实训|技能/;
+const pIsPractice=t=>PRACTICE_NAME_RE.test(String((pType(t)||{}).name||''));
+const PRACTICE_NOTE='本题为实操考核，没有标准答案：下面只是参考要点。实得分以现场操作、仿真或下载运行看到的实际现象为准（接线和器件差异会让现象不同）。';
 const CN_NUM='一二三四五六七八九十';
 const PAPER_DEFAULT={
   year:'2026-2027',term:'第一学期',course:'单片机技术及应用',ver:'A',major:'机电一体化技术',grade:'2025级',mode:'闭卷',minutes:90,
@@ -6242,6 +6251,11 @@ const blanksOf=q=>{
   const ans=Array.isArray(q.a)?q.a.filter(x=>String(x==null?'':x).trim()!=='').length:0;
   return Math.max(1,marks,ans);
 };
+/* 题干指纹（2026-11-21）：同一张卷面里给填空题**题干去重**用。
+   老师截图里第 1 题和第 8 题一模一样 —— 题池里两道题干相同的题被一起收进了卷面，
+   等于同一道题考两遍、白占一个空位（那一次就是 10 空排出 15 空的原因之一）。
+   去空白字符后比较：题干只差空格 / 空行 / 全角空格的，也算同一道。 */
+const stemKey=q=>String(q&&q.q==null?'':q.q).replace(/\s+/g,'');
 
 /* ================= 选择题选项归一（2026-11-09） =================
    用户原话：「电气接线的理论考试选择题选项都报错了 没有正常的」。
@@ -6509,6 +6523,14 @@ function pickSections(cfg,seed,used,picks){
     const acc={};let tot=0;
     const rng=makeRng(seed+'|'+sec.t);
     const cnt=q=>sec.t==='fill'?blanksOf(q):1;
+    /* 填空题的两道闸（2026-11-21）：
+       · isFill/__seen —— 本卷已经收过的题干指纹，同一道题不许排第二遍（见 stemKey 的注释）；
+       · __dropped —— 收不进来的题（超空数 / 题干重复）的清单，最后记到 sec.__drop。
+       两条闸对「空白卷 / 点名 / 随机补」所有路径都要走 —— 老师截图里那次超预算正是走空白卷那条路。 */
+    const isFill=sec.t==='fill';
+    const __seen=new Set();
+    const __dropped=[];
+    let have=0;                    // 本大题已经收进来的空数（填空题按空算，别的题型≡题数）
     /* 点名：不受项目比重、也不受“别的卷用过”限制——老师点了就是要它。
        下标越界 / 题型对不上 / 同一个下标点两次，都当没点过（不能因为一份存坏的设置把整页弄崩）。 */
     const pin=[];
@@ -6529,31 +6551,48 @@ function pickSections(cfg,seed,used,picks){
        等他从右侧题库拖进来、或者让 AI 一键填。占位**不能**直接省略 —— 省略了就没有题号，
        老师没法按「第 3 题」去换。
        2026-11-19 第四轮：noFill（老师取消勾选空白卷后的状态）也走这条路 —— 取消勾选
-       不再自动补题，剩下的空位等「补齐剩余题目」按钮来填。 */
+       不再自动补题，剩下的空位等「补齐剩余题目」按钮来填。
+       2026-11-21（老师截图：设 10 空、每空 1 分，卷面却排出 15 空、10 道题）：
+       这条路以前把点名的题**无条件照收** —— 「补齐剩余题目」按空位（=10 个）发题，
+       一道两空的题就占了两个空，10 道两空题叠起来就是 15 空。现在和下面非空白卷那条路
+       同一个口径：按空数排队收，收满 sec.n 空为止；收不进来的题**不放卷面**，
+       原地留一个空位（老师可以重挑 —— 他原话「删除题目用户重新凑也可以」），并记 __drop。
+       先来的优先：i 从小到大，后面点的大题不会把前面已经排好的挤掉。 */
     if(blankMode||noFill){
       const pinMap=new Map(pin.map(x=>[x.i,x.q]));
       const items=[];
-      for(let i=0;i<sec.n;i++) items.push(pinMap.get(i)||blankItem(sec.t,i));
+      for(let i=0;i<sec.n;i++){
+        const q=pinMap.get(i);
+        if(q&&!(isFill&&(have+cnt(q)>sec.n||__seen.has(stemKey(q))))){
+          if(isFill){have+=cnt(q);__seen.add(stemKey(q));}
+          items.push(q);continue;
+        }
+        if(q)__dropped.push(q);           // 收了会超空数 / 题干重复：不放卷面，留空位给老师重挑
+        /* 填空题的占位本身也是「1 个空」：预算用完就不再补占位 ——
+           否则 10 空里放 5 道两空题、再补 5 个占位，卷面又成了 15 空（老师截图那个数）。
+           别的题型占位 = 1 道题，题数本来就是 sec.n，照旧全补。 */
+        if(!isFill||have+1<=sec.n){if(isFill)have+=1;items.push(blankItem(sec.t,i));}
+      }
       sec.items=items;
+      if(__dropped.length)sec.__drop=__dropped.length;
       continue;
     }
     const pinK=new Set(pin.map(x=>x.k));
-    let have=0;
     /* 2026-11-20：填空题这一大题的 n 是**空数**，不是题数。老师设「10 空」，
        卷面却排出 16 空（截图：实际抽到 16 空（差 -6）少算成超），根因就在这里 ——
        点名的题（含「按理论试卷题量」自动勾的那一批、以及右侧题库点过来的题）**全部照收**，
        一道 3 空的题叠一道 2 空的题，很容易就越过预算。现在按空数排队收：
        收满 sec.n 为止，再来的收不进去（记到 sec.__drop，界面上明说），
        保证「说 10 空就是 10 空」，而不是「给你 10 道题、空数看运气」。 */
-    const dropped=[];
     pin.forEach(x=>{
-      const c=cnt(x.q);
-      if(have+c>sec.n){dropped.push(x);return;}
+      const c=cnt(x.q),sk=stemKey(x.q);
+      if(have+c>sec.n||(isFill&&__seen.has(sk))){__dropped.push(x);return;}
       have+=c;used.add(x.k);                  // 同一套卷里不能再出现第二遍
+      if(isFill)__seen.add(sk);
       const pts=c*sec.pts;acc[x.q.ch]=(acc[x.q.ch]||0)+pts;tot+=pts;
       x.__fit=true;
     });
-    if(dropped.length)sec.__drop=dropped.length;
+    if(__dropped.length)sec.__drop=__dropped.length;
     const pinFit=pin.filter(x=>x.__fit);
     pin.length=0;pinFit.forEach(x=>pin.push(x));
     const pool=curPool().filter(q=>q.t===sec.t&&wOf(q.ch)>0&&!pinK.has(qid(q))&&(!knSel||knSel.has(knVal(q))));
@@ -6561,13 +6600,21 @@ function pickSections(cfg,seed,used,picks){
     const fresh=pool.filter(q=>!used.has(qid(q)));
     const src=fresh.length>=need?fresh:pool;
     const byCh={};rng.shuffle(src).forEach(q=>{(byCh[q.ch]=byCh[q.ch]||[]).push(q);});
+    /* 2026-11-21：随机的这一批也要过「空数 + 题干去重」两道闸 —— 题池里本来就有题干
+       一模一样的两道题（老师截图第 1 题 = 第 8 题），只挡点名的路等于没挡。
+       pickable 同时给 cands 和 findIndex 用，两边条件必须完全一致：以前 findIndex 用的是
+       内联条件，一旦返回 -1，`splice(-1,1)` 会把这一章的**最后一道**题悄悄删掉。 */
+    const pickable=q=>have+cnt(q)<=sec.n&&(!isFill||!__seen.has(stemKey(q)));
     for(let guard=0;have<sec.n&&guard<200;guard++){
-      const cands=Object.keys(byCh).filter(c=>byCh[c].some(q=>have+cnt(q)<=sec.n));
+      const cands=Object.keys(byCh).filter(c=>byCh[c].some(pickable));
       if(!cands.length)break;
       const gap=c=>(wOf(c)/W)*(tot+sec.pts)-(acc[c]||0);
       cands.sort((a,b)=>gap(b)-gap(a)||rng.next()-0.5);
-      const c=cands[0],k=byCh[c].findIndex(q=>have+cnt(q)<=sec.n),q=byCh[c].splice(k,1)[0];
+      const c=cands[0],k=byCh[c].findIndex(pickable);
+      if(k<0)continue;
+      const q=byCh[c].splice(k,1)[0];
       sec.items.push(q);have+=cnt(q);
+      if(isFill)__seen.add(stemKey(q));
       const p=cnt(q)*sec.pts;acc[c]=(acc[c]||0)+p;tot+=p;
     }
     const byPos=(a,b)=>(a.ch-b.ch)||(qidx(a)-qidx(b));
@@ -7151,6 +7198,9 @@ function answerDocx(P,cfg){
     const items=real(s);
     if(!items.length)return;
     b+=DX.p(DX.r(secTitle(s),{hei:true,b:true}),{before:160,keep:true});
+    /* 2026-11-21：实操题（见 PRACTICE_NOTE）先在大题标题下说清「这题没有标准答案」，
+       再逐题列参考要点 —— 老师原话「实操题没有标准答案，仅供参考」。 */
+    if(pIsPractice(s.t))b+=DX.p(DX.r(PRACTICE_NOTE,{color:'666666',sz:18}));
     if(s.t==='choice')b+=ansRows(items.map((q,i)=>`${i+1}、${q.a}`));
     else if(s.t==='judge')b+=ansRows(items.map((q,i)=>`${i+1}、（${q.a?'√':'×'}）`));
     else if(s.t==='fill')items.forEach((q,i)=>{b+=DX.p(DX.r(`${i+1}、${Array.isArray(q.a)?q.a.join('；'):q.a}`));});
@@ -7161,6 +7211,13 @@ function answerDocx(P,cfg){
       const ans=hxAnsLines(q.a);
       if(ans.length>1)ans.forEach((x,k)=>{b+=DX.p(DX.r(`（${k+1}）${x}`,{color:'1F4E79'}),{ind:210});});
       else b+=DX.p(DX.r(ans[0]||'',{color:'1F4E79'}));
+      /* 参考示例代码（2026-11-21，老师原话「第一小问也是看实际情况，但是可以给个参考示例代码」）：
+         只在参考答案里出，而且明写「一种写法，学生用别的实现同样算对」——
+         换成标准答案的口气，学生就会以为必须一字不差。行距/缩进照抄卷面 prog 打印 code 的写法。 */
+      if(pIsPractice(s.t)&&q.code){
+        b+=DX.p(DX.r('参考示例代码（一种写法，学生用别的实现同样算对）：',{color:'666666',sz:18}),{keep:true});
+        String(q.code).split('\n').forEach(l=>b+=DX.p(DX.r(l,{mono:true,sz:18}),{ind:210,line:240,keep:true}));
+      }
       b+=DX.p(DX.r(`（评分：按要点给分，共 ${s.pts} 分）`,{color:'666666',sz:18}));
     });
   });
@@ -7342,6 +7399,11 @@ html,body{margin:0;background:#888;font-family:"SimSun","宋体","Songti SC","ST
 .qline .score{font-weight:normal;color:#1F4E79;display:block;margin-left:1em}
 /* 大题按小问分行（2026-11-21）：每问一行，缩进对齐，不再挤成一段 */
 .qline .ansub{display:block}
+/* 实操题（2026-11-21）：大题标题下那句「没有标准答案、仅供参考」，和卷末的参考示例代码。
+   .ansnote 用灰色小字 —— 它是说明，不是答案，别抢答案的视线；
+   .anscode 用等宽字体 + 深蓝，和 .score 里的答案区分开，一眼能看出这是「一种写法」。 */
+.ansnote{margin:2pt 0 4pt;font-size:9pt;color:#666}
+.anscode{margin:2pt 0 0 1em;font:9pt/1.5 Consolas,monospace;white-space:pre-wrap;color:#1F4E79}
 .qline .grade{font-weight:normal;color:#666;font-size:9pt;display:block;margin-left:1em}
 .dist{margin-top:10pt;font-family:"SimHei","黑体",sans-serif;font-weight:bold}
 ${FIG_CSS}
@@ -7356,6 +7418,9 @@ function answerPreviewHTML(P, cfg) {
     const items = real(s);
     if (!items.length) return;
     b += `<div class="sec">${secTitle(s)}</div>`;
+    /* 2026-11-21：实操题的「仅供参考、实得分以现场为准」要和 answerDocx 一模一样 ——
+       预览就是老师拿去打印的那一份，两边口径不同等于白写。 */
+    if (pIsPractice(s.t)) b += `<p class="ansnote">${esc(PRACTICE_NOTE)}</p>`;
     if (s.t === 'choice') b += `<div class="ans">${items.map((q, i) => `<span>${i + 1}、${esc(q.a)}</span>`).join('')}</div>`;
     else if (s.t === 'judge') b += `<div class="ans">${items.map((q, i) => `<span>${i + 1}、（${q.a ? '√' : '×'}）</span>`).join('')}</div>`;
     else if (s.t === 'fill') items.forEach((q, i) => { b += `<p class="ansline">${i + 1}、${esc(Array.isArray(q.a) ? q.a.join('；') : q.a)}</p>`; });
@@ -7364,7 +7429,10 @@ function answerPreviewHTML(P, cfg) {
       const aHTML = ans.length > 1
         ? ans.map((x, k) => `<span class="ansub">（${k + 1}）${esc(x)}</span>`).join('')
         : esc(ans[0] || '');
-      b += `<div class="qline">${i + 1}、${esc(q.q)}${hxFig(q.fig,false)}<span class="score">${aHTML}</span><span class="grade">（评分：按要点给分，共 ${s.pts} 分）</span></div>`;
+      /* 参考示例代码只进参考答案（2026-11-21）：空白卷面绝不印 q.code，
+         否则学生直接抄 —— 这一点卷面那侧（itemHTML / docxItems）保持原样，没加。 */
+      const codeHTML = (pIsPractice(s.t) && q.code) ? `<pre class="anscode">${esc(q.code)}</pre>` : '';
+      b += `<div class="qline">${i + 1}、${esc(q.q)}${hxFig(q.fig,false)}<span class="score">${aHTML}</span>${codeHTML}<span class="grade">（评分：按要点给分，共 ${s.pts} 分）</span></div>`;
     });
   });
   const st = paperStats(P);
@@ -7976,10 +8044,105 @@ function paperLoad(sub) {
   if (!C.key) C.key = 'T' + Math.random().toString(36).slice(2, 6).toUpperCase();
   return C;
 }
+let paperSaveSeq = 0;      // 这台设备上「存过几次」：云端草稿回来时用它判断老师有没有已经动手
 function paperSave(sub, C) {
   const all = store.get(PAPER_KEY, {}) || {};
   all[sub] = JSON.parse(JSON.stringify(C));
+  all[PAPER_AT] = Object.assign({}, all[PAPER_AT] || {}, { [sub]: Date.now() });
   store.set(PAPER_KEY, all);
+  paperSaveSeq++;
+  paperPushCloud();
+}
+
+/* ---------- 草稿跟账号走（2026-11-21）----------
+   老师原话：「我这边的试卷只要是没保存的换个设备就看不见了 为什么他（草稿）不能跟随云端呢」。
+   根因很直白：paperSave 只写 localStorage['exam.paper'] —— 那是**这台机器**的存储；
+   「保存到试卷库」是显式动作，不点就等于没存过，换台电脑当然是空白卷。
+   现在两层（和试卷库 / 外观 / AI 配置同一个口径）：
+     · 真相跟着账号走：云端 public.hx_pref 的 'exam.paper' 键（hx-cloud.js 的 prefPut / prefGet）；
+     · localStorage 仍是本机镜像：断网 / 没登录照旧能编辑，联网后自动补传；
+     · 每份卷子记一个 __at（毫秒），进页面时比新旧 —— **谁最后改的听谁的**。
+   为什么按科目分别记 __at：老师可能白天在办公室改 A 科目、晚上在家改 B 科目，
+   整块 last-write-wins 会把另一边的改动冲掉。 */
+const PAPER_AT = '__at';
+const paperAtOf = (blob, sub) => +(((blob || {})[PAPER_AT] || {})[sub]) || 0;
+
+/* hx-cloud.js 是 hx-theme.js 异步注入的（它不是 <script> 直接引的），
+   所以不能假设进页面就有 HXC —— 等它的共享 promise，超时就当没有，走本机。 */
+function hxcReady() {
+  if (window.HXC) return Promise.resolve(window.HXC);
+  const p = window.__HXC_P;
+  if (p && typeof p.then === 'function') return p.then(() => window.HXC || null).catch(() => null);
+  return new Promise(res => {
+    let n = 0;
+    const t = setInterval(() => {
+      if (window.HXC || ++n > 20) { clearInterval(t); res(window.HXC || null); }
+    }, 250);
+  });
+}
+/* 拖一道题就 paperSave 一次，别每次都发请求：攒 1 秒再推。
+   连续改动时 clearTimeout 只保留最后一次 —— 推的是「当前全量」，中间态推上去也没意义。 */
+let paperPushT = 0;
+function paperPushCloud(delay) {
+  if (paperPushT) clearTimeout(paperPushT);
+  paperPushT = setTimeout(() => {
+    paperPushT = 0;
+    hxcReady().then(H => {
+      if (!H || typeof H.prefPut !== 'function') return;   // 没登录 / 没网：本机照旧
+      const all = store.get(PAPER_KEY, {}) || {};
+      H.prefPut('exam.paper', all).catch(() => { });
+    }).catch(() => { });
+  }, delay == null ? 1000 : delay);
+}
+/* 纯计算：本机 blob + 云端 blob → 该用哪一份。
+   `newer=true` 表示云端更新（调用方要重画）。抽成纯函数是为了能单测 ——
+   `考试/test/paper-draft-sync.test.mjs` 直接把它抠出来跑，不需要 DOM / 网络。 */
+function paperMerge(local, remote, sub) {
+  local = (local && typeof local === 'object') ? local : {};
+  remote = (remote && typeof remote === 'object') ? remote : null;
+  const lAt = paperAtOf(local, sub), rAt = paperAtOf(remote, sub);
+  /* 本机**完全没有**这份科目（新设备 / 刚换浏览器）→ 云端有就拿来用，不看时间戳：
+     老数据（这次改造之前存的）根本没记 __at，两边都是 0，光比时间会把云端的卷子判成「不更新」，
+     表现就是「换了设备还是空白卷」—— 那正是老师要修的问题。 */
+  const hasLocal = local[sub] !== undefined;
+  const newer = !!(remote && remote[sub] && (!hasLocal || rAt > lAt));
+  if (!newer) return { blob: local, newer: false, lAt, rAt };
+  /* ⚠ 按**科目逐个**取新的，不是整块 Object.assign：
+     云端这次只改了 A 科目，整块合并会把本机更新的 B 科目一起冲掉
+     —— 那正是「换台电脑，另一门课的卷子变回旧版」这种难查的毛病。 */
+  const out = {}, at = {};
+  [...Object.keys(local), ...Object.keys(remote)].forEach(k => {
+    if (k === PAPER_AT) return;
+    const l = paperAtOf(local, k), r = paperAtOf(remote, k);
+    /* 时间戳分不出高下（都 0，老数据）时：本机根本没有这份才用云端的，
+       两边都有就留着本机 —— 宁可少同步一次，也不悄悄丢掉老师改过的东西。 */
+    const takeRemote = r > l || (local[k] === undefined && remote[k] !== undefined);
+    if (takeRemote) out[k] = remote[k];
+    else if (local[k] !== undefined) out[k] = local[k];
+    at[k] = Math.max(l, r);
+  });
+  out[PAPER_AT] = at;
+  return { blob: out, newer: true, lAt, rAt };
+}
+/* 进页面拉一次云端草稿：云端更新就用云端的（并写回本机镜像），返回 true 表示「该重画了」。
+   每份科目只拉一次，避免重画时反复请求。 */
+const paperHydrated = {};
+async function paperHydrate(sub) {
+  if (paperHydrated[sub]) return false;
+  paperHydrated[sub] = true;
+  const H = await hxcReady();
+  if (!H || typeof H.prefGet !== 'function') return false;
+  let cloud;
+  try { cloud = await H.prefGet(); } catch (e) { return false; }
+  const local = store.get(PAPER_KEY, {}) || {};
+  const m = paperMerge(local, cloud && cloud['exam.paper'], sub);
+  if (!m.newer) {
+    /* 本机这份更新（或者一样新）：顺手把本机推上去，别让云端停在旧版本上 */
+    if (m.lAt > m.rAt) paperPushCloud(0);
+    return false;
+  }
+  store.set(PAPER_KEY, m.blob);
+  return true;
 }
 
 /* ================= 题池题型 → 卷面设置（2026-11-21 新增）=================
@@ -8031,6 +8194,16 @@ function mountPaper(sub) {
   const view = $('ppView');
   if (!view) return;
   const C = paperLoad(sub);
+  /* 云端草稿（2026-11-21）：拉回来按 __at 比新旧，云端更新就重挂一次；
+     万一这期间老师已经动过手（paperSaveSeq 变了），以本机为准，绝不把人家刚改的冲掉。 */
+  (function hydrate() {
+    const seq0 = paperSaveSeq;
+    paperHydrate(sub).then(hit => {
+      if (!hit || paperSaveSeq !== seq0) return;
+      toast('已同步你在其他设备上改的草稿');
+      mountPaper(sub);
+    }).catch(() => { });
+  })();
   if (POOL && POOL_CH) for (const c of Object.keys(POOL_CH)) if (C.weights[c] == null) C.weights[c] = 20;
   if (POOL && !(store.get(PAPER_KEY, {}) || {})[sub]) C.course = SUBJECTS[sub] || C.course;
   /* 题池里有、设置里没有的题型先补进来（题数 0，不改卷面也不改满分）。
@@ -8722,7 +8895,13 @@ function mountPaper(sub) {
     const curSec = P.find(x => x.t === curT);
     const curItem = curSec ? curSec.items[curIdx] : null;
     const curQid = (curItem && !curItem.__blank) ? qid(curItem) : null;
-    groups.forEach(gt => {
+    /* 2026-11-21：**只列当前选中的那一大题**。
+       老师原话「我上面选什么下面就只能出现什么题型才对」——
+       2026-11-20 那版把整池按题型全摊开（当时为了「一眼看出这题别的卷子用过没」），
+       实际用起来是：点了「填空题」，下面还跟着一整段判断题，看着像筛选没生效。
+       跨题型的题仍然看得到，换上面那颗药丸（或点卷面另一大题的格子）就行。 */
+    const show = groups.indexOf(curT) >= 0 ? [curT] : groups.slice(0, 1);
+    show.forEach(gt => {
       const T = pType(gt);
       const secT = P.find(x => x.t === gt);
       const done = (secT ? secT.items : []).filter(q => q && !q.__blank).length;
@@ -8773,7 +8952,8 @@ function mountPaper(sub) {
     });
     wrap.innerHTML = out.length ? out.join('') : `<p class="note" style="padding:12px 4px">没有符合条件的题（换个知识点或清空搜索词）</p>`;
     const hint = $('ppBankHint');
-    if (hint) hint.textContent = `整池 ${shown} 道可选` +
+    /* 只列一种题型之后，「整池 N 道」会让人以为别的题型被吃掉了 —— 直接写清是这一大题的可选数 */
+    if (hint) hint.textContent = `${pType(curT).name} 可选 ${shown} 道` +
       (occCount ? ' · 左边色条 = 这道题已经出在别的卷子上（悬停看是哪一套）' : '');
     if ($('ppBankRand')) $('ppBankRand').disabled = !(C.picks[bankKey] != null);
     /* 换了要填的那一大题（点卷面另一格 / 点上面的药丸）→ 把这一组滚到眼前；
@@ -10674,8 +10854,19 @@ function eCorrectText(q) {
   /* 大题（简答/名词解释/程序分析/自建题型）：小问逐条换行显示（2026-11-21）。
      以前不管几问都用「；」连成一行，老师在一坨里对着批分；
      现在一个人工/机器可读的（1）（2）分行版，AI 批改的提示词也用这份文本。 */
-  if (typeof hxAnsText === 'function') return hxAnsText(nq.a);
-  return Array.isArray(nq.a) ? nq.a.join('；') : String(nq.a == null ? '' : nq.a);
+  const body = typeof hxAnsText === 'function'
+    ? hxAnsText(nq.a)
+    : (Array.isArray(nq.a) ? nq.a.join('；') : String(nq.a == null ? '' : nq.a));
+  /* 实操题（2026-11-21，老师原话）：「实操题没有标准答案，仅供参考，尤其第二小问实体开发板
+     则是根据现场仿真实际情况打分……第一小问也是看实际情况，但是可以给个参考示例代码」。
+     所以这段文字在卷面上**不能**叫「参考答案」—— 学生照着示例代码接错线，回头会怪答案。
+     前面补一行「参考要点…实得分以现场为准」，把口径写在分数字段旁边。
+     认题型靠 paper.js 的 pIsPractice（按题型中文名，改名成「实训一」也认）；
+     单独加载 app.js 的老测试脚本里没有它，就走原来的普通大题文本。 */
+  if (typeof pIsPractice === 'function' && pIsPractice(nq.t)) {
+    return '参考要点（本题没有标准答案，实得分以现场为准）：\n' + body;
+  }
+  return body;
 }
 /* 参考答案进 HTML 时把换行留住（2026-11-21）：大题的小问是按行分的，
    直接 E_ESC 进 <div> 会被 HTML 折叠成一行，又变回「一坨」。 */
@@ -10690,7 +10881,13 @@ function eQuestionHTML(q, i, answer) {
   let input = '';
   if (typ) input = `<div class="e-options">${nq.o.map(o => `<label><input type="${nq.t === 'multiple' ? 'checkbox' : 'radio'}" name="e_${i}" value="${E_ESC(o.key)}" ${String(answer || '').split(/[,、\s]+/).includes(String(o.key)) ? 'checked' : ''}> <b>${E_ESC(o.key)}</b> ${eFig(o.fig, false)}${E_ESC(o.text)}</label>`).join('')}</div>`;
   else input = `<textarea class="e-answer" data-ea="${i}" rows="${big ? 6 : 2}" placeholder="${big ? '在这里作答，可以分点写' : '填写答案（多个空用 | 或分号隔开）'}">${E_ESC(answer || '')}</textarea>`;
-  const subHTML = nq.sub.length > 1 ? nq.sub.map((x, k) => `<span class="e-sub">（${k + 1}）${E_ESC(x)}</span>`).join('') : '';
+  /* 小问（2026-11-21 改）：**有一条就显示**。原来条件写 `length > 1`，
+     单条小问的题（题库里很常见；AI 导入的「第一问……第二问……」这种整段也只归一成一条）
+     整段小问被静默吞掉，学生只看到题干 —— test/test-exam-options.mjs 六② 就是这条。
+     多条时照旧编（1）（2）；只有一条时原样显示，不替老师加「（1）」。 */
+  const subHTML = nq.sub.length
+    ? nq.sub.map((x, k) => `<span class="e-sub">${nq.sub.length > 1 ? `（${k + 1}）` : ''}${E_ESC(x)}</span>`).join('')
+    : '';
   return `<article class="card e-q" id="eQ${i + 1}" data-qcard="${i}"><div class="e-qhead"><span>第 ${i + 1} 题 · ${E_ESC(eType(nq.t))}</span><b>本题 ${nq.pts || 10} 分</b></div><h3>${eStemHTML(nq)}</h3>${eFig(nq.fig, true)}${subHTML ? `<p class="note">${subHTML}</p>` : ''}${input}</article>`;
 }
 /* 每一屏一个 AbortController：滚动监听、beforeunload 这类挂在 window 上的监听
@@ -11713,16 +11910,30 @@ async function subsElectronic(x) {
   /* 排行榜面板开合状态（2026-11-17）。放在这里而不是 DOM 上：renderAll 会整块重画，
      状态丢了老师刚展开的榜单一保存就自己收起。 */
   let lbOpen = false;
+  /* 「要人工批的大题」= short/term/prog。**实操题（自建题型）故意不在里面**（2026-11-21）：
+     老师原话「实操题……根据现场仿真实际情况打分」—— 现场看到的接线/现象 AI 看不见，
+     所以它只能人工给分。这个 big() 现在给两处用：aiGrade 的过滤
+     `if (!big(q) && !isFill) return;`、「AI 批这题」按钮的显示条件。
+     结论（2026-11-21 逐条核对过）：进 AI 的只有两条路 —— aiAutoFill 只挑 `q.t === 'fill'`，
+     aiGrade 只挑 big 或 fill，两处最后都走 aiRunTargets；实操题两条都进不去，
+     不会被送去 AI 打分，也不会在批改台上出现「AI 批这题」按钮。
+     副作用：评语框原本也靠 big()，实操题因此没有评语框 —— 已在 qHTML 里改用 canNote
+     （big || 实操）补上，AI 按钮仍按 isBig 走，保持「只能人工给分」。 */
+  const big = q => q.t === 'short' || q.t === 'term' || q.t === 'prog';
+  /* 「这题必须老师亲手给分」= 大题 + 实操类自建题型（2026-11-21）。
+     和下面 qHTML 里的 canNote 同一个口径：以前「打开就落到第一个没批完的人」那一段
+     硬写着 short/term/prog，一套卷子全是实操题时这个便利**永远不生效**，
+     老师得自己一个个点（和「换个设备草稿就没了」一样属于看不见的漏）。 */
+  const needMark = q => big(q) || (typeof pIsPractice === 'function' && pIsPractice(q.t));
   /* 打开时直接落到第一个「还没批完」的人，省得老师自己找 —— 全批完了就停在第一个。 */
   {
     const first = (sheet.subs || []).findIndex(s => {
       const ps = (ePaperDecode(sheet.paper) || []).map(eNormQ);
       const mk = s.marks || {};
-      return ps.some((q, i) => eMarkGot(mk[String(i + 1)]) == null && (q.t === 'short' || q.t === 'term' || q.t === 'prog'));
+      return ps.some((q, i) => eMarkGot(mk[String(i + 1)]) == null && needMark(q));
     });
     if (first > 0) cur = first;
   }
-  const big = q => q.t === 'short' || q.t === 'term' || q.t === 'prog';
   const subTotal = s => paper.reduce((a, q, i) => a + (eMarkGot(s._marks[String(i + 1)]) || 0), 0);
   const isDone = s => paper.every((q, i) => eMarkGot(s._marks[String(i + 1)]) != null);
   /* 进页先补算还没批的题（只进内存）。2026-11-18 起**客观题也不再无条件重算**：
@@ -11885,6 +12096,15 @@ async function subsElectronic(x) {
     const obj = q.t === 'single' || q.t === 'multiple' || q.t === 'judgment';
     const isBig = big(q);
     const isFill = q.t === 'fill';
+    /* 实操题（2026-11-21）：卷面答案只能算「参考要点」，见 eCorrectText 那段注释。
+       这里两处跟着变：折叠块标题不叫「参考答案」，下面补一行灰字写清「实得分以现场为准」。
+       题型靠 paper.js 的 pIsPractice 认（按中文名，自建题型改名成「实训一」也认）；
+       单独加载 app.js 时没有它，就按普通大题显示。 */
+    const prac = typeof pIsPractice === 'function' && pIsPractice(q.t);
+    /* 评语框也要给实操题（2026-11-21）：isBig 只认 short/term/prog，实操题本来既没有评语框
+       也没有「AI 批这题」—— AI 那颗按钮**必须**继续没有（只能人工给分），但评语不能少：
+       现场操作扣分最需要写清楚「哪根线接反了」。 */
+    const canNote = needMark(q);   // 和大题口径同一处定义（见 needMark），别再各写一套
     const score = `<label class="eg-score">得分 <input type="number" min="0" max="${pts}" step="0.5" value="${got == null ? '' : E_ESC(eFmtNum(got))}" data-g="${i}" data-si="${si}" aria-label="第${i + 1}题得分"> / ${E_ESC(eFmtNum(pts))} 分
         <span class="eg-src" data-src="${si}:${i}">${m && m.by === 'ai' ? '<span class="eg-ai">AI</span>' : got == null ? '<span class="eg-wait">待批改</span>' : m.by === 'manual' ? '<span class="eg-man">人工</span>' : ''}</span></label>`;
     return `<details class="eg-q${got == null ? '' : ' done'}" data-q="${i}"${got == null ? ' open' : ''}>
@@ -11895,10 +12115,11 @@ async function subsElectronic(x) {
         ${obj ? `<div class="eg-opts">${eOptions(q).map(o => `<span><b>${E_ESC(o.key)}</b> ${eFig(o.fig, false)}${E_ESC(o.text)}</span>`).join('')}</div>` : ''}
         <!-- 2026-11-18 用户：「参考答案我批改你缩进去干嘛 防我呢 展开啊」——改成**默认展开**。
              批改时老师本来就要对着参考答案看，折起来等于每道题多点一次；仍可手动收起（open 是默认态，不是锁定态）。 -->
-        <details class="eg-ref" open><summary>参考答案</summary><div>${eCorrectHTML(q)}</div></details>
+        <details class="eg-ref" open><summary>${prac ? '参考要点（无标准答案）' : '参考答案'}</summary><div>${eCorrectHTML(q)}</div></details>
+        ${prac ? `<div class="note">${E_ESC(typeof PRACTICE_NOTE === 'string' ? PRACTICE_NOTE : '本题为实操考核，没有标准答案，实得分以现场为准。')}</div>` : ''}
         <div class="eg-ansbox"><span>学生答案</span><pre class="eg-ans">${E_ESC(ans == null || ans === '' ? '（没答）' : ans)}</pre></div>
         ${obj ? '' : score}
-        ${isBig ? `<input class="eg-note" data-n="${i}" data-si="${si}" maxlength="60" placeholder="评语（≤60 字，学生看得到）" value="${E_ESC(m && m.note ? m.note : '')}">` : ''}
+        ${canNote ? `<input class="eg-note" data-n="${i}" data-si="${si}" maxlength="60" placeholder="评语（≤60 字，学生看得到）" value="${E_ESC(m && m.note ? m.note : '')}">` : ''}
         ${isFill && m && m.note ? `<div class="eg-tip" data-tip="${si}:${i}">${E_ESC(m.note)}</div>` : ''}
         ${(isBig || isFill) ? `<button class="sm eg-ai1" data-aiq="${i}" data-si="${si}" title="${isFill ? '让 AI 判断学生这个说法和参考答案是不是一个意思' : '只让 AI 批这一题'}">AI 批这题</button>` : ''}
       </div>
@@ -12307,7 +12528,7 @@ async function subsElectronic(x) {
          所以**自动判错（0 分）或还没判的填空**都送一遍 AI 复核；自动判对的（>0 分）不动 ——
          既省 token，也避免 AI 把本来判对的改错。
          大题还是老规矩：只有还没打分的才送。 */
-      if (!big(q) && !isFill) return;
+      if (!big(q) && !isFill) return;   // 实操题在这里被跳过（big 不含自建题型，见 big() 的注释）
       if (si != null && idx !== si) return;
       if (onlyI != null && i !== onlyI) return;
       const mm = s._marks[String(i + 1)];
