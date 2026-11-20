@@ -6681,7 +6681,11 @@ pre.code{font-family:"Consolas","Courier New",monospace;font-size:9pt;line-heigh
    而且纸面本身永远是白底黑字，不需要跟随明暗主题。 */
 body[data-edit="1"] .ed{position:relative;cursor:pointer;border-radius:3px;outline:1px dashed transparent;outline-offset:1px;transition:background-color .12s,outline-color .12s}
 body[data-edit="1"] .ed:hover{background:#e9f0ff;outline-color:#8db0ff}
-body[data-edit="1"] .ed.pin{box-shadow:inset 3px 0 0 #2f6bff}
+/* 已经点名的题：左边一道蓝条告诉我「这道是我自己定的」。2026-11-20 老师截图说
+   「蓝色括号与题号太紧密 感官不好」—— 原来那条 3px 是 inset 阴影，正好压在题号「1.」左沿上。
+   现在给整块留 8px 内边距，蓝条在左、题号在右，中间有缝隙；只有点名的题才缩进，
+   取消点名会回原位（一眼能看出「进了 / 出了」）。 */
+body[data-edit="1"] .ed.pin{box-shadow:inset 3px 0 0 #2f6bff;padding-left:8px}
 /* 程序分析题的小问（(1)(2)(3)）不是三道独立题，是同一道题自带的：
    2026-11-08 用户看到连续几个蓝框，以为「怎么变成两个 / 三个大题了」。
    所以小问块不再各画一个虚线框，只保留悬停底色，并整块跟题干共用同一个 data-k（点哪块都是换整道）。 */
@@ -6714,18 +6718,47 @@ const PAPER_LAYOUT_JS=`
   probe.remove();
   var src=document.getElementById('src');src.style.width=colW+'px';
   var blks=[].slice.call(src.children);
+  var out=document.getElementById('out');
+  var tplF=document.getElementById('stripFront').innerHTML,tplB=document.getElementById('stripBack').innerHTML;
   var hOf=function(b){var r=b.getBoundingClientRect().height;var cs=getComputedStyle(b);return r+parseFloat(cs.marginTop)+parseFloat(cs.marginBottom);};
-  /* 只按高度算分栏，不动 DOM */
-  var plan=function(){
+  /* 只按高度算分栏，不动 DOM；h 是这一栏实际能用的高度（默认整栏，兜底时会被压小） */
+  var plan=function(h){
+    h=h||colH;
     var hs=blks.map(hOf),cols=[[]],used=0;
     for(var i=0;i<blks.length;i++){
       var need=hs[i];
       for(var j=i;blks[j]&&blks[j].classList.contains('keep')&&blks[j+1];j++)need+=hs[j+1];   // 大题标题、程序和第 1 小问连在一起，不留孤立的标题
-      need=Math.min(need,colH);
-      if(used>0&&used+need>colH){cols.push([]);used=0;}
+      need=Math.min(need,h);
+      if(used>0&&used+need>h){cols.push([]);used=0;}
       cols[cols.length-1].push(i);used+=hs[i];
     }
     return cols;
+  };
+  /* 按分好的栏真的拼成一张张 A3（可重复调用：每次先清空 #out 再重拼） */
+  var render=function(cols){
+    out.innerHTML='';
+    var N=cols.length;
+    for(var s=0;s<N/2;s++){
+      var back=s%2===1,sh=document.createElement('div');sh.className='sheet'+(back?' back':'');
+      var strip=back?tplB:tplF;
+      var mk=function(k){var c=document.createElement('div');c.className='col pp-sheet';var bd=document.createElement('div');bd.className='colbody';cols[k].forEach(function(i){bd.appendChild(blks[i]);});c.appendChild(bd);var f=document.createElement('div');f.className='foot';f.textContent='第 '+(k+1)+' 页，共 '+N+' 页';c.appendChild(f);return c;};
+      if(!back){var st=document.createElement('div');st.className='strip';st.innerHTML=strip;sh.appendChild(st);}
+      sh.appendChild(mk(2*s));sh.appendChild(mk(2*s+1));
+      if(back){var st2=document.createElement('div');st2.className='strip';st2.innerHTML=strip;sh.appendChild(st2);}
+      out.appendChild(sh);
+    }
+    return N;
+  };
+  /* 最后一块的下沿超出栏底多少（.colbody 是 overflow:hidden，超出去就被剪掉，
+     表现为「题干末尾半句话没了」）。只可能越界的是每栏最后一块。 */
+  var overflow=function(){
+    var ov=0;
+    [].forEach.call(out.querySelectorAll('.colbody'),function(bd){
+      var last=bd.lastElementChild;if(!last)return;
+      var d=last.getBoundingClientRect().bottom-bd.getBoundingClientRect().bottom;
+      if(d>ov)ov=d;
+    });
+    return ov;
   };
   var cols=plan();
   /* 自动留白：超过 2 张 A3（4 栏）时，按比例压缩答题空白（每处至少 2 行），尽量排进 4 栏 */
@@ -6740,20 +6773,40 @@ const PAPER_LAYOUT_JS=`
     /* 再不行：答题空白最少压到 1.5 行 */
     for(var k2=0.6;k2>=0.2&&cols.length>4;k2-=0.05){sp.forEach(function(e,j){e.style.height=Math.max(27*PT,orig[j]*k2)+'px';});cols=plan();}
   }
-  if(cols.length%2)cols.push([]);
-  var N=cols.length,out=document.getElementById('out');
-  for(var s=0;s<N/2;s++){
-    var back=s%2===1,sh=document.createElement('div');sh.className='sheet'+(back?' back':'');
-    var strip=document.getElementById(back?'stripBack':'stripFront').innerHTML;
-    var mk=function(k){var c=document.createElement('div');c.className='col pp-sheet';var bd=document.createElement('div');bd.className='colbody';cols[k].forEach(function(i){bd.appendChild(blks[i]);});c.appendChild(bd);var f=document.createElement('div');f.className='foot';f.textContent='第 '+(k+1)+' 页，共 '+N+' 页';c.appendChild(f);return c;};
-    if(!back){var st=document.createElement('div');st.className='strip';st.innerHTML=strip;sh.appendChild(st);}
-    sh.appendChild(mk(2*s));sh.appendChild(mk(2*s+1));
-    if(back){var st2=document.createElement('div');st2.className='strip';st2.innerHTML=strip;sh.appendChild(st2);}
-    out.appendChild(sh);
+  /* 装页 + 溢出兜底（2026-11-20 老师截图：填空题最后半句被页脚剪掉了）。
+     高度是「先量后装」的，字体晚到 / 图片解码完 / 行高取整都会让实际比量出来的高一点点，
+     装进去就被 colbody 的 overflow:hidden 切掉。所以装完量一次最后一格，越界就把预算
+     压小重排 —— 宁可少装一道、让它换到下一栏（下一列），也不能把题干剪半句。 */
+  var N=0;
+  for(var a=0;a<4;a++){
+    if(cols.length%2)cols.push([]);
+    N=render(cols);
+    var ov=overflow();
+    if(ov<=0.5)break;
+    cols=plan(colH-ov-2);
   }
   src.remove();
   document.body.setAttribute('data-pages',N);
-  if(window.parent&&window.parent!==window)try{window.parent.postMessage({paperReady:true,pages:N},'*');}catch(e){}
+  /* 字体是真晚到的常见来源：等字体就绪再排一次（render 幂等，会重拼整份），
+     排完再把页数报给父页。两次排出来的页数一样时父页看不出跳动。 */
+  var done=function(){
+    if(window.parent&&window.parent!==window)try{window.parent.postMessage({paperReady:true,pages:N},'*');}catch(e){}
+  };
+  if(document.fonts&&document.fonts.ready&&document.fonts.status!=='loaded'){
+    document.fonts.ready.then(function(){
+      if(overflow()<=0.5)return done();
+      var c2=plan();
+      for(var b=0;b<4;b++){
+        if(c2.length%2)c2.push([]);
+        N=render(c2);
+        var ov2=overflow();
+        if(ov2<=0.5)break;
+        c2=plan(colH-ov2-2);
+      }
+      document.body.setAttribute('data-pages',N);
+      done();
+    });
+  } else done();
 })();`;
 /* 编辑态脚本（只在网页预览里跑，打印 / 导出不带）：单击点题 / 双击改题 → 告诉父页「哪一节第几题」；
    2026-11-20 又加了两件：接收右侧题库拖过来的题（drop）、把卷面真实高度报给父页（paperHeight）。
