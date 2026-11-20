@@ -187,30 +187,78 @@ pre { white-space: pre-wrap; word-break: break-word; margin: 0; }
 .qb-act { display: flex; flex-wrap: wrap; gap: 6px; }
 @media (max-width: 560px) { .qb-i { grid-template-columns: auto minmax(0, 1fr); } .qb-act { grid-column: 2; } }
 
-/* AI 查重结果 */
+/* AI 查重结果
+   2026-11-20 第三轮（用户原话「我咋知道删除的上面还是下面呢」「默认选中第一个，我想换我再换」）：
+     · 三类改成三段 tab，一屏只放一栏（原来三条长列表叠在一起，一屏看不清）；
+     · 每一对是一张卡，两道题上下排开各是一个可点区域，默认选中上面那道（红框 + 红点 +「将删除」）；
+     · 每栏一根操作条：整栏「删上面 / 删下面 / 都留着」+ 右边「删除选中的 N 道」。
+   颜色全走 --fill / --card-solid / --card-lift / --ink / --dim / --bad / --badbg / --acc。 */
 .qb-dl { display: grid; gap: 8px; max-height: 50vh; overflow: auto; overscroll-behavior: contain; margin-bottom: 12px; }
-.qb-drow { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 12px; background: var(--fill, rgba(0, 0, 0, .03)); cursor: pointer; }
-.qb-drow input { margin-top: 3px; flex: none; accent-color: var(--acc, #2f845a); }
-.qb-dbody { display: grid; gap: 6px; min-width: 0; font-size: 13px; }
-.qb-dbody > b { font-weight: 600; color: var(--acc, #2f845a); }
-.qb-dq2 { display: grid; gap: 3px; color: var(--dim, #6e6e73); font-size: 12.5px; }
-.qb-dq2 i { font-style: normal; color: var(--dim, #6e6e73); padding-left: 2px; }
+.qb-dpane .qb-dl { max-height: 56vh; margin-bottom: 8px; }
 .qb-dq { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* 查重结果分三组（2026-11-20）：完全相同 / 同题型疑似 / 跨题型疑似，各有各的删除按钮。
-   每组自带滚动，避免三组叠在一起把弹层撑到屏幕外。 */
-.qb-dgrp { margin-bottom: 14px; }
-.qb-dgrp:last-child { margin-bottom: 4px; }
-.qb-dgh { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: baseline; margin-bottom: 6px; }
-.qb-dgh > b { font-size: 13.5px; font-weight: 600; }
-.qb-dgt.g-exact { color: var(--bad, #d70015); }
-.qb-dgt.g-same { color: var(--warn, #b25000); }
-.qb-dgt.g-cross { color: var(--dim, #6e6e73); }
-.qb-dgh .note { flex: 1 1 220px; font-size: 12.5px; }
-.qb-dgb { display: flex; gap: 6px; }
-.qb-dgrp .qb-dl { max-height: 30vh; margin-bottom: 8px; }
-.qb-dgf { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
-.qb-dgf .note { font-size: 12.5px; }
+/* ── 三段 tab：照总入口「教务管理」那套 .seg 的观感 ──────────────────────── */
+.qb-seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; padding: 3px; margin: 0 0 10px;
+  border-radius: 11px; background: var(--fill, rgba(0, 0, 0, .04)); }
+.qb-seg button { height: 32px; padding: 0 8px; border: 0; border-radius: 9px; background: none;
+  font-size: 14px; font-weight: 500; color: var(--dim, #6e6e73); white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; transition: background .25s, color .25s; }
+.qb-seg button b { font-weight: 700; font-variant-numeric: tabular-nums; opacity: .8; }
+.qb-seg button[aria-pressed="true"] { background: var(--card-solid, #fff); color: var(--ink, #1d1d1f); box-shadow: 0 1px 4px rgba(0, 0, 0, .12); }
+.qb-seg button[aria-pressed="true"] b { opacity: 1; }
+@media (max-width: 480px) { .qb-seg button { font-size: 12.5px; padding: 0 4px; } }
+
+/* ── 每栏的操作条 ─────────────────────────────────────────────────────── */
+.qb-dbar { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center;
+  padding: 8px 10px; margin-bottom: 8px; border-radius: 10px; background: var(--fill, rgba(0, 0, 0, .03)); }
+.qb-dquick { display: flex; flex-wrap: wrap; gap: 6px; }
+.qb-dquick button.on { border-color: var(--acc, #2f845a); background: var(--accbg, rgba(47, 132, 90, .14));
+  color: inherit; font-weight: 800; box-shadow: inset 0 0 0 1px var(--acc, #2f845a); }
+/* 说明文字单独占一行（620px 宽的弹层里挤在按钮旁边会被压成两行小字） */
+.qb-dhint { flex: 1 1 100%; order: 3; margin: 0; min-width: 0; font-size: 12.5px; }
+.qb-dbar [data-dgo] { margin-left: auto; }
+.qb-dbar [data-dgo] b { font-variant-numeric: tabular-nums; }
+
+/* ── 每一对：一张卡，上面一道 / 下面一道，各是一个可点区域 ─────────────────
+   状态全部由卡片上的 data-del 驱动（"a" 删上面 / "b" 删下面 / "" 这对不动）：
+   被选中的那道 → 红框 + 红点 + 红字「将删除」，另一道灰点 + 「保留」。 */
+.qb-dpair { display: grid; gap: 6px; padding: 8px 10px 10px; border-radius: 12px;
+  background: var(--fill, rgba(0, 0, 0, .03)); border: 1px solid transparent; }
+.qb-dpair[data-del=""] { background: transparent; border-color: var(--edge, rgba(0, 0, 0, .08)); }
+.qb-dph { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; font-size: 12.5px; }
+.qb-dpk { font-weight: 700; font-variant-numeric: tabular-nums; }
+.qb-dpw { flex: 1 1 120px; min-width: 0; color: var(--dim, #6e6e73); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qb-dpst { flex: 0 0 auto; font-weight: 700; color: var(--dim, #6e6e73); }
+.qb-dpair[data-del="a"] .qb-dpst, .qb-dpair[data-del="b"] .qb-dpst { color: var(--bad, #d70015); }
+.qb-dside { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; gap: 2px 8px;
+  align-items: center; width: 100%; padding: 7px 10px; text-align: left; font-size: 13px;
+  border-radius: 10px; border: 1px solid var(--line2, rgba(0, 0, 0, .12)); background: var(--card-lift, #fff); }
+.qb-dside:hover { border-color: var(--acc, #2f845a); }
+.qb-dsd { width: 9px; height: 9px; border-radius: 50%; background: var(--dim, #6e6e73); opacity: .45; }
+.qb-dsm { font-size: 12px; font-weight: 700; color: var(--dim, #6e6e73); }
+.qb-dst { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qb-dst .qb-t { margin-right: 6px; }
+.qb-dtag { font-size: 12px; color: var(--dim, #6e6e73); white-space: nowrap; }
+.qb-dpair[data-del="a"] .qb-dside[data-side="a"],
+.qb-dpair[data-del="b"] .qb-dside[data-side="b"] { border-color: var(--bad, #d70015);
+  background: var(--badbg, rgba(215, 0, 21, .08)); box-shadow: inset 0 0 0 1px var(--bad, #d70015); }
+.qb-dpair[data-del="a"] .qb-dside[data-side="a"] .qb-dsd,
+.qb-dpair[data-del="b"] .qb-dside[data-side="b"] .qb-dsd { background: var(--bad, #d70015); opacity: 1; }
+.qb-dpair[data-del="a"] .qb-dside[data-side="a"] .qb-dsm,
+.qb-dpair[data-del="b"] .qb-dside[data-side="b"] .qb-dsm,
+.qb-dpair[data-del="a"] .qb-dside[data-side="a"] .qb-dtag,
+.qb-dpair[data-del="b"] .qb-dside[data-side="b"] .qb-dtag { color: var(--bad, #d70015); }
+@media (max-width: 560px) {
+  .qb-dside { grid-template-columns: auto auto minmax(0, 1fr); }
+  .qb-dtag { grid-column: 3; }
+}
+
+/* ── 撤销删除条（题池顶上）────────────────────────────────────────────── */
+.qb-undo { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 10px;
+  border-radius: 10px; font-size: 13px; border: 1px solid var(--acc, #2f845a);
+  background: var(--accbg, rgba(47, 132, 90, .14)); }
+.qb-undo[hidden] { display: none; }
+.qb-undo b { font-variant-numeric: tabular-nums; }
 
 /* 发布弹层（2026-11-15）：题库 id 的说明文字 + 语义查重拦下来的题。
    颜色全部沿用 --dim / --badbg，不另起一套配色；说明贴住输入框（负 margin 抵掉 .zl-f 的下边距），
@@ -305,14 +353,20 @@ html.hx-lite #hxBootCv{display:none}
 .qb-h h1 { margin: 4px 0 14px; }
 .qb-stat { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 13px; }
 .qb-f { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; min-width: 0; }
-.qb-f > label { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; font-size: 13px; min-width: 0; }
-.qb-f select { max-width: 150px; }
+/* 2026-11-20：select 被 hx-theme 的「药丸下拉」接走后，宽度**由 select 自己决定**——
+   触发器内部固定吃掉约 64px（药槽 30 + 列间距 6×2 + 折角 10 + 内边距 4/6 + 边框 2），
+   而 select 的固有宽度只是「最长选项 + 原生内边距」，数据少时只算出 70px，文字列 = 0，
+   于是整条只剩一块铝箔药板 + 折角（用户说的「蓝白色的胶囊，没有文字」）。
+   所以这里必须给 select 一个**内容无关的宽度**（不是 min-width，测试禁止 px 硬下限），
+   让每个筛选药丸都留够 ~86px 放文字；宁可换行，也不能把别人的字挤没。 */
+.qb-f > label { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; font-size: 13px; min-width: max-content; }
+.qb-f select { width: 150px; max-width: 150px; }
 .qb-f input[type=search] { width: 170px; min-width: 0; }
 .qb-acts { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-left: auto; }
 .qb-acts > button { flex: 0 0 auto; white-space: nowrap; }
 @media (max-width: 720px) {
   .qb-f { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .qb-f > label { display: grid; gap: 4px; }
+  .qb-f > label { display: grid; gap: 4px; min-width: 0; }   /* 网格里由列宽决定，别再撑 min-width:max-content */
   .qb-f > label:last-child { grid-column: 1 / -1; }   /* 「找题」占满整行 */
   .qb-f select, .qb-f input[type=search] { width: 100%; max-width: none; }
   .qb-acts { margin-left: 0; }
@@ -2504,6 +2558,13 @@ function qbHome() {
           <span class="grow"></span>
           <button class="sm danger" id="qbBatchDel">删除选中</button>
         </div>
+        <!-- 2026-11-20 晚：删完能撤销。删除只是从题池移走，整题的字段（含 fig / 小节）都留着，
+             点撤销按原内容写回（题池编号会变，内容不变）。切科目就清掉，免得把电气题写进单片机。 -->
+        <div class="qb-undo" id="qbUndoBar" hidden>
+          <span>刚删掉 <b id="qbUndoN">0</b> 道题，还能找回来</span>
+          <button class="sm pri" id="qbUndoGo">撤销删除</button>
+          <button class="sm" id="qbUndoX">不用了</button>
+        </div>
       </div>
       <div id="qbList" class="qb-list">${fxLoad('正在读题池…')}</div>
     </section>`;
@@ -2523,6 +2584,11 @@ function qbHome() {
   $('qbSelNone').onclick = () => { QB_SEL.clear(); qbDraw(); };
   $('qbBatchDel').onclick = qbBatchDel;
   $('qbBatchType').onclick = qbBatchType;
+  /* 2026-11-20 晚：撤销条的两颗按钮。快照是模块级的，切回题池页还在 ——
+     进来先按当前科目判一次该不该显示（别的科目的快照要丢掉，见 qbUndoPaint）。 */
+  $('qbUndoGo').onclick = qbUndoDo;
+  $('qbUndoX').onclick = () => { qbUndoDrop(); toast('不再恢复了'); };
+  qbUndoPaint();
   // 2026-11-15：这几颗都是「点了要等云端」的按钮，全部把按钮本身传进去，让 HXBusy 转圈+计时
   // （原来点刷新/清空整块界面一动不动，用户以为没点上；AI 查重要几十秒更像是卡死）
   $('qbRefresh').onclick = () => qbLoad($('qbRefresh'));
@@ -2570,7 +2636,7 @@ function qbSelAll() {
 async function qbBatchDel() {
   const ids = [...QB_SEL].map(Number).filter(n => n > 0);
   if (!ids.length) return toast('一道都没选');
-  if (!await hxConfirm(`删掉选中的 ${ids.length} 道题？\n\n删了在题池里找不回来；资料和已经发布到刷题的题不受影响。`)) return;
+  if (!await hxConfirm(`删掉选中的 ${ids.length} 道题？\n\n删完题池顶上会出现「撤销删除」，点一下能整批找回来；资料和已经发布到刷题的题不受影响。`)) return;
   const b = $('qbBatchDel');
   const tok = HXBusy.begin(b, '正在删…');
   try {
@@ -2578,6 +2644,7 @@ async function qbBatchDel() {
     if (!r.ok) { MAT_banner('批量删除失败：' + r.err); HXBusy.end(tok, r.err); return; }
     const n = +(r.data || 0);
     const set = new Set(ids.map(String));
+    qbUndoSnap([...set]);   // 删成功了才存快照（这几道还在 QB_ALL 里，趁现在抄一份）
     QB_ALL = QB_ALL.filter(x => !set.has(String(x.id)));
     QB_SEL.clear();
     qbDrawStat(); qbDraw(); qbRebuildFilters();
@@ -2633,6 +2700,9 @@ async function qbLoad(btn) {
     const ids = new Set(QB_ALL.map(q => String(q.id)));
     QB_SEL = new Set([...QB_SEL].filter(id => ids.has(id)));
     qbRebuildFilters();             // 按题型全选那个下拉要知道每类有多少道
+    /* 撤销快照跟着科目走：切到别的科目就把上一科目的快照丢掉（别把电气题写进单片机） */
+    if (DEDUP_UNDO.length && String(DEDUP_UNDO_SID) !== String(sid)) qbUndoDrop();
+    qbUndoPaint();
     qbDrawStat(); qbDraw();
   } finally { HXBusy.end(tok); }
 }
@@ -2767,18 +2837,25 @@ async function qbClear(btn) {
 }
 
 /* ---------------- AI 查重 ----------------
-   两层：① 题干（题型 + 去空白）完全相同的，直接判重；② 剩下的交给 AI 语义比对，
-   让它标出「考点重复」的题对（措辞不同但考同一知识点）。结果弹层里老师逐个勾删除，
+   两层：① 题干（题型 + 去空白 + 同一张图）完全相同的，直接判重；② 剩下的交给 AI 语义比对，
+   让它标出「考点重复」的题对（措辞不同但考同一知识点）。结果弹层里老师自己定删哪一道，
    不自动删 —— 怕 AI 误判把好题删了。
 
    2026-11-20 一次误删改的（用户实测：点了一下，222 道「疑似重复」全没了）：
    老版本把两类重复放在**同一个列表**、**默认全勾**、底下一颗「删除勾中的 N 道」，
    点下去等于把 AI 判的疑似重复也一起删了 —— 而那些题考同一考点但措辞不同，
-   考试组卷可能还要用。现在改成四件事：
-     ① 三类分开列：「完全相同」/「同题型疑似」/「跨题型疑似」，各有各的删除按钮；
-     ② **默认只勾「完全相同」**，两类疑似默认不勾，要删得自己勾；
-     ③ 跨题型的单列一组 —— 删掉会让那个题型的题量变少（选择 15 题、判断 10 题是有配额的）；
-     ④ 删完不关弹层，剩下的组接着删，一次 AI 额度用到底。 */
+   考试组卷可能还要用。于是改成三类分开、疑似默认不勾。
+
+   2026-11-20 第三轮（用户原话：「我咋知道删除的上面还是下面呢？你没给我选啊」
+   「默认重复删除的话默认选中第一个，我想换我再换」「撤销删除也需要」）：
+     ① 顶部换成三段 tab（照首页「教务管理」的 .seg）：完全相同 / 同题型疑似 / 跨题型疑似，
+        只显示当前那一栏 —— 三类纵向堆三条长列表，一屏根本看不清；
+     ② 每一对两道题上下排开、**各自可点**，默认选中上面那道（先出现的那道）：红框 + 红点 +「将删除」，
+        另一道灰点 +「保留」；点了就是换一道，再点已选中的那道 = 这对不动；
+     ③ 每栏一根操作条：「删上面 / 删下面 / 都留着」整栏一键设（大量修改不用逐对点），
+        右边「删除选中的 N 道」，N 是本栏里选中要删的题**去重后**的数量；
+     ④ 删完存一份整行快照，题池顶上给「撤销删除」，一次 hx_exam_qbank_add 整批写回；
+     ⑤ 删完弹层不关，剩下的 tab 接着删，一次 AI 额度用到底。 */
 /* 2026-11-15：AI 查重是一次性把整个题池喂给模型，题多时要几十秒。原来点完按钮、
    界面什么都不变（结果要等弹层才出来），用户以为没点上。现在三件事一起做：
    ① 「AI 查重」按钮转圈 + 已等 N 秒；② 顶部条写清楚正在干什么；③ 失败不再被
@@ -2847,7 +2924,14 @@ function qbDedupTidy(list) {
     const old = m.get(k);
     if (!old || rank[kind] < rank[old.kind]) m.set(k, { ...p, kind });
   });
-  return [...m.values()];
+  /* 一对的「上面 / 下面」= 这道题在题池列表里的先后（列表新的在上，所以 a 就是先出现的那道）。
+     AI 报回来的 a/b 顺序不保证，这里按 QB_ALL 的下标统一，免得「删上面」忽上忽下。 */
+  const idx = new Map(QB_ALL.map((q, i) => [String(q.id), i]));
+  return [...m.values()].map(p => {
+    const ia = idx.has(String(p.a.id)) ? idx.get(String(p.a.id)) : 1e9;
+    const ib = idx.has(String(p.b.id)) ? idx.get(String(p.b.id)) : 1e9;
+    return ia <= ib ? p : { ...p, a: p.b, b: p.a };
+  });
 }
 /* AI 语义比对：把题池里的题编号喂给 AI，让它返回「重复的题对」的编号数组。
    2026-11-20 改成**分批**：一次塞 536 道（单片机题池）时，模型的输出被 token 上限截断，
@@ -2985,115 +3069,232 @@ async function qbTagKbAI(chunk) {
   });
   return out;
 }
-/* 三类分组。on = 默认是否勾选（只有「完全相同」默认勾，其余要老师自己勾）。 */
-const DEDUP_GROUPS = [
-  { k: 'exact', name: '完全相同', on: true,
-    hint: '同题型 + 题干一字不差（只忽略空格）。这种留着没意义，默认已勾。' },
-  { k: 'same', name: '同题型疑似重复', on: false,
-    hint: 'AI 判断考同一个考点、但措辞不同。默认不勾 —— 考试组卷可能还要用，自己看着办。' },
-  { k: 'cross', name: '跨题型疑似重复', on: false,
-    hint: '不同题型考同一个考点（一边选择、一边判断）。删掉会让那个题型的题变少，默认不勾。' }
+/* 三段 tab（名词照用户说法：完全相同 / 同题型疑似 / 跨题型疑似）。name 只出现在 tab 上，
+   行里不再逐行印组名 —— tab 已经说明这是哪一类了。 */
+const DEDUP_TAB = [
+  { k: 'exact', name: '完全相同' },
+  { k: 'same', name: '同题型疑似' },
+  { k: 'cross', name: '跨题型疑似' }
 ];
+const DEDUP_HINT = {
+  exact: '同题型 + 题干（和同一张图）一字不差。默认删上面那道，留着没意义。',
+  same: 'AI 判考同一个考点、措辞不同 —— 组卷可能还要用，看清楚再删。',
+  cross: '不同题型考同一个考点，删掉那个题型的题量会变少。'
+};
+/* 弹层状态：by = 三类题对；del = 每一对删哪道（'a' 上面 / 'b' 下面 / '' 这对不动）；tab = 当前栏。
+   del 是唯一真相：点哪道、整栏快捷按钮都只改它，再由 qbDedupSync 把状态刷回 DOM。 */
+let DEDUP_UI = null;
+const DEDUP_KEY = p => String(p.a.id) + '>' + String(p.b.id);
+const qbDedupSumText = () => {
+  const c = { exact: 0, same: 0, cross: 0 };
+  if (DEDUP_UI) DEDUP_TAB.forEach(t => { c[t.k] = DEDUP_UI.by[t.k].length; });
+  return `共 ${c.exact + c.same + c.cross} 对：完全相同 ${c.exact} / 同题型疑似 ${c.same} / 跨题型疑似 ${c.cross}。
+    每一对默认删<b>上面</b>那道（先出现的），点下面那道就改成删它，再点一次已选中的 = 这对不动。`;
+};
 function qbDedupDraw(pairs, warn) {
   const by = { exact: [], same: [], cross: [] };
   pairs.forEach(p => (by[p.kind] || by.same).push(p));
-  const qx = x => `<span class="qb-dq">${esc(QB_CN[x.t] || x.t)} · ${esc(String(x.q || '').slice(0, 60))}</span>`;
-  const secs = DEDUP_GROUPS.filter(g => by[g.k].length).map(g => {
-    const rows = by[g.k].map(p => `<label class="qb-drow" data-a="${esc(p.a.id)}" data-b="${esc(p.b.id)}">
-        <input type="checkbox" data-ddel="${esc(p.b.id)}" ${g.on ? 'checked' : ''}>
-        <span class="qb-dbody"><b>${g.name}</b>${p.why ? ' · ' + esc(p.why) : ''}
-        <span class="qb-dq2">${qx(p.a)}<i>↕</i>${qx(p.b)}</span></span></label>`).join('');
-    return `<section class="qb-dgrp" data-grp="${g.k}">
-      <div class="qb-dgh"><b class="qb-dgt g-${g.k}">${g.name}</b>
-        <span class="note">${by[g.k].length} 对 · ${g.hint}</span>
-        <span class="qb-dgb"><button type="button" class="sm" data-all="1">全选本组</button><button type="button" class="sm" data-all="0">全不选</button></span></div>
-      <div class="qb-dl">${rows}</div>
-      <div class="qb-dgf"><button type="button" class="pri sm" data-go="${g.k}">删除勾中的${g.name}</button>
-        <span class="note" data-cnt="${g.k}"></span><span class="note" data-st="${g.k}"></span></div>
-    </section>`;
-  }).join('');
-  const tot = pairs.length;
+  const del = new Map();
+  /* 默认每一对都删**上面**那道（先出现的那道）—— 用户原话「默认重复删除的话默认选中第一个，
+     我想换我再换；因为大量修改我不可能一个一个点选中」。 */
+  DEDUP_TAB.forEach(t => by[t.k].forEach(p => del.set(DEDUP_KEY(p), 'a')));
+  const first = (DEDUP_TAB.find(t => by[t.k].length) || DEDUP_TAB[0]).k;
+  DEDUP_UI = { by, del, tab: first, warn };
   zlModal(`<h2>AI 查重 · ${esc(curSub().name)}</h2>
     ${warn ? `<p class="note" id="qbDedupWarn" style="margin:0 0 10px">注意：${esc(warn)}</p>` : ''}
-    <p class="note" id="qbDedupSum" style="margin:0 0 10px">共 ${tot} 对：完全相同 ${by.exact.length} 对、同题型疑似 ${by.same.length} 对、跨题型疑似 ${by.cross.length} 对。
-      <b>三类分开删</b>，删一组不动另一组；<b>默认只勾「完全相同」</b>，疑似两类要你自己勾。
-      每对都是「删勾中的那一道、另一道保留」。</p>
-    <div id="qbDedupBody">${secs}</div>
+    <p class="note" id="qbDedupSum" style="margin:0 0 10px">${qbDedupSumText()}</p>
+    <div class="qb-seg" id="qbDedupSeg" role="tablist"></div>
+    <div id="qbDedupBody"></div>
     <div class="errs" id="qbDedupErr" hidden></div>
     <div class="row"><button id="qbDedupCancel">关闭</button></div>`);
-  $('qbDedupCancel').onclick = () => { zlModalClose(); qbLoad(); loadSubjects(true); };
-  const syncCnt = () => {
-    document.querySelectorAll('#qbDedupBody [data-grp]').forEach(sec => {
-      const k = sec.dataset.grp;
-      const n = sec.querySelectorAll('[data-ddel]:checked').length;
-      const c = sec.querySelector('[data-cnt]'); if (c) c.textContent = n ? '已勾 ' + n + ' 道' : '一道都没勾';
-      const go = sec.querySelector('[data-go]'); if (go) go.disabled = !n;
-    });
-  };
-  document.querySelectorAll('#qbDedupBody [data-grp]').forEach(sec => {
-    sec.addEventListener('change', syncCnt);
-    sec.querySelectorAll('[data-all]').forEach(b => {
-      b.onclick = () => {
-        const on = b.dataset.all === '1';
-        sec.querySelectorAll('[data-ddel]').forEach(x => { x.checked = on; });
-        syncCnt();
-      };
-    });
-    sec.querySelector('[data-go]').onclick = () => qbDedupDel(sec);
-  });
-  syncCnt();
+  $('qbDedupCancel').onclick = () => { DEDUP_UI = null; zlModalClose(); qbLoad(); loadSubjects(true); };
+  qbDedupSeg();
+  qbDedupPaint();
 }
-/* 删一组：只删这一组里勾中的（去重后的 id），删完把这组连带「引用了这些题的其它组行」一起撤掉，
-   剩下的组还能接着删 —— 不用为了删另一类再花一次 AI 额度。 */
-async function qbDedupDel(sec) {
-  const k = sec.dataset.grp;
-  const g = DEDUP_GROUPS.find(x => x.k === k) || { name: '勾中的' };
-  const ids = [...new Set([...sec.querySelectorAll('[data-ddel]:checked')].map(x => +x.dataset.ddel))];
-  if (!ids.length) return toast('一道都没勾');
-  if (!await hxConfirm(`删除「${g.name}」里勾中的 ${ids.length} 道题？\n\n删了不能撤销（想找回来只能在资料页重新导入内置题库，去重逻辑会只补缺的）。\n其它两组一道都不动。`)) return;
+/* 顶部三段 tab：只画还有题对的那几栏（一栏删空了就把这个 tab 一起摘掉）。 */
+function qbDedupSeg() {
+  const U = DEDUP_UI, seg = $('qbDedupSeg'); if (!U || !seg) return;
+  seg.innerHTML = DEDUP_TAB.filter(t => U.by[t.k].length).map(t =>
+    `<button type="button" data-tab="${t.k}" role="tab" aria-pressed="${t.k === U.tab ? 'true' : 'false'}">${t.name} <b>${U.by[t.k].length}</b></button>`).join('');
+  seg.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => {
+    if (!DEDUP_UI || DEDUP_UI.tab === b.dataset.tab) return;
+    DEDUP_UI.tab = b.dataset.tab;
+    seg.querySelectorAll('[data-tab]').forEach(x => x.setAttribute('aria-pressed', x === b ? 'true' : 'false'));
+    qbDedupPaint();
+  });
+}
+/* 一对 = 一张卡：头一行「第 k 对 · AI 的理由」+ 右侧当前选择；下面两道各是一个可点区域。 */
+function qbDedupSide(q, side) {
+  const stem = String(q.q == null ? '' : q.q).replace(/\s+/g, ' ').slice(0, 90);
+  return `<button type="button" class="qb-dside" data-side="${side}" data-qid="${esc(q.id)}" aria-pressed="false">
+      <span class="qb-dsd" aria-hidden="true"></span>
+      <span class="qb-dsm">${side === 'a' ? '上' : '下'}</span>
+      <span class="qb-dst"><b class="qb-t">${esc(QB_CN[q.t] || q.t)}</b>${q.fig ? `<b class="qb-t qb-figb">图 · ${esc(HXFig.figName(q.fig) || q.fig)}</b>` : ''}${esc(stem)}</span>
+      <span class="qb-dtag">保留</span>
+    </button>`;
+}
+const qbDedupPairHtml = (p, k) => `<div class="qb-dpair" data-k="${esc(DEDUP_KEY(p))}" data-a="${esc(p.a.id)}" data-b="${esc(p.b.id)}" data-del="a">
+    <div class="qb-dph"><span class="qb-dpk">第 ${k} 对</span><span class="qb-dpw">${esc(p.why || '疑似重复')}</span><span class="qb-dpst">删上面</span></div>
+    ${qbDedupSide(p.a, 'a')}
+    ${qbDedupSide(p.b, 'b')}
+  </div>`;
+/* 画当前那一栏：操作条（整栏快捷 + 删除按钮）+ 这一栏的题对。其余栏不渲染。 */
+function qbDedupPaint() {
+  const U = DEDUP_UI, box = $('qbDedupBody'); if (!U || !box) return;
+  const list = U.by[U.tab] || [];
+  box.innerHTML = `<div class="qb-dpane" data-pane="${U.tab}">
+    <div class="qb-dbar">
+      <div class="qb-dquick">
+        <button type="button" class="sm" data-dall="a" title="这一栏的每一对都删上面那道">删上面</button>
+        <button type="button" class="sm" data-dall="b" title="这一栏的每一对都删下面那道">删下面</button>
+        <button type="button" class="sm" data-dall="" title="这一栏一对都不动">都留着</button>
+      </div>
+      <span class="note qb-dhint">${esc(DEDUP_HINT[U.tab] || '')}</span>
+      <button type="button" class="pri sm" data-dgo>删除选中的 <b>0</b> 道</button>
+    </div>
+    <div class="qb-dl">${list.map((p, i) => qbDedupPairHtml(p, i + 1)).join('')}</div>
+  </div>`;
+  box.querySelectorAll('.qb-dside').forEach(b => b.onclick = () => {
+    const card = b.closest('.qb-dpair'); if (!card || !DEDUP_UI) return;
+    const k = card.dataset.k, side = b.dataset.side;
+    /* 点某一道 = 改成删它；再点已经选中的那道 = 这对不动 */
+    DEDUP_UI.del.set(k, DEDUP_UI.del.get(k) === side ? '' : side);
+    qbDedupSync();
+  });
+  box.querySelectorAll('[data-dall]').forEach(b => b.onclick = () => {
+    if (!DEDUP_UI) return;
+    const v = b.dataset.dall;
+    box.querySelectorAll('.qb-dpair').forEach(c => DEDUP_UI.del.set(c.dataset.k, v));
+    qbDedupSync();
+  });
+  const go = box.querySelector('[data-dgo]'); if (go) go.onclick = qbDedupDel;
+  qbDedupSync();
+  const sum = $('qbDedupSum'); if (sum) sum.innerHTML = qbDedupSumText();
+}
+/* 把 DEDUP_UI.del 刷回 DOM：每张卡的 data-del、两边「将删除 / 保留」、整栏快捷按钮高亮、
+   删除按钮上的 N（本栏选中要删的题**去重后**的数量）。 */
+function qbDedupSync() {
+  const U = DEDUP_UI, box = $('qbDedupBody'); if (!U || !box) return;
+  const cards = [...box.querySelectorAll('.qb-dpair')];
+  const ids = new Set();
+  cards.forEach(card => {
+    const k = card.dataset.k;
+    if (!U.del.has(k)) U.del.set(k, 'a');
+    const d = U.del.get(k);
+    card.dataset.del = d;
+    const st = card.querySelector('.qb-dpst');
+    if (st) st.textContent = d === 'a' ? '删上面' : d === 'b' ? '删下面' : '这对不动';
+    card.querySelectorAll('.qb-dside').forEach(s => {
+      const on = !!d && s.dataset.side === d;
+      s.setAttribute('aria-pressed', on ? 'true' : 'false');
+      const tag = s.querySelector('.qb-dtag');
+      if (tag) tag.textContent = on ? '将删除' : '保留';
+    });
+    if (d) ids.add(String(d === 'a' ? card.dataset.a : card.dataset.b));
+  });
+  /* 整栏都是同一个选择时，那颗快捷按钮亮起来（混着选就都不亮） */
+  box.querySelectorAll('[data-dall]').forEach(b => {
+    const v = b.dataset.dall;
+    b.classList.toggle('on', !!cards.length && cards.every(c => U.del.get(c.dataset.k) === v));
+  });
+  const go = box.querySelector('[data-dgo]');
+  if (go) {
+    go.disabled = !ids.size;
+    const n = go.querySelector('b'); if (n) n.textContent = ids.size;
+  }
+}
+/* 删当前这一栏里选中的（去重后的 id）。删完：
+     · 存一份整行快照（题池顶上的「撤销删除」用）；
+     · 把「引用了被删题」的题对一起撤掉（含**其它 tab** 里 data-a / data-b 指向它的）；
+     · 某一栏空了就把这个 tab 一起摘掉，并自动切到还有内容的那一栏；
+     · 弹层不关，剩下的 tab 还能接着删 —— 不用为了删另一类再花一次 AI 额度。 */
+async function qbDedupDel() {
+  const U = DEDUP_UI, box = $('qbDedupBody'); if (!U || !box) return;
+  const tn = (DEDUP_TAB.find(t => t.k === U.tab) || {}).name || '这一栏';
+  const cards = [...box.querySelectorAll('.qb-dpair')];
+  const ids = [...new Set(cards.filter(c => U.del.get(c.dataset.k))
+    .map(c => +(U.del.get(c.dataset.k) === 'a' ? c.dataset.a : c.dataset.b)))];
+  if (!ids.length) return toast('这一栏一道都没选');
+  if (!await hxConfirm(`删除「${tn}」里选中的 ${ids.length} 道题？\n\n删完题池顶上会出现「撤销删除」，点一下能整批找回来。其它两栏一道都不动。`)) return;
   const fail = m => { const e = $('qbDedupErr'); if (e) { e.textContent = m; e.hidden = false; } };
-  const st = sec.querySelector('[data-st]');
-  const tok = HXBusy.begin(sec.querySelector('[data-go]'), '正在删…');
+  const tok = HXBusy.begin(box.querySelector('[data-dgo]'), '正在删…');
   const gone = new Set();
   try {
-    for (let i = 0; i < ids.length; i++) {
-      if (st) st.textContent = '正在删 ' + (i + 1) + '/' + ids.length + '…';
-      const r = await MAT_call('hx_exam_qbank_del', { p_id: ids[i] });
-      if (r.ok) gone.add(String(ids[i]));
-      else if (r.err) fail('删第 ' + ids[i] + ' 道失败：' + r.err);
+    for (const id of ids) {
+      const r = await MAT_call('hx_exam_qbank_del', { p_id: id });
+      if (r.ok) gone.add(String(id));
+      else if (r.err) fail('删第 ' + id + ' 道失败：' + r.err);
     }
   } finally { HXBusy.end(tok); }
-  if (st) st.textContent = '';
+  if (!gone.size) return;
+  qbUndoSnap([...gone]);          // 这几道还在 QB_ALL 里，趁现在抄整行快照
   /* 本地先同步，省一次重拉 */
   QB_ALL = QB_ALL.filter(q => !gone.has(String(q.id)));
   gone.forEach(id => QB_SEL.delete(String(id)));
-  /* 撤掉引用了这些题的行（含其它组里「另一道就是这个题」的行），空了的组整块撤掉 */
-  document.querySelectorAll('#qbDedupBody .qb-drow').forEach(row => {
-    if (gone.has(String(row.dataset.a)) || gone.has(String(row.dataset.b))) row.remove();
-  });
-  document.querySelectorAll('#qbDedupBody [data-grp]').forEach(s => {
-    const n = s.querySelectorAll('.qb-drow').length;
-    if (!n) { s.remove(); return; }
-    const note = s.querySelector('.note');
-    if (note) note.textContent = n + ' 对 · ' + note.textContent.replace(/^\d+ 对 · /, '');
-  });
-  toast('删了 ' + gone.size + ' 道（' + g.name + '）');
-  const left = document.querySelectorAll('#qbDedupBody [data-grp]').length;
-  if (!left) { zlModalClose(); qbLoad(); loadSubjects(true); return; }
+  /* 撤掉引用了被删题的题对（三个 tab 全扫，不只是当前这一栏），再删掉已经不存在的选择状态 */
+  DEDUP_TAB.forEach(t => { U.by[t.k] = U.by[t.k].filter(p => !gone.has(String(p.a.id)) && !gone.has(String(p.b.id))); });
+  const live = new Set();
+  DEDUP_TAB.forEach(t => U.by[t.k].forEach(p => live.add(DEDUP_KEY(p))));
+  [...U.del.keys()].forEach(k => { if (!live.has(k)) U.del.delete(k); });
   qbDrawStat(); qbDraw();
-  syncAfterDel();
-  const cnt = { exact: 0, same: 0, cross: 0 };
-  document.querySelectorAll('#qbDedupBody [data-grp]').forEach(s => { cnt[s.dataset.grp] = s.querySelectorAll('.qb-drow').length; });
-  const sum = $('qbDedupSum');
-  if (sum) sum.textContent = `共 ${cnt.exact + cnt.same + cnt.cross} 对：完全相同 ${cnt.exact} 对、同题型疑似 ${cnt.same} 对、跨题型疑似 ${cnt.cross} 对。（三类分开删，删一组不动另一组；默认只勾「完全相同」。）`;
+  toast('删了 ' + gone.size + ' 道（' + tn + '），顶部可以撤销');
+  const left = DEDUP_TAB.filter(t => U.by[t.k].length);
+  if (!left.length) {
+    DEDUP_UI = null; zlModalClose(); qbLoad(); loadSubjects(true); return;
+  }
+  if (!U.by[U.tab].length) U.tab = left[0].k;   // 这一栏删空了：自动切到还有内容的
+  qbDedupSeg();
+  qbDedupPaint();
 }
-/* 删完一组后，勾选计数 / 按钮可用状态要重算（新 DOM 没有绑定过） */
-function syncAfterDel() {
-  document.querySelectorAll('#qbDedupBody [data-grp]').forEach(sec => {
-    const n = sec.querySelectorAll('[data-ddel]:checked').length;
-    const c = sec.querySelector('[data-cnt]'); if (c) c.textContent = n ? '已勾 ' + n + ' 道' : '一道都没勾';
-    const go = sec.querySelector('[data-go]'); if (go) go.disabled = !n;
+
+/* ---------------- 撤销删除（2026-11-20） ----------------
+   用户原话「撤销删除也需要」—— 删题只是从题池移走，整行内容都还在前端（QB_ALL）里。
+   删成功之后把这几十个字段抄一份存着，题池顶上给一条「刚删掉 N 道题，还能找回来」，
+   点撤销用**一次** hx_exam_qbank_add 整批写回（题池编号会变，内容 / 图 / 小节 / 知识点不变）。
+   快照跟着科目走：只有当前科目 == DEDUP_UNDO_SID 时才显示撤销条，
+   切到别的科目就把快照丢掉 —— 别把电气题写进单片机。 */
+const DEDUP_UNDO_MAX = 500;   // hx_exam_qbank_add 一次最多收 500 条
+let DEDUP_UNDO = [], DEDUP_UNDO_SID = null;
+function qbUndoSnap(ids) {
+  const sid = MAT_sid(); if (sid == null) return;
+  if (DEDUP_UNDO_SID == null || String(DEDUP_UNDO_SID) !== String(sid)) DEDUP_UNDO = [];
+  DEDUP_UNDO_SID = sid;
+  ids.forEach(id => {
+    const q = QB_ALL.find(x => String(x.id) === String(id)); if (!q) return;
+    /* 字段照 hx_exam_qbank_add 认的那一套抄，多抄一个就少丢一点 */
+    DEDUP_UNDO.push({
+      t: q.t, ch: q.ch == null ? null : q.ch, sec: q.sec || null, secTitle: q.secTitle || null,
+      fig: q.fig || null, q: q.q, o: q.o || null, a: q.a, code: q.code || null, sub: q.sub || null,
+      explanation: q.explanation || null, knowledge: q.knowledge || null, src: q.src || ''
+    });
   });
+  if (DEDUP_UNDO.length > DEDUP_UNDO_MAX) DEDUP_UNDO = DEDUP_UNDO.slice(-DEDUP_UNDO_MAX);
+  qbUndoPaint();
+}
+function qbUndoPaint() {
+  const bar = $('qbUndoBar'); if (!bar) return;
+  const sid = MAT_sid();
+  const same = DEDUP_UNDO.length && sid != null && DEDUP_UNDO_SID != null && String(DEDUP_UNDO_SID) === String(sid);
+  if (!same) { bar.hidden = true; return; }
+  const n = $('qbUndoN'); if (n) n.textContent = DEDUP_UNDO.length;
+  bar.hidden = false;
+}
+function qbUndoDrop() { DEDUP_UNDO = []; DEDUP_UNDO_SID = null; qbUndoPaint(); }
+async function qbUndoDo() {
+  const n = DEDUP_UNDO.length; if (!n) return;
+  const sid = MAT_sid();
+  if (sid == null || DEDUP_UNDO_SID == null || String(DEDUP_UNDO_SID) !== String(sid)) { qbUndoDrop(); return toast('科目换了，那批题找不回来了'); }
+  if (!await hxConfirm(`把刚删掉的 ${n} 道题写回题池？\n\n题池里的编号会变；题干 / 选项 / 答案 / 图 / 小节 / 知识点都按删之前原样写回。`)) return;
+  const tok = HXBusy.begin($('qbUndoGo'), '正在恢复…');
+  try {
+    const r = await MAT_call('hx_exam_qbank_add', { p_subject_id: sid, p_items: DEDUP_UNDO.slice(0, DEDUP_UNDO_MAX), p_material_id: null });
+    if (!r.ok) { MAT_banner('恢复失败：' + r.err); HXBusy.end(tok, r.err); return; }
+    const got = (r.data && r.data.added) || 0;
+    qbUndoDrop();
+    toast('已找回 ' + got + ' 道');
+    qbLoad();
+    loadSubjects(true);   // 题数变了：科目卡的计数要重算
+  } finally { HXBusy.end(tok); }
 }
 
 /* ---------------- 改一道题 ---------------- */
