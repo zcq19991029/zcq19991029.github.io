@@ -468,7 +468,145 @@ function ckDual() {
   return ['-14 -8 634 400', o];
 }
 
+/* ===== 识图题三张「教材画法」电路图（2026-11-21 晚） =====
+   起因：老师看上传试卷带进来的位图，原话「你修正的按钮样式也没体现到右边这两个图」
+   「线上仿真或者教材那种才是对的」。核下来确实如此 —— 位图里 SB0 / SB1 画成和接触器
+   常开触点**一模一样的两条竖线**（没有按钮帽、没有推杆），跟教材、跟接线仿真都不是一套画法。
+   这三张按位图的**拓扑与标号**重画成 SVG：
+     · 按钮一律走 CB.sbno / CB.sbnc（方括号帽 + 长虚线推杆，和仿真里同一份几何）；
+     · 标题「主电路」「控制电路  AC 220 V」、方框支路、S 星点说明照原图保留；
+     · 小问里点名的编号（SB0 停止、SB1 起动、U1/V1/W1、U2/V2/W2、P1…P3、X/Y/Z）一个不改，
+       换图之后小问照样对得上。 */
+const ckFrame = (x, y, w, h, t) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="none"/>`
+  + (t ? ckLab(x + 9, y + 15, t, 11, 'start') : '');
+/* 方框里的一行：左标号 —| |— 右标号（横排主触点，两条竖线；教材的支路框就是这个画法） */
+const ckFRow = (xa, xb, y, t1, t2) => {
+  const xm = (xa + xb) / 2;
+  return ckLab(xa - 5, y + 4, t1, 11, 'end') + L(xa + 3, y, xm - 5, y)
+    + L(xm - 5, y - 10, xm - 5, y + 10) + L(xm + 5, y - 10, xm + 5, y + 10) + L(xm + 5, y, xb - 3, y)
+    + ckLab(xb + 5, y + 4, t2, 11, 'start');
+};
+/* 电动机：方框 + M 3～ + 上沿端子标号 */
+const ckMtrBox = (x1, x3, y, h, labels) => {
+  let o = `<rect x="${x1}" y="${y}" width="${x3 - x1}" height="${h}" fill="none"/>` + txt((x1 + x3) / 2, y + h / 2 + 7, 'M 3～', 17);
+  (labels || []).forEach(([t, x]) => { o += ckLab(x - 5, y - 6, t, 11, 'end'); });
+  return o;
+};
+
+// A 卷：单向起动（QF → KM → FR → M；FU1 → SB0 → FR → SB1 ∥ KM → KM 线圈 → N）
+function ckExamA() {
+  const X = [40, 90, 140], A = 250, A2 = 305;
+  let o = ckLab(90, -14, '主电路', 12, 'middle') + ckLab(A, -14, '控制电路  AC 220 V', 12, 'middle');
+  o += X.map((x, i) => ckLab(x, 9, 'L' + (i + 1), 11, 'middle')).join('');
+  o += X.map(x => ckDot(x, 14, 3) + L(x, 14, x, 20)).join('');
+  o += X.map(x => ckPut(x, 20, CB.qf(20))).join('');
+  o += L(34, 44, 146, 44, 1) + ckLab(27, 48, 'QF', 11, 'end');
+  o += X.map(x => ckPut(x, 70, CB.km(20))).join('') + ckLab(27, 98, 'KM', 11, 'end');
+  o += X.map(x => ckPut(x, 118, CB.frh())).join('') + ckLab(27, 146, 'FR', 11, 'end');
+  o += X.map(x => L(x, 166, x, 190)).join('');
+  o += ckMtrBox(14, 166, 190, 48, [['U', 40], ['V', 90], ['W', 140]]);
+  o += ckDot(A, 14, 3) + L(A, 14, A, 20);
+  o += ckPut(A, 20, CB.fu()) + ckLab(A + 13, 48, 'FU1');
+  o += ckPut(A, 70, CB.sbnc()) + ckLab(A + 19, 98, 'SB0');
+  o += ckPut(A, 118, CB.frnc()) + ckLab(A + 19, 146, 'FR');
+  o += L(A, 166, A, 170);
+  o += ckPut(A, 170, CB.sbno()) + ckLab(A + 19, 198, 'SB1');
+  o += ckPut(A2, 170, CB.no(20)) + ckLab(A2 + 17, 198, 'KM');
+  o += ckBranch(A, A2, 170, 218);
+  o += ckPut(A, 218, CB.coil()) + ckLab(A + 16, 246, 'KM');
+  o += L(A, 266, A, 274) + ckDot(A, 274, 3) + ckLab(A + 10, 278, 'N');
+  return ['-30 -34 420 350', o];
+}
+
+// B 卷：正反转（QF → P1/P2/P3 → 方框 KM1 / KM2 换相 → X/Y/Z → FR → M）
+function ckExamB() {
+  const X = [40, 90, 140], F = [60, 110, 160];
+  let o = ckLab(80, -14, '主电路', 12, 'middle') + ckLab(450, -14, '控制电路  AC 220 V', 12, 'middle');
+  o += X.map((x, i) => ckLab(x, 9, 'L' + (i + 1), 11, 'middle')).join('');
+  o += X.map(x => ckDot(x, 14, 3) + L(x, 14, x, 20)).join('');
+  o += X.map(x => ckPut(x, 20, CB.qf(20))).join('');
+  o += L(34, 44, 146, 44, 1) + ckLab(27, 48, 'QF', 11, 'end');
+  o += X.map((x, i) => L(x, 68, x, 78) + ckLab(x - 5, 88, 'P' + (i + 1), 11, 'end')).join('');
+  o += ckFrame(14, 100, 152, 88, 'KM1');
+  o += ckFRow(52, 128, 134, 'P1', 'X') + ckFRow(52, 128, 154, 'P2', 'Y') + ckFRow(52, 128, 174, 'P3', 'Z');
+  o += ckFrame(184, 100, 152, 88, 'KM2');
+  o += ckFRow(222, 298, 134, 'P3', 'X') + ckFRow(222, 298, 154, 'P2', 'Y') + ckFRow(222, 298, 174, 'P1', 'Z');
+  o += L(166, 154, 184, 154, 1) + ckLab(175, 204, '虚线为接触器机械互锁', 10, 'middle');
+  o += F.map((x, i) => ckLab(x, 218, ['X', 'Y', 'Z'][i], 11, 'middle') + L(x, 222, x, 230) + ckPut(x, 230, CB.frh())).join('');
+  o += ckLab(53, 258, 'FR', 11, 'end');
+  o += F.map(x => L(x, 278, x, 292)).join('');
+  o += ckMtrBox(34, 186, 292, 48, [['U', 60], ['V', 110], ['W', 160]]);
+  const A = 400, A2 = 456, Bx = 530, B2 = 586;
+  o += ckDot(A, 14, 3) + L(A, 14, A, 20);
+  o += ckPut(A, 20, CB.fu()) + ckLab(A + 13, 48, 'FU1');
+  o += ckPut(A, 70, CB.sbnc()) + ckLab(A + 19, 98, 'SB0');
+  o += ckPut(A, 118, CB.frnc()) + ckLab(A + 19, 146, 'FR');
+  o += L(A, 166, A, 170) + L(A, 170, Bx, 170) + ckDot(A, 170) + ckDot(Bx, 170);
+  o += ckPut(A, 170, CB.sbno()) + ckLab(A - 26, 198, 'SB1', 11, 'end');
+  o += ckPut(A2, 170, CB.no(20)) + ckLab(A2 + 17, 198, 'KM1');
+  o += ckBranch(A, A2, 170, 218);
+  o += ckPut(A, 218, CB.nc(20)) + ckLab(A + 19, 246, 'KM2');
+  o += ckPut(A, 266, CB.coil()) + ckLab(A + 16, 294, 'KM1');
+  o += ckPut(Bx, 170, CB.sbno()) + ckLab(Bx + 20, 198, 'SB2');
+  o += ckPut(B2, 170, CB.no(20)) + ckLab(B2 + 17, 198, 'KM2');
+  o += ckBranch(Bx, B2, 170, 218);
+  o += ckPut(Bx, 218, CB.nc(20)) + ckLab(Bx + 20, 246, 'KM1');
+  o += ckPut(Bx, 266, CB.coil()) + ckLab(Bx + 16, 294, 'KM2');
+  o += L(A, 314, Bx, 314) + ckDot(A, 314) + ckDot(Bx, 314);
+  o += L((A + Bx) / 2, 314, (A + Bx) / 2, 322) + ckDot((A + Bx) / 2, 322, 3) + ckLab((A + Bx) / 2 + 9, 326, 'N');
+  return ['-30 -34 680 410', o];
+}
+
+// C 卷：时间继电器星三角（QF → KM1 → FR → U1V1W1 → M → U2V2W2 → 方框 KMY / KMΔ）
+function ckExamC() {
+  const X = [40, 90, 140];
+  let o = ckLab(80, -14, '主电路', 12, 'middle') + ckLab(500, -14, '控制电路  AC 220 V', 12, 'middle');
+  o += X.map((x, i) => ckLab(x, 9, 'L' + (i + 1), 11, 'middle')).join('');
+  o += X.map(x => ckDot(x, 14, 3) + L(x, 14, x, 20)).join('');
+  o += X.map(x => ckPut(x, 20, CB.qf(20))).join('');
+  o += L(34, 44, 146, 44, 1) + ckLab(27, 48, 'QF', 11, 'end');
+  o += X.map(x => ckPut(x, 70, CB.km(20))).join('') + ckLab(27, 98, 'KM1', 11, 'end');
+  o += X.map(x => ckPut(x, 118, CB.frh())).join('') + ckLab(27, 146, 'FR', 11, 'end');
+  o += X.map(x => L(x, 166, x, 186)).join('');
+  o += ckMtrBox(14, 166, 186, 70, [['U1', 40], ['V1', 90], ['W1', 140]]);
+  o += [['U2', 40], ['V2', 90], ['W2', 140]].map(([t, x]) => ckLab(x + 1, 270, t, 11, 'middle')).join('');
+  o += X.map(x => L(x, 256, x, 264)).join('');
+  o += ckFrame(14, 276, 152, 88, 'KMY');
+  o += ckFRow(52, 128, 310, 'U2', 'S') + ckFRow(52, 128, 330, 'V2', 'S') + ckFRow(52, 128, 350, 'W2', 'S');
+  o += ckFrame(184, 276, 152, 88, 'KMΔ');
+  o += ckFRow(222, 298, 310, 'U1', 'W2') + ckFRow(222, 298, 330, 'V1', 'U2') + ckFRow(222, 298, 350, 'W1', 'V2');
+  o += L(166, 330, 184, 330, 1) + ckLab(175, 380, 'S 为星点，虚线为接触器机械互锁', 10, 'middle');
+  const A = 400, A2 = 456, B = 540, C1 = 630, D = 720;
+  o += ckDot(A, 14, 3) + L(A, 14, A, 20);
+  o += ckPut(A, 20, CB.fu()) + ckLab(A + 13, 48, 'FU1');
+  o += ckPut(A, 70, CB.sbnc()) + ckLab(A + 19, 98, 'SB0');
+  o += ckPut(A, 118, CB.frnc()) + ckLab(A + 19, 146, 'FR');
+  o += L(A, 166, A, 170) + L(A, 170, D, 170);
+  o += [A, B, C1, D].map(x => ckDot(x, 170)).join('');
+  o += ckPut(A, 170, CB.sbno()) + ckLab(A - 26, 198, 'SB1', 11, 'end');
+  o += ckPut(A2, 170, CB.no(20)) + ckLab(A2 + 17, 198, 'KM1');
+  o += ckBranch(A, A2, 170, 218);
+  o += ckPut(A, 218, CB.coil()) + ckLab(A + 16, 246, 'KM1');
+  o += L(A, 266, A, 314);
+  o += ckPut(B, 170, CB.no(20)) + ckLab(B + 17, 198, 'KM1');
+  o += ckPut(B, 218, CB.ktc()) + ckLab(B + 20, 246, 'KT  5s');
+  o += L(B, 266, B, 314);
+  o += ckPut(C1, 170, CB.ktnc()) + ckLab(C1 - 24, 198, 'KT', 11, 'end');
+  o += ckPut(C1, 218, CB.nc(20)) + ckLab(C1 + 19, 246, 'KMΔ');
+  o += ckPut(C1, 266, CB.coil()) + ckLab(C1 + 16, 294, 'KMY');
+  o += ckPut(D, 170, CB.ktno()) + ckLab(D + 19, 198, 'KT');
+  o += ckPut(D, 218, CB.nc(20)) + ckLab(D + 19, 246, 'KMY');
+  o += ckPut(D, 266, CB.coil()) + ckLab(D + 16, 294, 'KMΔ');
+  o += L(A, 314, D, 314) + [A, B, C1, D].map(x => ckDot(x, 314)).join('');
+  o += L((A + D) / 2, 314, (A + D) / 2, 322) + ckDot((A + D) / 2, 322, 3) + ckLab((A + D) / 2 + 9, 326, 'N');
+  o += ckLab(560, 366, 'KT 上支路延时断开，下支路延时闭合', 10, 'middle');
+  return ['-30 -34 820 430', o];
+}
+
 Object.assign(SYM, {
+  ckt_exam_a: [...ckExamA(), '识图题 · A 卷单向起动（教材画法）', [520, 300]],
+  ckt_exam_b: [...ckExamB(), '识图题 · B 卷正反转（教材画法）', [520, 300]],
+  ckt_exam_c: [...ckExamC(), '识图题 · C 卷星三角（教材画法）', [520, 300]],
   ckt_single: [...ckSingle(), '单向起动电路原理图', [520, 300]],
   ckt_rev: [...ckRev(), '电气互锁正反转电路原理图', [520, 300]],
   ckt_rev2: [...ckRev2(), '双重互锁正反转电路原理图', [520, 300]],
