@@ -1454,6 +1454,54 @@ body.ppdragging #ppFrame { pointer-events: none; }
 .lib-page-list .lib-i.pickable .lib-a { grid-column: 3; justify-content: flex-end; flex-wrap: nowrap; }
 .lib-pick { display: flex; align-items: center; cursor: pointer; }
 .lib-pick input { width: 16px; height: 16px; margin: 0; cursor: pointer; accent-color: var(--acc, #2f6bff); }
+
+/* ===== 上传试卷（Word / PDF）2026-11-21 ===== */
+.pi-up { margin-bottom: 12px; }
+.pi-up-h { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.pi-up-h h2 { margin: 0; }
+.pi-up .note { margin: 6px 0 0; line-height: 1.6; }
+/* 解析进度 + 预览共用一个浮层 */
+.pi-mask { position: fixed; inset: 0; z-index: 90; background: rgba(12, 16, 24, .45); display: flex; align-items: center; justify-content: center; padding: 18px; }
+.pi-card { width: min(920px, 96vw); max-height: 92vh; display: flex; flex-direction: column; background: var(--bg, #fff); border-radius: 16px; box-shadow: 0 18px 60px rgba(0, 0, 0, .3); overflow: hidden; }
+.pi-h { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 16px 10px; border-bottom: 1px solid var(--hair, #e6e8ee); }
+.pi-h h2 { margin: 0; font-size: 16px; }
+.pi-body { padding: 12px 16px; overflow: auto; }
+.pi-f { display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding: 10px 16px 14px; border-top: 1px solid var(--hair, #e6e8ee); flex-wrap: wrap; }
+.pi-name { font-size: 12.5px; color: var(--ink3, #6b7280); display: inline-flex; align-items: center; gap: 6px; margin-right: auto; }
+.pi-name input { width: 260px; }
+.pi-bar { height: 8px; border-radius: 999px; background: var(--field2, #eef0f5); overflow: hidden; margin-top: 10px; }
+/* 小问分值浮层（2026-11-21）：识图/设计题逐问改分，合计恒等于整题分 */
+.sp-mask { position: fixed; inset: 0; z-index: 95; background: rgba(12, 16, 24, .45); display: flex; align-items: center; justify-content: center; padding: 18px; }
+.sp-card { width: min(520px, 96vw); max-height: 88vh; display: flex; flex-direction: column; background: var(--bg, #fff); border-radius: 16px; box-shadow: 0 18px 60px rgba(0, 0, 0, .3); overflow: hidden; }
+.sp-h { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 16px 10px; border-bottom: 1px solid var(--hair, #e6e8ee); }
+.sp-h h3 { margin: 0; font-size: 15px; }
+.sp-card > .note { margin: 10px 16px 0; font-size: 12.5px; }
+.sp-list { padding: 8px 16px; overflow: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px 12px; }
+.sp-row { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink2, #374151); }
+.sp-row > span { white-space: nowrap; }
+.sp-row input { width: 68px; }
+.sp-f { display: flex; align-items: center; gap: 10px; padding: 10px 16px 14px; border-top: 1px solid var(--hair, #e6e8ee); }
+.sp-f .note { margin-right: auto; font-size: 12.5px; }
+/* 设置表里那一行「小问分值」入口 */
+.pp-subpt { display: flex; align-items: center; gap: 6px; margin-top: 4px; flex-wrap: wrap; }
+.pp-subpt .note { font-size: 12px; }
+.pi-bar i { display: block; height: 100%; width: 6%; border-radius: 999px; background: var(--acc, #2f6bff); transition: width .25s; }
+.pi-secs { display: grid; gap: 6px; margin: 4px 0 10px; }
+.pi-sec-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 6px 8px; border: 1px solid var(--hair, #e6e8ee); border-radius: 10px; background: var(--field2, #f6f7fa); }
+.pi-sec-row .pi-in { flex: 1 1 260px; min-width: 0; }
+.pi-sec-row .pi-sel { width: 132px; }
+.pi-per { font-size: 12.5px; color: var(--ink3, #6b7280); display: inline-flex; align-items: center; gap: 4px; }
+.pi-per input { width: 62px; }
+.pi-sec-n { font-size: 12px; color: var(--ink3, #6b7280); }
+.pi-qs { display: grid; gap: 6px; }
+.pi-q { border: 1px solid var(--hair, #e6e8ee); border-radius: 10px; padding: 8px 10px; }
+.pi-qh { display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--ink3, #6b7280); margin-bottom: 4px; }
+.pi-qh b { color: var(--ink, #111); font-size: 12px; }
+.pi-sub { color: #2f6bff; }
+.pi-nofig { color: #b45309; }
+.pi-warn { color: #b45309; }
+.pi-qt { font-size: 13px; line-height: 1.55; color: var(--ink2, #333); display: flex; gap: 10px; align-items: flex-start; }
+.pi-thumb { max-height: 72px; max-width: 220px; object-fit: contain; border: 1px solid var(--hair, #e6e8ee); border-radius: 6px; background: #fff; }
 .lib-i.picked { border-color: var(--acc, #2f6bff); background: var(--accbg, rgba(47, 107, 255, .08)); }
 @media (max-width: 720px) {
   .lib-page-list .lib-i.pickable { grid-template-columns: auto minmax(0, 1fr); }
@@ -6136,13 +6184,18 @@ button.qdel.sm{width:26px;height:26px;font-size:15px}
    对外：window.HXFig = { hasFig, figName, figSvg, list } */
 window.HXFig = (function () {
 // 华夏工具 · 刷题：电气图形符号（按 GB/T 4728 画法，代码绘制）。题目里用 fig: '名字' 引用（题干 q.fig、选项 o.fig），只认这里有的名字，不接收外部 SVG。
-// 竖直画法：上端接静触点，下端是动触点支点；动合触点刀片向左斜，动断触点刀片向右斜搭在静触点的横线上。
+// 竖直画法：上端接静触点，下端是动触点支点。
+//   动合（常开）：上静触点竖线到 y=26 为止；刀片从支点 (x,54) 向左斜上，刀尖停在 (x-8,28)，
+//                 比静触点端点低 2、左 8，缺口是「斜着甩开」的一道缝（纯水平缝会被读成画歪的横线）。
+//   动断（常闭）：上静触点竖线到 y=26，再向右横出一段到 (x+12,26)；刀片从支点斜上，
+//                 刀尖探到 (x+13,25)，斜着越过横臂端 1 个单位——看着是刀「压」在横臂端头上，不是导线拐弯。
 const L = (x1, y1, x2, y2, dash) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"${dash ? ' stroke-dasharray="4 3"' : ''}/>`;
 const P = d => `<path d="${d}"/>`;
-// 单极触点，x 是导线位置；返回刀片中点（接操作件的连杆）
-const no = x => L(x, 0, x, 26) + L(x, 54, x, 80) + L(x, 54, x - 12, 24);
-const nc = x => L(x, 0, x, 26) + L(x, 26, x + 13, 26) + L(x, 54, x, 80) + L(x, 54, x + 14, 22);
-const push = (x, y) => P(`M${x + 4} ${y - 6} H${x} V${y + 6} H${x + 4}`); // 按钮操作件（E 形）
+// 单极触点，x 是导线位置；操作件（推杆 / 延时 / 热元件）的连杆从刀片 y≈38~39 处引出，
+// 下面各符号里的连杆起点都是按刀片在这两个高度的实际 x 算的（改刀片斜率要一起改）。
+const no = x => L(x, 0, x, 26) + L(x, 54, x, 80) + L(x, 54, x - 8, 28);
+const nc = x => L(x, 0, x, 26) + L(x, 26, x + 12, 26) + L(x, 54, x, 80) + L(x, 54, x + 13, 25);
+const push = (x, y) => L(x, y, x + 5, y) + L(x, y - 6, x, y + 6); // 按钮推杆：一段横杆 + 端部竖帽（T 形），x 是竖帽位置
 const hand = (x, y) => L(x, y - 7, x, y + 7); // 一般手动操作
 const heat = (x, y) => P(`M${x} ${y} H${x - 4} V${y - 6} H${x - 10} V${y} H${x - 14}`); // 热执行器
 const roller = x => `<polygon points="${x - 2},49 ${x - 5},41 ${x - 10},47"/>`; // 位置开关标记：刀片下段的空心三角（同教材图 1-26）
@@ -6162,23 +6215,23 @@ const SYM = {
   no: ['0 0 40 80', no(24), '动合（常开）触点'],
   nc: ['0 0 40 80', nc(16), '动断（常闭）触点'],
   km3: ['0 0 100 80', three(x => no(x) + cup(x)), '接触器主触点'],
-  qs3: ['-20 0 120 80', three(no, L(-10, 39, 74, 39, 1) + hand(-10, 39)), '三极刀开关'],
-  qf3: ['-20 0 120 80', three(x => no(x) + breaker(x), L(-10, 39, 74, 39, 1) + hand(-10, 39)), '三极低压断路器'],
+  qs3: ['-20 0 120 80', three(no, L(-10, 39, 76, 39, 1) + hand(-10, 39)), '三极刀开关'],
+  qf3: ['-20 0 120 80', three(x => no(x) + breaker(x), L(-10, 39, 76, 39, 1) + hand(-10, 39)), '三极低压断路器'],
   frh: ['0 0 40 80', '<rect x="4" y="24" width="32" height="32"/>' + P('M20 0 V32 H12 V48 H20 V80'), '热继电器热元件'],
   frnc: ['-24 0 64 80', nc(16) + L(23, 38, -4, 38, 1) + heat(-4, 38), '热继电器动断（常闭）触点'],
-  sbno: ['-20 0 60 80', no(24) + L(18, 39, -8, 39, 1) + push(-12, 39), '按钮动合（常开）触点'],
-  sbnc: ['-20 0 60 80', nc(16) + L(23, 38, -8, 38, 1) + push(-12, 38), '按钮动断（常闭）触点'],
-  sb2: ['-20 0 100 80', no(24) + nc(52) + L(59, 38, -8, 38, 1) + push(-12, 38), '复合按钮'],
+  sbno: ['-20 0 60 80', no(24) + L(20, 39, -7, 39, 1) + push(-12, 39), '按钮动合（常开）触点'],
+  sbnc: ['-20 0 60 80', nc(16) + L(23, 38, -7, 38, 1) + push(-12, 38), '按钮动断（常闭）触点'],
+  sb2: ['-20 0 100 80', no(24) + nc(52) + L(59, 38, -7, 38, 1) + push(-12, 38), '复合按钮'],
   sqno: ['0 0 40 80', no(24) + roller(24), '行程开关动合（常开）触点'],
   sqnc: ['0 0 40 80', nc(14) + '<polygon points="16,49 19.5,41 16,41"/>', '行程开关动断（常闭）触点'],
-  qs3r: ['-20 0 120 80', three(no, L(-10, 39, 74, 39, 1) + rotary(-10, 39)), '三极组合开关'],
+  qs3r: ['-20 0 120 80', three(no, L(-10, 39, 76, 39, 1) + rotary(-10, 39)), '三极组合开关'],
   kton_coil: ['0 0 40 80', L(20, 0, 20, 26) + L(20, 54, 20, 80) + '<rect x="4" y="26" width="32" height="28"/><rect x="4" y="26" width="9" height="28"/>' + L(4, 26, 13, 54) + L(13, 26, 4, 54), '通电延时型时间继电器线圈'],
   ktoff_coil: ['0 0 40 80', L(20, 0, 20, 26) + L(20, 54, 20, 80) + '<rect x="4" y="26" width="32" height="28"/><rect x="4" y="26" width="9" height="28" fill="currentColor"/>', '断电延时型时间继电器线圈'],
-  kton_no: ['-4 0 44 80', no(28) + delay(22, 39, 1), '时间继电器通电延时动合（常开）触点'],
+  kton_no: ['-4 0 44 80', no(28) + delay(24, 39, 1), '时间继电器通电延时动合（常开）触点'],
   kton_nc: ['-4 0 44 80', nc(20) + delay(27, 38, 1), '时间继电器通电延时动断（常闭）触点'],
-  ktoff_no: ['-4 0 44 80', no(28) + delay(22, 39, 0), '时间继电器断电延时动合（常开）触点'],
+  ktoff_no: ['-4 0 44 80', no(28) + delay(24, 39, 0), '时间继电器断电延时动合（常开）触点'],
   ktoff_nc: ['-4 0 44 80', nc(20) + delay(27, 38, 0), '时间继电器断电延时动断（常闭）触点'],
-  ks_no: ['-20 0 60 80', no(24) + L(18, 39, -6, 39, 1) + speed(-6, 39), '速度继电器动合（常开）触点'],
+  ks_no: ['-20 0 60 80', no(24) + L(20, 39, -6, 39, 1) + speed(-6, 39), '速度继电器动合（常开）触点'],
   ks_nc: ['-20 0 60 80', nc(16) + L(23, 38, -6, 38, 1) + speed(-6, 38), '速度继电器动断（常闭）触点'],
   m3: ['0 0 100 100', L(34, 0, 38, 29) + L(50, 0, 50, 26) + L(66, 0, 62, 29) + '<circle cx="50" cy="56" r="30"/>' + txt(50, 56, 'M', 20) + txt(50, 76, '3～', 13), '三相异步电动机'],
 };
@@ -6186,7 +6239,7 @@ const SYM = {
 // 控制电路小图（教材图 2-3 自锁接法）：主线在 x=40 从上往下排元件，每个高 40；并联支路画在 x=85，from/to 是主线上的节点序号
 const UNIT = {
   no: no(20), nc: nc(20), coil: SYM.coil[1].replace('x="4"', 'x="8"').replace('width="32"', 'width="24"'),
-  sbno: no(20) + L(14, 39, -6, 39, 1) + push(-10, 39), sbnc: nc(20) + L(27, 38, -6, 38, 1) + push(-10, 38), w: L(20, 0, 20, 80),
+  sbno: no(20) + L(16, 39, -6, 39, 1) + push(-10, 39), sbnc: nc(20) + L(27, 38, -6, 38, 1) + push(-10, 38), w: L(20, 0, 20, 80),
 };
 const unit = (t, x, y, label, right) => `<g transform="translate(${x - 10} ${y}) scale(.5)" stroke-width="4">${UNIT[t]}</g>`
   + (label ? `<text x="${right ? x + 11 : x - (t === 'coil' ? 10 : 18)}" y="${y + 24}" font-size="11" text-anchor="${right ? 'start' : 'end'}" fill="currentColor" stroke="none" font-family="Arial,sans-serif">${label}</text>` : '');
@@ -6243,10 +6296,10 @@ const CB = {
   fu: () => L(20, 0, 20, 80) + '<rect x="13" y="24" width="14" height="32"/>',
   frh: () => '<rect x="4" y="24" width="32" height="32"/>' + P('M20 0 V32 H12 V48 H20 V80'),
   coil: () => L(20, 0, 20, 26) + L(20, 54, 20, 80) + '<rect x="4" y="26" width="32" height="28"/>',
-  sbno: () => no(20) + L(14, 39, -8, 39, 1) + push(-12, 39),
-  sbnc: () => nc(20) + L(27, 38, -8, 38, 1) + push(-12, 38),
+  sbno: () => no(20) + L(16, 39, -7, 39, 1) + push(-12, 39),
+  sbnc: () => nc(20) + L(27, 38, -7, 38, 1) + push(-12, 38),
   frnc: () => nc(20) + L(27, 38, 4, 38, 1) + heat(4, 38),
-  ktno: () => no(20) + delay(14, 39, 1),
+  ktno: () => no(20) + delay(16, 39, 1),
   ktnc: () => nc(20) + delay(27, 38, 1),
   ktc: () => L(20, 0, 20, 26) + L(20, 54, 20, 80) + '<rect x="4" y="26" width="32" height="28"/><rect x="4" y="26" width="9" height="28"/>' + L(4, 26, 13, 54) + L(13, 26, 4, 54),
 };
@@ -6722,6 +6775,12 @@ function hxChoices(raw) {
     if (!s || (s[0] !== '[' && s[0] !== '{')) return [];
     try { raw = JSON.parse(s); } catch (e) { return []; }
   }
+  /* 上传试卷的位图挂在 o.img 上（见 hxQImg）：{opts:[A…D], img} 就取 opts；
+     只有 img 的（识图/设计题）本来就没有选项，返回空数组，别被下面的
+     Object.keys() 当成「一个叫 img 的选项」画到卷面上。 */
+  if (raw && typeof raw === 'object' && !Array.isArray(raw) && ('img' in raw)) {
+    if (Array.isArray(raw.opts)) raw = raw.opts; else return [];
+  }
   let list;
   if (Array.isArray(raw)) list = raw.map((x, i) => [null, x, i]);
   else if (raw && typeof raw === 'object') list = Object.keys(raw).map((k, i) => [k, raw[k], i]);
@@ -6827,8 +6886,27 @@ function hxAnsText(v) {
    ⚠ figSvg() 自带内联 style="height:auto"，所以图高只能靠 .ep-fig 的 CSS 用 !important 定，
      见 app.css / PAPER_CSS 里那两条规则。 */
 const HXFig_ = () => (typeof window !== 'undefined' ? window.HXFig : null);
-function hxFig(id, big) {
+/* 上传试卷带进来的位图（2026-11-21）：**不能存在 q.fig 里** —— 那一列只收 ≤24 位字母数字
+   （实测 20 位过、25 位被静默清空），签名 URL 几百个字符，写进去就没了。
+   所以位图地址挂在 jsonb 的 q.o 上：
+     · 只有图没有选项（识图 / 设计 / 填空…）→ o = {img:'<url>'}
+     · 既有选项又有图（「图中的符号表示（　）」）→ o = {opts:[A…D], img:'<url>'}
+   hxChoices 认这两种形状，其它只认文字的地方不会读到它。 */
+const hxImgUrl = s => /^img:https?:\/\//i.test(String(s || '')) ? String(s).slice(4) : '';
+const hxQImg = q => {
+  if (!q) return '';
+  const o = q.o;
+  if (o && typeof o === 'object' && !Array.isArray(o) && typeof o.img === 'string' && /^https?:/i.test(o.img)) return o.img;
+  /* 电子试卷（E1 码）解码出来是扁平结构，图片地址直接在 q.img 上 */
+  if (typeof q.img === 'string' && /^https?:/i.test(q.img)) return q.img;
+  return '';
+};
+/* 一道题到底有没有图（位图或图库符号都算）—— 界面判断「这题带图吗」统一走它 */
+const hxHasFig = q => !!(q && (hxQImg(q) || hxImgUrl(q.fig) || (HXFig_() && HXFig_().hasFig(String(q.fig || '')))));
+function hxFig(id, big, q) {
   const s = String(id == null ? '' : id).trim();
+  const u = hxQImg(q) || hxImgUrl(s);
+  if (u) return `<figure class="ep-fig ep-pic${big ? '' : ' sm'}"><img src="${esc(u)}" alt="配图" loading="lazy"></figure>`;
   if (!s) return '';
   const F = HXFig_();
   if (!F || typeof F.hasFig !== 'function' || typeof F.figSvg !== 'function' || !F.hasFig(s)) return '';
@@ -6837,24 +6915,29 @@ function hxFig(id, big) {
 /* 识图题 / 设计题的**大电路图**（2026-11-21）：题干大图默认压到 120px 高，对单个符号
    （选择/填空的图）够用，但整张电路图（正反转 / 星三角）在这个高度下细节挤成一团，
    学生没法「识读」。所以单开一条 lg 档（CSS 里 .ep-fig.lg 给更高），和 hxFig 只差一个 class。 */
-function hxFigLg(id) {
+function hxFigLg(id, q) {
   const s = String(id == null ? '' : id).trim();
+  const u = hxQImg(q) || hxImgUrl(s);
+  if (u) return `<figure class="ep-fig ep-pic lg"><img src="${esc(u)}" alt="配图" loading="lazy"></figure>`;
   if (!s) return '';
   const F = HXFig_();
   if (!F || typeof F.hasFig !== 'function' || typeof F.figSvg !== 'function' || !F.hasFig(s)) return '';
   return `<figure class="ep-fig lg">${F.figSvg(s, true)}</figure>`;
 }
 /* Word（.docx）里画不了 SVG：按 OOXML 塞图要另建 media 关系 + 位图，这一版不做。
-   退化成一串文字标注，老师看 Word 版时至少知道这里原来有张图。 */
-function hxFigText(id) {
+   退化成一串文字标注，老师看 Word 版时至少知道这里原来有张图。
+   上传试卷进来的图片是位图，本来能塞进 Word —— 但导出那条路是同步构建的，
+   要先把图 fetch 成字节才能塞，留到下一版（PDF / 打印里是完整的）。 */
+function hxFigText(id, q) {
   const s = String(id == null ? '' : id).trim();
-  if (!s) return '';
+  if (!s) return hxQImg(q) ? '［图：见 PDF／打印版］' : '';
+  if (hxQImg(q) || hxImgUrl(s)) return '［图：见 PDF／打印版］';
   const F = HXFig_();
   if (!F || typeof F.hasFig !== 'function' || !F.hasFig(s)) return '';
   const name = (typeof F.figName === 'function' && F.figName(s)) || s;
   return '［图：' + name + '］';
 }
-const paperHasFig = P => P.some(s => (s.items || []).some(q => q && !q.__blank && (hxFigText(q.fig) || hxChoices(q.o).some(o => hxFigText(o.fig)))));
+const paperHasFig = P => P.some(s => (s.items || []).some(q => q && !q.__blank && (hxFigText(q.fig, q) || hxChoices(q.o).some(o => hxFigText(o.fig)))));
 
 /* ================= 题池（2026-11-08 第二轮：理论试卷接 AI 题库） =================
    非 mcu 科目的题来自云端 hx_exam_qbank（AI 题库页 / 资料库页出的题），
@@ -7089,6 +7172,28 @@ function pickPaper(cfg){
     s.qcount=s.items.length;
     s.total=s.count*s.pts;
   });
+  /* 小问分值和「题目实际有几问」对齐（2026-11-21）：
+     subPts 是设置里存的分法，而卷面画几问取决于题目 sub 原文。
+     两者长度不一致时（设置里写死 10 问、抽到的却是没有小问的老题），
+     以前会印出「每小问 3 分」却一行小问都没有。现在按实际问数重摊，合计仍等于整题分。 */
+  paper.forEach(s=>{
+    if(!(pIsShitu(s.t)||pIsSheji(s.t)))return;
+    let n=0;
+    s.items.forEach(q=>{ n=Math.max(n,hxAnsLines(q.sub).length); });
+    if(n<2){ if(Array.isArray(s.subPts)) s.subPts=null; return; }
+    const arr=Array.isArray(s.subPts)?s.subPts.map(x=>+x||0).filter(x=>x>0):[];
+    if(arr.length===n)return;
+    const tot=+s.total||0;
+    if(!tot){ s.subPts=null; return; }
+    /* 先把长度凑到 n（多则截、少则照最后一个补），再按各自比例摊满整题分 */
+    const base=[];
+    for(let i=0;i<n;i++)base.push(arr[i]!=null?arr[i]:(arr.length?arr[arr.length-1]:1));
+    const sum=base.reduce((a,b)=>a+b,0)||n;
+    const out=base.map(v=>Math.max(0,Math.round((tot*v/sum)*2)/2));
+    const s2=out.reduce((a,b)=>a+b,0);
+    out[n-1]=Math.max(0,Math.round((out[n-1]+(tot-s2))*2)/2);   // 尾差给最后一问
+    s.subPts=out;
+  });
   return paper;
 }
 const paperTotal=P=>P.reduce((a,s)=>a+s.total,0);
@@ -7202,18 +7307,24 @@ function itemHTML(s,q,i){
     return `<div class="q">${no}</div>${lines(pIsShitu(s.t)?6:n)}`;
   }
   /* 题干图（q.fig）：紧跟在题干下面。六种题型都可能带图（图题多数是选择/填空）。 */
-  const fig=hxFig(q.fig,true);
+  const fig=hxFig(q.fig,true,q);
   /* 识图题 / 设计题（2026-11-21）：都是自建题型，落在 default 里。但结构特殊，
      不能按「简答 + 一大块留白」糊过去 —— 识图题要把电路图放大、小问每问一行且各留答题空白；
      设计题要留一块画图空白区。判断放在 switch 外面：default 里 pIsShitu/pIsSheji 先拦。 */
   if(pIsShitu(s.t)){
     const subs=hxAnsLines(q.sub);
+    const sp=subsPtsOf(s);
     /* 小问每问一行，各留 3 行答题空白；没有小问时按简答给一整块留白 */
-    const body=subs.length>1?subs.map((x,k)=>`<div class="q sub">（${k+1}）${ptxt(x)}</div>${lines(3)}`).join(''):'';
-    return `<div class="q">${no}${stemHTML(q.q,'',subs.length<2)}</div>${hxFigLg(q.fig)}${body}${subs.length>1?'':lines((q.lines||8)-1)}`;
+    const body=subs.length>1?subs.map((x,k)=>`<div class="q sub">（${k+1}）${ptxt(x)}${subPtsTag(sp,k)}</div>${lines(3)}`).join(''):'';
+    return `<div class="q">${no}${stemHTML(q.q,'',subs.length<2)}</div>${hxFigLg(q.fig,q)}${body}${subs.length>1?'':lines((q.lines||8)-1)}`;
   }
   if(pIsSheji(s.t)){
-    return `<div class="q">${no}${stemHTML(q.q)}</div>${drawHTML()}`;
+    /* 2026-11-21：以前这里只画一个虚线框，题干下面那三条「（1）（2）（3）」要求整段不见 ——
+       学生根本不知道要画什么。现在小问照识图题一样逐条列出（各带分值），画图框放最后。 */
+    const subs=hxAnsLines(q.sub);
+    const sp=subsPtsOf(s);
+    const body=subs.length>1?subs.map((x,k)=>`<div class="q sub">（${k+1}）${ptxt(x)}${subPtsTag(sp,k)}</div>`).join(''):'';
+    return `<div class="q">${no}${stemHTML(q.q,'',subs.length<2)}</div>${body}${drawHTML()}`;
   }
   switch(s.t){
     case 'choice':return `<div class="q">${no}${ptxt(q.q)}</div>${fig}${optHTML(q.o)}`;
@@ -7244,10 +7355,31 @@ function itemHTML(s,q,i){
 /* 大题标题（2026-11-21 补填空题的两个数）：老师设「6 题 10 空」时，卷面这一节其实是 6 道题凑 10 个空，
    只写「每空 1 分，共 10 分」他对不上设置里那两个数，也对不上界面那行「实际 6 题 / 10 空」。
    所以填空题额外报「N 题 / M 空」；别的题型不变（一字都不改，老卷子导出还是老样子）。 */
+/* 小问分值（2026-11-21 老师要求）：
+     「卷面大字标题印的是『每小问 3 分，共 30 分』，你 Word 原卷写的是『每小问 3 分，共 30 分』；
+      工具只按 1 道识图题 = 30 分建模，小问分值没单独存」。
+   现在 section 上多一个 subPts（数组，一项 = 一个小问的分，合计恒等于整题分）：
+     · 全部相等 → 标题照原卷印「每小问 X 分，共 Y 分」，小问行上不标分（跟原卷一样干净）；
+     · 各不相同时 → 标题印「共 Y 分」，每个小问行尾标（X 分），学生才看得出差在哪。 */
+const fmtNum=v=>{const n=Math.round((+v||0)*10)/10;return Number.isInteger(n)?String(n):n.toFixed(1);};
+const subsPtsOf=s=>{
+  if(!s||!(pIsShitu(s.t)||pIsSheji(s.t)))return null;
+  const arr=Array.isArray(s.subPts)?s.subPts.map(x=>+x||0).filter(x=>x>0):[];
+  return arr.length>1?arr:null;
+};
+const subsSame=sp=>sp.every(x=>Math.abs(x-sp[0])<1e-6);
+const subPtsTag=(sp,k)=>sp&&!subsSame(sp)&&sp[k]!=null?`<span class="qpt">（${fmtNum(sp[k])} 分）</span>`:'';
 const secTitle=s=>{
   const T=pType(s.t);
   const q=+(s.qcount!=null?s.qcount:(s.items?s.items.length:0));
   const extra=(s.t==='fill'&&q)?`${q} 题 / ${s.count} 空，`:'';
+  const sp=subsPtsOf(s);
+  if(sp){
+    return `${s.no}、${T.name}（${subsSame(sp)?`每小问 ${fmtNum(sp[0])} 分，`:''}共 ${s.total} 分）`;
+  }
+  /* 识图 / 设计题卷面上就是「1 道题」，印「每题 10 分，共 10 分」等于同一件事说两遍，
+     原卷写的是「四、设计题（共 10 分）」。只有真的排了多道才保留「每题」。 */
+  if((pIsShitu(s.t)||pIsSheji(s.t))&&q<=1) return `${s.no}、${T.name}（共 ${s.total} 分）`;
   return `${s.no}、${T.name}（${extra}${T.unit} ${s.pts} 分，共 ${s.total} 分）`;
 };
 function headHTML(P,cfg){
@@ -7274,6 +7406,14 @@ const FIG_CSS=`
    再用 max-height 兜住过高的图；preserveAspectRatio 默认居中，所以只会留白、不会拉变形。
    360px ≈ 9.5cm，与真实试卷里识图题那张图的占位相当。 */
 .ep-fig.lg svg{width:100%!important;height:auto!important;max-height:360px!important}
+/* 上传试卷带进来的位图（2026-11-21）：走 <img>，尺寸口径和 SVG 那套对齐 ——
+   小图 44px 高（选项里），题干图 120px，识图题大图按栏宽铺满、最高 360px。
+   object-fit:contain 保证不拉伸变形；max-width:100% 防溢出栏宽。 */
+.ep-fig img{height:120px;width:auto;max-width:100%!important;object-fit:contain;display:block}
+/* 小问分值（2026-11-21）：各小问分值不同时，行尾那个灰色的（X 分） */
+.qpt{color:#666;font-size:.92em;margin-left:4px;white-space:nowrap}
+.ep-fig.sm img{height:44px}
+.ep-fig.lg img{width:100%;height:auto;max-height:360px;object-fit:contain}
 .opts .ep-fig{margin:0 2pt 0 0}
 /* 设计题的画图空白区（2026-11-21）：虚线框 + 居中灰字提示，学生手画电路图 */
 .draw{margin:4pt 0 2pt;border:1.5pt dashed #000;height:190pt;display:flex;align-items:center;justify-content:center;break-inside:avoid;page-break-inside:avoid}
@@ -7469,7 +7609,8 @@ const PAPER_LAYOUT_JS=`
       /* ② 空白已经压到 1 行了还装不下，才动图（CSS 里是 max-height:360px!important，
          行内想盖住它必须也带 important）；240px 是底线 —— 再小图上标注就认不出了。 */
       if(!did){
-        var fig=el.querySelector('.ep-fig.lg svg');
+        /* 上传的位图也走这一条（img 没有 CSS !important 的 max-height，但行内压得住） */
+        var fig=el.querySelector('.ep-fig.lg svg, .ep-fig.lg img');
         if(fig){
           var fh=fig.getBoundingClientRect().height;
           if(fh>241){fig.style.setProperty('max-height',Math.max(240,Math.round(fh*0.85))+'px','important');did=true;}
@@ -7683,7 +7824,7 @@ function paperDocHTML(P,cfg,opts){
       if(s.t==='prog'){
         const sub=k=>`<div class="q sub">（${k+1}）${ptxt(subs[k])}</div>${lines(subs.length>1?3:7)}`;
         const subcls=edit?('blk ed edsub'+(pin?' pin':'')):'blk';
-        blocks.push(`<div class="${cls} keep"${at}><div class="q">${i+1}.${stemHTML(q.q,'',subs.length<2)}</div>${hxFig(q.fig,true)}<pre class="code">${esc(q.code)}</pre></div>`);
+        blocks.push(`<div class="${cls} keep"${at}><div class="q">${i+1}.${stemHTML(q.q,'',subs.length<2)}</div>${hxFig(q.fig,true,q)}<pre class="code">${esc(q.code)}</pre></div>`);
         for(let k=0;k<subs.length;k++)blocks.push(`<div class="${subcls}"${at}>${sub(k)}</div>`);
       } else blocks.push(`<div class="${cls}"${at}>${itemHTML(s,q,i)}</div>`);
     });
@@ -7730,7 +7871,7 @@ function docxStem(out, no, t, tail, splitMarks, keep) {
 function docxItems(s,q,i){
   const no=`${i+1}.`,out=[];const sp=n=>{for(let k=0;k<nLines(n);k++)out.push(DX.p(''));};
   /* Word 画不了 SVG，题干图/选项图都退化成灰字标注（见文件尾的「说明」一行） */
-  const ft=hxFigText(q.fig);
+  const ft=hxFigText(q.fig,q);
   const figLine=t=>{if(t)out.push(DX.p(DX.r(t,{color:'666666',sz:18}),{ind:210,keep:true}));};
   if(q&&q.__blank){ out.push(DX.p(DX.r(no))); sp(pIsSheji(s.t)?10:(({choice:2,fill:1,judge:1,term:4,short:8,prog:8}[s.t])||4)); return out.join(''); }
   /* 识图题 / 设计题（2026-11-21）：Word 版和卷面同一口径 ——
@@ -7852,7 +7993,7 @@ function answerDocx(P,cfg){
     else if(s.t==='judge')b+=ansRows(items.map((q,i)=>`${i+1}、（${q.a?'√':'×'}）`));
     else if(s.t==='fill')items.forEach((q,i)=>{b+=DX.p(DX.r(`${i+1}、${Array.isArray(q.a)?q.a.join('；'):q.a}`));});
     else items.forEach((q,i)=>{
-      b+=DX.p(DX.r(`${i+1}、${q.q}${hxFigText(q.fig)}`,{b:true}),{keep:true});
+      b+=DX.p(DX.r(`${i+1}、${q.q}${hxFigText(q.fig,q)}`,{b:true}),{keep:true});
       /* 大题答案按小问逐条排（2026-11-21）：以前不管几问都挤在一个段落里用「；」连起来，
          老师看到的就是一坨；现在一个小问一段，带（1）（2）序号，和题干的小问一一对应。 */
       const ans=hxAnsLines(q.a);
@@ -8081,7 +8222,7 @@ function answerPreviewHTML(P, cfg) {
       const codeHTML = (pIsPractice(s.t) && q.code) ? `<pre class="anscode">${esc(q.code)}</pre>` : '';
       /* 识图题 / 设计题（2026-11-21）：参考答案里把电路图**放大**显示（老师要对着图看答案），
          别的题型的题干图保持小图；设计题评分标准就是小问答案，已经按 .ansub 逐行排了。 */
-      const figHTML = (pIsShitu(s.t) || pIsSheji(s.t)) ? hxFigLg(q.fig) : hxFig(q.fig, false);
+      const figHTML = (pIsShitu(s.t) || pIsSheji(s.t)) ? hxFigLg(q.fig,q) : hxFig(q.fig, false, q);
       b += `<div class="qline">${i + 1}、${esc(q.q)}${figHTML}<span class="score">${aHTML}</span>${codeHTML}<span class="grade">（评分：按要点给分，共 ${s.pts} 分）</span></div>`;
     });
   });
@@ -8667,6 +8808,1115 @@ function libBind(root, kind, sub, opt) {
 window.HXLib = { items: libItems, load: libLoad, sync: libSync, add: libAdd, overwrite: libOverwrite, del: libDel, rename: libRename, listHTML: libListHTML, bind: libBind, defaultName: libDefaultName, when: libWhen, code: libCode, err: () => libErr, errLine: libErrLine, dupRate: libDupRate, dupDetail: libDupDetail, paperQs: libPaperQs, paperItems: libPaperItems, occupied: libOccupied, occupiedFrom: occupiedFromPayloads, poolOk: v => { if (v !== undefined) LIB_POOL_OK = !!v; return LIB_POOL_OK; } };
 
 ;
+/* ================= 上传试卷（Word / PDF）→ AI 解析 → 题池 + 试卷库（2026-11-21） =================
+   老师原话：「新增功能支持上传试卷word和或者pdf 用ai解析每一道题到试卷库组卷后
+             可以选中在理论试卷功能中打开编辑和保存 解析输出不遗漏配图等关键信息」
+
+   ── 为什么要自己解 docx / pdf，不直接丢给 AI 读文件 ──
+   AI 只能读**文字**。试卷里最要紧的恰恰是那张电路图 —— 直接丢文件，图一定丢。
+   所以这里先把文件拆成「按顺序排列的段落 + 图片」两种块：
+
+     docx：本身就是 zip，读 word/document.xml 拿段落、word/media/* 拿图片，
+           按 <w:drawing> 在正文里的位置还原顺序（图属于哪道题靠这个顺序判断）。
+     pdf ：pdf.js 用 getTextContent 拿带坐标的文字行、getOperatorList 拿图片对象和它的
+           变换矩阵，两边都换算成「从上往下的 y」，排序后得到同样的顺序。
+
+   然后把「文字稿 + [[图N]] 占位」交给 AI 结构化。AI 只看到 [[图3]] 这样的编号，
+   返回的 fig 也是编号 —— 编号→真图在我们手上，不会丢、也不会串。
+
+   ── 图片怎么存 ──
+   Storage 私有桶 exam-material（资料库那一个，早就在用）→ `<uid>/fig/<sha1>.png`
+   → 签一个 1 年有效期的 URL → 题池 fig 存 `img:<url>`。
+   存 URL 而不是路径，是为了学生端（刷题）也能直接显示，不需要它有桶的读权限。
+   ⚠ 不要建新桶：publishable key 建不了桶（RLS 403），会白折腾一轮。
+
+   ── 兜底 ──
+   没配 AI / AI 挂了 → 用规则解析（大题标题 + 题号 + 选项 + 小问），格式规整的试卷照样能进。
+   AI 与规则都失败 → 明确报错，不写半截数据。
+*/
+
+/* ================= 1. 读 ZIP ================= */
+async function piInflate(u8) {
+  if (typeof DecompressionStream !== 'function') {
+    throw new Error('这个浏览器不支持解压 docx（要 Chrome 100 以上），换个浏览器再试');
+  }
+  const ds = new DecompressionStream('deflate-raw');
+  const ab = await new Response(new Blob([u8]).stream().pipeThrough(ds)).arrayBuffer();
+  return new Uint8Array(ab);
+}
+async function piUnzip(buf) {
+  const u8 = new Uint8Array(buf);
+  const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+  /* 尾目录（EOCD）在最后，最多再往前 64K（带注释的 zip 会拖长） */
+  let eocd = -1;
+  const stop = Math.max(0, u8.length - 65558);
+  for (let i = u8.length - 22; i >= stop; i--) {
+    if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+  }
+  if (eocd < 0) throw new Error('这个文件不是正常的 .docx（读不到压缩目录），可能被加密或已损坏');
+  const total = dv.getUint16(eocd + 10, true);
+  let off = dv.getUint32(eocd + 16, true);
+  const dir = new Map();
+  const dec = new TextDecoder('utf-8');
+  for (let i = 0; i < total && off + 46 <= u8.length; i++) {
+    if (dv.getUint32(off, true) !== 0x02014b50) break;
+    const method = dv.getUint16(off + 10, true);
+    const csize = dv.getUint32(off + 20, true);
+    const nlen = dv.getUint16(off + 28, true);
+    const elen = dv.getUint16(off + 30, true);
+    const clen = dv.getUint16(off + 32, true);
+    const lho = dv.getUint32(off + 42, true);
+    const name = dec.decode(u8.subarray(off + 46, off + 46 + nlen));
+    /* 本地头里的名字/扩展区长度可能和中央目录不同，必须按本地头算数据起点 */
+    let start = lho + 30;
+    if (lho + 30 <= u8.length) {
+      const lnlen = dv.getUint16(lho + 26, true), lelen = dv.getUint16(lho + 28, true);
+      start = lho + 30 + lnlen + lelen;
+    }
+    dir.set(name, { method, data: u8.subarray(start, start + csize) });
+    off += 46 + nlen + elen + clen;
+  }
+  const cache = new Map();
+  const get = async n => {
+    if (cache.has(n)) return cache.get(n);
+    const e = dir.get(n);
+    if (!e) return null;
+    const d = e.method === 0 ? e.data : await piInflate(e.data);
+    cache.set(n, d);
+    return d;
+  };
+  return {
+    names: [...dir.keys()],
+    get,
+    text: async n => { const b = await get(n); return b ? dec.decode(b) : ''; }
+  };
+}
+
+/* ================= 2. docx → blocks =================
+   blocks: {k:'p', text} | {k:'img', cap, blob} —— 顺序即正文顺序。 */
+function piXmlDecode(s) {
+  return String(s == null ? '' : s)
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'").replace(/&#(\d+);/g, (m, d) => String.fromCharCode(+d))
+    .replace(/&amp;/g, '&');
+}
+function piDocxText(pXml) {
+  let out = '';
+  const re = /<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>|<w:tab\s*\/>|<w:br\s*\/>/g;
+  let m;
+  while ((m = re.exec(pXml))) {
+    if (m[1] != null) out += piXmlDecode(m[1]);
+    else if (/tab/.test(m[0])) out += ' ';
+  }
+  return out.replace(/[ \t]+$/, '');
+}
+async function piDocxBlocks(file) {
+  const zip = await piUnzip(await file.arrayBuffer());
+  const doc = await zip.text('word/document.xml');
+  if (!doc) throw new Error('这个 .docx 里读不到正文（word/document.xml），可能不是 Word 存的文件');
+
+  /* 关系表：rId → media 路径 */
+  const relsXml = await zip.text('word/_rels/document.xml.rels');
+  const rels = {};
+  String(relsXml || '').replace(/<Relationship\b[^>]*>/g, tag => {
+    const id = (tag.match(/Id="([^"]+)"/) || [])[1];
+    const tg = (tag.match(/Target="([^"]+)"/) || [])[1];
+    const ty = (tag.match(/Type="([^"]+)"/) || [])[1] || '';
+    if (id && tg && /\/image$/.test(ty)) rels[id] = tg.replace(/^\.?\//, '');
+    return tag;
+  });
+
+  const blocks = [];
+  const body = doc.slice(doc.indexOf('<w:body>') >= 0 ? doc.indexOf('<w:body>') : 0);
+  /* 顺序扫：表格整块 / 段落 */
+  const re = /<w:tbl>[\s\S]*?<\/w:tbl>|<w:p(?:\s[^>]*)?>[\s\S]*?<\/w:p>|<w:p(?:\s[^>]*)?\/>/g;
+  let m;
+  const pushP = txt => { const t = String(txt || '').replace(/\s+$/, ''); if (t.trim()) blocks.push({ k: 'p', text: t }); };
+  while ((m = re.exec(body))) {
+    const blk = m[0];
+    if (blk.startsWith('<w:tbl>')) {
+      /* 表格按「一行一段」摊平：试卷里的题号/满分表、参考答案表都靠这个 */
+      (blk.match(/<w:tr[\s\S]*?<\/w:tr>/g) || []).forEach(tr => {
+        const cells = (tr.match(/<w:tc>[\s\S]*?<\/w:tc>/g) || [])
+          .map(tc => (tc.match(/<w:p(?:\s[^>]*)?>[\s\S]*?<\/w:p>/g) || []).map(piDocxText).join(' ').trim());
+        const line = cells.filter(Boolean).join(' | ');
+        if (line) blocks.push({ k: 'p', text: line });
+        /* 表格单元格里也可能有图（很少，但别丢） */
+        (tr.match(/<w:drawing>[\s\S]*?<\/w:drawing>/g) || []).forEach(dw => {
+          const emb = (dw.match(/r:embed="([^"]+)"/) || [])[1];
+          const cap = piXmlDecode((dw.match(/descr="([^"]*)"/) || [])[1] || '');
+          if (emb) blocks.push({ k: 'img', rid: emb, cap });
+        });
+      });
+      continue;
+    }
+    /* 段落：先文字，再本段里的图（一张图通常单独成段，顺序不会错） */
+    const pics = blk.match(/<w:drawing>[\s\S]*?<\/w:drawing>/g) || [];
+    pushP(piDocxText(blk));
+    pics.forEach(dw => {
+      const emb = (dw.match(/r:embed="([^"]+)"/) || [])[1];
+      const cap = piXmlDecode((dw.match(/descr="([^"]*)"/) || [])[1] || '');
+      if (emb) blocks.push({ k: 'img', rid: emb, cap });
+    });
+  }
+
+  /* rId → blob */
+  for (const b of blocks) {
+    if (b.k !== 'img') continue;
+    const path = rels[b.rid];
+    const bytes = path ? await zip.get('word/' + path) : null;
+    if (!bytes) { b.blob = null; continue; }
+    const ext = (path.match(/\.(\w+)$/) || [, 'png'])[1].toLowerCase();
+    const mime = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : ext === 'gif' ? 'image/gif'
+      : ext === 'bmp' ? 'image/bmp' : ext === 'emf' || ext === 'wmf' ? 'image/emf' : 'image/png';
+    b.blob = new Blob([bytes], { type: mime });
+    b.ext = ext;
+  }
+  /* emf/wmf 是 Word 的矢量图，浏览器画不出来 —— 明确标出来，不要让老师以为图丢了 */
+  blocks.forEach(b => { if (b.k === 'img' && b.blob && /emf|wmf/.test(b.ext || '')) { b.blob = null; b.bad = 'emf'; } });
+  return blocks;
+}
+
+/* ================= 3. pdf → blocks ================= */
+/* PDF 的文本层常把同一个数拆成两个 glyph：「30」变成「3」+「0」，中间还真有个空格。
+   不修的话「共30分」读成「共3 0 分」，大题标题里的总分取不到 → 分值全错
+   （实测：设计题「共10分」被算成每问 10 分 ×3 问 = 30，整卷满分从 100 变成 120）。
+   只合并「数字 + 空格 + 数字」，不碰「6 题 10 空」这种中间隔着汉字的。 */
+const piFixNums = s => String(s || '').replace(/(\d)[ \u00A0\u2000-\u200A]+(?=\d)/g, '$1');
+function piPdfUrl(p) { return new URL('vendor/' + p, location.href).href; }
+async function piPdfBlocks(file) {
+  let pdfjs;
+  try { pdfjs = await import(piPdfUrl('pdf.js')); }
+  catch (e) { throw new Error('PDF 解析组件没加载到（可能是网络），刷新一下再试，或先用 Word 版'); }
+  pdfjs = (pdfjs.default && pdfjs.default.getDocument) ? pdfjs.default : pdfjs;
+  pdfjs.GlobalWorkerOptions.workerSrc = piPdfUrl('pdf.worker.js');
+  const pdf = await pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+  const blocks = [];
+  let textChars = 0;
+  for (let pno = 1; pno <= pdf.numPages; pno++) {
+    const page = await pdf.getPage(pno);
+    const vp = page.getViewport({ scale: 1 });
+    const H = vp.height;
+    const items = [];
+
+    /* 3.1 文字：按 y 聚成行（pdf.js 给的是带坐标的碎片，直接 join 会把两栏粘在一起） */
+    const tc = await page.getTextContent();
+    const lines = new Map();
+    tc.items.forEach(it => {
+      const s = String(it.str || '');
+      if (!s.trim()) return;
+      const tr = it.transform || [1, 0, 0, 1, 0, 0];
+      const x = tr[4], y = H - tr[5];
+      const key = Math.round(y / 3) * 3;
+      if (!lines.has(key)) lines.set(key, []);
+      lines.get(key).push({ x, s });
+    });
+    [...lines.entries()].sort((a, b) => a[0] - b[0]).forEach(([y, arr]) => {
+      arr.sort((a, b) => a.x - b.x);
+      const t = piFixNums(arr.map(a => a.s).join('').replace(/\s+/g, ' ').trim());
+      if (t) { items.push({ y, x: arr[0].x, k: 'p', text: t }); textChars += t.length; }
+    });
+
+    /* 3.2 图片：跟一遍绘制指令，用当前变换矩阵定位 */
+    try {
+      const op = await page.getOperatorList();
+      const OPS = pdfjs.OPS;
+      let ctm = [1, 0, 0, 1, 0, 0];
+      const stack = [];
+      const mul = (a, b) => [a[0] * b[0] + a[2] * b[1], a[1] * b[0] + a[3] * b[1],
+      a[0] * b[2] + a[2] * b[3], a[1] * b[2] + a[3] * b[3],
+      a[0] * b[4] + a[2] * b[5] + a[4], a[1] * b[4] + a[3] * b[5] + a[5]];
+      for (let i = 0; i < op.fnArray.length; i++) {
+        const fn = op.fnArray[i], a = op.argsArray[i];
+        if (fn === OPS.save) stack.push(ctm.slice());
+        else if (fn === OPS.restore) ctm = stack.pop() || ctm;
+        else if (fn === OPS.transform) ctm = mul(ctm, a);
+        else if (fn === OPS.paintImageXObject || fn === OPS.paintJpegXObject) {
+          const id = a && a[0];
+          if (id == null) continue;
+          /* 单位正方形经变换后的包围盒（右下角取 max，y 翻成从上往下） */
+          const pts = [[0, 0], [1, 0], [0, 1], [1, 1]].map(([u, v]) => [
+            ctm[0] * u + ctm[2] * v + ctm[4],
+            ctm[1] * u + ctm[3] * v + ctm[5]
+          ]);
+          const top = H - Math.max(...pts.map(p => p[1]));
+          const w = Math.max(...pts.map(p => p[0])) - Math.min(...pts.map(p => p[0]));
+          const h = Math.max(...pts.map(p => p[1])) - Math.min(...pts.map(p => p[1]));
+          if (w < 24 || h < 24) continue;         /* 小于 24pt 的多半是线条/装饰，不当配图 */
+          items.push({ y: top, x: Math.min(...pts.map(p => p[0])), k: 'img', objId: id, w, h });
+        }
+      }
+    } catch (e) { /* 取不到图就只出文字，最后会提示「这页没读到图」 */ }
+
+    items.sort((a, b) => (a.y - b.y) || (a.x - b.x));
+    if (pno > 1) blocks.push({ k: 'page', no: pno });
+    items.forEach(it => {
+      if (it.k === 'p') blocks.push({ k: 'p', text: it.text });
+      else blocks.push({ k: 'img', page: page, objId: it.objId, w: it.w, h: it.h, cap: '' });
+    });
+  }
+  /* 平均每页字数太少 = 扫描件（没有文字层），图也切不出来 */
+  const avg = textChars / Math.max(1, pdf.numPages);
+  if (avg < 20) {
+    throw new Error('这份 PDF 没有文字层（扫描件／整页截图），读不出文字。请用 Word 版，或先用 Word 重新「另存为 PDF」再传');
+  }
+  return { blocks, pages: pdf.numPages, avgChars: Math.round(avg) };
+}
+
+/* pdf 的图片对象要单独取出来变成 blob（拿的时候可能还没解码完，给个回调）
+   2026-11-21 修：pdf.js v4+ 把解码结果放在 **obj.bitmap（ImageBitmap）** 里，
+   而 obj.data 是个对象（不是 RGBA 数组，连 .length 都没有）。以前一律按 RGBA 数组处理，
+   取到的全是 undefined —— 画出来是一张全黑图，`<img>` 加载即失败，老师看到的就是
+   「1 张图没传上去：第 1 张读不出来（格式不支持）」，PDF 试卷的配图全丢。
+   现在按 bitmap → imgData → data(数组) 的顺序取，实测 bitmap 路线能出正常的 3000×825 图。 */
+function piPdfImageBlob(item) {
+  return new Promise(resolve => {
+    const page = item.page;
+    let done = false;
+    const finish = obj => {
+      if (done) return; done = true;
+      if (!obj) return resolve(null);
+      try {
+        const c = document.createElement('canvas');
+        const ctx0 = () => c.getContext('2d');
+        const bmp = obj.bitmap;
+        if (bmp && bmp.width && bmp.height) {
+          c.width = bmp.width; c.height = bmp.height;
+          ctx0().drawImage(bmp, 0, 0);
+          c.toBlob(b => resolve(b), 'image/png');
+          return;
+        }
+        /* 老版 pdf.js 有 imgData（ImageData），再老的是裸 RGBA/RGB 数组 */
+        const holder = obj.imgData || obj.data;
+        const w = (obj.imgData && obj.imgData.width) || obj.width;
+        const h = (obj.imgData && obj.imgData.height) || obj.height;
+        const src = (holder && holder.data) ? holder.data : holder;
+        if (!src || !src.length || !w || !h) return resolve(null);
+        c.width = w; c.height = h;
+        const ctx = ctx0();
+        const img = ctx.createImageData(w, h);
+        if (src.length >= w * h * 4) img.data.set(src.subarray(0, img.data.length));
+        else {
+          for (let i = 0, j = 0; i < w * h; i++, j += 3) {
+            img.data[i * 4] = src[j]; img.data[i * 4 + 1] = src[j + 1]; img.data[i * 4 + 2] = src[j + 2]; img.data[i * 4 + 3] = 255;
+          }
+        }
+        ctx.putImageData(img, 0, 0);
+        c.toBlob(b => resolve(b), 'image/png');
+      } catch (e) { resolve(null); }
+    };
+    try {
+      const got = page.objs.get(item.objId, finish);
+      if (got) finish(got);
+    } catch (e) { resolve(null); }
+    /* 大图（3000px）drawImage + toBlob 比小图慢，给到 8 秒 */
+    setTimeout(() => { if (!done) { done = true; resolve(null); } }, 8000);
+  });
+}
+
+/* ================= 4. blocks → 稿件文本 =================
+   编号只发一次（piNumber），后面切块、AI 解析、图归属全用同一个 idx —— 
+   否则 AI 说「图 12 是这道题的」，我们手里第 12 块却是另一张图。 */
+function piNumber(blocks) {
+  let n = 0;
+  blocks.forEach(b => {
+    if (b.k === 'page') return;
+    b.idx = ++n;
+  });
+  return blocks;
+}
+function piTranscript(blocks) {
+  const lines = [];
+  blocks.forEach(b => {
+    if (b.k === 'page') { lines.push('【第 ' + b.no + ' 页】'); return; }
+    if (b.k === 'p') lines.push('[' + b.idx + '] ' + b.text);
+    else lines.push('[[图' + b.idx + ']]' + (b.cap ? '（' + b.cap + '）' : ''));
+  });
+  return lines.join('\n');
+}
+
+/* ================= 5. 规则解析（没配 AI / AI 失败时的兜底） =================
+   只认规整的试卷：大题标题「一、单项选择题（每题3分，共30分）」+ 题号「1.」+ 选项「A. B. C. D.」。
+   识图/设计题按小问「（1）（2）」切。这套是我拿老师那三套 Word 卷实测过的格式。 */
+const PI_TYPE_BY_NAME = [
+  [/多\s*选/, 'choice'],
+  [/单\s*选|选择/, 'choice'],
+  [/填\s*空/, 'fill'],
+  [/判\s*断/, 'judge'],
+  [/名词解释|名词/, 'term'],
+  [/简\s*答|问答/, 'short'],
+  [/程序|代码|编程/, 'prog'],
+  [/识\s*图|读\s*图|看图|电路分析/, 'shitu'],
+  [/设\s*计|绘图|画图/, 'sheji'],
+];
+function piTypeOfName(name) {
+  const s = String(name || '');
+  for (const [re, t] of PI_TYPE_BY_NAME) if (re.test(s)) return t;
+  return '';
+}
+const PI_SEC_RE = /^\s*[一二三四五六七八九十]+\s*[、.．]\s*(.+)$/;
+const PI_QNO_RE = /^\s*(\d{1,3})\s*[.．、]\s*(.*)$/;
+const PI_OPT_RE = /^\s*([A-H])\s*[.．、]\s*(.*)$/;
+const PI_SUBQ_RE = /^\s*[（(]\s*(\d{1,2})\s*[)）]\s*(.*)$/;
+const PI_FIGCAP_RE = /^图\s*\d+[\s\u3000]/;
+
+function piPerFromTitle(title) {
+  const m = String(title || '').match(/每\s*(?:小)?\s*(?:题|空|问)\s*([\d.]+)\s*分/);
+  return m ? +m[1] : 0;
+}
+/* 「（每题3分，共30分）」里那个共 30 分 —— 识图/设计这种「一题多小问」的大题，
+   标题里的总分比「每小问×小问数」更可信（是老师自己写的），所以单独记一份。 */
+function piTotalFromTitle(title) {
+  const m = String(title || '').match(/共\s*([\d.]+)\s*分/);
+  return m ? +m[1] : 0;
+}
+/* 一行里塞了好几个选项（老师排版最常见）：`A. 甲 B. 乙 C. 丙 D. 丁`。
+   也有没空格的：`…不能得电C. 只在按住按钮时得电 D. 延时得电`。
+   所以按字母顺序找下一个分界，不能按空格硬切 —— 硬切会把 C 那段并进 B 的文字里。 */
+function piSplitOpts(txt) {
+  const s = String(txt || '');
+  const LET = 'ABCDEFGH';
+  const m = s.match(PI_OPT_RE);
+  if (!m) return [];
+  /* m[0] 是整行（因为 (.*)$），不能拿它量「A.」有多长，得单独再匹配一次前缀 */
+  const pre = s.match(/^\s*[A-H]\s*[.．、]\s*/);
+  const pos = [{ key: m[1], head: pre ? pre[0].length : 0 }];
+  let from = pos[0].head;
+  for (let i = LET.indexOf(m[1]) + 1; i < LET.length; i++) {
+    const re = new RegExp('\\s*' + LET[i] + '\\s*[.．、]\\s*', 'g');
+    re.lastIndex = from;
+    const mm = re.exec(s);
+    if (!mm) continue;
+    pos.push({ key: LET[i], start: mm.index, head: mm.index + mm[0].length });
+    from = mm.index + mm[0].length;
+  }
+  return pos.map((p, i) => {
+    const end = i + 1 < pos.length ? pos[i + 1].start : s.length;
+    return { key: p.key, text: s.slice(p.head, end).trim() };
+  }).filter(o => o.text);
+}
+
+function piRuleParse(blocks) {
+  const secs = [];
+  let sec = null, q = null, lastImg = null;
+  /* 2026-11-21 修：原来 flushQ 只 push 进全局 qs，**没挂到大题上**，也不给 q.sec —— 
+     结果每题都落回第 0 个大题、后面几个大题显示 0 题，卷面只剩一个「一、单项选择题」。 */
+  const flushQ = () => {
+    if (q && sec && (q.stem || (q.subs || []).length)) sec.qs.push(q);
+    q = null;
+  };
+  const flushSec = () => { flushQ(); if (sec) secs.push(sec); sec = null; };
+
+  blocks.forEach(b => {
+    if (b.k === 'img') {
+      /* 图跟在谁后面就归谁：正在收的题优先，否则给这一大题留着（下一道题认领） */
+      if (q) { if (!q.fig) q.fig = b; }
+      else if (sec) sec.pendingFig = sec.pendingFig || b;
+      lastImg = b;
+      return;
+    }
+    if (b.k !== 'p') return;
+    const tx = b.text.trim();
+    if (!tx) return;
+
+    /* 图题「图1  电动机控制电气原理图」紧跟在图后面 —— 是图的一部分，别混进题干 */
+    if (lastImg && PI_FIGCAP_RE.test(tx)) { lastImg.cap = lastImg.cap || tx; lastImg = null; return; }
+    lastImg = null;
+
+    const ms = tx.match(PI_SEC_RE);
+    if (ms && /题|部分/.test(ms[1])) {
+      flushSec();
+      const t = piTypeOfName(ms[1]);
+      sec = {
+        title: tx, name: ms[1], type: t, per: piPerFromTitle(tx), total: piTotalFromTitle(tx),
+        qs: [], pendingFig: null, head: '', subsOk: (t === 'shitu' || t === 'sheji')
+      };
+      return;
+    }
+    if (!sec) return;
+
+    const mo = tx.match(PI_OPT_RE);
+    const msub = tx.match(PI_SUBQ_RE);
+    const mq = (mo || msub) ? null : tx.match(PI_QNO_RE);
+
+    if (mq) {
+      flushQ();
+      q = { no: +mq[1], stem: mq[2] || '', options: [], subs: [], answers: [], fig: null };
+      if (sec.pendingFig) { q.fig = sec.pendingFig; sec.pendingFig = null; }
+      return;
+    }
+    if (mo && q) { piSplitOpts(tx).forEach(o => q.options.push(o)); return; }
+    if (msub) {
+      if (sec.subsOk) {
+        /* 识图/设计题：小问没有「1.」题号，第一条（1）就把这道题开起来 */
+        if (!q) {
+          q = { no: 1, stem: '', options: [], subs: [], answers: [], fig: null };
+          if (sec.pendingFig) { q.fig = sec.pendingFig; sec.pendingFig = null; }
+        }
+        q.subs.push(msub[2] || '');
+        return;
+      }
+      /* 别的题型里出现（1）多半是题干里的分句，只有当它已经攒了几问才算小问 */
+      if (q) { q.stem = (q.stem ? q.stem + ' ' : '') + tx; return; }
+    }
+    if (sec.subsOk) {
+      /* 小问换行折行的续行：接在上一问后面，别再开一问 */
+      if (q && q.subs.length) { q.subs[q.subs.length - 1] += tx; return; }
+      if (!q) { sec.head = sec.head ? sec.head + ' ' + tx : tx; return; }
+    }
+    if (q) { q.stem = (q.stem ? q.stem + ' ' : '') + tx; return; }
+    if (sec) sec.head = (sec.head ? sec.head + ' ' : '') + tx;
+  });
+  flushSec();
+
+  /* 大题 → 题型；识图/设计整大题合成一道「一题多小问」 */
+  secs.forEach(s => {
+    s.type = s.type || piTypeOfName(s.name) || 'short';
+    if (s.type === 'shitu' || s.type === 'sheji') {
+      const all = s.qs;
+      if (all.length) {
+        const withFig = all.find(x => x.fig);
+        const one = { no: 1, stem: '', options: [], subs: [], answers: [], fig: withFig ? withFig.fig : s.pendingFig };
+        all.forEach(x => {
+          if (x.stem && !one.stem) one.stem = x.stem;
+          else if (x.stem) one.subs.push(x.stem);
+          x.subs.forEach(t => one.subs.push(t));
+        });
+        if (s.head) one.stem = (s.head + ' ' + one.stem).trim();
+        s.qs = [one];
+      } else if (s.head) {
+        s.qs = [{ no: 1, stem: s.head, options: [], subs: [], answers: [], fig: s.pendingFig }];
+      }
+    } else if (s.head) {
+      /* 大题标题下面那段说明（「选对得3分」之类）不是题，丢掉 */
+      s.head = '';
+    }
+    s.qs.forEach(x => { x.type = s.type; });
+  });
+
+  /* 题 → 大题下标（piNormalize 就是按这个盖大题、算分值的） */
+  const qs = [];
+  secs.forEach((s, i) => s.qs.forEach(x => { x.sec = i; qs.push(x); }));
+  return {
+    sections: secs.map(s => ({ title: s.title, type: s.type, per: s.per, total: s.total })),
+    questions: qs
+  };
+}
+
+/* ================= 6. AI 解析 ================= */
+const PI_SCHEMA = `{
+  "sections": [
+    {"title":"一、单项选择题（每题3分，共30分）","type":"choice","per":3}
+  ],
+  "questions": [
+    {"sec":0,"no":1,"type":"choice","stem":"题干原文","options":[{"key":"A","text":"选项文字"}],
+     "answer":"","subs":[],"answers":[],"fig":7}
+  ]
+}`;
+function piPrompt(part, partNo, partAll) {
+  return `你是「把试卷文字稿还原成结构化题目」的引擎。下面是一份试卷按正文顺序抽出来的文字稿。
+稿件里每一段前面有 [编号]，图片是单独一段：[[图12]]（可能带一句图片说明）。
+
+请把稿件里的**每一道题**都还原出来，一小问都不能少。严格只输出 JSON（不要解释、不要 markdown 代码围栏）：
+
+${PI_SCHEMA}
+
+字段说明与硬性规则：
+1. sections：按稿件里的大题标题顺序给（如「一、单项选择题（每题3分，共30分）」）。type 只能取：
+   choice(选择)、fill(填空)、judge(判断)、term(名词解释)、short(简答/问答)、prog(程序分析)、
+   shitu(识图题：给一张电路图让学生看图作答)、sheji(设计题：让学生自己画电路图)。
+   per = 每题分值（标题里「每题3分」就是 3；「每空2分」也填 2），读不到填 0。
+2. questions[].sec = 这道题属于第几个 sections（从 0 开始）。
+3. stem = 题干原文，**一字不改**（不要改写、不要精简、不要补全）。题干开头不要带「1.」这种题号。
+4. options：选择题/判断题才填。选择题从原文的「A. … B. …」拆出来，key 用 A/B/C/D。
+   判断题 options 留空数组，括号「（　）」去掉。
+5. fig：这道题要用到哪张图，就填那张图的编号（[[图12]] 就填 12）。**没有图就填 0**。
+   一张图只能给一道题，不要重复给。识图题的图必须填。
+   图片出现在题目前面、说的又是「下图／图1」，那就是这道题的图。
+6. shitu / sheji：subs 放每一小问/每一条要求的原文（一问一条，不要编号），answers 留空数组。
+7. answer：**只有稿件里真的写了答案才填**（比如参考答案），否则一律空字符串 ""。绝对不要自己算答案。
+8. 不要输出稿件里没有的题；页眉页脚、班级姓名栏、分值表、图题说明都不是题目，跳过。
+9. 填空题原文里的下划线（____）要保留。
+
+${partAll > 1 ? `注意：这是一份长试卷的第 ${partNo}/${partAll} 部分，只处理本段稿件里的题，编号在各自的 sections 里从 0 开始。` : ''}
+
+稿件：
+${part}`;
+}
+function piJsonPick(txt) {
+  let s = String(txt == null ? '' : txt).trim();
+  const fence = s.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fence) s = fence[1].trim();
+  const a = s.indexOf('{'), b = s.lastIndexOf('}');
+  if (a >= 0 && b > a) s = s.slice(a, b + 1);
+  try { return JSON.parse(s); } catch (e) { }
+  /* 再多兜一层：把中文引号换成英文的常见错法 */
+  try { return JSON.parse(s.replace(/[“”]/g, '"').replace(/[‘’]/g, "'").replace(/,\s*([}\]])/g, '$1')); } catch (e) { }
+  return null;
+}
+/* hx-ai 的模型列表是 hx-cloud 异步拉回来的。老师刚打开页面就点「选文件…」时本地还是空的，
+   直接调会抛「还没有配置 AI 模型」→ 白等一场、静默退回规则解析（看上去像「AI 没生效」）。
+   这里等一小会儿（最多 6 秒）再判断，等到了就正常走 AI。 */
+async function piAiReady(timeout) {
+  const H = await eLoadAI();
+  if (!H) return null;
+  const n = () => { try { return (H.list ? H.list() : []).length; } catch (e) { return 0; } };
+  if (!n()) {
+    const t0 = Date.now(), lim = timeout || 6000;
+    while (Date.now() - t0 < lim && !n()) await new Promise(r => setTimeout(r, 250));
+  }
+  return H;
+}
+
+async function piAiParseBlocks(blocks, onStep) {
+  const CHUNK = 7000;
+  /* 调用的地方可能还没打编号（直接跑 _aiParse 的验收脚本），这里兜一次，幂等 */
+  if (blocks.some(b => b.k !== 'page' && !b.idx)) piNumber(blocks);
+  await piAiReady();
+  /* 按页切块，别把一道题切两半：块边界落在整块上，编号沿用全局 idx */
+  const parts = [];
+  let cur = [], len = 0;
+  blocks.forEach(b => {
+    const t = b.k === 'p' ? b.text : '（图）';
+    if (len + t.length > CHUNK && cur.length) { parts.push(cur); cur = []; len = 0; }
+    cur.push(b); len += t.length + 4;
+  });
+  if (cur.length) parts.push(cur);
+
+  const secAll = [], qAll = [];
+  for (let i = 0; i < parts.length; i++) {
+    if (onStep) onStep('AI 正在读第 ' + (i + 1) + '/' + parts.length + ' 段…', 0.3 + 0.3 * (i / parts.length));
+    const txt = piTranscript(parts[i]);
+    const raw = await eAiChat(piPrompt(txt, i + 1, parts.length));
+    const obj = piJsonPick(raw);
+    if (!obj || !Array.isArray(obj.questions)) throw new Error('AI 返回的内容读不出题目（这一段可能太长或被截断）');
+    const secs = Array.isArray(obj.sections) ? obj.sections : [];
+    const base = secAll.length;
+    secs.forEach(s => secAll.push({ title: String(s.title || '').trim(), type: String(s.type || ''), per: +s.per || 0, _part: i }));
+    obj.questions.forEach(q => {
+      qAll.push(Object.assign({}, q, { sec: base + (+q.sec || 0), _part: i }));
+    });
+  }
+  return { sections: secAll, questions: qAll };
+}
+
+/* ================= 7. 图片 → 压缩 → Storage → 签名 URL ================= */
+function piSha1(buf) {
+  /* 小实现：用 crypto.subtle 更省事，但它是异步的，这里就是要个稳定 id，直接用长度+内容抽样拼个伪 hash 不够稳，
+     改用 SHA-1（crypto.subtle）异步版 */
+  return crypto.subtle.digest('SHA-1', buf).then(ab =>
+    [...new Uint8Array(ab)].map(b => b.toString(16).padStart(2, '0')).join(''));
+}
+async function piNormFig(blob) {
+  /* 长边压到 1200，线图用 PNG（文字不糊），照片用 JPEG（省空间） */
+  const bmp = await new Promise((res, rej) => {
+    const u = URL.createObjectURL(blob);
+    const im = new Image();
+    im.onload = () => { URL.revokeObjectURL(u); res(im); };
+    im.onerror = () => { URL.revokeObjectURL(u); rej(new Error('这张图画不出来（格式不支持）')); };
+    im.src = u;
+  });
+  const MAX = 1200;
+  const k = Math.min(1, MAX / Math.max(bmp.naturalWidth || 1, bmp.naturalHeight || 1));
+  const w = Math.max(1, Math.round((bmp.naturalWidth || 1) * k));
+  const h = Math.max(1, Math.round((bmp.naturalHeight || 1) * k));
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
+  ctx.drawImage(bmp, 0, 0, w, h);
+  const isJpg = /jpe?g/i.test(blob.type || '');
+  const out = await new Promise(res => c.toBlob(res, isJpg ? 'image/jpeg' : 'image/png', 0.9));
+  return { blob: out || blob, w, h };
+}
+async function piPutFig(blob, uid) {
+  const buf = await blob.arrayBuffer();
+  const hash = await piSha1(buf);
+  const ext = /jpe?g/i.test(blob.type || '') ? 'jpg' : 'png';
+  const path = uid + '/fig/' + hash.slice(0, 20) + '.' + ext;
+  const tok = (sess && sess.access_token) || '';
+  /* 先试直接签（图已经传过就省一次上传） */
+  const sign = async () => {
+    const r = await fetch(HXB + '/storage/v1/object/sign/exam-material/' + path.split('/').map(encodeURIComponent).join('/'), {
+      method: 'POST',
+      headers: { apikey: HXK, Authorization: 'Bearer ' + tok, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ expiresIn: 31536000 })
+    });
+    if (!r.ok) return '';
+    const j = await r.json().catch(() => null);
+    return (j && j.signedURL) ? (HXB + '/storage/v1' + j.signedURL) : '';
+  };
+  let url = await sign();
+  if (url) return url;
+  const up = await fetch(HXB + '/storage/v1/object/exam-material/' + path.split('/').map(encodeURIComponent).join('/'), {
+    method: 'POST',
+    headers: { apikey: HXK, Authorization: 'Bearer ' + tok, 'Content-Type': blob.type || 'image/png', 'x-upsert': 'true' },
+    body: blob
+  });
+  if (!up.ok) {
+    const t = await up.text().catch(() => '');
+    throw new Error('配图上传失败：' + up.status + ' ' + String(t).slice(0, 120));
+  }
+  url = await sign();
+  if (!url) throw new Error('配图签不出访问地址（Storage 权限问题）');
+  return url;
+}
+
+/* ================= 8. 预览浮层 ================= */
+let PI_STATE = null;
+function piModal(html) {
+  const d = document.createElement('div');
+  d.className = 'pi-mask';
+  d.innerHTML = `<div class="pi-card" role="dialog" aria-modal="true">${html}</div>`;
+  document.body.appendChild(d);
+  return {
+    el: d,
+    close: () => { try { d.remove(); } catch (e) { } },
+    q: s => d.querySelector(s)
+  };
+}
+const PI_TYPES = [
+  ['choice', '单项选择题'], ['judge', '判断题'], ['fill', '填空题'],
+  ['term', '名词解释'], ['short', '简答题'], ['prog', '程序分析题'],
+  ['shitu', '识图题'], ['sheji', '设计题']
+];
+function piTypeKey(t, qtype) {
+  /* 把 AI/规则给的类型落到真实 key 上：识图/设计要看这个科目有没有建过这两类 */
+  if (t === 'shitu') return (qtype.shitu || 'shituti');
+  if (t === 'sheji') return (qtype.sheji || 'shejiti');
+  return PI_TYPES.some(x => x[0] === t) ? t : 'short';
+}
+function piPreview(state) {
+  const secs = state.sections;
+  const rows = state.questions.map((q, i) => {
+    const sec = secs[q.sec] || secs[0] || {};
+    /* 2026-11-21 修：这里原来判的是 q.fig（归一后的题上没有这个字段，只有 imgBlock/figUrl），
+       所以明明抽到图也全显示「无图」。有图显示缩略图，图没传上去才提示。 */
+    const fig = q.figUrl ? `<img class="pi-thumb" src="${esc(q.figUrl)}" alt="配图">` : '';
+    const miss = (!q.figUrl && q.imgBlock) ? '<span class="pi-nofig">图没传上去</span>' : '';
+    const sub = (q.subs || []).length ? `<span class="pi-sub">${(q.subs || []).length} 小问</span>` : '';
+    return `<div class="pi-q" data-i="${i}">
+      <div class="pi-qh"><b>${i + 1}</b><span class="pi-sec">${esc(sec.short || '')}</span>${sub}${miss}</div>
+      <div class="pi-qt">${esc(piCut(q.stem, 90))}${fig}</div>
+    </div>`;
+  }).join('');
+  const secRows = secs.map((s, i) => {
+    /* 识图/设计是「一题多小问」：卷面上算 1 道题，所以那个数字是**整题分**不是每题分 */
+    const subs = s.type === 'shitu' || s.type === 'sheji';
+    return `<div class="pi-sec-row">
+      <input class="pi-in" data-sec-title="${i}" value="${esc(s.title)}" aria-label="大题标题">
+      <select class="pi-sel" data-sec-type="${i}">${PI_TYPES.map(([k, n]) => `<option value="${k}"${k === s.type ? ' selected' : ''}>${n}</option>`).join('')}</select>
+      <label class="pi-per">${subs ? '整题' : '每题'}<input type="number" min="0" step="0.5" data-sec-per="${i}" value="${s.per || 0}">分</label>
+      <span class="pi-sec-n">${s.count} 题${subs && s.subs > 1 ? ' / ' + s.subs + ' 小问' + (+s.subPer > 0 && Math.abs(+s.subPer * s.subs - (+s.per || 0)) < 1e-6 ? '（每问 ' + s.subPer + ' 分）' : '（共 ' + (s.per || 0) + ' 分，可分）') : ''}</span>
+    </div>`;
+  }).join('');
+  const noFig = state.orphanFigs || 0;
+  const errs = state.figErr || [];
+  const m = piModal(`<div class="pi-h"><h2>解析结果</h2><button class="sm" data-pi="x">关闭</button></div>
+    <div class="pi-body">
+      <p class="note">来源：<b>${esc(state.fileName)}</b> · 共 <b>${state.questions.length}</b> 题 ·
+        <b>${state.figCount}</b> 张配图${state.ai ? '（AI 解析）' : '（按格式规则解析）'}
+        ${noFig ? `<span class="pi-warn">· 有 ${noFig} 张图没对上题目，请在下方核对</span>` : ''}
+        ${errs.length ? `<span class="pi-warn">· ${errs.length} 张图没传上去：${esc(piCut(errs[0], 50))}</span>` : ''}</p>
+      <div class="pi-secs">${secRows}</div>
+      <div class="pi-qs">${rows}</div>
+    </div>
+    <div class="pi-f">
+      <label class="pi-name">存为<input id="piName" value="${esc(state.name)}"></label>
+      <button class="pri" data-pi="go">存进试卷库并打开</button>
+    </div>`);
+  return m;
+}
+function piCut(s, n) {
+  const t = String(s == null ? '' : s);
+  return t.length > n ? t.slice(0, n) + '…' : t;
+}
+
+/* ================= 9. 入库 ================= */
+async function piCommit(state, name) {
+  const sub = state.sub;
+  const sid = state.subjectId;
+  const items = state.questions.map(q => {
+    const t = q.typeKey;
+    const row = {
+      t, ch: null, sec: null, secTitle: null,
+      q: q.stem || '(题干为空)',
+      o: (t === 'choice') ? (q.options || []).map(o => ({ key: o.key, text: o.text })) : null,
+      a: piAnswerOf(q, t),
+      code: null,
+      sub: (t === 'shitu' || t === 'sheji' || /识图|设计/.test(q.secShort)) ? (q.subs || []).filter(Boolean) : null,
+      explanation: q.explanation || '',
+      knowledge: null,
+      src: '上传试卷：' + state.fileName
+    };
+    /* 配图地址存哪儿（2026-11-21 实测）：**不能进 fig** —— 那一列只收 ≤24 位字母数字，
+       几百个字符的签名 URL 会被静默清空（题存进去了，图却没了）。所以挂在 jsonb 的 o 上：
+         · 有选项的选择题 → o = {opts:[A…D], img:'<url>'}（hxChoices 认这种形状）
+         · 其它题型        → o = {img:'<url>'}（本来就没有选项） */
+    if (q.figUrl) {
+      row.o = (t === 'choice' && Array.isArray(row.o) && row.o.length) ? { opts: row.o, img: q.figUrl } : { img: q.figUrl };
+    }
+    return row;
+  });
+  const norm = s => String(s == null ? '' : s).replace(/[\s\u3000]/g, '');
+  /* 入库前先照一张题池的快照（2026-11-21 修一个隐蔽 bug）：
+     以前只按「题干文字」回读匹配，结果**同一道题在池子里有两份**时（比如这套卷之前用别的
+     途径导过），picks 会指到那条老记录上 —— 老记录没有我们刚上传的图，卷面上那张图就没了，
+     而新入库的带图那条成了孤儿。现在：手里先有一份快照，入库后只认「新增的那些 id」。 */
+  const pool0 = await rpc('hx_exam_qbank_list', { p_subject_id: sid }) || [];
+  const id0 = new Set(pool0.map(x => String(x.id)));
+  const oldByStem = new Map();
+  pool0.forEach(x => { const k = norm(x.q); if (!oldByStem.has(k)) oldByStem.set(k, x); });
+  const hasFig = x => !!(x && (x.fig || (x.o && typeof x.o === 'object' && x.o.img)));
+  /* 题干已经在池子里 → **复用那条**，不重复入库（同一份卷子导两次，题池不该翻倍）。
+     但老记录可能没有图（比如以前只录了文字）—— 这次解析出图了，就顺手把图补到老记录上
+     （hx_exam_qbank_update 只改传入的字段，题号不变，别的卷子用到它也一起有图了）。 */
+  const plan = state.questions.map((q, i) => {
+    const old = oldByStem.get(norm(q.stem || '(题干为空)'));
+    return {
+      i, reuse: !!old, oldId: old ? +old.id : 0, row: items[i], q, old,
+      needFig: !!(old && q.figUrl && !hasFig(old))
+    };
+  });
+  const toAdd = plan.filter(x => !x.reuse).map(x => x.row);
+  const r = toAdd.length ? await rpc('hx_exam_qbank_add', { p_subject_id: sid, p_items: toAdd, p_material_id: null }) : { added: 0, skipped: 0 };
+  /* 回读题池，把 id 对上（RPC 只回 added/skipped，不给 id） */
+  const pool = toAdd.length ? (await rpc('hx_exam_qbank_list', { p_subject_id: sid }) || []) : pool0;
+  const freshByStem = new Map();
+  pool.forEach(x => { if (!id0.has(String(x.id))) freshByStem.set(norm(x.q), x); });
+  /* 给缺图的老记录补图（一次一条，写请求不重试） */
+  let patched = 0;
+  for (const p of plan) {
+    if (!p.needFig) continue;
+    const base = Array.isArray(p.old.o) ? p.old.o : ((p.row.o && p.row.o.opts) || []);
+    const o = base.length ? { opts: base, img: p.q.figUrl } : { img: p.q.figUrl };
+    try {
+      const up = await rpc('hx_exam_qbank_update', { p_id: p.oldId, p_patch: { o } });
+      if (up !== null) patched++;
+    } catch (e) { /* 补图失败不影响这卷子（题还在，只是没图），别把整次入库搞崩 */ }
+  }
+  const counters = {};
+  const picks = {};
+  let miss = 0;
+  state.questions.forEach((q, i) => {
+    const p = plan[i] || {};
+    /* 先认刚入库的那条（带我们上传的图），没有才退回同题干的老记录 */
+    const hit = p.reuse ? { id: p.oldId } : (freshByStem.get(norm(q.stem || '(题干为空)')) || { id: p.oldId });
+    if (!hit || !hit.id) { miss++; return; }
+    q._id = +hit.id;
+    /* 同一题型内序号必须从 0 连续 —— 有空号会被当成「这一格没填」 */
+    const n = counters[q.typeKey] = (counters[q.typeKey] == null ? 0 : counters[q.typeKey] + 1);
+    picks[q.typeKey + ':' + n] = 'Q' + q._id;
+  });
+
+  /* 大题：题数 / 每题分值 / 总分 */
+  const sections = state.sections.filter(s => s.count > 0).map(s => {
+    const per = +s.per || 0;
+    if (s.type === 'fill') {
+      /* 填空题按「空」计：每题的 blank 数加起来 */
+      let blanks = 0;
+      state.questions.forEach(q => { if (q.sec === s.idx) blanks += Math.max(1, q.blanks || 1); });
+      return { t: s.typeKey, n: blanks, cnt: s.count, pts: per || 2 };
+    }
+    const o = { t: s.typeKey, n: s.count, pts: per || 3 };
+    /* 识图/设计：一题多小问，把「每小问 X 分」落成逐问分值 subPts。
+       卷面标题才能照原卷印「每小问 3 分，共 30 分」，设置页里也能逐问改。 */
+    if ((s.type === 'shitu' || s.type === 'sheji') && (s.subs || 0) > 1) {
+      const n = s.subs, tot = per || 0;
+      /* 均分时**向下取到 0.5**，余数给最后一问：10 分 3 问 → 3/3/4，
+         比四舍五入出来的 3.5/3.5/3 更像老师手写的分法（而且都是整数） */
+      const each = +s.subPer > 0 ? +s.subPer : (tot ? Math.floor((tot / n) * 2) / 2 : 0);
+      if (each > 0) {
+        const arr = new Array(n).fill(each);
+        const sum = arr.reduce((a, b) => a + b, 0);
+        /* 尾差落在最后一问，保证合计 = 整题分 */
+        arr[n - 1] = Math.round((arr[n - 1] + (tot - sum)) * 2) / 2;
+        if (arr[n - 1] <= 0) arr[n - 1] = Math.round(each * 2) / 2;   // 兜底：别出现 0 分问
+        o.subPts = arr;
+      }
+    }
+    return o;
+  });
+  const payload = {
+    key: 'P' + Math.random().toString(36).slice(2, 6).toUpperCase(),
+    ver: 'A', mode: '开卷', term: '第一学期', year: '2026-2027', grade: '',
+    major: '', course: SUBJECTS[sub] || sub, minutes: 90, space: 'auto',
+    blank: false, noAuto: false, weights: { 1: 100 }, kn: [],
+    sections, picks,
+    files: state.fileName ? [{ k: '原始试卷', name: state.fileName, path: '' }] : []
+  };
+  await libAdd(name, 'paper', sub, payload);
+  paperSave(sub, payload);
+  return { sections: sections.length, picks: Object.keys(picks).length, miss, added: r && r.added, patched };
+}
+function piAnswerOf(q, t) {
+  if (t === 'judge') return q.answer === true || /^(对|正确|是|T|√)$/i.test(String(q.answer || '')) ? true
+    : (q.answer === false || /^(错|错误|否|F|×)$/i.test(String(q.answer || '')) ? false : null);
+  if (t === 'fill') return (q.answers && q.answers.length) ? q.answers : (q.answer ? [String(q.answer)] : []);
+  if (t === 'shitu' || t === 'sheji') return (q.answers && q.answers.length) ? q.answers : [];
+  return q.answer == null ? '' : String(q.answer);
+}
+
+/* ================= 10. 入口 ================= */
+async function piOpen() {
+  if (curIsBuiltin && curIsBuiltin()) {
+    return toast('「' + (SUBJECTS[CUR_SUB] || CUR_SUB) + '」用的是内置题库，上传试卷请先切到其他科目');
+  }
+  const sub = CUR_SUB;
+  const sObj = (typeof SUBJ !== 'undefined' ? SUBJ : []).find(x => x.key === sub) || {};
+  const sid = sObj.id;
+  if (!sid) return toast('读不到这个科目的编号，刷新一下再试');
+
+  const inp = document.createElement('input');
+  inp.type = 'file';
+  inp.accept = '.docx,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+  inp.onchange = () => { const f = inp.files && inp.files[0]; if (f) piRun(f, sub, sid).catch(e => toast('解析失败：' + (e && e.message ? e.message : e))); };
+  inp.click();
+}
+
+async function piRun(file, sub, sid) {
+  const isPdf = /\.pdf$/i.test(file.name);
+  const isDocx = /\.docx$/i.test(file.name);
+  if (!isPdf && !isDocx) return toast('只能传 .docx 或 .pdf（旧版 .doc 请先另存为 .docx）');
+  if (file.size > 20 * 1024 * 1024) return toast('文件超过 20MB，请压缩后再传');
+
+  const m = piModal(`<div class="pi-h"><h2>正在解析试卷</h2><button class="sm" data-pi="x">关闭</button></div>
+    <div class="pi-body"><p class="note" id="piStep">正在读文件…</p><div class="pi-bar"><i id="piBar" style="width:6%"></i></div></div>`);
+  const step = (t, p) => {
+    const s = m.q('#piStep'), b = m.q('#piBar');
+    if (s) s.textContent = t;
+    if (b && p != null) b.style.width = Math.max(6, Math.min(100, Math.round(p * 100))) + '%';
+  };
+  try {
+    /* 1) 拆文件 */
+    step(isPdf ? '正在读 PDF（文字 + 图片）…' : '正在读 Word（正文 + 内嵌图片）…', 0.12);
+    let blocks, pages = 0;
+    if (isDocx) blocks = await piDocxBlocks(file);
+    else { const r = await piPdfBlocks(file); blocks = r.blocks; pages = r.pages; }
+    /* 2026-11-21：编号必须在这里打一次 —— 之前只定义了 piNumber 没人调，
+       喂给 AI 的稿件全是「[undefined] 广州华夏职业学院…」，AI 说的「图 12」也对不上块。 */
+    piNumber(blocks);
+    const imgBlocks = blocks.filter(b => b.k === 'img');
+    if (!blocks.some(b => b.k === 'p')) throw new Error('文件里没读到文字（可能是整页图片），换个 Word 版再试');
+
+    /* 2) 结构化：先 AI，失败退回规则 */
+    step('正在让 AI 逐题解析…', 0.3);
+    let parsed = null, usedAI = false, aiErr = '';
+    try {
+      parsed = await piAiParseBlocks(blocks, step);
+      usedAI = true;
+    } catch (e) {
+      aiErr = e && e.message ? e.message : String(e);
+      step('AI 没成功（' + piCut(aiErr, 40) + '），改用格式规则解析…', 0.5);
+      parsed = piRuleParse(blocks);
+    }
+    if (!parsed || !parsed.questions || !parsed.questions.length) {
+      m.close();
+      return toast('这份文件没解析出题目' + (aiErr ? '（AI：' + piCut(aiErr, 60) + '）' : ''));
+    }
+
+    /* 3) 归一：题型、大题、图归属 */
+    step('正在整理题目和配图…', 0.62);
+    const qtype = await piQType(sid);
+    const state = piNormalize(parsed, blocks, qtype, sub, sid, file.name, file);
+    state.qtype = qtype;
+    state.ai = usedAI;
+    state.pages = pages;
+
+    /* 4) 配图上传（只传真的被引用到的） */
+    const used = state.questions.filter(q => q.imgBlock);
+    const figErr = [];
+    if (used.length) {
+      step('正在上传 ' + used.length + ' 张配图…', 0.7);
+      const uid = sess && sess.user && sess.user.id;
+      for (let i = 0; i < used.length; i++) {
+        const q = used[i];
+        step('正在上传配图 ' + (i + 1) + '/' + used.length + '…', 0.7 + 0.25 * (i / used.length));
+        try {
+          const raw = q.imgBlock.blob || await piPdfImageBlob(q.imgBlock);
+          if (!raw) { q.figUrl = ''; figErr.push('第 ' + (i + 1) + ' 张读不出来（' + (q.imgBlock.bad || q.imgBlock.ext || '格式不支持') + '）'); continue; }
+          const nz = await piNormFig(raw);
+          q.figUrl = await piPutFig(nz.blob, uid);
+        } catch (e) {
+          /* 不能静默吞：图丢了老师只看到「无图」，不知道是上传失败还是本来就没有 */
+          q.figUrl = '';
+          figErr.push(String(e && e.message ? e.message : e).slice(0, 60));
+        }
+      }
+    }
+    state.figErr = figErr;
+    state.figCount = state.questions.filter(q => q.figUrl).length;
+    m.close();
+
+    /* 5) 预览确认 */
+    const pv = piPreview(state);
+    pv.el.addEventListener('click', async e => {
+      const b = e.target.closest('[data-pi]');
+      if (!b) return;
+      if (b.dataset.pi === 'x') { pv.close(); return; }
+      if (b.dataset.pi !== 'go') return;
+      const name = (pv.q('#piName').value || '').trim() || state.name;
+      b.disabled = true;
+      try {
+        /* 改过的题型 / 分值同步回去；改了题型，这一大题的题也跟着换 key */
+        pv.el.querySelectorAll('[data-sec-type]').forEach(sel => {
+          const i = +sel.dataset.secType;
+          const s = state.sections[i];
+          if (!s) return;
+          const key = piTypeKey(sel.value, state.qtype || {});
+          if (key === s.typeKey) return;
+          s.type = sel.value; s.typeKey = key;
+          state.questions.forEach(q => { if (q.sec === i) q.typeKey = key; });
+        });
+        pv.el.querySelectorAll('[data-sec-per]').forEach(inp => {
+          const i = +inp.dataset.secPer;
+          if (state.sections[i]) state.sections[i].per = +inp.value || 0;
+        });
+        const r = await piCommit(state, name);
+        pv.close();
+        toast('已存进试卷库：' + name + '（' + r.picks + ' 题' + (r.miss ? '，' + r.miss + ' 题没对上题池' : '') + '）');
+        showT('paper');
+      } catch (er) {
+        b.disabled = false;
+        toast('入库失败：' + (er && er.message ? er.message : er));
+      }
+    });
+  } catch (e) {
+    m.close();
+    throw e;
+  }
+}
+
+async function piQType(sid) {
+  /* 这个科目自建的题型（识图/设计）—— 名字换 key 用，读不到就用默认的 shituti/shejiti */
+  const out = { shitu: '', sheji: '' };
+  try {
+    const rows = await rpc('hx_exam_qtype_list', { p_subject_id: sid }) || [];
+    rows.forEach(r => {
+      if (/识图|读图/.test(r.name || '')) out.shitu = r.k;
+      if (/设计|绘图/.test(r.name || '')) out.sheji = r.k;
+    });
+  } catch (e) { }
+  return out;
+}
+
+function piNormalize(parsed, blocks, qtype, sub, sid, fileName, file) {
+  const secs = [];
+  const secIdx = new Map();
+  (parsed.sections || []).forEach(s => {
+    const title = String(s.title || '').trim() || '（未命名大题）';
+    const key = title.replace(/\s+/g, '');
+    if (secIdx.has(key)) return;
+    const type = piTypeKey(String(s.type || '').toLowerCase() === 'shitu' ? 'shitu' : String(s.type || ''), qtype);
+    const sec = { idx: secs.length, title, short: piSecShort(title), type, per: +s.per || 0, total: +s.total || 0, count: 0, typeKey: type };
+    secIdx.set(key, sec);
+    secs.push(sec);
+  });
+
+  const qs = [];
+  (parsed.questions || []).forEach((q, i) => {
+    let sec = secs[+q.sec];
+    if (!sec) { sec = secs[0] || { idx: 0, title: '', short: '', type: 'short', per: 0, count: 0, typeKey: 'short' }; }
+    const rawT = String(q.type || '').toLowerCase();
+    const typeKey = piTypeKey(rawT || sec.type, qtype);
+    const stem = String(q.stem || '').replace(/^\s*\d{1,3}\s*[.．、]\s*/, '').trim();
+    const subs = Array.isArray(q.subs) ? q.subs.map(x => String(x || '').trim()).filter(Boolean) : [];
+    const blanks = (stem.match(/_{2,}/g) || []).length;
+    const figNo = +q.fig || 0;
+    /* AI 给的 fig 是稿件里的编号；规则解析给的是块对象 */
+    let imgBlock = null;
+    if (q.fig && q.fig.k === 'img') imgBlock = q.fig;
+    else if (figNo) imgBlock = blocks.find(b => b.k === 'img' && b.idx === figNo) || null;
+    qs.push({
+      sec: sec.idx, secShort: sec.short, typeKey, stem, subs,
+      options: Array.isArray(q.options) ? q.options.filter(o => o && o.text) : [],
+      answers: Array.isArray(q.answers) ? q.answers : [],
+      answer: q.answer, blanks: Math.max(1, blanks),
+      imgBlock, figUrl: '', explanation: ''
+    });
+  });
+
+  /* 图没对上题目的：给识图/设计题和大题里唯一一张图兜个底 */
+  const assigned = new Set(qs.filter(q => q.imgBlock).map(q => q.imgBlock));
+  qs.forEach(q => {
+    if (q.imgBlock) return;
+    const un = blocks.filter(b => b.k === 'img' && !assigned.has(b));
+    if (!un.length) return;
+    if (q.typeKey === 'shituti' || q.typeKey === 'shejiti' || /识图|设计/.test(q.secShort)) {
+      if (un.length === 1) { q.imgBlock = un[0]; assigned.add(un[0]); }
+    }
+  });
+
+  qs.forEach(q => { const s = secs[q.sec]; if (s) s.count++; });
+  /* 类型校正：识图/设计题的 key 用这个科目真实的 key */
+  qs.forEach(q => {
+    if (/识图|读图/.test(q.secShort)) q.typeKey = qtype.shitu || 'shituti';
+    if (/设计|绘图/.test(q.secShort)) q.typeKey = qtype.sheji || 'shejiti';
+  });
+  secs.forEach(s => {
+    if (/识图|读图/.test(s.title)) { s.type = 'shitu'; s.typeKey = qtype.shitu || 'shituti'; }
+    if (/设计|绘图/.test(s.title)) { s.type = 'sheji'; s.typeKey = qtype.sheji || 'shejiti'; }
+  });
+  /* 一道大题里题型不一致时，以题本身的为准；大题的 type 取第一道 */
+  if (secs.length && qs.length) secs.forEach(s => {
+    const first = qs.find(q => q.sec === s.idx);
+    if (first && !/识图|设计|读图|绘图/.test(s.title)) s.typeKey = first.typeKey;
+  });
+
+  /* 分值（2026-11-21 修）：原来一律「per || 3」，识图题「每小问3分×10问=30分」被算成 3 分，
+     整卷满分只剩 51。分两种口径：
+       · 普通大题（选择/填空/判断…）per = 每题分，卷面 = 题数 × per；
+       · 识图/设计是「一题多小问」，卷面上算 1 道题，per 记**整题分**。
+     「共N分」一律从**大题标题**里取 —— 那是老师亲手写在卷面上的数字，
+     两个解析路径（AI / 规则）给的 per 口径并不一致（AI 把设计题的「共10分」当成每题 10），
+     只有标题是两边都有的、且最可信。 */
+  secs.forEach(s => {
+    const totTitle = piTotalFromTitle(s.title) || s.total || 0;
+    const subsSec = s.type === 'shitu' || s.type === 'sheji';
+    if (subsSec) {
+      let nSub = 0;
+      qs.forEach(q => { if (q.sec === s.idx) nSub += Math.max(1, (q.subs || []).length); });
+      /* 覆盖 per 之前先把标题里的「每小问 X 分」记下来 —— 入库时按它生成逐问分值 */
+      const per0 = +s.per || 0;
+      const tot = totTitle || (per0 && nSub ? per0 * nSub : 0);
+      if (tot) s.per = Math.round(tot * 2) / 2;
+      s.subs = nSub;
+      /* X 只有「比整题分小」才真是每小问分；否则（解析器把整题分塞进了 per）按小问数均分：
+         向下取到 0.5，余数最后补，避免出现 3.5/3.5/3 这种分法 */
+      s.subPer = nSub > 1
+        ? (per0 > 0 && (!tot || per0 < tot) ? per0 : (tot ? Math.floor((tot / nSub) * 2) / 2 : 0))
+        : 0;
+    } else if (!s.per && s.count && totTitle) {
+      s.per = Math.round((totTitle / s.count) * 2) / 2;
+    }
+  });
+
+  const base = fileName.replace(/\.(docx|pdf)$/i, '');
+  return {
+    sections: secs, questions: qs, sub, subjectId: sid, fileName,
+    name: '上传 ' + base, file,
+    figCount: 0,
+    /* 抽出来但没被任何题认领的图（预览里要提示老师核对，别默默丢掉） */
+    orphanFigs: blocks.filter(b => b.k === 'img' && !assigned.has(b)).length
+  };
+}
+function piSecShort(title) {
+  const s = String(title || '');
+  const m = s.match(/[、.．]\s*([^（(]+)/);
+  return (m ? m[1] : s).replace(/\s+/g, '').slice(0, 10);
+}
+
+window.HXPaperImport = {
+  open: piOpen, run: piRun,
+  /* 下划线开头的是给验收脚本用的（浏览器里逐段跑，出问题好定位是哪一步）；
+     老师界面上不会碰到，删掉也不影响功能。 */
+  _unzip: piUnzip, _docx: piDocxBlocks, _pdf: piPdfBlocks, _rule: piRuleParse,
+  _norm: piNormalize, _transcript: piTranscript, _num: piNumber,
+  _prompt: piPrompt, _aiParse: piAiParseBlocks,
+  _normFig: piNormFig, _putFig: piPutFig
+};
+
+;
 /* ================= 考试 · 理论试卷（2026-11-06 从单片机迁来；2026-11-19 第三轮大改） =================
    用户这一轮的原话（组卷部分）：
      「3.组卷可以设置一共哪些题型，由资料库题池题型决定  选择题是多少题，一题多少分
@@ -8700,8 +9950,10 @@ const PAPER_DEFAULT_BY_SUB = {
     sections: [
       { t: 'choice', n: 10, pts: 3 },
       { t: 'fill', n: 15, pts: 2 },        // 填空的 n 是**空数**，15 空 × 2 分 = 30 分
-      { t: 'shituti', n: 1, pts: 30 },
-      { t: 'shejiti', n: 1, pts: 10 }
+      /* 小问分值（2026-11-21）：识图 10 问 × 3 分 = 30；设计 3 问 4+3+3 = 10。
+         存成 subPts，卷面标题就照原卷印「每小问 3 分，共 30 分」，设置里能逐问改。 */
+      { t: 'shituti', n: 1, pts: 30, subPts: [3, 3, 3, 3, 3, 3, 3, 3, 3, 3] },
+      { t: 'shejiti', n: 1, pts: 10, subPts: [4, 3, 3] }
     ]
   }
 };
@@ -8718,6 +9970,11 @@ function paperLoad(sub) {
   C.sections = secs.map(s => {
     const o = { t: s.t, n: s.n, pts: s.pts };
     if (+s.cnt > 0) o.cnt = Math.round(+s.cnt);
+    /* 小问分值（2026-11-21）：一题多小问的题型（识图/设计）逐问分值。
+       老存档没有这一项 —— 不补，走原来的「整题一个分」，卷面一字不变。 */
+    if (Array.isArray(s.subPts) && s.subPts.length) {
+      o.subPts = s.subPts.map(v => Math.max(0, Math.round((+v || 0) * 2) / 2));
+    }
     return o;
   });
   C.picks = C.picks && typeof C.picks === 'object' && !Array.isArray(C.picks) ? Object.assign({}, C.picks) : {};
@@ -9025,6 +10282,128 @@ function mountPaper(sub) {
       if (box) box.innerHTML = secTipHTML(s, i);
     });
   }
+  /* ============ 小问分值（2026-11-21） ============
+     识图题/设计题在卷面上是「1 道大题 = N 个小问」，老师原卷写的是「每小问 3 分，共 30 分」。
+     以前只存一个整题分，小问分值没地方放。现在 section.subPts = 每个小问的分（合计 = 整题分）：
+       · 改任意一问 → 差额按**原来的比例**摊给其它小问（取 0.5 步长），合计永远等于整题分；
+       · 整题分被改（比如 30 → 40）→ 全部小问按比例放大，合计跟着变。 */
+  const pSubs = s => !!(s && (typeof pIsShitu === 'function' && pIsShitu(s.t) || typeof pIsSheji === 'function' && pIsSheji(s.t)));
+  const subTotal = s => Math.max(0, (+s.n || 1) * (+s.pts || 0));
+  function subPtsOfSec(s) {
+    const n = Array.isArray(s.subPts) && s.subPts.length ? s.subPts.length : 0;
+    if (n) return s.subPts.map(v => Math.max(0, +v || 0));
+    /* 没设过：按整题分均分到该题型第一道题的小问数（拿不到就给 5 问） */
+    let cnt = 0;
+    try {
+      const q = (curPool() || []).find(x => x.t === s.t && Array.isArray(x.sub) && x.sub.length > 1);
+      cnt = q ? q.sub.length : 0;
+    } catch (e) { cnt = 0; }
+    cnt = cnt || 5;
+    /* 向下取到 0.5，余数落到最后一问 —— 10 分 3 问得 3/3/4，不是 3.5/3.5/3，合计还得等于整题分 */
+    const tot = subTotal(s);
+    const each = Math.floor(((tot / cnt) || 0) * 2) / 2;
+    const arr = new Array(cnt).fill(each);
+    if (each > 0) arr[cnt - 1] = Math.max(0, Math.round((each + (tot - each * cnt)) * 2) / 2);
+    return arr;
+  }
+  function subPtsSummary(s) {
+    const sp = Array.isArray(s.subPts) && s.subPts.length ? s.subPts : null;
+    if (!sp) return '按整题均分（点开可逐问改）';
+    const sum = sp.reduce((a, b) => a + b, 0);
+    const same = sp.every(x => Math.abs(x - sp[0]) < 1e-6);
+    return same ? `${sp.length} 问 · 每问 ${fmtNum(sp[0])} 分`
+      : `${sp.length} 问 · ${sp.map(fmtNum).join('/')}（合计 ${fmtNum(sum)}）`;
+  }
+  /* 改了一问之后，把其它问「互相凑」到合计 = 整题分 */
+  function rebalanceSubPts(arr, idx, total) {
+    if (!arr.length) return arr;
+    if (arr[idx] > total) arr[idx] = total;
+    const others = arr.map((_, i) => i).filter(i => i !== idx);
+    if (!others.length) { arr[idx] = total; return arr; }
+    const rest = Math.max(0, total - arr[idx]);
+    const oldSum = others.reduce((a, i) => a + arr[i], 0) || others.length;
+    let used = 0;
+    others.forEach((i, k) => {
+      if (k === others.length - 1) return;
+      const v = Math.max(0, Math.round((rest * (arr[i] || 0) / oldSum) * 2) / 2);
+      arr[i] = v; used += v;
+    });
+    const last = others[others.length - 1];
+    arr[last] = Math.max(0, Math.round((rest - used) * 2) / 2);
+    return arr;
+  }
+  /* 整题分变了：按原比例重算所有小问分 */
+  function rescaleSubPts(s) {
+    if (!pSubs(s) || !Array.isArray(s.subPts) || s.subPts.length < 2) return;
+    const tot = subTotal(s);
+    const sum = s.subPts.reduce((a, b) => a + (+b || 0), 0) || s.subPts.length;
+    let used = 0;
+    s.subPts = s.subPts.map((v, i, A) => {
+      if (i === A.length - 1) return Math.max(0, Math.round((tot - used) * 2) / 2);
+      const nv = Math.max(0, Math.round((tot * (+v || 0) / sum) * 2) / 2);
+      used += nv; return nv;
+    });
+  }
+  /* 逐问改分的浮层 */
+  function openSubPts(i) {
+    const s = C.sections[i];
+    if (!s) return;
+    const arr = subPtsOfSec(s);
+    if (!Array.isArray(s.subPts) || s.subPts.length !== arr.length) s.subPts = arr.slice();
+    const total = subTotal(s);
+    const T = pType(s.t);
+    const old = document.querySelector('.sp-mask');
+    if (old) old.remove();
+    const mask = document.createElement('div');
+    mask.className = 'sp-mask';
+    mask.innerHTML = `<div class="sp-card" role="dialog" aria-modal="true">
+      <div class="sp-h"><h3>${esc(T.name)}：小问分值</h3><button class="sm" data-sp="x">关闭</button></div>
+      <p class="note">合计固定 <b>${fmtNum(total)}</b> 分（= 这一大题的整题分）。改其中一问，<b>其余的按原比例自动凑</b>，总分不变。</p>
+      <div class="sp-list">${s.subPts.map((v, k) => `<label class="sp-row"><span>第 ${k + 1} 问</span><input type="number" min="0" max="${fmtNum(total)}" step="0.5" value="${fmtNum(v)}" data-spi="${k}"> 分</label>`).join('')}</div>
+      <div class="sp-f"><span class="note">合计 <b data-sp-sum>${fmtNum(s.subPts.reduce((a, b) => a + b, 0))}</b> / ${fmtNum(total)} 分</span>
+        <button class="sm" data-sp="avg">每问均分</button>
+        <button class="pri sm" data-sp="ok">好了</button></div>
+    </div>`;
+    document.body.appendChild(mask);
+    const sumEl = mask.querySelector('[data-sp-sum]');
+    const paint = () => {
+      mask.querySelectorAll('[data-spi]').forEach(inp => { inp.value = fmtNum(s.subPts[+inp.dataset.spi] || 0); });
+      if (sumEl) sumEl.textContent = fmtNum(s.subPts.reduce((a, b) => a + b, 0));
+    };
+    mask.addEventListener('input', e => {
+      const inp = e.target.closest('[data-spi]');
+      if (!inp) return;
+      const k = +inp.dataset.spi;
+      s.subPts[k] = Math.max(0, Math.round((+inp.value || 0) * 2) / 2);
+      rebalanceSubPts(s.subPts, k, total);
+      paint();
+    });
+    mask.addEventListener('click', e => {
+      const b = e.target.closest('[data-sp]');
+      if (!b) return;
+      const act = b.dataset.sp;
+      if (act === 'x') { mask.remove(); return; }
+      if (act === 'avg') {
+        const n = s.subPts.length;
+        const each = Math.floor((total / n) * 2) / 2;
+        s.subPts = new Array(n).fill(each);
+        /* 余数给最后一问，合计严格等于整题分（10 分 3 问 → 3/3/4） */
+        s.subPts[n - 1] = Math.max(0, Math.round((each + (total - each * n)) * 2) / 2);
+        paint(); return;
+      }
+      if (act === 'ok') {
+        mask.remove();
+        changed();
+        renderTypes2();
+        toast('小问分值已更新：' + subPtsSummary(s));
+      }
+    });
+  }
+  /* 只重画表格里那一行的说明与摘要（整表重画会打断正在输入的框） */
+  function renderTypes2() {
+    try { renderTypes(); } catch (e) { }
+  }
+
   function renderTypes() {
     $('ppTypes').innerHTML = C.sections.map((s, i) => {
       const T = pType(s.t);
@@ -9036,9 +10415,15 @@ function mountPaper(sub) {
         ? `<input type="number" min="0" max="40" value="${cntVal}" placeholder="不限" data-i="${i}" data-f="cnt" aria-label="填空题题数（留空=不限）" title="这一大题最多几道题；留空=只受空数约束"> 题
            · <input type="number" min="1" max="40" value="${s.n}" data-i="${i}" data-f="n" aria-label="填空题空数" title="这一大题最多几个空（按空给分）"> 空`
         : `<input type="number" min="0" max="40" value="${s.n}" data-i="${i}" data-f="n" aria-label="${esc(T.name)}${esc(T.per)}数"> ${esc(T.per)}`;
+      /* 一题多小问的题型（识图/设计）：分值列除了「整题分」，还给一个逐问改分的入口。
+         2026-11-21 老师：「每小问的分都可以单独编辑更改，总分不变互相凑」。 */
+      const subsSec = pSubs(s);
+      const subCell = subsSec
+        ? `<div class="pp-subpt"><button type="button" class="sm" data-subpts="${i}" title="逐个小问改分值，总分不变">小问分值</button><span class="note">${subPtsSummary(s)}</span></div>`
+        : '';
       return `<tr><td>${CN_NUM[i] || (i + 1)}、${esc(T.name)}<div data-tip="${i}">${secTipHTML(s, i)}</div><div class="pp-act" data-act="${i}"></div></td>
         <td>${numCell}</td>
-        <td><input type="number" min="0" max="30" step="0.5" value="${s.pts}" data-i="${i}" data-f="pts" aria-label="${esc(T.name)}${esc(T.unit)}分值"> <span style="white-space:nowrap">${T.unit === '每空' ? '分/空' : '分'}</span></td>
+        <td><input type="number" min="0" max="30" step="0.5" value="${s.pts}" data-i="${i}" data-f="pts" aria-label="${esc(T.name)}${esc(T.unit)}分值"> <span style="white-space:nowrap">${subsSec ? '分（整题）' : (T.unit === '每空' ? '分/空' : '分')}</span>${subCell}</td>
         <td><button class="sm danger" data-secdel="${i}" title="删掉这一大题">×</button></td></tr>`;
     }).join('') || '<tr><td colspan="4" class="note">还没有题型，点下面的「加一大题」</td></tr>';
     const left = typeChoices().filter(x => !secOf(x.k));
@@ -9817,10 +11202,12 @@ function mountPaper(sub) {
            · 识图题那种整张电路图（id 以 ckt 开头）→ 单独占满整行（grid-column:1/-1），
              按栏宽铺到最多 200px 高。76px 塞在题干右边时缩成一团黑线，
              根本分不出是正反转还是星三角，老师没法「迅速确认」。 */
-        const figLg = /^ckt/i.test(String(q.fig || ''));
+        /* 2026-11-21：上传试卷带进来的位图存在 q.o.img 上（q.fig 那一列存不了长 URL），
+           所以「这题有没有图」不能只看 q.fig，统一走 hxHasFig()。 */
+        const figLg = /^ckt/i.test(String(q.fig || '')) || (hxQImg(q) && (subsN > 1 || /识图|设计/.test(String(q.secTitle || ''))));
         const subsTag = subsN > 1 ? `<i>${subsN} 小问</i>` : '';
-        const figInline = (!figLg && q.fig) ? `<span class="bkq-fig">${hxFig(q.fig, false)}${subsTag}</span>` : '';
-        const figWide = (figLg && q.fig) ? `<span class="bkq-fig wide">${hxFig(q.fig, false)}${subsTag}</span>` : '';
+        const figInline = (!figLg && hxHasFig(q)) ? `<span class="bkq-fig">${hxFig(q.fig, false, q)}${subsTag}</span>` : '';
+        const figWide = (figLg && hxHasFig(q)) ? `<span class="bkq-fig wide">${hxFig(q.fig, false, q)}${subsTag}</span>` : '';
         body.push(`<div class="bkq${busy ? ' busy' : ''}${oc0 ? ' has-occ' : ''}${isCur ? ' on' : ''}${why ? ' noroom' : ''}" data-i="${pv}"${why ? ' data-no="1"' : ''} draggable="true" role="button" tabindex="0"${ttl ? ` title="${esc(ttl)}"` : ''}${oc0 ? ` data-occ="${esc(ocNames.join('、'))}" style="--bkq-oc:${esc(ocColor)}"` : ''}>
         <span class="bkq-ch">${POOL ? '章' + q.ch : 'P' + q.ch}</span><div class="bkq-main"><span class="bkq-q">${esc(q.q)}${why ? ` <em class="bkq-no">${/已在卷面/.test(why) ? '已在卷面' : '装不下'}</em>` : ''}</span>${figInline}</div>
         ${POOL && q.src ? `<span class="bkq-src" title="${esc(q.src)}">${esc(ppSrcShort(q.src))}</span>` : ''}
@@ -9904,7 +11291,7 @@ function mountPaper(sub) {
   function fullHTML(q) {
     const t = q.t;
     /* 图题（2026-11-20）：题干 q.fig 画大图，选项 o.fig 画小图；认不出的 id 当没图 */
-    let h = `<div class="bkq-fq">${esc(q.q)}</div>${hxFig(q.fig, true)}`;
+    let h = `<div class="bkq-fq">${esc(q.q)}</div>${hxFig(q.fig, true, q)}`;
     if (t === 'choice') h += `<ol class="bkq-op">${hxChoices(q.o).map(x => `<li>${esc(x.key)}. ${hxFig(x.fig, false)}${esc(x.text)}</li>`).join('')}</ol>`;
     if (q.code) h += `<pre class="code">${esc(q.code)}</pre>`;
     /* 小问（2026-11-21）：程序分析题和自建大题都可能带小问，统一在这里排，
@@ -10126,6 +11513,8 @@ function mountPaper(sub) {
     const t = e.target, s = C.sections[+t.dataset.i];
     if (!s || !t.dataset.f) return;
     s[t.dataset.f] = Math.max(0, +t.value || 0);
+    /* 整题分被改：小问分值按比例跟着放大/缩小，合计仍等于整题分（2026-11-21） */
+    if (t.dataset.f === 'pts') rescaleSubPts(s);
     /* 2026-11-21：空数 / 题数调小以后，卷面上多出来的那几格已经排不进卷面了 ——
        顺手把它们的点名删掉，并把删之前的样子压进撤回栈（删错了能点撤回拿回来）。
        不删的话，老师把这一行改回「5 题 10 空」时，上次那几道旧题会「凭空又冒出来」。
@@ -10139,6 +11528,8 @@ function mountPaper(sub) {
     if (cut) toast(`已收掉 ${cut} 道排不进卷面的题（点「撤回」可恢复）`);
   });
   $('ppTypes').addEventListener('click', e => {
+    const sb = e.target.closest('[data-subpts]');
+    if (sb) { openSubPts(+sb.dataset.subpts); return; }
     const b = e.target.closest('[data-secdel]');
     if (!b) return;
     const i = +b.dataset.secdel, s = C.sections[i];
@@ -11315,6 +12706,12 @@ async function libHome() {
   if (LIB_PICK_SUB !== sub) { LIB_PICK = new Set(); LIB_PICK_SUB = sub; }
   app().innerHTML = `<header class="ex-h"><div class="eyebrow">教师 · ${esc(sname)}</div><h1>试卷库</h1>
     <p class="note">本科目已存的卷。勾选 2–3 套可以查重复度。</p></header>
+    <div class="card pi-up">
+      <div class="pi-up-h"><h2>上传试卷（Word / PDF）</h2>
+        <button class="pri sm" id="piOpen">选文件…</button></div>
+      <p class="note">别人给的、自己以前做的 Word/PDF 试卷传上来，AI 会<b>逐题拆开存进题池</b>，并生成一套能在右边「选用」的卷子。
+        <b>配图会一起抽出来</b>：Word 取内嵌原图，PDF 按版面位置取，图跟着题走。</p>
+    </div>
     <div class="card lib-home" id="libHome">
       <div class="lib-home-h"><h2>本科目的试卷</h2>
         <span class="lib-home-act"><button class="sm" id="libReload">刷新</button>
@@ -11322,6 +12719,10 @@ async function libHome() {
       <div id="libList" class="lib-page-list"><div data-fxload="正在读试卷库…"></div></div>
     </div>`;
   if (window.HXLoadFx) HXLoadFx.auto(app());
+  if ($('piOpen')) $('piOpen').onclick = () => {
+    if (window.HXPaperImport) window.HXPaperImport.open();
+    else toast('上传组件没加载出来，刷新一下再试');
+  };
   const list = $('libList');
   if (list) list.addEventListener('change', libPickChange);
   if ($('libPub')) $('libPub').onclick = () => libPubDialog().catch(e => toast('打不开发布窗：' + (e && e.message ? e.message : e)));
@@ -11663,10 +13064,10 @@ const E_ESC = s => esc(String(s == null ? '' : s));
 /* 符号图（2026-11-20）：本文件自己也可能被单独加载（老测试脚本），所以包一层 ——
    paper.js 里的 hxFig 不在就返回空串，别让少个脚本把整页渲染打断。
    图库本体是 window.HXFig（build 内联的 src/figlib.js），认不出的 id 由 hxFig 兜掉。 */
-const eFig = (id, big) => (typeof hxFig === 'function' ? hxFig(id, big) : '');
+const eFig = (id, big, q) => (typeof hxFig === 'function' ? hxFig(id, big, q) : '');
 /* fig（2026-11-20）：图题的符号 id 必须冻进卷子 —— 以前这里只挑固定几个字段，
    图题发出去就成了「看文字猜图」，学生端一道图都看不到。 */
-function ePaperEncode(qs) { return 'E1:' + E_B64(JSON.stringify({ v: 1, qs: qs.map(q => ({ id: q.id, t: q.t, q: q.q, o: q.o || [], a: q.a, sub: q.sub || [], pts: q.pts || 10, src: q.src || '', fig: q.fig || '' })) })); }
+function ePaperEncode(qs) { return 'E1:' + E_B64(JSON.stringify({ v: 1, qs: qs.map(q => ({ id: q.id, t: q.t, q: q.q, o: q.o || [], a: q.a, sub: q.sub || [], pts: q.pts || 10, src: q.src || '', fig: q.fig || '', img: (q.o && q.o.img) || '' })) })); }
 function ePaperDecode(code) { if (!/^E1:/.test(String(code || ''))) return null; try { const x = JSON.parse(E_UNB64(String(code).slice(3))); return x && Array.isArray(x.qs) ? x.qs : null; } catch (e) { return null; } }
 function eType(t) {
   const m = { single: '单选', multiple: '多选', judgment: '判断', choice: '选择题', judge: '判断', fill: '填空', short: '简答', term: '名词解释', prog: '编程题' };
@@ -11929,7 +13330,7 @@ function eQuestionHTML(q, i, answer) {
   const subHTML = nq.sub.length
     ? nq.sub.map((x, k) => `<span class="e-sub">${nq.sub.length > 1 ? `（${k + 1}）` : ''}${E_ESC(x)}</span>`).join('')
     : '';
-  return `<article class="card e-q" id="eQ${i + 1}" data-qcard="${i}"><div class="e-qhead"><span>第 ${i + 1} 题 · ${E_ESC(eType(nq.t))}</span><b>本题 ${nq.pts || 10} 分</b></div><h3>${eStemHTML(nq)}</h3>${eFig(nq.fig, true)}${subHTML ? `<p class="note">${subHTML}</p>` : ''}${input}</article>`;
+  return `<article class="card e-q" id="eQ${i + 1}" data-qcard="${i}"><div class="e-qhead"><span>第 ${i + 1} 题 · ${E_ESC(eType(nq.t))}</span><b>本题 ${nq.pts || 10} 分</b></div><h3>${eStemHTML(nq)}</h3>${eFig(nq.fig, true, nq)}${subHTML ? `<p class="note">${subHTML}</p>` : ''}${input}</article>`;
 }
 /* 每一屏一个 AbortController：滚动监听、beforeunload 这类挂在 window 上的监听
    必须随页面翻篇解绑，否则学生翻几次卷就叠出十几份（这项目在理论试卷 iframe 上踩过）。 */
@@ -12149,7 +13550,7 @@ async function electronicResult(code, back) {
       return `<article class="card e-rq">
         <div class="e-qhead"><span>第 ${i} 题 · ${E_ESC(eType(t))}</span><b>${got == null ? '待批改' : E_ESC(eFmtNum(got)) + ' / ' + E_ESC(eFmtNum(pts)) + ' 分'}</b></div>
         <h3>${eStemHTML(q)}</h3>
-        ${eFig(q.fig, true)}
+        ${eFig(q.fig, true, q)}
         ${obj ? `<div class="e-options ro">${eOptions(q).map(o => `<span class="e-opt${String(ans || '').split(/[,、\s]+/).includes(String(o.key)) ? ' picked' : ''}"><b>${E_ESC(o.key)}</b> ${eFig(o.fig, false)}${E_ESC(o.text)}</span>`).join('')}</div>` : ''}
         ${wrong ? `<div class="e-cmp"><div><span>你的答案</span><b class="bad">${E_ESC(mine ? (ans || '（没答）') : '（这台设备没留作答记录）').replace(/\n/g, '<br>')}</b></div><div><span>正确答案</span><b class="ok">${eCorrectHTML(q)}</b></div></div>` : ''}
         ${!obj && String(ans || '').trim() ? `<details class="e-myans"><summary>我的作答</summary><pre>${E_ESC(ans)}</pre></details>` : ''}
@@ -13156,7 +14557,7 @@ async function subsElectronic(x) {
       <summary class="eg-qh"><b>第 ${i + 1} 题 · ${E_ESC(eType(q.t))}</b><span>满分 ${E_ESC(eFmtNum(pts))}</span><span class="eg-qsum">${qSumHTML(s, q, i)}</span></summary>
       <div class="eg-qb">
         <div class="eg-stem">${eStemHTML(q)}</div>
-        ${eFig(q.fig, true)}
+        ${eFig(q.fig, true, q)}
         ${obj ? `<div class="eg-opts">${eOptions(q).map(o => `<span><b>${E_ESC(o.key)}</b> ${eFig(o.fig, false)}${E_ESC(o.text)}</span>`).join('')}</div>` : ''}
         <!-- 2026-11-18 用户：「参考答案我批改你缩进去干嘛 防我呢 展开啊」——改成**默认展开**。
              批改时老师本来就要对着参考答案看，折起来等于每道题多点一次；仍可手动收起（open 是默认态，不是锁定态）。 -->

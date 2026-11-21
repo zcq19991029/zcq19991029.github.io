@@ -1995,13 +1995,18 @@ window.HXImp = {
    对外：window.HXFig = { hasFig, figName, figSvg, list } */
 window.HXFig = (function () {
 // 华夏工具 · 刷题：电气图形符号（按 GB/T 4728 画法，代码绘制）。题目里用 fig: '名字' 引用（题干 q.fig、选项 o.fig），只认这里有的名字，不接收外部 SVG。
-// 竖直画法：上端接静触点，下端是动触点支点；动合触点刀片向左斜，动断触点刀片向右斜搭在静触点的横线上。
+// 竖直画法：上端接静触点，下端是动触点支点。
+//   动合（常开）：上静触点竖线到 y=26 为止；刀片从支点 (x,54) 向左斜上，刀尖停在 (x-8,28)，
+//                 比静触点端点低 2、左 8，缺口是「斜着甩开」的一道缝（纯水平缝会被读成画歪的横线）。
+//   动断（常闭）：上静触点竖线到 y=26，再向右横出一段到 (x+12,26)；刀片从支点斜上，
+//                 刀尖探到 (x+13,25)，斜着越过横臂端 1 个单位——看着是刀「压」在横臂端头上，不是导线拐弯。
 const L = (x1, y1, x2, y2, dash) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"${dash ? ' stroke-dasharray="4 3"' : ''}/>`;
 const P = d => `<path d="${d}"/>`;
-// 单极触点，x 是导线位置；返回刀片中点（接操作件的连杆）
-const no = x => L(x, 0, x, 26) + L(x, 54, x, 80) + L(x, 54, x - 12, 24);
-const nc = x => L(x, 0, x, 26) + L(x, 26, x + 13, 26) + L(x, 54, x, 80) + L(x, 54, x + 14, 22);
-const push = (x, y) => P(`M${x + 4} ${y - 6} H${x} V${y + 6} H${x + 4}`); // 按钮操作件（E 形）
+// 单极触点，x 是导线位置；操作件（推杆 / 延时 / 热元件）的连杆从刀片 y≈38~39 处引出，
+// 下面各符号里的连杆起点都是按刀片在这两个高度的实际 x 算的（改刀片斜率要一起改）。
+const no = x => L(x, 0, x, 26) + L(x, 54, x, 80) + L(x, 54, x - 8, 28);
+const nc = x => L(x, 0, x, 26) + L(x, 26, x + 12, 26) + L(x, 54, x, 80) + L(x, 54, x + 13, 25);
+const push = (x, y) => L(x, y, x + 5, y) + L(x, y - 6, x, y + 6); // 按钮推杆：一段横杆 + 端部竖帽（T 形），x 是竖帽位置
 const hand = (x, y) => L(x, y - 7, x, y + 7); // 一般手动操作
 const heat = (x, y) => P(`M${x} ${y} H${x - 4} V${y - 6} H${x - 10} V${y} H${x - 14}`); // 热执行器
 const roller = x => `<polygon points="${x - 2},49 ${x - 5},41 ${x - 10},47"/>`; // 位置开关标记：刀片下段的空心三角（同教材图 1-26）
@@ -2021,23 +2026,23 @@ const SYM = {
   no: ['0 0 40 80', no(24), '动合（常开）触点'],
   nc: ['0 0 40 80', nc(16), '动断（常闭）触点'],
   km3: ['0 0 100 80', three(x => no(x) + cup(x)), '接触器主触点'],
-  qs3: ['-20 0 120 80', three(no, L(-10, 39, 74, 39, 1) + hand(-10, 39)), '三极刀开关'],
-  qf3: ['-20 0 120 80', three(x => no(x) + breaker(x), L(-10, 39, 74, 39, 1) + hand(-10, 39)), '三极低压断路器'],
+  qs3: ['-20 0 120 80', three(no, L(-10, 39, 76, 39, 1) + hand(-10, 39)), '三极刀开关'],
+  qf3: ['-20 0 120 80', three(x => no(x) + breaker(x), L(-10, 39, 76, 39, 1) + hand(-10, 39)), '三极低压断路器'],
   frh: ['0 0 40 80', '<rect x="4" y="24" width="32" height="32"/>' + P('M20 0 V32 H12 V48 H20 V80'), '热继电器热元件'],
   frnc: ['-24 0 64 80', nc(16) + L(23, 38, -4, 38, 1) + heat(-4, 38), '热继电器动断（常闭）触点'],
-  sbno: ['-20 0 60 80', no(24) + L(18, 39, -8, 39, 1) + push(-12, 39), '按钮动合（常开）触点'],
-  sbnc: ['-20 0 60 80', nc(16) + L(23, 38, -8, 38, 1) + push(-12, 38), '按钮动断（常闭）触点'],
-  sb2: ['-20 0 100 80', no(24) + nc(52) + L(59, 38, -8, 38, 1) + push(-12, 38), '复合按钮'],
+  sbno: ['-20 0 60 80', no(24) + L(20, 39, -7, 39, 1) + push(-12, 39), '按钮动合（常开）触点'],
+  sbnc: ['-20 0 60 80', nc(16) + L(23, 38, -7, 38, 1) + push(-12, 38), '按钮动断（常闭）触点'],
+  sb2: ['-20 0 100 80', no(24) + nc(52) + L(59, 38, -7, 38, 1) + push(-12, 38), '复合按钮'],
   sqno: ['0 0 40 80', no(24) + roller(24), '行程开关动合（常开）触点'],
   sqnc: ['0 0 40 80', nc(14) + '<polygon points="16,49 19.5,41 16,41"/>', '行程开关动断（常闭）触点'],
-  qs3r: ['-20 0 120 80', three(no, L(-10, 39, 74, 39, 1) + rotary(-10, 39)), '三极组合开关'],
+  qs3r: ['-20 0 120 80', three(no, L(-10, 39, 76, 39, 1) + rotary(-10, 39)), '三极组合开关'],
   kton_coil: ['0 0 40 80', L(20, 0, 20, 26) + L(20, 54, 20, 80) + '<rect x="4" y="26" width="32" height="28"/><rect x="4" y="26" width="9" height="28"/>' + L(4, 26, 13, 54) + L(13, 26, 4, 54), '通电延时型时间继电器线圈'],
   ktoff_coil: ['0 0 40 80', L(20, 0, 20, 26) + L(20, 54, 20, 80) + '<rect x="4" y="26" width="32" height="28"/><rect x="4" y="26" width="9" height="28" fill="currentColor"/>', '断电延时型时间继电器线圈'],
-  kton_no: ['-4 0 44 80', no(28) + delay(22, 39, 1), '时间继电器通电延时动合（常开）触点'],
+  kton_no: ['-4 0 44 80', no(28) + delay(24, 39, 1), '时间继电器通电延时动合（常开）触点'],
   kton_nc: ['-4 0 44 80', nc(20) + delay(27, 38, 1), '时间继电器通电延时动断（常闭）触点'],
-  ktoff_no: ['-4 0 44 80', no(28) + delay(22, 39, 0), '时间继电器断电延时动合（常开）触点'],
+  ktoff_no: ['-4 0 44 80', no(28) + delay(24, 39, 0), '时间继电器断电延时动合（常开）触点'],
   ktoff_nc: ['-4 0 44 80', nc(20) + delay(27, 38, 0), '时间继电器断电延时动断（常闭）触点'],
-  ks_no: ['-20 0 60 80', no(24) + L(18, 39, -6, 39, 1) + speed(-6, 39), '速度继电器动合（常开）触点'],
+  ks_no: ['-20 0 60 80', no(24) + L(20, 39, -6, 39, 1) + speed(-6, 39), '速度继电器动合（常开）触点'],
   ks_nc: ['-20 0 60 80', nc(16) + L(23, 38, -6, 38, 1) + speed(-6, 38), '速度继电器动断（常闭）触点'],
   m3: ['0 0 100 100', L(34, 0, 38, 29) + L(50, 0, 50, 26) + L(66, 0, 62, 29) + '<circle cx="50" cy="56" r="30"/>' + txt(50, 56, 'M', 20) + txt(50, 76, '3～', 13), '三相异步电动机'],
 };
@@ -2045,7 +2050,7 @@ const SYM = {
 // 控制电路小图（教材图 2-3 自锁接法）：主线在 x=40 从上往下排元件，每个高 40；并联支路画在 x=85，from/to 是主线上的节点序号
 const UNIT = {
   no: no(20), nc: nc(20), coil: SYM.coil[1].replace('x="4"', 'x="8"').replace('width="32"', 'width="24"'),
-  sbno: no(20) + L(14, 39, -6, 39, 1) + push(-10, 39), sbnc: nc(20) + L(27, 38, -6, 38, 1) + push(-10, 38), w: L(20, 0, 20, 80),
+  sbno: no(20) + L(16, 39, -6, 39, 1) + push(-10, 39), sbnc: nc(20) + L(27, 38, -6, 38, 1) + push(-10, 38), w: L(20, 0, 20, 80),
 };
 const unit = (t, x, y, label, right) => `<g transform="translate(${x - 10} ${y}) scale(.5)" stroke-width="4">${UNIT[t]}</g>`
   + (label ? `<text x="${right ? x + 11 : x - (t === 'coil' ? 10 : 18)}" y="${y + 24}" font-size="11" text-anchor="${right ? 'start' : 'end'}" fill="currentColor" stroke="none" font-family="Arial,sans-serif">${label}</text>` : '');
@@ -2102,10 +2107,10 @@ const CB = {
   fu: () => L(20, 0, 20, 80) + '<rect x="13" y="24" width="14" height="32"/>',
   frh: () => '<rect x="4" y="24" width="32" height="32"/>' + P('M20 0 V32 H12 V48 H20 V80'),
   coil: () => L(20, 0, 20, 26) + L(20, 54, 20, 80) + '<rect x="4" y="26" width="32" height="28"/>',
-  sbno: () => no(20) + L(14, 39, -8, 39, 1) + push(-12, 39),
-  sbnc: () => nc(20) + L(27, 38, -8, 38, 1) + push(-12, 38),
+  sbno: () => no(20) + L(16, 39, -7, 39, 1) + push(-12, 39),
+  sbnc: () => nc(20) + L(27, 38, -7, 38, 1) + push(-12, 38),
   frnc: () => nc(20) + L(27, 38, 4, 38, 1) + heat(4, 38),
-  ktno: () => no(20) + delay(14, 39, 1),
+  ktno: () => no(20) + delay(16, 39, 1),
   ktnc: () => nc(20) + delay(27, 38, 1),
   ktc: () => L(20, 0, 20, 26) + L(20, 54, 20, 80) + '<rect x="4" y="26" width="32" height="28"/><rect x="4" y="26" width="9" height="28"/>' + L(4, 26, 13, 54) + L(13, 26, 4, 54),
 };
@@ -3605,6 +3610,9 @@ let MAT_FIG_BAD = 0;
 function matFig(id) {
   const s = String(id == null ? '' : id).trim();
   if (!s) return null;
+  /* 2026-11-21：上传试卷解析出来的题带的是 `img:<url>`（老师卷子里的原图）。
+     这里原来只认符号库 id，会把这类图整条丢掉 —— 再存一次题，配图就没了。 */
+  if (/^img:https?:\/\//i.test(s)) return s;
   const F = (typeof window !== 'undefined') ? window.HXFig : null;
   if (!F || typeof F.hasFig !== 'function') return null;
   if (F.hasFig(s)) return s;
@@ -3854,6 +3862,20 @@ async function matBuiltinImport(id, btn) {
         不回传就等于改了下发范围）；新题库默认 p_classes=[]（只自己刷），老师去刷题里再下发。 */
 'use strict';
 
+/* 上传试卷带进来的图（2026-11-21）：两种存法都要认 ——
+   ① 老：q.fig = `img:<url>`；
+   ② 新：q.o.img = '<url>'。因为 hx_exam_qbank.fig 只收 ≤24 位字母数字（含 `:` 一律置空），
+      位图 URL 根本塞不进去，所以改存 jsonb 的 o.img（实测 390 字的签名 URL 能原样存）。
+   注：q.img 这个扁平字段是电子试卷 E1 解码后的形状，题库里一般没有，一并认上不亏。 */
+const QB_IMG = v => /^img:https?:\/\//i.test(String(v || '')) ? String(v).slice(4) : '';
+const QB_OIMG = q => {
+  const o = q && q.o;
+  if (o && typeof o === 'object' && !Array.isArray(o) && typeof o.img === 'string' && /^https?:/i.test(o.img)) return o.img;
+  if (q && typeof q.img === 'string' && /^https?:/i.test(q.img)) return q.img;
+  return '';
+};
+const QB_URL = q => QB_OIMG(q) || QB_IMG(q && q.fig);
+const QB_HASFIG = q => !!QB_URL(q) || (typeof HXFig !== 'undefined' && HXFig.hasFig(String((q && q.fig) || '')));
 const QB_FALLBACK = { choice: '选择', fill: '填空', judge: '判断', term: '名词解释', short: '简答', prog: '程序分析' };
 /* 2026-11-19：题型名不再写死 —— 老师可以自己加题型（如「实操」）、给内置题型改名，
    名字都在 ui-mat.js 的 MAT_QT 里。这里每次进页面重建一份 k→名字 的映射，
@@ -4189,8 +4211,8 @@ function qbDraw() {
   box.innerHTML = list.map(q => `<div class="qb-i" data-qid="${q.id}">
       <input type="checkbox" data-qsel="${q.id}" ${QB_SEL.has(String(q.id)) ? 'checked' : ''} aria-label="选中这道题">
       <div class="qb-body">
-        <div class="qb-q"><span class="qb-t">${esc(QB_CN[q.t] || q.t)}</span>${q.ch != null && +q.ch > 0 ? `<span class="qb-t qb-ch">第 ${q.ch} 章</span>` : ''}${q.sec ? `<span class="qb-t qb-sec" title="教材小节">${esc(q.sec)}${q.secTitle ? ' ' + esc(q.secTitle) : ''}</span>` : ''}${q.fig ? `<span class="qb-t qb-figb" title="带符号图：${esc(HXFig.figName(q.fig) || q.fig)}">图 · ${esc(HXFig.figName(q.fig) || q.fig)}</span>` : ''}${esc(q.q)}</div>
-        ${q.fig ? `<div class="qb-figprev">${HXFig.figSvg(q.fig)}</div>` : ''}
+        <div class="qb-q"><span class="qb-t">${esc(QB_CN[q.t] || q.t)}</span>${q.ch != null && +q.ch > 0 ? `<span class="qb-t qb-ch">第 ${q.ch} 章</span>` : ''}${q.sec ? `<span class="qb-t qb-sec" title="教材小节">${esc(q.sec)}${q.secTitle ? ' ' + esc(q.secTitle) : ''}</span>` : ''}${QB_HASFIG(q) ? `<span class="qb-t qb-figb" title="带图：${esc(QB_URL(q) ? '上传试卷里的原图' : (HXFig.figName(q.fig) || q.fig))}">图 · ${esc(QB_URL(q) ? '图片' : (HXFig.figName(q.fig) || q.fig))}</span>` : ''}${esc(q.q)}</div>
+        ${QB_HASFIG(q) ? `<div class="qb-figprev">${QB_URL(q) ? `<img src="${esc(QB_URL(q))}" alt="配图" style="max-height:130px;max-width:100%;object-fit:contain">` : HXFig.figSvg(q.fig)}</div>` : ''}
         ${Array.isArray(q.o) && q.o.length && q.t === 'choice' ? `<div class="qb-o">${q.o.map(o => `<span>${esc(o.key)}. ${esc(o.text)}</span>`).join('')}</div>` : ''}
         ${q.code ? `<pre class="qb-code">${esc(q.code)}</pre>` : ''}
         <div class="qb-a">${q.knowledge ? `<span class="qb-t">知识点</span>${esc(q.knowledge)} · ` : ''}${QB_IS_CUSTOM(q.t) ? '参考要点' : '答案'}：${esc(String(QB_ans(q)).slice(0, 300))}${q.src ? ' ｜ ' + esc(q.src) : ''}</div>
@@ -5025,8 +5047,12 @@ function qbEdit(id) {
   const figKeys = Object.keys(optFigs);
   /* 2026-11-20 加「图」：题池能存图题的符号 id（'fu' / 'qf3'）。编辑时能看见现在是什么图、
      能换成别的符号、能去掉图。以前改一道带图的题会把图洗干净（it 里根本没有 fig）。 */
-  const curFig = q.fig && HXFig.hasFig(q.fig) ? q.fig : '';
-  zlModal(`<h2>改题 · ${esc(QB_CN[q.t] || q.t)}${curFig ? ' · 带图' : ''}</h2>
+  /* 位图和符号 id 分开看：curImgUrl = 上传试卷里的原图（o.img，或旧数据 fig 的 img: 前缀），
+     curFig = 符号库的 key。两者互斥，保存时按老师在下拉里选的那一项落。 */
+  const curImgUrl = QB_URL(q);
+  const curFig = (!curImgUrl && q.fig && QB_HASFIG(q)) ? q.fig : '';
+  const curIsImg = !!curImgUrl;
+  zlModal(`<h2>改题 · ${esc(QB_CN[q.t] || q.t)}${(curFig || curImgUrl) ? ' · 带图' : ''}</h2>
     <label class="zl-f">题干<textarea id="qeQ" rows="3">${esc(q.q)}</textarea></label>
     <!-- 2026-11-20：这一栏原来叫「符号图」、第一项是「不加图」，老师以为是「让我选一张图配上」，
          用户原话「叫我改就加图？原来是啥图就是啥图啊，我哪知道用啥图」。改成：
@@ -5034,10 +5060,11 @@ function qbEdit(id) {
          · 选中的默认值就是原图（curFig），什么都不动 → 保存后还是原来那张图。 -->
     <label class="zl-f">图（不动就保持原图）<select id="qeFig">
         <option value="">去掉图（本题不要图）</option>
+        ${curIsImg ? `<option value="__img" selected>当前图片（上传试卷里的原图，不换）</option>` : ''}
         ${HXFig.list.map(k => `<option value="${esc(k)}"${k === curFig ? ' selected' : ''}>${esc(HXFig.figName(k) || k)}（${esc(k)}）</option>`).join('')}
       </select></label>
     <p class="note" style="margin:-6px 0 10px">这里只是换图 / 去图，不改就保持原样；AI 出的题如果没带图，这里也可以给它挂一张。</p>
-    <div class="qb-figpick" id="qeFigPrev"${curFig ? '' : ' hidden'}>${curFig ? HXFig.figSvg(curFig, true) : ''}</div>
+    <div class="qb-figpick" id="qeFigPrev"${(curFig || curImgUrl) ? '' : ' hidden'}>${curImgUrl ? `<img src="${esc(curImgUrl)}" alt="配图" style="max-height:200px;max-width:100%;object-fit:contain">` : (curFig ? HXFig.figSvg(curFig, true) : '')}</div>
     ${q.t === 'choice' ? `<label class="zl-f">选项（一行一个，A. 开头）<textarea id="qeO" rows="4">${esc(opts)}</textarea></label>
       ${figKeys.length ? `<p class="note" style="margin:-6px 0 10px">选项 ${esc(figKeys.join(' / '))} 本身是图形符号（${esc(figKeys.map(k => HXFig.figName(optFigs[k]) || optFigs[k]).join('、'))}），保存时按字母把原图接回去。</p>` : ''}` : ''}
     <!-- 2026-11-21：原来这一栏只给 prog 显示，自建题型（如单片机「实操题」）的 code
@@ -5053,12 +5080,16 @@ function qbEdit(id) {
   $('qeCancel').onclick = zlModalClose;
   const fsel = $('qeFig'), fprev = $('qeFigPrev');
   if (fsel && fprev) fsel.onchange = () => {
+    if (fsel.value === '__img') { fprev.hidden = false; fprev.innerHTML = `<img src="${esc(curImgUrl)}" alt="配图" style="max-height:200px;max-width:100%;object-fit:contain">`; return; }
     const v = fsel.value && HXFig.hasFig(fsel.value) ? fsel.value : '';
     fprev.hidden = !v; fprev.innerHTML = v ? HXFig.figSvg(v, true) : '';
   };
   $('qeSave').onclick = async () => {
     const fail = m => { $('qeErr').textContent = m; $('qeErr').hidden = false; };
-    const figV = fsel && fsel.value && HXFig.hasFig(fsel.value) ? fsel.value : null;
+    /* 位图（上传试卷的原图）现在存在 o.img，不在 fig 里 —— 选「当前图片（不换）」时必须把它原样带回去，
+       否则老师只改一个错别字，配图也会被洗掉。 */
+    const keepImg = fsel && fsel.value === '__img' && curImgUrl ? curImgUrl : '';
+    const figV = keepImg ? null : (fsel && fsel.value && HXFig.hasFig(fsel.value) ? fsel.value : null);
     /* sec / secTitle 也要带上：改题 = 新增一条 + 删旧的一条，这里漏了的话
        改完小节角标就消失了（2026-11-20 一并修的）。 */
     const it = { t: q.t, ch: q.ch, sec: q.sec || null, secTitle: q.secTitle || null, fig: figV, q: $('qeQ').value.trim(), o: null, a: null, code: q.code || null, sub: q.sub || null, explanation: $('qeE').value.trim(), knowledge: q.knowledge || null, src: q.src || '' };
@@ -5091,6 +5122,9 @@ function qbEdit(id) {
       const codeEl = $('qeCode');
       if (codeEl) it.code = codeEl.value.replace(/\s+$/, '') || null;
     }
+    /* 位图回填：选择题要包成 {opts, img}（hxChoices 认这个形状），其余题型就是 {img}。
+       放在整个 if/else 之后，才不会又被各分支的 it.o = … 覆盖掉。 */
+    if (keepImg) it.o = (q.t === 'choice' && Array.isArray(it.o)) ? { opts: it.o, img: keepImg } : { img: keepImg };
     /* 2026-11-15：「改」是两次网络（先加新的一条、再删旧的一条），比删单题还慢。
        原来只把按钮灰掉，界面上没有任何「在忙」的迹象；现在按钮转圈 + 计时。 */
     /* 2026-11-20：改成**就地更新**（hx_exam_qbank_update，id 不变）。
