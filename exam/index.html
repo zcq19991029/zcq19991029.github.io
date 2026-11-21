@@ -447,7 +447,10 @@ button.qdel.sm{width:26px;height:26px;font-size:15px}
 /* 考试页面布局（组件样式沿用单片机的 BASE_CSS，颜色跟首页“外观”） */
 /* 2026-11-17 滚动条全站统一成 6px 无感滑轨（hx-theme.js），这里不再自定 */
 body { margin: 0; }
-.ex { width: min(1600px, 100%); margin: 0 auto; padding: 22px 18px 60px; box-sizing: border-box; }
+/* 2026-11-20 布局统一：原来 .ex 限宽 1600 且 margin:0 auto，1920 屏上整块被居中
+   （侧栏 x=175，老师截图里的「只有理论试卷才贴最左」）。现在外层不再限宽、不再居中，
+   侧栏贴窗口左边；阅读宽度交给下面 .ex-shell:not(.wide) .ex-main > * 的 max-width。 */
+.ex { width: 100%; margin: 0; padding: 22px 18px 60px; box-sizing: border-box; }
 
 /* ============================================================
    教师端外壳：左侧栏（考试 / 理论试卷 / 试卷库 + 科目）＋ 右侧内容
@@ -460,7 +463,9 @@ body { margin: 0; }
    ============================================================ */
 /* 横屏铺满（2026-11-08）：外壳原来 min(1280px,100%)，比 .ex 的 1600px 更窄，大屏上正文呈一条窄柱；
    统一到 1600px（用户要求「横屏网页铺满」）。左栏 232px 固定、右栏 minmax(0,1fr) 继续自适应，窄屏在 900px 断点变单列。 */
-.ex-shell { display: grid; grid-template-columns: 232px minmax(0, 1fr); width: min(1600px, 100%); margin: 0 auto; box-sizing: border-box; transition: grid-template-columns .24s var(--spring, cubic-bezier(.32, .72, 0, 1)); }
+/* 2026-11-20 布局统一（同 .ex 那条）：外壳也铺满窗口、不居中，侧栏才能贴最左。
+   左栏 232px 固定、右栏 minmax(0,1fr) 自适应，窄屏（≤900）在下面断点变单列。 */
+.ex-shell { display: grid; grid-template-columns: 232px minmax(0, 1fr); width: 100%; margin: 0; box-sizing: border-box; transition: grid-template-columns .24s var(--spring, cubic-bezier(.32, .72, 0, 1)); }
 .ex-nav { position: sticky; top: 18px; align-self: start; max-height: calc(100vh - 36px); overflow: auto; padding: 18px 12px; }
 .ex-nav-h { font: 600 11px/1.4 Consolas, "Cascadia Mono", monospace; letter-spacing: .1em; color: var(--mute, #6b7280); text-transform: uppercase; padding: 0 10px 8px; }
 .ex-nav-i { display: grid; gap: 1px; width: 100%; text-align: left; padding: 10px 12px; margin-bottom: 4px; border: 0; border-radius: 12px; background: transparent; color: var(--ink, #0b1220); cursor: pointer; font: inherit; }
@@ -640,6 +645,13 @@ button.danger { color: var(--bad, #d70015); }
 .ex-shell.wide { width: 100%; grid-template-columns: 232px minmax(0, 1fr); transition: grid-template-columns .24s var(--spring, cubic-bezier(.32, .72, 0, 1)); }
 .ex-shell.wide .ex-main { padding: 14px 16px 36px; }
 @media (max-width: 900px) { .ex-shell.wide { grid-template-columns: 1fr; } .ex-shell.wide .ex-main { padding: 10px 8px 30px; } }
+/* 2026-11-20 布局统一（第三处）：宽屏把 .ex 的左右内边距归零，三页（考试/理论试卷/试卷库）
+   的侧栏都从 x=0 起（原来考试页 18px、理论试卷页 12px，切页时侧栏会横跳 6px）。
+   正文的呼吸感由 .ex-main 自己的 padding 提供。窄屏不动：那里是横向排布，靠 .ex 的 padding 留边。 */
+@media (min-width: 901px) { .ex, .ex.wide-paper { padding-left: 0; padding-right: 0; } }
+/* 宽屏只放宽「侧栏」，正文自己限一个阅读宽度并靠左（老师要的是「侧栏贴最左、内容跟在后面」，
+   不是把 1500px 的列表拉成一条长线）。理论试卷页要整幅画布，用 .ex-shell.wide 排掉。 */
+@media (min-width: 901px) { .ex-shell:not(.wide) .ex-main > * { max-width: 1280px; } }
 /* 标题只在侧栏切换时用来认页，压成一行给画布腾高度 */
 .pp-hex { margin: 0 0 10px; }
 .pp-hex h1 { font-size: 24px; margin: 0 0 2px; }
@@ -670,6 +682,10 @@ html[data-hx-mode="dark"] .ppwrap { background: #14171c; }
    直接显示更完整了」。原来 margin:0 auto，纸比画布窄的时候两边各留一条空白，右边那条
    白占着，看着像题池被挤扁了。改成贴左，空白全落到靠题池那一侧，纸和题池挨得近。 */
 .ppstage { position: relative; margin: 0 auto 0 0; }
+/* 2026-11-20 宽屏余量接管：卷面按 fit() 缩到 1 倍封顶后（1588px 宽），画布右边还剩一大块
+   （2560 屏实测空 778px）。ui-paper.js 会把这块余量算成 --ppb-extra 塞给题库栏，
+   并在余量够的时候给 #ppStage 挂 .center —— 纸居中，空白两边均分，不再全堆在右侧。 */
+.ppstage.center { margin-left: auto; margin-right: auto; }
 #ppFrame { position: absolute; left: 0; top: 0; border: 0; display: block; transform-origin: 0 0; background: transparent; box-shadow: 0 10px 30px -16px rgba(0, 0, 0, .5); }
 @media (max-width: 900px) { .ppwrap { max-height: calc(100vh - 150px); padding: 6px; } }
 
@@ -906,7 +922,10 @@ a.ex-btn:hover { filter: brightness(1.06); }
 .ex-subtab.on{color:var(--ink,#0b1220);background:var(--accbg,rgba(47,107,255,.12))}.ex-subtab.on::after{transform:scaleX(1)}
 .ex-subadd{width:auto;margin:0;padding:8px 12px;border:1px dashed var(--hair,rgba(15,23,42,.15));border-radius:11px;background:transparent;color:var(--mute,#6b7280);cursor:pointer}
 .e-paper{display:grid;gap:14px;max-width:1120px}.e-q{margin:0}.e-qhead{display:flex;justify-content:space-between;gap:10px;color:var(--mute,#6b7280);font-size:13px}.e-q h3{margin:10px 0 12px;font-size:18px;line-height:1.55}.e-options{display:grid;gap:9px}.e-options label{display:flex;gap:8px;align-items:flex-start;padding:10px 12px;border:1px solid var(--hair,rgba(15,23,42,.12));border-radius:11px;cursor:pointer}.e-options label:has(input:checked){border-color:var(--acc,#2f6bff);background:var(--accbg,rgba(47,107,255,.1))}.e-answer{width:100%;box-sizing:border-box;resize:vertical}.e-submit{display:flex;align-items:center;justify-content:space-between;gap:14px;position:sticky;bottom:12px;z-index:2}.e-pick{display:grid;grid-template-columns:auto 1fr 74px;gap:8px;align-items:start;padding:10px 0;border-bottom:1px solid var(--hair,rgba(15,23,42,.1));line-height:1.5}.e-pick input[type=number]{width:74px}.e-code-gate{max-width:520px}
-@media(max-width:900px){.ex-nav{position:sticky;top:0;z-index:3;background:var(--card-lift,#fff);backdrop-filter:var(--hx-blur)}.ex-nav-sub{order:9;flex-basis:100%;margin:0;border:0;padding:0}.ex-subtabs{width:100%;overflow:auto;flex-wrap:nowrap}.ex-subtab{flex:0 0 auto}.e-submit{align-items:flex-start;flex-direction:column}.e-submit .row{width:100%}.e-submit button{flex:1}.e-q h3{font-size:16px}}
+@media(max-width:900px){.ex-nav{position:static;z-index:auto;background:var(--card-lift,#fff);backdrop-filter:var(--hx-blur)}.ex-nav-sub{order:9;flex-basis:100%;margin:0;border:0;padding:0}.ex-subtabs{width:100%;overflow:auto;flex-wrap:nowrap}.ex-subtab{flex:0 0 auto}.e-submit{align-items:flex-start;flex-direction:column}.e-submit .row{width:100%}.e-submit button{flex:1}.e-q h3{font-size:16px}}
+/* ↑ 2026-11-20：窄屏这条原来写的是 position:sticky; top:0; z-index:3 —— 侧栏变成一条
+   半透明的浮条（--card-lift 约 52% 不透明度）吸在窗口顶上，往下滚正文就从它底下穿过，
+   就是老师说的「浮起的卡片压着内容」。改成 static：侧栏在文档流里、滚走就跟走，不再遮任何东西。 */
 
 /* 演示视角提示条（2026-11-17）：教师端「测试查看用户」看学生考试页时，页面最上面一条只读说明。
    只用站内已有的 --card / --edge / --acc / --ink / --dim，不加新颜色。 */
@@ -1284,7 +1303,10 @@ button.off { opacity: .5; cursor: not-allowed; }
     box-shadow: none; background: var(--card); padding: 8px 0; overflow: hidden;
     transition: width 200ms cubic-bezier(.32, .72, 0, 1), padding 200ms cubic-bezier(.32, .72, 0, 1);
   }
-  .pp-page.bank-open > .ppdrawer.ppdbank#ppBank { width: clamp(360px, 32vw, 460px); padding: 12px 12px 8px; }
+  /* 2026-11-20 宽屏余量接管（CSS 这一半）：卷面 fit() 封顶 1 倍后，画布右边剩下的空白
+     由 ui-paper.js 量成 --ppb-extra（px）设到 #ppBank 上，题库栏跟着吃这块宽度。
+     没设变量时 var(--ppb-extra,0px) = 0，观感和原来一模一样。 */
+  .pp-page.bank-open > .ppdrawer.ppdbank#ppBank { width: calc(clamp(360px, 32vw, 460px) + var(--ppb-extra, 0px)); padding: 12px 12px 8px; }
   /* 2026-11-20：列表自己滚。原来整栏 overflow:hidden 且 .ppb-l 不滚，题一多就被裁在底部
      （老师说的「滚到第 80 题」根本滚不到）。让列表占满剩余高度、自己出滚动条，
      页头/筛选/底部按钮保持吸顶吸底，换题时也才能谈「保住滚动位置」。 */
@@ -6185,6 +6207,343 @@ SYM.zf = reversing();
 for (const k of ['a', 'b', 'c', 'd', 'e', 'f', 'h']) SYM['c23' + k][2] = `控制电路（教材图 2-3${k}）`;
 SYM.c23ok[2] = '控制电路：KM 常开触点与 SB2 并联';
 
+// ===================== 完整电路原理图（主电路 + 控制电路）=====================
+// 元件沿用上面的 no/nc/push/breaker/cup/heat/delay；统一竖向 0..80、导线在局部 x=20，
+// ckPut 平移到任意 (x,y)（y 为元件顶边，导线贯穿 y..y+80*s），s 缩放、线宽自动补偿。
+const ckS = 0.6, ckH = 48;
+const ckPut = (x, y, body, wx = 20, s = ckS) => `<g transform="translate(${x - wx * s} ${y}) scale(${s})" stroke-width="${(2 / s).toFixed(3)}">${body}</g>`;
+/* 标签：end 对齐的一律再左移 7px（2026-11-20 实测发现）——
+   按钮/热继电器这类符号的 push()/heat() 操作件会往左伸出约 7px（scale 0.6 后），
+   原来 x-17 放标签、文字右端正好压在操作件上（截图里「SB1」「KM2」糊在符号上）。
+   统一在这里补偿，调用处不用每个都改。 */
+const ckLab = (x, y, t, s = 11, a = 'start') => {
+  const xx = a === 'end' ? x - 7 : x;
+  return `<text x="${xx}" y="${y}" font-size="${s}" text-anchor="${a}" fill="currentColor" stroke="none" font-family="Arial,sans-serif">${t}</text>`;
+};
+const ckDot = (x, y, r = 2.6) => `<circle cx="${x}" cy="${y}" r="${r}" fill="currentColor" stroke="none"/>`;
+const ckMtr = (x, cy, r) => `<circle cx="${x}" cy="${cy}" r="${r}"/>` + txt(x, cy - 3, 'M', 22) + txt(x, cy + 19, '3～', 12);
+const ckWind = (x, y1, y2) => L(x, y1, x, y2) + `<rect x="${x - 12}" y="${y1 + 8}" width="24" height="${y2 - y1 - 16}"/>`;
+const CB = {
+  no: w => no(w), nc: w => nc(w), km: w => no(w) + cup(w), qf: w => no(w) + breaker(w),
+  fu: () => L(20, 0, 20, 80) + '<rect x="13" y="24" width="14" height="32"/>',
+  frh: () => '<rect x="4" y="24" width="32" height="32"/>' + P('M20 0 V32 H12 V48 H20 V80'),
+  coil: () => L(20, 0, 20, 26) + L(20, 54, 20, 80) + '<rect x="4" y="26" width="32" height="28"/>',
+  sbno: () => no(20) + L(14, 39, -8, 39, 1) + push(-12, 39),
+  sbnc: () => nc(20) + L(27, 38, -8, 38, 1) + push(-12, 38),
+  frnc: () => nc(20) + L(27, 38, 4, 38, 1) + heat(4, 38),
+  ktno: () => no(20) + delay(14, 39, 1),
+  ktnc: () => nc(20) + delay(27, 38, 1),
+  ktc: () => L(20, 0, 20, 26) + L(20, 54, 20, 80) + '<rect x="4" y="26" width="32" height="28"/><rect x="4" y="26" width="9" height="28"/>' + L(4, 26, 13, 54) + L(13, 26, 4, 54),
+};
+// 主电路顶部：三相端子 + QF + FU1（L1/L2/L3 标签在上）
+function ckFeed(xs, qfy, fuy) {
+  const [x1, , x3] = xs;
+  let o = xs.map((x, i) => ckLab(x, 9, 'L' + (i + 1), 11, 'middle')).join('');
+  o += xs.map(x => ckDot(x, 14, 3) + L(x, 14, x, qfy)).join('');
+  o += xs.map(x => ckPut(x, qfy, CB.qf(20))).join('');
+  o += L(x1 - 6, qfy + 24, x3 + 6, qfy + 24, 1);
+  o += ckLab(x1 - 13, qfy + 28, 'QF', 11, 'end');
+  o += xs.map(x => ckPut(x, fuy, CB.fu())).join('');
+  o += ckLab(x1 - 13, fuy + 28, 'FU1', 11, 'end');
+  return o;
+}
+// 三相并联支路（如自锁触点）：主线 x 在 [y1,y2] 区间并一条 x2 支路，两头加结点
+function ckBranch(x, x2, y1, y2) {
+  return L(x, y1, x2, y1) + L(x, y2, x2, y2) + ckDot(x, y1) + ckDot(x, y2);
+}
+
+// 1）单向起动电路（教材图 2-1）
+function ckSingle() {
+  const X = [40, 90, 140], cx = 250, bx = 300;
+  let o = ckFeed(X, 16, 64);
+  o += X.map(x => ckPut(x, 112, CB.km(20))).join('') + ckLab(X[0] - 13, 140, 'KM', 11, 'end');
+  o += X.map(x => ckPut(x, 160, CB.frh())).join('') + ckLab(X[0] - 13, 188, 'FR', 11, 'end');
+  o += ckMtr(90, 252, 38);
+  o += L(40, 208, 40, 214) + L(40, 214, 63, 225) + L(90, 208, 90, 214) + L(140, 208, 140, 214) + L(140, 214, 117, 225);
+  // 控制电路（自锁）
+  o += ckDot(cx, 14, 3) + L(cx, 14, cx, 16);
+  o += ckPut(cx, 16, CB.fu()) + ckLab(cx + 13, 44, 'FU2');
+  o += ckPut(cx, 64, CB.frnc()) + ckLab(cx + 16, 92, 'FR');
+  o += ckPut(cx, 112, CB.sbnc()) + ckLab(cx + 16, 140, 'SB1');
+  o += ckPut(cx, 160, CB.sbno()) + ckLab(cx + 16, 188, 'SB2');
+  o += ckPut(bx, 160, CB.no(20)) + ckLab(bx + 15, 188, 'KM');
+  o += ckBranch(cx, bx, 160, 208);
+  o += ckPut(cx, 208, CB.coil()) + ckLab(cx + 16, 236, 'KM');
+  o += L(cx, 256, cx, 264) + ckDot(cx, 264, 3) + ckLab(cx + 10, 268, 'N');
+  return ['-14 -8 354 308', o];
+}
+
+// 2）电气互锁正反转（教材图 2-4）
+function ckRev() {
+  const X = [40, 90, 140], KX = [180, 230, 280];
+  let o = ckFeed(X, 16, 64);
+  // KM1（正转）在 X 列，KM2（反转，换相）在 KX 列
+  o += X.map(x => ckPut(x, 128, CB.km(20))).join('') + ckLab(X[0] - 13, 156, 'KM1', 11, 'end');
+  o += KX.map(x => ckPut(x, 128, CB.km(20))).join('') + ckLab(KX[2] + 13, 156, 'KM2');
+  // KM2 进线交叉（L1→280、L2→230、L3→180）
+  o += L(40, 112, 40, 128) + L(90, 112, 90, 128) + L(140, 112, 140, 128);
+  o += L(40, 116, 280, 116) + L(280, 116, 280, 128) + ckDot(40, 116);
+  o += L(90, 120, 230, 120) + L(230, 120, 230, 128) + ckDot(90, 120);
+  o += L(140, 124, 180, 124) + L(180, 124, 180, 128) + ckDot(140, 124);
+  // KM2 出线合并（280→W、230→V、180→U）
+  o += L(40, 176, 40, 192) + L(90, 176, 90, 192) + L(140, 176, 140, 192);
+  o += L(280, 176, 280, 180) + L(280, 180, 140, 180) + L(140, 180, 140, 192);
+  o += L(230, 176, 230, 184) + L(230, 184, 90, 184) + L(90, 184, 90, 192);
+  o += L(180, 176, 180, 188) + L(180, 188, 40, 188) + L(40, 188, 40, 192);
+  o += ckDot(40, 192) + ckDot(90, 192) + ckDot(140, 192);
+  // FR + 电机
+  o += X.map(x => ckPut(x, 192, CB.frh())).join('') + ckLab(X[0] - 13, 220, 'FR', 11, 'end');
+  o += ckMtr(90, 284, 38);
+  o += L(40, 240, 40, 246) + L(40, 246, 63, 257) + L(90, 240, 90, 246) + L(140, 240, 140, 246) + L(140, 246, 117, 257);
+  // 控制电路（电气互锁，A 正向兼公共、B 反向）
+  const A = 330, A2 = 380, B = 440, B2 = 490;
+  o += ckDot(A, 14, 3) + L(A, 14, A, 16);
+  o += ckPut(A, 16, CB.fu()) + ckLab(A + 13, 44, 'FU2');
+  o += ckPut(A, 64, CB.frnc()) + ckLab(A + 16, 92, 'FR');
+  o += ckPut(A, 112, CB.sbnc()) + ckLab(A + 16, 140, 'SB1');
+  o += L(A, 160, B, 160);
+  // 正向支路
+  o += ckPut(A, 160, CB.sbno()) + ckLab(A - 17, 188, 'SB2', 11, 'end');
+  o += ckPut(A2, 160, CB.no(20)) + ckLab(A2 + 15, 188, 'KM1');
+  o += ckBranch(A, A2, 160, 208);
+  o += ckPut(A, 208, CB.nc(20)) + ckLab(A - 17, 236, 'KM2', 11, 'end');
+  o += ckPut(A, 256, CB.coil()) + ckLab(A + 16, 284, 'KM1');
+  // 反向支路
+  o += ckPut(B, 160, CB.sbno()) + ckLab(B + 16, 188, 'SB3');
+  o += ckPut(B2, 160, CB.no(20)) + ckLab(B2 + 15, 188, 'KM2');
+  o += ckBranch(B, B2, 160, 208);
+  o += ckPut(B, 208, CB.nc(20)) + ckLab(B + 16, 236, 'KM1');
+  o += ckPut(B, 256, CB.coil()) + ckLab(B + 16, 284, 'KM2');
+  // 汇合到 N
+  o += L(A, 304, B, 304) + L(385, 304, 385, 312) + ckDot(385, 304) + ckDot(385, 312, 3) + ckLab(395, 316, 'N');
+  return ['-14 -8 554 338', o];
+}
+
+// 3）双重互锁正反转（教材图 2-6）：在电气互锁上再串按钮互锁常闭
+function ckRev2() {
+  const X = [40, 90, 140], KX = [180, 230, 280];
+  let o = ckFeed(X, 16, 64);
+  o += X.map(x => ckPut(x, 128, CB.km(20))).join('') + ckLab(X[0] - 13, 156, 'KM1', 11, 'end');
+  o += KX.map(x => ckPut(x, 128, CB.km(20))).join('') + ckLab(KX[2] + 13, 156, 'KM2');
+  o += L(40, 112, 40, 128) + L(90, 112, 90, 128) + L(140, 112, 140, 128);
+  o += L(40, 116, 280, 116) + L(280, 116, 280, 128) + ckDot(40, 116);
+  o += L(90, 120, 230, 120) + L(230, 120, 230, 128) + ckDot(90, 120);
+  o += L(140, 124, 180, 124) + L(180, 124, 180, 128) + ckDot(140, 124);
+  o += L(40, 176, 40, 192) + L(90, 176, 90, 192) + L(140, 176, 140, 192);
+  o += L(280, 176, 280, 180) + L(280, 180, 140, 180) + L(140, 180, 140, 192);
+  o += L(230, 176, 230, 184) + L(230, 184, 90, 184) + L(90, 184, 90, 192);
+  o += L(180, 176, 180, 188) + L(180, 188, 40, 188) + L(40, 188, 40, 192);
+  o += ckDot(40, 192) + ckDot(90, 192) + ckDot(140, 192);
+  o += X.map(x => ckPut(x, 192, CB.frh())).join('') + ckLab(X[0] - 13, 220, 'FR', 11, 'end');
+  o += ckMtr(90, 284, 38);
+  o += L(40, 240, 40, 246) + L(40, 246, 63, 257) + L(90, 240, 90, 246) + L(140, 240, 140, 246) + L(140, 246, 117, 257);
+  // 控制电路（双重互锁）
+  const A = 330, A2 = 380, B = 440, B2 = 490;
+  o += ckDot(A, 14, 3) + L(A, 14, A, 16);
+  o += ckPut(A, 16, CB.fu()) + ckLab(A + 13, 44, 'FU2');
+  o += ckPut(A, 64, CB.frnc()) + ckLab(A + 16, 92, 'FR');
+  o += ckPut(A, 112, CB.sbnc()) + ckLab(A + 16, 140, 'SB1');
+  o += L(A, 160, B, 160);
+  // 正向：SB2(NO)+自锁 → SB3常闭(按钮互锁) → KM2常闭(电气互锁) → KM1线圈
+  o += ckPut(A, 160, CB.sbno()) + ckLab(A - 17, 188, 'SB2', 11, 'end');
+  o += ckPut(A2, 160, CB.no(20)) + ckLab(A2 + 15, 188, 'KM1');
+  o += ckBranch(A, A2, 160, 208);
+  o += ckPut(A, 208, CB.sbnc()) + ckLab(A - 17, 236, 'SB3', 11, 'end');
+  o += ckPut(A, 256, CB.nc(20)) + ckLab(A - 17, 284, 'KM2', 11, 'end');
+  o += ckPut(A, 304, CB.coil()) + ckLab(A + 16, 332, 'KM1');
+  // 反向：SB3(NO)+自锁 → SB2常闭(按钮互锁) → KM1常闭(电气互锁) → KM2线圈
+  o += ckPut(B, 160, CB.sbno()) + ckLab(B + 16, 188, 'SB3');
+  o += ckPut(B2, 160, CB.no(20)) + ckLab(B2 + 15, 188, 'KM2');
+  o += ckBranch(B, B2, 160, 208);
+  o += ckPut(B, 208, CB.sbnc()) + ckLab(B + 16, 236, 'SB2');
+  o += ckPut(B, 256, CB.nc(20)) + ckLab(B + 16, 284, 'KM1');
+  o += ckPut(B, 304, CB.coil()) + ckLab(B + 16, 332, 'KM2');
+  o += L(A, 352, B, 352) + L(395, 352, 395, 360) + ckDot(395, 352) + ckDot(395, 360, 3) + ckLab(405, 364, 'N');
+  return ['-14 -8 554 378', o];
+}
+
+// 4）按钮切换星三角降压起动（教材图 2-8）
+function ckStar() {
+  const X = [40, 90, 140], KX = [180, 230, 280];
+  let o = ckFeed(X, 16, 64);
+  // KM1（电源）在 X 列，KM2（三角形）在 KX 列
+  o += X.map(x => ckPut(x, 128, CB.km(20))).join('') + ckLab(X[0] - 13, 156, 'KM1', 11, 'end');
+  o += KX.map(x => ckPut(x, 128, CB.km(20))).join('') + ckLab(KX[2] + 13, 156, 'KM2');
+  o += L(40, 112, 40, 128) + L(90, 112, 90, 128) + L(140, 112, 140, 128);
+  o += L(40, 116, 180, 116) + L(180, 116, 180, 128) + ckDot(40, 116);
+  o += L(90, 120, 230, 120) + L(230, 120, 230, 128) + ckDot(90, 120);
+  o += L(140, 124, 280, 124) + L(280, 124, 280, 128) + ckDot(140, 124);
+  // FR + 电机（圆形 M 3~：首端 U1/V1/W1 上进、末端 U2/V2/W2 下出）
+  o += X.map(x => ckPut(x, 176, CB.frh())).join('') + ckLab(X[0] - 13, 204, 'FR', 11, 'end');
+  o += ckMtr(90, 280, 46);
+  o += L(40, 224, 40, 232) + L(90, 224, 90, 232) + L(140, 224, 140, 232);
+  o += L(40, 232, 60, 245) + L(90, 232, 90, 234) + L(140, 232, 120, 245);
+  o += [['U1', 40], ['V1', 90], ['W1', 140]].map(([t, x]) => ckLab(x - 14, 230, t, 11, 'end')).join('');
+  o += L(60, 315, 40, 332) + L(90, 326, 90, 332) + L(120, 315, 140, 332);
+  o += L(40, 332, 40, 368) + L(90, 332, 90, 368) + L(140, 332, 140, 368);
+  o += [['U2', 40], ['V2', 90], ['W2', 140]].map(([t, x]) => ckLab(x - 14, 336, t, 11, 'end')).join('');
+  // KM2 三角交叉（U 相→W2、V 相→U2、W 相→V2，三层错开、交越处不结点）
+  o += L(180, 176, 180, 344) + L(180, 344, 140, 344) + ckDot(140, 344);
+  o += L(230, 176, 230, 352) + L(230, 352, 40, 352) + ckDot(40, 352);
+  o += L(280, 176, 280, 360) + L(280, 360, 90, 360) + ckDot(90, 360);
+  // KM3 星形（短接末端）
+  o += X.map(x => ckPut(x, 368, CB.km(20))).join('') + ckLab(X[0] - 13, 396, 'KM3', 11, 'end');
+  o += L(40, 416, 140, 416);
+  // 控制电路（按钮切换）
+  const C = 340, L1c = 300, R = 440, R2 = 490;
+  o += ckDot(C, 14, 3) + L(C, 14, C, 16);
+  o += ckPut(C, 16, CB.fu()) + ckLab(C + 13, 44, 'FU2');
+  o += ckPut(C, 64, CB.frnc()) + ckLab(C + 16, 92, 'FR');
+  o += ckPut(C, 112, CB.sbnc()) + ckLab(C + 16, 140, 'SB1');
+  o += ckPut(C, 160, CB.sbno()) + ckLab(C + 16, 188, 'SB2');
+  // KM1 自锁（与 SB2 并联）
+  o += ckPut(L1c, 160, CB.no(20)) + ckLab(L1c - 17, 188, 'KM1', 11, 'end');
+  o += ckBranch(C, L1c, 160, 208);
+  // node4（SB2 下）：左接 KM1 线圈、下接 KM3 支路
+  o += L(C, 208, L1c, 208);
+  o += ckPut(L1c, 208, CB.coil()) + ckLab(L1c - 17, 236, 'KM1', 11, 'end');
+  // KM3 支路：KM2 常闭 → KM3 线圈
+  o += ckPut(C, 208, CB.nc(20)) + ckLab(C + 16, 236, 'KM2');
+  o += ckPut(C, 256, CB.coil()) + ckLab(C + 16, 284, 'KM3');
+  // KM2 支路：SB3 → KM3 常闭 → KM2 线圈（自锁）
+  o += L(C, 160, R, 160);
+  o += ckPut(R, 160, CB.sbno()) + ckLab(R + 16, 188, 'SB3');
+  o += ckPut(R2, 160, CB.no(20)) + ckLab(R2 + 15, 188, 'KM2');
+  o += ckBranch(R, R2, 160, 208);
+  o += ckPut(R, 208, CB.nc(20)) + ckLab(R + 16, 236, 'KM3');
+  o += ckPut(R, 256, CB.coil()) + ckLab(R + 16, 284, 'KM2');
+  // N 母线（各线圈下端汇合）
+  o += L(L1c, 256, L1c, 304);
+  o += L(L1c, 304, R, 304) + ckDot(L1c, 304) + ckDot(C, 304) + ckDot(R, 304);
+  o += L(370, 304, 370, 312) + ckDot(370, 312, 3) + ckLab(380, 316, 'N');
+  return ['-14 -8 554 436', o];
+}
+
+// 5）时间继电器星三角降压起动（教材图 2-11）
+function ckStarT() {
+  const X = [40, 90, 140], KX = [180, 230, 280];
+  let o = ckFeed(X, 16, 64);
+  o += X.map(x => ckPut(x, 128, CB.km(20))).join('') + ckLab(X[0] - 13, 156, 'KM1', 11, 'end');
+  o += KX.map(x => ckPut(x, 128, CB.km(20))).join('') + ckLab(KX[2] + 13, 156, 'KM2');
+  o += L(40, 112, 40, 128) + L(90, 112, 90, 128) + L(140, 112, 140, 128);
+  o += L(40, 116, 180, 116) + L(180, 116, 180, 128) + ckDot(40, 116);
+  o += L(90, 120, 230, 120) + L(230, 120, 230, 128) + ckDot(90, 120);
+  o += L(140, 124, 280, 124) + L(280, 124, 280, 128) + ckDot(140, 124);
+  o += X.map(x => ckPut(x, 176, CB.frh())).join('') + ckLab(X[0] - 13, 204, 'FR', 11, 'end');
+  o += ckMtr(90, 280, 46);
+  o += L(40, 224, 40, 232) + L(90, 224, 90, 232) + L(140, 224, 140, 232);
+  o += L(40, 232, 60, 245) + L(90, 232, 90, 234) + L(140, 232, 120, 245);
+  o += [['U1', 40], ['V1', 90], ['W1', 140]].map(([t, x]) => ckLab(x - 14, 230, t, 11, 'end')).join('');
+  o += L(60, 315, 40, 332) + L(90, 326, 90, 332) + L(120, 315, 140, 332);
+  o += L(40, 332, 40, 368) + L(90, 332, 90, 368) + L(140, 332, 140, 368);
+  o += [['U2', 40], ['V2', 90], ['W2', 140]].map(([t, x]) => ckLab(x - 14, 336, t, 11, 'end')).join('');
+  o += L(180, 176, 180, 344) + L(180, 344, 140, 344) + ckDot(140, 344);
+  o += L(230, 176, 230, 352) + L(230, 352, 40, 352) + ckDot(40, 352);
+  o += L(280, 176, 280, 360) + L(280, 360, 90, 360) + ckDot(90, 360);
+  o += X.map(x => ckPut(x, 368, CB.km(20))).join('') + ckLab(X[0] - 13, 396, 'KM3', 11, 'end');
+  o += L(40, 416, 140, 416);
+  // 控制电路（时间继电器自动切换）
+  const A = 340, A2 = 390, B = 450, B2 = 500, Cc = 560, C2 = 610;
+  o += ckDot(A, 14, 3) + L(A, 14, A, 16);
+  o += ckPut(A, 16, CB.fu()) + ckLab(A + 13, 44, 'FU2');
+  o += ckPut(A, 64, CB.frnc()) + ckLab(A + 16, 92, 'FR');
+  o += ckPut(A, 112, CB.sbnc()) + ckLab(A + 16, 140, 'SB1');
+  o += ckPut(A, 160, CB.sbno()) + ckLab(A + 16, 188, 'SB2');
+  o += ckPut(A2, 160, CB.no(20)) + ckLab(A2 + 15, 188, 'KM1');
+  o += ckBranch(A, A2, 160, 208);
+  // node4 母线（SB2 下，向右送到各支路）
+  o += L(A, 208, Cc, 208) + ckDot(A2, 208) + ckDot(B2, 208);
+  // KM1 线圈（自锁）
+  o += L(A, 208, A, 304) + ckPut(A, 304, CB.coil()) + ckLab(A + 16, 332, 'KM1');
+  // 三角形支路：KT延时闭合 ∥ KM2自锁 → KM3常闭 → KM2线圈
+  o += ckPut(B, 208, CB.ktno()) + ckLab(B - 17, 236, 'KT', 11, 'end');
+  o += ckPut(B2, 208, CB.no(20)) + ckLab(B2 + 15, 236, 'KM2');
+  o += ckBranch(B, B2, 208, 256);
+  o += ckPut(B, 256, CB.nc(20)) + ckLab(B - 17, 284, 'KM3', 11, 'end');
+  o += ckPut(B, 304, CB.coil()) + ckLab(B + 16, 332, 'KM2');
+  // 星形支路：KM2常闭 → KT线圈；→ KT延时断开 → KM3线圈
+  o += ckPut(Cc, 208, CB.nc(20)) + ckLab(Cc + 16, 236, 'KM2');
+  o += L(Cc, 256, C2, 256) + ckDot(Cc, 256) + L(Cc, 256, Cc, 304);
+  o += ckPut(Cc, 304, CB.ktc()) + ckLab(Cc + 16, 332, 'KT');
+  o += ckPut(C2, 256, CB.ktnc()) + ckLab(C2 + 16, 284, 'KT');
+  o += ckPut(C2, 304, CB.coil()) + ckLab(C2 + 16, 332, 'KM3');
+  // N 母线
+  o += L(A, 352, C2, 352) + L(475, 352, 475, 360) + ckDot(475, 352) + ckDot(475, 360, 3) + ckLab(485, 364, 'N');
+  return ['-14 -8 674 436', o];
+}
+
+// 6）双速电动机控制（教材图 2-13）
+function ckDual() {
+  const X = [40, 90, 140], KX = [180, 230, 280];
+  let o = ckFeed(X, 16, 64);
+  // FR（接触器前）在 X 列
+  o += X.map(x => ckPut(x, 112, CB.frh())).join('') + ckLab(X[0] - 13, 140, 'FR', 11, 'end');
+  // KM1（低速）在 X 列，KM2（高速换相）在 KX 列
+  o += X.map(x => ckPut(x, 176, CB.km(20))).join('') + ckLab(X[0] - 13, 204, 'KM1', 11, 'end');
+  o += KX.map(x => ckPut(x, 176, CB.km(20))).join('') + ckLab(KX[2] + 13, 204, 'KM2');
+  o += L(40, 160, 40, 176) + L(90, 160, 90, 176) + L(140, 160, 140, 176);
+  // KM2 进线换相（L1→180、L3→230、L2→280，相序对调保转向）
+  o += L(40, 164, 180, 164) + L(180, 164, 180, 176) + ckDot(40, 164);
+  o += L(140, 168, 230, 168) + L(230, 168, 230, 176) + ckDot(140, 168);
+  o += L(90, 172, 280, 172) + L(280, 172, 280, 176) + ckDot(90, 172);
+  // 绕组（首端 U1/V1/W1，末端 U2/V2/W2）
+  o += X.map(x => ckWind(x, 232, 280)).join('');
+  o += [['U1', 40, 232], ['V1', 90, 232], ['W1', 140, 232]].map(([t, x, y]) => ckLab(x - 14, y + 4, t, 11, 'end')).join('');
+  o += [['U2', 40, 280], ['V2', 90, 280], ['W2', 140, 280]].map(([t, x, y]) => ckLab(x - 14, y + 4, t, 11, 'end')).join('');
+  // KM1 出线到首端
+  o += L(40, 224, 40, 232) + L(90, 224, 90, 232) + L(140, 224, 140, 232);
+  // KM3（短接首端成星点）：首端经间隙引到下方触点，下端汇成星点
+  o += L(40, 232, 65, 232) + L(65, 232, 65, 240) + ckDot(40, 232);
+  o += L(90, 232, 115, 232) + L(115, 232, 115, 240) + ckDot(90, 232);
+  o += L(140, 232, 165, 232) + L(165, 232, 165, 240) + ckDot(140, 232);
+  o += ckPut(65, 240, CB.km(20)) + ckPut(115, 240, CB.km(20)) + ckPut(165, 240, CB.km(20));
+  o += L(65, 288, 165, 288) + ckDot(65, 288) + ckDot(115, 288) + ckDot(165, 288);
+  o += ckLab(165 + 13, 268, 'KM3');
+  // KM2 出线到末端（换相：180→U2、230→V2、280→W2）
+  o += L(180, 224, 180, 296) + L(180, 296, 40, 296) + L(40, 296, 40, 280) + ckDot(40, 280);
+  o += L(230, 224, 230, 304) + L(230, 304, 90, 304) + L(90, 304, 90, 280) + ckDot(90, 280);
+  o += L(280, 224, 280, 312) + L(280, 312, 140, 312) + L(140, 312, 140, 280) + ckDot(140, 280);
+  // 电机符号（圆形 M 3~，画在底部；星点经 KM3 短接条引下）
+  o += L(115, 288, 115, 330) + L(115, 330, 90, 330) + ckMtr(90, 356, 26);
+  // 控制电路（双速：SB2 低速、SB3 高速）
+  const A = 340, A2 = 390, B = 450, B2 = 500, C = 560;
+  o += ckDot(A, 14, 3) + L(A, 14, A, 16);
+  o += ckPut(A, 16, CB.fu()) + ckLab(A + 13, 44, 'FU2');
+  o += ckPut(A, 64, CB.frnc()) + ckLab(A + 16, 92, 'FR');
+  o += ckPut(A, 112, CB.sbnc()) + ckLab(A + 16, 140, 'SB1');
+  o += L(A, 160, B, 160);
+  // 低速支路：SB2(NO)+自锁 → KM2常闭 → KM3常闭 → KM1线圈
+  o += ckPut(A, 160, CB.sbno()) + ckLab(A - 17, 188, 'SB2', 11, 'end');
+  o += ckPut(A2, 160, CB.no(20)) + ckLab(A2 + 15, 188, 'KM1');
+  o += ckBranch(A, A2, 160, 208);
+  o += ckPut(A, 208, CB.nc(20)) + ckLab(A - 17, 236, 'KM2', 11, 'end');
+  o += ckPut(A, 256, CB.nc(20)) + ckLab(A - 17, 284, 'KM3', 11, 'end');
+  o += ckPut(A, 304, CB.coil()) + ckLab(A + 16, 332, 'KM1');
+  // 高速支路：SB3(NO)+自锁 → KM1常闭 → KM2线圈 ∥ KM3线圈
+  o += ckPut(B, 160, CB.sbno()) + ckLab(B + 16, 188, 'SB3');
+  o += ckPut(B2, 160, CB.no(20)) + ckLab(B2 + 15, 188, 'KM2');
+  o += ckBranch(B, B2, 160, 208);
+  o += ckPut(B, 208, CB.nc(20)) + ckLab(B + 16, 236, 'KM1');
+  o += ckPut(B, 256, CB.coil()) + ckLab(B + 16, 284, 'KM2');
+  o += L(B, 256, C, 256) + ckDot(B, 256);
+  o += ckPut(C, 256, CB.coil()) + ckLab(C + 16, 284, 'KM3');
+  // N 母线（A 的线圈下端在 352，B/C 的线圈下端在 304 —— 必须各补一根竖线接到母线，
+  // 原来只画了横线，B、C 两路线圈下端悬空、不接地，图上看着 N 母线右边孤零零一条）
+  o += L(B, 304, B, 352) + L(C, 304, C, 352);
+  o += L(A, 352, C, 352) + ckDot(A, 352) + ckDot(B, 352) + ckDot(C, 352);
+  o += L(450, 352, 450, 360) + ckDot(450, 360, 3) + ckLab(460, 364, 'N');
+  return ['-14 -8 634 400', o];
+}
+
+Object.assign(SYM, {
+  ckt_single: [...ckSingle(), '单向起动电路原理图', [520, 300]],
+  ckt_rev: [...ckRev(), '电气互锁正反转电路原理图', [520, 300]],
+  ckt_rev2: [...ckRev2(), '双重互锁正反转电路原理图', [520, 300]],
+  ckt_star: [...ckStar(), '按钮切换星三角降压起动电路原理图', [520, 300]],
+  ckt_star_t: [...ckStarT(), '时间继电器星三角降压起动电路原理图', [520, 300]],
+  ckt_dual: [...ckDual(), '双速电动机控制电路原理图', [520, 300]],
+});
+
 const hasFig = name => Object.hasOwn(SYM, name);
 const figName = name => hasFig(name) ? SYM[name][2] : '';
 // big：题干里的大图；否则是选项里的小图
@@ -6238,6 +6597,17 @@ const pIsKnown=t=>!!(PAPER_TYPES[t]||PAPER_EXTRA[t])||!!(POOL_TYPES&&POOL_TYPES.
 const PRACTICE_NAME_RE=/实操|操作|实训|技能/;
 const pIsPractice=t=>PRACTICE_NAME_RE.test(String((pType(t)||{}).name||''));
 const PRACTICE_NOTE='本题为实操考核，没有标准答案：下面只是参考要点。实得分以现场操作、仿真或下载运行看到的实际现象为准（接线和器件差异会让现象不同）。';
+/* 识图题 / 设计题（2026-11-21，电气接线原理这类课的老师自建题型）：
+     · 识图题：题干给一张完整电路图（q.fig），下面若干小问（1）（2）…，学生看图作答；
+     · 设计题：题干写「画出××电路」，学生手画，参考答案放一张参考电路图 + 评分标准。
+   怎么认：和 PRACTICE_NAME_RE 同一个口径 —— 按题型中文名，老师把题型改名成
+   「读图分析」「电路分析」「绘图题」都认。⚠ 只认**自建题型**（key 不在 PAPER_TYPES 里）：
+   内置的「程序分析题」被老师改名成「程序设计题」时，prog 还是 prog，必须照旧走它自己的
+   case（代码/小问排版），不能被这里的「设计」两个字误拦截成画图空白区。 */
+const SHITU_NAME_RE=/识图|读图|看图|电路分析/;
+const SHEJI_NAME_RE=/设计|绘图|画图/;
+const pIsShitu=t=>!PAPER_TYPES[t]&&SHITU_NAME_RE.test(String((pType(t)||{}).name||''));
+const pIsSheji=t=>!PAPER_TYPES[t]&&SHEJI_NAME_RE.test(String((pType(t)||{}).name||''));
 const CN_NUM='一二三四五六七八九十';
 const PAPER_DEFAULT={
   year:'2026-2027',term:'第一学期',course:'单片机技术及应用',ver:'A',major:'机电一体化技术',grade:'2025级',mode:'闭卷',minutes:90,
@@ -6448,6 +6818,16 @@ function hxFig(id, big) {
   const F = HXFig_();
   if (!F || typeof F.hasFig !== 'function' || typeof F.figSvg !== 'function' || !F.hasFig(s)) return '';
   return `<figure class="ep-fig${big ? '' : ' sm'}">${F.figSvg(s, !!big)}</figure>`;
+}
+/* 识图题 / 设计题的**大电路图**（2026-11-21）：题干大图默认压到 120px 高，对单个符号
+   （选择/填空的图）够用，但整张电路图（正反转 / 星三角）在这个高度下细节挤成一团，
+   学生没法「识读」。所以单开一条 lg 档（CSS 里 .ep-fig.lg 给更高），和 hxFig 只差一个 class。 */
+function hxFigLg(id) {
+  const s = String(id == null ? '' : id).trim();
+  if (!s) return '';
+  const F = HXFig_();
+  if (!F || typeof F.hasFig !== 'function' || typeof F.figSvg !== 'function' || !F.hasFig(s)) return '';
+  return `<figure class="ep-fig lg">${F.figSvg(s, true)}</figure>`;
 }
 /* Word（.docx）里画不了 SVG：按 OOXML 塞图要另建 media 关系 + 位图，这一版不做。
    退化成一串文字标注，老师看 Word 版时至少知道这里原来有张图。 */
@@ -6716,7 +7096,68 @@ function paperStats(P){
 }
 
 /* ---------- 题目 HTML（打印、预览、Word 共用） ---------- */
-const ptxt=s=>esc(s);
+/* 题干末尾的空答案括号（2026-11-20）。
+   老师截图原话：「这个～怎么没有在中间 而是像角标了？」—— 查下来不是字体回退、也没有 span 套小字：
+   括号是全角 U+FF08/U+FF09、句号 U+3002，整行由 SimSun 一个字体画（CDP 的 getPlatformFontsForNode
+   只报 SimSun 一个），字号也一致。问题出在宋体本身：它的全角括号墨迹只有 0.85 个汉字高、
+   底边还比汉字高 0.8px（10.5pt 下），再加上括号里塞的是半角空格，10.5pt 打出来就像一对上标。
+   所以这里只动「空答案槽」这一处：
+     · 内容统一成「（　　）」两个全角空格 —— 学生要写的是一整个字母，原来半角空格只有 1em 宽；
+     · 外面套 .ansb 做光学补偿（放大 1.167em、下沉 0.05em），墨迹正好和汉字同高、底边落回基线。
+   句子里的「（1）」「（A）」「main()」这类带内容的括号一律不碰（正则只认「空 + 收尾」）。
+   Word 导出不走这里（docxStem 直接拿 q.q），Word 版的括号保持宋体原样。 */
+const ANS_SLOT=/（[ \u3000]*）(?=[。．.？?，,、；;：:！!…\s]*$)/;
+const ansSlot=s=>ANS_SLOT.test(s)?s.replace(ANS_SLOT,'<span class="ansb">（　　）</span>'):s;
+const ptxt=s=>ansSlot(esc(s));
+/* ===== 大题题干排版（2026-11-20）=====
+   老师原话：「我希望（1）和（2）这样的可以另起一行 没1问都是另一行 格式能不能按照我编辑的来」。
+   原来大题题干一律走 ptxt()（纯转义），老师自己在编辑框里敲的「\n」进了 HTML 就只是一个空格 ——
+   整道题挤成一段、（1）（2）连着一行排。这里给**大题类**题干单开一条路：
+     ① 老师敲的换行保留：按 \n 切开，一块一行；
+     ② 一行里连着写的「要求： （1）…（2）…」「（1）…；（2）…」也断开，每问一行；
+     ③ 题干里自己就带（1）（2）时，q.sub 不再重复排一遍（见调用处 splitMarks）。
+   ⚠ 选择题 / 填空题 / 判断题一个字都不动（它们继续走 ptxt / blankHTML）：
+     选项里的 (A)、算式里的 (1) 都不会被这条规则碰到。 */
+const STEM_MARK = /[（(]\s*(?:\d{1,2}|[一二三四五六七八九十])\s*[)）]|[①②③④⑤⑥⑦⑧⑨⑩]/g;
+/* 编号前面是这些标点 = 明显是列表项（「要求：（1）」「…要点；（2）」） */
+const STEM_LEAD = /[：:；;。，,、！!？?]$/;
+function bigStemBlocks(t, splitMarks) {
+  const s = String(t == null ? '' : t).replace(/\r\n?/g, '\n');
+  const out = [];
+  s.split('\n').forEach(line => {
+    const tx = line.replace(/[ \t]+$/, '');
+    if (!tx.trim()) return;                       /* 空行只是视觉分隔，不留空块 */
+    if (splitMarks === false) { out.push(tx.trim()); return; }
+    const pos = []; let m;
+    STEM_MARK.lastIndex = 0;
+    while ((m = STEM_MARK.exec(tx))) pos.push(m.index);
+    /* 同一行里有 ≥2 个编号才算「若干小问」；只有一个时还要求它前面是标点 / 空白，
+       免得把「如图（1）所示」这种引用也拆开。编号在行首（p===0）本来就已经另起一行。 */
+    const multi = pos.length >= 2;
+    const cuts = [];
+    pos.forEach(p => {
+      if (p === 0) return;
+      const before = tx.slice(0, p);
+      if (multi || STEM_LEAD.test(before.replace(/[ \t]+$/, '')) || /[ \t]$/.test(before)) cuts.push(p);
+    });
+    if (!cuts.length) { out.push(tx.trim()); return; }
+    let last = 0;
+    cuts.forEach(p => { const seg = tx.slice(last, p).trim(); if (seg) out.push(seg); last = p; });
+    const tail = tx.slice(last).trim();
+    if (tail) out.push(tail);
+  });
+  return out;
+}
+/* 卷面 HTML：第 1 块接在题号后面（行内），其余每块另起一行（.q.sub 自带 1em 缩进）。
+   tail 是「：」这类要黏在最后一块末尾的字符（名词解释用）。 */
+function stemHTML(t, tail, splitMarks) {
+  const bl = bigStemBlocks(t, splitMarks), suf = tail ? esc(tail) : '';
+  if (!bl.length) return suf;
+  return bl.map((x, k) => {
+    const body = ansSlot(esc(x)) + (k === bl.length - 1 ? suf : '');
+    return k === 0 ? body : `<div class="q sub">${body}</div>`;
+  }).join('');
+}
 function blankHTML(s){return ptxt(s).replace(/____/g,'<u class="bl">　　　　　　　</u>');}
 function optHTML(o){
   /* 选项里的图（o.fig）走小图；认不出的 id 当没图，纯图选项认不出时整条不画（不留一个空「C.」） */
@@ -6731,19 +7172,48 @@ const SPACE_K={auto:1,loose:1.3,normal:1,tight:0.7};
 let __spaceK=1;
 const nLines=n=>Math.max(2,Math.round(n*__spaceK));
 const lines=n=>`<div class="space" style="height:${nLines(n)*18}pt"></div>`;
+/* 设计题的画图空白区（2026-11-21）：学生要在卷面上手画电路图，
+   给一个虚线框 + 「在此画电路图」灰字提示。高度固定 190pt（约 10 行），
+   break-inside:avoid 保证打印不被分页切断。 */
+function drawHTML(){
+  return `<div class="draw"><span>（在此画电路图）</span></div>`;
+}
 function itemHTML(s,q,i){
   const no=`${i+1}.`;
-  /* 空白卷的占位：只画题号和答题留白 */
-  if(q&&q.__blank){ const n={choice:2,fill:1,judge:1,term:4,short:8,prog:8}[s.t]||4; return `<div class="q">${no}</div>${lines(n)}`; }
+  /* 空白卷的占位：只画题号和答题留白（设计题给画图空白区，别的按题型给答题留白） */
+  if(q&&q.__blank){
+    if(pIsSheji(s.t)) return `<div class="q">${no}</div>${drawHTML()}`;
+    const n={choice:2,fill:1,judge:1,term:4,short:8,prog:8}[s.t]||4;
+    return `<div class="q">${no}</div>${lines(pIsShitu(s.t)?6:n)}`;
+  }
   /* 题干图（q.fig）：紧跟在题干下面。六种题型都可能带图（图题多数是选择/填空）。 */
   const fig=hxFig(q.fig,true);
+  /* 识图题 / 设计题（2026-11-21）：都是自建题型，落在 default 里。但结构特殊，
+     不能按「简答 + 一大块留白」糊过去 —— 识图题要把电路图放大、小问每问一行且各留答题空白；
+     设计题要留一块画图空白区。判断放在 switch 外面：default 里 pIsShitu/pIsSheji 先拦。 */
+  if(pIsShitu(s.t)){
+    const subs=hxAnsLines(q.sub);
+    /* 小问每问一行，各留 3 行答题空白；没有小问时按简答给一整块留白 */
+    const body=subs.length>1?subs.map((x,k)=>`<div class="q sub">（${k+1}）${ptxt(x)}</div>${lines(3)}`).join(''):'';
+    return `<div class="q">${no}${stemHTML(q.q,'',subs.length<2)}</div>${hxFigLg(q.fig)}${body}${subs.length>1?'':lines((q.lines||8)-1)}`;
+  }
+  if(pIsSheji(s.t)){
+    return `<div class="q">${no}${stemHTML(q.q)}</div>${drawHTML()}`;
+  }
   switch(s.t){
     case 'choice':return `<div class="q">${no}${ptxt(q.q)}</div>${fig}${optHTML(q.o)}`;
     case 'fill':return `<div class="q">${no}${blankHTML(q.q)}</div>${fig}`;
-    case 'judge':return `<div class="q judge"><span>${no}${ptxt(q.q)}</span>${fig}<span class="paren">（　　）</span></div>`;
-    case 'term':return `<div class="q">${no}${ptxt(q.q)}：</div>${fig}${lines(4)}`;
-    case 'short':return `<div class="q">${no}${ptxt(q.q)}</div>${fig}${lines((q.lines||8)-1)}`;
-    case 'prog':{const subs=hxSubs(q.sub);return `<div class="q">${no}${ptxt(q.q)}</div>${fig}<pre class="code">${esc(q.code)}</pre>${subs.map((x,k)=>`<div class="q sub">（${k+1}）${ptxt(x)}</div>${lines(subs.length>1?3:7)}`).join('')}`;}
+    /* 2026-11-20 老师：「判断题的括号应该出现在最后一句话的那一行，而不是首行」。
+       原来这一行是 flex + justify-content:space-between，括号成了右列的独立 flex item ——
+       题干只要换行，括号就贴在右列顶上（第 1 行行尾），和最后一句话断开。
+       现在改成行内流：括号直接跟在题干最后一个字后面，随文字自然换行，永远落在最后一行末尾。
+       （图题把括号留在文字末尾、图放下面 —— 不能让括号跑到图下面单独占一行。） */
+    case 'judge':return `<div class="q judge">${no}${ptxt(q.q)}<span class="paren">（　　）</span>${fig}</div>`;
+    /* 名词解释 / 简答 / 程序分析 / 自建大题：题干走 stemHTML —— 老师敲的换行留着，
+       一行里连着的（1）（2）也各占一行。q.sub 已经拆出 ≥2 条时不从题干里再拆一遍。 */
+    case 'term':return `<div class="q">${no}${stemHTML(q.q,'：')}</div>${fig}${lines(4)}`;
+    case 'short':return `<div class="q">${no}${stemHTML(q.q)}</div>${fig}${lines((q.lines||8)-1)}`;
+    case 'prog':{const subs=hxSubs(q.sub);return `<div class="q">${no}${stemHTML(q.q,'',subs.length<2)}</div>${fig}<pre class="code">${esc(q.code)}</pre>${subs.map((x,k)=>`<div class="q sub">（${k+1}）${ptxt(x)}</div>${lines(subs.length>1?3:7)}`).join('')}`;}
     /* 2026-11-21：老师自建的题型（如「实操」）以前落到这里返回空串 ——
        pickSections 明明抽到了 4 道，卷面上一个字都没有（老师的话是「没关联上吗」）。
        没单独排版规则的题型一律按简答排：题干 + 答题留白，不猜它的结构。 */
@@ -6752,7 +7222,7 @@ function itemHTML(s,q,i){
     default:{
       const subs=hxAnsLines(q.sub);
       const body=subs.length>1?subs.map((x,k)=>`<div class="q sub">（${k+1}）${ptxt(x)}</div>`).join(''):'';
-      return `<div class="q">${no}${ptxt(q.q)}</div>${fig}${body}${lines((q.lines||8)-1)}`;
+      return `<div class="q">${no}${stemHTML(q.q,'',subs.length<2)}</div>${fig}${body}${lines((q.lines||8)-1)}`;
     }
   }
 }
@@ -6784,7 +7254,15 @@ const FIG_CSS=`
 .ep-fig svg{height:120px!important;width:auto!important;max-width:100%!important;overflow:visible}
 .ep-fig.sm{margin:0;display:inline-flex;vertical-align:middle}
 .ep-fig.sm svg{height:44px!important}
-.opts .ep-fig{margin:0 2pt 0 0}`;
+/* 识图题的整张电路图（2026-11-21）：原来钉死 height:220px，窄高比的图（如单向起动 354×308）
+   算出来只有 250px 宽，右边一大片空白、元件看不清。改成按栏宽铺满（宽 100%），
+   再用 max-height 兜住过高的图；preserveAspectRatio 默认居中，所以只会留白、不会拉变形。
+   360px ≈ 9.5cm，与真实试卷里识图题那张图的占位相当。 */
+.ep-fig.lg svg{width:100%!important;height:auto!important;max-height:360px!important}
+.opts .ep-fig{margin:0 2pt 0 0}
+/* 设计题的画图空白区（2026-11-21）：虚线框 + 居中灰字提示，学生手画电路图 */
+.draw{margin:4pt 0 2pt;border:1.5pt dashed #000;height:190pt;display:flex;align-items:center;justify-content:center;break-inside:avoid;page-break-inside:avoid}
+.draw span{color:#999;font-size:9pt;letter-spacing:.5em}`;
 const PAPER_CSS=`
 @page{size:420mm 297mm;margin:0}
 *{box-sizing:border-box}
@@ -6816,7 +7294,20 @@ table{border-collapse:collapse;width:100%}
 .sech .box div{height:18pt;line-height:18pt}.sech .box .blank{border-top:1px solid #000;height:22pt}
 .sech .tt{padding-left:3mm;vertical-align:middle;font-family:"SimHei","黑体",sans-serif;font-weight:bold;white-space:nowrap}
 .q{margin:0}.q.sub{padding-left:1em}
-.judge{display:flex;justify-content:space-between;gap:4mm}.judge .paren{white-space:nowrap}
+/* 题干末尾的答案括号（2026-11-20，和上面 ansSlot() 配套）：
+   宋体的全角「（」「）」墨迹只有 0.85 个汉字高、底边还比汉字高 0.8px，10.5pt 下像一对上标。
+   这里按 canvas 量出来的墨迹盒做补偿：16.33px 时括号墨迹 14px = SimSun 汉字墨迹 14px，
+   再下沉 0.05em 让底边压回基线。汉字本身仍是 SimSun 五号，行高固定 18 磅 —— 放大后的
+   行内盒不会把行高撑开，分栏计算（hOf 量 .q 的高度）也不受影响。
+   nowrap：括号连同里面 2 个全角空格不能被拆到两行。 */
+.ansb{font-size:1.167em;vertical-align:-.05em;white-space:nowrap}
+/* 判断题的答题括号：跟着题干文字一起排（上面 itemHTML 已去掉 flex）。
+   · nowrap：保证「（」和「）」连同里面 2 个全角空格不被拆到两行；
+   · 右边留一个槽（padding-right:4.5em）+ 括号自己负右边距（margin-right:-4em）：
+     换行只按 0.3em 算，最后一行即使排满，括号也不会被整块挤到下一行、独占一行
+     （全题库 129 道实测：不留这道口子有 9 道 = 7% 会变成「文字一行 + 括号单独一行」）。
+     括号的墨迹落在那条槽里，仍然在版心内，不会压到栏间分隔线。 */
+.judge{padding-right:4.5em}.judge .paren{white-space:nowrap;margin-left:.3em;margin-right:-4em}
 .opts{padding-left:2em;display:grid}.opts.o4{grid-template-columns:repeat(4,1fr)}.opts.o2{grid-template-columns:1fr 1fr}.opts.o1{grid-template-columns:1fr}
 ${FIG_CSS}
 u.bl{text-decoration:none;border-bottom:1px solid #000;display:inline-block;min-width:22mm}
@@ -6864,21 +7355,35 @@ const PAPER_LAYOUT_JS=`
   var out=document.getElementById('out');
   var tplF=document.getElementById('stripFront').innerHTML,tplB=document.getElementById('stripBack').innerHTML;
   var hOf=function(b){var r=b.getBoundingClientRect().height;var cs=getComputedStyle(b);return r+parseFloat(cs.marginTop)+parseFloat(cs.marginBottom);};
-  /* 只按高度算分栏，不动 DOM；h 是这一栏实际能用的高度（默认整栏，兜底时会被压小） */
+  /* 只按高度算分栏，不动 DOM；h 是这一栏实际能用的高度（默认整栏，兜底时会被压小）
+     2026-11-21：.keep 原来只是「估算时把下一块的高度一起算进去」，真正落栏还是各块各放 ——
+     结果「大题标题 + 一道 900px 高的识图题」这种组合，标题留在上一栏末尾、题目掉到下一栏，
+     中间白白空掉大半页（老师截图里第 2 页只有一行「一、识图题」）。现在改成按组排：
+     .keep 组整组进同一栏，装不下就整组换栏，标题不会自己留在页脚上。 */
   var plan=function(h){
     h=h||colH;
-    var hs=blks.map(hOf),cols=[[]],used=0;
-    for(var i=0;i<blks.length;i++){
-      var need=hs[i];
-      for(var j=i;blks[j]&&blks[j].classList.contains('keep')&&blks[j+1];j++)need+=hs[j+1];   // 大题标题、程序和第 1 小问连在一起，不留孤立的标题
-      need=Math.min(need,h);
-      if(used>0&&used+need>h){cols.push([]);used=0;}
-      cols[cols.length-1].push(i);used+=hs[i];
+    var hs=blks.map(hOf),groups=[],i=0;
+    while(i<blks.length){
+      var g={idx:[i],h:hs[i]},j=i;
+      while(blks[j]&&blks[j].classList.contains('keep')&&blks[j+1]){g.idx.push(j+1);g.h+=hs[j+1];j++;}
+      groups.push(g);i=j+1;
     }
+    var cols=[[]],used=0;
+    groups.forEach(function(g){
+      var need=Math.min(g.h,h);
+      if(used>0&&used+need>h){cols.push([]);used=0;}
+      g.idx.forEach(function(k){cols[cols.length-1].push(k);});
+      used+=g.h;
+    });
     return cols;
   };
-  /* 按分好的栏真的拼成一张张 A3（可重复调用：每次先清空 #out 再重拼） */
+  /* 按分好的栏真的拼成一张张 A3（可重复调用：每次先清空 #out 再重拼）
+     ⚠ 栏数是奇数时必须自己补一个空栏：mk(2s+1) 取到 cols[undefined] 就会 forEach 抛错，
+     而这时 blks 已经被 appendChild 搬进半张纸里、再也回不去 —— 整卷内容凭空消失。
+     以前靠每个调用点在 render 前自己 pad，加第二次 render（rescue）就漏了，2026-11-21 踩到。 */
   var render=function(cols){
+    if(!cols)return 0;
+    if(cols.length%2)cols.push([]);
     out.innerHTML='';
     var N=cols.length;
     for(var s=0;s<N/2;s++){
@@ -6920,6 +7425,46 @@ const PAPER_LAYOUT_JS=`
      高度是「先量后装」的，字体晚到 / 图片解码完 / 行高取整都会让实际比量出来的高一点点，
      装进去就被 colbody 的 overflow:hidden 切掉。所以装完量一次最后一格，越界就把预算
      压小重排 —— 宁可少装一道、让它换到下一栏（下一列），也不能把题干剪半句。 */
+  /* 一整块比一栏还高（识图题 10 个小问 + 宽松留白 + 大图这种）：分栏怎么调都塞不进去 ——
+     plan() 里 need=Math.min(need,h) 会让它独占一栏，装完照样被 .colbody 的 overflow:hidden 剪掉，
+     老师看到的是「最后一题连着答题空整块没了」。这时候只能压这一块自己的尺寸：
+     先缩图（最低 180px），图缩到底了再缩答题空白（每处最低 1 行 = 24px）。
+     宁可多翻一页、版面挤一点，也不能把题剪掉。2026-11-21 */
+  var worstBlk=function(){
+    var w=null,wov=0.5;
+    [].forEach.call(out.querySelectorAll('.colbody'),function(bd){
+      var last=bd.lastElementChild;if(!last)return;
+      var d=last.getBoundingClientRect().bottom-bd.getBoundingClientRect().bottom;
+      if(d>wov){wov=d;w=last;}
+    });
+    return w;
+  };
+  var rescue=function(cs){
+    for(var rz=0;rz<20;rz++){
+      if(overflow()<=0.5)break;
+      var el=worstBlk();if(!el)break;
+      var did=false;
+      /* ① 先压这一块的答题空白（每处最低 1 行 = 24px）。识图题 10 个小问 × 3 行 = 720px，
+         先把这块让出来，图就不用动，学生还能看清电路。 */
+      var sps=[].slice.call(el.querySelectorAll('.space'));
+      sps.forEach(function(e){
+        var h=e.getBoundingClientRect().height;
+        if(h>24.5){e.style.height=Math.max(24,Math.round(h*0.85))+'px';did=true;}
+      });
+      /* ② 空白已经压到 1 行了还装不下，才动图（CSS 里是 max-height:360px!important，
+         行内想盖住它必须也带 important）；240px 是底线 —— 再小图上标注就认不出了。 */
+      if(!did){
+        var fig=el.querySelector('.ep-fig.lg svg');
+        if(fig){
+          var fh=fig.getBoundingClientRect().height;
+          if(fh>241){fig.style.setProperty('max-height',Math.max(240,Math.round(fh*0.85))+'px','important');did=true;}
+        }
+      }
+      if(!did)break;
+      N=render(cs);
+    }
+    return N;
+  };
   var N=0;
   for(var a=0;a<4;a++){
     if(cols.length%2)cols.push([]);
@@ -6928,6 +7473,7 @@ const PAPER_LAYOUT_JS=`
     if(ov<=0.5)break;
     cols=plan(colH-ov-2);
   }
+  rescue(cols);
   src.remove();
   document.body.setAttribute('data-pages',N);
   /* 字体是真晚到的常见来源：等字体就绪再排一次（render 幂等，会重拼整份），
@@ -6946,6 +7492,7 @@ const PAPER_LAYOUT_JS=`
         if(ov2<=0.5)break;
         c2=plan(colH-ov2-2);
       }
+      rescue(c2);
       document.body.setAttribute('data-pages',N);
       done();
     });
@@ -7121,7 +7668,7 @@ function paperDocHTML(P,cfg,opts){
       if(s.t==='prog'){
         const sub=k=>`<div class="q sub">（${k+1}）${ptxt(subs[k])}</div>${lines(subs.length>1?3:7)}`;
         const subcls=edit?('blk ed edsub'+(pin?' pin':'')):'blk';
-        blocks.push(`<div class="${cls} keep"${at}><div class="q">${i+1}.${ptxt(q.q)}</div>${hxFig(q.fig,true)}<pre class="code">${esc(q.code)}</pre></div>`);
+        blocks.push(`<div class="${cls} keep"${at}><div class="q">${i+1}.${stemHTML(q.q,'',subs.length<2)}</div>${hxFig(q.fig,true)}<pre class="code">${esc(q.code)}</pre></div>`);
         for(let k=0;k<subs.length;k++)blocks.push(`<div class="${subcls}"${at}>${sub(k)}</div>`);
       } else blocks.push(`<div class="${cls}"${at}>${itemHTML(s,q,i)}</div>`);
     });
@@ -7154,12 +7701,38 @@ function docxSecHead(s){
   return DX.tbl([DX.cell('得 分',{w:900,hei:true,b:true,keep:true})+DX.cell(secTitle(s),{w:7000,nob:true,left:true,hei:true,b:true,vm:'start',keep:true}),
                  DX.cell('',{w:900,keep:true})+DX.cell('',{w:7000,nob:true,vm:'cont',keep:true})],[900,7000])+DX.p('',{line:120,keep:true});
 }
+/* Word 里同一个口径（和卷面 stemHTML 一致）：一块一段，除第 1 块外每段缩进 210 缇（≈1 字符），
+   和卷面 .q.sub 的 1em 对齐。不改的话 Word 版和 PDF 版的卷面就长得不一样。 */
+function docxStem(out, no, t, tail, splitMarks, keep) {
+  const bl = bigStemBlocks(t, splitMarks), suf = tail || '';
+  if (!bl.length) { out.push(DX.p(DX.r(no + suf), keep ? { keep: true } : null)); return; }
+  bl.forEach((x, k) => {
+    const body = (k === 0 ? no : '') + x + (k === bl.length - 1 ? suf : '');
+    const o = {}; if (k) o.ind = 210; if (keep) o.keep = true;
+    out.push(DX.p(DX.r(body), o));
+  });
+}
 function docxItems(s,q,i){
   const no=`${i+1}.`,out=[];const sp=n=>{for(let k=0;k<nLines(n);k++)out.push(DX.p(''));};
   /* Word 画不了 SVG，题干图/选项图都退化成灰字标注（见文件尾的「说明」一行） */
   const ft=hxFigText(q.fig);
   const figLine=t=>{if(t)out.push(DX.p(DX.r(t,{color:'666666',sz:18}),{ind:210,keep:true}));};
-  if(q&&q.__blank){ out.push(DX.p(DX.r(no))); sp(({choice:2,fill:1,judge:1,term:4,short:8,prog:8}[s.t])||4); return out.join(''); }
+  if(q&&q.__blank){ out.push(DX.p(DX.r(no))); sp(pIsSheji(s.t)?10:(({choice:2,fill:1,judge:1,term:4,short:8,prog:8}[s.t])||4)); return out.join(''); }
+  /* 识图题 / 设计题（2026-11-21）：Word 版和卷面同一口径 ——
+     识图题小问逐行排、各留答题空白；设计题题干下面留一大块空白给学生画电路图。
+     图本身 Word 画不了 SVG，走 figLine 的「［图：名称］」灰字标注（见 docxFigNote）。 */
+  if(pIsShitu(s.t)){
+    const subs=hxAnsLines(q.sub);
+    docxStem(out,no,q.q,'',subs.length<2);figLine(ft);
+    if(subs.length>1)subs.forEach((x,k)=>{out.push(DX.p(DX.r(`（${k+1}）${x}`),{ind:210}));sp(3);});
+    else sp((q.lines||8)-1);
+    return out.join('');
+  }
+  if(pIsSheji(s.t)){
+    docxStem(out,no,q.q);figLine(ft);
+    sp(10);
+    return out.join('');
+  }
   if(s.t==='choice'){
     out.push(DX.p(DX.r(no+q.q)));figLine(ft);
     const opts=hxChoices(q.o),o=opts.map(x=>`${x.key}.${x.text||hxFigText(x.fig)}`);
@@ -7173,20 +7746,24 @@ function docxItems(s,q,i){
   } else if(s.t==='fill'){
     out.push(DX.p([DX.r(no)].concat(q.q.split('____').map((x,k)=>(k?DX.r('              ',{u:true}):'')+DX.r(x)))));figLine(ft);
   } else if(s.t==='judge'){
-    out.push(DX.p(DX.r(no+q.q+'\t（    ）'),{tabs:[{pos:COLW,right:true}]}));figLine(ft);
-  } else if(s.t==='term'){out.push(DX.p(DX.r(no+q.q+'：')));figLine(ft);sp(4);}
-  else if(s.t==='short'){out.push(DX.p(DX.r(no+q.q)));figLine(ft);sp((q.lines||8)-1);}
+    /* 卷面（预览 / PDF）已改成行内流，Word 这一版跟同一个口径：括号紧跟在题干最后一个字后面。
+       原来用的是「右对齐制表位到 COLW」——题干一换行，括号就跑到最后一行的最右边缘、
+       和句子断开（正是老师说的「括号在首行 / 不在最后一句话后面」那类问题）。
+       括号里的空白用不换行空格（\u00A0），Word 不会把「（　　）」拆到两行。 */
+    out.push(DX.p(DX.r(no+q.q+'（\u00A0\u00A0\u00A0\u00A0）')));figLine(ft);
+  } else if(s.t==='term'){docxStem(out,no,q.q,'：');figLine(ft);sp(4);}
+  else if(s.t==='short'){docxStem(out,no,q.q);figLine(ft);sp((q.lines||8)-1);}
   else if(s.t==='prog'){
-    out.push(DX.p(DX.r(no+q.q),{keep:true}));figLine(ft);
-    q.code.split('\n').forEach(l=>out.push(DX.p(DX.r(l,{mono:true,sz:18}),{ind:210,line:240,keep:true})));
     const subs=hxSubs(q.sub);
+    docxStem(out,no,q.q,'',subs.length<2,true);figLine(ft);
+    q.code.split('\n').forEach(l=>out.push(DX.p(DX.r(l,{mono:true,sz:18}),{ind:210,line:240,keep:true})));
     subs.forEach((x,k)=>{out.push(DX.p(DX.r(`（${k+1}）${x}`),{ind:210}));sp(subs.length>1?3:7);});
   }
   /* 自建题型（实操之类）没有专门排版：按简答排，别导出成一张空白（2026-11-21）。
      带小问的把小问逐行排出来 —— 卷面少了小问，学生根本不知道要答几问。 */
   else {
-    out.push(DX.p(DX.r(no+q.q)));figLine(ft);
     const subs=hxAnsLines(q.sub);
+    docxStem(out,no,q.q,'',subs.length<2);figLine(ft);
     subs.forEach((x,k)=>out.push(DX.p(DX.r(`（${k+1}）${x}`),{ind:210})));
     sp((q.lines||8)-1);
   }
@@ -7487,7 +8064,10 @@ function answerPreviewHTML(P, cfg) {
       /* 参考示例代码只进参考答案（2026-11-21）：空白卷面绝不印 q.code，
          否则学生直接抄 —— 这一点卷面那侧（itemHTML / docxItems）保持原样，没加。 */
       const codeHTML = (pIsPractice(s.t) && q.code) ? `<pre class="anscode">${esc(q.code)}</pre>` : '';
-      b += `<div class="qline">${i + 1}、${esc(q.q)}${hxFig(q.fig,false)}<span class="score">${aHTML}</span>${codeHTML}<span class="grade">（评分：按要点给分，共 ${s.pts} 分）</span></div>`;
+      /* 识图题 / 设计题（2026-11-21）：参考答案里把电路图**放大**显示（老师要对着图看答案），
+         别的题型的题干图保持小图；设计题评分标准就是小问答案，已经按 .ansub 逐行排了。 */
+      const figHTML = (pIsShitu(s.t) || pIsSheji(s.t)) ? hxFigLg(q.fig) : hxFig(q.fig, false);
+      b += `<div class="qline">${i + 1}、${esc(q.q)}${figHTML}<span class="score">${aHTML}</span>${codeHTML}<span class="grade">（评分：按要点给分，共 ${s.pts} 分）</span></div>`;
     });
   });
   const st = paperStats(P);
@@ -8248,6 +8828,37 @@ const setBankPinned = v => { bankPinned = v; try { localStorage.setItem('exam.ba
 const PPTXT = s => String(s == null ? '' : s);
 const ppCut = (s, n) => { s = PPTXT(s).replace(/\s+/g, ' '); return s.length > n ? s.slice(0, n) + '…' : s; };
 
+/* ---------- 题库行上的「来源」标签（2026-11-21）----------
+   老师原话：「这些也可以简写改为悬停显示 不然我最想看的是题目完整性 而不是一堆这个玩意
+   这也没有说具体哪个文件参考 而且一堆 因为我是一起生成的 但是这一题不一定用到了这么多文件参考啊
+   本质有问题存在冗余」。
+   q.src 是 AI 出题时**整批**喂进去的文件名（同一批题每题都是同一串、动不动三五个文件名），
+   行内拖着这么长一条，题干（老师真正要看的）就被挤窄了。所以：
+     · 行内只留一个短名（项目3 / 第5章 / 文件名前 6 字），多份时后面加「 等N份」；
+     · 整串原文照旧放 title（悬停就能看全）；
+     · 「看」展开的详情里把这批文件列全 —— 并且明说「这批是一起提供的，这道题不一定每份都用上」，
+       这是老师说的「本质有问题存在冗余」，界面上要承认，而不是装作很精确。
+   实测的真实取值（这个账号的两科题池）：
+     「项目3-并行IO端口与C51语言.md、项目2-单片机硬件系统.md、项目1-熟悉单片机操作环境.md · AI 出题」→「项目3 等3份」
+     「电气控制技术实训 第3版 项目二（2.1-2.6）.pdf、电气接线第一章.pdf · AI 出题」→「项目二 等2份」
+     「项目4 显示与键盘接口」→「项目4」
+   末尾那句「· AI 出题」是出题流程加的标记、不是文件名，显示时去掉（title 里保留整串原文）。 */
+const ppFileClean = s => String(s == null ? '' : s).replace(/\s*[·•・]\s*AI\s*出题\s*$/, '').trim();
+const ppSrcFiles = src => String(src == null ? '' : src)
+  .split(/[、,;；\n]+/).map(ppFileClean).filter(Boolean);
+function ppSrcShort(src) {
+  const files = ppSrcFiles(src);
+  if (!files.length) return '';
+  const bare = files[0].replace(/\.(md|markdown|txt|docx?|pdf|pptx?|html?|json)$/i, '');
+  /* 先认文件名里的「项目N / 第N章」（编号可能是 3 也可能是 二）；认不出就取文件名前几个字。
+     多份时后面要加「 等N份」，短名就得再短一点，别让这一条又把题干挤窄。 */
+  const m = bare.match(/项目\s*([0-9一二三四五六七八九十]+)/)
+    || bare.match(/第\s*([0-9一二三四五六七八九十]+)\s*[章节讲课]/);
+  const name = m ? (/项目/.test(m[0]) ? '项目' : '第') + m[1] + (/第/.test(m[0]) ? '章' : '')
+    : ppCut(bare, files.length > 1 ? 4 : 6);
+  return name + (files.length > 1 ? ` 等${files.length}份` : '');
+}
+
 function mountPaper(sub) {
   if (PPAC) PPAC.abort();
   PPAC = new AbortController();
@@ -8491,8 +9102,22 @@ function mountPaper(sub) {
     paintFill();
   }
 
-  /* ================= 画布：缩放 + 尺寸 ================= */
+  /* ================= 画布：缩放 + 尺寸 =================
+     2026-11-21：把画布右侧那块空白让给题库栏（老师：「2560 的屏，右边空了一大块」）。
+     背景：k 封顶 1（1:1 = 打印尺寸，放大没有意义），2560 视口下纸只有 1588 宽，
+     右边实实在在空着 700+ px；题库栏展开也只有 clamp(360px,32vw,460px)，吃不到这块余量。
+     做法：把余量折成 --ppb-extra 写到 #ppBank 上（app.css 里 bank-open 的宽度是
+     calc(clamp(360px,32vw,460px) + var(--ppb-extra,0px))），题库栏变宽、卷面跟着变宽。
+     ⚠ extra 只能用「extra=0 时的余量 S」算，不能拿当前 #ppView 宽度直接算：
+       题库栏一变宽 #ppView 就变窄，直接算会自己把自己越推越宽／来回抖。
+       S = (view 宽 - 24 - 纸宽) + 当前 extra —— 这个和当前 extra 无关，反复算都是同一个数。
+     ⚠ 只有纸还是 1:1（k≈1，右侧真有空白）时才借宽度；k<1 说明纸已经撑满，
+       再借只会把纸压小，纯属帮倒忙。 */
   const NAT_W = 1588;
+  const ppBankExtra = () => {
+    const b = $('ppBank');
+    return b ? (parseFloat(b.style.getPropertyValue('--ppb-extra')) || 0) : 0;
+  };
   function fit() {
     const fr = $('ppFrame'), stage = $('ppStage');
     if (!fr || !stage || !view.clientWidth) return;
@@ -8502,10 +9127,32 @@ function mountPaper(sub) {
     fr.style.height = h + 'px';
     fr.style.width = NAT_W + 'px';
     fr.style.transform = `scale(${k})`;
-    stage.style.width = Math.round(NAT_W * k) + 'px';
+    const stageW = Math.round(NAT_W * k);
+    stage.style.width = stageW + 'px';
     stage.style.height = Math.round(h * k) + 'px';
     stage.dataset.k = k;
+    /* —— 右侧空白折给题库栏 —— */
+    const bank = $('ppBank'), pg = document.querySelector('.pp-page');
+    const wide = matchMedia('(min-width:1080px)').matches;
+    const open = !!(wide && bank && pg && pg.classList.contains('bank-open'));
+    const was = ppBankExtra();
+    const slackNow = view.clientWidth - 24 - stageW;      // 当前（旧 extra）下的真实空白
+    let extra = 0;
+    if (open && k > 0.999) extra = Math.max(0, Math.min(340, Math.round(slackNow + was)));
+    if (bank && Math.abs(extra - was) > 1) {
+      bank.style.setProperty('--ppb-extra', extra + 'px');
+      /* 题库栏变宽 → #ppView 变窄，这一帧量到的都是旧值：下一帧再摆一次。
+         因为 extra 用的是不随它变化的 S，第二遍算出来还是同一个数，不会来回抖。 */
+      const raf = window.requestAnimationFrame || (fn => setTimeout(fn, 16));
+      raf(() => raf(() => fit()));
+    }
+    /* 纸居中（.ppstage.center，见 app.css）：借完宽度还剩一截空白就让纸居中，
+       否则靠左 —— 别在右边留一条又空又不居中的缝。
+       left 用「本次设置之后」的余量，不是这一帧量到的（宽度有 200ms 过渡，量早了是旧值）。 */
+    const willShrink = open ? (extra - was) : -was;
+    stage.classList.toggle('center', (slackNow - willShrink) > 60);
   }
+
 
   let dirty = true;
   const visible = () => { const s = view.closest('[data-page]'); return !s || !s.hidden; };
@@ -8721,12 +9368,29 @@ function mountPaper(sub) {
   if (bankWide() && bankPinned) bankSet(true);              // 上次手动展开过：回来时保持展开
 
   /* ================= 右侧题库：点一下就换 ================= */
+  /* 点卷面某一题 → 右栏里那道题滚到列表中间并「发光」（2026-11-21）
+     老师原话：「我点击理论试卷的某一题 右边应该给我跳转到该题发光告诉我在哪儿
+     然后我可以看看答案或者其他信息方便」。
+     focusQid 记的是**这一格装的那道题在题库列表里的行键**：AI 题库是 qid（'Q123'），
+     内置题库是它在 THEORY 里的下标 —— 和行的 data-i 完全同一个口径，直接能查；
+     空格子记空（没有可发光的行）。2.5 秒后自动熄灭。 */
+  let focusQid = '', focusUntil = 0, focusT = 0, focusTold = false;
   function selectSlot(key, no, t) {
     if (!P || !P.find(s => s.t === t)) return;
     bankOpenTemp();                                         // 点了卷面某一格 → 展开题库栏
     bankKey = key;
     const sec = P.find(s => s.t === t);
     const idx = (sec.items || []).findIndex((q, i) => String(t + ':' + i) === key);
+    /* 记住这一格装的是哪道题，画完列表再滚过去 + 发光（见 renderBankNow 末尾） */
+    const it = sec.items[idx];
+    focusQid = (it && !it.__blank) ? (POOL ? qid(it) : String(qidx(it))) : '';
+    focusUntil = focusQid ? Date.now() + 2500 : 0;
+    focusTold = false;
+    clearTimeout(focusT);
+    if (focusQid) focusT = setTimeout(() => {
+      focusUntil = 0;
+      document.querySelectorAll('#ppBankList .bkq-focus').forEach(r => r.classList.remove('bkq-focus'));
+    }, 2500);
     renderBank();
     /* 选中某一格时，若它属于另一个题型，把右侧的题型切过去，省得老师自己找 */
     paintTabs(t);
@@ -8830,7 +9494,20 @@ function mountPaper(sub) {
       /* 格子数按 secSlots 算（填空题＝空数与题数取小，2026-11-21）：
          6 题 10 空时这颗药丸该显示「5/6」（6 道题里的第 5 道），显示 5/10 会让人当成还差 5 题。 */
       const total = secSlots(s), done = (P ? (P.find(x => x.t === s.t) || { items: [] }).items : []).filter(q => q && !q.__blank).length;
-      return `<button type="button" class="ppbt${s.t === t ? ' on' : ''}" data-btab="${s.t}" title="换到这一大题">${esc(pType(s.t).name)}<small>${done}/${total}</small></button>`;
+      /* 填空题按**空**给分，药丸就得报「还剩几个空可以加」（2026-11-21）：
+         原来写「7/10」，老师分不清是 7 题还是 7 空（截图里就问了）。
+         口径：上限 = 这一大题的空数 s.n；已填 = 卷面这些题的空数合计（blankItem 也算 1 空，
+         和 renderBankNow 组标题里的 dbl、卷面上「实际 N 题 / M 空」完全一致）。 */
+      let small = `${done}/${total}`, tip = '换到这一大题';
+      if (s.t === 'fill') {
+        const capB = +s.n || 0;
+        const usedB = (P ? (P.find(x => x.t === s.t) || { items: [] }).items : [])
+          .reduce((a, q) => a + ((q && !q.__blank) ? (typeof blanksOf === 'function' ? blanksOf(q) : 1) : 0), 0);
+        const leftB = Math.max(0, capB - usedB);
+        small = leftB > 0 ? `剩 ${leftB} 空` : '满';
+        tip = `换到这一大题 · 已填 ${usedB} 空 / 共 ${capB} 空，还能加 ${leftB} 空`;
+      }
+      return `<button type="button" class="ppbt${s.t === t ? ' on' : ''}" data-btab="${s.t}" title="${esc(tip)}">${esc(pType(s.t).name)}<small>${esc(small)}</small></button>`;
     }).join('');
     box.querySelectorAll('[data-btab]').forEach(b => b.onclick = () => {
       const tt = b.dataset.btab;
@@ -8944,6 +9621,20 @@ function mountPaper(sub) {
      preview 里再一遍、usePick 的 setTimeout 又来一遍），每遍都 wrap.innerHTML = 整块重建
      → 列表闪一下、滚动条回顶、悬停断掉。这里把重绘排到下一帧，同一帧来几次都只画一次。 */
   let bankRaf = 0;
+  /* 「发光」样式只注入一次（app.css 是别人的地盘，这里不碰）：
+     .bkq-focus = 主题色底色 + 2px 描边 + 一圈光晕，加一段 0.6s 的 keyframes 让它「亮起来」；
+     2.5 秒后类被摘掉，自然熄灭（见 selectSlot）。 */
+  (function mountFocusCss() {
+    if (document.getElementById('ppFocusCss')) return;
+    const st = document.createElement('style');
+    st.id = 'ppFocusCss';
+    st.textContent = '@keyframes ppGlow{0%{box-shadow:0 0 0 0 var(--acc),0 0 0 0 var(--acc)}'
+      + '55%{box-shadow:0 0 0 4px color-mix(in srgb,var(--acc) 40%,transparent),0 0 26px 2px var(--acc)}'
+      + '100%{box-shadow:0 0 0 2px var(--acc),0 0 18px -2px var(--acc)}}'
+      + '.bkq.bkq-focus{background:var(--accbg);border-color:var(--acc);'
+      + 'box-shadow:0 0 0 2px var(--acc),0 0 18px -2px var(--acc);animation:ppGlow .6s ease-out 1}';
+    document.head.appendChild(st);
+  })();
   function renderBank() {
     if (bankRaf) return;
     const raf = window.requestAnimationFrame || (fn => setTimeout(fn, 16));
@@ -9069,7 +9760,7 @@ function mountPaper(sub) {
         const ttl = why ? why + (oc0 ? '；' + ocTitle : '') : (oc0 ? ocTitle : '');
         body.push(`<div class="bkq${busy ? ' busy' : ''}${oc0 ? ' has-occ' : ''}${isCur ? ' on' : ''}${why ? ' noroom' : ''}" data-i="${pv}"${why ? ' data-no="1"' : ''} draggable="true" role="button" tabindex="0"${ttl ? ` title="${esc(ttl)}"` : ''}${oc0 ? ` data-occ="${esc(ocNames.join('、'))}" style="--bkq-oc:${esc(ocColor)}"` : ''}>
         <span class="bkq-ch">${POOL ? '章' + q.ch : 'P' + q.ch}</span><span class="bkq-q">${esc(ppCut(q.q, 60))}${why ? ` <em class="bkq-no">${/已在卷面/.test(why) ? '已在卷面' : '装不下'}</em>` : ''}</span>
-        ${POOL && q.src ? `<span class="bkq-src" title="${esc(q.src)}">${esc(ppCut(q.src, 20))}</span>` : ''}
+        ${POOL && q.src ? `<span class="bkq-src" title="${esc(q.src)}">${esc(ppSrcShort(q.src))}</span>` : ''}
         ${oc0 ? `<span class="bkq-occ" title="${esc(ocTitle)}">${esc(ocLetter)}</span>` : ''}
         ${busy ? '<span class="bkq-tag">本卷已用</span>' : ''}
         <button class="sm bkq-p" data-peek="${i}" aria-label="预览这道题">看</button></div>
@@ -9125,6 +9816,26 @@ function mountPaper(sub) {
     }
     /* 浮层指向的那道题已经不在列表里（换了题型/筛掉了）→ 收掉，免得飘着一块无主的内容 */
     if (keepPop && !wrap.querySelector(`.bkq[data-i="${keepPop}"]`)) bkPopKill();
+    /* 卷面刚点过的那道题：滚到列表可视区中间 + 发光（2026-11-21，见 selectSlot 的注释）。
+       ⚠ 只滚 #ppBankList 自己，绝不 scrollIntoView —— 那会把整个页面也滚走：
+       老师点的是卷面，结果页面跟着跳一下，等于把人晃到别的地方去。
+       重绘会整块重建 DOM，所以「加类」必须每次画完按 focusQid 补一次，直到 2.5s 到期。 */
+    if (focusQid && Date.now() < focusUntil) {
+      const row = wrap.querySelector(`.bkq[data-i="${focusQid}"]`);
+      if (row) {
+        const top = row.getBoundingClientRect().top - wrap.getBoundingClientRect().top + wrap.scrollTop;
+        wrap.scrollTop = Math.max(0, top - Math.max(0, (wrap.clientHeight - row.offsetHeight) / 2));
+        row.classList.add('bkq-focus');
+      } else if (!focusTold) {
+        /* 列表里根本没有这一行：要么这道题压根不在题池里（内置题库 / 已被换掉），
+           要么被上面的搜索词 / 章节筛选挡住了 —— 两种都说一句，别静默。 */
+        focusTold = true;
+        const inPool = (curPool() || []).some(q => q && (POOL ? qid(q) : String(qidx(q))) === focusQid);
+        toast(inPool
+          ? '这道题被上面的搜索词或章节筛选挡住了，清一下筛选就能在右边找到它'
+          : '这道题不在右边题库里（来自内置题库），没法跳过去；要换题请看卷面');
+      }
+    }
   }
 
   function fullHTML(q) {
@@ -9142,6 +9853,16 @@ function mountPaper(sub) {
       : t === 'judge' ? (q.a ? '正确' : '错误')
         : esc(hxAnsText(q.a)).replace(/\n/g, '<br>');
     h += `<div class="bkq-a"><b>答案</b>${a}</div>`;
+    /* 来源资料（2026-11-21）：行内只留短名（见 ppSrcShort），想看全的到这里看。
+       老师原话「这也没有说具体哪个文件参考 而且一堆 …这一题不一定用到了这么多文件参考啊
+       本质有问题存在冗余」—— 所以把整批文件列全，同时把「这是一起喂的、不代表每题都用上」
+       这句实话写在界面上：不装作很精确，老师才不会被那一长条误导。 */
+    const srcF = POOL ? ppSrcFiles(q.src) : [];
+    if (srcF.length) {
+      h += `<div style="margin-top:8px;font-size:12px;color:var(--mute)">
+        <b style="margin-right:6px">来源资料</b>${srcF.map(x => `<span style="display:block;padding-left:12px">· ${esc(x)}</span>`).join('')}
+        <p class="note" style="margin:4px 0 0">这批资料是 AI 出题时一起提供的，这道题不一定每份都用上。</p></div>`;
+    }
     return h;
   }
 
