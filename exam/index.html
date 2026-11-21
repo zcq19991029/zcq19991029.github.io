@@ -10228,6 +10228,55 @@ window.HXPaperImport = {
 })();
 
 ;
+/* 核定原版导出：保留学校模板的字体、密封线、分页和内嵌电路图。
+   只有当前卷面和绑定时的内容摘要一致才使用原版；改题后明确阻止导出旧文件。
+   原版仅在当前教师的试卷 payload 中登记，文件放在其私有 Storage 路径。 */
+'use strict';
+function hxOriginalSnapshot(P, C) {
+  const clean = x => {
+    if (Array.isArray(x)) return x.map(clean);
+    if (x && typeof x === 'object') return Object.fromEntries(Object.keys(x).sort().map(k => [k, clean(x[k])]));
+    return x == null ? null : x;
+  };
+  return JSON.stringify(clean({
+    header: Object.fromEntries(['year', 'term', 'course', 'ver', 'grade', 'major', 'mode', 'minutes'].map(k => [k, C[k]])),
+    sections: P.map(s => ({ t: s.t, n: s.n, cnt: s.cnt || 0, pts: s.pts, subPts: s.subPts || [],
+      items: s.items.map(q => ({ id: qid(q), t: q.t, q: q.q, o: q.o || null, a: q.a,
+        sub: q.sub || [], code: q.code || '', fig: q.fig || '' })) }))
+  }));
+}
+async function hxOriginalHash(bytes) {
+  const h = await crypto.subtle.digest('SHA-256', bytes);
+  return [...new Uint8Array(h)].map(n => n.toString(16).padStart(2, '0')).join('');
+}
+async function hxOriginalExport(kind, P, C) {
+  const b = C.originalExports;
+  if (!b) return null;
+  const hash = await hxOriginalHash(new TextEncoder().encode(hxOriginalSnapshot(P, C)));
+  if (hash !== b.sourceHash) throw new Error('卷面内容或设置已改变，请重新核定并关联原版文件后导出。');
+  const f = b[kind];
+  if (!f || !f.url || !f.sha256) throw new Error('这套卷缺少对应的核定原版文件。');
+  const u = new URL(f.url, location.href);
+  if (!/^https?:$/.test(u.protocol) || u.origin !== new URL(HXB).origin || !u.pathname.startsWith('/storage/v1/object/sign/exam-material/')) {
+    throw new Error('原版文件地址不在考试资料存储中。');
+  }
+  return {
+    title: '导出核定原版 · ' + f.name,
+    sub: '保留原模板与内嵌配图', kind: kind === 'answers' ? 'ans' : kind === 'pdf' ? 'pdf' : 'paper',
+    frameURL: kind === 'answers' ? b.answersPdf && b.answersPdf.url : b.pdf && b.pdf.url,
+    natW: 1000, natH: 1000, k: .7,
+    build: async () => {
+      const r = await fetch(u.href);
+      if (!r.ok) throw new Error('原版文件读取失败：' + r.status);
+      const bytes = await r.arrayBuffer();
+      if (await hxOriginalHash(bytes) !== f.sha256) throw new Error('原版文件校验失败，已停止导出。');
+      saveBlob(f.name, new Blob([bytes], { type: f.mime }));
+    },
+    toast: '已导出核定原版：' + f.name
+  };
+}
+
+;
 /* ================= 考试 · 理论试卷（2026-11-06 从单片机迁来；2026-11-19 第三轮大改） =================
    用户这一轮的原话（组卷部分）：
      「3.组卷可以设置一共哪些题型，由资料库题池题型决定  选择题是多少题，一题多少分
@@ -12323,11 +12372,12 @@ function mountPaper(sub) {
        · Word 试卷复用 paperDocHTML(edit:false)（同为 A3 1588px，0.45 缩放）；
        · 答案 / 细目表用新生成的打印级 HTML（A4 竖/横，纸张真实宽高，0.6 缩放）。
        iframe 加载后量出自己的文档高（scrollHeight）再定容器高，不靠猜。 */
-    if (isDoc && o.frameHTML) {
+    if (isDoc && (o.frameHTML || o.frameURL)) {
       const f = $('ppxFrame'), doc = $('ppxDoc');
       const natW = o.natW || NAT_W, k = o.k || 0.6;
       if (f) {
-        f.srcdoc = o.frameHTML;
+        if (o.frameURL) f.src = o.frameURL;
+        else f.srcdoc = o.frameHTML;
         f.style.width = natW + 'px';
         f.style.height = (o.natH || 1000) + 'px';
         f.style.transform = 'scale(' + k + ')';
@@ -12375,7 +12425,11 @@ function mountPaper(sub) {
   F('ppSpace', 'space');
 
   const base = () => `${C.course}_期末试卷${C.ver}卷`;
-  $('ppPdf').onclick = () => {
+  $('ppPdf').onclick = async () => {
+    if (P && C.originalExports) {
+      try { exportPreview(await hxOriginalExport('pdf', P, C)); } catch (e) { toast(e.message); }
+      return;
+    }
     const fr = $('ppFrame');
     if (!fr || !fr.contentDocument || !fr.contentDocument.body || !fr.contentDocument.body.getAttribute('data-pages')) { toast('预览还没排好，稍等一下再点'); return; }
     exportPreview({
@@ -12390,8 +12444,12 @@ function mountPaper(sub) {
       }
     });
   };
-  if ($('ppWord')) $('ppWord').onclick = () => {
+  if ($('ppWord')) $('ppWord').onclick = async () => {
     if (!P) return;
+    if (C.originalExports) {
+      try { exportPreview(await hxOriginalExport('paper', P, C)); } catch (e) { toast(e.message); }
+      return;
+    }
     exportPreview({
       title: `导出 Word 试卷 · ${C.course} 期末试卷（${C.ver}卷）`,
       sub: exportSub('word'), kind: 'paper',
@@ -12400,8 +12458,12 @@ function mountPaper(sub) {
       toast: '已导出 Word 试卷（A3 横向两栏）'
     });
   };
-  if ($('ppAns')) $('ppAns').onclick = () => {
+  if ($('ppAns')) $('ppAns').onclick = async () => {
     if (!P) return;
+    if (C.originalExports) {
+      try { exportPreview(await hxOriginalExport('answers', P, C)); } catch (e) { toast(e.message); }
+      return;
+    }
     exportPreview({
       title: `导出参考答案 · ${C.course} 期末试卷（${C.ver}卷）`,
       sub: exportSub('ans'), kind: 'ans',
