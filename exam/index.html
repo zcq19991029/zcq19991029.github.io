@@ -788,6 +788,9 @@ html[data-hx-mode="dark"] #ppDrawerMask.on { background: rgba(0, 0, 0, .45); }
 .bkq-figbar b { font-weight: 600; }
 .bkq-figbar .sm { padding: 3px 10px; font-size: 12px; }
 .bkq-figbar .note { font-size: 11.5px; }
+/* 行内「换图」小按钮：比「看」还低调，只在有图/识图/设计题上出现 */
+.bkq-figp { font-size: 11.5px; padding: 2px 8px; opacity: .85; }
+.bkq-figp:hover { opacity: 1; }
 .bkq-tag { font-size: 11px; color: var(--mute); white-space: nowrap; }
 .bkq-tag.on { color: var(--acc); font-weight: 600; }
 /* 填空题「这一格已经装不下这道题」（2026-11-21）：
@@ -11514,6 +11517,10 @@ function mountPaper(sub) {
              根本分不出是正反转还是星三角，老师没法「迅速确认」。 */
         /* 2026-11-21：上传试卷带进来的位图存在 q.o.img 上（q.fig 那一列存不了长 URL），
            所以「这题有没有图」不能只看 q.fig，统一走 hxHasFig()。 */
+        /* 「换图」按钮显不显示（2026-11-21）：有图 / 识图题 / 设计题 —— 别的题没有图要换。
+           ⚠ 一开始把它放在「看」展开的那块（.bkq-d）里，实测那块根本没进 DOM（线上查 .bkq-d 数量 = 0），
+           所以挪到行上，和「看」并排，保证看得见点得到。 */
+        const figWant = !!(POOL && (hxHasFig(q) || pIsShitu(q.t) || pIsSheji(q.t)));
         const figLg = /^ckt/i.test(String(q.fig || '')) || (hxQImg(q) && (subsN > 1 || /识图|设计/.test(String(q.secTitle || ''))));
         const subsTag = subsN > 1 ? `<i>${subsN} 小问</i>` : '';
         const figInline = (!figLg && hxHasFig(q)) ? `<span class="bkq-fig">${hxFig(q.fig, false, q)}${subsTag}</span>` : '';
@@ -11523,7 +11530,7 @@ function mountPaper(sub) {
         ${POOL && q.src ? `<span class="bkq-src" title="${esc(q.src)}">${esc(ppSrcShort(q.src))}</span>` : ''}
         ${oc0 ? `<span class="bkq-occ" title="${esc(ocTitle)}">${esc(ocLetter)}</span>` : ''}
         ${busy ? '<span class="bkq-tag">本卷已用</span>' : ''}
-        <button class="sm bkq-p" data-peek="${i}" aria-label="预览这道题">看</button>${figWide}</div>
+        ${figWant ? `<button class="sm bkq-figp" data-qfig="${esc(qid(q))}" title="换这道题的配图（只改图，题干小问答案不动）">换图</button>` : ''}<button class="sm bkq-p" data-peek="${i}" aria-label="预览这道题">看</button>${figWide}</div>
         <div class="bkq-d" data-d="${i}" hidden>${fullHTML(q)}</div>`);
       });
       /* 这一大题一道符合条件的都没有 → 不占屏（否则滑一堆空标题） */
