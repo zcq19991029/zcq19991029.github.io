@@ -8660,11 +8660,32 @@ window.HXLib = { items: libItems, load: libLoad, sync: libSync, add: libAdd, ove
 'use strict';
 
 const PAPER_KEY = 'exam.paper';
+/* 科目自己的默认卷（2026-11-21）：
+   电气接线原理的真题（A/B/C 三套 2026 期末卷）只有四道大题 ——
+   单选 10 题×3 分 = 30、填空 15 空×2 分 = 30、识图题 1 道 30 分、设计题 1 道 10 分，
+   **没有判断题，也没有名词解释/简答/程序分析**。用单片机那套默认（判断 10 题、名词 3 题…）
+   一打开就是一张不像真卷的卷子，老师每次都得手改八行。
+   所以给这个科目配一份默认：题型、题数、分值、课程名、时长全按真题来。
+   ⚠ 只在「这个科目还没存过设置」时生效（见下面的 C.blank 判定），老师存过的卷子一个字都不动。 */
+const PAPER_DEFAULT_BY_SUB = {
+  wiring: {
+    course: '电气接线原理', minutes: 80,
+    sections: [
+      { t: 'choice', n: 10, pts: 3 },
+      { t: 'fill', n: 15, pts: 2 },        // 填空的 n 是**空数**，15 空 × 2 分 = 30 分
+      { t: 'shituti', n: 1, pts: 30 },
+      { t: 'shejiti', n: 1, pts: 10 }
+    ]
+  }
+};
 function paperLoad(sub) {
   const all = store.get(PAPER_KEY, {}) || {};
-  const C = Object.assign({}, PAPER_DEFAULT, all[sub] || {});
+  const DEF = PAPER_DEFAULT_BY_SUB[sub]
+    ? Object.assign({}, PAPER_DEFAULT, PAPER_DEFAULT_BY_SUB[sub])
+    : PAPER_DEFAULT;
+  const C = Object.assign({}, DEF, all[sub] || {});
   C.weights = Object.assign({}, PAPER_DEFAULT.weights, C.weights || {});
-  const secs = Array.isArray(C.sections) && C.sections.length ? C.sections : PAPER_DEFAULT.sections;
+  const secs = Array.isArray(C.sections) && C.sections.length ? C.sections : DEF.sections;
   /* 2026-11-21：这里只挑 t/n/pts 三个字段重建，填空题新加的**题数** cnt 必须一起带上 ——
      漏了就是「设置里填的 6 题，一刷新又变回不限」（读出来就丢）。老存档没有 cnt，不受影响。 */
   C.sections = secs.map(s => {
