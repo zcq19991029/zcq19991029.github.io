@@ -767,15 +767,21 @@ html[data-hx-mode="dark"] #ppDrawerMask.on { background: rgba(0, 0, 0, .45); }
 .bkq-main { min-width: 0; display: flex; flex-direction: column; gap: 5px; }
 .bkq-q { font-size: 13px; line-height: 1.55; color: var(--ink2); overflow-wrap: anywhere; }
 .bkq.on .bkq-q { color: var(--ink); }
-.bkq-fig { display: flex; align-items: center; gap: 8px; }
+.bkq-fig { display: flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%; }
 .bkq-fig .ep-fig { margin: 0; padding: 0; background: none; border: 0; border-radius: 0; justify-content: flex-start; }
 .bkq-fig .ep-fig.sm svg { height: 56px !important; }
+/* 位图配图（2026-11-21 晚，老师原话「右边侧边栏 A1 图的电气原理图不还是旧版本错的吗」）：
+   上传试卷带进来的图是 <img>，上一版只给 svg 定了高度，img 一律按**原始像素**铺开 ——
+   2682×785 的整张电路图在 480px 宽的抽屉里排成 416×791，一格就占满整屏；
+   更糟的是它把 grid 的 1fr 挤成 0，题干被压成「一列一个字」。这里按 svg 的同一套口径补上。 */
+.bkq-fig .ep-fig.sm img { height: 56px; width: auto; max-width: 100%; object-fit: contain; display: block; }
 /* 识图题的整张电路图（2026-11-21 晚）：不再挤在题干右边，占满整行按栏宽铺开，
    最多 200px 高 —— 76px 时正反转和星三角看起来都是「一团黑线」，认不出来。 */
-.bkq-fig.wide { grid-column: 1 / -1; margin-top: 4px; }
+.bkq-fig.wide { grid-column: 1 / -1; margin-top: 4px; min-width: 0; }
 .bkq-fig.wide .ep-fig.sm { display: block; width: 100%; }
 .bkq-fig.wide .ep-fig.sm svg { height: auto !important; width: 100% !important; max-height: 200px !important; }
-.bkq-fig > i { font-style: normal; font-size: 11px; color: var(--mute); }
+.bkq-fig.wide .ep-fig.sm img { width: 100%; height: auto; max-height: 200px; object-fit: contain; }
+.bkq-fig > i { font-style: normal; font-size: 11px; color: var(--mute); flex: none; white-space: nowrap; }
 .bkq-tag { font-size: 11px; color: var(--mute); white-space: nowrap; }
 .bkq-tag.on { color: var(--acc); font-weight: 600; }
 /* 填空题「这一格已经装不下这道题」（2026-11-21）：
@@ -7273,7 +7279,10 @@ function paperStats(P){
    底边还比汉字高 0.8px（10.5pt 下），再加上括号里塞的是半角空格，10.5pt 打出来就像一对上标。
    所以这里只动「空答案槽」这一处：
      · 内容统一成「（　　）」两个全角空格 —— 学生要写的是一整个字母，原来半角空格只有 1em 宽；
-     · 外面套 .ansb 做光学补偿（放大 1.167em、下沉 0.05em），墨迹正好和汉字同高、底边落回基线。
+     · 外面套 .ansb 只做 nowrap，**字号与正文完全一样**。
+   2026-11-21 老师原话：「卷子文字大小不应该统一吗」—— 上一版这里放大到 1.167em 做墨迹补偿，
+   结果括号看着比正文字大一号（截图放大一看非常明显），像是「括号用了大字号」。字号统一优先，
+   回到 1em、不做下沉；宋体括号墨迹本来就比汉字矮一点，那是字体本身的形，不是字号问题。
    句子里的「（1）」「（A）」「main()」这类带内容的括号一律不碰（正则只认「空 + 收尾」）。
    Word 导出不走这里（docxStem 直接拿 q.q），Word 版的括号保持宋体原样。 */
 const ANS_SLOT=/（[ \u3000]*）(?=[。．.？?，,、；;：:！!…\s]*$)/;
@@ -7499,13 +7508,14 @@ table{border-collapse:collapse;width:100%}
 .sech .box div{height:18pt;line-height:18pt}.sech .box .blank{border-top:1px solid #000;height:22pt}
 .sech .tt{padding-left:3mm;vertical-align:middle;font-family:"SimHei","黑体",sans-serif;font-weight:bold;white-space:nowrap}
 .q{margin:0}.q.sub{padding-left:1em}
-/* 题干末尾的答案括号（2026-11-20，和上面 ansSlot() 配套）：
+/* 题干末尾的答案括号（2026-11-20，2026-11-21 改字号）：
    宋体的全角「（」「）」墨迹只有 0.85 个汉字高、底边还比汉字高 0.8px，10.5pt 下像一对上标。
-   这里按 canvas 量出来的墨迹盒做补偿：16.33px 时括号墨迹 14px = SimSun 汉字墨迹 14px，
-   再下沉 0.05em 让底边压回基线。汉字本身仍是 SimSun 五号，行高固定 18 磅 —— 放大后的
-   行内盒不会把行高撑开，分栏计算（hOf 量 .q 的高度）也不受影响。
+   上一版按 canvas 量出来的墨迹盒把它放大到 1.167em 补偿，墨迹高度是对上了，但**字号看着不对**：
+   括号比周围汉字大一号，一眼就能看出来（2026-11-21 老师：「卷子文字大小不应该统一吗」）。
+   现在**字号回到 1em**（与正文完全同号），只保留 0.05em 的下沉 —— 下沉正好补掉宋体括号
+   「底边比汉字高 0.8px（10.5pt）」那一点，看着不再像角标，又不会被看成「括号用了大字号」。
    nowrap：括号连同里面 2 个全角空格不能被拆到两行。 */
-.ansb{font-size:1.167em;vertical-align:-.05em;white-space:nowrap}
+.ansb{white-space:nowrap;vertical-align:-.05em}
 /* 判断题的答题括号：跟着题干文字一起排（上面 itemHTML 已去掉 flex）。
    · nowrap：保证「（」和「）」连同里面 2 个全角空格不被拆到两行；
    · 右边留一个槽（padding-right:4.5em）+ 括号自己负右边距（margin-right:-4em）：
