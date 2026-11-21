@@ -2031,9 +2031,24 @@ const breaker = (x, y = 30) => {
 };
 const cup = x => P(`M${x} 21 A5 5 0 0 1 ${x} 31`); // 接触器功能：静触点下端靠刀片一侧的半圆（同教材图 1-19b）
 const rotary = (x, y) => P(`M${x + 4} ${y - 6} H${x} V${y + 6} H${x - 4}`); // 旋转操作（Ƒ 形），组合开关用
-// 延时符号：刀片中点向左两条平行线 + 圆弧。通电延时圆弧向左凸，断电延时向右凸（教材图 1-22，方向不能改）
-const delay = (bx, y, on, e = on ? 15 : 10) => L(bx, y - 2, bx - e, y - 2) + L(bx, y + 2, bx - e, y + 2)
-  + (on ? P(`M${bx - 10} ${y - 6} A6 6 0 0 0 ${bx - 10} ${y + 6}`) : P(`M${bx - 16} ${y - 6} A6 6 0 0 1 ${bx - 16} ${y + 6}`));
+/* 延时标记（2026-11-20 第三次修正，照教材 + 仿真 2.5 实拍）：
+   教材画的是「一个半圆 + 一段短横线」，不是老版那「两条平行线 + 弧」——
+   后者在 64px 的选项图里会糊成一个小三角，学生根本分不出通电 / 断电。
+   仿真 2.5 里常开、常闭两种延时触点的半圆**都在导线左侧、开口朝右（朝触点）**，
+   半圆竖直直径大约在刀片左侧 9px 处，短横线从半圆向右拉到刀片跟前（差 2px 不接触）。
+   上一版把短横线画成 7px 悬空的一段，半圆又不靠近刀片，看着就是个飘着的括号。
+   通电延时：半圆开口朝触点（弧背朝外）；断电延时：开口朝外 —— 只有这一点不同，
+   位置和短横线两种完全一样（仿真截图里两种延时就是同一根短横线）。
+   y 取 35（刀尖到支点之间偏下），不能放 39 会跟刀片根部叠在一起。 */
+const delay = (x, on, k = 'no') => {
+  const y = 35, ax = x + bladeDX(k, y) - 9;
+  const arc = on
+    ? P(`M${ax} ${y - 6} A6 6 0 0 0 ${ax} ${y + 6}`)   // 开口朝右（朝刀片）
+    : P(`M${ax} ${y - 6} A6 6 0 0 1 ${ax} ${y + 6}`);  // 开口朝左（朝外）
+  /* 短横线跟着开口走：通电延时伸向刀片（仿真里就是这根），断电延时伸向弧背一侧。
+     否则断电延时的弧正好鼓到短横线上，64px 下糊成一团墨点。 */
+  return arc + (on ? L(ax, y, ax + 7, y) : L(ax - 7, y, ax, y));
+};
 const speed = (x, y) => `<rect x="${x - 12}" y="${y - 6}" width="12" height="12"/><text x="${x - 6}" y="${y + 4}" font-size="11" font-style="italic" text-anchor="middle" fill="currentColor" stroke="none" font-family="Times New Roman,serif">n</text>`;
 const txt = (x, y, s, size = 14) => `<text x="${x}" y="${y}" font-size="${size}" text-anchor="middle" fill="currentColor" stroke="none" font-family="Arial,sans-serif">${s}</text>`;
 const three = (fn, extra = '') => [20, 50, 80].map(x => fn(x)).join('') + extra;
@@ -2056,10 +2071,10 @@ const SYM = {
   qs3r: ['-20 0 120 80', three(no, L(-10, 39, 76, 39, 1) + rotary(-10, 39)), '三极组合开关'],
   kton_coil: ['0 0 40 80', L(20, 0, 20, 26) + L(20, 54, 20, 80) + '<rect x="4" y="26" width="32" height="28"/><rect x="4" y="26" width="9" height="28"/>' + L(4, 26, 13, 54) + L(13, 26, 4, 54), '通电延时型时间继电器线圈'],
   ktoff_coil: ['0 0 40 80', L(20, 0, 20, 26) + L(20, 54, 20, 80) + '<rect x="4" y="26" width="32" height="28"/><rect x="4" y="26" width="9" height="28" fill="currentColor"/>', '断电延时型时间继电器线圈'],
-  kton_no: ['-4 0 44 80', no(28) + delay(bladeX('no', 28), 39, 1), '时间继电器通电延时动合（常开）触点'],
-  kton_nc: ['-4 0 44 80', nc(20) + delay(bladeX('nc', 20), 39, 1), '时间继电器通电延时动断（常闭）触点'],
-  ktoff_no: ['-4 0 44 80', no(28) + delay(bladeX('no', 28), 39, 0), '时间继电器断电延时动合（常开）触点'],
-  ktoff_nc: ['-4 0 44 80', nc(20) + delay(bladeX('nc', 20), 39, 0), '时间继电器断电延时动断（常闭）触点'],
+  kton_no: ['-4 0 44 80', no(28) + delay(28, 1, 'no'), '时间继电器通电延时动合（常开）触点'],
+  kton_nc: ['-4 0 44 80', nc(20) + delay(20, 1, 'nc'), '时间继电器通电延时动断（常闭）触点'],
+  ktoff_no: ['-4 0 44 80', no(28) + delay(28, 0, 'no'), '时间继电器断电延时动合（常开）触点'],
+  ktoff_nc: ['-4 0 44 80', nc(20) + delay(20, 0, 'nc'), '时间继电器断电延时动断（常闭）触点'],
   ks_no: ['-20 0 60 80', no(24) + L(bladeX('no', 24), 39, -6, 39, 1) + speed(-6, 39), '速度继电器动合（常开）触点'],
   ks_nc: ['-20 0 60 80', nc(16) + L(bladeX('nc', 16), 39, -6, 39, 1) + speed(-6, 39), '速度继电器动断（常闭）触点'],
   m3: ['0 0 100 100', L(34, 0, 38, 29) + L(50, 0, 50, 26) + L(66, 0, 62, 29) + '<circle cx="50" cy="56" r="30"/>' + txt(50, 56, 'M', 20) + txt(50, 76, '3～', 13), '三相异步电动机'],
@@ -2128,8 +2143,8 @@ const CB = {
   sbno: () => no(20) + push(bladeX('no', 20), 39),
   sbnc: () => nc(20) + push(bladeX('nc', 20), 39),
   frnc: () => nc(20) + L(bladeX('nc', 20), 39, 4, 39, 1) + heat(4, 39),
-  ktno: () => no(20) + delay(bladeX('no', 20), 39, 1),
-  ktnc: () => nc(20) + delay(bladeX('nc', 20), 39, 1),
+  ktno: () => no(20) + delay(20, 1, 'no'),
+  ktnc: () => nc(20) + delay(20, 1, 'nc'),
   ktc: () => L(20, 0, 20, 26) + L(20, 54, 20, 80) + '<rect x="4" y="26" width="32" height="28"/><rect x="4" y="26" width="9" height="28"/>' + L(4, 26, 13, 54) + L(13, 26, 4, 54),
 };
 // 主电路顶部：三相端子 + QF + FU1（L1/L2/L3 标签在上）
