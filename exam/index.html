@@ -622,6 +622,8 @@ button.danger { color: var(--bad, #d70015); }
 .lib-m b { font-size: 13.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lib-m .note { font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lib-a { display: flex; flex-wrap: wrap; gap: 6px; }
+/* 配套文件那行（2026-11-21）：试卷 / 参考答案 / 双向细目表 —— 一行小字，别抢卷名 */
+.lib-files { font-size: 11.5px; color: var(--ink3, #6b7280); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: help; }
 /* 删：只用红字，不用 button.danger —— 那个类在 BASE_CSS 里是**红底**，
    而本页又有一条 button.danger{color:var(--bad)} 把字也刷成红色，红字红底会变成一块看不出字的大红块（实测截图踩到）。 */
 .lib-a [data-lib="del"] { color: var(--bad, #d70015); }
@@ -754,13 +756,26 @@ html[data-hx-mode="dark"] #ppDrawerMask.on { background: rgba(0, 0, 0, .45); }
 .ppkn { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 12.5px; color: var(--ink2); }
 .ppkn label { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
 .ppb-l { display: grid; gap: 2px; align-content: start; padding-bottom: 60px; }
-.bkq { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto auto; gap: 8px; align-items: center; padding: 8px 8px;
+.bkq { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto auto; gap: 8px; align-items: start; padding: 8px 8px;
   border: 1px solid transparent; border-radius: 10px; cursor: pointer; }
 .bkq:hover { background: var(--field2); }
 .bkq.on { background: var(--accbg); border-color: var(--acc); }
-.bkq-ch { font: 600 11px/1.5 Consolas, "Cascadia Mono", monospace; color: var(--mute); }
-.bkq-q { font-size: 13px; color: var(--ink2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.bkq-ch { font: 600 11px/1.5 Consolas, "Cascadia Mono", monospace; color: var(--mute); padding-top: 2px; }
+/* 题干 + 图（2026-11-21 晚）：老师要「展示题目完整模样 方便迅速确认包括图片」，
+   所以这里不再 -webkit-line-clamp 截两行，整段铺开；有图就在题干下面带一张 56px 的图。
+   识图题那种整张电路图，56px 看不清标注细节，但足够认出「是不是这道」—— 细节点「看」。 */
+.bkq-main { min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.bkq-q { font-size: 13px; line-height: 1.55; color: var(--ink2); overflow-wrap: anywhere; }
 .bkq.on .bkq-q { color: var(--ink); }
+.bkq-fig { display: flex; align-items: center; gap: 8px; }
+.bkq-fig .ep-fig { margin: 0; padding: 0; background: none; border: 0; border-radius: 0; justify-content: flex-start; }
+.bkq-fig .ep-fig.sm svg { height: 56px !important; }
+/* 识图题的整张电路图（2026-11-21 晚）：不再挤在题干右边，占满整行按栏宽铺开，
+   最多 200px 高 —— 76px 时正反转和星三角看起来都是「一团黑线」，认不出来。 */
+.bkq-fig.wide { grid-column: 1 / -1; margin-top: 4px; }
+.bkq-fig.wide .ep-fig.sm { display: block; width: 100%; }
+.bkq-fig.wide .ep-fig.sm svg { height: auto !important; width: 100% !important; max-height: 200px !important; }
+.bkq-fig > i { font-style: normal; font-size: 11px; color: var(--mute); }
 .bkq-tag { font-size: 11px; color: var(--mute); white-space: nowrap; }
 .bkq-tag.on { color: var(--acc); font-weight: 600; }
 /* 填空题「这一格已经装不下这道题」（2026-11-21）：
@@ -8534,6 +8549,18 @@ function libDupDetail(A, B) {
 /* 纯函数：只要百分比（单测直接打这三个返回值） */
 function libDupRate(A, B) { return libDupDetail(A, B).rate; }
 
+/* 配套文件（2026-11-21）：老师交卷时要「试卷 + 参考答案及评分标准 + 命题双向细目表」三件套一起交。
+   这三份 Word 是老师在自己电脑上做的，库里存的是路径 + 文件名（payload.files），
+   这里只把「这套卷跟着哪三个文件」写在卡片上 —— 免得过一学期谁也说不清是哪个文件配哪套卷。
+   ⚠ 不要在网页里做「点一下打开文件」：http 页面打不开 file:// 链接，只会静默失败。 */
+function libFilesHTML(it) {
+  const fs2 = (it && it.payload && Array.isArray(it.payload.files)) ? it.payload.files.filter(f => f && (f.name || f.path)) : [];
+  if (!fs2.length) return '';
+  const short = k => String(k || '').replace('参考答案及评分标准', '参考答案').replace('命题双向细目表', '双向细目表');
+  const tip = fs2.map(f => short(f.k) + '：' + (f.name || f.path)).join('\n');
+  return `<span class="note lib-files" title="${esc(tip)}">配套：${fs2.map(f => esc(short(f.k))).join(' · ')}</span>`;
+}
+
 /* 列表：读 libCache（libLoad 已经把它填好），本身不发请求 —— 要发请求的地方只有 drawLib 一处 */
 function libListHTML(kind, sub) {
   const items = libItems(kind, sub);
@@ -8542,7 +8569,7 @@ function libListHTML(kind, sub) {
     : `<p class="note lib-src">存在云端，换电脑、换教室也看得到。</p>`;
   if (!items.length) return `<p class="note lib-empty">还没有存过卷子。组好一套、起个名字存下，下一届直接用。</p>${src}`;
   return `<div class="lib-list">${items.map(it => `<div class="lib-i" data-lib-id="${esc(it.id)}">
-    <div class="lib-m"><b>${esc(it.name)}</b><span class="note">${esc(libWhen(it.at))}${libCode(it) ? ' · ' + esc(libCode(it)) : ''}${it._sync === 1 ? '' : ' · 待上传'}</span></div>
+    <div class="lib-m"><b>${esc(it.name)}</b><span class="note">${esc(libWhen(it.at))}${libCode(it) ? ' · ' + esc(libCode(it)) : ''}${it._sync === 1 ? '' : ' · 待上传'}</span>${libFilesHTML(it)}</div>
     <div class="lib-a"><button class="sm pri" data-lib="use">选用</button><button class="sm" data-lib="ren">改名</button><button class="sm" data-lib="del">删</button></div>
   </div>`).join('')}</div>${src}`;
 }
@@ -9779,12 +9806,27 @@ function mountPaper(sub) {
         if (oc0) occCount++;
         if (why) noRoomN++;
         const ttl = why ? why + (oc0 ? '；' + ocTitle : '') : (oc0 ? ocTitle : '');
+        /* 2026-11-21 晚（老师原话「右边题库拖动页面我要展示题目完整模样 方便我迅速确认包括图片」）：
+           行内不再截到 60 字、不再两行截断 —— 题干整段铺开，有图就把图带出来（56px 高），
+           识图题这种「一张图 + N 个小问」的题，行里直接把图和小问数摆出来，不用点「看」。
+           大图（整张电路图）在 56px 里看得清轮廓 + 关键标注，够判断「是不是这道」；
+           要看细节还是点「看」——那一块是完整题（选项 / 小问 / 答案 / 来源）。 */
+        const subsN = hxAnsLines(q.sub).length;
+        /* 图的摆法分两种（2026-11-21 晚，第二次调）：
+           · 单个元器件符号 → 跟在题干下面一行，56px，不占地方；
+           · 识图题那种整张电路图（id 以 ckt 开头）→ 单独占满整行（grid-column:1/-1），
+             按栏宽铺到最多 200px 高。76px 塞在题干右边时缩成一团黑线，
+             根本分不出是正反转还是星三角，老师没法「迅速确认」。 */
+        const figLg = /^ckt/i.test(String(q.fig || ''));
+        const subsTag = subsN > 1 ? `<i>${subsN} 小问</i>` : '';
+        const figInline = (!figLg && q.fig) ? `<span class="bkq-fig">${hxFig(q.fig, false)}${subsTag}</span>` : '';
+        const figWide = (figLg && q.fig) ? `<span class="bkq-fig wide">${hxFig(q.fig, false)}${subsTag}</span>` : '';
         body.push(`<div class="bkq${busy ? ' busy' : ''}${oc0 ? ' has-occ' : ''}${isCur ? ' on' : ''}${why ? ' noroom' : ''}" data-i="${pv}"${why ? ' data-no="1"' : ''} draggable="true" role="button" tabindex="0"${ttl ? ` title="${esc(ttl)}"` : ''}${oc0 ? ` data-occ="${esc(ocNames.join('、'))}" style="--bkq-oc:${esc(ocColor)}"` : ''}>
-        <span class="bkq-ch">${POOL ? '章' + q.ch : 'P' + q.ch}</span><span class="bkq-q">${esc(ppCut(q.q, 60))}${why ? ` <em class="bkq-no">${/已在卷面/.test(why) ? '已在卷面' : '装不下'}</em>` : ''}</span>
+        <span class="bkq-ch">${POOL ? '章' + q.ch : 'P' + q.ch}</span><div class="bkq-main"><span class="bkq-q">${esc(q.q)}${why ? ` <em class="bkq-no">${/已在卷面/.test(why) ? '已在卷面' : '装不下'}</em>` : ''}</span>${figInline}</div>
         ${POOL && q.src ? `<span class="bkq-src" title="${esc(q.src)}">${esc(ppSrcShort(q.src))}</span>` : ''}
         ${oc0 ? `<span class="bkq-occ" title="${esc(ocTitle)}">${esc(ocLetter)}</span>` : ''}
         ${busy ? '<span class="bkq-tag">本卷已用</span>' : ''}
-        <button class="sm bkq-p" data-peek="${i}" aria-label="预览这道题">看</button></div>
+        <button class="sm bkq-p" data-peek="${i}" aria-label="预览这道题">看</button>${figWide}</div>
         <div class="bkq-d" data-d="${i}" hidden>${fullHTML(q)}</div>`);
       });
       /* 这一大题一道符合条件的都没有 → 不占屏（否则滑一堆空标题） */
@@ -12127,7 +12169,7 @@ function eTabLabel(x, dup) {
 async function electronicTeacherHome(msg) {
   app().innerHTML = `<header class="ex-h"><div class="eyebrow">教师</div><h1>考试</h1><p>从资料库题池组一套电子卷，发布考试码给学生</p></header>${msg ? `<div class="errs">${E_ESC(msg)}</div>` : ''}<div class="row" style="margin-bottom:14px"><button class="pri" id="btnNew">发布电子试卷</button></div><div id="list">${fxLoad('加载中…')}</div>`;
   if (window.HXLoadFx) HXLoadFx.auto($('list')); $('btnNew').onclick = () => electronicEditExam();
-  let list; try { [list, CLASSES] = await Promise.all([rpc('hx_exam_mine'), CLASSES || rpc('hx_my_classes')]); } catch (e) { $('list').innerHTML = `<div class="errs">${E_ESC(e.message)}</div>`; return; }
+  let list; try { [list, CLASSES] = await Promise.all([rpc('hx_exam_mine'), CLASSES || rpc('hx_my_classes')]); } catch (e) { const b0 = $('list'); if (b0) b0.innerHTML = `<div class="errs">${E_ESC(e.message)}</div>`; return; }
   /* 2026-11-17：成绩发布状态 + 撤销/重新发布 + 删除整场。
      发布状态单独走 hx_exam_rel_list（hx_exam_mine 是 returns table，加列等于改返回类型，
      不能 create or replace）。这一支读不出来时**不挡整页**：卡片照画，只把发布按钮置灰并写明原因。 */
@@ -12190,7 +12232,11 @@ async function electronicTeacherHome(msg) {
   };
 
   const drawList = () => {
-    $('list').innerHTML = `<section class="ex-sec">
+    /* 2026-11-21 修：这个函数是 await rpc 之后才跑的，那时候老师可能已经切到别的页
+       （点「理论试卷」/ 切科目 → app() 整块 innerHTML 被换掉），#list 就不在了。
+       不判空会抛 Cannot set properties of null，把后面的脚本带停。 */
+    const box0 = $('list'); if (!box0 || !box0.isConnected) return;
+    box0.innerHTML = `<section class="ex-sec">
         <h2 class="ex-sec-t">待批改 <span class="ex-sec-n">${pend.length}</span></h2>
         <div class="ex-sec-b">${pend.length ? pend.map(x => cardHTML(x, false)).join('') : emptyCard('没有待批改的卷子。')}</div>
       </section>
@@ -12199,7 +12245,7 @@ async function electronicTeacherHome(msg) {
         <div class="ex-sec-b" id="doneBox"${EX_DONE_OPEN ? '' : ' hidden'}></div>
       </section>`;
     drawDone();
-    bindList($('list'));
+    bindList(box0);
   };
 
   const byId = id => list.find(x => x.id === +id);
