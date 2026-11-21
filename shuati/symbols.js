@@ -1,21 +1,39 @@
 // 华夏工具 · 刷题：电气图形符号（按 GB/T 4728 画法，代码绘制）。题目里用 fig: '名字' 引用（题干 q.fig、选项 o.fig），只认这里有的名字，不接收外部 SVG。
-// 竖直画法：上端接静触点，下端是动触点支点。
-//   动合（常开）：上静触点竖线到 y=26 为止；刀片从支点 (x,54) 向左斜上，刀尖停在 (x-8,28)，
-//                 比静触点端点低 2、左 8，缺口是「斜着甩开」的一道缝（纯水平缝会被读成画歪的横线）。
-//   动断（常闭）：上静触点竖线到 y=26，再向右横出一段到 (x+12,26)；刀片从支点斜上，
-//                 刀尖探到 (x+13,25)，斜着越过横臂端 1 个单位——看着是刀「压」在横臂端头上，不是导线拐弯。
+/* ── 2026-11-20 重画：触点几何对齐教材 2.1–2.6 的原理图（接线仿真 src/parts.js 的 symbol()）──
+   用户原话：「按教材 2.1~2.6 的标准画」。
+   老版把开距压成 26…54、刀片只斜出 8px，缺口又短又陡，看着像「画歪的一小段横线」；
+   第一版照抄 parts.js 的绝对坐标（0…80）反而更糊：刀片跨 56px 只偏 17px、夹角 17°，
+   在 0.6 缩放的整图里就是一条弯线。**仿真真正的比例是「元件高 45」**（parts.js 调用处
+   y1…y2 差 45）：刀片 21 竖 / 17 横，夹角 39°，这才是教材上看着干净的那个角度。
+   所以开距取 25（静触点端 y=22、动触点支点 y=47），上下引线各自拉到 0 / 80。
+     常开：上静触点竖线停在 y=22；刀片从支点 (x,47) 向左上斜出 17，刀尖停在 (x-17,26) —— 甩开；
+     常闭：y=22 处向右横出 13 到 (x+13,22)；刀片斜到 (x+16,19)，压过横臂端头 —— 搭上。
+   操作件（按钮推杆 / 热元件 / 延时 / 行程开关楔子）的连杆必须从**刀片**上引出，
+   所以起点统一用 bladeX() 按斜率算，不要再手写死坐标（改刀片角度必须同步改这里，否则连杆会飘在刀片外）。 */
+const CY1 = 22, CY2 = 47, NO_TIP = 26, NC_TIP = 19, NC_DX = 16;
 const L = (x1, y1, x2, y2, dash) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"${dash ? ' stroke-dasharray="4 3"' : ''}/>`;
 const P = d => `<path d="${d}"/>`;
-// 单极触点，x 是导线位置；操作件（推杆 / 延时 / 热元件）的连杆从刀片 y≈38~39 处引出，
-// 下面各符号里的连杆起点都是按刀片在这两个高度的实际 x 算的（改刀片斜率要一起改）。
-const no = x => L(x, 0, x, 26) + L(x, 54, x, 80) + L(x, 54, x - 8, 28);
-const nc = x => L(x, 0, x, 26) + L(x, 26, x + 12, 26) + L(x, 54, x, 80) + L(x, 54, x + 13, 25);
-const push = (x, y) => L(x, y, x + 5, y) + L(x, y - 6, x, y + 6); // 按钮推杆：一段横杆 + 端部竖帽（T 形），x 是竖帽位置
+// 单极触点，x 是导线位置
+const no = x => L(x, 0, x, CY1) + L(x, CY2, x, 80) + L(x, CY2, x - 17, NO_TIP);
+const nc = x => L(x, 0, x, CY1) + L(x, CY1, x + 13, CY1) + L(x, CY2, x, 80) + L(x, CY2, x + NC_DX, NC_TIP);
+// 刀片在高度 y 处的实际 x（连杆起点）；k 取 'no' / 'nc'，默认取刀片中段 y=39
+const bladeDX = (k, y) => k === 'no'
+  ? -17 * (CY2 - y) / (CY2 - NO_TIP)
+  : NC_DX * (CY2 - y) / (CY2 - NC_TIP);
+const bladeX = (k, x, y = 39) => x + bladeDX(k, y);
+// 按钮操作件（教材按钮画法：虚线推杆 + 「⊐」形按键帽），ax/ay 是推杆从刀片引出的位置
+const key = (ax, ay) => P(`M${ax} ${ay - 9} H${ax - 6} V${ay + 9} H${ax}`);
+const push = (ax, ay) => L(ax, ay, ax - 26, ay, 1) + key(ax - 26, ay);
 const hand = (x, y) => L(x, y - 7, x, y + 7); // 一般手动操作
 const heat = (x, y) => P(`M${x} ${y} H${x - 4} V${y - 6} H${x - 10} V${y} H${x - 14}`); // 热执行器
-const roller = x => `<polygon points="${x - 2},49 ${x - 5},41 ${x - 10},47"/>`; // 位置开关标记：刀片下段的空心三角（同教材图 1-26）
-const breaker = x => L(x - 3, 23, x + 3, 29) + L(x - 3, 29, x + 3, 23);
-const cup = x => P(`M${x} 20 A3 3 0 0 0 ${x} 26`); // 接触器功能：静触点下端靠刀片一侧的半圆（同教材图 1-19b）
+const roller = (ax, ay) => `<polygon points="${ax},${ay - 6} ${ax - 8},${ay + 2} ${ax},${ay + 8}"/>`; // 位置开关：被挡铁碰压的三角楔，右顶点落在刀片上（同教材图 1-26）
+/* 断路器 ×、接触器半圆都长在「刀片」上，不能按导线 x 摆 —— 刀片在这一高度已经偏出十几像素，
+   按 x 画会浮在刀片右边成个孤零零的叉。这里按 bladeX() 定位。 */
+const breaker = (x, y = 30) => {
+  const bx = bladeX('no', x, y);
+  return L(bx - 5, y - 5, bx + 5, y + 5) + L(bx - 5, y + 5, bx + 5, y - 5);
+};
+const cup = x => P(`M${x} 21 A5 5 0 0 1 ${x} 31`); // 接触器功能：静触点下端靠刀片一侧的半圆（同教材图 1-19b）
 const rotary = (x, y) => P(`M${x + 4} ${y - 6} H${x} V${y + 6} H${x - 4}`); // 旋转操作（Ƒ 形），组合开关用
 // 延时符号：刀片中点向左两条平行线 + 圆弧。通电延时圆弧向左凸，断电延时向右凸（教材图 1-22，方向不能改）
 const delay = (bx, y, on, e = on ? 15 : 10) => L(bx, y - 2, bx - e, y - 2) + L(bx, y + 2, bx - e, y + 2)
@@ -32,29 +50,29 @@ const SYM = {
   km3: ['0 0 100 80', three(x => no(x) + cup(x)), '接触器主触点'],
   qs3: ['-20 0 120 80', three(no, L(-10, 39, 76, 39, 1) + hand(-10, 39)), '三极刀开关'],
   qf3: ['-20 0 120 80', three(x => no(x) + breaker(x), L(-10, 39, 76, 39, 1) + hand(-10, 39)), '三极低压断路器'],
-  frh: ['0 0 40 80', '<rect x="4" y="24" width="32" height="32"/>' + P('M20 0 V32 H12 V48 H20 V80'), '热继电器热元件'],
-  frnc: ['-24 0 64 80', nc(16) + L(23, 38, -4, 38, 1) + heat(-4, 38), '热继电器动断（常闭）触点'],
-  sbno: ['-20 0 60 80', no(24) + L(20, 39, -7, 39, 1) + push(-12, 39), '按钮动合（常开）触点'],
-  sbnc: ['-20 0 60 80', nc(16) + L(23, 38, -7, 38, 1) + push(-12, 38), '按钮动断（常闭）触点'],
-  sb2: ['-20 0 100 80', no(24) + nc(52) + L(59, 38, -7, 38, 1) + push(-12, 38), '复合按钮'],
-  sqno: ['0 0 40 80', no(24) + roller(24), '行程开关动合（常开）触点'],
-  sqnc: ['0 0 40 80', nc(14) + '<polygon points="16,49 19.5,41 16,41"/>', '行程开关动断（常闭）触点'],
+  frh: ['0 0 40 80', '<rect x="4" y="18" width="32" height="44"/>' + P('M20 0 V26 H12 V54 H20 V80'), '热继电器热元件'],
+  frnc: ['-20 0 60 80', nc(16) + L(23.4, 39, 0, 39, 1) + heat(0, 39), '热继电器动断（常闭）触点'],
+  sbno: ['-20 0 60 80', no(24) + push(bladeX('no', 24), 39), '按钮动合（常开）触点'],
+  sbnc: ['-20 0 60 80', nc(16) + push(bladeX('nc', 16), 39), '按钮动断（常闭）触点'],
+  sb2: ['-20 0 100 80', no(24) + nc(52) + L(bladeX('nc', 52), 39, bladeX('no', 24) - 26, 39, 1) + key(bladeX('no', 24) - 26, 39), '复合按钮'],
+  sqno: ['0 0 40 80', no(24) + roller(bladeX('no', 24), 39), '行程开关动合（常开）触点'],
+  sqnc: ['0 0 40 80', nc(14) + roller(bladeX('nc', 14), 39), '行程开关动断（常闭）触点'],
   qs3r: ['-20 0 120 80', three(no, L(-10, 39, 76, 39, 1) + rotary(-10, 39)), '三极组合开关'],
   kton_coil: ['0 0 40 80', L(20, 0, 20, 26) + L(20, 54, 20, 80) + '<rect x="4" y="26" width="32" height="28"/><rect x="4" y="26" width="9" height="28"/>' + L(4, 26, 13, 54) + L(13, 26, 4, 54), '通电延时型时间继电器线圈'],
   ktoff_coil: ['0 0 40 80', L(20, 0, 20, 26) + L(20, 54, 20, 80) + '<rect x="4" y="26" width="32" height="28"/><rect x="4" y="26" width="9" height="28" fill="currentColor"/>', '断电延时型时间继电器线圈'],
-  kton_no: ['-4 0 44 80', no(28) + delay(24, 39, 1), '时间继电器通电延时动合（常开）触点'],
-  kton_nc: ['-4 0 44 80', nc(20) + delay(27, 38, 1), '时间继电器通电延时动断（常闭）触点'],
-  ktoff_no: ['-4 0 44 80', no(28) + delay(24, 39, 0), '时间继电器断电延时动合（常开）触点'],
-  ktoff_nc: ['-4 0 44 80', nc(20) + delay(27, 38, 0), '时间继电器断电延时动断（常闭）触点'],
-  ks_no: ['-20 0 60 80', no(24) + L(20, 39, -6, 39, 1) + speed(-6, 39), '速度继电器动合（常开）触点'],
-  ks_nc: ['-20 0 60 80', nc(16) + L(23, 38, -6, 38, 1) + speed(-6, 38), '速度继电器动断（常闭）触点'],
+  kton_no: ['-4 0 44 80', no(28) + delay(bladeX('no', 28), 39, 1), '时间继电器通电延时动合（常开）触点'],
+  kton_nc: ['-4 0 44 80', nc(20) + delay(bladeX('nc', 20), 39, 1), '时间继电器通电延时动断（常闭）触点'],
+  ktoff_no: ['-4 0 44 80', no(28) + delay(bladeX('no', 28), 39, 0), '时间继电器断电延时动合（常开）触点'],
+  ktoff_nc: ['-4 0 44 80', nc(20) + delay(bladeX('nc', 20), 39, 0), '时间继电器断电延时动断（常闭）触点'],
+  ks_no: ['-20 0 60 80', no(24) + L(bladeX('no', 24), 39, -6, 39, 1) + speed(-6, 39), '速度继电器动合（常开）触点'],
+  ks_nc: ['-20 0 60 80', nc(16) + L(bladeX('nc', 16), 39, -6, 39, 1) + speed(-6, 39), '速度继电器动断（常闭）触点'],
   m3: ['0 0 100 100', L(34, 0, 38, 29) + L(50, 0, 50, 26) + L(66, 0, 62, 29) + '<circle cx="50" cy="56" r="30"/>' + txt(50, 56, 'M', 20) + txt(50, 76, '3～', 13), '三相异步电动机'],
 };
 
 // 控制电路小图（教材图 2-3 自锁接法）：主线在 x=40 从上往下排元件，每个高 40；并联支路画在 x=85，from/to 是主线上的节点序号
 const UNIT = {
   no: no(20), nc: nc(20), coil: SYM.coil[1].replace('x="4"', 'x="8"').replace('width="32"', 'width="24"'),
-  sbno: no(20) + L(16, 39, -6, 39, 1) + push(-10, 39), sbnc: nc(20) + L(27, 38, -6, 38, 1) + push(-10, 38), w: L(20, 0, 20, 80),
+  sbno: no(20) + push(bladeX('no', 20), 39), sbnc: nc(20) + push(bladeX('nc', 20), 39), w: L(20, 0, 20, 80),
 };
 const unit = (t, x, y, label, right) => `<g transform="translate(${x - 10} ${y}) scale(.5)" stroke-width="4">${UNIT[t]}</g>`
   + (label ? `<text x="${right ? x + 11 : x - (t === 'coil' ? 10 : 18)}" y="${y + 24}" font-size="11" text-anchor="${right ? 'start' : 'end'}" fill="currentColor" stroke="none" font-family="Arial,sans-serif">${label}</text>` : '');
@@ -76,7 +94,7 @@ Object.assign(SYM, {
   c23e: circuit([...SB, COIL], [1, 2, [KM('nc')]]), c23f: circuit([...SB, COIL], [1, 3, [KM('no')]]),
   c23h: circuit([...SB, ['w'], COIL], [1, 3, [KM('no'), KM('nc')]]), c23ok: circuit([...SB, COIL], [1, 2, [KM('no')]]),
 });
-UNIT.frnc = nc(20) + L(27, 38, 4, 38, 1) + heat(4, 38);
+UNIT.frnc = nc(20) + L(bladeX('nc', 20), 39, 4, 39, 1) + heat(4, 39);
 function reversing() {
   const A = 40, B = 160, lab = (x, y, t, right) => `<text x="${right ? x + 11 : x - 18}" y="${y + 24}" font-size="11" text-anchor="${right ? 'start' : 'end'}" fill="currentColor" stroke="none" font-family="Arial,sans-serif">${t}</text>`;
   let o = `<circle cx="${A}" cy="8" r="3"/>${L(A, 11, A, 12)}` + unit('frnc', A, 12) + lab(A, 12, 'FR') + unit('sbnc', A, 52, 'SB1') + L(A, 92, B, 92);
@@ -111,11 +129,11 @@ const CB = {
   fu: () => L(20, 0, 20, 80) + '<rect x="13" y="24" width="14" height="32"/>',
   frh: () => '<rect x="4" y="24" width="32" height="32"/>' + P('M20 0 V32 H12 V48 H20 V80'),
   coil: () => L(20, 0, 20, 26) + L(20, 54, 20, 80) + '<rect x="4" y="26" width="32" height="28"/>',
-  sbno: () => no(20) + L(16, 39, -7, 39, 1) + push(-12, 39),
-  sbnc: () => nc(20) + L(27, 38, -7, 38, 1) + push(-12, 38),
-  frnc: () => nc(20) + L(27, 38, 4, 38, 1) + heat(4, 38),
-  ktno: () => no(20) + delay(16, 39, 1),
-  ktnc: () => nc(20) + delay(27, 38, 1),
+  sbno: () => no(20) + push(bladeX('no', 20), 39),
+  sbnc: () => nc(20) + push(bladeX('nc', 20), 39),
+  frnc: () => nc(20) + L(bladeX('nc', 20), 39, 4, 39, 1) + heat(4, 39),
+  ktno: () => no(20) + delay(bladeX('no', 20), 39, 1),
+  ktnc: () => nc(20) + delay(bladeX('nc', 20), 39, 1),
   ktc: () => L(20, 0, 20, 26) + L(20, 54, 20, 80) + '<rect x="4" y="26" width="32" height="28"/><rect x="4" y="26" width="9" height="28"/>' + L(4, 26, 13, 54) + L(13, 26, 4, 54),
 };
 // 主电路顶部：三相端子 + QF + FU1（L1/L2/L3 标签在上）
@@ -186,7 +204,7 @@ function ckRev() {
   o += ckPut(A, 112, CB.sbnc()) + ckLab(A + 16, 140, 'SB1');
   o += L(A, 160, B, 160);
   // 正向支路
-  o += ckPut(A, 160, CB.sbno()) + ckLab(A - 17, 188, 'SB2', 11, 'end');
+  o += ckPut(A, 160, CB.sbno()) + ckLab(A - 32, 188, 'SB2', 11, 'end');
   o += ckPut(A2, 160, CB.no(20)) + ckLab(A2 + 15, 188, 'KM1');
   o += ckBranch(A, A2, 160, 208);
   o += ckPut(A, 208, CB.nc(20)) + ckLab(A - 17, 236, 'KM2', 11, 'end');
@@ -228,7 +246,7 @@ function ckRev2() {
   o += ckPut(A, 112, CB.sbnc()) + ckLab(A + 16, 140, 'SB1');
   o += L(A, 160, B, 160);
   // 正向：SB2(NO)+自锁 → SB3常闭(按钮互锁) → KM2常闭(电气互锁) → KM1线圈
-  o += ckPut(A, 160, CB.sbno()) + ckLab(A - 17, 188, 'SB2', 11, 'end');
+  o += ckPut(A, 160, CB.sbno()) + ckLab(A - 32, 188, 'SB2', 11, 'end');
   o += ckPut(A2, 160, CB.no(20)) + ckLab(A2 + 15, 188, 'KM1');
   o += ckBranch(A, A2, 160, 208);
   o += ckPut(A, 208, CB.sbnc()) + ckLab(A - 17, 236, 'SB3', 11, 'end');
@@ -396,7 +414,7 @@ function ckDual() {
   o += ckPut(A, 112, CB.sbnc()) + ckLab(A + 16, 140, 'SB1');
   o += L(A, 160, B, 160);
   // 低速支路：SB2(NO)+自锁 → KM2常闭 → KM3常闭 → KM1线圈
-  o += ckPut(A, 160, CB.sbno()) + ckLab(A - 17, 188, 'SB2', 11, 'end');
+  o += ckPut(A, 160, CB.sbno()) + ckLab(A - 32, 188, 'SB2', 11, 'end');
   o += ckPut(A2, 160, CB.no(20)) + ckLab(A2 + 15, 188, 'KM1');
   o += ckBranch(A, A2, 160, 208);
   o += ckPut(A, 208, CB.nc(20)) + ckLab(A - 17, 236, 'KM2', 11, 'end');
