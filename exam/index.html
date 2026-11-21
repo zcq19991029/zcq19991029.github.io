@@ -6196,7 +6196,13 @@ window.HXFig = (function () {
    操作件（按钮推杆 / 热元件 / 延时 / 行程开关楔子）的连杆必须从**刀片**上引出，
    所以起点统一用 bladeX() 按斜率算，不要再手写死坐标（改刀片角度必须同步改这里，否则连杆会飘在刀片外）。 */
 const CY1 = 22, CY2 = 47, NO_TIP = 26, NC_TIP = 19, NC_DX = 16;
-const L = (x1, y1, x2, y2, dash) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"${dash ? ' stroke-dasharray="4 3"' : ''}/>`;
+/* dash 传 true/1 用默认虚线节奏，传字符串就按那个节奏（"6 3.5" 这种）。
+   2026-11-20 老师反馈「虚线不明显、跟实线一样，一共三个点一样的线段」——
+   原来 dsharray 用的 "4 3"，在选项图（64px）/ 小图（0.6 缩放）里每段只有 2 个像素，
+   跟 2px 的线宽一样粗，看着就是三个墨点或者一条实线。教材上是长段虚线（段:隔 ≈ 2:1），
+   所以默认改成 "6 3.5"，按钮推杆再用更长的 "7 3.5"，跟教材图 2-4 的 SB1 对上。 */
+const DASH = '6 3.5';
+const L = (x1, y1, x2, y2, dash) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"${dash ? ` stroke-dasharray="${dash === true || dash === 1 ? DASH : dash}"` : ''}/>`;
 const P = d => `<path d="${d}"/>`;
 // 单极触点，x 是导线位置
 const no = x => L(x, 0, x, CY1) + L(x, CY2, x, 80) + L(x, CY2, x - 17, NO_TIP);
@@ -6208,7 +6214,7 @@ const bladeDX = (k, y) => k === 'no'
 const bladeX = (k, x, y = 39) => x + bladeDX(k, y);
 // 按钮操作件（教材按钮画法：虚线推杆 + 「⊐」形按键帽），ax/ay 是推杆从刀片引出的位置
 const key = (ax, ay) => P(`M${ax} ${ay - 9} H${ax - 6} V${ay + 9} H${ax}`);
-const push = (ax, ay) => L(ax, ay, ax - 26, ay, 1) + key(ax - 26, ay);
+const push = (ax, ay) => L(ax, ay, ax - 26, ay, '7 3.5') + key(ax - 26, ay);
 const hand = (x, y) => L(x, y - 7, x, y + 7); // 一般手动操作
 const heat = (x, y) => P(`M${x} ${y} H${x - 4} V${y - 6} H${x - 10} V${y} H${x - 14}`); // 热执行器
 const roller = (ax, ay) => `<polygon points="${ax},${ay - 6} ${ax - 8},${ay + 2} ${ax},${ay + 8}"/>`; // 位置开关：被挡铁碰压的三角楔，右顶点落在刀片上（同教材图 1-26）
@@ -6268,6 +6274,15 @@ const SYM = {
   ks_nc: ['-20 0 60 80', nc(16) + L(bladeX('nc', 16), 39, -6, 39, 1) + speed(-6, 39), '速度继电器动断（常闭）触点'],
   m3: ['0 0 100 100', L(34, 0, 38, 29) + L(50, 0, 50, 26) + L(66, 0, 62, 29) + '<circle cx="50" cy="56" r="30"/>' + txt(50, 56, 'M', 20) + txt(50, 76, '3～', 13), '三相异步电动机'],
 };
+
+/* 不出现在「出题配图下拉」里的符号（2026-11-20 老师原话：「没出现过就不出」）：
+   断电延时型时间继电器的线圈 / 常开 / 常闭，在教材项目二 2.1–2.6 里没有出现，
+   所以不让它出现在组卷、题库的可选配图列表里（figlib 的 list 会过滤掉）。
+   **定义必须保留**：刷题题库已有 6 处题目在引用这三张图
+   （217 线圈 / 219 常闭 / 220 常开 / 315、316 判断题 / 221 的干扰项），
+   删掉定义它们会变成空白图。若哪天要连题一起下架，先清数据再来删这里。
+   教材补上这些图之后，把 id 从本数组删掉即可恢复可选。 */
+const FIG_HIDE = ['ktoff_coil', 'ktoff_no', 'ktoff_nc'];
 
 // 控制电路小图（教材图 2-3 自锁接法）：主线在 x=40 从上往下排元件，每个高 40；并联支路画在 x=85，from/to 是主线上的节点序号
 const UNIT = {
@@ -6654,7 +6669,7 @@ function figSvg(name, big) {
   return `<svg viewBox="${vb}" width="${Math.round(H * w / h)}" height="${H}" role="img" aria-label="图" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:block;max-width:100%;height:auto">${body}</svg>`;
 }
 
-return { hasFig: hasFig, figName: figName, figSvg: figSvg, list: Object.keys(SYM) };
+return { hasFig: hasFig, figName: figName, figSvg: figSvg, list: Object.keys(SYM).filter(function (k) { return FIG_HIDE.indexOf(k) < 0; }) };
 })();
 
 ;
