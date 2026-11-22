@@ -8973,6 +8973,7 @@ function libBind(root, kind, sub, opt) {
     const act = b.dataset.lib;
     if (act === 'use') { opt.onUse && opt.onUse(id, it); return; }
     if (act === 'del') {
+      if (typeof hxConfirm === 'function' && !(await hxConfirm('确定删除「' + it.name + '」？删除后可在回收站恢复。'))) return;
       /* 2026-11-15：删除必须先问云端，等一两秒是常态。这里让「删」这颗按钮自己转圈，
          整行同时压暗（这一行就是这次操作的对象，行内给状态比只动按钮更好认）。
          失败不 refresh —— 让红字留在这一行上，老师能读到为什么没删掉。 */
@@ -12953,7 +12954,8 @@ async function paperHome() {
     /* ch 为 null 的题归 0（「未分章」）；章节名走 chNamesOf：优先资料目录真标题（第 3 章 · 流水灯），
        再退回资料名里的「项目N」，都没有才「第N章」。传的是 rows 不是 items —— items 丢了 material_id。 */
     const items = rows.map(q => ({ id: q.id, t: q.t, ch: q.ch == null ? 0 : +q.ch, q: q.q, o: q.o || undefined, a: q.a, code: q.code, sub: q.sub, src: q.src, fig: q.fig || undefined, knowledge: q.knowledge }));
-    window.__examSetPool(items, chNamesOf(rows, await matListWithToc(s)));
+    /* 题库先显示，目录名称随后再补。避免每份资料逐个请求把页面卡在“AI读题中”。 */
+    window.__examSetPool(items, chNamesOf(rows, []));
     if (!items.length) {
       app().innerHTML = `<header class="ex-h pp-hex"><div class="eyebrow">教师 · ${esc(SUBJECTS[CUR_SUB] || CUR_SUB)}理论</div><h1>理论试卷</h1></header>
       <div class="card" style="max-width:640px;margin:40px auto"><h2>这个科目的 AI 题库还是空的</h2>
@@ -13088,7 +13090,7 @@ async function libEnsurePool(sub) {
   }
   const items = rows.map(q => ({ id: q.id, t: q.t, ch: q.ch == null ? 0 : +q.ch, q: q.q, o: q.o || undefined, a: q.a, code: q.code, sub: q.sub, src: q.src, fig: q.fig || undefined, knowledge: q.knowledge }));
   /* 与 paperHome 同一套章节名（见 chNamesOf 的注释）：查重页显示的组名要跟试卷页一模一样。 */
-  window.__examSetPool(items, chNamesOf(rows, await matListWithToc(s)));
+  window.__examSetPool(items, chNamesOf(rows, []));
   if (window.HXLib) HXLib.poolOk(true);
   try { if (window.paperLoadTypes) await paperLoadTypes(s ? s.id : null); } catch (e) { }
 }
@@ -13109,6 +13111,7 @@ async function libHome() {
     <div class="card lib-home" id="libHome">
       <div class="lib-home-h"><h2>本科目的试卷</h2>
         <span class="lib-home-act"><button class="sm" id="libReload">刷新</button>
+        <button class="sm" id="libBatchDelete" disabled>批量删除</button>
         <button class="pri sm" id="libPub" disabled title="勾选几套卷，把它们按题型批量发到刷题">批量发布到刷题</button></span></div>
       <div id="libList" class="lib-page-list"><div data-fxload="正在读试卷库…"></div></div>
     </div>`;
@@ -13119,6 +13122,15 @@ async function libHome() {
   };
   const list = $('libList');
   if (list) list.addEventListener('change', libPickChange);
+  if ($('libBatchDelete')) $('libBatchDelete').onclick = async () => {
+    const ids = [...LIB_PICK];
+    if (!ids.length) return;
+    if (!await hxConfirm('确定删除已勾选的 ' + ids.length + ' 套试卷？删除后可在回收站恢复。')) return;
+    const b = $('libBatchDelete'), tok = window.HXBusy ? HXBusy.begin(b, '正在批量删除…') : null;
+    try { for (const id of ids) { const r = await libDel(id); if (!r.ok) throw new Error(r.err); } LIB_PICK.clear(); libListPaint(); toast('已批量删除'); }
+    catch (e) { toast('批量删除未完成：' + e.message); }
+    finally { if (tok) HXBusy.end(tok); }
+  };
   if ($('libPub')) $('libPub').onclick = () => libPubDialog().catch(e => toast('打不开发布窗：' + (e && e.message ? e.message : e)));
   libPubBtnPaint();
   if ($('libReload')) $('libReload').onclick = async () => {
@@ -13165,6 +13177,8 @@ function libListPaint() {
     refresh: libListPaint
   });
   libDupPaint();
+  const batch = $('libBatchDelete');
+  if (batch) { batch.disabled = LIB_PICK.size === 0; batch.textContent = LIB_PICK.size ? `批量删除（${LIB_PICK.size}）` : '批量删除'; }
 }
 
 /* ================= 批量发布到刷题（2026-11-20）=================

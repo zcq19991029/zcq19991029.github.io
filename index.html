@@ -1435,7 +1435,7 @@ var SITE = location.protocol === 'file:' ? 'https://zcq19991029.github.io' : '';
 // stu 是「学生点开时去哪个页面」：不给就照 who:'all' 用 url。给 who:'all' + stu 就是「老师进完整工具、
 // 学生只进一个页面」——2026-11-03 用户要「单独开放小组加分里面的分组模块给学生」，先用这个机制开一个模块。
 // pop 是「不挂工具页、点开直接弹层」的卡片（2026-11-08 用户要求把顶栏的 ? 和 AI 两颗圆钮挪成卡片）。
-var GROUPS = [['学习', ['wiring', 'quiz', 'base', 'mcu', 'exam']], ['教学', ['kaoqin', 'ziliao', 'paike', 'jiafen', 'course', 'manage']], ['维护', ['help', 'ai', 'backup', 'recycle', 'feedback']], ['开发者工具', ['uikit', 'music', 'tcode', 'users', 'grant']]]; // 首页按使用场景分组（2026-11-19 第七轮 T4/T5：教务管理归教学、音乐+开发者三卡归开发者工具）
+var GROUPS = [['学习', ['wiring', 'quiz', 'base', 'mcu', 'exam']], ['教学', ['kaoqin', 'ziliao', 'paper', 'paike', 'jiafen', 'course', 'manage']], ['维护', ['help', 'ai', 'backup', 'recycle', 'feedback']], ['开发者工具', ['uikit', 'music', 'tcode', 'users', 'grant']]]; // 首页按使用场景分组（2026-11-19 第七轮 T4/T5：教务管理归教学、音乐+开发者三卡归开发者工具）
 /* 音乐不塞进上面三个组：它是「背景音乐」性质的常驻卡片，和工具并列但不属于「学习/教学/维护」。
    所以单独在 render() 里当一张 tile 追加（见 render 里的 musicTile 处理），仍走同一套 .tile 样式。 */
 var TOOLS = [
@@ -1454,6 +1454,9 @@ var TOOLS = [
   { id: 'kaoqin', name: '考勤', url: SITE + '/kaoqin/', splash: 1, who: 'all', c: ['#34d399', '#059669'], icon: '<rect x="4" y="4" width="16" height="17" rx="3"/><path d="M8 2v4M16 2v4M4 9h16M8.5 14.5l2.2 2.2 4.8-4.8"/>' },
   // 2026-11-08 资料库独立成工具（任务清单 Z6）：教材上传、AI 出题、题池 → 发布到刷题 / 给考试组卷。只给教师。
   { id: 'ziliao', name: '资料库', url: SITE + '/ziliao/', splash: 1, who: 'teacher', c: ['#a3e635', '#65a30d'], icon: '<path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H10l2 2h6.5A1.5 1.5 0 0 1 20 7.5v11a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18.5z"/><path d="M8 11h8M8 15h5"/>' },
+  // 2026-11-21 试卷中心（/paper/）：组卷中心 + 试卷中心合体。教师翻电子卷/试卷库、看报告与分析、
+  // 从题池挑题组一套存回试卷库。只给教师 —— 学生要卷子就在「考试」输考试码，不需要资料库。
+  { id: 'paper', name: '试卷中心', url: SITE + '/paper/', splash: 1, who: 'teacher', c: ['#f0a04b', '#d9822b'], icon: '<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9 12h6M9 16h4M3 7v13a2 2 0 0 0 2 2h9"/>' },
   { id: 'paike', name: '排课', url: SITE + '/paike/', splash: 1, who: 'admin', c: ['#ff6b6b', '#ff3b30'], icon: '<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4M8 14h3M13 14h3M8 17h3"/>' },
   // 小组加分：老师进完整记分台，学生进「我的分数」只读页（studentUrl）。
   // 为什么不是 who:'teacher'：学生要自己分组、也要能看自己的分，进不去就什么也干不了。
@@ -4423,7 +4426,7 @@ async function loadUsers() { try { ST.users = await HX.rpc('hx_users_list') || [
    选一个教师用户，勾选下放哪些工具（默认全关，点亮才可用）。和学生的「按班级点亮」同一套模式。 */
 function sheetGrant() {
   var box = $('shB'), U = ST.users, sel = ST.grantSel;
-  var tools = ['wiring', 'quiz', 'base', 'mcu', 'exam', 'kaoqin', 'jiafen', 'ziliao', 'paike', 'course', 'help', 'ai', 'backup', 'recycle'];
+  var tools = ['wiring', 'quiz', 'base', 'mcu', 'exam', 'kaoqin', 'jiafen', 'ziliao', 'paper', 'paike', 'course', 'help', 'ai', 'backup', 'recycle'];
   var nameOf = function (id) { var t = TOOLS.filter(function (x) { return x.id === id; })[0]; return t ? t.name : id; };
   var teachers = (U && !U.err) ? U.filter(function (x) { return x.role === 'teacher' && !x.is_dev; }) : [];
   box.innerHTML = '<p class="msg" style="margin:0 0 12px;color:var(--dim,#8a8f98)">给某个教师账号下放工具：下放哪个，他才在首页看到、能用哪个；默认全关。开发者工具组（UI 设计 / 用户管理 / 教师邀请码 / 工具权限 / 音乐）不在这里下放，那是开发者专属。</p>' +
@@ -4441,7 +4444,7 @@ function sheetGrant() {
 async function loadGrant() {
   var box = $('gList'); if (!box) return;
   var em = ST.grantSel; if (!em) return;
-  var tools = ['wiring', 'quiz', 'base', 'mcu', 'exam', 'kaoqin', 'jiafen', 'ziliao', 'paike', 'course', 'help', 'ai', 'backup', 'recycle'];
+  var tools = ['wiring', 'quiz', 'base', 'mcu', 'exam', 'kaoqin', 'jiafen', 'ziliao', 'paper', 'paike', 'course', 'help', 'ai', 'backup', 'recycle'];
   var nameOf = function (id) { var t = TOOLS.filter(function (x) { return x.id === id; })[0]; return t ? t.name : id; };
   box.innerHTML = '<p class="empty">读取中…</p>';
   var uid = grantUid(em);
