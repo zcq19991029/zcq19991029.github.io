@@ -13569,7 +13569,13 @@ function libPubQ(q, i) {
     /* ⚠ 选项有两种形态：AI 题库是 [{key,text}]，内置 THEORY 是 ['甲','乙',…]（纯文本）。
        不统一走 hxChoices 的话，内置题库的单选题会被当成「没有选项」整批跳过（实测踩到）。 */
     const raw = (typeof hxChoices === 'function') ? hxChoices(q.o) : (Array.isArray(q.o) ? q.o : []);
-    const opts = raw.map(o => ({ key: String(o.key || '').toUpperCase(), text: String(o.text || '') })).filter(o => o.key && o.text);
+    /* 选项可能只有图（o[i].fig 是 figlib 符号 id：「交流接触器的符号是」这类题，选项文字是空的）。
+       以前 filter 只认 text，纯图选项被整题丢掉 —— 电气 B/C 卷第一、十题就是这样没进刷题（2026-11-22 修）。 */
+    const opts = raw.map(o => {
+      const one = { key: String(o.key || '').toUpperCase(), text: String(o.text || '') };
+      if (o.fig) one.fig = String(o.fig);
+      return one;
+    }).filter(o => o.key && (o.text || o.fig));
     const a = String(q.a == null ? '' : q.a).toUpperCase().replace(/[^A-Z]/g, '');
     if (opts.length < 2 || !a) return null;
     return Object.assign(base, { answer: [a], options: opts });

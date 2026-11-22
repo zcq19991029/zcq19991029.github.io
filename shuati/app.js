@@ -1673,7 +1673,13 @@ function poolToQuiz(r, bank) {
   const a = r.a;
   switch (r.t) {
     case 'choice': {
-      q.options = (Array.isArray(r.o) ? r.o : []).map((o, i) => ({ key: String((o && o.key) || String.fromCharCode(65 + i)).toUpperCase(), text: String(o && o.text != null ? o.text : '') }));
+      /* 选项可能只有图（题池里 o[i].fig 存符号 id，如「交流接触器的符号是」），
+         以前这里只搬 text，纯图选项变成空文字 → 看着像 4 个空选项。fig 一起带过来（2026-11-22）。 */
+      q.options = (Array.isArray(r.o) ? r.o : []).map((o, i) => {
+        const one = { key: String((o && o.key) || String.fromCharCode(65 + i)).toUpperCase(), text: String(o && o.text != null ? o.text : '') };
+        if (o && o.fig) one.fig = String(o.fig);
+        return one;
+      });
       if (q.options.length < 2) return { skip: '选择题选项少于 2 个' };
       const keys = new Set(q.options.map(o => o.key));
       const raw = Array.isArray(a) ? a.join('') : String(a == null ? '' : a);
