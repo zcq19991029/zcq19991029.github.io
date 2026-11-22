@@ -10068,8 +10068,10 @@ function piNormalize(parsed, blocks, qtype, sub, sid, fileName, file) {
   secs.forEach(s => {
     if (/识图|读图/.test(s.title)) { s.type = 'shitu'; s.typeKey = qtype.shitu || 'shituti'; }
     if (/设计|绘图/.test(s.title)) { s.type = 'sheji'; s.typeKey = qtype.sheji || 'shejiti'; }
-    if (/实操|实践|上机|技能/.test(s.title)) { s.type = 'shicao'; s.typeKey = qtype.shicao || 'shicao'; }
+    if (/实操|实践|上机|技能/.test(s.title) || +s.total === 50 || +s.per === 50) { s.type = 'shicao'; s.typeKey = qtype.shicao || 'shicao'; }
   });
+  const practiceSecs = new Set(secs.filter(s => s.type === 'shicao').map(s => s.idx));
+  qs.forEach(q => { if (practiceSecs.has(q.sec)) q.typeKey = qtype.shicao || 'shicao'; });
   /* 一道大题里题型不一致时，以题本身的为准；大题的 type 取第一道 */
   if (secs.length && qs.length) secs.forEach(s => {
     const first = qs.find(q => q.sec === s.idx);

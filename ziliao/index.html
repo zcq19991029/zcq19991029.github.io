@@ -1027,13 +1027,310 @@ async function ocrScannedPdf(file, onProgress, range) {
 }
 
 
-function parseJson(text) {
-  const cleaned = String(text || '').trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '');
-  try { return JSON.parse(cleaned); } catch (e) {
-    const a = cleaned.indexOf('{'), b = cleaned.lastIndexOf('}');
-    if (a >= 0 && b > a) return JSON.parse(cleaned.slice(a, b + 1));
-    throw new Error('AI 返回的内容不是有效 JSON，请重试或换一个模型。');
+/* ── AI 返回 JSON 的分层修复（2026-11-21）──────────────────────────────
+   用户截图（单片机技术及应用，3 份没出成）报的是 JSON.parse 的英文原文：
+     · Expected ',' or '}' after property value in JSON at position 405
+     · Unexpected non-whitespace character after JSON at position 1383 / 1614
+   两类都不是「模型不会出题」，是格式小毛病：
+     ① 「属性值后面不是逗号」—— 字符串里有没转义的半角双引号，或用了全角逗号「，」/ 全角冒号「：」；
+     ② 「JSON 后面还跟着别的内容」—— 模型先给一个完整对象、又跟了第二个对象或一段「以上共 N 道」，
+        position 就落在第一个对象的结尾（1383 / 1614 都这么来的）。**这不是 token 截断**，
+        截断报的是 Unexpected end of JSON input。
+   所以改成「分层修复」：每一步都先 JSON.parse，成功就返回并记下用的是哪一步；
+   全失败才抛错，且报错必须能诊断（哪一类、出错位置前后 40 字、试过哪几步）。
+   **只修格式，不放宽任何题目校验** —— 缺字段、题型不认识、答案不在选项里，
+   仍旧在 normalizeQuestions 里被逐条拒收（绝不静默丢题）。 */
+
+const hximpTryParse = s => { try { return { ok: true, v: JSON.parse(s) }; } catch (e) { return { ok: false, e }; } };
+
+/* 去 Markdown 围栏（```json … ``` / ``` … ```），围栏前后的说明文字一起丢掉。 */
+function hximpStripFence(s) {
+  const t = String(s == null ? '' : s).trim();
+  const m = t.match(/```[a-zA-Z]*[ \t]*\r?\n([\s\S]*?)```/);
+  if (m && m[1].trim()) return m[1].trim();
+  if (/```/.test(t)) return t.replace(/```[a-zA-Z]*/g, '').trim();
+  return t;
+}
+
+/* 截最外层 {} 或 []：前面「好的，下面是题目：」、后面「以上共 10 道」都会被丢掉。 */
+function hximpOutermost(s) {
+  const t = String(s == null ? '' : s);
+  let a = -1, close = '';
+  for (let i = 0; i < t.length; i++) {
+    const c = t[i];
+    if (c === '{' || c === '[') { a = i; close = c === '{' ? '}' : ']'; break; }
   }
+  if (a < 0) return '';
+  const b = t.lastIndexOf(close);
+  return b > a ? t.slice(a, b + 1) : '';
+}
+
+/* 扫第一个「完整」的 JSON 值（尊重字符串和转义）。
+   两个对象拼接、JSON 后面跟说明文字，都靠它只取前面那一段。
+   括号不配对（写到一半）返回空串，交给 hximpCloseTruncated。 */
+function hximpFirstValue(s) {
+  const t = String(s == null ? '' : s);
+  let start = -1;
+  for (let i = 0; i < t.length; i++) if (t[i] === '{' || t[i] === '[') { start = i; break; }
+  if (start < 0) return '';
+  const stack = [];
+  let inStr = false, esc = false;
+  for (let i = start; i < t.length; i++) {
+    const c = t[i];
+    if (inStr) {
+      if (esc) { esc = false; continue; }
+      if (c === '\\') { esc = true; continue; }
+      if (c === '"') inStr = false;
+      continue;
+    }
+    if (c === '"') { inStr = true; continue; }
+    if (c === '{') { stack.push('}'); continue; }
+    if (c === '[') { stack.push(']'); continue; }
+    if (c === '}' || c === ']') {
+      if (stack[stack.length - 1] !== c) return '';
+      stack.pop();
+      if (!stack.length) return t.slice(start, i + 1);
+    }
+  }
+  return '';
+}
+
+/* 常见格式病。**只动字符串外面的结构符号，字符串里的字一个不改**：
+     · 全角逗号 / 冒号 / 花括号 / 方括号 → 半角；中文引号 “ ” 当引号用 → 半角（模型中文输出最常犯）；
+     · 尾逗号（{"a":1,} / [1,2,]）；
+     · 字符串里没转义的裸换行 / 制表符 → \n \t（裸换行会让 JSON 直接断在这一行）。
+   smartQuote = true 时，把字符串里「后面不是 , } ] : 也不是结尾」的双引号当内容引号转义 ——
+   模型写 `"stem":"他说"你好""` 没转义，报的就是 Expected ',' or '}' after property value。
+   合法 JSON 里收尾引号后面只可能是 , } ] : 或结尾，所以这一条对合法 JSON 是空操作。 */
+function hximpFixLoose(s, smartQuote) {
+  const t = String(s == null ? '' : s);
+  let out = '', inStr = false, esc = false, q = '"';   // q = 这个字符串用哪种引号收尾
+  for (let i = 0; i < t.length; i++) {
+    const c = t[i];
+    if (inStr) {
+      if (esc) { out += c; esc = false; continue; }
+      if (c === '\\') { out += c; esc = true; continue; }
+      if (c === q) {
+        if (q === '"' && smartQuote) {
+          let j = i + 1;
+          while (j < t.length && (t[j] === ' ' || t[j] === '\t' || t[j] === '\r' || t[j] === '\n')) j++;
+          const nx = t[j] || '';
+          if (nx && nx !== '"' && ',}]:'.indexOf(nx) < 0) { out += '\\"'; continue; }
+        }
+        out += '"'; inStr = false; continue;
+      }
+      if (c === '\n') { out += '\\n'; continue; }
+      if (c === '\r') { continue; }
+      if (c === '\t') { out += '\\t'; continue; }
+      out += c; continue;
+    }
+    if (c === '"') { inStr = true; q = '"'; out += c; continue; }
+    if (c === '“') { inStr = true; q = '”'; out += '"'; continue; }
+    if (c === '”') { out += '"'; continue; }
+    if (c === '，') { out += ','; continue; }
+    if (c === '：') { out += ':'; continue; }
+    if (c === '｛') { out += '{'; continue; }
+    if (c === '｝') { out += '}'; continue; }
+    if (c === '［') { out += '['; continue; }
+    if (c === '］') { out += ']'; continue; }
+    if (c === ',') {
+      let j = i + 1;
+      while (j < t.length && /\s/.test(t[j])) j++;
+      if (t[j] === '}' || t[j] === ']') continue;   // 尾逗号
+    }
+    out += c; continue;
+  }
+  return out;
+}
+
+/* 两个 JSON 值能不能合并（模型把题目拆成两段对象、或数组 + 对象混着给）：
+   能合并就返回合并结果 —— **不丢题**；合并不了返回 null，调用方退化成「只取第一个」。 */
+function hximpMergeValues(a, b) {
+  const arrOf = v => (Array.isArray(v) ? v : (v && Array.isArray(v.questions) ? v.questions : null));
+  const A = arrOf(a), B = arrOf(b);
+  if (!A || !B) return null;
+  if (Array.isArray(a) && Array.isArray(b)) return A.concat(B);
+  return Object.assign({}, (a && !Array.isArray(a)) ? a : {}, { questions: A.concat(B) });
+}
+
+/* 给一段「括号没闭合」的 JSON 算要补的右括号（含没收尾的引号）。 */
+function hximpClosers(prefix) {
+  const stack = [];
+  let inStr = false, esc = false;
+  for (let i = 0; i < prefix.length; i++) {
+    const c = prefix[i];
+    if (inStr) {
+      if (esc) { esc = false; continue; }
+      if (c === '\\') { esc = true; continue; }
+      if (c === '"') inStr = false;
+      continue;
+    }
+    if (c === '"') { inStr = true; continue; }
+    if (c === '{') stack.push('}');
+    else if (c === '[') stack.push(']');
+    else if ((c === '}' || c === ']') && stack[stack.length - 1] === c) stack.pop();
+  }
+  return (inStr ? '"' : '') + stack.reverse().join('');
+}
+
+/* 补全被截断的输出：整段补一次；不行就截到最后一个「安全断点」（逗号 / 开括号 / 闭合引号之后）
+   再补 —— 半截的对象（{"stem":"单片机复位后 PC 的值是（ ）","ans）只能整条丢掉。 */
+function hximpCloseTruncated(s) {
+  const t = String(s == null ? '' : s);
+  let start = -1;
+  for (let i = 0; i < t.length; i++) if (t[i] === '{' || t[i] === '[') { start = i; break; }
+  if (start < 0) return { full: '', safe: '' };
+  const body = t.slice(start);
+  let inStr = false, esc = false, lastSafe = 0;
+  const stack = [];
+  for (let i = 0; i < body.length; i++) {
+    const c = body[i];
+    if (inStr) {
+      if (esc) { esc = false; continue; }
+      if (c === '\\') { esc = true; continue; }
+      if (c === '"') { inStr = false; lastSafe = i + 1; }
+      continue;
+    }
+    if (c === '"') { inStr = true; continue; }
+    if (c === '{') { stack.push('}'); lastSafe = i + 1; continue; }
+    if (c === '[') { stack.push(']'); lastSafe = i + 1; continue; }
+    if (c === '}' || c === ']') { if (stack[stack.length - 1] === c) stack.pop(); lastSafe = i + 1; continue; }
+    if (c === ',') { lastSafe = i + 1; continue; }
+  }
+  return {
+    full: stack.length || inStr ? body + hximpClosers(body) : '',
+    safe: lastSafe > 0 && lastSafe < body.length
+      ? body.slice(0, lastSafe) + hximpClosers(body.slice(0, lastSafe))
+      : ''
+  };
+}
+
+/* JSON.parse 的英文原文 → 老师能懂的错类型。 */
+function hximpJsonType(msg) {
+  const m = String(msg || '');
+  if (/after JSON|non-whitespace character/i.test(m)) return 'JSON 后面还跟着别的内容（多半是两个对象 / 数组拼在一起，或尾巴上有一段说明文字）';
+  if (/after property value|after property name|Expected ',' or '}'|Expected ':'/i.test(m)) return '属性之间少了逗号（常见原因是字符串里有没转义的半角双引号，或用了全角逗号「，」）';
+  if (/Bad control character/i.test(m)) return '字符串里有裸换行 / 裸制表符';
+  if (/Unterminated string/i.test(m)) return '字符串没闭合';
+  if (/Unexpected end of JSON input/i.test(m)) return '输出被截断（JSON 没写完）';
+  if (/Unexpected token|is not valid JSON/i.test(m)) return 'JSON 里出现了非法字符（常见是全角标点、单引号、注释）';
+  return 'JSON 语法错误';
+}
+
+/* 出错位置前后各 40 字（换行压成空格，出错那个字符用 ⟦⟧ 框住）。 */
+function hximpSnippet(s, pos, n) {
+  const t = String(s == null ? '' : s), k = n || 40;
+  const cut = x => x.replace(/\s+/g, ' ');
+  if (pos == null || pos < 0) return '…' + cut(t.slice(-k * 2));
+  const p = Math.max(0, Math.min(t.length, pos));
+  const a = Math.max(0, p - k), b = Math.min(t.length, p + k);
+  return (a > 0 ? '…' : '') + cut(t.slice(a, p)) + '⟦' + cut(t.slice(p, p + 1)) + '⟧'
+    + cut(t.slice(p + 1, b)) + (b < t.length ? '…' : '');
+}
+
+/* 分层解析。返回 { ok:true, value, steps } 或 { ok:false, error, src, steps, original }。 */
+function parseJsonDetail(text) {
+  const raw = String(text == null ? '' : text);
+  const steps = [];
+  let lastErr = null, lastSrc = raw.trim();
+
+  const tryOne = (label, s) => {
+    const str = String(s == null ? '' : s);
+    if (!str.trim()) return null;
+    if (steps.indexOf(label) < 0) steps.push(label);
+    const r = hximpTryParse(str);
+    if (r.ok) return { v: r.v };
+    lastErr = r.e; lastSrc = str;
+    return null;
+  };
+  let hit = null;
+
+  const s0 = raw.trim();
+  if ((hit = tryOne('原样解析', s0))) return { ok: true, value: hit.v, steps };
+
+  const s1 = hximpStripFence(s0);
+  if (s1 !== s0 && (hit = tryOne('去掉 ``` 围栏与前后说明', s1))) return { ok: true, value: hit.v, steps };
+
+  const ext = hximpOutermost(s1);
+  const s2 = ext || s1;
+  if (s2 !== s1 && (hit = tryOne('截取最外层 {} / []', s2))) return { ok: true, value: hit.v, steps };
+
+  const s3 = hximpFixLoose(s2, false);
+  if (s3 !== s2 && (hit = tryOne('修全角标点 / 尾逗号 / 裸换行', s3))) return { ok: true, value: hit.v, steps };
+
+  const s4 = hximpFixLoose(s2, true);
+  if (s4 !== s3 && (hit = tryOne('转义字符串里没转义的引号', s4))) return { ok: true, value: hit.v, steps };
+
+  const s5 = s4 !== s3 ? s4 : s3;
+  /* ④ 模型把几个 JSON 拼在一起（{"questions":[…]} 后面又跟一个 {"questions":[…]}）：
+     逐个取出「完整值」合并成一个 —— 这是 position 1383 / 1614 那两类的正解，**不丢题**。
+     先把后面那截也洗干净（全角标点 / 引号），再合；合并不了才退化成「只取第一个」。 */
+  const gather = src => {
+    const out = [];
+    let rest = String(src || '');
+    for (let i = 0; i < 20; i++) {
+      const txt = hximpFirstValue(rest);
+      if (!txt) break;
+      let r = hximpTryParse(hximpFixLoose(txt, true));
+      if (!r.ok) r = hximpTryParse(txt);
+      if (!r.ok) break;
+      out.push(r.v);
+      rest = rest.slice(rest.indexOf(txt) + txt.length);
+    }
+    return out;
+  };
+  const parts = gather(s5);
+  if (parts.length > 1) {
+    let merged = parts[0];
+    for (let i = 1; i < parts.length && merged; i++) merged = hximpMergeValues(merged, parts[i]);
+    if (merged) {
+      if (steps.indexOf('把拼在一起的多个 JSON 合并成一个') < 0) steps.push('把拼在一起的多个 JSON 合并成一个');
+      return { ok: true, value: merged, steps };
+    }
+  }
+  /* 合并不了（后半截不是同一种结构，只是一段说明文字）→ 只认第一个完整值。 */
+  const first = hximpFirstValue(s5);
+  if (first && first !== s5 && (hit = tryOne('只取第一个完整对象 / 数组，丢掉后面的', first))) return { ok: true, value: hit.v, steps };
+  const firstRaw = hximpFirstValue(s2);
+  if (firstRaw && firstRaw !== s5 && firstRaw !== first
+    && (hit = tryOne('只取第一个完整对象 / 数组，丢掉后面的', firstRaw))) return { ok: true, value: hit.v, steps };
+
+  const tr = hximpCloseTruncated(s5);
+  for (const cand of [tr.full, tr.safe]) {
+    if (cand && cand !== s5 && (hit = tryOne('补全被截断的括号', cand))) return { ok: true, value: hit.v, steps };
+  }
+
+  return { ok: false, error: lastErr, src: lastSrc, steps, original: s0 };
+}
+
+/* 把解析失败写成人能查的报错：错类型 + 出错位置前后 40 字 + 试过哪几步。
+   （「第 N 份」前缀由调用方 ui-mat 加，它才知道这是第几份资料。） */
+function hximpJsonError(d) {
+  const msg = String((d.error && d.error.message) || d.error || '');
+  const type = hximpJsonType(msg);
+  const m = msg.match(/at position (\d+)/);
+  const snip = hximpSnippet(d.src, m ? +m[1] : -1);
+  const err = new Error('AI 返回的不是合法 JSON：' + type
+    + '；原始片段（出错位置前后 40 字）：' + snip
+    + '；已尝试：' + d.steps.join('、')
+    + (d.src !== d.original ? '（在修复后的文本上定位）' : ''));
+  /* 给上层判断「要不要重试一次」用（aiGenerate 只对这类错误重试，网络 / Key 错不浪费额度）。 */
+  err.jsonBad = true;
+  err.jsonType = type;
+  err.jsonSteps = d.steps.slice();
+  err.jsonSnippet = snip;
+  err.jsonRaw = d.original;
+  return err;
+}
+
+function parseJson(text) {
+  const d = parseJsonDetail(text);
+  if (d.ok) {
+    /* 记下最后一次用的是哪一步（排查用；不影响返回值）。 */
+    try { parseJson.lastSteps = d.steps; } catch (e) { }
+    return d.value;
+  }
+  throw hximpJsonError(d);
 }
 
 const TYPE_ALIAS = {
@@ -1117,7 +1414,15 @@ function normalizeQuestions(raw, subject, extra) {
      和简答题同一条校验路，只是不做长度上限 —— 自定义题型可能要求写一段步骤或一段代码。 */
   const CUSTOM = Array.isArray(extra) ? extra : [];
   const input = Array.isArray(raw) ? raw : raw && raw.questions;
-  if (!Array.isArray(input)) throw new Error('题库需要是数组，或包含 questions 数组的 JSON 对象。');
+  if (!Array.isArray(input)) {
+    /* 形状不对（模型把题目写成了字符串 / 单个对象）：算「JSON 格式不对」，
+       让 aiGenerate 按「只输出 JSON、题目放在一个数组里」重试一次。 */
+    const e = new Error('题库需要是数组，或包含 questions 数组的 JSON 对象（模型这次返回的是「'
+      + (raw == null ? '空' : Array.isArray(raw) ? '数组' : typeof raw) + '」）。');
+    e.jsonBad = true;
+    e.jsonType = 'JSON 结构不对（没有 questions 数组）';
+    throw e;
+  }
   const questions = [], rejected = [];
   input.forEach((item, index) => {
     const stem0 = String((item && (item.stem || item.question || item.title)) || '').trim();
@@ -1858,6 +2163,13 @@ function genPrompt(o) {
     + '\n资料原文：\n' + o.piece;
 }
 
+/* 解析失败后的重试提示（2026-11-21）。只追加在提示词末尾，不改原有要求 ——
+   上一轮已经说清要出什么题，这一轮只强调输出格式，别让模型以为要重来。 */
+const HXIMP_RETRY_NOTE = '\n\n【上一次的输出不是合法 JSON，解析失败。这一次请严格照下面三点来：】\n'
+  + '1. 只输出一个 JSON 对象 {"questions":[...]}，不要任何解释文字、不要 Markdown 围栏、JSON 前后不加一个字；\n'
+  + '2. 字符串里不要出现裸换行（要换行就写 \\n）、不要用中文引号包字段，答案里的一整段话也放在同一个字符串里；\n'
+  + '3. 所有题目放在同一个 questions 数组里，**不要输出两个 JSON 对象**、不要在 JSON 后面再补一段说明。';
+
 /* 出题：教材、讲义这类没有现成题目的资料，按老师的范围/题型/数量/难度/额外要求让 AI 出题。
    数量按段分摊（老师说的是“整份资料一共几道”），一段没分到题就不白花 token。 */
 async function aiGenerate(text, subject, subjectName, opts, onProgress) {
@@ -1909,27 +2221,49 @@ async function aiGenerate(text, subject, subjectName, opts, onProgress) {
         const take = Math.min(SEED_BATCH, left);
         const tail = rounds > 1 ? '（第 ' + Math.min(r + 1, rounds) + ' / ' + rounds + ' 批，还差 ' + left + ' 道）' : '';
         if (onProgress) onProgress('正在根据第 ' + (i + 1) + ' / ' + pieces.length + ' 段出题' + tail + '，已出 ' + collected.length + ' 题…', collected);
+        /* note：资料太长被切成多块时，明确告诉模型「这是第几块」——
+           勾「原文件」整份原文出题时尤其需要，不然它会把每一块都当成完整的一本书。 */
+        const noteBase = pieces.length > 1 ? '（这是资料原文的第 ' + (i + 1) + ' / ' + pieces.length + ' 块，按原文顺序切开的；只就这一块出题，不要凭空补别的内容。）' : '';
         try {
-          /* note：资料太长被切成多块时，明确告诉模型「这是第几块」——
-             勾「原文件」整份原文出题时尤其需要，不然它会把每一块都当成完整的一本书。 */
-          const prompt = genPrompt({
-            subjectName, subjectKey: subject, piece: pieces[i], level: opts.level, counts: { [t]: take },
-            extra: opts.extra, typeNames: opts.typeNames,
-            /* 小问数（2026-11-20）：只对自建题型（实操这类）有意义，其它题型用不到就传 undefined */
-            subCount: opts.subCount,
-            /* 2026-11-20：块级的章节（导入时打好的标），有就让模型照抄，别再自己猜 */
-            ch: m && m.ch, chTitle: m && m.chTitle,
-            sec: m && m.sec, secTitle: m && m.secTitle, kn: m && m.kn,
-            batch: rounds > 1 ? { k: r + 1, m: rounds } : null,
-            /* 第 2 批起带上「已经出过的题干」，否则模型会把同一批题换个说法再出一次 */
-            avoid: r > 0 ? collected.slice(-30).map(q => String(q.stem || q.q || '').slice(0, 42)) : null,
-            note: pieces.length > 1 ? '（这是资料原文的第 ' + (i + 1) + ' / ' + pieces.length + ' 块，按原文顺序切开的；只就这一块出题，不要凭空补别的内容。）' : ''
-          });
-          /* 调试口（2026-11-19）：把这一块真正的提示词挂到 window.__lastPrompt，
-             自测和排查「到底喂了什么给模型」时在控制台直接看，不 toast 打扰老师。 */
-          try { if (typeof window !== 'undefined') window.__lastPrompt = prompt; } catch (e) { }
-          const response = await hximpChat([{ role: 'system', content: '你是严谨的职业院校出题老师。只返回合法 JSON。' }, { role: 'user', content: prompt }], { json: true, thinkLevel: opts.thinkLevel });
-          const result = normalizeQuestions(parseJson(response), subject, customKeys);
+          let result = null, lastJsonErr = null;
+          /* ⑤ 解析不出来就**对这一份重试 1 次**（2026-11-21）：提示词末尾追加「只输出 JSON、
+             字符串里不要裸换行、多个题目放在一个数组里」。只对「JSON 格式不对」重试 ——
+             网络 / Key / 额度这类错误重试只是多烧一次额度，没用。 */
+          for (let attempt = 0; attempt < 2 && !result; attempt++) {
+            const prompt = genPrompt({
+              subjectName, subjectKey: subject, piece: pieces[i], level: opts.level, counts: { [t]: take },
+              extra: opts.extra, typeNames: opts.typeNames,
+              /* 小问数（2026-11-20）：只对自建题型（实操这类）有意义，其它题型用不到就传 undefined */
+              subCount: opts.subCount,
+              /* 2026-11-20：块级的章节（导入时打好的标），有就让模型照抄，别再自己猜 */
+              ch: m && m.ch, chTitle: m && m.chTitle,
+              sec: m && m.sec, secTitle: m && m.secTitle, kn: m && m.kn,
+              batch: rounds > 1 ? { k: r + 1, m: rounds } : null,
+              /* 第 2 批起带上「已经出过的题干」，否则模型会把同一批题换个说法再出一次 */
+              avoid: r > 0 ? collected.slice(-30).map(q => String(q.stem || q.q || '').slice(0, 42)) : null,
+              note: noteBase + (attempt ? HXIMP_RETRY_NOTE : '')
+            });
+            /* 调试口（2026-11-19）：把这一块真正的提示词挂到 window.__lastPrompt，
+               自测和排查「到底喂了什么给模型」时在控制台直接看，不 toast 打扰老师。 */
+            try { if (typeof window !== 'undefined') window.__lastPrompt = prompt; } catch (e) { }
+            const response = await hximpChat([{ role: 'system', content: '你是严谨的职业院校出题老师。只返回合法 JSON。' }, { role: 'user', content: prompt }], { json: true, thinkLevel: opts.thinkLevel });
+            /* 调试口：最近一次模型的原始返回（解析失败时，报错里有片段，控制台能看全文）。 */
+            try { if (typeof window !== 'undefined') window.__lastRawResp = response; } catch (e) { }
+            try {
+              result = normalizeQuestions(parseJson(response), subject, customKeys);
+            } catch (e) {
+              if (e && e.jsonBad && attempt === 0) {
+                lastJsonErr = e;
+                if (onProgress) onProgress('模型返回的 JSON 格式不对（' + e.jsonType + '），正在让它按「只输出 JSON」重出一遍…', collected);
+                continue;
+              }
+              if (lastJsonErr && e instanceof Error) {
+                e.message += '；已按「只输出 JSON、题目放在一个数组里」重试 1 次，仍旧解析不出来';
+                e.jsonRetried = true;
+              }
+              throw e;
+            }
+          }
           /* 2026-11-20：把块的章节塞进每道题（__ 前缀 = 内部字段，不进题池 JSON）。
              MAT_toDb 优先用它，模型自己写的 ch 只在没有块信息时兜底 —— 这样「AI 猜错章」
              不会再污染题池的 ch，按章组卷也就抽得到了。 */
@@ -3647,7 +3981,10 @@ async function matGenRun() {
             doneN++;
           } catch (e2) { /* 入池也失败：题还在 MAT_GEN 里，界面会给「重新写入题池」 */ }
         }
-        fails.push((jobs.length > 1 ? `第 ${j + 1} 份` : '') + ((e && e.message) || e));
+        /* 报错文案（2026-11-21）：多份时写成「第 3 份：<错误类型>；原始片段：…
+           ；已尝试：…」—— 解析层已经把错类型、出错位置前后 40 字、试过哪几步写进 message，
+           这里只补「第几份」，不要再去拼 JSON.parse 的英文原文。 */
+        fails.push((jobs.length > 1 ? `第 ${j + 1} 份：` : '') + ((e && e.message) || e));
       }
     }
     /* 一道都没出：明确报错，别让界面停在「出了 0 道」上面装成功 */
