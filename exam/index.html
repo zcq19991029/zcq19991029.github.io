@@ -9686,12 +9686,13 @@ function piModal(html) {
 const PI_TYPES = [
   ['choice', '单项选择题'], ['judge', '判断题'], ['fill', '填空题'],
   ['term', '名词解释'], ['short', '简答题'], ['prog', '程序分析题'],
-  ['shitu', '识图题'], ['sheji', '设计题']
+  ['shitu', '识图题'], ['sheji', '设计题'], ['shicao', '实操题']
 ];
 function piTypeKey(t, qtype) {
   /* 把 AI/规则给的类型落到真实 key 上：识图/设计要看这个科目有没有建过这两类 */
   if (t === 'shitu') return (qtype.shitu || 'shituti');
   if (t === 'sheji') return (qtype.sheji || 'shejiti');
+  if (/实操|实践|上机|技能/.test(String(t))) return (qtype.shicao || 'shicao');
   return PI_TYPES.some(x => x[0] === t) ? t : 'short';
 }
 function piPreview(state) {
@@ -10002,6 +10003,7 @@ async function piQType(sid) {
     const rows = await rpc('hx_exam_qtype_list', { p_subject_id: sid }) || [];
     rows.forEach(r => {
       if (/识图|读图/.test(r.name || '')) out.shitu = r.k;
+      if (/实操|实践|上机|技能/.test(r.name || '')) out.shicao = r.k;
       if (/设计|绘图/.test(r.name || '')) out.sheji = r.k;
     });
   } catch (e) { }
@@ -10060,10 +10062,12 @@ function piNormalize(parsed, blocks, qtype, sub, sid, fileName, file) {
   qs.forEach(q => {
     if (/识图|读图/.test(q.secShort)) q.typeKey = qtype.shitu || 'shituti';
     if (/设计|绘图/.test(q.secShort)) q.typeKey = qtype.sheji || 'shejiti';
+    if (/实操|实践|上机|技能/.test(q.secShort)) q.typeKey = qtype.shicao || 'shicao';
   });
   secs.forEach(s => {
     if (/识图|读图/.test(s.title)) { s.type = 'shitu'; s.typeKey = qtype.shitu || 'shituti'; }
     if (/设计|绘图/.test(s.title)) { s.type = 'sheji'; s.typeKey = qtype.sheji || 'shejiti'; }
+    if (/实操|实践|上机|技能/.test(s.title)) { s.type = 'shicao'; s.typeKey = qtype.shicao || 'shicao'; }
   });
   /* 一道大题里题型不一致时，以题本身的为准；大题的 type 取第一道 */
   if (secs.length && qs.length) secs.forEach(s => {
