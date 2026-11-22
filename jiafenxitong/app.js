@@ -1146,8 +1146,10 @@ function restoreDroppedToHome(cls) {
      命中它的列是接线仿真课堂任务 / 电子试卷自动生成的，老师/学生都不能手改。
      2026-11-17 加「电子考试」：电子试卷「得分 ÷ 满分 = 完成率」也走这个 5 分项目列机制，
      只读待遇和排位列完全一样（同一个正则 = 同一道锁，不用再记第二套规则）。
+     2026-11-22 加「线上刷题」：刷题课堂任务按「答对 ÷ 题数」算准确率 × 5 记进这一列
+     （quiz-task-link.js），同样只读、不可手改。
      ⚠ 除本文件外，同一口径还在：leader-scoring.js、peer-apply.js、scores.js、score-clean.js。 */
-  var TASK_COL = /^(?:接线|线上连线排位|线上接线仿真|电子考试)/;
+  var TASK_COL = /^(?:接线|线上连线排位|线上接线仿真|电子考试|线上刷题)/;
   function taskScore(lesson, gno, member) {
     var rec = lesson.leaderScores && lesson.leaderScores[String(gno)];
     if (!rec || !rec.members || !member) return null;
@@ -6528,7 +6530,13 @@ function restoreDroppedToHome(cls) {
       window.JFDT_EXAM.boot(jfHooks);
       window.JFDT_EXAM.syncAll();
     }
-    if (window.JFDT_WIRE || window.JFDT_EXAM) {
+    /* 2026-11-22 刷题课堂任务 → 同一个 5 分项目列（实现见 quiz-task-link.js 顶部说明）。
+       列名「线上刷题 <任务标题>」，值 = 准确率 × 5，和排位列一样只读、不可手改。 */
+    if (window.JFDT_QUIZ) {
+      window.JFDT_QUIZ.boot(jfHooks);
+      window.JFDT_QUIZ.syncAll();
+    }
+    if (window.JFDT_WIRE || window.JFDT_EXAM || window.JFDT_QUIZ) {
       /* 2026-11-09：接线任务结束以后，成绩要自己走进「上课记分」总表的「课堂任务」列。
          这里一个 10 秒心跳，做两件事：
            ① maybeSync() 拉一次只读 RPC，把**已结束**的任务入账；
@@ -6547,6 +6555,9 @@ function restoreDroppedToHome(cls) {
           /* 2026-11-17 电子试卷：同一个心跳、同一个节流（exam-link.js 内部 45s / 正在考试 10s）。
              不新开 setInterval —— 两个自动列必须踩同一个节拍，否则老师会看到两列不同步。 */
           if (window.JFDT_EXAM) window.JFDT_EXAM.maybeSync(curClass());
+          /* 2026-11-22 刷题课堂任务：同一个心跳、同一个节流（quiz-task-link.js 内部 45s / 进行中 10s）。
+             三个自动列踩同一个节拍，老师才不会看到三列各自不同步。 */
+          if (window.JFDT_QUIZ) window.JFDT_QUIZ.maybeSync(curClass());
           /* 互评看板：只拉「当前在看的班 + 当前课 + 开着组长打分」这一份 */
           var cls = curClass();
           var lesson = cls ? curLesson(cls) : null;

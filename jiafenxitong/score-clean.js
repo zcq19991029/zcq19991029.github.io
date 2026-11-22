@@ -39,11 +39,11 @@
   var W = {};
 
   /* 必须和 app.js taskScore() 的 TASK_COL、leader-scoring.js isTaskCol() 一字不差：
-     app.js:1146         var TASK_COL = /^(?:接线|线上连线排位|线上接线仿真|电子考试)/;
-     leader-scoring:25   var TASK_COL = /^(?:接线|线上连线排位|线上接线仿真|电子考试)/;
+     app.js:1146         var TASK_COL = /^(?:接线|线上连线排位|线上接线仿真|电子考试|线上刷题)/;
+     leader-scoring:25   var TASK_COL = /^(?:接线|线上连线排位|线上接线仿真|电子考试|线上刷题)/;
      改这里 = 改那两处，否则「哪些列是排位列」几个地方会打架。
      2026-11-17 加「电子考试」：电子试卷列也是自动入账、老师不能手填的列（exam-link.js）。 */
-  var TASK_COL = /^(?:接线|线上连线排位|线上接线仿真|电子考试)/;
+  var TASK_COL = /^(?:接线|线上连线排位|线上接线仿真|电子考试|线上刷题)/;
 
   /* 必须和 app.js:419 一字不差：leaderScores[组号].members 的键、peerMeta 键里那段都是它。
      app.js:419  function memberKey(m) { return m && (m.sid ? 'sid:' + m.sid : 'id:' + m.id); } */

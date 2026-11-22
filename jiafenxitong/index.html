@@ -198,7 +198,7 @@
   .sheet-vertical .duty-cell .duty-score:active { transform: translateY(1px); }
 </style>
 <meta name="build-commit" content="57f42ca-dirty">
-<meta name="build-published-at" content="2026-11-22T15:42:50.934Z">
+<meta name="build-published-at" content="2026-11-22T16:38:09.565Z">
 </head>
 <body>
 
@@ -746,6 +746,9 @@
 <script src="wire-task-link.js?v=57f42ca-dirty"></script>
 <!-- 2026-11-17：电子试卷成绩 → 小组加分自动入账（完成率 = 得分 ÷ 满分），和接线任务同一套 plan/apply -->
 <script src="exam-link.js?v=57f42ca-dirty"></script>
+<!-- 2026-11-22：刷题课堂任务 → 小组加分自动入账（准确率 × 5，列名「线上刷题 <任务标题>」），
+     同一套 plan/apply；学生做完就实时进分，老师/学生都不能手改。 -->
+<script src="quiz-task-link.js?v=57f42ca-dirty"></script>
 <script src="../ui-dialog.js"></script>
 <script src="app.js?v=57f42ca-dirty"></script>
 <script src="draw-person.js?v=57f42ca-dirty"></script>

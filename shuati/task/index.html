@@ -1,0 +1,42 @@
+<!doctype html>
+<!-- 华夏工具 · 刷题 · 课堂任务（2026-11-22）
+     教师端和学生端同一个页面，按 hx_me 的身份切换：
+       老师：选班 → 选题库 → 勾题（题型/章节/关键词/分页）→ 填课次满分 → 发布
+             → 任务列表里结束/重开/删除/恢复/再发一次/打开大屏。
+       学生：看本班任务 → 逐题作答（支持带图选项）→ 交卷看准确率和错题。
+     为什么不分两个页面：老师上课时只有几十秒操作时间，一屏填完直接发出去最快；
+     学生端也只需要「点任务 → 做题 → 看分」，没有多级导航。
+     外观沿用刷题（../../hx-theme.css 的 --bg/--card/--ink/--dim/--acc），不引任何框架/CDN。 -->
+<html lang="zh-CN" data-hx-peanut>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f5f5f7">
+<title>课堂任务 · 刷题</title>
+<!-- 两层深：线上发布在 /shuati/task/，站点根是 /，所以是 ../../hx-theme.css。
+     和 接线仿真/src/task.html 同一个道理，写成 ../ 会 404。 -->
+<link rel="stylesheet" href="../../hx-theme.css">
+<script src="../../hx-theme.js" data-tool="quiz"></script>
+<link rel="stylesheet" href="task.css">
+</head>
+<body>
+<header class="qt-top">
+  <a class="qt-back" href="../" title="回到刷题">← 刷题</a>
+  <div class="qt-title">
+    <b>课堂任务</b>
+    <span>老师发题 · 学生作答 · 按准确率给分</span>
+  </div>
+  <div class="qt-who" id="who"></div>
+</header>
+
+<main class="qt-main" id="main">
+  <div class="qt-panel"><div class="qt-empty">正在读取身份…</div></div>
+</main>
+
+<!-- 未登录 / 未开通时挡在这里。hx-theme.js 在单独打开时会跳回总入口，
+     这一层是「嵌在总入口 iframe 里、hx-theme 没接手」时的兜底，绝不白屏。 -->
+<div class="qt-gate" id="gate" hidden></div>
+
+<script type="module" src="task.js"></script>
+</body>
+</html>

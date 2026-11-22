@@ -23,7 +23,7 @@
      漏了这条新列名就锁不上，学生又能给排位列刷分。
      2026-11-17 加上「电子考试」：exam-link.js 的列名 = 「电子考试 <试卷标题>」。
      ⚠ 前缀口径与 app.js 的 taskScore()、wire-task-link.js / exam-link.js 的 NAME_PREFIX 保持一致。 */
-  var TASK_COL = /^(?:接线|线上连线排位|线上接线仿真|电子考试)/;
+  var TASK_COL = /^(?:接线|线上连线排位|线上接线仿真|电子考试|线上刷题)/;
   function isTaskCol(name) { return TASK_COL.test(String(name == null ? '' : name).trim()); }
   /* 电子试卷列单独认一次：只为了把悬浮提示写成「电子试卷」而不是「课堂任务」 */
   function isExamCol(name) { return /^电子考试/.test(String(name == null ? '' : name).trim()); }

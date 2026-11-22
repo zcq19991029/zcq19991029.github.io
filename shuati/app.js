@@ -180,14 +180,41 @@ async function loadSubjects(withPublic = true) { // withPublic=false：先不等
      不筛掉的话，它们会换个身份（「xx 发布」的公共题库）重新冒出来，等于白删。
      这两行不影响任何东西，留在数据库里就行；真要彻底清掉，用 quiz_delete 删那两行即可。 */
   const RETIRED = new Set(['psychology', 'education']);
+  /* 2026-11-22 去重（用户截图：「怎么重复了呢 保留前两个即可」）：
+     这两门课的题现在以**课程题**的身份放在云端（quiz_public，行名就叫「单片机应用技术」「电气接线原理」，
+     id 是 mcu-abc-1122 / wiring-abc-1122）。内置壳（wiring / mcu）在 BUILTIN_EMPTY 之后是个空架子 ——
+     壳一张卡、云端那份再一张卡，科目面板里一门课就变成两行，还各带一个副标签。
+     所以：云端有这门课的题时，内置壳不再单独出卡，直接让云端那份顶上（卡片 id 用 pub-<题库id>，
+     排位表 quiz_rank_key 认这个前缀；其余还按内置课程题对待 —— 来源写「课程题库 · 已搬到云端」、
+     有「更新发布」，成绩也继续算在这门课头上）。云端没有（离线 / 还没发布过）才退回内置壳。 */
+  const pubRows = (pub || []).filter(p => p && !RETIRED.has(p.id) && !(p.mine && mineIds.has(p.id)));
+  const claimed = new Set();            // 已经被某门课认领的云端行，不再单独出行
+  const bind = new Map();               // BUILTIN.id → { p, legacy }
+  for (const s of BUILTIN) {            // 先认「id 一字不差」的老数据（当年搬到开发者名下那两行）
+    const hit = pubRows.find(x => !claimed.has(x.id) && x.id === s.id);
+    if (hit) { claimed.add(hit.id); bind.set(s.id, { p: hit, legacy: true }); }
+  }
+  for (const s of BUILTIN) {            // 再认「行名 = 课程名」的新题库（六套期末卷生成的那两份）
+    if (bind.has(s.id)) continue;
+    const hit = pubRows.find(x => !claimed.has(x.id) && x.name === s.name);
+    if (hit) { claimed.add(hit.id); bind.set(s.id, { p: hit, legacy: false }); }
+  }
   S.subjects = [
     ...BUILTIN.map(s => {
-      const p = cloudBuiltin.get(s.id);
-      return p
-        ? { ...s, kind: 'builtin', cloud: true, pid: p.id, owner: p.owner_name, total: p.total, targets: p.targets, class_ids: p.class_ids, teacher_ids: p.teacher_ids, mine: p.mine }
-        : { ...s, kind: 'builtin' };
+      const b = bind.get(s.id);
+      const p = b && b.p;
+      const cp = cloudBuiltin.get(s.id);
+      if (!p) return cp
+        ? { ...s, course: s.id, kind: 'builtin', cloud: true, pid: cp.id, owner: cp.owner_name, total: cp.total, targets: cp.targets, class_ids: cp.class_ids, teacher_ids: cp.teacher_ids, mine: cp.mine }
+        : { ...s, course: s.id, kind: 'builtin' };
+      return {
+        ...s, name: p.name || s.name, kind: 'builtin', cloud: true, course: s.id,
+        id: b.legacy ? s.id : 'pub-' + p.id, pid: p.id,
+        owner: p.owner_name, total: p.total, mine: p.mine,
+        targets: p.targets, class_ids: p.class_ids, teacher_ids: p.teacher_ids,
+      };
     }),
-    ...(pub || []).filter(p => p && !BUILTIN_IDS.has(p.id) && !RETIRED.has(p.id) && !(p.mine && mineIds.has(p.id))).map(p => ({ id: 'pub-' + p.id, pid: p.id, name: p.name, kind: 'public', owner: p.owner_name, tag: p.owner_name ? p.owner_name + ' 发布' : '老师发布', total: p.total,
+    ...pubRows.filter(p => !claimed.has(p.id) && !BUILTIN_IDS.has(p.id)).map(p => ({ id: 'pub-' + p.id, pid: p.id, name: p.name, kind: 'public', owner: p.owner_name, tag: p.owner_name ? p.owner_name + ' 发布' : '老师发布', total: p.total,
       // 下发范围（2026-11-02）：targets 是给人看的说明，class_ids 给发布面板回填复选框
       // 2026-11-08 加 teacher_ids：发给指定老师时回填那一栏
       mine: p.mine, targets: p.targets, class_ids: p.class_ids, teacher_ids: p.teacher_ids })),
@@ -199,12 +226,19 @@ async function loadSubjects(withPublic = true) { // withPublic=false：先不等
   /* 首屏为了快，是「先不等云端、直接把内置科目画出来」的；云端那条「这套题已经搬到开发者名下」
      的信息要晚一步才到。所以这里补两件事：
        · 把 S.subject 换成新对象（不然它还指着刚才那份没有 cloud 标记的，题库页就一直显示「本地只读」）；
-       · 云端这份第一次出现时，清掉先前从 data/*.json 读到的那份缓存，让 baseOf 重新去云端取。 */
+       · 云端这份第一次出现时，清掉先前从 data/*.json 读到的那份缓存，让 baseOf 重新去云端取。
+     2026-11-22：同一门课的卡还可能连 id 都换了（内置壳 wiring → 云端题库 pub-wiring-abc-1122，见上面去重那段）。
+     那种情况不能就地改 S.subject 的 id —— 题目、作答记录、会话都还按老 id 存着，
+     只记一笔「该重开哪张卡」，由调用方（boot）走一次正规的 openSubject。 */
   if (S.subject) {
     const fresh = S.subjects.find(s => s.id === S.subject.id);
     if (fresh) {
       if (fresh.cloud && !S.subject.cloud) delete S.base[fresh.id];
       S.subject = fresh;
+    } else {
+      const key = S.subject.course || S.subject.id;
+      const moved = S.subjects.find(s => (s.course || s.id) === key);
+      if (moved) S.reopenId = moved.id;
     }
   }
 }
@@ -220,7 +254,10 @@ async function baseOf(sub) {
     if (sub.cloud && sub.pid) {
       try { const r = await store.publicGet(sub.pid); if (r && Array.isArray(r.questions) && r.questions.length) list = r.questions; } catch { /* 落到下面的本地兜底 */ }
     }
-    if (!list.length) {
+    /* 课程卡已经是「云端那份题库」了（id 是 pub-xxx，见 loadSubjects 的去重）：
+       取不到就**空着**，别再退回 data/*.json —— 那是 2026-11 归档的旧题（370+245 道），
+       和现在这套 A/B/C 期末卷不是一回事，回退过来只会让人以为题库回滚了。 */
+    if (!list.length && !(sub.course && String(sub.id).startsWith('pub-'))) {
       // 离线版：题库已经内联在文件里（window.__BANK），file:// 下 fetch 会被浏览器拦，直接取
       if (window.__OFFLINE && window.__BANK && window.__BANK[sub.file]) list = window.__BANK[sub.file];
       else { const r = await fetch(sub.file + '?v=20261031', { cache: 'no-cache' }); if (!r.ok) throw new Error('题库加载失败 HTTP ' + r.status); list = await r.json(); }
@@ -384,8 +421,16 @@ function markSeen(id) {
 // ---------- 渲染 ----------
 function renderNav() {
   const btn = ([id, label, d]) => `<button type="button" data-v="${id}" aria-current="${S.view === id}">${d ? `<svg viewBox="0 0 24 24"><path d="${d}"/></svg>` : ''}${label}</button>`;
-  $('tabs').innerHTML = VIEWS.map(([a, b]) => btn([a, b])).join('');
-  $('dock').innerHTML = VIEWS.map(btn).join('');
+  /* 课堂任务（2026-11-22）：不属于刷题的「栏目」（它是一整个独立页面 /shuati/task/），
+     所以不塞进 VIEWS —— 塞进去 show() 会去找 #v-task，找不到就中断整个切换。
+     这里只多挂一个链接，顶栏和手机底栏各一个；底栏原来是 5 栏，多这一项改成 6 栏均分。 */
+  const TASK_ICON = 'M9 2h6a1 1 0 0 1 1 1v2h2a1 1 0 0 1 1 1v15a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h2V3a1 1 0 0 1 1-1zm1 2v1h4V4h-4zm1.8 12.2l4.6-4.6-1.4-1.4-3.2 3.2-1.4-1.4-1.4 1.4 2.8 2.8z';
+  const taskA = (dock) => `<a href="task/" ${dock ? 'class="tasknav"' : ''} style="${dock
+    ? 'display:grid;place-items:center;align-content:center;gap:1px;font-size:10.5px;color:var(--dim);text-decoration:none'
+    : 'display:inline-flex;align-items:center;height:32px;padding:0 14px;border-radius:99px;color:var(--dim);font-weight:500;text-decoration:none'}">${dock ? `<svg viewBox="0 0 24 24" style="width:22px;height:22px;fill:currentColor"><path d="${TASK_ICON}"/></svg>` : ''}课堂任务</a>`;
+  $('tabs').innerHTML = VIEWS.map(([a, b]) => btn([a, b])).join('') + taskA(false);
+  $('dock').innerHTML = VIEWS.map(btn).join('') + taskA(true);
+  $('dock').style.gridTemplateColumns = 'repeat(6, 1fr)';
   for (const b of document.querySelectorAll('[data-v]')) b.onclick = () => show(b.dataset.v);
   // 顶栏换成「一块跟着当前项滑过去」的指示器（只在桌面顶栏做；手机底部 dock 每项都带图标，滑块会挡图标）
   try { window.HXNav && window.HXNav.slide($('tabs')); } catch (e) { }
@@ -1462,7 +1507,7 @@ function renderBank() {
   const canDelBank = !DEMO && ownIt && (sub.kind === 'public' || (sub.kind === 'mine' && sub.published));
   const delBankBtn = DEMO ? ''
     : canDelBank ? '<button class="btn sm danger" type="button" id="delBankBtn">删除题库</button>'
-      : sub.kind === 'builtin' ? '<button class="btn sm" type="button" id="delBankBtn" disabled title="内置题库随代码发布，删不掉；不想要就从科目列表里隐藏">删除题库</button>'
+      : sub.kind === 'builtin' ? `<button class="btn sm" type="button" id="delBankBtn" disabled title="${sub.course && String(sub.id).startsWith('pub-') ? '课程题库：删了学生会掉回旧题、这门课的排位也会断；不要了请用「取消发布」' : '内置题库随代码发布，删不掉；不想要就从科目列表里隐藏'}">删除题库</button>`
         : '';
   /* 转发（2026-11-08）：别人发给我的题，我能复制一份到自己名下，再发给我自己的班。
      条件：是老师 + 这套题不是我发的 + 是「发布」类（builtin 云端 / public）。
@@ -1673,13 +1718,7 @@ function poolToQuiz(r, bank) {
   const a = r.a;
   switch (r.t) {
     case 'choice': {
-      /* 选项可能只有图（题池里 o[i].fig 存符号 id，如「交流接触器的符号是」），
-         以前这里只搬 text，纯图选项变成空文字 → 看着像 4 个空选项。fig 一起带过来（2026-11-22）。 */
-      q.options = (Array.isArray(r.o) ? r.o : []).map((o, i) => {
-        const one = { key: String((o && o.key) || String.fromCharCode(65 + i)).toUpperCase(), text: String(o && o.text != null ? o.text : '') };
-        if (o && o.fig) one.fig = String(o.fig);
-        return one;
-      });
+      q.options = (Array.isArray(r.o) ? r.o : []).map((o, i) => ({ key: String((o && o.key) || String.fromCharCode(65 + i)).toUpperCase(), text: String(o && o.text != null ? o.text : '') }));
       if (q.options.length < 2) return { skip: '选择题选项少于 2 个' };
       const keys = new Set(q.options.map(o => o.key));
       const raw = Array.isArray(a) ? a.join('') : String(a == null ? '' : a);
@@ -2418,9 +2457,13 @@ async function boot() {
   if (window.HXLoadFx) HXLoadFx.finishBoot();
   if (!pub) {
     await loadSubjects(); // 老师发布的题库随后补进科目列表
-    // 内置这套刚被认出来「云端有份新的」（搬到开发者名下之后就是这样）：题目要重取一遍，
-    // 否则屏幕上还是启动时从 data/*.json 读的那份，改完发布也对不上。
-    if (S.subject && S.subject.cloud && !(S.base[S.subject.id] || []).length) await openSubject(S.subject.id);
+    /* 两种情况要把科目重开一遍：
+       · 内置这门课刚被认出来「云端有份新的」（搬到开发者名下之后就是这样），题目得重取；
+       · 卡片换了身份（内置壳 wiring → 云端题库 pub-wiring-abc-1122），id 变了，必须走正规的 openSubject
+         —— 否则界面上写着科目名、题卡却还是空壳那张的 0 题（loadSubjects 只把新 id 记在 S.reopenId 里）。 */
+    const reopen = S.reopenId; S.reopenId = '';
+    if (reopen) await openSubject(reopen);
+    else if (S.subject && S.subject.cloud && !(S.base[S.subject.id] || []).length) await openSubject(S.subject.id);
   }
   store.rankFlush(rankDone); // 上次没交上的答对记录
 }
