@@ -7682,7 +7682,8 @@ pre.code{font-family:"Consolas","Courier New",monospace;font-size:9pt;line-heigh
    题目块整块可点：悬停给底色 + 虚线框；老师点名的题左边一道蓝线。
    颜色在这里写死是因为这段 CSS 也进打印文档（iframe 里拿不到父页的主题变量），
    而且纸面本身永远是白底黑字，不需要跟随明暗主题。 */
-body[data-edit="1"] .ed{position:relative;cursor:pointer;border-radius:3px;outline:1px dashed transparent;outline-offset:1px;transition:background-color .12s,outline-color .12s}
+body[data-edit="1"] .ed{position:relative;cursor:grab;border-radius:3px;outline:1px dashed transparent;outline-offset:1px;transition:background-color .12s,outline-color .12s}
+body[data-edit="1"] .ed:active{cursor:grabbing}
 body[data-edit="1"] .ed:hover{background:#e9f0ff;outline-color:#8db0ff}
 /* 已经点名的题：左边一道蓝条告诉我「这道是我自己定的」。2026-11-20 老师截图说
    「蓝色括号与题号太紧密 感官不好」—— 原来那条 3px 是 inset 阴影，正好压在题号「1.」左沿上。
@@ -7734,10 +7735,31 @@ const PAPER_LAYOUT_JS=`
     groups.forEach(function(g){
       var need=Math.min(g.h,h);
       if(used>0&&used+need>h){cols.push([]);used=0;}
-      g.idx.forEach(function(k){cols[cols.length-1].push(k);});
+      cols[cols.length-1].push(g);
       used+=g.h;
     });
-    return cols;
+    /* ── 同一页两栏的高度平衡（2026-11-21）──
+       把「越界块压预算」修好之后，第 8、9 题会一路填到左栏底（老师要的「替补递进」）；
+       但如果下一大题是一道 930px 的识图题（塞不进右栏剩下的 400px），空白就全堆到右栏，
+       看起来还是「整栏空半栏」。这里只在「左栏 ≥85%、右栏 <60%」时，把左栏末尾的
+       **普通题**（大题标题组不动：它必须跟首题在一起）挪到右栏顶上，两栏高度接近就停。
+       不跨页、不拆题、不改页数；只从满的一栏往空的一栏挪，绝不把已经在上面的题往回倒。 */
+    var dk=function(k){return blks[k].getAttribute('data-k')||'';};
+    for(var s=0;s+1<cols.length;s+=2){
+      var A=cols[s],B=cols[s+1],guard=0;
+      var ha=A.reduce(function(a,g){return a+g.h;},0),hb=B.reduce(function(a,g){return a+g.h;},0);
+      while(A.length>1&&hb<0.6*h&&(ha-hb)>0.15*h&&guard++<30){
+        var g=A[A.length-1],head=blks[g.idx[0]];
+        if(head.querySelector&&head.querySelector('.sech'))break;      /* 别把大题标题挪到页脚上 */
+        var my=dk(g.idx[0]),nx=g.idx[g.idx.length-1]+1;
+        if(my&&nx<blks.length&&dk(nx)===my)break;                       /* 这题还有小问块排在下面，别拆 */
+        if(hb+g.h>h||(ha-g.h)<(hb+g.h))break;                           /* 装不下 / 挪完就反过来了 */
+        A.pop();B.unshift(g);ha-=g.h;hb+=g.h;
+      }
+    }
+    var out=[];
+    cols.forEach(function(c){var arr=[];c.forEach(function(g){arr=arr.concat(g.idx);});out.push(arr);});
+    return out;
   };
   /* 按分好的栏真的拼成一张张 A3（可重复调用：每次先清空 #out 再重拼）
      ⚠ 栏数是奇数时必须自己补一个空栏：mk(2s+1) 取到 cols[undefined] 就会 forEach 抛错，
@@ -7785,13 +7807,15 @@ const PAPER_LAYOUT_JS=`
   }
   /* 装页 + 溢出兜底（2026-11-20 老师截图：填空题最后半句被页脚剪掉了）。
      高度是「先量后装」的，字体晚到 / 图片解码完 / 行高取整都会让实际比量出来的高一点点，
-     装进去就被 colbody 的 overflow:hidden 切掉。所以装完量一次最后一格，越界就把预算
-     压小重排 —— 宁可少装一道、让它换到下一栏（下一列），也不能把题干剪半句。 */
-  /* 一整块比一栏还高（识图题 10 个小问 + 宽松留白 + 大图这种）：分栏怎么调都塞不进去 ——
-     plan() 里 need=Math.min(need,h) 会让它独占一栏，装完照样被 .colbody 的 overflow:hidden 剪掉，
-     老师看到的是「最后一题连着答题空整块没了」。这时候只能压这一块自己的尺寸：
-     先缩图（最低 180px），图缩到底了再缩答题空白（每处最低 1 行 = 24px）。
-     宁可多翻一页、版面挤一点，也不能把题剪掉。2026-11-21 */
+     装进去就被 colbody 的 overflow:hidden 切掉。所以装完量一次最后一格。
+     ── 2026-11-21：越界时**先压越界的那一块**，压完按整栏高重排（不再把整栏预算一起压小）──
+     原来不管越界的是谁，都按 overflow 把 colH 收小再排。识图题第一次量出 1155px（大图还没定型 /
+     10 个小问的答题留白），一栏被压到 763px，后面**每一栏**都跟着少装 230px ——
+     第一页明明还能放第 8、9 题却提前换栏，老师看到的就是「第一页留白太多」。
+     现在：越界超过一行就先压这一块自己的答题空白 / 大图，压动了就按整栏重排；
+     压不动（普通块因为取整差一两行）才收预算 —— 宁可少装一道，也不能把题干剪半句。
+     一整块比一栏还高（识图题 10 个小问 + 宽松留白 + 大图这种）：只能压这一块自己的尺寸：
+     先缩答题空白（每处最低 1 行 = 24px），再缩图（最低 240px）。 */
   var worstBlk=function(){
     var w=null,wov=0.5;
     [].forEach.call(out.querySelectorAll('.colbody'),function(bd){
@@ -7801,42 +7825,60 @@ const PAPER_LAYOUT_JS=`
     });
     return w;
   };
+  /* 压「越界的那一块」一次，返回是否真的压动了（压到下限就返回 false） */
+  var shrinkWorst=function(){
+    var el=worstBlk();if(!el)return false;
+    var did=false;
+    /* ① 先压这一块的答题空白（每处最低 1 行 = 24px）。识图题 10 个小问 × 3 行 = 720px，
+       先把这块让出来，图就不用动，学生还能看清电路。 */
+    var sps=[].slice.call(el.querySelectorAll('.space'));
+    sps.forEach(function(e){
+      var h=e.getBoundingClientRect().height;
+      if(h>24.5){e.style.height=Math.max(24,Math.round(h*0.85))+'px';did=true;}
+    });
+    /* ② 空白已经压到 1 行了还装不下，才动图（CSS 里是 max-height:360px!important，
+       行内想盖住它必须也带 important）；240px 是底线 —— 再小图上标注就认不出了。 */
+    if(!did){
+      /* 上传的位图也走这一条（img 没有 CSS !important 的 max-height，但行内压得住） */
+      var fig=el.querySelector('.ep-fig.lg svg, .ep-fig.lg img');
+      if(fig){
+        var fh=fig.getBoundingClientRect().height;
+        if(fh>241){fig.style.setProperty('max-height',Math.max(240,Math.round(fh*0.85))+'px','important');did=true;}
+      }
+    }
+    return did;
+  };
+  var N=0;
   var rescue=function(cs){
     for(var rz=0;rz<20;rz++){
       if(overflow()<=0.5)break;
-      var el=worstBlk();if(!el)break;
-      var did=false;
-      /* ① 先压这一块的答题空白（每处最低 1 行 = 24px）。识图题 10 个小问 × 3 行 = 720px，
-         先把这块让出来，图就不用动，学生还能看清电路。 */
-      var sps=[].slice.call(el.querySelectorAll('.space'));
-      sps.forEach(function(e){
-        var h=e.getBoundingClientRect().height;
-        if(h>24.5){e.style.height=Math.max(24,Math.round(h*0.85))+'px';did=true;}
-      });
-      /* ② 空白已经压到 1 行了还装不下，才动图（CSS 里是 max-height:360px!important，
-         行内想盖住它必须也带 important）；240px 是底线 —— 再小图上标注就认不出了。 */
-      if(!did){
-        /* 上传的位图也走这一条（img 没有 CSS !important 的 max-height，但行内压得住） */
-        var fig=el.querySelector('.ep-fig.lg svg, .ep-fig.lg img');
-        if(fig){
-          var fh=fig.getBoundingClientRect().height;
-          if(fh>241){fig.style.setProperty('max-height',Math.max(240,Math.round(fh*0.85))+'px','important');did=true;}
-        }
-      }
-      if(!did)break;
+      if(!shrinkWorst())break;
       N=render(cs);
     }
     return N;
   };
-  var N=0;
-  for(var a=0;a<4;a++){
-    if(cols.length%2)cols.push([]);
-    N=render(cols);
-    var ov=overflow();
-    if(ov<=0.5)break;
-    cols=plan(colH-ov-2);
-  }
-  rescue(cols);
+  /* 排一遍：按整栏高排 → 装 → 越界就压那一块再整栏重排 → 压不动才收预算 */
+  var layout=function(){
+    var budget=colH,cs=plan(budget),n=0;
+    for(var a=0;a<24;a++){
+      n=render(cs);
+      var ov=overflow();
+      if(ov<=0.5)break;
+      /* 只有「这一块本身就比一栏高」（识图题 10 小问 + 大图）才压它自己；
+         普通题因为取整差一两行越界，压的是栏预算（让它整体换到下一栏），不缩它的答题空。 */
+      var el=worstBlk();
+      if(el&&el.getBoundingClientRect().height>=colH-1&&shrinkWorst()){cs=plan(budget);continue;}
+      /* 预算只许往小走（2026-11-21）：以前每次都拿 colH-ov-2 从头算，两套预算会来回打，
+         24 轮停在哪套看运气 —— 换种子实测有 5 个种子末尾留 2~13px 越界。
+         现在单调收紧，收到 240 的下限还越界就压块自己，压不动才认。 */
+      var nb=Math.max(240,Math.min(budget-2,colH-ov-2));
+      if(nb>=budget-0.01){if(!shrinkWorst())break;cs=plan(budget);continue;}
+      budget=nb;cs=plan(budget);
+    }
+    return {cols:cs,n:n};
+  };
+  var first=layout();cols=first.cols;N=first.n;
+  N=rescue(cols);
   src.remove();
   document.body.setAttribute('data-pages',N);
   /* 字体是真晚到的常见来源：等字体就绪再排一次（render 幂等，会重拼整份），
@@ -7847,15 +7889,8 @@ const PAPER_LAYOUT_JS=`
   if(document.fonts&&document.fonts.ready&&document.fonts.status!=='loaded'){
     document.fonts.ready.then(function(){
       if(overflow()<=0.5)return done();
-      var c2=plan();
-      for(var b=0;b<4;b++){
-        if(c2.length%2)c2.push([]);
-        N=render(c2);
-        var ov2=overflow();
-        if(ov2<=0.5)break;
-        c2=plan(colH-ov2-2);
-      }
-      rescue(c2);
+      var again=layout();N=again.n;
+      N=rescue(again.cols);
       document.body.setAttribute('data-pages',N);
       done();
     });
@@ -7871,7 +7906,7 @@ const PAPER_EDIT_JS=`
      单击是「换一道」（开题库抽屉），双击是「改这道」，两者会打架：
      双击时浏览器先发一次 click，抽屉就会闪一下。所以单击延迟 220ms 再发，
      这期间来了 dblclick 就取消单击 —— 单点仍然跟手，双击也不会误开抽屉。 */
-  var t1=null,noClickUntil=0,dragOn=false,hot=null,ht=0,lastH=0;
+  var t1=null,noClickUntil=0,dragOn=false,hot=null,ht=0,lastH=0,selfKey='';
   function pick(el){ try{parent.postMessage({hxPaperPick:el.getAttribute('data-k'),no:+el.getAttribute('data-no'),t:el.getAttribute('data-t')},'*');}catch(x){} }
   function edit(el){ try{parent.postMessage({hxPaperEdit:el.getAttribute('data-k'),no:+el.getAttribute('data-no'),t:el.getAttribute('data-t')},'*');}catch(x){} }
   function host(e){
@@ -7888,12 +7923,42 @@ const PAPER_EDIT_JS=`
      只有本工具自己拖得出来：从桌面上拖一张图、从别的网页拖一段字进来，都不该被当成换题。
      ── 为什么不跟单击/双击打架 ──
      拖拽过程中浏览器本来就不发 click（mousedown 在父页那一侧）；但拖完松手在卷面上时个别浏览器
-     会补一次 click，所以再上一道保险：dragover 时把 noClickUntil 往后推，click 里先看这个时间戳。 */
+     会补一次 click，所以再上一道保险：dragover 时把 noClickUntil 往后推，click 里先看这个时间戳。
+     ── 2026-11-21：为什么还要 selfKey / text/plain 两道保险 ──
+     老师报「拖动互换不了题目位置」。卷面内部的拖拽是本 iframe 自己发起的，
+     但部分 Chromium 内核（学校机器上的 360 / QQ 浏览器、旧版 Edge）在 iframe / srcdoc 里
+     会把自定义 MIME 从 dataTransfer.types 里抹掉 —— dragover 一开始 isHx() 就是 false，
+     preventDefault 没做，drop 根本不会触发，表现就是「怎么拖都没反应」。
+     现在拖拽起点在本卷面时把 key 记在 selfKey 里，后面不再依赖 dataTransfer 的 types；
+     同时往 text/plain 写一份「hxq:choice:3」，万一自定义 MIME 被剥掉也还能读回来。
+     外部拖进来的文字（没有 hxq: 前缀）一律不认。 */
   function isHx(e){
     var t=e.dataTransfer&&e.dataTransfer.types;
-    if(!t)return false;
-    for(var i=0;i<t.length;i++)if(t[i]==='text/hxq')return true;
-    return false;
+    if(t)for(var i=0;i<t.length;i++)if(t[i]==='text/hxq')return true;
+    return !!selfKey;
+  }
+  function dragSrc(e){
+    if(selfKey)return selfKey;
+    var s='';
+    try{s=e.dataTransfer.getData('text/hxq')||'';}catch(x){}
+    if(s)return s;
+    try{s=e.dataTransfer.getData('text/plain')||'';if(s.indexOf('hxq:')===0)return s.slice(4);}catch(x){}
+    return '';
+  }
+  /* 落点不在某一道题的块上（两题之间只有 2pt 空隙，鼠标很容易落空）→ 就近取同一栏里的题，
+     上下 18px 以内算数，再远就当「松在空白处」。 */
+  function nearHost(e){
+    var el=host(e); if(el)return el;
+    var t=e.target, bd=null;
+    while(t&&t!==document){ if(t.classList&&t.classList.contains('colbody')){bd=t;break;} t=t.parentNode; }
+    if(!bd)return null;
+    var y=e.clientY,best=null,gap=1e9,els=bd.querySelectorAll('[data-k]');
+    for(var i=0;i<els.length;i++){
+      var r=els[i].getBoundingClientRect();
+      var d=y<r.top?r.top-y:(y>r.bottom?y-r.bottom:0);
+      if(d<gap){gap=d;best=els[i];}
+    }
+    return gap<=18?best:null;
   }
   function clearHot(){ if(hot){hot.classList.remove('drop-hot');hot=null;} }
   function setHot(el){
@@ -7905,16 +7970,16 @@ const PAPER_EDIT_JS=`
     if(!isHx(e))return;
     e.preventDefault();
     dragOn=true;noClickUntil=Date.now()+400;
-    setHot(host(e));
+    setHot(nearHost(e));
   },true);
   document.addEventListener('dragover',function(e){
     if(!isHx(e))return;
     e.preventDefault();
-    try{e.dataTransfer.dropEffect='copy';}catch(x){}
+    try{e.dataTransfer.dropEffect=selfKey?'move':'copy';}catch(x){}
     dragOn=true;noClickUntil=Date.now()+400;
     /* 每帧都按当前坐标重找一次目标块：跨格移动时先到的可能是上一格的 dragleave，
        不能靠它清高亮，否则快速划过会闪 */
-    setHot(host(e));
+    setHot(nearHost(e));
   },true);
   document.addEventListener('dragleave',function(e){
     if(!isHx(e))return;
@@ -7929,20 +7994,26 @@ const PAPER_EDIT_JS=`
     /* 2026-11-20：卷面内部的题也能拖（老师：「试卷内部的题目可以拖动互换位置（同题型情况下）」）。
        拖出来的就是这一格自己的 key（fill:3 这种），父页一看不是题库 key 就走「互换」而不是「换题」。 */
     var el=host(e); if(!el)return;
-    try{e.dataTransfer.setData('text/hxq',el.getAttribute('data-k'));e.dataTransfer.effectAllowed='move';}catch(x){}
+    var k=el.getAttribute('data-k')||'';
+    selfKey=k;
+    try{
+      e.dataTransfer.setData('text/hxq',k);
+      e.dataTransfer.setData('text/plain','hxq:'+k);   /* 旧内核剥掉自定义 MIME 时的后备 */
+      e.dataTransfer.effectAllowed='move';
+    }catch(x){}
     dragOn=true;noClickUntil=Date.now()+400;
     el.style.opacity='.5';
   },true);
   document.addEventListener('dragend',function(e){
     var el=host(e); if(el)el.style.opacity='';
-    dragOn=false;noClickUntil=Date.now()+300;
+    dragOn=false;noClickUntil=Date.now()+300;selfKey='';
     clearHot();
   },true);
   document.addEventListener('drop',function(e){
     if(!isHx(e))return;
     e.preventDefault();
-    var el=host(e),src='';
-    try{src=e.dataTransfer.getData('text/hxq')||'';}catch(x){}
+    var el=nearHost(e),src=dragSrc(e);
+    selfKey='';
     clearHot();dragOn=false;noClickUntil=Date.now()+300;
     if(!el||!src)return;                    // 松在页边空白处：当没拖，不换题
     try{parent.postMessage({hxPaperDrop:el.getAttribute('data-k'),no:+el.getAttribute('data-no'),t:el.getAttribute('data-t'),src:src},'*');}catch(x){}
@@ -11833,9 +11904,12 @@ function mountPaper(sub) {
     if (!P || dstKey === srcKey) return;
     const pa = dstKey.split(':'), pb = srcKey.split(':');
     const ta = pa[0], tb = pb[0];
-    if (ta !== tb) return toast('只能跟同一题型里的题换位置（' + pType(ta).name + ' 不能和 ' + pType(tb).name + ' 换）');
+    if (ta !== tb) return toast('「' + pType(ta).name + '」和「' + pType(tb).name + '」的题数、分值不一样，不能互换位置；请拖到同一大题里的另一道题上');
     const sa = P.find(x => x.t === ta), sb = P.find(x => x.t === tb);
     if (!sa || !sb) return;
+    /* 卷面刚被重排过（改题数 / 撤回）时，DOM 里的格子可能比 P 多一格 —— 别去读不存在的题，
+       否则会把「不存在的题」写进 picks，看起来像拖了一下反而少了一道。 */
+    if (+pa[1] >= sa.items.length || +pb[1] >= sb.items.length) return toast('这一格刚变过，等卷面重排完再拖一次');
     const qa = sa.items[+pa[1]], qb = sb.items[+pb[1]];
     const na = qa && !qa.__blank, nb = qb && !qb.__blank;
     if (!na && !nb) return toast('两格都是空的');
@@ -11885,6 +11959,8 @@ function mountPaper(sub) {
       bkPopKill();                                            // 浮层别跟着拖走
       try {
         ev.dataTransfer.setData('text/hxq', String(row.dataset.i));
+        /* 备用：部分旧内核在 iframe 里会把自定义 MIME 从 types 里抹掉，卷面那边认 hxq: 前缀 */
+        ev.dataTransfer.setData('text/plain', 'hxq:' + String(row.dataset.i));
         ev.dataTransfer.effectAllowed = 'copy';
       } catch (e) { }
       row.classList.add('bkq-drag');
