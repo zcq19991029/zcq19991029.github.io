@@ -1857,11 +1857,19 @@ function isCoDev() { return !!(ST.me && ST.me.title === '合作开发者'); }
    压根不给门」，所以音乐入口改成 isDev()（只有开发者）。这个函数留给其它需要「管理员级」判定的地方。 */
 function isAdmin() { return !!(ST.me && (ST.me.admin || ST.me.dev)); }
 function locked() { return HX.in() && role() === '未开通'; } // 登录了没开通（GitHub 新账号等）：什么工具都不给，只能填邀请码
+/* 2026-11-22 会员闸门：服务器过期（开发者 / 合作开发者永远不过期，判定在数据库 hx_expired()）。
+   用户原话：「限制除了开发者和合作开发者以外的教师账户 … 被限制的账户旗下导入的班级和学生都无法登录 …
+   登录提示统一改为服务器过期 等待管理员续费 让大家知道我们需要成本」。
+   ST.me.expired 是 hx_me() 带回来的唯一权威判定：老师看自己，学生看所属班的任课老师。 */
+function expiredNow() { return !!(ST.me && ST.me.expired); }
 function can(t) { // who：all 登录的人都有、teacher 教师、admin 只管排课那位（开发者 GitHub 账号）、dev 只有开发者
   // 2026-11-02 用户定：「没账号不允许使用任何工具」。注册已经彻底修好（删掉了 auth.users 上的废弃触发器），
   // 所以 2026-11-01 那个「注册坏了先解锁接线仿真和刷题」的 open 后门已经拆掉，这里不再有免登录分支。
   if (t.anon) return true; // anon:1 的卡片（当前没有）未登录也放行；「使用说明」已改成 anon:0，随登录闸门一起收
   if (!HX.in() || locked()) return false;
+  /* 2026-11-22 会员闸门：过期账号一张卡都不给（开发者/合作开发者不会命中）。
+     放在 who 判断之前 —— 过期是账号级状态，跟具体工具的权限无关。 */
+  if (expiredNow()) return false;
   if (t.who === 'dev') return isDev() || isCoDev(); // 2026-11-19 第七轮 T5：开发者工具组只给开发者（含合作开发者）
   if (t.who === 'admin') return isOwner(); // 2026-11-11 用户：「排课功能只给管理员开放……收回权限」
   if (t.who === 'teacher') return isTeacher();
@@ -2116,7 +2124,7 @@ function show(id, how) { // how：不写 = 新开一页（进浏览器历史，�
      所以第 ② 种保留 hash：地址留在 #wiring，人停在登录页；等 refresh() 拿到登录态后
      会再 show('wiring') 一次，自动接着进工具（那一帧 can() 已经放行）。
      判据只认「这个 id 真的是个工具」（在 TOOLS 里），乱写的 #abc 照旧回首页，不留垃圾地址。 */
-  var keepHash = !t && !!id && TOOLS.some(function (x) { return x.id === id; });
+  var keepHash = !t && !expiredNow() && !!id && TOOLS.some(function (x) { return x.id === id; });
   var url = t ? '#' + t.id : (keepHash ? '#' + id : location.pathname + location.search),
     /* 2026-11-15：回首页时把 hx 归 0 —— hx 是「进过几个工具」的深度，只增不减的话，
        回首页再进工具会一直累加（第二次进就 hx=2），上面「返回」按钮里 hx > 1 才退历史那道判断就失效了。 */
@@ -2233,7 +2241,59 @@ function canSheet(id) {
   if (id === 'tcode' || id === 'users' || id === 'grant') return isDev() || isCoDev();
   return false;
 }
+/* ---------- 会员过期页（2026-11-22） ----------
+   用途：教师 / 学生登录后第一屏就是它，只说明一件事 —— 服务器过期，等待管理员续费。
+   三条设计约束：
+     ① 一句统一的标题文案（和数据库 hx_me().expired_msg 一字不差，别在这里改花样）；
+     ② 说清「谁该去续费」：老师看到自己的账号，学生看到「所属老师 + 老师续费后自动恢复」；
+     ③ 不给任何工具卡、不给「稍后再试」的假按钮，只留「退出登录」一个出口。 */
+function renderExpired() {
+  var m = ST.me || {}, u = ST.user || {}, stu = m.student, i = info();
+  var email = (u && u.email) || (i && i.name) || '当前账号';
+  var until = m.member_until ? String(m.member_until).slice(0, 10) : '';
+  var owner = m.owner || {};
+  $('scanBtn').hidden = true;
+  $('hi').innerHTML = i ? '你好，' + esc(i.name) : '';
+  if (i) {
+    $('who').innerHTML = '<button class="acct" id="acct" type="button" aria-expanded="' + $('pop').classList.contains('show') + '">' + avatar(i) + '<b>' + esc(i.name) + '</b>' + badge(1) + '</button>';
+    $('acct').onclick = function (e) { e.stopPropagation(); togglePop('pop'); };
+  } else {
+    $('who').innerHTML = '<button class="lbtn" id="in" type="button">登录</button>';
+    $('in').onclick = function () { openLogin(); };
+    $('pop').classList.remove('show');
+  }
+  var isStu = !!(stu && !isTeacher());
+  var lines = [];
+  if (isStu) {
+    lines.push('你的班级「' + esc(stu.class || '') + '」由老师「' + esc(owner.name || '任课老师') + '」开通，' +
+      '他的账号目前是未续费状态，所以你暂时也用不了这些工具。');
+    lines.push('老师续费后你会**自动恢复**，不用重新注册、也不用换密码。');
+  } else {
+    lines.push('这个账号目前是未续费状态，名下导入的班级和学生也一并暂停 —— 学生登录同样会看到这一页。');
+    lines.push('续费由管理员开通，开通后立刻恢复，数据一条都不会丢（班级、名单、成绩、题库、试卷都在）。');
+  }
+  $('tiles').innerHTML = '<div style="grid-column:1/-1;max-width:640px;margin:8px auto 0;padding:22px 20px;border:1px solid var(--edge,#e5e5ea);border-radius:18px;background:var(--card,#fff);text-align:left">' +
+    '<div style="display:flex;gap:10px;align-items:center;margin-bottom:10px">' +
+      '<span style="width:34px;height:34px;border-radius:10px;background:rgba(255,149,0,.14);color:#c26a00;display:grid;place-items:center;flex:none">' +
+        svg('<path d="M12 8v5M12 16.5v.5"/><circle cx="12" cy="12" r="9"/>') + '</span>' +
+      '<b style="font-size:19px;line-height:1.35">服务器过期，等待管理员续费</b></div>' +
+    lines.map(function (t) { return '<p style="margin:0 0 8px;color:var(--dim,#6e6e73);font-size:14px;line-height:1.65">' + t.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>') + '</p>'; }).join('') +
+    '<div style="margin:14px 0 0;padding:12px 14px;border-radius:12px;background:var(--bg2,#f5f5f7);font-size:13px;line-height:1.8;color:var(--dim,#6e6e73)">' +
+      '<div>账号：<b>' + esc(email) + '</b></div>' +
+      '<div>身份：' + (isStu ? '学生' : (esc(m.title || '教师'))) + (until ? ' · 会员到期 ' + esc(until) : '') + '</div>' +
+      (isStu ? '<div>所属老师：' + esc(owner.name || '—') + '</div>' : '') +
+    '</div>' +
+    '<p style="margin:14px 0 0;color:var(--dim,#6e6e73);font-size:13px;line-height:1.7">' +
+      (isStu ? '请联系任课老师处理；老师那边续费后刷新这一页就好。' : '请联系管理员开通会员（开发者账号 11445）。') + '</p>' +
+    '<div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">' +
+      '<button class="btn" type="button" id="exOut">退出登录</button>' +
+    '</div></div>';
+  if ($('exOut')) $('exOut').onclick = function () { HX.out().then(function () { refresh(); }, function () { refresh(); }); };
+}
 function render() {
+  /* 2026-11-22 会员闸门：过期就只画一张说明卡 —— 工具卡、分组标题、扫码全都不出现。
+     文案统一（数据库 hx_me 的 expired_msg 也是同一句）：服务器过期，等待管理员续费。 */
+  if (expiredNow()) { renderExpired(); return; }
   var go = svg('<path d="M9 6l6 6-6 6"/>', 'go'), n = 0, G = GROUPS.map(function (g) {
     var list = [];
     g[1].forEach(function (id) { var c = cardOf(id); if (c) list.push(c); });
@@ -4357,28 +4417,52 @@ function sheetUsers() {
   var q = (ST.uQ || '').trim().toLowerCase(), f = ST.uF || 'all', pg = ST.uPg || 1, PER = 50;
   // 1000 个账号（988 学生）一次性渲染成表格会卡死弱机 —— 先按搜索/角色筛，再分页，每页 50。
   var rows = (U && !U.err) ? U.filter(function (u) {
+    if (f === 'expired') return u.role === 'teacher' && !u.is_member && !u.is_dev && u.title !== '合作开发者';
     if (f !== 'all' && u.role !== f) return false;
     if (!q) return true;
     var hay = (u.name || '') + ' ' + (u.email || '');
     return hay.toLowerCase().indexOf(q) >= 0;
   }) : [];
+  /* 2026-11-22 会员闸门：一眼看清「谁没续费、影响多少个班/多少学生」。
+     统计口径和数据库 hx_expired() 一致：开发者 / 合作开发者不算，其余教师看 is_member。 */
+  var tch = (U && !U.err) ? U.filter(function (u) { return u.role === 'teacher'; }) : [];
+  var paid = tch.filter(function (u) { return u.is_member || u.is_dev || u.title === '合作开发者'; });
+  var unpaid = tch.filter(function (u) { return !(u.is_member || u.is_dev || u.title === '合作开发者'); });
+  var unpaidCls = unpaid.reduce(function (a, u) { return a + (u.classes || 0); }, 0);
+  var unpaidStu = unpaid.reduce(function (a, u) { return a + (u.students || 0); }, 0);
   var total = rows.length, pages = Math.max(1, Math.ceil(total / PER));
   if (pg > pages) pg = ST.uPg = pages;
   var pageRows = rows.slice((pg - 1) * PER, pg * PER);
   box.innerHTML = '<p class="msg" style="margin:0 0 12px;color:var(--dim,#8a8f98)">所有账号：可改身份、改头衔（「合作开发者」紫色）、停用。改头衔只改显示标签，不动真实权限；工具权限在「工具权限」卡单独下放。停用后该账号登录也用不了工具。</p>' +
+    /* 2026-11-22 会员闸门：这一行是给管理员看的账 —— 谁没续费、卡住了多少个班多少人 */
+    '<p class="msg" style="margin:0 0 10px;padding:10px 12px;border-radius:12px;background:var(--bg2,#f5f5f7);color:var(--dim,#8a8f98);font-size:13px;line-height:1.7">' +
+      '<b style="color:var(--ink,#1d1d1f)">会员闸门</b>：只有<b>开发者 / 合作开发者</b>永久免费。其余教师没开会员时，' +
+      '他自己和他的班级、学生登录后都只看到「服务器过期，等待管理员续费」。' +
+      '<br>已开通 <b>' + paid.length + '</b> / ' + tch.length + ' 个教师账号；未续费 <b>' + unpaid.length + '</b> 个，' +
+      '涉及 <b>' + unpaidCls + '</b> 个班、<b>' + unpaidStu + '</b> 名学生。' +
+      '</p>' +
     '<div class="f frow" style="margin:0 0 10px;gap:8px"><input id="uSearch" style="flex:1;min-width:0" placeholder="搜姓名 / 邮箱 / 账号" value="' + esc(q) + '">' +
-    '<select id="uFilter" style="max-width:8em">' + ['all', 'teacher', 'student', 'guest'].map(function (r) {
-      return '<option value="' + r + '"' + (f === r ? ' selected' : '') + '>' + (r === 'all' ? '全部' : roleCn[r] || r) + '</option>';
+    '<select id="uFilter" style="max-width:9em">' + ['all', 'teacher', 'student', 'guest', 'expired'].map(function (r) {
+      var cn = r === 'all' ? '全部' : r === 'expired' ? '未续费教师' : roleCn[r] || r;
+      return '<option value="' + r + '"' + (f === r ? ' selected' : '') + '>' + cn + '</option>';
     }).join('') + '</select></div>' +
     '<div id="uList">' + (U === null ? '<p class="empty">加载中…</p>' : (U && U.err) ? '<p class="empty">读取失败：' + esc(U.err) + '</p>' :
       (!total ? '<p class="empty">没有匹配的账号</p>' :
-      '<table><tr><th>账号</th><th>身份</th><th>头衔</th><th>状态</th><th></th></tr>' + pageRows.map(function (u) {
+      '<table><tr><th>账号</th><th>身份</th><th>头衔</th><th>状态</th><th>会员</th><th></th></tr>' + pageRows.map(function (u) {
         var pill = u.is_dev ? '<span class="pill dev">开发者</span>' : u.title === '合作开发者' ? '<span class="pill codev">合作开发者</span>' : u.is_admin ? '<span class="pill admin">管理员</span>' : '';
+        var exempt = u.is_dev || u.title === '合作开发者';
+        var memCell;
+        if (u.role !== 'teacher') memCell = '<span class="dim">—</span>';
+        else if (exempt) memCell = '<span class="pill ok">永久</span>';
+        else if (u.is_member) memCell = '<span class="pill ok">会员</span>' + (u.member_until ? '<small class="dim">' + esc(String(u.member_until).slice(0, 10)) + ' 到期</small>' : '');
+        else memCell = '<span class="pill bad">已过期</span>' + (u.classes ? '<small class="dim">' + u.classes + ' 班 · ' + (u.students || 0) + ' 人</small>' : '');
         return '<tr><td>' + esc(u.name || u.email) + '<small class="dim">' + esc(u.email) + '</small></td>' +
           '<td>' + esc(roleCn[u.role] || u.role) + pill + '</td>' +
           '<td>' + esc(u.title || '—') + '</td>' +
           '<td>' + (u.disabled ? '<span class="pill bad">已停用</span>' : '<span class="pill ok">正常</span>') + '</td>' +
+          '<td>' + memCell + '</td>' +
           '<td class="ra">' + (u.is_dev ? '' :
+            (u.role === 'teacher' && !exempt ? '<button class="btn link sm ib' + (u.is_member ? '' : ' primary') + '" data-u-member="' + u.uid + '" title="开/关会员">' + (u.is_member ? '取消会员' : '设为会员') + '</button>' : '') +
             '<button class="btn link sm ib" data-u-setrole="' + u.uid + '" title="改身份">改身份</button>' +
             '<button class="btn link sm ib" data-u-title="' + u.uid + '" title="改头衔">头衔</button>' +
             '<button class="btn link sm ib bad" data-u-toggle="' + u.uid + '" title="停用/启用">' + (u.disabled ? '启用' : '停用') + '</button>') + '</td></tr>';
@@ -4390,6 +4474,22 @@ function sheetUsers() {
   if ($('uFilter')) $('uFilter').onchange = function () { ST.uF = $('uFilter').value; ST.uPg = 1; sheetUsers(); };
   if ($('uPrev')) $('uPrev').onclick = function () { ST.uPg--; sheetUsers(); };
   if ($('uNext')) $('uNext').onclick = function () { ST.uPg++; sheetUsers(); };
+  /* 2026-11-22 会员闸门：设为会员 / 取消会员。
+     开通 = 立刻恢复他自己 + 他班里的所有学生；取消 = 下次刷新就挡在「服务器过期」页。
+     默认不限期（member_until 空）；以后做会员模块要按到期日收，直接传 p_until 就有。 */
+  box.querySelectorAll('[data-u-member]').forEach(function (b) {
+    b.onclick = async function () {
+      var u = (ST.users || []).filter(function (x) { return x.uid === b.dataset.uMember; })[0]; if (!u) return;
+      var on = !u.is_member, stu = u.students || 0, cls = u.classes || 0;
+      var msg = on
+        ? '给「' + (u.name || u.email) + '」开通会员？\n\n开通后他立刻恢复，他名下 ' + cls + ' 个班、' + stu + ' 名学生也会一起恢复登录。'
+        : '取消「' + (u.name || u.email) + '」的会员？\n\n取消后，他自己和他名下 ' + cls + ' 个班、' + stu + ' 名学生刷新页面就会看到「服务器过期，等待管理员续费」。\n数据一条都不会删，重新开通立刻恢复。';
+      if (!await ask(on ? '设为会员' : '取消会员', msg, on ? '开通' : '取消会员')) return;
+      var tok = (window.HXBusy && b) ? HXBusy.begin(b, on ? '开通中…' : '取消中…') : null; if (!tok) b.disabled = true;
+      try { await HX.rpc('hx_member_set', { p_uid: u.uid, p_member: on, p_until: null, p_note: null }); toast(on ? '已开通会员' : '已取消会员'); await loadUsers(); }
+      catch (e) { toast(e.message); } finally { if (tok) HXBusy.end(tok); else b.disabled = false; }
+    };
+  });
   box.querySelectorAll('[data-u-setrole]').forEach(function (b) {
     b.onclick = async function () {
       var u = (ST.users || []).filter(function (x) { return x.uid === b.dataset.uSetrole; })[0]; if (!u) return;
