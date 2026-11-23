@@ -2482,12 +2482,22 @@
         sheet.addEventListener('click', onSheetClick);
         clip.appendChild(sheet);
       }
-      if (clip.parentNode !== document.body) document.body.appendChild(clip);
+      /* 药板挂哪儿：默认 body，但**弹窗里的下拉不能挂 body**。
+         `<dialog>` 用 showModal() 打开时进入浏览器「顶层 top layer」，body 里的任何东西都在它
+         和它的背景遮罩下面 —— 药板其实弹出来了、DOM 里 31 个选项一个不少，屏幕上却什么都看不见。
+         2026-11-22 老师报的「用户管理下拉框没用 没东西」就是这个：那两张筛选卡在 #sheet 弹窗里。
+         所以先看选中项是不是在打开的 dialog 里，是就挂进那个 dialog（它本身就是顶层），
+         药板作为它的子元素自然也在顶层、盖得住弹窗内容。
+         注意：dialog.sheet 有 overflow:hidden，但药板是 position:fixed，视口定位、不受非包含块祖先裁剪；
+         dialog 的入场动画 pop 会短暂带 transform（那时才会成为包含块），点开下拉时动画早就结束了。 */
+      var host = document.body;
+      try { var dlg = inst.sel.closest && inst.sel.closest('dialog[open]'); if (dlg) host = dlg; } catch (e) { }
+      if (clip.parentNode !== host) host.appendChild(clip);
       if (!fx) {
         fx = document.createElement('div');
         fx.className = 'hx-pn-fx';
       }
-      if (fx.parentNode !== document.body) document.body.appendChild(fx);
+      if (fx.parentNode !== host) host.appendChild(fx);
       skin(inst);
       buildSheet(inst);
       sheet.style.display = '';       // 兼容上一版：药板本身不再控制显隐，交回 CSS
