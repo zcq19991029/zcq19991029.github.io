@@ -122,6 +122,128 @@
      「线上连线排位」是标识、「接线2.3」是题目。重名时的 #任务号 后缀加在最后（见 columnFor）。 */
   function taskColumnName(circuit) { return NAME_PREFIX + ' 接线' + circuit; }
 
+  /* ============================================================================
+     2026-11-23　两件历史遗留的清理（用户原话：「既然名字规则也不一样 请统一」）
+     —— 病根都在 2026-11-10 那一版（接线成绩刚接入小组加分）：
+        ① 列名版本不一：最早裸名「接线2.3」→ 11-11 改「线上连线排位 接线2.3」
+           → 11-13 定稿「线上接线仿真 接线2.3」。老列照旧认领、但不改名，
+           于是同一张表里三种写法并存，老师一眼看不出哪个是自动项。
+        ② 孤儿列：老版 lessonFor 定位课次时会先错一次，隔一会儿再改对，
+           前一列留在错的那节课上（实例：26工器2班「接线2.2」写进了第1次课，
+           真正的落点是第5次课）。孤儿列不会再有任务去更新它，分数永远冻在那一刻，
+           还让「项目满分」多算 5 分。
+     ==========================================================================*/
+
+  /* 老列名 → 题目号。只认「整格就是接线X」的写法，绝不碰老师手写的
+     「主电路接线」「控制电路实体连线2.3」这类项目名。 */
+  var WIRE_NAME_RE = /^(?:线上接线仿真 |线上连线排位 )?接线([0-9A-Za-z][0-9A-Za-z._-]*)$/;
+
+  /* ① 列名统一：老写法就地改成「线上接线仿真 接线X」。
+     只改名字、不动列号 —— 所以每组的分数数组、peerMeta 的「组|成员|列号」全都不用动，
+     这是唯一安全的改法（改列号才会错分）。
+     同名列已经存在时不动（那一课里同时有新旧两列，属于下面「孤儿列」要处理的事）。 */
+  function unifyNames(lesson, out) {
+    var entries = Object.keys(lesson.wireTasks || {});
+    if (!entries.length) return;
+    var names = currentNames(lesson);
+    if (!names.length) return;
+    var dirty = false;
+    entries.forEach(function (key) {
+      var e = lesson.wireTasks[key];
+      if (!e || !e.name) return;
+      var old = String(e.name);
+      var m = WIRE_NAME_RE.exec(old);
+      if (!m) return;
+      var want = taskColumnName(e.circuit || m[1]);
+      if (old === want) return;
+      var at = names.indexOf(old);
+      if (at < 0) return;
+      if (names.indexOf(want) >= 0) return;           // 已有同名列，改名会造成两列重名
+      names[at] = want;
+      e.name = want;
+      Object.keys(lesson.leaderScores || {}).forEach(function (g) {
+        var r = lesson.leaderScores[g];
+        if (!r || !Array.isArray(r.projects)) return;
+        if (String(r.projects[at]) === old) r.projects[at] = want;
+      });
+      if (Array.isArray(lesson.teacherOnly)) {
+        var ti = lesson.teacherOnly.indexOf(old);
+        if (ti >= 0) lesson.teacherOnly[ti] = want;
+      }
+      dirty = true;
+      out.notes.push({
+        kind: 'renamed', taskId: Number(key),
+        text: '接线' + (e.circuit || m[1]) + '：列名「' + old + '」已统一成「' + want + '」（第' + lesson.seq + '次课，分数一格没动）'
+      });
+    });
+    if (dirty) { applyNames(lesson, names); out.changed = true; }
+  }
+
+  /* ② 孤儿列：同一个任务在同一门课的两节以上课次里都有 wireTasks 记录时，
+     只有 lessonFor 认的那节是活的，其余都是残留。删之前逐条对账，宁可不删也不能删错：
+
+       条件（全部满足才动手）：
+         a. 正确的那节课确实有这一列（entry.applied），否则说明它自己还没入账，谈不上「残留」；
+         b. 残留那条记录的 at **早于**正确那条 —— 即「先写错、后写对」这个顺序。
+            反过来（改课次改回去）残留反而更晚，条件不成立，一律不删；
+         c. 残留列的非空格子数 **不多于** 正确列 —— 残留只是更早的一份快照，
+            不可能有正确列里没有的成绩。
+
+     三条都满足还可能有例外（比如老师手动往老列里补过分），所以每删一列都写一条 note，
+     老师能在操作日志里看到「哪一课、哪个列名、清了」。 */
+  function dropStrays(state, cls, task, out) {
+    var keep = findLesson(state, cls, task);          // 找不到就返回 null，绝不新建课次
+    if (!keep) return;
+    var key = String(task.task_id);
+    var ke = keep.wireTasks && keep.wireTasks[key];
+    if (!ke || !ke.applied || !ke.name) return;
+
+    var nz = function (lesson, col) {
+      var n = 0;
+      Object.keys(lesson.leaderScores || {}).forEach(function (g) {
+        var r = lesson.leaderScores[g];
+        if (!r || !r.members) return;
+        Object.keys(r.members).forEach(function (mk) {
+          var arr = r.members[mk];
+          if (Array.isArray(arr) && Number(arr[col])) n++;
+        });
+      });
+      return n;
+    };
+
+    (state.lessons || []).forEach(function (l) {
+      if (!l || l === keep || l.classId !== cls.id) return;
+      var e = l.wireTasks && l.wireTasks[key];
+      if (!e || !e.name) return;
+      var names = currentNames(l);
+      var at = names.indexOf(e.name);
+      if (at < 0) {                                   // 列早被删了，把过期记录一起清掉
+        delete l.wireTasks[key];
+        out.changed = true;
+        return;
+      }
+      /* (a) 正确那节有没有这一列 */
+      var keepCol = currentNames(keep).indexOf(ke.name);
+      if (keepCol < 0) return;
+      /* (b) 先写错、后写对 */
+      var tStay = Date.parse(e.at || '') || 0;
+      var tKeep = Date.parse(ke.at || '') || 0;
+      if (!tStay || !tKeep || tStay >= tKeep) return;
+      /* (c) 残留最多只有更少或同样多的成绩 */
+      if (nz(l, at) > nz(keep, keepCol)) return;
+
+      var removed = removeColAt(l, at);
+      delete l.wireTasks[key];
+      out.changed = true;
+      out.removed.push({ taskId: task.task_id, lessonSeq: l.seq, name: removed });
+      out.notes.push({
+        kind: 'stray', taskId: task.task_id,
+        text: '清掉一列重复的「' + removed + '」：它原本错写在' + (l.date ? l.date + '（第' + l.seq + '次课）' : '第' + l.seq + '次课')
+          + '，真正该记账的是第' + keep.seq + '次课那一列（两处本来就同一份排位成绩）'
+      });
+    });
+  }
+
   /* ---------------- 找课次（没有就建）---------------- */
 
   function lessonFor(state, cls, task, out) {
@@ -389,6 +511,23 @@
     var out = { changed: false, added: [], created: [], notes: [], unmatched: [], logs: [], live: [], removed: [] };
     if (!state || !Array.isArray(state.classes) || !Array.isArray(tasks)) return out;
     if (!Array.isArray(state.lessons)) state.lessons = [];
+
+    /* 预清理：先拔孤儿列，再统一列名 —— 顺序不能反。
+       反了的话，那节错写的课次会先被记一条「已改名」，紧接着整列被删，
+       操作日志里就留下一条指向「已经不存在的列」的说明，老师看着莫名其妙。
+       两步都只看这一轮拉到的任务（p_class 过滤后就只有当前班），
+       所以每个班在老师第一次打开它时各清一次，跑不到的班等下次。 */
+    tasks.forEach(function (task) {
+      if (!task || task.deleted || task.status === 'void') return;
+      var cls0 = null;
+      state.classes.forEach(function (c) {
+        if (c && Number(c.hxClassId) === Number(task.class_id)) cls0 = c;
+      });
+      if (cls0) dropStrays(state, cls0, task, out);
+    });
+    /* 列名统一放在后面跑：columnFor 要按名字认领列，名字归一了才不会「新旧两列并存、认错那一格」。
+       这一步只看本地的课次数据，不依赖这一轮拉到哪些任务。 */
+    (state.lessons || []).forEach(function (l) { if (l) unifyNames(l, out); });
 
     tasks.forEach(function (task) {
       if (!task) return;

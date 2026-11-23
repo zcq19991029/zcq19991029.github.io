@@ -3,7 +3,7 @@
 <html lang="zh-CN">
 <head>
 <script src="../hx-theme.js" data-tool="wiring"></script>
-<script>window.HX_BUILD = "2026-11-23T08:57:55Z c251a84";</script>
+<script>window.HX_BUILD = "2026-11-23T12:18:42Z 6a1601c";</script>
 <meta charset="utf-8">
 <meta name="copyright" content="© 2026 zcq 版权所有，未经许可禁止复制、修改、转载">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
@@ -1848,8 +1848,11 @@
         真机上「整块屏频闪」的典型成因。iPad 本来会命中 is-lite（触屏 + 粗指针），
         但用户把外观设成「标准」之后，hxLiteNow()/applyHxLite() 会把 is-lite 撤掉 ——
         于是上面那套降级一条都不生效，这正是「极简模式可以、标准闪烁」的由来。
-        所以按设备单独给一条：iPad/iPhone 上一律走静态排位 —— 不做实时毛玻璃、不做循环动画，
-        视觉上等同用户已经验收过的极简模式，但只作用于排位这一屏。 */
+        ── 2026-11-23 改法 ──
+        原来这里按设备（iPad/iPhone UA）一律走静态排位。用户否掉了这类「擅自变化」：
+        「不按设备区分 只按设置区分 不要擅自变化」。现在静态排位 = 「极简」档的一部分
+        （见脚本区 applyHxLite 里 r.classList.toggle('rk-steady', on)）：
+        极简（默认）就是静态排位，视觉上正是用户验收过的那一套；标准就是要动效，闪烁也认。 */
   #fw-rank:not(.show), #fw-rank:not(.show) *, #fw-rank:not(.show) *::before, #fw-rank:not(.show) *::after { animation-play-state: paused !important; }
   /* 判据用 JS 加 html.rk-steady（见脚本区 rk-steady 那段），不用 @supports：
      · @supports (-webkit-touch-callout) 在 macOS Safari 上也成立，会把 Mac 一起降级；
@@ -1891,9 +1894,18 @@
   html.rk-steady #fw-rank .rk-board2 li.rk-lb > .rk-lb-run::before,
   html.rk-steady #fw-rank .rk-board2 li.rk-lb > .rk-lb-run::after { will-change: auto; }
   /* 准备屏/倒数/成绩那层遮罩（#rkVeil，挂在 body 上、不在 #fw-rank 里）也带 26px 全屏模糊，
-     上面那条 rk-steady 规则管不到它 —— 这里补齐。倒数时它是整屏的，不补就还在每帧重算模糊。 */
+     上面那条 rk-steady 规则管不到它 —— 这里补齐。倒数时它是整屏的，不补就还在每帧重算模糊。
+     ── 2026-11-23 透明度要分两档 ──
+     极简从「iPhone 专用」变成了「默认所有人的档」，这条背景就跟着被所有人吃到了（以前只有 iOS 吃）。
+     原来是 .86 —— 那是为了补上「去掉模糊后画面会变亮」而故意压黑，在 iPhone 上没人觉得不对，
+     因为准备页本来就是深色的。可一旦它成了默认，`counting` 里出现任何一秒「遮罩还挂着」的窗口，
+     学生看到的就是**近纯黑一整屏**（用户 2026-11-23 报的「倒计时结束后黑屏」就是被这个放大的）。
+     现在拆成两档：
+       · 准备页/成绩页（常态）→ .70：没模糊也该看得见底下的练习页轮廓，不然像死机；
+       · 倒数中（.counting）→ .88：这一刻画面上本来就只该有倒数特效，压黑是对的。 */
   html.rk-steady .rk-veil { backdrop-filter: none; -webkit-backdrop-filter: none;
-    background: rgba(2, 8, 23, calc(.86 + (var(--hx-a, 1) - 1) * .1)); }
+    background: rgba(2, 8, 23, calc(.70 + (var(--hx-a, 1) - 1) * .1)); }
+  html.rk-steady .rk-veil.counting { background: rgba(2, 8, 23, calc(.88 + (var(--hx-a, 1) - 1) * .1)); }
 
   /* ── 旋转层提升成合成层（2026-11-22，治「标准模式排行榜一直闪」）──
      外框跑马灯是两枚 1600×1600 的圆锥渐变伪元素在匀速转（见 .rk-right::before/::after）。
@@ -2251,6 +2263,31 @@
     animation: rkTitleScan 5.2s linear infinite; }
   @keyframes rkTitleScan { from { background-position: 130% 0; } to { background-position: -130% 0; } }
   #fw-rank .rk-right > .rk-bh small { margin-left: auto; flex: none; font-size: 12px; font-weight: 600; color: #93a7c9; }
+  /* 2026-11-23 榜单管理入口（只有教师看得到）：把学生移出/移回这一题的排行榜，成绩一行不删。 */
+  #fw-rank .rk-bh .rk-bhbtn { flex: none; margin-left: 8px; padding: 3px 9px; border-radius: 8px; cursor: pointer;
+    font: inherit; font-size: 11.5px; font-weight: 700; color: #cfe0ff;
+    background: rgba(120, 170, 255, .14); border: 1px solid rgba(140, 190, 255, .34); }
+  #fw-rank .rk-bh .rk-bhbtn:hover { background: rgba(140, 190, 255, .26); color: #fff; }
+  /* 管理面板（挂在 rkVeil 遮罩里，和准备页/成绩页同一层） */
+  .rk-hide { display: grid; gap: 10px; width: min(560px, 92vw); max-height: 76vh; padding: 20px 22px; border-radius: 18px;
+    color: #fff; text-align: left; background: rgba(8, 14, 30, .9); border: 1px solid rgba(120, 170, 255, .3);
+    box-shadow: 0 30px 70px -30px #000; }
+  .rk-hide h3 { margin: 0; font-size: 17px; letter-spacing: .5px; }
+  .rk-hide-tip { margin: 0; font-size: 12.5px; line-height: 1.55; color: #a9bcd8; }
+  .rk-hide-tip b { color: #ffd68a; }
+  .rk-hide .rk-err { margin: 0; color: #fca5a5; font-size: 12.5px; font-weight: 700; }
+  .rk-hide-body { display: grid; gap: 6px; align-content: start; overflow: auto; min-height: 70px; padding-right: 4px; }
+  .rk-hide-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px;
+    background: rgba(255, 255, 255, .05); border: 1px solid rgba(255, 255, 255, .07); }
+  .rk-hide-row b { font-size: 14px; }
+  .rk-hide-row small { margin-left: auto; color: #93a7c9; font-size: 12px; font-weight: 600; }
+  .rk-hide-row.out { opacity: .6; }
+  .rk-hide-sep { margin: 4px 0 -2px; font-size: 12px; font-weight: 800; color: #93a7c9; letter-spacing: .04em; }
+  .rk-hide-btn { flex: none; padding: 4px 10px; border-radius: 8px; cursor: pointer; font: inherit; font-size: 12px; font-weight: 700;
+    color: #ffdede; background: rgba(239, 68, 68, .16); border: 1px solid rgba(239, 68, 68, .38); }
+  .rk-hide-btn[data-show] { color: #d8ffe4; background: rgba(34, 197, 94, .16); border-color: rgba(34, 197, 94, .38); }
+  .rk-hide-btn:disabled { opacity: .45; cursor: default; }
+  .rk-hide .rk-row { justify-content: flex-end; margin-top: 2px; }
   /* 高度链不能动：flex:1 + min-height:0 是「整块榜单铺满右栏、内部自己滚」的唯一支点。
      overflow:hidden 是给下面那道扫光用的：斜光上下各溢出 14%，不裁就会扫到表头上去。 */
   #fw-rank .rk-boardwrap { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden;
@@ -3762,31 +3799,41 @@ window.SYMBOL_PHOTOS = {
 const CIRCUITS = window.__C;
 const PAGES = window.__P;
 const TAB_KEY = 'zfz-project2-tab', THEME_KEY = 'zfz-practice-theme';
-// 低端设备 / 手机降级（2026-11-02）：顶栏那条毛玻璃横在逐帧重绘的画布上，合成器每帧都得重算一遍模糊，
-// GPU 一直满载 —— 这是「手机越用越卡、手机发烫」的头号开销。触屏设备、4 核以下、4G 内存以下、
-// 或者希沃这类教学一体机，任一命中就先加一道 .is-lite（进页面前先降，避免首帧闪一下模糊）。
-// 2026-11-11 起：下面 hxLiteNow()/applyHxLite() 会按总入口「极简/标准」整体覆盖 is-lite 这道预判
-// —— 极简=加 is-lite（视觉降级），标准=不加；fx-lite 不动，仍按真·弱机判定（见下面 2026-11-11 二次修正）。
+/* ══ 模式只有一档来源：设置。不按设备猜，不擅自变化 ══════════════════════════════
+   ── 2026-11-23 用户原话 ──
+   「是不是极简模式和标准默认老是对设备误判？我明明设定了默认极简啊
+     不按设备区分 只按设置区分 不要擅自变化」
+
+   对，误判了。原先这一带藏了 **4 处按机器猜** 的判定，现在全部撤掉：
+     ① is-lite 预判：触屏+粗指针 / ≤4 核 / ≤4G / 希沃一类 UA，任一命中就降级
+        —— 等于所有手机、平板、触屏一体机一律被当成破机器；
+     ② iPad/iPhone 一律加 rk-steady（排位静态皮肤）；
+     ③ 打开排位后量 30 帧，p50>50ms 就自动降 rk-steady **并写进 localStorage** ——
+        这条最坑：一次误判就是**永久降级**，之后不管把模式改成什么都不管用，
+        除非手动清浏览器数据。用户说的「擅自变化」指的就是它；
+     ④ fx-lite：≤2G 内存 / ≤2 核 / 老国产盒子 UA → 321GO 和转场直接不播。
+   这四个的判据全都跟「设置」无关，所以设置成标准也可能被降、设置成极简也可能被另一条覆盖，
+   在不同机器上表现还不一样 —— 老师和学生看到的界面因此无法复现。
+
+   ── 现在唯一判据 ──
+   总入口「极简 / 标准」那一档（localStorage hx-lite；没选过 = 极简，与总入口默认一致）：
+     · 极简 → is-lite（去毛玻璃、去重阴影）+ rk-steady（排位静态皮肤，不跑跑马灯）
+     · 标准 → 两个都不加，动效全开
+   这就把「极简不闪、标准会闪」这件事交回用户自己选，而不是替用户选。
+
+   ── 网址参数只剩下排障用途，正常使用不带 ──
+     ?full 强制标准 / ?lite 强制极简 / ?fxlite 只停一次性像素动效（321GO、转场、QUEST COMPLETE）
+   ══════════════════════════════════════════════════════════════════════════════ */
 {
-  const ua = navigator.userAgent || '';
-  const lite = matchMedia('(hover: none) and (pointer: coarse)').matches
-    || (navigator.hardwareConcurrency || 8) <= 4
-    || (navigator.deviceMemory || 8) <= 4
-    || /seewo|hisense|cvte|amlogic|rk3\d{3}|allwinner/i.test(ua);
-  if (lite) document.documentElement.classList.add('is-lite');
+  /* 老版本按机器「永久降级」时写下的记号，必须让它失效，否则老学生的机器一辈子是静态排位
+     （他们不会去清缓存，也没人告诉他们要清）。这一行只是删一个本地键，没有副作用。 */
+  try { localStorage.removeItem('hx-rk-steady'); } catch (e) { }
   /* 排障开关（2026-11-22）：网址加 &rkfx=none → 只停排行榜那一块的循环动画。
      用于定位「标准模式下排行榜一直闪」还剩哪一层在拖。正式使用不需要带它。 */
   if (/[?&]rkfx=none\b/.test(location.search)) document.documentElement.classList.add('rkfx-none');
-  /* 2026-11-22 第二轮：iPad 上「排位一直闪 + 打开别的浮层一片空白」。
-     iPad 配置够高，4 核/4G 那两条都不命中，所以它不走上面 is-lite 的降级 ——
-     这正是用户说的「极简模式可以、标准闪烁」。这里单独认设备：iPad/iPhone（含 iPadOS
-     桌面模式，UA 冒充 MacIntel 但触点 > 1）一律加 .rk-steady，排位走静态皮肤（见 CSS 同名片）。
-     只影响排位这一屏，练习页、别的浮窗、桌面浏览器都不动。 */
-  const isIOSPad = /iPad|iPhone|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && (navigator.maxTouchPoints || 0) > 1);
-  if (isIOSPad) document.documentElement.classList.add('rk-steady');
-  // 上一轮量出来跑不动、自动降级过的机器，这次一进来就先降，省掉「先闪一下再变静态」。
-  // 网址带 ?full 是调试「强制标准」，这时不认这条记忆（也不写）。
-  try { if (!/[?&]full\b/.test(location.search) && ls_get('hx-rk-steady') === '1') document.documentElement.classList.add('rk-steady'); } catch (e) { }
+  /* ?fxlite（2026-11-23）：只停一次性像素动效，用来现场对比「有动效 / 没动效」的差别。
+     以前这个类是**按机器算**的，现在只由网址参数给 —— 想看没动效的样子就自己带参数。 */
+  if (/[?&]fxlite\b/.test(location.search)) document.documentElement.classList.add('fx-lite');
 }
 /* ══ 2026-11-23：整屏浮层盖住练习页时，把底下那层从合成里摘掉 ══════════════════
    实测数据见 CSS 里 rk-cover 那段注释：排位打开时帧间隔 326ms，关掉 20ms；
@@ -3813,7 +3860,6 @@ const TAB_KEY = 'zfz-project2-tab', THEME_KEY = 'zfz-practice-theme';
     on = now;
     root.classList.toggle('rk-cover', now);
     try { notifyCircuits(); } catch (e) { }   // 画布循环跟着停/恢复
-    if (now && document.querySelector(RANK)) rkAutoSteady();
   };
   const kick = () => { if (pend) return; pend = true; requestAnimationFrame(() => { pend = false; sync(); }); };
   const arm = () => {
@@ -3823,54 +3869,22 @@ const TAB_KEY = 'zfz-project2-tab', THEME_KEY = 'zfz-practice-theme';
     sync();
   };
   if (document.body) arm(); else document.addEventListener('DOMContentLoaded', arm);
+}
+/* ── 2026-11-23 删掉「量 30 帧自动降级」那段（rkAutoSteady + localStorage hx-rk-steady）──
+   它曾经是这里的一段兜底：打开排位后量 30 帧，p50>50ms 就自动挂 rk-steady，还写进 localStorage
+   让这台机器以后一进来就是静态的。用户 2026-11-23 明确否掉了这类「擅自变化」：
+   「不按设备区分 只按设置区分 不要擅自变化」。
+   为什么必须删而不是留着当兜底：它是**粘的**。一次误判（那一局恰好有别的标签页在跑、
+   或者排位刚打开那 30 帧本来就慢）就把这台机器永久钉成静态，之后用户把模式改成标准也不恢复，
+   而且**不同机器上的表现不一样**，老师和学生看到的界面无法复现 —— 排查成本极高。
+   现在「要不要静态皮肤」只由设置里的「极简 / 标准」决定（见本文件前面那段模式说明）。 */
 
-  /* 兜底：万一某台机器没被 rk-steady 的判据认出来（新设备、改过 UA 的浏览器、安卓平板……），
-     就用「量出来的帧间隔」说话 —— 打开排位后量 30 帧，p50 超过 50ms（不到 20 帧/秒）
-     说明这台机器整节课都会闪，直接补 rk-steady 静态皮肤，并记住，下次进来一开始就是静态的。
-     一次会话最多量一次；纯读时间戳，不改布局。?full（调试强制标准）时不量。 */
-  let probing = false, done = false;
-  function rkAutoSteady() {
-    if (probing || done || root.classList.contains('rk-steady')) return;
-    if (/[?&]full\b/.test(location.search)) return;
-    probing = true;
-    const d = []; let last = performance.now(), n = 0;
-    const tick = t => {
-      d.push(t - last); last = t;
-      if (++n < 30) { requestAnimationFrame(tick); return; }
-      probing = false; done = true;
-      const s = d.slice(3).sort((a, b) => a - b), p50 = s[Math.floor(s.length / 2)] || 0;
-      const slow = p50 > 50;
-      // 排障用：网址带 &rkdiag=1 时把量到的结果打出来，方便远程确认有没有走这条兜底
-      if (/[?&]rkdiag=1\b/.test(location.search)) console.log('[rk] frame p50=' + p50.toFixed(1) + 'ms → ' + (slow ? '降级为静态排位' : '保持标准'));
-      if (!slow) return;
-      root.classList.add('rk-steady');
-      root.classList.toggle('rk-cover', !!document.querySelector(COVER));
-      try { localStorage.setItem('hx-rk-steady', '1'); } catch (e) { }
-    };
-    requestAnimationFrame(tick);
-  }
-}
-/* 2026-11-05 用户手机实测：「手机上完全没有 321GO 动效，也没有转场 —— 你是不是省了很多东西」。
-   根因是**两个概念被绑在一起**：is-lite 的本意只是「降掉毛玻璃 blur 和重阴影」（顶栏每帧重算模糊会让手机发烫），
-   但 rank.js 里所有像素动效的门控也读 is-lite —— 而 is-lite 的第一条判据是「触屏 + 粗指针」，
-   等于**所有手机/平板/触屏一体机一律被当成跑不动动效的破机器**，像素 321GO 和转场全被跳过，
-   手机上只剩文字倒数、转场直接没有。
-   现在拆开：is-lite 继续只管视觉降级（模糊/阴影）；动效另用 fx-lite，只有**真跑不动**的才跳过 ——
-   设备内存 ≤2G、或 CPU 核心 ≤2（这是 2015 年前后的老安卓/廉价平板级别），
-   希沃这类教学一体机虽然触屏，但 CPU/GPU 够用，教室里反而更要看动效，所以**不**进 fx-lite。 */
-{
-  const ua = navigator.userAgent || '';
-  const weak = (navigator.deviceMemory || 8) <= 2
-    || (navigator.hardwareConcurrency || 8) <= 2
-    || /amlogic|rk3\d{3}|allwinner|sun50/i.test(ua);
-  if (weak) document.documentElement.classList.add('fx-lite');
-}
 /* ── 2026-11-11 极简模式（总入口「模式」那两档）────────────────────────
    用户原话：「标准模式下所有都不冻结；极简模式下所有发热卡顿耗电等内容都可以被舍弃，不影响核心功能」。
    接线仿真原来有自己的一套 is-lite（按设备自动判定）+ fx-lite（按机器性能），
    和总入口的「极简/标准」完全脱节 —— 用户在总入口选了标准，接线页照样按自己的判定跑。
-   现在统一：**总入口的「极简」= 这里加 is-lite（视觉降级：去模糊/阴影）**；
-   「标准」= 不加（全部特效照跑，只有真·弱机才保留它自己的 fx-lite 兜底）。
+   现在统一：**总入口的「极简」= 这里加 is-lite + rk-steady**；
+   「标准」= 都不加（全部特效照跑）。
    判定优先级：① URL ?full/?lite（调试）② localStorage hx-lite（总入口写的）
    ③ 没有偏好 → 默认极简（跟总入口的默认一致）。
 
@@ -3882,10 +3896,15 @@ const TAB_KEY = 'zfz-project2-tab', THEME_KEY = 'zfz-practice-theme';
      排位开头结尾那种**一次性的、有仪式感的**必须留，要关的是**常驻氛围**（首页卡片小生物、
      画布光晕）。所以这里拆开：
        · is-lite（极简加）→ 只做视觉降级（顶栏毛玻璃、重阴影），并让画布光晕归零（伤害最大的一项）；
-       · fx-lite（极简**不加**）→ 只留给真·弱机（≤2G 内存 / ≤2 核 / 老国产盒子），
-         它在 rank.js 里管的是「一次性仪式感动效播不播」，不该由用户的模式开关决定。
+       · fx-lite（两档都不加，2026-11-23 起也不再看设备）→ 变成纯排障开关，只由网址 ?fxlite 给。
+         它在 rank.js 里管的是「一次性仪式感动效播不播」—— 这件事既不该由模式开关决定，
+         也不该由机器型号决定：同一个班的学生拿不同手机，看到的仪式感必须一样。
      常驻氛围（首页卡片小生物）由它自己的模块直接读 hx-lite 停循环，不走 fx-lite —— 见
-     hx-critters.js 的 still()：那边一进 hx-lite 就停，与这里无关。 */
+     hx-critters.js 的 still()：那边一进 hx-lite 就停，与这里无关。
+
+   ★ 2026-11-23（用户：「只按设置区分 不要擅自变化」）：
+     rk-steady（排位静态皮肤：停跑马灯、去 backdrop-filter）也归到这里 —— 极简就静态、标准就全开。
+     它原先是按 iOS UA + 「量 30 帧」自动挂的，见本文件前面那段模式说明里撤掉的 4 条设备判据。 */
 function hxLiteNow() {
   try {
     const q = location.search;
@@ -3901,7 +3920,12 @@ function ls_get(k) { try { return localStorage.getItem(k); } catch (e) { return 
 function applyHxLite() {
   const on = hxLiteNow(), r = document.documentElement;
   r.classList.toggle('is-lite', on);
-  // fx-lite 保持上面那套「真·弱机」的独立判定，不被模式开关覆盖（见注释里 2026-11-11 二次修正）。
+  /* 2026-11-23：静态排位皮肤跟着设置走。
+     为什么它可以跟极简绑：极简的承诺是「发热、卡顿、耗电的内容都可以舍弃，不影响核心功能」，
+     跑马灯/全屏 backdrop-filter 正是最费的那两样；而标准档要的就是「所有动效照跑」。
+     用户实测过「极简模式可以、标准闪烁」—— 那正是这两档该有的差别，选择权归用户。
+     fx-lite 不在这里：它是纯排障开关（?fxlite），见上面 2026-11-23 那段。 */
+  r.classList.toggle('rk-steady', on);
 }
 applyHxLite();
 /* 总入口里换模式：同页面自定义事件 + 跨标签 storage 事件，两条都收，当场换档不用刷新。 */
@@ -5694,7 +5718,18 @@ const HX = (() => {
      ③ 每条请求最多等 12 秒 —— 后端卡住时不能让页面一直「转圈不动」。 */
   const JITTER = 2500, RETRY_WAIT = [1200, 3000], TIMEOUT = 12000;
   const sleep = ms => new Promise(r => setTimeout(r, ms));
-  const retriable = e => { if (!e) return false; if (!e.status) return true; if (e.status === 429) return true; return e.status >= 500 && e.status <= 599; };
+  /* 2026-11-23：429 不再走 retry（和总入口同一个口径）。Supabase 的登录限流按 IP 算，
+     一个班共用学校出口 IP；撞上了每 1.2 秒补一刀只会把令牌桶掏得更空。
+     ★ 同日深夜实测后的最终口径：429 **单独补偿一次**，见 signIn 里的 RATE_WAIT。
+       实测（45 个并发，不存在的账号，不碰真实用户）：
+         限流 150/5min 时：45 → 30 过 / 15 拦
+         限流 1500/5min 后：45 → 32 过 / 13 拦（**瞬时容量固定 30，调限额只加快补充，不改容量**）
+         拦下的 13 个等 3 秒再发一次：13 个全过 → 整班 45/45 成功
+       所以「等 3 秒重试一次」是这套限流下唯一能把整班送进去的做法，
+       而「每次点击都重试 2 次」才是之前越点越死的原因 —— 区别就在「只此一次、且不递归」。 */
+  const retriable = e => { if (!e) return false; if (!e.status) return true; return e.status >= 500 && e.status <= 599; };
+  const rateLimited = e => !!e && e.status === 429;
+  const RATE_WAIT = 3000, RATE_JITTER = 900;   // 429 后等 3~3.9 秒再试一次（5 个/秒的补充速度下够用）
   async function retry(fn, onRetry) {
     for (let i = 0; ; i++) {
       try { return await fn(); }
@@ -5761,12 +5796,25 @@ const HX = (() => {
     // 抖动 + 重试：和总入口同一套（见文件顶部注释），登录峰值摊到 2.5 秒窗口里
     async signIn(id, pw) {
       await sleep(Math.floor(Math.random() * (JITTER + 1)));
+      const em = await retry(async () => emailOf(id));
+      const go = () => api('/auth/v1/token?grant_type=password', { method: 'POST', body: { email: em, password: pw }, auth: false });
       let j;
       try {
-        j = await retry(async () => api('/auth/v1/token?grant_type=password', { method: 'POST', body: { email: await emailOf(id), password: pw }, auth: false }));
+        j = await retry(go);
       } catch (e) {
-        if (retriable(e)) throw new Error('服务器繁忙，请再点一次');
-        throw e;
+        if (!rateLimited(e)) {
+          if (retriable(e)) throw new Error('服务器繁忙，请再点一次');
+          throw e;
+        }
+        /* 唯一的 429 补偿：等 3~3.9 秒，只再试一次。这一步**不会递归**，
+           所以一个人点一次最多产生 2 个登录请求（以前是 3 个，而且每次再点又 3 个）。 */
+        await sleep(RATE_WAIT + Math.floor(Math.random() * RATE_JITTER));
+        try { j = await go(); }
+        catch (e2) {
+          if (rateLimited(e2)) throw new Error('整班同时登录把服务器挤住了。已经自动重试过一次还是没进去 —— 停 30 秒再点一次，中间别连点（连点只会让所有人更进不去）。');
+          if (retriable(e2)) throw new Error('服务器繁忙，请再点一次');
+          throw e2;
+        }
       }
       take(j);
     },
@@ -6197,12 +6245,13 @@ async function rkMain(body) {
       <div class="rk-sh">${RK_ICO.users}<b>学生</b><em id="rkStuN">— 人</em></div>
       <div id="rkPick"><p class="rk-wait">加载班级…</p></div></div>` : ''}</div>
     <div class="rk-right">
-      <div class="rk-bh"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10v4a5 5 0 0 1-10 0z"/><path d="M7 5H4v1.5A3.5 3.5 0 0 0 7.5 10M17 5h3v1.5A3.5 3.5 0 0 1 16.5 10M12 13v4M8.5 20h7M10 17h4l1 3H9z"/></svg><b>${esc(cName(lock))} 排行榜</b><small id="rkBoardN">按用时升序</small></div>
+      <div class="rk-bh"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10v4a5 5 0 0 1-10 0z"/><path d="M7 5H4v1.5A3.5 3.5 0 0 0 7.5 10M17 5h3v1.5A3.5 3.5 0 0 1 16.5 10M12 13v4M8.5 20h7M10 17h4l1 3H9z"/></svg><b>${esc(cName(lock))} 排行榜</b><small id="rkBoardN">按用时升序</small>${isT() ? '<button class="rk-bhbtn" id="rkHideMg" type="button" title="把学生移出/移回这一题的排行榜（成绩不删）">榜单管理</button>' : ''}</div>
       <div class="rk-boardwrap" id="rkBoard"><p class="rk-wait">加载中…</p></div>
       <!-- 四角装饰层（2026-11-19 第三轮）：4 个节点 + 上/下两道光束，纯装饰、不吃点击。
            放在 .rk-right 末尾当绝对定位覆盖层，样式在 project2.html 的 .rkx-fx 那一段。 -->
       <i class="rkx-fx" aria-hidden="true"><i></i><i></i><i></i><i></i><b></b><b></b></i></div></div>`;
   body.querySelector('#rkStart').onclick = () => rkStartRun();
+  const mg = body.querySelector('#rkHideMg'); if (mg) mg.onclick = () => rkHideWin();
   rkHeroBg(body.querySelector('.rk-hero'));
   rkBoard(body.querySelector('#rkBoard'));
   // 先按已知数据点一次（重绘 / 抽完人回来时 RK.boardRows 还在缓存里，能立刻显示正确名次）；
@@ -7439,6 +7488,67 @@ function rkBoardPaint(el, hl, pageFlip) {
   // 榜单数据到齐、DOM 画完 → 点亮选手卡上的奖杯（Hero 是先画的，那时还没有榜）
   rkHeroRank();
 }
+/* ── 榜单管理（2026-11-23）────────────────────────────────────────────────────
+   用户原话：「这两个脚本连接踢出排行榜 但不删除成绩」。
+   所以这是「不上榜」，不是「删成绩」：rank_best / rank_attempts / 课堂任务 / 小组加分 全都不动，
+   只是 rank_board 里过滤掉（见 supabase/2026-11-23-踢出榜单与反作弊.sql），随时能移回来。
+   入口只给教师（含管理员/开发者）；服务端还会再校验「只能处理自己班的学生」，前端藏起来只是省事。 */
+function rkHideWin() {
+  const v = rkOverlay(`<div class="rk-hide"><h3>${esc(cName(RK.circuit))} · 榜单管理</h3>
+    <p class="rk-hide-tip">「移出」= 不上榜，<b>成绩一行都不删</b>：课堂任务、小组加分、历史记录全都照旧，随时能移回来。</p>
+    <div class="rk-hide-body" id="rkHideBody"><p class="rk-wait">读取中…</p></div>
+    <div class="rk-row"><button class="rk-ghost" id="rkHideClose" type="button">关闭</button></div></div>`);
+  const body = v.querySelector('#rkHideBody');
+  v.querySelector('#rkHideClose').onclick = rkHideOverlay;
+
+  const rowH = r => `<div class="rk-hide-row"><b>${esc(r.name)}</b><small>${esc(r.class_name || '')} · ${fmtMs(r.ms)}</small>`
+    + `<button class="rk-hide-btn" type="button" data-hide="${r.student_id}">移出</button></div>`;
+  const outH = h => `<div class="rk-hide-row out"><b>${esc(h.name)}</b><small>${esc(h.class_name || '')}${h.circuit === '*' ? ' · 全部题目' : ''}</small>`
+    + `<button class="rk-hide-btn" type="button" data-show="${h.student_id}" data-c="${esc(h.circuit)}">移回</button></div>`;
+  const paint = (list, out) => {
+    body.innerHTML = (list.length ? list.map(rowH).join('') : '<p class="rk-wait">这一题还没有人上榜</p>')
+      + (out.length ? `<p class="rk-hide-sep">已移出（${out.length}）· 成绩还在</p>` + out.map(outH).join('') : '');
+  };
+  const fail = e => {
+    const m = String((e && e.message) || e);
+    const hint = /does not exist|schema cache|permission denied|Could not find/i.test(m)
+      ? '数据库还没更新：请先在 Supabase 的 SQL Editor 里跑 supabase/2026-11-23-踢出榜单与反作弊.sql，再刷新本页。'
+      : m;
+    body.innerHTML = `<p class="rk-err">${esc(hint)}</p>`;
+  };
+  const load = () => {
+    return Promise.all([
+      HX.boot(() => HX.rpc('rank_board', { p_circuit: RK.circuit, p_limit: 200 }, HX.in())),
+      HX.boot(() => HX.rpc('rank_hide_list', { p_circuit: RK.circuit }, HX.in()))
+    ]).then(([b, h]) => {
+      const list = Array.isArray(b) ? b : (b && Array.isArray(b.data) ? b.data : []);
+      const out = Array.isArray(h) ? h : (h && Array.isArray(h.data) ? h.data : []);
+      paint(list, out);
+    }, fail);
+  };
+  /* 一次点击只改一个人：移出/移回都走同一个 RPC，成功后把面板和右边榜单一起刷新
+     （榜单是 rank_board 现算的，不重拉的话被移出的人还挂在上面） */
+  body.addEventListener('click', async e => {
+    const hb = e.target.closest('[data-hide]'), sb = e.target.closest('[data-show]');
+    if (!hb && !sb) return;
+    const b = hb || sb; b.disabled = true;
+    const on = !!hb;
+    try {
+      await HX.rpc('rank_hide_set', {
+        p_student: Number(on ? hb.dataset.hide : sb.dataset.show),
+        p_circuit: on ? RK.circuit : sb.dataset.c,
+        p_on: on,
+        p_reason: on ? '脚本作弊（老师手动移出，成绩保留）' : ''
+      }, HX.in());
+      await load();
+      rkBoard(document.querySelector('#rkBoard'));
+    } catch (er) {
+      b.disabled = false;
+      body.insertAdjacentHTML('beforeend', `<p class="rk-err">${esc(er.message || '操作失败')}</p>`);
+    }
+  });
+  load();
+}
 // ---------- 一局排位：模糊背景 + 中间开始按钮 → 计时（0.01 秒）→ 全对自动停表 → 服务器算成绩和名次 → 祝贺、烟花、名次上升动画 ----------
 const rkWin = () => { try { return frames.get(cur).contentWindow; } catch (e) { return null; } };
 // ── 2026-11-04 用户：「排位完成后学生账号不需要换人，可以直接下一题」──
@@ -7556,11 +7666,62 @@ function rkOverlay(html) {
 // ── 2026-11-02 修坑：原来只 remove('show')，遮罩节点仍是活的，
 //   挂在里面的符文环就以为「我还在屏幕上」，一直空转（实测关掉后 1.2 秒还画了 35 次）。
 //   RFX.play 那边也加了「宿主不可见就停」的判据，这里是第二道保险 —— 收得更快，不等下一帧。
+/* ── 2026-11-23 补漏：`counting` 必须一起摘掉 ──
+   用户报「排位点开、倒计时结束后手机上黑屏」。查下来最可疑的一条是这里：
+   `.rk-veil.counting` 会把准备页的**所有内容**（除名字和底部按钮）opacity 置 0
+   （见 project2.html 的 CSS）。倒数期间它是对的 —— 画面上只该有倒数特效。
+   但关闭遮罩这一步原来只 remove('show')，`counting` 留在节点上。
+   #rkVeil 是**复用同一个节点**的（rkOverlay 只重写 innerHTML），所以只要有任何一条
+   路径让遮罩带着 counting 再显示出来（或 `.show` 的过渡被打断、元素还没真正透明），
+   屏幕上就是「黑底 + 什么都没有 + 底部两个按钮」—— 学生看到的就是黑屏。
+   摘掉 counting 对正常流程没有任何影响：倒数结束本来就该回到正常准备页外观。
+
+   ── 顺手把残留画布也清掉 ──
+   倒数特效是一次性的，播完自己 remove；但如果它卡在「已经走到 2.85s 却还没收尾」那一帧
+   （弱机 dt 被夹、动画时间比墙钟慢），这块 304×272 的画布会留在遮罩正中（CSS 给的是 top:58%）。
+   遮罩一旦还在显示，它就是一块压在画面上、不再更新的深色方块 —— 和「黑屏」的观感是同一件事。
+   这里把所有 .rk-px 一并摘掉：`counting` 一撤，本来也就不该再剩任何倒数残影。 */
 const rkHideOverlay = () => {
   const v = document.getElementById('rkVeil'); if (!v) return;
   rkStopPx(v);
+  v.querySelectorAll('canvas.rk-px').forEach(cv => { try { cv.remove(); } catch (e) { } });
   v.classList.remove('show');
+  v.classList.remove('counting');
 };
+/* ── 操作流水（2026-11-23，反作弊的证据层）────────────────────────────────────
+   用户原话：「这两个脚本连接踢出排行榜 但不删除成绩 … 另外我们怎么避免脚本作弊呢」。
+   这里在**起表那一刻**开始，在练习页自己的 document 上听真实的指针/键盘事件，记下
+   「按了多少下、第一下到最后一下隔多久、有没有合成事件（isTrusted=false）」。
+   · 为什么监听 iframe 的 document：接线全在练习页 iframe 里进行，事件不会冒泡到外壳。
+   · 为什么只当证据：客户端报的数字理论上都能伪造，服务端不拿它判成绩。
+     它真正的用处是 —— 用脚本直接调 rank_start/rank_finish 的人，这里一定是 0 次操作。
+   · 听 keydown 是为了快捷键撤销/重做也算「动过手」，不影响判据。 */
+function rkOpsStart() {
+  const w = rkWin(), doc = w && w.document;
+  if (!doc) return null;
+  const rec = { n: 0, t0: 0, t1: 0, trust: true, stopped: false };
+  const hit = e => {
+    if (rec.stopped) return;
+    const now = performance.now();
+    if (!rec.t0) rec.t0 = now;
+    rec.t1 = now; rec.n++;
+    if (e && e.isTrusted === false) rec.trust = false;   // 脚本 dispatch 出来的事件会走到这里
+  };
+  const evs = ['pointerdown', 'keydown'];
+  evs.forEach(t => { try { doc.addEventListener(t, hit, true); } catch (e) { } });
+  const off = () => {
+    rec.stopped = true;
+    evs.forEach(t => { try { doc.removeEventListener(t, hit, true); } catch (e) { } });
+  };
+  return {
+    off,
+    done: () => {
+      off();
+      if (!rec.n) return { n: 0, t: 0, trust: rec.trust };   // 一下都没点：调用方照样上报，服务端标成可疑
+      return { n: rec.n, t: Math.round(rec.t1 - rec.t0), trust: rec.trust };
+    }
+  };
+}
 function rkReady(msg) {
   const R = RK.run;
   // 名字要大、按钮要大、要有“预备”感：三个呼吸点 + 两层扩散光环 + 一圈慢慢收紧的虚线环
@@ -7577,50 +7738,74 @@ function rkReady(msg) {
   //   遮罩一关扫不到它 → 停在练习页正中一直转（hold=999999 ≈ 11.5 天），既挡视线又 60fps 烧 GPU。
   //   排位过程中一律不再加像素特效；要动画只留成绩页那一下（见 rkResult 的 confetti，塞在遮罩内部）。
   //   准备页本身的“预备感”不受影响：呼吸点、两层扩散光环、收紧虚线环都是 CSS 动画（.rk-halo / .rk-dash）。
+  /* ── 2026-11-23：起表这一整段包一层兜底 ──
+     用户报「排位点开、倒计时结束后手机上黑屏」。倒数本身和转场各自都有 try/catch，
+     但这两步之间还有 `await rkReveal(R)` 之后的一串 await（rank_start 的网络往返、
+     rkWin()/__rank.reset() 取子页面引用……）。这一段里任何一个异常都会让遮罩停在
+     「已进 counting、准备页内容被 CSS 藏掉」的那一帧：黑底 + 名字 + 两个按钮，
+     而且「开始」按钮已经 disabled —— 学生既看不懂也没法自救，只能关页面重进。
+     所以整段包起来：出错就把遮罩收掉、把准备页原样放回来、把原因写在下面，
+     那一刻计时还没起，重来一次完全不影响成绩。 */
   v.querySelector('#rkGoBtn').onclick = async e => {
     const b = e.currentTarget; if (b.disabled) return; b.disabled = true; b.classList.add('busy');
-    // 3 → 2 → 1 → GO!：倒数走完才开始计时。计时起点必须在倒数之后（以前点上就起表，成绩平白多算两三秒）
-    const go = await rkCountDown(v, R);
-    if (!go || RK.run !== R) return; // 倒数期间老师点了“退出排位”或“换人”：绝不能再把计时条叫起来
-    // ── 2026-11-03 接入题目的转场：随机挑一个全屏转场特效，盖满的一瞬把准备页收掉、
-    //    开始揭幕的那一瞬起表 —— 学生看到的第一个画面就是转场揭开的练习页，秒表同时起跑。
-    const open = await rkReveal(R);
-    if (!open || RK.run !== R) return;
-    // ── 2026-11-04：起表前最后确认一次「板子是空的」──
-    //   成绩页的「再来一次」会先调 __rank.reset()，但 reset 在电路页里都可能被静默跳过
-    //   （parallel.js 是 `if (!RANK) return`，practice.js 那边则要靠 iframe 还在、__rank 还挂得上）。
-    //   上一局接完的线只要还留在板上，__rank.ok() 一起表就是 true → 100ms 后 rkHud 立刻判完成 →
-    //   服务器量到的只有倒数+转场那几秒 → t < 5000 → 报「用时不合理」。这里再兜一次，成本是 0。
-    //   （计时还没开始，多清一次不影响成绩；清不掉也有 rkHud 里的起表冷却挡着。）
-    //   ── 2026-11-11：判据从「ok() 为真才清」改成**一律清** ──
-    //   只判 ok() 有个漏：板子上留着上一位同学/上一局的残局、但还差几根线时，ok() 是假 → 不清，
-    //   可紧接着 rank_start 已经把服务器秒表重新打戳，那几根接完就判完成 → 用时只剩十几秒
-    //   （2.3 那个 12s 记录是这条链上的；上游还有「计时中再点排位」那道闸，这里是最后一道保险）。
-    //   起表之前清台的成本是 0：这一刻的线本来就不属于任何一局成绩。
-    try { const w0 = rkWin(); if (w0 && w0.__rank && w0.__rank.reset) w0.__rank.reset(); } catch (e2) { }
-    // ── 2026-11-04 修「有的同学用时偶尔不合理」：rank_start 必须和起表落在同一时刻 ──
-    //   成绩不是网页算的，是服务器算的：public.rank_finish 里 t := floor(extract(epoch from
-    //   (now() - a.started_at))*1000)（见 supabase/rank-schema.sql），started_at 由 rank_start 打戳。
-    //   这一步以前放在**倒数之前**，于是倒数那 3 秒 + 转场那 1 秒多全被算进成绩 ——
-    //   实测服务器记的时刻比学生真正开始接线早了 4692ms；而倒数按特效动画时间轴走、转场随机挑
-    //   （0.9～1.2s），多算的量每次都不一样，看起来就是「偶尔用时莫名其妙」。
-    //   挪到转场之后、起表之前，服务器量的就是真实接线用时，**不用改数据库**。
-    //   t0 取「请求往返的中点」：服务端 started_at 就是在这段往返里打的时间戳，本地计时条和服务端成绩
-    //   于是只差几十毫秒，成绩页（以服务端为准）不会跟计时条对不上。
-    const tS = performance.now(); let aid;
-    try { aid = await HX.rpc('rank_start', { p_student: R.pick.id, p_circuit: R.circuit }); }
-    catch (er) {
-      // 开不了局（没权限 / 断网）：把准备页放回来并说明原因，别让学生对着一个不计时的练习页白接一遍
-      if (RK.run === R) { R.phase = 'ready'; rkReady(er.message); }
-      return;
+    try { await rkGoStart(v, R); }
+    catch (err) {
+      if (RK.run !== R) return;                    // 期间已经退出 / 换人：什么都别动
+      try { rkHideOverlay(); } catch (e2) { }
+      R.phase = 'ready';
+      rkReady('这台机器上开头那一下没跑起来（' + ((err && err.message) || err) + '）。再点一次「开始」；还是不行就点「退出排位」，用练习模式接。');
     }
-    if (RK.run !== R) return; // 等服务器这一下里退出 / 换人了
-    const tE = performance.now();
-    R.aid = aid; R.phase = 'run'; R.t0 = (tS + tE) / 2; rkHud();
   };
   v.querySelector('#rkQuit').onclick = rkQuit;
   const nx = v.querySelector('#rkNext'); if (nx) nx.onclick = rkGoNext; // 学生自己的账号：准备页也没有「换人」，给「下一题」
   const sw = v.querySelector('#rkSwap'); if (sw) sw.onclick = () => { const c = RK.circuit; rkQuit(); openRank(c); }; // 换人：还是这一题，别被当前页带跑
+}
+/* 「开始」按钮被点之后真正要做的事（2026-11-23 从 rkReady 的 onclick 里整段搬出来，
+   只为让它能被一个 try/catch 包住 —— 见上面 onclick 里那段兜底说明）。
+   顺序不能动：倒数 → 转场（盖满时收准备页、揭幕时起表）→ 清台 → rank_start → 上计时条。
+   里面每一步为什么在那儿，原注释都跟着搬过来了。 */
+async function rkGoStart(v, R) {
+  // 3 → 2 → 1 → GO!：倒数走完才开始计时。计时起点必须在倒数之后（以前点上就起表，成绩平白多算两三秒）
+  const go = await rkCountDown(v, R);
+  if (!go || RK.run !== R) return; // 倒数期间老师点了“退出排位”或“换人”：绝不能再把计时条叫起来
+  // ── 2026-11-03 接入题目的转场：随机挑一个全屏转场特效，盖满的一瞬把准备页收掉、
+  //    开始揭幕的那一瞬起表 —— 学生看到的第一个画面就是转场揭开的练习页，秒表同时起跑。
+  const open = await rkReveal(R);
+  if (!open || RK.run !== R) return;
+  // ── 2026-11-04：起表前最后确认一次「板子是空的」──
+  //   成绩页的「再来一次」会先调 __rank.reset()，但 reset 在电路页里都可能被静默跳过
+  //   （parallel.js 是 `if (!RANK) return`，practice.js 那边则要靠 iframe 还在、__rank 还挂得上）。
+  //   上一局接完的线只要还留在板上，__rank.ok() 一起表就是 true → 100ms 后 rkHud 立刻判完成 →
+  //   服务器量到的只有倒数+转场那几秒 → t < 5000 → 报「用时不合理」。这里再兜一次，成本是 0。
+  //   （计时还没开始，多清一次不影响成绩；清不掉也有 rkHud 里的起表冷却挡着。）
+  //   ── 2026-11-11：判据从「ok() 为真才清」改成**一律清** ──
+  //   只判 ok() 有个漏：板子上留着上一位同学/上一局的残局、但还差几根线时，ok() 是假 → 不清，
+  //   可紧接着 rank_start 已经把服务器秒表重新打戳，那几根接完就判完成 → 用时只剩十几秒
+  //   （2.3 那个 12s 记录是这条链上的；上游还有「计时中再点排位」那道闸，这里是最后一道保险）。
+  //   起表之前清台的成本是 0：这一刻的线本来就不属于任何一局成绩。
+  try { const w0 = rkWin(); if (w0 && w0.__rank && w0.__rank.reset) w0.__rank.reset(); } catch (e2) { }
+  // ── 2026-11-04 修「有的同学用时偶尔不合理」：rank_start 必须和起表落在同一时刻 ──
+  //   成绩不是网页算的，是服务器算的：public.rank_finish 里 t := floor(extract(epoch from
+  //   (now() - a.started_at))*1000)（见 supabase/rank-schema.sql），started_at 由 rank_start 打戳。
+  //   这一步以前放在**倒数之前**，于是倒数那 3 秒 + 转场那 1 秒多全被算进成绩 ——
+  //   实测服务器记的时刻比学生真正开始接线早了 4692ms；而倒数按特效动画时间轴走、转场随机挑
+  //   （0.9～1.2s），多算的量每次都不一样，看起来就是「偶尔用时莫名其妙」。
+  //   挪到转场之后、起表之前，服务器量的就是真实接线用时，**不用改数据库**。
+  //   t0 取「请求往返的中点」：服务端 started_at 就是在这段往返里打的时间戳，本地计时条和服务端成绩
+  //   于是只差几十毫秒，成绩页（以服务端为准）不会跟计时条对不上。
+  const tS = performance.now(); let aid;
+  try { aid = await HX.rpc('rank_start', { p_student: R.pick.id, p_circuit: R.circuit }); }
+  catch (er) {
+    // 开不了局（没权限 / 断网）：把准备页放回来并说明原因，别让学生对着一个不计时的练习页白接一遍
+    if (RK.run === R) { R.phase = 'ready'; rkReady(er.message); }
+    return;
+  }
+  if (RK.run !== R) return; // 等服务器这一下里退出 / 换人了
+  const tE = performance.now();
+  R.aid = aid; R.phase = 'run'; R.t0 = (tS + tE) / 2;
+  /* 2026-11-23 反作弊「操作流水」：起表同时开始记这一局里**真实的**指针按下（见 rkOpsStart） */
+  R.ops = rkOpsStart();
+  rkHud();
 }
 // 准备页的倒数：2026-11-03 起「3-2-1-GO!」换成 pixelfx 的 Countdown 特效（科技蓝引线圆环，
 // 3 → 2 → 1 撞进圆环里烧引线，GO! 爆开冲击波光芒）—— 用户给的参考图（pixelfx 画廊 Countdown 页）就是它。
@@ -7912,10 +8097,14 @@ function rkHud() {
   }, 100);
 }
 // 服务器给的报错翻成人话：成绩以服务器为准，它拒收的原因要让学生看得懂
-// （'用时不合理' 是数据库里写死的原文，见 rank-schema.sql 的 `if t < 5000`，界面上直接抛出去太吓人）
-const rkErrZh = m => /用时不合理/.test(String(m || ''))
-  ? '这次用时不到 5 秒，服务器没有计入（可能是判定得太快）。请再完整接一遍。'
-  : (m || '');
+// （数据库里会写成「用时不合理（11.00 秒，这一题的合理下限是 41.9 秒）」，直接把两个数搬到界面上）
+const rkErrZh = m => {
+  const s = String(m || '');
+  const t = /用时不合理（([\d.]+) 秒[^）]*?([\d.]+) 秒）/.exec(s);
+  if (t) return `这次只用了 ${t[1]} 秒，这一题至少要 ${t[2]} 秒才算合理（快得离谱的记录会被当成脚本拦下）。请完整接一遍再试。`;
+  if (/用时不合理/.test(s)) return '这次用时太短，服务器没有计入（可能是判定得太快）。请完整接一遍再试。';
+  return s;
+};
 async function rkFinish() {
   const R = RK.run; if (!R || R.phase === 'done') return; // 停表只结算一次：重复调用会把同一条记录再送一遍，服务器只回「这次排位已失效」
   R.phase = 'done'; const local = performance.now() - R.t0;
@@ -7927,8 +8116,20 @@ async function rkFinish() {
   // 教师代做：把「这局算谁」显式告诉服务器（p_for_student）。服务端会核对它必须等于开局时那个
   // 学生，学生账号拿它替别人刷会被直接拒；不带这个参数的老路径（学生自己排位）行为一字不变。
   const rb = rkProxy(R.pick) ? { p_attempt: R.aid, p_for_student: R.pick.id } : { p_attempt: R.aid };
+  /* 2026-11-23：把这一局的操作流水一起报上去（n = 真实指针按下次数，t = 首末间隔，trust = 全是真实事件）。
+     服务端只把它存进 rank_attempts 当证据，**不靠它判成绩**（客户端报的数字终究可以伪造）——
+     真正拦脚本的是服务端的用时下限和开局限流。老页面不带这个字段也照样能结算。 */
+  if (R.ops) { const p = R.ops.done(); if (p) rb.p_ops = p; }
   try { res = await HX.rpc('rank_finish', rb); }
-  catch (e) { return rkResult(null, rkErrZh(e.message)); }
+  catch (e) {
+    /* 兼容：数据库还没跑 2026-11-23 那个 SQL 时，rank_finish 只有老的两参数版本，
+       多带 p_ops 会报「函数不存在」。这**不是**业务失败，原样再发一次（不带流水）就好，
+       否则全班在这一刻都结算不了 —— 网页可以先上，SQL 由老师事后补。 */
+    if (rb.p_ops && /function|does not exist|schema cache|PGRST202|not find/i.test(String(e.message))) {
+      delete rb.p_ops;
+      try { res = await HX.rpc('rank_finish', rb); } catch (e2) { return rkResult(null, rkErrZh(e2.message)); }
+    } else return rkResult(null, rkErrZh(e.message));
+  }
   // 用时以**服务器**算出来的为准（上榜的也是它）。停表那一刻计时条上写的是本地表，两者本来会差
   // 几十毫秒的往返时间；这里拿到 res.ms 就把它改回来，学生最后看到的那一眼和成绩卡上的数字一致。
   const clock = document.getElementById('rkClock');
@@ -8009,6 +8210,7 @@ function rkLadder(ol, rows, res) {
 }
 function rkQuit() {
   const R = RK.run; RK.run = null; RK.lock = null; // 退出排位 = 解锁，练习页恢复自由换题
+  try { if (R && R.ops) R.ops.off(); } catch (e) { }   // 操作流水的监听不留下（留着也不报错，但没必要）
   document.body.classList.remove('ranking');
   const w = rkWin(); if (w && w.__rank) w.__rank.off();
   rkHideOverlay(); const h = document.getElementById('rkHud'); if (h) h.classList.remove('show', 'stop');
