@@ -14,16 +14,16 @@
      要登录时调 window.HXPortal.login()；被单独打开时 hx-theme.js 会跳回这里（见 hx-theme.js 的 data-tool）。
      账号：Supabase 华夏工具项目，localStorage paike-session 和各工具共用；身份由数据库 hx_me() 决定。
      脚本里不用反引号模板字符串（本机测试时整页当字符串注入到线上同源页面里）。 -->
-<link rel="stylesheet" href="hx-theme.css?v=690873c">
-<script src="hx-theme.js?v=690873c"></script>
+<link rel="stylesheet" href="hx-theme.css?v=0f696f0">
+<script src="hx-theme.js?v=0f696f0"></script>
 <script src="rank-bg.js" defer></script><!-- 排位身份卡预设（2026-11-12）：总入口外观面板当场弹窗设置身份卡背景，预设数据在总入口也能用 -->
 <!-- 首页卡片上的像素小生物：pixelfx 的 12 个 critters（MIT），打包成一个 91 KB 的独立脚本。
      加载失败不影响首页——hx-critters.js 开头就有 window.PixelFX 存在性检查，没有就整段跳过。 -->
-<script src="fx/pixelfx-critters.js?v=690873c" defer></script>
-<script src="fx/hx-critters.js?v=690873c" defer></script>
+<script src="fx/pixelfx-critters.js?v=0f696f0" defer></script>
+<script src="fx/hx-critters.js?v=0f696f0" defer></script>
 <!-- 课堂码大屏二维码：离线 QR 编码器（qrcode 1.5.4 core 打包，MIT，见 fx/NOTICE-qr.md）。延迟加载即可：只有老师点「大屏二维码」时才用 -->
-<script src="fx/hx-qr.js?v=690873c" defer></script>
-<script src="hx-scan.js?v=690873c" defer></script><!-- 全站扫一扫（2026-11-08 K5）：摄像头 + BarcodeDetector / 本地 jsQR -->
+<script src="fx/hx-qr.js?v=0f696f0" defer></script>
+<script src="hx-scan.js?v=0f696f0" defer></script><!-- 全站扫一扫（2026-11-08 K5）：摄像头 + BarcodeDetector / 本地 jsQR -->
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; width: 100%; overflow: hidden; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -93,7 +93,7 @@
   .av.has-img { background-color: transparent; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 14%, transparent); }
   .av.lg { width: 72px; height: 72px; font-size: 30px; }
   .avl { cursor: pointer; border-radius: 50%; } .avl:hover { filter: brightness(.9); }
-  .pill { display: inline-flex; align-items: center; height: 22px; padding: 0 9px; border-radius: 99px; font-size: 12px; font-weight: 600; background: var(--fill); color: var(--dim); }
+  .pill { display: inline-flex; align-items: center; height: 22px; padding: 0 9px; border-radius: 99px; font-size: 12px; font-weight: 600; background: var(--fill); color: var(--dim); white-space: nowrap; }
   .pill.acc { background: var(--accbg); color: var(--acc); }
   .pill.ok { background: rgba(34, 197, 94, .14); color: #16a34a; }
   .pill.dev { color: #fff; background: linear-gradient(120deg, #f59e0b, #ec4899); box-shadow: 0 4px 14px -6px #ec4899; }
@@ -905,6 +905,23 @@
   .tip-line b { color: var(--acc); font-weight: 700; }
   .f input:focus, .f select:focus { border-color: var(--acc); box-shadow: 0 0 0 4px var(--ring); }
   .f .btn { height: 44px; }
+  /* 用户管理的筛选行（2026-11-22）：下拉前面带「身份 / 班级」标签，选什么一眼看得出；
+     窄屏自动换行，不把输入框挤成一条缝。option 显式给底色和字色，避免深色主题下弹出一片空白。 */
+  .ufltrow { flex-wrap: wrap; }
+  .uflt { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--dim); white-space: nowrap; }
+  .uflt select { height: 38px; max-width: 13em; min-width: 7em; padding: 0 10px; }
+  .f select option { background: var(--card-solid, #fff); color: var(--ink, #1d1d1f); }
+  /* 表格最后一列的操作按钮：flex + 可换行，按钮自己 nowrap。
+     以前是 text-align:right + white-space:nowrap 直接排在 td 里，四个按钮一挤，「设为会员」被压在「改身份」下面。 */
+  .acts { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+  .acts .btn { white-space: nowrap; }
+  .acts .btn.sm { height: 30px; padding: 0 10px; font-size: 13px; }
+  /* 用户管理表格：账号格里的姓名 / 邮箱 / 班级分三行显示（挤在一行会压在一起），头衔不折行 */
+  #uList td small.dim { display: block; margin-top: 2px; }
+  #uList td.nw { white-space: nowrap; }
+  /* 窄屏（手机）表格比面板宽：给个横向滚动，别把「状态 / 会员 / 按钮」裁在右边界外面 */
+  #uList { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  #uList table { min-width: 560px; }
   #shareT { padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line2); background: var(--card-solid); font: inherit; font-size: 15px; line-height: 1.6; resize: none; outline: none; }
   .msg { min-height: 1.2em; margin: 0; color: var(--bad); font-size: 13px; }
   dialog { width: min(400px, calc(100vw - 32px)); padding: 34px 28px 26px; border: 0; border-radius: 28px; background: var(--card-solid); color: var(--ink); box-shadow: 0 40px 100px -30px var(--shade); }
@@ -2465,7 +2482,7 @@ function renderPop() {
     html += '<div class="rows">' +
       '<button type="button" data-e="name"><span>名字</span><span>' + esc(i.full || i.name) + '</span></button>' +
       '<button type="button" data-e="pw"><span>密码</span><span>修改</span></button>' +
-      (i.gh ? '<div class="f" style="gap:8px"><span style="flex:1;min-width:0"><span>GitHub</span><span>' + esc(i.gh) + '</span></span><button type="button" class="btn link sm ib" id="punlink">解绑</button><button type="button" class="btn link sm ib" id="prelink">换绑</button></div>' : '<button type="button" id="plink"><span>GitHub</span><span>绑定</span></button>') + '</div>';
+      (i.gh ? '<div class="f" style="gap:8px"><span style="flex:1;min-width:0"><span>GitHub</span><span>' + esc(i.gh) + '</span></span><button type="button" class="btn link sm" id="punlink">解绑</button><button type="button" class="btn link sm" id="prelink">换绑</button></div>' : '<button type="button" id="plink"><span>GitHub</span><span>绑定</span></button>') + '</div>';
     if (r === '访客') html += '<div class="f" style="margin-bottom:14px"><button class="btn" type="button" data-e="claim">认证入班</button></div>'; // 好友码注册、老师后来才建班的学生，用课堂码补认证
     if (r === '未开通') html += '<div class="f" style="margin-bottom:14px"><button class="btn" id="pgo">填写邀请码开通</button></div>'; // 登录后会自动弹出；关掉了从这里再打开
     html += '<div class="f"><button class="btn sub" id="pswitch">切换账号</button><button class="btn sub" id="pdev">登录设备</button><button class="btn link bad" id="pout">退出登录</button></div>';
@@ -4394,12 +4411,24 @@ function sheetUsers() {
   var box = $('shB'), U = ST.users;
   var roleCn = { teacher: '教师', student: '学生', guest: '访客' };
   var q = (ST.uQ || '').trim().toLowerCase(), f = ST.uF || 'all', pg = ST.uPg || 1, PER = 50;
-  // 1000 个账号（988 学生）一次性渲染成表格会卡死弱机 —— 先按搜索/角色筛，再分页，每页 50。
+  /* 2026-11-22：加了「班级」筛选。老师原话「全部筛选下拉没东西 我需要筛选教师还是学生账号还是某个班级」
+     —— 所以下拉前面都带上标签（身份 / 班级），选哪个一眼看得出。
+     · uCls = '' 全部班级；'none' 未分班（自注册还没归班的学生）；其余是 hx_classes.id 的字符串。
+     · 选了班级就只看这个班的学生（老师不混进来，避免「我选了 3 班却看到老师」）。 */
+  var cls = ST.uCls == null ? '' : String(ST.uCls);
+  // 1000 个账号（988 学生）一次性渲染成表格会卡死弱机 —— 先按搜索/角色/班级筛，再分页，每页 50。
   var rows = (U && !U.err) ? U.filter(function (u) {
-    if (f === 'expired') return u.role === 'teacher' && !u.is_member && !u.is_dev && u.title !== '合作开发者';
-    if (f !== 'all' && u.role !== f) return false;
+    if (cls) {
+      /* 选了班级就以班级为准：只留这个班的学生，身份筛选在这条路上不参与
+         （否则「身份=教师 + 班级=3班」会互相抵消，列表空空 —— 实测踩过）。 */
+      if (u.role !== 'student') return false;
+      if (cls === 'none' ? !!u.class_id : String(u.class_id || '') !== cls) return false;
+    } else {
+      if (f === 'expired') return u.role === 'teacher' && !u.is_member && !u.is_dev && u.title !== '合作开发者';
+      if (f !== 'all' && u.role !== f) return false;
+    }
     if (!q) return true;
-    var hay = (u.name || '') + ' ' + (u.email || '');
+    var hay = (u.name || '') + ' ' + (u.email || '') + ' ' + (u.student_no || '') + ' ' + (u.class_name || '');
     return hay.toLowerCase().indexOf(q) >= 0;
   }) : [];
   /* 2026-11-22 会员闸门：一眼看清「谁没续费、影响多少个班/多少学生」。
@@ -4420,11 +4449,20 @@ function sheetUsers() {
       '<br>已开通 <b>' + paid.length + '</b> / ' + tch.length + ' 个教师账号；未续费 <b>' + unpaid.length + '</b> 个，' +
       '涉及 <b>' + unpaidCls + '</b> 个班、<b>' + unpaidStu + '</b> 名学生。' +
       '</p>' +
-    '<div class="f frow" style="margin:0 0 10px;gap:8px"><input id="uSearch" style="flex:1;min-width:0" placeholder="搜姓名 / 邮箱 / 账号" value="' + esc(q) + '">' +
-    '<select id="uFilter" style="max-width:9em">' + ['all', 'teacher', 'student', 'guest', 'expired'].map(function (r) {
+    '<div class="f frow ufltrow" style="margin:0 0 10px;gap:8px">' +
+    '<input id="uSearch" style="flex:1 1 100%;min-width:0" placeholder="搜姓名 / 邮箱 / 账号 / 学号 / 班级" value="' + esc(ST.uQ || '') + '">' +
+    '<label class="uflt">身份<select id="uFilter">' + ['all', 'teacher', 'student', 'guest', 'expired'].map(function (r) {
       var cn = r === 'all' ? '全部' : r === 'expired' ? '未续费教师' : roleCn[r] || r;
       return '<option value="' + r + '"' + (f === r ? ' selected' : '') + '>' + cn + '</option>';
-    }).join('') + '</select></div>' +
+    }).join('') + '</select></label>' +
+    '<label class="uflt">班级<select id="uClass">' +
+      '<option value=""' + (cls === '' ? ' selected' : '') + '>全部班级</option>' +
+      (ST.aclasses || []).map(function (c) {
+        return '<option value="' + c.id + '"' + (cls === String(c.id) ? ' selected' : '') + '>' +
+          esc(c.name) + (c.archived ? '（归档）' : '') + ' · ' + (c.students || 0) + ' 人</option>';
+      }).join('') +
+      '<option value="none"' + (cls === 'none' ? ' selected' : '') + '>未分班</option>' +
+    '</select></label></div>' +
     '<div id="uList">' + (U === null ? '<p class="empty">加载中…</p>' : (U && U.err) ? '<p class="empty">读取失败：' + esc(U.err) + '</p>' :
       (!total ? '<p class="empty">没有匹配的账号</p>' :
       '<table><tr><th>账号</th><th>身份</th><th>头衔</th><th>状态</th><th>会员</th><th></th></tr>' + pageRows.map(function (u) {
@@ -4434,23 +4472,36 @@ function sheetUsers() {
         if (u.role !== 'teacher') memCell = '<span class="dim">—</span>';
         else if (exempt) memCell = '<span class="pill ok">永久</span>';
         else if (u.is_member) memCell = '<span class="pill ok">会员</span>' + (u.member_until ? '<small class="dim">' + esc(String(u.member_until).slice(0, 10)) + ' 到期</small>' : '');
-        else memCell = '<span class="pill bad">已过期</span>' + (u.classes ? '<small class="dim">' + u.classes + ' 班 · ' + (u.students || 0) + ' 人</small>' : '');
-        return '<tr><td>' + esc(u.name || u.email) + '<small class="dim">' + esc(u.email) + '</small></td>' +
+        else memCell = '<span class="pill bad">已过期</span>' + (u.classes ? '<small class="dim">' + u.classes + '班 · ' + (u.students || 0) + '人</small>' : '');
+        return '<tr><td>' + esc(u.name || u.email) + '<small class="dim">' + esc(u.email) + '</small>' +
+          (u.role === 'student' && (u.class_name || u.student_no)
+            ? '<small class="dim">· ' + esc(u.class_name || '未分班') + (u.student_no ? ' · ' + esc(u.student_no) : '') + '</small>' : '') + '</td>' +
           '<td>' + esc(roleCn[u.role] || u.role) + pill + '</td>' +
-          '<td>' + esc(u.title || '—') + '</td>' +
+          '<td class="nw">' + esc(u.title || '—') + '</td>' +
           '<td>' + (u.disabled ? '<span class="pill bad">已停用</span>' : '<span class="pill ok">正常</span>') + '</td>' +
           '<td>' + memCell + '</td>' +
-          '<td class="ra">' + (u.is_dev ? '' :
-            (u.role === 'teacher' && !exempt ? '<button class="btn link sm ib' + (u.is_member ? '' : ' primary') + '" data-u-member="' + u.uid + '" title="开/关会员">' + (u.is_member ? '取消会员' : '设为会员') + '</button>' : '') +
-            '<button class="btn link sm ib" data-u-setrole="' + u.uid + '" title="改身份">改身份</button>' +
-            '<button class="btn link sm ib" data-u-title="' + u.uid + '" title="改头衔">头衔</button>' +
-            '<button class="btn link sm ib bad" data-u-toggle="' + u.uid + '" title="停用/启用">' + (u.disabled ? '启用' : '停用') + '</button>') + '</td></tr>';
+          /* 2026-11-22：按钮挤在一格 text-align:right + nowrap 里，「设为会员」会被后面几个压住
+             （老师原话「设为会员有遮挡」）。真正的根因是这几个按钮挂了 `.ib` ——
+             `.btn.ib{width:32px;padding:0}` 是给**纯图标**按钮用的，套在「改身份」「设为会员」这种
+             文字按钮上，32px 装不下四个汉字、文字直接溢出盖住旁边的按钮。所以：①去掉 ib，
+             ②外面包一层 .acts（flex + 可换行），③每个按钮自己 nowrap。 */
+          '<td class="ra"><div class="acts">' + (u.is_dev ? '' :
+            (u.role === 'teacher' && !exempt ? '<button class="btn link sm' + (u.is_member ? '' : ' primary') + '" data-u-member="' + u.uid + '" title="开/关会员">' + (u.is_member ? '取消会员' : '设为会员') + '</button>' : '') +
+            '<button class="btn link sm" data-u-setrole="' + u.uid + '" title="改身份">改身份</button>' +
+            '<button class="btn link sm" data-u-title="' + u.uid + '" title="改头衔">头衔</button>' +
+            '<button class="btn link sm bad" data-u-toggle="' + u.uid + '" title="停用/启用">' + (u.disabled ? '启用' : '停用') + '</button>') + '</div></td></tr>';
       }).join('') + '</table>' +
       (pages > 1 ? '<div class="f frow" style="margin-top:10px;gap:8px;align-items:center"><button class="btn sm" id="uPrev"' + (pg <= 1 ? ' disabled' : '') + '>上一页</button><small class="dim" id="uPg">第 ' + pg + ' / ' + pages + ' 页 · 共 ' + total + ' 个</small><button class="btn sm" id="uNext"' + (pg >= pages ? ' disabled' : '') + '>下一页</button></div>' : '<small class="dim">共 ' + total + ' 个账号</small>')
       )) + '</div>';
   // 搜索 / 筛选 / 分页：改了状态就重画，但不重拉数据（数据已在 ST.users 里）
   if ($('uSearch')) { var st; $('uSearch').oninput = function () { clearTimeout(st); st = setTimeout(function () { ST.uQ = $('uSearch').value; ST.uPg = 1; sheetUsers(); }, 200); }; }
   if ($('uFilter')) $('uFilter').onchange = function () { ST.uF = $('uFilter').value; ST.uPg = 1; sheetUsers(); };
+  if ($('uClass')) $('uClass').onchange = function () {
+    ST.uCls = $('uClass').value; ST.uPg = 1;
+    // 选了具体班级就把「身份」拉回全部：班级里只有学生，留个「教师」在上面会让人以为筛错了
+    if (ST.uCls) ST.uF = 'all';
+    sheetUsers();
+  };
   if ($('uPrev')) $('uPrev').onclick = function () { ST.uPg--; sheetUsers(); };
   if ($('uNext')) $('uNext').onclick = function () { ST.uPg++; sheetUsers(); };
   /* 2026-11-22 会员闸门：设为会员 / 取消会员。
@@ -4500,7 +4551,16 @@ function sheetUsers() {
     };
   });
 }
-async function loadUsers() { try { ST.users = await HX.rpc('hx_users_list') || []; } catch (e) { ST.users = { err: e.message }; } renderSheet(); }
+async function loadUsers() {
+  try {
+    /* 2026-11-22：班级清单一起拉（29 个班，很小）。老师要「按某个班级筛学生」，
+       以前只有身份筛选、且下拉里看不出能做什么（他原话：全部筛选下拉没东西）。
+       两个 RPC 都只有开发者能调，普通教师看不见这张卡。 */
+    var r = await Promise.all([HX.rpc('hx_users_list'), HX.rpc('hx_admin_classes').catch(function () { return []; })]);
+    ST.users = r[0] || []; ST.aclasses = r[1] || [];
+  } catch (e) { ST.users = { err: e.message }; }
+  renderSheet();
+}
 /* ── 2026-11-19 第七轮 T2③：按用户下放工具权限（开发者工具组）──
    选一个教师用户，勾选下放哪些工具（默认全关，点亮才可用）。和学生的「按班级点亮」同一套模式。 */
 function sheetGrant() {
