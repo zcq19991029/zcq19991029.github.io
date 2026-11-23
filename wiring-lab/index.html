@@ -3,7 +3,7 @@
 <html lang="zh-CN">
 <head>
 <script src="../hx-theme.js" data-tool="wiring"></script>
-<script>window.HX_BUILD = "2026-11-23T02:56:35Z baeed14";</script>
+<script>window.HX_BUILD = "2026-11-23T03:32:24Z baeed14";</script>
 <meta charset="utf-8">
 <meta name="copyright" content="© 2026 zcq 版权所有，未经许可禁止复制、修改、转载">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
@@ -1831,6 +1831,34 @@
   html.is-lite #fw-rank, html.is-lite #fw-rank *, html.is-lite #fw-rank *::before, html.is-lite #fw-rank *::after { animation: none !important; }
   html.is-lite #fw-rank .rk-start { filter: drop-shadow(0 12px 22px rgba(255, 90, 40, .45)); }
   html.is-lite #fw-rank .rk-right, html.is-lite #fw-rank .rk-students { filter: none; }
+
+  /* ══ 2026-11-22 第二轮：iPad 上「排位一直闪 + 外面浮层打开是空白」══
+     用户原话：「ipad还是会闪烁 排位那里 主题设置那边都闪烁看不见了 打开就是空白」。
+     排查分两条，都在这段里治：
+
+     ① **关着的时候不该还在跑**。`.fw` 的显隐是 opacity + pointer-events（见上面 153 行），
+        不是 display:none，所以排位窗关掉之后，里面那些 infinite 动画一秒都没停：
+        26s 漂移的六层 radial-gradient 大图（.rk::after，inset:-140px）、drop-shadow 呼吸、
+        底边扫光、节点/光弧脉冲…… 这些层一直挂在合成器里。iPad 上合成器资源被占满之后，
+        再打开别的 fixed 浮层（总入口的「外观」面板）就栅格化不出来 —— 表现就是打开一片空白。
+        这里用 animation-play-state 而不是 animation:none：关着就冻结，`.show` 一加立刻从原处继续，
+        不会出现「一打开就从头蹦一遍」的跳变。
+     ② **iPad 在跑动画面板时的重模糊**。#fw-rank 是整屏 backdrop-filter: blur(16px)，
+        底下的练习页 canvas 还在逐帧重画，WebKit 就得每帧重新模糊一遍整屏 —— 这是 iPad 上
+        真机上「整块屏频闪」的典型成因。iPad 本来会命中 is-lite（触屏 + 粗指针），
+        但用户把外观设成「标准」之后，hxLiteNow()/applyHxLite() 会把 is-lite 撤掉 ——
+        于是上面那套降级一条都不生效，这正是「极简模式可以、标准闪烁」的由来。
+        所以按设备单独给一条：iPad/iPhone 上一律走静态排位 —— 不做实时毛玻璃、不做循环动画，
+        视觉上等同用户已经验收过的极简模式，但只作用于排位这一屏。 */
+  #fw-rank:not(.show), #fw-rank:not(.show) *, #fw-rank:not(.show) *::before, #fw-rank:not(.show) *::after { animation-play-state: paused !important; }
+  /* 判据用 JS 加 html.rk-steady（见脚本区 rk-steady 那段），不用 @supports：
+     · @supports (-webkit-touch-callout) 在 macOS Safari 上也成立，会把 Mac 一起降级；
+     · 类名还能在验收时手动 documentElement.classList.add('rk-steady') 直接看效果。 */
+  html.rk-steady #fw-rank, html.rk-steady #fw-rank *, html.rk-steady #fw-rank *::before, html.rk-steady #fw-rank *::after { animation: none !important; }
+  html.rk-steady #fw-rank { backdrop-filter: none; -webkit-backdrop-filter: none;
+    background: rgb(4 8 20 / calc(.90 + (var(--hx-a, 1) - 1) * .08)); }
+  html.rk-steady #fw-rank .rk-start { filter: drop-shadow(0 12px 22px rgba(255, 90, 40, .45)); }
+  html.rk-steady #fw-rank .rk-right, html.rk-steady #fw-rank .rk-students { filter: none; }
 
   /* ── 旋转层提升成合成层（2026-11-22，治「标准模式排行榜一直闪」）──
      外框跑马灯是两枚 1600×1600 的圆锥渐变伪元素在匀速转（见 .rk-right::before/::after）。
@@ -3714,6 +3742,13 @@ const TAB_KEY = 'zfz-project2-tab', THEME_KEY = 'zfz-practice-theme';
   /* 排障开关（2026-11-22）：网址加 &rkfx=none → 只停排行榜那一块的循环动画。
      用于定位「标准模式下排行榜一直闪」还剩哪一层在拖。正式使用不需要带它。 */
   if (/[?&]rkfx=none\b/.test(location.search)) document.documentElement.classList.add('rkfx-none');
+  /* 2026-11-22 第二轮：iPad 上「排位一直闪 + 打开别的浮层一片空白」。
+     iPad 配置够高，4 核/4G 那两条都不命中，所以它不走上面 is-lite 的降级 ——
+     这正是用户说的「极简模式可以、标准闪烁」。这里单独认设备：iPad/iPhone（含 iPadOS
+     桌面模式，UA 冒充 MacIntel 但触点 > 1）一律加 .rk-steady，排位走静态皮肤（见 CSS 同名片）。
+     只影响排位这一屏，练习页、别的浮窗、桌面浏览器都不动。 */
+  const isIOSPad = /iPad|iPhone|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && (navigator.maxTouchPoints || 0) > 1);
+  if (isIOSPad) document.documentElement.classList.add('rk-steady');
 }
 /* 2026-11-05 用户手机实测：「手机上完全没有 321GO 动效，也没有转场 —— 你是不是省了很多东西」。
    根因是**两个概念被绑在一起**：is-lite 的本意只是「降掉毛玻璃 blur 和重阴影」（顶栏每帧重算模糊会让手机发烫），

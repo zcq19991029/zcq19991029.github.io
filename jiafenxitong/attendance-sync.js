@@ -105,6 +105,37 @@
     }
   }
 
+  /* ---------------- 撤回：考勤工具那边删了，这边也要还回去 ---------------- */
+
+  /* 2026-11-23 用户报「考勤我都删了 为什么考勤分数没还给我满分」。
+     根因就是上面铁律 1 —— 同步只写不删：老师把考勤工具里的签到（甚至整节课的签到）删掉之后，
+     这里 found 为空、直接 return，先前自动写进来的那批 attendance 记录原封不动留着，
+     考勤分自然一直扣着，永远回不到满分。
+     现在补一条：这一天在考勤工具里**一次签到都没有** → 把自动导入的记录撤回。
+     边界很紧，不会误伤：
+       · 只删 auto === true 的（自动导入的）；老师在本工具里手填/手改的记录一条都不动；
+       · 只在「云端明确回答这一天没有签到」时触发（网络失败走 reject，不进这个分支）；
+       · 静默失败也不算，宁可留着也不乱删。 */
+  function clearAuto(lessons, res) {
+    var stamp = null;
+    for (var i = 0; i < lessons.length; i++) {
+      var att = lessons[i] && lessons[i].attendance;
+      if (!att) continue;
+      var keys = Object.keys(att), n = 0;
+      for (var j = 0; j < keys.length; j++) {
+        var rec = att[keys[j]];
+        if (!rec || rec.auto !== true) continue;
+        delete att[keys[j]];
+        n++;
+      }
+      if (n) {
+        if (!stamp) stamp = new Date().toISOString();
+        res.cleared += n;
+        res.changed = true;
+      }
+    }
+  }
+
   /* ---------------- 写回 ---------------- */
 
   function applyLesson(lesson, hit, students, hxId, cfg, Api, res) {
@@ -163,7 +194,7 @@
   W.syncClass = function (cls, state, opts) {
     opts = opts || {};
     var res = {
-      filled: 0, skipped: 0, lessons: 0, error: null,
+      filled: 0, cleared: 0, skipped: 0, lessons: 0, error: null,
       changed: false, dates: 0, hits: 0, pending: 0, unmatched: [], picks: []
     };
     var Api = assessment();
@@ -210,7 +241,7 @@
       chain = chain.then(function () {
         return findSafe(rpc, hxId, day).then(function (found) {
           res.dates++;
-          if (!found || !found.length) { done[day] = true; return; }
+          if (!found || !found.length) { clearAuto(byDate[day], res); done[day] = true; return; }
           var hit = bestHit(found);
           if (!hit) return;
           res.hits++;

@@ -3446,9 +3446,23 @@ HXTheme.onChange(function () { if ($('look').classList.contains('show') && docum
 function placeLook() {
   var el = $('look'), b = $('lookBtn');
   if (!el || !b) return;
-  if (window.matchMedia('(max-width: 560px)').matches) { el.style.right = ''; return; }
+  if (window.matchMedia('(max-width: 560px)').matches) { el.style.right = ''; el.style.left = ''; return; }
   var r = b.getBoundingClientRect();
-  el.style.right = Math.max(8, Math.round(window.innerWidth - r.right)) + 'px';
+  // 2026-11-22 用户报「iPad 上外观面板打开是空白」。
+  // 根因不在渲染，在定位：这条规则原来只算 right = innerWidth - 按钮右边缘，
+  // 前提是「按钮贴着屏幕最右边」。iPad 上顶栏那几颗按钮挤在左半边（实测 iPad Pro 11 竖屏
+  // 按钮右边缘 x=352 / 视口 834 → right=482），而面板宽 420 —— left 直接算成 -68，
+  // 面板左边一截整个跑到屏幕外；按钮再靠左一点就是整块看不见，看着就像「打开是空白」。
+  // 现在把 left 夹进可视区：装得下仍然右边缘对齐按钮，装不下就贴边，任何时候都不出屏。
+  var w = el.offsetWidth || 420, pad = 8;
+  // 三档依次退让：① 右边缘对齐按钮（原来那套，桌面正常）；② 右对齐会出屏时改为左边缘对齐按钮；
+  // ③ 两种都装不下才贴边。这样面板永远完整可见，也仍然看得出是从这颗按钮里掉出来的。
+  var maxLeft = Math.max(pad, window.innerWidth - w - pad);
+  var left = Math.round(r.right) - w;
+  if (left < pad) left = Math.round(r.left);
+  left = Math.min(maxLeft, Math.max(pad, left));
+  el.style.right = 'auto';
+  el.style.left = left + 'px';
 }
 window.addEventListener('resize', function () {
   if ($('look') && $('look').classList.contains('show')) placeLook();
