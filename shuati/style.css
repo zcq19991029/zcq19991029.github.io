@@ -212,7 +212,16 @@ html[data-hx-mode="light"].hx-bg .seg button[aria-pressed="true"] { background: 
 .sitem b { flex: 1; min-width: 0; font-weight: 500; }
 .sitem small { color: var(--dim); }
 .sitem[aria-current="true"] { border-color: var(--acc); background: var(--accbg, var(--fill)); }
-.sitem .tg { font-size: 11px; padding: 1px 8px; border-radius: 99px; background: var(--card-solid); color: var(--dim); }
+.sitem .tg { font-size: 11px; padding: 1px 8px; border-radius: 99px; background: var(--card-solid); color: var(--dim); white-space: nowrap; }
+/* 发布面板（2026-11-23）：这个班 / 这位老师名下已经有我发过的题。
+   实心那档（.on）= 「就是现在这套」——再发布一次等于覆盖它，所以要用最醒目的那一种。
+   配字必须用 --on-acc：深色主题下 --acc 本身就是近白色（hx-theme.js 写在 <html> 行内），
+   写死 #fff 就是白字白底，什么都看不见。 */
+.sitem .tg.pub { flex: none; color: var(--ink); }
+.sitem .tg.pub.on { background: var(--acc); color: var(--on-acc, #fff); }
+/* 发布面板底部那排按钮：现在班级和老师两张名单同时出来，班多的时候名单比一屏长，
+   按钮别跟着滚出去 —— 吸在抽屉底边，勾完随手就能按。 */
+.sheet .body > .pubact { position: sticky; bottom: 0; z-index: 1; margin-top: 12px; padding: 10px 0 2px; background: var(--card-solid); }
 .sgroup { margin: 16px 0 8px; font-size: 13px; font-weight: 600; color: var(--dim); }
 
 /* 表单 */
