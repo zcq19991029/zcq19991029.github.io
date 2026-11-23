@@ -1331,18 +1331,21 @@
     return true;
   }
   var gated = gate();
-  /* ---------- 会员闸门（2026-11-22）：工具页兜底 ----------
-     用户原话：「被限制的账户 … 登录提示统一改为服务器过期 等待管理员续费」。
-     总入口自己会画整页的过期说明；但工具页可以**直连打开**（/shuati/、/exam/…），
-     所以这里补一道：登录了就问一次 hx_me，expired 就盖一层同样的说明，把工具整个挡住。
+  /* ---------- 服务器过期遮罩（2026-11-22）：工具页兜底 ----------
+     用户原话（第一轮）：「被限制的账户 … 登录提示统一改为服务器过期 等待管理员续费」；
+     第二轮又收紧：「不要提示和解释 只需要写服务器过期 等管理员续费即可 不要提示我们现在收费会员制」。
+     → 所以这层遮罩上**只有一句标题 + 一个退出登录**，不写账号、身份、班级、所属老师、到期日，
+       也不出现「会员 / 收费 / 续费流程」这类解释。改文案只改那一句。
+     总入口自己会画整页的过期页；但工具页可以**直连打开**（/shuati/、/exam/…），
+     所以这里补一道：登录了就问一次 hx_me，expired 就盖一层，把工具整个挡住。
      为什么放在主题脚本里：所有工具页都引用它，一处改、全部生效，不用去十个工具里各写一遍。
      例外：**不**豁免 ?solo。上面 gate() 豁免 ?solo 是因为它要「跳回总入口」，而离线单文件没有总入口可跳；
-     会员闸门只是盖一层说明、不涉及跳转，没有豁免的理由 —— 而且本地验收 / 离线包正是带 ?solo 打开的，
+     这层遮罩只是盖住页面、不涉及跳转，没有豁免的理由 —— 而且本地验收 / 离线包正是带 ?solo 打开的，
      豁免了就测不到、线上也就不知道好坏。连不上服务器时下面有 catch 放行，不会把人锁在门外。
      代价说明：只挡 UI，不挡接口。真要硬拦，得在关键 RPC 里判 hx_expired()（数据库里已有这个函数）。
 
      注意文件版本：根目录 hx-theme.js 是**唯一源**，publish.cjs 每次都会用它覆盖 总入口/ 的副本。
-     这次第一版写进了 总入口/hx-theme.js，本地打 /shuati/ 实测覆盖层不出现（刷题页引的是 ../hx-theme.js
+     第一版写进了 总入口/hx-theme.js，本地打 /shuati/ 实测覆盖层不出现（刷题页引的是 ../hx-theme.js
      → 根目录那份，压根没有这段），差点变成「代码写了、验收形态也对、线上却没有」。改在这里才对。 */
   (function () {
     if (!tool) return;                                        // 总入口：不用我管
@@ -1351,14 +1354,6 @@
     try { sess = JSON.parse(localStorage.getItem(SKEY_SESS) || 'null'); } catch (e) { }
     var tok = (sess && sess.access_token) || '';
     if (!tok) return;
-    /* 自己的转义函数：本文件里那个 esc() 定义在后面的 HXBusy 闭包里，这一层拿不到
-       （第一版直接调 esc() → ReferenceError 被下面的 .catch 吞掉，表现是「遮罩永远不出现」，
-       日志里什么都没有。所以别再引用那个 esc，统一用这个。 */
-    function escp(v) {
-      return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) {
-        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
-      });
-    }
     var SUPA = 'https://eiqgyrjrwdaunhxjmdyr.supabase.co', KEY = 'sb_publishable_FcVnLx3TNrj6HnbgarYnRw_DW4-yFzd';
     fetch(SUPA + '/rest/v1/rpc/hx_me', {
       method: 'POST', cache: 'no-store',
@@ -1367,29 +1362,16 @@
     }).then(function (r) { return r.ok ? r.json() : null; })
       .then(function (me) {
         if (!me || !me.expired) return;
-               var mail = (sess && sess.user && sess.user.email) || '';
-        var stu = me.student;
-        var isStu = !!(stu && !me.teacher);
-        var owner = me.owner || {};
-        var lines = isStu
-          ? ['你的班级「' + escp(stu.class || '') + '」由老师「' + escp(owner.name || '任课老师') + '」开通，他的账号目前是未续费状态。',
-             '老师续费后你会<b>自动恢复</b>，不用重新注册、也不用换密码。']
-          : ['这个账号目前是未续费状态，名下导入的班级和学生也一并暂停。',
-             '续费由管理员开通，开通后立刻恢复，数据一条都不会丢。'];
+        /* 只说一句话。老师明确要求：「不要提示和解释 只需要写服务器过期 等管理员续费即可
+           不要提示我们现在收费会员制」—— 所以这里不写账号、身份、所属老师、到期日，
+           也不出现「会员」两个字。要改文案就改这一句，并同步 总入口/index.html 的 renderExpired()。 */
         var d = document.createElement('div');
         d.id = 'hxExpired';
         d.setAttribute('role', 'alert');
         d.style.cssText = 'position:fixed;inset:0;z-index:2147483600;display:flex;align-items:center;justify-content:center;padding:18px;' +
           'background:var(--card,#fff);color:var(--ink,#1d1d1f);font:15px/1.7 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif';
         d.innerHTML = '<div style="max-width:520px;width:100%;text-align:left">' +
-          '<div style="font-size:19px;font-weight:700;margin-bottom:10px">服务器过期，等待管理员续费</div>' +
-          lines.map(function (t) { return '<p style="margin:0 0 8px;color:var(--dim,#6e6e73);font-size:14px">' + t + '</p>'; }).join('') +
-          '<div style="margin:14px 0;padding:12px 14px;border-radius:12px;background:var(--bg2,#f5f5f7);font-size:13px;line-height:1.8;color:var(--dim,#6e6e73)">' +
-            (mail ? '<div>账号：<b style="color:var(--ink,#1d1d1f)">' + escp(mail) + '</b></div>' : '') +
-            '<div>' + (isStu ? '身份：学生' : '身份：教师') + (isStu && owner.name ? ' · 所属老师 ' + escp(owner.name) : '') + '</div>' +
-          '</div>' +
-          '<p style="margin:0 0 14px;color:var(--dim,#6e6e73);font-size:13px">' +
-            (isStu ? '请联系任课老师处理；老师续费后刷新这一页就好。' : '请联系管理员开通会员（开发者账号 11445）。') + '</p>' +
+          '<div style="font-size:19px;font-weight:700;margin-bottom:16px">服务器过期，等待管理员续费</div>' +
           '<button id="hxExOut" type="button" style="padding:9px 18px;border-radius:999px;border:1px solid var(--edge,#d2d2d7);background:transparent;color:inherit;font:inherit;cursor:pointer">退出登录</button>' +
           '</div>';
         document.body.appendChild(d);
