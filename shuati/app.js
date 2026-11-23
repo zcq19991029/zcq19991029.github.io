@@ -568,7 +568,17 @@ function renderCard() {
   card.classList.remove('drag', 'dragging', 'back', 'fly'); card.style.transform = card.style.opacity = '';
   if (q && q.id !== S.lastId) { card.classList.remove('enter'); void card.offsetWidth; card.classList.add('enter'); }
   S.lastId = q && q.id; delete card.dataset.hxq;
-  if (!S.questions.length) { card.innerHTML = '<div class="empty"><h2>这个科目还没有题</h2><p class="muted">到“题库”里从题池导入。</p><button class="btn" type="button" id="toBank">去导入</button></div>'; $('toBank').onclick = () => show('bank'); return; }
+  /* 空科目：分两种说法（2026-11-22 用户：「学生清空题库两科的题等我发布 … 现在刷题工具都没了」）。
+     学生打开看到「到题库里从题池导入 / 去导入」会以为工具坏了或被撤了 —— 那是老师的活，
+     学生根本没有「题池导入」这条路。所以按身份分：学生只看到「等老师发布」，不给按钮；
+     老师/开发者才给「去导入」。 */
+  if (!S.questions.length) {
+    card.innerHTML = isTeacher()
+      ? '<div class="empty"><h2>这个科目还没有题</h2><p class="muted">到“题库”里从题池导入。</p><button class="btn" type="button" id="toBank">去导入</button></div>'
+      : `<div class="empty"><h2>老师还没发布题单</h2><p class="muted">这门课目前是空的，等老师发布题单后，这里会自动出现题目。<br>已经发过的课堂任务在顶栏「课堂任务」里。</p></div>`;
+    if (isTeacher()) $('toBank').onclick = () => show('bank');
+    return;
+  }
   if (!S.queue.length) { card.innerHTML = `<div class="empty"><h2>${S.scope === 'wrong' ? '没有错题' : '这里没有题'}</h2><p class="muted">换个题型或范围试试。</p></div>`; return; }
   if (!q) { // 一轮做完
     const ids = S.queue, done = ids.filter(id => S.picked[id]), right = done.filter(id => isRight(S.questions.find(x => x.id === id) || { answer: [] }, S.picked[id]));
