@@ -3,7 +3,7 @@
 <html lang="zh-CN">
 <head>
 <script src="../hx-theme.js" data-tool="wiring"></script>
-<script>window.HX_BUILD = "2026-11-23T12:18:42Z 6a1601c";</script>
+<script>window.HX_BUILD = "2026-11-23T17:25:44Z abc53fe";</script>
 <meta charset="utf-8">
 <meta name="copyright" content="© 2026 zcq 版权所有，未经许可禁止复制、修改、转载">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
@@ -7986,16 +7986,25 @@ function rkReveal(R) {
   const fx = P.createFx(mod, Object.assign({ x: O[0], y: O[1], seed: Math.random() * 999 | 0 }, pick.opts || {}));
   // ── 2026-11-06 修坑：转场期间把练习页的 60fps 画布暂停 —— 它跟转场共用主线程，
   //   不让的话希沃这类弱机上转场一秒只能画 4~6 帧（4 倍 CPU 节流实测），等于「转场没出来」。
-  //   转场 canvas 从头到尾整屏盖住练习页，底下停不停学生看不见；__hidden 是练习页
-  //   原有的暂停开关（外壳切别的电路就在用，见 practice.js 的 frame 循环，250ms 轮询自动恢复），
-  //   finish 时原样恢复，不碰别的暂停来源。
-  const wI = rkWin(); let hidPrev = null;
-  try { if (wI) { hidPrev = wI.__hidden; wI.__hidden = true; } } catch (e) { }
+  //   转场 canvas 从头到尾整屏盖住练习页，底下停不停学生看不见。
+  //
+  // ── 2026-11-23 修坑：这里原来**自己接管** window.__hidden（记 hidPrev，finish 时还原），
+  //   结果把练习页永久冻住了 —— 用户报「我开排位后也没办法连线，没有任何线条显示」。
+  //   链路（test/_probe-frozen.cjs 已复现）：
+  //     ① 准备页显示时 #rkVeil.show → 外壳挂 html.rk-cover → notifyCircuits() 把 __hidden 置 true；
+  //     ② 转场开始时这一行记下 hidPrev = **true**（抓到的已经不是"原来的值"，而是被遮罩设的 true）；
+  //     ③ 转场盖满 → rkHideOverlay() → rk-cover 撤 → notifyCircuits() 把 __hidden 置回 false；
+  //     ④ finish() 又把 __hidden "还原"成 hidPrev = true  ← 从此恒为 true。
+  //   practice.js 的 frame() 每 250ms 看一眼 __hidden 就 return，画布永远停在旧帧上：
+  //   学生点端子线路照样进模型，但一根线都不重画，已接线一直是 0/17。
+  //   修法：**不再自己管 __hidden**。谁盖住画面由 rk-cover 一处决定（已经覆盖了准备页和整个转场前半段），
+  //   收尾时让 notifyCircuits() 按当前真实状态重算一遍即可，不存在"还原错值"这回事。
   let t0 = performance.now(), last = t0, covered = false, done = false, raf = 0;
   return new Promise(res => {
     const finish = ok => {
       if (done) return; done = true; cancelAnimationFrame(raf); cv.remove();
-      try { if (wI && hidPrev !== null) wI.__hidden = hidPrev; } catch (e) { } // 练习页画布放行（250ms 内自动恢复）
+      // 练习页画布放行：按当前状态重算（不是"还原成抓到的旧值"）。见上面 2026-11-23 那段。
+      try { notifyCircuits(); } catch (e) { }
       // 兜底收遮罩：正常流程在「盖满」那一刻收；但弱机上转场 rAF 可能被练习页饿死、一步都没跑
       // （covered 永远不置位，只有 setTimeout 兜底把 promise 结掉）——不补这一句就是
       // 整局带着准备页遮罩起跑，练习页和计时条全被盖住（无头环境实测复现）。
@@ -8035,12 +8044,22 @@ async function rkQuestDone() {
   try { h.stop(); } catch (e) { }
 }
 // 计时条位置记在浏览器里（zfz-rk-hud）：老师拖到顺眼的地方，下次进来还在那儿
+/* ── 2026-11-23 改：夹紧的口径从「留 40px 在屏内」改成「整条必须在屏内」──
+   用户报「排位连返回都没有了」。根因就是这条 40px：
+   计时条上唯一的两个按钮（放弃 / 退出全屏）在最右端，只要整条被拖到右边、只露 40px，
+   屏幕上就只剩那颗红点，时间数字和按钮全在屏幕外 —— 学生认为「排位没有返回」，
+   点又点不到，只能关页面。换个窄一点的窗口/换台机器时，上一次存下的位置还会更离谱。
+   现在：
+     · 装得下就整条夹进可视区（留 8px 边），任何一档分辨率下按钮都在手指能够到的地方；
+     · 装不下（极窄屏）就贴左边 8px，至少保证左端（计时数字）可见；
+     · 位置比屏大、或小于 0 的脏数据（不同分辨率之间来回用）一律被夹回来。 */
 function rkHudClamp(h) {
   if (!h || !h.classList.contains('moved')) return;
   const get = k => parseFloat(h.style.getPropertyValue(k)) || 0;
   const w = h.offsetWidth || 160, ht = h.offsetHeight || 44;
-  const x = Math.min(Math.max(get('--hx'), 40 - w), innerWidth - 40), y = Math.min(Math.max(get('--hy'), 0), innerHeight - 40);
-  h.style.setProperty('--hx', x + 'px'); h.style.setProperty('--hy', y + 'px'); // 至少留 40px 在屏内，别拖丢了
+  const maxX = Math.max(8, innerWidth - w - 8), maxY = Math.max(8, innerHeight - ht - 8);
+  const x = Math.min(Math.max(get('--hx'), 8), maxX), y = Math.min(Math.max(get('--hy'), 8), maxY);
+  h.style.setProperty('--hx', x + 'px'); h.style.setProperty('--hy', y + 'px');
 }
 function rkHudLoad(h) {
   let p = null; try { p = JSON.parse(localStorage.getItem('zfz-rk-hud')); } catch (e) { }
