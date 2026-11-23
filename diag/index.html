@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>登录诊断 · 华夏工具</title>
+<style>
+  :root { --bg:#0a0f1c; --card:#121a2c; --line:#243149; --ink:#e8eefb; --dim:#93a3bf; --ok:#22c55e; --bad:#ef4444; --warn:#f59e0b; --acc:#4f8cff; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { margin:0; padding:18px 16px 40px; background:var(--bg); color:var(--ink);
+         font:15px/1.6 -apple-system, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif; }
+  h1 { font-size:19px; margin:0 0 4px; letter-spacing:.5px; }
+  .sub { color:var(--dim); font-size:13px; margin:0 0 16px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px 14px 12px; margin:0 0 14px; }
+  .card h2 { font-size:14px; margin:0 0 10px; color:var(--dim); font-weight:600; letter-spacing:.5px; }
+  .row { display:flex; align-items:flex-start; gap:10px; padding:7px 0; border-top:1px dashed rgba(255,255,255,.07); }
+  .row:first-of-type { border-top:0; }
+  .row .k { flex:1; min-width:0; }
+  .row .k b { display:block; font-weight:600; font-size:14px; }
+  .row .k small { color:var(--dim); font-size:12px; display:block; word-break:break-all; }
+  .row .v { flex:none; font-variant-numeric:tabular-nums; font-weight:700; font-size:13px; padding-top:2px; }
+  .st-run { color:var(--dim); } .st-ok { color:var(--ok); } .st-bad { color:var(--bad); } .st-warn { color:var(--warn); }
+  button { font:inherit; font-weight:600; border-radius:11px; border:1px solid var(--line); background:#1b2740; color:var(--ink);
+           padding:11px 18px; cursor:pointer; }
+  button.primary { background:var(--acc); border-color:var(--acc); color:#fff; }
+  button:disabled { opacity:.5; }
+  input { width:100%; font:inherit; padding:11px 12px; border-radius:11px; border:1px solid var(--line);
+          background:#0e1728; color:var(--ink); margin:0 0 8px; }
+  .line { display:flex; gap:8px; flex-wrap:wrap; margin-top:4px; }
+  pre { background:#0c1424; border:1px solid var(--line); border-radius:11px; padding:11px; font-size:12px;
+        line-height:1.55; white-space:pre-wrap; word-break:break-all; max-height:320px; overflow:auto; margin:0; }
+  .note { color:var(--dim); font-size:12px; margin:8px 0 0; }
+  .big { font-size:15px; font-weight:700; }
+</style>
+</head>
+<body>
+<h1>登录诊断</h1>
+<p class="sub">在你连不上的那台设备上打开这个页面，把结果截图/复制发给老师。不会保存密码。</p>
+
+<div class="card">
+  <h2>一、自动检查（打开就开始跑）</h2>
+  <div id="auto"></div>
+  <div class="line"><button id="again" type="button">重新检查</button></div>
+  <p class="note" id="verdict"></p>
+</div>
+
+<div class="card">
+  <h2>二、真账号登录测试（可选）</h2>
+  <input id="acc" placeholder="账号名或邮箱（学生一般是学号）" autocomplete="username">
+  <input id="pw" type="password" placeholder="密码" autocomplete="current-password">
+  <div class="line">
+    <button class="primary" id="go" type="button">开始登录测试</button>
+    <button id="copy" type="button">复制全部结果</button>
+  </div>
+  <div id="login" style="margin-top:12px"></div>
+</div>
+
+<div class="card">
+  <h2>结果原文（复制这段发人）</h2>
+  <pre id="dump">（还没开始）</pre>
+</div>
+
+<script>
+/* 与总入口一致（总入口/index.html 里的 BASE / KEY）。这里只是诊断，不写任何存储。 */
+var BASE = 'https://eiqgyrjrwdaunhxjmdyr.supabase.co';
+var KEY = 'sb_publishable_FcVnLx3TNrj6HnbgarYnRw_DW4-yFzd';
+var lines = [];
+
+function log(s) { lines.push(s); document.getElementById('dump').textContent = lines.join('\n'); }
+function row(box, name, state, value, detail) {
+  var d = document.createElement('div');
+  d.className = 'row';
+  d.innerHTML = '<div class="k"><b>' + name + '</b>' + (detail ? '<small>' + detail + '</small>' : '') + '</div>' +
+                '<div class="v st-' + state + '">' + (value == null ? '' : value) + '</div>';
+  box.appendChild(d);
+  return d;
+}
+function ms(t0) { return Math.round(performance.now() - t0) + ' ms'; }
+
+/* 一个带超时的 fetch：返回 { ok, status, ms, json, text, err } */
+async function probe(url, opt, timeout) {
+  opt = opt || {}; timeout = timeout || 25000;
+  var t0 = performance.now(), ctl = new AbortController();
+  var tm = setTimeout(function () { ctl.abort(); }, timeout);
+  try {
+    var r = await fetch(url, Object.assign({ signal: ctl.signal, cache: 'no-store' }, opt));
+    var text = await r.text(), json = null;
+    try { json = text ? JSON.parse(text) : null; } catch (e) { }
+    return { ok: r.ok, status: r.status, ms: Math.round(performance.now() - t0), json: json, text: text, date: r.headers.get('date') };
+  } catch (e) {
+    return { ok: false, status: 0, ms: Math.round(performance.now() - t0), err: (e && e.name === 'AbortError') ? 'timeout' : String(e && e.message || e) };
+  } finally { clearTimeout(tm); }
+}
+
+async function runAuto() {
+  var box = document.getElementById('auto');
+  box.innerHTML = ''; document.getElementById('verdict').textContent = '';
+  var bad = 0, slow = 0;
+
+  // 1. 本机
+  var tz = 'UTC' + (new Date().getTimezoneOffset() > 0 ? '-' : '+') + Math.abs(new Date().getTimezoneOffset() / 60);
+  row(box, '本机时间', 'run', new Date().toLocaleString(), tz + ' · ' + (navigator.onLine ? '在线' : '离线') + ' · ' + (navigator.userAgent.match(/(iPad|iPhone|Android|Mac OS X|Windows)/) || ['?'])[0]);
+
+  // 2. 本站能不能读（判断「网站本身」通不通，与后端无关）
+  var site = await probe(location.pathname + '?probe=' + Date.now(), {}, 15000);
+  var sOK = site.ok || site.status === 200;
+  if (!sOK) bad++;
+  row(box, '本站文件', sOK ? 'ok' : 'bad', sOK ? site.ms + ' ms' : (site.err || 'HTTP ' + site.status), '能读到这个页面自己 → 站点是通的');
+
+  // 3. Supabase 健康检查
+  var h = await probe(BASE + '/auth/v1/health', { headers: { apikey: KEY } }, 25000);
+  if (!h.ok) bad++; if (h.ms > 5000) slow++;
+  row(box, '后端 /auth/v1/health', h.ok ? (h.ms > 5000 ? 'warn' : 'ok') : 'bad', h.ms + ' ms',
+      h.ok ? ((h.json && h.json.version) || '') : (h.err || 'HTTP ' + h.status));
+  log('[site] ' + (site.err || site.status) + ' ' + site.ms + 'ms');
+  log('[health] ' + (h.err || h.status) + ' ' + h.ms + 'ms ' + (h.text || '').slice(0, 80));
+
+  // 4. 时钟偏差（用响应头 Date 比，判断「本机时间差很多」这种会毁掉登录的问题）
+  if (h.date) {
+    var sk = Math.round((Date.now() - new Date(h.date).getTime()) / 1000);
+    var skOK = Math.abs(sk) < 120;
+    if (!skOK) bad++;
+    row(box, '本机与服务器时间差', skOK ? 'ok' : 'bad', (sk > 0 ? '+' : '') + sk + ' 秒', '差太多会导致令牌被拒');
+    log('[clock] ' + sk + 's');
+  }
+
+  // 5. 登录第一步：账号名 → 邮箱（只有输入不含 @ 才会走）
+  var rpc = await probe(BASE + '/rest/v1/rpc/paike_login_email', {
+    method: 'POST', headers: { apikey: KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ p_name: 'diag_nobody_' + Date.now().toString(36) })
+  }, 25000);
+  if (!rpc.ok) bad++; if (rpc.ms > 5000) slow++;
+  row(box, '账号名→邮箱（RPC）', rpc.ok ? (rpc.ms > 5000 ? 'warn' : 'ok') : 'bad', rpc.ms + ' ms',
+      rpc.ok ? '返回 ' + JSON.stringify(rpc.json) + '（假账号应为 null）' : (rpc.err || 'HTTP ' + rpc.status));
+  log('[rpc paike_login_email] ' + (rpc.err || rpc.status) + ' ' + rpc.ms + 'ms ' + (rpc.text || '').slice(0, 80));
+
+  // 6. 登录接口本身（用假账号，正常应 400 invalid_credentials —— 只要不是超时/429/5xx 就说明这条路通）
+  var tk = await probe(BASE + '/auth/v1/token?grant_type=password', {
+    method: 'POST', headers: { apikey: KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: 'diag_nobody@hx.invalid', password: 'x' })
+  }, 30000);
+  var tkState = tk.status === 400 ? (tk.ms > 8000 ? 'warn' : 'ok') : (tk.ok ? 'ok' : 'bad');
+  if (tk.status === 400) { /* 正常应答 */ } else if (!tk.ok) bad++;
+  if (tk.ms > 8000) slow++;
+  row(box, '登录接口 /auth/v1/token', tkState, tk.ms + ' ms',
+      'HTTP ' + (tk.status || (tk.err || '?')) + (tk.json && (tk.json.error_code || tk.json.msg) ? ' · ' + (tk.json.error_code || tk.json.msg) : '') + '（假账号返回 400 是正常的）');
+  log('[token] ' + (tk.err || tk.status) + ' ' + tk.ms + 'ms ' + (tk.text || '').slice(0, 120));
+
+  // 结论
+  var v = document.getElementById('verdict');
+  if (bad === 0 && slow === 0) {
+    v.className = 'note big'; v.style.color = 'var(--ok)';
+    v.textContent = '全部正常：从这里看，你这台设备到后端是通的、速度也行。若仍然登不上，多半是密码/账号问题，或者刚才连点被限流（停 1 分钟再试）。';
+  } else if (bad > 0) {
+    v.className = 'note big'; v.style.color = 'var(--bad)';
+    v.textContent = '有步骤失败（标红的）：说明这台设备到那一步不通。把上面的结果原文发给老师。';
+  } else {
+    v.className = 'note big'; v.style.color = 'var(--warn)';
+    v.textContent = '都能通，但明显偏慢（标黄 >5 秒）。登录容易撞超时 → 换网络（手机热点）对比一下就知道了。';
+  }
+  log('==== 自动检查结束：失败 ' + bad + '，偏慢 ' + slow + ' ====');
+}
+
+async function runLogin() {
+  var box = document.getElementById('login');
+  box.innerHTML = '';
+  var id = document.getElementById('acc').value.trim(), pw = document.getElementById('pw').value;
+  if (!id || !pw) { row(box, '先填账号和密码', 'bad', ''); return; }
+  document.getElementById('go').disabled = true;
+  try {
+    var email = id;
+    if (id.indexOf('@') < 0) {
+      var r = await probe(BASE + '/rest/v1/rpc/paike_login_email', {
+        method: 'POST', headers: { apikey: KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ p_name: id })
+      }, 25000);
+      row(box, '① 账号名→邮箱', r.ok ? 'ok' : 'bad', r.ms + ' ms', r.ok ? '返回 ' + JSON.stringify(r.json) : (r.err || 'HTTP ' + r.status));
+      log('[login-1] ' + (r.err || r.status) + ' ' + r.ms + 'ms ' + (r.text || '').slice(0, 80));
+      if (r.ok && r.json) email = r.json;
+      else if (r.ok) email = id.toLowerCase() + '@hx.invalid';   // 与总入口 mailOf 一致
+    }
+    var t = await probe(BASE + '/auth/v1/token?grant_type=password', {
+      method: 'POST', headers: { apikey: KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email, password: pw })
+    }, 30000);
+    var ok = t.ok && t.json && t.json.access_token;
+    row(box, '② 换令牌', ok ? 'ok' : 'bad', t.ms + ' ms',
+        ok ? '拿到 access_token（' + String(t.json.access_token).slice(0, 12) + '…）'
+           : 'HTTP ' + (t.status || (t.err || '?')) + ' · ' + ((t.json && (t.json.error_code || t.json.msg || t.json.message)) || ''));
+    log('[login-2] ' + (t.err || t.status) + ' ' + t.ms + 'ms ' + (t.text || '').slice(0, 160));
+
+    if (ok) {
+      var tk = t.json.access_token;
+      var u = await probe(BASE + '/auth/v1/user', { headers: { apikey: KEY, Authorization: 'Bearer ' + tk } }, 25000);
+      row(box, '③ 验证会话', u.ok ? 'ok' : 'bad', u.ms + ' ms', u.ok ? ((u.json && u.json.email) || '') : (u.err || 'HTTP ' + u.status));
+      log('[login-3] ' + (u.err || u.status) + ' ' + u.ms + 'ms ' + (u.text || '').slice(0, 120));
+      row(box, '结论', 'ok', '', '账号密码没问题，能登进去 —— 那就说明是网页那边的事（缓存 / 旧版本），强刷再试。');
+    } else if (t.status === 400) {
+      row(box, '结论', 'warn', '', '后端明确回了「账号或密码不对」。检查一下大小写、学号前后空格。');
+    } else if (t.status === 429) {
+      row(box, '结论', 'warn', '', '被限流了（点太多次）。停 1–2 分钟再试。');
+    } else if (!t.status) {
+      row(box, '结论', 'bad', '', '请求没到达/没回来（' + (t.err || '超时') + '）。这是网络链路问题，换手机热点对比。');
+    } else {
+      row(box, '结论', 'bad', '', '后端异常，把这段结果发给老师。');
+    }
+  } finally { document.getElementById('go').disabled = false; }
+}
+
+document.getElementById('again').onclick = runAuto;
+document.getElementById('go').onclick = runLogin;
+document.getElementById('copy').onclick = function () {
+  var txt = document.getElementById('dump').textContent;
+  (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(
+    function () { this.textContent = '已复制'; }.bind(this),
+    function () { var ta = document.createElement('textarea'); ta.value = txt; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); } catch (e) { } ta.remove(); }
+  );
+};
+log('页面版本 2026-11-23 · ' + location.href);
+runAuto();
+</script>
+</body>
+</html>
