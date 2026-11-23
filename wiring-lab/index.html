@@ -3,7 +3,7 @@
 <html lang="zh-CN">
 <head>
 <script src="../hx-theme.js" data-tool="wiring"></script>
-<script>window.HX_BUILD = "2026-11-23T02:46:18Z 101e06d";</script>
+<script>window.HX_BUILD = "2026-11-23T02:56:35Z baeed14";</script>
 <meta charset="utf-8">
 <meta name="copyright" content="© 2026 zcq 版权所有，未经许可禁止复制、修改、转载">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
@@ -1628,7 +1628,6 @@
   #fw-rank .rk-students { --rkc: 16px; flex: 1; min-height: 200px; min-width: 0; padding: 1.5px; box-sizing: border-box;
     clip-path: polygon(0 0, calc(100% - var(--rkc)) 0, 100% var(--rkc), 100% 100%, var(--rkc) 100%, 0 calc(100% - var(--rkc)));
     background: linear-gradient(120deg, rgba(0, 223, 255, .55), rgba(54, 140, 255, .3) 42%, rgba(152, 87, 255, .42));
-    background-size: 300% 300%; animation: rkEdgeFlow 10s linear infinite;
     filter: drop-shadow(0 0 16px rgba(54, 140, 255, .16)); }
   @keyframes rkEdgeFlow { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
   #fw-rank .rk-stin { position: relative; display: flex; flex-direction: column; height: 100%; min-height: 0; overflow: hidden;
@@ -1694,7 +1693,6 @@
     clip-path: polygon(var(--rkx-cut) 0, calc(100% - var(--rkx-cut)) 0, 100% var(--rkx-cut), 100% calc(100% - var(--rkx-cut)),
       calc(100% - var(--rkx-cut)) 100%, var(--rkx-cut) 100%, 0 calc(100% - var(--rkx-cut)), 0 var(--rkx-cut));
     background: linear-gradient(115deg, var(--rkx-p), var(--rkx-b) 28%, var(--rkx-c) 50%, var(--rkx-b) 72%, var(--rkx-p));
-    background-size: 300% 300%; animation: rkEdgeFlow 10s linear infinite;
     filter: drop-shadow(0 0 20px rgba(152, 87, 255, .26)) drop-shadow(0 16px 38px rgba(0, 0, 0, .5)); }
   #fw-rank .rk-rin { position: relative; display: flex; flex-direction: column; height: 100%; min-height: 0; overflow: hidden;
     clip-path: polygon(var(--rkx-cut) 0, calc(100% - var(--rkx-cut)) 0, 100% var(--rkx-cut), 100% calc(100% - var(--rkx-cut)),
@@ -1816,7 +1814,16 @@
   /* 2026-11-19 第三轮：入场动画会把 rkEdgeFlow 一起顶掉（animation 简写只能挂一条）。
      实测进场 0.55s 之后描边流光再也不会动 —— 所以给右栏单独挂两条：入场 + 描边流动常驻。
      必须写在上面那条之后（同特异性、靠后生效）。 */
-  #fw-rank.show .rk-main:not(.calm) .rk-right { animation: rkFadeUp .55s .22s var(--rk-ease) both, rkEdgeFlow 10s linear infinite; }
+  /* ── 2026-11-22 用户：「打开排位界面很闪 一直闪 学生端最严重」「极简模式可以 标准闪烁」──
+     定位结论：闪来自右栏（排行榜）上那些**常驻无限动画**，极简模式一条不剩所以正常。
+     其中真正每帧都要重画的只有一条 —— 下面这个 rkEdgeFlow：它动的是 background-position，
+     浏览器没法只做合成，只能每帧把 646×717 的整块面板连渐变带切角（clip-path）重绘一遍；
+     上面还压着两圈 1600×1600 的旋转圆锥渐变，面板一重绘，那两圈也跟着重新栅格化。
+     弱 GPU（学生手机、教学一体机）扛不住，看起来就是排行榜一直在闪。
+     处理：① 右栏这块面板不再流动（描边跑马灯还在，视觉上并不空）；
+           ② 旋转层显式提升成合成层（见下面 .rk-right::before/::after 那段），转起来只做 transform；
+           ③ 前三名的明暗呼吸幅度收窄（见 rkRimPulse），不再像频闪。 */
+  #fw-rank.show .rk-main:not(.calm) .rk-right { animation: rkFadeUp .55s .22s var(--rk-ease) both; }
   @keyframes rkFadeUp { from { opacity: 0; transform: translateY(16px); } }
   /* 滚动条：2026-11-17 全站统一成 6px 无感滑轨（hx-theme.js），这里不再自定 */
 
@@ -1824,6 +1831,24 @@
   html.is-lite #fw-rank, html.is-lite #fw-rank *, html.is-lite #fw-rank *::before, html.is-lite #fw-rank *::after { animation: none !important; }
   html.is-lite #fw-rank .rk-start { filter: drop-shadow(0 12px 22px rgba(255, 90, 40, .45)); }
   html.is-lite #fw-rank .rk-right, html.is-lite #fw-rank .rk-students { filter: none; }
+
+  /* ── 旋转层提升成合成层（2026-11-22，治「标准模式排行榜一直闪」）──
+     外框跑马灯是两枚 1600×1600 的圆锥渐变伪元素在匀速转（见 .rk-right::before/::after）。
+     不给提升的话，只要父级有任何重绘（背景流动、切角、圆角遮罩），它们就得跟着重新栅格化
+     —— 每帧 2.56M 像素的渐变，弱机直接掉帧、看着就是闪。will-change:transform 让它们各自成层，
+     旋转只走 GPU 的 transform，不再重绘内容。backface-visibility 顺带压掉边缘抖动。 */
+  #fw-rank .rk-right::before, #fw-rank .rk-right::after,
+  #fw-rank .rkx-run::before, #fw-rank .rkx-run::after,
+  #fw-rank .rk-board2 li.rk-lb > .rk-lb-run::before,
+  #fw-rank .rk-board2 li.rk-lb > .rk-lb-run::after { will-change: transform; backface-visibility: hidden; }
+
+  /* ── 排障开关：网址加 &rkfx=none → 只停「排行榜那一块」的循环动画（入场动画保留）
+     用户 2026-11-22 报「极简正常、标准闪烁」，第一轮先按上面那套降级处理；若某台机器还闪，
+     用这个开关就能判定是不是还有别的常驻动画在拖它，不必为定位再发一版。 */
+  html.rkfx-none #fw-rank .rk-right,
+  html.rkfx-none #fw-rank .rk-right *,
+  html.rkfx-none #fw-rank .rk-right *::before,
+  html.rkfx-none #fw-rank .rk-right *::after { animation: none !important; }
   /* 减少动态偏好：全停，元素直接就位 */
   @media (prefers-reduced-motion: reduce) {
     #fw-rank, #fw-rank *, #fw-rank *::before, #fw-rank *::after { animation: none !important; transition-duration: .01s !important; }
@@ -2518,7 +2543,7 @@
     animation-duration: 5.6s; animation-delay: -1.8s; }
   #fw-rank .rk-board2 li.rk-lb.p3::before { box-shadow: inset 0 0 20px rgba(226, 138, 84, .22);
     animation-duration: 6.4s; animation-delay: -3.1s; }
-  @keyframes rkRimPulse { 0%, 100% { opacity: .28; } 50% { opacity: .95; } }
+  @keyframes rkRimPulse { 0%, 100% { opacity: .55; } 50% { opacity: .92; } }
   #fw-rank .rk-board2 li.rk-lb.p1::after,
   #fw-rank .rk-board2 li.rk-lb.p2::after,
   #fw-rank .rk-board2 li.rk-lb.p3::after {
@@ -3686,6 +3711,9 @@ const TAB_KEY = 'zfz-project2-tab', THEME_KEY = 'zfz-practice-theme';
     || (navigator.deviceMemory || 8) <= 4
     || /seewo|hisense|cvte|amlogic|rk3\d{3}|allwinner/i.test(ua);
   if (lite) document.documentElement.classList.add('is-lite');
+  /* 排障开关（2026-11-22）：网址加 &rkfx=none → 只停排行榜那一块的循环动画。
+     用于定位「标准模式下排行榜一直闪」还剩哪一层在拖。正式使用不需要带它。 */
+  if (/[?&]rkfx=none\b/.test(location.search)) document.documentElement.classList.add('rkfx-none');
 }
 /* 2026-11-05 用户手机实测：「手机上完全没有 321GO 动效，也没有转场 —— 你是不是省了很多东西」。
    根因是**两个概念被绑在一起**：is-lite 的本意只是「降掉毛玻璃 blur 和重阴影」（顶栏每帧重算模糊会让手机发烫），
