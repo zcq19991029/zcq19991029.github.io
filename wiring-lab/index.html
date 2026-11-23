@@ -3,7 +3,7 @@
 <html lang="zh-CN">
 <head>
 <script src="../hx-theme.js" data-tool="wiring"></script>
-<script>window.HX_BUILD = "2026-11-23T07:14:02Z c52af53";</script>
+<script>window.HX_BUILD = "2026-11-23T08:18:04Z 65e7c3b";</script>
 <meta charset="utf-8">
 <meta name="copyright" content="© 2026 zcq 版权所有，未经许可禁止复制、修改、转载">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
@@ -1859,6 +1859,41 @@
     background: rgb(4 8 20 / calc(.90 + (var(--hx-a, 1) - 1) * .08)); }
   html.rk-steady #fw-rank .rk-start { filter: drop-shadow(0 12px 22px rgba(255, 90, 40, .45)); }
   html.rk-steady #fw-rank .rk-right, html.rk-steady #fw-rank .rk-students { filter: none; }
+
+  /* ══ 2026-11-23：iPad 上排位「整屏频闪」的真正主因 —— 半透明覆盖层 + 底下还在逐帧重画 ══
+     用户原话：「ipad打开排位闪频严重」。上一轮把排位里的 CSS 动画全停了（rk-steady），
+     在 WebKit / iPad Pro 11 下实测：动画 0 个、DOM 变动 0 次、几何一动不动，可画面**还是**在变。
+
+     量出来的证据（_tmp/_rank-flicker2~4.cjs）：
+       · 排位打开时帧间隔 **326ms（约 3 帧/秒）**；把排位关掉 **20ms（50 帧/秒）**；
+       · 把底下 .stage（铺满整屏的练习页 iframe，里面每秒还在画 6 帧）设成 display:none → 画面立刻静止；
+       · 把排位框背景改成不透明 → 画面也立刻静止。
+     结论：闪不是排位自己画的，是**排位这层半透明整屏遮罩（rgb(4 8 20 / .9)）每帧都要和
+     底下那个不停重画的练习页重新混合一遍**。iPad 的合成器扛不住 1.7M 像素/帧的重混合，
+     表现就是整块屏频闪。这也解释了「极简模式可以、标准闪烁」：极简把模糊和透明度都收了，
+     混合便宜得多。
+     修完实测（同一台模拟机、同一处取样）：帧间隔 **31ms**，静止连拍三张指纹一致；
+     只摘画面不停画布是不够的 —— 画布还在 60fps 画的话主线程照样被占（就是那 10 倍），
+     所以下面 notifyCircuits() 里把 __hidden 也一起置上。
+
+     治法：整屏浮层盖上来时，把底下那层**从合成里摘掉**（visibility:hidden，布好的局不动，
+     只是不参与绘制），关掉就恢复。只在 rk-steady / is-lite 的机器上生效 ——
+     这类机器面板本来就是 .90 不透明、也没有毛玻璃，摘掉看不出差别；桌面端保留原来的
+     「透出模糊背景」观感（那边 60 帧跑得好好的，不需要）。
+     类名由脚本区 rkCover 那段维护（只观察 #fw-rank / #rkVeil 的 .show；
+     #fw-about 进页面就带着 .show，不能拿它当判据）。 */
+  html.rk-cover.rk-steady #stage, html.rk-cover.is-lite #stage { visibility: hidden; }
+  /* 静态皮肤下那几个 1600×1600 的圆锥渐变（描边跑马灯）已经不转了，别再让它们占着合成层：
+     iPad 的纹理预算紧，几块 3200×3200 的大图挂着不用，正好挤掉别的层（上一轮加 will-change
+     是为了让它们转得动，这里静态了就该收回）。 */
+  html.rk-steady #fw-rank .rk-right::before, html.rk-steady #fw-rank .rk-right::after,
+  html.rk-steady #fw-rank .rkx-run::before, html.rk-steady #fw-rank .rkx-run::after,
+  html.rk-steady #fw-rank .rk-board2 li.rk-lb > .rk-lb-run::before,
+  html.rk-steady #fw-rank .rk-board2 li.rk-lb > .rk-lb-run::after { will-change: auto; }
+  /* 准备屏/倒数/成绩那层遮罩（#rkVeil，挂在 body 上、不在 #fw-rank 里）也带 26px 全屏模糊，
+     上面那条 rk-steady 规则管不到它 —— 这里补齐。倒数时它是整屏的，不补就还在每帧重算模糊。 */
+  html.rk-steady .rk-veil { backdrop-filter: none; -webkit-backdrop-filter: none;
+    background: rgba(2, 8, 23, calc(.86 + (var(--hx-a, 1) - 1) * .1)); }
 
   /* ── 旋转层提升成合成层（2026-11-22，治「标准模式排行榜一直闪」）──
      外框跑马灯是两枚 1600×1600 的圆锥渐变伪元素在匀速转（见 .rk-right::before/::after）。
@@ -3749,6 +3784,71 @@ const TAB_KEY = 'zfz-project2-tab', THEME_KEY = 'zfz-practice-theme';
      只影响排位这一屏，练习页、别的浮窗、桌面浏览器都不动。 */
   const isIOSPad = /iPad|iPhone|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && (navigator.maxTouchPoints || 0) > 1);
   if (isIOSPad) document.documentElement.classList.add('rk-steady');
+  // 上一轮量出来跑不动、自动降级过的机器，这次一进来就先降，省掉「先闪一下再变静态」。
+  // 网址带 ?full 是调试「强制标准」，这时不认这条记忆（也不写）。
+  try { if (!/[?&]full\b/.test(location.search) && ls_get('hx-rk-steady') === '1') document.documentElement.classList.add('rk-steady'); } catch (e) { }
+}
+/* ══ 2026-11-23：整屏浮层盖住练习页时，把底下那层从合成里摘掉 ══════════════════
+   实测数据见 CSS 里 rk-cover 那段注释：排位打开时帧间隔 326ms，关掉 20ms；
+   藏掉底下 .stage 或把排位框改不透明，画面立刻静止 —— 主因是「半透明整屏遮罩 + 底下还在重画」。
+   这里做两件事：
+     ① 谁盖上来就给 html 挂 .rk-cover（CSS 把 #stage 设成 visibility:hidden，布局不动、不参与绘制），
+        关掉就撤；
+     ② 顺手调 notifyCircuits()，把练习页画布的循环也停掉 —— 只是看不见，画布还在 60fps 画的话
+        主线程/GPU 照样被占（__hidden 这个钩子练习页本来就有，切电路、切后台都在用）。
+   算「盖住」的只有两层：#fw-rank（排位窗）、#rkVeil（准备屏/倒数/成绩那层整屏遮罩）。
+   为什么不把 #fw-about 也算进来：它进页面就带着 .show（靠别的属性控制显隐），
+   拿 .show 当判据会一进来就把练习页藏了 —— 踩过。
+   用 MutationObserver 而不是在 rank.js 里逐个补 classList.add/remove：
+   那几十处 show/remove 分散在两个文件里，漏一处就退化成「又闪」；观察 class 只有一处真来源。
+   回调走 rAF 合并：入场时会连挂好几个类，一帧最多算一次。 */
+{
+  const root = document.documentElement;
+  const RANK = '#fw-rank.show';
+  const COVER = RANK + ', #rkVeil.show';
+  let pend = false, on = null;
+  const sync = () => {
+    const now = !!document.querySelector(COVER);
+    if (now === on) return;
+    on = now;
+    root.classList.toggle('rk-cover', now);
+    try { notifyCircuits(); } catch (e) { }   // 画布循环跟着停/恢复
+    if (now && document.querySelector(RANK)) rkAutoSteady();
+  };
+  const kick = () => { if (pend) return; pend = true; requestAnimationFrame(() => { pend = false; sync(); }); };
+  const arm = () => {
+    new MutationObserver(kick).observe(document.body, {
+      subtree: true, childList: true, attributes: true, attributeFilter: ['class'],
+    });
+    sync();
+  };
+  if (document.body) arm(); else document.addEventListener('DOMContentLoaded', arm);
+
+  /* 兜底：万一某台机器没被 rk-steady 的判据认出来（新设备、改过 UA 的浏览器、安卓平板……），
+     就用「量出来的帧间隔」说话 —— 打开排位后量 30 帧，p50 超过 50ms（不到 20 帧/秒）
+     说明这台机器整节课都会闪，直接补 rk-steady 静态皮肤，并记住，下次进来一开始就是静态的。
+     一次会话最多量一次；纯读时间戳，不改布局。?full（调试强制标准）时不量。 */
+  let probing = false, done = false;
+  function rkAutoSteady() {
+    if (probing || done || root.classList.contains('rk-steady')) return;
+    if (/[?&]full\b/.test(location.search)) return;
+    probing = true;
+    const d = []; let last = performance.now(), n = 0;
+    const tick = t => {
+      d.push(t - last); last = t;
+      if (++n < 30) { requestAnimationFrame(tick); return; }
+      probing = false; done = true;
+      const s = d.slice(3).sort((a, b) => a - b), p50 = s[Math.floor(s.length / 2)] || 0;
+      const slow = p50 > 50;
+      // 排障用：网址带 &rkdiag=1 时把量到的结果打出来，方便远程确认有没有走这条兜底
+      if (/[?&]rkdiag=1\b/.test(location.search)) console.log('[rk] frame p50=' + p50.toFixed(1) + 'ms → ' + (slow ? '降级为静态排位' : '保持标准'));
+      if (!slow) return;
+      root.classList.add('rk-steady');
+      root.classList.toggle('rk-cover', !!document.querySelector(COVER));
+      try { localStorage.setItem('hx-rk-steady', '1'); } catch (e) { }
+    };
+    requestAnimationFrame(tick);
+  }
 }
 /* 2026-11-05 用户手机实测：「手机上完全没有 321GO 动效，也没有转场 —— 你是不是省了很多东西」。
    根因是**两个概念被绑在一起**：is-lite 的本意只是「降掉毛玻璃 blur 和重阴影」（顶栏每帧重算模糊会让手机发烫），
@@ -3972,7 +4072,10 @@ foldApply();
 function notifyCircuits() { // 只通知当前这张电路页；其余已经由 select() 里的 __hidden 停住了
   const f = cur && frames.get(cur);
   if (!f) return;
-  try { f.contentWindow.__hidden = pageHidden || document.hidden; } catch (e) { }
+  /* 2026-11-23：排位/整屏遮罩盖着的时候也算「不用画」（#stage 已经 visibility:hidden）。
+     否则这套半透明遮罩底下，画布还在 60fps 重画，iPad 每帧都要把整屏重混一遍 —— 就是频闪的来源。 */
+  const covered = document.documentElement.classList.contains('rk-cover');
+  try { f.contentWindow.__hidden = pageHidden || document.hidden || covered; } catch (e) { }
 }
 window.addEventListener('message', e => {
   if (e.data && e.data.hx === 'visible') { pageHidden = !e.data.on; notifyCircuits(); }
