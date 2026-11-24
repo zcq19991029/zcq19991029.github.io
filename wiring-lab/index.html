@@ -3,7 +3,7 @@
 <html lang="zh-CN">
 <head>
 <script src="../hx-theme.js" data-tool="wiring"></script>
-<script>window.HX_BUILD = "2026-11-24T05:02:57Z 8785b9d";</script>
+<script>window.HX_BUILD = "2026-11-24T05:11:44Z e717c8d";</script>
 <meta charset="utf-8">
 <meta name="copyright" content="© 2026 zcq 版权所有，未经许可禁止复制、修改、转载">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
@@ -7465,9 +7465,15 @@ function rkBoardPrefetch() {
   const c = RK.circuit;
   if (!c || !HX.online() || !HX.in()) return;   // 离线 / 没登录：走原来的路径，不预取
   RK_BOARD_C = c; RK_BOARD_T = Date.now();
-  RK_BOARD_P = Promise.resolve()
-    .then(() => HX.rpc('rank_board', { p_circuit: c, p_limit: 200 }, HX.in()))
-    .catch(() => null);   // 预取失败不算错，rkBoard 会自己走带重试的那条路
+  /* ⚠️ 2026-11-24 当天踩到的坑：下面这句原来是裸的 HX.rpc，**没有超时、没有重试**。
+     现场（老师电脑）视频里右栏一直停在「加载中…」不动 —— 因为 rkBoard 里 await 了这个 promise，
+     网络一慢/一次请求卡住，它就永远不 resolve，把原来 HX.boot 那套「12 秒超时 + 重试 3 次」
+     完全绕过去了。表现比改之前更糟：以前至少会变成「服务器忙，正在重试（第 N 次）」。
+     所以这里必须自己带上限：8 秒没回就 resolve(null)，rkBoard 拿到 null 会走回带重试的老路径。 */
+  RK_BOARD_P = Promise.race([
+    Promise.resolve().then(() => HX.rpc('rank_board', { p_circuit: c, p_limit: 200 }, HX.in())).catch(() => null),
+    new Promise(r => setTimeout(() => r(null), 8000)),
+  ]);
 }
 function rkBoardTake() {
   if (!RK_BOARD_P) return null;
@@ -7503,7 +7509,10 @@ async function rkBoard(el, hl, page) {
   const bgP = rkClassBgs();
   let rows = null;
   const pre = rkBoardTake();
-  if (pre) { try { rows = await pre; } catch (e) { rows = null; } }
+  /* 预取最多等 5 秒（rkBoardPrefetch 里也带了同样的上限，这里双保险）：
+     过了就当作没预取，落到下面 HX.boot 那条「12 秒超时 + 重试 3 次 + 重试文案」的老路上。
+     绝不允许「排行榜永远停在加载中」—— 2026-11-24 现场就是这么卡住的。 */
+  if (pre) { try { rows = await Promise.race([pre, new Promise(r => setTimeout(() => r(null), 5000))]); } catch (e) { rows = null; } }
   if (rows == null) {
     try {
       rows = await HX.boot(() => HX.rpc('rank_board', { p_circuit: RK.circuit, p_limit: 200 }, HX.in()),
@@ -7577,7 +7586,7 @@ function rkBoardPaint(el, hl, pageFlip) {
          mask 挖出一个 1.6px 的环 —— li 自己的 ::before/::after 已经被「呼吸辉光」和「斜向 sheen」占了。 */
       + (top ? `<i class="rk-lb-run" aria-hidden="true"></i>` : '')
       + (top ? `<span class="rk-lb-cup" data-r="${rk}">${rkCup(r.place)}</span>` : `<i class="rk-lb-place">第${r.place}名</i>`)
-      + `<span class="rk-lb-who"><b>${esc(r.name)}</b><span class="rk-lb-sub"><small class="rk-lb-cls">${esc(r.class_name)}</small>${top ? `<span class="rk-lb-tag">${RK_TAG[rk]}</span>` : ''}</span></span>`
+      + `<span class="rk-lb-who"><b>${esc(r.name)}</b><span class="rk-lb-sub"><small class="rk-lb-cls">${esc(r.class_name || '')}</small>${top ? `<span class="rk-lb-tag">${RK_TAG[rk]}</span>` : ''}</span></span>`
       + `<em>${fmtMs(r.ms)}</em></li>`;
   };
   /* 两列都交给 .rk-col-full（space-between）把间隙均匀撑开：
