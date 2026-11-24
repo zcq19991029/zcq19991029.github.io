@@ -678,11 +678,12 @@ async function boardView(id) {
       : '<p class="qt-allgood">全班都交了 ✓</p>';
   };
 
-  try { paint(await taskBoard(t.id)); }
+  // 第二个参数是 class_id：SQL 还没执行时，未完成名单要靠班级名单反推（见 task-hx.js 的 taskBoard）
+  try { paint(await taskBoard(t.id, t.class_id)); }
   catch (e) {
     $('#rankKpi').innerHTML = `<p class="qt-hint" style="color:var(--qt-bad)">读取排行榜失败：${esc(e.message)}</p>`;
   }
-  S.stopRank = every(5000, async () => { paint(await taskBoard(t.id)); });
+  S.stopRank = every(5000, async () => { paint(await taskBoard(t.id, t.class_id)); });
 }
 
 /* ---------------- 作答 ---------------- */

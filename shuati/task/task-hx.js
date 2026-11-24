@@ -47,15 +47,18 @@ export const mdStr = () => {
 };
 
 /* 轮询：页面隐藏时跳过（投影时浏览器在后台不该一直打服务器），回来立刻补一次。
-   和接线仿真/刷题 app.js 同一套口径，失败静默、下一轮再试。 */
-export function every(ms, fn) {
+   和接线仿真/刷题 app.js 同一套口径，失败静默、下一轮再试。
+   第三个参数 jit 是抖动比例（0.2 = ±20%）：照搬接线仿真 —— 多台大屏/老师笔记本同开时
+   不会永远同相位一起到期，服务器不会在同一秒被五六台投影仪同时敲。 */
+export function every(ms, fn, jit) {
   let dead = false, t = 0;
+  const gap = () => jit ? Math.round(ms * (1 - jit + Math.random() * jit * 2)) : ms;
   const tick = async () => {
     if (dead) return;
     if (!document.hidden) { try { await fn(); } catch (e) { /* 轮询失败不弹窗 */ } }
-    if (!dead) t = setTimeout(tick, ms);
+    if (!dead) t = setTimeout(tick, gap());
   };
-  t = setTimeout(tick, ms);
+  t = setTimeout(tick, gap());
   const vis = () => { if (!document.hidden && !dead) { clearTimeout(t); tick(); } };
   document.addEventListener('visibilitychange', vis);
   return () => { dead = true; clearTimeout(t); document.removeEventListener('visibilitychange', vis); };
@@ -65,16 +68,31 @@ export function every(ms, fn) {
 // 显式带 p_class: null：PostgREST 对「只有一个带默认值的参数」解析不稳，省略时偶尔报找不到函数
 export const taskList = (p_class) => hx.rpc('hx_quiz_task_list', { p_class: p_class == null ? null : p_class });
 export const taskGet = (id) => hx.rpc('hx_quiz_task_get', { p_id: id });
-/* 榜单兼容垫片（2026-11-24）：新版 hx_quiz_task_board 返回**全班名单**（带 done / tries），
-   旧版只返回已交卷的人、也没有这两列。前端发布和 SQL 执行之间必然有一段时间差，
-   这段里如果不垫一层，`r.done` 是 undefined → 未完成名单直接变成「全班都交了」，
-   tries 也是 NaN → 每行都印「NaN 次」。所以统一在这里补齐，两种版本都显示得对。
-   （SQL 见 刷题/supabase/2026-11-24-课堂任务排行榜与未完成名单.sql） */
-export const taskBoard = (id) => hx.rpc('hx_quiz_task_board', { p_task: id }).then(rows =>
-  (rows || []).map(r => Object.assign({}, r, {
+/* 榜单（hx_quiz_task_board）。新版 SQL 返回**全班名单**（带 done / tries）；
+   旧版只返回交了卷的人、也没有这两列 —— 前端发布与 SQL 执行之间必然有时间差，所以要兼容。
+   ⚠ 兼容**不能**图省事把 done 一律当 true：那样「未完成名单」会直接变成「全班都交了」，
+     老师会以为人都交齐了（2026-11-24 用户就是这么报的：「现在课堂任务简陋还会直接显示全完成了」）。
+     正确做法是用班级名单反推：名单里有、榜单里没有 = 没交。所以这里第二个参数要传 class_id。
+   学生也会看这一页（页内排行榜），但 hx_class_students 只给教师/管理员 —— 学生那边反推会失败，
+   降级成「没有未完成信息」，等 SQL 跑完自然就对了。 */
+export async function taskBoard(id, classId) {
+  const raw = (await hx.rpc('hx_quiz_task_board', { p_task: id })) || [];
+  const rows = raw.map(r => Object.assign({}, r, {
     done: r.done === undefined ? true : !!r.done,
     tries: r.tries == null ? 1 : Number(r.tries) || 1,
-  })));
+  }));
+  if (raw.length && raw[0].done !== undefined) return rows;   // 新版：数据库已经给了 done
+  if (!classId) return rows;
+  let roster = [];
+  try { roster = (await hx.rpc('hx_class_students', { p_class: classId })) || []; }
+  catch (e) { return rows; }                                  // 名单也拿不到：降级，成绩那半截仍然是对的
+  const had = new Set(raw.map(r => String(r.student_id)));
+  const miss = roster.filter(s => !s.left_school && !had.has(String(s.id))).map(s => ({
+    place: null, student_id: s.id, name: s.name, student_no: s.student_no, group_name: null,
+    rate: null, score: null, seconds: null, finished_at: null, tries: 0, done: false,
+  }));
+  return rows.concat(miss);
+}
 export const taskScores = (cls) => hx.rpc('hx_quiz_task_scores', { p_class: cls });
 export const taskSubmit = (id, answers, seconds) =>
   hx.rpc('hx_quiz_task_submit', { p_task: id, p_answers: answers, p_seconds: seconds });

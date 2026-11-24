@@ -1,21 +1,26 @@
 <!doctype html>
-<!-- 华夏工具 · 刷题 · 课堂任务大屏（2026-11-22）
-     用法：教师在任务列表点「打开大屏」，新窗口地址是 board.html?t=<任务id>；
+<!-- 华夏工具 · 刷题 · 课堂任务大屏（2026-11-24 改版）
+     用法：教师在任务页点「投到大屏」，新窗口地址是 board.html?t=<任务id>；
            不带参数也能开，自动挑一个进行中的任务。
-     设计：深色底 + 超大字号，后排也看得清；整屏不滚动，人多自动换列/缩字号。
-     只读：不在这一页做任何写操作，多个大屏同开不会互相抢状态。
-     不引 hx-theme.js：这一页是 window.open 开在顶层窗口投屏的，带上 data-tool 会被
-     主题脚本 replace 回总入口 —— 正在投的榜单一秒变首页（接线仿真踩过这个坑）。 -->
+     版式照搬 接线仿真/src/task-board.html + task.css 里的大屏那一段（用户要求「不要凭空造」）：
+       主体是**未完成名单**的身份卡阵列（红边大卡，最后一排也看得清）；
+       右上角是完成率环（Apple 健身环那种）+ 已完成人数；
+       已完成的人缩成金色小身份卡排在右侧，不抢未完成名单的位置；
+       整屏不滚动，人多自动缩字号/缩卡片、绝不出现滚动条。
+     ⚠ 这一页**故意不引 hx-theme.js**：大屏是 task.js 用 window.open 开在顶层窗口里投屏的，
+       而 hx-theme.js 见到 data-tool + 顶层窗口就会 location.replace 回总入口 —— 正在投的名单
+       会当场被换成首页（接线仿真踩过这个坑）。配色因此由 task.css 里 body.board 自己给。
+     只读：不在这一页做任何写操作，多个大屏同开不会互相抢状态。 -->
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#060a14">
+<meta name="theme-color" content="#04060e">
 <title>课堂任务大屏 · 刷题</title>
 <link rel="stylesheet" href="task.css">
 </head>
-<body class="qt-board">
-<div id="bdRoot" class="bd-wrap"><div class="bd-empty">读取任务…</div></div>
+<body class="board">
+<div id="bdRoot"><div class="bd-gate"><b>读取任务…</b></div></div>
 <script type="module" src="task-board.js"></script>
 </body>
 </html>

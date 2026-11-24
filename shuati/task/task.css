@@ -2,7 +2,7 @@
    刷题 · 课堂任务（2026-11-22）
    ----------------------------------------------------------------------------
    两页共用：body 默认 = 教师端/学生端（浅色卡片，沿用刷题的 --bg/--card/--ink）；
-             body.qt-board = 大屏（深色、字号全用 vmin，后排也看得清）。
+             body.board   = 大屏（深色、字号全用 vmin，后排也看得清；照搬接线仿真的投屏）。
 
    颜色不自己造一套：能拿到 hx-theme.css 的变量就用它的（--bg/--card/--ink/--dim/--acc/
    --line2/--fill/--ok/--bad），拿不到时给同样的浅色兜底，页面不会因为缺 CSS 变成白纸黑字。
@@ -283,123 +283,332 @@ b, strong { font-weight: 700; }
 .qt-gate p { color: var(--qt-dim); line-height: 1.9; margin: 0 0 18px; }
 
 /* ============================================================================
-   大屏（body.qt-board）
+   大屏（body.board）—— 2026-11-24：整块照搬 接线仿真/src/task.css 的大屏样式
    ----------------------------------------------------------------------------
-   深色底 + 超大字号：vmin 随投影分辨率缩放，1920×1080 和 4K 都是同一观感。
-   整屏不滚动，人多就自动缩字号/换列（JS 算列数），绝不出现滚动条把最后一排切掉。
-   ========================================================================== */
-body.qt-board {
-  --bd-bg: #060a14;
-  --bd-ink: #eef2ff;
-  --bd-dim: #93a0c4;
-  --bd-line: rgba(150, 175, 255, .18);
-  --bd-card: rgba(20, 27, 48, .82);
-  --bd-acc: #6ea8ff;
-  --bd-ok: #34d399;
-  --bd-bad: #fb7185;
-  --bd-gold: #ffd166;
-  overflow: hidden; height: 100vh; background: var(--bd-bg); color: var(--bd-ink);
-  font-family: "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+   用户原话：「照搬仿真接线那边投屏ui和逻辑 你不要凭空造」。
+   下面从 body.board 到 .bd-moves 这一段是**逐字复制** 接线仿真/src/task.css
+   （第 191–491、535–537 行），只改了两处：
+     · `.bd-gate .btn` → `.bd-gate .qt-btn`（刷题按钮的类名）
+     · body.board::before 补上 content/position/inset/z-index（那三条在接线仿真里写在
+       全局 body::before 上，刷题没有那条基础规则，不补就看不见背景光斑）
+   结构一模一样：主体是「还没完成的同学」大卡阵列，右上完成率环 + 已完成人数，
+   右侧是已完成的金色小身份卡（奖牌 + 姓名 + 用时 + 徽标），页脚一行刷新/赋分说明。
+   ============================================================================ */
+/* 配色：照接线仿真的 :root 原样搬一份，只挂到 body.board 上（刷题教师端是浅色，不能被染黑） */
+body.board {
+  --bg: #04060e; --ink: #e9edff; --dim: #8b95bd;
+  --edge: rgba(150, 175, 255, .16); --edge2: rgba(150, 175, 255, .3);
+  --card: rgb(22 28 48 / calc(.78 * var(--hx-a, 1))); --card2: rgb(12 16 30 / calc(.72 * var(--hx-a, 1)));
+  --acc: #7c9cff; --acc2: #b18cff; --ok: #34d399; --bad: #fb7185; --warn: #fbbf24;
+  --onacc: #fff;
 }
-body.qt-board::before {
+
+/* ============================================================================
+   大屏（投影）：1920×1080 一屏放下，整页不滚动
+   ========================================================================== */
+body.board { height: 100dvh; overflow: hidden; display: flex; flex-direction: column; }
+/* 2026-11-13 修「大屏下半屏一片黑」：body.board 是纵向 flex，但真正的直接子元素是 #bdRoot，
+   它高度按内容自适应，于是 .bd-main 的 flex:1 在一个没有确定高度的父容器里等于没生效，
+   名单和页脚只占上半屏、1800 多像素的投影上下面留一大块黑。
+   #bdRoot 补成 flex 纵向 + flex:1 + min-height:0，整页才真正撑满一屏。 */
+#bdRoot { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+#bdRoot > .bd-gate { flex: 1; display: grid; place-items: center; }
+body.board::before {
   content: ''; position: fixed; inset: -10%; z-index: -1; pointer-events: none;
   background:
-    radial-gradient(40vmax 32vmax at 10% -6%, rgba(110, 168, 255, .22), transparent 70%),
-    radial-gradient(36vmax 30vmax at 96% 104%, rgba(118, 92, 255, .18), transparent 72%);
+    radial-gradient(30vmax 26vmax at 8% -6%, color-mix(in srgb, var(--acc) 26%, transparent), transparent 70%),
+    radial-gradient(26vmax 22vmax at 100% 104%, color-mix(in srgb, var(--acc2) 20%, transparent), transparent 72%);
 }
-/* 100vh 兜底：老版希沃一体机的 Chrome 可能不认 dvh，认不出就会退化成内容高度、名单溢出屏幕 */
-.bd-wrap { height: 100vh; height: 100dvh; display: flex; flex-direction: column; padding: 1.5vmin 2.2vmin; gap: 1.1vmin; }
-.bd-head { flex: none; display: flex; align-items: center; gap: 2vmin; }
-.bd-back {
-  flex: none; height: 4.2vmin; padding: 0 1.8vmin; border-radius: 99px;
-  border: 1px solid var(--bd-line); background: transparent; color: var(--bd-dim);
-  font-size: 1.45vmin; cursor: pointer;
+.bd-top {
+  flex: none; display: flex; align-items: center; gap: 2vmin; padding: 1.6vmin 2.4vmin;
+  border-bottom: 1px solid var(--edge); background: linear-gradient(180deg, rgba(12, 16, 30, .94), rgba(6, 9, 18, .72));
 }
 .bd-title { min-width: 0; flex: 1; }
-.bd-title small { display: block; font-size: 1.35vmin; color: var(--bd-dim); letter-spacing: .04em; }
-.bd-title b {
-  display: block; font-size: 3.1vmin; line-height: 1.2; letter-spacing: -.02em;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+.bd-title small { display: block; font-size: 1.9vmin; color: var(--dim); font-weight: 700; letter-spacing: .06em; }
+.bd-title b { display: block; font-size: 3.6vmin; line-height: 1.15; margin-top: .4vmin; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bd-title .sub { margin-top: .5vmin; font-size: 1.7vmin; color: var(--dim); }
+/* 大屏顶栏返回：回「上一级」= 刷题的课堂任务页。投影上要低调，别抢标题 */
+.bd-back {
+  flex: none; display: inline-flex; align-items: center; gap: .6vmin;
+  padding: .8vmin 1.4vmin; border-radius: 1vmin; cursor: pointer;
+  font-size: 1.7vmin; font-weight: 700; color: var(--dim); white-space: nowrap;
+  border: 1px solid var(--edge2); background: rgba(12, 16, 30, .6);
+  transition: color .15s, border-color .15s;
 }
-.bd-stats { flex: none; display: flex; align-items: center; gap: 2.6vmin; }
-.bd-kpi { text-align: right; }
-.bd-kpi b { display: block; font-size: 3.4vmin; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
-.bd-kpi b small { font-size: 1.6vmin; color: var(--bd-dim); font-weight: 600; }
-.bd-kpi em { display: block; margin-top: .5vmin; font-style: normal; font-size: 1.25vmin; color: var(--bd-dim); }
+.bd-back:hover { color: var(--ink); border-color: var(--acc); }
+.bd-stat { flex: none; display: flex; align-items: center; gap: 2vmin; }
+/* ---------------- 完成率圆盘：Apple 健身环（2026-11-13 重构） ----------------
+   用户原话：「完成率圆盘 → 加了流光光带（conic-gradient 遮罩扣环），极简模式下自动关闭太丑需要重构
+              要跟 apple 健身环一样」
+   上一版的做法是 .ring::after 转一条 conic-gradient 扫光 + mask 扣环。问题是「质感全靠那层光」，
+   极简模式一关，环就退回成一根细灰线 + 一根细绿线，看着像坏了 —— 用户骂的就是这一点。
+   这一版把质感做进**环本身**（粗环 / 青绿→亮绿渐变 / 端点高光 / 柔和外发光 / 凹陷轨道），
+   全是静态视觉，和动画无关。于是「极简 / 减动画」只需要关 transition，环永远完整。
+   尺寸：r=42 + stroke=13 → 外沿 48.5 未出 100 的 viewBox（不裁边），内径 35.5 留白够放百分比。 */
+.ring { position: relative; width: 15vmin; height: 15vmin; flex: none; }
+.ring svg { width: 100%; height: 100%; transform: rotate(-90deg); overflow: visible; }
+/* 轨道凹槽：同半径两圈 —— 宽的一圈深色当槽底，窄的一圈浅色当槽内壁，
+   两侧各留一条暗边，读起来像「刻进去的槽」，而不是一圈均匀的灰环。 */
+.ring .trk { stroke: rgba(3, 6, 14, .92); stroke-width: 14; }
+.ring .trk-in { stroke: rgba(150, 175, 255, .13); stroke-width: 9.5; }
+/* 进度弧：渐变描边 + 圆头 + 外发光。渐变在 task-board.js 的内联 <defs> 里（两页共用不了外部资源）。 */
+.ring .val {
+  stroke: url(#ringGrad); stroke-width: 13; stroke-linecap: round;
+  filter: drop-shadow(0 0 6px rgba(52, 211, 153, .5)) drop-shadow(0 0 16px rgba(16, 185, 129, .24));
+  transition: stroke-dashoffset .7s cubic-bezier(.22, .8, .3, 1);
+}
+/* 弧内侧一道极细白高光：Apple 环那种「塑料壳上有一道反光」的观感，只加一点点，别糊住渐变 */
+.ring .val-hi {
+  stroke: url(#ringGradHi); stroke-width: 3.2; stroke-linecap: round; opacity: .55;
+  transition: stroke-dashoffset .7s cubic-bezier(.22, .8, .3, 1);
+}
+/* 端点高光：整组绕圆心转（JS 直接写内联 transform: rotate(Ndeg)，N = 百分比 × 3.6），
+   和 stroke-dashoffset 用同一个缓动，所以「换人完成时环长一截」和「端帽跟过去」是同步的，不会脱节。 */
+.ring .capg { transform-origin: 50px 50px; transition: transform .7s cubic-bezier(.22, .8, .3, 1), opacity .25s; }
+.ring .cap-halo { fill: rgba(134, 239, 172, .38); }
+.ring .cap { fill: #f2fffa; }
+.ring .txt { position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; align-content: center; gap: .45vmin; text-align: center; line-height: 1; }
+.ring .txt b { font-size: 3.05vmin; font-weight: 900; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.ring .txt em { display: block; font-size: 1.35vmin; color: var(--dim); font-weight: 700; opacity: .62; letter-spacing: .12em; }
+/* 极简模式：只降发光（省 GPU），**环、渐变、数字一个都不许少**。
+   用户原话「极简模式下自动关闭太丑」—— 上一版就是在这里把整块关掉了，这次刻意反过来。 */
+body.board.lite .ring .val { filter: drop-shadow(0 0 4px rgba(52, 211, 153, .3)); }
+body.board.lite .ring .val,
+body.board.lite .ring .val-hi,
+body.board.lite .ring .capg { transition: none; }
+.bd-count { text-align: right; }
+.bd-count b { font-size: 5.4vmin; line-height: 1; font-variant-numeric: tabular-nums; }
+.bd-count b small { font-size: 2.4vmin; color: var(--dim); font-weight: 700; }
+.bd-count em { display: block; font-size: 1.7vmin; color: var(--dim); margin-top: .8vmin; font-weight: 700; }
+
+.bd-main { flex: 1; min-height: 0; display: flex; gap: 1.6vmin; padding: 1.6vmin 2.4vmin 1.2vmin; }
+.bd-pending { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.bd-pending h2, .bd-done h3 {
+  margin: 0 0 1vmin; font-size: 2vmin; font-weight: 800; letter-spacing: .08em; color: var(--dim);
+  display: flex; align-items: center; gap: 1vmin;
+}
+.bd-pending h2 em, .bd-done h3 em { color: var(--warn); font-size: 2.4vmin; font-variant-numeric: tabular-nums; }
+.pend-grid {
+  flex: 1; min-height: 0; overflow: hidden; align-content: start;
+  display: grid; gap: 1.1vmin;
+  /* 列宽下限 = 字号 × --pk（--pk 由 task-board.js 的 setMetrics 按**真实最长的名字**算好写进 :root）。
+     2026-11-16 之前这里是写死的 20vmin，跟 --pfs 脱钩：人少时字号 5.2vmin（≈56px）却只给 216px 的卡，
+     名字必然被省略号吃掉（用户截图报的「名字显示不全」就是这条）。cards 只能整档缩小，不能压名字。 */
+  justify-content: center;
+  /* auto-fit + 上限 1.15× 下限：卡只比名字需要的宽一点点，不会拉成一条几百像素的太空卡（用户嫌「卡片太大」）。 */
+  grid-template-columns: repeat(auto-fit, minmax(calc(var(--pfs, 3vmin) * var(--pk, 6.5)), calc(var(--pfs, 3vmin) * var(--pk, 6.5) * 1.15)));
+  grid-auto-rows: min-content;
+}
+/* 未完成身份卡（2026-11-13）
+   用户原话：「大屏还没完成的身份卡我点头 你加吧」
+   上一版 .pend 是个 60px 级的小方块：背景铺上去基本看不见、姓名被裁，看着不像身份卡，
+   跟右侧带背景的 .dc 排位身份卡完全不是一个东西。这一版按「小身份卡」重排：
+   背景铺满整卡 + 遮罩只压文字那侧 + 首字母头像 + 姓名 + 学号；
+   尺寸跟 --pfs 联动（人少自动大、人多自动缩），列宽仍由 JS 写进 grid-template-columns。 */
+.pend {
+  position: relative; overflow: hidden;  /* 身份卡背景要裁在圆角里 */
+  display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center;
+  gap: calc(var(--pfs, 3vmin) * .42);
+  padding: calc(var(--pfs, 3vmin) * .34) calc(var(--pfs, 3vmin) * .44);
+  min-height: calc(var(--pfs, 3vmin) * 1.75); min-width: 0;
+  border-radius: 1.5vmin;
+  border: 1px solid color-mix(in srgb, var(--bad) 34%, transparent);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .07), 0 .35vmin 1vmin rgba(0, 0, 0, .3);
+  animation: pendIn .35s ease both;
+}
+/* 身份卡背景：背景 span → 遮罩 span → 文字（照排位 .rk-lb 的结构）。 */
+.pend .pend-bg { position: absolute; inset: 0; z-index: 0; background-size: cover; background-repeat: no-repeat; background-position: 50% 50%; }
+/* 没设过背景的人（data-nobg="1"）要有体面的兜底：纯色空块一眼就看得出「这人没设置」。
+   这里给一层斜向暗红 → 深蓝的卡面 + 左上角一团暖光 + 右下角一点冷光，读起来像张默认卡。 */
+.pend[data-nobg="1"] .pend-bg {
+  background:
+    radial-gradient(120% 130% at 0% 0%, color-mix(in srgb, var(--bad) 26%, transparent), transparent 58%),
+    radial-gradient(90% 120% at 100% 100%, rgba(124, 156, 255, .16), transparent 62%),
+    linear-gradient(135deg, #2b1a2a 0%, #171a2e 55%, #101326 100%);
+}
+/* 兜底卡再配一条略饱和的描边，让它看起来是「有边框的默认卡面」，而不是一块忘了填色的背景 */
+.pend[data-nobg="1"] { border-color: color-mix(in srgb, var(--bad) 42%, rgba(150, 175, 255, .26)); }
+/* 遮罩浓度和右侧 .dc 同一套（.84 / .55 那条线），只是方向改成 96°，因为文字在头像右边；
+   再压一层底部的暗，保证贴边拍的照片上名字也读得清。浓度调过两次：太浓会把背景压成纯色块，
+   用户上一版就是嫌「背景铺上去看不出来」，所以这里刻意留了 30% 的透光。 */
+.pend .pend-veil {
+  position: absolute; inset: 0; z-index: 1;
+  background:
+    linear-gradient(96deg, rgba(4, 8, 18, .84) 0%, rgba(4, 8, 18, .55) 38%, rgba(4, 8, 18, .3) 72%, rgba(4, 8, 18, .5) 100%),
+    linear-gradient(0deg, rgba(4, 8, 18, .42), transparent 64%);
+}
+.pend > *:not(.pend-bg):not(.pend-veil) { position: relative; z-index: 2; }
+.pend:nth-child(n+13) { animation-delay: .04s; }
+.pend i {
+  flex: none; width: calc(var(--pfs, 3vmin) * 1.3); height: calc(var(--pfs, 3vmin) * 1.3);
+  border-radius: 50%; display: grid; place-items: center;
+  font-size: calc(var(--pfs, 3vmin) * .62); font-weight: 900; font-style: normal; color: #ffe4e9;
+  background: linear-gradient(150deg, color-mix(in srgb, var(--bad) 46%, #2a1420), color-mix(in srgb, var(--bad) 16%, #14162a));
+  box-shadow: 0 0 0 .18vmin rgba(255, 255, 255, .1), 0 .2vmin .7vmin rgba(0, 0, 0, .45);
+}
+.pend .nm { min-width: 0; }
+.pend .nm b {
+  display: block; font-size: calc(var(--pfs, 3vmin) * .95); font-weight: 800; line-height: 1.15;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 .1vmin .6vmin rgba(0, 0, 0, .65);
+}
+.pend .nm span {
+  display: block; font-size: calc(var(--pfs, 3vmin) * .46); margin-top: .25vmin;
+  color: color-mix(in srgb, var(--dim) 82%, #fff); opacity: .88;
+  font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+@keyframes pendIn { from { opacity: 0; transform: translateY(.8vmin) scale(.97); } to { opacity: 1; transform: none; } }
+/* 第二轮以后的整页重绘不要再播入场：
+   每完成一个人都会重画一次名单，如果每次都 fade-in，投影上整块名单会一起闪一下，
+   看起来像掉帧。所以第一屏播动画，之后只保留「新完成那一个」的高亮（.fresh）。 */
+body.no-anim .pend { animation: none; }
+body.no-anim .dc:not(.fresh) { animation: none; }
+/* 极简模式：身份卡背景照常显示（背景是内容，不是氛围特效），只不播动画。
+   用户上一版最不满意的就是「极简一开，东西就没了」，所以这里只掐 animation，不碰视觉。 */
+body.board.lite .pend, body.board.lite .dc { animation: none; }
+.pend-empty { grid-column: 1 / -1; display: grid; place-items: center; align-content: center; gap: 1vmin; min-height: 22vmin; color: var(--ok); font-size: 3.2vmin; font-weight: 800; letter-spacing: .1em; text-align: center; }
+.pend-empty small { display: block; font-size: 1.8vmin; color: var(--dim); font-weight: 400; letter-spacing: 0; }
+
+/* 已完成：右栏排位身份卡（2026-11-13 排位改版）
+   每个完成者一张卡：背景图铺满 + 遮罩 + 名次奖牌 + 姓名 + 班级·用时 + 完成率档位。
+   前三名金/银/铜奖牌（CSS 渐变圆盘 + 名次数字，不引外部资源）。
+   卡片尺寸由 --dcs 驱动（人多就小），列数由 JS 写进 grid-template-columns；
+   右栏宽度跟卡片自然宽度走（JS 写 inline width），左栏人少时右栏自动向左扩。 */
+.bd-done {
+  flex: 0 0 auto; min-width: 0; max-width: 100%;
+  display: flex; flex-direction: column;
+  border-left: 1px solid var(--edge); padding-left: 1.4vmin;
+}
+.done-list {
+  flex: 1; min-height: 0; overflow: hidden;
+  display: grid; align-content: start;
+  grid-auto-rows: calc(var(--dcs, 2vmin) * 1.9);
+  gap: calc(var(--dcs, 2vmin) * .5);
+}
+.dc {
+  position: relative; overflow: hidden;  /* 身份卡背景层要裁在圆角里 */
+  display: flex; align-items: center;
+  gap: calc(var(--dcs, 2vmin) * .34);
+  padding: calc(var(--dcs, 2vmin) * .22) calc(var(--dcs, 2vmin) * .4);
+  border-radius: 1.2vmin;
+  border: 1px solid color-mix(in srgb, var(--ok) 28%, transparent);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), 0 .3vmin .9vmin rgba(0, 0, 0, .3);
+  animation: chipIn .3s ease both;
+}
+/* 身份卡背景：背景 span → 遮罩 span → 文字；拿不到背景退回深色绿底 */
+.dc .dc-bg { position: absolute; inset: 0; z-index: 0; background-size: cover; background-repeat: no-repeat; background-position: 50% 50%; }
+.dc[data-nobg="1"] .dc-bg {
+  background:
+    radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--ok) 22%, transparent), transparent 58%),
+    linear-gradient(135deg, #13251f 0%, #17202f 55%, #101326 100%);
+}
+/* 遮罩浓度和左侧 .pend 同一套思路：左浓右淡 + 底部再压一层，保证姓名/用时读得清 */
+.dc .dc-veil {
+  position: absolute; inset: 0; z-index: 1;
+  background: linear-gradient(90deg, rgba(4, 8, 18, .82) 0%, rgba(4, 8, 18, .5) 40%, rgba(4, 8, 18, .22) 72%, rgba(4, 8, 18, .48) 100%);
+}
+.dc > *:not(.dc-bg):not(.dc-veil) { position: relative; z-index: 2; }
+/* 名次奖牌：圆盘，前三金/银/铜渐变，其余低调深色盘，数字永远在正中 */
+.dc-medal {
+  flex: none; width: calc(var(--dcs, 2vmin) * 1.4); height: calc(var(--dcs, 2vmin) * 1.4);
+  border-radius: 50%; display: grid; place-items: center;
+  background: radial-gradient(circle at 34% 30%, rgba(255, 255, 255, .14), rgba(120, 140, 180, .18) 60%, rgba(30, 38, 60, .6) 100%);
+  box-shadow: inset 0 0 0 .12vmin rgba(255, 255, 255, .14);
+  color: var(--dim); font-size: calc(var(--dcs, 2vmin) * .66); font-weight: 900;
+  font-variant-numeric: tabular-nums; line-height: 1;
+}
+.dc-medal b { font-weight: 900; }
+.dc.m1 .dc-medal { background: radial-gradient(circle at 32% 28%, #fff3c4, #ffc94d 48%, #c98a12 100%); color: #3a2503; box-shadow: 0 0 .9vmin rgba(255, 200, 80, .45), inset 0 0 0 .12vmin rgba(255, 255, 255, .5); }
+.dc.m2 .dc-medal { background: radial-gradient(circle at 32% 28%, #ffffff, #d3dcea 48%, #8a97ad 100%); color: #333a47; box-shadow: 0 0 .9vmin rgba(200, 215, 235, .35), inset 0 0 0 .12vmin rgba(255, 255, 255, .6); }
+.dc.m3 .dc-medal { background: radial-gradient(circle at 32% 28%, #ffd9b8, #e09a5f 48%, #a35d2e 100%); color: #3a2010; box-shadow: 0 0 .9vmin rgba(210, 150, 90, .35), inset 0 0 0 .12vmin rgba(255, 255, 255, .4); }
+.dc-who { min-width: 0; flex: 1; }
+.dc-name {
+  display: block; font-size: calc(var(--dcs, 2vmin) * .82); font-weight: 800; line-height: 1.12;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  text-shadow: 0 .1vmin .5vmin rgba(0, 0, 0, .6);
+}
+.dc-sub {
+  display: block; font-size: calc(var(--dcs, 2vmin) * .42); margin-top: .12vmin;
+  color: color-mix(in srgb, var(--dim) 85%, #fff); opacity: .9;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
+}
+/* 刚完成的人：金边闪一下（1.6 秒后由 JS 摘掉 class） */
+.dc.fresh { animation: freshPop 1.6s ease both; }
+@keyframes freshPop {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 color-mix(in srgb, var(--warn) 70%, transparent); background: color-mix(in srgb, var(--warn) 40%, transparent); }
+  45% { transform: scale(1.14); box-shadow: 0 0 0 1.1vmin transparent; background: color-mix(in srgb, var(--warn) 26%, transparent); }
+  100% { transform: scale(1); }
+}
+@keyframes chipIn { from { opacity: 0; transform: scale(.6); } to { opacity: 1; transform: none; } }
+/* 结束/作废：顶部标题栏里压一个印章（原来是右下角 fixed，会压住页脚那行赋分说明，已挪走） */
 .bd-stamp {
-  flex: none; padding: .8vmin 1.8vmin; border: 2px solid var(--bd-bad); border-radius: 1vmin;
-  color: var(--bd-bad); font-size: 1.6vmin; font-weight: 800; transform: rotate(-6deg);
+  flex: none; align-self: center; margin-right: 1vmin;
+  font-size: 2.6vmin; font-weight: 900; letter-spacing: .16em; padding: .8vmin 1.8vmin; border-radius: 1vmin;
+  color: var(--dim); border: .35vmin solid currentColor; opacity: .7; transform: rotate(-6deg); white-space: nowrap;
 }
-.bd-list {
-  flex: 1; min-height: 0; display: grid; gap: .9vmin; align-content: start;
-  grid-auto-rows: minmax(0, 1fr);
-}
-.bd-row {
-  position: relative; display: grid; grid-template-columns: var(--bd-pw, 5.4vmin) minmax(0, 1fr) auto auto;
-  align-items: center; gap: 1.2vmin; padding: .7vmin 1.4vmin;
-  border-radius: 1.2vmin; background: var(--bd-card); border: 1px solid var(--bd-line);
-  overflow: hidden; transition: border-color .3s, background .3s, transform .3s;
-}
-.bd-row .pl {
-  display: grid; place-items: center; width: 4.4vmin; height: 4.4vmin; border-radius: 1vmin;
-  background: rgba(110, 168, 255, .12); color: var(--bd-acc);
-  font-size: 2.3vmin; font-weight: 800; font-variant-numeric: tabular-nums;
-}
-.bd-row.m1 .pl { background: linear-gradient(135deg, #ffe08a, #f5b301); color: #3a2600; }
-.bd-row.m2 .pl { background: linear-gradient(135deg, #e6ecf7, #aebbd1); color: #1d2433; }
-.bd-row.m3 .pl { background: linear-gradient(135deg, #f0b98a, #c97a3a); color: #2c1504; }
-.bd-who { min-width: 0; }
-.bd-who b {
-  display: block; font-size: 2.35vmin; line-height: 1.2;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.bd-who span { display: block; font-size: 1.25vmin; color: var(--bd-dim); margin-top: .2vmin; }
-.bd-rate {
-  font-size: 2.9vmin; font-weight: 800; font-variant-numeric: tabular-nums;
-  color: var(--bd-acc); min-width: 7.5vmin; text-align: right;
-}
-.bd-rate.gold { color: var(--bd-gold); }
-.bd-rate.low { color: var(--bd-dim); }
-.bd-sec { font-size: 1.55vmin; color: var(--bd-dim); min-width: 8vmin; text-align: right; font-variant-numeric: tabular-nums; }
-.bd-row.fresh { border-color: var(--bd-gold); animation: bdPop .9s ease; }
-.bd-row.up { border-color: var(--bd-ok); box-shadow: 0 0 0 2px rgba(52, 211, 153, .35) inset; animation: bdFlash .9s ease 2; }
-.bd-row.down { border-color: var(--bd-bad); box-shadow: 0 0 0 2px rgba(251, 113, 133, .3) inset; animation: bdFlash .9s ease 2; }
-.bd-move {
-  position: absolute; right: 1.2vmin; top: .5vmin; font-size: 1.1vmin; font-weight: 800;
-  padding: .1vmin .7vmin; border-radius: 99px; background: rgba(52, 211, 153, .16); color: var(--bd-ok);
-}
-.bd-row.down .bd-move { background: rgba(251, 113, 133, .14); color: var(--bd-bad); }
-/* 人少放大、人多缩小：列数/每列行数由 JS 算（见 task-board.js 的 fit），绝不出现滚动条 */
-/* 名次格的列宽跟着字号走：原来三档都留 5.4vmin，s3 档格子已缩到 3.4vmin，
-   白扔 2vmin 的宽度，本来可以给姓名（出图踩过：姓名只剩一个字） */
-.bd-list.s1 { --bd-pw: 5.4vmin; }
-.bd-list.s2 { --bd-pw: 4.6vmin; }
-.bd-list.s3 { --bd-pw: 3.6vmin; }
-.bd-list.s1 .bd-who b { font-size: 3.0vmin; }
-.bd-list.s1 .bd-who span { font-size: 1.55vmin; }
-.bd-list.s1 .bd-rate { font-size: 3.8vmin; }
-.bd-list.s1 .bd-sec { font-size: 1.9vmin; }
-.bd-list.s1 .pl { width: 5.4vmin; height: 5.4vmin; font-size: 2.8vmin; }
-.bd-list.s2 .bd-who b { font-size: 2.3vmin; }
-.bd-list.s2 .bd-rate { font-size: 2.9vmin; }
-.bd-list.s2 .bd-sec { font-size: 1.55vmin; }
-.bd-list.s3 .bd-who b { font-size: 1.8vmin; }
-.bd-list.s3 .bd-who span { font-size: 1.1vmin; }
-.bd-list.s3 .bd-rate { font-size: 2.2vmin; min-width: 6vmin; }
-.bd-list.s3 .bd-sec { font-size: 1.2vmin; min-width: 6.4vmin; }
-.bd-list.s3 .pl { width: 3.4vmin; height: 3.4vmin; font-size: 1.9vmin; }
-@keyframes bdPop { 0% { transform: scale(.985); background: rgba(255, 209, 102, .18); } 100% { transform: scale(1); } }
-@keyframes bdFlash { 50% { filter: brightness(1.35); } }
+.bd-stamp.void { color: var(--bad); }
 .bd-foot {
-  flex: none; display: flex; align-items: center; gap: 1.8vmin; flex-wrap: wrap;
-  font-size: 1.25vmin; color: var(--bd-dim); padding-top: .3vmin;
+  flex: none; display: flex; align-items: center; gap: 2vmin; padding: .8vmin 2.4vmin 1.2vmin;
+  font-size: 1.55vmin; color: var(--dim);
 }
+.bd-foot b { color: var(--ink); font-variant-numeric: tabular-nums; }
 .bd-foot .grow { flex: 1; }
-.bd-foot b { color: var(--bd-ink); }
-.bd-empty { padding: 8vmin; text-align: center; color: var(--bd-dim); font-size: 2.2vmin; }
-.bd-gate { height: 100vh; height: 100dvh; display: grid; place-items: center; text-align: center; padding: 6vmin; }
-.bd-gate b { display: block; font-size: 3vmin; margin-bottom: 1.2vmin; }
-.bd-gate p { color: var(--bd-dim); font-size: 1.7vmin; }
+.bd-foot .dot { width: .9vmin; height: .9vmin; border-radius: 50%; background: var(--ok); animation: pulse 2s infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
+/* 大屏的登录/空态：字要大，站最后一排也能看清 */
+.bd-gate { display: grid; place-items: center; height: 100dvh; padding: 4vmin; text-align: center; }
+.bd-gate b { display: block; font-size: 4.2vmin; }
+.bd-gate p { color: var(--dim); font-size: 2vmin; margin: 1.6vmin 0 3vmin; line-height: 1.7; }
+.bd-gate .qt-btn { font-size: 2.1vmin; padding: 1.4vmin 3vmin; border-radius: 1.4vmin; }
+
+/* 减动画偏好 / 弱机：大屏上那两个入场动画关掉（投影时闪一下反而难看）。
+   注意只关「动」—— 环的渐变、发光、百分比是静态视觉，减动画下必须照常显示（2026-11-13）。 */
+@media (prefers-reduced-motion: reduce) {
+  .pend, .dc, .dc.fresh, .bd-foot .dot { animation: none; }
+  .ring .val, .ring .val-hi, .ring .capg { transition: none; }
+}
+/* 窄屏（手机竖屏看教师端）：大屏页本来就不给手机用，这里只把教师端收成一列 */
+@media (max-width: 980px) { .form { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 720px) {
+  .form { grid-template-columns: minmax(0, 1fr); }
+  .pg-main { grid-template-columns: minmax(0, 1fr); }
+  .pg-top h1 small { display: none; }
+  .scroll-y { max-height: none; }
+}
+
+/* ---------------- 完成率徽标 + 「被超了 / 反超了」通报（2026-11-09） ----------------
+   用户原话：「课堂任务实时计分 被别人超了就会变 这是很正常的竞争学习 我们鼓励动态变化
+              当场就学习刷题反超」
+   名次按用时排，后来的人更快就把前面的人挤下档：100% → 80% → 70%。
+   所以已完成的头像条上必须**直接看到当前完成率**，掉档的人还要被点名，
+   学生才知道「再刷一次、把用时压下去」就能超回来，竞争才转得起来。 */
+.dc-rate {
+  flex: none; font-weight: 800; font-variant-numeric: tabular-nums;
+  font-size: calc(var(--dcs, 2vmin) * .5);
+  padding: .14em .5em; border-radius: 999px; line-height: 1.4;
+  background: rgba(255, 255, 255, .08); color: var(--dim);
+}
+.dc-rate.r100 { background: rgba(251, 191, 36, .2); color: #fbbf24; }  /* 前十名：金 */
+.dc-rate.r80  { background: rgba(124, 156, 255, .2); color: #9db6ff; } /* 11–20：蓝 */
+.dc-rate.r70  { background: rgba(255, 255, 255, .08); color: var(--dim); } /* 其余：灰 */
+.dc-rate.r-none { display: none; }                                       /* 作废任务不给分，不显示 */
+
+/* 通报条：贴在名单和页脚之间，一排小胶囊，8 秒后由 JS 摘掉 */
+.bd-moves { flex: none; display: flex; flex-wrap: wrap; gap: 1vmin 1.4vmin; padding: 0 2.4vmin 1vmin; }
+.bd-moves .mv {
+  font-size: 1.7vmin; font-weight: 700; padding: .42em .95em; border-radius: 999px;
+  animation: mvIn .5s ease both;
+}
+.bd-moves .mv b { font-variant-numeric: tabular-nums; }
+.bd-moves .mv small { margin-left: .55em; font-weight: 600; color: var(--dim); }
+.bd-moves .mv.up { background: rgba(52, 211, 153, .16); color: #4be08a; box-shadow: inset 0 0 0 1px rgba(52,211,153,.35); }
+.bd-moves .mv.down { background: rgba(251, 191, 36, .16); color: #fbbf24; box-shadow: inset 0 0 0 1px rgba(251,191,36,.35); }
+@keyframes mvIn { from { opacity: 0; transform: translateY(.8vmin); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .bd-moves .mv { animation: none; } }
+
+/* 通报条最多一行半：再多就换行会顶掉名单，这里直接裁掉（JS 已经把条数限到 4 条） */
+.bd-moves { max-height: 9vmin; overflow: hidden; }
+.bd-moves .mv.more { background: transparent; color: var(--dim); box-shadow: inset 0 0 0 1px var(--edge); font-weight: 600; }
 
 /* ============================================================================
    分数排行榜 + 未完成名单（2026-11-24）
@@ -494,48 +703,4 @@ body.qt-board::before {
   .qt-rkrow .sc { font-size: 15px; }
   .qt-kpis { gap: 18px; }
   .qt-kpi b { font-size: 20px; }
-}
-
-/* ---------------- 大屏：排行榜 + 未完成整列 ---------------- */
-/* 大屏原来是「一列榜铺满屏」，加了未完成之后改成左右分栏：
-   左边榜单按人数自动分栏（JS 算 cols/per），右边固定一条未完成栏。
-   未完成栏限宽 —— 投影时它的作用只是「念名字」，不该抢榜单宽度。 */
-.bd-split { flex: 1; min-height: 0; display: flex; gap: 1.6vmin; }
-.bd-split > .bd-list { flex: 1; min-width: 0; }
-
-.bd-todo {
-  flex: 0 0 clamp(20vmin, 24vw, 34vmin); min-height: 0;
-  display: flex; flex-direction: column; gap: .8vmin;
-  padding: 1.2vmin 1.4vmin; border-radius: 1.4vmin;
-  background: rgba(251, 113, 133, .06); border: 1px solid rgba(251, 113, 133, .26);
-}
-.bd-todo.ok { background: rgba(52, 211, 153, .06); border-color: rgba(52, 211, 153, .26); }
-.bd-todohead { flex: none; font-size: 1.5vmin; color: var(--bd-dim); font-weight: 600; }
-.bd-todohead b { font-size: 3vmin; color: var(--bd-bad); margin: 0 .5vmin; font-variant-numeric: tabular-nums; }
-.bd-todo.ok .bd-todohead b { color: var(--bd-ok); }
-.bd-todohead small { font-size: 1.25vmin; font-weight: 500; }
-.bd-todoitems {
-  flex: 1; min-height: 0; display: grid; align-content: start; gap: .55vmin;
-  grid-template-columns: repeat(auto-fill, minmax(11vmin, 1fr));
-  overflow: hidden;
-}
-.bd-todoitems span {
-  font-size: 1.9vmin; line-height: 1.25; padding: .45vmin .8vmin; border-radius: .8vmin;
-  background: rgba(255, 255, 255, .05); border: 1px solid rgba(255, 255, 255, .08);
-  color: #ffd7dc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.bd-todook { flex: 1; display: grid; place-items: center; font-size: 3.2vmin; font-weight: 800; color: var(--bd-ok); }
-
-/* 榜单行多一列「得分」；姓名列给 6vmin 下限，否则卡片一窄就被挤成 0（出图踩过） */
-.bd-row { grid-template-columns: var(--bd-pw, 5.4vmin) minmax(6vmin, 1fr) auto auto auto; }
-.bd-sc { font-size: 2.5vmin; font-weight: 800; font-variant-numeric: tabular-nums; text-align: right; min-width: 6.4vmin; }
-.bd-sc small { font-size: 1.2vmin; color: var(--bd-dim); font-weight: 600; margin-left: .2vmin; }
-.bd-who em { font-style: normal; font-weight: 800; color: #ffd68a; }
-.bd-list.s1 .bd-sc { font-size: 3.4vmin; }
-.bd-list.s3 .bd-sc { font-size: 1.9vmin; min-width: 5vmin; }
-/* 竖屏投屏：未完成栏折到榜单下面，别把榜挤成一列字 */
-@media (max-aspect-ratio: 1/1) {
-  .bd-split { flex-direction: column; }
-  .bd-todo { flex: 0 0 auto; max-height: 24vmin; }
-  .bd-todoitems { grid-template-columns: repeat(auto-fill, minmax(16vmin, 1fr)); }
 }
