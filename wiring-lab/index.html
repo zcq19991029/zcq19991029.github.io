@@ -3,7 +3,7 @@
 <html lang="zh-CN">
 <head>
 <script src="../hx-theme.js" data-tool="wiring"></script>
-<script>window.HX_BUILD = "2026-11-24T05:14:17Z faf2442";</script>
+<script>window.HX_BUILD = "2026-11-24T05:39:51Z 457ea09";</script>
 <meta charset="utf-8">
 <meta name="copyright" content="© 2026 zcq 版权所有，未经许可禁止复制、修改、转载">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
@@ -278,7 +278,9 @@
   .rk-code { text-align: center; padding: 14px; margin-bottom: 14px; border-radius: 16px; background: linear-gradient(120deg, color-mix(in srgb, #f59e0b 22%, var(--card)), color-mix(in srgb, #ef4444 18%, var(--card))); border: 1px solid color-mix(in srgb, #f59e0b 50%, transparent); }
   .rk-code small { display: block; color: var(--dim); font-weight: 700; } .rk-code b { font-family: ui-monospace, Consolas, monospace; font-size: 46px; letter-spacing: 8px; }
   body.ranking .seg { opacity: .5; }
-  .rk-veil { position: fixed; inset: 44px 0 0; z-index: 40; display: grid; place-items: center; background: rgba(3,5,11,.38); backdrop-filter: blur(14px) saturate(1.2); -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  /* 2026-11-23：整屏 backdrop-filter 全部撤掉（iPad 每帧重模糊整块屏 = 频闪 + 子元素画不出来）。
+     底色从 .38 抬到 .82 补回「压暗背景、聚焦前景」的原有效果。 */
+  .rk-veil { position: fixed; inset: 44px 0 0; z-index: 40; display: grid; place-items: center; background: rgba(3,5,11,.82); backdrop-filter: none; -webkit-backdrop-filter: none;
     opacity: 0; pointer-events: none; transition: opacity .35s; }
   .rk-veil.show { opacity: 1; pointer-events: auto; }
   /* 2026-11-08 用户截图报障：「点排位上面奖杯按钮回到这里了 排位界面被遮挡了」。
@@ -1242,7 +1244,9 @@
   @media (max-width: 900px) { .rk-par { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
   .rk-names { max-height: 300px; }
   /* ===== 准备屏：放大 + 紧张感（2026-11-03 改科技风：深空蓝底 + 青色辉光，配 pixelfx 的蓝色 Countdown）===== */
-  .rk-veil { background: rgba(2, 8, 23, .66); backdrop-filter: blur(26px) saturate(1.3); -webkit-backdrop-filter: blur(26px) saturate(1.3); }
+  /* 2026-11-23：blur(26px) 是排位里最贵的一条 —— 准备屏/倒数/成绩都在这层上，整屏 26px 模糊，
+     iPad 上就是「黑黑的闪频」。改成 .88 实底，观感差别只是背后不再有糊影（本来也看不出来）。 */
+  .rk-veil { background: rgba(2, 8, 23, .88); backdrop-filter: none; -webkit-backdrop-filter: none; }
   /* 2026-11-06 用户：「文本上下可拉开一点 离圆圈圆点」—— 班级和下面那排呼吸圆点挤成一坨。
      段落之间的呼吸靠 .rk-ready 的 gap（4 → 8）；圆点单独再给一段上边距（见 .rk-dots），
      不再靠 gap 一把兜住。名字字号不动（用户 2026-11-04 明确要求名字要大）。 */
@@ -1375,7 +1379,10 @@
       radial-gradient(circle 1.5px at 64% 18%, rgba(54, 140, 255, .45), transparent 60%), radial-gradient(circle 1px at 84% 52%, rgba(0, 223, 255, .4), transparent 60%),
       radial-gradient(circle 1px at 28% 88%, rgba(54, 140, 255, .4), transparent 60%), radial-gradient(circle 1.5px at 92% 84%, rgba(152, 87, 255, .4), transparent 60%);
     background-repeat: repeat; background-size: 560px 560px;
-    animation: rkDotsDrift 26s ease-in-out infinite alternate; }
+    /* 2026-11-23 第三轮：点阵漂移停掉。它是**铺满整窗**（inset:-140px，实测覆盖 93% 屏）的一层，
+       26 秒才平移 64px —— 肉眼基本察觉不到「在动」，但代价是整块屏每帧都要重新合成。
+       在 iPad 上这一层就是「整屏频闪」的底噪。静止的点阵纹理观感与漂移时一致。 */
+    /* animation: rkDotsDrift 26s ease-in-out infinite alternate; */ }
   @keyframes rkDotsDrift { to { transform: translate3d(-64px, -44px, 0); } }
 
   /* ── 顶部标题栏：横向控制台 ── */
@@ -1631,7 +1638,16 @@
   #fw-rank .rk-students { --rkc: 16px; flex: 1; min-height: 200px; min-width: 0; padding: 1.5px; box-sizing: border-box;
     clip-path: polygon(0 0, calc(100% - var(--rkc)) 0, 100% var(--rkc), 100% 100%, var(--rkc) 100%, 0 calc(100% - var(--rkc)));
     background: linear-gradient(120deg, rgba(0, 223, 255, .55), rgba(54, 140, 255, .3) 42%, rgba(152, 87, 255, .42));
-    filter: drop-shadow(0 0 16px rgba(54, 140, 255, .16)); }
+    /* ══ 2026-11-23 第三轮：filter 撤掉（这里原来是 drop-shadow(0 0 16px rgba(54,140,255,.16))）══
+       用户原话：「pad 端…… 左边班级名字不出来 为什么 pad 不能和电脑端一样呢 电脑就很好啊」。
+       原因：本元素同时有 filter + clip-path + 内部纵向滚动容器（.rkx-grid overflow-y:auto）。
+       filter 会让整块面板脱离正常绘制流程、进离屏缓冲；WebKit（iPad/iOS Safari）在
+       「过滤祖先 + 裁剪 + 滚动后代」这个组合下有长期存在的缺陷：滚动区内的内容会**不绘制**，
+       要等一次强制重绘（点一下 / 滚一下）才出来 —— 现场就是「整片空白、班级名字不出来」。
+       证据：极简档有 `html.is-lite #fw-rank .rk-students { filter: none }`，所以极简不空白、标准空白；
+       电脑的 WebKit/Blink 实现正常，所以电脑没事。两端口径一致的正确做法就是**两边都不要 filter**。
+       视觉代价：一圈 alpha .16 的淡蓝外辉。面板四边本来就有渐变描边，暗底上几乎看不出区别。 */
+    filter: none; }
   @keyframes rkEdgeFlow { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
   #fw-rank .rk-stin { position: relative; display: flex; flex-direction: column; height: 100%; min-height: 0; overflow: hidden;
     clip-path: polygon(0 0, calc(100% - var(--rkc)) 0, 100% var(--rkc), 100% 100%, var(--rkc) 100%, 0 calc(100% - var(--rkc)));
@@ -1696,7 +1712,11 @@
     clip-path: polygon(var(--rkx-cut) 0, calc(100% - var(--rkx-cut)) 0, 100% var(--rkx-cut), 100% calc(100% - var(--rkx-cut)),
       calc(100% - var(--rkx-cut)) 100%, var(--rkx-cut) 100%, 0 calc(100% - var(--rkx-cut)), 0 var(--rkx-cut));
     background: linear-gradient(115deg, var(--rkx-p), var(--rkx-b) 28%, var(--rkx-c) 50%, var(--rkx-b) 72%, var(--rkx-p));
-    filter: drop-shadow(0 0 20px rgba(152, 87, 255, .26)) drop-shadow(0 16px 38px rgba(0, 0, 0, .5)); }
+    /* 2026-11-23 第三轮：与 .rk-students 同因同治 —— 去掉 filter: drop-shadow(...) drop-shadow(...)。
+       这里更严重：面板占 48% 屏、内部还有一层滚动区（.rk-boardwrap），
+       「过滤祖先 + clip-path + 滚动后代」在 iPad 上会让榜单内容不绘制 / 反复重栅格化（就是狂闪）。
+       外辉本来就压在整条霓虹渐变描边外侧，暗底上增益极小。 */
+    filter: none; }
   #fw-rank .rk-rin { position: relative; display: flex; flex-direction: column; height: 100%; min-height: 0; overflow: hidden;
     clip-path: polygon(var(--rkx-cut) 0, calc(100% - var(--rkx-cut)) 0, 100% var(--rkx-cut), 100% calc(100% - var(--rkx-cut)),
       calc(100% - var(--rkx-cut)) 100%, var(--rkx-cut) 100%, 0 calc(100% - var(--rkx-cut)), 0 var(--rkx-cut));
@@ -2029,13 +2049,25 @@
      这里只是消费它）。没有整页 opacity，排行榜里的个人背景图不受它影响。
      ══════════════════════════════════════════════════════════════════════ */
   #fw-rank {
-    /* 外层是「毛玻璃挡板」，不是实色墙：颜色跟着 --hx-a（外观 → 界面透明度）走，
-       1 = 最透（默认）、2 = 实色。排位是整屏遮罩，底下的练习页会透出来 —— 加 backdrop blur
-       把它糊成色块（看得出有背景、看不清元件和文字），既有玻璃质感又不干扰读榜。
-       这是**叠加层**，没有替换网站背景，也没有对任何父容器用 opacity。 */
-    background: rgb(4 8 20 / calc(.72 + (var(--hx-a, 1) - 1) * .26));
-    backdrop-filter: blur(16px) saturate(1.15);
-    -webkit-backdrop-filter: blur(16px) saturate(1.15);
+    /* 外层是「挡板」，不是实色墙：颜色跟着 --hx-a（外观 → 界面透明度）走，
+       1 = 默认、2 = 实色。这是**叠加层**，没有替换网站背景，也没有对任何父容器用 opacity。
+
+       ══ 2026-11-23 第三轮：整屏毛玻璃**彻底去掉**（所有档位一致，不按设备挑） ══
+       证据链：同一台 iPad、同一份 build，「标准」档排位狂闪、左栏身份卡整片空白；
+       切「极简」立刻正常。两档在本窗上唯一的差别就是这条 backdrop-filter 与底色透明度
+       （见下面 html.is-lite / html.rk-steady 两条，它们本来就是在做「去掉模糊 + 底色压到 .90」）。
+
+       原理：#fw-rank 是铺满整屏的 fixed 层，backdrop-filter 让 WebKit **每一帧**都要把整块底色
+       重新取样 → 降采样 → 高斯模糊 → 再与本层合成。iPad 的合成器没有这个余量，表现就是整块屏频闪；
+       更糟的是主线程一旦被合成/栅格化挤占，子元素的首次绘制会被推迟 —— 这就是「格子整片空白、
+       名字不出来」的由来（DOM 里卡片都在，只是画不出来）。
+       电脑有独立 GPU 扛得住，所以「电脑很好、pad 闪」，这与设置无关。
+
+       底色由 .72 提到 .90（与极简同档），玻璃质感交给 .rk::before / .rk::after 的静态渐变维持。
+       观感差别只有「底下那 28% 的暗部不再透出」—— 而它本来就被 16px 模糊糊成一片噪点，肉眼看不出来。 */
+    background: rgb(4 8 20 / calc(.90 + (var(--hx-a, 1) - 1) * .08));
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
     --rkx-line: rgba(90, 132, 224, .28);
     --rkx-line-hi: rgba(0, 207, 255, .38);
   }
@@ -2245,9 +2277,17 @@
   /* 学生身份卡：auto-fill 网格，卡片高度由 JS 按可用空间算（--rowh） */
   #fw-rank #rkPick { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
   #fw-rank #rkPick > .rkx-grid { flex: 1; min-height: 0; }
-  #fw-rank .rkx-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(138px, 1fr));
-    grid-auto-rows: var(--rowh, 84px); gap: 9px; overflow-y: auto; overflow-x: hidden;
-    align-content: start; padding: 2px; min-height: 0; }
+  /* ══ 2026-11-23 第三轮：改成「滚动容器 + 内层网格」两层 ══
+     原来是一层：.rkx-grid 自己是 grid 又是滚动容器，占位只能塞成「假网格行」。
+     但 grid-auto-rows 是**固定行高**，塞进去的 861px 占位行并不会撑开滚动区（只溢出），
+     实测后果：名单 49 人滚到底只到第 39 号，40~49 永远滚不出来（test/_probe-scroll2.cjs）。
+     现在拆开：外层只负责滚动（block），内层负责排版（grid），占位用内层的 padding-top/bottom ——
+     padding 在内层，不影响外层的 clientHeight，总高恒等于「所有行的自然高度」，
+     滚到底就是最后一个人。算式见 rank.js 的 mountGrid。 */
+  #fw-rank .rkx-grid { display: block; overflow-y: auto; overflow-x: hidden; padding: 2px; min-height: 0;
+    -webkit-overflow-scrolling: touch; }
+  #fw-rank .rkx-in { display: grid; grid-template-columns: repeat(auto-fill, minmax(138px, 1fr));
+    grid-auto-rows: var(--rowh, 84px); gap: 9px; align-content: start; }
   #fw-rank .rkx-stu { position: relative; display: flex; flex-direction: column; justify-content: center; gap: 2px;
     padding: 8px 12px; border-radius: 12px; overflow: hidden; text-align: left; cursor: pointer;
     border: 1px solid rgba(90, 132, 224, .30);
@@ -2297,7 +2337,10 @@
        紫蓝青霓虹渐变 —— 只靠半透明层的话，表头左三分之一会整片透出紫色（实测 #8758c8，标题后面像贴了张紫纸）。
        卡片区同理。透明度开关仍生效：--hx-a=2 时才会压到接近实色。 */
     background-color: rgb(9 15 32 / calc(.86 + (var(--hx-a, 1) - 1) * .10));
-    backdrop-filter: blur(8px); }
+    /* 2026-11-23：这里原来还有 backdrop-filter: blur(8px)。表头已有 .86 的不透明底，
+       模糊只作用在背后那一层霓虹渐变上，肉眼几乎看不出；但它在 iPad 上要跟着整条表头一起重模糊。
+       整屏毛玻璃撤掉之后这条也一并去掉，避免留下最后一处「每帧重算」的层。 */
+    backdrop-filter: none; }
   #fw-rank .rk-right > .rk-bh svg { flex: none; width: 20px; height: 20px; fill: none; stroke: #ffd68a; stroke-width: 1.6; }
   /* 标题扫描光：和 pt-tt b / ptTitleScan 同一套（线性渐变当遮罩，只让字身上那一小段亮）。
      必须保留 text-overflow:ellipsis —— 题名/榜单标题太长时还是省略号，不是整行硬撑。 */
@@ -2742,8 +2785,9 @@
   html[data-hx-mode="light"] #fw-rank {
     --rk-ink: #10203a; --rk-dim: #5b6b88;
     --rk-bg: #f2f5fb; --rk-panel: #ffffff; --rk-panel2: #f4f8ff;
-    background: rgb(238 242 250 / .80);
-    -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); }
+    background: rgb(238 242 250 / .94);
+    /* 2026-11-23：与深色档同步 —— 整屏 backdrop-filter 一律不用（iPad 上每帧重模糊整块屏 = 频闪） */
+    -webkit-backdrop-filter: none; backdrop-filter: none; }
   html[data-hx-mode="light"] #fw-rank .rk::before {
     background-image: linear-gradient(rgba(64, 110, 190, .07) 1px, transparent 1px),
       linear-gradient(90deg, rgba(64, 110, 190, .07) 1px, transparent 1px); }
@@ -2994,8 +3038,13 @@
      保留原定义（下面那两段）只做存档，这里用 display:none 覆盖 —— 想恢复删掉这一条即可。
      同理前三名卡片的 .rkx-run 双跑马灯也一起停（见下面第 2 段后面那条）。
      停掉的是「光在边框里转」，边框、底色、圆角、阴影、卡片层次全都不动。 */
+  /* ── 2026-11-23 第三轮补刀：只 display:none 是**止不住代价**的 ──
+     getAnimations() 实测：这两枚伪元素虽然已经看不见，rkRunCW / rkRunCCW 仍以
+     「元素边框盒 48% 屏」的尺寸每帧 tick（`.rk-right` 上还挂着 drop-shadow，等于每帧
+     对近半屏做一次滤镜卷积 + 重新栅格化）。这就是「pad 端排行榜狂闪」里最大的一笔空转 ——
+     视觉产出为零，合成器开销照付。所以这里连动画一起停。 */
   #fw-rank .rk-right::before, #fw-rank .rk-right::after,
-  #fw-rank .rkx-run::before, #fw-rank .rkx-run::after { display: none !important; }
+  #fw-rank .rkx-run::before, #fw-rank .rkx-run::after { display: none !important; animation: none !important; }
   #fw-rank .rk-right > .rk-rin { z-index: 1; }
   #fw-rank .rk-right::before,
   #fw-rank .rk-right::after { content: ""; position: absolute; z-index: 0; pointer-events: none;
@@ -3163,7 +3212,7 @@
   }
   @media (max-width: 640px) {
     #fw-rank .rkx-pill { height: 40px; padding: 0 11px; font-size: 14px; }
-    #fw-rank .rkx-grid { grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); }
+    #fw-rank .rkx-in { grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); }
     #fw-rank .rk-hero { flex-wrap: wrap; }
     #fw-rank .rk-hero .rk-start { flex: 1 1 100%; }
   }
@@ -6428,7 +6477,7 @@ async function rkPicker(el, body) {
     const st = bg ? rkBgStyle(bg.bg, rkTuneOf(bg, 4)) : '';
     return `<button type="button" class="rkx-stu${on ? ' on' : ''}${s.self_reg ? ' self' : ''}" data-s="${s.id}" aria-pressed="${on ? 'true' : 'false'}" data-nobg="${st ? '0' : '1'}" style="--i:${Math.min(i, 12)}" title="${esc(rkStuName(s))}${s.student_no ? ' · 学号 ' + esc(String(s.student_no)) : ''}"><span class="rkx-stu-bg" aria-hidden="true"${st ? ` style="${esc(st)}"` : ''}></span><span class="rkx-stu-veil" aria-hidden="true"></span><i>${seq}</i><b>${esc(rkStuName(s))}</b><small>${clsIco}${esc(cls ? cls.name : '')}</small></button>`;
   };
-  el.innerHTML = `<div class="rkx-clsbar">${pills}</div><div class="rkx-grid" data-total="${list.length}"></div>`;
+  el.innerHTML = `<div class="rkx-clsbar">${pills}</div><div class="rkx-grid" data-total="${list.length}"><div class="rkx-in"></div></div>`;
   /* ── 学生格虚拟化（2026-11-24，用户：「我觉得只渲染看得见的行就可以了」）──────────
      起因：排位窗里有 716 个节点（49 个学生格就占 ~290 个），实测「内容清空只剩窗框」
      21ms/帧、原样 216ms/帧 —— 成本几乎全在节点数上。学生格是唯一一块「一次全渲染、
@@ -6451,34 +6500,68 @@ async function rkPicker(el, body) {
   };
   const mountGrid = force => {
     if (!list.length) return;
-    const cs = getComputedStyle(grid);
-    const cols = (cs.gridTemplateColumns || '').split(' ').filter(Boolean).length || 1;
-    const rowH = (parseFloat(cs.gridAutoRows) || 84) + (parseFloat(cs.rowGap) || 9);
-    const rows = Math.ceil(list.length / cols);
-    const vis = Math.max(1, Math.ceil((grid.clientHeight || 240) / rowH));
-    let r0 = Math.floor((grid.scrollTop || 0) / rowH) - 1;              // 上缓冲 1 行
-    r0 = Math.max(0, Math.min(r0, Math.max(0, rows - vis)));
-    const r1 = Math.min(rows, r0 + vis + 1);                            // 下缓冲 1 行
-    const a = r0 * cols, b = Math.min(list.length, r1 * cols);
-    if (!force && a === mFrom && b === mTo) return;
-    mFrom = a; mTo = b;
-    /* 占位用**真实的网格子元素**，不用容器 padding —— 踩过：这块容器的高度在有些断点下是
-       内容撑起来的，给它加 padding-bottom 会把容器本身撑高，clientHeight 跟着变，
-       「可见行数」又变，于是挂载范围在滚到底时一次性放开成全部（实测 40 → 49）。
-       占位行参与网格流，scrollHeight 正确、容器高度不变，范围就稳定了。 */
-    const gap = parseFloat(cs.rowGap) || 9;
-    const sp = h => (h > 0 ? `<div class="rkx-sp" aria-hidden="true" style="grid-column:1/-1;height:${h}px"></div>` : '');
-    grid.innerHTML = sp(r0 ? r0 * rowH - gap : 0)
-      + list.slice(a, b).map((s, k) => cardOf(s, a + k)).join('')
-      + sp(rows - r1 > 0 ? (rows - r1) * rowH - gap : 0);
-    bindStu();
+    /* inner = 真正排版的那层（grid）；grid = 外层滚动容器（block）。
+       两层是 2026-11-23 分开的：占位必须用 inner 的 padding，
+       放在滚动容器上会把它自己的 clientHeight 一起撑大（以前踩过）。 */
+    const inner = grid.querySelector('.rkx-in') || grid;
+    try {
+      const cs = getComputedStyle(inner);
+      const cols = (cs.gridTemplateColumns || '').split(' ').filter(Boolean).length || 1;
+      const rh = parseFloat(cs.gridAutoRows) || 78;                        // 单行高度（不含 gap）
+      const gap = parseFloat(cs.rowGap) || 9;
+      const step = rh + gap;                                               // 行距
+      const rows = Math.ceil(list.length / cols);
+      const vis = Math.max(1, Math.ceil((grid.clientHeight || 240) / step));
+      let r0 = Math.floor((grid.scrollTop || 0) / step) - 1;               // 上缓冲 1 行
+      r0 = Math.max(0, Math.min(r0, Math.max(0, rows - vis)));
+      let r1 = Math.min(rows, r0 + vis + 1);                               // 下缓冲 1 行
+      let a = r0 * cols, b = Math.min(list.length, r1 * cols);
+      /* 兜底（2026-11-23）：算出来的范围是空的、或者根本覆盖不到任何人，而名单又非空 →
+         直接全量渲染。这是「左栏学生格整片空白、可名单明明有 49 人」那类现场的最后一道闸：
+         宁可多挂几张卡（慢一点），也绝不允许留白。 */
+      if (!(b > a)) { a = 0; b = list.length; r0 = 0; r1 = rows; }
+      if (!force && a === mFrom && b === mTo) return;
+      mFrom = a; mTo = b;
+      /* 占位：内层上下 padding。总高恒等于「rows 行的自然高度」——
+         padTop + M*rh + (M-1)*gap + padBot，其中 padTop = r0*step、padBot = (rows-r1)*step，
+         M = r1-r0，代入后正好化简成 rows*rh + (rows-1)*gap，与滚动位置无关。
+         所以滚动条长度稳定、滚到底就是最后一个人，也不会出现「滚一下弹一下」。 */
+      inner.style.paddingTop = (r0 * step) + 'px';
+      inner.style.paddingBottom = ((rows - r1) * step) + 'px';
+      /* ══ 2026-11-23 第三轮：从「整块 innerHTML 替换」改成「按 data-s 复用节点」 ══
+         起因：用户报「pad 端排行榜狂闪」。整块替换意味着每滚一行就把 20 多张卡全部销毁重建，
+         iPad 上每次重建都要重新布局 + 重新栅格化，滚动时就是一片抖/闪；而且原本选中态的
+         hover/焦点全部丢失。现在只移出/移入边界那一行，已存在的卡片原地复用。
+         顺序仍然严格按 want 排（用 replaceChildren 而不是 append，避免复用节点乱序）。 */
+      const want = list.slice(a, b);
+      const old = new Map();
+      inner.querySelectorAll('[data-s]').forEach(el => old.set(el.dataset.s, el));
+      const mk = html => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
+      const nodes = want.map((s, k) => old.get(String(s.id)) || mk(cardOf(s, a + k)));
+      /* 先记位置再换子节点：replaceChildren 的中间态里内容会短暂变短，
+         WebKit 会顺手把 scrollTop 钳下去。换完立刻复位，用户视角就是「纹丝不动」。 */
+      const st = grid.scrollTop || 0;
+      inner.replaceChildren(...nodes);
+      if (st && Math.abs(grid.scrollTop - st) > 1) grid.scrollTop = st;
+      bindStu();
+    } catch (e) {
+      /* 挂载出错绝不许留白：退回「全部渲染」，并把这个错误留给控制台（不弹给学生）。 */
+      try {
+        inner.style.paddingTop = ''; inner.style.paddingBottom = '';
+        inner.innerHTML = list.map((s, k) => cardOf(s, k)).join('');
+        bindStu(); mFrom = 0; mTo = list.length;
+        console.error('[rk] 学生格挂载失败，已退回全量渲染', e);
+      } catch (e2) { console.error('[rk] 学生格全量渲染也失败', e2); }
+    }
   };
   rkFitGrid(grid, list.length);
   mountGrid(true);
   /* 首帧时 grid 的 flex 高度可能还没算出来（clientHeight=0 → 只挂 1 行），两帧后再量一次。
      这也是「只挂可视行」唯一的时序坑，用一次双 rAF 补掉。 */
   requestAnimationFrame(() => requestAnimationFrame(() => { rkFitGrid(grid, list.length); mountGrid(true); }));
-  grid.__remount = () => { rkFitGrid(grid, list.length); mountGrid(true); };
+  /* resize 不再 force：旋转屏 / 工具栏收放会让列数和行高变化，非 force 的 mountGrid 也能识别出
+     a/b 变了并重挂；而 force 会在每次 resize 都把整块重排一遍 —— iPad 上那就是「转一下屏闪一下」。 */
+  grid.__remount = () => { rkFitGrid(grid, list.length); mFrom = -1; mountGrid(); };
   grid.onscroll = () => { if (mRaf) return; mRaf = requestAnimationFrame(() => { mRaf = 0; mountGrid(); }); };
   // 背景异步补：不阻塞首屏；回来后若名单还是这个班就按新背景重挂一次（只挂可视那几张，很便宜）
   rkClassBgs().then(fresh => {
@@ -6500,9 +6583,13 @@ async function rkPicker(el, body) {
 // 而 `1fr` 又会让 2 行撑到 300px 高、姓名孤零零吊在中间。两种都不好看，所以按实际行数量一次。
 function rkFitGrid(grid, total) {
   if (!grid) return;
-  // 虚拟化后 grid.children 只是「可视那几张」，行数要按名单总数算（data-total 由 rkPicker 写）。
-  const n = total || +grid.dataset.total || grid.children.length; if (!n) return;
-  const cs = getComputedStyle(grid);
+  /* 2026-11-23：列数/行距要问**内层**（.rkx-in 才是 grid），可用高度问**外层**（滚动容器）。
+     问错一层的后果：内层没挂上去时读到 'none' → 列数 1 → 行数 49 → 行高被压到 78 下限，
+     卡片全挤成一列且滚不到底。 */
+  const inner = grid.querySelector('.rkx-in') || grid;
+  // 虚拟化后 inner.children 只是「可视那几张」，行数要按名单总数算（data-total 由 rkPicker 写）。
+  const n = total || +grid.dataset.total || inner.children.length; if (!n) return;
+  const cs = getComputedStyle(inner);
   const cols = (cs.gridTemplateColumns || '').split(' ').filter(Boolean).length || 1;
   const rows = Math.ceil(n / cols);
   const gap = parseFloat(cs.rowGap) || 9;
