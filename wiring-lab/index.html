@@ -3,7 +3,7 @@
 <html lang="zh-CN">
 <head>
 <script src="../hx-theme.js" data-tool="wiring"></script>
-<script>window.HX_BUILD = "2026-11-24T05:11:44Z e717c8d";</script>
+<script>window.HX_BUILD = "2026-11-24T05:14:17Z faf2442";</script>
 <meta charset="utf-8">
 <meta name="copyright" content="© 2026 zcq 版权所有，未经许可禁止复制、修改、转载">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
@@ -4252,6 +4252,15 @@ function closePanel(el) {
   el.classList.remove('show');
   pauseFw(el);
   if (panelNow && panelNow.el === el) panelNow = null;
+  /* 2026-11-24 现场 bug（用户视频：点返回之后整块内容消失、只剩壁纸）：
+     关排位窗的时候 #rkVeil 可能还挂着 .show（准备页 / 倒数 / 成绩都在这一层，它挂在 body 上、
+     不属于这扇窗）。它一挂着 html.rk-cover 就撤不掉 → #stage{visibility:hidden}
+     → 练习页永远不显示。遮罩是排位专属的，窗一关就跟着收干净。 */
+  if (el.id === 'fw-rank' && typeof window.__rkHideVeil === 'function') {
+    try { window.__rkHideVeil(); } catch (e) { }
+    // 遮罩收了、rk-cover 也跟着撤，顺手把练习页画布放行（不然画面看得见却一直停在旧帧）
+    try { notifyCircuits(); } catch (e) { }
+  }
 }
 function openPanel(id, o) {
   if (panelNow && panelNow.id !== id) closePanel(panelNow.el); // 先关上一个，再开新的：桌面上永远只有一个
@@ -7837,6 +7846,11 @@ const rkHideOverlay = () => {
   v.classList.remove('show');
   v.classList.remove('counting');
 };
+/* 2026-11-24：给外壳（project2.html 的 rk-cover 观察器）一个兜底入口。
+   现场 bug：排位窗被关掉、但 #rkVeil 还挂着 .show → html.rk-cover 一直生效 →
+   #stage{visibility:hidden} → **整块内容消失、只剩壁纸**（用户视频里的「崩溃」就是这个）。
+   外壳那边检测到「窗已关、遮罩还在」时调一次这个，把遮罩收干净。 */
+try { window.__rkHideVeil = rkHideOverlay; } catch (e) { }
 /* ── 操作流水（2026-11-23，反作弊的证据层）────────────────────────────────────
    用户原话：「这两个脚本连接踢出排行榜 但不删除成绩 … 另外我们怎么避免脚本作弊呢」。
    这里在**起表那一刻**开始，在练习页自己的 document 上听真实的指针/键盘事件，记下
