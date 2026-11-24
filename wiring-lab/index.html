@@ -3,7 +3,7 @@
 <html lang="zh-CN">
 <head>
 <script src="../hx-theme.js" data-tool="wiring"></script>
-<script>window.HX_BUILD = "2026-11-24T05:01:29Z 252a231";</script>
+<script>window.HX_BUILD = "2026-11-24T05:02:57Z 8785b9d";</script>
 <meta charset="utf-8">
 <meta name="copyright" content="© 2026 zcq 版权所有，未经许可禁止复制、修改、转载">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
@@ -3138,7 +3138,13 @@
     #fw-rank .rk-main { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; overflow: visible; }
     #fw-rank .rk-left, #fw-rank .rk-right { width: 100%; }
     #fw-rank .rk-students { flex: none; }
-    #fw-rank .rkx-grid { max-height: 46vh; }
+    /* 2026-11-24 用户：「现在还是卡的出不来信息」「只渲染看得见的行就可以了」。
+       实测（test/_probe-layout.cjs，iPad Pro 11 竖屏 834×1194）：单列布局下名单区吃掉 549px
+       （46vh），整页内容 1676px，**榜单区 top=974、整块在首屏之外** —— 打开排位看到的就是
+       上半屏名单、下半屏空，榜单要往下滚一大截才出现，观感就是「半天出不来信息」。
+       名单压到 3 行（配合学生格虚拟化，实际只挂 15~20 张卡），榜单就进首屏了。 */
+    #fw-rank .rkx-grid { max-height: 46vh; } /* 老 Safari 不认下面的 min() 时用这条兜底 */
+    #fw-rank .rkx-grid { max-height: min(46vh, calc(var(--rowh, 84px) * 3 + 18px)); }
     /* 2026-11-19：手机/平板单列布局时，榜单外层高度是内容决定的（不是 flex 分配来的），
        不能拿它去算缩放比例（会「量到 0 → 缩成 0 → 再量还是 0」）。
        这里把舞台外层的高度交给 rank.js 定：先按宽度算 k，再把外层高度写死成 667×k。
