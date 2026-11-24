@@ -3,7 +3,7 @@
 <html lang="zh-CN">
 <head>
 <script src="../hx-theme.js" data-tool="wiring"></script>
-<script>window.HX_BUILD = "2026-11-24T04:49:59Z b2a923d";</script>
+<script>window.HX_BUILD = "2026-11-24T05:01:29Z 252a231";</script>
 <meta charset="utf-8">
 <meta name="copyright" content="© 2026 zcq 版权所有，未经许可禁止复制、修改、转载">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
@@ -2989,6 +2989,13 @@
   /* ── 1. 右栏外框：双向跑马灯（只在那 1.5px 描边里跑，不进屋内）──
      .rk-rin 抬到 z-index:1，把旋转层压在下面 → 只有 padding:1.5px 那一圈露出来。
      旋转层固定 1600×1600：右栏最大约 1000×760，对角线 1256 < 1600，任何视口都盖得住。 */
+  /* ── 2026-11-24 用户：「取消排行榜的旋转样式的光效 我看看是不是他的问题」──
+     右栏外框那两枚 1600×1600 圆锥渐变（一顺一逆，7.2s / 9.4s 匀速）整个停掉，**所有模式都停**。
+     保留原定义（下面那两段）只做存档，这里用 display:none 覆盖 —— 想恢复删掉这一条即可。
+     同理前三名卡片的 .rkx-run 双跑马灯也一起停（见下面第 2 段后面那条）。
+     停掉的是「光在边框里转」，边框、底色、圆角、阴影、卡片层次全都不动。 */
+  #fw-rank .rk-right::before, #fw-rank .rk-right::after,
+  #fw-rank .rkx-run::before, #fw-rank .rkx-run::after { display: none !important; }
   #fw-rank .rk-right > .rk-rin { z-index: 1; }
   #fw-rank .rk-right::before,
   #fw-rank .rk-right::after { content: ""; position: absolute; z-index: 0; pointer-events: none;
@@ -6398,31 +6405,70 @@ async function rkPicker(el, body) {
   // 没上过榜的学生在 hx_rank_bgs 里查不到背景，退回默认底，不影响名单渲染。
   // 2026-11-14 优化「加载慢」：背景 rpc 不再阻塞名单首屏 —— 先用缓存/空背景画出名单，
   // rkClassBgs() 异步回来后再给对应的学生卡补背景（只补一次，不整块重绘、不打断选中态）。
-  const bgs = RK._bgs || {};
-  const paintCards = (bgMap) => {
-    const cur = el.querySelectorAll('.rkx-stu');
-    if (!cur.length) return;
-    cur.forEach(btn => {
-      const sid = +btn.dataset.s;
-      const bg = bgMap[sid];
-      const st = bg ? rkBgStyle(bg.bg, rkTuneOf(bg, 4)) : '';
-      const span = btn.querySelector('.rkx-stu-bg');
-      if (st) { span.setAttribute('style', st); btn.dataset.nobg = '0'; }
-    });
-  };
-  const cards = list.map((s, i) => {
+  let bgMap = RK._bgs || {};
+  const cardOf = (s, i) => {
     const on = !!(RK.pick && RK.pick.id === s.id);
     const seq = s.seq < 1000 ? String(s.seq).padStart(2, '0') : '+';
-    const bg = bgs[s.id];
+    const bg = bgMap[s.id];
     const st = bg ? rkBgStyle(bg.bg, rkTuneOf(bg, 4)) : '';
     return `<button type="button" class="rkx-stu${on ? ' on' : ''}${s.self_reg ? ' self' : ''}" data-s="${s.id}" aria-pressed="${on ? 'true' : 'false'}" data-nobg="${st ? '0' : '1'}" style="--i:${Math.min(i, 12)}" title="${esc(rkStuName(s))}${s.student_no ? ' · 学号 ' + esc(String(s.student_no)) : ''}"><span class="rkx-stu-bg" aria-hidden="true"${st ? ` style="${esc(st)}"` : ''}></span><span class="rkx-stu-veil" aria-hidden="true"></span><i>${seq}</i><b>${esc(rkStuName(s))}</b><small>${clsIco}${esc(cls ? cls.name : '')}</small></button>`;
-  }).join('');
-  el.innerHTML = `<div class="rkx-clsbar">${pills}</div><div class="rkx-grid">${cards}</div>`;
-  rkFitGrid(el.querySelector('.rkx-grid'));
-  // 背景异步补：不阻塞首屏；回来后若名单还是这个班就原地补背景
+  };
+  el.innerHTML = `<div class="rkx-clsbar">${pills}</div><div class="rkx-grid" data-total="${list.length}"></div>`;
+  /* ── 学生格虚拟化（2026-11-24，用户：「我觉得只渲染看得见的行就可以了」）──────────
+     起因：排位窗里有 716 个节点（49 个学生格就占 ~290 个），实测「内容清空只剩窗框」
+     21ms/帧、原样 216ms/帧 —— 成本几乎全在节点数上。学生格是唯一一块「一次全渲染、
+     但一屏只看得见几行」的区域，所以只给它做窗口化，其余不动。
+     做法：按 --rowh（rkFitGrid 算出来的行高）+ 列数，只挂可视行上下各留缓冲的卡片，
+     前后用 padding 撑出等价高度，滚动条长度不变、滚动手感和原来一样。
+     卡片数只有一屏，任何一次重绘都便宜；名单本身（list）一点没少。 */
+  const grid = el.querySelector('.rkx-grid');
+  let mFrom = -1, mTo = -1, mRaf = 0;
+  const bindStu = () => {
+    grid.querySelectorAll('[data-s]').forEach(b => (b.onclick = () => {
+      const s = list.find(x => x.id === +b.dataset.s);
+      RK.pick = { id: s.id, name: rkStuName(s), cls: cls.name, no: s.student_no || '' }; ls.set('hx-rank-pick', JSON.stringify(RK.pick));
+      // 选手身份切换动画：旧名字淡出（.rk-switching，180ms）→ 重绘（新卡自带扫描线掠过 + 新名淡入 +
+      // 徽章增亮 + 网格里对应学生的橙色角标同步亮起）。RK.pick 已即时写好，纯视觉延迟。
+      const card = body.querySelector('.rk-hero');
+      if (card && !drwNoAnim()) { card.classList.add('rk-switching'); setTimeout(() => rkMain(body), 190); }
+      else rkMain(body);
+    }));
+  };
+  const mountGrid = force => {
+    if (!list.length) return;
+    const cs = getComputedStyle(grid);
+    const cols = (cs.gridTemplateColumns || '').split(' ').filter(Boolean).length || 1;
+    const rowH = (parseFloat(cs.gridAutoRows) || 84) + (parseFloat(cs.rowGap) || 9);
+    const rows = Math.ceil(list.length / cols);
+    const vis = Math.max(1, Math.ceil((grid.clientHeight || 240) / rowH));
+    let r0 = Math.floor((grid.scrollTop || 0) / rowH) - 1;              // 上缓冲 1 行
+    r0 = Math.max(0, Math.min(r0, Math.max(0, rows - vis)));
+    const r1 = Math.min(rows, r0 + vis + 1);                            // 下缓冲 1 行
+    const a = r0 * cols, b = Math.min(list.length, r1 * cols);
+    if (!force && a === mFrom && b === mTo) return;
+    mFrom = a; mTo = b;
+    /* 占位用**真实的网格子元素**，不用容器 padding —— 踩过：这块容器的高度在有些断点下是
+       内容撑起来的，给它加 padding-bottom 会把容器本身撑高，clientHeight 跟着变，
+       「可见行数」又变，于是挂载范围在滚到底时一次性放开成全部（实测 40 → 49）。
+       占位行参与网格流，scrollHeight 正确、容器高度不变，范围就稳定了。 */
+    const gap = parseFloat(cs.rowGap) || 9;
+    const sp = h => (h > 0 ? `<div class="rkx-sp" aria-hidden="true" style="grid-column:1/-1;height:${h}px"></div>` : '');
+    grid.innerHTML = sp(r0 ? r0 * rowH - gap : 0)
+      + list.slice(a, b).map((s, k) => cardOf(s, a + k)).join('')
+      + sp(rows - r1 > 0 ? (rows - r1) * rowH - gap : 0);
+    bindStu();
+  };
+  rkFitGrid(grid, list.length);
+  mountGrid(true);
+  /* 首帧时 grid 的 flex 高度可能还没算出来（clientHeight=0 → 只挂 1 行），两帧后再量一次。
+     这也是「只挂可视行」唯一的时序坑，用一次双 rAF 补掉。 */
+  requestAnimationFrame(() => requestAnimationFrame(() => { rkFitGrid(grid, list.length); mountGrid(true); }));
+  grid.__remount = () => { rkFitGrid(grid, list.length); mountGrid(true); };
+  grid.onscroll = () => { if (mRaf) return; mRaf = requestAnimationFrame(() => { mRaf = 0; mountGrid(); }); };
+  // 背景异步补：不阻塞首屏；回来后若名单还是这个班就按新背景重挂一次（只挂可视那几张，很便宜）
   rkClassBgs().then(fresh => {
-    RK._bgs = fresh;
-    if (RK.cls === cls.id) paintCards(fresh);
+    RK._bgs = fresh; bgMap = fresh || {};
+    if (RK.cls === cls.id) { mFrom = -1; mountGrid(true); }
   }).catch(() => {});
   el.querySelectorAll('[data-k]').forEach(b => (b.onclick = () => {
     if (+b.dataset.k === RK.cls) return; // 点的就是当前班：状态没变，不再重绘（原逻辑重绘结果等价）
@@ -6433,22 +6479,14 @@ async function rkPicker(el, body) {
     if (g && !drwNoAnim()) { g.classList.add('rk-fading'); if (bar) bar.classList.add('rk-fading'); setTimeout(() => rkPicker(el, body), 140); }
     else rkPicker(el, body);
   }));
-  el.querySelectorAll('[data-s]').forEach(b => (b.onclick = () => {
-    const s = list.find(x => x.id === +b.dataset.s);
-    RK.pick = { id: s.id, name: rkStuName(s), cls: cls.name, no: s.student_no || '' }; ls.set('hx-rank-pick', JSON.stringify(RK.pick));
-    // 选手身份切换动画：旧名字淡出（.rk-switching，180ms）→ 重绘（新卡自带扫描线掠过 + 新名淡入 +
-    // 徽章增亮 + 网格里对应学生的橙色角标同步亮起）。RK.pick 已即时写好，纯视觉延迟。
-    const card = body.querySelector('.rk-hero');
-    if (card && !drwNoAnim()) { card.classList.add('rk-switching'); setTimeout(() => rkMain(body), 190); }
-    else rkMain(body);
-  }));
 }
 // 学生卡高度自适应：把「这一屏剩下的高度」除以行数，夹在 78~118px 之间。
 // 为什么不 pure CSS：26 人 6 列只有 5 行，8 人 6 列只有 2 行 —— 固定 84px 会让小班留一大片空白，
 // 而 `1fr` 又会让 2 行撑到 300px 高、姓名孤零零吊在中间。两种都不好看，所以按实际行数量一次。
-function rkFitGrid(grid) {
+function rkFitGrid(grid, total) {
   if (!grid) return;
-  const n = grid.children.length; if (!n) return;
+  // 虚拟化后 grid.children 只是「可视那几张」，行数要按名单总数算（data-total 由 rkPicker 写）。
+  const n = total || +grid.dataset.total || grid.children.length; if (!n) return;
   const cs = getComputedStyle(grid);
   const cols = (cs.gridTemplateColumns || '').split(' ').filter(Boolean).length || 1;
   const rows = Math.ceil(n / cols);
@@ -6459,7 +6497,9 @@ function rkFitGrid(grid) {
 }
 addEventListener('resize', () => {
   const g = document.querySelector('#rkPick .rkx-grid');
-  if (g) rkFitGrid(g);
+  if (!g) return;
+  // 窗口尺寸变了 → 列数/行高都变，可视范围得重算（虚拟化的重挂由 __remount 负责）
+  if (typeof g.__remount === 'function') g.__remount(); else rkFitGrid(g, +g.dataset.total || 0);
 });
 /* ---------- 我的排位身份卡（R6 P1，2026-11-12）----------
    规格第八节要求「真正的账户 → 背景绑定，不许拿 localStorage 冒充」：
