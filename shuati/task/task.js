@@ -10,7 +10,7 @@
    ========================================================================== */
 import {
   hx, $, esc, typeName, statusText, fmtSec, fmtClock, fmtScore, mdStr, todayStr,
-  taskList, taskGet, taskSubmit, taskReview, jIcon,
+  taskList, taskGet, taskBoard, taskSubmit, taskReview, jIcon, every,
 } from './task-hx.js';
 import { figSvg } from '../symbols.js';
 
@@ -34,6 +34,7 @@ const S = {
   idx: 0,
   started: 0,
   result: null,      // { r, review, answers, task }
+  stopRank: null,    // 排行榜页的 5 秒轮询句柄：离开这一页必须停掉，否则一直在打服务器
 };
 const MAIN = () => $('#main');
 
@@ -77,6 +78,7 @@ function gate(title, msg, login) {
    教师端
    ========================================================================== */
 async function teacherView() {
+  stopRankPoll();   // 从排行榜页返回时把 5 秒轮询停掉，否则回到列表还在打服务器
   MAIN().className = 'qt-main';
   MAIN().innerHTML = '<div class="qt-panel"><div class="qt-empty">读取班级…</div></div>';
   try {
@@ -453,7 +455,8 @@ function paintTasks() {
         <div><em>题数</em><b>${t.asked}<small> 题</small></b></div>
       </div>
       <div class="qt-acts">
-        ${!del ? `<button class="qt-btn sm" data-act="board" data-id="${t.id}" type="button">打开大屏</button>` : ''}
+        ${!del ? `<button class="qt-btn sm" data-act="rank" data-id="${t.id}" type="button">排行榜</button>` : ''}
+        ${!del ? `<button class="qt-btn sm ghost" data-act="board" data-id="${t.id}" type="button">打开大屏</button>` : ''}
         ${!del && t.status === 'open' ? `<button class="qt-btn sm" data-act="close" data-id="${t.id}" type="button">结束</button>` : ''}
         ${!del && t.status === 'closed' ? `<button class="qt-btn sm" data-act="reopen" data-id="${t.id}" type="button">重开</button>` : ''}
         ${!del ? `<button class="qt-btn sm ghost" data-act="repost" data-id="${t.id}" type="button">再发一次</button>` : ''}
@@ -471,6 +474,7 @@ function paintTasks() {
 async function taskAct(act, id, btn) {
   const t = S.tasks.find(x => Number(x.id) === id);
   if (!t) return;
+  if (act === 'rank') { boardView(id); return; }   // 页内看榜：分数排行榜 + 未完成名单
   if (act === 'board') { window.open('board.html?t=' + id, '_blank'); return; }
   if (act === 'repost') return repost(t);
 
@@ -524,6 +528,7 @@ async function repost(t) {
    学生端
    ========================================================================== */
 async function studentView() {
+  stopRankPoll();
   MAIN().className = 'qt-main';
   MAIN().innerHTML = '<div class="qt-panel"><div class="qt-empty">读取任务…</div></div>';
   try { S.tasks = (await taskList()) || []; }
@@ -565,6 +570,7 @@ function paintStudent() {
           ? `<button class="qt-btn primary" data-do="${t.id}" type="button">${mine ? '再练一次（只升不降）' : '开始作答'}</button>`
           : ''}
         ${mine ? `<button class="qt-btn" data-look="${t.id}" type="button">查看成绩</button>` : ''}
+        <button class="qt-btn sm ghost" data-rank="${t.id}" type="button">排行榜</button>
       </div>
     </article>`;
   };
@@ -577,6 +583,106 @@ function paintStudent() {
 
   MAIN().querySelectorAll('[data-do]').forEach(b => b.onclick = () => openQuiz(Number(b.dataset.do)));
   MAIN().querySelectorAll('[data-look]').forEach(b => b.onclick = () => openQuiz(Number(b.dataset.look), true));
+  MAIN().querySelectorAll('[data-rank]').forEach(b => b.onclick = () => boardView(Number(b.dataset.rank)));
+}
+
+/* ============================================================================
+   分数排行榜 + 未完成名单（老师、学生共用）
+   ----------------------------------------------------------------------------
+   用户原话：「刷题的课堂任务也要显示分数排行榜 和未完成名单模块 可以开放期间无限刷分」。
+
+   为什么做成一整页而不是弹窗：
+     老师上课时要一边看榜一边点人，弹窗会挡住任务卡；学生下课想看自己第几名也是同一页。
+     顶上是「返回任务」，进来出去都是同一个动作，不新增导航层级。
+
+   数据只有一次 RPC（hx_quiz_task_board）：它现在返回**全班名单**，
+   交了卷的带 place / rate / score / seconds / tries，没交的 place 全 null。
+   一份数据同时铺「排行榜」和「未完成名单」—— 分成两个接口会出现
+   「未完成写着 3 人、名单只列出 2 个」这种错位（有人刚退班时就会）。
+
+   5 秒轮询：和任务大屏同一个口径（学生交卷后老师不用刷新就能看到新名次）。
+   离开这一页必须停（stopRankPoll），否则页面回任务列表了还在每 5 秒打一次服务器。
+   ========================================================================== */
+function stopRankPoll() {
+  if (S.stopRank) { try { S.stopRank(); } catch (e) { } S.stopRank = null; }
+}
+
+async function boardView(id) {
+  const t = S.tasks.find(x => Number(x.id) === Number(id));
+  if (!t) return;
+  stopRankPoll();
+  const isTeacher = !!(S.me.teacher || S.me.admin || S.me.dev);
+  const myId = S.me.student ? Number(S.me.student.id) : null;
+
+  MAIN().className = 'qt-main';
+  MAIN().innerHTML = `<section class="qt-panel qt-rankpanel">
+    <div class="qt-rankhead">
+      <div class="qt-ranktitle">
+        <b>${esc(t.title)}</b>
+        <span class="qt-tag">${esc(className(t.class_id))} · 第 ${t.lesson_no || '—'} 次课${t.lesson_date ? ' · ' + esc(t.lesson_date) : ''}</span>
+        <span class="qt-badge ${t.status}">${statusText(t.status)}</span>
+      </div>
+      <div class="qt-acts" style="margin:0">
+        <button class="qt-btn sm" id="rankBack" type="button">← 返回任务</button>
+        ${isTeacher ? '<button class="qt-btn sm ghost" id="rankBig" type="button">投到大屏</button>' : ''}
+      </div>
+    </div>
+    <div class="qt-body">
+      <div class="qt-kpis" id="rankKpi"><div class="qt-empty">读取排行榜…</div></div>
+      <div class="qt-rank" id="rankList"></div>
+      <div class="qt-todo">
+        <div class="qt-todohead">未完成 <b id="rankUndoneN">—</b> 人<span id="rankUndoneTip"></span></div>
+        <div class="qt-todolist" id="rankUndoList"></div>
+      </div>
+    </div>
+  </section>`;
+
+  $('#rankBack').onclick = () => { stopRankPoll(); isTeacher ? renderTeacher() : paintStudent(); };
+  if ($('#rankBig')) $('#rankBig').onclick = () => window.open('board.html?t=' + t.id, '_blank');
+
+  const paint = rows => {
+    const done = rows.filter(r => r.done);
+    const undone = rows.filter(r => !r.done);
+    const n = done.length, total = rows.length;
+    const avg = n ? Math.round(done.reduce((a, r) => a + (Number(r.rate) || 0), 0) / n) : 0;
+    const avgScore = n ? done.reduce((a, r) => a + (Number(r.score) || 0), 0) / n : 0;
+
+    $('#rankKpi').innerHTML = `
+      <div class="qt-kpi"><em>已完成</em><b>${n}<small> / ${total || '—'}</small></b></div>
+      <div class="qt-kpi"><em>平均准确率</em><b>${n ? avg : '—'}<small>%</small></b></div>
+      <div class="qt-kpi"><em>平均得分</em><b>${n ? fmtScore(avgScore) : '—'}<small> / ${fmtScore(t.full)}</small></b></div>
+      <div class="qt-kpi"><em>满分</em><b>${fmtScore(t.full)}<small> 分</small></b></div>`;
+
+    $('#rankList').innerHTML = !n
+      ? '<div class="qt-empty"><b>还没有人交卷</b>学生交卷后这里会实时出现名次（每 5 秒刷新一次）。</div>'
+      : `<div class="qt-rkhead">
+           <span class="pl">名次</span><span class="who">姓名 · 学号</span>
+           <span class="rt">准确率</span><span class="sc">得分</span><span class="sec">用时</span><span class="tr">练习</span>
+         </div>` + done.map(r => {
+        const place = Number(r.place) || 0;
+        const me = myId != null && Number(r.student_id) === myId;
+        return `<div class="qt-rkrow${place <= 3 ? ' m' + place : ''}${me ? ' me' : ''}">
+          <span class="pl">${place}</span>
+          <span class="who"><b>${esc(r.name || '—')}</b><i>${r.group_name ? esc(r.group_name) + ' · ' : ''}${esc(r.student_no || '')}</i></span>
+          <span class="rt${Number(r.rate) >= 100 ? ' gold' : Number(r.rate) < 60 ? ' low' : ''}">${r.rate}%</span>
+          <span class="sc">${fmtScore(r.score)}<small>分</small></span>
+          <span class="sec">${r.seconds == null ? '—' : fmtSec(r.seconds)}</span>
+          <span class="tr${Number(r.tries) > 1 ? ' used' : ''}">${Number(r.tries) > 1 ? '练 ' + r.tries + ' 次' : '1 次'}</span>
+        </div>`;
+      }).join('');
+
+    $('#rankUndoneN').textContent = undone.length;
+    $('#rankUndoneTip').textContent = undone.length && t.status === 'open' ? ' · 还在开放，可以继续做' : '';
+    $('#rankUndoList').innerHTML = undone.length
+      ? undone.map(r => `<i class="qt-undochip">${esc(r.name || '—')}${r.student_no ? `<small>${esc(r.student_no)}</small>` : ''}</i>`).join('')
+      : '<p class="qt-allgood">全班都交了 ✓</p>';
+  };
+
+  try { paint(await taskBoard(t.id)); }
+  catch (e) {
+    $('#rankKpi').innerHTML = `<p class="qt-hint" style="color:var(--qt-bad)">读取排行榜失败：${esc(e.message)}</p>`;
+  }
+  S.stopRank = every(5000, async () => { paint(await taskBoard(t.id)); });
 }
 
 /* ---------------- 作答 ---------------- */
@@ -801,8 +907,13 @@ function renderResult() {
      （表契约里没有 answers 列，别为了这个去改库）。所以这一档只列正确答案和解析，
      不假装「你的答案 = 未作答」—— 那会把答对的人也说成全错。交卷当页的明细照旧完整。 */
   const wrong = hasReview && !look ? review.map(q => ({ q, my: answers[q.id] })).filter(x => !isRight(x.q, x.my)) : [];
+  /* 「开放期间无限刷分」的口径就写在这一句里：
+       交多少次都行，成绩只升不降，次数照样累加（r.tries 由 hx_quiz_task_submit 返回）。
+     没超过旧成绩时说清「保留的是哪一次」，超过了就直接报喜 —— 两种都要让学生知道这是第几次。 */
+  const tries = Number(r.tries) || 1;
   const keptTip = r.kept === false
-    ? '<div class="qt-score-hero"><div></div><div><div class="score">这次没有超过之前的成绩</div><div class="sub">系统保留了你的最好成绩（只升不降），这次不用重交。</div></div></div>' : '';
+    ? '<div class="qt-score-hero"><div></div><div><div class="score">这次没有超过之前的成绩</div><div class="sub">系统保留了你的最好成绩（只升不降），这次不用重交。这是第 ' + tries + ' 次练习。</div></div></div>'
+    : (tries > 1 ? '<div class="qt-score-hero"><div></div><div><div class="score">刷新了最好成绩</div><div class="sub">这是第 ' + tries + ' 次练习，开放期间可以一直练，成绩只升不降。</div></div></div>' : '');
 
   box.innerHTML = `
     <div class="qt-quiz-top">
@@ -815,7 +926,7 @@ function renderResult() {
           <div class="rate">${r.rate}<small>%</small></div>
           <div>
             <div class="score">${fmtScore(r.score)} <small>/ ${fmtScore(task.full)} 分</small></div>
-            <div class="sub">答对 ${r.right} / ${r.asked} 题${R.seconds ? ' · 用时 ' + fmtSec(R.seconds) : ''}</div>
+            <div class="sub">答对 ${r.right} / ${r.asked} 题${R.seconds ? ' · 用时 ' + fmtSec(R.seconds) : ''}${tries > 1 ? ' · 已练 ' + tries + ' 次' : ''}</div>
           </div>
         </div>
         ${keptTip}

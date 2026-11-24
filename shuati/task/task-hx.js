@@ -65,7 +65,16 @@ export function every(ms, fn) {
 // 显式带 p_class: null：PostgREST 对「只有一个带默认值的参数」解析不稳，省略时偶尔报找不到函数
 export const taskList = (p_class) => hx.rpc('hx_quiz_task_list', { p_class: p_class == null ? null : p_class });
 export const taskGet = (id) => hx.rpc('hx_quiz_task_get', { p_id: id });
-export const taskBoard = (id) => hx.rpc('hx_quiz_task_board', { p_task: id });
+/* 榜单兼容垫片（2026-11-24）：新版 hx_quiz_task_board 返回**全班名单**（带 done / tries），
+   旧版只返回已交卷的人、也没有这两列。前端发布和 SQL 执行之间必然有一段时间差，
+   这段里如果不垫一层，`r.done` 是 undefined → 未完成名单直接变成「全班都交了」，
+   tries 也是 NaN → 每行都印「NaN 次」。所以统一在这里补齐，两种版本都显示得对。
+   （SQL 见 刷题/supabase/2026-11-24-课堂任务排行榜与未完成名单.sql） */
+export const taskBoard = (id) => hx.rpc('hx_quiz_task_board', { p_task: id }).then(rows =>
+  (rows || []).map(r => Object.assign({}, r, {
+    done: r.done === undefined ? true : !!r.done,
+    tries: r.tries == null ? 1 : Number(r.tries) || 1,
+  })));
 export const taskScores = (cls) => hx.rpc('hx_quiz_task_scores', { p_class: cls });
 export const taskSubmit = (id, answers, seconds) =>
   hx.rpc('hx_quiz_task_submit', { p_task: id, p_answers: answers, p_seconds: seconds });

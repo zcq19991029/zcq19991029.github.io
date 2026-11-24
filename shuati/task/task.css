@@ -370,6 +370,11 @@ body.qt-board::before {
 }
 .bd-row.down .bd-move { background: rgba(251, 113, 133, .14); color: var(--bd-bad); }
 /* 人少放大、人多缩小：列数/每列行数由 JS 算（见 task-board.js 的 fit），绝不出现滚动条 */
+/* 名次格的列宽跟着字号走：原来三档都留 5.4vmin，s3 档格子已缩到 3.4vmin，
+   白扔 2vmin 的宽度，本来可以给姓名（出图踩过：姓名只剩一个字） */
+.bd-list.s1 { --bd-pw: 5.4vmin; }
+.bd-list.s2 { --bd-pw: 4.6vmin; }
+.bd-list.s3 { --bd-pw: 3.6vmin; }
 .bd-list.s1 .bd-who b { font-size: 3.0vmin; }
 .bd-list.s1 .bd-who span { font-size: 1.55vmin; }
 .bd-list.s1 .bd-rate { font-size: 3.8vmin; }
@@ -395,3 +400,142 @@ body.qt-board::before {
 .bd-gate { height: 100vh; height: 100dvh; display: grid; place-items: center; text-align: center; padding: 6vmin; }
 .bd-gate b { display: block; font-size: 3vmin; margin-bottom: 1.2vmin; }
 .bd-gate p { color: var(--bd-dim); font-size: 1.7vmin; }
+
+/* ============================================================================
+   分数排行榜 + 未完成名单（2026-11-24）
+   ----------------------------------------------------------------------------
+   用户原话：「刷题的课堂任务也要显示分数排行榜 和未完成名单模块 可以开放期间无限刷分」。
+   两块都在同一页（.qt-rankpanel）：上面排行榜、下面未完成名单。
+
+   为什么用网格而不是 <table>：
+     表格在手机上要么横向滚、要么挤成一团；网格能在 860px 以下直接藏掉「练习」列，
+     560px 以下再藏「用时」，剩下的永远是一行一个人、不横滚。
+   为什么学号放进姓名格第二行：
+     独立一列时，1280 宽的屏上姓名列会被 1fr 拉成一大片空白、学号孤零零吊在中间（出图看得很明显）。
+     学号本来只是点名用的附属信息，跟名字贴在一起才读得顺。
+   ========================================================================== */
+.qt-rankpanel .qt-body { display: grid; gap: 14px; }
+.qt-rankhead { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 16px 20px 12px; }
+.qt-ranktitle { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; min-width: 0; flex: 1; }
+.qt-ranktitle > b { font-size: 18px; letter-spacing: -.02em; }
+
+.qt-kpis { display: flex; gap: 26px; flex-wrap: wrap; }
+.qt-kpi { min-width: 92px; }
+.qt-kpi em { display: block; font-style: normal; font-size: 11.5px; color: var(--qt-dim); }
+.qt-kpi b { font-size: 24px; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.qt-kpi b small { font-size: 12px; color: var(--qt-dim); font-weight: 500; }
+
+/* 六列：名次 / 姓名·学号 / 准确率 / 得分 / 用时 / 练习 */
+.qt-rank { --rk-cols: 46px minmax(0, 1fr) 72px 82px 88px 78px; display: grid; gap: 6px; }
+.qt-rkhead, .qt-rkrow { display: grid; grid-template-columns: var(--rk-cols); align-items: center; gap: 10px; }
+.qt-rkhead {
+  padding: 0 12px 6px; font-size: 11.5px; font-weight: 700; color: var(--qt-dim);
+  border-bottom: 1px solid var(--qt-line);
+}
+.qt-rkhead span, .qt-rkrow > * { min-width: 0; }
+.qt-rkhead .rt, .qt-rkhead .sc, .qt-rkhead .sec, .qt-rkhead .tr { text-align: right; }
+
+.qt-rkrow {
+  padding: 8px 12px; border-radius: 12px;
+  background: var(--qt-card); border: 1px solid var(--qt-line);
+}
+.qt-rkrow.me { border-color: color-mix(in srgb, var(--qt-acc) 55%, transparent); background: color-mix(in srgb, var(--qt-acc) 6%, var(--qt-card)); }
+.qt-rkrow .pl {
+  display: grid; place-items: center; width: 30px; height: 30px; border-radius: 9px;
+  background: var(--qt-fill); color: var(--qt-dim);
+  font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums;
+}
+.qt-rkrow.m1 .pl { background: linear-gradient(135deg, #ffe08a, #f5b301); color: #3a2600; }
+.qt-rkrow.m2 .pl { background: linear-gradient(135deg, #e6ecf7, #aebbd1); color: #1d2433; }
+.qt-rkrow.m3 .pl { background: linear-gradient(135deg, #f0b98a, #c97a3a); color: #2c1504; }
+.qt-rkrow .who { display: block; overflow: hidden; }
+.qt-rkrow .who b { display: block; font-size: 15px; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qt-rkrow .who i {
+  display: block; font-style: normal; font-size: 11.5px; line-height: 1.35; color: var(--qt-dim);
+  font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.qt-rkrow .rt { text-align: right; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--qt-acc); }
+.qt-rkrow .rt.gold { color: var(--qt-ok); }
+.qt-rkrow .rt.low { color: var(--qt-dim); }
+.qt-rkrow .sc { text-align: right; font-size: 17px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.qt-rkrow .sc small { font-size: 11px; color: var(--qt-dim); font-weight: 600; margin-left: 2px; }
+.qt-rkrow .sec { text-align: right; font-size: 12.5px; color: var(--qt-dim); font-variant-numeric: tabular-nums; }
+.qt-rkrow .tr { text-align: right; font-size: 12px; color: var(--qt-dim); font-variant-numeric: tabular-nums; }
+.qt-rkrow .tr.used { color: var(--qt-warn); font-weight: 700; }
+
+/* 未完成名单：一人一颗胶囊，多了自动换行；名字后面跟学号，点名能点到人 */
+.qt-todo { display: grid; gap: 8px; padding-top: 4px; border-top: 1px dashed var(--qt-line); }
+.qt-todohead { padding-top: 10px; font-size: 13px; font-weight: 700; color: var(--qt-dim); }
+.qt-todohead b { color: var(--qt-bad); font-size: 17px; font-variant-numeric: tabular-nums; margin: 0 2px; }
+.qt-todohead span { font-weight: 500; }
+.qt-todolist { display: flex; flex-wrap: wrap; gap: 7px; }
+.qt-undochip {
+  display: inline-flex; align-items: baseline; gap: 6px;
+  padding: 5px 11px; border-radius: 99px; font-style: normal; font-size: 13.5px; font-weight: 600;
+  background: var(--badbg, rgba(215, 0, 21, .08));
+  border: 1px solid color-mix(in srgb, var(--qt-bad) 26%, transparent);
+  color: var(--qt-bad);
+}
+.qt-undochip small { font-size: 11px; font-weight: 500; opacity: .72; font-variant-numeric: tabular-nums; }
+.qt-allgood { margin: 0; font-size: 14px; font-weight: 700; color: var(--qt-ok); }
+
+/* 窄屏先后顺序：先藏「用时」，最后才动「练习」。
+   用时只是同分时的排序依据（页脚有说明），而「练几次」是「开放期间无限刷分」的直接反馈，
+   藏了等于白做这个功能 —— 所以 860px 只砍用时，练习一路留到手机。 */
+@media (max-width: 860px) {
+  .qt-rank { --rk-cols: 38px minmax(0, 1fr) 64px 74px 66px; }
+  .qt-rkhead .sec, .qt-rkrow .sec { display: none; }
+}
+@media (max-width: 560px) {
+  .qt-rank { --rk-cols: 32px minmax(0, 1fr) 56px 64px 58px; }
+  .qt-rkhead, .qt-rkrow { gap: 8px; }
+  .qt-rkhead { padding: 0 10px 6px; }
+  .qt-rkrow { padding: 8px 10px; }
+  .qt-rkrow .sc { font-size: 15px; }
+  .qt-kpis { gap: 18px; }
+  .qt-kpi b { font-size: 20px; }
+}
+
+/* ---------------- 大屏：排行榜 + 未完成整列 ---------------- */
+/* 大屏原来是「一列榜铺满屏」，加了未完成之后改成左右分栏：
+   左边榜单按人数自动分栏（JS 算 cols/per），右边固定一条未完成栏。
+   未完成栏限宽 —— 投影时它的作用只是「念名字」，不该抢榜单宽度。 */
+.bd-split { flex: 1; min-height: 0; display: flex; gap: 1.6vmin; }
+.bd-split > .bd-list { flex: 1; min-width: 0; }
+
+.bd-todo {
+  flex: 0 0 clamp(20vmin, 24vw, 34vmin); min-height: 0;
+  display: flex; flex-direction: column; gap: .8vmin;
+  padding: 1.2vmin 1.4vmin; border-radius: 1.4vmin;
+  background: rgba(251, 113, 133, .06); border: 1px solid rgba(251, 113, 133, .26);
+}
+.bd-todo.ok { background: rgba(52, 211, 153, .06); border-color: rgba(52, 211, 153, .26); }
+.bd-todohead { flex: none; font-size: 1.5vmin; color: var(--bd-dim); font-weight: 600; }
+.bd-todohead b { font-size: 3vmin; color: var(--bd-bad); margin: 0 .5vmin; font-variant-numeric: tabular-nums; }
+.bd-todo.ok .bd-todohead b { color: var(--bd-ok); }
+.bd-todohead small { font-size: 1.25vmin; font-weight: 500; }
+.bd-todoitems {
+  flex: 1; min-height: 0; display: grid; align-content: start; gap: .55vmin;
+  grid-template-columns: repeat(auto-fill, minmax(11vmin, 1fr));
+  overflow: hidden;
+}
+.bd-todoitems span {
+  font-size: 1.9vmin; line-height: 1.25; padding: .45vmin .8vmin; border-radius: .8vmin;
+  background: rgba(255, 255, 255, .05); border: 1px solid rgba(255, 255, 255, .08);
+  color: #ffd7dc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.bd-todook { flex: 1; display: grid; place-items: center; font-size: 3.2vmin; font-weight: 800; color: var(--bd-ok); }
+
+/* 榜单行多一列「得分」；姓名列给 6vmin 下限，否则卡片一窄就被挤成 0（出图踩过） */
+.bd-row { grid-template-columns: var(--bd-pw, 5.4vmin) minmax(6vmin, 1fr) auto auto auto; }
+.bd-sc { font-size: 2.5vmin; font-weight: 800; font-variant-numeric: tabular-nums; text-align: right; min-width: 6.4vmin; }
+.bd-sc small { font-size: 1.2vmin; color: var(--bd-dim); font-weight: 600; margin-left: .2vmin; }
+.bd-who em { font-style: normal; font-weight: 800; color: #ffd68a; }
+.bd-list.s1 .bd-sc { font-size: 3.4vmin; }
+.bd-list.s3 .bd-sc { font-size: 1.9vmin; min-width: 5vmin; }
+/* 竖屏投屏：未完成栏折到榜单下面，别把榜挤成一列字 */
+@media (max-aspect-ratio: 1/1) {
+  .bd-split { flex-direction: column; }
+  .bd-todo { flex: 0 0 auto; max-height: 24vmin; }
+  .bd-todoitems { grid-template-columns: repeat(auto-fill, minmax(16vmin, 1fr)); }
+}
