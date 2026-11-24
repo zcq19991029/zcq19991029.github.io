@@ -1361,29 +1361,66 @@
       body: '{}'
     }).then(function (r) { return r.ok ? r.json() : null; })
       .then(function (me) {
-        if (!me || !me.expired) return;
-        /* 只说一句话。老师明确要求：「不要提示和解释 只需要写服务器过期 等管理员续费即可
-           不要提示我们现在收费会员制」—— 所以这里不写账号、身份、所属老师、到期日，
-           也不出现「会员」两个字。要改文案就改这一句，并同步 总入口/index.html 的 renderExpired()。 */
-        var d = document.createElement('div');
-        d.id = 'hxExpired';
-        d.setAttribute('role', 'alert');
-        d.style.cssText = 'position:fixed;inset:0;z-index:2147483600;display:flex;align-items:center;justify-content:center;padding:18px;' +
-          'background:var(--card,#fff);color:var(--ink,#1d1d1f);font:15px/1.7 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif';
-        d.innerHTML = '<div style="max-width:520px;width:100%;text-align:left">' +
-          '<div style="font-size:19px;font-weight:700;margin-bottom:16px">服务器过期，等待管理员续费</div>' +
-          '<button id="hxExOut" type="button" style="padding:9px 18px;border-radius:999px;border:1px solid var(--edge,#d2d2d7);background:transparent;color:inherit;font:inherit;cursor:pointer">退出登录</button>' +
-          '</div>';
-        document.body.appendChild(d);
-        try { document.documentElement.style.overflow = 'hidden'; } catch (e) { }
-        var btn = d.querySelector('#hxExOut');
-        if (btn) btn.onclick = function () {
-          try { localStorage.removeItem(SKEY_SESS); } catch (e) { }
-          location.replace(root);
-        };
+        if (!me) return;
+        if (me.expired) { coverExpired(); return; }
+        /* ---------- 工具级鉴权（2026-11-24） ----------
+           老师原话：「那个工具被点亮或者熄灭并没有完全对应学生拥有该工具的状态，
+           可能打开全是灭的 但是他们都可以使用该工具 这是不对的 严格匹配
+           我熄灭就应该剥夺他使用该工具的权限」。
+           实情：判权限的只有总入口的卡片（can()），工具页本身从来不判 ——
+           /wiring-lab/、/shuati/ 这类地址直连/收藏夹/旧标签页打开，照样能用。
+           所以在这里补一道，和「登录闸」「过期闸」同一处：一处改、所有工具生效。
+
+           判据是 hx_me().can_tools（数据库按 hx_user_can 同一套口径算）：
+             null   = 不限制（开发者 / 管理员 / 没配过工具权限的教师）
+             数组    = 只能用里面的
+             '{}'   = 一个都不能用（学生没有归属班）
+           只对「班级可点亮」的 6 个工具判（和总入口 CLS_GATE 一致）；
+           考勤 / 排课 / 课程进度 / 进制转换本来就不在班级开关里，不参与。
+           ⚠ 不豁免 ?solo：本地验收正是带 ?solo 打开的，豁免了就测不到。
+           请求失败一律放行（catch 里什么都不做）—— 宁可不挡，也别让网络抖动把学生锁在门外。 */
+        var TOOL_GATE = { wiring: 1, quiz: 1, mcu: 1, exam: 1, jiafen: 1, ziliao: 1 };
+        var TOOL_NAME = { wiring: '接线仿真', quiz: '刷题', mcu: '单片机', exam: '考试', jiafen: '小组加分', ziliao: '资料库' };
+        if (!TOOL_GATE[tool]) return;
+        if (!me.can_tools || typeof me.can_tools.indexOf !== 'function') return;   // 老库没这个字段 → 不判
+        if (me.can_tools.indexOf(tool) >= 0) return;
+        coverDenied(TOOL_NAME[tool] || '这个工具');
       })
       .catch(function () { /* 连不上不挡人：宁可放行，也别让网络抖动把人锁在门外 */ });
   })();
+  /* 服务器过期遮罩。老师明确要求：「不要提示和解释 只需要写服务器过期 等管理员续费即可
+     不要提示我们现在收费会员制」—— 所以这里不写账号、身份、所属老师、到期日，
+     也不出现「会员」两个字。要改文案就改这一句，并同步 总入口/index.html 的 renderExpired()。 */
+  function coverExpired() {
+    cover({ id: 'hxExpired', title: '服务器过期，等待管理员续费', sub: '',
+      btn: '退出登录', onclick: function () {
+        try { localStorage.removeItem(SKEY_SESS); } catch (e) { }
+        location.replace(root);
+      } });
+  }
+  /* 工具没开通的遮罩（2026-11-24）。文案只说事实 + 该找谁，不解释后台怎么配的。 */
+  function coverDenied(name) {
+    cover({ id: 'hxNoTool', title: '「' + name + '」没有给你的班级开通',
+      sub: '需要的话请联系任课老师开通。其他工具照常可用。',
+      btn: '回首页', onclick: function () { location.replace(root); } });
+  }
+  function cover(o) {
+    if (document.getElementById(o.id)) return;
+    var d = document.createElement('div');
+    d.id = o.id;
+    d.setAttribute('role', 'alert');
+    d.style.cssText = 'position:fixed;inset:0;z-index:2147483600;display:flex;align-items:center;justify-content:center;padding:18px;' +
+      'background:var(--card,#fff);color:var(--ink,#1d1d1f);font:15px/1.7 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif';
+    d.innerHTML = '<div style="max-width:520px;width:100%;text-align:left">' +
+      '<div style="font-size:19px;font-weight:700;margin-bottom:' + (o.sub ? '10px' : '16px') + '">' + o.title + '</div>' +
+      (o.sub ? '<div style="color:var(--dim,#6b7280);margin-bottom:16px">' + o.sub + '</div>' : '') +
+      '<button id="' + o.id + 'Btn" type="button" style="padding:9px 18px;border-radius:999px;border:1px solid var(--edge,#d2d2d7);background:transparent;color:inherit;font:inherit;cursor:pointer">' + o.btn + '</button>' +
+      '</div>';
+    document.body.appendChild(d);
+    try { document.documentElement.style.overflow = 'hidden'; } catch (e) { }
+    var btn = d.querySelector('#' + o.id + 'Btn');
+    if (btn) btn.onclick = o.onclick;
+  }
   // 云端相册：登录了就在页面空下来之后拉一次（别和首屏抢带宽）。
   // 换了台设备（选了自定义背景、本地却没这张图）时它会顺手把图和「当前这张」补回来。
   (function () {
