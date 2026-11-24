@@ -10,7 +10,7 @@
        新完成的人闪一下（.fresh）、进度环「长一截」的双 rAF 驱动、通报条 8 秒后自摘。
    版式也照搬（见 task.css 里那段逐字复制的大屏样式）：
      主体 = 「还没完成的同学」大身份卡阵列；右上 = 完成率环 + 已完成人数；
-     右侧 = 已完成的金色小身份卡（奖牌 / 姓名 / 准确率·用时 / 得分徽标）。
+     右侧 = 已完成的金色小身份卡（奖牌 / 姓名 / 用时 / 完成率徽标）。
 
    与接线仿真的差异（每一处都是因为刷题没有那个东西，不是为了好看而改）：
      1) 数据源：接线仿真用 wire_task_board 一次返回 {task, pending, done_rows, done, total, pct}；
@@ -238,9 +238,10 @@ async function fetchBoard() {
   };
 }
 
-/* 得分徽标档位：接线仿真按「前十名 = 完成率 100% = 金」上色，
-   刷题第十名之后是 80%/70% 档，所以直接按名次判，视觉语言完全一样。 */
-const scoreTier = place => place == null ? 'r-none' : place <= 10 ? 'r100' : place <= 20 ? 'r80' : 'r70';
+/* 完成率档位 → 徽标配色：**原样照搬接线仿真的 rateTier**（100% 金 / 80–99% 蓝 / 其余灰）。
+   2026-11-24 用户要求「按换算后的完成率显示得分」，所以徽标里放的不再是裸得分，而是
+   换算出来的完成率百分比 —— 数字变了，配色规则还是它那三条，谁也不另造一套。 */
+const rateTier = r => r == null ? 'r-none' : Number(r) >= 100 ? 'r100' : Number(r) >= 80 ? 'r80' : 'r70';
 
 (async function boot() {
   if (!hx.signedIn()) return gate('先登录', '用教师账号登录后，这一页才能看到本班任务。', true);
@@ -322,6 +323,8 @@ async function load(first) {
 
 function paint(b) {
   const t = b.task, pend = b.pending || [], done = b.done_rows || [];
+  // 满分：徽标要把得分换算成完成率（得分 ÷ 满分），没设过就退回用数据库给的准确率
+  const full = Number(t.full) || 0;
   const pct = Math.max(0, Math.min(100, +b.pct || 0));
   // 人数越多字越小、卡片越窄：保证任何班（20～60 人）都能一屏放下，不出现滚动条；
   // 人少时卡片放大，把整块屏幕铺满（空一大片反而显得没在「督促」）
@@ -419,6 +422,12 @@ function paint(b) {
             const st = bgStyleOf(r.student_id);
             const place = r.place || (i + 1);
             const medal = place <= 3 ? ' m' + place : '';
+            /* 「按换算后的完成率显示得分」（2026-11-24 用户要求）：
+               徽标里放的不是原始得分，而是拿得分换算出来的完成率 = 得分 ÷ 满分。
+               没拿到满分（任务没设 full）才退回用数据库给的准确率 —— 两者本来就是同一个数
+               （得分 = 满分 × 准确率），换算只是换了说法，不是换了口径。 */
+            const pct = full && r.score != null ? Math.round(Number(r.score) / full * 100)
+              : (r.rate != null ? Math.round(Number(r.rate)) : null);
             return `<div class="dc${medal}${B.fresh.has(r.student_id) ? ' fresh' : ''}" data-sid="${r.student_id}" data-nobg="${st ? '0' : '1'}">
             <span class="dc-bg" aria-hidden="true"${st ? ` style="${esc(st)}"` : ''}></span>
             <span class="dc-veil" aria-hidden="true"></span>
@@ -427,7 +436,7 @@ function paint(b) {
               <b class="dc-name">${esc(r.name || r.no)}</b>
               <span class="dc-sub">${r.sec != null ? fmtSec(r.sec) : ''}</span>
             </div>
-            <b class="dc-rate ${scoreTier(r.place)}">${r.score == null ? '—' : fmtScore(r.score)}</b>
+            <b class="dc-rate ${rateTier(pct)}">${pct == null ? '—' : pct + '%'}</b>
           </div>`;
           }).join('')}
       </div>
@@ -440,7 +449,7 @@ function paint(b) {
     <span class="dot"></span><span>每 15 秒左右刷新 · 最后更新 <b id="bdLast">${B.lastAt || '—'}</b></span>
     <span class="grow"></span>
     <span>按准确率排名 · 同分看用时（短的在前面）</span>
-    <span>练几次都算数，只升不降 · 得分 = 满分 × 准确率</span>
+    <span>徽标 = 完成率（得分 ÷ 满分）· 100% 金 · 80% 以上蓝 · 其余灰</span>
   </footer>
 `;
 
