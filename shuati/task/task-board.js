@@ -7,7 +7,7 @@
      · 尺寸求解：pendSize / pendCol / pendPlan / fitPending / doneLayout / availW /
        setMetrics / PEND_KW_OF / DC_KW_OF / PFS_TIERS / DCS_TIERS / MAIN_W / LIST_H …
      · 15 秒轮询（±20% 抖动）、第一屏播入场之后关动画（body.no-anim）、
-       新完成的人闪一下（.fresh）、进度环「长一截」的双 rAF 驱动、通报条 8 秒后自摘。
+       新完成的人闪一下（.fresh）、进度环「长一截」的双 rAF 驱动。
    版式也照搬（见 task.css 里那段逐字复制的大屏样式）：
      主体 = 「还没完成的同学」大身份卡阵列；右上 = 完成率环 + 已完成人数；
      右侧 = 已完成的金色小身份卡（奖牌 / 姓名 / 用时 / 完成率徽标）。
@@ -18,8 +18,10 @@
         好让下面 paint 一行都不用改。
      2) 身份卡背景：接线仿真的卡片背后是「这道电路的历史接线照片」（hx_rank_bgs）；
         刷题没有这道概念，所以 bgStyleOf() 恒返回 ''，卡片走 CSS 里那张默认卡面。
-     3) 竞争通报：接线仿真按「完成率档位」变化播报；刷题的成绩只升不降，完成率不会掉，
-        所以改播**名次**变化（.mv up / .mv down 的样式和位置完全一样）。
+     3) 竞争通报：接线仿真会播「被超了 / 反超了」，因为它的名次变化=完成率档位变化=**真的掉分**。
+        刷题那一列的完成率 = 你自己的准确率（内部 5 分制记账，界面只显示完成率），
+        别人刷得再好也不动你那一格 —— 播这句话等于假警报（用户 2026-11-24 就因此以为
+        别人的完成率被挤掉了）→ 整个 .bd-moves 去掉，只留「刚刚完成：XXX」那句点名。
    ========================================================================== */
 import { hx, esc, fmtSec, fmtScore, every, taskBoard, taskList } from './task-hx.js';
 
@@ -34,12 +36,8 @@ const B = {
   fresh: new Set(),// 本轮要高亮的
   timer: null,
   lastAt: '',
-  /* 名次变化（照接线仿真的完成率变化那套）：
-     「课堂任务实时计分 被别人超了就会变 这是很正常的竞争学习 我们鼓励动态变化 当场就学习刷题反超」
-     刷题的成绩只升不降，所以「被超」只体现在**名次**上：别人刷得更好，你的名次就往后掉。
-     这不是 bug，是竞争机制，所以大屏要主动说出来：谁被超了、谁反超了。 */
-  placePrev: {},   // student_id → 上一轮名次
-  moves: [],       // [{sid,name,from,to,up}]
+  /* 这里原来有 placePrev / moves（名次变化通报），2026-11-24 删掉了：
+     刷题的名次变化**不改变任何人的完成率**，播「你被超了」是假警报。原因见 load() 里的长注释。 */
   /* 上一轮画出来的完成率：Apple 环「长一截」的起点。
      没有它就只能在 0 → N 之间长，换人完成那种 55% → 64% 的小跳会看不出来。 */
   pctPrev: null,
@@ -297,19 +295,13 @@ async function load(first) {
   B.fresh = new Set();
   if (!first) nowIds.forEach(id => { if (!B.seen.has(id)) B.fresh.add(id); });
   B.seen = nowIds;
-  /* 名次有没有变：后来的人刷得更好 → 前面的人名次往后掉。
-     用户明确说这是要鼓励的「竞争学习」，所以这里算出来让大屏当场播报（见 paint 的 bd-moves）。 */
-  const placeNow = {};
-  (b.done_rows || []).forEach(r => { if (r.place != null) placeNow[r.student_id] = Number(r.place); });
-  B.moves = [];
-  if (!first) {
-    (b.done_rows || []).forEach(r => {
-      const sid = r.student_id, was = B.placePrev[sid], now = placeNow[sid];
-      if (was == null || now == null || was === now) return;
-      B.moves.push({ sid: sid, name: r.name || '', from: was, to: now, up: now < was });
-    });
-  }
-  B.placePrev = placeNow;
+  /* 2026-11-24：**去掉「被超了 / 反超了」通报**（接线仿真有，刷题不适用）。
+     接线仿真里名次变化 = 完成率档位变化 = 那些人**真的掉分**（赋分按前十 100% / 11–20 名 80% / 其余 70% 分档）。
+     刷题那一列的**完成率就是你自己这次的准确率**（内部按 5 分制记账、界面只显示完成率，
+     见 小组加分/quiz-task-link.js 与 app.js 的「每课完成率 = 净得分 ÷ 5×项目数」），
+     一人一格、互不相干 —— 别人刷得再好也不会动你那一格。
+     所以在刷题里播「你被超了」是假警报，会让学生以为分掉了（用户 2026-11-24 就是被这句话问住的）。
+     只保留下面 paint 里「刚刚完成：XXX」的点名 + .fresh 闪一下 —— 那两个是真的。 */
 
   const changed = JSON.stringify(b) !== JSON.stringify(B.board);
   B.board = b;
@@ -443,13 +435,11 @@ function paint(b) {
     </aside>
   </main>
 
-  ${B.moves.length ? `<div class="bd-moves">${movesHTML()}</div>` : ''}
-
   <footer class="bd-foot">
     <span class="dot"></span><span>每 15 秒左右刷新 · 最后更新 <b id="bdLast">${B.lastAt || '—'}</b></span>
     <span class="grow"></span>
     <span>按准确率排名 · 同分看用时（短的在前面）</span>
-    <span>徽标 = 完成率（得分 ÷ 满分）· 100% 金 · 80% 以上蓝 · 其余灰</span>
+    <span>名次只影响显示 · 完成率按你自己的准确率算，练几次都只取最好那次</span>
   </footer>
 `;
 
@@ -490,21 +480,8 @@ function paint(b) {
       setTimeout(() => tip.remove(), 3200);
     }
   }
-  /* 「被超了 / 反超了」这条 8 秒后自动收掉：它是一次通报，不是常驻内容。
-     不整页重绘（重绘会打断右侧名单的滚动位置），只摘掉这一块。 */
-  const mv = root.querySelector('.bd-moves');
-  if (mv) setTimeout(() => { if (mv.parentNode) mv.remove(); }, 8000);
+  /* 「被超了 / 反超了」那条通报已经去掉（原因见 load() 里那段注释），
+     这里不再需要 8 秒后摘节点的逻辑。 */
 }
 
-/* 「被超了 / 反超了」通报最多放 4 条：一个人挤进前十，后面几十个全掉档是常态，
-   全铺出来会把「一屏放下、不滚动」撑破。先报反超（好消息），再报掉档，剩下的合成一句。 */
-function movesHTML() {
-  const ups = B.moves.filter(m => m.up);
-  const downs = B.moves.filter(m => !m.up);
-  const pick = ups.concat(downs).slice(0, 4);
-  const rest = B.moves.length - pick.length;
-  return pick.map(m => (m.up
-    ? `<span class="mv up">🚀 ${esc(m.name)} 反超到 <b>第 ${m.to} 名</b></span>`
-    : `<span class="mv down">⚡ ${esc(m.name)} 被超了 <b>第 ${m.from} → ${m.to} 名</b><small>再刷一次就能超回来</small></span>`)).join('')
-    + (rest > 0 ? `<span class="mv more">还有 ${rest} 人的名次跟着变了</span>` : '');
-}
+/* movesHTML 已删除：刷题的名次变化不改变任何人的完成率，播出来就是假警报。 */
