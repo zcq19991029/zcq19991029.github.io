@@ -3,7 +3,7 @@
 <html lang="zh-CN">
 <head>
 <script src="../hx-theme.js" data-tool="wiring"></script>
-<script>window.HX_BUILD = "2026-11-24T04:22:38Z 319e439";</script>
+<script>window.HX_BUILD = "2026-11-24T04:49:59Z b2a923d";</script>
 <meta charset="utf-8">
 <meta name="copyright" content="© 2026 zcq 版权所有，未经许可禁止复制、修改、转载">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
@@ -1893,6 +1893,13 @@
      标准档要的是动效照跑，不是要底层继续空转烧合成器。所以去掉前置条件，一律摘掉。
      （观感零变化：这一层被浮层整屏盖着，看不见。） */
   html.rk-cover #stage { visibility: hidden; }
+  /* 2026-11-24：准备屏 / 倒数 / 成绩那层整屏遮罩（#rkVeil.show）盖在排位窗上时，排位窗也不必再画。
+     实测（test/_probe-veil.cjs，iPad Pro 11 视口，极简档，窗与遮罩都是静态状态）：
+       窗 + 遮罩都留 220ms/帧 → 只藏排位窗 22ms/帧。遮罩的毛玻璃不是主因（关掉仍 219ms）。
+     遮罩是 66% 深底 + 26px 毛玻璃，底下那扇 1650px 高的窗只是一片糊影，摘掉观感几乎无损。
+     用 visibility 而不是 display：布局不动，遮罩收起来那一帧不会跳。
+     类名由 project2.html 里的 rk-cover 观察器统一挂（会先判遮罩不是窗的子孙，避免连遮罩一起藏）。 */
+  #fw-rank.fw-masked { visibility: hidden; }
   /* ── 2026-11-24：极简档的排位窗走「轻皮肤」──
      用户报「pad 端还是闪频看不见信息，电脑端没事」。在 WebKit（iPad Pro 11 视口）上逐项关掉量帧间隔：
        原样                                    p50 = 288ms（约 3.4 帧/秒）
@@ -3894,10 +3901,23 @@ const TAB_KEY = 'zfz-project2-tab', THEME_KEY = 'zfz-practice-theme';
   let pend = false, on = null;
   const sync = () => {
     const now = !!document.querySelector(COVER);
-    if (now === on) return;
-    on = now;
-    root.classList.toggle('rk-cover', now);
-    try { notifyCircuits(); } catch (e) { }   // 画布循环跟着停/恢复
+    if (now === on) { /* 盖住的状态没变，但遮罩自己的显隐可能变了 —— 下面那段要照跑 */ }
+    else {
+      on = now;
+      root.classList.toggle('rk-cover', now);
+      try { notifyCircuits(); } catch (e) { }   // 画布循环跟着停/恢复
+    }
+    /* 2026-11-24：遮罩盖在排位窗上时，把**排位窗**也从合成里摘掉（和 #stage 同一个道理）。
+       实测 test/_probe-veil.cjs（iPad Pro 11 视口，极简档，窗与遮罩都是静态的）：
+         排位窗 + 遮罩都留            220 ms/帧（4.5 帧/秒）
+         只关遮罩的毛玻璃             219 ms/帧   ← 不是模糊的锅
+         只藏排位窗（遮罩留）          22 ms/帧（45 帧/秒）
+       也就是说准备屏那几秒的卡顿/闪，是遮罩底下那扇 1650px 高的排位窗还在被反复合成。
+       遮罩自己是 66% 深底 + 26px 毛玻璃，底下那扇窗本来就只是一片糊影，摘掉观感几乎无损。
+       用 visibility 不用 display：布局不动，遮罩收起来那一帧不会跳。
+       安全前提：遮罩必须不是排位窗的子孙，否则藏窗会把遮罩一起藏掉 —— 所以这里先判 contains。 */
+    const veil = document.getElementById('rkVeil'), fw = document.getElementById('fw-rank');
+    if (fw && veil && !fw.contains(veil)) fw.classList.toggle('fw-masked', veil.classList.contains('show'));
   };
   const kick = () => { if (pend) return; pend = true; requestAnimationFrame(() => { pend = false; sync(); }); };
   const arm = () => {
@@ -6137,6 +6157,15 @@ async function openRank(lockTo) {
      只摘这一次就够：窗口是复用的，之后打开不会再生成新节点，但为了万无一失 rkTopBar 里也会再查一遍。 */
   const fwx = document.querySelector('#fw-rank .fw-x'); if (fwx) fwx.remove();
   if (!RK.circuit || !rkCircuits().some(c => c.id === RK.circuit)) RK.circuit = rkCircuits()[0].id;
+  /* ── 2026-11-24：榜单预取，修「半天加载不出来」 ─────────────────────────────
+     现场原话：「排位那边黑黑的闪频 半天加载不出来」。test/_probe-enter.cjs 实测（iPad 视口，
+     每个 RPC 400ms 模拟海外）：点排位 13ms 窗就出来了，但里面只有一行「加载中…」，
+     **941ms 才出现第 1 个榜项**。拆开看是两次串行往返：
+       rkRender 先 await hx_me（阻塞，见 468 行）→ 之后 rkMain → rkBoard 才发 rank_board。
+     而 rank_board 只依赖 RK.circuit（14 行之前已经定死），跟 hx_me 没有依赖关系。
+     所以这里**提前并行发**，rkBoard 拿到就直接用（rkBoardTake），省掉整整一次 RTT。
+     失败不抛：8 秒后作废，rkBoard 走原来的自动重试路径，行为与以前一致。 */
+  rkBoardPrefetch();
   // 强制对齐：练习页必须停在锁定的那一题上。用户 2026-11-06 的原话是
   // 「我在外面排位选的题和我开始排位的题不一样 比如我刚刚排位已经玩了并联第四题 出去换第六题点排位 结果还是第四题」
   // —— 画面和锁不同步时，人根本分不清自己排的是哪一题。这里先切过去（切完锁还是有效的，
@@ -7380,6 +7409,26 @@ window.addEventListener('resize', () => {
   const fit = () => { const w = document.querySelector('#fw-rank .rk-stagewrap'); if (w) rkFitStage(w); };
   fit(); requestAnimationFrame(fit); setTimeout(fit, 120); setTimeout(fit, 400);
 });
+/* ── 榜单预取（2026-11-24，见 openRank 里的说明） ─────────────────────────────
+   只提前发一次 rank_board，**不改变任何数据语义**：用的还是同一个 RPC、同一个题号、
+   同一份返回值，只是把「等 hx_me 回来再发」改成「进场就一起发」。
+   过期（>8s）自动作废，避免用户关掉排位再进来时拿到很久以前的响应。 */
+let RK_BOARD_P = null, RK_BOARD_C = null, RK_BOARD_T = 0;
+function rkBoardPrefetch() {
+  RK_BOARD_P = null; RK_BOARD_C = null;
+  const c = RK.circuit;
+  if (!c || !HX.online() || !HX.in()) return;   // 离线 / 没登录：走原来的路径，不预取
+  RK_BOARD_C = c; RK_BOARD_T = Date.now();
+  RK_BOARD_P = Promise.resolve()
+    .then(() => HX.rpc('rank_board', { p_circuit: c, p_limit: 200 }, HX.in()))
+    .catch(() => null);   // 预取失败不算错，rkBoard 会自己走带重试的那条路
+}
+function rkBoardTake() {
+  if (!RK_BOARD_P) return null;
+  const p = RK_BOARD_P, ok = RK_BOARD_C === RK.circuit && Date.now() - RK_BOARD_T < 8000;
+  RK_BOARD_P = null; RK_BOARD_C = null;
+  return ok ? p : null;
+}
 async function rkBoard(el, hl, page) {
   /* 分页（2026-11-13 用户：「123 名应该在左边第一列且卡片最大，后续跟着 456 依次往后，
      第二列接着第一列最后的排名往后……」）。2026-11-19 定稿：一页 10 人、左列 1–5 / 右列 6–10、
@@ -7403,13 +7452,20 @@ async function rkBoard(el, hl, page) {
 
   // 2026-11-14 优化「加载慢」：rank_board 与 hx_rank_bgs 两个 rpc 并行发出（背景失败不影响榜单）。
   // 2026-11-16：榜单这一条改成自动重试（读数据，安全），失败时给「再试一次」而不是干一行红字。
-  const boardP = HX.boot(() => HX.rpc('rank_board', { p_circuit: RK.circuit, p_limit: 200 }, HX.in()),
-    n => { el.innerHTML = `<p class="rk-wait">榜单加载中…服务器忙，正在重试（第 ${n} 次）</p>`; });
+  // 2026-11-24：进场时已经预取过（openRank → rkBoardPrefetch），命中就直接用，省一次往返；
+  //   预取失败（null）或已过期则回落到下面这条带重试的老路径，行为完全一致。
+  const bgP = rkClassBgs();
+  let rows = null;
+  const pre = rkBoardTake();
+  if (pre) { try { rows = await pre; } catch (e) { rows = null; } }
+  if (rows == null) {
+    try {
+      rows = await HX.boot(() => HX.rpc('rank_board', { p_circuit: RK.circuit, p_limit: 200 }, HX.in()),
+        n => { el.innerHTML = `<p class="rk-wait">榜单加载中…服务器忙，正在重试（第 ${n} 次）</p>`; });
+    } catch (e) { rkFail(el, e, () => rkBoard(el, hl, page)); return; }
+  }
   /* 背景走 rkClassBgs（带「同一题只发一次」的合流）：原来这里和 rkHeroBg 各发一条一模一样的
      hx_rank_bgs，打开一次排位就打两次数据库 —— 全班同时点的时候这就是白白多出来的 40 个请求。 */
-  const bgP = rkClassBgs();
-  let rows; try { rows = await boardP; }
-  catch (e) { rkFail(el, e, () => rkBoard(el, hl, page)); return; }
   // 后端口径可能返回对象（老函数 / 代理层包了一层），一律归一成数组，别让整块榜单崩掉
   if (!Array.isArray(rows)) rows = (rows && Array.isArray(rows.data)) ? rows.data : [];
   // 个人身份卡背景：按 student_id 关联（绝不按名次）。失败/没建函数只影响背景，不影响成绩与排序。
