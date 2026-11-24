@@ -3,7 +3,7 @@
 <html lang="zh-CN">
 <head>
 <script src="../hx-theme.js" data-tool="wiring"></script>
-<script>window.HX_BUILD = "2026-11-24T05:39:51Z 457ea09";</script>
+<script>window.HX_BUILD = "2026-11-24T06:07:27Z 457ea09";</script>
 <meta charset="utf-8">
 <meta name="copyright" content="© 2026 zcq 版权所有，未经许可禁止复制、修改、转载">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
@@ -38,7 +38,7 @@
     font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; color: var(--ink); transition: background-color .3s; }
   body { display: flex; flex-direction: column; }
   .bar { flex: none; height: 44px; display: flex; align-items: center; gap: 12px; padding: 0 10px; padding-top: env(safe-area-inset-top);
-    background: var(--bar); border-bottom: 1px solid var(--edge); backdrop-filter: saturate(1.6) blur(18px); -webkit-backdrop-filter: saturate(1.6) blur(18px); position: relative; z-index: 5; }
+    background: var(--bar); border-bottom: 1px solid var(--edge); position: relative; z-index: 5; }
   /* 2026-11-08：品牌标题块（.brand）和竖排版权条（.side）已按用户截图要求删除，相关样式一并清理 */
   @keyframes breathe { 50% { transform: scale(1.35); opacity: .7; } }
   /* ---------- 低端设备 / 手机降级（2026-11-02） ----------
@@ -308,7 +308,7 @@
      颜色用琥珀而不是红：这不是失败，是「可以留下，也可以由老师手动移出」。 */
   .rk-soft { margin: 6px 0; font-size: 13.5px; font-weight: 600; line-height: 1.65; color: #fcd34d; opacity: .95; }
   .rk-hud { position: fixed; z-index: 35; left: 50%; top: 52px; transform: translate(-50%, -20px); opacity: 0; pointer-events: none; display: flex; align-items: center; gap: 9px; padding: 6px 8px 6px 12px; border-radius: 12px;
-    background: var(--bar); border: 1px solid var(--edge); box-shadow: 0 14px 36px -14px rgba(0,0,0,.55); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); font-weight: 700; transition: opacity .3s, transform .4s cubic-bezier(.3,1.3,.5,1); }
+    background: var(--bar); border: 1px solid var(--edge); box-shadow: 0 14px 36px -14px rgba(0,0,0,.55); backdrop-filter: none; -webkit-backdrop-filter: none; font-weight: 700; transition: opacity .3s, transform .4s cubic-bezier(.3,1.3,.5,1); }
   /* ⚠️ 2026-11-03：show 之后容器曾经**不吃点击**，只有红点、计时数字、按钮自己可点。
      原因：HUD 默认悬在顶部中央（top:52px，z-index:35 在外壳层），练习页 iframe 里的
      浮动工具栏吸顶时握把正好被它压住 —— 外壳层永远在 iframe 之上，用户按住握把拖动
@@ -378,9 +378,15 @@
      不再沿用浮动窗的拖拽卡片外观：#fw-about 本体改成整屏遮罩（rgba(2,6,18,.72)+blur，页面原背景隐约可见），
      .fw-body 里放一块四角机械切角的全息面板（蓝紫双色描边流光）。只作用 #fw-about，其他浮窗照旧。
      业务不变：开发者/贡献者仍强制每次打开就弹、3 秒没人碰自动收（aboutArm 只看 class 'show'，跟外观无关）。 */
+  /* ══ 2026-11-23 第四轮：外观/主题面板（#fw-about）是「标准档整页闪」的另一半 ══
+     它是**铺满 100% 屏**的 fixed 层，同时 ①底板 rgba(2,6,18,.72) + backdrop-filter: blur(6px)，
+     ②里面那块 .pt-panel 跑 ptFlow（background-size:300% 300% 的渐变每帧平移，实测覆盖 46% 屏）。
+     两条叠加＝每帧「整屏重新模糊 + 半屏重新铺渐变」，iPad 上就是用户说的
+     「主题悬浮窗设置卡显示不全、闪频」。极简档因为 is-lite 把 blur 关了，所以正常。
+     改法（不按设备，所有档位一致）：去模糊、底提到 .92；ptFlow 停掉（见下面 .pt-panel 那两条）。 */
   #fw-about { left: 0 !important; top: 0 !important; width: 100vw !important; height: 100dvh !important; min-width: 0; min-height: 0;
     border: 0; border-radius: 0; overflow: hidden; display: flex; padding: 16px; box-sizing: border-box;
-    background: rgba(2, 6, 18, .72); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    background: rgba(2, 6, 18, .92); backdrop-filter: none; -webkit-backdrop-filter: none;
     transform: none; transition: opacity .45s ease; }
   html.is-lite #fw-about { backdrop-filter: none; -webkit-backdrop-filter: none; } /* 低端设备不跑整屏模糊 */
   #fw-about .fw-head, #fw-about .fw-rs { display: none; } /* 自带标题栏/缩放手柄摘掉，面板有自己的头部和关闭钮 */
@@ -394,7 +400,17 @@
     clip-path: polygon(var(--pt-cut) 0, calc(100% - var(--pt-cut)) 0, 100% var(--pt-cut), 100% calc(100% - var(--pt-cut)),
       calc(100% - var(--pt-cut)) 100%, var(--pt-cut) 100%, 0 calc(100% - var(--pt-cut)), 0 var(--pt-cut));
     background: linear-gradient(115deg, var(--pt-p), var(--pt-b) 28%, var(--pt-c) 50%, var(--pt-b) 72%, var(--pt-p));
-    background-size: 300% 300%; animation: ptFlow 10s linear infinite;
+    /* ══ 2026-11-24：ptFlow 在这里彻底停掉 ══
+       2026-11-23 那轮只把它从 `#fw-about.show .pt-panel` 里摘了，**基础规则里还留着** ——
+       于是它在标准档一直跑，而且**面板关着也在跑**（.fw 的显隐是 opacity，不是 display:none）。
+       实测（test/_probe-infinite.cjs，标准档 1194×834）它仍是全站最大的一组无限动画：
+       **46.1% 屏**，每帧把一块 820×560 的 300%×300% 渐变重新铺一遍。
+       这就是用户说的「只要一切换标准就开始整页闪频」—— 极简档有 `html.is-lite #fw-about …{animation:none}`
+       兜着，所以极简正常；标准没有，于是整页跟着一起抖。
+       「主题悬浮窗设置卡显示不全」也是同一件事：那块渐变每帧重铺时，上面的文字来不及重新栅格化。
+       这里改成静态：background-position 定在中间（渐变依旧，只是不再流动），
+       面板里剩下的动效（四角节点脉冲、漂浮、晶体自转、光环）全是 transform/opacity，合成器就能跑。 */
+    background-size: 300% 300%; background-position: 50% 50%;
     filter: drop-shadow(0 0 22px rgba(146, 84, 255, .3)) drop-shadow(0 18px 44px rgba(0, 0, 0, .55)); }
   @keyframes ptFlow { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
   #fw-about .pt-in { position: relative; width: 100%; height: 100%; min-width: 0; display: flex; flex-direction: column; overflow: hidden;
@@ -600,10 +616,13 @@
   #fw-about .pt-ring i:nth-child(2) { inset: 15px 36px; border-color: rgba(146, 84, 255, .4); box-shadow: 0 0 12px rgba(146, 84, 255, .3); animation: ptRingPulse 4.6s ease-in-out -2.3s infinite; }
   @keyframes ptRingPulse { 0%, 100% { transform: perspective(420px) rotateX(58deg) scale(1); } 50% { transform: perspective(420px) rotateX(58deg) scale(1.045); opacity: .45; } }
   /* ── 入场动画：遮罩渐暗模糊(.fw 自身) + 面板上浮缩放 + 霓虹沿轮廓点亮 + 卡片 90ms 依次入场 + 底部环亮起 ── */
-  #fw-about.show .pt-panel { animation: ptFlow 10s linear infinite, ptIn .58s cubic-bezier(.22, 1, .36, 1) both, ptLight .85s ease-out both; }
+  /* 2026-11-23：ptFlow（300%×300% 渐变 10s 无限平移，实测覆盖 46% 屏）从这两条里摘掉。
+     它让整块面板每帧重新铺一层大渐变，是「主题面板一打开就闪/字显示不全」的主因之一。
+     入场动画 ptIn / ptLight 原样保留 —— 打开那一下的观感不变，只是不再持续流动。 */
+  #fw-about.show .pt-panel { animation: ptIn .58s cubic-bezier(.22, 1, .36, 1) both, ptLight .85s ease-out both; }
   /* 2026-11-05 重画（窗口已开着又要换名单/换视图）时不要再播入场动画：只留边框流光。
      否则用户会看到窗口「闪出来两次」。见 aboutView 里的 reopen 判断。 */
-  #fw-about.show.pt-refresh .pt-panel { animation: ptFlow 10s linear infinite; }
+  #fw-about.show.pt-refresh .pt-panel { animation: none; }
   /* 2026-11-06 用户：「贡献者那个卡片还是会闪两下 瞬间」。
      ── 上一轮只挡住了 .pt-panel 自己，**children 全漏了** ──
      重画时 floatWin 会把 .fw-body 整块重建，.pt-head / .pt-div / .pt-card / .pt-ring 全是**新元素**，
@@ -883,6 +902,19 @@
   .bar-orb:hover { opacity: 1; } .bar-orb:active { transform: scale(.94); }
   .bar-orb svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   body.bar-min .bar-orb { display: inline-flex; }
+  /* ── 2026-11-24：「返回没了、顶部栏失踪」（电脑端也会）──
+     触发条件一直是「全屏」，不是设备。链条是这样：
+       练习页工具栏那颗「全屏」（practice-ui.js 的 B.full）→ parent.hxFull.toggle()
+       → 本页 body.hxfull（藏掉本页顶栏）+ postMessage hx:'full' → 外壳藏掉它自己的返回栏。
+     于是「返回」和「顶栏」同时消失。而原来唯一的退出口是排位计时条里那颗 .rk-exitfull，
+     它只写在 `body.hxfull .rk-hud .rk-exitfull` 里 —— 也就是**正在跑一局**时才存在。
+     不进排位、或者那一局已经收表，屏幕上就一颗能点的按钮都没有，学生只能关掉页面重进。
+     更糟的是电脑端：从 iframe 里点全屏，requestFullscreen 在父文档里没有用户手势，
+     会被拒（FS.native 保持 false）→ 按 Esc 什么都不发生，连浏览器的退全屏都没有。
+     修法：这颗胶囊本来就是「把顶栏拉回来」的那颗，全屏态也放出来，点它 = 先退全屏再展开顶栏。
+     它是 fixed 的兄弟节点，不受 body.hxfull 影响；z-index 26 低于排位窗（50），
+     开着排位时不会盖到窗上（那时候窗里本来就有 #rkFull 可以点）。 */
+  body.hxfull .bar-orb { display: inline-flex; }
   html.is-lite .bar-orb { backdrop-filter: none; -webkit-backdrop-filter: none; }
   /* 「回到主电路」：只在扩展练习 / 并联专项里出现，配色跟着排位按钮走，一眼能认出来。
      这条按钮的文字**不跟着 ≤1700 的「只留图标」规则收起** —— 它就是这次用户点名要的那个按钮，
@@ -2357,14 +2389,30 @@
     background: rgba(120, 170, 255, .14); border: 1px solid rgba(140, 190, 255, .34); }
   #fw-rank .rk-bh .rk-bhbtn:hover { background: rgba(140, 190, 255, .26); color: #fff; }
   /* 管理面板（挂在 rkVeil 遮罩里，和准备页/成绩页同一层） */
-  .rk-hide { display: grid; gap: 10px; width: min(560px, 92vw); max-height: 76vh; padding: 20px 22px; border-radius: 18px;
+  /* ══ 2026-11-23：加 grid-template-rows，否则 max-height 管不住 ══
+     用户报「榜单管理打开点旁边都退不出去 也无法滚动」，截图里列表一直画到面板外面。
+     原因：这里原来是 display:grid + max-height，但**网格行是 auto**，行高由内容决定，
+     max-height 只裁外框、不会压缩行；于是 .rk-hide-body 的 height 永远等于内容高度，
+     它自己的 overflow:auto 一次都不会触发 —— 看着就是「框被截断、列表戳出去、滚不动」。
+     把第三行设成 minmax(0,1fr)（加上 body 的 min-height:0），列表才会真正成为一个滚动区。 */
+  .rk-hide { display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; gap: 10px;
+    width: min(560px, 92vw); max-height: min(82vh, 700px); padding: 20px 22px; border-radius: 18px;
     color: #fff; text-align: left; background: rgba(8, 14, 30, .9); border: 1px solid rgba(120, 170, 255, .3);
     box-shadow: 0 30px 70px -30px #000; }
   .rk-hide h3 { margin: 0; font-size: 17px; letter-spacing: .5px; }
   .rk-hide-tip { margin: 0; font-size: 12.5px; line-height: 1.55; color: #a9bcd8; }
   .rk-hide-tip b { color: #ffd68a; }
   .rk-hide .rk-err { margin: 0; color: #fca5a5; font-size: 12.5px; font-weight: 700; }
-  .rk-hide-body { display: grid; gap: 6px; align-content: start; overflow: auto; min-height: 70px; padding-right: 4px; }
+  .rk-hide-body { display: grid; gap: 6px; align-content: start; overflow: auto; min-height: 0; padding-right: 4px;
+    -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+  /* 分页条（2026-11-23）：用户要求「也可以分页面管理 不用拖动也 ok 啊 不然一口气渲染太多会卡」。
+     每页 12 人，面板高度固定，滚动条长度不再随人数暴涨。 */
+  .rk-hide-pg { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 6px 0 2px; }
+  .rk-hide-pg button { min-width: 34px; height: 30px; padding: 0 10px; border-radius: 8px; cursor: pointer;
+    font: inherit; font-size: 12.5px; font-weight: 700; color: #cfe1ff;
+    background: rgba(30, 48, 84, .8); border: 1px solid rgba(120, 170, 255, .3); }
+  .rk-hide-pg button:disabled { opacity: .38; cursor: default; }
+  .rk-hide-pg span { font-size: 12.5px; font-weight: 700; color: #9fb4d6; letter-spacing: .04em; }
   .rk-hide-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px;
     background: rgba(255, 255, 255, .05); border: 1px solid rgba(255, 255, 255, .07); }
   .rk-hide-row b { font-size: 14px; }
@@ -2480,10 +2528,17 @@
     background: linear-gradient(100deg, rgba(196, 118, 62, .18), rgba(24, 20, 18, calc(var(--hx-a, 1) * .54)) 55%, rgba(10, 13, 24, calc(var(--hx-a, 1) * .62)));
     box-shadow: 0 0 0 1px rgba(224, 154, 96, .38) inset, 0 0 16px -3px rgba(214, 138, 84, .55), 0 14px 30px -22px rgba(214, 138, 84, .75); }
   /* 第一名：金色流光沿边框扫过 + 极轻的呼吸光（只一条，不给几十行同时跑） */
+  /* ══ 2026-11-24：前三名卡片那道「流光」原来是 background-position 动画 ══
+     三张卡（金/银/铜）的 ::after 都是 inset:0，也就是**整张卡**都在每帧重铺一层 220% 宽的渐变：
+     实测占屏 4.2% + 3.8% + 3.3% = 11.3%，每帧都要重画一遍，而且 background-position
+     是合成器搬不动的属性。用户反复说的「右边排行榜还是狂闪烁」就是这一块。
+     改成 animation 只动 opacity（合成器能跑，零重画），band 用 background-position 定在卡面上，
+     看起来仍然是「金卡上有道光在呼吸」，但不再每帧重铺。 */
   #fw-rank .rk-lb.p1::after { content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none; border-radius: inherit;
     background: linear-gradient(105deg, transparent 30%, rgba(255, 226, 160, .22) 46%, transparent 62%);
-    background-size: 220% 100%; animation: rkGoldFlow 5.5s ease-in-out infinite; }
+    background-size: 220% 100%; background-position: 46% 0; animation: rkGoldBreath 5.5s ease-in-out infinite; }
   @keyframes rkGoldFlow { 0%, 100% { background-position: 160% 0; } 50% { background-position: -60% 0; } }
+  @keyframes rkGoldBreath { 0%, 100% { opacity: .34; } 50% { opacity: .9; } }
   #fw-rank .rk-lb[data-tier="1"] .rk-lb-tag,
   #fw-rank .rk-lb[data-tier="2"] .rk-lb-tag,
   #fw-rank .rk-lb[data-tier="3"] .rk-lb-tag {
@@ -2737,14 +2792,17 @@
   #fw-rank .rk-board2 li.rk-lb.p3::after {
     content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none; border-radius: inherit;
     background-repeat: no-repeat; }
+  /* 2026-11-24：见上面「前三名卡片那道流光」——三条都从 background-position 改成 opacity（零重画）。
+     band 用 background-position 定在卡面中间，静止时就是卡上一道光，呼吸 5.5/7.2/8.8s 错开。 */
   #fw-rank .rk-board2 li.rk-lb.p1::after { background-image: linear-gradient(105deg, transparent 30%, rgba(255, 226, 160, .24) 46%, transparent 62%);
-    background-size: 220% 100%; animation: rkGoldFlow 5.5s ease-in-out infinite; }
+    background-size: 220% 100%; background-position: 46% 0; animation: rkGoldBreath 5.5s ease-in-out infinite; }
   #fw-rank .rk-board2 li.rk-lb.p2::after { background-image: linear-gradient(112deg, transparent 32%, rgba(214, 236, 255, .16) 47%, transparent 60%);
-    background-size: 250% 100%; animation: rkSilverFlow 7.2s ease-in-out -2.4s infinite; }
+    background-size: 250% 100%; background-position: 47% 0; animation: rkMetalBreath 7.2s ease-in-out -2.4s infinite; }
   #fw-rank .rk-board2 li.rk-lb.p3::after { background-image: linear-gradient(98deg, transparent 34%, rgba(255, 206, 170, .14) 48%, transparent 62%);
-    background-size: 270% 100%; animation: rkBronzeFlow 8.8s ease-in-out -5.1s infinite; }
+    background-size: 270% 100%; background-position: 48% 0; animation: rkMetalBreath 8.8s ease-in-out -5.1s infinite; }
   @keyframes rkSilverFlow { 0%, 100% { background-position: 150% 0; } 50% { background-position: -70% 0; } }
   @keyframes rkBronzeFlow { 0%, 100% { background-position: 170% 0; } 50% { background-position: -50% 0; } }
+  @keyframes rkMetalBreath { 0%, 100% { opacity: .3; } 50% { opacity: .82; } }
   #fw-rank .rk-board2 li.rk-lb[data-tier="1"] > .rk-lb-who > .rk-lb-sub > .rk-lb-tag,
   #fw-rank .rk-board2 li.rk-lb[data-tier="2"] > .rk-lb-who > .rk-lb-sub > .rk-lb-tag,
   #fw-rank .rk-board2 li.rk-lb[data-tier="3"] > .rk-lb-who > .rk-lb-sub > .rk-lb-tag {
@@ -4147,6 +4205,15 @@ function foldApply() {
   barFold.setAttribute('aria-expanded', String(!FOLD.bar));
   barOrb.setAttribute('aria-expanded', String(!FOLD.bar));
   barFold.title = FOLD.bar ? '展开顶栏' : '收起顶栏，把整屏都留给电路';
+  /* 全屏态（body.hxfull）这颗胶囊干的事不是「展开顶栏」—— 顶栏是被 hxfull 藏的，
+     光把 bar-min 摘掉它也不会回来。全屏里它的语义是「退出全屏」，文字跟着换，
+     学生/老师一眼知道点它能把顶栏和外壳的返回键都要回来。
+     判据直接读 body 的类，不去碰 fsSet 那边的 FS 对象（那是后一个 <script> 里的 const，
+     这里有 TDZ 风险；类名才是唯一真来源，fsSet 改完也会回调 foldApply）。 */
+  const full = document.body.classList.contains('hxfull');
+  const orbT = barOrb.querySelector('span');
+  if (orbT) orbT.textContent = full ? '退出全屏' : '展开';
+  barOrb.title = full ? '退出全屏：把顶栏和外壳的「← 返回」一起恢复回来' : '展开顶栏';
   segFold.setAttribute('aria-expanded', String(!(FOLD.seg && !FOLD.segAuto)));
   segFold.hidden = FOLD.segAuto;
   segFold.title = FOLD.seg ? '展开 2.1～2.6 题号条' : '收起 2.1～2.6 题号条，把地方让给电路';
@@ -4165,7 +4232,13 @@ function foldSync(c) { // 换电路时按题型决定题号条该不该在
   foldApply();
 }
 barFold.onclick = () => { FOLD.bar = true; ls.set(BAR_KEY, '1'); foldApply(); };
-barOrb.onclick = () => { FOLD.bar = false; ls.set(BAR_KEY, '0'); foldApply(); };
+/* 2026-11-24：全屏态先退全屏。顶栏是被 body.hxfull 藏的，只摘 bar-min 它不会回来 ——
+   这条就是「顶栏失踪之后唯一能把界面拉回来的一颗按钮」，不能只做一半。
+   fsSet 是同一个 <script> 里的函数声明（已提升），点的时候一定已经存在。 */
+barOrb.onclick = () => {
+  if (document.body.classList.contains('hxfull')) fsSet(false);
+  FOLD.bar = false; ls.set(BAR_KEY, '0'); foldApply();
+};
 segFold.onclick = () => { FOLD.seg = !FOLD.seg; ls.set(SEG_KEY, FOLD.seg ? '1' : '0'); foldApply(); };
 mainBtn.onclick = () => { // 回到主电路：关掉扩展练习，回上一次看过的主电路（没记过就回第一张做好的）
   const back = SEG.find(x => x.id === ls.get(SEG_LAST) && x.ready) || SEG.find(x => x.ready);
@@ -7744,15 +7817,50 @@ function rkHideWin() {
     <div class="rk-hide-body" id="rkHideBody"><p class="rk-wait">读取中…</p></div>
     <div class="rk-row"><button class="rk-ghost" id="rkHideClose" type="button">关闭</button></div></div>`);
   const body = v.querySelector('#rkHideBody');
-  v.querySelector('#rkHideClose').onclick = rkHideOverlay;
+  const panel = v.querySelector('.rk-hide');
+  /* ── 关闭：按钮 / 点面板外面 / Esc，三条路都能退 ──
+     用户原话：「榜单管理打开点旁边都退不出去」—— 原来只有那颗「关闭」按钮能退，
+     而面板一旦被列表撑出屏幕（见下面分页），那颗按钮正好在屏幕外，于是彻底退不出去。 */
+  let closed = false;
+  const onKey = e => { if (e.key === 'Escape' || e.key === 'Esc') { e.stopPropagation(); close(); } };
+  const onBack = e => { if (!panel || !panel.contains(e.target)) close(); };
+  function close() {
+    if (closed) return; closed = true;
+    document.removeEventListener('keydown', onKey, true);
+    v.removeEventListener('click', onBack, true);
+    rkHideOverlay();
+  }
+  v.querySelector('#rkHideClose').onclick = close;
+  document.addEventListener('keydown', onKey, true);
+  v.addEventListener('click', onBack, true);
 
   const rowH = r => `<div class="rk-hide-row"><b>${esc(r.name)}</b><small>${esc(r.class_name || '')} · ${fmtMs(r.ms)}</small>`
     + `<button class="rk-hide-btn" type="button" data-hide="${r.student_id}">移出</button></div>`;
   const outH = h => `<div class="rk-hide-row out"><b>${esc(h.name)}</b><small>${esc(h.class_name || '')}${h.circuit === '*' ? ' · 全部题目' : ''}</small>`
     + `<button class="rk-hide-btn" type="button" data-show="${h.student_id}" data-c="${esc(h.circuit)}">移回</button></div>`;
-  const paint = (list, out) => {
-    body.innerHTML = (list.length ? list.map(rowH).join('') : '<p class="rk-wait">这一题还没有人上榜</p>')
+  /* ══ 2026-11-23：分页 ══
+     用户原话：「也可以分页面管理 不用拖动也 ok 啊 不然一口气渲染太多会卡」。
+     一页 12 人：49 人的班 4 页，一次只挂 12 行 DOM，弱机/iPad 上点「移出」不会整块重绘。
+     已移出的那段（通常个位数）跟在后面，不分页；它变多时同样受 .rk-hide-body 的滚动兜住。 */
+  let list = [], out = [], page = 0;
+  /* 一页 10 行：实测（test/_probe-hidefit.cjs，iPad 横屏 1194×834）
+     面板高度上限 min(82vh,700px) 时列表区可用 580px，一行 53.8px ——
+     12 行要 638px（还差 58px，最后一行又被切掉、非得再滚一下），10 行只要 538px，整页不滚就看完。
+     「上一页/下一页」要真的替代拖动，就不能留半行让人再滚。49 人 = 5 页，30 人 = 3 页。 */
+  const PAGE = 10;
+  const pagerH = pages => `<div class="rk-hide-pg">`
+    + `<button type="button" data-pg="-1"${page <= 0 ? ' disabled' : ''}>上一页</button>`
+    + `<span>${page + 1} / ${pages} · 共 ${list.length} 人</span>`
+    + `<button type="button" data-pg="1"${page >= pages - 1 ? ' disabled' : ''}>下一页</button></div>`;
+  const paint = () => {
+    const pages = Math.max(1, Math.ceil(list.length / PAGE));
+    page = Math.max(0, Math.min(page, pages - 1));
+    const slice = list.slice(page * PAGE, page * PAGE + PAGE);
+    body.innerHTML =
+      (list.length ? slice.map(rowH).join('') : '<p class="rk-wait">这一题还没有人上榜</p>')
+      + (pages > 1 ? pagerH(pages) : '')
       + (out.length ? `<p class="rk-hide-sep">已移出（${out.length}）· 成绩还在</p>` + out.map(outH).join('') : '');
+    body.scrollTop = 0;
   };
   const fail = e => {
     const m = String((e && e.message) || e);
@@ -7766,14 +7874,16 @@ function rkHideWin() {
       HX.boot(() => HX.rpc('rank_board', { p_circuit: RK.circuit, p_limit: 200 }, HX.in())),
       HX.boot(() => HX.rpc('rank_hide_list', { p_circuit: RK.circuit }, HX.in()))
     ]).then(([b, h]) => {
-      const list = Array.isArray(b) ? b : (b && Array.isArray(b.data) ? b.data : []);
-      const out = Array.isArray(h) ? h : (h && Array.isArray(h.data) ? h.data : []);
-      paint(list, out);
+      list = Array.isArray(b) ? b : (b && Array.isArray(b.data) ? b.data : []);
+      out = Array.isArray(h) ? h : (h && Array.isArray(h.data) ? h.data : []);
+      paint();
     }, fail);
   };
   /* 一次点击只改一个人：移出/移回都走同一个 RPC，成功后把面板和右边榜单一起刷新
      （榜单是 rank_board 现算的，不重拉的话被移出的人还挂在上面） */
   body.addEventListener('click', async e => {
+    const pgb = e.target.closest('[data-pg]');
+    if (pgb) { page += Number(pgb.dataset.pg) || 0; paint(); return; }
     const hb = e.target.closest('[data-hide]'), sb = e.target.closest('[data-show]');
     if (!hb && !sb) return;
     const b = hb || sb; b.disabled = true;
@@ -8763,6 +8873,10 @@ function fsSet(on, rot) {
   FS.on = on; FS.rot = on && !!rot;
   if (FS.rot && FS.native) lockLand();
   document.body.classList.toggle('hxfull', on);
+  /* 2026-11-24：进出全屏时把右上角那颗胶囊同步一下 —— 全屏里它是「退出全屏」，
+     非全屏时是「展开顶栏」（见 foldApply）。不这么做的话，学生从练习页工具栏进全屏，
+     胶囊上还写着「展开」，点了才知道是退全屏。 */
+  try { foldApply(); } catch (e) { }
   try { if (parent !== window) parent.postMessage({ hx: 'full', on }, '*'); } catch (e) { }
   // ── 2026-11-06 iOS：Safari 没有全屏 API，页面内全屏能藏掉本页顶栏和首页返回栏，
   // 但 Safari 自己的地址栏去不掉 —— 进入全屏时提示一次「添加到主屏幕」（用户确认要这条路）。
@@ -8781,6 +8895,17 @@ window.hxFull = {
 // 让首页藏掉它的返回栏，iframe 铺满整个可视区。iOS Safari 没有系统全屏 API 也照样进
 // 页面内全屏（hxfull），所以按钮不需要按支持与否隐藏。
 document.getElementById('fsBtn').onclick = () => fsSet(!FS.on);
+/* 2026-11-24：Esc 也能退页面内全屏。
+   电脑端从练习页工具栏点「全屏」时，requestFullscreen 是在**父文档**里被调的、
+   没有用户手势 → 被浏览器拒（FS.native 一直是 false），于是按 Esc 没有任何反应，
+   连浏览器自带的「退全屏」都没有 —— 这一点让「顶栏失踪」在电脑上也变成死路。
+   这里补一条键盘出口：没有浮窗、没有排位遮罩时，Esc = 退全屏（不抢它们的 Esc）。 */
+addEventListener('keydown', e => {
+  if (e.key !== 'Escape' && e.key !== 'Esc') return;
+  if (!document.body.classList.contains('hxfull')) return;
+  if (document.querySelector('.fw.show, #fw-rank.show, #rkVeil.show')) return;
+  fsSet(false);
+});
 addEventListener('resize', fsFit);
 ['fullscreenchange', 'webkitfullscreenchange'].forEach(t => document.addEventListener(t, () => { if (FS.native && !document.fullscreenElement && !document.webkitFullscreenElement) fsSet(false); })); // 安卓返回键退出了系统全屏：页面内全屏一起退
 // 打开时：网址里带 #2.2 就打开 2.2，否则打开上次看的那个
