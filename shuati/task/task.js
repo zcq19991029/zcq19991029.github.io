@@ -35,11 +35,55 @@ const S = {
   started: 0,
   result: null,      // { r, review, answers, task }
   stopRank: null,    // 排行榜页的 5 秒轮询句柄：离开这一页必须停掉，否则一直在打服务器
+  rankTok: 0,        // 排行榜视图令牌：退出排行榜或重开时递增，防止在途回调覆写 DOM
+  draft: null,       // 教师端发布表单草稿（进排行榜前保存，返回时回填）
 };
 const MAIN = () => $('#main');
+const inPortal = () => { try { return window.top !== window; } catch { return true; } };
+const imgHtml = q => (typeof q.img === 'string' && q.img.trim() && !/^\s*javascript:/i.test(q.img))
+  ? `<div class="qt-fig"><img src="${esc(q.img.trim())}" class="q-img" alt="题目配图"></div>`
+  : '';
+
+function saveDraft() {
+  const fTitle = $('#fTitle');
+  if (!fTitle) return;
+  S.draft = {
+    title: fTitle.value,
+    titleTouched: fTitle.dataset.touched || '',
+    lessonNo: $('#fLessonNo') ? $('#fLessonNo').value : '',
+    lessonDate: $('#fLessonDate') ? $('#fLessonDate').value : '',
+    full: $('#fFull') ? $('#fFull').value : '5',
+    note: $('#fNote') ? $('#fNote').value : '',
+  };
+}
+
+function exitRank() {
+  stopRankPoll();
+  if (S.me && (S.me.teacher || S.me.admin || S.me.dev)) renderTeacher();
+  else paintStudent();
+}
+
+window.HXBack = function () {
+  if ($('#quiz')) {
+    const hadResult = !!S.result;
+    closeQuiz();
+    if (hadResult) studentView();
+    return true;
+  }
+  if ($('#rankKpi')) {
+    exitRank();
+    return true;
+  }
+  if (inPortal()) {
+    location.href = new URL('../', location.href).href;
+    return true;
+  }
+  return false;
+};
 
 /* ---------------- 启动 ---------------- */
 (async function boot() {
+  if (inPortal()) { const b = $('.qt-back'); if (b) b.style.display = 'none'; }
   if (!hx.signedIn()) {
     return gate('先登录再用课堂任务',
       '课堂任务和刷题共用华夏工具账号。<br>登录后回到这一页，就能按班级发题/做题。', true);
@@ -196,6 +240,7 @@ function renderTeacher() {
     }
     await chooseBank(S.banks[0].id);
     if ($('#fTitle') && !$('#fTitle').dataset.touched) $('#fTitle').value = defaultTitle();
+    saveDraft();
   };
   $('#fBank').onchange = () => chooseBank($('#fBank').value);
   $('#fTypes').onclick = e => {
@@ -213,7 +258,13 @@ function renderTeacher() {
     $('#fKw').value = ''; S.page = 0;
     paintFilterTypes(); paintChapters(); paintList();
   };
-  $('#fTitle').oninput = () => { $('#fTitle').dataset.touched = '1'; };
+  $('#fTitle').oninput = () => { $('#fTitle').dataset.touched = '1'; saveDraft(); };
+  ['#fLessonNo', '#fLessonDate', '#fFull', '#fNote'].forEach(sel => {
+    const el = $(sel);
+    if (!el) return;
+    el.oninput = saveDraft;
+    if (sel === '#fLessonDate') el.onchange = saveDraft;
+  });
   $('#fGo').onclick = publish;
 
   paintBankOptions();
@@ -221,11 +272,20 @@ function renderTeacher() {
   paintChapters();
   paintList();
   paintTasks();
-  $('#fLessonNo').value = nextLessonNo();
+  const tag = $('#bankTag');
+  if (tag) {
+    const b = S.banks.find(x => x.id === S.bank);
+    tag.textContent = S.bank ? `${(b && b.name) || S.bank} · ${S.qs.length} 题` : '—';
+  }
+  const d = S.draft;
+  $('#fLessonNo').value = d ? d.lessonNo : nextLessonNo();
   /* 2026-11-22：日期默认就是今天 —— 小组加分的入账按日期找课次（quiz-task-link.js），
      留空会退回「课次号」，而课次号是刷题任务自己的计数器，和记分表的课次序号不是一套。 */
-  $('#fLessonDate').value = todayStr();
-  $('#fTitle').value = defaultTitle();
+  $('#fLessonDate').value = d ? d.lessonDate : todayStr();
+  $('#fFull').value = d ? d.full : '5';
+  $('#fNote').value = d ? d.note : '';
+  $('#fTitle').value = d ? d.title : defaultTitle();
+  if (d && d.titleTouched) $('#fTitle').dataset.touched = d.titleTouched;
 }
 
 function defaultTitle() {
@@ -336,7 +396,7 @@ function paintList() {
           <span class="qt-qmeta">
             <i class="t">${esc(typeName(q.type))}</i>
             <i>${esc(chapterLabel(q))}</i>
-            ${q.fig ? '<i>带图</i>' : ''}
+            ${q.fig || q.img ? '<i>带图</i>' : ''}
           </span>
         </span>
         <span class="qt-qno">${no}</span>
@@ -519,6 +579,7 @@ async function repost(t) {
   $('#fLessonDate').value = task.lesson_date || '';
   $('#fFull').value = task.full;
   $('#fNote').value = task.note || '';
+  saveDraft();
   paintList();
   toast($('#fMsg'), `已把任务 #${task.id} 的 ${(task.qids || []).length} 道题带回发布区，改标题后点「发布任务」就是新的一条。`, 'ok');
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -604,13 +665,16 @@ function paintStudent() {
    离开这一页必须停（stopRankPoll），否则页面回任务列表了还在每 5 秒打一次服务器。
    ========================================================================== */
 function stopRankPoll() {
+  S.rankTok = (S.rankTok || 0) + 1;
   if (S.stopRank) { try { S.stopRank(); } catch (e) { } S.stopRank = null; }
 }
 
 async function boardView(id) {
   const t = S.tasks.find(x => Number(x.id) === Number(id));
   if (!t) return;
+  saveDraft();
   stopRankPoll();
+  const tok = S.rankTok;
   const isTeacher = !!(S.me.teacher || S.me.admin || S.me.dev);
   const myId = S.me.student ? Number(S.me.student.id) : null;
 
@@ -637,10 +701,11 @@ async function boardView(id) {
     </div>
   </section>`;
 
-  $('#rankBack').onclick = () => { stopRankPoll(); isTeacher ? renderTeacher() : paintStudent(); };
+  $('#rankBack').onclick = exitRank;
   if ($('#rankBig')) $('#rankBig').onclick = () => window.open('board.html?t=' + t.id, '_blank');
 
   const paint = rows => {
+    if (tok !== S.rankTok || !$('#rankKpi')) return;
     const done = rows.filter(r => r.done);
     const undone = rows.filter(r => !r.done);
     const n = done.length, total = rows.length;
@@ -681,9 +746,15 @@ async function boardView(id) {
   // 第二个参数是 class_id：SQL 还没执行时，未完成名单要靠班级名单反推（见 task-hx.js 的 taskBoard）
   try { paint(await taskBoard(t.id, t.class_id)); }
   catch (e) {
-    $('#rankKpi').innerHTML = `<p class="qt-hint" style="color:var(--qt-bad)">读取排行榜失败：${esc(e.message)}</p>`;
+    if (tok === S.rankTok && $('#rankKpi')) $('#rankKpi').innerHTML = `<p class="qt-hint" style="color:var(--qt-bad)">读取排行榜失败：${esc(e.message)}</p>`;
   }
-  S.stopRank = every(5000, async () => { paint(await taskBoard(t.id, t.class_id)); });
+  if (tok !== S.rankTok || !$('#rankKpi')) return;
+  S.stopRank = every(5000, async () => {
+    if (tok !== S.rankTok || !$('#rankKpi')) { stopRankPoll(); return; }
+    const rows = await taskBoard(t.id, t.class_id);
+    if (tok !== S.rankTok || !$('#rankKpi')) return;
+    paint(rows);
+  });
 }
 
 /* ---------------- 作答 ---------------- */
@@ -785,6 +856,7 @@ function renderQuiz() {
         </div>
         <div class="qt-stem">${esc(q.stem)}</div>
         ${q.fig ? `<div class="qt-fig">${figSvg(q.fig, true)}</div>` : ''}
+        ${imgHtml(q)}
         ${q.code ? `<pre class="qt-code">${esc(q.code)}</pre>` : ''}
         ${optHtml()}
         <div class="qt-dots">${questions.map((x, i) =>
@@ -948,15 +1020,11 @@ function renderResult() {
             ${q.explanation ? `<div class="ex"><b>解析：</b>${esc(q.explanation)}</div>` : ''}
           </div>`).join('')}</div></div></div>`
           : `<div class="qt-panel"><div class="qt-empty"><b>全对，太稳了</b>这套题没有错题。</div></div>`}
-        <div class="qt-acts" style="justify-content:center">
-          <button class="qt-btn big" id="rBack" type="button">返回任务</button>
-          ${task.status === 'open' ? '<button class="qt-btn primary big" id="rAgain" type="button">再练一次（只升不降）</button>' : ''}
-        </div>
+        ${task.status === 'open' ? '<div class="qt-acts" style="justify-content:center"><button class="qt-btn primary big" id="rAgain" type="button">再练一次（只升不降）</button></div>' : ''}
       </div>
     </div>`;
 
   $('#rClose').onclick = () => { closeQuiz(); studentView(); };
-  $('#rBack').onclick = () => { closeQuiz(); studentView(); };
   if ($('#rAgain')) $('#rAgain').onclick = () => {
     S.idx = 0; S.answers = {};
     S.quiz.questions.forEach(q => { if (q.type === 'fill') S.answers[q.id] = blanksOf(q).map(() => ''); });

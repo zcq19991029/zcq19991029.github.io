@@ -1395,14 +1395,14 @@
     cover({ id: 'hxExpired', title: '服务器过期，等待管理员续费', sub: '',
       btn: '退出登录', onclick: function () {
         try { localStorage.removeItem(SKEY_SESS); } catch (e) { }
-        location.replace(root);
+        (portal() && portal().home ? portal().home() : location.replace(root));
       } });
   }
   /* 工具没开通的遮罩（2026-11-24）。文案只说事实 + 该找谁，不解释后台怎么配的。 */
   function coverDenied(name) {
     cover({ id: 'hxNoTool', title: '「' + name + '」没有给你的班级开通',
       sub: '需要的话请联系任课老师开通。其他工具照常可用。',
-      btn: '回首页', onclick: function () { location.replace(root); } });
+      btn: '回首页', onclick: function () { (portal() && portal().home ? portal().home() : location.replace(root)); } });
   }
   function cover(o) {
     if (document.getElementById(o.id)) return;
@@ -1410,7 +1410,7 @@
     d.id = o.id;
     d.setAttribute('role', 'alert');
     d.style.cssText = 'position:fixed;inset:0;z-index:2147483600;display:flex;align-items:center;justify-content:center;padding:18px;' +
-      'background:var(--card,#fff);color:var(--ink,#1d1d1f);font:15px/1.7 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif';
+      'background:var(--card-solid,#fff);color:var(--ink,#1d1d1f);font:15px/1.7 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif';
     d.innerHTML = '<div style="max-width:520px;width:100%;text-align:left">' +
       '<div style="font-size:19px;font-weight:700;margin-bottom:' + (o.sub ? '10px' : '16px') + '">' + o.title + '</div>' +
       (o.sub ? '<div style="color:var(--dim,#6b7280);margin-bottom:16px">' + o.sub + '</div>' : '') +
@@ -1586,14 +1586,21 @@
     function boot() {
       sweep(document);
       // 后续插入的按钮：只处理新增子树里的，不整页重扫（首页十几张卡，重扫没必要）
+      var pending = [], raf = 0;
+      function flush() {
+        raf = 0;
+        var roots = pending; pending = [];
+        for (var i = 0; i < roots.length; i++) { mark(roots[i]); sweep(roots[i]); }
+      }
       new MutationObserver(function (ms) {
         for (var i = 0; i < ms.length; i++) {
           var added = ms[i].addedNodes;
           for (var j = 0; j < added.length; j++) {
-            var n = added[j]; if (n.nodeType !== 1) continue;
-            mark(n); sweep(n);
+            var n = added[j]; if (n.nodeType !== 1 || pending.indexOf(n) >= 0) continue;
+            pending.push(n);
           }
         }
+        if (pending.length && !raf) raf = requestAnimationFrame(flush);
       }).observe(document.body, { childList: true, subtree: true });
     }
     window.HXCrumbs = { sweep: sweep };

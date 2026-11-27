@@ -48,6 +48,36 @@
   var PLAT_PREFIX = 'hx-ai-key:plat:';  // 2026-11-15：Key 挂平台，一个 Key 下所有模型共用
   var TIMEOUT = 60000; // 60 秒。识别整页扫描件时慢，但超过一分钟基本是卡住了
   var NO_AI = '还没有配置 AI 模型，请到首页「AI 设置」里加一套';
+  var ACCOUNT_PREFIX = 'hx-ai-account:';
+  function sessionUid() {
+    try {
+      var s = JSON.parse(g.localStorage.getItem('paike-session') || 'null');
+      if (!s || typeof s !== 'object') return '';
+      if (s.user && s.user.id) return String(s.user.id);
+      var t = String(s.access_token || ''), part = t.split('.')[1];
+      if (!part) return '';
+      part = part.replace(/-/g, '+').replace(/_/g, '/'); while (part.length % 4) part += '=';
+      return String(JSON.parse(decodeURIComponent(escape(atob(part)))).sub || '');
+    } catch (e) { return ''; }
+  }
+  var accountUid = sessionUid();
+  function scopedName(name) { return ACCOUNT_PREFIX + (accountUid || 'anon') + ':' + name; }
+  function migrateLegacyLocal() {
+    if (!accountUid) return;
+    try {
+      [STORE].concat([KEY_PREFIX]).forEach(function (name) {
+        [g.localStorage, g.sessionStorage].forEach(function (box) {
+          var keys = name === STORE ? [STORE] : Object.keys(box).filter(function (k) { return k.indexOf(name) === 0 && k.indexOf(ACCOUNT_PREFIX) !== 0; });
+          keys.forEach(function (k) {
+            var target = scopedName(k), value = box.getItem(k);
+            if (!box.getItem(target) && value) box.setItem(target, value);
+            box.removeItem(k);
+          });
+        });
+      });
+    } catch (e) { }
+  }
+  migrateLegacyLocal();
 
   /* ── 账号云端：配置和 Key 跟账号走（2026-11-19 用户要求）──────────────────────
      用户原话：「永远不存在本机换电脑就看不到的东西，包括 api key 和网页背景，
@@ -789,7 +819,7 @@
 
   function parse() {
     var raw = null;
-    try { raw = JSON.parse(g.localStorage.getItem(STORE) || 'null'); } catch (e) { raw = null; }
+    try { raw = JSON.parse(g.localStorage.getItem(scopedName(STORE)) || 'null'); } catch (e) { raw = null; }
     return raw && typeof raw === 'object' ? raw : null;
   }
 
@@ -909,7 +939,7 @@
 
   function write(s) {
     var json;
-    try { json = JSON.stringify(s); g.localStorage.setItem(STORE, json); }
+    try { json = JSON.stringify(s); g.localStorage.setItem(scopedName(STORE), json); }
     catch (e) { throw new Error('浏览器不让保存（可能是隐私模式或存储满了）。'); }
     // 顺序是刻意的：本机先落盘，成功了才「尽力」上云。云端挂了 / 没登录 → 只是这次没备份，不影响本机。
     // 放在 write() 里而不是 save() 里：read() 的 v1→v2 迁移也走这里，老用户第一次打开就把迁移结果同步上云。
@@ -950,11 +980,11 @@
   // ---------- Key 存取（2026-11-15 改挂平台） ----------
   // 统一从一个地方读：session 优先（当前标签页现填的更新），其次 local（勾了「记住」的）
   function readKey(name) {
-    try { return g.sessionStorage.getItem(name) || g.localStorage.getItem(name) || ''; }
+    try { var n = scopedName(name); return g.sessionStorage.getItem(n) || g.localStorage.getItem(n) || ''; }
     catch (e) { return ''; }
   }
   function keyRemembered(name) {
-    try { return !!g.localStorage.getItem(name); } catch (e) { return false; }
+    try { return !!g.localStorage.getItem(scopedName(name)); } catch (e) { return false; }
   }
   /* 只动这一个名字的 Key：先两个存储都清掉，再落到 localStorage。
      2026-11-19 改「全云端」：不再有「记住 / 不记住」这一说 —— 用户的 Key 一律持久化到本机，
@@ -962,10 +992,11 @@
      （老调用方还在传），写口兼容，行为统一为「持久化 + 上云」。 */
   function writeKey(name, value, remember) {
     var k = str(value);
+    var scoped = scopedName(name);
     try {
-      g.localStorage.removeItem(name);
-      g.sessionStorage.removeItem(name);
-      if (k) g.localStorage.setItem(name, k);
+      g.localStorage.removeItem(scoped);
+      g.sessionStorage.removeItem(scoped);
+      if (k) g.localStorage.setItem(scoped, k);
     } catch (e) { /* 隐私模式下可能写不进去，不影响其它功能 */ }
     /* 跟账号走：Key 的写入口就这一个（setPlatKey / setKey / clearKey / migrateKey 兜底全走到这里），
        所以同步也只需要挂在这里。有值就传一份到账号，清空就删掉云端那份 —— 否则用户以为删干净了，
@@ -1025,17 +1056,17 @@
      然后删掉老键 —— 一把 Key 只留一份，免得出现「改了平台 Key 但老键还在、读到的却是旧的」。 */
   function migrateKey(platId, profileId) {
     if (!str(platId) || !str(profileId)) return;
-    var from = KEY_PREFIX + str(profileId);
-    var to = PLAT_PREFIX + str(platId);
+    var from = KEY_PREFIX + str(profileId), to = PLAT_PREFIX + str(platId);
+    var localFrom = scopedName(from), localTo = scopedName(to);
     try {
       [g.localStorage, g.sessionStorage].forEach(function (box) {
         var v = null;
-        try { v = box.getItem(from); } catch (e) { v = null; }
+        try { v = box.getItem(localFrom); } catch (e) { v = null; }
         if (!v) return;
         var exist = null;
-        try { exist = box.getItem(to); } catch (e) { exist = null; }
-        if (!exist) { try { box.setItem(to, v); } catch (e) { return; } }
-        try { box.removeItem(from); } catch (e) { /* 删不掉也无害，读的时候平台键优先 */ }
+        try { exist = box.getItem(localTo); } catch (e) { exist = null; }
+        if (!exist) { try { box.setItem(localTo, v); } catch (e) { return; } }
+        try { box.removeItem(localFrom); } catch (e) { /* 删不掉也无害，读的时候平台键优先 */ }
         // 搬完把账号上那份也对齐：新键上去、老键删掉（只在 localStorage 这份上做 —— session 的 Key 不上云）
         if (box === g.localStorage) { cloudPut(to, v); cloudDel(from); }
       });
@@ -1864,26 +1895,39 @@
      云端那份只有「勾了记住」的 Key 才会有，所以补回来的也都是本该记住的。
      落地后派一个 hx-ai-cloud 事件：/ai/ 设置页若正在显示，可以自己重画（没有监听也不影响什么）。
      整个流程 .catch 吞掉：没登录 / 断网 / 401 都只是「这台机器上用回本机那份」。 */
-  (function pull() {
+  function pullCloud() {
     var hasLocal = true;
-    try { hasLocal = !!g.localStorage.getItem(STORE); } catch (e) { hasLocal = true; }
-    cloudP.then(function (ok) {
-      if (!ok || !g.HXC || !g.HXC.prefGet) return null;   // 守卫式：HXC 没到 / 只到了半截都不算事
+    try { hasLocal = !!g.localStorage.getItem(scopedName(STORE)); } catch (e) { hasLocal = true; }
+    return cloudLoad().then(function (ok) {
+      if (!ok || !g.HXC || !g.HXC.prefGet || !accountUid) return null;
       return g.HXC.prefGet();
     }).then(function (d) {
-      if (!d || typeof d !== 'object') return;
+      if (!d || typeof d !== 'object' || !accountUid) return;
       var changed = false;
       try {
-        if (!hasLocal && !g.localStorage.getItem(STORE) && typeof d[STORE] === 'string' && d[STORE]) {
-          g.localStorage.setItem(STORE, d[STORE]); changed = true;
+        if (!hasLocal && !g.localStorage.getItem(scopedName(STORE)) && typeof d[STORE] === 'string' && d[STORE]) {
+          g.localStorage.setItem(scopedName(STORE), d[STORE]); changed = true;
         }
         for (var k in d) if (Object.prototype.hasOwnProperty.call(d, k) && k.indexOf(CLOUDKEY) === 0) {
-          if (!g.localStorage.getItem(k) && !g.sessionStorage.getItem(k)) { g.localStorage.setItem(k, d[k]); changed = true; }
+          var localName = scopedName(k);
+          if (!g.localStorage.getItem(localName) && !g.sessionStorage.getItem(localName)) { g.localStorage.setItem(localName, d[k]); changed = true; }
         }
-      } catch (e) { /* 隐私模式写不进去：读的时候照样有兜底，不影响调用 */ }
+      } catch (e) { }
       if (changed) { try { g.dispatchEvent(new g.CustomEvent('hx-ai-cloud')); } catch (e) { } }
     }).catch(function () { });
-  })();
+  }
+  var accountSeen = accountUid;
+  function accountChanged(next) {
+    if (next === accountSeen) return;
+    accountSeen = next; accountUid = next;
+    migrateLegacyLocal();
+    cloudP = cloudLoad();
+    pullCloud();
+    try { g.dispatchEvent(new g.CustomEvent('hx-ai-account')); } catch (e) { }
+  }
+  pullCloud();
+  g.addEventListener('storage', function (e) { if (e.key === 'paike-session') accountChanged(sessionUid()); });
+  setInterval(function () { accountChanged(sessionUid()); }, 2000);
 
   g.HXAI = {
     VERSION: VERSION,

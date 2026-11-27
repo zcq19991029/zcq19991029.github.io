@@ -144,6 +144,15 @@
     if (saved) { session = saved; return true; }
     return false;
   }
+  if (window.addEventListener) window.addEventListener('storage', function (e) {
+    if (e.key !== SESSION_KEY) return;
+    var shared = readShared();
+    var nextUid = shared && shared.user ? String(shared.user.id || '') : '';
+    var currentUid = user && user.id ? String(user.id) : (session && session.user && session.user.id ? String(session.user.id) : '');
+    if (nextUid === currentUid) return;
+    session = shared; user = null; me = null; revision = 0; pending = null; inflight = null; refreshing = null; checking = null;
+    emit('idle', '账号已切换，正在重新读取');
+  });
 
   function expired(s) {
     return !!(s.refresh_token && !(s.expires_at && s.expires_at - 60 > Date.now() / 1000));

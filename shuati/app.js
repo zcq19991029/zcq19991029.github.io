@@ -133,7 +133,7 @@ const savePrefs = () => store.setLocal('prefs', { subject: S.subject?.id, type: 
    地址上的 ?pv= 只是「请求头」的来源，不构成判断依据 —— 学生在自己地址上加 pv 拿不到 probe。 */
 let DEMO = false;
 let demoHinted = false; // 演示态第一次作答提示一次「不会记录」，之后别再刷屏
-const inPortal = () => { try { return window.top !== window && window.top.location.pathname === '/'; } catch { return false; } };
+const inPortal = () => { try { return window.top !== window; } catch { return true; } };
 const isTeacher = () => !!(S.me && (S.me.teacher || S.me.admin || S.me.dev));
 // 开发者最高权限（2026-11-08 用户明确：「开发者拥有以上全部功能 管理员开发者都属于教师账号 只不过开发者最高权限」）。
 // 目前只有两件事只给开发者：把内置题库搬到自己的账号、删别人发布的题库。
@@ -354,7 +354,7 @@ function order(ids) {
   return ids;
 }
 const saveSess = () => store.setLocal(sessKey(), { ids: S.queue, i: S.i, picked: S.picked });
-const clearSess = () => { for (const [t] of TYPES) for (const [sc] of SCOPES) for (const [m] of ORDERS) store.setLocal(`sess:${S.subject.id}:${t}:${sc}:${m}`, null); };
+const clearSess = () => store.clearLocalPrefix('sess:' + S.subject.id + ':');
 // 清空重刷：清掉本科目的已记住、错题、作答记录，从头开始
 function resetAll() { S.records = {}; S.hsel.clear(); store.write('progress:' + S.subject.id, {}, { now: true }); clearSess(); buildQueue(false); toast('已清空，从头开始刷'); show('practice'); }
 const cur = () => S.questions.find(q => q.id === S.queue[S.i]);
@@ -453,6 +453,9 @@ function show(v) {
    外壳先问当前工具能不能自己退一步：true = 工具退了（外壳什么都不做），false = 已经在第一屏，外壳回首页。
    本站的第一屏是「练习」（practice），其余栏目（总览/排位/题库/设置）都退它一步。 */
 window.HXBack = function () {
+  if (bscCtl) { bscCtl.close(); return true; }
+  if ($('sheet').classList.contains('show')) { dismissSheet(); return true; }
+  if (document.body.classList.contains('focus')) { setFocus(false); return true; }
   if (S.view && S.view !== 'practice') { show('practice'); return true; }
   return false;
 };
@@ -621,7 +624,8 @@ function renderCard() {
       return `<b class="fill-ans" title="第 ${n + 1} 空">${esc(txt)}</b>`;
     });
   }
-  const extra = (q.fig ? `<figure style="margin:4px 0 12px;display:flex;justify-content:center;padding:10px;border-radius:12px;background:rgba(127,127,127,.08)">${figSvg(q.fig, true)}</figure>` : '') + (q.code ? `<pre class="code">${esc(q.code)}</pre>` : '') + (q.sub ? `<ol class="subs">${q.sub.map(x => `<li>${esc(x)}</li>`).join('')}</ol>` : '');
+  const imgSrc = typeof q.img === 'string' && q.img.trim() && !/^\s*javascript:/i.test(q.img) ? q.img.trim() : '';
+  const extra = (q.fig ? `<figure style="margin:4px 0 12px;display:flex;justify-content:center;padding:10px;border-radius:12px;background:rgba(127,127,127,.08)">${figSvg(q.fig, true)}</figure>` : '') + (imgSrc ? `<figure style="margin:4px 0 12px;display:flex;justify-content:center;padding:10px;border-radius:12px;background:rgba(127,127,127,.08)"><img src="${esc(imgSrc)}" class="q-img" alt="题目配图"></figure>` : '') + (q.code ? `<pre class="code">${esc(q.code)}</pre>` : '') + (q.sub ? `<ol class="subs">${q.sub.map(x => `<li>${esc(x)}</li>`).join('')}</ol>` : '');
   const ref = () => `<div class="ref">${esc(q.answer[0])}</div>`;
   let fb = '';
   if (self && !picked) fb = S.shown[q.id] ? `<div class="fb self"><b>参考答案</b>${ref()}<div class="row"><button class="btn ghost" type="button" id="noBtn">没答对</button><button class="btn okb" type="button" id="okBtn">答对了</button></div></div>`
@@ -709,12 +713,13 @@ function openSheet(html, bind, cls) {
   $('sheet').classList.add('show'); $('sheetBg').classList.add('show');
 }
 function closeSheet() { $('sheet').classList.remove('show'); $('sheetBg').classList.remove('show'); }
-// 点周边关掉可以理解，但打了一半的字不能跟着没：关之前先把草稿留住，再打开原样带回来
-$('sheetBg').onclick = () => {
+// 点周边或退栈关掉可以理解，但打了一半的字不能跟着没：关之前先把草稿留住，再打开原样带回来
+function dismissSheet() {
   const inp = $('askIn'), draft = $('sheet').classList.contains('ask') && inp ? inp.value : '';
   closeSheet();
   if (draft && draft.trim()) toast('草稿留着了，再点“问 AI”继续');
-};
+}
+$('sheetBg').onclick = dismissSheet;
 function openCardSheet() {
   const cells = S.queue.map((id, n) => {
     const p = S.picked[id], q = S.questions.find(x => x.id === id), r = rec(id);
@@ -2634,10 +2639,18 @@ function lock(on) {
   let el = document.getElementById('hxLock');
   if (!on) { if (el) el.remove(); return false; }
   if (!el) { el = document.createElement('div'); el.id = 'hxLock'; document.body.appendChild(el); }
-  el.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center;background:var(--card,#f5f5f7);color:var(--ink,#1d1d1f);font-size:16px';
-  el.innerHTML = hx.signedIn()
-    ? '<b style="font-size:20px">这个账号还没开通</b><a href="https://zcq19991029.github.io/" target="_top" style="padding:10px 22px;border-radius:999px;background:var(--acc,#0a84ff);color:var(--on-acc,#fff);text-decoration:none">填写邀请码开通</a>'
-    : '<b style="font-size:20px">先登录才能刷题</b><span style="color:var(--dim,#6e6e73)">没登录的人不能用任何工具</span><a href="https://zcq19991029.github.io/" target="_top" style="padding:10px 22px;border-radius:999px;background:var(--acc,#0a84ff);color:var(--on-acc,#fff);text-decoration:none">去首页登录</a>';
+  el.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center;background:var(--card-solid,#f5f5f7);color:var(--ink,#1d1d1f);font-size:16px';
+  const signed = hx.signedIn();
+  el.innerHTML = signed
+    ? '<b style="font-size:20px">这个账号还没开通</b><a id="hxLockGo" href="../" target="_top" style="padding:10px 22px;border-radius:999px;background:var(--acc,#0a84ff);color:var(--on-acc,#fff);text-decoration:none">填写邀请码开通</a>'
+    : '<b style="font-size:20px">先登录才能刷题</b><span style="color:var(--dim,#6e6e73)">没登录的人不能用任何工具</span><a id="hxLockGo" href="../" target="_top" style="padding:10px 22px;border-radius:999px;background:var(--acc,#0a84ff);color:var(--on-acc,#fff);text-decoration:none">去首页登录</a>';
+  const go = document.getElementById('hxLockGo');
+  if (go) go.onclick = e => {
+    const p = window.HXTheme && typeof window.HXTheme.portal === 'function' && window.HXTheme.portal();
+    if (!p) return;
+    if (signed && typeof p.home === 'function') { e.preventDefault(); p.home(); }
+    else if (!signed && typeof p.login === 'function') { e.preventDefault(); p.login(); }
+  };
   return true;
 }
 async function boot() {
@@ -2655,6 +2668,11 @@ async function boot() {
   /* 「专注」是老师本人的偏好（存在他自己的键里、脚本一开始就套上了）。演示是给学生看的，
      不该打开就只剩一张题卡 —— 这里只把界面样式摘掉，不改他的偏好。 */
   if (DEMO) { document.body.classList.remove('focus'); tellTop(false); }
+  else {
+    const f = !!store.getLocal('focus', false);
+    document.body.classList.toggle('focus', f);
+    tellTop(f);
+  }
   // 首页那套 AI 配置（hx-ai.js → window.HXAI）尽早拿到：题卡、导入区、问 AI 都要判断“配没配模型”。
   // 离线版不加载（没有 AI）；加载失败很快返回，最多等 1.5 秒，不挡首屏。
   await Promise.race([ensureHxAi(), new Promise(r => setTimeout(r, 1500))]);
@@ -2668,6 +2686,7 @@ async function boot() {
   // 首屏内容已经画好（openSubject 末尾的 show()），撤掉 #hxBoot：整层淡出，
   // 屏幕上不会出现「内容已渲染、像素闪屏才盖上来」的空窗。
   if (window.HXLoadFx) HXLoadFx.finishBoot();
+  if (!DEMO && !store.getLocal('notice', 0)) setTimeout(() => { if (!DEMO && !store.getLocal('notice', 0)) openNotice(); }, 600);
   if (!pub) {
     await loadSubjects(); // 老师发布的题库随后补进科目列表
     /* 两种情况要把科目重开一遍：
@@ -2680,8 +2699,6 @@ async function boot() {
   }
   store.rankFlush(rankDone); // 上次没交上的答对记录
 }
-if (store.getLocal('focus', false)) { document.body.classList.add('focus'); tellTop(true); }
-if (!store.getLocal('notice', 0)) setTimeout(openNotice, 600);
 /* 分享码深链（2026-11-08）：别人扫二维码打开就是 .../shuati/#join=K7M2QP。
    直接把输码面板弹出来、码也填好，少一步手输；处理完把 hash 清掉，
    否则刷新一次又弹一遍。没登录也能走到这里 —— 取码那一步对 anon 开放。 */
@@ -2693,8 +2710,9 @@ if (!store.getLocal('notice', 0)) setTimeout(openNotice, 600);
     setTimeout(() => openJoinSheet(code), 900);
   }
 }
-let was = hx.signedIn();
-hx.onChange(() => { const n = hx.signedIn(); if (n !== was) { was = n; store.flush(); S.base = {}; boot(); } }); // 在总入口或别的工具登录、退出
+const sig = () => (hx.signedIn() ? (hx.uid() || '1') : '');
+let was = sig();
+hx.onChange(() => { const n = sig(); if (n !== was) { was = n; store.flush(); S.base = {}; S.records = {}; S.subjects = []; boot(); } }); // 在总入口或别的工具登录、退出或换号
 { // 扩展在页面加载完后才挂上，挂上（或停用后刷新）时重画用到它的地方
   let ext = hasExt();
   new MutationObserver(() => { if (hasExt() === ext) return; ext = !ext; if (!S.subject) return; if (S.view === 'settings') renderSettings(); if (S.view === 'practice') renderCard(); }).observe(document.documentElement, { childList: true });

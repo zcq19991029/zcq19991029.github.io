@@ -20,14 +20,14 @@
      ui-dialog.js 提供 hxConfirm / hxAlert，资料库删资料用的也是它。 -->
 <script src="../ui-dialog.js"></script>
 <style>
-:root { --ink:#1c2321; --mute:#6b7a74; --acc:#16a34a; --acc-deep:#15803d; --warn:#b45309; --danger:#dc2626; }
+:root { --rb-mute:#6b7a74; --rb-acc:#16a34a; --rb-acc-deep:#15803d; --rb-warn:#b45309; --rb-danger:#dc2626; }
 * { box-sizing:border-box; }
 html,body { margin:0; }
 body {
   color:var(--ink); font-family:ui-rounded,"SF Pro Rounded","PingFang SC","Microsoft YaHei",sans-serif;
   background:var(--bg); min-height:100vh;
 }
-.app { width:min(880px, calc(100% - 32px)); margin:0 auto; padding:26px 0 60px; }
+.app { width:min(1400px, calc(100% - 32px)); margin:0 auto; padding:26px 0 60px; }
 header { display:flex; align-items:center; gap:14px; margin-bottom:8px; }
 .mark { width:52px; height:52px; display:grid; place-items:center; border-radius:15px; background:linear-gradient(135deg,#f59e0b,#d97706); color:#fff; box-shadow:inset 0 -5px 0 rgba(0,0,0,.14); }
 .mark svg { width:28px; height:28px; }
@@ -51,7 +51,7 @@ header p { margin:4px 0 0; color:var(--dim); font-size:13.5px; line-height:1.6; 
 .item button.restore:disabled { opacity:.5; cursor:not-allowed; }
 .item .acts { flex:0 0 auto; display:flex; align-items:center; gap:8px; }
 /* 彻底删除：描边红字，故意做得比「还原」弱 —— 免得手快点错（不可逆，删完连文件一起没） */
-.item button.purge { background:transparent; color:var(--danger); border:1px solid rgba(220,38,38,.42); }
+.item button.purge { background:transparent; color:var(--rb-danger); border:1px solid rgba(220,38,38,.42); }
 .item button.purge:hover { background:rgba(220,38,38,.08); }
 .item button.purge:disabled { opacity:.45; cursor:not-allowed; }
 .item button.gone { background:transparent; color:var(--dim); border:1px solid var(--edge); }
@@ -61,7 +61,13 @@ header p { margin:4px 0 0; color:var(--dim); font-size:13.5px; line-height:1.6; 
 .gate .card { padding:26px; text-align:center; }
 .gate h1 { font-size:20px; }
 .gate p { color:var(--dim); font-size:14px; margin:10px 0 18px; }
-.gate a { display:inline-block; padding:11px 22px; border-radius:12px; background:var(--acc); color:#fff; text-decoration:none; font-weight:800; font-size:15px; }
+.gate a, .gate button.gbtn { display:inline-block; padding:11px 22px; border-radius:12px; background:var(--acc,var(--rb-acc)); color:var(--on-acc,#fff); text-decoration:none; font-weight:800; font-size:15px; border:0; cursor:pointer; font-family:inherit; }
+.tabs { display:flex; flex-wrap:wrap; gap:8px; margin:14px 0 4px; }
+.tab { padding:6px 14px; border-radius:999px; border:1px solid var(--edge); background:var(--card); color:var(--dim); font:inherit; font-size:13px; font-weight:700; cursor:pointer; }
+.tab.on { background:var(--acc,var(--rb-acc)); border-color:transparent; color:var(--on-acc,#fff); }
+html.hx-bg .card { background:var(--glass-wash,var(--card)); border-color:var(--glass-edge,var(--edge)); box-shadow:var(--glass-drop,none); }
+html.hx-lite .card { box-shadow:none; }
+html[data-hx-mode="dark"] .note-warn { color:#fbbf24; background:rgba(245,158,11,.14); border-color:rgba(245,158,11,.3); }
 .toast { position:fixed; left:50%; bottom:28px; transform:translateX(-50%) translateY(10px); background:rgba(20,26,24,.92); color:#fff; padding:10px 18px; border-radius:12px; font-size:14px; opacity:0; pointer-events:none; transition:.2s; z-index:99; }
 .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
 .note-warn { margin-top:18px; padding:12px 14px; border-radius:12px; background:rgba(245,158,11,.1); border:1px solid rgba(245,158,11,.25); color:#8a5a13; font-size:12.5px; line-height:1.7; }
@@ -78,7 +84,10 @@ header p { margin:4px 0 0; color:var(--dim); font-size:13.5px; line-height:1.6; 
      ③ 教材（老师上传的文档）—— 前端删除时留档元数据，还原 hx_exam_mat_save（文件本体提示重新上传）。
    题池删题**不进回收站**（用户确认：题随时能重新生成，删了就是永久）。
    本地留档 key：hx-recycle-v1，结构 [{kind, id, name, at, payload}]。 */
-var HXB='https://eiqgyrjrwdaunhxjmdyr.supabase.co', HXK='sb_publishable_FcVnLx3TNrj6HnbgarYnRw_DW4-yFzd', SKEY='paike-session', RKEY='hx-recycle-v1';
+var HXB='https://eiqgyrjrwdaunhxjmdyr.supabase.co', HXK='sb_publishable_FcVnLx3TNrj6HnbgarYnRw_DW4-yFzd', SKEY='paike-session', RKEY_BASE='hx-recycle-v1';
+var ME=null, CUR_KIND='all';
+function currentUid(){ return (ME && ME.id) || (sess && sess.user && sess.user.id) || ''; }
+function rkey(){ var u=currentUid(); return u ? (RKEY_BASE + '::' + u) : ''; }
 var $=function(id){return document.getElementById(id);};
 var esc=function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});};
 var now=function(){return Math.floor(Date.now()/1000);};
@@ -125,19 +134,39 @@ var rpc=function(f,b){return api('/rest/v1/rpc/'+f,{method:'POST',body:b||{}});}
    用户原话：「永远不存在本机换电脑就看不到的东西」。
    所以这里改成：开机先从云端拉一份铺下来；任何写入（留档/还原后移除）都推回云端。
    window.HXC 是 /hx-cloud.js 提供的（没加载到就退化成纯本机，页面照样能用）。 */
-function recycleRead(){try{return JSON.parse(localStorage.getItem(RKEY))||[];}catch(e){return [];}}
+function recycleRead(){
+  var k = rkey();
+  if(!k) return [];
+  try{
+    var raw = localStorage.getItem(k);
+    if(raw != null) return JSON.parse(raw) || [];
+    /* 仅在首次迁移且尚未标记时读取旧全局键，并立即删除旧键，严禁切换账号后串号 */
+    var legacy = localStorage.getItem(RKEY_BASE);
+    if(legacy != null){
+      var arr = JSON.parse(legacy) || [];
+      localStorage.setItem(k, JSON.stringify(arr));
+      localStorage.removeItem(RKEY_BASE);
+      return arr;
+    }
+    return [];
+  }catch(e){return [];}
+}
 function recycleWrite(L){
-  try{localStorage.setItem(RKEY,JSON.stringify(L));}catch(e){}
+  var k = rkey();
+  if(!k) return;
+  try{localStorage.setItem(k,JSON.stringify(L));}catch(e){}
   recyclePush(L);
 }
 function recyclePush(L){
-  try{ if(window.HXC&&HXC.prefPut) HXC.prefPut(RKEY,JSON.stringify(L)).catch(function(){}); }catch(e){}
+  try{ if(window.HXC&&HXC.prefPut) HXC.prefPut(RKEY_BASE,JSON.stringify(L)).catch(function(){}); }catch(e){}
 }
 async function recyclePull(){
   if(!window.HXC||!HXC.prefGet) return;
+  var k = rkey();
+  if(!k) return;
   var all=null;
   try{ all=await HXC.prefGet(); }catch(e){ return; }
-  var raw=all&&all[RKEY];
+  var raw=all&&all[RKEY_BASE];
   var local=recycleRead();
   if(raw){
     var arr=null;
@@ -146,10 +175,10 @@ async function recyclePull(){
       /* 云端为准。合并一下：两边都有就按 id+kind 去重，云端在前（更新的顺序更准）。 */
       var seen={}, merged=[];
       arr.concat(local).forEach(function(x){
-        var k=x&&x.kind+'|'+x.id;
-        if(!k||seen[k]) return; seen[k]=1; merged.push(x);
+        var key=x&&x.kind+'|'+x.id;
+        if(!key||seen[key]) return; seen[key]=1; merged.push(x);
       });
-      try{localStorage.setItem(RKEY,JSON.stringify(merged.slice(0,200)));}catch(e){}
+      try{localStorage.setItem(k,JSON.stringify(merged.slice(0,200)));}catch(e){}
       return;
     }
   }
@@ -189,11 +218,17 @@ function libBin(){ // 试卷库：前端留档（现在跟账号走，见 recycl
    行还在、切段还在、Storage 原文件也还在，还原就是清掉 deleted_at，不用重新上传。
    老库还没跑 2026-11-19 迁移时这个函数不存在 → 退回本机留档（老记录，还原会走 hx_exam_mat_save）。 */
 async function matBin(){
+  var localMats = recycleRead().filter(function(x){return x.kind==='mat';});
   try{
     var r=await rpc('hx_exam_mat_bin');
-    if(Array.isArray(r)) return r.map(function(x){ x.__cloud=1; return x; });
+    if(Array.isArray(r)){
+      var seen={};
+      var cloud=r.map(function(x){ x.__cloud=1; seen[String(x.id)]=1; return x; });
+      var extra=localMats.filter(function(x){ return !seen[String(x.id)]; });
+      return cloud.concat(extra);
+    }
   }catch(e){ /* 函数还没建：走下面的老路 */ }
-  return recycleRead().filter(function(x){return x.kind==='mat';});
+  return localMats;
 }
 
 /* ---- 还原 ---- */
@@ -286,9 +321,14 @@ async function render(){
   var lib = libBin(), mat = await matBin();
   var app=$('app');
   var h='<header><div class="mark">'+IC.task+'</div><div><h1>回收站</h1><p>删掉的课堂任务、试卷、教材都能在这里还原。题池删题是永久的（题可随时重新生成），不进这里。</p></div></header>';
+  var tabs=[['all','全部'],['task','课堂任务'],['lib','试卷库'],['mat','教材资料']];
+  h += '<div class="tabs">' + tabs.map(function(t){
+    return '<button type="button" class="tab'+(CUR_KIND===t[0]?' on':'')+'" data-kind="'+t[0]+'">'+t[1]+'</button>';
+  }).join('') + '</div>';
 
   /* ① 课堂任务 */
   var taskList = Array.isArray(task)?task:[];
+  if(CUR_KIND==='all'||CUR_KIND==='task'){
   h += '<section class="sec"><div class="sec-h"><h2>课堂任务</h2><span class="n">'+taskList.length+' 个</span></div><div class="card">';
   if(task.__err){ h += '<div class="empty">读不到课堂任务回收站：<b>'+esc(task.__err)+'</b></div>'; }
   else if(!taskList.length){ h += '<div class="empty">没有删除的课堂任务</div>'; }
@@ -303,8 +343,10 @@ async function render(){
   if(taskList.length) h += '<div class="note-warn">课堂任务没有「彻底删除」：它的完成记录和小组加分入账还挂在上面，'
     +'一键删干净会留下对不上的分数。要彻底清，先去小组加分把对应入账撤回，再删任务；否则就先留在这儿，随时能还原。</div>';
   h += '</section>';
+  }
 
   /* ② 试卷库 */
+  if(CUR_KIND==='all'||CUR_KIND==='lib'){
   h += '<section class="sec"><div class="sec-h"><h2>试卷库</h2><span class="n">'+lib.length+' 份</span></div><div class="card">';
   if(!lib.length){ h += '<div class="empty">没有删除的试卷</div>'; }
   else lib.forEach(function(x){
@@ -314,8 +356,10 @@ async function render(){
       +'<button class="purge" data-purge-lib="'+esc(x.id)+'">彻底删除</button></span></div>';
   });
   h += '</div></section>';
+  }
 
   /* ③ 教材 */
+  if(CUR_KIND==='all'||CUR_KIND==='mat'){
   h += '<section class="sec"><div class="sec-h"><h2>教材资料</h2><span class="n">'+mat.length+' 份</span></div><div class="card">';
   if(!mat.length){ h += '<div class="empty">没有删除的教材</div>'; }
   else mat.forEach(function(x){
@@ -328,6 +372,7 @@ async function render(){
       +'<button class="purge" data-purge-mat="'+esc(x.id)+'">彻底删除</button></span></div>';
   });
   h += '</div></section>';
+  }
 
   h += '<div class="note-warn">教材删除是<b>软删除</b>：原文件和切段都留在云端，点「还原」就回到资料库原来的科目下，<b>不用重新上传</b>。'
     +'只有 2026-11-19 之前删的旧记录例外（那时是直接删文件，只剩一条记录）。已经出好的题不受影响，仍在题池里。'
@@ -352,6 +397,9 @@ async function render(){
     var id=b.dataset.purgeLib, rec=lib.find(function(x){return String(x.id)===String(id);});
     if(rec) purgeLib(rec,b);
   };});
+  app.querySelectorAll('[data-kind]').forEach(function(b){ b.onclick=function(){
+    CUR_KIND=b.dataset.kind||'all'; render();
+  };});
   app.querySelectorAll('[data-purge-mat]').forEach(function(b){ b.onclick=function(){
     var id=b.dataset.purgeMat, rec=mat.find(function(x){return String(x.id)===String(id);});
     if(rec) purgeMat(rec,b);
@@ -360,11 +408,12 @@ async function render(){
 
 /* ---- 开机 ---- */
 function gate(){
-  $('app').innerHTML='<div class="gate"><div class="card"><h1>回收站</h1><p>请先用教师账号登录。</p><a href="../">去首页登录</a></div></div>';
+  if(window.HXTheme && HXTheme.login && window.top !== window) HXTheme.login();
+  $('app').innerHTML='<div class="gate"><div class="card"><h1>回收站</h1><p>请先用教师账号登录。</p><button type="button" class="gbtn" onclick="if(window.HXTheme&&HXTheme.login){HXTheme.login()}else{top.location.href=\'../\'}">去首页登录</button></div></div>';
 }
-var ME=null;
 async function boot(){
   if(window.HXTheme&&HXTheme.gated) return;
+  ME=null;
   load();
   if(!sess||!sess.access_token) return gate();
   try{ ME=await rpc('hx_me'); }
@@ -373,7 +422,11 @@ async function boot(){
   await recyclePull();     // 清单先从账号拉一份（换电脑也能看到）
   await render();
 }
-addEventListener('storage',function(e){ if(e.key===SKEY){ load(); boot(); } });
+window.HXBack = function () {
+  if (CUR_KIND !== 'all') { CUR_KIND = 'all'; render(); return true; }
+  return false;
+};
+addEventListener('storage',function(e){ if(e.key===SKEY){ ME=null; load(); boot(); } });
 boot();
 </script>
 </body>

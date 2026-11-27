@@ -1313,7 +1313,7 @@ function restoreDroppedToHome(cls) {
 
   function switchView(v) {
     groupPicking=null;
-    if(view==='attendance' && v!=='attendance' && attendanceContext && attendanceContext.isDirty && attendanceContext.isDirty()){flash('请先保存本课考勤，再切换页面。');return;}
+    if(view==='attendance' && v!=='attendance' && attendanceContext && attendanceContext.isDirty && attendanceContext.isDirty()){flash('请先保存本课考勤，再切换页面。');return false;}
     view = v;
     ['score', 'leader', 'rank', 'gradebook', 'attendance', 'pool'].forEach(function (k) {
       var el = $('#view-' + k);
@@ -1327,7 +1327,24 @@ function restoreDroppedToHome(cls) {
     if (v === 'score') { renderScore(); if (window.JFDT_WIRE) window.JFDT_WIRE.maybeSync(curClass()); }
     if (v === 'leader') renderLeader();
     if (v === 'attendance') renderAttendance();
+    return true;
   }
+  window.HXBack = function () {
+    var open = document.querySelector('dialog[open]');
+    if (open) {
+      if (typeof open.close === 'function') open.close(); else open.removeAttribute('open');
+      return true;
+    }
+    var sumd = $('#sumdHost');
+    if (sumd && !sumd.hidden) { closeSumDetail(); return true; }
+    if (document.body.classList.contains('nav-open')) {
+      document.body.classList.remove('nav-open');
+      var scrim = $('#navScrim'); if (scrim) scrim.hidden = true;
+      return true;
+    }
+    if (view !== 'score') return switchView('score');
+    return false;
+  };
   function renderAttendance() {
     var cls=curClass(); if(!cls || !window.JFDT_ASSESSMENT)return;
     if(!$('#view-attendance')){var section=document.createElement('section');section.id='view-attendance';section.className='view';$('#main').appendChild(section);}
@@ -1793,7 +1810,7 @@ function restoreDroppedToHome(cls) {
   var wirePubDialog=document.createElement('dialog');wirePubDialog.id='dlgWirePub';wirePubDialog.setAttribute('aria-labelledby','wirePubTitle');
   wirePubDialog.innerHTML='<form id="wirePubForm"><h2 id="wirePubTitle">发布线上排位任务</h2>'+
     '<p class="note">给本节课发一个接线仿真的线上排位任务：学生去「接线仿真」点排位、接对并仿真成功就算完成，分数按名次（前 10 名 100%、11–20 名 80%、其余 70%）实时写进本课的「线上连线排位」项目列。</p>'+
-    '<label class="field col">电路<select id="wirePubCir">'+JF_WIRE_CIRCUITS.map(function(c){return '<option value="'+c.id+'">'+esc(c.id+' '+c.short)+'</option>';}).join('')+'</select></label>'+
+    '<label class="field col">电路<select data-hx-plain id="wirePubCir">'+JF_WIRE_CIRCUITS.map(function(c){return '<option value="'+c.id+'">'+esc(c.id+' '+c.short)+'</option>';}).join('')+'</select></label>'+
     '<label class="field col">任务名（可改）<input id="wirePubName" maxlength="60"></label>'+
     '<label class="field col">任务说明（可选）<textarea id="wirePubNote" maxlength="200" placeholder="每人接完并仿真成功，按排位用时给分"></textarea></label>'+
     '<p class="note" id="wirePubInfo"></p>'+
@@ -1855,7 +1872,7 @@ function restoreDroppedToHome(cls) {
   examLinkDialog.innerHTML =
     '<h2 id="examLinkTitle">电子试卷 → 小组加分</h2>' +
     '<p class="note" id="examLinkInfo"></p>' +
-    '<label class="field col">记入课次<select id="examLinkLesson"></select></label>' +
+    '<label class="field col">记入课次<select data-hx-plain id="examLinkLesson"></select></label>' +
     '<div id="examLinkList" class="exam-link-list"><p class="note">读取中…</p></div>' +
     '<p id="examLinkError" role="alert" class="note"></p>' +
     '<div class="btnrow"><button type="button" class="btn" id="examLinkClose">关闭</button></div>';
@@ -2096,7 +2113,7 @@ function restoreDroppedToHome(cls) {
 
   /* 考勤格显示层（2026-11-09）：8、9 分值改按 (9−累计扣分)/9 完成率百分比显示；存储仍是 9 分制 */
   function attendanceCell(cls,lesson,g,printing){var A=window.JFDT_ASSESSMENT,rows=A.rows(cls,lessonsOf(cls.id),memberTotals(cls));return '<td rowspan="2" class="home-attendance">'+g.members.filter(function(m){return !!m.name;}).map(function(m,i){var k=A.key(m),row=rows.find(function(r){return r.key===k;}),score=row?row.attendance:9;return '<div class="home-attendance-person compact"><span>'+(i+1)+'</span>'+(printing?'<strong>'+attPctText(score)+'</strong>':'<button type="button" class="attendance-score" data-attendance-open="'+esc(k)+'" aria-label="成员'+(i+1)+' '+esc(m.name)+' 考勤完成率 '+attPctText(score)+'，点击修改">'+attPctText(score)+'</button>')+'</div>';}).join('')+'</td>';}
-  var attendanceDialog=document.createElement('dialog');attendanceDialog.id='dlgHomeAttendance';attendanceDialog.setAttribute('aria-labelledby','homeAttendanceTitle');attendanceDialog.innerHTML='<form id="homeAttendanceForm"><h2 id="homeAttendanceTitle">考勤</h2><label class="field col">本课状态<select id="homeAttendanceStatus"></select></label><label class="field col">本次扣分<input id="homeAttendanceLoss" type="number" min="0" max="100" step="1" required></label><p class="note">扣分只影响考勤分；迟到早退折算仅用于挂科标记，不再次扣分。</p><button type="button" class="linkbtn" id="homeAttendanceRules">考勤扣分与挂科设置</button><div class="btnrow"><button type="button" class="btn" id="cancelHomeAttendance">取消</button><button class="btn primary" type="submit">保存</button></div></form>';document.body.appendChild(attendanceDialog);wireDialog(attendanceDialog);var attendanceEdit=null;
+  var attendanceDialog=document.createElement('dialog');attendanceDialog.id='dlgHomeAttendance';attendanceDialog.setAttribute('aria-labelledby','homeAttendanceTitle');attendanceDialog.innerHTML='<form id="homeAttendanceForm"><h2 id="homeAttendanceTitle">考勤</h2><label class="field col">本课状态<select data-hx-plain id="homeAttendanceStatus"></select></label><label class="field col">本次扣分<input id="homeAttendanceLoss" type="number" min="0" max="100" step="1" required></label><p class="note">扣分只影响考勤分；迟到早退折算仅用于挂科标记，不再次扣分。</p><button type="button" class="linkbtn" id="homeAttendanceRules">考勤扣分与挂科设置</button><div class="btnrow"><button type="button" class="btn" id="cancelHomeAttendance">取消</button><button class="btn primary" type="submit">保存</button></div></form>';document.body.appendChild(attendanceDialog);wireDialog(attendanceDialog);var attendanceEdit=null;
   $('#groupList').addEventListener('click',function(e){var button=e.target.closest('[data-attendance-open]');if(!button)return;var cls=curClass(),lesson=curLesson(cls),A=window.JFDT_ASSESSMENT;if(!lesson)return;var key=button.dataset.attendanceOpen,member=A.roster(cls,memberTotals(cls)).find(function(m){return m.key===key;}),cfg=A.settings(cls),record=lesson.attendance&&lesson.attendance[key],opts=[['present','到课'],['leave','请假'],['truant','旷课'],['late','迟到'],['early','早退']].concat(cfg.customRules.map(function(r){return [r.id,r.name];}));if(record&&!opts.some(function(o){return o[0]===record.status;}))opts.push([record.status,record.label]);attendanceEdit={key:key,lessonId:lesson.id,classId:cls.id};$('#homeAttendanceTitle').textContent=member.name+' · 第'+lesson.seq+'次课';$('#homeAttendanceStatus').innerHTML=opts.map(function(o){return '<option value="'+esc(o[0])+'"'+((record?record.status:'present')===o[0]?' selected':'')+'>'+esc(o[1])+'</option>';}).join('');$('#homeAttendanceLoss').value=record?record.loss:0;$('#homeAttendanceLoss').disabled=!record;openDlg(attendanceDialog);});
   $('#homeAttendanceStatus').addEventListener('change',function(){var cls=curClass();$('#homeAttendanceLoss').disabled=!this.value;$('#homeAttendanceLoss').value=this.value?window.JFDT_ASSESSMENT.deduction(this.value,window.JFDT_ASSESSMENT.settings(cls)):0;});
   $('#cancelHomeAttendance').addEventListener('click',function(){attendanceDialog.close();});
@@ -2442,7 +2459,8 @@ function restoreDroppedToHome(cls) {
     closeSumDetail();                       // 唯一不是 dialog 的浮层，单独收
     var ids = ['dlgHomeAttendance', 'studentGradeDialog', 'dlgMe', 'dlgEditLesson',
       'dlgLesson', 'dlgGroupReport', 'dlgWirePub', 'dlgDraw',
-      'dlgLessonPrint', 'dlgDeleteGroup', 'dlgPassword', 'dlgAccountSwitch', 'dlgSyncConflict'];
+      'dlgLessonPrint', 'dlgExamLink', 'dlgLeaderPrint', 'dlgLeaderFullMarks', 'attendanceImportDlg',
+      'dlgDeleteGroup', 'dlgPassword', 'dlgAccountSwitch', 'dlgSyncConflict'];
     ids.forEach(function (id) {
       if (id === exceptId || id === 'dlgAskConfirm') return;
       var d = document.getElementById(id);
@@ -5394,8 +5412,13 @@ function restoreDroppedToHome(cls) {
       JSON.stringify(S, null, 2), 'application/json');
   }
 
-  /* 2026-11-12 删「数据与同步」页：「首页班级」入口跳到分组页（首页班级对应已搬到那里） */
-  $('#btnRosterSetup').addEventListener('click', function () { switchView('pool'); });
+  /* 首页班级入口必须交给总入口处理，不能在本工具内误切到分组页。 */
+  $('#btnRosterSetup').addEventListener('click', function () {
+    var p = window.HXTheme && HXTheme.portal && HXTheme.portal();
+    if (p && p.home) p.home();
+    else if (window.top !== window.self && window.top.HXPortal && window.top.HXPortal.home) window.top.HXPortal.home();
+    else location.href = '../';
+  });
   function rosterDownload(rows, name) {
     var formatEl = $('#rosterFormat');
     var format = formatEl ? formatEl.value : 'xlsx';
@@ -5459,7 +5482,7 @@ function restoreDroppedToHome(cls) {
   function parseLessonPageRanges(groups,texts){var seen=new Set();var pages=texts.map(function(text,i){var nums=[];String(text).trim().split(/[,，、\s]+/).forEach(function(token){var m=/^(\d+)(?:[-—–~～至](\d+))?$/.exec(token);if(!m)throw Error('第'+(i+1)+'页请输入组号或范围，如1-6。');var a=Number(m[1]),b=m[2]?Number(m[2]):a;if(a>b||b-a>1000)throw Error('第'+(i+1)+'页组号范围无效。');for(var no=a;no<=b;no++)nums.push(no);});if(nums.length>8)throw Error('第'+(i+1)+'页超过8组，请增加页数。');return nums.map(function(no){var g=groups.find(function(x){return x.no===no;});if(!g)throw Error('第'+no+'组不在本次打印范围内。');if(seen.has(no))throw Error('第'+no+'组重复，请只安排一次。');seen.add(no);return g;});});var missing=groups.filter(function(g){return !seen.has(g.no);});if(missing.length)throw Error('尚未安排：第'+missing.map(function(g){return g.no;}).join('、')+'组。');return pages;}
   function openLessonPrint(cls,lesson,asPdf){
     var dlg=$('#dlgLessonPrint');
-    if(!dlg){dlg=document.createElement('dialog');dlg.id='dlgLessonPrint';dlg.innerHTML='<form method="dialog"><h2>打印 / 导出本课</h2><label class="field col">打印范围<select id="lessonPrintRange"><option value="both">加分表＋背面说明</option><option value="front">仅加分表</option><option value="rules">仅规则说明</option></select></label><label class="field col">打印对象<select id="lessonPrintScope"><option value="all">本课全部小组</option><option value="groups">按组切割打印</option></select></label><label class="field col">打印页数<select id="lessonPrintPageCount"></select></label><div id="lessonPrintRanges"></div><label class="field col">纸张方向<select id="lessonPrintOrientation"><option value="portrait">A4 竖向</option><option value="landscape">A4 横向</option></select></label><p class="note">选择“按组切割打印”后，可按每页组别范围安排，例如1-6、7-13；每页最多8组。双面打印选择长边翻转；建议关闭页眉页脚。</p><div class="btnrow"><button class="btn" type="button" id="lessonPrintExcel">下载 Excel</button><span class="spacer"></span><button class="btn" value="cancel">取消</button><button class="btn primary" value="ok">开始打印</button></div></form>';document.body.appendChild(dlg);dlg.querySelector('#lessonPrintScope').onchange=function(){fillLessonPrintRanges(true);};dlg.querySelector('#lessonPrintPageCount').onchange=function(){fillLessonPrintRanges(false);};dlg.querySelector('#lessonPrintExcel').onclick=function(){dlg.close();downloadLessonExcel(curClass(),curLesson(curClass()));};}
+    if(!dlg){dlg=document.createElement('dialog');dlg.id='dlgLessonPrint';dlg.innerHTML='<form method="dialog"><h2>打印 / 导出本课</h2><label class="field col">打印范围<select data-hx-plain id="lessonPrintRange"><option value="both">加分表＋背面说明</option><option value="front">仅加分表</option><option value="rules">仅规则说明</option></select></label><label class="field col">打印对象<select data-hx-plain id="lessonPrintScope"><option value="all">本课全部小组</option><option value="groups">按组切割打印</option></select></label><label class="field col">打印页数<select data-hx-plain id="lessonPrintPageCount"></select></label><div id="lessonPrintRanges"></div><label class="field col">纸张方向<select data-hx-plain id="lessonPrintOrientation"><option value="portrait">A4 竖向</option><option value="landscape">A4 横向</option></select></label><p class="note">选择“按组切割打印”后，可按每页组别范围安排，例如1-6、7-13；每页最多8组。双面打印选择长边翻转；建议关闭页眉页脚。</p><div class="btnrow"><button class="btn" type="button" id="lessonPrintExcel">下载 Excel</button><span class="spacer"></span><button class="btn" value="cancel">取消</button><button class="btn primary" value="ok">开始打印</button></div></form>';document.body.appendChild(dlg);dlg.querySelector('#lessonPrintScope').onchange=function(){fillLessonPrintRanges(true);};dlg.querySelector('#lessonPrintPageCount').onchange=function(){fillLessonPrintRanges(false);};dlg.querySelector('#lessonPrintExcel').onclick=function(){dlg.close();downloadLessonExcel(curClass(),curLesson(curClass()));};}
     dlg.querySelector('h2').textContent=asPdf?'下载打印版 PDF':'打印 / 导出本课';dlg.querySelector('[value="ok"]').textContent=asPdf?'下载 PDF':'开始打印';
     $('#lessonPrintScope').value='all';fillLessonPrintRanges(true);dlg.onclose=function(){if(dlg.returnValue!=='ok')return;var scope=$('#lessonPrintScope').value,pageGroups=null;try{if(scope==='groups')pageGroups=parseLessonPageRanges(lessonPrintGroupCandidates(cls),Array.from(dlg.querySelectorAll('[data-lesson-print-page]')).map(function(el){return el.value;}));}catch(e){dlg.querySelector('#lessonPrintError')?.remove();var err=document.createElement('p');err.id='lessonPrintError';err.className='note';err.textContent=e.message;dlg.querySelector('form').insertBefore(err,dlg.querySelector('.btnrow'));openDlg(dlg);return;}lessonPrintOptions={range:$('#lessonPrintRange').value,orientation:$('#lessonPrintOrientation').value,scope:scope,pageGroups:pageGroups};if(asPdf)downloadLessonPdf(cls,lesson);else printLesson(cls,lesson,pageGroups);};dlg.returnValue='';openDlg(dlg);
   }
@@ -6662,5 +6685,19 @@ function restoreDroppedToHome(cls) {
 
     });
   }
+  function sharedUid() {
+    try { var s = JSON.parse(localStorage.getItem('paike-session') || 'null'); return s && s.user ? String(s.user.id || '') : ''; }
+    catch (e) { return ''; }
+  }
+  var lastSharedUid = sharedUid();
+  if (window.addEventListener) window.addEventListener('storage', function (e) {
+    if (e.key !== 'paike-session') return;
+    var uid = sharedUid();
+    if (uid === lastSharedUid) return;
+    lastSharedUid = uid;
+    S = defaultState(); CLOUD_ON = false; cloudRec = null; attendanceContext = null;
+    closeAllFloats();
+    bootCloud();
+  });
   bootCloud();
 })();

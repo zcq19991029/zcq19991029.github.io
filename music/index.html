@@ -26,9 +26,10 @@
   body.hx-blank .hx-wm,
   body.hx-blank .hx-bgmo{display:none!important}
   .top{
-    max-width:760px;margin:0 auto;padding:16px 0 10px;
+    width:min(1200px,100%);margin:0 auto;padding:16px 0 10px;
     display:flex;align-items:center;gap:12px;
   }
+  html.hx-embedded .top a{display:none}
   .top a{
     display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--dim);
     font-size:13px;padding:7px 13px;border-radius:99px;border:1px solid var(--edge);background:var(--card-solid);
@@ -36,9 +37,9 @@
   .top a:hover{color:var(--ink)}
   .top h1{font-size:15px;font-weight:500;margin:0}
   .top .sp{flex:1}
-  #app{max-width:760px;margin:0 auto}
+  #app{width:min(1200px,100%);margin:0 auto}
   .tip{
-    max-width:760px;margin:16px auto 0;font-size:12px;line-height:1.7;color:var(--faint);
+    width:min(1200px,100%);margin:16px auto 0;font-size:12px;line-height:1.7;color:var(--faint);
   }
   .tip b{color:var(--dim);font-weight:500}
 </style>
@@ -48,7 +49,7 @@
 <!-- 默认 hidden：身份没确认之前不渲染任何东西（顶栏、面板、提示文字都不给） -->
 <div id="page" hidden>
   <div class="top">
-    <a href="../">← 总入口</a>
+    <a href="../" target="_top">← 总入口</a>
     <h1>音乐</h1>
     <span class="sp"></span>
   </div>
@@ -56,7 +57,7 @@
   <main id="app"></main>
 
   <p class="tip">
-    <b>仅管理员 / 开发者可用</b>：登录后歌单跟着账号走（换电脑也在），默认背景音乐自动出现。
+    <b>仅开发者可用</b>：登录后歌单跟着账号走（换电脑也在），默认背景音乐自动出现。
   </p>
 </div>
 
@@ -64,7 +65,7 @@
 <script src="../ui-dialog.js"></script>
 <script src="../hx-player.js"></script>
 <script>
-/* 2026-11-11 权限收敛（第二轮）：这一页只对管理员 / 开发者开放，其余身份「整页不渲染」。
+/* 2026-11-11 权限收敛（第二轮）：这一页只对开发者开放，其余身份「整页不渲染」。
    用户原话：「不用显示 直接不显示隐藏即可 压根不给权限 不需要有」——
    所以不做「无权限」提示卡，也不提示登录，什么都没有，只有一张空白页。
 
@@ -72,8 +73,8 @@
    1) 上面的 #page 默认 hidden，HTML 里没有任何会先闪一下的内容；
    2) window.HX_PLAYER_NO_BOOT=1 让 hx-player.js 不自动启动 —— 否则它一加载就会
       loadList()（登录态下会打 hx_music_list），没通过闸门也白跑一次请求；
-   3) 身份判定两道：先看 hx_me 的 admin/dev（前端身份），再用 HXPlayer.allowed() 复核，
-      任一为 false 就 purge()。云存储按流量计费，非管理员一个字节都不该拉。
+   3) 身份判定两道：先看 hx_me 的 dev（前端身份），再用 HXPlayer.allowed() 复核，
+      任一为 false 就 purge()。云存储按流量计费，非开发者一个字节都不该拉。
    4) purge() 直接把 body 清空：顶栏、播放器、歌单、上传区、提示文字全部不存在。 */
 (function(){
   var page = document.getElementById('page');
@@ -103,6 +104,7 @@
       HXPlayer.ready();
     });
   }).catch(purge);
+  window.HXBack = function () { return false; };
 })();
 </script>
 </body>

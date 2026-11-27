@@ -210,6 +210,13 @@ html.hx-bg .got span{
   .docmain{display:block}
 }
 @media (max-width:620px){ .wrap{padding:0 14px} .card{padding:14px} }
+html.hx-embedded header.top{display:none}
+.doc-search{display:flex;align-items:center;gap:8px;margin:10px 0 14px}
+.doc-search input{flex:1;min-width:0;padding:8px 12px;border-radius:10px;border:1px solid var(--edge);background:var(--panel2);color:var(--ink);font:inherit;font-size:13.5px;outline:none}
+.doc-search input:focus{border-color:var(--acc)}
+.doc-search button{flex:none;padding:7px 11px;border-radius:9px;border:1px solid var(--edge);background:var(--panel);color:var(--dim);font:inherit;font-size:12.5px;cursor:pointer}
+.doc-search button:hover{color:var(--ink)}
+.doc-empty{padding:24px 12px;text-align:center;color:var(--dim);font-size:13.5px}
 </style>
 </head>
 <body>
@@ -283,7 +290,7 @@ html.hx-bg .got span{
         + '</ul>','没开通的账号（GitHub 新号等）什么工具都进不去，先填邀请码开通。','a-account','所有人')
 
       + hd('#8a6fd0','B · 首页与外观',
-        '<p class="why">首页按<b>学习 / 教学 / 维护</b>三组排卡片，点卡片进工具，左上角「返回」回首页（手机返回键也是「上一步」）。</p>'
+        '<p class="why">首页按<b>学习 / 教学 / 维护</b>三组排卡片，点卡片进工具，左上角「返回」回上一级，点「首页」一步回总入口（手机返回键也是「上一步」）。</p>'
         + '<ul>'
         + '<li><b>卡片版式固定（2026-11-19 起）</b>：一行<b>最多 6 张</b>（同一组不足 6 张就按实际张数，不在右边留空位）。<b>电脑、平板、手机横屏用的都是这一套版式</b> —— 屏幕小只是整套<b>等比缩小</b>（1440 宽下每张 208×172，1024 下 148×122，横屏手机 844 宽下 128×101），<b>不会因为屏幕小就少放几张、也不会因为屏幕宽就多塞几张</b>。只有<b>手机竖屏</b>是另一套：固定 2 列、卡片更大更好点。</li>'
         + '<li><b>顶栏</b>：左边是品牌名和开发者名单（赵成乾 · 宋耀龙 · 黄子欣 合作开发），右边是外观按钮、全站同步胶囊、账号。<b>开发者名单只在首页显示</b>，进工具后自动收起。<b>名单可改（2026-11-26）</b>：登录<b>开发者</b>账号后，点一下这枚胶囊就能改名字（一行一个、最多 8 个）和尾部那句「合作开发」，保存后存在云端、<b>所有设备所有人打开首页看到的都是这一份</b>；名字改得多也不会把顶栏撑破。手机宽度的顶栏不显示这枚胶囊，要改请在电脑上操作。</li>'
@@ -620,7 +627,7 @@ html.hx-bg .got span{
 
       + hd('#8a6fd0','B · 首页与外观',
         '<ul>'
-        + '<li>登录后按<b>学习 / 教学 / 维护</b>分组列出你能用的工具，点卡片进入，左上角「返回」回首页。</li>'
+        + '<li>登录后按<b>学习 / 教学 / 维护</b>分组列出你能用的工具，点卡片进入，左上角「返回」回上一级，点「首页」一步回总入口。</li>'
         + '<li>右上角外观面板可以换<b>深浅（只有浅色 / 深色两档）</b>、主色、背景、卡片通透度、背景清晰度、水印，<b>只影响你自己的账号</b>。</li>'
         + '<li><b>浅色下也能看到壁纸</b>：两种深浅都铺同一张背景图，所有工具页一页不落（以前浅色下是纯白一片，2026-11-17 已修复）。</li>'
         + '<li><b>卡片通透度</b>任何时候都能调，管的是<b>所有工具的卡片</b>（含接线仿真画布上画的卡片），不只改顶栏，也跟有没有背景图无关；<b>背景清晰度</b>只在选了背景图（「自己的图」）时才出现。</li>'
@@ -726,11 +733,58 @@ html.hx-bg .got span{
         + '</ul>','有问题先问老师；老师解决不了的会通过「反馈」往上提。','s-faq');
   }
 
+  var tocJumped = false;
+  var docNavBound = false;
+  function filterDoc(q) {
+    var main = document.querySelector('#doc .docmain');
+    if (!main) return;
+    var key = String(q || '').trim().toLowerCase();
+    var hds = main.querySelectorAll('.hd');
+    var shown = 0;
+    Array.prototype.forEach.call(hds, function (el) {
+      var hit = !key || (el.textContent || '').toLowerCase().indexOf(key) >= 0;
+      el.hidden = !hit;
+      if (hit) shown++;
+    });
+    Array.prototype.forEach.call(main.querySelectorAll('.sec'), function (secEl) {
+      if (!key) { secEl.hidden = false; return; }
+      var cur = secEl.nextElementSibling, any = false;
+      while (cur && !cur.classList.contains('sec')) {
+        if (cur.classList.contains('hd') && !cur.hidden) { any = true; break; }
+        cur = cur.nextElementSibling;
+      }
+      secEl.hidden = !any;
+    });
+    var emp = document.getElementById('docEmpty');
+    if (emp) emp.hidden = shown > 0;
+    var clr = document.getElementById('docSearchClear');
+    if (clr) clr.hidden = !key;
+  }
+
   function render(t){
     var doc = document.getElementById('doc');
     /* 2026-11-12：宽屏改成「左侧目录 + 右侧正文」，所以目录从正文里搬出来单独放 aside。
        目录仍然是同一份 .toc（窄屏自动退回正文顶部的网格），只是位置换了。 */
     doc.innerHTML = '<div class="docmain">' + (t === 'student' ? helpDocStudent() : helpDocTeacher()) + '</div>';
+    var main = doc.querySelector('.docmain');
+    if (main) {
+      var got = main.querySelector('.got');
+      var bar = document.createElement('div');
+      bar.className = 'doc-search';
+      bar.innerHTML = '<input id="docSearch" type="search" placeholder="搜索功能或关键词（如：排位、AI、考勤、补考）" autocomplete="off"><button type="button" id="docSearchClear" hidden>清空</button>';
+      if (got && got.nextSibling) main.insertBefore(bar, got.nextSibling);
+      else main.insertBefore(bar, main.firstChild);
+      var emp = document.createElement('div');
+      emp.className = 'doc-empty';
+      emp.id = 'docEmpty';
+      emp.hidden = true;
+      emp.textContent = '没有匹配的使用说明';
+      main.appendChild(emp);
+      var inp = document.getElementById('docSearch');
+      var clr = document.getElementById('docSearchClear');
+      if (inp) inp.addEventListener('input', function () { filterDoc(inp.value); });
+      if (clr) clr.addEventListener('click', function () { if (inp) { inp.value = ''; inp.focus(); } filterDoc(''); });
+    }
     var toc = doc.querySelector('.toc');
     if (toc) {
       var n = toc.children.length;
@@ -742,27 +796,64 @@ html.hx-bg .got span{
       doc.insertBefore(aside, doc.firstChild);
     }
     /* 目录是页内锚点：默认跳转会被 sticky 顶栏盖住一截，这里补一次滚动偏移 */
-    doc.addEventListener('click', function (e) {
-      var a = e.target.closest && e.target.closest('a[href^="#"]');
-      if (!a) return;
-      var el = document.getElementById(a.getAttribute('href').slice(1));
-      if (!el) return;
-      e.preventDefault();
-      var y = el.getBoundingClientRect().top + window.pageYOffset - 72;
-      window.scrollTo({ top: y < 0 ? 0 : y, behavior: 'smooth' });
-      try { history.replaceState(null, '', a.getAttribute('href')); } catch (err) { }
-    });
+    if (!docNavBound) {
+      docNavBound = true;
+      doc.addEventListener('click', function (e) {
+        var a = e.target.closest && e.target.closest('a[href^="#"]');
+        if (!a) return;
+        var el = document.getElementById(a.getAttribute('href').slice(1));
+        if (!el) return;
+        e.preventDefault();
+        tocJumped = true;
+        var y = el.getBoundingClientRect().top + window.pageYOffset - 72;
+        window.scrollTo({ top: y < 0 ? 0 : y, behavior: 'smooth' });
+        try { history.replaceState(null, '', a.getAttribute('href')); } catch (err) { }
+      });
+    }
   }
   /* 按登录身份自动判：教师 / 管理员 / 开发者看老师版，其余（学生、未登录）看学生版。
      身份从总入口的 HXPortal.me() 拿（teacher/admin/dev 字段）；嵌在 iframe 里时走 window.top.HXPortal，
      被单独打开时读不到就退回学生版（不会把老师版露给任何人）。 */
-  var t = 'student';
-  try {
-    var p = (window.HXTheme && HXTheme.portal && HXTheme.portal()) || (window.top !== window && window.top.HXPortal);
-    var m = p && p.me ? p.me() : null;
-    if (m && (m.teacher || m.admin || m.dev)) t = 'teacher';
-  } catch (e) { }
-  render(t);
+  var curDoc = '';
+  function detectDocType() {
+    try {
+      var p = (window.HXTheme && HXTheme.portal && HXTheme.portal()) || (window.top !== window && window.top.HXPortal);
+      var m = p && p.me ? p.me() : null;
+      if (m && (m.teacher || m.admin || m.dev)) return 'teacher';
+    } catch (e) { }
+    return 'student';
+  }
+  function refreshDoc() {
+    var next = detectDocType();
+    if (next !== curDoc) {
+      curDoc = next;
+      render(next);
+    }
+  }
+  refreshDoc();
+  var tries = 0;
+  var timer = setInterval(function () {
+    tries++;
+    refreshDoc();
+    if (curDoc === 'teacher' || tries >= 20) clearInterval(timer);
+  }, 250);
+  window.addEventListener('storage', function (e) { if (e.key === 'paike-session') refreshDoc(); });
+  window.addEventListener('message', function () { refreshDoc(); });
+  window.HXBack = function () {
+    var inp = document.getElementById('docSearch');
+    if (inp && inp.value) {
+      inp.value = '';
+      filterDoc('');
+      return true;
+    }
+    if (tocJumped || (location.hash && location.hash.length > 1) || window.pageYOffset > 120) {
+      tocJumped = false;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      try { history.replaceState(null, '', location.pathname + location.search); } catch (err) { }
+      return true;
+    }
+    return false;
+  };
 })();
 </script>
 </body>

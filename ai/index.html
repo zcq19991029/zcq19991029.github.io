@@ -255,6 +255,11 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
 #toast.bad{background:var(--bad)}
 @media (max-width:820px){ .invs{grid-template-columns:1fr} }
 @media (max-width:620px){
+  .wrap{padding:0 12px}
+  main{padding-top:12px}
+  .lead{padding:10px 12px;margin-bottom:12px}
+  .card{padding:12px}
+  .plat{padding:11px}
   .grid2{grid-template-columns:1fr}
   .rowset .sels{grid-template-columns:1fr}
   header.top .wrap{min-height:auto}
@@ -263,6 +268,9 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
   .pacts .btn.sm,.macts .btn.sm{padding:8px 12px}
   .inv-top img{width:84px;height:84px}
 }
+html.hx-embedded header.top{display:none}
+html.hx-bg header.top{background:color-mix(in srgb,var(--bg) 72%,transparent)}
+html.hx-lite header.top{backdrop-filter:none;-webkit-backdrop-filter:none;background:var(--bg)}
 </style>
 </head>
 <body>
@@ -348,6 +356,7 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
 </main>
 <div id="toast"></div>
 
+<script src="../ui-dialog.js"></script>
 <script src="../hx-ai.js"></script>
 <script>
 (function () {
@@ -509,7 +518,7 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
           '</div>' +
           '<div class="pacts">' +
             '<button class="btn sm" type="button" data-act="fetch">同步模型</button>' +
-            '<button class="btn sm" type="button" data-act="toggle-models">' + (ms.length ? '查看模型' : '') + '</button>' +
+            (ms.length ? '<button class="btn sm" type="button" data-act="toggle-models">查看模型</button>' : '') +
             '<button class="btn sm" type="button" data-act="edit">编辑 / 改 Key</button>' +
             '<button class="btn sm bad" type="button" data-act="del">删除平台</button>' +
           '</div>' +
@@ -695,7 +704,7 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
   }
 
   // ---------- 平台卡片上的按钮（事件委托：卡片是重画的，逐次绑太容易漏） ----------
-  function onPlatAct(act, platEl, rowEl) {
+  async function onPlatAct(act, platEl, rowEl) {
     var platId = platEl ? platEl.getAttribute('data-plat') : '';
     var modelId = rowEl ? rowEl.getAttribute('data-model') : '';
     var pl = platById(platId);
@@ -744,7 +753,7 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
         '它的 Key 也会清掉。';
       if (goneCaps.length) warn += '\n正在当默认的能力：' + goneCaps.join('、') + '（会变回未设置）';
       if (goneTools.length) warn += '\n正在用它的工具：' + goneTools.join('、') + '（会退回默认）';
-      if (!confirm(warn)) return;
+      if (!(await hxConfirm(warn))) return;
       HXAI.removePlat(platId);
       if (editingPlat === platId) closePlatForm();
       renderAll();
@@ -755,7 +764,7 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
     var m = modelId ? profById(modelId) : null;
     if (!m) return;
     if (act === 'del') {
-      if (!confirm('删掉模型「' + labelOf(m) + '」？\n平台「' + pl.name + '」和它的 Key 会留着，别的模型不受影响。')) return;
+      if (!(await hxConfirm('删掉模型「' + labelOf(m) + '」？\n平台「' + pl.name + '」和它的 Key 会留着，别的模型不受影响。'))) return;
       HXAI.remove(modelId);
       renderAll();
       toast('已删除模型');
@@ -820,7 +829,12 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
         return;
       }
       bag[key] = platId;   // 先记住，别在下一行 renderAll() 里被弹回去
-      var cands = profsOf(platId).filter(function (p) { return cap ? supportsCap(p, cap) : true; });
+      var cands = profsOf(platId).filter(function (p) {
+        if (!cap) return true;
+        if (cap === 'vision' && HXAI.looksImageGen(p.model)) return false;
+        if ((cap === 'text' || cap === 'reason') && HXAI.looksNonChat(p.model)) return false;
+        return supportsCap(p, cap);
+      });
       if (!cands.length) {
         toast(cap ? '这个平台没有能做「' + capName(cap) + '」的模型，去左边给它加一个' : '这个平台还没有模型，去左边给它加一个');
       } else if (cands.length === 1) {
@@ -975,11 +989,11 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
     } catch (err) {
       msg.className = 'msg bad'; msg.textContent = err.message; return;
     }
+    var k = c.key || (editingPlat ? HXAI.platKey(saved.id) : '');
     closePlatForm();
     renderAll();
     // 2026-11-19：保存平台后自动读取模型并全量加入（用户不再一个个选模型）。
     // Key 有就自动同步；没 Key 就只保存平台，提示用户之后点「同步模型」。
-    var k = c.key || (editingPlat ? HXAI.platKey(saved.id) : '');
     if (k) {
       toast('已保存平台「' + saved.name + '」，正在同步模型…');
       HXAI.models({ platId: saved.id }).then(function (ms) {
@@ -1063,6 +1077,29 @@ input[type=radio]{width:15px;height:15px;accent-color:var(--acc);flex:none}
     // 一个平台都没有就直接把平台表单摊开，别让人满页面找「新增」按钮
     if (!snap.plats.length) openPlatForm('', true);
   }
+
+  window.HXBack = function () {
+    var pf = $('pf');
+    if (pf && !pf.hidden) { closePlatForm(); return true; }
+    var openRows = document.querySelectorAll('.plat .mrows:not([hidden])');
+    if (openRows.length) {
+      Array.prototype.forEach.call(openRows, function (mrows) {
+        mrows.hidden = true;
+        var platEl = mrows.closest('.plat');
+        var btn = platEl && platEl.querySelector('[data-act="toggle-models"]');
+        if (btn) btn.textContent = '查看模型';
+      });
+      return true;
+    }
+    return false;
+  };
+
+  window.addEventListener('storage', function (e) {
+    if (e.key === 'paike-session') {
+      closePlatForm();
+      renderAll();
+    }
+  });
 
   boot();
 })();

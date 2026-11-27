@@ -151,13 +151,13 @@ table.book tr.me-row td { border-color: var(--ok, #2f845a); }
 .peer-grid { border-collapse: separate; border-spacing: 4px; min-width: 100%; }
 .peer-grid th, .peer-grid td { padding: 0; vertical-align: middle; }
 .peer-grid thead th {
-  min-width: 176px; padding: 8px 6px; border-radius: 10px;
+  min-width: 0; padding: 8px 6px; border-radius: 10px;
   background: #f3f6ff; font-size: 12px; font-weight: 700; text-align: center; color: var(--ink);
 }
 .peer-grid thead th .peer-proj { display: block; overflow-wrap: anywhere; }
 .peer-grid thead th .peer-badge { display: inline-block; margin: 3px 0 0; }
 .peer-grid th.peer-who {
-  min-width: 96px; padding: 10px 8px; text-align: left; white-space: nowrap;
+  min-width: 0; padding: 10px 8px; text-align: left; white-space: nowrap;
   background: #f7f9ff; border-radius: 10px; font-size: 13px;
 }
 .peer-badge { padding: 1px 7px; border-radius: 999px; font-size: 10.5px; font-weight: 700; font-style: normal; }
@@ -444,7 +444,7 @@ table.book.detail td.dl-note .pill { margin-right: 6px; }
   font: inherit; font-size: 12.5px; font-weight: 600;
 }
 .cb-refresh:active { transform: scale(.96); }
-table.book.class-board { min-width: 640px; }
+table.book.class-board { min-width: 0; }
 table.book.class-board th, table.book.class-board td { padding: 7px 8px; }
 table.book.class-board td.cb-gno { text-align: center; vertical-align: middle; }
 .cb-swatch {
@@ -477,7 +477,7 @@ table.book.class-board tr.cb-row.is-open { background: #eef4ff; }
    ------------------------------------------------------------------------- */
 .sheetwrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 table.sheet.sheet-vertical {
-  width: 100%; min-width: 680px; border-collapse: collapse; table-layout: fixed;
+  width: 100%; min-width: 0; border-collapse: collapse; table-layout: fixed;
   font-size: 13.5px; color: var(--ink);
 }
 table.sheet.sheet-vertical col.w-no { width: 6%; }
@@ -618,7 +618,7 @@ table.sheet.sheet-vertical tr.vertical-member-row:hover > td { background: var(-
   .sumd-panel { max-height: min(60vh, 480px); }
 }
 @media (max-width: 600px) {
-  table.sheet.sheet-vertical { min-width: 640px; font-size: 12.5px; }
+  table.sheet.sheet-vertical { min-width: 0; font-size: 12.5px; }
   .gno-swatch { font-size: 22px; }
 }
 

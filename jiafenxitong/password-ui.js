@@ -49,7 +49,8 @@
       .then(function () { return cloud.changePassword(oldPassword, password); })
       .then(function () {
         dialog.close(); clear();
-        alert('密码已修改。下次登录请使用新密码。');
+        if (window.hxAlert) window.hxAlert('密码已修改。下次登录请使用新密码。');
+        else if (window.HXTheme && HXTheme.toast) HXTheme.toast('密码已修改。下次登录请使用新密码。');
       })
       .catch(function (error) { say(error && error.message ? error.message : String(error)); })
       .finally(function () { submit.disabled = false; });

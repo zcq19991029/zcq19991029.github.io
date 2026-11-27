@@ -103,11 +103,6 @@ body::after{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
 .savedot i{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 8px var(--ok);flex:none}
 .savedot.pulse i{animation:pulse .9s ease-in-out 2}
 @keyframes pulse{50%{opacity:.3;transform:scale(1.5)}}
-.themes{position:relative;display:flex;gap:2px;padding:3px;border-radius:11px;background:var(--field2);width:fit-content}
-.themes button{position:relative;z-index:1;padding:3px 10px;font-size:12px;background:transparent;border:0;box-shadow:none;color:var(--mute)}
-.themes button:hover{background:transparent;color:var(--ink);transform:none}
-.themes button.on{color:var(--ink)}
-.themes>.tab-ind{background:var(--card-solid);border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.15)}
 .main{min-width:0;padding:34px 38px 96px}
 .main .page{max-width:none}
 .main .page.wide{max-width:none}
@@ -158,7 +153,7 @@ body::after{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
 
 /* 数字块 */
 .stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-bottom:20px}
-.stat{}
+.stat{position:relative;overflow:hidden;padding:16px;border:1px solid var(--card-brd);border-radius:var(--r-card);background:var(--card);box-shadow:var(--shadow);}
 .stat::after{content:"";position:absolute;right:-30px;top:-30px;width:90px;height:90px;border-radius:50%;background:radial-gradient(var(--accbg),transparent 70%);pointer-events:none}
 .stat .k{font:600 11px/1.4 var(--mono);letter-spacing:.1em;color:var(--mute);text-transform:uppercase}
 .stat .v{font:700 34px/1.25 var(--font-d);letter-spacing:-.03em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-variant-numeric:tabular-nums}
@@ -167,7 +162,7 @@ body::after{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
 @media(max-width:760px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
 /* 卡片：磨砂玻璃 */
-.card{}
+.card{min-width:0;overflow:hidden;padding:20px;border:1px solid var(--card-brd);border-radius:var(--r-card);background:var(--card);box-shadow:var(--shadow);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
 .card h2{font:650 20px/1.3 var(--font-d);letter-spacing:-.02em;margin:0}
 .card-h{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
 .card-h .sub{color:var(--mute);font-size:13px}
@@ -257,7 +252,7 @@ button.ic.xs svg{width:15px;height:15px}
 .foot-note{margin-top:14px}
 
 /* 月课表：每列一个周一，每行一间教室 */
-.tt-wrap{}
+.tt-wrap{overflow-x:auto;min-width:0}
 .tt{display:grid;grid-template-columns:96px repeat(var(--cols),minmax(200px,1fr));min-width:calc(96px + var(--cols) * 200px)}
 .tt>div{border-right:1px dashed var(--hair);border-bottom:1px dashed var(--hair)}
 .tt-corner,.tt-head{background:var(--head-bg);border-bottom:1px solid var(--hair)!important}
@@ -470,7 +465,7 @@ table.assign select{min-width:150px}
 .modal .warns{margin:4px 0 10px}
 
 /* 在线版：登录页、账号 */
-body.gated #nav,body.gated .themes{visibility:hidden}
+body.gated #nav{visibility:hidden}
 .gate{min-height:calc(100vh - 140px);display:flex;align-items:center;justify-content:center}
 .gate-card{width:min(440px,100%);padding:30px 30px 24px;animation:popIn .45s var(--bounce) both}
 .gate-t{font:700 30px/1.2 var(--font-d);letter-spacing:-.03em;margin:0 0 6px;background:linear-gradient(100deg,var(--ink) 30%,var(--acc) 85%,var(--acc2));-webkit-background-clip:text;background-clip:text;color:transparent}
@@ -573,6 +568,9 @@ button.is-error{animation:shake .42s cubic-bezier(.36,.07,.19,.97)}
 html.hx-lite .hx-px i{animation:none;opacity:.85}
 html.hx-lite .hx-loadpill{animation:none}
 @media (prefers-reduced-motion:reduce){.hx-px i{animation:none;opacity:.85;transform:none}.hx-loadpill{animation:none}}
+
+html.hx-lite .side,html.hx-lite .card,html.hx-lite .monthsw,html.hx-lite .seg,html.hx-lite .modal,html.hx-lite .toast,html.hx-lite .rail{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;background:var(--card-solid)!important}
+@media(max-width:760px){.main{padding:16px 10px 64px}.stats{gap:10px}.stat{padding:11px}.card{padding:14px}.swapbar{border-radius:14px;align-items:flex-start;flex-wrap:wrap;padding:10px}.swapbar .sp{display:none}.swapbar button{margin-left:auto}.tt-wrap{margin-inline:-10px;padding-inline:10px}}
 
 </style>
 <!-- 首屏像素闪屏（2026-11-07 全站统一三件套）的特效件：构建时由 build.js 把共享特效包和胶水
@@ -912,9 +910,8 @@ HXLoadFx.boot('paike', 'hxBoot');
 <div id="app"></div>
 <div id="modal" class="modal" hidden></div>
 <div id="toast" class="toast" role="status"></div>
-<script id="saved-data" type="application/json">null</script>
 <script>
-const BUILD={"time":"2026-11-26T07:10:37.672Z","sha":"e73acc4+"};
+const BUILD={"time":"2026-11-27T09:39:30.013Z","sha":"947f0ab+"};
 /* ---- engine.js ---- */
 /* ================= 排课引擎：数据模型、次数/轮次、自动排课、固定老师同步、校验 =================
    纯逻辑，不碰页面；浏览器里是全局 Engine，node 里 require 进来测试。
@@ -1878,7 +1875,7 @@ const isAdmin=()=>githubName().toLowerCase()===ADMIN_GITHUB;
    这样邮箱登录的开发者也认，口径与数据库 hx_is_dev() 一致，不会出现「同一个人换个登录方式就被关在门外」。
    任一为真即放行；网络异常时按 GitHub 判定兜底，避免断网把人挡在外面。 */
 async function isDevUser(){
-  try{const m=await api('/rest/v1/rpc/hx_me',{method:'POST',body:{}});return !!(m&&m.dev);}
+  try{const m=await api('/rest/v1/rpc/hx_me',{method:'POST',body:{}});return !!(m && (m.admin || m.dev));}
   catch(e){return false;}
 }
 const meta=()=>(user()&&user().user_metadata)||{};
@@ -1912,7 +1909,7 @@ async function update(data,rev){
   return rows[0]||null;
 }
 return {enabled:()=>/^https?:$/.test(location.protocol),loggedIn:()=>!!(session&&session.access_token),handleRedirect,reloadUser,
-  signInGitHub,signUp,signIn,recover,setPassword,hasPassword,getUsername,setUsername,linkGitHub,signOut,user,providers,githubName,isAdmin,isDevUser,name,avatar,load,head,create,update,ADMIN_GITHUB};
+  signInGitHub,signUp,signIn,recover,setPassword,hasPassword,getUsername,setUsername,linkGitHub,signOut,user,providers,githubName,isAdmin,isDevUser,name,avatar,load,head,create,update,dropCache:ddrop,ADMIN_GITHUB};
 })();
 
 
@@ -1920,8 +1917,7 @@ return {enabled:()=>/^https?:$/.test(location.protocol),loggedIn:()=>!!(session&
 /* ================= 界面：月课表（每列一个周一、每行一间教室）、分配老师、班级教室、统计、导出备份 =================
    视觉与动效沿用“单片机上机练习与考试”：玻璃侧栏 + 滑动选中底块、页面分块淡入、胶囊按钮回弹。 */
 const E=Engine;
-const KEY='wanxiu-paike-v1',VIEWKEY='wanxiu-paike-view',THEMEKEY='wanxiu-paike-theme';
-const SELF_HTML='<!doctype html>\n'+document.documentElement.outerHTML; /* 另存为带数据的 HTML 时用 */
+const KEY='wanxiu-paike-v1',VIEWKEY='wanxiu-paike-view';
 const $=s=>document.querySelector(s);
 const h=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const store={get(k){try{return localStorage.getItem(k);}catch(e){return null;}},set(k,v){try{localStorage.setItem(k,v);}catch(e){}}};
@@ -1930,20 +1926,11 @@ const REDUCE=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').m
 /* ---------- 数据 ----------
    本机版（双击打开的文件）：带本教研室数据，存在浏览器里。
    在线版（GitHub Pages）：网页里不带任何老师信息，登录后从云端读自己的数据；新账号从空白开始。 */
-const ONLINE=typeof SEED==='undefined';
-const UPGRADE=ONLINE?null:SEED.upgrade;
 const BLANK={version:2,weekday:1,teachers:[],classes:[],groups:[],fixed:{},designate:{},prefer:{},unavail:{},roomPool:[],weeks:[],times:[['19:10','19:50'],['20:00','20:40']]};
-const startData=()=>E.migrate(E.clone(ONLINE?BLANK:SEED),UPGRADE);
+const startData=()=>E.migrate(E.clone(BLANK),null);
 const cacheKey=()=>KEY+'-'+((Cloud.user()||{}).id||'x');
 const minOr=(a,d=0)=>a.length?Math.min(...a):d;
-function loadState(){
-  if(ONLINE)return startData();
-  let emb=null,loc=null;
-  try{emb=JSON.parse($('#saved-data').textContent);}catch(e){}
-  try{loc=JSON.parse(store.get(KEY));}catch(e){}
-  const pick=[emb,loc].filter(Boolean).sort((a,b)=>(b.savedAt||'')<(a.savedAt||'')?-1:1)[0];
-  return E.migrate(pick||startData(),UPGRADE);
-}
+function loadState(){ return startData(); }
 let st=loadState();
 const undo=[],redo=[];
 let flashKeys=new Set();
@@ -1958,13 +1945,12 @@ const DEVICE=(()=>{let id=store.get('paike-device');if(!id){id=Math.random().toS
 function setStatus(t,bad,tip){const d=$('#savedot');if(!d)return;d.classList.toggle('bad',!!bad);d.classList.remove('pulse');void d.offsetWidth;d.classList.add('pulse');d.querySelector('span').textContent=t;d.title=tip||'';}
 function save(){
   st.savedAt=new Date().toISOString();st.savedBy=DEVICE;
-  if(ONLINE){if(Cloud.loggedIn()){store.set(cacheKey(),JSON.stringify(st));keepMeta(true);}Sync.schedule();return;}
-  store.set(KEY,JSON.stringify(st));setStatus('已自动保存 '+hhmm());
+  if(Cloud.loggedIn()){store.set(cacheKey(),JSON.stringify(st));keepMeta(true);}Sync.schedule();
 }
 /* 本机缓存的“底稿版本”：缓存是从云端第几版改来的、有没有还没传上去的改动。
    刷新或断网后重新打开时靠它判断：直接补传，还是先问用哪一份，不会悄悄丢掉本机改动。 */
 const metaKey=()=>cacheKey()+'-meta';
-function keepMeta(dirty){if(ONLINE&&Cloud.loggedIn())store.set(metaKey(),JSON.stringify({rev:Sync.rev,dirty:!!dirty}));}
+function keepMeta(dirty){if(Cloud.loggedIn())store.set(metaKey(),JSON.stringify({rev:Sync.rev,dirty:!!dirty}));}
 /* 云端同步（参考“夜夜小组制加分助手”）：
    - 改动 1.2 秒后上传；上传时带上底稿版本号 rev，云端版本号不一样就拒收（另一台设备先改过），弹窗让用户选，不会互相覆盖。
    - 切回页面、窗口获得焦点、联网、页面开着每 30 秒，各核对一次云端版本号：本机没有未上传改动就自动换成云端新版；有改动就先上传，冲突时弹窗。
@@ -2010,7 +1996,7 @@ const Sync={rev:0,ready:false,timer:0,busy:false,again:false,dirty:false,checkin
 const safeNow=()=>$('#modal').hidden&&!drag&&!document.body.classList.contains('is-dragging')&&!(document.activeElement&&/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName));
 function applyRemote(row,msg){
   undo.push(JSON.stringify(st));if(undo.length>60)undo.shift();
-  st=E.migrate(row.data,UPGRADE);
+  st=E.migrate(row.data,null);
   Object.assign(Sync,{rev:row.rev,cloudAt:row.updated_at,cloudBy:row.data.savedBy||'',checkedAt:Date.now(),dirty:false,conflicted:false,pendingApply:false});
   store.set(cacheKey(),JSON.stringify(st));keepMeta(false);render();Sync.ok();if(msg)toast(msg);
 }
@@ -2032,7 +2018,7 @@ function diffList(a,b){
   return out;
 }
 async function conflict(){
-  let row=null;try{row=await Cloud.load();}catch(e){}
+  let row=null;try{row=await Cloud.load(true);}catch(e){}
   if(!row){Sync.conflicted=false;Sync.rev=0;return Sync.push();}
   Sync.conflicted=true;clearTimeout(Sync.timer);
   setStatus('同步冲突 · 点这里处理',true,'本机和云端都改过，上传已暂停，选好用哪一份后继续');
@@ -2047,21 +2033,21 @@ async function conflict(){
     `<button data-act="cf-backup">下载本机备份</button><button data-act="cf-cloud">用云端的</button><button class="pri" data-act="cf-mine">用本机这份（覆盖云端）</button>`);
   conflict.row=row;
 }
-addEventListener('beforeunload',e=>{if(ONLINE&&(Sync.dirty||Sync.busy)){e.preventDefault();e.returnValue='';}});
+addEventListener('beforeunload',e=>{if(Sync.dirty||Sync.busy){e.preventDefault();e.returnValue='';}});
 /* 网页版本：打包时间 + 源码提交号。在线版打开时、切回页面时、每 5 分钟看一次 version.json，有新版本且没在操作就自动刷新 */
 const Ver={latest:null,
   label(){if(typeof BUILD==='undefined')return '开发版';return this.latest?'有新版本 · 点这里刷新':'版本 '+stamp(BUILD.time,false);},
-  tip(){if(typeof BUILD==='undefined')return '';return '网页版本：发布于 '+stamp(BUILD.time)+'，源码 '+(BUILD.sha||'—')+(this.latest?'\n新版本：发布于 '+stamp(this.latest.time)+'，源码 '+this.latest.sha:'')+(ONLINE?'\n点一下检查新版本':'');},
+  tip(){if(typeof BUILD==='undefined')return '';return '网页版本：发布于 '+stamp(BUILD.time)+'，源码 '+(BUILD.sha||'—')+(this.latest?'\n新版本：发布于 '+stamp(this.latest.time)+'，源码 '+this.latest.sha:'')+(true?'\n点一下检查新版本':'');},
   show(){const el=$('#ver');if(el){el.textContent=this.label();el.title=this.tip();el.classList.toggle('new',!!this.latest);}},
   canReload:()=>!Sync.dirty&&!Sync.busy&&!Sync.conflicted&&safeNow(),
   async check(manual){
-    if(!ONLINE||typeof BUILD==='undefined')return manual&&toast(typeof BUILD==='undefined'?'开发版，没有版本号':'本机版不联网检查更新；这份发布于 '+stamp(BUILD.time,false));
+    if(typeof BUILD==='undefined')return manual&&toast('dev');
     try{const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)throw 0;const v=await r.json();
       if(v.time>BUILD.time){this.latest=v;this.show();if(this.canReload())location.reload();}
       else if(manual)toast('已是最新版本（发布于 '+stamp(BUILD.time,false)+'）');
     }catch(e){if(manual)toast('检查新版本没成功，稍后再试');}
   }};
-if(ONLINE){
+{
   const wake=()=>{if(document.hidden)return;Sync.check();Ver.check();};
   document.addEventListener('visibilitychange',wake);addEventListener('focus',()=>Sync.check());
   addEventListener('online',()=>{if(Sync.dirty)Sync.push();else Sync.check();});
@@ -2143,13 +2129,13 @@ function mountShell(){
   <aside class="side" aria-label="导航">
     <div class="brand"><svg class="logo" viewBox="0 0 34 34" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5b8cff"/><stop offset="1" stop-color="#7c5cff"/></linearGradient></defs><rect x="3" y="5" width="28" height="26" rx="7" fill="url(#lg)"/><rect x="9" y="2" width="3" height="7" rx="1.5" fill="#8a93a5"/><rect x="22" y="2" width="3" height="7" rx="1.5" fill="#8a93a5"/><g fill="rgba(255,255,255,.9)"><rect x="8" y="14" width="5" height="4" rx="1"/><rect x="15" y="14" width="5" height="4" rx="1"/><rect x="8" y="21" width="5" height="4" rx="1"/><rect x="15" y="21" width="5" height="4" rx="1"/></g><circle class="led" cx="25" cy="23" r="2.4" fill="#ffd66b"/></svg><div>华夏教研室<small>晚修排课系统</small></div></div>
     <nav id="nav"></nav>
-    <div class="side-foot"><div class="savedot" id="savedot"${ONLINE?' data-act="sync-check" role="button" tabindex="0"':''}><i></i><span>${ONLINE?'未登录':st.savedAt?'已自动保存':'数据存在本机'}</span></div>
+    <div class="side-foot"><div class="savedot" id="savedot"${true?' data-act="sync-check" role="button" tabindex="0"':''}><i></i><span>${true?'未登录':st.savedAt?'已自动保存':'数据存在本机'}</span></div>
       <div class="ver" id="ver" data-act="ver" role="button" tabindex="0"></div>
-      ${ONLINE?'':'<div class="themes" id="themes" role="group" aria-label="外观"><button type="button" data-theme-set="auto">自动</button><button type="button" data-theme-set="light">浅色</button><button type="button" data-theme-set="dark">深色</button></div>'}
-      <div class="side-note">${ONLINE?'在线版 · 数据存在云端，按账号分开':'离线可用 · 纯本地运行'}</div></div>
+      ${true?'':'<div class="themes" id="themes" role="group" aria-label="外观"><button type="button" data-theme-set="auto">自动</button><button type="button" data-theme-set="light">浅色</button><button type="button" data-theme-set="dark">深色</button></div>'}
+      <div class="side-note">${true?'在线版 · 数据存在云端，按账号分开':'离线可用 · 纯本地运行'}</div></div>
   </aside>
   <main class="main" id="main"></main></div>`;
-  if(!ONLINE)applyTheme(store.get(THEMEKEY)||'auto',false); /* 在线版的深浅色、主色由首页“外观”（../hx-theme.js）统一设置 */
+  /* 在线版的深浅色、主色由首页“外观”（../hx-theme.js）统一设置 */
 }
 function slideInd(box,sel,prev){
   let ind=box.querySelector(':scope>.tab-ind');
@@ -2162,13 +2148,7 @@ function slideInd(box,sel,prev){
   set(r);ind.style.opacity=1;return r;
 }
 let navRect=null,themeRect=null,segRect=null;
-function applyTheme(t,animate){
-  const r=document.documentElement;
-  if(t==='light'||t==='dark')r.setAttribute('data-theme',t);else r.removeAttribute('data-theme');
-  const box=$('#themes');
-  box.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.themeSet===t));
-  themeRect=slideInd(box,'button.on',animate?themeRect:null);
-}
+
 function renderNav(issueN){
   $('#nav').innerHTML=NAV.map(([g,items])=>`<div class="nav-g"><div class="nav-h">${g}</div>${items.map(([k,t,i])=>
     `<button type="button" class="nav-i${view.tab===k?' on':''}" data-tab="${k}">${svgI(i)}<span>${t}</span>${k==='week'&&issueN?`<span class="nav-b warn">${issueN}</span>`:''}${k==='assign'&&E.unassignedFixed(st).length?`<span class="nav-b warn">待分配</span>`:''}</button>`).join('')}</div>`).join('');
@@ -2523,11 +2503,11 @@ function pageIO(){
     <p class="note">正式版：直接用学院发的原表，字体、边框、列宽不变，填上每周上课教师、课室和批次，可直接发通知。含轮次版：每周多两列“轮次、累计课时”，另有“老师汇总”表和说明（一轮 = 一晚两个班 = 2 课时，机电15班一轮 1 课时）。</p>
   </div>
   <div class="card"><div class="card-h"><h2>保存与备份</h2></div>
-    ${ONLINE?'':'<p class="note">每次改动都自动存在这台电脑的浏览器里。换电脑或发给别人时：</p>'}
-    ${ONLINE?'<p class="note">在线版：每次改动自动同步到云端，换电脑登录同一个账号就能看到。备份文件可以留一份以防万一。</p>':`<p><button class="pri" data-act="save-html">另存为带数据的 HTML</button></p>
+    ${true?'':'<p class="note">每次改动都自动存在这台电脑的浏览器里。换电脑或发给别人时：</p>'}
+    ${true?'<p class="note">在线版：每次改动自动同步到云端，换电脑登录同一个账号就能看到。备份文件可以留一份以防万一。</p>':`<p><button class="pri" data-act="save-html">另存为带数据的 HTML</button></p>
     <p class="note">新文件里带着现在的全部排课和设置，直接双击打开即可。</p>`}
     <p class="row"><button data-act="json-out">下载备份（.json）</button><button data-act="json-in">从备份恢复</button><input type="file" id="jsonFile" accept=".json" hidden></p>
-    <p><button class="ghost sm" data-act="reset">${ONLINE?'清空成空白':'恢复初始数据'}</button></p>
+    <p><button class="ghost sm" data-act="reset">${true?'清空成空白':'恢复初始数据'}</button></p>
     <p class="note">最后保存：${st.savedAt?new Date(st.savedAt).toLocaleString():'尚未改动'}</p>
   </div></div>`;
 }
@@ -2684,7 +2664,7 @@ async function changeAssign(name,kind,ids){
 const suffix=()=>view.month.slice(5)+'01';
 const b64=x=>Uint8Array.from(atob(x),c=>c.charCodeAt(0));
 const expDates=()=>monthDates().filter(d=>E.weekOf(st,d));
-const builtinTpl=()=>typeof TEMPLATE_XLSX!=='undefined'?TEMPLATE_XLSX:'';
+const builtinTpl=()=>'';
 const u8b64=u=>{let s='';for(let i=0;i<u.length;i+=0x8000)s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));return btoa(s);};
 async function inflateRaw(u){return new Uint8Array(await new Response(new Blob([u]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer());}
 async function exportOfficial(){
@@ -2818,13 +2798,9 @@ const ACT={
     (navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast('已复制，可直接粘贴到群里'),
       ()=>modal('群通知文字','','<textarea style="width:100%;height:50vh">'+h(t)+'</textarea>'));},
   print:()=>{view.tab='week';view.mode='grid';render();setTimeout(()=>window.print(),150);},
-  'save-html':()=>{save();
-    const data=JSON.stringify(st).replace(/</g,'\\u003c');
-    const html=SELF_HTML.replace(/(<script id="saved-data" type="application\/json">)[\s\S]*?(<\/script>)/,(m,a,b)=>a+data+b);
-    download('华夏教研室排课系统-'+st.savedAt.slice(0,10)+'.html',new Blob([html],{type:'text/html'}));},
+  reset:async()=>{if(!await hxConfirm('清空成空白？这个账号的全部排课和设置都会删掉（可先下载备份）。'))return;commit(()=>{st=startData();},'已清空成空白');},
   'json-out':()=>download('晚修排课备份-'+new Date().toISOString().slice(0,10)+'.json',new Blob([JSON.stringify(Object.assign({},st,{templateXlsx:st.templateXlsx||builtinTpl()||undefined}),null,1)],{type:'application/json'})),
   'json-in':()=>$('#jsonFile').click(),
-  reset:async()=>{if(!await hxConfirm(ONLINE?'清空成空白？这个账号的全部排课和设置都会删掉（可先下载备份）。':'恢复成最初的数据？现在所有排课和设置都会丢失（可先下载备份）。'))return;commit(()=>{st=startData();},ONLINE?'已清空成空白':'已恢复初始数据');},
   'cf-cloud':()=>{closeModal();applyRemote(conflict.row,'已换成云端的版本（本机那份可以点“撤销”找回）');},
   'cf-mine':()=>{closeModal();Object.assign(Sync,{rev:conflict.row.rev,conflicted:false});Sync.push();},
   'cf-backup':()=>ACT['json-out'](),
@@ -2974,8 +2950,6 @@ document.addEventListener('dragstart',e=>{if(e.target.closest&&e.target.closest(
 
 document.addEventListener('click',e=>{
   if(Date.now()-dragEndAt<300){e.stopPropagation();return;}
-  const th=e.target.closest('[data-theme-set]');
-  if(th){store.set(THEMEKEY,th.dataset.themeSet);applyTheme(th.dataset.themeSet,true);return;}
   const el=e.target.closest('[data-act],[data-tab]');
   if(!el){if(e.target.id==='modal')closeModal();return;}
   if(el.tagName==='SELECT'||el.tagName==='INPUT'||el.tagName==='TEXTAREA')return;
@@ -3024,7 +2998,7 @@ const CHANGE={
 };
 document.addEventListener('change',e=>{
   if(e.target.id==='jsonFile'){const f=e.target.files[0];if(!f)return;f.text().then(t=>{
-    try{const o=JSON.parse(t);if(!o.teachers||!o.weeks)throw 0;commit(()=>{st=E.migrate(o,UPGRADE);},ONLINE?'已导入，正在同步到云端':'已从备份恢复');}catch(err){toast('不是本系统的备份文件');}});e.target.value='';return;}
+    try{const o=JSON.parse(t);if(!o.teachers||!o.weeks)throw 0;commit(()=>{st=E.migrate(o,null);},true?'已导入，正在同步到云端':'已从备份恢复');}catch(err){toast('不是本系统的备份文件');}});e.target.value='';return;}
   if(e.target.id==='tplFile'){const f=e.target.files[0];e.target.value='';if(!f)return;f.arrayBuffer().then(async b=>{
     try{const u=new Uint8Array(b);const files=await Xlsx.unzipAsync(u,inflateRaw);if(!files['xl/worksheets/sheet1.xml'])throw 0;
       commit(()=>{st.templateXlsx=u8b64(u);},'模板已保存：以后导出正式版就用这张表');}catch(err){toast('读不出来：请选学院发的 .xlsx 安排表');}});return;}
@@ -3057,24 +3031,6 @@ function showGate(state,err){
     <h1 class="gate-t">晚修排课系统</h1>
     ${err?'<p class="lg-msg">'+h(err)+'</p>':'<p class="note">用教师账号登录后使用</p>'}
     <button class="pri" data-act="hx-login">登录教师账号</button></div></div>`;
-}
-function oldGate(err){ /* 旧的独立登录页，已不用（保留给离线排查对照） */
-  return
-  `<div class="gate"><div class="card gate-card">
-    <div class="eyebrow">华夏教研室</div><h1 class="gate-t">晚修排课系统</h1>
-    <p class="note">登录后使用。每个账号的排课数据单独存在云端，别人看不到；换电脑登录同一个账号，数据还在。</p>
-    ${err?'<p class="lg-msg">'+h(err)+'</p>':''}
-    <button class="pri gh" data-act="login-gh">${GH_ICON}用 GitHub 登录</button>
-    <div class="or"><span>或者用邮箱 / 账号名</span></div>
-    <div class="seg lg-seg"><button class="${gateMode==='login'?'on':''}" data-act="login-tab" data-m="login">登录</button><button class="${gateMode==='signup'?'on':''}" data-act="login-tab" data-m="signup">注册新账号</button></div>
-    <form id="lgForm" class="lg-form">
-      <input id="lgEmail" type="${gateMode==='signup'?'email':'text'}" placeholder="${gateMode==='signup'?'邮箱':'邮箱或账号名'}" autocomplete="${gateMode==='signup'?'email':'username'}" required>
-      <input id="lgPw" type="password" placeholder="${gateMode==='signup'?'设一个密码（至少 6 位）':'密码'}" autocomplete="${gateMode==='signup'?'new-password':'current-password'}" required minlength="6">
-      ${gateMode==='signup'?'<input id="lgPw2" type="password" placeholder="再输一次密码" autocomplete="new-password" required>':''}
-      <button class="pri" type="submit">${gateMode==='signup'?'注册':'登录'}</button>
-      ${gateMode==='login'?'<button type="button" class="ghost sm" data-act="login-forgot">忘记密码？</button>':'<p class="note">注册后会收到一封确认邮件，点里面的链接就能用了。新账号从空白开始。</p>'}
-      <p id="lgMsg" class="lg-msg"></p>
-    </form></div></div>`;
 }
 document.addEventListener('submit',async e=>{
   if(e.target.id!=='lgForm')return;e.preventDefault();
@@ -3128,14 +3084,14 @@ async function bootOnline(){
   if(!Cloud.isAdmin()&&!await Cloud.isDevUser())return showGate('deny');
   let row=null,first=false,offline=false,then=null;
   const cache=store.get(cacheKey());let meta=null;try{meta=JSON.parse(store.get(metaKey()));}catch(e){}
-  try{row=await Cloud.load();}
+  try{row=await Cloud.load(true);}
   catch(e){if(!cache)return showGate(null,e.message);offline=true;}
   /* 本机缓存里有上次没传上去的改动：底稿版本和云端一致就补传；云端已经被别的设备改过，就让用户选 */
-  const local=cache&&meta&&meta.dirty?E.migrate(JSON.parse(cache),UPGRADE):null;
-  if(offline){st=E.migrate(JSON.parse(cache),UPGRADE);Sync.rev=meta?meta.rev:0;Sync.dirty=!!(meta&&meta.dirty);toast('连不上服务器，先显示这台电脑上次的数据');}
+  const local=cache&&meta&&meta.dirty?E.migrate(JSON.parse(cache),null):null;
+  if(offline){st=E.migrate(JSON.parse(cache),null);Sync.rev=meta?meta.rev:0;Sync.dirty=!!(meta&&meta.dirty);toast('连不上服务器，先显示这台电脑上次的数据');}
   else if(local&&(!row||row.rev===meta.rev)){st=local;Sync.rev=row?row.rev:0;Sync.dirty=true;then=()=>{Sync.push();toast('上次没传上去的改动，正在补传');};}
   else if(local){st=local;Sync.rev=meta.rev;Sync.dirty=true;then=conflict;}
-  else if(row){st=E.migrate(row.data,UPGRADE);Sync.rev=row.rev;store.set(cacheKey(),JSON.stringify(st));}
+  else if(row){st=E.migrate(row.data,null);Sync.rev=row.rev;store.set(cacheKey(),JSON.stringify(st));}
   else{st=startData();Sync.rev=0;first=true;}
   if(row)Object.assign(Sync,{cloudAt:row.updated_at,cloudBy:(row.data&&row.data.savedBy)||'',checkedAt:Date.now()});
   keepMeta(Sync.dirty);Sync.ready=true;
@@ -3147,8 +3103,10 @@ async function bootOnline(){
   else if(r&&r.type==='signup')toast('邮箱已确认，欢迎！');
   Ver.check();
 }
+window.addEventListener('storage',e=>{if(e.key!=='paike-session')return;location.reload();});
+window.HXBack=()=>{if(!$('#modal').hidden){closeModal();return true;}if(swapFrom){swapFrom=null;render();return true;}if(view.tab!=='week'){setView({tab:'week'});return true;}return false};
 mountShell();Ver.show();
-if(ONLINE)bootOnline();else render(true);
+bootOnline();
 
 </script>
 </body>

@@ -12,37 +12,39 @@
         location.replace('../#backup');
     })();
   </script>
+  <link rel="stylesheet" href="../hx-theme.css">
+  <script src="../hx-theme.js" data-tool="backup"></script>
+  <script src="../ui-dialog.js"></script>
   <style>
     :root {
-      --ink:#1c2321; --muted:#6b7a74; --bg:#f2f6f3; --card:#ffffff; --line:#e3ebe6;
+      --bk-muted:var(--dim,#6b7a74); --bk-line:var(--edge,#e3ebe6);
       --green:#16a34a; --green-deep:#15803d; --green-soft:#e7f6ec;
       --blue:#2563eb; --blue-soft:#eaf1ff; --amber:#b45309; --amber-soft:#fef3e2;
-      --red:#dc2626; --red-soft:#fdeaea; --shadow:0 12px 32px rgba(23,43,32,.08);
+      --red:#dc2626; --red-soft:#fdeaea; --bk-shadow:0 12px 32px rgba(23,43,32,.08);
     }
     * { box-sizing:border-box; }
     body {
       margin:0; color:var(--ink);
       font-family: ui-rounded, "SF Pro Rounded", "PingFang SC", "Microsoft YaHei", sans-serif;
-      background:
-        radial-gradient(circle at 6% 2%, #dcf3e4 0 10%, transparent 26%),
-        radial-gradient(circle at 94% 10%, #e2edf8 0 8%, transparent 22%),
-        var(--bg);
+      background:var(--bg);
       min-height:100vh; overflow-x:hidden;
     }
     button, input, select { font:inherit; }
     button { border:0; cursor:pointer; }
-    .app { position:relative; z-index:1; width:min(860px, calc(100% - 32px)); margin:0 auto; padding:26px 0 46px; }
+    .app { position:relative; z-index:1; width:min(1200px, calc(100% - 32px)); margin:0 auto; padding:26px 0 46px; }
     header { margin-bottom:20px; }
     .brand { display:flex; align-items:center; gap:13px; }
     .mark { width:52px; height:52px; display:grid; place-items:center; border-radius:16px 16px 20px 15px;
       background:linear-gradient(135deg,var(--green),var(--green-deep)); color:#fff; box-shadow:inset 0 -5px 0 rgba(0,0,0,.14); }
     .mark svg { width:28px; height:28px; }
     h1 { font-size:24px; margin:0; letter-spacing:.01em; }
-    header p { margin:6px 0 0; color:var(--muted); font-size:14px; font-weight:600; line-height:1.6; }
-    .card { background:var(--card); border:1px solid var(--line); border-radius:22px; box-shadow:var(--shadow);
+    header p { margin:6px 0 0; color:var(--bk-muted); font-size:14px; font-weight:600; line-height:1.6; }
+    .card { background:var(--card-solid,#fff); border:1px solid var(--bk-line); border-radius:22px; box-shadow:var(--bk-shadow);
       padding:22px 24px; margin-top:16px; }
+    html.hx-bg .card { background:var(--glass-wash,var(--card)); border-color:var(--glass-edge,var(--bk-line)); box-shadow:var(--glass-drop,var(--bk-shadow)); }
+    html.hx-lite .card { box-shadow:none; }
     .card h2 { margin:0 0 4px; font-size:18px; }
-    .card .sub { margin:0 0 16px; color:var(--muted); font-size:13px; font-weight:600; line-height:1.55; }
+    .card .sub { margin:0 0 16px; color:var(--bk-muted); font-size:13px; font-weight:600; line-height:1.55; }
     .row { display:flex; flex-wrap:wrap; gap:12px; align-items:center; }
     .btn { display:inline-flex; align-items:center; gap:8px; padding:12px 18px; border-radius:13px;
       font-weight:800; font-size:15px; transition:.15s; }
@@ -52,10 +54,10 @@
     .btn.green:hover:not(:disabled) { background:var(--green-deep); }
     .btn.blue { background:var(--blue); color:#fff; box-shadow:0 8px 18px rgba(37,99,235,.22); }
     .btn.blue:hover:not(:disabled) { background:#1d4ed8; }
-    .btn.ghost { background:#fff; border:1px solid var(--line); color:var(--ink); }
-    .btn.ghost:hover:not(:disabled) { border-color:#c8d6cd; background:#f7faf8; }
-    label.chk { display:inline-flex; align-items:center; gap:8px; padding:10px 14px; border:1px solid var(--line);
-      border-radius:12px; background:#fafcfa; font-size:14px; font-weight:700; cursor:pointer; user-select:none; }
+    .btn.ghost { background:var(--card-solid,#fff); border:1px solid var(--bk-line); color:var(--ink); }
+    .btn.ghost:hover:not(:disabled) { border-color:var(--acc,#c8d6cd); background:var(--fill,rgba(0,0,0,.04)); }
+    label.chk { display:inline-flex; align-items:center; gap:8px; padding:10px 14px; border:1px solid var(--bk-line);
+      border-radius:12px; background:var(--fill,#fafcfa); font-size:14px; font-weight:700; cursor:pointer; user-select:none; }
     label.chk input { width:17px; height:17px; accent-color:var(--green); }
     label.chk.warn { background:var(--amber-soft); border-color:#f1d9b0; color:#8a5a13; }
     .stat { margin-top:16px; padding:14px 16px; border-radius:14px; background:var(--green-soft); border:1px solid #cde9d7;
@@ -63,30 +65,35 @@
     .stat.warn { background:var(--amber-soft); border-color:#f1d9b0; color:#8a5a13; }
     .stat b { font-variant-numeric:tabular-nums; }
     .scope { display:flex; flex-wrap:wrap; gap:8px; }
-    .chip { padding:7px 11px; border-radius:10px; background:#f3f7f4; border:1px solid var(--line);
-      font-size:12px; font-weight:700; color:#3f4f47; }
+    .chip { padding:7px 11px; border-radius:10px; background:var(--fill,#f3f7f4); border:1px solid var(--bk-line);
+      font-size:12px; font-weight:700; color:var(--ink,#3f4f47); }
     .chip.music { background:#eef4ff; border-color:#d7e3fb; color:#2b4c9e; }
     .chip.warn { background:var(--red-soft); border-color:#f5cdcd; color:#a12828; }
-    .hint { margin-top:12px; font-size:12px; color:var(--muted); line-height:1.6; }
-    .hint b { color:#8a5a13; }
+    .hint { margin-top:12px; font-size:12px; color:var(--bk-muted); line-height:1.6; }
+    .hint b { color:var(--warn,#8a5a13); }
     .file-drop { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
-      padding:14px 16px; border:1.5px dashed #cbd9cf; border-radius:14px; background:#fafcfa; margin-bottom:14px; }
-    .file-drop .fname { font-size:14px; font-weight:700; color:#2f3f36; word-break:break-all; }
-    .file-drop .fname.empty { color:#9aa8a0; font-weight:600; }
+      padding:14px 16px; border:1.5px dashed var(--bk-line,#cbd9cf); border-radius:14px; background:var(--fill,#fafcfa); margin-bottom:14px; }
+    .file-drop .fname { font-size:14px; font-weight:700; color:var(--ink,#2f3f36); word-break:break-all; }
+    .file-drop .fname.empty { color:var(--bk-muted,#9aa8a0); font-weight:600; }
     /* 确认弹层 */
     .modal { position:fixed; inset:0; background:rgba(20,30,24,.42); display:none; align-items:center;
       justify-content:center; padding:20px; z-index:50; }
     .modal.open { display:flex; }
-    .modal-box { width:min(480px,100%); background:#fff; border-radius:20px; box-shadow:0 24px 60px rgba(0,0,0,.28);
+    .modal-box { width:min(480px,100%); background:var(--card-solid,#fff); color:var(--ink); border:1px solid var(--bk-line); border-radius:20px; box-shadow:0 24px 60px rgba(0,0,0,.28);
       padding:24px; max-height:86vh; overflow:auto; }
     .modal-box h3 { margin:0 0 10px; font-size:19px; }
-    .modal-box .mbody { font-size:14px; line-height:1.7; color:#3c4a42; }
+    .modal-box .mbody { font-size:14px; line-height:1.7; color:var(--dim,#3c4a42); }
     .modal-box .mbody b { color:var(--red); }
     .modal-box .mrow { display:flex; gap:10px; margin-top:20px; justify-content:flex-end; }
     .toast { position:fixed; left:50%; bottom:24px; transform:translate(-50%,18px); opacity:0; pointer-events:none;
-      padding:12px 18px; border-radius:13px; background:var(--ink); color:#fff; font-size:13px; font-weight:800;
+      padding:12px 18px; border-radius:13px; background:var(--ink); color:var(--bg,#fff); font-size:13px; font-weight:800;
       transition:.25s; box-shadow:0 12px 30px rgba(0,0,0,.2); z-index:60; max-width:90vw; }
     .toast.show { opacity:1; transform:translate(-50%,0); }
+    html[data-hx-mode="dark"] label.chk.warn { background:rgba(245,158,11,.14); border-color:rgba(245,158,11,.35); color:#fbbf24; }
+    html[data-hx-mode="dark"] .stat { background:rgba(36,138,61,.16); border-color:rgba(48,209,88,.35); color:#6ee7b7; }
+    html[data-hx-mode="dark"] .stat.warn { background:rgba(245,158,11,.14); border-color:rgba(245,158,11,.35); color:#fbbf24; }
+    html[data-hx-mode="dark"] .chip.music { background:rgba(41,151,255,.15); border-color:rgba(41,151,255,.35); color:#93c5fd; }
+    html[data-hx-mode="dark"] .chip.warn { background:rgba(255,69,58,.15); border-color:rgba(255,69,58,.35); color:#fca5a5; }
     @media (max-width:560px){ .app{padding:18px 0 30px} .card{padding:18px} .row{gap:8px} .btn{font-size:14px;padding:11px 14px} }
   </style>
 </head>
@@ -170,7 +177,8 @@
       { label:'进制转换', exact:['bitgarden-flowers-v1'], prefix:['夜夜班-'] },
       { label:'接线仿真', exact:['zfz-parallel','zfz-practice-wire','zfz-practice-sch','zfz-practice-answin','zfz-practice-ctrl','zfz-practice-theme','zfz-practice-toolbar','zfp-par-fold','zfz-draw-cls','zfz-rk-hud','hx-rank-pick'], prefix:['zfz-practice-','zfz-drill-','zfz-fw-'] },
       { label:'音乐', exact:['hx-music-state'], prefix:[] },
-      { label:'考勤', exact:['hx-att-device'], prefix:[] }
+      { label:'考勤', exact:['hx-att-device'], prefix:[] },
+      { label:'回收站', exact:['hx-recycle-v1'], prefix:['hx-recycle-v1::'] }
     ];
     // 始终排除（缓存/同步标记）
     var LS_EXCLUDE = { exact:['jfdt.supabase.sync.v1','jfdt.session.v2','jfdt.supabase.session.v1'], prefix:['jfdt.base.v2.'] };
@@ -178,6 +186,7 @@
     var IDB_NAME = 'hx-music', META = 'meta', BLOB = 'blob';
 
     function $(id){ return document.getElementById(id); }
+    function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
     function fmtSize(n){
       if (n == null || isNaN(n)) return '—';
       var u = ['B','KB','MB','GB','TB'], i = 0;
@@ -191,7 +200,7 @@
     function inScope(key, includeAI){
       if (LS_EXCLUDE.exact.indexOf(key) >= 0) return false;
       for (var i = 0; i < LS_EXCLUDE.prefix.length; i++) if (key.indexOf(LS_EXCLUDE.prefix[i]) === 0) return false;
-      if (!includeAI && key.indexOf(AI_KEY_PREFIX) === 0) return false;
+      if (key.indexOf(AI_KEY_PREFIX) === 0) return !!includeAI;
       for (var g = 0; g < LS_SCOPE.length; g++){
         var s = LS_SCOPE[g];
         if (s.exact.indexOf(key) >= 0) return true;
@@ -217,7 +226,12 @@
     function openIDB(){
       return new Promise(function (res, rej){
         if (!('indexedDB' in window)){ rej(new Error('本浏览器不支持 IndexedDB')); return; }
-        var r = indexedDB.open(IDB_NAME);
+        var r = indexedDB.open(IDB_NAME, 1);
+        r.onupgradeneeded = function(){
+          var db = r.result;
+          if (!db.objectStoreNames.contains(META)) db.createObjectStore(META, { keyPath:'id' });
+          if (!db.objectStoreNames.contains(BLOB)) db.createObjectStore(BLOB, { keyPath:'id' });
+        };
         r.onsuccess = function(){ res(r.result); };
         r.onerror = function(){ rej(r.error); };
         r.onblocked = function(){ rej(new Error('音乐库正被占用，请先关闭音乐页再试')); };
@@ -264,6 +278,7 @@
     function readIDB(includeMusic){
       if (!includeMusic) return Promise.resolve(null);
       return openIDB().then(function (db){
+        if (!db.objectStoreNames.contains(META) || !db.objectStoreNames.contains(BLOB)) return { meta:[], blob:[] };
         return getAll(db, META).then(function (meta){
           if (!meta.length) return { meta:[], blob:[] };
           // 逐条读 blob，读一条转一条，避免 getAll 一次把所有音频塞进内存
@@ -329,8 +344,8 @@
     });
 
     /* ---------------- 导入 ---------------- */
-    var pending = null;
-    function resetImport(){ pending = null; $('btnImport').disabled = true; $('fileName').textContent = '尚未选择文件'; $('fileName').className = 'fname empty'; }
+    var pendingFile = null, pendingData = null;
+    function resetImport(){ pendingFile = null; pendingData = null; $('btnImport').disabled = true; $('fileName').textContent = '尚未选择文件'; $('fileName').className = 'fname empty'; }
 
     $('btnPick').addEventListener('click', function () {
       var inp = document.createElement('input');
@@ -341,14 +356,15 @@
         $('fileName').textContent = f.name + '（' + fmtSize(f.size) + '）';
         $('fileName').className = 'fname';
         $('btnImport').disabled = false;
-        pending = f;
+        pendingFile = f;
+        pendingData = null;
       };
       inp.click();
     });
 
     $('btnImport').addEventListener('click', function () {
-      if (!pending) return;
-      var f = pending;
+      if (!pendingFile) return;
+      var f = pendingFile;
       $('btnImport').disabled = true;
       var stat = $('importStat'); stat.className = 'stat'; stat.style.display = 'block'; stat.textContent = '正在读取文件…';
       var fr = new FileReader();
@@ -356,13 +372,13 @@
         var data;
         try { data = JSON.parse(fr.result); } catch (e){ stat.className = 'stat warn'; stat.textContent = '文件不是有效的备份 JSON：' + e.message; $('btnImport').disabled = false; return; }
         if (data.type !== 'huaxia-full-backup' && data.version == null){ stat.className = 'stat warn'; stat.textContent = '这不是华夏工具的备份文件（缺少标识字段）。'; $('btnImport').disabled = false; return; }
-        pending = data; // 存解析后的对象
+        pendingData = data; // 存解析后的对象，不覆盖 pendingFile
         var ls = data.localStorage || {}, lsCount = Object.keys(ls).length;
         var idb = data.indexedDB && data.indexedDB['hx-music'];
         var metaCount = (idb && idb.meta || []).length, blobCount = (idb && idb.blob || []).length;
         $('mTitle').textContent = '确认导入';
         $('mBody').innerHTML =
-          '备份时间：<b>' + (data.exportedAt || '未知') + '</b><br>' +
+          '备份时间：<b>' + esc(data.exportedAt || '未知') + '</b><br>' +
           '即将写入 <b>' + lsCount + '</b> 个 localStorage key' +
           (metaCount ? '、<b>' + metaCount + '</b> 首音乐' : '') + '。<br>' +
           '当前本地的同名数据会被覆盖（音乐库先清空再恢复）。<br>' +
@@ -373,10 +389,11 @@
       fr.readAsText(f);
     });
 
-    $('mCancel').addEventListener('click', function (){ $('modal').classList.remove('open'); $('btnImport').disabled = false; });
+    $('mCancel').addEventListener('click', function (){ $('modal').classList.remove('open'); pendingData = null; $('btnImport').disabled = !pendingFile; });
     $('mOk').addEventListener('click', function () {
       $('modal').classList.remove('open');
-      var data = pending;
+      var data = pendingData;
+      if (!data) return;
       var stat = $('importStat'); stat.className = 'stat'; stat.style.display = 'block'; stat.textContent = '正在写入本地数据…';
       var btn = $('btnImport'); btn.disabled = true; btn.textContent = '导入中…';
       doImport(data).then(function (r){
@@ -442,6 +459,17 @@
       });
     }
 
+    window.HXBack = function () {
+      var m = $('modal');
+      if (m && m.classList.contains('open')) {
+        m.classList.remove('open');
+        pendingData = null;
+        $('btnImport').disabled = !pendingFile;
+        return true;
+      }
+      return false;
+    };
+
     /* ---------------- 初始化：范围说明 ---------------- */
     (function renderScope(){
       var el = $('scopeList');
@@ -451,6 +479,7 @@
       html += '<span class="chip warn">默认排除：AI 密钥、同步标记</span>';
       el.innerHTML = html;
     })();
+    window.HXBackupDebug = { inScope: inScope };
   })();
   </script>
 </body>

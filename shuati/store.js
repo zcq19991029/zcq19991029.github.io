@@ -29,6 +29,16 @@ const owner = () => PROBE_ON ? 'probe' : (uid() || 'guest');
 const lkey = key => `hx-quiz:${owner()}:${key}`;
 export function getLocal(key, fallback) { try { const v = JSON.parse(localStorage.getItem(lkey(key))); return v ?? fallback; } catch { return fallback; } }
 export function setLocal(key, value) { try { localStorage.setItem(lkey(key), JSON.stringify(value)); return true; } catch { return false; } }
+export function clearLocalPrefix(prefix) {
+  try {
+    const full = lkey(prefix), kill = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith(full)) kill.push(k);
+    }
+    kill.forEach(k => localStorage.removeItem(k));
+  } catch { /* 无痕模式 */ }
+}
 
 /* ---------- 静态数据短缓存（2026-11-11 降载，和总入口同一口径） ----------
    只缓存「老师偶尔才改一次」的东西：题库列表、题库内容、老师名单、我教的班。

@@ -71,6 +71,27 @@ try {
   hxLite = document.documentElement.classList.contains('hx-lite');
   if (!hxLite) { try { var _lv = localStorage.getItem('hx-lite'); hxLite = (_lv === null || _lv === '1'); } catch (e2) { hxLite = true; } }
 } catch (e) { hxLite = false; }
+function hxSiteMode() {
+  try {
+    for (let w = window; w; w = w.parent) {
+      const dm = w.document && w.document.documentElement && w.document.documentElement.getAttribute('data-hx-mode');
+      if (dm === 'light' || dm === 'dark') return dm;
+      if (w.HXTheme && typeof w.HXTheme.get === 'function') {
+        const m = w.HXTheme.get().mode;
+        if (m === 'light' || m === 'dark') return m;
+      }
+      if (w === w.parent) break;
+    }
+  } catch (e) { }
+  try {
+    const raw = localStorage.getItem('hx-theme');
+    if (raw) {
+      const m = JSON.parse(raw).mode;
+      if (m === 'light' || m === 'dark') return m;
+    }
+  } catch (e) { }
+  return 'dark';
+}
 function hxSetLite(on) {
   hxLite = !!on;
   try { applyTheme(themeName); } catch (e) { }
@@ -78,7 +99,7 @@ function hxSetLite(on) {
 /* 总入口里换模式：同一个页面用自定义事件，别的标签页/iframe 靠 storage 事件，
    两条都收，当场换档不用刷新（2026-11-11）。 */
 try {
-  addEventListener('hx-lite-change', function (e) { try { hxSetLite(!!(e && e.detail && e.detail.lite)); } catch (er) { } });
+  addEventListener('hx-lite-change', function (e) { try { const d = e && e.detail; hxSetLite(!!(d && (d.lite !== undefined ? d.lite : d.on))); } catch (er) { } });
   addEventListener('storage', function (e) { if (e && e.key === 'hx-lite') { try { hxSetLite(e.newValue !== '0'); } catch (er) { } } });
 } catch (e) { }
 if (typeof CanvasRenderingContext2D !== 'undefined' && !CanvasRenderingContext2D.prototype.__hxBgClear) {

@@ -72,6 +72,12 @@
     var s = readSession();
     return s && s.access_token ? s.access_token : '';
   }
+  function sessionUid() { var s = readSession(); return s && s.user ? String(s.user.id || '') : ''; }
+  function resetForSession() {
+    clearTimeout(timer); D = null; CLASS = null; detailCache = Object.create(null); boardOpen = '';
+    peer = { lessons: [], lesson: '', data: null, msg: '', busy: false, loaded: false, ok: false, queue: Promise.resolve() };
+    MY_CARD = { bg: '', pos: 50, loaded: false }; fatal = null; failStreak = 0;
+  }
 
   var refreshing = null;
   function freshToken() {
@@ -230,8 +236,10 @@
         '<span>1. 点下面的按钮去登录（账号是<b>学号</b>，密码是第一次登录时自己设的）</span>' +
         '<span>2. 登录成功后，回到这一页 —— 不用刷新，它会自己认出你</span>' +
         '</div>' +
-        '<a class="btn-primary" style="color:#fff" href="' + PORTAL + '" target="_blank" rel="noopener">去登录 →</a>' +
+        '<a class="btn-primary" id="portalLogin" style="color:#fff" href="#">去登录 →</a>' +
         '<br><br><small>忘了密码就在登录页点「忘记密码」。没登录过的话，问老师要课堂码注册。</small>');
+      var login = $('portalLogin');
+      if (login) login.onclick = function (e) { e.preventDefault(); if (window.HXTheme && HXTheme.login) HXTheme.login(); else location.href = PORTAL; };
       watchLogin();
     } else if (kind === 'not_student') {
       renderMyCard(null, '账号没绑定班级');
@@ -1253,11 +1261,22 @@
 
   function boot() {
     /* 演示视角：把「去选桌组队」也带上同一个 pv，学生在组队页看到的身份才不会跳回老师 */
-    if (PV) { var go = document.querySelector('.idc-go'); if (go) go.href = 'team.html?pv=' + PV; }
+    var go = document.querySelector('.idc-go');
+    if (go) {
+      go.href = PV ? 'team.html?pv=' + PV : 'team.html';
+      go.onclick = function (e) { e.preventDefault(); location.replace(go.href); };
+    }
     if (!token()) { showFatal('no_login'); return; }
     rpc('jf_my_scores', {}).then(apply).catch(fail);
     loadClassBoard();
   }
+  window.HXBack = function () {
+    var host = $('cbHost');
+    if (host && !host.hidden) { dismissCb(); return true; }
+    var pop = document.querySelector('.duty-pop-overlay.in');
+    if (pop) { var btn = pop.querySelector('.duty-pop-btn'); if (btn) btn.click(); return true; }
+    return false;
+  };
 
   function watchLogin() {
     clearTimeout(timer);
@@ -1372,6 +1391,14 @@
       rpc('jf_my_scores', {}).then(apply).catch(function () {});
       loadClassBoard();
     }
+  });
+  var lastUid = sessionUid();
+  if (window.addEventListener) window.addEventListener('storage', function (e) {
+    if (e.key !== SESSION_KEY) return;
+    var uid = sessionUid();
+    if (uid === lastUid) return;
+    lastUid = uid; resetForSession();
+    if (uid) boot(); else showFatal('no_login');
   });
 
   boot();

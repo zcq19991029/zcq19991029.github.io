@@ -1,12 +1,9 @@
 <!DOCTYPE html>
-<!-- 2026-11-17：online 版补上 data-hx-peanut —— 全站就剩这一页的 7 个 <select> 还是系统原生的方框下拉。
-     药丸选项（hx-theme.js 里的 HXPeanut）只认这个属性，别处早开了，这儿是打包产物，只能改模板。
-     离线版不带（它根本没引 hx-theme.js）。 -->
 <html lang="zh-CN" data-hx-peanut>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>单片机上机练习与考试</title>
+<title>单片机上机练习</title>
 <script src="../hx-theme.js" data-tool="mcu"></script>
 <script src="../ui-dialog.js"></script>
 <style>
@@ -96,20 +93,17 @@ a.nav-i{text-decoration:none}
 .nav-b{margin-left:auto;font:500 11px/1.6 var(--mono);color:var(--mute);background:var(--field2);border-radius:980px;padding:0 8px}
 #nav>.tab-ind{background:linear-gradient(135deg,var(--accbg),transparent 140%);border:1px solid var(--accbg);border-radius:12px;box-shadow:0 6px 18px -8px var(--ring)}
 .side-foot{margin-top:auto;padding:0 12px;font-size:12px;color:var(--mute);line-height:1.7;display:flex;flex-direction:column;gap:8px}
-.themes{position:relative;display:flex;gap:2px;padding:3px;border-radius:11px;background:var(--field2);width:fit-content}
-.themes button{position:relative;z-index:1;padding:3px 10px;font-size:12px;background:transparent;border:0;box-shadow:none;color:var(--mute)}
-.themes button:hover{background:transparent;color:var(--ink);transform:none}
-.themes button.on{color:var(--ink)}
-.themes>.tab-ind{background:var(--card-lift);border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.15)}
 .main{min-width:0;padding:34px 38px 96px}
 .page-h{margin:0 0 24px}
 .eyebrow{font:600 11.5px/1 var(--mono);letter-spacing:.16em;color:var(--acc);text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:8px}
 .eyebrow::before{content:"";width:6px;height:6px;border-radius:2px;background:var(--acc);box-shadow:0 0 10px var(--acc)}
 .page-h h1{font:700 34px/1.12 var(--font-d);letter-spacing:-.03em;margin:0 0 8px;text-wrap:balance;background:linear-gradient(100deg,var(--ink) 30%,var(--acc) 85%,var(--acc2));-webkit-background-clip:text;background-clip:text;color:transparent}
 .page-h p{margin:0;font-size:15px;color:var(--mute);max-width:820px}
+html.hx-lite .side,html.hx-lite .stat,html.hx-lite .step{backdrop-filter:none;-webkit-backdrop-filter:none}
 @media(max-width:860px){
   .app{grid-template-columns:1fr;grid-template-rows:auto 1fr}
-  .side{position:sticky;top:0;height:auto;flex-direction:row;align-items:center;gap:8px;padding:8px 12px;overflow-x:auto;border-right:0;border-bottom:1px solid var(--hair)}
+  .side{position:sticky;top:0;height:auto;flex-direction:row;align-items:center;gap:8px;padding:8px 28px 8px 12px;overflow-x:auto;border-right:0;border-bottom:1px solid var(--hair);-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent)}
+  .side,.stat,.step{backdrop-filter:none;-webkit-backdrop-filter:none}
   .brand,.side-foot,.nav-h,.nav-b{display:none}
   #nav{flex-direction:row;gap:2px}
   .nav-g{flex-direction:row}
@@ -209,6 +203,7 @@ textarea.editor::selection{background:rgba(91,140,255,.35)}
 pre.code{background:var(--code);color:var(--codeink);padding:14px 16px;border-radius:16px;overflow:auto;font:12.5px/1.6 var(--mono);max-height:480px;margin:8px 0 0;border:1px solid var(--hair)}
 
 /* 表格 */
+.tscroll{overflow-x:auto;max-width:100%}
 table{width:100%;border-collapse:collapse}
 th,td{padding:10px 10px;border-bottom:1px solid var(--hair);text-align:left;vertical-align:top}
 th{font:600 11px/1.4 var(--mono);letter-spacing:.08em;color:var(--mute);text-transform:uppercase;background:transparent}
@@ -335,9 +330,9 @@ svg.seg{vertical-align:middle} svg.seg rect,svg.seg circle{fill:var(--led-off)} 
 .pl-ic{width:38px;height:38px;padding:0;border-radius:50%;background:rgba(255,255,255,.09);color:#f5f5f7;display:inline-flex;align-items:center;justify-content:center}
 .pl-ic:hover{background:rgba(255,255,255,.17)}
 .pl-ic svg{width:18px;height:18px;fill:currentColor}
-.pl-time{font:13px var(--mono);color:#a1a1a6;min-width:120px}
-.pl-speed{margin-left:auto;min-width:240px;flex:0 1 320px}
-.pl-speed-top{display:flex;justify-content:space-between;font-size:12px;color:#a1a1a6;margin-bottom:2px}
+.pl-time{font:13px var(--mono);color:#a1a1a6;min-width:0}
+.pl-speed{margin-left:auto;min-width:0;max-width:100%;flex:1 1 220px;display:flex;flex-direction:column;flex-wrap:wrap}
+.pl-speed-top{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px;font-size:12px;color:#a1a1a6;margin-bottom:2px}
 .pl-speed-top output{font:600 13px var(--mono);color:#f5f5f7}
 .sp-word{font-weight:600;background:linear-gradient(90deg,#6aa8ff,#b18cff);-webkit-background-clip:text;background-clip:text;color:transparent;display:inline-block}
 .sp-word.pop{animation:wordIn .32s cubic-bezier(.2,.8,.2,1)}
@@ -746,9 +741,9 @@ button.qdel.sm{width:26px;height:26px;font-size:15px}
 <div id="dropmask">松开鼠标，读入文件</div>
 <div class="app">
 <aside class="side" aria-label="导航">
-  <div class="brand"><svg class="chip" viewBox="0 0 34 34" aria-hidden="true"><defs><linearGradient id="chipg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5b8cff"/><stop offset="1" stop-color="#7c5cff"/></linearGradient></defs><g fill="#8a93a5"><rect x="3" y="7" width="4" height="2" rx="1"/><rect x="27" y="7" width="4" height="2" rx="1"/><rect x="3" y="11.4" width="4" height="2" rx="1"/><rect x="27" y="11.4" width="4" height="2" rx="1"/><rect x="3" y="15.8" width="4" height="2" rx="1"/><rect x="27" y="15.8" width="4" height="2" rx="1"/><rect x="3" y="20.200000000000003" width="4" height="2" rx="1"/><rect x="27" y="20.200000000000003" width="4" height="2" rx="1"/><rect x="3" y="24.6" width="4" height="2" rx="1"/><rect x="27" y="24.6" width="4" height="2" rx="1"/></g><rect x="7" y="3" width="20" height="28" rx="4" fill="url(#chipg)"/><circle cx="17" cy="7" r="1.6" fill="rgba(255,255,255,.55)"/><text x="17" y="21" text-anchor="middle" font-family="Consolas,monospace" font-size="6.5" font-weight="700" fill="#fff">8051</text><circle class="led" cx="23" cy="27" r="1.6" fill="#ff453a"/></svg><div>单片机上机<small>练习与考试</small></div></div>
+  <div class="brand"><svg class="chip" viewBox="0 0 34 34" aria-hidden="true"><defs><linearGradient id="chipg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5b8cff"/><stop offset="1" stop-color="#7c5cff"/></linearGradient></defs><g fill="#8a93a5"><rect x="3" y="7" width="4" height="2" rx="1"/><rect x="27" y="7" width="4" height="2" rx="1"/><rect x="3" y="11.4" width="4" height="2" rx="1"/><rect x="27" y="11.4" width="4" height="2" rx="1"/><rect x="3" y="15.8" width="4" height="2" rx="1"/><rect x="27" y="15.8" width="4" height="2" rx="1"/><rect x="3" y="20.200000000000003" width="4" height="2" rx="1"/><rect x="27" y="20.200000000000003" width="4" height="2" rx="1"/><rect x="3" y="24.6" width="4" height="2" rx="1"/><rect x="27" y="24.6" width="4" height="2" rx="1"/></g><rect x="7" y="3" width="20" height="28" rx="4" fill="url(#chipg)"/><circle cx="17" cy="7" r="1.6" fill="rgba(255,255,255,.55)"/><text x="17" y="21" text-anchor="middle" font-family="Consolas,monospace" font-size="6.5" font-weight="700" fill="#fff">8051</text><circle class="led" cx="23" cy="27" r="1.6" fill="#ff453a"/></svg><div>单片机上机<small>上机练习</small></div></div>
   <nav id="nav"></nav>
-  <div class="side-foot"><div>网页版 · 2026-11-26<br>名单来自首页「班级」</div></div>
+  <div class="side-foot"><div>网页版 · 2026-11-27<br>名单来自首页「班级」</div></div>
 </aside>
 <main class="main" id="main">
 <section class="page" data-page="practice" hidden>
@@ -782,10 +777,7 @@ button.qdel.sm{width:26px;height:26px;font-size:15px}
       <div id="answer" hidden></div>
     </div>
     <div class="card"><h2>检测结果</h2><div id="result"></div></div>
-    <!-- 2026-11-06 用户：「学生刷题上机题目也需要有记录功能和耗时排名榜单」。
-         耗时榜 + 我的练习记录放在这里（不在右栏），因为学生测完会往下看结果，
-         顺手就能看到自己第几名；右栏留给题目和虚拟板。
-         离线单文件里 MCU_CLOUD.on 为 false，ui-practice 会把这块整体隐藏。 -->
+    <!-- 耗时榜 + 我的练习记录 -->
     <div id="cloudBox" hidden></div>
     <details class="card" id="pImportCard"><summary><b>用书上的代码自己出题练习</b>　<span class="note">粘贴课本或课堂上的程序，网页自动改参数出题</span></summary>
       <div id="pImport" style="margin-top:10px"></div>
@@ -798,8 +790,6 @@ button.qdel.sm{width:26px;height:26px;font-size:15px}
       <div class="row" style="margin-top:8px"><button id="btnRunRef">看看应有的现象</button></div></div>
   </aside>
 </div></section>
-
-
 <div id="teacherMain">
 <section class="page" data-page="t-roster" hidden>
 <header class="page-h"><div class="eyebrow">老师模块</div><h1>班级名单</h1><p>名单来自首页「班级」导入的那份（这个账号下的工具通用），这里只查看、不再导入。勾选这节课上机的班，设好查看答案密码</p></header>
@@ -812,7 +802,7 @@ button.qdel.sm{width:26px;height:26px;font-size:15px}
         <div class="row"><input id="rSearch" placeholder="搜学号或姓名" style="width:170px" aria-label="搜学号或姓名"><button id="btnRRefresh" class="sm">刷新名单</button></div>
       </div>
       <div id="rTable"></div>
-      <p class="note" style="margin-top:8px">要加人、删人、转班，到<a href="../">首页</a>「班级」里改；改完回这里点「刷新名单」。这里只显示，不改名单。</p>
+      <p class="note" style="margin-top:8px">要加人、删人、转班，到<a href="../" target="_top" data-hx-home>首页</a>「班级」里改；改完回这里点「刷新名单」。这里只显示，不改名单。</p>
     </div>
   </div>
   <aside class="rail">
@@ -830,7 +820,7 @@ button.qdel.sm{width:26px;height:26px;font-size:15px}
   </aside>
 </div></section>
 <section class="page" data-page="t-tries" hidden>
-<header class="page-h"><div class="eyebrow">老师模块</div><h1>练习记录</h1><p>学生在「平时练习」里每点一次「检测」都会记到云端（没满分也记）。选班级看每个人做了几次、满了几分；点一个学生，看他每次做的题和卡在哪</p></header>
+<header class="page-h"><div class="eyebrow">老师模块</div><h1>练习记录</h1><p>学生在「平时练习」里每点一次「检测」都会记到云端（没满分也记）。选班级看每个人做了几题、满了几题；点一个学生，看他每次做的题和卡在哪</p></header>
 <div class="card band-tool">
   <div class="row" style="justify-content:space-between">
     <div data-cls-tabs style="flex:1;min-width:0"></div>
@@ -845,7 +835,7 @@ button.qdel.sm{width:26px;height:26px;font-size:15px}
         <span class="note" id="trStat"></span>
       </div>
       <div id="trTable"></div>
-      <p class="note" style="margin-top:8px">「检测」是学生每点一次「检测」记一条（没满分也记）；「满分」只算拿满分的那几次；「最快用时」是服务器记的最短一次（函数按用时取最小值，没满分的那次也可能算在内）。点一行看这个学生每次做的题。</p>
+      <p class="note" style="margin-top:8px">「题数」按母题+题型去重统计学生做过几类题；「满分」只算拿满分的那几类题；「最快满分」仅统计满分且 ≥5 秒的用时（与学生端耗时榜同口径，从未拿过满分显示「—」）。点一行看这个学生每次检测的明细。</p>
     </div>
     <div class="card">
       <h2 id="trWho">某个学生做了什么</h2>
@@ -857,7 +847,7 @@ button.qdel.sm{width:26px;height:26px;font-size:15px}
       <h2>这些数字哪来的</h2>
       <p class="note">班级进度来自数据库函数 <code>mcu_class_stats</code>，学生的每条记录来自 <code>mcu_student_tries</code>。两个都是现成的，没有新建表。</p>
       <ul class="note" style="margin:10px 0 0 18px;padding:0;line-height:1.9">
-        <li>没做过的学生也在表里（0 次），方便对着名单找谁还没练。</li>
+        <li>没做过的学生也在表里（0 题），方便对着名单找谁还没练。</li>
         <li>只有班主任能看到自己的班；学生看不到这一页。</li>
         <li>用时由服务器算，学生改本机时间不影响。</li>
         <li>「卡在哪」按练习号归并：同一道题试了几次、最好多少分。</li>
@@ -867,11 +857,8 @@ button.qdel.sm{width:26px;height:26px;font-size:15px}
   </aside>
 </div></section>
 <section class="page" data-page="t-import" hidden>
-<header class="page-h"><div class="eyebrow">老师模块</div><h1>导入书上代码</h1><p>把书上或课堂上的程序导进来当母题：自动识别电路、找出能改的参数，出填空 / 改错 / 按要求改程序。组卷时“母题”里就能选它</p></header>
+<header class="page-h"><div class="eyebrow">老师模块</div><h1>导入书上代码</h1><p>把书上或课堂上的程序导进来当母题：自动识别电路、找出能改的参数，出填空 / 改错 / 按要求改程序。练习时“母题”里就能选它</p></header>
 <div class="card"><div id="tImport"></div></div></section>
-
-
-
 </div>
 </main>
 </div>
@@ -880,7 +867,7 @@ button.qdel.sm{width:26px;height:26px;font-size:15px}
 <script>
 const HX_ONLINE=true;
 ;
-const GBK_MAP={"　":"a1a1","、":"a1a2","。":"a1a3","·":"a1a4","—":"a1aa","～":"a1ab","…":"a1ad","‘":"a1ae","’":"a1af","“":"a1b0","”":"a1b1","《":"a1b6","》":"a1b7","「":"a1b8","」":"a1b9","『":"a1ba","』":"a1bb","【":"a1be","】":"a1bf","×":"a1c1","÷":"a1c2","∈":"a1ca","√":"a1cc","≥":"a1dd","□":"a1f5","→":"a1fa","←":"a1fb","①":"a2d9","②":"a2da","③":"a2db","！":"a3a1","（":"a3a8","）":"a3a9","＋":"a3ab","，":"a3ac","：":"a3ba","；":"a3bb","＝":"a3bd","？":"a3bf","Ω":"a6b8","μ":"a6cc","─":"a9a4","啊":"b0a1","安":"b0b2","按":"b0b4","暗":"b0b5","案":"b0b8","八":"b0cb","把":"b0d1","白":"b0d7","百":"b0d9","摆":"b0da","败":"b0dc","班":"b0e0","搬":"b0e1","般":"b0e3","板":"b0e5","版":"b0e6","伴":"b0e9","半":"b0eb","办":"b0ec","榜":"b0f1","磅":"b0f5","包":"b0fc","保":"b1a3","报":"b1a8","背":"b1b3","倍":"b1b6","备":"b1b8","被":"b1bb","奔":"b1bc","本":"b1be","崩":"b1c0","比":"b1c8","蔽":"b1ce","闭":"b1d5","必":"b1d8","避":"b1dc","边":"b1df","编":"b1e0","便":"b1e3","变":"b1e4","辨":"b1e6","遍":"b1e9","标":"b1ea","表":"b1ed","别":"b1f0","并":"b2a2","玻":"b2a3","播":"b2a5","拨":"b2a6","波":"b2a8","补":"b2b9","不":"b2bb","布":"b2bc","步":"b2bd","簿":"b2be","部":"b2bf","裁":"b2c3","材":"b2c4","才":"b2c5","踩":"b2c8","采":"b2c9","菜":"b2cb","参":"b2ce","残":"b2d0","藏":"b2d8","操":"b2d9","侧":"b2e0","册":"b2e1","测":"b2e2","层":"b2e3","插":"b2e5","叉":"b2e6","查":"b2e9","察":"b2ec","差":"b2ee","拆":"b2f0","产":"b2fa","场":"b3a1","常":"b3a3","长":"b3a4","超":"b3ac","抄":"b3ad","车":"b3b5","撤":"b3b7","撑":"b3c5","称":"b3c6","成":"b3c9","程":"b3cc","吃":"b3d4","持":"b3d6","尺":"b3df","充":"b3e4","冲":"b3e5","抽":"b3e9","初":"b3f5","出":"b3f6","除":"b3fd","楚":"b3fe","础":"b4a1","储":"b4a2","触":"b4a5","处":"b4a6","传":"b4ab","串":"b4ae","窗":"b4b0","创":"b4b4","纯":"b4bf","戳":"b4c1","词":"b4ca","此":"b4cb","次":"b4ce","从":"b4d3","凑":"b4d5","粗":"b4d6","脆":"b4e0","存":"b4e6","寸":"b4e7","错":"b4ed","达":"b4ef","答":"b4f0","打":"b4f2","大":"b4f3","带":"b4f8","代":"b4fa","待":"b4fd","单":"b5a5","但":"b5ab","淡":"b5ad","弹":"b5af","当":"b5b1","挡":"b5b2","荡":"b5b4","档":"b5b5","倒":"b5b9","导":"b5bc","到":"b5bd","道":"b5c0","得":"b5c3","的":"b5c4","灯":"b5c6","登":"b5c7","等":"b5c8","低":"b5cd","底":"b5d7","地":"b5d8","第":"b5da","递":"b5dd","点":"b5e3","典":"b5e4","电":"b5e7","掉":"b5f4","调":"b5f7","叠":"b5fe","钉":"b6a4","顶":"b6a5","定":"b6a8","订":"b6a9","丢":"b6aa","东":"b6ab","动":"b6af","兜":"b6b5","抖":"b6b6","都":"b6bc","独":"b6c0","读":"b6c1","堵":"b6c2","度":"b6c8","渡":"b6c9","端":"b6cb","短":"b6cc","段":"b6ce","断":"b6cf","堆":"b6d1","对":"b6d4","盾":"b6dc","多":"b6e0","夺":"b6e1","额":"b6ee","而":"b6f8","二":"b6fe","发":"b7a2","法":"b7a8","翻":"b7ad","凡":"b7b2","反":"b7b4","返":"b7b5","范":"b7b6","泛":"b7ba","方":"b7bd","房":"b7bf","防":"b7c0","仿":"b7c2","访":"b7c3","放":"b7c5","非":"b7c7","飞":"b7c9","废":"b7cf","费":"b7d1","分":"b7d6","份":"b7dd","丰":"b7e1","封":"b7e2","蜂":"b7e4","风":"b7e7","冯":"b7eb","佛":"b7f0","否":"b7f1","符":"b7fb","服":"b7fe","浮":"b8a1","副":"b8b1","覆":"b8b2","赋":"b8b3","复":"b8b4","负":"b8ba","富":"b8bb","附":"b8bd","该":"b8c3","改":"b8c4","概":"b8c5","盖":"b8c7","干":"b8c9","杆":"b8cb","赶":"b8cf","感":"b8d0","刚":"b8d5","高":"b8df","告":"b8e6","格":"b8f1","隔":"b8f4","个":"b8f6","各":"b8f7","给":"b8f8","根":"b8f9","跟":"b8fa","更":"b8fc","工":"b9a4","功":"b9a6","供":"b9a9","公":"b9ab","共":"b9b2","勾":"b9b4","构":"b9b9","够":"b9bb","估":"b9c0","孤":"b9c2","故":"b9ca","固":"b9cc","挂":"b9d2","关":"b9d8","观":"b9db","管":"b9dc","光":"b9e2","广":"b9e3","规":"b9e6","归":"b9e9","轨":"b9ec","滚":"b9f6","果":"b9fb","过":"b9fd","哈":"b9fe","含":"baac","函":"baaf","焊":"bab8","汉":"baba","航":"babd","毫":"bac1","好":"bac3","耗":"bac4","号":"bac5","核":"bacb","和":"bacd","何":"bace","合":"bacf","黑":"bada","很":"badc","横":"bae1","衡":"bae2","恒":"bae3","虹":"bae7","红":"baec","候":"baf2","后":"baf3","忽":"baf6","糊":"bafd","护":"bba4","互":"bba5","户":"bba7","花":"bba8","华":"bbaa","滑":"bbac","画":"bbad","划":"bbae","化":"bbaf","话":"bbb0","坏":"bbb5","环":"bbb7","还":"bbb9","缓":"bbba","换":"bbbb","灰":"bbd2","辉":"bbd4","恢":"bbd6","回":"bbd8","会":"bbe1","汇":"bbe3","绘":"bbe6","混":"bbec","或":"bbf2","击":"bbf7","圾":"bbf8","基":"bbf9","机":"bbfa","积":"bbfd","绩":"bca8","极":"bcab","辑":"bcad","集":"bcaf","及":"bcb0","急":"bcb1","即":"bcb4","级":"bcb6","几":"bcb8","己":"bcba","技":"bcbc","寄":"bcc4","计":"bcc6","记":"bcc7","既":"bcc8","际":"bcca","继":"bccc","夹":"bcd0","加":"bcd3","甲":"bcd7","假":"bcd9","价":"bcdb","间":"bce4","兼":"bce6","检":"bcec","简":"bcf2","剪":"bcf4","减":"bcf5","见":"bcfb","键":"bcfc","件":"bcfe","渐":"bda5","建":"bda8","将":"bdab","降":"bdb5","焦":"bdb9","胶":"bdba","交":"bdbb","脚":"bdc5","角":"bdc7","教":"bdcc","较":"bdcf","叫":"bdd0","接":"bdd3","阶":"bdd7","截":"bdd8","节":"bdda","捷":"bddd","结":"bde1","解":"bde2","界":"bde7","介":"bde9","紧":"bdf4","锦":"bdf5","仅":"bdf6","进":"bdf8","近":"bdfc","尽":"bea1","睛":"bea6","晶":"bea7","精":"beab","经":"bead","警":"beaf","景":"beb0","静":"beb2","境":"beb3","径":"beb6","净":"bebb","久":"bec3","九":"bec5","旧":"bec9","就":"becd","局":"bed6","矩":"bed8","举":"bed9","聚":"bedb","拒":"bedc","据":"bedd","具":"bedf","距":"bee0","句":"bee4","卷":"beed","觉":"bef5","决":"bef6","绝":"bef8","均":"bef9","卡":"bfa8","开":"bfaa","看":"bfb4","考":"bfbc","靠":"bfbf","颗":"bfc5","壳":"bfc7","可":"bfc9","刻":"bfcc","课":"bfce","坑":"bfd3","空":"bfd5","控":"bfd8","口":"bfda","库":"bfe2","跨":"bfe7","块":"bfe9","快":"bfec","宽":"bfed","框":"bff2","况":"bff6","馈":"c0a1","括":"c0a8","扩":"c0a9","垃":"c0ac","拉":"c0ad","来":"c0b4","赖":"c0b5","蓝":"c0b6","栏":"c0b8","拦":"c0b9","览":"c0c0","浪":"c0cb","老":"c0cf","累":"c0db","类":"c0e0","离":"c0eb","理":"c0ed","里":"c0ef","利":"c0fb","例":"c0fd","立":"c1a2","力":"c1a6","璃":"c1a7","联":"c1aa","连":"c1ac","廉":"c1ae","链":"c1b4","练":"c1b7","两":"c1bd","量":"c1bf","亮":"c1c1","了":"c1cb","料":"c1cf","列":"c1d0","零":"c1e3","另":"c1ed","令":"c1ee","留":"c1f4","流":"c1f7","六":"c1f9","漏":"c2a9","露":"c2b6","路":"c2b7","录":"c2bc","律":"c2c9","率":"c2ca","滤":"c2cb","绿":"c2cc","乱":"c2d2","略":"c2d4","轮":"c2d6","论":"c2db","逻":"c2df","裸":"c2e3","落":"c2e4","络":"c2e7","码":"c2eb","吗":"c2f0","脉":"c2f6","满":"c2fa","曼":"c2fc","慢":"c2fd","忙":"c3a6","矛":"c3ac","么":"c3b4","没":"c3bb","每":"c3bf","门":"c3c5","们":"c3c7","密":"c3dc","免":"c3e2","面":"c3e6","描":"c3e8","秒":"c3eb","灭":"c3f0","明":"c3f7","鸣":"c3f9","名":"c3fb","命":"c3fc","模":"c4a3","磨":"c4a5","末":"c4a9","默":"c4ac","某":"c4b3","母":"c4b8","幕":"c4bb","目":"c4bf","拿":"c4c3","哪":"c4c4","那":"c4c7","难":"c4d1","囊":"c4d2","脑":"c4d4","内":"c4da","能":"c4dc","霓":"c4de","拟":"c4e2","你":"c4e3","年":"c4ea","钮":"c5a5","挪":"c5b2","诺":"c5b5","偶":"c5bc","拍":"c5c4","排":"c5c5","牌":"c5c6","派":"c5c9","盘":"c5cc","判":"c5d0","旁":"c5d4","抛":"c5d7","跑":"c5dc","配":"c5e4","碰":"c5f6","批":"c5fa","片":"c6ac","漂":"c6af","拼":"c6b4","频":"c6b5","品":"c6b7","平":"c6bd","凭":"c6be","评":"c6c0","屏":"c6c1","铺":"c6cc","普":"c6d5","期":"c6da","七":"c6df","其":"c6e4","齐":"c6eb","起":"c6f0","启":"c6f4","器":"c6f7","汽":"c6fb","牵":"c7a3","迁":"c7a8","签":"c7a9","前":"c7b0","浅":"c7b3","嵌":"c7b6","强":"c7bf","抢":"c7c0","桥":"c7c5","切":"c7d0","且":"c7d2","勤":"c7da","清":"c7e5","擎":"c7e6","情":"c7e9","请":"c7eb","求":"c7f3","区":"c7f8","驱":"c7fd","取":"c8a1","去":"c8a5","圈":"c8a6","权":"c8a8","全":"c8ab","缺":"c8b1","确":"c8b7","然":"c8bb","染":"c8be","让":"c8c3","扰":"c8c5","热":"c8c8","人":"c8cb","任":"c8ce","认":"c8cf","仍":"c8d4","日":"c8d5","容":"c8dd","如":"c8e7","入":"c8eb","软":"c8ed","若":"c8f4","弱":"c8f5","塞":"c8fb","三":"c8fd","散":"c9a2","扫":"c9a8","色":"c9ab","砂":"c9b0","啥":"c9b6","筛":"c9b8","删":"c9be","闪":"c9c1","商":"c9cc","上":"c9cf","稍":"c9d4","烧":"c9d5","少":"c9d9","绍":"c9dc","设":"c9e8","申":"c9ea","身":"c9ed","深":"c9ee","审":"c9f3","声":"c9f9","生":"c9fa","升":"c9fd","省":"caa1","剩":"caa3","师":"caa6","失":"caa7","十":"caae","石":"caaf","时":"cab1","什":"cab2","实":"cab5","识":"cab6","使":"cab9","始":"cabc","式":"cabd","示":"cabe","事":"cac2","是":"cac7","适":"caca","释":"cacd","视":"cad3","试":"cad4","收":"cad5","手":"cad6","首":"cad7","授":"cada","殊":"cae2","输":"cae4","书":"cae9","熟":"caec","鼠":"caf3","属":"caf4","术":"caf5","束":"caf8","竖":"cafa","数":"cafd","刷":"cba2","双":"cbab","谁":"cbad","水":"cbae","瞬":"cbb2","顺":"cbb3","说":"cbb5","烁":"cbb8","斯":"cbb9","思":"cbbc","死":"cbc0","四":"cbc4","松":"cbc9","送":"cbcd","宋":"cbce","搜":"cbd1","素":"cbd8","速":"cbd9","诉":"cbdf","算":"cbe3","随":"cbe6","缩":"cbf5","索":"cbf7","锁":"cbf8","所":"cbf9","他":"cbfb","它":"cbfc","抬":"cca7","台":"cca8","太":"ccab","态":"ccac","堂":"ccc3","套":"ccd7","特":"ccd8","提":"cce1","题":"cce2","体":"cce5","替":"cce6","添":"cced","填":"ccee","挑":"ccf4","条":"ccf5","跳":"ccf8","贴":"ccf9","铁":"ccfa","停":"cda3","通":"cda8","同":"cdac","桶":"cdb0","统":"cdb3","头":"cdb7","透":"cdb8","图":"cdbc","团":"cdc5","推":"cdc6","退":"cdcb","拖":"cdcf","外":"cde2","完":"cdea","晚":"cded","万":"cdf2","网":"cdf8","往":"cdf9","微":"cea2","围":"cea7","唯":"cea8","为":"ceaa","维":"ceac","尾":"ceb2","未":"ceb4","位":"cebb","文":"cec4","纹":"cec6","稳":"cec8","问":"ceca","我":"ced2","沃":"ced6","无":"cede","五":"cee5","物":"ceef","务":"cef1","误":"cef3","析":"cef6","西":"cef7","吸":"cefc","息":"cfa2","希":"cfa3","悉":"cfa4","熄":"cfa8","习":"cfb0","洗":"cfb4","系":"cfb5","细":"cfb8","下":"cfc2","夏":"cfc4","吓":"cfc5","先":"cfc8","显":"cfd4","险":"cfd5","现":"cfd6","限":"cfde","线":"cfdf","相":"cfe0","箱":"cfe4","响":"cfec","享":"cfed","项":"cfee","像":"cff1","向":"cff2","象":"cff3","销":"cffa","消":"cffb","小":"d0a1","校":"d0a3","效":"d0a7","些":"d0a9","写":"d0b4","械":"d0b5","芯":"d0be","新":"d0c2","心":"d0c4","信":"d0c5","型":"d0cd","形":"d0ce","行":"d0d0","性":"d0d4","姓":"d0d5","修":"d0de","需":"d0e8","虚":"d0e9","须":"d0eb","许":"d0ed","序":"d0f2","续":"d0f8","悬":"d0fc","选":"d1a1","学":"d1a7","循":"d1ad","询":"d1af","寻":"d1b0","压":"d1b9","盐":"d1ce","延":"d1d3","言":"d1d4","颜":"d1d5","沿":"d1d8","眼":"d1db","演":"d1dd","验":"d1e9","央":"d1eb","阳":"d1f4","样":"d1f9","要":"d2aa","也":"d2b2","页":"d2b3","业":"d2b5","夜":"d2b9","液":"d2ba","一":"d2bb","依":"d2c0","衣":"d2c2","移":"d2c6","仪":"d2c7","宜":"d2cb","已":"d2d1","乙":"d2d2","以":"d2d4","易":"d2d7","意":"d2e2","义":"d2e5","益":"d2e6","溢":"d2e7","议":"d2e9","译":"d2eb","异":"d2ec","因":"d2f2","音":"d2f4","阴":"d2f5","引":"d2fd","隐":"d2fe","印":"d3a1","英":"d3a2","应":"d3a6","影":"d3b0","硬":"d3b2","永":"d3c0","用":"d3c3","优":"d3c5","由":"d3c9","有":"d3d0","右":"d3d2","又":"d3d6","于":"d3da","余":"d3e0","予":"d3e8","与":"d3eb","语":"d3ef","域":"d3f2","遇":"d3f6","御":"d3f9","预":"d4a4","元":"d4aa","原":"d4ad","员":"d4b1","圆":"d4b2","源":"d4b4","缘":"d4b5","远":"d4b6","院":"d4ba","约":"d4bc","越":"d4bd","钥":"d4bf","月":"d4c2","云":"d4c6","匀":"d4c8","允":"d4ca","运":"d4cb","载":"d4d8","再":"d4d9","在":"d4da","暂":"d4dd","糟":"d4e3","早":"d4e7","造":"d4ec","择":"d4f1","则":"d4f2","泽":"d4f3","怎":"d4f5","增":"d4f6","栅":"d5a4","窄":"d5ad","粘":"d5b3","展":"d5b9","栈":"d5bb","占":"d5bc","站":"d5be","张":"d5c5","账":"d5cb","找":"d5d2","照":"d5d5","罩":"d5d6","遮":"d5da","折":"d5db","者":"d5df","这":"d5e2","真":"d5e6","针":"d5eb","振":"d5f1","阵":"d5f3","整":"d5fb","正":"d5fd","证":"d6a4","支":"d6a7","知":"d6aa","之":"d6ae","职":"d6b0","直":"d6b1","执":"d6b4","值":"d6b5","址":"d6b7","指":"d6b8","止":"d6b9","只":"d6bb","纸":"d6bd","志":"d6be","至":"d6c1","致":"d6c2","置":"d6c3","制":"d6c6","智":"d6c7","质":"d6ca","中":"d6d0","钟":"d6d3","终":"d6d5","种":"d6d6","重":"d6d8","周":"d6dc","州":"d6dd","轴":"d6e1","骤":"d6e8","逐":"d6f0","主":"d6f7","住":"d7a1","注":"d7a2","驻":"d7a4","专":"d7a8","转":"d7aa","装":"d7b0","状":"d7b4","缀":"d7ba","准":"d7bc","着":"d7c5","资":"d7ca","紫":"d7cf","子":"d7d3","自":"d7d4","字":"d7d6","踪":"d7d9","综":"d7db","总":"d7dc","走":"d7df","足":"d7e3","阻":"d7e8","组":"d7e9","最":"d7ee","遵":"d7f1","左":"d7f3","做":"d7f6","作":"d7f7","坐":"d7f8","座":"d7f9","浏":"e4af","渲":"e4d6","缇":"e7be","龥":"fd9b"};
+const GBK_MAP={"　":"a1a1","、":"a1a2","。":"a1a3","·":"a1a4","—":"a1aa","～":"a1ab","…":"a1ad","‘":"a1ae","’":"a1af","“":"a1b0","”":"a1b1","《":"a1b6","》":"a1b7","「":"a1b8","」":"a1b9","『":"a1ba","』":"a1bb","【":"a1be","】":"a1bf","×":"a1c1","÷":"a1c2","∈":"a1ca","√":"a1cc","≥":"a1dd","□":"a1f5","→":"a1fa","←":"a1fb","①":"a2d9","②":"a2da","③":"a2db","！":"a3a1","（":"a3a8","）":"a3a9","＋":"a3ab","，":"a3ac","：":"a3ba","；":"a3bb","＝":"a3bd","？":"a3bf","Ω":"a6b8","μ":"a6cc","─":"a9a4","安":"b0b2","按":"b0b4","暗":"b0b5","案":"b0b8","八":"b0cb","把":"b0d1","白":"b0d7","百":"b0d9","摆":"b0da","败":"b0dc","班":"b0e0","搬":"b0e1","般":"b0e3","板":"b0e5","版":"b0e6","伴":"b0e9","半":"b0eb","办":"b0ec","榜":"b0f1","磅":"b0f5","包":"b0fc","保":"b1a3","报":"b1a8","背":"b1b3","倍":"b1b6","备":"b1b8","被":"b1bb","本":"b1be","崩":"b1c0","比":"b1c8","蔽":"b1ce","闭":"b1d5","必":"b1d8","避":"b1dc","边":"b1df","编":"b1e0","便":"b1e3","变":"b1e4","辨":"b1e6","遍":"b1e9","标":"b1ea","表":"b1ed","别":"b1f0","并":"b2a2","玻":"b2a3","播":"b2a5","拨":"b2a6","波":"b2a8","补":"b2b9","不":"b2bb","布":"b2bc","步":"b2bd","簿":"b2be","部":"b2bf","裁":"b2c3","材":"b2c4","才":"b2c5","踩":"b2c8","采":"b2c9","菜":"b2cb","参":"b2ce","残":"b2d0","藏":"b2d8","操":"b2d9","侧":"b2e0","册":"b2e1","测":"b2e2","层":"b2e3","插":"b2e5","叉":"b2e6","查":"b2e9","察":"b2ec","差":"b2ee","拆":"b2f0","产":"b2fa","场":"b3a1","常":"b3a3","长":"b3a4","超":"b3ac","抄":"b3ad","车":"b3b5","撤":"b3b7","撑":"b3c5","称":"b3c6","成":"b3c9","程":"b3cc","吃":"b3d4","持":"b3d6","尺":"b3df","充":"b3e4","冲":"b3e5","抽":"b3e9","初":"b3f5","出":"b3f6","除":"b3fd","楚":"b3fe","础":"b4a1","储":"b4a2","触":"b4a5","处":"b4a6","传":"b4ab","串":"b4ae","窗":"b4b0","创":"b4b4","纯":"b4bf","戳":"b4c1","词":"b4ca","此":"b4cb","次":"b4ce","从":"b4d3","凑":"b4d5","粗":"b4d6","脆":"b4e0","存":"b4e6","寸":"b4e7","错":"b4ed","达":"b4ef","答":"b4f0","打":"b4f2","大":"b4f3","带":"b4f8","代":"b4fa","待":"b4fd","单":"b5a5","但":"b5ab","淡":"b5ad","弹":"b5af","当":"b5b1","挡":"b5b2","荡":"b5b4","档":"b5b5","倒":"b5b9","导":"b5bc","到":"b5bd","道":"b5c0","得":"b5c3","的":"b5c4","灯":"b5c6","登":"b5c7","等":"b5c8","低":"b5cd","底":"b5d7","地":"b5d8","第":"b5da","递":"b5dd","点":"b5e3","典":"b5e4","电":"b5e7","掉":"b5f4","调":"b5f7","叠":"b5fe","钉":"b6a4","顶":"b6a5","定":"b6a8","订":"b6a9","丢":"b6aa","东":"b6ab","动":"b6af","兜":"b6b5","抖":"b6b6","都":"b6bc","独":"b6c0","读":"b6c1","堵":"b6c2","度":"b6c8","渡":"b6c9","端":"b6cb","短":"b6cc","段":"b6ce","断":"b6cf","堆":"b6d1","对":"b6d4","盾":"b6dc","多":"b6e0","夺":"b6e1","额":"b6ee","而":"b6f8","二":"b6fe","发":"b7a2","法":"b7a8","翻":"b7ad","凡":"b7b2","反":"b7b4","返":"b7b5","范":"b7b6","泛":"b7ba","方":"b7bd","房":"b7bf","防":"b7c0","仿":"b7c2","访":"b7c3","放":"b7c5","非":"b7c7","飞":"b7c9","废":"b7cf","费":"b7d1","分":"b7d6","份":"b7dd","丰":"b7e1","封":"b7e2","蜂":"b7e4","风":"b7e7","冯":"b7eb","佛":"b7f0","否":"b7f1","符":"b7fb","服":"b7fe","浮":"b8a1","副":"b8b1","覆":"b8b2","赋":"b8b3","复":"b8b4","负":"b8ba","富":"b8bb","附":"b8bd","该":"b8c3","改":"b8c4","概":"b8c5","盖":"b8c7","干":"b8c9","杆":"b8cb","赶":"b8cf","感":"b8d0","刚":"b8d5","高":"b8df","告":"b8e6","格":"b8f1","隔":"b8f4","个":"b8f6","各":"b8f7","给":"b8f8","根":"b8f9","跟":"b8fa","更":"b8fc","工":"b9a4","功":"b9a6","供":"b9a9","公":"b9ab","共":"b9b2","勾":"b9b4","构":"b9b9","够":"b9bb","估":"b9c0","孤":"b9c2","故":"b9ca","固":"b9cc","挂":"b9d2","关":"b9d8","观":"b9db","管":"b9dc","光":"b9e2","广":"b9e3","规":"b9e6","归":"b9e9","轨":"b9ec","滚":"b9f6","果":"b9fb","过":"b9fd","哈":"b9fe","含":"baac","函":"baaf","焊":"bab8","汉":"baba","航":"babd","毫":"bac1","好":"bac3","耗":"bac4","号":"bac5","核":"bacb","和":"bacd","何":"bace","合":"bacf","黑":"bada","很":"badc","横":"bae1","衡":"bae2","恒":"bae3","虹":"bae7","红":"baec","后":"baf3","忽":"baf6","糊":"bafd","护":"bba4","互":"bba5","户":"bba7","花":"bba8","华":"bbaa","滑":"bbac","画":"bbad","划":"bbae","化":"bbaf","话":"bbb0","坏":"bbb5","环":"bbb7","还":"bbb9","缓":"bbba","换":"bbbb","灰":"bbd2","辉":"bbd4","恢":"bbd6","回":"bbd8","会":"bbe1","汇":"bbe3","绘":"bbe6","混":"bbec","或":"bbf2","击":"bbf7","圾":"bbf8","基":"bbf9","机":"bbfa","积":"bbfd","绩":"bca8","极":"bcab","辑":"bcad","集":"bcaf","及":"bcb0","急":"bcb1","即":"bcb4","级":"bcb6","几":"bcb8","己":"bcba","技":"bcbc","寄":"bcc4","计":"bcc6","记":"bcc7","既":"bcc8","际":"bcca","继":"bccc","夹":"bcd0","加":"bcd3","甲":"bcd7","假":"bcd9","价":"bcdb","间":"bce4","兼":"bce6","检":"bcec","简":"bcf2","剪":"bcf4","减":"bcf5","见":"bcfb","键":"bcfc","件":"bcfe","渐":"bda5","建":"bda8","将":"bdab","降":"bdb5","焦":"bdb9","胶":"bdba","交":"bdbb","脚":"bdc5","角":"bdc7","教":"bdcc","较":"bdcf","叫":"bdd0","接":"bdd3","阶":"bdd7","截":"bdd8","节":"bdda","捷":"bddd","结":"bde1","解":"bde2","界":"bde7","介":"bde9","紧":"bdf4","锦":"bdf5","仅":"bdf6","进":"bdf8","近":"bdfc","尽":"bea1","睛":"bea6","晶":"bea7","精":"beab","经":"bead","警":"beaf","景":"beb0","静":"beb2","境":"beb3","径":"beb6","净":"bebb","久":"bec3","九":"bec5","旧":"bec9","就":"becd","局":"bed6","矩":"bed8","举":"bed9","聚":"bedb","拒":"bedc","据":"bedd","具":"bedf","距":"bee0","句":"bee4","卷":"beed","觉":"bef5","决":"bef6","绝":"bef8","均":"bef9","卡":"bfa8","开":"bfaa","看":"bfb4","考":"bfbc","靠":"bfbf","颗":"bfc5","壳":"bfc7","可":"bfc9","刻":"bfcc","课":"bfce","坑":"bfd3","空":"bfd5","控":"bfd8","口":"bfda","库":"bfe2","跨":"bfe7","块":"bfe9","快":"bfec","宽":"bfed","框":"bff2","况":"bff6","馈":"c0a1","括":"c0a8","扩":"c0a9","垃":"c0ac","拉":"c0ad","来":"c0b4","赖":"c0b5","蓝":"c0b6","栏":"c0b8","拦":"c0b9","览":"c0c0","浪":"c0cb","老":"c0cf","累":"c0db","类":"c0e0","离":"c0eb","理":"c0ed","里":"c0ef","利":"c0fb","例":"c0fd","立":"c1a2","力":"c1a6","璃":"c1a7","联":"c1aa","连":"c1ac","廉":"c1ae","链":"c1b4","练":"c1b7","两":"c1bd","量":"c1bf","亮":"c1c1","了":"c1cb","料":"c1cf","列":"c1d0","零":"c1e3","另":"c1ed","令":"c1ee","留":"c1f4","流":"c1f7","六":"c1f9","漏":"c2a9","露":"c2b6","路":"c2b7","录":"c2bc","律":"c2c9","率":"c2ca","滤":"c2cb","绿":"c2cc","乱":"c2d2","略":"c2d4","轮":"c2d6","论":"c2db","逻":"c2df","裸":"c2e3","落":"c2e4","络":"c2e7","码":"c2eb","吗":"c2f0","脉":"c2f6","满":"c2fa","曼":"c2fc","慢":"c2fd","忙":"c3a6","矛":"c3ac","么":"c3b4","没":"c3bb","每":"c3bf","门":"c3c5","们":"c3c7","密":"c3dc","免":"c3e2","面":"c3e6","描":"c3e8","秒":"c3eb","灭":"c3f0","明":"c3f7","鸣":"c3f9","名":"c3fb","命":"c3fc","模":"c4a3","磨":"c4a5","末":"c4a9","默":"c4ac","某":"c4b3","母":"c4b8","幕":"c4bb","目":"c4bf","拿":"c4c3","哪":"c4c4","那":"c4c7","难":"c4d1","囊":"c4d2","脑":"c4d4","内":"c4da","能":"c4dc","霓":"c4de","拟":"c4e2","你":"c4e3","年":"c4ea","钮":"c5a5","挪":"c5b2","诺":"c5b5","偶":"c5bc","拍":"c5c4","排":"c5c5","牌":"c5c6","派":"c5c9","盘":"c5cc","判":"c5d0","旁":"c5d4","抛":"c5d7","跑":"c5dc","配":"c5e4","碰":"c5f6","批":"c5fa","片":"c6ac","漂":"c6af","拼":"c6b4","频":"c6b5","品":"c6b7","平":"c6bd","凭":"c6be","评":"c6c0","屏":"c6c1","铺":"c6cc","普":"c6d5","期":"c6da","七":"c6df","其":"c6e4","齐":"c6eb","起":"c6f0","启":"c6f4","器":"c6f7","汽":"c6fb","牵":"c7a3","迁":"c7a8","签":"c7a9","前":"c7b0","浅":"c7b3","嵌":"c7b6","强":"c7bf","抢":"c7c0","桥":"c7c5","切":"c7d0","且":"c7d2","勤":"c7da","清":"c7e5","擎":"c7e6","情":"c7e9","请":"c7eb","求":"c7f3","区":"c7f8","驱":"c7fd","取":"c8a1","去":"c8a5","圈":"c8a6","权":"c8a8","全":"c8ab","缺":"c8b1","确":"c8b7","然":"c8bb","染":"c8be","让":"c8c3","扰":"c8c5","热":"c8c8","人":"c8cb","任":"c8ce","认":"c8cf","仍":"c8d4","日":"c8d5","容":"c8dd","如":"c8e7","入":"c8eb","软":"c8ed","若":"c8f4","弱":"c8f5","塞":"c8fb","三":"c8fd","散":"c9a2","扫":"c9a8","色":"c9ab","砂":"c9b0","啥":"c9b6","筛":"c9b8","删":"c9be","闪":"c9c1","商":"c9cc","上":"c9cf","稍":"c9d4","烧":"c9d5","少":"c9d9","绍":"c9dc","设":"c9e8","申":"c9ea","身":"c9ed","深":"c9ee","审":"c9f3","声":"c9f9","生":"c9fa","升":"c9fd","省":"caa1","剩":"caa3","师":"caa6","失":"caa7","十":"caae","石":"caaf","时":"cab1","什":"cab2","实":"cab5","识":"cab6","使":"cab9","始":"cabc","式":"cabd","示":"cabe","事":"cac2","是":"cac7","适":"caca","释":"cacd","视":"cad3","试":"cad4","收":"cad5","手":"cad6","首":"cad7","授":"cada","殊":"cae2","输":"cae4","书":"cae9","熟":"caec","鼠":"caf3","属":"caf4","术":"caf5","束":"caf8","竖":"cafa","数":"cafd","刷":"cba2","双":"cbab","谁":"cbad","水":"cbae","瞬":"cbb2","顺":"cbb3","说":"cbb5","烁":"cbb8","斯":"cbb9","思":"cbbc","死":"cbc0","四":"cbc4","松":"cbc9","送":"cbcd","宋":"cbce","搜":"cbd1","素":"cbd8","速":"cbd9","诉":"cbdf","算":"cbe3","随":"cbe6","缩":"cbf5","索":"cbf7","锁":"cbf8","所":"cbf9","他":"cbfb","它":"cbfc","抬":"cca7","台":"cca8","太":"ccab","态":"ccac","堂":"ccc3","套":"ccd7","特":"ccd8","提":"cce1","题":"cce2","体":"cce5","替":"cce6","添":"cced","填":"ccee","挑":"ccf4","条":"ccf5","跳":"ccf8","贴":"ccf9","铁":"ccfa","停":"cda3","通":"cda8","同":"cdac","桶":"cdb0","统":"cdb3","头":"cdb7","透":"cdb8","图":"cdbc","团":"cdc5","推":"cdc6","退":"cdcb","拖":"cdcf","外":"cde2","完":"cdea","晚":"cded","万":"cdf2","网":"cdf8","往":"cdf9","微":"cea2","围":"cea7","唯":"cea8","为":"ceaa","维":"ceac","尾":"ceb2","未":"ceb4","位":"cebb","文":"cec4","纹":"cec6","稳":"cec8","问":"ceca","我":"ced2","沃":"ced6","无":"cede","五":"cee5","物":"ceef","务":"cef1","误":"cef3","析":"cef6","西":"cef7","吸":"cefc","息":"cfa2","希":"cfa3","悉":"cfa4","熄":"cfa8","习":"cfb0","洗":"cfb4","系":"cfb5","细":"cfb8","下":"cfc2","夏":"cfc4","吓":"cfc5","先":"cfc8","显":"cfd4","险":"cfd5","现":"cfd6","限":"cfde","线":"cfdf","相":"cfe0","箱":"cfe4","响":"cfec","享":"cfed","项":"cfee","像":"cff1","向":"cff2","象":"cff3","销":"cffa","消":"cffb","小":"d0a1","校":"d0a3","效":"d0a7","些":"d0a9","写":"d0b4","械":"d0b5","芯":"d0be","新":"d0c2","心":"d0c4","信":"d0c5","型":"d0cd","形":"d0ce","行":"d0d0","性":"d0d4","姓":"d0d5","修":"d0de","需":"d0e8","虚":"d0e9","须":"d0eb","许":"d0ed","序":"d0f2","续":"d0f8","悬":"d0fc","选":"d1a1","学":"d1a7","循":"d1ad","询":"d1af","寻":"d1b0","压":"d1b9","盐":"d1ce","延":"d1d3","言":"d1d4","颜":"d1d5","沿":"d1d8","眼":"d1db","演":"d1dd","验":"d1e9","央":"d1eb","阳":"d1f4","样":"d1f9","要":"d2aa","也":"d2b2","页":"d2b3","业":"d2b5","夜":"d2b9","液":"d2ba","一":"d2bb","依":"d2c0","衣":"d2c2","移":"d2c6","仪":"d2c7","宜":"d2cb","已":"d2d1","乙":"d2d2","以":"d2d4","易":"d2d7","意":"d2e2","义":"d2e5","益":"d2e6","溢":"d2e7","议":"d2e9","译":"d2eb","异":"d2ec","因":"d2f2","音":"d2f4","阴":"d2f5","引":"d2fd","隐":"d2fe","印":"d3a1","英":"d3a2","应":"d3a6","影":"d3b0","硬":"d3b2","永":"d3c0","用":"d3c3","优":"d3c5","由":"d3c9","有":"d3d0","右":"d3d2","又":"d3d6","于":"d3da","余":"d3e0","予":"d3e8","与":"d3eb","语":"d3ef","域":"d3f2","遇":"d3f6","预":"d4a4","元":"d4aa","原":"d4ad","圆":"d4b2","源":"d4b4","缘":"d4b5","远":"d4b6","院":"d4ba","约":"d4bc","越":"d4bd","钥":"d4bf","月":"d4c2","云":"d4c6","匀":"d4c8","允":"d4ca","运":"d4cb","载":"d4d8","再":"d4d9","在":"d4da","暂":"d4dd","早":"d4e7","造":"d4ec","择":"d4f1","则":"d4f2","泽":"d4f3","怎":"d4f5","增":"d4f6","栅":"d5a4","窄":"d5ad","粘":"d5b3","展":"d5b9","栈":"d5bb","占":"d5bc","站":"d5be","张":"d5c5","账":"d5cb","找":"d5d2","照":"d5d5","罩":"d5d6","遮":"d5da","折":"d5db","者":"d5df","这":"d5e2","真":"d5e6","针":"d5eb","振":"d5f1","阵":"d5f3","整":"d5fb","正":"d5fd","证":"d6a4","支":"d6a7","知":"d6aa","之":"d6ae","职":"d6b0","直":"d6b1","执":"d6b4","值":"d6b5","址":"d6b7","指":"d6b8","止":"d6b9","只":"d6bb","纸":"d6bd","志":"d6be","至":"d6c1","致":"d6c2","置":"d6c3","制":"d6c6","智":"d6c7","质":"d6ca","中":"d6d0","钟":"d6d3","终":"d6d5","种":"d6d6","重":"d6d8","周":"d6dc","州":"d6dd","轴":"d6e1","骤":"d6e8","逐":"d6f0","主":"d6f7","住":"d7a1","注":"d7a2","驻":"d7a4","专":"d7a8","转":"d7aa","装":"d7b0","状":"d7b4","缀":"d7ba","准":"d7bc","着":"d7c5","资":"d7ca","紫":"d7cf","子":"d7d3","自":"d7d4","字":"d7d6","踪":"d7d9","综":"d7db","总":"d7dc","走":"d7df","足":"d7e3","阻":"d7e8","组":"d7e9","最":"d7ee","遵":"d7f1","左":"d7f3","做":"d7f6","作":"d7f7","坐":"d7f8","座":"d7f9","浏":"e4af","渲":"e4d6","缇":"e7be","龥":"fd9b"};
 ;
 /* ================= C51 子集解释器：预处理 / 词法 / 语法 / 名字检查 / 带硬件模型的模拟运行 ================= */
 'use strict';
@@ -4842,11 +4829,11 @@ function resultHTML(res,opt){
   if(res.errors.length)h+=`<div class="errs"><b>编译错误（Keil 也会报）：</b><br>${res.errors.map(em).join('<br>')}</div>`;
   if(res.warnings.length)h+=`<div class="warns"><b>提示：</b><br>${res.warnings.map(em).join('<br>')}</div>`;
   const catName={base:'基础',change:'改动',full:'整体'};
-  h+=`<table class="mini items"><thead><tr><th>评分项</th><th>类别</th>${opt.noText?'':'<th>你写的</th>'}<th>得分</th><th>说明</th></tr></thead><tbody>`;
+  h+=`<div class="tscroll"><table class="mini items"><thead><tr><th>评分项</th><th>类别</th>${opt.noText?'':'<th>你写的</th>'}<th>得分</th><th>说明</th></tr></thead><tbody>`;
   res.items.forEach(it=>{
     h+=`<tr class="${it.pass?'':'bad'}"><td>${it.pass?'✓':'✗'} ${esc(it.name)}</td><td><span class="cat ${it.cat}">${catName[it.cat]||''}</span></td>${opt.noText?'':`<td class="mono">${esc(it.text)}</td>`}<td>${it.got}/${it.pts}</td><td>${esc(itemMsg(it,opt.hideAns))}</td></tr>`;
   });
-  h+='</tbody></table>';
+  h+='</tbody></table></div>';
   if(opt.hideAns&&res.items.some(it=>!it.pass))h+='<div class="note" style="margin-top:6px">这里只指出哪里不对，不给正确写法。老师开放答案后，点“查看答案”输入密码再看。</div>';
   h+=phenoHTML(res);
   return h;
@@ -4875,9 +4862,19 @@ function phenoVerdict(res){
   }
   return {pass:true,text:'你的程序的现象和要求完全一样。'};
 }
-const __players={};let __playerId=0;
+const __players={};let __playerId=0;const __PLAYER_MAX=24;
+function prunePlayers(){
+  const keys=Object.keys(__players);
+  if(keys.length<=__PLAYER_MAX)return;
+  for(const k of keys){
+    if(!document.querySelector(`.player[data-pid="${k}"]`))delete __players[k];
+  }
+  const left=Object.keys(__players);
+  while(left.length>__PLAYER_MAX){delete __players[left.shift()];}
+}
 function phenoHTML(res){
   const vd=phenoVerdict(res);
+  prunePlayers();
   const id=++__playerId;__players[id]={res,vd};
   return `<div class="pheno"><div class="verdict ${vd.pass?'ok':'bad'}">${vd.pass?'✓':'✗'} ${esc(vd.text)}</div>
     <div class="player" data-pid="${id}"></div>
@@ -4890,7 +4887,7 @@ function stepsHTML(res){
     ps.ref.forEach((rp,k)=>{
       const sp=ps.stu?ps.stu[k]:null;
       const n=Math.max(rp.segs.length,sp?sp.segs.length:0);
-      h+=`<div class="st-head">${esc(rp.label)}</div><table class="mini steps-t"><thead><tr><th>步</th><th>你的程序</th><th>应有的现象</th><th></th></tr></thead><tbody>`;
+      h+=`<div class="st-head">${esc(rp.label)}</div><div class="tscroll"><table class="mini steps-t"><thead><tr><th>步</th><th>你的程序</th><th>应有的现象</th><th></th></tr></thead><tbody>`;
       for(let i=0;i<Math.min(n,MAX);i++){
         const a=sp&&sp.segs[i],b=rp.segs[i],same=a&&b&&a.v===b.v;
         const cell=s=>s?(res.seg?`<span title="P${res.port}=${hx(s.v)}">${segHTML(s.v)}</span> ${esc(stateText(s.v,res.seg))}`
@@ -4898,14 +4895,33 @@ function stepsHTML(res){
         h+=`<tr class="${same?'':'bad'}"><td>第 ${i+1} 步</td><td>${sp?cell(a):'<span class="note">没编译通过</span>'}</td><td>${cell(b)}</td><td>${same?'✓':'✗'}</td></tr>`;
       }
       if(n>MAX)h+=`<tr><td colspan="4" class="note">后面按同样的规律继续，这一段一共 ${rp.segs.length} 步（你的程序 ${sp?sp.segs.length:0} 步）。看完整过程请用上面的“播放”。</td></tr>`;
-      h+='</tbody></table>';
+      h+='</tbody></table></div>';
     });
   });
   return h;
 }
 function mountPlayers(root,opt){
-  root.querySelectorAll('.player[data-pid]:not([data-on])').forEach(el=>{el.dataset.on='1';const d=__players[el.dataset.pid];if(d)initPlayer(el,d.res,d.vd,opt||{});});
+  root.querySelectorAll('.player[data-pid]:not([data-on])').forEach(el=>{
+    el.dataset.on='1';
+    const pid=el.dataset.pid,d=__players[pid];
+    delete __players[pid];
+    if(d)initPlayer(el,d.res,d.vd,opt||{});
+  });
 }
+let __hxVisible=true;
+const __visWatchers=new Set();
+const isPageVisible=()=>__hxVisible&&!document.hidden;
+function __notifyVis(){
+  const on=isPageVisible();
+  __visWatchers.forEach(fn=>{try{fn(on);}catch(e){}});
+}
+document.addEventListener('visibilitychange',__notifyVis);
+window.addEventListener('message',e=>{
+  if(e.origin&&location.origin&&e.origin!==location.origin)return;
+  if(!e.data||e.data.hx!=='visible')return;
+  __hxVisible=!!e.data.on;
+  __notifyVis();
+});
 const ICON={
   play:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.2v13.6c0 .8.9 1.3 1.6.9l10.6-6.8c.6-.4.6-1.3 0-1.7L9.6 4.3C8.9 3.9 8 4.4 8 5.2z"/></svg>',
   pause:'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6.5" y="5" width="4" height="14" rx="1.2"/><rect x="13.5" y="5" width="4" height="14" rx="1.2"/></svg>',
@@ -5021,15 +5037,22 @@ function initPlayer(el,res,vd,opt){
     el.querySelector('.pl-time').textContent=`${(P.t/1000).toFixed(2)} / ${(s.tEnd/1000).toFixed(2)} 秒`;
     const sk=el.querySelector('[data-a="seek"]');sk.value=P.t;setFill(sk);
   }
-  function loop(now){
+  function onVis(on){
     if(!el.isConnected){stop();return;}
+    if(on){if(P.playing&&!P.raf){P.last=performance.now();P.raf=requestAnimationFrame(loop);}}
+    else{cancelAnimationFrame(P.raf);P.raf=0;}
+  }
+  function loop(now){
+    P.raf=0;
+    if(!el.isConnected){stop();return;}
+    if(!isPageVisible())return;
     P.t+=(now-P.last)*speedOf(P.sx);P.last=now;
     if(P.t>=ps().tEnd){P.t=ps().tEnd;draw();stop();return;}
     draw();P.raf=requestAnimationFrame(loop);
   }
   function setPlayIcon(on){const b=el.querySelector('[data-a="play"]');if(b){b.innerHTML=on?ICON.pause:ICON.play;b.setAttribute('aria-label',on?'暂停':'播放');}}
-  function play(){if(P.t>=ps().tEnd)P.t=0;P.playing=true;P.last=performance.now();setPlayIcon(true);cancelAnimationFrame(P.raf);P.raf=requestAnimationFrame(loop);}
-  function stop(){P.playing=false;cancelAnimationFrame(P.raf);setPlayIcon(false);}
+  function play(){if(P.t>=ps().tEnd)P.t=0;P.playing=true;P.last=performance.now();setPlayIcon(true);cancelAnimationFrame(P.raf);P.raf=0;__visWatchers.add(onVis);if(isPageVisible())P.raf=requestAnimationFrame(loop);}
+  function stop(){P.playing=false;cancelAnimationFrame(P.raf);P.raf=0;__visWatchers.delete(onVis);setPlayIcon(false);}
   build();draw();
   if(opt.autoplay)play();
 }
@@ -5051,7 +5074,7 @@ function answerHTML(v){
 
 /* ---------- 虚拟实验板：边按键边看现象（每次按键重新模拟一遍，时间窗口内直接取状态） ---------- */
 function makeBoard(el,opts){
-  const st={v:null,A:null,events:[],t0:0,run:null,raf:0,down:{}};
+  const st={v:null,A:null,events:[],t0:0,run:null,raf:0,down:{},pausedAt:0};
   const keys=()=>st.v?Object.keys(st.v.hw.keys):[];
   function rerun(){
     const now=performance.now()-st.t0;
@@ -5065,13 +5088,29 @@ function makeBoard(el,opts){
     for(const x of tr){if(x.t>t)break;v=x.v;}
     return v;
   }
-  function frame(){
-    const t=performance.now()-st.t0;
-    if(t>st.until)rerun();
+  function paint(t){
     const v=valueAt(t);
     const out=el.querySelector('.bd-out');
     if(out&&out.dataset.v!==String(v)){out.dataset.v=v;out.innerHTML=st.v.seg?segHTML(v,true):binLedsHTML(v,st.v.port);}
     const s=el.querySelector('.bd-status');if(s)s.textContent=(t/1000).toFixed(1)+' 秒'+(st.run&&st.run.status==='halt'?'（程序停在死循环里等待）':st.run&&st.run.status==='timeout'?'（程序卡住了）':'');
+  }
+  function onVis(on){
+    if(!st.A||!el.isConnected){stop();return;}
+    if(on){
+      if(st.pausedAt){st.t0+=performance.now()-st.pausedAt;st.pausedAt=0;}
+      if(!st.raf)st.raf=requestAnimationFrame(frame);
+    }else{
+      if(!st.pausedAt)st.pausedAt=performance.now();
+      cancelAnimationFrame(st.raf);st.raf=0;
+    }
+  }
+  function frame(){
+    st.raf=0;
+    if(!st.A||!el.isConnected){stop();return;}
+    if(!isPageVisible()){if(!st.pausedAt)st.pausedAt=performance.now();return;}
+    const t=performance.now()-st.t0;
+    if(t>st.until)rerun();
+    paint(t);
     st.raf=requestAnimationFrame(frame);
   }
   function press(k,down){
@@ -5081,20 +5120,26 @@ function makeBoard(el,opts){
     rerun();
     const b=el.querySelector(`[data-key="${k}"]`);if(b)b.classList.toggle('pressed',down);
   }
+  function releaseAll(){keys().forEach(k=>{if(st.down[k])press(k,false);});}
   function start(v,code){
     stop();st.v=v;st.A=compileC(code);
     if(!st.A.ok){el.innerHTML=`<div class="errs">程序没有编译通过，不能上板运行：<br>${st.A.errors.map(esc).join('<br>')}</div>`;return false;}
-    st.events=[];st.down={};st.t0=performance.now();
+    st.events=[];st.down={};st.t0=performance.now();st.pausedAt=0;
     el.innerHTML=`<div class="board"><div class="bd-out"></div>${!v.seg?`<div class="pl-legend">${BIN_LEGEND(v.port)}</div>`:''}<div class="bd-keys">${keys().map(k=>`<button class="key" data-key="${k}" title="按住鼠标=按住按键">${k}</button>`).join('')}</div><div class="bd-status note"></div><div class="note">按住按键看反应；程序从“上电”开始运行${opts&&opts.note?'。'+opts.note:''}</div></div>`;
     el.querySelectorAll('[data-key]').forEach(b=>{
       const k=b.dataset.key;
-      b.addEventListener('pointerdown',e=>{e.preventDefault();b.setPointerCapture&&b.setPointerCapture(e.pointerId);press(k,true);});
+      b.addEventListener('pointerdown',e=>{e.preventDefault();try{b.setPointerCapture&&b.setPointerCapture(e.pointerId);}catch(_){}press(k,true);});
       b.addEventListener('pointerup',()=>press(k,false));
       b.addEventListener('pointercancel',()=>press(k,false));
+      b.addEventListener('lostpointercapture',()=>press(k,false));
     });
-    rerun();frame();return true;
+    window.addEventListener('blur',releaseAll);
+    __visWatchers.add(onVis);
+    rerun();
+    if(isPageVisible())frame();else{st.pausedAt=performance.now();paint(0);}
+    return true;
   }
-  function stop(){cancelAnimationFrame(st.raf);st.A=null;}
+  function stop(){cancelAnimationFrame(st.raf);st.raf=0;st.pausedAt=0;st.A=null;__visWatchers.delete(onVis);window.removeEventListener('blur',releaseAll);}
   return {start,stop};
 }
 
@@ -5186,20 +5231,17 @@ a.nav-i{text-decoration:none}
 .nav-b{margin-left:auto;font:500 11px/1.6 var(--mono);color:var(--mute);background:var(--field2);border-radius:980px;padding:0 8px}
 #nav>.tab-ind{background:linear-gradient(135deg,var(--accbg),transparent 140%);border:1px solid var(--accbg);border-radius:12px;box-shadow:0 6px 18px -8px var(--ring)}
 .side-foot{margin-top:auto;padding:0 12px;font-size:12px;color:var(--mute);line-height:1.7;display:flex;flex-direction:column;gap:8px}
-.themes{position:relative;display:flex;gap:2px;padding:3px;border-radius:11px;background:var(--field2);width:fit-content}
-.themes button{position:relative;z-index:1;padding:3px 10px;font-size:12px;background:transparent;border:0;box-shadow:none;color:var(--mute)}
-.themes button:hover{background:transparent;color:var(--ink);transform:none}
-.themes button.on{color:var(--ink)}
-.themes>.tab-ind{background:var(--card-lift);border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.15)}
 .main{min-width:0;padding:34px 38px 96px}
 .page-h{margin:0 0 24px}
 .eyebrow{font:600 11.5px/1 var(--mono);letter-spacing:.16em;color:var(--acc);text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:8px}
 .eyebrow::before{content:"";width:6px;height:6px;border-radius:2px;background:var(--acc);box-shadow:0 0 10px var(--acc)}
 .page-h h1{font:700 34px/1.12 var(--font-d);letter-spacing:-.03em;margin:0 0 8px;text-wrap:balance;background:linear-gradient(100deg,var(--ink) 30%,var(--acc) 85%,var(--acc2));-webkit-background-clip:text;background-clip:text;color:transparent}
 .page-h p{margin:0;font-size:15px;color:var(--mute);max-width:820px}
+html.hx-lite .side,html.hx-lite .stat,html.hx-lite .step{backdrop-filter:none;-webkit-backdrop-filter:none}
 @media(max-width:860px){
   .app{grid-template-columns:1fr;grid-template-rows:auto 1fr}
-  .side{position:sticky;top:0;height:auto;flex-direction:row;align-items:center;gap:8px;padding:8px 12px;overflow-x:auto;border-right:0;border-bottom:1px solid var(--hair)}
+  .side{position:sticky;top:0;height:auto;flex-direction:row;align-items:center;gap:8px;padding:8px 28px 8px 12px;overflow-x:auto;border-right:0;border-bottom:1px solid var(--hair);-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent)}
+  .side,.stat,.step{backdrop-filter:none;-webkit-backdrop-filter:none}
   .brand,.side-foot,.nav-h,.nav-b{display:none}
   #nav{flex-direction:row;gap:2px}
   .nav-g{flex-direction:row}
@@ -5299,6 +5341,7 @@ textarea.editor::selection{background:rgba(91,140,255,.35)}
 pre.code{background:var(--code);color:var(--codeink);padding:14px 16px;border-radius:16px;overflow:auto;font:12.5px/1.6 var(--mono);max-height:480px;margin:8px 0 0;border:1px solid var(--hair)}
 
 /* 表格 */
+.tscroll{overflow-x:auto;max-width:100%}
 table{width:100%;border-collapse:collapse}
 th,td{padding:10px 10px;border-bottom:1px solid var(--hair);text-align:left;vertical-align:top}
 th{font:600 11px/1.4 var(--mono);letter-spacing:.08em;color:var(--mute);text-transform:uppercase;background:transparent}
@@ -5425,9 +5468,9 @@ svg.seg{vertical-align:middle} svg.seg rect,svg.seg circle{fill:var(--led-off)} 
 .pl-ic{width:38px;height:38px;padding:0;border-radius:50%;background:rgba(255,255,255,.09);color:#f5f5f7;display:inline-flex;align-items:center;justify-content:center}
 .pl-ic:hover{background:rgba(255,255,255,.17)}
 .pl-ic svg{width:18px;height:18px;fill:currentColor}
-.pl-time{font:13px var(--mono);color:#a1a1a6;min-width:120px}
-.pl-speed{margin-left:auto;min-width:240px;flex:0 1 320px}
-.pl-speed-top{display:flex;justify-content:space-between;font-size:12px;color:#a1a1a6;margin-bottom:2px}
+.pl-time{font:13px var(--mono);color:#a1a1a6;min-width:0}
+.pl-speed{margin-left:auto;min-width:0;max-width:100%;flex:1 1 220px;display:flex;flex-direction:column;flex-wrap:wrap}
+.pl-speed-top{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px;font-size:12px;color:#a1a1a6;margin-bottom:2px}
 .pl-speed-top output{font:600 13px var(--mono);color:#f5f5f7}
 .sp-word{font-weight:600;background:linear-gradient(90deg,#6aa8ff,#b18cff);-webkit-background-clip:text;background-clip:text;color:transparent;display:inline-block}
 .sp-word.pop{animation:wordIn .32s cubic-bezier(.2,.8,.2,1)}
@@ -5728,7 +5771,6 @@ async function unlockTeacher(pw){
   migrateOld();
   return true;
 }
-function lockTeacher(){VAULT=null;VKEY=null;}
 /* 以前版本存在这台电脑浏览器里的名单和设置：第一次解锁时搬进 DATA（只搬一次） */
 function migrateOld(){
   if(DATA.migrated)return;
@@ -5877,22 +5919,10 @@ const T_PAGES=[['t-roster','班级名单','roster'],['t-tries','练习记录','o
 const navPages=()=>T_PAGES;
 function renderNav(){
   const item=(p,name,ic,extra)=>`<button type="button" class="nav-i${CUR_PAGE===p?' on':''}" data-go="${p}" ${CUR_PAGE===p?'aria-current="page"':''}>${svgI(ic)}<span>${name}</span>${extra||''}</button>`;
-  let h=`<div class="nav-g"><div class="nav-h">学生</div>${item('practice','平时练习','practice')}${HX_ON?'':item('exam','考试','exam')}</div>`;
-  // 老师分组：网页版只在解锁后（= 教师账号）才整块出现，没解锁的学生连「老师」两个字都看不到
-  if(!HX_ON||teacherOk()){
-    h+=`<div class="nav-g"><div class="nav-h">老师</div>`;
-    if(teacherOk()){
-      h+=navPages().map(([p,n,i])=>item(p,n,i)).join('');
-      /* 2026-11-06 用户：「什么叫退出老师模块？老师账号为什么要退出老师模块
-         而且退出就打不开了 按钮都消失了 就给教师账号长显就行啊」。
-         ── 网页版的老师身份是服务器（hx_me → teacher）判的，不是本地密码门，
-            所以「退出」本身没有意义；更糟的是退出后 teacherOk() 变 false，
-            整个老师分组连「老师入口」一起消失（网页版本来就没有那个按钮），
-            页面再也点不回来，只能刷新生效 —— 这就是「退出就打不开了」。 */
-      if(!HX_ON)h+=`<button type="button" class="nav-i" data-act="logout">${svgI('out')}<span>退出老师模块</span></button>`;
-    }
-    else h+=item('t-lock','老师入口','lock','<span class="nav-b">需密码</span>');
-    h+='</div>';
+  let h=`<div class="nav-g"><div class="nav-h">学生</div>${item('practice','平时练习','practice')}</div>`;
+  // 老师分组：网页版只在教师账号自动解锁后显示，学生账号看不到
+  if(teacherOk()){
+    h+=`<div class="nav-g"><div class="nav-h">老师</div>${navPages().map(([p,n,i])=>item(p,n,i)).join('')}</div>`;
   }
   $('nav').innerHTML=h;
   __navRect=slideInd($('nav'),'.nav-i.on',__navRect);   // 选中底块从上一项滑过来
@@ -5901,12 +5931,7 @@ let __navRect=null;
 
 /* ---------- 页面切换：侧边栏不动；主内容先淡出，再按模块依次淡入 ---------- */
 let CUR_PAGE='',CUR_MODE='',__swapT=0;
-const PAGE_MODE=p=>p==='practice'?'practice':p==='exam'?'exam':p==='t-lock'?'lock':'teacher';
-function lockHTML(){
-  return `<div class="card lockcard"><h2>老师模块需要密码</h2>
-    <p class="note">学生用这个网页练习和考试；组卷、名单、答案和批改只有老师能看。</p>
-    <div class="row"><input type="password" id="lockPw" style="width:220px" placeholder="老师密码" autocomplete="current-password" aria-label="老师密码"><button class="pri" id="lockGo">进入</button></div></div>`;
-}
+const PAGE_MODE=p=>p==='practice'?'practice':'teacher';
 /* 网页版：老师模块按华夏工具账号进入。口令（名单加密用）由服务器只发给教师账号，网页里没有老师密码 */
 const HX_ON=typeof HX_ONLINE!=='undefined'&&HX_ONLINE;
 const HX_API='https://eiqgyrjrwdaunhxjmdyr.supabase.co',HX_KEY='sb_publishable_FcVnLx3TNrj6HnbgarYnRw_DW4-yFzd';
@@ -5936,51 +5961,14 @@ async function hxSecret(){
   if(!r.ok)throw new Error(String((j&&(j.message||j.msg))||('服务器出错 '+r.status)));
   return j;
 }
-function mountLock(){
-  if(HX_ON){
-    $('lockBox').innerHTML='<div class="card lockcard"><h2>老师模块</h2><p class="note">用教师账号进入。学生看不到名单、答案和批改。</p><div class="row"><button class="pri" id="lockGo">进入</button></div></div>';
-    $('lockGo').onclick=async()=>{
-      /* 2026-11-15 用户：「按钮点了没反馈，不知道啥时候跳结果」。
-         进老师模块要连着问两次服务器（hx_me 认身份、hx_mcu_secret 取口令），弱网下这两步
-         一两秒没有任何动静，界面看着像没点上。统一交给 HXBusy 转圈 + 计时。
-         离线条（没引 hx-theme.js）照样只 disable，不让按钮变灰后还能连点。 */
-      const b=$('lockGo'),tok=(window.HXBusy&&b)?HXBusy.begin(b,'正在进入…'):null;
-      if(!tok&&b)b.disabled=true;
-      try{
-        const me=await hxMe();
-        if(!me||!(me.teacher||me.admin||me.dev))throw new Error('这个账号不是教师账号');
-        const pw=await hxSecret();
-        if(!pw)throw new Error('服务器没给口令，请联系管理员');
-        DEFAULT_TEACHER_PW=pw;__defLock=null;if(!(await unlockTeacher(pw)))throw new Error('口令对不上，请联系管理员');showPage(store.get('ui.tpage','t-roster'));}
-      catch(e){toast(e.message);if(e.login&&window.HXTheme)HXTheme.login();}
-      finally{if(tok)HXBusy.end(tok);else if(b)b.disabled=false;}
-    };
-    return;
-  }
-  $('lockBox').innerHTML=lockHTML();
-  const go=async()=>{
-    /* 离线版要现算 PBKDF2 再解一次 vault（慢电脑上能到小半秒），一样给个「正在进入…」 */
-    const b=$('lockGo'),tok=(window.HXBusy&&b)?HXBusy.begin(b,'正在进入…'):null;
-    if(!tok&&b)b.disabled=true;
-    try{
-      if(!(await unlockTeacher($('lockPw').value))){toast('密码不对');$('lockPw').select();return;}
-      showPage(store.get('ui.tpage','t-roster'));
-    }catch(e){toast(e.message);}
-    finally{if(tok)HXBusy.end(tok);else if(b)b.disabled=false;}
-  };
-  $('lockGo').onclick=go;
-  $('lockPw').onkeydown=e=>{if(e.key==='Enter')go();};
-  setTimeout(()=>$('lockPw')&&$('lockPw').focus(),0);
-}
 function applyPage(p){
   CUR_PAGE=p;CUR_MODE=PAGE_MODE(p);
   document.querySelectorAll('[data-page]').forEach(s=>{s.hidden=s.dataset.page!==p;});
   renderNav();
-  if(p==='t-lock')mountLock();
-  const m=CUR_MODE==='lock'?null:CUR_MODE;
+  const m=CUR_MODE;
   if(m&&!MODE_DONE[m]&&MODE_INIT[m]){MODE_DONE[m]=true;MODE_INIT[m]();}
   try{history.replaceState(null,'','#'+p);}catch(e){}
-  if(p!=='t-lock')store.set(p.startsWith('t-')?'ui.tpage':'ui.spage',p);
+  store.set(p.startsWith('t-')?'ui.tpage':'ui.spage',p);
   store.set('ui.page',p);
   window.scrollTo(0,0);
   document.dispatchEvent(new CustomEvent('pageshow',{detail:p}));
@@ -5989,12 +5977,9 @@ function applyPage(p){
 const MOVED_PAGE={'t-overview':'t-roster','t-build':'t-roster','t-paper':'t-roster','t-grade':'t-roster'};
 function showPage(p){
   if(MOVED_PAGE[p])p=MOVED_PAGE[p];
-  const all=['practice',...(HX_ON?[]:['exam']),'t-lock',...T_PAGES.map(x=>x[0])];
+  const all=['practice',...T_PAGES.map(x=>x[0])];
   if(!all.includes(p))p='practice';
-  // 网页版没有密码门：登录了教师账号就自动解锁，没解锁（= 学生或没登录）就不给进老师页面，回练习。
-  // 离线单文件照旧回 t-lock 输密码。
-  if(p.startsWith('t-')&&p!=='t-lock'&&!teacherOk())p=HX_ON?'practice':'t-lock';
-  if(p==='t-lock')p=teacherOk()?(MOVED_PAGE[store.get('ui.tpage','t-roster')]||store.get('ui.tpage','t-roster')):(HX_ON?'practice':'t-lock');
+  if(p.startsWith('t-')&&!teacherOk())p='practice';
   const main=$('main');
   clearTimeout(__swapT);
   const reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -6007,14 +5992,11 @@ function showPage(p){
   main.classList.add('leaving');
   __swapT=setTimeout(()=>{applyPage(p);enter();},100);
 }
-function applyTheme(t,animate){
-  const r=document.documentElement;
-  if(t==='light'||t==='dark')r.setAttribute('data-theme',t);else r.removeAttribute('data-theme');
-  const box=$('themes');if(!box)return;
-  box.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.themeSet===(t||'auto')));
-  __themeRect=slideInd(box,'button.on',animate?__themeRect:null);
-}
-let __themeRect=null;
+window.HXBack=function(){
+  if(CUR_PAGE==='t-tries'&&typeof window.__hxTriesBack==='function'&&window.__hxTriesBack())return true;
+  if(CUR_PAGE&&CUR_PAGE!=='practice'){showPage('practice');return true;}
+  return false;
+};
 /* ── 演示视角提示条（2026-11-17）────────────────────────────────────────────
    照「小组加分/scores.js」的写法：页面顶部一条「演示视角 · 测试查看用户（只读）」。
    只在 ?pv= 存在时插节点，普通学生/老师打开时 DOM 与改动前完全一致。
@@ -6029,7 +6011,7 @@ function hxProbeBar(){
     'padding:8px 14px;background:#2a2007;color:#ffd79a;border-bottom:1px solid rgba(255,180,60,.35);'+
     'font:13px/1.55 system-ui,-apple-system,"Microsoft YaHei",sans-serif';
   el.innerHTML='<b style="font-size:13px;white-space:nowrap">演示视角 · 测试查看用户（只读）</b>'+
-    '<span style="flex:1;min-width:220px;opacity:.92">你正在看本班「测试查看用户」眼里的单片机学生端：它没有分数、不计人数，'+
+    '<span style="flex:1;min-width:0;opacity:.92">你正在看本班「测试查看用户」眼里的单片机学生端：它没有分数、不计人数，'+
     '能看到的东西和本班任何一个真实学生完全一样。演示态只能看，不能提交检测结果。</span>'+
     '<button type="button" id="hxProbeExit" style="flex:none;padding:3px 11px;border-radius:999px;'+
     'border:1px solid rgba(255,200,120,.55);background:transparent;color:#ffd79a;font:12px system-ui;cursor:pointer">退出演示</button>';
@@ -6039,34 +6021,38 @@ function hxProbeBar(){
     const h=el.offsetHeight||38;
     document.body.style.paddingTop=h+'px';
     const app=document.querySelector('.app');if(app)app.style.minHeight='calc(100vh - '+h+'px)';
-    const side=document.querySelector('.side');if(side)side.style.height='calc(100vh - '+h+'px)';
+    const side=document.querySelector('.side');if(side)side.style.height=window.innerWidth>860?'calc(100vh - '+h+'px)':'';
   };
   fit();requestAnimationFrame(fit);addEventListener('resize',fit);
   /* 退出演示：只把地址里的 pv 去掉再重载，不动登录态。 */
   const out=el.querySelector('#hxProbeExit');
   if(out)out.onclick=()=>{try{const u=new URL(location.href);u.searchParams.delete('pv');location.replace(u.href);}catch(e){location.search='';}};
 }
+let __practiceTouched=false;
 function startShell(){
-  if(!HX_ON)applyTheme(store.get('ui.theme','auto'),false);   // 网页版的深浅色、主色由首页“外观”（../hx-theme.js）统一设置
   hxProbeBar();                                             // 演示视角提示条（普通打开时什么都不做）
-  if($('themes'))$('themes').addEventListener('click',e=>{const b=e.target.closest('[data-theme-set]');if(!b)return;store.set('ui.theme',b.dataset.themeSet);applyTheme(b.dataset.themeSet,true);});
   loadBanks();
+  const prPg=document.querySelector('[data-page="practice"]');
+  if(prPg){
+    prPg.addEventListener('input',e=>{if(e.target&&(e.target.id==='editor'||e.target.id==='pcode'))__practiceTouched=true;});
+    prPg.addEventListener('change',e=>{if(e.target&&(e.target.id==='selM'||e.target.id==='selT'))__practiceTouched=true;});
+    prPg.addEventListener('click',e=>{if(e.target&&e.target.closest('#btnNext,#btnLoad,#btnCheck,#btnRun,#btnRunRef,#btnAns,#btnOpen'))__practiceTouched=true;});
+  }
   $('nav').addEventListener('click',e=>{
     const b=e.target.closest('button');if(!b)return;
-    if(b.dataset.act==='logout'){
-      /* 网页版没有这个按钮了（见 renderNav），这里只作防御：万一是旧 DOM 残留，
-         也不要把 VAULT 清掉 —— 清了老师分组就整体消失、没有入口能回来。 */
-      if(HX_ON){renderNav();return;}
-      lockTeacher();showPage('practice');toast('已退出老师模块');return;
-    }
     if(b.dataset.go)showPage(b.dataset.go);
   });
-  document.addEventListener('click',e=>{const b=e.target.closest('[data-goto]');if(b)showPage(b.dataset.goto);});
+  document.addEventListener('click',e=>{
+    const home=e.target.closest('[data-hx-home]');
+    if(home){
+      try{if(window.top&&window.top!==window&&window.top.HXPortal&&window.top.HXPortal.home){e.preventDefault();window.top.HXPortal.home();}}catch(_){}
+      return;
+    }
+    const b=e.target.closest('[data-goto]');if(b)showPage(b.dataset.goto);
+  });
   __bootHash=(location.hash||'').slice(1);   // 必须在 showPage() 改写 hash 之前记
   showPage(__bootHash||store.get('ui.page','practice'));
-  // 网页版：进页面就问一次身份，教师账号直接解锁老师模块（用户 2026-11-06：「删除老师入口按钮，
-  // 只有老师账号才有这个界面」）。不再有「点一下老师入口 → 等网络 → 才解锁」那一步。
-  if(HX_ON)autoTeacher();
+  autoTeacher();
 }
 /* 教师账号自动进入老师模块：口令仍是服务器只发给教师账号的那串（hx_mcu_secret），网页里没有密码。
    不是教师 / 没登录 → 什么都不做，侧栏连「老师」分组都不出现（见 renderNav）。
@@ -6093,10 +6079,9 @@ async function autoTeacher(){
     if(!(await unlockTeacher(pw)))throw new Error('口令对不上');
     renderNav();
     // 落点：老师下次打开就停在上次那一页；第一次进来停「班级名单」。
-    // 用户明确点过某个学生页（#practice / #exam）就不打断他；网址里是老师页（#t-roster / 老的 #t-overview）
-    // 时说明他本来就是奔老师模块来的，解锁后补跳一次。
+    // 若用户已经开始在练习页改代码或切题，不再强行切页打断。
     const want=store.get('ui.tpage','t-roster');
-    if(CUR_PAGE==='practice' && (!__bootHash || __bootHash==='practice' || /^t-/.test(__bootHash))) showPage(want);
+    if(!__practiceTouched && CUR_PAGE==='practice' && (!__bootHash || __bootHash==='practice' || /^t-/.test(__bootHash))) showPage(want);
   }catch(e){__autoTeacherTried=false;}
 }
 
@@ -6469,8 +6454,8 @@ function initRoster(){
     if(S.dFail)return '<div class="empty">取不到这个学生的记录（没登录、断网，或者数据库里的函数还没建）。</div>';
     const L=S.dRows||[];
     if(!L.length)return `<div class="empty">${esc(r.name||no)}还没有做过练习：学生做完点一次「检测」，这里就会出现一条。</div>`;
-    /* 「做了几道题」按练习号去重：同题反复检测算一道 —— class_stats 的 tries 是次数，不是题数，
-       这里补上老师真正关心的题数；「卡在哪」= 做过、但没有一次拿满分的练习号。 */
+    /* 「做了几道题」按练习号去重：同题反复检测算一道（明细按练习号统计；班级汇总 class_stats 的 tries/fulls 已按母题+题型去重）；
+       「卡在哪」= 做过、但没有一次拿满分的练习号。 */
     const codes=[...new Set(L.map(x=>x.code))];
     const full=new Set(L.filter(x=>x.ok).map(x=>x.code));
     const stuck=codes.filter(c=>!full.has(c));
@@ -6567,6 +6552,13 @@ function initRoster(){
   document.addEventListener('pageshow',e=>{if(e.detail==='t-tries')load(false);});
   /* 换班级 / 名单刷新：只在看得见这一页时跟着重取（load 自己处理「正在取」时的重入） */
   document.addEventListener('rosterchange',()=>{if(onPage())load(false);});
+  /* 外壳返回键（HXBack）：已展开学生明细时先收起明细 */
+  window.__hxTriesBack=()=>{
+    if(!S.sel)return false;
+    S.sel='';S.dRows=null;S.dFail=false;S.dBusy=false;S.dGen++;
+    render();
+    return true;
+  };
   render();
 })();
 

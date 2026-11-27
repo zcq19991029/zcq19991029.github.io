@@ -63,19 +63,29 @@
     if (m && TH.bg) m.setAttribute('content', TH.bg);
   }
   function loadTheme() {
-    let saved = null;
-    try { saved = localStorage.getItem(THEME_KEY); } catch (e) { }
-    applyTheme(saved || 'dark');
+    applyTheme(hxSiteMode());
     syncCss();
+    try {
+      const sf = document.getElementById('schFrame');
+      if (sf && sf.contentWindow && typeof sf.contentWindow.hxSyncTheme === 'function') sf.contentWindow.hxSyncTheme();
+    } catch (e) { }
+  }
+  let dataReady = false;
+  function onSiteTheme() {
+    loadTheme();
+    if (!dataReady || typeof KINDS.QF3P.pins !== 'function') return;
+    if (cv) { makeThumbs(); buildLib(); }   // 缩略图是画出来的，换主题要重画一遍
+    need();
   }
   loadTheme();
   window.addEventListener('storage', e => {
-    if (!e || e.key !== THEME_KEY) return;
-    applyTheme(e.newValue || 'dark');
-    syncCss();
-    if (cv) { makeThumbs(); buildLib(); }   // 缩略图是画出来的，换主题要重画一遍
-    need();
+    if (!e || (e.key !== 'hx-theme' && e.key !== THEME_KEY)) return;
+    onSiteTheme();
   });
+  if (window.HXTheme && typeof HXTheme.onChange === 'function') HXTheme.onChange(onSiteTheme);
+  try {
+    new MutationObserver(onSiteTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-hx-mode'] });
+  } catch (e) { }
 
   /* ═══════════════ 1. 数据：题目清单 ═══════════════ */
   /* ★ 为什么这些不是 const 一次读完：super-data.js 是 super.js **运行时**才注入的
@@ -145,6 +155,7 @@
     NETS = NETS_ALL[DATA.task] || null;
     // 端子偏移统一从 super-data.js 生成（见 §2 开头第 ★ 条）—— 必须等 super-data.js 到位
     Object.keys(KINDS).forEach(k => { KINDS[k].pins = pinsFrom(KINDS[k].dev, KINDS[k].form); });
+    dataReady = true;
   }
 
   /* ═══════════════ 2. 元件种类：画法 + 包围盒 + 端子相对偏移 ═══════════════
@@ -455,18 +466,35 @@
   }
 
   /* ═══════════════ 6. 绘制 ═══════════════ */
-  let dirty = false;
-  function need() { if (dirty) return; dirty = true; requestAnimationFrame(() => { dirty = false; draw(); }); }
+  let dirty = false, pageHidden = false;
+  const isHidden = () => pageHidden || document.hidden;
+  function need() { if (dirty || isHidden()) return; dirty = true; requestAnimationFrame(() => { dirty = false; if (!isHidden()) draw(); }); }
   /* 连线阶段开一条常驻动画循环（和 practice.js 一样每帧重画）：
-     折线上的呼吸圈、拉线光点、线缆落位、FX 都要逐帧推进；摆放阶段不跑，省电。
+     折线上的呼吸圈、拉线光点、线缆落位、FX 都要逐帧推进；摆放阶段或切到后台/外壳隐藏时不跑，省电。
      startLoop() 可以重复调用，不会叠出第二条循环。 */
   let rafId = 0, looping = false;
+  function stopLoop() {
+    if (rafId) { cancelAnimationFrame(rafId); rafId = 0; }
+    looping = false;
+  }
   function frame() {
+    if (isHidden()) { looping = false; rafId = 0; return; }
     draw();
     if (phase === 'place' && !FX.length) { looping = false; rafId = 0; return; }
     rafId = requestAnimationFrame(frame);
   }
-  function startLoop() { if (looping || rafId) return; looping = true; rafId = requestAnimationFrame(frame); }
+  function startLoop() { if (isHidden() || looping || rafId) return; looping = true; rafId = requestAnimationFrame(frame); }
+  function syncVisible() {
+    if (isHidden()) { stopLoop(); return; }
+    if (phase !== 'place' || FX.length) startLoop();
+    else need();
+  }
+  window.addEventListener('message', e => {
+    if (!e.data || e.data.hx !== 'visible') return;
+    pageHidden = !e.data.on;
+    syncVisible();
+  });
+  document.addEventListener('visibilitychange', syncVisible);
 
   /* 底板 = 练习页实物板那张玻璃卡片（theme.js 的 glass：主题的卡片渐变 + 细亮边 + 顶部高光 + 蓝色外发光）。
      ★ 原来这里是自己调的深蓝圆角块 + 网格 + 四个角括号，颜色还全写死（#101a2e / rgba(120,150,220,…)），
@@ -505,6 +533,7 @@
      ★ 原来这里写死了一对浅蓝（#f6f8fd → #dde5f2），换主题不跟着走，是一块「主题外的颜色」。 */
   const THUMB = {};
   function makeThumbs() {
+    if (!dataReady || typeof KINDS.QF3P.pins !== 'function') return;
     // ★ 局部变量别叫 TH：theme.js 的主题令牌对象就叫 TH，同名会把渐变令牌遮住（addColorStop('undefined')）
     const TW = 200, THH = 132;
     if (cv.width < TW + 8 || cv.height < THH + 8) return;   // 画布太小就不做（窄屏极端情况）
@@ -1897,6 +1926,10 @@
     .ftb { gap: 2px; } .ftb-b { width: 40px; height: 40px; flex-basis: 40px; min-width: 40px; border-radius: 11px; font-size: 9.5px; }
     .ftb-b svg { width: 18px; height: 18px; }
   }
+  html.hx-lite .ftb, html.hx-lite .ftb-pop { backdrop-filter: none; -webkit-backdrop-filter: none; }
+  @media (max-width: 900px), (pointer: coarse) {
+    .ftb, .ftb-pop { backdrop-filter: none; -webkit-backdrop-filter: none; }
+  }
   @media (prefers-reduced-motion: reduce) { .ftb, .ftb-orb, .ftb-b, .ftb-pop, .fchip { transition: none !important; animation: none !important; } }
   `;
     document.head.appendChild(Object.assign(document.createElement('style'), { textContent: css }));
@@ -1908,7 +1941,6 @@
       clear: '<svg viewBox="0 0 24 24"><path d="M16 3l5 5-11 11H5v-5z"/><path d="M13.5 5.5l5 5"/><path d="M4 21h16"/></svg>',
       err: '<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.8-4.8"/><path d="M8 11h6"/></svg>',
       pen: '<svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>',
-      theme: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18z" style="fill:currentColor"/></svg>',
       full: '<svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>',
       min: '<svg viewBox="0 0 24 24"><path d="M6 12h12"/></svg>',
       tools: '<svg viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/><circle cx="9" cy="7" r="2.1" style="fill:currentColor;stroke:none"/><circle cx="15" cy="12" r="2.1" style="fill:currentColor;stroke:none"/><circle cx="9" cy="17" r="2.1" style="fill:currentColor;stroke:none"/></svg>'
@@ -1931,10 +1963,9 @@
     B.clear.insertAdjacentHTML('beforeend', '<svg class="hold" viewBox="0 0 62 62"><circle cx="31" cy="31" r="28"/></svg>');
     btn('err', I.err, '查错', '查错：只指出哪根线要删（红色高亮），不给该连哪里的提示');
     btn('pen', I.pen, '线色', '线色与线宽');
-    btn('theme', I.theme, '主题', '切换主题（适应不同光线）');
     btn('full', I.full, '全屏', '全屏');
     btn('min', I.min, '收起', '收成一个圆球');
-    tb.append(grip, B.undo, B.del, B.clear, B.err, el('div', 'ftb-sep'), B.pen, B.theme, B.full, el('div', 'ftb-sep'), B.min);
+    tb.append(grip, B.undo, B.del, B.clear, B.err, el('div', 'ftb-sep'), B.pen, B.full, el('div', 'ftb-sep'), B.min);
 
     B.undo.onclick = () => { closePop(); cancelArm(null); undoWire(); };
     B.del.onclick = () => { closePop(); cancelArm(null); delSelected(); };
@@ -1969,9 +2000,9 @@
     const orbHint = () => { orb.classList.add('hint'); clearTimeout(orbHintT); orbHintT = setTimeout(() => orb.classList.remove('hint'), 4200); };
     B.min.onclick = () => { closePop(); FTB.collapsed = true; ftbKeep(); wireToolsShow(true); orbHint(); };
 
-    /* 弹出面板：线色线宽 / 主题（practice-ui.js:407-428 的精简版，样式统一走主题令牌） */
+    /* 弹出面板：线色线宽（全站主题统一由 hx-theme 调度，不再提供工具内独立主题切换） */
     let pop = null;
-    function closePop() { if (!pop) return; const p = pop; pop = null; p.remove(); B.pen.classList.remove('sel'); B.theme.classList.remove('sel'); }
+    function closePop() { if (!pop) return; const p = pop; pop = null; p.remove(); B.pen.classList.remove('sel'); }
     function openPop(anchor, build) {
       const was = pop && pop.anchor === anchor; closePop(); if (was) return;
       pop = el('div', 'ftb-pop'); pop.anchor = anchor; build(pop); document.body.appendChild(pop); anchor.classList.add('sel');
@@ -1997,18 +2028,6 @@
       const r3 = el('div', 'row');
       WIRE_SIZES.forEach(([v, name]) => r3.append(chip('', `<span class="ln" style="height:${v}px;background:var(--ink)"></span>`, name, wireW === v, () => { wireW = v; savePen(); })));
       p.append(r3);
-    });
-    B.theme.onclick = () => openPop(B.theme, p => {
-      p.append(el('h4', '', '主题（按教室光线选）'));
-      const r = el('div', 'row');
-      Object.keys(THEMES).forEach(k => {
-        const t = THEMES[k];
-        r.append(chip('', `<span class="th" style="background:linear-gradient(135deg, ${t.TH.bg} 55%, ${t.TH.acc})"></span>`, t.name, themeName === k, () => {
-          applyTheme(k); syncCss(); makeThumbs(); buildLib(); need();
-          say('已切换到「' + t.name + '」主题', 'ok');
-        }));
-      });
-      p.append(r);
     });
 
     /* 摆放 / 收起：位置自由（不吸边），存 localStorage（排位自己的键） */
@@ -2258,6 +2277,10 @@
     body.classList.toggle('lib-min', !open);
     orb.setAttribute('aria-expanded', open ? 'true' : 'false');
   }
+  window.__superCloseLib = () => {
+    if (!body.classList.contains('lib-min')) { setLib(false); need(); return true; }
+    return false;
+  };
   function placeOrb(x, y) {
     x = clamp(x, 0, Math.max(0, window.innerWidth - 52));
     y = clamp(y, 4, Math.max(4, window.innerHeight - 146));

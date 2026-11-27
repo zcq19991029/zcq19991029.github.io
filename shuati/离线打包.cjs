@@ -7,7 +7,8 @@ const fs = require('fs'), path = require('path');
 const ROOT = __dirname;
 const HOME = path.join(ROOT, '..'); // 仓库根：全站共用件都在这一层
 const OUT = path.join(ROOT, '成品', '华夏工具-刷题-离线版.html');
-const read = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
+const lf = s => s.replace(/\r\n?/g, '\n');
+const read = f => lf(fs.readFileSync(path.join(ROOT, f), 'utf8'));
 
 /* ── 共享件定位（2026-11-12 N4）──
    和 publish.cjs 的规则保持一致：全站共用件只可能在这两处，按顺序找 ——
@@ -20,7 +21,7 @@ function sharedRaw(f) {
   for (const p of sharedTry(f)) if (fs.existsSync(p)) return fs.readFileSync(p);
   throw new Error('找不到共享文件 ' + f + '（找过：' + sharedTry(f).join('、') + '）——离线版少了它不报错、只会悄悄缺功能，先补文件再打包');
 }
-const shared = f => sharedRaw(f).toString('utf8');
+const shared = f => lf(sharedRaw(f).toString('utf8'));
 const sharedB64 = f => sharedRaw(f).toString('base64');
 
 /* 内联必须命中（2026-11-12 N4）：String.replace 找不到目标时**不报错、原样返回**，
@@ -78,7 +79,7 @@ function wrapModule(file) {
 }
 
 // ---------- 2. 题库内联 ----------
-const BUILTIN_FILES = { 'data/wiring.json': 1, 'data/mcu.json': 1, 'data/questions.json': 1, 'data/education.json': 1 };
+const BUILTIN_FILES = { 'data/wiring.json': 1, 'data/mcu.json': 1 };
 const bank = {};
 for (const f of Object.keys(BUILTIN_FILES)) bank[f] = JSON.parse(read(f));
 console.log('内联题库：' + Object.entries(bank).map(([k, v]) => k.replace('data/', '') + ' ' + (v.length || 0) + ' 题').join('，'));
@@ -125,9 +126,11 @@ html = hit(html, /<script src="\.\.\/fx\/hx-qr\.js"><\/script>/, () => `<script>
 const dialogJs = shared('ui-dialog.js');
 if (/<\/script/i.test(dialogJs)) throw new Error('弹窗脚本里不能出现 </script');
 html = hit(html, /<script src="\.\.\/ui-dialog\.js"><\/script>/, () => `<script>\n${dialogJs}\n</script>`, '../ui-dialog.js 那条 <script>');
+const rankBgJs = shared('rank-bg.js');
+if (/<\/script/i.test(rankBgJs)) throw new Error('rank-bg.js 里不能出现 </script');
+html = hit(html, /<script src="\.\.\/rank-bg\.js"><\/script>/, () => `<script>\n${rankBgJs}\n</script>`, '../rank-bg.js 那条 <script>');
 html = hit(html, /<link rel="stylesheet" href="style\.css">/, () => `<style>\n${styleCss}\n</style>`, 'style.css 那条 <link>');
-html = hit(html, /<a class="brand" id="brand" href="\.\.\/" target="_top">/, '<a class="brand" id="brand" href="#" onclick="return false">', '页头 brand 那条 <a>');
-html = hit(html, /<img src="\.\.\/logo\.jpg"/, () => `<img src="data:image/jpeg;base64,${logo}"`, '../logo.jpg 那个 <img>');
+html = hit(html, /<a class="brand" id="brand" href="\.\.\/" target="_top"[^>]*>/, '<a class="brand" id="brand" href="#" onclick="return false" aria-label="回到华夏工具">', '页头 brand 那条 <a>');
 
 // 离线：题库从内联表取，不走 fetch
 const offlineHook = `
@@ -158,5 +161,5 @@ ${order.map(wrapModule).join('\n')}
 html = hit(html, /<script type="module" src="app\.js"><\/script>/, () => bundle, 'app.js 那条 <script type="module">');
 
 fs.mkdirSync(path.dirname(OUT), { recursive: true });
-fs.writeFileSync(OUT, html, 'utf8');
+fs.writeFileSync(OUT, lf(html), 'utf8');
 console.log('已生成 ' + OUT + '（' + (fs.statSync(OUT).size / 1048576).toFixed(2) + ' MB）');

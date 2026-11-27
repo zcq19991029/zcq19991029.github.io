@@ -14,3 +14,5 @@
 .import-dialog.appearance-settings[open]{height:auto!important;min-height:0!important;max-height:calc(100dvh - 24px);margin:auto!important;inset:0}.appearance-settings .import-body{flex:0 1 auto}.appearance-settings .import-head,.appearance-settings .import-footer{flex:none}
 
 dialog[open],.import-dialog.appearance-settings[open]{height:fit-content!important}.appearance-settings .import-body{flex:0 1 auto!important}
+
+html.hx-lite body.teacher-ui .teacher-panel,html.hx-lite body.teacher-ui .wrap>section.card,html.hx-lite body.teacher-ui #pageNav,html.hx-lite body.teacher-ui header.top{backdrop-filter:none!important;background:var(--card-solid,#fff)!important}

@@ -57,6 +57,8 @@ html.hx-bg .card:not(.att-mcard) {
   background-color: rgb(9 16 29 / calc(var(--hx-a, 1) * .52));
   border-color: rgba(255, 255, 255, .14);
   box-shadow: var(--glass-drop), inset 0 .8px 0 rgba(255, 255, 255, .14);
+    -webkit-backdrop-filter: var(--hx-blur);
+    backdrop-filter: var(--hx-blur);
   /* 2026-11-12 用户原话：「没给每张卡加实时模糊这个不对　在标准模式允许啊　有的性能好　而且我们也要换服务器了」
      → **标准模式给真的 backdrop-filter**，极简模式（html.hx-lite）一律关掉（见下面那条）。 */
 }
@@ -71,6 +73,7 @@ html.hx-bg .card:not(.att-mcard) .note,
 html.hx-bg .card:not(.att-mcard) .att-cls i { color: var(--g-dim, #6e6e73); }
 /* 极简模式：玻璃可以有，实时模糊一层都不留（老一体机逐卡重算会卡死） */
 html.hx-lite.hx-bg .card:not(.att-mcard) { -webkit-backdrop-filter: none; backdrop-filter: none; }
+html[data-hx-glass="off"] .card:not(.att-mcard) { -webkit-backdrop-filter: none; backdrop-filter: none; }
 .errs { background: var(--badbg, rgba(215, 0, 21, .08)); color: var(--bad, #d70015); border-radius: 12px; padding: 10px 12px; margin: 0 0 12px; font-size: 13.5px; word-break: break-word; }
 .errs[hidden] { display: none; }
 button, .btn { font: inherit; font-size: 14px; padding: 8px 14px; border-radius: 10px; border: 1px solid var(--line2, rgba(0, 0, 0, .12)); background: var(--fill, rgba(0, 0, 0, .04)); color: var(--ink, #1d1d1f); cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px; max-width: 100%; }
@@ -1485,6 +1488,7 @@ async function courseOpen(id) {
   app().innerHTML = `<div class="att-wrap"><div class="att-top"><button id="coBack">‹ 课程</button><h1>${esc(c.name)}</h1></div><div id="coBody">${fxLoad('正在载入考勤表…')}</div></div>`;
   fxAuto();
   $('coBack').onclick = () => teacherHome();
+  if (window.top !== window.self) $('coBack').hidden = true;
   try { T.sheet = await rpc('hx_att_sheet', { p_course: id }); }
   catch (e) { $('coBody').innerHTML = `<p class="errs">读不到考勤表：${esc(e.message)}</p>`; return; }
   if (T.view !== 'course' || T.cur !== id) return;
@@ -1647,6 +1651,7 @@ function publishDlg() {
     $('pbGeoBox').hidden = !$('pbGeo').checked;
     if (!$('pbGeo').checked || P.pos) return;
     $('pbGeoMsg').textContent = '正在取你现在的位置…';
+    $('pbGeoMsg').classList.remove('bad');
     try {
       P.pos = await getPos(10000);
       $('pbGeoMsg').textContent = '已取到你现在的位置（精度约 ' + Math.round(P.pos.acc || 0) + ' 米），以这里为圆心';
@@ -1778,7 +1783,18 @@ function bigOpen(sid, gesture) {
     </div></div>`;
   fxAuto();
   $('bgBack').onclick = () => courseOpen(T.cur);
-  $('bgFull').onclick = () => { const el = $('big'); try { document.fullscreenElement ? document.exitFullscreen() : el.requestFullscreen(); } catch (e) { } };
+  if (window.top !== window.self) $('bgBack').hidden = true;
+  $('bgFull').onclick = () => {
+    const el = $('big');
+    const fallback = () => { try { window.top.postMessage({ hx: 'full' }, '*'); } catch (e) {} };
+    try {
+      if (document.fullscreenElement) document.exitFullscreen();
+      else if (el && typeof el.requestFullscreen === 'function') {
+        const p = el.requestFullscreen();
+        if (p && typeof p.catch === 'function') p.catch(fallback);
+      } else fallback();
+    } catch (e) { fallback(); }
+  };
   $('bgStop').onclick = async () => {
     $('bgStop').disabled = true;
     try { await rpc('hx_att_close', { p_session: sid }); ended('考勤已停止'); loadCourses(); }
@@ -1792,7 +1808,11 @@ function bigOpen(sid, gesture) {
   };
   const live = async () => {
     let r;
-    try { r = await rpc('hx_att_live', { p_session: sid }); } catch (e) { if (T.view === 'big') $('bgRoll').innerHTML = `<p class="errs">${esc(e.message)}</p>`; return null; }
+    try { r = await rpc('hx_att_live', { p_session: sid }); } catch (e) {
+      B.roll = null;
+      if (T.view === 'big') $('bgRoll').innerHTML = `<p class="errs">${esc(e.message)}</p>`;
+      return null;
+    }
     if (T.view !== 'big' || !$('big')) return null;
     const s = r.session || {};
     B.ends = +new Date(s.ends_at) || B.ends;
@@ -1847,11 +1867,12 @@ function bigOpen(sid, gesture) {
       }
     } else code();
   };
-  live().then(r => { if (r) { every(live, 4000); every(tick, 500); tick(); } });
+  live().then(() => { every(live, 4000); every(tick, 500); tick(); });
 }
 
 /* 总入口左上角「返回」：大屏 → 课程 → 课程列表，再退交给外壳回首页 */
 window.HXBack = function () {
+  if ($('attModal')) { attModalClose(); return true; }
   if (T.view === 'big') { courseOpen(T.cur); return true; }
   if (T.view === 'course') { teacherHome(); return true; }
   return false;
@@ -1878,6 +1899,9 @@ const badHtml = (msg, d) => `<div class="errs su-bad">${esc(msg)}${d != null && 
 const GEO_MSG = e => '请允许定位后再签到' + (e && e.code === 3 ? '（这次是定位超时：到窗边或打开手机定位再试）' : e && e.code === 1 ? '（浏览器拒绝了定位，在地址栏或系统设置里允许）' : '');
 
 async function studentHome(link) {
+  if (typeof T !== 'undefined') T.view = '';
+  U.res = {};
+  U.sig = '';
   stopTimers();
   app().innerHTML = demoBar() + `<div class="att-wrap att-stu"><div class="att-top"><h1>签到</h1><button id="suRe">刷新</button></div>
     <div id="suRes"></div><div id="suList">${fxLoad('正在查有没有考勤…')}</div></div>`;

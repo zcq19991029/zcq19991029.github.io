@@ -55,9 +55,15 @@ html.hx-bg .glow, html.hx-bg .panel {
   background: var(--glass-wash);
   box-shadow: var(--glass-drop);
 }
-/* 深色下背景图会很亮，玻璃必须压一层暗底，否则白字飘在亮背景上读不了 */
-html[data-hx-mode="dark"].hx-bg .glow,
-html[data-hx-mode="dark"].hx-bg .panel { background: rgba(10, 10, 12, .58); }
+/* 深色下背景图会很亮，玻璃必须压一层暗底，否则白字飘在亮背景上读不了（关毛玻璃时保持透明） */
+html[data-hx-mode="dark"]:not([data-hx-glass="off"]).hx-bg .glow,
+html[data-hx-mode="dark"]:not([data-hx-glass="off"]).hx-bg .panel { background: rgba(10, 10, 12, .58); }
+:root[data-hx-glass="off"] .glow,
+:root[data-hx-glass="off"] .panel { background: transparent; }
+:root[data-hx-glass="off"].hx-bg .glow::before,
+:root[data-hx-glass="off"].hx-bg .panel::before,
+:root[data-hx-glass="off"].hx-bg .glow::after,
+:root[data-hx-glass="off"].hx-bg .panel::after { display: none; }
 html.hx-bg .glow::before, html.hx-bg .panel::before {
   content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px; pointer-events: none;
   background: linear-gradient(150deg, var(--glass-top) 0%, var(--glass-bot) 58%, var(--glass-bot) 100%);
@@ -339,13 +345,20 @@ body.focus .unfocus { display: block; }
   .hero h1 { font-size: 24px; }
   .stem { font-size: 17.5px; }
   .card { padding: 20px 16px 16px; }
-  .dock { position: fixed; left: 0; right: 0; bottom: 0; z-index: 16; display: grid; grid-template-columns: repeat(5, 1fr); height: calc(56px + var(--safe)); padding-bottom: var(--safe); background: var(--bar); -webkit-backdrop-filter: var(--hx-blur); backdrop-filter: var(--hx-blur); border-top: 1px solid var(--edge); }
+  .dock { position: fixed; left: 0; right: 0; bottom: 0; z-index: 16; display: grid; grid-template-columns: repeat(6, 1fr); height: calc(56px + var(--safe)); padding-bottom: var(--safe); background: var(--bar); -webkit-backdrop-filter: var(--hx-blur); backdrop-filter: var(--hx-blur); border-top: 1px solid var(--edge); }
   .dock button { display: grid; place-items: center; align-content: center; gap: 1px; font-size: 10.5px; }
   .dock svg { width: 22px; height: 22px; fill: currentColor; }
   .dock button[aria-current="true"] { color: var(--acc); }
   .bar { bottom: calc(64px + var(--safe)); }
   .hint { display: none; }
 }
+:root[data-hx-glass="off"] .bar,
+:root[data-hx-glass="off"] .unfocus,
+:root[data-hx-glass="off"] .dock,
+html.hx-lite .bar,
+html.hx-lite .unfocus,
+html.hx-lite .dock { -webkit-backdrop-filter: none; backdrop-filter: none; }
+.q-img { display: block; max-width: 100%; max-height: 360px; border-radius: 8px; object-fit: contain; }
 
 /* 填空、主观题 */
 .blank { display: inline-block; max-width: 100%; height: 34px; margin: 2px 4px; padding: 0 10px; vertical-align: baseline; border: 0; border-bottom: 2px solid var(--acc); border-radius: 8px 8px 0 0; background: var(--fill); color: var(--ink); font: inherit; font-size: 16px; font-weight: 600; text-align: center; outline: none; }

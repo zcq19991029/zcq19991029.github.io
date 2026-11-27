@@ -26,9 +26,10 @@
   var motor = { state: '停止', dir: 0, conn: null };
   window.motor = motor;
 
-  // 主题：和练习页同一个键，同一个 applyTheme
-  let saved = null; try { saved = localStorage.getItem(THEME_KEY); } catch (e) { }
-  applyTheme(saved || 'dark');
+  // 全站主题统一由 hx-theme 调度，原理图自动跟随 html[data-hx-mode]
+  applyTheme(hxSiteMode());
+  window.hxSyncTheme = () => { applyTheme(hxSiteMode()); paint(); };
+  window.addEventListener('storage', e => { if (e && e.key === 'hx-theme') window.hxSyncTheme(); });
 
   function paint() {
     const vw = Math.max(1, innerWidth), vh = Math.max(1, innerHeight);

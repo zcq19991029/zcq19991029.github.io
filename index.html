@@ -14,16 +14,16 @@
      要登录时调 window.HXPortal.login()；被单独打开时 hx-theme.js 会跳回这里（见 hx-theme.js 的 data-tool）。
      账号：Supabase 华夏工具项目，localStorage paike-session 和各工具共用；身份由数据库 hx_me() 决定。
      脚本里不用反引号模板字符串（本机测试时整页当字符串注入到线上同源页面里）。 -->
-<link rel="stylesheet" href="hx-theme.css?v=e73acc4">
-<script src="hx-theme.js?v=e73acc4"></script>
+<link rel="stylesheet" href="hx-theme.css?v=947f0ab">
+<script src="hx-theme.js?v=947f0ab"></script>
 <script src="rank-bg.js" defer></script><!-- 排位身份卡预设（2026-11-12）：总入口外观面板当场弹窗设置身份卡背景，预设数据在总入口也能用 -->
 <!-- 首页卡片上的像素小生物：pixelfx 的 12 个 critters（MIT），打包成一个 91 KB 的独立脚本。
      加载失败不影响首页——hx-critters.js 开头就有 window.PixelFX 存在性检查，没有就整段跳过。 -->
-<script src="fx/pixelfx-critters.js?v=e73acc4" defer></script>
-<script src="fx/hx-critters.js?v=e73acc4" defer></script>
+<script src="fx/pixelfx-critters.js?v=947f0ab" defer></script>
+<script src="fx/hx-critters.js?v=947f0ab" defer></script>
 <!-- 课堂码大屏二维码：离线 QR 编码器（qrcode 1.5.4 core 打包，MIT，见 fx/NOTICE-qr.md）。延迟加载即可：只有老师点「大屏二维码」时才用 -->
-<script src="fx/hx-qr.js?v=e73acc4" defer></script>
-<script src="hx-scan.js?v=e73acc4" defer></script><!-- 全站扫一扫（2026-11-08 K5）：摄像头 + BarcodeDetector / 本地 jsQR -->
+<script src="fx/hx-qr.js?v=947f0ab" defer></script>
+<script src="hx-scan.js?v=947f0ab" defer></script><!-- 全站扫一扫（2026-11-08 K5）：摄像头 + BarcodeDetector / 本地 jsQR -->
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; width: 100%; overflow: hidden; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
@@ -81,7 +81,7 @@
      用户原话：「工具首页应该是退回到最开始的界面再按一下返回才是首页 或者给我一个首页按钮 对于每个工具来说都是这个逻辑」。
      「返回」= 上一步（先让工具自己退，见下面的 back 逻辑）；「首页」= 不管在哪一层，一下回华夏工具首页。
      手机超窄屏只留图标（和 .back 同一套收缩规则）。 */
-  .home { display: none; align-items: center; gap: 4px; height: 36px; padding: 0 12px 0 8px; border: 0; border-radius: 99px; background: none; color: var(--ink2); font-size: 15px; white-space: nowrap; }
+  .home { display: none; align-items: center; gap: 4px; height: 36px; padding: 0 12px 0 8px; border: 0; border-radius: 99px; background: none; color: var(--dim); font-size: 15px; white-space: nowrap; }
   .home svg { width: 19px; height: 19px; stroke-width: 2; }
   .home:hover { background: var(--hov); }
   body.tool .home { display: flex; }
@@ -1050,7 +1050,7 @@
        图标 36px 手指按不准，工具页统一放大到 40px（顶栏 52px 高，放得下）。
        2026-11-08：这两颗圆钮已经整个撤掉（挪成首页卡片），这条让位规则一并删除。 */
     body.tool header .ibtn { flex: none; width: 40px; height: 40px; }
-    body.tool header .back, body.tool header .acct, body.tool header .lbtn { min-height: 40px; }
+    body.tool header .back, body.tool header .home, body.tool header .acct, body.tool header .lbtn { min-height: 40px; }
     .tiles { grid-template-columns: repeat(2, 1fr); gap: 12px; } .tile { min-height: 148px; padding: 20px 18px 18px; border-radius: 26px; gap: 14px; } .tile b { font-size: 18px; } .tile .ic { width: 50px; height: 50px; border-radius: 13px; } .tile .ic svg { width: 26px; height: 26px; } .tile .go { display: none; }
     /* 窄屏两列、卡片只有 18px 内边距：轨道环同步收小，免得压到隔壁卡片 */
     .tile .ic::before, .tile .ic::after { width: 72px; height: 72px; margin: -36px 0 0 -36px; }
@@ -1369,7 +1369,7 @@
        因为那时候顶栏要留给返回/标题/账号。 -->
   <span class="credits" id="credits" title="华夏工具由赵成乾、宋耀龙、黄子欣合作开发"><b>赵成乾</b><i>·</i><b>宋耀龙</b><i>·</i><b>黄子欣</b><em>合作开发</em></span>
   <button class="back" id="back" type="button"><svg class="i" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>返回</button>
-  <button class="home" id="home" type="button" aria-label="回到华夏工具首页" title="回到华夏工具首页"><svg class="i" viewBox="0 0 24 24"><path d="M4 10.5 12 4l8 6.5"/><path d="M6 10v9h12v-9"/></svg>首页</button>
+  <button class="home" id="homeBtn" type="button" aria-label="回到华夏工具首页" title="回到华夏工具首页"><svg class="i" viewBox="0 0 24 24"><path d="M4 10.5 12 4l8 6.5"/><path d="M6 10v9h12v-9"/></svg>首页</button>
   <div class="cur" id="cur"></div>
   <div class="sp"></div>
   <!-- 2026-11-10 播放器嵌入顶栏：挂到这个槽里，出现在「扫一扫」左边，不遮挡文字；没在放歌时不占地方。 -->
@@ -2190,7 +2190,10 @@ function renderLogin() {
 // 接线仿真进出页面内全屏（钉钉、微信里系统全屏用不了）也发消息过来（hx: 'full'）：它在前台时藏顶栏，iframe 铺满整个可视区域
 var zen = {}, full = {};
 window.addEventListener('message', function (e) {
-  if (e.origin !== location.origin || !e.data || (e.data.hx !== 'focus' && e.data.hx !== 'full')) return;
+  if (e.origin !== location.origin || !e.data) return;
+  if (e.data.hx === 'open') { window.HXPortal.open(e.data.toolId || e.data.id, e.data.hashOrPath || e.data.path || e.data.hash); return; }
+  if (e.data.hx === 'home') { window.HXPortal.home(); return; }
+  if (e.data.hx !== 'focus' && e.data.hx !== 'full') return;
   var m = e.data.hx === 'full' ? full : zen, c = e.data.hx === 'full' ? 'hxfull' : 'zen';
   for (var k in frames) if (frames[k].contentWindow === e.source) { m[k] = !!e.data.on; if (k === ST.tab) document.body.classList.toggle(c, m[k]); }
 });
@@ -2263,8 +2266,18 @@ function watchLoad(t, f) {
 function mount(t, src) { // 建（或复用）工具 iframe。真正的下载发生在这一步，所以只在要打开时才调
   /* 2026-11-17：src 只在「测试查看用户」演示视角里传（带 ?pv=）；平时不传，行为和改动前一模一样。 */
   if (frames[t.id]) {
-    if (src && frames[t.id].src !== src) { frames[t.id].src = src; delete frames[t.id].dataset.ready; }
-    return frames[t.id];
+    var existing = frames[t.id];
+    var targetSrc = src || toolUrl(t);
+    var reset = false;
+    try {
+      var expectedPath = new URL(targetSrc, location.href).pathname.replace(/\/$/, '') || '/';
+      var actualPath = existing.contentWindow.location.pathname.replace(/\/$/, '') || '/';
+      reset = actualPath !== expectedPath;
+    } catch (e) { /* iframe ????????? src ???? */ }
+    if (reset || (src && existing.src !== src)) {
+      existing.src = targetSrc; delete existing.dataset.ready;
+    }
+    return existing;
   }
   var f = document.createElement('iframe');
   f.src = src || toolUrl(t); f.title = t.name; f.allow = 'fullscreen; clipboard-write; clipboard-read'; f.setAttribute('allowfullscreen', '');
@@ -5109,15 +5122,29 @@ function parseRoster(wb, file) {
       现在改成 hx > 1 才退历史：hx 是「进过几个工具」的深度，=1 说明当前就是第一个工具，
       它的上一级只有首页，直接 show(null) 一步到位，不碰那条掺了 iframe 条目的历史。
    「首页」那颗是另一条路：不管在第几层，一下回首页（见下面 $('home')）。 */
-$('back').onclick = function () {
+function frameBackConsumed() {
   var f = ST.tab && frames[ST.tab];
-  if (f) { try { var w = f.contentWindow; if (w && typeof w.HXBack === 'function' && w.HXBack()) return; } catch (e) { } }
+  if (!f) return false;
+  try { var w = f.contentWindow; return !!(w && typeof w.HXBack === 'function' && w.HXBack()); } catch (e) { return false; }
+}
+function restoreToolHistory() {
+  var id = ST.tab || '';
+  try { history.pushState({ hx: Math.max(1, history.state && history.state.hx || 1) }, '', id ? '#' + id : location.pathname + location.search); } catch (e) { }
+}
+$('back').onclick = function () {
+  if (frameBackConsumed()) return;
   if (history.state && history.state.hx > 1) history.back(); else show(null, 'replace');
 };
-$('home').onclick = function () { show(null, 'replace'); };
+$('homeBtn').onclick = function () { show(null, 'replace'); };
 $('brand').onclick = function () { show(null); };
-addEventListener('popstate', function () { var id = location.hash.slice(1); if (id !== (ST.tab || '')) show(id, 'pop'); });
-addEventListener('hashchange', function () { var id = location.hash.slice(1); if (id !== (ST.tab || '')) show(id, 'replace'); });
+addEventListener('popstate', function () {
+  if (ST.tab && frameBackConsumed()) { restoreToolHistory(); return; }
+  var id = location.hash.slice(1); if (id !== (ST.tab || '')) show(id, 'pop');
+});
+addEventListener('hashchange', function () {
+  if (ST.tab && frameBackConsumed()) { restoreToolHistory(); return; }
+  var id = location.hash.slice(1); if (id !== (ST.tab || '')) show(id, 'replace');
+});
 function reloadTools() { for (var k in frames) { if (k !== ST.tab) { frames[k].remove(); delete frames[k]; } else { delete frames[k].dataset.ready; frames[k].src = frames[k].src; } } } // 工具页把登录记在内存里，换人后重新打开
 async function refresh() {
   ST.me = null; ST.user = null; ST.classes = null; ST.guests = null; ST.clsOk = false; ST.studs = {}; ST.edit = null; ST.codes = undefined; ST.codesErr = null; ST.teachers = undefined; ST.aCode = null; ST.groups = undefined; ST.grpEdit = null; ST.subjects = null; ST.subjOk = false;
@@ -5420,11 +5447,32 @@ function rkdPaint(body, name, cls) {
   paintPrev();
 }
 // 给嵌在框里的工具用：要登录时弹登录窗口、问身份、回首页
+function portalToolId(idOrPath) {
+  var raw = String(idOrPath || '').replace(/^https?:\/\/[^/]+/i, '').split(/[?#]/)[0].replace(/^\/+|\/+$/g, '').split('/')[0];
+  var hit = TOOLS.filter(function (x) { return x.id === raw || String(x.url || '').replace(/^\/+|\/+$/g, '').split('/')[0] === raw; })[0];
+  return hit ? hit.id : raw;
+}
+function portalOpen(idOrPath, hashOrPath) {
+  var id = portalToolId(idOrPath || '');
+  if (!TOOLS.some(function (x) { return x.id === id; })) return false;
+  show(id);
+  if (hashOrPath) {
+    var f = frames[id], target = String(hashOrPath);
+    setTimeout(function () {
+      try {
+        if (/^\//.test(target)) f.src = new URL(target, location.origin).href;
+        else f.contentWindow.location.hash = target.charAt(0) === '#' ? target : '#' + target;
+      } catch (e) { }
+    }, 0);
+  }
+  return true;
+}
 window.HXPortal = {
   login: function () { openLogin(); },
   me: function () { return ST.me; },
-  home: function () { show(null); },
-  rankCard: openRankCard,
+  open: portalOpen,
+  home: function () { show(null, 'replace'); },
+  rankCard: openRankCardDialog,
   toast: toast
 };
 

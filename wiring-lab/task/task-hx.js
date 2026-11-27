@@ -232,21 +232,35 @@ const fmtClock = t => {
   const d = new Date(t), p = n => String(n).padStart(2, '0');
   return p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
 };
-// 轮询：返回停止函数。页面隐藏时跳过请求（投影时浏览器在后台也不该一直打服务器），回来立刻补一次
+// 轮询：返回停止函数。页面隐藏或外壳切到别的工具时跳过请求，回来立刻补一次
 // jit：每轮把间隔随机缩放 ±jit（0~1）。全班设备都固定 15 秒会在同一秒一起到期，
 //      形成周期性尖峰；抖动后自然错开（2026-11-11 降载）。不传 = 原来那样固定间隔。
+let hxVisible = true;
+const hxVisSubs = new Set();
+window.addEventListener('message', e => {
+  if (!e.data || e.data.hx !== 'visible') return;
+  const next = !!e.data.on;
+  if (next === hxVisible) return;
+  hxVisible = next;
+  if (hxVisible && !document.hidden) hxVisSubs.forEach(fn => { try { fn(); } catch (err) { } });
+});
 function every(ms, fn, jit) {
-  let dead = false, t = 0;
+  let dead = false, t = 0, busy = false;
   const gap = () => jit ? Math.round(ms * (1 - jit + Math.random() * jit * 2)) : ms;
   const tick = async () => {
-    if (dead) return;
-    if (!document.hidden) { try { await fn(); } catch (e) { /* 轮询失败不弹窗，下一轮再试 */ } }
+    if (dead || busy) return;
+    if (!document.hidden && hxVisible) {
+      busy = true;
+      try { await fn(); } catch (e) { /* 轮询失败不弹窗，下一轮再试 */ }
+      busy = false;
+    }
     if (!dead) t = setTimeout(tick, gap());
   };
   t = setTimeout(tick, gap());
-  const vis = () => { if (!document.hidden && !dead) { clearTimeout(t); tick(); } };
+  const vis = () => { if (!document.hidden && hxVisible && !dead) { clearTimeout(t); tick(); } };
   document.addEventListener('visibilitychange', vis);
-  return () => { dead = true; clearTimeout(t); document.removeEventListener('visibilitychange', vis); };
+  hxVisSubs.add(vis);
+  return () => { dead = true; clearTimeout(t); document.removeEventListener('visibilitychange', vis); hxVisSubs.delete(vis); };
 }
 // 导出 CSV（Excel 直接双击能开：UTF-8 BOM + CRLF）
 function downloadCsv(name, rows) {

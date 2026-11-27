@@ -116,6 +116,10 @@
     box-shadow: 0 0 0 2px color-mix(in srgb, var(--acc) 20%, transparent), 6px 14px 26px -14px var(--tbsh), 4px 0 16px -8px var(--acc);
     backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
     transition: opacity .2s, transform .3s cubic-bezier(.34,1.56,.64,1); -webkit-tap-highlight-color: transparent; }
+  html.hx-lite .tb, html.hx-lite .tb-orb { backdrop-filter: none; -webkit-backdrop-filter: none; }
+  @media (max-width: 900px), (pointer: coarse) {
+    .tb, .tb-orb { backdrop-filter: none; -webkit-backdrop-filter: none; }
+  }
   .tb-orb:hover { opacity: 1; }
   .tb-orb.dragging { transition: none; transform: scale(1.06); cursor: grabbing; }
   .tb-orb svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
@@ -312,9 +316,10 @@
      用 href 而不是 replace：这一页是被外壳换进来的，返回练习页要在历史里留一条，
      和外壳「上一步」的直觉一致。 */
   window.HXBack = function () {
+    if (typeof window.__superCloseLib === 'function' && window.__superCloseLib()) return true;
     var u = new URL('../', location.href);
     u.searchParams.set('rank', '1');
-    location.href = u.href;
+    try { location.replace(u.href); } catch (e) { location.href = u.href; }
     return true;
   };
 </script>

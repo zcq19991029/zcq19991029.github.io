@@ -5,13 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>资料库 · 华夏工具</title>
 <link rel="icon" href="../logo.jpg">
-<!-- 主题资源一律用**站点根绝对路径**（2026-11-17 修）：
-     原来写的是 ../hx-theme.css —— 那个相对路径只在「发布后的 /ziliao/index.html」这一层成立，
-     本地预览（file:// 或从别的深度起服务）、或把页面放进子目录时相对基准就变了，直接 404，
-     表现是「样式假性不显示」（底色/卡片/玻璃整套失效），很难看出是路径问题。
-     总入口 / 反馈 / 进制转换 用的都是 /hx-theme.js 这种根绝对路径，这里照抄。 -->
-<link rel="stylesheet" href="/hx-theme.css">
-<script src="/hx-theme.js" data-tool="ziliao"></script>
+<!-- 主题资源统一用相对路径（与 ../logo.jpg / ../ui-dialog.js / ../hx-ai.js 一致，子路径部署与相对预览都生效）。 -->
+<link rel="stylesheet" href="../hx-theme.css">
+<script src="../hx-theme.js" data-tool="ziliao"></script>
 <script src="../ui-dialog.js"></script>
 <script src="../hx-ai.js"></script>
 <style>/* 资料库工具样式。颜色全部来自 ../hx-theme.css（--bg/--ink/--dim/--card/--edge/--acc…，深浅色由 hx-theme.js 切）；
@@ -36,6 +32,7 @@ html { -webkit-text-size-adjust: 100%; }
   --card-lift: rgb(255 255 255 / min(1, calc(.90 * var(--hx-a, 1))));
 }
 :root[data-hx-mode="dark"] { --card-lift: rgb(18 26 42 / min(1, calc(.90 * var(--hx-a, 1)))); }
+:root[data-hx-glass="off"] { --card: transparent; --card-lift: var(--card-solid, #fff); }
 body { margin: 0; background: var(--bg, #f5f5f7); color: var(--ink, #1d1d1f); font: 15px/1.6 var(--hx-font, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif); overflow-x: hidden; }
 #app { width: min(1600px, 100%); margin: 0 auto; padding: 16px; }
 h1, h2 { letter-spacing: -.01em; }
@@ -64,6 +61,7 @@ pre { white-space: pre-wrap; word-break: break-word; margin: 0; }
 .zl-shell { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 18px; width: min(1600px, 100%); margin: 0 auto; }
 .zl-nav { position: sticky; top: 16px; align-self: start; max-height: calc(100vh - 32px); overflow: auto; padding: 14px 10px; background: var(--card, #fff); border: 1px solid var(--edge, rgba(0, 0, 0, .08)); border-radius: 18px; min-width: 0; }
 .zl-subtabs{display:flex;gap:4px;flex-wrap:wrap;padding:6px;border:1px solid var(--edge,rgba(0,0,0,.08));border-radius:14px;background:color-mix(in srgb,var(--card,#fff) 75%,transparent);backdrop-filter:blur(16px)}
+:root[data-hx-glass="off"] .zl-subtabs{background:transparent;-webkit-backdrop-filter:none;backdrop-filter:none}
 .zl-subtab{position:relative;border:0;background:transparent;color:var(--dim,#6e6e73);padding:8px 11px;border-radius:10px;cursor:pointer;font:600 12px/1.2 inherit;white-space:nowrap}.zl-subtab.on{background:var(--accbg,rgba(47,107,255,.12));color:var(--ink,#0b1220)}.zl-subtab.on::after{content:"";position:absolute;left:12px;right:12px;bottom:3px;height:2px;background:var(--acc,#2f6bff);border-radius:4px}
 .zl-subtabs .zl-subadd{width:auto;margin:0;padding:7px 10px}
 .zl-nav-h { font-size: 11px; font-weight: 600; letter-spacing: .1em; color: var(--dim, #6e6e73); padding: 4px 8px 6px; }
@@ -98,7 +96,8 @@ pre { white-space: pre-wrap; word-break: break-word; margin: 0; }
 
 /* 弹层 */
 .zl-modal { position: fixed; inset: 0; z-index: 9000; display: grid; place-items: center; padding: 16px; background: rgba(0, 0, 0, .4); overflow: auto; }
-.zl-mcard { width: min(620px, 100%); margin: 0; max-height: calc(100vh - 32px); overflow: auto; background: var(--card-lift, #fff); }
+.zl-mcard { width: min(620px, 100%); margin: 0; max-height: calc(100vh - 32px); max-height: calc(100dvh - 32px); overflow: auto; background: var(--card-solid, #fff); }
+:root[data-hx-glass="off"] .zl-mcard { background: var(--card-solid, #fff); }
 .zl-f { display: grid; gap: 6px; font-size: 13px; font-weight: 600; margin-bottom: 12px; }
 .zl-f input, .zl-f select { width: 100%; }
 .pb-info p { margin: 6px 0; word-break: break-word; }
@@ -108,10 +107,10 @@ pre { white-space: pre-wrap; word-break: break-word; margin: 0; }
 .mat-drop { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 16px; border: 1px dashed var(--line2, rgba(0, 0, 0, .16)); border-radius: 14px; background: var(--fill, rgba(0, 0, 0, .03)); }
 .mat-drop.on { border-color: var(--acc, #2f845a); background: var(--accbg, rgba(47, 132, 90, .1)); }
 /* 扫描版 PDF 的页码范围（2026-11-20）。单独一行、不上虚线框 —— 它不是拖放区的一部分，
-   免得老师以为「页码也要拖进来」。窄屏自动换行，输入框最窄 150px。 */
+   免得老师以为「页码也要拖进来」。窄屏自动换行，无硬 min-width 防止 390px 溢出。 */
 .mat-range { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; margin: 10px 0 0; font-size: 13px; color: var(--dim, #6e6e73); }
 .mat-range label { flex: 0 0 auto; }
-.mat-range input { flex: 0 1 200px; min-width: 150px; }
+.mat-range input { flex: 0 1 200px; min-width: 0; width: min(200px, 100%); }
 .mat-range .note { flex: 1 1 240px; }
 /* 上传进度（2026-11-15）：深色底 + 蓝青流光扫过 + 百分比 / 已传字节。
    参考了用户给的 WebGL 流光进度条（metalforge slosh）的观感，但这里只用 CSS 渐变 + 遮罩位移，
@@ -122,6 +121,7 @@ pre { white-space: pre-wrap; word-break: break-word; margin: 0; }
 .mat-pg-t { flex: 1 1 240px; min-width: 0; line-height: 1.5; }
 .mat-pg-w { flex: 0 0 auto; font-variant-numeric: tabular-nums; opacity: .85; }
 .mat-pg-v { flex: 0 0 auto; font-size: 13px; font-variant-numeric: tabular-nums; color: var(--ink, #1d1d1f); }
+#matPgCancel { flex: 0 0 auto; padding: 2px 9px; font-size: 12px; }
 .mat-pg-track { position: relative; height: 7px; margin-top: 7px; border-radius: 99px; overflow: hidden; background: #08131f; box-shadow: inset 0 0 0 1px rgba(90, 200, 255, .18), inset 0 2px 6px rgba(0, 0, 0, .7); }
 .mat-pg-fill { position: relative; display: block; width: 0; height: 100%; border-radius: 99px; background: linear-gradient(90deg, #0b6f96 0%, #24c8f0 45%, #6fe9ff 72%, #a9dcff 100%); box-shadow: 0 0 10px rgba(60, 220, 255, .6), 0 0 22px rgba(40, 170, 255, .28); transition: width .28s cubic-bezier(.22, .61, .36, 1); }
 /* 流光：一条白色高光在填充区里来回扫（slosh 的流动感），只在「正在传」时有 */
@@ -135,6 +135,8 @@ pre { white-space: pre-wrap; word-break: break-word; margin: 0; }
 .mat-prog.ok .mat-pg-fill::after, .mat-prog.bad .mat-pg-fill::after { opacity: 0; }
 .mat-prog.ok .mat-pg-v { color: var(--ok, #248a3d); }
 .mat-prog.bad .mat-pg-v { color: var(--bad, #d70015); }
+html.hx-lite .mat-pg-fill { transition: none; }
+html.hx-lite .mat-pg-fill::before { animation: none; opacity: 0; }
 @media (prefers-reduced-motion: reduce) { .mat-pg-fill { transition: none; } .mat-pg-fill::before { animation: none; } }
 .mat-list { display: grid; gap: 8px; }
 .mat-i { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 9px 12px; border-radius: 12px; background: var(--fill, rgba(0, 0, 0, .03)); }
@@ -370,6 +372,12 @@ html.hx-lite #hxBootCv{display:none}
 .qb-f input[type=search] { width: 170px; min-width: 0; }
 .qb-acts { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-left: auto; }
 .qb-acts > button { flex: 0 0 auto; white-space: nowrap; }
+.qb-more { position: relative; flex: 0 0 auto; }
+.qb-more > summary { list-style: none; white-space: nowrap; }
+.qb-more > summary::-webkit-details-marker { display: none; }
+.qb-more[open] > summary { border-color: var(--acc, #2f845a); }
+.qb-more-menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; display: grid; gap: 6px; width: max-content; max-width: min(240px, calc(100vw - 32px)); padding: 8px; border-radius: 12px; border: 1px solid var(--edge, rgba(0, 0, 0, .12)); background: var(--card-solid, #fff); box-shadow: var(--glass-drop, 0 10px 30px -12px rgba(0, 0, 0, .28)); }
+.qb-more-menu button { justify-content: flex-start; width: 100%; white-space: nowrap; }
 @media (max-width: 720px) {
   .qb-f { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .qb-f > label { display: grid; gap: 4px; min-width: 0; }   /* 网格里由列宽决定，别再撑 min-width:max-content */
@@ -377,6 +385,10 @@ html.hx-lite #hxBootCv{display:none}
   .qb-f select, .qb-f input[type=search] { width: 100%; max-width: none; }
   .qb-acts { margin-left: 0; }
   .qb-acts > button { flex: 1 1 auto; }
+  .qb-more { flex: 1 1 100%; }
+  .qb-more > summary { width: 100%; }
+  .qb-more-menu { position: static; width: 100%; max-width: none; margin-top: 6px; display: flex; flex-wrap: wrap; gap: 6px; box-shadow: none; }
+  .qb-more-menu button { width: auto; flex: 1 1 auto; justify-content: center; }
 }
 .qb-selbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
   padding: 8px 10px; border-radius: 10px; background: var(--fill, rgba(0, 0, 0, .04));
@@ -984,9 +996,23 @@ async function renderPdfPages(file, onPage, range) {
 
 /* 逐页识图：一次传一页，onProgress(k, total, text, stage, pageNo) 报进度；整本拼成一段文字返回。
    stage：'render'（正在把这页转成图片，text 为 null）/ 'ocr'（已渲染完，正要送模型识别）/
-   'done'（这页识完了，text 是识出来的字）。分开报是为了让进度条上的那句话永远是「正在干什么」，
-   而不是像原来那样两者共用一句「第 k/n 页」，最后停在哪句都说不清。 */
-async function ocrScannedPdf(file, onProgress, range) {
+   'done'（这页识完了，text 是识出来的字）/ 'fail'（本页重试后仍失败，text 是占位提示）。
+   支持 AbortSignal 中断；单页失败自动重试 1 次，仍失败写占位不丢已识别页。 */
+async function ocrScannedPdf(file, onProgress, range, signal) {
+  const mkAbortErr = () => { const e = new Error('已取消识图'); e.name = 'AbortError'; e.aborted = true; return e; };
+  const checkAbort = () => { if (signal && signal.aborted) throw mkAbortErr(); };
+  const runWithAbort = p => {
+    if (!signal) return p;
+    if (signal.aborted) return Promise.reject(mkAbortErr());
+    return new Promise((resolve, reject) => {
+      const onAb = () => reject(mkAbortErr());
+      signal.addEventListener('abort', onAb, { once: true });
+      Promise.resolve(p).then(
+        v => { signal.removeEventListener('abort', onAb); resolve(v); },
+        e => { signal.removeEventListener('abort', onAb); reject(e); }
+      );
+    });
+  };
   /* 先看「图片识别」这一格配的是什么，再开始渲染（2026-11-19 / 2026-11-20）：
      35 页渲染要几十秒，314 页要一分多钟 —— 渲染完才发现模型配错纯属白等。
      两道判断都要：
@@ -1005,23 +1031,41 @@ async function ocrScannedPdf(file, onProgress, range) {
       + '发过去平台只会回一句 Model does not exist。'
       + '去首页「AI 设置 → 图片识别」换成一个带 VL 的视觉模型（如 Qwen2.5-VL / Qwen3-VL / GPT-4o / doubao-vision），再重新上传。');
   }
-  const pdf = await hximpOpenPdf(file);
+  checkAbort();
+  const pdf = await runWithAbort(hximpOpenPdf(file));
   const { from, to, total } = hximpRange(pdf.numPages, range);
   const out = [];
   for (let k = 1; k <= total; k++) {
+    checkAbort();
     const pageNo = from + k - 1;
     if (onProgress) onProgress(k, total, null, 'render', pageNo);
-    const img = await hximpRenderPage(pdf, pageNo);
+    const img = await runWithAbort(hximpRenderPage(pdf, pageNo));
+    checkAbort();
     if (onProgress) onProgress(k, total, null, 'ocr', pageNo);
-    /* 这里不包一层「第几页失败」—— 进度回调已经把「第 k/total 页」交给 ui-mat 写进 step，
-       报错文案由 humanErr 统一改写（它认得 Model does not exist 这句英文）。
-       两边都加页码只会变成「第 1 页：第 1/314 页识图失败：…」这种绕口的句子。 */
-    const txt = String(await hximpVision({
-      prompt: '把这张教材页里的文字逐字抄下来：保留段落、小标题和序号，公式、电路图用文字描述，表格逐行抄。看不清的写（看不清），不要总结、不要编、不要加自己的解释。',
-      images: [img]
-    }) || '').trim();
+    let txt = '', pageErr = null;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      checkAbort();
+      try {
+        txt = String(await runWithAbort(hximpVision({
+          prompt: '把这张教材页里的文字逐字抄下来：保留段落、小标题和序号，公式、电路图用文字描述，表格逐行抄。看不清的写（看不清），不要总结、不要编、不要加自己的解释。',
+          images: [img],
+          signal
+        })) || '').trim();
+        pageErr = null;
+        break;
+      } catch (e) {
+        if ((signal && signal.aborted) || (e && (e.name === 'AbortError' || e.aborted))) throw mkAbortErr();
+        pageErr = e;
+        const raw = String((e && e.message) || e || '');
+        if (HXIMP_VLM_RE.test(raw) || HXIMP_MODEL_MISS_RE.test(raw) || /40[13]|unauthor|invalid.*(key|token)|api[\s_-]?key|forbidden|no permission/i.test(raw)) throw e;
+      }
+    }
+    if (pageErr) {
+      const reason = String((pageErr && pageErr.message) || pageErr || '识别失败').slice(0, 60);
+      txt = `（第 ${pageNo} 页识图失败，已重试 1 次：${reason}）`;
+    }
     out.push(txt);
-    if (onProgress) onProgress(k, total, txt, 'done', pageNo);
+    if (onProgress) onProgress(k, total, txt, pageErr ? 'fail' : 'done', pageNo);
   }
   return out.join('\n\n');
 }
@@ -2332,9 +2376,13 @@ async function aiGenerate(text, subject, subjectName, opts, onProgress) {
             for (const q of result.questions) { q.__ch = m.ch; q.__sec = m.sec || null; q.__secTitle = m.secTitle || null; }
           }
           let fresh = 0;
-          for (const q of result.questions) {
+          for (let qi = 0; qi < result.questions.length; qi++) {
+            const q = result.questions[qi];
             const k = keyOf(q);
-            if (seen.has(k)) { rejected.push({ ...q, why: '与前面出过的题重复，已跳过' }); continue; }
+            if (seen.has(k)) {
+              rejected.push({ ...q, index: qi + 1, stem: String(q.stem || q.q || '').slice(0, 20), reason: '与前面出过的题重复，已跳过', why: '与前面出过的题重复，已跳过' });
+              continue;
+            }
             seen.add(k); collected.push(q); fresh++; left--;
           }
           rejected.push(...result.rejected);
@@ -3203,8 +3251,11 @@ function subPick(id) {
 /* 2026-11-08 科目建 / 改名 / 删搬到首页「管理 → 科目」面板（原建/改/删函数已删）。 */
 
 /* ---------------- 弹层 ---------------- */
-function zlModal(html) {
-  zlModalClose();
+let zlModalOpts = null;
+function zlModal(html, opts) {
+  zlModalClose(true);
+  const o = opts && typeof opts === 'object' ? opts : {};
+  zlModalOpts = { onClose: typeof o.onClose === 'function' ? o.onClose : null, locked: !!o.locked };
   const w = document.createElement('div');
   w.className = 'zl-modal'; w.id = 'zlModal';
   w.innerHTML = `<div class="zl-mcard card" role="dialog" aria-modal="true">${html}</div>`;
@@ -3212,8 +3263,21 @@ function zlModal(html) {
   document.body.appendChild(w);
   return w;
 }
-function zlModalClose() { const m = $('zlModal'); if (m) m.remove(); }
-addEventListener('keydown', e => { if (e.key === 'Escape') zlModalClose(); });
+function zlModalLock(v) { if (zlModalOpts) zlModalOpts.locked = !!v; }
+function zlModalClose(force) {
+  const m = $('zlModal');
+  if (!m) { zlModalOpts = null; return true; }
+  if (!force && zlModalOpts && zlModalOpts.locked) {
+    toast('操作进行中，请先等待完成');
+    return false;
+  }
+  const cb = zlModalOpts && zlModalOpts.onClose;
+  zlModalOpts = null;
+  m.remove();
+  if (cb) { try { cb(); } catch (e) { } }
+  return true;
+}
+addEventListener('keydown', e => { if (e.key === 'Escape' && $('zlModal')) zlModalClose(); });
 
 /* ---------------- 页面切换 ---------------- */
 function showP(k) {
@@ -3228,8 +3292,12 @@ function showP(k) {
   if (k === 'mat') return matHome();
   if (k === 'bank') return qbHome();
 }
-/* 总入口左上角「返回」：题池退回资料页，资料页再退就交给外壳回首页 */
-window.HXBack = function () { if (CUR_P !== 'mat') { showP('mat'); return true; } return false; };
+/* 总入口左上角「返回」：先关弹层（若 locked 提示不强关），再从题池退回资料页，资料页再退就交给外壳回首页 */
+window.HXBack = function () {
+  if ($('zlModal')) { zlModalClose(); return true; }
+  if (CUR_P !== 'mat') { showP('mat'); return true; }
+  return false;
+};
 
 /* ---------------- 开机 ---------------- */
 function gate(t, sub) {
@@ -3532,6 +3600,7 @@ function matHome() {
           <span class="mat-pg-t" id="matPgT"></span>
           <span class="mat-pg-w" id="matPgW"></span>
           <b class="mat-pg-v" id="matPgV">0%</b>
+          <button type="button" class="sm" id="matPgCancel" hidden>取消</button>
         </div>
         <div class="mat-pg-track" id="matPgBar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
           <i class="mat-pg-fill" id="matPgFill"></i>
@@ -3645,13 +3714,15 @@ function matDrawList() {
    2026-11-15：按段读也要等网络，原来按钮毫无反应（只有下方盒子在变），改成按钮转圈，
    失败原因同时写进按钮 title，鼠标移上去能看到为什么没出来。 */
 async function matView(id, btn) {
-  const box = $('matView'); if (!box) return;
+  const sid = MAT_sid();
+  const box = $('matView'); if (!box || sid == null) return;
   const tok = HXBusy.begin(btn, '正在读…');
   const m = MAT_LIST.find(x => +x.id === id) || {};
   box.innerHTML = `<div class="mat-v">${fxLoad('正在读原文…')}</div>`;
   if (window.HXLoadFx) HXLoadFx.auto(box);
   try {
     const r = await MAT_call('hx_exam_chunk_get', { p_material_id: id });
+    if (MAT_sid() !== sid || !box.isConnected) return;
     if (!r.ok) { box.innerHTML = `<div class="errs">${esc(r.err)}</div>`; HXBusy.end(tok, r.err); return; }
     const arr = Array.isArray(r.data) ? r.data : [];
     box.innerHTML = `<div class="mat-v" id="matViewBox">
@@ -3723,8 +3794,18 @@ function MAT_pgRun() {
     w.textContent = s >= 1 ? '已等 ' + s + ' 秒' : '';
   }, 1000);
 }
+function MAT_pgCancelSet(ac) {
+  const b = $('matPgCancel'); if (!b) return;
+  if (!ac) { b.hidden = true; b.disabled = false; b.textContent = '取消'; b.onclick = null; return; }
+  b.hidden = false; b.disabled = false; b.textContent = '取消';
+  b.onclick = () => {
+    try { ac.abort(); } catch (e) { }
+    b.disabled = true; b.textContent = '正在取消…';
+  };
+}
 function MAT_pgEnd(ok, text) {
   clearInterval(MAT_PG_TICK); MAT_PG_TICK = 0;
+  MAT_pgCancelSet(null);
   const w = $('matPgW'); if (w) w.textContent = '';
   MAT_pg(100, text, ok ? 'ok' : 'bad');
 }
@@ -3782,17 +3863,19 @@ async function matUpload(files) {
   const tok = HXBusy.begin($('matPick'), '正在上传…');
   MAT_BUSY = true;
   MAT_pgRun();
+  const ocrAc = typeof AbortController === 'function' ? new AbortController() : null;
   const bad = [], warn = [];
-  let okN = 0, segN = 0, tocN = 0;
+  let okN = 0, segN = 0, tocN = 0, cancelled = false;
   /* 页码范围在读文件前就读定：上传中途老师可能切走页面，输入框一没了就会退回「整本」，
      那等于把 314 页全转一遍 —— 一次读定，整批文件都用同一个范围。 */
   const range = MAT_PAGE_RANGE();
   for (let i = 0; i < files.length; i++) {
+    if (ocrAc && ocrAc.signal.aborted) { cancelled = true; break; }
     const f = files[i];
     let step = '读文件';
     /* 总进度 =（已处理完的文件数 + 本文件内部进度）/ 文件数。内部进度的区间：
        读文件 2% → AI 识图 10% → 上传原文件 35%~70%（真实字节）→ 登记 74% → 写切段 84% → 100%。 */
-    const pg = (inner, text) => MAT_pg(((i + Math.max(0, Math.min(1, inner))) / files.length) * 100, `（${i + 1}/${files.length}）${f.name}：` + text);
+    const pg = (inner, text) => { if (MAT_sid() === sid) MAT_pg(((i + Math.max(0, Math.min(1, inner))) / files.length) * 100, `（${i + 1}/${files.length}）${f.name}：` + text); };
     const say = (s, inner) => { step = s; pg(inner == null ? 0 : inner, s + '…'); };
     try {
       say('读文件', 0.02);
@@ -3800,26 +3883,29 @@ async function matUpload(files) {
       let text = String(got.text || '');
       if (got.image) { say('AI 识图', 0.10); text = await HXImp.ocrImages([got.image]); }
       if (got.scannedPdf) {
-        /* 扫描 PDF：逐页 AI 识图（Z7/B12，花用户 AI 额度）。每页报一次进度，断在哪页一眼可见。
-           2026-11-20：ocrScannedPdf 改成「渲染一页 → 识一页」，回调多一个 stage：
-             'render' 正在把这页转成图片 / 'ocr' 已渲染完、正要送模型 / 'done' 这页识完了。
-           为什么非得分清：用户 314 页教材那次，报的是「第 314/314 页转成图片」失败 ——
-           其实渲染全跑完了，炸的是第 1 页识图（模型配成了文生图）。两句共用一句文案，
-           就会把「渲染进度」误读成「失败页号」，老师只会以为书太大转不动。 */
+        /* 扫描 PDF：逐页 AI 识图（Z7/B12，花用户 AI 额度）。支持取消按钮（AbortController）与单页重试容错。 */
         say('准备逐页 AI 识图', 0.06);
-        text = await HXImp.ocrScannedPdf(got.scannedPdf, (k, total, t, stage) => {
-          const frac = total ? Math.min(1, k / total) : 0;
-          if (stage === 'render') {
-            step = '把第 ' + k + '/' + total + ' 页转成图片';
-            pg(0.06 + 0.04 * frac, `正在把第 ${k}/${total} 页转成图片（共 ${total} 页，这份是扫描件）`);
-          } else if (stage === 'ocr') {
-            step = '逐页 AI 识图（第 ' + k + '/' + total + ' 页）';
-            pg(0.10 + 0.25 * frac, `正在识图第 ${k}/${total} 页（共 ${total} 页）`);
-          } else {
-            step = '逐页 AI 识图（第 ' + k + '/' + total + ' 页）';
-            pg(0.10 + 0.25 * frac, `逐页 AI 识图 ${k}/${total} 页` + (t ? `（本页识出 ${t.length} 字）` : '（这页没识出字）'));
-          }
-        }, range);
+        if (MAT_sid() === sid) MAT_pgCancelSet(ocrAc);
+        try {
+          text = await HXImp.ocrScannedPdf(got.scannedPdf, (k, total, t, stage) => {
+            const frac = total ? Math.min(1, k / total) : 0;
+            if (stage === 'render') {
+              step = '把第 ' + k + '/' + total + ' 页转成图片';
+              pg(0.06 + 0.04 * frac, `正在把第 ${k}/${total} 页转成图片（共 ${total} 页，这份是扫描件）`);
+            } else if (stage === 'ocr') {
+              step = '逐页 AI 识图（第 ' + k + '/' + total + ' 页）';
+              pg(0.10 + 0.25 * frac, `正在识图第 ${k}/${total} 页（共 ${total} 页）`);
+            } else if (stage === 'fail') {
+              step = '逐页 AI 识图（第 ' + k + '/' + total + ' 页）';
+              pg(0.10 + 0.25 * frac, `逐页 AI 识图 ${k}/${total} 页（本页重试后仍失败，已写占位继续）`);
+            } else {
+              step = '逐页 AI 识图（第 ' + k + '/' + total + ' 页）';
+              pg(0.10 + 0.25 * frac, `逐页 AI 识图 ${k}/${total} 页` + (t ? `（本页识出 ${t.length} 字）` : '（这页没识出字）'));
+            }
+          }, range, ocrAc ? ocrAc.signal : undefined);
+        } finally {
+          MAT_pgCancelSet(null);
+        }
       }
       text = text.replace(/\r/g, '').trim();
       if (!text) throw new Error('没读到任何文字（可能是空白页或加密文件）');
@@ -3872,6 +3958,11 @@ async function matUpload(files) {
       if (toc.length) tocN++;
       pg(1, '完成（' + keep.length + ' 段）');
     } catch (e) {
+      if ((ocrAc && ocrAc.signal.aborted) || (e && (e.name === 'AbortError' || e.aborted))) {
+        cancelled = true;
+        bad.push(f.name + '：已取消识图');
+        break;
+      }
       /* 2026-11-19：上游报错一律过一遍 HXImp.humanErr —— 老师看到的必须是中文 + 「怎么办」，
          不能再把 "The model is not a VLM…" 这种原文甩出去。模型名按这一步用到的是哪种能力取。
          2026-11-20：多传一个 cap —— 报错要指名「图片识别」这一格，老师照着改的才对
@@ -3883,11 +3974,14 @@ async function matUpload(files) {
   MAT_BUSY = false;
   const tail = (okN ? `传好 ${okN} 份，切成 ${segN} 段`
     + (tocN ? `（${tocN} 份已做好章 / 节目录）` : '') + '。' : '') + (warn.length ? ' ' + warn.join('；') + '。' : '')
-    + (bad.length ? ' 有 ' + bad.length + ' 份没传成：' + bad.join('；') : '');
-  MAT_pgEnd(!bad.length, tail);
+    + (bad.length ? (cancelled ? ' ' + bad.join('；') : ' 有 ' + bad.length + ' 份没传成：' + bad.join('；')) : '');
+  if (MAT_sid() === sid) MAT_pgEnd(!bad.length, tail);
+  else { clearInterval(MAT_PG_TICK); MAT_PG_TICK = 0; MAT_pgCancelSet(null); }
   HXBusy.end(tok, bad.length ? bad.join('；') : null);   // 有失败就把原因挂到按钮 title，悬停能看到
   if (!bad.length) toast('上传完成');
-  await matReload(true);   // 刚传完：绕过缓存，新资料立刻出现在列表里
+  else if (cancelled) toast('已取消识图');
+  cacheDrop('mat:' + sid);
+  if (MAT_sid() === sid) await matReload(true);   // 刚传完：仍在同一科目才刷新列表
   loadSubjects(true);      // 科目卡片上的「N 份资料」也跟着变
 }
 
@@ -3945,8 +4039,11 @@ async function matGenRun() {
      取值一律带兜底 —— 界面将来改结构时宁可退回默认 2，也别让整页 TypeError。 */
   const subEl = $('mgSub');
   const subCount = qt.builtin ? undefined : Math.max(1, Math.min(5, Math.round(+(subEl ? subEl.value : 2) || 2)));
-  const state = $('mgState');
   const sub = curSub();
+  if (!sub) return;
+  const alive = () => CUR_P === 'mat' && MAT_sid() === sub.id && !!$('mgOut');
+  const setState = msg => { if (!alive()) return; const el = $('mgState'); if (el) el.textContent = msg; };
+  const stateProxy = { set textContent(v) { setState(v); } };
   /* 2026-11-15：出题是整页最长的动作（按段喂模型，可能几分钟），而且前面还要逐份读切段。
      三道反馈一起上：
      ① #mgGo 转圈 + 每 400ms 刷「已等 N 秒」，20 秒后变暖色 —— 证明它没死；
@@ -3966,7 +4063,7 @@ async function matGenRun() {
       ? picks.map(id => ({ mid: +id }))
       : [{ mid: null, text: extra, tag: '老师手写的要求' }];
     if (!picks.length && !extra) {
-      state.textContent = '';
+      setState('');
       toast('没勾资料时，请在「额外要求」里写下要出题的内容');
       HXBusy.end(tok); MAT_BUSY = false; return;
     }
@@ -3984,7 +4081,7 @@ async function matGenRun() {
       const mid = job.mid;
       try {
         if (picks.length) {
-          state.textContent = where + '正在读资料…';
+          setState(where + '正在读资料…');
           /* 只读这一份：原来传的是 picks 整组，拼成一大段后结构和来源都糊在一起。
              state 传 null —— matCollect 里的进度写的是「第 1/1 份」，会把上面那句
              「第 2/5 份」盖掉，逐份出题时它这句反而更容易让人以为只勾了一份。 */
@@ -3996,7 +4093,7 @@ async function matGenRun() {
              ch / sec 去出题 —— ch 不再由模型每题自己猜。老资料没有 toc 就现场补一次并写回云端。 */
           toc = await MAT_toc(mid);
           if (!toc) {
-            state.textContent = where + '正在识别这份资料的章节目录…';
+            setState(where + '正在识别这份资料的章节目录…');
             try { toc = await HXImp.buildToc(text); } catch (e) { toc = null; }
             if (toc && toc.length) await MAT_tocSave(mid, toc);
           }
@@ -4005,7 +4102,7 @@ async function matGenRun() {
         } else {
           text = job.text; tag = job.tag;
         }
-        state.textContent = where + '正在准备出题…' + (want > 24 ? `（${want} 道会分批要，可能要几分钟）` : '');
+        setState(where + '正在准备出题…' + (want > 24 ? `（${want} 道会分批要，可能要几分钟）` : ''));
         const res = await HXImp.aiGenerate(text, sub.key, sub.name, {
           types: { [engineT]: want },
           level, extra: picks.length ? extra : '', thinkLevel: think || undefined,
@@ -4015,15 +4112,15 @@ async function matGenRun() {
           customKeys: qt.builtin ? [] : [engineT],
           typeNames: { [engineT]: qt.name },
           subCount,
-        }, msg => { state.textContent = where + msg; });
+        }, msg => { setState(where + msg); });
         /* 章节分级信任（2026-11-20）：目录 / 题干 / 模型推测 三级，上下文（资料名 + 目录）一起给，
            这样模型猜的章号只有在「这份资料真的覆盖那一章」时才被采信。 */
         const ctx = { matName: tag || '', toc };
         const items = res.questions.map(q => MAT_toDb(q, (tag || 'AI') + ' · AI 出题', ctx));
         allItems.push(...items);
         allRejected.push(...res.rejected);
-        state.textContent = where + `出了 ${res.questions.length} 道` + (res.rejected.length ? `，${res.rejected.length} 道没收下` : '') + '，正在入池…';
-        const r = await matGenCommit(items, mid, sub.id, state);
+        setState(where + `出了 ${res.questions.length} 道` + (res.rejected.length ? `，${res.rejected.length} 道没收下` : '') + '，正在入池…');
+        const r = await matGenCommit(items, mid, sub.id, stateProxy);
         added += r.added || 0; dup += r.dup || 0;
         if (r && r.ok === false) commitBad = true;
         doneN++;
@@ -4036,7 +4133,7 @@ async function matGenRun() {
           allItems.push(...items);
           allRejected.push(...(e.partialRejected || []));
           try {
-            const r = await matGenCommit(items, mid, sub.id, state);
+            const r = await matGenCommit(items, mid, sub.id, stateProxy);
             added += r.added || 0; dup += r.dup || 0;
             if (r && r.ok === false) commitBad = true;
             doneN++;
@@ -4059,14 +4156,16 @@ async function matGenRun() {
       multi: jobs.length > 1,
       sid: sub.id, qt: qt.name
     };
-    if (!fails.length) state.textContent = `出了 ${allItems.length} 道，入池 ${added} 道` + (dup ? `，重复跳过 ${dup} 道` : '');
-    matGenDraw();
+    if (alive()) {
+      if (!fails.length) setState(`出了 ${allItems.length} 道，入池 ${added} 道` + (dup ? `，重复跳过 ${dup} 道` : ''));
+      matGenDraw();
+    }
     if (fails.length) {
       MAT_banner('有 ' + fails.length + ' 份没出成：' + fails.join('；') + '（其余已入池 ' + added + ' 道）');
       HXBusy.end(tok, fails.join('；'));
     }
   } catch (e) {
-    state.textContent = '';
+    setState('');
     MAT_banner('出题失败：' + (e && e.message ? e.message : e));
     HXBusy.end(tok, (e && e.message) || String(e));
   } finally { MAT_BUSY = false; HXBusy.end(tok); }
@@ -4146,7 +4245,7 @@ function matGenDraw() {
       <span class="note">答案：${esc(String(MAT_ANS_ROW(q)).slice(0, 140))}</span>
       ${q.chSrc === 'ai' ? `<span class="note">（第 ${q.ch} 章 · AI 推测，请核对）</span>` : ''}
       ${q.chSrc === 'none' && !q.ch ? '<span class="note">（未标章节）</span>' : ''}</span></div>`).join('')}</div>
-    ${rej.length ? `<details class="mg-rej"><summary>${rej.length} 道没收下</summary><ul>${rej.map(r => `<li>第 ${r.index} 条「${esc(r.stem)}」：${esc(r.reason)}</li>`).join('')}</ul></details>` : ''}
+    ${rej.length ? `<details class="mg-rej"><summary>${rej.length} 道没收下</summary><ul>${rej.map((r, i) => `<li>第 ${esc(r.index ?? (i + 1))} 条「${esc(r.stem || r.q || '')}」：${esc(r.reason || r.why || '')}</li>`).join('')}</ul></details>` : ''}
     <div class="row" style="margin-top:10px"><button class="sm" id="mgGoQb">去题池看这批题</button>
       ${ok && ok.ok === false
         ? (MAT_GEN.multi
@@ -4158,7 +4257,7 @@ function matGenDraw() {
       <span class="note">不满意的到题池里按题型筛出来批量删掉就行</span></div>
   </div>`;
   const b = out.querySelector('#mgGoQb');
-  if (b) b.onclick = () => { if (typeof qbHome === 'function') qbHome(); };
+  if (b) b.onclick = () => { if (typeof showP === 'function') showP('bank'); else if (typeof qbHome === 'function') qbHome(); };
   /* 入池失败时别让老师白瞎这一批 AI 额度（2026-11-20：自建题型被后端挡住，20 道题生成出来了却进不去）。
      题目还在内存里，给一颗「重新写入题池」直接重试，不必重新出题。
      多份批次那颗按钮是 disabled 的（见上），这里也 guard 一下，别给一个点了会丢 material_id 的入口。 */
@@ -4239,7 +4338,7 @@ function matChNum(text) {
 }
 /* 这份资料实际覆盖的章节区间：优先用目录（min/max）；没有目录就从资料名里的「项目3」推。 */
 function chRangeOf(matName, toc) {
-  const list = (Array.isArray(toc) ? toc : []).map(c => (+c && +c.ch) || 0).filter(n => n > 0);
+  const list = (Array.isArray(toc) ? toc : []).map(c => (c && typeof c === 'object' ? +c.ch : +c) || 0).filter(n => n > 0);
   if (list.length) return { min: Math.min(...list), max: Math.max(...list) };
   const n = matChNum(matName);
   return n ? { min: n, max: n } : null;
@@ -4461,6 +4560,13 @@ const QB_OIMG = q => {
   return '';
 };
 const QB_URL = q => QB_OIMG(q) || QB_IMG(q && q.fig);
+const QB_OPTS = q => {
+  const o = q && q.o;
+  if (Array.isArray(o)) return o;
+  if (o && typeof o === 'object' && Array.isArray(o.opts)) return o.opts;
+  return [];
+};
+const QB_FIG_KEY = q => QB_URL(q) || String((q && q.fig) || '');
 const QB_HASFIG = q => !!QB_URL(q) || (typeof HXFig !== 'undefined' && HXFig.hasFig(String((q && q.fig) || '')));
 const QB_FALLBACK = { choice: '选择', fill: '填空', judge: '判断', term: '名词解释', short: '简答', prog: '程序分析' };
 /* 2026-11-19：题型名不再写死 —— 老师可以自己加题型（如「实操」）、给内置题型改名，
@@ -4478,7 +4584,11 @@ function qbCnBuild() {
 }
 let QB_ALL = [], QB_T = '', QB_CH = '', QB_SEC = '', QB_K = '', QB_KW = '', QB_KN = [], QB_SEL = new Set();
 /* 补章节的撤销快照：qbHome 的模板要按它决定按钮文字，所以在最前面声明 */
-var QB_CH_UNDO = [];
+var QB_CH_UNDO = [], QB_CH_UNDO_SID = null;
+const qbChUndoActive = () => {
+  const sid = typeof MAT_sid === 'function' ? MAT_sid() : null;
+  return !!(QB_CH_UNDO.length && sid != null && QB_CH_UNDO_SID != null && String(QB_CH_UNDO_SID) === String(sid));
+};
 
 function qbHome() {
   QB_T = ''; QB_CH = ''; QB_SEC = ''; QB_K = ''; QB_KW = ''; QB_KN = []; QB_ALL = []; QB_SEL = new Set();
@@ -4508,14 +4618,19 @@ function qbHome() {
         </div>
         <div class="qb-acts">
           <button class="sm" id="qbRefresh">刷新</button>
-          <button class="sm" id="qbCleanNo" title="去掉题干里抄来的教材编号（任务1.1 / 例1-1 / 习题3-2 / 第3题）">清理题干编号</button>
-          <button class="sm" id="qbSrc" title="挑出「学生只看这道题就看不懂」的题干（指向教材图/表/例题、缺条件要靠翻书），可删可改写">清题干依赖教材</button>
-          <button class="sm" id="qbGuessCh" title="给没有章节号的题，按「来源资料名 / 题干里的项目号」倒推章节（只补空着的）">${QB_CH_UNDO.length ? '撤销补章节' : '按来源补章节'}</button>
-          <button class="sm" id="qbDedup">AI 查重</button>
-          <button class="sm" id="qbTag" title="给还没有知识点的题批量打标签，题池就能按知识点筛">AI 打知识点</button>
           <button class="sm" id="qbSyncQuiz" title="把本科目题池按现状同步到已发布的刷题题库（只更新发布过的那几道，不新增题）">同步到刷题</button>
-          <button class="sm danger" id="qbClear">清空题池</button>
           <button class="sm pri" id="qbPub">发布到刷题</button>
+          <details class="qb-more" id="qbMore">
+            <summary class="btn sm">更多维护 ▾</summary>
+            <div class="qb-more-menu">
+              <button class="sm" id="qbCleanNo" title="去掉题干里抄来的教材编号（任务1.1 / 例1-1 / 习题3-2 / 第3题）">清理题干编号</button>
+              <button class="sm" id="qbSrc" title="挑出「学生只看这道题就看不懂」的题干（指向教材图/表/例题、缺条件要靠翻书），可删可改写">清题干依赖教材</button>
+              <button class="sm" id="qbGuessCh" title="给没有章节号的题，按「来源资料名 / 题干里的项目号」倒推章节（只补空着的）">${qbChUndoActive() ? '撤销补章节' : '按来源补章节'}</button>
+              <button class="sm" id="qbDedup">AI 查重</button>
+              <button class="sm" id="qbTag" title="给还没有知识点的题批量打标签，题池就能按知识点筛">AI 打知识点</button>
+              <button class="sm danger" id="qbClear">清空题池</button>
+            </div>
+          </details>
         </div>
         <!-- 2026-11-19：批量选择条。用户原话「还缺少筛选状态下的全选按钮…比如我想删减全部已生成的填空题池」
              两层全选：①当前筛选（受题型+章节+小节+知识点+关键词过滤，再点一次就是取消这批）②反选。
@@ -4680,7 +4795,9 @@ async function qbLoad(btn) {
     qbRebuildFilters();             // 按题型全选那个下拉要知道每类有多少道
     /* 撤销快照跟着科目走：切到别的科目就把上一科目的快照丢掉（别把电气题写进单片机） */
     if (DEDUP_UNDO.length && String(DEDUP_UNDO_SID) !== String(sid)) qbUndoDrop();
+    if (QB_CH_UNDO.length && String(QB_CH_UNDO_SID) !== String(sid)) { QB_CH_UNDO = []; QB_CH_UNDO_SID = null; }
     qbUndoPaint();
+    qbGuessChPaint();
     qbDrawStat(); qbDraw();
   } finally { HXBusy.end(tok); }
 }
@@ -4799,7 +4916,7 @@ function qbDraw() {
       <div class="qb-body">
         <div class="qb-q"><span class="qb-t">${esc(QB_CN[q.t] || q.t)}</span>${q.ch != null && +q.ch > 0 ? `<span class="qb-t qb-ch">第 ${q.ch} 章</span>` : ''}${q.sec ? `<span class="qb-t qb-sec" title="教材小节">${esc(q.sec)}${q.secTitle ? ' ' + esc(q.secTitle) : ''}</span>` : ''}${QB_HASFIG(q) ? `<span class="qb-t qb-figb" title="带图：${esc(QB_URL(q) ? '上传试卷里的原图' : (HXFig.figName(q.fig) || q.fig))}">图 · ${esc(QB_URL(q) ? '图片' : (HXFig.figName(q.fig) || q.fig))}</span>` : ''}${esc(q.q)}</div>
         ${QB_HASFIG(q) ? `<div class="qb-figprev">${QB_URL(q) ? `<img src="${esc(QB_URL(q))}" alt="配图" style="max-height:130px;max-width:100%;object-fit:contain">` : HXFig.figSvg(q.fig)}</div>` : ''}
-        ${Array.isArray(q.o) && q.o.length && q.t === 'choice' ? `<div class="qb-o">${q.o.map(o => `<span>${esc(o.key)}. ${esc(o.text)}</span>`).join('')}</div>` : ''}
+        ${q.t === 'choice' && QB_OPTS(q).length ? `<div class="qb-o">${QB_OPTS(q).map(o => `<span>${esc(o.key)}. ${esc(o.text)}</span>`).join('')}</div>` : ''}
         ${q.code ? `<pre class="qb-code">${esc(q.code)}</pre>` : ''}
         <div class="qb-a">${q.knowledge ? `<span class="qb-t">知识点</span>${esc(q.knowledge)} · ` : ''}${QB_IS_CUSTOM(q.t) ? '参考要点' : '答案'}：${esc(String(QB_ans(q)).slice(0, 300))}${q.src ? ' ｜ ' + esc(q.src) : ''}</div>
       </div>
@@ -5040,7 +5157,8 @@ async function qbSrcApply(mode, btn) {
       if (failMsg) MAT_banner('改写：改好 ' + done + ' 道，后面停下了（' + failMsg + '）。');
       else toast(`改好 ${done} 道（题池编号没变）`);
       /* 改过的从列表里摘掉，免得看着像没改 */
-      U.items = U.items.filter(x => !(x.fix && done && can.indexOf(x) < done));
+      const doneSet = new Set(can.slice(0, done));
+      U.items = U.items.filter(x => !doneSet.has(x));
       U.on.clear();
       qbSrcPaint();
       qbDraw();
@@ -5075,6 +5193,7 @@ async function qbSrcApply(mode, btn) {
    原则：**只补空着的 ch，已有章节的一道都不动**；补之前先把原值记下来，按钮变「撤销补章节」。 */
 const QB_CH_CN = { '一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9, '十': 10 };
 QB_CH_UNDO = [];         // [{id, ch}] 补之前的原值，用于一键还原（声明在上面，模板要用）
+QB_CH_UNDO_SID = null;
 
 /* 从一段文字里投票猜章节：项目N / 第N章 权重 3，图N-x 权重 2，N.x 权重 1。
    同一句里出现两个（「项目二…第一章」）取票多的 —— 实测这类来源出的题内容都是项目二那章，
@@ -5094,15 +5213,20 @@ function qbChFromText(s) {
 function qbGuessCh(q) {
   return qbChFromText(q.src) || qbChFromText(q.q) || 0;
 }
-/* 按钮文字 = 当前状态：有快照就显示「撤销补章节」。工具栏重画后要重新调一次。 */
+/* 按钮文字 = 当前状态：有本科目快照就显示「撤销补章节」。工具栏重画后要重新调一次。 */
 function qbGuessChPaint() {
   const b = $('qbGuessCh');
-  if (b) { b.textContent = QB_CH_UNDO.length ? '撤销补章节' : '按来源补章节'; b.setAttribute('data-p', String(QB_CH_UNDO.length)); }
+  const on = qbChUndoActive();
+  if (b) { b.textContent = on ? '撤销补章节' : '按来源补章节'; b.setAttribute('data-p', String(on ? QB_CH_UNDO.length : 0)); }
 }
 
 async function qbGuessChRun(btn) {
-  /* 已经有快照 = 这一次点击是「撤销」 */
-  if (QB_CH_UNDO.length) {
+  const sid = MAT_sid();
+  if (QB_CH_UNDO.length && (sid == null || QB_CH_UNDO_SID == null || String(QB_CH_UNDO_SID) !== String(sid))) {
+    QB_CH_UNDO = []; QB_CH_UNDO_SID = null; qbGuessChPaint();
+  }
+  /* 已经有本科目快照 = 这一次点击是「撤销」 */
+  if (qbChUndoActive()) {
     const list = QB_CH_UNDO.slice();
     if (!await hxConfirm(`撤销刚才的补章节？\n\n这 ${list.length} 道题会恢复成「未标章节」，别的题不受影响。`)) return;
     const tok = HXBusy.begin(btn, '正在撤销…');
@@ -5113,7 +5237,7 @@ async function qbGuessChRun(btn) {
         if (!r.ok) { bad = '第 ' + x.id + ' 道没还原：' + (r.err || '未知错误'); break; }
         n++;
       }
-      if (!bad) { QB_CH_UNDO = []; toast('已撤销，' + n + ' 道题恢复成未标章节'); }
+      if (!bad) { QB_CH_UNDO = []; QB_CH_UNDO_SID = null; toast('已撤销，' + n + ' 道题恢复成未标章节'); }
       else MAT_banner('撤销补章节：还原了 ' + n + ' 道，后面停下了（' + bad + '）。');
     } finally { HXBusy.end(tok); }
     setTimeout(qbGuessChPaint, 420);   // 同上：等 HXBusy 把手里的按钮还原完
@@ -5135,6 +5259,7 @@ async function qbGuessChRun(btn) {
   const tok = HXBusy.begin(btn, '正在补章节…');
   let done = 0, bad = '';
   QB_CH_UNDO = [];
+  QB_CH_UNDO_SID = sid;
   try {
     for (const { q, ch } of todo) {
       const r = await MAT_call('hx_exam_qbank_update', { p_id: +q.id, p_patch: { ch: ch } });
@@ -5143,6 +5268,7 @@ async function qbGuessChRun(btn) {
       q.ch = ch;
       done++;
     }
+    if (!QB_CH_UNDO.length) QB_CH_UNDO_SID = null;
     if (bad) MAT_banner('补章节：补好 ' + done + ' 道，后面停下了（' + bad + '）。已经补的保留。');
     else toast('给 ' + done + ' 道题补上了章节');
   } finally { HXBusy.end(tok); }
@@ -5195,8 +5321,9 @@ async function qbDedup(btn) {
        一点删除就只剩 1 道 —— 和当初误删疑似重复是同一类事故。 */
     const seen = {};
     QB_ALL.forEach(q => {
-      const k = q.t + '|' + norm(q.q) + '|' + String(q.fig || '');
-      if (seen[k]) pairs.push({ a: seen[k], b: q, why: '题干完全相同' + (q.fig ? '（同一张图）' : ''), kind: 'exact' });
+      const fk = QB_FIG_KEY(q);
+      const k = q.t + '|' + norm(q.q) + '|' + fk;
+      if (seen[k]) pairs.push({ a: seen[k], b: q, why: '题干完全相同' + (fk ? '（同一张图）' : ''), kind: 'exact' });
       else seen[k] = q;
     });
     // ② AI 语义比对：把题按 DEDUP_BATCH 道一批分着送，逐批报进度
@@ -5236,7 +5363,7 @@ function qbDedupTidy(list) {
   list.forEach(p => {
     if (!p || !p.a || !p.b || String(p.a.id) === String(p.b.id)) return;
     /* 题干一样的，只要**图也一样**才算「完全相同」（图不同就是两道题） */
-    const same = norm(p.a.q) === norm(p.b.q) && String(p.a.fig || '') === String(p.b.fig || '');
+    const same = norm(p.a.q) === norm(p.b.q) && QB_FIG_KEY(p.a) === QB_FIG_KEY(p.b);
     const kind = same ? 'exact' : p.kind;
     const x = String(p.a.id), y = String(p.b.id);
     const k = x < y ? x + '|' + y : y + '|' + x;
@@ -5276,7 +5403,7 @@ async function qbDedupAI(onP) {
 }
 /* 一批（≤ DEDUP_BATCH 道）→ 重复题对。编号 a/b 是**这一批内**的下标，对回 chunk 里的题。 */
 async function qbDedupAIBatch(chunk, batchNo) {
-  const list = chunk.map((q, i) => ({ i, t: q.t, fig: q.fig, stem: String(q.q || '').slice(0, 300) }));
+  const list = chunk.map((q, i) => ({ i, t: q.t, fig: QB_FIG_KEY(q), stem: String(q.q || '').slice(0, 300) }));
   const prompt = '下面是同一个题库里的 ' + list.length + ' 道题（编号从 0 开始）。请找出「考同一个知识点、可以算重复」的题对——'
     + '哪怕措辞不一样，只要考的是同一个考点就算重复；只是同属一章但考点不同的不算。\n'
     + '注意：**不同题型之间**考同一个考点的（例如一道选择、一道判断问的是同一件事）也要报出来，'
@@ -5284,7 +5411,7 @@ async function qbDedupAIBatch(chunk, batchNo) {
     + '**带图的题要特别小心**：题干写着「图中的符号表示（ ）」这类，图不同就是完全不同的题'
     + '（［图：xxx］标注不一样），不要当成重复。\n'
     + '只输出 JSON，格式：{"pairs":[{"a":编号,"b":编号,"why":"一句话说明为什么重复"}]}，没有重复就 {"pairs":[]}。\n'
-    + '题目：\n' + list.map(x => '[' + x.i + ']（' + QB_CN[x.t] + '）' + x.stem + (x.fig ? '［图：' + (HXFig.figName(x.fig) || x.fig) + '］' : '')).join('\n');
+    + '题目：\n' + list.map(x => '[' + x.i + ']（' + QB_CN[x.t] + '）' + x.stem + (x.fig ? '［图：' + ((typeof HXFig !== 'undefined' && HXFig.figName(x.fig)) || x.fig) + '］' : '')).join('\n');
   const res = await hximpChat([{ role: 'system', content: '你是严谨的题库审题员，只返回合法 JSON。' }, { role: 'user', content: prompt }], { json: true });
   const obj = qbParseJsonLoose(typeof res === 'string' ? res : JSON.stringify(res), batchNo);
   const arr = (obj && obj.pairs) || [];
@@ -5310,7 +5437,7 @@ function qbParseJsonLoose(text, batchNo) {
     for (let i = raw.length - 1; i > a; i--) {
       if (raw[i] !== '}') continue;
       const head = raw.slice(a, i + 1);
-      for (const tail of [']}', ']}']) {
+      for (const tail of [']}']) {
         try { const o = JSON.parse(head + tail); if (o && typeof o === 'object') return o; } catch (e2) { }
       }
     }
@@ -5425,8 +5552,15 @@ function qbDedupDraw(pairs, warn) {
     <div class="qb-seg" id="qbDedupSeg" role="tablist"></div>
     <div id="qbDedupBody"></div>
     <div class="errs" id="qbDedupErr" hidden></div>
-    <div class="row"><button id="qbDedupCancel">关闭</button></div>`);
-  $('qbDedupCancel').onclick = () => { DEDUP_UI = null; zlModalClose(); qbLoad(); loadSubjects(true); };
+    <div class="row"><button id="qbDedupCancel">关闭</button></div>`, {
+    onClose: () => {
+      if (!DEDUP_UI) return;
+      DEDUP_UI = null;
+      qbLoad();
+      loadSubjects(true);
+    }
+  });
+  $('qbDedupCancel').onclick = () => zlModalClose();
   qbDedupSeg();
   qbDedupPaint();
 }
@@ -5448,7 +5582,7 @@ function qbDedupSide(q, side) {
   return `<button type="button" class="qb-dside" data-side="${side}" data-qid="${esc(q.id)}" aria-pressed="false">
       <span class="qb-dsd" aria-hidden="true"></span>
       <span class="qb-dsm">${side === 'a' ? '上' : '下'}</span>
-      <span class="qb-dst"><b class="qb-t">${esc(QB_CN[q.t] || q.t)}</b>${q.fig ? `<b class="qb-t qb-figb">图 · ${esc(HXFig.figName(q.fig) || q.fig)}</b>` : ''}${esc(stem)}</span>
+      <span class="qb-dst"><b class="qb-t">${esc(QB_CN[q.t] || q.t)}</b>${QB_HASFIG(q) ? `<b class="qb-t qb-figb">图 · ${esc(QB_URL(q) ? '图片' : (HXFig.figName(q.fig) || q.fig))}</b>` : ''}${esc(stem)}</span>
       <span class="qb-dtag">保留</span>
     </button>`;
 }
@@ -5539,11 +5673,9 @@ async function qbDedupDel() {
   const tok = HXBusy.begin(box.querySelector('[data-dgo]'), '正在删…');
   const gone = new Set();
   try {
-    for (const id of ids) {
-      const r = await MAT_call('hx_exam_qbank_del', { p_id: id });
-      if (r.ok) gone.add(String(id));
-      else if (r.err) fail('删第 ' + id + ' 道失败：' + r.err);
-    }
+    const r = await MAT_call('hx_exam_qbank_del_many', { p_subject_id: MAT_sid(), p_ids: ids });
+    if (!r.ok) { fail('批量删除失败：' + (r.err || '未知错误')); HXBusy.end(tok, r.err); return; }
+    ids.forEach(id => gone.add(String(id)));
   } finally { HXBusy.end(tok); }
   if (!gone.size) return;
   qbUndoSnap([...gone]);          // 这几道还在 QB_ALL 里，趁现在抄整行快照
@@ -5559,7 +5691,7 @@ async function qbDedupDel() {
   toast('删了 ' + gone.size + ' 道（' + tn + '），顶部可以撤销');
   const left = DEDUP_TAB.filter(t => U.by[t.k].length);
   if (!left.length) {
-    DEDUP_UI = null; zlModalClose(); qbLoad(); loadSubjects(true); return;
+    zlModalClose(); return;
   }
   if (!U.by[U.tab].length) U.tab = left[0].k;   // 这一栏删空了：自动切到还有内容的
   qbDedupSeg();
@@ -5619,7 +5751,8 @@ async function qbUndoDo() {
 /* ---------------- 改一道题 ---------------- */
 function qbEdit(id) {
   const q = QB_ALL.find(x => String(x.id) === String(id)); if (!q) return;
-  const opts = Array.isArray(q.o) ? q.o.map(o => o.key + '. ' + o.text).join('\n') : '';
+  const qOpts = QB_OPTS(q);
+  const opts = qOpts.map(o => o.key + '. ' + o.text).join('\n');
   /* 大题（含自建题型）的答案可能是「一问一行的数组」（2026-11-21）：
      编辑框里也一行一条，保存时按行拆回数组 —— 以前 String(数组) 会显示成「甲,乙」，
      一保存就把几个小问压成一段，老师自己改一次等于把分好的小问又改坏了。 */
@@ -5629,7 +5762,7 @@ function qbEdit(id) {
   const jv = q.a === true || q.a === 'true' || q.a === 'T';
   /* 选项本身是符号图的（o.fig）：文本框里没法画图，所以标明是哪几个，保存时按字母把原图接回去 */
   const optFigs = {};
-  (Array.isArray(q.o) ? q.o : []).forEach(o => { if (o && o.fig) optFigs[String(o.key).toUpperCase()] = o.fig; });
+  qOpts.forEach(o => { if (o && o.fig) optFigs[String(o.key).toUpperCase()] = o.fig; });
   const figKeys = Object.keys(optFigs);
   /* 2026-11-20 加「图」：题池能存图题的符号 id（'fu' / 'qf3'）。编辑时能看见现在是什么图、
      能换成别的符号、能去掉图。以前改一道带图的题会把图洗干净（it 里根本没有 fig）。 */
@@ -5691,7 +5824,7 @@ function qbEdit(id) {
       if (it.o.length < 2) return fail('选项至少 2 个');
       if (!it.a || [...it.a].some(k => !it.o.some(o => o.key === k))) return fail('答案要是选项里的字母');
     } else if (q.t === 'judge') {
-      it.o = q.o || [{ key: 'T', text: '正确' }, { key: 'F', text: '错误' }];
+      it.o = Array.isArray(q.o) ? q.o : [{ key: 'T', text: '正确' }, { key: 'F', text: '错误' }];
       it.a = $('qeJ').value === 'T';
     } else if (q.t === 'fill') {
       it.a = $('qeA').value.split('\n').map(s => s.trim()).filter(Boolean);
@@ -5783,17 +5916,18 @@ function ZL_toQuiz(r, bank) {
      暂时没需求，题库里那 432 道也删了）。这边必须跟着收，否则发过去刷题页认不出题型、
      学生「发布成功却刷不到」。小节 sec 照样带过去，刷题卡片上有角标。 */
   const sec = (r.sec && /^[0-9]+(\.[0-9]+)*$/.test(String(r.sec).trim())) ? String(r.sec).trim() : null;
-  /* 2026-11-20：图题。fig 是符号 id（'fu' / 'qf3'），图本身在 刷题/symbols.js 里画。
-     以前这条不带 fig，题池里带图的题发到刷题就变成「看图说话」的瞎题。 */
-  const fig = (r.fig && HXFig.hasFig(r.fig)) ? String(r.fig) : null;
+  /* 2026-11-20：图题。fig 是符号 id（'fu' / 'qf3'），img 是上传试卷的原图 URL（o.img 或旧 img: 前缀）。 */
+  const img = QB_URL(r) || null;
+  const fig = (!img && r.fig && typeof HXFig !== 'undefined' && HXFig.hasFig(r.fig)) ? String(r.fig) : null;
   const q = { id: bank + '-zl-' + r.id, number: 0, type: '', stem, options: [], answer: [], explanation: String(r.explanation || ''), source: String(r.src || '资料库'), sec, secTitle: sec && r.secTitle ? String(r.secTitle) : null };
   if (fig) q.fig = fig;
+  if (img) q.img = img;
   const a = r.a;
   switch (r.t) {
     case 'choice': {
       /* 选项也可能是一张符号图（刷题里 o.fig）：题干是「图中的符号表示（ ）」这种题，
          选项 A/B 本身就是图。带图的选项 text 留空、fig 带上，刷题那边才画得出来。 */
-      q.options = (Array.isArray(r.o) ? r.o : []).map((o, i) => {
+      q.options = QB_OPTS(r).map((o, i) => {
         const op = { key: String((o && o.key) || String.fromCharCode(65 + i)).toUpperCase(), text: String(o && o.text != null ? o.text : '') };
         if (o && o.fig && HXFig.hasFig(o.fig)) op.fig = String(o.fig);
         return op;
@@ -5831,9 +5965,9 @@ function ZL_toQuiz(r, bank) {
 function ZL_merge(existing, rows, bank) {
   const old = Array.isArray(existing) ? existing : [];
   const ids = new Set(old.map(q => String(q && q.id)));
-  /* 去重键必须带 fig：图题的题干经常一模一样（「图中的图形符号表示（ ）。」×N），
+  /* 去重键必须带图（img 或 fig）：图题的题干经常一模一样（「图中的图形符号表示（ ）。」×N），
      靠题干判重会把 20 道不同的图题当成 1 道，只发出去 1 道。 */
-  const dk = q => (q && q.type) + '|' + ZL_norm(q && q.stem) + '|' + String((q && q.fig) || '');
+  const dk = q => (q && q.type) + '|' + ZL_norm(q && q.stem) + '|' + String((q && (q.img || q.fig)) || '');
   const stems = new Set(old.map(dk));
   let num = old.reduce((m, q) => Math.max(m, +(q && q.number) || 0), 0);
   const added = [], skipped = [];
@@ -5894,6 +6028,7 @@ async function pubSemAI(added, existing, onP) {
     .filter(x => x.stem);
   if (!olds.length) return [];
   const oldByI = new Map(olds.map(x => [x.i, x]));
+  const idxOf = v => { const m = String(v ?? '').match(/\d+/); return m ? +m[0] : -1; };
   const oldBlock = olds.map(x => '[E' + x.i + ']（' + x.t + '）' + x.stem).join('\n');
   const batchN = Math.ceil(added.length / PUB_SEM_BATCH);
   const hit = new Map();                       // 按新增题 id 收，同一道题只报一次（保留第一条原因）
@@ -5910,7 +6045,8 @@ async function pubSemAI(added, existing, onP) {
     const arr = (obj && obj.pairs) || [];
     if (!Array.isArray(arr)) continue;
     arr.forEach(p => {
-      const q = added[+p.a], e = oldByI.get(+p.b);
+      const ai = idxOf(p && p.a), bi = idxOf(p && p.b);
+      const q = ai >= 0 ? added[ai] : null, e = bi >= 0 ? oldByI.get(bi) : null;
       if (!q || !e) return;                    // 编号越界（模型瞎报）直接丢，宁漏不错杀
       const k = String(q.id);
       if (hit.has(k)) return;
@@ -6010,7 +6146,7 @@ async function pubGo() {
   const s = curSub(), go = $('pbGo'), err = $('pbErr');
   const P = PUB;
   const fin = pubFinal();
-  if (!fin.add.length) { err.textContent = '没有可以新增的题'; err.hidden = false; return; }
+  if (!fin.add.length) { if (err) { err.textContent = '没有可以新增的题'; err.hidden = false; } return; }
   /* 2026-11-15：发布要整份题库回传（几百道题的 JSON），慢网下能等好几秒，
      原来只是把按钮灰掉，用户看不出在提交。现在按钮转圈 + 计时，失败原因同时挂在按钮上。 */
   const tok = HXBusy.begin(go, '正在发布…');
@@ -6018,7 +6154,9 @@ async function pubGo() {
   try {
     r = await rpc('quiz_publish', { p_id: P.bank, p_name: P.name, p_questions: fin.questions, p_owner_name: P.owner, p_classes: P.classes, p_teachers: P.teachers });
   } catch (e) {
-    err.textContent = '发布失败：' + e.message; err.hidden = false;
+    const errEl = $('pbErr');
+    if (errEl) { errEl.textContent = '发布失败：' + e.message; errEl.hidden = false; }
+    else MAT_banner('发布失败：' + e.message);
     HXBusy.end(tok, e.message);
     return;
   }
@@ -6026,23 +6164,28 @@ async function pubGo() {
   const total = r && r.total != null ? +r.total : fin.questions.length;
   const nOld = P.got ? P.got.questions.length : 0;
   let note = '';
-  if (s && !s.quiz_bank) {
-    /* 新 id 发布成功后再记到科目上（先记后发，发失败了科目会白白挂一个不存在的题库） */
-    try { await rpc('hx_exam_subject_save', { p_key: s.key, p_name: s.name, p_kind: s.kind, p_quiz_bank: P.bank }); await loadSubjects(true); }
-    catch (e) { note = '（题已发布，但没能把题库 id 记到科目上：' + e.message + '）'; }
-  }
-  $('pbInfo').innerHTML = `<p class="ok" id="pbDone">已发布：「${esc(P.name)}」现在 ${total} 题（原 ${nOld} + 新增 ${fin.add.length}）${esc(note)}</p>`;
-  PUB = null;
-  $('pbGo').hidden = true; $('pbCancel').textContent = '关闭';
-  if (total !== nOld + fin.add.length) MAT_banner('发布后题数对不上：云端 ' + total + '，预期 ' + (nOld + fin.add.length));
-  cacheDrop('subjects');   // 科目卡上的题数跟着变了，下次读科目别再拿缓存
-  /* 顺手把刷题那边同一份题库的缓存也作废：老师发完通常立刻去刷题看题到没到，
-     不作废就要等最多 5 分钟（两边 key 各管各的，这里只做「尽力而为」，删不到也没关系）。 */
   try {
-    var u = (sess && sess.user && sess.user.id) || 'guest';
-    localStorage.removeItem('hx-quiz-cache-v1:' + u + ':publist');
-    localStorage.removeItem('hx-quiz-cache-v1:' + u + ':pub:' + P.bank);
-  } catch (e) { }
+    if (s && !s.quiz_bank) {
+      /* 新 id 发布成功后再记到科目上（先记后发，发失败了科目会白白挂一个不存在的题库） */
+      try { await rpc('hx_exam_subject_save', { p_key: s.key, p_name: s.name, p_kind: s.kind, p_quiz_bank: P.bank }); await loadSubjects(true); }
+      catch (e) { note = '（题已发布，但没能把题库 id 记到科目上：' + e.message + '）'; }
+    }
+  } finally {
+    PUB = null;
+    cacheDrop('subjects');   // 科目卡上的题数跟着变了，下次读科目别再拿缓存
+    /* 顺手把刷题那边同一份题库的缓存也作废：老师发完通常立刻去刷题看题到没到，
+       不作废就要等最多 5 分钟（两边 key 各管各的，这里只做「尽力而为」，删不到也没关系）。 */
+    try {
+      var u = (sess && sess.user && sess.user.id) || 'guest';
+      localStorage.removeItem('hx-quiz-cache-v1:' + u + ':publist');
+      localStorage.removeItem('hx-quiz-cache-v1:' + u + ':pub:' + P.bank);
+    } catch (e) { }
+  }
+  const infoEl = $('pbInfo');
+  if (infoEl) infoEl.innerHTML = `<p class="ok" id="pbDone">已发布：「${esc(P.name)}」现在 ${total} 题（原 ${nOld} + 新增 ${fin.add.length}）${esc(note)}</p>`;
+  const goEl = $('pbGo'); if (goEl) goEl.hidden = true;
+  const cancelEl = $('pbCancel'); if (cancelEl) cancelEl.textContent = '关闭';
+  if (total !== nOld + fin.add.length) MAT_banner('发布后题数对不上：云端 ' + total + '，预期 ' + (nOld + fin.add.length));
   toast('已发布到刷题');
 }
 

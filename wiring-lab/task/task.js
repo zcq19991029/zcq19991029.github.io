@@ -555,11 +555,12 @@ function bindLiveCard(t, viewing) {
   if (!card) return;
   const b = ST.boards[t.id];
   const on = (sel, fn) => { const el = card.querySelector(sel); if (el) el.onclick = () => fn(el); };
+  const onAll = (sel, fn) => card.querySelectorAll(sel).forEach(el => { el.onclick = () => fn(el); });
   on('.fold', () => { ST.liveOpen[t.id] = !cardOpen(t); paintLive(); });
   on('[data-act="board"]', () => window.open('board.html?t=' + t.id, '_blank'));
   /* 未完成总览（2026-11-18）：把「当前班级」带过去，老师在别的班发布的任务不会混进这一屏 */
   on('[data-act="ov"]', () => window.open('task-overview.html?cls=' + t.class_id, '_blank'));
-  on('.pend-go', el => { const p = (b && b.pending || []).find(x => String(x.student_id) === el.dataset.rankFor); if (p) openRankFor(t, p, t.class_name); });
+  onAll('.pend-go', el => { const p = (b && b.pending || []).find(x => String(x.student_id) === el.dataset.rankFor); if (p) openRankFor(t, p, t.class_name); });
   on('[data-act="csv"]', () => { if (b) exportCsv(b); });
   on('[data-act="lesson"]', () => editLesson(t));
   on('[data-act="exit"]', async () => { ST.view = null; await pickOpen(); syncPoll(); paintLive(); paintHist(); });
@@ -812,6 +813,16 @@ async function studentView() {
   const anyOpen = () => ((ST.mine && ST.mine.items) || []).some(x => x && x.task && x.task.status === 'open')
     || (ST.mine && ST.mine.task && ST.mine.task.status === 'open');
   if (anyOpen()) {
-    ST.stop = every(5000, async () => { try { ST.mine = await HX.rpc('wire_task_my_result'); paint(); } catch (e) { } });
+    ST.stop = every(15000, async () => { try { ST.mine = await HX.rpc('wire_task_my_result'); paint(); } catch (e) { } }, 0.2);
   }
 }
+
+/* ── 「上一步」覆盖 task-hx.js 默认值：正在回看历史任务（ST.view）时先退出回看，再离页 ── */
+window.HXBack = function () {
+  if (ST.view) {
+    ST.view = null;
+    pickOpen().then(() => { syncPoll(); paintLive(); paintHist(); }).catch(() => { syncPoll(); paintLive(); paintHist(); });
+    return true;
+  }
+  return goTool();
+};

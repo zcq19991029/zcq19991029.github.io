@@ -2,15 +2,16 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>上课快捷方式集合</title>
+<link rel="stylesheet" href="../hx-theme.css">
 <style>
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { margin: 0; padding: 0; }
   body {
     font-family: "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", system-ui, sans-serif;
-    background: #f2f5fa;
-    color: #1c2430;
+    background: var(--bg, #f2f5fa);
+    color: var(--ink, #1c2430);
     min-height: 100vh;
     padding: 26px 32px 44px;
   }
@@ -84,12 +85,17 @@
   #big svg { width: min(72vh, 86vw); height: min(72vh, 86vw); display: block; }
   #big .t { color: #fff; font-size: 30px; font-weight: 700; letter-spacing: 1px; }
 
-  footer { margin-top: 40px; color: #97a2b1; font-size: 13px; line-height: 1.9; border-top: 1px solid #e2e8f2; padding-top: 18px; }
+  footer { margin-top: 40px; color: var(--dim, #97a2b1); font-size: 13px; line-height: 1.9; border-top: 1px solid var(--edge, #e2e8f2); padding-top: 18px; }
+  html[data-hx-mode="dark"] header { border-bottom-color: var(--edge, #25304a); }
+  html[data-hx-mode="dark"] .clock .time { color: var(--acc, #6cb6ff); }
+  html[data-hx-mode="dark"] .clock .date { color: var(--dim, #94a1b8); }
+  html.hx-lite * { transition: none !important; }
 </style>
-<!-- 统一像素加载动效（2026-11-07）：head 阻塞加载站点根 /fx/ 的共享特效件（与刷题/考试/小组加分同一套规则），
+<!-- 统一像素加载动效（2026-11-07）：head 阻塞加载相对路径 ../fx/ 的共享特效件，
      body 开头的 #hxBoot 解析到就画出第一帧「canvas 像素动效 + 标题 + 药丸」，页面就绪后整层淡出。 -->
-<script src="/fx/pixelfx-loader.js"></script>
-<script src="/fx/hx-loadfx.js"></script>
+<script src="../fx/pixelfx-loader.js"></script>
+<script src="../fx/hx-loadfx.js"></script>
+<script src="../hx-theme.js"></script>
 </head>
 <body>
 <!-- 首屏闪屏（全站统一三件套）：动效 + 标题 + 药丸；脚本没加载出来时回落药丸，8 秒兜底撤层 -->
@@ -138,12 +144,12 @@
 const MAIN = {
   name: "华夏工具",
   url: "https://zcq19991029.github.io/",
-  tools: ["接线仿真", "刷题", "进制转换", "单片机上机", "考试", "排课", "小组加分", "课程进度"]
+  tools: ["接线仿真", "刷题", "进制转换", "单片机上机", "考试", "考勤", "资料库", "试卷中心", "排课", "小组加分", "课程进度", "AI 设置"]
 };
 const OTHERS = [
   // 2026-11-01：进制转换、本周课程表都已并进华夏工具（/base/、/course/），旧站作废，这里不再有独立站点
 ];
-const QR = {"https://zcq19991029.github.io/":"<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 33 33\" shape-rendering=\"crispEdges\"><path fill=\"#ffffff\" d=\"M0 0h33v33H0z\"/><path stroke=\"#111111\" d=\"M2 2.5h7m3 0h1m3 0h1m3 0h1m3 0h7M2 3.5h1m5 0h1m1 0h1m1 0h4m5 0h2m1 0h1m5 0h1M2 4.5h1m1 0h3m1 0h1m2 0h1m1 0h1m3 0h1m1 0h1m1 0h2m1 0h1m1 0h3m1 0h1M2 5.5h1m1 0h3m1 0h1m2 0h2m1 0h2m2 0h1m2 0h1m2 0h1m1 0h3m1 0h1M2 6.5h1m1 0h3m1 0h1m1 0h1m1 0h4m2 0h5m1 0h1m1 0h3m1 0h1M2 7.5h1m5 0h1m2 0h2m3 0h3m3 0h1m1 0h1m5 0h1M2 8.5h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7M11 9.5h1m1 0h2m2 0h1m1 0h2M2 10.5h1m1 0h1m1 0h1m1 0h1m2 0h1m1 0h2m3 0h1m1 0h3m3 0h1m2 0h1M2 11.5h1m1 0h1m5 0h1m3 0h2m1 0h9m1 0h1m2 0h1M2 12.5h4m1 0h2m1 0h2m2 0h1m1 0h3m1 0h1m3 0h1m1 0h1m1 0h3M4 13.5h1m4 0h3m3 0h2m1 0h3m2 0h1m1 0h1m3 0h1M2 14.5h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h2m1 0h1m1 0h1m1 0h1m1 0h3m1 0h2M3 15.5h1m3 0h1m1 0h1m1 0h1m1 0h1m2 0h2m1 0h2m2 0h1m1 0h1m1 0h1m2 0h1M6 16.5h5m1 0h4m3 0h2m2 0h5m1 0h2M2 17.5h1m2 0h1m1 0h1m1 0h2m3 0h1m2 0h1m1 0h2m3 0h2m1 0h1m1 0h1M2 18.5h2m4 0h3m3 0h1m3 0h1m4 0h1m1 0h1m1 0h1m1 0h2M5 19.5h2m2 0h1m1 0h1m1 0h1m1 0h1m1 0h2m3 0h3m2 0h2m1 0h1M2 20.5h1m1 0h2m2 0h2m1 0h1m4 0h5m3 0h2m3 0h2M3 21.5h1m1 0h3m1 0h1m2 0h1m1 0h3m1 0h4m2 0h2m1 0h1m1 0h1M2 22.5h1m4 0h3m1 0h1m4 0h2m1 0h1m1 0h6M10 23.5h5m1 0h2m2 0h1m1 0h1m3 0h1m1 0h3M2 24.5h7m2 0h1m2 0h2m4 0h1m1 0h1m1 0h1m1 0h2m1 0h2M2 25.5h1m5 0h1m2 0h4m2 0h1m1 0h2m1 0h1m3 0h2m2 0h1M2 26.5h1m1 0h3m1 0h1m1 0h1m1 0h2m4 0h2m2 0h5M2 27.5h1m1 0h3m1 0h1m2 0h1m2 0h1m2 0h2m1 0h2m1 0h4m1 0h2M2 28.5h1m1 0h3m1 0h1m1 0h1m3 0h2m1 0h2m1 0h1m1 0h1m1 0h4m2 0h1M2 29.5h1m5 0h1m4 0h1m1 0h1m2 0h2m1 0h2m1 0h3m2 0h1M2 30.5h7m1 0h1m1 0h1m1 0h1m1 0h3m1 0h1m6 0h1m1 0h2\"/></svg>","https://ye-ye-ban-base-converter-sites.zcq991029.chatgpt.site/":"<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 37 37\" shape-rendering=\"crispEdges\"><path fill=\"#ffffff\" d=\"M0 0h37v37H0z\"/><path stroke=\"#111111\" d=\"M2 2.5h7m2 0h1m1 0h2m1 0h1m1 0h1m1 0h3m2 0h2m1 0h7M2 3.5h1m5 0h1m3 0h1m3 0h2m2 0h1m1 0h1m1 0h1m3 0h1m5 0h1M2 4.5h1m1 0h3m1 0h1m1 0h1m2 0h1m1 0h1m3 0h1m1 0h1m1 0h2m3 0h1m1 0h3m1 0h1M2 5.5h1m1 0h3m1 0h1m1 0h1m1 0h1m2 0h1m1 0h2m1 0h1m1 0h2m4 0h1m1 0h3m1 0h1M2 6.5h1m1 0h3m1 0h1m1 0h3m1 0h1m1 0h2m4 0h1m5 0h1m1 0h3m1 0h1M2 7.5h1m5 0h1m1 0h1m1 0h3m1 0h1m1 0h1m2 0h5m2 0h1m5 0h1M2 8.5h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7M10 9.5h3m4 0h1m4 0h5M2 10.5h1m1 0h5m3 0h1m2 0h6m1 0h1m1 0h3m1 0h5M2 11.5h2m6 0h1m4 0h1m2 0h6m1 0h1m2 0h2m1 0h4M8 12.5h2m1 0h2m3 0h3m3 0h1m1 0h1m2 0h2m1 0h1m1 0h2M2 13.5h1m2 0h1m6 0h3m2 0h3m3 0h2m1 0h1m1 0h1m1 0h4M2 14.5h7m2 0h1m2 0h1m2 0h2m4 0h3m1 0h1m1 0h3m1 0h2M2 15.5h1m1 0h4m1 0h5m1 0h1m1 0h4m2 0h2m1 0h4m2 0h3M3 16.5h2m3 0h1m2 0h1m4 0h1m1 0h1m2 0h2m3 0h3m1 0h2m1 0h1M2 17.5h1m1 0h4m1 0h2m4 0h4m4 0h1m2 0h4m1 0h2M8 18.5h1m3 0h6m1 0h1m4 0h1m2 0h1m1 0h2m3 0h1M4 19.5h1m1 0h1m2 0h1m3 0h4m1 0h1m1 0h4m1 0h1m1 0h3m1 0h2m1 0h1M2 20.5h1m3 0h4m3 0h1m1 0h3m2 0h1m2 0h1m4 0h3m1 0h1M2 21.5h1m1 0h3m3 0h2m2 0h3m1 0h2m1 0h1m1 0h1m4 0h5m1 0h1M2 22.5h1m3 0h1m1 0h1m1 0h1m1 0h1m1 0h2m1 0h1m7 0h1m1 0h1m2 0h2M2 23.5h1m2 0h2m4 0h2m8 0h1m1 0h2m1 0h1m1 0h1m5 0h1M2 24.5h1m1 0h1m1 0h5m2 0h1m4 0h6m4 0h1m2 0h3M2 25.5h1m1 0h3m5 0h1m1 0h5m3 0h3m1 0h2m3 0h2m1 0h1M2 26.5h1m4 0h2m3 0h1m1 0h3m1 0h2m1 0h1m2 0h1m1 0h6m2 0h1M10 27.5h2m3 0h1m2 0h1m1 0h3m3 0h1m3 0h1m1 0h3M2 28.5h7m4 0h1m2 0h2m2 0h1m1 0h2m1 0h2m1 0h1m1 0h1m1 0h2M2 29.5h1m5 0h1m1 0h2m1 0h1m2 0h1m1 0h3m1 0h1m3 0h1m3 0h4M2 30.5h1m1 0h3m1 0h1m1 0h2m2 0h1m1 0h1m2 0h3m4 0h6m1 0h1M2 31.5h1m1 0h3m1 0h1m1 0h5m1 0h4m4 0h4m2 0h3m1 0h1M2 32.5h1m1 0h3m1 0h1m1 0h3m1 0h1m3 0h2m1 0h2m1 0h3m1 0h2m2 0h1M2 33.5h1m5 0h1m5 0h4m5 0h1m1 0h1m4 0h3M2 34.5h7m1 0h1m3 0h3m2 0h1m1 0h1m3 0h5m3 0h1\"/></svg>","https://course-progress-private-preview.zcq991029.chatgpt.site/":"<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 41 41\" shape-rendering=\"crispEdges\"><path fill=\"#ffffff\" d=\"M0 0h41v41H0z\"/><path stroke=\"#111111\" d=\"M2 2.5h7m3 0h3m5 0h1m1 0h3m1 0h1m2 0h2m1 0h7M2 3.5h1m5 0h1m5 0h2m1 0h5m1 0h1m6 0h1m1 0h1m5 0h1M2 4.5h1m1 0h3m1 0h1m1 0h2m4 0h3m1 0h4m2 0h1m2 0h1m2 0h1m1 0h3m1 0h1M2 5.5h1m1 0h3m1 0h1m1 0h3m2 0h2m1 0h2m1 0h2m1 0h1m2 0h2m1 0h1m1 0h1m1 0h3m1 0h1M2 6.5h1m1 0h3m1 0h1m1 0h2m1 0h4m1 0h1m1 0h3m1 0h2m1 0h2m1 0h1m1 0h1m1 0h3m1 0h1M2 7.5h1m5 0h1m1 0h1m1 0h2m1 0h3m2 0h1m3 0h1m3 0h3m1 0h1m5 0h1M2 8.5h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7M10 9.5h1m2 0h2m2 0h1m9 0h4M2 10.5h1m1 0h5m3 0h3m5 0h1m1 0h6m2 0h1m1 0h5M2 11.5h1m1 0h2m1 0h1m2 0h1m2 0h1m2 0h3m4 0h1m10 0h4M6 12.5h1m1 0h1m3 0h4m6 0h1m2 0h3m4 0h2m2 0h3M2 13.5h3m1 0h1m5 0h2m1 0h1m2 0h1m4 0h1m1 0h1m3 0h1m1 0h1m1 0h2m1 0h1m1 0h1M2 14.5h1m1 0h3m1 0h1m1 0h1m3 0h3m2 0h1m2 0h1m1 0h6m1 0h2m1 0h1m2 0h2M2 15.5h1m2 0h3m1 0h2m1 0h2m4 0h2m1 0h3m1 0h2m6 0h1m3 0h2M3 16.5h2m2 0h11m1 0h1m2 0h2m4 0h3m1 0h4m2 0h1M2 17.5h1m1 0h1m9 0h3m2 0h2m1 0h13m3 0h1M8 18.5h2m1 0h1m1 0h1m4 0h1m2 0h1m1 0h1m4 0h3m5 0h1m1 0h1M4 19.5h2m4 0h2m2 0h1m2 0h1m2 0h1m1 0h1m1 0h1m1 0h5m1 0h1m1 0h1m1 0h2M3 20.5h1m1 0h1m2 0h3m1 0h1m2 0h5m1 0h1m1 0h1m3 0h2m1 0h2m1 0h1m2 0h3M2 21.5h1m3 0h1m2 0h1m1 0h7m2 0h5m1 0h1m1 0h2m1 0h1m2 0h2m2 0h1M7 22.5h3m2 0h3m2 0h3m1 0h1m2 0h1m2 0h3m1 0h2m1 0h2M2 23.5h2m2 0h1m2 0h5m2 0h1m1 0h1m1 0h2m2 0h2m4 0h2m3 0h1m1 0h2M4 24.5h1m2 0h4m1 0h2m1 0h3m2 0h1m1 0h1m1 0h1m4 0h7m2 0h1M2 25.5h1m1 0h1m6 0h1m2 0h3m1 0h1m3 0h1m2 0h4m2 0h4m2 0h2M2 26.5h1m2 0h1m1 0h7m1 0h1m4 0h1m1 0h3m1 0h1m2 0h1m1 0h1m1 0h2m1 0h1m1 0h1M2 27.5h1m6 0h1m3 0h7m3 0h1m4 0h5m1 0h1M2 28.5h1m1 0h2m2 0h3m4 0h1m4 0h1m1 0h1m1 0h5m1 0h3m3 0h3M2 29.5h1m1 0h1m2 0h1m1 0h1m2 0h1m2 0h2m1 0h1m4 0h1m1 0h1m2 0h5m1 0h1m2 0h1M2 30.5h1m2 0h4m1 0h2m7 0h1m4 0h2m1 0h2m1 0h5M10 31.5h2m1 0h1m5 0h5m1 0h1m2 0h1m1 0h1m3 0h2m1 0h1M2 32.5h7m2 0h1m2 0h1m2 0h3m3 0h1m4 0h1m1 0h1m1 0h1m1 0h1m1 0h3M2 33.5h1m5 0h1m1 0h1m2 0h2m3 0h3m1 0h3m2 0h1m2 0h1m3 0h2m1 0h1M2 34.5h1m1 0h3m1 0h1m1 0h1m1 0h1m4 0h2m4 0h1m2 0h2m1 0h6m1 0h1m1 0h1M2 35.5h1m1 0h3m1 0h1m1 0h2m3 0h3m2 0h1m1 0h3m1 0h1m1 0h5m1 0h2M2 36.5h1m1 0h3m1 0h1m1 0h2m1 0h3m1 0h2m2 0h1m1 0h1m2 0h2m1 0h1m1 0h1m3 0h1m2 0h1M2 37.5h1m5 0h1m2 0h2m1 0h1m1 0h2m3 0h4m7 0h1m1 0h2m2 0h1M2 38.5h7m1 0h3m1 0h6m1 0h2m1 0h9m1 0h1m1 0h3\"/></svg>"};
+const QR = {"https://zcq19991029.github.io/":"<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 33 33\" shape-rendering=\"crispEdges\"><path fill=\"#ffffff\" d=\"M0 0h33v33H0z\"/><path stroke=\"#111111\" d=\"M2 2.5h7m3 0h1m3 0h1m3 0h1m3 0h7M2 3.5h1m5 0h1m1 0h1m1 0h4m5 0h2m1 0h1m5 0h1M2 4.5h1m1 0h3m1 0h1m2 0h1m1 0h1m3 0h1m1 0h1m1 0h2m1 0h1m1 0h3m1 0h1M2 5.5h1m1 0h3m1 0h1m2 0h2m1 0h2m2 0h1m2 0h1m2 0h1m1 0h3m1 0h1M2 6.5h1m1 0h3m1 0h1m1 0h1m1 0h4m2 0h5m1 0h1m1 0h3m1 0h1M2 7.5h1m5 0h1m2 0h2m3 0h3m3 0h1m1 0h1m5 0h1M2 8.5h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7M11 9.5h1m1 0h2m2 0h1m1 0h2M2 10.5h1m1 0h1m1 0h1m1 0h1m2 0h1m1 0h2m3 0h1m1 0h3m3 0h1m2 0h1M2 11.5h1m1 0h1m5 0h1m3 0h2m1 0h9m1 0h1m2 0h1M2 12.5h4m1 0h2m1 0h2m2 0h1m1 0h3m1 0h1m3 0h1m1 0h1m1 0h3M4 13.5h1m4 0h3m3 0h2m1 0h3m2 0h1m1 0h1m3 0h1M2 14.5h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h2m1 0h1m1 0h1m1 0h1m1 0h3m1 0h2M3 15.5h1m3 0h1m1 0h1m1 0h1m1 0h1m2 0h2m1 0h2m2 0h1m1 0h1m1 0h1m2 0h1M6 16.5h5m1 0h4m3 0h2m2 0h5m1 0h2M2 17.5h1m2 0h1m1 0h1m1 0h2m3 0h1m2 0h1m1 0h2m3 0h2m1 0h1m1 0h1M2 18.5h2m4 0h3m3 0h1m3 0h1m4 0h1m1 0h1m1 0h1m1 0h2M5 19.5h2m2 0h1m1 0h1m1 0h1m1 0h1m1 0h2m3 0h3m2 0h2m1 0h1M2 20.5h1m1 0h2m2 0h2m1 0h1m4 0h5m3 0h2m3 0h2M3 21.5h1m1 0h3m1 0h1m2 0h1m1 0h3m1 0h4m2 0h2m1 0h1m1 0h1M2 22.5h1m4 0h3m1 0h1m4 0h2m1 0h1m1 0h6M10 23.5h5m1 0h2m2 0h1m1 0h1m3 0h1m1 0h3M2 24.5h7m2 0h1m2 0h2m4 0h1m1 0h1m1 0h1m1 0h2m1 0h2M2 25.5h1m5 0h1m2 0h4m2 0h1m1 0h2m1 0h1m3 0h2m2 0h1M2 26.5h1m1 0h3m1 0h1m1 0h1m1 0h2m4 0h2m2 0h5M2 27.5h1m1 0h3m1 0h1m2 0h1m2 0h1m2 0h2m1 0h2m1 0h4m1 0h2M2 28.5h1m1 0h3m1 0h1m1 0h1m3 0h2m1 0h2m1 0h1m1 0h1m1 0h4m2 0h1M2 29.5h1m5 0h1m4 0h1m1 0h1m2 0h2m1 0h2m1 0h3m2 0h1M2 30.5h7m1 0h1m1 0h1m1 0h1m1 0h3m1 0h1m6 0h1m1 0h2\"/></svg>"};
 
 /* ---------------- 渲染 ---------------- */
 const app = document.getElementById("app");
@@ -156,6 +162,10 @@ function showBig(name, url) {
 }
 big.onclick = function () { big.classList.remove("on"); };
 document.addEventListener("keydown", function (e) { if (e.key === "Escape") big.classList.remove("on"); });
+window.HXBack = function () {
+  if (big && big.classList.contains("on")) { big.classList.remove("on"); return true; }
+  return false;
+};
 
 const hero = document.createElement("section");
 hero.className = "hero";

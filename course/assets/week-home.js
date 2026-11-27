@@ -65,10 +65,10 @@
       dialog.close();
       // MCU uses the established record modal without rebuilding its bound DOM.
       if(s.courseId==='mcu'&&$('activeCourseSelect').value==='mcu'&&['25机电2班','25机电3班'].includes(s.className)){
-        location.hash='#class';applyPage('class');setDate(s.actualDate,true);openEditor(s.actualDate+'|'+s.className+'|'+s.period);return;
+        history.replaceState(null,'','#class');applyPage('class');setDate(s.actualDate,true);openEditor(s.actualDate+'|'+s.className+'|'+s.period);return;
       }
       sessionStorage.setItem('week_detail_target',JSON.stringify({courseId:s.courseId,className:s.className,date:s.actualDate,period:s.period}));
-      localStorage.setItem(ACTIVE_COURSE_KEY,s.courseId);location.hash='#class';location.reload();
+      localStorage.setItem(ACTIVE_COURSE_KEY,s.courseId);history.replaceState(null,'','#class');applyPage('class');
     };dialog.showModal();
   }
   $('weekGrid').addEventListener('click',e=>{const b=e.target.closest('[data-week-event]');if(b)detail(Number(b.dataset.weekEvent));});
@@ -90,11 +90,11 @@
     }
   };
   const navHome=document.querySelector('#pageNav [data-page="home"]');if(navHome)navHome.textContent='本周课程表';
-  // A local-only view adapter; future D1 adapter will expose the same lesson list.
+  // 外观主题已统一由总入口 hx-theme.js 管理
   window.TeacherScheduleData={getLessons:allLessons};
   applyPage(currentPage());
   const raw=sessionStorage.getItem('week_detail_target');
   if(raw){sessionStorage.removeItem('week_detail_target');try{const t=JSON.parse(raw);if(t.courseId===$('activeCourseSelect').value){if($('genericDateInput')){$('genericDateInput').value=t.date;$('genericDateInput').dispatchEvent(new Event('change'));const field=[...document.querySelectorAll('[data-grec]')].find(i=>i.dataset.grec===t.date+'|'+t.className+'|'+t.period);if(field){field.focus();field.scrollIntoView({block:'center'});}}else setDate(t.date,true);}}catch(_){} }
-  window.addEventListener('storage',()=>{if(currentPage()==='home')location.reload();});
+  window.addEventListener('storage',e=>{if(e.key==='paike-session')location.reload();});
   document.addEventListener('visibilitychange',()=>{if(!document.hidden&&currentPage()==='home')paint();});
 })();

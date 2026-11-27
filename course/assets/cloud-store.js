@@ -136,6 +136,7 @@
     try { return new URL('../#course', location.href).href; } catch (e) { return '../#course'; }
   }
   function goPortal() {
+    if (global.HXTheme && global.HXTheme.login) { try { global.HXTheme.login(); return; } catch (e) {} }
     var target = portalUrl();
     try { if (global.top && global.top !== global) { top.location.href = target; return; } } catch (e) {}
     location.href = target;
@@ -188,7 +189,7 @@
 
   function normalize(v) {
     if (!v || typeof v !== 'object' || Array.isArray(v)) v = {};
-    if (!v.mcu_multi_courses_v1) v.mcu_multi_courses_v1 = JSON.stringify(DEFAULT_MCU);
+    if (!v.mcu_multi_courses_v1) v.mcu_multi_courses_v1 = JSON.stringify({ mcu: DEFAULT_MCU });
     return v;
   }
 
@@ -210,7 +211,7 @@
         var parsed;
         try { parsed = JSON.parse(next[k]); } catch (e) { throw new Error('「' + k + '」不是有效 JSON'); }
         if (!parsed || typeof parsed !== 'object') throw new Error('「' + k + '」应为对象');
-        if (k === 'mcu_multi_courses_v1') courses = parsed;
+        if (k === 'mcu_multi_courses_v1') { courses = parsed; if (courses.id && courses.name) { courses = { mcu: courses }; next[k] = JSON.stringify(courses); } }
       }
     }
     if (!courses) return next;

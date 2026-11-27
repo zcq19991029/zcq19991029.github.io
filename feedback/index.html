@@ -29,9 +29,10 @@ html,body{margin:0;padding:0}
 body{background:var(--bg);color:var(--ink);font:15px/1.6 "Microsoft YaHei",system-ui,-apple-system,"Segoe UI",sans-serif;
   -webkit-font-smoothing:antialiased;padding:0 0 60px}
 a{color:inherit}
-.wrap{max-width:960px;margin:0 auto;padding:0 18px}
+.wrap{width:min(1400px,100%);margin:0 auto;padding:0 18px}
 header.top{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(10px);
   border-bottom:1px solid var(--edge)}
+html.hx-embedded header.top .back{display:none}
 header.top .wrap{display:flex;align-items:center;gap:14px;min-height:64px;flex-wrap:wrap;padding-top:10px;padding-bottom:10px}
 .back{flex:none;text-decoration:none;font-size:13.5px;font-weight:700;color:var(--dim);padding:7px 12px;border-radius:10px;
   border:1px solid var(--edge);background:var(--panel)}
@@ -72,7 +73,7 @@ button.btn.go{background:linear-gradient(140deg,var(--acc),var(--acc2));border-c
 button.btn.go:hover{filter:brightness(1.06);color:#fff}
 button.btn.ghost{color:var(--dim)}
 button.btn[disabled]{opacity:.5;cursor:default}
-.reply{flex:1;min-width:200px}
+.reply{flex:1;min-width:0}
 .reply input{width:100%;font:inherit;font-size:13.5px;padding:8px 12px;border-radius:11px;border:1px solid var(--edge);
   background:var(--bg);color:var(--ink);outline:none}
 .reply input:focus{border-color:var(--acc)}
@@ -97,11 +98,12 @@ button.btn[disabled]{opacity:.5;cursor:default}
 </style>
 <!-- 统一像素加载动效（2026-11-07）：head 阻塞加载站点根 /fx/ 的共享特效件（与刷题/考试/小组加分同一套规则），
      body 开头的 #hxBoot 解析到就画出第一帧「canvas 像素动效 + 标题 + 药丸」，页面就绪后整层淡出。 -->
-<script src="/fx/pixelfx-loader.js"></script>
-<script src="/fx/hx-loadfx.js"></script>
+<link rel="stylesheet" href="../hx-theme.css">
+<script src="../fx/pixelfx-loader.js"></script>
+<script src="../fx/hx-loadfx.js"></script>
 <!-- 未登录闸门（2026-11-08）：hx-theme.js 的 gate() 会在没登录时把单独打开的页面送回总入口。
      这一页以前没引 hx-theme.js（纯本机 localStorage，不依赖账号），所以不登录也能直接用 —— 用户要求收回。 -->
-<script src="/hx-theme.js" data-tool="feedback"></script>
+<script src="../hx-theme.js" data-tool="feedback"></script>
 </head>
 <body>
 <!-- 首屏闪屏（全站统一三件套）：动效 + 标题 + 药丸；脚本没加载出来时回落药丸，8 秒兜底撤层。
@@ -195,7 +197,7 @@ var HX = (function () {
   };
 })();
 
-var TOOLS = { 'wiring-lab': '接线仿真', 'shuati': '刷题', 'mcu': '单片机上机', 'exam': '考试', 'paike': '排课', 'jiafen': '小组加分', 'course': '课程进度', 'base': '进制转换', 'site': '华夏工具总入口' };
+var TOOLS = { 'wiring-lab': '接线仿真', 'shuati': '刷题', 'mcu': '单片机上机', 'exam': '考试', 'paike': '排课', 'jiafen': '小组加分', 'course': '课程进度', 'base': '进制转换', 'ai': 'AI 设置', 'ziliao': '资料库', 'paper': '试卷中心', 'kaoqin': '考勤', 'class': '教室快捷方式', 'feedback': '反馈信箱', 'site': '华夏工具总入口' };
 var KIND = { suggest: '建议', bug: '问题', other: '其它' };
 var ST = { open: '待处理', adopted: '已采纳', done: '已处理', rejected: '不采纳' };
 
@@ -207,20 +209,29 @@ var VIEW = { status: '', tool: '', rows: [], me: null, about: {} };
 
 function gate(html) { $('gate').hidden = false; $('app').hidden = true; $('gate').innerHTML = html; $('stat').innerHTML = ''; }
 
+function loginActionHtml(txt) {
+  return '<button type="button" class="btn go" onclick="if(window.HXTheme&&HXTheme.login){HXTheme.login();}else{location.href=\'../\';}">' + esc(txt) + '</button>';
+}
+
 async function boot() {
   var g = HX.grab();               // GitHub 登录跳回来的凭证
   if (!HX.in()) {
+    if (window.HXTheme && HXTheme.login && window.top !== window) HXTheme.login();
     gate('<div class="gate"><b>先登录再进来</b><p>这个页面只有开发者能看。请从华夏工具总入口登录（跟排课、接线仿真同一个账号），再回到这里。</p>' +
-      '<a class="back" href="../" target="_top">回总入口登录</a></div>');
+      loginActionHtml('回总入口登录') + '</div>');
     return;
   }
   var me;
   try { me = await HX.rpc('hx_me'); }
   catch (e) {
-    if (!HX.in()) { gate('<div class="gate"><b>登录过期了</b><p>' + esc(e.message) + '</p><a class="back" href="../" target="_top">回总入口重新登录</a></div>'); return; }
+    if (!HX.in()) {
+      if (window.HXTheme && HXTheme.login && window.top !== window) HXTheme.login();
+      gate('<div class="gate"><b>登录过期了</b><p>' + esc(e.message) + '</p>' + loginActionHtml('回总入口重新登录') + '</div>');
+      return;
+    }
     gate('<div class="gate"><b>读不到身份</b><p>' + esc(e.message) + '</p></div>'); return;
   }
-  ST.me = me;
+  VIEW.me = me;
   if (!me || !me.dev) {
     gate('<div class="gate"><b>这里只有开发者能进</b><p>当前账号不是开发者。反馈内容在服务器上只对开发者开放。</p><a class="back" href="../" target="_top">回华夏工具</a></div>');
     return;
@@ -266,13 +277,16 @@ async function load() {
     renderList();
   } catch (e) {
     $('list').innerHTML = '<div class="empty">' + esc(e.message) + '</div>';
-    if (!HX.in()) gate('<div class="gate"><b>登录过期了</b><p>' + esc(e.message) + '</p><a class="back" href="../" target="_top">回总入口重新登录</a></div>');
+    if (!HX.in()) {
+      if (window.HXTheme && HXTheme.login && window.top !== window) HXTheme.login();
+      gate('<div class="gate"><b>登录过期了</b><p>' + esc(e.message) + '</p>' + loginActionHtml('回总入口重新登录') + '</div>');
+    }
   }
 }
 
 function renderList() {
   var rows = VIEW.rows.filter(function (r) { return !VIEW.tool || r.tool === VIEW.tool; });
-  if (!rows.length) { $('list').innerHTML = '<div class="empty">这里还没有反馈。'; return; }
+  if (!rows.length) { $('list').innerHTML = '<div class="empty">这里还没有反馈。</div>'; return; }
   $('list').innerHTML = rows.map(function (r) {
     var pending = r.status === 'open';
     return '<div class="card' + (pending ? ' pending' : '') + '">' +
@@ -289,7 +303,7 @@ function renderList() {
       '<div class="acts">' +
         '<span class="tagst ' + esc(r.status) + '">' + esc(ST[r.status] || r.status) + '</span>' +
         '<span class="reply"><input data-reply="' + r.id + '" placeholder="备注 / 回复（可留空）" value="' + esc(r.reply || '') + '"></span>' +
-        '<button class="btn go" data-act="adopt" data-id="' + r.id + '" data-name="' + esc(r.author_name || '') + '" data-tool="' + esc(r.tool) + '">采纳并进鸣谢</button>' +
+        '<button class="btn go" data-act="adopted" data-id="' + r.id + '" data-name="' + esc(r.author_name || '') + '" data-tool="' + esc(r.tool) + '">采纳并进鸣谢</button>' +
         '<button class="btn" data-act="done" data-id="' + r.id + '">已处理</button>' +
         '<button class="btn ghost" data-act="rejected" data-id="' + r.id + '">不采纳</button>' +
       '</div>' +
@@ -329,6 +343,18 @@ async function addToThanks(tool, name) {
   if (thanks.indexOf(name) < 0) thanks.push(name);
   await HX.rpc('hx_set_about', { p_tool: tool, p_dev: dev, p_thanks: thanks });
 }
+
+window.HXBack = function () {
+  if (VIEW.status || VIEW.tool) {
+    VIEW.status = '';
+    VIEW.tool = '';
+    renderTabs();
+    renderToolSel();
+    load();
+    return true;
+  }
+  return false;
+};
 
 boot();
 </script>

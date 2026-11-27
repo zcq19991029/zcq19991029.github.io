@@ -949,15 +949,18 @@
       if (h2) h2.textContent = S.err ? S.err : (t ? (S.playing ? '正在播放' : (wantResume && !S.playing ? '点播放继续' : '已暂停')) : '导入 mp3 就能开始');
       /* 封面：当前曲是云端且有 cover 时显示图，否则回音符图标（hero 大封面 + bar 小封面都刷） */
       var coverURL = (t && t.cloud && t.cover) ? cloudURL(t.cover) : '';
-      var art = w.querySelector('.hxp-art');
-      if (art) {
-        if (coverURL) { art.innerHTML = '<img src="' + esc(coverURL) + '" alt="" style="width:100%;height:100%;object-fit:cover">'; }
-        else { art.innerHTML = IC.note; }
-      }
-      var cv = w.querySelector('.hxp-cover');
-      if (cv && !r.list) {
-        if (coverURL) { cv.innerHTML = '<img src="' + esc(coverURL) + '" alt="">'; }
-        else { cv.innerHTML = IC.note; }
+      if (r._coverURL !== coverURL) {
+        r._coverURL = coverURL;
+        var art = w.querySelector('.hxp-art');
+        if (art) {
+          if (coverURL) { art.innerHTML = '<img src="' + esc(coverURL) + '" alt="" style="width:100%;height:100%;object-fit:cover">'; }
+          else { art.innerHTML = IC.note; }
+        }
+        var cv = w.querySelector('.hxp-cover');
+        if (cv && !r.list) {
+          if (coverURL) { cv.innerHTML = '<img src="' + esc(coverURL) + '" alt="">'; }
+          else { cv.innerHTML = IC.note; }
+        }
       }
       var cnt = w.querySelector('[data-t="count"]');
       if (cnt) cnt.textContent = S.list.length + ' 首' + (S.err ? '　' + S.err : '');
@@ -1125,13 +1128,13 @@
       }
       /* 登录 / 登出（paike-session 变了）→ 重拉歌单：登录后要把云端默认 BGM / 全员 / 班级 / 群体并进来，
          登出后要把它们撤掉（只留本地）。跨标签页登录在这页也能跟上。 */
-      if (e.key === SKEY_SESS) { loadList(); }
+      if (e.key === SKEY_SESS) { whoCache = null; permAdmin = false; loadList(); }
     });
     /* 同页登录/登出（不跨标签页时 storage 事件不触发）：盯 paike-session 的变化 */
     var lastTok = tok();
     setInterval(function () {
       var now = tok();
-      if (now !== lastTok) { lastTok = now; loadList(); }
+      if (now !== lastTok) { lastTok = now; whoCache = null; permAdmin = false; loadList(); }
     }, 2000);
   }
 

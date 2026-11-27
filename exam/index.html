@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>考试 · 华夏工具</title>
 <link rel="icon" href="../logo.jpg">
+<link rel="stylesheet" href="../hx-theme.css">
 <script src="../hx-theme.js" data-tool="exam"></script>
 <script src="../ui-dialog.js"></script>
 <style>
@@ -94,20 +95,17 @@ a.nav-i{text-decoration:none}
 .nav-b{margin-left:auto;font:500 11px/1.6 var(--mono);color:var(--mute);background:var(--field2);border-radius:980px;padding:0 8px}
 #nav>.tab-ind{background:linear-gradient(135deg,var(--accbg),transparent 140%);border:1px solid var(--accbg);border-radius:12px;box-shadow:0 6px 18px -8px var(--ring)}
 .side-foot{margin-top:auto;padding:0 12px;font-size:12px;color:var(--mute);line-height:1.7;display:flex;flex-direction:column;gap:8px}
-.themes{position:relative;display:flex;gap:2px;padding:3px;border-radius:11px;background:var(--field2);width:fit-content}
-.themes button{position:relative;z-index:1;padding:3px 10px;font-size:12px;background:transparent;border:0;box-shadow:none;color:var(--mute)}
-.themes button:hover{background:transparent;color:var(--ink);transform:none}
-.themes button.on{color:var(--ink)}
-.themes>.tab-ind{background:var(--card-lift);border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.15)}
 .main{min-width:0;padding:34px 38px 96px}
 .page-h{margin:0 0 24px}
 .eyebrow{font:600 11.5px/1 var(--mono);letter-spacing:.16em;color:var(--acc);text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:8px}
 .eyebrow::before{content:"";width:6px;height:6px;border-radius:2px;background:var(--acc);box-shadow:0 0 10px var(--acc)}
 .page-h h1{font:700 34px/1.12 var(--font-d);letter-spacing:-.03em;margin:0 0 8px;text-wrap:balance;background:linear-gradient(100deg,var(--ink) 30%,var(--acc) 85%,var(--acc2));-webkit-background-clip:text;background-clip:text;color:transparent}
 .page-h p{margin:0;font-size:15px;color:var(--mute);max-width:820px}
+html.hx-lite .side,html.hx-lite .stat,html.hx-lite .step{backdrop-filter:none;-webkit-backdrop-filter:none}
 @media(max-width:860px){
   .app{grid-template-columns:1fr;grid-template-rows:auto 1fr}
-  .side{position:sticky;top:0;height:auto;flex-direction:row;align-items:center;gap:8px;padding:8px 12px;overflow-x:auto;border-right:0;border-bottom:1px solid var(--hair)}
+  .side{position:sticky;top:0;height:auto;flex-direction:row;align-items:center;gap:8px;padding:8px 28px 8px 12px;overflow-x:auto;border-right:0;border-bottom:1px solid var(--hair);-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent)}
+  .side,.stat,.step{backdrop-filter:none;-webkit-backdrop-filter:none}
   .brand,.side-foot,.nav-h,.nav-b{display:none}
   #nav{flex-direction:row;gap:2px}
   .nav-g{flex-direction:row}
@@ -207,6 +205,7 @@ textarea.editor::selection{background:rgba(91,140,255,.35)}
 pre.code{background:var(--code);color:var(--codeink);padding:14px 16px;border-radius:16px;overflow:auto;font:12.5px/1.6 var(--mono);max-height:480px;margin:8px 0 0;border:1px solid var(--hair)}
 
 /* 表格 */
+.tscroll{overflow-x:auto;max-width:100%}
 table{width:100%;border-collapse:collapse}
 th,td{padding:10px 10px;border-bottom:1px solid var(--hair);text-align:left;vertical-align:top}
 th{font:600 11px/1.4 var(--mono);letter-spacing:.08em;color:var(--mute);text-transform:uppercase;background:transparent}
@@ -333,9 +332,9 @@ svg.seg{vertical-align:middle} svg.seg rect,svg.seg circle{fill:var(--led-off)} 
 .pl-ic{width:38px;height:38px;padding:0;border-radius:50%;background:rgba(255,255,255,.09);color:#f5f5f7;display:inline-flex;align-items:center;justify-content:center}
 .pl-ic:hover{background:rgba(255,255,255,.17)}
 .pl-ic svg{width:18px;height:18px;fill:currentColor}
-.pl-time{font:13px var(--mono);color:#a1a1a6;min-width:120px}
-.pl-speed{margin-left:auto;min-width:240px;flex:0 1 320px}
-.pl-speed-top{display:flex;justify-content:space-between;font-size:12px;color:#a1a1a6;margin-bottom:2px}
+.pl-time{font:13px var(--mono);color:#a1a1a6;min-width:0}
+.pl-speed{margin-left:auto;min-width:0;max-width:100%;flex:1 1 220px;display:flex;flex-direction:column;flex-wrap:wrap}
+.pl-speed-top{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px;font-size:12px;color:#a1a1a6;margin-bottom:2px}
 .pl-speed-top output{font:600 13px var(--mono);color:#f5f5f7}
 .sp-word{font-weight:600;background:linear-gradient(90deg,#6aa8ff,#b18cff);-webkit-background-clip:text;background-clip:text;color:transparent;display:inline-block}
 .sp-word.pop{animation:wordIn .32s cubic-bezier(.2,.8,.2,1)}
@@ -443,6 +442,14 @@ button.qdel.sm{width:26px;height:26px;font-size:15px}
    （文字色用到的 --card-solid 不动，那不是面）。 */
 :root { --card-lift: rgb(255 255 255 / min(1, calc(.52 * var(--hx-a, 1)))); }
 :root[data-theme="dark"], :root[data-hx-mode="dark"] { --card-lift: rgb(20 25 36 / min(1, calc(.52 * var(--hx-a, 1)))); }
+:root[data-hx-glass="off"] { --card-lift: transparent; }
+:root[data-hx-glass="off"] .ex-subtabs,
+:root[data-hx-glass="off"] .ex-nav,
+:root[data-hx-glass="off"] .e-prog,
+:root[data-hx-glass="off"] .eg-top,
+:root[data-hx-glass="off"] #ppDrawerMask.on { -webkit-backdrop-filter: none; backdrop-filter: none; }
+:root[data-hx-glass="off"] .ex-dlg,
+:root[data-hx-glass="off"] .ppmodal-card { background: var(--card-solid, #fff); -webkit-backdrop-filter: none; backdrop-filter: none; }
 
 /* 考试页面布局（组件样式沿用单片机的 BASE_CSS，颜色跟首页“外观”） */
 /* 2026-11-17 滚动条全站统一成 6px 无感滑轨（hx-theme.js），这里不再自定 */
@@ -1252,6 +1259,7 @@ button.off { opacity: .5; cursor: not-allowed; }
   .lb-rank { width: 38px; }
   .eg-pick { width: 100%; }
   .eg-pick select { flex: 1; max-width: none; }
+  .pp-typebar #ppAddType, .e-filter select, .aq-bar input[type="search"] { min-width: 0; }
 }
 
 /* ==========================================================================
@@ -5517,11 +5525,11 @@ function resultHTML(res,opt){
   if(res.errors.length)h+=`<div class="errs"><b>编译错误（Keil 也会报）：</b><br>${res.errors.map(em).join('<br>')}</div>`;
   if(res.warnings.length)h+=`<div class="warns"><b>提示：</b><br>${res.warnings.map(em).join('<br>')}</div>`;
   const catName={base:'基础',change:'改动',full:'整体'};
-  h+=`<table class="mini items"><thead><tr><th>评分项</th><th>类别</th>${opt.noText?'':'<th>你写的</th>'}<th>得分</th><th>说明</th></tr></thead><tbody>`;
+  h+=`<div class="tscroll"><table class="mini items"><thead><tr><th>评分项</th><th>类别</th>${opt.noText?'':'<th>你写的</th>'}<th>得分</th><th>说明</th></tr></thead><tbody>`;
   res.items.forEach(it=>{
     h+=`<tr class="${it.pass?'':'bad'}"><td>${it.pass?'✓':'✗'} ${esc(it.name)}</td><td><span class="cat ${it.cat}">${catName[it.cat]||''}</span></td>${opt.noText?'':`<td class="mono">${esc(it.text)}</td>`}<td>${it.got}/${it.pts}</td><td>${esc(itemMsg(it,opt.hideAns))}</td></tr>`;
   });
-  h+='</tbody></table>';
+  h+='</tbody></table></div>';
   if(opt.hideAns&&res.items.some(it=>!it.pass))h+='<div class="note" style="margin-top:6px">这里只指出哪里不对，不给正确写法。老师开放答案后，点“查看答案”输入密码再看。</div>';
   h+=phenoHTML(res);
   return h;
@@ -5550,9 +5558,19 @@ function phenoVerdict(res){
   }
   return {pass:true,text:'你的程序的现象和要求完全一样。'};
 }
-const __players={};let __playerId=0;
+const __players={};let __playerId=0;const __PLAYER_MAX=24;
+function prunePlayers(){
+  const keys=Object.keys(__players);
+  if(keys.length<=__PLAYER_MAX)return;
+  for(const k of keys){
+    if(!document.querySelector(`.player[data-pid="${k}"]`))delete __players[k];
+  }
+  const left=Object.keys(__players);
+  while(left.length>__PLAYER_MAX){delete __players[left.shift()];}
+}
 function phenoHTML(res){
   const vd=phenoVerdict(res);
+  prunePlayers();
   const id=++__playerId;__players[id]={res,vd};
   return `<div class="pheno"><div class="verdict ${vd.pass?'ok':'bad'}">${vd.pass?'✓':'✗'} ${esc(vd.text)}</div>
     <div class="player" data-pid="${id}"></div>
@@ -5565,7 +5583,7 @@ function stepsHTML(res){
     ps.ref.forEach((rp,k)=>{
       const sp=ps.stu?ps.stu[k]:null;
       const n=Math.max(rp.segs.length,sp?sp.segs.length:0);
-      h+=`<div class="st-head">${esc(rp.label)}</div><table class="mini steps-t"><thead><tr><th>步</th><th>你的程序</th><th>应有的现象</th><th></th></tr></thead><tbody>`;
+      h+=`<div class="st-head">${esc(rp.label)}</div><div class="tscroll"><table class="mini steps-t"><thead><tr><th>步</th><th>你的程序</th><th>应有的现象</th><th></th></tr></thead><tbody>`;
       for(let i=0;i<Math.min(n,MAX);i++){
         const a=sp&&sp.segs[i],b=rp.segs[i],same=a&&b&&a.v===b.v;
         const cell=s=>s?(res.seg?`<span title="P${res.port}=${hx(s.v)}">${segHTML(s.v)}</span> ${esc(stateText(s.v,res.seg))}`
@@ -5573,14 +5591,33 @@ function stepsHTML(res){
         h+=`<tr class="${same?'':'bad'}"><td>第 ${i+1} 步</td><td>${sp?cell(a):'<span class="note">没编译通过</span>'}</td><td>${cell(b)}</td><td>${same?'✓':'✗'}</td></tr>`;
       }
       if(n>MAX)h+=`<tr><td colspan="4" class="note">后面按同样的规律继续，这一段一共 ${rp.segs.length} 步（你的程序 ${sp?sp.segs.length:0} 步）。看完整过程请用上面的“播放”。</td></tr>`;
-      h+='</tbody></table>';
+      h+='</tbody></table></div>';
     });
   });
   return h;
 }
 function mountPlayers(root,opt){
-  root.querySelectorAll('.player[data-pid]:not([data-on])').forEach(el=>{el.dataset.on='1';const d=__players[el.dataset.pid];if(d)initPlayer(el,d.res,d.vd,opt||{});});
+  root.querySelectorAll('.player[data-pid]:not([data-on])').forEach(el=>{
+    el.dataset.on='1';
+    const pid=el.dataset.pid,d=__players[pid];
+    delete __players[pid];
+    if(d)initPlayer(el,d.res,d.vd,opt||{});
+  });
 }
+let __hxVisible=true;
+const __visWatchers=new Set();
+const isPageVisible=()=>__hxVisible&&!document.hidden;
+function __notifyVis(){
+  const on=isPageVisible();
+  __visWatchers.forEach(fn=>{try{fn(on);}catch(e){}});
+}
+document.addEventListener('visibilitychange',__notifyVis);
+window.addEventListener('message',e=>{
+  if(e.origin&&location.origin&&e.origin!==location.origin)return;
+  if(!e.data||e.data.hx!=='visible')return;
+  __hxVisible=!!e.data.on;
+  __notifyVis();
+});
 const ICON={
   play:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.2v13.6c0 .8.9 1.3 1.6.9l10.6-6.8c.6-.4.6-1.3 0-1.7L9.6 4.3C8.9 3.9 8 4.4 8 5.2z"/></svg>',
   pause:'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6.5" y="5" width="4" height="14" rx="1.2"/><rect x="13.5" y="5" width="4" height="14" rx="1.2"/></svg>',
@@ -5696,15 +5733,22 @@ function initPlayer(el,res,vd,opt){
     el.querySelector('.pl-time').textContent=`${(P.t/1000).toFixed(2)} / ${(s.tEnd/1000).toFixed(2)} 秒`;
     const sk=el.querySelector('[data-a="seek"]');sk.value=P.t;setFill(sk);
   }
-  function loop(now){
+  function onVis(on){
     if(!el.isConnected){stop();return;}
+    if(on){if(P.playing&&!P.raf){P.last=performance.now();P.raf=requestAnimationFrame(loop);}}
+    else{cancelAnimationFrame(P.raf);P.raf=0;}
+  }
+  function loop(now){
+    P.raf=0;
+    if(!el.isConnected){stop();return;}
+    if(!isPageVisible())return;
     P.t+=(now-P.last)*speedOf(P.sx);P.last=now;
     if(P.t>=ps().tEnd){P.t=ps().tEnd;draw();stop();return;}
     draw();P.raf=requestAnimationFrame(loop);
   }
   function setPlayIcon(on){const b=el.querySelector('[data-a="play"]');if(b){b.innerHTML=on?ICON.pause:ICON.play;b.setAttribute('aria-label',on?'暂停':'播放');}}
-  function play(){if(P.t>=ps().tEnd)P.t=0;P.playing=true;P.last=performance.now();setPlayIcon(true);cancelAnimationFrame(P.raf);P.raf=requestAnimationFrame(loop);}
-  function stop(){P.playing=false;cancelAnimationFrame(P.raf);setPlayIcon(false);}
+  function play(){if(P.t>=ps().tEnd)P.t=0;P.playing=true;P.last=performance.now();setPlayIcon(true);cancelAnimationFrame(P.raf);P.raf=0;__visWatchers.add(onVis);if(isPageVisible())P.raf=requestAnimationFrame(loop);}
+  function stop(){P.playing=false;cancelAnimationFrame(P.raf);P.raf=0;__visWatchers.delete(onVis);setPlayIcon(false);}
   build();draw();
   if(opt.autoplay)play();
 }
@@ -5726,7 +5770,7 @@ function answerHTML(v){
 
 /* ---------- 虚拟实验板：边按键边看现象（每次按键重新模拟一遍，时间窗口内直接取状态） ---------- */
 function makeBoard(el,opts){
-  const st={v:null,A:null,events:[],t0:0,run:null,raf:0,down:{}};
+  const st={v:null,A:null,events:[],t0:0,run:null,raf:0,down:{},pausedAt:0};
   const keys=()=>st.v?Object.keys(st.v.hw.keys):[];
   function rerun(){
     const now=performance.now()-st.t0;
@@ -5740,13 +5784,29 @@ function makeBoard(el,opts){
     for(const x of tr){if(x.t>t)break;v=x.v;}
     return v;
   }
-  function frame(){
-    const t=performance.now()-st.t0;
-    if(t>st.until)rerun();
+  function paint(t){
     const v=valueAt(t);
     const out=el.querySelector('.bd-out');
     if(out&&out.dataset.v!==String(v)){out.dataset.v=v;out.innerHTML=st.v.seg?segHTML(v,true):binLedsHTML(v,st.v.port);}
     const s=el.querySelector('.bd-status');if(s)s.textContent=(t/1000).toFixed(1)+' 秒'+(st.run&&st.run.status==='halt'?'（程序停在死循环里等待）':st.run&&st.run.status==='timeout'?'（程序卡住了）':'');
+  }
+  function onVis(on){
+    if(!st.A||!el.isConnected){stop();return;}
+    if(on){
+      if(st.pausedAt){st.t0+=performance.now()-st.pausedAt;st.pausedAt=0;}
+      if(!st.raf)st.raf=requestAnimationFrame(frame);
+    }else{
+      if(!st.pausedAt)st.pausedAt=performance.now();
+      cancelAnimationFrame(st.raf);st.raf=0;
+    }
+  }
+  function frame(){
+    st.raf=0;
+    if(!st.A||!el.isConnected){stop();return;}
+    if(!isPageVisible()){if(!st.pausedAt)st.pausedAt=performance.now();return;}
+    const t=performance.now()-st.t0;
+    if(t>st.until)rerun();
+    paint(t);
     st.raf=requestAnimationFrame(frame);
   }
   function press(k,down){
@@ -5756,20 +5816,26 @@ function makeBoard(el,opts){
     rerun();
     const b=el.querySelector(`[data-key="${k}"]`);if(b)b.classList.toggle('pressed',down);
   }
+  function releaseAll(){keys().forEach(k=>{if(st.down[k])press(k,false);});}
   function start(v,code){
     stop();st.v=v;st.A=compileC(code);
     if(!st.A.ok){el.innerHTML=`<div class="errs">程序没有编译通过，不能上板运行：<br>${st.A.errors.map(esc).join('<br>')}</div>`;return false;}
-    st.events=[];st.down={};st.t0=performance.now();
+    st.events=[];st.down={};st.t0=performance.now();st.pausedAt=0;
     el.innerHTML=`<div class="board"><div class="bd-out"></div>${!v.seg?`<div class="pl-legend">${BIN_LEGEND(v.port)}</div>`:''}<div class="bd-keys">${keys().map(k=>`<button class="key" data-key="${k}" title="按住鼠标=按住按键">${k}</button>`).join('')}</div><div class="bd-status note"></div><div class="note">按住按键看反应；程序从“上电”开始运行${opts&&opts.note?'。'+opts.note:''}</div></div>`;
     el.querySelectorAll('[data-key]').forEach(b=>{
       const k=b.dataset.key;
-      b.addEventListener('pointerdown',e=>{e.preventDefault();b.setPointerCapture&&b.setPointerCapture(e.pointerId);press(k,true);});
+      b.addEventListener('pointerdown',e=>{e.preventDefault();try{b.setPointerCapture&&b.setPointerCapture(e.pointerId);}catch(_){}press(k,true);});
       b.addEventListener('pointerup',()=>press(k,false));
       b.addEventListener('pointercancel',()=>press(k,false));
+      b.addEventListener('lostpointercapture',()=>press(k,false));
     });
-    rerun();frame();return true;
+    window.addEventListener('blur',releaseAll);
+    __visWatchers.add(onVis);
+    rerun();
+    if(isPageVisible())frame();else{st.pausedAt=performance.now();paint(0);}
+    return true;
   }
-  function stop(){cancelAnimationFrame(st.raf);st.A=null;}
+  function stop(){cancelAnimationFrame(st.raf);st.raf=0;st.pausedAt=0;st.A=null;__visWatchers.delete(onVis);window.removeEventListener('blur',releaseAll);}
   return {start,stop};
 }
 
@@ -5861,20 +5927,17 @@ a.nav-i{text-decoration:none}
 .nav-b{margin-left:auto;font:500 11px/1.6 var(--mono);color:var(--mute);background:var(--field2);border-radius:980px;padding:0 8px}
 #nav>.tab-ind{background:linear-gradient(135deg,var(--accbg),transparent 140%);border:1px solid var(--accbg);border-radius:12px;box-shadow:0 6px 18px -8px var(--ring)}
 .side-foot{margin-top:auto;padding:0 12px;font-size:12px;color:var(--mute);line-height:1.7;display:flex;flex-direction:column;gap:8px}
-.themes{position:relative;display:flex;gap:2px;padding:3px;border-radius:11px;background:var(--field2);width:fit-content}
-.themes button{position:relative;z-index:1;padding:3px 10px;font-size:12px;background:transparent;border:0;box-shadow:none;color:var(--mute)}
-.themes button:hover{background:transparent;color:var(--ink);transform:none}
-.themes button.on{color:var(--ink)}
-.themes>.tab-ind{background:var(--card-lift);border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.15)}
 .main{min-width:0;padding:34px 38px 96px}
 .page-h{margin:0 0 24px}
 .eyebrow{font:600 11.5px/1 var(--mono);letter-spacing:.16em;color:var(--acc);text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:8px}
 .eyebrow::before{content:"";width:6px;height:6px;border-radius:2px;background:var(--acc);box-shadow:0 0 10px var(--acc)}
 .page-h h1{font:700 34px/1.12 var(--font-d);letter-spacing:-.03em;margin:0 0 8px;text-wrap:balance;background:linear-gradient(100deg,var(--ink) 30%,var(--acc) 85%,var(--acc2));-webkit-background-clip:text;background-clip:text;color:transparent}
 .page-h p{margin:0;font-size:15px;color:var(--mute);max-width:820px}
+html.hx-lite .side,html.hx-lite .stat,html.hx-lite .step{backdrop-filter:none;-webkit-backdrop-filter:none}
 @media(max-width:860px){
   .app{grid-template-columns:1fr;grid-template-rows:auto 1fr}
-  .side{position:sticky;top:0;height:auto;flex-direction:row;align-items:center;gap:8px;padding:8px 12px;overflow-x:auto;border-right:0;border-bottom:1px solid var(--hair)}
+  .side{position:sticky;top:0;height:auto;flex-direction:row;align-items:center;gap:8px;padding:8px 28px 8px 12px;overflow-x:auto;border-right:0;border-bottom:1px solid var(--hair);-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent)}
+  .side,.stat,.step{backdrop-filter:none;-webkit-backdrop-filter:none}
   .brand,.side-foot,.nav-h,.nav-b{display:none}
   #nav{flex-direction:row;gap:2px}
   .nav-g{flex-direction:row}
@@ -5974,6 +6037,7 @@ textarea.editor::selection{background:rgba(91,140,255,.35)}
 pre.code{background:var(--code);color:var(--codeink);padding:14px 16px;border-radius:16px;overflow:auto;font:12.5px/1.6 var(--mono);max-height:480px;margin:8px 0 0;border:1px solid var(--hair)}
 
 /* 表格 */
+.tscroll{overflow-x:auto;max-width:100%}
 table{width:100%;border-collapse:collapse}
 th,td{padding:10px 10px;border-bottom:1px solid var(--hair);text-align:left;vertical-align:top}
 th{font:600 11px/1.4 var(--mono);letter-spacing:.08em;color:var(--mute);text-transform:uppercase;background:transparent}
@@ -6100,9 +6164,9 @@ svg.seg{vertical-align:middle} svg.seg rect,svg.seg circle{fill:var(--led-off)} 
 .pl-ic{width:38px;height:38px;padding:0;border-radius:50%;background:rgba(255,255,255,.09);color:#f5f5f7;display:inline-flex;align-items:center;justify-content:center}
 .pl-ic:hover{background:rgba(255,255,255,.17)}
 .pl-ic svg{width:18px;height:18px;fill:currentColor}
-.pl-time{font:13px var(--mono);color:#a1a1a6;min-width:120px}
-.pl-speed{margin-left:auto;min-width:240px;flex:0 1 320px}
-.pl-speed-top{display:flex;justify-content:space-between;font-size:12px;color:#a1a1a6;margin-bottom:2px}
+.pl-time{font:13px var(--mono);color:#a1a1a6;min-width:0}
+.pl-speed{margin-left:auto;min-width:0;max-width:100%;flex:1 1 220px;display:flex;flex-direction:column;flex-wrap:wrap}
+.pl-speed-top{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px;font-size:12px;color:#a1a1a6;margin-bottom:2px}
 .pl-speed-top output{font:600 13px var(--mono);color:#f5f5f7}
 .sp-word{font-weight:600;background:linear-gradient(90deg,#6aa8ff,#b18cff);-webkit-background-clip:text;background-clip:text;color:transparent;display:inline-block}
 .sp-word.pop{animation:wordIn .32s cubic-bezier(.2,.8,.2,1)}
@@ -11400,7 +11464,7 @@ function mountPaper(sub) {
   }
   function changed() { paperSave(sub, C); clearTimeout(timer); timer = setTimeout(preview, 250); }
   /* 换完图之后：题池里的 q 已经就地换了 o.img，这里只要重排卷面 + 重画列表 */
-  window.addEventListener('hx-fig-changed', () => { try { preview(); } catch (e) { } });
+  window.addEventListener('hx-fig-changed', () => { try { preview(); } catch (e) { } }, sig);
   PPAC.signal.addEventListener('abort', () => clearTimeout(timer));
   /* 改了 picks 之后：入栈撤回，清空重做，重排卷面并刷新右侧列表 */
   function commitPicks(mut) {
@@ -11439,7 +11503,8 @@ function mountPaper(sub) {
     if (!d.paperReady) return;
     fr.dataset.h = fr.contentDocument.documentElement.scrollHeight;
     fit();
-    $('ppPages').textContent = `共 ${d.pages} 页（${d.pages / 2} 张 B4，双面）` +
+    const pg = $('ppPages');
+    if (pg) pg.textContent = `共 ${d.pages} 页（${d.pages / 2} 张 B4，双面）` +
       (d.pages > 4 ? ' · 超过 2 张，可改「紧凑」留白或减少题量' : '');
     if (pendingScroll != null) { view.scrollTop = pendingScroll; pendingScroll = null; }
   }, sig);
@@ -13087,8 +13152,17 @@ const curIsBuiltin = () => subIsBuiltin(CUR_SUB);
    target=_top：考试可能被首页外壳用 iframe 嵌着，跳转必须换掉整个顶层页面，不能在 iframe 里再套一层。
    组卷/理论试卷仍然从题池 hx_exam_qbank 取题（paperHome 里的 hx_exam_qbank_list），这条链路不动。 */
 const ZL_URL = '../ziliao/';
+function openZiliao(e) {
+  const p = window.HXTheme && HXTheme.portal();
+  if (p && typeof p.open === 'function') {
+    if (e) e.preventDefault();
+    p.open('ziliao');
+    return false;
+  }
+  return true;
+}
 const ALL_PAGES = T_PAGES;
-let CUR_T = 'exam', CUR_SUB = 'mcu';
+let CUR_T = 'exam', CUR_SUB = 'mcu', EX_BACK_HANDLER = null;
 /* 班级列表缓存：电子试卷页要按班筛选 / 显示班名，交卷页也要用。第一次进页面时拉一次，之后复用。 */
 let CLASSES = null;
 /* 2026-11-08 科目建 / 改名 / 删统一搬到首页「管理 → 科目」面板，这里科目只读（理论试卷要按科目切题池）。 */
@@ -13176,6 +13250,7 @@ function subPick(k) {
 function showT(k) {
   if (!ALL_PAGES.some(x => x[0] === k)) k = 'exam';
   CUR_T = k;
+  EX_BACK_HANDLER = null;
   document.querySelectorAll('#exNav [data-t]').forEach(b => b.classList.toggle('on', b.dataset.t === k));
   /* 理论试卷页要整幅画布（1280 的壳宽装不下 A3），其余页保持原来的阅读宽度。
      #app 自己也有 width:min(1100px,100%)，只放宽 .ex-shell 没用 —— 两级都要放。 */
@@ -13192,6 +13267,18 @@ function showT(k) {
    外壳先问当前工具能不能自己退一步：true = 工具退了（外壳什么都不做），false = 已在第一屏，外壳回首页。
    本站第一屏是「考试」页，理论试卷 / 试卷库都退它一步。 */
 window.HXBack = function () {
+  const modals = document.querySelectorAll('.ppmodal, .ex-dlg-mask');
+  if (modals.length) {
+    const top = modals[modals.length - 1];
+    const cls = top.querySelector('[data-dlgclose], [data-pclose], #csvPvX');
+    if (cls) cls.click();
+    else {
+      top.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+      if (top.isConnected) top.remove();
+    }
+    return true;
+  }
+  if (EX_BACK_HANDLER) { const fn = EX_BACK_HANDLER; fn(); return true; }
   if (CUR_T && CUR_T !== 'exam') { showT('exam'); return true; }
   return false;
 };
@@ -13304,6 +13391,7 @@ async function paperHome() {
         <li>回到这一页，题型、比重、点名换题都和单片机一样用。</li>
       </ol>
       <div class="row"><a class="ex-btn" id="exGoZiliao" href="${ZL_URL}" target="_top">去资料库出题</a></div></div>`;
+      const goZl = $('exGoZiliao'); if (goZl) goZl.onclick = openZiliao;
       return;
     }
   } else window.__examSetPool(null, null);
@@ -14112,6 +14200,7 @@ function ePageAC() {
 }
 function electronicStudentHome(msg) {
   ePageAC();
+  EX_BACK_HANDLER = null;
   const st = ME.me.student;
   const last = String(store.get('exam.code', '') || '').trim();
   app().innerHTML = demoBar() + `<header class="ex-h e-student-head"><div class="eyebrow">${E_ESC(st.class)} · ${E_ESC(st.name)}${DEMO ? ' · 演示' : ''}</div><h1>考试</h1><p>输入老师公布的考试码开始答题</p></header>
@@ -14126,6 +14215,12 @@ function electronicStudentHome(msg) {
 }
 function electronicRoom(code, r, back) {
   const AC = ePageAC();
+  EX_BACK_HANDLER = async () => {
+    if (!r.preview && !DEMO && !r.at) {
+      if (!await hxConfirm('还没有交卷（答案已暂存本机），确定离开？')) return;
+    }
+    back ? back() : electronicStudentHome();
+  };
   const decoded = ePaperDecode(r.paper); if (!decoded) return back ? back('这场考试不是电子试卷格式') : electronicStudentHome('这场考试不是电子试卷格式');
   /* 读卷时就归一（2026-11-09）：老 E1 卷子里冻着 t='choice' / o=[{key,text}]，不改卷子本身，只在渲染前统一 */
   const paper = decoded.map(eNormQ);
@@ -14252,6 +14347,7 @@ async function electronicResult(code, back) {
   ePageAC();
   const c = String(code || '').trim();
   const leave = () => back ? back() : electronicStudentHome();
+  EX_BACK_HANDLER = leave;
   const title = String(store.get('exam.title.' + c, '') || '考试成绩');
   app().innerHTML = demoBar() + `<header class="ex-h"><div class="eyebrow">考试 · ${E_ESC(c)}</div><h1>成绩</h1></header><div class="card" id="rBox">${fxLoad('正在读取成绩…')}</div>`;
   if (window.HXLoadFx) HXLoadFx.auto($('rBox'));
@@ -14338,6 +14434,7 @@ function eTabLabel(x, dup) {
   return String(x.title || '') + (isNaN(d) ? '' : '（' + (d.getMonth() + 1) + ' 月 ' + d.getDate() + ' 日）');
 }
 async function electronicTeacherHome(msg) {
+  EX_BACK_HANDLER = null;
   app().innerHTML = `<header class="ex-h"><div class="eyebrow">教师</div><h1>考试</h1><p>从资料库题池组一套电子卷，发布考试码给学生</p></header>${msg ? `<div class="errs">${E_ESC(msg)}</div>` : ''}<div class="row" style="margin-bottom:14px"><button class="pri" id="btnNew">发布电子试卷</button></div><div id="list">${fxLoad('加载中…')}</div>`;
   if (window.HXLoadFx) HXLoadFx.auto($('list')); $('btnNew').onclick = () => electronicEditExam();
   let list; try { [list, CLASSES] = await Promise.all([rpc('hx_exam_mine'), CLASSES || rpc('hx_my_classes')]); } catch (e) { const b0 = $('list'); if (b0) b0.innerHTML = `<div class="errs">${E_ESC(e.message)}</div>`; return; }
@@ -14388,7 +14485,7 @@ async function electronicTeacherHome(msg) {
     const canDelQ = qs.length > 1;
     return `<div class="card ex-item${x.open ? '' : ' shut'}" data-exam="${x.id}"><div class="ex-code-big">${E_ESC(x.code)}</div>
       <div class="ex-meta"><b>${E_ESC(x.title)}</b>${legacy}<span class="note">${E_ESC(SUBJECTS[x.subject] || x.subject)} · ${x.classes.map(cname).map(E_ESC).join('、') || '没选班'} · ${x.subs} 人交卷 · 满分 ${E_ESC(eFmtNum(full))} 分 · ${qs.length} 题 · ${x.open ? '考试中' : '已收卷'}</span><span class="ex-rel">${relTag(st)}${subNote}</span></div>
-      <div class="row"><button class="pri" data-subs="${x.id}">${isDone ? '查看成绩' : '交卷与批改'}</button><button data-open="${x.id}">${x.open ? '收卷' : '重新开放'}</button><button data-pre="${E_ESC(x.code)}">预览</button><button data-addq="${x.id}" title="从题库再挑几道题加到卷尾（已有题号和已交卷的答案都不动）">加题</button><button data-delq="${x.id}"${canDelQ ? '' : ' disabled title="至少留一道题"'} title="${canDelQ ? '删掉这套卷里的某一道题（学生那份的题号会自动前移）' : '至少留一道题'}">删题</button>${relBtn(st)}<button data-del="${x.id}" data-danger>删除</button></div></div>`;
+      <div class="row"><button class="pri" data-subs="${x.id}">${isDone ? '查看成绩' : '交卷与批改'}</button><button data-open="${x.id}">${x.open ? '收卷' : '重新开放'}</button><button data-pre="${E_ESC(x.code)}">预览</button><button data-addq="${x.id}" title="从题库再挑几道题加到卷尾（已有题号和已交卷的答案都不动）">加题</button><button data-delq="${x.id}"${canDelQ ? '' : ' disabled'} title="${canDelQ ? '删掉这套卷里的某一道题（学生那份的题号会自动前移）' : '至少留一道题'}">删题</button>${relBtn(st)}<button data-del="${x.id}" data-danger>删除</button></div></div>`;
   };
   const emptyCard = t => `<div class="card"><p class="note">${t}</p></div>`;
 
@@ -14700,6 +14797,7 @@ async function addQDialog(x) {
 }
 async function electronicEditExam() {
   ePageAC();
+  EX_BACK_HANDLER = () => electronicTeacherHome();
   let raw = [];
   try { raw = await rpc('hx_exam_subject_list'); } catch (e) { raw = SUBJ.slice(); }
   const list = (Array.isArray(raw) && raw.length ? raw : SUBJ).map(x => ({
@@ -14770,7 +14868,8 @@ async function electronicEditExam() {
       $('efTypeBox').innerHTML = '';
       box.innerHTML = `<div class="card e-empty-pool"><h2>这个科目题池是空的</h2>
         <p>这个科目题池是空的：去「资料库」AI 出题并审核入池，或换上面的科目。</p>
-        <div class="row"><a class="ex-btn" href="${ZL_URL}" target="_top">去资料库出题</a></div></div>`;
+        <div class="row"><a class="ex-btn" id="efGoZiliao" href="${ZL_URL}" target="_top">去资料库出题</a></div></div>`;
+      const goZl = $('efGoZiliao'); if (goZl) goZl.onclick = openZiliao;
       return;
     }
     /* 按题型筛选（2026-11-17）：题池 137 题，全列出来滚不动。筛选只隐藏行、不重画，
@@ -15076,6 +15175,7 @@ function eAiNote(note, miss) {
    点它仍然能立刻存一次（兜底），但**不再是老师必须记得做的动作**。 */
 async function subsElectronic(x) {
   const AC = ePageAC();
+  EX_BACK_HANDLER = () => electronicTeacherHome();
   app().innerHTML = `<header class="ex-h"><div class="eyebrow">批改 · ${E_ESC(x.code)}</div><h1>${E_ESC(x.title)}</h1></header><div class="card">${fxLoad('正在读取交卷…')}</div>`;
   let sheet;
   try { sheet = await rpc('hx_exam_grade_sheet', { p_exam_id: x.id }); }
@@ -15505,6 +15605,7 @@ async function subsElectronic(x) {
     if (all) return true;
     return await hxConfirm(`有 ${Math.max(failed.size, dirty.size)} 份没保存上（见卡片底部红字），现在离开这几处改动就丢了。确定继续？`);
   }
+  EX_BACK_HANDLER = async () => { if (await guard()) electronicTeacherHome(); };
   /* 保存一份 = 把**整张 marks** 覆盖写上去（服务端 hx_exam_mark 的语义）。
      三条路径共用：① 防抖自动保存（opts.auto）② 老师点卡片底部那颗（opts.manual）③ flushAll。
      同一个人再次进来会**排在上一趟后面**（saveChain），不会出现两个 RPC 抢着写同一行的乱序。 */
@@ -15758,13 +15859,19 @@ async function subsElectronic(x) {
     if (!targets.length) return toast('没有要批的题（已批过的不会重批）');
     const aiBtn = $('egAi'); if (aiBtn) aiBtn.disabled = true;
     const setSt = t => { const el = $('egAiState'); if (el) { el.textContent = t; el.className = 'eg-msg warn'; } };
-    const { done, skipped, fails } = await aiRunTargets(targets, (d, n) => setSt(`AI 批改中 ${d}/${n} 道…`));
-    renderAll();
-    Object.keys(fails).forEach(k => cardMsg(+k, fails[k], true));
-    /* 「没给分」的题要明说：以前它们会静默留在待批，老师以为 AI 漏跑了。 */
-    const skipNote = skipped ? `，${skipped} 道 AI 没给出有效分数（保持待批，请人工核）` : '';
-    setSt(done ? `AI 批完 ${done} 道${skipNote}，正在自动保存` : 'AI 没批出结果，已保留人工批改');
-    toast(done ? `AI 批完 ${done} 道${skipNote}，正在自动保存（不用再点保存）` : 'AI 没批出结果');
+    try {
+      const { done, skipped, fails } = await aiRunTargets(targets, (d, n) => setSt(`AI 批改中 ${d}/${n} 道…`));
+      if (AC.signal.aborted || !$('egCards')) return;
+      renderAll();
+      Object.keys(fails).forEach(k => cardMsg(+k, fails[k], true));
+      /* 「没给分」的题要明说：以前它们会静默留在待批，老师以为 AI 漏跑了。 */
+      const skipNote = skipped ? `，${skipped} 道 AI 没给出有效分数（保持待批，请人工核）` : '';
+      setSt(done ? `AI 批完 ${done} 道${skipNote}，正在自动保存` : 'AI 没批出结果，已保留人工批改');
+      toast(done ? `AI 批完 ${done} 道${skipNote}，正在自动保存（不用再点保存）` : 'AI 没批出结果');
+    } finally {
+      const b = $('egAi');
+      if (b) b.disabled = false;
+    }
   }
   /* ── 进批改台就自动复核「判不动的填空」（2026-11-18）──────────────────────
      用户原话：「这个ai不会批改吗 我问你你都会吧」。截图里学生答「50」、答案是「50Hz」，

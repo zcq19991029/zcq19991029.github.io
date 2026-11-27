@@ -64,6 +64,11 @@
     var s = readSession();
     return s && s.access_token ? s.access_token : '';
   }
+  function sessionUid() { var s = readSession(); return s && s.user ? String(s.user.id || '') : ''; }
+  function resetForSession() {
+    clearTimeout(timer); S = null; fatal = null; busy = false; drag = null;
+    MY_BG = { bg: '', pos: 50, loaded: false }; FACES_CLS = 0; FACES_READY = false; facesAsked = false; facesTry = 0;
+  }
 
   var refreshing = null;
 
@@ -169,8 +174,10 @@
         '<span>1. 点下面的按钮去登录（账号是<b>学号</b>，密码是第一次登录时自己设的）</span>' +
         '<span>2. 登录成功后，回到这一页 —— 不用刷新，它会自己认出你</span>' +
         '</div>' +
-        '<a class="btn-primary" style="color:#fff" href="' + PORTAL + '" target="_blank" rel="noopener">去登录 →</a>' +
+        '<a class="btn-primary" id="portalLogin" style="color:#fff" href="#">去登录 →</a>' +
         '<br><br><small>忘了密码就在登录页点「忘记密码」。没登录过的话，问老师要课堂码注册。</small>');
+      var login = document.getElementById('portalLogin');
+      if (login) login.onclick = function (e) { e.preventDefault(); if (window.HXTheme && HXTheme.login) HXTheme.login(); else location.href = PORTAL; };
       watchLogin();
     } else if (kind === 'not_student') {
       setIdentity('账号没绑定班级', '', '');
@@ -514,7 +521,11 @@
   function boot() {
     /* 演示视角：右上角「看我的分数」也要带上同一个 pv，否则影子身份在这儿断了
        （回到 scores.html 会把老师当成「不是学生」直接挡掉）。scores.js 里反过来那条已经带过。 */
-    if (PV) { var go = document.querySelector('.idc-go'); if (go) go.href = 'scores.html?pv=' + PV; }
+    var go = document.querySelector('.idc-go');
+    if (go) {
+      go.href = PV ? 'scores.html?pv=' + PV : 'scores.html';
+      go.onclick = function (e) { e.preventDefault(); location.replace(go.href); };
+    }
     if (!token()) { showFatal('no_login'); return; }
     rpc('jf_team_mine', {}).then(function (res) {
       if (!token()) { showFatal('no_login'); return; }
@@ -558,7 +569,7 @@
            jf_team_mine 现在会把最近一期 closed 房间也回给我们，所以 res.room 通常等于 S.room，
            这时什么都不做，屏幕上的最终分组不会闪。 */
         rpc('jf_team_mine').then(function (res) {
-          if (res && res.room && Number(res.room) !== Number(S.room)) return loadState(res.room);
+          if (res && res.room && (Number(res.room) !== Number(S.room) || String(res.status || '') !== String(S.status || ''))) return loadState(res.room);
         }).then(function () { schedule(5000); }).catch(function () { schedule(5000); });
         return;
       }
@@ -612,7 +623,7 @@
       d.classList.toggle('drag-over', d === g || d === p);
     });
   }
-  function meDragEnd(e) {
+  function meDragEnd(e, cancelled) {
     if (!drag) return;
     document.body.classList.remove('me-dragging');
     var t = document.elementFromPoint(e.clientX, e.clientY);
@@ -623,6 +634,7 @@
     document.querySelectorAll('.gb-me-card.is-lifting').forEach(function (d) { d.classList.remove('is-lifting'); });
     if (drag.el && drag.el.parentNode) drag.el.remove();
     drag = null;
+    if (cancelled) return;
     if (!isOpen()) return;   // 松手瞬间房间刚被老师确认：这次拖动直接作废，不发请求
     if (p && !g) { stand(); return; }   // 拖回未分组 = 起身
     if (!table) return;
@@ -631,12 +643,20 @@
   document.addEventListener('pointerdown', meDragStart);
   document.addEventListener('pointermove', meDragMove);
   document.addEventListener('pointerup', meDragEnd);
-  document.addEventListener('pointercancel', meDragEnd);
+  document.addEventListener('pointercancel', function (e) { meDragEnd(e, true); });
 
   document.addEventListener('visibilitychange', function () {
     if (document.hidden) return;
     if (fatal === 'no_login' && token()) { boot(); return; }
     if (S) loadState(S.room).catch(function () {});
+  });
+  var lastUid = sessionUid();
+  if (window.addEventListener) window.addEventListener('storage', function (e) {
+    if (e.key !== SESSION_KEY) return;
+    var uid = sessionUid();
+    if (uid === lastUid) return;
+    lastUid = uid; resetForSession();
+    if (uid) boot(); else showFatal('no_login');
   });
 
   boot();

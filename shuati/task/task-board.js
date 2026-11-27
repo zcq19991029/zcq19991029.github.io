@@ -278,7 +278,7 @@ function gate(title, msg, login) {
     <b>${esc(title)}</b><p>${esc(msg)}</p>
     ${login ? '<button class="qt-btn primary" id="bdLogin" type="button">去登录</button>' : ''}
   </div></div>`;
-  const b = $('#bdLogin'); if (b) b.onclick = () => { location.href = 'index.html'; };
+  const b = $('#bdLogin'); if (b) b.onclick = () => { location.href = 'index.html?solo=1'; };
 }
 
 async function load(first) {
@@ -355,7 +355,7 @@ function paint(b) {
     ${t.status !== 'open' ? `<div style="flex:none;display:flex;flex-direction:column;align-items:center;gap:.6vmin">
       <div class="bd-stamp ${t.status}">${t.status === 'void' ? '已删除' : '已结束'}</div>
       ${t.status === 'closed' ? `<small style="font-size:1.35vmin;color:var(--dim);white-space:nowrap">${
-        t.lesson_no ? '分数已按名次写入「小组加分」第 ' + t.lesson_no + ' 次课' : '本任务未填课次，分数不会入账'}</small>` : ''}
+        t.lesson_no ? '分数已按准确率写入「小组加分」第 ' + t.lesson_no + ' 次课' : '本任务未填课次，分数不会入账'}</small>` : ''}
     </div>` : ''}
     <div class="bd-stat">
       <div class="ring">
@@ -458,7 +458,12 @@ function paint(b) {
   B.pctPrev = pct;
 
   // 返回「上一级」= 刷题的课堂任务页（index.html），不是浏览器上一页、也不是站点根首页。
-  const bdBack = $('#bdBack'); if (bdBack) bdBack.onclick = () => { location.href = 'index.html'; };
+  const bdBack = $('#bdBack'); if (bdBack) bdBack.onclick = () => {
+    try {
+      if (window.opener && !window.opener.closed) { window.opener.focus(); window.close(); return; }
+    } catch (e) { /* 跨源等 */ }
+    location.href = 'index.html?solo=1';
+  };
 
   // 第一屏之后关掉入场动画（否则每完成一个人，整块名单都重新 fade 一次，投影上看着像闪）
   document.body.classList.toggle('no-anim', !firstPaint);

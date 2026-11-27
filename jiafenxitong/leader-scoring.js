@@ -87,7 +87,7 @@
   function printSheets(cls,lesson,groups,perPage){var pages=[],offset=0,counts=Array.isArray(perPage)?perPage:[];if(!counts.length){var limit=Number(perPage)||4,pageCount=Math.ceil(groups.length/limit),base=Math.floor(groups.length/pageCount),extra=groups.length%pageCount;counts=Array.from({length:pageCount},function(_,i){return base+(i<extra?1:0);});}counts.forEach(function(count){var selected=Array.isArray(count)?count:groups.slice(offset,offset+count);offset+=Array.isArray(count)?count.length:count;count=selected.length;if(!selected.length)return;pages.push('<div class="leader-paper slips-'+count+' '+(count>=3?'compact-slips ':'')+(count>=6?'dense-slips ':'')+'" style="grid-template-rows:repeat('+count+',minmax(0,1fr))">'+selected.map(function(g){return printableGroup(cls,lesson,g);}).join('')+'</div>');});return '<div class="leader-print-batch">'+pages.join('')+'</div>';}
   function printIsolated(html){var old=document.getElementById('leaderPrintFrame');if(old)old.remove();var frame=document.createElement('iframe');frame.id='leaderPrintFrame';frame.style.cssText='position:fixed;left:-10000px;top:0;width:800px;height:1100px;border:0';var styles=Array.from(document.querySelectorAll('link[rel="stylesheet"],style')).map(function(el){return el.outerHTML;}).join('');frame.srcdoc='<!doctype html><html><head><meta charset="utf-8">'+styles+'<style>@media print{html,body{margin:0!important;padding:0!important;min-height:0!important;height:auto!important}body::before,body::after{display:none!important}.leader-paper{height:272mm!important;break-after:auto!important;page-break-after:auto!important}.leader-paper+.leader-paper{break-before:page;page-break-before:always}.leader-print-batch{margin:0!important;padding:0!important}}</style></head><body class="print-leader"><div id="printArea">'+html+'</div></body></html>';frame.onload=function(){frame.contentWindow.focus();frame.contentWindow.print();};document.body.appendChild(frame);}
   window.JFDT_LEADER_PRINT_HTML=printSheets;
-  var printDialog=document.createElement('dialog');printDialog.id='dlgLeaderPrint';printDialog.innerHTML='<form method="dialog"><h2>打印组长评分表</h2><label class="field col">范围<select id="leaderPrintScope"><option value="all">本课全部小组</option><option value="current">只打印点按钮的那一组</option></select></label><label class="field col">打印页数<select id="leaderPrintPageCount"></select></label><div id="leaderPrintRanges"></div><p id="leaderPrintError" role="alert" class="note"></p><p class="note">每页填写组号范围，例如1-6、7-13；也可填1,3,5。每页最多8组，每组只出现一次。未命名项目留空供手写。A4竖向，建议关闭页眉页脚并按100%打印。</p><div class="btnrow"><button class="btn" value="cancel">取消</button><button class="btn primary" value="ok">开始打印</button></div></form>';document.body.appendChild(printDialog);var printSelection=null,exportMode=false;
+  var printDialog=document.createElement('dialog');printDialog.id='dlgLeaderPrint';printDialog.innerHTML='<form method="dialog"><h2>打印组长评分表</h2><label class="field col">范围<select data-hx-plain id="leaderPrintScope"><option value="all">本课全部小组</option><option value="current">只打印点按钮的那一组</option></select></label><label class="field col">打印页数<select data-hx-plain id="leaderPrintPageCount"></select></label><div id="leaderPrintRanges"></div><p id="leaderPrintError" role="alert" class="note"></p><p class="note">每页填写组号范围，例如1-6、7-13；也可填1,3,5。每页最多8组，每组只出现一次。未命名项目留空供手写。A4竖向，建议关闭页眉页脚并按100%打印。</p><div class="btnrow"><button class="btn" value="cancel">取消</button><button class="btn primary" value="ok">开始打印</button></div></form>';document.body.appendChild(printDialog);var printSelection=null,exportMode=false;
   function selectedPrintGroups(){return document.querySelector('#leaderPrintScope').value==='all'?printSelection.cls.groups:[printSelection.group];}
   function fillPageRanges(reset){if(!printSelection)return;var groups=selectedPrintGroups(),select=document.querySelector('#leaderPrintPageCount'),n=Number(select.value)||Math.ceil(groups.length/4);if(reset){select.innerHTML=groups.map(function(_,i){return '<option value="'+(i+1)+'">'+(i+1)+'页</option>';}).join('');n=Math.ceil(groups.length/4);}n=Math.max(1,Math.min(n,groups.length));select.value=String(n);var offset=0;document.querySelector('#leaderPrintRanges').innerHTML=Array.from({length:n},function(_,i){var count=Math.floor(groups.length/n)+(i<groups.length%n?1:0),part=groups.slice(offset,offset+count);offset+=count;var numbers=part.map(function(g){return g.no;}),contiguous=numbers.every(function(no,j){return !j||no===numbers[j-1]+1;}),value=contiguous&&numbers.length>1?numbers[0]+'-'+numbers[numbers.length-1]:numbers.join(',');return '<label class="field col">第'+(i+1)+'页组别<input data-print-page="'+i+'" aria-label="第'+(i+1)+'页组别" value="'+esc(value)+'" placeholder="例如1-6"></label>';}).join('');document.querySelector('#leaderPrintError').textContent='';}
   function parsePageRanges(groups,texts){var seen=new Set(),pages=texts.map(function(text,i){var numbers=[];String(text).trim().split(/[,，、\s]+/).forEach(function(token){var m=/^(\d+)(?:[-—–~～至](\d+))?$/.exec(token);if(!m)throw Error('第'+(i+1)+'页请输入组号或范围，如1-6。');var start=Number(m[1]),end=m[2]?Number(m[2]):start;if(start>end||end-start>1000)throw Error('第'+(i+1)+'页组号范围无效。');for(var no=start;no<=end;no++)numbers.push(no);});if(numbers.length>8)throw Error('第'+(i+1)+'页超过8组，请增加页数。');return numbers.map(function(no){var g=groups.find(function(g){return g.no===no;});if(!g)throw Error('第'+no+'组不在本次打印范围内。');if(seen.has(no))throw Error('第'+no+'组重复，请只安排一次。');seen.add(no);return g;});});var missing=groups.filter(function(g){return !seen.has(g.no);});if(missing.length)throw Error('尚未安排：第'+missing.map(function(g){return g.no;}).join('、')+'组。');return pages;}
@@ -656,7 +656,7 @@
       }
     }
 
-    function removeProject(index) {
+    function removeProject(index, confirmed) {
       /* 2026-11-17 A2：允许删到 0 列（用户原话「允许删除为0个」）。
          以前这里挡着「至少保留 1 列」，删最后一列只弹一句提示 —— 等于删不掉。
          删到 0 之后 projectNames() 会返回空数组（见 assessment.js 的显式 0 分支），
@@ -665,7 +665,10 @@
       var hasData = String(sharedProjects[index] || '').trim() || Object.keys(records).some(function (k) {
         return Object.keys(records[k].members || {}).some(function (mk) { var v = records[k].members[mk]; return v && v[index] !== null && v[index] !== undefined; });
       });
-      if (hasData && !window.confirm('删除此项目会同步删除本课所有组这一列的名称和分数，并重新计算完成率。确定删除？')) return;
+      if (hasData && !confirmed) {
+        if (window.hxConfirm) window.hxConfirm('删除此项目会同步删除本课所有组这一列的名称和分数，并重新计算完成率。确定删除？', { title: '删除项目', okText: '删除', cancelText: '取消' }).then(function (ok) { if (ok) removeProject(index, true); });
+        return;
+      }
       var removedName = String(sharedProjects[index] == null ? '' : sharedProjects[index]).trim();
       sharedProjects.splice(index, 1);
       lesson.leaderProjectNames = sharedProjects.slice();
@@ -752,7 +755,7 @@
       dlg.innerHTML = '<form method="dialog"><h2>一键全员满分</h2><p>每人每个已命名项目填为 100%，共 ' + named.length + ' 项' +
         (wireNamed ? '（线上排位列不参与，那几列只有真实完成排位才能得分）' : '') +
         '；空白预留列不变。已有较低分会被改为 100%，可在操作日志按组撤销。</p>' +
-        '<label class="field col">范围<select id="leaderFullScope"><option value="current">只填第 ' + st.group.no + ' 组</option><option value="all">本课全部小组</option></select></label>' +
+        '<label class="field col">范围<select data-hx-plain id="leaderFullScope"><option value="current">只填第 ' + st.group.no + ' 组</option><option value="all">本课全部小组</option></select></label>' +
         '<div class="btnrow"><button class="btn" value="cancel">取消</button><button class="btn primary" value="ok">确认填满 100%</button></div></form>';
       document.body.appendChild(dlg);
       dlg.addEventListener('close', function () {

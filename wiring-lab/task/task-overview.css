@@ -26,10 +26,20 @@ body.ov::before {
 
 /* ── 顶栏 ───────────────────────────────────────────────────────────────── */
 .ov-top {
-  flex: none; display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+  flex: none; display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
   padding: calc(1.4vmin) calc(2vmin);
   border-bottom: 1px solid var(--edge);
 }
+.ov-back {
+  flex: none; display: inline-flex; align-items: center; gap: .5vmin;
+  padding: .6vmin 1.2vmin; border-radius: .9vmin; cursor: pointer;
+  font: inherit; font-size: calc(1.7vmin); font-weight: 700; color: var(--dim); white-space: nowrap;
+  border: 1px solid var(--edge2); background: color-mix(in srgb, var(--card2) 85%, transparent);
+  transition: color .15s, border-color .15s;
+}
+.ov-back:hover { color: var(--ink); border-color: var(--acc); }
+.ov-back[hidden] { display: none !important; }
+.ov-gate-acts { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
 .ov-top > b { font-size: calc(3.1vmin); letter-spacing: .5px; }
 .ov-sub { font-size: calc(2vmin); color: var(--dim); }
 .ov-sub em { font-style: normal; color: var(--ink); font-weight: 800; font-variant-numeric: tabular-nums; }
@@ -46,10 +56,21 @@ body.ov::before {
   border: 1px solid var(--edge); border-radius: calc(1.2vmin);
   background: var(--card); padding: calc(1.2vmin) calc(1.4vmin);
 }
+.ov-block.fresh { animation: ovBlockFresh 2.2s ease-out; border-color: color-mix(in srgb, var(--ok) 65%, transparent); }
+@keyframes ovBlockFresh {
+  0% { box-shadow: 0 0 0 2px color-mix(in srgb, var(--ok) 75%, transparent), 0 0 28px -6px var(--ok); }
+  100% { box-shadow: none; }
+}
 .ov-h { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: calc(.9vmin); }
 .ov-h > b { font-size: calc(2.7vmin); }
 .ov-meta { font-size: calc(1.8vmin); color: var(--dim); }
 .ov-meta em { font-style: normal; color: var(--ink); font-weight: 700; font-variant-numeric: tabular-nums; }
+.ov-fresh {
+  font-size: calc(1.8vmin); font-weight: 800; color: var(--ok);
+  padding: .12em .7em; border-radius: 999px;
+  background: color-mix(in srgb, var(--ok) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ok) 48%, transparent);
+}
 .ov-left {
   margin-left: auto; font-size: calc(1.9vmin); font-weight: 800; color: var(--bad);
   padding: .1em .6em; border-radius: 999px;

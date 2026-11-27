@@ -38,7 +38,7 @@
     + '<label>头像文字<input id="profileAvatar" maxlength="2" placeholder="例如：赵"></label>'
     + '<label>工号<input id="profileEmployee" maxlength="24" autocomplete="off"></label></div>'
     + '<p class="import-hint">显示资料随本人课程工作区保存，换电脑登录同一账号还在；账号、密码和身份在华夏工具总入口管理。</p>'
-    + '<div id="profileTools"></div></div>'
+    + '</div>'
     + '<div class="import-footer"><span id="profileStatus" role="status"></span><button id="profileSave" class="primary">保存资料</button></div>';
   document.body.append(modal);
 

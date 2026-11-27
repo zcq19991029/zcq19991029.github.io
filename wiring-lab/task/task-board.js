@@ -335,7 +335,7 @@ function paint(b) {
 
   root.innerHTML = `
   <header class="bd-top">
-    <button class="bd-back" id="bdBack" type="button" title="返回接线仿真">← 接线仿真</button>
+    <button class="bd-back" id="bdBack" type="button" title="返回接线仿真"${window.top !== window ? ' hidden' : ''}>← 接线仿真</button>
     <div class="bd-title">
       <small>${esc(t.class_name)} · 第 ${t.lesson_no || '—'} 次课${t.lesson_date ? ' · ' + esc(t.lesson_date) : ''}</small>
       <b>${esc(t.title || cname(t.circuit))}</b>
@@ -445,7 +445,11 @@ function paint(b) {
   // 返回「上一级」= 接线仿真主页（/wiring-lab/ 外壳），不是浏览器上一页、也不是站点根首页。
   // 2026-11-14 修：原来写 location.href = HOME（HOME 现在是站点根 '../../'），把总入口整页
   // 装进了这一帧 → 冗余首页 + 双返回。改成 goTool()（task-hx.js 里定义，回 ../ 外壳）。
-  const bdBack = $('#bdBack'); if (bdBack) bdBack.onclick = () => goTool();
+  const bdBack = $('#bdBack');
+  if (bdBack) {
+    if (window.top !== window) bdBack.hidden = true;
+    bdBack.onclick = () => goTool();
+  }
 
   // 第一屏之后关掉入场动画（否则每完成一个人，整块名单都重新 fade 一次，投影上看着像闪）
   document.body.classList.toggle('no-anim', !firstPaint);

@@ -16,10 +16,11 @@ const OV = {
   classes: [],   // 我教的、点亮了「接线仿真」的班
   tasks: [],     // wire_task_list() 的全部（本班过滤在 load 里做）
   boards: {},    // taskId → wire_task_board()
-  seen: {},      // taskId → Set(上一轮未完成的 student_id)：只用来判断「谁刚完成」
-  fresh: {},     // taskId → Set(本轮要高亮的)
+  seen: {},      // taskId → Map(上一轮未完成的 student_id → 显示名)：判断「谁刚完成」
+  fresh: {},     // taskId → Array(本轮刚刚完成的学生显示名)
   cls: null,     // ?cls= 指定的班（任务页点进来时带的）；null = 我所有班一起看
   stop: null,
+  clockT: 0,
   err: '',
   t0: Date.now(),
 };
@@ -31,12 +32,33 @@ const root = $('#ovRoot');
    列数由 CSS 的 auto-fill 自己排，这里只管字号。 */
 const sizeTier = n => n <= 6 ? 1.35 : n <= 12 ? 1.15 : n <= 20 ? 1 : n <= 32 ? .92 : n <= 48 ? .86 : .8;
 
+function ovExit() {
+  if (OV.stop) { try { OV.stop(); } catch (e) { } OV.stop = null; }
+  clearTimeout(OV.clockT); OV.clockT = 0;
+  return goTool();
+}
+window.HXBack = function () { return ovExit(); };
+
+function ovBackBtnHtml() {
+  if (window.top !== window) return '';
+  return '<button class="ov-back" id="ovBack" type="button" title="返回接线仿真">← 返回</button>';
+}
+function bindOvBack() {
+  const b = $('#ovBack');
+  if (b) b.onclick = () => ovExit();
+}
+
 function gate(title, msg, login) {
+  clearTimeout(OV.clockT); OV.clockT = 0;
   root.innerHTML = `<div class="bd-gate"><div>
     <b>${esc(title)}</b><p>${msg}</p>
-    ${login ? '<button class="btn primary" id="ovLogin" type="button">去登录</button>' : ''}
+    <div class="ov-gate-acts">
+      ${login ? '<button class="btn primary" id="ovLogin" type="button">去登录</button>' : ''}
+      ${window.top === window ? '<button class="btn ghost" id="ovBack" type="button">← 返回接线仿真</button>' : ''}
+    </div>
   </div></div>`;
   const b = $('#ovLogin'); if (b) b.onclick = () => HX.login();
+  bindOvBack();
 }
 
 (async function boot() {
@@ -82,17 +104,21 @@ async function load(first) {
   }
 }
 
-/* 谁刚完成：和 board.html 一样按「上一轮没见过」判断，给一次高亮 + 一句「刚刚完成」。 */
+/* 谁刚完成：上一轮在未完成名单里、本轮已消失的同学即为「刚刚完成」，收集姓名用于块头提示与高亮。 */
 function trackFresh(open, first) {
   const fresh = {};
   open.forEach(t => {
-    const pend = ((OV.boards[t.id] || {}).pending) || [];
-    const now = new Set(pend.map(p => String(p.student_id)));
+    const b = OV.boards[t.id];
+    if (!b) return;
+    const pend = b.pending || [];
+    const now = new Map();
+    pend.forEach(p => now.set(String(p.student_id), String(p.name || p.no || p.student_id)));
     if (!first) {
       const was = OV.seen[t.id];
       if (was) {
-        fresh[t.id] = new Set();
-        was.forEach(id => { if (!now.has(id)) fresh[t.id].add(id); });
+        const doneNames = [];
+        was.forEach((nm, id) => { if (!now.has(id)) doneNames.push(nm); });
+        if (doneNames.length) fresh[t.id] = doneNames;
       }
     }
     OV.seen[t.id] = now;
@@ -104,6 +130,7 @@ function paintBoard(open, first) {
   trackFresh(open, first);
   if (!open.length) {
     root.innerHTML = `<header class="ov-top">
+        ${ovBackBtnHtml()}
         <b>课堂任务 · 未完成总览</b>
         <span class="ov-sub">本班现在没有进行中的任务</span>
         <span class="ov-clock" id="ovClock">${clock()}</span>
@@ -112,6 +139,7 @@ function paintBoard(open, first) {
         <b>没有已开放的课堂任务</b>
         <p>去「课堂任务」页发布一个（同一个班可以同时发多个）。发布后这里会自动出现任务名和未完成名单。</p>
       </div>`;
+    bindOvBack();
     tick();
     return;
   }
@@ -119,11 +147,13 @@ function paintBoard(open, first) {
   root.style.setProperty('--ofs', sizeTier(totalPend));
   const clsName = OV.cls ? ((OV.tasks.find(t => Number(t.class_id) === OV.cls) || {}).class_name || '') : '';
   root.innerHTML = `<header class="ov-top">
+      ${ovBackBtnHtml()}
       <b>课堂任务 · 未完成总览</b>
       <span class="ov-sub">${clsName ? '<b>' + esc(clsName) + '</b> · ' : ''}进行中 <em>${open.length}</em> 个任务 · 共 <em>${totalPend}</em> 人还没完成 · <b class="ov-tip">点名字＝以他身份打开这一题的排位</b></span>
       <span class="ov-clock" id="ovClock">${clock()}</span>
     </header>
     <div class="ov-wrap">${open.map(t => blockHTML(t)).join('')}</div>`;
+  bindOvBack();
   root.querySelectorAll('[data-rank-for]').forEach(btn => {
     btn.onclick = () => {
       const t = open.find(x => String(x.id) === btn.dataset.task);
@@ -139,7 +169,7 @@ function blockHTML(t) {
   const b = OV.boards[t.id];
   const pend = (b && b.pending) || [];
   const done = b ? +b.done : 0, total = b ? +b.total : 0;
-  const fresh = OV.fresh[t.id] || new Set();
+  const freshNames = OV.fresh[t.id] || [];
   const title = t.title || t.circuit;
   const cls = t.class_name || '';
   if (!b) {
@@ -147,14 +177,15 @@ function blockHTML(t) {
       <div class="ov-h"><b>${esc(title)}</b><span class="ov-meta">${esc(cls)} · ${esc(t.circuit || '')}</span></div>
       <p class="ov-wait">读取进度…（下一轮自动重试）</p></section>`;
   }
-  return `<section class="ov-block">
+  return `<section class="ov-block${freshNames.length ? ' fresh' : ''}">
     <div class="ov-h">
       <b>${esc(title)}</b>
       <span class="ov-meta">${esc(cls)} · ${esc(t.circuit || '')} · 已完成 <em>${done}</em>/<em>${total}</em></span>
+      ${freshNames.length ? `<span class="ov-fresh">刚刚完成：${esc(freshNames.join('、'))}</span>` : ''}
       <span class="ov-left ${pend.length ? '' : 'ok'}">${pend.length ? '还差 ' + pend.length + ' 人' : '全部完成 ✔'}</span>
     </div>
     ${pend.length ? `<div class="ov-grid">${pend.map(p => `
-      <button type="button" class="ov-chip${fresh.has(String(p.student_id)) ? ' fresh' : ''}"
+      <button type="button" class="ov-chip"
               data-task="${esc(t.id)}" data-rank-for="${esc(p.student_id)}"
               title="点一下：以「${esc(p.name || p.no || '')}」的身份打开这一题的排位（接完自动算他完成）">
         <i>${esc(String(p.name || p.no || '?').trim().slice(0, 1))}</i>
@@ -178,9 +209,12 @@ const clock = () => {
   return p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
 };
 function tick() {
+  clearTimeout(OV.clockT);
+  OV.clockT = 0;
   const el = $('#ovClock');
-  if (el) el.textContent = clock();
-  setTimeout(() => { if (document.getElementById('ovClock')) tick(); }, 1000);
+  if (!el) return;
+  el.textContent = clock();
+  OV.clockT = setTimeout(tick, 1000);
 }
 
 /* 全屏键（希沃/一体机上顺手）：浏览器 F11 之外再给一颗，按 Esc 退出由浏览器管。
