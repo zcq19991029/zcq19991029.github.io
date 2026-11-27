@@ -3,7 +3,7 @@
 <html lang="zh-CN">
 <head>
 <script src="../hx-theme.js" data-tool="wiring"></script>
-<script>window.HX_BUILD = "2026-11-27T12:30:32Z ee7ca62";</script>
+<script>window.HX_BUILD = "2026-11-27T16:41:20Z d573d85";</script>
 <meta charset="utf-8">
 <meta name="copyright" content="© 2026 zcq 版权所有，未经许可禁止复制、修改、转载">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
@@ -3305,13 +3305,9 @@
   html[data-hx-mode="light"] #fw-rank .rk-hero[data-top="3"] {
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, .7), 0 14px 30px -24px rgba(30, 55, 110, .5),
       0 0 0 1px rgba(168, 98, 44, .30), 0 0 24px -9px rgba(168, 98, 44, .34); }
-  /* === H5 全息箔面 === */
+  /* === H5 全息箔面（仅抽人翻牌，无用户背景照片） === */
   #fw-draw .drw-card[data-r="purple"].is-flip .drw-cface::after,
-  #fw-draw .drw-card[data-r="gold"].is-flip .drw-cface::after,
-  #fw-rank .rk-board2 li.rk-lb[data-tier="1"]::after,
-  #fw-rank .rk-board2 li.rk-lb[data-tier="2"]::after,
-  #fw-rank .rk-board2 li.rk-lb[data-tier="3"]::after,
-  #fw-rankcard .rkc-prev::after {
+  #fw-draw .drw-card[data-r="gold"].is-flip .drw-cface::after {
     content: ""; position: absolute; inset: 0; z-index: 3; pointer-events: none; border-radius: inherit;
     background-image:
       radial-gradient(circle at var(--hx-px, 50%) var(--hx-py, 50%), rgba(255, 255, 255, .32) 0%, rgba(255, 255, 255, 0) 56%),
@@ -3330,43 +3326,226 @@
     opacity: .68;
     animation: none;
   }
-  #fw-draw .drw-card[data-r="gold"].is-flip .drw-cface::after,
-  #fw-rank .rk-board2 li.rk-lb[data-tier="1"]::after { opacity: .82; }
-  #fw-rank .rk-board2 li.rk-lb[data-tier="3"]::after { opacity: .58; }
+  #fw-draw .drw-card[data-r="gold"].is-flip .drw-cface::after { opacity: .82; }
   html[data-hx-mode="light"] #fw-draw .drw-card[data-r="purple"].is-flip .drw-cface::after,
   html[data-hx-mode="light"] #fw-draw .drw-card[data-r="gold"].is-flip .drw-cface::after,
-  html[data-hx-mode="light"] #fw-rank .rk-board2 li.rk-lb[data-tier="1"]::after,
-  html[data-hx-mode="light"] #fw-rank .rk-board2 li.rk-lb[data-tier="2"]::after,
-  html[data-hx-mode="light"] #fw-rank .rk-board2 li.rk-lb[data-tier="3"]::after,
-  html[data-hx-mode="light"] #fw-rankcard .rkc-prev::after,
   :root[data-theme="light"] #fw-draw .drw-card[data-r="purple"].is-flip .drw-cface::after,
-  :root[data-theme="light"] #fw-draw .drw-card[data-r="gold"].is-flip .drw-cface::after,
-  :root[data-theme="light"] #fw-rank .rk-board2 li.rk-lb[data-tier="1"]::after,
-  :root[data-theme="light"] #fw-rank .rk-board2 li.rk-lb[data-tier="2"]::after,
-  :root[data-theme="light"] #fw-rank .rk-board2 li.rk-lb[data-tier="3"]::after,
-  :root[data-theme="light"] #fw-rankcard .rkc-prev::after {
+  :root[data-theme="light"] #fw-draw .drw-card[data-r="gold"].is-flip .drw-cface::after {
     mix-blend-mode: soft-light;
     opacity: .56;
   }
   html.hx-lite #fw-draw .drw-card[data-r="purple"].is-flip .drw-cface::after,
   html.hx-lite #fw-draw .drw-card[data-r="gold"].is-flip .drw-cface::after,
+  html.is-lite #fw-draw .drw-card[data-r="purple"].is-flip .drw-cface::after,
+  html.is-lite #fw-draw .drw-card[data-r="gold"].is-flip .drw-cface::after { display: none !important; }
+  @media (prefers-reduced-motion: reduce) {
+    #fw-draw .drw-card[data-r="purple"].is-flip .drw-cface::after,
+    #fw-draw .drw-card[data-r="gold"].is-flip .drw-cface::after { display: none !important; }
+  }
+  /* === 排位前三名 ID 卡边缘流光（红/蓝/绿） === */
+  @property --rk-edge-ang {
+    syntax: '<angle>';
+    inherits: false;
+    initial-value: 0deg;
+  }
+  @keyframes rkEdgeFlow {
+    to { --rk-edge-ang: 360deg; }
+  }
+  #fw-rank .rk-board2 li.rk-lb[data-tier="1"]::before,
+  #fw-rank .rk-board2 li.rk-lb[data-tier="2"]::before,
+  #fw-rank .rk-board2 li.rk-lb[data-tier="3"]::before,
+  #fw-rank .rk-board2 li.rk-lb[data-tier="1"] > .rk-lb-run,
+  #fw-rank .rk-board2 li.rk-lb[data-tier="2"] > .rk-lb-run,
+  #fw-rank .rk-board2 li.rk-lb[data-tier="3"] > .rk-lb-run {
+    display: none;
+    animation: none;
+  }
+  #fw-rank .rk-board2 li.rk-lb[data-tier="1"] {
+    border-color: rgba(255, 42, 75, .72);
+    box-shadow: 0 0 18px -4px rgba(255, 42, 75, .58), 0 14px 30px -18px rgba(255, 42, 75, .82);
+  }
+  #fw-rank .rk-board2 li.rk-lb[data-tier="2"] {
+    border-color: rgba(30, 144, 255, .72);
+    box-shadow: 0 0 18px -4px rgba(30, 144, 255, .55), 0 14px 30px -18px rgba(30, 144, 255, .78);
+  }
+  #fw-rank .rk-board2 li.rk-lb[data-tier="3"] {
+    border-color: rgba(22, 204, 116, .72);
+    box-shadow: 0 0 18px -4px rgba(22, 204, 116, .52), 0 14px 30px -18px rgba(22, 204, 116, .74);
+  }
+  #fw-rank .rk-board2 li.rk-lb[data-tier="1"]::after,
+  #fw-rank .rk-board2 li.rk-lb[data-tier="2"]::after,
+  #fw-rank .rk-board2 li.rk-lb[data-tier="3"]::after,
+  #fw-rankcard .rkc-prev[data-tier="1"]::after,
+  #fw-rankcard .rkc-prev[data-tier="2"]::after,
+  #fw-rankcard .rkc-prev[data-tier="3"]::after {
+    content: ""; position: absolute; inset: 0; z-index: 4; pointer-events: none;
+    border-radius: inherit; padding: 2px;
+    background-size: auto; background-position: 0 0; background-repeat: no-repeat;
+    mix-blend-mode: normal; opacity: 1;
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask-composite: exclude;
+    animation: rkEdgeFlow 3.4s linear infinite;
+  }
+  #fw-rank .rk-board2 li.rk-lb[data-tier="1"]::after,
+  #fw-rankcard .rkc-prev[data-tier="1"]::after {
+    background: conic-gradient(from var(--rk-edge-ang),
+      rgba(255, 42, 75, .28) 0deg,
+      #ff2a4b 54deg,
+      #ff7a90 92deg,
+      #ffe2e7 110deg,
+      #ff2a4b 134deg,
+      rgba(255, 42, 75, .28) 180deg,
+      rgba(255, 42, 75, .28) 216deg,
+      #ff2a4b 268deg,
+      #ff7a90 306deg,
+      #ffe2e7 324deg,
+      #ff2a4b 346deg,
+      rgba(255, 42, 75, .28) 360deg);
+  }
+  #fw-rank .rk-board2 li.rk-lb[data-tier="2"]::after,
+  #fw-rankcard .rkc-prev[data-tier="2"]::after {
+    background: conic-gradient(from var(--rk-edge-ang),
+      rgba(32, 144, 255, .28) 0deg,
+      #1e90ff 54deg,
+      #69d2ff 92deg,
+      #e0f7ff 110deg,
+      #1e90ff 134deg,
+      rgba(32, 144, 255, .28) 180deg,
+      rgba(32, 144, 255, .28) 216deg,
+      #1e90ff 268deg,
+      #69d2ff 306deg,
+      #e0f7ff 324deg,
+      #1e90ff 346deg,
+      rgba(32, 144, 255, .28) 360deg);
+    animation-duration: 4.0s;
+  }
+  #fw-rank .rk-board2 li.rk-lb[data-tier="3"]::after,
+  #fw-rankcard .rkc-prev[data-tier="3"]::after {
+    background: conic-gradient(from var(--rk-edge-ang),
+      rgba(22, 204, 116, .28) 0deg,
+      #16cc74 54deg,
+      #6effb8 92deg,
+      #e2fff0 110deg,
+      #16cc74 134deg,
+      rgba(22, 204, 116, .28) 180deg,
+      rgba(22, 204, 116, .28) 216deg,
+      #16cc74 268deg,
+      #6effb8 306deg,
+      #e2fff0 324deg,
+      #16cc74 346deg,
+      rgba(22, 204, 116, .28) 360deg);
+    animation-duration: 4.6s;
+  }
+  html[data-hx-mode="light"] #fw-rank .rk-board2 li.rk-lb[data-tier="1"],
+  :root[data-theme="light"] #fw-rank .rk-board2 li.rk-lb[data-tier="1"] {
+    border-color: rgba(232, 34, 68, .75);
+    box-shadow: 0 0 16px -4px rgba(232, 34, 68, .42), 0 10px 24px -16px rgba(232, 34, 68, .55);
+  }
+  html[data-hx-mode="light"] #fw-rank .rk-board2 li.rk-lb[data-tier="2"],
+  :root[data-theme="light"] #fw-rank .rk-board2 li.rk-lb[data-tier="2"] {
+    border-color: rgba(20, 118, 240, .75);
+    box-shadow: 0 0 16px -4px rgba(20, 118, 240, .40), 0 10px 24px -16px rgba(20, 118, 240, .52);
+  }
+  html[data-hx-mode="light"] #fw-rank .rk-board2 li.rk-lb[data-tier="3"],
+  :root[data-theme="light"] #fw-rank .rk-board2 li.rk-lb[data-tier="3"] {
+    border-color: rgba(14, 168, 96, .75);
+    box-shadow: 0 0 16px -4px rgba(14, 168, 96, .38), 0 10px 24px -16px rgba(14, 168, 96, .48);
+  }
+  html[data-hx-mode="light"] #fw-rank .rk-board2 li.rk-lb[data-tier="1"]::after,
+  :root[data-theme="light"] #fw-rank .rk-board2 li.rk-lb[data-tier="1"]::after,
+  html[data-hx-mode="light"] #fw-rankcard .rkc-prev[data-tier="1"]::after,
+  :root[data-theme="light"] #fw-rankcard .rkc-prev[data-tier="1"]::after {
+    background: conic-gradient(from var(--rk-edge-ang),
+      rgba(224, 28, 62, .38) 0deg,
+      #e61f43 56deg,
+      #ff5c78 96deg,
+      #ffccd6 112deg,
+      #e61f43 136deg,
+      rgba(224, 28, 62, .38) 180deg,
+      rgba(224, 28, 62, .38) 216deg,
+      #e61f43 268deg,
+      #ff5c78 308deg,
+      #ffccd6 326deg,
+      #e61f43 348deg,
+      rgba(224, 28, 62, .38) 360deg);
+  }
+  html[data-hx-mode="light"] #fw-rank .rk-board2 li.rk-lb[data-tier="2"]::after,
+  :root[data-theme="light"] #fw-rank .rk-board2 li.rk-lb[data-tier="2"]::after,
+  html[data-hx-mode="light"] #fw-rankcard .rkc-prev[data-tier="2"]::after,
+  :root[data-theme="light"] #fw-rankcard .rkc-prev[data-tier="2"]::after {
+    background: conic-gradient(from var(--rk-edge-ang),
+      rgba(18, 116, 238, .38) 0deg,
+      #1476f0 56deg,
+      #4eb8ff 96deg,
+      #cceeff 112deg,
+      #1476f0 136deg,
+      rgba(18, 116, 238, .38) 180deg,
+      rgba(18, 116, 238, .38) 216deg,
+      #1476f0 268deg,
+      #4eb8ff 308deg,
+      #cceeff 326deg,
+      #1476f0 348deg,
+      rgba(18, 116, 238, .38) 360deg);
+  }
+  html[data-hx-mode="light"] #fw-rank .rk-board2 li.rk-lb[data-tier="3"]::after,
+  :root[data-theme="light"] #fw-rank .rk-board2 li.rk-lb[data-tier="3"]::after,
+  html[data-hx-mode="light"] #fw-rankcard .rkc-prev[data-tier="3"]::after,
+  :root[data-theme="light"] #fw-rankcard .rkc-prev[data-tier="3"]::after {
+    background: conic-gradient(from var(--rk-edge-ang),
+      rgba(12, 166, 94, .38) 0deg,
+      #0fa860 56deg,
+      #42e096 96deg,
+      #c8fce2 112deg,
+      #0fa860 136deg,
+      rgba(12, 166, 94, .38) 180deg,
+      rgba(12, 166, 94, .38) 216deg,
+      #0fa860 268deg,
+      #42e096 308deg,
+      #c8fce2 326deg,
+      #0fa860 348deg,
+      rgba(12, 166, 94, .38) 360deg);
+  }
   html.hx-lite #fw-rank .rk-board2 li.rk-lb[data-tier="1"]::after,
   html.hx-lite #fw-rank .rk-board2 li.rk-lb[data-tier="2"]::after,
   html.hx-lite #fw-rank .rk-board2 li.rk-lb[data-tier="3"]::after,
-  html.hx-lite #fw-rankcard .rkc-prev::after,
-  html.is-lite #fw-draw .drw-card[data-r="purple"].is-flip .drw-cface::after,
-  html.is-lite #fw-draw .drw-card[data-r="gold"].is-flip .drw-cface::after,
+  html.hx-lite #fw-rankcard .rkc-prev[data-tier="1"]::after,
+  html.hx-lite #fw-rankcard .rkc-prev[data-tier="2"]::after,
+  html.hx-lite #fw-rankcard .rkc-prev[data-tier="3"]::after,
   html.is-lite #fw-rank .rk-board2 li.rk-lb[data-tier="1"]::after,
   html.is-lite #fw-rank .rk-board2 li.rk-lb[data-tier="2"]::after,
   html.is-lite #fw-rank .rk-board2 li.rk-lb[data-tier="3"]::after,
-  html.is-lite #fw-rankcard .rkc-prev::after { display: none !important; }
+  html.is-lite #fw-rankcard .rkc-prev[data-tier="1"]::after,
+  html.is-lite #fw-rankcard .rkc-prev[data-tier="2"]::after,
+  html.is-lite #fw-rankcard .rkc-prev[data-tier="3"]::after {
+    animation: none;
+  }
+  html.hx-lite #fw-rank .rk-board2 li.rk-lb[data-tier="1"]::after,
+  html.is-lite #fw-rank .rk-board2 li.rk-lb[data-tier="1"]::after,
+  html.hx-lite #fw-rankcard .rkc-prev[data-tier="1"]::after,
+  html.is-lite #fw-rankcard .rkc-prev[data-tier="1"]::after { background: #ff2a4b; }
+  html.hx-lite #fw-rank .rk-board2 li.rk-lb[data-tier="2"]::after,
+  html.is-lite #fw-rank .rk-board2 li.rk-lb[data-tier="2"]::after,
+  html.hx-lite #fw-rankcard .rkc-prev[data-tier="2"]::after,
+  html.is-lite #fw-rankcard .rkc-prev[data-tier="2"]::after { background: #1e90ff; }
+  html.hx-lite #fw-rank .rk-board2 li.rk-lb[data-tier="3"]::after,
+  html.is-lite #fw-rank .rk-board2 li.rk-lb[data-tier="3"]::after,
+  html.hx-lite #fw-rankcard .rkc-prev[data-tier="3"]::after,
+  html.is-lite #fw-rankcard .rkc-prev[data-tier="3"]::after { background: #16cc74; }
   @media (prefers-reduced-motion: reduce) {
-    #fw-draw .drw-card[data-r="purple"].is-flip .drw-cface::after,
-    #fw-draw .drw-card[data-r="gold"].is-flip .drw-cface::after,
     #fw-rank .rk-board2 li.rk-lb[data-tier="1"]::after,
     #fw-rank .rk-board2 li.rk-lb[data-tier="2"]::after,
     #fw-rank .rk-board2 li.rk-lb[data-tier="3"]::after,
-    #fw-rankcard .rkc-prev::after { display: none !important; }
+    #fw-rankcard .rkc-prev[data-tier="1"]::after,
+    #fw-rankcard .rkc-prev[data-tier="2"]::after,
+    #fw-rankcard .rkc-prev[data-tier="3"]::after { animation: none; }
+    #fw-rank .rk-board2 li.rk-lb[data-tier="1"]::after,
+    #fw-rankcard .rkc-prev[data-tier="1"]::after { background: #ff2a4b; }
+    #fw-rank .rk-board2 li.rk-lb[data-tier="2"]::after,
+    #fw-rankcard .rkc-prev[data-tier="2"]::after { background: #1e90ff; }
+    #fw-rank .rk-board2 li.rk-lb[data-tier="3"]::after,
+    #fw-rankcard .rkc-prev[data-tier="3"]::after { background: #16cc74; }
   }
 </style>
 </head>
@@ -9055,7 +9234,7 @@ hxLock();
 /* === H5 全息箔面指针倾角委托（仅非极简 + hover 桌面） === */
 (() => {
   try { if (!matchMedia('(hover: hover)').matches) return; } catch (e) { return; }
-  const SEL = '#fw-draw .drw-card[data-r="purple"].is-flip .drw-cface,#fw-draw .drw-card[data-r="gold"].is-flip .drw-cface,#fw-rank .rk-board2 li.rk-lb[data-tier="1"],#fw-rank .rk-board2 li.rk-lb[data-tier="2"],#fw-rank .rk-board2 li.rk-lb[data-tier="3"],#fw-rankcard .rkc-prev';
+  const SEL = '#fw-draw .drw-card[data-r="purple"].is-flip .drw-cface,#fw-draw .drw-card[data-r="gold"].is-flip .drw-cface';
   const root = document.documentElement;
   let cur = null, raf = 0, lx = 0, ly = 0;
   const reset = el => { if (!el) return; el.style.removeProperty('--hx-px'); el.style.removeProperty('--hx-py'); el.style.removeProperty('--hx-ang'); };
