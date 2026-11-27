@@ -1535,6 +1535,15 @@ body.ppdragging #ppFrame { pointer-events: none; }
 .pi-qt { font-size: 13px; line-height: 1.55; color: var(--ink2, #333); display: flex; gap: 10px; align-items: flex-start; }
 .pi-thumb { max-height: 72px; max-width: 220px; object-fit: contain; border: 1px solid var(--hair, #e6e8ee); border-radius: 6px; background: #fff; }
 .lib-i.picked { border-color: var(--acc, #2f6bff); background: var(--accbg, rgba(47, 107, 255, .08)); }
+.lib-ex-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 5px; }
+.lib-ex-badge { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 3px 10px;
+  border-radius: 999px; border: 1px solid var(--acc, #2f6bff); background: var(--accbg, rgba(47, 107, 255, .12));
+  color: var(--acc, #2f6bff); font-size: 11.5px; font-weight: 600; line-height: 1.4; text-align: left;
+  white-space: normal; word-break: break-word; cursor: pointer; transition: filter .14s ease, transform .14s ease; }
+.lib-ex-badge::before { content: ""; flex: none; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.lib-ex-badge.shut { border-color: var(--hair, rgba(15, 23, 42, .16)); background: var(--field2, rgba(15, 23, 42, .05)); color: var(--ink2, var(--mute, #6b7280)); }
+.lib-ex-badge:hover { filter: brightness(1.06); transform: translateY(-1px); }
+.ex-item.ex-focus { border-color: var(--acc, #2f6bff); box-shadow: 0 0 0 3px var(--accbg, rgba(47, 107, 255, .22)); transition: box-shadow .25s ease, border-color .25s ease; }
 @media (max-width: 720px) {
   .lib-page-list .lib-i.pickable { grid-template-columns: auto minmax(0, 1fr); }
   .lib-page-list .lib-i.pickable .lib-a { grid-column: 2; justify-content: flex-start; flex-wrap: wrap; }
@@ -13496,6 +13505,95 @@ async function paperHome() {
    ③ 点「开始查重」才真正算（老师可能连勾三套，不能一勾就算一遍）。
    勾选状态只活在本次会话（LIB_PICK），刷新归零 —— 和题库栏的 bankPinned 一个道理。 */
 let LIB_PICK = new Set(), LIB_PICK_SUB = '';
+let LIB_EXAMS = [], LIB_EXAMS_AT = 0, LIB_EXAMS_PEND = null, EX_FOCUS_ID = null;
+
+async function libExamsFetch(force) {
+  if (!force && LIB_EXAMS_AT && Date.now() - LIB_EXAMS_AT < 15000) return LIB_EXAMS;
+  if (LIB_EXAMS_PEND) return LIB_EXAMS_PEND;
+  LIB_EXAMS_PEND = (async () => {
+    try {
+      const r = await rpc('hx_exam_mine');
+      if (Array.isArray(r)) {
+        LIB_EXAMS = r;
+        LIB_EXAMS_AT = Date.now();
+      }
+    } catch (e) { /* 静默兜底：接口失败绝不阻断试卷库列表 */ }
+    finally { LIB_EXAMS_PEND = null; }
+    return LIB_EXAMS;
+  })();
+  return LIB_EXAMS_PEND;
+}
+
+function libExamNorm(s) {
+  if (typeof libNormText === 'function') return libNormText(s).toLowerCase();
+  return String(s == null ? '' : s).replace(/[\s\p{P}\p{S}]/gu, '').toLowerCase();
+}
+
+function libMatchExams(it, exams) {
+  if (!it || !Array.isArray(exams) || !exams.length) return [];
+  const sub = String(it.sub || '');
+  const sameSub = exams.filter(x => x && String(x.subject || '') === sub);
+  if (!sameSub.length) return [];
+  const na = libExamNorm(it.name);
+  let libQs = null;
+  const getLibQs = () => {
+    if (libQs !== null) return libQs;
+    libQs = [];
+    try {
+      const qs = typeof libPaperQs === 'function' ? libPaperQs(it.payload) : [];
+      qs.forEach(q => {
+        const t = libExamNorm(q && q.text);
+        const id = q && q.qid != null ? String(q.qid).replace(/^id:/, '') : '';
+        if (t || id) libQs.push({ t, id });
+      });
+    } catch (e) { }
+    return libQs;
+  };
+  const scored = [];
+  sameSub.forEach(x => {
+    let score = 0;
+    const nb = libExamNorm(x.title);
+    if (na && nb) {
+      if (na === nb) score = Math.max(score, 100);
+      else if (Math.min(na.length, nb.length) >= 4 && (na.includes(nb) || nb.includes(na))) score = Math.max(score, 80);
+    }
+    if (!score && x.paper && typeof ePaperDecode === 'function') {
+      const aQs = getLibQs();
+      if (aQs.length > 0) {
+        const eqs = ePaperDecode(x.paper) || [];
+        const bTs = new Set(), bIds = new Set();
+        let bCount = 0;
+        eqs.forEach(q => {
+          const t = libExamNorm(q && (q.q || q.stem || q.text));
+          const id = q && q.id != null ? String(q.id).replace(/^id:/, '') : '';
+          if (t || id) {
+            bCount++;
+            if (t) bTs.add(t);
+            if (id) bIds.add(id);
+          }
+        });
+        if (bCount > 0) {
+          let hit = 0;
+          aQs.forEach(q => {
+            if ((q.t && bTs.has(q.t)) || (q.id && bIds.has(q.id))) hit++;
+          });
+          const denom = Math.max(aQs.length, bCount);
+          const ratio = hit / denom;
+          if (ratio >= 0.6) score = Math.max(score, Math.round(ratio * 70));
+        }
+      }
+    }
+    if (score > 0) scored.push({ x, score });
+  });
+  scored.sort((a, b) => b.score - a.score || (new Date(b.x.created_at || 0) - new Date(a.x.created_at || 0)));
+  return scored.map(s => s.x);
+}
+
+function libJumpExam(x) {
+  if (!x || x.id == null) return;
+  EX_FOCUS_ID = +x.id;
+  showT('exam');
+}
 
 /* 试卷库存的是「设置 + 种子 + 点名题」这份 C，不是成品题清单；
    要逐题比重复度，得先把这个科目的题池摆回内存里，让 libPaperQs 能按种子还原整卷。
@@ -13552,7 +13650,9 @@ async function libHome() {
   if ($('libBatchDelete')) $('libBatchDelete').onclick = async () => {
     const ids = [...LIB_PICK];
     if (!ids.length) return;
-    if (!await hxConfirm('确定删除已勾选的 ' + ids.length + ' 套试卷？删除后可在回收站恢复。')) return;
+    const relCodes = [...new Set(ids.flatMap(id => libMatchExams(libById(id), LIB_EXAMS).map(x => x.code).filter(Boolean)))];
+    const relTip = relCodes.length ? `\n\n注意：已发布的电子考试（考试码 ${relCodes.join('、')}）不受影响。` : '';
+    if (!await hxConfirm('确定删除已勾选的 ' + ids.length + ' 套试卷？删除后可在回收站恢复。' + relTip)) return;
     const b = $('libBatchDelete'), tok = window.HXBusy ? HXBusy.begin(b, '正在批量删除…') : null;
     try { for (const id of ids) { const r = await libDel(id); if (!r.ok) throw new Error(r.err); } LIB_PICK.clear(); libListPaint(); toast('已批量删除'); }
     catch (e) { toast('批量删除未完成：' + e.message); }
@@ -13571,12 +13671,14 @@ async function libHome() {
   if ($('libReload')) $('libReload').onclick = async () => {
     const b = $('libReload'), tok = (window.HXBusy && b) ? HXBusy.begin(b, '正在同步…') : null;
     if (!tok) b.disabled = true;
-    try { if (window.HXLib) await HXLib.sync(); libListPaint(); toast('已跟云端对齐'); }
+    try { await Promise.all([window.HXLib ? HXLib.sync() : null, libExamsFetch(true)]); libListPaint(); toast('已跟云端对齐'); }
     catch (e) { toast('刷新失败：' + (e && e.message ? e.message : e)); }
     finally { if (tok) HXBusy.end(tok); else b.disabled = false; }
   };
+  const exTask = libExamsFetch();
   await libEnsurePool(sub);
   await libLoad('paper', sub);
+  await exTask;
   /* 等题池这一两秒里老师可能已经切走了：节点没了就不要再往里写 */
   if (!$('libList') || CUR_T !== 'lib') return;
   libListPaint();
@@ -13588,9 +13690,13 @@ async function libHome() {
 function libListPaint() {
   const el = $('libList');
   if (!el) return;
+  if (!LIB_EXAMS_AT && !LIB_EXAMS_PEND) {
+    libExamsFetch().then(() => { if ($('libList') && CUR_T === 'lib' && LIB_EXAMS.length) libListPaint(); });
+  }
   const live = new Set(libItems('paper', LIB_PICK_SUB).map(x => x.id));
   [...LIB_PICK].forEach(id => { if (!live.has(id)) LIB_PICK.delete(id); });
   el.innerHTML = libListHTML('paper', LIB_PICK_SUB);
+  const relById = new Map();
   el.querySelectorAll('.lib-i').forEach(row => {
     const id = row.dataset.libId || '';
     row.classList.add('pickable');
@@ -13600,7 +13706,59 @@ function libListPaint() {
     lab.innerHTML = `<input type="checkbox" data-libpick="${esc(id)}" aria-label="勾选这套卷查重复度"${LIB_PICK.has(id) ? ' checked' : ''}>`;
     row.insertBefore(lab, row.firstChild);
     row.classList.toggle('picked', LIB_PICK.has(id));
+    const it = libById(id);
+    const hits = libMatchExams(it, LIB_EXAMS);
+    if (hits.length) {
+      relById.set(id, hits);
+      const wrap = document.createElement('div');
+      wrap.className = 'lib-ex-badges';
+      hits.forEach(x => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'lib-ex-badge ' + (x.open ? 'open' : 'shut');
+        btn.dataset.exJump = String(x.id);
+        btn.dataset.exCode = String(x.code || '');
+        btn.title = '点击跳转到该电子考试并高亮定位';
+        btn.textContent = `已发电子卷 · 考试码 ${x.code} · ${x.open ? '考试中' : '已收卷'} · ${+x.subs || 0}人交卷`;
+        btn.onclick = ev => { ev.stopPropagation(); libJumpExam(x); };
+        wrap.appendChild(btn);
+      });
+      const meta = row.querySelector('.lib-m');
+      if (meta) meta.appendChild(wrap);
+    }
   });
+  if (el._libDelAc) el._libDelAc.abort();
+  const delAc = el._libDelAc = new AbortController();
+  el.addEventListener('click', async e => {
+    const b = e.target.closest('[data-lib="del"]');
+    if (!b || !el.contains(b)) return;
+    const row = b.closest('[data-lib-id]');
+    const id = row && row.dataset.libId;
+    const hits = id ? relById.get(id) : null;
+    if (!hits || !hits.length) return;
+    const it = libById(id);
+    if (!it) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    e.stopPropagation();
+    const codes = hits.map(x => x.code).filter(Boolean).join('、');
+    const msg = `确定删除「${it.name}」？删除后可在回收站恢复。\n\n注意：已发布的电子考试（考试码 ${codes}）不受影响。`;
+    if (typeof hxConfirm === 'function' && !(await hxConfirm(msg))) return;
+    if (typeof libRowNote === 'function') libRowNote(row, '');
+    const tok = (window.HXBusy && b) ? HXBusy.begin(b, '正在删除…') : null;
+    if (!tok) row.style.opacity = '.55';
+    try {
+      const r = await libDel(id);
+      if (r.ok) { toast('已删除'); libListPaint(); }
+      else { if (typeof libRowNote === 'function') libRowNote(row, '没删掉：' + r.err); toast('没删掉：' + r.err); }
+    } catch (err) {
+      const m = err && err.message ? err.message : String(err);
+      if (typeof libRowNote === 'function') libRowNote(row, '没删掉：' + m);
+      toast('没删掉：' + m);
+    } finally {
+      if (tok) HXBusy.end(tok); else row.style.opacity = '';
+    }
+  }, { capture: true, signal: delAc.signal });
   libBind(el, 'paper', LIB_PICK_SUB, {
     onUse: (id, it) => {
       const p = it.payload || {};
@@ -13804,7 +13962,12 @@ function libPickChange(e) {
   const cb = e.target.closest('[data-libpick]');
   if (!cb) return;
   const id = cb.dataset.libpick;
-  setTimeout(() => { libPubBtnPaint(); libSpecBtnPaint(); }, 0);
+  setTimeout(() => {
+    libPubBtnPaint();
+    libSpecBtnPaint();
+    const batch = $('libBatchDelete');
+    if (batch) { batch.disabled = LIB_PICK.size === 0; batch.textContent = LIB_PICK.size ? `批量删除（${LIB_PICK.size}）` : '批量删除'; }
+  }, 0);
   if (cb.checked) {
     if (LIB_PICK.size >= 3 && !LIB_PICK.has(id)) {
       /* 第 4 个：说清楚为什么勾不上，并把它弹回去 —— 静默无反应最像卡住 */
@@ -14438,6 +14601,7 @@ async function electronicTeacherHome(msg) {
   app().innerHTML = `<header class="ex-h"><div class="eyebrow">教师</div><h1>考试</h1><p>从资料库题池组一套电子卷，发布考试码给学生</p></header>${msg ? `<div class="errs">${E_ESC(msg)}</div>` : ''}<div class="row" style="margin-bottom:14px"><button class="pri" id="btnNew">发布电子试卷</button></div><div id="list">${fxLoad('加载中…')}</div>`;
   if (window.HXLoadFx) HXLoadFx.auto($('list')); $('btnNew').onclick = () => electronicEditExam();
   let list; try { [list, CLASSES] = await Promise.all([rpc('hx_exam_mine'), CLASSES || rpc('hx_my_classes')]); } catch (e) { const b0 = $('list'); if (b0) b0.innerHTML = `<div class="errs">${E_ESC(e.message)}</div>`; return; }
+  if (Array.isArray(list)) { LIB_EXAMS = list; LIB_EXAMS_AT = Date.now(); }
   /* 2026-11-17：成绩发布状态 + 撤销/重新发布 + 删除整场。
      发布状态单独走 hx_exam_rel_list（hx_exam_mine 是 returns table，加列等于改返回类型，
      不能 create or replace）。这一支读不出来时**不挡整页**：卡片照画，只把发布按钮置灰并写明原因。 */
@@ -14575,6 +14739,25 @@ async function electronicTeacherHome(msg) {
   }
   drawList();
   if (!list.length) $('list').innerHTML = emptyCard('还没有电子考试，点“发布电子试卷”开始。');
+  if (EX_FOCUS_ID != null) {
+    const targetId = EX_FOCUS_ID;
+    EX_FOCUS_ID = null;
+    const doneIdx = done.findIndex(x => +x.id === targetId);
+    if (doneIdx >= 0) {
+      EX_DONE_OPEN = true;
+      EX_DONE_CUR = doneIdx;
+      const tg = $('doneToggle'), box = $('doneBox');
+      if (tg) tg.setAttribute('aria-expanded', 'true');
+      if (box) box.hidden = false;
+      drawDone();
+    }
+    const card = document.querySelector(`.ex-item[data-exam="${targetId}"]`);
+    if (card) {
+      card.classList.add('ex-focus');
+      try { card.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) { }
+      setTimeout(() => { if (card.isConnected) card.classList.remove('ex-focus'); }, 3500);
+    }
+  }
 }
 
 /* ================= 删题浮层（2026-11-17 新增） =================
